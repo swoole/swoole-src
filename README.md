@@ -3,8 +3,17 @@ php_swoole
 
 PHP extension.A socket server framework.
 
+feature
+-----
+
+*event driver. callback php function.
+*asynchronous and non-blocking.
+*no lock. no thread mutex. no semaphore.
+*separate read and write.
+*it can run at multi thread or multi proccess.
+
 example:
-==========
+-----
 <pre>
 <?php
 >$serv = swoole_server_create("127.0.0.1", 9500, 1);
