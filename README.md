@@ -59,3 +59,8 @@ swoole_server_handler($serv, 'onShutdown', 'my_onShutdown');
 swoole_server_start($serv);
 ?>
 </pre>
+	php server.php
+
+	telnet 127.0.0.1 9500
+	hello
+	server: hello
