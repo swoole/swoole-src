@@ -56,8 +56,8 @@
 #define SW_FD_LISTEN           1
 #define SW_FD_CLOSE            2
 #define SW_FD_ERROR            3
-//#define swTrace(str,...)       {}
-#define swTrace(str,...)       {/*printf("ThreadID=%ld\n",pthread_self());*/printf("[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
+#define swTrace(str,...)       {}
+//#define swTrace(str,...)       {/*printf("ThreadID=%ld\n",pthread_self());*/printf("[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
 
 #define SW_MAX_FDTYPE 32 //32 kinds of event
 typedef struct _swEventData
