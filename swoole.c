@@ -123,6 +123,9 @@ PHP_MINIT_FUNCTION(swoole)
 	 REGISTER_INI_ENTRIES();
 	 */
 	le_serv = zend_register_list_destructors_ex(sw_destory_server, NULL, le_serv_name, module_number);
+	REGISTER_LONG_CONSTANT("SWOOLE_BASE", SW_MODE_CALL, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SWOOLE_THREAD", SW_MODE_THREAD, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SWOOLE_PROCESS", SW_MODE_PROCESS, CONST_CS | CONST_PERSISTENT);
 	return SUCCESS;
 }
 /* }}} */
@@ -349,9 +352,6 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	{
 		zend_error(E_WARNING, "SwooleServer: onReceive handler error");
 	}
-	zval_ptr_dtor(&(args[1]));
-	zval_ptr_dtor(&(args[2]));
-	zval_ptr_dtor(&(args[3]));
 	return SW_OK;
 }
 
@@ -420,8 +420,6 @@ void php_swoole_onConnect(swServer *serv, int fd, int from_id)
 	{
 		zend_error(E_WARNING, "SwooleServer: onConnect handler error");
 	}
-	zval_ptr_dtor(&(args[1]));
-	zval_ptr_dtor(&(args[2]));
 }
 
 void php_swoole_onClose(swServer *serv, int fd, int from_id)
@@ -451,8 +449,6 @@ void php_swoole_onClose(swServer *serv, int fd, int from_id)
 	{
 		zend_error(E_WARNING, "SwooleServer: onClose handler error");
 	}
-	zval_ptr_dtor(&(args[1]));
-	zval_ptr_dtor(&(args[2]));
 }
 
 PHP_FUNCTION(swoole_server_start)

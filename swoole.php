@@ -1,9 +1,9 @@
 <?php
-$serv = swoole_server_create("127.0.0.1", 9500, 1);
+$serv = swoole_server_create("127.0.0.1", 9500, SWOOLE_BASE);
 
 swoole_server_set($serv, array(
     'timeout' => 2.5,
-    'poll_thread_num' => 1,
+    'poll_thread_num' => 2,
     'writer_num' => 2,
     'worker_num' => 2,
     'backlog' => 128,
