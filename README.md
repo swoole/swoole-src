@@ -12,7 +12,7 @@ feature
 * separate read and write.
 * it can run at multi thread or multi proccess.
 
-example:
+example
 -----
 <pre>
 <?php
