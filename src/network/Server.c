@@ -6,8 +6,9 @@ static int child_fork = 0;
 static int swServer_poll_loop(swThreadParam *param);
 static int swServer_poll_start(swServer *serv);
 static int swServer_check_callback(swServer *serv);
-int swServer_poll_onClose(swReactor *reactor, swEvent *event);
-int swServer_poll_onReceive(swReactor *reactor, swEvent *event);
+static int swServer_poll_onClose(swReactor *reactor, swEvent *event);
+static int swServer_poll_onReceive(swReactor *reactor, swEvent *event);
+static int swServer_poll_onReceive2(swReactor *reactor, swEvent *event);
 
 int swServer_onClose(swReactor *reactor, swEvent *event)
 {
@@ -108,6 +109,14 @@ int swServer_start(swServer *serv)
 	{
 		return ret;
 	}
+	//run as daemon
+	if(serv->daemonize > 0 )
+	{
+		if(daemon(1, 1) < 0)
+		{
+			return SW_ERR;
+		}
+	}
 	ret = factory->start(factory);
 	if (ret < 0)
 	{
@@ -185,12 +194,13 @@ void swServer_init(swServer *serv)
 	serv->backlog = SW_BACKLOG;
 	serv->factory_mode = SW_MODE_CALL;
 	serv->poll_thread_num = SW_THREAD_NUM;
+	serv->daemonize = 0;
 
-	serv->timeout_sec = 5;
-	serv->timeout_usec = 0; //300000;
+	serv->timeout_sec = 0;
+	serv->timeout_usec = 300000; //300ms;
 
-	serv->writer_num = 0;
-	serv->worker_num = 0;
+	serv->writer_num = SW_CPU_NUM;
+	serv->worker_num = SW_CPU_NUM;
 	serv->max_conn = SW_MAX_FDS;
 
 	serv->onClose = NULL;
@@ -322,7 +332,16 @@ static int swServer_poll_loop(swThreadParam *param)
 	timeo.tv_usec = serv->timeout_usec; //300ms
 	reactor->ptr = serv;
 	reactor->setHandle(reactor, SW_FD_CLOSE, swServer_poll_onClose);
-	reactor->setHandle(reactor, SW_FD_CONN, swServer_poll_onReceive);
+	//Thread mode must copy the data.
+	//will free after onFinish
+	if(serv->factory_mode == SW_MODE_THREAD)
+	{
+		reactor->setHandle(reactor, SW_FD_CONN, swServer_poll_onReceive2);
+	}
+	else
+	{
+		reactor->setHandle(reactor, SW_FD_CONN, swServer_poll_onReceive);
+	}
 	//main loop
 	reactor->wait(reactor, &timeo);
 	//shutdown
@@ -331,7 +350,7 @@ static int swServer_poll_loop(swThreadParam *param)
 	return SW_OK;
 }
 
-int swServer_poll_onReceive(swReactor *reactor, swEvent *event)
+static int swServer_poll_onReceive(swReactor *reactor, swEvent *event)
 {
 	int ret, n;
 	swServer *serv = reactor->ptr;
@@ -354,16 +373,51 @@ int swServer_poll_onReceive(swReactor *reactor, swEvent *event)
 		buf.fd = event->fd;
 		buf.len = ret;
 		buf.from_id = event->from_id;
-		swTrace("recv: %s|fd=%d|ret=%d|errno=%d\n", buf.data, event->fd, ret, errno);
+		//swTrace("recv: %s|fd=%d|ret=%d|errno=%d\n", buf.data, event->fd, ret, errno);
 		n = factory->dispatch(factory, &buf);
 	}
 	return SW_OK;
 }
 
-int swServer_poll_onClose(swReactor *reactor, swEvent *event)
+static int swServer_poll_onReceive2(swReactor *reactor, swEvent *event)
 {
+	int ret;
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &(serv->factory);
+	swEventData *buf = sw_malloc(sizeof(swEventData));
+	if(buf==NULL)
+	{
+		swTrace("Malloc fail\n");
+		return SW_ERR;
+	}
+	bzero(buf->data, sizeof(buf->data));
+	ret = swRead(event->fd, buf->data, SW_BUFFER_SIZE);
+	if (ret < 0)
+	{
+		swTrace("Receive Error.Fd=%d.From=%d\n", event->fd, event->from_id);
+		return SW_ERR;
+	}
+	else if (ret == 0)
+	{
+		swTrace("Close Event.FD=%d|From=%d\n", event->fd, event->from_id);
+		sw_free(buf);
+		return swServer_close(serv, event);
+	}
+	else
+	{
+		buf->fd = event->fd;
+		buf->len = ret;
+		buf->from_id = event->from_id;
+		//swTrace("recv: %s|fd=%d|ret=%d|errno=%d\n", buf->data, event->fd, ret, errno);
+		factory->dispatch(factory, buf);
+	}
+	return SW_OK;
+}
+
+static int swServer_poll_onClose(swReactor *reactor, swEvent *event)
+{
+	swServer *serv = reactor->ptr;
+	//swFactory *factory = &(serv->factory);
 	return swServer_close(serv, event);
 }
 

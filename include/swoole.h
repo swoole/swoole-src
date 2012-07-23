@@ -56,10 +56,21 @@
 #define SW_FD_LISTEN           1
 #define SW_FD_CLOSE            2
 #define SW_FD_ERROR            3
-#define swTrace(str,...)       {}
-//#define swTrace(str,...)       {/*printf("ThreadID=%ld\n",pthread_self());*/printf("[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
 
-#define SW_MAX_FDTYPE 32 //32 kinds of event
+#define SW_MODE_CALL           1
+#define SW_MODE_THREAD         2
+#define SW_MODE_PROCESS        3
+
+#ifdef SW_DEBUG
+#define swTrace(str,...)       {printf("[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
+#else
+#define swTrace(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
+#endif
+
+#define SW_CPU_NUM             sysconf(_SC_NPROCESSORS_ONLN)
+
+#define SW_MAX_FDTYPE          32 //32 kinds of event
+#define SW_ERROR_MSG_SIZE      256
 typedef struct _swEventData
 {
 	int fd;
@@ -102,12 +113,6 @@ typedef void (*swSignalFunc)(int);
 typedef void (*swCallback)(void *);
 typedef struct swReactor_s swReactor;
 typedef int (*swReactor_handle)(swReactor *reactor, swEvent *event);
-
-typedef struct _swNetClient
-{
-	int sock;
-	int id;
-} swNetClient;
 
 typedef struct _swFactory
 {
@@ -159,6 +164,9 @@ typedef struct _swThreadWriter
 } swThreadWriter;
 
 int swoole_running;
+int sw_errno;
+char sw_error[SW_ERROR_MSG_SIZE];
+
 inline int swReactor_error(swReactor *reactor);
 int swReactor_setHandle(swReactor *, int, swReactor_handle);
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);

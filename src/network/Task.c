@@ -1,64 +1,50 @@
-/*
 #include "swoole.h"
+#include "Task.h"
 
-typedef struct _swTask
+
+int swTask_start(swTask *task)
 {
-	swCallback func;
-	void *param;
-} swTaskObject;
-
-typedef struct _swTaskThread
-{
-	pthread_t ptid;
-	int evfd;
-} swTaskThread;
-
-static struct _swTaskReactor
-{
-	int task_num;
-	swTaskThread *threads;
-	int thread_num;
-} swTaskReactor;
-
-int swTaskAdd(swTaskObject *task)
-{
-	return 0;
-}
-*
- * Task waiter
- * @param timeout
-
-int swTaskWait(int timeout)
-{
-	return 0;
-}
-
-int swTaskReactorInit(int thread_num)
-{
-	int i;
-	int evfd;
-
-	swTaskReactor.threads = calloc(thread_num, sizeof(swTaskThread));
-	swTaskReactor.thread_num = thread_num;
-	swTaskReactor.task_num = 0;
-	for (i = 0; i < thread_num; i++)
+	int ret;
+	ret = swReactorSelect_create(&task->reactor);
+	if(ret < 0)
 	{
-		swTaskReactor.threads[i].evfd = eventfd(0,0);
-		if(swTaskReactor.threads[i].evfd < 0)
-		{
-			swTrace("create eventfd fail\n");
-			return -1;
-		}
-		pthread_create(swTaskReactor.threads[i].ptid, NULL, swThreadTask, NULL);
+		swTrace("create reactor fail\n");
+		return ret;
 	}
-	return 0;
-}
-
-void swThreadTask(int pti)
-{
-	while(swoole_running > 0)
+	if(task->factory_mode == SW_MODE_PROCESS)
 	{
-
+		ret = swFactoryProcess_create(&task->factory, task->writer_num, task->worker_num);
 	}
+	//default mode SW_MODE_THREAD
+	else
+	{
+		ret = swFactoryThread_create(&task->factory, task->writer_num);
+	}
+	if(ret < 0)
+	{
+		swTrace("create factory fail\n");
+		return ret;
+	}
+	return SW_OK;
 }
-*/
+
+void swTask_init(swTask *task)
+{
+	task->factory_mode = SW_MODE_THREAD;
+
+	task->timeout_sec = 0;
+	task->timeout_usec = 300000; //300ms;
+
+	task->writer_num = SW_CPU_NUM;
+	task->worker_num = SW_CPU_NUM;
+}
+
+int swTask_add(swTask *task, swCallback cb, void *result)
+{
+	return SW_OK;
+}
+
+int swTask_wait()
+{
+
+}

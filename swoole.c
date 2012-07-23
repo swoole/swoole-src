@@ -479,14 +479,14 @@ PHP_FUNCTION(swoole_server_start)
 	ret = swServer_create(serv);
 	if (ret < 0)
 	{
-		swTrace("create server fail[error=%d].\n", ret);
-		exit(0);
+		zend_error(E_ERROR, "create server fail[errno=%d].\n", ret);
+		RETURN_LONG(ret);
 	}
 	ret = swServer_start(serv);
 	if (ret < 0)
 	{
-		swTrace("start server fail[error=%d].\n", ret);
-		exit(0);
+		zend_error(E_ERROR, "start server fail[errno=%d].\n", ret);
+		RETURN_LONG(ret);
 	}
 	RETURN_TRUE;
 }

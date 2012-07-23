@@ -94,30 +94,16 @@ int swFactoryThread_dispatch(swFactory *factory, swEventData *buf)
 	swFactoryThread *this = factory->object;
 	int ret;
 	int pti;
-	//will switch to writer,muse copy the data
-	//will free after onFinish
-	swEventData *send_data = sw_malloc(sizeof(*buf));
-	if (send_data == NULL)
-	{
-		swTrace("[swFactoryThread_dispatch]malloc fail\n");
-		return SW_ERR;
-	}
-	bzero(send_data, sizeof(*buf));
-
-	send_data->fd = buf->fd;
-	send_data->len = buf->len;
-	memcpy(send_data->data, buf->data, buf->len);
-
+	//使用pti，避免线程切换造成错误的writer_pti
 	pti = this->writer_pti;
 	if (this->writer_pti >= this->writer_num)
 	{
 		this->writer_pti = 0;
 		pti = 0;
 	}
-
 	swTrace("[Thread #%ld]write to client.fd=%d|str=%s", pthread_self(), buf->fd, buf->data);
 	//send data ptr. use event_fd
-	ret = write(this->writers[pti].evfd, &send_data, sizeof(&send));
+	ret = write(this->writers[pti].evfd, &buf, sizeof(&buf));
 	if (ret < 0)
 	{
 		swTrace("Error.ret=%d|writer_pti=%d\n", ret, this->writer_pti);

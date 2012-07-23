@@ -1,10 +1,6 @@
 #ifndef SW_SERVER_H_
 #define SW_SERVER_H_
 
-#define SW_MODE_CALL                    1
-#define SW_MODE_THREAD                  2
-#define SW_MODE_PROCESS                 3
-
 #define SW_EVENT_CLOSE                  5
 #define SW_EVENT_CONNECT                6
 
@@ -27,6 +23,7 @@ struct swServer_s
 	int max_conn;
 	int timeout_sec;
 	int timeout_usec;
+	int daemonize;
 
 	int sock;
 	int event_fd;
