@@ -131,9 +131,10 @@ int swServer_start(swServer *serv)
 	//设置serveraddr
 	inet_aton(serv->host, &(serveraddr.sin_addr));
 	serveraddr.sin_port = htons(serv->port);
+	serveraddr.sin_family = AF_INET;
 	swTrace("Bind host=%s,port=%d \n", serv->host, serv->port);
 	//创建监听套接字
-	serv->sock = socket(AF_INET, SOCK_STREAM, 0);
+	serv->sock = socket(PF_INET, SOCK_STREAM, 0);
 	option = 1;
 	setsockopt(serv->sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int));
 	if (serv->sock < 0)

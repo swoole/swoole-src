@@ -123,7 +123,7 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int writer_pti, int
 	int pid;
 	int pipes[2];
 
-	if (socketpair(AF_UNIX, SOCK_DGRAM, 0, pipes) < 0)
+	if (socketpair(PF_LOCAL, SOCK_DGRAM, 0, pipes) < 0)
 	{
 		swTrace("[swFactoryProcess_worker_spawn]create unix socket fail\n");
 		return SW_ERR;
