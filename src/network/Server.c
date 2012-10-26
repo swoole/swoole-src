@@ -73,23 +73,23 @@ static int swServer_check_callback(swServer *serv)
 	int step = 0;
 	if (serv->onStart == NULL)
 	{
-		return --step;
+		return SW_ERR;
 	}
 	if (serv->onConnect == NULL)
 	{
-		return --step;
+		return SW_ERR;
 	}
 	if (serv->onReceive == NULL)
 	{
-		return --step;
+		return SW_ERR;
 	}
 	if (serv->onClose == NULL)
 	{
-		return --step;
+		return SW_ERR;
 	}
 	if (serv->onShutdown == NULL)
 	{
-		return --step;
+		return SW_ERR;
 	}
 	return SW_OK;
 }
@@ -140,21 +140,21 @@ int swServer_start(swServer *serv)
 	if (serv->sock < 0)
 	{
 		swTrace("[swServerCreate]create socket fail\n");
-		return --step;
+		return SW_ERR;
 	}
 	//将监听套接字同sockaddr绑定
 	ret = bind(serv->sock, (struct sockaddr *) &serveraddr, sizeof(struct sockaddr_in));
 	if (ret != 0)
 	{
 		swTrace("[swServerCreate]bind fail\n");
-		return --step;
+		return SW_ERR;
 	}
 	//开始监听套接字
 	ret = listen(serv->sock, serv->backlog);
 	if (ret != 0)
 	{
 		swTrace("[swServerCreate]listen fail\n");
-		return --step;
+		return SW_ERR;
 	}
 	ret = swReactorSelect_create(&main_reactor);
 	if (ret < 0)
