@@ -23,6 +23,7 @@ swoole_server_set($serv, array(
     'writer_num'=>2,
     'worker_num'=>2,
     'backlog'=>128,
+    'max_request' => 1000, //worker process max request times
 ));
 function my_onStart($serv)
 {
