@@ -2,6 +2,7 @@
 
 int swFactory_create(swFactory *factory)
 {
+	factory->running = 1;
 	factory->dispatch = swFactory_dispatch;
 	factory->finish = swFactory_finish;
 	factory->start = swFactory_start;
@@ -20,10 +21,8 @@ int swFactory_shutdown(swFactory *factory)
 
 int swFactory_dispatch(swFactory *factory, swEventData *req)
 {
-	int ret;
-	swTrace("New Task:%s\n",req->data);
-	ret= factory->onTask(factory, req);
-	return ret;
+	swTrace("New Task:%s\n", req->data);
+	return factory->onTask(factory, req);
 }
 
 int swFactory_finish(swFactory *factory, swSendData *resp)
@@ -33,14 +32,13 @@ int swFactory_finish(swFactory *factory, swSendData *resp)
 
 int swFactory_check_callback(swFactory *factory)
 {
-	int step = 0;
 	if (factory->onTask == NULL)
 	{
-		return --step;
+		return SW_ERR;
 	}
 	if (factory->onFinish == NULL)
 	{
-		return --step;
+		return SW_ERR;
 	}
 	return SW_OK;
 }

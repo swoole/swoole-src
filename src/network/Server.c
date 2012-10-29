@@ -203,6 +203,7 @@ void swServer_init(swServer *serv)
 	serv->writer_num = SW_CPU_NUM;
 	serv->worker_num = SW_CPU_NUM;
 	serv->max_conn = SW_MAX_FDS;
+	serv->max_request = SW_MAX_REQUEST;
 
 	serv->onClose = NULL;
 	serv->onConnect = NULL;
@@ -218,14 +219,14 @@ int swServer_create(swServer *serv)
 	if (serv->event_fd < 0)
 	{
 		swTrace("[swServerCreate]create event_fd fail\n");
-		return --step;
+		return SW_ERR;
 	}
 	//创始化线程池
 	serv->threads = sw_calloc(serv->poll_thread_num, sizeof(swThreadPoll));
 	if (serv->threads == NULL)
 	{
 		swTrace("[swServerCreate]calloc[0] fail\n");
-		return --step;
+		return SW_ERR;
 	}
 	//create factry object
 	if (serv->factory_mode == SW_MODE_THREAD)
@@ -233,7 +234,7 @@ int swServer_create(swServer *serv)
 		if (serv->writer_num < 1)
 		{
 			swTrace("serv->writer_num < 1\n");
-			return --step;
+			return SW_ERR;
 		}
 		ret = swFactoryThread_create(&(serv->factory), serv->writer_num);
 	}
@@ -242,8 +243,14 @@ int swServer_create(swServer *serv)
 		if (serv->writer_num < 1 || serv->worker_num < 1)
 		{
 			swTrace("serv->writer_num < 1 or serv->worker_num < 1\n");
-			return --step;
+			return SW_ERR;
 		}
+		if (serv->max_request < 1)
+		{
+			swTrace("serv->max_request < 1 \n");
+			return SW_ERR;
+		}
+		serv->factory.max_request = serv->max_request;
 		ret = swFactoryProcess_create(&(serv->factory), serv->writer_num, serv->worker_num);
 	}
 	else
@@ -253,7 +260,7 @@ int swServer_create(swServer *serv)
 	if (ret < 0)
 	{
 		swTrace("[swServerCreate]create factory fail\n");
-		return --step;
+		return SW_ERR;
 	}
 	serv->factory.ptr = serv;
 	serv->factory.onTask = serv->onReceive;

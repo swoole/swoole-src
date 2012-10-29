@@ -61,6 +61,8 @@
 #define SW_MODE_THREAD         2
 #define SW_MODE_PROCESS        3
 
+#define SW_DEBUG
+
 #ifdef SW_DEBUG
 #define swTrace(str,...)       {printf("[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
 #else
@@ -71,6 +73,7 @@
 
 #define SW_MAX_FDTYPE          32 //32 kinds of event
 #define SW_ERROR_MSG_SIZE      256
+#define SW_MAX_REQUEST         10000
 typedef struct _swEventData
 {
 	int fd;
@@ -118,7 +121,9 @@ typedef struct _swFactory
 {
 	void *object;
 	int id; //Factory ID
-	void *ptr; //reserve
+	int running;
+	int max_request; //worker进程最大请求数量
+	void *ptr; //server object
 	swReactor *reactor; //reserve for reactor
 
 	int (*start)(struct _swFactory *);
@@ -142,6 +147,7 @@ struct swReactor_s
 	void *object;
 	void *ptr; //reserve
 	int id; //Reactor ID
+	int running;
 
 	swReactor_handle handle[SW_MAX_FDTYPE];
 	swFactory *factory;

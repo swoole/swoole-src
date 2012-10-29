@@ -19,12 +19,17 @@ typedef struct _swFactoryProcess
 	int worker_pti; //current worker id
 } swFactoryProcess;
 
+typedef struct _swPipes{
+	int pipes[2];
+} swPipes;
+
 static int swFactoryProcess_worker_start(swFactory *factory);
 static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe);
 static int swFactoryProcess_worker_spawn(swFactory *factory, int writer_pti, int worker_pti);
 static int swFactoryProcess_writer_start(swFactory *factory);
 static int swFactoryProcess_writer_loop(swThreadParam *param);
 int swFactoryProcess_writer_receive(swReactor *, swEvent *);
+static int swFactoryProcess_manager_loop(swFactory *factory);
 
 static int c_worker_pipe = 0; //Current Proccess Worker's pipe
 
@@ -32,17 +37,16 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 {
 	swFactoryProcess *this;
 	this = sw_malloc(sizeof(swFactoryProcess));
-	int step = 0;
 	if (this == NULL)
 	{
 		swTrace("[swFactoryProcess_create] malloc[0] fail\n");
-		return --step;
+		return SW_ERR;
 	}
 	this->writers = sw_calloc(writer_num, sizeof(swThreadWriter));
 	if (this->writers == NULL)
 	{
 		swTrace("[swFactoryProcess_create] malloc[1] fail\n");
-		return --step;
+		return SW_ERR;
 	}
 	this->writer_num = writer_num;
 	this->writer_pti = 0;
@@ -51,10 +55,12 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 	if (this->workers == NULL)
 	{
 		swTrace("[swFactoryProcess_create] malloc[2] fail\n");
-		return --step;
+		return SW_ERR;
 	}
 	this->worker_num = worker_num;
 	this->worker_pti = 0;
+
+	factory->running = 1;
 	factory->object = this;
 	factory->dispatch = swFactoryProcess_dispatch;
 	factory->finish = swFactoryProcess_finish;
@@ -107,12 +113,88 @@ int swFactoryProcess_start(swFactory *factory)
 static int swFactoryProcess_worker_start(swFactory *factory)
 {
 	swFactoryProcess *this = factory->object;
-	int i, ret = 0;
+	int i, pid,ret = 0;
+	swPipes *worker_pipes;
+	int writer_pti;
+	worker_pipes = sw_calloc(this->worker_num, sizeof(swPipes));
+
+	if(worker_pipes == NULL)
+	{
+		swTrace("[swFactoryProcess_worker_start]malloc fail.Errno=%d\n", errno);
+		return SW_ERR;
+	}
 
 	for (i = 0; i < this->worker_num; i++)
 	{
-		printf("[Main]spawn worker processor\n");
-		ret = swFactoryProcess_worker_spawn(factory, (i % this->writer_num), i);
+		if (socketpair(PF_LOCAL, SOCK_DGRAM, 0, worker_pipes[i].pipes) < 0)
+		{
+			swTrace("[swFactoryProcess_worker_start]create unix socket fail\n");
+			return SW_ERR;
+		}
+	}
+	switch(fork())
+	{
+		case 0:
+			for (i = 0; i < this->worker_num; i++)
+			{
+				close(worker_pipes[i].pipes[0]);
+				writer_pti = (i % this->writer_num);
+				this->workers[i].pipe_fd = worker_pipes[i].pipes[1];
+				this->workers[i].writer_id = writer_pti;
+				pid = swFactoryProcess_worker_spawn(factory, writer_pti, i);
+				if(pid < 0)
+				{
+					swTrace("Fork worker process fail.Errno=%d\n", errno);
+					return SW_ERR;
+				}
+				else
+				{
+					this->workers[i].pid = pid;
+				}
+			}
+			swFactoryProcess_manager_loop(factory);
+			break;
+		default:
+			for (i = 0; i < this->worker_num; i++)
+			{
+				close(worker_pipes[i].pipes[1]);
+				this->writers[i].reactor.add(&(this->writers[i].reactor), worker_pipes[i].pipes[0], SW_FD_CONN);
+				this->workers[i].writer_id = (i % this->writer_num);
+				this->workers[i].pipe_fd = worker_pipes[i].pipes[0];
+			}
+			break;
+		case -1:
+			swTrace("[swFactoryProcess_worker_start]fork manager process fail\n");
+			return SW_ERR;
+	}
+	return SW_OK;
+}
+
+static int swFactoryProcess_manager_loop(swFactory *factory)
+{
+	int pid, new_pid;
+	int i, writer_pti;
+	swFactoryProcess *this = factory->object;
+
+	while(1)
+	{
+		pid = wait(NULL);
+		for (i = 0; i < this->worker_num; i++)
+		{
+			if(pid != this->workers[i].pid) continue;
+
+			writer_pti = (i % this->writer_num);
+			new_pid = swFactoryProcess_worker_spawn(factory, writer_pti, i);
+			if(new_pid < 0)
+			{
+				swTrace("Fork worker process fail.Errno=%d\n", errno);
+				return SW_ERR;
+			}
+			else
+			{
+				this->workers[i].pid = new_pid;
+			}
+		}
 	}
 	return SW_OK;
 }
@@ -120,36 +202,31 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 static int swFactoryProcess_worker_spawn(swFactory *factory, int writer_pti, int worker_pti)
 {
 	swFactoryProcess *this = factory->object;
-	int pid;
-	int pipes[2];
-
-	if (socketpair(PF_LOCAL, SOCK_DGRAM, 0, pipes) < 0)
-	{
-		swTrace("[swFactoryProcess_worker_spawn]create unix socket fail\n");
-		return SW_ERR;
-	}
+	int i, pid;
 
 	pid = fork();
 	if (pid < 0)
 	{
 		swTrace("[swFactoryProcess_worker_spawn]Fork Worker fail\n");
-		exit(5);
+		return SW_ERR;
 	}
 	//worker child processor
 	else if (pid == 0)
 	{
-		close(pipes[0]);
-		swFactoryProcess_worker_loop(factory, pipes[1]);
+		for (i = 0; i < this->worker_num; i++)
+		{
+			//非当前
+			if(worker_pti!=i)
+			{
+				close(this->workers[i].pipe_fd);
+			}
+		}
+		swFactoryProcess_worker_loop(factory, this->workers[worker_pti].pipe_fd);
 		exit(0);
 	}
 	//parent,add to writer
 	else
 	{
-		close(pipes[1]);
-		this->writers[writer_pti].reactor.add(&(this->writers[writer_pti].reactor), pipes[0], SW_FD_CONN);
-		this->workers[worker_pti].pid = pid;
-		this->workers[worker_pti].writer_id = writer_pti;
-		this->workers[worker_pti].pipe_fd = pipes[0];
 		return pid;
 	}
 }
@@ -167,22 +244,26 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe)
 {
 	swEventData req;
+	swFactoryProcess *this = factory->object;
 	c_worker_pipe = c_pipe;
 	int n;
+	int task_num = factory->max_request;
 	//主线程
-	while (1)
+	while (swoole_running > 0 && task_num > 0)
 	{
 		n = read(c_pipe, &req, sizeof(req));
 		swTrace("[Worker]Recv: pipe=%d|pti=%d\n", c_pipe, req.from_id);
 		if (n > 0)
 		{
 			factory->onTask(factory, &req);
+			task_num--;
 		}
 		else
 		{
-			swTrace("[Worker]read pipe error\n");
+			swTrace("[Worker]read pipe error.Errno=%d\n", errno);
 		}
 	}
+	swTrace("[Worker]max request\n");
 	return SW_OK;
 }
 

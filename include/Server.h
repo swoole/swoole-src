@@ -21,6 +21,7 @@ struct swServer_s
 	int writer_num;
 	int worker_num;
 	int max_conn;
+	int max_request;
 	int timeout_sec;
 	int timeout_usec;
 	int daemonize;
