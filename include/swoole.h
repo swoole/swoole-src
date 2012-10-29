@@ -61,7 +61,7 @@
 #define SW_MODE_THREAD         2
 #define SW_MODE_PROCESS        3
 
-#define SW_DEBUG
+//#define SW_DEBUG
 
 #ifdef SW_DEBUG
 #define swTrace(str,...)       {printf("[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}

@@ -113,7 +113,7 @@ int swFactoryProcess_start(swFactory *factory)
 static int swFactoryProcess_worker_start(swFactory *factory)
 {
 	swFactoryProcess *this = factory->object;
-	int i, pid,ret = 0;
+	int i, pid, ret = 0;
 	swPipes *worker_pipes;
 	int writer_pti;
 	worker_pipes = sw_calloc(this->worker_num, sizeof(swPipes));
@@ -158,8 +158,9 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 			for (i = 0; i < this->worker_num; i++)
 			{
 				close(worker_pipes[i].pipes[1]);
-				this->writers[i].reactor.add(&(this->writers[i].reactor), worker_pipes[i].pipes[0], SW_FD_CONN);
-				this->workers[i].writer_id = (i % this->writer_num);
+				writer_pti = (i % this->writer_num);
+				this->writers[writer_pti].reactor.add(&(this->writers[writer_pti].reactor), worker_pipes[i].pipes[0], SW_FD_CONN);
+				this->workers[i].writer_id = writer_pti;
 				this->workers[i].pipe_fd = worker_pipes[i].pipes[0];
 			}
 			break;
