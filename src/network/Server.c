@@ -2,13 +2,15 @@
 #include "Server.h"
 #include <signal.h>
 
-static int child_fork = 0;
 static int swServer_poll_loop(swThreadParam *param);
 static int swServer_poll_start(swServer *serv);
 static int swServer_check_callback(swServer *serv);
+static int swServer_listen(swServer *serv, swReactor *reactor);
 static int swServer_poll_onClose(swReactor *reactor, swEvent *event);
 static int swServer_poll_onReceive(swReactor *reactor, swEvent *event);
 static int swServer_poll_onReceive2(swReactor *reactor, swEvent *event);
+static int swServer_poll_onPackage(swReactor *reactor, swEvent *event);
+static int swServer_poll_onPackage2(swReactor *reactor, swEvent *event);
 
 int swServer_onClose(swReactor *reactor, swEvent *event)
 {
@@ -23,7 +25,7 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 	}
 	swTrace("Close Event.fd=%d|from=%d\n", cev.fd, cev.from_id);
 	serv->onClose(serv, cev.fd, cev.from_id);
-	from_reactor = &(serv->threads[cev.from_id].reactor);
+	from_reactor = &(serv->poll_threads[cev.from_id].reactor);
 	from_reactor->del(from_reactor, cev.fd);
 	ret = close(cev.fd);
 	return ret;
@@ -40,10 +42,10 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 	bzero(&clientaddr, clilen);
 	swTrace("[Main]accept start\n");
 	//得到连接套接字
-	conn_fd = accept(serv->sock, (struct sockaddr *) &clientaddr, (socklen_t *) &clilen);
+	conn_fd = accept(event->fd, (struct sockaddr *) &clientaddr, (socklen_t *) &clilen);
 	if (conn_fd < 0)
 	{
-		swTrace("[Main]accept fail Errno=%d|SockFD=%d|\n", errno, serv->sock);
+		swTrace("[Main]accept fail Errno=%d|SockFD=%d|\n", errno, event->fd);
 		return SW_ERR;
 	}
 	swTrace("[Main]swSetNonBlock\n");
@@ -57,7 +59,7 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 	{
 		serv->c_pti = 0;
 	}
-	ret = serv->threads[serv->c_pti].reactor.add(&(serv->threads[serv->c_pti].reactor), conn_fd, SW_FD_CONN);
+	ret = serv->poll_threads[serv->c_pti].reactor.add(&(serv->poll_threads[serv->c_pti].reactor), conn_fd, SW_FD_TCP);
 	if (ret < 0)
 	{
 		swTrace("[Main]add event fail Errno=%d|FD=%d\n", errno, conn_fd);
@@ -70,7 +72,6 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 
 static int swServer_check_callback(swServer *serv)
 {
-	int step = 0;
 	if (serv->onStart == NULL)
 	{
 		return SW_ERR;
@@ -99,10 +100,8 @@ int swServer_start(swServer *serv)
 	swReactor main_reactor;
 	swFactory *factory = &serv->factory;
 
-	struct sockaddr_in serveraddr;
 	struct timeval tmo;
-	int ret, step = 0;
-	int option;
+	int ret;
 
 	ret = swServer_check_callback(serv);
 	if (ret < 0)
@@ -110,9 +109,9 @@ int swServer_start(swServer *serv)
 		return ret;
 	}
 	//run as daemon
-	if(serv->daemonize > 0 )
+	if (serv->daemonize > 0)
 	{
-		if(daemon(1, 1) < 0)
+		if (daemon(1, 1) < 0)
 		{
 			return SW_ERR;
 		}
@@ -120,42 +119,15 @@ int swServer_start(swServer *serv)
 	ret = factory->start(factory);
 	if (ret < 0)
 	{
-		return ret;
+		return SW_ERR;
 	}
 	ret = swServer_poll_start(serv);
 	if (ret < 0)
 	{
-		return ret;
-	}
-	bzero(&serveraddr, sizeof(struct sockaddr_in));
-	//设置serveraddr
-	inet_aton(serv->host, &(serveraddr.sin_addr));
-	serveraddr.sin_port = htons(serv->port);
-	serveraddr.sin_family = AF_INET;
-	swTrace("Bind host=%s,port=%d \n", serv->host, serv->port);
-	//创建监听套接字
-	serv->sock = socket(PF_INET, SOCK_STREAM, 0);
-	option = 1;
-	setsockopt(serv->sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int));
-	if (serv->sock < 0)
-	{
-		swTrace("[swServerCreate]create socket fail\n");
 		return SW_ERR;
 	}
-	//将监听套接字同sockaddr绑定
-	ret = bind(serv->sock, (struct sockaddr *) &serveraddr, sizeof(struct sockaddr_in));
-	if (ret != 0)
-	{
-		swTrace("[swServerCreate]bind fail\n");
-		return SW_ERR;
-	}
-	//开始监听套接字
-	ret = listen(serv->sock, serv->backlog);
-	if (ret != 0)
-	{
-		swTrace("[swServerCreate]listen fail\n");
-		return SW_ERR;
-	}
+
+	SW_START_SLEEP;
 	ret = swReactorSelect_create(&main_reactor);
 	if (ret < 0)
 	{
@@ -165,7 +137,13 @@ int swServer_start(swServer *serv)
 	main_reactor.setHandle(&main_reactor, SW_EVENT_CLOSE, swServer_onClose);
 	main_reactor.setHandle(&main_reactor, SW_EVENT_CONNECT, swServer_onAccept);
 	main_reactor.add(&main_reactor, serv->event_fd, SW_EVENT_CLOSE);
-	main_reactor.add(&main_reactor, serv->sock, SW_EVENT_CONNECT);
+
+	SW_START_SLEEP;
+	ret = swServer_listen(serv, &main_reactor);
+	if (ret < 0)
+	{
+		return SW_ERR;
+	}
 
 	tmo.tv_sec = 5;
 	tmo.tv_usec = 0;
@@ -205,6 +183,9 @@ void swServer_init(swServer *serv)
 	serv->max_conn = SW_MAX_FDS;
 	serv->max_request = SW_MAX_REQUEST;
 
+	serv->open_udp = 0;
+	serv->udp_max_tmp_pkg = SW_MAX_TMP_PKG;
+
 	serv->onClose = NULL;
 	serv->onConnect = NULL;
 	serv->onStart = NULL;
@@ -213,7 +194,7 @@ void swServer_init(swServer *serv)
 }
 int swServer_create(swServer *serv)
 {
-	int ret = 0, step = 0;
+	int ret = 0;
 	//创建event_fd
 	serv->event_fd = eventfd(0, EFD_NONBLOCK);
 	if (serv->event_fd < 0)
@@ -222,10 +203,10 @@ int swServer_create(swServer *serv)
 		return SW_ERR;
 	}
 	//创始化线程池
-	serv->threads = sw_calloc(serv->poll_thread_num, sizeof(swThreadPoll));
-	if (serv->threads == NULL)
+	serv->poll_threads = sw_calloc(serv->poll_thread_num, sizeof(swThreadPoll));
+	if (serv->poll_threads == NULL)
 	{
-		swTrace("[swServerCreate]calloc[0] fail\n");
+		swError("[swServerCreate]calloc[0] fail\n");
 		return SW_ERR;
 	}
 	//create factry object
@@ -233,7 +214,7 @@ int swServer_create(swServer *serv)
 	{
 		if (serv->writer_num < 1)
 		{
-			swTrace("serv->writer_num < 1\n");
+			swError("serv->writer_num < 1\n");
 			return SW_ERR;
 		}
 		ret = swFactoryThread_create(&(serv->factory), serv->writer_num);
@@ -242,12 +223,12 @@ int swServer_create(swServer *serv)
 	{
 		if (serv->writer_num < 1 || serv->worker_num < 1)
 		{
-			swTrace("serv->writer_num < 1 or serv->worker_num < 1\n");
+			swError("serv->writer_num < 1 or serv->worker_num < 1\n");
 			return SW_ERR;
 		}
 		if (serv->max_request < 1)
 		{
-			swTrace("serv->max_request < 1 \n");
+			swError("serv->max_request < 1 \n");
 			return SW_ERR;
 		}
 		serv->factory.max_request = serv->max_request;
@@ -259,12 +240,19 @@ int swServer_create(swServer *serv)
 	}
 	if (ret < 0)
 	{
-		swTrace("[swServerCreate]create factory fail\n");
+		swError("[swServerCreate]create factory fail\n");
 		return SW_ERR;
 	}
 	serv->factory.ptr = serv;
 	serv->factory.onTask = serv->onReceive;
-	serv->factory.onFinish = swServer_onFinish;
+	if (serv->open_udp == 1)
+	{
+		serv->factory.onFinish = swServer_onFinish2;
+	}
+	else
+	{
+		serv->factory.onFinish = swServer_onFinish;
+	}
 	return SW_OK;
 }
 
@@ -285,9 +273,9 @@ int swServer_free(swServer *serv)
 	{
 		serv->reactor.free(&(serv->reactor));
 	}
-	if (serv->threads != NULL)
+	if (serv->poll_threads != NULL)
 	{
-		sw_free(serv->threads);
+		sw_free(serv->poll_threads);
 	}
 	if (serv->event_fd != 0)
 	{
@@ -299,27 +287,79 @@ int swServer_free(swServer *serv)
 static int swServer_poll_start(swServer *serv)
 {
 	swThreadParam *param;
+	swThreadPoll *poll_thread;
 	int i;
 	pthread_t pidt;
 
 	for (i = 0; i < serv->poll_thread_num; i++)
 	{
+		poll_thread = &(serv->poll_threads[i]);
 		param = sw_malloc(sizeof(swThreadParam));
 		if (param == NULL)
 		{
+			swError("malloc fail\n");
 			return SW_ERR;
+		}
+		if (serv->open_udp == 1)
+		{
+			poll_thread->udp_addrs = sw_calloc(serv->udp_max_tmp_pkg, sizeof(swUdpFd));
+			if (poll_thread->udp_addrs == NULL)
+			{
+				swError("malloc fail\n");
+				return SW_ERR;
+			}
+			poll_thread->c_udp_fd = 0;
 		}
 		param->object = serv;
 		param->pti = i;
 		pthread_create(&pidt, NULL, (void * (*)(void *)) swServer_poll_loop, (void *) param);
-		serv->threads[i].ptid = pidt;
+		poll_thread->ptid = pidt;
 	}
 	return SW_OK;
 }
-
+/**
+ * only tcp
+ */
 int swServer_onFinish(swFactory *factory, swSendData *resp)
 {
 	return swWrite(resp->fd, resp->data, resp->len);
+}
+/**
+ * for udp + tcp
+ */
+int swServer_onFinish2(swFactory *factory, swSendData *resp)
+{
+	swServer *serv = factory->ptr;
+	swThreadPoll *poll_thread = &(serv->poll_threads[resp->from_id]);
+	int ret;
+	swUdpFd *fd;
+	//UDP
+	if (resp->fd <= 0)
+	{
+		fd = &(poll_thread->udp_addrs[-resp->fd]);
+		while (1)
+		{
+			ret = sendto(fd->sock, resp->data, resp->len, 0, (struct sockaddr *) &(fd->addr), sizeof(fd->addr));
+			swTrace("sendto sock=%d|from_id=%d\n", fd->sock, resp->from_id);
+			if (ret < 0)
+			{
+				if (errno == EINTR || errno == EAGAIN)
+				{
+					continue;
+				}
+				else
+				{
+					swTrace("sendto fail.errno=%d\n", errno);
+				}
+			}
+			break;
+		}
+		return ret;
+	}
+	else
+	{
+		return swWrite(resp->fd, resp->data, resp->len);
+	}
 }
 /**
  * Main Loop
@@ -328,7 +368,7 @@ static int swServer_poll_loop(swThreadParam *param)
 {
 	swServer *serv = param->object;
 	int ret, pti = param->pti;
-	swReactor *reactor = &(serv->threads[pti].reactor);
+	swReactor *reactor = &(serv->poll_threads[pti].reactor);
 	struct timeval timeo;
 
 	ret = swReactorEpoll_create(reactor, (serv->max_conn / serv->poll_thread_num) + 1);
@@ -340,15 +380,18 @@ static int swServer_poll_loop(swThreadParam *param)
 	timeo.tv_usec = serv->timeout_usec; //300ms
 	reactor->ptr = serv;
 	reactor->setHandle(reactor, SW_FD_CLOSE, swServer_poll_onClose);
+
 	//Thread mode must copy the data.
 	//will free after onFinish
-	if(serv->factory_mode == SW_MODE_THREAD)
+	if (serv->factory_mode == SW_MODE_THREAD)
 	{
-		reactor->setHandle(reactor, SW_FD_CONN, swServer_poll_onReceive2);
+		reactor->setHandle(reactor, SW_FD_TCP, swServer_poll_onReceive2);
+		reactor->setHandle(reactor, SW_FD_UDP, swServer_poll_onPackage2);
 	}
 	else
 	{
-		reactor->setHandle(reactor, SW_FD_CONN, swServer_poll_onReceive);
+		reactor->setHandle(reactor, SW_FD_TCP, swServer_poll_onReceive);
+		reactor->setHandle(reactor, SW_FD_UDP, swServer_poll_onPackage);
 	}
 	//main loop
 	reactor->wait(reactor, &timeo);
@@ -393,7 +436,7 @@ static int swServer_poll_onReceive2(swReactor *reactor, swEvent *event)
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &(serv->factory);
 	swEventData *buf = sw_malloc(sizeof(swEventData));
-	if(buf==NULL)
+	if (buf == NULL)
 	{
 		swTrace("Malloc fail\n");
 		return SW_ERR;
@@ -418,6 +461,86 @@ static int swServer_poll_onReceive2(swReactor *reactor, swEvent *event)
 		buf->from_id = event->from_id;
 		//swTrace("recv: %s|fd=%d|ret=%d|errno=%d\n", buf->data, event->fd, ret, errno);
 		factory->dispatch(factory, buf);
+	}
+	return SW_OK;
+}
+/**
+ * for udp
+ */
+static int swServer_poll_onPackage(swReactor *reactor, swEvent *event)
+{
+	int ret, n;
+	swServer *serv = reactor->ptr;
+	swFactory *factory = &(serv->factory);
+	swThreadPoll *poll_thread = &(serv->poll_threads[event->from_id]);
+	swEventData buf;
+	socklen_t addrlen = sizeof(poll_thread->udp_addrs[poll_thread->c_udp_fd].addr);
+
+	bzero(buf.data, sizeof(buf.data));
+
+	while (1)
+	{
+		ret = recvfrom(event->fd, buf.data, SW_BUFFER_SIZE, 0, &(poll_thread->udp_addrs[poll_thread->c_udp_fd].addr),
+				&addrlen);
+		if (ret < 0)
+		{
+			if (errno == EINTR)
+			{
+				continue;
+			}
+			return SW_ERR;
+		}
+		break;
+	}
+	poll_thread->udp_addrs[poll_thread->c_udp_fd].sock = event->fd;
+	buf.fd = -poll_thread->c_udp_fd; //区分TCP和UDP
+	buf.len = ret;
+	buf.from_id = event->from_id;
+	swTrace("recv package: %s|fd=%d|size=%d\n", buf.data, event->fd, ret);
+	n = factory->dispatch(factory, &buf);
+	poll_thread->c_udp_fd++;
+	if (poll_thread->c_udp_fd == serv->udp_max_tmp_pkg)
+	{
+		poll_thread->c_udp_fd = 0;
+	}
+	return SW_OK;
+}
+/**
+ * for udp
+ */
+static int swServer_poll_onPackage2(swReactor *reactor, swEvent *event)
+{
+	int ret, n;
+	swServer *serv = reactor->ptr;
+	swFactory *factory = &(serv->factory);
+	swThreadPoll *poll_thread = &(serv->poll_threads[event->from_id]);
+	swEventData *buf = sw_malloc(sizeof(swEventData));
+	socklen_t addrlen = sizeof(poll_thread->udp_addrs[poll_thread->c_udp_fd].addr);
+
+	bzero(buf->data, sizeof(buf->data));
+	while (1)
+	{
+		ret = recvfrom(event->fd, buf->data, SW_BUFFER_SIZE, 0, &(poll_thread->udp_addrs[poll_thread->c_udp_fd].addr), &addrlen);
+		if (ret < 0)
+		{
+			if (errno == EINTR)
+			{
+				continue;
+			}
+			return SW_ERR;
+		}
+		break;
+	}
+	poll_thread->udp_addrs[poll_thread->c_udp_fd].sock = event->fd;
+	buf->fd = -poll_thread->c_udp_fd; //区分TCP和UDP
+	buf->len = ret;
+	buf->from_id = event->from_id;
+	swTrace("recv package: %s|fd=%d|size=%d\n", buf->data, event->fd, ret);
+	n = factory->dispatch(factory, buf);
+	poll_thread->c_udp_fd++;
+	if (poll_thread->c_udp_fd == serv->udp_max_tmp_pkg)
+	{
+		poll_thread->c_udp_fd = 0;
 	}
 	return SW_OK;
 }
@@ -457,19 +580,62 @@ swSignalFunc swSignalSet(int sig, swSignalFunc func, int restart, int mask)
 	return oact.sa_handler;
 }
 
+int swServer_addListen(swServer *serv, int type, char *host, int port)
+{
+	swListenList_node *listen_host = sw_malloc(sizeof(swListenList_node));
+	listen_host->type = type;
+	listen_host->port = port;
+	listen_host->sock = 0;
+	bzero(listen_host->host, SW_HOST_MAXSIZE);
+	strncpy(listen_host->host, host, SW_HOST_MAXSIZE);
+	LL_APPEND(serv->listen_list, listen_host);
+	if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6)
+	{
+		serv->open_udp = 1;
+	}
+	return SW_OK;
+}
+
+static int swServer_listen(swServer *serv, swReactor *reactor)
+{
+	int sock;
+	int reactor_i = 0;
+
+	swListenList_node *listen_host;
+	swReactor *poll_reactor;
+
+	LL_FOREACH(serv->listen_list, listen_host)
+	{
+		sock = swSocket_listen(listen_host->type, listen_host->host, listen_host->port, serv->backlog);
+		if (sock < 0)
+		{
+			swTrace("Listen fail.type=%d|host=%s|port=%d|errno=%d\n",
+					listen_host->type, listen_host->host, listen_host->port, errno);
+			return SW_ERR;
+		}
+		//UDP
+		if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6)
+		{
+			poll_reactor = &(serv->poll_threads[reactor_i % serv->poll_thread_num].reactor);
+			poll_reactor->add(poll_reactor, sock, SW_FD_UDP);
+			reactor_i++;
+		}
+		//TCP
+		else
+		{
+			reactor->add(reactor, sock, SW_EVENT_CONNECT);
+		}
+		listen_host->sock = sock;
+	}
+	return SW_OK;
+}
+
 void swSignalHanlde(int sig)
 {
 	switch (sig)
 	{
 	case SIGTERM:
 		swoole_running = 0;
-		break;
-	case SIGCHLD:
-		if (swoole_running > 0)
-		{
-			//Fork
-			child_fork++;
-		}
 		break;
 	default:
 		break;

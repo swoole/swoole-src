@@ -1,5 +1,6 @@
 #include "swoole.h"
 #include <signal.h>
+#include <sys/wait.h>
 
 typedef struct _swWorkerChild
 {
@@ -113,7 +114,7 @@ int swFactoryProcess_start(swFactory *factory)
 static int swFactoryProcess_worker_start(swFactory *factory)
 {
 	swFactoryProcess *this = factory->object;
-	int i, pid, ret = 0;
+	int i, pid;
 	swPipes *worker_pipes;
 	int writer_pti;
 	worker_pipes = sw_calloc(this->worker_num, sizeof(swPipes));
@@ -159,7 +160,7 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 			{
 				close(worker_pipes[i].pipes[1]);
 				writer_pti = (i % this->writer_num);
-				this->writers[writer_pti].reactor.add(&(this->writers[writer_pti].reactor), worker_pipes[i].pipes[0], SW_FD_CONN);
+				this->writers[writer_pti].reactor.add(&(this->writers[writer_pti].reactor), worker_pipes[i].pipes[0], SW_FD_PIPE);
 				this->workers[i].writer_id = writer_pti;
 				this->workers[i].pipe_fd = worker_pipes[i].pipes[0];
 			}
@@ -245,7 +246,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe)
 {
 	swEventData req;
-	swFactoryProcess *this = factory->object;
+	//swFactoryProcess *this = factory->object;
 	c_worker_pipe = c_pipe;
 	int n;
 	int task_num = factory->max_request;
@@ -256,6 +257,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe)
 		swTrace("[Worker]Recv: pipe=%d|pti=%d\n", c_pipe, req.from_id);
 		if (n > 0)
 		{
+			factory->last_from_id = req.from_id;
 			factory->onTask(factory, &req);
 			task_num--;
 		}
@@ -332,6 +334,7 @@ int swFactoryProcess_writer_receive(swReactor *reactor, swEvent *ev)
 	{
 		send_data.data = resp.data;
 		send_data.len = resp.len;
+		send_data.from_id = resp.from_id;
 		send_data.fd = resp.fd;
 		return factory->onFinish(factory, &send_data);
 	}
@@ -358,7 +361,7 @@ int swFactoryProcess_writer_loop(swThreadParam *param)
 		swTrace("swReactorSelect_create fail\n");
 		pthread_exit((void *)param);
 	}
-	reactor->setHandle(reactor, SW_FD_CONN, swFactoryProcess_writer_receive);
+	reactor->setHandle(reactor, SW_FD_PIPE, swFactoryProcess_writer_receive);
 	reactor->wait(reactor, &tmo);
 	reactor->free(reactor);
 	pthread_exit((void *)param);

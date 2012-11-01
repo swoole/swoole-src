@@ -2,19 +2,19 @@
 #include "list.h"
 #include <sys/select.h>
 
-typedef struct _swList_node
+typedef struct _swFdList_node
 {
-	struct _swList_node *next, *prev;
+	struct _swFdList_node *next, *prev;
 	int fd;
 	int fdtype;
-} swList_node;
+} swFdList_node;
 
 typedef struct _swReactorSelect
 {
 	fd_set rfds;
 	//fd_set wfds;
 	//fd_set efds;
-	swList_node *fds;
+	swFdList_node *fds;
 	int maxfd;
 	int fd_num;
 } swReactorSelect;
@@ -49,7 +49,7 @@ int swReactorSelect_create(swReactor *reactor)
 
 void swReactorSelect_free(swReactor *reactor)
 {
-	swList_node *ev;
+	swFdList_node *ev;
 	swReactorSelect *this = reactor->object;
 	LL_FOREACH(this->fds, ev)
 	{
@@ -62,7 +62,7 @@ void swReactorSelect_free(swReactor *reactor)
 int swReactorSelect_add(swReactor *reactor, int fd, int fdtype)
 {
 	swReactorSelect *this = reactor->object;
-	swList_node *ev = sw_malloc(sizeof(swList_node));
+	swFdList_node *ev = sw_malloc(sizeof(swFdList_node));
 	ev->fd = fd;
 	ev->fdtype = fdtype;
 	LL_APPEND(this->fds, ev);
@@ -71,10 +71,10 @@ int swReactorSelect_add(swReactor *reactor, int fd, int fdtype)
 	{
 		this->maxfd = fd;
 	}
-	return 0;
+	return SW_OK;
 }
 
-int swReactorSelect_cmp(swList_node *a, swList_node *b)
+int swReactorSelect_cmp(swFdList_node *a, swFdList_node *b)
 {
 	return a->fd == b->fd ? 0 : (a->fd > b->fd ? -1 : 1);
 }
@@ -82,7 +82,7 @@ int swReactorSelect_cmp(swList_node *a, swList_node *b)
 int swReactorSelect_del(swReactor *reactor, int fd)
 {
 	swReactorSelect *this = reactor->object;
-	swList_node ev, *s_ev;
+	swFdList_node ev, *s_ev;
 	ev.fd = fd;
 
 	LL_SEARCH(this->fds, s_ev, &ev, swReactorSelect_cmp);
@@ -95,7 +95,7 @@ int swReactorSelect_del(swReactor *reactor, int fd)
 int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 {
 	swReactorSelect *this = reactor->object;
-	swList_node *ev;
+	swFdList_node *ev;
 	swEvent event;
 	struct timeval timeout;
 	int ret;

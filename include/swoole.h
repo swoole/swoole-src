@@ -35,7 +35,7 @@
 #ifndef MAX
 #define MAX(a, b)              (a)>(b)?a:b;
 #endif
-#define SW_START_SLEEP         usleep(1000*10)  //sleep 10ms,wait fork and pthread_create
+#define SW_START_SLEEP         sleep(1)  //sleep 1s,wait fork and pthread_create
 
 #ifdef SW_USE_PHP
 #define sw_malloc              emalloc
@@ -52,21 +52,40 @@
 #define SW_OK                  0
 #define SW_ERR                 -1
 
-#define SW_FD_CONN             0
+#define SW_FD_TCP              0
 #define SW_FD_LISTEN           1
 #define SW_FD_CLOSE            2
 #define SW_FD_ERROR            3
+#define SW_FD_UDP              4
+#define SW_FD_PIPE             5
 
 #define SW_MODE_CALL           1
 #define SW_MODE_THREAD         2
 #define SW_MODE_PROCESS        3
 
-//#define SW_DEBUG
+#define SW_SOCK_TCP            1
+#define SW_SOCK_UDP            2
+#define SW_SOCK_TCP6           3
+#define SW_SOCK_UDP6           4
+
+#define SW_DEBUG
 
 #ifdef SW_DEBUG
 #define swTrace(str,...)       {printf("[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
 #else
-#define swTrace(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
+#define swTrace(str,...)
+#endif
+
+#ifdef SW_DEBUG
+#define swError(str,...)       {printf("[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);exit(1);}
+#else
+#define swError(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
+#endif
+
+#ifdef SW_DEBUG
+#define swWarn(str,...)       {printf("[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);exit(1);}
+#else
+#define swWarn(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
 #endif
 
 #define SW_CPU_NUM             sysconf(_SC_NPROCESSORS_ONLN)
@@ -86,6 +105,7 @@ typedef struct _swSendData
 {
 	int fd;
 	int len;
+	int from_id;
 	char *data;
 } swSendData;
 
@@ -124,6 +144,7 @@ typedef struct _swFactory
 	int running;
 	int max_request; //worker进程最大请求数量
 	void *ptr; //server object
+	int last_from_id;
 	swReactor *reactor; //reserve for reactor
 
 	int (*start)(struct _swFactory *);
@@ -182,6 +203,8 @@ int swRead(int, char *, int);
 int swWrite(int, char *, int);
 void swSetNonBlock(int);
 void swSetBlock(int);
+inline int swSocket_listen(int type, char *host, int port, int backlog);
+inline int swSocket_create(int type);
 swSignalFunc swSignalSet(int sig, swSignalFunc func, int restart, int mask);
 void swSignalHanlde(int sig);
 

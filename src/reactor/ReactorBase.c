@@ -15,7 +15,7 @@ int swReactor_accept(swReactor *reactor, swEvent *event)
 		return -1;
 	}
 	swSetNonBlock(conn_ev.conn_fd);
-	reactor->add(reactor, conn_ev.conn_fd, SW_FD_CONN);
+	reactor->add(reactor, conn_ev.conn_fd, SW_FD_TCP);
 	return conn_ev.conn_fd;
 }
 
@@ -70,7 +70,7 @@ int swReactor_receive(swReactor *reactor, swEvent *event)
 	}
 	else if (ret > 0)
 	{
-		return reactor->handle[SW_FD_CONN](reactor, event);
+		return reactor->handle[SW_FD_TCP](reactor, event);
 	}
 	else
 	{

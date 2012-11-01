@@ -138,6 +138,7 @@ static int swFactoryThread_writer_loop(swThreadParam *param)
 	{
 		if(swRingBuffer_pop(&(this->buffers[pti]), (void **)&req)==0)
 		{
+			factory->last_from_id = req->from_id;
 			factory->onTask(factory, req);
 			sw_free(req);
 		}

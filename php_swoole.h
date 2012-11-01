@@ -21,6 +21,9 @@
 #ifndef PHP_SWOOLE_H
 #define PHP_SWOOLE_H
 
+#include "php.h"
+#include "php_ini.h"
+
 extern zend_module_entry swoole_module_entry;
 #define phpext_swoole_ptr &swoole_module_entry
 
@@ -50,8 +53,8 @@ PHP_FUNCTION(swoole_server_start);
 PHP_FUNCTION(swoole_server_stop);
 PHP_FUNCTION(swoole_server_send);
 PHP_FUNCTION(swoole_server_close);
-PHP_FUNCTION(swoole_server_getsock);
 PHP_FUNCTION(swoole_server_handler);
+PHP_FUNCTION(swoole_server_addlisten);
 
 #ifdef ZTS
 #define SWOOLE_G(v) TSRMG(swoole_globals_id, zend_swoole_globals *, v)

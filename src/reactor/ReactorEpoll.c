@@ -27,7 +27,7 @@ int swReactorEpoll_create(swReactor *reactor, int max_event_num)
 	if (reactor_object == NULL)
 	{
 		swTrace("[swReactorEpollCreate] malloc[0] fail\n");
-		return -1;
+		return SW_ERR;
 	}
 	reactor->object = reactor_object;
 	reactor_object->events = sw_calloc(max_event_num, sizeof(struct epoll_event));
@@ -35,7 +35,7 @@ int swReactorEpoll_create(swReactor *reactor, int max_event_num)
 	if (reactor_object->events == NULL)
 	{
 		swTrace("[swReactorEpollCreate] malloc[1] fail\n");
-		return -1;
+		return SW_ERR;
 	}
 	//epoll create
 	reactor_object->event_max = 0;
@@ -43,7 +43,7 @@ int swReactorEpoll_create(swReactor *reactor, int max_event_num)
 	if (reactor_object->epfd < 0)
 	{
 		swTrace("[swReactorEpollCreate] epoll_create[0] fail\n");
-		return -1;
+		return SW_ERR;
 	}
 	//binding method
 	reactor->add = swReactorEpoll_add;
@@ -119,7 +119,7 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 
 		if (n < 0)
 		{
-			swTrace("epoll error.EP=%d | Errno=%d\n", this->epfd, errno);
+			//swTrace("epoll error.EP=%d | Errno=%d\n", this->epfd, errno);
 			if(swReactor_error(reactor) < 0)
 			{
 				return SW_ERR;
@@ -137,13 +137,13 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 		{
 			if (this->events[i].events & EPOLLIN)
 			{
-				swTrace("[THREAD #%ld]event coming.Ep=%d|fd=%d\n", pthread_self(), this->epfd, this->events[i].data.fd);
+				//swTrace("[THREAD #%ld]event coming.Ep=%d|fd=%d\n", pthread_self(), this->epfd, this->events[i].data.fd);
 				memcpy(&fd_, &(this->events[i].data.u64), sizeof(fd_));
 				ev.fd = fd_.fd;
 				ev.from_id = reactor->id;
 				ev.type = fd_.fdtype;
 				ret = reactor->handle[ev.type](reactor, &ev);
-				swTrace("[THREAD #%ld]event finish.Ep=%d|ret=%d\n", pthread_self(), this->epfd, ret);
+				//swTrace("[THREAD #%ld]event finish.Ep=%d|ret=%d\n", pthread_self(), this->epfd, ret);
 			}
 		}
 	}

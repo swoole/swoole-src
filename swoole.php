@@ -1,14 +1,27 @@
 <?php
-$serv = swoole_server_create("127.0.0.1", 9500, SWOOLE_PROCESS); //SWOOLE_BASE or SWOOLE_THREAD or SWOOLE_PROCESS
+/*
+argv0  server host
+argv1  server port
+argv2  server mode SWOOLE_BASE or SWOOLE_THREAD or SWOOLE_PROCESS
+argv3  sock_type  SWOOLE_SOCK_TCP or SWOOLE_SOCK_TCP6 or SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6
+*/
+$serv = swoole_server_create("127.0.0.1", 9500, SWOOLE_THREAD, SWOOLE_SOCK_UDP);
 
 swoole_server_set($serv, array(
     'timeout' => 2.5,  //select and epoll_wait timeout. 
     'poll_thread_num' => 2, //reactor thread num
     'writer_num' => 2,     //writer thread num
-    'worker_num' => 2,    //worker process num
+    'worker_num' => 4,    //worker process num
     'backlog' => 128,   //listen backlog
 ));
 
+/*
+argv0  server resource
+argv1  listen host
+argv2  listen port
+argv3  sock_type  SWOOLE_SOCK_TCP or SWOOLE_SOCK_TCP6 or SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6
+*/
+swoole_server_addlisten($serv, "127.0.0.1", 9501, SWOOLE_SOCK_TCP);
 function my_onStart($serv)
 {
     echo "Server：start\n";
@@ -29,10 +42,13 @@ function my_onConnect($serv,$fd,$from_id)
 	echo "Client：Connect. fd=$fd|from_id=$from_id\n";
 }
 
-function my_onReceive($serv,$fd,$from_id,$data)
+function my_onReceive($serv, $fd, $from_id, $data)
 {
 	echo "Client：Data. fd=$fd|from_id=$from_id|data=$data\n";
 	swoole_server_send($serv, $fd, "Server: $data");
+	//swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);
+	swoole_server_close($serv, $fd, $from_id);
+	//swoole_server_close($serv, $ohter_fd, $other_from_id);
 }
 
 swoole_server_handler($serv, 'onStart', 'my_onStart');
