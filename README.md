@@ -48,7 +48,10 @@ function my_onConnect($serv,$fd,$from_id)
 function my_onReceive($serv,$fd,$from_id,$data)
 {
 	echo "Client：Data. fd=$fd|from_id=$from_id|data=$data\n";
-	swoole_server_send($serv, $fd, "Server:$data");
+	swoole_server_send($serv, $fd, "Server: $data");
+	//swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);
+	swoole_server_close($serv, $fd);
+	//swoole_server_close($serv, $ohter_fd, $other_from_id);
 }
 
 swoole_server_handler($serv, 'onStart', 'my_onStart');
