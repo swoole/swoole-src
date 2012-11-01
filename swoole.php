@@ -5,7 +5,7 @@ argv1  server port
 argv2  server mode SWOOLE_BASE or SWOOLE_THREAD or SWOOLE_PROCESS
 argv3  sock_type  SWOOLE_SOCK_TCP or SWOOLE_SOCK_TCP6 or SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6
 */
-$serv = swoole_server_create("127.0.0.1", 9500, SWOOLE_PROCESS, SWOOLE_SOCK_UDP);
+$serv = swoole_server_create("127.0.0.1", 9500, SWOOLE_THREAD, SWOOLE_SOCK_UDP);
 
 swoole_server_set($serv, array(
     'timeout' => 2.5,  //select and epoll_wait timeout. 
@@ -47,7 +47,7 @@ function my_onReceive($serv, $fd, $from_id, $data)
 	echo "Client：Data. fd=$fd|from_id=$from_id|data=$data\n";
 	swoole_server_send($serv, $fd, "Server: $data");
 	//swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);
-	swoole_server_close($serv, $fd, $from_id);
+	//swoole_server_close($serv, $fd, $from_id);
 	//swoole_server_close($serv, $ohter_fd, $other_from_id);
 }
 

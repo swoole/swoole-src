@@ -102,6 +102,8 @@ int swFactoryThread_dispatch(swFactory *factory, swEventData *buf)
 {
 	swFactoryThread *this = factory->object;
 	int pti;
+	int ret;
+	uint64_t flag = 1;
 	//使用pti，避免线程切换造成错误的writer_pti
 	pti = this->writer_pti;
 	if (this->writer_pti >= this->writer_num)
@@ -119,7 +121,7 @@ int swFactoryThread_dispatch(swFactory *factory, swEventData *buf)
 	}
 	else
 	{
-		write(this->writers[pti].evfd, &buf, sizeof(&buf));
+		ret = write(this->writers[pti].evfd, &flag, sizeof(flag));
 		this->writer_pti++;
 		return SW_OK;
 	}
@@ -130,6 +132,7 @@ static int swFactoryThread_writer_loop(swThreadParam *param)
 	swFactory *factory = param->object;
 	swFactoryThread *this = factory->object;
 	int pti = param->pti;
+	int ret;
 	swEventData *req;
 	uint64_t flag;
 
@@ -144,7 +147,7 @@ static int swFactoryThread_writer_loop(swThreadParam *param)
 		}
 		else
 		{
-			read(this->writers[pti].evfd, &flag, sizeof(flag));
+			ret = read(this->writers[pti].evfd, &flag, sizeof(flag));
 		}
 	}
 	factory->running = 0;
