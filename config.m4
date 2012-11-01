@@ -25,6 +25,7 @@ if test "$PHP_SWOOLE" != "no"; then
   )
   PHP_NEW_EXTENSION(swoole, swoole.c \
     src/core/Base.c \
+	src/core/RingBuffer.c \
     src/factory/Factory.c \
     src/factory/FactoryThread.c \
     src/factory/FactoryProcess.c \
