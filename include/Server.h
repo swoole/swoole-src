@@ -5,6 +5,7 @@
 
 #define SW_EVENT_CLOSE           5
 #define SW_EVENT_CONNECT         6
+#define SW_EVENT_TIMER           7
 
 #define SW_HOST_MAXSIZE          48
 #define SW_MAX_TMP_PKG           1000
@@ -31,6 +32,13 @@ typedef struct _swListenList_node
 	char host[SW_HOST_MAXSIZE];
 } swListenList_node;
 
+typedef struct _swTimerList_node
+{
+	struct _swTimerList_node *next, *prev;
+	int interval;
+	int lasttime;
+} swTimerList_node;
+
 typedef struct swServer_s swServer;
 struct swServer_s
 {
@@ -49,6 +57,9 @@ struct swServer_s
 	int timer_fd;
 	int signal_fd;
 
+	int timer_interval;
+	int ringbuffer_size;
+
 	int c_pti;           //schedule
 	int open_udp;        //是否有UDP监听端口
 	int udp_max_tmp_pkg; //UDP临时包数量，超过数量未处理将会被丢弃
@@ -57,6 +68,7 @@ struct swServer_s
 	swFactory factory;
 	swThreadPoll *poll_threads;
 	swListenList_node *listen_list;
+	swTimerList_node *timer_list;
 
 	void *ptr; //reserve
 	void *ptr2; //reserve
@@ -66,7 +78,7 @@ struct swServer_s
 	void (*onClose)(swServer *serv, int fd, int from_id);
 	void (*onConnect)(swServer *serv, int fd, int from_id);
 	void (*onShutdown)(swServer *serv);
-
+	void (*onTimer)(swServer *serv, int interval);
 };
 int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
@@ -80,5 +92,6 @@ int swServer_create(swServer *serv);
 int swServer_free(swServer *serv);
 int swServer_close(swServer *factory, swEvent *event);
 int swServer_shutdown(swServer *serv);
+int swServer_addTimer(swServer *serv, int interval);
 
 #endif /* SW_SERVER_H_ */

@@ -29,7 +29,12 @@ function my_onStart($serv)
 
 function my_onShutdown($serv)
 {
-    echo "Server：onShutdown(\n";
+    echo "Server：onShutdown\n";
+}
+
+function my_onTimer($serv, $interval)
+{
+    echo "Server：Timer Call.Interval=$interval \n";
 }
 
 function my_onClose($serv,$fd,$from_id)
@@ -56,5 +61,8 @@ swoole_server_handler($serv, 'onConnect', 'my_onConnect');
 swoole_server_handler($serv, 'onReceive', 'my_onReceive');
 swoole_server_handler($serv, 'onClose', 'my_onClose');
 swoole_server_handler($serv, 'onShutdown', 'my_onShutdown');
+swoole_server_handler($serv, 'onTimer', 'my_onTimer');
+swoole_server_addtimer($serv, 2);
+swoole_server_addtimer($serv, 10);
 swoole_server_start($serv);
 

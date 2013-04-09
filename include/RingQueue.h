@@ -1,6 +1,8 @@
 #ifndef _SW_RINGQUEUE_H_
 #define _SW_RINGQUEUE_H_
 
+#define SW_BUFFER_LEN  10
+
 typedef struct _swRingQueue
 {
 	int head; /* 头部，出队列方向*/
@@ -10,10 +12,10 @@ typedef struct _swRingQueue
 	void **data; /* 队列空间 */
 } swRingQueue;
 
-extern int swRingQueue_init(swRingQueue *, int);
+extern int swRingQueue_init(swRingQueue *, int buffer_size);
 extern int swRingQueue_push(swRingQueue *, void *);
 extern int swRingQueue_pop(swRingQueue *, void **);
 
-#define swRingQueue_empty(q) ((q->head == q->tail) && (q->tag == 0))
-#define swRingQueue_full(q) ((q->head == q->tail) && (q->tag == 1))
+#define swRingQueue_empty(q) ( (q->head == q->tail) && (q->tag == 0))
+#define swRingQueue_full(q) ( (q->head == q->tail) && (q->tag == 1))
 #endif 

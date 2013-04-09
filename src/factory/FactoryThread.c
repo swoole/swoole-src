@@ -1,11 +1,13 @@
 #include "swoole.h"
-#include "RingBuffer.h"
+#include "RingQueue.h"
+#include "RingMempool.h"
 
 typedef struct _swFactoryThread
 {
 	int writer_num;
 	int writer_pti;
-	swRingBuffer *buffers;
+	swRingQueue *queues; //消息队列
+	swRingMempool *pools; //缓存池
 	swThreadWriter *writers;
 } swFactoryThread;
 
@@ -23,13 +25,13 @@ int swFactoryThread_create(swFactory *factory, int writer_num)
 	this->writers = sw_calloc(writer_num, sizeof(swThreadWriter));
 	if (this->writers == NULL)
 	{
-		swTrace("[swFactoryProcess_create] malloc[1] fail\n");
+		swTrace("malloc[1] fail\n");
 		return SW_ERR;
 	}
-	this->buffers = sw_calloc(writer_num, sizeof(swRingBuffer));
-	if (this->buffers == NULL)
+	this->queues = sw_calloc(writer_num, sizeof(swRingQueue));
+	if (this->queues == NULL)
 	{
-		swTrace("[swFactoryProcess_create] malloc[2] fail\n");
+		swTrace("malloc[2] fail\n");
 		return SW_ERR;
 	}
 	this->writer_num = writer_num;
@@ -52,13 +54,13 @@ int swFactoryThread_start(swFactory *factory)
 	swFactoryThread *this = factory->object;
 	swThreadParam *param;
 	int i, evfd;
-	int ret, step = 0;
+	int ret;
 	pthread_t pidt;
 
 	ret = swFactory_check_callback(factory);
 	if (ret < 0)
 	{
-		return --step;
+		return SW_ERR;
 	}
 	for (i = 0; i < this->writer_num; i++)
 	{
@@ -78,12 +80,15 @@ int swFactoryThread_start(swFactory *factory)
 		if (pthread_create(&pidt, NULL, (void * (*)(void *)) swFactoryThread_writer_loop, (void *) param) < 0)
 		{
 			swTrace("pthread_create fail\n");
-			return --step;
+			return SW_ERR;
 		}
-		swRingBuffer_init(&(this->buffers[i]));
+		if (swRingQueue_init(&this->queues[i], SW_QUEUE_SIZE) < 0)
+		{
+			return SW_ERR;
+		}
 		this->writers[i].ptid = pidt;
 		this->writers[i].evfd = evfd;
-		SW_START_SLEEP;
+		//SW_START_SLEEP;
 	}
 	return SW_OK;
 }
@@ -104,6 +109,8 @@ int swFactoryThread_dispatch(swFactory *factory, swEventData *buf)
 	int pti;
 	int ret;
 	uint64_t flag = 1;
+	int data_size = sizeof(int)*3 + buf->len;
+
 	//使用pti，避免线程切换造成错误的writer_pti
 	pti = this->writer_pti;
 	if (this->writer_pti >= this->writer_num)
@@ -111,12 +118,10 @@ int swFactoryThread_dispatch(swFactory *factory, swEventData *buf)
 		this->writer_pti = 0;
 		pti = 0;
 	}
-	swTrace("[Thread #%ld]write to client.fd=%d|str=%s", pthread_self(), buf->fd, buf->data);
 	//send data ptr. use event_fd
-
-	if(swRingBuffer_push(&(this->buffers[pti]), buf) < 0)
+	if (swRingQueue_push(&(this->queues[pti]), (void *)buf) < 0)
 	{
-		swTrace("swRingBuffer_push fail.Buffer is full.Writer=%d\n", pti);
+		swWarn("swRingQueue_push fail.Buffer is full.Writer=%d\n", pti);
 		return SW_ERR;
 	}
 	else
@@ -139,10 +144,11 @@ static int swFactoryThread_writer_loop(swThreadParam *param)
 	//main loop
 	while (swoole_running > 0)
 	{
-		if(swRingBuffer_pop(&(this->buffers[pti]), (void **)&req)==0)
+		if (swRingQueue_pop(&(this->queues[pti]), (void **) &req) == 0)
 		{
 			factory->last_from_id = req->from_id;
 			factory->onTask(factory, req);
+			//swRingMempool_free(&this->queues[pti], req);
 			sw_free(req);
 		}
 		else

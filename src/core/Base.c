@@ -29,6 +29,12 @@ inline int swSocket_create(int type)
 	return socket(_domain, _type, 0);
 }
 
+inline void swFloat2timeval(float timeout,long int *sec, long int *usec)
+{
+	*sec = (int)timeout;
+	*usec = (int)((timeout*1000*1000) - ((*sec)*1000*1000));
+}
+
 inline int swSocket_listen(int type, char *host, int port, int backlog)
 {
 	int sock;

@@ -55,6 +55,7 @@ PHP_FUNCTION(swoole_server_send);
 PHP_FUNCTION(swoole_server_close);
 PHP_FUNCTION(swoole_server_handler);
 PHP_FUNCTION(swoole_server_addlisten);
+PHP_FUNCTION(swoole_server_addtimer);
 
 #ifdef ZTS
 #define SWOOLE_G(v) TSRMG(swoole_globals_id, zend_swoole_globals *, v)

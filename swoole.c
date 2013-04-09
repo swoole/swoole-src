@@ -42,13 +42,14 @@
 /* True global resources - no need for thread safety here */
 
 #define le_serv_name "SwooleServer"
-#define PHP_CALLBACK_NUM  5
+#define PHP_CALLBACK_NUM  6
 
 #define PHP_CB_onStart          0
 #define PHP_CB_onConnect        1
 #define PHP_CB_onReceive        2
 #define PHP_CB_onClose          3
 #define PHP_CB_onShutdown       4
+#define PHP_CB_onTimer          5
 #define SW_HOST_SIZE            64
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_create, 0, 1, 3)
@@ -68,6 +69,7 @@ static void php_swoole_onStart(swServer *);
 static void php_swoole_onShutdown(swServer *);
 static void php_swoole_onConnect(swServer *, int fd, int from_id);
 static void php_swoole_onClose(swServer *, int fd, int from_id);
+static void php_swoole_onTimer(swServer *serv, int interval);
 static void sw_destory_server(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 
 const zend_function_entry swoole_functions[] =
@@ -79,6 +81,7 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_server_close, NULL)
 	PHP_FE(swoole_server_handler, NULL)
 	PHP_FE(swoole_server_addlisten, NULL)
+	PHP_FE(swoole_server_addtimer, NULL)
 	PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 
@@ -244,6 +247,11 @@ PHP_FUNCTION(swoole_server_set)
 		serv->timeout_sec = (int)timeout;
 		serv->timeout_usec = (int)((timeout*1000*1000) - (serv->timeout_sec*1000*1000));
 	}
+	//daemonize，守护进程化
+	if (zend_hash_find(vht, ZEND_STRS("daemonize"), (void **)&v) == SUCCESS)
+	{
+		serv->daemonize = (int)Z_LVAL_PP(v);
+	}
 	//backlog
 	if (zend_hash_find(vht, ZEND_STRS("backlog"), (void **)&v) == SUCCESS)
 	{
@@ -268,6 +276,11 @@ PHP_FUNCTION(swoole_server_set)
 	if (zend_hash_find(vht, ZEND_STRS("max_conn"), (void **)&v) == SUCCESS)
 	{
 		serv->max_conn = (int)Z_LVAL_PP(v);
+	}
+	//max_request
+	if (zend_hash_find(vht, ZEND_STRS("max_request"), (void **)&v) == SUCCESS)
+	{
+		serv->max_request = (int)Z_LVAL_PP(v);
 	}
 	RETURN_TRUE;
 }
@@ -308,6 +321,10 @@ PHP_FUNCTION(swoole_server_handler)
 	else if(strncasecmp("onShutdown", ha_name, len) == 0)
 	{
 		php_sw_callback[PHP_CB_onShutdown] = cb;
+	}
+	else if(strncasecmp("onTimer", ha_name, len) == 0)
+	{
+		php_sw_callback[PHP_CB_onTimer] = cb;
 	}
 	else
 	{
@@ -394,6 +411,30 @@ void php_swoole_onStart(swServer *serv)
 	else
 	{
 		zend_error(E_WARNING, "SwooleServer: onStart handler error");
+	}
+}
+
+void php_swoole_onTimer(swServer *serv, int interval)
+{
+	zval *zserv = (zval *)serv->ptr2;
+	zval *args[2];
+	zval retval;
+	zval zinterval;
+
+	ZVAL_LONG(&zinterval, interval);
+	Z_ADDREF_P(&zinterval);
+
+	args[0] = zserv;
+	args[1] = &zinterval;
+	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+	if (call_user_function(EG(function_table), NULL, php_sw_callback[PHP_CB_onTimer], &retval, 2, args TSRMLS_CC) == SUCCESS)
+	{
+		zval_dtor(&retval);
+	}
+	else
+	{
+		zend_error(E_WARNING, "SwooleServer: onTimer handler error");
 	}
 }
 
@@ -491,6 +532,7 @@ PHP_FUNCTION(swoole_server_start)
 	serv->onShutdown = php_swoole_onShutdown;
 	serv->onConnect = php_swoole_onConnect;
 	serv->onReceive = php_swoole_onReceive;
+	serv->onTimer  = php_swoole_onTimer;
 
 	ret = swServer_create(serv);
 	if (ret < 0)
@@ -552,6 +594,23 @@ PHP_FUNCTION(swoole_server_addlisten)
 	}
 	ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, le_serv_name, le_serv);
 	ret = swServer_addListen(serv, (int)sock_type, host, (int)port);
+	RETURN_LONG(ret);
+}
+
+PHP_FUNCTION(swoole_server_addtimer)
+{
+	zval *zserv = NULL;
+	swServer *serv = NULL;
+	swFactory *factory = NULL;
+	long interval;
+	int ret;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rl", &zserv, &interval) == FAILURE)
+	{
+		return;
+	}
+	ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, le_serv_name, le_serv);
+	ret = swServer_addTimer(serv, (int)interval);
 	RETURN_LONG(ret);
 }
 

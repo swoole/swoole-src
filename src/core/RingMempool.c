@@ -2,42 +2,60 @@
 #include "swoole.h"
 #include "RingMempool.h"
 
-
-int swRingMempool_init(swRingMempool *pool, int size, int item_len)
+inline int swRingMempool_init(swRingMempool *pool, void *mem, int size)
 {
-	void *mem_ptr = sw_calloc(size, item_len + sizeof(swRingMempool_head));
-	if (mem_ptr == NULL)
-	{
-		return -1;
-	}
-	pool->cur_key = 0;
 	pool->size = size;
-	pool->item_len = item_len;
-	pool->mem = mem_ptr;
+	pool->mem = mem;
+	pool->head = 0;
+	pool->tail = 0;
 	return 0;
 }
-swRingMempool_head* swRingMempool_alloc(swRingMempool *pool)
+void* swRingMempool_alloc(swRingMempool *pool, int size)
 {
-	int item_key = 0;
-	swRingMempool_head *head;
-	//达到末尾
-	if (pool->cur_key < pool->size)
-	{
-		item_key = pool->cur_key;
-	}
-	else
-	{
-		item_key = 0;
-	}
-	head = pool->mem+(item_key*(pool->item_len+sizeof(swRingMempool_head)));
-	//数据未释放
-	if (head->tag == 1)
+	swRingMempool_head *item;
+	//超过最大尺寸
+	if(size > SWRINGMEM_ITEM_MAXSIZE)
 	{
 		return NULL;
 	}
-	pool->cur_key++;
-	//标记为已用
-	head->tag = 1;
-	head->item_key = item_key;
-	return head;
+	//tail已翻转
+	if(pool->tag == 1 && pool->head - pool->tail < size)
+	{
+		return NULL;
+	}
+	else if(pool->tag == 0 && pool->size - pool->tail < size)
+	{
+		if(pool->head < size)
+		{
+			return NULL;
+		}
+		else
+		{
+			pool->tail = 0;
+			pool->tag = 1;
+		}
+	}
+
+	pool->tail += (size + sizeof(swRingMempool_head));
+	item = pool->mem + pool->tail;
+	item->length = size;
+	return (void *) (item + sizeof(swRingMempool_head));
+}
+
+inline void swRingMempool_free(swRingMempool *pool, void *ptr)
+{
+	//翻转
+	if(ptr < pool->mem + pool->head)
+	{
+		pool->head = 0;
+		pool->tag = 0;
+	}
+	pool->head += (((swRingMempool_head *)ptr)->length + sizeof(swRingMempool_head));
+}
+
+inline void swRingMempool_resize(swRingMempool *pool, void *ptr, int size)
+{
+	swRingMempool_head *item = ptr;
+	pool->tail -= (item->length - size);
+	item->length = size;
 }

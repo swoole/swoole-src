@@ -1,6 +1,8 @@
 #include "swoole.h"
 #include "Server.h"
 #include <signal.h>
+#include <time.h>
+#include <sys/timerfd.h>
 
 static int swServer_poll_loop(swThreadParam *param);
 static int swServer_poll_start(swServer *serv);
@@ -11,6 +13,7 @@ static int swServer_poll_onReceive(swReactor *reactor, swEvent *event);
 static int swServer_poll_onReceive2(swReactor *reactor, swEvent *event);
 static int swServer_poll_onPackage(swReactor *reactor, swEvent *event);
 static int swServer_poll_onPackage2(swReactor *reactor, swEvent *event);
+static int swServer_timer_start(swServer *serv);
 
 int swServer_onClose(swReactor *reactor, swEvent *event)
 {
@@ -28,6 +31,32 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 	from_reactor = &(serv->poll_threads[cev.from_id].reactor);
 	from_reactor->del(from_reactor, cev.fd);
 	ret = close(cev.fd);
+	return ret;
+}
+
+int swServer_onTimer(swReactor *reactor, swEvent *event)
+{
+	swServer *serv = reactor->ptr;
+	uint64_t exp;
+	int ret;
+	swTimerList_node *timer_node;
+	time_t now;
+
+	time(&now);
+	ret = read(serv->timer_fd, &exp, sizeof(uint64_t));
+	if (ret < 0)
+	{
+		return SW_ERR;
+	}
+	LL_FOREACH(serv->timer_list, timer_node)
+	{
+		if (timer_node->lasttime < now - timer_node->interval)
+		{
+			serv->onTimer(serv, timer_node->interval);
+			timer_node->lasttime += timer_node->interval;
+		}
+	}
+	swTrace("Timer Call");
 	return ret;
 }
 
@@ -70,6 +99,37 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 	return SW_OK;
 }
 
+int swServer_addTimer(swServer *serv, int interval)
+{
+	swTimerList_node *timer_new = sw_malloc(sizeof(swTimerList_node));
+	time_t now;
+	time(&now);
+	if (timer_new == NULL)
+	{
+		swWarn("malloc fail\n");
+		return SW_ERR;
+	}
+	timer_new->lasttime = now;
+	timer_new->interval = interval;
+	LL_APPEND(serv->timer_list, timer_new);
+	if (serv->timer_interval == 0 || interval < serv->timer_interval)
+	{
+		serv->timer_interval = interval;
+	}
+	return SW_OK;
+}
+
+void swServer_timer_free(swServer *serv)
+{
+	swTimerList_node *node;
+	LL_FOREACH(serv->timer_list, node)
+	{
+		LL_DELETE(serv->timer_list, node);
+		sw_free(node);
+	}
+	close(serv->timer_fd);
+}
+
 static int swServer_check_callback(swServer *serv)
 {
 	if (serv->onStart == NULL)
@@ -92,6 +152,10 @@ static int swServer_check_callback(swServer *serv)
 	{
 		return SW_ERR;
 	}
+	if (serv->timer_list != NULL && serv->onTimer == NULL)
+	{
+		return SW_ERR;
+	}
 	return SW_OK;
 }
 
@@ -106,6 +170,7 @@ int swServer_start(swServer *serv)
 	ret = swServer_check_callback(serv);
 	if (ret < 0)
 	{
+		swError("Callback function is null.");
 		return ret;
 	}
 	//run as daemon
@@ -136,7 +201,18 @@ int swServer_start(swServer *serv)
 	main_reactor.ptr = serv;
 	main_reactor.setHandle(&main_reactor, SW_EVENT_CLOSE, swServer_onClose);
 	main_reactor.setHandle(&main_reactor, SW_EVENT_CONNECT, swServer_onAccept);
+	main_reactor.setHandle(&main_reactor, SW_EVENT_TIMER, swServer_onTimer);
+
 	main_reactor.add(&main_reactor, serv->event_fd, SW_EVENT_CLOSE);
+	if (serv->timer_interval != 0)
+	{
+		ret = swServer_timer_start(serv);
+		if (ret < 0)
+		{
+			return SW_ERR;
+		}
+		main_reactor.add(&main_reactor, serv->timer_fd, SW_EVENT_TIMER);
+	}
 
 	SW_START_SLEEP;
 	ret = swServer_listen(serv, &main_reactor);
@@ -145,7 +221,7 @@ int swServer_start(swServer *serv)
 		return SW_ERR;
 	}
 
-	tmo.tv_sec = 5;
+	tmo.tv_sec = SW_MAINREACTOR_TIMEO;
 	tmo.tv_usec = 0;
 
 	serv->onStart(serv);
@@ -175,8 +251,12 @@ void swServer_init(swServer *serv)
 	serv->poll_thread_num = SW_THREAD_NUM;
 	serv->daemonize = 0;
 
+	serv->ringbuffer_size = SW_QUEUE_SIZE;
+
 	serv->timeout_sec = 0;
 	serv->timeout_usec = 300000; //300ms;
+
+	serv->timer_interval = 0;
 
 	serv->writer_num = SW_CPU_NUM;
 	serv->worker_num = SW_CPU_NUM;
@@ -186,11 +266,46 @@ void swServer_init(swServer *serv)
 	serv->open_udp = 0;
 	serv->udp_max_tmp_pkg = SW_MAX_TMP_PKG;
 
+	serv->timer_list = NULL;
+
 	serv->onClose = NULL;
 	serv->onConnect = NULL;
 	serv->onStart = NULL;
 	serv->onShutdown = NULL;
 	serv->onReceive = NULL;
+	serv->onTimer = NULL;
+}
+static int swServer_timer_start(swServer *serv)
+{
+	int timer_fd;
+	struct itimerspec timer_set;
+	struct timespec now;
+
+	if (clock_gettime(CLOCK_REALTIME, &now) == -1)
+	{
+		swError("clock_gettime fail\n");
+		return SW_ERR;
+	}
+
+	timer_fd = timerfd_create(CLOCK_REALTIME, TFD_NONBLOCK | TFD_CLOEXEC);
+	if (timer_fd < 0)
+	{
+		swError("create timerfd fail\n");
+		return SW_ERR;
+	}
+
+	timer_set.it_value.tv_sec = now.tv_sec;
+	timer_set.it_value.tv_nsec = now.tv_nsec;
+	timer_set.it_interval.tv_sec = serv->timer_interval;
+	timer_set.it_interval.tv_nsec = 0;
+
+	if (timerfd_settime(timer_fd, TFD_TIMER_ABSTIME, &timer_set, NULL) == -1)
+	{
+		swError("set timer fail\n");
+		return SW_ERR;
+	}
+	serv->timer_fd = timer_fd;
+	return SW_OK;
 }
 int swServer_create(swServer *serv)
 {
@@ -280,6 +395,10 @@ int swServer_free(swServer *serv)
 	if (serv->event_fd != 0)
 	{
 		close(serv->event_fd);
+	}
+	if(serv->timer_interval!=0)
+	{
+		swServer_timer_free(serv);
 	}
 	return SW_OK;
 }
@@ -520,7 +639,8 @@ static int swServer_poll_onPackage2(swReactor *reactor, swEvent *event)
 	bzero(buf->data, sizeof(buf->data));
 	while (1)
 	{
-		ret = recvfrom(event->fd, buf->data, SW_BUFFER_SIZE, 0, &(poll_thread->udp_addrs[poll_thread->c_udp_fd].addr), &addrlen);
+		ret = recvfrom(event->fd, buf->data, SW_BUFFER_SIZE, 0, &(poll_thread->udp_addrs[poll_thread->c_udp_fd].addr),
+				&addrlen);
 		if (ret < 0)
 		{
 			if (errno == EINTR)
