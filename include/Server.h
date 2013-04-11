@@ -55,6 +55,7 @@ struct swServer_s
 
 	int timer_fd;
 	int signal_fd;
+	int event_fd;
 
 	int timer_interval;
 	int ringbuffer_size;
