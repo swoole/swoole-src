@@ -37,7 +37,13 @@
 #ifndef MAX
 #define MAX(a, b)              (a)>(b)?a:b;
 #endif
+
+#define SW_STRL(s)             s, sizeof(s)
 #define SW_START_SLEEP         sleep(1)  //sleep 1s,wait fork and pthread_create
+
+#ifndef CLOCK_REALTIME
+#define CLOCK_REALTIME         0
+#endif
 
 #ifdef SW_USE_PHP
 #define sw_malloc              emalloc
@@ -164,6 +170,14 @@ typedef struct _swThreadParam
 	int pti;
 } swThreadParam;
 
+typedef struct _swPipe
+{
+	void *object;
+	int (*read)(struct _swPipe *, void *recv, int length);
+	int (*write)(struct _swPipe *, void *send, int length);
+	int (*getFd)(struct _swPipe *, int isWriteFd);
+	void (*close)(struct _swPipe *);
+} swPipe;
 
 struct swReactor_s
 {
@@ -228,5 +242,8 @@ int swFactoryThread_start(swFactory *factory);
 int swFactoryThread_shutdown(swFactory *factory);
 int swFactoryThread_dispatch(swFactory *factory, swEventData *buf);
 int swFactoryThread_finish(swFactory *factory, swSendData *data);
+
+int swPipeBase_create(swPipe *p);
+int swPipeEventfd_create(swPipe *p);
 
 #endif /* SWOOLE_H_ */

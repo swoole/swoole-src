@@ -53,7 +53,6 @@ struct swServer_s
 	int timeout_usec;
 	int daemonize;
 
-	int event_fd;
 	int timer_fd;
 	int signal_fd;
 
@@ -64,6 +63,7 @@ struct swServer_s
 	int open_udp;        //是否有UDP监听端口
 	int udp_max_tmp_pkg; //UDP临时包数量，超过数量未处理将会被丢弃
 
+	swPipe main_pipe;
 	swReactor reactor;
 	swFactory factory;
 	swThreadPoll *poll_threads;
