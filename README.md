@@ -16,7 +16,7 @@ example
 -----
 <pre>
 <?php
->/*
+/*
 argv0  server host
 argv1  server port
 argv2  server mode SWOOLE_BASE or SWOOLE_THREAD or SWOOLE_PROCESS

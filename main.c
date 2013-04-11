@@ -4,7 +4,6 @@
 #include "hashtable.h"
 #include "RingMempool.h"
 #include <netinet/tcp.h>
-
 int swoole_running = 1;
 int my_onReceive(swFactory *factory, swEventData *req);
 void my_onStart(swServer *serv);
@@ -12,6 +11,8 @@ void my_onShutdown(swServer *serv);
 void my_onConnect(swServer *serv, int fd,int from_id);
 void my_onClose(swServer *serv, int fd,int from_id);
 void my_onTimer(swServer *serv, int interval);
+
+
 
 void p_str(void *str)
 {
@@ -23,6 +24,8 @@ int main(int argc, char **argv)
 	swServer serv;
 	int ret;
 
+	//u1_test1();
+	//return 0;
 	//ds_test1();
 	//return 0;
 
