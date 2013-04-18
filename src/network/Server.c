@@ -5,6 +5,7 @@
 
 #include "swoole.h"
 #include "Server.h"
+
 static void swSignalInit(void);
 static int swServer_poll_loop(swThreadParam *param);
 static int swServer_poll_start(swServer *serv);
@@ -99,6 +100,13 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 		swSetNonBlock(conn_fd);
 #endif
 		break;
+	}
+
+	//TCP Nodelay
+	if(serv->open_tcp_nodelay == 1)
+	{
+		int flag = 1;
+		setsockopt(conn_fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
 	}
 
 	str = inet_ntoa(clientaddr.sin_addr);
@@ -293,6 +301,9 @@ void swServer_init(swServer *serv)
 	serv->max_request = SW_MAX_REQUEST;
 
 	serv->open_udp = 0;
+	serv->open_cpu_affinity = 0;
+	serv->open_tcp_nodelay = 0;
+
 	serv->udp_max_tmp_pkg = SW_MAX_TMP_PKG;
 
 	serv->timer_list = NULL;
@@ -517,6 +528,18 @@ static int swServer_poll_loop(swThreadParam *param)
 	int ret, pti = param->pti;
 	swReactor *reactor = &(serv->poll_threads[pti].reactor);
 	struct timeval timeo;
+
+	//cpu affinity setting
+	if(serv->open_cpu_affinity)
+	{
+		cpu_set_t cpu_set;
+		CPU_ZERO(&cpu_set);
+		CPU_SET(pti % SW_CPU_NUM, &cpu_set);
+		if(0 != pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set))
+		{
+			swTrace("pthread_setaffinity_np set fail\n");
+		}
+	}
 
 	ret = swReactorEpoll_create(reactor, (serv->max_conn / serv->poll_thread_num) + 1);
 	if (ret < 0)

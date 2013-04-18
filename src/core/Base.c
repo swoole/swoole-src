@@ -94,7 +94,7 @@ inline int swSocket_listen(int type, char *host, int port, int backlog)
 	return sock;
 }
 
-int swRead(int fd, char *buf, int count)
+inline int swRead(int fd, char *buf, int count)
 {
 	int nread = 0, totlen = 0;
 	while (1)
@@ -127,7 +127,7 @@ int swRead(int fd, char *buf, int count)
 	return totlen;
 }
 
-int swWrite(int fd, char *buf, int count)
+inline int swWrite(int fd, char *buf, int count)
 {
 	int nwritten = 0, totlen = 0;
 	while (totlen != count)
@@ -156,7 +156,7 @@ int swWrite(int fd, char *buf, int count)
 }
 
 //将套接字设置为非阻塞方式
-void swSetNonBlock(int sock)
+inline void swSetNonBlock(int sock)
 {
 	int opts;
 	opts = fcntl(sock, F_GETFL);
@@ -174,7 +174,7 @@ void swSetNonBlock(int sock)
 	}
 }
 
-void swSetBlock(int sock)
+inline void swSetBlock(int sock)
 {
 	int opts;
 	opts = fcntl(sock, F_GETFL);

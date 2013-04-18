@@ -12,8 +12,6 @@ void my_onConnect(swServer *serv, int fd,int from_id);
 void my_onClose(swServer *serv, int fd,int from_id);
 void my_onTimer(swServer *serv, int interval);
 
-
-
 void p_str(void *str)
 {
 	printf("Str: %s|len=%ld\n", (char *)str, strlen((char *)str));
@@ -37,16 +35,18 @@ int main(int argc, char **argv)
 	serv.poll_thread_num = 2;
 	serv.writer_num = 2;
 	serv.worker_num = 4;
-	serv.factory_mode = 2;
+	serv.factory_mode = 1;
+	serv.open_cpu_affinity = 1;
+	serv.open_tcp_nodelay = 1;
 	//serv.daemonize = 1;
 
-	swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9500);
+	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9500);
 	swServer_addListen(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9502);
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 8888);
 
-	swServer_addTimer(&serv, 2);
-	swServer_addTimer(&serv, 10);
+	//swServer_addTimer(&serv, 2);
+	//swServer_addTimer(&serv, 10);
 
 	serv.onStart = my_onStart;
 	serv.onShutdown = my_onShutdown;
@@ -99,6 +99,10 @@ int my_onReceive(swFactory *factory, swEventData *req)
 	snprintf(resp_data, resp.len, "Server:%s", req->data);
 	resp.data = resp_data;
 	ret = factory->finish(factory, &resp);
+	if(ret < 0)
+	{
+
+	}
 	swTrace("finish\n");
 	return SW_OK;
 }

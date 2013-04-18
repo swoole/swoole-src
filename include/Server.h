@@ -61,8 +61,11 @@ struct swServer_s
 	int ringbuffer_size;
 
 	int c_pti;           //schedule
-	int open_udp;        //是否有UDP监听端口
 	int udp_max_tmp_pkg; //UDP临时包数量，超过数量未处理将会被丢弃
+
+	char open_udp;        //是否有UDP监听端口
+	char open_cpu_affinity; //是否设置CPU亲和性
+	char open_tcp_nodelay;  //是否关闭Nagle算法
 
 	swPipe main_pipe;
 	swReactor reactor;

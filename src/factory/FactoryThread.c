@@ -1,4 +1,5 @@
 #include "swoole.h"
+#include "Server.h"
 #include "RingQueue.h"
 #include "RingMempool.h"
 
@@ -118,7 +119,7 @@ int swFactoryThread_dispatch(swFactory *factory, swEventData *buf)
 		pti = 0;
 	}
 	//send data ptr. use event_fd
-	if (swRingQueue_push(&(this->queues[pti]), (void *)buf) < 0)
+	if (swRingQueue_push(&(this->queues[pti]), (void *) buf) < 0)
 	{
 		swWarn("swRingQueue_push fail.Buffer is full.Writer=%d\n", pti);
 		return SW_ERR;
@@ -134,11 +135,24 @@ int swFactoryThread_dispatch(swFactory *factory, swEventData *buf)
 static int swFactoryThread_writer_loop(swThreadParam *param)
 {
 	swFactory *factory = param->object;
+	swServer *serv = factory->ptr;
 	swFactoryThread *this = factory->object;
 	int pti = param->pti;
 	int ret;
 	swEventData *req;
 	uint64_t flag;
+
+	//cpu affinity setting
+	if (serv->open_cpu_affinity)
+	{
+		cpu_set_t cpu_set;
+		CPU_ZERO(&cpu_set);
+		CPU_SET(pti % SW_CPU_NUM, &cpu_set);
+		if (0 != pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set))
+		{
+			swTrace("pthread_setaffinity_np set fail\n");
+		}
+	}
 
 	//main loop
 	while (swoole_running > 0)
@@ -153,7 +167,7 @@ static int swFactoryThread_writer_loop(swThreadParam *param)
 		else
 		{
 			ret = this->writers[pti].evfd.read(&this->writers[pti].evfd, &flag, sizeof(flag));
-			if(ret < 0)
+			if (ret < 0)
 			{
 				swTrace("read fail.errno=%d", errno);
 			}

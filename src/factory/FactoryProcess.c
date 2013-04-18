@@ -1,4 +1,5 @@
 #include "swoole.h"
+#include "Server.h"
 #include <signal.h>
 #include <sys/wait.h>
 
@@ -25,7 +26,7 @@ typedef struct _swPipes{
 } swPipes;
 
 static int swFactoryProcess_worker_start(swFactory *factory);
-static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe);
+static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int worker_pti);
 static int swFactoryProcess_worker_spawn(swFactory *factory, int writer_pti, int worker_pti);
 static int swFactoryProcess_writer_start(swFactory *factory);
 static int swFactoryProcess_writer_loop(swThreadParam *param);
@@ -223,7 +224,7 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int writer_pti, int
 				close(this->workers[i].pipe_fd);
 			}
 		}
-		swFactoryProcess_worker_loop(factory, this->workers[worker_pti].pipe_fd);
+		swFactoryProcess_worker_loop(factory, this->workers[worker_pti].pipe_fd, worker_pti);
 		exit(0);
 	}
 	//parent,add to writer
@@ -243,13 +244,26 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	return write(c_worker_pipe, &send_data, resp->len + (3 * sizeof(int)));
 }
 
-static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe)
+static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int worker_pti)
 {
 	swEventData req;
 	//swFactoryProcess *this = factory->object;
+	swServer *serv = factory->ptr;
 	c_worker_pipe = c_pipe;
 	int n;
 	int task_num = factory->max_request;
+
+	if (serv->open_cpu_affinity)
+	{
+		cpu_set_t cpu_set;
+		CPU_ZERO(&cpu_set);
+		CPU_SET(worker_pti % SW_CPU_NUM, &cpu_set);
+		if (0 != sched_setaffinity(getpid(), sizeof(cpu_set), &cpu_set))
+		{
+			swTrace("pthread_setaffinity_np set fail\n");
+		}
+	}
+
 	//主线程
 	while (swoole_running > 0 && task_num > 0)
 	{

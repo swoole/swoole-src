@@ -8,7 +8,6 @@
 #ifndef SWOOLE_H_
 #define SWOOLE_H_
 
-#include <arpa/inet.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -16,10 +15,16 @@
 #include <errno.h>
 #include <string.h>
 
+#define _GNU_SOURCE
+#define __USE_GNU
+#include <sched.h>
+#include <arpa/inet.h>
+#include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 #include <sys/select.h>
+
 #include <pthread.h>
 
 #include "swoole_config.h"
@@ -217,10 +222,10 @@ int swReactorPoll_create(swReactor *reactor, int max_event_num);
 int swReactorKqueue_create(swReactor *reactor, int max_event_num);
 int swReactorSelect_create(swReactor *reactor);
 
-int swRead(int, char *, int);
-int swWrite(int, char *, int);
-void swSetNonBlock(int);
-void swSetBlock(int);
+inline int swRead(int, char *, int);
+inline int swWrite(int, char *, int);
+inline void swSetNonBlock(int);
+inline void swSetBlock(int);
 inline int swSocket_listen(int type, char *host, int port, int backlog);
 inline int swSocket_create(int type);
 swSignalFunc swSignalSet(int sig, swSignalFunc func, int restart, int mask);
