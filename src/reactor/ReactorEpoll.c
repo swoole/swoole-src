@@ -137,13 +137,13 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 		{
 			if (this->events[i].events & EPOLLIN)
 			{
-				//swTrace("[THREAD #%ld]event coming.Ep=%d|fd=%d\n", pthread_self(), this->epfd, this->events[i].data.fd);
+				swTrace("event coming.Ep=%d|fd=%d\n", this->epfd, this->events[i].data.fd);
 				memcpy(&fd_, &(this->events[i].data.u64), sizeof(fd_));
 				ev.fd = fd_.fd;
 				ev.from_id = reactor->id;
 				ev.type = fd_.fdtype;
 				ret = reactor->handle[ev.type](reactor, &ev);
-				//swTrace("[THREAD #%ld]event finish.Ep=%d|ret=%d\n", pthread_self(), this->epfd, ret);
+				swTrace("[THREAD #%ld]event finish.Ep=%d|ret=%d\n", pthread_self(), this->epfd, ret);
 			}
 		}
 	}

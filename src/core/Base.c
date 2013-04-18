@@ -96,12 +96,16 @@ inline int swSocket_listen(int type, char *host, int port, int backlog)
 
 int swRead(int fd, char *buf, int count)
 {
-	int nread, totlen = 0;
+	int nread = 0, totlen = 0;
 	while (1)
 	{
 		nread = read(fd, buf, count - totlen);
+		//已读完
 		if (nread == 0)
+		{
 			return totlen;
+		}
+		//遇到错误
 		if (nread == -1)
 		{
 			if (errno == EINTR)
@@ -113,7 +117,9 @@ int swRead(int fd, char *buf, int count)
 				break;
 			}
 			else
+			{
 				return -1;
+			}
 		}
 		totlen += nread;
 		buf += nread;
@@ -123,7 +129,7 @@ int swRead(int fd, char *buf, int count)
 
 int swWrite(int fd, char *buf, int count)
 {
-	int nwritten, totlen = 0;
+	int nwritten = 0, totlen = 0;
 	while (totlen != count)
 	{
 		nwritten = write(fd, buf, count - totlen);

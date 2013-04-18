@@ -10,15 +10,20 @@ typedef struct _swPipeEventfd
 	int event_fd;
 } swPipeEventfd;
 
-int swPipeEventfd_create(swPipe *p)
+int swPipeEventfd_create(swPipe *p, int blocking)
 {
 	int efd;
+	int flag = 0;
 	swPipeEventfd *object = sw_malloc(sizeof(swPipeEventfd));
 	if (object == NULL)
 	{
 		return -1;
 	}
-	efd = eventfd(0, EFD_NONBLOCK);
+	if(blocking == 0)
+	{
+		flag = EFD_NONBLOCK;
+	}
+	efd = eventfd(0, flag);
 	if (efd < 0)
 	{
 		return -1;

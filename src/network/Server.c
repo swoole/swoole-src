@@ -1,9 +1,11 @@
-#include "swoole.h"
-#include "Server.h"
 #include <signal.h>
 #include <time.h>
 #include <sys/timerfd.h>
+#include <sys/socket.h>
 
+#include "swoole.h"
+#include "Server.h"
+static void swSignalInit(void);
 static int swServer_poll_loop(swThreadParam *param);
 static int swServer_poll_start(swServer *serv);
 static int swServer_check_callback(swServer *serv);
@@ -21,7 +23,7 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 	swEventClose cev;
 	swReactor *from_reactor;
 	int ret;
-	ret = read(serv->event_fd, &cev, sizeof(uint64_t));
+	ret = serv->main_pipe.read(&serv->main_pipe, &cev, sizeof(uint64_t));
 	if (ret < 0)
 	{
 		return SW_ERR;
@@ -66,21 +68,39 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 	int clilen;
 	int conn_fd;
 	int ret;
+	char *str;
+
 	struct sockaddr_in clientaddr;
 	clilen = sizeof(clientaddr);
 	bzero(&clientaddr, clilen);
 	swTrace("[Main]accept start\n");
 	//得到连接套接字
-	conn_fd = accept(event->fd, (struct sockaddr *) &clientaddr, (socklen_t *) &clilen);
-	if (conn_fd < 0)
+	while (1)
 	{
-		swTrace("[Main]accept fail Errno=%d|SockFD=%d|\n", errno, event->fd);
-		return SW_ERR;
+#ifdef SW_USE_ACCEPT4
+		conn_fd = accept4(event->fd, (struct sockaddr *) &clientaddr, (socklen_t *) &clilen, SOCK_NONBLOCK);
+#else
+		conn_fd = accept(event->fd, (struct sockaddr *) &clientaddr, (socklen_t *) &clilen);
+#endif
+		if (conn_fd < 0)
+		{
+			//中断
+			if(errno == EINTR)
+			{
+				continue;
+			}
+			else
+			{
+				swTrace("[Main]accept fail Errno=%d|SockFD=%d|\n", errno, event->fd);
+				return SW_ERR;
+			}
+		}
+#ifndef SW_USE_ACCEPT4
+		swSetNonBlock(conn_fd);
+#endif
+		break;
 	}
-	swTrace("[Main]swSetNonBlock\n");
-	swSetNonBlock(conn_fd);
 
-	char *str;
 	str = inet_ntoa(clientaddr.sin_addr);
 	swTrace("[Main]connect from %s, by process %d\n", str, getpid());
 
@@ -199,11 +219,12 @@ int swServer_start(swServer *serv)
 		return SW_ERR;
 	}
 	main_reactor.ptr = serv;
+	main_reactor.id = 0;
 	main_reactor.setHandle(&main_reactor, SW_EVENT_CLOSE, swServer_onClose);
 	main_reactor.setHandle(&main_reactor, SW_EVENT_CONNECT, swServer_onAccept);
 	main_reactor.setHandle(&main_reactor, SW_EVENT_TIMER, swServer_onTimer);
 
-	main_reactor.add(&main_reactor, serv->event_fd, SW_EVENT_CLOSE);
+	main_reactor.add(&main_reactor, serv->main_pipe.getFd(&serv->main_pipe, 0), SW_EVENT_CLOSE);
 	if (serv->timer_interval != 0)
 	{
 		ret = swServer_timer_start(serv);
@@ -224,6 +245,9 @@ int swServer_start(swServer *serv)
 	tmo.tv_sec = SW_MAINREACTOR_TIMEO;
 	tmo.tv_usec = 0;
 
+	//Signal Init
+	swSignalInit();
+
 	serv->onStart(serv);
 	main_reactor.wait(&main_reactor, &tmo);
 	serv->onShutdown(serv);
@@ -236,9 +260,14 @@ int swServer_start(swServer *serv)
 int swServer_close(swServer *serv, swEvent *event)
 {
 	swEventClose cev;
+	if(event->from_id > serv->poll_thread_num)
+	{
+		swWarn("Error: From_id > serv->poll_thread_num\n");
+		return -1;
+	}
 	cev.fd = event->fd;
 	cev.from_id = event->from_id;
-	return write(serv->event_fd, &cev, sizeof(cev));
+	return serv->main_pipe.write(&serv->main_pipe, &cev, sizeof(cev));
 }
 /**
  * initializing server config, set default
@@ -253,8 +282,8 @@ void swServer_init(swServer *serv)
 
 	serv->ringbuffer_size = SW_QUEUE_SIZE;
 
-	serv->timeout_sec = 0;
-	serv->timeout_usec = 300000; //300ms;
+	serv->timeout_sec = SW_REACTOR_TIMEO_SEC;
+	serv->timeout_usec = SW_REACTOR_TIMEO_USEC; //300ms;
 
 	serv->timer_interval = 0;
 
@@ -310,9 +339,8 @@ static int swServer_timer_start(swServer *serv)
 int swServer_create(swServer *serv)
 {
 	int ret = 0;
-	//创建event_fd
-	serv->event_fd = eventfd(0, EFD_NONBLOCK);
-	if (serv->event_fd < 0)
+	ret = swPipeBase_create(&serv->main_pipe, 0);
+	if (ret < 0)
 	{
 		swTrace("[swServerCreate]create event_fd fail\n");
 		return SW_ERR;
@@ -392,11 +420,11 @@ int swServer_free(swServer *serv)
 	{
 		sw_free(serv->poll_threads);
 	}
-	if (serv->event_fd != 0)
+	if (serv->main_pipe.close != NULL)
 	{
-		close(serv->event_fd);
+		serv->main_pipe.close(&serv->main_pipe);
 	}
-	if(serv->timer_interval!=0)
+	if (serv->timer_interval != 0)
 	{
 		swServer_timer_free(serv);
 	}
@@ -498,6 +526,7 @@ static int swServer_poll_loop(swThreadParam *param)
 	timeo.tv_sec = serv->timeout_sec;
 	timeo.tv_usec = serv->timeout_usec; //300ms
 	reactor->ptr = serv;
+	reactor->id = pti;
 	reactor->setHandle(reactor, SW_FD_CLOSE, swServer_poll_onClose);
 
 	//Thread mode must copy the data.
@@ -527,13 +556,13 @@ static int swServer_poll_onReceive(swReactor *reactor, swEvent *event)
 	swFactory *factory = &(serv->factory);
 	swEventData buf;
 	bzero(buf.data, sizeof(buf.data));
-	ret = swRead(event->fd, buf.data, SW_BUFFER_SIZE);
-	if (ret < 0)
+	n = swRead(event->fd, buf.data, SW_BUFFER_SIZE);
+	if (n < 0)
 	{
-		//printf("error: %d\n", errno);
+		swTrace("swRead error: %d\n", errno);
 		return SW_ERR;
 	}
-	else if (ret == 0)
+	else if (n == 0)
 	{
 		swTrace("Close Event.FD=%d|From=%d\n", event->fd, event->from_id);
 		return swServer_close(serv, event);
@@ -541,10 +570,15 @@ static int swServer_poll_onReceive(swReactor *reactor, swEvent *event)
 	else
 	{
 		buf.fd = event->fd;
-		buf.len = ret;
+		buf.len = n;
 		buf.from_id = event->from_id;
 		//swTrace("recv: %s|fd=%d|ret=%d|errno=%d\n", buf.data, event->fd, ret, errno);
-		n = factory->dispatch(factory, &buf);
+		ret = factory->dispatch(factory, &buf);
+		if(ret < 0)
+		{
+			swTrace("factory->dispatch fail\n");
+			return SW_ERR;
+		}
 	}
 	return SW_OK;
 }
@@ -588,7 +622,7 @@ static int swServer_poll_onReceive2(swReactor *reactor, swEvent *event)
  */
 static int swServer_poll_onPackage(swReactor *reactor, swEvent *event)
 {
-	int ret, n;
+	int ret;
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &(serv->factory);
 	swThreadPoll *poll_thread = &(serv->poll_threads[event->from_id]);
@@ -616,7 +650,11 @@ static int swServer_poll_onPackage(swReactor *reactor, swEvent *event)
 	buf.len = ret;
 	buf.from_id = event->from_id;
 	swTrace("recv package: %s|fd=%d|size=%d\n", buf.data, event->fd, ret);
-	n = factory->dispatch(factory, &buf);
+	ret = factory->dispatch(factory, &buf);
+	if(ret <0)
+	{
+		swTrace("factory->dispatch fail\n");
+	}
 	poll_thread->c_udp_fd++;
 	if (poll_thread->c_udp_fd == serv->udp_max_tmp_pkg)
 	{
@@ -629,7 +667,7 @@ static int swServer_poll_onPackage(swReactor *reactor, swEvent *event)
  */
 static int swServer_poll_onPackage2(swReactor *reactor, swEvent *event)
 {
-	int ret, n;
+	int ret;
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &(serv->factory);
 	swThreadPoll *poll_thread = &(serv->poll_threads[event->from_id]);
@@ -656,7 +694,11 @@ static int swServer_poll_onPackage2(swReactor *reactor, swEvent *event)
 	buf->len = ret;
 	buf->from_id = event->from_id;
 	swTrace("recv package: %s|fd=%d|size=%d\n", buf->data, event->fd, ret);
-	n = factory->dispatch(factory, buf);
+	ret = factory->dispatch(factory, buf);
+	if(ret < 0)
+	{
+		swTrace("factory->dispatch fail\n");
+	}
 	poll_thread->c_udp_fd++;
 	if (poll_thread->c_udp_fd == serv->udp_max_tmp_pkg)
 	{
@@ -675,10 +717,10 @@ static int swServer_poll_onClose(swReactor *reactor, swEvent *event)
 void swSignalInit(void)
 {
 	swSignalSet(SIGHUP, SIG_IGN, 1, 0);
-	swSignalSet(SIGINT, SIG_IGN, 1, 0);
-	swSignalSet(SIGQUIT, SIG_IGN, 1, 0);
-	swSignalSet(SIGTERM, swSignalHanlde, 0, 0);
-	swSignalSet(SIGCHLD, swSignalHanlde, 1, 0);
+	swSignalSet(SIGPIPE, SIG_IGN, 1, 0);
+	swSignalSet(SIGUSR1, SIG_IGN, 1, 0);
+	swSignalSet(SIGUSR2, SIG_IGN, 1, 0);
+	swSignalSet(SIGTERM, swSignalHanlde, 1, 0);
 }
 
 swSignalFunc swSignalSet(int sig, swSignalFunc func, int restart, int mask)
@@ -695,8 +737,9 @@ swSignalFunc swSignalSet(int sig, swSignalFunc func, int restart, int mask)
 	}
 	act.sa_flags = 0;
 	if (sigaction(sig, &act, &oact) < 0)
+	{
 		return NULL;
-
+	}
 	return oact.sa_handler;
 }
 

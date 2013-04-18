@@ -10,7 +10,7 @@ typedef struct _swPipeBase
 	int pipes[2];
 } swPipeBase;
 
-int swPipeBase_create(swPipe *p)
+int swPipeBase_create(swPipe *p, int blocking)
 {
 	int ret;
 	swPipeBase *object = sw_malloc(sizeof(swPipeBase));
@@ -25,8 +25,12 @@ int swPipeBase_create(swPipe *p)
 	}
 	else
 	{
-		swSetNonBlock(object->pipes[0]);
-		swSetNonBlock(object->pipes[1]);
+		//Nonblock
+		if(blocking == 0)
+		{
+			swSetNonBlock(object->pipes[0]);
+			swSetNonBlock(object->pipes[1]);
+		}
 		p->object = object;
 		p->read = swPipeBase_read;
 		p->write = swPipeBase_write;

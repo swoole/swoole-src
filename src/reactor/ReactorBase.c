@@ -31,9 +31,9 @@ inline int swReactor_error(swReactor *reactor)
 
 int swReactor_close(swReactor *reactor, swEvent *event)
 {
-	swEventClose close_ev;
-	close_ev.fd = event->fd;
-	close_ev.from_id = event->fd;
+	//swEventClose close_ev;
+	//close_ev.fd = event->fd;
+	//close_ev.from_id = event->fd;
 
 	close(event->fd);
 	reactor->del(reactor, event->fd);

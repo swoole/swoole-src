@@ -199,11 +199,11 @@ struct swReactor_s
 typedef struct _swThreadWriter
 {
 	pthread_t ptid; //线程ID
-	int evfd; //eventfd
 	int pipe_num; //writer thread's pipe num
 	int *pipes; //worker pipes
 	int c_pipe; //current pipe
 	swReactor reactor;
+	swPipe evfd; //eventfd
 } swThreadWriter;
 
 int swoole_running;
@@ -213,6 +213,8 @@ char sw_error[SW_ERROR_MSG_SIZE];
 inline int swReactor_error(swReactor *reactor);
 int swReactor_setHandle(swReactor *, int, swReactor_handle);
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);
+int swReactorPoll_create(swReactor *reactor, int max_event_num);
+int swReactorKqueue_create(swReactor *reactor, int max_event_num);
 int swReactorSelect_create(swReactor *reactor);
 
 int swRead(int, char *, int);
@@ -243,7 +245,7 @@ int swFactoryThread_shutdown(swFactory *factory);
 int swFactoryThread_dispatch(swFactory *factory, swEventData *buf);
 int swFactoryThread_finish(swFactory *factory, swSendData *data);
 
-int swPipeBase_create(swPipe *p);
-int swPipeEventfd_create(swPipe *p);
+int swPipeBase_create(swPipe *p, int blocking);
+int swPipeEventfd_create(swPipe *p, int blocking);
 
 #endif /* SWOOLE_H_ */

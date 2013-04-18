@@ -14,7 +14,10 @@
 #define SW_QUEUE_SIZE          100 //RingBuffer队列长度
 #define SW_MAINREACTOR_TIMEO   3  //main reactor
 
+#define SW_REACTOR_TIMEO_SEC    3
+#define SW_REACTOR_TIMEO_USEC   0
+
 #define SW_USE_FIXED_BUFFER
-//#define SW_USE_ACCEPT4    //是否使用accept4，可以节省一次setnonblock的系统调用         1
+#define SW_USE_ACCEPT4    //是否使用accept4，可以节省一次setnonblock的系统调用         1
 #define SW_USE_EVENTFD      //是否使用eventfd来做消息通知，需要Linux 2.6.22以上版本才会支持
 #endif /* SWOOLE_CONFIG_H_ */

@@ -53,7 +53,7 @@ int swFactoryThread_start(swFactory *factory)
 {
 	swFactoryThread *this = factory->object;
 	swThreadParam *param;
-	int i, evfd;
+	int i;
 	int ret;
 	pthread_t pidt;
 
@@ -64,8 +64,8 @@ int swFactoryThread_start(swFactory *factory)
 	}
 	for (i = 0; i < this->writer_num; i++)
 	{
-		evfd = eventfd(0, 0);
-		if (evfd < 0)
+		ret = swPipeEventfd_create(&this->writers[i].evfd, 1);
+		if (ret < 0)
 		{
 			swTrace("create eventfd fail\n");
 			return SW_ERR;
@@ -87,7 +87,6 @@ int swFactoryThread_start(swFactory *factory)
 			return SW_ERR;
 		}
 		this->writers[i].ptid = pidt;
-		this->writers[i].evfd = evfd;
 		//SW_START_SLEEP;
 	}
 	return SW_OK;
@@ -109,7 +108,7 @@ int swFactoryThread_dispatch(swFactory *factory, swEventData *buf)
 	int pti;
 	int ret;
 	uint64_t flag = 1;
-	int data_size = sizeof(int)*3 + buf->len;
+	//int data_size = sizeof(int)*3 + buf->len;
 
 	//使用pti，避免线程切换造成错误的writer_pti
 	pti = this->writer_pti;
@@ -126,9 +125,9 @@ int swFactoryThread_dispatch(swFactory *factory, swEventData *buf)
 	}
 	else
 	{
-		ret = write(this->writers[pti].evfd, &flag, sizeof(flag));
+		ret = this->writers[pti].evfd.write(&this->writers[pti].evfd, &flag, sizeof(flag));
 		this->writer_pti++;
-		return SW_OK;
+		return ret;
 	}
 }
 
@@ -153,12 +152,16 @@ static int swFactoryThread_writer_loop(swThreadParam *param)
 		}
 		else
 		{
-			ret = read(this->writers[pti].evfd, &flag, sizeof(flag));
+			ret = this->writers[pti].evfd.read(&this->writers[pti].evfd, &flag, sizeof(flag));
+			if(ret < 0)
+			{
+				swTrace("read fail.errno=%d", errno);
+			}
 		}
 	}
 	factory->running = 0;
 	//shutdown
-	close(this->writers[pti].evfd);
+	this->writers[pti].evfd.close(&this->writers[pti].evfd);
 	sw_free(param);
 	pthread_exit(SW_OK);
 	return SW_OK;
