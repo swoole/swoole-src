@@ -32,6 +32,8 @@ if test "$PHP_SWOOLE" != "no"; then
     src/reactor/ReactorBase.c \
     src/reactor/ReactorSelect.c \
     src/reactor/ReactorEpoll.c \
+	src/pipe/PipeBase.c \
+	src/pipe/PipeEventfd.c \
     src/network/Server.c \
   , $ext_shared)
 fi
