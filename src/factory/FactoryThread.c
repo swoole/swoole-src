@@ -109,7 +109,10 @@ int swFactoryThread_dispatch(swFactory *factory, swEventData *buf)
 	int pti;
 	int ret;
 	uint64_t flag = 1;
-	//int data_size = sizeof(int)*3 + buf->len;
+	int datasize = sizeof(int)*3 + buf->len;
+	char *data;
+
+	printf("DDD:datasize=%d\n", datasize);
 
 	//使用pti，避免线程切换造成错误的writer_pti
 	pti = this->writer_pti;
@@ -118,8 +121,16 @@ int swFactoryThread_dispatch(swFactory *factory, swEventData *buf)
 		this->writer_pti = 0;
 		pti = 0;
 	}
+
+	data = sw_malloc(datasize);
+	if(data == NULL)
+	{
+		swTrace("malloc fail\n");
+		return SW_ERR;
+	}
+	memcpy(data, buf, datasize);
 	//send data ptr. use event_fd
-	if (swRingQueue_push(&(this->queues[pti]), (void *) buf) < 0)
+	if (swRingQueue_push(&(this->queues[pti]), (void *) data) < 0)
 	{
 		swWarn("swRingQueue_push fail.Buffer is full.Writer=%d\n", pti);
 		return SW_ERR;

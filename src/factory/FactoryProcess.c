@@ -108,6 +108,8 @@ int swFactoryProcess_start(swFactory *factory)
 	{
 		return --step;
 	}
+	//主进程需要设置为直写模式
+	factory->finish = swFactory_finish;
 	return SW_OK;
 }
 

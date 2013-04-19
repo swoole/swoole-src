@@ -4,6 +4,7 @@
 #include "hashtable.h"
 #include "RingMempool.h"
 #include <netinet/tcp.h>
+
 int swoole_running = 1;
 int my_onReceive(swFactory *factory, swEventData *req);
 void my_onStart(swServer *serv);
@@ -32,10 +33,10 @@ int main(int argc, char **argv)
 
 	//config
 	serv.backlog = 128;
-	serv.poll_thread_num = 2;
-	serv.writer_num = 2;
+	serv.poll_thread_num = 4;
+	serv.writer_num = 4;
 	serv.worker_num = 4;
-	serv.factory_mode = 1;
+	serv.factory_mode = 2;
 	serv.open_cpu_affinity = 1;
 	serv.open_tcp_nodelay = 1;
 	//serv.daemonize = 1;

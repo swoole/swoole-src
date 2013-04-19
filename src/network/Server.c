@@ -13,9 +13,7 @@ static int swServer_check_callback(swServer *serv);
 static int swServer_listen(swServer *serv, swReactor *reactor);
 static int swServer_poll_onClose(swReactor *reactor, swEvent *event);
 static int swServer_poll_onReceive(swReactor *reactor, swEvent *event);
-static int swServer_poll_onReceive2(swReactor *reactor, swEvent *event);
 static int swServer_poll_onPackage(swReactor *reactor, swEvent *event);
-static int swServer_poll_onPackage2(swReactor *reactor, swEvent *event);
 static int swServer_timer_start(swServer *serv);
 
 int swServer_onClose(swReactor *reactor, swEvent *event)
@@ -204,7 +202,7 @@ int swServer_start(swServer *serv)
 	//run as daemon
 	if (serv->daemonize > 0)
 	{
-		if (daemon(1, 1) < 0)
+		if (daemon(0, 0) < 0)
 		{
 			return SW_ERR;
 		}
@@ -554,16 +552,10 @@ static int swServer_poll_loop(swThreadParam *param)
 
 	//Thread mode must copy the data.
 	//will free after onFinish
-	if (serv->factory_mode == SW_MODE_THREAD)
-	{
-		reactor->setHandle(reactor, SW_FD_TCP, swServer_poll_onReceive2);
-		reactor->setHandle(reactor, SW_FD_UDP, swServer_poll_onPackage2);
-	}
-	else
-	{
-		reactor->setHandle(reactor, SW_FD_TCP, swServer_poll_onReceive);
-		reactor->setHandle(reactor, SW_FD_UDP, swServer_poll_onPackage);
-	}
+
+	reactor->setHandle(reactor, SW_FD_TCP, swServer_poll_onReceive);
+	reactor->setHandle(reactor, SW_FD_UDP, swServer_poll_onPackage);
+
 	//main loop
 	reactor->wait(reactor, &timeo);
 	//shutdown
@@ -578,7 +570,6 @@ static int swServer_poll_onReceive(swReactor *reactor, swEvent *event)
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &(serv->factory);
 	swEventData buf;
-	bzero(buf.data, sizeof(buf.data));
 	n = swRead(event->fd, buf.data, SW_BUFFER_SIZE);
 	if (n < 0)
 	{
@@ -606,40 +597,6 @@ static int swServer_poll_onReceive(swReactor *reactor, swEvent *event)
 	return SW_OK;
 }
 
-static int swServer_poll_onReceive2(swReactor *reactor, swEvent *event)
-{
-	int ret;
-	swServer *serv = reactor->ptr;
-	swFactory *factory = &(serv->factory);
-	swEventData *buf = sw_malloc(sizeof(swEventData));
-	if (buf == NULL)
-	{
-		swTrace("Malloc fail\n");
-		return SW_ERR;
-	}
-	bzero(buf->data, sizeof(buf->data));
-	ret = swRead(event->fd, buf->data, SW_BUFFER_SIZE);
-	if (ret < 0)
-	{
-		swTrace("Receive Error.Fd=%d.From=%d\n", event->fd, event->from_id);
-		return SW_ERR;
-	}
-	else if (ret == 0)
-	{
-		swTrace("Close Event.FD=%d|From=%d\n", event->fd, event->from_id);
-		sw_free(buf);
-		return swServer_close(serv, event);
-	}
-	else
-	{
-		buf->fd = event->fd;
-		buf->len = ret;
-		buf->from_id = event->from_id;
-		//swTrace("recv: %s|fd=%d|ret=%d|errno=%d\n", buf->data, event->fd, ret, errno);
-		factory->dispatch(factory, buf);
-	}
-	return SW_OK;
-}
 /**
  * for udp
  */
@@ -675,50 +632,6 @@ static int swServer_poll_onPackage(swReactor *reactor, swEvent *event)
 	swTrace("recv package: %s|fd=%d|size=%d\n", buf.data, event->fd, ret);
 	ret = factory->dispatch(factory, &buf);
 	if(ret <0)
-	{
-		swTrace("factory->dispatch fail\n");
-	}
-	poll_thread->c_udp_fd++;
-	if (poll_thread->c_udp_fd == serv->udp_max_tmp_pkg)
-	{
-		poll_thread->c_udp_fd = 0;
-	}
-	return SW_OK;
-}
-/**
- * for udp
- */
-static int swServer_poll_onPackage2(swReactor *reactor, swEvent *event)
-{
-	int ret;
-	swServer *serv = reactor->ptr;
-	swFactory *factory = &(serv->factory);
-	swThreadPoll *poll_thread = &(serv->poll_threads[event->from_id]);
-	swEventData *buf = sw_malloc(sizeof(swEventData));
-	socklen_t addrlen = sizeof(poll_thread->udp_addrs[poll_thread->c_udp_fd].addr);
-
-	bzero(buf->data, sizeof(buf->data));
-	while (1)
-	{
-		ret = recvfrom(event->fd, buf->data, SW_BUFFER_SIZE, 0, &(poll_thread->udp_addrs[poll_thread->c_udp_fd].addr),
-				&addrlen);
-		if (ret < 0)
-		{
-			if (errno == EINTR)
-			{
-				continue;
-			}
-			return SW_ERR;
-		}
-		break;
-	}
-	poll_thread->udp_addrs[poll_thread->c_udp_fd].sock = event->fd;
-	buf->fd = -poll_thread->c_udp_fd; //区分TCP和UDP
-	buf->len = ret;
-	buf->from_id = event->from_id;
-	swTrace("recv package: %s|fd=%d|size=%d\n", buf->data, event->fd, ret);
-	ret = factory->dispatch(factory, buf);
-	if(ret < 0)
 	{
 		swTrace("factory->dispatch fail\n");
 	}

@@ -282,6 +282,16 @@ PHP_FUNCTION(swoole_server_set)
 	{
 		serv->max_request = (int)Z_LVAL_PP(v);
 	}
+	//cpu affinity
+	if (zend_hash_find(vht, ZEND_STRS("open_cpu_affinity"), (void **)&v) == SUCCESS)
+	{
+		serv->open_cpu_affinity = (char)Z_LVAL_PP(v);
+	}
+	//tcp nodelay
+	if (zend_hash_find(vht, ZEND_STRS("open_tcp_nodelay"), (void **)&v) == SUCCESS)
+	{
+		serv->open_tcp_nodelay = (char)Z_LVAL_PP(v);
+	}
 	RETURN_TRUE;
 }
 
