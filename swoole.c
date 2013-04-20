@@ -373,155 +373,135 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 {
 	swServer *serv = factory->ptr;
 	zval *zserv = (zval *)serv->ptr2;
-	zval *args[4];
+	zval **args[4];
 
-	zval zfd;
-	zval zfrom_id;
-	zval zdata;
-	zval retval;
+	zval *zfd;
+	zval *zfrom_id;
+	zval *zdata;
+	zval *retval;
 
-	ZVAL_LONG(&zfd, req->fd);
-	ZVAL_LONG(&zfrom_id, req->from_id);
-	ZVAL_STRINGL(&zdata, req->data, req->len, 0);
+	MAKE_STD_ZVAL(zfd);
+	ZVAL_LONG(zfd, req->fd);
 
-	Z_ADDREF_P(&zfd);
-	Z_ADDREF_P(&zfrom_id);
-	Z_ADDREF_P(&zdata);
+	MAKE_STD_ZVAL(zfrom_id);
+	ZVAL_LONG(zfrom_id, req->from_id);
 
-	args[0] = zserv;
+	MAKE_STD_ZVAL(zdata);
+	ZVAL_STRINGL(zdata, req->data, req->len, 0);
+
+	args[0] = &zserv;
 	args[1] = &zfd;
 	args[2] = &zfrom_id;
 	args[3] = &zdata;
 
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-	if (call_user_function(EG(function_table), NULL, php_sw_callback[PHP_CB_onReceive], &retval, 4, args TSRMLS_CC) == SUCCESS)
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onReceive], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		zval_dtor(&retval);
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "SwoolServer: onReceive handler error");
 	}
-	else
-	{
-		zend_error(E_WARNING, "SwooleServer: onReceive handler error");
-	}
+
 	return SW_OK;
 }
 
 void php_swoole_onStart(swServer *serv)
 {
 	zval *zserv = (zval *)serv->ptr2;
-	zval *args[1];
-	zval retval;
+	zval **args[1];
+	zval *retval;
 
-	args[0] = zserv;
+	args[0] = &zserv;
+
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-	if (call_user_function(EG(function_table), NULL, php_sw_callback[PHP_CB_onStart], &retval, 1, args TSRMLS_CC) == SUCCESS)
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onStart], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		zval_dtor(&retval);
-	}
-	else
-	{
-		zend_error(E_WARNING, "SwooleServer: onStart handler error");
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "SwooleServer: onStart handler error");
 	}
 }
 
 void php_swoole_onTimer(swServer *serv, int interval)
 {
 	zval *zserv = (zval *)serv->ptr2;
-	zval *args[2];
-	zval retval;
-	zval zinterval;
+	zval **args[2];
+	zval *retval;
+	zval *zinterval;
 
-	ZVAL_LONG(&zinterval, interval);
-	Z_ADDREF_P(&zinterval);
+	MAKE_STD_ZVAL(zinterval);
+	ZVAL_LONG(zinterval, interval);
 
-	args[0] = zserv;
+	args[0] = &zserv;
 	args[1] = &zinterval;
+
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-	if (call_user_function(EG(function_table), NULL, php_sw_callback[PHP_CB_onTimer], &retval, 2, args TSRMLS_CC) == SUCCESS)
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onTimer], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		zval_dtor(&retval);
-	}
-	else
-	{
-		zend_error(E_WARNING, "SwooleServer: onTimer handler error");
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "SwooleServer: onTimer handler error");
 	}
 }
 
 void php_swoole_onShutdown(swServer *serv)
 {
 	zval *zserv = (zval *)serv->ptr2;
-	zval *args[1];
-	zval retval;
+	zval **args[1];
+	zval *retval;
 
-	args[0] = zserv;
+	args[0] = &zserv;
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-	if (call_user_function(EG(function_table), NULL, php_sw_callback[PHP_CB_onShutdown], &retval, 1, args TSRMLS_CC) == SUCCESS)
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onShutdown], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		zval_dtor(&retval);
-	}
-	else
-	{
-		zend_error(E_WARNING, "SwooleServer: onShutdown handler error");
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "SwooleServer: onShutdown handler error");
 	}
 }
 
 void php_swoole_onConnect(swServer *serv, int fd, int from_id)
 {
 	zval *zserv = (zval *)serv->ptr2;
-	zval zfd;
-	zval zfrom_id;
-	zval *args[3];
-	zval retval;
+	zval *zfd;
+	zval *zfrom_id;
+	zval **args[3];
+	zval *retval;
 
-	ZVAL_LONG(&zfd, fd);
-	ZVAL_LONG(&zfrom_id, from_id);
+	MAKE_STD_ZVAL(zfd);
+	ZVAL_LONG(zfd, fd);
 
-	args[0] = zserv;
+	MAKE_STD_ZVAL(zfrom_id);
+	ZVAL_LONG(zfrom_id, from_id);
+
+	args[0] = &zserv;
 	args[1] = &zfd;
 	args[2] = &zfrom_id;
 
-	Z_ADDREF_P(&zfd);
-	Z_ADDREF_P(&zfrom_id);
-
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-	if (call_user_function(EG(function_table), NULL, php_sw_callback[PHP_CB_onConnect], &retval, 3, args TSRMLS_CC) == SUCCESS)
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onConnect], &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		zval_dtor(&retval);
-	}
-	else
-	{
-		zend_error(E_WARNING, "SwooleServer: onConnect handler error");
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "SwooleServer: onConnect handler error");
 	}
 }
 
 void php_swoole_onClose(swServer *serv, int fd, int from_id)
 {
 	zval *zserv = (zval *)serv->ptr2;
-	zval zfd;
-	zval zfrom_id;
-	zval *args[3];
-	zval retval;
+	zval *zfd;
+	zval *zfrom_id;
+	zval **args[3];
+	zval *retval;
 
-	ZVAL_LONG(&zfd, fd);
-	ZVAL_LONG(&zfrom_id, from_id);
+	MAKE_STD_ZVAL(zfd);
+	ZVAL_LONG(zfd, fd);
 
-	Z_ADDREF_P(&zfd);
-	Z_ADDREF_P(&zfrom_id);
+	MAKE_STD_ZVAL(zfrom_id);
+	ZVAL_LONG(zfrom_id, from_id);
 
-	args[0] = zserv;
+	args[0] = &zserv;
 	args[1] = &zfd;
 	args[2] = &zfrom_id;
 
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-	if (call_user_function(EG(function_table), NULL, php_sw_callback[PHP_CB_onClose], &retval, 3, args TSRMLS_CC) == SUCCESS)
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onClose], &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		zval_dtor(&retval);
-	}
-	else
-	{
-		zend_error(E_WARNING, "SwooleServer: onClose handler error");
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "SwooleServer: onClose handler error");
 	}
 }
 

@@ -81,7 +81,11 @@
 #define SW_SOCK_TCP6           3
 #define SW_SOCK_UDP6           4
 
+/**
+ * 用swoole_config.h文件里面的
+ *
 #define SW_DEBUG
+*/
 
 #ifdef SW_DEBUG
 #define swTrace(str,...)       {printf("[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
