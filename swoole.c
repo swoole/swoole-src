@@ -59,7 +59,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_create, 0, 1, 3)
 	ZEND_ARG_INFO(0, sock_type)
 ZEND_END_ARG_INFO()
 
-int swoole_running = 1;
 static int le_serv;
 static zval *php_sw_callback[PHP_CALLBACK_NUM];
 static void ***sw_thread_ctx;
