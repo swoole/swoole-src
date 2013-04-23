@@ -39,8 +39,12 @@
 #define SW_TIMEO_SEC           0
 #define SW_TIMEO_USEC          3000000
 
+#ifndef MAX
 #define MAX(a, b)              (a)>(b)?a:b;
+#endif
+#ifndef MIN
 #define MIN(a, b)              (a)<(b)?a:b;
+#endif
 
 #define SW_CPU_NUM             sysconf(_SC_NPROCESSORS_ONLN)
 
