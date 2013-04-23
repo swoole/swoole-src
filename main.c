@@ -1,32 +1,33 @@
 #include <string.h>
 #include "swoole.h"
 #include "Server.h"
-#include "hashtable.h"
-#include "RingMempool.h"
 #include <netinet/tcp.h>
 
-int swoole_running = 1;
+#include "tests.h"
+
 int my_onReceive(swFactory *factory, swEventData *req);
 void my_onStart(swServer *serv);
 void my_onShutdown(swServer *serv);
-void my_onConnect(swServer *serv, int fd,int from_id);
-void my_onClose(swServer *serv, int fd,int from_id);
+void my_onConnect(swServer *serv, int fd, int from_id);
+void my_onClose(swServer *serv, int fd, int from_id);
 void my_onTimer(swServer *serv, int interval);
 
 void p_str(void *str)
 {
-	printf("Str: %s|len=%ld\n", (char *)str, strlen((char *)str));
+	printf("Str: %s|len=%ld\n", (char *) str, strlen((char *) str));
 }
 
 int main(int argc, char **argv)
 {
-	swServer serv;
-	int ret;
-
-	//u1_test1();
-	//return 0;
+	u1_test2();
 	//ds_test1();
 	//return 0;
+	return 0;
+}
+int serv_main()
+{
+	swServer serv;
+	int ret;
 
 	swServer_init(&serv);
 	//strncpy(argv[0], "SwooleServer", 127);
@@ -73,7 +74,7 @@ int main(int argc, char **argv)
 
 void my_onTimer(swServer *serv, int interval)
 {
-	switch(interval)
+	switch (interval)
 	{
 	case 1:
 		printf("Timer[%d]\n", 1);
@@ -100,7 +101,7 @@ int my_onReceive(swFactory *factory, swEventData *req)
 	snprintf(resp_data, resp.len, "Server:%s", req->data);
 	resp.data = resp_data;
 	ret = factory->finish(factory, &resp);
-	if(ret < 0)
+	if (ret < 0)
 	{
 
 	}
@@ -118,12 +119,12 @@ void my_onShutdown(swServer *serv)
 	printf("Server is shutdown\n");
 }
 
-void my_onConnect(swServer *serv, int fd,int from_id)
+void my_onConnect(swServer *serv, int fd, int from_id)
 {
 	printf("Connect fd=%d|from_id=%d\n", fd, from_id);
 }
 
-void my_onClose(swServer *serv, int fd,int from_id)
+void my_onClose(swServer *serv, int fd, int from_id)
 {
 	printf("Close fd=%d|from_id=%d\n", fd, from_id);
 }

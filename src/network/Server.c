@@ -1,4 +1,3 @@
-#include <signal.h>
 #include <time.h>
 #include <sys/timerfd.h>
 #include <sys/socket.h>
@@ -15,6 +14,10 @@ static int swServer_poll_onClose(swReactor *reactor, swEvent *event);
 static int swServer_poll_onReceive(swReactor *reactor, swEvent *event);
 static int swServer_poll_onPackage(swReactor *reactor, swEvent *event);
 static int swServer_timer_start(swServer *serv);
+
+char swoole_running = 1;
+uint16_t sw_errno = 0;
+char sw_error[SW_ERROR_MSG_SIZE];
 
 int swServer_onClose(swReactor *reactor, swEvent *event)
 {
@@ -657,26 +660,6 @@ void swSignalInit(void)
 	swSignalSet(SIGUSR1, SIG_IGN, 1, 0);
 	swSignalSet(SIGUSR2, SIG_IGN, 1, 0);
 	swSignalSet(SIGTERM, swSignalHanlde, 1, 0);
-}
-
-swSignalFunc swSignalSet(int sig, swSignalFunc func, int restart, int mask)
-{
-	struct sigaction act, oact;
-	act.sa_handler = func;
-	if (mask)
-	{
-		sigfillset(&act.sa_mask);
-	}
-	else
-	{
-		sigemptyset(&act.sa_mask);
-	}
-	act.sa_flags = 0;
-	if (sigaction(sig, &act, &oact) < 0)
-	{
-		return NULL;
-	}
-	return oact.sa_handler;
 }
 
 int swServer_addListen(swServer *serv, int type, char *host, int port)

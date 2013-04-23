@@ -299,7 +299,7 @@ int swFactoryProcess_dispatch(swFactory *factory, swEventData *data)
 	}
 	swTrace("[ReadThread]sendto: pipe=%d|worker=%d\n", this->workers[pti].pipe_fd, pti);
 	//send to unix sock
-	ret = write(this->workers[pti].pipe_fd, data, data->len + (3 * sizeof(int)));
+	ret = swWrite(this->workers[pti].pipe_fd, (char *)data, data->len + (3 * sizeof(int)));
 	if(ret < 0)
 	{
 		return SW_ERR;

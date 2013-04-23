@@ -14,7 +14,8 @@ typedef struct _swRingMempool
 
 typedef struct _swRingMempool_head
 {
-	int length;
+	char tag;
+	uint16_t length;
 } swRingMempool_head;
 
 inline int swRingMempool_init(swRingMempool *pool, void *mem, int size);

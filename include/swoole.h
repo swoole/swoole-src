@@ -1,10 +1,8 @@
-/*
- * swoole.h
- *
+/**
+ *  swoole.h
  *  Created on: 2012-6-16
- *      Author: htf
+ *  Author: tianfeng.han
  */
-
 #ifndef SWOOLE_H_
 #define SWOOLE_H_
 
@@ -14,6 +12,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <signal.h>
 
 #define _GNU_SOURCE
 #define __USE_GNU
@@ -39,9 +38,11 @@
 #define SW_BACKLOG             512
 #define SW_TIMEO_SEC           0
 #define SW_TIMEO_USEC          3000000
-#ifndef MAX
+
 #define MAX(a, b)              (a)>(b)?a:b;
-#endif
+#define MIN(a, b)              (a)<(b)?a:b;
+
+#define SW_CPU_NUM             sysconf(_SC_NPROCESSORS_ONLN)
 
 #define SW_STRL(s)             s, sizeof(s)
 #define SW_START_SLEEP         sleep(1)  //sleep 1s,wait fork and pthread_create
@@ -81,12 +82,6 @@
 #define SW_SOCK_TCP6           3
 #define SW_SOCK_UDP6           4
 
-/**
- * 用swoole_config.h文件里面的
- *
-#define SW_DEBUG
-*/
-
 #ifdef SW_DEBUG
 #define swTrace(str,...)       {printf("[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
 #else
@@ -105,11 +100,12 @@
 #define swWarn(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
 #endif
 
-#define SW_CPU_NUM             sysconf(_SC_NPROCESSORS_ONLN)
+#define swYield()              sched_yield() //or usleep(1)
 
 #define SW_MAX_FDTYPE          32 //32 kinds of event
 #define SW_ERROR_MSG_SIZE      256
 #define SW_MAX_REQUEST         10000
+
 typedef struct _swEventData
 {
 	int fd;
@@ -182,6 +178,7 @@ typedef struct _swThreadParam
 typedef struct _swPipe
 {
 	void *object;
+	int blocking;
 	int (*read)(struct _swPipe *, void *recv, int length);
 	int (*write)(struct _swPipe *, void *send, int length);
 	int (*getFd)(struct _swPipe *, int isWriteFd);
@@ -215,9 +212,7 @@ typedef struct _swThreadWriter
 	swPipe evfd; //eventfd
 } swThreadWriter;
 
-int swoole_running;
-int sw_errno;
-char sw_error[SW_ERROR_MSG_SIZE];
+char swoole_running;
 
 inline int swReactor_error(swReactor *reactor);
 int swReactor_setHandle(swReactor *, int, swReactor_handle);
@@ -256,5 +251,7 @@ int swFactoryThread_finish(swFactory *factory, swSendData *data);
 
 int swPipeBase_create(swPipe *p, int blocking);
 int swPipeEventfd_create(swPipe *p, int blocking);
+int swPipeMsg_create(swPipe *p, int blocking, int msg_key, long type);
+int swPipeUnsock_create(swPipe *p, int blocking, int protocol);
 
 #endif /* SWOOLE_H_ */

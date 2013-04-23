@@ -18,6 +18,7 @@ int swPipeBase_create(swPipe *p, int blocking)
 	{
 		return -1;
 	}
+	p->blocking = blocking;
 	ret = pipe(object->pipes);
 	if (ret < 0)
 	{

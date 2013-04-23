@@ -5,6 +5,8 @@
 #include "RingMempool.h"
 #include <netinet/tcp.h>
 
+void p_str(void *str);
+
 int ds_test1(int argc, char **argv)
 {
 	swRingMempool pool;

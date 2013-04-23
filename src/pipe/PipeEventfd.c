@@ -23,6 +23,7 @@ int swPipeEventfd_create(swPipe *p, int blocking)
 	{
 		flag = EFD_NONBLOCK;
 	}
+	p->blocking = blocking;
 	efd = eventfd(0, flag);
 	if (efd < 0)
 	{

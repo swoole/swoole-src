@@ -1,4 +1,35 @@
 #include "swoole.h"
+#include "atomic.h"
+
+void swSpinlock(atomic_t *lock, atomic_int_t value, uint32_t spin)
+{
+	uint32_t i, n;
+	while (1)
+	{
+		if (*lock == 0 && sw_atomic_cmp_set(lock, 0, value))
+		{
+			return;
+		}
+
+		if (SW_CPU_NUM > 1)
+		{
+			for (n = 1; n < spin; n <<= 1)
+			{
+				for (i = 0; i < n; i++)
+				{
+					sw_atomic_cpu_pause();
+				}
+
+				if (*lock == 0 && sw_atomic_cmp_set(lock, 0, value))
+				{
+					return;
+				}
+			}
+		}
+
+		usleep(1);
+	}
+}
 
 inline int swSocket_create(int type)
 {
@@ -29,10 +60,10 @@ inline int swSocket_create(int type)
 	return socket(_domain, _type, 0);
 }
 
-inline void swFloat2timeval(float timeout,long int *sec, long int *usec)
+inline void swFloat2timeval(float timeout, long int *sec, long int *usec)
 {
-	*sec = (int)timeout;
-	*usec = (int)((timeout*1000*1000) - ((*sec)*1000*1000));
+	*sec = (int) timeout;
+	*usec = (int) ((timeout * 1000 * 1000) - ((*sec) * 1000 * 1000));
 }
 
 inline int swSocket_listen(int type, char *host, int port, int backlog)
@@ -56,7 +87,7 @@ inline int swSocket_listen(int type, char *host, int port, int backlog)
 	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int));
 
 	//IPv6
-	if(type > SW_SOCK_UDP)
+	if (type > SW_SOCK_UDP)
 	{
 		bzero(&addr_in6, sizeof(addr_in6));
 		inet_pton(AF_INET6, host, &(addr_in6.sin6_addr));
@@ -79,7 +110,7 @@ inline int swSocket_listen(int type, char *host, int port, int backlog)
 		swTrace("bind fail.type=%d|host=%s|port=%d|Errno=%d\n", type, host, port, errno);
 		return SW_ERR;
 	}
-	if(type == SW_SOCK_UDP || type == SW_SOCK_UDP6)
+	if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6)
 	{
 		swSetNonBlock(sock);
 		return sock;
@@ -143,7 +174,7 @@ inline int swWrite(int fd, char *buf, int count)
 			}
 			else if (errno == EAGAIN)
 			{
-				usleep(1);
+				swYield();
 				continue;
 			}
 			else
@@ -192,3 +223,23 @@ inline void swSetBlock(int sock)
 	}
 }
 
+
+swSignalFunc swSignalSet(int sig, swSignalFunc func, int restart, int mask)
+{
+	struct sigaction act, oact;
+	act.sa_handler = func;
+	if (mask)
+	{
+		sigfillset(&act.sa_mask);
+	}
+	else
+	{
+		sigemptyset(&act.sa_mask);
+	}
+	act.sa_flags = 0;
+	if (sigaction(sig, &act, &oact) < 0)
+	{
+		return NULL;
+	}
+	return oact.sa_handler;
+}
