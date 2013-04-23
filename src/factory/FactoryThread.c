@@ -137,7 +137,10 @@ int swFactoryThread_dispatch(swFactory *factory, swEventData *buf)
 	else
 	{
 		ret = this->writers[pti].evfd.write(&this->writers[pti].evfd, &flag, sizeof(flag));
-		swWarn("Send queue notice fail.errno=%d\n", errno);
+		if(ret < 0)
+		{
+			swWarn("Send queue notice fail.errno=%d\n", errno);
+		}
 		this->writer_pti++;
 		return ret;
 	}

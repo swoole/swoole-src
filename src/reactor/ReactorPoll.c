@@ -117,16 +117,12 @@ int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
 {
 	swReactorPoll *this = reactor->object;
 	swEvent event;
-	struct timeval timeout;
 	int ret;
 	int i;
-	int msec = (timeout.tv_sec * 1000) + (timeout.tv_usec / 1000);
 
 	while (swoole_running > 0)
 	{
-		timeout.tv_sec = timeo->tv_sec;
-		timeout.tv_usec = timeo->tv_usec;
-		ret = poll(this->events, this->fd_num, msec);
+		ret = poll(this->events, this->fd_num, timeo->tv_sec * 1000 + timeo->tv_usec / 1000);
 		if (ret < 0)
 		{
 			swTrace("select error. Errno=%d\n", errno);
