@@ -1,6 +1,35 @@
 #include "swoole.h"
 #include "atomic.h"
 
+inline ulong swHashFunc(const char *arKey, uint nKeyLength)
+{
+	register ulong hash = 5381;
+
+	/* variant with the hash unrolled eight times */
+	for (; nKeyLength >= 8; nKeyLength -= 8) {
+		hash = ((hash << 5) + hash) + *arKey++;
+		hash = ((hash << 5) + hash) + *arKey++;
+		hash = ((hash << 5) + hash) + *arKey++;
+		hash = ((hash << 5) + hash) + *arKey++;
+		hash = ((hash << 5) + hash) + *arKey++;
+		hash = ((hash << 5) + hash) + *arKey++;
+		hash = ((hash << 5) + hash) + *arKey++;
+		hash = ((hash << 5) + hash) + *arKey++;
+	}
+	switch (nKeyLength) {
+		case 7: hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
+		case 6: hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
+		case 5: hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
+		case 4: hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
+		case 3: hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
+		case 2: hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
+		case 1: hash = ((hash << 5) + hash) + *arKey++; break;
+		case 0: break;
+		default: break;
+	}
+	return hash;
+}
+
 void swSpinlock(atomic_t *lock, atomic_int_t value, uint32_t spin)
 {
 	uint32_t i, n;

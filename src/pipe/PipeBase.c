@@ -44,13 +44,13 @@ int swPipeBase_create(swPipe *p, int blocking)
 int swPipeBase_read(swPipe *p, void *data, int length)
 {
 	swPipeBase *this = p->object;
-	return swRead(this->pipes[0], data, length);
+	return read(this->pipes[0], data, length);
 }
 
 int swPipeBase_write(swPipe *p, void *data, int length)
 {
 	swPipeBase *this = p->object;
-	return swWrite(this->pipes[1], data, length);
+	return write(this->pipes[1], data, length);
 }
 
 int swPipeBase_getFd(swPipe *p, int isWriteFd)

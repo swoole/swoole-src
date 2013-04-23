@@ -222,7 +222,8 @@ int swServer_start(swServer *serv)
 	}
 
 	SW_START_SLEEP;
-	ret = swReactorSelect_create(&main_reactor);
+	//ret = swReactorSelect_create(&main_reactor);
+	ret = swReactorPoll_create(&main_reactor, 10);
 	if (ret < 0)
 	{
 		return SW_ERR;

@@ -27,6 +27,7 @@
 #include <pthread.h>
 
 #include "swoole_config.h"
+#include "hashtable.h"
 
 #define SW_MAX_FDS             (1024*10)
 #define SW_THREAD_NUM          2
@@ -62,7 +63,7 @@
 #define sw_realloc             erealloc
 #else
 #define sw_malloc              malloc
-#define sw_free                free
+#define sw_free(s)             free(s)
 #define sw_calloc              calloc
 #define sw_realloc             realloc
 #endif
@@ -99,7 +100,7 @@
 #endif
 
 #ifdef SW_DEBUG
-#define swWarn(str,...)       {printf("[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);exit(1);}
+#define swWarn(str,...)       {printf("[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
 #else
 #define swWarn(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
 #endif
@@ -147,6 +148,13 @@ typedef struct _swEventConnect
 	struct sockaddr_in addr;
 	socklen_t addrlen;
 } swEventConnect;
+
+typedef struct _swHashTable_FdInfo
+{
+	int fd;
+	int key;
+	UT_hash_handle hh;
+} swHashTable_FdInfo;
 
 typedef int (*swHandle)(swEventData *buf);
 typedef void (*swSignalFunc)(int);
@@ -225,6 +233,7 @@ int swReactorPoll_create(swReactor *reactor, int max_event_num);
 int swReactorKqueue_create(swReactor *reactor, int max_event_num);
 int swReactorSelect_create(swReactor *reactor);
 
+inline ulong swHashFunc(const char *arKey, uint nKeyLength);
 inline int swRead(int, char *, int);
 inline int swWrite(int, char *, int);
 inline void swSetNonBlock(int);

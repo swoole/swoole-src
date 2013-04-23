@@ -19,9 +19,10 @@ void p_str(void *str)
 
 int main(int argc, char **argv)
 {
-	u1_test2();
+	//ds_test2();
+	//u1_test2();
 	//ds_test1();
-	//return 0;
+	serv_main();
 	return 0;
 }
 int serv_main()
@@ -34,9 +35,9 @@ int serv_main()
 
 	//config
 	serv.backlog = 128;
-	serv.poll_thread_num = 4;
-	serv.writer_num = 4;
-	serv.worker_num = 4;
+	serv.poll_thread_num = 1;
+	serv.writer_num = 1;
+	serv.worker_num = 1;
 	serv.factory_mode = 2;
 	serv.open_cpu_affinity = 1;
 	serv.open_tcp_nodelay = 1;
@@ -103,7 +104,7 @@ int my_onReceive(swFactory *factory, swEventData *req)
 	ret = factory->finish(factory, &resp);
 	if (ret < 0)
 	{
-
+		swWarn("send to client fail.errno=%d\n", errno);
 	}
 	swTrace("finish\n");
 	return SW_OK;

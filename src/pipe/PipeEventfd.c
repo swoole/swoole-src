@@ -63,7 +63,7 @@ int swPipeEventfd_write(swPipe *p, void *data, int length)
 	swPipeEventfd *this = p->object;
 	while (1)
 	{
-		ret = read(this->event_fd, data, sizeof(uint64_t));
+		ret = write(this->event_fd, data, sizeof(uint64_t));
 		if (ret < 0)
 		{
 			if (errno == EINTR)

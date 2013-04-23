@@ -85,6 +85,7 @@ int swFactoryThread_start(swFactory *factory)
 		}
 		if (swRingQueue_init(&this->queues[i], SW_QUEUE_SIZE) < 0)
 		{
+			swTrace("create ring queue fail\n");
 			return SW_ERR;
 		}
 		this->writers[i].ptid = pidt;
@@ -112,8 +113,6 @@ int swFactoryThread_dispatch(swFactory *factory, swEventData *buf)
 	int datasize = sizeof(int)*3 + buf->len;
 	char *data;
 
-	printf("DDD:datasize=%d\n", datasize);
-
 	//使用pti，避免线程切换造成错误的writer_pti
 	pti = this->writer_pti;
 	if (this->writer_pti >= this->writer_num)
@@ -138,6 +137,7 @@ int swFactoryThread_dispatch(swFactory *factory, swEventData *buf)
 	else
 	{
 		ret = this->writers[pti].evfd.write(&this->writers[pti].evfd, &flag, sizeof(flag));
+		swWarn("Send queue notice fail.errno=%d\n", errno);
 		this->writer_pti++;
 		return ret;
 	}
