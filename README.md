@@ -1,16 +1,18 @@
 php_swoole
 ==========
 
-PHP extension.A socket server framework.
+A Swoole entirely written in C language, based on the Linux epoll does not rely on any third-party libraries, as a the PHP extensions running high-performance network server framework, you can easily maintain more than 100,000 concurrent TCP connections. Swoole provides a full asynchronous, non-blocking, parallel PHP Socket Server to achieve. Support UDP, TCP, IPv6 support multi-port monitoring, multi timer and operation mode can be configured.
+PHP developers do not care about the underlying implementation, only need to use PHP to write the callback function, write the business logic code can be. The network can be used for server-side development, such as WebSocket Server, Web server, FTP server.
 
 feature
 -----
 
-* event driver. callback php function.
-* asynchronous and non-blocking.
-* no lock. no thread mutex. no semaphore.
-* separate read and write.
-* it can run at multi thread or multi proccess.
+* Event-driven
+* Full asynchronous non-blocking
+* No lock design
+* Separate read and write
+* Concurrent execution. Support Multi-Thread or Multi-Process
+* Support IPv6
 
 example
 -----
