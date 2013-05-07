@@ -81,6 +81,7 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_server_handler, NULL)
 	PHP_FE(swoole_server_addlisten, NULL)
 	PHP_FE(swoole_server_addtimer, NULL)
+	PHP_FE(swoole_server_reload, NULL)
 	PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 
@@ -364,8 +365,21 @@ PHP_FUNCTION(swoole_server_close)
 		ev.from_id = (int)from_id;
 	}
 	ev.fd = (int)conn_fd;
-	swServer_close(serv, &ev);
-	return;
+	SW_CHECK_RETURN(swServer_close(serv, &ev));
+}
+
+PHP_FUNCTION(swoole_server_reload)
+{
+	zval *zserv = NULL;
+	swServer *serv;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &zserv) == FAILURE)
+	{
+		return;
+	}
+	//zserv resource
+	ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, le_serv_name, le_serv);
+	SW_CHECK_RETURN(swServer_reload(serv));
 }
 
 int php_swoole_onReceive(swFactory *factory, swEventData *req)
@@ -398,7 +412,6 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "SwoolServer: onReceive handler error");
 	}
-
 	return SW_OK;
 }
 
@@ -562,8 +575,7 @@ PHP_FUNCTION(swoole_server_send)
 	{
 		send_data.from_id = (int)from_id;
 	}
-	ret = factory->finish(factory, &send_data);
-	RETURN_LONG(ret);
+	SW_CHECK_RETURN(factory->finish(factory, &send_data));
 }
 
 PHP_FUNCTION(swoole_server_addlisten)
@@ -582,8 +594,7 @@ PHP_FUNCTION(swoole_server_addlisten)
 		return;
 	}
 	ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, le_serv_name, le_serv);
-	ret = swServer_addListen(serv, (int)sock_type, host, (int)port);
-	RETURN_LONG(ret);
+	SW_CHECK_RETURN(swServer_addListen(serv, (int)sock_type, host, (int)port));
 }
 
 PHP_FUNCTION(swoole_server_addtimer)
@@ -592,15 +603,13 @@ PHP_FUNCTION(swoole_server_addtimer)
 	swServer *serv = NULL;
 	swFactory *factory = NULL;
 	long interval;
-	int ret;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rl", &zserv, &interval) == FAILURE)
 	{
 		return;
 	}
 	ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, le_serv_name, le_serv);
-	ret = swServer_addTimer(serv, (int)interval);
-	RETURN_LONG(ret);
+	SW_CHECK_RETURN(swServer_addTimer(serv, (int)interval));
 }
 
 /*

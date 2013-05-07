@@ -14,6 +14,7 @@ static int swServer_poll_onClose(swReactor *reactor, swEvent *event);
 static int swServer_poll_onReceive(swReactor *reactor, swEvent *event);
 static int swServer_poll_onPackage(swReactor *reactor, swEvent *event);
 static int swServer_timer_start(swServer *serv);
+static void swSignalHanlde(int sig);
 
 char swoole_running = 1;
 uint16_t sw_errno = 0;
@@ -713,7 +714,18 @@ static int swServer_listen(swServer *serv, swReactor *reactor)
 	return SW_OK;
 }
 
-void swSignalHanlde(int sig)
+int swServer_reload(swServer *serv)
+{
+	swFactoryProcess *factory;
+	if(SW_MODE_PROCESS != serv->factory_mode)
+	{
+		return SW_ERR;
+	}
+	factory = serv->factory.object;
+	return kill(factory->manager_pid, SIGUSR1);
+}
+
+static void swSignalHanlde(int sig)
 {
 	switch (sig)
 	{

@@ -3,24 +3,6 @@
 #include <signal.h>
 #include <sys/wait.h>
 
-typedef struct _swWorkerChild
-{
-	pid_t pid;
-	int pipe_fd;
-	int writer_id;
-} swWorkerChild;
-
-typedef struct _swFactoryProcess
-{
-	swThreadWriter *writers;
-	swWorkerChild *workers;
-
-	int writer_num; //writer thread num
-	int worker_num; //worker child process num
-	int writer_pti; //current writer id
-	int worker_pti; //current worker id
-} swFactoryProcess;
-
 typedef struct _swPipes{
 	int pipes[2];
 } swPipes;
@@ -34,6 +16,8 @@ int swFactoryProcess_writer_receive(swReactor *, swEvent *);
 static int swFactoryProcess_manager_loop(swFactory *factory);
 
 static int c_worker_pipe = 0; //Current Proccess Worker's pipe
+static int manager_worker_reloading = 0;
+static int manager_reload_flag = 0;
 
 int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 {
@@ -47,7 +31,7 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 	this->writers = sw_calloc(writer_num, sizeof(swThreadWriter));
 	if (this->writers == NULL)
 	{
-		swTrace("[swFactoryProcess_create] malloc[1] fail\n");
+		swTrace("[Main] malloc[this->writers] fail\n");
 		return SW_ERR;
 	}
 	this->writer_num = writer_num;
@@ -56,7 +40,7 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 	this->workers = sw_calloc(worker_num, sizeof(swWorkerChild));
 	if (this->workers == NULL)
 	{
-		swTrace("[swFactoryProcess_create] malloc[2] fail\n");
+		swTrace("[Main] malloc[this->workers] fail\n");
 		return SW_ERR;
 	}
 	this->worker_num = worker_num;
@@ -136,7 +120,8 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 			return SW_ERR;
 		}
 	}
-	switch(fork())
+	pid = fork();
+	switch(pid)
 	{
 		case 0:
 			for (i = 0; i < this->worker_num; i++)
@@ -159,6 +144,7 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 			swFactoryProcess_manager_loop(factory);
 			break;
 		default:
+			this->manager_pid = pid;
 			for (i = 0; i < this->worker_num; i++)
 			{
 				close(worker_pipes[i].pipes[1]);
@@ -175,15 +161,57 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 	return SW_OK;
 }
 
+static void swManagerSignalHanlde(int sig)
+{
+	switch (sig)
+	{
+	case SIGUSR1:
+		manager_worker_reloading = 1;
+		manager_reload_flag = 0;
+		break;
+	default:
+		break;
+	}
+}
+
 static int swFactoryProcess_manager_loop(swFactory *factory)
 {
 	int pid, new_pid;
 	int i, writer_pti;
+	int reload_worker_i = 0;
+	int ret;
+
 	swFactoryProcess *this = factory->object;
+	swWorkerChild *reload_workers;
+
+	reload_workers = sw_calloc(this->worker_num, sizeof(swWorkerChild));
+	if (reload_workers == NULL)
+	{
+		swError("[manager] malloc[reload_workers] fail.\n");
+		return SW_ERR;
+	}
+
+	//for reload
+	swSignalSet(SIGUSR1, swManagerSignalHanlde, 1, 0);
 
 	while(1)
 	{
 		pid = wait(NULL);
+		swTrace("[manager] worker stop.pid=%d\n", pid);
+		if(pid < 0)
+		{
+			if(manager_worker_reloading == 0)
+			{
+				swTrace("wait fail.errno=%d\n", errno);
+			}
+			else if(manager_reload_flag == 0)
+			{
+				memcpy(reload_workers, this->workers, sizeof(swWorkerChild) * this->worker_num);
+				manager_reload_flag = 1;
+				goto kill_worker;
+			}
+		}
+
 		for (i = 0; i < this->worker_num; i++)
 		{
 			if(pid != this->workers[i].pid) continue;
@@ -192,13 +220,33 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 			new_pid = swFactoryProcess_worker_spawn(factory, writer_pti, i);
 			if(new_pid < 0)
 			{
-				swTrace("Fork worker process fail.Errno=%d\n", errno);
+				swWarn("Fork worker process fail.Errno=%d\n", errno);
 				return SW_ERR;
 			}
 			else
 			{
 				this->workers[i].pid = new_pid;
 			}
+		}
+
+		//reload worker
+		kill_worker:
+		if(manager_worker_reloading == 1)
+		{
+			//reload finish
+			if(reload_worker_i >= this->worker_num)
+			{
+				manager_worker_reloading = 0;
+				reload_worker_i = 0;
+				continue;
+			}
+			ret = kill(reload_workers[reload_worker_i].pid, SIGTERM);
+			if(ret < 0)
+			{
+				swWarn("kill fail.pid=%d|errno=%d\n", reload_workers[reload_worker_i].pid, errno);
+				continue;
+			}
+			reload_worker_i++;
 		}
 	}
 	return SW_OK;

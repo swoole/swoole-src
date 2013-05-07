@@ -13,6 +13,7 @@
 #include <errno.h>
 #include <string.h>
 #include <signal.h>
+#include <assert.h>
 
 #define _GNU_SOURCE
 #define __USE_GNU
@@ -241,7 +242,6 @@ inline void swSetBlock(int);
 inline int swSocket_listen(int type, char *host, int port, int backlog);
 inline int swSocket_create(int type);
 swSignalFunc swSignalSet(int sig, swSignalFunc func, int restart, int mask);
-void swSignalHanlde(int sig);
 
 int swFactory_create(swFactory *factory);
 int swFactory_start(swFactory *factory);
@@ -266,5 +266,87 @@ int swPipeBase_create(swPipe *p, int blocking);
 int swPipeEventfd_create(swPipe *p, int blocking);
 int swPipeMsg_create(swPipe *p, int blocking, int msg_key, long type);
 int swPipeUnsock_create(swPipe *p, int blocking, int protocol);
+
+//------------------Lock--------------------------------------
+typedef struct _swFileLock
+{
+	struct flock rwlock;
+	int fd;
+	int (*lock_rd)(struct _swFileLock *this);
+	int (*lock)(struct _swFileLock *this);
+	int (*trylock_rd)(struct _swFileLock *this);
+	int (*trylock)(struct _swFileLock *this);
+	int (*unlock)(struct _swFileLock *this);
+} swFileLock;
+
+typedef struct _swMutex
+{
+	pthread_mutex_t rwlock;
+	pthread_mutexattr_t attr;
+	int (*lock) (struct _swMutex *this);
+	int (*unlock) (struct _swMutex *this);
+	int (*trylock) (struct _swMutex *this);
+} swMutex;
+
+typedef struct _swRWLock
+{
+	pthread_rwlock_t rwlock;
+	pthread_rwlockattr_t attr;
+	int (*lock_rd) (struct _swRWLock *this);
+	int (*lock) (struct _swRWLock *this);
+	int (*unlock) (struct _swRWLock *this);
+	int (*trylock_rd) (struct _swRWLock *this);
+	int (*trylock) (struct _swRWLock *this);
+} swRWLock;
+
+typedef struct _swSem
+{
+	key_t key;
+	int semid;
+	int (*lock)(struct _swSem *this);
+	int (*unlock)(struct _swSem *this);
+} swSem;
+
+typedef struct _swWorkerChild
+{
+	pid_t pid;
+	int pipe_fd;
+	int writer_id;
+} swWorkerChild;
+
+typedef struct _swFactoryProcess
+{
+	swThreadWriter *writers;
+	swWorkerChild *workers;
+
+	int manager_pid; //管理进程ID
+	int writer_num; //writer thread num
+	int worker_num; //worker child process num
+	int writer_pti; //current writer id
+	int worker_pti; //current worker id
+} swFactoryProcess;
+
+int swRWLock_create(swRWLock *this);
+int swRWLock_lock_rd(swRWLock *this);
+int swRWLock_lock_rw(swRWLock *this);
+int swRWLock_unlock(swRWLock *this);
+int swRWLock_trylock_rw(swRWLock *this);
+int swRWLock_trylock_rd(swRWLock *this);
+
+int swSem_create(swSem *this, key_t key, int n);
+int swSem_lock(swSem *this);
+int swSem_unlock(swSem *this);
+
+int swMutex_create(swMutex *this);
+int swMutex_lock(swMutex *this);
+int swMutex_unlock(swMutex *this);
+int swMutex_trylock(swMutex *this);
+
+int swFileLock_create(swFileLock *this, int fd);
+int swFileLock_lock_rd(swFileLock *this);
+int swFileLock_lock_rw(swFileLock *this);
+int swFileLock_unlock(swFileLock *this);
+int swFileLock_trylock_rw(swFileLock *this);
+int swFileLock_trylock_rd(swFileLock *this);
 
 #endif /* SWOOLE_H_ */

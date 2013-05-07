@@ -38,8 +38,9 @@ extern zend_module_entry swoole_module_entry;
 #ifdef ZTS
 #include "TSRM.h"
 #endif
-//#define SW_USE_PHP      1
-#define SW_HANDLE_NUM   5
+//#define SW_USE_PHP        1
+#define SW_HANDLE_NUM
+#define SW_CHECK_RETURN(s)  if(s<0){RETURN_FALSE;}else{RETURN_TRUE;}return
 
 PHP_MINIT_FUNCTION(swoole);
 PHP_MSHUTDOWN_FUNCTION(swoole);
@@ -56,6 +57,7 @@ PHP_FUNCTION(swoole_server_close);
 PHP_FUNCTION(swoole_server_handler);
 PHP_FUNCTION(swoole_server_addlisten);
 PHP_FUNCTION(swoole_server_addtimer);
+PHP_FUNCTION(swoole_server_reload);
 
 #ifdef ZTS
 #define SWOOLE_G(v) TSRMG(swoole_globals_id, zend_swoole_globals *, v)
