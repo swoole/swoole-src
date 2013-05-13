@@ -65,7 +65,11 @@ int swFactoryThread_start(swFactory *factory)
 	}
 	for (i = 0; i < this->writer_num; i++)
 	{
+#ifdef HAVE_EVENTFD
 		ret = swPipeEventfd_create(&this->writers[i].evfd, 1);
+#else
+		ret = swPipeBase_create(&this->writers[i].evfd, 1);
+#endif
 		if (ret < 0)
 		{
 			swTrace("create eventfd fail\n");

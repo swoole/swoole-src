@@ -18,10 +18,6 @@
 
 /* $Id$ */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #include "php_swoole.h"
 #include "swoole.h"
 #include "Server.h"

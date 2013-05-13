@@ -7,14 +7,94 @@ dnl without editing.
 
 dnl If your extension references something external, use with:
 
+dnl Otherwise use enable:
+
+PHP_ARG_ENABLE(swoole-debug, whether to enable swoole debug,
+[  --enable-swoole-debug           Enable swoole debug], no, no)
+
 PHP_ARG_WITH(swoole, for swoole support,
 [  --with-swoole             Include swoole support])
 
-dnl Otherwise use enable:
+AC_DEFUN([AC_SWOOLE_KQUEUE],
+[
+	AC_MSG_CHECKING([for kqueue])
 
-dnl PHP_ARG_ENABLE(swoole, whether to enable swoole support,
-dnl Make sure that the comment is aligned:
-dnl [  --enable-swoole           Enable swoole support])
+	AC_TRY_COMPILE(
+	[ 
+		#include <sys/types.h>
+		#include <sys/event.h>
+		#include <sys/time.h>
+	], [
+		int kfd;
+		struct kevent k;
+		kfd = kqueue();
+		/* 0 -> STDIN_FILENO */
+		EV_SET(&k, 0, EVFILT_READ , EV_ADD | EV_CLEAR, 0, 0, NULL);
+	], [
+		AC_DEFINE([HAVE_KQUEUE], 1, [do we have kqueue?])
+		AC_MSG_RESULT([yes])
+	], [
+		AC_MSG_RESULT([no])
+	])
+])
+
+AC_DEFUN([AC_SWOOLE_EPOLL],
+[
+	AC_MSG_CHECKING([for epoll])
+
+	AC_TRY_COMPILE(
+	[ 
+		#include <sys/epoll.h>
+	], [
+		int epollfd;
+		struct epoll_event e;
+
+		epollfd = epoll_create(1);
+		if (epollfd < 0) {
+			return 1;
+		}
+
+		e.events = EPOLLIN | EPOLLET;
+		e.data.fd = 0;
+
+		if (epoll_ctl(epollfd, EPOLL_CTL_ADD, 0, &e) == -1) {
+			return 1;
+		}
+
+		e.events = 0;
+		if (epoll_wait(epollfd, &e, 1, 1) < 0) {
+			return 1;
+		}
+	], [
+		AC_DEFINE([HAVE_EPOLL], 1, [do we have epoll?])
+		AC_MSG_RESULT([yes])
+	], [
+		AC_MSG_RESULT([no])
+	])
+])
+
+AC_DEFUN([AC_SWOOLE_EVENTFD],
+[
+	AC_MSG_CHECKING([for eventfd])
+
+	AC_TRY_COMPILE(
+	[ 
+		#include <sys/eventfd.h>
+	], [
+		int efd;
+
+		efd = eventfd(0, 0);
+		if (efd < 0) {
+			return 1;
+		}
+	], [
+		AC_DEFINE([HAVE_EVENTFD], 1, [do we have eventfd?])
+		AC_MSG_RESULT([yes])
+	], [
+		AC_MSG_RESULT([no])
+	])
+])
+
 
 if test "$PHP_SWOOLE" != "no"; then
   PHP_ADD_INCLUDE($SWOOLE_DIR/include)
@@ -23,6 +103,15 @@ if test "$PHP_SWOOLE" != "no"; then
     [PHP_DEBUG = $enableval],
     [PHP_DEBUG = 0]
   )
+
+  if test "$PHP_SWOOLE_DEBUG" != "no"; then
+      AC_DEFINE(SW_DEBUG, 1, [do we enable swoole deub])
+  fi
+
+  AC_SWOOLE_EVENTFD
+  AC_SWOOLE_EPOLL
+  AC_SWOOLE_KQUEUE
+
   PHP_NEW_EXTENSION(swoole, swoole.c \
     src/core/Base.c \
 	src/core/RingQueue.c \
@@ -33,6 +122,7 @@ if test "$PHP_SWOOLE" != "no"; then
     src/reactor/ReactorSelect.c \
 	src/reactor/ReactorPoll.c \
     src/reactor/ReactorEpoll.c \
+    src/reactor/ReactorKqueue.c \
 	src/pipe/PipeBase.c \
 	src/pipe/PipeEventfd.c \
 	src/pipe/PipeUnsock.c \

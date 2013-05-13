@@ -1,5 +1,7 @@
 #include "swoole.h"
 
+#ifdef HAVE_EVENTFD
+
 int swPipeEventfd_read(swPipe *p, void *data, int length);
 int swPipeEventfd_write(swPipe *p, void *data, int length);
 int swPipeEventfd_getFd(swPipe *p, int isWriteFd);
@@ -90,3 +92,5 @@ void swPipeEventfd_close(swPipe *p)
 {
 	close(((swPipeEventfd *)(p->object))->event_fd);
 }
+
+#endif

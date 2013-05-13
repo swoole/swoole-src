@@ -1,6 +1,8 @@
 #include "swoole.h"
 #include <string.h>
 
+#ifdef HAVE_EPOLL
+
 typedef struct swReactorEpoll_s swReactorEpoll;
 typedef struct _swFd
 {
@@ -149,3 +151,5 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 	}
 	return 0;
 }
+
+#endif

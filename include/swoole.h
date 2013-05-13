@@ -6,6 +6,10 @@
 #ifndef SWOOLE_H_
 #define SWOOLE_H_
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -15,14 +19,31 @@
 #include <signal.h>
 #include <assert.h>
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
+
+#ifndef __USE_GNU
 #define __USE_GNU
+#endif
+
 #include <sched.h>
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
 #include <sys/socket.h>
+
+#ifdef HAVE_EPOLL
 #include <sys/epoll.h>
+#endif
+
+#ifdef HAVE_KQUEUE
+#include <sys/event.h>
+#endif
+
+#ifdef HAVE_EVENTFD
 #include <sys/eventfd.h>
+#endif
+
 #include <sys/select.h>
 
 #include <pthread.h>
