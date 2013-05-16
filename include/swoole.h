@@ -193,6 +193,7 @@ typedef struct _swFactory
 	void *ptr; //server object
 	int last_from_id;
 	swReactor *reactor; //reserve for reactor
+	swServer *serv;
 
 	int (*start)(struct _swFactory *);
 	int (*shutdown)(struct _swFactory *);
@@ -249,6 +250,7 @@ typedef struct _swThreadWriter
 char swoole_running;
 uint16_t sw_errno;
 char sw_error[SW_ERROR_MSG_SIZE];
+
 
 inline int swReactor_error(swReactor *reactor);
 int swReactor_setHandle(swReactor *, int, swReactor_handle);

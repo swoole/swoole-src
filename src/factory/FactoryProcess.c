@@ -19,7 +19,7 @@ static int c_worker_pipe = 0; //Current Proccess Worker's pipe
 static int manager_worker_reloading = 0;
 static int manager_reload_flag = 0;
 
-int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
+int swFactoryProcess_create(swServer *serv, swFactory *factory, int writer_num, int worker_num)
 {
 	swFactoryProcess *this;
 	this = sw_malloc(sizeof(swFactoryProcess));
@@ -52,6 +52,7 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 	factory->finish = swFactoryProcess_finish;
 	factory->start = swFactoryProcess_start;
 	factory->shutdown = swFactoryProcess_shutdown;
+	factory->serv = serv;
 
 	factory->onTask = NULL;
 	factory->onFinish = NULL;
@@ -211,9 +212,20 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 				goto kill_worker;
 			}
 		}
-
+		load_conf(this->serv);
+		if(this->serv->worker_num != this->worker_num) 
+		{
+ 			sw_realloc(this->workers, this->serv->worker_num * sizeof(swWorkerChild));
+ 			
+ 		}
+ 		if(this->serv->writer_num != this->writer_num) 
+		{
+ 			sw_calloc(this->writers, this->serv->worker_num * sizeof(swThreadWriter));
+ 		}
+		int nlen = strlen(this->workers);
 		for (i = 0; i < this->worker_num; i++)
 		{
+
 			if(pid != this->workers[i].pid) continue;
 
 			writer_pti = (i % this->writer_num);

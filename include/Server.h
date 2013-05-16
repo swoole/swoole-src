@@ -42,6 +42,9 @@ typedef struct _swTimerList_node
 typedef struct swServer_s swServer;
 struct swServer_s
 {
+	char *host;
+	int port;
+	chat *cfile;
 	int backlog;
 	int factory_mode;
 	int poll_thread_num;

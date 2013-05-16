@@ -389,7 +389,7 @@ int swServer_create(swServer *serv)
 			return SW_ERR;
 		}
 		serv->factory.max_request = serv->max_request;
-		ret = swFactoryProcess_create(&(serv->factory), serv->writer_num, serv->worker_num);
+		ret = swFactoryProcess_create(serv, &(serv->factory), serv->writer_num, serv->worker_num);
 	}
 	else
 	{
