@@ -193,7 +193,7 @@ typedef struct _swFactory
 	void *ptr; //server object
 	int last_from_id;
 	swReactor *reactor; //reserve for reactor
-	swServer *serv;
+
 
 	int (*start)(struct _swFactory *);
 	int (*shutdown)(struct _swFactory *);

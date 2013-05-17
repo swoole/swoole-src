@@ -200,20 +200,21 @@ static void sw_destory_server(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 PHP_FUNCTION(swoole_server_create)
 {
 	swServer *serv = sw_malloc(sizeof(swServer));
-	int cfile_len;
-	char *cfile;
+	int host_len;
+	char *serv_host
 	long sock_type = SW_SOCK_TCP;
+	long serv_port;
+	long serv_mode;
 	swServer_init(serv);
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl|l", &cfile, &cfile, &serv_mode, &sock_type) == FAILURE)
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sll|l", &serv_host, &host_len, &serv_port, &serv_mode, &sock_type) == FAILURE)
 	{
 		return;
 	}
-	serv->cfile = cfile;
-	load_conf(serv);
-	swTrace("Create host=%s,port=%ld,mode=%d\n", serv->host, serv->port, serv->factory_mode);
+	serv->factory_mode = (int)serv_mode;
+	swTrace("Create host=%s,port=%ld,mode=%d\n", serv_host, serv_port, serv->factory_mode); 
 	TSRMLS_SET_CTX(sw_thread_ctx);
-	swServer_addListen(serv, sock_type, serv->host, serv->port);
+	swServer_addListen(serv, sock_type, serv_host, serv_port);
 	ZEND_REGISTER_RESOURCE(return_value, serv, le_serv);
 }
 
