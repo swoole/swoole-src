@@ -201,7 +201,7 @@ PHP_FUNCTION(swoole_server_create)
 {
 	swServer *serv = sw_malloc(sizeof(swServer));
 	int host_len;
-	char *serv_host
+	char *serv_host;
 	long sock_type = SW_SOCK_TCP;
 	long serv_port;
 	long serv_mode;
