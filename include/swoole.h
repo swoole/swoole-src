@@ -135,6 +135,7 @@
 
 #ifndef ulong
 #define ulong unsigned long
+#endif
 
 typedef struct _swEventData
 {
