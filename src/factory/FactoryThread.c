@@ -3,6 +3,8 @@
 #include "RingQueue.h"
 #include "RingMempool.h"
 
+extern char swoole_running;
+
 typedef struct _swFactoryThread
 {
 	int writer_num;

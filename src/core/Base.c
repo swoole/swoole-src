@@ -1,7 +1,7 @@
 #include "swoole.h"
 #include "atomic.h"
 
-inline ulong swHashFunc(const char *arKey, uint nKeyLength)
+SWINLINE ulong swHashFunc(const char *arKey, uint nKeyLength)
 {
 	register ulong hash = 5381;
 
@@ -60,7 +60,7 @@ void swSpinlock(atomic_t *lock, atomic_int_t value, uint32_t spin)
 	}
 }
 
-inline int swSocket_create(int type)
+SWINLINE int swSocket_create(int type)
 {
 	int _domain;
 	int _type;
@@ -89,13 +89,13 @@ inline int swSocket_create(int type)
 	return socket(_domain, _type, 0);
 }
 
-inline void swFloat2timeval(float timeout, long int *sec, long int *usec)
+SWINLINE void swFloat2timeval(float timeout, long int *sec, long int *usec)
 {
 	*sec = (int) timeout;
 	*usec = (int) ((timeout * 1000 * 1000) - ((*sec) * 1000 * 1000));
 }
 
-inline int swSocket_listen(int type, char *host, int port, int backlog)
+SWINLINE int swSocket_listen(int type, char *host, int port, int backlog)
 {
 	int sock;
 	int option;
@@ -154,7 +154,7 @@ inline int swSocket_listen(int type, char *host, int port, int backlog)
 	return sock;
 }
 
-inline int swRead(int fd, char *buf, int count)
+SWINLINE int swRead(int fd, char *buf, int count)
 {
 	int nread = 0, totlen = 0;
 	while (1)
@@ -187,7 +187,7 @@ inline int swRead(int fd, char *buf, int count)
 	return totlen;
 }
 
-inline int swWrite(int fd, char *buf, int count)
+SWINLINE int swWrite(int fd, char *buf, int count)
 {
 	int nwritten = 0, totlen = 0;
 	while (totlen != count)
@@ -216,7 +216,7 @@ inline int swWrite(int fd, char *buf, int count)
 }
 
 //将套接字设置为非阻塞方式
-inline void swSetNonBlock(int sock)
+SWINLINE void swSetNonBlock(int sock)
 {
 	int opts;
 	opts = fcntl(sock, F_GETFL);
@@ -234,7 +234,7 @@ inline void swSetNonBlock(int sock)
 	}
 }
 
-inline void swSetBlock(int sock)
+SWINLINE void swSetBlock(int sock)
 {
 	int opts;
 	opts = fcntl(sock, F_GETFL);

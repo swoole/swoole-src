@@ -22,6 +22,11 @@
 #include "swoole.h"
 #include "Server.h"
 
+char swoole_running;
+uint16_t sw_errno;
+char sw_error[SW_ERROR_MSG_SIZE];
+
+
 /* If you declare any globals in php_swoole.h uncomment this:
  ZEND_DECLARE_MODULE_GLOBALS(swoole)
  */

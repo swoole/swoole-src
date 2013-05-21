@@ -2,7 +2,7 @@
 #include "swoole.h"
 #include "RingMempool.h"
 
-inline int swRingMempool_init(swRingMempool *pool, void *mem, int size)
+SWINLINE int swRingMempool_init(swRingMempool *pool, void *mem, int size)
 {
 	pool->size = size;
 	pool->mem = mem;
@@ -42,7 +42,7 @@ void* swRingMempool_alloc(swRingMempool *pool, int size)
 	return (void *) (item + sizeof(swRingMempool_head));
 }
 
-inline void swRingMempool_free(swRingMempool *pool, void *ptr)
+SWINLINE void swRingMempool_free(swRingMempool *pool, void *ptr)
 {
 	//翻转
 	if(ptr < pool->mem + pool->head)
@@ -53,7 +53,7 @@ inline void swRingMempool_free(swRingMempool *pool, void *ptr)
 	pool->head += (((swRingMempool_head *)ptr)->length + sizeof(swRingMempool_head));
 }
 
-inline void swRingMempool_resize(swRingMempool *pool, void *ptr, int size)
+SWINLINE void swRingMempool_resize(swRingMempool *pool, void *ptr, int size)
 {
 	swRingMempool_head *item = ptr;
 	pool->tail -= (item->length - size);

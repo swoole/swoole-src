@@ -9,7 +9,11 @@
 #include "swoole.h"
 #include "tests.h"
 
+/*
+
 void _swUnitTest_setup(swUnitTest_Func func, char *func_name)
 {
 
 }
+
+*/

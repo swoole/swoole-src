@@ -48,8 +48,8 @@ int serv_main()
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9502);
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 8888);
 
-	//swServer_addTimer(&serv, 2);
-	//swServer_addTimer(&serv, 10);
+	swServer_addTimer(&serv, 2);
+	swServer_addTimer(&serv, 4);
 
 	serv.onStart = my_onStart;
 	serv.onShutdown = my_onShutdown;
@@ -57,6 +57,7 @@ int serv_main()
 	serv.onReceive = my_onReceive;
 	serv.onClose = my_onClose;
 	serv.onTimer = my_onTimer;
+
 	//create Server
 	ret = swServer_create(&serv);
 	if (ret < 0)
@@ -75,17 +76,7 @@ int serv_main()
 
 void my_onTimer(swServer *serv, int interval)
 {
-	switch (interval)
-	{
-	case 1:
-		printf("Timer[%d]\n", 1);
-		break;
-	case 10:
-		printf("Timer[%d]\n", 10);
-		break;
-	default:
-		break;
-	}
+	printf("Timer Interval=[%d]\n", interval);
 }
 
 int my_onReceive(swFactory *factory, swEventData *req)

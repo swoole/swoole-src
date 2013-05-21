@@ -98,4 +98,5 @@ int swServer_close(swServer *factory, swEvent *event);
 int swServer_shutdown(swServer *serv);
 int swServer_addTimer(swServer *serv, int interval);
 int swServer_reload(swServer *serv);
+
 #endif /* SW_SERVER_H_ */
