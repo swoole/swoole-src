@@ -3,10 +3,6 @@
 
 #include "list.h"
 
-#ifdef HAVE_TIMERFD
-#include <sys/timerfd.h>
-#endif
-
 #define SW_EVENT_CLOSE           5
 #define SW_EVENT_CONNECT         6
 #define SW_EVENT_TIMER           7

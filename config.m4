@@ -38,6 +38,23 @@ AC_DEFUN([AC_SWOOLE_KQUEUE],
 	])
 ])
 
+AC_DEFUN([AC_SWOOLE_CPU_AFFINITY],
+[
+    AC_MSG_CHECKING([for cpu affinity])
+    AC_TRY_COMPILE(
+    [
+    ], [
+        cpu_set_t cpu_set;
+		CPU_ZERO(&cpu_set);
+		CPU_SET(pti % SW_CPU_NUM, &cpu_set);
+    ], [
+        AC_DEFINE([HAVE_CPU_AFFINITY], 1, [cpu affinity?])
+        AC_MSG_RESULT([yes])
+    ], [
+        AC_MSG_RESULT([no])
+    ])
+])
+
 AC_DEFUN([AC_SWOOLE_TIMERFD],
 [
 	AC_MSG_CHECKING([for timerfd])
@@ -123,13 +140,14 @@ if test "$PHP_SWOOLE" != "no"; then
   )
 
   if test "$PHP_SWOOLE_DEBUG" != "no"; then
-      AC_DEFINE(SW_DEBUG, 1, [do we enable swoole deub])
+      AC_DEFINE(SW_DEBUG, 1, [do we enable swoole debug])
   fi
 
   AC_SWOOLE_EVENTFD
   AC_SWOOLE_EPOLL
   AC_SWOOLE_KQUEUE
   AC_SWOOLE_TIMERFD
+  AC_SWOOLE_CPU_AFFINITY
 
   PHP_NEW_EXTENSION(swoole, swoole.c \
     src/core/Base.c \

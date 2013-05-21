@@ -564,6 +564,7 @@ static int swServer_poll_loop(swThreadParam *param)
 	struct timeval timeo;
 
 	//cpu affinity setting
+#if HAVE_CPU_AFFINITY
 	if(serv->open_cpu_affinity)
 	{
 		cpu_set_t cpu_set;
@@ -574,14 +575,14 @@ static int swServer_poll_loop(swThreadParam *param)
 			swTrace("pthread_setaffinity_np set fail\n");
 		}
 	}
+#endif
+
 #ifdef HAVE_EPOLL
 	ret = swReactorEpoll_create(reactor, (serv->max_conn / serv->poll_thread_num) + 1);
-#else
-#ifdef HAVE_KQUEUE
+#elif HAVE_KQUEUE
 	ret = swReactorKqueue_create(reactor, (serv->max_conn / serv->poll_thread_num) + 1);
 #else
 	ret = swReactorPoll_create(reactor, (serv->max_conn / serv->poll_thread_num) + 1);
-#endif
 #endif
 
 	if (ret < 0)

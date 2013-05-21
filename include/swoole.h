@@ -18,7 +18,6 @@
 #include <string.h>
 #include <signal.h>
 #include <assert.h>
-#include <time.h>
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -33,6 +32,15 @@
 #include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+
+#ifdef HAVE_TIMERFD
+#include <sys/timerfd.h>
+#endif
+
+#ifdef __MACH__
+#include <mach/clock.h>
+#include <mach/mach.h>
+#endif
 
 #ifdef HAVE_EPOLL
 #include <sys/epoll.h>
@@ -130,6 +138,24 @@
 #define SW_MAX_FDTYPE          32 //32 kinds of event
 #define SW_ERROR_MSG_SIZE      256
 #define SW_MAX_REQUEST         10000
+
+#ifndef ulong
+#define ulong unsigned long
+#endif
+
+#ifndef SOCK_NONBLOCK
+#define SOCK_NONBLOCK O_NONBLOCK
+#endif
+
+#ifndef CLOCK_REALTIME
+#define CLOCK_REALTIME 0
+#endif
+
+#if __GUUC_MINOR__ > 6
+#define SWINLINE    inline
+#else
+#define SWINLINE
+#endif
 
 typedef struct _swEventData
 {
@@ -245,24 +271,24 @@ typedef struct _swThreadWriter
 	swPipe evfd; //eventfd
 } swThreadWriter;
 
-char swoole_running;
-uint16_t sw_errno;
-char sw_error[SW_ERROR_MSG_SIZE];
+extern char swoole_running;
+extern uint16_t sw_errno;
+extern char sw_error[SW_ERROR_MSG_SIZE];
 
-inline int swReactor_error(swReactor *reactor);
+SWINLINE int swReactor_error(swReactor *reactor);
 int swReactor_setHandle(swReactor *, int, swReactor_handle);
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);
 int swReactorPoll_create(swReactor *reactor, int max_event_num);
 int swReactorKqueue_create(swReactor *reactor, int max_event_num);
 int swReactorSelect_create(swReactor *reactor);
 
-inline ulong swHashFunc(const char *arKey, uint nKeyLength);
-inline int swRead(int, char *, int);
-inline int swWrite(int, char *, int);
-inline void swSetNonBlock(int);
-inline void swSetBlock(int);
-inline int swSocket_listen(int type, char *host, int port, int backlog);
-inline int swSocket_create(int type);
+SWINLINE ulong swHashFunc(const char *arKey, uint nKeyLength);
+SWINLINE int swRead(int, char *, int);
+SWINLINE int swWrite(int, char *, int);
+SWINLINE void swSetNonBlock(int);
+SWINLINE void swSetBlock(int);
+SWINLINE int swSocket_listen(int type, char *host, int port, int backlog);
+SWINLINE int swSocket_create(int type);
 swSignalFunc swSignalSet(int sig, swSignalFunc func, int restart, int mask);
 
 int swFactory_create(swFactory *factory);
