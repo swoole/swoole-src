@@ -105,7 +105,7 @@ if test "$PHP_SWOOLE" != "no"; then
   )
 
   if test "$PHP_SWOOLE_DEBUG" != "no"; then
-      AC_DEFINE(SW_DEBUG, 1, [do we enable swoole deub])
+      AC_DEFINE(SW_DEBUG, 1, [do we enable swoole debug])
   fi
 
   AC_SWOOLE_EVENTFD
