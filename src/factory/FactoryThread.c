@@ -161,6 +161,7 @@ static int swFactoryThread_writer_loop(swThreadParam *param)
 	uint64_t flag;
 
 	//cpu affinity setting
+#if HAVE_CPU_AFFINITY
 	if (serv->open_cpu_affinity)
 	{
 		cpu_set_t cpu_set;
@@ -171,6 +172,7 @@ static int swFactoryThread_writer_loop(swThreadParam *param)
 			swTrace("pthread_setaffinity_np set fail\n");
 		}
 	}
+#endif
 
 	//main loop
 	while (swoole_running > 0)

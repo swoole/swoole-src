@@ -1,7 +1,3 @@
-#include <time.h>
-#include <sys/timerfd.h>
-#include <sys/socket.h>
-
 #include "swoole.h"
 #include "Server.h"
 
@@ -533,6 +529,7 @@ static int swServer_poll_loop(swThreadParam *param)
 	struct timeval timeo;
 
 	//cpu affinity setting
+#if HAVE_CPU_AFFINITY
 	if(serv->open_cpu_affinity)
 	{
 		cpu_set_t cpu_set;
@@ -543,6 +540,7 @@ static int swServer_poll_loop(swThreadParam *param)
 			swTrace("pthread_setaffinity_np set fail\n");
 		}
 	}
+#endif
 
 	ret = swReactorEpoll_create(reactor, (serv->max_conn / serv->poll_thread_num) + 1);
 	if (ret < 0)

@@ -305,6 +305,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int work
 	int n;
 	int task_num = factory->max_request;
 
+#if HAVE_CPU_AFFINITY
 	if (serv->open_cpu_affinity)
 	{
 		cpu_set_t cpu_set;
@@ -315,6 +316,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int work
 			swTrace("pthread_setaffinity_np set fail\n");
 		}
 	}
+#endif
 
 	//主线程
 	while (swoole_running > 0 && task_num > 0)

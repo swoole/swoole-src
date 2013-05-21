@@ -76,10 +76,10 @@ int swReactorKqueue_add(swReactor *reactor, int fd, int fdtype)
 	//e.data.u64 = 0;
 	//e.events = kqueueIN | kqueueOUT;
 
-    EV_SET(&e, EVFILT_READ, EV_ADD | EV_CLAR, 0, 0 , &fd_);
+    EV_SET(&e, fd, EVFILT_READ, EV_ADD | EV_CLEAR, 0, 0 , &fd_);
 
 	swTrace("[THREAD #%ld]EP=%d|FD=%d\n", pthread_self(), this->epfd, fd);
-	ret = kevent(this->epfd, &k, 1, NULL, 0, NULL);
+	ret = kevent(this->epfd, &e, 1, NULL, 0, NULL);
 	if (ret < 0)
 	{
 		swTrace("[THREAD #%ld]add event fail.Ep=%d|fd=%d\n", pthread_self(), this->epfd, fd);
@@ -95,9 +95,9 @@ int swReactorKqueue_del(swReactor *reactor, int fd)
 	struct kevent e;
 	int ret;
 
-    EV_SET(&e, fd, EVFILT_READ, EV_DELETE | EV_CLEAR, 0, 0 NULL);
+    EV_SET(&e, fd, EVFILT_READ, EV_DELETE | EV_CLEAR, 0, 0, NULL);
 
-	ret = kevent(this->epfd, &k, 1, NULL, 0, NULL);
+	ret = kevent(this->epfd, &e, 1, NULL, 0, NULL);
 	if (ret < 0)
 	{
 		return -1;
@@ -139,7 +139,7 @@ int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 		}
 		for (i = 0; i < n; i++)
 		{
-			if (this->events[i].events)
+			if (this->events[i].udata)
 			{
 				swTrace("event coming.Ep=%d|fd=%d\n", this->epfd, this->events[i].udata);
 				memcpy(&fd_, &(this->events[i].udata), sizeof(fd_));

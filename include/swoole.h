@@ -137,6 +137,10 @@
 #define ulong unsigned long
 #endif
 
+#ifndef SOCK_NONBLOCK
+#define SOCK_NONBLOCK O_NONBLOCK
+#endif
+
 typedef struct _swEventData
 {
 	int fd;
