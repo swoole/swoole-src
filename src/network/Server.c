@@ -66,9 +66,8 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 	int clilen;
 	int conn_fd;
 	int ret;
-	char *str;
-
 	struct sockaddr_in clientaddr;
+
 	clilen = sizeof(clientaddr);
 	bzero(&clientaddr, clilen);
 	swTrace("[Main]accept start\n");
@@ -106,8 +105,7 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 		setsockopt(conn_fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
 	}
 
-	str = inet_ntoa(clientaddr.sin_addr);
-	swTrace("[Main]connect from %s, by process %d\n", str, getpid());
+	swTrace("[Main]connect from %s, by process %d\n", inet_ntoa(clientaddr.sin_addr), getpid());
 
 	if (serv->c_pti >= serv->poll_thread_num)
 	{
