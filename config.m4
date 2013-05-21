@@ -129,6 +129,7 @@ if test "$PHP_SWOOLE" != "no"; then
   AC_SWOOLE_EVENTFD
   AC_SWOOLE_EPOLL
   AC_SWOOLE_KQUEUE
+  AC_SWOOLE_TIMERFD
 
   PHP_NEW_EXTENSION(swoole, swoole.c \
     src/core/Base.c \
