@@ -133,6 +133,9 @@
 #define SW_ERROR_MSG_SIZE      256
 #define SW_MAX_REQUEST         10000
 
+#ifndef ulong
+#define ulong unsigned long
+
 typedef struct _swEventData
 {
 	int fd;
