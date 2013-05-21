@@ -112,9 +112,9 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 		ret = select(this->maxfd + 1, &(this->rfds), NULL, NULL, &timeout);
 		if (ret < 0)
 		{
-			swTrace("select error. Errno=%d\n", errno);
 			if (swReactor_error(reactor) < 0)
 			{
+				swTrace("select error. Errno=%d\n", errno);
 				return SW_ERR;
 			}
 			else

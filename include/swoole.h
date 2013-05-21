@@ -18,6 +18,7 @@
 #include <string.h>
 #include <signal.h>
 #include <assert.h>
+#include <time.h>
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -31,6 +32,7 @@
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 
 #ifdef HAVE_EPOLL
 #include <sys/epoll.h>
@@ -74,10 +76,6 @@
 #define SW_STRL(s)             s, sizeof(s)
 #define SW_START_SLEEP         sleep(1)  //sleep 1s,wait fork and pthread_create
 
-#ifndef CLOCK_REALTIME
-#define CLOCK_REALTIME         0
-#endif
-
 #ifdef SW_USE_PHP
 #define sw_malloc              emalloc
 #define sw_free                efree
@@ -91,7 +89,7 @@
 #endif
 
 #define SW_OK                  0
-#define SW_ERR                 -1
+#define SW_ERR                -1
 
 #define SW_FD_TCP              0
 #define SW_FD_LISTEN           1
@@ -250,7 +248,6 @@ typedef struct _swThreadWriter
 char swoole_running;
 uint16_t sw_errno;
 char sw_error[SW_ERROR_MSG_SIZE];
-
 
 inline int swReactor_error(swReactor *reactor);
 int swReactor_setHandle(swReactor *, int, swReactor_handle);

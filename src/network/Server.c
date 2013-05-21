@@ -1,7 +1,3 @@
-#include <time.h>
-#include <sys/timerfd.h>
-#include <sys/socket.h>
-
 #include "swoole.h"
 #include "Server.h"
 
@@ -16,9 +12,8 @@ static int swServer_poll_onPackage(swReactor *reactor, swEvent *event);
 static int swServer_timer_start(swServer *serv);
 static void swSignalHanlde(int sig);
 
-char swoole_running = 1;
-uint16_t sw_errno = 0;
-char sw_error[SW_ERROR_MSG_SIZE];
+int sw_nouse_timerfd;
+swPipe timer_pipe;
 
 int swServer_onClose(swReactor *reactor, swEvent *event)
 {
@@ -61,7 +56,7 @@ int swServer_onTimer(swReactor *reactor, swEvent *event)
 			timer_node->lasttime += timer_node->interval;
 		}
 	}
-	swTrace("Timer Call");
+	swTrace("Timer Call\n");
 	return ret;
 }
 
@@ -223,8 +218,13 @@ int swServer_start(swServer *serv)
 	}
 
 	SW_START_SLEEP;
-	//ret = swReactorSelect_create(&main_reactor);
+
+#ifdef SW_MAINREACTOR_USE_POLL
 	ret = swReactorPoll_create(&main_reactor, 10);
+#else
+	ret = swReactorSelect_create(&main_reactor);
+#endif
+
 	if (ret < 0)
 	{
 		return SW_ERR;
@@ -321,7 +321,6 @@ void swServer_init(swServer *serv)
 static int swServer_timer_start(swServer *serv)
 {
 	int timer_fd;
-	struct itimerspec timer_set;
 	struct timespec now;
 
 	if (clock_gettime(CLOCK_REALTIME, &now) == -1)
@@ -329,7 +328,10 @@ static int swServer_timer_start(swServer *serv)
 		swError("clock_gettime fail\n");
 		return SW_ERR;
 	}
-
+	
+#ifdef HAVE_TIMERFD
+	struct itimerspec timer_set;
+	memset(&timer_set, 0, sizeof(timer_set));
 	timer_fd = timerfd_create(CLOCK_REALTIME, TFD_NONBLOCK | TFD_CLOEXEC);
 	if (timer_fd < 0)
 	{
@@ -337,7 +339,7 @@ static int swServer_timer_start(swServer *serv)
 		return SW_ERR;
 	}
 
-	timer_set.it_value.tv_sec = now.tv_sec;
+	timer_set.it_value.tv_sec = now.tv_sec + serv->timer_interval;
 	timer_set.it_value.tv_nsec = now.tv_nsec;
 	timer_set.it_interval.tv_sec = serv->timer_interval;
 	timer_set.it_interval.tv_nsec = 0;
@@ -348,11 +350,42 @@ static int swServer_timer_start(swServer *serv)
 		return SW_ERR;
 	}
 	serv->timer_fd = timer_fd;
+	sw_nouse_timerfd = 0;
+#else
+    struct itimerval timer_set;
+#ifdef HAVE_EVENTFD
+    timer_fd = swPipeEventfd_create(&timer_pipe, 0);
+#else
+    timer_fd = swPipeBase_create(&timer_pipe, 0);
+#endif
+    if(timer_fd < 0)
+    {
+        swError("create timer pipe fail\n");
+		return SW_ERR;
+    }
+    memset(&timer_set, 0, sizeof(timer_set));
+    timer_set.it_value.tv_sec = serv->timer_interval;
+    timer_set.it_value.tv_usec = 0;
+    timer_set.it_interval.tv_sec = serv->timer_interval;
+    timer_set.it_interval.tv_usec = 0;  
+    if(setitimer(ITIMER_REAL, &timer_set, NULL) < 0)
+    {
+        swError("set timer fail\n");
+	    return SW_ERR;
+    }
+    sw_nouse_timerfd = 1;
+    serv->timer_fd = timer_pipe.getFd(&timer_pipe, 0);
+#endif
 	return SW_OK;
 }
 int swServer_create(swServer *serv)
 {
 	int ret = 0;
+
+	swoole_running = 1;
+	sw_errno = 0;
+	bzero(sw_error, SW_ERROR_MSG_SIZE);
+
 	ret = swPipeBase_create(&serv->main_pipe, 0);
 	if (ret < 0)
 	{
@@ -543,8 +576,16 @@ static int swServer_poll_loop(swThreadParam *param)
 			swTrace("pthread_setaffinity_np set fail\n");
 		}
 	}
-
+#ifdef HAVE_EPOLL
 	ret = swReactorEpoll_create(reactor, (serv->max_conn / serv->poll_thread_num) + 1);
+#else
+#ifdef HAVE_KQUEUE
+	ret = swReactorKqueue_create(reactor, (serv->max_conn / serv->poll_thread_num) + 1);
+#else
+	ret = swReactorPoll_create(reactor, (serv->max_conn / serv->poll_thread_num) + 1);
+#endif
+#endif
+
 	if (ret < 0)
 	{
 		return SW_ERR;
@@ -662,6 +703,7 @@ void swSignalInit(void)
 	swSignalSet(SIGUSR1, SIG_IGN, 1, 0);
 	swSignalSet(SIGUSR2, SIG_IGN, 1, 0);
 	swSignalSet(SIGTERM, swSignalHanlde, 1, 0);
+	swSignalSet(SIGALRM, swSignalHanlde, 1, 0);
 }
 
 int swServer_addListen(swServer *serv, int type, char *host, int port)
@@ -727,13 +769,20 @@ int swServer_reload(swServer *serv)
 
 static void swSignalHanlde(int sig)
 {
+    uint64_t flag = 1;
 	switch (sig)
 	{
 	case SIGTERM:
 		swoole_running = 0;
 		break;
+	case SIGALRM:
+	    if(sw_nouse_timerfd == 1)
+	    {
+	        timer_pipe.write(&timer_pipe, &flag, sizeof(flag));
+	    }
+	    break;
 	default:
 		break;
 	}
-	swSignalInit();
+	//swSignalInit();
 }

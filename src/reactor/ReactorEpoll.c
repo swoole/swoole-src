@@ -121,9 +121,9 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 
 		if (n < 0)
 		{
-			//swTrace("epoll error.EP=%d | Errno=%d\n", this->epfd, errno);
 			if(swReactor_error(reactor) < 0)
 			{
+				swTrace("epoll error.EP=%d | Errno=%d\n", this->epfd, errno);
 				return SW_ERR;
 			}
 			else

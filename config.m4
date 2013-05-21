@@ -38,6 +38,24 @@ AC_DEFUN([AC_SWOOLE_KQUEUE],
 	])
 ])
 
+AC_DEFUN([AC_SWOOLE_TIMERFD],
+[
+	AC_MSG_CHECKING([for timerfd])
+
+	AC_TRY_COMPILE(
+	[ 
+	    #include <sys/time.h>
+		#include <sys/timerfd.h>
+	], [
+        timerfd_create(CLOCK_REALTIME, TFD_NONBLOCK | TFD_CLOEXEC);
+	], [
+		AC_DEFINE([HAVE_TIMERFD], 1, [do we have timerfd?])
+		AC_MSG_RESULT([yes])
+	], [
+		AC_MSG_RESULT([no])
+	])
+])
+
 AC_DEFUN([AC_SWOOLE_EPOLL],
 [
 	AC_MSG_CHECKING([for epoll])

@@ -125,9 +125,9 @@ int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
 		ret = poll(this->events, this->fd_num, timeo->tv_sec * 1000 + timeo->tv_usec / 1000);
 		if (ret < 0)
 		{
-			swTrace("select error. Errno=%d\n", errno);
 			if (swReactor_error(reactor) < 0)
 			{
+				swTrace("poll error. Errno=%d\n", errno);
 				return SW_ERR;
 			}
 			else
