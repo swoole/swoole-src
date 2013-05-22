@@ -12,6 +12,10 @@ static int swServer_poll_onPackage(swReactor *reactor, swEvent *event);
 static int swServer_timer_start(swServer *serv);
 static void swSignalHanlde(int sig);
 
+char swoole_running;
+uint16_t sw_errno;
+char sw_error[SW_ERROR_MSG_SIZE];
+
 int sw_nouse_timerfd;
 swPipe timer_pipe;
 
@@ -577,9 +581,9 @@ static int swServer_poll_loop(swThreadParam *param)
 	}
 #endif
 
-#ifdef HAVE_EPOLL
+#if defined(HAVE_EPOLL)
 	ret = swReactorEpoll_create(reactor, (serv->max_conn / serv->poll_thread_num) + 1);
-#elif HAVE_KQUEUE
+#elif defined(HAVE_KQUEUE)
 	ret = swReactorKqueue_create(reactor, (serv->max_conn / serv->poll_thread_num) + 1);
 #else
 	ret = swReactorPoll_create(reactor, (serv->max_conn / serv->poll_thread_num) + 1);

@@ -10,6 +10,5 @@
 
 void p_str(void *str);
 void u1_test2();
-int serv_main();
 
 #endif /* TESTS_H_ */

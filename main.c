@@ -1,8 +1,6 @@
-#include <string.h>
 #include "swoole.h"
 #include "Server.h"
-#include <netinet/tcp.h>
-
+#include "Client.h"
 #include "tests.h"
 
 int my_onReceive(swFactory *factory, swEventData *req);
@@ -12,9 +10,78 @@ void my_onConnect(swServer *serv, int fd, int from_id);
 void my_onClose(swServer *serv, int fd, int from_id);
 void my_onTimer(swServer *serv, int interval);
 
+int server_main();
+int client_main();
+
 void p_str(void *str)
 {
 	printf("Str: %s|len=%ld\n", (char *) str, strlen((char *) str));
+}
+
+int client_main()
+{
+	int ret;
+	swClient cli, cli2;
+	char buf[128];
+
+	//TCP Test
+	ret = swClient_create(&cli, SW_SOCK_TCP);
+	if (ret < 0)
+	{
+		printf("swClient_create.\n");
+		return -1;
+	}
+	ret = cli.connect(&cli, "127.0.0.1", 9501, 1.0, 0);
+	if (ret < 0)
+	{
+		printf("connect fail.\n");
+		return -1;
+	}
+
+	ret = cli.send(&cli, SW_STRL("TCP: hello world"));
+	if (ret < 0)
+	{
+		printf("send fail.\n");
+		return -1;
+	}
+	ret = cli.recv(&cli, buf, 128, 0);
+	if (ret < 0)
+	{
+		printf("recv fail.\n");
+		return -1;
+	}
+	printf("TCP Test OK. data=%s\n", buf);
+	printf("---------------------------------------------------\n");
+
+	//UDP Test
+	ret = swClient_create(&cli2, SW_SOCK_UDP);
+	if (ret < 0)
+	{
+		printf("swClient_create.\n");
+		return -1;
+	}
+	ret = cli2.connect(&cli2, "127.0.0.1", 9500, 1.0, 0);
+	if (ret < 0)
+	{
+		printf("connect fail.\n");
+		return -1;
+	}
+	ret = cli2.send(&cli2, SW_STRL("UDP: hello world"));
+	if (ret < 0)
+	{
+		printf("send fail.\n");
+		return -1;
+	}
+	ret = cli2.recv(&cli2, buf, 128, 0);
+	if (ret < 0)
+	{
+		printf("recv fail.\n");
+		return -1;
+	}
+	printf("UDP Test OK. data=%s\n", buf);
+	printf("---------------------------------------------------\n");
+
+	return 0;
 }
 
 int main(int argc, char **argv)
@@ -22,10 +89,22 @@ int main(int argc, char **argv)
 	//ds_test2();
 	//u1_test2();
 	//ds_test1();
-	serv_main();
+	int max_len = 128;
+	if (argc < 2)
+	{
+		printf("%s server | client\n", argv[0]);
+	}
+	else if (strncmp(argv[1], "client", max_len) == 0)
+	{
+		client_main();
+	}
+	else if (strncmp(argv[1], "server", max_len) == 0)
+	{
+		server_main();
+	}
 	return 0;
 }
-int serv_main()
+int server_main()
 {
 	swServer serv;
 	int ret;
@@ -39,17 +118,17 @@ int serv_main()
 	serv.writer_num = 1;
 	serv.worker_num = 1;
 	serv.factory_mode = 2;
-	serv.open_cpu_affinity = 1;
-	serv.open_tcp_nodelay = 1;
+	//serv.open_cpu_affinity = 1;
+	//serv.open_tcp_nodelay = 1;
 	//serv.daemonize = 1;
 
-	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9500);
+	swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9500);
 	swServer_addListen(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9502);
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 8888);
 
-	swServer_addTimer(&serv, 2);
-	swServer_addTimer(&serv, 4);
+	//swServer_addTimer(&serv, 2);
+	//swServer_addTimer(&serv, 4);
 
 	serv.onStart = my_onStart;
 	serv.onShutdown = my_onShutdown;
@@ -89,7 +168,7 @@ int my_onReceive(swFactory *factory, swEventData *req)
 	resp.len = req->len + 8;
 	resp.from_id = req->from_id;
 
-	swTrace("Data Len=%d\n", req->len);
+	printf("onReceive: Data=%s|Len=%d\n", req->data, req->len);
 	snprintf(resp_data, resp.len, "Server:%s", req->data);
 	resp.data = resp_data;
 	ret = factory->finish(factory, &resp);
@@ -97,7 +176,6 @@ int my_onReceive(swFactory *factory, swEventData *req)
 	{
 		swWarn("send to client fail.errno=%d\n", errno);
 	}
-	swTrace("finish\n");
 	return SW_OK;
 }
 

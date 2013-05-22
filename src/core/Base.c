@@ -6,7 +6,8 @@ SWINLINE ulong swHashFunc(const char *arKey, uint nKeyLength)
 	register ulong hash = 5381;
 
 	/* variant with the hash unrolled eight times */
-	for (; nKeyLength >= 8; nKeyLength -= 8) {
+	for (; nKeyLength >= 8; nKeyLength -= 8)
+	{
 		hash = ((hash << 5) + hash) + *arKey++;
 		hash = ((hash << 5) + hash) + *arKey++;
 		hash = ((hash << 5) + hash) + *arKey++;
@@ -16,16 +17,27 @@ SWINLINE ulong swHashFunc(const char *arKey, uint nKeyLength)
 		hash = ((hash << 5) + hash) + *arKey++;
 		hash = ((hash << 5) + hash) + *arKey++;
 	}
-	switch (nKeyLength) {
-		case 7: hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
-		case 6: hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
-		case 5: hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
-		case 4: hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
-		case 3: hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
-		case 2: hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
-		case 1: hash = ((hash << 5) + hash) + *arKey++; break;
-		case 0: break;
-		default: break;
+	switch (nKeyLength)
+	{
+	case 7:
+		hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
+	case 6:
+		hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
+	case 5:
+		hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
+	case 4:
+		hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
+	case 3:
+		hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
+	case 2:
+		hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
+	case 1:
+		hash = ((hash << 5) + hash) + *arKey++;
+		break;
+	case 0:
+		break;
+	default:
+		break;
 	}
 	return hash;
 }
@@ -252,6 +264,24 @@ SWINLINE void swSetBlock(int sock)
 	}
 }
 
+SWINLINE int swSetTimeout(int sock, float timeout)
+{
+	int ret;
+	struct timeval timeo;
+	timeo.tv_sec = (int) timeout;
+	timeo.tv_usec = (int) ((timeout - timeo.tv_sec) * 1000 * 1000);
+	ret = setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (void *) &timeo, sizeof(timeo));
+	if (ret < 0)
+	{
+		return SW_ERR;
+	}
+	ret = setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (void *) &timeo, sizeof(timeo));
+	if (ret < 0)
+	{
+		return SW_ERR;
+	}
+	return SW_OK;
+}
 
 swSignalFunc swSignalSet(int sig, swSignalFunc func, int restart, int mask)
 {
@@ -268,7 +298,7 @@ swSignalFunc swSignalSet(int sig, swSignalFunc func, int restart, int mask)
 	act.sa_flags = 0;
 	if (sigaction(sig, &act, &oact) < 0)
 	{
-		return NULL;
+		return NULL ;
 	}
 	return oact.sa_handler;
 }

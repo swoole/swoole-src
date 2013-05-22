@@ -276,6 +276,7 @@ extern uint16_t sw_errno;
 extern char sw_error[SW_ERROR_MSG_SIZE];
 
 SWINLINE int swReactor_error(swReactor *reactor);
+SWINLINE int swSetTimeout(int sock, float timeout);
 int swReactor_setHandle(swReactor *, int, swReactor_handle);
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);
 int swReactorPoll_create(swReactor *reactor, int max_event_num);
