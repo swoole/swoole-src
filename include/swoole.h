@@ -59,7 +59,7 @@
 #include <pthread.h>
 
 #include "swoole_config.h"
-#include "hashtable.h"
+//#include "hashtable.h"
 
 #define SW_MAX_FDS             (1024*10)
 #define SW_THREAD_NUM          2
@@ -98,6 +98,9 @@
 
 #define SW_OK                  0
 #define SW_ERR                -1
+
+#define SW_TRUE                1
+#define SW_FALSE               0
 
 #define SW_FD_TCP              0
 #define SW_FD_LISTEN           1
@@ -194,13 +197,6 @@ typedef struct _swEventConnect
 	struct sockaddr_in addr;
 	socklen_t addrlen;
 } swEventConnect;
-
-typedef struct _swHashTable_FdInfo
-{
-	int fd;
-	int key;
-	UT_hash_handle hh;
-} swHashTable_FdInfo;
 
 typedef int (*swHandle)(swEventData *buf);
 typedef void (*swSignalFunc)(int);

@@ -59,6 +59,12 @@ PHP_FUNCTION(swoole_server_addlisten);
 PHP_FUNCTION(swoole_server_addtimer);
 PHP_FUNCTION(swoole_server_reload);
 
+PHP_METHOD(swoole_client, __construct);
+PHP_METHOD(swoole_client, connect);
+PHP_METHOD(swoole_client, recv);
+PHP_METHOD(swoole_client, send);
+PHP_METHOD(swoole_client, close);
+
 #ifdef ZTS
 #define SWOOLE_G(v) TSRMG(swoole_globals_id, zend_swoole_globals *, v)
 #else

@@ -165,5 +165,6 @@ if test "$PHP_SWOOLE" != "no"; then
 	src/pipe/PipeUnsock.c \
 	src/pipe/PipeMsg.c \
     src/network/Server.c \
+    src/network/Client.c \
   , $ext_shared)
 fi

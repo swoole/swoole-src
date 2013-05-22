@@ -25,13 +25,13 @@ int client_main()
 	char buf[128];
 
 	//TCP Test
-	ret = swClient_create(&cli, SW_SOCK_TCP);
+	ret = swClient_create(&cli, SW_SOCK_TCP, SW_SOCK_SYNC);
 	if (ret < 0)
 	{
 		printf("swClient_create.\n");
 		return -1;
 	}
-	ret = cli.connect(&cli, "127.0.0.1", 9501, 1.0, 0);
+	ret = cli.connect(&cli, "127.0.0.1", 9501, 0.5, 0);
 	if (ret < 0)
 	{
 		printf("connect fail.\n");
@@ -50,17 +50,18 @@ int client_main()
 		printf("recv fail.\n");
 		return -1;
 	}
+	cli.close(&cli);
 	printf("TCP Test OK. data=%s\n", buf);
 	printf("---------------------------------------------------\n");
 
 	//UDP Test
-	ret = swClient_create(&cli2, SW_SOCK_UDP);
+	ret = swClient_create(&cli2, SW_SOCK_UDP, SW_SOCK_SYNC);
 	if (ret < 0)
 	{
 		printf("swClient_create.\n");
 		return -1;
 	}
-	ret = cli2.connect(&cli2, "127.0.0.1", 9500, 1.0, 0);
+	ret = cli2.connect(&cli2, "127.0.0.1", 9500, 0.5, 0);
 	if (ret < 0)
 	{
 		printf("connect fail.\n");
@@ -78,6 +79,7 @@ int client_main()
 		printf("recv fail.\n");
 		return -1;
 	}
+	cli2.close(&cli2);
 	printf("UDP Test OK. data=%s\n", buf);
 	printf("---------------------------------------------------\n");
 

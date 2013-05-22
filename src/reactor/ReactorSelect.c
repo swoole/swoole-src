@@ -12,8 +12,8 @@ typedef struct _swFdList_node
 typedef struct _swReactorSelect
 {
 	fd_set rfds;
-	//fd_set wfds;
-	//fd_set efds;
+	fd_set wfds;
+	fd_set efds;
 	swFdList_node *fds;
 	int maxfd;
 	int fd_num;

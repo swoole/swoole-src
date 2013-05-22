@@ -1,7 +1,7 @@
 #include "swoole.h"
 #include "Client.h"
 
-int swClient_create(swClient *cli, int type)
+int swClient_create(swClient *cli, int type, int async)
 {
 	int _domain;
 	int _type;
@@ -44,10 +44,19 @@ int swClient_create(swClient *cli, int type)
 		cli->recv = swClient_udp_recv;
 		cli->send = swClient_udp_send;
 	}
+	cli->close = swClient_close;
 	cli->sock_domain = _domain;
 	cli->sock_type = SOCK_DGRAM;
 	cli->type = type;
+	cli->async = async;
 	return SW_OK;
+}
+
+int swClient_close(swClient *cli)
+{
+	int fd = cli->sock;
+	bzero(cli, sizeof(swClient));
+	return close(fd);
 }
 
 int swClient_tcp_connect(swClient *cli, char *host, int port, float timeout, int udp_connect)
