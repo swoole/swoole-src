@@ -19,7 +19,7 @@ example
 server.php
 <pre>
 &lt;?php
-$serv = swoole_server_create("127.0.0.1", 9500, SWOOLE_THREAD, SWOOLE_SOCK_UDP);
+$serv = swoole_server_create("127.0.0.1", 9500, SWOOLE_THREAD, SWOOLE_SOCK_TCP);
 
 swoole_server_set($serv, array(
     'timeout' => 2.5,  //select and epoll_wait timeout. 
@@ -35,7 +35,7 @@ argv1  listen host
 argv2  listen port
 argv3  sock_type  SWOOLE_SOCK_TCP or SWOOLE_SOCK_TCP6 or SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6
 */
-swoole_server_addlisten($serv, "127.0.0.1", 9501, SWOOLE_SOCK_TCP);
+swoole_server_addlisten($serv, "127.0.0.1", 9501, SWOOLE_SOCK_UDP);
 function my_onStart($serv)
 {
     echo "Server：start\n";
