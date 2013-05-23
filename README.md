@@ -16,8 +16,10 @@ feature
 
 example
 -----
+server.php
 <pre>
-$serv = swoole_server_create("127.0.0.1", 9500, SWOOLE_THREAD, SWOOLE_SOCK_UDP);
+&lt;?php
+$serv = swoole_server_create("127.0.0.1", 9500, SWOOLE_THREAD, SWOOLE_SOCK_TCP);
 
 swoole_server_set($serv, array(
     'timeout' => 2.5,  //select and epoll_wait timeout. 
@@ -33,7 +35,7 @@ argv1  listen host
 argv2  listen port
 argv3  sock_type  SWOOLE_SOCK_TCP or SWOOLE_SOCK_TCP6 or SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6
 */
-swoole_server_addlisten($serv, "127.0.0.1", 9501, SWOOLE_SOCK_TCP);
+swoole_server_addlisten($serv, "127.0.0.1", 9501, SWOOLE_SOCK_UDP);
 function my_onStart($serv)
 {
     echo "Server：start\n";
@@ -78,6 +80,19 @@ swoole_server_addtimer($serv, 2);
 swoole_server_addtimer($serv, 10);
 swoole_server_start($serv);
 ?>
+</pre>
+
+client.php
+<pre>
+&lt;?php
+$client = new swoole_client(SWOOLE_SOCK_UDP, SWOOLE_SOCK_SYNC); //同步阻塞
+$client->connect('127.0.0.1', 9500, 0.5, 0);
+for($i=0; $i &lt; 1000; $i++){
+    $client-&gt;send("hello world-{$i}");
+    $data = $client-&gt;recv(1024, 0);
+    echo $data;
+}
+$client->close();
 </pre>
 	php server.php
 
