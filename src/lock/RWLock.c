@@ -1,9 +1,13 @@
 #include "swoole.h"
 
-int swRWLock_create(swRWLock *this)
+int swRWLock_create(swRWLock *this, int use_in_process)
 {
 	int ret;
-	pthread_rwlockattr_setpshared(&this->attr, PTHREAD_PROCESS_SHARED);
+	bzero(this, sizeof(swRWLock));
+	if(use_in_process == 1)
+	{
+		pthread_rwlockattr_setpshared(&this->attr, PTHREAD_PROCESS_SHARED);
+	}
 	if((ret = pthread_rwlock_init(&this->rwlock, &this->attr)) < 0)
 	{
 		return -1;

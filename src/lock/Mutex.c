@@ -1,9 +1,13 @@
 #include "swoole.h"
 
-int swMutex_create(swMutex *this)
+int swMutex_create(swMutex *this, int use_in_process)
 {
 	int ret;
-	pthread_mutexattr_setpshared(&this->attr, PTHREAD_PROCESS_SHARED);
+	bzero(this, sizeof(swMutex));
+	if(use_in_process == 1)
+	{
+		pthread_mutexattr_setpshared(&this->attr, PTHREAD_PROCESS_SHARED);
+	}
 	if((ret = pthread_mutex_init(&this->rwlock, &this->attr)) < 0)
 	{
 		return -1;

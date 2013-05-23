@@ -348,6 +348,7 @@ typedef struct _swSem
 {
 	key_t key;
 	int semid;
+	int lock_num;
 	int (*lock)(struct _swSem *this);
 	int (*unlock)(struct _swSem *this);
 } swSem;
@@ -371,7 +372,7 @@ typedef struct _swFactoryProcess
 	int worker_pti; //current worker id
 } swFactoryProcess;
 
-int swRWLock_create(swRWLock *this);
+int swRWLock_create(swRWLock *this, int use_in_process);
 int swRWLock_lock_rd(swRWLock *this);
 int swRWLock_lock_rw(swRWLock *this);
 int swRWLock_unlock(swRWLock *this);
@@ -382,7 +383,7 @@ int swSem_create(swSem *this, key_t key, int n);
 int swSem_lock(swSem *this);
 int swSem_unlock(swSem *this);
 
-int swMutex_create(swMutex *this);
+int swMutex_create(swMutex *this, int use_in_process);
 int swMutex_lock(swMutex *this);
 int swMutex_unlock(swMutex *this);
 int swMutex_trylock(swMutex *this);

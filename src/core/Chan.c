@@ -9,6 +9,11 @@ int swChan_create(swChan *chan, void *mem, int mem_size, int elem_size)
 		return SW_ERR;
 	}
 	bzero(chan, sizeof(swChan));
+	if (swMutex_create(&chan->lock, 1) < 0)
+	{
+		swWarn("create mutex fail.\n");
+		return SW_ERR;
+	}
 	if (elem_size == 0)
 	{
 		elem_size = 65535;
@@ -31,6 +36,28 @@ void swChan_destroy(swChan *chan)
 }
 
 int swChan_push(swChan *chan, void *buf, int size)
+{
+	if (chan->lock.trylock(&chan->lock) < 0)
+	{
+		return SW_ERR;
+	}
+	int ret = swChan_push_nolock(chan, buf, size);
+	chan->lock.unlock(&chan->lock);
+	return ret;
+}
+
+swChanElem* swChan_pop(swChan *chan)
+{
+	if (chan->lock.trylock(&chan->lock) < 0)
+	{
+		return NULL ;
+	}
+	swChanElem *elem = swChan_pop_nolock(chan);
+	chan->lock.unlock(&chan->lock);
+	return elem;
+}
+
+int swChan_push_nolock(swChan *chan, void *buf, int size)
 {
 	swChanElem *elem;
 	if (chan->elem_num == chan->elem_size || chan->mem_use_num >= chan->mem_size)
@@ -55,7 +82,7 @@ int swChan_push(swChan *chan, void *buf, int size)
 	return SW_OK;
 }
 
-swChanElem* swChan_pop(swChan *chan)
+swChanElem* swChan_pop_nolock(swChan *chan)
 {
 	swChanElem *elem;
 	if (chan->elem_num == 0)
