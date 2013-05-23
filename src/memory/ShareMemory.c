@@ -4,8 +4,12 @@
 void *swShareMemory_mmap_create(swShareMemory_mmap *object, int size, char *mapfile)
 {
 	void *mem;
-	int tmpfd;
-	//use /dev/zero
+	int tmpfd = 0;
+	int flag = MAP_SHARED;
+
+#ifdef MAP_ANONYMOUS
+	flag |= MAP_ANONYMOUS;
+#else
 	if(mapfile == NULL)
 	{
 		mapfile = "/dev/zero";
@@ -14,14 +18,16 @@ void *swShareMemory_mmap_create(swShareMemory_mmap *object, int size, char *mapf
 	{
 		return NULL;
 	}
-	if((mem = mmap(NULL, size, PROT_READ|PROT_WRITE,  MAP_SHARED, tmpfd, 0)) < 0)
+	strncpy(object->mapfile, mapfile, SW_SHM_MMAP_FILE_LEN);
+	object->tmpfd = tmpfd;
+#endif
+
+	if((mem = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, tmpfd, 0)) < 0)
 	{
 		return NULL;
 	}
 	else
 	{
-		strncpy(object->mapfile, mapfile, SW_SHM_MMAP_FILE_LEN);
-		object->tmpfd = tmpfd;
 		object->size = size;
 		object->mem = mem;
 		return mem;
