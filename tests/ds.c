@@ -6,6 +6,13 @@
 #include <netinet/tcp.h>
 #include "tests.h"
 
+typedef struct _swHashTable_FdInfo
+{
+	int fd;
+	int key;
+	UT_hash_handle hh;
+} swHashTable_FdInfo;
+
 /**
  * HashTable Test
  */

@@ -1,11 +1,12 @@
 #include "swoole.h"
 #include "memory.h"
 
-void *swShareMemory_mmap_create(swShareMemory_mmap *object, int size, char *mapfile)
+void *swShareMemory_mmap_create(swShareMemory *object, int size, char *mapfile)
 {
 	void *mem;
 	int tmpfd = 0;
 	int flag = MAP_SHARED;
+	bzero(object, sizeof(swShareMemory));
 
 #ifdef MAP_ANONYMOUS
 	flag |= MAP_ANONYMOUS;
@@ -34,15 +35,17 @@ void *swShareMemory_mmap_create(swShareMemory_mmap *object, int size, char *mapf
 	}
 }
 
-int swShareMemory_mmap_free(swShareMemory_mmap *object)
+int swShareMemory_mmap_free(swShareMemory *object)
 {
 	return munmap(object->mem, object->size);
 }
 
-void *swShareMemory_sysv_create(swShareMemory_sysv *object, int size, int key)
+void *swShareMemory_sysv_create(swShareMemory *object, int size, int key)
 {
 	int shmid;
 	void *mem;
+	bzero(object, sizeof(swShareMemory));
+
 	if(key == 0)
 	{
 		key = IPC_PRIVATE;
@@ -65,7 +68,7 @@ void *swShareMemory_sysv_create(swShareMemory_sysv *object, int size, int key)
     }
 }
 
-int swShareMemory_sysv_free(swShareMemory_sysv *object, int rm)
+int swShareMemory_sysv_free(swShareMemory *object, int rm)
 {
 	int ret = shmdt(object->mem);
 	if(rm == 1)

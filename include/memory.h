@@ -18,19 +18,14 @@ typedef struct _swShareMemory_mmap
 	int size;
 	char mapfile[SW_SHM_MMAP_FILE_LEN];
 	int tmpfd;
-	void *mem;
-} swShareMemory_mmap;
-
-typedef struct _swShareMemory_sysv
-{
-	int size;
 	int key;
 	int shmid;
 	void *mem;
-} swShareMemory_sysv;
+} swShareMemory;
 
-void *swShareMemory_mmap_create(swShareMemory_mmap *object, int size, char *mapfile);
-void *swShareMemory_sysv_create(swShareMemory_sysv *object, int size, int key);
-int swShareMemory_sysv_free(swShareMemory_sysv *object, int rm);
-int swShareMemory_mmap_free(swShareMemory_mmap *object);
+void *swShareMemory_mmap_create(swShareMemory *object, int size, char *mapfile);
+void *swShareMemory_sysv_create(swShareMemory *object, int size, int key);
+int swShareMemory_sysv_free(swShareMemory *object, int rm);
+int swShareMemory_mmap_free(swShareMemory *object);
+
 #endif /* SW_MEMORY_H_ */

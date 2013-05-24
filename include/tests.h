@@ -10,5 +10,6 @@
 
 void p_str(void *str);
 void u1_test2();
+void mem_test1();
 
 #endif /* TESTS_H_ */

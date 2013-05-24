@@ -702,6 +702,7 @@ static int swServer_poll_onClose(swReactor *reactor, swEvent *event)
 void swSignalInit(void)
 {
 	swSignalSet(SIGHUP, SIG_IGN, 1, 0);
+	//swSignalSet(SIGINT, SIG_IGN, 1, 0);
 	swSignalSet(SIGPIPE, SIG_IGN, 1, 0);
 	swSignalSet(SIGUSR1, SIG_IGN, 1, 0);
 	swSignalSet(SIGUSR2, SIG_IGN, 1, 0);

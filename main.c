@@ -1,6 +1,7 @@
 #include "swoole.h"
 #include "Server.h"
 #include "Client.h"
+#include "memory.h"
 #include "tests.h"
 
 int my_onReceive(swFactory *factory, swEventData *req);
@@ -12,6 +13,7 @@ void my_onTimer(swServer *serv, int interval);
 
 int server_main();
 int client_main();
+void chan_test();
 
 void p_str(void *str)
 {
@@ -92,9 +94,10 @@ int main(int argc, char **argv)
 	//u1_test2();
 	//ds_test1();
 	int max_len = 128;
+	char info[] = "%s server | client | chantest\n";
 	if (argc < 2)
 	{
-		printf("%s server | client\n", argv[0]);
+		printf(info, argv[0]);
 	}
 	else if (strncmp(argv[1], "client", max_len) == 0)
 	{
@@ -104,8 +107,102 @@ int main(int argc, char **argv)
 	{
 		server_main();
 	}
+	else if (strncmp(argv[1], "chantest", max_len) == 0)
+	{
+		chan_test();
+	}
+	else if (strncmp(argv[1], "memtest1", max_len) == 0)
+	{
+		mem_test1();
+	}
+	else
+	{
+		printf(info, argv[0]);
+	}
 	return 0;
 }
+
+void chan_test()
+{
+
+	int ret, i;
+	//int size = 1024 * 1024 * 8; //8M
+	int size = 1024 * 200;
+	swChanElem *elem;
+	char buf[128];
+	//void *mem = malloc(size);
+
+	swShareMemory mm;
+	swChan *chan;
+	void *mem = swShareMemory_mmap_create(&mm, size, NULL );
+	if (mem == NULL )
+	{
+		printf("malloc memory fail.\n");
+		return;
+	}
+	else
+	{
+		printf("malloc memory OK.mem_addr=%p\n", mem);
+	}
+
+	ret = swChan_create(&chan, mem, size, 64);
+	if (ret < 0)
+	{
+		printf("swChan_create fail.\n");
+		return;
+	}
+
+	buf[127] = '\0';
+	memset(buf, 'c', 127);
+
+	int pid = fork();
+
+	if (pid > 0)
+	{
+		swBreakPoint();
+		for (i = 0; i < 7; i++)
+		{
+			//n = snprintf(buf, 128, "hello world.i=%d", i);
+			ret = swChan_push(chan, buf, 128);
+			if (ret < 0)
+			{
+				printf("swChan_push fail.\n");
+				return;
+			}
+		}
+		printf(
+				"#swChan_pop---------------------------\nmem_addr\t%p\nelem_num\t%d\
+				\nelem_size\t%d\nmem_use_num\t%d\nmem_size\t%d\nelem_tail\t%d\nelem_head\t%d\nmem_current\t%d\n",
+				chan->mem, chan->elem_num, chan->elem_size, chan->mem_use_num, chan->mem_size, chan->elem_tail,
+				chan->elem_head, chan->mem_cur);
+		printf("chan_test OK.\n");
+		pause();
+	}
+	else
+	{
+		sleep(1);
+		swBreakPoint();
+		for (i = 0; i < 7; i++)
+		{
+			elem = swChan_pop(chan);
+			if (elem == NULL )
+			{
+				printf("swChan_pop fail.\n");
+			}
+			else
+			{
+				printf("Data=%s\n", (char *) elem->ptr);
+			}
+		}
+		printf(
+				"#swChan_pop---------------------------\nmem_addr\t%p\nelem_num\t%d\
+				\nelem_size\t%d\nmem_use_num\t%d\nmem_size\t%d\nelem_tail\t%d\nelem_head\t%d\nmem_current\t%d\n",
+				chan->mem, chan->elem_num, chan->elem_size, chan->mem_use_num, chan->mem_size, chan->elem_tail,
+				chan->elem_head, chan->mem_cur);
+		pause();
+	}
+}
+
 int server_main()
 {
 	swServer serv;
@@ -119,12 +216,12 @@ int server_main()
 	serv.poll_thread_num = 1;
 	serv.writer_num = 1;
 	serv.worker_num = 1;
-	serv.factory_mode = 2;
+	serv.factory_mode = 3;
 	//serv.open_cpu_affinity = 1;
 	//serv.open_tcp_nodelay = 1;
 	//serv.daemonize = 1;
 
-	swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9500);
+	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9500);
 	swServer_addListen(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9502);
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 8888);

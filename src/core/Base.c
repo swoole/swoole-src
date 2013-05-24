@@ -199,6 +199,14 @@ SWINLINE int swRead(int fd, char *buf, int count)
 	return totlen;
 }
 
+/**
+ * for GDB
+ */
+void swBreakPoint()
+{
+
+}
+
 SWINLINE int swWrite(int fd, char *buf, int count)
 {
 	int nwritten = 0, totlen = 0;

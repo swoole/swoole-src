@@ -1,14 +1,33 @@
 #include "swoole.h"
-#include "chan.h"
 
-int swChan_create(swChan *chan, void *mem, int mem_size, int elem_size)
+#define SW_CHAN_MAX_ELEM    65535   //单个元素最大可分配内存
+#define SW_CHAN_MIN_MEM     65535*2 //最小内存分配
+#if defined(SW_CHAN_DEBUG) && SW_CHAN_DEBUG == 1
+#define swChan_debug(chan) swWarn("swChanr Error.\nelem_num\t%d\
+\nelem_size\t%d\nmem_use_num\t%d\nmem_size\t%d\nelem_tail\t%d\nelem_head\t%d\nmem_current\t%d\n", \
+chan->elem_num, \
+chan->elem_size,\
+chan->mem_use_num,\
+chan->mem_size,\
+chan->elem_tail,\
+chan->elem_head,\
+chan->mem_cur);
+#else
+#define swChan_debug(chan)
+#endif
+
+int swChan_create(swChan **chan_addr, void *mem, int mem_size, int elem_size)
 {
+	int slab_size;
 	if (mem_size <= 0 || mem == NULL || mem_size < SW_CHAN_MIN_MEM)
 	{
 		swWarn("error: mem_size <= %d or mem == NULL\n", SW_CHAN_MIN_MEM);
 		return SW_ERR;
 	}
-	bzero(chan, sizeof(swChan));
+	*chan_addr = mem;
+	swChan *chan = *chan_addr;
+
+	mem += sizeof(swChan);
 	if (swMutex_create(&chan->lock, 1) < 0)
 	{
 		swWarn("create mutex fail.\n");
@@ -18,21 +37,12 @@ int swChan_create(swChan *chan, void *mem, int mem_size, int elem_size)
 	{
 		elem_size = 65535;
 	}
-	chan->elems = sw_calloc(elem_size, sizeof(swChanElem));
-	if (chan->elems == NULL )
-	{
-		swWarn("error: malloc fail.\n");
-		return SW_ERR;
-	}
+	slab_size = sizeof(swChanElem)*elem_size;
 	chan->elem_size = elem_size;
-	chan->mem_size = mem_size - SW_CHAN_MAX_ELEM; //允许溢出
-	chan->mem = mem;
+	chan->mem_size = mem_size - slab_size - sizeof(swChan) - SW_CHAN_MAX_ELEM; //允许溢出
+	chan->elems = (swChanElem *) mem;
+	chan->mem = mem + slab_size;
 	return SW_OK;
-}
-
-void swChan_destroy(swChan *chan)
-{
-	sw_free(chan->elems);
 }
 
 int swChan_push(swChan *chan, void *buf, int size)

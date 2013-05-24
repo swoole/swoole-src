@@ -97,6 +97,7 @@ int swRingQueue_push(swRingQueue * p_queue, void *push_data)
 {
 	if (swRingQueue_full(p_queue))
 	{
+		swTrace("queue full\n");
 		return -1;
 	}
 
@@ -115,6 +116,7 @@ int swRingQueue_pop(swRingQueue * p_queue, void **pop_data)
 {
 	if (swRingQueue_empty(p_queue))
 	{
+		swTrace("queue empty\n");
 		return -1;
 	}
 

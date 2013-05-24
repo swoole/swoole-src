@@ -32,6 +32,8 @@
 #include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <sys/select.h>
+#include <pthread.h>
 
 #ifdef HAVE_TIMERFD
 #include <sys/timerfd.h>
@@ -54,11 +56,8 @@
 #include <sys/eventfd.h>
 #endif
 
-#include <sys/select.h>
-
-#include <pthread.h>
-
 #include "swoole_config.h"
+#include "memory.h"
 //#include "hashtable.h"
 
 #define SW_MAX_FDS             (1024*10)
@@ -154,12 +153,13 @@
 #define CLOCK_REALTIME 0
 #endif
 
-#if __GUUC_MINOR__ > 6
+#if __GNUC_MINOR__ > 6
 #define SWINLINE    inline
 #else
 #define SWINLINE
 #endif
 
+//------------------Base--------------------
 typedef struct _swEventData
 {
 	int fd;
@@ -198,38 +198,14 @@ typedef struct _swEventConnect
 	socklen_t addrlen;
 } swEventConnect;
 
+typedef void * (*swThreadStartFunc)(void *);
 typedef int (*swHandle)(swEventData *buf);
 typedef void (*swSignalFunc)(int);
 typedef void (*swCallback)(void *);
 typedef struct swReactor_s swReactor;
 typedef int (*swReactor_handle)(swReactor *reactor, swEvent *event);
 
-typedef struct _swFactory
-{
-	void *object;
-	int id; //Factory ID
-	int running;
-	int max_request; //worker进程最大请求数量
-	void *ptr; //server object
-	int last_from_id;
-	swReactor *reactor; //reserve for reactor
-
-
-	int (*start)(struct _swFactory *);
-	int (*shutdown)(struct _swFactory *);
-	int (*dispatch)(struct _swFactory *, swEventData *);
-	int (*finish)(struct _swFactory *, swSendData *);
-
-	int (*onTask)(struct _swFactory *, swEventData *task); //worker function.get a task,goto to work
-	int (*onFinish)(struct _swFactory *, swSendData *result); //factory worker finish.callback
-} swFactory;
-
-typedef struct _swThreadParam
-{
-	void *object;
-	int pti;
-} swThreadParam;
-
+//------------------Pipe--------------------
 typedef struct _swPipe
 {
 	void *object;
@@ -240,77 +216,11 @@ typedef struct _swPipe
 	void (*close)(struct _swPipe *);
 } swPipe;
 
-struct swReactor_s
-{
-	void *object;
-	void *ptr; //reserve
-	int id; //Reactor ID
-	int running;
-
-	swReactor_handle handle[SW_MAX_FDTYPE];
-	swFactory *factory;
-
-	int (*add)(swReactor *, int, int);
-	int (*del)(swReactor *, int);
-	int (*wait)(swReactor *, struct timeval *);
-	void (*free)(swReactor *);
-	int (*setHandle)(swReactor *, int, swReactor_handle);
-};
-
-typedef struct _swThreadWriter
-{
-	pthread_t ptid; //线程ID
-	int pipe_num; //writer thread's pipe num
-	int *pipes; //worker pipes
-	int c_pipe; //current pipe
-	swReactor reactor;
-	swPipe evfd; //eventfd
-} swThreadWriter;
-
-extern char swoole_running;
-extern uint16_t sw_errno;
-extern char sw_error[SW_ERROR_MSG_SIZE];
-
-SWINLINE int swReactor_error(swReactor *reactor);
-SWINLINE int swSetTimeout(int sock, float timeout);
-int swReactor_setHandle(swReactor *, int, swReactor_handle);
-int swReactorEpoll_create(swReactor *reactor, int max_event_num);
-int swReactorPoll_create(swReactor *reactor, int max_event_num);
-int swReactorKqueue_create(swReactor *reactor, int max_event_num);
-int swReactorSelect_create(swReactor *reactor);
-
-SWINLINE ulong swHashFunc(const char *arKey, uint nKeyLength);
-SWINLINE int swRead(int, char *, int);
-SWINLINE int swWrite(int, char *, int);
-SWINLINE void swSetNonBlock(int);
-SWINLINE void swSetBlock(int);
-SWINLINE int swSocket_listen(int type, char *host, int port, int backlog);
-SWINLINE int swSocket_create(int type);
-swSignalFunc swSignalSet(int sig, swSignalFunc func, int restart, int mask);
-
-int swFactory_create(swFactory *factory);
-int swFactory_start(swFactory *factory);
-int swFactory_shutdown(swFactory *factory);
-int swFactory_dispatch(swFactory *factory, swEventData *req);
-int swFactory_finish(swFactory *factory, swSendData *resp);
-int swFactory_check_callback(swFactory *factory);
-
-int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num);
-int swFactoryProcess_start(swFactory *factory);
-int swFactoryProcess_shutdown(swFactory *factory);
-int swFactoryProcess_dispatch(swFactory *factory, swEventData *buf);
-int swFactoryProcess_finish(swFactory *factory, swSendData *data);
-
-int swFactoryThread_create(swFactory *factory, int writer_num);
-int swFactoryThread_start(swFactory *factory);
-int swFactoryThread_shutdown(swFactory *factory);
-int swFactoryThread_dispatch(swFactory *factory, swEventData *buf);
-int swFactoryThread_finish(swFactory *factory, swSendData *data);
-
 int swPipeBase_create(swPipe *p, int blocking);
 int swPipeEventfd_create(swPipe *p, int blocking);
 int swPipeMsg_create(swPipe *p, int blocking, int msg_key, long type);
 int swPipeUnsock_create(swPipe *p, int blocking, int protocol);
+void swBreakPoint(void);
 
 //------------------Lock--------------------------------------
 typedef struct _swFileLock
@@ -353,25 +263,6 @@ typedef struct _swSem
 	int (*unlock)(struct _swSem *this);
 } swSem;
 
-typedef struct _swWorkerChild
-{
-	pid_t pid;
-	int pipe_fd;
-	int writer_id;
-} swWorkerChild;
-
-typedef struct _swFactoryProcess
-{
-	swThreadWriter *writers;
-	swWorkerChild *workers;
-
-	int manager_pid; //管理进程ID
-	int writer_num; //writer thread num
-	int worker_num; //worker child process num
-	int writer_pti; //current writer id
-	int worker_pti; //current worker id
-} swFactoryProcess;
-
 int swRWLock_create(swRWLock *this, int use_in_process);
 int swRWLock_lock_rd(swRWLock *this);
 int swRWLock_lock_rw(swRWLock *this);
@@ -394,5 +285,151 @@ int swFileLock_lock_rw(swFileLock *this);
 int swFileLock_unlock(swFileLock *this);
 int swFileLock_trylock_rw(swFileLock *this);
 int swFileLock_trylock_rd(swFileLock *this);
+
+//------------------Share Memory------------------------------
+typedef struct _swChanElem
+{
+	int size;
+	void *ptr;
+} swChanElem;
+
+typedef struct _swChan
+{
+	void *mem;
+	int mem_size;
+	int mem_use_num;
+	int mem_cur;
+
+	int elem_size;
+	int elem_num;
+	int elem_tail;
+	int elem_head;
+
+	swMutex lock;
+	swChanElem *elems;
+} swChan;
+
+int swChan_create(swChan **chan, void *mem, int mem_size, int elem_num);
+void swChan_destroy(swChan *chan);
+int swChan_push(swChan *chan, void *buf, int size);
+int swChan_push_nolock(swChan *chan, void *buf, int size);
+swChanElem* swChan_pop(swChan *chan);
+swChanElem* swChan_pop_nolock(swChan *chan);
+
+typedef struct _swThreadParam
+{
+	void *object;
+	int pti;
+} swThreadParam;
+
+extern char swoole_running;
+extern uint16_t sw_errno;
+extern char sw_error[SW_ERROR_MSG_SIZE];
+
+SWINLINE int swSetTimeout(int sock, float timeout);
+SWINLINE ulong swHashFunc(const char *arKey, uint nKeyLength);
+SWINLINE int swRead(int, char *, int);
+SWINLINE int swWrite(int, char *, int);
+SWINLINE void swSetNonBlock(int);
+SWINLINE void swSetBlock(int);
+SWINLINE int swSocket_listen(int type, char *host, int port, int backlog);
+SWINLINE int swSocket_create(int type);
+swSignalFunc swSignalSet(int sig, swSignalFunc func, int restart, int mask);
+
+//------------------Factory--------------------
+typedef struct _swFactory
+{
+	void *object;
+	int id; //Factory ID
+	int running;
+	int max_request; //worker进程最大请求数量
+	void *ptr; //server object
+	int last_from_id;
+	swReactor *reactor; //reserve for reactor
+
+
+	int (*start)(struct _swFactory *);
+	int (*shutdown)(struct _swFactory *);
+	int (*dispatch)(struct _swFactory *, swEventData *);
+	int (*finish)(struct _swFactory *, swSendData *);
+
+	int (*onTask)(struct _swFactory *, swEventData *task); //worker function.get a task,goto to work
+	int (*onFinish)(struct _swFactory *, swSendData *result); //factory worker finish.callback
+} swFactory;
+
+struct swReactor_s
+{
+	void *object;
+	void *ptr; //reserve
+	int id; //Reactor ID
+	int running;
+
+	swReactor_handle handle[SW_MAX_FDTYPE];
+	swFactory *factory;
+
+	int (*add)(swReactor *, int, int);
+	int (*del)(swReactor *, int);
+	int (*wait)(swReactor *, struct timeval *);
+	void (*free)(swReactor *);
+	int (*setHandle)(swReactor *, int, swReactor_handle);
+};
+
+typedef struct _swWorkerChild
+{
+	pid_t pid;
+	int pipe_fd;
+	int writer_id;
+} swWorkerChild;
+
+typedef struct _swThreadWriter
+{
+	pthread_t ptid; //线程ID
+	int pipe_num; //writer thread's pipe num
+	int *pipes; //worker pipes
+	int c_pipe; //current pipe
+	swReactor reactor;
+	swShareMemory shm; //共享内存
+	swChan *chan; //内存队列
+	swPipe evfd; //eventfd
+} swThreadWriter;
+
+typedef struct _swFactoryProcess
+{
+	swThreadWriter *writers;
+	swWorkerChild *workers;
+
+	int manager_pid; //管理进程ID
+	int writer_num; //writer thread num
+	int worker_num; //worker child process num
+	int writer_pti; //current writer id
+	int worker_pti; //current worker id
+} swFactoryProcess;
+
+int swFactory_create(swFactory *factory);
+int swFactory_start(swFactory *factory);
+int swFactory_shutdown(swFactory *factory);
+int swFactory_dispatch(swFactory *factory, swEventData *req);
+int swFactory_finish(swFactory *factory, swSendData *resp);
+int swFactory_check_callback(swFactory *factory);
+
+int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num);
+int swFactoryProcess_start(swFactory *factory);
+int swFactoryProcess_shutdown(swFactory *factory);
+int swFactoryProcess_dispatch(swFactory *factory, swEventData *buf);
+int swFactoryProcess_finish(swFactory *factory, swSendData *data);
+
+int swFactoryThread_create(swFactory *factory, int writer_num);
+int swFactoryThread_start(swFactory *factory);
+int swFactoryThread_shutdown(swFactory *factory);
+int swFactoryThread_dispatch(swFactory *factory, swEventData *buf);
+int swFactoryThread_finish(swFactory *factory, swSendData *data);
+
+//------------------Reactor--------------------
+SWINLINE int swReactor_error(swReactor *reactor);
+int swReactor_setHandle(swReactor *, int, swReactor_handle);
+int swReactorEpoll_create(swReactor *reactor, int max_event_num);
+int swReactorPoll_create(swReactor *reactor, int max_event_num);
+int swReactorKqueue_create(swReactor *reactor, int max_event_num);
+int swReactorSelect_create(swReactor *reactor);
 
 #endif /* SWOOLE_H_ */

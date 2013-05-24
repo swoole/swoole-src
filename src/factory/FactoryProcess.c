@@ -3,19 +3,25 @@
 #include <signal.h>
 #include <sys/wait.h>
 
-typedef struct _swPipes{
+typedef struct _swPipes
+{
 	int pipes[2];
 } swPipes;
 
+static int swFactoryProcess_manager_loop(swFactory *factory);
 static int swFactoryProcess_worker_start(swFactory *factory);
 static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int worker_pti);
 static int swFactoryProcess_worker_spawn(swFactory *factory, int writer_pti, int worker_pti);
 static int swFactoryProcess_writer_start(swFactory *factory);
-static int swFactoryProcess_writer_loop(swThreadParam *param);
+
+int swFactoryProcess_writer_loop(swThreadParam *param);
+int swFactoryProcess_writer_loop_ex(swThreadParam *param);
 int swFactoryProcess_writer_receive(swReactor *, swEvent *);
-static int swFactoryProcess_manager_loop(swFactory *factory);
 
 static int c_worker_pipe = 0; //Current Proccess Worker's pipe
+static int c_worker_pti = 0;  //Current Proccess Worker's id
+static int c_writer_pti = 0;  //Current Proccess writer's id
+
 static int manager_worker_reloading = 0;
 static int manager_reload_flag = 0;
 
@@ -23,13 +29,13 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 {
 	swFactoryProcess *this;
 	this = sw_malloc(sizeof(swFactoryProcess));
-	if (this == NULL)
+	if (this == NULL )
 	{
 		swTrace("[swFactoryProcess_create] malloc[0] fail\n");
 		return SW_ERR;
 	}
 	this->writers = sw_calloc(writer_num, sizeof(swThreadWriter));
-	if (this->writers == NULL)
+	if (this->writers == NULL )
 	{
 		swTrace("[Main] malloc[this->writers] fail\n");
 		return SW_ERR;
@@ -38,7 +44,7 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 	this->writer_pti = 0;
 
 	this->workers = sw_calloc(worker_num, sizeof(swWorkerChild));
-	if (this->workers == NULL)
+	if (this->workers == NULL )
 	{
 		swTrace("[Main] malloc[this->workers] fail\n");
 		return SW_ERR;
@@ -52,7 +58,6 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 	factory->finish = swFactoryProcess_finish;
 	factory->start = swFactoryProcess_start;
 	factory->shutdown = swFactoryProcess_shutdown;
-
 
 	factory->onTask = NULL;
 	factory->onFinish = NULL;
@@ -69,6 +74,19 @@ int swFactoryProcess_shutdown(swFactory *factory)
 		swTrace("[Main]kill worker processor\n");
 		kill(this->workers[i].pid, SIGTERM);
 	}
+
+#ifdef SW_USE_SHM_CHAN
+	//kill all child process
+	for (i = 0; i < this->writer_num; i++)
+	{
+#if defined(SW_CHAN_USE_MMAP) || SW_CHAN_USE_MMAP==1
+		swShareMemory_mmap_free(&this->writers[i].shm);
+#else
+		swShareMemory_sysv_free(&this->writers[i].shm);
+#endif
+	}
+#endif
+
 	free(this->workers);
 	free(this->writers);
 	free(this);
@@ -107,7 +125,7 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 	int writer_pti;
 	worker_pipes = sw_calloc(this->worker_num, sizeof(swPipes));
 
-	if(worker_pipes == NULL)
+	if (worker_pipes == NULL )
 	{
 		swTrace("[swFactoryProcess_worker_start]malloc fail.Errno=%d\n", errno);
 		return SW_ERR;
@@ -122,42 +140,46 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 		}
 	}
 	pid = fork();
-	switch(pid)
+	switch (pid)
 	{
-		case 0:
-			for (i = 0; i < this->worker_num; i++)
+	case 0:
+		for (i = 0; i < this->worker_num; i++)
+		{
+			close(worker_pipes[i].pipes[0]);
+			writer_pti = (i % this->writer_num);
+			this->workers[i].pipe_fd = worker_pipes[i].pipes[1];
+			this->workers[i].writer_id = writer_pti;
+			pid = swFactoryProcess_worker_spawn(factory, writer_pti, i);
+			if (pid < 0)
 			{
-				close(worker_pipes[i].pipes[0]);
-				writer_pti = (i % this->writer_num);
-				this->workers[i].pipe_fd = worker_pipes[i].pipes[1];
-				this->workers[i].writer_id = writer_pti;
-				pid = swFactoryProcess_worker_spawn(factory, writer_pti, i);
-				if(pid < 0)
-				{
-					swTrace("Fork worker process fail.Errno=%d\n", errno);
-					return SW_ERR;
-				}
-				else
-				{
-					this->workers[i].pid = pid;
-				}
+				swTrace("Fork worker process fail.Errno=%d\n", errno);
+				return SW_ERR;
 			}
-			swFactoryProcess_manager_loop(factory);
-			break;
-		default:
-			this->manager_pid = pid;
-			for (i = 0; i < this->worker_num; i++)
+			else
 			{
-				close(worker_pipes[i].pipes[1]);
-				writer_pti = (i % this->writer_num);
-				this->writers[writer_pti].reactor.add(&(this->writers[writer_pti].reactor), worker_pipes[i].pipes[0], SW_FD_PIPE);
-				this->workers[i].writer_id = writer_pti;
-				this->workers[i].pipe_fd = worker_pipes[i].pipes[0];
+				this->workers[i].pid = pid;
 			}
-			break;
-		case -1:
-			swTrace("[swFactoryProcess_worker_start]fork manager process fail\n");
-			return SW_ERR;
+		}
+		swFactoryProcess_manager_loop(factory);
+		break;
+	default:
+		this->manager_pid = pid;
+		for (i = 0; i < this->worker_num; i++)
+		{
+			writer_pti = (i % this->writer_num);
+#ifndef SW_USE_SHM_CHAN
+			this->writers[writer_pti].reactor.add(&(this->writers[writer_pti].reactor), worker_pipes[i].pipes[0],
+					SW_FD_PIPE);
+#endif
+			close(worker_pipes[i].pipes[1]);
+			this->workers[i].pipe_fd = worker_pipes[i].pipes[0];
+			this->workers[i].writer_id = writer_pti;
+		}
+		break;
+	case -1:
+		swTrace("[swFactoryProcess_worker_start]fork manager process fail\n")
+		;
+		return SW_ERR;
 	}
 	return SW_OK;
 }
@@ -186,7 +208,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 	swWorkerChild *reload_workers;
 
 	reload_workers = sw_calloc(this->worker_num, sizeof(swWorkerChild));
-	if (reload_workers == NULL)
+	if (reload_workers == NULL )
 	{
 		swError("[manager] malloc[reload_workers] fail.\n");
 		return SW_ERR;
@@ -195,17 +217,17 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 	//for reload
 	swSignalSet(SIGUSR1, swManagerSignalHanlde, 1, 0);
 
-	while(1)
+	while (1)
 	{
-		pid = wait(NULL);
+		pid = wait(NULL );
 		swTrace("[manager] worker stop.pid=%d\n", pid);
-		if(pid < 0)
+		if (pid < 0)
 		{
-			if(manager_worker_reloading == 0)
+			if (manager_worker_reloading == 0)
 			{
 				swTrace("wait fail.errno=%d\n", errno);
 			}
-			else if(manager_reload_flag == 0)
+			else if (manager_reload_flag == 0)
 			{
 				memcpy(reload_workers, this->workers, sizeof(swWorkerChild) * this->worker_num);
 				manager_reload_flag = 1;
@@ -216,11 +238,12 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 		for (i = 0; i < this->worker_num; i++)
 		{
 
-			if(pid != this->workers[i].pid) continue;
+			if (pid != this->workers[i].pid)
+				continue;
 
 			writer_pti = (i % this->writer_num);
 			new_pid = swFactoryProcess_worker_spawn(factory, writer_pti, i);
-			if(new_pid < 0)
+			if (new_pid < 0)
 			{
 				swWarn("Fork worker process fail.Errno=%d\n", errno);
 				return SW_ERR;
@@ -232,18 +255,17 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 		}
 
 		//reload worker
-		kill_worker:
-		if(manager_worker_reloading == 1)
+		kill_worker: if (manager_worker_reloading == 1)
 		{
 			//reload finish
-			if(reload_worker_i >= this->worker_num)
+			if (reload_worker_i >= this->worker_num)
 			{
 				manager_worker_reloading = 0;
 				reload_worker_i = 0;
 				continue;
 			}
 			ret = kill(reload_workers[reload_worker_i].pid, SIGTERM);
-			if(ret < 0)
+			if (ret < 0)
 			{
 				swWarn("kill fail.pid=%d|errno=%d\n", reload_workers[reload_worker_i].pid, errno);
 				continue;
@@ -271,11 +293,12 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int writer_pti, int
 		for (i = 0; i < this->worker_num; i++)
 		{
 			//非当前
-			if(worker_pti!=i)
+			if (worker_pti != i)
 			{
 				close(this->workers[i].pipe_fd);
 			}
 		}
+		c_writer_pti = writer_pti;
 		swFactoryProcess_worker_loop(factory, this->workers[worker_pti].pipe_fd, worker_pti);
 		exit(0);
 	}
@@ -288,12 +311,34 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int writer_pti, int
 
 int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 {
-	//swFactoryProcess *this = factory->object;
+	int count, ret, sendn;
+	swFactoryProcess *this = factory->object;
 	swEventData send_data;
+
 	memcpy(send_data.data, resp->data, resp->len);
 	send_data.fd = resp->fd;
 	send_data.len = resp->len;
-	return write(c_worker_pipe, &send_data, resp->len + (3 * sizeof(int)));
+	sendn = resp->len + (3 * sizeof(int));
+
+#ifdef SW_USE_SHM_CHAN
+	swChan *chan = this->writers[c_writer_pti].chan;
+	for (count = 0; count < SW_CHAN_PUSH_TRY_COUNT; count++)
+	{
+		ret = swChan_push(chan, &send_data, sendn);
+		//send success
+		if (ret == 0)
+		{
+			break;
+		}
+	}
+	if (ret < 0)
+	{
+		swWarn("Error: push try count > %d\n", SW_CHAN_PUSH_TRY_COUNT);
+	}
+#else
+	ret = write(c_worker_pipe, &send_data, sendn);
+#endif
+	return ret;
 }
 
 static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int worker_pti)
@@ -302,6 +347,8 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int work
 	//swFactoryProcess *this = factory->object;
 	swServer *serv = factory->ptr;
 	c_worker_pipe = c_pipe;
+	c_worker_pti = worker_pti;
+
 	int n;
 	int task_num = factory->max_request;
 
@@ -351,8 +398,8 @@ int swFactoryProcess_dispatch(swFactory *factory, swEventData *data)
 	}
 	swTrace("[ReadThread]sendto: pipe=%d|worker=%d\n", this->workers[pti].pipe_fd, pti);
 	//send to unix sock
-	ret = swWrite(this->workers[pti].pipe_fd, (char *)data, data->len + (3 * sizeof(int)));
-	if(ret < 0)
+	ret = swWrite(this->workers[pti].pipe_fd, (char *) data, data->len + (3 * sizeof(int)));
+	if (ret < 0)
 	{
 		return SW_ERR;
 	}
@@ -365,19 +412,47 @@ static int swFactoryProcess_writer_start(swFactory *factory)
 	swThreadParam *param;
 	int i;
 	pthread_t pidt;
+	void *mm;
+
+	swThreadStartFunc thread_main;
+
+#ifdef SW_USE_SHM_CHAN
+	thread_main = (swThreadStartFunc) swFactoryProcess_writer_loop_ex;
+
+#else
+	thread_main = (swThreadStartFunc)swFactoryProcess_writer_loop;
+#endif
 
 	for (i = 0; i < this->writer_num; i++)
 	{
 		param = sw_malloc(sizeof(swThreadParam));
-		if (param == NULL)
+		if (param == NULL )
 		{
-			swTrace("malloc fail\n");
+			swError("malloc fail\n");
 			return SW_ERR;
 		}
+
+#ifdef SW_USE_SHM_CHAN
+#if defined(SW_CHAN_USE_MMAP) || SW_CHAN_USE_MMAP==1
+		mm = swShareMemory_mmap_create(&this->writers[i].shm, SW_CHAN_BUFFER_SIZE, 0);
+#else
+		mm = swShareMemory_sysv_create(&this->writers[i].shm, SW_CHAN_BUFFER_SIZE, SW_CHAN_SYSV_KEY);
+#endif
+		if (mm == NULL )
+		{
+			swError("shm_create fail\n");
+			return SW_ERR;
+		}
+		if (swChan_create(&this->writers[i].chan, mm, SW_CHAN_BUFFER_SIZE, SW_CHAN_ELEM_SIZE) < 0)
+		{
+			swError("swChan_create fail\n");
+			return SW_ERR;
+		}
+#endif
 		param->object = factory;
 		param->pti = i;
 
-		if (pthread_create(&pidt, NULL, (void * (*)(void *)) swFactoryProcess_writer_loop, (void *) param) < 0)
+		if (pthread_create(&pidt, NULL, thread_main, (void *) param) < 0)
 		{
 			swTrace("pthread_create fail\n");
 			return SW_ERR;
@@ -411,6 +486,7 @@ int swFactoryProcess_writer_receive(swReactor *reactor, swEvent *ev)
 		return SW_ERR;
 	}
 }
+
 int swFactoryProcess_writer_loop(swThreadParam *param)
 {
 	swFactory *factory = param->object;
@@ -427,12 +503,68 @@ int swFactoryProcess_writer_loop(swThreadParam *param)
 	if (swReactorSelect_create(reactor) < 0)
 	{
 		swTrace("swReactorSelect_create fail\n");
-		pthread_exit((void *)param);
+		pthread_exit((void *) param);
 	}
 	reactor->setHandle(reactor, SW_FD_PIPE, swFactoryProcess_writer_receive);
 	reactor->wait(reactor, &tmo);
 	reactor->free(reactor);
-	pthread_exit((void *)param);
+	pthread_exit((void *) param);
 	return SW_OK;
 }
+/**
+ * 使用共享内存队列
+ */
+int swFactoryProcess_writer_loop_ex(swThreadParam *param)
+{
+	swFactory *factory = param->object;
+	swFactoryProcess *this = factory->object;
+	swChan *chan;
+	swChanElem *elem;
+	swEventData *resp;
+	swSendData send_data;
 
+	int ret;
+	int pti = param->pti;
+	int sleep_count; //防止死循环耗尽CPU
+	chan = this->writers[pti].chan;
+
+	while (swoole_running > 0)
+	{
+		elem = swChan_pop(chan);
+		//swBreakPoint();
+		if (elem == NULL )
+		{
+			if (sleep_count >= SW_CHAN_POP_TRY_COUNT)
+			{
+				usleep(SW_CHAN_POP_SLEEP);
+				//sleep_count = 0;
+			}
+			else
+			{
+				swYield();
+				sleep_count++;
+			}
+			continue;
+		}
+		else
+		{
+			if (sleep_count > 0)
+			{
+				sleep_count = 0;
+			}
+			resp = (swEventData *) elem->ptr;
+			send_data.data = resp->data;
+			send_data.len = resp->len;
+			send_data.from_id = resp->from_id;
+			send_data.fd = resp->fd;
+			swTrace("pop ok.Data=%s\n", resp->data);
+			ret = factory->onFinish(factory, &send_data);
+			if (ret < 0)
+			{
+				swTrace("factory->onFinish fail.errno=%d\n", errno);
+			}
+		}
+	}
+	pthread_exit((void *) param);
+	return SW_OK;
+}
