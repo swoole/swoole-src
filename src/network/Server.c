@@ -237,6 +237,9 @@ int swServer_start(swServer *serv)
 	main_reactor.setHandle(&main_reactor, SW_EVENT_CONNECT, swServer_onAccept);
 	main_reactor.setHandle(&main_reactor, SW_EVENT_TIMER, swServer_onTimer);
 
+	//Signal Init
+	swSignalInit();
+
 	main_reactor.add(&main_reactor, serv->main_pipe.getFd(&serv->main_pipe, 0), SW_EVENT_CLOSE);
 	if (serv->timer_interval != 0)
 	{
@@ -257,9 +260,6 @@ int swServer_start(swServer *serv)
 
 	tmo.tv_sec = SW_MAINREACTOR_TIMEO;
 	tmo.tv_usec = 0;
-
-	//Signal Init
-	swSignalInit();
 
 	serv->onStart(serv);
 	main_reactor.wait(&main_reactor, &tmo);
