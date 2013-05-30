@@ -310,3 +310,20 @@ swSignalFunc swSignalSet(int sig, swSignalFunc func, int restart, int mask)
 	}
 	return oact.sa_handler;
 }
+
+#ifdef __MACH__
+int clock_gettime(clock_id_t which_clock, struct timespec *t) {
+  // be more careful in a multithreaded environement
+  if (!orwl_timestart) {
+    mach_timebase_info_data_t tb = { 0 };
+    mach_timebase_info(&tb);
+    orwl_timebase = tb.numer;
+    orwl_timebase /= tb.denom;
+    orwl_timestart = mach_absolute_time();
+  }
+  double diff = (mach_absolute_time() - orwl_timestart) * orwl_timebase;
+  t->tv_sec = diff * ORWL_NANO;
+  t->tv_nsec = diff - (t->tv_sec * ORWL_GIGA);
+  return 0;
+}
+#endif
