@@ -151,7 +151,8 @@ if test "$PHP_SWOOLE" != "no"; then
 
   PHP_NEW_EXTENSION(swoole, swoole.c \
     src/core/Base.c \
-	src/core/RingQueue.c \
+    src/core/RingQueue.c \
+    src/core/Chan.c \
     src/factory/Factory.c \
     src/factory/FactoryThread.c \
     src/factory/FactoryProcess.c \
@@ -164,6 +165,10 @@ if test "$PHP_SWOOLE" != "no"; then
 	src/pipe/PipeEventfd.c \
 	src/pipe/PipeUnsock.c \
 	src/pipe/PipeMsg.c \
+    src/lock/Semaphore.c \
+    src/lock/Mutex.c \
+	src/lock/RWLock.c \
+	src/lock/FileLock.c \
     src/network/Server.c \
     src/network/Client.c \
   , $ext_shared)

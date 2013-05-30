@@ -12,9 +12,9 @@ static int swServer_poll_onPackage(swReactor *reactor, swEvent *event);
 static int swServer_timer_start(swServer *serv);
 static void swSignalHanlde(int sig);
 
-char swoole_running;
-uint16_t sw_errno;
-char sw_error[SW_ERROR_MSG_SIZE];
+//char swoole_running;
+//uint16_t sw_errno;
+//char sw_error[SW_ERROR_MSG_SIZE];
 
 int sw_nouse_timerfd;
 swPipe timer_pipe;
