@@ -330,9 +330,9 @@ typedef struct _swThreadParam
 	int pti;
 } swThreadParam;
 
-extern char swoole_running;
-extern uint16_t sw_errno;
-extern char sw_error[SW_ERROR_MSG_SIZE];
+char swoole_running;
+uint16_t sw_errno;
+char sw_error[SW_ERROR_MSG_SIZE];
 
 SWINLINE int swSetTimeout(int sock, float timeout);
 SWINLINE ulong swHashFunc(const char *arKey, uint nKeyLength);

@@ -2,7 +2,7 @@
  * Client.h
  *
  *  Created on: 2012-7-22
- *      Author: htf
+ *      Author: tianfeng.han
  */
 
 #ifndef SW_CLIENT_H_
