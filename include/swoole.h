@@ -50,8 +50,6 @@ static double orwl_timebase = 0.0;
 static uint64_t orwl_timestart = 0;
 
 int clock_gettime(clock_id_t which_clock, struct timespec *t);
-
-
 #endif
 
 #ifdef HAVE_EPOLL
