@@ -18,6 +18,12 @@
 
 /* $Id$ */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include "php.h"
+
 #include "php_swoole.h"
 #include "swoole.h"
 #include "Server.h"
@@ -93,7 +99,7 @@ const zend_function_entry swoole_functions[] =
 
 const zend_function_entry swoole_client_methods[] =
 {
-	PHP_ME(swoole_client, __construct, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_client, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
 	PHP_ME(swoole_client, connect, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_client, recv, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_client, send, NULL, ZEND_ACC_PUBLIC)
