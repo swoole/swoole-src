@@ -42,36 +42,6 @@ SWINLINE ulong swHashFunc(const char *arKey, uint nKeyLength)
 	return hash;
 }
 
-void swSpinlock(atomic_t *lock, atomic_int_t value, uint32_t spin)
-{
-	uint32_t i, n;
-	while (1)
-	{
-		if (*lock == 0 && sw_atomic_cmp_set(lock, 0, value))
-		{
-			return;
-		}
-
-		if (SW_CPU_NUM > 1)
-		{
-			for (n = 1; n < spin; n <<= 1)
-			{
-				for (i = 0; i < n; i++)
-				{
-					sw_atomic_cpu_pause();
-				}
-
-				if (*lock == 0 && sw_atomic_cmp_set(lock, 0, value))
-				{
-					return;
-				}
-			}
-		}
-
-		usleep(1);
-	}
-}
-
 SWINLINE int swSocket_create(int type)
 {
 	int _domain;

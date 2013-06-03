@@ -5,11 +5,34 @@
  *      Author: htf
  */
 
-#ifndef TESTS_H_
-#define TESTS_H_
+#ifndef SW_TESTS_H_
+#define SW_TESTS_H_
+
+#define swUnitTest(x) int swUnitTest_##x(swUnitTest *object)
+#define swUnitTest_steup(x,n) _swUnitTest_setup(swUnitTest_##x, #x, n)
+
+typedef struct _swUnitTest
+{
+	int argc;
+	char **argv;
+} swUnitTest;
+typedef int (*swUnitTest_Func)(swUnitTest *object);
+
+void _swUnitTest_setup(swUnitTest_Func func, char *func_name, int run_times);
+int swUnitTest_run(swUnitTest *object);
+
+swUnitTest(mem_test1);
+swUnitTest(client_test);
+swUnitTest(server_test);
+
+swUnitTest(ds_test2);
+swUnitTest(ds_test1);
+
+swUnitTest(chan_test);
+
+swUnitTest(u1_test2);
+swUnitTest(u1_test1);
 
 void p_str(void *str);
-void u1_test2();
-void mem_test1();
 
-#endif /* TESTS_H_ */
+#endif /* SW_TESTS_H_ */
