@@ -8,7 +8,7 @@
 #include "swoole.h"
 #include "tests.h"
 
-void mem_test1()
+swUnitTest(mem_test1)
 {
 	swShareMemory shm;
 	char *mm = swShareMemory_mmap_create(&shm, 128, 0);
@@ -24,4 +24,5 @@ void mem_test1()
 		sleep(1);
 		printf("str=%s\n", mm);
 	}
+	return 0;
 }

@@ -18,14 +18,14 @@
 
 /* $Id$ */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "php_swoole.h"
 #include "swoole.h"
 #include "Server.h"
 #include "Client.h"
-
-char swoole_running;
-uint16_t sw_errno;
-char sw_error[SW_ERROR_MSG_SIZE];
 
 /* If you declare any globals in php_swoole.h uncomment this:
  ZEND_DECLARE_MODULE_GLOBALS(swoole)
@@ -93,7 +93,7 @@ const zend_function_entry swoole_functions[] =
 
 const zend_function_entry swoole_client_methods[] =
 {
-	PHP_ME(swoole_client, __construct, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_client, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
 	PHP_ME(swoole_client, connect, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_client, recv, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_client, send, NULL, ZEND_ACC_PUBLIC)

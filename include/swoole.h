@@ -6,10 +6,6 @@
 #ifndef SWOOLE_H_
 #define SWOOLE_H_
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -66,6 +62,7 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 
 #include "swoole_config.h"
 #include "memory.h"
+#include "atomic.h"
 //#include "hashtable.h"
 
 #define SW_MAX_FDS             (1024*10)
@@ -90,7 +87,6 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 
 #define SW_STRL(s)             s, sizeof(s)
 #define SW_START_SLEEP         sleep(1)  //sleep 1s,wait fork and pthread_create
-
 #ifdef SW_USE_PHP
 #define sw_malloc              emalloc
 #define sw_free                efree
@@ -144,7 +140,6 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #endif
 
 #define swYield()              sched_yield() //or usleep(1)
-
 #define SW_MAX_FDTYPE          32 //32 kinds of event
 #define SW_ERROR_MSG_SIZE      256
 #define SW_MAX_REQUEST         10000
@@ -246,21 +241,30 @@ typedef struct _swMutex
 {
 	pthread_mutex_t rwlock;
 	pthread_mutexattr_t attr;
-	int (*lock) (struct _swMutex *this);
-	int (*unlock) (struct _swMutex *this);
-	int (*trylock) (struct _swMutex *this);
+	int (*lock)(struct _swMutex *this);
+	int (*unlock)(struct _swMutex *this);
+	int (*trylock)(struct _swMutex *this);
 } swMutex;
 
 typedef struct _swRWLock
 {
 	pthread_rwlock_t rwlock;
 	pthread_rwlockattr_t attr;
-	int (*lock_rd) (struct _swRWLock *this);
-	int (*lock) (struct _swRWLock *this);
-	int (*unlock) (struct _swRWLock *this);
-	int (*trylock_rd) (struct _swRWLock *this);
-	int (*trylock) (struct _swRWLock *this);
+	int (*lock_rd)(struct _swRWLock *this);
+	int (*lock)(struct _swRWLock *this);
+	int (*unlock)(struct _swRWLock *this);
+	int (*trylock_rd)(struct _swRWLock *this);
+	int (*trylock)(struct _swRWLock *this);
 } swRWLock;
+
+typedef struct _swSpinLock
+{
+	atomic_t lock_t;
+	uint32_t spin;
+	int (*lock)(struct _swSpinLock *this);
+	int (*unlock)(struct _swSpinLock *this);
+	int (*trylock)(struct _swSpinLock *this);
+} swSpinLock;
 
 typedef struct _swSem
 {
@@ -293,6 +297,11 @@ int swFileLock_lock_rw(swFileLock *this);
 int swFileLock_unlock(swFileLock *this);
 int swFileLock_trylock_rw(swFileLock *this);
 int swFileLock_trylock_rd(swFileLock *this);
+
+int swSpinLock_create(swSpinLock *this, int spin);
+int swSpinLock_lock(swSpinLock *this);
+int swSpinLock_unlock(swSpinLock *this);
+int swSpinLock_trylock(swSpinLock *this);
 
 //------------------Share Memory------------------------------
 typedef struct _swChanElem
@@ -354,7 +363,6 @@ typedef struct _swFactory
 	void *ptr; //server object
 	int last_from_id;
 	swReactor *reactor; //reserve for reactor
-
 
 	int (*start)(struct _swFactory *);
 	int (*shutdown)(struct _swFactory *);

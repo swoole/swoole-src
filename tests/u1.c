@@ -1,6 +1,7 @@
 #include "swoole.h"
+#include "tests.h"
 
-void u1_test2()
+swUnitTest(u1_test2)
 {
 	swPipe p;
 	char buf[66535];
@@ -10,32 +11,32 @@ void u1_test2()
 	if (ret < 0)
 	{
 		printf("create msg fail.errno=%d\n", errno);
-		return;
+		return 1;
 	}
 	ret = p.write(&p, SW_STRL("hello world1"));
 	if (ret < 0)
 	{
 		printf("write fail.errno=%d\n", errno);
-		return;
+		return 1;
 	}
 	ret = p.write(&p, SW_STRL("hello world2"));
 	if (ret < 0)
 	{
 		printf("write fail.errno=%d\n", errno);
-		return;
+		return 1;
 	}
 	ret = p.write(&p, SW_STRL("hello world3"));
 	if (ret < 0)
 	{
 		printf("write fail.errno=%d\n", errno);
-		return;
+		return 1;
 	}
 
 	ret = p.read(&p, buf, 65535);
 	if (ret < 0)
 	{
 		printf("read fail.errno=%d\n", errno);
-		return;
+		return 1;
 	}
 	else
 	{
@@ -45,7 +46,7 @@ void u1_test2()
 	if (ret < 0)
 	{
 		printf("read fail.errno=%d\n", errno);
-		return;
+		return 1;
 	}
 	else
 	{
@@ -55,7 +56,7 @@ void u1_test2()
 	if (ret < 0)
 	{
 		printf("read fail.errno=%d\n", errno);
-		return;
+		return 1;
 	}
 	else
 	{
@@ -65,11 +66,12 @@ void u1_test2()
 	if (ret < 0)
 	{
 		printf("read fail.errno=%d\n", errno);
-		return;
+		return 1;
 	}
+	return 0;
 }
 
-void u1_test1()
+swUnitTest(u1_test1)
 {
 	swPipe p;
 	int ret;
@@ -79,7 +81,7 @@ void u1_test1()
 	if (ret < 0)
 	{
 		swTrace("create fail\n");
-		return;
+		return 1;
 	}
 	ret = p.write(&p, SW_STRL("hello world") - 1);
 	if (ret < 0)
@@ -102,4 +104,5 @@ void u1_test1()
 	{
 		printf("Data = %s\n", data);
 	}
+	return 0;
 }
