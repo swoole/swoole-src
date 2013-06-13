@@ -37,7 +37,15 @@
 
 #ifdef __MACH__
 #include <mach/clock.h>
-#include <mach/mach.h>
+#include <mach/mach_time.h>
+
+#define ORWL_NANO (+1.0E-9)
+#define ORWL_GIGA UINT64_C(1000000000)
+
+static double orwl_timebase = 0.0;
+static uint64_t orwl_timestart = 0;
+
+int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #endif
 
 #ifdef HAVE_EPOLL

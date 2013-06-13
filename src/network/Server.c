@@ -231,7 +231,7 @@ int swServer_start(swServer *serv)
 	main_reactor.setHandle(&main_reactor, SW_EVENT_CONNECT, swServer_onAccept);
 	main_reactor.setHandle(&main_reactor, SW_EVENT_TIMER, swServer_onTimer);
 
-	//Signal Init
+    //Signal Init
 	swSignalInit();
 
 	main_reactor.add(&main_reactor, serv->main_pipe.getFd(&serv->main_pipe, 0), SW_EVENT_CLOSE);
