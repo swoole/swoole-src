@@ -55,7 +55,8 @@
 #include "swoole_config.h"
 #include "memory.h"
 #include "atomic.h"
-//#include "hashtable.h"
+#include "hashtable.h"
+#include "list.h"
 
 #define SW_MAX_FDS             (1024*10)
 #define SW_THREAD_NUM          2
@@ -63,7 +64,7 @@
 #define SW_TASK_THREAD         4 //Task线程
 #define SW_PIPES_NUM           (SW_WORKER_NUM/SW_WRITER_NUM + 1) //每个写线程pipes数组大小
 #define SW_WORKER_NUM          4 //Worker进程数量
-#define SW_BUFFER_SIZE         65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
+
 #define SW_BACKLOG             512
 #define SW_TIMEO_SEC           0
 #define SW_TIMEO_USEC          3000000
