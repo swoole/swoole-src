@@ -176,7 +176,7 @@ typedef struct php_cli_server_request
 	size_t path_info_len;
 	char *query_string;
 	size_t query_string_len;
-	php_http_hashtable headers;
+	php_http_hashtable *headers;
 	char *content;
 	size_t content_len;
 	const char *ext;

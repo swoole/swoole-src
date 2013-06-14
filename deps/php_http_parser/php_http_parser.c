@@ -1992,7 +1992,7 @@ static int php_cli_server_client_read_request_on_header_value(php_http_parser *p
 		size_t header_name_len = client->current_header_name_len;
 		char c = header_name[header_name_len];
 		header_name[header_name_len] = '\0';
-		php_http_hash_add(&client->request.headers, header_name, header_name_len + 1, value, length);
+		php_http_hash_add(client->request.headers, header_name, header_name_len + 1, value, length);
 		header_name[header_name_len] = c;
 	}
 
@@ -2067,8 +2067,6 @@ static void php_http_hash_add(php_http_hashtable *ht, char *key, int key_len, ch
 	strncpy(add->name, key, 64);
 	printf("%s = %s\n", key, value);
 	UTHASH_ADD(hh, ht, name, key_len, add);
-
-	//HASH_ADD_STR(*ht, name, *value);
 }
 
 int php_http_read_request(php_cli_server_client *client, char **errstr)
@@ -2107,5 +2105,6 @@ int php_http_read_request(php_cli_server_client *client, char **errstr)
 		client->current_header_name = header_name;
 		client->current_header_name_allocated = 1;
 	}
+	swBreakPoint();
 	return 0;
 }
