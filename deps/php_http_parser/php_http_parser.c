@@ -2105,6 +2105,5 @@ int php_http_read_request(php_cli_server_client *client, char **errstr)
 		client->current_header_name = header_name;
 		client->current_header_name_allocated = 1;
 	}
-	swBreakPoint();
 	return 0;
 }

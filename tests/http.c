@@ -8,7 +8,6 @@
 #include "swoole.h"
 #include "tests.h"
 
-#include "deps/http_parser/http_parser.h"
 #include "deps/php_http_parser/php_http_parser.h"
 
 struct line
@@ -21,36 +20,6 @@ struct line
 
 #define CURRENT_LINE (&header[nlines-1])
 #define MAX_HEADER_LINES 2000
-
-swUnitTest(http_test1)
-{
-	int ret, i;
-	//http_parser_settings settings;
-	//settings.on_path = my_path_callback;
-	//settings.on_header_field = on_header_field;
-
-	char *url = "http://www.baidu.com:8080/index.php?hello=1#h";
-	http_parser *parser = malloc(sizeof(http_parser));
-	http_parser_init(parser, HTTP_REQUEST);
-	//parser->data = "http://www.baidu.com/";
-	struct http_parser_url *u = malloc(sizeof(struct http_parser_url));
-	;
-	ret = http_parser_parse_url(url, strlen(url), 0, u);
-
-	printf("\tfield_set: 0x%x, port: %u\n", u->field_set, u->port);
-	for (i = 0; i < UF_MAX; i++)
-	{
-		if ((u->field_set & (1 << i)) == 0)
-		{
-			printf("\tfield_data[%u]: unset\n", i);
-			continue;
-		}
-
-		printf("\tfield_data[%u]: off: %u len: %u part: \"%.*s\n", i, u->field_data[i].off, u->field_data[i].len,
-				u->field_data[i].len, url + u->field_data[i].off);
-	}
-	return 0;
-}
 
 swUnitTest(http_test2)
 {

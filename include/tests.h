@@ -33,6 +33,9 @@ swUnitTest(chan_test);
 swUnitTest(u1_test2);
 swUnitTest(u1_test1);
 
+swUnitTest(http_test2);
+
+swUnitTest(type_test1);
 void p_str(void *str);
 
 #endif /* SW_TESTS_H_ */

@@ -21,5 +21,9 @@ int main(int argc, char **argv)
 
 	swUnitTest_steup(u1_test1, 1);
 	swUnitTest_steup(u1_test2, 1);
+
+	swUnitTest_steup(http_test2, 1);
+
+	swUnitTest_steup(type_test1, 1);
 	return swUnitTest_run(&test);
 }

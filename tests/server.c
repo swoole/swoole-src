@@ -23,6 +23,8 @@ swUnitTest(server_test)
 	serv.writer_num = 1;
 	serv.worker_num = 1;
 	serv.factory_mode = 3;
+
+	serv.open_data_buffer = 1;
 	//serv.open_cpu_affinity = 1;
 	//serv.open_tcp_nodelay = 1;
 	//serv.daemonize = 1;

@@ -13,6 +13,13 @@ typedef struct _swHashTable_FdInfo
 	UT_hash_handle hh;
 } swHashTable_FdInfo;
 
+swUnitTest(type_test1)
+{
+	char eof[] = SW_DATA_EOF;
+	printf("SW_DATA_STREAM_EOF = %s\n", eof);
+	return 0;
+}
+
 swUnitTest(chan_test)
 {
 
