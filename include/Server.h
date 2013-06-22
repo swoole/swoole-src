@@ -77,6 +77,8 @@ struct swServer_s
 	char open_tcp_nodelay;  //是否关闭Nagle算法
 	char open_data_buffer;  //是否打开数据缓存
 
+	void *ptr2;
+
 	swPipe main_pipe;
 	swReactor reactor;
 	swFactory factory;
