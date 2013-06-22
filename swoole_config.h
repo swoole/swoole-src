@@ -9,7 +9,11 @@
 #define SWOOLE_CONFIG_H_
 
 //#define SW_DEBUG                 //启用调试模式，请注释掉此行代码 这里用--enable-swoole-debug开启调试模式
-#define SW_BUFFER_SIZE             65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
+//#define SW_BUFFER_SIZE           65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
+#define SW_BUFFER_SIZE             8192 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
+
+//#define SW_USE_DATA_BUFFER       1 //启用数据缓存
+#define SW_DATA_EOF                {13,10,13,10}
 
 #define SW_QUEUE_SIZE              100  //RingBuffer队列长度
 #define SW_MAINREACTOR_TIMEO       3    //主线程，reactor

@@ -156,9 +156,12 @@ do {                                                                            
   (head)->hh.tbl->signature = HASH_SIGNATURE;                                    \
 } while(0)
 
-#define HASH_ADD(hh,head,fieldname,keylen_in,add)                                \
-        HASH_ADD_KEYPTR(hh,head,&((add)->fieldname),keylen_in,add)
- 
+//避免与php的hashtable冲突
+/*
+//#define HASH_ADD(hh,head,fieldname,keylen_in,add) HASH_ADD_KEYPTR(hh,head,&((add)->fieldname),keylen_in,add)
+*/
+#define UTHASH_ADD(hh,head,fieldname,keylen_in,add) HASH_ADD_KEYPTR(hh,head,&((add)->fieldname),keylen_in,add)
+
 #define HASH_ADD_KEYPTR(hh,head,keyptr,keylen_in,add)                            \
 do {                                                                             \
  unsigned _ha_bkt;                                                               \
@@ -241,15 +244,15 @@ do {                                                                            
 #define HASH_FIND_STR(head,findstr,out)                                          \
     HASH_FIND(hh,head,findstr,strlen(findstr),out)
 #define HASH_ADD_STR(head,strfield,add)                                          \
-    HASH_ADD(hh,head,strfield,strlen(add->strfield),add)
+    UTHASH_ADD(hh,head,strfield,strlen(add->strfield),add)
 #define HASH_FIND_INT(head,findint,out)                                          \
     HASH_FIND(hh,head,findint,sizeof(int),out)
 #define HASH_ADD_INT(head,intfield,add)                                          \
-    HASH_ADD(hh,head,intfield,sizeof(int),add)
+    UTHASH_ADD(hh,head,intfield,sizeof(int),add)
 #define HASH_FIND_PTR(head,findptr,out)                                          \
     HASH_FIND(hh,head,findptr,sizeof(void *),out)
 #define HASH_ADD_PTR(head,ptrfield,add)                                          \
-    HASH_ADD(hh,head,ptrfield,sizeof(void *),add)
+    UTHASH_ADD(hh,head,ptrfield,sizeof(void *),add)
 #define HASH_DEL(head,delptr)                                                    \
     HASH_DELETE(hh,head,delptr)
 

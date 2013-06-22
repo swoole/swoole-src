@@ -1,7 +1,8 @@
 #ifndef SW_SERVER_H_
 #define SW_SERVER_H_
 
-#include "list.h"
+#include "swoole.h"
+#include "buffer.h"
 
 #define SW_EVENT_CLOSE           5
 #define SW_EVENT_CONNECT         6
@@ -20,6 +21,7 @@ typedef struct _swThreadPoll
 	pthread_t ptid; //线程ID
 	swReactor reactor;
 	swUdpFd *udp_addrs;
+	swDataBuffer data_buffer; //数据缓存(hashtable)
 	int c_udp_fd;
 } swThreadPoll;
 
@@ -53,6 +55,13 @@ struct swServer_s
 	int timeout_usec;
 	int daemonize;
 
+	int sock_client_buffer_size;    //client的socket缓存区设置
+	int sock_server_buffer_size;    //server的socket缓存区设置
+
+	int data_buffer_max_num; //数据缓存最大个数(超过此数值的连接会被当作坏连接，将清除缓存&关闭连接)
+	char data_eof[8];        //数据缓存结束符
+	char data_eof_len;       //结束符长度
+
 	int timer_fd;
 	int signal_fd;
 	int event_fd;
@@ -63,9 +72,10 @@ struct swServer_s
 	int c_pti;           //schedule
 	int udp_max_tmp_pkg; //UDP临时包数量，超过数量未处理将会被丢弃
 
-	char open_udp;        //是否有UDP监听端口
+	char open_udp;          //是否有UDP监听端口
 	char open_cpu_affinity; //是否设置CPU亲和性
 	char open_tcp_nodelay;  //是否关闭Nagle算法
+	char open_data_buffer;  //是否打开数据缓存
 
 	swPipe main_pipe;
 	swReactor reactor;
@@ -74,8 +84,8 @@ struct swServer_s
 	swListenList_node *listen_list;
 	swTimerList_node *timer_list;
 
-	void *ptr; //reserve
-	void *ptr2; //reserve
+	swReactor *reactor_ptr; //Main Reactor
+	swFactory *factory_ptr; //Factory
 
 	void (*onStart)(swServer *serv);
 	int (*onReceive)(swFactory *factory, swEventData *data);

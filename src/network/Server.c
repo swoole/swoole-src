@@ -543,6 +543,7 @@ int swServer_onFinish2(swFactory *factory, swSendData *resp)
 			{
 				if (errno == EINTR || errno == EAGAIN)
 				{
+					swYield();
 					continue;
 				}
 				else
