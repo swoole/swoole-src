@@ -66,7 +66,6 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #include "hashtable.h"
 #include "list.h"
 
-#define SW_MAX_FDS             (1024*10)
 #define SW_THREAD_NUM          2
 #define SW_WRITER_NUM          2  //写线程数量
 #define SW_TASK_THREAD         4 //Task线程
@@ -143,7 +142,6 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define swYield()              sched_yield() //or usleep(1)
 #define SW_MAX_FDTYPE          32 //32 kinds of event
 #define SW_ERROR_MSG_SIZE      256
-#define SW_MAX_REQUEST         10000
 
 #ifndef ulong
 #define ulong unsigned long
@@ -157,7 +155,10 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define CLOCK_REALTIME 0
 #endif
 
-#if __GNUC_MINOR__ > 6
+#define SW_START_LINE  "-------------------------START----------------------------"
+#define SW_END_LINE    "-------------------------END------------------------------"
+
+#if defined(__GNUC_MINOR__) && __GNUC_MINOR__ > 6
 #define SWINLINE    inline
 #else
 #define SWINLINE

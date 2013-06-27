@@ -9,6 +9,28 @@ void my_onConnect(swServer *serv, int fd, int from_id);
 void my_onClose(swServer *serv, int fd, int from_id);
 void my_onTimer(swServer *serv, int interval);
 
+char* php_rtrim(char *str, int len)
+{
+	int i;
+	for (i = len; i > 0; i--)
+	{
+		switch(str[i])
+		{
+		case ' ':
+		case '\0':
+		case '\n':
+		case '\r':
+		case '\t':
+		case '\v':
+			str[i] = 0;
+			break;
+		default:
+			return str;
+		}
+	}
+	return str;
+}
+
 swUnitTest(server_test)
 {
 	swServer serv;
@@ -22,7 +44,7 @@ swUnitTest(server_test)
 	serv.poll_thread_num = 1;
 	serv.writer_num = 1;
 	serv.worker_num = 1;
-	serv.factory_mode = 3;
+	serv.factory_mode = 1;
 
 	serv.open_data_buffer = 1;
 	//serv.open_cpu_affinity = 1;
@@ -74,8 +96,9 @@ int my_onReceive(swFactory *factory, swEventData *req)
 	resp.fd = req->fd; //fd can be not source fd.
 	resp.len = req->len + 8;
 	resp.from_id = req->from_id;
+	req->data[req->len] = 0;
 
-	printf("onReceive: Data=%s|Len=%d\n", req->data, req->len);
+	printf("onReceive: Data=%s|Len=%d\n", php_rtrim(req->data, req->len), req->len);
 	snprintf(resp_data, resp.len, "Server:%s", req->data);
 	resp.data = resp_data;
 	ret = factory->finish(factory, &resp);

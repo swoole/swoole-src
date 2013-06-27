@@ -61,6 +61,11 @@ void swReactorSelect_free(swReactor *reactor)
 
 int swReactorSelect_add(swReactor *reactor, int fd, int fdtype)
 {
+	if(fd > FD_SETSIZE)
+	{
+		swWarn("max fd value is FD_SETSIZE(%d).\n", FD_SETSIZE);
+		return SW_ERR;
+	}
 	swReactorSelect *this = reactor->object;
 	swFdList_node *ev = sw_malloc(sizeof(swFdList_node));
 	ev->fd = fd;

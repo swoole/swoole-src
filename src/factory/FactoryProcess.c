@@ -311,8 +311,8 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int writer_pti, int
 
 int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 {
-	int count, ret, sendn;
-	swFactoryProcess *this = factory->object;
+	int ret, sendn;
+	//swFactoryProcess *this = factory->object;
 	swEventData send_data;
 
 	memcpy(send_data.data, resp->data, resp->len);
@@ -345,7 +345,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int work
 {
 	swEventData req;
 	//swFactoryProcess *this = factory->object;
-	swServer *serv = factory->ptr;
+	//swServer *serv = factory->ptr;
 	c_worker_pipe = c_pipe;
 	c_worker_pti = worker_pti;
 
@@ -412,8 +412,6 @@ static int swFactoryProcess_writer_start(swFactory *factory)
 	swThreadParam *param;
 	int i;
 	pthread_t pidt;
-	void *mm;
-
 	swThreadStartFunc thread_main;
 
 #ifdef SW_USE_SHM_CHAN

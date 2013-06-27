@@ -26,7 +26,7 @@ typedef struct _swClient
 	struct sockaddr_in remote_addr;
 
 	void (*onConnect)(struct _swClient *cli);
-	int (*onReceive)(struct _swClient *cli, swEventData *data);
+	int (*onReceive)(struct _swClient *cli, swSendData *data);
 	void (*onClose)(struct _swClient *cli, int fd, int from_id);
 
 	int (*connect)(struct _swClient *cli, char *host, int port, float timeout, int udp_connect);

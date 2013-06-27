@@ -3,6 +3,8 @@
 
 #ifdef HAVE_EPOLL
 
+#define EPOLL_MODE_FLAG  EPOLLIN | EPOLLET //ET模式
+
 typedef struct swReactorEpoll_s swReactorEpoll;
 typedef struct _swFd
 {
@@ -76,7 +78,7 @@ int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
 	fd_.fdtype = fdtype;
 	//e.data.u64 = 0;
 	//e.events = EPOLLIN | EPOLLOUT;
-	e.events = EPOLLIN | EPOLLET;
+	e.events = EPOLL_MODE_FLAG;
 	memcpy(&(e.data.u64), &fd_, sizeof(fd_));
 
 	swTrace("[THREAD #%ld]EP=%d|FD=%d\n", pthread_self(), this->epfd, fd);
@@ -98,7 +100,7 @@ int swReactorEpoll_del(swReactor *reactor, int fd)
 	e.data.fd = fd;
 	//e.data.u64 = 0;
 	//e.events = EPOLLIN | EPOLLOUT;
-	e.events = EPOLLIN | EPOLLET;
+	e.events = EPOLL_MODE_FLAG;
 	ret = epoll_ctl(this->epfd, EPOLL_CTL_DEL, fd, &e);
 	if (ret < 0)
 	{
@@ -145,6 +147,10 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 				ev.from_id = reactor->id;
 				ev.type = fd_.fdtype;
 				ret = reactor->handle[ev.type](reactor, &ev);
+				if(ret < 0)
+				{
+					swWarn("epoll handle fail.errno=%d\n", errno);
+				}
 				swTrace("[THREAD #%ld]event finish.Ep=%d|ret=%d\n", pthread_self(), this->epfd, ret);
 			}
 		}

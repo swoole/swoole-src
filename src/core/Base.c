@@ -136,22 +136,19 @@ SWINLINE int swSocket_listen(int type, char *host, int port, int backlog)
 	return sock;
 }
 
-SWINLINE int swRead(int fd, char *buf, int count)
+SWINLINE int swRead(int fd, char *buf, int len)
 {
-	int nread = 0, totlen = 0;
+	int n, count = 0;
 	while (1)
 	{
-		nread = read(fd, buf, count - totlen);
-		//已读完
-		if (nread == 0)
-		{
-			return totlen;
-		}
+		n = read(fd, buf, len - count);
+		count += n;
 		//遇到错误
-		if (nread == -1)
+		if (n == -1)
 		{
 			if (errno == EINTR)
 			{
+				buf += n;
 				continue;
 			}
 			else if (errno == EAGAIN)
@@ -163,10 +160,18 @@ SWINLINE int swRead(int fd, char *buf, int count)
 				return -1;
 			}
 		}
-		totlen += nread;
-		buf += nread;
+		/*if(n == count)
+		{
+			//需要继续读取数据
+			sw_errno = EAGAIN;
+		}
+		else
+		{
+			sw_errno = 0;
+		}*/
+		break;
 	}
-	return totlen;
+	return count;
 }
 
 /**

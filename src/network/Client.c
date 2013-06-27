@@ -68,6 +68,7 @@ int swClient_tcp_connect(swClient *cli, char *host, int port, float timeout, int
 
 	cli->timeout = timeout;
 	swSetTimeout(cli->sock, timeout);
+	swSetBlock(cli->sock);
 
 	while (1)
 	{

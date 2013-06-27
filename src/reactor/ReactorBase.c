@@ -55,10 +55,9 @@ int swReactor_setHandle(swReactor *reactor, int fdtype, swReactor_handle handle)
 
 int swReactor_receive(swReactor *reactor, swEvent *event)
 {
-	swEventData data;
+	swSendData data;
 	int ret;
 
-	bzero(data.data, SW_BUFFER_SIZE);
 	ret = swRead(event->fd, data.data, SW_BUFFER_SIZE);
 	printf("[ReadThread]recv: %s|fd=%d|ret=%d|errno=%d\n", data.data, event->fd, ret, errno);
 
