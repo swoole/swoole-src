@@ -8,7 +8,7 @@ static int swServer_check_callback(swServer *serv);
 static int swServer_listen(swServer *serv, swReactor *reactor);
 static int swServer_poll_onClose(swReactor *reactor, swEvent *event);
 static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event);
-static int swServer_poll_onReceive_use_buffer(swReactor *reactor, swEvent *event);
+static int swServer_poll_onReceive(swReactor *reactor, swEvent *event);
 static int swServer_poll_onPackage(swReactor *reactor, swEvent *event);
 static int swServer_timer_start(swServer *serv);
 static void swSignalHanlde(int sig);
@@ -67,62 +67,42 @@ int swServer_onTimer(swReactor *reactor, swEvent *event)
 int swServer_onAccept(swReactor *reactor, swEvent *event)
 {
 	swServer *serv = reactor->ptr;
-	int clilen;
-	int conn_fd;
-	int ret;
-	struct sockaddr_in clientaddr;
+	struct sockaddr_in client_addr;
+	int conn_fd, ret;
 
-	clilen = sizeof(clientaddr);
-	bzero(&clientaddr, clilen);
 	swTrace("[Main]accept start\n");
-	//得到连接套接字
+#ifdef SW_ACCEPT_AGAIN
 	while (1)
-	{
-#ifdef SW_USE_ACCEPT4
-		conn_fd = accept4(event->fd, (struct sockaddr *) &clientaddr, (socklen_t *) &clilen, SOCK_NONBLOCK);
-#else
-		conn_fd = accept(event->fd, (struct sockaddr *) &clientaddr, (socklen_t *) &clilen);
 #endif
-		if (conn_fd < 0)
+	{
+		//accept得到连接套接字
+		conn_fd = swAccept(event->fd, &client_addr, sizeof(client_addr));
+#ifdef SW_ACCEPT_AGAIN
+		//listen队列中的连接已全部处理完毕
+		if (conn_fd < 0 && errno == EAGAIN)
 		{
-			//中断
-			if (errno == EINTR)
-			{
-				continue;
-			}
-			else
-			{
-				swTrace("[Main]accept fail Errno=%d|SockFD=%d|\n", errno, event->fd);
-				return SW_ERR;
-			}
+			break;
 		}
-#ifndef SW_USE_ACCEPT4
-		swSetNonBlock(conn_fd);
 #endif
-		break;
+		//TCP Nodelay
+		if (serv->open_tcp_nodelay == 1)
+		{
+			int flag = 1;
+			setsockopt(conn_fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
+		} swTrace("[Main]connect from %s, by process %d\n", inet_ntoa(client_addr.sin_addr), getpid());
+		if (serv->c_pti >= serv->poll_thread_num)
+		{
+			serv->c_pti = 0;
+		}
+		ret = serv->poll_threads[serv->c_pti].reactor.add(&(serv->poll_threads[serv->c_pti].reactor), conn_fd,
+				SW_FD_TCP);
+		if (ret < 0)
+		{
+			swTrace("[Main]add event fail Errno=%d|FD=%d\n", errno, conn_fd);
+		}
+		serv->onConnect(serv, conn_fd, serv->c_pti);
+		serv->c_pti++;
 	}
-
-	//TCP Nodelay
-	if (serv->open_tcp_nodelay == 1)
-	{
-		int flag = 1;
-		setsockopt(conn_fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
-	}
-
-	swTrace("[Main]connect from %s, by process %d\n", inet_ntoa(clientaddr.sin_addr), getpid());
-
-	if (serv->c_pti >= serv->poll_thread_num)
-	{
-		serv->c_pti = 0;
-	}
-	ret = serv->poll_threads[serv->c_pti].reactor.add(&(serv->poll_threads[serv->c_pti].reactor), conn_fd, SW_FD_TCP);
-	if (ret < 0)
-	{
-		swTrace("[Main]add event fail Errno=%d|FD=%d\n", errno, conn_fd);
-		return SW_ERR;
-	}
-	serv->onConnect(serv, conn_fd, serv->c_pti);
-	serv->c_pti++;
 	return SW_OK;
 }
 
@@ -304,17 +284,19 @@ void swServer_init(swServer *serv)
 	serv->worker_num = SW_CPU_NUM;
 	serv->max_conn = SW_MAX_FDS;
 	serv->max_request = SW_MAX_REQUEST;
+	serv->max_trunk_num = SW_MAX_TRUNK_NUM;
 
 	serv->open_udp = 0;
 	serv->open_cpu_affinity = 0;
 	serv->open_tcp_nodelay = 0;
+	serv->open_eof_check = 0; //默认不检查EOF
 
 	serv->udp_max_tmp_pkg = SW_MAX_TMP_PKG;
 	serv->timer_list = NULL;
 
 	char eof[] = SW_DATA_EOF;
-	memcpy(serv->data_eof, eof, sizeof(eof));
-	serv->data_eof_len = sizeof(eof);
+	serv->data_eof_len = sizeof(SW_DATA_EOF)-1;
+	memcpy(serv->data_eof, eof, serv->data_eof_len);
 
 	serv->onClose = NULL;
 	serv->onConnect = NULL;
@@ -574,6 +556,7 @@ static int swServer_poll_loop(swThreadParam *param)
 	swServer *serv = param->object;
 	int ret, pti = param->pti;
 	swReactor *reactor = &(serv->poll_threads[pti].reactor);
+	swThreadPoll *this = &(serv->poll_threads[pti]);
 	struct timeval timeo;
 
 	//cpu affinity setting
@@ -610,12 +593,12 @@ static int swServer_poll_loop(swThreadParam *param)
 
 	//Thread mode must copy the data.
 	//will free after onFinish
+#ifdef SW_READ_NO_BUFFER
 	reactor->setHandle(reactor, SW_FD_TCP, swServer_poll_onReceive_no_buffer);
-#ifdef SW_USE_DATA_BUFFER
-	if (serv->open_data_buffer == 1)
-	{
-		reactor->setHandle(reactor, SW_FD_TCP, swServer_poll_onReceive_use_buffer);
-	}
+#else
+	reactor->setHandle(reactor, SW_FD_TCP, swServer_poll_onReceive);
+	this->data_buffer.trunk_size = SW_BUFFER_SIZE;
+	this->data_buffer.max_trunk = serv->max_trunk_num;
 #endif
 	reactor->setHandle(reactor, SW_FD_UDP, swServer_poll_onPackage);
 
@@ -627,18 +610,19 @@ static int swServer_poll_loop(swThreadParam *param)
 	return SW_OK;
 }
 
-static int swServer_poll_onReceive_use_buffer(swReactor *reactor, swEvent *event)
+static int swServer_poll_onReceive(swReactor *reactor, swEvent *event)
 {
 	int ret, n;
+	int isEOF = -1;
+
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &(serv->factory);
+	//swDispatchData send_data;
 	swEventData send_data;
 	swDataBuffer_item *buffer_item = NULL;
 	swDataBuffer *data_buffer = &serv->poll_threads[event->from_id].data_buffer;
+	swDataBuffer_trunk *trunk;
 	buffer_item = swDataBuffer_getItem(data_buffer, event->fd);
-
-	data_buffer->trunk_size = SW_BUFFER_SIZE;
-	data_buffer->max_trunk = 10;
 
 	//buffer不存在，创建一个新的buffer区
 	if (buffer_item == NULL)
@@ -650,8 +634,10 @@ static int swServer_poll_onReceive_use_buffer(swReactor *reactor, swEvent *event
 			return swServer_poll_onReceive_no_buffer(reactor, event);
 		}
 	}
+
+	recv_data:
 	//trunk
-	swDataBuffer_trunk *trunk = swDataBuffer_getTrunk(data_buffer, buffer_item);
+	trunk = swDataBuffer_getTrunk(data_buffer, buffer_item);
 	n = swRead(event->fd, trunk->data, SW_BUFFER_SIZE);
 	if (n < 0)
 	{
@@ -666,19 +652,37 @@ static int swServer_poll_onReceive_use_buffer(swReactor *reactor, swEvent *event
 	else
 	{
 		trunk->len = n;
-		//trunk->data[trunk->len] = 0; //TODO 这里是为了printf
+		trunk->data[trunk->len] = 0; //TODO 这里是为了printf
 		//printf("buffer------------: %s|fd=%d|len=%d\n", trunk->data, event->fd, trunk->len);
-		int isEOF = memcmp((char *) (trunk->data + trunk->len - serv->data_eof_len), serv->data_eof, serv->data_eof_len);
+
+		if(serv->open_eof_check == 1)
+		{
+			isEOF = memcmp(trunk->data + trunk->len - serv->data_eof_len, serv->data_eof, serv->data_eof_len);
+		}
+		//printf("buffer ok.isEOF=%d\n", isEOF);
 
 		swDataBuffer_append(data_buffer, buffer_item, trunk);
+		if(sw_errno == EAGAIN)
+		{
+			goto recv_data;
+		}
 
 		//超过buffer_size或者收到EOF
-		if (isEOF == 0 || buffer_item->trunk_num >= data_buffer->max_trunk )
+		if (buffer_item->trunk_num >= data_buffer->max_trunk || isEOF == 0)
 		{
 			send_data.fd = event->fd;
 			send_data.from_id = event->from_id;
+			/*TODO 这里需要改成直接writev写trunk
+			send_data.data = buffer_item->first;
+			ret = factory->dispatch(factory, &send_data);
+			//处理数据失败，数据将丢失
+			if (ret < 0)
+			{
+				swWarn("factory->dispatch fail\n");
+				return SW_ERR;
+			}
+			*/
 			swDataBuffer_trunk *send_trunk = buffer_item->first;
-
 			while (send_trunk != NULL && send_trunk->len != 0)
 			{
 				send_data.len = send_trunk->len;
@@ -689,7 +693,6 @@ static int swServer_poll_onReceive_use_buffer(swReactor *reactor, swEvent *event
 				if (ret < 0)
 				{
 					swWarn("factory->dispatch fail\n");
-					return SW_ERR;
 				}
 			}
 			swDataBuffer_flush(data_buffer, buffer_item);
@@ -717,28 +720,27 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 	}
 	else
 	{
-		printf("recv: %s|fd=%d|len=%d\n", buf.data, event->fd, n);
+		swTrace("recv: %s|fd=%d|len=%d\n", buf.data, event->fd, n);
 		buf.fd = event->fd;
 		buf.len = n;
 		buf.from_id = event->from_id;
 
-		//swTrace("recv: %s|fd=%d|ret=%d|errno=%d\n", buf.data, event->fd, ret, errno);
 		ret = factory->dispatch(factory, &buf);
 		//处理数据失败，数据将丢失
 		if (ret < 0)
 		{
 			swTrace("factory->dispatch fail\n");
 		}
-		return ret;
-		/*if(sw_errno == SW_OK)
+		if(sw_errno == SW_OK)
 		{
 			return ret;
 		}
-		//缓存区还有数据没读完，EPOLL的ET模式
+		//缓存区还有数据没读完，继续读，EPOLL的ET模式
 		else if(sw_errno == EAGAIN)
 		{
 			ret = swServer_poll_onReceive_no_buffer(reactor, event);
-		}*/
+		}
+		return ret;
 	}
 	return SW_OK;
 }

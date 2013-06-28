@@ -65,6 +65,7 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #include "atomic.h"
 #include "hashtable.h"
 #include "list.h"
+#include "buffer.h"
 
 #define SW_THREAD_NUM          2
 #define SW_WRITER_NUM          2  //写线程数量
@@ -172,6 +173,14 @@ typedef struct _swEventData
 	int from_id; //Reactor Id
 	char data[SW_BUFFER_SIZE];
 } swEventData;
+
+typedef struct _swTask
+{
+	int fd;
+	int len;
+	int from_id; //Reactor Id
+	swDataBuffer_trunk *data;
+} swTask;
 
 typedef struct _swSendData
 {
@@ -342,13 +351,14 @@ typedef struct _swThreadParam
 } swThreadParam;
 
 char swoole_running;
-uint16_t sw_errno;
+int16_t sw_errno;
 char sw_error[SW_ERROR_MSG_SIZE];
 
 SWINLINE int swSetTimeout(int sock, float timeout);
 SWINLINE ulong swHashFunc(const char *arKey, uint nKeyLength);
 SWINLINE int swRead(int, char *, int);
 SWINLINE int swWrite(int, char *, int);
+SWINLINE int swAccept(int server_socket, struct sockaddr_in *addr, int addr_len);
 SWINLINE void swSetNonBlock(int);
 SWINLINE void swSetBlock(int);
 SWINLINE int swSocket_listen(int type, char *host, int port, int backlog);

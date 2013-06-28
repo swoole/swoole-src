@@ -123,7 +123,6 @@ SWINLINE int swSocket_listen(int type, char *host, int port, int backlog)
 	}
 	if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6)
 	{
-		swSetNonBlock(sock);
 		return sock;
 	}
 	//开始监听套接字
@@ -133,45 +132,59 @@ SWINLINE int swSocket_listen(int type, char *host, int port, int backlog)
 		swTrace("Listen fail.type=%d|host=%s|port=%d|Errno=%d\n", type, host, port, errno);
 		return SW_ERR;
 	}
+	swSetNonBlock(sock);
 	return sock;
 }
 
 SWINLINE int swRead(int fd, char *buf, int len)
 {
-	int n, count = 0;
+	int n = 0, nread;
+
 	while (1)
 	{
-		n = read(fd, buf, len - count);
-		count += n;
+		nread = read(fd, buf + n, len - n);
 		//遇到错误
-		if (n == -1)
+		if (nread < 0)
 		{
+			//中断
 			if (errno == EINTR)
 			{
-				buf += n;
 				continue;
 			}
-			else if (errno == EAGAIN)
-			{
-				break;
-			}
+			//出错了
 			else
 			{
-				return -1;
+				if (errno != EAGAIN)
+				{
+					sw_errno = -1; //异常
+				}
+				break;
 			}
 		}
-		/*if(n == count)
+		//连接已关闭
+		else if(nread == 0)
 		{
-			//需要继续读取数据
-			sw_errno = EAGAIN;
+			sw_errno = ECONNRESET;
+			return 0;
 		}
 		else
 		{
-			sw_errno = 0;
-		}*/
-		break;
+			n += nread;
+			//内存读满了，还可能有数据
+			if (n == len)
+			{
+				sw_errno = EAGAIN;
+				break;
+			}
+			//已读完
+			else
+			{
+				sw_errno = 0;
+				continue;
+			}
+		}
 	}
-	return count;
+	return n;
 }
 
 /**
@@ -179,7 +192,6 @@ SWINLINE int swRead(int fd, char *buf, int len)
  */
 void swBreakPoint()
 {
-
 }
 
 SWINLINE int swWrite(int fd, char *buf, int count)
@@ -227,6 +239,39 @@ SWINLINE void swSetNonBlock(int sock)
 		perror("fcntl(sock,SETFL,opts)");
 		exit(1);
 	}
+}
+
+SWINLINE int swAccept(int server_socket, struct sockaddr_in *addr, int addr_len)
+{
+	int conn_fd;
+	bzero(addr, addr_len);
+
+	while (1)
+	{
+#ifdef SW_USE_ACCEPT4
+		conn_fd = accept4(server_socket, (struct sockaddr *) addr, (socklen_t *) &addr_len, SOCK_NONBLOCK);
+#else
+		conn_fd = accept(server_socket, (struct sockaddr *) addr, (socklen_t *) &addr_len);
+#endif
+		if (conn_fd < 0)
+		{
+			//中断
+			if (errno == EINTR)
+			{
+				continue;
+			}
+			else
+			{
+				swTrace("[Main]accept fail Errno=%d|SockFD=%d|\n", errno, event->fd);
+				return SW_ERR;
+			}
+		}
+#ifndef SW_USE_ACCEPT4
+		swSetNonBlock(conn_fd);
+#endif
+		break;
+	}
+	return conn_fd;
 }
 
 SWINLINE void swSetBlock(int sock)
@@ -281,24 +326,27 @@ swSignalFunc swSignalSet(int sig, swSignalFunc func, int restart, int mask)
 	act.sa_flags = 0;
 	if (sigaction(sig, &act, &oact) < 0)
 	{
-		return NULL ;
+		return NULL;
 	}
 	return oact.sa_handler;
 }
 
 #ifdef __MACH__
-int clock_gettime(clock_id_t which_clock, struct timespec *t) {
-  // be more careful in a multithreaded environement
-  if (!orwl_timestart) {
-    mach_timebase_info_data_t tb = { 0 };
-    mach_timebase_info(&tb);
-    orwl_timebase = tb.numer;
-    orwl_timebase /= tb.denom;
-    orwl_timestart = mach_absolute_time();
-  }
-  double diff = (mach_absolute_time() - orwl_timestart) * orwl_timebase;
-  t->tv_sec = diff * ORWL_NANO;
-  t->tv_nsec = diff - (t->tv_sec * ORWL_GIGA);
-  return 0;
+int clock_gettime(clock_id_t which_clock, struct timespec *t)
+{
+	// be more careful in a multithreaded environement
+	if (!orwl_timestart)
+	{
+		mach_timebase_info_data_t tb =
+		{	0};
+		mach_timebase_info(&tb);
+		orwl_timebase = tb.numer;
+		orwl_timebase /= tb.denom;
+		orwl_timestart = mach_absolute_time();
+	}
+	double diff = (mach_absolute_time() - orwl_timestart) * orwl_timebase;
+	t->tv_sec = diff * ORWL_NANO;
+	t->tv_nsec = diff - (t->tv_sec * ORWL_GIGA);
+	return 0;
 }
 #endif

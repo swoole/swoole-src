@@ -46,10 +46,10 @@ swUnitTest(server_test)
 	serv.worker_num = 1;
 	serv.factory_mode = 1;
 
-	serv.open_data_buffer = 1;
 	//serv.open_cpu_affinity = 1;
 	//serv.open_tcp_nodelay = 1;
 	//serv.daemonize = 1;
+	serv.open_eof_check = 1;
 
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9500);
 	swServer_addListen(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
@@ -104,7 +104,7 @@ int my_onReceive(swFactory *factory, swEventData *req)
 	ret = factory->finish(factory, &resp);
 	if (ret < 0)
 	{
-		swWarn("send to client fail.errno=%d\n", errno);
+		printf("send to client fail.errno=%d\n", errno);
 	}
 	return SW_OK;
 }

@@ -2,7 +2,6 @@
 #define SW_SERVER_H_
 
 #include "swoole.h"
-#include "buffer.h"
 
 #define SW_EVENT_CLOSE           5
 #define SW_EVENT_CONNECT         6
@@ -44,23 +43,27 @@ typedef struct _swTimerList_node
 typedef struct swServer_s swServer;
 struct swServer_s
 {
-	int backlog;
-	int factory_mode;
-	int poll_thread_num;
-	int writer_num;
-	int worker_num;
+	uint16_t backlog;
+	uint8_t factory_mode;
+	uint8_t poll_thread_num;
+	uint16_t writer_num;
+	uint16_t worker_num;
+	uint8_t daemonize;
+
+
+
 	int max_conn;
 	int max_request;
 	int timeout_sec;
 	int timeout_usec;
-	int daemonize;
 
 	int sock_client_buffer_size;    //client的socket缓存区设置
 	int sock_server_buffer_size;    //server的socket缓存区设置
 
-	int data_buffer_max_num; //数据缓存最大个数(超过此数值的连接会被当作坏连接，将清除缓存&关闭连接)
-	char data_eof[8];        //数据缓存结束符
-	char data_eof_len;       //结束符长度
+	int data_buffer_max_num;             //数据缓存最大个数(超过此数值的连接会被当作坏连接，将清除缓存&关闭连接)
+	uint8_t max_trunk_num;               //每个请求最大允许创建的trunk数
+	char data_eof[SW_DATA_EOF_MAXLEN];   //数据缓存结束符
+	uint8_t data_eof_len;                //数据缓存结束符长度
 
 	int timer_fd;
 	int signal_fd;
@@ -75,7 +78,7 @@ struct swServer_s
 	char open_udp;          //是否有UDP监听端口
 	char open_cpu_affinity; //是否设置CPU亲和性
 	char open_tcp_nodelay;  //是否关闭Nagle算法
-	char open_data_buffer;  //是否打开数据缓存
+	char open_eof_check;    //检测数据EOF
 
 	void *ptr2;
 
