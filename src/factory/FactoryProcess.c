@@ -344,8 +344,8 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int worker_pti)
 {
 	swEventData req;
-	//swFactoryProcess *this = factory->object;
-	//swServer *serv = factory->ptr;
+	swFactoryProcess *this = factory->object;
+	swServer *serv = factory->ptr;
 	c_worker_pipe = c_pipe;
 	c_worker_pti = worker_pti;
 

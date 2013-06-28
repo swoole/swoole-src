@@ -1,9 +1,6 @@
 #include "swoole.h"
-#include <string.h>
 
 #ifdef HAVE_EPOLL
-
-#define EPOLL_MODE_FLAG  EPOLLIN | EPOLLET //ET模式
 
 typedef struct swReactorEpoll_s swReactorEpoll;
 typedef struct _swFd
@@ -77,8 +74,7 @@ int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
 	fd_.fd = fd;
 	fd_.fdtype = fdtype;
 	//e.data.u64 = 0;
-	//e.events = EPOLLIN | EPOLLOUT;
-	e.events = EPOLL_MODE_FLAG;
+	e.events = EPOLLIN | EPOLLET;
 	memcpy(&(e.data.u64), &fd_, sizeof(fd_));
 
 	swTrace("[THREAD #%ld]EP=%d|FD=%d\n", pthread_self(), this->epfd, fd);
@@ -100,7 +96,7 @@ int swReactorEpoll_del(swReactor *reactor, int fd)
 	e.data.fd = fd;
 	//e.data.u64 = 0;
 	//e.events = EPOLLIN | EPOLLOUT;
-	e.events = EPOLL_MODE_FLAG;
+	e.events = EPOLLIN | EPOLLET;
 	ret = epoll_ctl(this->epfd, EPOLL_CTL_DEL, fd, &e);
 	if (ret < 0)
 	{

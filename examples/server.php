@@ -62,7 +62,7 @@ swoole_server_handler($serv, 'onReceive', 'my_onReceive');
 swoole_server_handler($serv, 'onClose', 'my_onClose');
 swoole_server_handler($serv, 'onShutdown', 'my_onShutdown');
 swoole_server_handler($serv, 'onTimer', 'my_onTimer');
-swoole_server_addtimer($serv, 2);
-swoole_server_addtimer($serv, 10);
+#swoole_server_addtimer($serv, 2);
+#swoole_server_addtimer($serv, 10);
 swoole_server_start($serv);
 

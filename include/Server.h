@@ -50,8 +50,6 @@ struct swServer_s
 	uint16_t worker_num;
 	uint8_t daemonize;
 
-
-
 	int max_conn;
 	int max_request;
 	int timeout_sec;

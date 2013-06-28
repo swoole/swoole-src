@@ -6,6 +6,11 @@
 #ifndef SWOOLE_H_
 #define SWOOLE_H_
 
+//坑爹的PHP编译器，这里要包含下PHP生成的config.h文件
+#if defined(HAVE_CONFIG_H) && !defined(COMPILE_DL_SWOOLE)
+#include "config.h"
+#endif
+
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>

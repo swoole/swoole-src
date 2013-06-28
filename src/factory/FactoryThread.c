@@ -155,7 +155,7 @@ int swFactoryThread_dispatch(swFactory *factory, swEventData *buf)
 static int swFactoryThread_writer_loop(swThreadParam *param)
 {
 	swFactory *factory = param->object;
-	//swServer *serv = factory->ptr;
+	swServer *serv = factory->ptr;
 	swFactoryThread *this = factory->object;
 	int pti = param->pti;
 	int ret;

@@ -43,10 +43,10 @@ AC_DEFUN([AC_SWOOLE_CPU_AFFINITY],
     AC_MSG_CHECKING([for cpu affinity])
     AC_TRY_COMPILE(
     [
+		#include <sched.h>
     ], [
-        cpu_set_t cpu_set;
+		cpu_set_t cpu_set;
 		CPU_ZERO(&cpu_set);
-		CPU_SET(pti % SW_CPU_NUM, &cpu_set);
     ], [
         AC_DEFINE([HAVE_CPU_AFFINITY], 1, [cpu affinity?])
         AC_MSG_RESULT([yes])

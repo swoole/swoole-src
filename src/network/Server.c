@@ -31,11 +31,12 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 	serv->onClose(serv, cev.fd, cev.from_id);
 	from_reactor = &(serv->poll_threads[cev.from_id].reactor);
 	from_reactor->del(from_reactor, cev.fd);
-#ifdef SW_USE_DATA_BUFFER
-	//释放buffer区
-	swDataBuffer *data_buffer = &serv->poll_threads[event->from_id].data_buffer;
-	swDataBuffer_clear(data_buffer, cev.fd);
-#endif
+	if(serv->open_eof_check)
+	{
+		//释放buffer区
+		swDataBuffer *data_buffer = &serv->poll_threads[event->from_id].data_buffer;
+		swDataBuffer_clear(data_buffer, cev.fd);
+	}
 	return close(cev.fd);
 }
 
@@ -573,7 +574,7 @@ static int swServer_poll_loop(swThreadParam *param)
 	}
 #endif
 
-#if defined(HAVE_EPOLL)
+#ifdef HAVE_EPOLL
 	ret = swReactorEpoll_create(reactor, (serv->max_conn / serv->poll_thread_num) + 1);
 #elif defined(HAVE_KQUEUE)
 	ret = swReactorKqueue_create(reactor, (serv->max_conn / serv->poll_thread_num) + 1);
@@ -593,15 +594,17 @@ static int swServer_poll_loop(swThreadParam *param)
 
 	//Thread mode must copy the data.
 	//will free after onFinish
-#ifdef SW_READ_NO_BUFFER
-	reactor->setHandle(reactor, SW_FD_TCP, swServer_poll_onReceive_no_buffer);
-#else
-	reactor->setHandle(reactor, SW_FD_TCP, swServer_poll_onReceive);
-	this->data_buffer.trunk_size = SW_BUFFER_SIZE;
-	this->data_buffer.max_trunk = serv->max_trunk_num;
-#endif
+	if(serv->open_eof_check == 0)
+	{
+		reactor->setHandle(reactor, SW_FD_TCP, swServer_poll_onReceive_no_buffer);
+	}
+	else
+	{
+		reactor->setHandle(reactor, SW_FD_TCP, swServer_poll_onReceive);
+		this->data_buffer.trunk_size = SW_BUFFER_SIZE;
+		this->data_buffer.max_trunk = serv->max_trunk_num;
+	}
 	reactor->setHandle(reactor, SW_FD_UDP, swServer_poll_onPackage);
-
 	//main loop
 	reactor->wait(reactor, &timeo);
 	//shutdown
