@@ -14,6 +14,10 @@ feature
 * Concurrent execution. Support Multi-Thread or Multi-Process
 * Support IPv6
 
+blog
+-----
+http://swoole.sinaapp.com/ 中文(Chinese)
+
 example
 -----
 server.php
