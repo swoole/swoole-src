@@ -44,7 +44,7 @@
 #define SW_RES_SERVER_NAME          "SwooleServer"
 #define SW_RES_CLIENT_NAME          "SwooleClient"
 
-#define PHP_CALLBACK_NUM  6
+#define PHP_CALLBACK_NUM        6
 
 #define PHP_CB_onStart          0
 #define PHP_CB_onConnect        1
@@ -52,7 +52,7 @@
 #define PHP_CB_onClose          3
 #define PHP_CB_onShutdown       4
 #define PHP_CB_onTimer          5
-#define SW_HOST_SIZE            64
+#define SW_HOST_SIZE            128
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_create, 0, 1, 3)
 	ZEND_ARG_INFO(0, serv_host)
@@ -75,6 +75,7 @@ static void php_swoole_onClose(swServer *, int fd, int from_id);
 static void php_swoole_onTimer(swServer *serv, int interval);
 static void sw_destory_server(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 static void sw_destory_client(zend_rsrc_list_entry *rsrc TSRMLS_DC);
+static int php_swoole_set_callback(int key, zval *cb);
 
 const zend_function_entry swoole_functions[] =
 {
@@ -340,11 +341,37 @@ PHP_FUNCTION(swoole_server_set)
 	RETURN_TRUE;
 }
 
+static int php_swoole_set_callback(int key, zval *cb)
+{
+	char *func_name = NULL;
+	if(!zend_is_callable(cb, 0, &func_name))
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Function '%s' is not callable", func_name);
+		efree(func_name);
+		return SW_ERR;
+	}
+	php_sw_callback[key] = sw_malloc(sizeof(zval));
+	if(php_sw_callback[key] == NULL)
+	{
+		return SW_ERR;
+	}
+	*php_sw_callback[key] = *cb;
+	(php_sw_callback[key])->value.str.val = sw_malloc(cb->value.str.len);
+	if((php_sw_callback[key])->value.str.val == NULL)
+	{
+		return SW_ERR;
+	}
+	memcpy((php_sw_callback[key])->value.str.val, cb->value.str.val, cb->value.str.len);
+	//zval_copy_ctor(php_sw_callback[key]);
+	return SW_OK;
+}
+
 PHP_FUNCTION(swoole_server_handler)
 {
 	zval *zserv = NULL;
 	char *ha_name = NULL;
 	int len;
+	int ret;
 	swServer *serv;
 	zval *cb;
 
@@ -352,40 +379,37 @@ PHP_FUNCTION(swoole_server_handler)
 	{
 		return;
 	}
+
 	ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
-
-	//add ref
-	zval_add_ref(&cb);
-
 	if(strncasecmp("onStart", ha_name, len) == 0)
 	{
-		php_sw_callback[PHP_CB_onStart] = cb;
+		ret = php_swoole_set_callback(PHP_CB_onStart, cb);
 	}
 	else if(strncasecmp("onConnect", ha_name, len) == 0)
 	{
-		php_sw_callback[PHP_CB_onConnect] = cb;
+		ret = php_swoole_set_callback(PHP_CB_onConnect, cb);
 	}
 	else if(strncasecmp("onReceive", ha_name, len) == 0)
 	{
-		php_sw_callback[PHP_CB_onReceive] = cb;
+		ret = php_swoole_set_callback(PHP_CB_onReceive, cb);
 	}
 	else if(strncasecmp("onClose", ha_name, len) == 0)
 	{
-		php_sw_callback[PHP_CB_onClose] = cb;
+		ret = php_swoole_set_callback(PHP_CB_onClose, cb);
 	}
 	else if(strncasecmp("onShutdown", ha_name, len) == 0)
 	{
-		php_sw_callback[PHP_CB_onShutdown] = cb;
+		ret = php_swoole_set_callback(PHP_CB_onShutdown, cb);
 	}
 	else if(strncasecmp("onTimer", ha_name, len) == 0)
 	{
-		php_sw_callback[PHP_CB_onTimer] = cb;
+		ret = php_swoole_set_callback(PHP_CB_onTimer, cb);
 	}
 	else
 	{
 		zend_error(E_ERROR, "swoole_server_handler: unkown handler[%s].", ha_name);
 	}
-	RETURN_TRUE;
+	ZVAL_BOOL(return_value, ret);
 }
 
 PHP_FUNCTION(swoole_server_close)
@@ -445,12 +469,14 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	ZVAL_LONG(zfrom_id, req->from_id);
 
 	MAKE_STD_ZVAL(zdata);
-	ZVAL_STRINGL(zdata, req->data, req->len, 0);
+	ZVAL_STRINGL(zdata, req->data, req->len, 1);
 
 	args[0] = &zserv;
 	args[1] = &zfd;
 	args[2] = &zfrom_id;
 	args[3] = &zdata;
+
+	printf("req: fd=%d|len=%d|from_id=%d|data=%s\n", req->fd, req->len, req->from_id, req->data);
 
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onReceive], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
@@ -611,7 +637,7 @@ PHP_FUNCTION(swoole_server_send)
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rls|l", &zserv, &send_data.fd, &send_data.data,
 			&send_data.len, &from_id) == FAILURE)
 	{
-		return;
+		RETURN_FALSE;
 	}
 	ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
 	factory = &(serv->factory);

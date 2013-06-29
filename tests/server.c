@@ -41,15 +41,15 @@ swUnitTest(server_test)
 
 	//config
 	serv.backlog = 128;
-	serv.poll_thread_num = 1;
-	serv.writer_num = 1;
-	serv.worker_num = 1;
-	serv.factory_mode = 1;
+	serv.poll_thread_num = 2;
+	serv.writer_num = 2;
+	serv.worker_num = 2;
+	serv.factory_mode = 2;
 
 	//serv.open_cpu_affinity = 1;
 	//serv.open_tcp_nodelay = 1;
 	//serv.daemonize = 1;
-	serv.open_eof_check = 1;
+	//serv.open_eof_check = 1;
 
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9500);
 	swServer_addListen(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);

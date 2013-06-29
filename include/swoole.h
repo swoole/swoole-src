@@ -93,17 +93,11 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 
 #define SW_STRL(s)             s, sizeof(s)
 #define SW_START_SLEEP         sleep(1)  //sleep 1s,wait fork and pthread_create
-#ifdef SW_USE_PHP
-#define sw_malloc              emalloc
-#define sw_free                efree
-#define sw_calloc              ecalloc
-#define sw_realloc             erealloc
-#else
+
 #define sw_malloc              malloc
 #define sw_free(s)             free(s)
 #define sw_calloc              calloc
 #define sw_realloc             realloc
-#endif
 
 #define SW_OK                  0
 #define SW_ERR                -1

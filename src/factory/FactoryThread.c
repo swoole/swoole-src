@@ -116,7 +116,7 @@ int swFactoryThread_dispatch(swFactory *factory, swEventData *buf)
 	int pti;
 	int ret;
 	uint64_t flag = 1;
-	int datasize = sizeof(int)*3 + buf->len;
+	int datasize = sizeof(int)*3 + buf->len + 1;
 	char *data;
 
 	//使用pti，避免线程切换造成错误的writer_pti
@@ -183,7 +183,6 @@ static int swFactoryThread_writer_loop(swThreadParam *param)
 		{
 			factory->last_from_id = req->from_id;
 			factory->onTask(factory, req);
-			//swRingMempool_free(&this->queues[pti], req);
 			sw_free(req);
 		}
 		else
