@@ -466,10 +466,10 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	zval *retval;
 
 	MAKE_STD_ZVAL(zfd);
-	ZVAL_LONG(zfd, req->fd);
+	ZVAL_LONG(zfd, (long)req->fd);
 
 	MAKE_STD_ZVAL(zfrom_id);
-	ZVAL_LONG(zfrom_id, req->from_id);
+	ZVAL_LONG(zfrom_id, (long)req->from_id);
 
 	MAKE_STD_ZVAL(zdata);
 	//req->data[req->len] = 0;
@@ -485,7 +485,7 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onReceive], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_ERROR, "SwoolServer: onReceive handler error");
+		zend_error(E_ERROR, "SwoolServer: onReceive handler error");
 	}
 	return SW_OK;
 }
@@ -634,24 +634,24 @@ PHP_FUNCTION(swoole_server_send)
 	swServer *serv = NULL;
 	swFactory *factory = NULL;
 	swSendData send_data;
-	int ret;
 	long conn_fd;
 	long from_id = -1;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rls|l", &zserv, &send_data.fd, &send_data.data,
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rls|l", &zserv, &conn_fd, &send_data.data,
 			&send_data.len, &from_id) == FAILURE)
 	{
 		RETURN_FALSE;
 	}
 	ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
 	factory = &(serv->factory);
+	send_data.fd = (int)conn_fd;
 	if (from_id < 0)
 	{
 		send_data.from_id = factory->last_from_id;
 	}
 	else
 	{
-		send_data.from_id = (int) from_id;
+		send_data.from_id = (int)from_id;
 	}
 	SW_CHECK_RETURN(factory->finish(factory, &send_data));
 }

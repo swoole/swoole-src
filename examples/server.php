@@ -39,18 +39,18 @@ function my_onTimer($serv, $interval)
 
 function my_onClose($serv,$fd,$from_id)
 {
-	echo "Client：Close. fd=$fd|from_id=$from_id\n";
+	echo "Client：Close.\n";
 }
 
 function my_onConnect($serv,$fd,$from_id)
 {
-	echo "Client：Connect. fd=$fd|from_id=$from_id\n";
+	echo "Client：Connect.\n";
 }
 
 function my_onReceive($serv, $fd, $from_id, $data)
 {
-	echo "Client：Data. fd=$fd|from_id=$from_id|data=$data\n";
-	swoole_server_send($serv, $fd, "Server: $data");
+    //echo "Client：Data. fd=$fd|from_id=$from_id|data=$data\n";
+	swoole_server_send($serv, $fd, 'Server: '.$data);
 	//swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);
 	//swoole_server_close($serv, $fd, $from_id);
 	//swoole_server_close($serv, $ohter_fd, $other_from_id);
