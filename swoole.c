@@ -346,22 +346,25 @@ static int php_swoole_set_callback(int key, zval *cb)
 	char *func_name = NULL;
 	if(!zend_is_callable(cb, 0, &func_name))
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Function '%s' is not callable", func_name);
+		zend_error(E_WARNING, "Function '%s' is not callable", func_name);
 		efree(func_name);
 		return SW_ERR;
 	}
-	php_sw_callback[key] = sw_malloc(sizeof(zval));
+	zval_add_ref(&cb);
+	php_sw_callback[key] = cb;
+
+	/*php_sw_callback[key] = sw_malloc(sizeof(zval));
 	if(php_sw_callback[key] == NULL)
 	{
 		return SW_ERR;
 	}
-	*php_sw_callback[key] = *cb;
-	(php_sw_callback[key])->value.str.val = sw_malloc(cb->value.str.len);
+	//*php_sw_callback[key] = *cb;
+	/*(php_sw_callback[key])->value.str.val = sw_malloc(cb->value.str.len);
 	if((php_sw_callback[key])->value.str.val == NULL)
 	{
 		return SW_ERR;
-	}
-	memcpy((php_sw_callback[key])->value.str.val, cb->value.str.val, cb->value.str.len);
+	}*/
+	//memcpy((php_sw_callback[key])->value.str.val, cb->value.str.val, cb->value.str.len);
 	//zval_copy_ctor(php_sw_callback[key]);
 	return SW_OK;
 }
