@@ -472,14 +472,15 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	ZVAL_LONG(zfrom_id, req->from_id);
 
 	MAKE_STD_ZVAL(zdata);
-	ZVAL_STRINGL(zdata, req->data, req->len, 1);
+	//req->data[req->len] = 0;
+	ZVAL_STRINGL(zdata, req->data, req->len, 0);
 
 	args[0] = &zserv;
 	args[1] = &zfd;
 	args[2] = &zfrom_id;
 	args[3] = &zdata;
 
-	printf("req: fd=%d|len=%d|from_id=%d|data=%s\n", req->fd, req->len, req->from_id, req->data);
+	//printf("req: fd=%d|len=%d|from_id=%d|data=%s\n", req->fd, req->len, req->from_id, req->data);
 
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onReceive], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
