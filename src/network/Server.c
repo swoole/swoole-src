@@ -206,9 +206,7 @@ int swServer_start(swServer *serv)
 	{
 		return SW_ERR;
 	}
-
 	SW_START_SLEEP;
-
 #ifdef SW_MAINREACTOR_USE_POLL
 	ret = swReactorPoll_create(&main_reactor, 10);
 #else

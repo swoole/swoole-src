@@ -92,7 +92,7 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define SW_CPU_NUM             sysconf(_SC_NPROCESSORS_ONLN)
 
 #define SW_STRL(s)             s, sizeof(s)
-#define SW_START_SLEEP         sleep(1)  //sleep 1s,wait fork and pthread_create
+#define SW_START_SLEEP         usleep(100000)  //sleep 1s,wait fork and pthread_create
 
 #define sw_malloc              malloc
 #define sw_free(s)             free(s)

@@ -49,13 +49,6 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 		swTrace("[Main] malloc[this->workers] fail\n");
 		return SW_ERR;
 	}
-#if SW_DISPATCH_MODE == 3
-	if(swPipeMsg_create(&this->msg_queue, 1, SW_WORKER_MSGQUEUE_KEY, 1) <0)
-	{
-		swTrace("[Main] swPipeMsg_create fail\n");
-		return SW_ERR;
-	}
-#endif
 	this->worker_num = worker_num;
 
 	factory->running = 1;
@@ -104,21 +97,17 @@ int swFactoryProcess_shutdown(swFactory *factory)
 
 int swFactoryProcess_start(swFactory *factory)
 {
-	int ret, step = 0;
+	int ret;
 	ret = swFactory_check_callback(factory);
 	if (ret < 0)
 	{
-		return --step;
+		return SW_ERR;
 	}
-	ret = swFactoryProcess_writer_start(factory);
-	if (ret < 0)
-	{
-		return --step;
-	}
+	//必须先启动worker，否则manager进程会带线程fork
 	ret = swFactoryProcess_worker_start(factory);
 	if (ret < 0)
 	{
-		return --step;
+		return SW_ERR;
 	}
 	//主进程需要设置为直写模式
 	factory->finish = swFactory_finish;
@@ -132,14 +121,20 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 	int i, pid;
 	swPipes *worker_pipes;
 	int writer_pti;
-	worker_pipes = sw_calloc(this->worker_num, sizeof(swPipes));
 
+#if SW_DISPATCH_MODE == 3
+	if(swPipeMsg_create(&this->msg_queue, 1, SW_WORKER_MSGQUEUE_KEY, 1) <0)
+	{
+		swTrace("[Main] swPipeMsg_create fail\n");
+		return SW_ERR;
+	}
+#else
+	worker_pipes = sw_calloc(this->worker_num, sizeof(swPipes));
 	if (worker_pipes == NULL )
 	{
 		swTrace("[swFactoryProcess_worker_start]malloc fail.Errno=%d\n", errno);
 		return SW_ERR;
 	}
-
 	for (i = 0; i < this->worker_num; i++)
 	{
 		if (socketpair(PF_LOCAL, SOCK_DGRAM, 0, worker_pipes[i].pipes) < 0)
@@ -148,9 +143,11 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 			return SW_ERR;
 		}
 	}
+#endif
 	pid = fork();
 	switch (pid)
 	{
+	//创建manager进程
 	case 0:
 		for (i = 0; i < this->worker_num; i++)
 		{
@@ -171,8 +168,14 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 		}
 		swFactoryProcess_manager_loop(factory);
 		break;
+	//主进程
 	default:
 		this->manager_pid = pid;
+		int ret = swFactoryProcess_writer_start(factory);
+		if (ret < 0)
+		{
+			return SW_ERR;
+		}
 		for (i = 0; i < this->worker_num; i++)
 		{
 			writer_pti = (i % this->writer_num);
@@ -448,7 +451,7 @@ static int swFactoryProcess_writer_start(swFactory *factory)
 	thread_main = (swThreadStartFunc) swFactoryProcess_writer_loop_ex;
 
 #else
-	thread_main = (swThreadStartFunc)swFactoryProcess_writer_loop;
+	thread_main = (swThreadStartFunc) swFactoryProcess_writer_loop;
 #endif
 
 	for (i = 0; i < this->writer_num; i++)
@@ -459,7 +462,6 @@ static int swFactoryProcess_writer_start(swFactory *factory)
 			swError("malloc fail\n");
 			return SW_ERR;
 		}
-
 #ifdef SW_USE_SHM_CHAN
 #if defined(SW_CHAN_USE_MMAP) || SW_CHAN_USE_MMAP==1
 		mm = swShareMemory_mmap_create(&this->writers[i].shm, SW_CHAN_BUFFER_SIZE, 0);

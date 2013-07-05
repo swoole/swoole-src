@@ -26,7 +26,7 @@
 #define SW_REACTOR_TIMEO_USEC      0
 #define SW_REACTOR_DISPATCH        2   //连接分配模式，1平均分配，2按FD取摸固定分配
 
-#define SW_DISPATCH_MODE           3   //分配模式，1平均分配，2按FD取摸固定分配，3,使用抢占式队列(IPC消息队列)分配
+#define SW_DISPATCH_MODE           2   //分配模式，1平均分配，2按FD取摸固定分配，3,使用抢占式队列(IPC消息队列)分配
 #define SW_WORKER_MSGQUEUE_KEY     0x27000900
 
 //#define SW_USE_RINGQUEUE_TS       1  //使用线程安全版本的RingQueue
