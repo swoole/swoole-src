@@ -1,7 +1,6 @@
 #include "swoole.h"
 #include "Server.h"
 #include "RingQueue.h"
-#include "RingMempool.h"
 
 extern char swoole_running;
 
@@ -10,7 +9,6 @@ typedef struct _swFactoryThread
 	int writer_num;
 	int writer_pti;
 	swRingQueue *queues; //消息队列
-	swRingMempool *pools; //缓存池
 	swThreadWriter *writers;
 } swFactoryThread;
 
@@ -119,13 +117,19 @@ int swFactoryThread_dispatch(swFactory *factory, swEventData *buf)
 	int datasize = sizeof(int)*3 + buf->len + 1;
 	char *data;
 
-	//使用pti，避免线程切换造成错误的writer_pti
+#if SW_DISPATCH_MODE == 1
+	//使用平均分配
 	pti = this->writer_pti;
 	if (this->writer_pti >= this->writer_num)
 	{
 		this->writer_pti = 0;
 		pti = 0;
 	}
+	this->writer_pti++;
+#else
+	//使用fd取摸来散列
+	pti = buf->fd % this->writer_num;
+#endif
 
 	data = sw_malloc(datasize);
 	if(data == NULL)
@@ -147,7 +151,6 @@ int swFactoryThread_dispatch(swFactory *factory, swEventData *buf)
 		{
 			swWarn("Send queue notice fail.errno=%d\n", errno);
 		}
-		this->writer_pti++;
 		return ret;
 	}
 }

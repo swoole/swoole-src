@@ -43,8 +43,8 @@ swUnitTest(server_test)
 	serv.backlog = 128;
 	serv.poll_thread_num = 2;
 	serv.writer_num = 2;
-	serv.worker_num = 2;
-	serv.factory_mode = 2;
+	serv.worker_num = 4;
+	serv.factory_mode = 3;
 
 	//serv.open_cpu_affinity = 1;
 	//serv.open_tcp_nodelay = 1;

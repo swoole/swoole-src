@@ -26,12 +26,11 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 	if (ret < 0)
 	{
 		return SW_ERR;
-	}
-	swTrace("Close Event.fd=%d|from=%d\n", cev.fd, cev.from_id);
+	} swTrace("Close Event.fd=%d|from=%d\n", cev.fd, cev.from_id);
 	serv->onClose(serv, cev.fd, cev.from_id);
 	from_reactor = &(serv->poll_threads[cev.from_id].reactor);
 	from_reactor->del(from_reactor, cev.fd);
-	if(serv->open_eof_check)
+	if (serv->open_eof_check)
 	{
 		//释放buffer区
 		swDataBuffer *data_buffer = &serv->poll_threads[event->from_id].data_buffer;
@@ -69,7 +68,7 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 {
 	swServer *serv = reactor->ptr;
 	struct sockaddr_in client_addr;
-	int conn_fd, ret;
+	int conn_fd, ret, c_pti;
 
 	swTrace("[Main]accept start\n");
 #ifdef SW_ACCEPT_AGAIN
@@ -90,19 +89,27 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 		{
 			int flag = 1;
 			setsockopt(conn_fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
-		} swTrace("[Main]connect from %s, by process %d\n", inet_ntoa(client_addr.sin_addr), getpid());
+		}
+		swTrace("[Main]connect from %s, by process %d\n", inet_ntoa(client_addr.sin_addr), getpid());
+
+#if SW_REACTOR_DISPATCH == 1
+		//平均分配
 		if (serv->c_pti >= serv->poll_thread_num)
 		{
 			serv->c_pti = 0;
 		}
-		ret = serv->poll_threads[serv->c_pti].reactor.add(&(serv->poll_threads[serv->c_pti].reactor), conn_fd,
-				SW_FD_TCP);
+		c_pti = serv->c_pti;
+		serv->c_pti++;
+#else
+		//使用fd取模来散列
+		c_pti = conn_fd % serv->poll_thread_num;
+#endif
+		ret = serv->poll_threads[c_pti].reactor.add(&(serv->poll_threads[c_pti].reactor), conn_fd, SW_FD_TCP);
 		if (ret < 0)
 		{
 			swTrace("[Main]add event fail Errno=%d|FD=%d\n", errno, conn_fd);
 		}
-		serv->onConnect(serv, conn_fd, serv->c_pti);
-		serv->c_pti++;
+		serv->onConnect(serv, conn_fd, c_pti);
 	}
 	return SW_OK;
 }
@@ -296,7 +303,7 @@ void swServer_init(swServer *serv)
 	serv->timer_list = NULL;
 
 	char eof[] = SW_DATA_EOF;
-	serv->data_eof_len = sizeof(SW_DATA_EOF)-1;
+	serv->data_eof_len = sizeof(SW_DATA_EOF) - 1;
 	memcpy(serv->data_eof, eof, serv->data_eof_len);
 
 	serv->onClose = NULL;
@@ -594,7 +601,7 @@ static int swServer_poll_loop(swThreadParam *param)
 
 	//Thread mode must copy the data.
 	//will free after onFinish
-	if(serv->open_eof_check == 0)
+	if (serv->open_eof_check == 0)
 	{
 		reactor->setHandle(reactor, SW_FD_TCP, swServer_poll_onReceive_no_buffer);
 	}
@@ -658,14 +665,14 @@ static int swServer_poll_onReceive(swReactor *reactor, swEvent *event)
 		trunk->data[trunk->len] = 0; //TODO 这里是为了printf
 		//printf("buffer------------: %s|fd=%d|len=%d\n", trunk->data, event->fd, trunk->len);
 
-		if(serv->open_eof_check == 1)
+		if (serv->open_eof_check == 1)
 		{
 			isEOF = memcmp(trunk->data + trunk->len - serv->data_eof_len, serv->data_eof, serv->data_eof_len);
 		}
 		//printf("buffer ok.isEOF=%d\n", isEOF);
 
 		swDataBuffer_append(data_buffer, buffer_item, trunk);
-		if(sw_errno == EAGAIN)
+		if (sw_errno == EAGAIN)
 		{
 			goto recv_data;
 		}
@@ -676,15 +683,15 @@ static int swServer_poll_onReceive(swReactor *reactor, swEvent *event)
 			send_data.fd = event->fd;
 			send_data.from_id = event->from_id;
 			/*TODO 这里需要改成直接writev写trunk
-			send_data.data = buffer_item->first;
-			ret = factory->dispatch(factory, &send_data);
-			//处理数据失败，数据将丢失
-			if (ret < 0)
-			{
-				swWarn("factory->dispatch fail\n");
-				return SW_ERR;
-			}
-			*/
+			 send_data.data = buffer_item->first;
+			 ret = factory->dispatch(factory, &send_data);
+			 //处理数据失败，数据将丢失
+			 if (ret < 0)
+			 {
+			 swWarn("factory->dispatch fail\n");
+			 return SW_ERR;
+			 }
+			 */
 			swDataBuffer_trunk *send_trunk = buffer_item->first;
 			while (send_trunk != NULL && send_trunk->len != 0)
 			{
@@ -734,12 +741,12 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 		{
 			swTrace("factory->dispatch fail\n");
 		}
-		if(sw_errno == SW_OK)
+		if (sw_errno == SW_OK)
 		{
 			return ret;
 		}
 		//缓存区还有数据没读完，继续读，EPOLL的ET模式
-		else if(sw_errno == EAGAIN)
+		else if (sw_errno == EAGAIN)
 		{
 			ret = swServer_poll_onReceive_no_buffer(reactor, event);
 		}

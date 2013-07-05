@@ -22,7 +22,7 @@ typedef struct _swPipeMsg_buf
 
 int swPipeMsg_getFd(swPipe *p, int isWriteFd)
 {
-	return 0;
+	return SW_ERR;
 }
 
 void swPipeMsg_close(swPipe *p)
@@ -106,12 +106,10 @@ int swPipeMsg_write(swPipe *p, void *data, int length)
 	swPipeMsg *this = p->object;
 	msg_buf.mtype = this->type;
 	memcpy(msg_buf.mtext, data, length);
-
-	int flag = this->ipc_wait;
-
 	while (1)
 	{
-		ret = msgsnd(this->msg_id, &msg_buf, length, flag);
+		//send一定不可以阻塞
+		ret = msgsnd(this->msg_id, &msg_buf, length, IPC_NOWAIT);
 		if (ret < 0)
 		{
 			if (errno == EINTR)

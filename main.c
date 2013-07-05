@@ -16,7 +16,6 @@ int main(int argc, char **argv)
 
 	swUnitTest_steup(chan_test, 1);
 
-	swUnitTest_steup(ds_test1, 1);
 	swUnitTest_steup(ds_test2, 1);
 
 	swUnitTest_steup(u1_test1, 1);

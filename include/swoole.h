@@ -424,6 +424,7 @@ typedef struct _swFactoryProcess
 {
 	swThreadWriter *writers;
 	swWorkerChild *workers;
+	swPipe msg_queue;
 
 	int manager_pid; //管理进程ID
 	int writer_num; //writer thread num
