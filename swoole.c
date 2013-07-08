@@ -634,27 +634,52 @@ PHP_FUNCTION(swoole_server_send)
 	zval *zserv = NULL;
 	swServer *serv = NULL;
 	swFactory *factory = NULL;
-	swSendData send_data;
+	swSendData send;
+	char buffer[SW_BUFFER_SIZE];
+
+	char *send_data;
+	int send_len;
+
 	long conn_fd;
 	long from_id = -1;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rls|l", &zserv, &conn_fd, &send_data.data,
-			&send_data.len, &from_id) == FAILURE)
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rls|l", &zserv, &conn_fd, &send_data,
+			&send_len, &from_id) == FAILURE)
 	{
 		RETURN_FALSE;
 	}
 	ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
 	factory = &(serv->factory);
-	send_data.fd = (int)conn_fd;
+	send.fd = (int)conn_fd;
 	if (from_id < 0)
 	{
-		send_data.from_id = factory->last_from_id;
+		send.from_id = factory->last_from_id;
 	}
 	else
 	{
-		send_data.from_id = (int)from_id;
+		send.from_id = (int)from_id;
 	}
-	SW_CHECK_RETURN(factory->finish(factory, &send_data));
+	send.data = buffer;
+
+	int ret, i;
+	int trunk_num = send_len/SW_BUFFER_SIZE + 1;
+	int send_n = 0;
+	for(i=0; i<trunk_num; i++)
+	{
+		if(i == (trunk_num-1))
+		{
+			send_n = send_len % SW_BUFFER_SIZE;
+			if(send_n == 0) break;
+		}
+		else
+		{
+			send_n = SW_BUFFER_SIZE;
+		}
+		memcpy(buffer, send_data + SW_BUFFER_SIZE*i, send_n);
+		send.len = send_n;
+		ret = factory->finish(factory, &send);
+	}
+	SW_CHECK_RETURN(ret);
 }
 
 PHP_FUNCTION(swoole_server_addlisten)
