@@ -438,7 +438,7 @@ PHP_FUNCTION(swoole_server_close)
 		ev.from_id = (int)from_id;
 	}
 	ev.fd = (int)conn_fd;
-	SW_CHECK_RETURN(swServer_close(serv, &ev));
+	SW_CHECK_RETURN(serv->factory.end(&serv->factory, &ev));
 }
 
 PHP_FUNCTION(swoole_server_reload)
@@ -467,14 +467,14 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	zval *retval;
 
 	MAKE_STD_ZVAL(zfd);
-	ZVAL_LONG(zfd, (long)req->fd);
+	ZVAL_LONG(zfd, (long)req->info.fd);
 
 	MAKE_STD_ZVAL(zfrom_id);
-	ZVAL_LONG(zfrom_id, (long)req->from_id);
+	ZVAL_LONG(zfrom_id, (long)req->info.from_id);
 
 	MAKE_STD_ZVAL(zdata);
 	//req->data[req->len] = 0;
-	ZVAL_STRINGL(zdata, req->data, req->len, 0);
+	ZVAL_STRINGL(zdata, req->data, req->info.len, 0);
 
 	args[0] = &zserv;
 	args[1] = &zfd;
@@ -486,7 +486,7 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onReceive], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		zend_error(E_ERROR, "SwoolServer: onReceive handler error");
+		zend_error(E_WARNING, "SwoolServer: onReceive handler error");
 	}
 	return SW_OK;
 }
@@ -503,7 +503,7 @@ void php_swoole_onStart(swServer *serv)
 
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onStart], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_ERROR, "SwooleServer: onStart handler error");
+		zend_error(E_WARNING, "SwooleServer: onStart handler error");
 	}
 }
 
@@ -524,7 +524,7 @@ void php_swoole_onTimer(swServer *serv, int interval)
 
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onTimer], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_ERROR, "SwooleServer: onTimer handler error");
+		zend_error(E_WARNING, "SwooleServer: onTimer handler error");
 	}
 }
 
@@ -539,7 +539,7 @@ void php_swoole_onShutdown(swServer *serv)
 
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onShutdown], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_ERROR, "SwooleServer: onShutdown handler error");
+		zend_error(E_WARNING, "SwooleServer: onShutdown handler error");
 	}
 }
 
@@ -565,7 +565,7 @@ void php_swoole_onConnect(swServer *serv, int fd, int from_id)
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onConnect], &retval, 3, args, 0,
 			NULL TSRMLS_CC) == FAILURE)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_ERROR, "SwooleServer: onConnect handler error");
+		zend_error(E_WARNING, "SwooleServer: onConnect handler error");
 	}
 }
 
@@ -591,7 +591,7 @@ void php_swoole_onClose(swServer *serv, int fd, int from_id)
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onClose], &retval, 3, args, 0,
 			NULL TSRMLS_CC) == FAILURE)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_ERROR, "SwooleServer: onClose handler error");
+		zend_error(E_WARNING, "SwooleServer: onClose handler error");
 	}
 }
 
@@ -650,14 +650,14 @@ PHP_FUNCTION(swoole_server_send)
 	}
 	ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
 	factory = &(serv->factory);
-	send.fd = (int)conn_fd;
+	send.info.fd = (int)conn_fd;
 	if (from_id < 0)
 	{
-		send.from_id = factory->last_from_id;
+		send.info.from_id = factory->last_from_id;
 	}
 	else
 	{
-		send.from_id = (int)from_id;
+		send.info.from_id = (int)from_id;
 	}
 	send.data = buffer;
 
@@ -676,7 +676,7 @@ PHP_FUNCTION(swoole_server_send)
 			send_n = SW_BUFFER_SIZE;
 		}
 		memcpy(buffer, send_data + SW_BUFFER_SIZE*i, send_n);
-		send.len = send_n;
+		send.info.len = send_n;
 		ret = factory->finish(factory, &send);
 	}
 	SW_CHECK_RETURN(ret);

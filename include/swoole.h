@@ -133,13 +133,16 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define swError(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
 #endif
 
-#ifdef SW_DEBUG
 #define swWarn(str,...)       {printf("[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
-#else
-#define swWarn(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
-#endif
+//
+//#ifdef SW_DEBUG
+//#define swWarn(str,...)       {printf("[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
+//#else
+//#define swWarn(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
+//#endif
 
 #define swYield()              sched_yield() //or usleep(1)
+//#define swYield()              usleep(500000)
 #define SW_MAX_FDTYPE          32 //32 kinds of event
 #define SW_ERROR_MSG_SIZE      256
 
@@ -165,27 +168,28 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #endif
 
 //------------------Base--------------------
+typedef struct _swDataHead
+{
+	int fd; //文件描述符
+	uint16_t len; //长度
+	uint16_t from_id;//Reactor Id
+} swDataHead;
+
 typedef struct _swEventData
 {
-	int fd;
-	int len;
-	int from_id; //Reactor Id
+	swDataHead info;
 	char data[SW_BUFFER_SIZE];
 } swEventData;
 
 typedef struct _swTask
 {
-	int fd;
-	int len;
-	int from_id; //Reactor Id
+	swDataHead info;
 	swDataBuffer_trunk *data;
 } swTask;
 
 typedef struct _swSendData
 {
-	int fd;
-	int len;
-	int from_id;
+	swDataHead info;
 	char *data;
 } swSendData;
 
@@ -351,7 +355,16 @@ typedef struct _swThreadParam
 
 char swoole_running;
 int16_t sw_errno;
+uint8_t sw_process_type; //进程类型
 char sw_error[SW_ERROR_MSG_SIZE];
+
+#define SW_PROCESS_MASTER      1
+#define SW_PROCESS_WORKER      2
+#define SW_PROCESS_MANAGER     3
+
+#define swIsMaster()          (sw_process_type==SW_PROCESS_MASTER)
+#define swIsWorker()          (sw_process_type==SW_PROCESS_WORKER)
+#define swIsManager()         (sw_process_type==SW_PROCESS_MANAGER)
 
 SWINLINE int swSetTimeout(int sock, float timeout);
 SWINLINE ulong swHashFunc(const char *arKey, uint nKeyLength);
@@ -379,6 +392,7 @@ typedef struct _swFactory
 	int (*shutdown)(struct _swFactory *);
 	int (*dispatch)(struct _swFactory *, swEventData *);
 	int (*finish)(struct _swFactory *, swSendData *);
+	int (*end)(struct _swFactory *, swEvent *);
 
 	int (*onTask)(struct _swFactory *, swEventData *task); //worker function.get a task,goto to work
 	int (*onFinish)(struct _swFactory *, swSendData *result); //factory worker finish.callback
@@ -438,6 +452,7 @@ int swFactory_start(swFactory *factory);
 int swFactory_shutdown(swFactory *factory);
 int swFactory_dispatch(swFactory *factory, swEventData *req);
 int swFactory_finish(swFactory *factory, swSendData *resp);
+int swFactory_end(swFactory *factory, swEvent *cev);
 int swFactory_check_callback(swFactory *factory);
 
 int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num);
@@ -445,6 +460,7 @@ int swFactoryProcess_start(swFactory *factory);
 int swFactoryProcess_shutdown(swFactory *factory);
 int swFactoryProcess_dispatch(swFactory *factory, swEventData *buf);
 int swFactoryProcess_finish(swFactory *factory, swSendData *data);
+int swFactoryProcess_end(swFactory *factory, swEvent *event);
 
 int swFactoryThread_create(swFactory *factory, int writer_num);
 int swFactoryThread_start(swFactory *factory);

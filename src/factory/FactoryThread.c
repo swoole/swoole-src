@@ -42,6 +42,7 @@ int swFactoryThread_create(swFactory *factory, int writer_num)
 	factory->object = this;
 	factory->dispatch = swFactoryThread_dispatch;
 	factory->finish = swFactory_finish;
+	factory->end = swFactory_end;
 	factory->start = swFactoryThread_start;
 	factory->shutdown = swFactoryThread_shutdown;
 
@@ -114,7 +115,7 @@ int swFactoryThread_dispatch(swFactory *factory, swEventData *buf)
 	int pti;
 	int ret;
 	uint64_t flag = 1;
-	int datasize = sizeof(int)*3 + buf->len + 1;
+	int datasize = sizeof(int)*3 + buf->info.len + 1;
 	char *data;
 
 #if SW_DISPATCH_MODE == 1
@@ -128,7 +129,7 @@ int swFactoryThread_dispatch(swFactory *factory, swEventData *buf)
 	this->writer_pti++;
 #else
 	//使用fd取摸来散列
-	pti = buf->fd % this->writer_num;
+	pti = buf->info.fd % this->writer_num;
 #endif
 
 	data = sw_malloc(datasize);
@@ -184,7 +185,7 @@ static int swFactoryThread_writer_loop(swThreadParam *param)
 	{
 		if (swRingQueue_pop(&(this->queues[pti]), (void **) &req) == 0)
 		{
-			factory->last_from_id = req->from_id;
+			factory->last_from_id = req->info.from_id;
 			factory->onTask(factory, req);
 			sw_free(req);
 		}

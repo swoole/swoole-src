@@ -26,7 +26,8 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 	if (ret < 0)
 	{
 		return SW_ERR;
-	} swTrace("Close Event.fd=%d|from=%d\n", cev.fd, cev.from_id);
+	}
+	swTrace("Close Event.fd=%d|from=%d\n", cev.fd, cev.from_id);
 	serv->onClose(serv, cev.fd, cev.from_id);
 	from_reactor = &(serv->poll_threads[cev.from_id].reactor);
 	from_reactor->del(from_reactor, cev.fd);
@@ -60,7 +61,8 @@ int swServer_onTimer(swReactor *reactor, swEvent *event)
 			serv->onTimer(serv, timer_node->interval);
 			timer_node->lasttime += timer_node->interval;
 		}
-	}swTrace("Timer Call\n");
+	}
+	swTrace("Timer Call\n");
 	return ret;
 }
 
@@ -223,6 +225,8 @@ int swServer_start(swServer *serv)
 	main_reactor.setHandle(&main_reactor, SW_EVENT_CONNECT, swServer_onAccept);
 	main_reactor.setHandle(&main_reactor, SW_EVENT_TIMER, swServer_onTimer);
 
+	//标识为主进程
+	sw_process_type = SW_PROCESS_MASTER;
 	//Signal Init
 	swSignalInit();
 
@@ -514,7 +518,7 @@ static int swServer_poll_start(swServer *serv)
  */
 int swServer_onFinish(swFactory *factory, swSendData *resp)
 {
-	return swWrite(resp->fd, resp->data, resp->len);
+	return swWrite(resp->info.fd, resp->data, resp->info.len);
 }
 /**
  * for udp + tcp
@@ -522,16 +526,16 @@ int swServer_onFinish(swFactory *factory, swSendData *resp)
 int swServer_onFinish2(swFactory *factory, swSendData *resp)
 {
 	swServer *serv = factory->ptr;
-	swThreadPoll *poll_thread = &(serv->poll_threads[resp->from_id]);
+	swThreadPoll *poll_thread = &(serv->poll_threads[resp->info.from_id]);
 	int ret;
 	swUdpFd *fd;
 	//UDP
-	if (resp->fd <= 0)
+	if (resp->info.fd <= 0)
 	{
-		fd = &(poll_thread->udp_addrs[-resp->fd]);
+		fd = &(poll_thread->udp_addrs[-resp->info.fd]);
 		while (1)
 		{
-			ret = sendto(fd->sock, resp->data, resp->len, 0, (struct sockaddr *) &(fd->addr), sizeof(fd->addr));
+			ret = sendto(fd->sock, resp->data, resp->info.len, 0, (struct sockaddr *) &(fd->addr), sizeof(fd->addr));
 			swTrace("sendto sock=%d|from_id=%d\n", fd->sock, resp->from_id);
 			if (ret < 0)
 			{
@@ -551,7 +555,7 @@ int swServer_onFinish2(swFactory *factory, swSendData *resp)
 	}
 	else
 	{
-		return swWrite(resp->fd, resp->data, resp->len);
+		return swWrite(resp->info.fd, resp->data, resp->info.len);
 	}
 }
 /**
@@ -678,8 +682,8 @@ static int swServer_poll_onReceive(swReactor *reactor, swEvent *event)
 		//超过buffer_size或者收到EOF
 		if (buffer_item->trunk_num >= data_buffer->max_trunk || isEOF == 0)
 		{
-			send_data.fd = event->fd;
-			send_data.from_id = event->from_id;
+			send_data.info.fd = event->fd;
+			send_data.info.from_id = event->from_id;
 			/*TODO 这里需要改成直接writev写trunk
 			 send_data.data = buffer_item->first;
 			 ret = factory->dispatch(factory, &send_data);
@@ -693,8 +697,8 @@ static int swServer_poll_onReceive(swReactor *reactor, swEvent *event)
 			swDataBuffer_trunk *send_trunk = buffer_item->first;
 			while (send_trunk != NULL && send_trunk->len != 0)
 			{
-				send_data.len = send_trunk->len;
-				memcpy(send_data.data, send_trunk->data, send_data.len);
+				send_data.info.len = send_trunk->len;
+				memcpy(send_data.data, send_trunk->data, send_data.info.len);
 				send_trunk = send_trunk->next;
 				ret = factory->dispatch(factory, &send_data);
 				//处理数据失败，数据将丢失
@@ -729,9 +733,9 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 	else
 	{
 		swTrace("recv: %s|fd=%d|len=%d\n", buf.data, event->fd, n);
-		buf.fd = event->fd;
-		buf.len = n;
-		buf.from_id = event->from_id;
+		buf.info.fd = event->fd;
+		buf.info.len = n;
+		buf.info.from_id = event->from_id;
 
 		ret = factory->dispatch(factory, &buf);
 		//处理数据失败，数据将丢失
@@ -781,9 +785,9 @@ static int swServer_poll_onPackage(swReactor *reactor, swEvent *event)
 		break;
 	}
 	poll_thread->udp_addrs[poll_thread->c_udp_fd].sock = event->fd;
-	buf.fd = -poll_thread->c_udp_fd; //区分TCP和UDP
-	buf.len = ret;
-	buf.from_id = event->from_id;
+	buf.info.fd = -poll_thread->c_udp_fd; //区分TCP和UDP
+	buf.info.len = ret;
+	buf.info.from_id = event->from_id;
 
 	swTrace("recv package: %s|fd=%d|size=%d\n", buf.data, event->fd, ret);
 	ret = factory->dispatch(factory, &buf);

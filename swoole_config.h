@@ -30,18 +30,18 @@
 #define SW_WORKER_MSGQUEUE_KEY     0x27000900
 
 //#define SW_USE_RINGQUEUE_TS       1  //使用线程安全版本的RingQueue
-//#define SW_USE_SHM_CHAN           1  //使用共享内存队列，此特性正在测试中，启用此特性会用内存队列来替代IPC通信，会减少系统调用、内存申请和复制，提高性能
+//#define SW_USE_SHM_CHAN            1  //使用共享内存队列，此特性正在测试中，启用此特性会用内存队列来替代IPC通信，会减少系统调用、内存申请和复制，提高性能
 #define SW_CHAN_PUSH_TRY_COUNT     10
 #define SW_CHAN_POP_TRY_COUNT      100
 #define SW_CHAN_POP_SLEEP          1000*10 //sleep 10ms
 #define SW_CHAN_BUFFER_SIZE        1024*1024*2 //2M缓存区
 #define SW_CHAN_ELEM_SIZE          512
 #define SW_CHAN_DEBUG              0
-#define SW_CHAN_USE_MMAP           0  //使用mmap还是sysv shm
+//#define SW_CHAN_USE_MMAP           0  //使用mmap还是sysv shm
 #define SW_CHAN_SYSV_KEY           0x27000800
 
 #define SW_USE_FIXED_BUFFER
 #define SW_USE_ACCEPT4             0    //是否使用accept4，可以节省一次setnonblock的系统调用
-//#define SW_ACCEPT_AGAIN           1    //是否循环accept，可以一次性处理完全部的listen队列，用于大量并发连接的场景
+#define SW_ACCEPT_AGAIN            1     //是否循环accept，可以一次性处理完全部的listen队列，用于大量并发连接的场景
 #define SW_USE_EVENTFD                  //是否使用eventfd来做消息通知，需要Linux 2.6.22以上版本才会支持
 #endif /* SWOOLE_CONFIG_H_ */

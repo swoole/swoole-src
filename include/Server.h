@@ -108,6 +108,7 @@ int swServer_addListen(swServer *serv, int type, char *host,int port);
 int swServer_create(swServer *serv);
 int swServer_free(swServer *serv);
 int swServer_close(swServer *factory, swEvent *event);
+int swServer_process_close(swServer *serv, swEvent *event);
 int swServer_shutdown(swServer *serv);
 int swServer_addTimer(swServer *serv, int interval);
 int swServer_reload(swServer *serv);

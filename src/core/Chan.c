@@ -19,6 +19,7 @@ chan->mem_cur);
 int swChan_create(swChan **chan_addr, void *mem, int mem_size, int elem_size)
 {
 	int slab_size;
+	bzero(mem, sizeof(swChan)); //初始化内存块
 	if (mem_size <= 0 || mem == NULL || mem_size < SW_CHAN_MIN_MEM)
 	{
 		swWarn("error: mem_size <= %d or mem == NULL\n", SW_CHAN_MIN_MEM);
@@ -26,7 +27,6 @@ int swChan_create(swChan **chan_addr, void *mem, int mem_size, int elem_size)
 	}
 	*chan_addr = mem;
 	swChan *chan = *chan_addr;
-
 	mem += sizeof(swChan);
 	if (swMutex_create(&chan->lock, 1) < 0)
 	{

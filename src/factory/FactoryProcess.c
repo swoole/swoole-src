@@ -57,6 +57,7 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 	factory->finish = swFactoryProcess_finish;
 	factory->start = swFactoryProcess_start;
 	factory->shutdown = swFactoryProcess_shutdown;
+	factory->end = swFactoryProcess_end;
 
 	factory->onTask = NULL;
 	factory->onFinish = NULL;
@@ -80,7 +81,7 @@ int swFactoryProcess_shutdown(swFactory *factory)
 #if defined(SW_CHAN_USE_MMAP) || SW_CHAN_USE_MMAP==1
 		swShareMemory_mmap_free(&this->writers[i].shm);
 #else
-		swShareMemory_sysv_free(&this->writers[i].shm);
+		swShareMemory_sysv_free(&this->writers[i].shm, 1);
 #endif
 	}
 #endif
@@ -143,6 +144,29 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 			return SW_ERR;
 		}
 	}
+	//创建共享内存
+	for (i = 0; i < this->writer_num; i++)
+	{
+#ifdef SW_USE_SHM_CHAN
+		void *mm;
+#if defined(SW_CHAN_USE_MMAP) || SW_CHAN_USE_MMAP==1
+		mm = swShareMemory_mmap_create(&this->writers[i].shm, SW_CHAN_BUFFER_SIZE, 0);
+#else
+		mm = swShareMemory_sysv_create(&this->writers[i].shm, SW_CHAN_BUFFER_SIZE, SW_CHAN_SYSV_KEY);
+#endif
+		if (mm == NULL)
+		{
+			swError("shm_create fail\n");
+			return SW_ERR;
+		}
+		if (swChan_create(&this->writers[i].chan, mm, SW_CHAN_BUFFER_SIZE, SW_CHAN_ELEM_SIZE) < 0)
+		{
+			swError("swChan_create fail\n");
+			return SW_ERR;
+		}
+#endif
+	}
+
 #endif
 	pid = fork();
 	switch (pid)
@@ -166,6 +190,8 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 				this->workers[i].pid = pid;
 			}
 		}
+		//标识为管理进程
+		sw_process_type = SW_PROCESS_MANAGER;
 		swFactoryProcess_manager_loop(factory);
 		break;
 	//主进程
@@ -189,8 +215,7 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 		}
 		break;
 	case -1:
-		swTrace("[swFactoryProcess_worker_start]fork manager process fail\n")
-		;
+		swError("[swFactoryProcess_worker_start]fork manager process fail\n");
 		return SW_ERR;
 	}
 	return SW_OK;
@@ -313,6 +338,8 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int writer_pti, int
 			}
 		}
 		c_writer_pti = writer_pti;
+		//标识为worker进程
+		sw_process_type = SW_PROCESS_WORKER;
 		swFactoryProcess_worker_loop(factory, this->workers[worker_pti].pipe_fd, worker_pti);
 		exit(0);
 	}
@@ -323,18 +350,19 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int writer_pti, int
 	}
 }
 
-int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
+int swFactoryProcess_end(swFactory *factory, swEvent *event)
 {
-	int ret, sendn;
-	//swFactoryProcess *this = factory->object;
-	swEventData send_data;
+	int ret;
+	swFactoryProcess *this = factory->object;
+	swDataHead send_data;
 
-	memcpy(send_data.data, resp->data, resp->len);
-	send_data.fd = resp->fd;
-	send_data.len = resp->len;
-	sendn = resp->len + (3 * sizeof(int));
+	send_data.fd = event->fd;
+	send_data.len = 0; //len=0表示关闭此连接
+	send_data.from_id = event->from_id;
 
+	int sendn = sizeof(send_data);
 #ifdef SW_USE_SHM_CHAN
+	int count;
 	swChan *chan = this->writers[c_writer_pti].chan;
 	for (count = 0; count < SW_CHAN_PUSH_TRY_COUNT; count++)
 	{
@@ -349,6 +377,42 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	{
 		swWarn("Error: push try count > %d\n", SW_CHAN_PUSH_TRY_COUNT);
 	}
+	//printf("closeFd.fd=%d|from_id=%d\n", send_data.fd, send_data.from_id);
+#else
+	ret = write(c_worker_pipe, &send_data, sendn);
+#endif
+	return ret;
+}
+
+int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
+{
+	int ret, sendn;
+	swFactoryProcess *this = factory->object;
+	swEventData send_data;
+
+	memcpy(send_data.data, resp->data, resp->info.len);
+	send_data.info.fd = resp->info.fd;
+	send_data.info.len = resp->info.len;
+	send_data.info.from_id = resp->info.from_id;
+	sendn = resp->info.len + sizeof(resp->info);
+
+#ifdef SW_USE_SHM_CHAN
+	int count;
+	swChan *chan = this->writers[c_writer_pti].chan;
+	for (count = 0; count < SW_CHAN_PUSH_TRY_COUNT; count++)
+	{
+		ret = swChan_push(chan, &send_data, sendn);
+		//send success
+		if (ret == 0)
+		{
+			break;
+		}
+	}
+	if (ret < 0)
+	{
+		swWarn("Error: push try count > %d\n", SW_CHAN_PUSH_TRY_COUNT);
+	}
+	//printf("push data.fd=%d|from_id=%d|data=%s\n", send_data.fd, send_data.from_id, send_data.data);
 #else
 	ret = write(c_worker_pipe, &send_data, sendn);
 #endif
@@ -391,7 +455,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int work
 #endif
 		if (n > 0)
 		{
-			factory->last_from_id = req.from_id;
+			factory->last_from_id = req.info.from_id;
 			factory->onTask(factory, &req);
 			task_num--;
 		}
@@ -408,7 +472,7 @@ int swFactoryProcess_dispatch(swFactory *factory, swEventData *data)
 {
 	swFactoryProcess *this = factory->object;
 	int ret;
-	int send_len = data->len + (3*sizeof(int));
+	int send_len = data->info.len + sizeof(data->info);
 	int pti;
 
 #if SW_DISPATCH_MODE == 3
@@ -426,7 +490,7 @@ int swFactoryProcess_dispatch(swFactory *factory, swEventData *data)
 	this->worker_pti++;
 #elif SW_DISPATCH_MODE == 2
 	//使用fd取摸来散列
-	pti = data->fd % this->worker_num;
+	pti = data->info.fd % this->worker_num;
 #endif
 	swTrace("[ReadThread]sendto: pipe=%d|worker=%d\n", this->workers[pti].pipe_fd, pti);
 	//send to unix sock
@@ -449,7 +513,6 @@ static int swFactoryProcess_writer_start(swFactory *factory)
 
 #ifdef SW_USE_SHM_CHAN
 	thread_main = (swThreadStartFunc) swFactoryProcess_writer_loop_ex;
-
 #else
 	thread_main = (swThreadStartFunc) swFactoryProcess_writer_loop;
 #endif
@@ -462,26 +525,8 @@ static int swFactoryProcess_writer_start(swFactory *factory)
 			swError("malloc fail\n");
 			return SW_ERR;
 		}
-#ifdef SW_USE_SHM_CHAN
-#if defined(SW_CHAN_USE_MMAP) || SW_CHAN_USE_MMAP==1
-		mm = swShareMemory_mmap_create(&this->writers[i].shm, SW_CHAN_BUFFER_SIZE, 0);
-#else
-		mm = swShareMemory_sysv_create(&this->writers[i].shm, SW_CHAN_BUFFER_SIZE, SW_CHAN_SYSV_KEY);
-#endif
-		if (mm == NULL )
-		{
-			swError("shm_create fail\n");
-			return SW_ERR;
-		}
-		if (swChan_create(&this->writers[i].chan, mm, SW_CHAN_BUFFER_SIZE, SW_CHAN_ELEM_SIZE) < 0)
-		{
-			swError("swChan_create fail\n");
-			return SW_ERR;
-		}
-#endif
 		param->object = factory;
 		param->pti = i;
-
 		if (pthread_create(&pidt, NULL, thread_main, (void *) param) < 0)
 		{
 			swTrace("pthread_create fail\n");
@@ -498,7 +543,7 @@ int swFactoryProcess_writer_receive(swReactor *reactor, swEvent *ev)
 	swFactory *factory = reactor->factory;
 	swEventData resp;
 	swSendData send_data;
-	int n;
+	int n, ret;
 
 	//Unix Sock UDP
 	n = read(ev->fd, &resp, sizeof(resp));
@@ -506,13 +551,19 @@ int swFactoryProcess_writer_receive(swReactor *reactor, swEvent *ev)
 	if (n > 0)
 	{
 		send_data.data = resp.data;
-		send_data.len = resp.len;
-		send_data.from_id = resp.from_id;
-		send_data.fd = resp.fd;
-		return factory->onFinish(factory, &send_data);
+		send_data.info.len = resp.info.len;
+		send_data.info.from_id = resp.info.from_id;
+		send_data.info.fd = resp.info.fd;
+		ret = factory->onFinish(factory, &send_data);
+		if(ret < 0)
+		{
+			swWarn("factory->onFinish fail.fd=%d|from_id=%d|errno=%d\n", resp.info.fd, resp.info.from_id, errno);
+		}
+		return ret;
 	}
 	else
 	{
+		swWarn("[WriteThread]sento fail.errno=%d\n", errno);
 		return SW_ERR;
 	}
 }
@@ -548,9 +599,11 @@ int swFactoryProcess_writer_loop_ex(swThreadParam *param)
 {
 	swFactory *factory = param->object;
 	swFactoryProcess *this = factory->object;
+	swServer *serv = factory->ptr;
 	swChan *chan;
 	swChanElem *elem;
 	swEventData *resp;
+	swEvent closeFd;
 	swSendData send_data;
 
 	int ret;
@@ -558,10 +611,12 @@ int swFactoryProcess_writer_loop_ex(swThreadParam *param)
 	int sleep_count; //防止死循环耗尽CPU
 	chan = this->writers[pti].chan;
 
+	//主进程需要设置为直写模式
+	factory->finish = swFactory_finish;
+
 	while (swoole_running > 0)
 	{
 		elem = swChan_pop(chan);
-		//swBreakPoint();
 		if (elem == NULL )
 		{
 			if (sleep_count >= SW_CHAN_POP_TRY_COUNT)
@@ -583,15 +638,27 @@ int swFactoryProcess_writer_loop_ex(swThreadParam *param)
 				sleep_count = 0;
 			}
 			resp = (swEventData *) elem->ptr;
-			send_data.data = resp->data;
-			send_data.len = resp->len;
-			send_data.from_id = resp->from_id;
-			send_data.fd = resp->fd;
-			swTrace("pop ok.Data=%s\n", resp->data);
-			ret = factory->onFinish(factory, &send_data);
-			if (ret < 0)
+			swBreakPoint();
+			//表示关闭
+			if(resp->info.len == 0)
 			{
-				swTrace("factory->onFinish fail.errno=%d\n", errno);
+				closeFd.fd = resp->info.fd;
+				closeFd.from_id = resp->info.from_id;
+				printf("closeFd.fd=%d|from_id=%d\n", closeFd.fd, closeFd.from_id);
+				return swServer_close(serv, &closeFd);
+			}
+			//正常的数据
+			else
+			{
+				send_data.data = resp->data;
+				send_data.info.len = resp->info.len;
+				send_data.info.from_id = resp->info.from_id;
+				send_data.info.fd = resp->info.fd;
+				ret = factory->onFinish(factory, &send_data);
+				if (ret < 0)
+				{
+					swWarn("factory->onFinish fail.fd=%d|from_id=%d|errno=%d\n", resp->info.fd, resp->info.from_id, errno);
+				}
 			}
 		}
 	}
