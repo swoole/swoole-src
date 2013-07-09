@@ -14,10 +14,6 @@ feature
 * Concurrent execution. Support Multi-Thread or Multi-Process
 * Support IPv6
 
-blog
------
-http://swoole.sinaapp.com/ 中文(Chinese)
-
 example
 -----
 server.php
@@ -105,4 +101,6 @@ telnet 127.0.0.1 9500
 hello
 server: hello
 ```
-
+blog
+-----
+http://swoole.sinaapp.com/ 中文(Chinese)
