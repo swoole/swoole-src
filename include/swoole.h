@@ -121,25 +121,16 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define SW_SOCK_TCP6           3
 #define SW_SOCK_UDP6           4
 
+
+//#define swWarn(str,...)       {printf("[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
+#define swError(str,...)       {printf("[%s:%d@%s]"str"\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);exit(1);}
 #ifdef SW_DEBUG
-#define swTrace(str,...)       {printf("[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
+#define swTrace(str,...)       {printf("[%s:%d@%s]"str"\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);}
+#define swWarn(str,...)        {printf("[%s:%d@%s]"str"\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);}
 #else
 #define swTrace(str,...)
+#define swWarn(str,...)        {snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d@%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
 #endif
-
-#ifdef SW_DEBUG
-#define swError(str,...)       {printf("[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);exit(1);}
-#else
-#define swError(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
-#endif
-
-#define swWarn(str,...)       {printf("[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
-//
-//#ifdef SW_DEBUG
-//#define swWarn(str,...)       {printf("[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
-//#else
-//#define swWarn(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
-//#endif
 
 #define swYield()              sched_yield() //or usleep(1)
 //#define swYield()              usleep(500000)
@@ -336,6 +327,7 @@ typedef struct _swChan
 	int elem_tail;
 	int elem_head;
 
+	swPipe notify_fd; //用于阻塞通知
 	swMutex lock;
 	swChanElem *elems;
 } swChan;
@@ -344,6 +336,8 @@ int swChan_create(swChan **chan, void *mem, int mem_size, int elem_num);
 void swChan_destroy(swChan *chan);
 int swChan_push(swChan *chan, void *buf, int size);
 int swChan_push_nolock(swChan *chan, void *buf, int size);
+int swChan_notify(swChan *chan);
+int swChan_wait(swChan *chan);
 swChanElem* swChan_pop(swChan *chan);
 swChanElem* swChan_pop_nolock(swChan *chan);
 

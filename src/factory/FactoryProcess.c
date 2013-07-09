@@ -126,21 +126,21 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 #if SW_DISPATCH_MODE == 3
 	if(swPipeMsg_create(&this->msg_queue, 1, SW_WORKER_MSGQUEUE_KEY, 1) <0)
 	{
-		swTrace("[Main] swPipeMsg_create fail\n");
+		swError("[Main] swPipeMsg_create fail\n");
 		return SW_ERR;
 	}
 #else
 	worker_pipes = sw_calloc(this->worker_num, sizeof(swPipes));
 	if (worker_pipes == NULL )
 	{
-		swTrace("[swFactoryProcess_worker_start]malloc fail.Errno=%d\n", errno);
+		swError("malloc fail.Errno=%d\n", errno);
 		return SW_ERR;
 	}
 	for (i = 0; i < this->worker_num; i++)
 	{
 		if (socketpair(PF_LOCAL, SOCK_DGRAM, 0, worker_pipes[i].pipes) < 0)
 		{
-			swTrace("[swFactoryProcess_worker_start]create unix socket fail\n");
+			swError("create unix socket fail");
 			return SW_ERR;
 		}
 	}
@@ -152,16 +152,16 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 #if defined(SW_CHAN_USE_MMAP) || SW_CHAN_USE_MMAP==1
 		mm = swShareMemory_mmap_create(&this->writers[i].shm, SW_CHAN_BUFFER_SIZE, 0);
 #else
-		mm = swShareMemory_sysv_create(&this->writers[i].shm, SW_CHAN_BUFFER_SIZE, SW_CHAN_SYSV_KEY);
+		mm = swShareMemory_sysv_create(&this->writers[i].shm, SW_CHAN_BUFFER_SIZE, SW_CHAN_SYSV_KEY+i);
 #endif
 		if (mm == NULL)
 		{
-			swError("shm_create fail\n");
+			swError("swShareMemory create fail");
 			return SW_ERR;
 		}
 		if (swChan_create(&this->writers[i].chan, mm, SW_CHAN_BUFFER_SIZE, SW_CHAN_ELEM_SIZE) < 0)
 		{
-			swError("swChan_create fail\n");
+			swError("swChan_create fail");
 			return SW_ERR;
 		}
 #endif
@@ -182,7 +182,7 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 			pid = swFactoryProcess_worker_spawn(factory, writer_pti, i);
 			if (pid < 0)
 			{
-				swTrace("Fork worker process fail.Errno=%d\n", errno);
+				swError("Fork worker process fail");
 				return SW_ERR;
 			}
 			else
@@ -412,6 +412,10 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	{
 		swWarn("Error: push try count > %d\n", SW_CHAN_PUSH_TRY_COUNT);
 	}
+	else
+	{
+		swChan_notify(chan);
+	}
 	//printf("push data.fd=%d|from_id=%d|data=%s\n", send_data.fd, send_data.from_id, send_data.data);
 #else
 	ret = write(c_worker_pipe, &send_data, sendn);
@@ -608,37 +612,18 @@ int swFactoryProcess_writer_loop_ex(swThreadParam *param)
 
 	int ret;
 	int pti = param->pti;
-	int sleep_count; //防止死循环耗尽CPU
 	chan = this->writers[pti].chan;
-
-	//主进程需要设置为直写模式
-	factory->finish = swFactory_finish;
 
 	while (swoole_running > 0)
 	{
 		elem = swChan_pop(chan);
 		if (elem == NULL )
 		{
-			if (sleep_count >= SW_CHAN_POP_TRY_COUNT)
-			{
-				usleep(SW_CHAN_POP_SLEEP);
-				//sleep_count = 0;
-			}
-			else
-			{
-				swYield();
-				sleep_count++;
-			}
-			continue;
+			swChan_wait(chan);
 		}
 		else
 		{
-			if (sleep_count > 0)
-			{
-				sleep_count = 0;
-			}
 			resp = (swEventData *) elem->ptr;
-			swBreakPoint();
 			//表示关闭
 			if(resp->info.len == 0)
 			{

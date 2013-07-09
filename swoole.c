@@ -263,7 +263,7 @@ PHP_FUNCTION(swoole_server_create)
 	TSRMLS_SET_CTX(sw_thread_ctx);
 
 	if(swServer_addListen(serv, sock_type, serv_host, serv_port) < 0) {
-		zend_error(E_ERROR, "swServer_addListen fail. errno=%d.", errno);
+		zend_error(E_ERROR, "swServer_addListen fail.[errno=%d]", errno);
 	}
 	ZEND_REGISTER_RESOURCE(return_value, serv, le_swoole_server);
 }
@@ -617,13 +617,13 @@ PHP_FUNCTION(swoole_server_start)
 	ret = swServer_create(serv);
 	if (ret < 0)
 	{
-		zend_error(E_ERROR, "create server fail[errno=%d].\n", ret);
+		zend_error(E_ERROR, "create server fail[errno=%d][sw_error=%s]", errno, sw_error);
 		RETURN_LONG(ret);
 	}
 	ret = swServer_start(serv);
 	if (ret < 0)
 	{
-		zend_error(E_ERROR, "start server fail[errno=%d].\n", ret);
+		zend_error(E_ERROR, "start server fail[errno=%d][sw_error=%s]", errno, sw_error);
 		RETURN_LONG(ret);
 	}
 	RETURN_TRUE;
@@ -729,7 +729,7 @@ PHP_METHOD(swoole_client, __construct)
 	swClient *cli = (swClient*) emalloc(sizeof(swClient));
 	if (swClient_create(cli, type, async) < 0)
 	{
-		zend_error(E_WARNING, "swClient_create fail. errno=%d", errno);
+		zend_error(E_WARNING, "swClient_create fail.[errno=%d]", errno);
 		MAKE_STD_ZVAL(errCode);
 		ZVAL_LONG(errCode, errno);
 		zend_update_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errCode TSRMLS_CC);
@@ -748,7 +748,7 @@ PHP_METHOD(swoole_client, connect)
 	long port, udp_connect;
 	char *host;
 	int host_len;
-	double timeout;
+	double timeout = 0.1; //默认100ms超时
 
 	zval **zres;
 	zval *errCode;
@@ -770,7 +770,7 @@ PHP_METHOD(swoole_client, connect)
 	ret = cli->connect(cli, host, port, (float) timeout, udp_connect);
 	if (ret < 0)
 	{
-		zend_error(E_WARNING, "connect server fail[errno=%d].\n", ret);
+		zend_error(E_WARNING, "connect server fail[errno=%d]", ret);
 		MAKE_STD_ZVAL(errCode);
 		ZVAL_LONG(errCode, errno);
 		zend_update_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errCode TSRMLS_CC);
@@ -806,7 +806,7 @@ PHP_METHOD(swoole_client, send)
 	ret = cli->send(cli, data, data_len);
 	if (ret < 0)
 	{
-		zend_error(E_WARNING, "connect server fail[errno=%d].\n", ret);
+		zend_error(E_WARNING, "connect server fail[errno=%d]", ret);
 		RETURN_FALSE;
 	}
 	else

@@ -87,18 +87,19 @@ void my_onTimer(swServer *serv, int interval)
 	printf("Timer Interval=[%d]\n", interval);
 }
 
+static int receive_count = 0;
+
 int my_onReceive(swFactory *factory, swEventData *req)
 {
 	int ret;
 	char resp_data[SW_BUFFER_SIZE];
 	swSendData resp;
-
+	receive_count ++;
 	resp.info.fd = req->info.fd; //fd can be not source fd.
 	resp.info.len = req->info.len + 8;
 	resp.info.from_id = req->info.from_id;
 	req->data[req->info.len] = 0;
 
-	printf("onReceive: Data=%s|Len=%d\n", php_rtrim(req->data, req->info.len), req->info.len);
 	snprintf(resp_data, resp.info.len, "Server:%s", req->data);
 	resp.data = resp_data;
 	ret = factory->finish(factory, &resp);
@@ -106,6 +107,7 @@ int my_onReceive(swFactory *factory, swEventData *req)
 	{
 		printf("send to client fail.errno=%d\n", errno);
 	}
+	printf("onReceive[%d]: Data=%s|Len=%d\n",receive_count, php_rtrim(req->data, req->info.len), req->info.len);
 	return SW_OK;
 }
 

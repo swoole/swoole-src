@@ -265,7 +265,7 @@ int swServer_close(swServer *serv, swEvent *event)
 	swEventClose cev;
 	if (event->from_id > serv->poll_thread_num)
 	{
-		swWarn("Error: From_id > serv->poll_thread_num\n");
+		swWarn("Error: From_id > serv->poll_thread_num");
 		return -1;
 	}
 	cev.fd = event->fd;
@@ -357,7 +357,7 @@ static int swServer_timer_start(swServer *serv)
 #endif
 	if(timer_fd < 0)
 	{
-		swError("create timer pipe fail\n");
+		swError("create timer pipe fail");
 		return SW_ERR;
 	}
 	memset(&timer_set, 0, sizeof(timer_set));
@@ -386,14 +386,14 @@ int swServer_create(swServer *serv)
 	ret = swPipeBase_create(&serv->main_pipe, 0);
 	if (ret < 0)
 	{
-		swTrace("[swServerCreate]create event_fd fail\n");
+		swError("[swServerCreate]create event_fd fail");
 		return SW_ERR;
 	}
 	//创始化线程池
 	serv->poll_threads = sw_calloc(serv->poll_thread_num, sizeof(swThreadPoll));
 	if (serv->poll_threads == NULL)
 	{
-		swError("[swServerCreate]calloc[0] fail\n");
+		swError("calloc[0] fail");
 		return SW_ERR;
 	}
 	//EOF最大长度为8字节
@@ -432,7 +432,7 @@ int swServer_create(swServer *serv)
 	}
 	if (ret < 0)
 	{
-		swError("[swServerCreate]create factory fail\n");
+		swError("create factory fail\n");
 		return SW_ERR;
 	}
 	serv->factory.ptr = serv;
