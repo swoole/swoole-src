@@ -14,15 +14,11 @@ feature
 * Concurrent execution. Support Multi-Thread or Multi-Process
 * Support IPv6
 
-blog
------
-http://swoole.sinaapp.com/ 中文(Chinese)
-
 example
 -----
 server.php
-<pre>
-&lt;?php
+```php
+<?php
 $serv = swoole_server_create("127.0.0.1", 9500, SWOOLE_THREAD, SWOOLE_SOCK_TCP);
 
 swoole_server_set($serv, array(
@@ -84,11 +80,10 @@ swoole_server_addtimer($serv, 2);
 swoole_server_addtimer($serv, 10);
 swoole_server_start($serv);
 ?>
-</pre>
-
+```
 client.php
-<pre>
-&lt;?php
+```php
+<?php
 $client = new swoole_client(SWOOLE_SOCK_UDP, SWOOLE_SOCK_SYNC); //同步阻塞
 $client->connect('127.0.0.1', 9500, 0.5, 0);
 for($i=0; $i &lt; 1000; $i++){
@@ -97,9 +92,15 @@ for($i=0; $i &lt; 1000; $i++){
     echo $data;
 }
 $client->close();
-</pre>
-	php server.php
+```
 
-	telnet 127.0.0.1 9500
-	hello
-	server: hello
+```sh
+php server.php
+
+telnet 127.0.0.1 9500
+hello
+server: hello
+```
+blog
+-----
+http://swoole.sinaapp.com/ 中文(Chinese)
