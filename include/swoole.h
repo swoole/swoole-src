@@ -225,7 +225,7 @@ typedef struct _swPipe
 } swPipe;
 
 int swPipeBase_create(swPipe *p, int blocking);
-int swPipeEventfd_create(swPipe *p, int blocking);
+int swPipeEventfd_create(swPipe *p, int blocking, int semaphore);
 int swPipeMsg_create(swPipe *p, int blocking, int msg_key, long type);
 int swPipeUnsock_create(swPipe *p, int blocking, int protocol);
 void swBreakPoint(void);
@@ -379,7 +379,7 @@ typedef struct _swFactory
 	int running;
 	int max_request; //worker进程最大请求数量
 	void *ptr; //server object
-	int last_from_id;
+	uint16_t last_from_id;
 	swReactor *reactor; //reserve for reactor
 
 	int (*start)(struct _swFactory *);

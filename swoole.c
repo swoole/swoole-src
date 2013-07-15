@@ -435,7 +435,7 @@ PHP_FUNCTION(swoole_server_close)
 	}
 	else
 	{
-		ev.from_id = (int)from_id;
+		ev.from_id = from_id;
 	}
 	ev.fd = (int)conn_fd;
 	SW_CHECK_RETURN(serv->factory.end(&serv->factory, &ev));
@@ -657,7 +657,7 @@ PHP_FUNCTION(swoole_server_send)
 	}
 	else
 	{
-		send.info.from_id = (int)from_id;
+		send.info.from_id = from_id;
 	}
 	send.data = buffer;
 

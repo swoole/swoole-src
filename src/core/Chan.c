@@ -38,7 +38,7 @@ int swChan_create(swChan **chan_addr, void *mem, int mem_size, int elem_size)
 		elem_size = 65535;
 	}
 #ifdef HAVE_EVENTFD
-	ret =  swPipeEventfd_create(&chan->notify_fd, 1);
+	ret =  swPipeEventfd_create(&chan->notify_fd, 1, 1);
 #else
 	ret =  swPipeBase_create(&chan->notify_fd, 1);
 #endif

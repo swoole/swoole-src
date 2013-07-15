@@ -12,7 +12,7 @@ typedef struct _swPipeEventfd
 	int event_fd;
 } swPipeEventfd;
 
-int swPipeEventfd_create(swPipe *p, int blocking)
+int swPipeEventfd_create(swPipe *p, int blocking, int semaphore)
 {
 	int efd;
 	int flag = 0;
@@ -24,6 +24,10 @@ int swPipeEventfd_create(swPipe *p, int blocking)
 	if(blocking == 0)
 	{
 		flag = EFD_NONBLOCK;
+	}
+	if(semaphore == 1)
+	{
+		flag |= EFD_SEMAPHORE;
 	}
 	p->blocking = blocking;
 	efd = eventfd(0, flag);

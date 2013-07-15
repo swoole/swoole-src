@@ -509,6 +509,7 @@ static int swServer_poll_start(swServer *serv)
 		param->object = serv;
 		param->pti = i;
 		pthread_create(&pidt, NULL, (void * (*)(void *)) swServer_poll_loop, (void *) param);
+		pthread_detach(pidt);
 		poll_thread->ptid = pidt;
 	}
 	return SW_OK;

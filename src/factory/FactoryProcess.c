@@ -354,19 +354,20 @@ int swFactoryProcess_end(swFactory *factory, swEvent *event)
 {
 	int ret;
 	swFactoryProcess *this = factory->object;
-	swDataHead send_data;
+	swEventData send_data;
 
-	send_data.fd = event->fd;
-	send_data.len = 0; //len=0表示关闭此连接
-	send_data.from_id = event->from_id;
+	send_data.info.fd = event->fd;
+	send_data.info.len = 0; //len=0表示关闭此连接
+	send_data.info.from_id = event->from_id;
 
-	int sendn = sizeof(send_data);
+	int sendn = sizeof(send_data.info);
 #ifdef SW_USE_SHM_CHAN
 	int count;
 	swChan *chan = this->writers[c_writer_pti].chan;
 	for (count = 0; count < SW_CHAN_PUSH_TRY_COUNT; count++)
 	{
 		ret = swChan_push(chan, &send_data, sendn);
+		//printf("[worker]push[close].fd=%d|from_id=%d|last_from_id=%d\n", send_data.info.fd, send_data.info.from_id, factory->last_from_id);
 		//send success
 		if (ret == 0)
 		{
@@ -376,6 +377,10 @@ int swFactoryProcess_end(swFactory *factory, swEvent *event)
 	if (ret < 0)
 	{
 		swWarn("Error: push try count > %d\n", SW_CHAN_PUSH_TRY_COUNT);
+	}
+	else
+	{
+		swChan_notify(chan);
 	}
 	//printf("closeFd.fd=%d|from_id=%d\n", send_data.fd, send_data.from_id);
 #else
@@ -402,6 +407,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	for (count = 0; count < SW_CHAN_PUSH_TRY_COUNT; count++)
 	{
 		ret = swChan_push(chan, &send_data, sendn);
+		//printf("[worker]push[send].fd=%d|from_id=%d|last_from_id=%d|data=%s\n", send_data.info.fd, send_data.info.from_id, factory->last_from_id, send_data.data);
 		//send success
 		if (ret == 0)
 		{
@@ -442,7 +448,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int work
 		CPU_SET(worker_pti % SW_CPU_NUM, &cpu_set);
 		if (0 != sched_setaffinity(getpid(), sizeof(cpu_set), &cpu_set))
 		{
-			swTrace("pthread_setaffinity_np set fail\n");
+			swWarn("pthread_setaffinity_np set fail\n");
 		}
 	}
 #endif
@@ -465,7 +471,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int work
 		}
 		else
 		{
-			swTrace("[Worker]read pipe error.Errno=%d\n", errno);
+			swWarn("[Worker]read pipe error.Errno=%d\n", errno);
 		}
 	}
 	swTrace("[Worker]max request\n");
@@ -536,6 +542,7 @@ static int swFactoryProcess_writer_start(swFactory *factory)
 			swTrace("pthread_create fail\n");
 			return SW_ERR;
 		}
+		pthread_detach(pidt);
 		this->writers[i].ptid = pidt;
 		SW_START_SLEEP;
 	}
@@ -629,8 +636,8 @@ int swFactoryProcess_writer_loop_ex(swThreadParam *param)
 			{
 				closeFd.fd = resp->info.fd;
 				closeFd.from_id = resp->info.from_id;
-				printf("closeFd.fd=%d|from_id=%d\n", closeFd.fd, closeFd.from_id);
-				return swServer_close(serv, &closeFd);
+				//printf("closeFd.fd=%d|from_id=%d\n", closeFd.fd, closeFd.from_id);
+				swServer_close(serv, &closeFd);
 			}
 			//正常的数据
 			else
@@ -639,11 +646,13 @@ int swFactoryProcess_writer_loop_ex(swThreadParam *param)
 				send_data.info.len = resp->info.len;
 				send_data.info.from_id = resp->info.from_id;
 				send_data.info.fd = resp->info.fd;
+
 				ret = factory->onFinish(factory, &send_data);
 				if (ret < 0)
 				{
 					swWarn("factory->onFinish fail.fd=%d|from_id=%d|errno=%d\n", resp->info.fd, resp->info.from_id, errno);
 				}
+				//printf("[writer]pop.fd=%d|from_id=%d|data=%s\n", resp->info.fd, resp->info.from_id, resp->data);
 			}
 		}
 	}
