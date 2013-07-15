@@ -265,7 +265,7 @@ int swServer_close(swServer *serv, swEvent *event)
 	swEventClose cev;
 	if (event->from_id > serv->poll_thread_num)
 	{
-		swWarn("Error: From_id > serv->poll_thread_num");
+		swWarn("Error: From_id > serv->poll_thread_num.from_id=%d", event->from_id);
 		return -1;
 	}
 	cev.fd = event->fd;
@@ -547,7 +547,7 @@ int swServer_onFinish2(swFactory *factory, swSendData *resp)
 				}
 				else
 				{
-					swTrace("sendto fail.errno=%d\n", errno);
+					swWarn("sendto fail.errno=%d\n", errno);
 				}
 			}
 			break;
@@ -579,7 +579,7 @@ static int swServer_poll_loop(swThreadParam *param)
 		CPU_SET(pti % SW_CPU_NUM, &cpu_set);
 		if(0 != pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set))
 		{
-			swTrace("pthread_setaffinity_np set fail\n");
+			swWarn("pthread_setaffinity_np set fail\n");
 		}
 	}
 #endif
@@ -742,7 +742,7 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 		//处理数据失败，数据将丢失
 		if (ret < 0)
 		{
-			swTrace("factory->dispatch fail\n");
+			swWarn("factory->dispatch fail\n");
 		}
 		if (sw_errno == SW_OK)
 		{

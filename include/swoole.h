@@ -122,14 +122,15 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define SW_SOCK_UDP6           4
 
 
-//#define swWarn(str,...)       {printf("[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
+#define swWarn(str,...)       {printf("[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d@%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
 #define swError(str,...)       {printf("[%s:%d@%s]"str"\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);exit(1);}
+
 #ifdef SW_DEBUG
 #define swTrace(str,...)       {printf("[%s:%d@%s]"str"\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);}
 #define swWarn(str,...)        {printf("[%s:%d@%s]"str"\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);}
 #else
 #define swTrace(str,...)
-#define swWarn(str,...)        {snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d@%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
+//#define swWarn(str,...)        {printf(sw_error);}
 #endif
 
 #define swYield()              sched_yield() //or usleep(1)

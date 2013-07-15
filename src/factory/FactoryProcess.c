@@ -19,8 +19,8 @@ int swFactoryProcess_writer_loop_ex(swThreadParam *param);
 int swFactoryProcess_writer_receive(swReactor *, swEvent *);
 
 static int c_worker_pipe = 0; //Current Proccess Worker's pipe
-static int c_worker_pti = 0;  //Current Proccess Worker's id
-static int c_writer_pti = 0;  //Current Proccess writer's id
+static int c_worker_pti = 0; //Current Proccess Worker's id
+static int c_writer_pti = 0; //Current Proccess writer's id
 
 static int manager_worker_reloading = 0;
 static int manager_reload_flag = 0;
@@ -29,24 +29,24 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 {
 	swFactoryProcess *this;
 	this = sw_malloc(sizeof(swFactoryProcess));
-	if (this == NULL )
+	if (this == NULL)
 	{
-		swTrace("[swFactoryProcess_create] malloc[0] fail\n");
+		swWarn("[swFactoryProcess_create] malloc[0] fail");
 		return SW_ERR;
 	}
 	this->writers = sw_calloc(writer_num, sizeof(swThreadWriter));
-	if (this->writers == NULL )
+	if (this->writers == NULL)
 	{
-		swTrace("[Main] malloc[this->writers] fail\n");
+		swWarn("[Main] malloc[this->writers] fail");
 		return SW_ERR;
 	}
 	this->writer_num = writer_num;
 	this->writer_pti = 0;
 
 	this->workers = sw_calloc(worker_num, sizeof(swWorkerChild));
-	if (this->workers == NULL )
+	if (this->workers == NULL)
 	{
-		swTrace("[Main] malloc[this->workers] fail\n");
+		swWarn("[Main] malloc[this->workers] fail");
 		return SW_ERR;
 	}
 	this->worker_num = worker_num;
@@ -131,7 +131,7 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 	}
 #else
 	worker_pipes = sw_calloc(this->worker_num, sizeof(swPipes));
-	if (worker_pipes == NULL )
+	if (worker_pipes == NULL)
 	{
 		swError("malloc fail.Errno=%d\n", errno);
 		return SW_ERR;
@@ -152,7 +152,7 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 #if defined(SW_CHAN_USE_MMAP) || SW_CHAN_USE_MMAP==1
 		mm = swShareMemory_mmap_create(&this->writers[i].shm, SW_CHAN_BUFFER_SIZE, 0);
 #else
-		mm = swShareMemory_sysv_create(&this->writers[i].shm, SW_CHAN_BUFFER_SIZE, SW_CHAN_SYSV_KEY+i);
+		mm = swShareMemory_sysv_create(&this->writers[i].shm, SW_CHAN_BUFFER_SIZE, SW_CHAN_SYSV_KEY + i);
 #endif
 		if (mm == NULL)
 		{
@@ -194,7 +194,7 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 		sw_process_type = SW_PROCESS_MANAGER;
 		swFactoryProcess_manager_loop(factory);
 		break;
-	//主进程
+		//主进程
 	default:
 		this->manager_pid = pid;
 		int ret = swFactoryProcess_writer_start(factory);
@@ -245,7 +245,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 	swWorkerChild *reload_workers;
 
 	reload_workers = sw_calloc(this->worker_num, sizeof(swWorkerChild));
-	if (reload_workers == NULL )
+	if (reload_workers == NULL)
 	{
 		swError("[manager] malloc[reload_workers] fail.\n");
 		return SW_ERR;
@@ -256,7 +256,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 
 	while (1)
 	{
-		pid = wait(NULL );
+		pid = wait(NULL);
 		swTrace("[manager] worker stop.pid=%d\n", pid);
 		if (pid < 0)
 		{
@@ -271,7 +271,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 				goto kill_worker;
 			}
 		}
-		if(swoole_running == 1)
+		if (swoole_running == 1)
 		{
 			for (i = 0; i < this->worker_num; i++)
 			{
@@ -293,8 +293,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 			}
 		}
 		//reload worker
-		kill_worker:
-		if (manager_worker_reloading == 1)
+		kill_worker: if (manager_worker_reloading == 1)
 		{
 			//reload finish
 			if (reload_worker_i >= this->worker_num)
@@ -473,8 +472,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int work
 		{
 			swWarn("[Worker]read pipe error.Errno=%d\n", errno);
 		}
-	}
-	swTrace("[Worker]max request\n");
+	} swTrace("[Worker]max request\n");
 	return SW_OK;
 }
 
@@ -530,7 +528,7 @@ static int swFactoryProcess_writer_start(swFactory *factory)
 	for (i = 0; i < this->writer_num; i++)
 	{
 		param = sw_malloc(sizeof(swThreadParam));
-		if (param == NULL )
+		if (param == NULL)
 		{
 			swError("malloc fail\n");
 			return SW_ERR;
@@ -549,11 +547,53 @@ static int swFactoryProcess_writer_start(swFactory *factory)
 	return SW_OK;
 }
 
+int swFactoryProcess_writer_excute(swFactory *factory, swEventData *resp)
+{
+	int ret;
+	swServer *serv = factory->ptr;
+
+	swSendData send_data;
+	swEvent closeFd;
+
+	//表示关闭
+	if (resp->info.len == 0)
+	{
+		close_fd:
+		{
+			closeFd.fd = resp->info.fd;
+			closeFd.from_id = resp->info.from_id;
+			//printf("closeFd.fd=%d|from_id=%d\n", closeFd.fd, closeFd.from_id);
+			swServer_close(serv, &closeFd);
+		}
+		return SW_ERR;
+	}
+	else
+	{
+		send_data.data = resp->data;
+		send_data.info.len = resp->info.len;
+		send_data.info.from_id = resp->info.from_id;
+		send_data.info.fd = resp->info.fd;
+		ret = factory->onFinish(factory, &send_data);
+		if (ret < 0)
+		{
+			//连接已被关闭
+			if (errno == EBADF)
+			{
+				goto close_fd;
+			}
+			swWarn("factory->onFinish fail.fd=%d|from_id=%d|errno=%d\n", resp->info.fd, resp->info.from_id, errno);
+		}
+		//printf("[writer]pop.fd=%d|from_id=%d|data=%s\n", resp->info.fd, resp->info.from_id, resp->data);
+	}
+	return SW_OK;
+}
+
 int swFactoryProcess_writer_receive(swReactor *reactor, swEvent *ev)
 {
 	swFactory *factory = reactor->factory;
+	swServer *serv = factory->ptr;
 	swEventData resp;
-	swSendData send_data;
+
 	int n, ret;
 
 	//Unix Sock UDP
@@ -561,16 +601,7 @@ int swFactoryProcess_writer_receive(swReactor *reactor, swEvent *ev)
 	swTrace("[WriteThread]recv: writer=%d|pipe=%d\n", ev->from_id, ev->fd);
 	if (n > 0)
 	{
-		send_data.data = resp.data;
-		send_data.info.len = resp.info.len;
-		send_data.info.from_id = resp.info.from_id;
-		send_data.info.fd = resp.info.fd;
-		ret = factory->onFinish(factory, &send_data);
-		if(ret < 0)
-		{
-			swWarn("factory->onFinish fail.fd=%d|from_id=%d|errno=%d\n", resp.info.fd, resp.info.from_id, errno);
-		}
-		return ret;
+		return swFactoryProcess_writer_excute(factory, &resp);
 	}
 	else
 	{
@@ -624,36 +655,14 @@ int swFactoryProcess_writer_loop_ex(swThreadParam *param)
 	while (swoole_running > 0)
 	{
 		elem = swChan_pop(chan);
-		if (elem == NULL )
+		if (elem == NULL)
 		{
 			swChan_wait(chan);
 		}
 		else
 		{
 			resp = (swEventData *) elem->ptr;
-			//表示关闭
-			if(resp->info.len == 0)
-			{
-				closeFd.fd = resp->info.fd;
-				closeFd.from_id = resp->info.from_id;
-				//printf("closeFd.fd=%d|from_id=%d\n", closeFd.fd, closeFd.from_id);
-				swServer_close(serv, &closeFd);
-			}
-			//正常的数据
-			else
-			{
-				send_data.data = resp->data;
-				send_data.info.len = resp->info.len;
-				send_data.info.from_id = resp->info.from_id;
-				send_data.info.fd = resp->info.fd;
-
-				ret = factory->onFinish(factory, &send_data);
-				if (ret < 0)
-				{
-					swWarn("factory->onFinish fail.fd=%d|from_id=%d|errno=%d\n", resp->info.fd, resp->info.from_id, errno);
-				}
-				//printf("[writer]pop.fd=%d|from_id=%d|data=%s\n", resp->info.fd, resp->info.from_id, resp->data);
-			}
+			swFactoryProcess_writer_excute(factory, resp);
 		}
 	}
 	pthread_exit((void *) param);

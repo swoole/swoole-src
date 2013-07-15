@@ -82,7 +82,7 @@ swChanElem* swChan_pop(swChan *chan)
 {
 	if (chan->lock.trylock(&chan->lock) < 0)
 	{
-		return NULL ;
+		return NULL;
 	}
 	swChanElem *elem = swChan_pop_nolock(chan);
 	chan->lock.unlock(&chan->lock);

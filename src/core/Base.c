@@ -89,10 +89,9 @@ SWINLINE int swSocket_listen(int type, char *host, int port, int backlog)
 	sock = swSocket_create(type);
 	if (sock < 0)
 	{
-		swTrace("Create socket fail.type=%d|Errno=%d\n", type, errno);
+		swWarn("Create socket fail.type=%d|Errno=%d\n", type, errno);
 		return SW_ERR;
 	}
-
 	//reuse
 	option = 1;
 	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int));
@@ -118,7 +117,7 @@ SWINLINE int swSocket_listen(int type, char *host, int port, int backlog)
 	//将监听套接字同sockaddr绑定
 	if (ret < 0)
 	{
-		swTrace("bind fail.type=%d|host=%s|port=%d|Errno=%d\n", type, host, port, errno);
+		swWarn("bind fail.type=%d|host=%s|port=%d|Errno=%d\n", type, host, port, errno);
 		return SW_ERR;
 	}
 	if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6)
@@ -129,7 +128,7 @@ SWINLINE int swSocket_listen(int type, char *host, int port, int backlog)
 	ret = listen(sock, backlog);
 	if (ret < 0)
 	{
-		swTrace("Listen fail.type=%d|host=%s|port=%d|Errno=%d\n", type, host, port, errno);
+		swWarn("Listen fail.type=%d|host=%s|port=%d|Errno=%d\n", type, host, port, errno);
 		return SW_ERR;
 	}
 	swSetNonBlock(sock);
@@ -162,7 +161,7 @@ SWINLINE int swRead(int fd, char *buf, int len)
 			}
 		}
 		//连接已关闭
-		else if(nread == 0)
+		else if (nread == 0)
 		{
 			sw_errno = ECONNRESET;
 			return 0;
@@ -280,15 +279,12 @@ SWINLINE void swSetBlock(int sock)
 	opts = fcntl(sock, F_GETFL);
 	if (opts < 0)
 	{
-		perror("fcntl(sock,GETFL)");
-		exit(1);
+		swWarn("fcntl(sock,GETFL) fail");
 	}
-
 	opts = opts & ~O_NONBLOCK;
 	if (fcntl(sock, F_SETFL, opts) < 0)
 	{
-		perror("fcntl(sock,SETFL,opts)");
-		exit(1);
+		swWarn("fcntl(sock,SETFL,opts) fail");
 	}
 }
 

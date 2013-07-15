@@ -30,7 +30,7 @@
 #define SW_WORKER_MSGQUEUE_KEY     0x27000900
 
 //#define SW_USE_RINGQUEUE_TS       1   //使用线程安全版本的RingQueue
-#define SW_USE_SHM_CHAN            1    //使用共享内存队列，此特性正在测试中，启用此特性会用内存队列来替代IPC通信，会减少系统调用、内存申请和复制，提高性能
+//#define SW_USE_SHM_CHAN            1    //使用共享内存队列，此特性正在测试中，启用此特性会用内存队列来替代IPC通信，会减少系统调用、内存申请和复制，提高性能
 #define SW_CHAN_PUSH_TRY_COUNT     100
 #define SW_CHAN_BUFFER_SIZE        1024*1024*2 //2M缓存区
 #define SW_CHAN_ELEM_SIZE          16
