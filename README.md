@@ -86,9 +86,9 @@ client.php
 <?php
 $client = new swoole_client(SWOOLE_SOCK_UDP, SWOOLE_SOCK_SYNC); //同步阻塞
 $client->connect('127.0.0.1', 9500, 0.5, 0);
-for($i=0; $i &lt; 1000; $i++){
-    $client-&gt;send("hello world-{$i}");
-    $data = $client-&gt;recv(1024, 0);
+for($i=0; $i < 1000; $i++){
+    $client->send("hello world-{$i}");
+    $data = $client->recv(1024, 0);
     echo $data;
 }
 $client->close();
