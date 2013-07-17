@@ -52,17 +52,12 @@ int swUnitTest_run(swUnitTest *object)
 
 	for (tmp = unitTest_ht; tmp != NULL; tmp = tmp->hh.next)
 	{
-		printf("swUnitTest: %s\t", tmp->key);
 		if (strncmp(argv[1], tmp->key, max_len) == 0)
 		{
 			func = tmp->func;
 			printf("running\n");
 			ret = func(object);
 
-		}
-		else
-		{
-			printf("skip...\n");
 		}
 	}
 	return ret;

@@ -228,7 +228,11 @@ static void sw_destory_server(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 	swServer *serv = (swServer *) rsrc->ptr;
 	if(serv!=NULL)
 	{
-		swServer_free(serv);
+		//只有主进程执行此操作
+		if(swIsMaster())
+		{
+			swServer_free(serv);
+		}
 		sw_free(serv);
 	}
 }

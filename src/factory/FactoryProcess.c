@@ -68,6 +68,8 @@ int swFactoryProcess_shutdown(swFactory *factory)
 {
 	swFactoryProcess *this = factory->object;
 	int i;
+	//kill manager process
+	kill(this->manager_pid, SIGTERM);
 	//kill all child process
 	for (i = 0; i < this->worker_num; i++)
 	{
@@ -645,8 +647,6 @@ int swFactoryProcess_writer_loop_ex(swThreadParam *param)
 	swChan *chan;
 	swChanElem *elem;
 	swEventData *resp;
-	swEvent closeFd;
-	swSendData send_data;
 
 	int ret;
 	int pti = param->pti;

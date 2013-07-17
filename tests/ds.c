@@ -21,10 +21,9 @@ swUnitTest(type_test1)
 
 swUnitTest(chan_test)
 {
-
 	int ret, i;
 	//int size = 1024 * 1024 * 8; //8M
-	int size = 1024 * 200;
+	int size = 1024 * 200; //共享内存大小
 	swChanElem *elem;
 	char buf[128];
 	//void *mem = malloc(size);
@@ -41,14 +40,12 @@ swUnitTest(chan_test)
 	{
 		printf("malloc memory OK.mem_addr=%p\n", mem);
 	}
-
 	ret = swChan_create(&chan, mem, size, 64);
 	if (ret < 0)
 	{
 		printf("swChan_create fail.\n");
 		return 0;
 	}
-
 	buf[127] = '\0';
 	memset(buf, 'c', 127);
 
@@ -56,19 +53,23 @@ swUnitTest(chan_test)
 
 	if (pid > 0)
 	{
-		swBreakPoint();
-		for (i = 0; i < 7; i++)
+		printf("parent\n");
+		for (i = 0; i < 1000; i++)
 		{
 			//n = snprintf(buf, 128, "hello world.i=%d", i);
 			ret = swChan_push(chan, buf, 128);
 			if (ret < 0)
 			{
-				printf("swChan_push fail.\n");
+				printf("[%d]swChan_push fail.\n", i);
 				return 0;
+			}
+			else
+			{
+				printf("[%d]swChan_push ok.\n", i);
 			}
 		}
 		printf(
-				"#swChan_pop---------------------------\nmem_addr\t%p\nelem_num\t%d\
+				"[parent]#swChan_pop---------------------------\nmem_addr\t%p\nelem_num\t%d\
 				\nelem_size\t%d\nmem_use_num\t%d\nmem_size\t%d\nelem_tail\t%d\nelem_head\t%d\nmem_current\t%d\n",
 				chan->mem, chan->elem_num, chan->elem_size, chan->mem_use_num, chan->mem_size, chan->elem_tail,
 				chan->elem_head, chan->mem_cur);
@@ -78,8 +79,9 @@ swUnitTest(chan_test)
 	else
 	{
 		sleep(1);
+		printf("child\n");
 		swBreakPoint();
-		for (i = 0; i < 7; i++)
+		for (i = 0; i < 70; i++)
 		{
 			elem = swChan_pop(chan);
 			if (elem == NULL )
@@ -92,7 +94,7 @@ swUnitTest(chan_test)
 			}
 		}
 		printf(
-				"#swChan_pop---------------------------\nmem_addr\t%p\nelem_num\t%d\
+				"[child]#swChan_pop---------------------------\nmem_addr\t%p\nelem_num\t%d\
 				\nelem_size\t%d\nmem_use_num\t%d\nmem_size\t%d\nelem_tail\t%d\nelem_head\t%d\nmem_current\t%d\n",
 				chan->mem, chan->elem_num, chan->elem_size, chan->mem_use_num, chan->mem_size, chan->elem_tail,
 				chan->elem_head, chan->mem_cur);
