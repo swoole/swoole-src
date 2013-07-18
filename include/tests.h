@@ -22,6 +22,7 @@ void _swUnitTest_setup(swUnitTest_Func func, char *func_name, int run_times);
 int swUnitTest_run(swUnitTest *object);
 
 swUnitTest(mem_test1);
+swUnitTest(mem_test2);
 swUnitTest(client_test);
 swUnitTest(server_test);
 

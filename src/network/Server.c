@@ -537,7 +537,7 @@ int swServer_onFinish2(swFactory *factory, swSendData *resp)
 		while (1)
 		{
 			ret = sendto(fd->sock, resp->data, resp->info.len, 0, (struct sockaddr *) &(fd->addr), sizeof(fd->addr));
-			swTrace("sendto sock=%d|from_id=%d\n", fd->sock, resp->from_id);
+			swTrace("sendto sock=%d|from_id=%d\n", fd->sock, resp->info.from_id);
 			if (ret < 0)
 			{
 				if (errno == EINTR || errno == EAGAIN)

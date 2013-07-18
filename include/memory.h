@@ -23,9 +23,21 @@ typedef struct _swShareMemory_mmap
 	void *mem;
 } swShareMemory;
 
+typedef struct _swMemPool
+{
+	int size;
+	int item_size;
+	int cur;
+	void *mem;
+} swMemPool;
+
 void *swShareMemory_mmap_create(swShareMemory *object, int size, char *mapfile);
 void *swShareMemory_sysv_create(swShareMemory *object, int size, int key);
 int swShareMemory_sysv_free(swShareMemory *object, int rm);
 int swShareMemory_mmap_free(swShareMemory *object);
+
+#define swMemPool_free(data) (*(char*)(data-1)=0)
+void* swMemPool_fetch(swMemPool *p);
+void swMemPool_create(swMemPool *p, void *mem, int size, int item_size);
 
 #endif /* SW_MEMORY_H_ */

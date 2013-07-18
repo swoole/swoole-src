@@ -154,6 +154,7 @@ if test "$PHP_SWOOLE" != "no"; then
     src/core/RingQueue.c \
     src/core/Chan.c \
     src/memory/ShareMemory.c \
+    src/memory/MemPool.c \
     src/factory/Factory.c \
     src/factory/FactoryThread.c \
     src/factory/FactoryProcess.c \

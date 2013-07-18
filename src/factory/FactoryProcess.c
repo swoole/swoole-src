@@ -161,7 +161,7 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 			swError("swShareMemory create fail");
 			return SW_ERR;
 		}
-		if (swChan_create(&this->writers[i].chan, mm, SW_CHAN_BUFFER_SIZE, SW_CHAN_ELEM_SIZE) < 0)
+		if (swChan_create(&this->writers[i].chan, mm, SW_CHAN_BUFFER_SIZE, SW_CHAN_ELEM_SIZE, SW_BUFFER_SIZE + sizeof(swDataHead)) < 0)
 		{
 			swError("swChan_create fail");
 			return SW_ERR;
@@ -395,13 +395,11 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	int ret, sendn;
 	swFactoryProcess *this = factory->object;
 	swEventData send_data;
-
 	memcpy(send_data.data, resp->data, resp->info.len);
 	send_data.info.fd = resp->info.fd;
 	send_data.info.len = resp->info.len;
 	send_data.info.from_id = resp->info.from_id;
-	sendn = resp->info.len + sizeof(resp->info);
-
+	sendn =  resp->info.len + sizeof(resp->info);
 #ifdef SW_USE_SHM_CHAN
 	int count;
 	swChan *chan = this->writers[c_writer_pti].chan;
@@ -409,11 +407,11 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	{
 		ret = swChan_push(chan, &send_data, sendn);
 		//printf("[worker]push[send].fd=%d|from_id=%d|last_from_id=%d|data=%s\n", send_data.info.fd, send_data.info.from_id, factory->last_from_id, send_data.data);
-		//send success
 		if (ret == 0)
 		{
 			break;
 		}
+		swYield();
 	}
 	if (ret < 0)
 	{
@@ -425,7 +423,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	}
 	//printf("push data.fd=%d|from_id=%d|data=%s\n", send_data.fd, send_data.from_id, send_data.data);
 #else
-	ret = write(c_worker_pipe, &send_data, sendn);
+	ret = write(c_worker_pipe, &send_data,sendn);
 #endif
 	return ret;
 }
@@ -462,7 +460,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int work
 		swTrace("read msgqueue.errno=%d|pid=%d\n", errno, getpid());
 #else
 		n = read(c_pipe, &req, sizeof(req));
-		swTrace("[Worker]Recv: pipe=%d|pti=%d\n", c_pipe, req.from_id);
+		swTrace("[Worker]Recv: pipe=%d|pti=%d\n", c_pipe, req.info.from_id);
 #endif
 		if (n > 0)
 		{
@@ -474,7 +472,8 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int work
 		{
 			swWarn("[Worker]read pipe error.Errno=%d\n", errno);
 		}
-	} swTrace("[Worker]max request\n");
+	}
+	swTrace("[Worker]max request\n");
 	return SW_OK;
 }
 
@@ -592,11 +591,10 @@ int swFactoryProcess_writer_excute(swFactory *factory, swEventData *resp)
 
 int swFactoryProcess_writer_receive(swReactor *reactor, swEvent *ev)
 {
+	int n, ret;
 	swFactory *factory = reactor->factory;
 	swServer *serv = factory->ptr;
 	swEventData resp;
-
-	int n, ret;
 
 	//Unix Sock UDP
 	n = read(ev->fd, &resp, sizeof(resp));
@@ -663,6 +661,8 @@ int swFactoryProcess_writer_loop_ex(swThreadParam *param)
 		{
 			resp = (swEventData *) elem->ptr;
 			swFactoryProcess_writer_excute(factory, resp);
+			//释放掉内存
+			swMemPool_free(elem->ptr);
 		}
 	}
 	pthread_exit((void *) param);

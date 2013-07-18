@@ -40,7 +40,7 @@ swUnitTest(chan_test)
 	{
 		printf("malloc memory OK.mem_addr=%p\n", mem);
 	}
-	ret = swChan_create(&chan, mem, size, 64);
+	ret = swChan_create(&chan, mem, size, 200, 128);
 	if (ret < 0)
 	{
 		printf("swChan_create fail.\n");
@@ -70,9 +70,9 @@ swUnitTest(chan_test)
 		}
 		printf(
 				"[parent]#swChan_pop---------------------------\nmem_addr\t%p\nelem_num\t%d\
-				\nelem_size\t%d\nmem_use_num\t%d\nmem_size\t%d\nelem_tail\t%d\nelem_head\t%d\nmem_current\t%d\n",
-				chan->mem, chan->elem_num, chan->elem_size, chan->mem_use_num, chan->mem_size, chan->elem_tail,
-				chan->elem_head, chan->mem_cur);
+				\nelem_size\t%d\nmem_size\t%d\nelem_tail\t%d\nelem_head\t%d\n",
+				chan->mem, chan->elem_num, chan->elem_max,  chan->mem_size, chan->elem_tail,
+				chan->elem_head);
 		printf("chan_test OK.\n");
 		pause();
 	}
@@ -94,10 +94,10 @@ swUnitTest(chan_test)
 			}
 		}
 		printf(
-				"[child]#swChan_pop---------------------------\nmem_addr\t%p\nelem_num\t%d\
-				\nelem_size\t%d\nmem_use_num\t%d\nmem_size\t%d\nelem_tail\t%d\nelem_head\t%d\nmem_current\t%d\n",
-				chan->mem, chan->elem_num, chan->elem_size, chan->mem_use_num, chan->mem_size, chan->elem_tail,
-				chan->elem_head, chan->mem_cur);
+				"[parent]#swChan_pop---------------------------\nmem_addr\t%p\nelem_num\t%d\
+								\nelem_size\t%d\nmem_size\t%d\nelem_tail\t%d\nelem_head\t%d\n",
+								chan->mem, chan->elem_num, chan->elem_max,  chan->mem_size, chan->elem_tail,
+								chan->elem_head);
 		pause();
 	}
 	return 0;

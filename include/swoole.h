@@ -127,7 +127,7 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 
 #ifdef SW_DEBUG
 #define swTrace(str,...)       {printf("[%s:%d@%s]"str"\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);}
-#define swWarn(str,...)        {printf("[%s:%d@%s]"str"\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);}
+//#define swWarn(str,...)        {printf("[%s:%d@%s]"str"\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);}
 #else
 #define swTrace(str,...)
 //#define swWarn(str,...)        {printf(sw_error);}
@@ -320,10 +320,8 @@ typedef struct _swChan
 {
 	void *mem;
 	int mem_size;
-	int mem_use_num;
-	int mem_cur;
 
-	int elem_size;
+	int elem_max;
 	int elem_num;
 	int elem_tail;
 	int elem_head;
@@ -331,9 +329,10 @@ typedef struct _swChan
 	swPipe notify_fd; //用于阻塞通知
 	swMutex lock;
 	swChanElem *elems;
+	swMemPool pool;
 } swChan;
 
-int swChan_create(swChan **chan, void *mem, int mem_size, int elem_num);
+int swChan_create(swChan **chan_addr, void *mem, int mem_size, int elem_max, int elem_size);
 void swChan_destroy(swChan *chan);
 int swChan_push(swChan *chan, void *buf, int size);
 int swChan_push_nolock(swChan *chan, void *buf, int size);
