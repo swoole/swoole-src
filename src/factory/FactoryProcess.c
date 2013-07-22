@@ -452,6 +452,12 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int work
 	}
 #endif
 
+	if (serv->onWorkerStart != NULL)
+	{
+		//worker进程启动时调用
+		serv->onWorkerStart(serv, worker_pti);
+	}
+
 	//主线程
 	while (swoole_running > 0 && task_num > 0)
 	{
@@ -472,6 +478,11 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int work
 		{
 			swWarn("[Worker]read pipe error.Errno=%d\n", errno);
 		}
+	}
+	if (serv->onWorkerStop != NULL)
+	{
+		//worker进程结束时调用
+		serv->onWorkerStop(serv, worker_pti);
 	}
 	swTrace("[Worker]max request\n");
 	return SW_OK;

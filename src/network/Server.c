@@ -149,10 +149,6 @@ void swServer_timer_free(swServer *serv)
 
 static int swServer_check_callback(swServer *serv)
 {
-	if (serv->onStart == NULL)
-	{
-		return SW_ERR;
-	}
 	if (serv->onConnect == NULL)
 	{
 		return SW_ERR;
@@ -162,10 +158,6 @@ static int swServer_check_callback(swServer *serv)
 		return SW_ERR;
 	}
 	if (serv->onClose == NULL)
-	{
-		return SW_ERR;
-	}
-	if (serv->onShutdown == NULL)
 	{
 		return SW_ERR;
 	}
@@ -251,9 +243,15 @@ int swServer_start(swServer *serv)
 	tmo.tv_sec = SW_MAINREACTOR_TIMEO;
 	tmo.tv_usec = 0;
 
-	serv->onStart(serv);
+	if (serv->onStart != NULL)
+	{
+		serv->onStart(serv);
+	}
 	main_reactor.wait(&main_reactor, &tmo);
-	serv->onShutdown(serv);
+	if (serv->onShutdown != NULL)
+	{
+		serv->onShutdown(serv);
+	}
 	return SW_OK;
 }
 

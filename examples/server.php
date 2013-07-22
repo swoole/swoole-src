@@ -13,6 +13,7 @@ swoole_server_set($serv, array(
     'writer_num' => 2,     //writer thread num
     'worker_num' => 4,    //worker process num
     'backlog' => 128,   //listen backlog
+    'max_request' => 50,
 ));
 
 /*
@@ -47,6 +48,16 @@ function my_onConnect($serv,$fd,$from_id)
 	echo "Client：Connect.\n";
 }
 
+function my_onWorkerStart($serv, $worker_id)
+{
+	echo "WorkerStart[$worker_id]|pid=".posix_getpid().".\n";
+}
+
+function my_onWorkerStop($serv, $worker_id)
+{
+	echo "WorkerStop[$worker_id]|pid=".posix_getpid().".\n";
+}
+
 function my_onReceive($serv, $fd, $from_id, $data)
 {
     //echo "Client：Data. fd=$fd|from_id=$from_id|data=$data\n";
@@ -62,6 +73,9 @@ swoole_server_handler($serv, 'onReceive', 'my_onReceive');
 swoole_server_handler($serv, 'onClose', 'my_onClose');
 swoole_server_handler($serv, 'onShutdown', 'my_onShutdown');
 swoole_server_handler($serv, 'onTimer', 'my_onTimer');
+swoole_server_handler($serv, 'onWorkerStart', 'my_onWorkerStart');
+swoole_server_handler($serv, 'onWorkerStop', 'my_onWorkerStop');
+
 #swoole_server_addtimer($serv, 2);
 #swoole_server_addtimer($serv, 10);
 swoole_server_start($serv);

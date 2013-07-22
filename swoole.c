@@ -55,14 +55,16 @@
 #define SW_RES_SERVER_NAME          "SwooleServer"
 #define SW_RES_CLIENT_NAME          "SwooleClient"
 
-#define PHP_CALLBACK_NUM        6
+#define PHP_CALLBACK_NUM        8
 
-#define PHP_CB_onStart          0
-#define PHP_CB_onConnect        1
-#define PHP_CB_onReceive        2
-#define PHP_CB_onClose          3
-#define PHP_CB_onShutdown       4
-#define PHP_CB_onTimer          5
+#define PHP_CB_onStart          0 //Server启动
+#define PHP_CB_onConnect        1 //accept连接
+#define PHP_CB_onReceive        2 //接受数据
+#define PHP_CB_onClose          3 //关闭连接
+#define PHP_CB_onShutdown       4 //Server关闭
+#define PHP_CB_onTimer          5 //定时器
+#define PHP_CB_onWorkerStart    6 //Worker进程启动
+#define PHP_CB_onWorkerStop     7 //Worker进程结束
 #define SW_HOST_SIZE            128
 
 static int le_swoole_server;
@@ -77,6 +79,8 @@ static void php_swoole_onShutdown(swServer *);
 static void php_swoole_onConnect(swServer *, int fd, int from_id);
 static void php_swoole_onClose(swServer *, int fd, int from_id);
 static void php_swoole_onTimer(swServer *serv, int interval);
+static void php_swoole_onWorkerStart(swServer *, int worker_id);
+static void php_swoole_onWorkerStop(swServer *, int worker_id);
 static void sw_destory_server(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 static void sw_destory_client(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 static int php_swoole_set_callback(int key, zval *cb);
@@ -382,8 +386,8 @@ PHP_FUNCTION(swoole_server_handler)
 {
 	zval *zserv = NULL;
 	char *ha_name = NULL;
-	int len;
-	int ret;
+	int len, i;
+	int ret = -1;
 	swServer *serv;
 	zval *cb;
 
@@ -391,33 +395,27 @@ PHP_FUNCTION(swoole_server_handler)
 	{
 		return;
 	}
-
 	ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
-	if(strncasecmp("onStart", ha_name, len) == 0)
+	//必须与define顺序一致
+	char *callback[PHP_CALLBACK_NUM] = {
+			"onStart",
+			"onConnect",
+			"onReceive",
+			"onClose",
+			"onShutdown",
+			"onTimer",
+			"onWorkerStart",
+			"onWorkerStop",
+	};
+	for(i=0; i<PHP_CALLBACK_NUM; i++)
 	{
-		ret = php_swoole_set_callback(PHP_CB_onStart, cb);
+		if(strncasecmp(callback[i], ha_name, len) == 0)
+		{
+			ret = php_swoole_set_callback(i, cb);
+			break;
+		}
 	}
-	else if(strncasecmp("onConnect", ha_name, len) == 0)
-	{
-		ret = php_swoole_set_callback(PHP_CB_onConnect, cb);
-	}
-	else if(strncasecmp("onReceive", ha_name, len) == 0)
-	{
-		ret = php_swoole_set_callback(PHP_CB_onReceive, cb);
-	}
-	else if(strncasecmp("onClose", ha_name, len) == 0)
-	{
-		ret = php_swoole_set_callback(PHP_CB_onClose, cb);
-	}
-	else if(strncasecmp("onShutdown", ha_name, len) == 0)
-	{
-		ret = php_swoole_set_callback(PHP_CB_onShutdown, cb);
-	}
-	else if(strncasecmp("onTimer", ha_name, len) == 0)
-	{
-		ret = php_swoole_set_callback(PHP_CB_onTimer, cb);
-	}
-	else
+	if(ret < 0)
 	{
 		zend_error(E_ERROR, "swoole_server_handler: unkown handler[%s].", ha_name);
 	}
@@ -551,6 +549,47 @@ void php_swoole_onShutdown(swServer *serv)
 	}
 }
 
+static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
+{
+	zval *zserv = (zval *)serv->ptr2;
+	zval *zworker_id;
+	zval **args[2]; //这里必须与下面的数字对应
+	zval *retval;
+
+	MAKE_STD_ZVAL(zworker_id);
+	ZVAL_LONG(zworker_id, worker_id);
+
+	args[0] = &zserv;
+	args[1] = &zworker_id;
+
+	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onWorkerStart], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+	{
+		zend_error(E_WARNING, "SwooleServer: onShutdown handler error");
+	}
+}
+static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
+{
+	zval *zserv = (zval *)serv->ptr2;
+	zval *zworker_id;
+	zval **args[2]; //这里必须与下面的数字对应
+	zval *retval;
+
+	MAKE_STD_ZVAL(zworker_id);
+	ZVAL_LONG(zworker_id, worker_id);
+
+	args[0] = &zserv;
+	args[1] = &zworker_id;
+
+	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onWorkerStop], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+	{
+		zend_error(E_WARNING, "SwooleServer: onShutdown handler error");
+	}
+}
+
 void php_swoole_onConnect(swServer *serv, int fd, int from_id)
 {
 	zval *zserv = (zval *) serv->ptr2;
@@ -621,6 +660,8 @@ PHP_FUNCTION(swoole_server_start)
 	serv->onConnect = php_swoole_onConnect;
 	serv->onReceive = php_swoole_onReceive;
 	serv->onTimer = php_swoole_onTimer;
+	serv->onWorkerStart = php_swoole_onWorkerStart;
+	serv->onWorkerStop = php_swoole_onWorkerStop;
 
 	ret = swServer_create(serv);
 	if (ret < 0)

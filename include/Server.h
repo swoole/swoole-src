@@ -96,6 +96,8 @@ struct swServer_s
 	void (*onConnect)(swServer *serv, int fd, int from_id);
 	void (*onShutdown)(swServer *serv);
 	void (*onTimer)(swServer *serv, int interval);
+	void (*onWorkerStart)(swServer *serv, int worker_id); //Only process mode
+	void (*onWorkerStop)(swServer *serv, int worker_id);  //Only process mode
 };
 int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
