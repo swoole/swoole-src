@@ -23,6 +23,7 @@
 
 #include "php.h"
 #include "php_ini.h"
+#include "php_globals.h"
 
 extern zend_module_entry swoole_module_entry;
 #define phpext_swoole_ptr &swoole_module_entry

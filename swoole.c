@@ -27,6 +27,17 @@
 #include "Server.h"
 #include "Client.h"
 
+/**
+ * PHP5.2
+ */
+#ifndef PHP_FE_END
+#define PHP_FE_END {NULL,NULL,NULL}
+#endif
+
+#ifndef ZEND_MOD_END
+#define ZEND_MOD_END {NULL,NULL,NULL}
+#endif
+
 /* If you declare any globals in php_swoole.h uncomment this:
  ZEND_DECLARE_MODULE_GLOBALS(swoole)
  */
@@ -54,13 +65,6 @@
 #define PHP_CB_onTimer          5
 #define SW_HOST_SIZE            128
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_create, 0, 1, 3)
-	ZEND_ARG_INFO(0, serv_host)
-	ZEND_ARG_INFO(0, serv_port)
-	ZEND_ARG_INFO(0, serv_mode)
-	ZEND_ARG_INFO(0, sock_type)
-ZEND_END_ARG_INFO()
-
 static int le_swoole_server;
 static int le_swoole_client;
 
@@ -79,7 +83,7 @@ static int php_swoole_set_callback(int key, zval *cb);
 
 const zend_function_entry swoole_functions[] =
 {
-	PHP_FE(swoole_server_create, arginfo_swoole_server_create)
+	PHP_FE(swoole_server_create, NULL)
 	PHP_FE(swoole_server_set, NULL)
 	PHP_FE(swoole_server_start, NULL)
 	PHP_FE(swoole_server_send, NULL)
