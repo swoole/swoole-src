@@ -28,3 +28,9 @@ writer_num => 2，通过此参数来调节Write线程的数量，以充分利用
 Listen队列长度
 -----
 backlog => 128，此参数将决定最多同时有多少个待accept的连接，swoole本身accept效率是很高的，基本上不会出现大量排队情况。
+
+其他
+-----
+open_cpu_affinity => 1 ,启用CPU亲和设置
+open_tcp_nodelay  => 1 ,启用tcp_nodelay
+
