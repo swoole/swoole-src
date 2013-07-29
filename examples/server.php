@@ -13,7 +13,7 @@ swoole_server_set($serv, array(
     'writer_num' => 2,     //writer thread num
     'worker_num' => 4,    //worker process num
     'backlog' => 128,   //listen backlog
-    'max_request' => 50,
+    'max_request' => 1000,
 ));
 
 /*

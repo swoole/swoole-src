@@ -20,7 +20,7 @@
 
 #define SW_QUEUE_SIZE              100  //RingBuffer队列长度
 #define SW_MAINREACTOR_TIMEO       3    //主线程，reactor
-#define SW_MAINREACTOR_USE_POLL         //主线程，使用poll还是select
+//#define SW_MAINREACTOR_USE_POLL         //主线程，使用poll还是select
 
 #define SW_REACTOR_TIMEO_SEC       3
 #define SW_REACTOR_TIMEO_USEC      0

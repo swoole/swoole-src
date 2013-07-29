@@ -681,7 +681,7 @@ PHP_FUNCTION(swoole_server_send)
 	zval *zserv = NULL;
 	swServer *serv = NULL;
 	swFactory *factory = NULL;
-	swSendData send;
+	swSendData _send;
 	char buffer[SW_BUFFER_SIZE];
 
 	char *send_data;
@@ -697,16 +697,16 @@ PHP_FUNCTION(swoole_server_send)
 	}
 	ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
 	factory = &(serv->factory);
-	send.info.fd = (int)conn_fd;
+	_send.info.fd = (int)conn_fd;
 	if (from_id < 0)
 	{
-		send.info.from_id = factory->last_from_id;
+		_send.info.from_id = factory->last_from_id;
 	}
 	else
 	{
-		send.info.from_id = from_id;
+		_send.info.from_id = from_id;
 	}
-	send.data = buffer;
+	_send.data = buffer;
 
 	int ret, i;
 	int trunk_num = send_len/SW_BUFFER_SIZE + 1;
@@ -723,8 +723,8 @@ PHP_FUNCTION(swoole_server_send)
 			send_n = SW_BUFFER_SIZE;
 		}
 		memcpy(buffer, send_data + SW_BUFFER_SIZE*i, send_n);
-		send.info.len = send_n;
-		ret = factory->finish(factory, &send);
+		_send.info.len = send_n;
+		ret = factory->finish(factory, &_send);
 	}
 	SW_CHECK_RETURN(ret);
 }
@@ -897,7 +897,7 @@ PHP_METHOD(swoole_client, recv)
 	}
 	else
 	{
-		RETURN_STRING(buf, 0);
+		RETURN_STRINGL(buf, ret, 0);
 	}
 }
 
