@@ -362,23 +362,21 @@ static int php_swoole_set_callback(int key, zval *cb)
 		efree(func_name);
 		return SW_ERR;
 	}
-	zval_add_ref(&cb);
-	php_sw_callback[key] = cb;
-
-	/*php_sw_callback[key] = sw_malloc(sizeof(zval));
+	//zval_add_ref(&cb);
+	//php_sw_callback[key] = cb;
+	php_sw_callback[key] = sw_malloc(sizeof(zval));
 	if(php_sw_callback[key] == NULL)
 	{
 		return SW_ERR;
 	}
-	php_sw_callback[key] = *cb;
-	(php_sw_callback[key])->value.str.val = sw_malloc(cb->value.str.len);
-	if((php_sw_callback[key])->value.str.val == NULL)
-	{
-		return SW_ERR;
-	}
-	memcpy((php_sw_callback[key])->value.str.val, cb->value.str.val, cb->value.str.len);
+	*(php_sw_callback[key]) = *cb;
+//	(php_sw_callback[key])->value.str.val = sw_malloc(cb->value.str.len);
+//	if((php_sw_callback[key])->value.str.val == NULL)
+//	{
+//		return SW_ERR;
+//	}
+//	memcpy((php_sw_callback[key])->value.str.val, cb->value.str.val, cb->value.str.len);
 	zval_copy_ctor(php_sw_callback[key]);
-	*/
 	return SW_OK;
 }
 
