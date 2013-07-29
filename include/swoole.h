@@ -28,6 +28,8 @@
 #define __USE_GNU
 #endif
 
+#define SWOOLE_VERSION    "1.5.1"
+
 #include <sched.h>
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
@@ -122,7 +124,7 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define SW_SOCK_UDP6           4
 
 
-#define swWarn(str,...)       {printf("[%s:%d:%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d@%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
+#define swWarn(str,...)       {printf("[%s:%d:%s]"str"\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d@%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
 #define swError(str,...)       {printf("[%s:%d@%s]"str"\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);exit(1);}
 
 #ifdef SW_DEBUG

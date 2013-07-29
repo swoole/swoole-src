@@ -59,7 +59,7 @@ int swClient_close(swClient *cli)
 	return close(fd);
 }
 
-int swClient_tcp_connect(swClient *cli, char *host, int port, float timeout, int udp_connect)
+int swClient_tcp_connect(swClient *cli, char *host, int port, float timeout, int nonblock)
 {
 	int ret;
 	cli->serv_addr.sin_family = cli->sock_domain;
@@ -68,7 +68,14 @@ int swClient_tcp_connect(swClient *cli, char *host, int port, float timeout, int
 
 	cli->timeout = timeout;
 	swSetTimeout(cli->sock, timeout);
-	swSetBlock(cli->sock);
+	if(nonblock == 1)
+	{
+		swSetNonBlock(cli->sock);
+	}
+	else
+	{
+		swSetBlock(cli->sock);
+	}
 
 	while (1)
 	{
@@ -82,7 +89,7 @@ int swClient_tcp_connect(swClient *cli, char *host, int port, float timeout, int
 		}
 		break;
 	}
-	return SW_OK;
+	return ret;
 }
 
 int swClient_tcp_send(swClient *cli, char *data, int length)
@@ -93,7 +100,7 @@ int swClient_tcp_send(swClient *cli, char *data, int length)
 	//总超时，for循环中计时
 	while (written < length)
 	{
-		n = write(cli->sock, data, length - written);
+		n = send(cli->sock, data, length - written, 0);
 
 		if (n < 0) //反过来
 		{

@@ -60,6 +60,8 @@ PHP_FUNCTION(swoole_server_addlisten);
 PHP_FUNCTION(swoole_server_addtimer);
 PHP_FUNCTION(swoole_server_reload);
 
+PHP_FUNCTION(swoole_client_select);
+
 PHP_METHOD(swoole_client, __construct);
 PHP_METHOD(swoole_client, connect);
 PHP_METHOD(swoole_client, recv);
