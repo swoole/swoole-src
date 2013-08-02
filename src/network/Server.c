@@ -721,9 +721,17 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 	n = swRead(event->fd, buf.data, SW_BUFFER_SIZE);
 	if (n < 0)
 	{
-		swTrace("swRead error: %d\n", errno);
-		return SW_ERR;
+		if(errno==EAGAIN)
+		{
+			return SW_OK;
+		}
+		else
+		{
+			swTrace("swRead error: %d\n", errno);
+			return SW_ERR;
+		}
 	}
+	//需要检测errno来区分是EAGAIN还是ECONNRESET
 	else if (n == 0)
 	{
 		swTrace("Close Event.FD=%d|From=%d\n", event->fd, event->from_id);

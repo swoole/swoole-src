@@ -142,6 +142,7 @@ SWINLINE int swRead(int fd, char *buf, int len)
 	while (1)
 	{
 		nread = read(fd, buf + n, len - n);
+//		swWarn("Read Len=%d|Errno=%d", nread, errno);
 		//遇到错误
 		if (nread < 0)
 		{
@@ -153,18 +154,23 @@ SWINLINE int swRead(int fd, char *buf, int len)
 			//出错了
 			else
 			{
-				if (errno != EAGAIN)
+				if (errno == EAGAIN && n > 0)
+				{
+					break;
+				}
+				else
 				{
 					sw_errno = -1; //异常
+					return SW_ERR;
 				}
-				break;
 			}
 		}
 		//连接已关闭
+		//需要检测errno来区分是EAGAIN还是ECONNRESET
 		else if (nread == 0)
 		{
-			sw_errno = ECONNRESET;
-			return 0;
+			//这里直接break,保证读到的数据被处理
+			break;
 		}
 		else
 		{
@@ -200,7 +206,9 @@ SWINLINE int swWrite(int fd, char *buf, int count)
 	{
 		nwritten = write(fd, buf, count - totlen);
 		if (nwritten == 0)
+		{
 			return totlen;
+		}
 		if (nwritten == -1)
 		{
 			if (errno == EINTR)
@@ -213,7 +221,9 @@ SWINLINE int swWrite(int fd, char *buf, int count)
 				continue;
 			}
 			else
+			{
 				return -1;
+			}
 		}
 		totlen += nwritten;
 		buf += nwritten;

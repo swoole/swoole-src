@@ -714,10 +714,12 @@ PHP_FUNCTION(swoole_server_send)
 	_send.data = buffer;
 
 	int ret, i;
-	int trunk_num = send_len/SW_BUFFER_SIZE + 1;
+	int trunk_num = (send_len/SW_BUFFER_SIZE) + 1;
 	int send_n = 0;
+//	swWarn("SendTo: trunk_num=%d|send_len=%d", trunk_num, send_len);
 	for(i=0; i<trunk_num; i++)
 	{
+		//最后一页
 		if(i == (trunk_num-1))
 		{
 			send_n = send_len % SW_BUFFER_SIZE;

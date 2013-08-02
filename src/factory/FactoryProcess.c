@@ -423,7 +423,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	}
 	//printf("push data.fd=%d|from_id=%d|data=%s\n", send_data.fd, send_data.from_id, send_data.data);
 #else
-	ret = write(c_worker_pipe, &send_data,sendn);
+	ret = write(c_worker_pipe, &send_data, sendn);
 #endif
 	return ret;
 }
