@@ -4,6 +4,7 @@
  *  Created on: 2012-11-13
  *      Author: tianfenghan
  */
+#include <sys/syscall.h>
 
 #ifndef SWOOLE_CONFIG_H_
 #define SWOOLE_CONFIG_H_
@@ -39,7 +40,11 @@
 #define SW_CHAN_SYSV_KEY           0x27000800
 
 #define SW_USE_FIXED_BUFFER
-//#define SW_USE_ACCEPT4                   //是否使用accept4，可以节省一次setnonblock的系统调用
+
+#ifdef __NR_accept4
+#define SW_USE_ACCEPT4                   //是否使用accept4，可以节省一次setnonblock的系统调用
+#endif
+
 #define SW_ACCEPT_AGAIN            1     //是否循环accept，可以一次性处理完全部的listen队列，用于大量并发连接的场景
 #define SW_USE_EVENTFD                   //是否使用eventfd来做消息通知，需要Linux 2.6.22以上版本才会支持
 #endif /* SWOOLE_CONFIG_H_ */
