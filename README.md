@@ -22,7 +22,7 @@ https://github.com/matyhtf/swoole_framework
 
 example
 -----
-server.php
+server.php . See examples/server.php
 ```php
 <?php
 $serv = swoole_server_create("127.0.0.1", 9500, SWOOLE_THREAD, SWOOLE_SOCK_TCP);
@@ -87,7 +87,7 @@ swoole_server_addtimer($serv, 10);
 swoole_server_start($serv);
 ?>
 ```
-client.php
+client.php . See examples/client.php
 ```php
 <?php
 $client = new swoole_client(SWOOLE_SOCK_UDP, SWOOLE_SOCK_SYNC); //同步阻塞
@@ -107,6 +107,15 @@ telnet 127.0.0.1 9500
 hello
 server: hello
 ```
+
+Use in C
+-----
+See examples/server.c
+```bash
+cmake .
+make
+```
+
 blog
 -----
 http://swoole.sinaapp.com/ 中文(Chinese)
