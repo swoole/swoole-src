@@ -27,6 +27,8 @@ set(SRC_LIST src/core/Base.c
     src/network/Client.c 
     src/network/buffer.c 
     examples/server.c)
+    
+add_definitions(-DHAVE_EPOLL -DHAVE_EVENTFD -DHAVE_TIMERFD -DHAVE_CPU_AFFINITY)
 
 #AUX_SOURCE_DIRECTORY(./src DIR_SRCS)
 #AUX_SOURCE_DIRECTORY(. DIR_BIN_SRCS)

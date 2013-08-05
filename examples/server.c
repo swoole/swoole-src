@@ -9,6 +9,7 @@ void my_onClose(swServer *serv, int fd, int from_id);
 void my_onTimer(swServer *serv, int interval);
 void my_onWorkerStart(swServer *serv, int worker_id);
 void my_onWorkerStop(swServer *serv, int worker_id);
+
 char* php_rtrim(char *str, int len)
 {
 	int i;
