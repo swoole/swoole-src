@@ -9,3 +9,5 @@ Debug/*
 /CMakeCache.txt
 /Makefile
 /server
+/lib
+/bin
