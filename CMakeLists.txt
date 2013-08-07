@@ -1,11 +1,10 @@
 PROJECT(server)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.4)
 
-include_directories(BEFORE ../include ../)
 file(GLOB_RECURSE SRC_LIST FOLLOW_SYMLINKS src/*.c)
 file(GLOB_RECURSE HEAD_FILES FOLLOW_SYMLINKS include/*.h)
 
-SET(LIBRARY_OUTPUT_PATH ../lib)
+SET(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/lib)
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 set(SERVER_SRC_LIST examples/server.c)
 
@@ -26,7 +25,7 @@ set_target_properties(swoole_static PROPERTIES OUTPUT_NAME "swoole" VERSION 1.5.
 target_link_libraries(swoole_shared pthread rt)
 target_link_libraries(swoole_static pthread rt)
 
-LINK_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/lib)
+LINK_DIRECTORIES(${LIBRARY_OUTPUT_PATH})
 ADD_EXECUTABLE(server ${SERVER_SRC_LIST})
 add_dependencies(server swoole_shared swoole_static)
 TARGET_LINK_LIBRARIES(server swoole)
