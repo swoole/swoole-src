@@ -84,7 +84,7 @@ static void php_swoole_onWorkerStart(swServer *, int worker_id);
 static void php_swoole_onWorkerStop(swServer *, int worker_id);
 static void sw_destory_server(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 static void sw_destory_client(zend_rsrc_list_entry *rsrc TSRMLS_DC);
-static int php_swoole_set_callback(int key, zval *cb);
+static int php_swoole_set_callback(int key, zval *cb TSRMLS_DC);
 static int php_swoole_client_event_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_DC);
 static int php_swoole_client_event_loop(zval *sock_array, fd_set *fds TSRMLS_DC);
 
@@ -358,7 +358,7 @@ PHP_FUNCTION(swoole_server_set)
 	RETURN_TRUE;
 }
 
-static int php_swoole_set_callback(int key, zval *cb)
+static int php_swoole_set_callback(int key, zval *cb TSRMLS_DC)
 {
 	char *func_name = NULL;
 	if(!zend_is_callable(cb, 0, &func_name TSRMLS_CC))
@@ -414,7 +414,7 @@ PHP_FUNCTION(swoole_server_handler)
 	{
 		if(strncasecmp(callback[i], ha_name, len) == 0)
 		{
-			ret = php_swoole_set_callback(i, cb);
+			ret = php_swoole_set_callback(i, cb TSRMLS_CC);
 			break;
 		}
 	}
