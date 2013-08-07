@@ -361,7 +361,7 @@ PHP_FUNCTION(swoole_server_set)
 static int php_swoole_set_callback(int key, zval *cb)
 {
 	char *func_name = NULL;
-	if(!zend_is_callable(cb, 0, &func_name TSRMLS_DC))
+	if(!zend_is_callable(cb, 0, &func_name TSRMLS_CC))
 	{
 		zend_error(E_WARNING, "Function '%s' is not callable", func_name);
 		efree(func_name);
