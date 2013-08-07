@@ -361,7 +361,7 @@ PHP_FUNCTION(swoole_server_set)
 static int php_swoole_set_callback(int key, zval *cb)
 {
 	char *func_name = NULL;
-	if(!zend_is_callable(cb, 0, &func_name))
+	if(!zend_is_callable(cb, 0, &func_name TSRMLS_DC))
 	{
 		zend_error(E_WARNING, "Function '%s' is not callable", func_name);
 		efree(func_name);
@@ -1019,7 +1019,7 @@ static int php_swoole_client_event_loop(zval *sock_array, fd_set *fds TSRMLS_DC)
 	zend_hash_move_forward(Z_ARRVAL_P(sock_array)))
 	{
 		ce = Z_OBJCE_P(*element);
-		zsock = zend_read_property(ce, *element, SW_STRL("sock")-1, 0 TSRMLS_DC);
+		zsock = zend_read_property(ce, *element, SW_STRL("sock")-1, 0 TSRMLS_CC);
 		if(!zsock)
 		{
 			zend_error(E_WARNING, "object is not swoole_client object.");
@@ -1068,7 +1068,7 @@ static int php_swoole_client_event_add(zval *sock_array, fd_set *fds, int *max_f
 	zend_hash_move_forward(Z_ARRVAL_P(sock_array)))
 	{
 		ce = Z_OBJCE_P(*element);
-		zsock = zend_read_property(ce, *element, SW_STRL("sock")-1, 0 TSRMLS_DC);
+		zsock = zend_read_property(ce, *element, SW_STRL("sock")-1, 0 TSRMLS_CC);
 		if(!zsock)
 		{
 			zend_error(E_WARNING, "object is not swoole_client object.");
