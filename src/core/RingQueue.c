@@ -7,12 +7,12 @@
 int swRingQueue_init(swRingQueue *queue, int buffer_size)
 {
 	queue->size = buffer_size;
-	queue->flags = (char *)malloc(queue->size);
+	queue->flags = (char *)sw_malloc(queue->size);
 	if (queue->flags == NULL)
 	{
 		return -1;
 	}
-	queue->data = (void **)calloc(queue->size, sizeof(void*));
+	queue->data = (void **)sw_calloc(queue->size, sizeof(void*));
 	if (queue->data == NULL)
 	{
 		return -1;

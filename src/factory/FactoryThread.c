@@ -102,8 +102,9 @@ int swFactoryThread_shutdown(swFactory *factory)
 {
 	swoole_running = 0;
 	swFactoryThread *this = factory->object;
-	free(this->writers);
-	free(this);
+	sw_free(this->writers);
+	sw_free(this->queues);
+	sw_free(this);
 	return SW_OK;
 }
 /**

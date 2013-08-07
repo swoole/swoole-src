@@ -77,6 +77,12 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 	while (1)
 #endif
 	{
+		//连接过多
+		if(serv->connect_count >= serv->max_conn)
+		{
+			swWarn("too many connection");
+			return SW_ERR;
+		}
 		//accept得到连接套接字
 		conn_fd = swAccept(event->fd, &client_addr, sizeof(client_addr));
 #ifdef SW_ACCEPT_AGAIN
@@ -109,9 +115,14 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 		ret = serv->poll_threads[c_pti].reactor.add(&(serv->poll_threads[c_pti].reactor), conn_fd, SW_FD_TCP);
 		if (ret < 0)
 		{
-			swTrace("[Main]add event fail Errno=%d|FD=%d\n", errno, conn_fd);
+			swWarn("[Main]add event fail Errno=%d|FD=%d\n", errno, conn_fd);
+			return SW_ERR;
 		}
-		serv->onConnect(serv, conn_fd, c_pti);
+		else
+		{
+			serv->onConnect(serv, conn_fd, c_pti);
+			serv->connect_count++;
+		}
 	}
 	return SW_OK;
 }
@@ -293,6 +304,7 @@ void swServer_init(swServer *serv)
 	serv->max_conn = SW_MAX_FDS;
 	serv->max_request = SW_MAX_REQUEST;
 	serv->max_trunk_num = SW_MAX_TRUNK_NUM;
+	serv->connect_count = 0;
 
 	serv->open_udp = 0;
 	serv->open_cpu_affinity = 0;
@@ -488,6 +500,7 @@ static int swServer_poll_start(swServer *serv)
 	for (i = 0; i < serv->poll_thread_num; i++)
 	{
 		poll_thread = &(serv->poll_threads[i]);
+		//此处内存无需释放，Server启动仅使用一次
 		param = sw_malloc(sizeof(swThreadParam));
 		if (param == NULL)
 		{
@@ -830,6 +843,7 @@ void swSignalInit(void)
 
 int swServer_addListen(swServer *serv, int type, char *host, int port)
 {
+	//此处内存无需释放，Server启动仅使用一次
 	swListenList_node *listen_host = sw_malloc(sizeof(swListenList_node));
 	listen_host->type = type;
 	listen_host->port = port;

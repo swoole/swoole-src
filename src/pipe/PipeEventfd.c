@@ -95,6 +95,7 @@ int swPipeEventfd_getFd(swPipe *p, int isWriteFd)
 void swPipeEventfd_close(swPipe *p)
 {
 	close(((swPipeEventfd *)(p->object))->event_fd);
+	sw_free(p->object);
 }
 
 #endif

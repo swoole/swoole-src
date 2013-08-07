@@ -51,6 +51,7 @@ struct swServer_s
 	uint8_t daemonize;
 
 	int max_conn;
+	int connect_count;
 	int max_request;
 	int timeout_sec;
 	int timeout_usec;

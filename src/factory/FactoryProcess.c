@@ -132,6 +132,7 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 		return SW_ERR;
 	}
 #else
+	//此处内存可不释放，仅启动时分配一次
 	worker_pipes = sw_calloc(this->worker_num, sizeof(swPipes));
 	if (worker_pipes == NULL)
 	{
@@ -313,6 +314,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 			reload_worker_i++;
 		}
 	}
+	sw_free(reload_workers);
 	return SW_OK;
 }
 
@@ -539,6 +541,7 @@ static int swFactoryProcess_writer_start(swFactory *factory)
 
 	for (i = 0; i < this->writer_num; i++)
 	{
+		//内存可不释放，仅分配一次
 		param = sw_malloc(sizeof(swThreadParam));
 		if (param == NULL)
 		{
