@@ -37,6 +37,7 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 		swDataBuffer *data_buffer = &serv->poll_threads[event->from_id].data_buffer;
 		swDataBuffer_clear(data_buffer, cev.fd);
 	}
+	serv->connect_count--;
 	return close(cev.fd);
 }
 
@@ -77,12 +78,6 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 	while (1)
 #endif
 	{
-		//连接过多
-		if(serv->connect_count >= serv->max_conn)
-		{
-			swWarn("too many connection");
-			return SW_ERR;
-		}
 		//accept得到连接套接字
 		conn_fd = swAccept(event->fd, &client_addr, sizeof(client_addr));
 #ifdef SW_ACCEPT_AGAIN
@@ -92,6 +87,13 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 			break;
 		}
 #endif
+		//连接过多
+		if(serv->connect_count >= serv->max_conn)
+		{
+			swWarn("too many connection");
+			close(conn_fd);
+			return SW_ERR;
+		}
 		//TCP Nodelay
 		if (serv->open_tcp_nodelay == 1)
 		{
