@@ -135,8 +135,8 @@ if test "$PHP_SWOOLE" != "no"; then
   PHP_ADD_INCLUDE($SWOOLE_DIR/include)
   AC_ARG_ENABLE(debug, 
     [--enable-debug,  compile with debug symbols],
-    [PHP_DEBUG = $enableval],
-    [PHP_DEBUG = 0]
+    [PHP_DEBUG=$enableval],
+    [PHP_DEBUG=0]
   )
 
   if test "$PHP_SWOOLE_DEBUG" != "no"; then
