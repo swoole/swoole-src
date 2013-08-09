@@ -30,6 +30,14 @@ Swoole:     Requests per second:    19711.22 [#/sec] (mean)
 Node.js:    Requests per second:    6680.53 [#/sec] (mean)
 ```
 
+内存占用对比
+-----
+Golang 运行多次压测后内存从292K上升至558K，再继续压测不会上升
+Node.js运行多次后内存一直在涨，怀疑有内存泄露。从开始运行的593K，到最后的606K。
+Nginx的4个worker进程，内存占用一直稳定在82K。
+Swoole的主进程内存占用一直稳定在320K，多次压测内存占用没有任何增加。Worker进程的内在占用一直在增加。
+通过设置Swoole的max_request参数，worker进程的生命周期是可以控制的，生命周期结束后会自动回收所有内存，所以轻微的内存泄露问题也不大。
+
 结果评价
 -----
 Nginx、Golang、Swoole都是多线程Reactor的，可以充分利用多核，所以成绩是node.js的数倍。
