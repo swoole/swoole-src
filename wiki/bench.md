@@ -2,6 +2,8 @@
 =====
 通过ab工具分别压测nginx swoole node.js golang的http server，并观察结果。
 web server都是输出一行It work!
+硬件环境是一台8G/4核酷睿I5CPU的笔记本电脑，型号是Thinkpad T430.
+
 ```
 Nginx   ab -c 100 -n 100000 http://localhost/index.html
 Swoole  ab -c 100 -n 100000 http://127.0.0.1:8848/
