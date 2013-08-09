@@ -28,7 +28,6 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 		return SW_ERR;
 	}
 	swTrace("Close Event.fd=%d|from=%d\n", cev.fd, cev.from_id);
-	serv->onClose(serv, cev.fd, cev.from_id);
 	from_reactor = &(serv->poll_threads[cev.from_id].reactor);
 	from_reactor->del(from_reactor, cev.fd);
 	if (serv->open_eof_check)
@@ -122,7 +121,12 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 		}
 		else
 		{
-			serv->onConnect(serv, conn_fd, c_pti);
+			//serv->onConnect(serv, conn_fd, c_pti);
+			swEvent connEv;
+			connEv.type = SW_EVENT_CONNECT;
+			connEv.from_id = c_pti;
+			connEv.fd = conn_fd;
+			serv->factory.event(&serv->factory, &connEv);
 			serv->connect_count++;
 		}
 	}
@@ -673,6 +677,10 @@ static int swServer_poll_onReceive(swReactor *reactor, swEvent *event)
 	else if (n == 0)
 	{
 		swTrace("Close Event.FD=%d|From=%d\n", event->fd, event->from_id);
+		swEvent closeEv;
+		memcpy(&closeEv, event, sizeof(swEvent));
+		closeEv.type = SW_EVENT_CLOSE;
+		factory->event(factory, &closeEv);
 		return swServer_close(serv, event);
 	}
 	else
@@ -750,6 +758,10 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 	else if (n == 0)
 	{
 		swTrace("Close Event.FD=%d|From=%d\n", event->fd, event->from_id);
+		swEvent closeEv;
+		memcpy(&closeEv, event, sizeof(swEvent));
+		closeEv.type = SW_EVENT_CLOSE;
+		factory->event(factory, &closeEv);
 		return swServer_close(serv, event);
 	}
 	else

@@ -1,4 +1,4 @@
-Server端部分
+Server
 -----
 * [swoole扩展编译安装](install.md)
 * [swoole_server_set参数说明](setting.md)
@@ -9,7 +9,7 @@ Server端部分
 * [swoole_server_addtimer定时器的使用](timer.md)
 * 关于from_id和fd，回调函数中经常看到它。from_id是来自于哪个poll线程，fd是tcp连接的文件描述符。
 
-Client端部分
+Client
 -----
 swoole的client部分提供了类的封装代码，使用时仅需 new swoole_client即可。
 详情参看examples/client.php中的代码。
@@ -20,6 +20,7 @@ client可以并行。swoole_client中用了select来做IO事件循环。为什�
 高级
 -----
 * [Swoole的实现](swoole.md)
+* [Worker进程](worker.md)
 * [使用C代码开发](use_c.md)
 
 其他

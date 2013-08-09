@@ -108,7 +108,7 @@ int swReactorEpoll_del(swReactor *reactor, int fd)
 
 int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 {
-	swEvent ev;
+	swDataHead ev;
 	swFd fd_;
 	swReactorEpoll *this = reactor->object;
 	int i, n, ret;

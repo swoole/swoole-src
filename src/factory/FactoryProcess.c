@@ -56,6 +56,7 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 	factory->dispatch = swFactoryProcess_dispatch;
 	factory->finish = swFactoryProcess_finish;
 	factory->start = swFactoryProcess_start;
+	factory->event = swFactoryProcess_event;
 	factory->shutdown = swFactoryProcess_shutdown;
 	factory->end = swFactoryProcess_end;
 
@@ -353,10 +354,11 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int writer_pti, int
 	}
 }
 
-int swFactoryProcess_end(swFactory *factory, swEvent *event)
+int swFactoryProcess_end(swFactory *factory, swDataHead *event)
 {
 	int ret;
 	swFactoryProcess *this = factory->object;
+	swServer *serv = factory->ptr;
 	swEventData send_data;
 
 	send_data.info.fd = event->fd;
@@ -387,8 +389,17 @@ int swFactoryProcess_end(swFactory *factory, swEvent *event)
 	}
 	//printf("closeFd.fd=%d|from_id=%d\n", send_data.fd, send_data.from_id);
 #else
-	ret = write(c_worker_pipe, &send_data, sendn);
+	do
+	{
+		ret = write(c_worker_pipe, &send_data, sendn);
+	}
+	while(ret < 0 && errno == EINTR);
 #endif
+	//在Worker进程中执行onClose回调
+	if(ret==0)
+	{
+		serv->onClose(serv, event->fd, event->from_id);
+	}
 	return ret;
 }
 
@@ -425,7 +436,11 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	}
 	//printf("push data.fd=%d|from_id=%d|data=%s\n", send_data.fd, send_data.from_id, send_data.data);
 #else
-	ret = write(c_worker_pipe, &send_data, sendn);
+	do
+	{
+		ret = write(c_worker_pipe, &send_data, sendn);
+	}
+	while(ret < 0 && errno == EINTR);
 #endif
 	return ret;
 }
@@ -454,6 +469,8 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int work
 	}
 #endif
 
+	//设置用户ID与组ID
+
 	if (serv->onWorkerStart != NULL)
 	{
 		//worker进程启动时调用
@@ -467,13 +484,31 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int work
 		n = this->msg_queue.read(&this->msg_queue, &req, sizeof(req));
 		swTrace("read msgqueue.errno=%d|pid=%d\n", errno, getpid());
 #else
-		n = read(c_pipe, &req, sizeof(req));
+		do
+		{
+			n = read(c_pipe, &req, sizeof(req));
+		}
+		while(n < 0 && errno == EINTR);
 		swTrace("[Worker]Recv: pipe=%d|pti=%d\n", c_pipe, req.info.from_id);
 #endif
 		if (n > 0)
 		{
 			factory->last_from_id = req.info.from_id;
-			factory->onTask(factory, &req);
+			switch(req.info.type)
+			{
+			case SW_EVENT_DATA:
+				factory->onTask(factory, &req);
+				break;
+			case SW_EVENT_CLOSE:
+				serv->onClose(serv, req.info.fd, req.info.from_id);
+				break;
+			case SW_EVENT_CONNECT:
+				serv->onConnect(serv, req.info.fd, req.info.from_id);
+				break;
+			default:
+				swWarn("Error event[type=%d]", (int)req.info.type);
+				break;
+			}
 			task_num--;
 		}
 		else
@@ -490,12 +525,50 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int work
 	return SW_OK;
 }
 
+int swFactoryProcess_event(swFactory *factory, swDataHead *ev)
+{
+	swFactoryProcess *this = factory->object;
+	swDataHead _send;
+	int ret;
+	int send_len = sizeof(swDataHead);
+	int pti;
+	memcpy(&_send, ev, sizeof(swDataHead));
+
+#if SW_DISPATCH_MODE == 3
+	//使用抢占式队列(IPC消息队列)分配
+	ret = this->msg_queue.write(&this->msg_queue, _send, send_len);
+#else
+#if SW_DISPATCH_MODE == 1
+	//使用平均分配
+	pti = this->worker_pti;
+	if (this->worker_pti >= this->worker_num)
+	{
+		this->worker_pti = 0;
+		pti = 0;
+	}
+	this->worker_pti++;
+#elif SW_DISPATCH_MODE == 2
+	//使用fd取摸来散列
+	pti = _send.fd % this->worker_num;
+#endif
+	swTrace("[ReadThread]sendto: pipe=%d|worker=%d\n", this->workers[pti].pipe_fd, pti);
+	//send to unix sock
+	ret = swWrite(this->workers[pti].pipe_fd, (char *) &_send, send_len);
+#endif
+	if (ret < 0)
+	{
+		return SW_ERR;
+	}
+	return SW_OK;
+}
+
 int swFactoryProcess_dispatch(swFactory *factory, swEventData *data)
 {
 	swFactoryProcess *this = factory->object;
 	int ret;
 	int send_len = data->info.len + sizeof(data->info);
 	int pti;
+	data->info.type = SW_EVENT_DATA; //这是一个数据事件
 
 #if SW_DISPATCH_MODE == 3
 	//使用抢占式队列(IPC消息队列)分配
@@ -568,7 +641,7 @@ int swFactoryProcess_writer_excute(swFactory *factory, swEventData *resp)
 	swServer *serv = factory->ptr;
 
 	swSendData send_data;
-	swEvent closeFd;
+	swDataHead closeFd;
 
 	//表示关闭
 	if (resp->info.len == 0)
@@ -603,7 +676,7 @@ int swFactoryProcess_writer_excute(swFactory *factory, swEventData *resp)
 	return SW_OK;
 }
 
-int swFactoryProcess_writer_receive(swReactor *reactor, swEvent *ev)
+int swFactoryProcess_writer_receive(swReactor *reactor, swDataHead *ev)
 {
 	int n, ret;
 	swFactory *factory = reactor->factory;

@@ -1,6 +1,6 @@
 #include "swoole.h"
 
-int swReactor_accept(swReactor *reactor, swEvent *event)
+int swReactor_accept(swReactor *reactor, swDataHead *event)
 {
 	swEventConnect conn_ev;
 	conn_ev.from_id = event->from_id;
@@ -29,7 +29,7 @@ inline int swReactor_error(swReactor *reactor)
 	return SW_ERR;
 }
 
-int swReactor_close(swReactor *reactor, swEvent *event)
+int swReactor_close(swReactor *reactor, swDataHead *event)
 {
 	//swEventClose close_ev;
 	//close_ev.fd = event->fd;
@@ -53,7 +53,7 @@ int swReactor_setHandle(swReactor *reactor, int fdtype, swReactor_handle handle)
 	}
 }
 
-int swReactor_receive(swReactor *reactor, swEvent *event)
+int swReactor_receive(swReactor *reactor, swDataHead *event)
 {
 	swSendData data;
 	int ret;

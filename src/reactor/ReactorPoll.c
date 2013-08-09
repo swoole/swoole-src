@@ -116,7 +116,7 @@ int swReactorPoll_del(swReactor *reactor, int fd)
 int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
 {
 	swReactorPoll *this = reactor->object;
-	swEvent event;
+	swDataHead event;
 	int ret;
 	int i;
 

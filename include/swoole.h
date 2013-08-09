@@ -166,7 +166,9 @@ typedef struct _swDataHead
 {
 	int fd; //文件描述符
 	uint16_t len; //长度
-	uint16_t from_id;//Reactor Id
+	uint16_t from_id; //Reactor Id
+	uint8_t type; //类型
+	uint8_t from_fd; //从哪个ServerFD引发的
 } swDataHead;
 
 typedef struct _swEventData
@@ -187,12 +189,14 @@ typedef struct _swSendData
 	char *data;
 } swSendData;
 
-typedef struct _swEvent
-{
-	int from_id; //Reactor Id
-	int fd;
-	int type;
-} swEvent;
+typedef swDataHead swEvent;
+
+//typedef struct _swEvent
+//{
+//	uint16_t from_id; //Reactor Id
+//	uint8_t type; //类型
+//	int fd;
+//} swEvent;
 
 typedef struct _swEventClose
 {
@@ -214,7 +218,7 @@ typedef int (*swHandle)(swEventData *buf);
 typedef void (*swSignalFunc)(int);
 typedef void (*swCallback)(void *);
 typedef struct swReactor_s swReactor;
-typedef int (*swReactor_handle)(swReactor *reactor, swEvent *event);
+typedef int (*swReactor_handle)(swReactor *reactor, swDataHead *event);
 
 //------------------Pipe--------------------
 typedef struct _swPipe
@@ -388,7 +392,8 @@ typedef struct _swFactory
 	int (*shutdown)(struct _swFactory *);
 	int (*dispatch)(struct _swFactory *, swEventData *);
 	int (*finish)(struct _swFactory *, swSendData *);
-	int (*end)(struct _swFactory *, swEvent *);
+	int (*event)(struct _swFactory *, swEvent *); //发送一个事件通知
+	int (*end)(struct _swFactory *, swDataHead *);
 
 	int (*onTask)(struct _swFactory *, swEventData *task); //worker function.get a task,goto to work
 	int (*onFinish)(struct _swFactory *, swSendData *result); //factory worker finish.callback
@@ -448,15 +453,17 @@ int swFactory_start(swFactory *factory);
 int swFactory_shutdown(swFactory *factory);
 int swFactory_dispatch(swFactory *factory, swEventData *req);
 int swFactory_finish(swFactory *factory, swSendData *resp);
-int swFactory_end(swFactory *factory, swEvent *cev);
+int swFactory_event(swFactory *factory, swEvent *event);
+int swFactory_end(swFactory *factory, swDataHead *cev);
 int swFactory_check_callback(swFactory *factory);
 
 int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num);
 int swFactoryProcess_start(swFactory *factory);
 int swFactoryProcess_shutdown(swFactory *factory);
+int swFactoryProcess_event(swFactory *factory, swEvent *event);
 int swFactoryProcess_dispatch(swFactory *factory, swEventData *buf);
 int swFactoryProcess_finish(swFactory *factory, swSendData *data);
-int swFactoryProcess_end(swFactory *factory, swEvent *event);
+int swFactoryProcess_end(swFactory *factory, swDataHead *event);
 
 int swFactoryThread_create(swFactory *factory, int writer_num);
 int swFactoryThread_start(swFactory *factory);

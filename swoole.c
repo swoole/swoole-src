@@ -38,20 +38,6 @@
 #define ZEND_MOD_END {NULL,NULL,NULL}
 #endif
 
-/* If you declare any globals in php_swoole.h uncomment this:
- ZEND_DECLARE_MODULE_GLOBALS(swoole)
- */
-
-#ifdef ZTS
-#define TSRMLS_FETCH_FROM_CTX(ctx)  void ***tsrm_ls = (void ***) ctx
-#define TSRMLS_SET_CTX(ctx)     ctx = (void ***) tsrm_ls
-#else
-#define TSRMLS_FETCH_FROM_CTX(ctx)
-#define TSRMLS_SET_CTX(ctx)
-#endif
-
-/* True global resources - no need for thread safety here */
-
 #define SW_RES_SERVER_NAME          "SwooleServer"
 #define SW_RES_CLIENT_NAME          "SwooleClient"
 

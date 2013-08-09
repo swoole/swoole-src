@@ -138,10 +138,10 @@ void my_onShutdown(swServer *serv)
 
 void my_onConnect(swServer *serv, int fd, int from_id)
 {
-	printf("Connect fd=%d|from_id=%d\n", fd, from_id);
+	printf("PID=%d\tConnect fd=%d|from_id=%d\n", getpid(), fd, from_id);
 }
 
 void my_onClose(swServer *serv, int fd, int from_id)
 {
-	printf("Close fd=%d|from_id=%d\n", fd, from_id);
+	printf("PID=%d\tClose fd=%d|from_id=%d\n", getpid(), fd, from_id);
 }

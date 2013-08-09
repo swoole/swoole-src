@@ -3,6 +3,7 @@
 
 #include "swoole.h"
 
+#define SW_EVENT_DATA            0
 #define SW_EVENT_CLOSE           5
 #define SW_EVENT_CONNECT         6
 #define SW_EVENT_TIMER           7
@@ -49,6 +50,9 @@ struct swServer_s
 	uint16_t writer_num;
 	uint16_t worker_num;
 	uint8_t daemonize;
+
+	int worker_uid;
+	int worker_groupid;
 
 	int max_conn;
 	int connect_count;
@@ -102,16 +106,16 @@ struct swServer_s
 };
 int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
-int swServer_onClose(swReactor *reactor, swEvent *event);
-int swServer_onAccept(swReactor *reactor, swEvent *event);
+int swServer_onClose(swReactor *reactor, swDataHead *event);
+int swServer_onAccept(swReactor *reactor, swDataHead *event);
 
 void swServer_init(swServer *serv);
 int swServer_start(swServer *serv);
 int swServer_addListen(swServer *serv, int type, char *host,int port);
 int swServer_create(swServer *serv);
 int swServer_free(swServer *serv);
-int swServer_close(swServer *factory, swEvent *event);
-int swServer_process_close(swServer *serv, swEvent *event);
+int swServer_close(swServer *factory, swDataHead *event);
+int swServer_process_close(swServer *serv, swDataHead *event);
 int swServer_shutdown(swServer *serv);
 int swServer_addTimer(swServer *serv, int interval);
 int swServer_reload(swServer *serv);
