@@ -8,6 +8,8 @@ Server
 * [swoole_server_addlisten多端口混合监听](addlisten.md)
 * [swoole_server_addtimer定时器的使用](timer.md)
 * 关于from_id和fd，回调函数中经常看到它。from_id是来自于哪个poll线程，fd是tcp连接的文件描述符。
+* [Nginx/Golang/Swoole/Node.js的性能对比](bench.md) 
+
 
 Client
 -----
@@ -16,6 +18,8 @@ swoole的client部分提供了类的封装代码，使用时仅需 new swoole_cl
 
 client可以并行。swoole_client中用了select来做IO事件循环。为什么要用select呢？因为client一般不会有太多连接的。
 在少量连接的情况下select比epoll性能更好。另外select更简单。
+
+* [查看client.php](../examples/client.php)
 
 高级
 -----
@@ -26,4 +30,3 @@ client可以并行。swoole_client中用了select来做IO事件循环。为什�
 其他
 -----
 * [Swoole社区](community.md)
-
