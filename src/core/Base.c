@@ -337,6 +337,7 @@ swSignalFunc swSignalSet(int sig, swSignalFunc func, int restart, int mask)
 	return oact.sa_handler;
 }
 
+#ifndef HAVE_CLOCK_GETTIME
 #ifdef __MACH__
 int clock_gettime(clock_id_t which_clock, struct timespec *t)
 {
@@ -355,4 +356,5 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t)
 	t->tv_nsec = diff - (t->tv_sec * ORWL_GIGA);
 	return 0;
 }
+#endif
 #endif

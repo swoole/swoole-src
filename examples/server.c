@@ -1,5 +1,7 @@
-#include "swoole.h"
-#include "Server.h"
+/**
+* gcc -o server server.c -lswoole
+*/
+#include <swoole/Server.h>
 
 int my_onReceive(swFactory *factory, swEventData *req);
 void my_onStart(swServer *serv);

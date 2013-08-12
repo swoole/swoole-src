@@ -130,7 +130,6 @@ AC_DEFUN([AC_SWOOLE_EVENTFD],
 	])
 ])
 
-
 if test "$PHP_SWOOLE" != "no"; then
   PHP_ADD_INCLUDE($SWOOLE_DIR/include)
   AC_ARG_ENABLE(debug, 
@@ -148,6 +147,10 @@ if test "$PHP_SWOOLE" != "no"; then
   AC_SWOOLE_KQUEUE
   AC_SWOOLE_TIMERFD
   AC_SWOOLE_CPU_AFFINITY
+  
+  
+  AC_CHECK_LIB(pthread, accept4, AC_DEFINE(HAVE_ACCEPT4, 1, [have accept4]))
+  AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
 
   PHP_NEW_EXTENSION(swoole, swoole.c \
     src/core/Base.c \

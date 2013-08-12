@@ -6,7 +6,7 @@ file(GLOB_RECURSE HEAD_FILES FOLLOW_SYMLINKS include/*.h)
 
 SET(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/lib)
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
-set(SERVER_SRC_LIST examples/server.c)
+
 
 #message(STATUS "source=${SRC_LIST}")
 #message(STATUS "header=${HEAD_FILES}")
@@ -26,11 +26,9 @@ target_link_libraries(swoole_shared pthread rt)
 target_link_libraries(swoole_static pthread rt)
 
 LINK_DIRECTORIES(${LIBRARY_OUTPUT_PATH})
-ADD_EXECUTABLE(server ${SERVER_SRC_LIST})
-add_dependencies(server swoole_shared swoole_static)
-TARGET_LINK_LIBRARIES(server swoole)
 
 #install
+INSTALL(CODE "MESSAGE(\"Are you running at root user?\")")
 INSTALL(TARGETS swoole_shared swoole_static LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
 INSTALL(FILES ${HEAD_FILES} DESTINATION include/swoole)
-
+INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/swoole_config.h DESTINATION include/swoole)
