@@ -131,51 +131,56 @@ AC_DEFUN([AC_SWOOLE_EVENTFD],
 ])
 
 if test "$PHP_SWOOLE" != "no"; then
-  PHP_ADD_INCLUDE($SWOOLE_DIR/include)
-  AC_ARG_ENABLE(debug, 
-    [--enable-debug,  compile with debug symbols],
-    [PHP_DEBUG=$enableval],
-    [PHP_DEBUG=0]
-  )
+    PHP_ADD_INCLUDE($SWOOLE_DIR/include)
+    AC_ARG_ENABLE(debug, 
+        [--enable-debug,  compile with debug symbols],
+        [PHP_DEBUG=$enableval],
+        [PHP_DEBUG=0]
+    )
 
-  if test "$PHP_SWOOLE_DEBUG" != "no"; then
-      AC_DEFINE(SW_DEBUG, 1, [do we enable swoole debug])
-  fi
+    if test "$PHP_SWOOLE_DEBUG" != "no"; then
+        AC_DEFINE(SW_DEBUG, 1, [do we enable swoole debug])
+    fi
 
-  AC_SWOOLE_EVENTFD
-  AC_SWOOLE_EPOLL
-  AC_SWOOLE_KQUEUE
-  AC_SWOOLE_TIMERFD
-  AC_SWOOLE_CPU_AFFINITY
+    AC_SWOOLE_EVENTFD
+    AC_SWOOLE_EPOLL
+    AC_SWOOLE_KQUEUE
+    AC_SWOOLE_TIMERFD
+    AC_SWOOLE_CPU_AFFINITY
   
   
-  AC_CHECK_LIB(pthread, accept4, AC_DEFINE(HAVE_ACCEPT4, 1, [have accept4]))
-  AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
+    AC_CHECK_LIB(pthread, accept4, AC_DEFINE(HAVE_ACCEPT4, 1, [have accept4]))
+    AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
 
-  PHP_NEW_EXTENSION(swoole, swoole.c \
-    src/core/Base.c \
-    src/core/RingQueue.c \
-    src/core/Chan.c \
-    src/memory/ShareMemory.c \
-    src/memory/MemPool.c \
-    src/factory/Factory.c \
-    src/factory/FactoryThread.c \
-    src/factory/FactoryProcess.c \
-    src/reactor/ReactorBase.c \
-    src/reactor/ReactorSelect.c \
-    src/reactor/ReactorPoll.c \
-    src/reactor/ReactorEpoll.c \
-    src/reactor/ReactorKqueue.c \
-    src/pipe/PipeBase.c \
-    src/pipe/PipeEventfd.c \
-    src/pipe/PipeUnsock.c \
-    src/pipe/PipeMsg.c \
-    src/lock/Semaphore.c \
-    src/lock/Mutex.c \
-    src/lock/RWLock.c \
-    src/lock/FileLock.c \
-    src/network/Server.c \
-    src/network/Client.c \
-    src/network/buffer.c \
-  , $ext_shared)
+    PHP_ADD_LIBRARY(rt,,SWOOLE_SHARED_LIBADD)
+    PHP_ADD_LIBRARY(pthread,,SWOOLE_SHARED_LIBADD)
+
+    PHP_NEW_EXTENSION(swoole, swoole.c \
+        src/core/Base.c \
+        src/core/RingQueue.c \
+        src/core/Chan.c \
+        src/memory/ShareMemory.c \
+        src/memory/MemPool.c \
+        src/factory/Factory.c \
+        src/factory/FactoryThread.c \
+        src/factory/FactoryProcess.c \
+        src/reactor/ReactorBase.c \
+        src/reactor/ReactorSelect.c \
+        src/reactor/ReactorPoll.c \
+        src/reactor/ReactorEpoll.c \
+        src/reactor/ReactorKqueue.c \
+        src/pipe/PipeBase.c \
+        src/pipe/PipeEventfd.c \
+        src/pipe/PipeUnsock.c \
+        src/pipe/PipeMsg.c \
+        src/lock/Semaphore.c \
+        src/lock/Mutex.c \
+        src/lock/RWLock.c \
+        src/lock/FileLock.c \
+        src/network/Server.c \
+        src/network/Client.c \
+        src/network/buffer.c \
+      , $ext_shared)
+    PHP_SUBST(SWOOLE_SHARED_LIBADD)
 fi
+
