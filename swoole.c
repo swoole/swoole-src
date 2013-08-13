@@ -487,6 +487,7 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	}
 	zval_ptr_dtor(&zfd);
 	zval_ptr_dtor(&zfrom_id);
+	zval_ptr_dtor(&zdata);
 	if (retval != NULL)
 	{
 		zval_ptr_dtor(&retval);
