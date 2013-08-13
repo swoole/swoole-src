@@ -36,6 +36,10 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 		swDataBuffer *data_buffer = &serv->poll_threads[event->from_id].data_buffer;
 		swDataBuffer_clear(data_buffer, cev.fd);
 	}
+	if(serv->onMasterClose != NULL)
+	{
+		serv->onMasterClose(serv, cev.fd, cev.from_id);
+	}
 	serv->connect_count--;
 	return close(cev.fd);
 }
@@ -121,7 +125,10 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 		}
 		else
 		{
-			//serv->onConnect(serv, conn_fd, c_pti);
+			if(serv->onMasterConnect != NULL)
+			{
+				serv->onMasterConnect(serv, conn_fd, c_pti);
+			}
 			swEvent connEv;
 			connEv.type = SW_EVENT_CONNECT;
 			connEv.from_id = c_pti;

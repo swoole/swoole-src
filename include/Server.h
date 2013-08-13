@@ -99,6 +99,8 @@ struct swServer_s
 	int (*onReceive)(swFactory *factory, swEventData *data);
 	void (*onClose)(swServer *serv, int fd, int from_id);
 	void (*onConnect)(swServer *serv, int fd, int from_id);
+	void (*onMasterClose)(swServer *serv, int fd, int from_id);
+	void (*onMasterConnect)(swServer *serv, int fd, int from_id);
 	void (*onShutdown)(swServer *serv);
 	void (*onTimer)(swServer *serv, int interval);
 	void (*onWorkerStart)(swServer *serv, int worker_id); //Only process mode

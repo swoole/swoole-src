@@ -5,7 +5,7 @@ argv1  server port
 argv2  server mode SWOOLE_BASE or SWOOLE_THREAD or SWOOLE_PROCESS
 argv3  sock_type  SWOOLE_SOCK_TCP or SWOOLE_SOCK_TCP6 or SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6
 */
-$serv = swoole_server_create("127.0.0.1", 9501, SWOOLE_THREAD, SWOOLE_SOCK_TCP);
+$serv = swoole_server_create("127.0.0.1", 9501, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
 
 swoole_server_set($serv, array(
     'timeout' => 2.5,  //select and epoll_wait timeout. 
@@ -67,6 +67,15 @@ function my_onReceive($serv, $fd, $from_id, $data)
 	//swoole_server_close($serv, $fd, $from_id);
 	//swoole_server_close($serv, $ohter_fd, $other_from_id);
 }
+function my_onMasterClose($serv,$fd,$from_id)
+{
+    echo "Client：Close.PID=".posix_getpid().PHP_EOL;
+}
+
+function my_onMasterConnect($serv,$fd,$from_id)
+{
+    echo "Client：Connect.PID=".posix_getpid().PHP_EOL;
+}
 
 swoole_server_handler($serv, 'onStart', 'my_onStart');
 swoole_server_handler($serv, 'onConnect', 'my_onConnect');
@@ -76,6 +85,8 @@ swoole_server_handler($serv, 'onShutdown', 'my_onShutdown');
 swoole_server_handler($serv, 'onTimer', 'my_onTimer');
 swoole_server_handler($serv, 'onWorkerStart', 'my_onWorkerStart');
 swoole_server_handler($serv, 'onWorkerStop', 'my_onWorkerStop');
+swoole_server_handler($serv, 'onMasterConnect', 'my_onMasterConnect');
+swoole_server_handler($serv, 'onMasterClose', 'my_onMasterClose');
 
 #swoole_server_addtimer($serv, 2);
 #swoole_server_addtimer($serv, 10);

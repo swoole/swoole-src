@@ -45,7 +45,7 @@ int swFactoryThread_create(swFactory *factory, int writer_num)
 	factory->end = swFactory_end;
 	factory->start = swFactoryThread_start;
 	factory->shutdown = swFactoryThread_shutdown;
-
+	factory->event = swFactory_event;
 	factory->onTask = NULL;
 	factory->onFinish = NULL;
 	return SW_OK;
@@ -181,6 +181,11 @@ static int swFactoryThread_writer_loop(swThreadParam *param)
 	}
 #endif
 
+	if (serv->onWorkerStart != NULL)
+	{
+		serv->onWorkerStart(serv, pti);
+	}
+
 	//main loop
 	while (swoole_running > 0)
 	{
@@ -202,6 +207,11 @@ static int swFactoryThread_writer_loop(swThreadParam *param)
 	factory->running = 0;
 	//shutdown
 	this->writers[pti].evfd.close(&this->writers[pti].evfd);
+
+	if (serv->onWorkerStop != NULL)
+	{
+		serv->onWorkerStop(serv, pti);
+	}
 	sw_free(param);
 	pthread_exit(SW_OK);
 	return SW_OK;

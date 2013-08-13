@@ -152,8 +152,9 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(pthread, accept4, AC_DEFINE(HAVE_ACCEPT4, 1, [have accept4]))
     AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
 
-    PHP_ADD_LIBRARY(rt,,SWOOLE_SHARED_LIBADD)
-    PHP_ADD_LIBRARY(pthread,,SWOOLE_SHARED_LIBADD)
+    PHP_ADD_LIBRARY(rt, 0,SWOOLE_SHARED_LIBADD)
+	PHP_SUBST(SWOOLE_SHARED_LIBADD)
+    PHP_ADD_LIBRARY(pthread,1,SWOOLE_SHARED_LIBADD)
 
     PHP_NEW_EXTENSION(swoole, swoole.c \
         src/core/Base.c \

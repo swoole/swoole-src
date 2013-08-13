@@ -9,6 +9,8 @@ Server
 * [swoole_server_addtimer定时器的使用](timer.md)
 * 关于from_id和fd，回调函数中经常看到它。from_id是来自于哪个poll线程，fd是tcp连接的文件描述符。
 * [Nginx/Golang/Swoole/Node.js的性能对比](bench.md) 
+* [Buffer和EOF_Check的使用]
+* [Worker与Reactor通信模式]
 
 
 Client

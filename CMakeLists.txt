@@ -28,7 +28,7 @@ target_link_libraries(swoole_static pthread rt)
 LINK_DIRECTORIES(${LIBRARY_OUTPUT_PATH})
 
 #install
-INSTALL(CODE "MESSAGE(\"Are you running at root user?\")")
+INSTALL(CODE "MESSAGE(\"Are you run command using root user?\")")
 INSTALL(TARGETS swoole_shared swoole_static LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
 INSTALL(FILES ${HEAD_FILES} DESTINATION include/swoole)
 INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/swoole_config.h DESTINATION include/swoole)
