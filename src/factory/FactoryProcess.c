@@ -17,6 +17,7 @@ static int swFactoryProcess_writer_start(swFactory *factory);
 int swFactoryProcess_writer_loop(swThreadParam *param);
 int swFactoryProcess_writer_loop_ex(swThreadParam *param);
 int swFactoryProcess_writer_receive(swReactor *, swEvent *);
+SWINLINE int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int send_len);
 
 static int c_worker_pipe = 0; //Current Proccess Worker's pipe
 static int c_worker_pti = 0; //Current Proccess Worker's id
@@ -68,6 +69,7 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 int swFactoryProcess_shutdown(swFactory *factory)
 {
 	swFactoryProcess *this = factory->object;
+	swServer *serv = factory->ptr;
 	int i;
 	//kill manager process
 	kill(this->manager_pid, SIGTERM);
@@ -89,9 +91,10 @@ int swFactoryProcess_shutdown(swFactory *factory)
 	}
 #endif
 
-#if SW_DISPATCH_MODE == 3
-	this->msg_queue.close(&this->msg_queue);
-#endif
+	if(serv->dispatch_mode == SW_DISPATCH_QUEUE)
+	{
+		this->msg_queue.close(&this->msg_queue);
+	}
 
 	free(this->workers);
 	free(this->writers);
@@ -126,13 +129,16 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 	swPipes *worker_pipes;
 	int writer_pti;
 
-#if SW_DISPATCH_MODE == 3
-	if(swPipeMsg_create(&this->msg_queue, 1, SW_WORKER_MSGQUEUE_KEY, 1) <0)
+	swServer *serv = factory->ptr;
+	if(serv->dispatch_mode == SW_DISPATCH_QUEUE)
 	{
-		swError("[Main] swPipeMsg_create fail\n");
-		return SW_ERR;
+		if(swPipeMsg_create(&this->msg_queue, 1, SW_WORKER_MSGQUEUE_KEY, 1) <0)
+		{
+			swError("[Main] swPipeMsg_create fail\n");
+			return SW_ERR;
+		}
 	}
-#else
+
 	//此处内存可不释放，仅启动时分配一次
 	worker_pipes = sw_calloc(this->worker_num, sizeof(swPipes));
 	if (worker_pipes == NULL)
@@ -171,7 +177,7 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 #endif
 	}
 
-#endif
+
 	pid = fork();
 	switch (pid)
 	{
@@ -480,17 +486,21 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int work
 	//主线程
 	while (swoole_running > 0 && task_num > 0)
 	{
-#if SW_DISPATCH_MODE == 3
-		n = this->msg_queue.read(&this->msg_queue, &req, sizeof(req));
-		swTrace("read msgqueue.errno=%d|pid=%d\n", errno, getpid());
-#else
-		do
+		if (serv->dispatch_mode == SW_DISPATCH_QUEUE)
 		{
-			n = read(c_pipe, &req, sizeof(req));
+			n = this->msg_queue.read(&this->msg_queue, &req, sizeof(req));
+					swTrace("read msgqueue.errno=%d|pid=%d\n", errno, getpid());
 		}
-		while(n < 0 && errno == EINTR);
-		swTrace("[Worker]Recv: pipe=%d|pti=%d\n", c_pipe, req.info.from_id);
-#endif
+		else
+		{
+			do
+			{
+				n = read(c_pipe, &req, sizeof(req));
+			}
+			while(n < 0 && errno == EINTR);
+			swTrace("[Worker]Recv: pipe=%d|pti=%d\n", c_pipe, req.info.from_id);
+		}
+
 		if (n > 0)
 		{
 			factory->last_from_id = req.info.from_id;
@@ -529,32 +539,45 @@ int swFactoryProcess_event(swFactory *factory, swDataHead *ev)
 {
 	swFactoryProcess *this = factory->object;
 	swDataHead _send;
-	int ret;
 	int send_len = sizeof(swDataHead);
-	int pti;
 	memcpy(&_send, ev, sizeof(swDataHead));
+	return swFactoryProcess_send2worker(factory, (swEventData *)ev, send_len);
+}
 
-#if SW_DISPATCH_MODE == 3
+SWINLINE int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int send_len)
+{
+	swFactoryProcess *this = factory->object;
+	swServer *serv = factory->ptr;
+	int pti;
+	int ret;
+
 	//使用抢占式队列(IPC消息队列)分配
-	ret = this->msg_queue.write(&this->msg_queue, _send, send_len);
-#else
-#if SW_DISPATCH_MODE == 1
-	//使用平均分配
-	pti = this->worker_pti;
-	if (this->worker_pti >= this->worker_num)
+	if(serv->dispatch_mode == SW_DISPATCH_QUEUE)
 	{
-		this->worker_pti = 0;
-		pti = 0;
+		ret = this->msg_queue.write(&this->msg_queue, data, send_len);
 	}
-	this->worker_pti++;
-#elif SW_DISPATCH_MODE == 2
-	//使用fd取摸来散列
-	pti = _send.fd % this->worker_num;
-#endif
-	swTrace("[ReadThread]sendto: pipe=%d|worker=%d\n", this->workers[pti].pipe_fd, pti);
-	//send to unix sock
-	ret = swWrite(this->workers[pti].pipe_fd, (char *) &_send, send_len);
-#endif
+	else
+	{
+		//使用平均分配
+		 if(serv->dispatch_mode == SW_DISPATCH_ROUND)
+		 {
+			pti = this->worker_pti;
+			if (this->worker_pti >= this->worker_num)
+			{
+				this->worker_pti = 0;
+				pti = 0;
+			}
+			this->worker_pti++;
+		 }
+		 //使用fd取摸来散列
+		 else
+		 {
+			 pti = data->info.fd % this->worker_num;
+		 }
+		 swTrace("[ReadThread]sendto: pipe=%d|worker=%d\n", this->workers[pti].pipe_fd, pti);
+		 //send to unix sock
+		 ret = swWrite(this->workers[pti].pipe_fd, (char *) data, send_len);
+	}
 	if (ret < 0)
 	{
 		return SW_ERR;
@@ -565,37 +588,9 @@ int swFactoryProcess_event(swFactory *factory, swDataHead *ev)
 int swFactoryProcess_dispatch(swFactory *factory, swEventData *data)
 {
 	swFactoryProcess *this = factory->object;
-	int ret;
 	int send_len = data->info.len + sizeof(data->info);
-	int pti;
 	data->info.type = SW_EVENT_DATA; //这是一个数据事件
-
-#if SW_DISPATCH_MODE == 3
-	//使用抢占式队列(IPC消息队列)分配
-	ret = this->msg_queue.write(&this->msg_queue, data, send_len);
-#else
-#if SW_DISPATCH_MODE == 1
-	//使用平均分配
-	pti = this->worker_pti;
-	if (this->worker_pti >= this->worker_num)
-	{
-		this->worker_pti = 0;
-		pti = 0;
-	}
-	this->worker_pti++;
-#elif SW_DISPATCH_MODE == 2
-	//使用fd取摸来散列
-	pti = data->info.fd % this->worker_num;
-#endif
-	swTrace("[ReadThread]sendto: pipe=%d|worker=%d\n", this->workers[pti].pipe_fd, pti);
-	//send to unix sock
-	ret = swWrite(this->workers[pti].pipe_fd, (char *) data, send_len);
-#endif
-	if (ret < 0)
-	{
-		return SW_ERR;
-	}
-	return SW_OK;
+	return swFactoryProcess_send2worker(factory, data, send_len);
 }
 
 static int swFactoryProcess_writer_start(swFactory *factory)

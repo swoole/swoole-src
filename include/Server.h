@@ -50,6 +50,7 @@ struct swServer_s
 	uint16_t writer_num;
 	uint16_t worker_num;
 	uint8_t daemonize;
+	uint8_t dispatch_mode;
 
 	int worker_uid;
 	int worker_groupid;

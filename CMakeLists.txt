@@ -15,7 +15,7 @@ add_definitions(-DHAVE_EPOLL -DHAVE_EVENTFD -DHAVE_TIMERFD -DHAVE_CPU_AFFINITY)
 
 INCLUDE_DIRECTORIES(BEFORE ./include ./)
 
-#bin
+#libary
 add_library(swoole_shared SHARED ${SRC_LIST})
 add_library(swoole_static STATIC ${SRC_LIST})
 
@@ -26,6 +26,14 @@ target_link_libraries(swoole_shared pthread rt)
 target_link_libraries(swoole_static pthread rt)
 
 LINK_DIRECTORIES(${LIBRARY_OUTPUT_PATH})
+
+#test_server
+SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
+set(TEST_SRC_LIST examples/test_server.c)
+add_executable(test_server ${TEST_SRC_LIST};${SRC_LIST})
+target_link_libraries(test_server pthread rt)
+#add_dependencies(test_server swoole_static swoole_shared)
+#TARGET_LINK_LIBRARIES(test_server swoole)
 
 #install
 INSTALL(CODE "MESSAGE(\"Are you run command using root user?\")")
