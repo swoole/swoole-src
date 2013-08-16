@@ -462,8 +462,8 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int work
 	int n;
 	int task_num = factory->max_request;
 
-#if HAVE_CPU_AFFINITY
-	if (serv->open_cpu_affinity)
+#ifdef HAVE_CPU_AFFINITY
+	if (serv->open_cpu_affinity == 1)
 	{
 		cpu_set_t cpu_set;
 		CPU_ZERO(&cpu_set);

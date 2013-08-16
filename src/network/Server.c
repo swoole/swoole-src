@@ -337,6 +337,10 @@ void swServer_init(swServer *serv)
 	serv->onShutdown = NULL;
 	serv->onReceive = NULL;
 	serv->onTimer = NULL;
+	serv->onWorkerStart = NULL;
+	serv->onWorkerStop = NULL;
+	serv->onMasterConnect = NULL;
+	serv->onMasterClose = NULL;
 }
 static int swServer_timer_start(swServer *serv)
 {

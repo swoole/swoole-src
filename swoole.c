@@ -781,12 +781,22 @@ PHP_FUNCTION(swoole_server_start)
 	{
 		serv->onMasterClose = php_swoole_onMasterClose;
 	}
+	if(php_sw_callback[PHP_CB_onWorkerStart]!=NULL)
+	{
+		serv->onWorkerStart = php_swoole_onWorkerStart;
+	}
+	if(php_sw_callback[PHP_CB_onWorkerStop]!=NULL)
+	{
+		serv->onWorkerStop = php_swoole_onWorkerStop;
+	}
+	if(php_sw_callback[PHP_CB_onTimer]!=NULL)
+	{
+		serv->onTimer = php_swoole_onTimer;
+	}
+
 	serv->onClose = php_swoole_onClose;
 	serv->onConnect = php_swoole_onConnect;
 	serv->onReceive = php_swoole_onReceive;
-	serv->onTimer = php_swoole_onTimer;
-	serv->onWorkerStart = php_swoole_onWorkerStart;
-	serv->onWorkerStop = php_swoole_onWorkerStop;
 
 	//将zserv对象保存在持久的内存块中
 	zval *zservp = pemalloc(sizeof(zval), 1);
