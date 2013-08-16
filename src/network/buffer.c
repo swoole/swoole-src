@@ -99,10 +99,12 @@ int swDataBuffer_flush(swDataBuffer *data_buffer, swDataBuffer_item *item)
 
 	while (trunk!= NULL)
 	{
-		sw_free(trunk->data);
-		will_free_trunk = trunk;
+		trunk->len = 0;
+//		sw_free(trunk->data);
+//		will_free_trunk = trunk;
 		trunk = trunk->next; //这里会指向下个指针，所以需要保存
-		sw_free(will_free_trunk);
+//		sw_free(will_free_trunk);
+//		swWarn("will_free_trunk");
 	}
 	item->first->next = NULL;
 	return SW_OK;

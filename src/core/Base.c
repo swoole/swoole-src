@@ -138,6 +138,7 @@ SWINLINE int swSocket_listen(int type, char *host, int port, int backlog)
 SWINLINE int swRead(int fd, char *buf, int len)
 {
 	int n = 0, nread;
+	sw_errno = 0;
 
 	while (1)
 	{
@@ -184,7 +185,6 @@ SWINLINE int swRead(int fd, char *buf, int len)
 			//已读完
 			else
 			{
-				sw_errno = 0;
 				continue;
 			}
 		}

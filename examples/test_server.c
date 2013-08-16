@@ -46,14 +46,15 @@ int main(int argc, char **argv)
 	serv.backlog = 128;
 	serv.poll_thread_num = 2; //reactor线程数量
 	serv.writer_num = 2;      //writer线程数量
-	serv.worker_num = 1;      //worker进程数量
+	serv.worker_num = 4;      //worker进程数量
 
 	serv.factory_mode = SW_MODE_PROCESS; //SW_MODE_PROCESS SW_MODE_THREAD SW_MODE_BASE
 	serv.max_conn = 100000;
 	//serv.open_cpu_affinity = 1;
 	//serv.open_tcp_nodelay = 1;
 	//serv.daemonize = 1;
-	//serv.open_eof_check = 1;
+	serv.open_eof_check = 1;
+	memcpy(serv.data_eof, "\r\n\r\n", 4); //开启eof检测，启用buffer区
 
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9500);
 	swServer_addListen(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
@@ -63,7 +64,7 @@ int main(int argc, char **argv)
 	//swServer_addTimer(&serv, 2);
 	//swServer_addTimer(&serv, 4);
 
-	serv.dispatch_mode = 3;
+	serv.dispatch_mode = 2;
 
 	serv.onStart = my_onStart;
 	serv.onShutdown = my_onShutdown;

@@ -304,7 +304,7 @@ void swServer_init(swServer *serv)
 	serv->factory_mode = SW_MODE_CALL;
 	serv->poll_thread_num = SW_THREAD_NUM;
 	serv->daemonize = 0;
-
+	serv->dispatch_mode = SW_DISPATCH_FDMOD;
 	serv->ringbuffer_size = SW_QUEUE_SIZE;
 
 	serv->timeout_sec = SW_REACTOR_TIMEO_SEC;
@@ -693,8 +693,8 @@ static int swServer_poll_onReceive(swReactor *reactor, swEvent *event)
 	else
 	{
 		trunk->len = n;
-		trunk->data[trunk->len] = 0; //TODO 这里是为了printf
-		//printf("buffer------------: %s|fd=%d|len=%d\n", trunk->data, event->fd, trunk->len);
+//		trunk->data[trunk->len] = 0; //TODO 这里是为了printf
+//		printf("buffer------------: %s|fd=%d|len=%d\n", trunk->data, event->fd, trunk->len);
 
 		if (serv->open_eof_check == 1)
 		{

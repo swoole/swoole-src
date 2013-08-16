@@ -469,7 +469,7 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	ZVAL_LONG(zfrom_id, (long)req->info.from_id);
 
 	MAKE_STD_ZVAL(zdata);
-	//req->data[req->len] = 0;
+//	req->data[req->info.len] = 0;
 	ZVAL_STRINGL(zdata, req->data, req->info.len, 1);
 
 	zval_add_ref(&zserv);

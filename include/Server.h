@@ -50,7 +50,7 @@ struct swServer_s
 	uint16_t writer_num;
 	uint16_t worker_num;
 	uint8_t daemonize;
-	uint8_t dispatch_mode;
+	uint8_t dispatch_mode; //分配模式，1平均分配，2按FD取摸固定分配，3,使用抢占式队列(IPC消息队列)分配
 
 	int worker_uid;
 	int worker_groupid;
