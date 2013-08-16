@@ -10,6 +10,7 @@ swoole_server_set($serv, array(
     'worker_num' => 4,    //worker process num
     'backlog' => 128,   //listen backlog
     'max_request' => 50,
+    'dispatch_mode'=>1, 
 ));
 ```
 
@@ -33,4 +34,5 @@ backlog => 128，此参数将决定最多同时有多少个待accept的连接，
 -----
 open_cpu_affinity => 1 ,启用CPU亲和设置
 open_tcp_nodelay  => 1 ,启用tcp_nodelay
+dispatch_mode  = 1 //1平均分配，2按FD取摸固定分配，3,使用抢占式队列(IPC消息队列)分配 不配置此参数，默认是取模
 
