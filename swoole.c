@@ -347,6 +347,13 @@ PHP_FUNCTION(swoole_server_set)
 	{
 		serv->open_tcp_nodelay = (char)Z_LVAL_PP(v);
 	}
+
+	//max_request
+	if (zend_hash_find(vht, ZEND_STRS("dispatch_mode"), (void **)&v) == SUCCESS)
+	{
+		serv->dispatch_mode = (int)Z_LVAL_PP(v);
+	}
+
 	RETURN_TRUE;
 }
 

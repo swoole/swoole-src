@@ -118,20 +118,22 @@ int swFactoryThread_dispatch(swFactory *factory, swEventData *buf)
 	uint64_t flag = 1;
 	int datasize = sizeof(int)*3 + buf->info.len + 1;
 	char *data;
+	swServer *serv = factory->ptr;
 
-#if SW_DISPATCH_MODE == 1
-	//使用平均分配
-	pti = this->writer_pti;
-	if (this->writer_pti >= this->writer_num)
+	if(serv->dispatch_mode == SW_DISPATCH_ROUND)
 	{
-		this->writer_pti = 0;
-		pti = 0;
+		//使用平均分配
+		pti = this->writer_pti;
+		if (this->writer_pti >= this->writer_num)
+		{
+			this->writer_pti = 0;
+			pti = 0;
+		}
+		this->writer_pti++;
+	} else {
+		//使用fd取摸来散列
+		pti = buf->info.fd % this->writer_num;
 	}
-	this->writer_pti++;
-#else
-	//使用fd取摸来散列
-	pti = buf->info.fd % this->writer_num;
-#endif
 
 	data = sw_malloc(datasize);
 	if(data == NULL)
