@@ -257,10 +257,10 @@ PHP_FUNCTION(swoole_server_create)
 	char *serv_host;
 	long sock_type = SW_SOCK_TCP;
 	long serv_port;
-	long serv_mode;
+	long serv_mode = SW_MODE_PROCESS;
 
 	swServer_init(serv);
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sll|l", &serv_host, &host_len, &serv_port, &serv_mode, &sock_type) == FAILURE)
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl|ll", &serv_host, &host_len, &serv_port, &serv_mode, &sock_type) == FAILURE)
 	{
 		return;
 	}
@@ -425,6 +425,7 @@ PHP_FUNCTION(swoole_server_close)
 	swServer *serv;
 	swEvent ev;
 	long conn_fd, from_id = -1;
+	int ret;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rl|l", &zserv, &conn_fd, &from_id) == FAILURE)
 	{
@@ -441,6 +442,11 @@ PHP_FUNCTION(swoole_server_close)
 		ev.from_id = from_id;
 	}
 	ev.fd = (int)conn_fd;
+	//主进程不应当执行此操作
+	if(swIsMaster())
+	{
+		RETURN_FALSE;
+	}
 	SW_CHECK_RETURN(serv->factory.end(&serv->factory, &ev));
 }
 
