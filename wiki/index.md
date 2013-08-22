@@ -5,6 +5,7 @@ Server
 * [swoole_server_create运行模式说明](factory_mode.md)
 * swoole_server_close函数，用来关闭一个连接
 * swoole_server_send函数，用于向客户端发送数据
+* [改变Worker进程的用户/组](user.md)
 * [swoole_server_addlisten多端口混合监听](addlisten.md)
 * [swoole_server_addtimer定时器的使用](timer.md)
 * 关于from_id和fd，回调函数中经常看到它。from_id是来自于哪个poll线程，fd是tcp连接的文件描述符。
