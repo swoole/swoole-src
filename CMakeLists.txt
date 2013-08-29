@@ -1,4 +1,6 @@
 PROJECT(server)
+
+SET(SWOOLE_VERSION 1.5.5)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.4)
 
 file(GLOB_RECURSE SRC_LIST FOLLOW_SYMLINKS src/*.c)
@@ -19,8 +21,8 @@ SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 add_library(swoole_shared SHARED ${SRC_LIST})
 add_library(swoole_static STATIC ${SRC_LIST})
 
-set_target_properties(swoole_shared PROPERTIES OUTPUT_NAME "swoole" VERSION 1.5.2)
-set_target_properties(swoole_static PROPERTIES OUTPUT_NAME "swoole" VERSION 1.5.2)
+set_target_properties(swoole_shared PROPERTIES OUTPUT_NAME "swoole" VERSION ${SWOOLE_VERSION})
+set_target_properties(swoole_static PROPERTIES OUTPUT_NAME "swoole" VERSION ${SWOOLE_VERSION})
 
 target_link_libraries(swoole_shared pthread rt)
 target_link_libraries(swoole_static pthread rt)

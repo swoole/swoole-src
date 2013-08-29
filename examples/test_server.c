@@ -87,7 +87,7 @@ int main(int argc, char **argv)
 		swTrace("create server fail[error=%d].\n", ret);
 		exit(0);
 	}
-	g_controller_id = serv.factory.controller(&serv.factory, my_onControlEvent);
+//	g_controller_id = serv.factory.controller(&serv.factory, my_onControlEvent);
 	ret = swServer_start(&serv);
 	if (ret < 0)
 	{
@@ -105,12 +105,12 @@ int my_onControlEvent(swFactory *factory, swEventData *event)
 
 void my_onWorkerStart(swServer *serv, int worker_id)
 {
-	printf("Worker[%d]PID=%d start\n", worker_id, getpid());
+	printf("WorkerStart[%d]PID=%d\n", worker_id, getpid());
 }
 
 void my_onWorkerStop(swServer *serv, int worker_id)
 {
-	printf("Worker[%d]PID=%d stop\n", worker_id, getpid());
+	printf("WorkerStop[%d]PID=%d\n", worker_id, getpid());
 }
 
 void my_onTimer(swServer *serv, int interval)
@@ -137,8 +137,8 @@ int my_onReceive(swFactory *factory, swEventData *req)
 		printf("send to client fail.errno=%d\n", errno);
 	}
 	printf("onReceive[%d]: Data=%s|Len=%d\n", g_receive_count, php_rtrim(req->data, req->info.len), req->info.len);
-	req->info.type = 99;
-	factory->event(factory, g_controller_id, req);
+//	req->info.type = 99;
+//	factory->event(factory, g_controller_id, req);
 	return SW_OK;
 }
 

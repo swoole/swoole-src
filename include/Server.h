@@ -26,7 +26,6 @@ typedef struct _swThreadPoll
 	pthread_t ptid; //线程ID
 	swReactor reactor;
 	swUdpFd *udp_addrs;
-	swDataBuffer data_buffer; //数据缓存(hashtable)
 	int c_udp_fd;
 } swThreadPoll;
 
@@ -46,6 +45,23 @@ typedef struct _swTimerList_node
 	int lasttime;
 } swTimerList_node;
 
+typedef struct _swDataBuffer swDataBuffer;
+
+struct _swDataBuffer
+{
+	int offset; //指针偏移量
+	swEventData data;
+	swDataBuffer *next;
+};
+
+typedef struct _swConnection {
+	uint8_t tag; //状态0表示未使用，1表示正在使用
+	int fd; //文件描述符
+	uint16_t from_id; //Reactor Id
+	uint8_t buffer_num; //buffer的数量
+	swDataBuffer *buffer; //缓存区
+} swConnection;
+
 typedef struct swServer_s swServer;
 struct swServer_s
 {
@@ -61,7 +77,9 @@ struct swServer_s
 	int worker_groupid;
 
 	int max_conn;
-	int connect_count;
+	int max_fd;       //最大的fd
+
+	int connect_count; //连接计数
 	int max_request;
 	int timeout_sec;
 	int timeout_usec;
@@ -98,6 +116,9 @@ struct swServer_s
 	swListenList_node *listen_list;
 	swTimerList_node *timer_list;
 
+	swConnection *connection_list; //连接列表
+	int connection_list_capacity;  //超过此容量，会自动扩容
+
 	swReactor *reactor_ptr; //Main Reactor
 	swFactory *factory_ptr; //Factory
 
@@ -128,6 +149,8 @@ int swServer_process_close(swServer *serv, swDataHead *event);
 int swServer_shutdown(swServer *serv);
 int swServer_addTimer(swServer *serv, int interval);
 int swServer_reload(swServer *serv);
+int swServer_new_connection(swServer *serv, swEvent *ev);
+#define swServer_get_connection(serv,fd) (&serv->connection_list[fd])
 
 #ifdef __cplusplus
 }

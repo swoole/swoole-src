@@ -74,7 +74,10 @@ int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
 	fd_.fd = fd;
 	fd_.fdtype = fdtype;
 	//e.data.u64 = 0;
-	e.events = EPOLLIN | EPOLLET;
+	e.events = EPOLLIN | EPOLLET | EPOLLHUP;
+#ifdef EPOLLRDHUP
+	e.events |= EPOLLRDHUP;
+#endif
 	memcpy(&(e.data.u64), &fd_, sizeof(fd_));
 
 	swTrace("[THREAD #%ld]EP=%d|FD=%d\n", pthread_self(), this->epfd, fd);
@@ -138,11 +141,25 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 			if (this->events[i].events & EPOLLIN)
 			{
 				swTrace("event coming.Ep=%d|fd=%d\n", this->epfd, this->events[i].data.fd);
+
+				//取出事件
 				memcpy(&fd_, &(this->events[i].data.u64), sizeof(fd_));
 				ev.fd = fd_.fd;
 				ev.from_id = reactor->id;
 				ev.type = fd_.fdtype;
-				ret = reactor->handle[ev.type](reactor, &ev);
+
+				if((this->events[i].events & EPOLLHUP)
+#ifdef EPOLLRDHUP
+						|| (this->events[i].events & EPOLLRDHUP)
+#endif
+				)
+				{
+					ret = reactor->handle[SW_FD_CLOSE](reactor, &ev);
+				}
+				else
+				{
+					ret = reactor->handle[ev.type](reactor, &ev);
+				}
 				if(ret < 0)
 				{
 					swWarn("epoll handle fail.errno=%d\n", errno);

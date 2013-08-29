@@ -76,7 +76,6 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #include "atomic.h"
 #include "hashtable.h"
 #include "list.h"
-#include "buffer.h"
 
 #define SW_THREAD_NUM          2
 #define SW_WRITER_NUM          2  //写线程数量
@@ -183,12 +182,6 @@ typedef struct _swEventData
 	swDataHead info;
 	char data[SW_BUFFER_SIZE];
 } swEventData;
-
-typedef struct _swTask
-{
-	swDataHead info;
-	swDataBuffer_trunk *data;
-} swTask;
 
 typedef struct _swSendData
 {
