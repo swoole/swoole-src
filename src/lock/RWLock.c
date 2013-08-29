@@ -44,3 +44,8 @@ int swRWLock_trylock_rw(swRWLock *this)
 {
 	return pthread_rwlock_trywrlock(&this->rwlock);
 }
+
+int swRWLock_free(swRWLock *object)
+{
+	return pthread_rwlock_destroy(&object->rwlock);
+}

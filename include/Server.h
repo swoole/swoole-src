@@ -3,10 +3,15 @@
 
 #include "swoole.h"
 
-#define SW_EVENT_DATA            0
-#define SW_EVENT_CLOSE           5
-#define SW_EVENT_CONNECT         6
-#define SW_EVENT_TIMER           7
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define SW_EVENT_DATA            0 //普通事件
+#define SW_EVENT_CLOSE           5 //关闭连接
+#define SW_EVENT_CONNECT         6 //连接到来
+#define SW_EVENT_TIMER           7 //时钟事件
+#define SW_EVENT_CONTROL         8 //控制指令，特殊事件
 
 #define SW_HOST_MAXSIZE          48
 #define SW_MAX_TMP_PKG           1000
@@ -106,6 +111,7 @@ struct swServer_s
 	void (*onTimer)(swServer *serv, int interval);
 	void (*onWorkerStart)(swServer *serv, int worker_id); //Only process mode
 	void (*onWorkerStop)(swServer *serv, int worker_id);  //Only process mode
+	void (*onWorkerEvent)(swServer *serv, swEventData *data);   //Only process mode
 };
 int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
@@ -122,5 +128,9 @@ int swServer_process_close(swServer *serv, swDataHead *event);
 int swServer_shutdown(swServer *serv);
 int swServer_addTimer(swServer *serv, int interval);
 int swServer_reload(swServer *serv);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SW_SERVER_H_ */

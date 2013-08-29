@@ -9,9 +9,11 @@ int swFactory_create(swFactory *factory)
 	factory->start = swFactory_start;
 	factory->shutdown = swFactory_shutdown;
 	factory->end = swFactory_end;
-	factory->event = swFactory_event;
+	factory->notify = swFactory_notify;
+
 	factory->onTask = NULL;
 	factory->onFinish = NULL;
+
 	return SW_OK;
 }
 int swFactory_start(swFactory *factory)
@@ -31,7 +33,7 @@ int swFactory_dispatch(swFactory *factory, swEventData *req)
 	return factory->onTask(factory, req);
 }
 
-int swFactory_event(swFactory *factory, swEvent *req)
+int swFactory_notify(swFactory *factory, swEvent *req)
 {
 	swServer *serv = factory->ptr;
 	switch(req->type)

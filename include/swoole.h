@@ -11,6 +11,10 @@
 #include "config.h"
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -245,78 +249,101 @@ typedef struct _swFileLock
 {
 	struct flock rwlock;
 	int fd;
-	int (*lock_rd)(struct _swFileLock *this);
-	int (*lock)(struct _swFileLock *this);
-	int (*trylock_rd)(struct _swFileLock *this);
-	int (*trylock)(struct _swFileLock *this);
-	int (*unlock)(struct _swFileLock *this);
+	int (*lock_rd)(struct _swFileLock *object);
+	int (*lock)(struct _swFileLock *object);
+	int (*trylock_rd)(struct _swFileLock *object);
+	int (*trylock)(struct _swFileLock *object);
+	int (*unlock)(struct _swFileLock *object);
+	int (*free)(struct _swFileLock *object);
 } swFileLock;
 
 typedef struct _swMutex
 {
-	pthread_mutex_t rwlock;
+	pthread_mutex_t mutex;
 	pthread_mutexattr_t attr;
-	int (*lock)(struct _swMutex *this);
-	int (*unlock)(struct _swMutex *this);
-	int (*trylock)(struct _swMutex *this);
+	int (*lock)(struct _swMutex *object);
+	int (*unlock)(struct _swMutex *object);
+	int (*trylock)(struct _swMutex *object);
+	int (*free)(struct _swMutex *object);
 } swMutex;
 
 typedef struct _swRWLock
 {
 	pthread_rwlock_t rwlock;
 	pthread_rwlockattr_t attr;
-	int (*lock_rd)(struct _swRWLock *this);
-	int (*lock)(struct _swRWLock *this);
-	int (*unlock)(struct _swRWLock *this);
-	int (*trylock_rd)(struct _swRWLock *this);
-	int (*trylock)(struct _swRWLock *this);
+	int (*lock_rd)(struct _swRWLock *object);
+	int (*lock)(struct _swRWLock *object);
+	int (*unlock)(struct _swRWLock *object);
+	int (*trylock_rd)(struct _swRWLock *object);
+	int (*trylock)(struct _swRWLock *object);
+	int (*free)(struct _swRWLock *object);
 } swRWLock;
 
 typedef struct _swSpinLock
 {
+	pthread_spinlock_t lock_t;
+	int (*lock)(struct _swSpinLock *object);
+	int (*unlock)(struct _swSpinLock *object);
+	int (*trylock)(struct _swSpinLock *object);
+	int (*free)(struct _swSpinLock *object);
+} swSpinLock;
+
+typedef struct _swAtomicLock
+{
 	atomic_t lock_t;
 	uint32_t spin;
-	int (*lock)(struct _swSpinLock *this);
-	int (*unlock)(struct _swSpinLock *this);
-	int (*trylock)(struct _swSpinLock *this);
-} swSpinLock;
+	int (*lock)(struct _swAtomicLock *object);
+	int (*unlock)(struct _swAtomicLock *object);
+	int (*trylock)(struct _swAtomicLock *object);
+	int (*free)(struct _swAtomicLock *object);
+} swAtomicLock;
 
 typedef struct _swSem
 {
 	key_t key;
 	int semid;
 	int lock_num;
-	int (*lock)(struct _swSem *this);
-	int (*unlock)(struct _swSem *this);
+	int (*lock)(struct _swSem *object);
+	int (*unlock)(struct _swSem *object);
+	int (*free)(struct _swMutex *object);
 } swSem;
 
-int swRWLock_create(swRWLock *this, int use_in_process);
-int swRWLock_lock_rd(swRWLock *this);
-int swRWLock_lock_rw(swRWLock *this);
-int swRWLock_unlock(swRWLock *this);
-int swRWLock_trylock_rw(swRWLock *this);
-int swRWLock_trylock_rd(swRWLock *this);
+int swRWLock_create(swRWLock *object, int use_in_process);
+int swRWLock_lock_rd(swRWLock *object);
+int swRWLock_lock_rw(swRWLock *object);
+int swRWLock_unlock(swRWLock *object);
+int swRWLock_trylock_rw(swRWLock *object);
+int swRWLock_trylock_rd(swRWLock *object);
+int swRWLock_free(swRWLock *object);
 
-int swSem_create(swSem *this, key_t key, int n);
-int swSem_lock(swSem *this);
-int swSem_unlock(swSem *this);
+int swSem_create(swSem *object, key_t key, int n);
+int swSem_lock(swSem *object);
+int swSem_unlock(swSem *object);
+int swSem_free(swSem *object);
 
-int swMutex_create(swMutex *this, int use_in_process);
-int swMutex_lock(swMutex *this);
-int swMutex_unlock(swMutex *this);
-int swMutex_trylock(swMutex *this);
+int swMutex_create(swMutex *object, int use_in_process);
+int swMutex_lock(swMutex *object);
+int swMutex_unlock(swMutex *object);
+int swMutex_trylock(swMutex *object);
+int swMutex_free(swMutex *object);
 
-int swFileLock_create(swFileLock *this, int fd);
-int swFileLock_lock_rd(swFileLock *this);
-int swFileLock_lock_rw(swFileLock *this);
-int swFileLock_unlock(swFileLock *this);
-int swFileLock_trylock_rw(swFileLock *this);
-int swFileLock_trylock_rd(swFileLock *this);
+int swFileLock_create(swFileLock *object, int fd);
+int swFileLock_lock_rd(swFileLock *object);
+int swFileLock_lock_rw(swFileLock *object);
+int swFileLock_unlock(swFileLock *object);
+int swFileLock_trylock_rw(swFileLock *object);
+int swFileLock_trylock_rd(swFileLock *object);
 
-int swSpinLock_create(swSpinLock *this, int spin);
-int swSpinLock_lock(swSpinLock *this);
-int swSpinLock_unlock(swSpinLock *this);
-int swSpinLock_trylock(swSpinLock *this);
+int swSpinLock_create(swSpinLock *object, int spin);
+int swSpinLock_lock(swSpinLock *object);
+int swSpinLock_unlock(swSpinLock *object);
+int swSpinLock_trylock(swSpinLock *object);
+int swSpinLock_free(swSpinLock *object);
+
+int swAtomicLock_create(swAtomicLock *object, int spin);
+int swAtomicLock_lock(swAtomicLock *object);
+int swAtomicLock_unlock(swAtomicLock *object);
+int swAtomicLock_trylock(swAtomicLock *object);
 
 //------------------Share Memory------------------------------
 typedef struct _swChanElem
@@ -338,7 +365,7 @@ typedef struct _swChan
 	swPipe notify_fd; //用于阻塞通知
 	swMutex lock;
 	swChanElem *elems;
-	swMemPool pool;
+	swMemoryPool *pool;
 } swChan;
 
 int swChan_create(swChan **chan_addr, void *mem, int mem_size, int elem_max, int elem_size);
@@ -369,6 +396,16 @@ char sw_error[SW_ERROR_MSG_SIZE];
 #define swIsWorker()          (sw_process_type==SW_PROCESS_WORKER)
 #define swIsManager()         (sw_process_type==SW_PROCESS_MANAGER)
 
+
+//----------------------tool function---------------------
+#define SW_LOG_DEBUG 0
+#define SW_LOG_INFO  1
+#define SW_LOG_WARN  2
+#define SW_LOG_ERROR 3
+
+void sw_log(int level, char *cnt, int len);
+
+//----------------------core function---------------------
 SWINLINE int swSetTimeout(int sock, float timeout);
 SWINLINE ulong swHashFunc(const char *arKey, uint nKeyLength);
 SWINLINE int swRead(int, char *, int);
@@ -380,8 +417,10 @@ SWINLINE int swSocket_listen(int type, char *host, int port, int backlog);
 SWINLINE int swSocket_create(int type);
 swSignalFunc swSignalSet(int sig, swSignalFunc func, int restart, int mask);
 
+typedef struct _swFactory swFactory;
+typedef int (*swEventCallback)(swFactory *factory, swEventData *event);
 //------------------Factory--------------------
-typedef struct _swFactory
+struct _swFactory
 {
 	void *object;
 	int id; //Factory ID
@@ -395,12 +434,14 @@ typedef struct _swFactory
 	int (*shutdown)(struct _swFactory *);
 	int (*dispatch)(struct _swFactory *, swEventData *);
 	int (*finish)(struct _swFactory *, swSendData *);
-	int (*event)(struct _swFactory *, swEvent *); //发送一个事件通知
+	int (*notify)(struct _swFactory *, swEvent *);                       //发送一个事件通知
+	int (*event)(struct _swFactory *, int controller_id, swEventData *); //控制器事件
+	int (*controller)(struct _swFactory *factory, swEventCallback cb);   //增加一个控制器进程
 	int (*end)(struct _swFactory *, swDataHead *);
 
 	int (*onTask)(struct _swFactory *, swEventData *task); //worker function.get a task,goto to work
 	int (*onFinish)(struct _swFactory *, swSendData *result); //factory worker finish.callback
-} swFactory;
+};
 
 struct swReactor_s
 {
@@ -412,8 +453,8 @@ struct swReactor_s
 	swReactor_handle handle[SW_MAX_FDTYPE];
 	swFactory *factory;
 
-	int (*add)(swReactor *, int, int);
-	int (*del)(swReactor *, int);
+	int (*add)(swReactor *, int fd, int fdtype);
+	int (*del)(swReactor *, int fd);
 	int (*wait)(swReactor *, struct timeval *);
 	void (*free)(swReactor *);
 	int (*setHandle)(swReactor *, int, swReactor_handle);
@@ -456,16 +497,13 @@ int swFactory_start(swFactory *factory);
 int swFactory_shutdown(swFactory *factory);
 int swFactory_dispatch(swFactory *factory, swEventData *req);
 int swFactory_finish(swFactory *factory, swSendData *resp);
-int swFactory_event(swFactory *factory, swEvent *event);
+int swFactory_notify(swFactory *factory, swEvent *event);
 int swFactory_end(swFactory *factory, swDataHead *cev);
 int swFactory_check_callback(swFactory *factory);
 
 int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num);
 int swFactoryProcess_start(swFactory *factory);
 int swFactoryProcess_shutdown(swFactory *factory);
-int swFactoryProcess_event(swFactory *factory, swEvent *event);
-int swFactoryProcess_dispatch(swFactory *factory, swEventData *buf);
-int swFactoryProcess_finish(swFactory *factory, swSendData *data);
 int swFactoryProcess_end(swFactory *factory, swDataHead *event);
 
 int swFactoryThread_create(swFactory *factory, int writer_num);
@@ -481,5 +519,9 @@ int swReactorEpoll_create(swReactor *reactor, int max_event_num);
 int swReactorPoll_create(swReactor *reactor, int max_event_num);
 int swReactorKqueue_create(swReactor *reactor, int max_event_num);
 int swReactorSelect_create(swReactor *reactor);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SWOOLE_H_ */

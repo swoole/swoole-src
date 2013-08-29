@@ -29,31 +29,73 @@ swUnitTest(mem_test1)
 
 swUnitTest(mem_test2)
 {
-	int size = 1024;
-#define N 11
-	char *buf[N];
-	void *mm = malloc(size);
-	swMemPool p;
-	swMemPool_create(&p, mm, size, 128);
-	int i;
+	swMemoryPool pool;
+	swMemoryPool_create(&pool, 1028 * 8, 128);
 
-	for (i = 0; i < N; i++)
+	int i;
+	char *m;
+#define LOOP 80
+#define LOOP2 30
+	char *str[LOOP];
+	bzero(str, sizeof(char *) * LOOP);
+
+	for (i = 0; i < LOOP; i++)
 	{
-		if(i==6)
+		m = swMemoryPool_alloc(&pool);
+		if (m == NULL)
 		{
-			swMemPool_free(buf[0]);
-			swMemPool_free(buf[1]);
+			printf("Mempool Full\n");
+			str[i] = NULL;
+			break;
 		}
-		buf[i] = swMemPool_fetch(&p);
-		if (buf[i] == NULL)
-		{
-			printf("[%d][%p]fetch fail.\n", i, buf[i]);
-		}
-		else
-		{
-			memset(buf[i], 'c', 127);
-			printf("[%d][%p]data=%s\n", i, buf[i], buf[i]);
-		}
+		sprintf(m, "hello. index=%d\n", i);
+		str[i] = m;
 	}
+
+	for (i = 0; i < LOOP; i++)
+	{
+		if (str[i] == NULL)
+		{
+			continue;
+		}
+		printf("DATA=%s", str[i]);
+	}
+	//	swMemoryPool_print(&pool);
+
+	for (i = 10; i >= 0; i--)
+	{
+		if (str[i] == NULL)
+		{
+			break;
+		}
+		swMemoryPool_free(&pool, str[i]);
+		//		swMemoryPool_print(&pool);
+		//		sleep(1);
+	}
+	swMemoryPool_print(&pool);
+	//	sleep(100);
+
+	for (i = 0; i < LOOP2; i++)
+	{
+		m = swMemoryPool_alloc(&pool);
+		if (m == NULL)
+		{
+			printf("Mempool Full\n");
+			str[i] = NULL;
+			break;
+		}
+		sprintf(m, "world. index=%d\n", i);
+		str[i] = m;
+	}
+
+	for (i = 0; i < LOOP2; i++)
+	{
+		if (str[i] == NULL)
+		{
+			break;
+		}
+		printf("DATA=%s", str[i]);
+	}
+	swMemoryPool_print(&pool);
 	return 0;
 }

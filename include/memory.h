@@ -23,21 +23,31 @@ typedef struct _swShareMemory_mmap
 	void *mem;
 } swShareMemory;
 
-typedef struct _swMemPool
-{
-	int size;
-	int item_size;
-	int cur;
-	void *mem;
-} swMemPool;
-
 void *swShareMemory_mmap_create(swShareMemory *object, int size, char *mapfile);
 void *swShareMemory_sysv_create(swShareMemory *object, int size, int key);
 int swShareMemory_sysv_free(swShareMemory *object, int rm);
 int swShareMemory_mmap_free(swShareMemory *object);
 
-#define swMemPool_free(data) (*(char*)(data-1)=0)
-void* swMemPool_fetch(swMemPool *p);
-void swMemPool_create(swMemPool *p, void *mem, int size, int item_size);
+typedef struct _swMemoryPoolSlab
+{
+	char tag; //1表示被占用 0未使用
+	struct _swMemoryPoolSlab *next;
+	struct _swMemoryPoolSlab *pre;
+	void *data; //读写区
+} swMemoryPoolSlab;
+
+typedef struct _swMemoryPool
+{
+	swMemoryPoolSlab *head;
+	swMemoryPoolSlab *tail;
+	int block_size; //每次扩容的长度
+	int memory_limit; //最大内存占用
+	int memory_usage; //内存使用量
+	int slab_size; //每个slab的长度
+} swMemoryPool;
+
+int swMemoryPool_create(swMemoryPool *pool, int memory_limit, int slab_size);
+void swMemoryPool_free(swMemoryPool *pool, void *data);
+void* swMemoryPool_alloc(swMemoryPool *pool);
 
 #endif /* SW_MEMORY_H_ */

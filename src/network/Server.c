@@ -133,7 +133,7 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 			connEv.type = SW_EVENT_CONNECT;
 			connEv.from_id = c_pti;
 			connEv.fd = conn_fd;
-			serv->factory.event(&serv->factory, &connEv);
+			serv->factory.notify(&serv->factory, &connEv);
 			serv->connect_count++;
 		}
 	}
@@ -691,7 +691,7 @@ static int swServer_poll_onReceive(swReactor *reactor, swEvent *event)
 		swEvent closeEv;
 		memcpy(&closeEv, event, sizeof(swEvent));
 		closeEv.type = SW_EVENT_CLOSE;
-		factory->event(factory, &closeEv);
+		factory->notify(factory, &closeEv);
 		return swServer_close(serv, event);
 	}
 	else
@@ -772,7 +772,7 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 		swEvent closeEv;
 		memcpy(&closeEv, event, sizeof(swEvent));
 		closeEv.type = SW_EVENT_CLOSE;
-		factory->event(factory, &closeEv);
+		factory->notify(factory, &closeEv);
 		return swServer_close(serv, event);
 	}
 	else
@@ -833,6 +833,7 @@ static int swServer_poll_onPackage(swReactor *reactor, swEvent *event)
 	buf.info.fd = -poll_thread->c_udp_fd; //区分TCP和UDP
 	buf.info.len = ret;
 	buf.info.from_id = event->from_id;
+	buf.info.from_fd = event->fd;
 
 	swTrace("recv package: %s|fd=%d|size=%d\n", buf.data, event->fd, ret);
 	ret = factory->dispatch(factory, &buf);

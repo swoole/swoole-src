@@ -2,6 +2,7 @@
 * gcc -o server server.c -lswoole
 */
 #include "Server.h"
+#include <google/profiler.h>
 
 int my_onReceive(swFactory *factory, swEventData *req);
 void my_onStart(swServer *serv);
@@ -11,6 +12,11 @@ void my_onClose(swServer *serv, int fd, int from_id);
 void my_onTimer(swServer *serv, int interval);
 void my_onWorkerStart(swServer *serv, int worker_id);
 void my_onWorkerStop(swServer *serv, int worker_id);
+int my_onControlEvent(swFactory *factory, swEventData *event);
+void my_onWorkerEvent(swServer *serv, swEventData *event);
+
+static int g_receive_count = 0;
+static int g_controller_id = 0;
 
 char* php_rtrim(char *str, int len)
 {
@@ -38,22 +44,21 @@ char* php_rtrim(char *str, int len)
 int main(int argc, char **argv)
 {
 	int ret;
-
 	swServer serv;
 	swServer_init(&serv); //初始化
 
 	//config
 	serv.backlog = 128;
-	serv.poll_thread_num = 2; //reactor线程数量
-	serv.writer_num = 2;      //writer线程数量
-	serv.worker_num = 4;      //worker进程数量
+	serv.poll_thread_num = 1; //reactor线程数量
+	serv.writer_num = 1;      //writer线程数量
+	serv.worker_num = 1;      //worker进程数量
 
 	serv.factory_mode = SW_MODE_PROCESS; //SW_MODE_PROCESS SW_MODE_THREAD SW_MODE_BASE
 	serv.max_conn = 100000;
 	//serv.open_cpu_affinity = 1;
 	//serv.open_tcp_nodelay = 1;
 	//serv.daemonize = 1;
-	serv.open_eof_check = 1;
+	serv.open_eof_check = 0;
 	memcpy(serv.data_eof, "\r\n\r\n", 4); //开启eof检测，启用buffer区
 
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9500);
@@ -82,6 +87,7 @@ int main(int argc, char **argv)
 		swTrace("create server fail[error=%d].\n", ret);
 		exit(0);
 	}
+	g_controller_id = serv.factory.controller(&serv.factory, my_onControlEvent);
 	ret = swServer_start(&serv);
 	if (ret < 0)
 	{
@@ -91,6 +97,11 @@ int main(int argc, char **argv)
 	return 0;
 }
 
+int my_onControlEvent(swFactory *factory, swEventData *event)
+{
+	printf("Event: type=%d|data=%s\n", event->info.type, event->data);
+	return SW_OK;
+}
 
 void my_onWorkerStart(swServer *serv, int worker_id)
 {
@@ -107,14 +118,12 @@ void my_onTimer(swServer *serv, int interval)
 	printf("Timer Interval=[%d]\n", interval);
 }
 
-static int receive_count = 0;
-
 int my_onReceive(swFactory *factory, swEventData *req)
 {
 	int ret;
 	char resp_data[SW_BUFFER_SIZE];
 	swSendData resp;
-	receive_count ++;
+	g_receive_count ++;
 	resp.info.fd = req->info.fd; //fd can be not source fd.
 	resp.info.len = req->info.len + 8;
 	resp.info.from_id = req->info.from_id;
@@ -127,7 +136,9 @@ int my_onReceive(swFactory *factory, swEventData *req)
 	{
 		printf("send to client fail.errno=%d\n", errno);
 	}
-	printf("onReceive[%d]: Data=%s|Len=%d\n",receive_count, php_rtrim(req->data, req->info.len), req->info.len);
+	printf("onReceive[%d]: Data=%s|Len=%d\n", g_receive_count, php_rtrim(req->data, req->info.len), req->info.len);
+	req->info.type = 99;
+	factory->event(factory, g_controller_id, req);
 	return SW_OK;
 }
 
@@ -143,10 +154,12 @@ void my_onShutdown(swServer *serv)
 
 void my_onConnect(swServer *serv, int fd, int from_id)
 {
+//	ProfilerStart("/tmp/profile.prof");
 	printf("PID=%d\tConnect fd=%d|from_id=%d\n", getpid(), fd, from_id);
 }
 
 void my_onClose(swServer *serv, int fd, int from_id)
 {
 	printf("PID=%d\tClose fd=%d|from_id=%d\n", getpid(), fd, from_id);
+//	ProfilerStop();
 }

@@ -20,7 +20,9 @@
 #define SW_DATA_EOF_MAXLEN         8
 
 #define SW_QUEUE_SIZE              100  //RingBuffer队列长度
-#define SW_MAINREACTOR_TIMEO       3    //主线程，reactor
+#define SW_MAINREACTOR_TIMEO       3    //主线程reactor
+#define SW_REACTOR_WRITER_TIMEO    3    //writer线程的reactor
+
 //#define SW_MAINREACTOR_USE_POLL         //主线程，使用poll还是select
 
 #define SW_REACTOR_TIMEO_SEC       3
@@ -29,8 +31,10 @@
 
 #define SW_WORKER_MSGQUEUE_KEY     0x27000900
 
-//#define SW_USE_RINGQUEUE_TS       1   //使用线程安全版本的RingQueue
+//#define SW_USE_RINGQUEUE_TS       1     //使用线程安全版本的RingQueue
 //#define SW_USE_SHM_CHAN            1    //使用共享内存队列，此特性正在测试中，启用此特性会用内存队列来替代IPC通信，会减少系统调用、内存申请和复制，提高性能
+#define SW_MEMORY_POOL_SLAB_PAGE   10     //内存池的页数
+
 #define SW_CHAN_PUSH_TRY_COUNT     100
 #define SW_CHAN_BUFFER_SIZE        1024*1024*2 //2M缓存区
 #define SW_CHAN_ELEM_SIZE          16

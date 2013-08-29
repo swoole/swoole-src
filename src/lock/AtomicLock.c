@@ -1,18 +1,18 @@
 #include "swoole.h"
 
-int swSpinLock_create(swSpinLock *this, int spin)
+int swAtomicLock_create(swAtomicLock *object, int Atomic)
 {
-	bzero(this, sizeof(swSpinLock));
-	this->spin = spin;
-	this->lock = swSpinLock_lock;
-	this->unlock = swSpinLock_unlock;
-	this->trylock = swSpinLock_trylock;
+	bzero(object, sizeof(swAtomicLock));
+	object->lock_t = Atomic;
+	object->lock = swAtomicLock_lock;
+	object->unlock = swAtomicLock_unlock;
+	object->trylock = swAtomicLock_trylock;
 	return SW_OK;
 }
 
-int swSpinLock_lock(swSpinLock *this)
+int swAtomicLock_lock(swAtomicLock *object)
 {
-	atomic_t *lock = &this->lock_t;
+	atomic_t *lock = &object->lock_t;
 	uint32_t i, n;
 	while (1)
 	{
@@ -22,7 +22,7 @@ int swSpinLock_lock(swSpinLock *this)
 		}
 		if (SW_CPU_NUM > 1)
 		{
-			for (n = 1; n < this->spin; n <<= 1)
+			for (n = 1; n < object->lock_t; n <<= 1)
 			{
 				for (i = 0; i < n; i++)
 				{
@@ -40,13 +40,13 @@ int swSpinLock_lock(swSpinLock *this)
 	return SW_ERR;
 }
 
-int swSpinLock_unlock(swSpinLock *this)
+int swAtomicLock_unlock(swAtomicLock *object)
 {
-	return this->lock_t = 0;
+	return object->lock_t = 0;
 }
 
-int swSpinLock_trylock(swSpinLock *this)
+int swAtomicLock_trylock(swAtomicLock *object)
 {
-	atomic_t *lock = &this->lock_t;
+	atomic_t *lock = &object->lock_t;
 	return (*(lock) == 0 && sw_atomic_cmp_set(lock, 0, 1));
 }

@@ -5,6 +5,7 @@ argv1  server port
 argv2  server mode SWOOLE_BASE or SWOOLE_THREAD or SWOOLE_PROCESS
 argv3  sock_type  SWOOLE_SOCK_TCP or SWOOLE_SOCK_TCP6 or SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6
 */
+$gg = "test";
 $serv = swoole_server_create("127.0.0.1", 9501, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
 
 swoole_server_set($serv, array(
@@ -45,6 +46,8 @@ function my_onClose($serv,$fd,$from_id)
 
 function my_onConnect($serv,$fd,$from_id)
 {
+	global $gg;
+	echo $gg;
 	echo "Client：Connect.\n";
 }
 

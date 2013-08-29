@@ -7,13 +7,13 @@ file(GLOB_RECURSE HEAD_FILES FOLLOW_SYMLINKS include/*.h)
 SET(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/lib)
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
-
 #message(STATUS "source=${SRC_LIST}")
 #message(STATUS "header=${HEAD_FILES}")
 
 add_definitions(-DHAVE_EPOLL -DHAVE_EVENTFD -DHAVE_TIMERFD -DHAVE_CPU_AFFINITY)
 
 INCLUDE_DIRECTORIES(BEFORE ./include ./)
+SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
 #libary
 add_library(swoole_shared SHARED ${SRC_LIST})
@@ -28,10 +28,16 @@ target_link_libraries(swoole_static pthread rt)
 LINK_DIRECTORIES(${LIBRARY_OUTPUT_PATH})
 
 #test_server
-SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 set(TEST_SRC_LIST examples/test_server.c)
 add_executable(test_server ${TEST_SRC_LIST};${SRC_LIST})
-target_link_libraries(test_server pthread rt)
+target_link_libraries(test_server pthread rt profiler)
+
+#unittest
+file(GLOB_RECURSE UNITTEST_SRC_LIST FOLLOW_SYMLINKS tests/*.c)
+set(DEPS_SRC_LIST deps/php_http_parser/php_http_parser.c)
+add_executable(unittest ${UNITTEST_SRC_LIST};${DEPS_SRC_LIST};${SRC_LIST})
+target_link_libraries(unittest pthread rt)
+
 #add_dependencies(test_server swoole_static swoole_shared)
 #TARGET_LINK_LIBRARIES(test_server swoole)
 

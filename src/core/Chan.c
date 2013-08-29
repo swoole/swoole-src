@@ -32,6 +32,10 @@ int swChan_create(swChan **chan_addr, void *mem, int mem_size, int elem_max, int
 	*chan_addr = mem;
 	swChan *chan = *chan_addr;
 	mem += sizeof(swChan); //去掉swChan结构占用的部分
+
+	chan->pool = mem;
+	mem += sizeof(swMemoryPool);
+
 	if (swMutex_create(&chan->lock, 1) < 0)
 	{
 		swWarn("create mutex fail.\n");
@@ -53,10 +57,10 @@ int swChan_create(swChan **chan_addr, void *mem, int mem_size, int elem_max, int
 	}
 	slab_size = sizeof(swChanElem)*elem_max;
 	chan->elem_max = elem_max;
-	chan->mem_size = mem_size - slab_size - sizeof(swChan);//允许溢出
+	chan->mem_size = mem_size - slab_size - sizeof(swChan) - sizeof(swMemoryPool);;//允许溢出
 	chan->elems = (swChanElem *) mem;
 	chan->mem = mem + slab_size;
-	swMemPool_create(&chan->pool, chan->mem, chan->mem_size, elem_size);
+	swMemoryPool_create(chan->pool, chan->mem_size, elem_size);
 	return SW_OK;
 }
 
@@ -103,7 +107,7 @@ int swChan_push_nolock(swChan *chan, void *buf, int buf_len)
 		return SW_ERR;
 	}
 	elem = &(chan->elems[chan->elem_tail]);
-	elem->ptr = swMemPool_fetch(&chan->pool);
+	elem->ptr = swMemoryPool_alloc(chan->pool);
 	//内存不足
 	if(elem->ptr == NULL)
 	{
