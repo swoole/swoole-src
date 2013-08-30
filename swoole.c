@@ -290,7 +290,7 @@ PHP_FUNCTION(swoole_server_set)
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ra", &zserv, &zset ) == FAILURE)
 	{
-		return;
+		RETURN_FALSE;
 	}
 	ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
 
@@ -340,20 +340,53 @@ PHP_FUNCTION(swoole_server_set)
 	//cpu affinity
 	if (zend_hash_find(vht, ZEND_STRS("open_cpu_affinity"), (void **)&v) == SUCCESS)
 	{
-		serv->open_cpu_affinity = (char)Z_LVAL_PP(v);
+		serv->open_cpu_affinity = (uint8_t)Z_LVAL_PP(v);
 	}
-	//tcp nodelay
+	//tcp_nodelay
 	if (zend_hash_find(vht, ZEND_STRS("open_tcp_nodelay"), (void **)&v) == SUCCESS)
 	{
-		serv->open_tcp_nodelay = (char)Z_LVAL_PP(v);
+		serv->open_tcp_nodelay = (uint8_t)Z_LVAL_PP(v);
 	}
-
+	//tcp_keepalive
+	if (zend_hash_find(vht, ZEND_STRS("open_tcp_keepalive"), (void **)&v) == SUCCESS)
+	{
+		serv->open_tcp_keepalive = (uint8_t)Z_LVAL_PP(v);
+	}
+	//data buffer, EOF检测
+	if (zend_hash_find(vht, ZEND_STRS("open_eof_check"), (void **)&v) == SUCCESS)
+	{
+		serv->open_eof_check = (uint8_t)Z_LVAL_PP(v);
+	}
+	//data eof设置
+	if (zend_hash_find(vht, ZEND_STRS("data_eof"), (void **) &v) == SUCCESS)
+	{
+		if (Z_STRLEN_PP(v) > SW_DATA_EOF_MAXLEN)
+		{
+			zend_error(E_ERROR, "swoole_server date_eof max length is %d", SW_DATA_EOF_MAXLEN);
+			RETURN_FALSE;
+		}
+		memcpy(serv->data_eof, Z_STRVAL_PP(v), Z_STRLEN_PP(v));
+	}
+	//tcp_keepidle
+	if (zend_hash_find(vht, ZEND_STRS("tcp_keepidle"), (void **)&v) == SUCCESS)
+	{
+		serv->tcp_keepidle = (uint16_t)Z_LVAL_PP(v);
+	}
+	//tcp_keepinterval
+	if (zend_hash_find(vht, ZEND_STRS("tcp_keepinterval"), (void **)&v) == SUCCESS)
+	{
+		serv->tcp_keepinterval = (uint16_t)Z_LVAL_PP(v);
+	}
+	//tcp_keepcount
+	if (zend_hash_find(vht, ZEND_STRS("tcp_keepcount"), (void **)&v) == SUCCESS)
+	{
+		serv->tcp_keepcount = (uint16_t)Z_LVAL_PP(v);
+	}
 	//max_request
 	if (zend_hash_find(vht, ZEND_STRS("dispatch_mode"), (void **)&v) == SUCCESS)
 	{
 		serv->dispatch_mode = (int)Z_LVAL_PP(v);
 	}
-
 	RETURN_TRUE;
 }
 
