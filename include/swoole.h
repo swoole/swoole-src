@@ -77,13 +77,6 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #include "hashtable.h"
 #include "list.h"
 
-#define SW_THREAD_NUM          2
-#define SW_WRITER_NUM          2  //写线程数量
-#define SW_TASK_THREAD         4 //Task线程
-#define SW_PIPES_NUM           (SW_WORKER_NUM/SW_WRITER_NUM + 1) //每个写线程pipes数组大小
-#define SW_WORKER_NUM          4 //Worker进程数量
-
-#define SW_BACKLOG             512
 #define SW_TIMEO_SEC           0
 #define SW_TIMEO_USEC          3000000
 

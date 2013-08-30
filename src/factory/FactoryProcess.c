@@ -587,11 +587,6 @@ int swFactoryProcess_end(swFactory *factory, swDataHead *event)
 	}
 	while(ret < 0 && errno == EINTR);
 #endif
-	//在Worker进程中执行onClose回调
-	if(ret > 0)
-	{
-		serv->onClose(serv, event->fd, event->from_id);
-	}
 	return ret;
 }
 

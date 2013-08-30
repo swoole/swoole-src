@@ -20,6 +20,7 @@
 
 #define SW_DATA_EOF                "\r\n\r\n"
 #define SW_DATA_EOF_MAXLEN         8
+//#define SW_USE_CONN_BUFFER         1 //使用ConnBuffer还是DataBuffer,DataBuffer是分trunk的，ConnBuffer是固定的
 
 #define SW_QUEUE_SIZE              100  //RingBuffer队列长度
 #define SW_MAINREACTOR_TIMEO       3    //主线程reactor

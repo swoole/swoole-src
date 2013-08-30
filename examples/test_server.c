@@ -5,6 +5,7 @@
 #include <google/profiler.h>
 
 int my_onReceive(swFactory *factory, swEventData *req);
+char* rtrim(char *str, int len);
 void my_onStart(swServer *serv);
 void my_onShutdown(swServer *serv);
 void my_onConnect(swServer *serv, int fd, int from_id);
@@ -13,12 +14,11 @@ void my_onTimer(swServer *serv, int interval);
 void my_onWorkerStart(swServer *serv, int worker_id);
 void my_onWorkerStop(swServer *serv, int worker_id);
 int my_onControlEvent(swFactory *factory, swEventData *event);
-void my_onWorkerEvent(swServer *serv, swEventData *event);
 
 static int g_receive_count = 0;
 static int g_controller_id = 0;
 
-char* php_rtrim(char *str, int len)
+char* rtrim(char *str, int len)
 {
 	int i;
 	for (i = len; i > 0; i--)
@@ -58,7 +58,7 @@ int main(int argc, char **argv)
 	//serv.open_cpu_affinity = 1;
 	//serv.open_tcp_nodelay = 1;
 	//serv.daemonize = 1;
-	serv.open_eof_check = 0;
+	serv.open_eof_check = 1;
 	memcpy(serv.data_eof, "\r\n\r\n", 4); //开启eof检测，启用buffer区
 
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9500);
@@ -70,6 +70,8 @@ int main(int argc, char **argv)
 	//swServer_addTimer(&serv, 4);
 
 	serv.dispatch_mode = 2;
+
+	serv.open_tcp_keepalive = 1;
 
 	serv.onStart = my_onStart;
 	serv.onShutdown = my_onShutdown;
@@ -136,7 +138,7 @@ int my_onReceive(swFactory *factory, swEventData *req)
 	{
 		printf("send to client fail.errno=%d\n", errno);
 	}
-	printf("onReceive[%d]: Data=%s|Len=%d\n", g_receive_count, php_rtrim(req->data, req->info.len), req->info.len);
+	printf("onReceive[%d]: Data=%s|Len=%d\n", g_receive_count, rtrim(req->data, req->info.len), req->info.len);
 //	req->info.type = 99;
 //	factory->event(factory, g_controller_id, req);
 	return SW_OK;
