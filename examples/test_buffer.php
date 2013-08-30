@@ -5,7 +5,7 @@ if(!$client->connect('127.0.0.1', 9501))
 {
 	exit("connect fail\n");
 }
-for($i=0; $i<1; $i++)
+for($i=0; $i<100; $i++)
 {
 	$client->send(str_repeat("A", 25).$i);
 	$client->send(str_repeat("A", 26).$i);
