@@ -71,6 +71,7 @@ typedef struct _swConnection {
 	int fd; //文件描述符
 	uint16_t from_id; //Reactor Id
 	uint8_t buffer_num; //buffer的数量
+	struct sockaddr_in addr; //socket的地址
 	swConnBuffer *buffer; //缓存区
 } swConnection;
 

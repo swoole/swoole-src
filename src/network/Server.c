@@ -46,7 +46,10 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 	{
 		serv->onMasterClose(serv, cev.fd, cev.from_id);
 	}
-	factory->notify(factory, event);
+	if(serv->onClose != NULL)
+	{
+		factory->notify(factory, event);
+	}
 	serv->connect_count--;
 	return close(cev.fd);
 }
@@ -98,7 +101,6 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 			break;
 		}
 #endif
-
 		//连接过多
 		if(serv->connect_count >= serv->max_conn)
 		{
@@ -162,7 +164,11 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 			{
 				serv->onMasterConnect(serv, conn_fd, c_pti);
 			}
-			serv->factory.notify(&serv->factory, &connEv);
+			if(serv->onConnect != NULL)
+			{
+				serv->factory.notify(&serv->factory, &connEv);
+			}
+			memcpy(&(swServer_get_connection(serv, conn_fd)->addr), &client_addr, sizeof(client_addr));
 			serv->connect_count++;
 		}
 	}
@@ -444,11 +450,11 @@ int swServer_new_connection(swServer *serv, swEvent *ev)
 		}
 	}
 	connection = &serv->connection_list[conn_fd];
-	connection->tag = 1;
 	connection->buffer_num = 0;
 	connection->fd = conn_fd;
 	connection->from_id = ev->from_id;
 	connection->buffer = NULL;
+	connection->tag = 1; //使此连接激活,必须在最后，保证线程安全
 	return SW_OK;
 }
 

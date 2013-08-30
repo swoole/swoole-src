@@ -53,7 +53,7 @@ int main(int argc, char **argv)
 	serv.writer_num = 1;      //writer线程数量
 	serv.worker_num = 1;      //worker进程数量
 
-	serv.factory_mode = SW_MODE_PROCESS; //SW_MODE_PROCESS SW_MODE_THREAD SW_MODE_BASE
+	serv.factory_mode = SW_MODE_THREAD; //SW_MODE_PROCESS SW_MODE_THREAD SW_MODE_BASE
 	serv.max_conn = 100000;
 	//serv.open_cpu_affinity = 1;
 	//serv.open_tcp_nodelay = 1;
@@ -124,6 +124,9 @@ int my_onReceive(swFactory *factory, swEventData *req)
 {
 	int ret;
 	char resp_data[SW_BUFFER_SIZE];
+	swServer *serv = factory->ptr;
+	swConnection *conn = swServer_get_connection(serv, req->info.fd);
+
 	swSendData resp;
 	g_receive_count ++;
 	resp.info.fd = req->info.fd; //fd can be not source fd.
@@ -138,7 +141,9 @@ int my_onReceive(swFactory *factory, swEventData *req)
 	{
 		printf("send to client fail.errno=%d\n", errno);
 	}
-	printf("onReceive[%d]: Data=%s|Len=%d\n", g_receive_count, rtrim(req->data, req->info.len), req->info.len);
+	printf("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d\n", g_receive_count,
+			inet_ntoa(conn->addr.sin_addr), conn->addr.sin_port,
+			rtrim(req->data, req->info.len), req->info.len);
 //	req->info.type = 99;
 //	factory->event(factory, g_controller_id, req);
 	return SW_OK;
