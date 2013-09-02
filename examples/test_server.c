@@ -58,8 +58,9 @@ int main(int argc, char **argv)
 	//serv.open_cpu_affinity = 1;
 	//serv.open_tcp_nodelay = 1;
 	//serv.daemonize = 1;
-	serv.open_eof_check = 1;
-	memcpy(serv.data_eof, "\r\n\r\n", 4); //开启eof检测，启用buffer区
+	serv.open_eof_check = 0;
+	memcpy(serv.data_eof, SW_STRL("\r\n\r\n")-1);      //开启eof检测，启用buffer区
+	memcpy(serv.log_file, SW_STRL("/tmp/swoole.log")); //日志
 
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9500);
 	swServer_addListen(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
@@ -70,7 +71,6 @@ int main(int argc, char **argv)
 	//swServer_addTimer(&serv, 4);
 
 	serv.dispatch_mode = 2;
-
 	serv.open_tcp_keepalive = 1;
 
 	serv.onStart = my_onStart;
@@ -151,12 +151,12 @@ int my_onReceive(swFactory *factory, swEventData *req)
 
 void my_onStart(swServer *serv)
 {
-	printf("Server is running\n");
+	sw_log("Server is running");
 }
 
 void my_onShutdown(swServer *serv)
 {
-	printf("Server is shutdown\n");
+	sw_log("Server is shutdown\n");
 }
 
 void my_onConnect(swServer *serv, int fd, int from_id)

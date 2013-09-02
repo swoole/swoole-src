@@ -123,8 +123,13 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define SW_DISPATCH_FDMOD      2
 #define SW_DISPATCH_QUEUE      3
 
-#define swWarn(str,...)       {printf("[%s:%d:%s]"str"\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d@%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);}
-#define swError(str,...)       {printf("[%s:%d@%s]"str"\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);exit(1);}
+#define SW_LOG_DEBUG           0
+#define SW_LOG_INFO            1
+#define SW_LOG_WARN            2
+#define SW_LOG_ERROR           3
+
+#define swWarn(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d@%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);swLog_put(SW_LOG_WARN, sw_error);}
+#define swError(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d@%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);swLog_put(SW_LOG_ERROR, sw_error);exit(1);}
 
 #ifdef SW_DEBUG
 #define swTrace(str,...)       {printf("[%s:%d@%s]"str"\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);}
@@ -137,7 +142,7 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define swYield()              sched_yield() //or usleep(1)
 //#define swYield()              usleep(500000)
 #define SW_MAX_FDTYPE          32 //32 kinds of event
-#define SW_ERROR_MSG_SIZE      256
+#define SW_ERROR_MSG_SIZE      512
 
 #ifndef ulong
 #define ulong unsigned long
@@ -384,12 +389,10 @@ char sw_error[SW_ERROR_MSG_SIZE];
 
 
 //----------------------tool function---------------------
-#define SW_LOG_DEBUG 0
-#define SW_LOG_INFO  1
-#define SW_LOG_WARN  2
-#define SW_LOG_ERROR 3
-
-void sw_log(int level, char *cnt, int len);
+int swLog_init(char *logfile);
+void swLog_put(int level, char *cnt);
+void swLog_free(void);
+#define sw_log(msg) swLog_put(SW_LOG_INFO, msg)
 
 //----------------------core function---------------------
 SWINLINE int swSetTimeout(int sock, float timeout);

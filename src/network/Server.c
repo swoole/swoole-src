@@ -458,6 +458,8 @@ int swServer_new_connection(swServer *serv, swEvent *ev)
 	return SW_OK;
 }
 
+extern FILE *swoole_log_fn;
+
 int swServer_create(swServer *serv)
 {
 	int ret = 0;
@@ -465,6 +467,15 @@ int swServer_create(swServer *serv)
 	swoole_running = 1;
 	sw_errno = 0;
 	bzero(sw_error, SW_ERROR_MSG_SIZE);
+
+	if(serv->log_file[0] == 0)
+	{
+		swoole_log_fn = stdout;
+	}
+	else
+	{
+		swLog_init(serv->log_file);
+	}
 
 	ret = swPipeBase_create(&serv->main_pipe, 0);
 	if (ret < 0)
@@ -544,6 +555,11 @@ int swServer_shutdown(swServer *serv)
 {
 	//stop all thread
 	swoole_running = 0;
+	//close log file
+	if(serv->log_file[0] != 0)
+	{
+		swLog_free();
+	}
 	return SW_OK;
 }
 

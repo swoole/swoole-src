@@ -15,8 +15,8 @@ swoole_server_set($serv, array(
     'worker_num' => 4,    //worker process num
     'backlog' => 128,   //listen backlog
     'max_request' => 1000,
-    'data_eof' => "\r\n\r\n",
-    'open_eof_check' => 1,
+    //'data_eof' => "\r\n\r\n",
+    //'open_eof_check' => 1,
     'open_tcp_keepalive' => 1,
 ));
 

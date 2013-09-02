@@ -27,6 +27,8 @@ extern "C" {
 
 #define SW_HOST_MAXSIZE          48
 #define SW_MAX_TMP_PKG           1000
+#define SW_LOG_FILENAME          128
+
 
 typedef struct _swUdpFd{
 	struct sockaddr addr;
@@ -104,6 +106,7 @@ struct swServer_s
 	uint8_t max_trunk_num;               //每个请求最大允许创建的trunk数
 	char data_eof[SW_DATA_EOF_MAXLEN];   //数据缓存结束符
 	uint8_t data_eof_len;                //数据缓存结束符长度
+	char log_file[SW_LOG_FILENAME];      //日志文件
 
 	int timer_fd;
 	int signal_fd;
