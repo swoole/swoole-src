@@ -9,7 +9,7 @@ Server
 * [改变Worker进程的用户/组](user.md)
 * [swoole_server_addlisten多端口混合监听](addlisten.md)
 * [swoole_server_addtimer定时器的使用](timer.md)
-* 关于from_id和fd，回调函数中经常看到它。from_id是来自于哪个poll线程，fd是tcp连接的文件描述符。
+* [关于from_id和fd](fd.md)
 * [Nginx/Golang/Swoole/Node.js的性能对比](bench.md) 
 * [Buffer和EOF_Check的使用](buffer.md) 
 * [Worker与Reactor通信模式](dispatch_mod.md)

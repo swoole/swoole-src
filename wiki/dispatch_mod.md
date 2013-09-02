@@ -4,7 +4,7 @@ worker进程如何与reactor进程通信，Swoole提供了3种方式。通过swo
 
 轮询模式：dispatch_mode = 1
 -----
-收到的请求数据包会轮询发到没一个Worker进程。
+收到的请求数据包会轮询发到每个Worker进程。
 
 FD取摸：dispatch_mode = 2(默认）
 -----
