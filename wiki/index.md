@@ -3,6 +3,7 @@ Server
 * [swoole扩展编译安装](install.md)
 * [swoole_server_set参数说明](setting.md)
 * [swoole_server_create运行模式说明](factory_mode.md)
+* [swoole_server_handler设置事件回调](event_handler.md)
 * swoole_server_close函数，用来关闭一个连接
 * swoole_server_send函数，用于向客户端发送数据
 * [改变Worker进程的用户/组](user.md)
@@ -10,7 +11,7 @@ Server
 * [swoole_server_addtimer定时器的使用](timer.md)
 * 关于from_id和fd，回调函数中经常看到它。from_id是来自于哪个poll线程，fd是tcp连接的文件描述符。
 * [Nginx/Golang/Swoole/Node.js的性能对比](bench.md) 
-* [Buffer和EOF_Check的使用]
+* [Buffer和EOF_Check的使用](buffer.md) 
 * [Worker与Reactor通信模式]
 
 
