@@ -159,6 +159,7 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_NEW_EXTENSION(swoole, swoole.c \
         src/core/Base.c \
+        src/core/log.c \
         src/core/RingQueue.c \
         src/core/Chan.c \
         src/memory/ShareMemory.c \
