@@ -234,19 +234,50 @@ SWINLINE int swWrite(int fd, char *buf, int count)
 //将套接字设置为非阻塞方式
 SWINLINE void swSetNonBlock(int sock)
 {
-	int opts;
-	opts = fcntl(sock, F_GETFL);
+	int	opts, ret;
+	do
+	{
+		opts = fcntl(sock, F_GETFL);
+	}
+	while(opts <0 && errno == EINTR);
 	if (opts < 0)
 	{
-		perror("fcntl(sock,GETFL)");
-		exit(1);
+		swWarn("fcntl(sock,GETFL) fail");
 	}
-
 	opts = opts | O_NONBLOCK;
-	if (fcntl(sock, F_SETFL, opts) < 0)
+	do
 	{
-		perror("fcntl(sock,SETFL,opts)");
-		exit(1);
+		ret = fcntl(sock, F_SETFL, opts);
+	}
+	while(ret <0 && errno == EINTR);
+	if (ret < 0)
+	{
+		swWarn("fcntl(sock,SETFL,opts) fail");
+	}
+}
+
+SWINLINE void swSetBlock(int sock)
+{
+	int opts, ret;
+	do
+	{
+		opts = fcntl(sock, F_GETFL);
+	}
+	while(opts <0 && errno == EINTR);
+
+	if (opts < 0)
+	{
+		swWarn("fcntl(sock,GETFL) fail");
+	}
+	opts = opts & ~O_NONBLOCK;
+	do
+	{
+		ret = fcntl(sock, F_SETFL, opts);
+	}
+	while(ret <0 && errno == EINTR);
+	if (ret < 0)
+	{
+		swWarn("fcntl(sock,SETFL,opts) fail");
 	}
 }
 
@@ -281,21 +312,6 @@ SWINLINE int swAccept(int server_socket, struct sockaddr_in *addr, int addr_len)
 		break;
 	}
 	return conn_fd;
-}
-
-SWINLINE void swSetBlock(int sock)
-{
-	int opts;
-	opts = fcntl(sock, F_GETFL);
-	if (opts < 0)
-	{
-		swWarn("fcntl(sock,GETFL) fail");
-	}
-	opts = opts & ~O_NONBLOCK;
-	if (fcntl(sock, F_SETFL, opts) < 0)
-	{
-		swWarn("fcntl(sock,SETFL,opts) fail");
-	}
 }
 
 SWINLINE int swSetTimeout(int sock, float timeout)
