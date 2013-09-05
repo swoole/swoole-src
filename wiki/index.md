@@ -6,13 +6,16 @@ Server
 * [swoole_server_handler设置事件回调](event_handler.md)
 * swoole_server_close函数，用来关闭一个连接
 * swoole_server_send函数，用于向客户端发送数据
+* [swoole_server_reload柔性重启策略](reload.md)
 * [改变Worker进程的用户/组](user.md)
 * [swoole_server_addlisten多端口混合监听](addlisten.md)
 * [swoole_server_addtimer定时器的使用](timer.md)
 * [关于from_id和fd](fd.md)
-* [Nginx/Golang/Swoole/Node.js的性能对比](bench.md) 
 * [Buffer和EOF_Check的使用](buffer.md) 
 * [Worker与Reactor通信模式](dispatch_mod.md)
+* [TCP-Keepalive死连接检测](tcp_keepalive.md)
+* [Nginx/Golang/Swoole/Node.js的性能对比](bench.md) 
+* [并发10万TCP连接的测试](c100k.md)
 
 
 Client

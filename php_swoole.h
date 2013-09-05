@@ -59,6 +59,7 @@ PHP_FUNCTION(swoole_server_handler);
 PHP_FUNCTION(swoole_server_addlisten);
 PHP_FUNCTION(swoole_server_addtimer);
 PHP_FUNCTION(swoole_server_reload);
+PHP_FUNCTION(swoole_server_fdinfo);
 
 PHP_FUNCTION(swoole_client_select);
 
