@@ -70,7 +70,7 @@ function my_onReceive($serv, $fd, $from_id, $data)
 	//swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);
 	//swoole_server_close($serv, $fd, $from_id);
 	//swoole_server_close($serv, $ohter_fd, $other_from_id);
-	
+	/*
 	$start_fd = 0;
 	while(true)
 	{
@@ -82,7 +82,7 @@ function my_onReceive($serv, $fd, $from_id, $data)
 		}
 		$start_fd = $conn_list[count($conn_list)-1];
 		var_dump($conn_list);
-	}
+	}*/
 }
  function my_onMasterClose($serv,$fd,$from_id)
 {

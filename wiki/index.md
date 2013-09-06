@@ -19,6 +19,7 @@ Server
 * [改变Worker进程的用户/组](user.md)
 * [swoole_server_addlisten多端口混合监听](addlisten.md)
 * [swoole_server_addtimer定时器的使用](timer.md)
+* [swoole_connection_info获取连接信息](connection_info.md)
 * [回调函数中的from_id和fd](fd.md)
 * [Buffer和EOF_Check的使用](buffer.md) 
 * [Worker与Reactor通信模式](dispatch_mod.md)

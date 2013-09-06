@@ -64,13 +64,15 @@ function my_onWorkerStop($serv, $worker_id)
 
 function my_onReceive($serv, $fd, $from_id, $data)
 {
-    echo "Client：Data. fd=$fd|from_id=$from_id|data=$data\n";
-    var_dump(swoole_connection_info($serv, $fd));
+    //echo "Client：Data. fd=$fd|from_id=$from_id|data=$data\n";
 	swoole_server_send($serv, $fd, 'Swoole: '.$data);
 	//swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);
 	//swoole_server_close($serv, $fd, $from_id);
 	//swoole_server_close($serv, $ohter_fd, $other_from_id);
 	
+	/*
+	 * require swoole-1.5.8+
+	var_dump(swoole_connection_info($serv, $fd));
 	$start_fd = 0;
 	while(true)
 	{
@@ -83,6 +85,7 @@ function my_onReceive($serv, $fd, $from_id, $data)
 		$start_fd = $conn_list[count($conn_list)-1];
 		var_dump($conn_list);
 	}
+	*/
 }
  function my_onMasterClose($serv,$fd,$from_id)
 {
