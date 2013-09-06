@@ -3,41 +3,12 @@
 
 SWINLINE ulong swHashFunc(const char *arKey, uint nKeyLength)
 {
-	register ulong hash = 5381;
-
-	/* variant with the hash unrolled eight times */
-	for (; nKeyLength >= 8; nKeyLength -= 8)
+	int hash = 0;
+	int i = 0;
+	for (; i < nKeyLength; i++)
 	{
-		hash = ((hash << 5) + hash) + *arKey++;
-		hash = ((hash << 5) + hash) + *arKey++;
-		hash = ((hash << 5) + hash) + *arKey++;
-		hash = ((hash << 5) + hash) + *arKey++;
-		hash = ((hash << 5) + hash) + *arKey++;
-		hash = ((hash << 5) + hash) + *arKey++;
-		hash = ((hash << 5) + hash) + *arKey++;
-		hash = ((hash << 5) + hash) + *arKey++;
-	}
-	switch (nKeyLength)
-	{
-	case 7:
-		hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
-	case 6:
-		hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
-	case 5:
-		hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
-	case 4:
-		hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
-	case 3:
-		hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
-	case 2:
-		hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
-	case 1:
-		hash = ((hash << 5) + hash) + *arKey++;
-		break;
-	case 0:
-		break;
-	default:
-		break;
+		hash = (*((hash * 33) + arKey)) & 0x7fffffff;
+		arKey++;
 	}
 	return hash;
 }

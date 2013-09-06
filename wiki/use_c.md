@@ -14,11 +14,20 @@ make install
 
 Example
 -----
-源代码编写请参考examples/server.c
-只需要引入swoole头即可。
+示例代码：examples/server.c
+在C/C++代码中只需要引入swoole头即可。
 ```c
 #include <swoole/Server.h>
 #include <swoole/Client.h>
+
+int main() 
+{
+    swServer serv;
+    swServer_create(&serv);
+    serv.onStart = my_onStart;    
+    ...
+    swServer_start(&serv);
+}
 ```
 编译运行
 ```

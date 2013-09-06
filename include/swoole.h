@@ -71,6 +71,29 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #include <sys/eventfd.h>
 #endif
 
+/*----------------------------------------------------------------------------*/
+#ifndef ulong
+#define ulong unsigned long
+#endif
+
+#if defined(__GNUC_MINOR__) && __GNUC_MINOR__ > 6
+#define SWINLINE    inline
+#else
+#define SWINLINE
+#endif
+
+#ifndef SOCK_NONBLOCK
+#define SOCK_NONBLOCK O_NONBLOCK
+#endif
+
+#ifndef CLOCK_REALTIME
+#define CLOCK_REALTIME 0
+#endif
+
+#define SW_START_LINE  "-------------------------START----------------------------"
+#define SW_END_LINE    "-------------------------END------------------------------"
+/*----------------------------------------------------------------------------*/
+
 #include "swoole_config.h"
 #include "memory.h"
 #include "atomic.h"
@@ -143,27 +166,6 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 //#define swYield()              usleep(500000)
 #define SW_MAX_FDTYPE          32 //32 kinds of event
 #define SW_ERROR_MSG_SIZE      512
-
-#ifndef ulong
-#define ulong unsigned long
-#endif
-
-#ifndef SOCK_NONBLOCK
-#define SOCK_NONBLOCK O_NONBLOCK
-#endif
-
-#ifndef CLOCK_REALTIME
-#define CLOCK_REALTIME 0
-#endif
-
-#define SW_START_LINE  "-------------------------START----------------------------"
-#define SW_END_LINE    "-------------------------END------------------------------"
-
-#if defined(__GNUC_MINOR__) && __GNUC_MINOR__ > 6
-#define SWINLINE    inline
-#else
-#define SWINLINE
-#endif
 
 //------------------Base--------------------
 typedef struct _swDataHead
@@ -392,7 +394,7 @@ char sw_error[SW_ERROR_MSG_SIZE];
 int swLog_init(char *logfile);
 void swLog_put(int level, char *cnt);
 void swLog_free(void);
-#define sw_log(msg) swLog_put(SW_LOG_INFO, msg)
+#define sw_log(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);swLog_put(SW_LOG_INFO, sw_error);}
 
 //----------------------core function---------------------
 SWINLINE int swSetTimeout(int sock, float timeout);

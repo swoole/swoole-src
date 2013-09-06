@@ -72,6 +72,7 @@ typedef struct _swConnection {
 	uint8_t tag; //状态0表示未使用，1表示正在使用
 	int fd; //文件描述符
 	uint16_t from_id; //Reactor Id
+	uint16_t from_fd; //从哪个ServerFD引发的
 	uint8_t buffer_num; //buffer的数量
 	struct sockaddr_in addr; //socket的地址
 	swConnBuffer *buffer; //缓存区
@@ -90,9 +91,7 @@ struct swServer_s
 
 	int worker_uid;
 	int worker_groupid;
-
 	int max_conn;
-	int max_fd;       //最大的fd
 
 	int connect_count; //连接计数
 	int max_request;
@@ -172,9 +171,16 @@ int swServer_shutdown(swServer *serv);
 int swServer_addTimer(swServer *serv, int interval);
 int swServer_reload(swServer *serv);
 
-
 int swServer_new_connection(swServer *serv, swEvent *ev);
+#define SW_SERVER_MAX_FD_INDEX        0
+#define SW_SERVER_MIN_FD_INDEX        1
 #define swServer_get_connection(serv,fd) (&serv->connection_list[fd])
+//使用connection_list[0]表示最大的FD
+#define swServer_set_maxfd(serv,maxfd) (serv->connection_list[SW_SERVER_MAX_FD_INDEX].fd=maxfd)
+#define swServer_get_maxfd(serv) (serv->connection_list[SW_SERVER_MAX_FD_INDEX].fd)
+//使用connection_list[1]表示最小的FD
+#define swServer_set_minfd(serv,maxfd) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd=maxfd)
+#define swServer_get_minfd(serv) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd)
 swConnBuffer* swConnection_get_buffer(swConnection *conn);
 void swConnection_clear_buffer(swConnection *conn);
 

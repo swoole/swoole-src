@@ -40,6 +40,7 @@
 
 #define SW_RES_SERVER_NAME          "SwooleServer"
 #define SW_RES_CLIENT_NAME          "SwooleClient"
+#define SW_MAX_FIND_COUNT             100 //最多一次性取100个connection_info
 
 #define PHP_CALLBACK_NUM              10
 
@@ -89,6 +90,8 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_server_addlisten, NULL)
 	PHP_FE(swoole_server_addtimer, NULL)
 	PHP_FE(swoole_server_reload, NULL)
+	PHP_FE(swoole_connection_info, NULL)
+	PHP_FE(swoole_connection_list, NULL)
 	PHP_FE(swoole_client_select, NULL)
 
 	PHP_FE_END /* Must be the last line in swoole_functions[] */
@@ -387,6 +390,11 @@ PHP_FUNCTION(swoole_server_set)
 	{
 		serv->dispatch_mode = (int)Z_LVAL_PP(v);
 	}
+	//log_file
+	if (zend_hash_find(vht, ZEND_STRS("log_file"), (void **)&v) == SUCCESS)
+	{
+		memcpy(serv->log_file, Z_STRVAL_PP(v), Z_STRLEN_PP(v));
+	}
 	RETURN_TRUE;
 }
 
@@ -495,6 +503,89 @@ PHP_FUNCTION(swoole_server_reload)
 	//zserv resource
 	ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
 	SW_CHECK_RETURN(swServer_reload(serv));
+}
+
+PHP_FUNCTION(swoole_connection_info)
+{
+	zval *zserv = NULL;
+	swServer *serv;
+	long fd = 0;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rl", &zserv, &fd) == FAILURE)
+	{
+		return;
+	}
+	//zserv resource
+	ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
+	swConnection *conn = swServer_get_connection(serv, fd);
+	if(conn->tag == 0)
+	{
+		RETURN_FALSE;
+	}
+	else
+	{
+		array_init(return_value);
+		add_assoc_long(return_value, "from_id", conn->from_id);
+		add_assoc_long(return_value, "from_fd", conn->from_fd);
+		add_assoc_long(return_value, "from_port",  serv->connection_list[conn->from_fd].addr.sin_port);
+		add_assoc_long(return_value, "remote_port", conn->addr.sin_port);
+		add_assoc_string(return_value, "remote_ip", inet_ntoa(conn->addr.sin_addr), 1);
+	}
+}
+
+PHP_FUNCTION(swoole_connection_list)
+{
+	zval *zserv = NULL;
+	swServer *serv;
+	long start_fd = 0;
+	long find_count = 10;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|ll", &zserv, &start_fd, &find_count) == FAILURE)
+	{
+		return;
+	}
+	//超过最大查找数量
+	if (find_count > SW_MAX_FIND_COUNT)
+	{
+		zend_error(E_WARNING, "swoole_connection_list max_find_count=%d", SW_MAX_FIND_COUNT);
+		RETURN_FALSE;
+	}
+
+	//zserv resource
+	ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
+
+	//复制出来避免被其他进程改写
+	int serv_max_fd = swServer_get_maxfd(serv);
+
+	if(start_fd == 0)
+	{
+		start_fd = swServer_get_minfd(serv);
+	}
+
+	//达到最大，表示已经取完了
+	if ((int)start_fd >= serv_max_fd)
+	{
+		RETURN_FALSE;
+	}
+	array_init(return_value);
+	int fd = start_fd+1;
+
+	//循环到最大fd
+	for(; fd<= serv_max_fd; fd++)
+	{
+		 swTrace("maxfd=%d|fd=%d|find_count=%d|start_fd=%d", serv_max_fd, fd, find_count, start_fd);
+		 if(serv->connection_list[fd].tag == 1)
+		 {
+			 add_next_index_long(return_value, fd);
+			 find_count--;
+		 }
+		 //finish fetch
+		 if(find_count <= 0)
+		 {
+			 break;
+		 }
+	}
+	//sw_log(SW_END_LINE);
 }
 
 int php_swoole_onReceive(swFactory *factory, swEventData *req)

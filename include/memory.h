@@ -50,4 +50,9 @@ int swMemoryPool_create(swMemoryPool *pool, int memory_limit, int slab_size);
 void swMemoryPool_free(swMemoryPool *pool, void *data);
 void* swMemoryPool_alloc(swMemoryPool *pool);
 
+void* sw_shm_malloc(size_t size);
+void sw_shm_free(void *ptr);
+void* sw_shm_calloc(size_t num, size_t _size);
+void* sw_shm_realloc(void *ptr, size_t new_size);
+
 #endif /* SW_MEMORY_H_ */
