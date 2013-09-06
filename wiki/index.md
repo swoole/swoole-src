@@ -26,7 +26,7 @@ swoole的client部分提供了类的封装代码，使用时仅需 new swoole_cl
 client可以并行。swoole_client中用了select来做IO事件循环。为什么要用select呢？因为client一般不会有太多连接的。
 在少量连接的情况下select比epoll性能更好。另外select更简单。
 
-* [查看client.php](../examples/client.php)
+* [查看client.php](https://github.com/matyhtf/swoole/blob/master/examples/client.php)
 
 高级
 -----
