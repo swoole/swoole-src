@@ -22,20 +22,21 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &(serv->factory);
 	swEventClose cev;
+	swEvent notify_ev;
 	swReactor *from_reactor;
-	swConnection *conn = swServer_get_connection(serv, event->fd);
 	int ret;
-
-	//关闭此连接，必须放在最前面，以保证线程安全
-	conn->tag = 0;
 
 	ret = serv->main_pipe.read(&serv->main_pipe, &cev, sizeof(uint64_t));
 	if (ret < 0)
 	{
 		return SW_ERR;
 	}
-	swTrace("Close Event.fd=%d|from=%d\n", cev.fd, cev.from_id);
-	from_reactor = &(serv->poll_threads[cev.from_id].reactor);
+	swConnection *conn = swServer_get_connection(serv, cev.fd);
+	//关闭此连接，必须放在最前面，以保证线程安全
+	conn->tag = 0;
+
+	swTrace("Close Event.fd=%d|from=%d\n", cev.fd, conn->from_id);
+	from_reactor = &(serv->poll_threads[conn->from_id].reactor);
 	from_reactor->del(from_reactor, cev.fd);
 	if (serv->open_eof_check)
 	{
@@ -61,7 +62,10 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 	}
 	if(serv->onClose != NULL)
 	{
-		factory->notify(factory, event);
+		notify_ev.from_id = conn->from_id;
+		notify_ev.fd = cev.fd;
+		notify_ev.type = SW_EVENT_CLOSE;
+		factory->notify(factory, &notify_ev);
 	}
 	serv->connect_count--;
 	return close(cev.fd);

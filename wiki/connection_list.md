@@ -9,6 +9,7 @@ swoole_connection_list(resource $serv, int $start_fd = 0, int $pagesize = 10);
 ```
 
 此函数接受3个参数，第一个参数是server的资源对象，第二个参数是起始fd，第三个参数是每页取多少条，最大不得超过100.  
+
 * 调用成功将返回一个数字索引数组，元素是取到的$fd。数组会按从小到大排序。最后一个$fd作为新的start_fd再次尝试获取
 * 调用失败返回false
 

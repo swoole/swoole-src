@@ -592,10 +592,12 @@ int swFactoryProcess_end(swFactory *factory, swDataHead *event)
 
 int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 {
+	//UDP直接在worker进程内发送
 	int ret, sendn;
 	swFactoryProcess *object = factory->object;
 	swEventData send_data;
 	memcpy(send_data.data, resp->data, resp->info.len);
+
 	send_data.info.fd = resp->info.fd;
 	send_data.info.len = resp->info.len;
 	send_data.info.from_id = resp->info.from_id;
