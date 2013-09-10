@@ -803,7 +803,7 @@ void php_swoole_onClose(swServer *serv, int fd, int from_id)
 	args[1] = &zfd;
 	args[2] = &zfrom_id;
 
-	php_printf("fd=%d|from_id=%d\n", fd, from_id);
+//	php_printf("fd=%d|from_id=%d\n", fd, from_id);
 
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onClose], &retval, 3, args, 0,
