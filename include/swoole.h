@@ -32,8 +32,6 @@ extern "C" {
 #define __USE_GNU
 #endif
 
-#define SWOOLE_VERSION    "1.5.1"
-
 #include <sched.h>
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
