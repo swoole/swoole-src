@@ -55,7 +55,7 @@ int swClient_create(swClient *cli, int type, int async)
 int swClient_close(swClient *cli)
 {
 	int fd = cli->sock;
-	bzero(cli, sizeof(swClient));
+	cli->sock = 0;
 	return close(fd);
 }
 

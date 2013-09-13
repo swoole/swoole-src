@@ -1225,11 +1225,6 @@ PHP_METHOD(swoole_client, close)
 	}
 	else
 	{
-		if(zend_hash_find(Z_OBJPROP_P(getThis()), SW_STRL("_sock"), (void **) &zsock) == SUCCESS)
-		{
-			zval_ptr_dtor(zsock);
-		}
-		zval_ptr_dtor(zres);
 		RETURN_TRUE;
 	}
 }
