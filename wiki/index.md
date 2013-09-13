@@ -11,7 +11,6 @@ Swoole包含Server和Client 2个部分。名称为swoole_server_*的函数都是
 
 Server
 -----
-
 * **函数列表**
     * [swoole_server_set参数说明](setting.md)
     * [swoole_server_create运行模式说明](factory_mode.md)
@@ -24,7 +23,7 @@ Server
     * [swoole_server_send函数向客户端发送数据](server/send.md)
     * [swoole_connection_info获取连接信息](connection_info.md)
     * [swoole_connection_list遍历所有连接](connection_list.md)
-    * [Swoole预定义常量](define.md)    
+    * [Swoole预定义常量](define.md)        
 * **事件回调函数**  
     * [onStart](event/onStart.md)
     * [onShutdown](event/onShutdown.md)
@@ -36,13 +35,13 @@ Server
     * [onClose](event/onClose.md)
     * [onMasterConnect](event/onMasterConnect.md)
     * [onMasterClose](event/onMasterClose.md)
-    * [onEvent](event/onEvent.md)    
+    * [onEvent](event/onEvent.md)        
 * **特性设置**
     * [改变Worker进程的用户/组](user.md)
     * [回调函数中的from_id和fd](fd.md)
     * [Buffer和EOF_Check的使用](buffer.md) 
     * [Worker与Reactor通信模式](dispatch_mod.md)
-    * [TCP-Keepalive死连接检测](tcp_keepalive.md)    
+    * [TCP-Keepalive死连接检测](tcp_keepalive.md)        
 * **示例程序**
     * [PHP](https://github.com/matyhtf/swoole/blob/master/examples/server.php)
     * [C/C++](https://github.com/matyhtf/swoole/blob/master/examples/server.c)    

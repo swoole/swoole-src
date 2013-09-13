@@ -41,6 +41,7 @@
 #define SW_RES_SERVER_NAME          "SwooleServer"
 #define SW_RES_CLIENT_NAME          "SwooleClient"
 #define SW_MAX_FIND_COUNT             100 //最多一次性取100个connection_info
+#define SW_PHP_CLIENT_BUFFER_SIZE     65535
 
 #define PHP_CALLBACK_NUM              10
 
@@ -1148,15 +1149,19 @@ PHP_METHOD(swoole_client, send)
 
 PHP_METHOD(swoole_client, recv)
 {
-	long data_len = 65535, waitall = 0;
+	long buf_len = SW_PHP_CLIENT_BUFFER_SIZE, waitall = 0;
+	char require_efree = 0;
+	char buf_array[SW_PHP_CLIENT_BUFFER_SIZE];
+	char *buf;
 	zval **zres;
 	zval *errCode;
+	zval *zretval;
 
 	//zval *zdata;
 	int ret;
 	swClient *cli;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ll", &data_len, &waitall) == FAILURE)
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ll", &buf_len, &waitall) == FAILURE)
 	{
 		return;
 	}
@@ -1168,26 +1173,41 @@ PHP_METHOD(swoole_client, recv)
 	{
 		RETURN_FALSE;
 	}
-	char *buf = emalloc(data_len);
-	if ((ret = cli->recv(cli, buf, data_len, waitall)) < 0)
+
+	/**
+	 * UDP waitall=0 buf_len小于最大值这3种情况使用栈内存
+	 */
+	if(cli->type == SW_SOCK_UDP || cli->type == SW_SOCK_UDP6 || waitall==0 || buf_len < SW_PHP_CLIENT_BUFFER_SIZE)
+	{
+		buf = buf_array;
+	}
+	else
+	{
+		buf = emalloc(buf_len + 1);
+		require_efree = 1;
+	}
+
+	if ((ret = cli->recv(cli, buf, buf_len, waitall)) < 0)
 	{
 		//这里的错误信息没用
 		//zend_error(E_WARNING, "swClient recv fail.errno=%d", errno);
 		MAKE_STD_ZVAL(errCode);
 		ZVAL_LONG(errCode, errno);
 		zend_update_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errCode TSRMLS_CC);
-		efree(buf);
-		RETURN_FALSE;
+		RETVAL_FALSE;
 	}
 	else
 	{
-		RETURN_STRINGL(buf, ret, 0);
+		buf[ret] = 0;
+		RETVAL_STRINGL(buf, ret, 1);
 	}
+	if(require_efree==1) efree(buf);
 }
 
 PHP_METHOD(swoole_client, close)
 {
 	zval **zres;
+	zval **zsock;
 	swClient *cli;
 
 	if (zend_hash_find(Z_OBJPROP_P(getThis()), SW_STRL("_client"), (void **) &zres) == SUCCESS)
@@ -1205,6 +1225,11 @@ PHP_METHOD(swoole_client, close)
 	}
 	else
 	{
+		if(zend_hash_find(Z_OBJPROP_P(getThis()), SW_STRL("_sock"), (void **) &zsock) == SUCCESS)
+		{
+			zval_ptr_dtor(zsock);
+		}
+		zval_ptr_dtor(zres);
 		RETURN_TRUE;
 	}
 }

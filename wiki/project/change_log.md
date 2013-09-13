@@ -13,6 +13,7 @@ v1.5.8
 * swoole_server_send/swoole_server_close不再需要传入from_id参数
 * buffer功能测试通过，已增加到setting中
 * 提供对tcp_keepalive的支持
+* 增加日志模块，记录运行时的警告和错误信息
 
 
 v1.5.7
