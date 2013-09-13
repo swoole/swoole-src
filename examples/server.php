@@ -17,7 +17,7 @@ swoole_server_set($serv, array(
     //'data_eof' => "\r\n\r\n",
     //'open_eof_check' => 1,
     'open_tcp_keepalive' => 1,
-    'log_file' => '/tmp/swoole.log', //swoole error log
+    //'log_file' => '/tmp/swoole.log', //swoole error log
 ));
 
 /*
@@ -108,7 +108,7 @@ swoole_server_handler($serv, 'onWorkerStop', 'my_onWorkerStop');
 swoole_server_handler($serv, 'onMasterConnect', 'my_onMasterConnect');
 swoole_server_handler($serv, 'onMasterClose', 'my_onMasterClose');
 
-#swoole_server_addtimer($serv, 2);
+//swoole_server_addtimer($serv, 2);
 #swoole_server_addtimer($serv, 10);
 swoole_server_start($serv);
 

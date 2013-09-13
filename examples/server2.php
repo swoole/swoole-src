@@ -4,8 +4,8 @@ $serv = swoole_server_create("127.0.0.1", 9500, SWOOLE_PROCESS, SWOOLE_SOCK_TCP)
 swoole_server_set($serv, array(
     'timeout' => 2.5, //select and epoll_wait timeout.
     'poll_thread_num' => 2, //reactor thread num
-    'writer_num' => 2, //writer thread num
-    'worker_num' => 8, //worker process num
+    'writer_num' => 1, //writer thread num
+    'worker_num' => 4, //worker process num
     'backlog' => 128, //listen backlog
 ));
 

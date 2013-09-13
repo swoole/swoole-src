@@ -13,5 +13,10 @@ for($i = 0; $i < 16; $i++){
 	usleep(10);
 }
 $clients[0]->send("show connect list");
+$c15 = $clients[15];
+$c15->close();
+
+//unset($clients[15]);
+
 sleep(1000);
 

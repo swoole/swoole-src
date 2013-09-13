@@ -53,7 +53,7 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 	{
 		int find_max_fd = cev.fd - 1;
 		//找到第二大的max_fd作为新的max_fd
-		for(; serv->connection_list[find_max_fd].tag == 0; find_max_fd--);
+		for(; serv->connection_list[find_max_fd].tag == 0 && find_max_fd > swServer_get_minfd(serv); find_max_fd--);
 		swServer_set_maxfd(serv, find_max_fd);
 	}
 	if(serv->onMasterClose != NULL)
@@ -74,6 +74,11 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 int swServer_onTimer(swReactor *reactor, swEvent *event)
 {
 	swServer *serv = reactor->ptr;
+	if(serv->onTimer == NULL)
+	{
+		swWarn("serv->onTimer is NULL");
+		return SW_ERR;
+	}
 	uint64_t exp;
 	int ret;
 	swTimerList_node *timer_node;
@@ -260,8 +265,8 @@ int swServer_start(swServer *serv)
 	ret = swServer_check_callback(serv);
 	if (ret < 0)
 	{
-		swError("Callback function is null.");
-		return ret;
+		swWarn("Callback function is null.");
+		return SW_ERR;
 	}
 	//run as daemon
 	if (serv->daemonize > 0)
@@ -629,10 +634,16 @@ int swServer_free(swServer *serv)
 
 	//listen_list释放
 	swListenList_node *listen_node;
-	LL_FOREACH(serv->listen_list, listen_node)
+	if(serv->listen_list != NULL)
 	{
-		LL_DELETE(serv->listen_list, listen_node);
-		sw_free(listen_node);
+		printf("listen_list[1]=%p\n", serv->listen_list);
+		LL_FOREACH(serv->listen_list, listen_node)
+		{
+			printf("listen_list[2]=%p\n", serv->listen_list);
+			LL_DELETE(serv->listen_list, listen_node);
+			printf("listen_list[3]=%p\n", serv->listen_list);
+			sw_free(listen_node);
+		}
 	}
 
 	//close log file
@@ -1089,6 +1100,7 @@ static int swServer_listen(swServer *serv, swReactor *reactor)
 		{
 			swTrace("Listen fail.type=%d|host=%s|port=%d|errno=%d\n",
 					listen_host->type, listen_host->host, listen_host->port, errno);
+			LL_DELETE(serv->listen_list, listen_host);
 			return SW_ERR;
 		}
 		//UDP
