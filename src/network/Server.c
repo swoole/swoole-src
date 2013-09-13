@@ -111,13 +111,17 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 	{
 		//accept得到连接套接字
 		conn_fd = swAccept(event->fd, &client_addr, sizeof(client_addr));
-#ifdef SW_ACCEPT_AGAIN
+
 		//listen队列中的连接已全部处理完毕
 		if (conn_fd < 0 && errno == EAGAIN)
 		{
+#ifdef SW_ACCEPT_AGAIN
 			break;
-		}
+#else
+			return SW_ERR;
 #endif
+		}
+
 		//连接过多
 		if(serv->connect_count >= serv->max_conn)
 		{

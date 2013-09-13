@@ -24,23 +24,18 @@ swUnitTest(chan_test)
 	int ret, i;
 	//int size = 1024 * 1024 * 8; //8M
 	int size = 1024 * 200; //共享内存大小
+
+	swMemoryGlobal gm;
+	swMemoryGlobal_create(&gm, 4096, 1);
+
 	swChanElem *elem;
 	char buf[128];
-	//void *mem = malloc(size);
 
 	swShareMemory mm;
-	swChan *chan;
-	void *mem = swShareMemory_mmap_create(&mm, size, NULL );
-	if (mem == NULL )
-	{
-		printf("malloc memory fail.\n");
-		return 0;
-	}
-	else
-	{
-		printf("malloc memory OK.mem_addr=%p\n", mem);
-	}
-	ret = swChan_create(&chan, mem, size, 200, 128);
+	swChan *chan = swMemoryGlobal_alloc(&gm, sizeof(swChan));
+	void *ele_mem = swMemoryGlobal_alloc(&gm, size);
+
+	ret = swChan_create(chan, mem, size, 200, 128);
 	if (ret < 0)
 	{
 		printf("swChan_create fail.\n");

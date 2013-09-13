@@ -926,7 +926,7 @@ int swFactoryProcess_writer_loop_ex(swThreadParam *param)
 			resp = (swEventData *) elem->ptr;
 			swFactoryProcess_writer_excute(factory, resp);
 			//释放掉内存
-			swMemoryPool_free(chan->pool, elem->ptr);
+			swMemoryPool_free(&chan->pool, elem->ptr);
 		}
 	}
 	pthread_exit((void *) param);

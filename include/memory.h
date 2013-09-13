@@ -44,12 +44,34 @@ typedef struct _swMemoryPool
 	int memory_limit; //最大内存占用
 	int memory_usage; //内存使用量
 	int slab_size; //每个slab的长度
+	char shared; //是否使用共享内存
 } swMemoryPool;
 
+typedef struct _swMemoryGlobal
+{
+	int size;
+	int offset;
+	char shared;
+	void *mem;
+} swMemoryGlobal;
+
+/**
+ * 内存池
+ */
 int swMemoryPool_create(swMemoryPool *pool, int memory_limit, int slab_size);
 void swMemoryPool_free(swMemoryPool *pool, void *data);
 void* swMemoryPool_alloc(swMemoryPool *pool);
 
+/**
+ * 全局内存,程序生命周期内只分配/释放一次
+ */
+int swMemoryGlobal_create(swMemoryGlobal *gm, int size, int shared);
+void *swMemoryGlobal_alloc(swMemoryGlobal *gm, int size);
+void swMemoryGlobal_destroy(swMemoryGlobal *gm);
+
+/**
+ * 共享内存分配
+ */
 void* sw_shm_malloc(size_t size);
 void sw_shm_free(void *ptr);
 void* sw_shm_calloc(size_t num, size_t _size);

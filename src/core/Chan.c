@@ -20,31 +20,27 @@ chan->mem_cur);
  * @elem_size 每个item内存块的长度
  * @elem_max item最多个数
  */
-int swChan_create(swChan **chan_addr, void *mem, int mem_size, int elem_max, int elem_size)
+int swChan_create(swChan *chan, void *mem, int mem_size, int elem_max, int elem_size)
 {
 	int slab_size, ret;
-	bzero(mem, sizeof(swChan)); //初始化内存块
+	bzero(chan, sizeof(swChan)); //初始化内存块
 	if (mem_size <= 0 || mem == NULL || mem_size < SW_CHAN_MIN_MEM)
 	{
 		swWarn("error: mem_size <= %d or mem == NULL\n", SW_CHAN_MIN_MEM);
 		return SW_ERR;
 	}
-	*chan_addr = mem;
-	swChan *chan = *chan_addr;
-	mem += sizeof(swChan); //去掉swChan结构占用的部分
-
-	chan->pool = mem;
-	mem += sizeof(swMemoryPool);
-
+	//MemoryPool结构体占用一部分内存
 	if (swMutex_create(&chan->lock, 1) < 0)
 	{
 		swWarn("create mutex fail.\n");
 		return SW_ERR;
 	}
+	//最大元素个数
 	if (elem_max == 0)
 	{
 		elem_max = 65535;
 	}
+	//通知方式
 #ifdef HAVE_EVENTFD
 	ret =  swPipeEventfd_create(&chan->notify_fd, 1, 1);
 #else
@@ -57,10 +53,8 @@ int swChan_create(swChan **chan_addr, void *mem, int mem_size, int elem_max, int
 	}
 	slab_size = sizeof(swChanElem)*elem_max;
 	chan->elem_max = elem_max;
-	chan->mem_size = mem_size - slab_size - sizeof(swChan) - sizeof(swMemoryPool);;//允许溢出
 	chan->elems = (swChanElem *) mem;
-	chan->mem = mem + slab_size;
-	swMemoryPool_create(chan->pool, chan->mem_size, elem_size);
+	swMemoryPool_create(&(chan->pool), chan->mem_size, elem_size);
 	return SW_OK;
 }
 
@@ -107,7 +101,7 @@ int swChan_push_nolock(swChan *chan, void *buf, int buf_len)
 		return SW_ERR;
 	}
 	elem = &(chan->elems[chan->elem_tail]);
-	elem->ptr = swMemoryPool_alloc(chan->pool);
+	elem->ptr = swMemoryPool_alloc(&chan->pool);
 	//内存不足
 	if(elem->ptr == NULL)
 	{

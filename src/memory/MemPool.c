@@ -4,6 +4,44 @@ static int swMemoryPool_expand(swMemoryPool *pool);
 static void swMemoryPool_print_slab(swMemoryPoolSlab *slab);
 static void swMemoryPool_print_slab(swMemoryPoolSlab *slab);
 
+int swMemoryGlobal_create(swMemoryGlobal *gm, int size, int shared)
+{
+	void *mem;
+	gm->size = size;
+	mem = (shared == 1) ? sw_shm_malloc(size) : sw_malloc(size);
+	if (mem == NULL)
+	{
+		return SW_ERR;
+	}
+	gm->shared = (char)shared;
+	gm->mem = mem;
+	return SW_OK;
+}
+
+void *swMemoryGlobal_alloc(swMemoryGlobal *gm, int size)
+{
+	if(gm->offset + size > gm->size)
+	{
+		return NULL;
+	}
+	void *mem = gm->mem += size;
+	gm->offset += size;
+	return mem;
+}
+
+void swMemoryGlobal_destroy(swMemoryGlobal *gm)
+{
+	if(gm->shared)
+	{
+		sw_shm_free(gm->mem);
+	}
+	else
+	{
+		sw_free(gm->mem);
+	}
+	bzero(gm, sizeof(swMemoryGlobal));
+}
+
 int swMemoryPool_create(swMemoryPool *pool, int memory_limit, int slab_size)
 {
 	pool->head = NULL;
@@ -23,7 +61,7 @@ int swMemoryPool_create(swMemoryPool *pool, int memory_limit, int slab_size)
 
 int swMemoryPool_expand(swMemoryPool *pool)
 {
-	void *mem = malloc(pool->block_size);
+	void *mem = (pool->shared == 1) ? sw_shm_malloc(pool->block_size) : sw_malloc(pool->block_size);
 	if (mem == NULL)
 	{
 		return -1;

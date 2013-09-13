@@ -356,10 +356,10 @@ typedef struct _swChan
 	swPipe notify_fd; //用于阻塞通知
 	swMutex lock;
 	swChanElem *elems;
-	swMemoryPool *pool;
+	swMemoryPool pool;
 } swChan;
 
-int swChan_create(swChan **chan_addr, void *mem, int mem_size, int elem_max, int elem_size);
+int swChan_create(swChan *chan, void *mem, int mem_size, int elem_max, int elem_size);
 void swChan_destroy(swChan *chan);
 int swChan_push(swChan *chan, void *buf, int size);
 int swChan_push_nolock(swChan *chan, void *buf, int size);
