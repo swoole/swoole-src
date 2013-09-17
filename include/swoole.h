@@ -149,8 +149,13 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define SW_LOG_WARN            2
 #define SW_LOG_ERROR           3
 
+#ifdef SW_LOG_NO_SRCINFO
+#define swWarn(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);swLog_put(SW_LOG_WARN, sw_error);}
+#define swError(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);swLog_put(SW_LOG_ERROR, sw_error);exit(1);}
+#else
 #define swWarn(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d@%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);swLog_put(SW_LOG_WARN, sw_error);}
 #define swError(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d@%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);swLog_put(SW_LOG_ERROR, sw_error);exit(1);}
+#endif
 
 #ifdef SW_DEBUG
 #define swTrace(str,...)       {printf("[%s:%d@%s]"str"\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);}
@@ -231,9 +236,24 @@ typedef struct _swPipe
 
 int swPipeBase_create(swPipe *p, int blocking);
 int swPipeEventfd_create(swPipe *p, int blocking, int semaphore);
-int swPipeMsg_create(swPipe *p, int blocking, int msg_key, long type);
 int swPipeUnsock_create(swPipe *p, int blocking, int protocol);
 void swBreakPoint(void);
+
+//------------------Queue--------------------
+typedef struct _swQueue_Data
+{
+	long mtype;		             /* type of received/sent message */
+	char mdata[sizeof(swEventData)];  /* text of the message */
+} swQueue_data;
+
+typedef struct _swQueue
+{
+	void *object;
+	int wait;
+	int (*in)(struct _swQueue *, swQueue_data *in, int data_length);
+	int (*out)(struct _swQueue *, swQueue_data *out, int buffer_length);
+	void (*free)(struct _swQueue *);
+} swQueue;
 
 //------------------Lock--------------------------------------
 typedef struct _swFileLock
@@ -336,38 +356,6 @@ int swAtomicLock_lock(swAtomicLock *object);
 int swAtomicLock_unlock(swAtomicLock *object);
 int swAtomicLock_trylock(swAtomicLock *object);
 
-//------------------Share Memory------------------------------
-typedef struct _swChanElem
-{
-	int size;
-	void *ptr;
-} swChanElem;
-
-typedef struct _swChan
-{
-	void *mem;
-	int mem_size;
-
-	int elem_max;
-	int elem_num;
-	int elem_tail;
-	int elem_head;
-
-	swPipe notify_fd; //用于阻塞通知
-	swMutex lock;
-	swChanElem *elems;
-	swMemoryPool pool;
-} swChan;
-
-int swChan_create(swChan *chan, void *mem, int mem_size, int elem_max, int elem_size);
-void swChan_destroy(swChan *chan);
-int swChan_push(swChan *chan, void *buf, int size);
-int swChan_push_nolock(swChan *chan, void *buf, int size);
-int swChan_notify(swChan *chan);
-int swChan_wait(swChan *chan);
-swChanElem* swChan_pop(swChan *chan);
-swChanElem* swChan_pop_nolock(swChan *chan);
-
 typedef struct _swThreadParam
 {
 	void *object;
@@ -464,15 +452,15 @@ typedef struct _swThreadWriter
 	int c_pipe; //current pipe
 	swReactor reactor;
 	swShareMemory shm; //共享内存
-	swChan *chan; //内存队列
-	swPipe evfd; //eventfd
+	swPipe evfd;       //eventfd
 } swThreadWriter;
 
 typedef struct _swFactoryProcess
 {
 	swThreadWriter *writers;
 	swWorkerChild *workers;
-	swPipe msg_queue;
+	swQueue rd_queue;
+	swQueue wt_queue;
 
 	int manager_pid; //管理进程ID
 	int writer_num; //writer thread num

@@ -88,7 +88,7 @@ int swFactoryThread_start(swFactory *factory)
 			swTrace("pthread_create fail\n");
 			return SW_ERR;
 		}
-		if (swRingQueue_init(&this->queues[i], SW_QUEUE_SIZE) < 0)
+		if (swRingQueue_init(&this->queues[i], SW_RINGQUEUE_LEN) < 0)
 		{
 			swTrace("create ring queue fail\n");
 			return SW_ERR;

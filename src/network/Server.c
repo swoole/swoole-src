@@ -953,18 +953,27 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 	int ret, n;
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &(serv->factory);
-	swEventData buf;
 
-	n = swRead(event->fd, buf.data, SW_BUFFER_SIZE);
+	struct
+	{
+		/**
+		 * For Message Queue
+		 * 这里多一个long int 就可以直接插入到队列中，不需要内存拷贝
+		 */
+		long queue_type;
+		swEventData buf;
+	} rdata;
+
+	n = swRead(event->fd, rdata.buf.data, SW_BUFFER_SIZE);
 	if (n < 0)
 	{
-		if(errno==EAGAIN)
+		if (errno == EAGAIN)
 		{
 			return SW_OK;
 		}
 		else
 		{
-			swTrace("swRead error: %d\n", errno);
+			swWarn("Read from socket fail. errno=%d|fd=%d", errno, event->fd);
 			return SW_ERR;
 		}
 	}
@@ -980,15 +989,15 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 	else
 	{
 		swTrace("recv: %s|fd=%d|len=%d\n", buf.data, event->fd, n);
-		buf.info.fd = event->fd;
-		buf.info.len = n;
-		buf.info.from_id = event->from_id;
+		rdata.buf.info.fd = event->fd;
+		rdata.buf.info.len = n;
+		rdata.buf.info.from_id = event->from_id;
 
-		ret = factory->dispatch(factory, &buf);
+		ret = factory->dispatch(factory, &rdata.buf);
 		//处理数据失败，数据将丢失
 		if (ret < 0)
 		{
-			swWarn("factory->dispatch fail\n");
+			swWarn("factory->dispatch fail.errno=%d|sw_errno=%d", errno, sw_errno);
 		}
 		if (sw_errno == SW_OK)
 		{
