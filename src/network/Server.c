@@ -636,12 +636,13 @@ int swServer_free(swServer *serv)
 	swListenList_node *listen_node;
 	if(serv->listen_list != NULL)
 	{
-		printf("listen_list[1]=%p\n", serv->listen_list);
 		LL_FOREACH(serv->listen_list, listen_node)
 		{
-			printf("listen_list[2]=%p\n", serv->listen_list);
+			if(serv->listen_list == NULL || listen_node == NULL)
+			{
+				break;
+			}
 			LL_DELETE(serv->listen_list, listen_node);
-			printf("listen_list[3]=%p\n", serv->listen_list);
 			sw_free(listen_node);
 		}
 	}
