@@ -161,7 +161,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/Base.c \
         src/core/log.c \
         src/core/RingQueue.c \
-        src/core/Chan.c \
         src/memory/ShareMemory.c \
         src/memory/MemPool.c \
         src/factory/Factory.c \
@@ -175,7 +174,8 @@ if test "$PHP_SWOOLE" != "no"; then
         src/pipe/PipeBase.c \
         src/pipe/PipeEventfd.c \
         src/pipe/PipeUnsock.c \
-        src/pipe/PipeMsg.c \
+        src/queue/Msg.c \
+        src/queue/Ring.c \
         src/lock/Semaphore.c \
         src/lock/Mutex.c \
         src/lock/RWLock.c \
