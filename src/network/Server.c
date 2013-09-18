@@ -32,6 +32,10 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 		return SW_ERR;
 	}
 	swConnection *conn = swServer_get_connection(serv, cev.fd);
+	if(conn == NULL)
+	{
+		return SW_ERR;
+	}
 	//关闭此连接，必须放在最前面，以保证线程安全
 	conn->tag = 0;
 

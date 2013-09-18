@@ -3,8 +3,8 @@ $serv = swoole_server_create("127.0.0.1", 9500, SWOOLE_PROCESS, SWOOLE_SOCK_TCP)
 
 swoole_server_set($serv, array(
     'timeout' => 2.5, //select and epoll_wait timeout.
-    'poll_thread_num' => 2, //reactor thread num
-    'writer_num' => 1, //writer thread num
+    'poll_thread_num' => 4, //reactor thread num
+    'writer_num' => 2, //writer thread num
     'worker_num' => 4, //worker process num
     'backlog' => 128, //listen backlog
 ));
@@ -43,7 +43,7 @@ function my_onConnect($serv, $fd, $from_id)
 
 function my_onReceive($serv, $fd, $from_id, $data)
 {
-    //  echo "Client£ºData. fd=$fd|from_id=$from_id|data=$data\n";
+    // echo "ClientData. fd=$fd|from_id=$from_id|data=$data\n";
     swoole_server_send($serv, $fd, "Server: $data");
     //swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);
     //swoole_server_close($serv, $fd, $from_id);

@@ -230,23 +230,12 @@ int swFactoryProcess_shutdown(swFactory *factory)
 		swTrace("[Main]kill worker processor\n");
 		kill(object->workers[i].pid, SIGTERM);
 	}
-#ifdef SW_USE_SHM_CHAN
-	//kill all child process
-	for (i = 0; i < object->writer_num; i++)
-	{
-#if defined(SW_CHAN_USE_MMAP) || SW_CHAN_USE_MMAP==1
-		swShareMemory_mmap_free(&object->writers[i].shm);
+#if SW_WORKER_IPC_MODE == 1
+	object->rd_queue.free(&object->rd_queue);
+	object->wt_queue.free(&object->wt_queue);
 #else
-		swShareMemory_sysv_free(&object->writers[i].shm, 1);
+	//close pipes
 #endif
-	}
-#endif
-
-	if(serv->dispatch_mode == SW_DISPATCH_QUEUE)
-	{
-		object->rd_queue.free(&object->rd_queue);
-		object->wt_queue.free(&object->wt_queue);
-	}
 	sw_free(object->workers);
 	sw_free(object->writers);
 	sw_free(object);
@@ -510,15 +499,19 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int writer_pti, int
 	//worker child processor
 	else if (pid == 0)
 	{
+#if SW_WORKER_IPC_MODE != 2
 		for (i = 0; i < object->worker_num; i++)
 		{
+
 			//非当前
 			if (worker_pti != i)
 			{
 				close(object->workers[i].pipe_fd);
 			}
 		}
+#endif
 		c_writer_pti = writer_pti;
+
 		//标识为worker进程
 		sw_process_type = SW_PROCESS_WORKER;
 		ret = swFactoryProcess_worker_loop(factory, object->workers[worker_pti].pipe_fd, worker_pti);
@@ -559,7 +552,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	} sdata;
 
 	//队列mtype
-	sdata.pti = resp->info.from_id + 1;
+	sdata.pti = c_writer_pti + 1;
 
 	//copy
 	memcpy(sdata._send.data, resp->data, resp->info.len);
@@ -570,6 +563,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	sendn =  resp->info.len + sizeof(resp->info);
 
 #if SW_WORKER_IPC_MODE == 2
+	swTrace("[Worker]wt_queue[%ld]->in| fd=%d", sdata.pti, sdata._send.info.fd);
 	int count;
 	for (count = 0; count < SW_WORKER_ENQUEUE_COUNT; count++)
 	{
@@ -604,8 +598,18 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int work
 	c_worker_pipe = c_pipe;
 	c_worker_pti = worker_pti;
 
-	//必须加1
-	rdata.pti = worker_pti + 1;
+#if SW_WORKER_IPC_MODE == 2
+	//抢占式,使用相同的队列type
+	if (serv->dispatch_mode == SW_DISPATCH_QUEUE)
+	{
+		rdata.pti = serv->worker_num;
+	}
+	else
+	{
+		//必须加1
+		rdata.pti = worker_pti + 1;
+	}
+#endif
 
 	int n;
 	int task_num = factory->max_request;
@@ -745,7 +749,7 @@ static int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, i
 	in_data->mtype = pti + 1;
 	swDataHead *info = (swDataHead *)in_data->mdata;
 	ret = object->rd_queue.in(&object->rd_queue, in_data, send_len);
-	swTrace("rd_queue[%ld]->in: fd=%d|type=%d|len=%d", in_data->mtype, info->fd, info->type, info->len);
+	swTrace("[Master]rd_queue[%ld]->in: fd=%d|type=%d|len=%d", in_data->mtype, info->fd, info->type, info->len);
 #else
 	//send to unix sock
 	ret = swWrite(object->workers[pti].pipe_fd, (char *) data, send_len);
@@ -860,6 +864,9 @@ int swFactoryProcess_writer_receive(swReactor *reactor, swDataHead *ev)
 	}
 }
 
+/**
+ * 使用Unix Socket通信
+ */
 int swFactoryProcess_writer_loop_unsock(swThreadParam *param)
 {
 	swFactory *factory = param->object;
@@ -885,7 +892,7 @@ int swFactoryProcess_writer_loop_unsock(swThreadParam *param)
 	return SW_OK;
 }
 /**
- * 使用共享内存队列
+ * 使用消息队列通信
  */
 int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 {
@@ -902,6 +909,7 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 
 	while (swoole_running > 0)
 	{
+		swTrace("[Writer]wt_queue[%ld]->out wait", sdata.mtype);
 		int ret = object->wt_queue.out(&object->wt_queue, &sdata, sizeof(sdata.mdata));
 		if (ret < 0)
 		{

@@ -37,11 +37,20 @@ function send_request()
 {
 //    $data = file_get_contents('/tmp/ispace.log');
         $client = new swoole_client(SWOOLE_SOCK_TCP); //同步阻塞
-        $client->connect('127.0.0.1', 9500, 0.5);
+        if($client->connect('127.0.0.1', 9500, 0.5) == false)
+        {
+			echo "connect fail\n";
+			return false;
+		}
         for($i=0; $i < 1000; $i++)
         {
             $client->send("hello world");
             $data = $client->recv(80000);
+            if($data === false)
+            {
+				echo "recv fail\n";
+				return false;
+			}
         }
         echo "$i: ".$data . "\n";
         unset($client);

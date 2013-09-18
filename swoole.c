@@ -1177,9 +1177,10 @@ PHP_METHOD(swoole_client, recv)
 	/**
 	 * UDP waitall=0 buf_len小于最大值这3种情况使用栈内存
 	 */
-	if(cli->type == SW_SOCK_UDP || cli->type == SW_SOCK_UDP6 || waitall==0 || buf_len < SW_PHP_CLIENT_BUFFER_SIZE)
+	if (cli->type == SW_SOCK_UDP || cli->type == SW_SOCK_UDP6 || waitall == 0 || buf_len < SW_PHP_CLIENT_BUFFER_SIZE)
 	{
 		buf = buf_array;
+		if(buf_len >= SW_PHP_CLIENT_BUFFER_SIZE)  buf_len = SW_PHP_CLIENT_BUFFER_SIZE-1;
 	}
 	else
 	{
