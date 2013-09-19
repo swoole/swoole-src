@@ -12,12 +12,6 @@ typedef struct _swPipeUnsock
 	int socks[2];
 } swPipeUnsock;
 
-typedef struct _swPipeUnsock_buf
-{
-	long int mtype; /* type of received/sent message */
-	char mtext[65535]; /* text of the message */
-} swPipeUnsock_buf;
-
 int swPipeUnsock_getFd(swPipe *p, int isWriteFd)
 {
 	swPipeUnsock *this = p->object;
@@ -41,7 +35,7 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
 		return -1;
 	}
 	p->blocking = blocking;
-	ret = socketpair(PF_LOCAL, protocol, 0, object->socks);
+	ret = socketpair(AF_UNIX, protocol, 0, object->socks);
 	if (ret < 0)
 	{
 		return -1;
@@ -54,6 +48,11 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
 			swSetNonBlock(object->socks[0]);
 			swSetNonBlock(object->socks[1]);
 		}
+
+		int sbsize = 1024 * 256;
+		setsockopt(object->socks[1], SOL_SOCKET, SO_SNDBUF, &sbsize, sizeof(sbsize));
+		setsockopt(object->socks[0], SOL_SOCKET, SO_RCVBUF, &sbsize, sizeof(sbsize));
+
 		p->object = object;
 		p->read = swPipeUnsock_read;
 		p->write = swPipeUnsock_write;

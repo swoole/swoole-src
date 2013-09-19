@@ -114,6 +114,8 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 	swDataHead ev;
 	swFd fd_;
 	swReactorEpoll *this = reactor->object;
+	static swEventClose_queue close_queue;
+	close_queue.num = 0;
 	int i, n, ret;
 
 	while (swoole_running > 0)
@@ -154,7 +156,22 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 #endif
 				)
 				{
+#ifdef SW_CLOSE_AGAIN
+					close_queue.events[close_queue.num].fd = ev.fd;
+					close_queue.events[close_queue.num].from_id = ev.from_id;
+					close_queue.num ++;
+
+					if(close_queue.num == SW_CLOSE_QLEN)
+					{
+						ret = reactor->handle[SW_FD_CLOSE_QUEUE](reactor, &close_queue);
+						if(ret > 0)
+						{
+							close_queue.num = 0;
+						}
+					}
+#else
 					ret = reactor->handle[SW_FD_CLOSE](reactor, &ev);
+#endif
 				}
 				else
 				{
@@ -162,10 +179,19 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 				}
 				if(ret < 0)
 				{
-					swWarn("epoll handle fail.errno=%d\n", errno);
+					swWarn("epoll handle fail.evtype=%d|errno=%d|sw_errno=%d", ev.type, errno, sw_errno);
 				}
-				swTrace("[THREAD #%ld]event finish.Ep=%d|ret=%d\n", pthread_self(), this->epfd, ret);
+				swTrace("[THREAD #%ld]event finish.Ep=%d|ret=%d", pthread_self(), this->epfd, ret);
 			}
+		}
+		if(close_queue.num > 0)
+		{
+			ret = reactor->handle[SW_FD_CLOSE_QUEUE](reactor, &close_queue);
+			if(ret > 0)
+			{
+				close_queue.num = 0;
+			}
+			swWarn("epoll [close_queue] handle fail. errno=%d", errno);
 		}
 	}
 	return 0;

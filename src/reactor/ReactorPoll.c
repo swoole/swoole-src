@@ -150,8 +150,16 @@ int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
 					event.type = this->fds[i].fdtype;
 					swTrace("Event:Handle=%p|fd=%d|from_id=%d|type=%d\n",
 							reactor->handle[event.type], event.fd, reactor->id, this->fds[i].fdtype);
-					reactor->handle[event.type](reactor, &event);
+					ret = reactor->handle[event.type](reactor, &event);
+					if(ret < 0)
+					{
+						swWarn("poll event handler fail. fd=%d|errno=%d", event.fd, errno);
+					}
 				}
+			}
+			if(this->fd_num < 2)
+			{
+				swWarn("poll exception");
 			}
 		}
 	}

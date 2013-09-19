@@ -230,7 +230,7 @@ int swFactoryProcess_shutdown(swFactory *factory)
 		swTrace("[Main]kill worker processor\n");
 		kill(object->workers[i].pid, SIGTERM);
 	}
-#if SW_WORKER_IPC_MODE == 1
+#if SW_WORKER_IPC_MODE == 2
 	object->rd_queue.free(&object->rd_queue);
 	object->wt_queue.free(&object->wt_queue);
 #else
@@ -654,6 +654,8 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int work
 			{
 			case SW_EVENT_DATA:
 				factory->onTask(factory, &rdata.req);
+				//只有数据请求任务才计算task_num
+				task_num--;
 				break;
 			case SW_EVENT_CLOSE:
 				serv->onClose(serv, rdata.req.info.fd, rdata.req.info.from_id);
@@ -661,14 +663,10 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int work
 			case SW_EVENT_CONNECT:
 				serv->onConnect(serv, rdata.req.info.fd, rdata.req.info.from_id);
 				break;
-			case SW_EVENT_CONTROL:
-				serv->onWorkerEvent(serv, &rdata.req);
-				break;
 			default:
 				swWarn("[Worker] error event[type=%d]", (int)rdata.req.info.type);
 				break;
 			}
-			task_num--;
 		}
 		else
 		{

@@ -32,7 +32,7 @@
 #define SW_WORKER_IPC_MODE         2    //1:unix socket,2:IPC Message Queue
 #define SW_WORKER_ENQUEUE_COUNT    2    //插入队列失败后尝试次数
 
-//#define SW_MAINREACTOR_USE_POLL        //主线程，使用poll还是select
+#define SW_MAINREACTOR_USE_POLL        //主线程，使用poll还是select
 
 #define SW_REACTOR_TIMEO_SEC       3
 #define SW_REACTOR_TIMEO_USEC      0
@@ -56,5 +56,7 @@
 #endif
 
 #define SW_ACCEPT_AGAIN            1     //是否循环accept，可以一次性处理完全部的listen队列，用于大量并发连接的场景
+#define SW_CLOSE_AGAIN             1
+#define SW_CLOSE_QLEN              128
 #define SW_USE_EVENTFD                   //是否使用eventfd来做消息通知，需要Linux 2.6.22以上版本才会支持
 #endif /* SWOOLE_CONFIG_H_ */

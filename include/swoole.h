@@ -130,6 +130,7 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define SW_FD_ERROR            3
 #define SW_FD_UDP              4
 #define SW_FD_PIPE             5
+#define SW_FD_CLOSE_QUEUE      6
 
 #define SW_MODE_CALL           1
 #define SW_MODE_THREAD         2
@@ -206,6 +207,11 @@ typedef struct _swEventClose
 	int from_id; //Reactor Id
 	int fd;
 } swEventClose;
+
+typedef struct _swEventClose_queue {
+	swEventClose events[SW_CLOSE_QLEN];
+	int num;
+} swEventClose_queue;
 
 typedef struct _swEventConnect
 {

@@ -119,7 +119,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 		{
 			if (swReactor_error(reactor) < 0)
 			{
-				swTrace("select error. Errno=%d\n", errno);
+				swWarn("select error. Errno=%d\n", errno);
 				return SW_ERR;
 			}
 			else
@@ -142,7 +142,11 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 					event.type = ev->fdtype;
 					swTrace("Event:Handle=%p|fd=%d|from_id=%d|type=%d\n",
 							reactor->handle[event.type], ev->fd, reactor->id, ev->fdtype);
-					reactor->handle[event.type](reactor, &event);
+					ret = reactor->handle[event.type](reactor, &event);
+					if(ret < 0)
+					{
+						swWarn("select event handler fail. f%d|errno=%d", ev->fd, errno);
+					}
 				}
 			}
 		}

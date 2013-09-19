@@ -11,12 +11,13 @@ swoole_server_set($serv, array(
     'timeout' => 2.5,  //select and epoll_wait timeout. 
     'poll_thread_num' => 4, //reactor thread num
     'writer_num' => 4,     //writer thread num
-    'worker_num' => 4,    //worker process num
+    'worker_num' => 8,    //worker process num
     'backlog' => 128,   //listen backlog
-    'max_request' => 1000,
+    'max_request' => 5000,
+    'max_conn' => 100000,
     //'data_eof' => "\r\n\r\n",
     //'open_eof_check' => 1,
-    'open_tcp_keepalive' => 1,
+    //'open_tcp_keepalive' => 1,
     //'log_file' => '/tmp/swoole.log', //swoole error log
 ));
 
@@ -39,17 +40,17 @@ function my_onShutdown($serv)
 
 function my_onTimer($serv, $interval)
 {
-    echo "Server：Timer Call.Interval=$interval \n";
+    //echo "Server：Timer Call.Interval=$interval \n";
 }
 
 function my_onClose($serv,$fd,$from_id)
 {
-	echo "Client：Close.\n";
+	//echo "Client：Close.\n";
 }
 
 function my_onConnect($serv,$fd,$from_id)
 {
-	echo "Client：Connect.\n";
+	//echo "Client：Connect.\n";
 }
 
 function my_onWorkerStart($serv, $worker_id)
@@ -89,12 +90,12 @@ function my_onReceive($serv, $fd, $from_id, $data)
 }
  function my_onMasterClose($serv,$fd,$from_id)
 {
-    echo "Client：Close.PID=".posix_getpid().PHP_EOL;
+    //echo "Client：Close.PID=".posix_getpid().PHP_EOL;
 }
 
 function my_onMasterConnect($serv,$fd,$from_id)
 {
-    echo "Client：Connect.PID=".posix_getpid().PHP_EOL;
+    //echo "Client：Connect.PID=".posix_getpid().PHP_EOL;
 }
 
 swoole_server_handler($serv, 'onStart', 'my_onStart');
@@ -105,8 +106,8 @@ swoole_server_handler($serv, 'onShutdown', 'my_onShutdown');
 swoole_server_handler($serv, 'onTimer', 'my_onTimer');
 swoole_server_handler($serv, 'onWorkerStart', 'my_onWorkerStart');
 swoole_server_handler($serv, 'onWorkerStop', 'my_onWorkerStop');
-swoole_server_handler($serv, 'onMasterConnect', 'my_onMasterConnect');
-swoole_server_handler($serv, 'onMasterClose', 'my_onMasterClose');
+//swoole_server_handler($serv, 'onMasterConnect', 'my_onMasterConnect');
+//swoole_server_handler($serv, 'onMasterClose', 'my_onMasterClose');
 
 //swoole_server_addtimer($serv, 2);
 #swoole_server_addtimer($serv, 10);
