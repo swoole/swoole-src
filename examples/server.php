@@ -11,7 +11,7 @@ swoole_server_set($serv, array(
     'timeout' => 2.5,  //select and epoll_wait timeout. 
     'poll_thread_num' => 4, //reactor thread num
     'writer_num' => 4,     //writer thread num
-    'worker_num' => 8,    //worker process num
+    'worker_num' => 4,    //worker process num
     'backlog' => 128,   //listen backlog
     'max_request' => 5000,
     'max_conn' => 100000,

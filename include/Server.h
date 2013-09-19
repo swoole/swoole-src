@@ -178,7 +178,7 @@ int swServer_new_connection(swServer *serv, swEvent *ev);
 //使用connection_list[0]表示最大的FD
 #define swServer_set_maxfd(serv,maxfd) (serv->connection_list[SW_SERVER_MAX_FD_INDEX].fd=maxfd)
 #define swServer_get_maxfd(serv) (serv->connection_list[SW_SERVER_MAX_FD_INDEX].fd)
-#define swServer_get_connection(serv,fd) ((fd>swServer_get_maxfd(serv) || fd<= swServer_get_minfd(serv))?NULL:&serv->connection_list[fd])
+#define swServer_get_connection(serv,fd) ((fd>serv->max_conn|| fd<= swServer_get_minfd(serv))?NULL:&serv->connection_list[fd])
 //使用connection_list[1]表示最小的FD
 #define swServer_set_minfd(serv,maxfd) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd=maxfd)
 #define swServer_get_minfd(serv) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd)

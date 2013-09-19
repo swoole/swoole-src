@@ -187,11 +187,14 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 		if(close_queue.num > 0)
 		{
 			ret = reactor->handle[SW_FD_CLOSE_QUEUE](reactor, &close_queue);
-			if(ret > 0)
+			if(ret == SW_OK)
 			{
 				close_queue.num = 0;
 			}
-			swWarn("epoll [close_queue] handle fail. errno=%d", errno);
+			else if(ret < 0)
+			{
+				swWarn("epoll [close_queue] handle fail. errno=%d", errno);
+			}
 		}
 	}
 	return 0;

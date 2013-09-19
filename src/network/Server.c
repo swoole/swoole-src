@@ -35,18 +35,21 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 
 	for(i = 0; i < n/sizeof(swEventClose); i++)
 	{
+		close(cev_queue[i].fd);
 		swConnection *conn = swServer_get_connection(serv, cev_queue[i].fd);
 		if(conn == NULL)
 		{
 			swWarn("connection not found. fd=%d|max_fd=%d", cev_queue[i].fd, swServer_get_maxfd(serv));
 			break;
 		}
+
+		from_reactor = &(serv->poll_threads[conn->from_id].reactor);
+		from_reactor->del(from_reactor, cev_queue[i].fd);
+
 		//关闭此连接，必须放在最前面，以保证线程安全
 		conn->tag = 0;
 
 		swTrace("Close Event.fd=%d|from=%d\n", cev_queue[i].fd, conn->from_id);
-		from_reactor = &(serv->poll_threads[conn->from_id].reactor);
-		from_reactor->del(from_reactor, cev_queue[i].fd);
 		if (serv->open_eof_check)
 		{
 			//释放buffer区
@@ -70,15 +73,15 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 		{
 			serv->onMasterClose(serv, cev_queue[i].fd, cev_queue[i].from_id);
 		}
-		if(serv->onClose != NULL)
-		{
-			notify_ev.from_id = conn->from_id;
-			notify_ev.fd = cev_queue[i].fd;
-			notify_ev.type = SW_EVENT_CLOSE;
-			factory->notify(factory, &notify_ev);
-		}
+//		if(serv->onClose != NULL)
+//		{
+//			notify_ev.from_id = conn->from_id;
+//			notify_ev.fd = cev_queue[i].fd;
+//			notify_ev.type = SW_EVENT_CLOSE;
+//			factory->notify(factory, &notify_ev);
+//		}
 		serv->connect_count--;
-		close(cev_queue[i].fd);
+
 	}
 	return SW_OK;
 }
@@ -524,8 +527,14 @@ int swServer_create(swServer *serv)
 	{
 		swLog_init(serv->log_file);
 	}
+
 	//初始化master pipe
+#ifdef SW_MAINREACTOR_USE_UNSOCK
+	ret = swPipeUnsock_create(&serv->main_pipe, 0, SOCK_STREAM);
+#else
 	ret = swPipeBase_create(&serv->main_pipe, 0);
+#endif
+
 	if (ret < 0)
 	{
 		swError("[swServerCreate]create event_fd fail");
@@ -1085,8 +1094,26 @@ static int swServer_poll_onClose(swReactor *reactor, swEvent *event)
 static int swServer_poll_onClose_queue(swReactor *reactor, swEventClose_queue *close_queue)
 {
 	swServer *serv = reactor->ptr;
+	int ret;
 	//swFactory *factory = &(serv->factory);
-	if( serv->main_pipe.write(&(serv->main_pipe), close_queue->events, sizeof(swEventClose)*close_queue->num) < 0)
+	while (1)
+	{
+		ret = serv->main_pipe.write(&(serv->main_pipe), close_queue->events, sizeof(swEventClose) * close_queue->num);
+		if (ret < 0)
+		{
+			if (errno == EAGAIN)
+			{
+				usleep(1);
+				continue;
+			}
+			else if (errno == EINTR)
+			{
+				continue;
+			}
+		}
+		break;
+	}
+	if (ret < 0)
 	{
 		swWarn("Close Queue to main_pipe fail. errno=%d", errno);
 		return SW_ERR;

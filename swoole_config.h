@@ -27,9 +27,10 @@
 //#define SW_USE_CONN_BUFFER         1 //使用ConnBuffer还是DataBuffer,DataBuffer是分trunk的，ConnBuffer是固定的
 
 #define SW_MAINREACTOR_TIMEO       3    //主线程reactor
+#define SW_MAINREACTOR_USE_UNSOCK  1    //主线程使用unsock
 #define SW_REACTOR_WRITER_TIMEO    3    //writer线程的reactor
 
-#define SW_WORKER_IPC_MODE         2    //1:unix socket,2:IPC Message Queue
+#define SW_WORKER_IPC_MODE         1    //1:unix socket,2:IPC Message Queue
 #define SW_WORKER_ENQUEUE_COUNT    2    //插入队列失败后尝试次数
 
 #define SW_MAINREACTOR_USE_POLL        //主线程，使用poll还是select
