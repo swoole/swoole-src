@@ -136,7 +136,6 @@ struct swServer_s
 	swThreadPoll *poll_threads;
 	swListenList_node *listen_list;
 	swTimerList_node *timer_list;
-	swAllocator *memory_pool;
 
 	swConnection *connection_list; //连接列表
 	int connection_list_capacity;  //超过此容量，会自动扩容

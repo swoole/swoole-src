@@ -44,7 +44,7 @@ static void *swMemoryGlobal_alloc(swAllocator *allocator, int size)
 	}
 	void *mem = gm->mem + gm->offset;
 	gm->offset += size;
-	swWarn("swMemoryGlobal_alloc total=%d", gm->offset);
+//	swWarn("swMemoryGlobal_alloc total=%d", gm->offset);
 	return mem;
 }
 

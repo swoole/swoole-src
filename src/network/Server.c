@@ -18,6 +18,7 @@ static void swSignalHanlde(int sig);
 
 int sw_nouse_timerfd;
 swPipe timer_pipe;
+extern FILE *swoole_log_fn;
 
 int swServer_onClose(swReactor *reactor, swEvent *event)
 {
@@ -409,6 +410,28 @@ void swServer_init(swServer *serv)
 	char eof[] = SW_DATA_EOF;
 	serv->data_eof_len = sizeof(SW_DATA_EOF) - 1;
 	memcpy(serv->data_eof, eof, serv->data_eof_len);
+
+	//初始化全局内存
+	sw_memory_pool = swMemoryGlobal_create(SW_GLOBAL_MEMORY_SIZE, 1);
+	if(sw_memory_pool == NULL)
+	{
+		swError("[Master] Fatal Error: create global memory fail. Errno=%d", errno);
+	}
+
+	//初始化全局变量
+	swoole_running = 1;
+	sw_errno = 0;
+	bzero(sw_error, SW_ERROR_MSG_SIZE);
+
+	//日志
+	if(serv->log_file[0] == 0)
+	{
+		swoole_log_fn = stdout;
+	}
+	else
+	{
+		swLog_init(serv->log_file);
+	}
 }
 static int swServer_timer_start(swServer *serv)
 {
@@ -511,31 +534,9 @@ int swServer_new_connection(swServer *serv, swEvent *ev)
 	return SW_OK;
 }
 
-extern FILE *swoole_log_fn;
-
 int swServer_create(swServer *serv)
 {
 	int ret = 0;
-
-	swoole_running = 1;
-	sw_errno = 0;
-	bzero(sw_error, SW_ERROR_MSG_SIZE);
-
-	if(serv->log_file[0] == 0)
-	{
-		swoole_log_fn = stdout;
-	}
-	else
-	{
-		swLog_init(serv->log_file);
-	}
-
-	sw_memory_pool = swMemoryGlobal_create(SW_GLOBAL_MEMORY_SIZE, 1);
-	if(sw_memory_pool == NULL)
-	{
-		swError("[Master] create global memory fail. Errno=%d", errno);
-		return SW_ERR;
-	}
 
 	//初始化master pipe
 #ifdef SW_MAINREACTOR_USE_UNSOCK
