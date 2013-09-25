@@ -592,6 +592,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int work
 	swServer *serv = factory->ptr;
 	c_worker_pipe = c_pipe;
 	c_worker_pti = worker_pti;
+	object->manager_pid = getppid();
 
 #if SW_WORKER_IPC_MODE == 2
 	//抢占式,使用相同的队列type

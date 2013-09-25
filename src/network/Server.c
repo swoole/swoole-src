@@ -1190,9 +1190,8 @@ int swServer_reload(swServer *serv)
 		return SW_ERR;
 	}
 	factory = serv->factory.object;
-	printf("manager_pid=%d\n", factory->manager_pid);
-	return 0;
-	//return kill(factory->manager_pid, SIGUSR1);
+//	printf("manager_pid=%d\n", factory->manager_pid);
+	return kill(factory->manager_pid, SIGUSR1);
 }
 
 static void swSignalHanlde(int sig)
