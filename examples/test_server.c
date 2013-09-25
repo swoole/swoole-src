@@ -141,9 +141,9 @@ int my_onReceive(swFactory *factory, swEventData *req)
 	{
 		printf("send to client fail.errno=%d\n", errno);
 	}
-	printf("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d\n", g_receive_count,
-			inet_ntoa(conn->addr.sin_addr), conn->addr.sin_port,
-			rtrim(req->data, req->info.len), req->info.len);
+//	printf("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d\n", g_receive_count,
+//			inet_ntoa(conn->addr.sin_addr), conn->addr.sin_port,
+//			rtrim(req->data, req->info.len), req->info.len);
 //	req->info.type = 99;
 //	factory->event(factory, g_controller_id, req);
 	return SW_OK;

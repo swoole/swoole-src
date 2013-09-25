@@ -45,7 +45,8 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 		//关闭此连接，必须放在最前面，以保证线程安全
 		conn->tag = 0;
 
-		if(cev_queue[i].from_id < 0)
+		//from_id < 0表示已经在Reactor中关闭连接了
+		if(cev_queue[i].from_id >= 0)
 		{
 			from_reactor = &(serv->poll_threads[conn->from_id].reactor);
 			from_reactor->del(from_reactor, cev_queue[i].fd);
@@ -187,7 +188,8 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 		ret = serv->poll_threads[c_pti].reactor.add(&(serv->poll_threads[c_pti].reactor), conn_fd, SW_FD_TCP);
 		if (ret < 0)
 		{
-			swWarn("[Main]add event fail Errno=%d|FD=%d\n", errno, conn_fd);
+			swWarn("[Main]add event fail Errno=%d|FD=%d", errno, conn_fd);
+			exit(2);
 			close(conn_fd);
 			return SW_ERR;
 		}
@@ -200,7 +202,7 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 
 			//增加到connection_list中
 			swServer_new_connection(serv, &connEv);
-			memcpy(&(swServer_get_connection(serv, conn_fd)->addr), &client_addr, sizeof(client_addr));
+			memcpy(&serv->connection_list[conn_fd].addr, &client_addr, sizeof(client_addr));
 			serv->connect_count++;
 
 			if(serv->onMasterConnect != NULL)
@@ -811,6 +813,7 @@ static int swServer_poll_loop(swThreadParam *param)
 	reactor->wait(reactor, &timeo);
 	//shutdown
 	reactor->free(reactor);
+	pthread_exit(0);
 	return SW_OK;
 }
 
