@@ -65,8 +65,14 @@ function my_onWorkerStop($serv, $worker_id)
 
 function my_onReceive($serv, $fd, $from_id, $data)
 {
-    //echo "Client：Data. fd=$fd|from_id=$from_id|data=$data\n";
-	swoole_server_send($serv, $fd, 'Swoole: '.$data);
+    echo "Client：Data. fd=$fd|from_id=$from_id|data=$data\n";
+    
+    if(trim($data) == "reload") {
+		swoole_server_reload($serv);
+	} else {
+		swoole_server_send($serv, $fd, 'Swoole: '.$data);
+	}
+	
 	//swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);
 	//swoole_server_close($serv, $fd, $from_id);
 	//swoole_server_close($serv, $ohter_fd, $other_from_id);

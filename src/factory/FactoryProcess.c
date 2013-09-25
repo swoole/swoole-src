@@ -52,13 +52,13 @@ static int manager_controller_count = 0;
 int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 {
 	swFactoryProcess *object;
-	object = sw_malloc(sizeof(swFactoryProcess));
+	object = sw_memory_pool->alloc(sw_memory_pool, sizeof(swFactoryProcess));
 	if (object == NULL)
 	{
 		swWarn("[swFactoryProcess_create] malloc[0] fail");
 		return SW_ERR;
 	}
-	object->writers = sw_calloc(writer_num, sizeof(swThreadWriter));
+	object->writers = sw_memory_pool->alloc(sw_memory_pool, writer_num*sizeof(swThreadWriter));
 	if (object->writers == NULL)
 	{
 		swWarn("[Main] malloc[object->writers] fail");
@@ -67,7 +67,7 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 	object->writer_num = writer_num;
 	object->writer_pti = 0;
 
-	object->workers = sw_calloc(worker_num, sizeof(swWorkerChild));
+	object->workers = sw_memory_pool->alloc(sw_memory_pool, worker_num* sizeof(swWorkerChild));
 	if (object->workers == NULL)
 	{
 		swWarn("[Main] malloc[object->workers] fail");
@@ -98,7 +98,7 @@ int swFactoryProcess_controller(swFactory *factory, swEventCallback cb)
 {
 	swFactoryProcess *object = factory->object;
 	swServer *serv = factory->ptr;
-	swController *controller = sw_malloc(sizeof(swController));
+	swController *controller = sw_memory_pool->alloc(sw_memory_pool, sizeof(swController));
 	if (controller == NULL)
 	{
 		swWarn("malloc fail\n");
@@ -236,9 +236,6 @@ int swFactoryProcess_shutdown(swFactory *factory)
 #else
 	//close pipes
 #endif
-	sw_free(object->workers);
-	sw_free(object->writers);
-	sw_free(object);
 	return SW_OK;
 }
 
@@ -285,8 +282,7 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 			return SW_ERR;
 		}
 #else
-		//此处内存可不释放，仅启动时分配一次
-		worker_pipes = sw_calloc(object->worker_num, sizeof(swPipes));
+		worker_pipes = sw_memory_pool->alloc(sw_memory_pool, object->worker_num * sizeof(swPipes));
 		if (worker_pipes == NULL)
 		{
 			swError("malloc fail.Errno=%d\n", errno);
@@ -305,7 +301,7 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 
 	if( manager_controller_count > 0)
 	{
-		manager_controller_pipes = sw_calloc(manager_controller_count, sizeof(swPipes));
+		manager_controller_pipes = sw_memory_pool->alloc(sw_memory_pool, manager_controller_count* sizeof(swPipes));
 		//controller进程的pipes
 		for (i = 0; i < manager_controller_count; i++)
 		{
@@ -401,7 +397,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 	swServer *serv = factory->ptr;
 	swWorkerChild *reload_workers;
 
-	reload_workers = sw_calloc(object->worker_num, sizeof(swWorkerChild));
+	reload_workers = sw_memory_pool->alloc(sw_memory_pool, object->worker_num *sizeof(swWorkerChild));
 	if (reload_workers == NULL)
 	{
 		swError("[manager] malloc[reload_workers] fail.\n");
@@ -481,7 +477,6 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 			reload_worker_i++;
 		}
 	}
-	sw_free(reload_workers);
 	return SW_OK;
 }
 
@@ -779,8 +774,7 @@ static int swFactoryProcess_writer_start(swFactory *factory)
 
 	for (i = 0; i < object->writer_num; i++)
 	{
-		//内存可不释放，仅分配一次
-		param = sw_malloc(sizeof(swThreadParam));
+		param = sw_memory_pool->alloc(sw_memory_pool, sizeof(swThreadParam));
 		if (param == NULL)
 		{
 			swError("malloc fail\n");

@@ -25,8 +25,7 @@ swUnitTest(chan_test)
 	//int size = 1024 * 1024 * 8; //8M
 	int size = 1024 * 200; //共享内存大小
 
-	swMemoryGlobal gm;
-	swMemoryGlobal_create(&gm, 4096, 1);
+	swAllocator *gm = swMemoryGlobal_create(4096, 1);
 
 	char buf[128];
 

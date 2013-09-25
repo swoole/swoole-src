@@ -13,7 +13,7 @@ SWINLINE ulong swHashFunc(const char *arKey, uint nKeyLength)
 	return hash;
 }
 
-SWINLINE int swSocket_create(int type)
+int swSocket_create(int type)
 {
 	int _domain;
 	int _type;
@@ -48,7 +48,7 @@ SWINLINE void swFloat2timeval(float timeout, long int *sec, long int *usec)
 	*usec = (int) ((timeout * 1000 * 1000) - ((*sec) * 1000 * 1000));
 }
 
-SWINLINE int swSocket_listen(int type, char *host, int port, int backlog)
+int swSocket_listen(int type, char *host, int port, int backlog)
 {
 	int sock;
 	int option;
@@ -60,7 +60,7 @@ SWINLINE int swSocket_listen(int type, char *host, int port, int backlog)
 	sock = swSocket_create(type);
 	if (sock < 0)
 	{
-		swWarn("Create socket fail.type=%d|Errno=%d\n", type, errno);
+		swWarn("swSocket_listen: Create socket fail.type=%d|Errno=%d", type, errno);
 		return SW_ERR;
 	}
 	//reuse

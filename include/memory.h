@@ -47,6 +47,13 @@ typedef struct _swMemoryPool
 	char shared; //是否使用共享内存
 } swMemoryPool;
 
+typedef struct _swAllocator {
+	void *object;
+	void* (*alloc)(struct _swAllocator *alloc, int size);
+	void (*free)(struct _swAllocator *alloc, void *ptr);
+	void (*destroy)(struct _swAllocator *alloc);
+} swAllocator;
+
 typedef struct _swMemoryGlobal
 {
 	int size;
@@ -65,9 +72,7 @@ void* swMemoryPool_alloc(swMemoryPool *pool);
 /**
  * 全局内存,程序生命周期内只分配/释放一次
  */
-int swMemoryGlobal_create(swMemoryGlobal *gm, int size, int shared);
-void *swMemoryGlobal_alloc(swMemoryGlobal *gm, int size);
-void swMemoryGlobal_destroy(swMemoryGlobal *gm);
+swAllocator* swMemoryGlobal_create(int size, char shared);
 
 /**
  * 共享内存分配

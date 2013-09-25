@@ -368,10 +368,12 @@ typedef struct _swThreadParam
 	int pti;
 } swThreadParam;
 
+//全局变量
 char swoole_running;
 int16_t sw_errno;
 uint8_t sw_process_type; //进程类型
 char sw_error[SW_ERROR_MSG_SIZE];
+swAllocator *sw_memory_pool;
 
 #define SW_PROCESS_MASTER      1
 #define SW_PROCESS_WORKER      2
@@ -380,7 +382,6 @@ char sw_error[SW_ERROR_MSG_SIZE];
 #define swIsMaster()          (sw_process_type==SW_PROCESS_MASTER)
 #define swIsWorker()          (sw_process_type==SW_PROCESS_WORKER)
 #define swIsManager()         (sw_process_type==SW_PROCESS_MANAGER)
-
 
 //----------------------tool function---------------------
 int swLog_init(char *logfile);
@@ -396,8 +397,8 @@ SWINLINE int swWrite(int, char *, int);
 SWINLINE int swAccept(int server_socket, struct sockaddr_in *addr, int addr_len);
 SWINLINE void swSetNonBlock(int);
 SWINLINE void swSetBlock(int);
-SWINLINE int swSocket_listen(int type, char *host, int port, int backlog);
-SWINLINE int swSocket_create(int type);
+int swSocket_listen(int type, char *host, int port, int backlog);
+int swSocket_create(int type);
 swSignalFunc swSignalSet(int sig, swSignalFunc func, int restart, int mask);
 
 typedef struct _swFactory swFactory;

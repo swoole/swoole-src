@@ -107,6 +107,7 @@ int swReactorPoll_del(swReactor *reactor, int fd)
 					this->events[i] = this->events[i + 1];
 				}
 			}
+			close(fd);
 			return SW_OK;
 		}
 	}

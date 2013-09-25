@@ -106,6 +106,7 @@ int swReactorKqueue_del(swReactor *reactor, int fd)
 	{
 		return -1;
 	}
+	close(fd);
 	this->event_max--;
 	return SW_OK;
 }

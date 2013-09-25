@@ -62,14 +62,6 @@ int main(int argc, char **argv)
 	memcpy(serv.data_eof, SW_STRL("\r\n\r\n")-1);      //开启eof检测，启用buffer区
 //	memcpy(serv.log_file, SW_STRL("/tmp/swoole.log")); //日志
 
-	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9500);
-	swServer_addListen(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
-	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9502);
-	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 8888);
-
-	//swServer_addTimer(&serv, 2);
-	//swServer_addTimer(&serv, 4);
-
 	serv.dispatch_mode = 2;
 	serv.open_tcp_keepalive = 1;
 
@@ -89,6 +81,14 @@ int main(int argc, char **argv)
 		swTrace("create server fail[error=%d].\n", ret);
 		exit(0);
 	}
+	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9500);
+	swServer_addListen(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
+	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9502);
+	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 8888);
+
+	//swServer_addTimer(&serv, 2);
+	//swServer_addTimer(&serv, 4);
+
 //	g_controller_id = serv.factory.controller(&serv.factory, my_onControlEvent);
 	ret = swServer_start(&serv);
 	if (ret < 0)

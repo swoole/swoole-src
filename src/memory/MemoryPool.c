@@ -4,33 +4,58 @@ static int swMemoryPool_expand(swMemoryPool *pool);
 static void swMemoryPool_print_slab(swMemoryPoolSlab *slab);
 static void swMemoryPool_print_slab(swMemoryPoolSlab *slab);
 
-int swMemoryGlobal_create(swMemoryGlobal *gm, int size, int shared)
+static void *swMemoryGlobal_alloc(swAllocator *allocator, int size);
+static void swMemoryGlobal_free(swAllocator *allocator, void *ptr);
+static void swMemoryGlobal_destroy(swAllocator *allocator);
+
+swAllocator* swMemoryGlobal_create(int size, char shared)
 {
-	void *mem;
-	gm->size = size;
-	mem = (shared == 1) ? sw_shm_malloc(size) : sw_malloc(size);
+	void *mem = (shared == 1) ? sw_shm_malloc(size) : sw_malloc(size);
 	if (mem == NULL)
 	{
-		return SW_ERR;
+		return NULL;
 	}
-	gm->shared = (char)shared;
+	bzero(mem, size);
+	swMemoryGlobal *gm = mem;
+	mem += sizeof(swMemoryGlobal);
+
+	gm->size = (size - sizeof(swAllocator) - sizeof(swMemoryGlobal));
+	gm->shared = shared;
+
+	swAllocator *allocator = mem;
+	mem += sizeof(swAllocator);
+
+	//赋值到gm
 	gm->mem = mem;
-	return SW_OK;
+
+	allocator->object = gm;
+	allocator->alloc = swMemoryGlobal_alloc;
+	allocator->destroy = swMemoryGlobal_destroy;
+	allocator->free = swMemoryGlobal_free;
+	return allocator;
 }
 
-void *swMemoryGlobal_alloc(swMemoryGlobal *gm, int size)
+static void *swMemoryGlobal_alloc(swAllocator *allocator, int size)
 {
+	swMemoryGlobal *gm = allocator->object;
 	if(gm->offset + size > gm->size)
 	{
 		return NULL;
 	}
-	void *mem = gm->mem += size;
+	void *mem = gm->mem + gm->offset;
 	gm->offset += size;
+	swWarn("swMemoryGlobal_alloc total=%d", gm->offset);
 	return mem;
 }
 
-void swMemoryGlobal_destroy(swMemoryGlobal *gm)
+static void swMemoryGlobal_free(swAllocator *allocator, void *ptr)
 {
+	swWarn("swMemoryGlobal Allocator no free.");
+}
+
+static void swMemoryGlobal_destroy(swAllocator *allocator)
+{
+	swMemoryGlobal *gm = allocator->object;
 	if(gm->shared)
 	{
 		sw_shm_free(gm->mem);
@@ -39,7 +64,6 @@ void swMemoryGlobal_destroy(swMemoryGlobal *gm)
 	{
 		sw_free(gm->mem);
 	}
-	bzero(gm, sizeof(swMemoryGlobal));
 }
 
 int swMemoryPool_create(swMemoryPool *pool, int memory_limit, int slab_size)
@@ -50,7 +74,6 @@ int swMemoryPool_create(swMemoryPool *pool, int memory_limit, int slab_size)
 	pool->slab_size = slab_size;
 	pool->memory_usage = 0;
 	pool->block_size = (sizeof(swMemoryPoolSlab) + pool->slab_size) * SW_MEMORY_POOL_SLAB_PAGE;
-
 	//扩展内存
 	if (swMemoryPool_expand(pool) < 0)
 	{

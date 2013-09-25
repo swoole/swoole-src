@@ -11,6 +11,8 @@
 
 #define SWOOLE_VERSION             "1.5.9"
 
+#define SW_GLOBAL_MEMORY_SIZE      (4096*2)
+
 #define SW_MAX_FDS                 (1024*10) //最大tcp连接数
 #define SW_MAX_REQUEST             10000     //最大请求包数
 

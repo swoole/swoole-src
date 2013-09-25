@@ -1,5 +1,6 @@
 #include "swoole.h"
 #include "Server.h"
+#include "memory.h"
 
 static void swSignalInit(void);
 static int swServer_poll_loop(swThreadParam *param);
@@ -35,19 +36,20 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 
 	for(i = 0; i < n/sizeof(swEventClose); i++)
 	{
-		close(cev_queue[i].fd);
 		swConnection *conn = swServer_get_connection(serv, cev_queue[i].fd);
 		if(conn == NULL)
 		{
 			swWarn("connection not found. fd=%d|max_fd=%d", cev_queue[i].fd, swServer_get_maxfd(serv));
 			break;
 		}
-
-		from_reactor = &(serv->poll_threads[conn->from_id].reactor);
-		from_reactor->del(from_reactor, cev_queue[i].fd);
-
 		//关闭此连接，必须放在最前面，以保证线程安全
 		conn->tag = 0;
+
+		if(cev_queue[i].from_id < 0)
+		{
+			from_reactor = &(serv->poll_threads[conn->from_id].reactor);
+			from_reactor->del(from_reactor, cev_queue[i].fd);
+		}
 
 		swTrace("Close Event.fd=%d|from=%d\n", cev_queue[i].fd, conn->from_id);
 		if (serv->open_eof_check)
@@ -73,13 +75,13 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 		{
 			serv->onMasterClose(serv, cev_queue[i].fd, cev_queue[i].from_id);
 		}
-//		if(serv->onClose != NULL)
-//		{
-//			notify_ev.from_id = conn->from_id;
-//			notify_ev.fd = cev_queue[i].fd;
-//			notify_ev.type = SW_EVENT_CLOSE;
-//			factory->notify(factory, &notify_ev);
-//		}
+		if(serv->onClose != NULL)
+		{
+			notify_ev.from_id = conn->from_id;
+			notify_ev.fd = cev_queue[i].fd;
+			notify_ev.type = SW_EVENT_CLOSE;
+			factory->notify(factory, &notify_ev);
+		}
 		serv->connect_count--;
 
 	}
@@ -216,7 +218,7 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 
 int swServer_addTimer(swServer *serv, int interval)
 {
-	swTimerList_node *timer_new = sw_malloc(sizeof(swTimerList_node));
+	swTimerList_node *timer_new = sw_memory_pool->alloc(sw_memory_pool, sizeof(swTimerList_node));
 	time_t now;
 	time(&now);
 	if (timer_new == NULL)
@@ -240,7 +242,6 @@ void swServer_timer_free(swServer *serv)
 	LL_FOREACH(serv->timer_list, node)
 	{
 		LL_DELETE(serv->timer_list, node);
-		sw_free(node);
 	}
 	close(serv->timer_fd);
 }
@@ -472,7 +473,6 @@ int swServer_new_connection(swServer *serv, swEvent *ev)
 {
 	int conn_fd = ev->fd;
 	swConnection* connection = NULL;
-	swListenList_node *listen_node;
 
 	if(conn_fd > swServer_get_maxfd(serv))
 	{
@@ -528,6 +528,13 @@ int swServer_create(swServer *serv)
 		swLog_init(serv->log_file);
 	}
 
+	sw_memory_pool = swMemoryGlobal_create(SW_GLOBAL_MEMORY_SIZE, 1);
+	if(sw_memory_pool == NULL)
+	{
+		swError("[Master] create global memory fail. Errno=%d", errno);
+		return SW_ERR;
+	}
+
 	//初始化master pipe
 #ifdef SW_MAINREACTOR_USE_UNSOCK
 	ret = swPipeUnsock_create(&serv->main_pipe, 0, SOCK_STREAM);
@@ -541,7 +548,7 @@ int swServer_create(swServer *serv)
 		return SW_ERR;
 	}
 	//初始化poll线程池
-	serv->poll_threads = sw_calloc(serv->poll_thread_num, sizeof(swThreadPoll));
+	serv->poll_threads = sw_memory_pool->alloc(sw_memory_pool, (serv->poll_thread_num * sizeof(swThreadPoll)));
 	if (serv->poll_threads == NULL)
 	{
 		swError("calloc[0] fail");
@@ -633,12 +640,6 @@ int swServer_free(swServer *serv)
 		serv->reactor.free(&(serv->reactor));
 	}
 
-	//poll线程释放
-	if (serv->poll_threads != NULL)
-	{
-		sw_free(serv->poll_threads);
-	}
-
 	//master pipe
 	if (serv->main_pipe.close != NULL)
 	{
@@ -654,26 +655,14 @@ int swServer_free(swServer *serv)
 	//connection_list释放
 	sw_shm_free(serv->connection_list);
 
-	//listen_list释放
-	swListenList_node *listen_node;
-	if(serv->listen_list != NULL)
-	{
-		LL_FOREACH(serv->listen_list, listen_node)
-		{
-			if(serv->listen_list == NULL || listen_node == NULL)
-			{
-				break;
-			}
-			LL_DELETE(serv->listen_list, listen_node);
-			sw_free(listen_node);
-		}
-	}
-
 	//close log file
 	if(serv->log_file[0] != 0)
 	{
 		swLog_free();
 	}
+
+	//释放全局内存
+	sw_memory_pool->destroy(sw_memory_pool);
 	return SW_OK;
 }
 
@@ -688,7 +677,7 @@ static int swServer_poll_start(swServer *serv)
 	{
 		poll_thread = &(serv->poll_threads[i]);
 		//此处内存在线程结束时释放
-		param = sw_malloc(sizeof(swThreadParam));
+		param = sw_memory_pool->alloc(sw_memory_pool, sizeof(swThreadParam));
 		if (param == NULL)
 		{
 			swError("malloc fail\n");
@@ -696,7 +685,7 @@ static int swServer_poll_start(swServer *serv)
 		}
 		if (serv->open_udp == 1)
 		{
-			poll_thread->udp_addrs = sw_calloc(serv->udp_max_tmp_pkg, sizeof(swUdpFd));
+			poll_thread->udp_addrs = sw_memory_pool->alloc(sw_memory_pool, serv->udp_max_tmp_pkg * sizeof(swUdpFd));
 			if (poll_thread->udp_addrs == NULL)
 			{
 				swError("malloc fail\n");
@@ -822,7 +811,6 @@ static int swServer_poll_loop(swThreadParam *param)
 	reactor->wait(reactor, &timeo);
 	//shutdown
 	reactor->free(reactor);
-	sw_free(param);
 	return SW_OK;
 }
 
@@ -925,7 +913,6 @@ static int swServer_poll_onReceive_conn_buffer(swReactor *reactor, swEvent *even
 	{
 		return SW_ERR;
 	}
-	recv_data:
 	n = swRead(event->fd, buffer->data.data + buffer->data.info.len, SW_BUFFER_SIZE - buffer->data.info.len);
 	if (n < 0)
 	{
@@ -1101,9 +1088,11 @@ static int swServer_poll_onClose_queue(swReactor *reactor, swEventClose_queue *c
 		ret = serv->main_pipe.write(&(serv->main_pipe), close_queue->events, sizeof(swEventClose) * close_queue->num);
 		if (ret < 0)
 		{
-			if (errno == EAGAIN)
+			//close事件缓存区满了，必须阻塞写入
+			if (errno == EAGAIN && close_queue->num == SW_CLOSE_QLEN)
 			{
-				usleep(1);
+				//切换一次进程
+				swYield();
 				continue;
 			}
 			else if (errno == EINTR)
@@ -1134,7 +1123,7 @@ void swSignalInit(void)
 
 int swServer_addListen(swServer *serv, int type, char *host, int port)
 {
-	swListenList_node *listen_host = sw_malloc(sizeof(swListenList_node));
+	swListenList_node *listen_host = sw_memory_pool->alloc(sw_memory_pool, sizeof(swListenList_node));
 	listen_host->type = type;
 	listen_host->port = port;
 	listen_host->sock = 0;
@@ -1197,7 +1186,9 @@ int swServer_reload(swServer *serv)
 		return SW_ERR;
 	}
 	factory = serv->factory.object;
-	return kill(factory->manager_pid, SIGUSR1);
+	printf("manager_pid=%d\n", factory->manager_pid);
+	return 0;
+	//return kill(factory->manager_pid, SIGUSR1);
 }
 
 static void swSignalHanlde(int sig)
