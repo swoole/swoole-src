@@ -128,13 +128,9 @@ int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
 		{
 			if (swReactor_error(reactor) < 0)
 			{
-				swTrace("poll error. Errno=%d\n", errno);
-				return SW_ERR;
+				swWarn("poll error. Errno=%d\n", errno);
 			}
-			else
-			{
-				continue;
-			}
+			continue;
 		}
 		else if (ret == 0)
 		{

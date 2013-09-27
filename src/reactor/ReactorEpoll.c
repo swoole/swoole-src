@@ -115,7 +115,7 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 	swDataHead ev;
 	swFd fd_;
 	swReactorEpoll *object = reactor->object;
-	static swEventClose_queue close_queue;
+	swEventClose_queue close_queue;
 	close_queue.num = 0;
 	int i, n, ret;
 
@@ -170,7 +170,7 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 						ret = reactor->handle[SW_FD_CLOSE_QUEUE](reactor, &close_queue);
 						if (ret >= 0)
 						{
-							close_queue.num = 0;
+							bzero(&close_queue, sizeof(close_queue));
 						}
 						//写失败了，继续写
 					}
@@ -193,9 +193,9 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 		if(close_queue.num > 0)
 		{
 			ret = reactor->handle[SW_FD_CLOSE_QUEUE](reactor, &close_queue);
-			if(ret == SW_OK)
+			if(ret >= SW_OK)
 			{
-				close_queue.num = 0;
+				bzero(&close_queue, sizeof(close_queue));
 			}
 			//写失败了，继续写
 		}

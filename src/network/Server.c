@@ -33,7 +33,7 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 	n = serv->main_pipe.read(&serv->main_pipe, cev_queue, sizeof(cev_queue));
 	if (n < 0)
 	{
-		swWarn("main_pipe read fail. errno=%d", errno);
+		swWarn("[Master]main_pipe read fail. errno=%d", errno);
 		return SW_ERR;
 	}
 
@@ -42,7 +42,7 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 		swConnection *conn = swServer_get_connection(serv, cev_queue[i].fd);
 		if(conn == NULL)
 		{
-			swWarn("connection not found. fd=%d|max_fd=%d", cev_queue[i].fd, swServer_get_maxfd(serv));
+			swWarn("[Master]connection not found. fd=%d|max_fd=%d", cev_queue[i].fd, swServer_get_maxfd(serv));
 			break;
 		}
 		//关闭此连接，必须放在最前面，以保证线程安全

@@ -301,6 +301,8 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 			swError("create unix socket[1] fail");
 			return SW_ERR;
 		}
+		object->workers[i].pipe_wt = object->pipes[i].getFd(&object->pipes[i], 1);
+		object->workers[i].pipe_rd = object->pipes[i].getFd(&object->pipes[i], 0);
 	}
 #endif
 	if (manager_controller_count > 0)
@@ -326,9 +328,6 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 		{
 //			close(worker_pipes[i].pipes[0]);
 			writer_pti = (i % object->writer_num);
-#if SW_WORKER_IPC_MODE != 2
-			object->workers[i].pipe_wt = object->pipes[i].getFd(&object->pipes[i], 1);
-#endif
 			object->workers[i].writer_id = writer_pti;
 			pid = swFactoryProcess_worker_spawn(factory, writer_pti, i);
 			if (pid < 0)
@@ -368,8 +367,6 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 		{
 			writer_pti = (i % object->writer_num);
 			object->workers[i].writer_id = writer_pti;
-			object->workers[i].pipe_rd = object->pipes[i].getFd(&object->pipes[i], 0);
-//			close(object->pipes[i].getFd(&object->pipes[i], 1));
 
 			if (serv->have_tcp_sock == 1)
 			{
