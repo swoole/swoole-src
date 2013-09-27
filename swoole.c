@@ -1023,7 +1023,11 @@ PHP_FUNCTION(swoole_server_send)
 	_send.data = buffer;
 
 	int ret, i;
-	int trunk_num = (send_len/SW_BUFFER_SIZE) + 1;
+
+	//分页发送，需要去掉头部所在的尺寸
+	int pagesize = SW_BUFFER_SIZE - sizeof(_send.info);
+
+	int trunk_num = (send_len/pagesize) + 1;
 	int send_n = 0;
 //	swWarn("SendTo: trunk_num=%d|send_len=%d", trunk_num, send_len);
 	for(i=0; i<trunk_num; i++)
@@ -1031,14 +1035,14 @@ PHP_FUNCTION(swoole_server_send)
 		//最后一页
 		if(i == (trunk_num-1))
 		{
-			send_n = send_len % SW_BUFFER_SIZE;
+			send_n = send_len % pagesize;
 			if(send_n == 0) break;
 		}
 		else
 		{
-			send_n = SW_BUFFER_SIZE;
+			send_n = pagesize;
 		}
-		memcpy(buffer, send_data + SW_BUFFER_SIZE*i, send_n);
+		memcpy(buffer, send_data + pagesize*i, send_n);
 		_send.info.len = send_n;
 		ret = factory->finish(factory, &_send);
 	}

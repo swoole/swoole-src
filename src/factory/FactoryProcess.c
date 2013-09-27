@@ -3,11 +3,6 @@
 #include <signal.h>
 #include <sys/wait.h>
 
-typedef struct _swPipes
-{
-	int pipes[2];
-} swPipes;
-
 typedef struct _swController
 {
 	struct _swController *next, *prev;
@@ -19,8 +14,8 @@ typedef struct _swController
 
 static int swFactoryProcess_manager_loop(swFactory *factory);
 static int swFactoryProcess_worker_start(swFactory *factory);
-static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int worker_pti);
-static int swFactoryProcess_worker_spawn(swFactory *factory, int writer_pti, int worker_pti);
+static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti);
+static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti);
 static int swFactoryProcess_writer_start(swFactory *factory);
 
 static int swFactoryProcess_writer_loop_unsock(swThreadParam *param);
@@ -39,9 +34,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swEventData *buf);
 static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
 static int swFactoryProcess_event(swFactory *factory, int controller_id, swEventData *data);//向某个worker进程或controller发送数据
 
-static int c_worker_pipe = 0; //Current Proccess Worker's pipe
 static int c_worker_pti = 0; //Current Proccess Worker's id
-static int c_writer_pti = 0; //Current Proccess writer's id
 
 static int manager_worker_reloading = 0;
 static int manager_reload_flag = 0;
@@ -301,8 +294,8 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 			swError("create unix socket[1] fail");
 			return SW_ERR;
 		}
-		object->workers[i].pipe_wt = object->pipes[i].getFd(&object->pipes[i], 1);
-		object->workers[i].pipe_rd = object->pipes[i].getFd(&object->pipes[i], 0);
+		object->workers[i].pipe_master = object->pipes[i].getFd(&object->pipes[i], 1);
+		object->workers[i].pipe_worker = object->pipes[i].getFd(&object->pipes[i], 0);
 	}
 #endif
 	if (manager_controller_count > 0)
@@ -329,7 +322,7 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 //			close(worker_pipes[i].pipes[0]);
 			writer_pti = (i % object->writer_num);
 			object->workers[i].writer_id = writer_pti;
-			pid = swFactoryProcess_worker_spawn(factory, writer_pti, i);
+			pid = swFactoryProcess_worker_spawn(factory, i);
 			if (pid < 0)
 			{
 				swError("Fork worker process fail");
@@ -370,8 +363,9 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 
 			if (serv->have_tcp_sock == 1)
 			{
+				//将写pipe设置到writer的reactor中
 				object->writers[writer_pti].reactor.add(&(object->writers[writer_pti].reactor),
-						object->pipes[i].getFd(&object->pipes[i], 0), SW_FD_PIPE);
+						object->workers[i].pipe_master, SW_FD_PIPE);
 			}
 		}
 #endif
@@ -442,8 +436,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 				if (pid != object->workers[i].pid)
 					continue;
 
-				writer_pti = (i % object->writer_num);
-				new_pid = swFactoryProcess_worker_spawn(factory, writer_pti, i);
+				new_pid = swFactoryProcess_worker_spawn(factory, i);
 				if (new_pid < 0)
 				{
 					swWarn("Fork worker process fail.Errno=%d", errno);
@@ -490,7 +483,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 	return SW_OK;
 }
 
-static int swFactoryProcess_worker_spawn(swFactory *factory, int writer_pti, int worker_pti)
+static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti)
 {
 	swFactoryProcess *object = factory->object;
 	int i, pid, ret;
@@ -507,18 +500,18 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int writer_pti, int
 #if SW_WORKER_IPC_MODE != 2
 		for (i = 0; i < object->worker_num; i++)
 		{
-			//非当前
+			//非当前的worker_pipe
 			if (worker_pti != i)
 			{
-				close(object->workers[i].pipe_rd);
+				close(object->workers[i].pipe_worker);
 			}
+			//关闭master_pipe
+			close(object->workers[i].pipe_master);
 		}
 #endif
-		c_writer_pti = writer_pti;
-
 		//标识为worker进程
 		sw_process_type = SW_PROCESS_WORKER;
-		ret = swFactoryProcess_worker_loop(factory, object->workers[worker_pti].pipe_rd, worker_pti);
+		ret = swFactoryProcess_worker_loop(factory, worker_pti);
 		exit(ret);
 	}
 	//parent,add to writer
@@ -564,8 +557,8 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 		swEventData _send;
 	} sdata;
 
-	//队列mtype
-	sdata.pti = c_writer_pti + 1;
+	//写队列mtype
+	sdata.pti = (c_worker_pti % serv->writer_num) + 1;
 
 	//copy
 	memcpy(sdata._send.data, resp->data, resp->info.len);
@@ -582,7 +575,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 #if SW_WORKER_IPC_MODE == 2
 		ret = object->wt_queue.in(&object->wt_queue, (swQueue_data *)&sdata, sendn);
 #else
-		ret = write(c_worker_pipe, &sdata._send, sendn);
+		ret = write(object->workers[c_worker_pti].pipe_worker, &sdata._send, sendn);
 #endif
 		//printf("wt_queue->in: fd=%d|from_id=%d|data=%s|ret=%d|errno=%d\n", sdata._send.info.fd, sdata._send.info.from_id, sdata._send.data, ret, errno);
 		if (ret == 0)
@@ -605,12 +598,12 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	finish:
 	if (ret < 0)
 	{
-		swWarn("[Worker]sendto writer pipe or queue fail. errno=%d", errno);
+		swWarn("[Worker#%d]sendto writer pipe or queue fail. errno=%d", getpid(), errno);
 	}
 	return ret;
 }
 
-static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int worker_pti)
+static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 {
 	struct {
 		long pti;
@@ -619,7 +612,8 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int work
 
 	swFactoryProcess *object = factory->object;
 	swServer *serv = factory->ptr;
-	c_worker_pipe = c_pipe;
+
+	int pipe_rd = object->workers[worker_pti].pipe_worker;
 	c_worker_pti = worker_pti;
 	object->manager_pid = getppid();
 
@@ -666,7 +660,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int c_pipe, int work
 #else
 		do
 		{
-			n = read(c_pipe, &rdata.req, sizeof(rdata.req));
+			n = read(pipe_rd, &rdata.req, sizeof(rdata.req));
 		}
 		while(n < 0 && errno == EINTR);
 		swTrace("[Worker]pipe_recv: pipe=%d|pti=%d\n", c_pipe, req.info.from_id);
@@ -775,7 +769,7 @@ static int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, i
 	swTrace("[Master]rd_queue[%ld]->in: fd=%d|type=%d|len=%d", in_data->mtype, info->fd, info->type, info->len);
 #else
 	//send to unix sock
-	ret = swWrite(object->workers[pti].pipe_wt, (char *) data, send_len);
+	ret = swWrite(object->workers[pti].pipe_master, (char *) data, send_len);
 #endif
 	return ret;
 }

@@ -37,7 +37,7 @@ int swQueueMsg_create(swQueue *p, int wait, int msg_key, long type)
 		object->ipc_wait = 0;
 	}
 	p->wait = wait;
-	msg_id = msgget(msg_key, IPC_CREAT | IPC_PRIVATE | 0666);
+	msg_id = msgget(msg_key, IPC_CREAT | 0666);
 	if (msg_id <= 0)
 	{
 		return SW_ERR;

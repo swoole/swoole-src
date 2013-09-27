@@ -27,17 +27,17 @@ int swReactorSelect_del(swReactor *reactor, int fd);
 int swReactorSelect_create(swReactor *reactor)
 {
 	//create reactor object
-	swReactorSelect *this = sw_malloc(sizeof(swReactorSelect));
-	if (this == NULL)
+	swReactorSelect *object = sw_malloc(sizeof(swReactorSelect));
+	if (object == NULL)
 	{
 		swTrace("[swReactorSelect_create] malloc[0] fail\n");
 		return SW_ERR;
 	}
-	this->fds = NULL;
-	this->maxfd = 0;
-	this->fd_num = 0;
+	object->fds = NULL;
+	object->maxfd = 0;
+	object->fd_num = 0;
 	bzero(reactor->handle, sizeof(reactor->handle));
-	reactor->object = this;
+	reactor->object = object;
 	//binding method
 	reactor->add = swReactorSelect_add;
 	reactor->del = swReactorSelect_del;
@@ -50,10 +50,10 @@ int swReactorSelect_create(swReactor *reactor)
 void swReactorSelect_free(swReactor *reactor)
 {
 	swFdList_node *ev;
-	swReactorSelect *this = reactor->object;
-	LL_FOREACH(this->fds, ev)
+	swReactorSelect *object = reactor->object;
+	LL_FOREACH(object->fds, ev)
 	{
-		LL_DELETE(this->fds, ev);
+		LL_DELETE(object->fds, ev);
 		sw_free(ev);
 	}
 	sw_free(reactor->object);
@@ -66,15 +66,15 @@ int swReactorSelect_add(swReactor *reactor, int fd, int fdtype)
 		swWarn("max fd value is FD_SETSIZE(%d).\n", FD_SETSIZE);
 		return SW_ERR;
 	}
-	swReactorSelect *this = reactor->object;
+	swReactorSelect *object = reactor->object;
 	swFdList_node *ev = sw_malloc(sizeof(swFdList_node));
 	ev->fd = fd;
 	ev->fdtype = fdtype;
-	LL_APPEND(this->fds, ev);
-	this->fd_num++;
-	if (fd > this->maxfd)
+	LL_APPEND(object->fds, ev);
+	object->fd_num++;
+	if (fd > object->maxfd)
 	{
-		this->maxfd = fd;
+		object->maxfd = fd;
 	}
 	return SW_OK;
 }
@@ -86,20 +86,20 @@ int swReactorSelect_cmp(swFdList_node *a, swFdList_node *b)
 
 int swReactorSelect_del(swReactor *reactor, int fd)
 {
-	swReactorSelect *this = reactor->object;
+	swReactorSelect *object = reactor->object;
 	swFdList_node ev, *s_ev;
 	ev.fd = fd;
 
-	LL_SEARCH(this->fds, s_ev, &ev, swReactorSelect_cmp);
-	LL_DELETE(this->fds, s_ev);
-	this->fd_num--;
+	LL_SEARCH(object->fds, s_ev, &ev, swReactorSelect_cmp);
+	LL_DELETE(object->fds, s_ev);
+	object->fd_num--;
 	sw_free(s_ev);
 	return SW_OK;
 }
 
 int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 {
-	swReactorSelect *this = reactor->object;
+	swReactorSelect *object = reactor->object;
 	swFdList_node *ev;
 	swDataHead event;
 	struct timeval timeout;
@@ -107,19 +107,19 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 
 	while (swoole_running > 0)
 	{
-		FD_ZERO(&(this->rfds));
+		FD_ZERO(&(object->rfds));
 		timeout.tv_sec = timeo->tv_sec;
 		timeout.tv_usec = timeo->tv_usec;
-		LL_FOREACH(this->fds, ev)
+		LL_FOREACH(object->fds, ev)
 		{
-			FD_SET(ev->fd, &(this->rfds));
+			FD_SET(ev->fd, &(object->rfds));
 		}
-		ret = select(this->maxfd + 1, &(this->rfds), NULL, NULL, &timeout);
+		ret = select(object->maxfd + 1, &(object->rfds), NULL, NULL, &timeout);
 		if (ret < 0)
 		{
 			if (swReactor_error(reactor) < 0)
 			{
-				swWarn("select error. Errno=%d\n", errno);
+				swWarn("select error. Errno=%d", errno);
 			}
 			continue;
 		}
@@ -129,9 +129,9 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 		}
 		else
 		{
-			LL_FOREACH(this->fds, ev)
+			LL_FOREACH(object->fds, ev)
 			{
-				if (FD_ISSET(ev->fd, &(this->rfds)))
+				if (FD_ISSET(ev->fd, &(object->rfds)))
 				{
 					event.fd = ev->fd;
 					event.from_id = reactor->id;

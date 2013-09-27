@@ -447,8 +447,8 @@ struct swReactor_s
 typedef struct _swWorkerChild
 {
 	pid_t pid;
-	int pipe_rd;
-	int pipe_wt;
+	int pipe_master;
+	int pipe_worker;
 	int writer_id;
 } swWorkerChild;
 
