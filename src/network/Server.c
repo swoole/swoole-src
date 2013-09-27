@@ -7,12 +7,14 @@ static int swServer_poll_loop(swThreadParam *param);
 static int swServer_poll_start(swServer *serv);
 static int swServer_check_callback(swServer *serv);
 static int swServer_listen(swServer *serv, swReactor *reactor);
+
+static void swServer_poll_loop_udp(swThreadParam *param);
 static int swServer_poll_onClose(swReactor *reactor, swEvent *event);
 static int swServer_poll_onClose_queue(swReactor *reactor, swEventClose_queue *close_queue);
 static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event);
 static int swServer_poll_onReceive_conn_buffer(swReactor *reactor, swEvent *event);
 static int swServer_poll_onReceive_data_buffer(swReactor *reactor, swEvent *event);
-static int swServer_poll_onPackage(swReactor *reactor, swEvent *event);
+
 static int swServer_timer_start(swServer *serv);
 static void swSignalHanlde(int sig);
 
@@ -281,7 +283,7 @@ int swServer_start(swServer *serv)
 	ret = swServer_check_callback(serv);
 	if (ret < 0)
 	{
-		swWarn("Callback function is null.");
+		swWarn("Swoole callback function is null.");
 		return SW_ERR;
 	}
 	//run as daemon
@@ -295,11 +297,13 @@ int swServer_start(swServer *serv)
 	ret = factory->start(factory);
 	if (ret < 0)
 	{
+		swWarn("Swoole factory start fail");
 		return SW_ERR;
 	}
 	ret = swServer_poll_start(serv);
 	if (ret < 0)
 	{
+		swWarn("Swoole poll thread start fail");
 		return SW_ERR;
 	}
 	SW_START_SLEEP;
@@ -311,6 +315,7 @@ int swServer_start(swServer *serv)
 
 	if (ret < 0)
 	{
+		swWarn("Swoole reactor create fail");
 		return SW_ERR;
 	}
 	main_reactor.ptr = serv;
@@ -399,7 +404,7 @@ void swServer_init(swServer *serv)
 	serv->max_request = SW_MAX_REQUEST;
 	serv->max_trunk_num = SW_MAX_TRUNK_NUM;
 
-	serv->udp_max_tmp_pkg = SW_MAX_TMP_PKG;
+	serv->udp_sock_buffer_size = SW_UDP_SOCK_BUFSIZE;
 	serv->timer_list = NULL;
 
 	//tcp keepalive
@@ -611,7 +616,8 @@ int swServer_create(swServer *serv)
 	}
 	serv->factory.ptr = serv;
 	serv->factory.onTask = serv->onReceive;
-	if (serv->open_udp == 1)
+	//线程模式
+	if (serv->have_udp_sock == 1 && serv->factory_mode != SW_MODE_PROCESS)
 	{
 		serv->factory.onFinish = swServer_onFinish2;
 	}
@@ -672,35 +678,56 @@ int swServer_free(swServer *serv)
 static int swServer_poll_start(swServer *serv)
 {
 	swThreadParam *param;
-	swThreadPoll *poll_thread;
-	int i;
+	swThreadPoll *poll_threads;
 	pthread_t pidt;
+	swListenList_node *listen_host;
 
-	for (i = 0; i < serv->poll_thread_num; i++)
+	int i, ret;
+
+	//监听UDP
+	if(serv->have_udp_sock == 1)
 	{
-		poll_thread = &(serv->poll_threads[i]);
-		//此处内存在线程结束时释放
-		param = sw_memory_pool->alloc(sw_memory_pool, sizeof(swThreadParam));
-		if (param == NULL)
+		LL_FOREACH(serv->listen_list, listen_host)
 		{
-			swError("malloc fail\n");
-			return SW_ERR;
+			param = sw_memory_pool->alloc(sw_memory_pool, sizeof(swThreadParam));
+			//UDP
+			if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6)
+			{
+				serv->connection_list[listen_host->sock].addr.sin_port = listen_host->port;
+				param->object = serv;
+				param->pti = listen_host->sock;
+				if(pthread_create(&pidt, NULL, (void * (*)(void *)) swServer_poll_loop_udp, (void *) param) <0)
+				{
+					swWarn("pthread_create[udp_listener] fail");
+					return SW_ERR;
+				}
+				pthread_detach(pidt);
+			}
 		}
-		if (serv->open_udp == 1)
+	}
+
+	//监听TCP
+	if (serv->have_tcp_sock == 1)
+	{
+		for (i = 0; i < serv->poll_thread_num; i++)
 		{
-			poll_thread->udp_addrs = sw_memory_pool->alloc(sw_memory_pool, serv->udp_max_tmp_pkg * sizeof(swUdpFd));
-			if (poll_thread->udp_addrs == NULL)
+			poll_threads = &(serv->poll_threads[i]);
+			//此处内存在线程结束时释放
+			param = sw_memory_pool->alloc(sw_memory_pool, sizeof(swThreadParam));
+			if (param == NULL)
 			{
 				swError("malloc fail\n");
 				return SW_ERR;
 			}
-			poll_thread->c_udp_fd = 0;
+			param->object = serv;
+			param->pti = i;
+			if(pthread_create(&pidt, NULL, (void * (*)(void *)) swServer_poll_loop, (void *) param) < 0)
+			{
+				swWarn("pthread_create[tcp_reactor] fail");
+			}
+			pthread_detach(pidt);
+			poll_threads->ptid = pidt;
 		}
-		param->object = serv;
-		param->pti = i;
-		pthread_create(&pidt, NULL, (void * (*)(void *)) swServer_poll_loop, (void *) param);
-		pthread_detach(pidt);
-		poll_thread->ptid = pidt;
 	}
 	return SW_OK;
 }
@@ -711,6 +738,39 @@ int swServer_onFinish(swFactory *factory, swSendData *resp)
 {
 	return swWrite(resp->info.fd, resp->data, resp->info.len);
 }
+
+int swServer_send_udp_packet(swServer *serv, swSendData *resp)
+{
+	int count, ret;
+	struct sockaddr_in to_addr;
+	to_addr.sin_family = AF_INET;
+	to_addr.sin_port = htons((unsigned short) resp->info.from_id);
+	to_addr.sin_addr.s_addr = resp->info.fd;
+	int sock = serv->connection_list[resp->info.from_fd].fd;
+
+	for (count = 0; count < SW_WORKER_SENDTO_COUNT; count++)
+	{
+		ret = sendto(sock, resp->data, resp->info.len, MSG_DONTWAIT, (struct sockaddr *) &to_addr, sizeof(to_addr));
+		if (ret == 0)
+		{
+			break;
+		}
+		else if (errno == EINTR)
+		{
+			continue;
+		}
+		else if (errno == EAGAIN)
+		{
+			swYield();
+		}
+		else
+		{
+			break;
+		}
+	}
+	return ret;
+}
+
 /**
  * for udp + tcp
  */
@@ -721,34 +781,64 @@ int swServer_onFinish2(swFactory *factory, swSendData *resp)
 	int ret;
 	swUdpFd *fd;
 	//UDP
-	if (resp->info.fd <= 0)
+	if (resp->info.from_id >= serv->poll_thread_num)
 	{
-		fd = &(poll_thread->udp_addrs[-resp->info.fd]);
-		while (1)
-		{
-			ret = sendto(fd->sock, resp->data, resp->info.len, 0, (struct sockaddr *) &(fd->addr), sizeof(fd->addr));
-			swTrace("sendto sock=%d|from_id=%d\n", fd->sock, resp->info.from_id);
-			if (ret < 0)
-			{
-				if (errno == EINTR || errno == EAGAIN)
-				{
-					swYield();
-					continue;
-				}
-				else
-				{
-					swWarn("sendto fail.errno=%d\n", errno);
-				}
-			}
-			break;
-		}
-		return ret;
+		ret = swServer_send_udp_packet(serv, resp);
 	}
 	else
 	{
-		return swWrite(resp->info.fd, resp->data, resp->info.len);
+		ret = swWrite(resp->info.fd, resp->data, resp->info.len);
 	}
+	if (ret < 0)
+	{
+		swWarn("[Writer]sendto client fail. errno=%d", errno);
+	}
+	return ret;
 }
+
+/**
+ * UDP监听线程
+ */
+static void swServer_poll_loop_udp(swThreadParam *param)
+{
+	int ret;
+	swServer *serv = param->object;
+	swFactory *factory = &(serv->factory);
+
+	swEventData buf;
+	struct sockaddr_in addr;
+	socklen_t addrlen = sizeof(addr);
+
+	//使用pti保存fd
+	int sock = param->pti;
+
+	//阻塞读取UDP
+	swSetBlock(sock);
+
+	bzero(&buf.info, sizeof(buf.info));
+	buf.info.from_fd = sock;
+
+	while (swoole_running == 1)
+	{
+		ret = recvfrom(sock, buf.data, SW_BUFFER_SIZE, 0, &addr, &addrlen);
+		if (ret > 0)
+		{
+			buf.info.len = ret;
+			//UDP的from_id是PORT，FD是IP
+			buf.info.from_id = ntohs(addr.sin_port); //转换字节序
+			buf.info.fd = addr.sin_addr.s_addr;
+
+			swTrace("recvfrom udp socket.fd=%d|data=%s", sock, buf.data);
+			ret = factory->dispatch(factory, &buf);
+			if (ret < 0)
+			{
+				swWarn("factory->dispatch[udp packet] fail\n");
+			}
+		}
+	}
+	pthread_exit(0);
+}
+
 /**
  * Main Loop
  */
@@ -809,7 +899,6 @@ static int swServer_poll_loop(swThreadParam *param)
 		this->data_buffer.max_trunk = serv->max_trunk_num;
 #endif
 	}
-	reactor->setHandle(reactor, SW_FD_UDP, swServer_poll_onPackage);
 	//main loop
 	reactor->wait(reactor, &timeo);
 	//shutdown
@@ -1028,53 +1117,6 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 	return SW_OK;
 }
 
-/**
- * for udp
- */
-static int swServer_poll_onPackage(swReactor *reactor, swEvent *event)
-{
-	int ret;
-	swServer *serv = reactor->ptr;
-	swFactory *factory = &(serv->factory);
-	swThreadPoll *poll_thread = &(serv->poll_threads[event->from_id]);
-	swEventData buf;
-
-	socklen_t addrlen = sizeof(poll_thread->udp_addrs[poll_thread->c_udp_fd].addr);
-
-	while (1)
-	{
-		ret = recvfrom(event->fd, buf.data, SW_BUFFER_SIZE, 0, &(poll_thread->udp_addrs[poll_thread->c_udp_fd].addr),
-				&addrlen);
-		if (ret < 0)
-		{
-			if (errno == EINTR)
-			{
-				continue;
-			}
-			return SW_ERR;
-		}
-		break;
-	}
-	poll_thread->udp_addrs[poll_thread->c_udp_fd].sock = event->fd;
-	buf.info.fd = -poll_thread->c_udp_fd; //区分TCP和UDP
-	buf.info.len = ret;
-	buf.info.from_id = event->from_id;
-	buf.info.from_fd = event->fd;
-
-	swTrace("recv package: %s|fd=%d|size=%d\n", buf.data, event->fd, ret);
-	ret = factory->dispatch(factory, &buf);
-	if (ret < 0)
-	{
-		swTrace("factory->dispatch fail\n");
-	}
-	poll_thread->c_udp_fd++;
-	if (poll_thread->c_udp_fd == serv->udp_max_tmp_pkg)
-	{
-		poll_thread->c_udp_fd = 0;
-	}
-	return SW_OK;
-}
-
 static int swServer_poll_onClose(swReactor *reactor, swEvent *event)
 {
 	swServer *serv = reactor->ptr;
@@ -1134,9 +1176,26 @@ int swServer_addListen(swServer *serv, int type, char *host, int port)
 	bzero(listen_host->host, SW_HOST_MAXSIZE);
 	strncpy(listen_host->host, host, SW_HOST_MAXSIZE);
 	LL_APPEND(serv->listen_list, listen_host);
+
+	//UDP需要提前创建好
 	if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6)
 	{
-		serv->open_udp = 1;
+		int sock = swSocket_listen(type, listen_host->host, port, serv->backlog);
+		if(sock < 0)
+		{
+			return SW_ERR;
+		}
+		//设置UDP缓存区尺寸，高并发UDP服务器必须设置
+		int bufsize = serv->udp_sock_buffer_size;
+		setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize));
+		setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize));
+
+		listen_host->sock = sock;
+		serv->have_udp_sock = 1;
+	}
+	else
+	{
+		serv->have_tcp_sock = 1;
 	}
 	return SW_OK;
 }
@@ -1151,28 +1210,22 @@ static int swServer_listen(swServer *serv, swReactor *reactor)
 
 	LL_FOREACH(serv->listen_list, listen_host)
 	{
-		sock = swSocket_listen(listen_host->type, listen_host->host, listen_host->port, serv->backlog);
-		if (sock < 0)
-		{
-			swTrace("Listen fail.type=%d|host=%s|port=%d|errno=%d\n",
-					listen_host->type, listen_host->host, listen_host->port, errno);
-			LL_DELETE(serv->listen_list, listen_host);
-			return SW_ERR;
-		}
 		//UDP
 		if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6)
 		{
-			poll_reactor = &(serv->poll_threads[reactor_i % serv->poll_thread_num].reactor);
-			poll_reactor->add(poll_reactor, sock, SW_FD_UDP);
-			reactor_i++;
+			//设置到fdList中，发送UDP包时需要
+			serv->connection_list[listen_host->sock].fd = listen_host->sock;
+			continue;
 		}
 		//TCP
-		else
+		sock = swSocket_listen(listen_host->type, listen_host->host, listen_host->port, serv->backlog);
+		if (sock < 0)
 		{
-			reactor->add(reactor, sock, SW_EVENT_CONNECT);
+			LL_DELETE(serv->listen_list, listen_host);
+			return SW_ERR;
 		}
+		reactor->add(reactor, sock, SW_EVENT_CONNECT);
 		listen_host->sock = sock;
-
 		//将server socket也放置到connection_list中
 		serv->connection_list[sock].addr.sin_port = listen_host->port;
 	}

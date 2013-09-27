@@ -61,6 +61,13 @@
 static int le_swoole_server;
 static int le_swoole_client;
 
+#pragma pack(4)
+typedef struct {
+	uint16_t port;
+	uint16_t from_fd;
+} php_swoole_udp_t;
+#pragma pack()
+
 static zval *php_sw_callback[PHP_CALLBACK_NUM];
 static void ***sw_thread_ctx;
 
@@ -529,7 +536,7 @@ PHP_FUNCTION(swoole_connection_info)
 		add_assoc_long(return_value, "from_id", conn->from_id);
 		add_assoc_long(return_value, "from_fd", conn->from_fd);
 		add_assoc_long(return_value, "from_port",  serv->connection_list[conn->from_fd].addr.sin_port);
-		add_assoc_long(return_value, "remote_port", conn->addr.sin_port);
+		add_assoc_long(return_value, "remote_port", ntohs(conn->addr.sin_port));
 		add_assoc_string(return_value, "remote_ip", inet_ntoa(conn->addr.sin_addr), 1);
 	}
 }
@@ -600,11 +607,26 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	zval *zdata;
 	zval *retval;
 
+	int from_id;
+
 	MAKE_STD_ZVAL(zfd);
 	ZVAL_LONG(zfd, (long)req->info.fd);
 
 	MAKE_STD_ZVAL(zfrom_id);
-	ZVAL_LONG(zfrom_id, (long)req->info.from_id);
+	if(req->info.from_id >= serv->poll_thread_num)
+	{
+		//UDP使用from_id作为port,fd做为ip
+		php_swoole_udp_t udp_info;
+		udp_info.from_fd = req->info.from_fd;
+		udp_info.port = req->info.from_id;
+		memcpy(&from_id, &udp_info, sizeof(from_id));
+		swWarn("SendTo: from_id=%d|from_fd=%d", req->info.from_fd, req->info.from_id);
+		ZVAL_LONG(zfrom_id, (long) from_id);
+	}
+	else
+	{
+		ZVAL_LONG(zfrom_id, (long)req->info.from_id);
+	}
 
 	MAKE_STD_ZVAL(zdata);
 //	req->data[req->info.len] = 0;
@@ -978,14 +1000,25 @@ PHP_FUNCTION(swoole_server_send)
 	}
 	ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
 	factory = &(serv->factory);
+
 	_send.info.fd = (int)conn_fd;
 	if (from_id < 0)
 	{
 		_send.info.from_id = factory->last_from_id;
 	}
-	else
+	//TCP
+	else if((uint32_t)from_id < serv->poll_thread_num)
 	{
 		_send.info.from_id = from_id;
+	}
+	//UDP
+	else
+	{
+		php_swoole_udp_t udp_info;
+		memcpy(&udp_info, (uint32_t *)(&from_id), sizeof(udp_info));
+		_send.info.from_id = (uint16_t)(udp_info.port);
+		_send.info.from_fd = (uint16_t)(udp_info.from_fd);
+//		swWarn("SendTo: from_id=%d|from_fd=%d", _send.info.from_id, _send.info.from_fd);
 	}
 	_send.data = buffer;
 

@@ -51,7 +51,7 @@ int main(int argc, char **argv)
 	serv.backlog = 128;
 	serv.poll_thread_num = 2; //reactor线程数量
 	serv.writer_num = 2;      //writer线程数量
-	serv.worker_num = 2;      //worker进程数量
+	serv.worker_num = 1;      //worker进程数量
 
 	serv.factory_mode = SW_MODE_PROCESS; //SW_MODE_PROCESS SW_MODE_THREAD SW_MODE_BASE
 	serv.max_conn = 1000;
@@ -81,8 +81,8 @@ int main(int argc, char **argv)
 		swTrace("create server fail[error=%d].\n", ret);
 		exit(0);
 	}
-	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9500);
-	swServer_addListen(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
+	swServer_addListen(&serv, SW_SOCK_UDP, "0.0.0.0", 9500);
+//	swServer_addListen(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9502);
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 8888);
 
@@ -125,13 +125,13 @@ int my_onReceive(swFactory *factory, swEventData *req)
 	int ret;
 	char resp_data[SW_BUFFER_SIZE];
 	swServer *serv = factory->ptr;
-	swConnection *conn = swServer_get_connection(serv, req->info.fd);
+
 
 	swSendData resp;
 	g_receive_count ++;
-	resp.info.fd = req->info.fd; //fd can be not source fd.
+	memcpy(&resp.info, &req->info, sizeof(resp.info));
+
 	resp.info.len = req->info.len + 8;
-	resp.info.from_id = req->info.from_id;
 	req->data[req->info.len] = 0;
 
 	snprintf(resp_data, resp.info.len, "Server:%s", req->data);
@@ -141,9 +141,23 @@ int my_onReceive(swFactory *factory, swEventData *req)
 	{
 		printf("send to client fail.errno=%d\n", errno);
 	}
-//	printf("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d\n", g_receive_count,
-//			inet_ntoa(conn->addr.sin_addr), conn->addr.sin_port,
-//			rtrim(req->data, req->info.len), req->info.len);
+	if (req->info.from_id >= serv->poll_thread_num)
+	{
+		struct in_addr addr;
+		addr.s_addr = req->info.fd;
+
+
+		printf("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d\n", g_receive_count,
+					inet_ntoa(addr), req->info.from_id,
+					rtrim(req->data, req->info.len), req->info.len);
+	}
+	else
+	{
+		swConnection *conn = swServer_get_connection(serv, req->info.fd);
+		printf("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d\n", g_receive_count,
+					inet_ntoa(conn->addr.sin_addr), conn->addr.sin_port,
+					rtrim(req->data, req->info.len), req->info.len);
+	}
 //	req->info.type = 99;
 //	factory->event(factory, g_controller_id, req);
 	return SW_OK;

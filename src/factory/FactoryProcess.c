@@ -46,7 +46,7 @@ static int c_writer_pti = 0; //Current Proccess writer's id
 static int manager_worker_reloading = 0;
 static int manager_reload_flag = 0;
 static swController *manager_controller_list;
-static swPipes *manager_controller_pipes;
+static swPipe *manager_controller_pipes;
 static int manager_controller_count = 0;
 
 int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
@@ -123,7 +123,7 @@ int swFactoryProcess_event(swFactory *factory, int controller_id, swEventData *d
 		swWarn("controller_id > manager_controller_count");
 		return SW_ERR;
 	}
-	pipe_fd = manager_controller_pipes[controller_id].pipes[0];
+	pipe_fd = manager_controller_pipes[controller_id].getFd(&manager_controller_pipes[controller_id], 0);
 	ret = swWrite(pipe_fd, (char *)data, send_len);
 	return (ret < 0) ? SW_ERR : SW_OK;
 }
@@ -136,7 +136,7 @@ int swFactoryProcess_controller_start(swFactory *factory)
 	//循环fork
 	LL_FOREACH(manager_controller_list, controller)
 	{
-		controller->pipe_fd = manager_controller_pipes[controller->id].pipes[1];
+		controller->pipe_fd = manager_controller_pipes[controller->id].getFd(&manager_controller_pipes[controller->id], 1);
 		pid = swFactoryProcess_controller_spawn(factory, controller);
 		if(pid < 0)
 		{
@@ -164,7 +164,7 @@ int swFactoryProcess_controller_spawn(swFactory *factory, swController *controll
 	else if(pid == 0)
 	{
 		//关闭不需要的pipe, 0是给父进程使用的
-		close(manager_controller_pipes[controller->id].pipes[0]);
+		close(manager_controller_pipes[controller->id].getFd(&manager_controller_pipes[controller->id], 0));
 		ret = swFactoryProcess_controller_loop(factory, controller);
 		exit(ret);
 	}
@@ -245,12 +245,14 @@ int swFactoryProcess_start(swFactory *factory)
 	ret = swFactory_check_callback(factory);
 	if (ret < 0)
 	{
+		swWarn("XXXXXXXXXXX: %d", __LINE__);
 		return SW_ERR;
 	}
 	//必须先启动worker，否则manager进程会带线程fork
 	ret = swFactoryProcess_worker_start(factory);
 	if (ret < 0)
 	{
+		swWarn("XXXXXXXXXXX: %d", __LINE__);
 		return SW_ERR;
 	}
 	//主进程需要设置为直写模式
@@ -263,49 +265,51 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 {
 	swFactoryProcess *object = factory->object;
 	int i, pid, ret;
-	swPipes *worker_pipes;
 	int writer_pti;
 
 	swServer *serv = factory->ptr;
 
 #if SW_WORKER_IPC_MODE == 2
-		//读数据队列
-		if(swQueueMsg_create(&object->rd_queue, 1, SW_WORKER_MSGQUEUE_KEY, 1) <0)
-		{
-			swError("[Main] swPipeMsg_create[In] fail.errno=%d", errno);
-			return SW_ERR;
-		}
+	//读数据队列
+	if(swQueueMsg_create(&object->rd_queue, 1, SW_WORKER_MSGQUEUE_KEY, 1) <0)
+	{
+		swError("[Main] swPipeMsg_create[In] fail.errno=%d", errno);
+		return SW_ERR;
+	}
+	//为TCP创建写队列
+	if (serv->have_tcp_sock == 1)
+	{
 		//写数据队列
 		if(swQueueMsg_create(&object->wt_queue, 1, SW_WORKER_MSGQUEUE_KEY + 1, 1) <0)
 		{
 			swError("[Main] swPipeMsg_create[out] fail.errno=%d", errno);
 			return SW_ERR;
 		}
+	}
 #else
-		worker_pipes = sw_memory_pool->alloc(sw_memory_pool, object->worker_num * sizeof(swPipes));
-		if (worker_pipes == NULL)
+	object->pipes = sw_memory_pool->alloc(sw_memory_pool, object->worker_num * sizeof(swPipe));
+	if (object->pipes == NULL)
+	{
+		swError("malloc[worker_pipes] fail.Errno=%d\n", errno);
+		return SW_ERR;
+	}
+	//worker进程的pipes
+	for (i = 0; i < object->worker_num; i++)
+	{
+		if (swPipeUnsock_create(&object->pipes[i], 1, SOCK_DGRAM) < 0)
 		{
-			swError("malloc fail.Errno=%d\n", errno);
+			swError("create unix socket[1] fail");
 			return SW_ERR;
 		}
-		//worker进程的pipes
-		for (i = 0; i < object->worker_num; i++)
-		{
-			if (socketpair(PF_LOCAL, SOCK_DGRAM, 0, worker_pipes[i].pipes) < 0)
-			{
-				swError("create unix socket[1] fail");
-				return SW_ERR;
-			}
-		}
+	}
 #endif
-
-	if( manager_controller_count > 0)
+	if (manager_controller_count > 0)
 	{
-		manager_controller_pipes = sw_memory_pool->alloc(sw_memory_pool, manager_controller_count* sizeof(swPipes));
+		manager_controller_pipes = sw_memory_pool->alloc(sw_memory_pool, manager_controller_count * sizeof(swPipe));
 		//controller进程的pipes
 		for (i = 0; i < manager_controller_count; i++)
 		{
-			if (socketpair(PF_LOCAL, SOCK_DGRAM, 0, manager_controller_pipes[i].pipes) < 0)
+			if (swPipeUnsock_create(&object->pipes[i], 1, SOCK_DGRAM) < 0)
 			{
 				swError("create unix socket[2] fail");
 				return SW_ERR;
@@ -323,7 +327,7 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 //			close(worker_pipes[i].pipes[0]);
 			writer_pti = (i % object->writer_num);
 #if SW_WORKER_IPC_MODE != 2
-			object->workers[i].pipe_fd = worker_pipes[i].pipes[1];
+			object->workers[i].pipe_wt = object->pipes[i].getFd(&object->pipes[i], 1);
 #endif
 			object->workers[i].writer_id = writer_pti;
 			pid = swFactoryProcess_worker_spawn(factory, writer_pti, i);
@@ -338,7 +342,7 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 			}
 		}
 		//创建controller进程
-		if(manager_controller_count > 0)
+		if (manager_controller_count > 0)
 		{
 			swFactoryProcess_controller_start(factory);
 		}
@@ -350,19 +354,28 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 		//主进程
 	default:
 		object->manager_pid = pid;
-		int ret = swFactoryProcess_writer_start(factory);
-		if (ret < 0)
+		//TCP需要writer线程
+		if (serv->have_tcp_sock == 1)
 		{
-			return SW_ERR;
+			int ret = swFactoryProcess_writer_start(factory);
+			if (ret < 0)
+			{
+				return SW_ERR;
+			}
 		}
 #if SW_WORKER_IPC_MODE != 2
 		for (i = 0; i < object->worker_num; i++)
 		{
 			writer_pti = (i % object->writer_num);
-			object->writers[writer_pti].reactor.add(&(object->writers[writer_pti].reactor), worker_pipes[i].pipes[0], SW_FD_PIPE);
-			close(worker_pipes[i].pipes[1]);
-			object->workers[i].pipe_fd = worker_pipes[i].pipes[0];
 			object->workers[i].writer_id = writer_pti;
+			object->workers[i].pipe_rd = object->pipes[i].getFd(&object->pipes[i], 0);
+//			close(object->pipes[i].getFd(&object->pipes[i], 1));
+
+			if (serv->have_tcp_sock == 1)
+			{
+				object->writers[writer_pti].reactor.add(&(object->writers[writer_pti].reactor),
+						object->pipes[i].getFd(&object->pipes[i], 0), SW_FD_PIPE);
+			}
 		}
 #endif
 		break;
@@ -497,11 +510,10 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int writer_pti, int
 #if SW_WORKER_IPC_MODE != 2
 		for (i = 0; i < object->worker_num; i++)
 		{
-
 			//非当前
 			if (worker_pti != i)
 			{
-				close(object->workers[i].pipe_fd);
+				close(object->workers[i].pipe_rd);
 			}
 		}
 #endif
@@ -509,7 +521,7 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int writer_pti, int
 
 		//标识为worker进程
 		sw_process_type = SW_PROCESS_WORKER;
-		ret = swFactoryProcess_worker_loop(factory, object->workers[worker_pti].pipe_fd, worker_pti);
+		ret = swFactoryProcess_worker_loop(factory, object->workers[worker_pti].pipe_rd, worker_pti);
 		exit(ret);
 	}
 	//parent,add to writer
@@ -537,8 +549,17 @@ int swFactoryProcess_end(swFactory *factory, swDataHead *event)
 int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 {
 	//UDP直接在worker进程内发送
-	int ret, sendn;
+	int ret, sendn, count;;
 	swFactoryProcess *object = factory->object;
+	swServer *serv = factory->ptr;
+
+	//from_id超过serv->poll_thread_num，这是一个UDP
+	//UDP在worker进程中直接发送到客户端
+	if(resp->info.from_id >= serv->poll_thread_num)
+	{
+		ret = swServer_send_udp_packet(serv, resp);
+		goto finish;
+	}
 
 	//swQueue_data for msg queue
 	struct {
@@ -557,27 +578,38 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	sdata._send.info.from_id = resp->info.from_id;
 	sendn =  resp->info.len + sizeof(resp->info);
 
-#if SW_WORKER_IPC_MODE == 2
 	swTrace("[Worker]wt_queue[%ld]->in| fd=%d", sdata.pti, sdata._send.info.fd);
-	int count;
-	for (count = 0; count < SW_WORKER_ENQUEUE_COUNT; count++)
+
+	for (count = 0; count < SW_WORKER_SENDTO_COUNT; count++)
 	{
+#if SW_WORKER_IPC_MODE == 2
 		ret = object->wt_queue.in(&object->wt_queue, (swQueue_data *)&sdata, sendn);
-//		printf("wt_queue->in: fd=%d|from_id=%d|data=%s|ret=%d|errno=%d\n", sdata._send.info.fd, sdata._send.info.from_id, sdata._send.data, ret, errno);
+#else
+		ret = write(c_worker_pipe, &sdata._send, sendn);
+#endif
+		//printf("wt_queue->in: fd=%d|from_id=%d|data=%s|ret=%d|errno=%d\n", sdata._send.info.fd, sdata._send.info.from_id, sdata._send.data, ret, errno);
 		if (ret == 0)
 		{
 			break;
 		}
-		swYield();
+		else if (errno == EINTR)
+		{
+			continue;
+		}
+		else if (errno == EAGAIN)
+		{
+			swYield();
+		}
+		else
+		{
+			break;
+		}
 	}
-	//printf("push data.fd=%d|from_id=%d|data=%s\n", sdata._send.fd, sdata._send.from_id, sdata._send.data);
-#else
-	do
+	finish:
+	if (ret < 0)
 	{
-		ret = write(c_worker_pipe, &sdata._send, sendn);
+		swWarn("[Worker]sendto writer pipe or queue fail. errno=%d", errno);
 	}
-	while(ret < 0 && errno == EINTR);
-#endif
 	return ret;
 }
 
@@ -746,7 +778,7 @@ static int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, i
 	swTrace("[Master]rd_queue[%ld]->in: fd=%d|type=%d|len=%d", in_data->mtype, info->fd, info->type, info->len);
 #else
 	//send to unix sock
-	ret = swWrite(object->workers[pti].pipe_fd, (char *) data, send_len);
+	ret = swWrite(object->workers[pti].pipe_wt, (char *) data, send_len);
 #endif
 	return ret;
 }

@@ -49,7 +49,7 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
 			swSetNonBlock(object->socks[1]);
 		}
 
-		int sbsize = 1024 * 256;
+		int sbsize = SW_WORKER_UNSOCK_BUFSIZE;
 		setsockopt(object->socks[1], SOL_SOCKET, SO_SNDBUF, &sbsize, sizeof(sbsize));
 		setsockopt(object->socks[0], SOL_SOCKET, SO_RCVBUF, &sbsize, sizeof(sbsize));
 

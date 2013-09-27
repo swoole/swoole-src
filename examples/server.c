@@ -55,6 +55,14 @@ int main(int argc, char **argv)
 	//serv.daemonize = 1;
 	//serv.open_eof_check = 1;
 
+	//create Server
+	ret = swServer_create(&serv);
+	if (ret < 0)
+	{
+		swTrace("create server fail[error=%d].\n", ret);
+		exit(0);
+	}
+
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9500);
 	swServer_addListen(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9502);
@@ -72,13 +80,6 @@ int main(int argc, char **argv)
 	serv.onWorkerStart = my_onWorkerStart;
 	serv.onWorkerStop = my_onWorkerStop;
 
-	//create Server
-	ret = swServer_create(&serv);
-	if (ret < 0)
-	{
-		swTrace("create server fail[error=%d].\n", ret);
-		exit(0);
-	}
 	ret = swServer_start(&serv);
 	if (ret < 0)
 	{

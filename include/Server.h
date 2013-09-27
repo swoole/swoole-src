@@ -70,7 +70,7 @@ struct _swConnBuffer
 
 typedef struct _swConnection {
 	uint8_t tag; //状态0表示未使用，1表示正在使用
-	int fd; //文件描述符
+	int fd;      //文件描述符
 	uint16_t from_id; //Reactor Id
 	uint16_t from_fd; //从哪个ServerFD引发的
 	uint8_t buffer_num; //buffer的数量
@@ -114,10 +114,12 @@ struct swServer_s
 	int timer_interval;
 	int ringbuffer_size;
 
-	int c_pti;           //schedule
-	int udp_max_tmp_pkg; //UDP临时包数量，超过数量未处理将会被丢弃
+	int c_pti;                //schedule
+	int udp_sock_buffer_size; //UDP临时包数量，超过数量未处理将会被丢弃
 
-	uint8_t open_udp;          //是否有UDP监听端口
+	uint8_t have_udp_sock;      //是否有UDP监听端口
+	uint8_t have_tcp_sock;      //是否有TCP监听端口
+
 	uint8_t open_cpu_affinity; //是否设置CPU亲和性
 	uint8_t open_tcp_nodelay;  //是否关闭Nagle算法
 	uint8_t open_eof_check;    //检测数据EOF
@@ -133,7 +135,7 @@ struct swServer_s
 	swPipe main_pipe;
 	swReactor reactor;
 	swFactory factory;
-	swThreadPoll *poll_threads;
+	swThreadPoll *poll_threads; //TCP监听线程
 	swListenList_node *listen_list;
 	swTimerList_node *timer_list;
 
@@ -170,6 +172,7 @@ int swServer_process_close(swServer *serv, swDataHead *event);
 int swServer_shutdown(swServer *serv);
 int swServer_addTimer(swServer *serv, int interval);
 int swServer_reload(swServer *serv);
+int swServer_send_udp_packet(swServer *serv, swSendData *resp);
 
 int swServer_new_connection(swServer *serv, swEvent *ev);
 #define SW_SERVER_MAX_FD_INDEX        0
