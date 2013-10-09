@@ -10,9 +10,12 @@ dnl If your extension references something external, use with:
 dnl Otherwise use enable:
 
 PHP_ARG_ENABLE(swoole-debug, whether to enable swoole debug,
-[  --enable-swoole-debug           Enable swoole debug], no, no)
+[  --enable-swoole-debug     Enable swoole debug], no, no)
 
-PHP_ARG_WITH(swoole, for swoole support,
+PHP_ARG_ENABLE(msgqueue, set ipc mode,
+[  --enable-msgqueue         Use message queue], no, no)
+
+PHP_ARG_WITH(swoole, swoole support,
 [  --with-swoole             Include swoole support])
 
 AC_DEFUN([AC_SWOOLE_KQUEUE],
@@ -139,17 +142,22 @@ if test "$PHP_SWOOLE" != "no"; then
         [PHP_DEBUG=$enableval],
         [PHP_DEBUG=0]
     )
-
+  
     if test "$PHP_SWOOLE_DEBUG" != "no"; then
         AC_DEFINE(SW_DEBUG, 1, [do we enable swoole debug])
     fi
-
+    
+    if test "$PHP_MSGQUEUE" != "no"; then
+        AC_DEFINE(SW_WORKER_IPC_MODE, 2, [use message queue])
+    else
+        AC_DEFINE(SW_WORKER_IPC_MODE, 1, [use unix socket])
+    fi
+    
     AC_SWOOLE_EVENTFD
     AC_SWOOLE_EPOLL
     AC_SWOOLE_KQUEUE
     AC_SWOOLE_TIMERFD
     AC_SWOOLE_CPU_AFFINITY
-  
   
     AC_CHECK_LIB(pthread, accept4, AC_DEFINE(HAVE_ACCEPT4, 1, [have accept4]))
     AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))

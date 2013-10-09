@@ -33,7 +33,10 @@
 #define SW_MAINREACTOR_USE_UNSOCK  1    //主线程使用unsock
 #define SW_REACTOR_WRITER_TIMEO    3    //writer线程的reactor
 
-#define SW_WORKER_IPC_MODE         2    //1:unix socket,2:IPC Message Queue
+#ifndef SW_WORKER_IPC_MODE
+#define SW_WORKER_IPC_MODE         1    //1:unix socket,2:IPC Message Queue
+#endif
+
 #define SW_WORKER_SENDTO_COUNT     2    //写回客户端失败尝试次数
 
 #define SW_MAINREACTOR_USE_POLL        //主线程，使用poll还是select
