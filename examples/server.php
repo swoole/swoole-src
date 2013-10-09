@@ -15,7 +15,7 @@ swoole_server_set($serv, array(
     'backlog' => 128,   //listen backlog
     'max_request' => 5000,
     'max_conn' => 100000,
-    'dispatch_mode' => 3,
+    'dispatch_mode' => 2,
     //'data_eof' => "\r\n\r\n",
     //'open_eof_check' => 1,
     //'open_tcp_keepalive' => 1,

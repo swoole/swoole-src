@@ -582,7 +582,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 		ret = write(object->workers[c_worker_pti].pipe_worker, &sdata._send, sendn);
 #endif
 		//printf("wt_queue->in: fd=%d|from_id=%d|data=%s|ret=%d|errno=%d\n", sdata._send.info.fd, sdata._send.info.from_id, sdata._send.data, ret, errno);
-		if (ret == 0)
+		if (ret >= 0)
 		{
 			break;
 		}
