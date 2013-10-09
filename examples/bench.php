@@ -137,7 +137,7 @@ function short_tcp($bc)
 		if(!empty($ret)) return true;
 		else return false;
 	}
-	//usleep(100000);
+	usleep(100);
 }
 //请求数量最好是进程数的倍数
 $bc->process_req_num = intval($bc->request_num/$bc->process_num);

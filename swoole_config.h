@@ -33,7 +33,7 @@
 #define SW_MAINREACTOR_USE_UNSOCK  1    //主线程使用unsock
 #define SW_REACTOR_WRITER_TIMEO    3    //writer线程的reactor
 
-#define SW_WORKER_IPC_MODE         1    //1:unix socket,2:IPC Message Queue
+#define SW_WORKER_IPC_MODE         2    //1:unix socket,2:IPC Message Queue
 #define SW_WORKER_SENDTO_COUNT     2    //写回客户端失败尝试次数
 
 #define SW_MAINREACTOR_USE_POLL        //主线程，使用poll还是select
@@ -42,7 +42,6 @@
 #define SW_REACTOR_TIMEO_USEC      0
 #define SW_REACTOR_DISPATCH        2    //连接分配模式，1平均分配，2按FD取摸固定分配
 
-#define SW_WORKER_MSGQUEUE_KEY     0x27000903
 #define SW_WORKER_UNSOCK_BUFSIZE   (1024 * 256)
 
 #define SW_QUEUE_SIZE              100  //缩减版的RingQueue,用在线程模式下

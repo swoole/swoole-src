@@ -263,19 +263,23 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 	swServer *serv = factory->ptr;
 
 #if SW_WORKER_IPC_MODE == 2
+#define _SW_PATH_BUF_LEN   128
+	//这里使用ftok来获取消息队列的key
+	char path_buf[_SW_PATH_BUF_LEN];
+	char *path_ptr = getcwd(path_buf, _SW_PATH_BUF_LEN);
 	//读数据队列
-	if(swQueueMsg_create(&object->rd_queue, 1, SW_WORKER_MSGQUEUE_KEY, 1) <0)
+	if(swQueueMsg_create(&object->rd_queue, 1, ftok(path_ptr, 1), 1) < 0)
 	{
-		swError("[Main] swPipeMsg_create[In] fail.errno=%d", errno);
+		swError("[Master] swPipeMsg_create[In] fail.errno=%d", errno);
 		return SW_ERR;
 	}
 	//为TCP创建写队列
 	if (serv->have_tcp_sock == 1)
 	{
 		//写数据队列
-		if(swQueueMsg_create(&object->wt_queue, 1, SW_WORKER_MSGQUEUE_KEY + 1, 1) <0)
+		if(swQueueMsg_create(&object->wt_queue, 1, ftok(path_ptr, 2), 1) < 0)
 		{
-			swError("[Main] swPipeMsg_create[out] fail.errno=%d", errno);
+			swError("[Master] swPipeMsg_create[out] fail.errno=%d", errno);
 			return SW_ERR;
 		}
 	}
@@ -621,7 +625,8 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 	//抢占式,使用相同的队列type
 	if (serv->dispatch_mode == SW_DISPATCH_QUEUE)
 	{
-		rdata.pti = serv->worker_num;
+		//这里必须加1
+		rdata.pti = serv->worker_num + 1;
 	}
 	else
 	{
@@ -755,6 +760,7 @@ static int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, i
 		swError("SW_DISPATCH_QUEUE must use (SW_WORKER_IPC_MODE = 2)");
 #endif
 		//msgsnd参数必须>0
+		//worker进程中正确的mtype应该是pti + 1
 		pti = object->worker_num;
 	}
 	swTrace("[ReadThread]sendto: pipe=%d|worker=%d\n", object->workers[pti].pipe_fd, pti);
@@ -763,7 +769,9 @@ static int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, i
 	//insert to msg queue
 	swQueue_data *in_data = (swQueue_data *)((void *)data - sizeof(long));
 
+	//加1防止id为0的worker进程出错
 	in_data->mtype = pti + 1;
+
 	swDataHead *info = (swDataHead *)in_data->mdata;
 	ret = object->rd_queue.in(&object->rd_queue, in_data, send_len);
 	swTrace("[Master]rd_queue[%ld]->in: fd=%d|type=%d|len=%d", in_data->mtype, info->fd, info->type, info->len);

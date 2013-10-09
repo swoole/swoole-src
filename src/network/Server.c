@@ -585,7 +585,7 @@ int swServer_create(swServer *serv)
 	{
 		if (serv->writer_num < 1)
 		{
-			swError("serv->writer_num < 1\n");
+			swError("Fatal Error: serv->writer_num < 1");
 			return SW_ERR;
 		}
 		ret = swFactoryThread_create(&(serv->factory), serv->writer_num);
@@ -594,12 +594,12 @@ int swServer_create(swServer *serv)
 	{
 		if (serv->writer_num < 1 || serv->worker_num < 1)
 		{
-			swError("serv->writer_num < 1 or serv->worker_num < 1\n");
+			swError("Fatal Error: serv->writer_num < 1 or serv->worker_num < 1");
 			return SW_ERR;
 		}
 		if (serv->max_request < 1)
 		{
-			swError("serv->max_request < 1 \n");
+			swError("Fatal Error: serv->max_request < 1");
 			return SW_ERR;
 		}
 		serv->factory.max_request = serv->max_request;
