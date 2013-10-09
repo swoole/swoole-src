@@ -89,6 +89,7 @@ static int php_swoole_client_event_loop(zval *sock_array, fd_set *fds TSRMLS_DC)
 
 const zend_function_entry swoole_functions[] =
 {
+	PHP_FE(swoole_version, NULL)
 	PHP_FE(swoole_server_create, NULL)
 	PHP_FE(swoole_server_set, NULL)
 	PHP_FE(swoole_server_start, NULL)
