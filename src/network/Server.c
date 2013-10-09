@@ -144,7 +144,7 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 #ifdef SW_ACCEPT_AGAIN
 			break;
 #else
-			return SW_ERR;
+			return SW_OK;
 #endif
 		}
 
@@ -192,7 +192,6 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 		if (ret < 0)
 		{
 			swWarn("[Main]add event fail Errno=%d|FD=%d", errno, conn_fd);
-			exit(2);
 			close(conn_fd);
 			return SW_ERR;
 		}
