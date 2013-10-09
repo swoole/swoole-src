@@ -844,7 +844,7 @@ int swFactoryProcess_writer_excute(swFactory *factory, swEventData *resp)
 			//printf("closeFd.fd=%d|from_id=%d\n", closeFd.fd, closeFd.from_id);
 			swServer_close(serv, &closeFd);
 		}
-		return SW_ERR;
+		return SW_OK;
 	}
 	else
 	{

@@ -19,7 +19,7 @@ static int swServer_timer_start(swServer *serv);
 static void swSignalHanlde(int sig);
 
 int sw_nouse_timerfd;
-swPipe timer_pipe;
+static swPipe timer_pipe;
 extern FILE *swoole_log_fn;
 
 int swServer_onClose(swReactor *reactor, swEvent *event)
@@ -31,7 +31,8 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 	swReactor *from_reactor;
 	int i, n;
 	n = serv->main_pipe.read(&serv->main_pipe, cev_queue, sizeof(cev_queue));
-	if (n < 0)
+
+	if (n <= 0)
 	{
 		swWarn("[Master]main_pipe read fail. errno=%d", errno);
 		return SW_ERR;
@@ -87,7 +88,6 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 			factory->notify(factory, &notify_ev);
 		}
 		serv->connect_count--;
-
 	}
 	return SW_OK;
 }
@@ -153,7 +153,7 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 		{
 			swWarn("too many connection");
 			close(conn_fd);
-			return SW_ERR;
+			return SW_OK;
 		}
 		//TCP Nodelay
 		if (serv->open_tcp_nodelay == 1)
@@ -191,9 +191,9 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 		ret = serv->poll_threads[c_pti].reactor.add(&(serv->poll_threads[c_pti].reactor), conn_fd, SW_FD_TCP);
 		if (ret < 0)
 		{
-			swWarn("[Main]add event fail Errno=%d|FD=%d", errno, conn_fd);
+			swWarn("[Master]add event fail Errno=%d|FD=%d", errno, conn_fd);
 			close(conn_fd);
-			return SW_ERR;
+			return SW_OK;
 		}
 		else
 		{
@@ -318,7 +318,7 @@ int swServer_start(swServer *serv)
 		return SW_ERR;
 	}
 	main_reactor.ptr = serv;
-	main_reactor.id = 0;
+	main_reactor.id = serv->writer_num; //设为一个特别的ID
 	main_reactor.setHandle(&main_reactor, SW_EVENT_CLOSE, swServer_onClose);
 	main_reactor.setHandle(&main_reactor, SW_EVENT_CONNECT, swServer_onAccept);
 	main_reactor.setHandle(&main_reactor, SW_EVENT_TIMER, swServer_onTimer);
