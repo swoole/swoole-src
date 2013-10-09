@@ -261,6 +261,12 @@ static void sw_destory_client(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 	efree(cli);
 }
 
+PHP_FUNCTION(swoole_version)
+{
+    php_printf("swoole %s", SWOOLE_VERSION);
+}
+
+
 PHP_FUNCTION(swoole_server_create)
 {
 	swServer *serv = sw_malloc(sizeof(swServer));
