@@ -122,9 +122,7 @@ static zend_class_entry *swoole_client_class_entry_ptr;
 
 zend_module_entry swoole_module_entry =
 {
-#if ZEND_MODULE_API_NO >= 20010901
 	STANDARD_MODULE_HEADER,
-#endif
 	"swoole",
 	swoole_functions,
 	PHP_MINIT(swoole),
@@ -133,12 +131,8 @@ zend_module_entry swoole_module_entry =
 	PHP_RSHUTDOWN(swoole), /* Replace with NULL if there's nothing to do at request end */
 	PHP_MINFO(swoole),
     SWOOLE_VERSION,
-
-#if ZEND_MODULE_API_NO >= 20010901
-		"0.1", /* Replace with version number for your extension */
-#endif
-		STANDARD_MODULE_PROPERTIES };
-/* }}} */
+	STANDARD_MODULE_PROPERTIES
+};
 
 #ifdef COMPILE_DL_SWOOLE
 ZEND_GET_MODULE(swoole)

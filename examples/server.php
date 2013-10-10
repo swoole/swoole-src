@@ -31,7 +31,7 @@ argv3  sock_type  SWOOLE_SOCK_TCP or SWOOLE_SOCK_TCP6 or SWOOLE_SOCK_UDP or SWOO
 //swoole_server_addlisten($serv, "127.0.0.1", 9500, SWOOLE_SOCK_UDP);
 function my_onStart($serv)
 {
-    echo "Server：start\n";
+    echo "Server：start.Swoole version is [".SWOOLE_VERSION."]\n";
 }
 
 function my_onShutdown($serv)
