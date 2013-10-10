@@ -89,6 +89,7 @@ static int php_swoole_client_event_loop(zval *sock_array, fd_set *fds TSRMLS_DC)
 
 const zend_function_entry swoole_functions[] =
 {
+	PHP_FE(swoole_version, NULL)
 	PHP_FE(swoole_server_create, NULL)
 	PHP_FE(swoole_server_set, NULL)
 	PHP_FE(swoole_server_start, NULL)
@@ -131,6 +132,8 @@ zend_module_entry swoole_module_entry =
 	PHP_RINIT(swoole), /* Replace with NULL if there's nothing to do at request start */
 	PHP_RSHUTDOWN(swoole), /* Replace with NULL if there's nothing to do at request end */
 	PHP_MINFO(swoole),
+    SWOOLE_VERSION,
+
 #if ZEND_MODULE_API_NO >= 20010901
 		"0.1", /* Replace with version number for your extension */
 #endif
@@ -183,6 +186,7 @@ PHP_MINIT_FUNCTION(swoole)
 
 	REGISTER_LONG_CONSTANT("SWOOLE_SOCK_SYNC", SW_SOCK_SYNC, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_SOCK_ASYNC", SW_SOCK_ASYNC, CONST_CS | CONST_PERSISTENT);
+    REGISTER_STRINGL_CONSTANT("SWOOLE_VERSION", SWOOLE_VERSION, sizeof(SWOOLE_VERSION) - 1, CONST_PERSISTENT | CONST_CS);
 
 	INIT_CLASS_ENTRY(swoole_client_ce, "swoole_client", swoole_client_methods);
 	swoole_client_class_entry_ptr = zend_register_internal_class(&swoole_client_ce TSRMLS_CC);
@@ -260,6 +264,12 @@ static void sw_destory_client(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 	}
 	efree(cli);
 }
+
+PHP_FUNCTION(swoole_version)
+{
+    php_printf("swoole %s", SWOOLE_VERSION);
+}
+
 
 PHP_FUNCTION(swoole_server_create)
 {
