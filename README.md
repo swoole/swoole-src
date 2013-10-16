@@ -18,8 +18,8 @@ Features
 
 Developer Mail-List
 -----
-Google Group: <https://groups.google.com/forum/#!forum/swoole>
-Email: <swoole@googlegroups.com>
+* Google Group: <https://groups.google.com/forum/#!forum/swoole>  
+* Email: <swoole@googlegroups.com>
 
 
 For PHP
