@@ -2,6 +2,7 @@
 #include "Server.h"
 #include <signal.h>
 #include <sys/wait.h>
+#include <time.h>
 
 typedef struct _swController
 {
@@ -209,6 +210,7 @@ int swFactoryProcess_controller_receive(swReactor *reactor, swDataHead *ev)
 		return SW_ERR;
 	}
 }
+
 
 int swFactoryProcess_shutdown(swFactory *factory)
 {
@@ -607,6 +609,12 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	return ret;
 }
 
+static int get_rand(int worker_pti)
+{
+	srand((int)time(0));
+	return rand()%10 * worker_pti;
+}
+
 static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 {
 	struct {
@@ -637,6 +645,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 
 	int n;
 	int task_num = factory->max_request;
+	task_num += get_rand(worker_pti);
 
 #ifdef HAVE_CPU_AFFINITY
 	if (serv->open_cpu_affinity == 1)
