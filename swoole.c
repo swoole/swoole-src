@@ -45,16 +45,16 @@
 
 #define PHP_CALLBACK_NUM              10
 
-#define PHP_CB_onStart                0 //Server启动
-#define PHP_CB_onConnect              1 //accept连接(Worker)
-#define PHP_CB_onReceive              2 //接受数据
-#define PHP_CB_onClose                3 //关闭连接(Worker)
-#define PHP_CB_onShutdown             4 //Server关闭
-#define PHP_CB_onTimer                5 //定时器
-#define PHP_CB_onWorkerStart          6 //Worker进程启动
-#define PHP_CB_onWorkerStop           7 //Worker进程结束
-#define PHP_CB_onMasterConnect        8 //accept连接(master)
-#define PHP_CB_onMasterClose          9 //关闭连接(master)
+#define SW_PHP_CB_onStart                0 //Server启动
+#define SW_PHP_CB_onConnect              1 //accept连接(Worker)
+#define SW_PHP_CB_onReceive              2 //接受数据
+#define SW_PHP_CB_onClose                3 //关闭连接(Worker)
+#define SW_PHP_CB_onShutdown             4 //Server关闭
+#define SW_PHP_CB_onTimer                5 //定时器
+#define SW_PHP_CB_onWorkerStart          6 //Worker进程启动
+#define SW_PHP_CB_onWorkerStop           7 //Worker进程结束
+#define SW_PHP_CB_onMasterConnect        8 //accept连接(master)
+#define SW_PHP_CB_onMasterClose          9 //关闭连接(master)
 
 #define SW_HOST_SIZE            128
 
@@ -127,8 +127,8 @@ zend_module_entry swoole_module_entry =
 	swoole_functions,
 	PHP_MINIT(swoole),
 	PHP_MSHUTDOWN(swoole),
-	PHP_RINIT(swoole), /* Replace with NULL if there's nothing to do at request start */
-	PHP_RSHUTDOWN(swoole), /* Replace with NULL if there's nothing to do at request end */
+	NULL, //RINIT
+	NULL, //RSHUTDOWN
 	PHP_MINFO(swoole),
     SWOOLE_VERSION,
 	STANDARD_MODULE_PROPERTIES
@@ -645,7 +645,7 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	//printf("req: fd=%d|len=%d|from_id=%d|data=%s\n", req->fd, req->len, req->from_id, req->data);
 
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onReceive], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_PHP_CB_onReceive], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
 		zend_error(E_WARNING, "SwoolServer: onReceive handler error");
 	}
@@ -669,7 +669,7 @@ void php_swoole_onStart(swServer *serv)
 	zval_add_ref(&zserv);
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onStart], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_PHP_CB_onStart], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
 		zend_error(E_WARNING, "SwooleServer: onStart handler error");
 	}
@@ -694,7 +694,7 @@ void php_swoole_onTimer(swServer *serv, int interval)
 	zval_add_ref(&zserv);
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onTimer], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_PHP_CB_onTimer], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
 		zend_error(E_WARNING, "SwooleServer: onTimer handler error");
 	}
@@ -715,7 +715,7 @@ void php_swoole_onShutdown(swServer *serv)
 	zval_add_ref(&zserv);
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onShutdown], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_PHP_CB_onShutdown], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
 		zend_error(E_WARNING, "SwooleServer: onShutdown handler error");
 	}
@@ -741,7 +741,7 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
 
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onWorkerStart], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_PHP_CB_onWorkerStart], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
 		zend_error(E_WARNING, "SwooleServer: onShutdown handler error");
 	}
@@ -767,7 +767,7 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
 
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onWorkerStop], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_PHP_CB_onWorkerStop], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
 		zend_error(E_WARNING, "SwooleServer: onShutdown handler error");
 	}
@@ -798,7 +798,7 @@ void php_swoole_onConnect(swServer *serv, int fd, int from_id)
 	args[2] = &zfrom_id;
 
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onConnect], &retval, 3, args, 0,
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_PHP_CB_onConnect], &retval, 3, args, 0,
 			NULL TSRMLS_CC) == FAILURE)
 	{
 		zend_error(E_WARNING, "SwooleServer: onConnect handler error");
@@ -833,7 +833,7 @@ void php_swoole_onClose(swServer *serv, int fd, int from_id)
 //	php_printf("fd=%d|from_id=%d\n", fd, from_id);
 
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onClose], &retval, 3, args, 0,
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_PHP_CB_onClose], &retval, 3, args, 0,
 			NULL TSRMLS_CC) == FAILURE)
 	{
 		zend_error(E_WARNING, "SwooleServer: onClose handler error");
@@ -866,7 +866,7 @@ void php_swoole_onMasterConnect(swServer *serv, int fd, int from_id)
 	args[2] = &zfrom_id;
 
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onMasterConnect], &retval, 3, args, 0,
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_PHP_CB_onMasterConnect], &retval, 3, args, 0,
 			NULL TSRMLS_CC) == FAILURE)
 	{
 		zend_error(E_WARNING, "SwooleServer: ononMasterConnect handler error");
@@ -899,7 +899,7 @@ void php_swoole_onMasterClose(swServer *serv, int fd, int from_id)
 	args[2] = &zfrom_id;
 
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[PHP_CB_onMasterClose], &retval, 3, args, 0,
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_PHP_CB_onMasterClose], &retval, 3, args, 0,
 			NULL TSRMLS_CC) == FAILURE)
 	{
 		zend_error(E_WARNING, "SwooleServer: onMasterClose handler error");
@@ -924,31 +924,31 @@ PHP_FUNCTION(swoole_server_start)
 	}
 	ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
 
-	if(php_sw_callback[PHP_CB_onStart]!=NULL)
+	if(php_sw_callback[SW_PHP_CB_onStart]!=NULL)
 	{
 		serv->onStart = php_swoole_onStart;
 	}
-	if(php_sw_callback[PHP_CB_onShutdown]!=NULL)
+	if(php_sw_callback[SW_PHP_CB_onShutdown]!=NULL)
 	{
 		serv->onShutdown = php_swoole_onShutdown;
 	}
-	if(php_sw_callback[PHP_CB_onMasterConnect]!=NULL)
+	if(php_sw_callback[SW_PHP_CB_onMasterConnect]!=NULL)
 	{
 		serv->onMasterConnect = php_swoole_onMasterConnect;
 	}
-	if(php_sw_callback[PHP_CB_onMasterClose]!=NULL)
+	if(php_sw_callback[SW_PHP_CB_onMasterClose]!=NULL)
 	{
 		serv->onMasterClose = php_swoole_onMasterClose;
 	}
-	if(php_sw_callback[PHP_CB_onWorkerStart]!=NULL)
+	if(php_sw_callback[SW_PHP_CB_onWorkerStart]!=NULL)
 	{
 		serv->onWorkerStart = php_swoole_onWorkerStart;
 	}
-	if(php_sw_callback[PHP_CB_onWorkerStop]!=NULL)
+	if(php_sw_callback[SW_PHP_CB_onWorkerStop]!=NULL)
 	{
 		serv->onWorkerStop = php_swoole_onWorkerStop;
 	}
-	if(php_sw_callback[PHP_CB_onTimer]!=NULL)
+	if(php_sw_callback[SW_PHP_CB_onTimer]!=NULL)
 	{
 		serv->onTimer = php_swoole_onTimer;
 	}
