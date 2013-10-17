@@ -15,3 +15,11 @@ IO事件循环
 多进程使用fork()系统调用
 多线程使用pthread线程库
 
+EventFd
+----
+Swoole中使用了eventfd作为线程/进程间消息通知的机制。
+
+Timerfd
+----
+Swoole使用timerfd来实现定时器
+

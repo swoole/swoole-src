@@ -1,6 +1,8 @@
 Swoole预定义常量
 -----
 
+* **SWOOLE_VERSION** 当前Swoole的版本号，字符串类型，如1.6.0
+
 * swoole_server_create()参数
     * **SWOOLE_BASE** 使用Base模式，业务代码在Reactor中直接执行
     * **SWOOLE_THREAD** 使用线程模式，业务代码在Worker线程中执行

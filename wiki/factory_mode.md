@@ -1,5 +1,20 @@
 swoole_server_create运行模式说明
 =====
+创建一个swoole server资源对象。函数原型：
+```php
+int swoole_server_create(string $host, int $port, int $mode = SWOOLE_PROCESS,
+    int $sock_type = SWOOLE_SOCK_TCP);
+```
+* $host参数用来指定监听的ip地址，如127.0.0.1，或者外网地址，或者0.0.0.0监听全部地址
+* $port监听的端口，如9501，监听小于1024端口需要root权限，如果此端口被占用server-start时会失败
+* $mode运行的模式，swoole提供了3种运行模式，默认为多进程模式
+* $sock_type指定socket的类型，支持TCP/UDP、TCP6/UDP64种
+
+> Swoole1.6版本之后PHP版本将去掉Base/线程2个模式，原因是php的内存管理器在多线程下容易发生错误  
+> Base模式和线程模式仅供C++中使用
+
+运行模式的说明：
+
 一、Base模式
 -----
 这种模式就是传统的异步非阻塞Server了。在Reactor线程内直接回调PHP的函数。
