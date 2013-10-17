@@ -6,11 +6,11 @@ swoole_server_set 参数说明
 swoole_server_set($serv, array(
     'timeout' => 2.5,  //select and epoll_wait timeout. 
     'poll_thread_num' => 2, //reactor thread num
-    'writer_num' => 2,     //writer thread num
-    'worker_num' => 4,    //worker process num
-    'backlog' => 128,   //listen backlog
+    'writer_num' => 2,      //writer thread num
+    'worker_num' => 4,      //worker process num
+    'backlog' => 128,       //listen backlog
     'max_request' => 50,
-    'dispatch_mode'=>1, 
+    'dispatch_mode' => 1, 
 ));
 ```
 
@@ -38,7 +38,9 @@ worker_num =>4，设置启动的worker进程数量。swoole采用固定worker进
 
 max_request
 -----
-worker_num => 2000，此参数表示worker进程在处理完n次请求后结束运行。manager会重新创建一个worker进程。此选项用来防止worker进程内存溢出
+max_request => 2000，此参数表示worker进程在处理完n次请求后结束运行。manager会重新创建一个worker进程。此选项用来防止worker进程内存溢出
+> 这里是按照onReceive回调执行次数计算的，onConnect/onClose不会增加计数  
+> worker进程遇到致命错误也会退出，这里可以增加register_shutdown_function来做一定的清理工作  
 
 Listen队列长度
 -----
