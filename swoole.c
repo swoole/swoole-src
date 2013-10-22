@@ -313,6 +313,7 @@ PHP_FUNCTION(swoole_server_set)
 	//timeout
 	if (zend_hash_find(vht, ZEND_STRS("timeout"), (void **)&v) == SUCCESS)
 	{
+		convert_to_double(*v);
 		timeout = Z_DVAL_PP(v);
 		serv->timeout_sec = (int)timeout;
 		serv->timeout_usec = (int)((timeout*1000*1000) - (serv->timeout_sec*1000*1000));
@@ -320,6 +321,7 @@ PHP_FUNCTION(swoole_server_set)
 	//daemonize，守护进程化
 	if (zend_hash_find(vht, ZEND_STRS("daemonize"), (void **)&v) == SUCCESS)
 	{
+		convert_to_long(*v);
 		serv->daemonize = (int)Z_LVAL_PP(v);
 	}
 	//backlog
@@ -330,36 +332,43 @@ PHP_FUNCTION(swoole_server_set)
 	//poll_thread_num
 	if (zend_hash_find(vht, ZEND_STRS("poll_thread_num"), (void **)&v) == SUCCESS)
 	{
+		convert_to_long(*v);
 		serv->poll_thread_num = (int)Z_LVAL_PP(v);
 	}
 	//writer_num
 	if (zend_hash_find(vht, ZEND_STRS("writer_num"), (void **)&v) == SUCCESS)
 	{
+		convert_to_long(*v);
 		serv->writer_num = (int)Z_LVAL_PP(v);
 	}
 	//writer_num
 	if (zend_hash_find(vht, ZEND_STRS("worker_num"), (void **)&v) == SUCCESS)
 	{
+		convert_to_long(*v);
 		serv->worker_num = (int)Z_LVAL_PP(v);
 	}
 	//max_conn
 	if (zend_hash_find(vht, ZEND_STRS("max_conn"), (void **)&v) == SUCCESS)
 	{
+		convert_to_long(*v);
 		serv->max_conn = (int)Z_LVAL_PP(v);
 	}
 	//max_request
 	if (zend_hash_find(vht, ZEND_STRS("max_request"), (void **)&v) == SUCCESS)
 	{
+		convert_to_long(*v);
 		serv->max_request = (int)Z_LVAL_PP(v);
 	}
 	//cpu affinity
 	if (zend_hash_find(vht, ZEND_STRS("open_cpu_affinity"), (void **)&v) == SUCCESS)
 	{
+		convert_to_long(*v);
 		serv->open_cpu_affinity = (uint8_t)Z_LVAL_PP(v);
 	}
 	//tcp_nodelay
 	if (zend_hash_find(vht, ZEND_STRS("open_tcp_nodelay"), (void **)&v) == SUCCESS)
 	{
+		convert_to_long(*v);
 		serv->open_tcp_nodelay = (uint8_t)Z_LVAL_PP(v);
 	}
 	//tcp_keepalive
@@ -370,6 +379,7 @@ PHP_FUNCTION(swoole_server_set)
 	//data buffer, EOF检测
 	if (zend_hash_find(vht, ZEND_STRS("open_eof_check"), (void **)&v) == SUCCESS)
 	{
+		convert_to_long(*v);
 		serv->open_eof_check = (uint8_t)Z_LVAL_PP(v);
 	}
 	//data eof设置
@@ -385,21 +395,25 @@ PHP_FUNCTION(swoole_server_set)
 	//tcp_keepidle
 	if (zend_hash_find(vht, ZEND_STRS("tcp_keepidle"), (void **)&v) == SUCCESS)
 	{
+		convert_to_long(*v);
 		serv->tcp_keepidle = (uint16_t)Z_LVAL_PP(v);
 	}
 	//tcp_keepinterval
 	if (zend_hash_find(vht, ZEND_STRS("tcp_keepinterval"), (void **)&v) == SUCCESS)
 	{
+		convert_to_long(*v);
 		serv->tcp_keepinterval = (uint16_t)Z_LVAL_PP(v);
 	}
 	//tcp_keepcount
 	if (zend_hash_find(vht, ZEND_STRS("tcp_keepcount"), (void **)&v) == SUCCESS)
 	{
+		convert_to_long(*v);
 		serv->tcp_keepcount = (uint16_t)Z_LVAL_PP(v);
 	}
 	//max_request
 	if (zend_hash_find(vht, ZEND_STRS("dispatch_mode"), (void **)&v) == SUCCESS)
 	{
+		convert_to_long(*v);
 		serv->dispatch_mode = (int)Z_LVAL_PP(v);
 	}
 	//log_file
