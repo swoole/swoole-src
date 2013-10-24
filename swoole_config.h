@@ -58,10 +58,6 @@
 
 #define SW_USE_FIXED_BUFFER
 
-#ifdef __NR_accept4
-#define SW_USE_ACCEPT4                   //是否使用accept4，可以节省一次setnonblock的系统调用
-#endif
-
 #define SW_ACCEPT_AGAIN            1     //是否循环accept，可以一次性处理完全部的listen队列，用于大量并发连接的场景
 #define SW_CLOSE_AGAIN             1
 #define SW_CLOSE_QLEN              128
