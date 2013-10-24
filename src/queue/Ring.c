@@ -47,6 +47,7 @@ void swQueueRing_free(swQueue *q);
 
 int swQueueRing_create(swQueue *q, int mem_size, int qlen)
 {
+	int ret;
 	void *mem = sw_shm_malloc(mem_size);
 	if(mem == NULL)
 	{
@@ -68,8 +69,13 @@ int swQueueRing_create(swQueue *q, int mem_size, int qlen)
 		return SW_ERR;
 	}
 
-	//创建eventfd
-	if(swPipeEventfd_create(&object->notify_fd, 1, 0) < 0)
+#ifdef HAVE_EVENTFD
+	ret = swPipeEventfd_create(&object->notify_fd, 1, 0);
+#else
+	ret = swPipeBase_create(&object->notify_fd, 1);
+#endif
+
+	if(ret < 0)
 	{
 		swWarn("mutex init fail\n");
 		return SW_ERR;

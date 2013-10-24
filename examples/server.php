@@ -5,13 +5,13 @@ argv1  server port
 argv2  server mode SWOOLE_BASE or SWOOLE_THREAD or SWOOLE_PROCESS
 argv3  sock_type  SWOOLE_SOCK_TCP or SWOOLE_SOCK_TCP6 or SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6
 */
-$serv = swoole_server_create("127.0.0.1", 9501, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
+$serv = swoole_server_create("127.0.0.1", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP);
 
 swoole_server_set($serv, array(
     'timeout' => 2.5,  //select and epoll_wait timeout. 
-    'poll_thread_num' => 2, //reactor thread num
-    'writer_num' => 2,     //writer thread num
-    'worker_num' => 4,    //worker process num
+    'poll_thread_num' => 1, //reactor thread num
+    'writer_num' => 1,     //writer thread num
+    'worker_num' => 1,    //worker process num
     'backlog' => 128,   //listen backlog
     'max_request' => 5000,
     'max_conn' => 100000,
@@ -31,12 +31,12 @@ argv3  sock_type  SWOOLE_SOCK_TCP or SWOOLE_SOCK_TCP6 or SWOOLE_SOCK_UDP or SWOO
 //swoole_server_addlisten($serv, "127.0.0.1", 9500, SWOOLE_SOCK_UDP);
 function my_onStart($serv)
 {
-    echo "Server：start.Swoole version is [".SWOOLE_VERSION."]\n";
+    echo "Server: start.Swoole version is [".SWOOLE_VERSION."]\n";
 }
 
 function my_onShutdown($serv)
 {
-    echo "Server：onShutdown\n";
+    echo "Server: onShutdown\n";
 }
 
 function my_onTimer($serv, $interval)
@@ -67,7 +67,7 @@ function my_onWorkerStop($serv, $worker_id)
 function my_onReceive($serv, $fd, $from_id, $data)
 {
     //echo "Client：Data. fd=$fd|from_id=$from_id|data=$data";
-    echo "WorkerPid=".posix_getpid()."\n";
+    //echo "WorkerPid=".posix_getpid()."\n";
     if(trim($data) == "reload") 
     {
 		swoole_server_reload($serv);
