@@ -162,6 +162,8 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 			int flag = 1;
 			setsockopt(conn_fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
 		}
+
+#ifdef SO_KEEPALIVE
 		//TCP keepalive
 		if(serv->open_tcp_keepalive == 1)
 		{
@@ -170,11 +172,12 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 			int keep_interval = serv->tcp_keepinterval;
 			int keep_count = serv->tcp_keepcount;
 
-			setsockopt(conn_fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&keepalive , sizeof(keepalive ));
-			setsockopt(conn_fd, SOL_TCP, TCP_KEEPIDLE, (void*)&keep_idle , sizeof(keep_idle ));
-			setsockopt(conn_fd, SOL_TCP, TCP_KEEPINTVL, (void *)&keep_interval , sizeof(keep_interval));
-			setsockopt(conn_fd, SOL_TCP, TCP_KEEPCNT, (void *)&keep_count , sizeof(keep_count));
+			setsockopt(conn_fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&keepalive , sizeof(keepalive));
+			setsockopt(conn_fd, IPPROTO_TCP, TCP_KEEPIDLE, (void*)&keep_idle , sizeof(keep_idle));
+			setsockopt(conn_fd, IPPROTO_TCP, TCP_KEEPINTVL, (void *)&keep_interval , sizeof(keep_interval));
+			setsockopt(conn_fd, IPPROTO_TCP, TCP_KEEPCNT, (void *)&keep_count , sizeof(keep_count));
 		}
+#endif
 		swTrace("[Main]connect from %s, by process %d\n", inet_ntoa(client_addr.sin_addr), getpid());
 
 #if SW_REACTOR_DISPATCH == 1
