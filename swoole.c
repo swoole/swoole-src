@@ -97,6 +97,7 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_server_close, NULL)
 	PHP_FE(swoole_server_handler, NULL)
 	PHP_FE(swoole_server_addlisten, NULL)
+	PHP_FE(swoole_server_addsocket, NULL)
 	PHP_FE(swoole_server_addtimer, NULL)
 	PHP_FE(swoole_server_reload, NULL)
 	PHP_FE(swoole_connection_info, NULL)
@@ -1086,6 +1087,27 @@ PHP_FUNCTION(swoole_server_addlisten)
 	SW_CHECK_RETURN(swServer_addListen(serv, (int)sock_type, host, (int)port));
 }
 
+PHP_FUNCTION(swoole_server_addsocket)
+{
+	zval *zserv = NULL;
+	swServer *serv = NULL;
+	swFactory *factory = NULL;
+	long fd;
+	long sock_type = SW_SOCK_TCP;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rl|l", &zserv, &fd) == FAILURE)
+	{
+		return;
+	}
+	ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
+	if(serv->factory_mode == SW_MODE_PROCESS)
+	{
+		zend_error(E_WARNING, "swoole_server_addsocket can not use in server(MODE=SWOOLE_PROCESS)");
+		RETURN_FALSE;
+	}
+	SW_CHECK_RETURN(swServer_add_socket(serv, (int)fd, (int)sock_type));
+}
+
 PHP_FUNCTION(swoole_server_addtimer)
 {
 	zval *zserv = NULL;
@@ -1100,6 +1122,7 @@ PHP_FUNCTION(swoole_server_addtimer)
 	ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
 	SW_CHECK_RETURN(swServer_addTimer(serv, (int)interval));
 }
+
 
 PHP_METHOD(swoole_client, __construct)
 {

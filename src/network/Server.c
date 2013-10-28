@@ -9,6 +9,7 @@ static int swServer_check_callback(swServer *serv);
 static int swServer_listen(swServer *serv, swReactor *reactor);
 
 static void swServer_poll_loop_udp(swThreadParam *param);
+static int swServer_poll_onPackage(swReactor *reactor, swEvent *event);
 static int swServer_poll_onClose(swReactor *reactor, swEvent *event);
 static int swServer_poll_onClose_queue(swReactor *reactor, swEventClose_queue *close_queue);
 static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event);
@@ -236,6 +237,22 @@ int swServer_addTimer(swServer *serv, int interval)
 	if (serv->timer_interval == 0 || interval < serv->timer_interval)
 	{
 		serv->timer_interval = interval;
+	}
+	return SW_OK;
+}
+
+int swServer_add_socket(swServer *serv, int fd, int sock_type)
+{
+	int poll_id = fd % serv->poll_thread_num;
+	swReactor *reactor = &(serv->poll_threads[poll_id].reactor);
+	swSetNonBlock(fd); //must be nonblock
+	if(sock_type == SW_SOCK_TCP || sock_type == SW_SOCK_TCP6)
+	{
+		reactor->add(reactor, fd, SW_FD_TCP);
+	}
+	else
+	{
+		reactor->add(reactor, fd, SW_FD_UDP);
 	}
 	return SW_OK;
 }
@@ -881,6 +898,7 @@ static int swServer_poll_loop(swThreadParam *param)
 	reactor->id = pti;
 	reactor->setHandle(reactor, SW_FD_CLOSE, swServer_poll_onClose);
 	reactor->setHandle(reactor, SW_FD_CLOSE_QUEUE, swServer_poll_onClose_queue);
+	reactor->setHandle(reactor, SW_FD_UDP, swServer_poll_onPackage);
 
 	//Thread mode must copy the data.
 	//will free after onFinish
@@ -986,6 +1004,46 @@ static int swServer_poll_onReceive_data_buffer(swReactor *reactor, swEvent *even
 			}
 			swDataBuffer_flush(data_buffer, buffer_item);
 		}
+	}
+	return SW_OK;
+}
+
+/**
+ * for udp
+ */
+static int swServer_poll_onPackage(swReactor *reactor, swEvent *event)
+{
+	int ret;
+	swServer *serv = reactor->ptr;
+	swFactory *factory = &(serv->factory);
+	swEventData buf;
+
+	struct sockaddr_in addr;
+	socklen_t addrlen = sizeof(addr);
+
+	while (1)
+	{
+		ret = recvfrom(event->fd, buf.data, SW_BUFFER_SIZE, 0, &addr, &addrlen);
+		if (ret < 0)
+		{
+			if (errno == EINTR)
+			{
+				continue;
+			}
+			return SW_ERR;
+		}
+		break;
+	}
+
+	buf.info.len = ret;
+	//UDP的from_id是PORT，FD是IP
+	buf.info.from_id = ntohs(addr.sin_port); //转换字节序
+	buf.info.fd = addr.sin_addr.s_addr;
+	swTrace("recvfrom udp socket.fd=%d|data=%s", sock, buf.data);
+	ret = factory->dispatch(factory, &buf);
+	if (ret < 0)
+	{
+		swWarn("factory->dispatch[udp packet] fail\n");
 	}
 	return SW_OK;
 }
