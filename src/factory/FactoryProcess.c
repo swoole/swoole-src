@@ -748,13 +748,7 @@ static int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, i
 	//轮询
 	if (serv->dispatch_mode == SW_DISPATCH_ROUND)
 	{
-		pti = object->worker_pti;
-		if (object->worker_pti >= object->worker_num)
-		{
-			object->worker_pti = 0;
-			pti = 0;
-		}
-		object->worker_pti++;
+		pti = (object->worker_pti++) % object->worker_num;
 	}
 	//使用fd取摸来散列
 	else if (serv->dispatch_mode == SW_DISPATCH_FDMOD)

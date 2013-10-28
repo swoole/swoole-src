@@ -65,6 +65,11 @@ PHP_FUNCTION(swoole_connection_info);
 
 PHP_FUNCTION(swoole_reactor_add);
 PHP_FUNCTION(swoole_reactor_del);
+PHP_FUNCTION(swoole_reactor_add_callback);
+
+#ifdef SW_ENABLE_MYSQLI
+PHP_FUNCTION(swoole_mysqli_get_sock);
+#endif
 
 PHP_FUNCTION(swoole_client_select);
 

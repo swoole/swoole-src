@@ -184,7 +184,7 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 					ret = reactor->handle[ev.type](reactor, &ev);
 					if(ret < 0)
 					{
-						swWarn("[Reactor#%d] epoll handle fail.evtype=%d|errno=%d|sw_errno=%d", reactor->id, ev.type, errno, sw_errno);
+						swWarn("[Reactor#%d] epoll handle fail. fd=%d|type=%d|errno=%d|sw_errno=%d", ev.fd, reactor->id, ev.type, errno, sw_errno);
 					}
 				}
 				swTrace("[THREAD #%ld]event finish.Ep=%d|ret=%d", pthread_self(), object->epfd, ret);

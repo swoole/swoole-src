@@ -69,6 +69,7 @@ typedef struct {
 #pragma pack()
 
 static zval *php_sw_callback[PHP_CALLBACK_NUM];
+static HashTable php_sw_reactor_callback;
 static void ***sw_thread_ctx;
 
 static int php_swoole_onReceive(swFactory *, swEventData *);
@@ -86,6 +87,13 @@ static void sw_destory_client(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 static int php_swoole_set_callback(int key, zval *cb TSRMLS_DC);
 static int php_swoole_client_event_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_DC);
 static int php_swoole_client_event_loop(zval *sock_array, fd_set *fds TSRMLS_DC);
+static int php_swoole_onReactorCallback(swReactor *reactor, swEvent *event);
+
+#ifdef SW_ENABLE_MYSQLI
+#include "ext/mysqlnd/mysqlnd.h"
+#include "ext/mysqli/mysqli_mysqlnd.h"
+#include "ext/mysqli/php_mysqli_structs.h"
+#endif
 
 const zend_function_entry swoole_functions[] =
 {
@@ -103,8 +111,11 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_connection_list, NULL)
 	PHP_FE(swoole_reactor_add, NULL)
 	PHP_FE(swoole_reactor_del, NULL)
+	PHP_FE(swoole_reactor_add_callback, NULL)
 	PHP_FE(swoole_client_select, NULL)
-
+#ifdef SW_ENABLE_MYSQLI
+	PHP_FE(swoole_mysqli_get_sock, NULL)
+#endif
 	PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 
@@ -165,9 +176,6 @@ ZEND_GET_MODULE(swoole)
  */
 PHP_MINIT_FUNCTION(swoole)
 {
-	/* If you have INI entries, uncomment these lines 
-	 REGISTER_INI_ENTRIES();
-	 */
 	le_swoole_server = zend_register_list_destructors_ex(sw_destory_server, NULL, SW_RES_SERVER_NAME, module_number);
 	le_swoole_client = zend_register_list_destructors_ex(sw_destory_client, NULL, SW_RES_CLIENT_NAME, module_number);
 
@@ -188,6 +196,10 @@ PHP_MINIT_FUNCTION(swoole)
 	swoole_client_class_entry_ptr = zend_register_internal_class(&swoole_client_ce TSRMLS_CC);
 	zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
 	zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+
+	//for mysqli
+	zend_hash_init(&php_sw_reactor_callback, 10, NULL, ZVAL_PTR_DTOR, 0);
+
 	return SUCCESS;
 }
 /* }}} */
@@ -266,6 +278,31 @@ PHP_FUNCTION(swoole_version)
     php_printf("swoole %s", SWOOLE_VERSION);
 }
 
+
+#ifdef SW_ENABLE_MYSQLI
+PHP_FUNCTION(swoole_mysqli_get_sock)
+{
+	MY_MYSQL *mysql;
+	zval *mysql_link;
+	int sock;
+	extern zend_class_entry *mysqli_link_class_entry;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &mysql_link) == FAILURE)
+	{
+		return;
+	}
+	MYSQLI_FETCH_RESOURCE_CONN(mysql, &mysql_link, MYSQLI_STATUS_VALID);
+	if (SUCCESS != php_stream_cast(mysql->mysql->data->net->stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL,
+											(void*)&sock, 1) && sock >= 0)
+	{
+		RETURN_FALSE;
+	}
+	else
+	{
+		RETURN_LONG(sock);
+	}
+}
+#endif
 
 PHP_FUNCTION(swoole_server_create)
 {
@@ -767,6 +804,7 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
 		zval_ptr_dtor(&retval);
 	}
 }
+
 static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
 {
 	zval *zserv = (zval *)serv->ptr2;
@@ -792,6 +830,44 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
 	{
 		zval_ptr_dtor(&retval);
 	}
+}
+
+static int php_swoole_onReactorCallback(swReactor *reactor, swEvent *event)
+{
+	zval *zfd;
+	zval *zfrom_id;
+	zval **args[2];
+	zval *retval;
+	zval *callback;
+
+	MAKE_STD_ZVAL(zfd);
+	ZVAL_LONG(zfd, event->fd);
+
+	MAKE_STD_ZVAL(zfrom_id);
+	ZVAL_LONG(zfrom_id, event->from_id);
+
+	args[0] = &zfd;
+	args[1] = &zfrom_id;
+
+	if(zend_hash_find(&php_sw_reactor_callback, &(event->fd), sizeof(event->fd), &callback) != SUCCESS)
+	{
+		zend_error(E_WARNING, "SwooleServer: onReactorCallback not found");
+		return SW_ERR;
+	}
+
+	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+	if (call_user_function_ex(EG(function_table), NULL, callback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+	{
+		zend_error(E_WARNING, "SwooleServer: onReactorCallback handler error");
+		return SW_ERR;
+	}
+	zval_ptr_dtor(&zfrom_id);
+	zval_ptr_dtor(&zfd);
+	if (retval != NULL)
+	{
+		zval_ptr_dtor(&retval);
+	}
+	return SW_OK;
 }
 
 void php_swoole_onConnect(swServer *serv, int fd, int from_id)
@@ -1107,6 +1183,46 @@ PHP_FUNCTION(swoole_reactor_add)
 		RETURN_FALSE;
 	}
 	SW_CHECK_RETURN(swServer_reactor_add(serv, (int)fd, (int)sock_type));
+}
+
+PHP_FUNCTION(swoole_reactor_add_callback)
+{
+	zval *zserv = NULL;
+	swServer *serv = NULL;
+	swFactory *factory = NULL;
+	zval *cb;
+	long fd;
+	int _fd;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rlz", &zserv, &fd, &cb) == FAILURE)
+	{
+		return;
+	}
+	ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
+	if(serv->factory_mode == SW_MODE_PROCESS)
+	{
+		zend_error(E_WARNING, "swoole_reactor_add can not use in server(MODE=SWOOLE_PROCESS)");
+		RETURN_FALSE;
+	}
+	_fd = (int)fd;
+
+	zval *value = pemalloc(sizeof(zval), 1);
+	*(value) = *cb;
+	zval_copy_ctor(value);
+
+	if(zend_hash_update(&php_sw_reactor_callback, &_fd, sizeof(_fd), value, sizeof(zval), NULL) == FAILURE)
+	{
+		zend_error(E_WARNING, "swoole_reactor_add_callback add to hashtable fail");
+		RETURN_FALSE;
+	}
+	int poll_id = (serv->c_pti++) % serv->poll_thread_num;
+	swReactor *reactor = &(serv->poll_threads[poll_id].reactor);
+	swSetNonBlock(fd); //must be nonblock
+	if(reactor->handle[SW_FD_USER] == NULL)
+	{
+		reactor->setHandle(reactor, SW_FD_USER, php_swoole_onReactorCallback);
+	}
+	reactor->add(reactor, fd, SW_FD_USER);
 }
 
 PHP_FUNCTION(swoole_reactor_del)

@@ -182,12 +182,7 @@ int swServer_onAccept(swReactor *reactor, swEvent *event)
 
 #if SW_REACTOR_DISPATCH == 1
 		//平均分配
-		if (serv->c_pti >= serv->poll_thread_num)
-		{
-			serv->c_pti = 0;
-		}
-		c_pti = serv->c_pti;
-		serv->c_pti++;
+		c_pti = (serv->c_pti++) % serv->poll_thread_num;
 #else
 		//使用fd取模来散列
 		c_pti = conn_fd % serv->poll_thread_num;
@@ -246,7 +241,7 @@ int swServer_addTimer(swServer *serv, int interval)
 
 int swServer_reactor_add(swServer *serv, int fd, int sock_type)
 {
-	int poll_id = fd % serv->poll_thread_num;
+	int poll_id = (serv->c_pti++) % serv->poll_thread_num;
 	swReactor *reactor = &(serv->poll_threads[poll_id].reactor);
 	swSetNonBlock(fd); //must be nonblock
 	if(sock_type == SW_SOCK_TCP || sock_type == SW_SOCK_TCP6)

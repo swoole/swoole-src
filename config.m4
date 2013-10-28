@@ -15,6 +15,9 @@ PHP_ARG_ENABLE(swoole-debug, whether to enable swoole debug,
 PHP_ARG_ENABLE(msgqueue, set ipc mode,
 [  --enable-msgqueue         Use message queue], no, no)
 
+PHP_ARG_ENABLE(async-mysql, enable async-mysql,
+[  --enable-async-mysql      Enable async mysql], no, no)
+
 PHP_ARG_WITH(swoole, swoole support,
 [  --with-swoole             Include swoole support])
 
@@ -151,6 +154,10 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_WORKER_IPC_MODE, 2, [use message queue])
     else
         AC_DEFINE(SW_WORKER_IPC_MODE, 1, [use unix socket])
+    fi
+    
+    if test "$PHP_ASYNC_MYSQLI" != "no"; then
+        AC_DEFINE(SW_ENABLE_MYSQLI, 1, [enable async mysql])
     fi
     
     AC_SWOOLE_EVENTFD
