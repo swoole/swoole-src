@@ -1,5 +1,7 @@
 #include "swoole.h"
 
+#ifdef HAVE_SPINLOCK
+
 int swSpinLock_create(swSpinLock *object, int use_in_process)
 {
 	int ret;
@@ -35,3 +37,5 @@ int swSpinLock_free(swSpinLock *object)
 {
 	return pthread_spin_destroy(&object->lock_t);
 }
+
+#endif

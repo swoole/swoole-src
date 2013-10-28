@@ -42,22 +42,34 @@ class ProxyServer
         //echo "Server：Timer Call.Interval=$interval \n";
     }
 
-    static function onClose($serv,$fd,$from_id)
+    static function onClose($serv, $fd, $from_id)
     {
-        //echo "Client：Close.\n";
+        //backend
+        if(isset(self::$backends[$fd]))
+        {
+            $backend_client = self::$backends[$fd]['client'];
+        }
+        else
+        {
+            $backend_client = self::$clients[$fd]['client'];
+            swoole_reactor_del($serv, $backend_client->sock, self::$backends[$backend_client->sock]['reactor_id']);
+            $backend_client->close();
+        }
+        unset(self::$backends[$backend_client->sock], self::$clients[$fd]);
     }
 
     static function onConnect($serv, $fd, $from_id)
     {
-        echo microtime().": Client：Connect.\n";
+        echo microtime().": Client: Connect.\n";
         $client = new swoole_client(SWOOLE_SOCK_TCP);
         if($client->connect('127.0.0.1', 9501, 0.2))
         {
-            if(swoole_server_addsocket($serv, $client->sock))
+            if(swoole_reactor_add($serv, $client->sock))
             {
                 self::$backends[$client->sock] = array(
                     'conn' => $fd,
-                    'client' => $client
+                    'client' => $client,
+                    'reactor_id' => $from_id,
                 );
                 self::$clients[$fd] = array(
                     'client' => $client,

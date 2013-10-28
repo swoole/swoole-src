@@ -241,7 +241,7 @@ int swServer_addTimer(swServer *serv, int interval)
 	return SW_OK;
 }
 
-int swServer_add_socket(swServer *serv, int fd, int sock_type)
+int swServer_reactor_add(swServer *serv, int fd, int sock_type)
 {
 	int poll_id = fd % serv->poll_thread_num;
 	swReactor *reactor = &(serv->poll_threads[poll_id].reactor);
@@ -254,6 +254,13 @@ int swServer_add_socket(swServer *serv, int fd, int sock_type)
 	{
 		reactor->add(reactor, fd, SW_FD_UDP);
 	}
+	return SW_OK;
+}
+
+int swServer_reactor_del(swServer *serv, int fd, int reacot_id)
+{
+	swReactor *reactor = &(serv->poll_threads[reacot_id].reactor);
+	reactor->del(reactor, fd);
 	return SW_OK;
 }
 

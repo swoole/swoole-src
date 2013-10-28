@@ -58,10 +58,13 @@ PHP_FUNCTION(swoole_server_close);
 PHP_FUNCTION(swoole_server_handler);
 PHP_FUNCTION(swoole_server_addlisten);
 PHP_FUNCTION(swoole_server_addtimer);
-PHP_FUNCTION(swoole_server_addsocket);
+
 PHP_FUNCTION(swoole_server_reload);
 PHP_FUNCTION(swoole_connection_list);
 PHP_FUNCTION(swoole_connection_info);
+
+PHP_FUNCTION(swoole_reactor_add);
+PHP_FUNCTION(swoole_reactor_del);
 
 PHP_FUNCTION(swoole_client_select);
 

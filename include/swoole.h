@@ -296,6 +296,7 @@ typedef struct _swRWLock
 	int (*free)(struct _swRWLock *object);
 } swRWLock;
 
+#ifdef HAVE_SPINLOCK
 typedef struct _swSpinLock
 {
 	pthread_spinlock_t lock_t;
@@ -304,6 +305,7 @@ typedef struct _swSpinLock
 	int (*trylock)(struct _swSpinLock *object);
 	int (*free)(struct _swSpinLock *object);
 } swSpinLock;
+#endif
 
 typedef struct _swAtomicLock
 {
@@ -351,11 +353,13 @@ int swFileLock_unlock(swFileLock *object);
 int swFileLock_trylock_rw(swFileLock *object);
 int swFileLock_trylock_rd(swFileLock *object);
 
+#ifdef HAVE_SPINLOCK
 int swSpinLock_create(swSpinLock *object, int spin);
 int swSpinLock_lock(swSpinLock *object);
 int swSpinLock_unlock(swSpinLock *object);
 int swSpinLock_trylock(swSpinLock *object);
 int swSpinLock_free(swSpinLock *object);
+#endif
 
 int swAtomicLock_create(swAtomicLock *object, int spin);
 int swAtomicLock_lock(swAtomicLock *object);

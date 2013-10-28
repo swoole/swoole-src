@@ -97,11 +97,12 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_server_close, NULL)
 	PHP_FE(swoole_server_handler, NULL)
 	PHP_FE(swoole_server_addlisten, NULL)
-	PHP_FE(swoole_server_addsocket, NULL)
 	PHP_FE(swoole_server_addtimer, NULL)
 	PHP_FE(swoole_server_reload, NULL)
 	PHP_FE(swoole_connection_info, NULL)
 	PHP_FE(swoole_connection_list, NULL)
+	PHP_FE(swoole_reactor_add, NULL)
+	PHP_FE(swoole_reactor_del, NULL)
 	PHP_FE(swoole_client_select, NULL)
 
 	PHP_FE_END /* Must be the last line in swoole_functions[] */
@@ -1087,7 +1088,7 @@ PHP_FUNCTION(swoole_server_addlisten)
 	SW_CHECK_RETURN(swServer_addListen(serv, (int)sock_type, host, (int)port));
 }
 
-PHP_FUNCTION(swoole_server_addsocket)
+PHP_FUNCTION(swoole_reactor_add)
 {
 	zval *zserv = NULL;
 	swServer *serv = NULL;
@@ -1095,17 +1096,37 @@ PHP_FUNCTION(swoole_server_addsocket)
 	long fd;
 	long sock_type = SW_SOCK_TCP;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rl|l", &zserv, &fd) == FAILURE)
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rl|l", &zserv, &fd, &sock_type) == FAILURE)
 	{
 		return;
 	}
 	ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
 	if(serv->factory_mode == SW_MODE_PROCESS)
 	{
-		zend_error(E_WARNING, "swoole_server_addsocket can not use in server(MODE=SWOOLE_PROCESS)");
+		zend_error(E_WARNING, "swoole_reactor_add can not use in server(MODE=SWOOLE_PROCESS)");
 		RETURN_FALSE;
 	}
-	SW_CHECK_RETURN(swServer_add_socket(serv, (int)fd, (int)sock_type));
+	SW_CHECK_RETURN(swServer_reactor_add(serv, (int)fd, (int)sock_type));
+}
+
+PHP_FUNCTION(swoole_reactor_del)
+{
+	zval *zserv = NULL;
+	swServer *serv = NULL;
+	swFactory *factory = NULL;
+	long fd, from_id;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rll", &zserv, &fd, &from_id) == FAILURE)
+	{
+		return;
+	}
+	ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
+	if(serv->factory_mode == SW_MODE_PROCESS)
+	{
+		zend_error(E_WARNING, "swoole_reactor_del can not use in server(MODE=SWOOLE_PROCESS)");
+		RETURN_FALSE;
+	}
+	SW_CHECK_RETURN(swServer_reactor_del(serv, (int)fd, (int)from_id));
 }
 
 PHP_FUNCTION(swoole_server_addtimer)
