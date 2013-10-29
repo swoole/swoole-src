@@ -89,7 +89,7 @@ static int php_swoole_client_event_add(zval *sock_array, fd_set *fds, int *max_f
 static int php_swoole_client_event_loop(zval *sock_array, fd_set *fds TSRMLS_DC);
 static int php_swoole_onReactorCallback(swReactor *reactor, swEvent *event);
 
-#ifdef SW_ENABLE_MYSQLI
+#ifdef SW_ASYNC_MYSQL
 #include "ext/mysqlnd/mysqlnd.h"
 #include "ext/mysqli/mysqli_mysqlnd.h"
 #include "ext/mysqli/php_mysqli_structs.h"
@@ -113,7 +113,7 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_reactor_del, NULL)
 	PHP_FE(swoole_reactor_add_callback, NULL)
 	PHP_FE(swoole_client_select, NULL)
-#ifdef SW_ENABLE_MYSQLI
+#ifdef SW_ASYNC_MYSQL
 	PHP_FE(swoole_mysqli_get_sock, NULL)
 #endif
 	PHP_FE_END /* Must be the last line in swoole_functions[] */
@@ -279,7 +279,7 @@ PHP_FUNCTION(swoole_version)
 }
 
 
-#ifdef SW_ENABLE_MYSQLI
+#ifdef SW_ASYNC_MYSQL
 PHP_FUNCTION(swoole_mysqli_get_sock)
 {
 	MY_MYSQL *mysql;

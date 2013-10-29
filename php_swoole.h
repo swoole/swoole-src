@@ -67,7 +67,7 @@ PHP_FUNCTION(swoole_reactor_add);
 PHP_FUNCTION(swoole_reactor_del);
 PHP_FUNCTION(swoole_reactor_add_callback);
 
-#ifdef SW_ENABLE_MYSQLI
+#ifdef SW_ASYNC_MYSQL
 PHP_FUNCTION(swoole_mysqli_get_sock);
 #endif
 
