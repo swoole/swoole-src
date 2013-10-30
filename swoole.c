@@ -67,6 +67,7 @@
 
 static int le_swoole_server;
 static int le_swoole_client;
+static swServer server;
 
 #pragma pack(4)
 typedef struct {
@@ -946,7 +947,7 @@ static int php_swoole_client_onConnect(swReactor *reactor, swEvent *event)
 	if(error == 0)
 	{
 		php_sw_client_reactor.set(&php_sw_client_reactor, event->fd, SW_FD_TCP | SW_EVENT_READ | SW_EVENT_ERROR);
-		zcallback = zend_read_property(swoole_client_class_entry_ptr, zobject, SW_STRL("connect")-1, 0 TSRMLS_DC);
+		zcallback = zend_read_property(swoole_client_class_entry_ptr, zobject, SW_STRL("connect")-1, 0 TSRMLS_CC);
 		if (zcallback == NULL)
 		{
 			zend_error(E_WARNING, "SwooleClient: swoole_client object have not connect callback.");
@@ -962,7 +963,7 @@ static int php_swoole_client_onConnect(swReactor *reactor, swEvent *event)
 	{
 		zend_error(E_WARNING, "SwooleClient: connect to server fail. Error: %s", strerror(errno));
 		php_sw_client_reactor.del(&php_sw_client_reactor, event->fd);
-		zcallback = zend_read_property(swoole_client_class_entry_ptr, zobject, SW_STRL("error")-1, 0 TSRMLS_DC);
+		zcallback = zend_read_property(swoole_client_class_entry_ptr, zobject, SW_STRL("error")-1, 0 TSRMLS_CC);
 		if (zcallback == NULL)
 		{
 			zend_error(E_WARNING, "SwooleClient: swoole_client object have not error callback.");
@@ -991,7 +992,7 @@ static int php_swoole_client_onError(swReactor *reactor, swEvent *event)
 
 	args[0] = &zobject;
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-	zcallback = zend_read_property(swoole_client_class_entry_ptr, zobject, SW_STRL("error")-1, 0 TSRMLS_DC);
+	zcallback = zend_read_property(swoole_client_class_entry_ptr, zobject, SW_STRL("error")-1, 0 TSRMLS_CC);
 	if (zcallback == NULL)
 	{
 		zend_error(E_WARNING, "SwooleClient: swoole_client object have not error callback.");
