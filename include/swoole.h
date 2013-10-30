@@ -135,7 +135,7 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 
 #define SW_FD_USER             15 //SW_FD_USER or SW_FD_USER+n: for custom event
 
-#define SW_MODE_CALL           1
+#define SW_MODE_BASE           1
 #define SW_MODE_THREAD         2
 #define SW_MODE_PROCESS        3
 

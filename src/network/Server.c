@@ -411,7 +411,7 @@ void swServer_init(swServer *serv)
 	bzero(serv, sizeof(swServer));
 
 	serv->backlog = SW_BACKLOG;
-	serv->factory_mode = SW_MODE_CALL;
+	serv->factory_mode = SW_MODE_BASE;
 	serv->poll_thread_num = SW_THREAD_NUM;
 	serv->dispatch_mode = SW_DISPATCH_FDMOD;
 	serv->ringbuffer_size = SW_QUEUE_SIZE;

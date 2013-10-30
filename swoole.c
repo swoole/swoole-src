@@ -193,7 +193,7 @@ PHP_MINIT_FUNCTION(swoole)
 	le_swoole_server = zend_register_list_destructors_ex(sw_destory_server, NULL, SW_RES_SERVER_NAME, module_number);
 	le_swoole_client = zend_register_list_destructors_ex(sw_destory_client, NULL, SW_RES_CLIENT_NAME, module_number);
 
-	REGISTER_LONG_CONSTANT("SWOOLE_BASE", SW_MODE_CALL, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SWOOLE_BASE", SW_MODE_BASE, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_THREAD", SW_MODE_THREAD, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_PROCESS", SW_MODE_PROCESS, CONST_CS | CONST_PERSISTENT);
 
@@ -1198,6 +1198,7 @@ PHP_FUNCTION(swoole_server_start)
 	}
 	*zservp = *zserv;
 	serv->ptr2 = zservp;
+	zservp->refcount__gc = 1u >> 31;
 	zval_copy_ctor(zservp);
 
 	ret = swServer_create(serv);
