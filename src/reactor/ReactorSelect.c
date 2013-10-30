@@ -19,10 +19,16 @@ typedef struct _swReactorSelect
 	int fd_num;
 } swReactorSelect;
 
-int swReactorSelect_add(swReactor *reactor, int fd, int fdtype);
-int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo);
-void swReactorSelect_free(swReactor *reactor);
-int swReactorSelect_del(swReactor *reactor, int fd);
+#define SW_FD_SET(fd, set)	do{ if (fd<FD_SETSIZE) FD_SET(fd, set);} while(0)
+#define SW_FD_CLR(fd, set)	do{ if (fd<FD_SETSIZE) FD_CLR(fd, set);} while(0)
+#define SW_FD_ISSET(fd, set) ((fd < FD_SETSIZE) && FD_ISSET(fd, set))
+
+static int swReactorSelect_add(swReactor *reactor, int fd, int fdtype);
+static int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo);
+static void swReactorSelect_free(swReactor *reactor);
+static int swReactorSelect_del(swReactor *reactor, int fd);
+static int swReactorSelect_set(swReactor *reactor, int fd, int fdtype);
+static int swReactorSelect_cmp(swFdList_node *a, swFdList_node *b);
 
 int swReactorSelect_create(swReactor *reactor)
 {
@@ -30,7 +36,7 @@ int swReactorSelect_create(swReactor *reactor)
 	swReactorSelect *object = sw_malloc(sizeof(swReactorSelect));
 	if (object == NULL)
 	{
-		swTrace("[swReactorSelect_create] malloc[0] fail\n");
+		swWarn("[swReactorSelect_create] malloc[0] fail\n");
 		return SW_ERR;
 	}
 	object->fds = NULL;
@@ -40,6 +46,7 @@ int swReactorSelect_create(swReactor *reactor)
 	reactor->object = object;
 	//binding method
 	reactor->add = swReactorSelect_add;
+	reactor->set = swReactorSelect_set;
 	reactor->del = swReactorSelect_del;
 	reactor->wait = swReactorSelect_wait;
 	reactor->free = swReactorSelect_free;
@@ -69,6 +76,7 @@ int swReactorSelect_add(swReactor *reactor, int fd, int fdtype)
 	swReactorSelect *object = reactor->object;
 	swFdList_node *ev = sw_malloc(sizeof(swFdList_node));
 	ev->fd = fd;
+	//select需要保存原始的值
 	ev->fdtype = fdtype;
 	LL_APPEND(object->fds, ev);
 	object->fd_num++;
@@ -79,7 +87,7 @@ int swReactorSelect_add(swReactor *reactor, int fd, int fdtype)
 	return SW_OK;
 }
 
-int swReactorSelect_cmp(swFdList_node *a, swFdList_node *b)
+static int swReactorSelect_cmp(swFdList_node *a, swFdList_node *b)
 {
 	return a->fd == b->fd ? 0 : (a->fd > b->fd ? -1 : 1);
 }
@@ -87,13 +95,31 @@ int swReactorSelect_cmp(swFdList_node *a, swFdList_node *b)
 int swReactorSelect_del(swReactor *reactor, int fd)
 {
 	swReactorSelect *object = reactor->object;
-	swFdList_node ev, *s_ev;
+	swFdList_node ev, *s_ev = NULL;
 	ev.fd = fd;
 
 	LL_SEARCH(object->fds, s_ev, &ev, swReactorSelect_cmp);
+	if(s_ev == NULL)
+	{
+		swWarn("swReactorSelect: fd[%d] not found", fd);
+		return SW_ERR;
+	}
 	LL_DELETE(object->fds, s_ev);
+	SW_FD_CLR(fd, &object->rfds);
+	SW_FD_CLR(fd, &object->wfds);
+	SW_FD_CLR(fd, &object->efds);
 	object->fd_num--;
 	sw_free(s_ev);
+	return SW_OK;
+}
+
+int swReactorSelect_set(swReactor *reactor, int fd, int fdtype)
+{
+	swReactorSelect *object = reactor->object;
+	swFdList_node ev, *s_ev = NULL;
+	ev.fd = fd;
+	LL_SEARCH(object->fds, s_ev, &ev, swReactorSelect_cmp);
+	s_ev->fdtype = fdtype;
 	return SW_OK;
 }
 
@@ -108,13 +134,28 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 	while (swoole_running > 0)
 	{
 		FD_ZERO(&(object->rfds));
+		FD_ZERO(&(object->wfds));
+		FD_ZERO(&(object->efds));
+
 		timeout.tv_sec = timeo->tv_sec;
 		timeout.tv_usec = timeo->tv_usec;
+
 		LL_FOREACH(object->fds, ev)
 		{
-			FD_SET(ev->fd, &(object->rfds));
+			if(ev->fdtype < SW_EVENT_DEAULT || swReactor_event_read(ev->fdtype))
+			{
+				SW_FD_SET(ev->fd, &(object->rfds));
+			}
+			if(swReactor_event_write(ev->fdtype))
+			{
+				SW_FD_SET(ev->fd, &(object->wfds));
+			}
+			if(swReactor_event_error(ev->fdtype))
+			{
+				SW_FD_SET(ev->fd, &(object->efds));
+			}
 		}
-		ret = select(object->maxfd + 1, &(object->rfds), NULL, NULL, &timeout);
+		ret = select(object->maxfd + 1, &(object->rfds), &(object->wfds), &(object->efds), &timeout);
 		if (ret < 0)
 		{
 			if (swReactor_error(reactor) < 0)
@@ -131,17 +172,50 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 		{
 			LL_FOREACH(object->fds, ev)
 			{
-				if (FD_ISSET(ev->fd, &(object->rfds)))
+				//read
+				if (SW_FD_ISSET(ev->fd, &(object->rfds)))
 				{
 					event.fd = ev->fd;
 					event.from_id = reactor->id;
-					event.type = ev->fdtype;
+					event.type = swReactor_fdtype(ev->fdtype);
+
 					swTrace("Event:Handle=%p|fd=%d|from_id=%d|type=%d\n",
 							reactor->handle[event.type], ev->fd, reactor->id, ev->fdtype);
 					ret = reactor->handle[event.type](reactor, &event);
 					if(ret < 0)
 					{
 						swWarn("[Reactor#%d] select event[type=%d] handler fail. fd=%d|errno=%d", reactor->id, event.type, ev->fd, errno);
+					}
+				}
+				//write
+				if (SW_FD_ISSET(ev->fd, &(object->wfds)) && reactor->handle[SW_FD_WRITE]!=NULL)
+				{
+					event.fd = ev->fd;
+					event.from_id = reactor->id;
+					event.type = SW_FD_WRITE;
+
+					swTrace("Event:Handle=%p|fd=%d|from_id=%d|type=%d\n",
+							reactor->handle[event.type], ev->fd, reactor->id, ev->fdtype);
+					ret = reactor->handle[SW_FD_WRITE](reactor, &event);
+					if(ret < 0)
+					{
+						swWarn("[Reactor#%d] select event[type=SW_FD_WRITE] handler fail. fd=%d|errno=%d", reactor->id, event.type, ev->fd, errno);
+					}
+				}
+
+				//error
+				if (SW_FD_ISSET(ev->fd, &(object->efds)) && reactor->handle[SW_FD_ERROR]!=NULL)
+				{
+					event.fd = ev->fd;
+					event.from_id = reactor->id;
+					event.type = SW_FD_ERROR;
+
+					swTrace("Event:Handle=%p|fd=%d|from_id=%d|type=%d\n",
+							reactor->handle[event.type], ev->fd, reactor->id, ev->fdtype);
+					ret = reactor->handle[SW_FD_ERROR](reactor, &event);
+					if(ret < 0)
+					{
+						swWarn("[Reactor#%d] select event[type=SW_FD_ERROR] handler fail. fd=%d|errno=%d", reactor->id, event.type, ev->fd, errno);
 					}
 				}
 			}

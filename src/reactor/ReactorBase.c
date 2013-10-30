@@ -19,7 +19,7 @@ int swReactor_accept(swReactor *reactor, swDataHead *event)
 	return conn_ev.conn_fd;
 }
 
-inline int swReactor_error(swReactor *reactor)
+SWINLINE int swReactor_error(swReactor *reactor)
 {
 	switch (errno)
 	{
@@ -27,6 +27,26 @@ inline int swReactor_error(swReactor *reactor)
 		return SW_OK;
 	}
 	return SW_ERR;
+}
+
+SWINLINE int swReactor_fdtype(int fdtype)
+{
+	return fdtype  & (~SW_EVENT_READ) & (~SW_EVENT_WRITE) & (~SW_EVENT_ERROR);
+}
+
+SWINLINE int swReactor_event_read(int fdtype)
+{
+	return fdtype & SW_EVENT_READ;
+}
+
+SWINLINE int swReactor_event_write(int fdtype)
+{
+	return fdtype & SW_EVENT_WRITE;
+}
+
+SWINLINE int swReactor_event_error(int fdtype)
+{
+	return fdtype & SW_EVENT_ERROR;
 }
 
 int swReactor_close(swReactor *reactor, swDataHead *event)

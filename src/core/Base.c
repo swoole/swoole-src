@@ -304,6 +304,20 @@ SWINLINE int swSetTimeout(int sock, float timeout)
 	return SW_OK;
 }
 
+/**
+ * clear all singal
+ */
+void swSingalNone()
+{
+	sigset_t mask;
+	sigfillset(&mask);
+	int ret = pthread_sigmask(SIG_BLOCK, &mask, NULL);
+	if (ret < 0)
+	{
+		swWarn("pthread_sigmask fail", strerror(ret));
+	}
+}
+
 swSignalFunc swSignalSet(int sig, swSignalFunc func, int restart, int mask)
 {
 	struct sigaction act, oact;

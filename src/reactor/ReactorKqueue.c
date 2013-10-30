@@ -74,7 +74,7 @@ int swReactorKqueue_add(swReactor *reactor, int fd, int fdtype)
 	int ret;
 
 	fd_.fd = fd;
-	fd_.fdtype = fdtype;
+	fd_.fdtype = swReactor_fdtype(fdtype);
 	//e.data.u64 = 0;
 	//e.events = kqueueIN | kqueueOUT;
 

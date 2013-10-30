@@ -3,7 +3,7 @@
 #define SW_LOG_BUFFER_SIZE 1024
 #define SW_LOG_FORMAT "[%s]\t%s\t%s\n"
 
-FILE *swoole_log_fn;
+FILE *swoole_log_fn = NULL;
 static char bufr[SW_LOG_BUFFER_SIZE];
 
 int swLog_init(char *logfile)
@@ -29,6 +29,8 @@ void swLog_put(int level, char *cnt)
 {
 	const char *level_str;
 	char date_str[32];
+	if(swoole_log_fn == NULL) swoole_log_fn = stdout;
+
 	switch (level)
 	{
 	case SW_LOG_DEBUG:

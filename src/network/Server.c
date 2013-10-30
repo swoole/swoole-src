@@ -450,11 +450,7 @@ void swServer_init(swServer *serv)
 	bzero(sw_error, SW_ERROR_MSG_SIZE);
 
 	//日志
-	if(serv->log_file[0] == 0)
-	{
-		swoole_log_fn = stdout;
-	}
-	else
+	if(serv->log_file[0] != 0)
 	{
 		swLog_init(serv->log_file);
 	}
@@ -580,7 +576,7 @@ int swServer_create(swServer *serv)
 	serv->poll_threads = sw_memory_pool->alloc(sw_memory_pool, (serv->poll_thread_num * sizeof(swThreadPoll)));
 	if (serv->poll_threads == NULL)
 	{
-		swError("calloc[0] fail");
+		swError("calloc[poll_threads] fail.alloc_size=%d", (serv->poll_thread_num * sizeof(swThreadPoll)));
 		return SW_ERR;
 	}
 	//初始化connection_list
@@ -892,11 +888,13 @@ static int swServer_poll_loop(swThreadParam *param)
 #else
 	ret = swReactorPoll_create(reactor, (serv->max_conn / serv->poll_thread_num) + 1);
 #endif
-
 	if (ret < 0)
 	{
 		return SW_ERR;
 	}
+
+	swSingalNone();
+
 	timeo.tv_sec = serv->timeout_sec;
 	timeo.tv_usec = serv->timeout_usec; //300ms
 	reactor->ptr = serv;

@@ -909,9 +909,10 @@ int swFactoryProcess_writer_loop_unsock(swThreadParam *param)
 	reactor->id = pti;
 	if (swReactorSelect_create(reactor) < 0)
 	{
-		swTrace("swReactorSelect_create fail\n");
+		swWarn("swReactorSelect_create fail\n");
 		pthread_exit((void *) param);
 	}
+	swSingalNone();
 	reactor->setHandle(reactor, SW_FD_PIPE, swFactoryProcess_writer_receive);
 	reactor->wait(reactor, &tmo);
 	reactor->free(reactor);
@@ -934,6 +935,7 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 	//必须加1,msg_type必须不能为0
 	sdata.mtype = pti + 1;
 
+	swSingalNone();
 	while (swoole_running > 0)
 	{
 		swTrace("[Writer]wt_queue[%ld]->out wait", sdata.mtype);

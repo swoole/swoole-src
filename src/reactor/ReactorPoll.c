@@ -74,7 +74,7 @@ int swReactorPoll_add(swReactor *reactor, int fd, int fdtype)
 		swError("too many connection, more than %d\n", this->max_fd_num);
 		return SW_ERR;
 	}
-	this->fds[cur].fdtype = fdtype;
+	this->fds[cur].fdtype = swReactor_fdtype(fdtype);
 	this->events[cur].fd = fd;
 	this->events[cur].events = POLLIN;
 	this->fd_num++;

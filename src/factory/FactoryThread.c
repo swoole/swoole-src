@@ -187,7 +187,7 @@ static int swFactoryThread_writer_loop(swThreadParam *param)
 	{
 		serv->onWorkerStart(serv, pti);
 	}
-
+	swSingalNone();
 	//main loop
 	while (swoole_running > 0)
 	{

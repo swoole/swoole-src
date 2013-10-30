@@ -125,12 +125,13 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define SW_FALSE               0
 
 #define SW_FD_TCP              0
-#define SW_FD_LISTEN           1
-#define SW_FD_CLOSE            2
-#define SW_FD_ERROR            3
-#define SW_FD_UDP              4
-#define SW_FD_PIPE             5
-#define SW_FD_CLOSE_QUEUE      6
+#define SW_FD_LISTEN           1 //server socket
+#define SW_FD_CLOSE            2 //socket closed
+#define SW_FD_ERROR            3 //socket error
+#define SW_FD_UDP              4 //udp socket
+#define SW_FD_PIPE             5 //pipe
+#define SW_FD_CLOSE_QUEUE      6 //close queue
+#define SW_FD_WRITE            7 //fd can write
 
 #define SW_FD_USER             15 //SW_FD_USER or SW_FD_USER+n: for custom event
 
@@ -406,6 +407,7 @@ SWINLINE void swSetBlock(int);
 int swSocket_listen(int type, char *host, int port, int backlog);
 int swSocket_create(int type);
 swSignalFunc swSignalSet(int sig, swSignalFunc func, int restart, int mask);
+void swSingalNone();
 
 typedef struct _swFactory swFactory;
 typedef int (*swEventCallback)(swFactory *factory, swEventData *event);
@@ -444,6 +446,7 @@ struct swReactor_s
 	swFactory *factory;
 
 	int (*add)(swReactor *, int fd, int fdtype);
+	int (*set)(swReactor *, int fd, int fdtype);
 	int (*del)(swReactor *, int fd);
 	int (*wait)(swReactor *, struct timeval *);
 	void (*free)(swReactor *);
@@ -506,7 +509,23 @@ int swFactoryThread_dispatch(swFactory *factory, swEventData *buf);
 int swFactoryThread_finish(swFactory *factory, swSendData *data);
 
 //------------------Reactor--------------------
+enum SW_EVENTS
+{
+	SW_EVENT_DEAULT = 256,
+#define SW_EVENT_DEAULT SW_EVENT_DEAULT
+	SW_EVENT_READ = 1u << 9,
+#define SW_EVENT_READ SW_EVENT_READ
+	SW_EVENT_WRITE = 1u << 10,
+#define SW_EVENT_WRITE SW_EVENT_WRITE
+	SW_EVENT_ERROR = 1u << 11,
+#define SW_EVENT_ERROR SW_EVENT_ERROR
+};
+
 SWINLINE int swReactor_error(swReactor *reactor);
+SWINLINE int swReactor_fdtype(int fdtype);
+SWINLINE int swReactor_event_write(int fdtype);
+SWINLINE int swReactor_event_error(int fdtype);
+
 int swReactor_setHandle(swReactor *, int, swReactor_handle);
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);
 int swReactorPoll_create(swReactor *reactor, int max_event_num);

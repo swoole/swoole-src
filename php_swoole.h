@@ -78,6 +78,7 @@ PHP_METHOD(swoole_client, connect);
 PHP_METHOD(swoole_client, recv);
 PHP_METHOD(swoole_client, send);
 PHP_METHOD(swoole_client, close);
+PHP_METHOD(swoole_client, on);
 
 #ifdef ZTS
 #define SWOOLE_G(v) TSRMG(swoole_globals_id, zend_swoole_globals *, v)
