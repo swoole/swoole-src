@@ -905,7 +905,7 @@ static int php_swoole_client_onReceive(swReactor *reactor, swEvent *event)
 	args[0] = &zobject;
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-	zcallback = zend_read_property(swoole_client_class_entry_ptr, zobject, SW_STRL("receive")-1, 0 TSRMLS_DC);
+	zcallback = zend_read_property(swoole_client_class_entry_ptr, zobject, SW_STRL("receive")-1, 0 TSRMLS_CC);
 	if (zcallback == NULL)
 	{
 		zend_error(E_WARNING, "SwooleClient: swoole_client object have not receive callback.");
