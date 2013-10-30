@@ -38,8 +38,7 @@ target_link_libraries(test_server pthread rt profiler)
 
 #unittest
 file(GLOB_RECURSE UNITTEST_SRC_LIST FOLLOW_SYMLINKS tests/*.c)
-set(DEPS_SRC_LIST deps/php_http_parser/php_http_parser.c)
-add_executable(unittest ${UNITTEST_SRC_LIST};${DEPS_SRC_LIST};${SRC_LIST})
+add_executable(unittest ${UNITTEST_SRC_LIST};${SRC_LIST})
 target_link_libraries(unittest pthread rt)
 
 #add_dependencies(test_server swoole_static swoole_shared)
