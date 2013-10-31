@@ -12,3 +12,5 @@ Debug/*
 /lib
 /bin
 /install_manifest.txt
+/tests
+/wiki
