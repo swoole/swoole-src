@@ -1021,11 +1021,26 @@ static int swServer_poll_onPackage(swReactor *reactor, swEvent *event)
 	swFactory *factory = &(serv->factory);
 	swEventData buf;
 
-	ret = swSocket_recv_udp(event->fd, &buf);
-	if(ret < 0)
+	struct sockaddr_in addr;
+	socklen_t addrlen = sizeof(addr);
+
+	while (1)
 	{
-		return SW_ERR;
+		ret = recvfrom(event->fd, buf.data, SW_BUFFER_SIZE, 0, &addr, &addrlen);
+		if (ret < 0)
+		{
+			if (errno == EINTR)
+			{
+				continue;
+			}
+			return SW_ERR;
+		}
+		break;
 	}
+	buf.info.len = ret;
+	//UDP的from_id是PORT，FD是IP
+	buf.info.from_id = ntohs(addr.sin_port); //转换字节序
+	buf.info.fd = addr.sin_addr.s_addr;
 	swTrace("recvfrom udp socket.fd=%d|data=%s", sock, buf.data);
 	ret = factory->dispatch(factory, &buf);
 	if (ret < 0)
