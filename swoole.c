@@ -1240,7 +1240,6 @@ PHP_FUNCTION(swoole_server_start)
 	}
 	*zservp = *zserv;
 	serv->ptr2 = zservp;
-	zservp->refcount__gc = 1u >> 31;
 	zval_copy_ctor(zservp);
 
 	ret = swServer_create(serv);
