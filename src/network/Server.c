@@ -301,6 +301,11 @@ int swServer_start(swServer *serv)
 	struct timeval tmo;
 	int ret;
 
+	if(serv->log_file[0] != 0)
+	{
+		swLog_init(serv->log_file);
+	}
+
 	ret = swServer_check_callback(serv);
 	if (ret < 0)
 	{
@@ -448,12 +453,6 @@ void swServer_init(swServer *serv)
 	swoole_running = 1;
 	sw_errno = 0;
 	bzero(sw_error, SW_ERROR_MSG_SIZE);
-
-	//日志
-	if(serv->log_file[0] != 0)
-	{
-		swLog_init(serv->log_file);
-	}
 }
 static int swServer_timer_start(swServer *serv)
 {
@@ -1209,7 +1208,7 @@ static int swServer_poll_onClose_queue(swReactor *reactor, swEventClose_queue *c
 	}
 	if (ret < 0)
 	{
-		swWarn("Close Queue to main_pipe fail. errno=%d", errno);
+		swWarn("CloseQueue: write to main_pipe fail. errno=%d", errno);
 		return SW_ERR;
 	}
 	return SW_OK;

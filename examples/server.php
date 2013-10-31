@@ -8,13 +8,15 @@ argv3  sock_type  SWOOLE_SOCK_TCP or SWOOLE_SOCK_TCP6 or SWOOLE_SOCK_UDP or SWOO
 $serv = swoole_server_create("127.0.0.1", 9501);
 swoole_server_set($serv, array(
     'timeout' => 2,  //select and epoll_wait timeout.
-    'poll_thread_num' => 1, //reactor thread num
-    'writer_num' => 1,     //writer thread num
-    'worker_num' => 1,    //worker process num
+    'poll_thread_num' => 4, //reactor thread num
+    'writer_num' => 4,     //writer thread num
+    'worker_num' => 4,    //worker process num
     'backlog' => 128,   //listen backlog
     'max_request' => 5000,
     'max_conn' => 10000,
     'dispatch_mode' => 2,
+//    'daemonize' => 1,
+	//'open_cpu_affinity' => 1,
     //'data_eof' => "\r\n\r\n",
     //'open_eof_check' => 1,
     //'open_tcp_keepalive' => 1,
@@ -45,12 +47,12 @@ function my_onTimer($serv, $interval)
 
 function my_onClose($serv, $fd, $from_id)
 {
-	echo "Client:Close.\n";
+///	echo "Client:Close.\n";
 }
 
 function my_onConnect($serv, $fd, $from_id)
 {
-	echo "Client:Connect.\n";
+///	echo "Client:Connect.\n";
 }
 
 function my_onWorkerStart($serv, $worker_id)
