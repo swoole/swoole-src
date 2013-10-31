@@ -63,12 +63,12 @@ PHP_FUNCTION(swoole_server_reload);
 PHP_FUNCTION(swoole_connection_list);
 PHP_FUNCTION(swoole_connection_info);
 
-PHP_FUNCTION(swoole_reactor_add);
-PHP_FUNCTION(swoole_reactor_del);
-PHP_FUNCTION(swoole_reactor_add_callback);
+PHP_FUNCTION(swoole_event_add);
+PHP_FUNCTION(swoole_event_del);
+PHP_FUNCTION(swoole_event_exit);
 
 #ifdef SW_ASYNC_MYSQL
-PHP_FUNCTION(swoole_mysqli_get_sock);
+PHP_FUNCTION(swoole_get_mysqli_sock);
 #endif
 
 PHP_FUNCTION(swoole_client_select);

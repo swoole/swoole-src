@@ -5,8 +5,7 @@ argv1  server port
 argv2  server mode SWOOLE_BASE or SWOOLE_THREAD or SWOOLE_PROCESS
 argv3  sock_type  SWOOLE_SOCK_TCP or SWOOLE_SOCK_TCP6 or SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6
 */
-$serv = swoole_server_create("127.0.0.1", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP);
-
+$serv = swoole_server_create("127.0.0.1", 9501);
 swoole_server_set($serv, array(
     'timeout' => 2,  //select and epoll_wait timeout.
     'poll_thread_num' => 1, //reactor thread num
@@ -14,7 +13,7 @@ swoole_server_set($serv, array(
     'worker_num' => 1,    //worker process num
     'backlog' => 128,   //listen backlog
     'max_request' => 5000,
-    'max_conn' => 100000,
+    'max_conn' => 10000,
     'dispatch_mode' => 2,
     //'data_eof' => "\r\n\r\n",
     //'open_eof_check' => 1,
@@ -49,7 +48,7 @@ function my_onClose($serv, $fd, $from_id)
 	echo "Client:Close.\n";
 }
 
-function my_onConnect($serv,$fd,$from_id)
+function my_onConnect($serv, $fd, $from_id)
 {
 	echo "Client:Connect.\n";
 }
@@ -74,9 +73,8 @@ function my_onReceive($serv, $fd, $from_id, $data)
 	} 
 	else 
 	{
-		swoole_server_send($serv, $fd, 'Swoole: '.$data);
+		swoole_server_send($serv, $fd, 'Swoole: '.$data, $from_id);
 	}
-	
 	//swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);
 	//swoole_server_close($serv, $fd, $from_id);
 	//swoole_server_close($serv, $ohter_fd, $other_from_id);

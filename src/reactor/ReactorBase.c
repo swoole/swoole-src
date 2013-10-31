@@ -73,29 +73,8 @@ int swReactor_setHandle(swReactor *reactor, int fdtype, swReactor_handle handle)
 	}
 }
 
-int swReactor_receive(swReactor *reactor, swDataHead *event)
+int swReactor_receive(swReactor *reactor, swEvent *event)
 {
-	swSendData data;
-	int ret;
-
-	ret = swRead(event->fd, data.data, SW_BUFFER_SIZE);
-	printf("[ReadThread]recv: %s|fd=%d|ret=%d|errno=%d\n", data.data, event->fd, ret, errno);
-
-	if (ret == 0)
-	{
-		//fd close
-		event->type = SW_FD_CLOSE;
-		return reactor->handle[SW_FD_CLOSE](reactor, event);
-	}
-	else if (ret > 0)
-	{
-		return reactor->handle[SW_FD_TCP](reactor, event);
-	}
-	else
-	{
-		swTrace("[swFactoryFunc_receive]epoll error\n");
-		reactor->handle[SW_FD_ERROR](reactor, event);
-		return -1;
-	}
-	return 0;
+	swEventData data;
+	return swRead(event->fd, data.data, SW_BUFFER_SIZE);
 }

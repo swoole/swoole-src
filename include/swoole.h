@@ -450,16 +450,16 @@ struct swReactor_s
 	int (*del)(swReactor *, int fd);
 	int (*wait)(swReactor *, struct timeval *);
 	void (*free)(swReactor *);
-	int (*setHandle)(swReactor *, int, swReactor_handle);
+	int (*setHandle)(swReactor *, int fdtype, swReactor_handle);
 };
 
-typedef struct _swWorkerChild
+typedef struct _swWorker
 {
 	pid_t pid;
 	int pipe_master;
 	int pipe_worker;
 	int writer_id;
-} swWorkerChild;
+} swWorker;
 
 typedef struct _swThreadWriter
 {
@@ -475,7 +475,7 @@ typedef struct _swThreadWriter
 typedef struct _swFactoryProcess
 {
 	swThreadWriter *writers;
-	swWorkerChild *workers;
+	swWorker *workers;
 
 	swPipe *pipes;
 	swQueue rd_queue;
@@ -501,6 +501,7 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num);
 int swFactoryProcess_start(swFactory *factory);
 int swFactoryProcess_shutdown(swFactory *factory);
 int swFactoryProcess_end(swFactory *factory, swDataHead *event);
+int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task);
 
 int swFactoryThread_create(swFactory *factory, int writer_num);
 int swFactoryThread_start(swFactory *factory);
@@ -525,6 +526,7 @@ SWINLINE int swReactor_error(swReactor *reactor);
 SWINLINE int swReactor_fdtype(int fdtype);
 SWINLINE int swReactor_event_write(int fdtype);
 SWINLINE int swReactor_event_error(int fdtype);
+int swReactor_receive(swReactor *reactor, swEvent *event);
 
 int swReactor_setHandle(swReactor *, int, swReactor_handle);
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);

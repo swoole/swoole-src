@@ -14,11 +14,13 @@ typedef struct _swController
 } swController;
 
 static int swFactoryProcess_manager_loop(swFactory *factory);
+
 static int swFactoryProcess_worker_start(swFactory *factory);
 static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti);
 static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti);
-static int swFactoryProcess_writer_start(swFactory *factory);
+static int swFactoryProcess_worker_receive(swReactor *reactor, swEvent *event);
 
+static int swFactoryProcess_writer_start(swFactory *factory);
 static int swFactoryProcess_writer_loop_unsock(swThreadParam *param);
 static int swFactoryProcess_writer_loop_queue(swThreadParam *param);
 static int swFactoryProcess_writer_receive(swReactor *, swEvent *);
@@ -36,12 +38,13 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
 static int swFactoryProcess_event(swFactory *factory, int controller_id, swEventData *data);//向某个worker进程或controller发送数据
 
 static int c_worker_pti = 0; //Current Proccess Worker's id
-
+static int worker_task_num = 0;
 static int manager_worker_reloading = 0;
 static int manager_reload_flag = 0;
 static swController *manager_controller_list;
 static swPipe *manager_controller_pipes;
 static int manager_controller_count = 0;
+swReactor *swoole_worker_reactor = NULL;
 
 int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 {
@@ -61,7 +64,7 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 	object->writer_num = writer_num;
 	object->writer_pti = 0;
 
-	object->workers = sw_memory_pool->alloc(sw_memory_pool, worker_num* sizeof(swWorkerChild));
+	object->workers = sw_memory_pool->alloc(sw_memory_pool, worker_num* sizeof(swWorker));
 	if (object->workers == NULL)
 	{
 		swWarn("[Main] malloc[object->workers] fail");
@@ -240,18 +243,59 @@ int swFactoryProcess_start(swFactory *factory)
 	ret = swFactory_check_callback(factory);
 	if (ret < 0)
 	{
-		swWarn("XXXXXXXXXXX: %d", __LINE__);
 		return SW_ERR;
 	}
 	//必须先启动worker，否则manager进程会带线程fork
 	ret = swFactoryProcess_worker_start(factory);
 	if (ret < 0)
 	{
-		swWarn("XXXXXXXXXXX: %d", __LINE__);
 		return SW_ERR;
 	}
 	//主进程需要设置为直写模式
 	factory->finish = swFactory_finish;
+	return SW_OK;
+}
+
+static int swFactoryProcess_worker_receive(swReactor *reactor, swEvent *event)
+{
+	int n;
+	swEventData task;
+	swFactory *factory = reactor->ptr;
+	do
+	{
+		n = read(event->fd, &task, sizeof(task));
+	}
+	while(n < 0 && errno == EINTR);
+	return swFactoryProcess_worker_excute(factory, &task);
+}
+
+int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
+{
+	swServer *serv = factory->ptr;
+	factory->last_from_id = task->info.from_id;
+
+	switch(task->info.type)
+	{
+	case SW_EVENT_DATA:
+		factory->onTask(factory, task);
+		//只有数据请求任务才计算task_num
+		worker_task_num--;
+		break;
+	case SW_EVENT_CLOSE:
+		serv->onClose(serv, task->info.fd, task->info.from_id);
+		break;
+	case SW_EVENT_CONNECT:
+		serv->onConnect(serv, task->info.fd, task->info.from_id);
+		break;
+	default:
+		swWarn("[Worker] error event[type=%d]", (int)task->info.type);
+		break;
+	}
+	//stop
+	if(worker_task_num < 0)
+	{
+		swoole_running = 0;
+	}
 	return SW_OK;
 }
 
@@ -405,9 +449,9 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 
 	swFactoryProcess *object = factory->object;
 	swServer *serv = factory->ptr;
-	swWorkerChild *reload_workers;
+	swWorker *reload_workers;
 
-	reload_workers = sw_memory_pool->alloc(sw_memory_pool, object->worker_num *sizeof(swWorkerChild));
+	reload_workers = sw_memory_pool->alloc(sw_memory_pool, object->worker_num *sizeof(swWorker));
 	if (reload_workers == NULL)
 	{
 		swError("[manager] malloc[reload_workers] fail.\n");
@@ -429,7 +473,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 			}
 			else if (manager_reload_flag == 0)
 			{
-				memcpy(reload_workers, object->workers, sizeof(swWorkerChild) * object->worker_num);
+				memcpy(reload_workers, object->workers, sizeof(swWorker) * object->worker_num);
 				manager_reload_flag = 1;
 				goto kill_worker;
 			}
@@ -626,6 +670,8 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 	swServer *serv = factory->ptr;
 
 	int pipe_rd = object->workers[worker_pti].pipe_worker;
+	int n;
+
 	c_worker_pti = worker_pti;
 	object->manager_pid = getppid();
 
@@ -641,11 +687,25 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 		//必须加1
 		rdata.pti = worker_pti + 1;
 	}
+#else
+	swoole_worker_reactor = sw_malloc(sizeof(swReactor));
+	if(swoole_worker_reactor == NULL)
+	{
+		swError("[Worker] malloc for reactor fail");
+		return SW_ERR;
+	}
+	if(swReactorSelect_create(swoole_worker_reactor) < 0)
+	{
+		swError("[Worker] create worker_reactor fail");
+		return SW_ERR;
+	}
+	swoole_worker_reactor->ptr = factory;
+	swoole_worker_reactor->add(swoole_worker_reactor, pipe_rd, SW_FD_PIPE);
+	swoole_worker_reactor->setHandle(swoole_worker_reactor, SW_FD_PIPE, swFactoryProcess_worker_receive);
 #endif
 
-	int n;
-	int task_num = factory->max_request;
-	task_num += get_rand(worker_pti);
+	worker_task_num = factory->max_request;
+	worker_task_num += get_rand(worker_pti);
 
 #ifdef HAVE_CPU_AFFINITY
 	if (serv->open_cpu_affinity == 1)
@@ -659,53 +719,30 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 		}
 	}
 #endif
-
 	if (serv->onWorkerStart != NULL)
 	{
 		//worker进程启动时调用
 		serv->onWorkerStart(serv, worker_pti);
 	}
-	//主线程
-	while (swoole_running > 0 && task_num > 0)
-	{
+	struct timeval timeo;
+	timeo.tv_sec = SW_REACTOR_TIMEO_SEC;
+	timeo.tv_usec = SW_REACTOR_TIMEO_USEC;
+
 #if SW_WORKER_IPC_MODE == 2
-		swTrace("[Worker]rd_queue[%ld]->out wait", rdata.pti);
+	//主线程
+	while (swoole_running > 0)
+	{
 		n = object->rd_queue.out(&object->rd_queue, (swQueue_data *)&rdata, sizeof(rdata.req));
-#else
-		do
+		if (n < 0)
 		{
-			n = read(pipe_rd, &rdata.req, sizeof(rdata.req));
+			swWarn("[Worker]rd_queue[%ld]->out wait.Errno=%d", rdata.pti, errno);
+			continue;
 		}
-		while(n < 0 && errno == EINTR);
-		swTrace("[Worker]pipe_recv: pipe=%d|pti=%d\n", c_pipe, req.info.from_id);
-#endif
-		swTrace("[Worker]recv fd=%d|type=%d|len=%d", rdata.req.info.fd, rdata.req.info.type, rdata.req.info.len);
-		if (n > 0)
-		{
-			factory->last_from_id = rdata.req.info.from_id;
-			switch(rdata.req.info.type)
-			{
-			case SW_EVENT_DATA:
-				factory->onTask(factory, &rdata.req);
-				//只有数据请求任务才计算task_num
-				task_num--;
-				break;
-			case SW_EVENT_CLOSE:
-				serv->onClose(serv, rdata.req.info.fd, rdata.req.info.from_id);
-				break;
-			case SW_EVENT_CONNECT:
-				serv->onConnect(serv, rdata.req.info.fd, rdata.req.info.from_id);
-				break;
-			default:
-				swWarn("[Worker] error event[type=%d]", (int)rdata.req.info.type);
-				break;
-			}
-		}
-		else
-		{
-			swWarn("[Worker]read pipe error.Errno=%d\n", errno);
-		}
+		swFactoryProcess_worker_excute(factory, &rdata.req);
 	}
+#else
+	swoole_worker_reactor->wait(swoole_worker_reactor, &timeo);
+#endif
 	if (serv->onWorkerStop != NULL)
 	{
 		//worker进程结束时调用

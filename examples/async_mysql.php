@@ -8,13 +8,16 @@ class DBServer
      * @var mysqli
      */
     static protected $db;
+    static protected $locks = array();
     static $serv;
+    static $last_fd;
 
     static function run()
     {
-        $serv = swoole_server_create("127.0.0.1", 9509, SWOOLE_BASE, SWOOLE_SOCK_TCP);
+        $serv = swoole_server_create("127.0.0.1", 9509);
         swoole_server_set($serv, array(
             'timeout' => 1,  //select and epoll_wait timeout.
+            'worker_num' => 1,
             'poll_thread_num' => 1, //reactor thread num
             'backlog' => 128,   //listen backlog
             'max_conn' => 10000,
@@ -22,11 +25,11 @@ class DBServer
             //'open_tcp_keepalive' => 1,
             //'log_file' => '/tmp/swoole.log', //swoole error log
         ));
-        swoole_server_handler($serv, 'onStart', 'DBServer::onStart');
+        swoole_server_handler($serv, 'onWorkerStart', 'DBServer::onStart');
         swoole_server_handler($serv, 'onConnect', 'DBServer::onConnect');
         swoole_server_handler($serv, 'onReceive', 'DBServer::onReceive');
         swoole_server_handler($serv, 'onClose', 'DBServer::onClose');
-        swoole_server_handler($serv, 'onShutdown', 'DBServer::onShutdown');
+        swoole_server_handler($serv, 'onWorkerStop', 'DBServer::onShutdown');
         swoole_server_handler($serv, 'onTimer', 'DBServer::onTimer');
 
         //swoole_server_addtimer($serv, 2);
@@ -40,8 +43,9 @@ class DBServer
         self::$db = new mysqli;
         self::$db->connect('127.0.0.1', 'root', 'root', 'test');
         echo "Server: start.Swoole version is [".SWOOLE_VERSION."]\n";
-        $db_sock = swoole_mysqli_get_sock(self::$db);
-        swoole_reactor_add_callback($serv, $db_sock, 'DBServer::onSQLReady');
+        $db_sock = swoole_get_mysqli_sock(self::$db);
+        swoole_event_add($serv, $db_sock, 'DBServer::onSQLReady');
+        self::$serv = $serv;
     }
 
     static function onShutdown($serv)
@@ -64,12 +68,14 @@ class DBServer
 
     }
 
-    function onSQLReady($sock, $from_id)
+    function onSQLReady($db_sock)
     {
-        echo __METHOD__.": sock=$sock|from_id=$from_id\n";
+        $fd = self::$last_fd;
+        echo __METHOD__.": client_sock=$fd|db_sock=$db_sock\n";
         if ($result = self::$db->reap_async_query())
         {
-            print_r($result->fetch_row());
+            $ret = var_export($result->fetch_all(MYSQLI_ASSOC), true)."\n";
+            swoole_server_send(self::$serv, $fd, $ret);
             if (is_object($result))
             {
                 mysqli_free_result($result);
@@ -77,13 +83,14 @@ class DBServer
         }
         else
         {
-            echo sprintf("MySQLi Error: %s", mysqli_error(self::$db));
+            swoole_server_send(self::$serv, $fd, sprintf("MySQLi Error: %s\n", mysqli_error(self::$db)));
         }
     }
 
     static function onReceive($serv, $fd, $from_id, $data)
     {
-        self::$db->query("show tables", MYSQLI_ASYNC);
+        self::$db->query($data, MYSQLI_ASYNC);
+        self::$last_fd = $fd;
     }
 }
 

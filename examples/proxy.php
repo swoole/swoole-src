@@ -10,17 +10,18 @@ class ProxyServer
 		swoole_server_set($serv, array(
 			'timeout' => 1,  //select and epoll_wait timeout.
 			'poll_thread_num' => 1, //reactor thread num
+            'worker_num' => 1, //reactor thread num
 			'backlog' => 128,   //listen backlog
 			'max_conn' => 10000,
 			'dispatch_mode' => 2,
 			//'open_tcp_keepalive' => 1,
 			//'log_file' => '/tmp/swoole.log', //swoole error log
 		));
-		swoole_server_handler($serv, 'onStart', 'ProxyServer::onStart');
+		swoole_server_handler($serv, 'onWorkerStart', 'ProxyServer::onStart');
 		swoole_server_handler($serv, 'onConnect', 'ProxyServer::onConnect');
 		swoole_server_handler($serv, 'onReceive', 'ProxyServer::onReceive');
 		swoole_server_handler($serv, 'onClose', 'ProxyServer::onClose');
-		swoole_server_handler($serv, 'onShutdown', 'ProxyServer::onShutdown');
+		swoole_server_handler($serv, 'onWorkerStop', 'ProxyServer::onShutdown');
 		swoole_server_handler($serv, 'onTimer', 'ProxyServer::onTimer');
 
 		//swoole_server_addtimer($serv, 2);
@@ -61,19 +62,27 @@ class ProxyServer
     static function onConnect($serv, $fd, $from_id)
     {
         echo microtime().": Client: Connect.\n";
-        $client = new swoole_client(SWOOLE_SOCK_TCP);
+        $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_ASYNC);
+        self::$backends[$client->sock] = array(
+            'conn' => $fd,
+            'client' => $client,
+            'reactor_id' => $from_id,
+        );
+        self::$clients[$fd] = array(
+            'client' => $client,
+        );
+        $client->on('connect', function($client){
+            echo "connect to backend server\n";
+        });
+        $client->on('receive', function($cli){
+
+        });
+
         if($client->connect('127.0.0.1', 9501, 0.2))
         {
             if(swoole_reactor_add($serv, $client->sock))
             {
-                self::$backends[$client->sock] = array(
-                    'conn' => $fd,
-                    'client' => $client,
-                    'reactor_id' => $from_id,
-                );
-                self::$clients[$fd] = array(
-                    'client' => $client,
-                );
+
                 echo "success\n";
                 return;
             }
