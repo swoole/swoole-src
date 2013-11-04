@@ -3,7 +3,6 @@
 
 int swFactory_create(swFactory *factory)
 {
-	factory->running = 1;
 	factory->dispatch = swFactory_dispatch;
 	factory->finish = swFactory_finish;
 	factory->start = swFactory_start;

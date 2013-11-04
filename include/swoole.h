@@ -132,12 +132,14 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define SW_FD_PIPE             5 //pipe
 #define SW_FD_CLOSE_QUEUE      6 //close queue
 #define SW_FD_WRITE            7 //fd can write
+#define SW_FD_TIMER            8 //timer fd
 
 #define SW_FD_USER             15 //SW_FD_USER or SW_FD_USER+n: for custom event
 
 #define SW_MODE_BASE           1
 #define SW_MODE_THREAD         2
 #define SW_MODE_PROCESS        3
+#define SW_MODE_SINGLE         4  //single thread mode
 
 #define SW_SOCK_TCP            1
 #define SW_SOCK_UDP            2
@@ -415,8 +417,6 @@ typedef int (*swEventCallback)(swFactory *factory, swEventData *event);
 struct _swFactory
 {
 	void *object;
-	int id; //Factory ID
-	int running;
 	int max_request; //worker进程最大请求数量
 	void *ptr; //server object
 	uint16_t last_from_id;
@@ -439,8 +439,8 @@ struct swReactor_s
 {
 	void *object;
 	void *ptr; //reserve
-	int id; //Reactor ID
-	int running;
+	uint16_t id; //Reactor ID
+	char running;
 
 	swReactor_handle handle[SW_MAX_FDTYPE];
 	swFactory *factory;

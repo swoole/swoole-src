@@ -9,7 +9,7 @@
 #ifndef SWOOLE_CONFIG_H_
 #define SWOOLE_CONFIG_H_
 
-#define SWOOLE_VERSION             "1.6.2"
+#define SWOOLE_VERSION             "1.6.3"
 
 #define SW_GLOBAL_MEMORY_SIZE      (4096*8)
 

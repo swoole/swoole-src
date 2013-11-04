@@ -113,7 +113,7 @@ SWINLINE int swRead(int fd, char *buf, int len)
 
 	while (1)
 	{
-		nread = read(fd, buf + n, len - n);
+		nread = recv(fd, buf + n, len - n, 0);
 //		swWarn("Read Len=%d|Errno=%d", nread, errno);
 		//遇到错误
 		if (nread < 0)
@@ -153,10 +153,10 @@ SWINLINE int swRead(int fd, char *buf, int len)
 				sw_errno = EAGAIN;
 				break;
 			}
-			//已读完
+			//已读完 n < len
 			else
 			{
-				continue;
+				break;
 			}
 		}
 	}

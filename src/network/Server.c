@@ -18,19 +18,72 @@ static int swServer_poll_onReceive_data_buffer(swReactor *reactor, swEvent *even
 
 static int swServer_timer_start(swServer *serv);
 static void swSignalHanlde(int sig);
+static int swConnection_close(swServer *serv, int fd, int *from_id);
+static int swServer_single_onCloseQueue(swReactor *reactor, swEventClose_queue *close_queue);
+static int swServer_single_onClose(swReactor *reactor, swEvent *event);
+
+static int swServer_master_onClose(swReactor *reactor, swDataHead *event);
+static int swServer_master_onAccept(swReactor *reactor, swDataHead *event);
+static int swServer_master_onTimer(swReactor *reactor, swEvent *event);
 
 int sw_nouse_timerfd;
 static swPipe timer_pipe;
 extern FILE *swoole_log_fn;
+swReactor *swoole_worker_reactor = NULL;
 
-int swServer_onClose(swReactor *reactor, swEvent *event)
+SWINLINE int swConnection_close(swServer *serv, int fd, int *from_id)
+{
+	swConnection *conn = swServer_get_connection(serv, fd);
+	swReactor *from_reactor;
+
+	if(conn == NULL)
+	{
+		swWarn("[Master]connection not found. fd=%d|max_fd=%d", fd, swServer_get_maxfd(serv));
+		return SW_ERR;
+	}
+	//关闭此连接，必须放在最前面，以保证线程安全
+	conn->tag = 0;
+
+	//from_id < 0表示已经在Reactor中关闭连接了
+	if((*from_id) >= 0)
+	{
+		from_reactor = &(serv->poll_threads[conn->from_id].reactor);
+		from_reactor->del(from_reactor, fd);
+	}
+	(*from_id) = conn->from_id;
+
+	swTrace("Close Event.fd=%d|from=%d\n", fd, (*from_id));
+	if (serv->open_eof_check)
+	{
+		//释放buffer区
+#ifdef SW_USE_CONN_BUFFER
+		swConnection_clear_buffer(conn);
+#else
+		swDataBuffer *data_buffer = &serv->poll_threads[(*from_id)].data_buffer;
+		swDataBuffer_clear(data_buffer, fd);
+#endif
+	}
+	//重新设置max_fd,此代码为了遍历connection_list服务
+	if(fd == swServer_get_maxfd(serv))
+	{
+		int find_max_fd = fd - 1;
+		//找到第二大的max_fd作为新的max_fd
+		for (; serv->connection_list[find_max_fd].tag == 0 && find_max_fd > swServer_get_minfd(serv); find_max_fd--);
+		swServer_set_maxfd(serv, find_max_fd);
+		swTrace("set_maxfd=%d|close_fd=%d", find_max_fd, fd);
+	}
+	serv->connect_count--;
+	return SW_OK;
+}
+
+int swServer_master_onClose(swReactor *reactor, swEvent *event)
 {
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &(serv->factory);
 	swEventClose cev_queue[SW_CLOSE_QLEN];
 	swEvent notify_ev;
-	swReactor *from_reactor;
-	int i, n;
+
+	int i, n, fd, from_id, ret;
 	n = serv->main_pipe.read(&serv->main_pipe, cev_queue, sizeof(cev_queue));
 
 	if (n <= 0)
@@ -41,59 +94,28 @@ int swServer_onClose(swReactor *reactor, swEvent *event)
 
 	for(i = 0; i < n/sizeof(swEventClose); i++)
 	{
-		swConnection *conn = swServer_get_connection(serv, cev_queue[i].fd);
-		if(conn == NULL)
-		{
-			swWarn("[Master]connection not found. fd=%d|max_fd=%d", cev_queue[i].fd, swServer_get_maxfd(serv));
-			break;
-		}
-		//关闭此连接，必须放在最前面，以保证线程安全
-		conn->tag = 0;
+		fd = cev_queue[i].fd;
+		from_id = cev_queue[i].from_id;
 
-		//from_id < 0表示已经在Reactor中关闭连接了
-		if(cev_queue[i].from_id >= 0)
+		if(swConnection_close(serv, fd, &from_id) == 0)
 		{
-			from_reactor = &(serv->poll_threads[conn->from_id].reactor);
-			from_reactor->del(from_reactor, cev_queue[i].fd);
+			if(serv->onMasterClose != NULL)
+			{
+				serv->onMasterClose(serv, fd, cev_queue[i].from_id);
+			}
+			if(serv->onClose != NULL)
+			{
+				notify_ev.from_id = from_id;
+				notify_ev.fd = cev_queue[i].fd;
+				notify_ev.type = SW_EVENT_CLOSE;
+				factory->notify(factory, &notify_ev);
+			}
 		}
-
-		swTrace("Close Event.fd=%d|from=%d\n", cev_queue[i].fd, conn->from_id);
-		if (serv->open_eof_check)
-		{
-			//释放buffer区
-#ifdef SW_USE_CONN_BUFFER
-			swConnection_clear_buffer(conn);
-#else
-			swDataBuffer *data_buffer = &serv->poll_threads[event->from_id].data_buffer;
-			swDataBuffer_clear(data_buffer, cev_queue[i].fd);
-#endif
-		}
-		//重新设置max_fd,此代码为了遍历connection_list服务
-		if(cev_queue[i].fd == swServer_get_maxfd(serv))
-		{
-			int find_max_fd = cev_queue[i].fd - 1;
-			//找到第二大的max_fd作为新的max_fd
-			for (; serv->connection_list[find_max_fd].tag == 0 && find_max_fd > swServer_get_minfd(serv); find_max_fd--);
-			swServer_set_maxfd(serv, find_max_fd);
-			swTrace("set_maxfd=%d|close_fd=%d", find_max_fd, cev_queue[i].fd);
-		}
-		if(serv->onMasterClose != NULL)
-		{
-			serv->onMasterClose(serv, cev_queue[i].fd, cev_queue[i].from_id);
-		}
-		if(serv->onClose != NULL)
-		{
-			notify_ev.from_id = conn->from_id;
-			notify_ev.fd = cev_queue[i].fd;
-			notify_ev.type = SW_EVENT_CLOSE;
-			factory->notify(factory, &notify_ev);
-		}
-		serv->connect_count--;
 	}
 	return SW_OK;
 }
 
-int swServer_onTimer(swReactor *reactor, swEvent *event)
+static int swServer_master_onTimer(swReactor *reactor, swEvent *event)
 {
 	swServer *serv = reactor->ptr;
 	if(serv->onTimer == NULL)
@@ -124,14 +146,14 @@ int swServer_onTimer(swReactor *reactor, swEvent *event)
 	return ret;
 }
 
-int swServer_onAccept(swReactor *reactor, swEvent *event)
+static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 {
 	swServer *serv = reactor->ptr;
 	swEvent connEv;
 	struct sockaddr_in client_addr;
 	int conn_fd, ret, c_pti;
 
-	swTrace("[Main]accept start\n");
+	swTrace("[Main]accept start.event->fd=%d|event->from_id=%d", event->fd, event->from_id);
 #ifdef SW_ACCEPT_AGAIN
 	while (1)
 #endif
@@ -296,6 +318,7 @@ static int swServer_check_callback(swServer *serv)
 int swServer_start(swServer *serv)
 {
 	swReactor main_reactor;
+	swReactor *main_reactor_ptr = &main_reactor;
 	swFactory *factory = &serv->factory;
 
 	struct timeval tmo;
@@ -326,36 +349,71 @@ int swServer_start(swServer *serv)
 		swWarn("Swoole factory start fail");
 		return SW_ERR;
 	}
-	ret = swServer_poll_start(serv);
-	if (ret < 0)
+
+	//single thread mode
+	if (serv->factory_mode == SW_MODE_SINGLE)
 	{
-		swWarn("Swoole poll thread start fail");
-		return SW_ERR;
+		main_reactor_ptr = &(serv->poll_threads[0].reactor);
+#ifdef HAVE_EPOLL
+		ret = swReactorEpoll_create(main_reactor_ptr, serv->max_conn);
+#elif defined(HAVE_KQUEUE)
+		ret = swReactorKqueue_create(main_reactor_ptr, serv->max_conn);
+#else
+		ret = swReactorPoll_create(main_reactor_ptr, serv->max_conn);
+#endif
+		if (ret < 0)
+		{
+			swWarn("Swoole reactor create fail");
+			return SW_ERR;
+		}
+
+		main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_CLOSE, swServer_single_onClose);
+		main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_CLOSE_QUEUE, swServer_single_onCloseQueue);
+		main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_UDP, swServer_poll_onPackage);
+
+		if (serv->open_eof_check == 0)
+		{
+			main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_TCP, swServer_poll_onReceive_no_buffer);
+		}
+		else
+		{
+			main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_TCP, swServer_poll_onReceive_conn_buffer);
+		}
+		swoole_worker_reactor = main_reactor_ptr;
+		main_reactor_ptr->id = 0;
+	}
+	else
+	{
+#ifdef SW_MAINREACTOR_USE_POLL
+		ret = swReactorPoll_create(&main_reactor, 10);
+#else
+		ret = swReactorSelect_create(&main_reactor);
+#endif
+		if (ret < 0)
+		{
+			swWarn("Swoole reactor create fail");
+			return SW_ERR;
+		}
+		ret = swServer_poll_start(serv);
+		if (ret < 0)
+		{
+			swWarn("Swoole poll thread start fail");
+			return SW_ERR;
+		}
+		main_reactor_ptr->id = serv->poll_thread_num; //设为一个特别的ID
+		main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_CLOSE, swServer_master_onClose);
+		main_reactor_ptr->add(main_reactor_ptr, serv->main_pipe.getFd(&serv->main_pipe, 0), SW_FD_CLOSE);
 	}
 	SW_START_SLEEP;
-#ifdef SW_MAINREACTOR_USE_POLL
-	ret = swReactorPoll_create(&main_reactor, 10);
-#else
-	ret = swReactorSelect_create(&main_reactor);
-#endif
-
-	if (ret < 0)
-	{
-		swWarn("Swoole reactor create fail");
-		return SW_ERR;
-	}
-	main_reactor.ptr = serv;
-	main_reactor.id = serv->writer_num; //设为一个特别的ID
-	main_reactor.setHandle(&main_reactor, SW_EVENT_CLOSE, swServer_onClose);
-	main_reactor.setHandle(&main_reactor, SW_EVENT_CONNECT, swServer_onAccept);
-	main_reactor.setHandle(&main_reactor, SW_EVENT_TIMER, swServer_onTimer);
+	main_reactor_ptr->ptr = serv;
+	main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_LISTEN, swServer_master_onAccept);
+	main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_TIMER, swServer_master_onTimer);
 
 	//标识为主进程
 	sw_process_type = SW_PROCESS_MASTER;
 	//Signal Init
 	swSignalInit();
 
-	main_reactor.add(&main_reactor, serv->main_pipe.getFd(&serv->main_pipe, 0), SW_EVENT_CLOSE);
 	if (serv->timer_interval != 0)
 	{
 		ret = swServer_timer_start(serv);
@@ -363,11 +421,11 @@ int swServer_start(swServer *serv)
 		{
 			return SW_ERR;
 		}
-		main_reactor.add(&main_reactor, serv->timer_fd, SW_EVENT_TIMER);
+		main_reactor_ptr->add(main_reactor_ptr, serv->timer_fd, SW_FD_TIMER);
 	}
 
 	SW_START_SLEEP;
-	ret = swServer_listen(serv, &main_reactor);
+	ret = swServer_listen(serv, main_reactor_ptr);
 	if (ret < 0)
 	{
 		return SW_ERR;
@@ -380,7 +438,13 @@ int swServer_start(swServer *serv)
 	{
 		serv->onStart(serv);
 	}
-	main_reactor.wait(&main_reactor, &tmo);
+
+	if(serv->factory_mode == SW_MODE_SINGLE && serv->onWorkerStart != NULL)
+	{
+		serv->onWorkerStart(serv, 0);
+	}
+
+	main_reactor_ptr->wait(main_reactor_ptr, &tmo);
 	if (serv->onShutdown != NULL)
 	{
 		serv->onShutdown(serv);
@@ -571,6 +635,13 @@ int swServer_create(swServer *serv)
 		swError("[swServerCreate]create event_fd fail");
 		return SW_ERR;
 	}
+
+	//single thread mode
+	if(serv->factory_mode == SW_MODE_SINGLE)
+	{
+		serv->poll_thread_num = 1;
+	}
+
 	//初始化poll线程池
 	serv->poll_threads = sw_memory_pool->alloc(sw_memory_pool, (serv->poll_thread_num * sizeof(swThreadPoll)));
 	if (serv->poll_threads == NULL)
@@ -578,6 +649,7 @@ int swServer_create(swServer *serv)
 		swError("calloc[poll_threads] fail.alloc_size=%d", (int)(serv->poll_thread_num * sizeof(swThreadPoll)));
 		return SW_ERR;
 	}
+
 	//初始化connection_list
 #ifdef SW_CONNECTION_LIST_EXPAND
 	serv->connection_list = sw_shm_calloc(serv->connection_list_capacity + SW_CONNECTION_LIST_EXPAND, sizeof(swConnection));
@@ -625,6 +697,7 @@ int swServer_create(swServer *serv)
 	{
 		ret = swFactory_create(&(serv->factory));
 	}
+
 	if (ret < 0)
 	{
 		swError("create factory fail\n");
@@ -853,6 +926,45 @@ static void swServer_poll_loop_udp(swThreadParam *param)
 		}
 	}
 	pthread_exit(0);
+}
+
+static int swServer_single_onClose(swReactor *reactor, swEvent *event)
+{
+	swServer *serv = reactor->ptr;
+	swFactory *factory = &(serv->factory);
+	swEvent notify_ev;
+
+	if(swConnection_close(serv, event->fd, &(event->from_id)) == 0)
+	{
+		if(serv->onClose != NULL)
+		{
+			serv->onClose(serv, event->fd, &(event->from_id));
+		}
+		serv->connect_count--;
+	}
+	return SW_OK;
+}
+
+static int swServer_single_onCloseQueue(swReactor *reactor, swEventClose_queue *close_queue)
+{
+	swServer *serv = reactor->ptr;
+	swFactory *factory = &(serv->factory);
+	swEvent notify_ev;
+	int ret, i;
+	int fd, from_id = -1;
+
+	for(i=0;i<close_queue->num;i++)
+	{
+		fd = close_queue->events[i].fd;
+		if(swConnection_close(serv, fd, &from_id) == 0)
+		{
+			if(serv->onClose != NULL)
+			{
+				serv->onClose(serv, fd, 0);
+			}
+		}
+	}
+	return SW_OK;
 }
 
 /**
@@ -1282,7 +1394,7 @@ static int swServer_listen(swServer *serv, swReactor *reactor)
 			LL_DELETE(serv->listen_list, listen_host);
 			return SW_ERR;
 		}
-		reactor->add(reactor, sock, SW_EVENT_CONNECT);
+		reactor->add(reactor, sock, SW_FD_LISTEN);
 		listen_host->sock = sock;
 		//将server socket也放置到connection_list中
 		serv->connection_list[sock].addr.sin_port = listen_host->port;

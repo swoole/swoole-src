@@ -159,8 +159,6 @@ struct swServer_s
 };
 int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
-int swServer_onClose(swReactor *reactor, swDataHead *event);
-int swServer_onAccept(swReactor *reactor, swDataHead *event);
 
 void swServer_init(swServer *serv);
 int swServer_start(swServer *serv);

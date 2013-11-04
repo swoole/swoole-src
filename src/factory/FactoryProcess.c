@@ -44,7 +44,8 @@ static int manager_reload_flag = 0;
 static swController *manager_controller_list;
 static swPipe *manager_controller_pipes;
 static int manager_controller_count = 0;
-swReactor *swoole_worker_reactor = NULL;
+
+extern swReactor *swoole_worker_reactor;
 
 int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 {
@@ -72,7 +73,6 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 	}
 	object->worker_num = worker_num;
 
-	factory->running = 1;
 	factory->object = object;
 	factory->dispatch = swFactoryProcess_dispatch;
 	factory->finish = swFactoryProcess_finish;

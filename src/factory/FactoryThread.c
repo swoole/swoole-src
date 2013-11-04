@@ -38,7 +38,6 @@ int swFactoryThread_create(swFactory *factory, int writer_num)
 	this->writer_num = writer_num;
 	this->writer_pti = 0;
 
-	factory->running = 1;
 	factory->object = this;
 	factory->dispatch = swFactoryThread_dispatch;
 	factory->finish = swFactory_finish;
@@ -206,7 +205,6 @@ static int swFactoryThread_writer_loop(swThreadParam *param)
 			}
 		}
 	}
-	factory->running = 0;
 	//shutdown
 	this->writers[pti].evfd.close(&this->writers[pti].evfd);
 
