@@ -198,7 +198,7 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 			//read
 			if (object->events[i].events & EPOLLIN)
 			{
-				swWarn("epoll event coming.fd=%d|fdtype=%d", ev.fd, ev.type);
+				swTrace("epoll event coming.fd=%d|fdtype=%d", ev.fd, ev.type);
 #ifdef EPOLLRDHUP
 				//close事件
 				if(object->events[i].events & EPOLLRDHUP)

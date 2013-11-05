@@ -82,6 +82,7 @@ static HashTable php_sw_client_callback;
 static void ***sw_thread_ctx;
 extern swReactor *swoole_worker_reactor;
 static char php_sw_reactor_ok = 0;
+static char php_sw_in_client = 0;
 extern sapi_module_struct sapi_module;
 
 static int php_swoole_onReceive(swFactory *, swEventData *);
@@ -353,7 +354,7 @@ PHP_FUNCTION(swoole_server_create)
 	}
 
 	serv->factory_mode = serv_mode;
-	swWarn("Create host=%s,port=%ld,mode=%d\n", serv_host, serv_port, serv->factory_mode);
+	swTrace("Create host=%s,port=%ld,mode=%d\n", serv_host, serv_port, serv->factory_mode);
 
 	//线程安全
 	TSRMLS_SET_CTX(sw_thread_ctx);
@@ -1038,6 +1039,8 @@ static void php_swoole_check_reactor()
 				zend_error(E_ERROR, "swoole_client: create swoole_worker_reactor fail");
 				return;
 			}
+			//client, swoole_event_exit will set swoole_running = 0
+			php_sw_in_client = 1;
 		}
 		swoole_worker_reactor->setHandle(swoole_worker_reactor, SW_FD_WRITE, php_swoole_client_onConnect);
 		swoole_worker_reactor->setHandle(swoole_worker_reactor, SW_FD_ERROR, php_swoole_client_onError);
@@ -1398,8 +1401,11 @@ PHP_FUNCTION(swoole_event_del)
 
 PHP_FUNCTION(swoole_event_exit)
 {
-	//stop reactor
-	swoole_running = 0;
+	if (php_sw_in_client == 1)
+	{
+		//stop reactor
+		swoole_running = 0;
+	}
 }
 
 PHP_FUNCTION(swoole_server_addtimer)
