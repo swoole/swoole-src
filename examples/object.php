@@ -1,5 +1,5 @@
 <?php
-$serv = new swoole_server("127.0.0.1", 9501, SWOOLE_BASE);
+$serv = new swoole_server("127.0.0.1", 9501, SWOOLE_PROCESS);
 $serv->set(array(
     'timeout' => 2,  //select and epoll_wait timeout.
     'poll_thread_num' => 4, //reactor thread num
@@ -52,6 +52,11 @@ function my_onReceive($serv, $fd, $from_id, $data)
 	swoole_server_send($serv, $fd, 'Swoole: '.$data, $from_id);
 }
 
+function my_onTimer($serv, $interval)
+{
+	echo "Timer Call.Interval={$interval}\n";
+}
+
 $serv->handler('onStart', 'my_onStart');
 $serv->handler('onConnect', 'my_onConnect');
 $serv->handler('onReceive', 'my_onReceive');
@@ -60,10 +65,6 @@ $serv->handler('onShutdown', 'my_onShutdown');
 $serv->handler('onTimer', 'my_onTimer');
 $serv->handler('onWorkerStart', 'my_onWorkerStart');
 $serv->handler('onWorkerStop', 'my_onWorkerStop');
-//swoole_server_handler($serv, 'onMasterConnect', 'my_onMasterConnect');
-//swoole_server_handler($serv, 'onMasterClose', 'my_onMasterClose');
-
-$serv->addtimer($serv, 2);
-#swoole_server_addtimer($serv, 10);
+$serv->addtimer(2);
 $serv->start();
 
