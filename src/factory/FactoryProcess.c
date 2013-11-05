@@ -576,12 +576,13 @@ int swFactoryProcess_end(swFactory *factory, swDataHead *event)
 	int ret;
 	swFactoryProcess *object = factory->object;
 	swServer *serv = factory->ptr;
-	swEventData send_data;
+	swEvent ev;
 
-	send_data.info.fd = event->fd;
-	send_data.info.len = 0; //len=0表示关闭此连接
-	send_data.info.from_id = event->from_id;
-	return swFactoryProcess_finish(factory, (swSendData *)event);
+	bzero(&ev, sizeof(swEvent));
+	ev.fd = event->fd;
+	ev.len = 0; //len=0表示关闭此连接
+	ev.from_id = event->from_id;
+	return swFactoryProcess_finish(factory, (swSendData *)&ev);
 }
 /**
  * Worker进程,向writer发送数据
