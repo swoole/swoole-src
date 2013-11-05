@@ -237,23 +237,6 @@ PHP_MSHUTDOWN_FUNCTION(swoole)
 }
 /* }}} */
 
-/* Remove if there's nothing to do at request start */
-/* {{{ PHP_RINIT_FUNCTION
- */
-PHP_RINIT_FUNCTION(swoole)
-{
-	return SUCCESS;
-}
-/* }}} */
-
-/* Remove if there's nothing to do at request end */
-/* {{{ PHP_RSHUTDOWN_FUNCTION
- */
-PHP_RSHUTDOWN_FUNCTION(swoole)
-{
-	return SUCCESS;
-}
-/* }}} */
 
 /* {{{ PHP_MINFO_FUNCTION
  */
@@ -263,11 +246,26 @@ PHP_MINFO_FUNCTION(swoole)
 	php_info_print_table_header(2, "swoole support", "enabled");
 	php_info_print_table_row(2, "Version", SWOOLE_VERSION);
 	php_info_print_table_row(2, "Author", "tianfeng.han[email: mikan.tenny@gmail.com]");
-	php_info_print_table_end();
 
-	/* Remove comments if you have entries in php.ini
-	 DISPLAY_INI_ENTRIES();
-	 */
+#ifdef HAVE_EPOLL
+	php_info_print_table_row(2, "epoll", "enable");
+#endif
+#ifdef HAVE_EVENTFD
+    php_info_print_table_row(2, "event_fd", "enable");
+#endif
+#ifdef HAVE_KQUEUE
+    php_info_print_table_row(2, "kqueue", "enable");
+#endif
+#ifdef HAVE_TIMERFD
+    php_info_print_table_row(2, "timerfd", "enable");
+#endif
+#ifdef SW_USE_ACCEPT4
+    php_info_print_table_row(2, "accept4", "enable");
+#endif
+#ifdef HAVE_CPU_AFFINITY
+    php_info_print_table_row(2, "cpu affinity", "enable");
+#endif
+	php_info_print_table_end();
 }
 /* }}} */
 
@@ -297,7 +295,7 @@ static void sw_destory_client(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 
 PHP_FUNCTION(swoole_version)
 {
-    php_printf("swoole %s", SWOOLE_VERSION);
+    php_printf("swoole v%s\n", SWOOLE_VERSION);
 }
 
 
@@ -1514,6 +1512,8 @@ PHP_METHOD(swoole_client, connect)
 		char *hash_key;
 		int hash_key_len;
 		hash_key_len = spprintf(&hash_key, 0, "%d", cli->sock);
+
+		zval_add_ref(&getThis());
 
 		if (zend_hash_update(&php_sw_client_callback, hash_key, hash_key_len+1, &getThis(), sizeof(zval*), NULL) == FAILURE)
 		{
