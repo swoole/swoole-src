@@ -218,9 +218,9 @@ PHP_MINIT_FUNCTION(swoole)
 	zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
 
 	//for mysqli
-	zend_hash_init(&php_sw_reactor_callback, 10, NULL, ZVAL_PTR_DTOR, 0);
+	zend_hash_init(&php_sw_reactor_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
 	//swoole_client::on
-	zend_hash_init(&php_sw_client_callback, 10, NULL, ZVAL_PTR_DTOR, 0);
+	zend_hash_init(&php_sw_client_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
 
 	return SUCCESS;
 }
@@ -908,7 +908,11 @@ static int php_swoole_client_onReceive(swReactor *reactor, swEvent *event)
 	zval **args[1];
 	zval *retval;
 
-	if(zend_hash_find(&php_sw_client_callback, (char *)&(event->fd), sizeof(event->fd), &zobject) != SUCCESS)
+	char *hash_key;
+	int hash_key_len;
+	hash_key_len = spprintf(&hash_key, 0, "%d", event->fd);
+
+	if(zend_hash_find(&php_sw_client_callback, hash_key, hash_key_len+1, &zobject) != SUCCESS)
 	{
 		zend_error(E_WARNING, "swoole_client: Fd[%d] is not a swoole_client object", event->fd);
 		return SW_ERR;
@@ -941,7 +945,11 @@ static int php_swoole_client_onConnect(swReactor *reactor, swEvent *event)
 	zval **args[1];
 	zval *retval;
 
-	if(zend_hash_find(&php_sw_client_callback, (char *)&(event->fd), sizeof(event->fd), &zobject) != SUCCESS)
+	char *hash_key;
+	int hash_key_len;
+	hash_key_len = spprintf(&hash_key, 0, "%d", event->fd);
+
+	if(zend_hash_find(&php_sw_client_callback, hash_key, hash_key_len+1, &zobject) != SUCCESS)
 	{
 		zend_error(E_WARNING, "swoole_client->onConnect: Fd=%d is not a swoole_client object", event->fd);
 		return SW_ERR;
@@ -996,7 +1004,11 @@ static int php_swoole_client_onError(swReactor *reactor, swEvent *event)
 	zval **args[1];
 	zval *retval;
 
-	if(zend_hash_find(&php_sw_client_callback, (char *)&(event->fd), sizeof(event->fd), &zobject) != SUCCESS)
+	char *hash_key;
+	int hash_key_len;
+	hash_key_len = spprintf(&hash_key, 0, "%d", event->fd);
+
+	if (zend_hash_find(&php_sw_client_callback, hash_key, hash_key_len + 1, &zobject) != SUCCESS)
 	{
 		zend_error(E_WARNING, "swoole_client: Fd[%d] is not a swoole_client object", event->fd);
 		return SW_ERR;
@@ -1499,7 +1511,11 @@ PHP_METHOD(swoole_client, connect)
 	{
 		//nonblock
 		cli->connect(cli, host, port, (float) timeout, 1);
-		if (zend_hash_update(&php_sw_client_callback, (char *) &cli->sock, sizeof(cli->sock), &getThis(), sizeof(zval*), NULL) == FAILURE)
+		char *hash_key;
+		int hash_key_len;
+		hash_key_len = spprintf(&hash_key, 0, "%d", cli->sock);
+
+		if (zend_hash_update(&php_sw_client_callback, hash_key, hash_key_len+1, &getThis(), sizeof(zval*), NULL) == FAILURE)
 		{
 			zend_error(E_WARNING, "swoole_client: add to hashtable fail");
 			RETURN_FALSE;
