@@ -185,8 +185,8 @@ zend_module_entry swoole_module_entry =
 	swoole_functions,
 	PHP_MINIT(swoole),
 	PHP_MSHUTDOWN(swoole),
-	NULL, //RINIT
-	NULL, //RSHUTDOWN
+	PHP_RINIT(swoole), //RINIT
+	PHP_RSHUTDOWN(swoole), //RSHUTDOWN
 	PHP_MINFO(swoole),
     SWOOLE_VERSION,
 	STANDARD_MODULE_PROPERTIES
@@ -241,15 +241,7 @@ PHP_MINIT_FUNCTION(swoole)
 	swoole_client_class_entry_ptr = zend_register_internal_class(&swoole_client_ce TSRMLS_CC);
 
 	INIT_CLASS_ENTRY(swoole_server_ce, "swoole_server", swoole_server_methods);
-	swoole_client_class_entry_ptr = zend_register_internal_class(&swoole_server_ce TSRMLS_CC);
-
-	zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-	zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-
-	//for mysqli
-	zend_hash_init(&php_sw_reactor_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
-	//swoole_client::on
-	zend_hash_init(&php_sw_client_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
+	swoole_server_class_entry_ptr = zend_register_internal_class(&swoole_server_ce TSRMLS_CC);
 
 	return SUCCESS;
 }
@@ -297,6 +289,26 @@ PHP_MINFO_FUNCTION(swoole)
 	php_info_print_table_end();
 }
 /* }}} */
+
+PHP_RINIT_FUNCTION(swoole)
+{
+	zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+	zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+
+	//swoole_event_add
+	zend_hash_init(&php_sw_reactor_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
+	//swoole_client::on
+	zend_hash_init(&php_sw_client_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
+
+	return SUCCESS;
+}
+
+PHP_RSHUTDOWN_FUNCTION(swoole)
+{
+	zend_hash_destroy(&php_sw_reactor_callback);
+	zend_hash_destroy(&php_sw_client_callback);
+	return SUCCESS;
+}
 
 static void swoole_destory_server(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 {
@@ -933,7 +945,7 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
 
 static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
 {
-	zval *zserv = (zval *)serv->ptr2;
+	zval *zobject = (zval *)serv->ptr2;
 	zval *zworker_id;
 	zval **args[2]; //这里必须与下面的数字对应
 	zval *retval;
@@ -941,16 +953,30 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
 	MAKE_STD_ZVAL(zworker_id);
 	ZVAL_LONG(zworker_id, worker_id);
 
-	args[0] = &zserv;
-	zval_add_ref(&zserv);
-	args[1] = &zworker_id;
-
+	zval_add_ref(&zobject);
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onWorkerStop], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+	if (php_sw_callback[SW_SERVER_CB_onWorkerStop] == NULL)
 	{
-		zend_error(E_WARNING, "SwooleServer: onShutdown handler error");
+		args[0] = &zworker_id;
+		zval func;
+		ZVAL_STRING(&func, "onWorkerStop", 0);
+
+		if (call_user_function_ex(EG(function_table), &zobject, &func, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+		{
+			zend_error(E_WARNING, "SwooleServer->onShutdown handler error");
+		}
 	}
+	else
+	{
+		args[0] = &zobject;
+		args[1] = &zworker_id;
+		if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onWorkerStop], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+		{
+			zend_error(E_WARNING, "SwooleServer: onShutdown handler error");
+		}
+	}
+
 	zval_ptr_dtor(&zworker_id);
 	if (retval != NULL)
 	{

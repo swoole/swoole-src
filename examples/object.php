@@ -1,5 +1,13 @@
 <?php
-$serv = new swoole_server("127.0.0.1", 9501, SWOOLE_PROCESS);
+class MyServer extends swoole_server
+{
+	function onWorkerStop($worker_id)
+	{
+		echo "WorkerStart[$worker_id]|pid=".posix_getpid().".\n";
+	}
+}
+$serv = new MyServer("127.0.0.1", 9501, SWOOLE_BASE);
+
 $serv->set(array(
     'timeout' => 2,  //select and epoll_wait timeout.
     'poll_thread_num' => 4, //reactor thread num
@@ -64,7 +72,6 @@ $serv->handler('onClose', 'my_onClose');
 $serv->handler('onShutdown', 'my_onShutdown');
 $serv->handler('onTimer', 'my_onTimer');
 $serv->handler('onWorkerStart', 'my_onWorkerStart');
-$serv->handler('onWorkerStop', 'my_onWorkerStop');
 $serv->addtimer(2);
 $serv->start();
 

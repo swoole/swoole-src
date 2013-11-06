@@ -48,6 +48,7 @@ PHP_MSHUTDOWN_FUNCTION(swoole);
 PHP_RINIT_FUNCTION(swoole);
 PHP_RSHUTDOWN_FUNCTION(swoole);
 PHP_MINFO_FUNCTION(swoole);
+
 PHP_FUNCTION(swoole_version);
 PHP_FUNCTION(swoole_server_create);
 PHP_FUNCTION(swoole_server_set);
