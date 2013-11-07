@@ -194,10 +194,13 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 			int keep_interval = serv->tcp_keepinterval;
 			int keep_count = serv->tcp_keepcount;
 
+#ifndef __MACH__
 			setsockopt(conn_fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&keepalive , sizeof(keepalive));
 			setsockopt(conn_fd, IPPROTO_TCP, TCP_KEEPIDLE, (void*)&keep_idle , sizeof(keep_idle));
 			setsockopt(conn_fd, IPPROTO_TCP, TCP_KEEPINTVL, (void *)&keep_interval , sizeof(keep_interval));
 			setsockopt(conn_fd, IPPROTO_TCP, TCP_KEEPCNT, (void *)&keep_count , sizeof(keep_count));
+#endif
+
 		}
 #endif
 		swTrace("[Main]connect from %s, by process %d\n", inet_ntoa(client_addr.sin_addr), getpid());
