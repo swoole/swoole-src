@@ -171,8 +171,9 @@ int swServer_shutdown(swServer *serv);
 int swServer_addTimer(swServer *serv, int interval);
 int swServer_reload(swServer *serv);
 int swServer_send_udp_packet(swServer *serv, swSendData *resp);
-int swServer_reactor_add(swServer *serv, int fd, int sock_type);
-int swServer_reactor_del(swServer *serv, int fd, int reacot_id);
+int swServer_reactor_add(swServer *serv, int fd, int sock_type); //no use
+int swServer_reactor_del(swServer *serv, int fd, int reacot_id); //no use
+int swServer_get_manager_pid(swServer *serv);
 
 int swServer_new_connection(swServer *serv, swEvent *ev);
 #define SW_SERVER_MAX_FD_INDEX        0

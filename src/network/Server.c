@@ -28,7 +28,6 @@ static int swServer_master_onTimer(swReactor *reactor, swEvent *event);
 
 int sw_nouse_timerfd;
 static swPipe timer_pipe;
-extern FILE *swoole_log_fn;
 swReactor *swoole_worker_reactor = NULL;
 
 SWINLINE int swConnection_close(swServer *serv, int fd, int *from_id)
@@ -264,6 +263,9 @@ int swServer_addTimer(swServer *serv, int interval)
 	return SW_OK;
 }
 
+/**
+ * no use
+ */
 int swServer_reactor_add(swServer *serv, int fd, int sock_type)
 {
 	int poll_id = (serv->c_pti++) % serv->poll_thread_num;
@@ -280,6 +282,9 @@ int swServer_reactor_add(swServer *serv, int fd, int sock_type)
 	return SW_OK;
 }
 
+/**
+ * no use
+ */
 int swServer_reactor_del(swServer *serv, int fd, int reacot_id)
 {
 	swReactor *reactor = &(serv->poll_threads[reacot_id].reactor);
@@ -1408,16 +1413,24 @@ static int swServer_listen(swServer *serv, swReactor *reactor)
 	return SW_OK;
 }
 
-int swServer_reload(swServer *serv)
+int swServer_get_manager_pid(swServer *serv)
 {
-	swFactoryProcess *factory;
 	if (SW_MODE_PROCESS != serv->factory_mode)
 	{
 		return SW_ERR;
 	}
-	factory = serv->factory.object;
-//	printf("manager_pid=%d\n", factory->manager_pid);
-	return kill(factory->manager_pid, SIGUSR1);
+	swFactoryProcess *object = serv->factory.object;
+	return object->manager_pid;
+}
+
+int swServer_reload(swServer *serv)
+{
+	int manager_pid = swServer_get_manager_pid(serv);
+	if (manager_pid > 0)
+	{
+		return kill(manager_pid, SIGUSR1);
+	}
+	return SW_ERR;
 }
 
 static void swSignalHanlde(int sig)

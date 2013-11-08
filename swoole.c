@@ -79,11 +79,12 @@ typedef struct {
 static zval *php_sw_callback[PHP_SERVER_CALLBACK_NUM];
 static HashTable php_sw_reactor_callback;
 static HashTable php_sw_client_callback;
+#ifdef ZTS
 static void ***sw_thread_ctx;
+#endif
 extern swReactor *swoole_worker_reactor;
 static char php_sw_reactor_ok = 0;
 static char php_sw_in_client = 0;
-static char php_sw_server_style_oo = 1; //0: function 1: class
 extern sapi_module_struct sapi_module;
 
 static int php_swoole_onReceive(swFactory *, swEventData *);
@@ -855,6 +856,18 @@ void php_swoole_onStart(swServer *serv)
 	zval *zserv = (zval *)serv->ptr2;
 	zval **args[1];
 	zval *retval;
+
+	zval *zmaster_pid, *zmanager_pid;
+	MAKE_STD_ZVAL(zmaster_pid);
+	ZVAL_LONG(zmaster_pid, getpid());
+	zend_update_property(swoole_client_class_entry_ptr, zserv, ZEND_STRL("master_pid"), zmaster_pid TSRMLS_CC);
+
+	if(serv->factory_mode == SW_MODE_PROCESS)
+	{
+		MAKE_STD_ZVAL(zmanager_pid);
+		ZVAL_LONG(zmanager_pid, swServer_get_manager_pid(serv));
+		zend_update_property(swoole_client_class_entry_ptr, zserv, ZEND_STRL("manager_pid"), zmanager_pid TSRMLS_CC);
+	}
 
 	args[0] = &zserv;
 	zval_add_ref(&zserv);
