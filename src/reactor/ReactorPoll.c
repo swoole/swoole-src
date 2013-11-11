@@ -1,10 +1,11 @@
 #include "swoole.h"
 #include <sys/poll.h>
 
-int swReactorPoll_add(swReactor *reactor, int fd, int fdtype);
-int swReactorPoll_del(swReactor *reactor, int fd);
-int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo);
-void swReactorPoll_free(swReactor *reactor);
+static int swReactorPoll_add(swReactor *reactor, int fd, int fdtype);
+static int swReactorPoll_set(swReactor *reactor, int fd, int fdtype);
+static int swReactorPoll_del(swReactor *reactor, int fd);
+static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo);
+static void swReactorPoll_free(swReactor *reactor);
 
 typedef struct _swPollFdInfo
 {
@@ -18,11 +19,6 @@ typedef struct _swReactorPoll
 	swPollFdInfo *fds;
 	struct pollfd *events;
 } swReactorPoll;
-
-int swReactorPoll_add(swReactor *reactor, int fd, int fdtype);
-int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo);
-void swReactorPoll_free(swReactor *reactor);
-int swReactorPoll_del(swReactor *reactor, int fd);
 
 int swReactorPoll_create(swReactor *reactor, int max_fd_num)
 {
@@ -52,20 +48,21 @@ int swReactorPoll_create(swReactor *reactor, int max_fd_num)
 	//binding method
 	reactor->add = swReactorPoll_add;
 	reactor->del = swReactorPoll_del;
+	reactor->set = swReactorPoll_set;
 	reactor->wait = swReactorPoll_wait;
 	reactor->free = swReactorPoll_free;
 	reactor->setHandle = swReactor_setHandle;
 	return SW_OK;
 }
 
-void swReactorPoll_free(swReactor *reactor)
+static void swReactorPoll_free(swReactor *reactor)
 {
 	swReactorPoll *this = reactor->object;
 	sw_free(this->fds);
 	sw_free(reactor->object);
 }
 
-int swReactorPoll_add(swReactor *reactor, int fd, int fdtype)
+static int swReactorPoll_add(swReactor *reactor, int fd, int fdtype)
 {
 	swReactorPoll *this = reactor->object;
 	int cur = this->fd_num;
@@ -76,12 +73,48 @@ int swReactorPoll_add(swReactor *reactor, int fd, int fdtype)
 	}
 	this->fds[cur].fdtype = swReactor_fdtype(fdtype);
 	this->events[cur].fd = fd;
-	this->events[cur].events = POLLIN;
+	this->events[cur].events = 0;
+
+	if(fdtype < SW_EVENT_DEAULT || swReactor_event_read(fdtype))
+	{
+		this->events[cur].events |= POLLIN;
+	}
+	if(swReactor_event_write(fdtype))
+	{
+		this->events[cur].events |= POLLOUT;
+	}
 	this->fd_num++;
 	return SW_OK;
 }
 
-int swReactorPoll_del(swReactor *reactor, int fd)
+
+static int swReactorPoll_set(swReactor *reactor, int fd, int fdtype)
+{
+	uint32_t i;
+	swReactorPoll *this = reactor->object;
+
+	for (i = 0; i < this->fd_num; i++)
+	{
+		//found
+		if (this->events[i].fd == fd)
+		{
+			this->fds[i].fdtype = swReactor_fdtype(fdtype);
+			this->events[i].events = 0;
+			if(fdtype < SW_EVENT_DEAULT || swReactor_event_read(fdtype))
+			{
+				this->events[i].events |= POLLIN;
+			}
+			if(swReactor_event_write(fdtype))
+			{
+				this->events[i].events |= POLLOUT;
+			}
+			return SW_OK;
+		}
+	}
+	return SW_ERR;
+}
+
+static int swReactorPoll_del(swReactor *reactor, int fd)
 {
 	uint32_t i;
 	swReactorPoll *this = reactor->object;
@@ -114,7 +147,7 @@ int swReactorPoll_del(swReactor *reactor, int fd)
 	return SW_ERR;
 }
 
-int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
+static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
 {
 	swReactorPoll *this = reactor->object;
 	swDataHead event;
