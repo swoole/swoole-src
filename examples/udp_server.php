@@ -5,18 +5,16 @@ argv1  server port
 argv2  server mode SWOOLE_BASE or SWOOLE_THREAD or SWOOLE_PROCESS
 argv3  sock_type  SWOOLE_SOCK_TCP or SWOOLE_SOCK_TCP6 or SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6
 */
-$serv = swoole_server_create("127.0.0.1", 9501, SWOOLE_PROCESS);
+$serv = swoole_server_create("127.0.0.1", 9502, SWOOLE_PROCESS, SWOOLE_SOCK_UDP);
+
 swoole_server_set($serv, array(
-    'timeout' => 2,  //select and epoll_wait timeout.
-    'poll_thread_num' => 4, //reactor thread num
-    'writer_num' => 4,     //writer thread num
-    'worker_num' => 4,    //worker process num
+    'timeout' => 2.5,  //select and epoll_wait timeout. 
+    'poll_thread_num' => 1, //reactor thread num
+    'writer_num' => 1,     //writer thread num
+    'worker_num' => 1,    //worker process num
     'backlog' => 128,   //listen backlog
     'max_request' => 5000,
     'max_conn' => 10000,
-    'dispatch_mode' => 2,
-//    'daemonize' => 1,  //转为后台守护进程运行
-	//'open_cpu_affinity' => 1,
     //'data_eof' => "\r\n\r\n",
     //'open_eof_check' => 1,
     //'open_tcp_keepalive' => 1,
@@ -32,28 +30,27 @@ argv3  sock_type  SWOOLE_SOCK_TCP or SWOOLE_SOCK_TCP6 or SWOOLE_SOCK_UDP or SWOO
 //swoole_server_addlisten($serv, "127.0.0.1", 9500, SWOOLE_SOCK_UDP);
 function my_onStart($serv)
 {
-	echo "MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}\n";
-    echo "Server: start.Swoole version is [".SWOOLE_VERSION."]\n";
+    echo "Server：start\n";
 }
 
 function my_onShutdown($serv)
 {
-    echo "Server: onShutdown\n";
+    echo "Server：onShutdown\n";
 }
 
 function my_onTimer($serv, $interval)
 {
-    //echo "Server:Timer Call.Interval=$interval \n";
+    //echo "Server：Timer Call.Interval=$interval \n";
 }
 
-function my_onClose($serv, $fd, $from_id)
+function my_onClose($serv,$fd,$from_id)
 {
-///	echo "Client:Close.\n";
+	//echo "Client：Close.\n";
 }
 
-function my_onConnect($serv, $fd, $from_id)
+function my_onConnect($serv,$fd,$from_id)
 {
-///	echo "Client:Connect.\n";
+	//echo "Client：Connect.\n";
 }
 
 function my_onWorkerStart($serv, $worker_id)
@@ -68,15 +65,14 @@ function my_onWorkerStop($serv, $worker_id)
 
 function my_onReceive($serv, $fd, $from_id, $data)
 {
-    //echo "Client:Data. fd=$fd|from_id=$from_id|data=$data";
-    //echo "WorkerPid=".posix_getpid()."\n";
-    if(trim($data) == "reload") 
-    {
-		swoole_server_reload($serv);
+    echo "Client：Data. fd=$fd|from_id=$from_id|data=$data\n";
+	if (trim ( $data ) == "reload") 
+	{
+		swoole_server_reload ( $serv );
 	} 
 	else 
 	{
-		swoole_server_send($serv, $fd, 'Swoole: '.$data, $from_id);
+		swoole_server_send ( $serv, $fd, 'Swoole: ' . $data, $from_id);
 	}
 	//swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);
 	//swoole_server_close($serv, $fd, $from_id);
@@ -101,12 +97,12 @@ function my_onReceive($serv, $fd, $from_id, $data)
 }
  function my_onMasterClose($serv,$fd,$from_id)
 {
-    //echo "Client:Close.PID=".posix_getpid().PHP_EOL;
+    //echo "Client：Close.PID=".posix_getpid().PHP_EOL;
 }
 
 function my_onMasterConnect($serv,$fd,$from_id)
 {
-    //echo "Client:Connect.PID=".posix_getpid().PHP_EOL;
+    //echo "Client：Connect.PID=".posix_getpid().PHP_EOL;
 }
 
 swoole_server_handler($serv, 'onStart', 'my_onStart');

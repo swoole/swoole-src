@@ -119,6 +119,11 @@ int swReactorSelect_set(swReactor *reactor, int fd, int fdtype)
 	swFdList_node ev, *s_ev = NULL;
 	ev.fd = fd;
 	LL_SEARCH(object->fds, s_ev, &ev, swReactorSelect_cmp);
+	if (s_ev == NULL)
+	{
+		swWarn("swReactorSelect: sock[%d] not found.", fd);
+		return SW_ERR;
+	}
 	s_ev->fdtype = fdtype;
 	return SW_OK;
 }

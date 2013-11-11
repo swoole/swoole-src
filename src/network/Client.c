@@ -133,7 +133,7 @@ int swClient_tcp_recv(swClient *cli, char *data, int len, int waitall)
 	{
 		if (errno == 4)
 		{
-			recv(cli->sock, data, len, flag);
+			ret = recv(cli->sock, data, len, flag);
 		}
 		else
 		{
@@ -142,7 +142,6 @@ int swClient_tcp_recv(swClient *cli, char *data, int len, int waitall)
 	}
 	return ret;
 }
-
 
 int swClient_udp_connect(swClient *cli, char *host, int port, float timeout, int udp_connect)
 {
@@ -209,12 +208,12 @@ int swClient_udp_recv(swClient *cli, char *data, int length, int waitall)
 	{
 		if(errno == EINTR)
 		{
-			recvfrom(cli->sock, data, length, flag, (struct sockaddr *) (&cli->remote_addr), &len);
+			ret = recvfrom(cli->sock, data, length, flag, (struct sockaddr *) (&cli->remote_addr), &len);
 		}
 		else
 		{
 			return SW_ERR;
 		}
 	}
-	return SW_OK;
+	return ret;
 }

@@ -10,6 +10,7 @@ typedef struct _swController
 	int id;
 	int pid;
 	int pipe_fd;
+	int pipe_wt;
 	int (*onEvent)(swFactory *serv, swEventData *event);
 } swController;
 

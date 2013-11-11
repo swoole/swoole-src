@@ -62,4 +62,5 @@
 #define SW_CLOSE_AGAIN             1
 #define SW_CLOSE_QLEN              128
 #define SW_USE_EVENTFD                   //是否使用eventfd来做消息通知，需要Linux 2.6.22以上版本才会支持
+
 #endif /* SWOOLE_CONFIG_H_ */
