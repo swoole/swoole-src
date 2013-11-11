@@ -40,6 +40,7 @@ static int swFactoryProcess_event(swFactory *factory, int controller_id, swEvent
 
 static int c_worker_pti = 0; //Current Proccess Worker's id
 static int worker_task_num = 0;
+static int worker_task_always = 0;
 static int manager_worker_reloading = 0;
 static int manager_reload_flag = 0;
 static swController *manager_controller_list;
@@ -280,7 +281,9 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 	case SW_EVENT_DATA:
 		factory->onTask(factory, task);
 		//只有数据请求任务才计算task_num
-		worker_task_num--;
+		if(!worker_task_always) {
+			worker_task_num--;
+		}
 		break;
 	case SW_EVENT_CLOSE:
 		serv->onClose(serv, task->info.fd, task->info.from_id);
@@ -293,7 +296,7 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 		break;
 	}
 	//stop
-	if(worker_task_num < 0)
+	if(!worker_task_always && worker_task_num < 0)
 	{
 		swoole_running = 0;
 	}
@@ -706,8 +709,12 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 	swoole_worker_reactor->setHandle(swoole_worker_reactor, SW_FD_PIPE, swFactoryProcess_worker_receive);
 #endif
 
-	worker_task_num = factory->max_request;
-	worker_task_num += get_rand(worker_pti);
+	if(factory->max_request < 1) {
+		worker_task_always = 1;
+	} else {
+		worker_task_num = factory->max_request;
+		worker_task_num += get_rand(worker_pti);
+	}
 
 #ifdef HAVE_CPU_AFFINITY
 	if (serv->open_cpu_affinity == 1)
