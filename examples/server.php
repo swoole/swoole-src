@@ -13,7 +13,7 @@ swoole_server_set($serv, array(
     'worker_num' => 4,    //worker process num
     'backlog' => 128,   //listen backlog
     'max_request' => 5000,
-    'max_conn' => 10000,
+    'max_conn' => 100000,
     'dispatch_mode' => 2,
 //    'daemonize' => 1,  //转为后台守护进程运行
 	//'open_cpu_affinity' => 1,

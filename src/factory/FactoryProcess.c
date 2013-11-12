@@ -281,7 +281,8 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 	case SW_EVENT_DATA:
 		factory->onTask(factory, task);
 		//只有数据请求任务才计算task_num
-		if(!worker_task_always) {
+		if(!worker_task_always)
+		{
 			worker_task_num--;
 		}
 		break;
@@ -296,7 +297,7 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 		break;
 	}
 	//stop
-	if(!worker_task_always && worker_task_num < 0)
+	if(worker_task_num < 0)
 	{
 		swoole_running = 0;
 	}
@@ -709,9 +710,12 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 	swoole_worker_reactor->setHandle(swoole_worker_reactor, SW_FD_PIPE, swFactoryProcess_worker_receive);
 #endif
 
-	if(factory->max_request < 1) {
+	if(factory->max_request < 1)
+	{
 		worker_task_always = 1;
-	} else {
+	}
+	else
+	{
 		worker_task_num = factory->max_request;
 		worker_task_num += get_rand(worker_pti);
 	}

@@ -10,13 +10,14 @@ int swMutex_create(swMutex *object, int use_in_process)
 	}
 	if((ret = pthread_mutex_init(&object->mutex, &object->attr)) < 0)
 	{
-		return -1;
+		swWarn("swMutex_create fail. Error: %s [%d]", strerror(errno), errno);
+		return SW_ERR;
 	}
 	object->lock = swMutex_lock;
 	object->unlock = swMutex_unlock;
 	object->trylock = swMutex_trylock;
 	object->unlock = swMutex_free;
-	return 0;
+	return SW_OK;
 }
 
 int swMutex_lock(swMutex *object)

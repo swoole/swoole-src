@@ -244,6 +244,9 @@ PHP_MINIT_FUNCTION(swoole)
 	INIT_CLASS_ENTRY(swoole_client_ce, "swoole_client", swoole_client_methods);
 	swoole_client_class_entry_ptr = zend_register_internal_class(&swoole_client_ce TSRMLS_CC);
 
+	zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+	zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+
 	INIT_CLASS_ENTRY(swoole_server_ce, "swoole_server", swoole_server_methods);
 	swoole_server_class_entry_ptr = zend_register_internal_class(&swoole_server_ce TSRMLS_CC);
 
@@ -296,9 +299,6 @@ PHP_MINFO_FUNCTION(swoole)
 
 PHP_RINIT_FUNCTION(swoole)
 {
-	zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-	zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-
 	//swoole_event_add
 	zend_hash_init(&php_sw_reactor_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
 	//swoole_client::on
@@ -416,7 +416,7 @@ PHP_FUNCTION(swoole_server_create)
 	zval *zres;
 	MAKE_STD_ZVAL(zres);
 	ZEND_REGISTER_RESOURCE(zres, serv, le_swoole_server);
-	zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("_server"), zres TSRMLS_CC);
+	zend_update_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("_server"), zres TSRMLS_CC);
 }
 
 PHP_FUNCTION(swoole_server_set)
@@ -884,13 +884,13 @@ void php_swoole_onStart(swServer *serv)
 	zval *zmaster_pid, *zmanager_pid;
 	MAKE_STD_ZVAL(zmaster_pid);
 	ZVAL_LONG(zmaster_pid, getpid());
-	zend_update_property(swoole_client_class_entry_ptr, zserv, ZEND_STRL("master_pid"), zmaster_pid TSRMLS_CC);
+	zend_update_property(swoole_server_class_entry_ptr, zserv, ZEND_STRL("master_pid"), zmaster_pid TSRMLS_CC);
 
 	if(serv->factory_mode == SW_MODE_PROCESS)
 	{
 		MAKE_STD_ZVAL(zmanager_pid);
 		ZVAL_LONG(zmanager_pid, swServer_get_manager_pid(serv));
-		zend_update_property(swoole_client_class_entry_ptr, zserv, ZEND_STRL("manager_pid"), zmanager_pid TSRMLS_CC);
+		zend_update_property(swoole_server_class_entry_ptr, zserv, ZEND_STRL("manager_pid"), zmanager_pid TSRMLS_CC);
 	}
 
 	args[0] = &zserv;

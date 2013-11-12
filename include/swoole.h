@@ -312,6 +312,22 @@ typedef struct _swSpinLock
 } swSpinLock;
 #endif
 
+typedef struct _swCond
+{
+	swMutex mutex;
+	pthread_cond_t cond;
+
+	int (*wait)(struct _swCond *object);
+	int (*timewait)(struct _swCond *object,long,long);
+	int (*notify)(struct _swCond *object);
+	int (*broadcast)(struct _swCond *object);
+
+	int (*lock)(struct _swCond *object);
+	int (*unlock)(struct _swCond *object);
+	int (*trylock)(struct _swCond *object);
+	int (*free)(struct _swCond *object);
+} swCond;
+
 typedef struct _swAtomicLock
 {
 	atomic_t lock_t;
@@ -357,6 +373,8 @@ int swFileLock_lock_rw(swFileLock *object);
 int swFileLock_unlock(swFileLock *object);
 int swFileLock_trylock_rw(swFileLock *object);
 int swFileLock_trylock_rd(swFileLock *object);
+
+int swCond_create(swCond *cond);
 
 #ifdef HAVE_SPINLOCK
 int swSpinLock_create(swSpinLock *object, int spin);
