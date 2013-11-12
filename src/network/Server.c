@@ -711,11 +711,11 @@ int swServer_create(swServer *serv)
 			swError("Fatal Error: serv->writer_num < 1 or serv->worker_num < 1");
 			return SW_ERR;
 		}
-		if (serv->max_request < 1)
-		{
-			swError("Fatal Error: serv->max_request < 1");
-			return SW_ERR;
-		}
+//		if (serv->max_request < 1)
+//		{
+//			swError("Fatal Error: serv->max_request < 1");
+//			return SW_ERR;
+//		}
 		serv->factory.max_request = serv->max_request;
 		ret = swFactoryProcess_create(&(serv->factory), serv->writer_num, serv->worker_num);
 	}
