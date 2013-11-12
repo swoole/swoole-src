@@ -8,7 +8,8 @@ static int swServer_poll_start(swServer *serv);
 static int swServer_check_callback(swServer *serv);
 static int swServer_listen(swServer *serv, swReactor *reactor);
 
-static void swServer_poll_loop_udp(swThreadParam *param);
+static void swServer_poll_udp_loop(swThreadParam *param);
+static int swServer_udp_start(swServer *serv);
 static int swServer_poll_onPackage(swReactor *reactor, swEvent *event);
 static int swServer_poll_onClose(swReactor *reactor, swEvent *event);
 static int swServer_poll_onClose_queue(swReactor *reactor, swEventClose_queue *close_queue);
@@ -47,7 +48,10 @@ SWINLINE int swConnection_close(swServer *serv, int fd, int *from_id)
 	if((*from_id) >= 0)
 	{
 		from_reactor = &(serv->poll_threads[conn->from_id].reactor);
-		from_reactor->del(from_reactor, fd);
+		if(from_reactor->del(from_reactor, fd) < 0)
+		{
+			return SW_ERR;
+		}
 	}
 	(*from_id) = conn->from_id;
 
@@ -386,6 +390,20 @@ int swServer_start(swServer *serv)
 		else
 		{
 			main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_TCP, swServer_poll_onReceive_conn_buffer);
+		}
+		//listen UDP
+		if(serv->have_udp_sock == 1)
+		{
+			swListenList_node *listen_host;
+			LL_FOREACH(serv->listen_list, listen_host)
+			{
+				//UDP
+				if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6)
+				{
+					serv->connection_list[listen_host->sock].addr.sin_port = listen_host->port;
+					main_reactor_ptr->add(main_reactor_ptr, listen_host->sock, SW_FD_UDP);
+				}
+			}
 		}
 		swoole_worker_reactor = main_reactor_ptr;
 		main_reactor_ptr->id = 0;
@@ -772,6 +790,33 @@ int swServer_free(swServer *serv)
 	return SW_OK;
 }
 
+static int swServer_udp_start(swServer *serv)
+{
+	swThreadParam *param;
+	pthread_t pidt;
+	swListenList_node *listen_host;
+
+	LL_FOREACH(serv->listen_list, listen_host)
+	{
+		param = sw_memory_pool->alloc(sw_memory_pool, sizeof(swThreadParam));
+		//UDP
+		if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6)
+		{
+			serv->connection_list[listen_host->sock].addr.sin_port = listen_host->port;
+			param->object = serv;
+			param->pti = listen_host->sock;
+
+			if (pthread_create(&pidt, NULL, (void * (*)(void *)) swServer_poll_udp_loop, (void *) param) < 0)
+			{
+				swWarn("pthread_create[udp_listener] fail");
+				return SW_ERR;
+			}
+			pthread_detach(pidt);
+		}
+	}
+	return SW_OK;
+}
+
 static int swServer_poll_start(swServer *serv)
 {
 	swThreadParam *param;
@@ -780,36 +825,17 @@ static int swServer_poll_start(swServer *serv)
 	swListenList_node *listen_host;
 
 	int i, ret;
-
-	//监听UDP
+	//listen UDP
 	if(serv->have_udp_sock == 1)
 	{
-		LL_FOREACH(serv->listen_list, listen_host)
-		{
-			param = sw_memory_pool->alloc(sw_memory_pool, sizeof(swThreadParam));
-			//UDP
-			if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6)
-			{
-				serv->connection_list[listen_host->sock].addr.sin_port = listen_host->port;
-				param->object = serv;
-				param->pti = listen_host->sock;
-				if(pthread_create(&pidt, NULL, (void * (*)(void *)) swServer_poll_loop_udp, (void *) param) <0)
-				{
-					swWarn("pthread_create[udp_listener] fail");
-					return SW_ERR;
-				}
-				pthread_detach(pidt);
-			}
-		}
+		swServer_udp_start(serv);
 	}
-
-	//监听TCP
+	//listen TCP
 	if (serv->have_tcp_sock == 1)
 	{
 		for (i = 0; i < serv->poll_thread_num; i++)
 		{
 			poll_threads = &(serv->poll_threads[i]);
-			//此处内存在线程结束时释放
 			param = sw_memory_pool->alloc(sw_memory_pool, sizeof(swThreadParam));
 			if (param == NULL)
 			{
@@ -841,9 +867,9 @@ int swServer_send_udp_packet(swServer *serv, swSendData *resp)
 	int count, ret;
 	struct sockaddr_in to_addr;
 	to_addr.sin_family = AF_INET;
-	to_addr.sin_port = htons((unsigned short) resp->info.from_id);
-	to_addr.sin_addr.s_addr = resp->info.fd;
-	int sock = serv->connection_list[resp->info.from_fd].fd;
+	to_addr.sin_port = htons((unsigned short) resp->info.from_id); //from_id is port
+	to_addr.sin_addr.s_addr = resp->info.fd; //from_id is port
+	int sock = resp->info.from_fd;
 
 	for (count = 0; count < SW_WORKER_SENDTO_COUNT; count++)
 	{
@@ -896,7 +922,7 @@ int swServer_onFinish2(swFactory *factory, swSendData *resp)
 /**
  * UDP监听线程
  */
-static void swServer_poll_loop_udp(swThreadParam *param)
+static void swServer_poll_udp_loop(swThreadParam *param)
 {
 	int ret;
 	swServer *serv = param->object;
@@ -1142,7 +1168,6 @@ static int swServer_poll_onPackage(swReactor *reactor, swEvent *event)
 
 	struct sockaddr_in addr;
 	socklen_t addrlen = sizeof(addr);
-
 	while (1)
 	{
 		ret = recvfrom(event->fd, buf.data, SW_BUFFER_SIZE, 0, &addr, &addrlen);
@@ -1158,6 +1183,7 @@ static int swServer_poll_onPackage(swReactor *reactor, swEvent *event)
 	}
 	buf.info.len = ret;
 	//UDP的from_id是PORT，FD是IP
+	buf.info.from_fd = event->fd; //from fd
 	buf.info.from_id = ntohs(addr.sin_port); //转换字节序
 	buf.info.fd = addr.sin_addr.s_addr;
 	swTrace("recvfrom udp socket.fd=%d|data=%s", sock, buf.data);

@@ -85,6 +85,7 @@ static void ***sw_thread_ctx;
 extern swReactor *swoole_worker_reactor;
 static char php_sw_reactor_ok = 0;
 static char php_sw_in_client = 0;
+static int php_swoole_udp_from_fd = 0;
 extern sapi_module_struct sapi_module;
 
 static int php_swoole_onReceive(swFactory *, swEventData *);
@@ -698,10 +699,11 @@ PHP_FUNCTION(swoole_connection_info)
 	zval *zobject = getThis();
 	swServer *serv;
 	long fd = 0;
+	long from_id = 0;
 
 	if (zobject == NULL)
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ol", &zobject, swoole_server_class_entry_ptr, &fd) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ol|l", &zobject, swoole_server_class_entry_ptr, &fd, &from_id) == FAILURE)
 		{
 			return;
 		}
@@ -716,6 +718,25 @@ PHP_FUNCTION(swoole_connection_info)
 	SWOOLE_GET_SERVER(zobject, serv);
 
 	swConnection *conn = swServer_get_connection(serv, fd);
+	//It's udp
+	if(conn == NULL || php_swoole_udp_from_fd != 0)
+	{
+		array_init(return_value);
+		swConnection *from_sock = swServer_get_connection(serv, php_swoole_udp_from_fd);
+		struct in_addr sin_addr;
+		sin_addr.s_addr = fd;
+		if (from_sock != NULL)
+		{
+			add_assoc_long(return_value, "from_fd", php_swoole_udp_from_fd);
+			add_assoc_long(return_value, "from_port",  serv->connection_list[php_swoole_udp_from_fd].addr.sin_port);
+		}
+		if (from_id !=0 )
+		{
+			add_assoc_long(return_value, "remote_port", ntohs(from_id));
+		}
+		add_assoc_string(return_value, "remote_ip", inet_ntoa(sin_addr), 1);
+		return;
+	}
 	if(conn->tag == 0)
 	{
 		RETURN_FALSE;
@@ -817,7 +838,7 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	{
 		//UDP使用from_id作为port,fd做为ip
 		php_swoole_udp_t udp_info;
-		udp_info.from_fd = req->info.from_fd;
+		php_swoole_udp_from_fd = udp_info.from_fd = req->info.from_fd;
 		udp_info.port = req->info.from_id;
 		memcpy(&from_id, &udp_info, sizeof(from_id));
 		swTrace("SendTo: from_id=%d|from_fd=%d", req->info.from_fd, req->info.from_id);
@@ -825,6 +846,7 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	}
 	else
 	{
+		php_swoole_udp_from_fd = 0;
 		ZVAL_LONG(zfrom_id, (long)req->info.from_id);
 	}
 

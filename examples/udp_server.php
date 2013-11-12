@@ -65,6 +65,7 @@ function my_onWorkerStop($serv, $worker_id)
 
 function my_onReceive($serv, $fd, $from_id, $data)
 {
+	var_dump(swoole_connection_info($serv, $fd, $from_id));
     echo "Client：Data. fd=$fd|from_id=$from_id|data=$data\n";
 	if (trim ( $data ) == "reload") 
 	{

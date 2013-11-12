@@ -116,7 +116,7 @@ int swReactorEpoll_del(swReactor *reactor, int fd)
 	if (ret < 0)
 	{
 		swWarn("epoll remove fd fail.errno=%d|fd=%d", errno, fd);
-		return -1;
+		return SW_ERR;
 	}
 	close(fd);
 	(object->event_max <= 0) ? object->event_max = 0 : object->event_max--;

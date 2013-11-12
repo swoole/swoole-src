@@ -139,7 +139,7 @@ int swFactoryProcess_controller_start(swFactory *factory)
 		pid = swFactoryProcess_controller_spawn(factory, controller);
 		if(pid < 0)
 		{
-			swError("Fork controller process fail.Errno=%d", errno);
+			swError("Fork controller process fail. Error: %s [%d]", strerror(errno), errno);
 			return SW_ERR;
 		}
 		else
@@ -157,7 +157,7 @@ int swFactoryProcess_controller_spawn(swFactory *factory, swController *controll
 
 	if(pid < 0)
 	{
-		swWarn("fork() fail. errno=%d", errno);
+		swWarn("fork() fail. Error: %s [%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
 	else if(pid == 0)
@@ -211,7 +211,7 @@ int swFactoryProcess_controller_receive(swReactor *reactor, swDataHead *ev)
 	}
 	else
 	{
-		swWarn("[controller]sento fail.errno=%d\n", errno);
+		swWarn("[controller]sento fail. Error: %s [%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
 }
@@ -320,7 +320,7 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 	//读数据队列
 	if(swQueueMsg_create(&object->rd_queue, 1, ftok(path_ptr, 1), 1) < 0)
 	{
-		swError("[Master] swPipeMsg_create[In] fail.errno=%d", errno);
+		swError("[Master] swPipeMsg_create[In] fail. Error: %s [%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
 	//为TCP创建写队列
@@ -329,7 +329,7 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 		//写数据队列
 		if(swQueueMsg_create(&object->wt_queue, 1, ftok(path_ptr, 2), 1) < 0)
 		{
-			swError("[Master] swPipeMsg_create[out] fail.errno=%d", errno);
+			swError("[Master] swPipeMsg_create[out] fail. Error: %s [%d]", strerror(errno), errno);
 			return SW_ERR;
 		}
 	}
@@ -337,7 +337,7 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 	object->pipes = sw_memory_pool->alloc(sw_memory_pool, object->worker_num * sizeof(swPipe));
 	if (object->pipes == NULL)
 	{
-		swError("malloc[worker_pipes] fail.Errno=%d\n", errno);
+		swError("malloc[worker_pipes] fail. Error: %s [%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
 	//worker进程的pipes
@@ -473,7 +473,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 		{
 			if (manager_worker_reloading == 0)
 			{
-				swTrace("wait fail.errno=%d\n", errno);
+				swTrace("[Manager] wait fail. Error: %s [%d]", strerror(errno), errno);
 			}
 			else if (manager_reload_flag == 0)
 			{
@@ -493,7 +493,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 				new_pid = swFactoryProcess_worker_spawn(factory, i);
 				if (new_pid < 0)
 				{
-					swWarn("Fork worker process fail.Errno=%d", errno);
+					swWarn("Fork worker process fail. Error: %s [%d]", strerror(errno), errno);
 					return SW_ERR;
 				}
 				else
@@ -528,7 +528,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 			ret = kill(reload_workers[reload_worker_i].pid, SIGTERM);
 			if (ret < 0)
 			{
-				swWarn("kill fail.pid=%d|errno=%d\n", reload_workers[reload_worker_i].pid, errno);
+				swWarn("[Manager]kill fail.pid=%d. Error: %s [%d]", reload_workers[reload_worker_i].pid, strerror(errno), errno);
 				continue;
 			}
 			reload_worker_i++;
@@ -545,7 +545,7 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti)
 	pid = fork();
 	if (pid < 0)
 	{
-		swTrace("[swFactoryProcess_worker_spawn]Fork Worker fail\n");
+		swWarn("[swFactoryProcess_worker_spawn]Fork Worker failError: %s [%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
 	//worker child processor
@@ -653,7 +653,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	finish:
 	if (ret < 0)
 	{
-		swWarn("[Worker#%d]sendto writer pipe or queue fail. errno=%d", getpid(), errno);
+		swWarn("[Worker#%d]sendto writer pipe or queue fail. Error: %s [%d]", getpid(), strerror(errno), errno);
 	}
 	return ret;
 }
@@ -744,7 +744,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 		n = object->rd_queue.out(&object->rd_queue, (swQueue_data *)&rdata, sizeof(rdata.req));
 		if (n < 0)
 		{
-			swWarn("[Worker]rd_queue[%ld]->out wait.Errno=%d", rdata.pti, errno);
+			swWarn("[Worker]rd_queue[%ld]->out wait. Error: %s [%d]", rdata.pti, strerror(errno), errno);
 			continue;
 		}
 		swFactoryProcess_worker_excute(factory, &rdata.req);
