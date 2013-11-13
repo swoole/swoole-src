@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2003-2012, Troy D. Hanson     http://uthash.sourceforge.net
+Copyright (c) 2003-2013, Troy D. Hanson     http://troydhanson.github.com/uthash/
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -64,7 +64,7 @@ typedef unsigned char uint8_t;
 #include <inttypes.h>   /* uint32_t */
 #endif
 
-#define UTHASH_VERSION 1.9.6
+#define UTHASH_VERSION 1.9.8
 
 #ifndef uthash_fatal
 #define uthash_fatal(msg) exit(-1)        /* fatal error (out of memory,etc) */
@@ -135,6 +135,7 @@ do {                                                                            
 #define HASH_BLOOM_FREE(tbl) 
 #define HASH_BLOOM_ADD(tbl,hashv) 
 #define HASH_BLOOM_TEST(tbl,hashv) (1)
+#define HASH_BLOOM_BYTELEN 0
 #endif
 
 #define HASH_MAKE_TABLE(hh,head)                                                 \
@@ -156,18 +157,25 @@ do {                                                                            
   (head)->hh.tbl->signature = HASH_SIGNATURE;                                    \
 } while(0)
 
-//避免与php的hashtable冲突
-/*
-//#define HASH_ADD(hh,head,fieldname,keylen_in,add) HASH_ADD_KEYPTR(hh,head,&((add)->fieldname),keylen_in,add)
-*/
-#define UTHASH_ADD(hh,head,fieldname,keylen_in,add) HASH_ADD_KEYPTR(hh,head,&((add)->fieldname),keylen_in,add)
+#define HASH_ADD(hh,head,fieldname,keylen_in,add)                                \
+        HASH_ADD_KEYPTR(hh,head,&((add)->fieldname),keylen_in,add)
+
+#define HASH_REPLACE(hh,head,fieldname,keylen_in,add,replaced)                   \
+do {                                                                             \
+  replaced=NULL;                                                                 \
+  HASH_FIND(hh,head,&((add)->fieldname),keylen_in,replaced);                     \
+  if (replaced!=NULL) {                                                          \
+     HASH_DELETE(hh,head,replaced);                                              \
+  };                                                                             \
+  HASH_ADD(hh,head,fieldname,keylen_in,add);                                     \
+} while(0)
 
 #define HASH_ADD_KEYPTR(hh,head,keyptr,keylen_in,add)                            \
 do {                                                                             \
  unsigned _ha_bkt;                                                               \
  (add)->hh.next = NULL;                                                          \
- (add)->hh.key = (char*)keyptr;                                                  \
- (add)->hh.keylen = (unsigned)keylen_in;                                                   \
+ (add)->hh.key = (char*)(keyptr);                                                \
+ (add)->hh.keylen = (unsigned)(keylen_in);                                       \
  if (!(head)) {                                                                  \
     head = (add);                                                                \
     (head)->hh.prev = NULL;                                                      \
@@ -218,17 +226,17 @@ do {                                                                            
         _hd_hh_del = &((delptr)->hh);                                            \
         if ((delptr) == ELMT_FROM_HH((head)->hh.tbl,(head)->hh.tbl->tail)) {     \
             (head)->hh.tbl->tail =                                               \
-                (UT_hash_handle*)((char*)((delptr)->hh.prev) +                   \
+                (UT_hash_handle*)((ptrdiff_t)((delptr)->hh.prev) +               \
                 (head)->hh.tbl->hho);                                            \
         }                                                                        \
         if ((delptr)->hh.prev) {                                                 \
-            ((UT_hash_handle*)((char*)((delptr)->hh.prev) +                      \
+            ((UT_hash_handle*)((ptrdiff_t)((delptr)->hh.prev) +                  \
                     (head)->hh.tbl->hho))->next = (delptr)->hh.next;             \
         } else {                                                                 \
             DECLTYPE_ASSIGN(head,(delptr)->hh.next);                             \
         }                                                                        \
         if (_hd_hh_del->next) {                                                  \
-            ((UT_hash_handle*)((char*)_hd_hh_del->next +                         \
+            ((UT_hash_handle*)((ptrdiff_t)_hd_hh_del->next +                     \
                     (head)->hh.tbl->hho))->prev =                                \
                     _hd_hh_del->prev;                                            \
         }                                                                        \
@@ -244,15 +252,21 @@ do {                                                                            
 #define HASH_FIND_STR(head,findstr,out)                                          \
     HASH_FIND(hh,head,findstr,strlen(findstr),out)
 #define HASH_ADD_STR(head,strfield,add)                                          \
-    UTHASH_ADD(hh,head,strfield,strlen(add->strfield),add)
+    HASH_ADD(hh,head,strfield,strlen(add->strfield),add)
+#define HASH_REPLACE_STR(head,strfield,add,replaced)                             \
+  HASH_REPLACE(hh,head,strfield,strlen(add->strfield),add,replaced)
 #define HASH_FIND_INT(head,findint,out)                                          \
     HASH_FIND(hh,head,findint,sizeof(int),out)
 #define HASH_ADD_INT(head,intfield,add)                                          \
-    UTHASH_ADD(hh,head,intfield,sizeof(int),add)
+    HASH_ADD(hh,head,intfield,sizeof(int),add)
+#define HASH_REPLACE_INT(head,intfield,add,replaced)                             \
+    HASH_REPLACE(hh,head,intfield,sizeof(int),add,replaced)
 #define HASH_FIND_PTR(head,findptr,out)                                          \
     HASH_FIND(hh,head,findptr,sizeof(void *),out)
 #define HASH_ADD_PTR(head,ptrfield,add)                                          \
-    UTHASH_ADD(hh,head,ptrfield,sizeof(void *),add)
+    HASH_ADD(hh,head,ptrfield,sizeof(void *),add)
+#define HASH_REPLACE_PTR(head,ptrfield,add)                                      \
+    HASH_REPLACE(hh,head,ptrfield,sizeof(void *),add,replaced)
 #define HASH_DEL(head,delptr)                                                    \
     HASH_DELETE(hh,head,delptr)
 
@@ -402,10 +416,10 @@ do {                                                                            
 #define HASH_JEN(key,keylen,num_bkts,hashv,bkt)                                  \
 do {                                                                             \
   unsigned _hj_i,_hj_j,_hj_k;                                                    \
-  char *_hj_key=(char*)(key);                                                    \
+  unsigned char *_hj_key=(unsigned char*)(key);                                  \
   hashv = 0xfeedbeef;                                                            \
   _hj_i = _hj_j = 0x9e3779b9;                                                    \
-  _hj_k = (unsigned)keylen;                                                                \
+  _hj_k = (unsigned)(keylen);                                                      \
   while (_hj_k >= 12) {                                                          \
     _hj_i +=    (_hj_key[0] + ( (unsigned)_hj_key[1] << 8 )                      \
         + ( (unsigned)_hj_key[2] << 16 )                                         \
@@ -453,7 +467,7 @@ do {                                                                            
 #endif
 #define HASH_SFH(key,keylen,num_bkts,hashv,bkt)                                  \
 do {                                                                             \
-  char *_sfh_key=(char*)(key);                                                   \
+  unsigned char *_sfh_key=(unsigned char*)(key);                                 \
   uint32_t _sfh_tmp, _sfh_len = keylen;                                          \
                                                                                  \
   int _sfh_rem = _sfh_len & 3;                                                   \
@@ -463,7 +477,7 @@ do {                                                                            
   /* Main loop */                                                                \
   for (;_sfh_len > 0; _sfh_len--) {                                              \
     hashv    += get16bits (_sfh_key);                                            \
-    _sfh_tmp       = (get16bits (_sfh_key+2) << 11) ^ hashv;                     \
+    _sfh_tmp       = (uint32_t)(get16bits (_sfh_key+2)) << 11  ^ hashv;          \
     hashv     = (hashv << 16) ^ _sfh_tmp;                                        \
     _sfh_key += 2*sizeof (uint16_t);                                             \
     hashv    += hashv >> 11;                                                     \
@@ -473,7 +487,7 @@ do {                                                                            
   switch (_sfh_rem) {                                                            \
     case 3: hashv += get16bits (_sfh_key);                                       \
             hashv ^= hashv << 16;                                                \
-            hashv ^= _sfh_key[sizeof (uint16_t)] << 18;                          \
+            hashv ^= (uint32_t)(_sfh_key[sizeof (uint16_t)] << 18);              \
             hashv += hashv >> 11;                                                \
             break;                                                               \
     case 2: hashv += get16bits (_sfh_key);                                       \
@@ -505,7 +519,7 @@ do {                                                                            
  *   gcc -m64 -dM -E - < /dev/null                  (on gcc)
  *   cc -## a.c (where a.c is a simple test file)   (Sun Studio)
  */
-#if (defined(__i386__) || defined(__x86_64__)) 
+#if (defined(__i386__) || defined(__x86_64__)  || defined(_M_IX86))
 #define MUR_GETBLOCK(p,i) p[i]
 #else /* non intel */
 #define MUR_PLUS0_ALIGNED(p) (((unsigned long)p & 0x3) == 0)
@@ -544,10 +558,12 @@ do {                                                                   \
   uint32_t _mur_h1 = 0xf88D5353;                                       \
   uint32_t _mur_c1 = 0xcc9e2d51;                                       \
   uint32_t _mur_c2 = 0x1b873593;                                       \
+  uint32_t _mur_k1 = 0;                                                \
+  const uint8_t *_mur_tail;                                            \
   const uint32_t *_mur_blocks = (const uint32_t*)(_mur_data+_mur_nblocks*4); \
   int _mur_i;                                                          \
   for(_mur_i = -_mur_nblocks; _mur_i; _mur_i++) {                      \
-    uint32_t _mur_k1 = MUR_GETBLOCK(_mur_blocks,_mur_i);               \
+    _mur_k1 = MUR_GETBLOCK(_mur_blocks,_mur_i);                        \
     _mur_k1 *= _mur_c1;                                                \
     _mur_k1 = MUR_ROTL32(_mur_k1,15);                                  \
     _mur_k1 *= _mur_c2;                                                \
@@ -556,8 +572,8 @@ do {                                                                   \
     _mur_h1 = MUR_ROTL32(_mur_h1,13);                                  \
     _mur_h1 = _mur_h1*5+0xe6546b64;                                    \
   }                                                                    \
-  const uint8_t *_mur_tail = (const uint8_t*)(_mur_data + _mur_nblocks*4); \
-  uint32_t _mur_k1=0;                                                  \
+  _mur_tail = (const uint8_t*)(_mur_data + _mur_nblocks*4);            \
+  _mur_k1=0;                                                           \
   switch((keylen) & 3) {                                               \
     case 3: _mur_k1 ^= _mur_tail[2] << 16;                             \
     case 2: _mur_k1 ^= _mur_tail[1] << 8;                              \
@@ -735,18 +751,22 @@ do {                                                                            
                       _hs_qsize--;                                               \
                   } else if ( (_hs_qsize == 0) || !(_hs_q) ) {                   \
                       _hs_e = _hs_p;                                             \
-                      _hs_p = (UT_hash_handle*)((_hs_p->next) ?                  \
-                              ((void*)((char*)(_hs_p->next) +                    \
-                              (head)->hh.tbl->hho)) : NULL);                     \
+                      if (_hs_p){                                                \
+                        _hs_p = (UT_hash_handle*)((_hs_p->next) ?                \
+                                ((void*)((char*)(_hs_p->next) +                  \
+                                (head)->hh.tbl->hho)) : NULL);                   \
+                       }                                                         \
                       _hs_psize--;                                               \
                   } else if ((                                                   \
                       cmpfcn(DECLTYPE(head)(ELMT_FROM_HH((head)->hh.tbl,_hs_p)), \
                              DECLTYPE(head)(ELMT_FROM_HH((head)->hh.tbl,_hs_q))) \
                              ) <= 0) {                                           \
                       _hs_e = _hs_p;                                             \
-                      _hs_p = (UT_hash_handle*)((_hs_p->next) ?                  \
-                              ((void*)((char*)(_hs_p->next) +                    \
-                              (head)->hh.tbl->hho)) : NULL);                     \
+                      if (_hs_p){                                                \
+                        _hs_p = (UT_hash_handle*)((_hs_p->next) ?                \
+                               ((void*)((char*)(_hs_p->next) +                   \
+                               (head)->hh.tbl->hho)) : NULL);                    \
+                       }                                                         \
                       _hs_psize--;                                               \
                   } else {                                                       \
                       _hs_e = _hs_q;                                             \
@@ -761,13 +781,17 @@ do {                                                                            
                   } else {                                                       \
                       _hs_list = _hs_e;                                          \
                   }                                                              \
+                  if (_hs_e) {                                                   \
                   _hs_e->prev = ((_hs_tail) ?                                    \
                      ELMT_FROM_HH((head)->hh.tbl,_hs_tail) : NULL);              \
+                  }                                                              \
                   _hs_tail = _hs_e;                                              \
               }                                                                  \
               _hs_p = _hs_q;                                                     \
           }                                                                      \
-          _hs_tail->next = NULL;                                                 \
+          if (_hs_tail){                                                         \
+            _hs_tail->next = NULL;                                               \
+          }                                                                      \
           if ( _hs_nmerges <= 1 ) {                                              \
               _hs_looping=0;                                                     \
               (head)->hh.tbl->tail = _hs_tail;                                   \
@@ -832,6 +856,12 @@ do {                                                                            
     (head)=NULL;                                                                 \
   }                                                                              \
 } while(0)
+
+#define HASH_OVERHEAD(hh,head)                                                   \
+ (size_t)((((head)->hh.tbl->num_items   * sizeof(UT_hash_handle))   +            \
+           ((head)->hh.tbl->num_buckets * sizeof(UT_hash_bucket))   +            \
+            (sizeof(UT_hash_table))                                 +            \
+            (HASH_BLOOM_BYTELEN)))
 
 #ifdef NO_DECLTYPE
 #define HASH_ITER(hh,head,el,tmp)                                                \

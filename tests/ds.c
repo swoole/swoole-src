@@ -19,6 +19,22 @@ swUnitTest(type_test1)
 	return 0;
 }
 
+
+swUnitTest(hashmap_test1)
+{
+	swHashMap hm;
+
+	char key[] = "hello";
+	int value = 199;
+	int *ret;
+
+	swHashMap_add(&hm, key, sizeof(key), &value);
+	ret = swHashMap_find(&hm, key, sizeof(key));
+
+	printf("ret=%d\n", *ret);
+	return 0;
+}
+
 swUnitTest(chan_test)
 {
 	int ret, i;

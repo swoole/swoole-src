@@ -1,14 +1,14 @@
 #include "swoole.h"
 #include "atomic.h"
 
-SWINLINE ulong swHashFunc(const char *arKey, uint nKeyLength)
+uint64_t sw_hash_key(char *str, int str_len)
 {
-	int hash = 0;
-	int i = 0;
-	for (; i < nKeyLength; i++)
+	uint64_t hash = 5381;
+	int c, i = 0;
+	for (c = *str++; i < str_len; i++)
 	{
-		hash = (*((hash * 33) + arKey)) & 0x7fffffff;
-		arKey++;
+		hash = (*((hash * 33) + str)) & 0x7fffffff;
+		hash = ((hash << 5) + hash) + c;
 	}
 	return hash;
 }

@@ -882,16 +882,15 @@ void php_swoole_onStart(swServer *serv)
 	zval *retval;
 
 	zval *zmaster_pid, *zmanager_pid;
+
 	MAKE_STD_ZVAL(zmaster_pid);
 	ZVAL_LONG(zmaster_pid, getpid());
-	zend_update_property(swoole_server_class_entry_ptr, zserv, ZEND_STRL("master_pid"), zmaster_pid TSRMLS_CC);
 
-	if(serv->factory_mode == SW_MODE_PROCESS)
-	{
-		MAKE_STD_ZVAL(zmanager_pid);
-		ZVAL_LONG(zmanager_pid, swServer_get_manager_pid(serv));
-		zend_update_property(swoole_server_class_entry_ptr, zserv, ZEND_STRL("manager_pid"), zmanager_pid TSRMLS_CC);
-	}
+	MAKE_STD_ZVAL(zmanager_pid);
+	ZVAL_LONG(zmanager_pid, (serv->factory_mode == SW_MODE_PROCESS)?swServer_get_manager_pid(serv):0);
+
+	zend_update_property(swoole_server_class_entry_ptr, zserv, ZEND_STRL("master_pid"), zmaster_pid TSRMLS_CC);
+	zend_update_property(swoole_server_class_entry_ptr, zserv, ZEND_STRL("manager_pid"), zmanager_pid TSRMLS_CC);
 
 	args[0] = &zserv;
 	zval_add_ref(&zserv);

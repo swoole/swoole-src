@@ -22,14 +22,14 @@ $bc->send_data = str_repeat('a', 100);
 $bc->read_len = 108;
 if(!empty($opt['p'])) $bc->show_detail = true;
 
-function long_tcp(PSF_Benchmark $bc)
+function long_tcp(Swoole_Benchmark $bc)
 {
-	static $fp;
+	static $fp = null;
 	static $i;
 	$start = microtime(true);
 	if(empty($fp))
 	{
-		$fp = stream_socket_client( $bc->server_url,$errno,$errstr,1);
+		$fp = stream_socket_client( $bc->server_url, $errno, $errstr, 1);
 		$end = microtime(true);
 		$conn_use = $end-$start;
 		$bc->max_conn_time = $conn_use;
@@ -43,7 +43,7 @@ function long_tcp(PSF_Benchmark $bc)
 		$start = $end;
 	}
 	/*--------写入Sokcet-------*/
-	fwrite($fp,$bc->send_data);
+	fwrite($fp, $bc->send_data);
 	$end = microtime(true);
 	$write_use = $end - $start;
 	if($write_use>$bc->max_write_time) $bc->max_write_time = $write_use;

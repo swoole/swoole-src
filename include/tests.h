@@ -26,6 +26,7 @@ swUnitTest(mem_test2);
 swUnitTest(client_test);
 swUnitTest(server_test);
 
+swUnitTest(hashmap_test1);
 swUnitTest(ds_test2);
 swUnitTest(ds_test1);
 

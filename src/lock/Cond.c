@@ -10,7 +10,6 @@ static int swCond_trylock(swCond *cond);
 static int swCond_unlock(swCond *cond);
 static void swCond_free(swCond *cond);
 
-
 int swCond_create(swCond *cond)
 {
 	if (pthread_cond_init(&cond->cond, NULL) < 0)
@@ -53,11 +52,6 @@ static int swCond_unlock(swCond *cond)
 	return cond->mutex.unlock(&cond->mutex);
 }
 
-static int swCond_notify(swCond *cond)
-{
-	return pthread_cond_signal(&cond->cond);
-}
-
 static int swCond_broadcast(swCond *cond)
 {
 	return pthread_cond_broadcast(&cond->cond);
@@ -71,18 +65,14 @@ static int swCond_timewait(swCond *cond, long sec, long nsec)
 	timeo.tv_sec = sec;
 	timeo.tv_nsec = nsec;
 
-	cond->mutex.lock(&cond->mutex);
-	ret = pthread_cond_timedwait(&cond->cond, &cond->mutex, &timeo);
-	cond->mutex.unlock(&cond->mutex);
+	ret = pthread_cond_timedwait(&cond->cond, &cond->mutex.mutex, &timeo);
 	return ret;
 }
 
 static int swCond_wait(swCond *cond)
 {
 	int ret;
-	cond->mutex.lock(&cond->mutex);
-	ret = pthread_cond_wait(&cond->cond, &cond->mutex);
-	cond->mutex.unlock(&cond->mutex);
+	ret = pthread_cond_wait(&cond->cond, &cond->mutex.mutex);
 	return ret;
 }
 

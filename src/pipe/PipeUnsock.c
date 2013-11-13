@@ -32,13 +32,15 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
 	swPipeUnsock *object = sw_malloc(sizeof(swPipeUnsock));
 	if (object == NULL)
 	{
-		return -1;
+		swWarn("swPipeUnsock_create malloc fail");
+		return SW_ERR;
 	}
 	p->blocking = blocking;
 	ret = socketpair(AF_UNIX, protocol, 0, object->socks);
 	if (ret < 0)
 	{
-		return -1;
+		swWarn("swPipeUnsock_create fail. Error: %s [%d]", strerror(errno), errno);
+		return SW_ERR;
 	}
 	else
 	{

@@ -16,7 +16,7 @@ swoole_server_set($serv, array(
     'max_conn' => 100000,
     'dispatch_mode' => 2,
 //    'daemonize' => 1,  //转为后台守护进程运行
-	//'open_cpu_affinity' => 1,
+	'open_cpu_affinity' => 1,
     //'data_eof' => "\r\n\r\n",
     //'open_eof_check' => 1,
     //'open_tcp_keepalive' => 1,
@@ -70,6 +70,8 @@ function my_onReceive($serv, $fd, $from_id, $data)
 {
     //echo "Client:Data. fd=$fd|from_id=$from_id|data=$data";
     //echo "WorkerPid=".posix_getpid()."\n";
+    swoole_server_send($serv, $fd, 'Swoole: '.$data, $from_id);
+    /*
     if(trim($data) == "reload") 
     {
 		swoole_server_reload($serv);
@@ -78,6 +80,7 @@ function my_onReceive($serv, $fd, $from_id, $data)
 	{
 		swoole_server_send($serv, $fd, 'Swoole: '.$data, $from_id);
 	}
+	*/
 	//swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);
 	//swoole_server_close($serv, $fd, $from_id);
 	//swoole_server_close($serv, $ohter_fd, $other_from_id);

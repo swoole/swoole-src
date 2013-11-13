@@ -4,12 +4,10 @@
  *  Created on: 2012-11-13
  *      Author: tianfenghan
  */
-#include <sys/syscall.h>
-
 #ifndef SWOOLE_CONFIG_H_
 #define SWOOLE_CONFIG_H_
 
-#define SWOOLE_VERSION             "1.6.3"
+#define SWOOLE_VERSION             "1.6.4"
 
 #define SW_GLOBAL_MEMORY_SIZE      (4096*8)
 

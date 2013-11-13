@@ -4,7 +4,7 @@
 
 static void swSignalInit(void);
 static int swServer_poll_loop(swThreadParam *param);
-static int swServer_poll_start(swServer *serv);
+static int swServer_poll_start(swServer *serv, swReactor *main_reactor_ptr);
 static int swServer_check_callback(swServer *serv);
 static int swServer_listen(swServer *serv, swReactor *reactor);
 
@@ -20,6 +20,8 @@ static int swServer_poll_onReceive_data_buffer(swReactor *reactor, swEvent *even
 static int swServer_timer_start(swServer *serv);
 static void swSignalHanlde(int sig);
 static int swConnection_close(swServer *serv, int fd, int *from_id);
+
+static int swServer_single_start(swServer *serv, swReactor *main_reactor_ptr);
 static int swServer_single_onCloseQueue(swReactor *reactor, swEventClose_queue *close_queue);
 static int swServer_single_onClose(swReactor *reactor, swEvent *event);
 
@@ -378,35 +380,12 @@ int swServer_start(swServer *serv)
 			swWarn("Swoole reactor create fail");
 			return SW_ERR;
 		}
-
-		main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_CLOSE, swServer_single_onClose);
-		main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_CLOSE_QUEUE, swServer_single_onCloseQueue);
-		main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_UDP, swServer_poll_onPackage);
-
-		if (serv->open_eof_check == 0)
+		swServer_single_start(serv, main_reactor_ptr);
+		if (ret < 0)
 		{
-			main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_TCP, swServer_poll_onReceive_no_buffer);
+			swWarn("Swoole single server start fail");
+			return SW_ERR;
 		}
-		else
-		{
-			main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_TCP, swServer_poll_onReceive_conn_buffer);
-		}
-		//listen UDP
-		if(serv->have_udp_sock == 1)
-		{
-			swListenList_node *listen_host;
-			LL_FOREACH(serv->listen_list, listen_host)
-			{
-				//UDP
-				if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6)
-				{
-					serv->connection_list[listen_host->sock].addr.sin_port = listen_host->port;
-					main_reactor_ptr->add(main_reactor_ptr, listen_host->sock, SW_FD_UDP);
-				}
-			}
-		}
-		swoole_worker_reactor = main_reactor_ptr;
-		main_reactor_ptr->id = 0;
 	}
 	else
 	{
@@ -420,7 +399,7 @@ int swServer_start(swServer *serv)
 			swWarn("Swoole reactor create fail");
 			return SW_ERR;
 		}
-		ret = swServer_poll_start(serv);
+		ret = swServer_poll_start(serv, main_reactor_ptr);
 		if (ret < 0)
 		{
 			swWarn("Swoole poll thread start fail");
@@ -429,8 +408,8 @@ int swServer_start(swServer *serv)
 		main_reactor_ptr->id = serv->poll_thread_num; //设为一个特别的ID
 		main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_CLOSE, swServer_master_onClose);
 		main_reactor_ptr->add(main_reactor_ptr, serv->main_pipe.getFd(&serv->main_pipe, 0), SW_FD_CLOSE);
+		SW_START_SLEEP;
 	}
-	SW_START_SLEEP;
 	main_reactor_ptr->ptr = serv;
 	main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_LISTEN, swServer_master_onAccept);
 	main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_TIMER, swServer_master_onTimer);
@@ -449,13 +428,8 @@ int swServer_start(swServer *serv)
 		}
 		main_reactor_ptr->add(main_reactor_ptr, serv->timer_fd, SW_FD_TIMER);
 	}
-
-	SW_START_SLEEP;
-	ret = swServer_listen(serv, main_reactor_ptr);
-	if (ret < 0)
-	{
-		return SW_ERR;
-	}
+	//no use
+	//SW_START_SLEEP;
 
 	tmo.tv_sec = SW_MAINREACTOR_TIMEO;
 	tmo.tv_usec = 0;
@@ -817,7 +791,7 @@ static int swServer_udp_start(swServer *serv)
 	return SW_OK;
 }
 
-static int swServer_poll_start(swServer *serv)
+static int swServer_poll_start(swServer *serv, swReactor *main_reactor_ptr)
 {
 	swThreadParam *param;
 	swThreadPoll *poll_threads;
@@ -833,6 +807,13 @@ static int swServer_poll_start(swServer *serv)
 	//listen TCP
 	if (serv->have_tcp_sock == 1)
 	{
+		//listen server socket
+		ret = swServer_listen(serv, main_reactor_ptr);
+		if (ret < 0)
+		{
+			return SW_ERR;
+		}
+
 		for (i = 0; i < serv->poll_thread_num; i++)
 		{
 			poll_threads = &(serv->poll_threads[i]);
@@ -960,6 +941,69 @@ static void swServer_poll_udp_loop(swThreadParam *param)
 		}
 	}
 	pthread_exit(0);
+}
+
+static int swServer_single_start(swServer *serv, swReactor *main_reactor_ptr)
+{
+	int i, ret;
+	pid_t pid;
+	int status;
+
+	main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_CLOSE, swServer_single_onClose);
+	main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_CLOSE_QUEUE, swServer_single_onCloseQueue);
+	main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_UDP, swServer_poll_onPackage);
+
+	if (serv->open_eof_check == 0)
+	{
+		main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_TCP, swServer_poll_onReceive_no_buffer);
+	}
+	else
+	{
+		main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_TCP, swServer_poll_onReceive_conn_buffer);
+	}
+	//listen UDP
+	if(serv->have_udp_sock == 1)
+	{
+		swListenList_node *listen_host;
+		LL_FOREACH(serv->listen_list, listen_host)
+		{
+			//UDP
+			if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6)
+			{
+				serv->connection_list[listen_host->sock].addr.sin_port = listen_host->port;
+				main_reactor_ptr->add(main_reactor_ptr, listen_host->sock, SW_FD_UDP);
+			}
+		}
+	}
+	//listen TCP
+	if (serv->have_tcp_sock == 1)
+	{
+		//listen server socket
+		ret = swServer_listen(serv, main_reactor_ptr);
+		if (ret < 0)
+		{
+			return SW_ERR;
+		}
+	}
+
+	swoole_worker_reactor = main_reactor_ptr;
+	main_reactor_ptr->id = 0;
+
+	for(i = 0; i<serv->worker_num; i++)
+	{
+		pid = fork();
+		if(pid > 0)
+		{
+			continue;
+		}
+		return SW_OK;
+	}
+
+	while(1)
+	{
+		wait(&status);
+	}
+	return SW_OK;
 }
 
 static int swServer_single_onClose(swReactor *reactor, swEvent *event)
@@ -1281,7 +1325,7 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 		}
 		else
 		{
-			swWarn("Read from socket fail. errno=%d|fd=%d", errno, event->fd);
+			swWarn("Read from socket[%d] fail. Error: %s [%d]", event->fd, strerror(errno), errno);
 			return SW_ERR;
 		}
 	}
@@ -1314,6 +1358,7 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 		//缓存区还有数据没读完，继续读，EPOLL的ET模式
 		else if (sw_errno == EAGAIN)
 		{
+			swWarn("sw_errno == EAGAIN");
 			ret = swServer_poll_onReceive_no_buffer(reactor, event);
 		}
 		return ret;

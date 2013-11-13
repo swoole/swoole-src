@@ -74,8 +74,10 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define ulong unsigned long
 #endif
 
-#if defined(__GNUC_MINOR__) && __GNUC_MINOR__ > 6
-#define SWINLINE    inline
+#if __STDC_VERSION__ >= 199901L || defined(__cplusplus)
+#define SWINLINE inline
+#elif defined(_MSC_VER) || defined(__GNUC__)
+#define SWINLINE __inline
 #else
 #define SWINLINE
 #endif
@@ -95,7 +97,7 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #include "swoole_config.h"
 #include "memory.h"
 #include "atomic.h"
-#include "hashtable.h"
+#include "hashmap.h"
 #include "list.h"
 
 #define SW_TIMEO_SEC           0
@@ -230,7 +232,7 @@ typedef struct _swEventConnect
 typedef void * (*swThreadStartFunc)(void *);
 typedef int (*swHandle)(swEventData *buf);
 typedef void (*swSignalFunc)(int);
-typedef void (*swCallback)(void *);
+typedef void* (*swCallback)(void *);
 typedef struct swReactor_s swReactor;
 typedef int (*swReactor_handle)(swReactor *reactor, swDataHead *event);
 
@@ -325,7 +327,7 @@ typedef struct _swCond
 	int (*lock)(struct _swCond *object);
 	int (*unlock)(struct _swCond *object);
 	int (*trylock)(struct _swCond *object);
-	int (*free)(struct _swCond *object);
+	void (*free)(struct _swCond *object);
 } swCond;
 
 typedef struct _swAtomicLock
