@@ -473,13 +473,30 @@ struct swReactor_s
 	int (*setHandle)(swReactor *, int fdtype, swReactor_handle);
 };
 
-typedef struct _swWorker
+typedef struct _swWorker swWorker;
+typedef int (*swWorkerCall)(swWorker *worker);
+
+struct _swWorker
 {
 	pid_t pid;
+	int id;
 	int pipe_master;
 	int pipe_worker;
 	int writer_id;
-} swWorker;
+	void *ptr;
+	void *ptr2;
+	swWorkerCall call;
+};
+
+typedef struct
+{
+	char reloading;
+	char reload_flag;
+	int max_num;
+	int worker_num;
+	swWorker *workers;
+	swHashMap map;
+} swManager;
 
 typedef struct _swThreadWriter
 {
@@ -553,6 +570,13 @@ int swReactorEpoll_create(swReactor *reactor, int max_event_num);
 int swReactorPoll_create(swReactor *reactor, int max_event_num);
 int swReactorKqueue_create(swReactor *reactor, int max_event_num);
 int swReactorSelect_create(swReactor *reactor);
+
+int swManager_create(swManager *ma, int max_num);
+int swManager_add_worker(swManager *ma, swWorkerCall cb);
+int swManager_run(swManager *ma);
+void swManager_shutdown(swManager *ma);
+#define swManager_worker(ma,id) (ma->workers[id])
+
 
 #ifdef __cplusplus
 }

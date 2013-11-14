@@ -53,7 +53,7 @@ int main(int argc, char **argv)
 	serv.writer_num = 2;      //writer线程数量
 	serv.worker_num = 2;      //worker进程数量
 
-	serv.factory_mode = SW_MODE_PROCESS; //SW_MODE_PROCESS/SW_MODE_THREAD/SW_MODE_BASE/SW_MODE_SINGLE
+	serv.factory_mode = SW_MODE_SINGLE; //SW_MODE_PROCESS/SW_MODE_THREAD/SW_MODE_BASE/SW_MODE_SINGLE
 	serv.max_conn = 1000;
 	//serv.open_cpu_affinity = 1;
 	//serv.open_tcp_nodelay = 1;

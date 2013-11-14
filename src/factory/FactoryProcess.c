@@ -466,7 +466,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 	//for reload
 	swSignalSet(SIGUSR1, swManagerSignalHanlde, 1, 0);
 
-	while (1)
+	while (swoole_running > 0)
 	{
 		pid = wait(NULL);
 		swTrace("[manager] worker stop.pid=%d\n", pid);

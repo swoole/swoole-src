@@ -24,12 +24,9 @@ swUnitTest(hashmap_test1)
 {
 	swHashMap hm;
 
-	char key[] = "hello";
 	int value = 199;
-	int *ret;
-
-	swHashMap_add(&hm, key, sizeof(key), &value);
-	ret = swHashMap_find(&hm, key, sizeof(key));
+	swHashMap_add(&hm, "hello", &value);
+	int *ret = swHashMap_find(&hm, "hello");
 
 	printf("ret=%d\n", *ret);
 	return 0;
