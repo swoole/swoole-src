@@ -9,7 +9,8 @@
 #define SW_BUFFER_H_
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 typedef struct _swDataBuffer_trunk
@@ -24,7 +25,7 @@ typedef struct _swDataBuffer_item
 {
 	int fd;
 	uint8_t trunk_num;
-	UT_hash_handle hh;
+	swHashMap map;
 	swDataBuffer_trunk *first;
 	swDataBuffer_trunk *last;
 } swDataBuffer_item;
@@ -44,7 +45,6 @@ int swDataBuffer_clear(swDataBuffer *data_buffer, int fd);
 void swDataBuffer_append(swDataBuffer *data_buffer, swDataBuffer_item *item, swDataBuffer_trunk *trunk);
 void swDataBuffer_debug(swDataBuffer *data_buffer, swDataBuffer_item *item);
 int swDataBuffer_flush(swDataBuffer *data_buffer, swDataBuffer_item *item);
-
 
 #ifdef __cplusplus
 }

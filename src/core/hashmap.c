@@ -1,11 +1,25 @@
 #include "swoole.h"
+#include "uthash.h"
+
+#define SW_HASHMAP_KEY_LEN  128
+
+typedef struct swHashMap_node
+{
+	int key_int;
+	char *key_str;
+	void *data;
+	UT_hash_handle hh;
+} swHashMap_node;
+
+#define SWHASH_ROOT(hm) (swHashMap_node *)(hm->root)
 
 void swHashMap_free(swHashMap* hm)
 {
+	swHashMap_node *root = SWHASH_ROOT(hm);
 	swHashMap_node *cur, *tmp;
-	HASH_ITER(hh, hm->root, cur, tmp)
+	HASH_ITER(hh, SWHASH_ROOT(hm), cur, tmp)
 	{
-		HASH_DEL(hm->root, cur);
+		HASH_DEL(root, cur);
 		sw_free(cur);
 	}
 }
@@ -13,6 +27,7 @@ void swHashMap_free(swHashMap* hm)
 void swHashMap_add(swHashMap* hm, char *key, void *data)
 {
 	swHashMap_node *node = sw_malloc(sizeof(swHashMap_node));
+	swHashMap_node *root = SWHASH_ROOT(hm);
 	if (node == NULL)
 	{
 		swWarn("[swHashMap_insert] malloc fail");
@@ -20,12 +35,13 @@ void swHashMap_add(swHashMap* hm, char *key, void *data)
 	}
 	node->key_str = key;
 	node->data = data;
-	HASH_ADD_KEYPTR(hh, hm->root, node->key_str, strnlen(node->key_str, SW_HASHMAP_KEY_LEN), node);
+	HASH_ADD_KEYPTR(hh, root, node->key_str, strnlen(node->key_str, SW_HASHMAP_KEY_LEN), node);
 }
 
 void swHashMap_add_int(swHashMap* hm, int key, void *data)
 {
 	swHashMap_node *node = (swHashMap_node *) sw_malloc(sizeof(swHashMap_node));
+	swHashMap_node *root = SWHASH_ROOT(hm);
 	if (node == NULL)
 	{
 		swWarn("[swHashMap_insert] malloc fail");
@@ -33,13 +49,14 @@ void swHashMap_add_int(swHashMap* hm, int key, void *data)
 	}
 	node->key_int = key;
 	node->data = data;
-	HASH_ADD_INT(hm->root, key_int, node);
+	HASH_ADD_INT(root, key_int, node);
 }
 
 void* swHashMap_find(swHashMap* hm, char *key)
 {
 	swHashMap_node *ret = NULL;
-	HASH_FIND_STR(hm->root, key, ret);
+	swHashMap_node *root = SWHASH_ROOT(hm);
+	HASH_FIND_STR(root, key, ret);
 	if (ret == NULL)
 	{
 		return NULL;
@@ -50,7 +67,8 @@ void* swHashMap_find(swHashMap* hm, char *key)
 void* swHashMap_find_int(swHashMap* hm, int key)
 {
 	swHashMap_node *ret = NULL;
-	HASH_FIND_INT(hm->root, &key, ret);
+	swHashMap_node *root = SWHASH_ROOT(hm);
+	HASH_FIND_INT(root, &key, ret);
 	if (ret == NULL)
 	{
 		return NULL;
@@ -61,7 +79,8 @@ void* swHashMap_find_int(swHashMap* hm, int key)
 void swHashMap_update(swHashMap* hm, char *key, void *data)
 {
 	swHashMap_node *ret = NULL;
-	HASH_FIND_STR(hm->root, key, ret);
+	swHashMap_node *root = SWHASH_ROOT(hm);
+	HASH_FIND_STR(root, key, ret);
 	if (ret == NULL)
 	{
 		return;
@@ -72,7 +91,8 @@ void swHashMap_update(swHashMap* hm, char *key, void *data)
 void swHashMap_update_int(swHashMap* hm, int key, void *data)
 {
 	swHashMap_node *ret = NULL;
-	HASH_FIND_INT(hm->root, &key, ret);
+	swHashMap_node *root = SWHASH_ROOT(hm);
+	HASH_FIND_INT(root, &key, ret);
 	if (ret == NULL)
 	{
 		return;
@@ -83,21 +103,23 @@ void swHashMap_update_int(swHashMap* hm, int key, void *data)
 void swHashMap_del(swHashMap* hm, char *key)
 {
 	swHashMap_node *ret = NULL;
-	HASH_FIND_STR(hm->root, key, ret);
+	swHashMap_node *root = SWHASH_ROOT(hm);
+	HASH_FIND_STR(root, key, ret);
 	if (ret == NULL)
 	{
 		return;
 	}
-	HASH_DEL(hm->root, ret);
+	HASH_DEL(root, ret);
 }
 
 void swHashMap_del_int(swHashMap* hm, int key)
 {
 	swHashMap_node *ret = NULL;
-	HASH_FIND_INT(hm->root, &key, ret);
+	swHashMap_node *root = SWHASH_ROOT(hm);
+	HASH_FIND_INT(root, &key, ret);
 	if (ret == NULL)
 	{
 		return;
 	}
-	HASH_DEL(hm->root, ret);
+	HASH_DEL(root, ret);
 }

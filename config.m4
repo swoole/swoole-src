@@ -176,6 +176,7 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_NEW_EXTENSION(swoole, swoole.c \
         src/core/Base.c \
         src/core/log.c \
+        src/core/hashmap.c \
         src/core/RingQueue.c \
         src/memory/ShareMemory.c \
         src/memory/MemoryPool.c \
@@ -199,6 +200,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/Server.c \
         src/network/Client.c \
         src/network/buffer.c \
+        src/network/Manager.c \
       , $ext_shared)
 fi
 

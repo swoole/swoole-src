@@ -1,21 +1,9 @@
 #ifndef __SW_HASHMAP_H
 #define __SW_HASHMAP_H
 
-#include "hashtable.h"
-
-#define SW_HASHMAP_KEY_LEN  128
-
-typedef struct swHashMap_node
-{
-	int key_int;
-	char *key_str;
-	void *data;
-	UT_hash_handle hh;
-} swHashMap_node;
-
 typedef struct _swHashMap
 {
-	swHashMap_node *root;
+	void *root;
 
 } swHashMap;
 

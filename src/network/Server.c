@@ -33,7 +33,6 @@ static int swServer_master_onTimer(swReactor *reactor, swEvent *event);
 int sw_nouse_timerfd;
 static swPipe timer_pipe;
 swReactor *swoole_worker_reactor = NULL;
-swServer *swoole_server_instance = NULL;
 
 SWINLINE int swConnection_close(swServer *serv, int fd, int *from_id)
 {
@@ -395,8 +394,6 @@ int swServer_start(swServer *serv)
 	swReactor main_reactor;
 	swReactor *main_reactor_ptr = &main_reactor;
 	swFactory *factory = &serv->factory;
-
-	swoole_server_instance = serv;
 
 	struct timeval tmo;
 	int ret;
@@ -1059,13 +1056,13 @@ static int swServer_single_loop(swWorker *worker)
 	reactor->setHandle(reactor, SW_FD_TCP, (serv->open_eof_check == 0)?swServer_poll_onReceive_no_buffer:swServer_poll_onReceive_conn_buffer);
 
 	struct timeval timeo;
-	if (swoole_server_instance->onWorkerStart != NULL)
+	if (serv->onWorkerStart != NULL)
 	{
-		swoole_server_instance->onWorkerStart(swoole_server_instance, 0);
+		serv->onWorkerStart(serv, 0);
 	}
 	timeo.tv_sec = SW_MAINREACTOR_TIMEO;
 	timeo.tv_usec = 0;
-	swoole_worker_reactor->wait(swoole_worker_reactor, &timeo);
+	reactor->wait(reactor, &timeo);
 	return SW_OK;
 }
 
