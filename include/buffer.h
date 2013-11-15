@@ -25,14 +25,13 @@ typedef struct _swDataBuffer_item
 {
 	int fd;
 	uint8_t trunk_num;
-	swHashMap map;
 	swDataBuffer_trunk *first;
 	swDataBuffer_trunk *last;
 } swDataBuffer_item;
 
 typedef struct _swDataBuffer
 {
-	swDataBuffer_item *ht;
+	swHashMap map;
 	uint16_t trunk_size;
 	uint8_t max_trunk;
 } swDataBuffer;

@@ -66,12 +66,15 @@ static void swMemoryGlobal_destroy(swAllocator *allocator)
 	}
 }
 
+/**
+ * 固定尺寸随机释放的内存池
+ */
 int swMemoryPool_create(swMemoryPool *pool, int memory_limit, int slab_size)
 {
 	pool->head = NULL;
 	pool->tail = NULL;
 	pool->memory_limit = memory_limit;
-	pool->slab_size = slab_size;
+	pool->slab_size = slab_size; //固定大小
 	pool->memory_usage = 0;
 	pool->block_size = (sizeof(swMemoryPoolSlab) + pool->slab_size) * SW_MEMORY_POOL_SLAB_PAGE;
 	//扩展内存

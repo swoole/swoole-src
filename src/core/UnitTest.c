@@ -7,7 +7,7 @@
 
 #include "swoole.h"
 #include "tests.h"
-#include "hashtable.h"
+#include "uthash.h"
 
 typedef struct _swHashTable_FdInfo
 {

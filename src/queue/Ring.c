@@ -1,20 +1,14 @@
 #include "swoole.h"
 
-#define SW_CHAN_MAX_ELEM    65535   //单个元素最大可分配内存
-#define SW_CHAN_MIN_MEM     65535*2 //最小内存分配
-#if defined(SW_CHAN_DEBUG) && SW_CHAN_DEBUG == 1
-#define swQueueRing_debug(chan) swWarn("swQueue.\nelem_num\t%d\
-\nelem_size\t%d\nmem_use_num\t%d\nmem_size\t%d\nelem_tail\t%d\nelem_head\t%d\nmem_current\t%d\n", \
-chan->elem_num, \
-chan->elem_size,\
-chan->mem_use_num,\
-chan->mem_size,\
-chan->elem_tail,\
-chan->elem_head,\
-chan->mem_cur);
-#else
-#define swQueueRing_debug(chan)
-#endif
+#define SW_MIN_MEM    (1024*64)   //最小内存分配
+
+#define swQueueRing_debug(q) printf("RingBuffer: num=%d|head=%d|tail=%d\n", \
+q->num, \
+q->head,\
+q->tail);
+
+#define swQueueRing_empty(q) ((q->head == q->tail) && (q->tag == 0))
+#define swQueueRing_full(q) ((q->head == q->tail) && (q->tag == 1))
 
 typedef struct _swQueueRing_item {
 	int length;
@@ -25,42 +19,45 @@ typedef struct _swQueueRing
 {
 	int head;    //头部，出队列方向
 	int tail;    //尾部，入队列方向
-	int tag;     //为空还是为满的标志位
 	int size;    //队列总尺寸
+	int tag;
+	int num;
+	int maxlen;
 	void *mem;   //内存块
-	int m_index; //内存分配游标
-	int cap;     //剩余容量
-	int m_max;   //内存边界,不得超过此边界
 	swMutex lock;
 	swPipe notify_fd;
-	swQueueRing_item *items[0]; //队列空间
 } swQueueRing;
 
 int swQueueRing_pop(swQueue *q, swQueue_data *out, int buffer_length);
 int swQueueRing_push(swQueue *q, swQueue_data *in, int data_length);
 int swQueueRing_out(swQueue *q, swQueue_data *out, int buffer_length);
 int swQueueRing_in(swQueue *q, swQueue_data *in, int data_length);
-int swQueueRing_create(swQueue *q, int mem_size, int qlen);
 int swQueueRing_wait(swQueue *q);
 int swQueueRing_notify(swQueue *q);
 void swQueueRing_free(swQueue *q);
 
-int swQueueRing_create(swQueue *q, int mem_size, int qlen)
+int swQueueRing_create(swQueue *q, int size, int maxlen)
 {
+	assert(size > SW_MIN_MEM);
 	int ret;
-	void *mem = sw_shm_malloc(mem_size);
+	void *mem = sw_shm_malloc(size);
 	if(mem == NULL)
 	{
 		swWarn("malloc fail\n");
 		return SW_ERR;
 	}
 	swQueueRing *object = mem;
-	mem += (sizeof(swQueueRing) + sizeof(void*)*mem_size);
+	mem += sizeof(swQueueRing);
 
 	bzero(object, sizeof(swQueueRing));
-	object->size = qlen;
+
+	//允许溢出
+	object->size = size - maxlen;
 	object->mem = mem;
-	object->m_max = object->cap = (mem_size - (sizeof(swQueueRing) + sizeof(void*)*mem_size));
+	object->head = 0;
+	object->tail = 0;
+	object->maxlen = maxlen;
+	object->tag = 0;
 
 	//初始化锁
 	if(swMutex_create(&object->lock, 1) < 0)
@@ -70,81 +67,88 @@ int swQueueRing_create(swQueue *q, int mem_size, int qlen)
 	}
 
 #ifdef HAVE_EVENTFD
-	ret = swPipeEventfd_create(&object->notify_fd, 1, 0);
+	ret = swPipeEventfd_create(&object->notify_fd, 1, 1);
 #else
 	ret = swPipeBase_create(&object->notify_fd, 1);
 #endif
-
 	if(ret < 0)
 	{
-		swWarn("mutex init fail\n");
+		swWarn("notify_fd init fail\n");
 		return SW_ERR;
 	}
-	q->in = swQueueRing_in;
-	q->out = swQueueRing_out;
+
+	q->object = object;
+	q->in = swQueueRing_push;
+	q->out = swQueueRing_pop;
 	q->free = swQueueRing_free;
+	q->notify = swQueueRing_notify;
+	q->wait = swQueueRing_wait;
 	return SW_OK;
 }
 
 int swQueueRing_in(swQueue *q, swQueue_data *in, int data_length)
 {
 	swQueueRing *object = q->object;
-	//队列已满
-	if ((object->head == object->tail) && (object->tag == 1))
+	assert(data_length < object->maxlen);
+
+	//队列满了
+	if (swQueueRing_full(object))
 	{
-		swTrace("ringqueue full\n");
+		swWarn("queue full\n");
 		return SW_ERR;
 	}
-	int msize = sizeof(int) + data_length;
+	swQueueRing_item *item;
+	int msize = sizeof(item->length) + data_length;
 
-	//游标到达快尾
-	if(object->m_index + msize > object->m_max)
+	if (object->tail < object->head)
 	{
-		//边界区域内存不够此次分配，所以从容量中减去
-		object->cap -= (object->m_max - object->m_index);
-		//尝试从头开始分配
-		object->m_index = 0;
+		if((object->tail - object->head) < msize)
+		{
+			//空间不足
+			return SW_ERR;
+		}
+		object->tail += msize;
+		item = object->mem += object->tail;
 	}
-
-	//内存容量不足或者没有连续的内存块
-	if(object->cap < msize )
+	//这里tail必然小于size,无需判断,因为每次分配完会计算超过size后转到开始
+	else
 	{
-		swTrace("ringqueue no enough memory\n");
-		return SW_ERR;
+		object->tail += msize;
+		item = object->mem += object->tail;
+
+		if(object->tail >= object->size)
+		{
+			object->tail = 0;
+		}
 	}
-
-	swQueueRing_item *item = object->mem + object->m_index;
-	object->m_index += msize;   //游标向后
-	object->cap -= data_length; //减去容量
-
+	object->num ++;
 	item->length = data_length;
 	memcpy(item->data, in->mdata, data_length);
 
-	object->items[object->tail] = item;
-	object->tail = (object->tail + 1) % object->size;
-
-	/* 这个时候一定队列满了*/
 	if (object->tail == object->head)
 	{
 		object->tag = 1;
 	}
-	return object->tag;
+	return SW_OK;
 }
 
 int swQueueRing_out(swQueue *q, swQueue_data *out, int buffer_length)
 {
 	swQueueRing *object = q->object;
-	if ((object->head == object->tail) && (object->tag == 0))
+	//队列为空
+	if (swQueueRing_empty(object))
 	{
-		swTrace("queue empty\n");
-		return -1;
+		swWarn("queue empty");
+		return SW_ERR;
 	}
-	swQueueRing_item *item = object->items[object->head];
+	swQueueRing_item *item = object->mem + object->head;
 	memcpy(out->mdata, item->data, item->length);
-
-	object->cap += item->length + sizeof(int);
-	object->head = (object->head + 1) % object->size;
-
+	object->head += (item->length + sizeof(item->length));
+	if(object->head >= object->size)
+	{
+		object->head = 0;
+	}
+	object->num--;
 	/* 这个时候一定队列空了*/
 	if (object->tail == object->head)
 	{
@@ -176,6 +180,7 @@ int swQueueRing_push(swQueue *q, swQueue_data *in, int data_length)
 	}
 	int ret = swQueueRing_in(q, in, data_length);
 	object->lock.unlock(&object->lock);
+	swQueueRing_debug(object);
 	return ret;
 }
 
@@ -185,6 +190,7 @@ void swQueueRing_free(swQueue *q)
 	object->lock.free(&object->lock);
 	object->notify_fd.close(&object->notify_fd);
 	sw_shm_free(object);
+	q->object = NULL;
 }
 
 int swQueueRing_pop(swQueue *q, swQueue_data *out, int buffer_length)

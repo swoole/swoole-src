@@ -6,6 +6,8 @@
 
 int my_onReceive(swFactory *factory, swEventData *req);
 char* rtrim(char *str, int len);
+double microtime(void);
+
 void my_onStart(swServer *serv);
 void my_onShutdown(swServer *serv);
 void my_onConnect(swServer *serv, int fd, int from_id);
@@ -40,8 +42,245 @@ char* rtrim(char *str, int len)
 	return str;
 }
 
+#include<stdlib.h>
+#include<stdio.h>
+#include<unistd.h>
+#include<string.h>
+#include<errno.h>
+#include<fcntl.h>
+#include<sys/stat.h>
+#include<sys/types.h>
+#include<sys/msg.h>
+#include<sys/ipc.h>
+
+#define BUFSIZE 128
+char data[BUFSIZE];
+
+static void err_exit(const char *msg)
+{
+	printf("%s:%s\n", msg, strerror(errno));
+	exit(-1);
+}
+/*
+
+ void benchmark_pipe(const int num)
+ {
+ int pipefd[2], ret;
+ char buf[2000];
+ pid_t pid;
+ int fdin, fdout;
+
+ if (pipe(pipefd) < 0) {
+ err_exit("pipe");
+ }
+
+ if ((pid = fork()) < 0) {
+ err_exit("fork");
+ } else if (pid > 0) {
+
+ while ((ret = read(fdin, buf, BUFSIZE)) >= 0) {
+ if (ret == 0) {
+ break;
+ }
+
+ if (write(pipefd[1], buf, ret) != ret) {
+ err_exit("paretn write");
+ }
+ }
+
+ if (ret < 0) {
+ err_exit("parent read");
+ }
+ close(pipefd[1]);
+ close(fdin);
+ } else {
+ close(pipefd[1]);
+
+ if ((fdout = open(dst, O_WRONLY | O_CREAT | O_TRUNC)) < 0) {
+ err_exit("child open");
+ }
+
+ while ((ret = read(pipefd[0], buf, BUFSIZE)) >= 0) {
+ if (ret == 0) {
+ break;
+ }
+
+ if (write(fdout, buf, ret) != ret) {
+ err_exit("child write");
+ }
+ }
+
+ if (ret < 0) {
+ err_exit("child read");
+ }
+ close(pipefd[0]);
+ close(fdout);
+ }
+ }
+ */
+
+struct mymsg
+{
+	long mtype;
+	char buf[BUFSIZE];
+};
+
+void benchmark_msg(int _num, int worker_num)
+{
+	pid_t pid;
+	int num = _num;
+	int msgid;
+	struct mymsg msg;
+	int ret;
+	struct msqid_ds msqds;
+
+	key_t mskey = ftok(__FILE__, 0);
+	if ((msgid = msgget(mskey, IPC_CREAT | 0666)) <= 0)
+	{
+		err_exit("msgget");
+	}
+
+	int i;
+	for(i=0; i<worker_num; i++)
+	{
+		if ((pid = fork()) < 0)
+		{
+			err_exit("fork");
+		}
+		else if (pid > 0)
+		{
+			continue;
+		}
+		else
+		{
+			int recv = 0;
+			if ((msgid = msgget(mskey, 0)) < 0)
+			{
+				err_exit("child msgget");
+			}
+			double t1 = microtime();
+			while ((ret = msgrcv(msgid, &msg, BUFSIZE, 0, 0)) >= 0)
+			{
+				recv++;
+			}
+			printf("Worker[%d] Finish: recv=%d\n", i, recv);
+			exit(0);
+		}
+	}
+
+	main_loop:
+	memset(msg.buf, 'c', BUFSIZE - 1);
+	msg.buf[BUFSIZE - 1] = 0;
+	msg.mtype = 9;
+
+	while (num >= 0)
+	{
+		if (msgsnd(msgid, &msg, sizeof(msg.buf), 0) < 0)
+		{
+			err_exit("msgsnd");
+		}
+		num--;
+	}
+	if (ret < 0)
+	{
+		err_exit("parent msgsnd");
+	}
+	printf("Send finish\n");
+	int status;
+	for(i=0; i<worker_num; i++)
+	{
+		wait(&status);
+	}
+	msgctl(msgid, IPC_RMID, &msqds);
+}
+
+void benchmark_channel(int _num, int worker_num)
+{
+	pid_t pid;
+	int num = _num;
+	int ret;
+
+	swQueue ringq;
+	swQueue_data item;
+	ret = swQueueRing_create(&ringq, 2048*64, 1000);
+	if (ret < 0)
+	{
+		err_exit("msgget");
+	}
+
+	int i;
+	for(i=0; i<worker_num; i++)
+	{
+		if ((pid = fork()) < 0)
+		{
+			err_exit("fork");
+		}
+		else if (pid > 0)
+		{
+			continue;
+		}
+		else
+		{
+			int recv = 0;
+//			double t1 = microtime();
+			while (1)
+			{
+				ringq.wait(&ringq);
+				ret = ringq.out(&ringq, &item, BUFSIZE);
+				if(ret < 0) break;
+				recv++;
+				printf("Worker[%d] recv=%s\n", i, item.mdata);
+			}
+			printf("Worker[%d] Finish: recv=%d\n", i, recv);
+			exit(0);
+		}
+	}
+
+	main_loop:
+	sleep(1);
+	memset(item.mdata, 'c', BUFSIZE - 1);
+	item.mdata[BUFSIZE - 1] = 0;
+	item.mtype = 9;
+
+	while (num >= 0)
+	{
+		ringq.in(&ringq, &item, BUFSIZE);
+		ringq.notify(&ringq);
+//		printf("Master: send=%s\n", item.mdata);
+		num--;
+	}
+	if (ret < 0)
+	{
+		err_exit("parent msgsnd");
+	}
+	printf("Send finish\n");
+	int status;
+	for(i=0; i<worker_num; i++)
+	{
+		wait(&status);
+	}
+}
+
+double microtime(void)
+{
+	struct timeval t;
+	gettimeofday(&t,  NULL);
+	return (double)t.tv_sec + ((double)(t.tv_usec / 1000000));
+}
 
 int main(int argc, char **argv)
+{
+	if (argc != 3)
+	{
+		printf("usage: ipc_benchmark rw_num worker_num\n");
+		return 0;
+	}
+	benchmark_channel(atoi(argv[1]), atoi(argv[2]));
+	return 0;
+}
+
+
+int main2(int argc, char **argv)
 {
 	int ret;
 	swServer serv;

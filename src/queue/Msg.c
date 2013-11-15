@@ -20,7 +20,7 @@ void swQueueMsg_free(swQueue *p)
 	sw_free(object);
 }
 
-int swQueueMsg_create(swQueue *p, int wait, int msg_key, long type)
+int swQueueMsg_create(swQueue *p, int blocking, int msg_key, long type)
 {
 	int msg_id;
 	swQueueMsg *object = sw_malloc(sizeof(swQueueMsg));
@@ -28,7 +28,7 @@ int swQueueMsg_create(swQueue *p, int wait, int msg_key, long type)
 	{
 		return -1;
 	}
-	if (wait == 0)
+	if (blocking == 0)
 	{
 		object->ipc_wait = IPC_NOWAIT;
 	}
@@ -36,7 +36,7 @@ int swQueueMsg_create(swQueue *p, int wait, int msg_key, long type)
 	{
 		object->ipc_wait = 0;
 	}
-	p->wait = wait;
+	p->blocking = blocking;
 	msg_id = msgget(msg_key, IPC_CREAT | 0666);
 	if (msg_id <= 0)
 	{

@@ -1,7 +1,7 @@
 #include <string.h>
 #include "swoole.h"
 #include "Server.h"
-#include "hashtable.h"
+#include "uthash.h"
 #include <netinet/tcp.h>
 #include "tests.h"
 

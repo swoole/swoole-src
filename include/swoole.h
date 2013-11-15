@@ -262,11 +262,16 @@ typedef struct _swQueue_Data
 typedef struct _swQueue
 {
 	void *object;
-	int wait;
+	int blocking;
 	int (*in)(struct _swQueue *, swQueue_data *in, int data_length);
 	int (*out)(struct _swQueue *, swQueue_data *out, int buffer_length);
 	void (*free)(struct _swQueue *);
+	int (*notify)(struct _swQueue *);
+	int (*wait)(struct _swQueue *);
 } swQueue;
+
+int swQueueRing_create(swQueue *q, int size, int maxlen);
+int swQueueMsg_create(swQueue *p, int wait, int msg_key, long type);
 
 //------------------Lock--------------------------------------
 typedef struct _swFileLock
@@ -420,7 +425,6 @@ void swLog_free(void);
 
 //----------------------core function---------------------
 SWINLINE int swSetTimeout(int sock, float timeout);
-SWINLINE ulong swHashFunc(const char *arKey, uint nKeyLength);
 SWINLINE int swRead(int, char *, int);
 SWINLINE int swWrite(int, char *, int);
 SWINLINE int swAccept(int server_socket, struct sockaddr_in *addr, int addr_len);

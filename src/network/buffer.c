@@ -55,7 +55,7 @@ swDataBuffer_item* swDataBuffer_newItem(swDataBuffer *data_buffer, int fd, int t
 	{
 		bzero(newItem, sizeof(swDataBuffer_item));
 		newItem->fd = fd;
-		HASH_ADD_INT(data_buffer->ht, fd, newItem);
+		swHashMap_add_int(&data_buffer->map, fd, newItem);
 		newItem->first = newTrunk;
 		return newItem;
 	}
@@ -84,7 +84,7 @@ swDataBuffer_trunk * swDataBuffer_newTrunk(swDataBuffer *data_buffer, swDataBuff
 swDataBuffer_item *swDataBuffer_getItem(swDataBuffer *data_buffer, int fd)
 {
 	swDataBuffer_item *item = NULL;
-	HASH_FIND_INT(data_buffer->ht, &fd, item);
+	swHashMap_add_int(&data_buffer->map, fd, item);
 	return item;
 }
 
@@ -149,7 +149,7 @@ int swDataBuffer_flush(swDataBuffer *data_buffer, swDataBuffer_item *item)
 int swDataBuffer_clear(swDataBuffer *data_buffer, int fd)
 {
 	swDataBuffer_item *item = NULL;
-	HASH_FIND_INT(data_buffer->ht, &fd, item);
+	swHashMap_add_int(&data_buffer->map, fd, item);
 	if (item == NULL)
 	{
 		swTrace("buffer item not found\n");
@@ -166,7 +166,7 @@ int swDataBuffer_clear(swDataBuffer *data_buffer, int fd)
 			trunk = trunk->next;
 			sw_free(will_free_trunk);
 		}
-		HASH_DEL(data_buffer->ht, item);
+		swHashMap_del_int(&data_buffer->map, fd);
 		sw_free(item);
 	}
 	return SW_OK;
