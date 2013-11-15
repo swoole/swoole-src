@@ -102,19 +102,19 @@ int swQueueRing_in(swQueue *q, swQueue_data *in, int data_length)
 
 	if (object->tail < object->head)
 	{
-		if((object->tail - object->head) < msize)
+		if((object->head - object->tail) < msize)
 		{
 			//空间不足
 			return SW_ERR;
 		}
 		object->tail += msize;
-		item = object->mem += object->tail;
+		item = object->mem + object->tail;
 	}
 	//这里tail必然小于size,无需判断,因为每次分配完会计算超过size后转到开始
 	else
 	{
 		object->tail += msize;
-		item = object->mem += object->tail;
+		item = object->mem + object->tail;
 
 		if(object->tail >= object->size)
 		{
