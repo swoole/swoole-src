@@ -1,6 +1,6 @@
 #include "swoole.h"
 
-#define SW_MIN_MEM    (1024*64)   //最小内存分配
+#define SW_QUEUERING_MIN_MEM    (1024*64)   //最小内存分配
 
 #define swQueueRing_debug(q) printf("RingBuffer: num=%d|head=%d|tail=%d\n", \
 q->num, \
@@ -38,7 +38,7 @@ void swQueueRing_free(swQueue *q);
 
 int swQueueRing_create(swQueue *q, int size, int maxlen)
 {
-	assert(size > SW_MIN_MEM);
+	assert(size > SW_QUEUERING_MIN_MEM);
 	int ret;
 	void *mem = sw_shm_malloc(size);
 	if(mem == NULL)

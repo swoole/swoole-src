@@ -120,6 +120,9 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define sw_calloc              calloc
 #define sw_realloc             realloc
 
+#define METHOD_DEF(class,name,...)  class##_##name(class *object, ##__VA_ARGS__)
+#define METHOD(class,name,...)      class##_##name(object, ##__VA_ARGS__)
+
 #define SW_OK                  0
 #define SW_ERR                -1
 

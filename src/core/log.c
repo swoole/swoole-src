@@ -1,6 +1,7 @@
 #include "swoole.h"
 
 #define SW_LOG_BUFFER_SIZE 1024
+#define SW_LOG_DATE_STRLEN  64
 #define SW_LOG_FORMAT "[%s]\t%s\t%s\n"
 
 FILE *swoole_log_fn = NULL;
@@ -28,7 +29,7 @@ void swLog_free(void)
 void swLog_put(int level, char *cnt)
 {
 	const char *level_str;
-	char date_str[32];
+	char date_str[SW_LOG_DATE_STRLEN];
 	if(swoole_log_fn == NULL) swoole_log_fn = stdout;
 
 	switch (level)
@@ -51,7 +52,7 @@ void swLog_put(int level, char *cnt)
 	struct tm *p;
 	t = time(NULL);
 	p = localtime(&t);
-	snprintf(date_str, 32, "%d-%02d-%02d %02d:%02d:%02d", p->tm_year + 1900, p->tm_mon, p->tm_mday , p->tm_hour, p->tm_min, p->tm_sec);
+	snprintf(date_str, SW_LOG_DATE_STRLEN, "%d-%02d-%02d %02d:%02d:%02d", p->tm_year + 1900, p->tm_mon, p->tm_mday , p->tm_hour, p->tm_min, p->tm_sec);
 	fprintf(swoole_log_fn, SW_LOG_FORMAT, date_str, level_str, cnt);
 }
 

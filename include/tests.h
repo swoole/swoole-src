@@ -23,6 +23,8 @@ int swUnitTest_run(swUnitTest *object);
 
 swUnitTest(mem_test1);
 swUnitTest(mem_test2);
+swUnitTest(mem_test3);
+
 swUnitTest(client_test);
 swUnitTest(server_test);
 

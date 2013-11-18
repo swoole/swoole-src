@@ -56,10 +56,13 @@ typedef struct _swAllocator {
 
 typedef struct _swMemoryGlobal
 {
-	int size;
-	int offset;
+	int size;  //总容量
+	void *mem; //剩余内存的指针
+	int offset; //内存分配游标
 	char shared;
-	void *mem;
+	int pagesize;
+	void *root_page;
+	void *cur_page;
 } swMemoryGlobal;
 
 /**
@@ -72,7 +75,7 @@ void* swMemoryPool_alloc(swMemoryPool *pool);
 /**
  * 全局内存,程序生命周期内只分配/释放一次
  */
-swAllocator* swMemoryGlobal_create(int size, char shared);
+swAllocator* swMemoryGlobal_create(int pagesize, char shared);
 
 /**
  * 共享内存分配

@@ -99,3 +99,36 @@ swUnitTest(mem_test2)
 	swMemoryPool_print(&pool);
 	return 0;
 }
+
+swUnitTest(mem_test3)
+{
+	swAllocator *alloc = swMemoryGlobal_create(512, 0);
+	if (alloc == NULL)
+	{
+		swWarn("swMemoryGlobal_create fail");
+		return 0;
+	}
+	int i;
+	int loop = 100;
+	int item_size = 120;
+
+	char **str = alloc->alloc(alloc, sizeof(char*)*loop);
+	if(str == NULL)
+	{
+		return 0;
+	}
+
+	for(i=0; i< loop; i++)
+	{
+		str[i] = alloc->alloc(alloc, item_size);
+		sprintf(str[i], "memory block [%d]\n", i);
+	}
+
+	for(i=0; i< loop; i++)
+	{
+		printf("%s", str[i]);
+	}
+
+	alloc->destroy(alloc);
+	return 0;
+}

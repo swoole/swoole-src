@@ -12,6 +12,7 @@ int main(int argc, char **argv)
 
 	swUnitTest_steup(mem_test1, 1);
 	swUnitTest_steup(mem_test2, 1);
+	swUnitTest_steup(mem_test3, 1);
 
 	swUnitTest_steup(server_test, 1);
 	swUnitTest_steup(client_test, 1);

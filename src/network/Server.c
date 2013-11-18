@@ -496,7 +496,7 @@ void swServer_init(swServer *serv)
 	memcpy(serv->data_eof, eof, serv->data_eof_len);
 
 	//初始化全局内存
-	sw_memory_pool = swMemoryGlobal_create(SW_GLOBAL_MEMORY_SIZE, 1);
+	sw_memory_pool = swMemoryGlobal_create(SW_GLOBAL_MEMORY_PAGESIZE, 1);
 	if(sw_memory_pool == NULL)
 	{
 		swError("[Master] Fatal Error: create global memory fail. Errno=%d", errno);

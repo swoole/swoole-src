@@ -60,6 +60,7 @@ int swUnitTest_run(swUnitTest *object)
 
 		}
 	}
+	printf("finish\n");
 	return ret;
 }
 
