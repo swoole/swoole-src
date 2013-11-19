@@ -19,7 +19,6 @@ swUnitTest(type_test1)
 	return 0;
 }
 
-
 swUnitTest(hashmap_test1)
 {
 	swHashMap hm;
@@ -32,81 +31,86 @@ swUnitTest(hashmap_test1)
 	return 0;
 }
 
+#define BUFSIZE 128
+char data[BUFSIZE];
+
+static void err_exit(const char *msg)
+{
+	printf("%s:%s\n", msg, strerror(errno));
+	exit(-1);
+}
+
 swUnitTest(chan_test)
 {
-	int ret, i;
-	//int size = 1024 * 1024 * 8; //8M
-	int size = 1024 * 200; //共享内存大小
+	if (object->argc != 3)
+	{
+		printf("usage: ipc_benchmark rw_num worker_num\n");
+		return 0;
+	}
+	pid_t pid;
+	int num = atoi(object->argv[1]);
+	int worker_num = atoi(object->argv[2]);
+	int ret;
 
-	swAllocator *gm = swMemoryGlobal_create(4096, 1);
+	char item[BUFSIZE];
+	swChannel *chan = swChannel_create(1024 * 80, 1000, SW_CHAN_NOTIFY | SW_CHAN_LOCK | SW_CHAN_SHM);
+	if (chan == NULL)
+	{
+		err_exit("msgget");
+	}
 
-	char buf[128];
+	int i;
+	for (i = 0; i < worker_num; i++)
+	{
+		if ((pid = fork()) < 0)
+		{
+			err_exit("fork");
+		}
+		else if (pid > 0)
+		{
+			continue;
+		}
+		else
+		{
+			int recvn = 0;
+//			double t1 = microtime();
+			while (1)
+			{
+				swChannel_wait(chan);
+				ret = swChannel_pop(chan, item, BUFSIZE);
+				if (ret < 0)
+					continue;
+				recvn++;
+				printf("Worke[%d] recv[%d]=%s\n", i, recvn, item);
+			}
+			printf("Worker[%d] Finish: recv=%d\n", i, recvn);
+			exit(0);
+		}
+	}
 
-//	swShareMemory mm;
-//	swChanElem *elem;
-//	swChan *chan = swMemoryGlobal_alloc(&gm, sizeof(swChan));
-//	void *ele_mem = swMemoryGlobal_alloc(&gm, size);
-//
-//	ret = swChan_create(chan, mem, size, 200, 128);
-//	if (ret < 0)
-//	{
-//		printf("swChan_create fail.\n");
-//		return 0;
-//	}
-//	buf[127] = '\0';
-//	memset(buf, 'c', 127);
-//
-//	int pid = fork();
-//
-//	if (pid > 0)
-//	{
-//		printf("parent\n");
-//		for (i = 0; i < 1000; i++)
-//		{
-//			//n = snprintf(buf, 128, "hello world.i=%d", i);
-//			ret = swChan_push(chan, buf, 128);
-//			if (ret < 0)
-//			{
-//				printf("[%d]swChan_push fail.\n", i);
-//				return 0;
-//			}
-//			else
-//			{
-//				printf("[%d]swChan_push ok.\n", i);
-//			}
-//		}
-//		printf(
-//				"[parent]#swChan_pop---------------------------\nmem_addr\t%p\nelem_num\t%d\
-//				\nelem_size\t%d\nmem_size\t%d\nelem_tail\t%d\nelem_head\t%d\n",
-//				chan->mem, chan->elem_num, chan->elem_max,  chan->mem_size, chan->elem_tail,
-//				chan->elem_head);
-//		printf("chan_test OK.\n");
-//		pause();
-//	}
-//	else
-//	{
-//		sleep(1);
-//		printf("child\n");
-//		swBreakPoint();
-//		for (i = 0; i < 70; i++)
-//		{
-//			elem = swChan_pop(chan);
-//			if (elem == NULL )
-//			{
-//				printf("swChan_pop fail.\n");
-//			}
-//			else
-//			{
-//				printf("Data=%s\n", (char *) elem->ptr);
-//			}
-//		}
-//		printf(
-//				"[parent]#swChan_pop---------------------------\nmem_addr\t%p\nelem_num\t%d\
-//								\nelem_size\t%d\nmem_size\t%d\nelem_tail\t%d\nelem_head\t%d\n",
-//								chan->mem, chan->elem_num, chan->elem_max,  chan->mem_size, chan->elem_tail,
-//								chan->elem_head);
-//		pause();
-//	}
+	main_loop: sleep(1);
+//	memset(item, 'c', BUFSIZE - 1);
+//	item[BUFSIZE - 1] = 0;
+	int sendn = 0;
+	while (num >= 0)
+	{
+		sprintf(item, "%d--||||||||||||nnnnnnnnnnn", sendn);
+		swChannel_push(chan, item, BUFSIZE);
+		swChannel_notify(chan);
+		sendn++;
+		printf("Master send[%d]\n", sendn);
+		num--;
+	}
+	if (ret < 0)
+	{
+		err_exit("parent msgsnd");
+	}
+	printf("Send finish|num=%d|sendn=%d\n", num, sendn);
+	int status;
+	for (i = 0; i < worker_num; i++)
+	{
+		wait(&status);
+	}
 	return 0;
 }
 

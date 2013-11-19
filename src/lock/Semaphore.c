@@ -1,7 +1,7 @@
 #include "swoole.h"
 #include <sys/sem.h>
 
-int swSem_create(swSem *this, key_t key, int n)
+int swSem_create(swSem *object, key_t key, int n)
 {
 	int ret;
 	assert(key != 0);
@@ -9,27 +9,33 @@ int swSem_create(swSem *this, key_t key, int n)
 	{
 		return SW_ERR;
 	}
-	this->semid = ret;
-	this->lock = swSem_lock;
-	this->unlock = swSem_unlock;
-	this->lock_num = 0;
+	object->semid = ret;
+	object->lock = swSem_lock;
+	object->unlock = swSem_unlock;
+	object->free = swSem_free;
+	object->lock_num = 0;
 	return SW_OK;
 }
 
-int swSem_lock(swSem *this)
+int swSem_lock(swSem *object)
 {
 	struct sembuf sem;
 	sem.sem_flg = SEM_UNDO;
-	sem.sem_num = this->lock_num;
+	sem.sem_num = object->lock_num;
 	sem.sem_op = 1;
-	return semop(this->semid, &sem, 1);
+	return semop(object->semid, &sem, 1);
 }
 
-int swSem_unlock(swSem *this)
+int swSem_unlock(swSem *object)
 {
 	struct sembuf sem;
 	sem.sem_flg = SEM_UNDO;
-	sem.sem_num = this->lock_num;
+	sem.sem_num = object->lock_num;
 	sem.sem_op = -1;
-	return semop(this->semid, &sem, 1);
+	return semop(object->semid, &sem, 1);
+}
+
+int swSem_free(swSem *object)
+{
+	return semctl(object->semid, 0, IPC_RMID);
 }

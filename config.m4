@@ -178,6 +178,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/log.c \
         src/core/hashmap.c \
         src/core/RingQueue.c \
+        src/core/Channel.c \
         src/memory/ShareMemory.c \
         src/memory/MemoryPool.c \
         src/factory/Factory.c \
@@ -192,7 +193,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/pipe/PipeEventfd.c \
         src/pipe/PipeUnsock.c \
         src/queue/Msg.c \
-        src/queue/Ring.c \
         src/lock/Semaphore.c \
         src/lock/Mutex.c \
         src/lock/RWLock.c \
@@ -200,7 +200,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/Server.c \
         src/network/Client.c \
         src/network/buffer.c \
-        src/network/Manager.c \
+        src/network/ProcessPool.c \
       , $ext_shared)
 fi
 

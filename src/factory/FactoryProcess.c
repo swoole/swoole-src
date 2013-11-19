@@ -796,7 +796,8 @@ static int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, i
 	int ret;
 
 	//轮询
-	if (serv->dispatch_mode == SW_DISPATCH_ROUND)
+	// data->info.from_id > serv->poll_thread_num, UDP必须使用轮询
+	if (serv->dispatch_mode == SW_DISPATCH_ROUND || data->info.from_id > serv->poll_thread_num)
 	{
 		pti = (object->worker_pti++) % object->worker_num;
 	}
@@ -992,7 +993,7 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 		int ret = object->wt_queue.out(&object->wt_queue, &sdata, sizeof(sdata.mdata));
 		if (ret < 0)
 		{
-			swWarn("queue out fail.errno=%d", errno);
+			swWarn("[writer]wt_queue->out fail.Error: %s [%d]", strerror(errno), errno);
 		}
 		else
 		{

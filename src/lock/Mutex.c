@@ -4,6 +4,7 @@ int swMutex_create(swMutex *object, int use_in_process)
 {
 	int ret;
 	bzero(object, sizeof(swMutex));
+	pthread_mutexattr_init(&object->attr);
 	if(use_in_process == 1)
 	{
 		pthread_mutexattr_setpshared(&object->attr, PTHREAD_PROCESS_SHARED);
@@ -16,7 +17,7 @@ int swMutex_create(swMutex *object, int use_in_process)
 	object->lock = swMutex_lock;
 	object->unlock = swMutex_unlock;
 	object->trylock = swMutex_trylock;
-	object->unlock = swMutex_free;
+	object->free = swMutex_free;
 	return SW_OK;
 }
 

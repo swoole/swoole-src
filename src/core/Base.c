@@ -88,7 +88,7 @@ int swSocket_listen(int type, char *host, int port, int backlog)
 	//将监听套接字同sockaddr绑定
 	if (ret < 0)
 	{
-		swWarn("bind fail.type=%d|host=%s|port=%d|Errno=%d\n", type, host, port, errno);
+		swWarn("Bind fail.type=%d|host=%s|port=%d. Error: %s [%d]", type, host, port, strerror(errno), errno);
 		return SW_ERR;
 	}
 	if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6)
@@ -99,7 +99,7 @@ int swSocket_listen(int type, char *host, int port, int backlog)
 	ret = listen(sock, backlog);
 	if (ret < 0)
 	{
-		swWarn("Listen fail.type=%d|host=%s|port=%d|Errno=%d\n", type, host, port, errno);
+		swWarn("Listen fail.type=%d|host=%s|port=%d. Error: %s [%d]", type, host, port, strerror(errno), errno);
 		return SW_ERR;
 	}
 	swSetNonBlock(sock);

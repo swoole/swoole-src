@@ -273,7 +273,6 @@ typedef struct _swQueue
 	int (*wait)(struct _swQueue *);
 } swQueue;
 
-int swQueueRing_create(swQueue *q, int size, int maxlen);
 int swQueueMsg_create(swQueue *p, int wait, int msg_key, long type);
 
 //------------------Lock--------------------------------------
@@ -355,7 +354,7 @@ typedef struct _swSem
 	int lock_num;
 	int (*lock)(struct _swSem *object);
 	int (*unlock)(struct _swSem *object);
-	int (*free)(struct _swMutex *object);
+	int (*free)(struct _swSem *object);
 } swSem;
 
 int swRWLock_create(swRWLock *object, int use_in_process);
@@ -481,11 +480,14 @@ struct swReactor_s
 };
 
 typedef struct _swWorker swWorker;
+typedef struct _swThread swThread;
+
 typedef int (*swWorkerCall)(swWorker *worker);
 
 struct _swWorker
 {
 	pid_t pid;
+	pthread_t tid;
 	int id;
 	int pipe_master;
 	int pipe_worker;
@@ -503,7 +505,7 @@ typedef struct
 	int worker_num;
 	swWorker *workers;
 	swHashMap map;
-} swManager;
+} swProcessPool;
 
 typedef struct _swThreadWriter
 {
@@ -578,12 +580,81 @@ int swReactorPoll_create(swReactor *reactor, int max_event_num);
 int swReactorKqueue_create(swReactor *reactor, int max_event_num);
 int swReactorSelect_create(swReactor *reactor);
 
-int swManager_create(swManager *ma, int max_num);
-int swManager_add_worker(swManager *ma, swWorkerCall cb);
-int swManager_run(swManager *ma);
-void swManager_shutdown(swManager *ma);
-#define swManager_worker(ma,id) (ma->workers[id])
+/*----------------------------Process Pool-------------------------------*/
+int swProcessPool_create(swProcessPool *ma, int max_num);
+int swProcessPool_add_worker(swProcessPool *ma, swWorkerCall cb);
+int swProcessPool_run(swProcessPool *ma);
+void swProcessPool_shutdown(swProcessPool *ma);
+#define swProcessPool_worker(ma,id) (ma->workers[id])
 
+//-----------------------------Channel---------------------------
+enum SW_CHANNEL_FLAGS
+{
+	SW_CHAN_LOCK = 1u << 1,
+#define SW_CHAN_LOCK SW_CHAN_LOCK
+	SW_CHAN_NOTIFY = 1u << 2,
+#define SW_CHAN_NOTIFY SW_CHAN_NOTIFY
+	SW_CHAN_SHM = 1u << 3,
+#define SW_CHAN_SHM SW_CHAN_SHM
+};
+typedef struct _swChannel
+{
+	int head;    //头部，出队列方向
+	int tail;    //尾部，入队列方向
+	int size;    //队列总尺寸
+	char head_tag;
+	char tail_tag;
+	int num;
+	int flag;
+	int maxlen;
+	void *mem;   //内存块
+	swMutex lock;
+	swPipe notify_fd;
+} swChannel;
+
+swChannel* swChannel_create(int size, int maxlen, int flag);
+int swChannel_pop(swChannel *object, void *out, int buffer_length);
+int swChannel_push(swChannel *object, void *in, int data_length);
+int swChannel_out(swChannel *object, void *out, int buffer_length);
+int swChannel_in(swChannel *object, void *in, int data_length);
+int swChannel_wait(swChannel *object);
+int swChannel_notify(swChannel *object);
+void swChannel_free(swChannel *object);
+
+/*----------------------------Thread Pool-------------------------------*/
+
+typedef struct _swThread_task
+{
+	void *(*call)(void *arg);
+	void *arg;
+} swThread_task;
+
+typedef struct
+{
+	pthread_mutex_t mutex;
+	pthread_cond_t cond;
+
+	swThread *threads;
+	swThreadParam *params;
+	swChannel *chan;
+
+	int thread_num;
+	int shutdown;
+	int task_num;
+
+} swThreadPool;
+
+struct _swThread
+{
+	pthread_t tid;
+	int id;
+	swThreadPool *pool;
+};
+
+int swThreadPool_task(swThreadPool *pool, void *(*call)(void *arg), void *arg);
+int swThreadPool_create(swThreadPool *pool, int max_num);
+int swThreadPool_run(swThreadPool *pool);
+int swThreadPool_free(swThreadPool *pool);
 
 #ifdef __cplusplus
 }

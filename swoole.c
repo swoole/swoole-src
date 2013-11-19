@@ -316,6 +316,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
 
 static void swoole_destory_server(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 {
+	swoole_running = 0;
 	swServer *serv = (swServer *) rsrc->ptr;
 	if(serv!=NULL)
 	{

@@ -166,6 +166,10 @@ class Swoole_Benchmark
 
 	function __construct($func)
 	{
+		if(!function_exists($func))
+		{
+			exit(__CLASS__.": function[$func] not exists\n");
+		}
 		$this->test_func = $func;
 	}
 	function end()

@@ -42,4 +42,6 @@ swUnitTest(http_test2);
 swUnitTest(type_test1);
 void p_str(void *str);
 
+swUnitTest(pool_thread);
+
 #endif /* SW_TESTS_H_ */

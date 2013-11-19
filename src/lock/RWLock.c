@@ -17,6 +17,7 @@ int swRWLock_create(swRWLock *this, int use_in_process)
 	this->unlock = swRWLock_unlock;
 	this->trylock = swRWLock_trylock_rw;
 	this->trylock_rd = swRWLock_trylock_rd;
+	this->free = swRWLock_free;
 	return 0;
 }
 

@@ -781,7 +781,14 @@ int swServer_free(swServer *serv)
 	}
 
 	//connection_list释放
-	sw_shm_free(serv->connection_list);
+	if (serv->factory_mode == SW_MODE_SINGLE)
+	{
+		sw_free(serv->connection_list);
+	}
+	else
+	{
+		sw_shm_free(serv->connection_list);
+	}
 
 	//close log file
 	if(serv->log_file[0] != 0)
@@ -982,14 +989,14 @@ static int swServer_single_start(swServer *serv)
 	int i, ret;
 	int status;
 
-	swManager ma;
-	swManager_create(&ma, serv->worker_num);
+	swProcessPool ma;
+	swProcessPool_create(&ma, serv->worker_num);
 
 	for (i = 0; i < serv->worker_num; i++)
 	{
-		swManager_add_worker(&ma, swServer_single_loop);
+		swProcessPool_add_worker(&ma, swServer_single_loop);
 		//保存swServer的指针
-		swManager_worker((&ma), i).ptr = serv;
+		swProcessPool_worker((&ma), i).ptr = serv;
 	}
 
 	//listen UDP
@@ -1016,7 +1023,7 @@ static int swServer_single_start(swServer *serv)
 		}
 	}
 
-	return swManager_run(&ma);
+	return swProcessPool_run(&ma);
 }
 
 static int swServer_single_loop(swWorker *worker)

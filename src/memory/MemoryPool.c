@@ -42,6 +42,9 @@ swAllocator* swMemoryGlobal_create(int pagesize, char shared)
 	return allocator;
 }
 
+/**
+ * 使用前8个字节保存next指针
+ */
 static void* swMemoryGlobal_new_page(swMemoryGlobal *gm)
 {
 	void *page = (gm->shared == 1) ? sw_shm_malloc(gm->pagesize) : sw_malloc(gm->pagesize);
