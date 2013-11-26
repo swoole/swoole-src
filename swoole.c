@@ -341,7 +341,9 @@ static void swoole_destory_client(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 
 PHP_FUNCTION(swoole_version)
 {
-    php_printf("swoole v%s\n", SWOOLE_VERSION);
+	char swoole_version[32] = {0};
+	snprintf(swoole_version, sizeof(SWOOLE_VERSION), "%s", SWOOLE_VERSION);
+    RETURN_STRING(swoole_version, 1);
 }
 
 
