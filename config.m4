@@ -197,6 +197,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/lock/Semaphore.c \
         src/lock/Mutex.c \
         src/lock/RWLock.c \
+        src/lock/SpinLock.c \
         src/lock/FileLock.c \
         src/network/Server.c \
         src/network/Client.c \

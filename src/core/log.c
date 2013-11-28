@@ -30,7 +30,6 @@ void swLog_put(int level, char *cnt)
 {
 	const char *level_str;
 	char date_str[SW_LOG_DATE_STRLEN];
-	if(swoole_log_fn == NULL) swoole_log_fn = stdout;
 
 	switch (level)
 	{

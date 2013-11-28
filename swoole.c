@@ -323,7 +323,8 @@ PHP_RINIT_FUNCTION(swoole)
 	zend_hash_init(&php_sw_reactor_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
 	//swoole_client::on
 	zend_hash_init(&php_sw_client_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
-
+	//swoole init
+	swoole_init();
 	return SUCCESS;
 }
 
@@ -331,6 +332,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
 {
 	zend_hash_destroy(&php_sw_reactor_callback);
 	zend_hash_destroy(&php_sw_client_callback);
+	swoole_clean();
 	return SUCCESS;
 }
 

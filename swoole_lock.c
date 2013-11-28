@@ -2,6 +2,7 @@
 
 extern int le_swoole_lock;
 extern zend_class_entry *swoole_lock_class_entry_ptr;
+extern swAllocator *sw_memory_pool;
 
 PHP_METHOD(swoole_lock, __construct)
 {
@@ -9,10 +10,15 @@ PHP_METHOD(swoole_lock, __construct)
 	char *filelock;
 	int filelock_len = 0;
 	int ret;
-	swLock *lock = emalloc(sizeof(swLock));
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ls", &type, &filelock, &filelock_len) == FAILURE)
 	{
+		RETURN_FALSE;
+	}
+	swLock *lock = sw_memory_pool->alloc(sw_memory_pool, sizeof(swLock));
+	if(lock == NULL)
+	{
+		zend_error(E_WARNING, "SwooleLock: alloc fail");
 		RETURN_FALSE;
 	}
 
@@ -66,7 +72,6 @@ void swoole_destory_lock(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 {
 	swLock *lock = (swLock *) rsrc->ptr;
 	lock->free(lock);
-	efree(lock);
 }
 
 PHP_METHOD(swoole_lock, lock)

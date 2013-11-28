@@ -7,17 +7,24 @@
  * SWOOLE_RWLOCK 读写锁
  */
 
-$lock = new swoole_lock(SWOOLE_FILELOCK, __DIR__."/lock");
-echo "create lock\n";
-$abc = 1;
+$lock = new swoole_lock(SWOOLE_MUTEX);
+echo "[Master]create lock\n";
 $lock->lock();
-
-echo "get lock\n";
-$abc = 100;
-sleep(1);
-$lock->unlock();
-echo "release lock\n";
+if(pcntl_fork() > 0) 
+{
+	sleep(1);
+	$lock->unlock();
+} 
+else
+{
+	echo "[Child] Wait Lock\n";
+	$lock->lock();
+	echo "[Child] Get Lock\n";
+	$lock->unlock();
+	exit("[Child] exit\n");
+}
+echo "[Master]release lock\n";
 unset($lock);
-sleep(5);
-echo "exit\n";
+sleep(1);
+echo "[Master]exit\n";
 

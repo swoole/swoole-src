@@ -34,6 +34,13 @@ int sw_nouse_timerfd;
 static swPipe timer_pipe;
 swReactor *swoole_worker_reactor = NULL;
 
+//全局变量
+char swoole_running = 0;
+int16_t sw_errno;
+uint8_t sw_process_type; //进程类型
+char sw_error[SW_ERROR_MSG_SIZE];
+swAllocator *sw_memory_pool = NULL;
+
 SWINLINE int swConnection_close(swServer *serv, int fd, int *from_id)
 {
 	swConnection *conn = swServer_get_connection(serv, fd);
@@ -461,11 +468,43 @@ int swServer_close(swServer *serv, swEvent *event)
 	}
 	return SW_OK;
 }
+
+void swoole_init(void)
+{
+	extern FILE *swoole_log_fn;
+	if (swoole_running == 0)
+	{
+		//初始化全局内存
+		sw_memory_pool = swMemoryGlobal_create(SW_GLOBAL_MEMORY_PAGESIZE, 1);
+		if(sw_memory_pool == NULL)
+		{
+			swError("[Master] Fatal Error: create global memory fail. Errno=%d", errno);
+		}
+		//初始化全局变量
+		swoole_running = 1;
+		sw_errno = 0;
+		bzero(sw_error, SW_ERROR_MSG_SIZE);
+		//将日志设置为标准输出
+		swoole_log_fn = stdout;
+	}
+}
+
+void swoole_clean(void)
+{
+	//释放全局内存
+	if(sw_memory_pool != NULL)
+	{
+		sw_memory_pool->destroy(sw_memory_pool);
+		sw_memory_pool = NULL;
+	}
+}
+
 /**
  * initializing server config, set default
  */
 void swServer_init(swServer *serv)
 {
+	swoole_init();
 	bzero(serv, sizeof(swServer));
 
 	serv->backlog = SW_BACKLOG;
@@ -494,18 +533,6 @@ void swServer_init(swServer *serv)
 	char eof[] = SW_DATA_EOF;
 	serv->data_eof_len = sizeof(SW_DATA_EOF) - 1;
 	memcpy(serv->data_eof, eof, serv->data_eof_len);
-
-	//初始化全局内存
-	sw_memory_pool = swMemoryGlobal_create(SW_GLOBAL_MEMORY_PAGESIZE, 1);
-	if(sw_memory_pool == NULL)
-	{
-		swError("[Master] Fatal Error: create global memory fail. Errno=%d", errno);
-	}
-
-	//初始化全局变量
-	swoole_running = 1;
-	sw_errno = 0;
-	bzero(sw_error, SW_ERROR_MSG_SIZE);
 }
 static int swServer_timer_start(swServer *serv)
 {
@@ -732,11 +759,11 @@ int swServer_create(swServer *serv)
 	{
 		serv->data_eof_len = sizeof(serv->data_eof);
 	}
+	//初始化日志
 	if(serv->log_file[0] != 0)
 	{
 		swLog_init(serv->log_file);
 	}
-
 	if(serv->factory_mode == SW_MODE_SINGLE)
 	{
 		return swServer_create_base(serv);
@@ -796,8 +823,7 @@ int swServer_free(swServer *serv)
 		swLog_free();
 	}
 
-	//释放全局内存
-	sw_memory_pool->destroy(sw_memory_pool);
+	swoole_clean();
 	return SW_OK;
 }
 
