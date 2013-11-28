@@ -174,6 +174,7 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
 
     PHP_NEW_EXTENSION(swoole, swoole.c \
+        swoole_lock.c \
         src/core/Base.c \
         src/core/log.c \
         src/core/hashmap.c \

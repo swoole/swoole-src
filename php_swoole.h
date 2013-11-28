@@ -24,6 +24,15 @@
 #include "php.h"
 #include "php_ini.h"
 #include "php_globals.h"
+#include "php_main.h"
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include "swoole.h"
+#include "Server.h"
+#include "Client.h"
 
 extern zend_module_entry swoole_module_entry;
 #define phpext_swoole_ptr &swoole_module_entry
@@ -42,6 +51,10 @@ extern zend_module_entry swoole_module_entry;
 //#define SW_USE_PHP        1
 #define SW_HANDLE_NUM
 #define SW_CHECK_RETURN(s)  if(s<0){RETURN_FALSE;}else{RETURN_TRUE;}return
+
+#define SW_RES_SERVER_NAME          "SwooleServer"
+#define SW_RES_CLIENT_NAME          "SwooleClient"
+#define SW_RES_LOCK_NAME            "SwooleLock"
 
 PHP_MINIT_FUNCTION(swoole);
 PHP_MSHUTDOWN_FUNCTION(swoole);
@@ -82,6 +95,15 @@ PHP_METHOD(swoole_client, recv);
 PHP_METHOD(swoole_client, send);
 PHP_METHOD(swoole_client, close);
 PHP_METHOD(swoole_client, on);
+
+PHP_METHOD(swoole_lock, __construct);
+PHP_METHOD(swoole_lock, lock);
+PHP_METHOD(swoole_lock, trylock);
+PHP_METHOD(swoole_lock, lock_read);
+PHP_METHOD(swoole_lock, trylock_read);
+PHP_METHOD(swoole_lock, unlock);
+
+void swoole_destory_lock(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 
 #ifdef ZTS
 #define SWOOLE_G(v) TSRMG(swoole_globals_id, zend_swoole_globals *, v)

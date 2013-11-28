@@ -92,25 +92,22 @@ function udp2(Swoole_Benchmark $bc)
 	$start = microtime(true);
 	if(empty($fp))
 	{
-		$fp = stream_socket_client($bc->server_url,$errno,$errstr,1);
+		$u = parse_url($bc->server_url);
+		$fp = new swoole_client(SWOOLE_SOCK_UDP);
+		$fp->connect($u['host'], $u['port'], 0.5, 0);
 		$end = microtime(true);
 		$conn_use = $end-$start;
 		$bc->max_conn_time = $conn_use;
-		if(!$fp)
-		{
-			echo "{$errstr}[{$errno}]\n";
-			return false;
-		}
 		$start = $end;
 	}
 	/*--------写入Sokcet-------*/
-	fwrite($fp,$bc->send_data);
+	$fp->send($bc->send_data);
 	$end = microtime(true);
 	$write_use = $end - $start;
 	if($write_use>$bc->max_write_time) $bc->max_write_time = $write_use;
 	$start = $end;
 	/*--------读取Sokcet-------*/
-	$ret = fread($fp,$bc->read_len);
+	$ret = $fp->recv();
 	if(empty($ret)) return false;
 
 	$end = microtime(true);

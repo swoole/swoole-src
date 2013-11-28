@@ -62,7 +62,7 @@ swChannel* swChannel_create(int size, int maxlen, int flag)
 		//初始化锁
 		if (swMutex_create(&object->lock, 1) < 0)
 		{
-			swWarn("mutex init fail\n");
+			swWarn("swChannel_create: mutex init fail");
 			return NULL;
 		}
 	}
@@ -76,7 +76,7 @@ swChannel* swChannel_create(int size, int maxlen, int flag)
 #endif
 		if (ret < 0)
 		{
-			swWarn("notify_fd init fail\n");
+			swWarn("swChannel_create: notify_fd init fail");
 			return NULL;
 		}
 	}

@@ -2,40 +2,45 @@
 
 #ifdef HAVE_SPINLOCK
 
-int swSpinLock_create(swSpinLock *object, int use_in_process)
+static int swSpinLock_lock(swLock *lock);
+static int swSpinLock_unlock(swLock *lock);
+static int swSpinLock_trylock(swLock *lock);
+static int swSpinLock_free(swLock *lock);
+
+int swSpinLock_create(swLock *lock, int use_in_process)
 {
 	int ret;
-	bzero(object, sizeof(swSpinLock));
-
-	if((ret = pthread_spin_init(&object->lock_t, use_in_process)) < 0)
+	bzero(lock, sizeof(swLock));
+	lock->type = SW_SPINLOCK;
+	if ((ret = pthread_spin_init(&lock->object.spinlock.lock_t, use_in_process)) < 0)
 	{
 		return -1;
 	}
-	object->lock = swSpinLock_lock;
-	object->unlock = swSpinLock_unlock;
-	object->trylock = swSpinLock_trylock;
-	object->free = swSpinLock_free;
+	lock->lock = swSpinLock_lock;
+	lock->unlock = swSpinLock_unlock;
+	lock->trylock = swSpinLock_trylock;
+	lock->free = swSpinLock_free;
 	return 0;
 }
 
-int swSpinLock_lock(swSpinLock *object)
+static int swSpinLock_lock(swLock *lock)
 {
-	return pthread_spin_lock(&object->lock_t);
+	return pthread_spin_lock(&lock->object.spinlock.lock_t);
 }
 
-int swSpinLock_unlock(swSpinLock *object)
+static int swSpinLock_unlock(swLock *lock)
 {
-	return pthread_spin_unlock(&object->lock_t);
+	return pthread_spin_unlock(&lock->object.spinlock.lock_t);
 }
 
-int swSpinLock_trylock(swSpinLock *object)
+static int swSpinLock_trylock(swLock *lock)
 {
-	return pthread_spin_trylock(&object->lock_t);
+	return pthread_spin_trylock(&lock->object.spinlock.lock_t);
 }
 
-int swSpinLock_free(swSpinLock *object)
+static int swSpinLock_free(swLock *lock)
 {
-	return pthread_spin_destroy(&object->lock_t);
+	return pthread_spin_destroy(&lock->object.spinlock.lock_t);
 }
 
 #endif

@@ -1,52 +1,60 @@
 #include "swoole.h"
 
-int swRWLock_create(swRWLock *this, int use_in_process)
+static int swRWLock_lock_rd(swLock *lock);
+static int swRWLock_lock_rw(swLock *lock);
+static int swRWLock_unlock(swLock *lock);
+static int swRWLock_trylock_rw(swLock *lock);
+static int swRWLock_trylock_rd(swLock *lock);
+static int swRWLock_free(swLock *lock);
+
+int swRWLock_create(swLock *lock, int use_in_process)
 {
 	int ret;
-	bzero(this, sizeof(swRWLock));
+	bzero(lock, sizeof(swLock));
+	lock->type = SW_RWLOCK;
 	if(use_in_process == 1)
 	{
-		pthread_rwlockattr_setpshared(&this->attr, PTHREAD_PROCESS_SHARED);
+		pthread_rwlockattr_setpshared(&lock->object.rwlock.attr, PTHREAD_PROCESS_SHARED);
 	}
-	if((ret = pthread_rwlock_init(&this->rwlock, &this->attr)) < 0)
+	if((ret = pthread_rwlock_init(&lock->object.rwlock._lock, &lock->object.rwlock.attr)) < 0)
 	{
-		return -1;
+		return SW_ERR;
 	}
-	this->lock_rd = swRWLock_lock_rd;
-	this->lock = swRWLock_lock_rw;
-	this->unlock = swRWLock_unlock;
-	this->trylock = swRWLock_trylock_rw;
-	this->trylock_rd = swRWLock_trylock_rd;
-	this->free = swRWLock_free;
-	return 0;
+	lock->lock_rd = swRWLock_lock_rd;
+	lock->lock = swRWLock_lock_rw;
+	lock->unlock = swRWLock_unlock;
+	lock->trylock = swRWLock_trylock_rw;
+	lock->trylock_rd = swRWLock_trylock_rd;
+	lock->free = swRWLock_free;
+	return SW_OK;
 }
 
-int swRWLock_lock_rd(swRWLock *this)
+static int swRWLock_lock_rd(swLock *lock)
 {
-	return pthread_rwlock_rdlock(&this->rwlock);
+	return pthread_rwlock_rdlock(&lock->object.rwlock._lock);
 }
 
-int swRWLock_lock_rw(swRWLock *this)
+static int swRWLock_lock_rw(swLock *lock)
 {
-	return pthread_rwlock_wrlock(&this->rwlock);
+	return pthread_rwlock_wrlock(&lock->object.rwlock._lock);
 }
 
-int swRWLock_unlock(swRWLock *this)
+static int swRWLock_unlock(swLock *lock)
 {
-	return pthread_rwlock_unlock(&this->rwlock);
+	return pthread_rwlock_unlock(&lock->object.rwlock._lock);
 }
 
-int swRWLock_trylock_rd(swRWLock *this)
+static int swRWLock_trylock_rd(swLock *lock)
 {
-	return pthread_rwlock_tryrdlock(&this->rwlock);
+	return pthread_rwlock_tryrdlock(&lock->object.rwlock._lock);
 }
 
-int swRWLock_trylock_rw(swRWLock *this)
+static int swRWLock_trylock_rw(swLock *lock)
 {
-	return pthread_rwlock_trywrlock(&this->rwlock);
+	return pthread_rwlock_trywrlock(&lock->object.rwlock._lock);
 }
 
-int swRWLock_free(swRWLock *object)
+static int swRWLock_free(swLock *lock)
 {
-	return pthread_rwlock_destroy(&object->rwlock);
+	return pthread_rwlock_destroy(&lock->object.rwlock._lock);
 }

@@ -18,15 +18,7 @@
 
 /* $Id$ */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #include "php_swoole.h"
-#include "php_main.h"
-#include "swoole.h"
-#include "Server.h"
-#include "Client.h"
 
 /**
  * PHP5.2
@@ -39,8 +31,6 @@
 #define ZEND_MOD_END {NULL,NULL,NULL}
 #endif
 
-#define SW_RES_SERVER_NAME          "SwooleServer"
-#define SW_RES_CLIENT_NAME          "SwooleClient"
 #define SW_MAX_FIND_COUNT             100 //最多一次性取100个connection_info
 #define SW_PHP_CLIENT_BUFFER_SIZE     65535
 
@@ -68,6 +58,7 @@
 
 static int le_swoole_server;
 static int le_swoole_client;
+int le_swoole_lock;
 
 #pragma pack(4)
 typedef struct {
@@ -173,8 +164,22 @@ const zend_function_entry swoole_client_methods[] =
 	PHP_ME(swoole_client, send, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_client, close, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_client, on, NULL, ZEND_ACC_PUBLIC)
-	PHP_FE_END /* Must be the last line in swoole_client_methods[] */
+	PHP_FE_END
 };
+
+const zend_function_entry swoole_lock_methods[] =
+{
+	PHP_ME(swoole_lock, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+	PHP_ME(swoole_lock, lock, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_lock, trylock, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_lock, lock_read, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_lock, trylock_read, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_lock, unlock, NULL, ZEND_ACC_PUBLIC)
+	PHP_FE_END
+};
+
+zend_class_entry swoole_lock_ce;
+zend_class_entry *swoole_lock_class_entry_ptr;
 
 static zend_class_entry swoole_client_ce;
 static zend_class_entry *swoole_client_class_entry_ptr;
@@ -227,6 +232,7 @@ PHP_MINIT_FUNCTION(swoole)
 {
 	le_swoole_server = zend_register_list_destructors_ex(swoole_destory_server, NULL, SW_RES_SERVER_NAME, module_number);
 	le_swoole_client = zend_register_list_destructors_ex(swoole_destory_client, NULL, SW_RES_CLIENT_NAME, module_number);
+	le_swoole_lock = zend_register_list_destructors_ex(swoole_destory_lock, NULL, SW_RES_LOCK_NAME, module_number);
 
 	REGISTER_LONG_CONSTANT("SWOOLE_BASE", SW_MODE_SINGLE, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_THREAD", SW_MODE_THREAD, CONST_CS | CONST_PERSISTENT);
@@ -236,6 +242,14 @@ PHP_MINIT_FUNCTION(swoole)
 	REGISTER_LONG_CONSTANT("SWOOLE_SOCK_TCP6", SW_SOCK_TCP6, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_SOCK_UDP", SW_SOCK_UDP, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_SOCK_UDP6", SW_SOCK_UDP6, CONST_CS | CONST_PERSISTENT);
+
+	REGISTER_LONG_CONSTANT("SWOOLE_RWLOCK", SW_RWLOCK, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SWOOLE_FILELOCK", SW_FILELOCK, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SWOOLE_MUTEX", SW_MUTEX, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SWOOLE_SEM", SW_SEM, CONST_CS | CONST_PERSISTENT);
+#ifdef HAVE_SPINLOCK
+	REGISTER_LONG_CONSTANT("SWOOLE_SPINLOCK", SW_SPINLOCK, CONST_CS | CONST_PERSISTENT);
+#endif
 
 	REGISTER_LONG_CONSTANT("SWOOLE_SOCK_SYNC", SW_SOCK_SYNC, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_SOCK_ASYNC", SW_SOCK_ASYNC, CONST_CS | CONST_PERSISTENT);
@@ -249,6 +263,9 @@ PHP_MINIT_FUNCTION(swoole)
 
 	INIT_CLASS_ENTRY(swoole_server_ce, "swoole_server", swoole_server_methods);
 	swoole_server_class_entry_ptr = zend_register_internal_class(&swoole_server_ce TSRMLS_CC);
+
+	INIT_CLASS_ENTRY(swoole_lock_ce, "swoole_lock", swoole_lock_methods);
+	swoole_lock_class_entry_ptr = zend_register_internal_class(&swoole_lock_ce TSRMLS_CC);
 
 	return SUCCESS;
 }
@@ -292,6 +309,9 @@ PHP_MINFO_FUNCTION(swoole)
 #endif
 #ifdef HAVE_CPU_AFFINITY
     php_info_print_table_row(2, "cpu affinity", "enable");
+#endif
+#ifdef HAVE_SPINLOCK
+    php_info_print_table_row(2, "spinlock", "enable");
 #endif
 	php_info_print_table_end();
 }

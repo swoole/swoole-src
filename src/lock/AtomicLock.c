@@ -1,35 +1,36 @@
 #include "swoole.h"
 
-int swAtomicLock_create(swAtomicLock *object, int Atomic)
+int swAtomicLock_create(swLock *lock, int spin)
 {
-	bzero(object, sizeof(swAtomicLock));
-	object->lock_t = Atomic;
-	object->lock = swAtomicLock_lock;
-	object->unlock = swAtomicLock_unlock;
-	object->trylock = swAtomicLock_trylock;
+	bzero(lock, sizeof(swLock));
+	lock->type = SW_ATOMLOCK;
+	lock->object.atomlock.spin = spin;
+	lock->lock = swAtomicLock_lock;
+	lock->unlock = swAtomicLock_unlock;
+	lock->trylock = swAtomicLock_trylock;
 	return SW_OK;
 }
 
-int swAtomicLock_lock(swAtomicLock *object)
+int swAtomicLock_lock(swLock *lock)
 {
-	atomic_t *lock = &object->lock_t;
+	atomic_t *atomic = &lock->object.atomlock.lock_t;
 	uint32_t i, n;
 	while (1)
 	{
-		if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1))
+		if (*atomic == 0 && sw_atomic_cmp_set(atomic, 0, 1))
 		{
 			return SW_OK;
 		}
 		if (SW_CPU_NUM > 1)
 		{
-			for (n = 1; n < object->lock_t; n <<= 1)
+			for (n = 1; n < lock->object.atomlock.spin; n <<= 1)
 			{
 				for (i = 0; i < n; i++)
 				{
 					sw_atomic_cpu_pause();
 				}
 
-				if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1))
+				if (*atomic == 0 && sw_atomic_cmp_set(atomic, 0, 1))
 				{
 					return SW_OK;
 				}
@@ -40,13 +41,13 @@ int swAtomicLock_lock(swAtomicLock *object)
 	return SW_ERR;
 }
 
-int swAtomicLock_unlock(swAtomicLock *object)
+int swAtomicLock_unlock(swLock *lock)
 {
-	return object->lock_t = 0;
+	return lock->object.atomlock.lock_t = 0;
 }
 
-int swAtomicLock_trylock(swAtomicLock *object)
+int swAtomicLock_trylock(swLock *lock)
 {
-	atomic_t *lock = &object->lock_t;
-	return (*(lock) == 0 && sw_atomic_cmp_set(lock, 0, 1));
+	atomic_t *atomic = &lock->object.atomlock.lock_t;
+	return (*(atomic) == 0 && sw_atomic_cmp_set(atomic, 0, 1));
 }

@@ -276,127 +276,122 @@ typedef struct _swQueue
 int swQueueMsg_create(swQueue *p, int wait, int msg_key, long type);
 
 //------------------Lock--------------------------------------
+
+enum SW_LOCKS
+{
+	SW_RWLOCK = 1,
+#define SW_RWLOCK SW_RWLOCK
+	SW_FILELOCK = 2,
+#define SW_FILELOCK SW_FILELOCK
+	SW_MUTEX = 3,
+#define SW_MUTEX SW_MUTEX
+	SW_SEM = 4,
+#define SW_SEM SW_SEM
+	SW_SPINLOCK = 5,
+#define SW_SPINLOCK SW_SPINLOCK
+	SW_ATOMLOCK = 6,
+#define SW_ATOMLOCK SW_ATOMLOCK
+};
+
+typedef struct _swLock swLock;
+
+//文件锁
 typedef struct _swFileLock
 {
-	struct flock rwlock;
+	struct flock lock_t;
 	int fd;
-	int (*lock_rd)(struct _swFileLock *object);
-	int (*lock)(struct _swFileLock *object);
-	int (*trylock_rd)(struct _swFileLock *object);
-	int (*trylock)(struct _swFileLock *object);
-	int (*unlock)(struct _swFileLock *object);
-	int (*free)(struct _swFileLock *object);
 } swFileLock;
 
+//互斥锁
 typedef struct _swMutex
 {
-	pthread_mutex_t mutex;
+	pthread_mutex_t _lock;
 	pthread_mutexattr_t attr;
-	int (*lock)(struct _swMutex *object);
-	int (*unlock)(struct _swMutex *object);
-	int (*trylock)(struct _swMutex *object);
-	int (*free)(struct _swMutex *object);
 } swMutex;
 
+//读写锁
 typedef struct _swRWLock
 {
-	pthread_rwlock_t rwlock;
+	pthread_rwlock_t _lock;
 	pthread_rwlockattr_t attr;
-	int (*lock_rd)(struct _swRWLock *object);
-	int (*lock)(struct _swRWLock *object);
-	int (*unlock)(struct _swRWLock *object);
-	int (*trylock_rd)(struct _swRWLock *object);
-	int (*trylock)(struct _swRWLock *object);
-	int (*free)(struct _swRWLock *object);
+
 } swRWLock;
 
+//自旋锁
 #ifdef HAVE_SPINLOCK
 typedef struct _swSpinLock
 {
 	pthread_spinlock_t lock_t;
-	int (*lock)(struct _swSpinLock *object);
-	int (*unlock)(struct _swSpinLock *object);
-	int (*trylock)(struct _swSpinLock *object);
-	int (*free)(struct _swSpinLock *object);
 } swSpinLock;
 #endif
 
+//原子锁Lock-Free
+typedef struct _swAtomicLock
+{
+	atomic_t lock_t;
+	uint32_t spin;
+} swAtomicLock;
+
+//信号量
+typedef struct _swSem
+{
+	key_t key;
+	int semid;
+	int lock_num;
+} swSem;
+
+struct _swLock
+{
+	int type;
+	union
+	{
+		swMutex mutex;
+		swRWLock rwlock;
+		swFileLock filelock;
+		swSem sem;
+		swAtomicLock atomlock;
+#ifdef HAVE_SPINLOCK
+		swSpinLock spinlock;
+#endif
+	} object;
+	int (*lock_rd)(struct _swLock *lock);
+	int (*lock)(struct _swLock *lock);
+	int (*unlock)(struct _swLock *lock);
+	int (*trylock_rd)(struct _swLock *lock);
+	int (*trylock)(struct _swLock *lock);
+	int (*free)(struct _swLock *lock);
+};
+
+//Cond
 typedef struct _swCond
 {
-	swMutex mutex;
+	swLock lock;
 	pthread_cond_t cond;
 
 	int (*wait)(struct _swCond *object);
 	int (*timewait)(struct _swCond *object,long,long);
 	int (*notify)(struct _swCond *object);
 	int (*broadcast)(struct _swCond *object);
-
-	int (*lock)(struct _swCond *object);
-	int (*unlock)(struct _swCond *object);
-	int (*trylock)(struct _swCond *object);
-	void (*free)(struct _swCond *object);
 } swCond;
 
-typedef struct _swAtomicLock
-{
-	atomic_t lock_t;
-	uint32_t spin;
-	int (*lock)(struct _swAtomicLock *object);
-	int (*unlock)(struct _swAtomicLock *object);
-	int (*trylock)(struct _swAtomicLock *object);
-	int (*free)(struct _swAtomicLock *object);
-} swAtomicLock;
-
-typedef struct _swSem
-{
-	key_t key;
-	int semid;
-	int lock_num;
-	int (*lock)(struct _swSem *object);
-	int (*unlock)(struct _swSem *object);
-	int (*free)(struct _swSem *object);
-} swSem;
-
-int swRWLock_create(swRWLock *object, int use_in_process);
-int swRWLock_lock_rd(swRWLock *object);
-int swRWLock_lock_rw(swRWLock *object);
-int swRWLock_unlock(swRWLock *object);
-int swRWLock_trylock_rw(swRWLock *object);
-int swRWLock_trylock_rd(swRWLock *object);
-int swRWLock_free(swRWLock *object);
-
-int swSem_create(swSem *object, key_t key, int n);
-int swSem_lock(swSem *object);
-int swSem_unlock(swSem *object);
-int swSem_free(swSem *object);
-
-int swMutex_create(swMutex *object, int use_in_process);
-int swMutex_lock(swMutex *object);
-int swMutex_unlock(swMutex *object);
-int swMutex_trylock(swMutex *object);
-int swMutex_free(swMutex *object);
-
-int swFileLock_create(swFileLock *object, int fd);
-int swFileLock_lock_rd(swFileLock *object);
-int swFileLock_lock_rw(swFileLock *object);
-int swFileLock_unlock(swFileLock *object);
-int swFileLock_trylock_rw(swFileLock *object);
-int swFileLock_trylock_rd(swFileLock *object);
+int swRWLock_create(swLock *lock, int use_in_process);
+int swSem_create(swLock *lock, key_t key, int n);
+int swMutex_create(swLock *lock, int use_in_process);
+int swFileLock_create(swLock *lock, int fd);
+#ifdef HAVE_SPINLOCK
+int swSpinLock_create(swLock *object, int spin);
+#endif
+int swAtomicLock_create(swLock *object, int spin);
+SWINLINE int swAtomicLock_lock(swLock *lock);
+SWINLINE int swAtomicLock_unlock(swLock *lock);
+SWINLINE int swAtomicLock_trylock(swLock *lock);
 
 int swCond_create(swCond *cond);
-
-#ifdef HAVE_SPINLOCK
-int swSpinLock_create(swSpinLock *object, int spin);
-int swSpinLock_lock(swSpinLock *object);
-int swSpinLock_unlock(swSpinLock *object);
-int swSpinLock_trylock(swSpinLock *object);
-int swSpinLock_free(swSpinLock *object);
-#endif
-
-int swAtomicLock_create(swAtomicLock *object, int spin);
-int swAtomicLock_lock(swAtomicLock *object);
-int swAtomicLock_unlock(swAtomicLock *object);
-int swAtomicLock_trylock(swAtomicLock *object);
+int swCond_notify(swCond *cond);
+int swCond_broadcast(swCond *cond);
+int swCond_timewait(swCond *cond, long sec, long nsec);
+int swCond_wait(swCond *cond);
+void swCond_free(swCond *cond);
 
 typedef struct _swThreadParam
 {
@@ -608,7 +603,7 @@ typedef struct _swChannel
 	int flag;
 	int maxlen;
 	void *mem;   //内存块
-	swMutex lock;
+	swLock lock;
 	swPipe notify_fd;
 } swChannel;
 
