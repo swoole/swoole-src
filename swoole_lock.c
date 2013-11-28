@@ -19,7 +19,6 @@ PHP_METHOD(swoole_lock, __construct)
 	switch(type)
 	{
 	case SW_RWLOCK:
-		php_printf("rwlock\n");
 		ret = swRWLock_create(lock, 1);
 		break;
 	case SW_FILELOCK:
@@ -28,9 +27,8 @@ PHP_METHOD(swoole_lock, __construct)
 			zend_error(E_ERROR, "SwooleLock: filelock require lock file name.");
 			RETURN_FALSE;
 		}
-		php_printf("filelock file=%s\n", filelock);
 		int fd;
-		if ((fd = open(filelock, O_RDWR | O_CREAT | O_TRUNC)) < 0)
+		if ((fd = open(filelock, O_RDWR | O_CREAT, 0666)) < 0)
 		{
 			zend_error(E_WARNING, "SwooleLock: open file[%s] fail. Error: %s [%d]", filelock, strerror(errno), errno);
 			RETURN_FALSE;
@@ -38,18 +36,15 @@ PHP_METHOD(swoole_lock, __construct)
 		ret = swFileLock_create(lock, fd);
 		break;
 	case SW_SEM:
-		php_printf("sem\n");
 		ret = swSem_create(lock, IPC_PRIVATE, 1);
 		break;
 #ifdef HAVE_SPINLOCK
-		php_printf("SPINLOCK\n");
 	case SW_SPINLOCK:
 		ret = swSpinLock_create(lock, 1);
 		break;
 #endif
 	case SW_MUTEX:
 	default:
-		php_printf("mutex\n");
 		ret = swMutex_create(lock, 1);
 		break;
 	}
