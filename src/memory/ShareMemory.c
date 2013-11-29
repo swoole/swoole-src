@@ -94,11 +94,16 @@ void *swShareMemory_mmap_create(swShareMemory *object, int size, char *mapfile)
 #endif
 
 	mem = mmap(NULL, size, PROT_READ | PROT_WRITE, flag, tmpfd, 0);
-	if ((int)mem < 0)
+#ifdef MAP_FAILED
+	if (mem == MAP_FAILED)
+#else
+	if (!mem)
+#endif
 	{
 		swWarn("mmap fail. Error: %s[%d]", strerror(errno), errno);
 		return NULL;
 	}
+
 	else
 	{
 		object->size = size;
