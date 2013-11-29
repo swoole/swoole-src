@@ -74,7 +74,7 @@ void* sw_shm_realloc(void *ptr, size_t new_size)
 void *swShareMemory_mmap_create(swShareMemory *object, int size, char *mapfile)
 {
 	void *mem;
-	int tmpfd = 0;
+	int tmpfd = -1;
 	int flag = MAP_SHARED;
 	bzero(object, sizeof(swShareMemory));
 
@@ -93,8 +93,10 @@ void *swShareMemory_mmap_create(swShareMemory *object, int size, char *mapfile)
 	object->tmpfd = tmpfd;
 #endif
 
-	if ((mem = mmap(NULL, size, PROT_READ | PROT_WRITE, flag, tmpfd, 0)) < 0)
+	mem = mmap(NULL, size, PROT_READ | PROT_WRITE, flag, tmpfd, 0);
+	if ((int)mem < 0)
 	{
+		swWarn("mmap fail. Error: %s[%d]", strerror(errno), errno);
 		return NULL;
 	}
 	else

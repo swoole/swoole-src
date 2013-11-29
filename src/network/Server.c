@@ -474,18 +474,18 @@ void swoole_init(void)
 	extern FILE *swoole_log_fn;
 	if (swoole_running == 0)
 	{
-		//初始化全局内存
-		sw_memory_pool = swMemoryGlobal_create(SW_GLOBAL_MEMORY_PAGESIZE, 1);
-		if(sw_memory_pool == NULL)
-		{
-			swError("[Master] Fatal Error: create global memory fail. Errno=%d", errno);
-		}
 		//初始化全局变量
 		swoole_running = 1;
 		sw_errno = 0;
 		bzero(sw_error, SW_ERROR_MSG_SIZE);
 		//将日志设置为标准输出
 		swoole_log_fn = stdout;
+		//初始化全局内存
+		sw_memory_pool = swMemoryGlobal_create(SW_GLOBAL_MEMORY_PAGESIZE, 1);
+		if(sw_memory_pool == NULL)
+		{
+			swError("[Master] Fatal Error: create global memory fail. Errno=%d", errno);
+		}
 	}
 }
 
