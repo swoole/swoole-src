@@ -34,18 +34,20 @@
 #define SW_MAX_FIND_COUNT             100 //最多一次性取100个connection_info
 #define SW_PHP_CLIENT_BUFFER_SIZE     65535
 
-#define PHP_SERVER_CALLBACK_NUM             10
+#define PHP_SERVER_CALLBACK_NUM             12
 //---------------------------------------------------
-#define SW_SERVER_CB_onStart                0 //Server启动
-#define SW_SERVER_CB_onConnect              1 //accept连接(Worker)
-#define SW_SERVER_CB_onReceive              2 //接受数据
-#define SW_SERVER_CB_onClose                3 //关闭连接(Worker)
-#define SW_SERVER_CB_onShutdown             4 //Server关闭
-#define SW_SERVER_CB_onTimer                5 //定时器
-#define SW_SERVER_CB_onWorkerStart          6 //Worker进程启动
-#define SW_SERVER_CB_onWorkerStop           7 //Worker进程结束
+#define SW_SERVER_CB_onStart                0 //Server启动(master)
+#define SW_SERVER_CB_onConnect              1 //accept连接(worker)
+#define SW_SERVER_CB_onReceive              2 //接受数据(worker)
+#define SW_SERVER_CB_onClose                3 //关闭连接(worker)
+#define SW_SERVER_CB_onShutdown             4 //Server关闭(master)
+#define SW_SERVER_CB_onTimer                5 //定时器(master)
+#define SW_SERVER_CB_onWorkerStart          6 //Worker进程启动(worker)
+#define SW_SERVER_CB_onWorkerStop           7 //Worker进程结束(worker)
 #define SW_SERVER_CB_onMasterConnect        8 //accept连接(master)
 #define SW_SERVER_CB_onMasterClose          9 //关闭连接(master)
+#define SW_SERVER_CB_onTask                 10 //异步任务(task_worker)
+#define SW_SERVER_CB_onFinish               11 //关闭连接(worker)
 
 #define PHP_CLIENT_CALLBACK_NUM             3
 //---------------------------------------------------
@@ -73,11 +75,15 @@ static HashTable php_sw_client_callback;
 #ifdef ZTS
 static void ***sw_thread_ctx;
 #endif
-extern swReactor *swoole_worker_reactor;
+
 static char php_sw_reactor_ok = 0;
 static char php_sw_in_client = 0;
 static int php_swoole_udp_from_fd = 0;
+static uint16_t php_swoole_task_id = 1;
+static uint16_t php_swoole_task_from = 0;
+
 extern sapi_module_struct sapi_module;
+extern swReactor *swoole_worker_reactor;
 
 static int php_swoole_onReceive(swFactory *, swEventData *);
 static void php_swoole_onStart(swServer *);
@@ -89,6 +95,8 @@ static void php_swoole_onWorkerStart(swServer *, int worker_id);
 static void php_swoole_onWorkerStop(swServer *, int worker_id);
 static void php_swoole_onMasterConnect(swServer *, int fd, int from_id);
 static void php_swoole_onMasterClose(swServer *, int fd, int from_id);
+static int php_swoole_onTask(swServer *, swEventData *task);
+static int php_swoole_onFinish(swServer *, swEventData *task);
 static void swoole_destory_server(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 static void swoole_destory_client(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 
@@ -126,7 +134,8 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_server_handler, NULL)
 	PHP_FE(swoole_server_addlisten, NULL)
 	PHP_FE(swoole_server_addtimer, NULL)
-	PHP_FE(swoole_server_addcontroller, NULL)
+	PHP_FE(swoole_server_task, NULL)
+	PHP_FE(swoole_server_finish, NULL)
 	PHP_FE(swoole_server_reload, NULL)
 	PHP_FE(swoole_connection_info, NULL)
 	PHP_FE(swoole_connection_list, NULL)
@@ -147,6 +156,8 @@ static zend_function_entry swoole_server_methods[] = {
 	PHP_FALIAS(start, swoole_server_start, NULL)
 	PHP_FALIAS(send, swoole_server_send, NULL)
 	PHP_FALIAS(close, swoole_server_close, NULL)
+	PHP_FALIAS(task, swoole_server_task, NULL)
+	PHP_FALIAS(finish, swoole_server_finish, NULL)
 	PHP_FALIAS(addlistener, swoole_server_addlisten, NULL)
 	PHP_FALIAS(addtimer, swoole_server_addtimer, NULL)
 	PHP_FALIAS(reload, swoole_server_reload, NULL)
@@ -501,11 +512,17 @@ PHP_FUNCTION(swoole_server_set)
 		convert_to_long(*v);
 		serv->writer_num = (int)Z_LVAL_PP(v);
 	}
-	//writer_num
+	//worker_num
 	if (zend_hash_find(vht, ZEND_STRS("worker_num"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
 		serv->worker_num = (int)Z_LVAL_PP(v);
+	}
+	//task_worker_num
+	if (zend_hash_find(vht, ZEND_STRS("task_worker_num"), (void **)&v) == SUCCESS)
+	{
+		convert_to_long(*v);
+		serv->task_worker_num = (int)Z_LVAL_PP(v);
 	}
 	//max_conn
 	if (zend_hash_find(vht, ZEND_STRS("max_conn"), (void **)&v) == SUCCESS)
@@ -641,6 +658,8 @@ PHP_FUNCTION(swoole_server_handler)
 			"onWorkerStop",
 			"onMasterConnect",
 			"onMasterClose",
+			"onTask",
+			"onFinish",
 	};
 	for(i=0; i<PHP_SERVER_CALLBACK_NUM; i++)
 	{
@@ -892,6 +911,86 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	}
 	zval_ptr_dtor(&zfd);
 	zval_ptr_dtor(&zfrom_id);
+	zval_ptr_dtor(&zdata);
+	if (retval != NULL)
+	{
+		zval_ptr_dtor(&retval);
+	}
+	return SW_OK;
+}
+
+static int php_swoole_onTask(swServer *serv, swEventData *req)
+{
+	zval *zserv = (zval *)serv->ptr2;
+	zval **args[4];
+
+	zval *zfd;
+	zval *zfrom_id;
+	zval *zdata;
+	zval *retval;
+
+	MAKE_STD_ZVAL(zfd);
+	ZVAL_LONG(zfd, (long)req->info.fd);
+	//任务ID
+	php_swoole_task_id = req->info.fd;
+
+	MAKE_STD_ZVAL(zfrom_id);
+	ZVAL_LONG(zfrom_id, (long)req->info.from_id);
+	//任务来源
+	php_swoole_task_from = req->info.from_id;
+
+	MAKE_STD_ZVAL(zdata);
+	ZVAL_STRINGL(zdata, req->data, req->info.len, 1);
+
+	args[0] = &zserv;
+	args[1] = &zfd;
+	args[2] = &zfrom_id;
+	args[3] = &zdata;
+
+//	printf("task: fd=%d|len=%d|from_id=%d|data=%s\n", req->info.fd, req->info.len, req->info.from_id, req->data);
+
+	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onTask], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
+	{
+		zend_error(E_WARNING, "SwoolServer: onReceive handler error");
+	}
+	zval_ptr_dtor(&zfd);
+	zval_ptr_dtor(&zfrom_id);
+	zval_ptr_dtor(&zdata);
+	if (retval != NULL)
+	{
+		zval_ptr_dtor(&retval);
+	}
+	return SW_OK;
+}
+
+static int php_swoole_onFinish(swServer *serv, swEventData *req)
+{
+	zval *zserv = (zval *)serv->ptr2;
+	zval **args[3];
+
+	zval *ztask_id;
+	zval *zdata;
+	zval *retval;
+
+	MAKE_STD_ZVAL(ztask_id);
+	ZVAL_LONG(ztask_id, (long)req->info.fd);
+
+	MAKE_STD_ZVAL(zdata);
+	ZVAL_STRINGL(zdata, req->data, req->info.len, 1);
+
+	args[0] = &zserv;
+	args[1] = &ztask_id;
+	args[2] = &zdata;
+
+//	printf("req: fd=%d|len=%d|from_id=%d|data=%s\n", req->info.fd, req->info.len, req->info.from_id, req->data);
+
+	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onFinish], &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
+	{
+		zend_error(E_WARNING, "SwoolServer: onReceive handler error");
+	}
+	zval_ptr_dtor(&ztask_id);
 	zval_ptr_dtor(&zdata);
 	if (retval != NULL)
 	{
@@ -1411,35 +1510,42 @@ PHP_FUNCTION(swoole_server_start)
 	}
 	SWOOLE_GET_SERVER(zobject, serv);
 
-	if(php_sw_callback[SW_SERVER_CB_onStart]!=NULL)
+	if (php_sw_callback[SW_SERVER_CB_onStart] != NULL)
 	{
 		serv->onStart = php_swoole_onStart;
 	}
-	if(php_sw_callback[SW_SERVER_CB_onShutdown]!=NULL)
+	if (php_sw_callback[SW_SERVER_CB_onShutdown] != NULL)
 	{
 		serv->onShutdown = php_swoole_onShutdown;
 	}
-	if(php_sw_callback[SW_SERVER_CB_onMasterConnect]!=NULL)
+	if (php_sw_callback[SW_SERVER_CB_onMasterConnect] != NULL)
 	{
 		serv->onMasterConnect = php_swoole_onMasterConnect;
 	}
-	if(php_sw_callback[SW_SERVER_CB_onMasterClose]!=NULL)
+	if (php_sw_callback[SW_SERVER_CB_onMasterClose] != NULL)
 	{
 		serv->onMasterClose = php_swoole_onMasterClose;
 	}
-	if(php_sw_callback[SW_SERVER_CB_onWorkerStart]!=NULL)
+	if (php_sw_callback[SW_SERVER_CB_onWorkerStart] != NULL)
 	{
 		serv->onWorkerStart = php_swoole_onWorkerStart;
 	}
-	if(php_sw_callback[SW_SERVER_CB_onWorkerStop]!=NULL)
+	if (php_sw_callback[SW_SERVER_CB_onWorkerStop] != NULL)
 	{
 		serv->onWorkerStop = php_swoole_onWorkerStop;
 	}
-	if(php_sw_callback[SW_SERVER_CB_onTimer]!=NULL)
+	if (php_sw_callback[SW_SERVER_CB_onTimer] != NULL)
 	{
 		serv->onTimer = php_swoole_onTimer;
 	}
-
+	if (php_sw_callback[SW_SERVER_CB_onTask] != NULL)
+	{
+		serv->onTask = php_swoole_onTask;
+	}
+	if (php_sw_callback[SW_SERVER_CB_onFinish] != NULL)
+	{
+		serv->onFinish = php_swoole_onFinish;
+	}
 	serv->onClose = php_swoole_onClose;
 	serv->onConnect = php_swoole_onConnect;
 	serv->onReceive = php_swoole_onReceive;
@@ -1658,30 +1764,90 @@ PHP_FUNCTION(swoole_set_process_name)
 	memcpy(sapi_module.executable_location, name, ARGV_MAX_LENGTH-1);
 }
 
-PHP_FUNCTION(swoole_server_addcontroller)
+PHP_FUNCTION(swoole_server_task)
 {
 	zval *zobject = getThis();
 	swServer *serv = NULL;
-	swFactory *factory = NULL;
-	long interval;
-
+	swEventData buf;
+	char *data;
+	int data_len;
 	if (zobject == NULL)
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ol", &zobject, swoole_server_class_entry_ptr, &interval) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Os", &zobject, swoole_server_class_entry_ptr, &data, &data_len) == FAILURE)
 		{
 			return;
 		}
 	}
 	else
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &interval) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &data, &data_len) == FAILURE)
 		{
 			return;
 		}
 	}
-//	SWOOLE_GET_SERVER(zobject, serv);
-//	swServer_add_controller();
-//	SW_CHECK_RETURN(swServer_addTimer(serv, (int)interval));
+	if(data_len > sizeof(buf.data))
+	{
+		swWarn("SwooleServer: task data max_size=%d.", sizeof(buf.data));
+		RETURN_FALSE;
+	}
+	SWOOLE_GET_SERVER(zobject, serv);
+	swFactory *factory = &serv->factory;
+	memcpy(buf.data, data, data_len);
+	buf.info.len = data_len;
+	//使用fd保存task_id
+	buf.info.fd = php_swoole_task_id++;
+	extern int c_worker_pti;
+	//from_id保存worker_id
+	buf.info.from_id = c_worker_pti;
+	if (factory->event(factory, &buf) > 0)
+	{
+		RETURN_LONG(buf.info.fd);
+	}
+	else
+	{
+		RETURN_FALSE;
+	}
+}
+
+PHP_FUNCTION(swoole_server_finish)
+{
+	zval *zobject = getThis();
+	swServer *serv = NULL;
+	swEventData buf;
+	char *data;
+	int data_len;
+
+	if (zobject == NULL)
+	{
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Os", &zobject, swoole_server_class_entry_ptr, &data, &data_len) == FAILURE)
+		{
+			return;
+		}
+	}
+	else
+	{
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &data, &data_len) == FAILURE)
+		{
+			return;
+		}
+	}
+	if(data_len > sizeof(buf.data))
+	{
+		swWarn("SwooleServer: finish data max_size=%d.", sizeof(buf.data));
+		RETURN_FALSE;
+	}
+	SWOOLE_GET_SERVER(zobject, serv);
+	if(serv->factory_mode != SW_MODE_PROCESS || serv->task_worker_num < 1)
+	{
+		swWarn("SwooleServer: finish can not use here");
+		RETURN_FALSE;
+	}
+	swFactory *factory = &serv->factory;
+	memcpy(buf.data, data, data_len);
+	buf.info.len = data_len;
+	buf.info.type = SW_EVENT_FINISH;
+	buf.info.fd = php_swoole_task_id;
+	SW_CHECK_RETURN(swFactoryProcess_send2worker(factory, &buf, php_swoole_task_from));
 }
 
 PHP_METHOD(swoole_client, __construct)

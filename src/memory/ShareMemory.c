@@ -103,7 +103,6 @@ void *swShareMemory_mmap_create(swShareMemory *object, int size, char *mapfile)
 		swWarn("mmap fail. Error: %s[%d]", strerror(errno), errno);
 		return NULL;
 	}
-
 	else
 	{
 		object->size = size;

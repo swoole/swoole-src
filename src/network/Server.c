@@ -330,15 +330,23 @@ static int swServer_check_callback(swServer *serv)
 	{
 		return SW_ERR;
 	}
+	//Timer
 	if (serv->timer_list != NULL && serv->onTimer == NULL)
+	{
+		return SW_ERR;
+	}
+	//AsyncTask
+	if (serv->task_worker_num != NULL && (serv->onTask == NULL || serv->onFinish == NULL))
 	{
 		return SW_ERR;
 	}
 	return SW_OK;
 }
 
-
-
+/**
+ * base模式
+ * 在worker进程中直接accept连接
+ */
 int swServer_start_base(swServer *serv)
 {
 	int ret;
@@ -349,6 +357,10 @@ int swServer_start_base(swServer *serv)
 	return swServer_single_start(serv);
 }
 
+/**
+ * proxy模式
+ * 在单独的n个线程中接受维持TCP连接
+ */
 int swServer_start_proxy(swServer *serv)
 {
 	int ret;
@@ -675,6 +687,7 @@ int swServer_create_base(swServer *serv)
 int swServer_create_proxy(swServer *serv)
 {
 	int ret = 0;
+	SW_START_SLEEP;
 	//初始化master pipe
 #ifdef SW_MAINREACTOR_USE_UNSOCK
 	ret = swPipeUnsock_create(&serv->main_pipe, 0, SOCK_STREAM);
@@ -1016,7 +1029,7 @@ static int swServer_single_start(swServer *serv)
 	int status;
 
 	swProcessPool ma;
-	swProcessPool_create(&ma, serv->worker_num);
+	swProcessPool_create(&ma, serv->worker_num, serv->max_request);
 
 	for (i = 0; i < serv->worker_num; i++)
 	{
@@ -1048,8 +1061,8 @@ static int swServer_single_start(swServer *serv)
 			return SW_ERR;
 		}
 	}
-
-	return swProcessPool_run(&ma);
+	swProcessPool_start(&ma);
+	return swProcessPool_wait(&ma);
 }
 
 static int swServer_single_loop(swWorker *worker)

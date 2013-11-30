@@ -8,16 +8,17 @@ argv3  sock_type  SWOOLE_SOCK_TCP or SWOOLE_SOCK_TCP6 or SWOOLE_SOCK_UDP or SWOO
 $serv = swoole_server_create("127.0.0.1", 9501, SWOOLE_PROCESS);
 swoole_server_set($serv, array(
     'timeout' => 2,  //select and epoll_wait timeout.
-    'poll_thread_num' => 4, //reactor thread num
-    'writer_num' => 4,     //writer thread num
+    'poll_thread_num' => 1, //reactor thread num
+    'writer_num' => 1,     //writer thread num
     'worker_num' => 4,    //worker process num
     'backlog' => 128,   //listen backlog
     'max_request' => 5000,
     'max_conn' => 100000,
-    'dispatch_mode' => 2,
+    'task_worker_num' => 2,
+	'dispatch_mode' => 2,
 //    'daemonize' => 1,  //转为后台守护进程运行
 	'open_cpu_affinity' => 1,
-    //'data_eof' => "\r\n\r\n",
+   //'data_eof' => "\r\n\r\n",
     //'open_eof_check' => 1,
     //'open_tcp_keepalive' => 1,
     //'log_file' => '/tmp/swoole.log', //swoole error log
@@ -70,17 +71,21 @@ function my_onReceive($serv, $fd, $from_id, $data)
 {
     //echo "Client:Data. fd=$fd|from_id=$from_id|data=$data";
     //echo "WorkerPid=".posix_getpid()."\n";
-    swoole_server_send($serv, $fd, 'Swoole: '.$data, $from_id);
-    /*
+    //swoole_server_send($serv, $fd, 'Swoole: '.$data, $from_id);
+
     if(trim($data) == "reload") 
     {
-		swoole_server_reload($serv);
-	} 
+		$serv->reload($serv);
+	}
+	elseif(trim($data) == "task") 
+    {
+		$task_id = $serv->task("hello world");
+		echo "Dispath AsyncTask: id=$task_id\n";
+	}
 	else 
 	{
-		swoole_server_send($serv, $fd, 'Swoole: '.$data, $from_id);
+		$serv->send($fd, 'Swoole: '.$data, $from_id);
 	}
-	*/
 	//swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);
 	//swoole_server_close($serv, $fd, $from_id);
 	//swoole_server_close($serv, $ohter_fd, $other_from_id);
@@ -102,14 +107,26 @@ function my_onReceive($serv, $fd, $from_id, $data)
 	}
 	*/
 }
- function my_onMasterClose($serv,$fd,$from_id)
+
+function my_onMasterConnect($serv, $fd, $from_id)
+{
+    //echo "my_onMasterConnect:Close.PID=".posix_getpid().PHP_EOL;
+}
+
+function my_onMasterClose($serv,$fd,$from_id)
 {
     //echo "Client:Close.PID=".posix_getpid().PHP_EOL;
 }
 
-function my_onMasterConnect($serv,$fd,$from_id)
+function my_onTask($serv, $task_id, $from_id, $data)
 {
-    //echo "Client:Connect.PID=".posix_getpid().PHP_EOL;
+    echo "AsyncTask[PID=".posix_getpid()."]: task_id=$task_id.".PHP_EOL;
+    $serv->finish("OK");
+}
+
+function my_onFinish($serv, $data)
+{
+    echo "AsyncTask Finish:Connect.PID=".posix_getpid().PHP_EOL;
 }
 
 swoole_server_handler($serv, 'onStart', 'my_onStart');
@@ -120,6 +137,9 @@ swoole_server_handler($serv, 'onShutdown', 'my_onShutdown');
 swoole_server_handler($serv, 'onTimer', 'my_onTimer');
 swoole_server_handler($serv, 'onWorkerStart', 'my_onWorkerStart');
 swoole_server_handler($serv, 'onWorkerStop', 'my_onWorkerStop');
+swoole_server_handler($serv, 'onTask', 'my_onTask');
+swoole_server_handler($serv, 'onFinish', 'my_onFinish');
+
 //swoole_server_handler($serv, 'onMasterConnect', 'my_onMasterConnect');
 //swoole_server_handler($serv, 'onMasterClose', 'my_onMasterClose');
 

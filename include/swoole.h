@@ -39,6 +39,9 @@ extern "C" {
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/select.h>
+#include <sys/mman.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
 #include <pthread.h>
 
 #ifdef HAVE_TIMERFD
@@ -96,7 +99,6 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 /*----------------------------------------------------------------------------*/
 
 #include "swoole_config.h"
-#include "memory.h"
 #include "atomic.h"
 #include "hashmap.h"
 #include "list.h"
@@ -375,6 +377,82 @@ typedef struct _swCond
 	int (*broadcast)(struct _swCond *object);
 } swCond;
 
+
+#define SW_SHM_MMAP_FILE_LEN  64
+typedef struct _swShareMemory_mmap
+{
+	int size;
+	char mapfile[SW_SHM_MMAP_FILE_LEN];
+	int tmpfd;
+	int key;
+	int shmid;
+	void *mem;
+} swShareMemory;
+
+void *swShareMemory_mmap_create(swShareMemory *object, int size, char *mapfile);
+void *swShareMemory_sysv_create(swShareMemory *object, int size, int key);
+int swShareMemory_sysv_free(swShareMemory *object, int rm);
+int swShareMemory_mmap_free(swShareMemory *object);
+
+//-------------------share memory-------------------------
+typedef struct _swMemoryPoolSlab
+{
+	char tag; //1表示被占用 0未使用
+	struct _swMemoryPoolSlab *next;
+	struct _swMemoryPoolSlab *pre;
+	void *data; //读写区
+} swMemoryPoolSlab;
+
+typedef struct _swMemoryPool
+{
+	swMemoryPoolSlab *head;
+	swMemoryPoolSlab *tail;
+	int block_size; //每次扩容的长度
+	int memory_limit; //最大内存占用
+	int memory_usage; //内存使用量
+	int slab_size; //每个slab的长度
+	char shared; //是否使用共享内存
+} swMemoryPool;
+
+typedef struct _swAllocator {
+	void *object;
+	void* (*alloc)(struct _swAllocator *alloc, int size);
+	void (*free)(struct _swAllocator *alloc, void *ptr);
+	void (*destroy)(struct _swAllocator *alloc);
+} swAllocator;
+
+typedef struct _swMemoryGlobal
+{
+	int size;  //总容量
+	void *mem; //剩余内存的指针
+	int offset; //内存分配游标
+	char shared;
+	int pagesize;
+	swLock lock; //锁
+	void *root_page;
+	void *cur_page;
+} swMemoryGlobal;
+
+/**
+ * 内存池
+ */
+int swMemoryPool_create(swMemoryPool *pool, int memory_limit, int slab_size);
+void swMemoryPool_free(swMemoryPool *pool, void *data);
+void* swMemoryPool_alloc(swMemoryPool *pool);
+
+/**
+ * 全局内存,程序生命周期内只分配/释放一次
+ */
+swAllocator* swMemoryGlobal_create(int pagesize, char shared);
+
+/**
+ * 共享内存分配
+ */
+void* sw_shm_malloc(size_t size);
+void sw_shm_free(void *ptr);
+void* sw_shm_calloc(size_t num, size_t _size);
+void* sw_shm_realloc(void *ptr, size_t new_size);
+
 int swRWLock_create(swLock *lock, int use_in_process);
 int swSem_create(swLock *lock, key_t key, int n);
 int swMutex_create(swLock *lock, int use_in_process);
@@ -451,9 +529,8 @@ struct _swFactory
 	int (*shutdown)(struct _swFactory *);
 	int (*dispatch)(struct _swFactory *, swEventData *);
 	int (*finish)(struct _swFactory *, swSendData *);
-	int (*notify)(struct _swFactory *, swEvent *);                       //发送一个事件通知
-	int (*event)(struct _swFactory *, int controller_id, swEventData *); //控制器事件
-	int (*controller)(struct _swFactory *factory, swEventCallback cb);   //增加一个控制器进程
+	int (*notify)(struct _swFactory *, swEvent *);    //发送一个事件通知
+	int (*event)(struct _swFactory *, swEventData *); //控制器事件
 	int (*end)(struct _swFactory *, swDataHead *);
 
 	int (*onTask)(struct _swFactory *, swEventData *task); //worker function.get a task,goto to work
@@ -496,14 +573,18 @@ struct _swWorker
 	swWorkerCall call;
 };
 
-typedef struct
+typedef struct _swProcessPool
 {
 	char reloading;
 	char reload_flag;
-	int max_num;
 	int worker_num;
+	int max_request;
+	int (*onTask)(struct _swProcessPool *pool, swEventData *task);
+	int round_id;
 	swWorker *workers;
 	swHashMap map;
+	void *ptr;
+	void *ptr2;
 } swProcessPool;
 
 typedef struct _swThreadWriter
@@ -547,6 +628,7 @@ int swFactoryProcess_start(swFactory *factory);
 int swFactoryProcess_shutdown(swFactory *factory);
 int swFactoryProcess_end(swFactory *factory, swDataHead *event);
 int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task);
+int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int worker_id);
 
 int swFactoryThread_create(swFactory *factory, int writer_num);
 int swFactoryThread_start(swFactory *factory);
@@ -580,10 +662,11 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num);
 int swReactorSelect_create(swReactor *reactor);
 
 /*----------------------------Process Pool-------------------------------*/
-int swProcessPool_create(swProcessPool *ma, int max_num);
-int swProcessPool_add_worker(swProcessPool *ma, swWorkerCall cb);
-int swProcessPool_run(swProcessPool *ma);
-void swProcessPool_shutdown(swProcessPool *ma);
+int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request);
+int swProcessPool_wait(swProcessPool *pool);
+int swProcessPool_start(swProcessPool *pool);
+void swProcessPool_shutdown(swProcessPool *pool);
+pid_t swProcessPool_spawn(swProcessPool *pool, swWorker *worker);
 #define swProcessPool_worker(ma,id) (ma->workers[id])
 
 //-----------------------------Channel---------------------------

@@ -23,6 +23,11 @@ swAllocator* swMemoryGlobal_create(int pagesize, char shared)
 	{
 		return NULL;
 	}
+	//分配内存需要加锁
+	if(swMutex_create(&gm.lock, 1) < 0)
+	{
+		return NULL;
+	}
 	//root
 	gm.root_page = first_page;
 	gm.cur_page = first_page;
@@ -65,6 +70,7 @@ static void* swMemoryGlobal_new_page(swMemoryGlobal *gm)
 static void *swMemoryGlobal_alloc(swAllocator *allocator, int size)
 {
 	swMemoryGlobal *gm = allocator->object;
+	gm->lock.lock(&gm->lock);
 	if(size > gm->pagesize)
 	{
 		swWarn("swMemoryGlobal_alloc: alloc %d bytes not allow. Max size=%d", size, gm->pagesize);
@@ -87,6 +93,7 @@ static void *swMemoryGlobal_alloc(swAllocator *allocator, int size)
 	}
 	void *mem = gm->mem + gm->offset;
 	gm->offset += size;
+	gm->lock.unlock(&gm->lock);
 	return mem;
 }
 

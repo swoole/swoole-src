@@ -101,11 +101,17 @@ int swClient_tcp_send(swClient *cli, char *data, int length)
 	while (written < length)
 	{
 		n = send(cli->sock, data, length - written, 0);
-
-		if (n < 0) //反过来
+		if (n < 0)
 		{
-			if (errno == EAGAIN || errno == EINTR)
+			//中断
+			if (errno == EINTR)
 			{
+				continue;
+			}
+			//让出
+			else if(errno == EAGAIN)
+			{
+				swYield();
 				continue;
 			}
 			else

@@ -4,19 +4,9 @@
 #include <sys/wait.h>
 #include <time.h>
 
-typedef struct _swController
-{
-	struct _swController *next, *prev;
-	int id;
-	int pid;
-	int pipe_fd;
-	int pipe_wt;
-	int (*onEvent)(swFactory *serv, swEventData *event);
-} swController;
-
 static int swFactoryProcess_manager_loop(swFactory *factory);
+static int swFactoryProcess_manager_start(swFactory *factory);
 
-static int swFactoryProcess_worker_start(swFactory *factory);
 static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti);
 static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti);
 static int swFactoryProcess_worker_receive(swReactor *reactor, swEvent *event);
@@ -25,28 +15,20 @@ static int swFactoryProcess_writer_start(swFactory *factory);
 static int swFactoryProcess_writer_loop_unsock(swThreadParam *param);
 static int swFactoryProcess_writer_loop_queue(swThreadParam *param);
 static int swFactoryProcess_writer_receive(swReactor *, swEvent *);
-static int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int send_len);
-
-static int swFactoryProcess_controller(swFactory *factory, swEventCallback cb);
-static int swFactoryProcess_controller_start(swFactory *factory);
-static int swFactoryProcess_controller_spawn(swFactory *factory, swController *controller);
-static int swFactoryProcess_controller_receive(swReactor *reactor, swDataHead *ev);
-static int swFactoryProcess_controller_loop(swFactory *factory, swController *controller);
 
 static int swFactoryProcess_notify(swFactory *factory, swEvent *event);
 static int swFactoryProcess_dispatch(swFactory *factory, swEventData *buf);
 static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
-static int swFactoryProcess_event(swFactory *factory, int controller_id, swEventData *data);//向某个worker进程或controller发送数据
+static int swFactoryProcess_event(swFactory *factory, swEventData *data);
 
-static int c_worker_pti = 0; //Current Proccess Worker's id
+static int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);
+
+int c_worker_pti = 0; //Current Proccess Worker's id
 static int worker_task_num = 0;
 static int worker_task_always = 0;
 static int manager_worker_reloading = 0;
 static int manager_reload_flag = 0;
-static swController *manager_controller_list;
-static swPipe *manager_controller_pipes;
-static int manager_controller_count = 0;
-
+static swProcessPool task_workers;
 extern swReactor *swoole_worker_reactor;
 
 int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
@@ -80,142 +62,18 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 	factory->finish = swFactoryProcess_finish;
 	factory->start = swFactoryProcess_start;
 	factory->notify = swFactoryProcess_notify;
-	factory->controller = swFactoryProcess_controller;
 	factory->event = swFactoryProcess_event;
 	factory->shutdown = swFactoryProcess_shutdown;
 	factory->end = swFactoryProcess_end;
-
 	factory->onTask = NULL;
 	factory->onFinish = NULL;
 	return SW_OK;
 }
 
-/**
- * 返回controller的ID
- */
-int swFactoryProcess_controller(swFactory *factory, swEventCallback cb)
+int swFactoryProcess_event(swFactory *factory, swEventData *data)
 {
-	swFactoryProcess *object = factory->object;
-	swServer *serv = factory->ptr;
-	swController *controller = sw_memory_pool->alloc(sw_memory_pool, sizeof(swController));
-	if (controller == NULL)
-	{
-		swWarn("malloc fail\n");
-		return SW_ERR;
-	}
-	controller->onEvent = cb;
-	LL_APPEND(manager_controller_list, controller);
-	controller->id = manager_controller_count;
-	manager_controller_count ++;
-	return controller->id;
+	return swProcessPool_dispatch(&task_workers, data);
 }
-
-int swFactoryProcess_event(swFactory *factory, int controller_id, swEventData *data)
-{
-	swFactoryProcess *object = factory->object;
-	int pipe_fd, ret;
-	int send_len = sizeof(data->info) + data->info.len;
-
-	//这是一个controller
-	if(controller_id > manager_controller_count)
-	{
-		swWarn("controller_id > manager_controller_count");
-		return SW_ERR;
-	}
-	pipe_fd = manager_controller_pipes[controller_id].getFd(&manager_controller_pipes[controller_id], 0);
-	ret = swWrite(pipe_fd, (char *)data, send_len);
-	return (ret < 0) ? SW_ERR : SW_OK;
-}
-
-int swFactoryProcess_controller_start(swFactory *factory)
-{
-	int i, pid;
-	swController *controller;
-
-	//循环fork
-	LL_FOREACH(manager_controller_list, controller)
-	{
-		controller->pipe_fd = manager_controller_pipes[controller->id].getFd(&manager_controller_pipes[controller->id], 1);
-		pid = swFactoryProcess_controller_spawn(factory, controller);
-		if(pid < 0)
-		{
-			swError("Fork controller process fail. Error: %s [%d]", strerror(errno), errno);
-			return SW_ERR;
-		}
-		else
-		{
-			controller->pid = pid;
-		}
-	}
-	return SW_OK;
-}
-
-int swFactoryProcess_controller_spawn(swFactory *factory, swController *controller)
-{
-	int pid = fork();
-	int ret = 0;
-
-	if(pid < 0)
-	{
-		swWarn("fork() fail. Error: %s [%d]", strerror(errno), errno);
-		return SW_ERR;
-	}
-	else if(pid == 0)
-	{
-		//关闭不需要的pipe, 0是给父进程使用的
-		close(manager_controller_pipes[controller->id].getFd(&manager_controller_pipes[controller->id], 0));
-		ret = swFactoryProcess_controller_loop(factory, controller);
-		exit(ret);
-	}
-	else
-	{
-		return pid;
-	}
-}
-
-int swFactoryProcess_controller_loop(swFactory *factory, swController *controller)
-{
-	swFactoryProcess *object = factory->object;
-	swReactor reactor;
-
-	struct timeval tmo;
-	tmo.tv_sec = SW_REACTOR_WRITER_TIMEO;
-	tmo.tv_usec = 0;
-
-	if (swReactorSelect_create(&reactor) < 0)
-	{
-		swWarn("reactor create fail\n");
-		return SW_ERR;
-	}
-	reactor.ptr = controller;
-	reactor.factory = factory;
-	reactor.add(&reactor, controller->pipe_fd, SW_FD_PIPE);
-	reactor.setHandle(&reactor, SW_FD_PIPE, swFactoryProcess_controller_receive);
-	reactor.wait(&reactor, &tmo);
-	reactor.free(&reactor);
-	return SW_OK;
-}
-
-int swFactoryProcess_controller_receive(swReactor *reactor, swDataHead *ev)
-{
-	int n, ret;
-	swFactory *factory = reactor->factory;
-	swController *controller = reactor->ptr;
-	swEventData event;
-
-	n = read(ev->fd, &event, sizeof(event));
-	if (n > 0)
-	{
-		//处理事件
-		return controller->onEvent(factory, &event);
-	}
-	else
-	{
-		swWarn("[controller]sento fail. Error: %s [%d]", strerror(errno), errno);
-		return SW_ERR;
-	}
-}
-
 
 int swFactoryProcess_shutdown(swFactory *factory)
 {
@@ -247,8 +105,8 @@ int swFactoryProcess_start(swFactory *factory)
 	{
 		return SW_ERR;
 	}
-	//必须先启动worker，否则manager进程会带线程fork
-	ret = swFactoryProcess_worker_start(factory);
+	//必须先启动manager进程组，否则会带线程fork
+	ret = swFactoryProcess_manager_start(factory);
 	if (ret < 0)
 	{
 		return SW_ERR;
@@ -292,6 +150,9 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 	case SW_EVENT_CONNECT:
 		serv->onConnect(serv, task->info.fd, task->info.from_id);
 		break;
+	case SW_EVENT_FINISH:
+		serv->onFinish(serv, task);
+		break;
 	default:
 		swWarn("[Worker] error event[type=%d]", (int)task->info.type);
 		break;
@@ -305,7 +166,7 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 }
 
 //create worker child proccess
-static int swFactoryProcess_worker_start(swFactory *factory)
+static int swFactoryProcess_manager_start(swFactory *factory)
 {
 	swFactoryProcess *object = factory->object;
 	int i, pid, ret;
@@ -353,20 +214,17 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 		object->workers[i].pipe_worker = object->pipes[i].getFd(&object->pipes[i], 0);
 	}
 #endif
-	if (manager_controller_count > 0)
+	if (serv->task_worker_num > 0)
 	{
-		manager_controller_pipes = sw_memory_pool->alloc(sw_memory_pool, manager_controller_count * sizeof(swPipe));
-		//controller进程的pipes
-		for (i = 0; i < manager_controller_count; i++)
+		if (swProcessPool_create(&task_workers, serv->task_worker_num, serv->max_request)< 0)
 		{
-			if (swPipeUnsock_create(&object->pipes[i], 1, SOCK_DGRAM) < 0)
-			{
-				swError("create unix socket[2] fail");
-				return SW_ERR;
-			}
+			swWarn("[Master] create task_workers fail");
+			return SW_ERR;
 		}
+		//设置指针和回调函数
+		task_workers.ptr = serv;
+		task_workers.onTask = swTaskWorker_onTask;
 	}
-
 	pid = fork();
 	switch (pid)
 	{
@@ -388,10 +246,10 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 				object->workers[i].pid = pid;
 			}
 		}
-		//创建controller进程
-		if (manager_controller_count > 0)
+		//创建task_worker进程
+		if (serv->task_worker_num > 0)
 		{
-			swFactoryProcess_controller_start(factory);
+			swProcessPool_start(&task_workers);
 		}
 		//标识为管理进程
 		sw_process_type = SW_PROCESS_MANAGER;
@@ -430,6 +288,12 @@ static int swFactoryProcess_worker_start(swFactory *factory)
 		return SW_ERR;
 	}
 	return SW_OK;
+}
+
+static int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
+{
+	swServer *serv = pool->ptr;
+	return serv->onTask(serv, task);
 }
 
 static void swManagerSignalHanlde(int sig)
@@ -489,30 +353,32 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 			{
 				//对比pid
 				if (pid != object->workers[i].pid)
-					continue;
-
-				new_pid = swFactoryProcess_worker_spawn(factory, i);
-				if (new_pid < 0)
 				{
-					swWarn("Fork worker process fail. Error: %s [%d]", strerror(errno), errno);
-					return SW_ERR;
+					continue;
 				}
 				else
 				{
-					object->workers[i].pid = new_pid;
+					pid = 0;
+					new_pid = swFactoryProcess_worker_spawn(factory, i);
+					if (new_pid < 0)
+					{
+						swWarn("Fork worker process fail. Error: %s [%d]", strerror(errno), errno);
+						return SW_ERR;
+					}
+					else
+					{
+						object->workers[i].pid = new_pid;
+					}
 				}
 			}
-			swController *controller;
-			LL_FOREACH(manager_controller_list, controller)
+
+			//task worker
+			if(pid > 0)
 			{
-				//对比pid
-				if (pid != controller->pid)
+				swWorker *exit_worker = swHashMap_find_int(&task_workers.map, pid);
+				if (exit_worker != NULL)
 				{
-					continue;
-				}
-				else
-				{
-					return swFactoryProcess_controller_spawn(factory, controller);
+					swProcessPool_spawn(&task_workers, exit_worker);
 				}
 			}
 		}
@@ -782,40 +648,49 @@ int swFactoryProcess_notify(swFactory *factory, swDataHead *ev)
 	swFactoryProcess *object = factory->object;
 	memcpy(&sw_notify_data._send, ev, sizeof(swDataHead));
 	sw_notify_data._send.len = 0;
-	return swFactoryProcess_send2worker(factory, (swEventData *)&sw_notify_data._send, sizeof(swDataHead));
+	return swFactoryProcess_send2worker(factory, (swEventData *)&sw_notify_data._send, -1);
 }
 
 /**
  * 主进程向worker进程发送数据
+ * @param worker_id 发到指定的worker进程
  */
-static int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int send_len)
+int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int worker_id)
 {
 	swFactoryProcess *object = factory->object;
 	swServer *serv = factory->ptr;
 	int pti;
 	int ret;
+	int send_len = sizeof(data->info) + data->info.len;
 
-	//轮询
-	// data->info.from_id > serv->poll_thread_num, UDP必须使用轮询
-	if (serv->dispatch_mode == SW_DISPATCH_ROUND || data->info.from_id > serv->poll_thread_num)
+	if (worker_id < 0)
 	{
-		pti = (object->worker_pti++) % object->worker_num;
+		//轮询
+		// data->info.from_id > serv->poll_thread_num, UDP必须使用轮询
+		if (serv->dispatch_mode == SW_DISPATCH_ROUND || data->info.from_id > serv->poll_thread_num)
+		{
+			pti = (object->worker_pti++) % object->worker_num;
+		}
+		//使用fd取摸来散列
+		else if (serv->dispatch_mode == SW_DISPATCH_FDMOD)
+		{
+			pti = data->info.fd % object->worker_num;
+		}
+		//使用抢占式队列(IPC消息队列)分配
+		else
+		{
+#if SW_WORKER_IPC_MODE != 2
+			swError("SW_DISPATCH_QUEUE must use (SW_WORKER_IPC_MODE = 2)");
+#endif
+			//msgsnd参数必须>0
+			//worker进程中正确的mtype应该是pti + 1
+			pti = object->worker_num;
+		}
 	}
-	//使用fd取摸来散列
-	else if (serv->dispatch_mode == SW_DISPATCH_FDMOD)
-	{
-		pti = data->info.fd % object->worker_num;
-	}
-	//使用抢占式队列(IPC消息队列)分配
+	//指定了worker_id
 	else
 	{
-
-#if SW_WORKER_IPC_MODE != 2
-		swError("SW_DISPATCH_QUEUE must use (SW_WORKER_IPC_MODE = 2)");
-#endif
-		//msgsnd参数必须>0
-		//worker进程中正确的mtype应该是pti + 1
-		pti = object->worker_num;
+		pti = worker_id;
 	}
 	swTrace("[ReadThread]sendto: pipe=%d|worker=%d\n", object->workers[pti].pipe_fd, pti);
 
@@ -839,9 +714,8 @@ static int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, i
 int swFactoryProcess_dispatch(swFactory *factory, swEventData *data)
 {
 	swFactoryProcess *object = factory->object;
-	int send_len = data->info.len + sizeof(data->info);
 	data->info.type = SW_EVENT_DATA; //这是一个数据事件
-	return swFactoryProcess_send2worker(factory, data, send_len);
+	return swFactoryProcess_send2worker(factory, data, -1);
 }
 
 static int swFactoryProcess_writer_start(swFactory *factory)

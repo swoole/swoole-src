@@ -23,7 +23,7 @@ extern "C" {
 #define SW_EVENT_CLOSE           5 //关闭连接
 #define SW_EVENT_CONNECT         6 //连接到来
 #define SW_EVENT_TIMER           7 //时钟事件
-#define SW_EVENT_CONTROL         8 //控制指令，特殊事件
+#define SW_EVENT_FINISH          8 //任务完成
 
 #define SW_HOST_MAXSIZE          48
 #define SW_MAX_TMP_PKG           1000
@@ -86,6 +86,7 @@ struct swServer_s
 	uint8_t poll_thread_num;
 	uint16_t writer_num;
 	uint16_t worker_num;
+	uint16_t task_worker_num;
 	uint8_t daemonize;
 	uint8_t dispatch_mode; //分配模式，1平均分配，2按FD取摸固定分配，3,使用抢占式队列(IPC消息队列)分配
 
@@ -156,6 +157,8 @@ struct swServer_s
 	void (*onWorkerStart)(swServer *serv, int worker_id); //Only process mode
 	void (*onWorkerStop)(swServer *serv, int worker_id);  //Only process mode
 	void (*onWorkerEvent)(swServer *serv, swEventData *data);   //Only process mode
+	int (*onTask)(swServer *serv, swEventData *data);
+	int (*onFinish)(swServer *serv, swEventData *data);
 };
 int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
