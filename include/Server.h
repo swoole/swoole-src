@@ -160,6 +160,15 @@ struct swServer_s
 	int (*onTask)(swServer *serv, swEventData *data);
 	int (*onFinish)(swServer *serv, swEventData *data);
 };
+
+typedef struct _swServerG{
+	swPipe timer_pipe;
+	int no_timerfd;
+	int running;
+	int sw_errno;
+	int process_type;
+} swServerG;
+
 int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
 

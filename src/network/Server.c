@@ -22,7 +22,7 @@ static void swSignalHanlde(int sig);
 static int swConnection_close(swServer *serv, int fd, int *from_id);
 
 static int swServer_single_start(swServer *serv);
-static int swServer_single_loop(swWorker *worker);
+static int swServer_single_loop(swProcessPool *pool, swWorker *worker);
 static int swServer_single_onCloseQueue(swReactor *reactor, swEventClose_queue *close_queue);
 static int swServer_single_onClose(swReactor *reactor, swEvent *event);
 
@@ -33,11 +33,11 @@ static int swServer_master_onTimer(swReactor *reactor, swEvent *event);
 int sw_nouse_timerfd;
 static swPipe timer_pipe;
 swReactor *swoole_worker_reactor = NULL;
+swServerG SwooleG;
 
 //全局变量
 char swoole_running = 0;
 int16_t sw_errno;
-uint8_t sw_process_type; //进程类型
 char sw_error[SW_ERROR_MSG_SIZE];
 swAllocator *sw_memory_pool = NULL;
 
@@ -336,7 +336,7 @@ static int swServer_check_callback(swServer *serv)
 		return SW_ERR;
 	}
 	//AsyncTask
-	if (serv->task_worker_num != NULL && (serv->onTask == NULL || serv->onFinish == NULL))
+	if (serv->task_worker_num > 0 && (serv->onTask == NULL || serv->onFinish == NULL))
 	{
 		return SW_ERR;
 	}
@@ -441,7 +441,7 @@ int swServer_start(swServer *serv)
 	//Signal Init
 	swSignalInit();
 	//标识为主进程
-	sw_process_type = SW_PROCESS_MASTER;
+	SwooleG.process_type = SW_PROCESS_MASTER;
 
 	if(serv->factory_mode == SW_MODE_SINGLE)
 	{
@@ -1028,15 +1028,10 @@ static int swServer_single_start(swServer *serv)
 	int i, ret;
 	int status;
 
-	swProcessPool ma;
-	swProcessPool_create(&ma, serv->worker_num, serv->max_request);
-
-	for (i = 0; i < serv->worker_num; i++)
-	{
-		swProcessPool_add_worker(&ma, swServer_single_loop);
-		//保存swServer的指针
-		swProcessPool_worker((&ma), i).ptr = serv;
-	}
+	swProcessPool pool;
+	swProcessPool_create(&pool, serv->worker_num, serv->max_request);
+	pool.onStart = swServer_single_loop;
+	pool.ptr = serv;
 
 	//listen UDP
 	if (serv->have_udp_sock == 1)
@@ -1061,14 +1056,14 @@ static int swServer_single_start(swServer *serv)
 			return SW_ERR;
 		}
 	}
-	swProcessPool_start(&ma);
-	return swProcessPool_wait(&ma);
+	swProcessPool_start(&pool);
+	return swProcessPool_wait(&pool);
 }
 
-static int swServer_single_loop(swWorker *worker)
+static int swServer_single_loop(swProcessPool *pool, swWorker *worker)
 {
 	int ret;
-	swServer *serv = worker->ptr;
+	swServer *serv = pool->ptr;
 	swReactor *reactor = &(serv->poll_threads[0].reactor);
 #ifdef HAVE_EPOLL
 	ret = swReactorEpoll_create(reactor, serv->max_conn);
@@ -1622,6 +1617,12 @@ static void swSignalHanlde(int sig)
 		swoole_running = 0;
 		break;
 	case SIGALRM:
+		if (sw_nouse_timerfd == 1)
+		{
+			timer_pipe.write(&timer_pipe, &flag, sizeof(flag));
+		}
+		break;
+	case SIGVTALRM:
 		if (sw_nouse_timerfd == 1)
 		{
 			timer_pipe.write(&timer_pipe, &flag, sizeof(flag));

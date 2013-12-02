@@ -30,6 +30,7 @@ static int manager_worker_reloading = 0;
 static int manager_reload_flag = 0;
 static swProcessPool task_workers;
 extern swReactor *swoole_worker_reactor;
+extern swServerG SwooleG;
 
 int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 {
@@ -252,7 +253,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 			swProcessPool_start(&task_workers);
 		}
 		//标识为管理进程
-		sw_process_type = SW_PROCESS_MANAGER;
+		SwooleG.process_type = SW_PROCESS_MANAGER;
 		ret = swFactoryProcess_manager_loop(factory);
 		exit(ret);
 		break;
@@ -431,7 +432,7 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti)
 		}
 #endif
 		//标识为worker进程
-		sw_process_type = SW_PROCESS_WORKER;
+		SwooleG.process_type = SW_PROCESS_WORKER;
 		ret = swFactoryProcess_worker_loop(factory, worker_pti);
 		exit(ret);
 	}

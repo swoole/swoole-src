@@ -580,6 +580,7 @@ typedef struct _swProcessPool
 	int worker_num;
 	int max_request;
 	int (*onTask)(struct _swProcessPool *pool, swEventData *task);
+	int (*onStart)(struct _swProcessPool *pool, swWorker *worker);
 	int round_id;
 	swWorker *workers;
 	swHashMap map;

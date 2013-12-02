@@ -1,6 +1,6 @@
 #include "swoole.h"
 
-static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker);
+static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker);
 static void swProcessPool_free(swProcessPool *pool);
 
 /**
@@ -30,6 +30,7 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request)
 		swProcessPool_worker(pool, i).pipe_worker = pipe.getFd(&pipe, 0);
 		swProcessPool_worker(pool, i).id = i;
 	}
+	pool->onStart = swProcessPool_worker_start;
 	return SW_OK;
 }
 
@@ -84,7 +85,7 @@ pid_t swProcessPool_spawn(swProcessPool *pool, swWorker *worker)
 	{
 	//child
 	case 0:
-		exit(swProcessPool_worker_loop(pool, worker));
+		exit(pool->onStart(pool, worker));
 		break;
 	case -1:
 		swWarn("[swProcessPool_run] fork fail. Error: %s [%d]", strerror(errno), errno)
@@ -99,7 +100,7 @@ pid_t swProcessPool_spawn(swProcessPool *pool, swWorker *worker)
 	return pid;
 }
 
-static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
+static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
 {
 	swEventData buf;
 	int n, ret;

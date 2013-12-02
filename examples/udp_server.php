@@ -9,12 +9,8 @@ $serv = swoole_server_create("127.0.0.1", 9502, SWOOLE_PROCESS, SWOOLE_SOCK_UDP)
 
 swoole_server_set($serv, array(
     'timeout' => 2.5,  //select and epoll_wait timeout. 
-    'poll_thread_num' => 1, //reactor thread num
-    'writer_num' => 1,     //writer thread num
     'worker_num' => 8,    //worker process num
-    'backlog' => 128,   //listen backlog
     'max_request' => 5000,
-    'max_conn' => 10000,
     //'data_eof' => "\r\n\r\n",
     //'open_eof_check' => 1,
     //'open_tcp_keepalive' => 1,
@@ -43,16 +39,6 @@ function my_onTimer($serv, $interval)
     //echo "Server:Timer Call.Interval=$interval \n";
 }
 
-function my_onClose($serv,$fd,$from_id)
-{
-	//echo "Client:Close.\n";
-}
-
-function my_onConnect($serv,$fd,$from_id)
-{
-	//echo "Client:Connect.\n";
-}
-
 function my_onWorkerStart($serv, $worker_id)
 {
 	echo "WorkerStart[$worker_id]|pid=".posix_getpid().".\n";
@@ -75,41 +61,11 @@ function my_onReceive($serv, $fd, $from_id, $data)
 	{
 		swoole_server_send ( $serv, $fd, 'Swoole: ' . $data, $from_id);
 	}
-	//swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);
-	//swoole_server_close($serv, $fd, $from_id);
-	//swoole_server_close($serv, $ohter_fd, $other_from_id);
-	
-	/*
-	 * require swoole-1.5.8+
-	var_dump(swoole_connection_info($serv, $fd));
-	$start_fd = 0;
-	while(true)
-	{
-		$conn_list = swoole_connection_list($serv, $start_fd, 10);
-		if($conn_list===false)
-		{
-			echo "finish\n";
-			break;
-		}
-		$start_fd = $conn_list[count($conn_list)-1];
-		var_dump($conn_list);
-	}
-	*/
-}
- function my_onMasterClose($serv,$fd,$from_id)
-{
-    //echo "Client:Close.PID=".posix_getpid().PHP_EOL;
-}
-
-function my_onMasterConnect($serv,$fd,$from_id)
-{
-    //echo "Client:Connect.PID=".posix_getpid().PHP_EOL;
+	//swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);	
 }
 
 swoole_server_handler($serv, 'onStart', 'my_onStart');
-swoole_server_handler($serv, 'onConnect', 'my_onConnect');
 swoole_server_handler($serv, 'onReceive', 'my_onReceive');
-swoole_server_handler($serv, 'onClose', 'my_onClose');
 swoole_server_handler($serv, 'onShutdown', 'my_onShutdown');
 swoole_server_handler($serv, 'onTimer', 'my_onTimer');
 swoole_server_handler($serv, 'onWorkerStart', 'my_onWorkerStart');
