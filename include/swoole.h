@@ -489,9 +489,9 @@ extern swAllocator *sw_memory_pool;
 #define SW_PROCESS_WORKER      2
 #define SW_PROCESS_MANAGER     3
 
-#define swIsMaster()          (sw_process_type==SW_PROCESS_MASTER)
-#define swIsWorker()          (sw_process_type==SW_PROCESS_WORKER)
-#define swIsManager()         (sw_process_type==SW_PROCESS_MANAGER)
+#define swIsMaster()          (SwooleG.process_type==SW_PROCESS_MASTER)
+#define swIsWorker()          (SwooleG.process_type==SW_PROCESS_WORKER)
+#define swIsManager()         (SwooleG.process_type==SW_PROCESS_MANAGER)
 
 //----------------------tool function---------------------
 int swLog_init(char *logfile);

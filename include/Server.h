@@ -167,6 +167,7 @@ typedef struct _swServerG{
 	int running;
 	int sw_errno;
 	int process_type;
+	swReactor *main_reactor;
 } swServerG;
 
 int swServer_onFinish(swFactory *factory, swSendData *resp);
