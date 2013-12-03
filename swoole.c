@@ -82,7 +82,6 @@ static int php_swoole_udp_from_fd = 0;
 static uint16_t php_swoole_task_id = 1;
 static uint16_t php_swoole_task_from = 0;
 
-extern swServerG SwooleG;
 extern sapi_module_struct sapi_module;
 
 static int php_swoole_onReceive(swFactory *, swEventData *);

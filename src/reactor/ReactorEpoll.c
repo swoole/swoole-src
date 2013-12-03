@@ -28,7 +28,7 @@ struct swReactorEpoll_s
 int swReactorEpoll_create(swReactor *reactor, int max_event_num)
 {
 	//create reactor object
-	swReactorEpoll *reactor_object = sw_memory_pool->alloc(sw_memory_pool, sizeof(swReactorEpoll));
+	swReactorEpoll *reactor_object = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swReactorEpoll));
 	if (reactor_object == NULL)
 	{
 		swTrace("[swReactorEpollCreate] malloc[0] fail\n");

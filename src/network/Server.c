@@ -30,16 +30,12 @@ static int swServer_master_onClose(swReactor *reactor, swDataHead *event);
 static int swServer_master_onAccept(swReactor *reactor, swDataHead *event);
 static int swServer_master_onTimer(swReactor *reactor, swEvent *event);
 
-int sw_nouse_timerfd;
-static swPipe timer_pipe;
-swReactor *swoole_worker_reactor = NULL;
 swServerG SwooleG;
 
 //全局变量
 char swoole_running = 0;
 int16_t sw_errno;
 char sw_error[SW_ERROR_MSG_SIZE];
-swAllocator *sw_memory_pool = NULL;
 
 SWINLINE int swConnection_close(swServer *serv, int fd, int *from_id)
 {
@@ -259,7 +255,7 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 
 int swServer_addTimer(swServer *serv, int interval)
 {
-	swTimerList_node *timer_new = sw_memory_pool->alloc(sw_memory_pool, sizeof(swTimerList_node));
+	swTimerList_node *timer_new = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swTimerList_node));
 	time_t now;
 	time(&now);
 	if (timer_new == NULL)
@@ -364,7 +360,7 @@ int swServer_start_base(swServer *serv)
 int swServer_start_proxy(swServer *serv)
 {
 	int ret;
-	swReactor *main_reactor = sw_memory_pool->alloc(sw_memory_pool, sizeof(swReactor));
+	swReactor *main_reactor = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swReactor));
 	#ifdef SW_MAINREACTOR_USE_POLL
 		ret = swReactorPoll_create(main_reactor, 10);
 #else
@@ -490,11 +486,12 @@ void swoole_init(void)
 		swoole_running = 1;
 		sw_errno = 0;
 		bzero(sw_error, SW_ERROR_MSG_SIZE);
+		bzero(&SwooleG, sizeof(SwooleG));
 		//将日志设置为标准输出
 		swoole_log_fn = stdout;
 		//初始化全局内存
-		sw_memory_pool = swMemoryGlobal_create(SW_GLOBAL_MEMORY_PAGESIZE, 1);
-		if(sw_memory_pool == NULL)
+		SwooleG.memory_pool = swMemoryGlobal_create(SW_GLOBAL_MEMORY_PAGESIZE, 1);
+		if(SwooleG.memory_pool == NULL)
 		{
 			swError("[Master] Fatal Error: create global memory fail. Errno=%d", errno);
 		}
@@ -504,10 +501,10 @@ void swoole_init(void)
 void swoole_clean(void)
 {
 	//释放全局内存
-	if(sw_memory_pool != NULL)
+	if(SwooleG.memory_pool != NULL)
 	{
-		sw_memory_pool->destroy(sw_memory_pool);
-		sw_memory_pool = NULL;
+		SwooleG.memory_pool->destroy(SwooleG.memory_pool);
+		SwooleG.memory_pool = NULL;
 	}
 }
 
@@ -578,13 +575,13 @@ static int swServer_timer_start(swServer *serv)
 		return SW_ERR;
 	}
 	serv->timer_fd = timer_fd;
-	sw_nouse_timerfd = 0;
+	SwooleG.no_timerfd = 0;
 #else
 	struct itimerval timer_set;
 #ifdef HAVE_EVENTFD
-	timer_fd = swPipeEventfd_create(&timer_pipe, 0);
+	timer_fd = swPipeEventfd_create(&SwooleG.timer_pipe, 0);
 #else
-	timer_fd = swPipeBase_create(&timer_pipe, 0);
+	timer_fd = swPipeBase_create(&SwooleG.timer_pipe, 0);
 #endif
 	if(timer_fd < 0)
 	{
@@ -601,8 +598,8 @@ static int swServer_timer_start(swServer *serv)
 		swError("set timer fail\n");
 		return SW_ERR;
 	}
-	sw_nouse_timerfd = 1;
-	serv->timer_fd = timer_pipe.getFd(&timer_pipe, 0);
+	SwooleG.no_timerfd = 1;
+	serv->timer_fd = SwooleG.timer_pipe.getFd(&SwooleG.timer_pipe, 0);
 #endif
 	return SW_OK;
 }
@@ -702,7 +699,7 @@ int swServer_create_proxy(swServer *serv)
 	}
 
 	//初始化poll线程池
-	serv->poll_threads = sw_memory_pool->alloc(sw_memory_pool, (serv->poll_thread_num * sizeof(swThreadPoll)));
+	serv->poll_threads = SwooleG.memory_pool->alloc(SwooleG.memory_pool, (serv->poll_thread_num * sizeof(swThreadPoll)));
 	if (serv->poll_threads == NULL)
 	{
 		swError("calloc[poll_threads] fail.alloc_size=%d", (int )(serv->poll_thread_num * sizeof(swThreadPoll)));
@@ -848,7 +845,7 @@ static int swServer_udp_start(swServer *serv)
 
 	LL_FOREACH(serv->listen_list, listen_host)
 	{
-		param = sw_memory_pool->alloc(sw_memory_pool, sizeof(swThreadParam));
+		param = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
 		//UDP
 		if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6)
 		{
@@ -893,7 +890,7 @@ static int swServer_poll_start(swServer *serv, swReactor *main_reactor_ptr)
 		for (i = 0; i < serv->poll_thread_num; i++)
 		{
 			poll_threads = &(serv->poll_threads[i]);
-			param = sw_memory_pool->alloc(sw_memory_pool, sizeof(swThreadParam));
+			param = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
 			if (param == NULL)
 			{
 				swError("malloc fail\n");
@@ -1085,7 +1082,7 @@ static int swServer_single_loop(swProcessPool *pool, swWorker *worker)
 		type = (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6) ? SW_FD_UDP : SW_FD_LISTEN;
 		reactor->add(reactor, listen_host->sock, type);
 	}
-	swoole_worker_reactor = reactor;
+	SwooleG.main_reactor = reactor;
 
 	reactor->id = 0;
 	reactor->ptr = serv;
@@ -1519,7 +1516,7 @@ void swSignalInit(void)
 
 int swServer_addListen(swServer *serv, int type, char *host, int port)
 {
-	swListenList_node *listen_host = sw_memory_pool->alloc(sw_memory_pool, sizeof(swListenList_node));
+	swListenList_node *listen_host = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenList_node));
 	listen_host->type = type;
 	listen_host->port = port;
 	listen_host->sock = 0;
@@ -1617,15 +1614,15 @@ static void swSignalHanlde(int sig)
 		swoole_running = 0;
 		break;
 	case SIGALRM:
-		if (sw_nouse_timerfd == 1)
+		if (SwooleG.no_timerfd == 1)
 		{
-			timer_pipe.write(&timer_pipe, &flag, sizeof(flag));
+			SwooleG.timer_pipe.write(&SwooleG.timer_pipe, &flag, sizeof(flag));
 		}
 		break;
 	case SIGVTALRM:
-		if (sw_nouse_timerfd == 1)
+		if (SwooleG.no_timerfd == 1)
 		{
-			timer_pipe.write(&timer_pipe, &flag, sizeof(flag));
+			SwooleG.timer_pipe.write(&SwooleG.timer_pipe, &flag, sizeof(flag));
 		}
 		break;
 	default:

@@ -29,19 +29,17 @@ static int worker_task_always = 0;
 static int manager_worker_reloading = 0;
 static int manager_reload_flag = 0;
 static swProcessPool task_workers;
-extern swReactor *swoole_worker_reactor;
-extern swServerG SwooleG;
 
 int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 {
 	swFactoryProcess *object;
-	object = sw_memory_pool->alloc(sw_memory_pool, sizeof(swFactoryProcess));
+	object = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swFactoryProcess));
 	if (object == NULL)
 	{
 		swWarn("[swFactoryProcess_create] malloc[0] fail");
 		return SW_ERR;
 	}
-	object->writers = sw_memory_pool->alloc(sw_memory_pool, writer_num*sizeof(swThreadWriter));
+	object->writers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, writer_num*sizeof(swThreadWriter));
 	if (object->writers == NULL)
 	{
 		swWarn("[Main] malloc[object->writers] fail");
@@ -50,7 +48,7 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 	object->writer_num = writer_num;
 	object->writer_pti = 0;
 
-	object->workers = sw_memory_pool->alloc(sw_memory_pool, worker_num* sizeof(swWorker));
+	object->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, worker_num* sizeof(swWorker));
 	if (object->workers == NULL)
 	{
 		swWarn("[Main] malloc[object->workers] fail");
@@ -197,7 +195,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 		}
 	}
 #else
-	object->pipes = sw_memory_pool->alloc(sw_memory_pool, object->worker_num * sizeof(swPipe));
+	object->pipes = SwooleG.memory_pool->alloc(SwooleG.memory_pool, object->worker_num * sizeof(swPipe));
 	if (object->pipes == NULL)
 	{
 		swError("malloc[worker_pipes] fail. Error: %s [%d]", strerror(errno), errno);
@@ -321,7 +319,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 	swServer *serv = factory->ptr;
 	swWorker *reload_workers;
 
-	reload_workers = sw_memory_pool->alloc(sw_memory_pool, object->worker_num *sizeof(swWorker));
+	reload_workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, object->worker_num *sizeof(swWorker));
 	if (reload_workers == NULL)
 	{
 		swError("[manager] malloc[reload_workers] fail.\n");
@@ -561,20 +559,20 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 		rdata.pti = worker_pti + 1;
 	}
 #else
-	swoole_worker_reactor = sw_malloc(sizeof(swReactor));
-	if(swoole_worker_reactor == NULL)
+	SwooleG.main_reactor = sw_malloc(sizeof(swReactor));
+	if(SwooleG.main_reactor == NULL)
 	{
 		swError("[Worker] malloc for reactor fail");
 		return SW_ERR;
 	}
-	if(swReactorSelect_create(swoole_worker_reactor) < 0)
+	if(swReactorSelect_create(SwooleG.main_reactor) < 0)
 	{
 		swError("[Worker] create worker_reactor fail");
 		return SW_ERR;
 	}
-	swoole_worker_reactor->ptr = factory;
-	swoole_worker_reactor->add(swoole_worker_reactor, pipe_rd, SW_FD_PIPE);
-	swoole_worker_reactor->setHandle(swoole_worker_reactor, SW_FD_PIPE, swFactoryProcess_worker_receive);
+	SwooleG.main_reactor->ptr = factory;
+	SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_rd, SW_FD_PIPE);
+	SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE, swFactoryProcess_worker_receive);
 #endif
 
 	if(factory->max_request < 1)
@@ -621,7 +619,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 		swFactoryProcess_worker_excute(factory, &rdata.req);
 	}
 #else
-	swoole_worker_reactor->wait(swoole_worker_reactor, &timeo);
+	SwooleG.main_reactor->wait(SwooleG.main_reactor, &timeo);
 #endif
 	if (serv->onWorkerStop != NULL)
 	{
@@ -735,7 +733,7 @@ static int swFactoryProcess_writer_start(swFactory *factory)
 
 	for (i = 0; i < object->writer_num; i++)
 	{
-		param = sw_memory_pool->alloc(sw_memory_pool, sizeof(swThreadParam));
+		param = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
 		if (param == NULL)
 		{
 			swError("malloc fail\n");

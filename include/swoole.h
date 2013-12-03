@@ -481,7 +481,6 @@ typedef struct _swThreadParam
 //全局变量
 extern char swoole_running;
 extern int16_t sw_errno;
-extern uint8_t sw_process_type; //进程类型
 extern char sw_error[SW_ERROR_MSG_SIZE];
 extern swAllocator *sw_memory_pool;
 
@@ -738,6 +737,18 @@ int swThreadPool_task(swThreadPool *pool, void *(*call)(void *arg), void *arg);
 int swThreadPool_create(swThreadPool *pool, int max_num);
 int swThreadPool_run(swThreadPool *pool);
 int swThreadPool_free(swThreadPool *pool);
+
+typedef struct _swServerG{
+	swPipe timer_pipe;
+	int no_timerfd;
+	int running;
+	int sw_errno;
+	int process_type;
+	swAllocator *memory_pool;
+	swReactor *main_reactor;
+} swServerG;
+
+extern swServerG SwooleG;
 
 #ifdef __cplusplus
 }
