@@ -241,8 +241,6 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 			//write
 			if ((object->events[i].events & EPOLLOUT) && reactor->handle[SW_FD_WRITE]!=NULL)
 			{
-				swTrace("Event:Handle=%p|fd=%d|from_id=%d|type=%d\n",
-						reactor->handle[ev.type], ev.fd, reactor->id, ev.fdtype);
 				ret = reactor->handle[SW_FD_WRITE](reactor, &ev);
 				if(ret < 0)
 				{

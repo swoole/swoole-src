@@ -106,7 +106,7 @@ int swSocket_listen(int type, char *host, int port, int backlog)
 	return sock;
 }
 
-SWINLINE int swRead(int fd, char *buf, int len)
+SWINLINE int swRead(int fd, void *buf, int len)
 {
 	int n = 0, nread;
 	sw_errno = 0;
@@ -170,7 +170,7 @@ void swBreakPoint()
 {
 }
 
-SWINLINE int swWrite(int fd, char *buf, int count)
+SWINLINE int swWrite(int fd, void *buf, int count)
 {
 	int nwritten = 0, totlen = 0;
 	while (totlen != count)

@@ -180,6 +180,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/hashmap.c \
         src/core/RingQueue.c \
         src/core/Channel.c \
+        src/core/timer.c \
         src/memory/ShareMemory.c \
         src/memory/MemoryPool.c \
         src/factory/Factory.c \

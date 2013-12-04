@@ -2,28 +2,30 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 
-int swPipeUnsock_read(swPipe *p, void *data, int length);
-int swPipeUnsock_write(swPipe *p, void *data, int length);
-int swPipeUnsock_getFd(swPipe *p, int isWriteFd);
-void swPipeUnsock_close(swPipe *p);
+static int swPipeUnsock_read(swPipe *p, void *data, int length);
+static int swPipeUnsock_write(swPipe *p, void *data, int length);
+static int swPipeUnsock_getFd(swPipe *p, int isWriteFd);
+static int swPipeUnsock_close(swPipe *p);
 
 typedef struct _swPipeUnsock
 {
 	int socks[2];
 } swPipeUnsock;
 
-int swPipeUnsock_getFd(swPipe *p, int isWriteFd)
+static int swPipeUnsock_getFd(swPipe *p, int isWriteFd)
 {
 	swPipeUnsock *this = p->object;
 	return isWriteFd == 1 ? this->socks[1] : this->socks[0];
 }
 
-void swPipeUnsock_close(swPipe *p)
+static int swPipeUnsock_close(swPipe *p)
 {
+	int ret1, ret2;
 	swPipeUnsock *this = p->object;
-	close(this->socks[0]);
-	close(this->socks[1]);
+	ret1 = close(this->socks[0]);
+	ret2 = close(this->socks[1]);
 	sw_free(this);
+	return 0-ret1-ret2;
 }
 
 int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
@@ -66,12 +68,12 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
 	return 0;
 }
 
-int swPipeUnsock_read(swPipe *p, void *data, int length)
+static int swPipeUnsock_read(swPipe *p, void *data, int length)
 {
 	return read(((swPipeUnsock *) p->object)->socks[0], data, length);
 }
 
-int swPipeUnsock_write(swPipe *p, void *data, int length)
+static int swPipeUnsock_write(swPipe *p, void *data, int length)
 {
 	return write(((swPipeUnsock *) p->object)->socks[1], data, length);
 }

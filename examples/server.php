@@ -10,12 +10,13 @@ swoole_server_set($serv, array(
     'timeout' => 2,  //select and epoll_wait timeout.
     'poll_thread_num' => 1, //reactor thread num
     'writer_num' => 1,     //writer thread num
-    'worker_num' => 4,    //worker process num
+    'worker_num' => 2,    //worker process num
     'backlog' => 128,   //listen backlog
     'max_request' => 5000,
     'max_conn' => 100000,
-    'task_worker_num' => 2,
+    //'task_worker_num' => 2,
 	'dispatch_mode' => 2,
+	'timer_interval' => 200,
 //    'daemonize' => 1,  //转为后台守护进程运行
 	'open_cpu_affinity' => 1,
    //'data_eof' => "\r\n\r\n",
@@ -44,7 +45,7 @@ function my_onShutdown($serv)
 
 function my_onTimer($serv, $interval)
 {
-    //echo "Server:Timer Call.Interval=$interval \n";
+    echo "Server:Timer Call.Interval=$interval\n";
 }
 
 function my_onClose($serv, $fd, $from_id)
@@ -60,6 +61,9 @@ function my_onConnect($serv, $fd, $from_id)
 function my_onWorkerStart($serv, $worker_id)
 {
 	echo "WorkerStart[$worker_id]|pid=".posix_getpid().".\n";
+	$serv->addtimer(800);
+	$serv->addtimer(2000);
+	$serv->addtimer(6000);
 }
 
 function my_onWorkerStop($serv, $worker_id)
@@ -142,8 +146,5 @@ swoole_server_handler($serv, 'onFinish', 'my_onFinish');
 
 //swoole_server_handler($serv, 'onMasterConnect', 'my_onMasterConnect');
 //swoole_server_handler($serv, 'onMasterClose', 'my_onMasterClose');
-
-//swoole_server_addtimer($serv, 2);
-#swoole_server_addtimer($serv, 10);
 swoole_server_start($serv);
 

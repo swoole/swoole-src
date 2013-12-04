@@ -53,13 +53,6 @@ typedef struct _swListenList_node
 	char host[SW_HOST_MAXSIZE];
 } swListenList_node;
 
-typedef struct _swTimerList_node
-{
-	struct _swTimerList_node *next, *prev;
-	int interval;
-	int lasttime;
-} swTimerList_node;
-
 typedef struct _swConnBuffer swConnBuffer;
 
 struct _swConnBuffer
@@ -108,12 +101,11 @@ struct swServer_s
 	uint8_t data_eof_len;                //数据缓存结束符长度
 	char log_file[SW_LOG_FILENAME];      //日志文件
 
-	int timer_fd;
 	int signal_fd;
 	int event_fd;
 
-	int timer_interval;
 	int ringbuffer_size;
+	int timer_interval;
 
 	int c_pti;                //schedule
 	int udp_sock_buffer_size; //UDP临时包数量，超过数量未处理将会被丢弃
@@ -138,7 +130,6 @@ struct swServer_s
 	swFactory factory;
 	swThreadPoll *poll_threads; //TCP监听线程
 	swListenList_node *listen_list;
-	swTimerList_node *timer_list;
 
 	swConnection *connection_list; //连接列表
 	int connection_list_capacity;  //超过此容量，会自动扩容

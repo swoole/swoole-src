@@ -2,10 +2,10 @@
 
 #ifdef HAVE_EVENTFD
 
-int swPipeEventfd_read(swPipe *p, void *data, int length);
-int swPipeEventfd_write(swPipe *p, void *data, int length);
-int swPipeEventfd_getFd(swPipe *p, int isWriteFd);
-void swPipeEventfd_close(swPipe *p);
+static int swPipeEventfd_read(swPipe *p, void *data, int length);
+static int swPipeEventfd_write(swPipe *p, void *data, int length);
+static int swPipeEventfd_getFd(swPipe *p, int isWriteFd);
+static int swPipeEventfd_close(swPipe *p);
 
 typedef struct _swPipeEventfd
 {
@@ -47,7 +47,7 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore)
 	return 0;
 }
 
-int swPipeEventfd_read(swPipe *p, void *data, int length)
+static int swPipeEventfd_read(swPipe *p, void *data, int length)
 {
 	int ret;
 	swPipeEventfd *this = p->object;
@@ -63,7 +63,7 @@ int swPipeEventfd_read(swPipe *p, void *data, int length)
 	return ret;
 }
 
-int swPipeEventfd_write(swPipe *p, void *data, int length)
+static int swPipeEventfd_write(swPipe *p, void *data, int length)
 {
 	int ret;
 	swPipeEventfd *this = p->object;
@@ -87,15 +87,17 @@ int swPipeEventfd_write(swPipe *p, void *data, int length)
 	return ret;
 }
 
-int swPipeEventfd_getFd(swPipe *p, int isWriteFd)
+static int swPipeEventfd_getFd(swPipe *p, int isWriteFd)
 {
 	return ((swPipeEventfd *)(p->object))->event_fd;
 }
 
-void swPipeEventfd_close(swPipe *p)
+static int swPipeEventfd_close(swPipe *p)
 {
-	close(((swPipeEventfd *)(p->object))->event_fd);
+	int ret;
+	ret = close(((swPipeEventfd *)(p->object))->event_fd);
 	sw_free(p->object);
+	return ret;
 }
 
 #endif

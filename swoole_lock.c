@@ -2,7 +2,6 @@
 
 extern int le_swoole_lock;
 extern zend_class_entry *swoole_lock_class_entry_ptr;
-extern swAllocator *sw_memory_pool;
 
 PHP_METHOD(swoole_lock, __construct)
 {
@@ -15,7 +14,7 @@ PHP_METHOD(swoole_lock, __construct)
 	{
 		RETURN_FALSE;
 	}
-	swLock *lock = sw_memory_pool->alloc(sw_memory_pool, sizeof(swLock));
+	swLock *lock = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swLock));
 	if(lock == NULL)
 	{
 		zend_error(E_WARNING, "SwooleLock: alloc fail");

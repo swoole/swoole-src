@@ -17,7 +17,6 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 static int swServer_poll_onReceive_conn_buffer(swReactor *reactor, swEvent *event);
 static int swServer_poll_onReceive_data_buffer(swReactor *reactor, swEvent *event);
 
-static int swServer_timer_start(swServer *serv);
 static void swSignalHanlde(int sig);
 static int swConnection_close(swServer *serv, int fd, int *from_id);
 
@@ -28,7 +27,7 @@ static int swServer_single_onClose(swReactor *reactor, swEvent *event);
 
 static int swServer_master_onClose(swReactor *reactor, swDataHead *event);
 static int swServer_master_onAccept(swReactor *reactor, swDataHead *event);
-static int swServer_master_onTimer(swReactor *reactor, swEvent *event);
+static int swServer_onTimer(swReactor *reactor, swEvent *event);
 
 swServerG SwooleG;
 
@@ -124,34 +123,50 @@ int swServer_master_onClose(swReactor *reactor, swEvent *event)
 	return SW_OK;
 }
 
-static int swServer_master_onTimer(swReactor *reactor, swEvent *event)
+static int swServer_onTimer(swReactor *reactor, swEvent *event)
 {
 	swServer *serv = reactor->ptr;
+	swTimer *timer = &SwooleG.timer;
 	if(serv->onTimer == NULL)
 	{
-		swWarn("serv->onTimer is NULL");
+		swWarn("swServer->onTimer is NULL");
 		return SW_ERR;
 	}
 	uint64_t exp;
 	int ret;
-	swTimerList_node *timer_node;
-	time_t now;
 
-	time(&now);
-	ret = read(serv->timer_fd, &exp, sizeof(uint64_t));
+	time_t now_ms = swTimer_get_ms();
+	if(now_ms < 0)
+	{
+		return SW_ERR;
+	}
+
+	ret = read(SwooleG.timer.fd, &exp, sizeof(uint64_t));
 	if (ret < 0)
 	{
 		return SW_ERR;
 	}
-	LL_FOREACH(serv->timer_list, timer_node)
+
+	void *tmp = NULL;
+	time_t key;
+	swTimer_node *timer_node;
+
+	while(1)
 	{
-		if (timer_node->lasttime < now - timer_node->interval)
+		tmp = swHashMap_foreach_int(&timer->list, &key, &timer_node, tmp);
+		//值为空
+		if (timer_node == NULL)
+		{
+			break;
+		}
+		//swWarn("Timer=%ld|lasttime=%ld|now=%ld", key, timer_node->lasttime, now_ms);
+		if (timer_node->lasttime < now_ms - timer_node->interval)
 		{
 			serv->onTimer(serv, timer_node->interval);
 			timer_node->lasttime += timer_node->interval;
 		}
+		if(tmp == NULL) break;
 	}
-	swTrace("Timer Call\n");
 	return ret;
 }
 
@@ -255,22 +270,20 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 
 int swServer_addTimer(swServer *serv, int interval)
 {
-	swTimerList_node *timer_new = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swTimerList_node));
-	time_t now;
-	time(&now);
-	if (timer_new == NULL)
-	{
-		swWarn("malloc fail\n");
-		return SW_ERR;
-	}
-	timer_new->lasttime = now;
-	timer_new->interval = interval;
-	LL_APPEND(serv->timer_list, timer_new);
-	if (serv->timer_interval == 0 || interval < serv->timer_interval)
+	if (interval < serv->timer_interval)
 	{
 		serv->timer_interval = interval;
 	}
-	return SW_OK;
+	int ret = swTimer_add(&SwooleG.timer, interval);
+	if (SwooleG.timer.fd == 0)
+	{
+		if(swTimer_create(&SwooleG.timer, serv->timer_interval) >= 0)
+		{
+			SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_TIMER, swServer_onTimer);
+			SwooleG.main_reactor->add(SwooleG.main_reactor, SwooleG.timer.fd, SW_FD_TIMER);
+		}
+	}
+	return ret;
 }
 
 /**
@@ -302,16 +315,6 @@ int swServer_reactor_del(swServer *serv, int fd, int reacot_id)
 	return SW_OK;
 }
 
-void swServer_timer_free(swServer *serv)
-{
-	swTimerList_node *node;
-	LL_FOREACH(serv->timer_list, node)
-	{
-		LL_DELETE(serv->timer_list, node);
-	}
-	close(serv->timer_fd);
-}
-
 static int swServer_check_callback(swServer *serv)
 {
 	if (serv->onConnect == NULL)
@@ -327,7 +330,7 @@ static int swServer_check_callback(swServer *serv)
 		return SW_ERR;
 	}
 	//Timer
-	if (serv->timer_list != NULL && serv->onTimer == NULL)
+	if (SwooleG.timer.interval_ms > 0 && serv->onTimer == NULL)
 	{
 		return SW_ERR;
 	}
@@ -381,17 +384,6 @@ int swServer_start_proxy(swServer *serv)
 	main_reactor->id = serv->poll_thread_num; //设为一个特别的ID
 	main_reactor->ptr = serv;
 	main_reactor->setHandle(main_reactor, SW_FD_LISTEN, swServer_master_onAccept);
-	main_reactor->setHandle(main_reactor, SW_FD_TIMER, swServer_master_onTimer);
-
-	if (serv->timer_interval != 0)
-	{
-		ret = swServer_timer_start(serv);
-		if (ret < 0)
-		{
-			return SW_ERR;
-		}
-		main_reactor->add(main_reactor, serv->timer_fd, SW_FD_TIMER);
-	}
 	//no use
 	//SW_START_SLEEP;
 	if (serv->onStart != NULL)
@@ -447,7 +439,6 @@ int swServer_start(swServer *serv)
 	{
 		ret = swServer_start_proxy(serv);
 	}
-
 	//server stop
 	if (serv->onShutdown != NULL)
 	{
@@ -505,6 +496,11 @@ void swoole_clean(void)
 	{
 		SwooleG.memory_pool->destroy(SwooleG.memory_pool);
 		SwooleG.memory_pool = NULL;
+		if(SwooleG.timer.fd > 0)
+		{
+			swTimer_free(&SwooleG.timer);
+		}
+		bzero(&SwooleG, sizeof(SwooleG));
 	}
 }
 
@@ -532,7 +528,6 @@ void swServer_init(swServer *serv)
 	serv->max_trunk_num = SW_MAX_TRUNK_NUM;
 
 	serv->udp_sock_buffer_size = SW_UDP_SOCK_BUFSIZE;
-	serv->timer_list = NULL;
 
 	//tcp keepalive
 	serv->tcp_keepcount = SW_TCP_KEEPCOUNT;
@@ -542,66 +537,6 @@ void swServer_init(swServer *serv)
 	char eof[] = SW_DATA_EOF;
 	serv->data_eof_len = sizeof(SW_DATA_EOF) - 1;
 	memcpy(serv->data_eof, eof, serv->data_eof_len);
-}
-static int swServer_timer_start(swServer *serv)
-{
-	int timer_fd;
-	struct timeval now;
-
-	if (gettimeofday(&now, NULL) == -1)
-	{
-		swError("clock_gettime fail\n");
-		return SW_ERR;
-	}
-
-#ifdef HAVE_TIMERFD
-	struct itimerspec timer_set;
-	memset(&timer_set, 0, sizeof(timer_set));
-	timer_fd = timerfd_create(CLOCK_REALTIME, TFD_NONBLOCK | TFD_CLOEXEC);
-	if (timer_fd < 0)
-	{
-		swError("create timerfd fail\n");
-		return SW_ERR;
-	}
-
-	timer_set.it_value.tv_sec = now.tv_sec + serv->timer_interval;
-	timer_set.it_value.tv_nsec = 0;
-	timer_set.it_interval.tv_sec = serv->timer_interval;
-	timer_set.it_interval.tv_nsec = 0;
-
-	if (timerfd_settime(timer_fd, TFD_TIMER_ABSTIME, &timer_set, NULL) == -1)
-	{
-		swError("set timer fail\n");
-		return SW_ERR;
-	}
-	serv->timer_fd = timer_fd;
-	SwooleG.no_timerfd = 0;
-#else
-	struct itimerval timer_set;
-#ifdef HAVE_EVENTFD
-	timer_fd = swPipeEventfd_create(&SwooleG.timer_pipe, 0);
-#else
-	timer_fd = swPipeBase_create(&SwooleG.timer_pipe, 0);
-#endif
-	if(timer_fd < 0)
-	{
-		swError("create timer pipe fail");
-		return SW_ERR;
-	}
-	memset(&timer_set, 0, sizeof(timer_set));
-	timer_set.it_value.tv_sec = serv->timer_interval;
-	timer_set.it_value.tv_usec = 0;
-	timer_set.it_interval.tv_sec = serv->timer_interval;
-	timer_set.it_interval.tv_usec = 0;
-	if(setitimer(ITIMER_REAL, &timer_set, NULL) < 0)
-	{
-		swError("set timer fail\n");
-		return SW_ERR;
-	}
-	SwooleG.no_timerfd = 1;
-	serv->timer_fd = SwooleG.timer_pipe.getFd(&SwooleG.timer_pipe, 0);
-#endif
-	return SW_OK;
 }
 
 int swServer_new_connection(swServer *serv, swEvent *ev)
@@ -811,12 +746,6 @@ int swServer_free(swServer *serv)
 		serv->main_pipe.close(&serv->main_pipe);
 	}
 
-	//定时器释放
-	if (serv->timer_interval != 0)
-	{
-		swServer_timer_free(serv);
-	}
-
 	//connection_list释放
 	if (serv->factory_mode == SW_MODE_SINGLE)
 	{
@@ -905,6 +834,10 @@ static int swServer_poll_start(swServer *serv, swReactor *main_reactor_ptr)
 			pthread_detach(pidt);
 			poll_threads->ptid = pidt;
 		}
+	}
+	if(SwooleG.timer.fd > 0)
+	{
+		main_reactor_ptr->add(main_reactor_ptr, SwooleG.timer.fd, SW_FD_TIMER);
 	}
 	main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_CLOSE, swServer_master_onClose);
 	main_reactor_ptr->add(main_reactor_ptr, serv->main_pipe.getFd(&serv->main_pipe, 0), SW_FD_CLOSE);
@@ -1074,7 +1007,6 @@ static int swServer_single_loop(swProcessPool *pool, swWorker *worker)
 		swWarn("Swoole reactor create fail");
 		return SW_ERR;
 	}
-
 	swListenList_node *listen_host;
 	int type;
 	LL_FOREACH(serv->listen_list, listen_host)
@@ -1087,7 +1019,6 @@ static int swServer_single_loop(swProcessPool *pool, swWorker *worker)
 	reactor->id = 0;
 	reactor->ptr = serv;
 	reactor->setHandle(reactor, SW_FD_LISTEN, swServer_master_onAccept);
-	reactor->setHandle(reactor, SW_FD_TIMER, swServer_master_onTimer);
 	reactor->setHandle(reactor, SW_FD_CLOSE, swServer_single_onClose);
 	reactor->setHandle(reactor, SW_FD_CLOSE_QUEUE, swServer_single_onCloseQueue);
 	reactor->setHandle(reactor, SW_FD_UDP, swServer_poll_onPackage);
@@ -1614,15 +1545,9 @@ static void swSignalHanlde(int sig)
 		swoole_running = 0;
 		break;
 	case SIGALRM:
-		if (SwooleG.no_timerfd == 1)
+		if (SwooleG.timer.use_pipe == 1)
 		{
-			SwooleG.timer_pipe.write(&SwooleG.timer_pipe, &flag, sizeof(flag));
-		}
-		break;
-	case SIGVTALRM:
-		if (SwooleG.no_timerfd == 1)
-		{
-			SwooleG.timer_pipe.write(&SwooleG.timer_pipe, &flag, sizeof(flag));
+			SwooleG.timer.pipe.write(&SwooleG.timer.pipe, &flag, sizeof(flag));
 		}
 		break;
 	default:

@@ -119,7 +119,8 @@ static int swFactoryProcess_worker_receive(swReactor *reactor, swEvent *event)
 {
 	int n;
 	swEventData task;
-	swFactory *factory = reactor->ptr;
+	swServer *serv = reactor->ptr;
+	swFactory *factory = &serv->factory;
 	do
 	{
 		n = read(event->fd, &task, sizeof(task));
@@ -570,7 +571,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 		swError("[Worker] create worker_reactor fail");
 		return SW_ERR;
 	}
-	SwooleG.main_reactor->ptr = factory;
+	SwooleG.main_reactor->ptr = serv;
 	SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_rd, SW_FD_PIPE);
 	SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE, swFactoryProcess_worker_receive);
 #endif
@@ -691,7 +692,6 @@ int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int work
 	{
 		pti = worker_id;
 	}
-	swTrace("[ReadThread]sendto: pipe=%d|worker=%d\n", object->workers[pti].pipe_fd, pti);
 
 #if SW_WORKER_IPC_MODE == 2
 	//insert to msg queue

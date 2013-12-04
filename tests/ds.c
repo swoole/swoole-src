@@ -21,13 +21,33 @@ swUnitTest(type_test1)
 
 swUnitTest(hashmap_test1)
 {
-	swHashMap hm;
+	swHashMap hm = NULL;
 
-	int value = 199;
-	swHashMap_add(&hm, "hello", &value);
-	int *ret = swHashMap_find(&hm, "hello");
+	swWarn("add");
+	swHashMap_add(&hm, "hello", 199);
+	swHashMap_add(&hm, "swoole22", 8877);
+	swHashMap_add(&hm, "hello2", 200);
+	swHashMap_add(&hm, "willdel", 888);
+	swHashMap_add(&hm, "hello3", 78978);
 
-	printf("ret=%d\n", *ret);
+	swWarn("del");
+	swHashMap_del(&hm, "willdel");
+//	int ret = swHashMap_find(&hm, "hello");
+//	printf("ret=%d\n", ret);
+//
+//	int ret2 = swHashMap_find(&hm, "hello2");
+//	printf("ret2=%d\n", ret2);
+
+	void *tmp = NULL;
+	char *key;
+	int data;
+
+	while(1)
+	{
+		tmp = swHashMap_foreach(&hm, &key, &data, tmp);
+		printf("key=%s|value=%d\n", key, data);
+		if(tmp == NULL) break;
+	}
 	return 0;
 }
 

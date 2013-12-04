@@ -6,6 +6,7 @@
 
 int main(int argc, char **argv)
 {
+	swoole_init();
 	swUnitTest test;
 	test.argc = argc;
 	test.argv = argv;

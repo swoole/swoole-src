@@ -250,7 +250,7 @@ typedef struct _swPipe
 	int (*read)(struct _swPipe *, void *recv, int length);
 	int (*write)(struct _swPipe *, void *send, int length);
 	int (*getFd)(struct _swPipe *, int isWriteFd);
-	void (*close)(struct _swPipe *);
+	int (*close)(struct _swPipe *);
 } swPipe;
 
 int swPipeBase_create(swPipe *p, int blocking);
@@ -500,8 +500,8 @@ void swLog_free(void);
 
 //----------------------core function---------------------
 SWINLINE int swSetTimeout(int sock, float timeout);
-SWINLINE int swRead(int, char *, int);
-SWINLINE int swWrite(int, char *, int);
+SWINLINE int swRead(int, void *, int);
+SWINLINE int swWrite(int, void *, int);
 SWINLINE int swAccept(int server_socket, struct sockaddr_in *addr, int addr_len);
 SWINLINE void swSetNonBlock(int);
 SWINLINE void swSetBlock(int);
@@ -738,8 +738,32 @@ int swThreadPool_create(swThreadPool *pool, int max_num);
 int swThreadPool_run(swThreadPool *pool);
 int swThreadPool_free(swThreadPool *pool);
 
+//-----------------------------------------------
+typedef struct _swTimer_node
+{
+	struct _swTimerList_node *next, *prev;
+	time_t lasttime;
+	int interval;
+} swTimer_node;
+
+typedef struct _swTimer
+{
+	swHashMap list;
+	int interval_ms;
+	int use_pipe;
+	int lasttime;
+	int fd;
+	swPipe pipe;
+} swTimer;
+
+int swTimer_create(swTimer *timer, int interval_ms);
+void swTimer_del(swTimer *timer, int ms);
+int swTimer_free(swTimer *timer);
+int swTimer_add(swTimer *timer, int ms);
+SWINLINE time_t swTimer_get_ms();
+
 typedef struct _swServerG{
-	swPipe timer_pipe;
+	swTimer timer;
 	int no_timerfd;
 	int running;
 	int sw_errno;
