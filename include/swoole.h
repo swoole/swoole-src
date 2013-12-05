@@ -482,7 +482,6 @@ typedef struct _swThreadParam
 extern char swoole_running;
 extern int16_t sw_errno;
 extern char sw_error[SW_ERROR_MSG_SIZE];
-extern swAllocator *sw_memory_pool;
 
 #define SW_PROCESS_MASTER      1
 #define SW_PROCESS_WORKER      2
