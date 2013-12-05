@@ -86,6 +86,15 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define SWINLINE
 #endif
 
+#ifdef __MACH__
+#undef SWINLINE
+#define SWINLINE
+#endif
+
+#if defined(MAP_ANON) && !defined(MAP_ANONYMOUS)
+#define MAP_ANONYMOUS MAP_ANON
+#endif
+
 #ifndef SOCK_NONBLOCK
 #define SOCK_NONBLOCK O_NONBLOCK
 #endif

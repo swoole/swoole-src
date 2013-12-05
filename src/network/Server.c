@@ -1219,7 +1219,7 @@ static int swServer_poll_onPackage(swReactor *reactor, swEvent *event)
 	buf.info.from_fd = event->fd; //from fd
 	buf.info.from_id = ntohs(addr.sin_port); //转换字节序
 	buf.info.fd = addr.sin_addr.s_addr;
-	swTrace("recvfrom udp socket.fd=%d|data=%s", sock, buf.data);
+	swTrace("recvfrom udp socket.fd=%d|data=%s", event->fd, buf.data);
 	ret = factory->dispatch(factory, &buf);
 	if (ret < 0)
 	{
@@ -1329,7 +1329,7 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 	}
 	else
 	{
-		swTrace("recv: %s|fd=%d|len=%d\n", buf.data, event->fd, n);
+		swTrace("recv: %s|fd=%d|len=%d\n", rdata.buf.data, event->fd, n);
 		rdata.buf.info.fd = event->fd;
 		rdata.buf.info.len = n;
 		rdata.buf.info.from_id = event->from_id;
