@@ -42,13 +42,14 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num)
 		return SW_ERR;
 	}
 	//kqueue create
-	reactor_object->event_max = 0;
+	reactor_object->event_max = max_event_num;
 	reactor_object->epfd = kqueue();
 	if (reactor_object->epfd < 0)
 	{
 		swTrace("[swReactorKqueueCreate] kqueue_create[0] fail\n");
 		return SW_ERR;
 	}
+
 	//binding method
 	reactor->add = swReactorKqueue_add;
 	reactor->del = swReactorKqueue_del;
@@ -89,7 +90,6 @@ int swReactorKqueue_add(swReactor *reactor, int fd, int fdtype)
 		swTrace("[THREAD #%ld]add event fail.Ep=%d|fd=%d\n", pthread_self(), this->epfd, fd);
 		return SW_ERR;
 	}
-	this->event_max++;
 	return SW_OK;
 }
 
@@ -107,7 +107,6 @@ int swReactorKqueue_del(swReactor *reactor, int fd)
 		return -1;
 	}
 	close(fd);
-	this->event_max--;
 	return SW_OK;
 }
 
