@@ -749,6 +749,7 @@ typedef struct _swTimer_node
 typedef struct _swTimer
 {
 	swHashMap list;
+	int num;
 	int interval_ms;
 	int use_pipe;
 	int lasttime;
@@ -756,7 +757,7 @@ typedef struct _swTimer
 	swPipe pipe;
 } swTimer;
 
-int swTimer_create(swTimer *timer, int interval_ms);
+int swTimer_start(swTimer *timer, int interval_ms);
 void swTimer_del(swTimer *timer, int ms);
 int swTimer_free(swTimer *timer);
 int swTimer_add(swTimer *timer, int ms);

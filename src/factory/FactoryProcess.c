@@ -98,16 +98,15 @@ int swFactoryProcess_shutdown(swFactory *factory)
 
 int swFactoryProcess_start(swFactory *factory)
 {
-	int ret;
-	ret = swFactory_check_callback(factory);
-	if (ret < 0)
+	if (swFactory_check_callback(factory) < 0)
 	{
+		swWarn("swFactory_check_callback fail");
 		return SW_ERR;
 	}
 	//必须先启动manager进程组，否则会带线程fork
-	ret = swFactoryProcess_manager_start(factory);
-	if (ret < 0)
+	if (swFactoryProcess_manager_start(factory) < 0)
 	{
+		swWarn("swFactoryProcess_manager_start fail");
 		return SW_ERR;
 	}
 	//主进程需要设置为直写模式

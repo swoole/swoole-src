@@ -125,49 +125,20 @@ int swServer_master_onClose(swReactor *reactor, swEvent *event)
 
 static int swServer_onTimer(swReactor *reactor, swEvent *event)
 {
+	uint64_t exp;
 	swServer *serv = reactor->ptr;
 	swTimer *timer = &SwooleG.timer;
+
 	if(serv->onTimer == NULL)
 	{
 		swWarn("swServer->onTimer is NULL");
 		return SW_ERR;
 	}
-	uint64_t exp;
-	int ret;
-
-	time_t now_ms = swTimer_get_ms();
-	if(now_ms < 0)
+	if (read(SwooleG.timer.fd, &exp, sizeof(uint64_t)) < 0)
 	{
 		return SW_ERR;
 	}
-
-	ret = read(SwooleG.timer.fd, &exp, sizeof(uint64_t));
-	if (ret < 0)
-	{
-		return SW_ERR;
-	}
-
-	void *tmp = NULL;
-	time_t key;
-	swTimer_node *timer_node;
-
-	while(1)
-	{
-		tmp = swHashMap_foreach_int(&timer->list, &key, &timer_node, tmp);
-		//值为空
-		if (timer_node == NULL)
-		{
-			break;
-		}
-		//swWarn("Timer=%ld|lasttime=%ld|now=%ld", key, timer_node->lasttime, now_ms);
-		if (timer_node->lasttime < now_ms - timer_node->interval)
-		{
-			serv->onTimer(serv, timer_node->interval);
-			timer_node->lasttime += timer_node->interval;
-		}
-		if(tmp == NULL) break;
-	}
-	return ret;
+	return swTimer_select(timer, serv);
 }
 
 static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
@@ -277,7 +248,7 @@ int swServer_addTimer(swServer *serv, int interval)
 	int ret = swTimer_add(&SwooleG.timer, interval);
 	if (SwooleG.timer.fd == 0)
 	{
-		if(swTimer_create(&SwooleG.timer, serv->timer_interval) >= 0)
+		if(swTimer_start(&SwooleG.timer, serv->timer_interval) >= 0)
 		{
 			SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_TIMER, swServer_onTimer);
 			SwooleG.main_reactor->add(SwooleG.main_reactor, SwooleG.timer.fd, SW_FD_TIMER);
@@ -420,8 +391,18 @@ int swServer_start(swServer *serv)
 		}
 	}
 
-	ret = factory->start(factory);
-	if (ret < 0)
+	//设置factory回调函数
+	serv->factory.ptr = serv;
+	serv->factory.onTask = serv->onReceive;
+	if (serv->have_udp_sock == 1 && serv->factory_mode != SW_MODE_PROCESS)
+	{
+		serv->factory.onFinish = swServer_onFinish2;
+	}
+	else
+	{
+		serv->factory.onFinish = swServer_onFinish;
+	}
+	if (factory->start(factory) < 0)
 	{
 		swWarn("Swoole factory start fail");
 		return SW_ERR;
@@ -602,17 +583,6 @@ int swServer_create_base(swServer *serv)
 		swError("create factory fail\n");
 		return SW_ERR;
 	}
-	serv->factory.ptr = serv;
-	serv->factory.onTask = serv->onReceive;
-	//线程模式
-	if (serv->have_udp_sock == 1)
-	{
-		serv->factory.onFinish = swServer_onFinish2;
-	}
-	else
-	{
-		serv->factory.onFinish = swServer_onFinish;
-	}
 	return SW_OK;
 }
 
@@ -682,17 +652,6 @@ int swServer_create_proxy(swServer *serv)
 	{
 		swError("create factory fail\n");
 		return SW_ERR;
-	}
-	serv->factory.ptr = serv;
-	serv->factory.onTask = serv->onReceive;
-	//线程模式
-	if (serv->have_udp_sock == 1 && serv->factory_mode != SW_MODE_PROCESS)
-	{
-		serv->factory.onFinish = swServer_onFinish2;
-	}
-	else
-	{
-		serv->factory.onFinish = swServer_onFinish;
 	}
 	return SW_OK;
 }
