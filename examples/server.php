@@ -10,7 +10,7 @@ swoole_server_set($serv, array(
     'timeout' => 2,  //select and epoll_wait timeout.
     'poll_thread_num' => 1, //reactor thread num
     'writer_num' => 1,     //writer thread num
-    'worker_num' => 2,    //worker process num
+    'worker_num' => 1,    //worker process num
     'backlog' => 128,   //listen backlog
     'max_request' => 5000,
     'max_conn' => 100000,
@@ -63,7 +63,7 @@ function my_onWorkerStart($serv, $worker_id)
 	echo "WorkerStart[$worker_id]|pid=".posix_getpid().".\n";
 	$serv->addtimer(800);
 	$serv->addtimer(2000);
-	$serv->addtimer(6000);
+	//$serv->addtimer(6000);
 }
 
 function my_onWorkerStop($serv, $worker_id)
