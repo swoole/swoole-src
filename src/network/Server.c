@@ -248,6 +248,7 @@ int swServer_addTimer(swServer *serv, int interval)
 	int ret = swTimer_add(&SwooleG.timer, interval);
 	if (SwooleG.timer.fd == 0)
 	{
+		swSignalSet(SIGALRM, swSignalHanlde, 1, 0);
 		if(swTimer_start(&SwooleG.timer, serv->timer_interval) >= 0)
 		{
 			SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_TIMER, swServer_onTimer);
@@ -1401,7 +1402,6 @@ void swSignalInit(void)
 	swSignalSet(SIGUSR1, SIG_IGN, 1, 0);
 	swSignalSet(SIGUSR2, SIG_IGN, 1, 0);
 	swSignalSet(SIGTERM, swSignalHanlde, 1, 0);
-	swSignalSet(SIGALRM, swSignalHanlde, 1, 0);
 }
 
 int swServer_addListen(swServer *serv, int type, char *host, int port)

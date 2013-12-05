@@ -38,7 +38,7 @@ int swTimer_start(swTimer *timer, int interval_ms)
 	int ret;
 	//eventfd是2.6.26提供的,timerfd是2.6.27提供的
 #ifdef HAVE_EVENTFD
-	ret = swPipeEventfd_create(&timer->pipe, 0);
+	ret = swPipeEventfd_create(&timer->pipe, 0, 0);
 #else
 	ret = swPipeBase_create(&timer->pipe, 0);
 #endif
@@ -57,6 +57,7 @@ int swTimer_start(swTimer *timer, int interval_ms)
 		swWarn("set timer fail");
 		return SW_ERR;
 	}
+	timer->fd = timer->pipe.getFd(&timer->pipe, 0);
 	timer->use_pipe = 1;
 #endif
 	return SW_OK;
