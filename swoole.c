@@ -160,6 +160,7 @@ static zend_function_entry swoole_server_methods[] = {
 	PHP_FALIAS(finish, swoole_server_finish, NULL)
 	PHP_FALIAS(addlistener, swoole_server_addlisten, NULL)
 	PHP_FALIAS(addtimer, swoole_server_addtimer, NULL)
+	PHP_FALIAS(deltimer, swoole_server_deltimer, NULL)
 	PHP_FALIAS(reload, swoole_server_reload, NULL)
 	PHP_FALIAS(shutdown, swoole_server_shutdown, NULL)
 	PHP_FALIAS(handler, swoole_server_handler, NULL)
@@ -1777,9 +1778,10 @@ PHP_FUNCTION(swoole_server_deltimer)
 		}
 	}
 	SWOOLE_GET_SERVER(zobject, serv);
-	if (serv->timer_interval || SwooleG.timer.fd == 0)
+	if (serv->timer_interval == 0 || SwooleG.timer.fd == 0)
 	{
 		zend_error(E_WARNING, "SwooleServer: no timer.");
+		RETURN_FALSE;
 	}
 	swTimer_del(&SwooleG.timer, (int)interval);
 	RETURN_TRUE;

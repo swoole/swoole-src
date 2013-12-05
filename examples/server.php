@@ -76,7 +76,7 @@ function my_onReceive($serv, $fd, $from_id, $data)
     //echo "Client:Data. fd=$fd|from_id=$from_id|data=$data";
     //echo "WorkerPid=".posix_getpid()."\n";
     //swoole_server_send($serv, $fd, 'Swoole: '.$data, $from_id);
-
+	$serv->deltimer(800);
     if(trim($data) == "reload") 
     {
 		$serv->reload($serv);

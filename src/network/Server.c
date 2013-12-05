@@ -270,7 +270,7 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 
 int swServer_addTimer(swServer *serv, int interval)
 {
-	if (interval < serv->timer_interval)
+	if (interval < serv->timer_interval || serv->timer_interval == 0)
 	{
 		serv->timer_interval = interval;
 	}
