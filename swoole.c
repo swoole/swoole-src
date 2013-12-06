@@ -1839,7 +1839,7 @@ PHP_FUNCTION(swoole_set_process_name)
 	//it's safe.
 #define ARGV_MAX_LENGTH 127
 	bzero(sapi_module.executable_location, ARGV_MAX_LENGTH);
-	memcpy(sapi_module.executable_location, name, ARGV_MAX_LENGTH-1);
+	memcpy(sapi_module.executable_location, name, name_len);
 }
 
 PHP_FUNCTION(swoole_server_task)
