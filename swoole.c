@@ -1038,6 +1038,8 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
 
 void php_swoole_onStart(swServer *serv)
 {
+	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
 	zval *zserv = (zval *)serv->ptr2;
 	zval **args[1];
 	zval *retval;
@@ -1055,7 +1057,6 @@ void php_swoole_onStart(swServer *serv)
 
 	args[0] = &zserv;
 	zval_add_ref(&zserv);
-	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onStart], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
