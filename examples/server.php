@@ -62,7 +62,7 @@ function my_onWorkerStart($serv, $worker_id)
 {
     //sleep(10);
 	echo "WorkerStart[$worker_id]|pid=".posix_getpid().".\n";
-	//$serv->addtimer(800);
+	$serv->addtimer(500);
 	$serv->addtimer(2000);
 	//$serv->addtimer(6000);
 }

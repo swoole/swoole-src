@@ -76,13 +76,16 @@ int swReactorKqueue_add(swReactor *reactor, int fd, int fdtype)
 
 	fd_.fd = fd;
 	fd_.fdtype = swReactor_fdtype(fdtype);
-	//e.data.u64 = 0;
-	//e.events = kqueueIN | kqueueOUT;
 
-    EV_SET(&e, fd, EVFILT_READ, EV_ADD | EV_CLEAR, 0, 0 , NULL);
-
+	if(fdtype < SW_EVENT_DEAULT || swReactor_event_read(fdtype))
+	{
+		EV_SET(&e, fd, EVFILT_READ, EV_ADD | EV_CLEAR, 0, 0 , NULL);
+	}
+	if(swReactor_event_write(fdtype))
+	{
+		EV_SET(&e, fd, EVFILT_WRITE, EV_ADD | EV_CLEAR, 0, 0 , NULL);
+	}
     memcpy(&e.udata, &fd_, sizeof(swFd));
-
 	swTrace("[THREAD #%ld]EP=%d|FD=%d\n", pthread_self(), this->epfd, fd);
 	ret = kevent(this->epfd, &e, 1, NULL, 0, NULL);
 	if (ret < 0)

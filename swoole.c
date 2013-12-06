@@ -77,6 +77,8 @@ static void ***sw_thread_ctx;
 #endif
 
 static char php_sw_reactor_ok = 0;
+static char php_sw_reactor_wait = 0;
+
 static char php_sw_in_client = 0;
 static int php_swoole_udp_from_fd = 0;
 static uint16_t php_swoole_task_id = 1;
@@ -1361,7 +1363,15 @@ static void php_swoole_check_reactor()
 				zend_error(E_ERROR, "swoole_client: malloc SwooleG.main_reactor fail");
 				return;
 			}
-			if(swReactorSelect_create(SwooleG.main_reactor) < 0)
+			int ret;
+#ifdef HAVE_EPOLL
+			ret = swReactorEpoll_create(SwooleG.main_reactor, SW_MAX_FDS);
+#elif defined(HAVE_KQUEUE)
+			ret=swReactorKqueue_create(SwooleG.main_reactor, SW_MAX_FDS);
+#else
+			ret=swReactorSelect_create(SwooleG.main_reactor);
+#endif
+			if (ret < 0)
 			{
 				zend_error(E_ERROR, "swoole_client: create SwooleG.main_reactor fail");
 				return;
@@ -1381,9 +1391,9 @@ static void php_swoole_check_reactor()
 
 static void php_swoole_try_run_reactor()
 {
-	if (swoole_running == 0)
+	if (php_sw_reactor_wait == 0)
 	{
-		swoole_running = 1;
+		php_sw_reactor_wait = 1;
 		struct timeval timeo;
 		timeo.tv_sec = SW_REACTOR_TIMEO_SEC;
 		timeo.tv_usec = SW_REACTOR_TIMEO_USEC;
