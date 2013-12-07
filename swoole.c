@@ -1805,11 +1805,6 @@ PHP_FUNCTION(swoole_server_addtimer)
 	swFactory *factory = NULL;
 	long interval;
 
-	if (php_sw_callback[SW_SERVER_CB_onTimer] == NULL)
-	{
-		zend_error(E_WARNING, "SwooleServer: no onTimer callback.");
-		RETURN_FALSE;
-	}
 	if (zobject == NULL)
 	{
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ol", &zobject, swoole_server_class_entry_ptr, &interval) == FAILURE)
@@ -1825,6 +1820,11 @@ PHP_FUNCTION(swoole_server_addtimer)
 		}
 	}
 	SWOOLE_GET_SERVER(zobject, serv);
+	if (serv->onTimer == NULL)
+	{
+		zend_error(E_WARNING, "SwooleServer: addtimer must be after the swoole_serv_start.");
+		RETURN_FALSE;
+	}
 	SW_CHECK_RETURN(swServer_addTimer(serv, (int)interval));
 }
 
