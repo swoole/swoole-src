@@ -77,7 +77,7 @@ static void ***sw_thread_ctx;
 #endif
 
 static char php_sw_reactor_ok = 0;
-static char php_sw_reactor_wait = 0;
+static char php_sw_reactor_wait_onexit = 0;
 
 static char php_sw_in_client = 0;
 static int php_swoole_udp_from_fd = 0;
@@ -123,6 +123,7 @@ static void php_swoole_try_run_reactor();
 #include "ext/mysqli/mysqli_mysqlnd.h"
 #include "ext/mysqli/php_mysqli_structs.h"
 #endif
+#include "ext/standard/basic_functions.h"
 
 const zend_function_entry swoole_functions[] =
 {
@@ -144,6 +145,7 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_event_add, NULL)
 	PHP_FE(swoole_event_del, NULL)
 	PHP_FE(swoole_event_exit, NULL)
+	PHP_FE(swoole_event_wait, NULL)
 	PHP_FE(swoole_client_select, NULL)
 	PHP_FE(swoole_set_process_name, NULL)
 #ifdef SW_ASYNC_MYSQL
@@ -616,7 +618,7 @@ static int php_swoole_set_callback(int key, zval *cb TSRMLS_DC)
 	char *func_name = NULL;
 	if(!zend_is_callable(cb, 0, &func_name TSRMLS_CC))
 	{
-		zend_error(E_WARNING, "Function '%s' is not callable", func_name);
+		zend_error(E_ERROR, "Function '%s' is not callable", func_name);
 		efree(func_name);
 		return SW_ERR;
 	}
@@ -1228,7 +1230,7 @@ static int php_swoole_client_onReceive(swReactor *reactor, swEvent *event)
 
 	char *hash_key;
 	int hash_key_len;
-	hash_key_len = spprintf(&hash_key, 0, "%d", event->fd);
+	hash_key_len = spprintf(&hash_key, sizeof(int)+1, "%d", event->fd);
 
 	if(zend_hash_find(&php_sw_client_callback, hash_key, hash_key_len+1, &zobject) != SUCCESS)
 	{
@@ -1265,7 +1267,7 @@ static int php_swoole_client_onConnect(swReactor *reactor, swEvent *event)
 
 	char *hash_key;
 	int hash_key_len;
-	hash_key_len = spprintf(&hash_key, 0, "%d", event->fd);
+	hash_key_len = spprintf(&hash_key, sizeof(int)+1, "%d", event->fd);
 
 	if(zend_hash_find(&php_sw_client_callback, hash_key, hash_key_len+1, &zobject) != SUCCESS)
 	{
@@ -1324,7 +1326,7 @@ static int php_swoole_client_onError(swReactor *reactor, swEvent *event)
 
 	char *hash_key;
 	int hash_key_len;
-	hash_key_len = spprintf(&hash_key, 0, "%d", event->fd);
+	hash_key_len = spprintf(&hash_key, sizeof(int)+1, "%d", event->fd);
 
 	if (zend_hash_find(&php_sw_client_callback, hash_key, hash_key_len + 1, &zobject) != SUCCESS)
 	{
@@ -1392,18 +1394,28 @@ static void php_swoole_check_reactor()
 
 static void php_swoole_try_run_reactor()
 {
-	if (php_sw_reactor_wait == 0)
+	//only client side
+	if (php_sw_in_client == 1 && php_sw_reactor_wait_onexit == 0)
 	{
-		php_sw_reactor_wait = 1;
-		struct timeval timeo;
-		timeo.tv_sec = SW_REACTOR_TIMEO_SEC;
-		timeo.tv_usec = SW_REACTOR_TIMEO_USEC;
+		zval *callback;
+		php_shutdown_function_entry shutdown_function_entry;
 
-		int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, &timeo);
-		if(ret < 0)
+		shutdown_function_entry.arg_count = 1;
+	    shutdown_function_entry.arguments = (zval **) safe_emalloc(sizeof(zval *), 1, 0);
+
+	    MAKE_STD_ZVAL(callback);
+		ZVAL_STRING(callback, "swoole_event_wait", 1);
+		shutdown_function_entry.arguments[0] = callback;
+
+		TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+		if (!register_user_shutdown_function("swoole_event_wait", sizeof("swoole_event_wait"), &shutdown_function_entry TSRMLS_CC))
 		{
-			zend_error(E_ERROR, "swoole_client: reactor wait fail. Errno: %s [%d]", strerror(errno), errno);
+			zval_ptr_dtor(&callback);
+			efree(shutdown_function_entry.arguments);
+			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
 		}
+		php_sw_reactor_wait_onexit = 1;
 	}
 }
 
@@ -1767,6 +1779,22 @@ PHP_FUNCTION(swoole_event_exit)
 	}
 }
 
+PHP_FUNCTION(swoole_event_wait)
+{
+	if (php_sw_in_client == 1)
+	{
+		struct timeval timeo;
+		timeo.tv_sec = SW_REACTOR_TIMEO_SEC;
+		timeo.tv_usec = SW_REACTOR_TIMEO_USEC;
+
+		int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, &timeo);
+		if(ret < 0)
+		{
+			zend_error(E_ERROR, "swoole_client: reactor wait fail. Errno: %s [%d]", strerror(errno), errno);
+		}
+	}
+}
+
 PHP_FUNCTION(swoole_server_deltimer)
 {
 	zval *zobject = getThis();
@@ -2009,7 +2037,7 @@ PHP_METHOD(swoole_client, connect)
 		int hash_key_len;
 		int flag = 0;
 
-		hash_key_len = spprintf(&hash_key, 0, "%d", cli->sock);
+		hash_key_len = spprintf(&hash_key, sizeof(int)+1, "%d", cli->sock);
 		zval_add_ref(&getThis());
 		if (zend_hash_update(&php_sw_client_callback, hash_key, hash_key_len+1, &getThis(), sizeof(zval*), NULL) == FAILURE)
 		{

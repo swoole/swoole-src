@@ -7,7 +7,7 @@ class ProxyServer
 
     function run()
     {
-        $serv = swoole_server_create("127.0.0.1", 9509, SWOOLE_BASE);
+        $serv = swoole_server_create("127.0.0.1", 9509, SWOOLE_PROCESS);
         swoole_server_set($serv, array(
             'timeout' => 1, //select and epoll_wait timeout.
             'poll_thread_num' => 1, //reactor thread num
@@ -71,9 +71,11 @@ class ProxyServer
             swoole_server_close($this->serv, $this->backends[$socket->sock]['client_fd']);
         });
         $socket->on('receive', function ($socket) {
+			//PHP-5.4以下版本可能不支持此写法，匿名函数不能调用$this
+			//可以修改为类静态变量
             swoole_server_send($this->serv, $this->backends[$socket->sock]['client_fd'], $socket->recv());
         });
-        $socket->connect('127.0.0.1', 9501, 0.2);
+        $socket->connect('127.0.0.1', 80, 0.2);
     }
 
     function onReceive($serv, $fd, $from_id, $data)

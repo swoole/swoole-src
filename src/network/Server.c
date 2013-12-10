@@ -291,25 +291,38 @@ static int swServer_check_callback(swServer *serv)
 {
 	if (serv->onConnect == NULL)
 	{
+		swWarn("onConnect is null");
 		return SW_ERR;
 	}
 	if (serv->onReceive == NULL)
 	{
+		swWarn("onReceive is null");
 		return SW_ERR;
 	}
 	if (serv->onClose == NULL)
 	{
+		swWarn("onClose is null");
 		return SW_ERR;
 	}
 	//Timer
 	if (SwooleG.timer.interval_ms > 0 && serv->onTimer == NULL)
 	{
+		swWarn("onTimer is null");
 		return SW_ERR;
 	}
 	//AsyncTask
-	if (serv->task_worker_num > 0 && (serv->onTask == NULL || serv->onFinish == NULL))
+	if (serv->task_worker_num > 0)
 	{
-		return SW_ERR;
+		if (serv->onTask == NULL)
+		{
+			swWarn("onTask is null");
+			return SW_ERR;
+		}
+		if (serv->onFinish == NULL)
+		{
+			swWarn("onFinish is null");
+			return SW_ERR;
+		}
 	}
 	return SW_OK;
 }
@@ -380,7 +393,6 @@ int swServer_start(swServer *serv)
 	ret = swServer_check_callback(serv);
 	if (ret < 0)
 	{
-		swWarn("Swoole callback function is null.");
 		return SW_ERR;
 	}
 	//run as daemon

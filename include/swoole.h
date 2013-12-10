@@ -173,7 +173,7 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define SW_LOG_ERROR           3
 
 #ifdef SW_LOG_NO_SRCINFO
-#define swWarn(str,...)       snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);swLog_put(SW_LOG_WARN, sw_error)
+#define swWarn(str,...)       snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str,__func__,##__VA_ARGS__);swLog_put(SW_LOG_WARN, sw_error)
 #define swError(str,...)       snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);swLog_put(SW_LOG_ERROR, sw_error);exit(1)
 #else
 #define swWarn(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d@%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);swLog_put(SW_LOG_WARN, sw_error);}

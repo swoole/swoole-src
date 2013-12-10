@@ -13,7 +13,7 @@ swoole_server_set($serv, array(
     'worker_num' => 1,    //worker process num
     'backlog' => 128,   //listen backlog
     'max_request' => 5000,
-    'max_conn' => 100000,
+    'max_conn' => 10000,
     //'task_worker_num' => 2,
 	'dispatch_mode' => 2,
 	///'timer_interval' => 200,
@@ -62,8 +62,8 @@ function my_onWorkerStart($serv, $worker_id)
 {
     //sleep(10);
 	echo "WorkerStart[$worker_id]|pid=".posix_getpid().".\n";
-	$serv->addtimer(500);
-	$serv->addtimer(2000);
+	//$serv->addtimer(500);
+	//$serv->addtimer(2000);
 	//$serv->addtimer(6000);
 }
 
@@ -143,7 +143,7 @@ swoole_server_handler($serv, 'onTimer', 'my_onTimer');
 swoole_server_handler($serv, 'onWorkerStart', 'my_onWorkerStart');
 swoole_server_handler($serv, 'onWorkerStop', 'my_onWorkerStop');
 swoole_server_handler($serv, 'onTask', 'my_onTask');
-swoole_server_handler($serv, 'onFinish', 'my_onFinish');
+//swoole_server_handler($serv, 'onFinish', 'my_onFinish');
 
 //swoole_server_handler($serv, 'onMasterConnect', 'my_onMasterConnect');
 //swoole_server_handler($serv, 'onMasterClose', 'my_onMasterClose');

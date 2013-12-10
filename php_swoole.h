@@ -83,6 +83,7 @@ PHP_FUNCTION(swoole_connection_info);
 
 PHP_FUNCTION(swoole_event_add);
 PHP_FUNCTION(swoole_event_del);
+PHP_FUNCTION(swoole_event_wait);
 PHP_FUNCTION(swoole_event_exit);
 
 #ifdef SW_ASYNC_MYSQL

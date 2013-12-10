@@ -119,7 +119,7 @@ function udp2(Swoole_Benchmark $bc)
 
 function short_tcp($bc)
 {
-	$fp = stream_socket_client($bc->server_url,$errno,$errstr,1);
+	$fp = stream_socket_client($bc->server_url, $errno, $errstr, 1);
 	stream_set_blocking($fp, 1);
 	if(!$fp)
 	{
@@ -129,7 +129,7 @@ function short_tcp($bc)
 	else
 	{
 		fwrite($fp,$bc->send_data);
-		$ret = fread($fp,$bc->read_len);
+		$ret = fread($fp, $bc->read_len);
 		fclose($fp);
 		if(!empty($ret)) return true;
 		else return false;
