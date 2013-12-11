@@ -182,7 +182,6 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 
 	while (swoole_running > 0)
 	{
-
 		n = epoll_wait(object->epfd, object->events, object->event_max + 1, usec);
 		if (n < 0)
 		{
@@ -212,23 +211,20 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 			//read
 			if (object->events[i].events & EPOLLIN)
 			{
-				handle = swReactor_getHandle(reactor, SW_EVENT_READ, ev.type);
-				ret = handle(reactor, &ev);
-				if (ret < 0)
+				//error
+				if ((object->events[i].events & EPOLLRDHUP))
 				{
-					swWarn("[Reactor#%d] epoll handle fail. fd=%d|type=%d|errno=%d|sw_errno=%d", ev.fd, reactor->id,
-							ev.type, errno, sw_errno);
+					handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, ev.type);
 				}
-			}
-			//error
-			if ((object->events[i].events & EPOLLRDHUP) || (object->events[i].events & EPOLLERR))
-			{
-				handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, ev.type);
+				//read
+				else
+				{
+					handle = swReactor_getHandle(reactor, SW_EVENT_READ, ev.type);
+				}
 				ret = handle(reactor, &ev);
 				if (ret < 0)
 				{
-					swWarn("[Reactor#%d] epoll event[type=SW_EVENT_ERROR] handler fail. fd=%d|errno=%d", reactor->id,
-							ev.type, ev.fd, errno);
+					swWarn("[Reactor#%d] epoll handle fail. fd=%d|type=%d", reactor->id, ev.fd, ev.type);
 				}
 			}
 			//write
