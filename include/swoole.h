@@ -115,6 +115,8 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define SW_TIMEO_SEC           0
 #define SW_TIMEO_USEC          3000000
 
+#define SW_MAX_UINT            4294967295
+
 #ifndef MAX
 #define MAX(a, b)              (a)>(b)?a:b;
 #endif
@@ -548,10 +550,11 @@ struct swReactor_s
 	void *object;
 	void *ptr; //reserve
 	uint16_t id; //Reactor ID
+	uint16_t flag; //flag
 	char timeout;
 	char running;
 
-	swReactor_handle handle[SW_MAX_FDTYPE]; //默认事件
+	swReactor_handle handle[SW_MAX_FDTYPE];       //默认事件
 	swReactor_handle write_handle[SW_MAX_FDTYPE]; //扩展事件1(一般为写事件)
 	swReactor_handle error_handle[SW_MAX_FDTYPE]; //扩展事件2(一般为错误事件,如socket关闭)
 

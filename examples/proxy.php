@@ -69,7 +69,14 @@ class ProxyServer
             echo "connect to backend server fail\n";
             swoole_server_send($this->serv, $this->backends[$socket->sock]['client_fd'], "backend server not connected. please try reconnect.");
             swoole_server_close($this->serv, $this->backends[$socket->sock]['client_fd']);
+            $socket->close();
         });
+        
+        $socket->on('close', function ($socket) {
+			echo "backend connection close\n";
+            $socket->close();
+        });
+        
         $socket->on('receive', function ($socket) {
 			//PHP-5.4以下版本可能不支持此写法，匿名函数不能调用$this
 			//可以修改为类静态变量

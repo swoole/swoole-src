@@ -56,6 +56,42 @@ extern zend_module_entry swoole_module_entry;
 #define SW_RES_CLIENT_NAME          "SwooleClient"
 #define SW_RES_LOCK_NAME            "SwooleLock"
 
+#define PHP_CLIENT_CALLBACK_NUM             4
+//---------------------------------------------------
+#define SW_CLIENT_CB_onConnect              0
+#define SW_CLIENT_CB_onReceive              1
+#define SW_CLIENT_CB_onClose                2
+#define SW_CLIENT_CB_onError                3
+
+#define SW_MAX_FIND_COUNT             100 //最多一次性取100个connection_info
+#define SW_PHP_CLIENT_BUFFER_SIZE     65535
+
+#define PHP_SERVER_CALLBACK_NUM             12
+//---------------------------------------------------
+#define SW_SERVER_CB_onStart                0 //Server启动(master)
+#define SW_SERVER_CB_onConnect              1 //accept连接(worker)
+#define SW_SERVER_CB_onReceive              2 //接受数据(worker)
+#define SW_SERVER_CB_onClose                3 //关闭连接(worker)
+#define SW_SERVER_CB_onShutdown             4 //Server关闭(master)
+#define SW_SERVER_CB_onTimer                5 //定时器(master)
+#define SW_SERVER_CB_onWorkerStart          6 //Worker进程启动(worker)
+#define SW_SERVER_CB_onWorkerStop           7 //Worker进程结束(worker)
+#define SW_SERVER_CB_onMasterConnect        8 //accept连接(master)
+#define SW_SERVER_CB_onMasterClose          9 //关闭连接(master)
+#define SW_SERVER_CB_onTask                 10 //异步任务(task_worker)
+#define SW_SERVER_CB_onFinish               11 //关闭连接(worker)
+
+extern int le_swoole_server;
+extern int le_swoole_client;
+extern int le_swoole_lock;
+
+zend_class_entry *swoole_lock_class_entry_ptr;
+zend_class_entry *swoole_client_class_entry_ptr;
+zend_class_entry *swoole_server_class_entry_ptr;
+
+HashTable php_sw_reactor_callback;
+HashTable php_sw_client_callback;
+
 PHP_MINIT_FUNCTION(swoole);
 PHP_MSHUTDOWN_FUNCTION(swoole);
 PHP_RINIT_FUNCTION(swoole);

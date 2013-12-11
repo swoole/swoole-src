@@ -1354,7 +1354,7 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 
 static int swServer_poll_onClose(swReactor *reactor, swEvent *event)
 {
-	int ret;
+	int ret = 0;
 	swServer *serv = reactor->ptr;
 	swEventClose_queue *queue = &serv->poll_threads[reactor->id].close_queue;
 

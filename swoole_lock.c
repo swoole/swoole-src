@@ -1,8 +1,5 @@
 #include "php_swoole.h"
 
-extern int le_swoole_lock;
-extern zend_class_entry *swoole_lock_class_entry_ptr;
-
 PHP_METHOD(swoole_lock, __construct)
 {
 	long type = SW_MUTEX;

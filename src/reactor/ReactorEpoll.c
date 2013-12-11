@@ -2,6 +2,14 @@
 
 #ifdef HAVE_EPOLL
 
+#ifndef EPOLLRDHUP
+#defind EPOLLWAKEUP (1u << 29)
+#endif
+
+#ifndef EPOLLONESHOT
+#defind EPOLLONESHOT (1u << 30)
+#endif
+
 typedef struct swReactorEpoll_s swReactorEpoll;
 
 #pragma pack(4)
@@ -17,6 +25,7 @@ static int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype);
 static int swReactorEpoll_del(swReactor *reactor, int fd);
 static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo);
 static void swReactorEpoll_free(swReactor *reactor);
+SWINLINE static int swReactorEpoll_event_set(int fdtype);
 
 struct swReactorEpoll_s
 {
@@ -78,24 +87,8 @@ int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
 
 	fd_.fd = fd;
 	fd_.fdtype = swReactor_fdtype(fdtype);
+	e.events = swReactorEpoll_event_set(fdtype);
 
-#ifdef SW_USE_EPOLLET
-	e.events = EPOLLET;
-#endif
-
-	swTrace("epoll event add.fd=%d|type=%d", fd_.fd, fd_.fdtype);
-	//没有设置任何flag,默认为read事件
-	if(swReactor_event_read(fdtype))
-	{
-		e.events |= EPOLLIN;
-	}
-	if(swReactor_event_write(fdtype))
-	{
-		e.events |= EPOLLOUT;
-	}
-#ifdef EPOLLRDHUP
-	e.events |= EPOLLRDHUP;
-#endif
 	memcpy(&(e.data.u64), &fd_, sizeof(fd_));
 	ret = epoll_ctl(object->epfd, EPOLL_CTL_ADD, fd, &e);
 	if (ret < 0)
@@ -114,15 +107,39 @@ int swReactorEpoll_del(swReactor *reactor, int fd)
 	int ret;
 	e.data.fd = fd;
 //	e.events = EPOLLIN | EPOLLET | EPOLLOUT;
-	ret = epoll_ctl(object->epfd, EPOLL_CTL_DEL, fd, &e);
-	if (ret < 0)
-	{
-		swWarn("epoll remove fd fail.errno=%d|fd=%d", errno, fd);
-		return SW_ERR;
-	}
-	close(fd);
+//	ret = epoll_ctl(object->epfd, EPOLL_CTL_DEL, fd, &e);
+//	if (ret < 0)
+//	{
+//		swWarn("epoll remove fd fail.errno=%d|fd=%d", errno, fd);
+//		return SW_ERR;
+//	}
+	//close时会自动从epoll事件中移除
+	//swoole中未使用dup
+	ret = close(fd);
 	(object->event_max <= 0) ? object->event_max = 0 : object->event_max--;
 	return SW_OK;
+}
+
+SWINLINE static int swReactorEpoll_event_set(int fdtype)
+{
+	uint32_t flag = 0;
+#ifdef SW_USE_EPOLLET
+	flag = EPOLLET;
+#endif
+
+#ifdef EPOLLRDHUP
+	flag |= EPOLLRDHUP;
+#endif
+
+	if (swReactor_event_read(fdtype))
+	{
+		flag |= EPOLLIN;
+	}
+	if (swReactor_event_write(fdtype))
+	{
+		flag |= EPOLLOUT;
+	}
+	return flag;
 }
 
 int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype)
@@ -132,21 +149,7 @@ int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype)
 	struct epoll_event e;
 	int ret;
 	bzero(&e, sizeof(struct epoll_event));
-
-	e.events = EPOLLET;
-#ifdef EPOLLRDHUP
-	e.events |= EPOLLRDHUP;
-#endif
-
-	if(swReactor_event_read(fdtype))
-	{
-		e.events |= EPOLLIN;
-	}
-	if(swReactor_event_write(fdtype))
-	{
-		e.events |= EPOLLOUT;
-	}
-
+	e.events = swReactorEpoll_event_set(fdtype);
 	fd_.fd = fd;
 	fd_.fdtype = swReactor_fdtype(fdtype);
 	memcpy(&(e.data.u64), &fd_, sizeof(fd_));
@@ -166,16 +169,24 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 	swFd fd_;
 	swReactorEpoll *object = reactor->object;
 	swReactor_handle handle;
-	int i, n, ret;
-	int usec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
+	int i, n, ret, usec;
+
+	if (timeo == NULL)
+	{
+		usec = SW_MAX_UINT;
+	}
+	else
+	{
+		usec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
+	}
 
 	while (swoole_running > 0)
 	{
-		reactor->timeout = 0;
+
 		n = epoll_wait(object->epfd, object->events, object->event_max + 1, usec);
 		if (n < 0)
 		{
-			if(swReactor_error(reactor) < 0)
+			if (swReactor_error(reactor) < 0)
 			{
 				swTrace("epoll error.EP=%d | Errno=%d\n", object->epfd, errno);
 				return SW_ERR;
@@ -201,38 +212,38 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 			//read
 			if (object->events[i].events & EPOLLIN)
 			{
-				swTrace("epoll event coming.fd=%d|fdtype=%d", ev.fd, ev.type);
-#ifdef EPOLLRDHUP
-				//close事件
-				if(object->events[i].events & EPOLLRDHUP)
+				handle = swReactor_getHandle(reactor, SW_EVENT_READ, ev.type);
+				ret = handle(reactor, &ev);
+				if (ret < 0)
 				{
-					handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, ev.type);
-					ret = handle(reactor, &ev);
+					swWarn("[Reactor#%d] epoll handle fail. fd=%d|type=%d|errno=%d|sw_errno=%d", ev.fd, reactor->id,
+							ev.type, errno, sw_errno);
 				}
-				else
-#endif
-				{
-					handle = swReactor_getHandle(reactor, SW_EVENT_READ, ev.type);
-					ret = handle(reactor, &ev);
-					if(ret < 0)
-					{
-						swWarn("[Reactor#%d] epoll handle fail. fd=%d|type=%d|errno=%d|sw_errno=%d", ev.fd, reactor->id, ev.type, errno, sw_errno);
-					}
-				}
-				swTrace("[THREAD #%ld]event finish.Ep=%d|ret=%d", pthread_self(), object->epfd, ret);
 			}
-
+			//error
+			if ((object->events[i].events & EPOLLRDHUP) || (object->events[i].events & EPOLLERR))
+			{
+				handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, ev.type);
+				ret = handle(reactor, &ev);
+				if (ret < 0)
+				{
+					swWarn("[Reactor#%d] epoll event[type=SW_EVENT_ERROR] handler fail. fd=%d|errno=%d", reactor->id,
+							ev.type, ev.fd, errno);
+				}
+			}
 			//write
-			if ((object->events[i].events & EPOLLOUT) && reactor->handle[SW_FD_WRITE]!=NULL)
+			if ((object->events[i].events & EPOLLOUT))
 			{
 				handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, ev.type);
 				ret = handle(reactor, &ev);
-				if(ret < 0)
+				if (ret < 0)
 				{
-					swWarn("[Reactor#%d] epoll event[type=SW_FD_WRITE] handler fail. fd=%d|errno=%d", reactor->id, ev.type, ev.fd, errno);
+					swWarn("[Reactor#%d] epoll event[type=SW_EVENT_WRITE] handler fail. fd=%d|errno=%d", reactor->id,
+							ev.type, ev.fd, errno);
 				}
 			}
 		}
+		reactor->timeout = 0;
 	}
 	return 0;
 }
