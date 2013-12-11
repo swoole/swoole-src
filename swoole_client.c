@@ -230,13 +230,18 @@ static void php_swoole_try_run_reactor()
 	//only client side
 	if (php_sw_in_client == 1 && php_sw_reactor_wait_onexit == 0)
 	{
-		zval *callback;
+		TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+		zval *callback, *retval;
+		MAKE_STD_ZVAL(callback);
+
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 4
+
 		php_shutdown_function_entry shutdown_function_entry;
 
 		shutdown_function_entry.arg_count = 1;
 	    shutdown_function_entry.arguments = (zval **) safe_emalloc(sizeof(zval *), 1, 0);
 
-	    MAKE_STD_ZVAL(callback);
 		ZVAL_STRING(callback, "swoole_event_wait", 1);
 		shutdown_function_entry.arguments[0] = callback;
 
@@ -246,8 +251,11 @@ static void php_swoole_try_run_reactor()
 		{
 			zval_ptr_dtor(&callback);
 			efree(shutdown_function_entry.arguments);
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
+			zend_error(E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
 		}
+#else
+		zend_error(E_WARNING, "SwooleClient: PHP%d.%d not support auto run swoole_event_wait. Please append swoole_event_wait at the script end.", PHP_MAJOR_VERSION, PHP_MINOR_VERSION);
+#endif
 		php_sw_reactor_wait_onexit = 1;
 	}
 }
@@ -299,6 +307,10 @@ PHP_FUNCTION(swoole_event_exit)
 
 PHP_FUNCTION(swoole_event_wait)
 {
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 4
+	zend_error(E_ERROR, "SwooleClient: swoole_event_wait will run auto.");
+	RETURN_FALSE;
+#endif
 	if (php_sw_in_client == 1)
 	{
 		struct timeval timeo;
@@ -398,11 +410,13 @@ PHP_METHOD(swoole_client, connect)
 
 		hash_key_len = spprintf(&hash_key, sizeof(int)+1, "%d", cli->sock);
 		zval_add_ref(&getThis());
+
 		if (zend_hash_update(&php_sw_client_callback, hash_key, hash_key_len+1, &getThis(), sizeof(zval*), NULL) == FAILURE)
 		{
 			zend_error(E_WARNING, "swoole_client: add to hashtable fail");
 			RETURN_FALSE;
 		}
+
 		php_swoole_check_reactor();
 		if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
 		{

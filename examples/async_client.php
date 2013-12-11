@@ -2,7 +2,6 @@
 $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC); //异步非阻塞
 
 $client->on("connect", function($cli) {
-    echo "connected\n";
     $cli->send("hello world\n");
 });
 
@@ -14,7 +13,8 @@ $client->on("receive", function($cli){
         echo "closed\n";
     } else {
         echo "received: $data\n";
-        sleep(1);
+        sleep(100);
+        exit;
         $cli->send("hello\n");
     }
 });
@@ -23,5 +23,10 @@ $client->on("error", function($cli){
     exit("error\n");
 });
 
+$client->on("close", function($cli){
+    exit("close\n");
+});
 
 $client->connect('127.0.0.1', 9501, 0.5);
+
+
