@@ -138,6 +138,8 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 
 	while (swoole_running > 0)
 	{
+		reactor->timeout = 0;
+
 		FD_ZERO(&(object->rfds));
 		FD_ZERO(&(object->wfds));
 		FD_ZERO(&(object->efds));
@@ -147,7 +149,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 
 		LL_FOREACH(object->fds, ev)
 		{
-			if(ev->fdtype < SW_EVENT_DEAULT || swReactor_event_read(ev->fdtype))
+			if(swReactor_event_read(ev->fdtype))
 			{
 				SW_FD_SET(ev->fd, &(object->rfds));
 			}
@@ -171,6 +173,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 		}
 		else if (ret == 0)
 		{
+			reactor->timeout = 1;
 			continue;
 		}
 		else

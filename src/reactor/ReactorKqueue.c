@@ -126,6 +126,7 @@ int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 
 	while (swoole_running > 0)
 	{
+		reactor->timeout = 0;
 		n = kevent(this->epfd, NULL, 0, this->events, this->event_max, &t);
 
 		if (n < 0)
@@ -142,6 +143,7 @@ int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 		}
 		else if (n == 0)
 		{
+			reactor->timeout = 1;
 			continue;
 		}
 		for (i = 0; i < n; i++)

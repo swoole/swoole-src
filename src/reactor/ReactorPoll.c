@@ -75,7 +75,7 @@ static int swReactorPoll_add(swReactor *reactor, int fd, int fdtype)
 	this->events[cur].fd = fd;
 	this->events[cur].events = 0;
 
-	if(fdtype < SW_EVENT_DEAULT || swReactor_event_read(fdtype))
+	if(swReactor_event_read(fdtype))
 	{
 		this->events[cur].events |= POLLIN;
 	}
@@ -100,7 +100,7 @@ static int swReactorPoll_set(swReactor *reactor, int fd, int fdtype)
 		{
 			this->fds[i].fdtype = swReactor_fdtype(fdtype);
 			this->events[i].events = 0;
-			if(fdtype < SW_EVENT_DEAULT || swReactor_event_read(fdtype))
+			if(swReactor_event_read(fdtype))
 			{
 				this->events[i].events |= POLLIN;
 			}
@@ -156,6 +156,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
 
 	while (swoole_running > 0)
 	{
+		reactor->timeout = 0;
 		ret = poll(this->events, this->fd_num, timeo->tv_sec * 1000 + timeo->tv_usec / 1000);
 		if (ret < 0)
 		{
@@ -167,6 +168,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
 		}
 		else if (ret == 0)
 		{
+			reactor->timeout = 1;
 			continue;
 		}
 		else

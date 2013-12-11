@@ -2258,7 +2258,8 @@ PHP_FUNCTION(swoole_client_select)
 	}
 	if(max_fd >= FD_SETSIZE)
 	{
-		max_fd = FD_SETSIZE-1;
+		zend_error(E_WARNING, "select max_fd > FD_SETSIZE[%d]", FD_SETSIZE);
+		RETURN_FALSE;
 	}
 	timeo.tv_sec = (int) timeout;
 	timeo.tv_usec = (int) ((timeout - timeo.tv_sec) * 1000 * 1000);

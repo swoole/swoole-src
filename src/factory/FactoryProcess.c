@@ -565,7 +565,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 		swError("[Worker] malloc for reactor fail");
 		return SW_ERR;
 	}
-	if(swReactorSelect_create(SwooleG.main_reactor) < 0)
+	if(swReactor_auto(SwooleG.main_reactor, serv->max_conn) < 0)
 	{
 		swError("[Worker] create worker_reactor fail");
 		return SW_ERR;

@@ -41,6 +41,7 @@ typedef struct _swThreadPoll
 	swReactor reactor;
 	swUdpFd *udp_addrs;
 	swDataBuffer data_buffer;
+	swEventClose_queue close_queue;
 	int c_udp_fd;
 } swThreadPoll;
 

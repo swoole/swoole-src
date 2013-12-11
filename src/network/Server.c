@@ -12,7 +12,7 @@ static void swServer_poll_udp_loop(swThreadParam *param);
 static int swServer_udp_start(swServer *serv);
 static int swServer_poll_onPackage(swReactor *reactor, swEvent *event);
 static int swServer_poll_onClose(swReactor *reactor, swEvent *event);
-static int swServer_poll_onClose_queue(swReactor *reactor, swEventClose_queue *close_queue);
+static int swServer_poll_close_queue(swReactor *reactor, swEventClose_queue *close_queue);
 static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event);
 static int swServer_poll_onReceive_conn_buffer(swReactor *reactor, swEvent *event);
 static int swServer_poll_onReceive_data_buffer(swReactor *reactor, swEvent *event);
@@ -967,14 +967,7 @@ static int swServer_single_loop(swProcessPool *pool, swWorker *worker)
 	int ret;
 	swServer *serv = pool->ptr;
 	swReactor *reactor = &(serv->poll_threads[0].reactor);
-#ifdef HAVE_EPOLL
-	ret = swReactorEpoll_create(reactor, serv->max_conn);
-#elif defined(HAVE_KQUEUE)
-	ret = swReactorKqueue_create(reactor, serv->max_conn);
-#else
-	ret = swReactorPoll_create(reactor, serv->max_conn);
-#endif
-	if (ret < 0)
+	if (swReactor_auto(reactor, serv->max_conn) < 0)
 	{
 		swWarn("Swoole reactor create fail");
 		return SW_ERR;
@@ -992,7 +985,6 @@ static int swServer_single_loop(swProcessPool *pool, swWorker *worker)
 	reactor->ptr = serv;
 	reactor->setHandle(reactor, SW_FD_LISTEN, swServer_master_onAccept);
 	reactor->setHandle(reactor, SW_FD_CLOSE, swServer_single_onClose);
-	reactor->setHandle(reactor, SW_FD_CLOSE_QUEUE, swServer_single_onCloseQueue);
 	reactor->setHandle(reactor, SW_FD_UDP, swServer_poll_onPackage);
 	reactor->setHandle(reactor, SW_FD_TCP, (serv->open_eof_check == 0)?swServer_poll_onReceive_no_buffer:swServer_poll_onReceive_conn_buffer);
 
@@ -1071,13 +1063,7 @@ static int swServer_poll_loop(swThreadParam *param)
 	}
 #endif
 
-#ifdef HAVE_EPOLL
-	ret = swReactorEpoll_create(reactor, (serv->max_conn / serv->poll_thread_num) + 1);
-#elif defined(HAVE_KQUEUE)
-	ret = swReactorKqueue_create(reactor, (serv->max_conn / serv->poll_thread_num) + 1);
-#else
-	ret = swReactorPoll_create(reactor, (serv->max_conn / serv->poll_thread_num) + 1);
-#endif
+	ret = swReactor_auto(reactor, (serv->max_conn / serv->poll_thread_num) + 1);
 	if (ret < 0)
 	{
 		return SW_ERR;
@@ -1090,7 +1076,6 @@ static int swServer_poll_loop(swThreadParam *param)
 	reactor->ptr = serv;
 	reactor->id = pti;
 	reactor->setHandle(reactor, SW_FD_CLOSE, swServer_poll_onClose);
-	reactor->setHandle(reactor, SW_FD_CLOSE_QUEUE, swServer_poll_onClose_queue);
 	reactor->setHandle(reactor, SW_FD_UDP, swServer_poll_onPackage);
 
 	//Thread mode must copy the data.
@@ -1369,12 +1354,34 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 
 static int swServer_poll_onClose(swReactor *reactor, swEvent *event)
 {
+	int ret;
 	swServer *serv = reactor->ptr;
-	//swFactory *factory = &(serv->factory);
-	return swServer_close(serv, event);
+	swEventClose_queue *queue = &serv->poll_threads[reactor->id].close_queue;
+
+#ifdef SW_CLOSE_AGAIN
+	queue->events[queue->num].fd = event->fd;
+	//-1表示直接在reactor内关闭
+	queue->events[queue->num].from_id = -1;
+	//关闭连接
+	reactor->del(reactor, event->fd);
+	//增加计数
+	queue->num ++;
+	//close队列已满或reactor超时
+	if (queue->num == SW_CLOSE_QLEN || reactor->timeout == 1)
+	{
+		ret = swServer_poll_close_queue(reactor, queue);
+		if (ret >= 0)
+		{
+			bzero(queue, sizeof(swEventClose_queue));
+		}
+	}
+#else
+	ret = swServer_close(serv, event);
+#endif
+	return ret;
 }
 
-static int swServer_poll_onClose_queue(swReactor *reactor, swEventClose_queue *close_queue)
+static int swServer_poll_close_queue(swReactor *reactor, swEventClose_queue *close_queue)
 {
 	swServer *serv = reactor->ptr;
 	int ret;

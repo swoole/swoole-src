@@ -79,11 +79,13 @@ int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
 	fd_.fd = fd;
 	fd_.fdtype = swReactor_fdtype(fdtype);
 
+#ifdef SW_USE_EPOLLET
 	e.events = EPOLLET;
+#endif
 
 	swTrace("epoll event add.fd=%d|type=%d", fd_.fd, fd_.fdtype);
 	//没有设置任何flag,默认为read事件
-	if(fdtype < SW_EVENT_DEAULT || swReactor_event_read(fdtype))
+	if(swReactor_event_read(fdtype))
 	{
 		e.events |= EPOLLIN;
 	}
@@ -95,7 +97,6 @@ int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
 	e.events |= EPOLLRDHUP;
 #endif
 	memcpy(&(e.data.u64), &fd_, sizeof(fd_));
-	swTrace("[THREAD #%ld]EP=%d|FD=%d\n", pthread_self(), object->epfd, fd);
 	ret = epoll_ctl(object->epfd, EPOLL_CTL_ADD, fd, &e);
 	if (ret < 0)
 	{
@@ -137,7 +138,7 @@ int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype)
 	e.events |= EPOLLRDHUP;
 #endif
 
-	if(fdtype < SW_EVENT_DEAULT || swReactor_event_read(fdtype))
+	if(swReactor_event_read(fdtype))
 	{
 		e.events |= EPOLLIN;
 	}
@@ -161,17 +162,17 @@ int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype)
 
 int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 {
-	swDataHead ev;
+	swEvent ev;
 	swFd fd_;
 	swReactorEpoll *object = reactor->object;
-	swEventClose_queue close_queue;
-	close_queue.num = 0;
+	swReactor_handle handle;
 	int i, n, ret;
+	int usec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
 
 	while (swoole_running > 0)
 	{
-		n = epoll_wait(object->epfd, object->events, object->event_max + 1, timeo->tv_sec * 1000 + timeo->tv_usec / 1000);
-
+		reactor->timeout = 0;
+		n = epoll_wait(object->epfd, object->events, object->event_max + 1, usec);
 		if (n < 0)
 		{
 			if(swReactor_error(reactor) < 0)
@@ -186,6 +187,7 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 		}
 		else if (n == 0)
 		{
+			reactor->timeout = 1;
 			continue;
 		}
 		for (i = 0; i < n; i++)
@@ -204,33 +206,14 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 				//close事件
 				if(object->events[i].events & EPOLLRDHUP)
 				{
-#ifdef SW_CLOSE_AGAIN
-					close_queue.events[close_queue.num].fd = ev.fd;
-					//-1表示直接在reactor内关闭
-					close_queue.events[close_queue.num].from_id = -1;
-					//关闭连接
-					reactor->del(reactor, ev.fd);
-					//增加计数
-					close_queue.num++;
-
-					//close队列已满，如果写main_pipe失败，进程会阻塞
-					if (close_queue.num == SW_CLOSE_QLEN)
-					{
-						ret = reactor->handle[SW_FD_CLOSE_QUEUE](reactor, &close_queue);
-						if (ret >= 0)
-						{
-							bzero(&close_queue, sizeof(close_queue));
-						}
-						//写失败了，继续写
-					}
-#else
-					ret = reactor->handle[SW_FD_CLOSE](reactor, &ev);
-#endif
+					handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, ev.type);
+					ret = handle(reactor, &ev);
 				}
 				else
 #endif
 				{
-					ret = reactor->handle[ev.type](reactor, &ev);
+					handle = swReactor_getHandle(reactor, SW_EVENT_READ, ev.type);
+					ret = handle(reactor, &ev);
 					if(ret < 0)
 					{
 						swWarn("[Reactor#%d] epoll handle fail. fd=%d|type=%d|errno=%d|sw_errno=%d", ev.fd, reactor->id, ev.type, errno, sw_errno);
@@ -242,21 +225,13 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 			//write
 			if ((object->events[i].events & EPOLLOUT) && reactor->handle[SW_FD_WRITE]!=NULL)
 			{
-				ret = reactor->handle[SW_FD_WRITE](reactor, &ev);
+				handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, ev.type);
+				ret = handle(reactor, &ev);
 				if(ret < 0)
 				{
 					swWarn("[Reactor#%d] epoll event[type=SW_FD_WRITE] handler fail. fd=%d|errno=%d", reactor->id, ev.type, ev.fd, errno);
 				}
 			}
-		}
-		if(close_queue.num > 0)
-		{
-			ret = reactor->handle[SW_FD_CLOSE_QUEUE](reactor, &close_queue);
-			if(ret >= SW_OK)
-			{
-				bzero(&close_queue, sizeof(close_queue));
-			}
-			//写失败了，继续写
 		}
 	}
 	return 0;
