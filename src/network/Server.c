@@ -12,7 +12,7 @@ static void swServer_poll_udp_loop(swThreadParam *param);
 static int swServer_udp_start(swServer *serv);
 static int swServer_poll_onPackage(swReactor *reactor, swEvent *event);
 static int swServer_poll_onClose(swReactor *reactor, swEvent *event);
-static int swServer_poll_close_queue(swReactor *reactor, swEventClose_queue *close_queue);
+static int swServer_poll_close_queue(swReactor *reactor, swCloseQueue *close_queue);
 static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event);
 static int swServer_poll_onReceive_conn_buffer(swReactor *reactor, swEvent *event);
 static int swServer_poll_onReceive_data_buffer(swReactor *reactor, swEvent *event);
@@ -22,7 +22,6 @@ static int swConnection_close(swServer *serv, int fd, int *from_id);
 
 static int swServer_single_start(swServer *serv);
 static int swServer_single_loop(swProcessPool *pool, swWorker *worker);
-static int swServer_single_onCloseQueue(swReactor *reactor, swEventClose_queue *close_queue);
 static int swServer_single_onClose(swReactor *reactor, swEvent *event);
 
 static int swServer_master_onClose(swReactor *reactor, swDataHead *event);
@@ -207,7 +206,8 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 		//使用fd取模来散列
 		c_pti = conn_fd % serv->poll_thread_num;
 #endif
-		ret = serv->poll_threads[c_pti].reactor.add(&(serv->poll_threads[c_pti].reactor), conn_fd, SW_FD_TCP);
+		ret = serv->poll_threads[c_pti].reactor.add(&(serv->poll_threads[c_pti].reactor), conn_fd,
+				SW_FD_TCP | SW_EVENT_READ | SW_EVENT_ERROR);
 		if (ret < 0)
 		{
 			swWarn("[Master]add event fail Errno=%d|FD=%d", errno, conn_fd);
@@ -456,7 +456,7 @@ int swServer_close(swServer *serv, swEvent *event)
 	cev.from_id = event->from_id;
 	if( serv->main_pipe.write(&(serv->main_pipe), &cev, sizeof(cev)) < 0)
 	{
-		swWarn("write to main_pipe fail. errno=%d|fd=%d", errno, event->fd);
+		swWarn("write to main_pipe fail. Error: %s[%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
 	return SW_OK;
@@ -811,8 +811,8 @@ static int swServer_poll_start(swServer *serv, swReactor *main_reactor_ptr)
 	{
 		main_reactor_ptr->add(main_reactor_ptr, SwooleG.timer.fd, SW_FD_TIMER);
 	}
-	main_reactor_ptr->setHandle(main_reactor_ptr, SW_FD_CLOSE, swServer_master_onClose);
-	main_reactor_ptr->add(main_reactor_ptr, serv->main_pipe.getFd(&serv->main_pipe, 0), SW_FD_CLOSE);
+	main_reactor_ptr->setHandle(main_reactor_ptr, (SW_FD_USER+2), swServer_master_onClose);
+	main_reactor_ptr->add(main_reactor_ptr, serv->main_pipe.getFd(&serv->main_pipe, 0), (SW_FD_USER+2));
 	//wait poll thread
 	SW_START_SLEEP;
 	return SW_OK;
@@ -1012,28 +1012,6 @@ static int swServer_single_onClose(swReactor *reactor, swEvent *event)
 			serv->onClose(serv, event->fd, &(event->from_id));
 		}
 		serv->connect_count--;
-	}
-	return SW_OK;
-}
-
-static int swServer_single_onCloseQueue(swReactor *reactor, swEventClose_queue *close_queue)
-{
-	swServer *serv = reactor->ptr;
-	swFactory *factory = &(serv->factory);
-	swEvent notify_ev;
-	int ret, i;
-	int fd, from_id = -1;
-
-	for(i=0;i<close_queue->num;i++)
-	{
-		fd = close_queue->events[i].fd;
-		if(swConnection_close(serv, fd, &from_id) == 0)
-		{
-			if(serv->onClose != NULL)
-			{
-				serv->onClose(serv, fd, 0);
-			}
-		}
 	}
 	return SW_OK;
 }
@@ -1356,32 +1334,41 @@ static int swServer_poll_onClose(swReactor *reactor, swEvent *event)
 {
 	int ret = 0;
 	swServer *serv = reactor->ptr;
-	swEventClose_queue *queue = &serv->poll_threads[reactor->id].close_queue;
+	swCloseQueue *queue = &serv->poll_threads[reactor->id].close_queue;
 
-#ifdef SW_CLOSE_AGAIN
-	queue->events[queue->num].fd = event->fd;
-	//-1表示直接在reactor内关闭
-	queue->events[queue->num].from_id = -1;
 	//关闭连接
 	reactor->del(reactor, event->fd);
-	//增加计数
-	queue->num ++;
-	//close队列已满或reactor超时
-	if (queue->num == SW_CLOSE_QLEN || reactor->timeout == 1)
+	event->from_id = -1;
+
+	//打开关闭队列
+	if (queue->open == SW_TRUE)
 	{
-		ret = swServer_poll_close_queue(reactor, queue);
-		if (ret >= 0)
+		enQueue:
+		queue->events[queue->num].fd = event->fd;
+		//-1表示直接在reactor内关闭
+		queue->events[queue->num].from_id = -1;
+		//增加计数
+		queue->num ++;
+		//close队列已满
+		if (queue->num == SW_CLOSE_QLEN)
 		{
-			bzero(queue, sizeof(swEventClose_queue));
+			ret = swServer_poll_close_queue(reactor, queue);
 		}
 	}
-#else
-	ret = swServer_close(serv, event);
-#endif
+	else
+	{
+		ret = swServer_close(serv, event);
+		//写pipe失败了,启用合并
+		if(ret < 0)
+		{
+			queue->open = SW_TRUE;
+			goto enQueue;
+		}
+	}
 	return ret;
 }
 
-static int swServer_poll_close_queue(swReactor *reactor, swEventClose_queue *close_queue)
+static int swServer_poll_close_queue(swReactor *reactor, swCloseQueue *close_queue)
 {
 	swServer *serv = reactor->ptr;
 	int ret;
@@ -1407,9 +1394,10 @@ static int swServer_poll_close_queue(swReactor *reactor, swEventClose_queue *clo
 	}
 	if (ret < 0)
 	{
-		swWarn("CloseQueue: write to main_pipe fail. errno=%d", errno);
+		swWarn("write to main_pipe fail. Error: %s[%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
+	bzero(close_queue, sizeof(swCloseQueue));
 	return SW_OK;
 }
 

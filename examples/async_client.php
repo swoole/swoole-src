@@ -13,8 +13,7 @@ $client->on("receive", function($cli){
         echo "closed\n";
     } else {
         echo "received: $data\n";
-        sleep(100);
-        exit;
+        sleep(1);
         $cli->send("hello\n");
     }
 });
@@ -24,7 +23,7 @@ $client->on("error", function($cli){
 });
 
 $client->on("close", function($cli){
-    exit("close\n");
+    $cli->close();
 });
 
 $client->connect('127.0.0.1', 9501, 0.5);

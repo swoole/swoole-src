@@ -68,7 +68,7 @@ void swReactorSelect_free(swReactor *reactor)
 
 int swReactorSelect_add(swReactor *reactor, int fd, int fdtype)
 {
-	if(fd > FD_SETSIZE)
+	if (fd > FD_SETSIZE)
 	{
 		swWarn("max fd value is FD_SETSIZE(%d).\n", FD_SETSIZE);
 		return SW_ERR;
@@ -99,7 +99,7 @@ int swReactorSelect_del(swReactor *reactor, int fd)
 	ev.fd = fd;
 
 	LL_SEARCH(object->fds, s_ev, &ev, swReactorSelect_cmp);
-	if(s_ev == NULL)
+	if (s_ev == NULL)
 	{
 		swWarn("swReactorSelect: fd[%d] not found", fd);
 		return SW_ERR;
@@ -133,13 +133,12 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 	swReactorSelect *object = reactor->object;
 	swFdList_node *ev;
 	swDataHead event;
+	swReactor_handle handle;
 	struct timeval timeout;
 	int ret;
 
 	while (swoole_running > 0)
 	{
-		reactor->timeout = 0;
-
 		FD_ZERO(&(object->rfds));
 		FD_ZERO(&(object->wfds));
 		FD_ZERO(&(object->efds));
@@ -149,15 +148,15 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 
 		LL_FOREACH(object->fds, ev)
 		{
-			if(swReactor_event_read(ev->fdtype))
+			if (swReactor_event_read(ev->fdtype))
 			{
 				SW_FD_SET(ev->fd, &(object->rfds));
 			}
-			if(swReactor_event_write(ev->fdtype))
+			if (swReactor_event_write(ev->fdtype))
 			{
 				SW_FD_SET(ev->fd, &(object->wfds));
 			}
-			if(swReactor_event_error(ev->fdtype))
+			if (swReactor_event_error(ev->fdtype))
 			{
 				SW_FD_SET(ev->fd, &(object->efds));
 			}
@@ -167,7 +166,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 		{
 			if (swReactor_error(reactor) < 0)
 			{
-				swWarn("select error. Errno=%d", errno);
+				swWarn("select error. Error: %s[%d]", strerror(errno), errno);
 			}
 			continue;
 		}
@@ -186,47 +185,45 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 					event.fd = ev->fd;
 					event.from_id = reactor->id;
 					event.type = swReactor_fdtype(ev->fdtype);
-
-					swTrace("Event:Handle=%p|fd=%d|from_id=%d|type=%d\n",
-							reactor->handle[event.type], ev->fd, reactor->id, ev->fdtype);
-					ret = reactor->handle[event.type](reactor, &event);
-					if(ret < 0)
+					handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
+					ret = handle(reactor, &event);
+					if (ret < 0)
 					{
-						swWarn("[Reactor#%d] select event[type=%d] handler fail. fd=%d|errno=%d", reactor->id, event.type, ev->fd, errno);
+						swWarn("[Reactor#%d] select event[type=%d] handler fail. fd=%d|errno=%d", reactor->id,
+								event.type, ev->fd, errno);
 					}
 				}
 				//write
-				if (SW_FD_ISSET(ev->fd, &(object->wfds)) && reactor->handle[SW_FD_WRITE]!=NULL)
+				if (SW_FD_ISSET(ev->fd, &(object->wfds)) && reactor->handle[SW_FD_WRITE] != NULL)
 				{
 					event.fd = ev->fd;
 					event.from_id = reactor->id;
 					event.type = SW_FD_WRITE;
-
-					swTrace("Event:Handle=%p|fd=%d|from_id=%d|type=%d\n",
-							reactor->handle[event.type], ev->fd, reactor->id, ev->fdtype);
-					ret = reactor->handle[SW_FD_WRITE](reactor, &event);
-					if(ret < 0)
+					handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
+					ret = handle(reactor, &event);
+					if (ret < 0)
 					{
-						swWarn("[Reactor#%d] select event[type=SW_FD_WRITE] handler fail. fd=%d|errno=%d", reactor->id, event.type, ev->fd, errno);
+						swWarn("[Reactor#%d] select event[type=SW_FD_WRITE] handler fail. fd=%d|errno=%d", reactor->id,
+								event.type, ev->fd, errno);
 					}
 				}
 
 				//error
-				if (SW_FD_ISSET(ev->fd, &(object->efds)) && reactor->handle[SW_FD_ERROR]!=NULL)
+				if (SW_FD_ISSET(ev->fd, &(object->efds)) && reactor->handle[SW_FD_ERROR] != NULL)
 				{
 					event.fd = ev->fd;
 					event.from_id = reactor->id;
 					event.type = SW_FD_ERROR;
-
-					swTrace("Event:Handle=%p|fd=%d|from_id=%d|type=%d\n",
-							reactor->handle[event.type], ev->fd, reactor->id, ev->fdtype);
-					ret = reactor->handle[SW_FD_ERROR](reactor, &event);
-					if(ret < 0)
+					handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, event.type);
+					ret = handle(reactor, &event);
+					if (ret < 0)
 					{
-						swWarn("[Reactor#%d] select event[type=SW_FD_ERROR] handler fail. fd=%d|errno=%d", reactor->id, event.type, ev->fd, errno);
+						swWarn("[Reactor#%d] select event[type=SW_FD_ERROR] handler fail. fd=%d|errno=%d", reactor->id,
+								event.type, ev->fd, errno);
 					}
 				}
 			}
+			reactor->timeout = 0;
 		}
 	}
 	return SW_OK;

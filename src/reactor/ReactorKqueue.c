@@ -10,12 +10,11 @@ typedef struct _swFd
 	uint32_t fdtype;
 } swFd;
 
-
-
-int swReactorKqueue_add(swReactor *reactor, int fd, int fdtype);
-int swReactorKqueue_del(swReactor *reactor, int fd);
-int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo);
-void swReactorKqueue_free(swReactor *reactor);
+static int swReactorKqueue_add(swReactor *reactor, int fd, int fdtype);
+static int swReactorKqueue_set(swReactor *reactor, int fd, int fdtype);
+static int swReactorKqueue_del(swReactor *reactor, int fd);
+static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo);
+static void swReactorKqueue_free(swReactor *reactor);
 
 struct swReactorKqueue_s
 {
@@ -52,6 +51,7 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num)
 
 	//binding method
 	reactor->add = swReactorKqueue_add;
+	reactor->set = swReactorKqueue_set;
 	reactor->del = swReactorKqueue_del;
 	reactor->wait = swReactorKqueue_wait;
 	reactor->free = swReactorKqueue_free;
@@ -59,7 +59,7 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num)
 	return SW_OK;
 }
 
-void swReactorKqueue_free(swReactor *reactor)
+static void swReactorKqueue_free(swReactor *reactor)
 {
 	swReactorKqueue *this = reactor->object;
 	close(this->epfd);
@@ -67,36 +67,115 @@ void swReactorKqueue_free(swReactor *reactor)
 	sw_free(this);
 }
 
-int swReactorKqueue_add(swReactor *reactor, int fd, int fdtype)
+static int swReactorKqueue_add(swReactor *reactor, int fd, int fdtype)
 {
 	swReactorKqueue *this = reactor->object;
 	struct kevent e;
 	swFd fd_;
 	int ret;
+	bzero(&e, sizeof(e));
 
+	int fflags = 0;
 	fd_.fd = fd;
 	fd_.fdtype = swReactor_fdtype(fdtype);
 
-	if(fdtype < SW_EVENT_DEAULT || swReactor_event_read(fdtype))
+	if(swReactor_event_read(fdtype))
 	{
-		EV_SET(&e, fd, EVFILT_READ, EV_ADD | EV_CLEAR, 0, 0 , NULL);
+#ifdef NOTE_EOF
+		fflags = NOTE_EOF;
+#endif
+		EV_SET(&e, fd, EVFILT_READ, EV_ADD, fflags, 0, NULL);
+		memcpy(&e.udata, &fd_, sizeof(swFd));
+		ret = kevent(this->epfd, &e, 1, NULL, 0, NULL);
+		if (ret < 0)
+		{
+			swWarn("kevent fail. Error: %s[%d]", strerror(errno), errno);
+			return SW_ERR;
+		}
 	}
 	if(swReactor_event_write(fdtype))
 	{
-		EV_SET(&e, fd, EVFILT_WRITE, EV_ADD | EV_CLEAR, 0, 0 , NULL);
+		EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, NULL);
+		memcpy(&e.udata, &fd_, sizeof(swFd));
+		ret = kevent(this->epfd, &e, 1, NULL, 0, NULL);
+		if (ret < 0)
+		{
+			swWarn("kevent fail. Error: %s[%d]", strerror(errno), errno);
+			return SW_ERR;
+		}
 	}
-    memcpy(&e.udata, &fd_, sizeof(swFd));
+
+	memcpy(&e.udata, &fd_, sizeof(swFd));
 	swTrace("[THREAD #%ld]EP=%d|FD=%d\n", pthread_self(), this->epfd, fd);
-	ret = kevent(this->epfd, &e, 1, NULL, 0, NULL);
-	if (ret < 0)
-	{
-		swTrace("[THREAD #%ld]add event fail.Ep=%d|fd=%d\n", pthread_self(), this->epfd, fd);
-		return SW_ERR;
-	}
+
 	return SW_OK;
 }
 
-int swReactorKqueue_del(swReactor *reactor, int fd)
+static int swReactorKqueue_set(swReactor *reactor, int fd, int fdtype)
+{
+	swReactorKqueue *this = reactor->object;
+	struct kevent e;
+	swFd fd_;
+	int ret;
+	bzero(&e, sizeof(e));
+
+	int fflags = 0;
+	fd_.fd = fd;
+	fd_.fdtype = swReactor_fdtype(fdtype);
+	if(swReactor_event_read(fdtype))
+	{
+#ifdef NOTE_EOF
+		fflags = NOTE_EOF;
+#endif
+		EV_SET(&e, fd, EVFILT_READ, EV_ADD, fflags, 0, NULL);
+		memcpy(&e.udata, &fd_, sizeof(swFd));
+		ret = kevent(this->epfd, &e, 1, NULL, 0, NULL);
+		if (ret < 0)
+		{
+			swWarn("kevent fail. Error: %s[%d]", strerror(errno), errno);
+			return SW_ERR;
+		}
+	}
+	else
+	{
+		EV_SET(&e, fd, EVFILT_READ, EV_DELETE, 0, 0, NULL);
+		memcpy(&e.udata, &fd_, sizeof(swFd));
+		ret = kevent(this->epfd, &e, 1, NULL, 0, NULL);
+		if (ret < 0)
+		{
+			swWarn("kevent fail. Error: %s[%d]", strerror(errno), errno);
+			return SW_ERR;
+		}
+	}
+	if(swReactor_event_write(fdtype))
+	{
+		EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, NULL);
+		memcpy(&e.udata, &fd_, sizeof(swFd));
+		ret = kevent(this->epfd, &e, 1, NULL, 0, NULL);
+		if (ret < 0)
+		{
+			swWarn("kevent fail. Error: %s[%d]", strerror(errno), errno);
+			return SW_ERR;
+		}
+	}
+	else
+	{
+		EV_SET(&e, fd, EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
+		memcpy(&e.udata, &fd_, sizeof(swFd));
+		ret = kevent(this->epfd, &e, 1, NULL, 0, NULL);
+		if (ret < 0)
+		{
+			swWarn("kevent fail. Error: %s[%d]", strerror(errno), errno);
+			return SW_ERR;
+		}
+	}
+
+	swTrace("[THREAD #%ld]EP=%d|FD=%d\n", pthread_self(), this->epfd, fd);
+
+	return SW_OK;
+}
+
+static int swReactorKqueue_del(swReactor *reactor, int fd)
 {
 	swReactorKqueue *this = reactor->object;
 	struct kevent e;
@@ -113,11 +192,13 @@ int swReactorKqueue_del(swReactor *reactor, int fd)
 	return SW_OK;
 }
 
-int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
+static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 {
-	swEvent ev;
+	swEvent event;
 	swFd fd_;
 	swReactorKqueue *this = reactor->object;
+	swReactor_handle handle;
+
 	int i, n, ret;
     struct timespec t;
 
@@ -126,7 +207,6 @@ int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 
 	while (swoole_running > 0)
 	{
-		reactor->timeout = 0;
 		n = kevent(this->epfd, NULL, 0, this->events, this->event_max, &t);
 
 		if (n < 0)
@@ -134,6 +214,7 @@ int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 			//swTrace("kqueue error.EP=%d | Errno=%d\n", this->epfd, errno);
 			if(swReactor_error(reactor) < 0)
 			{
+				swWarn("Kqueue[#%d] Error: %s[%d]", reactor->id, strerror(errno), errno);
 				return SW_ERR;
 			}
 			else
@@ -150,15 +231,38 @@ int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 		{
 			if (this->events[i].udata)
 			{
-				swTrace("event coming.Ep=%d|fd=%d\n", this->epfd, this->events[i].udata);
 				memcpy(&fd_, &(this->events[i].udata), sizeof(fd_));
-				ev.fd = fd_.fd;
-				ev.from_id = reactor->id;
-				ev.type = fd_.fdtype;
-				ret = reactor->handle[ev.type](reactor, &ev);
-				swTrace("[THREAD #%ld]event finish.Ep=%d|ret=%d\n", pthread_self(), this->epfd, ret);
+				event.fd = fd_.fd;
+				event.from_id = reactor->id;
+				event.type = fd_.fdtype;
+				//read
+				if (this->events[i].filter == EVFILT_READ)
+				{
+					handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
+					ret = handle(reactor, &event);
+					if (ret < 0)
+					{
+						swWarn("kqueue event handler fail. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
+					}
+				}
+				//write
+				else if (this->events[i].filter == EVFILT_WRITE)
+				{
+					handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
+					ret = handle(reactor, &event);
+					if (ret < 0)
+					{
+						swWarn("kqueue event handler fail. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
+					}
+				}
+				else
+				{
+					swWarn("kqueue event unknow filter=%d", this->events[i].filter);
+				}
 			}
+
 		}
+		reactor->timeout = 0;
 	}
 	return 0;
 }

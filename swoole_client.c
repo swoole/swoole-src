@@ -307,10 +307,6 @@ PHP_FUNCTION(swoole_event_exit)
 
 PHP_FUNCTION(swoole_event_wait)
 {
-#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 4
-	zend_error(E_ERROR, "SwooleClient: swoole_event_wait will run auto.");
-	RETURN_FALSE;
-#endif
 	if (php_sw_in_client == 1)
 	{
 		struct timeval timeo;
@@ -324,8 +320,6 @@ PHP_FUNCTION(swoole_event_wait)
 		}
 	}
 }
-
-
 
 PHP_METHOD(swoole_client, __construct)
 {
@@ -541,6 +535,7 @@ PHP_METHOD(swoole_client, close)
 	zval **zres;
 	zval **zsock;
 	swClient *cli;
+	int ret;
 
 	if (zend_hash_find(Z_OBJPROP_P(getThis()), SW_STRL("_client"), (void **) &zres) == SUCCESS)
 	{
@@ -552,9 +547,14 @@ PHP_METHOD(swoole_client, close)
 	}
 	if(cli->async == 1 && SwooleG.main_reactor != NULL)
 	{
-		SwooleG.main_reactor->del(SwooleG.main_reactor, cli->sock);
+		ret = SwooleG.main_reactor->del(SwooleG.main_reactor, cli->sock);
+		cli->sock = 0;
 	}
-	SW_CHECK_RETURN(cli->close(cli));
+	else
+	{
+		ret = cli->close(cli);
+	}
+	SW_CHECK_RETURN(ret);
 }
 
 PHP_METHOD(swoole_client, on)

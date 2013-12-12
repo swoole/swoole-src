@@ -8,9 +8,9 @@ argv3  sock_type  SWOOLE_SOCK_TCP or SWOOLE_SOCK_TCP6 or SWOOLE_SOCK_UDP or SWOO
 $serv = swoole_server_create("127.0.0.1", 9501, SWOOLE_PROCESS);
 swoole_server_set($serv, array(
     'timeout' => 200,  //select and epoll_wait timeout.
-    'poll_thread_num' => 4, //reactor thread num
-    'writer_num' => 4,     //writer thread num
-    'worker_num' => 4,    //worker process num
+    'poll_thread_num' => 1, //reactor thread num
+    'writer_num' => 1,     //writer thread num
+    'worker_num' => 1,    //worker process num
     'backlog' => 128,   //listen backlog
     'max_request' => 5000,
     'max_conn' => 10000,
@@ -50,12 +50,12 @@ function my_onTimer($serv, $interval)
 
 function my_onClose($serv, $fd, $from_id)
 {
-///	echo "Client:Close.\n";
+	//echo "Client: fd=$fd is closed.\n";
 }
 
 function my_onConnect($serv, $fd, $from_id)
 {
-///	echo "Client:Connect.\n";
+ 	//echo "Client:Connect.\n";
 }
 
 function my_onWorkerStart($serv, $worker_id)
@@ -120,7 +120,7 @@ function my_onMasterConnect($serv, $fd, $from_id)
 
 function my_onMasterClose($serv,$fd,$from_id)
 {
-    //echo "Client:Close.PID=".posix_getpid().PHP_EOL;
+    echo "Client:Close.PID=".posix_getpid().PHP_EOL;
 }
 
 function my_onTask($serv, $task_id, $from_id, $data)

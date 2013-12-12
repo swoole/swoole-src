@@ -40,7 +40,7 @@ int swReactorEpoll_create(swReactor *reactor, int max_event_num)
 	swReactorEpoll *reactor_object = sw_malloc(sizeof(swReactorEpoll));
 	if (reactor_object == NULL)
 	{
-		swTrace("[swReactorEpollCreate] malloc[0] fail\n");
+		swWarn("malloc[0] fail\n");
 		return SW_ERR;
 	}
 	reactor->object = reactor_object;
@@ -48,7 +48,7 @@ int swReactorEpoll_create(swReactor *reactor, int max_event_num)
 
 	if (reactor_object->events == NULL)
 	{
-		swTrace("[swReactorEpollCreate] malloc[1] fail\n");
+		swWarn("malloc[1] fail\n");
 		return SW_ERR;
 	}
 	//epoll create
@@ -56,7 +56,7 @@ int swReactorEpoll_create(swReactor *reactor, int max_event_num)
 	reactor_object->epfd = epoll_create(512);
 	if (reactor_object->epfd < 0)
 	{
-		swTrace("[swReactorEpollCreate] epoll_create[0] fail\n");
+		swWarn("epoll_create fail.Error: %s[%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
 	//binding method
@@ -93,7 +93,7 @@ int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
 	ret = epoll_ctl(object->epfd, EPOLL_CTL_ADD, fd, &e);
 	if (ret < 0)
 	{
-		swTrace("[THREAD #%ld]add event fail.Ep=%d|fd=%d\n", pthread_self(), object->epfd, fd);
+		swWarn("add event fail. Error: %s[%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
 	object->event_max++;
@@ -107,12 +107,12 @@ int swReactorEpoll_del(swReactor *reactor, int fd)
 	int ret;
 	e.data.fd = fd;
 //	e.events = EPOLLIN | EPOLLET | EPOLLOUT;
-//	ret = epoll_ctl(object->epfd, EPOLL_CTL_DEL, fd, &e);
-//	if (ret < 0)
-//	{
-//		swWarn("epoll remove fd fail.errno=%d|fd=%d", errno, fd);
-//		return SW_ERR;
-//	}
+	ret = epoll_ctl(object->epfd, EPOLL_CTL_DEL, fd, &e);
+	if (ret < 0)
+	{
+		swWarn("epoll remove fd fail.errno=%d|fd=%d", errno, fd);
+		return SW_ERR;
+	}
 	//close时会自动从epoll事件中移除
 	//swoole中未使用dup
 	ret = close(fd);
@@ -127,10 +127,6 @@ SWINLINE static int swReactorEpoll_event_set(int fdtype)
 	flag = EPOLLET;
 #endif
 
-#ifdef EPOLLRDHUP
-	flag |= EPOLLRDHUP;
-#endif
-
 	if (swReactor_event_read(fdtype))
 	{
 		flag |= EPOLLIN;
@@ -138,6 +134,11 @@ SWINLINE static int swReactorEpoll_event_set(int fdtype)
 	if (swReactor_event_write(fdtype))
 	{
 		flag |= EPOLLOUT;
+	}
+	if (swReactor_event_error(fdtype))
+	{
+		//flag |= (EPOLLRDHUP | EPOLLHUP | EPOLLERR);
+		flag |= EPOLLRDHUP;
 	}
 	return flag;
 }
@@ -157,7 +158,7 @@ int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype)
 	ret = epoll_ctl(object->epfd, EPOLL_CTL_MOD, fd, &e);
 	if (ret < 0)
 	{
-		swWarn("epoll modify event fail.errno=%d|fd=%d", errno, fd);
+		swWarn("set event fail. Error: %s[%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
 	return SW_OK;
@@ -187,7 +188,7 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 		{
 			if (swReactor_error(reactor) < 0)
 			{
-				swTrace("epoll error.EP=%d | Errno=%d\n", object->epfd, errno);
+				swWarn("Epoll[#%d] Error: %s[%d]", reactor->id, strerror(errno), errno);
 				return SW_ERR;
 			}
 			else
@@ -212,7 +213,8 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 			if (object->events[i].events & EPOLLIN)
 			{
 				//error
-				if ((object->events[i].events & EPOLLRDHUP))
+				//if ((object->events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)))
+				if ((object->events[i].events & (EPOLLRDHUP)))
 				{
 					handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, ev.type);
 				}

@@ -199,7 +199,7 @@ typedef struct _swDataHead
 {
 	int fd; //文件描述符
 	uint16_t len; //长度
-	uint16_t from_id; //Reactor Id
+	int16_t from_id; //Reactor Id
 	uint8_t type; //类型
 	uint8_t from_fd; //从哪个ServerFD引发的
 } swDataHead;
@@ -234,7 +234,8 @@ typedef struct _swEventClose
 typedef struct _swEventClose_queue {
 	swEventClose events[SW_CLOSE_QLEN];
 	int num;
-} swEventClose_queue;
+	char open;
+} swCloseQueue;
 
 typedef struct _swEventConnect
 {
