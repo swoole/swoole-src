@@ -50,12 +50,12 @@ function my_onTimer($serv, $interval)
 
 function my_onClose($serv, $fd, $from_id)
 {
-	//echo "Client: fd=$fd is closed.\n";
+	echo "Client: fd=$fd is closed.\n";
 }
 
 function my_onConnect($serv, $fd, $from_id)
 {
- 	//echo "Client:Connect.\n";
+ 	echo "Client:Connect.\n";
 }
 
 function my_onWorkerStart($serv, $worker_id)

@@ -195,7 +195,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 		}
 	}
 #else
-	object->pipes = SwooleG.memory_pool->alloc(SwooleG.memory_pool, object->worker_num * sizeof(swPipe));
+	object->pipes = sw_calloc(object->worker_num, sizeof(swPipe));
 	if (object->pipes == NULL)
 	{
 		swError("malloc[worker_pipes] fail. Error: %s [%d]", strerror(errno), errno);
@@ -732,7 +732,7 @@ static int swFactoryProcess_writer_start(swFactory *factory)
 
 	for (i = 0; i < object->writer_num; i++)
 	{
-		param = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
+		param = sw_malloc(sizeof(swPipe));
 		if (param == NULL)
 		{
 			swError("malloc fail\n");

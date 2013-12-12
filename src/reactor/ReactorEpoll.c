@@ -106,11 +106,16 @@ int swReactorEpoll_del(swReactor *reactor, int fd)
 	struct epoll_event e;
 	int ret;
 	e.data.fd = fd;
-//	e.events = EPOLLIN | EPOLLET | EPOLLOUT;
+
+	if (fd <= 0)
+	{
+		return SW_ERR;
+	}
+	//	e.events = EPOLLIN | EPOLLET | EPOLLOUT;
 	ret = epoll_ctl(object->epfd, EPOLL_CTL_DEL, fd, &e);
 	if (ret < 0)
 	{
-		swWarn("epoll remove fd fail.errno=%d|fd=%d", errno, fd);
+		swWarn("epoll remove fd[=%d] fail. Error: %s[%d]", fd, strerror(errno), errno);
 		return SW_ERR;
 	}
 	//close时会自动从epoll事件中移除
