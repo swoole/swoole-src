@@ -28,6 +28,9 @@ static int swServer_master_onClose(swReactor *reactor, swDataHead *event);
 static int swServer_master_onAccept(swReactor *reactor, swDataHead *event);
 static int swServer_onTimer(swReactor *reactor, swEvent *event);
 
+static void swServer_single_thread_taskpool(swServer *serv);
+static void swServer_taskpool_dispatch(swServer *serv);
+
 swServerG SwooleG;
 
 //全局变量
@@ -929,6 +932,31 @@ static void swServer_poll_udp_loop(swThreadParam *param)
 	pthread_exit(0);
 }
 
+int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
+{
+	swServer *serv = pool->ptr;
+	return serv->onTask(serv, task);
+}
+
+static void swServer_single_thread_taskpool(swServer *serv)
+{
+	swProcessPool_create(&SwooleG.task_workers, serv->worker_num, serv->max_request);
+	if (serv->task_worker_num > 0)
+	{
+		if (swProcessPool_create(&SwooleG.task_workers, serv->task_worker_num, serv->max_request)< 0)
+		{
+			swWarn("[Master] create task_workers fail");
+			pthread_exit(NULL);
+		}
+		//设置指针和回调函数
+		SwooleG.task_workers.ptr = serv;
+		SwooleG.task_workers.onTask = swTaskWorker_onTask;
+	}
+	swProcessPool_start(&SwooleG.task_workers);
+	swProcessPool_wait(&SwooleG.task_workers);
+	pthread_exit(NULL);
+}
+
 static int swServer_single_start(swServer *serv)
 {
 	int i, ret;
@@ -961,6 +989,12 @@ static int swServer_single_start(swServer *serv)
 		{
 			return SW_ERR;
 		}
+	}
+	//task workers
+	if (serv->task_worker_num > 0)
+	{
+		pthread_t ptid;
+		pthread_create(&ptid, NULL, swServer_single_thread_taskpool, serv);
 	}
 	swProcessPool_start(&pool);
 	return swProcessPool_wait(&pool);

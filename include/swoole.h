@@ -785,6 +785,7 @@ typedef struct _swServerG{
 	int running;
 	int sw_errno;
 	int process_type;
+	swProcessPool task_workers;
 	swAllocator *memory_pool;
 	swReactor *main_reactor;
 } swServerG;

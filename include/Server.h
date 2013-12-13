@@ -176,6 +176,7 @@ int swServer_reactor_del(swServer *serv, int fd, int reacot_id); //no use
 int swServer_get_manager_pid(swServer *serv);
 
 int swTimer_select(swTimer *timer, swServer *serv);
+int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);
 
 int swServer_new_connection(swServer *serv, swEvent *ev);
 #define SW_SERVER_MAX_FD_INDEX        0

@@ -43,7 +43,7 @@
 #define SW_REACTOR_TIMEO_USEC      0
 #define SW_REACTOR_DISPATCH        2    //连接分配模式，1平均分配，2按FD取摸固定分配
 
-#define SW_WORKER_UNSOCK_BUFSIZE   (1024 * 256)
+#define SW_WORKER_UNSOCK_BUFSIZE   (1024 * 1024 * 2)
 
 #define SW_QUEUE_SIZE              100  //缩减版的RingQueue,用在线程模式下
 

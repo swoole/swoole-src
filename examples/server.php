@@ -5,16 +5,16 @@ argv1  server port
 argv2  server mode SWOOLE_BASE or SWOOLE_THREAD or SWOOLE_PROCESS
 argv3  sock_type  SWOOLE_SOCK_TCP or SWOOLE_SOCK_TCP6 or SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6
 */
-$serv = swoole_server_create("127.0.0.1", 9501, SWOOLE_PROCESS);
+$serv = swoole_server_create("127.0.0.1", 9501, SWOOLE_BASE);
 swoole_server_set($serv, array(
     'timeout' => 200,  //select and epoll_wait timeout.
     'poll_thread_num' => 1, //reactor thread num
     'writer_num' => 1,     //writer thread num
-    'worker_num' => 1,    //worker process num
+    'worker_num' => 2,    //worker process num
     'backlog' => 128,   //listen backlog
     'max_request' => 5000,
     'max_conn' => 10000,
-    //'task_worker_num' => 2,
+    'task_worker_num' => 2,
 	'dispatch_mode' => 2,
 	///'timer_interval' => 200,
 //    'daemonize' => 1,  //转为后台守护进程运行
@@ -50,12 +50,12 @@ function my_onTimer($serv, $interval)
 
 function my_onClose($serv, $fd, $from_id)
 {
-	echo "Client: fd=$fd is closed.\n";
+	//echo "Client: fd=$fd is closed.\n";
 }
 
 function my_onConnect($serv, $fd, $from_id)
 {
- 	echo "Client:Connect.\n";
+ 	//echo "Client:Connect.\n";
 }
 
 function my_onWorkerStart($serv, $worker_id)
@@ -143,7 +143,7 @@ swoole_server_handler($serv, 'onTimer', 'my_onTimer');
 swoole_server_handler($serv, 'onWorkerStart', 'my_onWorkerStart');
 swoole_server_handler($serv, 'onWorkerStop', 'my_onWorkerStop');
 swoole_server_handler($serv, 'onTask', 'my_onTask');
-//swoole_server_handler($serv, 'onFinish', 'my_onFinish');
+swoole_server_handler($serv, 'onFinish', 'my_onFinish');
 
 //swoole_server_handler($serv, 'onMasterConnect', 'my_onMasterConnect');
 //swoole_server_handler($serv, 'onMasterClose', 'my_onMasterClose');

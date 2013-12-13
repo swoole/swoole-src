@@ -21,14 +21,11 @@ static int swFactoryProcess_dispatch(swFactory *factory, swEventData *buf);
 static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
 static int swFactoryProcess_event(swFactory *factory, swEventData *data);
 
-static int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);
-
 int c_worker_pti = 0; //Current Proccess Worker's id
 static int worker_task_num = 0;
 static int worker_task_always = 0;
 static int manager_worker_reloading = 0;
 static int manager_reload_flag = 0;
-static swProcessPool task_workers;
 
 int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 {
@@ -71,7 +68,7 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 
 int swFactoryProcess_event(swFactory *factory, swEventData *data)
 {
-	return swProcessPool_dispatch(&task_workers, data);
+	return swProcessPool_dispatch(&SwooleG.task_workers, data);
 }
 
 int swFactoryProcess_shutdown(swFactory *factory)
@@ -218,14 +215,14 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 #endif
 	if (serv->task_worker_num > 0)
 	{
-		if (swProcessPool_create(&task_workers, serv->task_worker_num, serv->max_request)< 0)
+		if (swProcessPool_create(&SwooleG.task_workers, serv->task_worker_num, serv->max_request)< 0)
 		{
 			swWarn("[Master] create task_workers fail");
 			return SW_ERR;
 		}
 		//设置指针和回调函数
-		task_workers.ptr = serv;
-		task_workers.onTask = swTaskWorker_onTask;
+		SwooleG.task_workers.ptr = serv;
+		SwooleG.task_workers.onTask = swTaskWorker_onTask;
 	}
 	pid = fork();
 	switch (pid)
@@ -251,7 +248,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 		//创建task_worker进程
 		if (serv->task_worker_num > 0)
 		{
-			swProcessPool_start(&task_workers);
+			swProcessPool_start(&SwooleG.task_workers);
 		}
 		//标识为管理进程
 		SwooleG.process_type = SW_PROCESS_MANAGER;
@@ -290,12 +287,6 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 		return SW_ERR;
 	}
 	return SW_OK;
-}
-
-static int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
-{
-	swServer *serv = pool->ptr;
-	return serv->onTask(serv, task);
 }
 
 static void swManagerSignalHanlde(int sig)
@@ -377,10 +368,10 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 			//task worker
 			if(pid > 0)
 			{
-				swWorker *exit_worker = swHashMap_find_int(&task_workers.map, pid);
+				swWorker *exit_worker = swHashMap_find_int(&SwooleG.task_workers.map, pid);
 				if (exit_worker != NULL)
 				{
-					swProcessPool_spawn(&task_workers, exit_worker);
+					swProcessPool_spawn(&SwooleG.task_workers, exit_worker);
 				}
 			}
 		}
