@@ -22,7 +22,7 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request)
 	swPipe pipe;
 	for (i = 0; i < worker_num; i++)
 	{
-		if (swPipeUnsock_create(&pipe, 1, SOCK_STREAM) < 0)
+		if (swPipeUnsock_create(&pipe, 1, SOCK_DGRAM) < 0)
 		{
 			return SW_ERR;
 		}

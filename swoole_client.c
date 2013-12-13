@@ -350,6 +350,8 @@ PHP_METHOD(swoole_client, __construct)
 	zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("sock"), zsockfd TSRMLS_CC);
 	zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("_client"), zres TSRMLS_CC);
 
+	zval_ptr_dtor(&zres);
+	zval_ptr_dtor(&zsockfd);
 	RETURN_TRUE;
 }
 

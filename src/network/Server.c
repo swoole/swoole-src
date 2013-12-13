@@ -48,8 +48,8 @@ SWINLINE int swConnection_close(swServer *serv, int fd, int *from_id)
 	//关闭此连接，必须放在最前面，以保证线程安全
 	conn->tag = 0;
 
-	//from_id < 0表示已经在Reactor中关闭连接了
-	if((*from_id) >= 0)
+	//from_id == SW_CLOSE_DELETE,表示已经在Reactor中关闭连接
+	if((*from_id) != SW_CLOSE_DELETE)
 	{
 		from_reactor = &(serv->poll_threads[conn->from_id].reactor);
 		if(from_reactor->del(from_reactor, fd) < 0)
@@ -99,18 +99,22 @@ int swServer_master_onClose(swReactor *reactor, swEvent *event)
 		return SW_ERR;
 	}
 
-	for(i = 0; i < n/sizeof(swEventClose); i++)
+	for (i = 0; i < n / sizeof(swEventClose); i++)
 	{
 		fd = cev_queue[i].fd;
 		from_id = cev_queue[i].from_id;
 
-		if(swConnection_close(serv, fd, &from_id) == 0)
+		if (swConnection_close(serv, fd, &from_id) == 0)
 		{
-			if(serv->onMasterClose != NULL)
+			if (serv->onMasterClose != NULL)
 			{
 				serv->onMasterClose(serv, fd, cev_queue[i].from_id);
 			}
-			if(serv->onClose != NULL)
+			if (serv->onClose == NULL || cev_queue[i].from_id == SW_CLOSE_NOTIFY)
+			{
+				continue;
+			}
+			else
 			{
 				notify_ev.from_id = from_id;
 				notify_ev.fd = cev_queue[i].fd;

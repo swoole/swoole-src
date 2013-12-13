@@ -29,6 +29,9 @@ extern "C" {
 #define SW_MAX_TMP_PKG           1000
 #define SW_LOG_FILENAME          128
 
+#define SW_CLOSE_NOTIFY          -2  //由Worker进程中主动关闭，无需再次通知
+#define SW_CLOSE_DELETE          -1  //已从事件循环删除,无需再次移除
+
 
 typedef struct _swUdpFd{
 	struct sockaddr addr;

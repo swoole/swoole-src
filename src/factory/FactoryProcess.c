@@ -33,13 +33,13 @@ static swProcessPool task_workers;
 int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 {
 	swFactoryProcess *object;
-	object = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swFactoryProcess));
+	object = sw_malloc(sizeof(swFactoryProcess));
 	if (object == NULL)
 	{
 		swWarn("[swFactoryProcess_create] malloc[0] fail");
 		return SW_ERR;
 	}
-	object->writers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, writer_num*sizeof(swThreadWriter));
+	object->writers = sw_calloc(writer_num, sizeof(swThreadWriter));
 	if (object->writers == NULL)
 	{
 		swWarn("[Main] malloc[object->writers] fail");
@@ -48,7 +48,7 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 	object->writer_num = writer_num;
 	object->writer_pti = 0;
 
-	object->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, worker_num* sizeof(swWorker));
+	object->workers = sw_calloc(worker_num, sizeof(swWorker));
 	if (object->workers == NULL)
 	{
 		swWarn("[Main] malloc[object->workers] fail");
@@ -93,6 +93,9 @@ int swFactoryProcess_shutdown(swFactory *factory)
 #else
 	//close pipes
 #endif
+	sw_free(object->workers);
+	sw_free(object->writers);
+	sw_free(object);
 	return SW_OK;
 }
 
@@ -319,7 +322,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 	swServer *serv = factory->ptr;
 	swWorker *reload_workers;
 
-	reload_workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, object->worker_num *sizeof(swWorker));
+	reload_workers = sw_calloc(object->worker_num, sizeof(swWorker));
 	if (reload_workers == NULL)
 	{
 		swError("[manager] malloc[reload_workers] fail.\n");
@@ -400,6 +403,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 			reload_worker_i++;
 		}
 	}
+	sw_free(reload_workers);
 	return SW_OK;
 }
 
@@ -451,8 +455,10 @@ int swFactoryProcess_end(swFactory *factory, swDataHead *event)
 	bzero(&ev, sizeof(swEvent));
 	ev.fd = event->fd;
 	ev.len = 0; //len=0表示关闭此连接
-	ev.from_id = event->from_id;
-	return swFactoryProcess_finish(factory, (swSendData *)&ev);
+	ev.from_id = SW_CLOSE_NOTIFY;
+	ret = swFactoryProcess_finish(factory, (swSendData *)&ev);
+	serv->onClose(serv, event->fd, event->from_id);
+	return ret;
 }
 /**
  * Worker进程,向writer发送数据
