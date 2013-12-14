@@ -20,6 +20,7 @@ $serv->handler('onReceive', function ($serv, $fd, $from_id, $data) {
 $serv->handler('onClose', function ($serv, $fd) {
  	echo "Client: Close.\n";
 });
+$serv->start();
 ```
 __Client__
 ```php
