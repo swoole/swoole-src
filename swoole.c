@@ -100,6 +100,7 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_server_task, NULL)
 	PHP_FE(swoole_server_finish, NULL)
 	PHP_FE(swoole_server_reload, NULL)
+	PHP_FE(swoole_server_shutdown, NULL)
 	PHP_FE(swoole_connection_info, NULL)
 	PHP_FE(swoole_connection_list, NULL)
 	PHP_FE(swoole_event_add, NULL)
