@@ -94,6 +94,7 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_server_send, NULL)
 	PHP_FE(swoole_server_close, NULL)
 	PHP_FE(swoole_server_handler, NULL)
+	PHP_FE(swoole_server_on, NULL)
 	PHP_FE(swoole_server_addlisten, NULL)
 	PHP_FE(swoole_server_addtimer, NULL)
 	PHP_FE(swoole_server_deltimer, NULL)
@@ -129,6 +130,7 @@ static zend_function_entry swoole_server_methods[] = {
 	PHP_FALIAS(reload, swoole_server_reload, NULL)
 	PHP_FALIAS(shutdown, swoole_server_shutdown, NULL)
 	PHP_FALIAS(handler, swoole_server_handler, NULL)
+	PHP_FALIAS(on, swoole_server_on, NULL)
 	PHP_FALIAS(connection_info, swoole_connection_info, NULL)
 	PHP_FALIAS(connection_list, swoole_connection_list, NULL)
 	{NULL, NULL, NULL}
@@ -652,6 +654,63 @@ PHP_FUNCTION(swoole_server_handler)
 	}
 	ZVAL_BOOL(return_value, ret);
 }
+
+
+PHP_FUNCTION(swoole_server_on)
+{
+	zval *zobject = getThis();
+	char *ha_name = NULL;
+	int len, i;
+	int ret = -1;
+	swServer *serv;
+	zval *cb;
+
+	if (zobject == NULL)
+	{
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Osz", &zobject, swoole_server_class_entry_ptr, &ha_name, &len, &cb) == FAILURE)
+		{
+			return;
+		}
+	}
+	else
+	{
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &ha_name, &len, &cb) == FAILURE)
+		{
+			return;
+		}
+	}
+	SWOOLE_GET_SERVER(zobject, serv);
+
+	//必须与define顺序一致
+	char *callback[PHP_SERVER_CALLBACK_NUM] = {
+			"start",
+			"connect",
+			"receive",
+			"close",
+			"shutdown",
+			"timer",
+			"workerStart",
+			"workerStop",
+			"masterConnect",
+			"masterClose",
+			"task",
+			"finish",
+	};
+	for(i=0; i<PHP_SERVER_CALLBACK_NUM; i++)
+	{
+		if(strncasecmp(callback[i], ha_name, len) == 0)
+		{
+			ret = php_swoole_set_callback(i, cb TSRMLS_CC);
+			break;
+		}
+	}
+	if(ret < 0)
+	{
+		zend_error(E_ERROR, "swoole_server_on: unkown handler[%s].", ha_name);
+	}
+	ZVAL_BOOL(return_value, ret);
+}
+
 
 PHP_FUNCTION(swoole_server_close)
 {
