@@ -5,7 +5,7 @@ argv1  server port
 argv2  server mode SWOOLE_BASE or SWOOLE_THREAD or SWOOLE_PROCESS
 argv3  sock_type  SWOOLE_SOCK_TCP or SWOOLE_SOCK_TCP6 or SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6
 */
-$serv = swoole_server_create("127.0.0.1", 9501, SWOOLE_PROCESS);
+$serv = swoole_server_create("127.0.0.1", 9501, SWOOLE_BASE);
 swoole_server_set($serv, array(
     'timeout' => 200,  //select and epoll_wait timeout.
     'poll_thread_num' => 1, //reactor thread num
