@@ -140,12 +140,10 @@ SWINLINE static int swReactorEpoll_event_set(int fdtype)
 	{
 		flag |= EPOLLOUT;
 	}
-	//此特性暂时停用,与EPOLLIN事件有冲突
-//	if (swReactor_event_error(fdtype))
-//	{
-//		//flag |= (EPOLLRDHUP | EPOLLHUP | EPOLLERR);
-//		flag |= EPOLLRDHUP;
-//	}
+	if (swReactor_event_error(fdtype))
+	{
+		flag |= (EPOLLRDHUP | EPOLLHUP | EPOLLERR);
+	}
 	return flag;
 }
 
@@ -227,16 +225,15 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 				}
 			}
 			//error
-			//if ((object->events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)))
-//			if (object->events[i].events & EPOLLRDHUP)
-//			{
-//				handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, ev.type);
-//				ret = handle(reactor, &ev);
-//				if (ret < 0)
-//				{
-//					swWarn("[Reactor#%d] epoll handle fail. fd=%d|type=%d", reactor->id, ev.fd, ev.type);
-//				}
-//			}
+			if ((object->events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)))
+			{
+				handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, ev.type);
+				ret = handle(reactor, &ev);
+				if (ret < 0)
+				{
+					swWarn("[Reactor#%d] epoll handle fail. fd=%d|type=%d", reactor->id, ev.fd, ev.type);
+				}
+			}
 			//write
 			if ((object->events[i].events & EPOLLOUT))
 			{

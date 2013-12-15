@@ -161,14 +161,8 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 	{
 		//accept得到连接套接字
 #ifdef SW_USE_ACCEPT4
-		if(no_accept4==0)
-		{
-			conn_fd = accept4(event->fd, &client_addr, &client_addrlen, SOCK_NONBLOCK);
-		}
-		else
-		{
-			conn_fd = accept(event->fd,  &client_addr, &client_addrlen);
-		}
+	    conn_fd = accept4(event->fd, &client_addr, &client_addrlen, SOCK_NONBLOCK);
+
 #else
 		conn_fd = accept(event->fd,  &client_addr, sizeof(client_addr));
 #endif
@@ -179,9 +173,6 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 			{
 			case EAGAIN:
 				return SW_OK;
-			case ENOSYS:
-				no_accept4 = 1;
-				continue;
 			case EINTR:
 				continue;
 			default:
@@ -231,7 +222,7 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 		c_pti = conn_fd % serv->poll_thread_num;
 #endif
 		ret = serv->poll_threads[c_pti].reactor.add(&(serv->poll_threads[c_pti].reactor), conn_fd,
-				SW_FD_TCP | SW_EVENT_READ | SW_EVENT_ERROR);
+				SW_FD_TCP | SW_EVENT_READ);
 		if (ret < 0)
 		{
 			swWarn("[Master]add event fail Errno=%d|FD=%d", errno, conn_fd);
