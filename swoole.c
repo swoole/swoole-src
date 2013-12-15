@@ -1645,8 +1645,7 @@ PHP_FUNCTION(swoole_server_task)
 		swWarn("SwooleServer: task data max_size=%d.", sizeof(buf.data));
 		RETURN_FALSE;
 	}
-	SWOOLE_GET_SERVER(zobject, serv);
-	swFactory *factory = &serv->factory;
+
 	memcpy(buf.data, data, data_len);
 	buf.info.len = data_len;
 	//使用fd保存task_id
@@ -1654,7 +1653,8 @@ PHP_FUNCTION(swoole_server_task)
 	extern int c_worker_pti;
 	//from_id保存worker_id
 	buf.info.from_id = c_worker_pti;
-	if (factory->event(factory, &buf) > 0)
+
+	if (swProcessPool_dispatch(SwooleG.task_workers, &buf) > 0)
 	{
 		RETURN_LONG(buf.info.fd);
 	}
