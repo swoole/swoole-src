@@ -15,3 +15,24 @@ Debug/*
 /tests
 /wiki
 
+/config.guess
+/config.h
+/config.h.in
+/config.log
+/config.nice
+/config.status
+/config.sub
+/configure
+/configure.in
+/Makefile.fragments
+/Makefile.global
+/Makefile.objects
+/install-sh
+/libtool
+/ltmain.sh
+/missing
+/mkinstalldirs
+/swoole.la
+/acinclude.m4
+/aclocal.m4
+/run-tests.php

@@ -2,6 +2,7 @@
 #include <string.h>
 
 #ifdef HAVE_KQUEUE
+#include <sys/event.h>
 
 typedef struct swReactorKqueue_s swReactorKqueue;
 typedef struct _swFd

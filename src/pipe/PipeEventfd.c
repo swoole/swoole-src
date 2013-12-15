@@ -1,6 +1,7 @@
 #include "swoole.h"
 
 #ifdef HAVE_EVENTFD
+#include <sys/eventfd.h>
 
 static int swPipeEventfd_read(swPipe *p, void *data, int length);
 static int swPipeEventfd_write(swPipe *p, void *data, int length);

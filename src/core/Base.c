@@ -110,10 +110,13 @@ SWINLINE int swRead(int fd, void *buf, int len)
 {
 	int n = 0, nread;
 	sw_errno = 0;
+	return recv(fd, buf, len, 0);
+
 
 	while (1)
 	{
 		nread = recv(fd, buf + n, len - n, 0);
+
 //		swWarn("Read Len=%d|Errno=%d", nread, errno);
 		//遇到错误
 		if (nread < 0)
@@ -159,6 +162,7 @@ SWINLINE int swRead(int fd, void *buf, int len)
 				break;
 			}
 		}
+
 	}
 	return n;
 }

@@ -1,13 +1,13 @@
 #include "swoole.h"
 
 #ifdef HAVE_EPOLL
-
+#include <sys/epoll.h>
 #ifndef EPOLLRDHUP
-#defind EPOLLWAKEUP (1u << 29)
+#define EPOLLWAKEUP (1u << 29)
 #endif
 
 #ifndef EPOLLONESHOT
-#defind EPOLLONESHOT (1u << 30)
+#define EPOLLONESHOT (1u << 30)
 #endif
 
 typedef struct swReactorEpoll_s swReactorEpoll;
@@ -140,11 +140,12 @@ SWINLINE static int swReactorEpoll_event_set(int fdtype)
 	{
 		flag |= EPOLLOUT;
 	}
-	if (swReactor_event_error(fdtype))
-	{
-		//flag |= (EPOLLRDHUP | EPOLLHUP | EPOLLERR);
-		flag |= EPOLLRDHUP;
-	}
+	//此特性暂时停用,与EPOLLIN事件有冲突
+//	if (swReactor_event_error(fdtype))
+//	{
+//		//flag |= (EPOLLRDHUP | EPOLLHUP | EPOLLERR);
+//		flag |= EPOLLRDHUP;
+//	}
 	return flag;
 }
 
@@ -217,23 +218,25 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 			//read
 			if (object->events[i].events & EPOLLIN)
 			{
-				//error
-				//if ((object->events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)))
-				if ((object->events[i].events & (EPOLLRDHUP)))
-				{
-					handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, ev.type);
-				}
 				//read
-				else
-				{
-					handle = swReactor_getHandle(reactor, SW_EVENT_READ, ev.type);
-				}
+				handle = swReactor_getHandle(reactor, SW_EVENT_READ, ev.type);
 				ret = handle(reactor, &ev);
 				if (ret < 0)
 				{
 					swWarn("[Reactor#%d] epoll handle fail. fd=%d|type=%d", reactor->id, ev.fd, ev.type);
 				}
 			}
+			//error
+			//if ((object->events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)))
+//			if (object->events[i].events & EPOLLRDHUP)
+//			{
+//				handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, ev.type);
+//				ret = handle(reactor, &ev);
+//				if (ret < 0)
+//				{
+//					swWarn("[Reactor#%d] epoll handle fail. fd=%d|type=%d", reactor->id, ev.fd, ev.type);
+//				}
+//			}
 			//write
 			if ((object->events[i].events & EPOLLOUT))
 			{

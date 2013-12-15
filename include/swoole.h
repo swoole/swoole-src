@@ -61,18 +61,6 @@ static uint64_t orwl_timestart = 0;
 int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #endif
 
-#ifdef HAVE_EPOLL
-#include <sys/epoll.h>
-#endif
-
-#ifdef HAVE_KQUEUE
-#include <sys/event.h>
-#endif
-
-#ifdef HAVE_EVENTFD
-#include <sys/eventfd.h>
-#endif
-
 /*----------------------------------------------------------------------------*/
 #ifndef ulong
 #define ulong unsigned long

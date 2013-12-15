@@ -147,29 +147,47 @@ static int swServer_onTimer(swReactor *reactor, swEvent *event)
 	return swTimer_select(timer, serv);
 }
 
+static int no_accept4 = 0;
 static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 {
 	swServer *serv = reactor->ptr;
 	swEvent connEv;
 	struct sockaddr_in client_addr;
+	uint32_t client_addrlen = sizeof(client_addr);
 	int conn_fd, ret, c_pti;
 
 	swTrace("[Main]accept start.event->fd=%d|event->from_id=%d", event->fd, event->from_id);
-#ifdef SW_ACCEPT_AGAIN
 	while (1)
-#endif
 	{
 		//accept得到连接套接字
-		conn_fd = swAccept(event->fd, &client_addr, sizeof(client_addr));
-
-		//listen队列中的连接已全部处理完毕
-		if (conn_fd < 0 && errno == EAGAIN)
+#ifdef SW_USE_ACCEPT4
+		if(no_accept4==0)
 		{
-#ifdef SW_ACCEPT_AGAIN
-			break;
+			conn_fd = accept4(event->fd, &client_addr, &client_addrlen, SOCK_NONBLOCK);
+		}
+		else
+		{
+			conn_fd = accept(event->fd,  &client_addr, &client_addrlen);
+		}
 #else
-			return SW_OK;
+		conn_fd = accept(event->fd,  &client_addr, sizeof(client_addr));
 #endif
+
+		if (conn_fd < 0 )
+		{
+			switch(errno)
+			{
+			case EAGAIN:
+				return SW_OK;
+			case ENOSYS:
+				no_accept4 = 1;
+				continue;
+			case EINTR:
+				continue;
+			default:
+				swWarn("accept fail. Error: %s[%d]", strerror(errno), errno);
+				return SW_OK;
+			}
 		}
 
 		//连接过多
@@ -201,7 +219,6 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 			setsockopt(conn_fd, IPPROTO_TCP, TCP_KEEPINTVL, (void *)&keep_interval , sizeof(keep_interval));
 			setsockopt(conn_fd, IPPROTO_TCP, TCP_KEEPCNT, (void *)&keep_count , sizeof(keep_count));
 #endif
-
 		}
 #endif
 		swTrace("[Main]connect from %s, by process %d\n", inet_ntoa(client_addr.sin_addr), getpid());
@@ -242,6 +259,11 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 				serv->factory.notify(&serv->factory, &connEv);
 			}
 		}
+#ifdef SW_ACCEPT_AGAIN
+		continue;
+#else
+		break;
+#endif
 	}
 	return SW_OK;
 }
@@ -1146,7 +1168,14 @@ static int swServer_poll_onReceive_data_buffer(swReactor *reactor, swEvent *even
 	recv_data:
 	//trunk
 	trunk = swDataBuffer_getTrunk(data_buffer, buffer_item);
-	n = swRead(event->fd, trunk->data, SW_BUFFER_SIZE);
+
+#ifdef SW_USE_EPOLLET
+	n = swRead(event->fd,  trunk->data, SW_BUFFER_SIZE);
+#else
+	//非ET模式会持续通知
+	n = recv(event->fd,  trunk->data, SW_BUFFER_SIZE, 0);
+#endif
+
 	if (n < 0)
 	{
 		swWarn("swRead error: %d\n", errno);
@@ -1256,7 +1285,14 @@ static int swServer_poll_onReceive_conn_buffer(swReactor *reactor, swEvent *even
 	{
 		return SW_ERR;
 	}
-	n = swRead(event->fd, buffer->data.data + buffer->data.info.len, SW_BUFFER_SIZE - buffer->data.info.len);
+
+#ifdef SW_USE_EPOLLET
+	n = swRead(event->fd,  buffer->data.data + buffer->data.info.len, SW_BUFFER_SIZE - buffer->data.info.len);
+#else
+	//非ET模式会持续通知
+	n = recv(event->fd,  buffer->data.data + buffer->data.info.len, SW_BUFFER_SIZE - buffer->data.info.len, 0);
+#endif
+
 	if (n < 0)
 	{
 		swWarn("swRead error: %d\n", errno);
@@ -1318,7 +1354,12 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 		swEventData buf;
 	} rdata;
 
+#ifdef SW_USE_EPOLLET
 	n = swRead(event->fd, rdata.buf.data, SW_BUFFER_SIZE);
+#else
+	//非ET模式会持续通知
+	n = recv(event->fd, rdata.buf.data, SW_BUFFER_SIZE, 0);
+#endif
 	if (n < 0)
 	{
 		if (errno == EAGAIN)
@@ -1334,11 +1375,8 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 	//需要检测errno来区分是EAGAIN还是ECONNRESET
 	else if (n == 0)
 	{
-		swTrace("Close Event.FD=%d|From=%d\n", event->fd, event->from_id);
-		swEvent closeEv;
-		memcpy(&closeEv, event, sizeof(swEvent));
-		closeEv.type = SW_EVENT_CLOSE;
-		return swServer_close(serv, event);
+		swTrace("Close Event.FD=%d|From=%d|errno=%d", event->fd, event->from_id, errno);
+		return swServer_poll_onClose(reactor, event);
 	}
 	else
 	{
