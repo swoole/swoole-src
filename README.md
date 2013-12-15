@@ -10,14 +10,14 @@ PHP developers do not care about the underlying implementation, only need to use
 __Server__
 ```php
 $serv = new swoole_server("127.0.0.1", 9501);
-$serv->handler('onConnect', function ($serv, $fd){
+$serv->on('connect', function ($serv, $fd){
  	echo "Client:Connect.\n";
 });
-$serv->handler('onReceive', function ($serv, $fd, $from_id, $data) {
+$serv->on('receive', function ($serv, $fd, $from_id, $data) {
 	$serv->send($fd, 'Swoole: '.$data);
     $serv->close($fd);
 });
-$serv->handler('onClose', function ($serv, $fd) {
+$serv->on('close', function ($serv, $fd) {
  	echo "Client: Close.\n";
 });
 $serv->start();
