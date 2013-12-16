@@ -277,7 +277,7 @@ SWINLINE int swAccept(int server_socket, struct sockaddr_in *addr, int addr_len)
 			}
 			else
 			{
-				swTrace("[Main]accept fail Errno=%d|SockFD=%d|\n", errno, conn_fd);
+				swTrace("accept fail. Error: %s[%d]", strerror(errno), errno);
 				return SW_ERR;
 			}
 		}

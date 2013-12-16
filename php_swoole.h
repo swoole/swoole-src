@@ -85,12 +85,12 @@ extern int le_swoole_server;
 extern int le_swoole_client;
 extern int le_swoole_lock;
 
-zend_class_entry *swoole_lock_class_entry_ptr;
-zend_class_entry *swoole_client_class_entry_ptr;
-zend_class_entry *swoole_server_class_entry_ptr;
+extern zend_class_entry *swoole_lock_class_entry_ptr;
+extern zend_class_entry *swoole_client_class_entry_ptr;
+extern zend_class_entry *swoole_server_class_entry_ptr;
 
-HashTable php_sw_reactor_callback;
-HashTable php_sw_client_callback;
+extern HashTable php_sw_reactor_callback;
+extern HashTable php_sw_client_callback;
 
 PHP_MINIT_FUNCTION(swoole);
 PHP_MSHUTDOWN_FUNCTION(swoole);
