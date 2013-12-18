@@ -3,14 +3,19 @@
 #include "memory.h"
 
 static void swSignalInit(void);
-static int swServer_poll_loop(swThreadParam *param);
-static int swServer_poll_start(swServer *serv, swReactor *main_reactor_ptr);
+
 static int swServer_check_callback(swServer *serv);
 static int swServer_listen(swServer *serv, swReactor *reactor);
 
 static void swServer_poll_udp_loop(swThreadParam *param);
 static int swServer_udp_start(swServer *serv);
 static int swServer_poll_onPackage(swReactor *reactor, swEvent *event);
+
+static void swServer_poll_onReactorTimeout(swReactor *reactor);
+static void swServer_poll_onReactorFinish(swReactor *reactor);
+
+static int swServer_poll_loop(swThreadParam *param);
+static int swServer_poll_start(swServer *serv, swReactor *main_reactor_ptr);
 static int swServer_poll_onClose(swReactor *reactor, swEvent *event);
 static int swServer_poll_close_queue(swReactor *reactor, swCloseQueue *close_queue);
 static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event);
@@ -146,7 +151,22 @@ static int swServer_onTimer(swReactor *reactor, swEvent *event)
 	return swTimer_select(timer, serv);
 }
 
-static int no_accept4 = 0;
+static void swServer_poll_onReactorTimeout(swReactor *reactor)
+{
+	swServer_poll_onReactorFinish(reactor);
+}
+
+static void swServer_poll_onReactorFinish(swReactor *reactor)
+{
+	swServer *serv = reactor->ptr;
+	swCloseQueue *queue = &serv->poll_threads[reactor->id].close_queue;
+	//打开关闭队列
+	if (queue->num > 0)
+	{
+		swServer_poll_close_queue(reactor, queue);
+	}
+}
+
 static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 {
 	swServer *serv = reactor->ptr;
@@ -540,7 +560,7 @@ void swServer_init(swServer *serv)
 	serv->max_request = SW_MAX_REQUEST;
 	serv->max_trunk_num = SW_MAX_TRUNK_NUM;
 
-	serv->udp_sock_buffer_size = SW_UDP_SOCK_BUFSIZE;
+	serv->udp_sock_buffer_size = SW_UNSOCK_BUFSIZE;
 
 	//tcp keepalive
 	serv->tcp_keepcount = SW_TCP_KEEPCOUNT;
@@ -1100,6 +1120,9 @@ static int swServer_poll_loop(swThreadParam *param)
 	timeo.tv_usec = serv->timeout_usec; //300ms
 	reactor->ptr = serv;
 	reactor->id = pti;
+
+	reactor->onFinish = swServer_poll_onReactorFinish;
+	reactor->onTimeout = swServer_poll_onReactorTimeout;
 	reactor->setHandle(reactor, SW_FD_CLOSE, swServer_poll_onClose);
 	reactor->setHandle(reactor, SW_FD_UDP, swServer_poll_onPackage);
 
@@ -1383,11 +1406,11 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 			return ret;
 		}
 		//缓存区还有数据没读完，继续读，EPOLL的ET模式
-		else if (sw_errno == EAGAIN)
-		{
-			swWarn("sw_errno == EAGAIN");
-			ret = swServer_poll_onReceive_no_buffer(reactor, event);
-		}
+//		else if (sw_errno == EAGAIN)
+//		{
+//			swWarn("sw_errno == EAGAIN");
+//			ret = swServer_poll_onReceive_no_buffer(reactor, event);
+//		}
 		return ret;
 	}
 	return SW_OK;

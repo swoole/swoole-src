@@ -51,7 +51,7 @@ void swLog_put(int level, char *cnt)
 	struct tm *p;
 	t = time(NULL);
 	p = localtime(&t);
-	snprintf(date_str, SW_LOG_DATE_STRLEN, "%d-%02d-%02d %02d:%02d:%02d", p->tm_year + 1900, p->tm_mon, p->tm_mday , p->tm_hour, p->tm_min, p->tm_sec);
+	snprintf(date_str, SW_LOG_DATE_STRLEN, "%d-%02d-%02d %02d:%02d:%02d", p->tm_year + 1900, p->tm_mon+1, p->tm_mday , p->tm_hour, p->tm_min, p->tm_sec);
 	fprintf(swoole_log_fn, SW_LOG_FORMAT, date_str, level_str, cnt);
 }
 

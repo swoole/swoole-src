@@ -316,6 +316,14 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
 {
 	zend_hash_destroy(&php_sw_reactor_callback);
 	zend_hash_destroy(&php_sw_client_callback);
+	int i;
+	for(i=0; i<PHP_SERVER_CALLBACK_NUM; i++)
+	{
+		if(php_sw_callback[i] != NULL)
+		{
+			zval_dtor(php_sw_callback[i]);
+		}
+	}
 	swoole_clean();
 	return SUCCESS;
 }

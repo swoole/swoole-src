@@ -173,7 +173,10 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
 		}
 		else if (ret == 0)
 		{
-			reactor->timeout = 1;
+			if(reactor->onTimeout != NULL)
+			{
+				reactor->onTimeout(reactor);
+			}
 			continue;
 		}
 		else
@@ -224,7 +227,10 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
 			{
 				swWarn("poll exception");
 			}
-			reactor->timeout = 0;
+			if(reactor->onFinish != NULL)
+			{
+				reactor->onFinish(reactor);
+			}
 		}
 	}
 	return SW_OK;

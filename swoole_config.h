@@ -13,7 +13,7 @@
 
 #define SW_MAX_FDS                 (1024*10) //最大tcp连接数
 #define SW_MAX_REQUEST             10000     //最大请求包数
-#define SW_UDP_SOCK_BUFSIZE        (4*1024*1024) //UDP socket的buffer区大小
+#define SW_UNSOCK_BUFSIZE          (4*1024*1024) //UDP socket的buffer区大小
 
 //#define SW_CONNECTION_LIST_EXPAND  (4096*2)  //动态扩容的数量
 
@@ -42,8 +42,6 @@
 #define SW_REACTOR_TIMEO_SEC       3
 #define SW_REACTOR_TIMEO_USEC      0
 #define SW_REACTOR_DISPATCH        2    //连接分配模式，1平均分配，2按FD取摸固定分配
-
-#define SW_WORKER_UNSOCK_BUFSIZE   (1024 * 1024 * 2)
 
 #define SW_QUEUE_SIZE              100  //缩减版的RingQueue,用在线程模式下
 

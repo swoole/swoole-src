@@ -97,6 +97,12 @@ static int php_swoole_client_onConnect(swReactor *reactor, swEvent *event)
 		zend_error(E_WARNING, "SwooleClient: connect to server fail. Error: %s [%d]", strerror(errno), errno);
 		SwooleG.main_reactor->del(SwooleG.main_reactor, event->fd);
 		zcallback = zend_read_property(swoole_client_class_entry_ptr, *zobject, SW_STRL("error")-1, 0 TSRMLS_CC);
+
+		zval *errCode;
+		MAKE_STD_ZVAL(errCode);
+		ZVAL_LONG(errCode, errno);
+		zend_update_property(swoole_client_class_entry_ptr, *zobject, ZEND_STRL("errCode"), errCode TSRMLS_CC);
+
 		if (zcallback == NULL)
 		{
 			zend_error(E_WARNING, "SwooleClient: swoole_client object have not error callback.");
@@ -514,10 +520,10 @@ PHP_METHOD(swoole_client, recv)
 		require_efree = 1;
 	}
 
-	if ((ret = cli->recv(cli, buf, buf_len, waitall)) < 0)
+	if ((ret = cli->recv(cli, buf, buf_len, waitall)) <= 0)
 	{
 		//这里的错误信息没用
-		zend_error(E_WARNING, "swClient recv fail.Error: %s [%d]", strerror(errno), errno);
+		zend_error(E_WARNING, "swoole_client: recv fail.Error: %s [%d]", strerror(errno), errno);
 		MAKE_STD_ZVAL(errCode);
 		ZVAL_LONG(errCode, errno);
 		zend_update_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errCode TSRMLS_CC);

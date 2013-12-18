@@ -14,7 +14,6 @@ Debug/*
 /install_manifest.txt
 /tests
 /wiki
-
 /config.guess
 /config.h
 /config.h.in
@@ -36,3 +35,6 @@ Debug/*
 /acinclude.m4
 /aclocal.m4
 /run-tests.php
+/autom4te.cache
+/build
+

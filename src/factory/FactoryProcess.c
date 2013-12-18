@@ -294,8 +294,11 @@ static void swManagerSignalHanlde(int sig)
 	switch (sig)
 	{
 	case SIGUSR1:
-		manager_worker_reloading = 1;
-		manager_reload_flag = 0;
+		if (manager_worker_reloading == 0)
+		{
+			manager_worker_reloading = 1;
+			manager_reload_flag = 0;
+		}
 		break;
 	default:
 		break;
@@ -806,7 +809,7 @@ int swFactoryProcess_writer_receive(swReactor *reactor, swDataHead *ev)
 	}
 	else
 	{
-		swWarn("[WriteThread]sento fail.errno=%d\n", errno);
+		swWarn("[WriteThread]sento fail. Error: %s[%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
 }

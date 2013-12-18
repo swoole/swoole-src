@@ -540,7 +540,6 @@ struct swReactor_s
 	void *ptr; //reserve
 	uint16_t id; //Reactor ID
 	uint16_t flag; //flag
-	char timeout;
 	char running;
 
 	swReactor_handle handle[SW_MAX_FDTYPE];       //默认事件
@@ -555,6 +554,9 @@ struct swReactor_s
 	int (*wait)(swReactor *, struct timeval *);
 	void (*free)(swReactor *);
 	int (*setHandle)(swReactor *, int fdtype, swReactor_handle);
+
+	void (*onTimeout)(swReactor *); //发生超时时
+	void (*onFinish)(swReactor *);  //完成一次轮询
 };
 
 typedef struct _swWorker swWorker;

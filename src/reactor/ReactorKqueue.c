@@ -225,7 +225,10 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 		}
 		else if (n == 0)
 		{
-			reactor->timeout = 1;
+			if(reactor->onTimeout != NULL)
+			{
+				reactor->onTimeout(reactor);
+			}
 			continue;
 		}
 		for (i = 0; i < n; i++)
@@ -263,7 +266,10 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 			}
 
 		}
-		reactor->timeout = 0;
+		if(reactor->onFinish != NULL)
+		{
+			reactor->onFinish(reactor);
+		}
 	}
 	return 0;
 }
