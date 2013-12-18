@@ -2,6 +2,8 @@
 #include "Server.h"
 #include "memory.h"
 
+#include <netinet/tcp.h>
+
 static void swSignalInit(void);
 
 static int swServer_check_callback(swServer *serv);
@@ -221,7 +223,7 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 			int keep_interval = serv->tcp_keepinterval;
 			int keep_count = serv->tcp_keepcount;
 
-#ifndef __MACH__
+#ifdef TCP_KEEPIDLE
 			setsockopt(conn_fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&keepalive , sizeof(keepalive));
 			setsockopt(conn_fd, IPPROTO_TCP, TCP_KEEPIDLE, (void*)&keep_idle , sizeof(keep_idle));
 			setsockopt(conn_fd, IPPROTO_TCP, TCP_KEEPINTVL, (void *)&keep_interval , sizeof(keep_interval));
