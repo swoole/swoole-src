@@ -181,11 +181,9 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 		//accept得到连接套接字
 #ifdef SW_USE_ACCEPT4
 	    conn_fd = accept4(event->fd, &client_addr, &client_addrlen, SOCK_NONBLOCK);
-
 #else
-		conn_fd = accept(event->fd,  &client_addr, sizeof(client_addr));
+		conn_fd = accept(event->fd,  &client_addr, &client_addrlen);
 #endif
-
 		if (conn_fd < 0 )
 		{
 			switch(errno)
