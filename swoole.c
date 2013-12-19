@@ -99,6 +99,7 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_server_addtimer, NULL)
 	PHP_FE(swoole_server_deltimer, NULL)
 	PHP_FE(swoole_server_task, NULL)
+	PHP_FE(swoole_server_taskwait, NULL)
 	PHP_FE(swoole_server_finish, NULL)
 	PHP_FE(swoole_server_reload, NULL)
 	PHP_FE(swoole_server_shutdown, NULL)
@@ -123,6 +124,7 @@ static zend_function_entry swoole_server_methods[] = {
 	PHP_FALIAS(send, swoole_server_send, NULL)
 	PHP_FALIAS(close, swoole_server_close, NULL)
 	PHP_FALIAS(task, swoole_server_task, NULL)
+	PHP_FALIAS(taskwait, swoole_server_taskwait, NULL)
 	PHP_FALIAS(finish, swoole_server_finish, NULL)
 	PHP_FALIAS(addlistener, swoole_server_addlisten, NULL)
 	PHP_FALIAS(addtimer, swoole_server_addtimer, NULL)
@@ -1625,6 +1627,51 @@ PHP_FUNCTION(swoole_set_process_name)
 #define ARGV_MAX_LENGTH 127
 	bzero(sapi_module.executable_location, ARGV_MAX_LENGTH);
 	memcpy(sapi_module.executable_location, name, name_len);
+}
+
+PHP_FUNCTION(swoole_server_taskwait)
+{
+	zval *zobject = getThis();
+	swServer *serv = NULL;
+	swEventData buf;
+	char *data;
+	int data_len;
+	if (zobject == NULL)
+	{
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Os", &zobject, swoole_server_class_entry_ptr, &data, &data_len) == FAILURE)
+		{
+			return;
+		}
+	}
+	else
+	{
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &data, &data_len) == FAILURE)
+		{
+			return;
+		}
+	}
+	if(data_len > sizeof(buf.data))
+	{
+		swWarn("SwooleServer: task data max_size=%d.", sizeof(buf.data));
+		RETURN_FALSE;
+	}
+
+	memcpy(buf.data, data, data_len);
+	buf.info.len = data_len;
+	//使用fd保存task_id
+	buf.info.fd = php_swoole_task_id++;
+	extern int c_worker_pti;
+	//from_id保存worker_id
+	buf.info.from_id = c_worker_pti;
+
+	if (swProcessPool_dispatch(SwooleG.task_workers, &buf) > 0)
+	{
+		RETURN_LONG(buf.info.fd);
+	}
+	else
+	{
+		RETURN_FALSE;
+	}
 }
 
 PHP_FUNCTION(swoole_server_task)

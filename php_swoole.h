@@ -112,6 +112,7 @@ PHP_FUNCTION(swoole_server_addlisten);
 PHP_FUNCTION(swoole_server_addtimer);
 PHP_FUNCTION(swoole_server_deltimer);
 PHP_FUNCTION(swoole_server_task);
+PHP_FUNCTION(swoole_server_taskwait);
 PHP_FUNCTION(swoole_server_finish);
 PHP_FUNCTION(swoole_server_reload);
 PHP_FUNCTION(swoole_server_shutdown);

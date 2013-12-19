@@ -1,9 +1,22 @@
 #include "php_swoole.h"
+#include "php_streams.h"
+#include "php_network.h"
+
 #include "ext/standard/basic_functions.h"
+
+#if PHP_VERSION_ID >= 50301 && (HAVE_SOCKETS || defined(COMPILE_DL_SOCKETS))
+#include "ext/sockets/php_sockets.h"
+#define SWOOLE_SOCKETS_SUPPORT
+#endif
 
 static char php_sw_reactor_ok = 0;
 static char php_sw_reactor_wait_onexit = 0;
 static char php_sw_in_client = 0;
+
+typedef struct {
+	zval *callback;
+	zval *socket;
+} swoole_reactor_fd;
 
 static int php_swoole_client_event_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_DC);
 static int php_swoole_client_event_loop(zval *sock_array, fd_set *fds TSRMLS_DC);
@@ -14,6 +27,7 @@ static int php_swoole_client_onConnect(swReactor *reactor, swEvent *event);
 static int php_swoole_client_onClose(swReactor *reactor, swEvent *event);
 static void php_swoole_check_reactor();
 static void php_swoole_try_run_reactor();
+static int swoole_convert_to_fd(zval **fd);
 
 static int php_swoole_client_onReceive(swReactor *reactor, swEvent *event)
 {
@@ -195,34 +209,23 @@ static void php_swoole_check_reactor()
 static int php_swoole_onReactorCallback(swReactor *reactor, swEvent *event)
 {
 	zval *zfd;
-	zval *zfrom_id;
-	zval **args[2];
 	zval *retval;
-	zval *callback;
+	zval **args[1];
+	swoole_reactor_fd *fd;
 
-	MAKE_STD_ZVAL(zfd);
-	ZVAL_LONG(zfd, event->fd);
-
-	MAKE_STD_ZVAL(zfrom_id);
-	ZVAL_LONG(zfrom_id, event->from_id);
-
-	args[0] = &zfd;
-	args[1] = &zfrom_id;
-
-	if(zend_hash_find(&php_sw_reactor_callback, (char *)&(event->fd), sizeof(event->fd), &callback) != SUCCESS)
+	if(zend_hash_find(&php_sw_reactor_callback, (char *)&(event->fd), sizeof(event->fd), &fd) != SUCCESS)
 	{
 		zend_error(E_WARNING, "SwooleServer: onReactorCallback not found");
 		return SW_ERR;
 	}
 
+	args[0] = &fd->socket;
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-	if (call_user_function_ex(EG(function_table), NULL, callback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+	if (call_user_function_ex(EG(function_table), NULL, fd->callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
 		zend_error(E_WARNING, "SwooleServer: onReactorCallback handler error");
 		return SW_ERR;
 	}
-	zval_ptr_dtor(&zfrom_id);
-	zval_ptr_dtor(&zfd);
 	if (retval != NULL)
 	{
 		zval_ptr_dtor(&retval);
@@ -266,40 +269,111 @@ static void php_swoole_try_run_reactor()
 	}
 }
 
+static int swoole_convert_to_fd(zval **fd)
+{
+	php_stream *stream;
+	int socket_fd;
+
+#ifdef SWOOLE_SOCKETS_SUPPORT
+	php_socket *php_sock;
+#endif
+	if (Z_TYPE_PP(fd) == IS_RESOURCE)
+	{
+		if (ZEND_FETCH_RESOURCE_NO_RETURN(stream, php_stream *, fd, -1, NULL, php_file_le_stream()))
+		{
+			if (php_stream_cast(stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL, (void* )&socket_fd, 1)
+					!= SUCCESS || socket_fd < 0)
+			{
+				return SW_ERR;
+			}
+		}
+		else
+		{
+#ifdef SWOOLE_SOCKETS_SUPPORT
+			if (ZEND_FETCH_RESOURCE_NO_RETURN(php_sock, php_socket *, fd, -1, NULL, php_sockets_le_socket()))
+			{
+				socket_fd = php_sock->bsd_socket;
+
+			}
+			else
+			{
+				zend_error(E_WARNING, "fd argument must be either valid PHP stream or valid PHP socket resource");
+				return SW_ERR;
+			}
+#else
+			zend_error(E_WARNING, "fd argument must be valid PHP stream resource");
+			return SW_ERR;
+#endif
+		}
+	}
+	else if (Z_TYPE_PP(fd) == IS_LONG)
+	{
+		socket_fd = Z_LVAL_PP(fd);
+		if (socket_fd < 0)
+		{
+			zend_error(E_WARNING, "invalid file descriptor passed");
+			return SW_ERR;
+		}
+	}
+	else
+	{
+		return SW_ERR;
+	}
+	return socket_fd;
+}
+
 PHP_FUNCTION(swoole_event_add)
 {
 	zval *cb;
-	long fd;
-	int _fd;
+	zval **fd;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz", &fd, &cb) == FAILURE)
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Zz", &fd, &cb) == FAILURE)
 	{
 		return;
 	}
-	_fd = (int)fd;
-	zval *value = pemalloc(sizeof(zval), 1);
-	*(value) = *cb;
-	zval_copy_ctor(value);
-	if(zend_hash_update(&php_sw_reactor_callback, &_fd, sizeof(_fd), value, sizeof(zval), NULL) == FAILURE)
+
+	int socket_fd = swoole_convert_to_fd(fd);
+	if(socket_fd < 0)
+	{
+		zend_error(E_WARNING, "unknow type.");
+		RETURN_FALSE;
+	}
+
+	swoole_reactor_fd *event = emalloc(sizeof(swoole_reactor_fd));
+	event->socket = *fd;
+	event->callback = cb;
+	zval_add_ref(&event->callback);
+
+	if(zend_hash_update(&php_sw_reactor_callback, &socket_fd, sizeof(socket_fd), event, sizeof(swoole_reactor_fd), NULL) == FAILURE)
 	{
 		zend_error(E_WARNING, "swoole_event_add add to hashtable fail");
 		RETURN_FALSE;
 	}
 	php_swoole_check_reactor();
-	swSetNonBlock(_fd); //must be nonblock
-	int ret = SwooleG.main_reactor->add(SwooleG.main_reactor, _fd, SW_FD_USER);
+	swSetNonBlock(socket_fd); //must be nonblock
+	if(SwooleG.main_reactor->add(SwooleG.main_reactor, socket_fd, SW_FD_USER) < 0)
+	{
+		zend_error(E_WARNING, "swoole_event_add fail.");
+		RETURN_FALSE;
+	}
 	php_swoole_try_run_reactor();
-	SW_CHECK_RETURN(ret);
+	RETURN_LONG(socket_fd);
 }
 
 PHP_FUNCTION(swoole_event_del)
 {
-	long fd;
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &fd) == FAILURE)
+	zval **fd;
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Z", &fd) == FAILURE)
 	{
 		return;
 	}
-	SW_CHECK_RETURN(SwooleG.main_reactor->del(SwooleG.main_reactor, (int)fd));
+	int socket_fd = swoole_convert_to_fd(fd);
+	if (socket_fd < 0)
+	{
+		zend_error(E_WARNING, "unknow type.");
+		RETURN_FALSE;
+	}
+	SW_CHECK_RETURN(SwooleG.main_reactor->del(SwooleG.main_reactor, socket_fd));
 }
 
 PHP_FUNCTION(swoole_event_exit)
