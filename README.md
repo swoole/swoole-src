@@ -1,6 +1,6 @@
 Swoole
 =====
-Asynchronous & Concurrent & Distributed with PHP.
+PHP's asynchronous & concurrent & distributed networking framework.
 
 * Event-driven
 * Full asynchronous non-blocking
