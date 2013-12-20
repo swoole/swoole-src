@@ -1,22 +1,11 @@
 <?php
-/*
-argv0  server host
-argv1  server port
-argv2  server mode SWOOLE_BASE or SWOOLE_THREAD or SWOOLE_PROCESS
-argv3  sock_type  SWOOLE_SOCK_TCP or SWOOLE_SOCK_TCP6 or SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6
-*/
-$serv = swoole_server_create("127.0.0.1", 9501, SWOOLE_PROCESS);
+$serv = new swoole_server("127.0.0.1", 9501);
 swoole_server_set($serv, array(
     'timeout' => 200,  //select and epoll_wait timeout.
-    'poll_thread_num' => 1, //reactor thread num
-    'writer_num' => 1,     //writer thread num
     'worker_num' => 2,    //worker process num
-    'backlog' => 128,   //listen backlog
     'max_request' => 5000,
     'max_conn' => 10000,
     'task_worker_num' => 2,
-	'dispatch_mode' => 2,
-	///'timer_interval' => 200,
 //    'daemonize' => 1,  //转为后台守护进程运行
 	'open_cpu_affinity' => 1,
    //'data_eof' => "\r\n\r\n",
@@ -25,17 +14,11 @@ swoole_server_set($serv, array(
     //'log_file' => '/tmp/swoole.log', //swoole error log
 ));
 
-/*
-argv0  server resource
-argv1  listen host
-argv2  listen port
-argv3  sock_type  SWOOLE_SOCK_TCP or SWOOLE_SOCK_TCP6 or SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6
-*/
-//swoole_server_addlisten($serv, "127.0.0.1", 9500, SWOOLE_SOCK_UDP);
 function my_onStart($serv)
 {
 	echo "MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}\n";
     echo "Server: start.Swoole version is [".SWOOLE_VERSION."]\n";
+    $serv->addtimer(1000);
 }
 
 function my_onShutdown($serv)
@@ -63,7 +46,7 @@ function my_onWorkerStart($serv, $worker_id)
     //sleep(10);
 	echo "WorkerStart[$worker_id]|pid=".posix_getpid().".\n";
 	//$serv->addtimer(500);
-	//$serv->addtimer(2000);
+	
 	//$serv->addtimer(6000);
 }
 
@@ -134,18 +117,17 @@ function my_onFinish($serv, $data)
     echo "AsyncTask Finish:Connect.PID=".posix_getpid().PHP_EOL;
 }
 
-swoole_server_handler($serv, 'onStart', 'my_onStart');
-swoole_server_handler($serv, 'onConnect', 'my_onConnect');
-swoole_server_handler($serv, 'onReceive', 'my_onReceive');
-swoole_server_handler($serv, 'onClose', 'my_onClose');
-swoole_server_handler($serv, 'onShutdown', 'my_onShutdown');
-swoole_server_handler($serv, 'onTimer', 'my_onTimer');
-swoole_server_handler($serv, 'onWorkerStart', 'my_onWorkerStart');
-swoole_server_handler($serv, 'onWorkerStop', 'my_onWorkerStop');
-swoole_server_handler($serv, 'onTask', 'my_onTask');
-swoole_server_handler($serv, 'onFinish', 'my_onFinish');
-
-//swoole_server_handler($serv, 'onMasterConnect', 'my_onMasterConnect');
-//swoole_server_handler($serv, 'onMasterClose', 'my_onMasterClose');
-swoole_server_start($serv);
+$serv->on('Start', 'my_onStart');
+$serv->on('Connect', 'my_onConnect');
+$serv->on('Receive', 'my_onReceive');
+$serv->on('Close', 'my_onClose');
+$serv->on('Shutdown', 'my_onShutdown');
+$serv->on('Timer', 'my_onTimer');
+$serv->on('WorkerStart', 'my_onWorkerStart');
+$serv->on('WorkerStop', 'my_onWorkerStop');
+$serv->on('Task', 'my_onTask');
+$serv->on('Finish', 'my_onFinish');
+//$serv->on('MasterConnect', 'my_onMasterConnect');
+//$serv->on('MasterClose', 'my_onMasterClose');
+$serv->start();
 

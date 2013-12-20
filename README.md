@@ -1,8 +1,7 @@
-Introduction
-==========
-
-Swoole written by C, based on the Linux epoll does not rely on any third-party libraries, as a the PHP extensions running high-performance network server framework, you can easily maintain more than 100,000 concurrent TCP connections. Swoole provides a full asynchronous, non-blocking, parallel PHP Socket Server to achieve. Support UDP, TCP, IPv6 support multi-port monitoring, multi timer and operation mode can be configured.
-PHP developers do not care about the underlying implementation, only need to use PHP to write the callback function, write the logic code can be. Swoole can be used for server-side development, such as WebSocket Server, Web server, FTP server.
+Swoole
+=====
+Asynchronous & Concurrent & Distributed with PHP.
+PHP的异步、并行、分布式框架
 
 * [Document 中文](http://www.swoole.com/wiki/index/) 
 * Document English. Wait supplement

@@ -2,6 +2,7 @@
 *.lo
 .*
 *~
+*.so
 Debug/*
 /Debug
 /CMakeFiles
