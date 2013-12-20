@@ -52,6 +52,19 @@ $client->on("close", function($cli){
 
 $client->connect('127.0.0.1', 9501, 0.5);
 ```
+__Event__
+```php
+$fp = stream_socket_client("tcp://127.0.0.1:9501", $errno, $errstr, 30);
+if (!$fp) {
+    exit("$errstr ($errno)\n");
+}
+fwrite($fp, "HELLO world");
+swoole_event_add($fp, function($fp){
+	echo fgets($fp, 1024);
+	swoole_event_del($fp);
+    fclose($fp);
+});
+```
 __Files__
 * PHP: [examples/server.php](examples/server.php)
 * C/C++: [examples/server.c](examples/server.c)
