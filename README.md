@@ -9,10 +9,6 @@ Asynchronous & Concurrent & Distributed with PHP.
 * Asynchronous MySQL
 * AsyncTask workers
 
-
-* [Document 中文](http://www.swoole.com/wiki/index/) 
-* Document English. Wait supplement
-
 __Server__
 ```php
 $serv = new swoole_server("127.0.0.1", 9501);
@@ -85,6 +81,11 @@ Example
 * PHP: [examples/server.php](examples/server.php)
 * C/C++: [examples/server.c](examples/server.c)
 * Client: [examples/client.php](examples/client.php)
+
+Document
+----
+* [Document 中文](http://www.swoole.com/wiki/index/) 
+* Document English. Wait moment.
 
 License
 -----
