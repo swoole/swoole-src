@@ -1,7 +1,14 @@
 Swoole
 =====
 Asynchronous & Concurrent & Distributed with PHP.
-PHP的异步、并行、分布式框架
+
+* Event-driven
+* Full asynchronous non-blocking
+* Multi-Thread or Multi-Process
+* Millisecond timer
+* Asynchronous MySQL
+* AsyncTask workers
+
 
 * [Document 中文](http://www.swoole.com/wiki/index/) 
 * Document English. Wait supplement
@@ -45,16 +52,6 @@ $client->on("close", function($cli){
 
 $client->connect('127.0.0.1', 9501, 0.5);
 ```
-
-Features
------
-
-* Event-driven
-* Full asynchronous non-blocking
-* No lock design
-* Separate read and write
-* Concurrent execution. Support Multi-Thread or Multi-Process
-* Support IPv6
 
 Developer Mail-List
 -----
