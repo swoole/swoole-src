@@ -9,6 +9,10 @@ Asynchronous & Concurrent & Distributed with PHP.
 * Asynchronous MySQL
 * AsyncTask workers
 
+
+Example
+-----
+
 __Server__
 ```php
 $serv = new swoole_server("127.0.0.1", 9501);
@@ -48,6 +52,10 @@ $client->on("close", function($cli){
 
 $client->connect('127.0.0.1', 9501, 0.5);
 ```
+__Files__
+* PHP: [examples/server.php](examples/server.php)
+* C/C++: [examples/server.c](examples/server.c)
+* Client: [examples/client.php](examples/client.php)
 
 Developer Mail-List
 -----
@@ -76,11 +84,6 @@ PHP Application Server
 -----
 https://github.com/matyhtf/swoole_framework
 
-Example
------
-* PHP: [examples/server.php](examples/server.php)
-* C/C++: [examples/server.c](examples/server.c)
-* Client: [examples/client.php](examples/client.php)
 
 Document
 ----
@@ -90,6 +93,5 @@ Document
 License
 -----
 Apache License Version 2.0 <http://www.apache.org/licenses/LICENSE-2.0.html>
-
 
 
