@@ -792,7 +792,7 @@ static int swServer_udp_start(swServer *serv)
 
 	LL_FOREACH(serv->listen_list, listen_host)
 	{
-		param = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
+		param = sw_malloc(sizeof(swThreadParam));
 		//UDP
 		if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6)
 		{
@@ -956,6 +956,7 @@ static void swServer_poll_udp_loop(swThreadParam *param)
 		if (ret > 0)
 		{
 			buf.info.len = ret;
+			buf.info.type = SW_EVENT_UDP;
 			//UDP的from_id是PORT，FD是IP
 			buf.info.from_id = ntohs(addr.sin_port); //转换字节序
 			buf.info.fd = addr.sin_addr.s_addr;
@@ -1228,6 +1229,7 @@ static int swServer_poll_onReceive_data_buffer(swReactor *reactor, swEvent *even
 		if (buffer_item->trunk_num >= data_buffer->max_trunk || isEOF == 0)
 		{
 			send_data.info.fd = event->fd;
+			send_data.info.type = SW_EVENT_TCP;
 			send_data.info.from_id = event->from_id;
 			swDataBuffer_trunk *send_trunk = buffer_item->first;
 			while (send_trunk != NULL && send_trunk->len != 0)
@@ -1275,6 +1277,7 @@ static int swServer_poll_onPackage(swReactor *reactor, swEvent *event)
 	}
 	buf.info.len = ret;
 	//UDP的from_id是PORT，FD是IP
+	buf.info.type = SW_EVENT_UDP;
 	buf.info.from_fd = event->fd; //from fd
 	buf.info.from_id = ntohs(addr.sin_port); //转换字节序
 	buf.info.fd = addr.sin_addr.s_addr;
@@ -1342,6 +1345,7 @@ static int swServer_poll_onReceive_conn_buffer(swReactor *reactor, swEvent *even
 		if (isEOF == 0)
 		{
 			buffer->data.info.fd = event->fd;
+			buffer->data.info.type = SW_EVENT_TCP;
 			buffer->data.info.from_id = event->from_id;
 			ret = factory->dispatch(factory, &buffer->data);
 			//清理buffer
@@ -1400,6 +1404,7 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 		swTrace("recv: %s|fd=%d|len=%d\n", rdata.buf.data, event->fd, n);
 		rdata.buf.info.fd = event->fd;
 		rdata.buf.info.len = n;
+		rdata.buf.info.type = SW_EVENT_TCP;
 		rdata.buf.info.from_id = event->from_id;
 
 		ret = factory->dispatch(factory, &rdata.buf);

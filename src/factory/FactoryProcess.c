@@ -125,7 +125,8 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 
 	switch(task->info.type)
 	{
-	case SW_EVENT_DATA:
+	case SW_EVENT_TCP:
+	case SW_EVENT_UDP:
 		factory->onTask(factory, task);
 		//只有数据请求任务才计算task_num
 		if(!worker_task_always)
@@ -454,9 +455,8 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	swFactoryProcess *object = factory->object;
 	swServer *serv = factory->ptr;
 
-	//from_id超过serv->poll_thread_num，这是一个UDP
 	//UDP在worker进程中直接发送到客户端
-	if(resp->info.from_id >= serv->poll_thread_num)
+	if(resp->info.type == SW_EVENT_UDP)
 	{
 		ret = swServer_send_udp_packet(serv, resp);
 		goto finish;
@@ -702,7 +702,6 @@ int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int work
 int swFactoryProcess_dispatch(swFactory *factory, swEventData *data)
 {
 	swFactoryProcess *object = factory->object;
-	data->info.type = SW_EVENT_DATA; //这是一个数据事件
 	return swFactoryProcess_send2worker(factory, data, -1);
 }
 

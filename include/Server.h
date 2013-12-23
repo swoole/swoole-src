@@ -19,7 +19,8 @@ extern "C" {
 #define SW_TCP_KEEPIDLE          3600 //1小时
 #define SW_TCP_KEEPINTERVAL      60
 
-#define SW_EVENT_DATA            0 //普通事件
+#define SW_EVENT_TCP             0 //TCP
+#define SW_EVENT_UDP             1 //UDP
 #define SW_EVENT_CLOSE           5 //关闭连接
 #define SW_EVENT_CONNECT         6 //连接到来
 #define SW_EVENT_TIMER           7 //时钟事件

@@ -26,7 +26,8 @@ argv3  sock_type  SWOOLE_SOCK_TCP or SWOOLE_SOCK_TCP6 or SWOOLE_SOCK_UDP or SWOO
 //swoole_server_addlisten($serv, "127.0.0.1", 9500, SWOOLE_SOCK_UDP);
 function my_onStart($serv)
 {
-    echo "Server:start\n";
+    echo "MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}\n";
+    echo "Server: start.Swoole version is [".SWOOLE_VERSION."]\n";
 }
 
 function my_onShutdown($serv)
@@ -59,7 +60,7 @@ function my_onReceive($serv, $fd, $from_id, $data)
 	} 
 	else 
 	{
-		swoole_server_send ( $serv, $fd, 'Swoole: ' . $data, $from_id);
+		$serv->send($fd, 'Swoole: ' . $data, $from_id);
 	}
 	//swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);	
 }

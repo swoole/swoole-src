@@ -939,7 +939,7 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	ZVAL_LONG(zfd, (long)req->info.fd);
 
 	MAKE_STD_ZVAL(zfrom_id);
-	if(req->info.from_id >= serv->poll_thread_num)
+	if(req->info.type == SW_EVENT_UDP)
 	{
 		//UDP使用from_id作为port,fd做为ip
 		php_swoole_udp_t udp_info;
@@ -1399,17 +1399,27 @@ PHP_FUNCTION(swoole_server_start)
 	{
 		serv->onTimer = php_swoole_onTimer;
 	}
+
+	if (php_sw_callback[SW_SERVER_CB_onClose] != NULL)
+	{
+		serv->onClose = SW_SERVER_CB_onClose;
+	}
+
+	if (php_sw_callback[SW_SERVER_CB_onConnect] != NULL)
+	{
+		serv->onConnect = SW_SERVER_CB_onConnect;
+	}
 	//必选事件
-	if (php_sw_callback[SW_SERVER_CB_onClose] == NULL)
-	{
-		zend_error(E_ERROR, "SwooleServer: onClose must set.");
-		RETURN_FALSE;
-	}
-	if (php_sw_callback[SW_SERVER_CB_onConnect] == NULL)
-	{
-		zend_error(E_ERROR, "SwooleServer: onConnect must set.");
-		RETURN_FALSE;
-	}
+//	if (php_sw_callback[SW_SERVER_CB_onClose] == NULL)
+//	{
+//		zend_error(E_ERROR, "SwooleServer: onClose must set.");
+//		RETURN_FALSE;
+//	}
+//	if (php_sw_callback[SW_SERVER_CB_onConnect] == NULL)
+//	{
+//		zend_error(E_ERROR, "SwooleServer: onConnect must set.");
+//		RETURN_FALSE;
+//	}
 	if (php_sw_callback[SW_SERVER_CB_onReceive] == NULL)
 	{
 		zend_error(E_ERROR, "SwooleServer: onReceive must set.");
@@ -1473,13 +1483,15 @@ PHP_FUNCTION(swoole_server_send)
 	factory = &(serv->factory);
 
 	_send.info.fd = (int)conn_fd;
-	if (from_id < 0)
-	{
-		_send.info.from_id = factory->last_from_id;
-	}
+
 	//TCP
-	else if((uint32_t)from_id < serv->poll_thread_num)
+	if(php_swoole_udp_from_fd == 0)
 	{
+		if (from_id < -1)
+		{
+			_send.info.from_id = factory->last_from_id;
+		}
+		_send.info.type = SW_EVENT_TCP;
 		_send.info.from_id = from_id;
 	}
 	//UDP
@@ -1489,7 +1501,7 @@ PHP_FUNCTION(swoole_server_send)
 		memcpy(&udp_info, (uint32_t *)(&from_id), sizeof(udp_info));
 		_send.info.from_id = (uint16_t)(udp_info.port);
 		_send.info.from_fd = (uint16_t)(udp_info.from_fd);
-//		swWarn("SendTo: from_id=%d|from_fd=%d", _send.info.from_id, _send.info.from_fd);
+		_send.info.type = SW_EVENT_UDP;
 	}
 	_send.data = buffer;
 
