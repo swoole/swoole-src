@@ -142,7 +142,8 @@ SWINLINE static int swReactorEpoll_event_set(int fdtype)
 	}
 	if (swReactor_event_error(fdtype))
 	{
-		flag |= (EPOLLRDHUP | EPOLLHUP | EPOLLERR);
+		flag |= (EPOLLRDHUP);
+		//flag |= (EPOLLRDHUP | EPOLLHUP | EPOLLERR);
 	}
 	return flag;
 }
@@ -227,16 +228,6 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 					swWarn("[Reactor#%d] epoll handle fail. fd=%d|type=%d", reactor->id, ev.fd, ev.type);
 				}
 			}
-			//error
-			if ((object->events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)))
-			{
-				handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, ev.type);
-				ret = handle(reactor, &ev);
-				if (ret < 0)
-				{
-					swWarn("[Reactor#%d] epoll handle fail. fd=%d|type=%d", reactor->id, ev.fd, ev.type);
-				}
-			}
 			//write
 			if ((object->events[i].events & EPOLLOUT))
 			{
@@ -246,6 +237,17 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 				{
 					swWarn("[Reactor#%d] epoll event[type=SW_EVENT_WRITE] handler fail. fd=%d|errno=%d", reactor->id,
 							ev.type, ev.fd, errno);
+				}
+			}
+			//error
+			//if ((object->events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)))
+			if ((object->events[i].events & (EPOLLRDHUP)))
+			{
+				handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, ev.type);
+				ret = handle(reactor, &ev);
+				if (ret < 0)
+				{
+					swWarn("[Reactor#%d] epoll handle fail. fd=%d|type=%d", reactor->id, ev.fd, ev.type);
 				}
 			}
 		}

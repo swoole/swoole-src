@@ -108,13 +108,13 @@ static int php_swoole_client_onConnect(swReactor *reactor, swEvent *event)
 	}
 	else
 	{
-		zend_error(E_WARNING, "SwooleClient: connect to server fail. Error: %s [%d]", strerror(errno), errno);
+		zend_error(E_WARNING, "SwooleClient: connect to server fail. Error: %s [%d]", strerror(error), error);
 		SwooleG.main_reactor->del(SwooleG.main_reactor, event->fd);
 		zcallback = zend_read_property(swoole_client_class_entry_ptr, *zobject, SW_STRL("error")-1, 0 TSRMLS_CC);
 
 		zval *errCode;
 		MAKE_STD_ZVAL(errCode);
-		ZVAL_LONG(errCode, errno);
+		ZVAL_LONG(errCode, error);
 		zend_update_property(swoole_client_class_entry_ptr, *zobject, ZEND_STRL("errCode"), errCode TSRMLS_CC);
 
 		if (zcallback == NULL)
@@ -130,6 +130,7 @@ static int php_swoole_client_onConnect(swReactor *reactor, swEvent *event)
 	}
 	return SW_OK;
 }
+
 
 static int php_swoole_client_onClose(swReactor *reactor, swEvent *event)
 {
@@ -497,7 +498,7 @@ PHP_METHOD(swoole_client, connect)
 		if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
 		{
 			cli->connect(cli, host, port, (float) timeout, 1);
-			flag = (SW_FD_USER+1) | SW_EVENT_WRITE | SW_EVENT_ERROR;
+			flag = (SW_FD_USER+1) | SW_EVENT_WRITE;
 		}
 		else
 		{
@@ -594,7 +595,8 @@ PHP_METHOD(swoole_client, recv)
 		require_efree = 1;
 	}
 
-	if ((ret = cli->recv(cli, buf, buf_len, waitall)) <= 0)
+	ret = cli->recv(cli, buf, buf_len, waitall);
+	if (ret < 0)
 	{
 		//这里的错误信息没用
 		zend_error(E_WARNING, "swoole_client: recv fail.Error: %s [%d]", strerror(errno), errno);
@@ -605,9 +607,17 @@ PHP_METHOD(swoole_client, recv)
 	}
 	else
 	{
-//		swWarn("data=%s|ret=%d", buf, ret);
-		buf[ret] = 0;
-		RETVAL_STRINGL(buf, ret, 1);
+//		if(ret == 0)
+//		{
+//			swEvent event;
+//			event.fd = cli->sock;
+//			php_swoole_client_onClose(SwooleG.main_reactor, &event);
+//		}
+//		else
+		{
+			buf[ret] = 0;
+			RETVAL_STRINGL(buf, ret, 1);
+		}
 	}
 	if(require_efree==1) efree(buf);
 }

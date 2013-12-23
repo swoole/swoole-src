@@ -19,6 +19,6 @@ $client->on("close", function($cli){
     $cli->close();
 });
 
-$client->connect('127.0.0.1', 11109, 0.5);
+$client->connect('127.0.0.1', 9501, 0.5);
 
 swoole_event_wait();

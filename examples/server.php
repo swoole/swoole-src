@@ -5,8 +5,7 @@ swoole_server_set($serv, array(
     'worker_num' => 2,    //worker process num
     'max_request' => 5000,
     'max_conn' => 10000,
-    'task_worker_num' => 2,
-//    'daemonize' => 1,  //转为后台守护进程运行
+//    'daemonize' => 1,
 	'open_cpu_affinity' => 1,
    //'data_eof' => "\r\n\r\n",
     //'open_eof_check' => 1,
@@ -18,7 +17,7 @@ function my_onStart($serv)
 {
 	echo "MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}\n";
     echo "Server: start.Swoole version is [".SWOOLE_VERSION."]\n";
-    $serv->addtimer(1000);
+    //$serv->addtimer(1000);
 }
 
 function my_onShutdown($serv)
@@ -73,6 +72,7 @@ function my_onReceive($serv, $fd, $from_id, $data)
 	else 
 	{
 		$serv->send($fd, 'Swoole: '.$data, $from_id);
+		$serv->close($fd);
 	}
 	//swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);
 	//swoole_server_close($serv, $fd, $from_id);
