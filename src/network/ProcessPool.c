@@ -197,7 +197,6 @@ int swProcessPool_wait(swProcessPool *pool)
 
 static void swProcessPool_free(swProcessPool *pool)
 {
-	swProcessPool_shutdown(pool);
 	sw_free(pool->workers);
 	swHashMap_free(&pool->map);
 }

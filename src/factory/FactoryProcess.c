@@ -66,7 +66,6 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 
 int swFactoryProcess_shutdown(swFactory *factory)
 {
-	swWarn("swFactoryProcess_shutdown");
 	swFactoryProcess *object = factory->object;
 	swServer *serv = factory->ptr;
 	int i;

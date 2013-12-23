@@ -1,10 +1,9 @@
 <?php
 $serv = new swoole_server("127.0.0.1", 9501);
-swoole_server_set($serv, array(
-    'timeout' => 200,  //select and epoll_wait timeout.
-    'worker_num' => 2,    //worker process num
-    'max_request' => 5000,
-    'max_conn' => 10000,
+$serv->set(array(
+    'worker_num' => 2,
+    'task_worker_num' => 2,
+    
 //    'daemonize' => 1,
 	'open_cpu_affinity' => 1,
    //'data_eof' => "\r\n\r\n",

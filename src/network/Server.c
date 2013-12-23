@@ -758,6 +758,12 @@ int swServer_free(swServer *serv)
 		serv->main_pipe.close(&serv->main_pipe);
 	}
 
+	//master pipe
+	if (serv->task_worker_num > 0)
+	{
+		swProcessPool_shutdown(&SwooleG.task_workers);
+	}
+
 	//connection_list释放
 	if (serv->factory_mode == SW_MODE_SINGLE)
 	{
