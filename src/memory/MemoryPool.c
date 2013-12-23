@@ -71,24 +71,24 @@ static void *swMemoryGlobal_alloc(swAllocator *allocator, int size)
 {
 	swMemoryGlobal *gm = allocator->object;
 	gm->lock.lock(&gm->lock);
-	if(size > gm->pagesize)
+	if (size > gm->pagesize)
 	{
 		swWarn("swMemoryGlobal_alloc: alloc %d bytes not allow. Max size=%d", size, gm->pagesize);
 		return NULL;
 	}
 
-	if(gm->offset + size > gm->size)
+	if (gm->offset + size > gm->size)
 	{
 		//没有足够的内存,再次申请
 		swTrace("swMemoryGlobal_alloc new page: size=%d|offset=%d|alloc=%d", gm->size, gm->offset, size);
 		void *page = swMemoryGlobal_new_page(gm);
-		if(page==NULL)
+		if (page == NULL)
 		{
 			swWarn("swMemoryGlobal_alloc alloc memory error.");
 			return NULL;
 		}
 		//将next指向新申请的内存块
-		((void **)gm->cur_page)[0] = page;
+		((void **) gm->cur_page)[0] = page;
 		gm->cur_page = page;
 	}
 	void *mem = gm->mem + gm->offset;

@@ -701,8 +701,8 @@ int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int work
 
 int swFactoryProcess_dispatch(swFactory *factory, swEventData *data)
 {
-	swFactoryProcess *object = factory->object;
-	return swFactoryProcess_send2worker(factory, data, -1);
+	swFactory *_factory = factory;
+	return swFactoryProcess_send2worker(_factory, data, -1);
 }
 
 static int swFactoryProcess_writer_start(swFactory *factory)

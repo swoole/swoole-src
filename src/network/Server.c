@@ -792,7 +792,7 @@ static int swServer_udp_start(swServer *serv)
 
 	LL_FOREACH(serv->listen_list, listen_host)
 	{
-		param = sw_malloc(sizeof(swThreadParam));
+		param = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
 		//UDP
 		if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6)
 		{
@@ -935,7 +935,6 @@ static void swServer_poll_udp_loop(swThreadParam *param)
 {
 	int ret;
 	swServer *serv = param->object;
-	swFactory *factory = &(serv->factory);
 
 	swEventData buf;
 	struct sockaddr_in addr;
@@ -962,7 +961,7 @@ static void swServer_poll_udp_loop(swThreadParam *param)
 			buf.info.fd = addr.sin_addr.s_addr;
 
 			swTrace("recvfrom udp socket.fd=%d|data=%s", sock, buf.data);
-			ret = factory->dispatch(factory, &buf);
+			ret = serv->factory.dispatch(&serv->factory, &buf);
 			if (ret < 0)
 			{
 				swWarn("factory->dispatch[udp packet] fail\n");

@@ -1,9 +1,8 @@
 <?php
 $serv = new swoole_server("127.0.0.1", 9501);
 $serv->set(array(
-    'worker_num' => 2,
-    'task_worker_num' => 2,
-    
+    'worker_num' => 4,
+    //'task_worker_num' => 2,
 //    'daemonize' => 1,
 	'open_cpu_affinity' => 1,
    //'data_eof' => "\r\n\r\n",
@@ -71,7 +70,7 @@ function my_onReceive($serv, $fd, $from_id, $data)
 	else 
 	{
 		$serv->send($fd, 'Swoole: '.$data, $from_id);
-		$serv->close($fd);
+		//$serv->close($fd);
 	}
 	//swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);
 	//swoole_server_close($serv, $fd, $from_id);
