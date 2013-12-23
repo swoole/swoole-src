@@ -334,14 +334,9 @@ static void swoole_destory_server(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 {
 	swoole_running = 0;
 	swServer *serv = (swServer *) rsrc->ptr;
-	if(serv!=NULL)
+	if (serv != NULL)
 	{
-		//只有主进程执行此操作
-		if(swIsMaster())
-		{
-			swServer_free(serv);
-		}
-		sw_free(serv);
+		swServer_shutdown(serv);
 	}
 }
 

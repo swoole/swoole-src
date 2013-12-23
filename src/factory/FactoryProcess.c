@@ -19,7 +19,6 @@ static int swFactoryProcess_writer_receive(swReactor *, swEvent *);
 static int swFactoryProcess_notify(swFactory *factory, swEvent *event);
 static int swFactoryProcess_dispatch(swFactory *factory, swEventData *buf);
 static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
-static int swFactoryProcess_event(swFactory *factory, swEventData *data);
 
 int c_worker_pti = 0; //Current Proccess Worker's id
 static int worker_task_num = 0;
@@ -30,13 +29,13 @@ static int manager_reload_flag = 0;
 int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 {
 	swFactoryProcess *object;
-	object = sw_malloc(sizeof(swFactoryProcess));
+	object = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swFactoryProcess));
 	if (object == NULL)
 	{
 		swWarn("[swFactoryProcess_create] malloc[0] fail");
 		return SW_ERR;
 	}
-	object->writers = sw_calloc(writer_num, sizeof(swThreadWriter));
+	object->writers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, writer_num * sizeof(swThreadWriter));
 	if (object->writers == NULL)
 	{
 		swWarn("[Main] malloc[object->writers] fail");
@@ -45,7 +44,7 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 	object->writer_num = writer_num;
 	object->writer_pti = 0;
 
-	object->workers = sw_calloc(worker_num, sizeof(swWorker));
+	object->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, worker_num * sizeof(swWorker));
 	if (object->workers == NULL)
 	{
 		swWarn("[Main] malloc[object->workers] fail");
@@ -58,7 +57,6 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 	factory->finish = swFactoryProcess_finish;
 	factory->start = swFactoryProcess_start;
 	factory->notify = swFactoryProcess_notify;
-	factory->event = swFactoryProcess_event;
 	factory->shutdown = swFactoryProcess_shutdown;
 	factory->end = swFactoryProcess_end;
 	factory->onTask = NULL;
@@ -66,13 +64,9 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 	return SW_OK;
 }
 
-int swFactoryProcess_event(swFactory *factory, swEventData *data)
-{
-	return swProcessPool_dispatch(&SwooleG.task_workers, data);
-}
-
 int swFactoryProcess_shutdown(swFactory *factory)
 {
+	swWarn("swFactoryProcess_shutdown");
 	swFactoryProcess *object = factory->object;
 	swServer *serv = factory->ptr;
 	int i;
@@ -90,9 +84,6 @@ int swFactoryProcess_shutdown(swFactory *factory)
 #else
 	//close pipes
 #endif
-	sw_free(object->workers);
-	sw_free(object->writers);
-	sw_free(object);
 	return SW_OK;
 }
 

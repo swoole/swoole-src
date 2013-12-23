@@ -477,6 +477,7 @@ int swServer_start(swServer *serv)
 	{
 		serv->onShutdown(serv);
 	}
+	swServer_free(serv);
 	return SW_OK;
 }
 

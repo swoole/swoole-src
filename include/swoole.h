@@ -780,7 +780,12 @@ typedef struct _swServerG{
 	swReactor *main_reactor;
 } swServerG;
 
-extern swServerG SwooleG;
+typedef struct _swServerGS{
+	int running;
+} swServerGS;
+
+extern swServerG SwooleG; //Local Global Variable
+extern swServerGS *SwooleGS; //Share Memory Global Variable
 
 #ifdef __cplusplus
 }

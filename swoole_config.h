@@ -7,7 +7,7 @@
 #ifndef SWOOLE_CONFIG_H_
 #define SWOOLE_CONFIG_H_
 
-#define SWOOLE_VERSION             "1.6.7"
+#define SWOOLE_VERSION             "1.7.0"
 
 #define SW_GLOBAL_MEMORY_PAGESIZE  (1024*1024*2) //全局内存的分页
 
