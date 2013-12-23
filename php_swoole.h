@@ -47,6 +47,7 @@ extern zend_module_entry swoole_module_entry;
 
 #ifdef ZTS
 #include "TSRM.h"
+extern void ***sw_thread_ctx;
 #endif
 //#define SW_USE_PHP        1
 #define SW_HANDLE_NUM

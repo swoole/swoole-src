@@ -46,7 +46,7 @@ HashTable php_sw_reactor_callback;
 HashTable php_sw_client_callback;
 
 #ifdef ZTS
-static void ***sw_thread_ctx;
+void ***sw_thread_ctx;
 #endif
 
 static int php_swoole_udp_from_fd = 0;
