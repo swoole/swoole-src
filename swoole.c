@@ -815,7 +815,7 @@ PHP_FUNCTION(swoole_connection_info)
 	}
 	else
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &fd) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|l", &fd, &from_id) == FAILURE)
 		{
 			return;
 		}
