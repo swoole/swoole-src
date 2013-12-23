@@ -255,8 +255,6 @@ static void php_swoole_try_run_reactor()
 		ZVAL_STRING(callback, "swoole_event_wait", 1);
 		shutdown_function_entry.arguments[0] = callback;
 
-		TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-
 		if (!register_user_shutdown_function("swoole_event_wait", sizeof("swoole_event_wait"), &shutdown_function_entry TSRMLS_CC))
 		{
 			zval_ptr_dtor(&callback);
@@ -274,6 +272,8 @@ static int swoole_convert_to_fd(zval **fd)
 {
 	php_stream *stream;
 	int socket_fd;
+
+	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
 	php_socket *php_sock;
