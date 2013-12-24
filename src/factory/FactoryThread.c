@@ -45,6 +45,7 @@ int swFactoryThread_create(swFactory *factory, int writer_num)
 	factory->start = swFactoryThread_start;
 	factory->shutdown = swFactoryThread_shutdown;
 	factory->notify = swFactory_notify;
+
 	factory->onTask = NULL;
 	factory->onFinish = NULL;
 	return SW_OK;
