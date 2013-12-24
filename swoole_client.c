@@ -333,6 +333,13 @@ PHP_FUNCTION(swoole_event_add)
 		return;
 	}
 
+#ifdef ZTS
+	if(sw_thread_ctx == NULL)
+	{
+		TSRMLS_SET_CTX(sw_thread_ctx);
+	}
+#endif
+
 	int socket_fd = swoole_convert_to_fd(fd);
 	if(socket_fd < 0)
 	{
@@ -412,6 +419,13 @@ PHP_METHOD(swoole_client, __construct)
 	{
 		RETURN_FALSE;
 	}
+
+#ifdef ZTS
+	if(sw_thread_ctx == NULL)
+	{
+		TSRMLS_SET_CTX(sw_thread_ctx);
+	}
+#endif
 
 	swClient *cli = (swClient*) emalloc(sizeof(swClient));
 	if (swClient_create(cli, type, async) < 0)

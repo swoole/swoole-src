@@ -360,7 +360,6 @@ PHP_FUNCTION(swoole_version)
     RETURN_STRING(swoole_version, 1);
 }
 
-
 #ifdef SW_ASYNC_MYSQL
 PHP_FUNCTION(swoole_get_mysqli_sock)
 {
@@ -373,8 +372,17 @@ PHP_FUNCTION(swoole_get_mysqli_sock)
 		return;
 	}
 	MYSQLI_FETCH_RESOURCE_CONN(mysql, &mysql_link, MYSQLI_STATUS_VALID);
-	if (SUCCESS != php_stream_cast(mysql->mysql->data->net->stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL,
-											(void*)&sock, 1) && sock >= 0)
+
+	php_stream *stream;
+
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION > 4
+	stream = mysql->mysql->data->net->data->m.get_stream(mysql->mysql->data->net TSRMLS_CC);
+#else
+	stream = mysql->mysql->data->net->stream;
+#endif
+
+	if (SUCCESS != php_stream_cast(stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL, (void* )&sock, 1)
+			&& sock >= 0)
 	{
 		RETURN_FALSE;
 	}
@@ -416,8 +424,12 @@ PHP_FUNCTION(swoole_server_create)
 	serv->factory_mode = serv_mode;
 	swTrace("Create host=%s,port=%ld,mode=%d\n", serv_host, serv_port, serv->factory_mode);
 
-	//线程安全
-	TSRMLS_SET_CTX(sw_thread_ctx);
+#ifdef ZTS
+	if(sw_thread_ctx == NULL)
+	{
+		TSRMLS_SET_CTX(sw_thread_ctx);
+	}
+#endif
 
 	bzero(php_sw_callback, sizeof(zval*)*PHP_SERVER_CALLBACK_NUM);
 
