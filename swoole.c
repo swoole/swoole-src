@@ -1,22 +1,20 @@
 /*
- +----------------------------------------------------------------------+
- | PHP Version 5                                                        |
- +----------------------------------------------------------------------+
- | Copyright (c) 1997-2012 The PHP Group                                |
- +----------------------------------------------------------------------+
- | This source file is subject to version 3.01 of the PHP license,      |
- | that is bundled with this package in the file LICENSE, and is        |
- | available through the world-wide-web at the following url:           |
- | http://www.php.net/license/3_01.txt                                  |
- | If you did not receive a copy of the PHP license and are unable to   |
- | obtain it through the world-wide-web, please send a note to          |
- | license@php.net so we can mail you a copy immediately.               |
- +----------------------------------------------------------------------+
- | Author:                                                              |
- +----------------------------------------------------------------------+
- */
+  +----------------------------------------------------------------------+
+  | Swoole                                                               |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 2.0 of the Apache license,    |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+  | If you did not receive a copy of the Apache2.0 license and are unable|
+  | to obtain it through the world-wide-web, please send a note to       |
+  | license@php.net so we can mail you a copy immediately.               |
+  +----------------------------------------------------------------------+
+  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  +----------------------------------------------------------------------+
+*/
 
-/* $Id$ */
+/* $Id: swoole.c 2013-12-24 10:31:55Z tianfeng $ */
 
 #include "php_swoole.h"
 
@@ -73,11 +71,11 @@ static void swoole_destory_client(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 
 static int php_swoole_set_callback(int key, zval *cb TSRMLS_DC);
 
-#define SWOOLE_GET_SERVER(zobject, serv) zval **zserv;if (zend_hash_find(Z_OBJPROP_P(zobject), ZEND_STRS("_server"), (void **) &zserv) == FAILURE){ \
+#define SWOOLE_GET_SERVER(zobject, serv) zval **zserv;\
+	if (zend_hash_find(Z_OBJPROP_P(zobject), ZEND_STRS("_server"), (void **) &zserv) == FAILURE){ \
 	php_error_docref(NULL TSRMLS_CC, E_WARNING, "Not have swoole server");\
 	RETURN_FALSE;}\
 	ZEND_FETCH_RESOURCE(serv, swServer *, zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
-
 
 #ifdef SW_ASYNC_MYSQL
 #include "ext/mysqlnd/mysqlnd.h"
@@ -175,7 +173,12 @@ zend_class_entry *swoole_server_class_entry_ptr;
 
 zend_module_entry swoole_module_entry =
 {
+#if ZEND_MODULE_API_NO >= 20050922
+	STANDARD_MODULE_HEADER_EX, NULL,
+	NULL,
+#else
 	STANDARD_MODULE_HEADER,
+#endif
 	"swoole",
 	swoole_functions,
 	PHP_MINIT(swoole),

@@ -1,7 +1,7 @@
 <?php
 $serv = new swoole_server("127.0.0.1", 9501);
 $serv->set(array(
-    'worker_num' => 4,
+    'worker_num' => 100,
     //'task_worker_num' => 2,
 //    'daemonize' => 1,
 	'open_cpu_affinity' => 1,

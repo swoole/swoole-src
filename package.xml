@@ -12,7 +12,8 @@ Full asynchronous non-blocking
 Multi-Thread or Multi-Process
 Millisecond timer
 Asynchronous MySQL
-AsyncTask workers</description>
+AsyncTask workers
+    </description>
 	<lead>
 		<name>Tianfeng Han</name>
 		<user>tianfenghan</user>
@@ -35,15 +36,14 @@ AsyncTask workers</description>
 		<dir name="/">
 			<file role="doc" name="CREDITS" />
 			<file role="doc" name="README" />
-			<file role="doc" name="include/Readme.h" />
+			<file role="doc" name="include/Readme" />
 			<file role="src" name="config.m4" />
 			<dir name="include">
 				<file role="src" name="swoole.h" />
-				<file role="src" name="memory.h" />
 				<file role="src" name="Server.h" />
 				<file role="src" name="Client.h" />
 				<file role="src" name="atomic.h" />
-				<file role="src" name="ibuffer.h" />
+				<file role="src" name="buffer.h" />
 				<file role="src" name="hashmap.h" />
 				<file role="src" name="list.h" />
 				<file role="src" name="RingQueue.h" />
@@ -73,7 +73,6 @@ AsyncTask workers</description>
 					<file role="src" name="FactoryThread.c" />
 					<file role="src" name="FactoryProcess.c" />
 				</dir>
-
 				<dir name="reactor">
 					<file role="src" name="ReactorBase.c" />
 					<file role="src" name="ReactorSelect.c" />
@@ -81,17 +80,14 @@ AsyncTask workers</description>
 					<file role="src" name="ReactorEpoll.c" />
 					<file role="src" name="ReactorKqueue.c" />
 				</dir>
-
 				<dir name="pipe">
 					<file role="src" name="PipeBase.c" />
 					<file role="src" name="PipeEventfd.c" />
 					<file role="src" name="PipeUnsock.c" />
 				</dir>
-
 				<dir name="queue">
 					<file role="src" name="Msg.c" />
 				</dir>
-
 				<dir name="lock">
 					<file role="src" name="Semaphore.c" />
 					<file role="src" name="Mutex.c" />
@@ -99,7 +95,6 @@ AsyncTask workers</description>
 					<file role="src" name="SpinLock.c" />
 					<file role="src" name="FileLock.c" />
 				</dir>
-
 				<dir name="network">
 					<file role="src" name="Server.c" />
 					<file role="src" name="Client.c" />
@@ -121,19 +116,4 @@ AsyncTask workers</description>
 	</dependencies>
 	<providesextension>swoole</providesextension>
 	<extsrcrelease />
-	<changelog>
-		<release>
-			<date>2013-12-24</date>
-			<version>
-				<release>1.6.7</release>
-				<api>1.6.7</api>
-			</version>
-			<stability>
-				<release>stable</release>
-				<api>stable</api>
-			</stability>
-			<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
-			<notes>- First version for pecl.net</notes>
-		</release>
-	</changelog>
 </package>
