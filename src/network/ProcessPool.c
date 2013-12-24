@@ -67,7 +67,7 @@ void swProcessPool_shutdown(swProcessPool *pool)
 	swoole_running = 0;
 	for (i = 0; i < pool->worker_num; i++)
 	{
-		kill(pool->workers[i].pid, SIGTERM);
+		ret = kill(pool->workers[i].pid, SIGTERM);
 		if (ret < 0)
 		{
 			swWarn("[Manager]kill fail.pid=%d. Error: %s [%d]", pool->workers[i].pid, strerror(errno), errno);
@@ -128,7 +128,6 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
 int swProcessPool_wait(swProcessPool *pool)
 {
 	int pid, new_pid;
-	int i, writer_pti;
 	int reload_worker_i = 0;
 	int ret;
 
