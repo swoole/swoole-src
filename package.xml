@@ -37,6 +37,14 @@ package.xml added to support installation using pear installer
    <file role="src" name="include/memory.h"/>
    <file role="src" name="include/Server.h"/>
    <file role="src" name="include/Client.h"/>
+   <file role="src" name="include/atomic.h"/>
+   <file role="src" name="include/buffer.h"/>
+   <file role="src" name="include/hashmap.h"/>
+   <file role="src" name="include/list.h"/>
+   <file role="doc" name="include/Readme.h"/>
+   <file role="src" name="include/RingQueue.h"/>
+   <file role="src" name="include/uthash.h"/>
+   <file role="src" name="include/tests.h"/>
    <file role="src" name="php_swoole.h"/>
    <file role="src" name="swoole_config.h"/>
    <file role="src" name="swoole.c"/>
