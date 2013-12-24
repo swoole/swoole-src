@@ -99,7 +99,7 @@ static int swServer_master_onClose(swReactor *reactor, swEvent *event)
 	swEventClose cev_queue[SW_CLOSE_QLEN];
 	swEvent notify_ev;
 
-	int i, n, fd, from_id, ret;
+	int i, n, fd, from_id;
 	n = serv->main_pipe.read(&serv->main_pipe, cev_queue, sizeof(cev_queue));
 
 	if (n <= 0)
@@ -372,7 +372,6 @@ static int swServer_check_callback(swServer *serv)
  */
 int swServer_start_base(swServer *serv)
 {
-	int ret;
 	if (serv->onStart != NULL)
 	{
 		serv->onStart(serv);
@@ -422,11 +421,8 @@ int swServer_start_proxy(swServer *serv)
 
 int swServer_start(swServer *serv)
 {
-	swReactor main_reactor;
-	swReactor *main_reactor_ptr = &main_reactor;
 	swFactory *factory = &serv->factory;
 
-	struct timeval tmo;
 	int ret;
 
 	ret = swServer_check_callback(serv);
@@ -615,7 +611,6 @@ int swServer_new_connection(swServer *serv, swEvent *ev)
 
 int swServer_create_base(swServer *serv)
 {
-	int ret = 0;
 	serv->poll_thread_num = 1;
 	serv->poll_threads = sw_calloc(1, sizeof(swThreadPoll));
 	if (serv->poll_threads == NULL)
@@ -816,7 +811,6 @@ static int swServer_poll_start(swServer *serv, swReactor *main_reactor_ptr)
 	swThreadParam *param;
 	swThreadPoll *poll_threads;
 	pthread_t pidt;
-	swListenList_node *listen_host;
 
 	int i, ret;
 	//listen UDP
@@ -909,9 +903,8 @@ int swServer_send_udp_packet(swServer *serv, swSendData *resp)
 int swServer_onFinish2(swFactory *factory, swSendData *resp)
 {
 	swServer *serv = factory->ptr;
-	swThreadPoll *poll_thread = &(serv->poll_threads[resp->info.from_id]);
 	int ret;
-	swUdpFd *fd;
+
 	//UDP
 	if (resp->info.from_id >= serv->poll_thread_num)
 	{
@@ -986,8 +979,7 @@ static void swServer_single_thread_taskpool(swServer *serv)
 
 static int swServer_single_start(swServer *serv)
 {
-	int i, ret;
-	int status;
+	int ret;
 
 	swProcessPool pool;
 	swProcessPool_create(&pool, serv->worker_num, serv->max_request);
@@ -1038,7 +1030,6 @@ static int swServer_single_start(swServer *serv)
 
 static int swServer_single_loop(swProcessPool *pool, swWorker *worker)
 {
-	int ret;
 	swServer *serv = pool->ptr;
 	swReactor *reactor = &(serv->poll_threads[0].reactor);
 	if (swReactor_auto(reactor, serv->max_conn) < 0)
@@ -1076,8 +1067,6 @@ static int swServer_single_loop(swProcessPool *pool, swWorker *worker)
 static int swServer_single_onClose(swReactor *reactor, swEvent *event)
 {
 	swServer *serv = reactor->ptr;
-	swFactory *factory = &(serv->factory);
-	swEvent notify_ev;
 
 	if(swConnection_close(serv, event->fd, &(event->from_id)) == 0)
 	{
@@ -1544,10 +1533,8 @@ int swServer_addListen(swServer *serv, int type, char *host, int port)
 static int swServer_listen(swServer *serv, swReactor *reactor)
 {
 	int sock;
-	int reactor_i = 0;
 
 	swListenList_node *listen_host;
-	swReactor *poll_reactor;
 
 	LL_FOREACH(serv->listen_list, listen_host)
 	{
