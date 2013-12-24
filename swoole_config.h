@@ -7,8 +7,6 @@
 #ifndef SWOOLE_CONFIG_H_
 #define SWOOLE_CONFIG_H_
 
-#define SWOOLE_VERSION             "1.6.7"
-
 #define SW_GLOBAL_MEMORY_PAGESIZE  (1024*1024*2) //全局内存的分页
 
 #define SW_MAX_FDS                 (1024*10) //最大tcp连接数

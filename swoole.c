@@ -183,7 +183,7 @@ zend_module_entry swoole_module_entry =
 	PHP_RINIT(swoole), //RINIT
 	PHP_RSHUTDOWN(swoole), //RSHUTDOWN
 	PHP_MINFO(swoole),
-    SWOOLE_VERSION,
+    PHP_SWOOLE_VERSION,
 	STANDARD_MODULE_PROPERTIES
 };
 
@@ -239,7 +239,7 @@ PHP_MINIT_FUNCTION(swoole)
 
 	REGISTER_LONG_CONSTANT("SWOOLE_SOCK_SYNC", SW_SOCK_SYNC, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_SOCK_ASYNC", SW_SOCK_ASYNC, CONST_CS | CONST_PERSISTENT);
-    REGISTER_STRINGL_CONSTANT("SWOOLE_VERSION", SWOOLE_VERSION, sizeof(SWOOLE_VERSION) - 1, CONST_PERSISTENT | CONST_CS);
+    REGISTER_STRINGL_CONSTANT("SWOOLE_VERSION", PHP_SWOOLE_VERSION, sizeof(PHP_SWOOLE_VERSION) - 1, CONST_PERSISTENT | CONST_CS);
 
 	INIT_CLASS_ENTRY(swoole_client_ce, "swoole_client", swoole_client_methods);
 	swoole_client_class_entry_ptr = zend_register_internal_class(&swoole_client_ce TSRMLS_CC);
@@ -275,7 +275,7 @@ PHP_MINFO_FUNCTION(swoole)
 {
 	php_info_print_table_start();
 	php_info_print_table_header(2, "swoole support", "enabled");
-	php_info_print_table_row(2, "Version", SWOOLE_VERSION);
+	php_info_print_table_row(2, "Version", PHP_SWOOLE_VERSION);
 	php_info_print_table_row(2, "Author", "tianfeng.han[email: mikan.tenny@gmail.com]");
 
 #ifdef HAVE_EPOLL
@@ -353,7 +353,7 @@ static void swoole_destory_client(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 PHP_FUNCTION(swoole_version)
 {
 	char swoole_version[32] = {0};
-	snprintf(swoole_version, sizeof(SWOOLE_VERSION), "%s", SWOOLE_VERSION);
+	snprintf(swoole_version, sizeof(PHP_SWOOLE_VERSION), "%s", PHP_SWOOLE_VERSION);
     RETURN_STRING(swoole_version, 1);
 }
 
