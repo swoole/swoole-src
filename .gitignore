@@ -4,6 +4,7 @@
 *~
 *.so
 Debug/*
+modules/*
 /Debug
 /CMakeFiles
 /cmake_install.cmake

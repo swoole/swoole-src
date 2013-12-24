@@ -204,5 +204,15 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/buffer.c \
         src/network/ProcessPool.c \
       , $ext_shared)
+      
+    PHP_ADD_INCLUDE([$ext_srcdir/include])
+    PHP_ADD_BUILD_DIR($ext_builddir/src/core)
+    PHP_ADD_BUILD_DIR($ext_builddir/src/memory)
+    PHP_ADD_BUILD_DIR($ext_builddir/src/factory)
+    PHP_ADD_BUILD_DIR($ext_builddir/src/reactor)
+    PHP_ADD_BUILD_DIR($ext_builddir/src/pipe)
+    PHP_ADD_BUILD_DIR($ext_builddir/src/queue)
+    PHP_ADD_BUILD_DIR($ext_builddir/src/lock)
+    PHP_ADD_BUILD_DIR($ext_builddir/src/network)
 fi
 

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!DOCTYPE package SYSTEM "../pear/package.dtd">
+<package>
+ <name>swoole</name>
+ <summary>PHP's asynchronous concurrent distributed networking framework</summary>
+ <maintainers>
+  <maintainer>
+   <user>Rango</user>
+   <name>Rango Han</name>
+   <email>mikan.tenny@gmail.com</email>
+   <role>lead</role>
+  </maintainer>
+ </maintainers>
+ <description>
+PHP's asynchronous concurrent distributed networking framework.
+
+Event-driven
+Full asynchronous non-blocking
+Multi-Thread or Multi-Process
+Millisecond timer
+Asynchronous MySQL
+AsyncTask workers
+ </description>
+ <license>Apache2.0</license>
+ <release>
+  <state>stable</state>
+  <version>1.6.7</version>
+  <date>2013-12-19</date>
+  <notes>
+package.xml added to support installation using pear installer
+  </notes>
+  <filelist>
+   <file role="doc" name="CREDITS"/>
+   <file role="doc" name="README"/>
+   <file role="src" name="config.m4"/>
+   <file role="src" name="include/swoole.h"/>
+   <file role="src" name="include/memory.h"/>
+   <file role="src" name="include/Server.h"/>
+   <file role="src" name="include/Client.h"/>
+   <file role="src" name="php_swoole.h"/>
+   <file role="src" name="swoole_config.h"/>
+   <file role="src" name="swoole.c"/>
+   <file role="src" name="swoole_loc.c"/>
+   <file role="src" name="swoole_client.c"/>
+   <file role="src" name="src/core/Base.c"/>
+   <file role="src" name="src/core/log.c"/>
+   <file role="src" name="src/core/hashmap.c"/>
+   <file role="src" name="src/core/RingQueue.c"/>
+   <file role="src" name="src/core/Channel.c"/>
+   <file role="src" name="src/core/timer.c"/>
+   <file role="src" name="src/memory/MemoryPool.c"/>
+   <file role="src" name="src/factory/Factory.c"/>
+   <file role="src" name="src/factory/FactoryThread.c"/>
+   <file role="src" name="src/factory/FactoryProcess.c"/>
+   <file role="src" name="src/reactor/ReactorBase.c"/>
+   <file role="src" name="src/reactor/ReactorSelect.c"/>
+   <file role="src" name="src/ReactorPoll.c"/>
+   <file role="src" name="src/reactor/ReactorEpoll.c"/>
+   <file role="src" name="src/reactor/ReactorKqueue.c"/>
+   <file role="src" name="src/pipe/PipeBase.c"/>
+   <file role="src" name="src/pipe/PipeEventfd.c"/>
+   <file role="src" name="src/pipe/PipeUnsock.c"/>
+   <file role="src" name="src/queue/Msg.c"/>
+   <file role="src" name="src/lock/Semaphore.c"/>
+   <file role="src" name="src/lock/Mutex.c"/>
+   <file role="src" name="src/lock/RWLock.c"/>
+   <file role="src" name="src/lock/SpinLock.c"/>
+   <file role="src" name="src/lock/FileLock.c"/>
+   <file role="src" name="src/network/Server.c"/>
+   <file role="src" name="src/network/Client.c"/>
+   <file role="src" name="src/network/buffer.c"/>
+   <file role="src" name="src/network/ProcessPool.c"/>   
+  </filelist>
+  <deps>
+   <dep type="php" rel="ge" version="5" />
+   <!-- doesn't work yet <dep type="os"  rel="has" name="windows"/> -->
+  </deps>
+ </release>
+</package>
+<!--
+vim:et:ts=1:sw=1
+-->
