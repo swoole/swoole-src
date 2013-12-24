@@ -527,7 +527,6 @@ struct _swFactory
 	int (*dispatch)(struct _swFactory *, swEventData *);
 	int (*finish)(struct _swFactory *, swSendData *);
 	int (*notify)(struct _swFactory *, swEvent *);    //发送一个事件通知
-	int (*event)(struct _swFactory *, swEventData *); //控制器事件
 	int (*end)(struct _swFactory *, swDataHead *);
 
 	int (*onTask)(struct _swFactory *, swEventData *task); //worker function.get a task,goto to work

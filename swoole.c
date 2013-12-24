@@ -1726,7 +1726,7 @@ PHP_FUNCTION(swoole_server_task)
 	//from_id保存worker_id
 	buf.info.from_id = c_worker_pti;
 
-	if (swProcessPool_dispatch(SwooleG.task_workers, &buf) > 0)
+	if (swProcessPool_dispatch(&SwooleG.task_workers, &buf) > 0)
 	{
 		RETURN_LONG(buf.info.fd);
 	}
@@ -1764,7 +1764,7 @@ PHP_FUNCTION(swoole_server_finish)
 		RETURN_FALSE;
 	}
 	SWOOLE_GET_SERVER(zobject, serv);
-	if(serv->factory_mode != SW_MODE_PROCESS || serv->task_worker_num < 1)
+	if(serv->task_worker_num < 1)
 	{
 		swWarn("SwooleServer: finish can not use here");
 		RETURN_FALSE;
