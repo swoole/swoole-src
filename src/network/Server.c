@@ -25,7 +25,7 @@ static int swServer_poll_onReceive_conn_buffer(swReactor *reactor, swEvent *even
 static int swServer_poll_onReceive_data_buffer(swReactor *reactor, swEvent *event);
 
 static void swSignalHanlde(int sig);
-static int swConnection_close(swServer *serv, int fd, int *from_id);
+static int swConnection_close(swServer *serv, int fd, int16_t *from_id);
 
 static int swServer_single_start(swServer *serv);
 static int swServer_single_loop(swProcessPool *pool, swWorker *worker);
@@ -44,7 +44,7 @@ char swoole_running = 0;
 int16_t sw_errno;
 char sw_error[SW_ERROR_MSG_SIZE];
 
-SWINLINE int swConnection_close(swServer *serv, int fd, int *from_id)
+SWINLINE int swConnection_close(swServer *serv, int fd, int16_t *from_id)
 {
 	swConnection *conn = swServer_get_connection(serv, fd);
 	swReactor *from_reactor;
@@ -99,7 +99,8 @@ static int swServer_master_onClose(swReactor *reactor, swEvent *event)
 	swEventClose cev_queue[SW_CLOSE_QLEN];
 	swEvent notify_ev;
 
-	int i, n, fd, from_id;
+	int i, n, fd;
+	int16_t from_id;
 	n = serv->main_pipe.read(&serv->main_pipe, cev_queue, sizeof(cev_queue));
 
 	if (n <= 0)
