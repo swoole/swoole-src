@@ -39,7 +39,7 @@ static int php_swoole_client_onReceive(swReactor *reactor, swEvent *event)
 	int hash_key_len;
 	hash_key_len = spprintf(&hash_key, sizeof(int)+1, "%d", event->fd);
 
-	if(zend_hash_find(&php_sw_client_callback, hash_key, hash_key_len+1, &zobject) != SUCCESS)
+	if(zend_hash_find(&php_sw_client_callback, hash_key, hash_key_len+1, (void **)&zobject) != SUCCESS)
 	{
 		zend_error(E_WARNING, "swoole_client: Fd[%d] is not a swoole_client object", event->fd);
 		return SW_ERR;
@@ -76,7 +76,7 @@ static int php_swoole_client_onConnect(swReactor *reactor, swEvent *event)
 	int hash_key_len;
 	hash_key_len = spprintf(&hash_key, sizeof(int)+1, "%d", event->fd);
 
-	if(zend_hash_find(&php_sw_client_callback, hash_key, hash_key_len+1, &zobject) != SUCCESS)
+	if(zend_hash_find(&php_sw_client_callback, hash_key, hash_key_len+1, (void **)&zobject) != SUCCESS)
 	{
 		zend_error(E_WARNING, "swoole_client->onConnect: Fd=%d is not a swoole_client object", event->fd);
 		return SW_ERR;
@@ -84,7 +84,9 @@ static int php_swoole_client_onConnect(swReactor *reactor, swEvent *event)
 	args[0] = zobject;
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-	int error, len = sizeof(error);
+	int error;
+	socklen_t len = sizeof(error);
+
 	if (getsockopt (event->fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0)
 	{
 		zend_error(E_WARNING, "swoole_client: getsockopt[sock=%d] fail.Error: %s [%d]", event->fd, strerror(errno), errno);
@@ -142,7 +144,7 @@ static int php_swoole_client_onClose(swReactor *reactor, swEvent *event)
 	int hash_key_len;
 	hash_key_len = spprintf(&hash_key, sizeof(int)+1, "%d", event->fd);
 
-	if (zend_hash_find(&php_sw_client_callback, hash_key, hash_key_len + 1, &zobject) != SUCCESS)
+	if (zend_hash_find(&php_sw_client_callback, hash_key, hash_key_len + 1, (void **)&zobject) != SUCCESS)
 	{
 		zend_error(E_WARNING, "swoole_client: Fd[%d] is not a swoole_client object", event->fd);
 		return SW_ERR;
@@ -213,7 +215,7 @@ static int php_swoole_onReactorCallback(swReactor *reactor, swEvent *event)
 	zval **args[1];
 	swoole_reactor_fd *fd;
 
-	if(zend_hash_find(&php_sw_reactor_callback, (char *)&(event->fd), sizeof(event->fd), &fd) != SUCCESS)
+	if(zend_hash_find(&php_sw_reactor_callback, (char *)&(event->fd), sizeof(event->fd), (void**)&fd) != SUCCESS)
 	{
 		zend_error(E_WARNING, "SwooleServer: onReactorCallback not found");
 		return SW_ERR;
@@ -351,7 +353,7 @@ PHP_FUNCTION(swoole_event_add)
 	event.callback = cb;
 	zval_add_ref(&event.callback);
 
-	if(zend_hash_update(&php_sw_reactor_callback, &socket_fd, sizeof(socket_fd), &event, sizeof(swoole_reactor_fd), NULL) == FAILURE)
+	if(zend_hash_update(&php_sw_reactor_callback, (char *)&socket_fd, sizeof(socket_fd), &event, sizeof(swoole_reactor_fd), NULL) == FAILURE)
 	{
 		zend_error(E_WARNING, "swoole_event_add add to hashtable fail");
 		RETURN_FALSE;
