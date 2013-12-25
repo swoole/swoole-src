@@ -1547,7 +1547,7 @@ int swServer_addListen(swServer *serv, int type, char *host, int port)
 
 static int swServer_listen(swServer *serv, swReactor *reactor)
 {
-	int sock;
+	int sock=-1;
 
 	swListenList_node *listen_host;
 
@@ -1576,8 +1576,11 @@ static int swServer_listen(swServer *serv, swReactor *reactor)
 		serv->connection_list[sock].addr.sin_port = listen_host->port;
 	}
 	//将最后一个fd作为minfd和maxfd
-	swServer_set_minfd(serv, sock);
-	swServer_set_maxfd(serv, sock);
+	if (sock>=0)
+	{
+		swServer_set_minfd(serv, sock);
+		swServer_set_maxfd(serv, sock);
+	}
 	return SW_OK;
 }
 
