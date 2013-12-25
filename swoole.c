@@ -1525,7 +1525,7 @@ PHP_FUNCTION(swoole_server_send)
 	}
 	_send.data = buffer;
 
-	int ret, i;
+	int ret=-1, i;
 
 	//分页发送，需要去掉头部所在的尺寸
 	int pagesize = SW_BUFFER_SIZE - sizeof(_send.info);
