@@ -3,7 +3,7 @@
 #ifdef HAVE_EPOLL
 #include <sys/epoll.h>
 #ifndef EPOLLRDHUP
-#define EPOLLWAKEUP (1u << 29)
+#define EPOLLRDHUP   0x2000
 #endif
 
 #ifndef EPOLLONESHOT
@@ -240,6 +240,7 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 				}
 			}
 			//error
+#ifdef EPOLLRDHUP
 			//if ((object->events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)))
 			if ((object->events[i].events & (EPOLLRDHUP)))
 			{
@@ -250,6 +251,7 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 					swWarn("[Reactor#%d] epoll handle fail. fd=%d|type=%d", reactor->id, ev.fd, ev.type);
 				}
 			}
+#endif
 		}
 		if(reactor->onFinish != NULL)
 		{
