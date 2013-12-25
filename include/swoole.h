@@ -656,6 +656,7 @@ enum SW_EVENTS
 
 SWINLINE int swReactor_error(swReactor *reactor);
 SWINLINE int swReactor_fdtype(int fdtype);
+SWINLINE int swReactor_event_read(int fdtype);
 SWINLINE int swReactor_event_write(int fdtype);
 SWINLINE int swReactor_event_error(int fdtype);
 int swReactor_receive(swReactor *reactor, swEvent *event);
