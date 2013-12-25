@@ -207,7 +207,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 					if (ret < 0)
 					{
 						swWarn("[Reactor#%d] select event[type=SW_FD_WRITE] handler fail. fd=%d|errno=%d", reactor->id,
-								event.type, ev->fd, errno);
+								ev->fd, errno);
 					}
 				}
 
@@ -222,9 +222,9 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 					if (ret < 0)
 					{
 						swWarn("[Reactor#%d] select event[type=SW_FD_ERROR] handler fail. fd=%d|errno=%d", reactor->id,
-								event.type, ev->fd, errno);
+								ev->fd, errno);
 					}
-				}
+				  }
 			}
 			if(reactor->onFinish != NULL)
 			{
