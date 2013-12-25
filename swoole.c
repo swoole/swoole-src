@@ -1691,7 +1691,7 @@ PHP_FUNCTION(swoole_server_taskwait)
 	//from_id保存worker_id
 	buf.info.from_id = c_worker_pti;
 
-	if (swProcessPool_dispatch(SwooleG.task_workers, &buf) > 0)
+	if (swProcessPool_dispatch(&SwooleG.task_workers, &buf) > 0)
 	{
 		RETURN_LONG(buf.info.fd);
 	}
