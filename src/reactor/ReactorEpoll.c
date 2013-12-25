@@ -237,7 +237,7 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 				if (ret < 0)
 				{
 					swWarn("[Reactor#%d] epoll event[type=SW_EVENT_WRITE] handler fail. fd=%d|errno=%d", reactor->id,
-							ev.type, ev.fd, errno);
+							ev.fd, errno);
 				}
 			}
 			//error
