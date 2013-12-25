@@ -35,7 +35,7 @@ static int swServer_master_onClose(swReactor *reactor, swDataHead *event);
 static int swServer_master_onAccept(swReactor *reactor, swDataHead *event);
 static int swServer_onTimer(swReactor *reactor, swEvent *event);
 
-static void swServer_single_thread_taskpool(swServer *serv);
+static void *swServer_single_thread_taskpool(void *serv);
 
 swServerG SwooleG;
 
@@ -985,11 +985,12 @@ int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
 	return serv->onTask(serv, task);
 }
 
-static void swServer_single_thread_taskpool(swServer *serv)
+static void *swServer_single_thread_taskpool(void *serv)
 {
 
 	swProcessPool_wait(&SwooleG.task_workers);
-	pthread_exit(NULL);
+	pthread_exit(NULL); /* this is probably unneeded */
+	return NULL;
 }
 
 static int swServer_single_start(swServer *serv)
