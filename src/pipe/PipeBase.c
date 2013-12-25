@@ -63,8 +63,8 @@ static int swPipeBase_close(swPipe *p)
 {
 	int ret1, ret2;
 	swPipeBase *this = p->object;
-	close(this->pipes[0]);
-	close(this->pipes[1]);
+	ret1 = close(this->pipes[0]);
+	ret2 = close(this->pipes[1]);
 	sw_free(this);
 	return 0-ret1-ret2;
 }
