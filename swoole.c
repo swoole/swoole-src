@@ -1420,15 +1420,18 @@ PHP_FUNCTION(swoole_server_start)
 		serv->onTimer = php_swoole_onTimer;
 	}
 
-	if (php_sw_callback[SW_SERVER_CB_onClose] != NULL)
-	{
-		serv->onClose = SW_SERVER_CB_onClose;
-	}
+// Uneeded: mandatory assignment later
+// Incorrect:  warning: assignment makes pointer from integer without a cast
+// 	if (php_sw_callback[SW_SERVER_CB_onClose] != NULL)
+// 	{
+// 		serv->onClose = SW_SERVER_CB_onClose;
+// 	}
+// 
+// 	if (php_sw_callback[SW_SERVER_CB_onConnect] != NULL)
+// 	{
+// 		serv->onConnect = SW_SERVER_CB_onConnect;
+// 	}
 
-	if (php_sw_callback[SW_SERVER_CB_onConnect] != NULL)
-	{
-		serv->onConnect = SW_SERVER_CB_onConnect;
-	}
 	//必选事件
 //	if (php_sw_callback[SW_SERVER_CB_onClose] == NULL)
 //	{
