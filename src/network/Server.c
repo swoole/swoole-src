@@ -1087,7 +1087,7 @@ static int swServer_single_onClose(swReactor *reactor, swEvent *event)
 	{
 		if(serv->onClose != NULL)
 		{
-			serv->onClose(serv, event->fd, &(event->from_id));
+			serv->onClose(serv, event->fd, event->from_id);
 		}
 		serv->connect_count--;
 	}
