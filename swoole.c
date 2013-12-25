@@ -497,12 +497,12 @@ PHP_FUNCTION(swoole_server_set)
 	if (zend_hash_find(vht, ZEND_STRS("poll_thread_num"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->poll_thread_num = (int)Z_LVAL_PP(v);
+		serv->reactor_num = (int)Z_LVAL_PP(v);
 	}
 	if (zend_hash_find(vht, ZEND_STRS("reactor_num"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->poll_thread_num = (int)Z_LVAL_PP(v);
+		serv->reactor_num = (int)Z_LVAL_PP(v);
 	}
 	//writer_num
 	if (zend_hash_find(vht, ZEND_STRS("writer_num"), (void **)&v) == SUCCESS)

@@ -4,6 +4,7 @@
 #include <sys/epoll.h>
 #ifndef EPOLLRDHUP
 #define EPOLLRDHUP   0x2000
+#define NO_EPOLLRDHUP
 #endif
 
 #ifndef EPOLLONESHOT
@@ -240,7 +241,7 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 				}
 			}
 			//error
-#ifdef EPOLLRDHUP
+#ifndef NO_EPOLLRDHUP
 			//if ((object->events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)))
 			if ((object->events[i].events & (EPOLLRDHUP)))
 			{

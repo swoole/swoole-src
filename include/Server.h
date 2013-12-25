@@ -80,7 +80,7 @@ typedef struct swServer_s swServer;
 struct swServer_s
 {
 	uint16_t backlog;
-	uint16_t poll_thread_num;
+	uint16_t reactor_num;
 	uint16_t writer_num;
 	uint16_t worker_num;
 	uint16_t task_worker_num;

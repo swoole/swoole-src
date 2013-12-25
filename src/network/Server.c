@@ -236,10 +236,10 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 
 #if SW_REACTOR_DISPATCH == 1
 		//平均分配
-		c_pti = (serv->c_pti++) % serv->poll_thread_num;
+		c_pti = (serv->c_pti++) % serv->reactor_num;
 #else
 		//使用fd取模来散列
-		c_pti = conn_fd % serv->poll_thread_num;
+		c_pti = conn_fd % serv->reactor_num;
 #endif
 		ret = serv->poll_threads[c_pti].reactor.add(&(serv->poll_threads[c_pti].reactor), conn_fd,
 				SW_FD_TCP | SW_EVENT_READ);
@@ -303,7 +303,7 @@ int swServer_addTimer(swServer *serv, int interval)
  */
 int swServer_reactor_add(swServer *serv, int fd, int sock_type)
 {
-	int poll_id = (serv->c_pti++) % serv->poll_thread_num;
+	int poll_id = (serv->c_pti++) % serv->reactor_num;
 	swReactor *reactor = &(serv->poll_threads[poll_id].reactor);
 	swSetNonBlock(fd); //must be nonblock
 	if(sock_type == SW_SOCK_TCP || sock_type == SW_SOCK_TCP6)
@@ -364,6 +364,20 @@ static int swServer_check_callback(swServer *serv)
 			return SW_ERR;
 		}
 	}
+
+	//check thread num
+	if (serv->reactor_num > SW_CPU_NUM * SW_MAX_THREAD_NCPU)
+	{
+		serv->reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU;
+	}
+	if (serv->writer_num > SW_CPU_NUM * SW_MAX_THREAD_NCPU)
+	{
+		serv->writer_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU;
+	}
+	if (serv->worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU)
+	{
+		swWarn("serv->worker_num > %d, Too many processes the system will be slow", SW_CPU_NUM * SW_MAX_WORKER_NCPU);
+	}
 	return SW_OK;
 }
 
@@ -404,8 +418,8 @@ int swServer_start_proxy(swServer *serv)
 		swWarn("Swoole poll thread start fail");
 		return SW_ERR;
 	}
-
-	main_reactor->id = serv->poll_thread_num; //设为一个特别的ID
+	SwooleG.main_reactor = main_reactor;
+	main_reactor->id = serv->reactor_num; //设为一个特别的ID
 	main_reactor->ptr = serv;
 	main_reactor->setHandle(main_reactor, SW_FD_LISTEN, swServer_master_onAccept);
 	//no use
@@ -484,9 +498,9 @@ int swServer_start(swServer *serv)
 int swServer_close(swServer *serv, swEvent *event)
 {
 	swEventClose cev;
-	if (event->from_id > serv->poll_thread_num)
+	if (event->from_id > serv->reactor_num)
 	{
-		swWarn("Error: From_id > serv->poll_thread_num.from_id=%d", event->from_id);
+		swWarn("Error: From_id > serv->reactor_num.from_id=%d", event->from_id);
 		return SW_ERR;
 	}
 	cev.fd = event->fd;
@@ -545,7 +559,7 @@ void swServer_init(swServer *serv)
 
 	serv->backlog = SW_BACKLOG;
 	serv->factory_mode = SW_MODE_BASE;
-	serv->poll_thread_num = SW_THREAD_NUM;
+	serv->reactor_num = SW_THREAD_NUM;
 	serv->dispatch_mode = SW_DISPATCH_FDMOD;
 	serv->ringbuffer_size = SW_QUEUE_SIZE;
 
@@ -612,11 +626,11 @@ int swServer_new_connection(swServer *serv, swEvent *ev)
 
 int swServer_create_base(swServer *serv)
 {
-	serv->poll_thread_num = 1;
+	serv->reactor_num = 1;
 	serv->poll_threads = sw_calloc(1, sizeof(swThreadPoll));
 	if (serv->poll_threads == NULL)
 	{
-		swError("calloc[poll_threads] fail.alloc_size=%d", (int )(serv->poll_thread_num * sizeof(swThreadPoll)));
+		swError("calloc[poll_threads] fail.alloc_size=%d", (int )(serv->reactor_num * sizeof(swThreadPoll)));
 		return SW_ERR;
 	}
 	serv->connection_list = sw_calloc(serv->max_conn, sizeof(swConnection));
@@ -653,10 +667,10 @@ int swServer_create_proxy(swServer *serv)
 	}
 
 	//初始化poll线程池
-	serv->poll_threads = SwooleG.memory_pool->alloc(SwooleG.memory_pool, (serv->poll_thread_num * sizeof(swThreadPoll)));
+	serv->poll_threads = SwooleG.memory_pool->alloc(SwooleG.memory_pool, (serv->reactor_num * sizeof(swThreadPoll)));
 	if (serv->poll_threads == NULL)
 	{
-		swError("calloc[poll_threads] fail.alloc_size=%d", (int )(serv->poll_thread_num * sizeof(swThreadPoll)));
+		swError("calloc[poll_threads] fail.alloc_size=%d", (int )(serv->reactor_num * sizeof(swThreadPoll)));
 		return SW_ERR;
 	}
 
@@ -829,7 +843,7 @@ static int swServer_poll_start(swServer *serv, swReactor *main_reactor_ptr)
 			return SW_ERR;
 		}
 
-		for (i = 0; i < serv->poll_thread_num; i++)
+		for (i = 0; i < serv->reactor_num; i++)
 		{
 			poll_threads = &(serv->poll_threads[i]);
 			param = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
@@ -907,7 +921,7 @@ int swServer_onFinish2(swFactory *factory, swSendData *resp)
 	int ret;
 
 	//UDP
-	if (resp->info.from_id >= serv->poll_thread_num)
+	if (resp->info.from_id >= serv->reactor_num)
 	{
 		ret = swServer_send_udp_packet(serv, resp);
 	}
@@ -1105,7 +1119,7 @@ static int swServer_poll_loop(swThreadParam *param)
 	}
 #endif
 
-	ret = swReactor_auto(reactor, (serv->max_conn / serv->poll_thread_num) + 1);
+	ret = swReactor_auto(reactor, (serv->max_conn / serv->reactor_num) + 1);
 	if (ret < 0)
 	{
 		return SW_ERR;

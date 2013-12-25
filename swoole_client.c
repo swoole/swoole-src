@@ -347,12 +347,12 @@ PHP_FUNCTION(swoole_event_add)
 		RETURN_FALSE;
 	}
 
-	swoole_reactor_fd *event = emalloc(sizeof(swoole_reactor_fd));
-	event->socket = *fd;
-	event->callback = cb;
-	zval_add_ref(&event->callback);
+	swoole_reactor_fd event;
+	event.socket = *fd;
+	event.callback = cb;
+	zval_add_ref(&event.callback);
 
-	if(zend_hash_update(&php_sw_reactor_callback, &socket_fd, sizeof(socket_fd), event, sizeof(swoole_reactor_fd), NULL) == FAILURE)
+	if(zend_hash_update(&php_sw_reactor_callback, &socket_fd, sizeof(socket_fd), &event, sizeof(swoole_reactor_fd), NULL) == FAILURE)
 	{
 		zend_error(E_WARNING, "swoole_event_add add to hashtable fail");
 		RETURN_FALSE;

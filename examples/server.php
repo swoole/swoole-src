@@ -1,21 +1,15 @@
 <?php
 $serv = new swoole_server("127.0.0.1", 9501);
 $serv->set(array(
-    'worker_num' => 100,
-    //'task_worker_num' => 2,
+    'worker_num' => 2,
 //    'daemonize' => 1,
-	'open_cpu_affinity' => 1,
-   //'data_eof' => "\r\n\r\n",
-    //'open_eof_check' => 1,
-    //'open_tcp_keepalive' => 1,
-    //'log_file' => '/tmp/swoole.log', //swoole error log
 ));
 
 function my_onStart($serv)
 {
 	echo "MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}\n";
     echo "Server: start.Swoole version is [".SWOOLE_VERSION."]\n";
-    //$serv->addtimer(1000);
+    $serv->addtimer(1000);
 }
 
 function my_onShutdown($serv)

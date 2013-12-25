@@ -656,7 +656,7 @@ int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int work
 	{
 		//轮询
 		// data->info.from_id > serv->poll_thread_num, UDP必须使用轮询
-		if (serv->dispatch_mode == SW_DISPATCH_ROUND || data->info.from_id > serv->poll_thread_num)
+		if (serv->dispatch_mode == SW_DISPATCH_ROUND || data->info.from_id > serv->reactor_num)
 		{
 			pti = (object->worker_pti++) % object->worker_num;
 		}
