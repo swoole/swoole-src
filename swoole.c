@@ -744,7 +744,6 @@ PHP_FUNCTION(swoole_server_close)
 	swServer *serv;
 	swEvent ev;
 	long conn_fd, from_id = -1;
-	int ret;
 
 	if (zobject == NULL)
 	{
@@ -1557,12 +1556,10 @@ PHP_FUNCTION(swoole_server_addlisten)
 {
 	zval *zobject = getThis();
 	swServer *serv = NULL;
-	swFactory *factory = NULL;
 	char *host;
 	int host_len;
 	long sock_type;
 	long port;
-	int ret;
 
 	if (zobject == NULL)
 	{
@@ -1586,7 +1583,6 @@ PHP_FUNCTION(swoole_server_deltimer)
 {
 	zval *zobject = getThis();
 	swServer *serv = NULL;
-	swFactory *factory = NULL;
 	long interval;
 
 	if (zobject == NULL)
@@ -1617,7 +1613,6 @@ PHP_FUNCTION(swoole_server_addtimer)
 {
 	zval *zobject = getThis();
 	swServer *serv = NULL;
-	swFactory *factory = NULL;
 	long interval;
 
 	if (php_sw_callback[SW_SERVER_CB_onTimer] == NULL)
@@ -1665,7 +1660,6 @@ PHP_FUNCTION(swoole_set_process_name)
 PHP_FUNCTION(swoole_server_taskwait)
 {
 	zval *zobject = getThis();
-	swServer *serv = NULL;
 	swEventData buf;
 	char *data;
 	int data_len;
@@ -1710,7 +1704,6 @@ PHP_FUNCTION(swoole_server_taskwait)
 PHP_FUNCTION(swoole_server_task)
 {
 	zval *zobject = getThis();
-	swServer *serv = NULL;
 	swEventData buf;
 	char *data;
 	int data_len;
