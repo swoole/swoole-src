@@ -17,6 +17,7 @@
 /* $Id: swoole.c 2013-12-24 10:31:55Z tianfeng $ */
 
 #include "php_swoole.h"
+#include <ext/standard/info.h>
 
 /**
  * PHP5.2
