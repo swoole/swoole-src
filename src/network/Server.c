@@ -376,7 +376,7 @@ static int swServer_check_callback(swServer *serv)
 	}
 	if (serv->worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU)
 	{
-		swWarn("serv->worker_num > %d, Too many processes the system will be slow", SW_CPU_NUM * SW_MAX_WORKER_NCPU);
+		swWarn("serv->worker_num > %ld, Too many processes the system will be slow", SW_CPU_NUM * SW_MAX_WORKER_NCPU);
 	}
 	return SW_OK;
 }
