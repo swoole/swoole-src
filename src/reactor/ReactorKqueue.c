@@ -206,7 +206,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
     t.tv_sec = timeo->tv_sec;
     t.tv_nsec = timeo->tv_usec;
 
-	while (swoole_running > 0)
+	while (SwooleG.running > 0)
 	{
 		n = kevent(this->epfd, NULL, 0, this->events, this->event_max, &t);
 

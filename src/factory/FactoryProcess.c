@@ -151,7 +151,7 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 	//stop
 	if(worker_task_num < 0)
 	{
-		swoole_running = 0;
+		SwooleG.running = 0;
 	}
 	return SW_OK;
 }
@@ -317,7 +317,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 	//for reload
 	swSignalSet(SIGUSR1, swManagerSignalHanlde, 1, 0);
 
-	while (swoole_running > 0)
+	while (SwooleG.running > 0)
 	{
 		pid = wait(NULL);
 		swTrace("[manager] worker stop.pid=%d\n", pid);
@@ -334,7 +334,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 				goto kill_worker;
 			}
 		}
-		if (swoole_running == 1)
+		if (SwooleG.running == 1)
 		{
 			for (i = 0; i < object->worker_num; i++)
 			{
@@ -599,7 +599,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 
 #if SW_WORKER_IPC_MODE == 2
 	//主线程
-	while (swoole_running > 0)
+	while (SwooleG.running > 0)
 	{
 		n = object->rd_queue.out(&object->rd_queue, (swQueue_data *)&rdata, sizeof(rdata.req));
 		if (n < 0)
@@ -847,7 +847,7 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 	sdata.mtype = pti + 1;
 
 	swSingalNone();
-	while (swoole_running > 0)
+	while (SwooleG.running > 0)
 	{
 		swTrace("[Writer]wt_queue[%ld]->out wait", sdata.mtype);
 		int ret = object->wt_queue.out(&object->wt_queue, &sdata, sizeof(sdata.mdata));

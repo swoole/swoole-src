@@ -41,7 +41,7 @@ swUnitTest(server_test)
 
 	//config
 	serv.backlog = 128;
-	serv.poll_thread_num = 2;
+	serv.reactor_num = 2;
 	serv.writer_num = 2;
 	serv.worker_num = 4;
 	serv.factory_mode = 3;

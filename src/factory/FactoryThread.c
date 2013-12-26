@@ -2,8 +2,6 @@
 #include "Server.h"
 #include "RingQueue.h"
 
-extern char swoole_running;
-
 typedef struct _swFactoryThread
 {
 	int writer_num;
@@ -100,7 +98,7 @@ int swFactoryThread_start(swFactory *factory)
 }
 int swFactoryThread_shutdown(swFactory *factory)
 {
-	swoole_running = 0;
+	SwooleG.running = 0;
 	swFactoryThread *this = factory->object;
 	sw_free(this->writers);
 	sw_free(this->queues);
@@ -189,7 +187,7 @@ static int swFactoryThread_writer_loop(swThreadParam *param)
 	}
 	swSingalNone();
 	//main loop
-	while (swoole_running > 0)
+	while (SwooleG.running > 0)
 	{
 		if (swRingQueue_pop(&(this->queues[pti]), (void **) &req) == 0)
 		{

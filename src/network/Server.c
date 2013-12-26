@@ -39,8 +39,6 @@ static void *swServer_single_thread_taskpool(void *serv);
 
 swServerG SwooleG;
 
-//全局变量
-char swoole_running = 0;
 int16_t sw_errno;
 char sw_error[SW_ERROR_MSG_SIZE];
 
@@ -516,13 +514,15 @@ int swServer_close(swServer *serv, swEvent *event)
 void swoole_init(void)
 {
 	extern FILE *swoole_log_fn;
-	if (swoole_running == 0)
+	if (SwooleG.running == 0)
 	{
-		//初始化全局变量
-		swoole_running = 1;
-		sw_errno = 0;
-		bzero(sw_error, SW_ERROR_MSG_SIZE);
 		bzero(&SwooleG, sizeof(SwooleG));
+		bzero(sw_error, SW_ERROR_MSG_SIZE);
+
+		//初始化全局变量
+		SwooleG.running = 1;
+		sw_errno = 0;
+
 		//将日志设置为标准输出
 		swoole_log_fn = stdout;
 		//初始化全局内存
@@ -744,7 +744,7 @@ int swServer_create(swServer *serv)
 int swServer_shutdown(swServer *serv)
 {
 	//stop all thread
-	swoole_running = 0;
+	SwooleG.running = 0;
 	return SW_OK;
 }
 
@@ -957,7 +957,7 @@ static void swServer_poll_udp_loop(swThreadParam *param)
 	bzero(&buf.info, sizeof(buf.info));
 	buf.info.from_fd = sock;
 
-	while (swoole_running == 1)
+	while (SwooleG.running == 1)
 	{
 		ret = recvfrom(sock, buf.data, SW_BUFFER_SIZE, 0, &addr, &addrlen);
 		if (ret > 0)
@@ -1028,6 +1028,9 @@ static int swServer_single_start(swServer *serv)
 	//task workers
 	if (serv->task_worker_num > 0)
 	{
+		//for taskwait
+
+
 		pthread_t ptid;
 		if (swProcessPool_create(&SwooleG.task_workers, serv->task_worker_num, serv->max_request)< 0)
 		{
@@ -1611,7 +1614,7 @@ static void swSignalHanlde(int sig)
 	switch (sig)
 	{
 	case SIGTERM:
-		swoole_running = 0;
+		SwooleG.running = 0;
 		break;
 	case SIGALRM:
 		if (SwooleG.timer.use_pipe == 1)

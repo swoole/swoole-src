@@ -187,7 +187,7 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 		usec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
 	}
 
-	while (swoole_running > 0)
+	while (SwooleG.running > 0)
 	{
 		n = epoll_wait(object->epfd, object->events, object->event_max + 1, usec);
 		if (n < 0)

@@ -189,7 +189,7 @@ int main(int argc, char **argv)
 
 	//config
 	serv.backlog = 128;
-	serv.poll_thread_num = 2; //reactor线程数量
+	serv.reactor_num = 2; //reactor线程数量
 	serv.writer_num = 2;      //writer线程数量
 	serv.worker_num = 2;      //worker进程数量
 
@@ -281,7 +281,7 @@ int my_onReceive(swFactory *factory, swEventData *req)
 	{
 		printf("send to client fail.errno=%d\n", errno);
 	}
-	if (req->info.from_id >= serv->poll_thread_num)
+	if (req->info.from_id >= serv->reactor_num)
 	{
 		struct in_addr addr;
 		addr.s_addr = req->info.fd;

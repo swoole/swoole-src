@@ -478,8 +478,6 @@ typedef struct _swThreadParam
 	int pti;
 } swThreadParam;
 
-//全局变量
-extern char swoole_running;
 extern int16_t sw_errno;
 extern char sw_error[SW_ERROR_MSG_SIZE];
 
@@ -780,6 +778,8 @@ typedef struct _swServerG{
 	swProcessPool task_workers;
 	swAllocator *memory_pool;
 	swReactor *main_reactor;
+	swPipe *task_notify; //for taskwait
+	char **task_result; //for taskwait
 } swServerG;
 
 typedef struct _swServerGS{

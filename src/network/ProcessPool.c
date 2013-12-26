@@ -64,7 +64,7 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data)
 void swProcessPool_shutdown(swProcessPool *pool)
 {
 	int i, ret;
-	swoole_running = 0;
+	SwooleG.running = 0;
 	for (i = 0; i < pool->worker_num; i++)
 	{
 		ret = kill(pool->workers[i].pid, SIGTERM);
@@ -108,7 +108,7 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
 	//使用from_fd保存task_worker的id
 	buf.info.from_fd = worker->id;
 
-	while (swoole_running > 0 && task_n > 0)
+	while (SwooleG.running > 0 && task_n > 0)
 	{
 		n = read(worker->pipe_worker, &buf, sizeof(buf));
 		if (n < 0)
@@ -156,7 +156,7 @@ int swProcessPool_wait(swProcessPool *pool)
 				goto reload_worker;
 			}
 		}
-		if (swoole_running == 1)
+		if (SwooleG.running == 1)
 		{
 			swWorker *exit_worker = swHashMap_find_int(&pool->map, pid);
 			if (exit_worker == NULL)

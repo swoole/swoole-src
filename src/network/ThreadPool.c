@@ -99,24 +99,24 @@ static void *swThreadPool_loop(swThreadParam *param)
 	swThread_task task;
 	int ret;
 
-	printf("starting thread 0x%lx|id=%d\n", pthread_self(), id);
-	while (1)
+	swTrace("starting thread 0x%lx|id=%d\n", pthread_self(), id);
+	while (SwooleG.running)
 	{
 		pthread_mutex_lock(&(pool->mutex));
 		while (pool->task_num == 0 && !pool->shutdown)
 		{
-			printf("thread 0x%lx is waiting\n", pthread_self());
+			swTrace("thread 0x%lx is waiting\n", pthread_self());
 			pthread_cond_wait(&(pool->cond), &(pool->mutex));
 		}
 
 		if (pool->shutdown)
 		{
 			pthread_mutex_unlock(&(pool->mutex));
-			printf("thread [%d] will exit\n", id);
+			swTrace("thread [%d] will exit\n", id);
 			pthread_exit(NULL);
 		}
 
-		printf("thread [%d] is starting to work\n", id);
+		swTrace("thread [%d] is starting to work\n", id);
 
 		pool->task_num--;
 		ret = swChannel_out(pool->chan, &task, sizeof(task));

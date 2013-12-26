@@ -160,7 +160,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
 	int ret;
 	int i;
 
-	while (swoole_running > 0)
+	while (SwooleG.running > 0)
 	{
 		ret = poll(object->events, object->fd_num, timeo->tv_sec * 1000 + timeo->tv_usec / 1000);
 		if (ret < 0)

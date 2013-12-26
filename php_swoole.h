@@ -139,6 +139,7 @@ PHP_METHOD(swoole_client, recv);
 PHP_METHOD(swoole_client, send);
 PHP_METHOD(swoole_client, close);
 PHP_METHOD(swoole_client, on);
+PHP_METHOD(swoole_client, getlocalname);
 
 PHP_METHOD(swoole_lock, __construct);
 PHP_METHOD(swoole_lock, lock);

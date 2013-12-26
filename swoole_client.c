@@ -390,7 +390,7 @@ PHP_FUNCTION(swoole_event_exit)
 	if (php_sw_in_client == 1)
 	{
 		//stop reactor
-		swoole_running = 0;
+		SwooleG.running = 0;
 	}
 }
 
@@ -448,6 +448,48 @@ PHP_METHOD(swoole_client, __construct)
 	zval_ptr_dtor(&zres);
 	zval_ptr_dtor(&zsockfd);
 	RETURN_TRUE;
+}
+
+PHP_METHOD(swoole_client, getlocalname)
+{
+	zval *zres;
+	swClient *cli;
+
+	if (zend_hash_find(Z_OBJPROP_P(getThis()), SW_STRL("_client"), (void **) &zres) == SUCCESS)
+	{
+		ZEND_FETCH_RESOURCE(cli, swClient*, zres, -1, SW_RES_CLIENT_NAME, le_swoole_client);
+	}
+	else
+	{
+		RETURN_FALSE;
+	}
+	if (cli->sock == 0)
+	{
+		RETURN_FALSE;
+	}
+
+  //  struct sockaddr addr;
+//    socklen_t addr_len = sizeof(addr);
+//	int error = getsockname(cli->sock, (struct sockaddr*) &addr, &addr_len);
+//    if (error)
+//    {
+//    	RETURN_FALSE;
+//    }
+
+    array_init(return_value);
+    if (cli->remote_addr.sin_family == AF_INET)
+    {
+        add_assoc_long(return_value, "port", ntohs(cli->remote_addr.sin_port));
+        add_assoc_string(return_value, "ip", inet_ntoa(cli->remote_addr.sin_addr), 1);
+    }
+    else if (cli->remote_addr.sin_family == AF_INET6)
+    {
+
+    }
+    else
+    {
+    	RETURN_FALSE;
+    }
 }
 
 PHP_METHOD(swoole_client, connect)

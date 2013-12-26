@@ -19,6 +19,7 @@ else
 {
 	$loop = intval($argv[1]);
 }
+var_dump($client->getlocalname());
 for($i=0; $i<$loop; $i++)
 {
     $client->send(str_repeat("A", 128).$i);
