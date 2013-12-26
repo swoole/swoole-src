@@ -145,7 +145,6 @@ const zend_function_entry swoole_client_methods[] =
 	PHP_ME(swoole_client, send, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_client, close, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_client, on, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_client, getlocalname, NULL, ZEND_ACC_PUBLIC)
 	PHP_FE_END
 };
 
