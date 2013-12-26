@@ -656,6 +656,7 @@ enum SW_EVENTS
 
 SWINLINE int swReactor_error(swReactor *reactor);
 SWINLINE int swReactor_fdtype(int fdtype);
+SWINLINE int swReactor_event_read(int fdtype);
 SWINLINE int swReactor_event_write(int fdtype);
 SWINLINE int swReactor_event_error(int fdtype);
 int swReactor_receive(swReactor *reactor, swEvent *event);
@@ -673,6 +674,7 @@ int swProcessPool_wait(swProcessPool *pool);
 int swProcessPool_start(swProcessPool *pool);
 void swProcessPool_shutdown(swProcessPool *pool);
 pid_t swProcessPool_spawn(swProcessPool *pool, swWorker *worker);
+int swProcessPool_dispatch(swProcessPool *pool, swEventData *data);
 #define swProcessPool_worker(ma,id) (ma->workers[id])
 
 //-----------------------------Channel---------------------------

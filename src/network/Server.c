@@ -35,7 +35,7 @@ static int swServer_master_onClose(swReactor *reactor, swDataHead *event);
 static int swServer_master_onAccept(swReactor *reactor, swDataHead *event);
 static int swServer_onTimer(swReactor *reactor, swEvent *event);
 
-static void swServer_single_thread_taskpool(swServer *serv);
+static void *swServer_single_thread_taskpool(void *serv);
 
 swServerG SwooleG;
 
@@ -376,7 +376,7 @@ static int swServer_check_callback(swServer *serv)
 	}
 	if (serv->worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU)
 	{
-		swWarn("serv->worker_num > %d, Too many processes the system will be slow", SW_CPU_NUM * SW_MAX_WORKER_NCPU);
+		swWarn("serv->worker_num > %ld, Too many processes the system will be slow", SW_CPU_NUM * SW_MAX_WORKER_NCPU);
 	}
 	return SW_OK;
 }
@@ -985,11 +985,12 @@ int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
 	return serv->onTask(serv, task);
 }
 
-static void swServer_single_thread_taskpool(swServer *serv)
+static void *swServer_single_thread_taskpool(void *serv)
 {
 
 	swProcessPool_wait(&SwooleG.task_workers);
-	pthread_exit(NULL);
+	pthread_exit(NULL); /* this is probably unneeded */
+	return NULL;
 }
 
 static int swServer_single_start(swServer *serv)
@@ -1087,7 +1088,7 @@ static int swServer_single_onClose(swReactor *reactor, swEvent *event)
 	{
 		if(serv->onClose != NULL)
 		{
-			serv->onClose(serv, event->fd, &(event->from_id));
+			serv->onClose(serv, event->fd, event->from_id);
 		}
 		serv->connect_count--;
 	}
@@ -1547,7 +1548,7 @@ int swServer_addListen(swServer *serv, int type, char *host, int port)
 
 static int swServer_listen(swServer *serv, swReactor *reactor)
 {
-	int sock;
+	int sock=-1;
 
 	swListenList_node *listen_host;
 
@@ -1576,8 +1577,11 @@ static int swServer_listen(swServer *serv, swReactor *reactor)
 		serv->connection_list[sock].addr.sin_port = listen_host->port;
 	}
 	//将最后一个fd作为minfd和maxfd
-	swServer_set_minfd(serv, sock);
-	swServer_set_maxfd(serv, sock);
+	if (sock>=0)
+	{
+		swServer_set_minfd(serv, sock);
+		swServer_set_maxfd(serv, sock);
+	}
 	return SW_OK;
 }
 

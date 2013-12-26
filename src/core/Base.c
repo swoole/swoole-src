@@ -318,7 +318,7 @@ void swSingalNone()
 	int ret = pthread_sigmask(SIG_BLOCK, &mask, NULL);
 	if (ret < 0)
 	{
-		swWarn("pthread_sigmask fail", strerror(ret));
+		swWarn("pthread_sigmask fail: %s", strerror(ret));
 	}
 }
 

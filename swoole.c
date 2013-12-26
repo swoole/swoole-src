@@ -17,6 +17,7 @@
 /* $Id: swoole.c 2013-12-24 10:31:55Z tianfeng $ */
 
 #include "php_swoole.h"
+#include <ext/standard/info.h>
 
 /**
  * PHP5.2
@@ -743,7 +744,6 @@ PHP_FUNCTION(swoole_server_close)
 	swServer *serv;
 	swEvent ev;
 	long conn_fd, from_id = -1;
-	int ret;
 
 	if (zobject == NULL)
 	{
@@ -1420,15 +1420,18 @@ PHP_FUNCTION(swoole_server_start)
 		serv->onTimer = php_swoole_onTimer;
 	}
 
-	if (php_sw_callback[SW_SERVER_CB_onClose] != NULL)
-	{
-		serv->onClose = SW_SERVER_CB_onClose;
-	}
+// Uneeded: mandatory assignment later
+// Incorrect:  warning: assignment makes pointer from integer without a cast
+// 	if (php_sw_callback[SW_SERVER_CB_onClose] != NULL)
+// 	{
+// 		serv->onClose = SW_SERVER_CB_onClose;
+// 	}
+// 
+// 	if (php_sw_callback[SW_SERVER_CB_onConnect] != NULL)
+// 	{
+// 		serv->onConnect = SW_SERVER_CB_onConnect;
+// 	}
 
-	if (php_sw_callback[SW_SERVER_CB_onConnect] != NULL)
-	{
-		serv->onConnect = SW_SERVER_CB_onConnect;
-	}
 	//必选事件
 //	if (php_sw_callback[SW_SERVER_CB_onClose] == NULL)
 //	{
@@ -1525,7 +1528,7 @@ PHP_FUNCTION(swoole_server_send)
 	}
 	_send.data = buffer;
 
-	int ret, i;
+	int ret=-1, i;
 
 	//分页发送，需要去掉头部所在的尺寸
 	int pagesize = SW_BUFFER_SIZE - sizeof(_send.info);
@@ -1556,12 +1559,10 @@ PHP_FUNCTION(swoole_server_addlisten)
 {
 	zval *zobject = getThis();
 	swServer *serv = NULL;
-	swFactory *factory = NULL;
 	char *host;
 	int host_len;
 	long sock_type;
 	long port;
-	int ret;
 
 	if (zobject == NULL)
 	{
@@ -1585,7 +1586,6 @@ PHP_FUNCTION(swoole_server_deltimer)
 {
 	zval *zobject = getThis();
 	swServer *serv = NULL;
-	swFactory *factory = NULL;
 	long interval;
 
 	if (zobject == NULL)
@@ -1616,7 +1616,6 @@ PHP_FUNCTION(swoole_server_addtimer)
 {
 	zval *zobject = getThis();
 	swServer *serv = NULL;
-	swFactory *factory = NULL;
 	long interval;
 
 	if (php_sw_callback[SW_SERVER_CB_onTimer] == NULL)
@@ -1664,7 +1663,6 @@ PHP_FUNCTION(swoole_set_process_name)
 PHP_FUNCTION(swoole_server_taskwait)
 {
 	zval *zobject = getThis();
-	swServer *serv = NULL;
 	swEventData buf;
 	char *data;
 	int data_len;
@@ -1696,7 +1694,7 @@ PHP_FUNCTION(swoole_server_taskwait)
 	//from_id保存worker_id
 	buf.info.from_id = c_worker_pti;
 
-	if (swProcessPool_dispatch(SwooleG.task_workers, &buf) > 0)
+	if (swProcessPool_dispatch(&SwooleG.task_workers, &buf) > 0)
 	{
 		RETURN_LONG(buf.info.fd);
 	}
@@ -1709,7 +1707,6 @@ PHP_FUNCTION(swoole_server_taskwait)
 PHP_FUNCTION(swoole_server_task)
 {
 	zval *zobject = getThis();
-	swServer *serv = NULL;
 	swEventData buf;
 	char *data;
 	int data_len;

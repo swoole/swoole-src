@@ -100,8 +100,7 @@ int swTimer_add(swTimer *timer, int ms)
 int swTimer_select(swTimer *timer, swServer *serv)
 {
 	void *tmp = NULL;
-	int ret;
-	time_t key;
+	uint64_t key;
 	swTimer_node *timer_node;
 
 	time_t now_ms = swTimer_get_ms();
@@ -112,7 +111,7 @@ int swTimer_select(swTimer *timer, swServer *serv)
 
 	while (1)
 	{
-		tmp = swHashMap_foreach_int(&timer->list, &key, &timer_node, tmp);
+		tmp = swHashMap_foreach_int(&timer->list, &key, (void **)&timer_node, tmp);
 		//值为空
 		if (timer_node == NULL)
 		{

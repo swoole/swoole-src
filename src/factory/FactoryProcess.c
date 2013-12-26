@@ -13,7 +13,9 @@ static int swFactoryProcess_worker_receive(swReactor *reactor, swEvent *event);
 
 static int swFactoryProcess_writer_start(swFactory *factory);
 static int swFactoryProcess_writer_loop_unsock(swThreadParam *param);
+#if SW_WORKER_IPC_MODE == 2
 static int swFactoryProcess_writer_loop_queue(swThreadParam *param);
+#endif
 static int swFactoryProcess_writer_receive(swReactor *, swEvent *);
 
 static int swFactoryProcess_notify(swFactory *factory, swEvent *event);
@@ -67,7 +69,6 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 int swFactoryProcess_shutdown(swFactory *factory)
 {
 	swFactoryProcess *object = factory->object;
-	swServer *serv = factory->ptr;
 	int i;
 	//kill manager process
 	kill(object->manager_pid, SIGTERM);
@@ -299,12 +300,11 @@ static void swManagerSignalHanlde(int sig)
 static int swFactoryProcess_manager_loop(swFactory *factory)
 {
 	int pid, new_pid;
-	int i, writer_pti;
+	int i;
 	int reload_worker_i = 0;
 	int ret;
 
 	swFactoryProcess *object = factory->object;
-	swServer *serv = factory->ptr;
 	swWorker *reload_workers;
 
 	reload_workers = sw_calloc(object->worker_num, sizeof(swWorker));
@@ -433,7 +433,6 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti)
 int swFactoryProcess_end(swFactory *factory, swDataHead *event)
 {
 	int ret;
-	swFactoryProcess *object = factory->object;
 	swServer *serv = factory->ptr;
 	swEvent ev;
 
@@ -522,16 +521,18 @@ static int get_rand(int worker_pti)
 
 static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 {
+#if SW_WORKER_IPC_MODE == 2
 	struct {
 		long pti;
 		swEventData req;
 	} rdata;
+	int n;
+#endif
 
 	swFactoryProcess *object = factory->object;
 	swServer *serv = factory->ptr;
 
 	int pipe_rd = object->workers[worker_pti].pipe_worker;
-	int n;
 
 	c_worker_pti = worker_pti;
 	object->manager_pid = getppid();
@@ -634,7 +635,6 @@ static struct {
  */
 int swFactoryProcess_notify(swFactory *factory, swDataHead *ev)
 {
-	swFactoryProcess *object = factory->object;
 	memcpy(&sw_notify_data._send, ev, sizeof(swDataHead));
 	sw_notify_data._send.len = 0;
 	return swFactoryProcess_send2worker(factory, (swEventData *)&sw_notify_data._send, -1);
@@ -784,9 +784,8 @@ int swFactoryProcess_writer_excute(swFactory *factory, swEventData *resp)
 
 int swFactoryProcess_writer_receive(swReactor *reactor, swDataHead *ev)
 {
-	int n, ret;
+	int n;
 	swFactory *factory = reactor->factory;
-	swServer *serv = factory->ptr;
 	swEventData resp;
 
 	//Unix Sock UDP
@@ -831,6 +830,8 @@ int swFactoryProcess_writer_loop_unsock(swThreadParam *param)
 	pthread_exit((void *) param);
 	return SW_OK;
 }
+
+#if SW_WORKER_IPC_MODE == 2
 /**
  * 使用消息队列通信
  */
@@ -838,9 +839,7 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 {
 	swFactory *factory = param->object;
 	swFactoryProcess *object = factory->object;
-	swServer *serv = factory->ptr;
 
-	int ret;
 	int pti = param->pti;
 
 	swQueue_data sdata;
@@ -864,3 +863,4 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 	pthread_exit((void *) param);
 	return SW_OK;
 }
+#endif
