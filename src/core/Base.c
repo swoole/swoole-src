@@ -206,6 +206,15 @@ SWINLINE int swWrite(int fd, void *buf, int count)
 	return totlen;
 }
 
+int swPipeNotify_auto(swPipe *p, int blocking, int semaphore)
+{
+#ifdef HAVE_EVENTFD
+	return swPipeEventfd_create(p, blocking, semaphore);
+#else
+	return swPipeBase_create(p, blocking);
+#endif
+}
+
 //将套接字设置为非阻塞方式
 SWINLINE void swSetNonBlock(int sock)
 {

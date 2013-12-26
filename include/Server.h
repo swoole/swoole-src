@@ -19,6 +19,9 @@ extern "C" {
 #define SW_TCP_KEEPIDLE          3600 //1小时
 #define SW_TCP_KEEPINTERVAL      60
 
+#define SW_TASK_BLOCKING         1
+#define SW_TASK_NONBLOCK         0
+
 #define SW_EVENT_TCP             0 //TCP
 #define SW_EVENT_UDP             1 //UDP
 #define SW_EVENT_CLOSE           5 //关闭连接

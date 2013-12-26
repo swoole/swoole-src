@@ -25,7 +25,7 @@ static int swServer_poll_onReceive_conn_buffer(swReactor *reactor, swEvent *even
 static int swServer_poll_onReceive_data_buffer(swReactor *reactor, swEvent *event);
 
 static void swSignalHanlde(int sig);
-static int swConnection_close(swServer *serv, int fd, int16_t *from_id);
+SWINLINE static int swConnection_close(swServer *serv, int fd, int16_t *from_id);
 
 static int swServer_single_start(swServer *serv);
 static int swServer_single_loop(swProcessPool *pool, swWorker *worker);
@@ -36,13 +36,18 @@ static int swServer_master_onAccept(swReactor *reactor, swDataHead *event);
 static int swServer_onTimer(swReactor *reactor, swEvent *event);
 
 static void *swServer_single_thread_taskpool(void *serv);
+static int swServer_start_proxy(swServer *serv);
+static int swServer_start_base(swServer *serv);
+static int swServer_create_proxy(swServer *serv);
+static int swServer_create_base(swServer *serv);
 
 swServerG SwooleG;
+swWorkerG SwooleWG;
 
 int16_t sw_errno;
 char sw_error[SW_ERROR_MSG_SIZE];
 
-SWINLINE int swConnection_close(swServer *serv, int fd, int16_t *from_id)
+SWINLINE static int swConnection_close(swServer *serv, int fd, int16_t *from_id)
 {
 	swConnection *conn = swServer_get_connection(serv, fd);
 	swReactor *from_reactor;
@@ -396,7 +401,7 @@ int swServer_start_base(swServer *serv)
  * proxy模式
  * 在单独的n个线程中接受维持TCP连接
  */
-int swServer_start_proxy(swServer *serv)
+static int swServer_start_proxy(swServer *serv)
 {
 	int ret;
 	swReactor *main_reactor = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swReactor));
@@ -435,7 +440,6 @@ int swServer_start_proxy(swServer *serv)
 int swServer_start(swServer *serv)
 {
 	swFactory *factory = &serv->factory;
-
 	int ret;
 
 	ret = swServer_check_callback(serv);
@@ -451,7 +455,6 @@ int swServer_start(swServer *serv)
 			return SW_ERR;
 		}
 	}
-
 	//设置factory回调函数
 	serv->factory.ptr = serv;
 	serv->factory.onTask = serv->onReceive;
@@ -463,9 +466,23 @@ int swServer_start(swServer *serv)
 	{
 		serv->factory.onFinish = swServer_onFinish;
 	}
+	//for taskwait
+	if (serv->task_worker_num > 0 && serv->worker_num > 0)
+	{
+		int i, ret;
+		SwooleG.task_result = sw_shm_calloc(serv->worker_num, sizeof(swEventData));
+		SwooleG.task_notify = sw_calloc(serv->worker_num, sizeof(swPipe));
+		for(i =0; i< serv->worker_num; i++)
+		{
+			if(swPipeNotify_auto(&SwooleG.task_notify[i], 1, 0))
+			{
+				return SW_ERR;
+			}
+		}
+	}
+	//factory start
 	if (factory->start(factory) < 0)
 	{
-		swWarn("Swoole factory start fail");
 		return SW_ERR;
 	}
 	//Signal Init
@@ -624,7 +641,7 @@ int swServer_new_connection(swServer *serv, swEvent *ev)
 	return SW_OK;
 }
 
-int swServer_create_base(swServer *serv)
+static int swServer_create_base(swServer *serv)
 {
 	serv->reactor_num = 1;
 	serv->poll_threads = sw_calloc(1, sizeof(swThreadPoll));
@@ -649,7 +666,7 @@ int swServer_create_base(swServer *serv)
 	return SW_OK;
 }
 
-int swServer_create_proxy(swServer *serv)
+static int swServer_create_proxy(swServer *serv)
 {
 	int ret = 0;
 	SW_START_SLEEP;

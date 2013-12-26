@@ -49,8 +49,8 @@ void ***sw_thread_ctx;
 #endif
 
 static int php_swoole_udp_from_fd = 0;
-static uint16_t php_swoole_task_id = 1;
-static uint16_t php_swoole_task_from = 0;
+static swEventData *sw_current_task;
+static int php_swoole_task_id;
 
 extern sapi_module_struct sapi_module;
 
@@ -1017,15 +1017,14 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
 	zval *zdata;
 	zval *retval;
 
+	//for swoole_server_finish
+	sw_current_task = req;
+
 	MAKE_STD_ZVAL(zfd);
 	ZVAL_LONG(zfd, (long)req->info.fd);
-	//任务ID
-	php_swoole_task_id = req->info.fd;
 
 	MAKE_STD_ZVAL(zfrom_id);
 	ZVAL_LONG(zfrom_id, (long)req->info.from_id);
-	//任务来源
-	php_swoole_task_from = req->info.from_id;
 
 	MAKE_STD_ZVAL(zdata);
 	ZVAL_STRINGL(zdata, req->data, req->info.len, 1);
@@ -1664,22 +1663,25 @@ PHP_FUNCTION(swoole_server_taskwait)
 {
 	zval *zobject = getThis();
 	swEventData buf;
+	long timeout = SW_TASKWAIT_TIMEOUT;
 	char *data;
 	int data_len;
+
 	if (zobject == NULL)
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Os", &zobject, swoole_server_class_entry_ptr, &data, &data_len) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Os|l", &zobject, swoole_server_class_entry_ptr, &data, &data_len, &timeout) == FAILURE)
 		{
 			return;
 		}
 	}
 	else
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &data, &data_len) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &data, &data_len, &timeout) == FAILURE)
 		{
 			return;
 		}
 	}
+
 	if(data_len > sizeof(buf.data))
 	{
 		swWarn("SwooleServer: task data max_size=%d.", sizeof(buf.data));
@@ -1688,20 +1690,33 @@ PHP_FUNCTION(swoole_server_taskwait)
 
 	memcpy(buf.data, data, data_len);
 	buf.info.len = data_len;
+	buf.info.type = SW_TASK_BLOCKING;
 	//使用fd保存task_id
 	buf.info.fd = php_swoole_task_id++;
-	extern int c_worker_pti;
 	//from_id保存worker_id
-	buf.info.from_id = c_worker_pti;
+	buf.info.from_id = SwooleWG.id;
 
 	if (swProcessPool_dispatch(&SwooleG.task_workers, &buf) > 0)
 	{
-		RETURN_LONG(buf.info.fd);
+		int ret = 0;
+		uint64_t notify;
+		swSetTimeout(SwooleG.task_notify[SwooleWG.id].getFd(&SwooleG.task_notify[SwooleWG.id], 0), timeout);
+		do
+		{
+			ret = SwooleG.task_notify[SwooleWG.id].read(&SwooleG.task_notify[SwooleWG.id], &notify, sizeof(notify));
+		} while (ret < 0 && errno == EINTR);
+
+		if (ret > 0)
+		{
+			RETURN_STRINGL(SwooleG.task_result[SwooleWG.id].data, SwooleG.task_result[SwooleWG.id].info.len, 1);
+		}
+		else
+		{
+			zend_error(E_WARNING, "taskwait fail. Error: %s[%d]", strerror(errno), errno);
+		}
 	}
-	else
-	{
-		RETURN_FALSE;
-	}
+	RETURN_FALSE;
+
 }
 
 PHP_FUNCTION(swoole_server_task)
@@ -1710,6 +1725,7 @@ PHP_FUNCTION(swoole_server_task)
 	swEventData buf;
 	char *data;
 	int data_len;
+
 	if (zobject == NULL)
 	{
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Os", &zobject, swoole_server_class_entry_ptr, &data, &data_len) == FAILURE)
@@ -1724,6 +1740,7 @@ PHP_FUNCTION(swoole_server_task)
 			return;
 		}
 	}
+
 	if(data_len > sizeof(buf.data))
 	{
 		swWarn("SwooleServer: task data max_size=%d.", sizeof(buf.data));
@@ -1732,11 +1749,11 @@ PHP_FUNCTION(swoole_server_task)
 
 	memcpy(buf.data, data, data_len);
 	buf.info.len = data_len;
+	buf.info.type = SW_TASK_NONBLOCK;
 	//使用fd保存task_id
 	buf.info.fd = php_swoole_task_id++;
-	extern int c_worker_pti;
 	//from_id保存worker_id
-	buf.info.from_id = c_worker_pti;
+	buf.info.from_id = SwooleWG.id;
 
 	if (swProcessPool_dispatch(&SwooleG.task_workers, &buf) > 0)
 	{
@@ -1782,11 +1799,31 @@ PHP_FUNCTION(swoole_server_finish)
 		RETURN_FALSE;
 	}
 	swFactory *factory = &serv->factory;
-	memcpy(buf.data, data, data_len);
-	buf.info.len = data_len;
-	buf.info.type = SW_EVENT_FINISH;
-	buf.info.fd = php_swoole_task_id;
-	SW_CHECK_RETURN(swFactoryProcess_send2worker(factory, &buf, php_swoole_task_from));
+
+	//for swoole_server_task
+	if (sw_current_task->info.type == SW_TASK_NONBLOCK)
+	{
+		memcpy(buf.data, data, data_len);
+		buf.info.len = data_len;
+		buf.info.type = SW_EVENT_FINISH;
+		buf.info.fd = sw_current_task->info.fd;
+		SW_CHECK_RETURN(swFactoryProcess_send2worker(factory, &buf, sw_current_task->info.from_id));
+	}
+	else
+	{
+		uint64_t flag = 1;
+		int ret;
+		swEventData *result = &SwooleG.task_result[sw_current_task->info.from_id];
+		memcpy(result->data, data, data_len);
+		result->info.len = data_len;
+		result->info.type = SW_EVENT_FINISH;
+		result->info.fd = sw_current_task->info.fd;
+		do
+		{
+			ret = SwooleG.task_notify[sw_current_task->info.from_id].write(&SwooleG.task_notify[sw_current_task->info.from_id], &flag, sizeof(flag));
+		}
+		while(ret < 0 && (errno==EINTR || errno==EAGAIN));
+	}
 }
 
 /*

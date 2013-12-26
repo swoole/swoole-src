@@ -30,6 +30,7 @@
 #define SW_MAINREACTOR_TIMEO       3    //主线程reactor
 #define SW_MAINREACTOR_USE_UNSOCK  1    //主线程使用unsock
 #define SW_REACTOR_WRITER_TIMEO    3    //writer线程的reactor
+#define SW_TASKWAIT_TIMEOUT        0.5
 
 #ifndef SW_WORKER_IPC_MODE
 #define SW_WORKER_IPC_MODE         1    //1:unix socket,2:IPC Message Queue

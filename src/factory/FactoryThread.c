@@ -64,14 +64,9 @@ int swFactoryThread_start(swFactory *factory)
 	}
 	for (i = 0; i < this->writer_num; i++)
 	{
-#ifdef HAVE_EVENTFD
-		ret = swPipeEventfd_create(&this->writers[i].evfd, 1, 1);
-#else
-		ret = swPipeBase_create(&this->writers[i].evfd, 1);
-#endif
-		if (ret < 0)
+		if (swPipeNotify_auto(&this->writers[i].evfd, 1, 1) < 0)
 		{
-			swTrace("create eventfd fail\n");
+			swWarn("create eventfd fail");
 			return SW_ERR;
 		}
 		param = sw_malloc(sizeof(swThreadParam));

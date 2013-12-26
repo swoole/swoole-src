@@ -2,6 +2,7 @@
 $serv = new swoole_server("127.0.0.1", 9501);
 $serv->set(array(
     'worker_num' => 2,
+    'task_worker_num' => 2,
 //    'daemonize' => 1,
 ));
 
@@ -9,7 +10,7 @@ function my_onStart($serv)
 {
 	echo "MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}\n";
     echo "Server: start.Swoole version is [".SWOOLE_VERSION."]\n";
-    $serv->addtimer(1000);
+    //$serv->addtimer(1000);
 }
 
 function my_onShutdown($serv)

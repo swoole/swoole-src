@@ -22,7 +22,6 @@ static int swFactoryProcess_notify(swFactory *factory, swEvent *event);
 static int swFactoryProcess_dispatch(swFactory *factory, swEventData *buf);
 static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
 
-int c_worker_pti = 0; //Current Proccess Worker's id
 static int worker_task_num = 0;
 static int worker_task_always = 0;
 static int manager_worker_reloading = 0;
@@ -468,7 +467,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	} sdata;
 
 	//写队列mtype
-	sdata.pti = (c_worker_pti % serv->writer_num) + 1;
+	sdata.pti = (SwooleWG.id % serv->writer_num) + 1;
 
 	//copy
 	memcpy(sdata._send.data, resp->data, resp->info.len);
@@ -485,7 +484,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 #if SW_WORKER_IPC_MODE == 2
 		ret = object->wt_queue.in(&object->wt_queue, (swQueue_data *)&sdata, sendn);
 #else
-		ret = write(object->workers[c_worker_pti].pipe_worker, &sdata._send, sendn);
+		ret = write(object->workers[SwooleWG.id].pipe_worker, &sdata._send, sendn);
 #endif
 		//printf("wt_queue->in: fd=%d|from_id=%d|data=%s|ret=%d|errno=%d\n", sdata._send.info.fd, sdata._send.info.from_id, sdata._send.data, ret, errno);
 		if (ret >= 0)
@@ -534,7 +533,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 
 	int pipe_rd = object->workers[worker_pti].pipe_worker;
 
-	c_worker_pti = worker_pti;
+	SwooleWG.id = worker_pti;
 	object->manager_pid = getppid();
 
 #if SW_WORKER_IPC_MODE == 2

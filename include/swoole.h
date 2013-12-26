@@ -256,6 +256,7 @@ typedef struct _swPipe
 int swPipeBase_create(swPipe *p, int blocking);
 int swPipeEventfd_create(swPipe *p, int blocking, int semaphore);
 int swPipeUnsock_create(swPipe *p, int blocking, int protocol);
+int swPipeNotify_auto(swPipe *p, int blocking, int semaphore);
 void swBreakPoint(void);
 
 //------------------Queue--------------------
@@ -779,15 +780,20 @@ typedef struct _swServerG{
 	swAllocator *memory_pool;
 	swReactor *main_reactor;
 	swPipe *task_notify; //for taskwait
-	char **task_result; //for taskwait
+	swEventData *task_result; //for taskwait
 } swServerG;
 
 typedef struct _swServerGS{
 	int running;
 } swServerGS;
 
-extern swServerG SwooleG; //Local Global Variable
+typedef struct _swWorkerG{
+	int id; //Current Proccess Worker's id
+} swWorkerG;
+
+extern swServerG SwooleG;    //Local Global Variable
 extern swServerGS *SwooleGS; //Share Memory Global Variable
+extern swWorkerG SwooleWG;   //Worker Global Variable
 
 #ifdef __cplusplus
 }
