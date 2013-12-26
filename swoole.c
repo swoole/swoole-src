@@ -257,6 +257,9 @@ PHP_MINIT_FUNCTION(swoole)
 	INIT_CLASS_ENTRY(swoole_lock_ce, "swoole_lock", swoole_lock_methods);
 	swoole_lock_class_entry_ptr = zend_register_internal_class(&swoole_lock_ce TSRMLS_CC);
 
+	//swoole init
+	swoole_init();
+
 	return SUCCESS;
 }
 /* }}} */
@@ -265,9 +268,7 @@ PHP_MINIT_FUNCTION(swoole)
  */
 PHP_MSHUTDOWN_FUNCTION(swoole)
 {
-	/* uncomment this line if you have INI entries
-	 UNREGISTER_INI_ENTRIES();
-	 */
+	swoole_clean();
 	return SUCCESS;
 }
 /* }}} */
@@ -313,8 +314,8 @@ PHP_RINIT_FUNCTION(swoole)
 	zend_hash_init(&php_sw_reactor_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
 	//swoole_client::on
 	zend_hash_init(&php_sw_client_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
-	//swoole init
-	swoole_init();
+	//running
+	SwooleG.running = 1;
 	return SUCCESS;
 }
 
@@ -330,7 +331,6 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
 			zval_dtor(php_sw_callback[i]);
 		}
 	}
-	swoole_clean();
 	return SUCCESS;
 }
 
