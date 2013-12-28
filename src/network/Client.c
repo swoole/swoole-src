@@ -137,7 +137,7 @@ int swClient_tcp_recv(swClient *cli, char *data, int len, int waitall)
 
 	if (ret < 0)
 	{
-		if (errno == 4)
+		if (errno == EINTR)
 		{
 			ret = recv(cli->sock, data, len, flag);
 		}
