@@ -44,6 +44,9 @@ int swReactorEpoll_create(swReactor *reactor, int max_event_num)
 		swWarn("malloc[0] fail\n");
 		return SW_ERR;
 	}
+	bzero(reactor, sizeof(swReactor));
+	bzero(reactor_object, sizeof(swReactorEpoll));
+
 	reactor->object = reactor_object;
 	reactor_object->events = sw_calloc(max_event_num, sizeof(struct epoll_event));
 

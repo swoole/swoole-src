@@ -33,6 +33,9 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num)
 		swTrace("[swReactorKqueueCreate] malloc[0] fail\n");
 		return SW_ERR;
 	}
+	bzero(reactor, sizeof(swReactor));
+	bzero(reactor_object, sizeof(swReactorKqueue));
+
 	reactor->object = reactor_object;
 	reactor_object->events = sw_calloc(max_event_num, sizeof(struct kevent));
 

@@ -29,6 +29,9 @@ int swReactorPoll_create(swReactor *reactor, int max_fd_num)
 		swError("malloc[0] fail\n");
 		return SW_ERR;
 	}
+	bzero(reactor, sizeof(swReactor));
+	bzero(object, sizeof(swReactorPoll));
+
 	object->fds = sw_calloc(max_fd_num, sizeof(swPollFdInfo));
 	if (object->fds == NULL)
 	{

@@ -13,7 +13,7 @@ function my_onStart($serv)
 
 function my_onReceive($serv, $fd, $from_id, $data)
 {
-	var_dump($serv->connection_info($fd, $from_id));
+	//var_dump($serv->connection_info($fd, $from_id));
 	$serv->send($fd, 'Swoole: ' . $data, $from_id);
 }
 
