@@ -46,20 +46,19 @@ swDataBuffer_item* swDataBuffer_newItem(swDataBuffer *data_buffer, int fd, int t
 	{
 		return NULL;
 	}
-	else if (newTrunk == NULL)
+
+	if (newTrunk == NULL)
 	{
 		sw_free(newItem);
 		return NULL;
 	}
-	else
-	{
-		bzero(newItem, sizeof(swDataBuffer_item));
-		newItem->fd = fd;
-		swHashMap_add_int(&data_buffer->map, fd, newItem);
-		newItem->first = newTrunk;
-		return newItem;
-	}
-	return NULL;
+
+    bzero(newItem, sizeof(swDataBuffer_item));
+    newItem->fd = fd;
+    swHashMap_add_int(&data_buffer->map, fd, newItem);
+    newItem->first = newTrunk;
+
+    return newItem;
 }
 
 swDataBuffer_trunk * swDataBuffer_newTrunk(swDataBuffer *data_buffer, swDataBuffer_item *item)
