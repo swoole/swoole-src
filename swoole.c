@@ -48,9 +48,9 @@ HashTable php_sw_client_callback;
 void ***sw_thread_ctx;
 #endif
 
-static int php_swoole_udp_from_fd = 0;
 static swEventData *sw_current_task;
 static int php_swoole_task_id;
+static int php_swoole_udp_from_fd;
 
 extern sapi_module_struct sapi_module;
 
@@ -824,7 +824,7 @@ PHP_FUNCTION(swoole_connection_info)
 	zval *zobject = getThis();
 	swServer *serv;
 	long fd = 0;
-	long from_id = 0;
+	long from_id = -1;
 
 	if (zobject == NULL)
 	{
@@ -844,16 +844,16 @@ PHP_FUNCTION(swoole_connection_info)
 
 	swConnection *conn = swServer_get_connection(serv, fd);
 	//It's udp
-	if(conn == NULL || php_swoole_udp_from_fd != 0)
+	if(conn == NULL || from_id != -1)
 	{
 		array_init(return_value);
-		swConnection *from_sock = swServer_get_connection(serv, php_swoole_udp_from_fd);
+		swConnection *from_sock = swServer_get_connection(serv, from_id);
 		struct in_addr sin_addr;
 		sin_addr.s_addr = fd;
 		if (from_sock != NULL)
 		{
-			add_assoc_long(return_value, "from_fd", php_swoole_udp_from_fd);
-			add_assoc_long(return_value, "from_port",  serv->connection_list[php_swoole_udp_from_fd].addr.sin_port);
+			add_assoc_long(return_value, "from_fd", from_id);
+			add_assoc_long(return_value, "from_port",  serv->connection_list[from_id].addr.sin_port);
 		}
 		if (from_id !=0 )
 		{
@@ -953,6 +953,9 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	zval *zdata;
 	zval *retval;
 
+	//UDP使用from_id作为port,fd做为ip
+	php_swoole_udp_t udp_info;
+
 	int from_id;
 
 	MAKE_STD_ZVAL(zfd);
@@ -961,8 +964,6 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	MAKE_STD_ZVAL(zfrom_id);
 	if(req->info.type == SW_EVENT_UDP)
 	{
-		//UDP使用from_id作为port,fd做为ip
-		php_swoole_udp_t udp_info;
 		php_swoole_udp_from_fd = udp_info.from_fd = req->info.from_fd;
 		udp_info.port = req->info.from_id;
 		memcpy(&from_id, &udp_info, sizeof(from_id));
@@ -1418,38 +1419,19 @@ PHP_FUNCTION(swoole_server_start)
 	{
 		serv->onTimer = php_swoole_onTimer;
 	}
-
-// Uneeded: mandatory assignment later
-// Incorrect:  warning: assignment makes pointer from integer without a cast
-// 	if (php_sw_callback[SW_SERVER_CB_onClose] != NULL)
-// 	{
-// 		serv->onClose = SW_SERVER_CB_onClose;
-// 	}
-// 
-// 	if (php_sw_callback[SW_SERVER_CB_onConnect] != NULL)
-// 	{
-// 		serv->onConnect = SW_SERVER_CB_onConnect;
-// 	}
-
-	//必选事件
-//	if (php_sw_callback[SW_SERVER_CB_onClose] == NULL)
-//	{
-//		zend_error(E_ERROR, "SwooleServer: onClose must set.");
-//		RETURN_FALSE;
-//	}
-//	if (php_sw_callback[SW_SERVER_CB_onConnect] == NULL)
-//	{
-//		zend_error(E_ERROR, "SwooleServer: onConnect must set.");
-//		RETURN_FALSE;
-//	}
+ 	if (php_sw_callback[SW_SERVER_CB_onClose] != NULL)
+ 	{
+ 		serv->onClose = php_swoole_onClose;
+ 	}
+ 	if (php_sw_callback[SW_SERVER_CB_onConnect] != NULL)
+ 	{
+ 		serv->onConnect = php_swoole_onConnect;
+ 	}
 	if (php_sw_callback[SW_SERVER_CB_onReceive] == NULL)
 	{
 		zend_error(E_ERROR, "SwooleServer: onReceive must set.");
 		RETURN_FALSE;
 	}
-
-	serv->onClose = php_swoole_onClose;
-	serv->onConnect = php_swoole_onConnect;
 	serv->onReceive = php_swoole_onReceive;
 
 	zval_add_ref(&zobject);
@@ -1509,7 +1491,7 @@ PHP_FUNCTION(swoole_server_send)
 	//TCP
 	if(php_swoole_udp_from_fd == 0)
 	{
-		if (from_id < -1)
+		if (from_id == -1)
 		{
 			_send.info.from_id = factory->last_from_id;
 		}
