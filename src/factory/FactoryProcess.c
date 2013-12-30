@@ -654,15 +654,22 @@ int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int work
 	if (worker_id < 0)
 	{
 		//轮询
-		// data->info.from_id > serv->poll_thread_num, UDP必须使用轮询
-		if (serv->dispatch_mode == SW_DISPATCH_ROUND || data->info.from_id > serv->reactor_num)
+		if (serv->dispatch_mode == SW_DISPATCH_ROUND)
 		{
 			pti = (object->worker_pti++) % object->worker_num;
 		}
 		//使用fd取摸来散列
 		else if (serv->dispatch_mode == SW_DISPATCH_FDMOD)
 		{
-			pti = data->info.fd % object->worker_num;
+			if(data->info.type == SW_EVENT_TCP)
+			{
+				pti = data->info.fd % object->worker_num;
+			}
+			//udp use remote port
+			else
+			{
+				pti = ((uint16_t) data->info.from_id) % object->worker_num;
+			}
 		}
 		//使用抢占式队列(IPC消息队列)分配
 		else
@@ -692,6 +699,7 @@ int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int work
 	ret = object->rd_queue.in(&object->rd_queue, in_data, send_len);
 	swTrace("[Master]rd_queue[%ld]->in: fd=%d|type=%d|len=%d", in_data->mtype, info->fd, info->type, info->len);
 #else
+	//swWarn("pti=%d|from_id=%d", pti, data->info.from_id);
 	//send to unix sock
 	ret = swWrite(object->workers[pti].pipe_master, (char *) data, send_len);
 #endif

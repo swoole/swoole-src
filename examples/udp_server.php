@@ -12,7 +12,7 @@ function my_onStart($serv)
 
 function my_onReceive($serv, $fd, $from_id, $data)
 {
-	//var_dump($serv->connection_info($fd, $from_id));
+	var_dump($serv->connection_info($fd, $from_id));
 	echo "worker_pid=".posix_getpid().PHP_EOL;
 	$serv->send($fd, 'Swoole: ' . $data, $from_id);
 }

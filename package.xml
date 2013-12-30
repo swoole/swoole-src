@@ -20,23 +20,26 @@ AsyncTask workers
 		<email>mikan.tenny@gmail.com</email>
 		<active>yes</active>
 	</lead>
-	<date>2013-12-24</date>
-	<time>10:51:51</time>
+	<date>2013-12-30</date>
+	<time>20:51:51</time>
 	<version>
-		<release>1.6.7</release>
-		<api>1.6.7</api>
+		<release>1.6.8</release>
+		<api>1.6.8</api>
 	</version>
 	<stability>
 		<release>stable</release>
 		<api>stable</api>
 	</stability>
 	<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
-	<notes>- First version for pecl.net</notes>
+	<notes>- Fix all gcc wanning
+- support pecl install
+- new function swoole_server_taskwait
+- remove *.lo files
+	</notes>
 	<contents>
 		<dir name="/">
 			<file role="doc" name="CREDITS" />
-			<file role="doc" name="README" />
-			<file role="doc" name="include/Readme" />
+			<file role="doc" name="README.md" />
 			<file role="src" name="config.m4" />
 			<dir name="include">
 				<file role="src" name="swoole.h" />
