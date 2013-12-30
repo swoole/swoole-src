@@ -332,19 +332,19 @@ int swServer_reactor_del(swServer *serv, int fd, int reacot_id)
 
 static int swServer_check_callback(swServer *serv)
 {
-	if (serv->onConnect == NULL)
-	{
-		swWarn("onConnect is null");
-		return SW_ERR;
-	}
+//	if (serv->onConnect == NULL)
+//	{
+//		swWarn("onConnect is null");
+//		return SW_ERR;
+//	}
+//	if (serv->onClose == NULL)
+//	{
+//		swWarn("onClose is null");
+//		return SW_ERR;
+//	}
 	if (serv->onReceive == NULL)
 	{
 		swWarn("onReceive is null");
-		return SW_ERR;
-	}
-	if (serv->onClose == NULL)
-	{
-		swWarn("onClose is null");
 		return SW_ERR;
 	}
 	//Timer
