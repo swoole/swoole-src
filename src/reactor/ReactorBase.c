@@ -70,6 +70,8 @@ swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdt
 int swReactor_auto(swReactor *reactor, int max_event)
 {
 	int ret;
+	reactor->onFinish = NULL;
+	reactor->onTimeout = NULL;
 #ifdef HAVE_EPOLL
 	ret = swReactorEpoll_create(reactor, max_event);
 #elif defined(HAVE_KQUEUE)

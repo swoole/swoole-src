@@ -39,7 +39,6 @@ int swReactorSelect_create(swReactor *reactor)
 		swWarn("[swReactorSelect_create] malloc[0] fail\n");
 		return SW_ERR;
 	}
-	bzero(reactor, sizeof(swReactor));
 	bzero(object, sizeof(swReactorSelect));
 
 	object->fds = NULL;
