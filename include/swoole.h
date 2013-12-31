@@ -153,10 +153,6 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define SW_SOCK_TCP6           3
 #define SW_SOCK_UDP6           4
 
-#define SW_DISPATCH_ROUND      1
-#define SW_DISPATCH_FDMOD      2
-#define SW_DISPATCH_QUEUE      3
-
 #define SW_LOG_DEBUG           0
 #define SW_LOG_INFO            1
 #define SW_LOG_WARN            2
@@ -611,6 +607,10 @@ typedef struct _swFactoryProcess
 	swQueue rd_queue;
 	swQueue wt_queue;
 
+	//worker的忙闲状态
+	//这里直接使用char来保存了，位运算速度会快，但需要前置计算
+	char *workers_status;
+
 	int manager_pid; //管理进程ID
 	int writer_num; //writer thread num
 	int worker_num; //worker child process num
@@ -789,6 +789,7 @@ typedef struct _swServerGS{
 
 typedef struct _swWorkerG{
 	int id; //Current Proccess Worker's id
+	atomic_uint_t worker_pti;
 } swWorkerG;
 
 extern swServerG SwooleG;    //Local Global Variable

@@ -94,6 +94,18 @@ int swFactoryProcess_start(swFactory *factory)
 		swWarn("swFactory_check_callback fail");
 		return SW_ERR;
 	}
+
+	swServer *serv = factory->ptr;
+	swFactoryProcess *object = factory->object;
+	object->workers_status = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(char)*serv->worker_num);
+
+	//worler idle or busy
+	if(object->workers_status == NULL)
+	{
+		swWarn("alloc for worker_status fail");
+		return SW_ERR;
+	}
+
 	//必须先启动manager进程组，否则会带线程fork
 	if (swFactoryProcess_manager_start(factory) < 0)
 	{
@@ -108,7 +120,12 @@ int swFactoryProcess_start(swFactory *factory)
 int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 {
 	swServer *serv = factory->ptr;
+	swFactoryProcess *object = factory->object;
+
 	factory->last_from_id = task->info.from_id;
+
+	//worker busy
+	object->workers_status[SwooleWG.id] = SW_WORKER_BUSY;
 
 	switch(task->info.type)
 	{
@@ -134,6 +151,10 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 		swWarn("[Worker] error event[type=%d]", (int)task->info.type);
 		break;
 	}
+
+	//worker idle
+	object->workers_status[SwooleWG.id] = SW_WORKER_IDLE;
+
 	//stop
 	if(worker_task_num < 0)
 	{
@@ -501,7 +522,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	return ret;
 }
 
-static int get_rand(int worker_pti)
+static int swRandom(int worker_pti)
 {
 	srand((int)time(0));
 	return rand()%10 * worker_pti;
@@ -561,7 +582,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 	else
 	{
 		worker_task_num = factory->max_request;
-		worker_task_num += get_rand(worker_pti);
+		worker_task_num += swRandom(worker_pti);
 	}
 
 #ifdef HAVE_CPU_AFFINITY
@@ -666,12 +687,24 @@ int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int work
 		//使用抢占式队列(IPC消息队列)分配
 		else
 		{
-#if SW_WORKER_IPC_MODE != 2
-			swError("SW_DISPATCH_QUEUE must use (SW_WORKER_IPC_MODE = 2)");
-#endif
+#if SW_WORKER_IPC_MODE == 2
 			//msgsnd参数必须>0
 			//worker进程中正确的mtype应该是pti + 1
 			pti = object->worker_num;
+#else
+			int i;
+			atomic_t *round = &SwooleWG.worker_pti;
+			for(i=0; i< serv->worker_num; i++)
+			{
+				sw_atomic_fetch_add(round, 1);
+				pti = (*round) % serv->worker_num;
+				if (object->workers_status[pti] == SW_WORKER_IDLE)
+				{
+					break;
+				}
+			}
+#endif
+
 		}
 	}
 	//指定了worker_id

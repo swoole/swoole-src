@@ -13,6 +13,13 @@ extern "C" {
 #define SW_PIPES_NUM           (SW_WORKER_NUM/SW_WRITER_NUM + 1) //每个写线程pipes数组大小
 #define SW_WORKER_NUM          4 //Worker进程数量
 
+#define SW_DISPATCH_ROUND      1
+#define SW_DISPATCH_FDMOD      2
+#define SW_DISPATCH_QUEUE      3
+
+#define SW_WORKER_BUSY         1
+#define SW_WORKER_IDLE         0
+
 #define SW_BACKLOG             512
 
 #define SW_TCP_KEEPCOUNT         5

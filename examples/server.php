@@ -3,6 +3,7 @@ $serv = new swoole_server("127.0.0.1", 9501);
 $serv->set(array(
     'worker_num' => 2,
     'task_worker_num' => 2,
+	'dispatch_mode' => 3,
 //    'daemonize' => 1,
 ));
 
