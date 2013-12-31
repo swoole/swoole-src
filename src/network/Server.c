@@ -469,7 +469,7 @@ int swServer_start(swServer *serv)
 	//for taskwait
 	if (serv->task_worker_num > 0 && serv->worker_num > 0)
 	{
-		int i, ret;
+		int i;
 		SwooleG.task_result = sw_shm_calloc(serv->worker_num, sizeof(swEventData));
 		SwooleG.task_notify = sw_calloc(serv->worker_num, sizeof(swPipe));
 		for(i =0; i< serv->worker_num; i++)

@@ -367,7 +367,7 @@ PHP_FUNCTION(swoole_get_mysqli_sock)
 	MY_MYSQL *mysql;
 	zval *mysql_link;
 	int sock;
-	extern zend_class_entry *mysqli_link_class_entry;
+
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &mysql_link) == FAILURE)
 	{
 		return;

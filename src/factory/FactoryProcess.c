@@ -9,14 +9,15 @@ static int swFactoryProcess_manager_start(swFactory *factory);
 
 static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti);
 static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti);
-static int swFactoryProcess_worker_receive(swReactor *reactor, swEvent *event);
 
 static int swFactoryProcess_writer_start(swFactory *factory);
-static int swFactoryProcess_writer_loop_unsock(swThreadParam *param);
 #if SW_WORKER_IPC_MODE == 2
 static int swFactoryProcess_writer_loop_queue(swThreadParam *param);
-#endif
+#else
+static int swFactoryProcess_writer_loop_unsock(swThreadParam *param);
+static int swFactoryProcess_worker_receive(swReactor *reactor, swEvent *event);
 static int swFactoryProcess_writer_receive(swReactor *, swEvent *);
+#endif
 
 static int swFactoryProcess_notify(swFactory *factory, swEvent *event);
 static int swFactoryProcess_dispatch(swFactory *factory, swEventData *buf);
@@ -102,20 +103,6 @@ int swFactoryProcess_start(swFactory *factory)
 	//主进程需要设置为直写模式
 	factory->finish = swFactory_finish;
 	return SW_OK;
-}
-
-static int swFactoryProcess_worker_receive(swReactor *reactor, swEvent *event)
-{
-	int n;
-	swEventData task;
-	swServer *serv = reactor->ptr;
-	swFactory *factory = &serv->factory;
-	do
-	{
-		n = read(event->fd, &task, sizeof(task));
-	}
-	while(n < 0 && errno == EINTR);
-	return swFactoryProcess_worker_excute(factory, &task);
 }
 
 int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
@@ -393,8 +380,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 
 static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti)
 {
-	swFactoryProcess *object = factory->object;
-	int i, pid, ret;
+	int pid, ret;
 
 	pid = fork();
 	if (pid < 0)
@@ -406,6 +392,9 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti)
 	else if (pid == 0)
 	{
 #if SW_WORKER_IPC_MODE != 2
+		swFactoryProcess *object = factory->object;
+		int i;
+
 		for (i = 0; i < object->worker_num; i++)
 		{
 			//非当前的worker_pipe
@@ -520,18 +509,18 @@ static int get_rand(int worker_pti)
 
 static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 {
+	swFactoryProcess *object = factory->object;
+	swServer *serv = factory->ptr;
 #if SW_WORKER_IPC_MODE == 2
 	struct {
 		long pti;
 		swEventData req;
 	} rdata;
 	int n;
+#else
+	int pipe_rd = object->workers[worker_pti].pipe_worker;
 #endif
 
-	swFactoryProcess *object = factory->object;
-	swServer *serv = factory->ptr;
-
-	int pipe_rd = object->workers[worker_pti].pipe_worker;
 
 	SwooleWG.id = worker_pti;
 	object->manager_pid = getppid();
@@ -592,9 +581,6 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 		//worker进程启动时调用
 		serv->onWorkerStart(serv, worker_pti);
 	}
-	struct timeval timeo;
-	timeo.tv_sec = SW_REACTOR_TIMEO_SEC;
-	timeo.tv_usec = SW_REACTOR_TIMEO_USEC;
 
 #if SW_WORKER_IPC_MODE == 2
 	//主线程
@@ -609,7 +595,13 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 		swFactoryProcess_worker_excute(factory, &rdata.req);
 	}
 #else
+	{
+	struct timeval timeo;
+	timeo.tv_sec = SW_REACTOR_TIMEO_SEC;
+	timeo.tv_usec = SW_REACTOR_TIMEO_USEC;
+
 	SwooleG.main_reactor->wait(SwooleG.main_reactor, &timeo);
+	}
 #endif
 	if (serv->onWorkerStop != NULL)
 	{
@@ -789,6 +781,40 @@ int swFactoryProcess_writer_excute(swFactory *factory, swEventData *resp)
 	return SW_OK;
 }
 
+#if SW_WORKER_IPC_MODE == 2
+/**
+ * 使用消息队列通信
+ */
+int swFactoryProcess_writer_loop_queue(swThreadParam *param)
+{
+	swFactory *factory = param->object;
+	swFactoryProcess *object = factory->object;
+
+	int pti = param->pti;
+
+	swQueue_data sdata;
+	//必须加1,msg_type必须不能为0
+	sdata.mtype = pti + 1;
+
+	swSingalNone();
+	while (SwooleG.running > 0)
+	{
+		swTrace("[Writer]wt_queue[%ld]->out wait", sdata.mtype);
+		int ret = object->wt_queue.out(&object->wt_queue, &sdata, sizeof(sdata.mdata));
+		if (ret < 0)
+		{
+			swWarn("[writer]wt_queue->out fail.Error: %s [%d]", strerror(errno), errno);
+		}
+		else
+		{
+			swFactoryProcess_writer_excute(factory, (swEventData *)sdata.mdata);
+		}
+	}
+	pthread_exit((void *) param);
+	return SW_OK;
+}
+
+#else
 int swFactoryProcess_writer_receive(swReactor *reactor, swDataHead *ev)
 {
 	int n;
@@ -838,36 +864,17 @@ int swFactoryProcess_writer_loop_unsock(swThreadParam *param)
 	return SW_OK;
 }
 
-#if SW_WORKER_IPC_MODE == 2
-/**
- * 使用消息队列通信
- */
-int swFactoryProcess_writer_loop_queue(swThreadParam *param)
+static int swFactoryProcess_worker_receive(swReactor *reactor, swEvent *event)
 {
-	swFactory *factory = param->object;
-	swFactoryProcess *object = factory->object;
-
-	int pti = param->pti;
-
-	swQueue_data sdata;
-	//必须加1,msg_type必须不能为0
-	sdata.mtype = pti + 1;
-
-	swSingalNone();
-	while (SwooleG.running > 0)
+	int n;
+	swEventData task;
+	swServer *serv = reactor->ptr;
+	swFactory *factory = &serv->factory;
+	do
 	{
-		swTrace("[Writer]wt_queue[%ld]->out wait", sdata.mtype);
-		int ret = object->wt_queue.out(&object->wt_queue, &sdata, sizeof(sdata.mdata));
-		if (ret < 0)
-		{
-			swWarn("[writer]wt_queue->out fail.Error: %s [%d]", strerror(errno), errno);
-		}
-		else
-		{
-			swFactoryProcess_writer_excute(factory, (swEventData *)sdata.mdata);
-		}
+		n = read(event->fd, &task, sizeof(task));
 	}
-	pthread_exit((void *) param);
-	return SW_OK;
+	while(n < 0 && errno == EINTR);
+	return swFactoryProcess_worker_excute(factory, &task);
 }
 #endif
