@@ -9,6 +9,12 @@ PHP's asynchronous & concurrent & distributed networking framework.
 * Asynchronous MySQL
 * AsyncTask workers
 
+Install
+-----
+```
+pecl install swoole
+```
+
 
 Example
 -----
