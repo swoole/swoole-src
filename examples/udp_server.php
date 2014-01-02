@@ -1,7 +1,7 @@
 <?php
 $serv = new swoole_server("127.0.0.1", 9502, SWOOLE_PROCESS, SWOOLE_SOCK_UDP);
 $serv->set(array( 
-    'worker_num' => 8,    //worker process num
+    'worker_num' => 4,    //worker process num
 ));
 
 function my_onStart($serv)
@@ -12,8 +12,8 @@ function my_onStart($serv)
 
 function my_onReceive($serv, $fd, $from_id, $data)
 {
-	var_dump($serv->connection_info($fd, $from_id));
-	echo "worker_pid=".posix_getpid().PHP_EOL;
+	//var_dump($serv->connection_info($fd, $from_id));
+	//echo "worker_pid=".posix_getpid().PHP_EOL;
 	$serv->send($fd, 'Swoole: ' . $data, $from_id);
 }
 

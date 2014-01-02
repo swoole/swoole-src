@@ -34,6 +34,8 @@
 #include "Server.h"
 #include "Client.h"
 
+#define PHP_SWOOLE_VERSION  "1.6.9"
+
 extern zend_module_entry swoole_module_entry;
 #define phpext_swoole_ptr &swoole_module_entry
 
