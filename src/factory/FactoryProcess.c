@@ -450,7 +450,10 @@ int swFactoryProcess_end(swFactory *factory, swDataHead *event)
 	ev.len = 0; //len=0表示关闭此连接
 	ev.from_id = SW_CLOSE_NOTIFY;
 	ret = swFactoryProcess_finish(factory, (swSendData *)&ev);
-	serv->onClose(serv, event->fd, event->from_id);
+	if (serv->onClose != NULL)
+	{
+		serv->onClose(serv, event->fd, event->from_id);
+	}
 	return ret;
 }
 /**
