@@ -1645,20 +1645,20 @@ PHP_FUNCTION(swoole_server_taskwait)
 {
 	zval *zobject = getThis();
 	swEventData buf;
-	long timeout = SW_TASKWAIT_TIMEOUT;
+	double timeout = SW_TASKWAIT_TIMEOUT;
 	char *data;
 	int data_len;
 
 	if (zobject == NULL)
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Os|l", &zobject, swoole_server_class_entry_ptr, &data, &data_len, &timeout) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Os|d", &zobject, swoole_server_class_entry_ptr, &data, &data_len, &timeout) == FAILURE)
 		{
 			return;
 		}
 	}
 	else
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &data, &data_len, &timeout) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|d", &data, &data_len, &timeout) == FAILURE)
 		{
 			return;
 		}

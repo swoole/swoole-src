@@ -493,7 +493,7 @@ void swLog_free(void);
 #define sw_log(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);swLog_put(SW_LOG_INFO, sw_error);}
 
 //----------------------core function---------------------
-SWINLINE int swSetTimeout(int sock, float timeout);
+SWINLINE int swSetTimeout(int sock, double timeout);
 SWINLINE int swRead(int, void *, int);
 SWINLINE int swWrite(int, void *, int);
 SWINLINE int swAccept(int server_socket, struct sockaddr_in *addr, int addr_len);

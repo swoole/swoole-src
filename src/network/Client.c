@@ -59,7 +59,7 @@ int swClient_close(swClient *cli)
 	return close(fd);
 }
 
-int swClient_tcp_connect(swClient *cli, char *host, int port, float timeout, int nonblock)
+int swClient_tcp_connect(swClient *cli, char *host, int port, double timeout, int nonblock)
 {
 	int ret;
 	cli->serv_addr.sin_family = cli->sock_domain;
@@ -149,7 +149,7 @@ int swClient_tcp_recv(swClient *cli, char *data, int len, int waitall)
 	return ret;
 }
 
-int swClient_udp_connect(swClient *cli, char *host, int port, float timeout, int udp_connect)
+int swClient_udp_connect(swClient *cli, char *host, int port, double timeout, int udp_connect)
 {
 	int ret;
 	char buf[1024];

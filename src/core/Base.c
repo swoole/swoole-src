@@ -298,7 +298,7 @@ SWINLINE int swAccept(int server_socket, struct sockaddr_in *addr, int addr_len)
 	return conn_fd;
 }
 
-SWINLINE int swSetTimeout(int sock, float timeout)
+SWINLINE int swSetTimeout(int sock, double timeout)
 {
 	int ret;
 	struct timeval timeo;

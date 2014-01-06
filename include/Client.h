@@ -20,7 +20,7 @@ typedef struct _swClient
 	int sock_domain;
 	int protocol;
 	int async;
-	float timeout;
+	double timeout;
 
 	struct sockaddr_in serv_addr;
 	struct sockaddr_in remote_addr;
@@ -29,7 +29,7 @@ typedef struct _swClient
 	int (*onReceive)(struct _swClient *cli, swSendData *data);
 	void (*onClose)(struct _swClient *cli, int fd, int from_id);
 
-	int (*connect)(struct _swClient *cli, char *host, int port, float timeout, int udp_connect);
+	int (*connect)(struct _swClient *cli, char *host, int port, double _timeout, int udp_connect);
 	int (*send)(struct _swClient *cli, char *data, int length);
 	int (*recv)(struct _swClient *cli, char *data, int len, int waitall);
 	int (*close)(struct _swClient *cli);
@@ -38,11 +38,11 @@ typedef struct _swClient
 int swClient_create(swClient *cli, int type, int async);
 int swClient_close(swClient *cli);
 
-int swClient_tcp_connect(swClient *cli, char *host, int port, float timeout, int udp_connect);
+int swClient_tcp_connect(swClient *cli, char *host, int port, double _timeout, int udp_connect);
 int swClient_tcp_send(swClient *cli, char *data, int length);
 int swClient_tcp_recv(swClient *cli, char *data, int len, int waitall);
 
-int swClient_udp_connect(swClient *cli, char *host, int port, float timeout, int udp_connect);
+int swClient_udp_connect(swClient *cli, char *host, int port, double _timeout, int udp_connect);
 int swClient_udp_send(swClient *cli, char *data, int length);
 int swClient_udp_recv(swClient *cli, char *data, int len, int waitall);
 

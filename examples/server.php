@@ -66,7 +66,7 @@ function my_onReceive($serv, $fd, $from_id, $data)
 	else 
 	{
 		$serv->send($fd, 'Swoole: '.$data, $from_id);
-		//$serv->close($fd);
+		$serv->close($fd);
 	}
 	//swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);
 	//swoole_server_close($serv, $fd, $from_id);

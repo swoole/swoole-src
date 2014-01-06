@@ -186,9 +186,9 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 	{
 		//accept得到连接套接字
 #ifdef SW_USE_ACCEPT4
-	    conn_fd = accept4(event->fd, &client_addr, &client_addrlen, SOCK_NONBLOCK);
+	    conn_fd = accept4(event->fd, (struct sockaddr *)&client_addr, &client_addrlen, SOCK_NONBLOCK);
 #else
-		conn_fd = accept(event->fd,  &client_addr, &client_addrlen);
+		conn_fd = accept(event->fd,  (struct sockaddr *)&client_addr, &client_addrlen);
 #endif
 		if (conn_fd < 0 )
 		{
@@ -976,7 +976,7 @@ static void swServer_poll_udp_loop(swThreadParam *param)
 
 	while (SwooleG.running == 1)
 	{
-		ret = recvfrom(sock, buf.data, SW_BUFFER_SIZE, 0, &addr, &addrlen);
+		ret = recvfrom(sock, buf.data, SW_BUFFER_SIZE, 0, (struct sockaddr *)&addr, &addrlen);
 		if (ret > 0)
 		{
 			buf.info.len = ret;
@@ -1288,7 +1288,7 @@ static int swServer_poll_onPackage(swReactor *reactor, swEvent *event)
 	socklen_t addrlen = sizeof(addr);
 	while (1)
 	{
-		ret = recvfrom(event->fd, buf.data, SW_BUFFER_SIZE, 0, &addr, &addrlen);
+		ret = recvfrom(event->fd, buf.data, SW_BUFFER_SIZE, 0, (struct sockaddr *)&addr, &addrlen);
 		if (ret < 0)
 		{
 			if (errno == EINTR)
