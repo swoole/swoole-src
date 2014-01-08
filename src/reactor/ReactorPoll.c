@@ -154,17 +154,19 @@ static int swReactorPoll_del(swReactor *reactor, int fd)
 	return SW_ERR;
 }
 
-static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
+static int swReactorPoll_wait(swReactor *reactor, struct timeval *_timeo)
 {
 	swReactorPoll *object = reactor->object;
 	swDataHead event;
 	swReactor_handle handle;
+
+	struct timeval timeo = *_timeo;
 	int ret;
 	int i;
 
 	while (SwooleG.running > 0)
 	{
-		ret = poll(object->events, object->fd_num, timeo->tv_sec * 1000 + timeo->tv_usec / 1000);
+		ret = poll(object->events, object->fd_num, timeo.tv_sec * 1000 + timeo.tv_usec / 1000);
 		if (ret < 0)
 		{
 			if (swReactor_error(reactor) < 0)
