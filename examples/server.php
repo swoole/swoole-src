@@ -1,9 +1,9 @@
 <?php
 $serv = new swoole_server("127.0.0.1", 9501);
 $serv->set(array(
-    'worker_num' => 2,
-    'task_worker_num' => 2,
-	'dispatch_mode' => 3,
+    'worker_num' => 1,
+    //'task_worker_num' => 2,
+	//'dispatch_mode' => 2,
 //    'daemonize' => 1,
 ));
 
@@ -36,11 +36,8 @@ function my_onConnect($serv, $fd, $from_id)
 
 function my_onWorkerStart($serv, $worker_id)
 {
-    //sleep(10);
-	echo "WorkerStart[$worker_id]|pid=".posix_getpid().".\n";
-	//$serv->addtimer(500);
-	
-	//$serv->addtimer(6000);
+    echo "WorkerStart|MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}|WorkerPid=".posix_getpid()."\n";
+	//$serv->addtimer(500); //500ms
 }
 
 function my_onWorkerStop($serv, $worker_id)
@@ -54,19 +51,26 @@ function my_onReceive($serv, $fd, $from_id, $data)
     //echo "WorkerPid=".posix_getpid()."\n";
     //swoole_server_send($serv, $fd, 'Swoole: '.$data, $from_id);
 	//$serv->deltimer(800);
-    if(trim($data) == "reload") 
+	
+	$cmd = trim($data);
+    if($cmd == "reload") 
     {
 		$serv->reload($serv);
 	}
-	elseif(trim($data) == "task") 
+	elseif($cmd == "task") 
     {
 		$task_id = $serv->task("hello world");
 		echo "Dispath AsyncTask: id=$task_id\n";
 	}
+	elseif($cmd == "shutdown") 
+    {
+		$task_id = $serv->shutdown();
+		return;
+	}
 	else 
 	{
 		$serv->send($fd, 'Swoole: '.$data, $from_id);
-		$serv->close($fd);
+		//$serv->close($fd);
 	}
 	//swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);
 	//swoole_server_close($serv, $fd, $from_id);

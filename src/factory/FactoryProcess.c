@@ -1,3 +1,19 @@
+/*
+  +----------------------------------------------------------------------+
+  | Swoole                                                               |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 2.0 of the Apache license,    |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+  | If you did not receive a copy of the Apache2.0 license and are unable|
+  | to obtain it through the world-wide-web, please send a note to       |
+  | license@php.net so we can mail you a copy immediately.               |
+  +----------------------------------------------------------------------+
+  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  +----------------------------------------------------------------------+
+*/
+
 #include "swoole.h"
 #include "Server.h"
 #include <signal.h>
@@ -71,7 +87,7 @@ int swFactoryProcess_shutdown(swFactory *factory)
 	swFactoryProcess *object = factory->object;
 	int i;
 	//kill manager process
-	kill(object->manager_pid, SIGTERM);
+	kill(SwooleGS->manager_pid, SIGTERM);
 	//kill all child process
 	for (i = 0; i < object->worker_num; i++)
 	{
@@ -256,7 +272,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 		break;
 		//主进程
 	default:
-		object->manager_pid = pid;
+		SwooleGS->manager_pid = pid;
 		//TCP需要writer线程
 		if (serv->have_tcp_sock == 1)
 		{
@@ -545,9 +561,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 	int pipe_rd = object->workers[worker_pti].pipe_worker;
 #endif
 
-
 	SwooleWG.id = worker_pti;
-	object->manager_pid = getppid();
 
 #if SW_WORKER_IPC_MODE == 2
 	//抢占式,使用相同的队列type

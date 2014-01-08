@@ -1,3 +1,19 @@
+/*
+  +----------------------------------------------------------------------+
+  | Swoole                                                               |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 2.0 of the Apache license,    |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+  | If you did not receive a copy of the Apache2.0 license and are unable|
+  | to obtain it through the world-wide-web, please send a note to       |
+  | license@php.net so we can mail you a copy immediately.               |
+  +----------------------------------------------------------------------+
+  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  +----------------------------------------------------------------------+
+*/
+
 #include "swoole.h"
 #include "Server.h"
 #include "memory.h"
@@ -42,6 +58,7 @@ static int swServer_create_proxy(swServer *serv);
 static int swServer_create_base(swServer *serv);
 
 swServerG SwooleG;
+swServerGS *SwooleGS;
 swWorkerG SwooleWG;
 
 int16_t sw_errno;
@@ -455,6 +472,10 @@ int swServer_start(swServer *serv)
 			return SW_ERR;
 		}
 	}
+
+	//master pid
+	SwooleGS->master_pid = getpid();
+
 	//设置factory回调函数
 	serv->factory.ptr = serv;
 	serv->factory.onTask = serv->onReceive;
@@ -546,7 +567,12 @@ void swoole_init(void)
 		SwooleG.memory_pool = swMemoryGlobal_create(SW_GLOBAL_MEMORY_PAGESIZE, 1);
 		if(SwooleG.memory_pool == NULL)
 		{
-			swError("[Master] Fatal Error: create global memory fail. Errno=%d", errno);
+			swError("[Master] Fatal Error: create global memory fail. Error: %s[%d]", strerror(errno), errno);
+		}
+		SwooleGS = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerGS));
+		if(SwooleGS == NULL)
+		{
+			swError("[Master] Fatal Error: alloc memory for SwooleGS fail. Error: %s[%d]", strerror(errno), errno);
 		}
 	}
 }
@@ -1611,8 +1637,7 @@ int swServer_get_manager_pid(swServer *serv)
 	{
 		return SW_ERR;
 	}
-	swFactoryProcess *object = serv->factory.object;
-	return object->manager_pid;
+	return SwooleGS->manager_pid;
 }
 
 int swServer_reload(swServer *serv)

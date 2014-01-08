@@ -1,9 +1,18 @@
 /*
- * swoole_config.h
- *
- *  Created on: 2012-11-13
- *      Author: tianfenghan
- */
+  +----------------------------------------------------------------------+
+  | Swoole                                                               |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 2.0 of the Apache license,    |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+  | If you did not receive a copy of the Apache2.0 license and are unable|
+  | to obtain it through the world-wide-web, please send a note to       |
+  | license@php.net so we can mail you a copy immediately.               |
+  +----------------------------------------------------------------------+
+  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  +----------------------------------------------------------------------+
+*/
 #ifndef SWOOLE_CONFIG_H_
 #define SWOOLE_CONFIG_H_
 
@@ -27,7 +36,7 @@
 #define SW_DATA_EOF_MAXLEN         8
 //#define SW_USE_CONN_BUFFER         1 //使用ConnBuffer还是DataBuffer,DataBuffer是分trunk的，ConnBuffer是固定的
 
-#define SW_MAINREACTOR_TIMEO       3    //主线程reactor
+#define SW_MAINREACTOR_TIMEO       3    //main reactor
 #define SW_MAINREACTOR_USE_UNSOCK  1    //主线程使用unsock
 #define SW_REACTOR_WRITER_TIMEO    3    //writer线程的reactor
 #define SW_TASKWAIT_TIMEOUT        0.5
@@ -37,14 +46,14 @@
 #endif
 
 #define SW_WORKER_SENDTO_COUNT     2    //写回客户端失败尝试次数
-
-#define SW_MAINREACTOR_USE_POLL        //主线程，使用poll还是select
+#define SW_WORKER_SENDTO_YIELD          //yield after sendto
+#define SW_MAINREACTOR_USE_POLL         //main thread to use select or poll
 
 #define SW_REACTOR_TIMEO_SEC       3
 #define SW_REACTOR_TIMEO_USEC      0
 #define SW_REACTOR_DISPATCH        2    //连接分配模式，1平均分配，2按FD取摸固定分配
 
-#define SW_QUEUE_SIZE              100  //缩减版的RingQueue,用在线程模式下
+#define SW_QUEUE_SIZE              100   //缩减版的RingQueue,用在线程模式下
 
 #define SW_RINGQUEUE_USE           0             //使用RingQueue代替系统消息队列，此特性正在测试中，启用此特性会用内存队列来替代IPC通信，会减少系统调用、内存申请和复制，提高性能
 #define SW_RINGQUEUE_LEN           100           //RingQueue队列长度

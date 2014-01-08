@@ -447,6 +447,7 @@ PHP_FUNCTION(swoole_server_create)
 	MAKE_STD_ZVAL(zres);
 	ZEND_REGISTER_RESOURCE(zres, serv, le_swoole_server);
 	zend_update_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("_server"), zres TSRMLS_CC);
+	zval_ptr_dtor(&zres);
 }
 
 PHP_FUNCTION(swoole_server_set)
@@ -808,14 +809,14 @@ PHP_FUNCTION(swoole_server_shutdown)
 		}
 	}
 	SWOOLE_GET_SERVER(zobject, serv);
-	zmaster_pid = zend_read_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("master_pid"), 0 TSRMLS_CC);
-	if (zmaster_pid != NULL)
+	if(kill(SwooleGS->master_pid, SIGTERM) < 0)
 	{
-		SW_CHECK_RETURN(kill(Z_LVAL_P(zmaster_pid), SIGTERM));
+		zend_error(E_WARNING, "swoole_server: shutdown fail. kill -SIGTERM master_pid[%d] fail. Error: %s[%d]", SwooleGS->master_pid, strerror(errno), errno);
+		RETURN_FALSE;
 	}
 	else
 	{
-		RETURN_FALSE;
+		RETURN_TRUE;
 	}
 }
 
@@ -1098,13 +1099,16 @@ void php_swoole_onStart(swServer *serv)
 	zval *zmaster_pid, *zmanager_pid;
 
 	MAKE_STD_ZVAL(zmaster_pid);
-	ZVAL_LONG(zmaster_pid, getpid());
+	ZVAL_LONG(zmaster_pid, SwooleGS->master_pid);
 
 	MAKE_STD_ZVAL(zmanager_pid);
-	ZVAL_LONG(zmanager_pid, (serv->factory_mode == SW_MODE_PROCESS)?swServer_get_manager_pid(serv):0);
+	ZVAL_LONG(zmanager_pid, (serv->factory_mode == SW_MODE_PROCESS)?SwooleGS->manager_pid:0);
 
 	zend_update_property(swoole_server_class_entry_ptr, zserv, ZEND_STRL("master_pid"), zmaster_pid TSRMLS_CC);
 	zend_update_property(swoole_server_class_entry_ptr, zserv, ZEND_STRL("manager_pid"), zmanager_pid TSRMLS_CC);
+
+	zval_ptr_dtor(&zmaster_pid);
+	zval_ptr_dtor(&zmanager_pid);
 
 	args[0] = &zserv;
 	zval_add_ref(&zserv);
@@ -1180,6 +1184,20 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
 	args[1] = &zworker_id;
 
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+	zval *zmaster_pid, *zmanager_pid;
+
+	MAKE_STD_ZVAL(zmaster_pid);
+	ZVAL_LONG(zmaster_pid, SwooleGS->master_pid);
+
+	MAKE_STD_ZVAL(zmanager_pid);
+	ZVAL_LONG(zmanager_pid, (serv->factory_mode == SW_MODE_PROCESS)?SwooleGS->manager_pid:0);
+
+	zend_update_property(swoole_server_class_entry_ptr, zserv, ZEND_STRL("master_pid"), zmaster_pid TSRMLS_CC);
+	zend_update_property(swoole_server_class_entry_ptr, zserv, ZEND_STRL("manager_pid"), zmanager_pid TSRMLS_CC);
+
+	zval_ptr_dtor(&zmaster_pid);
+	zval_ptr_dtor(&zmanager_pid);
 
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onWorkerStart], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
@@ -1532,6 +1550,7 @@ PHP_FUNCTION(swoole_server_send)
 		memcpy(buffer, send_data + pagesize*i, send_n);
 		_send.info.len = send_n;
 		ret = factory->finish(factory, &_send);
+		swYield();
 	}
 	SW_CHECK_RETURN(ret);
 }
