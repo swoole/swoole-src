@@ -965,15 +965,15 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	MAKE_STD_ZVAL(zfrom_id);
 	if(req->info.type == SW_EVENT_UDP)
 	{
-		php_swoole_udp_from_fd = udp_info.from_fd = req->info.from_fd;
+		udp_info.from_fd = req->info.from_fd;
 		udp_info.port = req->info.from_id;
 		memcpy(&from_id, &udp_info, sizeof(from_id));
-		swTrace("SendTo: from_id=%d|from_fd=%d", req->info.from_fd, req->info.from_id);
+		factory->last_from_id = from_id;
+		swTrace("SendTo: from_id=%d|from_fd=%d", (uint16_t)req->info.from_id, req->info.from_fd);
 		ZVAL_LONG(zfrom_id, (long) from_id);
 	}
 	else
 	{
-		php_swoole_udp_from_fd = 0;
 		ZVAL_LONG(zfrom_id, (long)req->info.from_id);
 	}
 
@@ -1506,13 +1506,14 @@ PHP_FUNCTION(swoole_server_send)
 
 	_send.info.fd = (int)conn_fd;
 
-	//TCP
-	if(php_swoole_udp_from_fd == 0)
+	if (from_id == -1)
 	{
-		if (from_id == -1)
-		{
-			_send.info.from_id = factory->last_from_id;
-		}
+		from_id = factory->last_from_id;
+	}
+
+	//TCP
+	if(((uint32_t) from_id) < serv->reactor_num)
+	{
 		_send.info.type = SW_EVENT_TCP;
 		_send.info.from_id = from_id;
 	}
@@ -1520,10 +1521,11 @@ PHP_FUNCTION(swoole_server_send)
 	else
 	{
 		php_swoole_udp_t udp_info;
-		memcpy(&udp_info, (uint32_t *)(&from_id), sizeof(udp_info));
+		memcpy(&udp_info, &from_id, sizeof(udp_info));
 		_send.info.from_id = (uint16_t)(udp_info.port);
 		_send.info.from_fd = (uint16_t)(udp_info.from_fd);
 		_send.info.type = SW_EVENT_UDP;
+		swTrace("SendTo: from_id=%d|from_fd=%d", (uint16_t)_send.info.from_id, _send.info.from_fd);
 	}
 	_send.data = buffer;
 
@@ -1550,7 +1552,10 @@ PHP_FUNCTION(swoole_server_send)
 		memcpy(buffer, send_data + pagesize*i, send_n);
 		_send.info.len = send_n;
 		ret = factory->finish(factory, &_send);
-		swYield();
+		if (i > 1)
+		{
+			swYield();
+		}
 	}
 	SW_CHECK_RETURN(ret);
 }

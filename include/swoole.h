@@ -526,7 +526,7 @@ struct _swFactory
 	void *object;
 	int max_request; //worker进程最大请求数量
 	void *ptr; //server object
-	uint16_t last_from_id;
+	int last_from_id;
 	swReactor *reactor; //reserve for reactor
 
 	int (*start)(struct _swFactory *);
