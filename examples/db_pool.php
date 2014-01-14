@@ -2,7 +2,7 @@
 $serv = new swoole_server("127.0.0.1", 9508);
 $serv->set(array(
     'worker_num' => 2,
-    'task_worker_num' => 2, //database connection pool
+    'task_worker_num' => 10, //database connection pool
 ));
 
 function my_onReceive($serv, $fd, $from_id, $data)
@@ -11,13 +11,13 @@ function my_onReceive($serv, $fd, $from_id, $data)
 	if($result !== false) {
 		list($status, $db_res) = explode(':', $result, 2);
 		if($status == 'OK') {
-			$serv->send($fd, var_export(unserialize($db_res), true));
+			$serv->send($fd, var_export(unserialize($db_res), true)."\n");
 		} else {
 			$serv->send($fd, $db_res);
 		}
 		return;
 	} else {
-		$serv->send($fd, "Error. Task timeout");
+		$serv->send($fd, "Error. Task timeout\n");
 	}
 }
 

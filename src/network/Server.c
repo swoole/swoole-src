@@ -51,7 +51,6 @@ static int swServer_master_onClose(swReactor *reactor, swDataHead *event);
 static int swServer_master_onAccept(swReactor *reactor, swDataHead *event);
 static int swServer_onTimer(swReactor *reactor, swEvent *event);
 
-static void *swServer_single_thread_taskpool(void *serv);
 static int swServer_start_proxy(swServer *serv);
 static int swServer_start_base(swServer *serv);
 static int swServer_create_proxy(swServer *serv);
@@ -1028,17 +1027,9 @@ int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
 	return serv->onTask(serv, task);
 }
 
-static void *swServer_single_thread_taskpool(void *serv)
-{
-
-	swProcessPool_wait(&SwooleG.task_workers);
-	pthread_exit(NULL); /* this is probably unneeded */
-	return NULL;
-}
-
 static int swServer_single_start(swServer *serv)
 {
-	int ret;
+	int ret, i;
 
 	swProcessPool pool;
 	swProcessPool_create(&pool, serv->worker_num, serv->max_request);
@@ -1071,9 +1062,6 @@ static int swServer_single_start(swServer *serv)
 	//task workers
 	if (serv->task_worker_num > 0)
 	{
-		//for taskwait
-
-
 		pthread_t ptid;
 		if (swProcessPool_create(&SwooleG.task_workers, serv->task_worker_num, serv->max_request)< 0)
 		{
@@ -1084,7 +1072,12 @@ static int swServer_single_start(swServer *serv)
 		SwooleG.task_workers.ptr = serv;
 		SwooleG.task_workers.onTask = swTaskWorker_onTask;
 		swProcessPool_start(&SwooleG.task_workers);
-		pthread_create(&ptid, NULL, swServer_single_thread_taskpool, serv);
+
+		//将taskworker也加入到wait中来
+		for (i = 0; i < SwooleG.task_workers.worker_num; i++)
+		{
+			swProcessPool_add_worker(&pool, &SwooleG.task_workers.workers[i]);
+		}
 	}
 	swProcessPool_start(&pool);
 	return swProcessPool_wait(&pool);

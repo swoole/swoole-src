@@ -45,6 +45,7 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request)
 		swProcessPool_worker(pool, i).pipe_master = pipe.getFd(&pipe, 1);
 		swProcessPool_worker(pool, i).pipe_worker = pipe.getFd(&pipe, 0);
 		swProcessPool_worker(pool, i).id = i;
+		swProcessPool_worker(pool, i).pool = pool;
 	}
 	pool->onStart = swProcessPool_worker_start;
 	return SW_OK;
@@ -58,7 +59,7 @@ int swProcessPool_start(swProcessPool *pool)
 	int i;
 	for (i = 0; i < pool->worker_num; i++)
 	{
-		if(swProcessPool_spawn(pool, &(pool->workers[i])) < 0)
+		if(swProcessPool_spawn(&(pool->workers[i])) < 0)
 		{
 			swWarn("swProcessPool_spawn fail");
 			return SW_ERR;
@@ -93,9 +94,10 @@ void swProcessPool_shutdown(swProcessPool *pool)
 	swProcessPool_free(pool);
 }
 
-pid_t swProcessPool_spawn(swProcessPool *pool, swWorker *worker)
+pid_t swProcessPool_spawn(swWorker *worker)
 {
 	pid_t pid = fork();
+	swProcessPool *pool = worker->pool;
 
 	switch (pid)
 	{
@@ -141,11 +143,17 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
 	return SW_OK;
 }
 
+int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker)
+{
+	swHashMap_add_int(&pool->map, worker->pid, worker);
+	return SW_OK;
+}
+
 int swProcessPool_wait(swProcessPool *pool)
 {
 	int pid, new_pid;
 	int reload_worker_i = 0;
-	int ret;
+	int ret, i;
 
 	swWorker *reload_workers;
 	reload_workers = sw_calloc(pool->worker_num, sizeof(swWorker));
@@ -178,8 +186,9 @@ int swProcessPool_wait(swProcessPool *pool)
 			if (exit_worker == NULL)
 			{
 				swWarn("[Manager]unknow worker[pid=%d]", pid);
+				continue;
 			}
-			new_pid = swProcessPool_spawn(pool, exit_worker);
+			new_pid = swProcessPool_spawn(exit_worker);
 			if (new_pid < 0)
 			{
 				swWarn("Fork worker process fail. Error: %s [%d]", strerror(errno), errno);
