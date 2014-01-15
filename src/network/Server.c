@@ -1027,6 +1027,19 @@ int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
 	return serv->onTask(serv, task);
 }
 
+int swTaskWorker_onFinish(swReactor *reactor, swEvent *event)
+{
+	swServer *serv = reactor->ptr;
+	swEventData task;
+	int n;
+	do
+	{
+		n = read(event->fd, &task, sizeof(task));
+	}
+	while(n < 0 && errno == EINTR);
+	return serv->onFinish(serv, &task);
+}
+
 static int swServer_single_start(swServer *serv)
 {
 	int ret, i;
@@ -1059,6 +1072,7 @@ static int swServer_single_start(swServer *serv)
 			return SW_ERR;
 		}
 	}
+	SwooleG.event_workers = &pool;
 	//task workers
 	if (serv->task_worker_num > 0)
 	{
@@ -1103,10 +1117,18 @@ static int swServer_single_loop(swProcessPool *pool, swWorker *worker)
 
 	reactor->id = 0;
 	reactor->ptr = serv;
+	//connect
 	reactor->setHandle(reactor, SW_FD_LISTEN, swServer_master_onAccept);
+	//close
 	reactor->setHandle(reactor, SW_FD_CLOSE, swServer_single_onClose);
+	//task finish
+	reactor->setHandle(reactor, SW_FD_PIPE, swTaskWorker_onFinish);
+	//udp receive
 	reactor->setHandle(reactor, SW_FD_UDP, swServer_poll_onPackage);
+	//tcp receive
 	reactor->setHandle(reactor, SW_FD_TCP, (serv->open_eof_check == 0)?swServer_poll_onReceive_no_buffer:swServer_poll_onReceive_conn_buffer);
+
+	reactor->add(reactor, worker->pipe_master, SW_FD_PIPE);
 
 	struct timeval timeo;
 	if (serv->onWorkerStart != NULL)

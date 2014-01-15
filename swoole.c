@@ -1830,7 +1830,15 @@ PHP_FUNCTION(swoole_server_finish)
 		buf.info.len = data_len;
 		buf.info.type = SW_EVENT_FINISH;
 		buf.info.fd = sw_current_task->info.fd;
-		SW_CHECK_RETURN(swFactoryProcess_send2worker(factory, &buf, sw_current_task->info.from_id));
+
+		if(serv->factory_mode == SW_MODE_PROCESS)
+		{
+			SW_CHECK_RETURN(swFactoryProcess_send2worker(factory, &buf, sw_current_task->info.from_id));
+		}
+		else
+		{
+			SW_CHECK_RETURN(swWrite(SwooleG.event_workers->workers[sw_current_task->info.from_id].pipe_worker, &buf, sizeof(buf.info)+data_len));
+		}
 	}
 	else
 	{

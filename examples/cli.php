@@ -35,5 +35,7 @@ for($i=0; $i<$loop; $i++)
 //echo "len=".strlen($data)."\n";
 // $client->send("HELLO\0\nWORLD");
 // $data = $client->recv(9000, 0);
-$client->close();
+//$client->close();
 var_dump($data);
+
+sleep(1000);
