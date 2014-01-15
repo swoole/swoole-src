@@ -53,8 +53,8 @@ int swQueueMsg_create(swQueue *p, int blocking, int msg_key, long type)
 		object->ipc_wait = 0;
 	}
 	p->blocking = blocking;
-	msg_id = msgget(msg_key, IPC_CREAT | 0666);
-	if (msg_id <= 0)
+	msg_id = msgget(msg_key, IPC_CREAT | O_EXCL | 0666);
+	if (msg_id < 0)
 	{
 		return SW_ERR;
 	}

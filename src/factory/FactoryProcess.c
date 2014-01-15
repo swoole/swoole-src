@@ -388,7 +388,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 				swWorker *exit_worker = swHashMap_find_int(&SwooleG.task_workers.map, pid);
 				if (exit_worker != NULL)
 				{
-					swProcessPool_spawn(&SwooleG.task_workers, exit_worker);
+					swProcessPool_spawn(exit_worker);
 				}
 			}
 		}

@@ -30,7 +30,6 @@ void ***sw_thread_ctx;
 
 static swEventData *sw_current_task;
 static int php_swoole_task_id;
-static int php_swoole_udp_from_fd;
 
 extern sapi_module_struct sapi_module;
 
@@ -1533,10 +1532,12 @@ PHP_FUNCTION(swoole_server_send)
 		memcpy(buffer, send_data + pagesize*i, send_n);
 		_send.info.len = send_n;
 		ret = factory->finish(factory, &_send);
-		if (i > 1)
+#ifdef SW_WORKER_SENDTO_YIELD
+		if ((i % SW_WORKER_SENDTO_YIELD) == (SW_WORKER_SENDTO_YIELD - 1))
 		{
 			swYield();
 		}
+#endif
 	}
 	SW_CHECK_RETURN(ret);
 }
@@ -1650,6 +1651,7 @@ PHP_FUNCTION(swoole_server_taskwait)
 {
 	zval *zobject = getThis();
 	swEventData buf;
+	swServer *serv;
 	double timeout = SW_TASKWAIT_TIMEOUT;
 	char *data;
 	int data_len;
@@ -1667,6 +1669,13 @@ PHP_FUNCTION(swoole_server_taskwait)
 		{
 			return;
 		}
+	}
+
+	SWOOLE_GET_SERVER(zobject, serv);
+	if(serv->task_worker_num < 1)
+	{
+		swWarn("SwooleServer: task can not use. Please set task_worker_num.");
+		RETURN_FALSE;
 	}
 
 	if(data_len > sizeof(buf.data))
@@ -1710,6 +1719,7 @@ PHP_FUNCTION(swoole_server_task)
 {
 	zval *zobject = getThis();
 	swEventData buf;
+	swServer *serv;
 	char *data;
 	int data_len;
 
@@ -1726,6 +1736,13 @@ PHP_FUNCTION(swoole_server_task)
 		{
 			return;
 		}
+	}
+
+	SWOOLE_GET_SERVER(zobject, serv);
+	if(serv->task_worker_num < 1)
+	{
+		swWarn("SwooleServer: task can not use. Please set task_worker_num.");
+		RETURN_FALSE;
 	}
 
 	if(data_len > sizeof(buf.data))
@@ -1794,7 +1811,15 @@ PHP_FUNCTION(swoole_server_finish)
 		buf.info.len = data_len;
 		buf.info.type = SW_EVENT_FINISH;
 		buf.info.fd = sw_current_task->info.fd;
-		SW_CHECK_RETURN(swFactoryProcess_send2worker(factory, &buf, sw_current_task->info.from_id));
+
+		if(serv->factory_mode == SW_MODE_PROCESS)
+		{
+			SW_CHECK_RETURN(swFactoryProcess_send2worker(factory, &buf, sw_current_task->info.from_id));
+		}
+		else
+		{
+			SW_CHECK_RETURN(swWrite(SwooleG.event_workers->workers[sw_current_task->info.from_id].pipe_worker, &buf, sizeof(buf.info)+data_len));
+		}
 	}
 	else
 	{

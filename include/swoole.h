@@ -567,36 +567,39 @@ struct swReactor_s
 
 typedef struct _swWorker swWorker;
 typedef struct _swThread swThread;
-
-typedef int (*swWorkerCall)(swWorker *worker);
+typedef struct _swProcessPool swProcessPool;
 
 struct _swWorker
 {
 	pid_t pid;
 	pthread_t tid;
+	swProcessPool *pool;
+
 	int id;
 	int pipe_master;
 	int pipe_worker;
 	int writer_id;
 	void *ptr;
 	void *ptr2;
-	swWorkerCall call;
 };
 
-typedef struct _swProcessPool
+struct _swProcessPool
 {
 	char reloading;
 	char reload_flag;
 	int worker_num;
 	int max_request;
+
 	int (*onTask)(struct _swProcessPool *pool, swEventData *task);
 	int (*onStart)(struct _swProcessPool *pool, swWorker *worker);
+
 	int round_id;
 	swWorker *workers;
 	swHashMap map;
+
 	void *ptr;
 	void *ptr2;
-} swProcessPool;
+};
 
 typedef struct _swThreadWriter
 {
@@ -682,8 +685,10 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request);
 int swProcessPool_wait(swProcessPool *pool);
 int swProcessPool_start(swProcessPool *pool);
 void swProcessPool_shutdown(swProcessPool *pool);
-pid_t swProcessPool_spawn(swProcessPool *pool, swWorker *worker);
+pid_t swProcessPool_spawn(swWorker *worker);
 int swProcessPool_dispatch(swProcessPool *pool, swEventData *data);
+int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker);
+
 #define swProcessPool_worker(ma,id) (ma->workers[id])
 
 //-----------------------------Channel---------------------------
@@ -786,7 +791,10 @@ typedef struct _swServerG{
 	int running;
 	int sw_errno;
 	int process_type;
+
 	swProcessPool task_workers;
+	swProcessPool *event_workers;
+
 	swAllocator *memory_pool;
 	swReactor *main_reactor;
 	swPipe *task_notify; //for taskwait

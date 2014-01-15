@@ -3,6 +3,7 @@
 .*
 *~
 *.so
+*/core
 Debug/*
 modules/*
 /Debug

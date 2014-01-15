@@ -50,6 +50,20 @@ AsyncTask workers
 				<file role="src" name="uthash.h" />
 				<file role="src" name="tests.h" />
 			</dir>
+			<dir name="examples">
+                <file role="src" name="server.php" />
+                <file role="src" name="async_client.php" />
+                <file role="src" name="async_mysql.php" />
+                <file role="src" name="async_mysql2.php" />
+                <file role="src" name="bench.php" />
+                <file role="src" name="client.php" />
+                <file role="src" name="proxy.php" />
+                <file role="src" name="proxy_sync.php" />
+                <file role="src" name="udp_server.php" />
+                <file role="src" name="udp_client.php" />
+                <file role="src" name="task.php" />
+                <file role="src" name="stream.php" />
+            </dir>
 			<file role="src" name="php_swoole.h" />
 			<file role="src" name="swoole_config.h" />
 			<file role="src" name="swoole.c" />

@@ -32,7 +32,7 @@
 #include "Server.h"
 #include "Client.h"
 
-#define PHP_SWOOLE_VERSION  "1.6.9"
+#define PHP_SWOOLE_VERSION  "1.6.10"
 
 /**
  * PHP5.2

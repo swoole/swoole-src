@@ -19,11 +19,11 @@ else
 {
 	$loop = intval($argv[1]);
 }
-var_dump($client->getlocalname());
+
 for($i=0; $i<$loop; $i++)
 {
-    $client->send(str_repeat("A", 128).$i);
-    $data = $client->recv(1024, 0);
+    $client->send(str_repeat("A", 6000).$i);
+    $data = $client->recv(7000, 0);
     if($data === false)
     {
         echo "recv fail\n";
@@ -35,5 +35,7 @@ for($i=0; $i<$loop; $i++)
 //echo "len=".strlen($data)."\n";
 // $client->send("HELLO\0\nWORLD");
 // $data = $client->recv(9000, 0);
-$client->close();
+//$client->close();
 var_dump($data);
+
+sleep(1000);

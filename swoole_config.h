@@ -16,6 +16,10 @@
 #ifndef SWOOLE_CONFIG_H_
 #define SWOOLE_CONFIG_H_
 
+#define SW_MAX_FDTYPE          32 //32 kinds of event
+#define SW_ERROR_MSG_SIZE      512
+#define SW_MAX_WORKER_GROUP    2
+
 #define SW_GLOBAL_MEMORY_PAGESIZE  (1024*1024*2) //全局内存的分页
 
 #define SW_MAX_THREAD_NCPU         4 // n * cpu_num
@@ -46,7 +50,9 @@
 #endif
 
 #define SW_WORKER_SENDTO_COUNT     2    //写回客户端失败尝试次数
-#define SW_WORKER_SENDTO_YIELD          //yield after sendto
+#define SW_WORKER_SENDTO_YIELD     10   //yield after sendto
+
+
 #define SW_MAINREACTOR_USE_POLL         //main thread to use select or poll
 
 #define SW_REACTOR_TIMEO_SEC       3
