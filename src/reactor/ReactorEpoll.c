@@ -47,7 +47,6 @@ SWINLINE static int swReactorEpoll_event_set(int fdtype);
 struct swReactorEpoll_s
 {
 	int epfd;
-	int event_max;
 	struct epoll_event *events;
 };
 
@@ -70,7 +69,6 @@ int swReactorEpoll_create(swReactor *reactor, int max_event_num)
 		return SW_ERR;
 	}
 	//epoll create
-	reactor_object->event_max = 0;
 	reactor_object->epfd = epoll_create(512);
 	if (reactor_object->epfd < 0)
 	{
@@ -114,7 +112,7 @@ int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
 		swWarn("add event fail. Error: %s[%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
-	object->event_max++;
+	reactor->event_num++;
 	return SW_OK;
 }
 
@@ -139,7 +137,7 @@ int swReactorEpoll_del(swReactor *reactor, int fd)
 	//close时会自动从epoll事件中移除
 	//swoole中未使用dup
 	ret = close(fd);
-	(object->event_max <= 0) ? object->event_max = 0 : object->event_max--;
+	(reactor->event_num <= 0) ? reactor->event_num = 0 : reactor->event_num--;
 	return SW_OK;
 }
 
@@ -206,7 +204,7 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 
 	while (SwooleG.running > 0)
 	{
-		n = epoll_wait(object->epfd, object->events, object->event_max + 1, usec);
+		n = epoll_wait(object->epfd, object->events, reactor->event_num + 1, usec);
 		if (n < 0)
 		{
 			if (swReactor_error(reactor) < 0)

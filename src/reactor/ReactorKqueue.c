@@ -126,7 +126,7 @@ static int swReactorKqueue_add(swReactor *reactor, int fd, int fdtype)
 
 	memcpy(&e.udata, &fd_, sizeof(swFd));
 	swTrace("[THREAD #%ld]EP=%d|FD=%d\n", pthread_self(), this->epfd, fd);
-
+	reactor->event_num ++;
 	return SW_OK;
 }
 
@@ -208,6 +208,7 @@ static int swReactorKqueue_del(swReactor *reactor, int fd)
 		return -1;
 	}
 	close(fd);
+	reactor->event_num --;
 	return SW_OK;
 }
 

@@ -30,7 +30,6 @@ typedef struct _swPollFdInfo
 
 typedef struct _swReactorPoll
 {
-	int fd_num;
 	int max_fd_num;
 	swPollFdInfo *fds;
 	struct pollfd *events;
@@ -59,7 +58,6 @@ int swReactorPoll_create(swReactor *reactor, int max_fd_num)
 		swError("malloc[2] fail\n");
 		return SW_ERR;
 	}
-	object->fd_num = 0;
 	object->max_fd_num = max_fd_num;
 	bzero(reactor->handle, sizeof(reactor->handle));
 	reactor->object = object;
@@ -83,8 +81,8 @@ static void swReactorPoll_free(swReactor *reactor)
 static int swReactorPoll_add(swReactor *reactor, int fd, int fdtype)
 {
 	swReactorPoll *object = reactor->object;
-	int cur = object->fd_num;
-	if (object->fd_num == object->max_fd_num)
+	int cur = reactor->event_num;
+	if (reactor->event_num == object->max_fd_num)
 	{
 		swError("too many connection, more than %d\n", object->max_fd_num);
 		return SW_ERR;
@@ -106,7 +104,7 @@ static int swReactorPoll_add(swReactor *reactor, int fd, int fdtype)
 	{
 		object->events[cur].events |= POLLHUP;
 	}
-	object->fd_num++;
+	reactor->event_num++;
 	return SW_OK;
 }
 
@@ -115,7 +113,7 @@ static int swReactorPoll_set(swReactor *reactor, int fd, int fdtype)
 	uint32_t i;
 	swReactorPoll *object = reactor->object;
 
-	for (i = 0; i < object->fd_num; i++)
+	for (i = 0; i < reactor->event_num; i++)
 	{
 		//found
 		if (object->events[i].fd == fd)
@@ -142,13 +140,13 @@ static int swReactorPoll_del(swReactor *reactor, int fd)
 	uint32_t i;
 	swReactorPoll *object = reactor->object;
 
-	for (i = 0; i < object->fd_num; i++)
+	for (i = 0; i < reactor->event_num; i++)
 	{
 		//找到了
 		if (object->events[i].fd == fd)
 		{
-			uint32_t old_num = object->fd_num;
-			object->fd_num--;
+			uint32_t old_num = reactor->event_num;
+			reactor->event_num--;;
 			for (; i < old_num; i++)
 			{
 				if (i == old_num)
@@ -182,7 +180,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *_timeo)
 
 	while (SwooleG.running > 0)
 	{
-		ret = poll(object->events, object->fd_num, timeo.tv_sec * 1000 + timeo.tv_usec / 1000);
+		ret = poll(object->events, reactor->event_num, timeo.tv_sec * 1000 + timeo.tv_usec / 1000);
 		if (ret < 0)
 		{
 			if (swReactor_error(reactor) < 0)
@@ -201,7 +199,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *_timeo)
 		}
 		else
 		{
-			for (i = 0; i < object->fd_num; i++)
+			for (i = 0; i < reactor->event_num; i++)
 			{
 				event.fd = object->events[i].fd;
 				event.from_id = reactor->id;
@@ -242,10 +240,6 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *_timeo)
 						swWarn("poll[POLLOUT] handler fail. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
 					}
 				}
-			}
-			if (object->fd_num < 1)
-			{
-				swWarn("poll exception");
 			}
 			if(reactor->onFinish != NULL)
 			{

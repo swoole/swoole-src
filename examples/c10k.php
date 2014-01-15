@@ -1,6 +1,6 @@
 <?php
 $clients = array();
-for($j = 0; $j < 10; $j++)
+for($j = 0; $j < 1; $j++)
 {
 	$pid = pcntl_fork();
 	if($pid > 0)
@@ -11,7 +11,7 @@ for($j = 0; $j < 10; $j++)
 	{
 		for($i = 0; $i < 9999; $i++){
 			$client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC); //同步阻塞
-			$ret = $client->connect('127.0.0.1', 80, 0.5);
+			$ret = $client->connect('127.0.0.1', 9501, 0.5);
 			if(!$ret)
 			{
 				echo "#$i\tConnect fail.  errno=".$client->errCode;

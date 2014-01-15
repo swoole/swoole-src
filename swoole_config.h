@@ -33,6 +33,7 @@
 //#define SW_DEBUG                  //启用调试模式，请注释掉此行代码 这里用--enable-swoole-debug开启调试模式
 #define SW_LOG_NO_SRCINFO          //不需要源代码信息
 //#define SW_BUFFER_SIZE            65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
+#define SW_CLIENT_BUFFER_SIZE      65535
 #define SW_BUFFER_SIZE             8192 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_MAX_TRUNK_NUM           10  //每个请求最大允许创建的trunk数，可得出每个请求的内存分配量为 SW_BUFFER_SIZE * SW_MAX_TRUNK_NUM
 

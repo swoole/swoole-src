@@ -22,7 +22,7 @@ else
 
 for($i=0; $i<$loop; $i++)
 {
-    $client->send(str_repeat("A", 6000).$i);
+    $client->send(str_repeat("A", 600).$i);
     $data = $client->recv(7000, 0);
     if($data === false)
     {

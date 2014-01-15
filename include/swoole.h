@@ -544,6 +544,7 @@ struct swReactor_s
 {
 	void *object;
 	void *ptr; //reserve
+	uint32_t event_num;
 	uint16_t id; //Reactor ID
 	uint16_t flag; //flag
 	char running;

@@ -32,7 +32,6 @@ typedef struct _swReactorSelect
 	fd_set efds;
 	swFdList_node *fds;
 	int maxfd;
-	int fd_num;
 } swReactorSelect;
 
 #define SW_FD_SET(fd, set)	do{ if (fd<FD_SETSIZE) FD_SET(fd, set);} while(0)
@@ -59,7 +58,6 @@ int swReactorSelect_create(swReactor *reactor)
 
 	object->fds = NULL;
 	object->maxfd = 0;
-	object->fd_num = 0;
 	bzero(reactor->handle, sizeof(reactor->handle));
 	reactor->object = object;
 	//binding method
@@ -97,7 +95,7 @@ int swReactorSelect_add(swReactor *reactor, int fd, int fdtype)
 	//select需要保存原始的值
 	ev->fdtype = fdtype;
 	LL_APPEND(object->fds, ev);
-	object->fd_num++;
+	reactor->event_num++;
 	if (fd > object->maxfd)
 	{
 		object->maxfd = fd;
@@ -126,7 +124,7 @@ int swReactorSelect_del(swReactor *reactor, int fd)
 	SW_FD_CLR(fd, &object->rfds);
 	SW_FD_CLR(fd, &object->wfds);
 	SW_FD_CLR(fd, &object->efds);
-	object->fd_num--;
+	reactor->event_num--;
 	sw_free(s_ev);
 	return SW_OK;
 }
