@@ -34,6 +34,7 @@ extern "C" {
 #include <string.h>
 #include <signal.h>
 #include <assert.h>
+#include <time.h>
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -806,6 +807,7 @@ typedef struct _swServerG{
 typedef struct _swServerGS{
 	pid_t master_pid;
 	pid_t manager_pid;
+	time_t lct;
 } swServerGS;
 
 typedef struct _swWorkerG{

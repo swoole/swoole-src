@@ -661,6 +661,7 @@ int swServer_new_connection(swServer *serv, swEvent *ev)
 	connection->from_id = ev->from_id;
 	connection->from_fd = ev->from_fd;
 	connection->buffer = NULL;
+	connection->ct = time(0);
 	connection->tag = 1; //使此连接激活,必须在最后，保证线程安全
 
 	return SW_OK;
@@ -1310,6 +1311,8 @@ static int swServer_poll_onReceive_data_buffer(swReactor *reactor, swEvent *even
 				}
 			}
 			swDataBuffer_flush(data_buffer, buffer_item);
+			swConnection *connection = swServer_get_connection(serv, event->fd);
+			connection->lct = time(0);
 		}
 	}
 	return SW_OK;
@@ -1363,6 +1366,7 @@ static int swServer_poll_onReceive_conn_buffer(swReactor *reactor, swEvent *even
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &(serv->factory);
 	swConnection *connection = swServer_get_connection(serv, event->fd);
+	connection->lct = time(0);
 	swEvent closeEv;
 	swConnBuffer *buffer = swConnection_get_buffer(connection);
 
@@ -1471,6 +1475,10 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 		rdata.buf.info.len = n;
 		rdata.buf.info.type = SW_EVENT_TCP;
 		rdata.buf.info.from_id = event->from_id;
+
+		//更新最近收包时间
+		swConnection *connection = swServer_get_connection(serv, event->fd);
+		connection->lct = time(0);
 
 		ret = factory->dispatch(factory, &rdata.buf);
 		//处理数据失败，数据将丢失

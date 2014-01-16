@@ -18,7 +18,6 @@
 #include "Server.h"
 #include <signal.h>
 #include <sys/wait.h>
-#include <time.h>
 
 static int swFactoryProcess_manager_loop(swFactory *factory);
 static int swFactoryProcess_manager_start(swFactory *factory);

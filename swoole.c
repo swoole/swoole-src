@@ -871,6 +871,8 @@ PHP_FUNCTION(swoole_connection_info)
 		array_init(return_value);
 		add_assoc_long(return_value, "from_id", conn->from_id);
 		add_assoc_long(return_value, "from_fd", conn->from_fd);
+		add_assoc_long(return_value, "ct", conn->ct);
+		add_assoc_long(return_value, "lct", conn->lct);
 		add_assoc_long(return_value, "from_port",  serv->connection_list[conn->from_fd].addr.sin_port);
 		add_assoc_long(return_value, "remote_port", ntohs(conn->addr.sin_port));
 		add_assoc_string(return_value, "remote_ip", inet_ntoa(conn->addr.sin_addr), 1);
