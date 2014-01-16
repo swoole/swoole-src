@@ -36,7 +36,7 @@ typedef struct {
 
 static int php_swoole_client_event_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_DC);
 static int php_swoole_client_event_loop(zval *sock_array, fd_set *fds TSRMLS_DC);
-static int php_swoole_client_close(zval **zobject, int fd TSRMLS_DC);
+static int php_swoole_client_close(zval **zobject, int fd, int reset_fd TSRMLS_DC);
 static int php_swoole_onReactorCallback(swReactor *reactor, swEvent *event);
 
 static int php_swoole_client_onReceive(swReactor *reactor, swEvent *event);
@@ -46,7 +46,11 @@ static void php_swoole_check_reactor();
 static void php_swoole_try_run_reactor();
 static int swoole_convert_to_fd(zval **fd);
 
-static int php_swoole_client_close(zval **zobject, int fd TSRMLS_DC)
+/**
+ * @zobject: swoole_client object
+ * @reset_fd: will set cli->sock = 0
+ */
+static int php_swoole_client_close(zval **zobject, int fd, int reset_fd TSRMLS_DC)
 {
 	zval *zcallback = NULL;
 	zval *retval;
@@ -71,6 +75,18 @@ static int php_swoole_client_close(zval **zobject, int fd TSRMLS_DC)
 		return SW_ERR;
 	}
 	SwooleG.main_reactor->del(SwooleG.main_reactor, fd);
+
+	//需要重置fd
+	if(reset_fd == 1)
+	{
+		zval **zres;
+		swClient *cli;
+		if (zend_hash_find(Z_OBJPROP_PP(zobject), SW_STRL("_client"), (void **) &zres) == SUCCESS)
+		{
+			ZEND_FETCH_RESOURCE_NO_RETURN(cli, swClient*, zres, -1, SW_RES_CLIENT_NAME, le_swoole_client);
+			cli->sock = 0;
+		}
+	}
 	args[0] = zobject;
 	if (call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
@@ -118,8 +134,15 @@ static int php_swoole_client_onReceive(swReactor *reactor, swEvent *event)
 	//非ET模式会持续通知
 	n = recv(event->fd, buf, SW_CLIENT_BUFFER_SIZE, 0);
 #endif
+
 	if (n < 0)
 	{
+#ifdef HAVE_KQUEUE
+		if(errno == ECONNRESET)
+		{
+			return php_swoole_client_close(zobject, event->fd, 1 TSRMLS_CC);
+		}
+#endif
 		if (errno == EAGAIN)
 		{
 			efree(hash_key);
@@ -134,7 +157,7 @@ static int php_swoole_client_onReceive(swReactor *reactor, swEvent *event)
 	}
 	else if (n == 0)
 	{
-		php_swoole_client_close(zobject, event->fd TSRMLS_CC);
+		php_swoole_client_close(zobject, event->fd, 1 TSRMLS_CC);
 	}
 	else
 	{
@@ -722,7 +745,7 @@ PHP_METHOD(swoole_client, close)
 	}
 	if(cli->async == 1 && SwooleG.main_reactor != NULL)
 	{
-		ret = php_swoole_client_close(&getThis(), cli->sock TSRMLS_CC);
+		ret = php_swoole_client_close(&getThis(), cli->sock, 0 TSRMLS_CC);
 		cli->sock = 0;
 	}
 	else
