@@ -807,7 +807,7 @@ typedef struct _swServerG{
 typedef struct _swServerGS{
 	pid_t master_pid;
 	pid_t manager_pid;
-	time_t lct;
+	time_t now;
 } swServerGS;
 
 typedef struct _swWorkerG{

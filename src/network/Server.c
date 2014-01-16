@@ -22,6 +22,8 @@
 
 static void swSignalInit(void);
 
+SWINLINE static swUpdateTime();
+
 static int swServer_check_callback(swServer *serv);
 static int swServer_listen(swServer *serv, swReactor *reactor);
 
@@ -31,6 +33,9 @@ static int swServer_poll_onPackage(swReactor *reactor, swEvent *event);
 
 static void swServer_poll_onReactorTimeout(swReactor *reactor);
 static void swServer_poll_onReactorFinish(swReactor *reactor);
+
+static void swServer_master_onReactorTimeout(swReactor *reactor);
+static void swServer_master_onReactorFinish(swReactor *reactor);
 
 static int swServer_poll_loop(swThreadParam *param);
 static int swServer_poll_start(swServer *serv, swReactor *main_reactor_ptr);
@@ -176,6 +181,29 @@ static int swServer_onTimer(swReactor *reactor, swEvent *event)
 static void swServer_poll_onReactorTimeout(swReactor *reactor)
 {
 	swServer_poll_onReactorFinish(reactor);
+}
+
+static void swServer_master_onReactorTimeout(swReactor *reactor)
+{
+	swUpdateTime();
+}
+
+static void swServer_master_onReactorFinish(swReactor *reactor)
+{
+	swUpdateTime();
+}
+
+SWINLINE static swUpdateTime()
+{
+	time_t now = time(NULL);
+	if (now < 0)
+	{
+		swWarn("get time failed. Error: %s[%d]", strerror(errno), errno);
+	}
+	else
+	{
+		SwooleGS->now = now;
+	}
 }
 
 static void swServer_poll_onReactorFinish(swReactor *reactor)
@@ -441,6 +469,8 @@ static int swServer_start_proxy(swServer *serv)
 	main_reactor->id = serv->reactor_num; //设为一个特别的ID
 	main_reactor->ptr = serv;
 	main_reactor->setHandle(main_reactor, SW_FD_LISTEN, swServer_master_onAccept);
+	main_reactor->onFinish = swServer_master_onReactorFinish;
+	main_reactor->onTimeout = swServer_master_onReactorTimeout;
 	//no use
 	//SW_START_SLEEP;
 	if (serv->onStart != NULL)
@@ -450,6 +480,10 @@ static int swServer_start_proxy(swServer *serv)
 	struct timeval tmo;
 	tmo.tv_sec = SW_MAINREACTOR_TIMEO;
 	tmo.tv_usec = 0;
+
+	//先更新一次时间
+	swUpdateTime();
+
 	return main_reactor->wait(main_reactor, &tmo);
 }
 
@@ -661,7 +695,7 @@ int swServer_new_connection(swServer *serv, swEvent *ev)
 	connection->from_id = ev->from_id;
 	connection->from_fd = ev->from_fd;
 	connection->buffer = NULL;
-	connection->ct = time(0);
+	connection->connect_time = SwooleGS->now;
 	connection->tag = 1; //使此连接激活,必须在最后，保证线程安全
 
 	return SW_OK;
@@ -1312,7 +1346,7 @@ static int swServer_poll_onReceive_data_buffer(swReactor *reactor, swEvent *even
 			}
 			swDataBuffer_flush(data_buffer, buffer_item);
 			swConnection *connection = swServer_get_connection(serv, event->fd);
-			connection->lct = time(0);
+			connection->last_time =  SwooleGS->now;
 		}
 	}
 	return SW_OK;
@@ -1366,9 +1400,10 @@ static int swServer_poll_onReceive_conn_buffer(swReactor *reactor, swEvent *even
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &(serv->factory);
 	swConnection *connection = swServer_get_connection(serv, event->fd);
-	connection->lct = time(0);
 	swEvent closeEv;
 	swConnBuffer *buffer = swConnection_get_buffer(connection);
+
+	connection->last_time =  SwooleGS->now;
 
 	if(buffer==NULL)
 	{
@@ -1478,7 +1513,7 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 
 		//更新最近收包时间
 		swConnection *connection = swServer_get_connection(serv, event->fd);
-		connection->lct = time(0);
+		connection->last_time =  SwooleGS->now;
 
 		ret = factory->dispatch(factory, &rdata.buf);
 		//处理数据失败，数据将丢失

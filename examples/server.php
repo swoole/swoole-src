@@ -57,6 +57,11 @@ function my_onReceive($serv, $fd, $from_id, $data)
 		$task_id = $serv->task("hello world");
 		echo "Dispath AsyncTask: id=$task_id\n";
 	}
+	elseif($cmd == "info") 
+    {
+		$info = $serv->connection_info($fd);
+		$serv->send($fd, 'Info: '.var_export($info, true).PHP_EOL);
+	}
 	elseif($cmd == "shutdown") 
     {
 		$serv->shutdown();

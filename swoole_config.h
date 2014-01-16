@@ -41,7 +41,7 @@
 #define SW_DATA_EOF_MAXLEN         8
 //#define SW_USE_CONN_BUFFER         1 //使用ConnBuffer还是DataBuffer,DataBuffer是分trunk的，ConnBuffer是固定的
 
-#define SW_MAINREACTOR_TIMEO       3    //main reactor
+#define SW_MAINREACTOR_TIMEO       1    //main reactor
 #define SW_MAINREACTOR_USE_UNSOCK  1    //主线程使用unsock
 #define SW_REACTOR_WRITER_TIMEO    3    //writer线程的reactor
 #define SW_TASKWAIT_TIMEOUT        0.5

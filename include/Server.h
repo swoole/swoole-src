@@ -100,8 +100,8 @@ typedef struct _swConnection {
 	uint8_t buffer_num; //buffer的数量
 	struct sockaddr_in addr; //socket的地址
 	swConnBuffer *buffer; //缓存区
-	time_t ct;	     //连接时间戳
-	time_t lct;			//最近一次收到数据的时间
+	time_t connect_time; //连接时间戳
+	time_t last_time;	 //最近一次收到数据的时间
 } swConnection;
 
 typedef struct swServer_s swServer;
