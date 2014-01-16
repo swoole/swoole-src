@@ -17,6 +17,7 @@ class swoole_server
 
 class swoole_client
 {
+    public $sock;
     function on($event_name, $callback_function){}
     function send($data){}
     function close(){}
