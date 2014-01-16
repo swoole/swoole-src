@@ -84,7 +84,7 @@ static int php_swoole_client_close(zval **zobject, int fd, int reset_fd TSRMLS_D
 		if (zend_hash_find(Z_OBJPROP_PP(zobject), SW_STRL("_client"), (void **) &zres) == SUCCESS)
 		{
 			ZEND_FETCH_RESOURCE_NO_RETURN(cli, swClient*, zres, -1, SW_RES_CLIENT_NAME, le_swoole_client);
-			cli->sock = 0;
+			cli->close(cli);
 		}
 	}
 	args[0] = zobject;
@@ -578,6 +578,7 @@ PHP_METHOD(swoole_client, connect)
 			MAKE_STD_ZVAL(errCode);
 			ZVAL_LONG(errCode, errno);
 			zend_update_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errCode TSRMLS_CC);
+			zval_ptr_dtor(&errCode);
 			RETURN_FALSE;
 		}
 		else
@@ -659,6 +660,11 @@ PHP_METHOD(swoole_client, send)
 	{
 		RETURN_FALSE;
 	}
+	if (cli->connected == 0)
+	{
+		zend_error(E_WARNING, "SwooleClient: Server is not connected.");
+		RETURN_FALSE;
+	}
 	SW_CHECK_RETURN(cli->send(cli, data, data_len));
 }
 
@@ -687,7 +693,11 @@ PHP_METHOD(swoole_client, recv)
 	{
 		RETURN_FALSE;
 	}
-
+	if (cli->connected == 0)
+	{
+		zend_error(E_WARNING, "SwooleClient: Server is not connected.");
+		RETURN_FALSE;
+	}
 	/**
 	 * UDP waitall=0 buf_len小于最大值这3种情况使用栈内存
 	 */

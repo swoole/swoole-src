@@ -20,6 +20,7 @@ typedef struct _swClient
 	int sock_domain;
 	int protocol;
 	int async;
+	int connected;
 	double timeout;
 
 	struct sockaddr_in serv_addr;

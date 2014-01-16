@@ -17,6 +17,8 @@
 #include "swoole.h"
 #include "Client.h"
 
+#include <netdb.h>
+
 int swClient_create(swClient *cli, int type, int async)
 {
 	int _domain;
@@ -68,10 +70,37 @@ int swClient_create(swClient *cli, int type, int async)
 	return SW_OK;
 }
 
+static int swClient_inet_addr(struct sockaddr_in *sin, char *string)
+{
+	struct in_addr tmp;
+	struct hostent *host_entry;
+
+	if (inet_aton(string, &tmp))
+	{
+		sin->sin_addr.s_addr = tmp.s_addr;
+	}
+	else
+	{
+		if (!(host_entry = gethostbyname(string)))
+		{
+			swWarn("SwooleClient: Host lookup failed. Error: %s[%d] ", strerror(errno), errno);
+			return SW_ERR;
+		}
+		if (host_entry->h_addrtype != AF_INET)
+		{
+			swWarn("Host lookup failed: Non AF_INET domain returned on AF_INET socket");
+			return 0;
+		}
+		memcpy(&(sin->sin_addr.s_addr), host_entry->h_addr_list[0], host_entry->h_length);
+	}
+	return SW_OK;
+}
+
 int swClient_close(swClient *cli)
 {
 	int fd = cli->sock;
 	cli->sock = 0;
+	cli->connected = 0;
 	return close(fd);
 }
 
@@ -80,7 +109,11 @@ int swClient_tcp_connect(swClient *cli, char *host, int port, double timeout, in
 	int ret;
 	cli->serv_addr.sin_family = cli->sock_domain;
 	cli->serv_addr.sin_port = htons(port);
-	cli->serv_addr.sin_addr.s_addr = inet_addr(host);
+
+	if (swClient_inet_addr(&cli->serv_addr, host) < 0)
+	{
+		return SW_ERR;
+	}
 
 	cli->timeout = timeout;
 	swSetTimeout(cli->sock, timeout);
@@ -104,6 +137,10 @@ int swClient_tcp_connect(swClient *cli, char *host, int port, double timeout, in
 			}
 		}
 		break;
+	}
+	if (ret >= 0)
+	{
+		cli->connected = 1;
 	}
 	return ret;
 }
@@ -180,7 +217,11 @@ int swClient_udp_connect(swClient *cli, char *host, int port, double timeout, in
 
 	cli->serv_addr.sin_family = cli->sock_domain;
 	cli->serv_addr.sin_port = htons(port);
-	cli->serv_addr.sin_addr.s_addr = inet_addr(host);
+
+	if (swClient_inet_addr(&cli->serv_addr, host) < 0)
+	{
+		return SW_ERR;
+	}
 
 	if(udp_connect != 1)
 	{
@@ -191,6 +232,7 @@ int swClient_udp_connect(swClient *cli, char *host, int port, double timeout, in
 	{
 		//清理connect前的buffer数据遗留
 		while(recv(cli->sock, buf, 1024 , MSG_DONTWAIT) > 0);
+		cli->connected = 1;
 		return SW_OK;
 	}
 	else
