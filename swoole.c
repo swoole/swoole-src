@@ -19,26 +19,6 @@
 #include "php_swoole.h"
 #include <ext/standard/info.h>
 
-/**
- * PHP5.2
- */
-#ifndef PHP_FE_END
-#define PHP_FE_END {NULL,NULL,NULL}
-#endif
-
-#ifndef ZEND_MOD_END
-#define ZEND_MOD_END {NULL,NULL,NULL}
-#endif
-
-#define SW_HOST_SIZE            128
-
-#pragma pack(4)
-typedef struct {
-	uint16_t port;
-	uint16_t from_fd;
-} php_swoole_udp_t;
-#pragma pack()
-
 zval *php_sw_callback[PHP_SERVER_CALLBACK_NUM];
 
 HashTable php_sw_reactor_callback;
@@ -236,13 +216,14 @@ PHP_MINIT_FUNCTION(swoole)
 	REGISTER_LONG_CONSTANT("SWOOLE_FILELOCK", SW_FILELOCK, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_MUTEX", SW_MUTEX, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_SEM", SW_SEM, CONST_CS | CONST_PERSISTENT);
+
 #ifdef HAVE_SPINLOCK
 	REGISTER_LONG_CONSTANT("SWOOLE_SPINLOCK", SW_SPINLOCK, CONST_CS | CONST_PERSISTENT);
 #endif
 
 	REGISTER_LONG_CONSTANT("SWOOLE_SOCK_SYNC", SW_SOCK_SYNC, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_SOCK_ASYNC", SW_SOCK_ASYNC, CONST_CS | CONST_PERSISTENT);
-    REGISTER_STRINGL_CONSTANT("SWOOLE_VERSION", PHP_SWOOLE_VERSION, sizeof(PHP_SWOOLE_VERSION) - 1, CONST_PERSISTENT | CONST_CS);
+    REGISTER_STRINGL_CONSTANT("SWOOLE_VERSION", PHP_SWOOLE_VERSION, sizeof(PHP_SWOOLE_VERSION) - 1, CONST_CS | CONST_PERSISTENT);
 
 	INIT_CLASS_ENTRY(swoole_client_ce, "swoole_client", swoole_client_methods);
 	swoole_client_class_entry_ptr = zend_register_internal_class(&swoole_client_ce TSRMLS_CC);
@@ -431,7 +412,7 @@ PHP_FUNCTION(swoole_server_create)
 	}
 #endif
 
-	bzero(php_sw_callback, sizeof(zval*)*PHP_SERVER_CALLBACK_NUM);
+	bzero(php_sw_callback, sizeof(zval*) * PHP_SERVER_CALLBACK_NUM);
 
 	if(swServer_addListen(serv, sock_type, serv_host, serv_port) < 0)
 	{
