@@ -9,6 +9,13 @@ phpize
 ./configure
 make && make install
 ```
+
+如果已经安装好了 pecl ，可以使用 pecl 安装，推荐使用这种方法。
+
+```shell
+pecl install swoole
+``
+
 编译安装完成之后，修改php.ini加入extension=swoole.so启用swoole扩展。通过  
 
 ```shell
