@@ -161,6 +161,9 @@ struct swServer_s
 	uint16_t tcp_keepinterval;  //探测时发包的时间间隔
 	uint16_t tcp_keepcount;     //探测尝试的次数
 
+	/* heartbeat check time*/
+	int heartbeat_check_time;
+
 	void *ptr2;
 
 	swPipe main_pipe;
@@ -212,6 +215,8 @@ int swTimer_select(swTimer *timer, swServer *serv);
 int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);
 
 int swServer_new_connection(swServer *serv, swEvent *ev);
+
+
 #define SW_SERVER_MAX_FD_INDEX        0
 #define SW_SERVER_MIN_FD_INDEX        1
 

@@ -34,6 +34,26 @@
 
 #define PHP_SWOOLE_VERSION  "1.6.10"
 
+/**
+ * PHP5.2
+ */
+#ifndef PHP_FE_END
+#define PHP_FE_END {NULL,NULL,NULL}
+#endif
+
+#ifndef ZEND_MOD_END
+#define ZEND_MOD_END {NULL,NULL,NULL}
+#endif
+
+#define SW_HOST_SIZE  128
+
+#pragma pack(4)
+typedef struct {
+	uint16_t port;
+	uint16_t from_fd;
+} php_swoole_udp_t;
+#pragma pack()
+
 extern zend_module_entry swoole_module_entry;
 #define phpext_swoole_ptr &swoole_module_entry
 
@@ -117,6 +137,7 @@ PHP_FUNCTION(swoole_server_taskwait);
 PHP_FUNCTION(swoole_server_finish);
 PHP_FUNCTION(swoole_server_reload);
 PHP_FUNCTION(swoole_server_shutdown);
+PHP_FUNCTION(swoole_server_hbcheck);
 PHP_FUNCTION(swoole_connection_list);
 PHP_FUNCTION(swoole_connection_info);
 
