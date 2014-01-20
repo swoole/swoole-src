@@ -829,6 +829,8 @@ PHP_FUNCTION(swoole_server_hbcheck)
 
 	array_init(return_value);
 
+	int fd;
+
 	//遍历到最大fd
 	for(fd = serv_min_fd; fd<= serv_max_fd; fd++)
 	{
