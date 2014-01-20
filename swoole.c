@@ -81,6 +81,7 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_server_finish, NULL)
 	PHP_FE(swoole_server_reload, NULL)
 	PHP_FE(swoole_server_shutdown, NULL)
+	PHP_FE(swoole_server_hbcheck, NULL)
 	PHP_FE(swoole_connection_info, NULL)
 	PHP_FE(swoole_connection_list, NULL)
 	PHP_FE(swoole_event_add, NULL)
@@ -109,6 +110,7 @@ static zend_function_entry swoole_server_methods[] = {
 	PHP_FALIAS(deltimer, swoole_server_deltimer, NULL)
 	PHP_FALIAS(reload, swoole_server_reload, NULL)
 	PHP_FALIAS(shutdown, swoole_server_shutdown, NULL)
+	PHP_FALIAS(hbcheck, swoole_server_hbcheck, NULL)
 	PHP_FALIAS(handler, swoole_server_handler, NULL)
 	PHP_FALIAS(on, swoole_server_on, NULL)
 	PHP_FALIAS(connection_info, swoole_connection_info, NULL)
@@ -584,6 +586,12 @@ PHP_FUNCTION(swoole_server_set)
 		convert_to_long(*v);
 		serv->timer_interval = (int)Z_LVAL_PP(v);
 	}
+	//heartbeat check time
+	if (zend_hash_find(vht, ZEND_STRS("heartbeat_check_time"), (void **)&v) == SUCCESS)
+	{
+		convert_to_long(*v);
+		serv->heartbeat_check_time = (int)Z_LVAL_PP(v) * 1000;
+	}
 	RETURN_TRUE;
 }
 
@@ -721,7 +729,7 @@ PHP_FUNCTION(swoole_server_on)
 
 PHP_FUNCTION(swoole_server_close)
 {
-	zval *zobject = getThis();;
+	zval *zobject = getThis();
 	swServer *serv;
 	swEvent ev;
 	long conn_fd, from_id = -1;
@@ -761,7 +769,7 @@ PHP_FUNCTION(swoole_server_close)
 
 PHP_FUNCTION(swoole_server_reload)
 {
-	zval *zobject = getThis();;
+	zval *zobject = getThis();
 	swServer *serv;
 
 	if (zobject == NULL)
@@ -775,9 +783,69 @@ PHP_FUNCTION(swoole_server_reload)
 	SW_CHECK_RETURN(swServer_reload(serv));
 }
 
+PHP_FUNCTION(swoole_server_hbcheck)
+{
+
+	zval *zobject = getThis();
+	swServer *serv;
+	swEvent ev;
+	long from_id = -1;
+
+	if (zobject == NULL)
+	{
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O|l", &zobject, swoole_server_class_entry_ptr, &from_id) == FAILURE)
+		{
+			return;
+		}
+	}
+	else
+	{
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l",  &from_id) == FAILURE)
+		{
+			return;
+		}
+	}
+	SWOOLE_GET_SERVER(zobject, serv);
+
+	if(serv->heartbeat_check_time < 1000) 
+	{
+		RETURN_FALSE;
+		return;
+	}
+
+	if(from_id < 0)
+	{
+		ev.from_id = serv->factory.last_from_id;
+	}
+	else
+	{
+		ev.from_id = from_id;
+	}
+
+
+	int serv_max_fd = swServer_get_maxfd(serv);
+	int serv_min_fd = swServer_get_minfd(serv);
+
+
+	array_init(return_value);
+
+	//遍历到最大fd
+	for(fd = serv_min_fd; fd<= serv_max_fd; fd++)
+	{
+		 swTrace("check fd=%d", fd);
+		 if(1 == serv->connection_list[fd].tag && (serv->connection_list[fd].last_time  < (SwooleGS->now - serv->heartbeat_check_time)))
+		 {
+		 	ev.fd = fd;
+		 	serv->factory.end(&serv->factory, &ev);
+			add_next_index_long(return_value, fd);
+		 }
+	}
+	
+}
+
 PHP_FUNCTION(swoole_server_shutdown)
 {
-	zval *zobject = getThis();;
+	zval *zobject = getThis();
 	swServer *serv;
 	zval *zmaster_pid;
 

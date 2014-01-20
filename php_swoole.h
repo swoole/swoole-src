@@ -137,6 +137,7 @@ PHP_FUNCTION(swoole_server_taskwait);
 PHP_FUNCTION(swoole_server_finish);
 PHP_FUNCTION(swoole_server_reload);
 PHP_FUNCTION(swoole_server_shutdown);
+PHP_FUNCTION(swoole_server_hbcheck);
 PHP_FUNCTION(swoole_connection_list);
 PHP_FUNCTION(swoole_connection_info);
 
