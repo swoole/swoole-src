@@ -53,12 +53,12 @@
 #define SW_WORKER_SENDTO_COUNT     2    //写回客户端失败尝试次数
 #define SW_WORKER_SENDTO_YIELD     10   //yield after sendto
 
-
 #define SW_MAINREACTOR_USE_POLL         //main thread to use select or poll
 
 #define SW_REACTOR_TIMEO_SEC       3
 #define SW_REACTOR_TIMEO_USEC      0
-#define SW_REACTOR_DISPATCH        2    //连接分配模式，1平均分配，2按FD取摸固定分配
+#define SW_REACTOR_SCHEDULE        3    //连接分配模式: 1轮询分配, 2按FD取摸固定分配, 3根据连接数进行调度
+#define SW_SCHEDULE_INTERVAL       32   //平均调度的间隔次数,减少运算量
 
 #define SW_QUEUE_SIZE              100   //缩减版的RingQueue,用在线程模式下
 
@@ -72,6 +72,8 @@
 #define SW_USE_FIXED_BUFFER
 
 #define SW_ACCEPT_AGAIN            1     //是否循环accept，可以一次性处理完全部的listen队列，用于大量并发连接的场景
+#define SW_ACCEPT_MAX_COUNT        64    //一次循环的最大accept次数
+
 #define SW_CLOSE_AGAIN             1
 #define SW_CLOSE_QLEN              128
 //#define SW_USE_EPOLLET

@@ -22,7 +22,11 @@
 
 static void swSignalInit(void);
 
-SWINLINE static swUpdateTime();
+SWINLINE static void swUpdateTime(void);
+
+#if SW_REACTOR_SCHEDULE == 3
+SWINLINE static swServer_reactor_schedule(swServer *serv);
+#endif
 
 static int swServer_check_callback(swServer *serv);
 static int swServer_listen(swServer *serv, swReactor *reactor);
@@ -84,7 +88,7 @@ SWINLINE static int swConnection_close(swServer *serv, int fd, int16_t *from_id)
 	//from_id == SW_CLOSE_DELETE,表示已经在Reactor中关闭连接
 	if((*from_id) != SW_CLOSE_DELETE)
 	{
-		from_reactor = &(serv->poll_threads[conn->from_id].reactor);
+		from_reactor = &(serv->reactor_threads[conn->from_id].reactor);
 		if(from_reactor->del(from_reactor, fd) < 0)
 		{
 			return SW_ERR;
@@ -99,7 +103,7 @@ SWINLINE static int swConnection_close(swServer *serv, int fd, int16_t *from_id)
 #ifdef SW_USE_CONN_BUFFER
 		swConnection_clear_buffer(conn);
 #else
-		swDataBuffer *data_buffer = &serv->poll_threads[(*from_id)].data_buffer;
+		swDataBuffer *data_buffer = &serv->reactor_threads[(*from_id)].data_buffer;
 		swDataBuffer_clear(data_buffer, fd);
 #endif
 	}
@@ -193,7 +197,7 @@ static void swServer_master_onReactorFinish(swReactor *reactor)
 	swUpdateTime();
 }
 
-SWINLINE static swUpdateTime()
+SWINLINE static void swUpdateTime(void)
 {
 	time_t now = time(NULL);
 	if (now < 0)
@@ -206,10 +210,27 @@ SWINLINE static swUpdateTime()
 	}
 }
 
+#if SW_REACTOR_SCHEDULE == 3
+SWINLINE static swServer_reactor_schedule(swServer *serv)
+{
+	//以第1个为基准进行排序，取出最小值
+	int i, event_num = serv->reactor_threads[0].reactor.event_num;
+	serv->reactor_next_i = 0;
+	for (i = 1; i < serv->reactor_num; i++)
+	{
+		if (serv->reactor_threads[i].reactor.event_num < event_num)
+		{
+			serv->reactor_next_i = i;
+			event_num = serv->reactor_threads[i].reactor.event_num;
+		}
+	}
+}
+#endif
+
 static void swServer_poll_onReactorFinish(swReactor *reactor)
 {
 	swServer *serv = reactor->ptr;
-	swCloseQueue *queue = &serv->poll_threads[reactor->id].close_queue;
+	swCloseQueue *queue = &serv->reactor_threads[reactor->id].close_queue;
 	//打开关闭队列
 	if (queue->num > 0)
 	{
@@ -223,10 +244,10 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 	swEvent connEv;
 	struct sockaddr_in client_addr;
 	uint32_t client_addrlen = sizeof(client_addr);
-	int conn_fd, ret, c_pti;
+	int conn_fd, ret, c_pti, i;
 
-	swTrace("[Main]accept start.event->fd=%d|event->from_id=%d", event->fd, event->from_id);
-	while (1)
+	//SW_ACCEPT_AGAIN
+	for (i = 0; i < SW_ACCEPT_MAX_COUNT; i++)
 	{
 		//accept得到连接套接字
 #ifdef SW_USE_ACCEPT4
@@ -247,7 +268,7 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 				return SW_OK;
 			}
 		}
-
+		swTrace("[Main]accept start.event->fd=%d|event->from_id=%d", event->fd, event->from_id);
 		//连接过多
 		if(serv->connect_count >= serv->max_conn)
 		{
@@ -281,14 +302,21 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 #endif
 		swTrace("[Main]connect from %s, by process %d\n", inet_ntoa(client_addr.sin_addr), getpid());
 
-#if SW_REACTOR_DISPATCH == 1
-		//平均分配
-		c_pti = (serv->c_pti++) % serv->reactor_num;
-#else
+#if SW_REACTOR_SCHEDULE == 1
+		//轮询分配
+		c_pti = (serv->reactor_round_i++) % serv->reactor_num;
+#elif SW_REACTOR_SCHEDULE == 2
 		//使用fd取模来散列
 		c_pti = conn_fd % serv->reactor_num;
+#else
+		//平均调度法
+		c_pti = serv->reactor_next_i;
+		if ((serv->reactor_schedule_count++) % SW_SCHEDULE_INTERVAL == 0)
+		{
+			swServer_reactor_schedule(serv);
+		}
 #endif
-		ret = serv->poll_threads[c_pti].reactor.add(&(serv->poll_threads[c_pti].reactor), conn_fd,
+		ret = serv->reactor_threads[c_pti].reactor.add(&(serv->reactor_threads[c_pti].reactor), conn_fd,
 				SW_FD_TCP | SW_EVENT_READ);
 		if (ret < 0)
 		{
@@ -350,8 +378,8 @@ int swServer_addTimer(swServer *serv, int interval)
  */
 int swServer_reactor_add(swServer *serv, int fd, int sock_type)
 {
-	int poll_id = (serv->c_pti++) % serv->reactor_num;
-	swReactor *reactor = &(serv->poll_threads[poll_id].reactor);
+	int poll_id = (serv->reactor_round_i++) % serv->reactor_num;
+	swReactor *reactor = &(serv->reactor_threads[poll_id].reactor);
 	swSetNonBlock(fd); //must be nonblock
 	if(sock_type == SW_SOCK_TCP || sock_type == SW_SOCK_TCP6)
 	{
@@ -369,7 +397,7 @@ int swServer_reactor_add(swServer *serv, int fd, int sock_type)
  */
 int swServer_reactor_del(swServer *serv, int fd, int reacot_id)
 {
-	swReactor *reactor = &(serv->poll_threads[reacot_id].reactor);
+	swReactor *reactor = &(serv->reactor_threads[reacot_id].reactor);
 	reactor->del(reactor, fd);
 	return SW_OK;
 }
@@ -704,10 +732,10 @@ int swServer_new_connection(swServer *serv, swEvent *ev)
 static int swServer_create_base(swServer *serv)
 {
 	serv->reactor_num = 1;
-	serv->poll_threads = sw_calloc(1, sizeof(swThreadPoll));
-	if (serv->poll_threads == NULL)
+	serv->reactor_threads = sw_calloc(1, sizeof(swThreadPoll));
+	if (serv->reactor_threads == NULL)
 	{
-		swError("calloc[poll_threads] fail.alloc_size=%d", (int )(serv->reactor_num * sizeof(swThreadPoll)));
+		swError("calloc[reactor_threads] fail.alloc_size=%d", (int )(serv->reactor_num * sizeof(swThreadPoll)));
 		return SW_ERR;
 	}
 	serv->connection_list = sw_calloc(serv->max_conn, sizeof(swConnection));
@@ -744,10 +772,10 @@ static int swServer_create_proxy(swServer *serv)
 	}
 
 	//初始化poll线程池
-	serv->poll_threads = SwooleG.memory_pool->alloc(SwooleG.memory_pool, (serv->reactor_num * sizeof(swThreadPoll)));
-	if (serv->poll_threads == NULL)
+	serv->reactor_threads = SwooleG.memory_pool->alloc(SwooleG.memory_pool, (serv->reactor_num * sizeof(swThreadPoll)));
+	if (serv->reactor_threads == NULL)
 	{
-		swError("calloc[poll_threads] fail.alloc_size=%d", (int )(serv->reactor_num * sizeof(swThreadPoll)));
+		swError("calloc[reactor_threads] fail.alloc_size=%d", (int )(serv->reactor_num * sizeof(swThreadPoll)));
 		return SW_ERR;
 	}
 
@@ -901,7 +929,7 @@ static int swServer_udp_start(swServer *serv)
 static int swServer_poll_start(swServer *serv, swReactor *main_reactor_ptr)
 {
 	swThreadParam *param;
-	swThreadPoll *poll_threads;
+	swThreadPoll *reactor_threads;
 	pthread_t pidt;
 
 	int i, ret;
@@ -922,7 +950,7 @@ static int swServer_poll_start(swServer *serv, swReactor *main_reactor_ptr)
 
 		for (i = 0; i < serv->reactor_num; i++)
 		{
-			poll_threads = &(serv->poll_threads[i]);
+			reactor_threads = &(serv->reactor_threads[i]);
 			param = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
 			if (param == NULL)
 			{
@@ -936,7 +964,7 @@ static int swServer_poll_start(swServer *serv, swReactor *main_reactor_ptr)
 				swWarn("pthread_create[tcp_reactor] fail");
 			}
 			pthread_detach(pidt);
-			poll_threads->ptid = pidt;
+			reactor_threads->ptid = pidt;
 		}
 	}
 	if(SwooleG.timer.fd > 0)
@@ -1135,7 +1163,7 @@ static int swServer_single_start(swServer *serv)
 static int swServer_single_loop(swProcessPool *pool, swWorker *worker)
 {
 	swServer *serv = pool->ptr;
-	swReactor *reactor = &(serv->poll_threads[0].reactor);
+	swReactor *reactor = &(serv->reactor_threads[0].reactor);
 	if (swReactor_auto(reactor, serv->max_conn) < 0)
 	{
 		swWarn("Swoole reactor create fail");
@@ -1165,6 +1193,12 @@ static int swServer_single_loop(swProcessPool *pool, swWorker *worker)
 
 	reactor->add(reactor, worker->pipe_master, SW_FD_PIPE);
 
+	reactor->onFinish = swServer_master_onReactorFinish;
+	reactor->onTimeout = swServer_master_onReactorTimeout;
+
+	//更新系统时间
+	swUpdateTime();
+
 	struct timeval timeo;
 	if (serv->onWorkerStart != NULL)
 	{
@@ -1173,6 +1207,7 @@ static int swServer_single_loop(swProcessPool *pool, swWorker *worker)
 	timeo.tv_sec = SW_MAINREACTOR_TIMEO;
 	timeo.tv_usec = 0;
 	reactor->wait(reactor, &timeo);
+
 	return SW_OK;
 }
 
@@ -1198,8 +1233,8 @@ static int swServer_poll_loop(swThreadParam *param)
 {
 	swServer *serv = param->object;
 	int ret, pti = param->pti;
-	swReactor *reactor = &(serv->poll_threads[pti].reactor);
-	swThreadPoll *this = &(serv->poll_threads[pti]);
+	swReactor *reactor = &(serv->reactor_threads[pti].reactor);
+	swThreadPoll *this = &(serv->reactor_threads[pti]);
 	struct timeval timeo;
 
 	//cpu affinity setting
@@ -1268,7 +1303,7 @@ static int swServer_poll_onReceive_data_buffer(swReactor *reactor, swEvent *even
 	//swDispatchData send_data;
 	swEventData send_data;
 	swDataBuffer_item *buffer_item = NULL;
-	swDataBuffer *data_buffer = &serv->poll_threads[event->from_id].data_buffer;
+	swDataBuffer *data_buffer = &serv->reactor_threads[event->from_id].data_buffer;
 	swDataBuffer_trunk *trunk;
 	buffer_item = swDataBuffer_getItem(data_buffer, event->fd);
 
@@ -1540,7 +1575,7 @@ static int swServer_poll_onClose(swReactor *reactor, swEvent *event)
 {
 	int ret = 0;
 	swServer *serv = reactor->ptr;
-	swCloseQueue *queue = &serv->poll_threads[reactor->id].close_queue;
+	swCloseQueue *queue = &serv->reactor_threads[reactor->id].close_queue;
 
 	//关闭连接
 	reactor->del(reactor, event->fd);

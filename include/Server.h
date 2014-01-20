@@ -141,7 +141,11 @@ struct swServer_s
 	int ringbuffer_size;
 	int timer_interval;
 
-	int c_pti;                //schedule
+	/*----------------------------Reactor schedule--------------------------------*/
+	uint16_t reactor_round_i;   //轮询调度
+	uint16_t reactor_next_i;    //平均算法调度
+	uint16_t reactor_schedule_count;
+
 	int udp_sock_buffer_size; //UDP临时包数量，超过数量未处理将会被丢弃
 
 	uint8_t have_udp_sock;      //是否有UDP监听端口
@@ -162,7 +166,7 @@ struct swServer_s
 	swPipe main_pipe;
 	swReactor reactor;
 	swFactory factory;
-	swThreadPoll *poll_threads; //TCP监听线程
+	swThreadPoll *reactor_threads; //TCP监听线程
 	swListenList_node *listen_list;
 
 	swConnection *connection_list; //连接列表
