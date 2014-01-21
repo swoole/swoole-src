@@ -1342,7 +1342,7 @@ static int swServer_poll_onReceive_data_buffer(swReactor *reactor, swEvent *even
 		swTrace("Close Event.FD=%d|From=%d", event->fd, event->from_id);
 		memcpy(&closeEv, event, sizeof(swEvent));
 		closeEv.type = SW_EVENT_CLOSE;
-		return swServer_close(serv, event);
+		return swServer_poll_onClose(reactor, event);
 	}
 	else
 	{
@@ -1364,7 +1364,7 @@ static int swServer_poll_onReceive_data_buffer(swReactor *reactor, swEvent *even
 		{
 			isEOF = memcmp(trunk->data + trunk->len - serv->data_eof_len, serv->data_eof, serv->data_eof_len);
 		}
-		//printf("buffer ok.isEOF=%d\n", isEOF);
+		//printf("buffer ok. EOF=%s|Len=%d|RecvEOF=%s|isEOF=%d\n", serv->data_eof, serv->data_eof_len, trunk->data + trunk->len - serv->data_eof_len, isEOF);
 
 		//超过buffer_size或者收到EOF
 		//发送数据到worker进程
@@ -1475,7 +1475,7 @@ static int swServer_poll_onReceive_conn_buffer(swReactor *reactor, swEvent *even
 		swTrace("Close Event.FD=%d|From=%d\n", event->fd, event->from_id);
 		memcpy(&closeEv, event, sizeof(swEvent));
 		closeEv.type = SW_EVENT_CLOSE;
-		return swServer_close(serv, event);
+		return swServer_poll_onClose(reactor, event);
 	}
 	else
 	{
@@ -1511,6 +1511,7 @@ static int swServer_poll_onReceive_conn_buffer(swReactor *reactor, swEvent *even
 	}
 	return SW_OK;
 }
+
 static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 {
 	int ret, n;
@@ -1599,32 +1600,17 @@ static int swServer_poll_onClose(swReactor *reactor, swEvent *event)
 	reactor->del(reactor, event->fd);
 	event->from_id = -1;
 
-	//打开关闭队列
-	if (queue->open == SW_TRUE)
+	queue->events[queue->num].fd = event->fd;
+	//-1表示直接在reactor内关闭
+	queue->events[queue->num].from_id = -1;
+	//增加计数
+	queue->num ++;
+	//close队列已满
+	if (queue->num == SW_CLOSE_QLEN)
 	{
-		enQueue:
-		queue->events[queue->num].fd = event->fd;
-		//-1表示直接在reactor内关闭
-		queue->events[queue->num].from_id = -1;
-		//增加计数
-		queue->num ++;
-		//close队列已满
-		if (queue->num == SW_CLOSE_QLEN)
-		{
-			ret = swServer_poll_close_queue(reactor, queue);
-		}
+		return swServer_poll_close_queue(reactor, queue);
 	}
-	else
-	{
-		ret = swServer_close(serv, event);
-		//写pipe失败了,启用合并
-		if(ret < 0)
-		{
-			queue->open = SW_TRUE;
-			goto enQueue;
-		}
-	}
-	return ret;
+	return SW_OK;
 }
 
 static int swServer_poll_close_queue(swReactor *reactor, swCloseQueue *close_queue)

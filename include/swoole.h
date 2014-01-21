@@ -231,7 +231,6 @@ typedef struct _swEventClose
 typedef struct _swEventClose_queue {
 	swEventClose events[SW_CLOSE_QLEN];
 	int num;
-	char open;
 } swCloseQueue;
 
 typedef struct _swEventConnect

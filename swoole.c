@@ -544,11 +544,13 @@ PHP_FUNCTION(swoole_server_set)
 	//data eof设置
 	if (zend_hash_find(vht, ZEND_STRS("data_eof"), (void **) &v) == SUCCESS)
 	{
-		if (Z_STRLEN_PP(v) > SW_DATA_EOF_MAXLEN)
+		serv->data_eof_len = Z_STRLEN_PP(v);
+		if (serv->data_eof_len > SW_DATA_EOF_MAXLEN)
 		{
 			zend_error(E_ERROR, "swoole_server date_eof max length is %d", SW_DATA_EOF_MAXLEN);
 			RETURN_FALSE;
 		}
+		bzero(serv->data_eof, SW_DATA_EOF_MAXLEN);
 		memcpy(serv->data_eof, Z_STRVAL_PP(v), Z_STRLEN_PP(v));
 	}
 	//tcp_keepidle
