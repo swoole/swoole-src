@@ -1,15 +1,25 @@
 <?php
-$client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC); //同步阻塞
+$client = new swoole_client(SWOOLE_SOCK_TCP); //同步阻塞
+if(empty($argv[1]))
+{
+	$loop = 1;
+}
+else
+{
+	$loop = intval($argv[1]);
+}
+
 $_s = microtime(true);
 if(!$client->connect('127.0.0.1', 9501))
 {
 	exit("connect fail\n");
 }
-for($i=0; $i<100; $i++)
+
+for($i=0; $i<$loop; $i++)
 {
-	$client->send(str_repeat("A", 25).$i);
-	$client->send(str_repeat("A", 26).$i);
-	$client->send(str_repeat("A", 27).$i);
+	$client->send(str_repeat("A", 30).$i."[0]");
+	$client->send(str_repeat("A", 20).$i."[1]");
+	$client->send(str_repeat("A", 30).$i."[2]");
 	//$ret = $client->send("GET / HTTP/1.1\r\n");
 	//$client->send("Host: localhost\r\n");
 	//$client->send("Connection: keep-alive\r\n");

@@ -56,25 +56,28 @@ void swConnection_clear_buffer(swConnection *conn)
 swDataBuffer_item* swDataBuffer_newItem(swDataBuffer *data_buffer, int fd, int trunk_size)
 {
 	swDataBuffer_item *newItem = sw_malloc(sizeof(swDataBuffer_item));
-	//创建item时，自动建立一个trunk
-	swDataBuffer_trunk *newTrunk = swDataBuffer_newTrunk(data_buffer, newItem);
+	//内存分配失败
 	if (newItem == NULL)
 	{
+		swWarn("malloc for newItem failed. Error: %s[%d]", strerror(errno), errno);
 		return NULL;
 	}
 
+	bzero(newItem, sizeof(swDataBuffer_item));
+
+	//创建item时，自动建立一个trunk
+	swDataBuffer_trunk *newTrunk = swDataBuffer_newTrunk(data_buffer, newItem);
 	if (newTrunk == NULL)
 	{
 		sw_free(newItem);
+		swWarn("malloc for newTrunk failed. Error: %s[%d]", strerror(errno), errno);
 		return NULL;
 	}
 
-    bzero(newItem, sizeof(swDataBuffer_item));
-    newItem->fd = fd;
-    swHashMap_add_int(&data_buffer->map, fd, newItem);
-    newItem->first = newTrunk;
+	newItem->fd = fd;
+	swHashMap_add_int(&data_buffer->map, fd, newItem);
 
-    return newItem;
+	return newItem;
 }
 
 swDataBuffer_trunk * swDataBuffer_newTrunk(swDataBuffer *data_buffer, swDataBuffer_item *item)
@@ -82,70 +85,53 @@ swDataBuffer_trunk * swDataBuffer_newTrunk(swDataBuffer *data_buffer, swDataBuff
 	swDataBuffer_trunk *trunk = sw_malloc(sizeof(swDataBuffer_trunk));
 	if (trunk == NULL)
 	{
+		swWarn("malloc for trunk failed. Error: %s[%d]", strerror(errno), errno);
 		return NULL;
 	}
 	char *buf = sw_malloc(data_buffer->trunk_size);
 	if (buf == NULL)
 	{
+		swWarn("malloc for data failed. Error: %s[%d]", strerror(errno), errno);
 		sw_free(trunk);
 		return NULL;
 	}
 	bzero(trunk, sizeof(swDataBuffer_trunk));
-	item->trunk_num++;
 	trunk->data = buf;
+	item->trunk_num++;
+
+	if(item->head == NULL)
+	{
+		item->tail = item->head = trunk;
+	}
+	else
+	{
+		item->tail->next = trunk;
+		item->tail = trunk;
+	}
 	return trunk;
 }
 
 swDataBuffer_item *swDataBuffer_getItem(swDataBuffer *data_buffer, int fd)
 {
-	swDataBuffer_item *item = NULL;
-	swHashMap_add_int(&data_buffer->map, fd, item);
+	swDataBuffer_item *item = swHashMap_find_int(&data_buffer->map, fd);
+	if(item == NULL)
+	{
+		item = swDataBuffer_newItem(data_buffer, fd, data_buffer->trunk_size);
+	}
 	return item;
-}
-
-swDataBuffer_trunk *swDataBuffer_getTrunk(swDataBuffer *data_buffer, swDataBuffer_item *item)
-{
-	//第一次使用
-	if (item->last == NULL)
-	{
-		item->last = item->first;
-		//printf("1.-------------------------last=%p|first=%p\n", item->last, item->first);
-		return item->first;
-	}
-	//当前的trunk为空，可直接使用
-	else if (item->last->len == 0)
-	{
-		//printf("3.-------------------------\n");
-		return item->last;
-	}
-	//当前trunk
-	else
-	{
-		//printf("2.-------------------------\n");
-		swDataBuffer_trunk *trunk = swDataBuffer_newTrunk(data_buffer, item);
-		if (trunk == NULL)
-		{
-			swWarn("dataBufer: create trunk fail\n");
-			return NULL;
-		}
-		item->last->next = trunk;
-		trunk->pre = item->last;
-		item->last = trunk;
-		return trunk;
-	}
 }
 
 int swDataBuffer_flush(swDataBuffer *data_buffer, swDataBuffer_item *item)
 {
-	if(item->first == NULL)
+	if(item->head == NULL)
 	{
 		return SW_ERR;
 	}
-	item->first->len = 0;
-	item->last = NULL;
+	item->head->len = 0;
+	item->tail = item->head;
 	item->trunk_num = 1;
 
-	swDataBuffer_trunk *trunk = item->first->next;
+	swDataBuffer_trunk *trunk = item->head->next;
 	swDataBuffer_trunk *will_free_trunk; //保存trunk的指针，用于释放内存
 
 	while (trunk!= NULL)
@@ -157,7 +143,7 @@ int swDataBuffer_flush(swDataBuffer *data_buffer, swDataBuffer_item *item)
 		sw_free(will_free_trunk);
 //		swWarn("will_free_trunk");
 	}
-	item->first->next = NULL;
+	item->head->next = NULL;
 	return SW_OK;
 }
 
@@ -172,7 +158,7 @@ int swDataBuffer_clear(swDataBuffer *data_buffer, int fd)
 	}
 	else
 	{
-		swDataBuffer_trunk *trunk = item->first;
+		swDataBuffer_trunk *trunk = item->head;
 		swDataBuffer_trunk *will_free_trunk; //保存trunk的指针，用于释放内存
 		while (trunk != NULL)
 		{
@@ -187,24 +173,10 @@ int swDataBuffer_clear(swDataBuffer *data_buffer, int fd)
 	return SW_OK;
 }
 
-void swDataBuffer_append(swDataBuffer *data_buffer, swDataBuffer_item *item, swDataBuffer_trunk *trunk)
-{
-	if (trunk->pre != NULL && (data_buffer->trunk_size - trunk->pre->len) > trunk->len)
-	{
-		//printf("merge before. pre_data=%s|pre_len=%d|cur_data=%s|cur_len=%d\n", trunk->pre->data, trunk->pre->len,
-		//		trunk->data, trunk->len);
-
-		memcpy(trunk->pre->data + trunk->pre->len, trunk->data, trunk->len);
-		trunk->pre->len += trunk->len;
-		trunk->len = 0;
-		//printf("merge after. pre_data=%s|pre_len=%d\n", trunk->pre->data, trunk->pre->len);
-	}
-}
-
 void swDataBuffer_debug(swDataBuffer *data_buffer, swDataBuffer_item *item)
 {
 	int i = 0;
-	swDataBuffer_trunk *trunk = item->first;
+	swDataBuffer_trunk *trunk = item->head;
 	printf("%s\n%s\n", SW_START_LINE, __func__);
 	while (trunk != NULL && trunk->next != NULL)
 	{

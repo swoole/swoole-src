@@ -819,11 +819,11 @@ int swFactoryProcess_writer_excute(swFactory *factory, swEventData *resp)
 		if (ret < 0)
 		{
 			//连接已被关闭
-			if (errno == EBADF)
+			if (errno == ECONNRESET || errno == EBADF)
 			{
 				goto close_fd;
 			}
-			swWarn("factory->onFinish fail.fd=%d|from_id=%d|errno=%d\n", resp->info.fd, resp->info.from_id, errno);
+			swWarn("factory->onFinish failed.fd=%d|from_id=%d. Error: %s[%d]", resp->info.fd, resp->info.from_id, strerror(errno), errno);
 		}
 		//printf("[writer]pop.fd=%d|from_id=%d|data=%s\n", resp->info.fd, resp->info.from_id, resp->data);
 	}

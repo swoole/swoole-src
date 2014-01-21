@@ -2,6 +2,8 @@
 $serv = new swoole_server("127.0.0.1", 9501);
 $serv->set(array(
     'worker_num' => 1,
+    'open_eof_check' => true,
+    'data_eof' => "\r\n\r\n",
     //'task_worker_num' => 2,
 	//'dispatch_mode' => 2,
 //    'daemonize' => 1,
@@ -31,7 +33,8 @@ function my_onClose($serv, $fd, $from_id)
 
 function my_onConnect($serv, $fd, $from_id)
 {
- 	//echo "Client:Connect.\n";
+	//throw new Exception("hello world");
+ 	echo "Client:Connect.\n";
 }
 
 function my_onWorkerStart($serv, $worker_id)
@@ -72,7 +75,7 @@ function my_onReceive($serv, $fd, $from_id, $data)
 		//$serv->close($fd);
 	}
 	
-	    //echo "Client:Data. fd=$fd|from_id=$from_id|data=$data";
+	echo "Client:Data. fd=$fd|from_id=$from_id|data=$data";
     //echo "WorkerPid=".posix_getpid()."\n";
     //swoole_server_send($serv, $fd, 'Swoole: '.$data, $from_id);
 	//$serv->deltimer(800);

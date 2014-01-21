@@ -1042,14 +1042,7 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onReceive], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		if (EG(exception))
-		{
-			zend_error(E_WARNING, "SwoolServer: onReceive handler error. Uncaught exception Exception. Must try catch.");
-		}
-		else
-		{
-			zend_error(E_WARNING, "SwoolServer: onReceive handler error");
-		}
+		zend_error(E_WARNING, "SwooleServer: onReceive handler error");
 	}
 	zval_ptr_dtor(&zfd);
 	zval_ptr_dtor(&zfrom_id);
@@ -1093,8 +1086,13 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onTask], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		zend_error(E_WARNING, "SwoolServer: onReceive handler error");
+		zend_error(E_WARNING, "SwooleServer: onTask handler error");
 	}
+	if (EG(exception))
+	{
+		zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+	}
+
 	zval_ptr_dtor(&zfd);
 	zval_ptr_dtor(&zfrom_id);
 	zval_ptr_dtor(&zdata);
@@ -1129,7 +1127,11 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onFinish], &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		zend_error(E_WARNING, "SwoolServer: onReceive handler error");
+		zend_error(E_WARNING, "SwooleServer: onFinish handler error");
+	}
+	if (EG(exception))
+	{
+		zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
 	}
 	zval_ptr_dtor(&ztask_id);
 	zval_ptr_dtor(&zdata);
@@ -1169,6 +1171,10 @@ void php_swoole_onStart(swServer *serv)
 	{
 		zend_error(E_WARNING, "SwooleServer: onStart handler error");
 	}
+	if (EG(exception))
+	{
+		zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+	}
 	if (retval != NULL)
 	{
 		zval_ptr_dtor(&retval);
@@ -1194,6 +1200,10 @@ void php_swoole_onTimer(swServer *serv, int interval)
 	{
 		zend_error(E_WARNING, "SwooleServer: onTimer handler error");
 	}
+	if (EG(exception))
+	{
+		zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+	}
 	zval_ptr_dtor(&zinterval);
 	if (retval != NULL)
 	{
@@ -1214,6 +1224,10 @@ void php_swoole_onShutdown(swServer *serv)
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onShutdown], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
 		zend_error(E_WARNING, "SwooleServer: onShutdown handler error");
+	}
+	if (EG(exception))
+	{
+		zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
 	}
 	if (retval != NULL)
 	{
@@ -1253,7 +1267,11 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
 
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onWorkerStart], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		zend_error(E_WARNING, "SwooleServer: onShutdown handler error");
+		zend_error(E_WARNING, "SwooleServer: onWorkerStart handler error");
+	}
+	if (EG(exception))
+	{
+		zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
 	}
 	zval_ptr_dtor(&zworker_id);
 	if (retval != NULL)
@@ -1275,25 +1293,28 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
 	zval_add_ref(&zobject);
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-	if (php_sw_callback[SW_SERVER_CB_onWorkerStop] == NULL)
-	{
-		args[0] = &zworker_id;
-		zval func;
-		ZVAL_STRING(&func, "onWorkerStop", 0);
+	// 这里是什么逻辑？
+//	if (php_sw_callback[SW_SERVER_CB_onWorkerStop] == NULL)
+//	{
+//		args[0] = &zworker_id;
+//		zval func;
+//		ZVAL_STRING(&func, "onWorkerStop", 0);
+//
+//		if (call_user_function_ex(EG(function_table), &zobject, &func, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+//		{
+//			zend_error(E_WARNING, "SwooleServer: onWorkerStop handler error");
+//		}
+//	}
 
-		if (call_user_function_ex(EG(function_table), &zobject, &func, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
-		{
-			zend_error(E_WARNING, "SwooleServer->onShutdown handler error");
-		}
-	}
-	else
+	args[0] = &zobject;
+	args[1] = &zworker_id;
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onWorkerStop], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		args[0] = &zobject;
-		args[1] = &zworker_id;
-		if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onWorkerStop], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
-		{
-			zend_error(E_WARNING, "SwooleServer: onShutdown handler error");
-		}
+		zend_error(E_WARNING, "SwooleServer: onWorkerStop handler error");
+	}
+	if (EG(exception))
+	{
+		zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
 	}
 
 	zval_ptr_dtor(&zworker_id);
@@ -1328,6 +1349,11 @@ void php_swoole_onConnect(swServer *serv, int fd, int from_id)
 	{
 		zend_error(E_WARNING, "SwooleServer: onConnect handler error");
 	}
+	if (EG(exception))
+	{
+		zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+	}
+
 	zval_ptr_dtor(&zfd);
 	zval_ptr_dtor(&zfrom_id);
 	if (retval != NULL)
@@ -1358,11 +1384,17 @@ void php_swoole_onClose(swServer *serv, int fd, int from_id)
 //	php_printf("fd=%d|from_id=%d\n", fd, from_id);
 
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onClose], &retval, 3, args, 0,
 			NULL TSRMLS_CC) == FAILURE)
 	{
 		zend_error(E_WARNING, "SwooleServer: onClose handler error");
 	}
+	if (EG(exception))
+	{
+		zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+	}
+
 	zval_ptr_dtor(&zfd);
 	zval_ptr_dtor(&zfrom_id);
 	if (retval != NULL)
@@ -1395,6 +1427,10 @@ void php_swoole_onMasterConnect(swServer *serv, int fd, int from_id)
 			NULL TSRMLS_CC) == FAILURE)
 	{
 		zend_error(E_WARNING, "SwooleServer: ononMasterConnect handler error");
+	}
+	if (EG(exception))
+	{
+		zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
 	}
 	zval_ptr_dtor(&zfd);
 	zval_ptr_dtor(&zfrom_id);
@@ -1429,6 +1465,11 @@ void php_swoole_onMasterClose(swServer *serv, int fd, int from_id)
 	{
 		zend_error(E_WARNING, "SwooleServer: onMasterClose handler error");
 	}
+	if (EG(exception))
+	{
+		zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+	}
+
 	zval_ptr_dtor(&zfd);
 	zval_ptr_dtor(&zfrom_id);
 	if (retval != NULL)
