@@ -594,7 +594,6 @@ PHP_FUNCTION(swoole_server_set)
 		convert_to_long(*v);
 		serv->heartbeat_idle_time = (int)Z_LVAL_PP(v);
 	}
-
 	//heartbeat check time  
 	if (zend_hash_find(vht, ZEND_STRS("heartbeat_check_interval"), (void **)&v) == SUCCESS)
 	{

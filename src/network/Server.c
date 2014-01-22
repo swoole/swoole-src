@@ -578,10 +578,10 @@ int swServer_start(swServer *serv)
 	SwooleG.process_type = SW_PROCESS_MASTER;
 
 	//启动心跳检测
-	if(serv->heartbeat_check_interval >= 1 && serv->heartbeat_check_interval < serv->heartbeat_idle_time)
+	if(serv->heartbeat_check_interval >= 1 && serv->heartbeat_check_interval <= serv->heartbeat_idle_time)
 	{
 		swTrace("hb timer start, time: %d live time:%d", serv->heartbeat_check_interval, serv->heartbeat_idle_time);
-		swServer_hbcheck_start(serv);
+		swServer_heartbeat_start(serv);
 	}
 
 	if(serv->factory_mode == SW_MODE_SINGLE)
@@ -598,9 +598,9 @@ int swServer_start(swServer *serv)
 	{
 		serv->onShutdown(serv);
 	}
-	if(SwooleG->heartbeat_pidt) 
+	if (SwooleG.heartbeat_pidt)
 	{
-		pthread_cancel(SwooleG->heartbeat_pidt);
+		pthread_cancel(SwooleG.heartbeat_pidt);
 	}
 	swServer_free(serv);
 	return SW_OK;
@@ -1789,35 +1789,35 @@ static void swSignalHanlde(int sig)
 
 static void swServer_heartbeat_start(swServer *serv)
 {
-	
-	if(serv->heartbeat_idle_time >= 1 && serv->heartbeat_check_interval < serv->heartbeat_idle_time)
+	swThreadParam *heartbeat_param;
+	pthread_t heartbeat_pidt;
+	heartbeat_param = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
+	if (heartbeat_param == NULL)
 	{
-		swThreadParam *heartbeat_param;
-		pthread_t heartbeat_pidt;
-		heartbeat_param = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
-		if (heartbeat_param == NULL)
-		{
-			swError("heartbeat_param malloc fail\n");
-			return;
-		}
-		heartbeat_param->object = serv;
-		heartbeat_param->pti = 0;
-		if(pthread_create(&heartbeat_pidt, NULL, (void * (*)(void *)) swServer_heartbeat_check, (void *) heartbeat_param) < 0)
-		{
-			swWarn("pthread_create[hbcheck] fail");
-		}
-		SwooleG->heartbeat_pidt = heartbeat_pidt;
-		pthread_detach(hb_pidt);
+		swError("heartbeat_param malloc fail\n");
+		return;
 	}
+	heartbeat_param->object = serv;
+	heartbeat_param->pti = 0;
+	if(pthread_create(&heartbeat_pidt, NULL, (void * (*)(void *)) swServer_heartbeat_check, (void *) heartbeat_param) < 0)
+	{
+		swWarn("pthread_create[hbcheck] fail");
+	}
+	SwooleG.heartbeat_pidt = heartbeat_pidt;
+	pthread_detach(SwooleG.heartbeat_pidt);
 }
 
 static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
 {
-	while(SwooleG.running) {
+	while(SwooleG.running)
+	{
 		swServer *serv = heartbeat_param->object;
+		swFactory *factory = &serv->factory;
+
 		int serv_max_fd = swServer_get_maxfd(serv);
 		int serv_min_fd = swServer_get_minfd(serv);
-		swEvent ev;
+		int16_t from_id;
+		swEvent notify_ev;
 
 		int fd;
 
@@ -1829,11 +1829,27 @@ static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
 			 swTrace("check fd=%d", fd);
 			 if(1 == serv->connection_list[fd].tag && (serv->connection_list[fd].last_time  < checktime))
 			 {
-			 	ev.fd = fd;
-			 	serv->factory.end(&serv->factory, &ev);
+
+			 	if (swConnection_close(serv, fd, &from_id) == 0)
+				{
+					if (serv->onMasterClose != NULL)
+					{
+						serv->onMasterClose(serv, fd, from_id);
+					}
+					if (serv->onClose == NULL)
+					{
+						continue;
+					}
+					else
+					{
+						notify_ev.from_id = from_id;
+						notify_ev.fd = fd;
+						notify_ev.type = SW_EVENT_CLOSE;
+						factory->notify(factory, &notify_ev);
+					}
+				}
 			 }
 		}
-
 		sleep(serv->heartbeat_check_interval);
 	}
 	pthread_exit(0);

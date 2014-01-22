@@ -7,6 +7,8 @@ $serv->set(array(
     //'task_worker_num' => 2,
 	//'dispatch_mode' => 2,
 //    'daemonize' => 1,
+     'heartbeat_idle_time' => 30,
+     'heartbeat_check_interval' => 30,
 ));
 
 function my_onStart($serv)
@@ -72,7 +74,7 @@ function my_onReceive($serv, $fd, $from_id, $data)
 	else 
 	{
 		$serv->send($fd, 'Swoole: '.$data, $from_id);
-		$serv->close($fd);
+		//$serv->close($fd);
 	}
 	//echo "Client:Data. fd=$fd|from_id=$from_id|data=$data";
     //echo "WorkerPid=".posix_getpid()."\n";
