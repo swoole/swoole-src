@@ -405,7 +405,7 @@ PHP_FUNCTION(swoole_server_create)
 	}
 
 	serv->factory_mode = serv_mode;
-	swTrace("Create host=%s,port=%ld,mode=%d\n", serv_host, serv_port, serv->factory_mode);
+	swTrace("Create SwooleServer host=%s, port=%ld, mode=%d", serv_host, serv_port, serv->factory_mode);
 
 #ifdef ZTS
 	if(sw_thread_ctx == NULL)
@@ -991,7 +991,7 @@ PHP_FUNCTION(swoole_connection_list)
 	//循环到最大fd
 	for(; fd<= serv_max_fd; fd++)
 	{
-		 swTrace("maxfd=%d|fd=%d|find_count=%d|start_fd=%d", serv_max_fd, fd, find_count, start_fd);
+		 swTrace("maxfd=%d|fd=%d|find_count=%ld|start_fd=%ld", serv_max_fd, fd, find_count, start_fd);
 		 if(serv->connection_list[fd].tag == 1)
 		 {
 			 add_next_index_long(return_value, fd);

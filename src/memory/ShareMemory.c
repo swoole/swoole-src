@@ -62,7 +62,7 @@ void sw_shm_free(void *ptr)
 	//object对象在头部，如果释放了错误的对象可能会发生段错误
 	swShareMemory *object = ptr - sizeof(swShareMemory);
 #ifdef SW_DEBUG
-	char check = ptr + object->size; //尝试访问
+	char check = *(char *)(ptr + object->size); //尝试访问
 #endif
 	swShareMemory_mmap_free(object);
 }
@@ -71,7 +71,7 @@ void* sw_shm_realloc(void *ptr, size_t new_size)
 {
 	swShareMemory *object = ptr - sizeof(swShareMemory);
 #ifdef SW_DEBUG
-	char check = ptr + object->size; //尝试访问
+	char check = *(char *)(ptr + object->size); //尝试访问
 #endif
 	void *new_ptr;
 	new_ptr = sw_shm_malloc(new_size);

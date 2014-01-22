@@ -41,7 +41,7 @@ int swReactorPoll_create(swReactor *reactor, int max_fd_num)
 	swReactorPoll *object = sw_malloc(sizeof(swReactorPoll));
 	if (object == NULL)
 	{
-		swError("malloc[0] fail\n");
+		swError("malloc[0] failed");
 		return SW_ERR;
 	}
 	bzero(object, sizeof(swReactorPoll));
@@ -49,13 +49,13 @@ int swReactorPoll_create(swReactor *reactor, int max_fd_num)
 	object->fds = sw_calloc(max_fd_num, sizeof(swPollFdInfo));
 	if (object->fds == NULL)
 	{
-		swError("malloc[1] fail\n");
+		swError("malloc[1] failed");
 		return SW_ERR;
 	}
 	object->events = sw_calloc(max_fd_num, sizeof(struct pollfd));
 	if (object->events == NULL)
 	{
-		swError("malloc[2] fail\n");
+		swError("malloc[2] failed");
 		return SW_ERR;
 	}
 	object->max_fd_num = max_fd_num;
@@ -84,7 +84,7 @@ static int swReactorPoll_add(swReactor *reactor, int fd, int fdtype)
 	int cur = reactor->event_num;
 	if (reactor->event_num == object->max_fd_num)
 	{
-		swError("too many connection, more than %d\n", object->max_fd_num);
+		swError("too many connection, more than %d", object->max_fd_num);
 		return SW_ERR;
 	}
 	object->fds[cur].fdtype = swReactor_fdtype(fdtype);
@@ -204,40 +204,35 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *_timeo)
 				event.fd = object->events[i].fd;
 				event.from_id = reactor->id;
 				event.type = object->fds[i].fdtype;
+				swTrace("Event: fd=%d|from_id=%d|type=%d", event.fd, reactor->id, object->fds[i].fdtype);
 				//in
 				if (object->events[i].revents & POLLIN)
 				{
 					handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
-					swTrace("Event:Handle=%p|fd=%d|from_id=%d|type=%d\n",
-							reactor->handle[event.type], event.fd, reactor->id, object->fds[i].fdtype);
 					ret = handle(reactor, &event);
 					if (ret < 0)
 					{
-						swWarn("poll[POLLIN] handler fail. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
+						swWarn("poll[POLLIN] handler failed. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
 					}
 				}
 				//error
 				if (object->events[i].revents & (POLLHUP | POLLERR))
 				{
 					handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
-					swTrace("Event:Handle=%p|fd=%d|from_id=%d|type=%d\n",
-							reactor->handle[event.type], event.fd, reactor->id, object->fds[i].fdtype);
 					ret = handle(reactor, &event);
 					if (ret < 0)
 					{
-						swWarn("poll[POLLERR] handler fail. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
+						swWarn("poll[POLLERR] handler failed. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
 					}
 				}
 				//out
 				if (object->events[i].revents & POLLOUT)
 				{
 					handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
-					swTrace("Event:Handle=%p|fd=%d|from_id=%d|type=%d\n",
-							handle, event.fd, reactor->id, object->fds[i].fdtype);
 					ret = handle(reactor, &event);
 					if (ret < 0)
 					{
-						swWarn("poll[POLLOUT] handler fail. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
+						swWarn("poll[POLLOUT] handler failed. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
 					}
 				}
 			}

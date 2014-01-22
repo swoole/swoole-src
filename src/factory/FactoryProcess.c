@@ -90,7 +90,7 @@ int swFactoryProcess_shutdown(swFactory *factory)
 	//kill all child process
 	for (i = 0; i < object->worker_num; i++)
 	{
-		swTrace("[Main]kill worker processor\n");
+		swTrace("[Main]kill worker processor");
 		kill(object->workers[i].pid, SIGTERM);
 	}
 #if SW_WORKER_IPC_MODE == 2
@@ -297,7 +297,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 #endif
 		break;
 	case -1:
-		swError("[swFactoryProcess_worker_start]fork manager process fail\n");
+		swError("[swFactoryProcess_worker_start]fork manager process fail");
 		return SW_ERR;
 	}
 	return SW_OK;
@@ -332,7 +332,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 	reload_workers = sw_calloc(object->worker_num, sizeof(swWorker));
 	if (reload_workers == NULL)
 	{
-		swError("[manager] malloc[reload_workers] fail.\n");
+		swError("[manager] malloc[reload_workers] failed");
 		return SW_ERR;
 	}
 
@@ -347,7 +347,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 		{
 			if (manager_worker_reloading == 0)
 			{
-				swTrace("[Manager] wait fail. Error: %s [%d]", strerror(errno), errno);
+				swTrace("[Manager] wait failed. Error: %s [%d]", strerror(errno), errno);
 			}
 			else if (manager_reload_flag == 0)
 			{
@@ -371,7 +371,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 					new_pid = swFactoryProcess_worker_spawn(factory, i);
 					if (new_pid < 0)
 					{
-						swWarn("Fork worker process fail. Error: %s [%d]", strerror(errno), errno);
+						swWarn("Fork worker process failed. Error: %s [%d]", strerror(errno), errno);
 						return SW_ERR;
 					}
 					else
@@ -404,7 +404,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 			ret = kill(reload_workers[reload_worker_i].pid, SIGTERM);
 			if (ret < 0)
 			{
-				swWarn("[Manager]kill fail.pid=%d. Error: %s [%d]", reload_workers[reload_worker_i].pid, strerror(errno), errno);
+				swWarn("[Manager]kill failed, pid=%d. Error: %s [%d]", reload_workers[reload_worker_i].pid, strerror(errno), errno);
 				continue;
 			}
 			reload_worker_i++;
@@ -421,7 +421,7 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti)
 	pid = fork();
 	if (pid < 0)
 	{
-		swWarn("[swFactoryProcess_worker_spawn]Fork Worker failError: %s [%d]", strerror(errno), errno);
+		swWarn("Fork Worker failed. Error: %s [%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
 	//worker child processor
@@ -535,7 +535,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	finish:
 	if (ret < 0)
 	{
-		swWarn("[Worker#%d]sendto writer pipe or queue fail. Error: %s [%d]", getpid(), strerror(errno), errno);
+		swWarn("[Worker#%d]sendto writer pipe or queue failed. Error: %s [%d]", getpid(), strerror(errno), errno);
 	}
 	return ret;
 }
@@ -578,12 +578,12 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 	SwooleG.main_reactor = sw_malloc(sizeof(swReactor));
 	if(SwooleG.main_reactor == NULL)
 	{
-		swError("[Worker] malloc for reactor fail");
+		swError("[Worker] malloc for reactor failed.");
 		return SW_ERR;
 	}
 	if(swReactor_auto(SwooleG.main_reactor, serv->max_conn) < 0)
 	{
-		swError("[Worker] create worker_reactor fail");
+		swError("[Worker] create worker_reactor failed.");
 		return SW_ERR;
 	}
 	SwooleG.main_reactor->ptr = serv;
@@ -609,7 +609,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 		CPU_SET(worker_pti % SW_CPU_NUM, &cpu_set);
 		if (0 != sched_setaffinity(getpid(), sizeof(cpu_set), &cpu_set))
 		{
-			swWarn("pthread_setaffinity_np set fail\n");
+			swWarn("pthread_setaffinity_np set failed");
 		}
 	}
 #endif
@@ -626,7 +626,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 		n = object->rd_queue.out(&object->rd_queue, (swQueue_data *)&rdata, sizeof(rdata.req));
 		if (n < 0)
 		{
-			swWarn("[Worker]rd_queue[%ld]->out wait. Error: %s [%d]", rdata.pti, strerror(errno), errno);
+			swWarn("[Worker]rd_queue[%ld]->out wait failed. Error: %s [%d]", rdata.pti, strerror(errno), errno);
 			continue;
 		}
 		swFactoryProcess_worker_excute(factory, &rdata.req);
@@ -645,7 +645,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 		//worker进程结束时调用
 		serv->onWorkerStop(serv, worker_pti);
 	}
-	swTrace("[Worker]max request\n");
+	swTrace("[Worker]max request");
 	return SW_OK;
 }
 
@@ -872,7 +872,7 @@ int swFactoryProcess_writer_receive(swReactor *reactor, swDataHead *ev)
 
 	//Unix Sock UDP
 	n = read(ev->fd, &resp, sizeof(resp));
-	swTrace("[WriteThread]recv: writer=%d|pipe=%d\n", ev->from_id, ev->fd);
+	swTrace("[WriteThread]recv: writer=%d|pipe=%d", ev->from_id, ev->fd);
 	if (n > 0)
 	{
 		return swFactoryProcess_writer_excute(factory, &resp);

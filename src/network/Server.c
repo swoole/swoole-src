@@ -99,7 +99,7 @@ SWINLINE static int swConnection_close(swServer *serv, int fd, int16_t *from_id)
 	}
 	(*from_id) = conn->from_id;
 
-	swTrace("Close Event.fd=%d|from=%d\n", fd, (*from_id));
+	swTrace("Close Event.fd=%d|from=%d", fd, (*from_id));
 	if (serv->open_eof_check)
 	{
 		//释放buffer区
@@ -271,7 +271,7 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 				return SW_OK;
 			}
 		}
-		swTrace("[Main]accept start.event->fd=%d|event->from_id=%d", event->fd, event->from_id);
+		swTrace("[Master]accept.event->fd=%d|event->from_id=%d|conn=%d", event->fd, event->from_id, conn_fd);
 		//连接过多
 		if(serv->connect_count >= serv->max_conn)
 		{
@@ -303,7 +303,6 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 #endif
 		}
 #endif
-		swTrace("[Main]connect from %s, by process %d\n", inet_ntoa(client_addr.sin_addr), getpid());
 
 #if SW_REACTOR_SCHEDULE == 1
 		//轮询分配
@@ -1660,7 +1659,7 @@ static int swServer_poll_close_queue(swReactor *reactor, swCloseQueue *close_que
 	}
 	if (ret < 0)
 	{
-		swWarn("write to main_pipe fail. Error: %s[%d]", strerror(errno), errno);
+		swWarn("write to main_pipe failed. Error: %s[%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
 	bzero(close_queue, sizeof(swCloseQueue));
