@@ -65,8 +65,8 @@ static int swServer_start_base(swServer *serv);
 static int swServer_create_proxy(swServer *serv);
 static int swServer_create_base(swServer *serv);
 
-static void swServer_hbcheck_start(swServer *serv);
-static void swServer_hbcheck(swThreadParam *hbparam);
+static void swServer_heartbeat_start(swServer *serv);
+static void swServer_heartbeat_check(swThreadParam *heartbeat_param);
 
 swServerG SwooleG;
 swServerGS *SwooleGS;
@@ -578,9 +578,9 @@ int swServer_start(swServer *serv)
 	SwooleG.process_type = SW_PROCESS_MASTER;
 
 	//启动心跳检测
-	if(serv->hb_timer_interval >= 1 && serv->hb_timer_interval < serv->heartbeat_check_time)
+	if(serv->heartbeat_check_interval >= 1 && serv->heartbeat_check_interval < serv->heartbeat_idle_time)
 	{
-		swTrace("hb timer start, time: %d live time:%d", serv->hb_timer_interval, serv->heartbeat_check_time);
+		swTrace("hb timer start, time: %d live time:%d", serv->heartbeat_check_interval, serv->heartbeat_idle_time);
 		swServer_hbcheck_start(serv);
 	}
 
@@ -598,9 +598,9 @@ int swServer_start(swServer *serv)
 	{
 		serv->onShutdown(serv);
 	}
-	if(SwooleGS->hb_pidt) 
+	if(SwooleG->heartbeat_pidt) 
 	{
-		pthread_cancel(SwooleGS->hb_pidt);
+		pthread_cancel(SwooleG->heartbeat_pidt);
 	}
 	swServer_free(serv);
 	return SW_OK;
@@ -1787,41 +1787,41 @@ static void swSignalHanlde(int sig)
 	//swSignalInit();
 }
 
-static void swServer_hbcheck_start(swServer *serv)
+static void swServer_heartbeat_start(swServer *serv)
 {
 	
-	if(serv->heartbeat_check_time >= 1 && serv->hb_timer_interval < serv->heartbeat_check_time)
+	if(serv->heartbeat_idle_time >= 1 && serv->heartbeat_check_interval < serv->heartbeat_idle_time)
 	{
-		swThreadParam *hbparam;
-		pthread_t hb_pidt;
-		hbparam = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
-		if (hbparam == NULL)
+		swThreadParam *heartbeat_param;
+		pthread_t heartbeat_pidt;
+		heartbeat_param = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
+		if (heartbeat_param == NULL)
 		{
-			swError("hbparam malloc fail\n");
+			swError("heartbeat_param malloc fail\n");
 			return;
 		}
-		hbparam->object = serv;
-		hbparam->pti = 0;
-		if(pthread_create(&hb_pidt, NULL, (void * (*)(void *)) swServer_hbcheck, (void *) hbparam) < 0)
+		heartbeat_param->object = serv;
+		heartbeat_param->pti = 0;
+		if(pthread_create(&heartbeat_pidt, NULL, (void * (*)(void *)) swServer_heartbeat_check, (void *) heartbeat_param) < 0)
 		{
 			swWarn("pthread_create[hbcheck] fail");
 		}
-		SwooleGS->hb_pidt = hb_pidt;
+		SwooleG->heartbeat_pidt = heartbeat_pidt;
 		pthread_detach(hb_pidt);
 	}
 }
 
-static void swServer_hbcheck(swThreadParam *hbparam)
+static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
 {
 	while(SwooleG.running) {
-		swServer *serv = hbparam->object;
+		swServer *serv = heartbeat_param->object;
 		int serv_max_fd = swServer_get_maxfd(serv);
 		int serv_min_fd = swServer_get_minfd(serv);
 		swEvent ev;
 
 		int fd;
 
-		int checktime = (int) time(NULL) - serv->heartbeat_check_time;
+		int checktime = (int) time(NULL) - serv->heartbeat_idle_time;
 
 		//遍历到最大fd
 		for(fd = serv_min_fd; fd<= serv_max_fd; fd++)
@@ -1834,7 +1834,7 @@ static void swServer_hbcheck(swThreadParam *hbparam)
 			 }
 		}
 
-		sleep(serv->hb_timer_interval);
+		sleep(serv->heartbeat_check_interval);
 	}
 	pthread_exit(0);
 }

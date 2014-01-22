@@ -162,8 +162,8 @@ struct swServer_s
 	uint16_t tcp_keepcount;     //探测尝试的次数
 
 	/* heartbeat check time*/
-	int heartbeat_check_time;	//最大心跳时间
-	int hb_timer_interval;		//心跳定时检测时间, 必需小于heartbeat_check_time
+	int heartbeat_idle_time;			//心跳存活时间
+	int heartbeat_check_interval;		//心跳定时侦测时间, 必需小于heartbeat_idle_time
 
 
 	void *ptr2;

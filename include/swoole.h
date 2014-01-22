@@ -800,6 +800,7 @@ typedef struct _swServerG{
 	swReactor *main_reactor;
 	swPipe *task_notify; //for taskwait
 	swEventData *task_result; //for taskwait
+	pthread_t heartbeat_pidt;
 } swServerG;
 
 //Share Memory
@@ -807,7 +808,7 @@ typedef struct _swServerGS{
 	pid_t master_pid;
 	pid_t manager_pid;
 	time_t now;
-	pthread_t hb_pidt;
+
 } swServerGS;
 
 typedef struct _swWorkerG{
