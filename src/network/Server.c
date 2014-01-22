@@ -1788,7 +1788,7 @@ static void swSignalHanlde(int sig)
 	//swSignalInit();
 }
 
-void swServer_hbcheck_start(swServer *serv)
+static void swServer_hbcheck_start(swServer *serv)
 {
 	
 	if(serv->heartbeat_check_time >= 1 && serv->hb_timer_interval < serv->heartbeat_check_time)
@@ -1812,7 +1812,7 @@ void swServer_hbcheck_start(swServer *serv)
 	}
 }
 
-void swServer_hbcheck(swThreadParam *hbparam)
+static void swServer_hbcheck(swThreadParam *hbparam)
 {
 	while(SwooleG.running) {
 		swServer *serv = hbparam->object;
