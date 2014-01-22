@@ -65,6 +65,9 @@ static int swServer_start_base(swServer *serv);
 static int swServer_create_proxy(swServer *serv);
 static int swServer_create_base(swServer *serv);
 
+static void swServer_hbcheck_start(swServer *serv);
+static void swServer_hbcheck(swThreadParam *hbparam);
+
 swServerG SwooleG;
 swServerGS *SwooleGS;
 swWorkerG SwooleWG;
@@ -512,6 +515,9 @@ static int swServer_start_proxy(swServer *serv)
 	//先更新一次时间
 	swUpdateTime();
 
+	//心跳检测启动
+
+
 	return main_reactor->wait(main_reactor, &tmo);
 }
 
@@ -572,6 +578,13 @@ int swServer_start(swServer *serv)
 	//标识为主进程
 	SwooleG.process_type = SW_PROCESS_MASTER;
 
+	//启动心跳检测
+	if(serv->hb_timer_interval >= 1 && serv->hb_timer_interval < serv->heartbeat_check_time)
+	{
+		swTrace("hb timer start, time: %d live time:%d", serv->hb_timer_interval, serv->heartbeat_check_time);
+		swServer_hbcheck_start(serv);
+	}
+
 	if(serv->factory_mode == SW_MODE_SINGLE)
 	{
 		ret = swServer_start_base(serv);
@@ -580,10 +593,15 @@ int swServer_start(swServer *serv)
 	{
 		ret = swServer_start_proxy(serv);
 	}
+
 	//server stop
 	if (serv->onShutdown != NULL)
 	{
 		serv->onShutdown(serv);
+	}
+	if(SwooleGS->hb_pidt) 
+	{
+		pthread_cancel(SwooleGS->hb_pidt);
 	}
 	swServer_free(serv);
 	return SW_OK;
@@ -724,6 +742,7 @@ int swServer_new_connection(swServer *serv, swEvent *ev)
 	connection->from_fd = ev->from_fd;
 	connection->buffer = NULL;
 	connection->connect_time = SwooleGS->now;
+	connection->last_time = SwooleGS->now;
 	connection->tag = 1; //使此连接激活,必须在最后，保证线程安全
 
 	return SW_OK;
@@ -967,6 +986,8 @@ static int swServer_poll_start(swServer *serv, swReactor *main_reactor_ptr)
 			reactor_threads->ptid = pidt;
 		}
 	}
+
+
 	if(SwooleG.timer.fd > 0)
 	{
 		main_reactor_ptr->add(main_reactor_ptr, SwooleG.timer.fd, SW_FD_TIMER);
@@ -1765,4 +1786,56 @@ static void swSignalHanlde(int sig)
 		break;
 	}
 	//swSignalInit();
+}
+
+void swServer_hbcheck_start(swServer *serv)
+{
+	
+	if(serv->heartbeat_check_time >= 1 && serv->hb_timer_interval < serv->heartbeat_check_time)
+	{
+		swThreadParam *hbparam;
+		pthread_t hb_pidt;
+		hbparam = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
+		if (hbparam == NULL)
+		{
+			swError("hbparam malloc fail\n");
+			return;
+		}
+		hbparam->object = serv;
+		hbparam->pti = 0;
+		if(pthread_create(&hb_pidt, NULL, (void * (*)(void *)) swServer_hbcheck, (void *) hbparam) < 0)
+		{
+			swWarn("pthread_create[hbcheck] fail");
+		}
+		SwooleGS->hb_pidt = hb_pidt;
+		pthread_detach(hb_pidt);
+	}
+}
+
+void swServer_hbcheck(swThreadParam *hbparam)
+{
+	while(SwooleG.running) {
+		swServer *serv = hbparam->object;
+		int serv_max_fd = swServer_get_maxfd(serv);
+		int serv_min_fd = swServer_get_minfd(serv);
+		swEvent ev;
+
+		int fd;
+
+		int checktime = (int) time(NULL) - serv->heartbeat_check_time;
+
+		//遍历到最大fd
+		for(fd = serv_min_fd; fd<= serv_max_fd; fd++)
+		{
+			 swTrace("check fd=%d", fd);
+			 if(1 == serv->connection_list[fd].tag && (serv->connection_list[fd].last_time  < checktime))
+			 {
+			 	ev.fd = fd;
+			 	serv->factory.end(&serv->factory, &ev);
+			 }
+		}
+
+		sleep(serv->hb_timer_interval);
+	}
+	pthread_exit(0);
 }

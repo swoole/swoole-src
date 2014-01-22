@@ -592,7 +592,14 @@ PHP_FUNCTION(swoole_server_set)
 	if (zend_hash_find(vht, ZEND_STRS("heartbeat_check_time"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->heartbeat_check_time = (int)Z_LVAL_PP(v) * 1000;
+		serv->heartbeat_check_time = (int)Z_LVAL_PP(v);
+	}
+
+	//heartbeat check time
+	if (zend_hash_find(vht, ZEND_STRS("hb_timer_interval"), (void **)&v) == SUCCESS)
+	{
+		convert_to_long(*v);
+		serv->hb_timer_interval = (int)Z_LVAL_PP(v);
 	}
 	RETURN_TRUE;
 }
@@ -809,7 +816,7 @@ PHP_FUNCTION(swoole_server_hbcheck)
 	}
 	SWOOLE_GET_SERVER(zobject, serv);
 
-	if(serv->heartbeat_check_time < 1000) 
+	if(serv->heartbeat_check_time < 1) 
 	{
 		RETURN_FALSE;
 		return;
@@ -833,11 +840,13 @@ PHP_FUNCTION(swoole_server_hbcheck)
 
 	int fd;
 
+	int checktime = (int) SwooleGS->now - serv->heartbeat_check_time;
+
 	//遍历到最大fd
 	for(fd = serv_min_fd; fd<= serv_max_fd; fd++)
 	{
 		 swTrace("check fd=%d", fd);
-		 if(1 == serv->connection_list[fd].tag && (serv->connection_list[fd].last_time  < (SwooleGS->now - serv->heartbeat_check_time)))
+		 if(1 == serv->connection_list[fd].tag && (serv->connection_list[fd].last_time  < checktime))
 		 {
 		 	ev.fd = fd;
 		 	serv->factory.end(&serv->factory, &ev);
