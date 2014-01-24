@@ -351,7 +351,7 @@ static void php_swoole_try_run_reactor()
 		zval *callback;
 		MAKE_STD_ZVAL(callback);
 
-#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 4
+#if PHP_MAJOR_VERSION >= 5 && PHP_MINOR_VERSION >= 4
 
 		php_shutdown_function_entry shutdown_function_entry;
 

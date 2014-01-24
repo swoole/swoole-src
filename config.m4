@@ -155,11 +155,7 @@ if test "$PHP_SWOOLE" != "no"; then
     else
         AC_DEFINE(SW_WORKER_IPC_MODE, 1, [use unix socket])
     fi
-    
-    if test "$PHP_ASYNC_MYSQL" != "no"; then
-        AC_DEFINE(SW_ASYNC_MYSQL, 1, [enable async mysql])
-    fi
-    
+        
     AC_SWOOLE_EVENTFD
     AC_SWOOLE_EPOLL
     AC_SWOOLE_KQUEUE

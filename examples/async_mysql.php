@@ -14,8 +14,8 @@ class DBServer
 
     static function run()
     {
-        $serv = swoole_server_create("127.0.0.1", 9509);
-        swoole_server_set($serv, array(
+        $serv = new swoole_server("127.0.0.1", 9509);
+        $serv->set(array(
             'timeout' => 1,  //select and epoll_wait timeout.
             'worker_num' => 1,
             'poll_thread_num' => 1, //reactor thread num
@@ -25,16 +25,16 @@ class DBServer
             //'open_tcp_keepalive' => 1,
             //'log_file' => '/tmp/swoole.log', //swoole error log
         ));
-        swoole_server_handler($serv, 'onWorkerStart', 'DBServer::onStart');
-        swoole_server_handler($serv, 'onConnect', 'DBServer::onConnect');
-        swoole_server_handler($serv, 'onReceive', 'DBServer::onReceive');
-        swoole_server_handler($serv, 'onClose', 'DBServer::onClose');
-        swoole_server_handler($serv, 'onWorkerStop', 'DBServer::onShutdown');
-        swoole_server_handler($serv, 'onTimer', 'DBServer::onTimer');
+        $serv->on('WorkerStart', 'DBServer::onStart');
+        $serv->on('Connect', 'DBServer::onConnect');
+        $serv->on('Receive', 'DBServer::onReceive');
+        $serv->on('Close', 'DBServer::onClose');
+        $serv->on('WorkerStop', 'DBServer::onShutdown');
+        $serv->on('Timer', 'DBServer::onTimer');
 
         //swoole_server_addtimer($serv, 2);
         #swoole_server_addtimer($serv, 10);
-        swoole_server_start($serv);
+        $serv->start();
         self::$serv = $serv;
     }
 
@@ -44,7 +44,7 @@ class DBServer
         self::$db->connect('127.0.0.1', 'root', 'root', 'test');
         echo "Server: start.Swoole version is [".SWOOLE_VERSION."]\n";
         $db_sock = swoole_get_mysqli_sock(self::$db);
-        swoole_event_add($serv, $db_sock, 'DBServer::onSQLReady');
+        swoole_event_add($db_sock, 'DBServer::onSQLReady');
         self::$serv = $serv;
     }
 
@@ -68,14 +68,14 @@ class DBServer
 
     }
 
-    function onSQLReady($db_sock)
+    static function onSQLReady($db_sock)
     {
         $fd = self::$last_fd;
         echo __METHOD__.": client_sock=$fd|db_sock=$db_sock\n";
         if ($result = self::$db->reap_async_query())
         {
             $ret = var_export($result->fetch_all(MYSQLI_ASSOC), true)."\n";
-            swoole_server_send(self::$serv, $fd, $ret);
+            self::$serv->send($fd,$fd, $ret);
             if (is_object($result))
             {
                 mysqli_free_result($result);
@@ -83,7 +83,7 @@ class DBServer
         }
         else
         {
-            swoole_server_send(self::$serv, $fd, sprintf("MySQLi Error: %s\n", mysqli_error(self::$db)));
+            self::$serv->send($fd, sprintf("MySQLi Error: %s\n", mysqli_error(self::$db)));
         }
     }
 
