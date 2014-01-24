@@ -7,8 +7,8 @@ class ProxyServer
 
     function run()
     {
-        $serv = swoole_server_create("127.0.0.1", 9509, SWOOLE_PROCESS);
-        swoole_server_set($serv, array(
+        $serv = new swoole_server("127.0.0.1", 9509);
+        $serv->set(array(
             'timeout' => 1, //select and epoll_wait timeout.
             'poll_thread_num' => 1, //reactor thread num
             'worker_num' => 32, //reactor thread num
@@ -18,14 +18,14 @@ class ProxyServer
             //'open_tcp_keepalive' => 1,
             //'log_file' => '/tmp/swoole.log', //swoole error log
         ));
-        swoole_server_handler($serv, 'onWorkerStart', array($this, 'onStart'));
-        swoole_server_handler($serv, 'onConnect', array($this, 'onConnect'));
-        swoole_server_handler($serv, 'onReceive', array($this, 'onReceive'));
-        swoole_server_handler($serv, 'onClose', array($this, 'onClose'));
-        swoole_server_handler($serv, 'onWorkerStop', array($this, 'onShutdown'));
+        $serv->on('WorkerStart', array($this, 'onStart'));
+        $serv->on('Connect', array($this, 'onConnect'));
+        $serv->on('Receive', array($this, 'onReceive'));
+        $serv->on('Close', array($this, 'onClose'));
+        $serv->on('WorkerStop', array($this, 'onShutdown'));
         //swoole_server_addtimer($serv, 2);
         #swoole_server_addtimer($serv, 10);
-        swoole_server_start($serv);
+        $serv->start();
     }
 
     function onStart($serv)

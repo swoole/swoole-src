@@ -27,5 +27,4 @@ while ( true ) {
 	} else {
 		echo "error\n";
 	}
-	
 }

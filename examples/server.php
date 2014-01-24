@@ -36,7 +36,7 @@ function my_onClose($serv, $fd, $from_id)
 function my_onConnect($serv, $fd, $from_id)
 {
 	//throw new Exception("hello world");
- 	echo "Client:Connect.\n";
+// 	echo "Client:Connect.\n";
 }
 
 function my_onWorkerStart($serv, $worker_id)

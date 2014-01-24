@@ -1,20 +1,26 @@
 <?php
-$serv = new swoole_server("127.0.0.1", 9501, SWOOLE_BASE);
+$serv = new swoole_server("127.0.0.1", 9501);
 $serv->set(array(
     'worker_num' => 2,
     'task_worker_num' => 2,
 ));
-$serv->on('Receive', function($serv, $fd, $from_id, $data) {
+$serv->on('Receive', function(swoole_server $serv, $fd, $from_id, $data) {
 	//AsyncTask
-	$task_id = $serv->task("Async");
-	echo "Dispath AsyncTask: id=$task_id\n";
-	
-	//Sync Task
-	//$res = $serv->taskwait("Task". $data);
-	//echo "Dispath SyncTask: $res\n";
-	//$serv->send($fd, $res);
+    $data = trim($data);
+    if($data == 'async')
+    {
+        $task_id = $serv->task("Async". $data);
+        echo "Dispath AsyncTask: id=$task_id\n";
+    }
+    //Sync Task
+	else
+    {
+        $res = $serv->taskwait("Task". $data);
+        echo "Dispath SyncTask: $res\n";
+        $serv->send($fd, $res);
+    }
 });
-$serv->on('Task', function ($serv, $task_id, $from_id, $data) {
+$serv->on('Task', function (swoole_server $serv, $task_id, $from_id, $data) {
     echo "AsyncTask[PID=".posix_getpid()."]: task_id=$task_id.".PHP_EOL;
     $start_fd = 0;
 	while(true)
@@ -30,13 +36,11 @@ $serv->on('Task', function ($serv, $task_id, $from_id, $data) {
 			$serv->send($fd, "AsyncTask: hello\n");
 		}
 	}
-    $serv->finish("$data -> OK");
+    $serv->finish("Task:[$data] -> OK\n");
 });
-$serv->on('Finish', function ($serv, $task_id, $data) {
+$serv->on('Finish', function (swoole_server $serv, $task_id, $data) {
     echo "AsyncTask[$task_id] Finish: $data".PHP_EOL;
-    $serv->send();
-}
-);
+});
 
 $serv->on('workerStart', function($serv, $id) {
 	swoole_set_process_name('Swoole: event worker');

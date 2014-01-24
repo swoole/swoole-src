@@ -6,8 +6,7 @@ $client->on("connect", function($cli) {
     $cli->send("hello world\n");
 });
 
-$client->on("receive", function($cli){
-    $data = $cli->recv();
+$client->on("receive", function($cli, $data){
 	echo "received: $data\n";
 	sleep(1);
 	$cli->send("hello_".rand(1000,9999));

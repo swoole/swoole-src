@@ -625,6 +625,7 @@ PHP_METHOD(swoole_client, connect)
 		else
 		{
 			cli->connect(cli, host, port, (float) timeout, udp_connect);
+			cli->connected = 1;
 			flag = (SW_FD_USER+1);
 
 			zval *zcallback = NULL;
