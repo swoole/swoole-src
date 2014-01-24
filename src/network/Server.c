@@ -700,6 +700,10 @@ void swServer_init(swServer *serv)
 	serv->tcp_keepinterval = SW_TCP_KEEPINTERVAL;
 	serv->tcp_keepidle = SW_TCP_KEEPIDLE;
 
+	//heartbeat check
+	serv->heartbeat_idle_time = SW_HEARTBEAT_IDLE;
+	serv->heartbeat_check_interval = SW_HEARTBEAT_CHECK;
+
 	char eof[] = SW_DATA_EOF;
 	serv->data_eof_len = sizeof(SW_DATA_EOF) - 1;
 	memcpy(serv->data_eof, eof, serv->data_eof_len);
