@@ -59,6 +59,7 @@ int swReactorPoll_create(swReactor *reactor, int max_fd_num)
 		return SW_ERR;
 	}
 	object->max_fd_num = max_fd_num;
+	reactor->max_event_num = max_fd_num;
 	bzero(reactor->handle, sizeof(reactor->handle));
 	reactor->object = object;
 	//binding method

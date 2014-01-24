@@ -15,11 +15,35 @@ PHP_ARG_ENABLE(swoole-debug, whether to enable swoole debug,
 PHP_ARG_ENABLE(msgqueue, set ipc mode,
 [  --enable-msgqueue         Use message queue], no, no)
 
-PHP_ARG_ENABLE(async-mysql, enable async-mysql,
-[  --enable-async-mysql      Enable async mysql], no, no)
-
 PHP_ARG_WITH(swoole, swoole support,
 [  --with-swoole             Include swoole support])
+
+AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
+    extname=$1
+    haveext=$[PHP_]translit($1,a-z_-,A-Z__)
+    
+    AC_MSG_CHECKING([for ext/$extname support])
+    if test -x "$PHP_EXECUTABLE"; then
+        grepext=`$PHP_EXECUTABLE -m | $EGREP ^$extname\$`
+        if test "$grepext" = "$extname"; then
+            [PHP_HTTP_HAVE_EXT_]translit($1,a-z_-,A-Z__)=1
+            AC_MSG_RESULT([yes])
+            $2
+        else
+            [PHP_HTTP_HAVE_EXT_]translit($1,a-z_-,A-Z__)=
+            AC_MSG_RESULT([no])
+            $3
+        fi
+    elif test "$haveext" != "no" && test "x$haveext" != "x"; then
+        [PHP_HTTP_HAVE_EXT_]translit($1,a-z_-,A-Z__)=1
+        AC_MSG_RESULT([yes])
+        $2
+    else
+        [PHP_HTTP_HAVE_EXT_]translit($1,a-z_-,A-Z__)=
+        AC_MSG_RESULT([no])
+        $3
+    fi
+])
 
 AC_DEFUN([AC_SWOOLE_KQUEUE],
 [
@@ -150,6 +174,10 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_DEBUG, 1, [do we enable swoole debug])
     fi
     
+    if test "$PHP_MYSQLI" = "yes"; then
+		AC_DEFINE(HAVE_MYSQLI, 1, [have mysqli extension])
+    fi
+    
     if test "$PHP_MSGQUEUE" != "no"; then
         AC_DEFINE(SW_WORKER_IPC_MODE, 2, [use message queue])
     else
@@ -161,6 +189,10 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_SWOOLE_KQUEUE
     AC_SWOOLE_TIMERFD
     AC_SWOOLE_CPU_AFFINITY
+    
+    SWOOLE_HAVE_PHP_EXT([mysqli], [
+        AC_DEFINE(SW_HAVE_MYSQLI, 1, [have mysqli])
+    ])
   
     AC_CHECK_LIB(pthread, accept4, AC_DEFINE(SW_USE_ACCEPT4, 1, [have accept4]))
     AC_CHECK_LIB(pthread, pthread_spin_lock, AC_DEFINE(HAVE_SPINLOCK, 1, [have pthread_spin_lock]))

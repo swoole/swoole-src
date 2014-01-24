@@ -1,4 +1,7 @@
 <?php
+if(!function_exists('swoole_get_mysqli_sock')) {
+	die("no async_mysql support\n");
+}
 class DBServer
 {
     static $clients;
@@ -75,7 +78,7 @@ class DBServer
         if ($result = self::$db->reap_async_query())
         {
             $ret = var_export($result->fetch_all(MYSQLI_ASSOC), true)."\n";
-            self::$serv->send($fd,$fd, $ret);
+            self::$serv->send($fd, $fd, $ret);
             if (is_object($result))
             {
                 mysqli_free_result($result);

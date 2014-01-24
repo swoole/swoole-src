@@ -73,7 +73,7 @@ extern void ***sw_thread_ctx;
 #define SW_HANDLE_NUM
 #define SW_CHECK_RETURN(s)  if(s<0){RETURN_FALSE;}else{RETURN_TRUE;}return
 
-#if PHP_MAJOR_VERSION >= 5 && PHP_MINOR_VERSION >= 4
+#if PHP_MAJOR_VERSION >= 5 && PHP_MINOR_VERSION >= 4 && defined(SW_HAVE_MYSQLI) && defined(MYSQLI_USE_MYSQLND)
 #define SW_ASYNC_MYSQL
 #endif
 

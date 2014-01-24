@@ -52,6 +52,7 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num)
 	bzero(reactor_object, sizeof(swReactorKqueue));
 
 	reactor->object = reactor_object;
+	reactor->max_event_num = max_event_num;
 	reactor_object->events = sw_calloc(max_event_num, sizeof(struct kevent));
 
 	if (reactor_object->events == NULL)
