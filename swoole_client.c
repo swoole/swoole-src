@@ -221,7 +221,20 @@ static int php_swoole_client_onConnect(swReactor *reactor, swEvent *event)
 	//success
 	if(error == 0)
 	{
+		zval **zres;
+		swClient *cli;
 		SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, (SW_FD_USER+1) | SW_EVENT_READ);
+
+		if (zend_hash_find(Z_OBJPROP_PP(zobject), SW_STRL("_client"), (void **) &zres) == SUCCESS)
+		{
+			ZEND_FETCH_RESOURCE_NO_RETURN(cli, swClient*, zres, -1, SW_RES_CLIENT_NAME, le_swoole_client);
+			cli->connected = 1;
+		}
+		else
+		{
+			return SW_ERR;
+		}
+
 		zcallback = zend_read_property(swoole_client_class_entry_ptr, *zobject, SW_STRL("connect")-1, 0 TSRMLS_CC);
 		if (zcallback == NULL)
 		{
