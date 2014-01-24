@@ -25,7 +25,7 @@ static void swSignalInit(void);
 SWINLINE static void swUpdateTime(void);
 
 #if SW_REACTOR_SCHEDULE == 3
-SWINLINE static swServer_reactor_schedule(swServer *serv);
+SWINLINE static void swServer_reactor_schedule(swServer *serv);
 #endif
 
 static int swServer_check_callback(swServer *serv);
@@ -214,7 +214,7 @@ SWINLINE static void swUpdateTime(void)
 }
 
 #if SW_REACTOR_SCHEDULE == 3
-SWINLINE static swServer_reactor_schedule(swServer *serv)
+SWINLINE static void swServer_reactor_schedule(swServer *serv)
 {
 	//以第1个为基准进行排序，取出最小值
 	int i, event_num = serv->reactor_threads[0].reactor.event_num;
