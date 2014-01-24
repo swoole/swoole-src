@@ -1,14 +1,14 @@
 <?php
 $serv = new swoole_server("127.0.0.1", 9501);
 $serv->set(array(
-    'worker_num' => 1,
+    'worker_num' => 4,
     //'open_eof_check' => true,
     //'data_eof' => "\n",
     //'task_worker_num' => 2,
 	//'dispatch_mode' => 2,
 //    'daemonize' => 1,
-     'heartbeat_idle_time' => 30,
-     'heartbeat_check_interval' => 30,
+     //'heartbeat_idle_time' => 30,
+     //'heartbeat_check_interval' => 30,
 ));
 
 function my_onStart($serv)

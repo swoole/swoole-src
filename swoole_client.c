@@ -726,9 +726,7 @@ PHP_METHOD(swoole_client, recv)
 	{
 		if(ret == 0)
 		{
-			swEvent event;
-			event.fd = cli->sock;
-			php_swoole_client_onClose(SwooleG.main_reactor, &event);
+			php_swoole_client_close(&getThis(), cli->sock, 1 TSRMLS_CC);
 		}
 		else
 		{

@@ -23,8 +23,8 @@ AsyncTask workers
 	<date>2014-01-02</date>
 	<time>15:51:51</time>
 	<version>
-		<release>1.6.9</release>
-		<api>1.6.9</api>
+		<release>1.6.10</release>
+		<api>1.6.10</api>
 	</version>
 	<stability>
 		<release>stable</release>
@@ -55,7 +55,6 @@ AsyncTask workers
                 <file role="src" name="async_client.php" />
                 <file role="src" name="async_mysql.php" />
                 <file role="src" name="async_mysql2.php" />
-                <file role="src" name="bench.php" />
                 <file role="src" name="client.php" />
                 <file role="src" name="proxy.php" />
                 <file role="src" name="proxy_sync.php" />
