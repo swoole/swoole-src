@@ -20,7 +20,7 @@ AsyncTask workers
 		<email>mikan.tenny@gmail.com</email>
 		<active>yes</active>
 	</lead>
-	<date>2014-01-02</date>
+	<date>2014-01-27</date>
 	<time>15:51:51</time>
 	<version>
 		<release>1.6.10</release>
@@ -31,7 +31,8 @@ AsyncTask workers
 		<api>stable</api>
 	</stability>
 	<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
-	<notes>- use "pecl package"
+	<notes>- PHP5.4 + enabled by default async_mysql
+	
 	</notes>
 	<contents>
 		<dir name="/">
