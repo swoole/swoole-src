@@ -26,7 +26,7 @@ AsyncTask workers
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2014-01-27</date>
+	<date>2014-01-26</date>
 	<time>15:51:51</time>
 	<version>
 		<release>1.6.10</release>
@@ -37,16 +37,18 @@ AsyncTask workers
 		<api>stable</api>
 	</stability>
 	<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
-	<notes>- PHP5.4 + enabled by default async_mysql
+	<notes>
+	- Enabled by default async_mysql
 	- Add tcp heartbeat mechanism
 	- UDP send no require from_id
-	- swoole_client on::Receive & on::Close no need to call recv/close
-	- Add last_time & connect_time to tcp connection_info
+	- swoole_client on::Receive and on::Close no need to call recv/close
+	- Add last_time and connect_time to tcp connection_info
 	- rebuild data_buffer
 	</notes>
 	<contents>
 		<dir name="/">
 			<file role="doc" name="CREDITS" />
+			<file role="doc" name="LICENSE" />
 			<file role="doc" name="README.md" />
 			<file role="src" name="config.m4" />
 			<dir name="include">
@@ -62,18 +64,18 @@ AsyncTask workers
 				<file role="src" name="tests.h" />
 			</dir>
 			<dir name="examples">
-                <file role="src" name="server.php" />
-                <file role="src" name="async_client.php" />
-                <file role="src" name="async_mysql.php" />
-                <file role="src" name="async_mysql2.php" />
-                <file role="src" name="client.php" />
-                <file role="src" name="proxy.php" />
-                <file role="src" name="proxy_sync.php" />
-                <file role="src" name="udp_server.php" />
-                <file role="src" name="udp_client.php" />
-                <file role="src" name="task.php" />
-                <file role="src" name="stream.php" />
-            </dir>
+				<file role="src" name="server.php" />
+				<file role="src" name="async_client.php" />
+				<file role="src" name="async_mysql.php" />
+				<file role="src" name="async_mysql2.php" />
+				<file role="src" name="client.php" />
+				<file role="src" name="proxy.php" />
+				<file role="src" name="proxy_sync.php" />
+				<file role="src" name="udp_server.php" />
+				<file role="src" name="udp_client.php" />
+				<file role="src" name="task.php" />
+				<file role="src" name="stream.php" />
+			</dir>
 			<file role="src" name="php_swoole.h" />
 			<file role="src" name="swoole_config.h" />
 			<file role="src" name="swoole.c" />
@@ -140,4 +142,41 @@ AsyncTask workers
 	</dependencies>
 	<providesextension>swoole</providesextension>
 	<extsrcrelease />
+	<changelog>
+		<release>
+			<date>2014-01-26</date>
+			<version>
+				<release>1.6.10</release>
+				<api>1.6.10</api>
+			</version>
+			<stability>
+				<release>stable</release>
+				<api>stable</api>
+			</stability>
+			<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
+			<notes>
+    - Enabled by default async_mysql
+    - Add tcp heartbeat mechanism
+    - UDP send no require from_id
+    - swoole_client on::Receive and on::Close no need to call recv/close
+    - Add last_time and connect_time to tcp connection_info
+    - rebuild data_buffer
+    </notes>
+		</release>
+		<release>
+			<date>2014-01-02</date>
+			<version>
+				<release>1.6.9</release>
+				<api>1.6.9</api>
+			</version>
+			<stability>
+				<release>stable</release>
+				<api>stable</api>
+			</stability>
+			<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
+			<notes>
+		- use "pecl package"
+		 </notes>
+		</release>
+	</changelog>
 </package>
