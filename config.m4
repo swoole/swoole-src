@@ -183,6 +183,14 @@ if test "$PHP_SWOOLE" != "no"; then
     if test "$PHP_MYSQLI" = "yes"; then
 		AC_DEFINE(HAVE_MYSQLI, 1, [have mysqli extension])
     fi
+
+	if test "$PHP_SOCKETS" = "yes"; then
+		AC_DEFINE(SW_SOCKETS, 1, [enable sockets support])
+    fi
+
+	if test "$PHP_ASYNC_MYSQL" = "yes"; then
+		AC_DEFINE(SW_ASYNC_MYSQL, 1, [enable async_mysql support])
+    fi
     
     if test "$PHP_MSGQUEUE" != "no"; then
         AC_DEFINE(SW_WORKER_IPC_MODE, 2, [use message queue])
