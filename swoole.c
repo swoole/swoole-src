@@ -63,6 +63,8 @@ static int php_swoole_set_callback(int key, zval *cb TSRMLS_DC);
 #include "ext/mysqli/php_mysqli_structs.h"
 #endif
 
+#include "zend_exceptions.h"
+
 const zend_function_entry swoole_functions[] =
 {
 	PHP_FE(swoole_version, NULL)
@@ -859,7 +861,6 @@ PHP_FUNCTION(swoole_server_shutdown)
 {
 	zval *zobject = getThis();
 	swServer *serv;
-	zval *zmaster_pid;
 
 	if (zobject == NULL)
 	{

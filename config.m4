@@ -10,13 +10,19 @@ dnl If your extension references something external, use with:
 dnl Otherwise use enable:
 
 PHP_ARG_ENABLE(swoole-debug, whether to enable swoole debug,
-[  --enable-swoole-debug     Enable swoole debug], no, no)
+[  --enable-swoole-debug   Enable swoole debug], no, no)
 
 PHP_ARG_ENABLE(msgqueue, set ipc mode,
-[  --enable-msgqueue         Use message queue], no, no)
+[  --enable-msgqueue       Use message queue?], no, no)
+
+PHP_ARG_ENABLE(sockets, enable sockets support,
+[  --enable-sockets        Do you have sockets extension?], no, no)
+
+PHP_ARG_ENABLE(async_mysql, enable async_mysql support,
+[  --enable-async-mysql    Do you have mysqli and mysqlnd?], no, no)
 
 PHP_ARG_WITH(swoole, swoole support,
-[  --with-swoole             Include swoole support])
+[  --with-swoole           Include swoole support])
 
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
@@ -193,6 +199,8 @@ if test "$PHP_SWOOLE" != "no"; then
     SWOOLE_HAVE_PHP_EXT([mysqli], [
         AC_DEFINE(SW_HAVE_MYSQLI, 1, [have mysqli])
     ])
+
+	CFLAGS="-Wall $CFLAGS"
   
     AC_CHECK_LIB(pthread, accept4, AC_DEFINE(SW_USE_ACCEPT4, 1, [have accept4]))
     AC_CHECK_LIB(pthread, pthread_spin_lock, AC_DEFINE(HAVE_SPINLOCK, 1, [have pthread_spin_lock]))

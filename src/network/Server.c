@@ -1163,7 +1163,6 @@ static int swServer_single_start(swServer *serv)
 	//task workers
 	if (serv->task_worker_num > 0)
 	{
-		pthread_t ptid;
 		if (swProcessPool_create(&SwooleG.task_workers, serv->task_worker_num, serv->max_request)< 0)
 		{
 			swWarn("[Master] create task_workers fail");
@@ -1495,7 +1494,7 @@ static int swServer_poll_onReceive_conn_buffer(swReactor *reactor, swEvent *even
 	}
 	else if (n == 0)
 	{
-		close_fd:
+//		close_fd:
 		swTrace("Close Event.FD=%d|From=%d\n", event->fd, event->from_id);
 		memcpy(&closeEv, event, sizeof(swEvent));
 		closeEv.type = SW_EVENT_CLOSE;
@@ -1504,14 +1503,14 @@ static int swServer_poll_onReceive_conn_buffer(swReactor *reactor, swEvent *even
 	else
 	{
 		buffer->data.info.len += n;
-		buffer->data.data[buffer->data.info.len] = 0; //这里是为了printf
+		//buffer->data.data[buffer->data.info.len] = 0; //这里是为了printf
 //		printf("buffer------------: %s|fd=%d|len=%d\n", buffer->data.data, event->fd, buffer->data.info.len);
 
 		if (serv->open_eof_check == 1)
 		{
 			isEOF = memcmp(buffer->data.data + buffer->data.info.len - serv->data_eof_len, serv->data_eof, serv->data_eof_len);
 		}
-		printf("buffer ok.isEOF=%d\n", isEOF);
+		//printf("buffer ok.isEOF=%d\n", isEOF);
 //		if (sw_errno == EAGAIN)
 //		{
 //			goto recv_data;
@@ -1616,7 +1615,7 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 
 static int swServer_poll_onClose(swReactor *reactor, swEvent *event)
 {
-	int ret = 0;
+	//int ret = 0;
 	swServer *serv = reactor->ptr;
 	swCloseQueue *queue = &serv->reactor_threads[reactor->id].close_queue;
 
