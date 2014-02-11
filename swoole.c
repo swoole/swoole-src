@@ -1055,6 +1055,11 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	{
 		zend_error(E_WARNING, "SwooleServer: onReceive handler error");
 	}
+	if (EG(exception))
+	{
+		zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+	}
+
 	zval_ptr_dtor(&zfd);
 	zval_ptr_dtor(&zfrom_id);
 	zval_ptr_dtor(&zdata);

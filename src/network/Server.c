@@ -1812,28 +1812,34 @@ static void swServer_heartbeat_start(swServer *serv)
 
 static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
 {
-	while(SwooleG.running)
+	int16_t from_id;
+	swEvent notify_ev;
+	swServer *serv;
+	swFactory *factory;
+
+	int fd;
+	int serv_max_fd;
+	int serv_min_fd;
+	int checktime;
+
+	while (SwooleG.running)
 	{
-		swServer *serv = heartbeat_param->object;
-		swFactory *factory = &serv->factory;
+		serv = heartbeat_param->object;
+		factory = &serv->factory;
 
-		int serv_max_fd = swServer_get_maxfd(serv);
-		int serv_min_fd = swServer_get_minfd(serv);
-		int16_t from_id;
-		swEvent notify_ev;
+		serv_max_fd = swServer_get_maxfd(serv);
+		serv_min_fd = swServer_get_minfd(serv);
 
-		int fd;
-
-		int checktime = (int) time(NULL) - serv->heartbeat_idle_time;
+		checktime = (int) time(NULL) - serv->heartbeat_idle_time;
 
 		//遍历到最大fd
-		for(fd = serv_min_fd; fd<= serv_max_fd; fd++)
+		for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
 		{
-			 swTrace("check fd=%d", fd);
-			 if(1 == serv->connection_list[fd].tag && (serv->connection_list[fd].last_time  < checktime))
-			 {
+			swTrace("check fd=%d", fd);
+			if (1 == serv->connection_list[fd].tag && (serv->connection_list[fd].last_time < checktime))
+			{
 
-			 	if (swConnection_close(serv, fd, &from_id) == 0)
+				if (swConnection_close(serv, fd, &from_id) == 0)
 				{
 					if (serv->onMasterClose != NULL)
 					{
@@ -1851,7 +1857,7 @@ static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
 						factory->notify(factory, &notify_ev);
 					}
 				}
-			 }
+			}
 		}
 		sleep(serv->heartbeat_check_interval);
 	}
