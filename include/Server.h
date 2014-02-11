@@ -193,7 +193,7 @@ struct swServer_s
 	void (*onTimer)(swServer *serv, int interval);
 	void (*onWorkerStart)(swServer *serv, int worker_id); //Only process mode
 	void (*onWorkerStop)(swServer *serv, int worker_id);  //Only process mode
-	void (*onWorkerEvent)(swServer *serv, swEventData *data);   //Only process mode
+	void (*onWorkerError)(swServer *serv, int worker_id, pid_t worker_pid, int exit_code);   //Only process mode
 	int (*onTask)(swServer *serv, swEventData *data);
 	int (*onFinish)(swServer *serv, swEventData *data);
 };

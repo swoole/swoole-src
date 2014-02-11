@@ -91,23 +91,24 @@ extern void ***sw_thread_ctx;
 #define SW_CLIENT_CB_onClose                2
 #define SW_CLIENT_CB_onError                3
 
-#define SW_MAX_FIND_COUNT             100 //最多一次性取100个connection_info
-#define SW_PHP_CLIENT_BUFFER_SIZE     65535
+#define SW_MAX_FIND_COUNT                  100 //for swoole_server::connection_list
+#define SW_PHP_CLIENT_BUFFER_SIZE          65535
 
-#define PHP_SERVER_CALLBACK_NUM             12
+#define PHP_SERVER_CALLBACK_NUM             13
 //---------------------------------------------------
-#define SW_SERVER_CB_onStart                0 //Server启动(master)
-#define SW_SERVER_CB_onConnect              1 //accept连接(worker)
-#define SW_SERVER_CB_onReceive              2 //接受数据(worker)
-#define SW_SERVER_CB_onClose                3 //关闭连接(worker)
-#define SW_SERVER_CB_onShutdown             4 //Server关闭(master)
-#define SW_SERVER_CB_onTimer                5 //定时器(master)
-#define SW_SERVER_CB_onWorkerStart          6 //Worker进程启动(worker)
-#define SW_SERVER_CB_onWorkerStop           7 //Worker进程结束(worker)
-#define SW_SERVER_CB_onMasterConnect        8 //accept连接(master)
-#define SW_SERVER_CB_onMasterClose          9 //关闭连接(master)
-#define SW_SERVER_CB_onTask                 10 //异步任务(task_worker)
-#define SW_SERVER_CB_onFinish               11 //关闭连接(worker)
+#define SW_SERVER_CB_onStart                0 //Server start(master)
+#define SW_SERVER_CB_onConnect              1 //accept new connection(worker)
+#define SW_SERVER_CB_onReceive              2 //receive data(worker)
+#define SW_SERVER_CB_onClose                3 //close tcp connection(worker)
+#define SW_SERVER_CB_onShutdown             4 //Server sthudown(master)
+#define SW_SERVER_CB_onTimer                5 //timer call(master)
+#define SW_SERVER_CB_onWorkerStart          6 //Worker start(worker)
+#define SW_SERVER_CB_onWorkerStop           7 //Worker shutdown(worker)
+#define SW_SERVER_CB_onMasterConnect        8 //accept new connection(master)
+#define SW_SERVER_CB_onMasterClose          9 //close tcp connection(master)
+#define SW_SERVER_CB_onTask                 10 //new task(task_worker)
+#define SW_SERVER_CB_onFinish               11 //async task finish(worker)
+#define SW_SERVER_CB_onWorkerError          12 //worker exception(manager)
 
 extern int le_swoole_server;
 extern int le_swoole_client;

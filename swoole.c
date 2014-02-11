@@ -45,6 +45,7 @@ static void php_swoole_onMasterConnect(swServer *, int fd, int from_id);
 static void php_swoole_onMasterClose(swServer *, int fd, int from_id);
 static int php_swoole_onTask(swServer *, swEventData *task);
 static int php_swoole_onFinish(swServer *, swEventData *task);
+static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker_pid, int exit_code);
 
 static void swoole_destory_server(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 static void swoole_destory_client(zend_rsrc_list_entry *rsrc TSRMLS_DC);
@@ -664,6 +665,7 @@ PHP_FUNCTION(swoole_server_handler)
 			"onMasterClose",
 			"onTask",
 			"onFinish",
+			"onWorkerError",
 	};
 	for(i=0; i<PHP_SERVER_CALLBACK_NUM; i++)
 	{
@@ -720,6 +722,7 @@ PHP_FUNCTION(swoole_server_on)
 			"masterClose",
 			"task",
 			"finish",
+			"workerError"
 	};
 	for(i=0; i<PHP_SERVER_CALLBACK_NUM; i++)
 	{
@@ -795,7 +798,6 @@ PHP_FUNCTION(swoole_server_reload)
 
 PHP_FUNCTION(swoole_server_heartbeat)
 {
-
 	zval *zobject = getThis();
 	swServer *serv;
 	swEvent ev;
@@ -1340,6 +1342,50 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
 	}
 }
 
+
+static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker_pid, int exit_code)
+{
+	zval *zobject = (zval *)serv->ptr2;
+	zval *zworker_id, *zworker_pid, *zexit_code;
+	zval **args[4];
+	zval *retval;
+
+	MAKE_STD_ZVAL(zworker_id);
+	ZVAL_LONG(zworker_id, worker_id);
+
+	MAKE_STD_ZVAL(zworker_pid);
+	ZVAL_LONG(zworker_pid, worker_pid);
+
+	MAKE_STD_ZVAL(zexit_code);
+	ZVAL_LONG(zexit_code, exit_code);
+
+	zval_add_ref(&zobject);
+	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+	args[0] = &zobject;
+	args[1] = &zworker_id;
+	args[2] = &zworker_pid;
+	args[3] = &zexit_code;
+
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onWorkerError], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
+	{
+		zend_error(E_WARNING, "SwooleServer: onWorkerError handler error");
+	}
+	if (EG(exception))
+	{
+		zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+	}
+
+	zval_ptr_dtor(&zworker_id);
+	zval_ptr_dtor(&zworker_pid);
+	zval_ptr_dtor(&zexit_code);
+
+	if (retval != NULL)
+	{
+		zval_ptr_dtor(&retval);
+	}
+}
+
 void php_swoole_onConnect(swServer *serv, int fd, int from_id)
 {
 	zval *zserv = (zval *) serv->ptr2;
@@ -1542,6 +1588,11 @@ PHP_FUNCTION(swoole_server_start)
 	{
 		serv->onFinish = php_swoole_onFinish;
 	}
+	if (php_sw_callback[SW_SERVER_CB_onWorkerError] != NULL)
+	{
+		serv->onWorkerError = php_swoole_onWorkerError;
+	}
+	//-------------------------------------------------------------
 	if (php_sw_callback[SW_SERVER_CB_onTimer] != NULL)
 	{
 		serv->onTimer = php_swoole_onTimer;
@@ -1559,6 +1610,7 @@ PHP_FUNCTION(swoole_server_start)
 		zend_error(E_ERROR, "SwooleServer: onReceive must set.");
 		RETURN_FALSE;
 	}
+	//-------------------------------------------------------------
 	serv->onReceive = php_swoole_onReceive;
 
 	zval_add_ref(&zobject);

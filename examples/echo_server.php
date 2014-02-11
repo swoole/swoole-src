@@ -5,7 +5,7 @@ $serv->on('connect', function ($serv, $fd){
 });
 $serv->on('receive', function ($serv, $fd, $from_id, $data) {
     $serv->send($fd, 'Swoole: '.$data);
-    $serv->close($fd);
+    //$serv->close($fd);
 });
 $serv->on('close', function ($serv, $fd) {
     echo "Client: Close.\n";

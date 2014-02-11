@@ -524,7 +524,7 @@ typedef int (*swEventCallback)(swFactory *factory, swEventData *event);
 struct _swFactory
 {
 	void *object;
-	int max_request; //worker进程最大请求数量
+	int max_request; //worker max request
 	void *ptr; //server object
 	int last_from_id;
 	swReactor *reactor; //reserve for reactor
@@ -533,7 +533,7 @@ struct _swFactory
 	int (*shutdown)(struct _swFactory *);
 	int (*dispatch)(struct _swFactory *, swEventData *);
 	int (*finish)(struct _swFactory *, swSendData *);
-	int (*notify)(struct _swFactory *, swEvent *);    //发送一个事件通知
+	int (*notify)(struct _swFactory *, swEvent *);    //send a event notify
 	int (*end)(struct _swFactory *, swDataHead *);
 
 	int (*onTask)(struct _swFactory *, swEventData *task); //worker function.get a task,goto to work

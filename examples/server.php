@@ -1,7 +1,7 @@
 <?php
 $serv = new swoole_server("127.0.0.1", 9501);
 $serv->set(array(
-    'worker_num' => 4,
+    'worker_num' => 1,
     //'open_eof_check' => true,
     //'data_eof' => "\n",
     //'task_worker_num' => 2,
@@ -67,6 +67,11 @@ function my_onReceive($serv, $fd, $from_id, $data)
 		$info = $serv->connection_info($fd);
 		$serv->send($fd, 'Info: '.var_export($info, true).PHP_EOL);
 	}
+    //这里故意调用一个不存在的函数
+    elseif($cmd == "error")
+    {
+        hello_no_exists();
+    }
 	elseif($cmd == "shutdown") 
     {
 		$serv->shutdown();
@@ -133,6 +138,9 @@ $serv->on('WorkerStart', 'my_onWorkerStart');
 $serv->on('WorkerStop', 'my_onWorkerStop');
 $serv->on('Task', 'my_onTask');
 $serv->on('Finish', 'my_onFinish');
+$serv->on('WorkerError', function($serv, $worker_id, $worker_pid, $exit_code) {
+    echo "worker abnormal exit. WorkerId=$worker_id|Pid=$worker_pid|ExitCode=$exit_code\n";
+});
 //$serv->on('MasterConnect', 'my_onMasterConnect');
 //$serv->on('MasterClose', 'my_onMasterClose');
 $serv->start();

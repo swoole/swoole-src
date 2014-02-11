@@ -325,8 +325,10 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 	int i;
 	int reload_worker_i = 0;
 	int ret;
+	int worker_exit_code;
 
 	swFactoryProcess *object = factory->object;
+	swServer *serv = factory->ptr;
 	swWorker *reload_workers;
 
 	reload_workers = sw_calloc(object->worker_num, sizeof(swWorker));
@@ -341,7 +343,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 
 	while (SwooleG.running > 0)
 	{
-		pid = wait(NULL);
+		pid = wait(&worker_exit_code);
 		swTrace("[manager] worker stop.pid=%d\n", pid);
 		if (pid < 0)
 		{
@@ -367,6 +369,10 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 				}
 				else
 				{
+					if(serv->onWorkerError!=NULL && WIFEXITED(worker_exit_code))
+					{
+						serv->onWorkerError(serv, i, pid, WEXITSTATUS(worker_exit_code));
+					}
 					pid = 0;
 					new_pid = swFactoryProcess_worker_spawn(factory, i);
 					if (new_pid < 0)
