@@ -237,6 +237,10 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 		//设置指针和回调函数
 		SwooleG.task_workers.ptr = serv;
 		SwooleG.task_workers.onTask = swTaskWorker_onTask;
+		if (serv->onWorkerStart != NULL)
+		{
+			SwooleG.task_workers.onWorkerStart = swTaskWorker_onWorkerStart;
+		}
 	}
 	pid = fork();
 	switch (pid)

@@ -218,10 +218,9 @@ int swServer_get_manager_pid(swServer *serv);
 
 int swTimer_select(swTimer *timer, swServer *serv);
 int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);
+void swTaskWorker_onWorkerStart(swProcessPool *pool, int worker_id);
 
 int swServer_new_connection(swServer *serv, swEvent *ev);
-
-
 
 #define SW_SERVER_MAX_FD_INDEX        0
 #define SW_SERVER_MIN_FD_INDEX        1

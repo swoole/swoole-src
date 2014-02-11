@@ -4,13 +4,12 @@ $serv->set(array(
     'worker_num' => 1,
     //'open_eof_check' => true,
     //'data_eof' => "\n",
-    //'task_worker_num' => 2,
+    'task_worker_num' => 2,
 	//'dispatch_mode' => 2,
 //    'daemonize' => 1,
      //'heartbeat_idle_time' => 30,
      //'heartbeat_check_interval' => 30,
 ));
-
 function my_onStart($serv)
 {
 	echo "MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}\n";
@@ -41,7 +40,13 @@ function my_onConnect($serv, $fd, $from_id)
 
 function my_onWorkerStart($serv, $worker_id)
 {
-    echo "WorkerStart|MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}|WorkerPid=".posix_getpid()."\n";
+    global $argv;
+    if($worker_id >= $serv->setting['worker_num']) {
+        swoole_set_process_name("php {$argv[0]} task worker");
+    } else {
+        swoole_set_process_name("php {$argv[0]} event worker");
+    }
+    //echo "WorkerStart|MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}|WorkerId=$worker_id\n";
 	//$serv->addtimer(500); //500ms
 }
 

@@ -603,6 +603,7 @@ PHP_FUNCTION(swoole_server_set)
 		convert_to_long(*v);
 		serv->heartbeat_check_interval = (int)Z_LVAL_PP(v);
 	}
+	zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zset TSRMLS_CC);
 	RETURN_TRUE;
 }
 

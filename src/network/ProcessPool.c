@@ -47,7 +47,7 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request)
 		swProcessPool_worker(pool, i).id = i;
 		swProcessPool_worker(pool, i).pool = pool;
 	}
-	pool->onStart = swProcessPool_worker_start;
+	pool->main_loop = swProcessPool_worker_start;
 	return SW_OK;
 }
 
@@ -103,11 +103,14 @@ pid_t swProcessPool_spawn(swWorker *worker)
 	{
 	//child
 	case 0:
-		exit(pool->onStart(pool, worker));
+		if(pool->onWorkerStart != NULL)
+		{
+			pool->onWorkerStart(pool, worker->id);
+		}
+		exit(pool->main_loop(pool, worker));
 		break;
 	case -1:
-		swWarn("[swProcessPool_run] fork fail. Error: %s [%d]", strerror(errno), errno)
-		;
+		swWarn("[swProcessPool_run] fork failed. Error: %s [%d]", strerror(errno), errno);
 		break;
 		//parent
 	default:

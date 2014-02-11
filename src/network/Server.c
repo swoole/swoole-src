@@ -1114,6 +1114,12 @@ int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
 	return serv->onTask(serv, task);
 }
 
+void swTaskWorker_onWorkerStart(swProcessPool *pool, int worker_id)
+{
+	swServer *serv = pool->ptr;
+	serv->onWorkerStart(serv, worker_id + serv->worker_num);
+}
+
 int swTaskWorker_onFinish(swReactor *reactor, swEvent *event)
 {
 	swServer *serv = reactor->ptr;
@@ -1133,7 +1139,7 @@ static int swServer_single_start(swServer *serv)
 
 	swProcessPool pool;
 	swProcessPool_create(&pool, serv->worker_num, serv->max_request);
-	pool.onStart = swServer_single_loop;
+	pool.main_loop = swServer_single_loop;
 	pool.ptr = serv;
 
 	//listen UDP
@@ -1171,6 +1177,10 @@ static int swServer_single_start(swServer *serv)
 		//设置指针和回调函数
 		SwooleG.task_workers.ptr = serv;
 		SwooleG.task_workers.onTask = swTaskWorker_onTask;
+		if (serv->onWorkerStart != NULL)
+		{
+			SwooleG.task_workers.onWorkerStart = swTaskWorker_onWorkerStart;
+		}
 		swProcessPool_start(&SwooleG.task_workers);
 
 		//将taskworker也加入到wait中来
