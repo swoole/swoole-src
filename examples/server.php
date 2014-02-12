@@ -64,7 +64,7 @@ function my_onReceive($serv, $fd, $from_id, $data)
 	}
 	elseif($cmd == "task") 
     {
-		$task_id = $serv->task("hello world");
+		$task_id = $serv->task("hello world", 9);
 		echo "Dispath AsyncTask: id=$task_id\n";
 	}
 	elseif($cmd == "info") 

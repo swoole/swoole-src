@@ -71,10 +71,14 @@ int swProcessPool_start(swProcessPool *pool)
 /**
  * dispatch
  */
-int swProcessPool_dispatch(swProcessPool *pool, swEventData *data)
+int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int worker_id)
 {
-	int id = (pool->round_id++)%pool->worker_num;
-	swWorker *worker = &swProcessPool_worker(pool, id);
+	//no worker_id, will round
+	if(worker_id < 0)
+	{
+		worker_id = (pool->round_id++)%pool->worker_num;
+	}
+	swWorker *worker = &swProcessPool_worker(pool, worker_id);
 	return swWrite(worker->pipe_master, data, sizeof(data->info) + data->info.len);
 }
 

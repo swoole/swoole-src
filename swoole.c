@@ -404,7 +404,7 @@ PHP_FUNCTION(swoole_server_create)
 	if(serv_mode == SW_MODE_THREAD)
 	{
 		serv_mode = SW_MODE_SINGLE;
-		swWarn("PHP can not running at multi-threading. Reset mode to SW_MODE_BASE");
+		zend_error(E_WARNING, "PHP can not running at multi-threading. Reset mode to SW_MODE_BASE");
 	}
 
 	serv->factory_mode = serv_mode;
@@ -1837,17 +1837,18 @@ PHP_FUNCTION(swoole_server_taskwait)
 	double timeout = SW_TASKWAIT_TIMEOUT;
 	char *data;
 	int data_len;
+	long worker_id = -1;
 
 	if (zobject == NULL)
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Os|d", &zobject, swoole_server_class_entry_ptr, &data, &data_len, &timeout) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Os|dl", &zobject, swoole_server_class_entry_ptr, &data, &data_len, &timeout, &worker_id) == FAILURE)
 		{
 			return;
 		}
 	}
 	else
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|d", &data, &data_len, &timeout) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|dl", &data, &data_len, &timeout, &worker_id) == FAILURE)
 		{
 			return;
 		}
@@ -1856,13 +1857,19 @@ PHP_FUNCTION(swoole_server_taskwait)
 	SWOOLE_GET_SERVER(zobject, serv);
 	if(serv->task_worker_num < 1)
 	{
-		swWarn("SwooleServer: task can not use. Please set task_worker_num.");
+		zend_error(E_WARNING, "SwooleServer: task can not use. Please set task_worker_num.");
 		RETURN_FALSE;
 	}
 
 	if(data_len > sizeof(buf.data))
 	{
-		swWarn("SwooleServer: task data max_size=%d.", sizeof(buf.data));
+		zend_error(E_WARNING, "SwooleServer: task data max_size=%d.", (int)sizeof(buf.data));
+		RETURN_FALSE;
+	}
+
+	if (worker_id >= serv->task_worker_num)
+	{
+		zend_error(E_WARNING, "SwooleServer: worker_id must be less than serv->task_worker_num");
 		RETURN_FALSE;
 	}
 
@@ -1874,7 +1881,7 @@ PHP_FUNCTION(swoole_server_taskwait)
 	//from_id保存worker_id
 	buf.info.from_id = SwooleWG.id;
 
-	if (swProcessPool_dispatch(&SwooleG.task_workers, &buf) > 0)
+	if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int) worker_id) > 0)
 	{
 		int ret = 0;
 		uint64_t notify;
@@ -1904,17 +1911,18 @@ PHP_FUNCTION(swoole_server_task)
 	swServer *serv;
 	char *data;
 	int data_len;
+	long worker_id = -1;
 
 	if (zobject == NULL)
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Os", &zobject, swoole_server_class_entry_ptr, &data, &data_len) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Os|l", &zobject, swoole_server_class_entry_ptr, &data, &data_len, &worker_id) == FAILURE)
 		{
 			return;
 		}
 	}
 	else
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &data, &data_len) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &data, &data_len, &worker_id) == FAILURE)
 		{
 			return;
 		}
@@ -1923,13 +1931,19 @@ PHP_FUNCTION(swoole_server_task)
 	SWOOLE_GET_SERVER(zobject, serv);
 	if(serv->task_worker_num < 1)
 	{
-		swWarn("SwooleServer: task can not use. Please set task_worker_num.");
+		zend_error(E_WARNING, "SwooleServer: task can not use. Please set task_worker_num.");
+		RETURN_FALSE;
+	}
+
+	if (worker_id >= serv->task_worker_num)
+	{
+		zend_error(E_WARNING, "SwooleServer: worker_id must be less than serv->task_worker_num");
 		RETURN_FALSE;
 	}
 
 	if(data_len > sizeof(buf.data))
 	{
-		swWarn("SwooleServer: task data max_size=%d.", sizeof(buf.data));
+		zend_error(E_WARNING, "SwooleServer: task data max_size=%d.", (int) sizeof(buf.data));
 		RETURN_FALSE;
 	}
 
@@ -1941,7 +1955,7 @@ PHP_FUNCTION(swoole_server_task)
 	//from_id保存worker_id
 	buf.info.from_id = SwooleWG.id;
 
-	if (swProcessPool_dispatch(&SwooleG.task_workers, &buf) > 0)
+	if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int) worker_id) > 0)
 	{
 		RETURN_LONG(buf.info.fd);
 	}
@@ -1975,13 +1989,13 @@ PHP_FUNCTION(swoole_server_finish)
 	}
 	if(data_len > sizeof(buf.data))
 	{
-		swWarn("SwooleServer: finish data max_size=%d.", sizeof(buf.data));
+		zend_error(E_WARNING, "SwooleServer: finish data max_size=%d.", (int) sizeof(buf.data));
 		RETURN_FALSE;
 	}
 	SWOOLE_GET_SERVER(zobject, serv);
 	if(serv->task_worker_num < 1)
 	{
-		swWarn("SwooleServer: finish can not use here");
+		zend_error(E_WARNING, "SwooleServer: finish can not use here");
 		RETURN_FALSE;
 	}
 	swFactory *factory = &serv->factory;

@@ -690,7 +690,7 @@ int swProcessPool_wait(swProcessPool *pool);
 int swProcessPool_start(swProcessPool *pool);
 void swProcessPool_shutdown(swProcessPool *pool);
 pid_t swProcessPool_spawn(swWorker *worker);
-int swProcessPool_dispatch(swProcessPool *pool, swEventData *data);
+int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int worker_id);
 int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker);
 
 #define swProcessPool_worker(ma,id) (ma->workers[id])
