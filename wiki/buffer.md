@@ -4,11 +4,11 @@ Buffer和EOF_Check的使用
 还有些客户端是逐字节发送数据的，如果每次回调onReceive会拖慢整个系统。
 Swoole提供了buffer和eof_check的功能，在C扩展底层检测到如果不是完整的请求，会等待新的数据到达，组成完成的请求后再回调onReceive。
 
-在swoole_server_set中增加，open_eof_check和data_eof来开启此功能。open_eof_check=1表示启用buffer检查，data_eof设置数据包结束符。
+在swoole_server_setopt中增加，open_eof_check和data_eof来开启此功能。open_eof_check=1表示启用buffer检查，data_eof设置数据包结束符。
 
 示例：
 ```php
-swoole_server_set($serv, array(
+swoole_server_setopt($serv, array(
     'timeout' => 2.5,  //select and epoll_wait timeout. 
     'poll_thread_num' => 2, //reactor thread num
     'writer_num' => 2,     //writer thread num

@@ -1,9 +1,9 @@
-swoole_server_set 参数说明
+swoole_server_setopt 参数说明
 ===========
 
 示例：
 ```php
-swoole_server_set($serv, array(
+swoole_server_setopt($serv, array(
     'timeout' => 2.5,  //select and epoll_wait timeout. 
     'poll_thread_num' => 2, //reactor thread num
     'writer_num' => 2,     //writer thread num

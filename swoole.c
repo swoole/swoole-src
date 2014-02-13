@@ -70,7 +70,8 @@ const zend_function_entry swoole_functions[] =
 {
 	PHP_FE(swoole_version, NULL)
 	PHP_FE(swoole_server_create, NULL)
-	PHP_FE(swoole_server_set, NULL)
+	PHP_FE(swoole_server_setopt, NULL)
+	PHP_FE(swoole_server_getopt, NULL)
 	PHP_FE(swoole_server_start, NULL)
 	PHP_FE(swoole_server_send, NULL)
 	PHP_FE(swoole_server_close, NULL)
@@ -101,7 +102,8 @@ const zend_function_entry swoole_functions[] =
 
 static zend_function_entry swoole_server_methods[] = {
 	PHP_FALIAS(__construct, swoole_server_create, NULL)
-	PHP_FALIAS(set, swoole_server_set, NULL)
+	PHP_FALIAS(setopt, swoole_server_setopt, NULL)
+	PHP_FALIAS(getopt, swoole_server_getopt, NULL)
 	PHP_FALIAS(start, swoole_server_start, NULL)
 	PHP_FALIAS(send, swoole_server_send, NULL)
 	PHP_FALIAS(close, swoole_server_close, NULL)
@@ -435,7 +437,7 @@ PHP_FUNCTION(swoole_server_create)
 	zval_ptr_dtor(&zres);
 }
 
-PHP_FUNCTION(swoole_server_set)
+PHP_FUNCTION(swoole_server_setopt)
 {
 	zval *zset = NULL;
 	zval *zobject = getThis();
@@ -606,6 +608,11 @@ PHP_FUNCTION(swoole_server_set)
 	zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zset TSRMLS_CC);
 	RETURN_TRUE;
 }
+
+PHP_FUNCTION(swoole_server_getopt) {
+	RETURN_TRUE;
+}
+
 
 static int php_swoole_set_callback(int key, zval *cb TSRMLS_DC)
 {

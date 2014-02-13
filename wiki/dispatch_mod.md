@@ -1,6 +1,6 @@
 Worker与Reactor通信模式
 =====
-worker进程如何与reactor进程通信，Swoole提供了3种方式。通过swoole_server_set参数中修改dispatch_mode的值来配置。
+worker进程如何与reactor进程通信，Swoole提供了3种方式。通过swoole_server_setopt参数中修改dispatch_mode的值来配置。
 
 轮询模式：dispatch_mode = 1
 -----
