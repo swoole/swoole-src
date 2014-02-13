@@ -17,7 +17,7 @@ Swoole包含Server和Client 2个部分。名称为swoole_server_*的函数都是
 Server
 -----
 * **函数列表**
-    * [swoole_server_set参数说明](server/setting.md)
+    * [swoole_server_setopt参数说明](server/setting.md)
     * [swoole_server_create运行模式说明](factory_mode.md)
     * [swoole_server_addlisten多端口混合监听](addlisten.md)
     * [swoole_server_addtimer定时器的使用](timer.md)
