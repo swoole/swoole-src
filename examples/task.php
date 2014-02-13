@@ -1,6 +1,6 @@
 <?php
 $serv = new swoole_server("127.0.0.1", 9501);
-$serv->set(array(
+$serv->setopt(array(
     'worker_num' => 2,
     'task_worker_num' => 2,
 ));

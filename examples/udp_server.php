@@ -1,6 +1,6 @@
 <?php
 $serv = new swoole_server("127.0.0.1", 9502, SWOOLE_PROCESS, SWOOLE_SOCK_UDP);
-$serv->set(array( 
+$serv->setopt(array( 
     'worker_num' => 4,    //worker process num
 ));
 
