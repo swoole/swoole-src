@@ -1,6 +1,6 @@
 <?php
 $serv = new swoole_server("127.0.0.1", 9501);
-$serv->setopt(array(
+$serv->set(array(
     'worker_num' => 1,
     //'open_eof_check' => true,
     //'data_eof' => "\n",

@@ -73,7 +73,7 @@ swoole_event_add($fp, function($fp){
 __Task__
 ```php
 $serv = new swoole_server("127.0.0.1", 9502);
-$serv->setopt(array('task_worker_num' => 4));
+$serv->set(array('task_worker_num' => 4));
 $serv->on('Receive', function($serv, $fd, $from_id, $data) {
     $task_id = $serv->task("Async");
     echo "Dispath AsyncTask: id=$task_id\n";

@@ -8,7 +8,7 @@ class ProxyServer
     function run()
     {
         $serv = new swoole_server("127.0.0.1", 9509);
-        $serv->setopt(array(
+        $serv->set(array(
             'timeout' => 1, //select and epoll_wait timeout.
             'poll_thread_num' => 1, //reactor thread num
             'worker_num' => 32, //reactor thread num
