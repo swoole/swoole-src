@@ -60,6 +60,9 @@ static int php_swoole_set_callback(int key, zval *cb TSRMLS_DC);
 	RETURN_FALSE;}\
 	ZEND_FETCH_RESOURCE(serv, swServer *, zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
 
+#define php_swoole_get_udp_info(from_id, udp_info)
+
+
 #ifdef SW_ASYNC_MYSQL
 #include "ext/mysqlnd/mysqlnd.h"
 #include "ext/mysqli/mysqli_mysqlnd.h"
@@ -1060,13 +1063,16 @@ PHP_FUNCTION(swoole_connection_info)
 	if(conn == NULL || from_id != -1)
 	{
 		array_init(return_value);
-		swConnection *from_sock = swServer_get_connection(serv, from_id);
+		php_swoole_udp_t udp_info;
+		memcpy(&udp_info, &from_id, sizeof(udp_info));
+
+		swConnection *from_sock = swServer_get_connection(serv, udp_info.from_fd);
 		struct in_addr sin_addr;
 		sin_addr.s_addr = fd;
 		if (from_sock != NULL)
 		{
-			add_assoc_long(return_value, "from_fd", from_id);
-			add_assoc_long(return_value, "from_port",  serv->connection_list[from_id].addr.sin_port);
+			add_assoc_long(return_value, "from_fd", udp_info.from_fd);
+			add_assoc_long(return_value, "from_port",  from_sock->addr.sin_port);
 		}
 		if (from_id !=0 )
 		{

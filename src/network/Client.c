@@ -217,6 +217,7 @@ int swClient_udp_connect(swClient *cli, char *host, int port, double timeout, in
 
 	cli->serv_addr.sin_family = cli->sock_domain;
 	cli->serv_addr.sin_port = htons(port);
+	cli->connected = 1;
 
 	if (swClient_inet_addr(&cli->serv_addr, host) < 0)
 	{
@@ -232,7 +233,6 @@ int swClient_udp_connect(swClient *cli, char *host, int port, double timeout, in
 	{
 		//清理connect前的buffer数据遗留
 		while(recv(cli->sock, buf, 1024 , MSG_DONTWAIT) > 0);
-		cli->connected = 1;
 		return SW_OK;
 	}
 	else
