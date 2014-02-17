@@ -184,7 +184,8 @@ if test "$PHP_SWOOLE" != "no"; then
 		AC_DEFINE(HAVE_MYSQLI, 1, [have mysqli extension])
     fi
 
-	if test "$PHP_SOCKETS" = "yes"; then
+
+    if test "$PHP_SOCKETS" = "yes"; then
 		AC_DEFINE(SW_SOCKETS, 1, [enable sockets support])
     fi
 
@@ -208,7 +209,11 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_HAVE_MYSQLI, 1, [have mysqli])
     ])
 
-	CFLAGS="-Wall $CFLAGS"
+    SWOOLE_HAVE_PHP_EXT([mysqlnd], [
+        AC_DEFINE(SW_HAVE_MYSQLND, 1, [have mysqlnd])
+    ])
+
+    CFLAGS="-Wall $CFLAGS"
   
     AC_CHECK_LIB(pthread, accept4, AC_DEFINE(SW_USE_ACCEPT4, 1, [have accept4]))
     AC_CHECK_LIB(pthread, pthread_spin_lock, AC_DEFINE(HAVE_SPINLOCK, 1, [have pthread_spin_lock]))
