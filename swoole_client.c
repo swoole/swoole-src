@@ -29,8 +29,8 @@
 #endif
 #endif
 
+char php_sw_reactor_wait_onexit = 0;
 static char php_sw_reactor_ok = 0;
-static char php_sw_reactor_wait_onexit = 0;
 static char php_sw_in_client = 0;
 
 typedef struct {

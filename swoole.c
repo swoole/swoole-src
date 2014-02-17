@@ -322,6 +322,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
 			zval_dtor(php_sw_callback[i]);
 		}
 	}
+	php_sw_reactor_wait_onexit = 0;
 	return SUCCESS;
 }
 

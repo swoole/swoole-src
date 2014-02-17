@@ -55,6 +55,8 @@ typedef struct {
 #pragma pack()
 
 extern zend_module_entry swoole_module_entry;
+extern char php_sw_reactor_wait_onexit;
+
 #define phpext_swoole_ptr &swoole_module_entry
 
 #ifdef PHP_WIN32

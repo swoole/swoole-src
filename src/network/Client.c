@@ -116,14 +116,16 @@ int swClient_tcp_connect(swClient *cli, char *host, int port, double timeout, in
 	}
 
 	cli->timeout = timeout;
-	swSetTimeout(cli->sock, timeout);
+
 	if(nonblock == 1)
 	{
 		swSetNonBlock(cli->sock);
 	}
 	else
 	{
-		swSetBlock(cli->sock);
+		swSetTimeout(cli->sock, timeout);
+		//block default
+		//swSetBlock(cli->sock);
 	}
 
 	while (1)
