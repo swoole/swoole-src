@@ -32,6 +32,7 @@ void ***sw_thread_ctx;
 
 static swEventData *sw_current_task;
 static int php_swoole_task_id;
+static int php_swoole_udp_from_id;
 
 extern sapi_module_struct sapi_module;
 
@@ -59,9 +60,6 @@ static int php_swoole_set_callback(int key, zval *cb TSRMLS_DC);
 	php_error_docref(NULL TSRMLS_CC, E_WARNING, "Not have swoole server");\
 	RETURN_FALSE;}\
 	ZEND_FETCH_RESOURCE(serv, swServer *, zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
-
-#define php_swoole_get_udp_info(from_id, udp_info)
-
 
 #ifdef SW_ASYNC_MYSQL
 #include "ext/mysqlnd/mysqlnd.h"
@@ -166,7 +164,8 @@ zend_class_entry *swoole_server_class_entry_ptr;
 zend_module_entry swoole_module_entry =
 {
 #if ZEND_MODULE_API_NO >= 20050922
-	STANDARD_MODULE_HEADER_EX, NULL,
+	STANDARD_MODULE_HEADER_EX,
+	NULL,
 	NULL,
 #else
 	STANDARD_MODULE_HEADER,
@@ -1059,11 +1058,16 @@ PHP_FUNCTION(swoole_connection_info)
 	SWOOLE_GET_SERVER(zobject, serv);
 
 	swConnection *conn = swServer_get_connection(serv, fd);
+
 	//It's udp
-	if(conn == NULL || from_id != -1)
+	if(conn == NULL)
 	{
 		array_init(return_value);
 		php_swoole_udp_t udp_info;
+		if (from_id < 0)
+		{
+			from_id = php_swoole_udp_from_id;
+		}
 		memcpy(&udp_info, &from_id, sizeof(udp_info));
 
 		swConnection *from_sock = swServer_get_connection(serv, udp_info.from_fd);
@@ -1081,6 +1085,8 @@ PHP_FUNCTION(swoole_connection_info)
 		add_assoc_string(return_value, "remote_ip", inet_ntoa(sin_addr), 1);
 		return;
 	}
+
+	//connection is closed
 	if(conn->tag == 0)
 	{
 		RETURN_FALSE;
@@ -1120,7 +1126,6 @@ PHP_FUNCTION(swoole_connection_list)
 		}
 	}
 	SWOOLE_GET_SERVER(zobject, serv);
-
 
 	//超过最大查找数量
 	if (find_count > SW_MAX_FIND_COUNT)
@@ -1177,20 +1182,19 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	//UDP使用from_id作为port,fd做为ip
 	php_swoole_udp_t udp_info;
 
-	int from_id;
-
 	MAKE_STD_ZVAL(zfd);
 	ZVAL_LONG(zfd, (long)req->info.fd);
 
 	MAKE_STD_ZVAL(zfrom_id);
+
 	if(req->info.type == SW_EVENT_UDP)
 	{
 		udp_info.from_fd = req->info.from_fd;
 		udp_info.port = req->info.from_id;
-		memcpy(&from_id, &udp_info, sizeof(from_id));
-		factory->last_from_id = from_id;
+		memcpy(&php_swoole_udp_from_id, &udp_info, sizeof(php_swoole_udp_from_id));
+		factory->last_from_id = php_swoole_udp_from_id;
 		swTrace("SendTo: from_id=%d|from_fd=%d", (uint16_t)req->info.from_id, req->info.from_fd);
-		ZVAL_LONG(zfrom_id, (long) from_id);
+		ZVAL_LONG(zfrom_id, (long) php_swoole_udp_from_id);
 	}
 	else
 	{

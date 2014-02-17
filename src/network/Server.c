@@ -247,7 +247,7 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 	swEvent connEv;
 	struct sockaddr_in client_addr;
 	uint32_t client_addrlen = sizeof(client_addr);
-	int conn_fd, ret, c_pti, i;
+	int conn_fd, ret, c_pti = 0, i;
 
 	//SW_ACCEPT_AGAIN
 	for (i = 0; i < SW_ACCEPT_MAX_COUNT; i++)
@@ -313,7 +313,7 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 #else
 		//平均调度法
 		c_pti = serv->reactor_next_i;
-		if ((serv->reactor_schedule_count++) % SW_SCHEDULE_INTERVAL == 0)
+		if (serv->reactor_num > 1 && (serv->reactor_schedule_count++) % SW_SCHEDULE_INTERVAL == 0)
 		{
 			swServer_reactor_schedule(serv);
 		}

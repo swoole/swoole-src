@@ -686,7 +686,7 @@ int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int work
 {
 	swFactoryProcess *object = factory->object;
 	swServer *serv = factory->ptr;
-	int pti;
+	int pti = 0;
 	int ret;
 	int send_len = sizeof(data->info) + data->info.len;
 
@@ -730,7 +730,6 @@ int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int work
 				}
 			}
 #endif
-
 		}
 	}
 	//指定了worker_id
