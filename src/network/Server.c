@@ -1661,17 +1661,17 @@ static int swServer_poll_onReceive_length_check_buffer(swReactor *reactor, swEve
 	}
 	else
 	{
-		uint8_t data_length_size = serv->data_length_size;
-		int data_length_offset = serv->data_length_offset;
-		int data_offset = serv->data_offset;
-		int buffer_max_size = serv->buffer_max_size;
+		uint8_t package_length_size = serv->package_length_size;
+		int package_length_offset = serv->package_length_offset;
+		int package_body_start = serv->package_body_start;
+		int package_max_length = serv->package_max_length;
 
 		buffer->data.info.len += n;
 		int temp_buffer_len = buffer->data.info.len;
 
 
 		//字节是否读到了长度字节
-		if (temp_buffer_len < data_length_offset + data_length_size) {
+		if (temp_buffer_len < package_length_offset + package_length_size) {
 			return SW_OK;
 		}
 
@@ -1679,17 +1679,17 @@ static int swServer_poll_onReceive_length_check_buffer(swReactor *reactor, swEve
 
 		int protocol_length = 0;//协议长度
 		
-		if (data_length_size == 2) {
-			short int_length = *((short*)(buffer->data.data + data_length_offset));
+		if (package_length_size == 2) {
+			short int_length = *((short*)(buffer->data.data + package_length_offset));
 			protocol_length = int_length;
 		} else {
-			int int_length = *((int*)(buffer->data.data + data_length_offset));
+			int int_length = *((int*)(buffer->data.data + package_length_offset));
 			protocol_length = int_length;
 		}
-		protocol_length += data_offset;
+		protocol_length += package_body_start;
 
 		//协议长度不合法，越界或超过配置长度
-		if ((buffer_max_size > 0 && protocol_length > buffer_max_size) || protocol_length <= 0) {
+		if ((package_max_length > 0 && protocol_length > package_max_length) || protocol_length <= 0) {
 			swTrace("Close Event.FD=%d|From=%d\n", event->fd, event->from_id);
 			memcpy(&closeEv, event, sizeof(swEvent));
 			closeEv.type = SW_EVENT_CLOSE;
@@ -1712,15 +1712,15 @@ static int swServer_poll_onReceive_length_check_buffer(swReactor *reactor, swEve
 			
 			//判断下条协议
 			protocol_length = 0;
-			if (temp_buffer_len > data_length_offset + data_length_size) {
-				if (data_length_size == 2) {
-					short int_length = *((short*)(buffer->data.data + data_length_offset));
+			if (temp_buffer_len > package_length_offset + package_length_size) {
+				if (package_length_size == 2) {
+					short int_length = *((short*)(buffer->data.data + package_length_offset));
 					protocol_length = int_length;
 				} else {
-					int int_length = *((int*)(buffer->data.data + data_length_offset));
+					int int_length = *((int*)(buffer->data.data + package_length_offset));
 					protocol_length = int_length;
 				}
-				protocol_length += data_offset;
+				protocol_length += package_body_start;
 			}
 		}
 		buffer->data.info.len = temp_buffer_len;

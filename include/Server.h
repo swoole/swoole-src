@@ -170,10 +170,10 @@ struct swServer_s
 
 	/* buffer data length check*/
 	uint8_t open_length_check; //开启协议长度检测
-	uint8_t data_length_size;  //长度所占用字节
-	int data_length_offset;    //第几个字节开始表示长度
-	int data_offset;           //第几个字节开始计算长度
-	int buffer_max_size;       //单条协议最大长度
+	uint8_t package_length_size;  //长度所占用字节
+	int package_length_offset;    //第几个字节开始表示长度
+	int package_body_start ;           //第几个字节开始计算长度
+	int package_max_length;       //单条协议最大长度
 
 	void *ptr2;
 

@@ -566,6 +566,20 @@ PHP_FUNCTION(swoole_server_set)
 		bzero(serv->data_eof, SW_DATA_EOF_MAXLEN);
 		memcpy(serv->data_eof, Z_STRVAL_PP(v), Z_STRLEN_PP(v));
 	}
+
+	//data eof设置
+	if (zend_hash_find(vht, ZEND_STRS("package_eof"), (void **) &v) == SUCCESS)
+	{
+		serv->data_eof_len = Z_STRLEN_PP(v);
+		if (serv->data_eof_len > SW_DATA_EOF_MAXLEN)
+		{
+			zend_error(E_ERROR, "swoole_server date_eof max length is %d", SW_DATA_EOF_MAXLEN);
+			RETURN_FALSE;
+		}
+		bzero(serv->data_eof, SW_DATA_EOF_MAXLEN);
+		memcpy(serv->data_eof, Z_STRVAL_PP(v), Z_STRLEN_PP(v));
+	}
+
 	//tcp_keepidle
 	if (zend_hash_find(vht, ZEND_STRS("tcp_keepidle"), (void **)&v) == SUCCESS)
 	{
@@ -614,39 +628,44 @@ PHP_FUNCTION(swoole_server_set)
 		serv->heartbeat_check_interval = (int)Z_LVAL_PP(v);
 	}
 
-	//open buffer length check config
+	//open length check
 	if (zend_hash_find(vht, ZEND_STRS("open_length_check"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
 		serv->open_length_check = (uint8_t)Z_LVAL_PP(v);
 	}
 
-	//set data length size
-	if (zend_hash_find(vht, ZEND_STRS("data_length_size"), (void **)&v) == SUCCESS)
+	//package length size
+	if (zend_hash_find(vht, ZEND_STRS("package_length_size"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->data_length_size = (uint8_t)Z_LVAL_PP(v);
+		serv->package_length_size = (uint8_t)Z_LVAL_PP(v);
+		if (serv->package_length_size != 2 && serv->package_length_size != 4)
+		{
+			zend_error(E_ERROR, "swoole_server package_length_size must by 2 or 4");
+			RETURN_FALSE;
+		}
 	}
 
-	//set data length offset
-	if (zend_hash_find(vht, ZEND_STRS("data_length_offset"), (void **)&v) == SUCCESS)
+	//package length offset
+	if (zend_hash_find(vht, ZEND_STRS("package_length_offset"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->data_length_offset = (int)Z_LVAL_PP(v);
+		serv->package_length_offset = (int)Z_LVAL_PP(v);
 	}
 
-	//set data length size
-	if (zend_hash_find(vht, ZEND_STRS("data_offset"), (void **)&v) == SUCCESS)
+	//package body start
+	if (zend_hash_find(vht, ZEND_STRS("package_body_start"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->data_offset = (int)Z_LVAL_PP(v);
+		serv->package_body_start  = (int)Z_LVAL_PP(v);
 	}
 
-	//set data length size
-	if (zend_hash_find(vht, ZEND_STRS("buffer_max_size"), (void **)&v) == SUCCESS)
+	//package max length
+	if (zend_hash_find(vht, ZEND_STRS("package_max_length"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->buffer_max_size = (int)Z_LVAL_PP(v);
+		serv->package_max_length = (int)Z_LVAL_PP(v);
 	}
 
 
@@ -792,6 +811,41 @@ PHP_FUNCTION(swoole_server_getopt) {
 	{
 		convert_to_long(*v);
 		add_assoc_long(return_value, "heartbeat_check_interval", (int)Z_LVAL_PP(v));
+	}
+
+	//open length check
+	if (zend_hash_find(swoole_server_options, ZEND_STRS("open_length_check"), (void **)&v) == SUCCESS)
+	{
+		convert_to_long(*v);
+		add_assoc_long(return_value, "open_length_check", (uint8_t)Z_LVAL_PP(v));
+	}
+
+	//package length size
+	if (zend_hash_find(swoole_server_options, ZEND_STRS("package_length_size"), (void **)&v) == SUCCESS)
+	{
+		convert_to_long(*v);
+		add_assoc_long(return_value, "package_length_size", (uint8_t)Z_LVAL_PP(v));
+	}
+
+	//package length offset
+	if (zend_hash_find(swoole_server_options, ZEND_STRS("package_length_offset"), (void **)&v) == SUCCESS)
+	{
+		convert_to_long(*v);
+		add_assoc_long(return_value, "package_length_offset", (int)Z_LVAL_PP(v));
+	}
+
+	//package body start
+	if (zend_hash_find(swoole_server_options, ZEND_STRS("package_body_start"), (void **)&v) == SUCCESS)
+	{
+		convert_to_long(*v);
+		add_assoc_long(return_value, "package_body_start", (int)Z_LVAL_PP(v));
+	}
+
+	//package max length
+	if (zend_hash_find(swoole_server_options, ZEND_STRS("package_max_length"), (void **)&v) == SUCCESS)
+	{
+		convert_to_long(*v);
+		add_assoc_long(return_value, "package_max_length", (int)Z_LVAL_PP(v));
 	}
 }
 
