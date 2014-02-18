@@ -168,6 +168,12 @@ struct swServer_s
 	int heartbeat_idle_time;			//心跳存活时间
 	int heartbeat_check_interval;		//心跳定时侦测时间, 必需小于heartbeat_idle_time
 
+	/* buffer data length check*/
+	uint8_t open_length_check; //开启协议长度检测
+	uint8_t data_length_size;  //长度所占用字节
+	int data_length_offset;    //第几个字节开始表示长度
+	int data_offset;           //第几个字节开始计算长度
+	int buffer_max_size;       //单条协议最大长度
 
 	void *ptr2;
 

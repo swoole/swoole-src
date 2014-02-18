@@ -47,6 +47,7 @@ static int swServer_poll_onClose(swReactor *reactor, swEvent *event);
 static int swServer_poll_close_queue(swReactor *reactor, swCloseQueue *close_queue);
 static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event);
 static int swServer_poll_onReceive_conn_buffer(swReactor *reactor, swEvent *event);
+static int swServer_poll_onReceive_length_check_buffer(swReactor *reactor, swEvent *event);
 static int swServer_poll_onReceive_data_buffer(swReactor *reactor, swEvent *event);
 
 static void swSignalHanlde(int sig);
@@ -1550,7 +1551,11 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 	int ret, n;
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &(serv->factory);
-
+	
+	if (serv->open_length_check != 0) {
+		return swServer_poll_onReceive_length_check_buffer(reactor, event);
+	}
+	
 	struct
 	{
 		/**
@@ -1619,6 +1624,106 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 //			ret = swServer_poll_onReceive_no_buffer(reactor, event);
 //		}
 		return ret;
+	}
+	return SW_OK;
+}
+
+static int swServer_poll_onReceive_length_check_buffer(swReactor *reactor, swEvent *event)
+{
+	int ret, n;
+	swServer *serv = reactor->ptr;
+	swFactory *factory = &(serv->factory);
+	swConnection *connection = swServer_get_connection(serv, event->fd);
+	swEvent closeEv;
+	swConnBuffer *buffer = swConnection_get_buffer(connection);
+
+	if(buffer==NULL)
+	{
+		return SW_ERR;
+	}
+#ifdef SW_USE_EPOLLET
+	n = swRead(event->fd,  buffer->data.data + buffer->data.info.len, SW_BUFFER_SIZE - buffer->data.info.len);
+#else
+	//非ET模式会持续通知
+	n = recv(event->fd,  buffer->data.data + buffer->data.info.len, SW_BUFFER_SIZE - buffer->data.info.len, 0);
+#endif
+	if (n < 0)
+	{
+		swWarn("swRead error: %d\n", errno);
+		return SW_ERR;
+	}
+	else if (n == 0)
+	{
+		swTrace("Close Event.FD=%d|From=%d\n", event->fd, event->from_id);
+		memcpy(&closeEv, event, sizeof(swEvent));
+		closeEv.type = SW_EVENT_CLOSE;
+		return swServer_close(serv, event);
+	}
+	else
+	{
+		uint8_t data_length_size = serv->data_length_size;
+		int data_length_offset = serv->data_length_offset;
+		int data_offset = serv->data_offset;
+		int buffer_max_size = serv->buffer_max_size;
+
+		buffer->data.info.len += n;
+		int temp_buffer_len = buffer->data.info.len;
+
+
+		//字节是否读到了长度字节
+		if (temp_buffer_len < data_length_offset + data_length_size) {
+			return SW_OK;
+		}
+
+		char* temp_buffer_data = buffer->data.data;
+
+		int protocol_length = 0;//协议长度
+		
+		if (data_length_size == 2) {
+			short int_length = *((short*)(buffer->data.data + data_length_offset));
+			protocol_length = int_length;
+		} else {
+			int int_length = *((int*)(buffer->data.data + data_length_offset));
+			protocol_length = int_length;
+		}
+		protocol_length += data_offset;
+
+		//协议长度不合法，越界或超过配置长度
+		if ((buffer_max_size > 0 && protocol_length > buffer_max_size) || protocol_length <= 0) {
+			swTrace("Close Event.FD=%d|From=%d\n", event->fd, event->from_id);
+			memcpy(&closeEv, event, sizeof(swEvent));
+			closeEv.type = SW_EVENT_CLOSE;
+			return swServer_close(serv, event);
+		}
+
+		while (protocol_length > 0 && temp_buffer_len >= protocol_length)
+		{
+			temp_buffer_len -= protocol_length;
+
+			buffer->data.info.len = protocol_length;
+			ret = factory->dispatch(factory, &buffer->data);
+			if (ret < 0)
+			{
+				swWarn("factory->dispatch fail");
+			}
+			temp_buffer_data += protocol_length;
+			memcpy(buffer->data.data, temp_buffer_data, temp_buffer_len);
+			temp_buffer_data = buffer->data.data;
+			
+			//判断下条协议
+			protocol_length = 0;
+			if (temp_buffer_len > data_length_offset + data_length_size) {
+				if (data_length_size == 2) {
+					short int_length = *((short*)(buffer->data.data + data_length_offset));
+					protocol_length = int_length;
+				} else {
+					int int_length = *((int*)(buffer->data.data + data_length_offset));
+					protocol_length = int_length;
+				}
+				protocol_length += data_offset;
+			}
+		}
+		buffer->data.info.len = temp_buffer_len;
 	}
 	return SW_OK;
 }

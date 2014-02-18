@@ -613,6 +613,43 @@ PHP_FUNCTION(swoole_server_set)
 		convert_to_long(*v);
 		serv->heartbeat_check_interval = (int)Z_LVAL_PP(v);
 	}
+
+	//open buffer length check config
+	if (zend_hash_find(vht, ZEND_STRS("open_length_check"), (void **)&v) == SUCCESS)
+	{
+		convert_to_long(*v);
+		serv->open_length_check = (uint8_t)Z_LVAL_PP(v);
+	}
+
+	//set data length size
+	if (zend_hash_find(vht, ZEND_STRS("data_length_size"), (void **)&v) == SUCCESS)
+	{
+		convert_to_long(*v);
+		serv->data_length_size = (uint8_t)Z_LVAL_PP(v);
+	}
+
+	//set data length offset
+	if (zend_hash_find(vht, ZEND_STRS("data_length_offset"), (void **)&v) == SUCCESS)
+	{
+		convert_to_long(*v);
+		serv->data_length_offset = (int)Z_LVAL_PP(v);
+	}
+
+	//set data length size
+	if (zend_hash_find(vht, ZEND_STRS("data_offset"), (void **)&v) == SUCCESS)
+	{
+		convert_to_long(*v);
+		serv->data_offset = (int)Z_LVAL_PP(v);
+	}
+
+	//set data length size
+	if (zend_hash_find(vht, ZEND_STRS("buffer_max_size"), (void **)&v) == SUCCESS)
+	{
+		convert_to_long(*v);
+		serv->buffer_max_size = (int)Z_LVAL_PP(v);
+	}
+
+
 	zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zset TSRMLS_CC);
 	RETURN_TRUE;
 }
