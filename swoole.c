@@ -557,6 +557,7 @@ PHP_FUNCTION(swoole_server_set)
 	//data eof设置
 	if (zend_hash_find(vht, ZEND_STRS("data_eof"), (void **) &v) == SUCCESS)
 	{
+		convert_to_string(*v);
 		serv->data_eof_len = Z_STRLEN_PP(v);
 		if (serv->data_eof_len > SW_DATA_EOF_MAXLEN)
 		{
