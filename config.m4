@@ -168,7 +168,8 @@ AC_DEFUN([AC_SWOOLE_EVENTFD],
 
 if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_INCLUDE($SWOOLE_DIR/include)
-    PHP_SUBST(SWOOLE_SHARED_LIBADD)
+    PHP_ADD_LIBRARY(pthread)
+    dnl PHP_SUBST(SWOOLE_SHARED_LIBADD)
 
     AC_ARG_ENABLE(debug, 
         [--enable-debug,  compile with debug symbols],
@@ -214,13 +215,14 @@ if test "$PHP_SWOOLE" != "no"; then
     ])
 
     CFLAGS="-Wall $CFLAGS"
+    LDFLAGS="$LDFLAGS -lpthread"
   
     AC_CHECK_LIB(pthread, accept4, AC_DEFINE(SW_USE_ACCEPT4, 1, [have accept4]))
     AC_CHECK_LIB(pthread, pthread_spin_lock, AC_DEFINE(HAVE_SPINLOCK, 1, [have pthread_spin_lock]))
     AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
 
     dnl PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
-    PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
+    dnl PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
 
     PHP_NEW_EXTENSION(swoole, swoole.c swoole_lock.c swoole_client.c\
         src/core/Base.c \
