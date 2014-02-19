@@ -1677,19 +1677,24 @@ static int swServer_poll_onReceive_length_check_buffer(swReactor *reactor, swEve
 
 		char* temp_buffer_data = buffer->data.data;
 
-		int protocol_length = 0;//协议长度
+		int protocol_length = 0; //协议长度
+		int int_length = 0;
 		
-		if (package_length_size == 2) {
-			short int_length = *((short*)(buffer->data.data + package_length_offset));
+		if (package_length_size == 2)
+		{
+			int_length = *((int*) (buffer->data.data + package_length_offset));
 			protocol_length = int_length;
-		} else {
-			int int_length = *((int*)(buffer->data.data + package_length_offset));
+		}
+		else
+		{
+			int_length = *((int*) (buffer->data.data + package_length_offset));
 			protocol_length = int_length;
 		}
 		protocol_length += package_body_start;
 
 		//协议长度不合法，越界或超过配置长度
-		if ((package_max_length > 0 && protocol_length > package_max_length) || protocol_length <= 0) {
+		if ((package_max_length > 0 && protocol_length > package_max_length) || protocol_length <= 0)
+		{
 			swTrace("Close Event.FD=%d|From=%d\n", event->fd, event->from_id);
 			memcpy(&closeEv, event, sizeof(swEvent));
 			closeEv.type = SW_EVENT_CLOSE;
@@ -1712,12 +1717,16 @@ static int swServer_poll_onReceive_length_check_buffer(swReactor *reactor, swEve
 			
 			//判断下条协议
 			protocol_length = 0;
-			if (temp_buffer_len > package_length_offset + package_length_size) {
-				if (package_length_size == 2) {
-					short int_length = *((short*)(buffer->data.data + package_length_offset));
+			if (temp_buffer_len > package_length_offset + package_length_size)
+			{
+				if (package_length_size == 2)
+				{
+					short int_length = *((short*) (buffer->data.data + package_length_offset));
 					protocol_length = int_length;
-				} else {
-					int int_length = *((int*)(buffer->data.data + package_length_offset));
+				}
+				else
+				{
+					int int_length = *((int*) (buffer->data.data + package_length_offset));
 					protocol_length = int_length;
 				}
 				protocol_length += package_body_start;
