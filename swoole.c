@@ -603,16 +603,16 @@ PHP_FUNCTION(swoole_server_set)
 		serv->timer_interval = (int)Z_LVAL_PP(v);
 	}
 	//heartbeat idle time
-	if (zend_hash_find(vht, ZEND_STRS("heartbeat_idle_time"), (void **)&v) == SUCCESS)
+	if (zend_hash_find(vht, ZEND_STRS("heartbeat_idle_time"), (void **) &v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->heartbeat_idle_time = (int)Z_LVAL_PP(v);
+		serv->heartbeat_idle_time = (int) Z_LVAL_PP(v);
 	}
-	//heartbeat check time  
-	if (zend_hash_find(vht, ZEND_STRS("heartbeat_check_interval"), (void **)&v) == SUCCESS)
+	//heartbeat_check_interval
+	if (zend_hash_find(vht, ZEND_STRS("heartbeat_check_interval"), (void **) &v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->heartbeat_check_interval = (int)Z_LVAL_PP(v);
+		serv->heartbeat_check_interval = (int) Z_LVAL_PP(v);
 	}
 	zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zset TSRMLS_CC);
 	RETURN_TRUE;

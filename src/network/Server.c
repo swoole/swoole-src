@@ -1826,6 +1826,8 @@ static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
 	swEvent notify_ev;
 	swServer *serv;
 	swFactory *factory;
+	swConnection *conn;
+
 
 	int fd;
 	int serv_max_fd;
@@ -1846,9 +1848,10 @@ static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
 		for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
 		{
 			swTrace("check fd=%d", fd);
-			if (1 == serv->connection_list[fd].tag && (serv->connection_list[fd].last_time < checktime))
+			conn = swServer_get_connection(serv, fd);
+			if (1 == conn->tag && (serv->connection_list[fd].last_time < checktime))
 			{
-
+				from_id = conn->from_id;
 				if (swConnection_close(serv, fd, &from_id) == 0)
 				{
 					if (serv->onMasterClose != NULL)
