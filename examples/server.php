@@ -7,8 +7,8 @@ $serv->set(array(
     'task_worker_num' => 2,
 	//'dispatch_mode' => 2,
 //    'daemonize' => 1,
-     //'heartbeat_idle_time' => 30,
-     //'heartbeat_check_interval' => 30,
+     //'heartbeat_idle_time' => 5,
+     // 'heartbeat_check_interval' => 5,
 ));
 function my_onStart($serv)
 {
@@ -55,7 +55,7 @@ function my_onWorkerStop($serv, $worker_id)
 	echo "WorkerStop[$worker_id]|pid=".posix_getpid().".\n";
 }
 
-function my_onReceive($serv, $fd, $from_id, $data)
+function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 {
 	$cmd = trim($data);
     if($cmd == "reload") 
@@ -72,6 +72,24 @@ function my_onReceive($serv, $fd, $from_id, $data)
 		$info = $serv->connection_info($fd);
 		$serv->send($fd, 'Info: '.var_export($info, true).PHP_EOL);
 	}
+    elseif($cmd == "broadcast")
+    {
+        $start_fd = 0;
+        while(true)
+        {
+            $conn_list = $serv->connection_list($start_fd, 10);
+            if($conn_list === false)
+            {
+                break;
+            }
+            $start_fd = end($conn_list);
+            foreach($conn_list as $conn)
+            {
+                if($conn === $fd) continue;
+                $serv->send($conn, "hello from $fd\n");
+            }
+        }
+    }
     //这里故意调用一个不存在的函数
     elseif($cmd == "error")
     {
@@ -87,48 +105,19 @@ function my_onReceive($serv, $fd, $from_id, $data)
 		//$serv->close($fd);
 	}
 	//echo "Client:Data. fd=$fd|from_id=$from_id|data=$data";
-    //echo "WorkerPid=".posix_getpid()."\n";
-    //swoole_server_send($serv, $fd, 'Swoole: '.$data, $from_id);
 	//$serv->deltimer(800);
 	//swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);
 	//swoole_server_close($serv, $fd, $from_id);
 	//swoole_server_close($serv, $ohter_fd, $other_from_id);
-	
-	/*
-	 * require swoole-1.5.8+
-	var_dump(swoole_connection_info($serv, $fd));
-	$start_fd = 0;
-	while(true)
-	{
-		$conn_list = swoole_connection_list($serv, $start_fd, 10);
-		if($conn_list===false)
-		{
-			echo "finish\n";
-			break;
-		}
-		$start_fd = $conn_list[count($conn_list)-1];
-		var_dump($conn_list);
-	}
-	*/
 }
 
-function my_onMasterConnect($serv, $fd, $from_id)
-{
-    //echo "my_onMasterConnect:Close.PID=".posix_getpid().PHP_EOL;
-}
-
-function my_onMasterClose($serv,$fd,$from_id)
-{
-    echo "Client:Close.PID=".posix_getpid().PHP_EOL;
-}
-
-function my_onTask($serv, $task_id, $from_id, $data)
+function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
 {
     echo "AsyncTask[PID=".posix_getpid()."]: task_id=$task_id.".PHP_EOL;
     $serv->finish("OK");
 }
 
-function my_onFinish($serv, $data)
+function my_onFinish(swoole_server $serv, $data)
 {
     echo "AsyncTask Finish:Connect.PID=".posix_getpid().PHP_EOL;
 }
@@ -146,7 +135,5 @@ $serv->on('Finish', 'my_onFinish');
 $serv->on('WorkerError', function($serv, $worker_id, $worker_pid, $exit_code) {
     echo "worker abnormal exit. WorkerId=$worker_id|Pid=$worker_pid|ExitCode=$exit_code\n";
 });
-//$serv->on('MasterConnect', 'my_onMasterConnect');
-//$serv->on('MasterClose', 'my_onMasterClose');
 $serv->start();
 
