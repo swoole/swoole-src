@@ -575,6 +575,7 @@ int swServer_start(swServer *serv)
 	}
 	//Signal Init
 	swSignalInit();
+
 	//标识为主进程
 	SwooleG.process_type = SW_PROCESS_MASTER;
 
@@ -1637,7 +1638,7 @@ static int swServer_poll_onReceive_length_check_buffer(swReactor *reactor, swEve
 	swEvent closeEv;
 	swConnBuffer *buffer = swConnection_get_buffer(connection);
 
-	if(buffer==NULL)
+	if (buffer == NULL)
 	{
 		return SW_ERR;
 	}
@@ -1669,9 +1670,9 @@ static int swServer_poll_onReceive_length_check_buffer(swReactor *reactor, swEve
 		buffer->data.info.len += n;
 		int temp_buffer_len = buffer->data.info.len;
 
-
 		//字节是否读到了长度字节
-		if (temp_buffer_len < package_length_offset + package_length_size) {
+		if (temp_buffer_len < package_length_offset + package_length_size)
+		{
 			return SW_OK;
 		}
 
@@ -1942,7 +1943,6 @@ static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
 	swFactory *factory;
 	swConnection *conn;
 
-
 	int fd;
 	int serv_max_fd;
 	int serv_min_fd;
@@ -1963,7 +1963,7 @@ static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
 		{
 			swTrace("check fd=%d", fd);
 			conn = swServer_get_connection(serv, fd);
-			if (1 == conn->tag && (serv->connection_list[fd].last_time < checktime))
+			if (conn != NULL && 1 == conn->tag && conn->last_time < checktime)
 			{
 				from_id = conn->from_id;
 				if (swConnection_close(serv, fd, &from_id) == 0)
