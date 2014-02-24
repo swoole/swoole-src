@@ -166,6 +166,20 @@ AC_DEFUN([AC_SWOOLE_EVENTFD],
 	])
 ])
 
+AC_COMPILE_IFELSE([
+    AC_LANG_PROGRAM([], [[
+        #ifndef __clang__
+            not clang
+        #endif
+    ]])],
+    [CLANG=yes], [CLANG=no]
+)
+AC_MSG_RESULT([$CLANG])
+
+if test "$CLANG" = "yes"; then
+    CFLAGS="$CFLAGS -std=gnu89"
+fi
+
 if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_INCLUDE($SWOOLE_DIR/include)
     PHP_ADD_LIBRARY(pthread)
