@@ -234,6 +234,14 @@ PHP_MINIT_FUNCTION(swoole)
 
 	REGISTER_LONG_CONSTANT("SWOOLE_SOCK_SYNC", SW_SOCK_SYNC, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_SOCK_ASYNC", SW_SOCK_ASYNC, CONST_CS | CONST_PERSISTENT);
+
+	REGISTER_LONG_CONSTANT("SWOOLE_SIGN", SW_NUM_SIGN, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SWOOLE_UNSIGN", SW_NUM_UNSIGN, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SWOOLE_NET", SW_NUM_NET, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SWOOLE_HOST", SW_NUM_HOST, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SWOOLE_SHORT", SW_NUM_SHORT, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SWOOLE_INT", SW_NUM_INT, CONST_CS | CONST_PERSISTENT);
+
     REGISTER_STRINGL_CONSTANT("SWOOLE_VERSION", PHP_SWOOLE_VERSION, sizeof(PHP_SWOOLE_VERSION) - 1, CONST_CS | CONST_PERSISTENT);
 
 	INIT_CLASS_ENTRY(swoole_client_ce, "swoole_client", swoole_client_methods);
@@ -397,7 +405,7 @@ PHP_FUNCTION(swoole_server_create)
 	//only cli env
 	if(strcasecmp("cli", sapi_module.name) != 0)
 	{
-		zend_error(E_ERROR, "SwooleServer must run at php_cli environment.");
+		zend_error(E_ERROR, "swoole_server must run at php_cli environment.");
 		RETURN_FALSE;
 	}
 	swServer *serv = sw_malloc(sizeof(swServer));
@@ -415,7 +423,7 @@ PHP_FUNCTION(swoole_server_create)
 	}
 
 	serv->factory_mode = serv_mode;
-	swTrace("Create SwooleServer host=%s, port=%ld, mode=%d", serv_host, serv_port, serv->factory_mode);
+	swTrace("Create swoole_server host=%s, port=%ld, mode=%d", serv_host, serv_port, serv->factory_mode);
 
 #ifdef ZTS
 	if(sw_thread_ctx == NULL)
@@ -491,15 +499,11 @@ PHP_FUNCTION(swoole_server_set)
 		serv->backlog = (int)Z_LVAL_PP(v);
 	}
 	//poll_thread_num
-	if (zend_hash_find(vht, ZEND_STRS("poll_thread_num"), (void **)&v) == SUCCESS)
+	if (zend_hash_find(vht, ZEND_STRS("reactor_num"), (void **) &v) == SUCCESS
+			|| zend_hash_find(vht, ZEND_STRS("poll_thread_num"), (void **) &v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->reactor_num = (int)Z_LVAL_PP(v);
-	}
-	if (zend_hash_find(vht, ZEND_STRS("reactor_num"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		serv->reactor_num = (int)Z_LVAL_PP(v);
+		serv->reactor_num = (int) Z_LVAL_PP(v);
 	}
 	//writer_num
 	if (zend_hash_find(vht, ZEND_STRS("writer_num"), (void **)&v) == SUCCESS)
@@ -548,39 +552,26 @@ PHP_FUNCTION(swoole_server_set)
 	{
 		serv->open_tcp_keepalive = (uint8_t)Z_LVAL_PP(v);
 	}
-	//data buffer, EOF检测
+	//buffer: check eof
 	if (zend_hash_find(vht, ZEND_STRS("open_eof_check"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
 		serv->open_eof_check = (uint8_t)Z_LVAL_PP(v);
 	}
-	//data eof设置
-	if (zend_hash_find(vht, ZEND_STRS("data_eof"), (void **) &v) == SUCCESS)
+	//package eof
+	if (zend_hash_find(vht, ZEND_STRS("package_eof"), (void **) &v) == SUCCESS
+			|| zend_hash_find(vht, ZEND_STRS("data_eof"), (void **) &v) == SUCCESS)
 	{
 		convert_to_string(*v);
-		serv->data_eof_len = Z_STRLEN_PP(v);
-		if (serv->data_eof_len > SW_DATA_EOF_MAXLEN)
+		serv->package_eof_len = Z_STRLEN_PP(v);
+		if (serv->package_eof_len > SW_DATA_EOF_MAXLEN)
 		{
 			zend_error(E_ERROR, "swoole_server date_eof max length is %d", SW_DATA_EOF_MAXLEN);
 			RETURN_FALSE;
 		}
-		bzero(serv->data_eof, SW_DATA_EOF_MAXLEN);
-		memcpy(serv->data_eof, Z_STRVAL_PP(v), Z_STRLEN_PP(v));
+		bzero(serv->package_eof, SW_DATA_EOF_MAXLEN);
+		memcpy(serv->package_eof, Z_STRVAL_PP(v), Z_STRLEN_PP(v));
 	}
-
-	//data eof设置
-	if (zend_hash_find(vht, ZEND_STRS("package_eof"), (void **) &v) == SUCCESS)
-	{
-		serv->data_eof_len = Z_STRLEN_PP(v);
-		if (serv->data_eof_len > SW_DATA_EOF_MAXLEN)
-		{
-			zend_error(E_ERROR, "swoole_server date_eof max length is %d", SW_DATA_EOF_MAXLEN);
-			RETURN_FALSE;
-		}
-		bzero(serv->data_eof, SW_DATA_EOF_MAXLEN);
-		memcpy(serv->data_eof, Z_STRVAL_PP(v), Z_STRLEN_PP(v));
-	}
-
 	//tcp_keepidle
 	if (zend_hash_find(vht, ZEND_STRS("tcp_keepidle"), (void **)&v) == SUCCESS)
 	{
@@ -637,15 +628,10 @@ PHP_FUNCTION(swoole_server_set)
 	}
 
 	//package length size
-	if (zend_hash_find(vht, ZEND_STRS("package_length_size"), (void **)&v) == SUCCESS)
+	if (zend_hash_find(vht, ZEND_STRS("package_length_type"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->package_length_size = (uint8_t)Z_LVAL_PP(v);
-		if (serv->package_length_size != 2 && serv->package_length_size != 4)
-		{
-			zend_error(E_ERROR, "swoole_server package_length_size must by 2 or 4");
-			RETURN_FALSE;
-		}
+		serv->package_length_type = (uint16_t)Z_LVAL_PP(v);
 	}
 
 	//package length offset
@@ -666,9 +652,8 @@ PHP_FUNCTION(swoole_server_set)
 	if (zend_hash_find(vht, ZEND_STRS("package_max_length"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->package_max_length = (int)Z_LVAL_PP(v);
+		serv->buffer_input_size = (int)Z_LVAL_PP(v);
 	}
-
 
 	zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zset TSRMLS_CC);
 	RETURN_TRUE;
@@ -1295,7 +1280,7 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	}
 
 	MAKE_STD_ZVAL(zdata);
-	ZVAL_STRINGL(zdata, req->data, req->info.len, 1);
+	ZVAL_STRINGL(zdata, swPackage_data(req), swPackage_length(req), 1);
 
 	args[0] = &zserv;
 	args[1] = &zfd;
@@ -1307,7 +1292,7 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onReceive], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		zend_error(E_WARNING, "SwooleServer: onReceive handler error");
+		zend_error(E_WARNING, "swoole_server: onReceive handler error");
 	}
 	if (EG(exception))
 	{
@@ -1356,7 +1341,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onTask], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		zend_error(E_WARNING, "SwooleServer: onTask handler error");
+		zend_error(E_WARNING, "swoole_server: onTask handler error");
 	}
 	if (EG(exception))
 	{
@@ -1397,7 +1382,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onFinish], &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		zend_error(E_WARNING, "SwooleServer: onFinish handler error");
+		zend_error(E_WARNING, "swoole_server: onFinish handler error");
 	}
 	if (EG(exception))
 	{
@@ -1439,7 +1424,7 @@ void php_swoole_onStart(swServer *serv)
 
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onStart], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		zend_error(E_WARNING, "SwooleServer: onStart handler error");
+		zend_error(E_WARNING, "swoole_server: onStart handler error");
 	}
 	if (EG(exception))
 	{
@@ -1468,7 +1453,7 @@ void php_swoole_onTimer(swServer *serv, int interval)
 
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onTimer], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		zend_error(E_WARNING, "SwooleServer: onTimer handler error");
+		zend_error(E_WARNING, "swoole_server: onTimer handler error");
 	}
 	if (EG(exception))
 	{
@@ -1493,7 +1478,7 @@ void php_swoole_onShutdown(swServer *serv)
 
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onShutdown], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		zend_error(E_WARNING, "SwooleServer: onShutdown handler error");
+		zend_error(E_WARNING, "swoole_server: onShutdown handler error");
 	}
 	if (EG(exception))
 	{
@@ -1537,7 +1522,7 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
 
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onWorkerStart], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		zend_error(E_WARNING, "SwooleServer: onWorkerStart handler error");
+		zend_error(E_WARNING, "swoole_server: onWorkerStart handler error");
 	}
 	if (EG(exception))
 	{
@@ -1572,7 +1557,7 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
 //
 //		if (call_user_function_ex(EG(function_table), &zobject, &func, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
 //		{
-//			zend_error(E_WARNING, "SwooleServer: onWorkerStop handler error");
+//			zend_error(E_WARNING, "swoole_server: onWorkerStop handler error");
 //		}
 //	}
 
@@ -1580,7 +1565,7 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
 	args[1] = &zworker_id;
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onWorkerStop], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		zend_error(E_WARNING, "SwooleServer: onWorkerStop handler error");
+		zend_error(E_WARNING, "swoole_server: onWorkerStop handler error");
 	}
 	if (EG(exception))
 	{
@@ -1621,7 +1606,7 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
 
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onWorkerError], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		zend_error(E_WARNING, "SwooleServer: onWorkerError handler error");
+		zend_error(E_WARNING, "swoole_server: onWorkerError handler error");
 	}
 	if (EG(exception))
 	{
@@ -1661,7 +1646,7 @@ void php_swoole_onConnect(swServer *serv, int fd, int from_id)
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onConnect], &retval, 3, args, 0,
 			NULL TSRMLS_CC) == FAILURE)
 	{
-		zend_error(E_WARNING, "SwooleServer: onConnect handler error");
+		zend_error(E_WARNING, "swoole_server: onConnect handler error");
 	}
 	if (EG(exception))
 	{
@@ -1702,7 +1687,7 @@ void php_swoole_onClose(swServer *serv, int fd, int from_id)
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onClose], &retval, 3, args, 0,
 			NULL TSRMLS_CC) == FAILURE)
 	{
-		zend_error(E_WARNING, "SwooleServer: onClose handler error");
+		zend_error(E_WARNING, "swoole_server: onClose handler error");
 	}
 	if (EG(exception))
 	{
@@ -1740,7 +1725,7 @@ void php_swoole_onMasterConnect(swServer *serv, int fd, int from_id)
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onMasterConnect], &retval, 3, args, 0,
 			NULL TSRMLS_CC) == FAILURE)
 	{
-		zend_error(E_WARNING, "SwooleServer: ononMasterConnect handler error");
+		zend_error(E_WARNING, "swoole_server: ononMasterConnect handler error");
 	}
 	if (EG(exception))
 	{
@@ -1777,7 +1762,7 @@ void php_swoole_onMasterClose(swServer *serv, int fd, int from_id)
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onMasterClose], &retval, 3, args, 0,
 			NULL TSRMLS_CC) == FAILURE)
 	{
-		zend_error(E_WARNING, "SwooleServer: onMasterClose handler error");
+		zend_error(E_WARNING, "swoole_server: onMasterClose handler error");
 	}
 	if (EG(exception))
 	{
@@ -1859,7 +1844,7 @@ PHP_FUNCTION(swoole_server_start)
  	}
 	if (php_sw_callback[SW_SERVER_CB_onReceive] == NULL)
 	{
-		zend_error(E_ERROR, "SwooleServer: onReceive must set.");
+		zend_error(E_ERROR, "swoole_server: onReceive must set.");
 		RETURN_FALSE;
 	}
 	//-------------------------------------------------------------
@@ -1871,13 +1856,13 @@ PHP_FUNCTION(swoole_server_start)
 
 	if (ret < 0)
 	{
-		zend_error(E_ERROR, "SwooleServer: create server fail. Error: %s [%d][sw_error=%s]", strerror(errno), errno, sw_error);
+		zend_error(E_ERROR, "swoole_server: create server fail. Error: %s [%d][sw_error=%s]", strerror(errno), errno, sw_error);
 		RETURN_LONG(ret);
 	}
 	ret = swServer_start(serv);
 	if (ret < 0)
 	{
-		zend_error(E_ERROR, "SwooleServer: start server fail. Error: %s [%d][sw_error=%s]", strerror(errno), errno, sw_error);
+		zend_error(E_ERROR, "swoole_server: start server fail. Error: %s [%d][sw_error=%s]", strerror(errno), errno, sw_error);
 		RETURN_LONG(ret);
 	}
 	RETURN_TRUE;
@@ -2025,7 +2010,7 @@ PHP_FUNCTION(swoole_server_deltimer)
 	SWOOLE_GET_SERVER(zobject, serv);
 	if (serv->timer_interval == 0 || SwooleG.timer.fd == 0)
 	{
-		zend_error(E_WARNING, "SwooleServer: no timer.");
+		zend_error(E_WARNING, "swoole_server: no timer.");
 		RETURN_FALSE;
 	}
 	swTimer_del(&SwooleG.timer, (int)interval);
@@ -2040,12 +2025,12 @@ PHP_FUNCTION(swoole_server_addtimer)
 
 	if (php_sw_callback[SW_SERVER_CB_onTimer] == NULL)
 	{
-		zend_error(E_WARNING, "SwooleServer: onTimer is null, Can not use timer.");
+		zend_error(E_WARNING, "swoole_server: onTimer is null, Can not use timer.");
 		RETURN_FALSE;
 	}
 	if (SwooleG.main_reactor == NULL)
 	{
-		zend_error(E_WARNING, "SwooleServer: can not use addtimer here.");
+		zend_error(E_WARNING, "swoole_server: can not use addtimer here.");
 		RETURN_FALSE;
 	}
 	if (zobject == NULL)
@@ -2108,19 +2093,19 @@ PHP_FUNCTION(swoole_server_taskwait)
 	SWOOLE_GET_SERVER(zobject, serv);
 	if(serv->task_worker_num < 1)
 	{
-		zend_error(E_WARNING, "SwooleServer: task can not use. Please set task_worker_num.");
+		zend_error(E_WARNING, "swoole_server: task can not use. Please set task_worker_num.");
 		RETURN_FALSE;
 	}
 
 	if(data_len > sizeof(buf.data))
 	{
-		zend_error(E_WARNING, "SwooleServer: task data max_size=%d.", (int)sizeof(buf.data));
+		zend_error(E_WARNING, "swoole_server: task data max_size=%d.", (int)sizeof(buf.data));
 		RETURN_FALSE;
 	}
 
 	if (worker_id >= serv->task_worker_num)
 	{
-		zend_error(E_WARNING, "SwooleServer: worker_id must be less than serv->task_worker_num");
+		zend_error(E_WARNING, "swoole_server: worker_id must be less than serv->task_worker_num");
 		RETURN_FALSE;
 	}
 
@@ -2182,19 +2167,19 @@ PHP_FUNCTION(swoole_server_task)
 	SWOOLE_GET_SERVER(zobject, serv);
 	if(serv->task_worker_num < 1)
 	{
-		zend_error(E_WARNING, "SwooleServer: task can not use. Please set task_worker_num.");
+		zend_error(E_WARNING, "swoole_server: task can not use. Please set task_worker_num.");
 		RETURN_FALSE;
 	}
 
 	if (worker_id >= serv->task_worker_num)
 	{
-		zend_error(E_WARNING, "SwooleServer: worker_id must be less than serv->task_worker_num");
+		zend_error(E_WARNING, "swoole_server: worker_id must be less than serv->task_worker_num");
 		RETURN_FALSE;
 	}
 
 	if(data_len > sizeof(buf.data))
 	{
-		zend_error(E_WARNING, "SwooleServer: task data max_size=%d.", (int) sizeof(buf.data));
+		zend_error(E_WARNING, "swoole_server: task data max_size=%d.", (int) sizeof(buf.data));
 		RETURN_FALSE;
 	}
 
@@ -2240,13 +2225,13 @@ PHP_FUNCTION(swoole_server_finish)
 	}
 	if(data_len > sizeof(buf.data))
 	{
-		zend_error(E_WARNING, "SwooleServer: finish data max_size=%d.", (int) sizeof(buf.data));
+		zend_error(E_WARNING, "swoole_server: finish data max_size=%d.", (int) sizeof(buf.data));
 		RETURN_FALSE;
 	}
 	SWOOLE_GET_SERVER(zobject, serv);
 	if(serv->task_worker_num < 1)
 	{
-		zend_error(E_WARNING, "SwooleServer: finish can not use here");
+		zend_error(E_WARNING, "swoole_server: finish can not use here");
 		RETURN_FALSE;
 	}
 	swFactory *factory = &serv->factory;

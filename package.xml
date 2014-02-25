@@ -89,6 +89,7 @@ AsyncTask workers
 					<file role="src" name="RingQueue.c" />
 					<file role="src" name="Channel.c" />
 					<file role="src" name="timer.c" />
+					<file role="src" name="string.c" />
 				</dir>
 				<dir name="memory">
 					<file role="src" name="ShareMemory.c" />

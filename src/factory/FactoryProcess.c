@@ -136,6 +136,7 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 {
 	swServer *serv = factory->ptr;
 	swFactoryProcess *object = factory->object;
+	swString *package;
 
 	factory->last_from_id = task->info.from_id;
 
@@ -144,8 +145,11 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 
 	switch(task->info.type)
 	{
+	//no buffer
 	case SW_EVENT_TCP:
 	case SW_EVENT_UDP:
+		//处理任务
+		onTask:
 		factory->onTask(factory, task);
 		//只有数据请求任务才计算task_num
 		if(!worker_task_always)
@@ -153,6 +157,29 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 			worker_task_num--;
 		}
 		break;
+
+	//buffer
+	case SW_EVENT_PACKAGE_START:
+	case SW_EVENT_PACKAGE_TRUNK:
+	case SW_EVENT_PACKAGE_END:
+		package = SwooleWG.buffer_input[task->info.from_id];
+
+		//package开始
+		if(task->info.type == SW_EVENT_PACKAGE_START)
+		{
+			package->length = 0;
+		}
+		//合并数据到package buffer中
+		memcpy(package->str + package->length, task->data, task->info.len);
+		package->length += task->info.len;
+		//printf("package[%d]. data=%d\n", task->info.type, task->info.len);
+		//package已经完整接收
+		if(task->info.type == SW_EVENT_PACKAGE_END)
+		{
+			goto onTask;
+		}
+		break;
+
 	case SW_EVENT_CLOSE:
 		serv->onClose(serv, task->info.fd, task->info.from_id);
 		break;
@@ -556,10 +583,14 @@ static int swRandom(int worker_pti)
 	return rand()%10 * worker_pti;
 }
 
+/**
+ * worker main loop
+ */
 static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 {
 	swFactoryProcess *object = factory->object;
 	swServer *serv = factory->ptr;
+	int i;
 #if SW_WORKER_IPC_MODE == 2
 	struct {
 		long pti;
@@ -570,7 +601,27 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 	int pipe_rd = object->workers[worker_pti].pipe_worker;
 #endif
 
+	//worker_id
 	SwooleWG.id = worker_pti;
+
+	//for open_check_eof and  open_check_length
+	if (serv->open_eof_check || serv->open_length_check)
+	{
+		SwooleWG.buffer_input = sw_malloc(sizeof(swString*) * serv->reactor_num);
+		if (SwooleWG.buffer_input == NULL)
+		{
+			swError("malloc for SwooleWG.buffer_input failed.");
+			return SW_ERR;
+		}
+		for (i = 0; i < serv->reactor_num; i++)
+		{
+			SwooleWG.buffer_input[i] = swString_new(serv->buffer_input_size);
+			if (SwooleWG.buffer_input[i] == NULL)
+			{
+				swError("buffer_input init failed.");
+			}
+		}
+	}
 
 #if SW_WORKER_IPC_MODE == 2
 	//抢占式,使用相同的队列type
@@ -591,7 +642,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 		swError("[Worker] malloc for reactor failed.");
 		return SW_ERR;
 	}
-	if(swReactor_auto(SwooleG.main_reactor, serv->max_conn) < 0)
+	if(swReactor_auto(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS) < 0)
 	{
 		swError("[Worker] create worker_reactor failed.");
 		return SW_ERR;

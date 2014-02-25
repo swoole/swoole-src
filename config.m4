@@ -231,6 +231,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/RingQueue.c \
         src/core/Channel.c \
         src/core/timer.c \
+        src/core/string.c \
         src/memory/ShareMemory.c \
         src/memory/MemoryPool.c \
         src/factory/Factory.c \

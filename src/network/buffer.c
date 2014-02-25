@@ -17,40 +17,27 @@
 #include "swoole.h"
 #include "Server.h"
 
-swConnBuffer* swConnection_get_buffer(swConnection *conn)
+SWINLINE swString* swConnection_get_buffer(swConnection *conn)
 {
-	swConnBuffer *buffer = conn->buffer;
+	swString *buffer = conn->buffer;
 	if (buffer == NULL)
 	{
-		buffer = sw_malloc(sizeof(swConnBuffer));
-		bzero(&(buffer->data.info), sizeof(swDataHead));
-		if (buffer == NULL)
-		{
-			swWarn("malloc fail\n");
-			return NULL;
-		}
-		conn->buffer = buffer;
-		buffer->next = NULL;
+		return swString_new(SW_BUFFER_SIZE);
 	}
 	else
 	{
-		while (buffer->next != NULL)
-		{
-			buffer = buffer->next;
-		}
+		return buffer;
 	}
-	return buffer;
 }
 
-void swConnection_clear_buffer(swConnection *conn)
+SWINLINE void swConnection_clear_buffer(swConnection *conn)
 {
-	swConnBuffer *buffer = conn->buffer;
-	while (buffer != NULL)
+	swString *buffer = conn->buffer;
+	if (buffer != NULL)
 	{
-		sw_free(buffer);
-		buffer = buffer->next;
+		swString_free(buffer);
+		conn->buffer = NULL;
 	}
-	conn->buffer = NULL;
 }
 
 swDataBuffer_item* swDataBuffer_newItem(swDataBuffer *data_buffer, int fd, int trunk_size)
@@ -130,6 +117,7 @@ int swDataBuffer_flush(swDataBuffer *data_buffer, swDataBuffer_item *item)
 	item->head->len = 0;
 	item->tail = item->head;
 	item->trunk_num = 1;
+	item->length = 0;
 
 	swDataBuffer_trunk *trunk = item->head->next;
 	swDataBuffer_trunk *will_free_trunk; //保存trunk的指针，用于释放内存

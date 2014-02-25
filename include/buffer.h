@@ -24,7 +24,7 @@ typedef struct _swDataBuffer_item
 {
 	int fd;
 	uint8_t trunk_num; //trunk数量
-	uint32_t data_len; //数据总长度
+	uint32_t length;
 	swDataBuffer_trunk *head;
 	swDataBuffer_trunk *tail;
 } swDataBuffer_item;
@@ -33,7 +33,7 @@ typedef struct _swDataBuffer
 {
 	swHashMap map;
 	uint16_t trunk_size;
-	uint16_t max_trunk; //最大数据量=max_trunk*trunk_size
+	uint16_t max_length; //最大数据量
 } swDataBuffer;
 
 #define swDataBuffer_getTrunk(data_buffer, item)   (item->tail)

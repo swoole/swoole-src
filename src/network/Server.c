@@ -46,9 +46,8 @@ static int swServer_poll_start(swServer *serv, swReactor *main_reactor_ptr);
 static int swServer_poll_onClose(swReactor *reactor, swEvent *event);
 static int swServer_poll_close_queue(swReactor *reactor, swCloseQueue *close_queue);
 static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event);
-static int swServer_poll_onReceive_conn_buffer(swReactor *reactor, swEvent *event);
-static int swServer_poll_onReceive_length_check_buffer(swReactor *reactor, swEvent *event);
-static int swServer_poll_onReceive_data_buffer(swReactor *reactor, swEvent *event);
+static int swServer_poll_onReceive_buffer_check_length(swReactor *reactor, swEvent *event);
+static int swServer_poll_onReceive_buffer_check_eof(swReactor *reactor, swEvent *event);
 
 static void swSignalHanlde(int sig);
 SWINLINE static int swConnection_close(swServer *serv, int fd, int16_t *from_id);
@@ -101,15 +100,19 @@ SWINLINE static int swConnection_close(swServer *serv, int fd, int16_t *from_id)
 	(*from_id) = conn->from_id;
 
 	swTrace("Close Event.fd=%d|from=%d", fd, (*from_id));
-	if (serv->open_eof_check)
+
+	//释放缓存区占用的内存
+	if (serv->open_eof_check == 1)
 	{
-		//释放buffer区
-#ifdef SW_USE_CONN_BUFFER
-		swConnection_clear_buffer(conn);
-#else
 		swDataBuffer *data_buffer = &serv->reactor_threads[(*from_id)].data_buffer;
 		swDataBuffer_clear(data_buffer, fd);
-#endif
+	}
+	else if (serv->open_length_check == 1)
+	{
+		if (conn->buffer != NULL)
+		{
+			swString_free(conn->buffer);
+		}
 	}
 	//重新设置max_fd,此代码为了遍历connection_list服务
 	if(fd == swServer_get_maxfd(serv))
@@ -682,7 +685,7 @@ void swServer_init(swServer *serv)
 
 	serv->backlog = SW_BACKLOG;
 	serv->factory_mode = SW_MODE_BASE;
-	serv->reactor_num = SW_THREAD_NUM;
+	serv->reactor_num = SW_REACTOR_NUM;
 	serv->dispatch_mode = SW_DISPATCH_FDMOD;
 	serv->ringbuffer_size = SW_QUEUE_SIZE;
 
@@ -693,7 +696,6 @@ void swServer_init(swServer *serv)
 	serv->worker_num = SW_CPU_NUM;
 	serv->max_conn = SW_MAX_FDS;
 	serv->max_request = SW_MAX_REQUEST;
-	serv->max_trunk_num = SW_MAX_TRUNK_NUM;
 
 	serv->udp_sock_buffer_size = SW_UNSOCK_BUFSIZE;
 
@@ -707,8 +709,8 @@ void swServer_init(swServer *serv)
 	serv->heartbeat_check_interval = SW_HEARTBEAT_CHECK;
 
 	char eof[] = SW_DATA_EOF;
-	serv->data_eof_len = sizeof(SW_DATA_EOF) - 1;
-	memcpy(serv->data_eof, eof, serv->data_eof_len);
+	serv->package_eof_len = sizeof(SW_DATA_EOF) - 1;
+	memcpy(serv->package_eof, eof, serv->package_eof_len);
 }
 
 int swServer_new_connection(swServer *serv, swEvent *ev)
@@ -851,9 +853,9 @@ static int swServer_create_proxy(swServer *serv)
 int swServer_create(swServer *serv)
 {
 	//EOF最大长度为8字节
-	if (serv->data_eof_len > sizeof(serv->data_eof))
+	if (serv->package_eof_len > sizeof(serv->package_eof))
 	{
-		serv->data_eof_len = sizeof(serv->data_eof);
+		serv->package_eof_len = sizeof(serv->package_eof);
 	}
 	//初始化日志
 	if(serv->log_file[0] != 0)
@@ -1199,13 +1201,18 @@ static int swServer_single_loop(swProcessPool *pool, swWorker *worker)
 {
 	swServer *serv = pool->ptr;
 	swReactor *reactor = &(serv->reactor_threads[0].reactor);
-	if (swReactor_auto(reactor, serv->max_conn) < 0)
+
+	//create reactor
+	if (swReactor_auto(reactor, SW_REACTOR_MAXEVENTS) < 0)
 	{
 		swWarn("Swoole reactor create fail");
 		return SW_ERR;
 	}
+
 	swListenList_node *listen_host;
 	int type;
+
+	//listen the all tcp port
 	LL_FOREACH(serv->listen_list, listen_host)
 	{
 		type = (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6) ? SW_FD_UDP : SW_FD_LISTEN;
@@ -1215,6 +1222,8 @@ static int swServer_single_loop(swProcessPool *pool, swWorker *worker)
 
 	reactor->id = 0;
 	reactor->ptr = serv;
+
+	//set event handler
 	//connect
 	reactor->setHandle(reactor, SW_FD_LISTEN, swServer_master_onAccept);
 	//close
@@ -1224,8 +1233,21 @@ static int swServer_single_loop(swProcessPool *pool, swWorker *worker)
 	//udp receive
 	reactor->setHandle(reactor, SW_FD_UDP, swServer_poll_onPackage);
 	//tcp receive
-	reactor->setHandle(reactor, SW_FD_TCP, (serv->open_eof_check == 0)?swServer_poll_onReceive_no_buffer:swServer_poll_onReceive_conn_buffer);
-
+	if (serv->open_eof_check == 1)
+	{
+		reactor->setHandle(reactor, SW_FD_TCP, swServer_poll_onReceive_buffer_check_eof);
+		serv->reactor_threads[0].data_buffer.trunk_size = SW_BUFFER_SIZE;
+		serv->reactor_threads[0].data_buffer.max_length = serv->buffer_input_size;
+	}
+	else if(serv->open_length_check == 1)
+	{
+		reactor->setHandle(reactor, SW_FD_TCP, swServer_poll_onReceive_buffer_check_length);
+	}
+	else
+	{
+		reactor->setHandle(reactor, SW_FD_TCP, swServer_poll_onReceive_no_buffer);
+	}
+	//pipe
 	reactor->add(reactor, worker->pipe_master, SW_FD_PIPE);
 
 	reactor->onFinish = swServer_master_onReactorFinish;
@@ -1286,7 +1308,7 @@ static int swServer_poll_loop(swThreadParam *param)
 	}
 #endif
 
-	ret = swReactor_auto(reactor, (serv->max_conn / serv->reactor_num) + 1);
+	ret = swReactor_auto(reactor, SW_REACTOR_MAXEVENTS);
 	if (ret < 0)
 	{
 		return SW_ERR;
@@ -1306,19 +1328,19 @@ static int swServer_poll_loop(swThreadParam *param)
 
 	//Thread mode must copy the data.
 	//will free after onFinish
-	if (serv->open_eof_check == 0)
+	if (serv->open_eof_check == 1)
 	{
-		reactor->setHandle(reactor, SW_FD_TCP, swServer_poll_onReceive_no_buffer);
+		reactor->setHandle(reactor, SW_FD_TCP, swServer_poll_onReceive_buffer_check_eof);
+		this->data_buffer.trunk_size = SW_BUFFER_SIZE;
+		this->data_buffer.max_length = serv->buffer_input_size;
+	}
+	else if(serv->open_length_check == 1)
+	{
+		reactor->setHandle(reactor, SW_FD_TCP, swServer_poll_onReceive_buffer_check_length);
 	}
 	else
 	{
-#ifdef SW_USE_CONN_BUFFER
-		reactor->setHandle(reactor, SW_FD_TCP, swServer_poll_onReceive_conn_buffer);
-#else
-		reactor->setHandle(reactor, SW_FD_TCP, swServer_poll_onReceive_data_buffer);
-		this->data_buffer.trunk_size = SW_BUFFER_SIZE;
-		this->data_buffer.max_trunk = serv->max_trunk_num;
-#endif
+		reactor->setHandle(reactor, SW_FD_TCP, swServer_poll_onReceive_no_buffer);
 	}
 	//main loop
 	reactor->wait(reactor, &timeo);
@@ -1328,7 +1350,7 @@ static int swServer_poll_loop(swThreadParam *param)
 	return SW_OK;
 }
 
-static int swServer_poll_onReceive_data_buffer(swReactor *reactor, swEvent *event)
+static int swServer_poll_onReceive_buffer_check_eof(swReactor *reactor, swEvent *event)
 {
 	int ret, n, recv_again = SW_FALSE;
 	int isEOF = -1;
@@ -1362,13 +1384,18 @@ static int swServer_poll_onReceive_data_buffer(swReactor *reactor, swEvent *even
 	n = recv(event->fd,  trunk->data + trunk->len, buf_size, 0);
 #endif
 
+	//printf("recv[len=%d]-----------------\n", n);
 	if (n < 0)
 	{
 		if(errno == ECONNRESET)
 		{
 			goto close_fd;
 		}
-		swWarn("read from connection failed. Error: %s[%d]", strerror(errno), errno);
+		else if(errno == EAGAIN)
+		{
+			return SW_OK;
+		}
+		swWarn("read from connection[fd=%d] failed. Error: %s[%d]", event->fd, strerror(errno), errno);
 		return SW_ERR;
 	}
 	else if (n == 0)
@@ -1391,25 +1418,34 @@ static int swServer_poll_onReceive_data_buffer(swReactor *reactor, swEvent *even
 			recv_again = SW_TRUE;
 		}
 		trunk->len += n;
+		buffer_item->length += n;
+
+		//超过最大尺寸,将会被丢弃
+		if (buffer_item->length > serv->buffer_input_size)
+		{
+			swWarn("Package is too big. package_length=%d", buffer_item->length);
+			goto close_fd;
+		}
+
+		//printf("buffer[len=%d][n=%d]-----------------\n", trunk->len, n);
 
 		//trunk->data[trunk->len] = 0; //这里是为了printf
-		//printf("buffer------------: %s|fd=%d|len=%d\n", trunk->data, event->fd, trunk->len);
+		//printf("buffer-----------------: %s|fd=%d|len=%d\n", trunk->data, event->fd, trunk->len);
 
-		if (serv->open_eof_check == 1)
-		{
-			isEOF = memcmp(trunk->data + trunk->len - serv->data_eof_len, serv->data_eof, serv->data_eof_len);
-		}
-		//printf("buffer ok. EOF=%s|Len=%d|RecvEOF=%s|isEOF=%d\n", serv->data_eof, serv->data_eof_len, trunk->data + trunk->len - serv->data_eof_len, isEOF);
+		//EOF_Check----------------------------------------------------------------------------------
+		isEOF = memcmp(trunk->data + trunk->len - serv->package_eof_len, serv->package_eof, serv->package_eof_len);
+		//printf("buffer ok. EOF=%s|Len=%d|RecvEOF=%s|isEOF=%d\n", serv->package_eof, serv->package_eof_len, trunk->data + trunk->len - serv->package_eof_len, isEOF);
 
-		//超过buffer_size或者收到EOF
-		//发送数据到worker进程
-		if (buffer_item->trunk_num >= data_buffer->max_trunk || isEOF == 0)
+		//收到EOF,发送数据到worker进程
+		if (isEOF == 0)
 		{
+			//printf("EOF------------------------------------\n");
 			send_data.info.fd = event->fd;
-			send_data.info.type = SW_EVENT_TCP;
+			send_data.info.type = (buffer_item->trunk_num == 1) ? SW_EVENT_TCP : SW_EVENT_PACKAGE_START;
 			send_data.info.from_id = event->from_id;
 			swDataBuffer_trunk *send_trunk = buffer_item->head;
 
+			int i = 1;
 			while (send_trunk != NULL && send_trunk->len != 0)
 			{
 				send_data.info.len = send_trunk->len;
@@ -1419,10 +1455,21 @@ static int swServer_poll_onReceive_data_buffer(swReactor *reactor, swEvent *even
 				//处理数据失败，数据将丢失
 				if (ret < 0)
 				{
-					swWarn("factory->dispatch fail\n");
+					swWarn("factory->dispatch failed.");
+				}
+				//printf("send2worker[i=%d][trunk_num=%d][type=%d]------------------------------------\n", i, buffer_item->trunk_num, send_data.info.type);
+				i++;
+				if (send_data.info.type == SW_EVENT_PACKAGE_START)
+				{
+					send_data.info.type = (i == buffer_item->trunk_num) ? SW_EVENT_PACKAGE_END : SW_EVENT_PACKAGE_TRUNK;
+				}
+				else if(i == buffer_item->trunk_num && send_data.info.type == SW_EVENT_PACKAGE_TRUNK)
+				{
+					send_data.info.type = SW_EVENT_PACKAGE_END;
 				}
 			}
 			swDataBuffer_flush(data_buffer, buffer_item);
+			return SW_OK;
 		}
 		else if(recv_again)
 		{
@@ -1473,80 +1520,6 @@ static int swServer_poll_onPackage(swReactor *reactor, swEvent *event)
 	return SW_OK;
 }
 
-static int swServer_poll_onReceive_conn_buffer(swReactor *reactor, swEvent *event)
-{
-	int ret, n;
-	int isEOF = -1;
-
-	swServer *serv = reactor->ptr;
-	swFactory *factory = &(serv->factory);
-	swConnection *connection = swServer_get_connection(serv, event->fd);
-	swEvent closeEv;
-	swConnBuffer *buffer = swConnection_get_buffer(connection);
-
-	//更新时间
-	connection->last_time =  SwooleGS->now;
-
-	if(buffer==NULL)
-	{
-		return SW_ERR;
-	}
-
-#ifdef SW_USE_EPOLLET
-	n = swRead(event->fd,  buffer->data.data + buffer->data.info.len, SW_BUFFER_SIZE - buffer->data.info.len);
-#else
-	//非ET模式会持续通知
-	n = recv(event->fd,  buffer->data.data + buffer->data.info.len, SW_BUFFER_SIZE - buffer->data.info.len, 0);
-#endif
-
-	if (n < 0)
-	{
-		swWarn("swRead error: %d\n", errno);
-		return SW_ERR;
-	}
-	else if (n == 0)
-	{
-//		close_fd:
-		swTrace("Close Event.FD=%d|From=%d\n", event->fd, event->from_id);
-		memcpy(&closeEv, event, sizeof(swEvent));
-		closeEv.type = SW_EVENT_CLOSE;
-		return swServer_poll_onClose(reactor, event);
-	}
-	else
-	{
-		buffer->data.info.len += n;
-		//buffer->data.data[buffer->data.info.len] = 0; //这里是为了printf
-//		printf("buffer------------: %s|fd=%d|len=%d\n", buffer->data.data, event->fd, buffer->data.info.len);
-
-		if (serv->open_eof_check == 1)
-		{
-			isEOF = memcmp(buffer->data.data + buffer->data.info.len - serv->data_eof_len, serv->data_eof, serv->data_eof_len);
-		}
-		//printf("buffer ok.isEOF=%d\n", isEOF);
-//		if (sw_errno == EAGAIN)
-//		{
-//			goto recv_data;
-//		}
-
-		//收到EOF，或buffer区已满
-		if (isEOF == 0)
-		{
-			buffer->data.info.fd = event->fd;
-			buffer->data.info.type = SW_EVENT_TCP;
-			buffer->data.info.from_id = event->from_id;
-			ret = factory->dispatch(factory, &buffer->data);
-			//清理buffer
-			swConnection_clear_buffer(connection);
-			//处理数据失败，数据将丢失
-			if (ret < 0)
-			{
-				swWarn("factory->dispatch fail\n");
-			}
-		}
-	}
-	return SW_OK;
-}
-
 static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 {
 	int ret, n;
@@ -1554,7 +1527,7 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 	swFactory *factory = &(serv->factory);
 	
 	if (serv->open_length_check != 0) {
-		return swServer_poll_onReceive_length_check_buffer(reactor, event);
+		return swServer_poll_onReceive_buffer_check_length(reactor, event);
 	}
 	
 	struct
@@ -1629,111 +1602,164 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 	return SW_OK;
 }
 
-static int swServer_poll_onReceive_length_check_buffer(swReactor *reactor, swEvent *event)
+static int swServer_poll_onReceive_buffer_check_length(swReactor *reactor, swEvent *event)
 {
-	int ret, n;
+	int ret, n, buf_size;
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &(serv->factory);
-	swConnection *connection = swServer_get_connection(serv, event->fd);
+	swConnection *conn = swServer_get_connection(serv, event->fd);
 	swEvent closeEv;
-	swConnBuffer *buffer = swConnection_get_buffer(connection);
+	swString *buffer = swConnection_get_buffer(conn);
+	swEventData send_data;
 
-	if (buffer == NULL)
-	{
-		return SW_ERR;
-	}
+	buf_size = buffer->size - swString_length(buffer);
+
 #ifdef SW_USE_EPOLLET
-	n = swRead(event->fd,  buffer->data.data + buffer->data.info.len, SW_BUFFER_SIZE - buffer->data.info.len);
+	n = swRead(event->fd, swString_ptr(buffer), buf_size);
 #else
 	//非ET模式会持续通知
-	n = recv(event->fd,  buffer->data.data + buffer->data.info.len, SW_BUFFER_SIZE - buffer->data.info.len, 0);
+	n = recv(event->fd, swString_ptr(buffer), buf_size, 0);
 #endif
+
 	if (n < 0)
 	{
-		swWarn("swRead error: %d\n", errno);
+		if(errno == ECONNRESET)
+		{
+			goto close_fd;
+		}
+		else if(errno == EAGAIN)
+		{
+			return SW_OK;
+		}
+		swWarn("read from connection[fd=%d] failed. Error: %s[%d]", event->fd, strerror(errno), errno);
 		return SW_ERR;
 	}
 	else if (n == 0)
 	{
-		swTrace("Close Event.FD=%d|From=%d\n", event->fd, event->from_id);
+		close_fd:
+		swTrace("Close Event.FD=%d|From=%d", event->fd, event->from_id);
 		memcpy(&closeEv, event, sizeof(swEvent));
 		closeEv.type = SW_EVENT_CLOSE;
-		return swServer_close(serv, event);
+		return swServer_poll_onClose(reactor, event);
 	}
 	else
 	{
-		uint8_t package_length_size = serv->package_length_size;
 		int package_length_offset = serv->package_length_offset;
-		int package_body_start = serv->package_body_start;
-		int package_max_length = serv->package_max_length;
+		uint8_t package_length_size = (serv->package_length_type & SW_NUM_INT) ? 4 : 2;
+		int64_t package_body_length;
+		buffer->length += n;
 
-		buffer->data.info.len += n;
-		int temp_buffer_len = buffer->data.info.len;
+		send_data.info.fd = event->fd;
+		send_data.info.from_id = event->from_id;
 
-		//字节是否读到了长度字节
-		if (temp_buffer_len < package_length_offset + package_length_size)
+		char *tmp_ptr = buffer->str;
+		int tmp_len = buffer->length;
+
+		do
 		{
-			return SW_OK;
-		}
-
-		char* temp_buffer_data = buffer->data.data;
-
-		int protocol_length = 0; //协议长度
-		int int_length = 0;
-		
-		if (package_length_size == 2)
-		{
-			int_length = *((int*) (buffer->data.data + package_length_offset));
-			protocol_length = int_length;
-		}
-		else
-		{
-			int_length = *((int*) (buffer->data.data + package_length_offset));
-			protocol_length = int_length;
-		}
-		protocol_length += package_body_start;
-
-		//协议长度不合法，越界或超过配置长度
-		if ((package_max_length > 0 && protocol_length > package_max_length) || protocol_length <= 0)
-		{
-			swTrace("Close Event.FD=%d|From=%d\n", event->fd, event->from_id);
-			memcpy(&closeEv, event, sizeof(swEvent));
-			closeEv.type = SW_EVENT_CLOSE;
-			return swServer_close(serv, event);
-		}
-
-		while (protocol_length > 0 && temp_buffer_len >= protocol_length)
-		{
-			temp_buffer_len -= protocol_length;
-
-			buffer->data.info.len = protocol_length;
-			ret = factory->dispatch(factory, &buffer->data);
-			if (ret < 0)
+			/*---------------------包头不足---------------------*/
+			if (tmp_len < package_length_offset + package_length_size)
 			{
-				swWarn("factory->dispatch fail");
+				//wait more data
+				return SW_OK;
 			}
-			temp_buffer_data += protocol_length;
-			memcpy(buffer->data.data, temp_buffer_data, temp_buffer_len);
-			temp_buffer_data = buffer->data.data;
-			
-			//判断下条协议
-			protocol_length = 0;
-			if (temp_buffer_len > package_length_offset + package_length_size)
+			/*--------------------计算包体长度---------------------*/
+			//sign int
+			if (serv->package_length_type & SW_NUM_SIGN)
 			{
-				if (package_length_size == 2)
+				int *length_sign = (int *) (tmp_ptr + package_length_offset);
+				package_body_length = *length_sign;
+			}
+			//unsigned
+			else
+			{
+				uint32_t *length_unsign = (uint32_t *)(tmp_ptr + package_length_offset);
+				package_body_length = *length_unsign;
+			}
+			//network byte order convert to host byte order
+			//字节序转换
+			if (serv->package_length_type & SW_NUM_NET)
+			{
+				package_body_length = ntohl((uint32_t) package_body_length);
+			}
+			//Length error
+			//协议长度不合法，越界或超过配置长度
+			if (package_body_length < 1 || package_body_length > serv->buffer_input_size)
+			{
+				goto close_fd;
+			}
+			/*-------------------包完整性检测---------------------*/
+			//A complete package
+			//一个完整的数据包
+
+			int package_length = serv->package_body_start + package_body_length;  //包的总长度
+
+			printf("package_length=%d|body_len=%ld|tmp_len=%d\n", package_length, package_body_length, tmp_len);
+
+			if (package_length <= tmp_len)
+			{
+				//超过SW_BUFFER_SIZE
+				if(package_length > SW_BUFFER_SIZE)
 				{
-					short int_length = *((short*) (buffer->data.data + package_length_offset));
-					protocol_length = int_length;
+					int send_n = package_length;
+					send_data.info.type = SW_EVENT_PACKAGE_START;
+					void *send_ptr = tmp_ptr;
+					do
+					{
+						if (send_n > SW_BUFFER_SIZE)
+						{
+							send_data.info.len = SW_BUFFER_SIZE;
+							memcpy(send_data.data, send_ptr, SW_BUFFER_SIZE);
+						}
+						else
+						{
+							send_data.info.type = SW_EVENT_PACKAGE_END;
+							send_data.info.len = send_n;
+							memcpy(send_data.data, send_ptr, send_n);
+						}
+						ret = factory->dispatch(factory, &send_data);
+						//处理数据失败，数据将丢失
+						if (ret < 0)
+						{
+							swWarn("factory->dispatch failed.");
+						}
+						send_n -= SW_BUFFER_SIZE;
+						send_ptr += send_data.info.len;
+						//转为trunk
+						if (send_data.info.type == SW_EVENT_PACKAGE_START)
+						{
+							send_data.info.type = SW_EVENT_PACKAGE_TRUNK;
+						}
+					}
+					while (send_n > 0);
 				}
 				else
 				{
-					int int_length = *((int*) (buffer->data.data + package_length_offset));
-					protocol_length = int_length;
+					memcpy(send_data.data, tmp_ptr, package_length);
+					send_data.info.len = buffer->length;
+					send_data.info.type = SW_EVENT_TCP;
+					ret = factory->dispatch(factory, &send_data);
+					if (ret < 0)
+					{
+						swWarn("factory->dispatch failed.");
+					}
 				}
-				protocol_length += package_body_start;
+				tmp_len -= package_length;
+				tmp_ptr += package_length;
+			}
+			//wait more data
+			//继续等待数据
+			else
+			{
+				//包的长度超过buffer区,需要扩容
+				if(package_length > buffer->size + package_length_offset)
+				{
+					swString_extend(buffer, package_length + package_length_offset);
+				}
+				return SW_OK;
 			}
 		}
-		buffer->data.info.len = temp_buffer_len;
+		while (tmp_len > 0);
 	}
 	return SW_OK;
 }

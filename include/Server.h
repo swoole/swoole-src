@@ -24,19 +24,19 @@
 extern "C" {
 #endif
 
-#define SW_THREAD_NUM          2
-#define SW_WRITER_NUM          2  //写线程数量
-#define SW_PIPES_NUM           (SW_WORKER_NUM/SW_WRITER_NUM + 1) //每个写线程pipes数组大小
-#define SW_WORKER_NUM          4 //Worker进程数量
+#define SW_REACTOR_NUM           SW_CPU_NUM
+#define SW_WRITER_NUM            SW_CPU_NUM
+#define SW_PIPES_NUM             (SW_WORKER_NUM/SW_WRITER_NUM + 1) //每个写线程pipes数组大小
+#define SW_WORKER_NUM            (SW_CPU_NUM*2)
 
-#define SW_DISPATCH_ROUND      1
-#define SW_DISPATCH_FDMOD      2
-#define SW_DISPATCH_QUEUE      3
+#define SW_DISPATCH_ROUND        1
+#define SW_DISPATCH_FDMOD        2
+#define SW_DISPATCH_QUEUE        3
 
-#define SW_WORKER_BUSY         1
-#define SW_WORKER_IDLE         0
+#define SW_WORKER_BUSY           1
+#define SW_WORKER_IDLE           0
 
-#define SW_BACKLOG             512
+#define SW_BACKLOG               512
 
 #define SW_TCP_KEEPCOUNT         5
 #define SW_TCP_KEEPIDLE          3600 //1小时
@@ -48,12 +48,16 @@ extern "C" {
 #define SW_TASK_BLOCKING         1
 #define SW_TASK_NONBLOCK         0
 
-#define SW_EVENT_TCP             0 //TCP
-#define SW_EVENT_UDP             1 //UDP
-#define SW_EVENT_CLOSE           5 //关闭连接
-#define SW_EVENT_CONNECT         6 //连接到来
-#define SW_EVENT_TIMER           7 //时钟事件
-#define SW_EVENT_FINISH          8 //任务完成
+#define SW_EVENT_TCP             0
+#define SW_EVENT_UDP             1
+#define SW_EVENT_CLOSE           5
+#define SW_EVENT_CONNECT         6
+#define SW_EVENT_TIMER           7
+#define SW_EVENT_FINISH          8
+#define SW_EVENT_PACKAGE_START   9
+#define SW_EVENT_PACKAGE_TRUNK   10
+#define SW_EVENT_PACKAGE_END     11
+
 
 #define SW_HOST_MAXSIZE          48
 #define SW_MAX_TMP_PKG           1000
@@ -62,6 +66,12 @@ extern "C" {
 #define SW_CLOSE_NOTIFY          -2  //由Worker进程中主动关闭，无需再次通知
 #define SW_CLOSE_DELETE          -1  //已从事件循环删除,无需再次移除
 
+#define SW_NUM_SHORT             (1u << 1)
+#define SW_NUM_INT               (1u << 2)
+#define SW_NUM_NET               (1u << 3)
+#define SW_NUM_HOST              (1u << 4)
+#define SW_NUM_UNSIGN            (1u << 5)
+#define SW_NUM_SIGN              (1u << 6)
 
 typedef struct _swUdpFd{
 	struct sockaddr addr;
@@ -87,14 +97,6 @@ typedef struct _swListenList_node
 	char host[SW_HOST_MAXSIZE];
 } swListenList_node;
 
-typedef struct _swConnBuffer swConnBuffer;
-
-struct _swConnBuffer
-{
-	swEventData data;
-	swConnBuffer *next;
-};
-
 typedef struct _swConnection {
 	uint8_t tag; //状态0表示未使用，1表示正在使用
 	int fd;      //文件描述符
@@ -102,7 +104,7 @@ typedef struct _swConnection {
 	uint16_t from_fd; //从哪个ServerFD引发的
 	uint8_t buffer_num; //buffer的数量
 	struct sockaddr_in addr; //socket的地址
-	swConnBuffer *buffer; //缓存区
+	swString *buffer; //缓存区
 	time_t connect_time; //连接时间戳
 	time_t last_time;	 //最近一次收到数据的时间
 } swConnection;
@@ -132,10 +134,6 @@ struct swServer_s
 	int sock_client_buffer_size;    //client的socket缓存区设置
 	int sock_server_buffer_size;    //server的socket缓存区设置
 
-	int data_buffer_max_num;             //数据缓存最大个数(超过此数值的连接会被当作坏连接，将清除缓存&关闭连接)
-	uint8_t max_trunk_num;               //每个请求最大允许创建的trunk数
-	char data_eof[SW_DATA_EOF_MAXLEN];   //数据缓存结束符
-	uint8_t data_eof_len;                //数据缓存结束符长度
 	char log_file[SW_LOG_FILENAME];      //日志文件
 
 	int signal_fd;
@@ -156,7 +154,7 @@ struct swServer_s
 
 	uint8_t open_cpu_affinity; //是否设置CPU亲和性
 	uint8_t open_tcp_nodelay;  //是否关闭Nagle算法
-	uint8_t open_eof_check;    //检测数据EOF
+
 
 	/* tcp keepalive */
 	uint8_t open_tcp_keepalive; //开启keepalive
@@ -168,12 +166,23 @@ struct swServer_s
 	int heartbeat_idle_time;			//心跳存活时间
 	int heartbeat_check_interval;		//心跳定时侦测时间, 必需小于heartbeat_idle_time
 
-	/* buffer data length check*/
-	uint8_t open_length_check; //开启协议长度检测
-	uint8_t package_length_size;  //长度所占用字节
+	/* one package: eof check */
+	uint8_t open_eof_check;    //检测数据EOF
+	uint8_t package_eof_len;                //数据缓存结束符长度
+	//int data_buffer_max_num;             //数据缓存最大个数(超过此数值的连接会被当作坏连接，将清除缓存&关闭连接)
+	//uint8_t max_trunk_num;               //每个请求最大允许创建的trunk数
+	char package_eof[SW_DATA_EOF_MAXLEN];   //数据缓存结束符
+
+	/* one package: length check */
+	uint8_t open_length_check;    //开启协议长度检测
+
+	uint16_t package_length_type;  //length field type
 	int package_length_offset;    //第几个字节开始表示长度
-	int package_body_start ;           //第几个字节开始计算长度
-	int package_max_length;       //单条协议最大长度
+	int package_body_start ;      //第几个字节开始计算长度
+
+	/* buffer output/input setting*/
+	uint32_t buffer_output_size;
+	uint32_t buffer_input_size;
 
 	void *ptr2;
 
@@ -226,6 +235,9 @@ int swTimer_select(swTimer *timer, swServer *serv);
 int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);
 void swTaskWorker_onWorkerStart(swProcessPool *pool, int worker_id);
 
+#define swPackage_data(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->str:task->data)
+#define swPackage_length(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->length:task->info.len)
+
 int swServer_new_connection(swServer *serv, swEvent *ev);
 
 #define SW_SERVER_MAX_FD_INDEX        0
@@ -238,8 +250,8 @@ int swServer_new_connection(swServer *serv, swEvent *ev);
 //使用connection_list[1]表示最小的FD
 #define swServer_set_minfd(serv,maxfd) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd=maxfd)
 #define swServer_get_minfd(serv) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd)
-swConnBuffer* swConnection_get_buffer(swConnection *conn);
-void swConnection_clear_buffer(swConnection *conn);
+SWINLINE swString* swConnection_get_buffer(swConnection *conn);
+SWINLINE void swConnection_clear_buffer(swConnection *conn);
 
 #ifdef __cplusplus
 }

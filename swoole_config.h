@@ -34,12 +34,10 @@
 #define SW_LOG_NO_SRCINFO          //不需要源代码信息
 //#define SW_BUFFER_SIZE            65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_CLIENT_BUFFER_SIZE      65535
-#define SW_BUFFER_SIZE             8192 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
-#define SW_MAX_TRUNK_NUM           10  //每个请求最大允许创建的trunk数，可得出每个请求的内存分配量为 SW_BUFFER_SIZE * SW_MAX_TRUNK_NUM
+#define SW_BUFFER_SIZE             (8192-sizeof(struct _swDataHead)) //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 
 #define SW_DATA_EOF                "\r\n\r\n"
 #define SW_DATA_EOF_MAXLEN         8
-//#define SW_USE_CONN_BUFFER         1 //使用ConnBuffer还是DataBuffer,DataBuffer是分trunk的，ConnBuffer是固定的
 
 #define SW_MAINREACTOR_TIMEO       1    //main reactor
 #define SW_MAINREACTOR_USE_UNSOCK  1    //主线程使用unsock
@@ -58,6 +56,7 @@
 #define SW_REACTOR_TIMEO_SEC       3
 #define SW_REACTOR_TIMEO_USEC      0
 #define SW_REACTOR_SCHEDULE        3    //连接分配模式: 1轮询分配, 2按FD取摸固定分配, 3根据连接数进行调度
+#define SW_REACTOR_MAXEVENTS       4096
 #define SW_SCHEDULE_INTERVAL       32   //平均调度的间隔次数,减少运算量
 
 #define SW_QUEUE_SIZE              100   //缩减版的RingQueue,用在线程模式下

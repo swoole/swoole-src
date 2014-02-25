@@ -422,6 +422,26 @@ typedef struct _swMemoryPool
 	char shared; //是否使用共享内存
 } swMemoryPool;
 
+typedef struct _swString {
+	uint32_t length;
+	uint32_t size;
+	char *str;
+} swString;
+
+#define swoole_tolower(c)      (u_char) ((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
+#define swoole_toupper(c)      (u_char) ((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
+
+size_t swoole_utf8_length(u_char *p, size_t n);
+size_t swoole_utf8_length(u_char *p, size_t n);
+
+swString *swString_new(size_t size);
+void swString_free(swString *str);
+int swString_append(swString *str, swString *append_str);
+int swString_extend(swString *str, size_t new_size);
+
+#define swString_length(s) (s->length)
+#define swString_ptr(s) (s->str)
+
 typedef struct _swAllocator {
 	void *object;
 	void* (*alloc)(struct _swAllocator *alloc, int size);
@@ -816,6 +836,7 @@ typedef struct _swServerGS{
 
 typedef struct _swWorkerG{
 	int id; //Current Proccess Worker's id
+	swString **buffer_input;
 	atomic_uint_t worker_pti;
 } swWorkerG;
 

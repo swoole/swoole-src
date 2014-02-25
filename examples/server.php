@@ -7,8 +7,8 @@ $serv->set(array(
     'task_worker_num' => 2,
 	//'dispatch_mode' => 2,
 //    'daemonize' => 1,
-     //'heartbeat_idle_time' => 5,
-     // 'heartbeat_check_interval' => 5,
+     'heartbeat_idle_time' => 5,
+     'heartbeat_check_interval' => 5,
 ));
 function my_onStart($serv)
 {

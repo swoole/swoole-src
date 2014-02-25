@@ -10,6 +10,23 @@ $serv->on('receive', function ($serv, $fd, $from_id, $data) {
     //来自9502的内网管理端口
     if($info['from_port'] == 9502) {
 		$serv->send($fd, "welcome admin\n");
+		$start_fd = 0;
+        while(true)
+        {
+            $conn_list = $serv->connection_list($start_fd, 10);
+            if($conn_list === false)
+            {
+                break;
+            }
+            $start_fd = end($conn_list);
+            var_dump($conn_list);
+            
+            foreach($conn_list as $conn)
+            {
+                if($conn === $fd) continue;
+                $serv->send($conn, "hello from $fd\n", 0);
+            }
+        }
 	}
 	//来自外网
 	else {
