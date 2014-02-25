@@ -152,6 +152,9 @@ int swClient_tcp_send(swClient *cli, char *data, int length)
 	int written = 0;
 	int n;
 
+	assert(length > 0);
+	assert(data != NULL);
+
 	//总超时，for循环中计时
 	while (written < length)
 	{

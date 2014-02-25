@@ -62,6 +62,8 @@ AsyncTask workers
 				<file role="src" name="RingQueue.h" />
 				<file role="src" name="uthash.h" />
 				<file role="src" name="tests.h" />
+				<file role="src" name="array.h" />
+				<file role="src" name="string.h" />
 			</dir>
 			<dir name="examples">
 				<file role="src" name="server.php" />
@@ -90,6 +92,7 @@ AsyncTask workers
 					<file role="src" name="Channel.c" />
 					<file role="src" name="timer.c" />
 					<file role="src" name="string.c" />
+					<file role="src" name="array.c" />
 				</dir>
 				<dir name="memory">
 					<file role="src" name="ShareMemory.c" />
@@ -134,7 +137,7 @@ AsyncTask workers
 	<dependencies>
 		<required>
 			<php>
-				<min>5.2.0</min>
+				<min>5.3.10</min>
 			</php>
 			<pearinstaller>
 				<min>1.4.0</min>

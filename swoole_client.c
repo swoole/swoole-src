@@ -66,7 +66,7 @@ static int php_swoole_client_close(zval **zobject, int fd, int reset_fd TSRMLS_D
 
 	if(zend_hash_find(&php_sw_client_callback, hash_key, hash_key_len+1, (void **)&zobject) != SUCCESS)
 	{
-		zend_error(E_WARNING, "swoole_client: Fd[%d] is not a swoole_client object", fd);
+		zend_error(E_WARNING, "swoole_client->close: Fd[%d] is not a swoole_client object", fd);
 		efree(hash_key);
 		return SW_ERR;
 	}
@@ -94,14 +94,21 @@ static int php_swoole_client_close(zval **zobject, int fd, int reset_fd TSRMLS_D
 	args[0] = zobject;
 	if (call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		zend_error(E_WARNING, "swoole_server: onReactorCallback handler error");
+		zend_error(E_WARNING, "swoole_client: onClose handler error");
 		efree(hash_key);
 		return SW_ERR;
 	}
+
 	if(SwooleG.main_reactor->event_num == 0 && php_sw_in_client == 1)
 	{
 		SwooleG.running = 0;
 	}
+
+	if (zend_hash_del(&php_sw_client_callback, hash_key, hash_key_len+1) == FAILURE)
+	{
+		zend_error(E_WARNING, "swoole_client: del from client callback hashtable failed.");
+	}
+
 	efree(hash_key);
 	if (retval != NULL)
 	{
@@ -655,26 +662,50 @@ PHP_METHOD(swoole_client, send)
 	int data_len;
 
 	zval **zres;
+	zval *errCode;
 	swClient *cli;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &data, &data_len) == FAILURE)
 	{
 		return;
 	}
+	if (data_len <= 0)
+	{
+		zend_error(E_WARNING, "swoole_client: data empty.");
+		RETURN_FALSE;
+	}
+
 	if (zend_hash_find(Z_OBJPROP_P(getThis()), SW_STRL("_client"), (void **) &zres) == SUCCESS)
 	{
 		ZEND_FETCH_RESOURCE(cli, swClient*, zres, -1, SW_RES_CLIENT_NAME, le_swoole_client);
 	}
 	else
 	{
+		zend_error(E_WARNING, "swoole_client: object is not instanceof swoole_client. ");
 		RETURN_FALSE;
 	}
+
 	if (cli->connected == 0)
 	{
 		zend_error(E_WARNING, "swoole_client: Server is not connected.");
 		RETURN_FALSE;
 	}
-	SW_CHECK_RETURN(cli->send(cli, data, data_len));
+
+    int ret = cli->send(cli, data, data_len);
+    if (ret < 0)
+	{
+		//这里的错误信息没用
+		zend_error(E_WARNING, "swoole_client: send failed. Error: %s [%d]", strerror(errno), errno);
+		MAKE_STD_ZVAL(errCode);
+		ZVAL_LONG(errCode, errno);
+		zend_update_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errCode TSRMLS_CC);
+		zval_dtor(errCode);
+		RETVAL_FALSE;
+	}
+	else
+	{
+		RETVAL_TRUE;
+	}
 }
 
 PHP_METHOD(swoole_client, recv)
@@ -725,10 +756,11 @@ PHP_METHOD(swoole_client, recv)
 	if (ret < 0)
 	{
 		//这里的错误信息没用
-		zend_error(E_WARNING, "swoole_client: recv fail.Error: %s [%d]", strerror(errno), errno);
+		zend_error(E_WARNING, "swoole_client: recv failed. Error: %s [%d]", strerror(errno), errno);
 		MAKE_STD_ZVAL(errCode);
 		ZVAL_LONG(errCode, errno);
 		zend_update_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errCode TSRMLS_CC);
+		zval_dtor(errCode);
 		RETVAL_FALSE;
 	}
 	else
