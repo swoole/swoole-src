@@ -166,6 +166,7 @@ AC_DEFUN([AC_SWOOLE_EVENTFD],
 	])
 ])
 
+AC_MSG_CHECKING([if compiling with clang])
 AC_COMPILE_IFELSE([
     AC_LANG_PROGRAM([], [[
         #ifndef __clang__
