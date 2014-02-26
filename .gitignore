@@ -3,9 +3,10 @@
 .*
 *~
 *.so
-*/core
 Debug/*
 modules/*
+/core
+/examples/core
 /Debug
 /CMakeFiles
 /cmake_install.cmake
