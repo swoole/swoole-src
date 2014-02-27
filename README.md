@@ -88,6 +88,19 @@ $serv->on('Finish', function ($serv, $task_id, $data) {
 $serv->start();
 ```
 
+__Timer__
+
+```php
+swoole_timer_add(1000, function($interval) {
+    echo "timer[$interval] call\n";
+});
+
+swoole_timer_add(2000, function($interval) {
+    echo "timer[$interval] call\n";
+    swoole_timer_del(2000);
+});
+```
+
 __Files__
 * PHP: [examples/server.php](examples/server.php)
 * C/C++: [examples/server.c](examples/server.c)
