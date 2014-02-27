@@ -22,9 +22,8 @@
 zval *php_sw_callback[PHP_SERVER_CALLBACK_NUM];
 
 HashTable php_sw_reactor_callback;
+HashTable php_sw_timer_callback;
 HashTable php_sw_client_callback;
-
-static HashTable *swoole_server_options;
 
 #ifdef ZTS
 void ***sw_thread_ctx;
@@ -72,9 +71,9 @@ static int php_swoole_set_callback(int key, zval *cb TSRMLS_DC);
 const zend_function_entry swoole_functions[] =
 {
 	PHP_FE(swoole_version, NULL)
+	/*------swoole_server-----*/
 	PHP_FE(swoole_server_create, NULL)
 	PHP_FE(swoole_server_set, NULL)
-	PHP_FE(swoole_server_getopt, NULL)
 	PHP_FE(swoole_server_start, NULL)
 	PHP_FE(swoole_server_send, NULL)
 	PHP_FE(swoole_server_close, NULL)
@@ -91,10 +90,15 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_server_heartbeat, NULL)
 	PHP_FE(swoole_connection_info, NULL)
 	PHP_FE(swoole_connection_list, NULL)
+	/*------swoole_event-----*/
 	PHP_FE(swoole_event_add, NULL)
 	PHP_FE(swoole_event_del, NULL)
 	PHP_FE(swoole_event_exit, NULL)
 	PHP_FE(swoole_event_wait, NULL)
+	/*------swoole_timer-----*/
+	PHP_FE(swoole_timer_add, NULL)
+	PHP_FE(swoole_timer_del, NULL)
+	/*------other-----*/
 	PHP_FE(swoole_client_select, NULL)
 	PHP_FE(swoole_set_process_name, NULL)
 #ifdef SW_ASYNC_MYSQL
@@ -106,7 +110,6 @@ const zend_function_entry swoole_functions[] =
 static zend_function_entry swoole_server_methods[] = {
 	PHP_FALIAS(__construct, swoole_server_create, NULL)
 	PHP_FALIAS(set, swoole_server_set, NULL)
-	PHP_FALIAS(getopt, swoole_server_getopt, NULL)
 	PHP_FALIAS(start, swoole_server_start, NULL)
 	PHP_FALIAS(send, swoole_server_send, NULL)
 	PHP_FALIAS(close, swoole_server_close, NULL)
@@ -313,6 +316,8 @@ PHP_RINIT_FUNCTION(swoole)
 	zend_hash_init(&php_sw_reactor_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
 	//swoole_client::on
 	zend_hash_init(&php_sw_client_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
+	//swoole_timer_add
+	zend_hash_init(&php_sw_timer_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
 	//running
 	SwooleG.running = 1;
 	return SUCCESS;
@@ -322,6 +327,8 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
 {
 	zend_hash_destroy(&php_sw_reactor_callback);
 	zend_hash_destroy(&php_sw_client_callback);
+	zend_hash_destroy(&php_sw_timer_callback);
+
 	int i;
 	for(i=0; i<PHP_SERVER_CALLBACK_NUM; i++)
 	{
@@ -477,8 +484,6 @@ PHP_FUNCTION(swoole_server_set)
 
 	vht = Z_ARRVAL_P(zset);
 
-	swoole_server_options = vht;
-
 	//timeout
 	if (zend_hash_find(vht, ZEND_STRS("timeout"), (void **)&v) == SUCCESS)
 	{
@@ -599,13 +604,13 @@ PHP_FUNCTION(swoole_server_set)
 	//log_file
 	if (zend_hash_find(vht, ZEND_STRS("log_file"), (void **)&v) == SUCCESS)
 	{
+		convert_to_string(*v);
+		if (Z_STRLEN_PP(v) > SW_LOG_FILENAME)
+		{
+			zend_error(E_ERROR, "log_file name to long");
+			RETURN_FALSE;
+		}
 		memcpy(serv->log_file, Z_STRVAL_PP(v), Z_STRLEN_PP(v));
-	}
-	//timer interval
-	if (zend_hash_find(vht, ZEND_STRS("timer_interval"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		serv->timer_interval = (int)Z_LVAL_PP(v);
 	}
 	//heartbeat idle time
 	if (zend_hash_find(vht, ZEND_STRS("heartbeat_idle_time"), (void **) &v) == SUCCESS)
@@ -619,220 +624,62 @@ PHP_FUNCTION(swoole_server_set)
 		convert_to_long(*v);
 		serv->heartbeat_check_interval = (int) Z_LVAL_PP(v);
 	}
-
+	//heartbeat_ping
+	if (zend_hash_find(vht, ZEND_STRS("heartbeat_ping"), (void **) &v) == SUCCESS)
+	{
+		convert_to_string(*v);
+		serv->heartbeat_ping_length = Z_STRLEN_PP(v);
+		if (serv->heartbeat_ping_length > SW_HEARTBEAT_PING_LEN)
+		{
+			zend_error(E_ERROR, "heartbeat ping package to long");
+			RETURN_FALSE;
+		}
+		memcpy(serv->heartbeat_ping, Z_STRVAL_PP(v), Z_STRLEN_PP(v));
+	}
+	//heartbeat_pong
+	if (zend_hash_find(vht, ZEND_STRS("heartbeat_pong"), (void **) &v) == SUCCESS)
+	{
+		convert_to_string(*v);
+		serv->heartbeat_pong_length = Z_STRLEN_PP(v);
+		if (serv->heartbeat_pong_length > SW_HEARTBEAT_PING_LEN)
+		{
+			zend_error(E_ERROR, "heartbeat pong package to long");
+			RETURN_FALSE;
+		}
+		memcpy(serv->heartbeat_pong, Z_STRVAL_PP(v), Z_STRLEN_PP(v));
+	}
 	//open length check
 	if (zend_hash_find(vht, ZEND_STRS("open_length_check"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
 		serv->open_length_check = (uint8_t)Z_LVAL_PP(v);
 	}
-
 	//package length size
 	if (zend_hash_find(vht, ZEND_STRS("package_length_type"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
 		serv->package_length_type = (uint16_t)Z_LVAL_PP(v);
 	}
-
 	//package length offset
 	if (zend_hash_find(vht, ZEND_STRS("package_length_offset"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
 		serv->package_length_offset = (int)Z_LVAL_PP(v);
 	}
-
 	//package body start
 	if (zend_hash_find(vht, ZEND_STRS("package_body_start"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
 		serv->package_body_start  = (int)Z_LVAL_PP(v);
 	}
-
 	//package max length
 	if (zend_hash_find(vht, ZEND_STRS("package_max_length"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
 		serv->buffer_input_size = (int)Z_LVAL_PP(v);
 	}
-
 	zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zset TSRMLS_CC);
 	RETURN_TRUE;
-}
-
-PHP_FUNCTION(swoole_server_getopt) {
-	zval **v;
-	array_init(return_value);
-
-	//timeout
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("timeout"), (void **)&v) == SUCCESS)
-	{
-		convert_to_double(*v);
-		add_assoc_double(return_value, "timeout", (double)Z_LVAL_PP(v));
-	}
-	//daemonize
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("daemonize"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "daemonize", (int)Z_LVAL_PP(v));
-	}
-	//backlog
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("backlog"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "backlog", (int)Z_LVAL_PP(v));
-	}
-	//poll_thread_num
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("poll_thread_num"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "poll_thread_num", (int)Z_LVAL_PP(v));
-	}
-	//reactor_num
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("reactor_num"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "reactor_num", (int)Z_LVAL_PP(v));
-	}
-	//writer_num
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("writer_num"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "writer_num", (int)Z_LVAL_PP(v));
-	}
-	//worker_num
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("worker_num"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "worker_num", (int)Z_LVAL_PP(v));
-	}
-	//task_worker_num
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("task_worker_num"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "task_worker_num", (int)Z_LVAL_PP(v));
-	}
-	//max_conn
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("max_conn"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "max_conn", (int)Z_LVAL_PP(v));
-	}
-	//max_request
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("max_request"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "max_request", (int)Z_LVAL_PP(v));
-	}
-	//cpu affinity
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("open_cpu_affinity"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "open_cpu_affinity", (uint8_t)Z_LVAL_PP(v));
-	}
-	//tcp_nodelay
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("open_tcp_nodelay"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "open_tcp_nodelay", (uint8_t)Z_LVAL_PP(v));
-	}
-	//tcp_keepalive
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("open_tcp_keepalive"), (void **)&v) == SUCCESS)
-	{
-		add_assoc_long(return_value, "open_tcp_keepalive", (uint8_t)Z_LVAL_PP(v));
-	}
-	//data buffer, EOF检测
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("open_eof_check"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "open_eof_check", (uint8_t)Z_LVAL_PP(v));
-	}
-	//data eof设置
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("data_eof"), (void **) &v) == SUCCESS)
-	{
-		add_assoc_string(return_value, "data_eof", (char *)Z_LVAL_PP(v), 0);
-	}
-	//tcp_keepidle
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("tcp_keepidle"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "tcp_keepidle", (uint16_t)Z_LVAL_PP(v));
-	}
-	//tcp_keepinterval
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("tcp_keepinterval"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "tcp_keepinterval", (uint16_t)Z_LVAL_PP(v));
-	}
-	//tcp_keepcount
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("tcp_keepcount"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "tcp_keepcount", (uint16_t)Z_LVAL_PP(v));
-	}
-	//dispatch_mode
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("dispatch_mode"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "dispatch_mode", (int)Z_LVAL_PP(v));
-	}
-	//log_file
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("log_file"), (void **)&v) == SUCCESS)
-	{
-		add_assoc_string(return_value, "log_file", (char *)Z_LVAL_PP(v), 0);
-	}
-	//timer interval
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("timer_interval"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "timer_interval", (int)Z_LVAL_PP(v));
-	}
-	//heartbeat idle time
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("heartbeat_idle_time"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "heartbeat_idle_time", (int)Z_LVAL_PP(v));
-	}
-	//heartbeat check time
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("heartbeat_check_interval"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "heartbeat_check_interval", (int)Z_LVAL_PP(v));
-	}
-
-	//open length check
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("open_length_check"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "open_length_check", (uint8_t)Z_LVAL_PP(v));
-	}
-
-	//package length size
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("package_length_size"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "package_length_size", (uint8_t)Z_LVAL_PP(v));
-	}
-
-	//package length offset
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("package_length_offset"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "package_length_offset", (int)Z_LVAL_PP(v));
-	}
-
-	//package body start
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("package_body_start"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "package_body_start", (int)Z_LVAL_PP(v));
-	}
-
-	//package max length
-	if (zend_hash_find(swoole_server_options, ZEND_STRS("package_max_length"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		add_assoc_long(return_value, "package_max_length", (int)Z_LVAL_PP(v));
-	}
 }
 
 static int php_swoole_set_callback(int key, zval *cb TSRMLS_DC)
@@ -2008,7 +1855,7 @@ PHP_FUNCTION(swoole_server_deltimer)
 		}
 	}
 	SWOOLE_GET_SERVER(zobject, serv);
-	if (serv->timer_interval == 0 || SwooleG.timer.fd == 0)
+	if (SwooleG.timer.fd == 0)
 	{
 		zend_error(E_WARNING, "swoole_server: no timer.");
 		RETURN_FALSE;

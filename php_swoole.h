@@ -32,7 +32,7 @@
 #include "Server.h"
 #include "Client.h"
 
-#define PHP_SWOOLE_VERSION  "1.6.11"
+#define PHP_SWOOLE_VERSION  "1.6.12-alpha"
 
 /**
  * PHP5.2
@@ -123,6 +123,7 @@ extern zend_class_entry *swoole_server_class_entry_ptr;
 
 extern HashTable php_sw_reactor_callback;
 extern HashTable php_sw_client_callback;
+extern HashTable php_sw_timer_callback;
 
 PHP_MINIT_FUNCTION(swoole);
 PHP_MSHUTDOWN_FUNCTION(swoole);
@@ -134,7 +135,6 @@ PHP_FUNCTION(swoole_version);
 PHP_FUNCTION(swoole_set_process_name);
 PHP_FUNCTION(swoole_server_create);
 PHP_FUNCTION(swoole_server_set);
-PHP_FUNCTION(swoole_server_getopt);
 PHP_FUNCTION(swoole_server_start);
 PHP_FUNCTION(swoole_server_stop);
 PHP_FUNCTION(swoole_server_send);
@@ -157,6 +157,9 @@ PHP_FUNCTION(swoole_event_add);
 PHP_FUNCTION(swoole_event_del);
 PHP_FUNCTION(swoole_event_wait);
 PHP_FUNCTION(swoole_event_exit);
+
+PHP_FUNCTION(swoole_timer_add);
+PHP_FUNCTION(swoole_timer_del);
 
 #ifdef SW_ASYNC_MYSQL
 PHP_FUNCTION(swoole_get_mysqli_sock);

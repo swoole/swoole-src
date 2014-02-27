@@ -17,7 +17,7 @@
 #include "swoole.h"
 #include "atomic.h"
 
-uint64_t sw_hash_key(char *str, int str_len)
+uint64_t swoole_hash_key(char *str, int str_len)
 {
 	uint64_t hash = 5381;
 	int c, i = 0;
@@ -27,6 +27,42 @@ uint64_t sw_hash_key(char *str, int str_len)
 		hash = ((hash << 5) + hash) + c;
 	}
 	return hash;
+}
+
+uint32_t swoole_common_divisor(uint32_t u, uint32_t v)
+{
+	assert(u > 0);
+	assert(v > 0);
+	uint32_t t;
+	while (u > 0)
+	{
+		if (u < v)
+		{
+			t = u;
+			u = v;
+			v = t;
+		}
+		u = u - v;
+	}
+	return v;
+}
+
+uint32_t swoole_common_multiple(uint32_t u, uint32_t v)
+{
+	assert(u > 0);
+	assert(v > 0);
+
+	uint32_t m_cup = u;
+	uint32_t n_cup = v;
+	int res = m_cup % n_cup;
+
+	while (res != 0)
+	{
+		m_cup = n_cup;
+		n_cup = res;
+		res = m_cup % n_cup;
+	}
+	return u * v / n_cup;
 }
 
 int swSocket_create(int type)
@@ -224,6 +260,7 @@ SWINLINE int swWrite(int fd, void *buf, int count)
 
 int swPipeNotify_auto(swPipe *p, int blocking, int semaphore)
 {
+	//eventfd是2.6.26提供的,timerfd是2.6.27提供的
 #ifdef HAVE_EVENTFD
 	return swPipeEventfd_create(p, blocking, semaphore);
 #else

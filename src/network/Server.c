@@ -58,7 +58,6 @@ static int swServer_single_onClose(swReactor *reactor, swEvent *event);
 
 static int swServer_master_onClose(swReactor *reactor, swDataHead *event);
 static int swServer_master_onAccept(swReactor *reactor, swDataHead *event);
-static int swServer_onTimer(swReactor *reactor, swEvent *event);
 
 static int swServer_start_proxy(swServer *serv);
 static int swServer_start_base(swServer *serv);
@@ -169,24 +168,6 @@ static int swServer_master_onClose(swReactor *reactor, swEvent *event)
 		}
 	}
 	return SW_OK;
-}
-
-static int swServer_onTimer(swReactor *reactor, swEvent *event)
-{
-	uint64_t exp;
-	swServer *serv = reactor->ptr;
-	swTimer *timer = &SwooleG.timer;
-
-	if(serv->onTimer == NULL)
-	{
-		swWarn("swServer->onTimer is NULL");
-		return SW_ERR;
-	}
-	if (read(SwooleG.timer.fd, &exp, sizeof(uint64_t)) < 0)
-	{
-		return SW_ERR;
-	}
-	return swTimer_select(timer, serv);
 }
 
 static void swServer_poll_onReactorTimeout(swReactor *reactor)
@@ -360,23 +341,27 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 	return SW_OK;
 }
 
+static void swServer_onTimer(swTimer *timer, int interval)
+{
+	swServer *serv = timer->ptr;
+	serv->onTimer(serv, interval);
+}
+
 int swServer_addTimer(swServer *serv, int interval)
 {
-	if (interval < serv->timer_interval || serv->timer_interval == 0)
-	{
-		serv->timer_interval = interval;
-	}
-	int ret = swTimer_add(&SwooleG.timer, interval);
+	//timer no init
 	if (SwooleG.timer.fd == 0)
 	{
-		swSignalSet(SIGALRM, swSignalHanlde, 1, 0);
-		if(swTimer_start(&SwooleG.timer, serv->timer_interval) >= 0)
+		if(swTimer_create(&SwooleG.timer, interval) < 0)
 		{
-			SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_TIMER, swServer_onTimer);
-			SwooleG.main_reactor->add(SwooleG.main_reactor, SwooleG.timer.fd, SW_FD_TIMER);
+			return SW_ERR;
 		}
+		SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_TIMER, swTimer_event_handler);
+		SwooleG.main_reactor->add(SwooleG.main_reactor, SwooleG.timer.fd, SW_FD_TIMER);
+		SwooleG.timer.onTimer = swServer_onTimer;
+		SwooleG.timer.ptr = serv;
 	}
-	return ret;
+	return swTimer_add(&SwooleG.timer, interval);
 }
 
 /**
@@ -710,6 +695,7 @@ void swServer_init(swServer *serv)
 
 	char eof[] = SW_DATA_EOF;
 	serv->package_eof_len = sizeof(SW_DATA_EOF) - 1;
+	serv->buffer_input_size = SW_BUFFER_SIZE;
 	memcpy(serv->package_eof, eof, serv->package_eof_len);
 }
 
@@ -1525,11 +1511,7 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 	int ret, n;
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &(serv->factory);
-	
-	if (serv->open_length_check != 0) {
-		return swServer_poll_onReceive_buffer_check_length(reactor, event);
-	}
-	
+
 	struct
 	{
 		/**
@@ -1572,14 +1554,24 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 	else
 	{
 		swTrace("recv: %s|fd=%d|len=%d\n", rdata.buf.data, event->fd, n);
+		//更新最近收包时间
+		swConnection *connection = swServer_get_connection(serv, event->fd);
+		connection->last_time =  SwooleGS->now;
+
+		//heartbeat ping package
+		if (serv->heartbeat_ping_length == n)
+		{
+			if(serv->heartbeat_pong_length > 0)
+			{
+				send(event->fd, serv->heartbeat_pong, serv->heartbeat_pong_length, 0);
+			}
+			return SW_OK;
+		}
+
 		rdata.buf.info.fd = event->fd;
 		rdata.buf.info.len = n;
 		rdata.buf.info.type = SW_EVENT_TCP;
 		rdata.buf.info.from_id = event->from_id;
-
-		//更新最近收包时间
-		swConnection *connection = swServer_get_connection(serv, event->fd);
-		connection->last_time =  SwooleGS->now;
 
 		ret = factory->dispatch(factory, &rdata.buf);
 		//处理数据失败，数据将丢失
@@ -1828,6 +1820,7 @@ void swSignalInit(void)
 	swSignalSet(SIGUSR1, SIG_IGN, 1, 0);
 	swSignalSet(SIGUSR2, SIG_IGN, 1, 0);
 	swSignalSet(SIGTERM, swSignalHanlde, 1, 0);
+	swSignalSet(SIGALRM, swTimer_signal_handler, 1, 0);
 }
 
 int swServer_addListen(swServer *serv, int type, char *host, int port)
@@ -1938,7 +1931,6 @@ static void swSignalHanlde(int sig)
 	default:
 		break;
 	}
-	//swSignalInit();
 }
 
 static void swServer_heartbeat_start(swServer *serv)

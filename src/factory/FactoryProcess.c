@@ -350,6 +350,11 @@ static void swManagerSignalHanlde(int sig)
 	}
 }
 
+static void swFactoryProcess_manager_onExit(void)
+{
+	swWarn("Manager exit.");
+}
+
 static int swFactoryProcess_manager_loop(swFactory *factory)
 {
 	int pid, new_pid;
@@ -371,6 +376,9 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 
 	//for reload
 	swSignalSet(SIGUSR1, swManagerSignalHanlde, 1, 0);
+
+	//print exit log
+	atexit(swFactoryProcess_manager_onExit);
 
 	while (SwooleG.running > 0)
 	{

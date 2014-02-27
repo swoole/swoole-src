@@ -523,6 +523,10 @@ void swLog_put(int level, char *cnt);
 void swLog_free(void);
 #define sw_log(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);swLog_put(SW_LOG_INFO, sw_error);}
 
+uint64_t swoole_hash_key(char *str, int str_len);
+uint32_t swoole_common_multiple(uint32_t u, uint32_t v);
+uint32_t swoole_common_divisor(uint32_t u, uint32_t v);
+
 //----------------------core function---------------------
 SWINLINE int swSetTimeout(int sock, double timeout);
 SWINLINE int swRead(int, void *, int);
@@ -801,12 +805,16 @@ typedef struct _swTimer
 	int lasttime;
 	int fd;
 	swPipe pipe;
+	void (*onTimer)(struct _swTimer *timer, int interval);
+	void *ptr; //save object ptr
 } swTimer;
 
-int swTimer_start(swTimer *timer, int interval_ms);
+int swTimer_create(swTimer *timer, int interval_ms);
 void swTimer_del(swTimer *timer, int ms);
 int swTimer_free(swTimer *timer);
 int swTimer_add(swTimer *timer, int ms);
+void swTimer_signal_handler(int sig);
+int swTimer_event_handler(swReactor *reactor, swEvent *event);
 SWINLINE time_t swTimer_get_ms();
 
 typedef struct _swServerG{

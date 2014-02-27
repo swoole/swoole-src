@@ -140,7 +140,6 @@ struct swServer_s
 	int event_fd;
 
 	int ringbuffer_size;
-	int timer_interval;
 
 	/*----------------------------Reactor schedule--------------------------------*/
 	uint16_t reactor_round_i;   //轮询调度
@@ -242,7 +241,6 @@ int swServer_reactor_add(swServer *serv, int fd, int sock_type); //no use
 int swServer_reactor_del(swServer *serv, int fd, int reacot_id); //no use
 int swServer_get_manager_pid(swServer *serv);
 
-int swTimer_select(swTimer *timer, swServer *serv);
 int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);
 void swTaskWorker_onWorkerStart(swProcessPool *pool, int worker_id);
 
