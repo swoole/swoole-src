@@ -18,29 +18,26 @@
 #include "Server.h"
 
 static int swTimer_select(swTimer *timer);
-int swTimer_signal_set(swTimer *timer, uint32_t sec, uint32_t msec);
+int swTimer_signal_set(swTimer *timer, int interval);
 #ifdef HAVE_TIMERFD
-int swTimer_timerfd_set(swTimer *timer, uint32_t sec, uint32_t msec);
+int swTimer_timerfd_set(swTimer *timer, int interval);
 #endif
 /**
  * 创建定时器
  */
-int swTimer_create(swTimer *timer, int interval_ms)
+int swTimer_create(swTimer *timer, int interval)
 {
-	timer->interval_ms = interval_ms;
-	timer->lasttime = interval_ms;
-
-	int sec = interval_ms / 1000;
-	int msec = (((float) interval_ms / 1000) - sec) * 1000;
+	timer->interval = interval;
+	timer->lasttime = interval;
 
 #ifdef HAVE_TIMERFD
-	if(swTimer_timerfd_set(timer, sec, msec) < 0)
+	if(swTimer_timerfd_set(timer, interval) < 0)
 	{
 		return SW_ERR;
 	}
 	timer->use_pipe = 0;
 #else
-	if (swPipeNotify_auto(&timer->pipe, 0, 0) || swTimer_signal_set(timer, sec, msec) < 0)
+	if (swPipeNotify_auto(&timer->pipe, 0, 0) || swTimer_signal_set(timer, interval) < 0)
 	{
 		return SW_ERR;
 	}
@@ -53,9 +50,12 @@ int swTimer_create(swTimer *timer, int interval_ms)
 /**
  * timerfd
  */
-int swTimer_timerfd_set(swTimer *timer, uint32_t sec, uint32_t msec)
+int swTimer_timerfd_set(swTimer *timer, int interval)
 {
 	struct timeval now;
+	int sec = interval / 1000;
+	int msec = (((float) interval / 1000) - sec) * 1000;
+
 	if (gettimeofday(&now, NULL) < 0)
 	{
 		swWarn("gettimeofday failed");
@@ -74,10 +74,12 @@ int swTimer_timerfd_set(swTimer *timer, uint32_t sec, uint32_t msec)
 			return SW_ERR;
 		}
 	}
+
 	timer_set.it_value.tv_sec = now.tv_sec + sec;
 	timer_set.it_value.tv_nsec = now.tv_usec + msec * 1000;
 	timer_set.it_interval.tv_sec = sec;
 	timer_set.it_interval.tv_nsec = msec * 1000 * 1000;
+
 	if (timerfd_settime(timer->fd, TFD_TIMER_ABSTIME, &timer_set, NULL) == -1)
 	{
 		swWarn("set timer failed. Error: %s[%d]", strerror(errno), errno);
@@ -90,14 +92,18 @@ int swTimer_timerfd_set(swTimer *timer, uint32_t sec, uint32_t msec)
 /**
  * setitimer
  */
-int swTimer_signal_set(swTimer *timer, uint32_t sec, uint32_t msec)
+int swTimer_signal_set(swTimer *timer, int interval)
 {
 	struct itimerval timer_set;
+	int sec = interval / 1000;
+	int msec = (((float) interval / 1000) - sec) * 1000;
+
 	memset(&timer_set, 0, sizeof(timer_set));
 	timer_set.it_value.tv_sec = sec;
 	timer_set.it_value.tv_usec = msec * 1000;
 	timer_set.it_interval.tv_sec = sec;
 	timer_set.it_interval.tv_usec = msec * 1000;
+
 	if (setitimer(ITIMER_REAL, &timer_set, NULL) < 0)
 	{
 		swWarn("set timer failed. Error: %s[%d]", strerror(errno), errno);
@@ -135,6 +141,17 @@ int swTimer_add(swTimer *timer, int ms)
 	bzero(node, sizeof(swTimer_node));
 	node->lasttime = swTimer_get_ms();
 	node->interval = ms;
+
+	if(ms < timer->interval)
+	{
+		int new_interval = swoole_common_divisor(ms, timer->interval);
+		timer->interval = new_interval;
+#ifdef HAVE_TIMERFD
+		swTimer_timerfd_set(timer, new_interval);
+#else
+		swTimer_signal_set(timer, new_interval);
+#endif
+	}
 	swHashMap_add_int(&timer->list, ms, node);
 	timer->num++;
 	return SW_OK;

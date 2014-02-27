@@ -411,7 +411,7 @@ static int swServer_check_callback(swServer *serv)
 		return SW_ERR;
 	}
 	//Timer
-	if (SwooleG.timer.interval_ms > 0 && serv->onTimer == NULL)
+	if (SwooleG.timer.interval > 0 && serv->onTimer == NULL)
 	{
 		swWarn("onTimer is null");
 		return SW_ERR;

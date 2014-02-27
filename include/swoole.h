@@ -800,7 +800,7 @@ typedef struct _swTimer
 {
 	swHashMap list;
 	int num;
-	int interval_ms;
+	int interval;
 	int use_pipe;
 	int lasttime;
 	int fd;
