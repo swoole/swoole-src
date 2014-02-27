@@ -163,8 +163,19 @@ struct swServer_s
 	uint16_t tcp_keepcount;     //探测尝试的次数
 
 	/* heartbeat check time*/
-	int heartbeat_idle_time;			//心跳存活时间
-	int heartbeat_check_interval;		//心跳定时侦测时间, 必需小于heartbeat_idle_time
+	uint16_t heartbeat_idle_time;			//心跳存活时间
+	uint16_t heartbeat_check_interval;		//心跳定时侦测时间, 必需小于heartbeat_idle_time
+
+	/**
+	 * 来自客户端的心跳侦测包
+	 */
+	char heartbeat_ping[SW_HEARTBEAT_PING_LEN];
+	uint8_t heartbeat_ping_length;
+	/**
+	 * 服务器端对心跳包的响应
+	 */
+	char heartbeat_pong[SW_HEARTBEAT_PING_LEN];
+	uint8_t heartbeat_pong_length;
 
 	/* one package: eof check */
 	uint8_t open_eof_check;    //检测数据EOF

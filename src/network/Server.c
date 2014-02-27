@@ -1694,7 +1694,7 @@ static int swServer_poll_onReceive_buffer_check_length(swReactor *reactor, swEve
 
 			int package_length = serv->package_body_start + package_body_length;  //包的总长度
 
-			printf("package_length=%d|body_len=%ld|tmp_len=%d\n", package_length, package_body_length, tmp_len);
+			printf("package_length=%d|body_len=%ld|tmp_len=%d|tmp_ptr=%p\n", package_length, package_body_length, tmp_len, tmp_ptr);
 
 			if (package_length <= tmp_len)
 			{
@@ -1736,7 +1736,7 @@ static int swServer_poll_onReceive_buffer_check_length(swReactor *reactor, swEve
 				else
 				{
 					memcpy(send_data.data, tmp_ptr, package_length);
-					send_data.info.len = buffer->length;
+					send_data.info.len = package_length;
 					send_data.info.type = SW_EVENT_TCP;
 					ret = factory->dispatch(factory, &send_data);
 					if (ret < 0)

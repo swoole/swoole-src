@@ -7,12 +7,12 @@
 	<channel>pecl.php.net</channel>
 	<summary>PHP's asynchronous concurrent distributed networking framework</summary>
 	<description>PHP's asynchronous concurrent distributed networking framework.
-Event-driven
-Full asynchronous non-blocking
-Multi-Thread or Multi-Process
-Millisecond timer
-Asynchronous MySQL
-AsyncTask workers
+- Event-driven
+- Full asynchronous non-blocking
+- Multi-Thread or Multi-Process
+- Millisecond timer
+- Asynchronous MySQL
+- AsyncTask workers
     </description>
 	<lead>
 		<name>Tianfeng Han</name>
@@ -26,11 +26,11 @@ AsyncTask workers
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-	<date>2014-01-26</date>
-	<time>15:51:51</time>
+	<date>2014-02-27</date>
+	<time>10:51:51</time>
 	<version>
-		<release>1.6.10</release>
-		<api>1.6.10</api>
+		<release>1.6.11</release>
+		<api>1.6.11</api>
 	</version>
 	<stability>
 		<release>stable</release>
@@ -38,12 +38,14 @@ AsyncTask workers
 	</stability>
 	<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
 	<notes>
-	- Enabled by default async_mysql
-	- Add tcp heartbeat mechanism
-	- UDP send no require from_id
-	- swoole_client on::Receive and on::Close no need to call recv/close
-	- Add last_time and connect_time to tcp connection_info
-	- rebuild data_buffer
+	- Disable by default async_mysql
+	- Disable by default sockets
+	- Added event onWorkerError
+	- Added event onWorkerStart for task_worker
+	- swoole_server->task can assign worker_id
+	- swoole_server->set() save params to swoole_server::$setting
+	- swoole_client->send will check data length
+	- swoole_server->connection_info for udp
 	</notes>
 	<contents>
 		<dir name="/">
@@ -147,6 +149,28 @@ AsyncTask workers
 	<providesextension>swoole</providesextension>
 	<extsrcrelease />
 	<changelog>
+		<release>
+			<date>2014-02-27</date>
+			<version>
+				<release>1.6.11</release>
+				<api>1.6.11</api>
+			</version>
+			<stability>
+				<release>stable</release>
+				<api>stable</api>
+			</stability>
+			<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
+			<notes>
+	    - Disable by default async_mysql
+	    - Disable by default sockets
+	    - Added event onWorkerError
+	    - Added event onWorkerStart for task_worker
+	    - swoole_server->task can assign worker_id
+	    - swoole_server->set() save params to swoole_server::$setting
+	    - swoole_client->send will check data length
+	    - swoole_server->connection_info for udp
+	    </notes>
+		</release>
 		<release>
 			<date>2014-01-26</date>
 			<version>

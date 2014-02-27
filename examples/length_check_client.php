@@ -8,7 +8,7 @@ if(!$client->connect('127.0.0.1', 9501))
 //for ($l=0; $l < 100; $l++) 
 { 
     $datas = array();
-    for($i=0; $i<2; $i++) 
+    for($i=0; $i< 10; $i++) 
     {
         $body = '';
         $bodyLen = rand(1, 10);

@@ -39,6 +39,9 @@
 #define SW_DATA_EOF                "\r\n\r\n"
 #define SW_DATA_EOF_MAXLEN         8
 
+#define SW_HEARTBEAT_PING_LEN      8
+#define SW_HEARTBEAT_PONG_LEN      8
+
 #define SW_MAINREACTOR_TIMEO       1    //main reactor
 #define SW_MAINREACTOR_USE_UNSOCK  1    //主线程使用unsock
 #define SW_REACTOR_WRITER_TIMEO    3    //writer线程的reactor

@@ -1,14 +1,14 @@
 <?php
 $serv = new swoole_server("127.0.0.1", 9501);
 $serv->set(array(
-    'worker_num' => 1,
+    'worker_num' => 2,
     //'open_eof_check' => true,
-    //'data_eof' => "\n",
+    //'package_eof' => "\r\n",
     'task_worker_num' => 2,
 	//'dispatch_mode' => 2,
-//    'daemonize' => 1,
-     'heartbeat_idle_time' => 5,
-     'heartbeat_check_interval' => 5,
+	//'daemonize' => 1,
+    //'heartbeat_idle_time' => 5,
+    //'heartbeat_check_interval' => 5,
 ));
 function my_onStart($serv)
 {
@@ -64,7 +64,7 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 	}
 	elseif($cmd == "task") 
     {
-		$task_id = $serv->task("hello world", 9);
+		$task_id = $serv->task("hello world", 0);
 		echo "Dispath AsyncTask: id=$task_id\n";
 	}
 	elseif($cmd == "info") 
