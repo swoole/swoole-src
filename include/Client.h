@@ -19,8 +19,9 @@ typedef struct _swClient
 	int sock_type;
 	int sock_domain;
 	int protocol;
-	int async;
-	int connected;
+	uint8_t async;
+	uint8_t connected;
+	uint8_t keep;
 	double timeout;
 
 	struct sockaddr_in serv_addr;
@@ -30,7 +31,7 @@ typedef struct _swClient
 	int (*onReceive)(struct _swClient *cli, swSendData *data);
 	void (*onClose)(struct _swClient *cli, int fd, int from_id);
 
-	int (*connect)(struct _swClient *cli, char *host, int port, double _timeout, int udp_connect);
+	int (*connect)(struct _swClient *cli, char *host, int port, double _timeout, int sock_flag);
 	int (*send)(struct _swClient *cli, char *data, int length);
 	int (*recv)(struct _swClient *cli, char *data, int len, int waitall);
 	int (*close)(struct _swClient *cli);

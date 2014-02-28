@@ -31,19 +31,28 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request)
 
 	if (pool->workers == NULL)
 	{
-		swWarn("[swProcessPool_create] malloc fail.");
+		swWarn("malloc[1] failed.");
 		return SW_ERR;
 	}
+	pool->pipes = sw_calloc(worker_num, sizeof(swPipe));
+	if (pool->pipes == NULL)
+	{
+		swWarn("malloc[2] failed.");
+		sw_free(pool->workers);
+		return SW_ERR;
+	}
+
 	int i;
-	swPipe pipe;
+	swPipe *pipe;
 	for (i = 0; i < worker_num; i++)
 	{
-		if (swPipeUnsock_create(&pipe, 1, SOCK_DGRAM) < 0)
+		pipe = &pool->pipes[i];
+		if (swPipeUnsock_create(pipe, 1, SOCK_DGRAM) < 0)
 		{
 			return SW_ERR;
 		}
-		swProcessPool_worker(pool, i).pipe_master = pipe.getFd(&pipe, 1);
-		swProcessPool_worker(pool, i).pipe_worker = pipe.getFd(&pipe, 0);
+		swProcessPool_worker(pool, i).pipe_master = pipe->getFd(pipe, 1);
+		swProcessPool_worker(pool, i).pipe_worker = pipe->getFd(pipe, 0);
 		swProcessPool_worker(pool, i).id = i;
 		swProcessPool_worker(pool, i).pool = pool;
 	}
@@ -228,6 +237,14 @@ int swProcessPool_wait(swProcessPool *pool)
 
 static void swProcessPool_free(swProcessPool *pool)
 {
+	int i;
+	swPipe *pipe;
+	for (i = 0; i < pool->worker_num; i++)
+	{
+		pipe = &pool->pipes[i];
+		pipe->close(pipe);
+	}
 	sw_free(pool->workers);
+	sw_free(pool->pipes);
 	swHashMap_free(&pool->map);
 }

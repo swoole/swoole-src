@@ -112,6 +112,13 @@ extern void ***sw_thread_ctx;
 #define SW_SERVER_CB_onTask                 10 //new task(task_worker)
 #define SW_SERVER_CB_onFinish               11 //async task finish(worker)
 #define SW_SERVER_CB_onWorkerError          12 //worker exception(manager)
+//---------------------------------------------------------
+#define SW_FLAG_KEEP                        (1u << 9)
+#define SW_FLAG_ASYNC                       (1u << 10)
+#define SW_FLAG_SYNC                        (1u << 11)
+#define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP))
+
+#define SW_LONG_CONNECTION_KEY_LEN          64
 
 extern int le_swoole_server;
 extern int le_swoole_client;
@@ -124,6 +131,7 @@ extern zend_class_entry *swoole_server_class_entry_ptr;
 extern HashTable php_sw_reactor_callback;
 extern HashTable php_sw_client_callback;
 extern HashTable php_sw_timer_callback;
+extern HashTable php_sw_long_connections;
 
 PHP_MINIT_FUNCTION(swoole);
 PHP_MSHUTDOWN_FUNCTION(swoole);

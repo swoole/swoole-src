@@ -623,6 +623,7 @@ struct _swProcessPool
 
 	int round_id;
 	swWorker *workers;
+	swPipe *pipes;
 	swHashMap map;
 
 	void *ptr;
