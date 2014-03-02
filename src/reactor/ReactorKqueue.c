@@ -76,6 +76,8 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num)
 	reactor->wait = swReactorKqueue_wait;
 	reactor->free = swReactorKqueue_free;
 	reactor->setHandle = swReactor_setHandle;
+	reactor->onFinish = NULL;
+	reactor->onTimeout = NULL;
 	return SW_OK;
 }
 

@@ -26,6 +26,10 @@
 extern "C" {
 #endif
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -35,16 +39,9 @@ extern "C" {
 #include <signal.h>
 #include <assert.h>
 #include <time.h>
-
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-
-#ifndef __USE_GNU
-#define __USE_GNU
-#endif
-
+#include <pthread.h>
 #include <sched.h>
+
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -55,7 +52,6 @@ extern "C" {
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/wait.h>
-#include <pthread.h>
 
 #ifdef HAVE_TIMERFD
 #include <sys/timerfd.h>
@@ -152,6 +148,7 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define SW_FD_PIPE             5 //pipe
 #define SW_FD_WRITE            7 //fd can write
 #define SW_FD_TIMER            8 //timer fd
+#define SW_FD_AIO              9 //linux native aio
 
 #define SW_FD_USER             15 //SW_FD_USER or SW_FD_USER+n: for custom event
 

@@ -67,6 +67,8 @@ int swReactorSelect_create(swReactor *reactor)
 	reactor->wait = swReactorSelect_wait;
 	reactor->free = swReactorSelect_free;
 	reactor->setHandle = swReactor_setHandle;
+	reactor->onFinish = NULL;
+	reactor->onTimeout = NULL;
 	return SW_OK;
 }
 

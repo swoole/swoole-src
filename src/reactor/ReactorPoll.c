@@ -69,6 +69,8 @@ int swReactorPoll_create(swReactor *reactor, int max_fd_num)
 	reactor->wait = swReactorPoll_wait;
 	reactor->free = swReactorPoll_free;
 	reactor->setHandle = swReactor_setHandle;
+	reactor->onFinish = NULL;
+	reactor->onTimeout = NULL;
 	return SW_OK;
 }
 

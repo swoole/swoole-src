@@ -81,4 +81,6 @@
 //#define SW_USE_EPOLLET
 #define SW_USE_EVENTFD                   //是否使用eventfd来做消息通知，需要Linux 2.6.22以上版本才会支持
 
+#define SW_AIO_MAX_EVENTS          128
+
 #endif /* SWOOLE_CONFIG_H_ */

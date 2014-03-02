@@ -946,7 +946,7 @@ PHP_METHOD(swoole_client, close)
 {
 	zval **zres, *ztype;
 	swClient *cli;
-	int ret;
+	int ret = 0;
 
 	if (zend_hash_find(Z_OBJPROP_P(getThis()), SW_STRL("_client"), (void **) &zres) == SUCCESS)
 	{

@@ -40,6 +40,8 @@ swUnitTest(u1_test1);
 swUnitTest(http_test2);
 
 swUnitTest(type_test1);
+
+swUnitTest(aio_test);
 void p_str(void *str);
 
 swUnitTest(pool_thread);
