@@ -16,7 +16,6 @@ modules/*
 /lib
 /bin
 /install_manifest.txt
-/tests
 /wiki
 /config.guess
 /config.h
