@@ -47,6 +47,7 @@ int swTimer_create(swTimer *timer, int interval)
 	return SW_OK;
 }
 
+#ifdef HAVE_TIMERFD
 /**
  * timerfd
  */
@@ -87,7 +88,7 @@ int swTimer_timerfd_set(swTimer *timer, int interval)
 	}
 	return SW_OK;
 }
-
+#endif
 
 /**
  * setitimer
