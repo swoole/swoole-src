@@ -24,6 +24,7 @@ zval *php_sw_callback[PHP_SERVER_CALLBACK_NUM];
 HashTable php_sw_reactor_callback;
 HashTable php_sw_timer_callback;
 HashTable php_sw_client_callback;
+HashTable php_sw_aio_callback;
 
 #ifdef ZTS
 void ***sw_thread_ctx;
@@ -98,6 +99,11 @@ const zend_function_entry swoole_functions[] =
 	/*------swoole_timer-----*/
 	PHP_FE(swoole_timer_add, NULL)
 	PHP_FE(swoole_timer_del, NULL)
+	/*------swoole_async_io------*/
+	PHP_FE(swoole_async_read, NULL)
+	PHP_FE(swoole_async_write, NULL)
+	PHP_FE(swoole_async_readfile, NULL)
+	PHP_FE(swoole_async_writefile, NULL)
 	/*------other-----*/
 	PHP_FE(swoole_client_select, NULL)
 	PHP_FE(swoole_set_process_name, NULL)
@@ -339,6 +345,8 @@ PHP_RINIT_FUNCTION(swoole)
 	zend_hash_init(&php_sw_client_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
 	//swoole_timer_add
 	zend_hash_init(&php_sw_timer_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
+	//swoole_aio
+	zend_hash_init(&php_sw_aio_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
 	//running
 	SwooleG.running = 1;
 	return SUCCESS;
@@ -349,6 +357,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
 	zend_hash_destroy(&php_sw_reactor_callback);
 	zend_hash_destroy(&php_sw_client_callback);
 	zend_hash_destroy(&php_sw_timer_callback);
+	zend_hash_destroy(&php_sw_aio_callback);
 
 	int i;
 	for(i=0; i<PHP_SERVER_CALLBACK_NUM; i++)

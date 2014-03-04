@@ -2,7 +2,7 @@
 #include "swoole.h"
 #include "linux_aio.h"
 
-#define BUF_SIZE 1024
+#define BUF_SIZE (1024 * 1024)
 
 swUnitTest(aio_test)
 {
@@ -15,7 +15,7 @@ swUnitTest(aio_test)
 		return 3;
 	}
 	char *buf;
-	if (posix_memalign(&buf, 512, BUF_SIZE)) {
+	if (posix_memalign(&buf, getpagesize(), BUF_SIZE)) {
 		perror("posix_memalign");
 		return 5;
 	}
@@ -45,6 +45,6 @@ swUnitTest(aio_test)
 	swoole_aio_destroy();
 	close(fd);
 
-	printf("buf: %s\n", buf);
+	//printf("buf: %s\n", buf);
 	return 0;
 }

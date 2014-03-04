@@ -48,16 +48,17 @@ extern "C" {
 #define SW_TASK_BLOCKING         1
 #define SW_TASK_NONBLOCK         0
 
-#define SW_EVENT_TCP             0
-#define SW_EVENT_UDP             1
-#define SW_EVENT_CLOSE           5
-#define SW_EVENT_CONNECT         6
-#define SW_EVENT_TIMER           7
-#define SW_EVENT_FINISH          8
-#define SW_EVENT_PACKAGE_START   9
-#define SW_EVENT_PACKAGE_TRUNK   10
-#define SW_EVENT_PACKAGE_END     11
-
+#define SW_EVENT_TCP               0
+#define SW_EVENT_UDP               1
+#define SW_EVENT_CLOSE             5
+#define SW_EVENT_CONNECT           6
+#define SW_EVENT_TIMER             7
+#define SW_EVENT_FINISH            8
+#define SW_EVENT_PACKAGE_START     9
+#define SW_EVENT_PACKAGE_TRUNK     10
+#define SW_EVENT_PACKAGE_END       11
+#define SW_EVENT_SENDFILE_START    12
+#define SW_EVENT_SENDFILE_OK       13
 
 #define SW_HOST_MAXSIZE          48
 #define SW_MAX_TMP_PKG           1000

@@ -240,7 +240,7 @@ if test "$PHP_SWOOLE" != "no"; then
     dnl PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
     dnl PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
 
-    PHP_NEW_EXTENSION(swoole, swoole.c swoole_lock.c swoole_client.c\
+    PHP_NEW_EXTENSION(swoole, swoole.c swoole_lock.c swoole_client.c swoole_async.c\
         src/core/Base.c \
         src/core/log.c \
         src/core/hashmap.c \
@@ -272,6 +272,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/Client.c \
         src/network/buffer.c \
         src/network/ProcessPool.c \
+        src/os/aio.c \
       , $ext_shared)
       
     PHP_ADD_INCLUDE([$ext_srcdir/include])

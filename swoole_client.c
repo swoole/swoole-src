@@ -53,8 +53,6 @@ static void php_swoole_onTimerCallback(swTimer *timer, int interval);
 static int php_swoole_client_onReceive(swReactor *reactor, swEvent *event);
 static int php_swoole_client_onConnect(swReactor *reactor, swEvent *event);
 
-static void php_swoole_check_reactor();
-static void php_swoole_try_run_reactor();
 static int swoole_convert_to_fd(zval **fd);
 static swClient* swoole_client_create_socket(zval *object, char *host, int host_len, int port);
 
@@ -295,7 +293,7 @@ static int php_swoole_client_onConnect(swReactor *reactor, swEvent *event)
 	return SW_OK;
 }
 
-static void php_swoole_check_reactor()
+void php_swoole_check_reactor()
 {
 	if(php_sw_reactor_ok == 0)
 	{
@@ -382,7 +380,7 @@ static int php_swoole_onReactorCallback(swReactor *reactor, swEvent *event)
 }
 
 
-static void php_swoole_try_run_reactor()
+void php_swoole_try_run_reactor()
 {
 	//only client side
 	if (php_sw_in_client == 1 && php_sw_reactor_wait_onexit == 0)
@@ -648,14 +646,14 @@ PHP_FUNCTION(swoole_event_add)
 
 	if(zend_hash_update(&php_sw_reactor_callback, (char *)&socket_fd, sizeof(socket_fd), &event, sizeof(swoole_reactor_fd), NULL) == FAILURE)
 	{
-		zend_error(E_WARNING, "swoole_event_add add to hashtable fail");
+		zend_error(E_WARNING, "swoole_event_add add to hashtable failed");
 		RETURN_FALSE;
 	}
 	php_swoole_check_reactor();
 	swSetNonBlock(socket_fd); //must be nonblock
 	if(SwooleG.main_reactor->add(SwooleG.main_reactor, socket_fd, SW_FD_USER) < 0)
 	{
-		zend_error(E_WARNING, "swoole_event_add fail.");
+		zend_error(E_WARNING, "swoole_event_add failed.");
 		RETURN_FALSE;
 	}
 	php_swoole_try_run_reactor();

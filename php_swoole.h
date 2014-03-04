@@ -132,6 +132,7 @@ extern HashTable php_sw_reactor_callback;
 extern HashTable php_sw_client_callback;
 extern HashTable php_sw_timer_callback;
 extern HashTable php_sw_long_connections;
+extern HashTable php_sw_aio_callback;;
 
 PHP_MINIT_FUNCTION(swoole);
 PHP_MSHUTDOWN_FUNCTION(swoole);
@@ -166,6 +167,11 @@ PHP_FUNCTION(swoole_event_del);
 PHP_FUNCTION(swoole_event_wait);
 PHP_FUNCTION(swoole_event_exit);
 
+PHP_FUNCTION(swoole_async_read);
+PHP_FUNCTION(swoole_async_write);
+PHP_FUNCTION(swoole_async_readfile);
+PHP_FUNCTION(swoole_async_writefile);
+
 PHP_FUNCTION(swoole_timer_add);
 PHP_FUNCTION(swoole_timer_del);
 
@@ -190,6 +196,8 @@ PHP_METHOD(swoole_lock, trylock_read);
 PHP_METHOD(swoole_lock, unlock);
 
 void swoole_destory_lock(zend_rsrc_list_entry *rsrc TSRMLS_DC);
+void php_swoole_check_reactor();
+void php_swoole_try_run_reactor();
 
 #ifdef ZTS
 #define SWOOLE_G(v) TSRMG(swoole_globals_id, zend_swoole_globals *, v)
