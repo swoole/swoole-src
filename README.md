@@ -8,6 +8,7 @@ PHP's asynchronous & concurrent & distributed networking framework.
 * Millisecond timer
 * Asynchronous MySQL
 * AsyncTask workers
+* Linux native aio
 
 Install
 -----
