@@ -2,8 +2,10 @@
 #include "swoole.h"
 #include "Server.h"
 #include "uthash.h"
+#include "rbtree.h"
 #include <netinet/tcp.h>
 #include "tests.h"
+
 
 typedef struct _swHashTable_FdInfo
 {
@@ -157,5 +159,19 @@ swUnitTest(ds_test2)
 
 		printf("The key(%d) exists in hash. Fd = %d\n", i, tmp->fd);
 	}
+	return 0;
+}
+
+swUnitTest(rbtree_test)
+{
+	swRbtree *tree = swRbtree_new();
+	uint32_t key;
+	int i;
+	for (i = 1; i < 20000; i++)
+	{
+		key = i * 3;
+		swRbtree_insert(tree, key, (void *) (i * 8));
+	}
+	printf("find_n %d\n", (int) swRbtree_find(tree, 17532));
 	return 0;
 }

@@ -1,84 +1,69 @@
 <?php
 if(!function_exists('swoole_get_mysqli_sock')) {
-	die("no async_mysql support\n");
+	die("no swoole_async_mysql support\n");
 }
+
 class DBServer
 {
-    static $clients;
-    static $backends;
+    protected $pool_size = 20;
+    protected $idle_pool = array(); //空闲连接
+    protected $busy_pool = array(); //工作连接
+    protected $wait_queue = array(); //等待的请求
+    protected $wait_queue_max = 100; //等待队列的最大长度，超过后将拒绝新的请求
 
     /**
-     * @var mysqli
+     * @var swoole_server
      */
-    static protected $db;
-    static protected $locks = array();
-    static $serv;
-    static $last_fd;
+    protected $serv;
 
-    static function run()
+    function run()
     {
         $serv = new swoole_server("127.0.0.1", 9509);
         $serv->set(array(
-            'timeout' => 1,  //select and epoll_wait timeout.
             'worker_num' => 1,
-            'poll_thread_num' => 1, //reactor thread num
-            'backlog' => 128,   //listen backlog
-            'max_conn' => 10000,
-            'dispatch_mode' => 2,
-            //'open_tcp_keepalive' => 1,
-            //'log_file' => '/tmp/swoole.log', //swoole error log
         ));
-        $serv->on('WorkerStart', 'DBServer::onStart');
-        $serv->on('Connect', 'DBServer::onConnect');
-        $serv->on('Receive', 'DBServer::onReceive');
-        $serv->on('Close', 'DBServer::onClose');
-        $serv->on('WorkerStop', 'DBServer::onShutdown');
-        $serv->on('Timer', 'DBServer::onTimer');
 
+        $serv->on('WorkerStart', array($this, 'onStart'));
+        //$serv->on('Connect', array($this, 'onConnect'));
+        $serv->on('Receive',array($this, 'onReceive'));
+        //$serv->on('Close', array($this, 'onClose'));
+        $serv->on('WorkerStop', array($this, 'onShutdown'));
+        $serv->on('Timer', array($this, 'onTimer'));
         //swoole_server_addtimer($serv, 2);
         #swoole_server_addtimer($serv, 10);
         $serv->start();
-        self::$serv = $serv;
     }
 
-    static function onStart($serv)
+    function onStart($serv)
     {
-        self::$db = new mysqli;
-        self::$db->connect('127.0.0.1', 'root', 'root', 'test');
+        $this->serv = $serv;
+        for($i =0; $i < $this->pool_size; $i++)
+        {
+            $db = new mysqli;
+            $db->connect('127.0.0.1', 'root', 'root', 'test');
+            $db_sock = swoole_get_mysqli_sock($db);
+            swoole_event_add($db_sock, array($this, 'onSQLReady'));
+            $this->idle_pool[] = array(
+                'mysqli' => $db,
+                'db_sock' => $db_sock,
+                'fd' => 0,
+            );
+        }
         echo "Server: start.Swoole version is [".SWOOLE_VERSION."]\n";
-        $db_sock = swoole_get_mysqli_sock(self::$db);
-        swoole_event_add($db_sock, 'DBServer::onSQLReady');
-        self::$serv = $serv;
     }
 
-    static function onShutdown($serv)
+    function onSQLReady($db_sock)
     {
-        echo "Server: onShutdown\n";
-    }
+        $db_res = $this->busy_pool[$db_sock];
+        $mysqli = $db_res['mysqli'];
+        $fd = $db_res['fd'];
 
-    static function onTimer($serv, $interval)
-    {
-        //echo "Server：Timer Call.Interval=$interval \n";
-    }
-
-    static function onClose($serv, $fd, $from_id)
-    {
-
-    }
-
-    static function onConnect($serv, $fd, $from_id)
-    {
-
-    }
-
-    static function onSQLReady($db_sock)
-    {
-        $fd = self::$last_fd;
         echo __METHOD__.": client_sock=$fd|db_sock=$db_sock\n";
-        if ($result = self::$db->reap_async_query())
+
+        if ($result = $mysqli->reap_async_query())
         {
             $ret = var_export($result->fetch_all(MYSQLI_ASSOC), true)."\n";
-            self::$serv->send($fd, $fd, $ret);
+            $this->serv->send($fd, $ret);
             if (is_object($result))
             {
                 mysqli_free_result($result);
@@ -86,15 +71,68 @@ class DBServer
         }
         else
         {
-            self::$serv->send($fd, sprintf("MySQLi Error: %s\n", mysqli_error(self::$db)));
+            $this->serv->send($fd, sprintf("MySQLi Error: %s\n", mysqli_error($mysqli)));
+        }
+        //release mysqli object
+        $this->idle_pool[] = $db_res;
+        unset($this->busy_pool[$db_sock]);
+
+        //这里可以取出一个等待请求
+        if(count($this->wait_queue) > 0)
+        {
+            $idle_n = count($this->idle_pool);
+            for($i = 0; $i < $idle_n; $i++)
+            {
+                $req = array_pop($this->wait_queue);
+                $this->doQuery($req['fd'], $req['sql']);
+            }
         }
     }
 
-    static function onReceive($serv, $fd, $from_id, $data)
+    function onReceive($serv, $fd, $from_id, $data)
     {
-        self::$db->query($data, MYSQLI_ASYNC);
-        self::$last_fd = $fd;
+        //没有空闲的数据库连接
+        if(count($this->idle_pool) == 0)
+        {
+            //等待队列未满
+            if(count($this->wait_queue) < $this->wait_queue_max)
+            {
+                $this->wait_queue[] = array(
+                    'fd' => $fd,
+                    'sql' => $data,
+                );
+            }
+            else
+            {
+                $this->serv->send($fd, "request too many, Please try again later.");
+            }
+        }
+        else
+        {
+            $this->doQuery($fd, $data);
+        }
+    }
+
+    function doQuery($fd, $sql)
+    {
+        //从空闲池中移除
+        $db = array_pop($this->idle_pool);
+        $db['mysqli']->query($sql, MYSQLI_ASYNC);
+        $db['fd'] = $fd;
+        //加入工作池中
+        $this->busy_pool[$db['db_sock']] = $db;
+    }
+
+    function onShutdown($serv)
+    {
+        echo "Server: onShutdown\n";
+    }
+
+    function onTimer($serv, $interval)
+    {
+        //echo "Server：Timer Call.Interval=$interval \n";
     }
 }
 
-DBServer::run();
+$server = new DBServer();
+$server->run();

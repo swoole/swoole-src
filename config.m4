@@ -272,7 +272,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/Client.c \
         src/network/buffer.c \
         src/network/ProcessPool.c \
-        src/os/aio.c \
+        src/os/linux_aio.c \
       , $ext_shared)
       
     PHP_ADD_INCLUDE([$ext_srcdir/include])
