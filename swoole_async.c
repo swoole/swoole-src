@@ -62,6 +62,7 @@ static void php_woole_aio_onComplete(struct io_event *events, int n)
 	zval *zcontent;
 	zval **args[2];
 	swoole_async_request *req;
+	MAKE_STD_ZVAL(zcontent);
 
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
@@ -93,7 +94,6 @@ static void php_woole_aio_onComplete(struct io_event *events, int n)
 		args[0] = &req->filename;
 		if (req->type == IOCB_CMD_PREAD)
 		{
-			MAKE_STD_ZVAL(zcontent);
 			ZVAL_STRINGL(zcontent, req->file_content, ret, 0);
 			args[1] = &zcontent;
 			argc = 2;
@@ -117,6 +117,7 @@ static void php_woole_aio_onComplete(struct io_event *events, int n)
 		}
 		//free(iocb);
 	}
+	zval_ptr_dtor(&zcontent);
 }
 
 PHP_FUNCTION(swoole_async_read)

@@ -642,6 +642,7 @@ PHP_FUNCTION(swoole_event_add)
 	swoole_reactor_fd event;
 	event.socket = *fd;
 	event.callback = cb;
+	zval_add_ref(&event.socket);
 	zval_add_ref(&event.callback);
 
 	if(zend_hash_update(&php_sw_reactor_callback, (char *)&socket_fd, sizeof(socket_fd), &event, sizeof(swoole_reactor_fd), NULL) == FAILURE)
@@ -673,6 +674,7 @@ PHP_FUNCTION(swoole_event_del)
 		zend_error(E_WARNING, "unknow type.");
 		RETURN_FALSE;
 	}
+	Z_DELREF_PP(fd);
 	SW_CHECK_RETURN(SwooleG.main_reactor->del(SwooleG.main_reactor, socket_fd));
 }
 
