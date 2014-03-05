@@ -25,13 +25,14 @@ static int swFactoryProcess_manager_start(swFactory *factory);
 static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti);
 static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti);
 
-static int swFactoryProcess_writer_start(swFactory *factory);
 #if SW_WORKER_IPC_MODE == 2
+static int swFactoryProcess_writer_start(swFactory *factory);
 static int swFactoryProcess_writer_loop_queue(swThreadParam *param);
 #else
+#if SW_USE_WRITER_THREAD
 static int swFactoryProcess_writer_loop_unsock(swThreadParam *param);
+#endif
 static int swFactoryProcess_worker_receive(swReactor *reactor, swEvent *event);
-static int swFactoryProcess_writer_receive(swReactor *, swEvent *);
 #endif
 
 static int swFactoryProcess_notify(swFactory *factory, swEvent *event);
@@ -49,7 +50,7 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 	object = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swFactoryProcess));
 	if (object == NULL)
 	{
-		swWarn("[swFactoryProcess_create] malloc[0] fail");
+		swWarn("[swFactoryProcess_create] malloc[0] failed");
 		return SW_ERR;
 	}
 	object->writers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, writer_num * sizeof(swThreadWriter));
@@ -127,6 +128,23 @@ int swFactoryProcess_start(swFactory *factory)
 		swWarn("swFactoryProcess_manager_start fail");
 		return SW_ERR;
 	}
+
+	//保存下指针，需要和reactor做绑定
+	serv->workers = object->workers;
+
+#if SW_WORKER_IPC_MODE == 2
+	//tcp & message queue require writer pthread
+	if (serv->have_tcp_sock == 1)
+	{
+
+		int ret = swFactoryProcess_writer_start(factory);
+		if (ret < 0)
+		{
+			return SW_ERR;
+		}
+	}
+#endif
+
 	//主进程需要设置为直写模式
 	factory->finish = swFactory_finish;
 	return SW_OK;
@@ -210,8 +228,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 {
 	swFactoryProcess *object = factory->object;
 	int i, pid, ret;
-	int writer_pti;
-
+	int reactor_pti;
 	swServer *serv = factory->ptr;
 
 #if SW_WORKER_IPC_MODE == 2
@@ -274,11 +291,12 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 	{
 	//创建manager进程
 	case 0:
+		//创建子进程
 		for (i = 0; i < object->worker_num; i++)
 		{
-//			close(worker_pipes[i].pipes[0]);
-			writer_pti = (i % object->writer_num);
-			object->workers[i].writer_id = writer_pti;
+			//close(worker_pipes[i].pipes[0]);
+			reactor_pti = (i % object->writer_num);
+			object->workers[i].reactor_id = reactor_pti;
 			pid = swFactoryProcess_worker_spawn(factory, i);
 			if (pid < 0)
 			{
@@ -303,29 +321,6 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 		//主进程
 	default:
 		SwooleGS->manager_pid = pid;
-		//TCP需要writer线程
-		if (serv->have_tcp_sock == 1)
-		{
-			int ret = swFactoryProcess_writer_start(factory);
-			if (ret < 0)
-			{
-				return SW_ERR;
-			}
-		}
-#if SW_WORKER_IPC_MODE != 2
-		for (i = 0; i < object->worker_num; i++)
-		{
-			writer_pti = (i % object->writer_num);
-			object->workers[i].writer_id = writer_pti;
-
-			if (serv->have_tcp_sock == 1)
-			{
-				//将写pipe设置到writer的reactor中
-				object->writers[writer_pti].reactor.add(&(object->writers[writer_pti].reactor),
-						object->workers[i].pipe_master, SW_FD_PIPE);
-			}
-		}
-#endif
 		break;
 	case -1:
 		swError("[swFactoryProcess_worker_start]fork manager process fail");
@@ -376,9 +371,6 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 
 	//for reload
 	swSignalSet(SIGUSR1, swManagerSignalHanlde, 1, 0);
-
-	//print exit log
-	atexit(swFactoryProcess_manager_onExit);
 
 	while (SwooleG.running > 0)
 	{
@@ -821,6 +813,8 @@ int swFactoryProcess_dispatch(swFactory *factory, swEventData *data)
 	return swFactoryProcess_send2worker(_factory, data, -1);
 }
 
+#if SW_USE_WRITER_THREAD || SW_WORKER_IPC_MODE == 2
+
 static int swFactoryProcess_writer_start(swFactory *factory)
 {
 	swFactoryProcess *object = factory->object;
@@ -856,12 +850,13 @@ static int swFactoryProcess_writer_start(swFactory *factory)
 	}
 	return SW_OK;
 }
+#endif
 
-int swFactoryProcess_writer_excute(swFactory *factory, swEventData *resp)
+int swFactoryProcess_writer_excute(swEventData *resp)
 {
 	int ret;
-	swServer *serv = factory->ptr;
-
+	swServer *serv = SwooleG.serv;
+	swFactory *factory = SwooleG.factory;
 	swSendData send_data;
 	swDataHead closeFd;
 
@@ -873,7 +868,7 @@ int swFactoryProcess_writer_excute(swFactory *factory, swEventData *resp)
 			closeFd.fd = resp->info.fd;
 			closeFd.from_id = resp->info.from_id;
 			//printf("closeFd.fd=%d|from_id=%d\n", closeFd.fd, closeFd.from_id);
-			swServer_close(serv, &closeFd);
+			swServer_poll_onClose(serv, &closeFd);
 		}
 		return SW_OK;
 	}
@@ -924,7 +919,7 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 		}
 		else
 		{
-			swFactoryProcess_writer_excute(factory, (swEventData *)sdata.mdata);
+			swFactoryProcess_writer_excute((swEventData *)sdata.mdata);
 		}
 	}
 	pthread_exit((void *) param);
@@ -932,10 +927,9 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 }
 
 #else
-int swFactoryProcess_writer_receive(swReactor *reactor, swDataHead *ev)
+int swFactoryProcess_send2client(swReactor *reactor, swDataHead *ev)
 {
 	int n;
-	swFactory *factory = reactor->factory;
 	swEventData resp;
 
 	//Unix Sock UDP
@@ -943,7 +937,7 @@ int swFactoryProcess_writer_receive(swReactor *reactor, swDataHead *ev)
 	swTrace("[WriteThread]recv: writer=%d|pipe=%d", ev->from_id, ev->fd);
 	if (n > 0)
 	{
-		return swFactoryProcess_writer_excute(factory, &resp);
+		return swFactoryProcess_writer_excute(&resp);
 	}
 	else
 	{
@@ -952,6 +946,7 @@ int swFactoryProcess_writer_receive(swReactor *reactor, swDataHead *ev)
 	}
 }
 
+#if SW_USE_WRITER_THREAD
 /**
  * 使用Unix Socket通信
  */
@@ -970,16 +965,17 @@ int swFactoryProcess_writer_loop_unsock(swThreadParam *param)
 	reactor->id = pti;
 	if (swReactorSelect_create(reactor) < 0)
 	{
-		swWarn("swReactorSelect_create fail\n");
+		swWarn("swReactorSelect_create fail");
 		pthread_exit((void *) param);
 	}
 	swSingalNone();
-	reactor->setHandle(reactor, SW_FD_PIPE, swFactoryProcess_writer_receive);
+	reactor->setHandle(reactor, SW_FD_PIPE, swFactoryProcess_send2client);
 	reactor->wait(reactor, &tmo);
 	reactor->free(reactor);
 	pthread_exit((void *) param);
 	return SW_OK;
 }
+#endif
 
 static int swFactoryProcess_worker_receive(swReactor *reactor, swEvent *event)
 {

@@ -77,6 +77,7 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_server_set, NULL)
 	PHP_FE(swoole_server_start, NULL)
 	PHP_FE(swoole_server_send, NULL)
+	PHP_FE(swoole_server_sendfile, NULL)
 	PHP_FE(swoole_server_close, NULL)
 	PHP_FE(swoole_server_handler, NULL)
 	PHP_FE(swoole_server_on, NULL)
@@ -848,6 +849,36 @@ PHP_FUNCTION(swoole_server_on)
 	ZVAL_BOOL(return_value, ret);
 }
 
+
+PHP_FUNCTION(swoole_server_sendfile)
+{
+	zval *zobject = getThis();
+	swServer *serv;
+	swSendData send_data;
+	char *filename;
+	int filename_len;
+	long conn_fd;
+
+	if (zobject == NULL)
+	{
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ols", &zobject, swoole_server_class_entry_ptr, &conn_fd, &filename, &filename_len) == FAILURE)
+		{
+			return;
+		}
+	}
+	else
+	{
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls", &conn_fd, &filename, &filename_len) == FAILURE)
+		{
+			return;
+		}
+	}
+	SWOOLE_GET_SERVER(zobject, serv);
+
+	send_data.info.fd = (int)conn_fd;
+	send_data.info.type = SW_EVENT_SENDFILE;
+	SW_CHECK_RETURN(serv->factory.finish(&serv->factory, &send_data));
+}
 
 PHP_FUNCTION(swoole_server_close)
 {

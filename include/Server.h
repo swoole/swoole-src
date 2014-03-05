@@ -57,8 +57,7 @@ extern "C" {
 #define SW_EVENT_PACKAGE_START     9
 #define SW_EVENT_PACKAGE_TRUNK     10
 #define SW_EVENT_PACKAGE_END       11
-#define SW_EVENT_SENDFILE_START    12
-#define SW_EVENT_SENDFILE_OK       13
+#define SW_EVENT_SENDFILE          12
 
 #define SW_HOST_MAXSIZE          48
 #define SW_MAX_TMP_PKG           1000
@@ -110,7 +109,6 @@ typedef struct _swConnection {
 	time_t last_time;	 //最近一次收到数据的时间
 } swConnection;
 
-typedef struct swServer_s swServer;
 struct swServer_s
 {
 	uint16_t backlog;
@@ -201,6 +199,7 @@ struct swServer_s
 	swReactor reactor;
 	swFactory factory;
 	swThreadPoll *reactor_threads; //TCP监听线程
+	swWorker *workers;
 	swListenList_node *listen_list;
 
 	swConnection *connection_list; //连接列表
@@ -262,6 +261,8 @@ int swServer_new_connection(swServer *serv, swEvent *ev);
 #define swServer_get_minfd(serv) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd)
 SWINLINE swString* swConnection_get_buffer(swConnection *conn);
 SWINLINE void swConnection_clear_buffer(swConnection *conn);
+
+int swServer_reactor_thread_onClose(swReactor *reactor, swEvent *event);
 
 #ifdef __cplusplus
 }

@@ -50,6 +50,7 @@
 #ifndef SW_WORKER_IPC_MODE
 #define SW_WORKER_IPC_MODE         1    //1:unix socket,2:IPC Message Queue
 #endif
+#define SW_USE_WRITER_THREAD       0    //使用单独的发送线程
 
 #define SW_WORKER_SENDTO_COUNT     2    //写回客户端失败尝试次数
 #define SW_WORKER_SENDTO_YIELD     10   //yield after sendto

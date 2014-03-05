@@ -43,7 +43,7 @@ static void swServer_master_onReactorFinish(swReactor *reactor);
 
 static int swServer_poll_loop(swThreadParam *param);
 static int swServer_poll_start(swServer *serv, swReactor *main_reactor_ptr);
-static int swServer_poll_onClose(swReactor *reactor, swEvent *event);
+
 static int swServer_poll_close_queue(swReactor *reactor, swCloseQueue *close_queue);
 static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event);
 static int swServer_poll_onReceive_buffer_check_length(swReactor *reactor, swEvent *event);
@@ -843,11 +843,19 @@ int swServer_create(swServer *serv)
 	{
 		serv->package_eof_len = sizeof(serv->package_eof);
 	}
+
 	//初始化日志
 	if(serv->log_file[0] != 0)
 	{
 		swLog_init(serv->log_file);
 	}
+
+	//保存指针到全局变量中去
+	//TODO 未来全部使用此方式访问swServer/swFactory对象
+	SwooleG.serv = serv;
+	SwooleG.factory = &serv->factory;
+
+	//单进程单线程模式
 	if(serv->factory_mode == SW_MODE_SINGLE)
 	{
 		return swServer_create_base(serv);
@@ -964,6 +972,7 @@ static int swServer_poll_start(swServer *serv, swReactor *main_reactor_ptr)
 		{
 			reactor_threads = &(serv->reactor_threads[i]);
 			param = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
+
 			if (param == NULL)
 			{
 				swError("malloc fail\n");
@@ -979,8 +988,7 @@ static int swServer_poll_start(swServer *serv, swReactor *main_reactor_ptr)
 			reactor_threads->ptid = pidt;
 		}
 	}
-
-
+	//定时器
 	if(SwooleG.timer.fd > 0)
 	{
 		main_reactor_ptr->add(main_reactor_ptr, SwooleG.timer.fd, SW_FD_TIMER);
@@ -1309,9 +1317,20 @@ static int swServer_poll_loop(swThreadParam *param)
 
 	reactor->onFinish = swServer_poll_onReactorFinish;
 	reactor->onTimeout = swServer_poll_onReactorTimeout;
-	reactor->setHandle(reactor, SW_FD_CLOSE, swServer_poll_onClose);
+	reactor->setHandle(reactor, SW_FD_CLOSE, swServer_reactor_thread_onClose);
 	reactor->setHandle(reactor, SW_FD_UDP, swServer_poll_onPackage);
+	reactor->setHandle(reactor, SW_FD_SEND_TO_CLIENT, swFactoryProcess_send2client);
 
+	int i;
+	//worker进程绑定reactor
+	for (i = 0; i < serv->worker_num; i++)
+	{
+		//将写pipe设置到writer的reactor中
+		if(serv->workers[i].reactor_id == pti)
+		{
+			reactor->add(reactor, serv->workers[i].pipe_master, SW_FD_SEND_TO_CLIENT);
+		}
+	}
 	//Thread mode must copy the data.
 	//will free after onFinish
 	if (serv->open_eof_check == 1)
@@ -1756,7 +1775,7 @@ static int swServer_poll_onReceive_buffer_check_length(swReactor *reactor, swEve
 	return SW_OK;
 }
 
-static int swServer_poll_onClose(swReactor *reactor, swEvent *event)
+static int swServer_reactor_thread_onClose(swReactor *reactor, swEvent *event)
 {
 	//int ret = 0;
 	swServer *serv = reactor->ptr;

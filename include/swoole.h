@@ -149,6 +149,7 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define SW_FD_WRITE            7 //fd can write
 #define SW_FD_TIMER            8 //timer fd
 #define SW_FD_AIO              9 //linux native aio
+#define SW_FD_SEND_TO_CLIENT   10 //sendtoclient
 
 #define SW_FD_USER             15 //SW_FD_USER or SW_FD_USER+n: for custom event
 
@@ -601,7 +602,7 @@ struct _swWorker
 	int id;
 	int pipe_master;
 	int pipe_worker;
-	int writer_id;
+	int reactor_id;
 	void *ptr;
 	void *ptr2;
 };
@@ -672,6 +673,7 @@ int swFactoryProcess_shutdown(swFactory *factory);
 int swFactoryProcess_end(swFactory *factory, swDataHead *event);
 int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task);
 int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int worker_id);
+int swFactoryProcess_send2client(swReactor *reactor, swDataHead *ev);
 
 int swFactoryThread_create(swFactory *factory, int writer_num);
 int swFactoryThread_start(swFactory *factory);
@@ -815,12 +817,17 @@ void swTimer_signal_handler(int sig);
 int swTimer_event_handler(swReactor *reactor, swEvent *event);
 SWINLINE time_t swTimer_get_ms();
 
+typedef struct swServer_s swServer;
+
 typedef struct _swServerG{
 	swTimer timer;
 	int no_timerfd;
 	int running;
 	int sw_errno;
 	int process_type;
+
+	swServer *serv;
+	swFactory *factory;
 
 	swProcessPool task_workers;
 	swProcessPool *event_workers;
@@ -837,7 +844,6 @@ typedef struct _swServerGS{
 	pid_t master_pid;
 	pid_t manager_pid;
 	time_t now;
-
 } swServerGS;
 
 typedef struct _swWorkerG{
