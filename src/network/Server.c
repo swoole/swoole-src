@@ -530,6 +530,7 @@ int swServer_start(swServer *serv)
 
 	//master pid
 	SwooleGS->master_pid = getpid();
+	SwooleGS->start = 1;
 
 	//设置factory回调函数
 	serv->factory.ptr = serv;
@@ -1409,7 +1410,7 @@ static int swServer_poll_onReceive_buffer_check_eof(swReactor *reactor, swEvent 
 		swTrace("Close Event.FD=%d|From=%d", event->fd, event->from_id);
 		memcpy(&closeEv, event, sizeof(swEvent));
 		closeEv.type = SW_EVENT_CLOSE;
-		return swServer_poll_onClose(reactor, event);
+		return swServer_reactor_thread_onClose(reactor, event);
 	}
 	else
 	{
@@ -1568,7 +1569,7 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 	{
 		close_fd:
 		swTrace("Close Event.FD=%d|From=%d|errno=%d", event->fd, event->from_id, errno);
-		return swServer_poll_onClose(reactor, event);
+		return swServer_reactor_thread_onClose(reactor, event);
 	}
 	else
 	{
@@ -1651,7 +1652,7 @@ static int swServer_poll_onReceive_buffer_check_length(swReactor *reactor, swEve
 		swTrace("Close Event.FD=%d|From=%d", event->fd, event->from_id);
 		memcpy(&closeEv, event, sizeof(swEvent));
 		closeEv.type = SW_EVENT_CLOSE;
-		return swServer_poll_onClose(reactor, event);
+		return swServer_reactor_thread_onClose(reactor, event);
 	}
 	else
 	{
@@ -1775,7 +1776,7 @@ static int swServer_poll_onReceive_buffer_check_length(swReactor *reactor, swEve
 	return SW_OK;
 }
 
-static int swServer_reactor_thread_onClose(swReactor *reactor, swEvent *event)
+int swServer_reactor_thread_onClose(swReactor *reactor, swEvent *event)
 {
 	//int ret = 0;
 	swServer *serv = reactor->ptr;

@@ -843,6 +843,7 @@ typedef struct _swServerG{
 typedef struct _swServerGS{
 	pid_t master_pid;
 	pid_t manager_pid;
+	uint8_t start; //after swServer_start will set start=1
 	time_t now;
 } swServerGS;
 

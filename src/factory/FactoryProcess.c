@@ -345,11 +345,6 @@ static void swManagerSignalHanlde(int sig)
 	}
 }
 
-static void swFactoryProcess_manager_onExit(void)
-{
-	swWarn("Manager exit.");
-}
-
 static int swFactoryProcess_manager_loop(swFactory *factory)
 {
 	int pid, new_pid;
@@ -867,8 +862,9 @@ int swFactoryProcess_writer_excute(swEventData *resp)
 		{
 			closeFd.fd = resp->info.fd;
 			closeFd.from_id = resp->info.from_id;
+			swReactor *reactor = &(serv->reactor_threads[closeFd.from_id].reactor);
 			//printf("closeFd.fd=%d|from_id=%d\n", closeFd.fd, closeFd.from_id);
-			swServer_poll_onClose(serv, &closeFd);
+			swServer_reactor_thread_onClose(reactor, &closeFd);
 		}
 		return SW_OK;
 	}
