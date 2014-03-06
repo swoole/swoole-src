@@ -14,6 +14,7 @@ function my_onReceive($serv, $fd, $from_id, $data)
 {
 	//var_dump($serv->connection_info($fd, $from_id));
 	//echo "worker_pid=".posix_getpid().PHP_EOL;
+var_dump($fd, $from_id);
 	$serv->send($fd, 'Swoole: ' . $data, $from_id);
 }
 

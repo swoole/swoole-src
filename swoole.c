@@ -449,6 +449,13 @@ PHP_FUNCTION(swoole_server_create)
 		zend_error(E_ERROR, "swoole_server must run at php_cli environment.");
 		RETURN_FALSE;
 	}
+
+	if (SwooleGS->start > 0)
+	{
+		zend_error(E_WARNING, "Server is running. Unable to create swoole_server now.");
+		RETURN_FALSE;
+	}
+
 	swServer *serv = sw_malloc(sizeof(swServer));
 	swServer_init(serv);
 
@@ -499,6 +506,12 @@ PHP_FUNCTION(swoole_server_set)
 	swServer *serv;
 	zval **v;
 	double timeout;
+
+	if (SwooleGS->start > 0)
+	{
+		zend_error(E_WARNING, "Server is running. Unable to execute swoole_server_set now.");
+		RETURN_FALSE;
+	}
 
 	if (zobject == NULL)
 	{
@@ -555,6 +568,11 @@ PHP_FUNCTION(swoole_server_set)
 	{
 		convert_to_long(*v);
 		serv->worker_num = (int)Z_LVAL_PP(v);
+
+		if (serv->worker_num < serv->reactor_num)
+		{
+			serv->reactor_num = serv->worker_num;
+		}
 	}
 	//task_worker_num
 	if (zend_hash_find(vht, ZEND_STRS("task_worker_num"), (void **)&v) == SUCCESS)
@@ -745,6 +763,12 @@ PHP_FUNCTION(swoole_server_handler)
 	swServer *serv;
 	zval *cb;
 
+	if (SwooleGS->start > 0)
+	{
+		zend_error(E_WARNING, "Server is running. Unable to set event callback now.");
+		RETURN_FALSE;
+	}
+
 	if (zobject == NULL)
 	{
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Osz", &zobject, swoole_server_class_entry_ptr, &ha_name, &len, &cb) == FAILURE)
@@ -801,6 +825,12 @@ PHP_FUNCTION(swoole_server_on)
 	int ret = -1;
 	swServer *serv;
 	zval *cb;
+
+	if (SwooleGS->start > 0)
+	{
+		zend_error(E_WARNING, "Server is running. Unable to set event callback now.");
+		RETURN_FALSE;
+	}
 
 	if (zobject == NULL)
 	{
@@ -1694,6 +1724,12 @@ PHP_FUNCTION(swoole_server_start)
 	swServer *serv;
 	int ret;
 
+	if (SwooleGS->start > 0)
+	{
+		zend_error(E_WARNING, "Server is running. Unable to execute swoole_server::start.");
+		RETURN_FALSE;
+	}
+
 	if (zobject == NULL)
 	{
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O", &zobject, swoole_server_class_entry_ptr) == FAILURE)
@@ -1820,14 +1856,9 @@ PHP_FUNCTION(swoole_server_send)
 		from_id = factory->last_from_id;
 	}
 
-	//TCP
-	if(((uint32_t) from_id) < serv->reactor_num)
-	{
-		_send.info.type = SW_EVENT_TCP;
-		_send.info.from_id = from_id;
-	}
-	//UDP
-	else
+	//UDP, UDP必然超过0x1000000
+	//原因：IPv4的第4字节最小为1,而这里的conn_fd是网络字节序
+	if(conn_fd > 0x1000000)
 	{
 		php_swoole_udp_t udp_info;
 		memcpy(&udp_info, &from_id, sizeof(udp_info));
@@ -1835,6 +1866,12 @@ PHP_FUNCTION(swoole_server_send)
 		_send.info.from_fd = (uint16_t)(udp_info.from_fd);
 		_send.info.type = SW_EVENT_UDP;
 		swTrace("SendTo: from_id=%d|from_fd=%d", (uint16_t)_send.info.from_id, _send.info.from_fd);
+	}
+	//TCP
+	else
+	{
+		_send.info.type = SW_EVENT_TCP;
+		_send.info.from_id = from_id;
 	}
 	_send.data = buffer;
 
@@ -1879,6 +1916,12 @@ PHP_FUNCTION(swoole_server_addlisten)
 	int host_len;
 	long sock_type;
 	long port;
+
+	if (SwooleGS->start > 0)
+	{
+		zend_error(E_WARNING, "Server is running. Unable to add listener.");
+		RETURN_FALSE;
+	}
 
 	if (zobject == NULL)
 	{

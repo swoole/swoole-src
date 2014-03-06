@@ -24,7 +24,7 @@ $serv->on('receive', function ($serv, $fd, $from_id, $data) {
             foreach($conn_list as $conn)
             {
                 if($conn === $fd) continue;
-                $serv->send($conn, "hello from $fd\n", 0);
+                $serv->send($conn, "hello from $fd\n");
             }
         }
 	}
