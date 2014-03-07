@@ -1,5 +1,4 @@
 <?php
-
 class DBServer
 {
     protected $pool_size = 20;
@@ -24,10 +23,6 @@ class DBServer
         //$serv->on('Connect', array($this, 'onConnect'));
         $serv->on('Receive', array($this, 'onReceive'));
         //$serv->on('Close', array($this, 'onClose'));
-        $serv->on('WorkerStop', array($this, 'onShutdown'));
-        $serv->on('Timer', array($this, 'onTimer'));
-        //swoole_server_addtimer($serv, 2);
-        #swoole_server_addtimer($serv, 10);
         $serv->start();
     }
 
@@ -73,7 +68,7 @@ class DBServer
         if (count($this->wait_queue) > 0) {
             $idle_n = count($this->idle_pool);
             for ($i = 0; $i < $idle_n; $i++) {
-                $req = array_pop($this->wait_queue);
+                $req = array_shift($this->wait_queue);
                 $this->doQuery($req['fd'], $req['sql']);
             }
         }
@@ -101,20 +96,26 @@ class DBServer
     {
         //从空闲池中移除
         $db = array_pop($this->idle_pool);
-        $db['mysqli']->query($sql, MYSQLI_ASYNC);
+        /**
+         * @var mysqli
+         */
+        $mysqli = $db['mysqli'];
+
+        for ($i = 0; $i < 2; $i++) {
+            $result = $mysqli->query($sql, MYSQLI_ASYNC);
+            if ($result === false) {
+                if ($mysqli->errno == 2013 or $mysqli->errno == 2006) {
+                    $mysqli->close();
+                    $r = $mysqli->connect();
+                    if ($r === true) continue;
+                }
+            }
+            break;
+        }
+
         $db['fd'] = $fd;
         //加入工作池中
         $this->busy_pool[$db['db_sock']] = $db;
-    }
-
-    function onShutdown($serv)
-    {
-        echo "Server: onShutdown\n";
-    }
-
-    function onTimer($serv, $interval)
-    {
-        //echo "Server：Timer Call.Interval=$interval \n";
     }
 }
 

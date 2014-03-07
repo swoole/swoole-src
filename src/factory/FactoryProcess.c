@@ -459,21 +459,6 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti)
 	//worker child processor
 	else if (pid == 0)
 	{
-#if SW_WORKER_IPC_MODE != 2
-		swFactoryProcess *object = factory->object;
-		int i;
-
-		for (i = 0; i < object->worker_num; i++)
-		{
-			//非当前的worker_pipe
-			if (worker_pti != i)
-			{
-				close(object->workers[i].pipe_worker);
-			}
-			//关闭master_pipe
-			close(object->workers[i].pipe_master);
-		}
-#endif
 		//标识为worker进程
 		SwooleG.process_type = SW_PROCESS_WORKER;
 		ret = swFactoryProcess_worker_loop(factory, worker_pti);
@@ -495,7 +480,7 @@ int swFactoryProcess_end(swFactory *factory, swDataHead *event)
 	bzero(&ev, sizeof(swEvent));
 	ev.fd = event->fd;
 	ev.len = 0; //len=0表示关闭此连接
-	ev.from_id = SW_CLOSE_NOTIFY;
+	ev.type = SW_EVENT_CLOSE;
 	ret = swFactoryProcess_finish(factory, (swSendData *)&ev);
 	if (serv->onClose != NULL)
 	{
@@ -509,9 +494,11 @@ int swFactoryProcess_end(swFactory *factory, swDataHead *event)
 int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 {
 	//UDP直接在worker进程内发送
-	int ret, sendn, count;;
+	int ret, sendn, count, pipe_i;
 	swFactoryProcess *object = factory->object;
 	swServer *serv = factory->ptr;
+	swReactor *reactor;
+	int fd = resp->info.fd;
 
 	//UDP在worker进程中直接发送到客户端
 	if(resp->info.type == SW_EVENT_UDP)
@@ -521,7 +508,8 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	}
 
 	//swQueue_data for msg queue
-	struct {
+	struct
+	{
 		long pti;
 		swEventData _send;
 	} sdata;
@@ -532,19 +520,38 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	//copy
 	memcpy(sdata._send.data, resp->data, resp->info.len);
 
-	sdata._send.info.fd = resp->info.fd;
-	sdata._send.info.len = resp->info.len;
-	sdata._send.info.from_id = resp->info.from_id;
-	sendn =  resp->info.len + sizeof(resp->info);
+	swConnection *conn = swServer_get_connection(serv, fd);
+	if(conn == NULL)
+	{
+		swWarn("connection[%d] not found.", fd);
+		return SW_ERR;
+	}
 
-	swTrace("[Worker]wt_queue[%ld]->in| fd=%d", sdata.pti, sdata._send.info.fd);
+	sdata._send.info.fd = fd;
+	sdata._send.info.type = resp->info.type;
+	sdata._send.info.len = resp->info.len;
+	sdata._send.info.from_id = conn->from_id;
+	sendn = resp->info.len + sizeof(resp->info);
+
+	swTrace("[Worker]wt_queue[%ld]->in| fd=%d", sdata.pti, fd);
 
 	for (count = 0; count < SW_WORKER_SENDTO_COUNT; count++)
 	{
 #if SW_WORKER_IPC_MODE == 2
 		ret = object->wt_queue.in(&object->wt_queue, (swQueue_data *)&sdata, sendn);
 #else
-		ret = write(object->workers[SwooleWG.id].pipe_worker, &sdata._send, sendn);
+		reactor = &(serv->reactor_threads[conn->from_id].reactor);
+		if (serv->reactor_pipe_num > 1)
+		{
+			pipe_i = fd % serv->reactor_pipe_num + reactor->id;
+		}
+		else
+		{
+			pipe_i = reactor->id;
+		}
+		//swWarn("send to reactor. fd=%d|pipe_i=%d|reactor_id=%d|reactor_pipe_num=%d", fd, pipe_i, conn->from_id, serv->reactor_pipe_num);
+		sdata._send.data[resp->info.len] = 0;
+		ret = write(object->workers[pipe_i].pipe_worker, &sdata._send, sendn);
 #endif
 		//printf("wt_queue->in: fd=%d|from_id=%d|data=%s|ret=%d|errno=%d\n", sdata._send.info.fd, sdata._send.info.from_id, sdata._send.data, ret, errno);
 		if (ret >= 0)
@@ -862,6 +869,7 @@ int swFactoryProcess_writer_excute(swEventData *resp)
 		{
 			closeFd.fd = resp->info.fd;
 			closeFd.from_id = resp->info.from_id;
+			closeFd.type = SW_EVENT_CLOSE;
 			swReactor *reactor = &(serv->reactor_threads[closeFd.from_id].reactor);
 			//printf("closeFd.fd=%d|from_id=%d\n", closeFd.fd, closeFd.from_id);
 			swServer_reactor_thread_onClose(reactor, &closeFd);

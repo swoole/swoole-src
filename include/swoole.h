@@ -168,13 +168,16 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define SW_LOG_WARN            2
 #define SW_LOG_ERROR           3
 
-#ifdef SW_LOG_NO_SRCINFO
-#define swWarn(str,...)       snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str,__func__,##__VA_ARGS__);swLog_put(SW_LOG_WARN, sw_error)
-#define swError(str,...)       snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);swLog_put(SW_LOG_ERROR, sw_error);exit(1)
-#else
-#define swWarn(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d@%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);swLog_put(SW_LOG_WARN, sw_error);}
-#define swError(str,...)       {snprintf(sw_error,SW_ERROR_MSG_SIZE,"[%s:%d@%s]"str,__FILE__,__LINE__,__func__,##__VA_ARGS__);swLog_put(SW_LOG_ERROR, sw_error);exit(1);}
-#endif
+#define swWarn(str,...)        SwooleG.lock.lock(&SwooleG.lock);\
+snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str,__func__,##__VA_ARGS__);\
+swLog_put(SW_LOG_WARN, sw_error);\
+SwooleG.lock.unlock(&SwooleG.lock)
+
+#define swError(str,...)       SwooleG.lock.lock(&SwooleG.lock);\
+snprintf(sw_error, SW_ERROR_MSG_SIZE,str, ##__VA_ARGS__);\
+swLog_put(SW_LOG_ERROR, sw_error);\
+SwooleG.lock.unlock(&SwooleG.lock);\
+exit(1)
 
 #ifdef SW_DEBUG
 #define swTrace(str,...)       {printf("[%s:%d@%s]"str"\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);}
@@ -220,14 +223,8 @@ typedef swDataHead swEvent;
 //	int fd;
 //} swEvent;
 
-typedef struct _swEventClose
-{
-	int from_id; //Reactor Id
-	int fd;
-} swEventClose;
-
 typedef struct _swEventClose_queue {
-	swEventClose events[SW_CLOSE_QLEN];
+	int events[SW_CLOSE_QLEN];
 	int num;
 } swCloseQueue;
 
@@ -828,6 +825,7 @@ typedef struct _swServerG{
 
 	swServer *serv;
 	swFactory *factory;
+	swLock lock;
 
 	swProcessPool task_workers;
 	swProcessPool *event_workers;

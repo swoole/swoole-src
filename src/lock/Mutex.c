@@ -33,7 +33,6 @@ int swMutex_create(swLock *lock, int use_in_process)
 	}
 	if ((ret = pthread_mutex_init(&lock->object.mutex._lock, &lock->object.mutex.attr)) < 0)
 	{
-		swWarn("swMutex_create fail. Error: %s [%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
 	lock->lock = swMutex_lock;

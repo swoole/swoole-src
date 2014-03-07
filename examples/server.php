@@ -1,5 +1,6 @@
 <?php
 $serv = new swoole_server("127.0.0.1", 9501);
+
 $serv->set(array(
     'worker_num' => 2,
     //'open_eof_check' => true,
@@ -97,7 +98,7 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     }
 	elseif($cmd == "shutdown") 
     {
-		$serv->shutdown();
+	    $serv->shutdown();
 	}
 	else 
 	{
@@ -120,6 +121,11 @@ function my_onFinish(swoole_server $serv, $data)
     echo "AsyncTask Finish:Connect.PID=".posix_getpid().PHP_EOL;
 }
 
+function my_onWorkerError(swoole_server $serv, $data)
+{
+    echo "worker abnormal exit. WorkerId=$worker_id|Pid=$worker_pid|ExitCode=$exit_code\n";
+}
+
 $serv->on('Start', 'my_onStart');
 $serv->on('Connect', 'my_onConnect');
 $serv->on('Receive', 'my_onReceive');
@@ -130,8 +136,6 @@ $serv->on('WorkerStart', 'my_onWorkerStart');
 $serv->on('WorkerStop', 'my_onWorkerStop');
 $serv->on('Task', 'my_onTask');
 $serv->on('Finish', 'my_onFinish');
-$serv->on('WorkerError', function($serv, $worker_id, $worker_pid, $exit_code) {
-    echo "worker abnormal exit. WorkerId=$worker_id|Pid=$worker_pid|ExitCode=$exit_code\n";
-});
+$serv->on('WorkerError', 'my_onWorkerError');
 $serv->start();
 

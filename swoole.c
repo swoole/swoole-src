@@ -907,6 +907,8 @@ PHP_FUNCTION(swoole_server_sendfile)
 
 	send_data.info.fd = (int)conn_fd;
 	send_data.info.type = SW_EVENT_SENDFILE;
+	send_data.info.len = 0;
+
 	SW_CHECK_RETURN(serv->factory.finish(&serv->factory, &send_data));
 }
 
@@ -915,33 +917,24 @@ PHP_FUNCTION(swoole_server_close)
 	zval *zobject = getThis();
 	swServer *serv;
 	swEvent ev;
-	long conn_fd, from_id = -1;
+	long fd;
 
 	if (zobject == NULL)
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ol|l", &zobject, swoole_server_class_entry_ptr, &conn_fd, &from_id) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ol", &zobject, swoole_server_class_entry_ptr, &fd) == FAILURE)
 		{
 			return;
 		}
 	}
 	else
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|l", &conn_fd, &from_id) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &fd) == FAILURE)
 		{
 			return;
 		}
 	}
 	SWOOLE_GET_SERVER(zobject, serv);
-
-	if(from_id < 0)
-	{
-		ev.from_id = serv->factory.last_from_id;
-	}
-	else
-	{
-		ev.from_id = from_id;
-	}
-	ev.fd = (int)conn_fd;
+	ev.fd = (int)fd;
 	//主进程不应当执行此操作
 	if(swIsMaster())
 	{
@@ -1019,7 +1012,7 @@ PHP_FUNCTION(swoole_server_heartbeat)
 	for(fd = serv_min_fd; fd<= serv_max_fd; fd++)
 	{
 		 swTrace("check fd=%d", fd);
-		 if(1 == serv->connection_list[fd].tag && (serv->connection_list[fd].last_time  < checktime))
+		 if(1 == serv->connection_list[fd].active && (serv->connection_list[fd].last_time  < checktime))
 		 {
 		 	ev.fd = fd;
 		 	serv->factory.end(&serv->factory, &ev);
@@ -1106,7 +1099,7 @@ PHP_FUNCTION(swoole_connection_info)
 	}
 
 	//connection is closed
-	if(conn->tag == 0)
+	if(conn->active == 0)
 	{
 		RETURN_FALSE;
 	}
@@ -1173,7 +1166,7 @@ PHP_FUNCTION(swoole_connection_list)
 	for(; fd<= serv_max_fd; fd++)
 	{
 		 swTrace("maxfd=%d|fd=%d|find_count=%ld|start_fd=%ld", serv_max_fd, fd, find_count, start_fd);
-		 if(serv->connection_list[fd].tag == 1)
+		 if(serv->connection_list[fd].active == 1)
 		 {
 			 add_next_index_long(return_value, fd);
 			 find_count--;
@@ -1845,21 +1838,20 @@ PHP_FUNCTION(swoole_server_send)
 			return;
 		}
 	}
+
 	SWOOLE_GET_SERVER(zobject, serv);
 
 	factory = &(serv->factory);
-
 	_send.info.fd = (int)conn_fd;
-
-	if (from_id == -1)
-	{
-		from_id = factory->last_from_id;
-	}
 
 	//UDP, UDP必然超过0x1000000
 	//原因：IPv4的第4字节最小为1,而这里的conn_fd是网络字节序
 	if(conn_fd > 0x1000000)
 	{
+		if (from_id == -1)
+		{
+			from_id = php_swoole_udp_from_id;
+		}
 		php_swoole_udp_t udp_info;
 		memcpy(&udp_info, &from_id, sizeof(udp_info));
 		_send.info.from_id = (uint16_t)(udp_info.port);
@@ -1871,7 +1863,6 @@ PHP_FUNCTION(swoole_server_send)
 	else
 	{
 		_send.info.type = SW_EVENT_TCP;
-		_send.info.from_id = from_id;
 	}
 	_send.data = buffer;
 
