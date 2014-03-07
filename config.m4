@@ -272,6 +272,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/Client.c \
         src/network/buffer.c \
         src/network/ProcessPool.c \
+        src/network/ReactorThread.c \
         src/os/linux_aio.c \
       , $ext_shared)
       

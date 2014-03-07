@@ -67,15 +67,12 @@ extern "C" {
 #define SW_MAX_TMP_PKG             1000
 #define SW_LOG_FILENAME            128
 
-#define SW_CLOSE_NOTIFY          -2  //由Worker进程中主动关闭，无需再次通知
-#define SW_CLOSE_DELETE          -1  //已从事件循环删除,无需再次移除
-
-#define SW_NUM_SHORT             (1u << 1)
-#define SW_NUM_INT               (1u << 2)
-#define SW_NUM_NET               (1u << 3)
-#define SW_NUM_HOST              (1u << 4)
-#define SW_NUM_UNSIGN            (1u << 5)
-#define SW_NUM_SIGN              (1u << 6)
+#define SW_NUM_SHORT               (1u << 1)
+#define SW_NUM_INT                 (1u << 2)
+#define SW_NUM_NET                 (1u << 3)
+#define SW_NUM_HOST                (1u << 4)
+#define SW_NUM_UNSIGN              (1u << 5)
+#define SW_NUM_SIGN                (1u << 6)
 
 typedef struct _swUdpFd{
 	struct sockaddr addr;
@@ -101,14 +98,29 @@ typedef struct _swListenList_node
 	char host[SW_HOST_MAXSIZE];
 } swListenList_node;
 
+typedef struct {
+	char *filename;
+	uint16_t name_len;
+	int fd;
+	off_t filesize;
+	off_t offset;
+} swTask_sendfile;
+
 typedef struct _swConnection {
 	uint8_t active;     //0表示非活动,1表示活动
 	int fd;             //文件描述符
 	uint16_t from_id;   //Reactor Id
 	uint16_t from_fd;   //从哪个ServerFD引发的
-	uint8_t buffer_num; //buffer的数量
 	struct sockaddr_in addr; //socket的地址
-	swString *buffer;    //缓存区
+
+	uint8_t buffer_num; //buffer的数量
+	swString *input_buffer;    //缓存区
+
+	union
+	{
+		swTask_sendfile *send_file;
+	} output;
+
 	time_t connect_time; //连接时间戳
 	time_t last_time;	 //最近一次收到数据的时间
 } swConnection;
@@ -267,7 +279,9 @@ int swServer_new_connection(swServer *serv, swEvent *ev);
 SWINLINE swString* swConnection_get_buffer(swConnection *conn);
 SWINLINE void swConnection_clear_buffer(swConnection *conn);
 
+int swReactorThread_response(swEventData *resp);
 int swServer_reactor_thread_onClose(swReactor *reactor, swEvent *event);
+int swServer_reactor_thread_onWrite(swReactor *reactor, swDataHead *ev);
 
 #ifdef __cplusplus
 }

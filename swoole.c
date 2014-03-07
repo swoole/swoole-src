@@ -119,6 +119,7 @@ static zend_function_entry swoole_server_methods[] = {
 	PHP_FALIAS(set, swoole_server_set, NULL)
 	PHP_FALIAS(start, swoole_server_start, NULL)
 	PHP_FALIAS(send, swoole_server_send, NULL)
+	PHP_FALIAS(sendfile, swoole_server_sendfile, NULL)
 	PHP_FALIAS(close, swoole_server_close, NULL)
 	PHP_FALIAS(task, swoole_server_task, NULL)
 	PHP_FALIAS(taskwait, swoole_server_taskwait, NULL)
@@ -877,39 +878,6 @@ PHP_FUNCTION(swoole_server_on)
 		zend_error(E_ERROR, "swoole_server_on: unkown handler[%s].", ha_name);
 	}
 	ZVAL_BOOL(return_value, ret);
-}
-
-
-PHP_FUNCTION(swoole_server_sendfile)
-{
-	zval *zobject = getThis();
-	swServer *serv;
-	swSendData send_data;
-	char *filename;
-	int filename_len;
-	long conn_fd;
-
-	if (zobject == NULL)
-	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ols", &zobject, swoole_server_class_entry_ptr, &conn_fd, &filename, &filename_len) == FAILURE)
-		{
-			return;
-		}
-	}
-	else
-	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls", &conn_fd, &filename, &filename_len) == FAILURE)
-		{
-			return;
-		}
-	}
-	SWOOLE_GET_SERVER(zobject, serv);
-
-	send_data.info.fd = (int)conn_fd;
-	send_data.info.type = SW_EVENT_SENDFILE;
-	send_data.info.len = 0;
-
-	SW_CHECK_RETURN(serv->factory.finish(&serv->factory, &send_data));
 }
 
 PHP_FUNCTION(swoole_server_close)
@@ -1897,6 +1865,46 @@ PHP_FUNCTION(swoole_server_send)
 #endif
 	}
 	SW_CHECK_RETURN(ret);
+}
+
+PHP_FUNCTION(swoole_server_sendfile)
+{
+	zval *zobject = getThis();
+	swServer *serv;
+	swSendData send_data;
+	char buffer[SW_BUFFER_SIZE];
+	char *filename;
+	long conn_fd;
+
+	if (zobject == NULL)
+	{
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ols", &zobject, swoole_server_class_entry_ptr, &conn_fd, &filename, &send_data.info.len) == FAILURE)
+		{
+			return;
+		}
+	}
+	else
+	{
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls", &conn_fd, &filename, &send_data.info.len) == FAILURE)
+		{
+			return;
+		}
+	}
+	if (send_data.info.len > SW_BUFFER_SIZE - 1)
+	{
+		zend_error(E_WARNING, "swoole_server: sendfile name too long. [MAX_LENGTH=%ld]", SW_BUFFER_SIZE - 1);
+		RETURN_FALSE;
+	}
+	SWOOLE_GET_SERVER(zobject, serv);
+
+	send_data.info.fd = (int)conn_fd;
+	send_data.info.type = SW_EVENT_SENDFILE;
+	memcpy(buffer, filename, send_data.info.len);
+	buffer[send_data.info.len] = 0;
+	send_data.info.len++;
+
+	send_data.data = buffer;
+	SW_CHECK_RETURN(serv->factory.finish(&serv->factory, &send_data));
 }
 
 PHP_FUNCTION(swoole_server_addlisten)

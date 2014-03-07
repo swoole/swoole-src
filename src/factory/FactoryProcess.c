@@ -533,6 +533,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	sdata._send.info.from_id = conn->from_id;
 	sendn = resp->info.len + sizeof(resp->info);
 
+	//swWarn("send: type=%d|content=%s", resp->info.type, resp->data);
 	swTrace("[Worker]wt_queue[%ld]->in| fd=%d", sdata.pti, fd);
 
 	for (count = 0; count < SW_WORKER_SENDTO_COUNT; count++)
@@ -550,7 +551,6 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 			pipe_i = reactor->id;
 		}
 		//swWarn("send to reactor. fd=%d|pipe_i=%d|reactor_id=%d|reactor_pipe_num=%d", fd, pipe_i, conn->from_id, serv->reactor_pipe_num);
-		sdata._send.data[resp->info.len] = 0;
 		ret = write(object->workers[pipe_i].pipe_worker, &sdata._send, sendn);
 #endif
 		//printf("wt_queue->in: fd=%d|from_id=%d|data=%s|ret=%d|errno=%d\n", sdata._send.info.fd, sdata._send.info.from_id, sdata._send.data, ret, errno);
@@ -854,49 +854,6 @@ static int swFactoryProcess_writer_start(swFactory *factory)
 }
 #endif
 
-int swFactoryProcess_writer_excute(swEventData *resp)
-{
-	int ret;
-	swServer *serv = SwooleG.serv;
-	swFactory *factory = SwooleG.factory;
-	swSendData send_data;
-	swDataHead closeFd;
-
-	//表示关闭
-	if (resp->info.len == 0)
-	{
-		close_fd:
-		{
-			closeFd.fd = resp->info.fd;
-			closeFd.from_id = resp->info.from_id;
-			closeFd.type = SW_EVENT_CLOSE;
-			swReactor *reactor = &(serv->reactor_threads[closeFd.from_id].reactor);
-			//printf("closeFd.fd=%d|from_id=%d\n", closeFd.fd, closeFd.from_id);
-			swServer_reactor_thread_onClose(reactor, &closeFd);
-		}
-		return SW_OK;
-	}
-	else
-	{
-		send_data.data = resp->data;
-		send_data.info.len = resp->info.len;
-		send_data.info.from_id = resp->info.from_id;
-		send_data.info.fd = resp->info.fd;
-		ret = factory->onFinish(factory, &send_data);
-		if (ret < 0)
-		{
-			//连接已被关闭
-			if (errno == ECONNRESET || errno == EBADF)
-			{
-				goto close_fd;
-			}
-			swWarn("factory->onFinish failed.fd=%d|from_id=%d. Error: %s[%d]", resp->info.fd, resp->info.from_id, strerror(errno), errno);
-		}
-		//printf("[writer]pop.fd=%d|from_id=%d|data=%s\n", resp->info.fd, resp->info.from_id, resp->data);
-	}
-	return SW_OK;
-}
-
 #if SW_WORKER_IPC_MODE == 2
 /**
  * 使用消息队列通信
@@ -923,7 +880,7 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 		}
 		else
 		{
-			swFactoryProcess_writer_excute((swEventData *)sdata.mdata);
+			swReactorThread_response((swEventData *)sdata.mdata);
 		}
 	}
 	pthread_exit((void *) param);
@@ -939,9 +896,10 @@ int swFactoryProcess_send2client(swReactor *reactor, swDataHead *ev)
 	//Unix Sock UDP
 	n = read(ev->fd, &resp, sizeof(resp));
 	swTrace("[WriteThread]recv: writer=%d|pipe=%d", ev->from_id, ev->fd);
+	//swWarn("send: type=%d|content=%s", resp.info.type, resp.data);
 	if (n > 0)
 	{
-		return swFactoryProcess_writer_excute(&resp);
+		return swReactorThread_response(&resp);
 	}
 	else
 	{

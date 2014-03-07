@@ -110,9 +110,9 @@ SWINLINE static void swConnection_close(swServer *serv, int fd, int notify)
 	}
 	else if (serv->open_length_check == 1)
 	{
-		if (conn->buffer != NULL)
+		if (conn->input_buffer != NULL)
 		{
-			swString_free(conn->buffer);
+			swString_free(conn->input_buffer);
 		}
 	}
 	//通知到worker进程
@@ -733,7 +733,7 @@ int swServer_new_connection(swServer *serv, swEvent *ev)
 	connection->fd = conn_fd;
 	connection->from_id = ev->from_id;
 	connection->from_fd = ev->from_fd;
-	connection->buffer = NULL;
+	connection->input_buffer = NULL;
 	connection->connect_time = SwooleGS->now;
 	connection->last_time = SwooleGS->now;
 	connection->active = 1; //使此连接激活,必须在最后，保证线程安全
@@ -1321,6 +1321,7 @@ static int swServer_reactor_thread_loop(swThreadParam *param)
 	reactor->setHandle(reactor, SW_FD_CLOSE, swServer_reactor_thread_onClose);
 	reactor->setHandle(reactor, SW_FD_UDP, swServer_poll_onPackage);
 	reactor->setHandle(reactor, SW_FD_SEND_TO_CLIENT, swFactoryProcess_send2client);
+	reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_WRITE, swServer_reactor_thread_onWrite);
 
 	int i, worker_id;
 	//worker进程绑定reactor

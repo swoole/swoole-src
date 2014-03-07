@@ -19,7 +19,7 @@
 
 SWINLINE swString* swConnection_get_buffer(swConnection *conn)
 {
-	swString *buffer = conn->buffer;
+	swString *buffer = conn->input_buffer;
 	if (buffer == NULL)
 	{
 		return swString_new(SW_BUFFER_SIZE);
@@ -32,11 +32,11 @@ SWINLINE swString* swConnection_get_buffer(swConnection *conn)
 
 SWINLINE void swConnection_clear_buffer(swConnection *conn)
 {
-	swString *buffer = conn->buffer;
+	swString *buffer = conn->input_buffer;
 	if (buffer != NULL)
 	{
 		swString_free(buffer);
-		conn->buffer = NULL;
+		conn->input_buffer = NULL;
 	}
 }
 

@@ -425,7 +425,7 @@ static swClient* swoole_client_create_socket(zval *object, char *host, int host_
 	ztype = zend_read_property(swoole_client_class_entry_ptr, object, SW_STRL("type")-1, 0 TSRMLS_CC);
 	if (ztype == NULL)
 	{
-		zend_error(E_WARNING, "get swoole_client->type failed.");
+		zend_error(E_ERROR, "get swoole_client->type failed.");
 		return NULL;
 	}
 	long type = Z_LVAL_P(ztype);
@@ -711,6 +711,7 @@ PHP_METHOD(swoole_client, __construct)
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|l", &ztype, &async) == FAILURE)
 	{
+		zend_error(E_ERROR, "swoole_client: require soclet type param.");
 		RETURN_FALSE;
 	}
 
