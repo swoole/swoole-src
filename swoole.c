@@ -235,6 +235,7 @@ const zend_function_entry swoole_functions[] =
 	/*------other-----*/
 	PHP_FE(swoole_client_select, NULL)
 	PHP_FE(swoole_set_process_name, NULL)
+	PHP_FE(swoole_strerror, NULL)
 #ifdef SW_ASYNC_MYSQL
 	PHP_FE(swoole_get_mysqli_sock, NULL)
 #endif
@@ -1804,6 +1805,18 @@ void php_swoole_onMasterClose(swServer *serv, int fd, int from_id)
 	{
 		zval_ptr_dtor(&retval);
 	}
+}
+
+
+PHP_FUNCTION(swoole_strerror)
+{
+	int swoole_errno = 0;
+	char error_msg[256] = {0};
+	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &swoole_errno) == FAILURE) {
+		return ;
+	}
+	snprintf(error_msg, sizeof(error_msg) -1 , "%s", strerror(swoole_errno));
+    RETURN_STRING(error_msg, 1);
 }
 
 PHP_FUNCTION(swoole_server_start)
