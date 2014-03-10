@@ -36,7 +36,7 @@ static int php_swoole_udp_from_id;
 
 extern sapi_module_struct sapi_module;
 
-/* {{{ arginfo */
+// arginfo server
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_create, 0, 0, 2)
 	ZEND_ARG_INFO(0, serv_host)
 	ZEND_ARG_INFO(0, serv_port)
@@ -138,6 +138,34 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_connection_list, 0, 0, 0)
 	ZEND_ARG_INFO(0, find_count)
 ZEND_END_ARG_INFO()
 
+//arginfo event
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_add, 0, 0, 2)
+	ZEND_ARG_INFO(0, fd)
+	ZEND_ARG_INFO(0, cb)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_del, 0, 0, 1)
+	ZEND_ARG_INFO(0, fd)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_exit, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_wait, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+//arginfo timer
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_add, 0, 0, 2)
+	ZEND_ARG_INFO(0, interval)
+	ZEND_ARG_INFO(0, cb)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_del, 0, 0, 1)
+	ZEND_ARG_INFO(0, interval)
+ZEND_END_ARG_INFO()
+
+//arginfo
+
 static int php_swoole_onReceive(swFactory *, swEventData *);
 static void php_swoole_onStart(swServer *);
 static void php_swoole_onShutdown(swServer *);
@@ -195,13 +223,13 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_connection_info, arginfo_swoole_connection_info)
 	PHP_FE(swoole_connection_list, arginfo_swoole_connection_list)
 	/*------swoole_event-----*/
-	PHP_FE(swoole_event_add, NULL)
-	PHP_FE(swoole_event_del, NULL)
-	PHP_FE(swoole_event_exit, NULL)
-	PHP_FE(swoole_event_wait, NULL)
+	PHP_FE(swoole_event_add, arginfo_swoole_event_add)
+	PHP_FE(swoole_event_del, arginfo_swoole_event_del)
+	PHP_FE(swoole_event_exit, arginfo_swoole_event_exit)
+	PHP_FE(swoole_event_wait, arginfo_swoole_event_wait)
 	/*------swoole_timer-----*/
-	PHP_FE(swoole_timer_add, NULL)
-	PHP_FE(swoole_timer_del, NULL)
+	PHP_FE(swoole_timer_add, arginfo_swoole_timer_add)
+	PHP_FE(swoole_timer_del, arginfo_swoole_timer_del)
 	/*------swoole_async_io------*/
 	PHP_FE(swoole_async_read, NULL)
 	PHP_FE(swoole_async_write, NULL)
