@@ -176,6 +176,8 @@ PHP_FUNCTION(swoole_async_writefile);
 PHP_FUNCTION(swoole_timer_add);
 PHP_FUNCTION(swoole_timer_del);
 
+PHP_FUNCTION(swoole_strerror);
+
 #ifdef SW_ASYNC_MYSQL
 PHP_FUNCTION(swoole_get_mysqli_sock);
 #endif

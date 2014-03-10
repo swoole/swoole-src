@@ -1,3 +1,3 @@
 <?php
 echo SWOOLE_VERSION,"\n";
-swoole_version();
+echo swoole_version();
