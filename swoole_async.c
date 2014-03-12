@@ -37,7 +37,7 @@ typedef struct {
 } swoole_async_request;
 
 static void php_swoole_check_aio();
-static void php_woole_aio_onComplete(struct io_event *events, int n);
+static void php_swoole_aio_onComplete(struct io_event *events, int n);
 static char php_swoole_aio_init = 0;
 
 static void php_swoole_check_aio()
@@ -46,13 +46,13 @@ static void php_swoole_check_aio()
 	{
 		php_swoole_check_reactor();
 		swoole_aio_init(SwooleG.main_reactor, PHP_SWOOLE_AIO_MAXEVENTS);
-		swoole_aio_set_callback(php_woole_aio_onComplete);
+		swoole_aio_set_callback(php_swoole_aio_onComplete);
 		php_swoole_try_run_reactor();
 		php_swoole_aio_init = 1;
 	}
 }
 
-static void php_woole_aio_onComplete(struct io_event *events, int n)
+static void php_swoole_aio_onComplete(struct io_event *events, int n)
 {
 	int i, argc;
 	int64_t ret;
