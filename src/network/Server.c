@@ -100,7 +100,7 @@ SWINLINE static void swConnection_close(swServer *serv, int fd, int notify)
 	{
 		return;
 	}
-	swTrace("Close Event.fd=%d|from=%d", event->fd, reactor_id);
+	swTrace("Close Event.fd=%d|from=%d", fd, reactor_id);
 
 	//释放缓存区占用的内存
 	if (serv->open_eof_check == 1)
