@@ -11,7 +11,8 @@ $serv->on('connect', function ($serv, $fd){
 });
 $serv->on('receive', function ($serv, $fd, $from_id, $data) {
     echo "Client[$fd]: $data\n";
-    //$serv->close($fd);
+    $serv->send($fd, "swoole: $data");
+	//$serv->close($fd);
 });
 $serv->on('close', function ($serv, $fd) {
     //echo "Client: Close.\n";

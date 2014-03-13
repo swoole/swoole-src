@@ -21,6 +21,6 @@ $client->on("close", function(swoole_client $cli){
 
 $client->connect('127.0.0.1', 9501, 0.5);
 
-echo "connect to 127.0.0.1:9501";
+echo "connect to 127.0.0.1:9501\n";
 //for PHP5.3-
 //swoole_event_wait();

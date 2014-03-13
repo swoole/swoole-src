@@ -231,7 +231,7 @@ static int php_swoole_client_onConnect(swReactor *reactor, swEvent *event)
 
 	if (getsockopt (event->fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0)
 	{
-		zend_error(E_WARNING, "swoole_client: getsockopt[sock=%d] fail.Error: %s [%d]", event->fd, strerror(errno), errno);
+		zend_error(E_WARNING, "swoole_client: getsockopt[sock=%d] failed. Error: %s[%d]", event->fd, strerror(errno), errno);
 		efree(hash_key);
 		return SW_ERR;
 	}
@@ -261,7 +261,7 @@ static int php_swoole_client_onConnect(swReactor *reactor, swEvent *event)
 		}
 		if (call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
 		{
-			zend_error(E_WARNING, "swoole_server: onReactorCallback handler error");
+			zend_error(E_WARNING, "swoole_client: onConnect handler error");
 			efree(hash_key);
 			return SW_ERR;
 		}
@@ -285,7 +285,7 @@ static int php_swoole_client_onConnect(swReactor *reactor, swEvent *event)
 		}
 		if (call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
 		{
-			zend_error(E_WARNING, "swoole_server: onReactorCallback handler error");
+			zend_error(E_WARNING, "swoole_client: onError handler error");
 			efree(hash_key);
 			return SW_ERR;
 		}
@@ -748,25 +748,20 @@ PHP_METHOD(swoole_client, connect)
 	}
 	cli = swoole_client_create_socket(getThis(), host, host_len, port);
 
-	if (cli->connected == 0)
+	if (cli->connected == 1)
 	{
-		if (cli->async == 1 && (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6))
-		{
-			//for tcp: nonblock
-			//for udp: have udp connect
-			sock_flag = 1;
-		}
-		ret = cli->connect(cli, host, port, (float) timeout, sock_flag);
-		if (ret < 0)
-		{
-			zend_error(E_WARNING, "swoole_client: connect to server[%s:%d] fail. Error: %s [%d]", host, (int)port, strerror(errno), errno);
-			MAKE_STD_ZVAL(errCode);
-			ZVAL_LONG(errCode, errno);
-			zend_update_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errCode TSRMLS_CC);
-			zval_ptr_dtor(&errCode);
-			RETURN_FALSE;
-		}
+		RETURN_TRUE;
 	}
+
+
+	if (cli->async == 1 && (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6))
+	{
+		//for tcp: nonblock
+		//for udp: have udp connect
+		sock_flag = 1;
+	}
+
+	ret = cli->connect(cli, host, port, (float) timeout, sock_flag);
 
 	//nonblock async
 	if (cli->async == 1)
@@ -817,6 +812,15 @@ PHP_METHOD(swoole_client, connect)
 		efree(hash_key);
 		php_swoole_try_run_reactor();
 		SW_CHECK_RETURN(ret);
+	}
+	else if (ret < 0)
+	{
+		zend_error(E_WARNING, "swoole_client: connect to server[%s:%d] fail. Error: %s [%d]", host, (int)port, strerror(errno), errno);
+		MAKE_STD_ZVAL(errCode);
+		ZVAL_LONG(errCode, errno);
+		zend_update_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errCode TSRMLS_CC);
+		zval_ptr_dtor(&errCode);
+		RETURN_FALSE;
 	}
 	RETURN_TRUE;
 }
@@ -978,9 +982,6 @@ PHP_METHOD(swoole_client, close)
 
 PHP_METHOD(swoole_client, on)
 {
-	zval **zres;
-	swClient *cli;
-
 	char *cb_name;
 	int i, cb_name_len;
 	zval *zcallback;
@@ -989,12 +990,6 @@ PHP_METHOD(swoole_client, on)
 	{
 		return;
 	}
-	if (zend_hash_find(Z_OBJPROP_P(getThis()), SW_STRL("_client"), (void **) &zres) != SUCCESS)
-	{
-		RETURN_FALSE;
-	}
-	ZEND_FETCH_RESOURCE(cli, swClient*, zres, -1, SW_RES_CLIENT_NAME, le_swoole_client);
-
 	//必须与define顺序一致
 	char *callbacks[PHP_CLIENT_CALLBACK_NUM] = {
 		"connect",
@@ -1007,17 +1002,12 @@ PHP_METHOD(swoole_client, on)
 	{
 		if(strncasecmp(callbacks[i], cb_name, cb_name_len) == 0)
 		{
-			//调用on接口自动修改为异步模式
-			if(cli->async == 0)
-			{
-				cli->async = 1;
-			}
 			zval_add_ref(&zcallback);
 			zend_update_property(swoole_client_class_entry_ptr, getThis(), cb_name, cb_name_len, zcallback TSRMLS_CC);
 			RETURN_TRUE;
 		}
 	}
-	zend_error(E_WARNING, "swoole_client: callback[%s] is unknow", cb_name);
+	zend_error(E_WARNING, "swoole_client: event callback[%s] is unknow", cb_name);
 	RETURN_FALSE;
 }
 
