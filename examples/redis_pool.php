@@ -1,4 +1,8 @@
 <?php
+#
+#u can test like this,
+#
+#/usr/local/php/bin/php bench.php -n 1000 -c 100 -s tcp://127.0.0.1:9508 -f short_tcp
 
 $serv = new swoole_server("0.0.0.0", 9508);
 
