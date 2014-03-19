@@ -14,6 +14,10 @@ if(!extension_loaded('swoole')){
     throw new Exception("install swoole extension, pecl install swoole");
 }
 
+if(!extension_loaded('redis')) {
+	throw new Exception("install redis extension, pecl install redis");
+}
+
 $serv = new swoole_server("0.0.0.0", 9508);
 
 $serv->set(array(
@@ -22,6 +26,9 @@ $serv->set(array(
 	'heartbeat_check_interval' => 5,
 	'heartbeat_idle_time' => 5,
     'open_cpu_affinity' => 1,
+	'open_eof_check'  => 1,
+	'package_eof'   => "\r\n\r\n",
+	'package_max_length' => 1024 * 16,
 	//'daemonize' => 1
 ));
 
@@ -56,9 +63,6 @@ function onTask($serv, $task_id, $from_id, $key)
 {
     static $redis = null;
     if ($redis == null) {
-        if(!extension_loaded('redis')) {
-            throw new Exception("install redis extension, pecl install redis");
-        }
         $redis = new Redis();
         $redis->pconnect("127.0.0.1", 6379);
         if (!$redis) {
