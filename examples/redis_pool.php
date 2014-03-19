@@ -34,7 +34,8 @@ function onReceive($serv, $fd, $from_id, $key)
 {
 	$key = trim($key);
     if($key === SERVER_RELOAD) { // check if this is a reload cmd
-        $serv->reload($serv);
+        $ret = $serv->reload($serv);
+        ($ret === true) ? $serv->send($fd, "reload success\n") : $serv->send($fd, "reload fail\n");
     }else {
 	    $result = $serv->taskwait($key);
 	    if ($result !== false) {
