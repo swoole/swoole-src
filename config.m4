@@ -274,27 +274,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/ProcessPool.c \
         src/network/ReactorThread.c \
         src/os/linux_aio.c \
-		src/zlog/buf.c \
-		src/zlog/category.c \
-		src/zlog/category_table.c \
-		src/zlog/conf.c \
-		src/zlog/event.c \
-		src/zlog/format.c \
-		src/zlog/level.c \
-		src/zlog/level_list.c \
-		src/zlog/mdc.c \
-		src/zlog/record.c \
-		src/zlog/record_table.c \
-		src/zlog/rotater.c \
-		src/zlog/rule.c \
-		src/zlog/spec.c \
-		src/zlog/thread.c \
-		src/zlog/zc_arraylist.c \
-		src/zlog/zc_hashtable.c \
-		src/zlog/zc_profile.c \
-		src/zlog/zc_util.c \
-		src/zlog/zlog.c \
-		src/zlog/zlog-chk-conf.c \
       , $ext_shared)
       
     PHP_ADD_INCLUDE([$ext_srcdir/include])
