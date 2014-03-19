@@ -1,4 +1,5 @@
 <?php
+
 #
 #u can test like this,
 #
@@ -14,6 +15,11 @@ $serv->set(array(
     'open_cpu_affinity' => 1,
 	//'daemonize' => 1
 ));
+
+function onStart($serv) {
+    echo "MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}\n";
+    echo "Server: start.Swoole version is [".SWOOLE_VERSION."]\n";
+}
 
 function onReceive($serv, $fd, $from_id, $key)
 {
@@ -36,8 +42,9 @@ function onTask($serv, $task_id, $from_id, $key)
 {
     static $redis = null;
     if ($redis == null) {
+    	extension
         $redis = new Redis();
-        $redis->connect("127.0.0.1", 6379, 1);
+        $redis->pconnect("127.0.0.1", 6379);
         if (!$redis) {
             $redis = null;
             $serv->finish("ER: Init Redis Fail.");
@@ -57,7 +64,9 @@ function onFinish($serv, $data)
     echo "AsyncTask Finish:Connect.PID=" . posix_getpid() . PHP_EOL;
 }
 
+$serv->on('Start', 'onStart');
 $serv->on('Receive', 'onReceive');
 $serv->on('Task', 'onTask');
 $serv->on('Finish', 'onFinish');
 $serv->start();
+
