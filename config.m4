@@ -285,6 +285,5 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_BUILD_DIR($ext_builddir/src/queue)
     PHP_ADD_BUILD_DIR($ext_builddir/src/lock)
     PHP_ADD_BUILD_DIR($ext_builddir/src/network)
-    PHP_ADD_BUILD_DIR($ext_builddir/src/zlog)
 fi
 
