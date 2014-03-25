@@ -91,6 +91,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_addtimer, 0, 0, 0)
 	ZEND_ARG_INFO(0, interval)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_addtimer_oo, 0, 0, 0)
+	ZEND_ARG_INFO(0, interval)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_deltimer, 0, 0, 0)
 	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
 	ZEND_ARG_INFO(0, interval)
@@ -252,7 +256,7 @@ static zend_function_entry swoole_server_methods[] = {
 	PHP_FALIAS(taskwait, swoole_server_taskwait, arginfo_swoole_server_taskwait)
 	PHP_FALIAS(finish, swoole_server_finish, arginfo_swoole_server_finish)
 	PHP_FALIAS(addlistener, swoole_server_addlisten, arginfo_swoole_server_addlisten)
-	PHP_FALIAS(addtimer, swoole_server_addtimer, arginfo_swoole_server_addtimer)
+	PHP_FALIAS(addtimer, swoole_server_addtimer, arginfo_swoole_server_addtimer_oo)
 	PHP_FALIAS(deltimer, swoole_server_deltimer, arginfo_swoole_server_deltimer)
 	PHP_FALIAS(reload, swoole_server_reload, arginfo_swoole_server_reload)
 	PHP_FALIAS(shutdown, swoole_server_shutdown, arginfo_swoole_server_shutdown)
@@ -2029,11 +2033,19 @@ PHP_FUNCTION(swoole_server_sendfile)
 			return;
 		}
 	}
+	//file name size
 	if (send_data.info.len > SW_BUFFER_SIZE - 1)
 	{
 		zend_error(E_WARNING, "swoole_server: sendfile name too long. [MAX_LENGTH=%ld]", SW_BUFFER_SIZE - 1);
 		RETURN_FALSE;
 	}
+	//check file exists
+	if (access(send_data.data, R_OK) < 0)
+	{
+		zend_error(E_WARNING, "swoole_server: file[%s] not found.", send_data.data);
+		RETURN_FALSE;
+	}
+
 	SWOOLE_GET_SERVER(zobject, serv);
 
 	send_data.info.fd = (int)conn_fd;

@@ -1,10 +1,11 @@
 <?php
 $serv = new swoole_server("127.0.0.1", 9501);
+$serv->set(array('worker_num' => 1));
 $serv->on('timer', function($serv, $interval) {
 	echo "onTimer: $interval\n";
 });
 $serv->on('workerStart', function($serv, $worker_id) {
-	//if($worker_id == 0) $serv->addtimer(300);
+	if($worker_id == 0) $serv->addtimer(600);
 });
 $serv->on('connect', function ($serv, $fd){
     echo "Client:Connect.\n";

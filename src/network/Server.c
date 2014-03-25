@@ -1842,7 +1842,6 @@ void swSignalInit(void)
 	swSignalSet(SIGUSR1, SIG_IGN, 1, 0);
 	swSignalSet(SIGUSR2, SIG_IGN, 1, 0);
 	swSignalSet(SIGTERM, swSignalHanlde, 1, 0);
-	swSignalSet(SIGALRM, swTimer_signal_handler, 1, 0);
 }
 
 int swServer_addListen(swServer *serv, int type, char *host, int port)

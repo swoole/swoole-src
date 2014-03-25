@@ -199,7 +199,7 @@ int main(int argc, char **argv)
 	//serv.open_tcp_nodelay = 1;
 	//serv.daemonize = 1;
 	serv.open_eof_check = 0;
-	memcpy(serv.data_eof, SW_STRL("\r\n\r\n")-1);      //开启eof检测，启用buffer区
+	memcpy(serv.package_eof, SW_STRL("\r\n\r\n")-1);      //开启eof检测，启用buffer区
 //	memcpy(serv.log_file, SW_STRL("/tmp/swoole.log")); //日志
 
 	serv.dispatch_mode = 2;

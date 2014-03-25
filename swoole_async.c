@@ -18,9 +18,7 @@
 #include "php_streams.h"
 #include "php_network.h"
 
-#ifdef HAVE_EVENTFD
-#include "linux_aio.h"
-#endif
+#include "async.h"
 
 #define PHP_SWOOLE_AIO_MAXEVENTS       128
 #define PHP_SWOOLE_AIO_MAX_FILESIZE    4194304
@@ -37,7 +35,7 @@ typedef struct {
 } swoole_async_request;
 
 static void php_swoole_check_aio();
-static void php_swoole_aio_onComplete(struct io_event *events, int n);
+static void php_swoole_aio_onComplete(swAio_event *event);
 static char php_swoole_aio_init = 0;
 
 static void php_swoole_check_aio()
@@ -52,11 +50,10 @@ static void php_swoole_check_aio()
 	}
 }
 
-static void php_swoole_aio_onComplete(struct io_event *events, int n)
+static void php_swoole_aio_onComplete(swAio_event *event)
 {
-	int i, argc;
+	int argc;
 	int64_t ret;
-	struct iocb *iocb;
 
 	zval *retval;
 	zval *zcontent;
@@ -66,56 +63,53 @@ static void php_swoole_aio_onComplete(struct io_event *events, int n)
 
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-	for (i = 0; i < n; i++)
+	if(zend_hash_find(&php_sw_aio_callback, (char *)&(event->fd), sizeof(event->fd), (void**)&req) != SUCCESS)
 	{
-		iocb = (struct iocb *) events[i].obj;
-		if(zend_hash_find(&php_sw_aio_callback, (char *)&(iocb->aio_fildes), sizeof(iocb->aio_fildes), (void**)&req) != SUCCESS)
-		{
-			zend_error(E_WARNING, "swoole_async: onAsyncComplete callback not found[1]");
-			return;
-		}
+		zend_error(E_WARNING, "swoole_async: onAsyncComplete callback not found[1]");
+		return;
+	}
 
-		if (req->callback == NULL && req->type == IOCB_CMD_PREAD)
-		{
-			zend_error(E_WARNING, "swoole_async: onAsyncComplete callback not found[2]");
-			return;
-		}
-		ret = (int64_t) events[i].res;
-		if (ret < 0)
-		{
-			zend_error(E_WARNING, "swoole_async: Aio Error: %s[%d]", strerror((-ret)), (int) ret);
-			return;
-		}
-		if (ret < req->content_length)
-		{
-			zend_error(E_WARNING, "swoole_async: return length < req->length.");
-		}
+	if (req->callback == NULL && req->type == SW_AIO_READ)
+	{
+		zend_error(E_WARNING, "swoole_async: onAsyncComplete callback not found[2]");
+		return;
+	}
 
-		args[0] = &req->filename;
-		if (req->type == IOCB_CMD_PREAD)
-		{
-			ZVAL_STRINGL(zcontent, req->file_content, ret, 0);
-			args[1] = &zcontent;
-			argc = 2;
-		}
-		else
-		{
-			argc = 1;
-		}
+	ret = event->ret;
+	if (ret < 0)
+	{
+		zend_error(E_WARNING, "swoole_async: Aio Error: %s[%d]", strerror((-ret)), (int) ret);
+		return;
+	}
 
-		if (call_user_function_ex(EG(function_table), NULL, req->callback, &retval, argc, args, 0, NULL TSRMLS_CC) == FAILURE)
-		{
-			zend_error(E_WARNING, "swoole_async: onAsyncComplete handler error");
-			return;
-		}
+	if (ret < req->content_length)
+	{
+		zend_error(E_WARNING, "swoole_async: return length < req->length.");
+	}
 
-		//readfile/writefile 只操作一次,完成后释放缓存区并关闭文件
-		if (req->once == 1)
-		{
-			free(req->file_content);
-			close(iocb->aio_fildes);
-		}
-		//free(iocb);
+	args[0] = &req->filename;
+	if (req->type == SW_AIO_READ)
+	{
+		ZVAL_STRINGL(zcontent, req->file_content, ret, 0);
+		args[1] = &zcontent;
+		argc = 2;
+	}
+	else
+	{
+		argc = 1;
+	}
+
+	if (call_user_function_ex(EG(function_table), NULL, req->callback, &retval, argc, args, 0, NULL TSRMLS_CC) == FAILURE)
+	{
+		zend_error(E_WARNING, "swoole_async: onAsyncComplete handler error");
+		return;
+	}
+
+	//readfile/writefile 只操作一次,完成后释放缓存区并关闭文件
+	if (req->once == 1)
+	{
+		free(req->file_content);
+		close(event->fd);
 	}
 	zval_ptr_dtor(&zcontent);
 }
@@ -135,13 +129,19 @@ PHP_FUNCTION(swoole_async_readfile)
 	zval *cb;
 	zval *filename;
 
+#ifdef HAVE_LINUX_NATIVE_AIO
+	int open_flag =  O_RDONLY | O_DIRECT;
+#else
+	int open_flag = O_RDONLY;
+#endif
+
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zz", &filename, &cb) == FAILURE)
 	{
 		return;
 	}
 	convert_to_string(filename);
 
-	int fd = open(Z_STRVAL_P(filename), O_RDONLY | O_DIRECT, 0644);
+	int fd = open(Z_STRVAL_P(filename), open_flag, 0644);
 	if (fd < 0)
 	{
 		zend_error(E_WARNING, "swoole_async_readfile: open file failed. Error: %s[%d]", strerror(errno), errno);
@@ -167,13 +167,24 @@ PHP_FUNCTION(swoole_async_readfile)
 	}
 
 	void *fcnt;
+#ifdef HAVE_LINUX_NATIVE_AIO
 	int buf_len = file_stat.st_size + (sysconf(_SC_PAGESIZE) - (file_stat.st_size % sysconf(_SC_PAGESIZE)));
 	if (posix_memalign((void **)&fcnt, sysconf(_SC_PAGESIZE), buf_len))
 	{
 		zend_error(E_WARNING, "posix_memalign failed. Error: %s[%d]", strerror(errno), errno);
 		RETURN_FALSE;
 	}
+#else
+	int buf_len = file_stat.st_size;
+	fcnt = sw_malloc(buf_len);
+	if (fcnt == NULL)
+	{
+		zend_error(E_WARNING, "malloc failed. Error: %s[%d]", strerror(errno), errno);
+		RETURN_FALSE;
+	}
+#endif
 
+	//printf("buf_len=%d|addr=%p\n", buf_len, fcnt);
 	//printf("pagesize=%d|st_size=%d\n", sysconf(_SC_PAGESIZE), buf_len);
 
 	swoole_async_request req;
@@ -182,15 +193,16 @@ PHP_FUNCTION(swoole_async_readfile)
 	req.callback = cb;
 	req.file_content = fcnt;
 	req.once = 1;
-	req.type = IOCB_CMD_PREAD;
+	req.type = SW_AIO_READ;
 	req.content_length = file_stat.st_size;
 	req.offset = 0;
+
 	zval_add_ref(&cb);
 	zval_add_ref(&filename);
 
 	if(zend_hash_update(&php_sw_aio_callback, (char *)&fd, sizeof(fd), &req, sizeof(swoole_async_request), NULL) == FAILURE)
 	{
-		zend_error(E_WARNING, "swoole_async_writefile add to hashtable failed");
+		zend_error(E_WARNING, "swoole_async_readfile add to hashtable failed");
 		RETURN_FALSE;
 	}
 
@@ -204,6 +216,12 @@ PHP_FUNCTION(swoole_async_writefile)
 	zval *filename;
 	char *fcnt;
 	int fcnt_len;
+
+#ifdef HAVE_LINUX_NATIVE_AIO
+	int open_flag =  O_RDONLY | O_DIRECT;
+#else
+	int open_flag = O_RDONLY;
+#endif
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zs|z", &filename, &fcnt, &fcnt_len, &cb) == FAILURE)
 	{
@@ -221,7 +239,7 @@ PHP_FUNCTION(swoole_async_writefile)
 				fcnt_len, PHP_SWOOLE_AIO_MAX_FILESIZE);
 		RETURN_FALSE;
 	}
-	int fd = open(Z_STRVAL_P(filename), O_WRONLY | O_CREAT | O_DIRECT, 0644);
+	int fd = open(Z_STRVAL_P(filename), open_flag, 0644);
 	if (fd < 0)
 	{
 		zend_error(E_WARNING, "swoole_async_writefile: open file failed. Error: %s[%d]", strerror(errno), errno);
@@ -238,7 +256,7 @@ PHP_FUNCTION(swoole_async_writefile)
 	req.fd = fd;
 	req.filename = filename;
 	req.callback = cb;
-	req.type = IOCB_CMD_PWRITE;
+	req.type = SW_AIO_WRITE;
 	req.file_content = wt_cnt;
 	req.once = 1;
 	req.content_length = fcnt_len;

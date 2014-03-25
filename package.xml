@@ -65,7 +65,7 @@
 				<file role="src" name="uthash.h" />
 				<file role="src" name="tests.h" />
 				<file role="src" name="array.h" />
-				<file role="src" name="linux_aio.h" />
+				<file role="src" name="async.h" />
 			</dir>
 			<dir name="examples">
 				<file role="src" name="server.php" />
@@ -114,7 +114,9 @@
 					<file role="src" name="ReactorKqueue.c" />
 				</dir>
 				<dir name="os">
-                    <file role="src" name="aio.c" />
+				    <file role="src" name="base.c" />
+                    <file role="src" name="gcc_aio.c" />
+                    <file role="src" name="linux_aio.c" />
                 </dir>
 				<dir name="pipe">
 					<file role="src" name="PipeBase.c" />

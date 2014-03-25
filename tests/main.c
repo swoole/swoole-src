@@ -27,6 +27,8 @@ int main(int argc, char **argv)
 	swUnitTest_steup(u1_test2, 1);
 
 	swUnitTest_steup(aio_test, 1);
+	swUnitTest_steup(aio_test2, 1);
+
 	swUnitTest_steup(rbtree_test, 1);
 	//swUnitTest_steup(pool_thread, 1);
 

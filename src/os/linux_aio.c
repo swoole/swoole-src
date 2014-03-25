@@ -1,16 +1,12 @@
 #include "swoole.h"
-#include "linux_aio.h"
+
+#ifdef HAVE_LINUX_NATIVE_AIO
 
 static aio_context_t swoole_aio_context;
-static swPipe swoole_aio_pipe;
 static int swoole_aio_eventfd;
-static int swoole_aio_have_init = 0;
-static swReactor *swoole_aio_reactor;
+static int swoole_aio_eventfd;
 
-static void swoole_aio_callback(struct io_event *events, int n);
 static int swoole_aio_onFinish(swReactor *reactor, swEvent *event);
-
-void (*swoole_aio_complete_callback)(struct io_event *events, int n);
 
 SWINLINE int io_setup(unsigned n_request, aio_context_t *context)
 {
@@ -63,6 +59,7 @@ int swoole_aio_init(swReactor *_reactor, int max_aio_events)
 static int swoole_aio_onFinish(swReactor *reactor, swEvent *event)
 {
 	struct io_event events[SW_AIO_MAX_EVENTS];
+	swAio_event aio_ev;
 	uint64_t finished_aio;
 	struct timespec tms;
 	int i, n;
@@ -81,7 +78,16 @@ static int swoole_aio_onFinish(swReactor *reactor, swEvent *event)
 		n = io_getevents(swoole_aio_context, 1, SW_AIO_MAX_EVENTS, events, &tms);
 		if (n > 0)
 		{
-			swoole_aio_complete_callback(events, n);
+			for (i = 0; i < n; i++)
+			{
+				aio_ev.ret = ret;
+				aio_ev.fd = req->aiocb.aio_fildes;
+				aio_ev.type = req->aiocb.aio_lio_opcode == LIO_READ ? SW_AIO_READ: SW_AIO_WRITE;
+				aio_ev.nbytes = ret;
+				aio_ev.offset = req->aiocb.aio_offset;
+				aio_ev.buf = req->aiocb.aio_buf;
+				swoole_aio_complete_callback(&aio_ev);
+			}
 			i += n;
 			finished_aio -= n;
 		}
@@ -122,7 +128,12 @@ int swoole_aio_read(int fd, void *outbuf, size_t size, off_t offset)
 int swoole_aio_write(int fd, void *inbuf, size_t size, off_t offset)
 {
     struct iocb *iocbps[1];
-    struct iocb *iocbp = malloc(sizeof(struct iocb));
+    struct iocb *iocbp = sw_malloc(sizeof(struct iocb));
+    if(iocbp == NULL)
+    {
+    	swWarn("malloc failed.");
+    	return SW_ERR;
+    }
     bzero(iocbp, sizeof(struct iocb));
 
     iocbp->aio_fildes = fd;
@@ -143,21 +154,4 @@ int swoole_aio_write(int fd, void *inbuf, size_t size, off_t offset)
     return SW_ERR;
 }
 
-static void swoole_aio_callback(struct io_event *events, int n)
-{
-	int i;
-	struct iocb *iocb;
-
-	printf("events: n=%d\n", n);
-
-	for (i = 0; i < n; i++)
-	{
-		iocb = (struct iocb *) events[i].obj;
-		printf("fd: %d, request_type: %s, offset: %ld, length: %lu, res: %ld, res2: %ld\n", (uint32_t)iocb->aio_fildes,
-				(iocb->aio_lio_opcode == IOCB_CMD_PREAD) ? "READ" : "WRITE", (uint64_t) iocb->aio_offset, (uint64_t) iocb->aio_nbytes,
-					(int64_t) events[i].res, (int64_t) events[i].res2);
-		free(iocb);
-	}
-
-	SwooleG.running = 0;
-}
+#endif
