@@ -47,6 +47,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_create, 0, 0, 2)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_set, 0, 0, 1)
+	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
 	ZEND_ARG_INFO(0, zset)
 ZEND_END_ARG_INFO()
 
@@ -55,6 +56,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_set_oo, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_start, 0, 0, 0)
+	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
 ZEND_END_ARG_INFO()
 
 //for object style
@@ -62,6 +64,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_start_oo, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_send, 0, 0, 2)
+	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
 	ZEND_ARG_INFO(0, conn_fd)
 	ZEND_ARG_INFO(0, send_data)
 	ZEND_ARG_INFO(0, from_id)
@@ -75,6 +78,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_send_oo, 0, 0, 2)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_sendfile, 0, 0, 2)
+	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
 	ZEND_ARG_INFO(0, conn_fd)
 	ZEND_ARG_INFO(0, filename)
 ZEND_END_ARG_INFO()
@@ -86,6 +90,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_sendfile_oo, 0, 0, 2)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_close, 0, 0, 1)
+	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
 	ZEND_ARG_INFO(0, fd)
 ZEND_END_ARG_INFO()
 
@@ -94,6 +99,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_close_oo, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_handler, 0, 0, 2)
+	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
 	ZEND_ARG_INFO(0, ha_name)
 	ZEND_ARG_INFO(0, cb)
 ZEND_END_ARG_INFO()
@@ -104,6 +110,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_handler_oo, 0, 0, 2)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_on, 0, 0, 2)
+	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
 	ZEND_ARG_INFO(0, ha_name)
 	ZEND_ARG_INFO(0, cb)
 ZEND_END_ARG_INFO()
@@ -114,6 +121,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_on_oo, 0, 0, 2)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_addlisten, 0, 0, 3)
+	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
 	ZEND_ARG_INFO(0, host)
 	ZEND_ARG_INFO(0, port)
 	ZEND_ARG_INFO(0, sock_type)
@@ -126,6 +134,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_addlisten_oo, 0, 0, 3)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_addtimer, 0, 0, 1)
+	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
 	ZEND_ARG_INFO(0, interval)
 ZEND_END_ARG_INFO()
 
@@ -134,6 +143,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_addtimer_oo, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_deltimer, 0, 0, 1)
+	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
 	ZEND_ARG_INFO(0, interval)
 ZEND_END_ARG_INFO()
 
@@ -143,6 +153,7 @@ ZEND_END_ARG_INFO()
 
 //function style
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_task, 0, 0, 2)
+	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
 	ZEND_ARG_INFO(0, data)
 	ZEND_ARG_INFO(0, worker_id)
 ZEND_END_ARG_INFO()
@@ -155,6 +166,7 @@ ZEND_END_ARG_INFO()
 
 //function style
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_taskwait, 0, 0, 1)
+	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
 	ZEND_ARG_INFO(0, data)
 	ZEND_ARG_INFO(0, timeout)
 	ZEND_ARG_INFO(0, worker_id)
@@ -167,6 +179,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_taskwait_oo, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_finish, 0, 0, 1)
+	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
 	ZEND_ARG_INFO(0, data)
 ZEND_END_ARG_INFO()
 
@@ -175,18 +188,21 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_finish_oo, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_reload, 0, 0, 0)
+	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_reload_oo, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_shutdown, 0, 0, 0)
+	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_shutdown_oo, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_heartbeat, 0, 0, 1)
+	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
 	ZEND_ARG_INFO(0, from_id)
 ZEND_END_ARG_INFO()
 
@@ -195,6 +211,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_heartbeat_oo, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_connection_info, 0, 0, 2)
+	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
 	ZEND_ARG_INFO(0, fd)
 	ZEND_ARG_INFO(0, from_id)
 ZEND_END_ARG_INFO()
@@ -205,6 +222,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_connection_info_oo, 0, 0, 2)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_connection_list, 0, 0, 2)
+	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
 	ZEND_ARG_INFO(0, start_fd)
 	ZEND_ARG_INFO(0, find_count)
 ZEND_END_ARG_INFO()
