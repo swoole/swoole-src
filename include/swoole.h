@@ -789,7 +789,7 @@ int swThreadPool_free(swThreadPool *pool);
 typedef struct _swTimer_node
 {
 	struct _swTimerList_node *next, *prev;
-	time_t lasttime;
+	uint64_t lasttime;
 	int interval;
 } swTimer_node;
 
@@ -812,7 +812,7 @@ int swTimer_free(swTimer *timer);
 int swTimer_add(swTimer *timer, int ms);
 void swTimer_signal_handler(int sig);
 int swTimer_event_handler(swReactor *reactor, swEvent *event);
-SWINLINE time_t swTimer_get_ms();
+SWINLINE uint64_t swTimer_get_ms();
 
 typedef struct swServer_s swServer;
 
