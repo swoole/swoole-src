@@ -152,7 +152,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_deltimer_oo, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 //function style
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_task, 0, 0, 3)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_task, 0, 0, 2)
 	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
 	ZEND_ARG_INFO(0, data)
 	ZEND_ARG_INFO(0, worker_id)
@@ -210,7 +210,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_heartbeat_oo, 0, 0, 1)
 	ZEND_ARG_INFO(0, from_id)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_connection_info, 0, 0, 3)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_connection_info, 0, 0, 2)
 	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
 	ZEND_ARG_INFO(0, fd)
 	ZEND_ARG_INFO(0, from_id)
