@@ -136,8 +136,10 @@
 				<dir name="network">
 					<file role="src" name="Server.c" />
 					<file role="src" name="Client.c" />
-					<file role="src" name="buffer.c" />
+					<file role="src" name="Buffer.c" />
 					<file role="src" name="ProcessPool.c" />
+					<file role="src" name="ReactorThread.c" />
+					<file role="src" name="Connection.c" />
 				</dir>
 			</dir>
 		</dir>

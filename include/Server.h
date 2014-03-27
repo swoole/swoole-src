@@ -59,6 +59,9 @@ extern "C" {
 #define SW_EVENT_PACKAGE_END       11
 #define SW_EVENT_SENDFILE          12
 
+#define SW_TRUNK_DATA              0 //send data
+#define SW_TRUNK_SENDFILE          1 //send file
+
 #define SW_STATUS_EMPTY            0
 #define SW_STATUS_ACTIVE           1
 #define SW_STATUS_CLOSED           2
@@ -84,7 +87,6 @@ typedef struct _swThreadPoll
 	pthread_t ptid; //线程ID
 	swReactor reactor;
 	swUdpFd *udp_addrs;
-	swDataBuffer data_buffer;
 	swCloseQueue close_queue;
 	int c_udp_fd;
 } swThreadPoll;
@@ -113,13 +115,10 @@ typedef struct _swConnection {
 	uint16_t from_fd;   //从哪个ServerFD引发的
 	struct sockaddr_in addr; //socket的地址
 
-	uint8_t buffer_num; //buffer的数量
-	swString *input_buffer;    //缓存区
+	swString *string_buffer;    //缓存区
 
-	union
-	{
-		swTask_sendfile *send_file;
-	} output;
+	swBuffer *in_buffer;
+	swBuffer *out_buffer;
 
 	time_t connect_time; //连接时间戳
 	time_t last_time;	 //最近一次收到数据的时间
@@ -264,7 +263,8 @@ void swTaskWorker_onWorkerStart(swProcessPool *pool, int worker_id);
 #define swPackage_data(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->str:task->data)
 #define swPackage_length(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->length:task->info.len)
 
-int swServer_new_connection(swServer *serv, swEvent *ev);
+SWINLINE int swServer_new_connection(swServer *serv, swEvent *ev);
+SWINLINE void swConnection_close(swServer *serv, int fd, int notify);
 
 #define SW_SERVER_MAX_FD_INDEX        0
 #define SW_SERVER_MIN_FD_INDEX        1
@@ -276,12 +276,19 @@ int swServer_new_connection(swServer *serv, swEvent *ev);
 //使用connection_list[1]表示最小的FD
 #define swServer_set_minfd(serv,maxfd) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd=maxfd)
 #define swServer_get_minfd(serv) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd)
-SWINLINE swString* swConnection_get_buffer(swConnection *conn);
-SWINLINE void swConnection_clear_buffer(swConnection *conn);
+SWINLINE swString* swConnection_get_string_buffer(swConnection *conn);
+SWINLINE void swConnection_clear_string_buffer(swConnection *conn);
+SWINLINE swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type);
 
-int swReactorThread_response(swEventData *resp);
-int swServer_reactor_thread_onClose(swReactor *reactor, swEvent *event);
-int swServer_reactor_thread_onWrite(swReactor *reactor, swDataHead *ev);
+int swReactorThread_onClose(swReactor *reactor, swEvent *event);
+int swReactorThread_onWrite(swReactor *reactor, swDataHead *ev);
+int swReactorThread_send(swEventData *resp);
+void swReactorThread_onTimeout(swReactor *reactor);
+void swReactorThread_onFinish(swReactor *reactor);
+int swReactorThread_close_queue(swReactor *reactor, swCloseQueue *close_queue);
+int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event);
+int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event);
+int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *event);
 
 #ifdef __cplusplus
 }

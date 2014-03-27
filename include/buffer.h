@@ -13,37 +13,35 @@ extern "C"
 {
 #endif
 
-typedef struct _swDataBuffer_trunk
+typedef struct _swBuffer_trunk
 {
-	char *data;
-	uint32_t len;
-	struct _swDataBuffer_trunk *next;
-} swDataBuffer_trunk;
+	void *data;
+	uint32_t type;
+	uint32_t length;
+	uint16_t offset;
+	struct _swBuffer_trunk *next;
+} swBuffer_trunk;
 
-typedef struct _swDataBuffer_item
+typedef struct _swBuffer
 {
 	int fd;
 	uint8_t trunk_num; //trunk数量
-	uint32_t length;
-	swDataBuffer_trunk *head;
-	swDataBuffer_trunk *tail;
-} swDataBuffer_item;
-
-typedef struct _swDataBuffer
-{
-	swHashMap map;
 	uint16_t trunk_size;
-	uint16_t max_length; //最大数据量
-} swDataBuffer;
+	uint32_t length;
+	swBuffer_trunk *head;
+	swBuffer_trunk *tail;
+} swBuffer;
 
-#define swDataBuffer_getTrunk(data_buffer, item)   (item->tail)
+#define swBuffer_get_trunk(buffer)  (buffer->tail)
+#define swBuffer_empty(buffer) (buffer == NULL || buffer->head == NULL)
 
-swDataBuffer_item* swDataBuffer_newItem(swDataBuffer *data_buffer, int fd, int trunk_size);
-swDataBuffer_trunk *swDataBuffer_newTrunk(swDataBuffer *data_buffer, swDataBuffer_item *item);
-swDataBuffer_item *swDataBuffer_getItem(swDataBuffer *data_buffer, int fd);
-int swDataBuffer_clear(swDataBuffer *data_buffer, int fd);
-void swDataBuffer_debug(swDataBuffer *data_buffer, swDataBuffer_item *item);
-int swDataBuffer_flush(swDataBuffer *data_buffer, swDataBuffer_item *item);
+SWINLINE swBuffer* swBuffer_new(int trunk_size);
+swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint32_t alloc_memory);
+SWINLINE void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk);
+
+void swBuffer_debug(swBuffer *buffer);
+int swBuffer_flush(swBuffer *buffer);
+int swBuffer_free(swBuffer *buffer);
 
 #ifdef __cplusplus
 }

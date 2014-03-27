@@ -224,6 +224,7 @@ SWINLINE int swRead(int fd, void *buf, int len)
  */
 void swBreakPoint()
 {
+
 }
 
 SWINLINE int swWrite(int fd, void *buf, int count)
@@ -244,8 +245,7 @@ SWINLINE int swWrite(int fd, void *buf, int count)
 			}
 			else if (errno == EAGAIN)
 			{
-				swYield();
-				continue;
+				break;
 			}
 			else
 			{

@@ -256,7 +256,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_del, 0, 0, 1)
 	ZEND_ARG_INFO(0, interval)
 ZEND_END_ARG_INFO()
 
-//arginfo
+//arginfo end
 
 static int php_swoole_onReceive(swFactory *, swEventData *);
 static void php_swoole_onStart(swServer *);
