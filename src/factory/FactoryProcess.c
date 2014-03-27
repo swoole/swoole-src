@@ -753,6 +753,7 @@ int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int work
 		//使用fd取摸来散列
 		else if (serv->dispatch_mode == SW_DISPATCH_FDMOD)
 		{
+			//Fixed #48. 替换一下顺序
 			//udp use remote port
 			if (data->info.type == SW_EVENT_UDP)
 			{
