@@ -115,7 +115,7 @@ static void *swThreadPool_loop(swThreadParam *param)
 	swThread_task task;
 	int ret;
 
-	swTrace("starting thread 0x%lx|id=%d\n", pthread_self(), id);
+	swTrace("starting thread 0x%lx|id=%d", pthread_self(), id);
 	while (SwooleG.running)
 	{
 		pthread_mutex_lock(&(pool->mutex));

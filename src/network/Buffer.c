@@ -54,14 +54,14 @@ SWINLINE swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_
 
 	if (type == SW_TRUNK_SENDFILE)
 	{
-		trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_SENDFILE, 0);
+		trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_SENDFILE);
 	}
 	else
 	{
 		trunk = swBuffer_get_trunk(conn->out_buffer);
 		if (trunk == NULL)
 		{
-			trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_DATA, 1);
+			trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_DATA);
 		}
 	}
 	return trunk;
@@ -83,7 +83,7 @@ swBuffer* swBuffer_new(int trunk_size)
 	return buffer;
 }
 
-swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint32_t alloc_memory)
+swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type)
 {
 	swBuffer_trunk *trunk = sw_malloc(sizeof(swBuffer_trunk));
 	if (trunk == NULL)
@@ -92,8 +92,10 @@ swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint32_t all
 		return NULL;
 	}
 
-	//alloc memory ?
-	if (alloc_memory)
+	/**
+	 * [type=SW_TRUNK_DATA] will alloc memory
+	 */
+	if (type == 0)
 	{
 		void *buf = sw_malloc(buffer->trunk_size);
 		if (buf == NULL)
@@ -135,6 +137,10 @@ SWINLINE void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk)
 		buffer->head = trunk->next;
 		buffer->trunk_num --;
 	}
+	if (trunk->type == SW_TRUNK_DATA)
+	{
+		sw_free(trunk->data);
+	}
 	sw_free(trunk);
 }
 
@@ -172,7 +178,10 @@ int swBuffer_free(swBuffer *buffer)
 	swBuffer_trunk *will_free_trunk; //保存trunk的指针，用于释放内存
 	while (trunk != NULL)
 	{
-		sw_free(trunk->data);
+		if (trunk->type == SW_TRUNK_DATA)
+		{
+			sw_free(trunk->data);
+		}
 		will_free_trunk = trunk;
 		trunk = trunk->next;
 		sw_free(will_free_trunk);

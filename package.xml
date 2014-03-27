@@ -26,11 +26,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-	<date>2014-02-27</date>
+	<date>2014-03-31</date>
 	<time>10:51:51</time>
 	<version>
-		<release>1.6.11</release>
-		<api>1.6.11</api>
+		<release>1.6.12</release>
+		<api>1.6.12</api>
 	</version>
 	<stability>
 		<release>stable</release>
@@ -38,14 +38,8 @@
 	</stability>
 	<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
 	<notes>
-	- Disable by default async_mysql
-	- Disable by default sockets
-	- Added event onWorkerError
-	- Added event onWorkerStart for task_worker
-	- swoole_server->task can assign worker_id
-	- swoole_server->set() save params to swoole_server::$setting
-	- swoole_client->send will check data length
-	- swoole_server->connection_info for udp
+	- Added connection out_buffer
+	- Added async file read/write
 	</notes>
 	<contents>
 		<dir name="/">
@@ -160,6 +154,28 @@
 	<providesextension>swoole</providesextension>
 	<extsrcrelease />
 	<changelog>
+	   <release>
+	   <date>2014-02-27</date>
+    <version>
+        <release>1.6.11</release>
+        <api>1.6.11</api>
+    </version>
+    <stability>
+        <release>stable</release>
+        <api>stable</api>
+    </stability>
+        <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
+	    <notes>
+	    - Disable by default async_mysql
+	    - Disable by default sockets
+	    - Added event onWorkerError
+	    - Added event onWorkerStart for task_worker
+	    - swoole_server->task can assign worker_id
+	    - swoole_server->set() save params to swoole_server::$setting
+	    - swoole_client->send will check data length
+	    - swoole_server->connection_info for udp
+	    </notes>
+	   </release>
 		<release>
 			<date>2014-02-27</date>
 			<version>

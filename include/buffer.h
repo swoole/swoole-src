@@ -36,7 +36,7 @@ typedef struct _swBuffer
 #define swBuffer_empty(buffer) (buffer == NULL || buffer->head == NULL)
 
 SWINLINE swBuffer* swBuffer_new(int trunk_size);
-swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint32_t alloc_memory);
+swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type);
 SWINLINE void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk);
 
 void swBuffer_debug(swBuffer *buffer);
