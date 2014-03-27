@@ -1,6 +1,10 @@
 #include "swoole.h"
+#include "async.h"
 
-#ifdef HAVE_LINUX_NATIVE_AIO
+#ifdef SW_AIO_LINUX_NATIVE
+
+#include <sys/syscall.h>      /* for __NR_* definitions */
+#include <linux/aio_abi.h>    /* for AIO types and constants */
 
 static aio_context_t swoole_aio_context;
 static int swoole_aio_eventfd;
@@ -61,6 +65,7 @@ static int swoole_aio_onFinish(swReactor *reactor, swEvent *event)
 	struct io_event events[SW_AIO_MAX_EVENTS];
 	swAio_event aio_ev;
 	uint64_t finished_aio;
+	struct iocb *aiocb;
 	struct timespec tms;
 	int i, n;
 
@@ -80,12 +85,13 @@ static int swoole_aio_onFinish(swReactor *reactor, swEvent *event)
 		{
 			for (i = 0; i < n; i++)
 			{
-				aio_ev.ret = ret;
-				aio_ev.fd = req->aiocb.aio_fildes;
-				aio_ev.type = req->aiocb.aio_lio_opcode == LIO_READ ? SW_AIO_READ: SW_AIO_WRITE;
-				aio_ev.nbytes = ret;
-				aio_ev.offset = req->aiocb.aio_offset;
-				aio_ev.buf = req->aiocb.aio_buf;
+				aiocb = (struct iocb *) events[i].obj;
+				aio_ev.ret = (int) events[i].res;
+				aio_ev.fd = aiocb->aio_fildes;
+				aio_ev.type = aiocb->aio_lio_opcode == IOCB_CMD_PREAD ? SW_AIO_READ: SW_AIO_WRITE;
+				aio_ev.nbytes = aio_ev.ret;
+				aio_ev.offset = aiocb->aio_offset;
+				aio_ev.buf = aiocb->aio_buf;
 				swoole_aio_complete_callback(&aio_ev);
 			}
 			i += n;

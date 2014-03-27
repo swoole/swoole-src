@@ -4,7 +4,8 @@
 #include "swoole.h"
 #include "async.h"
 
-#ifndef HAVE_LINUX_NATIVE_AIO
+#ifdef SW_AIO_GCC
+#include <aio.h>
 
 typedef struct _swAio_gcc_t{
 	struct aiocb aiocb;

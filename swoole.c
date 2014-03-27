@@ -1157,18 +1157,10 @@ PHP_FUNCTION(swoole_server_heartbeat)
 	zval *zobject = getThis();
 	swServer *serv;
 	swEvent ev;
-	long from_id = -1;
 
 	if (zobject == NULL)
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O|l", &zobject, swoole_server_class_entry_ptr, &from_id) == FAILURE)
-		{
-			return;
-		}
-	}
-	else
-	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l",  &from_id) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O", &zobject, swoole_server_class_entry_ptr) == FAILURE)
 		{
 			return;
 		}
@@ -1181,24 +1173,12 @@ PHP_FUNCTION(swoole_server_heartbeat)
 		return;
 	}
 
-	if(from_id < 0)
-	{
-		ev.from_id = serv->factory.last_from_id;
-	}
-	else
-	{
-		ev.from_id = from_id;
-	}
-
-
 	int serv_max_fd = swServer_get_maxfd(serv);
 	int serv_min_fd = swServer_get_minfd(serv);
-
 
 	array_init(return_value);
 
 	int fd;
-
 	int checktime = (int) SwooleGS->now - serv->heartbeat_idle_time;
 
 	//遍历到最大fd
@@ -1212,7 +1192,6 @@ PHP_FUNCTION(swoole_server_heartbeat)
 			add_next_index_long(return_value, fd);
 		 }
 	}
-	
 }
 
 PHP_FUNCTION(swoole_server_shutdown)

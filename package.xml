@@ -69,14 +69,17 @@
 			</dir>
 			<dir name="examples">
 				<file role="src" name="server.php" />
+				<file role="src" name="echo_server.php" />
 				<file role="src" name="async_client.php" />
-				<file role="src" name="async_mysql.php" />
+				<file role="src" name="mysql_proxy_server.php" />
 				<file role="src" name="async_mysql2.php" />
 				<file role="src" name="client.php" />
 				<file role="src" name="proxy.php" />
 				<file role="src" name="proxy_sync.php" />
 				<file role="src" name="udp_server.php" />
 				<file role="src" name="udp_client.php" />
+				<file role="src" name="eof_check_server.php" />
+                <file role="src" name="eof_check_client.php" />
 				<file role="src" name="task.php" />
 				<file role="src" name="stream.php" />
 			</dir>

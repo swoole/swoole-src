@@ -16,17 +16,17 @@
 #ifndef SWOOLE_CONFIG_H_
 #define SWOOLE_CONFIG_H_
 
-#define SW_MAX_FDTYPE          32 //32 kinds of event
-#define SW_ERROR_MSG_SIZE      512
-#define SW_MAX_WORKER_GROUP    2
+#define SW_MAX_FDTYPE              32   //32 kinds of event
+#define SW_ERROR_MSG_SIZE          512
+#define SW_MAX_WORKER_GROUP        2
 
 #define SW_GLOBAL_MEMORY_PAGESIZE  (1024*1024*2) //全局内存的分页
 
 #define SW_MAX_THREAD_NCPU         4 // n * cpu_num
 #define SW_MAX_WORKER_NCPU         100 // n * cpu_num
-#define SW_MAX_FDS                 (1024*10) //最大tcp连接数
-#define SW_MAX_REQUEST             10000     //最大请求包数
-#define SW_UNSOCK_BUFSIZE          (4*1024*1024) //UDP socket的buffer区大小
+#define SW_MAX_FDS                 (1024*10)      //最大tcp连接数
+#define SW_MAX_REQUEST             10000          //最大请求包数
+#define SW_UNSOCK_BUFSIZE          (4*1024*1024)  //UDP socket的buffer区大小
 
 //#define SW_CONNECTION_LIST_EXPAND  (4096*2)  //动态扩容的数量
 
@@ -46,7 +46,12 @@
 #define SW_MAINREACTOR_TIMEO       1    //main reactor
 #define SW_MAINREACTOR_USE_UNSOCK  1    //主线程使用unsock
 #define SW_REACTOR_WRITER_TIMEO    3    //writer线程的reactor
+#define SW_REACTOR_TRY_SEND             //首先尝试直接发送,如果发生EAGAIN错误,再添加EPOLLOUT事件监听
 #define SW_TASKWAIT_TIMEOUT        0.5
+
+//#define SW_AIO_LINUX_NATIVE
+#define SW_AIO_GCC
+//#define SW_AIO_THREAD_POOL
 
 #ifndef SW_WORKER_IPC_MODE
 #define SW_WORKER_IPC_MODE         1    //1:unix socket,2:IPC Message Queue
