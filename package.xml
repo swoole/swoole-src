@@ -135,8 +135,10 @@
 					<file role="src" name="Client.c" />
 					<file role="src" name="Buffer.c" />
 					<file role="src" name="ProcessPool.c" />
+					<file role="src" name="ThreadPool.c" />
 					<file role="src" name="ReactorThread.c" />
 					<file role="src" name="Connection.c" />
+					
 				</dir>
 			</dir>
 		</dir>

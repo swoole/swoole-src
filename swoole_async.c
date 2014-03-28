@@ -218,9 +218,9 @@ PHP_FUNCTION(swoole_async_writefile)
 	int fcnt_len;
 
 #ifdef HAVE_LINUX_NATIVE_AIO
-	int open_flag =  O_RDONLY | O_DIRECT;
+	int open_flag =  O_CREAT | O_WRONLY | O_DIRECT;
 #else
-	int open_flag = O_RDONLY;
+	int open_flag = O_CREAT | O_WRONLY;
 #endif
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zs|z", &filename, &fcnt, &fcnt_len, &cb) == FAILURE)
@@ -239,6 +239,7 @@ PHP_FUNCTION(swoole_async_writefile)
 				fcnt_len, PHP_SWOOLE_AIO_MAX_FILESIZE);
 		RETURN_FALSE;
 	}
+	convert_to_string(filename);
 	int fd = open(Z_STRVAL_P(filename), open_flag, 0644);
 	if (fd < 0)
 	{
@@ -263,12 +264,12 @@ PHP_FUNCTION(swoole_async_writefile)
 	req.offset = 0;
 	zval_add_ref(&filename);
 
-	if(req.callback != NULL)
+	if (req.callback != NULL)
 	{
 		zval_add_ref(&req.callback);
 	}
 
-	if(zend_hash_update(&php_sw_aio_callback, (char *)&fd, sizeof(fd), &req, sizeof(swoole_async_request), NULL) == FAILURE)
+	if (zend_hash_update(&php_sw_aio_callback, (char *)&fd, sizeof(fd), &req, sizeof(swoole_async_request), NULL) == FAILURE)
 	{
 		zend_error(E_WARNING, "swoole_async_writefile add to hashtable failed");
 		RETURN_FALSE;
@@ -277,4 +278,33 @@ PHP_FUNCTION(swoole_async_writefile)
 	memcpy(wt_cnt, fcnt, fcnt_len);
 	php_swoole_check_aio();
 	SW_CHECK_RETURN(swoole_aio_write(fd, wt_cnt, fcnt_len, 0));
+}
+
+PHP_FUNCTION(swoole_async_dns_lookup)
+{
+	zval *domain;
+	zval *cb;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zz", &domain, &cb) == FAILURE)
+	{
+		return;
+	}
+	if (Z_STRLEN_P(domain) == 0)
+	{
+		zend_error(E_WARNING, "swoole_async_dns_lookup: domain name empty.");
+		RETURN_FALSE;
+	}
+	swoole_async_request req;
+	bzero(&req, sizeof(req));
+	req.callback = cb;
+	req.filename = domain;
+
+	zval_add_ref(&req.callback);
+	zval_add_ref(&req.filename);
+
+	if (zend_hash_update(&php_sw_aio_callback, Z_STRVAL_P(domain), Z_STRLEN_P(domain), &req, sizeof(swoole_async_request), NULL) == FAILURE)
+	{
+		zend_error(E_WARNING, "swoole_async_writefile add to hashtable failed");
+		RETURN_FALSE;
+	}
 }

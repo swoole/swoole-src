@@ -108,6 +108,7 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #include "atomic.h"
 #include "hashmap.h"
 #include "list.h"
+#include "RingQueue.h"
 
 #define SW_TIMEO_SEC           0
 #define SW_TIMEO_USEC          3000000
@@ -751,25 +752,25 @@ int swChannel_notify(swChannel *object);
 void swChannel_free(swChannel *object);
 
 /*----------------------------Thread Pool-------------------------------*/
-
-typedef struct _swThread_task
-{
-	void *(*call)(void *arg);
-	void *arg;
-} swThread_task;
-
-typedef struct
+typedef struct _swThreadPool
 {
 	pthread_mutex_t mutex;
 	pthread_cond_t cond;
 
 	swThread *threads;
 	swThreadParam *params;
+
+#ifdef SW_THREADPOOL_USE_CHANNEL
 	swChannel *chan;
+#else
+	swRingQueue queue;
+#endif
 
 	int thread_num;
 	int shutdown;
 	int task_num;
+
+	int (*onTask)(struct _swThreadPool *pool, void *task, int task_len);
 
 } swThreadPool;
 
@@ -780,7 +781,7 @@ struct _swThread
 	swThreadPool *pool;
 };
 
-int swThreadPool_task(swThreadPool *pool, void *(*call)(void *arg), void *arg);
+int swThreadPool_dispatch(swThreadPool *pool, void *task, int task_len);
 int swThreadPool_create(swThreadPool *pool, int max_num);
 int swThreadPool_run(swThreadPool *pool);
 int swThreadPool_free(swThreadPool *pool);

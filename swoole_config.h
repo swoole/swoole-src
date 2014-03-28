@@ -50,8 +50,12 @@
 #define SW_TASKWAIT_TIMEOUT        0.5
 
 //#define SW_AIO_LINUX_NATIVE
-#define SW_AIO_GCC
-//#define SW_AIO_THREAD_POOL
+//#define SW_AIO_GCC
+#define SW_AIO_THREAD_POOL
+#define SW_AIO_THREAD_NUM          2
+//#define SW_AIO_THREAD_USE_CHANNEL
+//#define SW_THREADPOOL_USE_CHANNEL
+#define SW_THREADPOOL_QUEUE_LEN    100
 
 #ifndef SW_WORKER_IPC_MODE
 #define SW_WORKER_IPC_MODE         1    //1:unix socket,2:IPC Message Queue

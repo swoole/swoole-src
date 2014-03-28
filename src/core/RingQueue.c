@@ -93,56 +93,61 @@ int swRingQueue_pop(swRingQueue *queue, void **ele)
 }
 #else
 
-int swRingQueue_init(swRingQueue * p_queue, int buffer_size)
+int swRingQueue_init(swRingQueue *queue, int buffer_size)
 {
-	p_queue->data = sw_calloc(buffer_size, sizeof(void*));
-	if(p_queue->data == NULL)
+	queue->data = sw_calloc(buffer_size, sizeof(void*));
+	if(queue->data == NULL)
 	{
-		swError("malloc fail\n");
+		swWarn("malloc failed.");
 		return -1;
 	}
-	p_queue->size = buffer_size;
-	p_queue->head = 0;
-	p_queue->tail = 0;
-	p_queue->tag = 0;
+	queue->size = buffer_size;
+	queue->head = 0;
+	queue->tail = 0;
+	queue->tag = 0;
 	return 0;
 }
 
-int swRingQueue_push(swRingQueue * p_queue, void *push_data)
+void swRingQueue_free(swRingQueue *queue)
 {
-	if (swRingQueue_full(p_queue))
+	sw_free(queue->data);
+}
+
+int swRingQueue_push(swRingQueue *queue, void *push_data)
+{
+	if (swRingQueue_full(queue))
 	{
 		swTrace("queue full\n");
 		return -1;
 	}
 
-	p_queue->data[p_queue->tail] = push_data;
-	p_queue->tail = (p_queue->tail + 1) % p_queue->size;
+	queue->data[queue->tail] = push_data;
+	queue->tail = (queue->tail + 1) % queue->size;
 
 	/* 这个时候一定队列满了*/
-	if (p_queue->tail == p_queue->head)
+	if (queue->tail == queue->head)
 	{
-		p_queue->tag = 1;
+		queue->tag = 1;
 	}
-	return p_queue->tag;
+	return queue->tag;
 }
 
-int swRingQueue_pop(swRingQueue * p_queue, void **pop_data)
+int swRingQueue_pop(swRingQueue *queue, void **pop_data)
 {
-	if (swRingQueue_empty(p_queue))
+	if (swRingQueue_empty(queue))
 	{
 		swTrace("queue empty\n");
 		return -1;
 	}
 
-	*pop_data = p_queue->data[p_queue->head];
-	p_queue->head = (p_queue->head + 1) % p_queue->size;
+	*pop_data = queue->data[queue->head];
+	queue->head = (queue->head + 1) % queue->size;
 
 	/* 这个时候一定队列空了*/
-	if (p_queue->tail == p_queue->head)
+	if (queue->tail == queue->head)
 	{
-		p_queue->tag = 0;
+		queue->tag = 0;
 	}
-	return p_queue->tag;
+	return queue->tag;
 }
 #endif

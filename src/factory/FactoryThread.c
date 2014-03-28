@@ -16,7 +16,6 @@
 
 #include "swoole.h"
 #include "Server.h"
-#include "RingQueue.h"
 
 typedef struct _swFactoryThread
 {

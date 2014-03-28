@@ -17,7 +17,7 @@
 #include "swoole.h"
 
 #define swThreadPool_thread(p,id) (&p->threads[id])
-static void *swThreadPool_loop(swThreadParam *param);
+static void *swThreadPool_loop(void *arg);
 
 int swThreadPool_create(swThreadPool *pool, int thread_num)
 {
@@ -31,13 +31,22 @@ int swThreadPool_create(swThreadPool *pool, int thread_num)
 		return SW_ERR;
 	}
 
-	swWarn("threads=%p|params=%p", pool->threads, pool->params);
+	swTrace("threads=%p|params=%p", pool->threads, pool->params);
+
+#ifdef SW_THREADPOOL_USE_CHANNEL
 	pool->chan = swChannel_create(1024 * 256, 512, 0);
 	if (pool->chan == NULL)
 	{
-		swWarn("swThreadPool_create create channel fail");
+		swWarn("swThreadPool_create create channel failed");
 		return SW_ERR;
 	}
+#else
+	if (swRingQueue_init(&pool->queue, SW_THREADPOOL_QUEUE_LEN) < 0)
+	{
+		return SW_ERR;
+	}
+#endif
+
 	pthread_mutex_init(&(pool->mutex), NULL);
 	pthread_cond_init(&(pool->cond), NULL);
 
@@ -45,22 +54,24 @@ int swThreadPool_create(swThreadPool *pool, int thread_num)
 	return SW_OK;
 }
 
-int swThreadPool_task(swThreadPool *pool, void *(*call)(void *), void *arg)
+int swThreadPool_dispatch(swThreadPool *pool, void *task, int task_len)
 {
-	swThread_task task;
-	task.call = call;
-	task.arg = arg;
-
+	int ret;
 	pthread_mutex_lock(&(pool->mutex));
-	if (swChannel_in(pool->chan, &task, sizeof(swThread_task)) < 0)
+#ifdef SW_THREADPOOL_USE_CHANNEL
+	ret = swChannel_in(pool->chan, task, task_len);
+#else
+	ret = swRingQueue_push(&pool->queue, task);
+#endif
+	if ( ret < 0)
 	{
-		swWarn("swThreadPool push task fail");
+		swWarn("swThreadPool push task failed");
 		pthread_mutex_unlock(&(pool->mutex));
 		return SW_ERR;
 	}
 	else
 	{
-		pool->task_num++;
+		pool->task_num ++;
 		pthread_mutex_unlock(&(pool->mutex));
 	}
 	return pthread_cond_signal(&(pool->cond));
@@ -68,15 +79,14 @@ int swThreadPool_task(swThreadPool *pool, void *(*call)(void *), void *arg)
 
 int swThreadPool_run(swThreadPool *pool)
 {
-	int i, ret;
-
+	int i;
 	for (i = 0; i < pool->thread_num; i++)
 	{
 		pool->params[i].pti = i;
 		pool->params[i].object = pool;
 		if (pthread_create(&(swThreadPool_thread(pool,i)->tid), NULL, swThreadPool_loop, &pool->params[i]) < 0)
 		{
-			swWarn("swThreadPool_run fail.");
+			swWarn("pthread_create failed. Error: %s[%d]", strerror(errno), errno);
 			return SW_ERR;
 		}
 	}
@@ -98,7 +108,11 @@ int swThreadPool_free(swThreadPool *pool)
 		pthread_join((swThreadPool_thread(pool,i)->tid), NULL);
 	}
 
+#ifdef SW_THREADPOOL_USE_CHANNEL
 	swChannel_free(pool->chan);
+#else
+	swRingQueue_free(&pool->queue);
+#endif
 
 	pthread_mutex_destroy(&(pool->mutex));
 	pthread_cond_destroy(&(pool->cond));
@@ -108,12 +122,18 @@ int swThreadPool_free(swThreadPool *pool)
 	return 0;
 }
 
-static void *swThreadPool_loop(swThreadParam *param)
+static void *swThreadPool_loop(void *arg)
 {
+	swThreadParam *param = arg;
 	swThreadPool *pool = param->object;
-	int id = param->pti;
-	swThread_task task;
+	//int id = param->pti;
 	int ret;
+
+#ifdef SW_THREADPOOL_USE_CHANNEL
+	char task[SW_BUFFER_SIZE];
+#else
+	void *task;
+#endif
 
 	swTrace("starting thread 0x%lx|id=%d", pthread_self(), id);
 	while (SwooleG.running)
@@ -134,12 +154,17 @@ static void *swThreadPool_loop(swThreadParam *param)
 
 		swTrace("thread [%d] is starting to work\n", id);
 
-		pool->task_num--;
-		ret = swChannel_out(pool->chan, &task, sizeof(task));
+#ifdef SW_THREADPOOL_USE_CHANNEL
+		ret = swChannel_out(pool->chan, task, SW_BUFFER_SIZE);
+#else
+		ret = swRingQueue_pop(&pool->queue, &task);
+#endif
 		pthread_mutex_unlock(&(pool->mutex));
-
 		if (ret >= 0)
-			task.call(task.arg);
+		{
+			pool->onTask(pool, (void *)task, ret);
+			pool->task_num --;
+		}
 	}
 	pthread_exit(NULL);
 }

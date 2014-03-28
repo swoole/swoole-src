@@ -8,7 +8,6 @@
 
 static aio_context_t swoole_aio_context;
 static int swoole_aio_eventfd;
-static int swoole_aio_eventfd;
 
 static int swoole_aio_onFinish(swReactor *reactor, swEvent *event);
 
@@ -35,7 +34,7 @@ SWINLINE int io_destroy(aio_context_t ctx)
 
 int swoole_aio_init(swReactor *_reactor, int max_aio_events)
 {
-	if(swoole_aio_have_init == 0)
+	if (swoole_aio_have_init == 0)
 	{
 		swoole_aio_context = 0;
 		if (io_setup(SW_AIO_MAX_EVENTS, &swoole_aio_context) < 0)
