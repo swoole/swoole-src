@@ -102,6 +102,18 @@ swoole_timer_add(2000, function($interval) {
 });
 ```
 
+__async_io__
+```php
+swoole_async_readfile(__DIR__.'/server.php', function($filename, $content){
+	echo "file: $filename\ncontent-length: ".strlen($content)."\nContent:\n";
+	echo $content;
+	swoole_async_writefile(__DIR__.'/test.log', str_repeat('B', 1024), function($write_file){
+		echo "file: $write_file\n";
+		swoole_event_exit();
+	});
+});
+```
+
 __Files__
 * PHP: [examples/server.php](examples/server.php)
 * C/C++: [examples/server.c](examples/server.c)
