@@ -265,8 +265,8 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 
 	swServer *serv = SwooleG.serv;
 	swFactory *factory =  SwooleG.factory;
-	swConnection *connection = swServer_get_connection(serv, event->fd);
-	if (connection->active == 0)
+	swConnection *conn = swServer_get_connection(serv, event->fd);
+	if (conn->active == 0)
 	{
 		return SW_OK;
 	}
@@ -277,7 +277,7 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 	swBuffer_trunk *trunk;
 	int buf_size;
 
-	if (connection->in_buffer == NULL)
+	if (conn->in_buffer == NULL)
 	{
 		buffer = swBuffer_new(SW_BUFFER_SIZE);
 		//buffer create failed
@@ -292,12 +292,12 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 			sw_free(buffer);
 			goto recv_data_nobuffer;
 		}
-		connection->in_buffer = buffer;
+		conn->in_buffer = buffer;
 		buf_size = buffer->trunk_size;
 	}
 	else
 	{
-		buffer = connection->in_buffer;
+		buffer = conn->in_buffer;
 		trunk = swBuffer_get_trunk(buffer);
 		//trunk
 		buf_size =  buffer->trunk_size - trunk->length;
@@ -315,16 +315,11 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 	//printf("recv[len=%d]-----------------\n", n);
 	if (n < 0)
 	{
-		if (errno == ECONNRESET)
+		if (swConnection_error(conn, errno) < 0)
 		{
 			goto close_fd;
 		}
-		else if(errno == EAGAIN)
-		{
-			return SW_OK;
-		}
-		swWarn("read from connection[fd=%d] failed. Error: %s[%d]", event->fd, strerror(errno), errno);
-		return SW_ERR;
+		return SW_OK;
 	}
 	else if (n == 0)
 	{
@@ -336,7 +331,7 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 	else
 	{
 		//更新时间
-		connection->last_time =  SwooleGS->now;
+		conn->last_time =  SwooleGS->now;
 
 		//读满buffer了,可能还有数据
 		if ((buffer->trunk_size - trunk->length) == n)
@@ -413,8 +408,8 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &(serv->factory);
 
-	swConnection *connection = swServer_get_connection(serv, event->fd);
-	if (connection->active == 0)
+	swConnection *conn = swServer_get_connection(serv, event->fd);
+	if (conn->active == 0)
 	{
 		return SW_OK;
 	}
@@ -437,19 +432,11 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 #endif
 	if (n < 0)
 	{
-		if (errno == EAGAIN)
-		{
-			return SW_OK;
-		}
-		else if(errno == ECONNRESET)
+		if (swConnection_error(conn, errno) < 0)
 		{
 			goto close_fd;
 		}
-		else
-		{
-			swWarn("Read from socket[%d] fail. Error: %s [%d]", event->fd, strerror(errno), errno);
-			return SW_ERR;
-		}
+		return SW_OK;
 	}
 	//需要检测errno来区分是EAGAIN还是ECONNRESET
 	else if (n == 0)
@@ -463,7 +450,7 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 	{
 		swTrace("recv: %s|fd=%d|len=%d\n", rdata.buf.data, event->fd, n);
 		//更新最近收包时间
-		connection->last_time =  SwooleGS->now;
+		conn->last_time =  SwooleGS->now;
 
 		//heartbeat ping package
 		if (serv->heartbeat_ping_length == n)
@@ -506,12 +493,12 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 	int ret, n, buf_size;
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &(serv->factory);
-	swConnection *connection = swServer_get_connection(serv, event->fd);
-	if (connection->active == 0)
+	swConnection *conn = swServer_get_connection(serv, event->fd);
+	if (conn->active == 0)
 	{
 		return SW_OK;
 	}
-	swString *buffer = swConnection_get_string_buffer(connection);
+	swString *buffer = swConnection_get_string_buffer(conn);
 	swEventData send_data;
 
 	buf_size = buffer->size - swString_length(buffer);
@@ -525,16 +512,11 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 
 	if (n < 0)
 	{
-		if(errno == ECONNRESET)
+		if (swConnection_error(conn, errno) < 0)
 		{
 			goto close_fd;
 		}
-		else if(errno == EAGAIN)
-		{
-			return SW_OK;
-		}
-		swWarn("read from connection[fd=%d] failed. Error: %s[%d]", event->fd, strerror(errno), errno);
-		return SW_ERR;
+		return SW_OK;
 	}
 	else if (n == 0)
 	{
@@ -545,7 +527,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 	}
 	else
 	{
-		connection->last_time = SwooleGS->now;
+		conn->last_time = SwooleGS->now;
 		int package_length_offset = serv->package_length_offset;
 		uint8_t package_length_size = (serv->package_length_type & SW_NUM_INT) ? 4 : 2;
 		int64_t package_body_length;

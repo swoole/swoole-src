@@ -87,6 +87,10 @@ int swoole_aio_init(swReactor *_reactor, int max_aio_events)
 static int swoole_aio_thread_onTask(swThreadPool *pool, void *task, int task_len)
 {
 	swAio_event *event = task;
+	struct hostent *host_entry;
+	struct in_addr addr;
+	char *ip_addr;
+
 	int ret;
 
 	switch(event->type)
@@ -98,6 +102,17 @@ static int swoole_aio_thread_onTask(swThreadPool *pool, void *task, int task_len
 		ret = pread(event->fd, event->buf, event->nbytes, event->offset);
 		break;
 	case SW_AIO_DNS_LOOKUP:
+		if (!(host_entry = gethostbyname(event->buf)))
+		{
+			ret = -1;
+			event->error = errno;
+		}
+		else
+		{
+			memcpy(&addr, host_entry->h_addr_list[0], host_entry->h_length);
+			ip_addr = inet_ntoa(addr);
+			memcpy(event->buf, ip_addr, strnlen(ip_addr, SW_IP_MAX_LENGTH));
+		}
 		break;
 	default:
 		swWarn("unknow aio task.");
@@ -140,6 +155,17 @@ int swoole_aio_write(int fd, void *inbuf, size_t size, off_t offset)
 	aio_ev->type = SW_AIO_WRITE;
 	aio_ev->nbytes = size;
 	aio_ev->offset = offset;
+	return swThreadPool_dispatch(&swoole_aio_thread_pool, aio_ev, sizeof(aio_ev));
+}
+
+int swoole_aio_dns_lookup(void *hostname, void *ip_addr, size_t size)
+{
+	swAio_event *aio_ev = sw_malloc(sizeof(swAio_event));
+	bzero(aio_ev, sizeof(swAio_event));
+	aio_ev->buf = ip_addr;
+	aio_ev->req = hostname;
+	aio_ev->type = SW_AIO_DNS_LOOKUP;
+	aio_ev->nbytes = size;
 	return swThreadPool_dispatch(&swoole_aio_thread_pool, aio_ev, sizeof(aio_ev));
 }
 

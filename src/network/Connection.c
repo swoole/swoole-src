@@ -16,6 +16,28 @@
 #include "swoole.h"
 #include "Server.h"
 
+SWINLINE int swConnection_error(swConnection *conn, int err)
+{
+	switch(err)
+	{
+	case ECONNRESET:
+	case EPIPE:
+	case ENOTCONN:
+	case ETIMEDOUT:
+	case ECONNREFUSED:
+	case ENETDOWN:
+	case ENETUNREACH:
+	case EHOSTDOWN:
+	case EHOSTUNREACH:
+		return SW_ERR;
+	case EAGAIN:
+		return SW_OK;
+	default:
+		swWarn("recv from connection[fd=%d] failed. Error: %s[%d]", conn->fd, strerror(err), err);
+		return SW_OK;
+	}
+}
+
 /**
  * close connection
  */

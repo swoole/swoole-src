@@ -32,7 +32,12 @@ typedef struct {
 	uint8_t once;
 	char *file_content;
 	uint32_t content_length;
-} swoole_async_request;
+} swoole_async_file_request;
+
+typedef struct {
+	zval *callback;
+	zval *domain;
+} swoole_async_dns_request;
 
 static void php_swoole_check_aio();
 static void php_swoole_aio_onComplete(swAio_event *event);
@@ -55,63 +60,107 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 	int argc;
 	int64_t ret;
 
-	zval *retval;
-	zval *zcontent;
+	zval *retval, *zcallback;
+	zval *zcontent = NULL;
 	zval **args[2];
-	swoole_async_request *req;
-	MAKE_STD_ZVAL(zcontent);
+	swoole_async_file_request *file_req = NULL;
+	swoole_async_dns_request *dns_req = NULL;
 
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-	if(zend_hash_find(&php_sw_aio_callback, (char *)&(event->fd), sizeof(event->fd), (void**)&req) != SUCCESS)
+	if (event->type == SW_AIO_DNS_LOOKUP)
 	{
-		zend_error(E_WARNING, "swoole_async: onAsyncComplete callback not found[1]");
-		return;
+		dns_req = (swoole_async_dns_request *) event->req;
+		if (dns_req->callback == NULL)
+		{
+			zend_error(E_WARNING, "swoole_async: onAsyncComplete callback not found[2]");
+			return;
+		}
+		zcallback = dns_req->callback;
 	}
-
-	if (req->callback == NULL && req->type == SW_AIO_READ)
+	else
 	{
-		zend_error(E_WARNING, "swoole_async: onAsyncComplete callback not found[2]");
-		return;
+		if (zend_hash_find(&php_sw_aio_callback, (char *)&(event->fd), sizeof(event->fd), (void**) &file_req) != SUCCESS)
+		{
+			zend_error(E_WARNING, "swoole_async: onAsyncComplete callback not found[1]");
+			return;
+		}
+		if (file_req->callback == NULL && file_req->type == SW_AIO_READ)
+		{
+			zend_error(E_WARNING, "swoole_async: onAsyncComplete callback not found[2]");
+			return;
+		}
+		zcallback = file_req->callback;
 	}
 
 	ret = event->ret;
 	if (ret < 0)
 	{
 		zend_error(E_WARNING, "swoole_async: Aio Error: %s[%d]", strerror((-ret)), (int) ret);
-		return;
 	}
-
-	if (ret < req->content_length)
+	else if (file_req != NULL && ret < file_req->content_length)
 	{
 		zend_error(E_WARNING, "swoole_async: return length < req->length.");
 	}
 
-	args[0] = &req->filename;
-	if (req->type == SW_AIO_READ)
+	if (event->type == SW_AIO_READ)
 	{
-		ZVAL_STRINGL(zcontent, req->file_content, ret, 0);
+		MAKE_STD_ZVAL(zcontent);
+		args[0] = &file_req->filename;
+		ZVAL_STRINGL(zcontent, file_req->file_content, ret, 0);
+		args[1] = &zcontent;
+		argc = 2;
+	}
+	else if(event->type == SW_AIO_WRITE)
+	{
+		args[0] = &file_req->filename;
+		argc = 1;
+	}
+	else if(event->type == SW_AIO_DNS_LOOKUP)
+	{
+		MAKE_STD_ZVAL(zcontent);
+		args[0] = &dns_req->domain;
+		ZVAL_STRING(zcontent, event->buf, 1);
 		args[1] = &zcontent;
 		argc = 2;
 	}
 	else
 	{
-		argc = 1;
+		zend_error(E_WARNING, "swoole_async: onAsyncComplete unknow event type");
+		return;
 	}
 
-	if (call_user_function_ex(EG(function_table), NULL, req->callback, &retval, argc, args, 0, NULL TSRMLS_CC) == FAILURE)
+	if (call_user_function_ex(EG(function_table), NULL, zcallback, &retval, argc, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
 		zend_error(E_WARNING, "swoole_async: onAsyncComplete handler error");
 		return;
 	}
 
 	//readfile/writefile 只操作一次,完成后释放缓存区并关闭文件
-	if (req->once == 1)
+	if (file_req != NULL && file_req->once == 1)
 	{
-		free(req->file_content);
+		zval_ptr_dtor(&file_req->callback);
+		zval_ptr_dtor(&file_req->filename);
+
+		free(file_req->file_content);
 		close(event->fd);
 	}
-	zval_ptr_dtor(&zcontent);
+	else if(dns_req != NULL)
+	{
+		zval_ptr_dtor(&dns_req->callback);
+		zval_ptr_dtor(&dns_req->domain);
+
+		efree(dns_req);
+		efree(event->buf);
+	}
+	if (zcontent != NULL)
+	{
+		zval_ptr_dtor(&zcontent);
+	}
+	if (retval != NULL)
+	{
+		zval_ptr_dtor(&retval);
+	}
 }
 
 PHP_FUNCTION(swoole_async_read)
@@ -187,7 +236,7 @@ PHP_FUNCTION(swoole_async_readfile)
 	//printf("buf_len=%d|addr=%p\n", buf_len, fcnt);
 	//printf("pagesize=%d|st_size=%d\n", sysconf(_SC_PAGESIZE), buf_len);
 
-	swoole_async_request req;
+	swoole_async_file_request req;
 	req.fd = fd;
 	req.filename = filename;
 	req.callback = cb;
@@ -200,7 +249,7 @@ PHP_FUNCTION(swoole_async_readfile)
 	zval_add_ref(&cb);
 	zval_add_ref(&filename);
 
-	if(zend_hash_update(&php_sw_aio_callback, (char *)&fd, sizeof(fd), &req, sizeof(swoole_async_request), NULL) == FAILURE)
+	if(zend_hash_update(&php_sw_aio_callback, (char *)&fd, sizeof(fd), &req, sizeof(swoole_async_file_request), NULL) == FAILURE)
 	{
 		zend_error(E_WARNING, "swoole_async_readfile add to hashtable failed");
 		RETURN_FALSE;
@@ -253,7 +302,7 @@ PHP_FUNCTION(swoole_async_writefile)
 		RETURN_FALSE;
 	}
 
-	swoole_async_request req;
+	swoole_async_file_request req;
 	req.fd = fd;
 	req.filename = filename;
 	req.callback = cb;
@@ -269,7 +318,7 @@ PHP_FUNCTION(swoole_async_writefile)
 		zval_add_ref(&req.callback);
 	}
 
-	if (zend_hash_update(&php_sw_aio_callback, (char *)&fd, sizeof(fd), &req, sizeof(swoole_async_request), NULL) == FAILURE)
+	if (zend_hash_update(&php_sw_aio_callback, (char *)&fd, sizeof(fd), &req, sizeof(swoole_async_file_request), NULL) == FAILURE)
 	{
 		zend_error(E_WARNING, "swoole_async_writefile add to hashtable failed");
 		RETURN_FALSE;
@@ -289,22 +338,22 @@ PHP_FUNCTION(swoole_async_dns_lookup)
 	{
 		return;
 	}
+
 	if (Z_STRLEN_P(domain) == 0)
 	{
 		zend_error(E_WARNING, "swoole_async_dns_lookup: domain name empty.");
 		RETURN_FALSE;
 	}
-	swoole_async_request req;
-	bzero(&req, sizeof(req));
-	req.callback = cb;
-	req.filename = domain;
 
-	zval_add_ref(&req.callback);
-	zval_add_ref(&req.filename);
+	swoole_async_dns_request *req = emalloc(sizeof(swoole_async_dns_request));
+	req->callback = cb;
+	req->domain = domain;
 
-	if (zend_hash_update(&php_sw_aio_callback, Z_STRVAL_P(domain), Z_STRLEN_P(domain), &req, sizeof(swoole_async_request), NULL) == FAILURE)
-	{
-		zend_error(E_WARNING, "swoole_async_writefile add to hashtable failed");
-		RETURN_FALSE;
-	}
+	zval_add_ref(&req->callback);
+	zval_add_ref(&req->domain);
+
+	void *buf = emalloc(SW_IP_MAX_LENGTH);
+	memcpy(buf, Z_STRVAL_P(domain), Z_STRLEN_P(domain));
+	php_swoole_check_aio();
+	SW_CHECK_RETURN(swoole_aio_dns_lookup(req, buf, SW_IP_MAX_LENGTH));
 }

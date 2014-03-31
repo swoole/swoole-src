@@ -56,6 +56,7 @@
 //#define SW_AIO_THREAD_USE_CHANNEL
 //#define SW_THREADPOOL_USE_CHANNEL
 #define SW_THREADPOOL_QUEUE_LEN    100
+#define SW_IP_MAX_LENGTH           32
 
 #ifndef SW_WORKER_IPC_MODE
 #define SW_WORKER_IPC_MODE         1    //1:unix socket,2:IPC Message Queue

@@ -17,7 +17,7 @@
 #include "swoole.h"
 #include "Client.h"
 
-#include <netdb.h>
+static int swClient_inet_addr(struct sockaddr_in *sin, char *string);
 
 int swClient_create(swClient *cli, int type, int async)
 {

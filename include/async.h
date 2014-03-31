@@ -15,7 +15,9 @@ typedef struct _swAio_event
 	off_t offset;
 	size_t nbytes;
 	void *buf;
+	void *req;
 	int ret;
+	int error;
 } swAio_event;
 
 enum
@@ -39,6 +41,7 @@ int swoole_aio_init(swReactor *reactor, int max_aio_events);
 void swoole_aio_destroy();
 int swoole_aio_read(int fd, void *outbuf, size_t size, off_t offset);
 int swoole_aio_write(int fd, void *inbuf, size_t size, off_t offset);
+int swoole_aio_dns_lookup(void *hostname, void *ip_addr, size_t size);
 #define swoole_aio_set_callback(callback) swoole_aio_complete_callback = callback
 
 #endif /* _SW_ASYNC_H_ */
