@@ -279,6 +279,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/os/base.c \
         src/os/linux_aio.c \
         src/os/gcc_aio.c \
+        src/os/sendfile.c \
       , $ext_shared)
       
     PHP_ADD_INCLUDE([$ext_srcdir/include])

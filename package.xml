@@ -114,6 +114,7 @@
 				    <file role="src" name="base.c" />
                     <file role="src" name="gcc_aio.c" />
                     <file role="src" name="linux_aio.c" />
+                    <file role="src" name="sendfile.c" />
                 </dir>
 				<dir name="pipe">
 					<file role="src" name="PipeBase.c" />
