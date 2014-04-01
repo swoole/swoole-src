@@ -132,7 +132,7 @@ extern HashTable php_sw_reactor_callback;
 extern HashTable php_sw_client_callback;
 extern HashTable php_sw_timer_callback;
 extern HashTable php_sw_long_connections;
-extern HashTable php_sw_aio_callback;;
+extern HashTable php_sw_aio_callback;
 
 PHP_MINIT_FUNCTION(swoole);
 PHP_MSHUTDOWN_FUNCTION(swoole);
@@ -170,6 +170,7 @@ PHP_FUNCTION(swoole_event_exit);
 
 PHP_FUNCTION(swoole_async_read);
 PHP_FUNCTION(swoole_async_write);
+PHP_FUNCTION(swoole_async_close);
 PHP_FUNCTION(swoole_async_readfile);
 PHP_FUNCTION(swoole_async_writefile);
 PHP_FUNCTION(swoole_async_dns_lookup);
@@ -178,6 +179,7 @@ PHP_FUNCTION(swoole_timer_add);
 PHP_FUNCTION(swoole_timer_del);
 
 PHP_FUNCTION(swoole_strerror);
+PHP_FUNCTION(swoole_errno);
 
 #ifdef SW_ASYNC_MYSQL
 PHP_FUNCTION(swoole_get_mysqli_sock);

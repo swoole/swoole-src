@@ -93,6 +93,7 @@ static int swoole_aio_thread_onTask(swThreadPool *pool, void *task, int task_len
 
 	int ret;
 
+	start_switch:
 	switch(event->type)
 	{
 	case SW_AIO_WRITE:
@@ -118,7 +119,19 @@ static int swoole_aio_thread_onTask(swThreadPool *pool, void *task, int task_len
 		swWarn("unknow aio task.");
 		break;
 	}
+
 	event->ret = ret;
+	if (ret < 0)
+	{
+		if (errno == EINTR || errno == EAGAIN)
+		{
+			goto start_switch;
+		}
+		else
+		{
+			event->error = errno;
+		}
+	}
 
 	swTrace("aio_thread ok. ret=%d", ret);
 	do
