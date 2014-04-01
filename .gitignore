@@ -40,5 +40,5 @@ modules/*
 /run-tests.php
 /autom4te.cache
 /build
-
+/examples/recv_file.jpg
 /modules

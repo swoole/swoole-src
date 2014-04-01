@@ -51,7 +51,6 @@ SWINLINE swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_
 			return NULL;
 		}
 	}
-
 	if (type == SW_TRUNK_SENDFILE)
 	{
 		trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_SENDFILE);
@@ -92,6 +91,7 @@ swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type)
 		return NULL;
 	}
 
+	bzero(trunk, sizeof(swBuffer_trunk));
 	/**
 	 * [type=SW_TRUNK_DATA] will alloc memory
 	 */
@@ -104,7 +104,6 @@ swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type)
 			sw_free(trunk);
 			return NULL;
 		}
-		bzero(trunk, sizeof(swBuffer_trunk));
 		trunk->data = buf;
 	}
 

@@ -66,13 +66,12 @@ int swReactorThread_send(swEventData *resp)
 	//sendfile to client
 	else if(resp->info.type == SW_EVENT_SENDFILE)
 	{
-		trunk = swConnection_get_out_buffer(conn, SW_EVENT_SENDFILE);
+		trunk = swConnection_get_out_buffer(conn, SW_TRUNK_SENDFILE);
 		if (trunk == NULL)
 		{
 			swWarn("get out_buffer trunk failed.");
 			return SW_ERR;
 		}
-
 		task = sw_malloc(sizeof(swTask_sendfile));
 		if (task == NULL)
 		{
@@ -84,7 +83,7 @@ int swReactorThread_send(swEventData *resp)
 		int file_fd = open(resp->data, O_RDONLY);
 		if (file_fd < 0)
 		{
-			swWarn("open file[%s] failed. Error: %s[%d]", send_data.data, strerror(errno), errno);
+			swWarn("open file[%s] failed. Error: %s[%d]", task->filename, strerror(errno), errno);
 			return SW_ERR;
 		}
 		struct stat file_stat;
@@ -183,31 +182,32 @@ int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 	swBuffer *out_buffer = conn->out_buffer;
 	swBuffer_trunk *trunk;
 	swEvent closeFd;
+	swTask_sendfile *task = NULL;
 
 	do
 	{
 		trunk = swBuffer_get_trunk(out_buffer);
 		if (trunk->type == SW_TRUNK_SENDFILE)
 		{
-			swTask_sendfile *task = trunk->data;
+			task = (swTask_sendfile *) trunk->data;
 			sendn = (task->filesize - task->offset > SW_SENDFILE_TRUNK) ? SW_SENDFILE_TRUNK : task->filesize - task->offset;
 			ret = swoole_sendfile(ev->fd, task->fd, &task->offset, sendn);
-			//swWarn("ret=%d|task->offset=%ld|sendn=%d|filesize=%ld", ret, task->offset, sendn, task->filesize);
-			if (ret < 0)
+			swTrace("ret=%d|task->offset=%ld|sendn=%d|filesize=%ld", ret, task->offset, sendn, task->filesize);
+
+			if (ret <= 0)
 			{
 				swWarn("sendfile failed. Error: %s[%d]", strerror(errno), errno);
 				if (errno == EAGAIN)
 				{
 					return SW_OK;
 				}
-				else if(errno == ECONNRESET || errno == EBADF)
+				else if (swConnection_error(conn, errno) < 0)
 				{
 					close_fd:
 					closeFd.fd = ev->fd;
 					closeFd.from_id = ev->from_id;
 					closeFd.type = SW_EVENT_CLOSE;
 					swReactorThread_onClose(reactor, &closeFd);
-					return SW_OK;
 				}
 				else
 				{
@@ -223,19 +223,19 @@ int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 				close(task->fd);
 				sw_free(task);
 			}
+			return SW_OK;
 		}
 		else
 		{
 			sendn = trunk->length - trunk->offset;
 			ret = swWrite(ev->fd, trunk->data + trunk->offset, sendn);
-			printf("sendn=%d|ret=%d|trunk->offset=%d\n", sendn, ret, trunk->offset);
+			//printf("sendn=%d|ret=%d|trunk->offset=%d\n", sendn, ret, trunk->offset);
 			if (ret <= 0)
 			{
-				if(errno == ECONNRESET || errno == EBADF)
+				if (swConnection_error(conn, errno) < 0)
 				{
 					goto close_fd;
 				}
-				sleep(1);
 				swWarn("send failed. fd=%d|from_id=%d. Error: %s[%d]", ev->fd, reactor->id, strerror(errno), errno);
 			}
 			else if(ret == trunk->length)

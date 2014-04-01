@@ -525,8 +525,7 @@ uint32_t swoole_common_multiple(uint32_t u, uint32_t v);
 uint32_t swoole_common_divisor(uint32_t u, uint32_t v);
 
 #ifdef HAVE_KQUEUE
-#include <sys/uio.h>
-int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
+int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
 #else
 #include <sys/sendfile.h>
 #define swoole_sendfile(out_fd, in_fd, offset, limit)    sendfile(out_fd, in_fd, offset, limit)
@@ -547,10 +546,8 @@ int swSocket_create(int type);
 swSignalFunc swSignalSet(int sig, swSignalFunc func, int restart, int mask);
 void swSingalNone();
 
-typedef struct _swFactory swFactory;
-typedef int (*swEventCallback)(swFactory *factory, swEventData *event);
 //------------------Factory--------------------
-struct _swFactory
+typedef struct _swFactory
 {
 	void *object;
 	int max_request; //worker max request
@@ -567,7 +564,7 @@ struct _swFactory
 
 	int (*onTask)(struct _swFactory *, swEventData *task); //worker function.get a task,goto to work
 	int (*onFinish)(struct _swFactory *, swSendData *result); //factory worker finish.callback
-};
+} swFactory;
 
 struct swReactor_s
 {

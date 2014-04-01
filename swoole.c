@@ -2114,9 +2114,9 @@ PHP_FUNCTION(swoole_server_sendfile)
 		RETURN_FALSE;
 	}
 	//check file exists
-	if (access(send_data.data, R_OK) < 0)
+	if (access(filename, R_OK) < 0)
 	{
-		zend_error(E_WARNING, "swoole_server: file[%s] not found.", send_data.data);
+		zend_error(E_WARNING, "swoole_server: file[%s] not found.", filename);
 		RETURN_FALSE;
 	}
 
