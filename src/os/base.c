@@ -96,7 +96,7 @@ static int swoole_aio_thread_onTask(swThreadPool *pool, void *task, int task_len
 	struct in_addr addr;
 	char *ip_addr;
 
-	int ret;
+	int ret = -1;
 
 	start_switch:
 	switch(event->type)

@@ -17,11 +17,6 @@
 #include "swoole.h"
 #include "Server.h"
 
-#ifdef HAVE_KQUEUE
-#include <sys/uio.h>
-#else
-#include <sys/sendfile.h>
-#endif
 #include <sys/stat.h>
 
 /**
@@ -196,7 +191,7 @@ int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 		{
 			swTask_sendfile *task = trunk->data;
 			sendn = (task->filesize - task->offset > SW_SENDFILE_TRUNK) ? SW_SENDFILE_TRUNK : task->filesize - task->offset;
-			ret = sendfile(ev->fd, task->fd, &task->offset, sendn);
+			ret = swoole_sendfile(ev->fd, task->fd, &task->offset, sendn);
 			//swWarn("ret=%d|task->offset=%ld|sendn=%d|filesize=%ld", ret, task->offset, sendn, task->filesize);
 			if (ret < 0)
 			{
@@ -287,7 +282,8 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 			return swReactorThread_onReceive_no_buffer(reactor, event);
 		}
 		//new trunk
-		if (swBuffer_new_trunk(buffer, SW_TRUNK_DATA) == NULL)
+		trunk = swBuffer_new_trunk(buffer, SW_TRUNK_DATA);
+		if (trunk == NULL)
 		{
 			sw_free(buffer);
 			goto recv_data_nobuffer;

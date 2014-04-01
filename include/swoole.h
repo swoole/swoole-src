@@ -524,6 +524,14 @@ uint64_t swoole_hash_key(char *str, int str_len);
 uint32_t swoole_common_multiple(uint32_t u, uint32_t v);
 uint32_t swoole_common_divisor(uint32_t u, uint32_t v);
 
+#ifdef HAVE_KQUEUE
+#include <sys/uio.h>
+int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
+#else
+#include <sys/sendfile.h>
+#define swoole_sendfile(out_fd, in_fd, offset, limit)    sendfile(out_fd, in_fd, offset, limit)
+#endif
+
 //----------------------core function---------------------
 SWINLINE int swSetTimeout(int sock, double timeout);
 SWINLINE int swRead(int, void *, int);

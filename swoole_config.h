@@ -36,6 +36,7 @@
 #define SW_CLIENT_BUFFER_SIZE      65535
 #define SW_BUFFER_SIZE             (8192-sizeof(struct _swDataHead)) //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_SENDFILE_TRUNK          65535
+#define SW_SENDFILE_MAXLEN         4194304
 
 #define SW_HASHMAP_KEY_MAXLEN      256
 
