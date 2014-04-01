@@ -24,7 +24,7 @@ int swThreadPool_create(swThreadPool *pool, int thread_num)
 	bzero(pool, sizeof(swThreadPool));
 
 	pool->threads = (swThread *) sw_calloc(thread_num, sizeof(swThread));
-	pool->params = sw_calloc(pool->thread_num, sizeof(swThreadParam));
+	pool->params = (swThreadParam *) sw_calloc(thread_num, sizeof(swThreadParam));
 	if (pool->threads == NULL || pool->params == NULL)
 	{
 		swWarn("swThreadPool_create malloc fail");
@@ -117,7 +117,7 @@ int swThreadPool_free(swThreadPool *pool)
 	pthread_mutex_destroy(&(pool->mutex));
 	pthread_cond_destroy(&(pool->cond));
 //这里比较奇怪,params指针已经被释放掉了
-//	sw_free(pool->params);
+	sw_free(pool->params);
 	sw_free(pool->threads);
 	return 0;
 }

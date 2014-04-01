@@ -37,6 +37,8 @@
 #define SW_BUFFER_SIZE             (8192-sizeof(struct _swDataHead)) //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_SENDFILE_TRUNK          65535
 
+#define SW_HASHMAP_KEY_MAXLEN      256
+
 #define SW_DATA_EOF                "\r\n\r\n"
 #define SW_DATA_EOF_MAXLEN         8
 
@@ -58,6 +60,7 @@
 #define SW_THREADPOOL_QUEUE_LEN    100
 #define SW_IP_MAX_LENGTH           32
 #define SW_AIO_MAX_FILESIZE        4194304
+#define SW_AIO_EVENT_NUM           128
 
 #ifndef SW_WORKER_IPC_MODE
 #define SW_WORKER_IPC_MODE         1    //1:unix socket,2:IPC Message Queue

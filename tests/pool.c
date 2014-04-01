@@ -28,7 +28,7 @@ swUnitTest(pool_thread)
 	for (i = 0; i < n; i++)
 	{
 		workingnum[i] = i;
-		swThreadPool_task(&pool, myprocess, &workingnum[i]);
+		swThreadPool_dispatch(&pool, &workingnum[i], sizeof(int) * n);
 	}
 //	swWarn("finish.");
 	sleep(10);

@@ -26,19 +26,19 @@ swUnitTest(hashmap_test1)
 	swHashMap hm = NULL;
 
 	swWarn("add");
-	swHashMap_add(&hm, "hello", 199);
-	swHashMap_add(&hm, "swoole22", 8877);
-	swHashMap_add(&hm, "hello2", 200);
-	swHashMap_add(&hm, "willdel", 888);
-	swHashMap_add(&hm, "hello3", 78978);
+	swHashMap_add(&hm, SW_STRL("hello")-1, 199);
+	swHashMap_add(&hm, SW_STRL("swoole22")-1, 8877);
+	swHashMap_add(&hm, SW_STRL("hello2")-1, 200);
+	swHashMap_add(&hm, SW_STRL("willdel")-1, 888);
+	swHashMap_add(&hm, SW_STRL("hello3")-1, 78978);
 
 	swWarn("del");
 	swHashMap_del(&hm, "willdel");
-//	int ret = swHashMap_find(&hm, "hello");
-//	printf("ret=%d\n", ret);
-//
-//	int ret2 = swHashMap_find(&hm, "hello2");
-//	printf("ret2=%d\n", ret2);
+	int ret = swHashMap_find(&hm, "hello");
+	printf("ret=%d\n", ret);
+
+	int ret2 = swHashMap_find(&hm, "hello2");
+	printf("ret2=%d\n", ret2);
 
 	void *tmp = NULL;
 	char *key;

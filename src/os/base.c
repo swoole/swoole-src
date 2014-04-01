@@ -44,14 +44,19 @@ static int swoole_aio_pipe_write;
 
 static int swoole_aio_onFinish(swReactor *reactor, swEvent *event)
 {
-	swAio_event *aio_ev;
-	if (read(event->fd, &aio_ev, sizeof(aio_ev)) != sizeof(aio_ev))
+	int i;
+	swAio_event *events[SW_AIO_EVENT_NUM];
+	int n = read(event->fd, events, sizeof(swAio_event*)*SW_AIO_EVENT_NUM);
+	if (n < 0)
 	{
 		swWarn("read failed. Error: %s[%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
-	swoole_aio_complete_callback(aio_ev);
-	sw_free(aio_ev);
+	for(i = 0; i < n/sizeof(swAio_event*); i++)
+	{
+		swoole_aio_complete_callback(events[i]);
+		sw_free(events[i]);
+	}
 	return SW_OK;
 }
 
@@ -161,7 +166,12 @@ static int swoole_aio_thread_onTask(swThreadPool *pool, void *task, int task_len
 
 int swoole_aio_write(int fd, void *inbuf, size_t size, off_t offset)
 {
-	swAio_event *aio_ev = sw_malloc(sizeof(swAio_event));
+	swAio_event *aio_ev = (swAio_event *) sw_malloc(sizeof(swAio_event));
+	if (aio_ev == NULL)
+	{
+		swWarn("malloc failed.");
+		return SW_ERR;
+	}
 	bzero(aio_ev, sizeof(swAio_event));
 	aio_ev->fd = fd;
 	aio_ev->buf = inbuf;
@@ -173,7 +183,12 @@ int swoole_aio_write(int fd, void *inbuf, size_t size, off_t offset)
 
 int swoole_aio_dns_lookup(void *hostname, void *ip_addr, size_t size)
 {
-	swAio_event *aio_ev = sw_malloc(sizeof(swAio_event));
+	swAio_event *aio_ev = (swAio_event *) sw_malloc(sizeof(swAio_event));
+	if (aio_ev == NULL)
+	{
+		swWarn("malloc failed.");
+		return SW_ERR;
+	}
 	bzero(aio_ev, sizeof(swAio_event));
 	aio_ev->buf = ip_addr;
 	aio_ev->req = hostname;
@@ -184,7 +199,12 @@ int swoole_aio_dns_lookup(void *hostname, void *ip_addr, size_t size)
 
 int swoole_aio_read(int fd, void *inbuf, size_t size, off_t offset)
 {
-	swAio_event *aio_ev = sw_malloc(sizeof(swAio_event));
+	swAio_event *aio_ev = (swAio_event *) sw_malloc(sizeof(swAio_event));
+	if (aio_ev == NULL)
+	{
+		swWarn("malloc failed.");
+		return SW_ERR;
+	}
 	bzero(aio_ev, sizeof(swAio_event));
 	aio_ev->fd = fd;
 	aio_ev->buf = inbuf;
