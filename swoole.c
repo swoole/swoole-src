@@ -334,6 +334,7 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_client_select, NULL)
 	PHP_FE(swoole_set_process_name, NULL)
 	PHP_FE(swoole_strerror, NULL)
+	PHP_FE(swoole_errno, NULL)
 #ifdef SW_ASYNC_MYSQL
 	PHP_FE(swoole_get_mysqli_sock, NULL)
 #endif
@@ -1910,6 +1911,11 @@ PHP_FUNCTION(swoole_strerror)
     RETURN_STRING(error_msg, 1);
 }
 
+PHP_FUNCTION(swoole_errno)
+{
+    RETURN_LONG(errno);
+}
+
 PHP_FUNCTION(swoole_server_start)
 {
 	zval *zobject = getThis();
@@ -2304,10 +2310,12 @@ PHP_FUNCTION(swoole_server_taskwait)
 	memcpy(buf.data, data, data_len);
 	buf.info.len = data_len;
 	buf.info.type = SW_TASK_BLOCKING;
-	//使用fd保存task_id
+	//field fd save task_id
 	buf.info.fd = php_swoole_task_id++;
-	//from_id保存worker_id
+	//field from_id save the worker_id
 	buf.info.from_id = SwooleWG.id;
+	//clear result buffer
+	bzero(&(SwooleG.task_result[SwooleWG.id]), sizeof(SwooleG.task_result[SwooleWG.id]));
 
 	if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int) worker_id) > 0)
 	{
@@ -2329,7 +2337,6 @@ PHP_FUNCTION(swoole_server_taskwait)
 		}
 	}
 	RETURN_FALSE;
-
 }
 
 PHP_FUNCTION(swoole_server_task)

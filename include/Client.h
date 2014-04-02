@@ -8,6 +8,8 @@
 #ifndef SW_CLIENT_H_
 #define SW_CLIENT_H_
 
+#include "buffer.h"
+
 #define SW_SOCK_ASYNC    1
 #define SW_SOCK_SYNC     0
 
@@ -19,6 +21,7 @@ typedef struct _swClient
 	int sock_type;
 	int sock_domain;
 	int protocol;
+
 	uint8_t async;
 	uint8_t connected;
 	uint8_t keep;
@@ -26,6 +29,8 @@ typedef struct _swClient
 
 	struct sockaddr_in serv_addr;
 	struct sockaddr_in remote_addr;
+
+	swBuffer *out_buffer;
 
 	void (*onConnect)(struct _swClient *cli);
 	int (*onReceive)(struct _swClient *cli, swSendData *data);
