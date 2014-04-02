@@ -255,60 +255,40 @@ int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 
 int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *event)
 {
-	int ret, n, recv_again = SW_FALSE;
+	int n, recv_again = SW_FALSE;
 	int isEOF = -1;
+	int buf_size;
 
 	swServer *serv = SwooleG.serv;
-	swFactory *factory =  SwooleG.factory;
+	//swDispatchData send_data;
+	swBuffer *buffer;
+	swBuffer_trunk *trunk;
+
 	swConnection *conn = swServer_get_connection(serv, event->fd);
 	if (conn->active == 0)
 	{
 		return SW_OK;
 	}
 
-	//swDispatchData send_data;
-	swEventData send_data;
-	swBuffer *buffer;
-	swBuffer_trunk *trunk;
-	int buf_size;
+	trunk = swConnection_get_in_buffer(conn);
+	if (trunk == NULL)
+	{
+		return swReactorThread_onReceive_no_buffer(reactor, event);
+	}
 
-	if (conn->in_buffer == NULL)
-	{
-		buffer = swBuffer_new(SW_BUFFER_SIZE);
-		//buffer create failed
-		if (buffer == NULL)
-		{
-			recv_data_nobuffer:
-			return swReactorThread_onReceive_no_buffer(reactor, event);
-		}
-		//new trunk
-		trunk = swBuffer_new_trunk(buffer, SW_TRUNK_DATA);
-		if (trunk == NULL)
-		{
-			sw_free(buffer);
-			goto recv_data_nobuffer;
-		}
-		conn->in_buffer = buffer;
-		buf_size = buffer->trunk_size;
-	}
-	else
-	{
-		buffer = conn->in_buffer;
-		trunk = swBuffer_get_trunk(buffer);
-		//trunk
-		buf_size =  buffer->trunk_size - trunk->length;
-	}
+	buffer = conn->in_buffer;
 
 	recv_data:
+	buf_size = buffer->trunk_size - trunk->length;
 
 #ifdef SW_USE_EPOLLET
 	n = swRead(event->fd,  trunk->data, SW_BUFFER_SIZE);
 #else
-	//非ET模式会持续通知
+	//level trigger
 	n = recv(event->fd,  trunk->data + trunk->length, buf_size, 0);
 #endif
 
-	//printf("recv[len=%d]-----------------\n", n);
+	swTrace("ReactorThread: recv[len=%d]", n);
 	if (n < 0)
 	{
 		if (swConnection_error(conn, errno) < 0)
@@ -326,7 +306,7 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 	}
 	else
 	{
-		//更新时间
+		//update time
 		conn->last_time =  SwooleGS->now;
 
 		//读满buffer了,可能还有数据
@@ -334,65 +314,39 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 		{
 			recv_again = SW_TRUE;
 		}
+
 		trunk->length += n;
 		buffer->length += n;
 
-		//超过最大尺寸,将会被丢弃
+		//over max length, will discard
 		if (buffer->length > serv->buffer_input_size)
 		{
 			swWarn("Package is too big. package_length=%d", buffer->length);
 			goto close_fd;
 		}
 
-		//printf("buffer[len=%d][n=%d]-----------------\n", trunk->len, n);
+		//printf("buffer[len=%d][n=%d]-----------------\n", trunk->length, n);
+		//((char *)trunk->data)[trunk->length] = 0; //for printf
+		//printf("buffer-----------------: %s|fd=%d|len=%d\n", (char *) trunk->data, event->fd, trunk->length);
 
-		//trunk->data[trunk->len] = 0; //这里是为了printf
-		//printf("buffer-----------------: %s|fd=%d|len=%d\n", trunk->data, event->fd, trunk->len);
-
-		//EOF_Check----------------------------------------------------------------------------------
+		//EOF_Check
 		isEOF = memcmp(trunk->data + trunk->length - serv->package_eof_len, serv->package_eof, serv->package_eof_len);
-		//printf("buffer ok. EOF=%s|Len=%d|RecvEOF=%s|isEOF=%d\n", serv->package_eof, serv->package_eof_len, trunk->data + trunk->len - serv->package_eof_len, isEOF);
+		//printf("buffer ok. EOF=%s|Len=%d|RecvEOF=%s|isEOF=%d\n", serv->package_eof, serv->package_eof_len, (char *)trunk->data + trunk->length - serv->package_eof_len, isEOF);
 
-		//收到EOF,发送数据到worker进程
+		//received EOF, will send package to worker
 		if (isEOF == 0)
 		{
-			//printf("EOF------------------------------------\n");
-			send_data.info.fd = event->fd;
-			send_data.info.type = (buffer->trunk_num == 1) ? SW_EVENT_TCP : SW_EVENT_PACKAGE_START;
-			send_data.info.from_id = event->from_id;
-			swBuffer_trunk *send_trunk = buffer->head;
-
-			int i = 1;
-			while (send_trunk != NULL && send_trunk->length != 0)
-			{
-				send_data.info.len = send_trunk->length;
-				memcpy(send_data.data, send_trunk->data, send_data.info.len);
-				send_trunk = send_trunk->next;
-				ret = factory->dispatch(factory, &send_data);
-				//处理数据失败，数据将丢失
-				if (ret < 0)
-				{
-					swWarn("factory->dispatch failed.");
-				}
-				//printf("send2worker[i=%d][trunk_num=%d][type=%d]------------------------------------\n", i, buffer_item->trunk_num, send_data.info.type);
-				i++;
-				if (send_data.info.type == SW_EVENT_PACKAGE_START)
-				{
-					send_data.info.type = (i == buffer->trunk_num) ? SW_EVENT_PACKAGE_END : SW_EVENT_PACKAGE_TRUNK;
-				}
-				else if(i == buffer->trunk_num && send_data.info.type == SW_EVENT_PACKAGE_TRUNK)
-				{
-					send_data.info.type = SW_EVENT_PACKAGE_END;
-				}
-			}
-			swBuffer_flush(buffer);
+			swTrace("---------------------------EOF---------------------------\n");
+			swConnection_send_in_buffer(conn);
 			return SW_OK;
 		}
 		else if(recv_again)
 		{
-			swBuffer_new_trunk(buffer, SW_TRUNK_DATA);
-			buf_size = buffer->trunk_size;
-			goto recv_data;
+			trunk = swConnection_get_in_buffer(conn);
+			if (trunk)
+			{
+				goto recv_data;
+			}
 		}
 	}
 	return SW_OK;

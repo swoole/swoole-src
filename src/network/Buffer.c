@@ -17,55 +17,6 @@
 #include "swoole.h"
 #include "Server.h"
 
-SWINLINE swString* swConnection_get_string_buffer(swConnection *conn)
-{
-	swString *buffer = conn->string_buffer;
-	if (buffer == NULL)
-	{
-		return swString_new(SW_BUFFER_SIZE);
-	}
-	else
-	{
-		return buffer;
-	}
-}
-
-SWINLINE void swConnection_clear_string_buffer(swConnection *conn)
-{
-	swString *buffer = conn->string_buffer;
-	if (buffer != NULL)
-	{
-		swString_free(buffer);
-		conn->string_buffer = NULL;
-	}
-}
-
-SWINLINE swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type)
-{
-	swBuffer_trunk *trunk;
-	if (conn->out_buffer == NULL)
-	{
-		conn->out_buffer = swBuffer_new(SW_BUFFER_SIZE);
-		if (conn->out_buffer == NULL)
-		{
-			return NULL;
-		}
-	}
-	if (type == SW_TRUNK_SENDFILE)
-	{
-		trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_SENDFILE);
-	}
-	else
-	{
-		trunk = swBuffer_get_trunk(conn->out_buffer);
-		if (trunk == NULL)
-		{
-			trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_DATA);
-		}
-	}
-	return trunk;
-}
-
 swBuffer* swBuffer_new(int trunk_size)
 {
 	swBuffer *buffer = sw_malloc(sizeof(swBuffer));
@@ -141,34 +92,6 @@ SWINLINE void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk)
 		sw_free(trunk->data);
 	}
 	sw_free(trunk);
-}
-
-int swBuffer_flush(swBuffer *buffer)
-{
-	if(buffer->head == NULL)
-	{
-		return SW_ERR;
-	}
-
-	buffer->head->length = 0;
-	buffer->tail = buffer->head;
-	buffer->trunk_num = 1;
-	buffer->length = 0;
-
-	swBuffer_trunk *trunk = buffer->head->next;
-	swBuffer_trunk *will_free_trunk; //保存trunk的指针，用于释放内存
-
-	while (trunk!= NULL)
-	{
-		trunk->length = 0;
-		sw_free(trunk->data);
-		will_free_trunk = trunk;
-		trunk = trunk->next;    //这里会指向下个指针，所以需要保存
-		sw_free(will_free_trunk);
-//		swWarn("will_free_trunk");
-	}
-	buffer->head->next = NULL;
-	return SW_OK;
 }
 
 int swBuffer_free(swBuffer *buffer)

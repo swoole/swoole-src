@@ -280,6 +280,8 @@ SWINLINE int swConnection_error(swConnection *conn, int err);
 SWINLINE swString* swConnection_get_string_buffer(swConnection *conn);
 SWINLINE void swConnection_clear_string_buffer(swConnection *conn);
 SWINLINE swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type);
+SWINLINE swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn);
+int swConnection_send_in_buffer(swConnection *conn);
 
 int swReactorThread_onClose(swReactor *reactor, swEvent *event);
 int swReactorThread_onWrite(swReactor *reactor, swDataHead *ev);

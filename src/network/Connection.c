@@ -92,6 +92,12 @@ SWINLINE void swConnection_close(swServer *serv, int fd, int notify)
 		conn->out_buffer = NULL;
 	}
 
+	if (conn->in_buffer != NULL)
+	{
+		swBuffer_free(conn->in_buffer);
+		conn->in_buffer = NULL;
+	}
+
 	//通知到worker进程
 	if (serv->onClose != NULL && notify == 1)
 	{
@@ -151,4 +157,127 @@ SWINLINE int swServer_new_connection(swServer *serv, swEvent *ev)
 	connection->active = 1; //使此连接激活,必须在最后，保证线程安全
 
 	return SW_OK;
+}
+
+SWINLINE swString* swConnection_get_string_buffer(swConnection *conn)
+{
+	swString *buffer = conn->string_buffer;
+	if (buffer == NULL)
+	{
+		return swString_new(SW_BUFFER_SIZE);
+	}
+	else
+	{
+		return buffer;
+	}
+}
+
+SWINLINE void swConnection_clear_string_buffer(swConnection *conn)
+{
+	swString *buffer = conn->string_buffer;
+	if (buffer != NULL)
+	{
+		swString_free(buffer);
+		conn->string_buffer = NULL;
+	}
+}
+
+int swConnection_send_in_buffer(swConnection *conn)
+{
+	int ret, i = 1;
+
+	swFactory *factory = SwooleG.factory;
+	swEventData _send;
+	swBuffer *buffer = conn->in_buffer;
+	swBuffer_trunk *trunk = swBuffer_get_trunk(buffer);
+
+	_send.info.fd = conn->fd;
+	_send.info.type = (buffer->trunk_num == 1) ? SW_EVENT_TCP : SW_EVENT_PACKAGE_START;
+	_send.info.from_id = conn->from_id;
+
+	while (trunk != NULL && trunk->length != 0)
+	{
+		_send.info.len = trunk->length;
+		memcpy(_send.data, trunk->data, _send.info.len);
+		trunk = trunk->next;
+		ret = factory->dispatch(factory, &_send);
+
+		//TODO: 处理数据失败，数据将丢失
+		if (ret < 0)
+		{
+			swWarn("factory->dispatch failed.");
+		}
+		swTrace("send2worker[i=%d][trunk_num=%d][type=%d]\n", i, buffer->trunk_num, _send.info.type);
+
+		i++;
+		if (_send.info.type == SW_EVENT_PACKAGE_START)
+		{
+			_send.info.type = (i == buffer->trunk_num) ? SW_EVENT_PACKAGE_END : SW_EVENT_PACKAGE_TRUNK;
+		}
+		else if(i == buffer->trunk_num && _send.info.type == SW_EVENT_PACKAGE_TRUNK)
+		{
+			_send.info.type = SW_EVENT_PACKAGE_END;
+		}
+	}
+	return SW_OK;
+}
+
+SWINLINE swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn)
+{
+	swBuffer_trunk *trunk = NULL;
+	swBuffer *buffer;
+
+	if (conn->in_buffer == NULL)
+	{
+		buffer = swBuffer_new(SW_BUFFER_SIZE);
+		//buffer create failed
+		if (buffer == NULL)
+		{
+			return NULL;
+		}
+		//new trunk
+		trunk = swBuffer_new_trunk(buffer, SW_TRUNK_DATA);
+		if (trunk == NULL)
+		{
+			sw_free(buffer);
+			return NULL;
+		}
+		conn->in_buffer = buffer;
+	}
+	else
+	{
+		buffer = conn->in_buffer;
+		trunk = swBuffer_get_trunk(buffer);
+		if (trunk == NULL || trunk->length == buffer->trunk_size)
+		{
+			trunk = swBuffer_new_trunk(buffer, SW_TRUNK_DATA);
+		}
+	}
+	return trunk;
+}
+
+SWINLINE swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type)
+{
+	swBuffer_trunk *trunk;
+	if (conn->out_buffer == NULL)
+	{
+		conn->out_buffer = swBuffer_new(SW_BUFFER_SIZE);
+		if (conn->out_buffer == NULL)
+		{
+			return NULL;
+		}
+	}
+	if (type == SW_TRUNK_SENDFILE)
+	{
+		trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_SENDFILE);
+	}
+	else
+	{
+		trunk = swBuffer_get_trunk(conn->out_buffer);
+		if (trunk == NULL)
+		{
+			trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_DATA);
+		}
+	}
+	return trunk;
 }

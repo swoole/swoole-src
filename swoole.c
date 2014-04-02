@@ -1387,7 +1387,22 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	}
 
 	MAKE_STD_ZVAL(zdata);
-	ZVAL_STRINGL(zdata, swPackage_data(req), swPackage_length(req), 1);
+
+	char *data_ptr;
+	int data_len;
+
+	if (req->info.type == SW_EVENT_PACKAGE_END)
+	{
+		data_ptr = SwooleWG.buffer_input[req->info.from_id]->str;
+		data_len = SwooleWG.buffer_input[req->info.from_id]->length;
+	}
+	else
+	{
+		data_ptr = req->data;
+		data_len = req->info.len;
+	}
+	ZVAL_STRINGL(zdata, data_ptr, data_len, 0);
+	swTrace("data_len=%d|data_ptr=%p", data_len, data_ptr);
 
 	args[0] = &zserv;
 	args[1] = &zfd;
@@ -1405,10 +1420,9 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	{
 		zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
 	}
-
 	zval_ptr_dtor(&zfd);
 	zval_ptr_dtor(&zfrom_id);
-	zval_ptr_dtor(&zdata);
+	efree(zdata);
 	if (retval != NULL)
 	{
 		zval_ptr_dtor(&retval);

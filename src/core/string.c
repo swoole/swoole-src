@@ -26,7 +26,7 @@ swString *swString_new(size_t size)
 	}
 	bzero(str, sizeof(swString));
 	str->size = size;
-	str->str = sw_malloc(sizeof(size));
+	str->str = sw_malloc(size);
 	if (str->str == NULL)
 	{
 		swWarn("malloc[2] failed.");

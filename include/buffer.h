@@ -40,7 +40,6 @@ swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type);
 SWINLINE void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk);
 
 void swBuffer_debug(swBuffer *buffer);
-int swBuffer_flush(swBuffer *buffer);
 int swBuffer_free(swBuffer *buffer);
 
 #ifdef __cplusplus

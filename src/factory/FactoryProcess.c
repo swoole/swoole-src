@@ -181,7 +181,6 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 	case SW_EVENT_PACKAGE_TRUNK:
 	case SW_EVENT_PACKAGE_END:
 		package = SwooleWG.buffer_input[task->info.from_id];
-
 		//package开始
 		if(task->info.type == SW_EVENT_PACKAGE_START)
 		{
@@ -190,7 +189,7 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 		//合并数据到package buffer中
 		memcpy(package->str + package->length, task->data, task->info.len);
 		package->length += task->info.len;
-		//printf("package[%d]. data=%d\n", task->info.type, task->info.len);
+		swTrace("package[%d]. data_len=%d|total_length=%d\n", task->info.type, task->info.len, package->length);
 		//package已经完整接收
 		if(task->info.type == SW_EVENT_PACKAGE_END)
 		{
@@ -621,6 +620,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 			if (SwooleWG.buffer_input[i] == NULL)
 			{
 				swError("buffer_input init failed.");
+				return SW_ERR;
 			}
 		}
 	}
@@ -711,12 +711,11 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 	swTrace("[Worker]max request");
 	return SW_OK;
 }
-
 /**
  * for msg queue
  * 头部放一个long让msg queue可以直接插入到消息队列中
  */
-static struct {
+static __thread struct {
 	long pti;
 	swDataHead _send;
 } sw_notify_data;
@@ -726,6 +725,7 @@ static struct {
  */
 int swFactoryProcess_notify(swFactory *factory, swDataHead *ev)
 {
+	bzero(&sw_notify_data, sizeof(sw_notify_data));
 	memcpy(&sw_notify_data._send, ev, sizeof(swDataHead));
 	sw_notify_data._send.len = 0;
 	return swFactoryProcess_send2worker(factory, (swEventData *)&sw_notify_data._send, -1);
