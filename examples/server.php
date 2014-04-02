@@ -68,6 +68,11 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 		$task_id = $serv->task("hello world", 0);
 		echo "Dispath AsyncTask: id=$task_id\n";
 	}
+	elseif($cmd == "taskwait") 
+    {
+		$result = $serv->taskwait("hello world");
+		echo "SyncTask: result=$result\n";
+	}
 	elseif($cmd == "info") 
     {
 		$info = $serv->connection_info($fd);

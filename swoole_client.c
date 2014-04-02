@@ -265,6 +265,10 @@ static int php_swoole_client_onConnect(swReactor *reactor, swEvent *event)
 			efree(hash_key);
 			return SW_ERR;
 		}
+		if (retval)
+		{
+			zval_ptr_dtor(&retval);
+		}
 	}
 	else
 	{
@@ -288,6 +292,11 @@ static int php_swoole_client_onConnect(swReactor *reactor, swEvent *event)
 			zend_error(E_WARNING, "swoole_client: onError handler error");
 			efree(hash_key);
 			return SW_ERR;
+		}
+		zval_ptr_dtor(&errCode);
+		if (retval)
+		{
+			zval_ptr_dtor(&retval);
 		}
 	}
 	return SW_OK;
@@ -402,8 +411,8 @@ void php_swoole_try_run_reactor()
 
 		if (!register_user_shutdown_function("swoole_event_wait", sizeof("swoole_event_wait"), &shutdown_function_entry TSRMLS_CC))
 		{
-			zval_ptr_dtor(&callback);
 			efree(shutdown_function_entry.arguments);
+			zval_ptr_dtor(&callback);
 			zend_error(E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
 		}
 #else
@@ -753,7 +762,6 @@ PHP_METHOD(swoole_client, connect)
 		RETURN_TRUE;
 	}
 
-
 	if (cli->async == 1 && (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6))
 	{
 		//for tcp: nonblock
@@ -806,6 +814,10 @@ PHP_METHOD(swoole_client, connect)
 				zend_error(E_WARNING, "swoole_client: onConnect[udp] handler error");
 				efree(hash_key);
 				RETURN_FALSE;
+			}
+			if (retval)
+			{
+				zval_ptr_dtor(&retval);
 			}
 		}
 		ret = SwooleG.main_reactor->add(SwooleG.main_reactor, cli->sock, flag);
@@ -868,7 +880,7 @@ PHP_METHOD(swoole_client, send)
 		MAKE_STD_ZVAL(errCode);
 		ZVAL_LONG(errCode, errno);
 		zend_update_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errCode TSRMLS_CC);
-		zval_dtor(errCode);
+		zval_ptr_dtor(&errCode);
 		RETVAL_FALSE;
 	}
 	else

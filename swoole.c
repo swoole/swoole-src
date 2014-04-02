@@ -594,6 +594,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
 		if(php_sw_callback[i] != NULL)
 		{
 			zval_dtor(php_sw_callback[i]);
+			efree(php_sw_callback[i]);
 		}
 	}
 	php_sw_reactor_wait_onexit = 0;
@@ -972,13 +973,14 @@ static int php_swoole_set_callback(int key, zval *cb TSRMLS_DC)
 		return SW_ERR;
 	}
 	//zval_add_ref(&cb);
-	php_sw_callback[key] = pemalloc(sizeof(zval), 1);
+	php_sw_callback[key] = emalloc(sizeof(zval));
 	if(php_sw_callback[key] == NULL)
 	{
 		return SW_ERR;
 	}
 	*(php_sw_callback[key]) = *cb;
 	zval_copy_ctor(php_sw_callback[key]);
+	efree(func_name);
 	return SW_OK;
 }
 

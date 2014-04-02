@@ -3,6 +3,7 @@ $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC); //异步非阻�
 
 $client->on("connect", function(swoole_client $cli) {
     $cli->send("GET / HTTP/1.1\r\n\r\n");
+    $cli->close();
 });
 
 $client->on("receive", function(swoole_client $cli, $data){
