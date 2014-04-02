@@ -56,7 +56,6 @@ int swString_append(swString *str, swString *append_str)
 	return SW_OK;
 }
 
-
 int swString_extend(swString *str, size_t new_size)
 {
 	if(new_size <= str->size)

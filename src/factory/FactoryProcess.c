@@ -725,10 +725,9 @@ static __thread struct {
  */
 int swFactoryProcess_notify(swFactory *factory, swDataHead *ev)
 {
-	bzero(&sw_notify_data, sizeof(sw_notify_data));
 	memcpy(&sw_notify_data._send, ev, sizeof(swDataHead));
 	sw_notify_data._send.len = 0;
-	return swFactoryProcess_send2worker(factory, (swEventData *)&sw_notify_data._send, -1);
+	return swFactoryProcess_send2worker(factory, (swEventData *) &sw_notify_data._send, -1);
 }
 
 /**
@@ -803,9 +802,9 @@ int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int work
 	ret = object->rd_queue.in(&object->rd_queue, in_data, send_len);
 	swTrace("[Master]rd_queue[%ld]->in: fd=%d|type=%d|len=%d", in_data->mtype, info->fd, info->type, info->len);
 #else
-	//swWarn("pti=%d|from_id=%d", pti, data->info.from_id);
 	//send to unix sock
-	ret = swWrite(object->workers[pti].pipe_master, (char *) data, send_len);
+	//swWarn("pti=%d|from_id=%d|data_len=%d|swDataHead_size=%ld", pti, data->info.from_id, send_len, sizeof(swDataHead));
+	ret = swWrite(object->workers[pti].pipe_master, (void *) data, send_len);
 #endif
 	return ret;
 }
