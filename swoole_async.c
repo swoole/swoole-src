@@ -117,7 +117,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 		MAKE_STD_ZVAL(zcontent);
 		args[0] = &file_req->filename;
 		args[1] = &zcontent;
-		ZVAL_STRINGL(zcontent, event->buf, ret, 1);
+		ZVAL_STRINGL(zcontent, event->buf, ret, 0);
 	}
 	else if(event->type == SW_AIO_WRITE)
 	{
@@ -130,7 +130,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 	{
 		MAKE_STD_ZVAL(zcontent);
 		args[0] = &dns_req->domain;
-		ZVAL_STRING(zcontent, event->buf, 1);
+		ZVAL_STRING(zcontent, event->buf, 0);
 		args[1] = &zcontent;
 	}
 	else
@@ -146,11 +146,6 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 			zend_error(E_WARNING, "swoole_async: onAsyncComplete handler error");
 			return;
 		}
-	}
-
-	if (zcontent != NULL)
-	{
-		zval_ptr_dtor(&zcontent);
 	}
 
 	//readfile/writefile
@@ -199,6 +194,10 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 		efree(dns_req);
 		efree(event->buf);
 	}
+	if (zcontent != NULL)
+	{
+		efree(zcontent);
+	}
 	if (zwriten != NULL)
 	{
 		zval_ptr_dtor(&zwriten);
@@ -229,7 +228,7 @@ PHP_FUNCTION(swoole_async_read)
 	int fd = open(Z_STRVAL_P(filename), open_flag, 0644);
 	if (fd < 0)
 	{
-		zend_error(E_WARNING, "swoole_async_readfile: open file failed. Error: %s[%d]", strerror(errno), errno);
+		zend_error(E_WARNING, "swoole_async_readfile: open file[%s] failed. Error: %s[%d]", Z_STRVAL_P(filename), strerror(errno), errno);
 		RETURN_FALSE;
 	}
 
@@ -380,7 +379,7 @@ PHP_FUNCTION(swoole_async_readfile)
 	int fd = open(Z_STRVAL_P(filename), open_flag, 0644);
 	if (fd < 0)
 	{
-		zend_error(E_WARNING, "swoole_async_readfile: open file failed. Error: %s[%d]", strerror(errno), errno);
+		zend_error(E_WARNING, "swoole_async_readfile: open file[%s] failed. Error: %s[%d]", Z_STRVAL_P(filename), strerror(errno), errno);
 		RETURN_FALSE;
 	}
 	struct stat file_stat;

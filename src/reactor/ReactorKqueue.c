@@ -208,10 +208,13 @@ static int swReactorKqueue_del(swReactor *reactor, int fd)
 	ret = kevent(this->epfd, &e, 1, NULL, 0, NULL);
 	if (ret < 0)
 	{
-		return -1;
+		swWarn("kqueue remove fd[=%d] failed. Error: %s[%d]", fd, strerror(errno), errno);
 	}
-	close(fd);
-	reactor->event_num --;
+	ret = close(fd);
+	if (ret >= 0)
+	{
+		(reactor->event_num <= 0) ? reactor->event_num = 0 : reactor->event_num--;
+	}
 	return SW_OK;
 }
 

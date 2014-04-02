@@ -135,13 +135,15 @@ int swReactorEpoll_del(swReactor *reactor, int fd)
 	ret = epoll_ctl(object->epfd, EPOLL_CTL_DEL, fd, &e);
 	if (ret < 0)
 	{
-		swWarn("epoll remove fd[=%d] fail. Error: %s[%d]", fd, strerror(errno), errno);
-		return SW_ERR;
+		swWarn("epoll remove fd[=%d] failed. Error: %s[%d]", fd, strerror(errno), errno);
 	}
 	//close时会自动从epoll事件中移除
 	//swoole中未使用dup
 	ret = close(fd);
-	(reactor->event_num <= 0) ? reactor->event_num = 0 : reactor->event_num--;
+	if (ret >= 0)
+	{
+		(reactor->event_num <= 0) ? reactor->event_num = 0 : reactor->event_num--;
+	}
 	return SW_OK;
 }
 
