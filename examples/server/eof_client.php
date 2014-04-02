@@ -8,7 +8,7 @@ if(!$client->connect('127.0.0.1', 9501, 0.5, 0))
 
 $data = array(
 	'name' => __FILE__,
-	'content' => str_repeat('A', 8192 * 5),  //800K
+	'content' => str_repeat('A', 8192 * 180),  //800K
 );
 
 if(!$client->send(serialize($data)."\r\n\r\n"))

@@ -11,6 +11,7 @@ $serv->on('connect', function ($serv, $fd){
 $serv->on('receive', function ($serv, $fd, $from_id, $data) {
 	$req = unserialize(trim($data));
 	echo $req['name']."\n";
+	echo "content_length: ".strlen($req['content'])."\n";
 });
 $serv->on('close', function ($serv, $fd) {
     echo "[#".posix_getpid()."]\tClient: Close.\n";

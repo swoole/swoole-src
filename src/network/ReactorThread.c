@@ -336,7 +336,7 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 		//received EOF, will send package to worker
 		if (isEOF == 0)
 		{
-			swTrace("---------------------------EOF---------------------------\n");
+			//printf("---------------------------EOF---------------------------\n");
 			swConnection_send_in_buffer(conn);
 			return SW_OK;
 		}

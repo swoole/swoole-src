@@ -184,7 +184,7 @@ SWINLINE void swConnection_clear_string_buffer(swConnection *conn)
 
 int swConnection_send_in_buffer(swConnection *conn)
 {
-	int ret, i = 1;
+	int ret;
 
 	swFactory *factory = SwooleG.factory;
 	swEventData _send;
@@ -195,11 +195,10 @@ int swConnection_send_in_buffer(swConnection *conn)
 	_send.info.type = (buffer->trunk_num == 1) ? SW_EVENT_TCP : SW_EVENT_PACKAGE_START;
 	_send.info.from_id = conn->from_id;
 
-	while (trunk != NULL && trunk->length != 0)
+	while (trunk != NULL)
 	{
 		_send.info.len = trunk->length;
 		memcpy(_send.data, trunk->data, _send.info.len);
-		trunk = trunk->next;
 		ret = factory->dispatch(factory, &_send);
 
 		//TODO: 处理数据失败，数据将丢失
@@ -207,14 +206,18 @@ int swConnection_send_in_buffer(swConnection *conn)
 		{
 			swWarn("factory->dispatch failed.");
 		}
-		swTrace("send2worker[i=%d][trunk_num=%d][type=%d]\n", i, buffer->trunk_num, _send.info.type);
 
-		i++;
+		swBuffer_pop_trunk(buffer, trunk);
+		trunk = swBuffer_get_trunk(buffer);
+
+		swTrace("send2worker[i=%d][trunk_num=%d][type=%d]\n", i++, buffer->trunk_num, _send.info.type);
+
 		if (_send.info.type == SW_EVENT_PACKAGE_START)
 		{
-			_send.info.type = (i == buffer->trunk_num) ? SW_EVENT_PACKAGE_END : SW_EVENT_PACKAGE_TRUNK;
+			_send.info.type = SW_EVENT_PACKAGE_TRUNK;
 		}
-		else if(i == buffer->trunk_num && _send.info.type == SW_EVENT_PACKAGE_TRUNK)
+		//package end
+		if (trunk == NULL || trunk->next == NULL)
 		{
 			_send.info.type = SW_EVENT_PACKAGE_END;
 		}
