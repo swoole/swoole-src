@@ -17,7 +17,7 @@
 #include "swoole.h"
 #include "Client.h"
 
-static int swClient_inet_addr(struct sockaddr_in *sin, char *string);
+static int swClient_inet_addr(swClient *cli, char *string);
 
 int swClient_create(swClient *cli, int type, int async)
 {
@@ -70,10 +70,11 @@ int swClient_create(swClient *cli, int type, int async)
 	return SW_OK;
 }
 
-static int swClient_inet_addr(struct sockaddr_in *sin, char *string)
+static int swClient_inet_addr(swClient *cli, char *string)
 {
 	struct in_addr tmp;
 	struct hostent *host_entry;
+	struct sockaddr_in *sin = &cli->serv_addr;
 
 	if (inet_aton(string, &tmp))
 	{
@@ -81,6 +82,11 @@ static int swClient_inet_addr(struct sockaddr_in *sin, char *string)
 	}
 	else
 	{
+		if (cli->async)
+		{
+			swWarn("DNS lookup will block the process. Please use swoole_async_dns_lookup");
+		}
+
 		if (!(host_entry = gethostbyname(string)))
 		{
 			swWarn("SwooleClient: Host lookup failed. Error: %s[%d] ", strerror(errno), errno);
@@ -110,7 +116,7 @@ int swClient_tcp_connect(swClient *cli, char *host, int port, double timeout, in
 	cli->serv_addr.sin_family = cli->sock_domain;
 	cli->serv_addr.sin_port = htons(port);
 
-	if (swClient_inet_addr(&cli->serv_addr, host) < 0)
+	if (swClient_inet_addr(cli, host) < 0)
 	{
 		return SW_ERR;
 	}
@@ -223,7 +229,7 @@ int swClient_udp_connect(swClient *cli, char *host, int port, double timeout, in
 	cli->serv_addr.sin_port = htons(port);
 	cli->connected = 1;
 
-	if (swClient_inet_addr(&cli->serv_addr, host) < 0)
+	if (swClient_inet_addr(cli, host) < 0)
 	{
 		return SW_ERR;
 	}

@@ -17,10 +17,12 @@
 #include "swoole.h"
 #include "Server.h"
 
+/**
+ * create new buffer
+ */
 swBuffer* swBuffer_new(int trunk_size)
 {
 	swBuffer *buffer = sw_malloc(sizeof(swBuffer));
-	//内存分配失败
 	if (buffer == NULL)
 	{
 		swWarn("malloc for buffer failed. Error: %s[%d]", strerror(errno), errno);
@@ -33,6 +35,9 @@ swBuffer* swBuffer_new(int trunk_size)
 	return buffer;
 }
 
+/**
+ * create new trunk
+ */
 swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type)
 {
 	swBuffer_trunk *trunk = sw_malloc(sizeof(swBuffer_trunk));
@@ -73,6 +78,9 @@ swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type)
 	return trunk;
 }
 
+/**
+ * pop the head trunk
+ */
 SWINLINE void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk)
 {
 	//only one trunk
@@ -94,10 +102,13 @@ SWINLINE void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk)
 	sw_free(trunk);
 }
 
+/**
+ * free buffer
+ */
 int swBuffer_free(swBuffer *buffer)
 {
 	swBuffer_trunk *trunk = buffer->head;
-	swBuffer_trunk *will_free_trunk; //保存trunk的指针，用于释放内存
+	swBuffer_trunk *will_free_trunk; //free the point
 	while (trunk != NULL)
 	{
 		if (trunk->type == SW_TRUNK_DATA)
@@ -112,6 +123,9 @@ int swBuffer_free(swBuffer *buffer)
 	return SW_OK;
 }
 
+/**
+ * print buffer
+ */
 void swBuffer_debug(swBuffer *buffer)
 {
 	int i = 0;

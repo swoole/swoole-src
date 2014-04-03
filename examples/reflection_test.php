@@ -11,5 +11,3 @@ foreach($methods as $method) {
     print_r($params);
 }
 
-?>
-
