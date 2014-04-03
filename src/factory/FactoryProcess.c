@@ -502,10 +502,9 @@ int swFactoryProcess_end(swFactory *factory, swDataHead *event)
 int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 {
 	//UDP直接在worker进程内发送
-	int ret, sendn, count, pipe_i;
+	int ret, sendn, count;
 	swFactoryProcess *object = factory->object;
 	swServer *serv = factory->ptr;
-	swReactor *reactor;
 	int fd = resp->info.fd;
 
 	//UDP在worker进程中直接发送到客户端
@@ -549,7 +548,8 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 #if SW_WORKER_IPC_MODE == 2
 		ret = object->wt_queue.in(&object->wt_queue, (swQueue_data *)&sdata, sendn);
 #else
-		reactor = &(serv->reactor_threads[conn->from_id].reactor);
+		int pipe_i;
+		swReactor *reactor = &(serv->reactor_threads[conn->from_id].reactor);
 		if (serv->reactor_pipe_num > 1)
 		{
 			pipe_i = fd % serv->reactor_pipe_num + reactor->id;
@@ -807,7 +807,7 @@ int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int work
 	//加1防止id为0的worker进程出错
 	in_data->mtype = pti + 1;
 
-	swDataHead *info = (swDataHead *)in_data->mdata;
+	//swDataHead *info = (swDataHead *)in_data->mdata;
 	ret = object->rd_queue.in(&object->rd_queue, in_data, send_len);
 	swTrace("[Master]rd_queue[%ld]->in: fd=%d|type=%d|len=%d", in_data->mtype, info->fd, info->type, info->len);
 #else
@@ -889,14 +889,30 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 		}
 		else
 		{
-			swReactorThread_response((swEventData *)sdata.mdata);
+			swReactorThread_send((swEventData *)sdata.mdata);
 		}
 	}
 	pthread_exit((void *) param);
 	return SW_OK;
 }
-
 #else
+
+static int swFactoryProcess_worker_receive(swReactor *reactor, swEvent *event)
+{
+	int n;
+	swEventData task;
+	swServer *serv = reactor->ptr;
+	swFactory *factory = &serv->factory;
+	do
+	{
+		n = read(event->fd, &task, sizeof(task));
+	}
+	while(n < 0 && errno == EINTR);
+	return swFactoryProcess_worker_excute(factory, &task);
+}
+
+#endif
+
 int swFactoryProcess_send2client(swReactor *reactor, swDataHead *ev)
 {
 	int n;
@@ -948,17 +964,3 @@ int swFactoryProcess_writer_loop_unsock(swThreadParam *param)
 }
 #endif
 
-static int swFactoryProcess_worker_receive(swReactor *reactor, swEvent *event)
-{
-	int n;
-	swEventData task;
-	swServer *serv = reactor->ptr;
-	swFactory *factory = &serv->factory;
-	do
-	{
-		n = read(event->fd, &task, sizeof(task));
-	}
-	while(n < 0 && errno == EINTR);
-	return swFactoryProcess_worker_excute(factory, &task);
-}
-#endif
