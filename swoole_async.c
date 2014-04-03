@@ -170,7 +170,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 		{
 			if (retval != NULL && !Z_BVAL_P(retval))
 			{
-				swHashMap_del(&php_swoole_open_files, Z_STRVAL_P(file_req->filename));
+				swHashMap_del(&php_swoole_open_files, Z_STRVAL_P(file_req->filename), Z_STRLEN_P(file_req->filename));
 			}
 		}
 		else

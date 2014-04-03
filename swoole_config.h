@@ -39,6 +39,7 @@
 #define SW_SENDFILE_MAXLEN         4194304
 
 #define SW_HASHMAP_KEY_MAXLEN      256
+#define SW_HASHMAP_INIT_BUCKET_N   32  //hashmap初始化时创建32大小的桶
 
 #define SW_DATA_EOF                "\r\n\r\n"
 #define SW_DATA_EOF_MAXLEN         8

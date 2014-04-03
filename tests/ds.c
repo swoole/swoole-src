@@ -25,31 +25,38 @@ swUnitTest(hashmap_test1)
 {
 	swHashMap hm = NULL;
 
-	swWarn("add");
-	swHashMap_add(&hm, SW_STRL("hello")-1, 199);
-	swHashMap_add(&hm, SW_STRL("swoole22")-1, 8877);
-	swHashMap_add(&hm, SW_STRL("hello2")-1, 200);
-	swHashMap_add(&hm, SW_STRL("willdel")-1, 888);
-	swHashMap_add(&hm, SW_STRL("hello3")-1, 78978);
+	printf("----------------------insert to hashmap----------------------\n");
+	swHashMap_add(&hm, SW_STRL("hello")-1, (void *)199);
+	swHashMap_add(&hm, SW_STRL("swoole22")-1, (void *)8877);
+	swHashMap_add(&hm, SW_STRL("hello2")-1, (void *)200);
+	swHashMap_add(&hm, SW_STRL("willdel")-1, (void *)888);
+	swHashMap_add(&hm, SW_STRL("willupadte")-1, (void *)9999);
+	swHashMap_add(&hm, SW_STRL("hello3")-1, (void *)78978);
 
-	swWarn("del");
-	swHashMap_del(&hm, "willdel");
-	int ret = swHashMap_find(&hm, "hello");
+	printf("----------------------delete node key=willdel----------------------\n");
+	swHashMap_del(&hm, SW_STRL("willdel")-1);
+
+	printf("----------------------update node key=willupadte----------------------\n");
+	swHashMap_update(&hm, SW_STRL("willupadte")-1, (void *) (9999*5555));
+
+	printf("----------------------find node----------------------\n");
+	int ret = (int) swHashMap_find(&hm, SW_STRL("hello")-1);
 	printf("ret=%d\n", ret);
 
-	int ret2 = swHashMap_find(&hm, "hello2");
+	int ret2 = (int) swHashMap_find(&hm, SW_STRL("hello2")-1);
 	printf("ret2=%d\n", ret2);
 
+	printf("----------------------foreach hashmap----------------------\n");
 	void *tmp = NULL;
 	char *key;
 	int data;
-
 	while(1)
 	{
 		tmp = swHashMap_foreach(&hm, &key, &data, tmp);
 		printf("key=%s|value=%d\n", key, data);
 		if(tmp == NULL) break;
 	}
+	swHashMap_destory(&hm);
 	return 0;
 }
 
