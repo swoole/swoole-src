@@ -225,6 +225,8 @@ struct swServer_s
 	swFactory *factory_ptr; //Factory
 
 	void (*onStart)(swServer *serv);
+	void (*onManagerStart)(swServer *serv);
+	void (*onManagerStop)(swServer *serv);
 	int (*onReceive)(swFactory *factory, swEventData *data);
 	void (*onClose)(swServer *serv, int fd, int from_id);
 	void (*onConnect)(swServer *serv, int fd, int from_id);
@@ -246,6 +248,7 @@ void swServer_init(swServer *serv);
 int swServer_start(swServer *serv);
 int swServer_addListen(swServer *serv, int type, char *host,int port);
 int swServer_create(swServer *serv);
+int swServer_listen(swServer *serv, swReactor *reactor);
 int swServer_free(swServer *serv);
 int swServer_close(swServer *factory, swDataHead *event);
 int swServer_process_close(swServer *serv, swDataHead *event);
@@ -283,11 +286,9 @@ SWINLINE swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_
 SWINLINE swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn);
 int swConnection_send_in_buffer(swConnection *conn);
 
-int swReactorThread_onClose(swReactor *reactor, swEvent *event);
-int swReactorThread_onWrite(swReactor *reactor, swDataHead *ev);
+int swReactorThread_onPackage(swReactor *reactor, swEvent *event);
 int swReactorThread_send(swEventData *resp);
-void swReactorThread_onTimeout(swReactor *reactor);
-void swReactorThread_onFinish(swReactor *reactor);
+int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr);
 int swReactorThread_close_queue(swReactor *reactor, swCloseQueue *close_queue);
 int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event);
 int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event);

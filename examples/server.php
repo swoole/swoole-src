@@ -13,7 +13,9 @@ $serv->set(array(
 ));
 function my_onStart($serv)
 {
-	echo "MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}\n";
+    global $argv;
+    swoole_set_process_name("php {$argv[0]}: master");
+    echo "MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}\n";
     echo "Server: start.Swoole version is [".SWOOLE_VERSION."]\n";
     //$serv->addtimer(1000);
 }
@@ -43,9 +45,9 @@ function my_onWorkerStart($serv, $worker_id)
 {
     global $argv;
     if($worker_id >= $serv->setting['worker_num']) {
-        swoole_set_process_name("php {$argv[0]} task worker");
+        swoole_set_process_name("php {$argv[0]}: task_worker");
     } else {
-        swoole_set_process_name("php {$argv[0]} event worker");
+        swoole_set_process_name("php {$argv[0]}: worker");
     }
     //echo "WorkerStart|MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}|WorkerId=$worker_id\n";
 	//$serv->addtimer(500); //500ms
@@ -142,5 +144,9 @@ $serv->on('WorkerStop', 'my_onWorkerStop');
 $serv->on('Task', 'my_onTask');
 $serv->on('Finish', 'my_onFinish');
 $serv->on('WorkerError', 'my_onWorkerError');
+$serv->on('ManagerStart', function($serv) {
+    global $argv;
+    swoole_set_process_name("php {$argv[0]}: manager");
+});
 $serv->start();
 

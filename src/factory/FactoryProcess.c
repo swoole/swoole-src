@@ -356,6 +356,11 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 	swServer *serv = factory->ptr;
 	swWorker *reload_workers;
 
+	if (serv->onManagerStart)
+	{
+		serv->onManagerStart(serv);
+	}
+
 	reload_workers = sw_calloc(object->worker_num, sizeof(swWorker));
 	if (reload_workers == NULL)
 	{
@@ -442,6 +447,10 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 		}
 	}
 	sw_free(reload_workers);
+	if (serv->onManagerStop)
+	{
+		serv->onManagerStop(serv);
+	}
 	return SW_OK;
 }
 

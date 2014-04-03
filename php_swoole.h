@@ -94,11 +94,11 @@ extern void ***sw_thread_ctx;
 #define SW_CLIENT_CB_onClose                2
 #define SW_CLIENT_CB_onError                3
 
-#define SW_MAX_FIND_COUNT                  100 //for swoole_server::connection_list
-#define SW_PHP_CLIENT_BUFFER_SIZE          65535
+#define SW_MAX_FIND_COUNT                   100 //for swoole_server::connection_list
+#define SW_PHP_CLIENT_BUFFER_SIZE           65535
 
-#define PHP_SERVER_CALLBACK_NUM             13
-//---------------------------------------------------
+#define PHP_SERVER_CALLBACK_NUM             15
+//--------------------------------------------------------
 #define SW_SERVER_CB_onStart                0 //Server start(master)
 #define SW_SERVER_CB_onConnect              1 //accept new connection(worker)
 #define SW_SERVER_CB_onReceive              2 //receive data(worker)
@@ -112,6 +112,8 @@ extern void ***sw_thread_ctx;
 #define SW_SERVER_CB_onTask                 10 //new task(task_worker)
 #define SW_SERVER_CB_onFinish               11 //async task finish(worker)
 #define SW_SERVER_CB_onWorkerError          12 //worker exception(manager)
+#define SW_SERVER_CB_onManagerStart         13
+#define SW_SERVER_CB_onManagerStop          14
 //---------------------------------------------------------
 #define SW_FLAG_KEEP                        (1u << 9)
 #define SW_FLAG_ASYNC                       (1u << 10)

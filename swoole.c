@@ -1030,6 +1030,8 @@ PHP_FUNCTION(swoole_server_handler)
 			"onTask",
 			"onFinish",
 			"onWorkerError",
+			"onManagerStart",
+			"onManagerStop",
 	};
 	for(i=0; i<PHP_SERVER_CALLBACK_NUM; i++)
 	{
@@ -1045,7 +1047,6 @@ PHP_FUNCTION(swoole_server_handler)
 	}
 	ZVAL_BOOL(return_value, ret);
 }
-
 
 PHP_FUNCTION(swoole_server_on)
 {
@@ -1092,7 +1093,9 @@ PHP_FUNCTION(swoole_server_on)
 			"masterClose",
 			"task",
 			"finish",
-			"workerError"
+			"workerError",
+			"managerStart",
+			"managerStop",
 	};
 	for(i=0; i<PHP_SERVER_CALLBACK_NUM; i++)
 	{
@@ -1521,7 +1524,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
 	return SW_OK;
 }
 
-void php_swoole_onStart(swServer *serv)
+static void php_swoole_onStart(swServer *serv)
 {
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
@@ -1560,7 +1563,57 @@ void php_swoole_onStart(swServer *serv)
 	}
 }
 
-void php_swoole_onTimer(swServer *serv, int interval)
+static void php_swoole_onManagerStart(swServer *serv)
+{
+	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+	zval *zserv = (zval *)serv->ptr2;
+	zval **args[1];
+	zval *retval;
+
+	args[0] = &zserv;
+	zval_add_ref(&zserv);
+
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onManagerStart], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+	{
+		zend_error(E_WARNING, "swoole_server: onManagerStart handler error");
+	}
+	if (EG(exception))
+	{
+		zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+	}
+	if (retval != NULL)
+	{
+		zval_ptr_dtor(&retval);
+	}
+}
+
+static void php_swoole_onManagerStop(swServer *serv)
+{
+	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+	zval *zserv = (zval *)serv->ptr2;
+	zval **args[1];
+	zval *retval;
+
+	args[0] = &zserv;
+	zval_add_ref(&zserv);
+
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onManagerStop], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+	{
+		zend_error(E_WARNING, "swoole_server: onManagerStop handler error");
+	}
+	if (EG(exception))
+	{
+		zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+	}
+	if (retval != NULL)
+	{
+		zval_ptr_dtor(&retval);
+	}
+}
+
+static void php_swoole_onTimer(swServer *serv, int interval)
 {
 	zval *zserv = (zval *)serv->ptr2;
 	zval **args[2];
@@ -1590,7 +1643,7 @@ void php_swoole_onTimer(swServer *serv, int interval)
 	}
 }
 
-void php_swoole_onShutdown(swServer *serv)
+static void php_swoole_onShutdown(swServer *serv)
 {
 	zval *zserv = (zval *)serv->ptr2;
 	zval **args[1];
@@ -1747,7 +1800,7 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
 	}
 }
 
-void php_swoole_onConnect(swServer *serv, int fd, int from_id)
+static void php_swoole_onConnect(swServer *serv, int fd, int from_id)
 {
 	zval *zserv = (zval *) serv->ptr2;
 	zval *zfd;
@@ -1785,7 +1838,7 @@ void php_swoole_onConnect(swServer *serv, int fd, int from_id)
 	}
 }
 
-void php_swoole_onClose(swServer *serv, int fd, int from_id)
+static void php_swoole_onClose(swServer *serv, int fd, int from_id)
 {
 	zval *zserv = (zval *) serv->ptr2;
 	zval *zfd;
@@ -1826,7 +1879,7 @@ void php_swoole_onClose(swServer *serv, int fd, int from_id)
 	}
 }
 
-void php_swoole_onMasterConnect(swServer *serv, int fd, int from_id)
+static void php_swoole_onMasterConnect(swServer *serv, int fd, int from_id)
 {
 	zval *zserv = (zval *) serv->ptr2;
 	zval *zfd;
@@ -1863,7 +1916,7 @@ void php_swoole_onMasterConnect(swServer *serv, int fd, int from_id)
 	}
 }
 
-void php_swoole_onMasterClose(swServer *serv, int fd, int from_id)
+static void php_swoole_onMasterClose(swServer *serv, int fd, int from_id)
 {
 	zval *zserv = (zval *) serv->ptr2;
 	zval *zfd;
@@ -1900,7 +1953,6 @@ void php_swoole_onMasterClose(swServer *serv, int fd, int from_id)
 		zval_ptr_dtor(&retval);
 	}
 }
-
 
 PHP_FUNCTION(swoole_strerror)
 {
@@ -1975,6 +2027,14 @@ PHP_FUNCTION(swoole_server_start)
 	if (php_sw_callback[SW_SERVER_CB_onWorkerError] != NULL)
 	{
 		serv->onWorkerError = php_swoole_onWorkerError;
+	}
+	if (php_sw_callback[SW_SERVER_CB_onManagerStart] != NULL)
+	{
+		serv->onManagerStart = php_swoole_onManagerStart;
+	}
+	if (php_sw_callback[SW_SERVER_CB_onManagerStop] != NULL)
+	{
+		serv->onManagerStop = php_swoole_onManagerStop;
 	}
 	//-------------------------------------------------------------
 	if (php_sw_callback[SW_SERVER_CB_onTimer] != NULL)

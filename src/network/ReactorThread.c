@@ -19,10 +19,58 @@
 
 #include <sys/stat.h>
 
+static int swUDPThread_start(swServer *serv);
+static void swUDPThread_loop(swThreadParam *param);
+static int swReactorThread_loop(swThreadParam *param);
+static int swReactorThread_onClose(swReactor *reactor, swEvent *event);
+static int swReactorThread_onWrite(swReactor *reactor, swDataHead *ev);
+static void swReactorThread_onTimeout(swReactor *reactor);
+static void swReactorThread_onFinish(swReactor *reactor);
+
+/**
+ * for udp
+ */
+int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
+{
+	int ret;
+	swServer *serv = reactor->ptr;
+	swFactory *factory = &(serv->factory);
+	swEventData buf;
+
+	struct sockaddr_in addr;
+	socklen_t addrlen = sizeof(addr);
+	while (1)
+	{
+		ret = recvfrom(event->fd, buf.data, SW_BUFFER_SIZE, 0, (struct sockaddr *)&addr, &addrlen);
+		if (ret < 0)
+		{
+			if (errno == EINTR)
+			{
+				continue;
+			}
+			return SW_ERR;
+		}
+		break;
+	}
+	buf.info.len = ret;
+	//UDP的from_id是PORT，FD是IP
+	buf.info.type = SW_EVENT_UDP;
+	buf.info.from_fd = event->fd; //from fd
+	buf.info.from_id = ntohs(addr.sin_port); //转换字节序
+	buf.info.fd = addr.sin_addr.s_addr;
+	swTrace("recvfrom udp socket.fd=%d|data=%s", event->fd, buf.data);
+	ret = factory->dispatch(factory, &buf);
+	if (ret < 0)
+	{
+		swWarn("factory->dispatch[udp packet] fail\n");
+	}
+	return SW_OK;
+}
+
 /**
  * close the connection
  */
-int swReactorThread_onClose(swReactor *reactor, swEvent *event)
+static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
 {
 	swServer *serv = reactor->ptr;
 	swConnection *conn = swServer_get_connection(serv, event->fd);
@@ -174,7 +222,7 @@ int swReactorThread_send(swEventData *resp)
 	return SW_OK;
 }
 
-int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
+static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 {
 	int ret, sendn;
 	swServer *serv = SwooleG.serv;
@@ -630,7 +678,7 @@ int swReactorThread_close_queue(swReactor *reactor, swCloseQueue *close_queue)
 	return SW_OK;
 }
 
-void swReactorThread_onFinish(swReactor *reactor)
+static void swReactorThread_onFinish(swReactor *reactor)
 {
 	swServer *serv = reactor->ptr;
 	swCloseQueue *queue = &serv->reactor_threads[reactor->id].close_queue;
@@ -641,7 +689,211 @@ void swReactorThread_onFinish(swReactor *reactor)
 	}
 }
 
-void swReactorThread_onTimeout(swReactor *reactor)
+static void swReactorThread_onTimeout(swReactor *reactor)
 {
 	swReactorThread_onFinish(reactor);
+}
+
+int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
+{
+	swThreadParam *param;
+	swThreadPoll *reactor_threads;
+	pthread_t pidt;
+
+	int i, ret;
+	//listen UDP
+	if(serv->have_udp_sock == 1)
+	{
+		if (swUDPThread_start(serv) < 0)
+		{
+			swError("udp thread start failed.");
+			return SW_ERR;
+		}
+	}
+	//listen TCP
+	if (serv->have_tcp_sock == 1)
+	{
+		//listen server socket
+		ret = swServer_listen(serv, main_reactor_ptr);
+		if (ret < 0)
+		{
+			return SW_ERR;
+		}
+		//create reactor thread
+		for (i = 0; i < serv->reactor_num; i++)
+		{
+			reactor_threads = &(serv->reactor_threads[i]);
+			param = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
+			if (param == NULL)
+			{
+				swError("malloc failed");
+				return SW_ERR;
+			}
+			param->object = serv;
+			param->pti = i;
+
+			if(pthread_create(&pidt, NULL, (void * (*)(void *)) swReactorThread_loop, (void *) param) < 0)
+			{
+				swError("pthread_create[tcp_reactor] failed. Error: %s[%d]", strerror(errno), errno);
+			}
+			pthread_detach(pidt);
+			reactor_threads->ptid = pidt;
+		}
+	}
+	//定时器
+	if(SwooleG.timer.fd > 0)
+	{
+		main_reactor_ptr->add(main_reactor_ptr, SwooleG.timer.fd, SW_FD_TIMER);
+	}
+	//wait poll thread
+	SW_START_SLEEP;
+	return SW_OK;
+}
+
+/**
+ * ReactorThread main Loop
+ */
+static int swReactorThread_loop(swThreadParam *param)
+{
+	swServer *serv = SwooleG.serv;
+	int ret;
+	int pti = param->pti;
+
+	swReactor *reactor = &(serv->reactor_threads[pti].reactor);
+	struct timeval timeo;
+
+	//cpu affinity setting
+#if HAVE_CPU_AFFINITY
+	if(serv->open_cpu_affinity)
+	{
+		cpu_set_t cpu_set;
+		CPU_ZERO(&cpu_set);
+		CPU_SET(pti % SW_CPU_NUM, &cpu_set);
+		if(0 != pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set))
+		{
+			swWarn("pthread_setaffinity_np set failed");
+		}
+	}
+#endif
+
+	ret = swReactor_auto(reactor, SW_REACTOR_MAXEVENTS);
+	if (ret < 0)
+	{
+		return SW_ERR;
+	}
+
+	swSingalNone();
+
+	timeo.tv_sec = serv->timeout_sec;
+	timeo.tv_usec = serv->timeout_usec; //300ms
+	reactor->ptr = serv;
+	reactor->id = pti;
+
+	reactor->onFinish = swReactorThread_onFinish;
+	reactor->onTimeout = swReactorThread_onTimeout;
+	reactor->setHandle(reactor, SW_FD_CLOSE, swReactorThread_onClose);
+	reactor->setHandle(reactor, SW_FD_UDP, swReactorThread_onPackage);
+	reactor->setHandle(reactor, SW_FD_SEND_TO_CLIENT, swFactoryProcess_send2client);
+	reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_WRITE, swReactorThread_onWrite);
+
+	int i, worker_id;
+	//worker进程绑定reactor
+	for (i = 0; i < serv->reactor_pipe_num; i++)
+	{
+		worker_id = (reactor->id * serv->reactor_pipe_num) + i;
+		//swWarn("reactor_id=%d|worker_id=%d", reactor->id, worker_id);
+		//将写pipe设置到writer的reactor中
+		reactor->add(reactor, serv->workers[worker_id].pipe_master, SW_FD_SEND_TO_CLIENT);
+	}
+	//Thread mode must copy the data.
+	//will free after onFinish
+	if (serv->open_eof_check == 1)
+	{
+		reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_eof);
+	}
+	else if(serv->open_length_check == 1)
+	{
+		reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_length);
+	}
+	else
+	{
+		reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_no_buffer);
+	}
+	//main loop
+	reactor->wait(reactor, &timeo);
+	//shutdown
+	reactor->free(reactor);
+	pthread_exit(0);
+	return SW_OK;
+}
+
+static int swUDPThread_start(swServer *serv)
+{
+	swThreadParam *param;
+	pthread_t pidt;
+	swListenList_node *listen_host;
+
+	LL_FOREACH(serv->listen_list, listen_host)
+	{
+		param = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
+		//UDP
+		if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6)
+		{
+			serv->connection_list[listen_host->sock].addr.sin_port = listen_host->port;
+			param->object = serv;
+			param->pti = listen_host->sock;
+
+			if (pthread_create(&pidt, NULL, (void * (*)(void *)) swUDPThread_loop, (void *) param) < 0)
+			{
+				swWarn("pthread_create[udp_listener] fail");
+				return SW_ERR;
+			}
+			pthread_detach(pidt);
+		}
+	}
+	return SW_OK;
+}
+
+
+/**
+ * udp listener thread
+ */
+static void swUDPThread_loop(swThreadParam *param)
+{
+	int ret;
+	swServer *serv = param->object;
+
+	swEventData buf;
+	struct sockaddr_in addr;
+	socklen_t addrlen = sizeof(addr);
+
+	//使用pti保存fd
+	int sock = param->pti;
+
+	//阻塞读取UDP
+	swSetBlock(sock);
+
+	bzero(&buf.info, sizeof(buf.info));
+	buf.info.from_fd = sock;
+
+	while (SwooleG.running == 1)
+	{
+		ret = recvfrom(sock, buf.data, SW_BUFFER_SIZE, 0, (struct sockaddr *)&addr, &addrlen);
+		if (ret > 0)
+		{
+			buf.info.len = ret;
+			buf.info.type = SW_EVENT_UDP;
+			//UDP的from_id是PORT，FD是IP
+			buf.info.from_id = ntohs(addr.sin_port); //转换字节序
+			buf.info.fd = addr.sin_addr.s_addr;
+
+			swTrace("recvfrom udp socket.fd=%d|data=%s", sock, buf.data);
+			ret = serv->factory.dispatch(&serv->factory, &buf);
+			if (ret < 0)
+			{
+				swWarn("factory->dispatch[udp packet] fail\n");
+			}
+		}
+	}
+	pthread_exit(0);
 }
