@@ -5,7 +5,7 @@ $serv->on('timer', function($serv, $interval) {
 	echo "onTimer: $interval\n";
 });
 $serv->on('workerStart', function($serv, $worker_id) {
-	//if($worker_id == 0) $serv->addtimer(600);
+	if($worker_id == 0) $serv->addtimer(500);
 });
 $serv->on('connect', function ($serv, $fd, $from_id){
     echo "[#".posix_getpid()."]\tClient@[$fd:$from_id]: Connect.\n";

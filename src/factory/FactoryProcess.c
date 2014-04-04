@@ -625,17 +625,13 @@ static void swFactoryProcess_worker_signal_init(void)
 
 static void swFactoryProcess_worker_signal_handler(int signo)
 {
-	uint64_t flag = 1;
 	switch (signo)
 	{
 	case SIGTERM:
 		SwooleG.running = 0;
 		break;
 	case SIGALRM:
-		if (SwooleG.timer.use_pipe == 1)
-		{
-			SwooleG.timer.pipe.write(&SwooleG.timer.pipe, &flag, sizeof(flag));
-		}
+		swTimer_signal_handler(SIGALRM);
 		break;
 	/**
 	 * for test
@@ -660,7 +656,8 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 	swServer *serv = factory->ptr;
 	int i;
 #if SW_WORKER_IPC_MODE == 2
-	struct {
+	struct
+	{
 		long pti;
 		swEventData req;
 	} rdata;
@@ -760,7 +757,18 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 		n = object->rd_queue.out(&object->rd_queue, (swQueue_data *)&rdata, sizeof(rdata.req));
 		if (n < 0)
 		{
-			swWarn("[Worker]rd_queue[%ld]->out wait failed. Error: %s [%d]", rdata.pti, strerror(errno), errno);
+			if (errno == EINTR)
+			{
+				if (SwooleG.signal_alarm && serv->onTimer)
+				{
+					swTimer_select(&SwooleG.timer);
+					SwooleG.signal_alarm = 0;
+				}
+			}
+			else
+			{
+				swWarn("[Worker]rd_queue[%ld]->out wait failed. Error: %s [%d]", rdata.pti, strerror(errno), errno);
+			}
 			continue;
 		}
 		swFactoryProcess_worker_excute(factory, &rdata.req);
@@ -935,7 +943,6 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 	swFactoryProcess *object = factory->object;
 
 	int pti = param->pti;
-
 	swQueue_data sdata;
 	//必须加1,msg_type必须不能为0
 	sdata.mtype = pti + 1;
@@ -944,9 +951,12 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 	while (SwooleG.running > 0)
 	{
 		swTrace("[Writer]wt_queue[%ld]->out wait", sdata.mtype);
-		int ret = object->wt_queue.out(&object->wt_queue, &sdata, sizeof(sdata.mdata));
-		if (ret < 0)
+		if (object->wt_queue.out(&object->wt_queue, &sdata, sizeof(sdata.mdata)) < 0)
 		{
+			if (errno == EINTR)
+			{
+				continue;
+			}
 			swWarn("[writer]wt_queue->out fail.Error: %s [%d]", strerror(errno), errno);
 		}
 		else

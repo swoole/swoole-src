@@ -17,7 +17,6 @@
 #include "swoole.h"
 #include "Server.h"
 
-static int swTimer_select(swTimer *timer);
 int swTimer_signal_set(swTimer *timer, int interval);
 #ifdef HAVE_TIMERFD
 int swTimer_timerfd_set(swTimer *timer, int interval);
@@ -30,19 +29,29 @@ int swTimer_create(swTimer *timer, int interval)
 	timer->interval = interval;
 	timer->lasttime = interval;
 
-#ifdef HAVE_TIMERFD
+#if defined(HAVE_TIMERFD) && SW_WORKER_IPC_MODE == 1
 	if(swTimer_timerfd_set(timer, interval) < 0)
 	{
 		return SW_ERR;
 	}
 	timer->use_pipe = 0;
 #else
-	if (swPipeNotify_auto(&timer->pipe, 0, 0) || swTimer_signal_set(timer, interval) < 0)
+//can not use timerfd
+#if SW_WORKER_IPC_MODE == 2
+	timer->fd = 1;
+#else
+	if (swPipeNotify_auto(&timer->pipe, 0, 0) < 0)
 	{
 		return SW_ERR;
 	}
 	timer->fd = timer->pipe.getFd(&timer->pipe, 0);
 	timer->use_pipe = 1;
+#endif
+	if (swTimer_signal_set(timer, interval) < 0)
+	{
+		return SW_ERR;
+	}
+//end
 #endif
 	return SW_OK;
 }
@@ -147,7 +156,7 @@ int swTimer_add(swTimer *timer, int ms)
 	{
 		int new_interval = swoole_common_divisor(ms, timer->interval);
 		timer->interval = new_interval;
-#ifdef HAVE_TIMERFD
+#if defined(HAVE_TIMERFD) && SW_WORKER_IPC_MODE == 1
 		swTimer_timerfd_set(timer, new_interval);
 #else
 		swTimer_signal_set(timer, new_interval);
@@ -158,7 +167,7 @@ int swTimer_add(swTimer *timer, int ms)
 	return SW_OK;
 }
 
-static int swTimer_select(swTimer *timer)
+int swTimer_select(swTimer *timer)
 {
 	void *tmp = NULL;
 	uint64_t key;
@@ -213,18 +222,15 @@ int swTimer_event_handler(swReactor *reactor, swEvent *event)
 
 void swTimer_signal_handler(int sig)
 {
+#if SW_WORKER_IPC_MODE == 2
+	SwooleG.signal_alarm = 1;
+#else
 	uint64_t flag = 1;
-	switch (sig)
+	if (SwooleG.timer.use_pipe == 1)
 	{
-	case SIGALRM:
-		if (SwooleG.timer.use_pipe == 1)
-		{
-			SwooleG.timer.pipe.write(&SwooleG.timer.pipe, &flag, sizeof(flag));
-		}
-		break;
-	default:
-		break;
+		SwooleG.timer.pipe.write(&SwooleG.timer.pipe, &flag, sizeof(flag));
 	}
+#endif
 }
 
 SWINLINE uint64_t swTimer_get_ms()

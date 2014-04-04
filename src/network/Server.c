@@ -252,7 +252,7 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 
 static void swServer_onTimer(swTimer *timer, int interval)
 {
-	swServer *serv = timer->ptr;
+	swServer *serv = SwooleG.serv;
 	serv->onTimer(serv, interval);
 }
 
@@ -265,10 +265,11 @@ int swServer_addTimer(swServer *serv, int interval)
 		{
 			return SW_ERR;
 		}
+#if SW_WORKER_IPC_MODE == 1
 		SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_TIMER, swTimer_event_handler);
 		SwooleG.main_reactor->add(SwooleG.main_reactor, SwooleG.timer.fd, SW_FD_TIMER);
+#endif
 		SwooleG.timer.onTimer = swServer_onTimer;
-		SwooleG.timer.ptr = serv;
 	}
 	return swTimer_add(&SwooleG.timer, interval);
 }
@@ -1160,17 +1161,13 @@ int swServer_reload(swServer *serv)
 
 static void swServer_signal_hanlder(int sig)
 {
-	uint64_t flag = 1;
 	switch (sig)
 	{
 	case SIGTERM:
 		SwooleG.running = 0;
 		break;
 	case SIGALRM:
-		if (SwooleG.timer.use_pipe == 1)
-		{
-			SwooleG.timer.pipe.write(&SwooleG.timer.pipe, &flag, sizeof(flag));
-		}
+		swTimer_signal_handler(SIGALRM);
 		break;
 	/**
 	 * for test

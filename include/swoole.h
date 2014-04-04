@@ -792,7 +792,6 @@ typedef struct _swTimer
 	int fd;
 	swPipe pipe;
 	void (*onTimer)(struct _swTimer *timer, int interval);
-	void *ptr; //save object ptr
 } swTimer;
 
 int swTimer_create(swTimer *timer, int interval_ms);
@@ -801,6 +800,7 @@ int swTimer_free(swTimer *timer);
 int swTimer_add(swTimer *timer, int ms);
 void swTimer_signal_handler(int sig);
 int swTimer_event_handler(swReactor *reactor, swEvent *event);
+int swTimer_select(swTimer *timer);
 SWINLINE uint64_t swTimer_get_ms();
 
 typedef struct swServer_s swServer;
@@ -811,6 +811,7 @@ typedef struct _swServerG{
 	int running;
 	int sw_errno;
 	int process_type;
+	int signal_alarm; //for timer with message queue
 
 	swServer *serv;
 	swFactory *factory;

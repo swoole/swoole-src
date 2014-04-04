@@ -2283,11 +2283,15 @@ PHP_FUNCTION(swoole_server_addtimer)
 		zend_error(E_WARNING, "swoole_server: onTimer is null, Can not use timer.");
 		RETURN_FALSE;
 	}
+
+#if SW_WORKER_IPC_MODE == 1
 	if (SwooleG.main_reactor == NULL)
 	{
 		zend_error(E_WARNING, "swoole_server: can not use addtimer here.");
 		RETURN_FALSE;
 	}
+#endif
+
 	if (zobject == NULL)
 	{
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ol", &zobject, swoole_server_class_entry_ptr, &interval) == FAILURE)

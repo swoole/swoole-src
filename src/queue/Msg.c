@@ -72,32 +72,12 @@ int swQueueMsg_create(swQueue *p, int blocking, int msg_key, long type)
 
 int swQueueMsg_out(swQueue *p, swQueue_data *data, int length)
 {
-	int ret;
 	swQueueMsg *object = p->object;
 
 	int flag = object->ipc_wait;
 	long type = data->mtype;
 
-	while (1)
-	{
-		ret = msgrcv(object->msg_id, data, length, type, flag);
-		if (ret < 0)
-		{
-			if (errno == EINTR)
-			{
-				continue;
-			}
-			else
-			{
-				return -1;
-			}
-		}
-		else
-		{
-			return ret;
-		}
-	}
-	return 0;
+	return msgrcv(object->msg_id, data, length, type, flag);
 }
 
 int swQueueMsg_in(swQueue *p, swQueue_data *in, int length)
