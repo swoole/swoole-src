@@ -797,11 +797,6 @@ PHP_FUNCTION(swoole_server_set)
 	{
 		convert_to_long(*v);
 		serv->worker_num = (int)Z_LVAL_PP(v);
-
-		if (serv->worker_num < serv->reactor_num)
-		{
-			serv->reactor_num = serv->worker_num;
-		}
 	}
 	//task_worker_num
 	if (zend_hash_find(vht, ZEND_STRS("task_worker_num"), (void **)&v) == SUCCESS)

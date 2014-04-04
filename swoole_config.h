@@ -101,4 +101,12 @@
 
 #define SW_AIO_MAX_EVENTS          128
 
+#if defined(HAVE_SIGNALFD) && SW_WORKER_IPC_MODE != 1
+#undef HAVE_SIGNALFD
+#endif
+
+#if defined(HAVE_TIMERFD) && SW_WORKER_IPC_MODE != 1
+#undef HAVE_TIMERFD
+#endif
+
 #endif /* SWOOLE_CONFIG_H_ */

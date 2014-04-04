@@ -370,40 +370,6 @@ SWINLINE int swSetTimeout(int sock, double timeout)
 	return SW_OK;
 }
 
-/**
- * clear all singal
- */
-void swSingalNone()
-{
-	sigset_t mask;
-	sigfillset(&mask);
-	int ret = pthread_sigmask(SIG_BLOCK, &mask, NULL);
-	if (ret < 0)
-	{
-		swWarn("pthread_sigmask fail: %s", strerror(ret));
-	}
-}
-
-swSignalFunc swSignalSet(int sig, swSignalFunc func, int restart, int mask)
-{
-	struct sigaction act, oact;
-	act.sa_handler = func;
-	if (mask)
-	{
-		sigfillset(&act.sa_mask);
-	}
-	else
-	{
-		sigemptyset(&act.sa_mask);
-	}
-	act.sa_flags = 0;
-	if (sigaction(sig, &act, &oact) < 0)
-	{
-		return NULL;
-	}
-	return oact.sa_handler;
-}
-
 #ifndef HAVE_CLOCK_GETTIME
 #ifdef __MACH__
 int clock_gettime(clock_id_t which_clock, struct timespec *t)

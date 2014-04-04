@@ -247,7 +247,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/hashmap.c \
         src/core/RingQueue.c \
         src/core/Channel.c \
-        src/core/timer.c \
         src/core/string.c \
         src/core/array.c \
         src/memory/ShareMemory.c \
@@ -280,6 +279,8 @@ if test "$PHP_SWOOLE" != "no"; then
         src/os/linux_aio.c \
         src/os/gcc_aio.c \
         src/os/sendfile.c \
+        src/os/signal.c \
+        src/os/timer.c \
       , $ext_shared)
       
     PHP_ADD_INCLUDE([$ext_srcdir/include])

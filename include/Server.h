@@ -89,7 +89,18 @@ typedef struct _swThreadPoll
 	swUdpFd *udp_addrs;
 	swCloseQueue close_queue;
 	int c_udp_fd;
-} swThreadPoll;
+} swReactorThread;
+
+typedef struct _swThreadWriter
+{
+	pthread_t ptid; //线程ID
+	int pipe_num; //writer thread's pipe num
+	int *pipes; //worker pipes
+	int c_pipe; //current pipe
+	swReactor reactor;
+	swShareMemory shm; //共享内存
+	swPipe evfd;       //eventfd
+} swWriterThread;
 
 typedef struct _swListenList_node
 {
@@ -214,9 +225,12 @@ struct swServer_s
 	swPipe main_pipe;
 	swReactor reactor;
 	swFactory factory;
-	swThreadPoll *reactor_threads; //TCP监听线程
-	swWorker *workers;
+
 	swListenList_node *listen_list;
+
+	swReactorThread *reactor_threads;
+	swWriterThread *writer_threads;
+	swWorker *workers;
 
 	swConnection *connection_list; //连接列表
 	int connection_list_capacity;  //超过此容量，会自动扩容

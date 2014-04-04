@@ -105,8 +105,6 @@ int swTimer_signal_set(swTimer *timer, int interval)
 	timer_set.it_interval.tv_sec = sec;
 	timer_set.it_interval.tv_usec = msec * 1000;
 
-	swSignalSet(SIGALRM, swTimer_signal_handler, 1, 0);
-
 	if (setitimer(ITIMER_REAL, &timer_set, NULL) < 0)
 	{
 		swWarn("set timer failed. Error: %s[%d]", strerror(errno), errno);

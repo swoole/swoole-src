@@ -152,6 +152,7 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define SW_FD_TIMER            8 //timer fd
 #define SW_FD_AIO              9 //linux native aio
 #define SW_FD_SEND_TO_CLIENT   10 //sendtoclient
+#define SW_FD_SIGNAL           11
 
 #define SW_FD_USER             15 //SW_FD_USER or SW_FD_USER+n: for custom event
 
@@ -524,13 +525,6 @@ uint64_t swoole_hash_key(char *str, int str_len);
 uint32_t swoole_common_multiple(uint32_t u, uint32_t v);
 uint32_t swoole_common_divisor(uint32_t u, uint32_t v);
 
-#ifdef HAVE_KQUEUE
-int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
-#else
-#include <sys/sendfile.h>
-#define swoole_sendfile(out_fd, in_fd, offset, limit)    sendfile(out_fd, in_fd, offset, limit)
-#endif
-
 //----------------------core function---------------------
 SWINLINE int swSetTimeout(int sock, double timeout);
 SWINLINE int swRead(int, void *, int);
@@ -543,8 +537,8 @@ void swoole_init(void);
 void swoole_clean(void);
 int swSocket_listen(int type, char *host, int port, int backlog);
 int swSocket_create(int type);
-swSignalFunc swSignalSet(int sig, swSignalFunc func, int restart, int mask);
-void swSingalNone();
+swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask);
+void swSignal_none(void);
 
 //------------------Factory--------------------
 typedef struct _swFactory
@@ -632,20 +626,8 @@ struct _swProcessPool
 	void *ptr2;
 };
 
-typedef struct _swThreadWriter
-{
-	pthread_t ptid; //线程ID
-	int pipe_num; //writer thread's pipe num
-	int *pipes; //worker pipes
-	int c_pipe; //current pipe
-	swReactor reactor;
-	swShareMemory shm; //共享内存
-	swPipe evfd;       //eventfd
-} swThreadWriter;
-
 typedef struct _swFactoryProcess
 {
-	swThreadWriter *writers;
 	swWorker *workers;
 
 	swPipe *pipes;
@@ -861,6 +843,21 @@ typedef struct _swWorkerG{
 extern swServerG SwooleG;    //Local Global Variable
 extern swServerGS *SwooleGS; //Share Memory Global Variable
 extern swWorkerG SwooleWG;   //Worker Global Variable
+
+//-----------------------------------------------
+//OS Feature
+#ifdef HAVE_SIGNALFD
+void swSignalfd_init();
+void swSignalfd_add(int signo, __sighandler_t callback);
+int swSignalfd_setup(swReactor *reactor);
+#endif
+
+#ifdef HAVE_KQUEUE
+int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
+#else
+#include <sys/sendfile.h>
+#define swoole_sendfile(out_fd, in_fd, offset, limit)    sendfile(out_fd, in_fd, offset, limit)
+#endif
 
 #ifdef __cplusplus
 }

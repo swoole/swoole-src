@@ -24,6 +24,8 @@ static int swFactoryProcess_manager_start(swFactory *factory);
 
 static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti);
 static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti);
+static void swFactoryProcess_worker_signal_init(void);
+static void swFactoryProcess_worker_signal_handler(int signo);
 
 #if SW_WORKER_IPC_MODE == 2
 static int swFactoryProcess_writer_start(swFactory *factory);
@@ -47,14 +49,15 @@ static int manager_reload_flag = 0;
 int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 {
 	swFactoryProcess *object;
+	swServer *serv = SwooleG.serv;
 	object = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swFactoryProcess));
 	if (object == NULL)
 	{
 		swWarn("[swFactoryProcess_create] malloc[0] failed");
 		return SW_ERR;
 	}
-	object->writers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, writer_num * sizeof(swThreadWriter));
-	if (object->writers == NULL)
+	serv->writer_threads = SwooleG.memory_pool->alloc(SwooleG.memory_pool, writer_num * sizeof(swWriterThread));
+	if (serv->writer_threads == NULL)
 	{
 		swWarn("[Main] malloc[object->writers] fail");
 		return SW_ERR;
@@ -369,7 +372,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 	}
 
 	//for reload
-	swSignalSet(SIGUSR1, swManagerSignalHanlde, 1, 0);
+	swSignal_set(SIGUSR1, swManagerSignalHanlde, 1, 0);
 
 	while (SwooleG.running > 0)
 	{
@@ -593,6 +596,61 @@ static int swRandom(int worker_pti)
 	return rand()%10 * worker_pti;
 }
 
+static void swFactoryProcess_worker_signal_init(void)
+{
+#ifdef HAVE_SIGNALFD
+	swSignalfd_add(SIGHUP, NULL);
+	swSignalfd_add(SIGPIPE, NULL);
+	swSignalfd_add(SIGUSR1, NULL);
+	swSignalfd_add(SIGUSR2, NULL);
+	swSignalfd_add(SIGTERM, swFactoryProcess_worker_signal_handler);
+	swSignalfd_add(SIGALRM, swTimer_signal_handler);
+	//for test
+	swSignalfd_add(SIGVTALRM, swFactoryProcess_worker_signal_handler);
+#else
+	swSignal_set(SIGHUP, SIG_IGN, 1, 0);
+	swSignal_set(SIGPIPE, SIG_IGN, 1, 0);
+	swSignal_set(SIGUSR1, SIG_IGN, 1, 0);
+	swSignal_set(SIGUSR2, SIG_IGN, 1, 0);
+	swSignal_set(SIGTERM, SIG_IGN, 1, 0);
+	if (SwooleG.serv->daemonize)
+	{
+		swSignal_set(SIGINT, SIG_IGN, 1, 0);
+	}
+	swSignal_set(SIGVTALRM, swFactoryProcess_worker_signal_handler, 1, 0);
+	swSignal_set(SIGTERM, swFactoryProcess_worker_signal_handler, 1, 0);
+	swSignal_set(SIGALRM, swTimer_signal_handler, 1, 0);
+#endif
+}
+
+static void swFactoryProcess_worker_signal_handler(int signo)
+{
+	uint64_t flag = 1;
+	switch (signo)
+	{
+	case SIGTERM:
+		SwooleG.running = 0;
+		break;
+	case SIGALRM:
+		if (SwooleG.timer.use_pipe == 1)
+		{
+			SwooleG.timer.pipe.write(&SwooleG.timer.pipe, &flag, sizeof(flag));
+		}
+		break;
+	/**
+	 * for test
+	 */
+	case SIGVTALRM:
+		swWarn("SIGVTALRM coming");
+		break;
+	case SIGUSR1:
+	case SIGUSR2:
+		break;
+	default:
+		break;
+	}
+}
+
 /**
  * worker main loop
  */
@@ -610,6 +668,22 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 #else
 	int pipe_rd = object->workers[worker_pti].pipe_worker;
 #endif
+
+#ifdef HAVE_CPU_AFFINITY
+	if (serv->open_cpu_affinity == 1)
+	{
+		cpu_set_t cpu_set;
+		CPU_ZERO(&cpu_set);
+		CPU_SET(worker_pti % SW_CPU_NUM, &cpu_set);
+		if (0 != sched_setaffinity(getpid(), sizeof(cpu_set), &cpu_set))
+		{
+			swWarn("pthread_setaffinity_np set failed");
+		}
+	}
+#endif
+
+	//signal init
+	swFactoryProcess_worker_signal_init();
 
 	//worker_id
 	SwooleWG.id = worker_pti;
@@ -673,18 +747,6 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 		worker_task_num += swRandom(worker_pti);
 	}
 
-#ifdef HAVE_CPU_AFFINITY
-	if (serv->open_cpu_affinity == 1)
-	{
-		cpu_set_t cpu_set;
-		CPU_ZERO(&cpu_set);
-		CPU_SET(worker_pti % SW_CPU_NUM, &cpu_set);
-		if (0 != sched_setaffinity(getpid(), sizeof(cpu_set), &cpu_set))
-		{
-			swWarn("pthread_setaffinity_np set failed");
-		}
-	}
-#endif
 	if (serv->onWorkerStart != NULL)
 	{
 		//worker进程启动时调用
@@ -828,7 +890,7 @@ int swFactoryProcess_dispatch(swFactory *factory, swEventData *data)
 
 static int swFactoryProcess_writer_start(swFactory *factory)
 {
-	swFactoryProcess *object = factory->object;
+	swServer *serv = SwooleG.serv;
 	swThreadParam *param;
 	int i;
 	pthread_t pidt;
@@ -840,7 +902,7 @@ static int swFactoryProcess_writer_start(swFactory *factory)
 	thread_main = (swThreadStartFunc) swFactoryProcess_writer_loop_unsock;
 #endif
 
-	for (i = 0; i < object->writer_num; i++)
+	for (i = 0; i < serv->writer_num; i++)
 	{
 		param = sw_malloc(sizeof(swPipe));
 		if (param == NULL)
@@ -856,7 +918,7 @@ static int swFactoryProcess_writer_start(swFactory *factory)
 			return SW_ERR;
 		}
 		pthread_detach(pidt);
-		object->writers[i].ptid = pidt;
+		serv->writer_threads[i].ptid = pidt;
 		SW_START_SLEEP;
 	}
 	return SW_OK;
@@ -878,7 +940,7 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 	//必须加1,msg_type必须不能为0
 	sdata.mtype = pti + 1;
 
-	swSingalNone();
+	swSignal_none();
 	while (SwooleG.running > 0)
 	{
 		swTrace("[Writer]wt_queue[%ld]->out wait", sdata.mtype);
@@ -889,7 +951,7 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 		}
 		else
 		{
-			swReactorThread_send((swEventData *)sdata.mdata);
+			swReactorThread_send((swEventData *) sdata.mdata);
 		}
 	}
 	pthread_exit((void *) param);

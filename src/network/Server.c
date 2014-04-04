@@ -148,7 +148,7 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 	{
 		//accept得到连接套接字
 #ifdef SW_USE_ACCEPT4
-	    conn_fd = accept4(event->fd, (struct sockaddr *)&client_addr, &client_addrlen, SOCK_NONBLOCK);
+	    conn_fd = accept4(event->fd, (struct sockaddr *)&client_addr, &client_addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC);
 #else
 		conn_fd = accept(event->fd,  (struct sockaddr *)&client_addr, &client_addrlen);
 #endif
@@ -339,7 +339,6 @@ static int swServer_check_callback(swServer *serv)
 			return SW_ERR;
 		}
 	}
-
 	//check thread num
 	if (serv->reactor_num > SW_CPU_NUM * SW_MAX_THREAD_NCPU)
 	{
@@ -352,6 +351,14 @@ static int swServer_check_callback(swServer *serv)
 	if (serv->worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU)
 	{
 		swWarn("serv->worker_num > %ld, Too many processes the system will be slow", SW_CPU_NUM * SW_MAX_WORKER_NCPU);
+	}
+	if (serv->worker_num < serv->reactor_num)
+	{
+		serv->reactor_num = serv->worker_num;
+	}
+	if (serv->worker_num < serv->writer_num)
+	{
+		serv->writer_num = serv->worker_num;
 	}
 	return SW_OK;
 }
@@ -401,6 +408,10 @@ static int swServer_start_proxy(swServer *serv)
 
 	main_reactor->onFinish = swServer_master_onReactorFinish;
 	main_reactor->onTimeout = swServer_master_onReactorTimeout;
+
+#ifdef HAVE_SIGNALFD
+	swSignalfd_setup(main_reactor);
+#endif
 
 	main_reactor->add(main_reactor, serv->main_pipe.getFd(&serv->main_pipe, 0), (SW_FD_USER+2));
 	//no use
@@ -543,6 +554,10 @@ void swoole_init(void)
 		//init global lock
 		swMutex_create(&SwooleG.lock, 0);
 
+		//init signalfd
+#ifdef HAVE_SIGNALFD
+		swSignalfd_init();
+#endif
 		//将日志设置为标准输出
 		swoole_log_fn = stdout;
 		//初始化全局内存
@@ -616,10 +631,10 @@ void swServer_init(swServer *serv)
 static int swServer_create_base(swServer *serv)
 {
 	serv->reactor_num = 1;
-	serv->reactor_threads = sw_calloc(1, sizeof(swThreadPoll));
+	serv->reactor_threads = sw_calloc(1, sizeof(swReactorThread));
 	if (serv->reactor_threads == NULL)
 	{
-		swError("calloc[reactor_threads] fail.alloc_size=%d", (int )(serv->reactor_num * sizeof(swThreadPoll)));
+		swError("calloc[reactor_threads] fail.alloc_size=%d", (int )(serv->reactor_num * sizeof(swReactorThread)));
 		return SW_ERR;
 	}
 	serv->connection_list = sw_calloc(serv->max_conn, sizeof(swConnection));
@@ -656,10 +671,10 @@ static int swServer_create_proxy(swServer *serv)
 	}
 
 	//初始化poll线程池
-	serv->reactor_threads = SwooleG.memory_pool->alloc(SwooleG.memory_pool, (serv->reactor_num * sizeof(swThreadPoll)));
+	serv->reactor_threads = SwooleG.memory_pool->alloc(SwooleG.memory_pool, (serv->reactor_num * sizeof(swReactorThread)));
 	if (serv->reactor_threads == NULL)
 	{
-		swError("calloc[reactor_threads] fail.alloc_size=%d", (int )(serv->reactor_num * sizeof(swThreadPoll)));
+		swError("calloc[reactor_threads] fail.alloc_size=%d", (int )(serv->reactor_num * sizeof(swReactorThread)));
 		return SW_ERR;
 	}
 
@@ -1025,12 +1040,31 @@ static int swServer_single_onClose(swReactor *reactor, swEvent *event)
 
 void swServer_signal_init(void)
 {
-	swSignalSet(SIGHUP, SIG_IGN, 1, 0);
-	//swSignalSet(SIGINT, SIG_IGN, 1, 0);
-	swSignalSet(SIGPIPE, SIG_IGN, 1, 0);
-	swSignalSet(SIGUSR1, swServer_signal_hanlder, 1, 0);
-	swSignalSet(SIGUSR2, swServer_signal_hanlder, 1, 0);
-	swSignalSet(SIGTERM, swServer_signal_hanlder, 1, 0);
+#ifdef HAVE_SIGNALFD
+	swSignalfd_add(SIGHUP, NULL);
+	swSignalfd_add(SIGPIPE, NULL);
+	if (SwooleG.serv->daemonize)
+	{
+		swSignalfd_add(SIGINT, NULL);
+	}
+	swSignalfd_add(SIGUSR1, swServer_signal_hanlder);
+	swSignalfd_add(SIGUSR2, swServer_signal_hanlder);
+	swSignalfd_add(SIGTERM, swServer_signal_hanlder);
+	swSignalfd_add(SIGALRM, swTimer_signal_handler);
+	//for test
+	swSignalfd_add(SIGVTALRM, swServer_signal_hanlder);
+#else
+	swSignal_set(SIGHUP, SIG_IGN, 1, 0);
+	swSignal_set(SIGPIPE, SIG_IGN, 1, 0);
+	if (SwooleG.serv->daemonize)
+	{
+		swSignal_set(SIGINT, SIG_IGN, 1, 0);
+	}
+	swSignal_set(SIGUSR1, swServer_signal_hanlder, 1, 0);
+	swSignal_set(SIGUSR2, swServer_signal_hanlder, 1, 0);
+	swSignal_set(SIGTERM, swServer_signal_hanlder, 1, 0);
+	swSignal_set(SIGVTALRM, swServer_signal_hanlder, 1, 0);
+#endif
 }
 
 int swServer_addListen(swServer *serv, int type, char *host, int port)
@@ -1137,6 +1171,12 @@ static void swServer_signal_hanlder(int sig)
 		{
 			SwooleG.timer.pipe.write(&SwooleG.timer.pipe, &flag, sizeof(flag));
 		}
+		break;
+	/**
+	 * for test
+	 */
+	case SIGVTALRM:
+		swWarn("SIGVTALRM coming");
 		break;
 	/**
 	 * proxy the restart signal

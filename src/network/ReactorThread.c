@@ -697,7 +697,7 @@ static void swReactorThread_onTimeout(swReactor *reactor)
 int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
 {
 	swThreadParam *param;
-	swThreadPoll *reactor_threads;
+	swReactorThread *reactor_threads;
 	pthread_t pidt;
 
 	int i, ret;
@@ -782,7 +782,7 @@ static int swReactorThread_loop(swThreadParam *param)
 		return SW_ERR;
 	}
 
-	swSingalNone();
+	swSignal_none();
 
 	timeo.tv_sec = serv->timeout_sec;
 	timeo.tv_usec = serv->timeout_usec; //300ms
@@ -796,6 +796,7 @@ static int swReactorThread_loop(swThreadParam *param)
 	reactor->setHandle(reactor, SW_FD_SEND_TO_CLIENT, swFactoryProcess_send2client);
 	reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_WRITE, swReactorThread_onWrite);
 
+#if SW_WORKER_IPC_MODE == 1
 	int i, worker_id;
 	//worker进程绑定reactor
 	for (i = 0; i < serv->reactor_pipe_num; i++)
@@ -805,6 +806,7 @@ static int swReactorThread_loop(swThreadParam *param)
 		//将写pipe设置到writer的reactor中
 		reactor->add(reactor, serv->workers[worker_id].pipe_master, SW_FD_SEND_TO_CLIENT);
 	}
+#endif
 	//Thread mode must copy the data.
 	//will free after onFinish
 	if (serv->open_eof_check == 1)

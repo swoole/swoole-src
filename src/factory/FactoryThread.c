@@ -22,7 +22,7 @@ typedef struct _swFactoryThread
 	int writer_num;
 	int writer_pti;
 	swRingQueue *queues; //消息队列
-	swThreadWriter *writers;
+	swWriterThread *writers;
 } swFactoryThread;
 
 static int swFactoryThread_writer_loop(swThreadParam *param);
@@ -36,7 +36,7 @@ int swFactoryThread_create(swFactory *factory, int writer_num)
 		swTrace("malloc[0] fail\n");
 		return SW_ERR;
 	}
-	this->writers = sw_calloc(writer_num, sizeof(swThreadWriter));
+	this->writers = sw_calloc(writer_num, sizeof(swWriterThread));
 	if (this->writers == NULL)
 	{
 		swTrace("malloc[1] fail\n");
@@ -195,7 +195,7 @@ static int swFactoryThread_writer_loop(swThreadParam *param)
 	{
 		serv->onWorkerStart(serv, pti);
 	}
-	swSingalNone();
+	swSignal_none();
 	//main loop
 	while (SwooleG.running > 0)
 	{
