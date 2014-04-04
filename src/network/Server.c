@@ -1007,6 +1007,10 @@ static int swServer_single_loop(swProcessPool *pool, swWorker *worker)
 	//pipe
 	reactor->add(reactor, worker->pipe_master, SW_FD_PIPE);
 
+#ifdef HAVE_SIGNALFD
+	swSignalfd_setup(reactor);
+#endif
+
 	reactor->onFinish = swServer_master_onReactorFinish;
 	reactor->onTimeout = swServer_master_onReactorTimeout;
 

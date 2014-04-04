@@ -790,6 +790,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 	swTrace("[Worker]max request");
 	return SW_OK;
 }
+
 /**
  * for msg queue
  * 头部放一个long让msg queue可以直接插入到消息队列中
