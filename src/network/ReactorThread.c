@@ -180,7 +180,7 @@ int swReactorThread_send(swEventData *resp)
 		else
 		{
 			//try send
-			int ret = swWrite(send_data.info.fd, send_data.data, send_data.info.len);
+			int ret = send(send_data.info.fd, send_data.data, send_data.info.len, 0);
 			if (ret < 0)
 			{
 				//连接已被关闭
@@ -258,7 +258,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 		else
 		{
 			sendn = trunk->length - trunk->offset;
-			ret = swWrite(ev->fd, trunk->data + trunk->offset, sendn);
+			ret = send(ev->fd, trunk->data + trunk->offset, sendn, 0);
 			//printf("sendn=%d|ret=%d|trunk->offset=%d\n", sendn, ret, trunk->offset);
 			if (ret <= 0)
 			{
@@ -276,6 +276,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 					return SW_OK;
 				}
 			}
+			//trunk full send
 			else if(ret == sendn)
 			{
 				swBuffer_pop_trunk(out_buffer, trunk);
@@ -304,10 +305,6 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 	swBuffer_trunk *trunk;
 
 	swConnection *conn = swServer_get_connection(serv, event->fd);
-	if (conn->active == 0)
-	{
-		return SW_OK;
-	}
 
 	trunk = swConnection_get_in_buffer(conn);
 	if (trunk == NULL)
@@ -478,10 +475,6 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &(serv->factory);
 	swConnection *conn = swServer_get_connection(serv, event->fd);
-	if (conn->active == 0)
-	{
-		return SW_OK;
-	}
 	swString *buffer = swConnection_get_string_buffer(conn);
 	swEventData send_data;
 

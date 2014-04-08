@@ -245,7 +245,8 @@ SWINLINE int swWrite(int fd, void *buf, int count)
 			}
 			else if (errno == EAGAIN)
 			{
-				break;
+				swYield();
+				continue;
 			}
 			else
 			{
