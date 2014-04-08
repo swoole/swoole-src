@@ -7,7 +7,7 @@ $client->on("connect", function(swoole_client $cli) {
 
 $client->on("receive", function(swoole_client $cli, $data){
     echo "Receive: $data";
-	sleep(1);
+	usleep(100000);
 	$cli->send("GET / HTTP/1.1\r\n\r\n");
 });
 
