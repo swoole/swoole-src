@@ -123,6 +123,41 @@ int swBuffer_free(swBuffer *buffer)
 	return SW_OK;
 }
 
+int swBuffer_in(swBuffer *buffer, swSendData *send_data)
+{
+	int buf_size, copy_n;
+	swBuffer_trunk *trunk = swBuffer_get_trunk(buffer);
+	buf_size = buffer->trunk_size - trunk->length;
+
+	do
+	{
+		copy_n =  (buf_size >= send_data->info.len) ? send_data->info.len : buf_size;
+		memcpy(trunk->data, send_data->data, copy_n);
+		send_data->data += copy_n;
+		send_data->info.len -= copy_n;
+		trunk->length += copy_n;
+		buf_size += copy_n;
+
+		//printf("trunk_n=%d|trunk=%p\n", buffer->trunk_num, trunk);
+
+		//trunk is full, create new trunk
+		if (trunk->length == buffer->trunk_size)
+		{
+			//trunk no enough space, creating a new trunk
+			trunk = swBuffer_new_trunk(buffer, SW_TRUNK_DATA);
+			if (trunk == NULL)
+			{
+				swWarn("append to buffer failed.");
+				return SW_ERR;
+			}
+			buf_size = buffer->trunk_size;
+		}
+	}
+	while(send_data->info.len > 0);
+
+	return SW_OK;
+}
+
 /**
  * print buffer
  */

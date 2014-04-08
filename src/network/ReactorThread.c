@@ -86,7 +86,6 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
  */
 int swReactorThread_send(swEventData *resp)
 {
-	int buf_size, copy_n;
 	swServer *serv = SwooleG.serv;
 	swSendData send_data;
 	swEvent closeFd;
@@ -148,49 +147,34 @@ int swReactorThread_send(swEventData *resp)
 	//send data
 	else
 	{
+		//test
+//		char test_data[65530];
+//		memset(test_data, 'A', sizeof(test_data) - 1);
+//		test_data[sizeof(test_data)-1] = 0;
+//		send_data.data = test_data;
+//		send_data.info.len = sizeof(test_data);
+
 		send_data.data = resp->data;
 		send_data.info.len = resp->info.len;
 		send_data.info.from_id = resp->info.from_id;
 		send_data.info.fd = resp->info.fd;
 
 #ifdef SW_REACTOR_DIRECT_SEND
-		if(!swBuffer_empty(conn->out_buffer))
+		if (!swBuffer_empty(conn->out_buffer))
 		{
-			trunk = swBuffer_get_trunk(conn->out_buffer);
+			swBuffer_get_trunk(conn->out_buffer);
 #else
 		{
-			trunk = swConnection_get_out_buffer(conn, SW_TRUNK_DATA);
+			swConnection_get_out_buffer(conn, SW_TRUNK_DATA);
 #endif
-			buf_size = conn->out_buffer->trunk_size - trunk->length;
 
 #ifdef SW_REACTOR_DIRECT_SEND
 			append_out_buffer:
-#else
+#endif
+			//buffer enQueue
+			swBuffer_in(conn->out_buffer, &send_data);
 			//listen EPOLLOUT event
 			reactor->set(reactor, resp->info.fd, SW_EVENT_TCP | SW_EVENT_WRITE | SW_EVENT_READ);
-#endif
-			do
-			{
-				copy_n =  (buf_size >= send_data.info.len) ? send_data.info.len : buf_size;
-				memcpy(trunk->data, send_data.data, copy_n);
-				send_data.data += copy_n;
-				send_data.info.len -= copy_n;
-				trunk->length += copy_n;
-				buf_size += copy_n;
-
-				//trunk is full, create new trunk
-				if (trunk->length == conn->out_buffer->trunk_size)
-				{
-					//trunk no enough space, creating a new trunk
-					trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_DATA);
-					if (trunk == NULL)
-					{
-						swWarn("append to out_buffer failed.");
-						return SW_ERR;
-					}
-					buf_size = conn->out_buffer->trunk_size;
-				}
-			} while(send_data.info.len > 0);
 		}
 #ifdef SW_REACTOR_DIRECT_SEND
 		else
@@ -209,10 +193,8 @@ int swReactorThread_send(swEventData *resp)
 			//Did not finish, add to writable event callback
 			else if(ret < resp->info.len)
 			{
-				trunk = swConnection_get_out_buffer(conn, SW_TRUNK_DATA);
 				send_data.data += ret;
 				send_data.info.len -= ret;
-				buf_size = conn->out_buffer->trunk_size;
 				goto append_out_buffer;
 			}
 			//printf("[writer]pop.fd=%d|from_id=%d|data=%s\n", resp->info.fd, resp->info.from_id, resp->data);
@@ -295,7 +277,8 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 				trunk->offset += ret;
 			}
 		}
-	} while(!swBuffer_empty(out_buffer));
+	} while (!swBuffer_empty(out_buffer));
+
 	//remove EPOLLOUT event
 	reactor->set(reactor, ev->fd, SW_EVENT_TCP | SW_EVENT_READ);
 	return SW_OK;
