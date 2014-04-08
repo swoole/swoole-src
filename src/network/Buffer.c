@@ -123,6 +123,9 @@ int swBuffer_free(swBuffer *buffer)
 	return SW_OK;
 }
 
+/**
+ * append to buffer queue
+ */
 int swBuffer_in(swBuffer *buffer, swSendData *send_data)
 {
 	int buf_size, copy_n;

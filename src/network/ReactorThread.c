@@ -266,6 +266,10 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 				{
 					goto close_fd;
 				}
+				else
+				{
+					return SW_OK;
+				}
 				swWarn("send failed. fd=%d|from_id=%d. Error: %s[%d]", ev->fd, reactor->id, strerror(errno), errno);
 			}
 			else if(ret == trunk->length)
