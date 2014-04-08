@@ -266,13 +266,17 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 				{
 					goto close_fd;
 				}
-				else
+				else if(errno == EAGAIN)
 				{
 					return SW_OK;
 				}
-				swWarn("send failed. fd=%d|from_id=%d. Error: %s[%d]", ev->fd, reactor->id, strerror(errno), errno);
+				else
+				{
+					swWarn("send failed. fd=%d|from_id=%d. Error: %s[%d]", ev->fd, reactor->id, strerror(errno), errno);
+					return SW_OK;
+				}
 			}
-			else if(ret == trunk->length)
+			else if(ret == sendn)
 			{
 				swBuffer_pop_trunk(out_buffer, trunk);
 			}
@@ -392,12 +396,7 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 	int ret, n;
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &(serv->factory);
-
 	swConnection *conn = swServer_get_connection(serv, event->fd);
-	if (conn->active == 0)
-	{
-		return SW_OK;
-	}
 
 	struct
 	{

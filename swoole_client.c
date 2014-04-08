@@ -69,54 +69,72 @@ static int php_swoole_client_close(zval **zobject, int fd TSRMLS_DC)
 	char *hash_key;
 	int hash_key_len;
 
-	//remove from reactor
-	if (SwooleG.main_reactor)
-	{
-		SwooleG.main_reactor->del(SwooleG.main_reactor, fd);
-	}
-	hash_key_len = spprintf(&hash_key, sizeof(int)+1, "%d", fd);
-	if (zend_hash_find(&php_sw_client_callback, hash_key, hash_key_len+1, (void **)&zobject) != SUCCESS)
-	{
-		zend_error(E_WARNING, "swoole_client->close[1]: Fd[%d] is not a swoole_client object", fd);
-
-		fatal_error:
-		efree(hash_key);
-		return SW_ERR;
-	}
-
-	zcallback = zend_read_property(swoole_client_class_entry_ptr, *zobject, SW_STRL("close")-1, 0 TSRMLS_CC);
-	if (zcallback == NULL)
-	{
-		zend_error(E_WARNING, "swoole_client->close[2]: no close callback.");
-		goto fatal_error;
-	}
-
 	zval **zres;
 	if (zend_hash_find(Z_OBJPROP_PP(zobject), SW_STRL("_client"), (void **) &zres) == SUCCESS)
 	{
 		ZEND_FETCH_RESOURCE_NO_RETURN(cli, swClient*, zres, -1, SW_RES_CLIENT_NAME, le_swoole_client);
-		cli->close(cli);
 	}
 	else
 	{
-		zend_error(E_WARNING, "swoole_client->close[3]: no _client property.");
-		goto fatal_error;
-	}
-	args[0] = zobject;
-	if (call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
-	{
-		zend_error(E_WARNING, "swoole_client->close[4]: onClose handler error");
-		goto fatal_error;
+		zend_error(E_WARNING, "swoole_client->close[1]: no _client property.");
+		return SW_ERR;
 	}
 
-	if(SwooleG.main_reactor->event_num == 0 && php_sw_in_client == 1)
+	//async connection
+	if (cli->async)
 	{
-		SwooleG.running = 0;
-	}
 
-	if (zend_hash_del(&php_sw_client_callback, hash_key, hash_key_len+1) == FAILURE)
+		//remove from reactor
+		if (SwooleG.main_reactor)
+		{
+			SwooleG.main_reactor->del(SwooleG.main_reactor, fd);
+		}
+
+		hash_key_len = spprintf(&hash_key, sizeof(int)+1, "%d", fd);
+		if (zend_hash_find(&php_sw_client_callback, hash_key, hash_key_len+1, (void **)&zobject) != SUCCESS)
+		{
+			zend_error(E_WARNING, "swoole_client->close[2]: Fd[%d] is not a swoole_client object", fd);
+			fatal_error:
+			efree(hash_key);
+			return SW_ERR;
+		}
+
+		zcallback = zend_read_property(swoole_client_class_entry_ptr, *zobject, SW_STRL("close")-1, 0 TSRMLS_CC);
+		if (zcallback == NULL)
+		{
+			zend_error(E_WARNING, "swoole_client->close[3]: no close callback.");
+			goto fatal_error;
+		}
+
+		args[0] = zobject;
+		if (call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+		{
+			zend_error(E_WARNING, "swoole_client->close[4]: onClose handler error");
+			goto fatal_error;
+		}
+
+		if (SwooleG.main_reactor->event_num == 0 && php_sw_in_client == 1)
+		{
+			SwooleG.running = 0;
+		}
+
+		if (zend_hash_del(&php_sw_client_callback, hash_key, hash_key_len+1) == FAILURE)
+		{
+			zend_error(E_WARNING, "swoole_client: del from client callback hashtable failed.");
+		}
+
+		//hashtable key
+		efree(hash_key);
+
+		//free the callback return value
+		if (retval != NULL)
+		{
+			zval_ptr_dtor(&retval);
+		}
+	}
+	else
 	{
-		zend_error(E_WARNING, "swoole_client: del from client callback hashtable failed.");
+		cli->close(cli);
 	}
 
 	//long tcp connection, clear from php_sw_long_connections
@@ -138,12 +156,6 @@ static int php_swoole_client_close(zval **zobject, int fd TSRMLS_DC)
 	{
 		free(cli->server_str);
 		efree(cli);
-	}
-
-	efree(hash_key);
-	if (retval != NULL)
-	{
-		zval_ptr_dtor(&retval);
 	}
 	return SW_OK;
 }
@@ -975,7 +987,7 @@ PHP_METHOD(swoole_client, recv)
 		MAKE_STD_ZVAL(errCode);
 		ZVAL_LONG(errCode, errno);
 		zend_update_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errCode TSRMLS_CC);
-		zval_dtor(errCode);
+		zval_ptr_dtor(&errCode);
 		RETVAL_FALSE;
 	}
 	else
