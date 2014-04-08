@@ -249,7 +249,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 				{
 					return SW_OK;
 				}
-				else if (swConnection_error(conn, errno) < 0)
+				else if (swConnection_error(conn->fd, errno) < 0)
 				{
 					close_fd:
 					closeFd.fd = ev->fd;
@@ -280,7 +280,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 			//printf("sendn=%d|ret=%d|trunk->offset=%d\n", sendn, ret, trunk->offset);
 			if (ret <= 0)
 			{
-				if (swConnection_error(conn, errno) < 0)
+				if (swConnection_error(conn->fd, errno) < 0)
 				{
 					goto close_fd;
 				}
@@ -339,7 +339,7 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 	swTrace("ReactorThread: recv[len=%d]", n);
 	if (n < 0)
 	{
-		if (swConnection_error(conn, errno) < 0)
+		if (swConnection_error(conn->fd, errno) < 0)
 		{
 			goto close_fd;
 		}
@@ -430,7 +430,7 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 #endif
 	if (n < 0)
 	{
-		if (swConnection_error(conn, errno) < 0)
+		if (swConnection_error(conn->fd, errno) < 0)
 		{
 			goto close_fd;
 		}
@@ -510,7 +510,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 
 	if (n < 0)
 	{
-		if (swConnection_error(conn, errno) < 0)
+		if (swConnection_error(conn->fd, errno) < 0)
 		{
 			goto close_fd;
 		}

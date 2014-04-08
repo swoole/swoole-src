@@ -25,6 +25,8 @@ typedef struct _swClient
 	uint8_t async;
 	uint8_t connected;
 	uint8_t keep;
+	char *server_str;
+	uint8_t server_strlen;
 	double timeout;
 
 	struct sockaddr_in serv_addr;

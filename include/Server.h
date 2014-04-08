@@ -282,7 +282,7 @@ void swTaskWorker_onWorkerStart(swProcessPool *pool, int worker_id);
 
 SWINLINE int swServer_new_connection(swServer *serv, swEvent *ev);
 SWINLINE void swConnection_close(swServer *serv, int fd, int notify);
-SWINLINE int swConnection_error(swConnection *conn, int err);
+SWINLINE int swConnection_error(int fd, int err);
 
 #define SW_SERVER_MAX_FD_INDEX        0
 #define SW_SERVER_MIN_FD_INDEX        1
