@@ -269,7 +269,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 				break;
 			}
 			ret = send(ev->fd, trunk->data + trunk->offset, sendn, 0);
-			//printf("BufferOut: sendn=%d|ret=%d|trunk->offset=%d|trunk_len=%d\n", sendn, ret, trunk->offset, trunk->length);
+			//printf("BufferOut: reactor=%d|sendn=%d|ret=%d|trunk->offset=%d|trunk_len=%d\n", reactor->id, sendn, ret, trunk->offset, trunk->length);
 			if (ret < 0)
 			{
 				if (swConnection_error(conn->fd, errno) < 0)
@@ -560,13 +560,12 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 			{
 				goto close_fd;
 			}
-			/*-------------------包完整性检测---------------------*/
+			/*-------------------isFinish check---------------------*/
 			//A complete package
-			//一个完整的数据包
 
-			int package_length = serv->package_body_start + package_body_length;  //包的总长度
+			int package_length = serv->package_body_start + package_body_length;  //total package length
 
-			printf("package_length=%d|body_len=%ld|tmp_len=%d|tmp_ptr=%p\n", package_length, package_body_length, tmp_len, tmp_ptr);
+			//printf("package_length=%d|body_len=%ld|tmp_len=%d|tmp_ptr=%p\n", package_length, package_body_length, tmp_len, tmp_ptr);
 
 			if (package_length <= tmp_len)
 			{

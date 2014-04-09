@@ -50,7 +50,7 @@
 #define SW_MAINREACTOR_TIMEO       1    //main reactor
 #define SW_MAINREACTOR_USE_UNSOCK  1    //主线程使用unsock
 #define SW_REACTOR_WRITER_TIMEO    3    //writer线程的reactor
-#define SW_REACTOR_DIRECT_SEND          //首先尝试直接发送,如果发生EAGAIN错误,再添加EPOLLOUT事件监听
+//#define SW_REACTOR_DIRECT_SEND          //首先尝试直接发送,如果发生EAGAIN错误,再添加EPOLLOUT事件监听
 #define SW_TASKWAIT_TIMEOUT        0.5
 
 //#define SW_AIO_LINUX_NATIVE

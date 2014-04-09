@@ -402,7 +402,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 				}
 				else
 				{
-					if(serv->onWorkerError!=NULL && WIFEXITED(worker_exit_code))
+					if(serv->onWorkerError!=NULL && WEXITSTATUS(worker_exit_code) > 0)
 					{
 						serv->onWorkerError(serv, i, pid, WEXITSTATUS(worker_exit_code));
 					}

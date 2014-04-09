@@ -7,7 +7,7 @@ $serv->set(array(
     //'package_eof' => "\r\n",
     'task_worker_num' => 2,
 	//'dispatch_mode' => 2,
-	'daemonize' => 1,
+	//'daemonize' => 1,
 	'log_file' => '/tmp/swoole.log',
     //'heartbeat_idle_time' => 5,
     //'heartbeat_check_interval' => 5,
@@ -39,7 +39,7 @@ function my_onClose($serv, $fd, $from_id)
 function my_onConnect($serv, $fd, $from_id)
 {
 	//throw new Exception("hello world");
-// 	echo "Client:Connect.\n";
+ 	//echo "Client[$fd@$from_id]: Connect.\n";
 }
 
 function my_onWorkerStart($serv, $worker_id)
@@ -129,7 +129,7 @@ function my_onFinish(swoole_server $serv, $data)
     echo "AsyncTask Finish:Connect.PID=".posix_getpid().PHP_EOL;
 }
 
-function my_onWorkerError(swoole_server $serv, $data)
+function my_onWorkerError(swoole_server $serv, $worker_id, $worker_pid, $exit_code)
 {
     echo "worker abnormal exit. WorkerId=$worker_id|Pid=$worker_pid|ExitCode=$exit_code\n";
 }
