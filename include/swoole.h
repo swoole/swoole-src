@@ -17,7 +17,6 @@
 #ifndef SWOOLE_H_
 #define SWOOLE_H_
 
-//坑爹的PHP编译器，这里要包含下PHP生成的config.h文件
 #if defined(HAVE_CONFIG_H) && !defined(COMPILE_DL_SWOOLE)
 #include "config.h"
 #endif
@@ -170,6 +169,7 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define SW_LOG_INFO            1
 #define SW_LOG_WARN            2
 #define SW_LOG_ERROR           3
+#define SW_LOG_TRACE           4
 
 #define swWarn(str,...)        SwooleG.lock.lock(&SwooleG.lock);\
 snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str,__func__,##__VA_ARGS__);\
@@ -177,7 +177,7 @@ swLog_put(SW_LOG_WARN, sw_error);\
 SwooleG.lock.unlock(&SwooleG.lock)
 
 #define swError(str,...)       SwooleG.lock.lock(&SwooleG.lock);\
-snprintf(sw_error, SW_ERROR_MSG_SIZE,str, ##__VA_ARGS__);\
+snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
 swLog_put(SW_LOG_ERROR, sw_error);\
 SwooleG.lock.unlock(&SwooleG.lock);\
 exit(1)
@@ -188,6 +188,28 @@ exit(1)
 #else
 #define swTrace(str,...)
 //#define swWarn(str,...)        {printf(sw_error);}
+#endif
+
+enum SW_TRACE_LOG
+{
+	SW_TRACE_SERVER = 1,
+	SW_TRACE_CLIENT = 2,
+	SW_TRACE_BUFFER = 3,
+	SW_TRACE_CONN = 4,
+};
+
+#if SW_LOG_TRACE_OPEN == 1
+#define swTraceLog(id,str,...)      SwooleG.lock.lock(&SwooleG.lock);\
+snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str,__func__,##__VA_ARGS__);\
+swLog_put(SW_LOG_TRACE, sw_error);\
+SwooleG.lock.unlock(&SwooleG.lock)
+#elif SW_LOG_TRACE_OPEN == 0
+#define swTraceLog(id,str,...)
+#else
+#define swTraceLog(id,str,...)      if (id==SW_LOG_TRACE_OPEN) {SwooleG.lock.lock(&SwooleG.lock);\
+snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str,__func__,##__VA_ARGS__);\
+swLog_put(SW_LOG_TRACE, sw_error);\
+SwooleG.lock.unlock(&SwooleG.lock);}
 #endif
 
 #define swYield()              sched_yield() //or usleep(1)

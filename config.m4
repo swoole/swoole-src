@@ -236,7 +236,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(c, signalfd, AC_DEFINE(HAVE_SIGNALFD, 1, [have signalfd]))
     AC_CHECK_LIB(pthread, pthread_spin_lock, AC_DEFINE(HAVE_SPINLOCK, 1, [have pthread_spin_lock]))
     AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
-    AC_CHECK_LIB(eio, eio_init, AC_DEFINE(HAVE_LIBEIO, 1, [have libeio]))
+    
 
     PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
     dnl PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
