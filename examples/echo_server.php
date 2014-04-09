@@ -1,6 +1,10 @@
 <?php
-$serv = new swoole_server("127.0.0.1", 9501);
-$serv->set(array('worker_num' => 1));
+$serv = new swoole_server("0.0.0.0", 9501);
+$serv->set(array(
+	'worker_num' => 16,
+	'daemonize' => true,
+	'log_file' => '/tmp/swoole.log'
+));
 $serv->on('timer', function($serv, $interval) {
 	echo "onTimer: $interval\n";
 });

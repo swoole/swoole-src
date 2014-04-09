@@ -214,6 +214,11 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 	swEvent closeFd;
 	swTask_sendfile *task = NULL;
 
+	if (conn->out_buffer == NULL)
+	{
+		goto remove_out_event;
+	}
+
 	do
 	{
 		trunk = swBuffer_get_trunk(out_buffer);
@@ -294,6 +299,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 	} while (!swBuffer_empty(out_buffer));
 
 	//remove EPOLLOUT event
+	remove_out_event:
 	reactor->set(reactor, ev->fd, SW_EVENT_TCP | SW_EVENT_READ);
 	return SW_OK;
 }

@@ -803,11 +803,6 @@ PHP_METHOD(swoole_client, connect)
 	}
 	cli = swoole_client_create_socket(getThis(), host, host_len, port);
 
-	if (cli->connected == 1)
-	{
-		RETURN_TRUE;
-	}
-
 	if (cli->async == 1 && (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6))
 	{
 		//for tcp: nonblock
@@ -815,7 +810,10 @@ PHP_METHOD(swoole_client, connect)
 		sock_flag = 1;
 	}
 
-	ret = cli->connect(cli, host, port, (float) timeout, sock_flag);
+	if (cli->connected != 1)
+	{
+		ret = cli->connect(cli, host, port, (float) timeout, sock_flag);
+	}
 
 	//nonblock async
 	if (cli->async == 1)

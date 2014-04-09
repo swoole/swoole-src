@@ -7,7 +7,8 @@ $serv->set(array(
     //'package_eof' => "\r\n",
     'task_worker_num' => 2,
 	//'dispatch_mode' => 2,
-	//'daemonize' => 1,
+	'daemonize' => 1,
+	'log_file' => '/tmp/swoole.log',
     //'heartbeat_idle_time' => 5,
     //'heartbeat_check_interval' => 5,
 ));

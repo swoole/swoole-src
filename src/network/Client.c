@@ -123,7 +123,7 @@ int swClient_tcp_connect(swClient *cli, char *host, int port, double timeout, in
 
 	cli->timeout = timeout;
 
-	if(nonblock == 1)
+	if (nonblock == 1)
 	{
 		swSetNonBlock(cli->sock);
 	}
