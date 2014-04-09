@@ -129,11 +129,12 @@ int swBuffer_free(swBuffer *buffer)
 int swBuffer_in(swBuffer *buffer, swSendData *send_data)
 {
 	int buf_size, copy_n;
-	swBuffer_trunk *trunk = swBuffer_get_trunk(buffer);
+	swBuffer_trunk *trunk = buffer->tail;
 	buf_size = buffer->trunk_size - trunk->length;
 
 	do
 	{
+		trunk = buffer->tail;
 		copy_n =  (buf_size >= send_data->info.len) ? send_data->info.len : buf_size;
 		memcpy(trunk->data, send_data->data, copy_n);
 		send_data->data += copy_n;
