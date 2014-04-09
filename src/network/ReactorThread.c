@@ -258,9 +258,14 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 		else
 		{
 			sendn = trunk->length - trunk->offset;
+			if (sendn == 0)
+			{
+				swBuffer_pop_trunk(out_buffer, trunk);
+				break;
+			}
 			ret = send(ev->fd, trunk->data + trunk->offset, sendn, 0);
 			//printf("sendn=%d|ret=%d|trunk->offset=%d\n", sendn, ret, trunk->offset);
-			if (ret <= 0)
+			if (ret < 0)
 			{
 				if (swConnection_error(conn->fd, errno) < 0)
 				{
@@ -277,7 +282,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 				}
 			}
 			//trunk full send
-			else if(ret == sendn)
+			else if(ret == sendn || sendn == 0)
 			{
 				swBuffer_pop_trunk(out_buffer, trunk);
 			}
