@@ -84,7 +84,7 @@ static int swClient_inet_addr(swClient *cli, char *string)
 	{
 		if (cli->async)
 		{
-			swWarn("DNS lookup will block the process. Please use swoole_async_dns_lookup");
+			swWarn("DNS lookup will block the process. Please use swoole_async_dns_lookup.");
 		}
 
 		if (!(host_entry = gethostbyname(string)))
@@ -94,7 +94,7 @@ static int swClient_inet_addr(swClient *cli, char *string)
 		}
 		if (host_entry->h_addrtype != AF_INET)
 		{
-			swWarn("Host lookup failed: Non AF_INET domain returned on AF_INET socket");
+			swWarn("Host lookup failed: Non AF_INET domain returned on AF_INET socket.");
 			return 0;
 		}
 		memcpy(&(sin->sin_addr.s_addr), host_entry->h_addr_list[0], host_entry->h_length);
