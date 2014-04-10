@@ -19,6 +19,9 @@
 #include "php_swoole.h"
 #include <ext/standard/info.h>
 
+#include <net/if.h>
+#include <sys/ioctl.h>
+
 zval *php_sw_callback[PHP_SERVER_CALLBACK_NUM];
 
 HashTable php_sw_reactor_callback;
@@ -333,6 +336,7 @@ const zend_function_entry swoole_functions[] =
 	/*------other-----*/
 	PHP_FE(swoole_client_select, NULL)
 	PHP_FE(swoole_set_process_name, NULL)
+	PHP_FE(swoole_get_local_ip, NULL)
 	PHP_FE(swoole_strerror, NULL)
 	PHP_FE(swoole_errno, NULL)
 #ifdef SW_ASYNC_MYSQL
@@ -2319,6 +2323,37 @@ PHP_FUNCTION(swoole_set_process_name)
 #define ARGV_MAX_LENGTH 127
 	bzero(sapi_module.executable_location, ARGV_MAX_LENGTH);
 	memcpy(sapi_module.executable_location, name, name_len);
+}
+
+PHP_FUNCTION(swoole_get_local_ip)
+{
+	int i = 0;
+	int sockfd;
+	struct ifconf ifconf;
+	char buf[1024];
+	struct ifreq *ifreq;
+	char* ip;
+	//初始化ifconf
+	ifconf.ifc_len = 512;
+	ifconf.ifc_buf = buf;
+
+	if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+	{
+		RETURN_FALSE;
+	}
+	ioctl(sockfd, SIOCGIFCONF, &ifconf);
+	close(sockfd);
+	ifreq = (struct ifreq*) buf;
+	array_init(return_value);
+	for (; i < (ifconf.ifc_len / sizeof(struct ifreq)); i++)
+	{
+		ip = inet_ntoa(((struct sockaddr_in*) &(ifreq[i].ifr_addr))->sin_addr);
+		if (strcmp(ip, "127.0.0.1") == 0)
+		{
+			continue;
+		}
+		add_assoc_string(return_value, ifreq[i].ifr_ifrn.ifrn_name, ip, 1);
+	}
 }
 
 PHP_FUNCTION(swoole_server_taskwait)

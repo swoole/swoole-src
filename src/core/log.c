@@ -58,6 +58,9 @@ void swLog_put(int level, char *cnt)
 	case SW_LOG_WARN:
 		level_str = "WARN";
 		break;
+	case SW_LOG_TRACE:
+		level_str = "TRACE";
+		break;
 	default:
 		level_str = "INFO";
 		break;

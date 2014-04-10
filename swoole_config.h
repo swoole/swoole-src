@@ -30,8 +30,9 @@
 
 //#define SW_CONNECTION_LIST_EXPAND  (4096*2)  //动态扩容的数量
 
-//#define SW_DEBUG                  //启用调试模式，请注释掉此行代码 这里用--enable-swoole-debug开启调试模式
-#define SW_LOG_NO_SRCINFO          //不需要源代码信息
+//#define SW_DEBUG                  //debug
+#define SW_LOG_NO_SRCINFO          //no source info
+#define SW_LOG_TRACE_OPEN          3 //1: open all trace log, 0: close all trace log, >1: open some[traceId=n] trace log
 //#define SW_BUFFER_SIZE            65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_CLIENT_BUFFER_SIZE      65535
 #define SW_BUFFER_SIZE             (8192-sizeof(struct _swDataHead)) //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)

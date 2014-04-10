@@ -137,8 +137,8 @@ int swBuffer_in(swBuffer *buffer, swSendData *send_data)
 		trunk = buffer->tail;
 		copy_n =  (buf_size >= send_data->info.len) ? send_data->info.len : buf_size;
 		memcpy(trunk->data, send_data->data, copy_n);
-		//printf("BufferIn: trunk_n=%d|data_len=%d|copy_n=%d|buf_size=%d|trunk_len=%d|trunk_off=%d|trunk=%p\n",
-		//        buffer->trunk_num, send_data->info.len, copy_n, buf_size, trunk->length, trunk->offset, trunk);
+		swTraceLog(SW_TRACE_BUFFER, "trunk_n=%d|data_len=%d|copy_n=%d|buf_size=%d|trunk_len=%d|trunk_off=%d|trunk=%p",
+		        buffer->trunk_num, send_data->info.len, copy_n, buf_size, trunk->length, trunk->offset, trunk);
 		send_data->data += copy_n;
 		send_data->info.len -= copy_n;
 		trunk->length += copy_n;

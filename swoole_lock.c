@@ -105,7 +105,7 @@ PHP_METHOD(swoole_lock, lock)
 	{
 		RETURN_FALSE;
 	}
-	SW_CHECK_RETURN(lock->lock(lock));
+	SW_LOCK_CHECK_RETURN(lock->lock(lock));
 }
 
 PHP_METHOD(swoole_lock, unlock)
@@ -120,7 +120,7 @@ PHP_METHOD(swoole_lock, unlock)
 	{
 		RETURN_FALSE;
 	}
-	SW_CHECK_RETURN(lock->unlock(lock));
+	SW_LOCK_CHECK_RETURN(lock->unlock(lock));
 }
 
 PHP_METHOD(swoole_lock, trylock)
@@ -140,7 +140,7 @@ PHP_METHOD(swoole_lock, trylock)
 		zend_error(E_WARNING, "SwooleLock: lock[type=%d] can not trylock", lock->type);
 		RETURN_FALSE;
 	}
-	SW_CHECK_RETURN(lock->trylock(lock));
+	SW_LOCK_CHECK_RETURN(lock->trylock(lock));
 }
 
 PHP_METHOD(swoole_lock, trylock_read)
@@ -160,7 +160,7 @@ PHP_METHOD(swoole_lock, trylock_read)
 		zend_error(E_WARNING, "SwooleLock: lock[type=%d] can not trylock_read", lock->type);
 		RETURN_FALSE;
 	}
-	SW_CHECK_RETURN(lock->trylock(lock));
+	SW_LOCK_CHECK_RETURN(lock->trylock(lock));
 }
 
 PHP_METHOD(swoole_lock, lock_read)
@@ -180,6 +180,5 @@ PHP_METHOD(swoole_lock, lock_read)
 		zend_error(E_WARNING, "SwooleLock: lock[type=%d] can not lock_read", lock->type);
 		RETURN_FALSE;
 	}
-	SW_CHECK_RETURN(lock->trylock(lock));
+	SW_LOCK_CHECK_RETURN(lock->trylock(lock));
 }
-
