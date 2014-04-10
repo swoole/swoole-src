@@ -8,9 +8,11 @@ $cli->send("get file");
 while(1)
 {
 	$content .= $cli->recv();
+    echo strlen($content)."\n";
 	if(strlen($content) == $filesize)
 	{
-		file_put_contents(__DIR__.'/recv_file.jpg', $content);
+        $i = time();
+		file_put_contents(__DIR__."/recv_file_{$i}.jpg", $content);
 		break;
 	}
 }

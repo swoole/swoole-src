@@ -238,7 +238,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
     AC_CHECK_LIB(eio, eio_init, AC_DEFINE(HAVE_LIBEIO, 1, [have libeio]))
 
-    PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
+    dnl PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
     dnl PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
 
     PHP_NEW_EXTENSION(swoole, swoole.c swoole_lock.c swoole_client.c swoole_async.c\

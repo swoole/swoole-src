@@ -25,8 +25,23 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
 	off_t sent_bytes;
 	int ret;
 
+#ifdef __MACH__
+    struct sf_hdtr hdtr;
+    hdtr.headers = NULL;
+    hdtr.hdr_cnt = 0;
+    hdtr.trailers = NULL;
+    hdtr.trl_cnt = 0;
+#endif
+
+    //sent_bytes = (off_t)size;
+    swTrace("send file, out_fd:%d, in_fd:%d, offset:%d, size:%d", out_fd, in_fd, *offset, size);
+
 	do_sendfile:
+#ifdef __MACH__
+    ret = sendfile(in_fd, out_fd, *offset, &size, &hdtr, 0);
+#else
 	ret = sendfile(in_fd, out_fd, *offset, size, 0, &sent_bytes, 0);
+#endif
 	if (ret == -1)
 	{
 		if (errno == EAGAIN)

@@ -188,6 +188,9 @@ SWINLINE void swConnection_clear_string_buffer(swConnection *conn)
 int swConnection_send_in_buffer(swConnection *conn)
 {
 	int ret;
+#ifdef SW_DEBUG
+    int i;
+#endif
 
 	swFactory *factory = SwooleG.factory;
 	swEventData _send;
