@@ -266,7 +266,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 			if (sendn == 0)
 			{
 				swBuffer_pop_trunk(out_buffer, trunk);
-				break;
+				continue;
 			}
 			ret = send(ev->fd, trunk->data + trunk->offset, sendn, 0);
 			//printf("BufferOut: reactor=%d|sendn=%d|ret=%d|trunk->offset=%d|trunk_len=%d\n", reactor->id, sendn, ret, trunk->offset, trunk->length);

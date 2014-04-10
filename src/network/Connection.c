@@ -242,7 +242,7 @@ SWINLINE swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn)
 			return NULL;
 		}
 		//new trunk
-		trunk = swBuffer_new_trunk(buffer, SW_TRUNK_DATA);
+		trunk = swBuffer_new_trunk(buffer, SW_TRUNK_DATA, buffer->trunk_size);
 		if (trunk == NULL)
 		{
 			sw_free(buffer);
@@ -256,7 +256,7 @@ SWINLINE swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn)
 		trunk = swBuffer_get_trunk(buffer);
 		if (trunk == NULL || trunk->length == buffer->trunk_size)
 		{
-			trunk = swBuffer_new_trunk(buffer, SW_TRUNK_DATA);
+			trunk = swBuffer_new_trunk(buffer, SW_TRUNK_DATA, buffer->trunk_size);
 		}
 	}
 	return trunk;
@@ -275,14 +275,14 @@ SWINLINE swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_
 	}
 	if (type == SW_TRUNK_SENDFILE)
 	{
-		trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_SENDFILE);
+		trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_SENDFILE, 0);
 	}
 	else
 	{
 		trunk = swBuffer_get_trunk(conn->out_buffer);
 		if (trunk == NULL)
 		{
-			trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_DATA);
+			trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_DATA, conn->out_buffer->trunk_size);
 		}
 	}
 	return trunk;

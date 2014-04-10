@@ -38,7 +38,7 @@ swBuffer* swBuffer_new(int trunk_size)
 /**
  * create new trunk
  */
-swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type)
+swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint16_t size)
 {
 	swBuffer_trunk *trunk = sw_malloc(sizeof(swBuffer_trunk));
 	if (trunk == NULL)
@@ -48,12 +48,11 @@ swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type)
 	}
 
 	bzero(trunk, sizeof(swBuffer_trunk));
-	/**
-	 * [type=SW_TRUNK_DATA] will alloc memory
-	 */
-	if (type == 0)
+
+	//require alloc memory
+	if (type == SW_TRUNK_DATA && size > 0)
 	{
-		void *buf = sw_malloc(buffer->trunk_size);
+		void *buf = sw_malloc(size);
 		if (buf == NULL)
 		{
 			swWarn("malloc for data failed. Error: %s[%d]", strerror(errno), errno);
@@ -64,7 +63,7 @@ swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type)
 	}
 
 	trunk->type = type;
-	buffer->trunk_num++;
+	buffer->trunk_num ++;
 
 	if(buffer->head == NULL)
 	{
@@ -128,38 +127,17 @@ int swBuffer_free(swBuffer *buffer)
  */
 int swBuffer_in(swBuffer *buffer, swSendData *send_data)
 {
-	int buf_size, copy_n;
-	swBuffer_trunk *trunk = buffer->tail;
-	buf_size = buffer->trunk_size - trunk->length;
-
-	do
+	swBuffer_trunk *trunk = swBuffer_new_trunk(buffer, SW_TRUNK_DATA, send_data->info.len);
+	if (trunk == NULL)
 	{
-		trunk = buffer->tail;
-		copy_n =  (buf_size >= send_data->info.len) ? send_data->info.len : buf_size;
-		memcpy(trunk->data, send_data->data, copy_n);
-		swTraceLog(SW_TRACE_BUFFER, "trunk_n=%d|data_len=%d|copy_n=%d|buf_size=%d|trunk_len=%d|trunk_off=%d|trunk=%p",
-		        buffer->trunk_num, send_data->info.len, copy_n, buf_size, trunk->length, trunk->offset, trunk);
-		send_data->data += copy_n;
-		send_data->info.len -= copy_n;
-		trunk->length += copy_n;
-		buf_size += copy_n;
-
-		//printf("trunk_n=%d|trunk=%p\n", buffer->trunk_num, trunk);
-
-		//trunk is full, create new trunk
-		if (trunk->length == buffer->trunk_size)
-		{
-			//trunk no enough space, creating a new trunk
-			trunk = swBuffer_new_trunk(buffer, SW_TRUNK_DATA);
-			if (trunk == NULL)
-			{
-				swWarn("append to buffer failed.");
-				return SW_ERR;
-			}
-			buf_size = buffer->trunk_size;
-		}
+		return SW_ERR;
 	}
-	while(send_data->info.len > 0);
+
+	trunk->length = send_data->info.len;
+	memcpy(trunk->data, send_data->data, trunk->length);
+
+	swTraceLog(SW_TRACE_BUFFER, "trunk_n=%d|data_len=%d|trunk_len=%d|trunk=%p", buffer->trunk_num, send_data->info.len,
+			trunk->length, trunk);
 
 	return SW_OK;
 }
