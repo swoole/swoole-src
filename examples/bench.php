@@ -18,8 +18,8 @@ $bc = new Swoole_Benchmark(trim($opt['f']));
 $bc->process_num = (int)$opt['c'];
 $bc->request_num = (int)$opt['n'];
 $bc->server_url = trim($opt['s']);
-$bc->send_data = str_repeat('a', 100);
-$bc->read_len = 108;
+$bc->send_data = str_repeat('a', 2040);
+$bc->read_len = 2048;
 if(!empty($opt['p'])) $bc->show_detail = true;
 
 function long_tcp(Swoole_Benchmark $bc)

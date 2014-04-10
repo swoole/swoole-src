@@ -42,6 +42,8 @@ typedef struct {
 char php_sw_reactor_wait_onexit = 0;
 static char php_sw_reactor_ok = 0;
 static char php_sw_in_client = 0;
+static char php_sw_event_wait = 0;
+
 HashTable php_sw_long_connections;
 
 static int php_swoole_client_event_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_DC);
@@ -451,6 +453,7 @@ void php_swoole_try_run_reactor()
 		zend_error(E_WARNING, "swoole_client: PHP%d.%d not support auto run swoole_event_wait. Please append swoole_event_wait at the script end.", PHP_MAJOR_VERSION, PHP_MINOR_VERSION);
 #endif
 		php_sw_reactor_wait_onexit = 1;
+		php_sw_event_wait = 0;
 	}
 }
 
@@ -745,9 +748,11 @@ PHP_FUNCTION(swoole_event_exit)
 
 PHP_FUNCTION(swoole_event_wait)
 {
-	if (php_sw_in_client == 1)
+	if (php_sw_in_client == 1 && php_sw_event_wait == 0)
 	{
 		SwooleG.running = 1;
+		php_sw_event_wait = 1;
+
 		struct timeval timeo;
 		timeo.tv_sec = SW_REACTOR_TIMEO_SEC;
 		timeo.tv_usec = SW_REACTOR_TIMEO_USEC;
@@ -917,13 +922,17 @@ PHP_METHOD(swoole_client, send)
 		RETURN_FALSE;
 	}
 
-    int ret = cli->send(cli, data, data_len);
+	//clear errno
+	SwooleG.error = 0;
+
+	int ret = cli->send(cli, data, data_len);
     if (ret < 0)
 	{
+    	SwooleG.error = errno;
 		//这里的错误信息没用
-		zend_error(E_WARNING, "swoole_client: send failed. Error: %s [%d]", strerror(errno), errno);
+		zend_error(E_WARNING, "swoole_client: send failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
 		MAKE_STD_ZVAL(errCode);
-		ZVAL_LONG(errCode, errno);
+		ZVAL_LONG(errCode, SwooleG.error);
 		zend_update_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errCode TSRMLS_CC);
 		zval_ptr_dtor(&errCode);
 		RETVAL_FALSE;
@@ -978,13 +987,15 @@ PHP_METHOD(swoole_client, recv)
 		require_efree = 1;
 	}
 
+	SwooleG.error = 0;
 	ret = cli->recv(cli, buf, buf_len, waitall);
 	if (ret < 0)
 	{
+		SwooleG.error = errno;
 		//这里的错误信息没用
-		zend_error(E_WARNING, "swoole_client: recv failed. Error: %s [%d]", strerror(errno), errno);
+		zend_error(E_WARNING, "swoole_client: recv failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
 		MAKE_STD_ZVAL(errCode);
-		ZVAL_LONG(errCode, errno);
+		ZVAL_LONG(errCode, SwooleG.error);
 		zend_update_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errCode TSRMLS_CC);
 		zval_ptr_dtor(&errCode);
 		RETVAL_FALSE;
@@ -1018,6 +1029,7 @@ PHP_METHOD(swoole_client, close)
 	{
 		RETURN_FALSE;
 	}
+
 	ztype = zend_read_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("type")-1, 0 TSRMLS_CC);
 	if (ztype == NULL)
 	{
@@ -1027,7 +1039,7 @@ PHP_METHOD(swoole_client, close)
 
 	//Connection error, or short tcp connection.
 	//No keep connection
-	if (!(Z_LVAL_P(ztype) & SW_FLAG_KEEP) && swConnection_error(cli->sock, errno) == SW_OK)
+	if (!(Z_LVAL_P(ztype) & SW_FLAG_KEEP) && swConnection_error(cli->sock, SwooleG.error) == SW_OK)
 	{
 		if(cli->async == 1 && SwooleG.main_reactor != NULL)
 		{

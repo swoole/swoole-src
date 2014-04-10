@@ -831,7 +831,7 @@ typedef struct _swServerG{
 	swTimer timer;
 	int no_timerfd;
 	int running;
-	int sw_errno;
+	int error;
 	int process_type;
 	int signal_alarm; //for timer with message queue
 

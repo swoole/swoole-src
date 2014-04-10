@@ -32,7 +32,7 @@
 
 //#define SW_DEBUG                  //debug
 #define SW_LOG_NO_SRCINFO          //no source info
-#define SW_LOG_TRACE_OPEN          3 //1: open all trace log, 0: close all trace log, >1: open some[traceId=n] trace log
+#define SW_LOG_TRACE_OPEN          0 //1: open all trace log, 0: close all trace log, >1: open some[traceId=n] trace log
 //#define SW_BUFFER_SIZE            65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_CLIENT_BUFFER_SIZE      65535
 #define SW_BUFFER_SIZE             (8192-sizeof(struct _swDataHead)) //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
