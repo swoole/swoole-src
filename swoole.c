@@ -19,8 +19,10 @@
 #include "php_swoole.h"
 #include <ext/standard/info.h>
 
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <net/if.h>
-#include <sys/ioctl.h>
+#include <ifaddrs.h>
 
 zval *php_sw_callback[PHP_SERVER_CALLBACK_NUM];
 
@@ -2327,33 +2329,51 @@ PHP_FUNCTION(swoole_set_process_name)
 
 PHP_FUNCTION(swoole_get_local_ip)
 {
-	int i = 0;
-	int sockfd;
-	struct ifconf ifconf;
-	char buf[1024];
-	struct ifreq *ifreq;
-	char* ip;
-	//初始化ifconf
-	ifconf.ifc_len = 512;
-	ifconf.ifc_buf = buf;
+	struct sockaddr_in *s4;
+	struct ifaddrs *ipaddrs, *ifa;
+	void *in_addr;
+	char ip[64];
 
-	if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+	if (getifaddrs(&ipaddrs) != 0)
 	{
+		perror("getifaddrs");
 		RETURN_FALSE;
 	}
-	ioctl(sockfd, SIOCGIFCONF, &ifconf);
-	close(sockfd);
-	ifreq = (struct ifreq*) buf;
 	array_init(return_value);
-	for (; i < (ifconf.ifc_len / sizeof(struct ifreq)); i++)
+	for (ifa = ipaddrs; ifa != NULL; ifa = ifa->ifa_next)
 	{
-		ip = inet_ntoa(((struct sockaddr_in*) &(ifreq[i].ifr_addr))->sin_addr);
-		if (strcmp(ip, "127.0.0.1") == 0)
+		if (ifa->ifa_addr == NULL || !(ifa->ifa_flags & IFF_UP))
 		{
 			continue;
 		}
-		add_assoc_string(return_value, ifreq[i].ifr_ifrn.ifrn_name, ip, 1);
+
+		switch (ifa->ifa_addr->sa_family)
+		{
+			case AF_INET:
+				s4 = (struct sockaddr_in *)ifa->ifa_addr;
+				in_addr = &s4->sin_addr;
+				break;
+			case AF_INET6:
+				//struct sockaddr_in6 *s6 = (struct sockaddr_in6 *)ifa->ifa_addr;
+				//in_addr = &s6->sin6_addr;
+				continue;
+			default:
+				continue;
+		}
+		if (!inet_ntop(ifa->ifa_addr->sa_family, in_addr, ip, sizeof(ip)))
+		{
+			zend_error(E_WARNING, "%s: inet_ntop failed.", ifa->ifa_name);
+		}
+		else
+		{
+			if (strcmp(ip, "127.0.0.1") == 0)
+			{
+					continue;
+			}
+			add_assoc_string(return_value, ifa->ifa_name, ip, 1);
+		}
 	}
+	freeifaddrs(ipaddrs);
 }
 
 PHP_FUNCTION(swoole_server_taskwait)
