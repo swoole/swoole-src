@@ -349,8 +349,8 @@ PHP_FUNCTION(swoole_async_write)
 		fd = req->fd;
 	}
 
-	swTrace("buf_len=%d|addr=%p", buf_len, fcnt);
-	swTrace("pagesize=%d|st_size=%d", sysconf(_SC_PAGESIZE), buf_len);
+	//swTrace("buf_len=%d|addr=%p", buf_len, fcnt);
+	//swTrace("pagesize=%d|st_size=%d", sysconf(_SC_PAGESIZE), buf_len);
 
 	memcpy(wt_cnt, fcnt, fcnt_len);
 

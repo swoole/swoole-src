@@ -503,6 +503,7 @@ static swClient* swoole_client_create_socket(zval *object, char *host, int host_
 			ret = recv(cli->sock, &tmp_buf, sizeof(tmp_buf), MSG_DONTWAIT | MSG_PEEK);
 			if (ret == 0 || (ret < 0 && swConnection_error(cli->sock, errno) == SW_ERR))
 			{
+                
 				cli->close(cli);
 				goto create_socket;
 			}
