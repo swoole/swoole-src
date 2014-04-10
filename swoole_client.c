@@ -832,8 +832,11 @@ PHP_METHOD(swoole_client, connect)
 
 	if (cli->connected != 1)
 	{
-		ret = cli->connect(cli, host, port, (float) timeout, sock_flag);
+		zend_error(E_WARNING, "swoole_client is already connected.");
+		RETURN_FALSE;
 	}
+
+	ret = cli->connect(cli, host, port, (float) timeout, sock_flag);
 
 	//nonblock async
 	if (cli->async == 1)
