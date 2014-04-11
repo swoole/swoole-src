@@ -8,8 +8,9 @@
 	<summary>PHP's asynchronous concurrent distributed networking framework</summary>
 	<description>PHP's asynchronous concurrent distributed networking framework.
 - Event-driven
-- Full asynchronous non-blocking
-- Multi-Thread or Multi-Process
+- Asynchronous non-blocking
+- Multi-Thread reactor
+- Multi-Process worker
 - Millisecond timer
 - Asynchronous MySQL
 - AsyncTask workers
@@ -26,7 +27,7 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-	<date>2014-03-31</date>
+	<date>2014-04-11</date>
 	<time>10:51:51</time>
 	<version>
 		<release>1.6.12</release>
@@ -40,6 +41,12 @@
 	<notes>
 	- Added connection out_buffer
 	- Added async file read/write
+	- Added async dns lookup
+	- Added long tcp connection
+	- Added client timer
+	- Added swoole_server->sendfile
+	- Added signalfd usage
+    - Fixed some bugs
 	</notes>
 	<contents>
 		<dir name="/">
@@ -62,9 +69,18 @@
 				<file role="src" name="async.h" />
 			</dir>
 			<dir name="examples">
+				<dir name="async">
+					<file role="src" name="read.php" />
+					<file role="src" name="readfile.php" />
+					<file role="src" name="write.php" />
+					<file role="src" name="dns_lookup.php" />
+				</dir>
+				<dir name="client">
+					<file role="src" name="async.php" />
+					<file role="src" name="long_tcp.php" />
+				</dir>
 				<file role="src" name="server.php" />
 				<file role="src" name="echo_server.php" />
-				<file role="src" name="async_client.php" />
 				<file role="src" name="mysql_proxy_server.php" />
 				<file role="src" name="async_mysql2.php" />
 				<file role="src" name="client.php" />
@@ -76,6 +92,9 @@
                 <file role="src" name="eof_check_client.php" />
 				<file role="src" name="task.php" />
 				<file role="src" name="stream.php" />
+				<file role="src" name="sendfile_server.php" />
+				<file role="src" name="recv_file.php" />
+				<file role="doc" name="test.jpg" />
 			</dir>
 			<file role="src" name="php_swoole.h" />
 			<file role="src" name="swoole_config.h" />
