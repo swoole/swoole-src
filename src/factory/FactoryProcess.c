@@ -749,18 +749,18 @@ int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int work
 			pti = (object->worker_pti++) % object->worker_num;
 		}
 		//使用fd取摸来散列
-		else if (serv->dispatch_mode == SW_DISPATCH_FDMOD)
-		{
-			if(data->info.type == SW_EVENT_TCP)
-			{
-				pti = data->info.fd % object->worker_num;
-			}
-			//udp use remote port
-			else
-			{
-				pti = ((uint16_t) data->info.from_id) % object->worker_num;
-			}
-		}
+        else if (serv->dispatch_mode == SW_DISPATCH_FDMOD)
+        {
+            //udp use remote port
+            if (data->info.type == SW_EVENT_UDP)
+            {
+                pti = ((uint16_t) data->info.from_id) % object->worker_num;
+            }
+            else
+            {
+                pti = data->info.fd % object->worker_num;
+            }
+        }
 		//使用抢占式队列(IPC消息队列)分配
 		else
 		{
