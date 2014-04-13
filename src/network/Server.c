@@ -19,7 +19,9 @@
 #include "memory.h"
 
 #include <netinet/tcp.h>
-
+#ifndef EOK
+#define EOK    0
+#endif
 static void swSignalInit(void);
 
 SWINLINE static void swUpdateTime(void);
@@ -50,7 +52,9 @@ static int swServer_poll_onReceive_buffer_check_length(swReactor *reactor, swEve
 static int swServer_poll_onReceive_buffer_check_eof(swReactor *reactor, swEvent *event);
 
 static void swSignalHanlde(int sig);
+
 SWINLINE static int swConnection_close(swServer *serv, int fd, int16_t *from_id);
+SWINLINE static int swConnection_error(int fd, int err);
 
 static int swServer_single_start(swServer *serv);
 static int swServer_single_loop(swProcessPool *pool, swWorker *worker);
@@ -1387,16 +1391,11 @@ static int swServer_poll_onReceive_buffer_check_eof(swReactor *reactor, swEvent 
 	//printf("recv[len=%d]-----------------\n", n);
 	if (n < 0)
 	{
-		if(errno == ECONNRESET)
+		if (swConnection_error(event->fd, errno))
 		{
 			goto close_fd;
 		}
-		else if(errno == EAGAIN)
-		{
-			return SW_OK;
-		}
-		swWarn("read from connection[fd=%d] failed. Error: %s[%d]", event->fd, strerror(errno), errno);
-		return SW_ERR;
+		return SW_OK;
 	}
 	else if (n == 0)
 	{
@@ -1548,19 +1547,11 @@ static int swServer_poll_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 #endif
 	if (n < 0)
 	{
-		if (errno == EAGAIN)
-		{
-			return SW_OK;
-		}
-		else if(errno == ECONNRESET)
-		{
-			goto close_fd;
-		}
-		else
-		{
-			swWarn("Read from socket[%d] fail. Error: %s [%d]", event->fd, strerror(errno), errno);
-			return SW_ERR;
-		}
+		if (swConnection_error(event->fd, errno))
+                {
+                        goto close_fd;
+                }
+                return SW_OK;
 	}
 	//需要检测errno来区分是EAGAIN还是ECONNRESET
 	else if (n == 0)
@@ -1623,16 +1614,11 @@ static int swServer_poll_onReceive_buffer_check_length(swReactor *reactor, swEve
 
 	if (n < 0)
 	{
-		if(errno == ECONNRESET)
-		{
-			goto close_fd;
-		}
-		else if(errno == EAGAIN)
-		{
-			return SW_OK;
-		}
-		swWarn("read from connection[fd=%d] failed. Error: %s[%d]", event->fd, strerror(errno), errno);
-		return SW_ERR;
+		if (swConnection_error(event->fd, errno))
+                {
+                        goto close_fd;
+                }
+                return SW_OK;
 	}
 	else if (n == 0)
 	{
@@ -2015,4 +2001,27 @@ static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
 		sleep(serv->heartbeat_check_interval);
 	}
 	pthread_exit(0);
+}
+
+SWINLINE static int swConnection_error(int fd, int err)
+{
+	switch(err)
+	{
+	case ECONNRESET:
+	case EPIPE:
+	case ENOTCONN:
+	case ETIMEDOUT:
+	case ECONNREFUSED:
+	case ENETDOWN:
+	case ENETUNREACH:
+	case EHOSTDOWN:
+	case EHOSTUNREACH:
+		return SW_ERR;
+	case EAGAIN:
+	case EOK:
+		return SW_OK;
+	default:
+		swWarn("recv from connection[fd=%d] failed. Error: %s[%d]", fd, strerror(err), err);
+		return SW_OK;
+	}
 }
