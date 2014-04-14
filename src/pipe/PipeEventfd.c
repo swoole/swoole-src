@@ -38,14 +38,16 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore)
 	{
 		return -1;
 	}
-	if(blocking == 0)
+	if (blocking == 0)
 	{
 		flag = EFD_NONBLOCK;
 	}
-	if(semaphore == 1)
+#ifdef EFD_SEMAPHORE
+	if (semaphore == 1)
 	{
 		flag |= EFD_SEMAPHORE;
 	}
+#endif
 	p->blocking = blocking;
 	efd = eventfd(0, flag);
 	if (efd < 0)
