@@ -116,6 +116,7 @@ int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
 		swWarn("add event fail. Error: %s[%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
+	swTraceLog(SW_TRACE_EVENT, "add event[reactor_id=%d|fd=%d]", reactor->id, fd);
 	reactor->event_num++;
 	return SW_OK;
 }
@@ -144,6 +145,7 @@ int swReactorEpoll_del(swReactor *reactor, int fd)
 	{
 		(reactor->event_num <= 0) ? reactor->event_num = 0 : reactor->event_num--;
 	}
+	swTraceLog(SW_TRACE_EVENT, "remove event[reactor_id=%d|fd=%d]", reactor->id, fd);
 	return SW_OK;
 }
 
@@ -176,6 +178,7 @@ int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype)
 	swFd fd_;
 	struct epoll_event e;
 	int ret;
+
 	bzero(&e, sizeof(struct epoll_event));
 	e.events = swReactorEpoll_event_set(fdtype);
 	fd_.fd = fd;
@@ -185,7 +188,7 @@ int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype)
 	ret = epoll_ctl(object->epfd, EPOLL_CTL_MOD, fd, &e);
 	if (ret < 0)
 	{
-		swWarn("set event fail. Error: %s[%d]", strerror(errno), errno);
+		swWarn("set event[reactor_id=%d|fd=%d] failed. Error: %s[%d]", reactor->id, fd, strerror(errno), errno);
 		return SW_ERR;
 	}
 	return SW_OK;

@@ -141,18 +141,18 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 	swEvent connEv;
 	struct sockaddr_in client_addr;
 	uint32_t client_addrlen = sizeof(client_addr);
-	int conn_fd, ret, c_pti = 0, i;
+	int new_fd, ret, reactor_id = 0, i;
 
 	//SW_ACCEPT_AGAIN
 	for (i = 0; i < SW_ACCEPT_MAX_COUNT; i++)
 	{
 		//accept得到连接套接字
 #ifdef SW_USE_ACCEPT4
-	    conn_fd = accept4(event->fd, (struct sockaddr *)&client_addr, &client_addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC);
+	    new_fd = accept4(event->fd, (struct sockaddr *)&client_addr, &client_addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC);
 #else
-		conn_fd = accept(event->fd,  (struct sockaddr *)&client_addr, &client_addrlen);
+		new_fd = accept(event->fd,  (struct sockaddr *)&client_addr, &client_addrlen);
 #endif
-		if (conn_fd < 0 )
+		if (new_fd < 0 )
 		{
 			switch(errno)
 			{
@@ -161,23 +161,23 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 			case EINTR:
 				continue;
 			default:
-				swWarn("accept fail. Error: %s[%d]", strerror(errno), errno);
+				swWarn("accept failed. Error: %s[%d]", strerror(errno), errno);
 				return SW_OK;
 			}
 		}
-		swTrace("[Master]accept.event->fd=%d|event->from_id=%d|conn=%d", event->fd, event->from_id, conn_fd);
+		swTrace("[Master]accept.event->fd=%d|event->from_id=%d|conn=%d", event->fd, event->from_id, new_fd);
 		//连接过多
 		if(serv->connect_count >= serv->max_conn)
 		{
 			swWarn("too many connection");
-			close(conn_fd);
+			close(new_fd);
 			return SW_OK;
 		}
 		//TCP Nodelay
 		if (serv->open_tcp_nodelay == 1)
 		{
 			int flag = 1;
-			setsockopt(conn_fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
+			setsockopt(new_fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
 		}
 
 #ifdef SO_KEEPALIVE
@@ -189,52 +189,54 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 			int keep_interval = serv->tcp_keepinterval;
 			int keep_count = serv->tcp_keepcount;
 #ifdef TCP_KEEPIDLE
-			setsockopt(conn_fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&keepalive , sizeof(keepalive));
-			setsockopt(conn_fd, IPPROTO_TCP, TCP_KEEPIDLE, (void*)&keep_idle , sizeof(keep_idle));
-			setsockopt(conn_fd, IPPROTO_TCP, TCP_KEEPINTVL, (void *)&keep_interval , sizeof(keep_interval));
-			setsockopt(conn_fd, IPPROTO_TCP, TCP_KEEPCNT, (void *)&keep_count , sizeof(keep_count));
+			setsockopt(new_fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&keepalive , sizeof(keepalive));
+			setsockopt(new_fd, IPPROTO_TCP, TCP_KEEPIDLE, (void*)&keep_idle , sizeof(keep_idle));
+			setsockopt(new_fd, IPPROTO_TCP, TCP_KEEPINTVL, (void *)&keep_interval , sizeof(keep_interval));
+			setsockopt(new_fd, IPPROTO_TCP, TCP_KEEPCNT, (void *)&keep_count , sizeof(keep_count));
 #endif
 		}
 #endif
 
 #if SW_REACTOR_SCHEDULE == 1
 		//轮询分配
-		c_pti = (serv->reactor_round_i++) % serv->reactor_num;
+		reactor_id = (serv->reactor_round_i++) % serv->reactor_num;
 #elif SW_REACTOR_SCHEDULE == 2
 		//使用fd取模来散列
-		c_pti = conn_fd % serv->reactor_num;
+		reactor_id = new_fd % serv->reactor_num;
 #else
 		//平均调度法
-		c_pti = serv->reactor_next_i;
+		reactor_id = serv->reactor_next_i;
 		if (serv->reactor_num > 1 && (serv->reactor_schedule_count++) % SW_SCHEDULE_INTERVAL == 0)
 		{
 			swServer_reactor_schedule(serv);
 		}
 #endif
-		ret = serv->reactor_threads[c_pti].reactor.add(&(serv->reactor_threads[c_pti].reactor), conn_fd,
+		connEv.type = SW_EVENT_CONNECT;
+		connEv.from_id = reactor_id;
+		connEv.fd = new_fd;
+		connEv.from_fd = event->fd;
+
+		//add to connection_list
+		swServer_new_connection(serv, &connEv);
+		memcpy(&serv->connection_list[new_fd].addr, &client_addr, sizeof(client_addr));
+
+		/*
+		 * [!!!] new_connection function must before reactor->add
+		 */
+		ret = serv->reactor_threads[reactor_id].reactor.add(&(serv->reactor_threads[reactor_id].reactor), new_fd,
 				SW_FD_TCP | SW_EVENT_READ);
 		if (ret < 0)
 		{
-			swWarn("[Master]add event fail Errno=%d|FD=%d", errno, conn_fd);
-			close(conn_fd);
+			close(new_fd);
 			return SW_OK;
 		}
 		else
 		{
-			connEv.type = SW_EVENT_CONNECT;
-			connEv.from_id = c_pti;
-			connEv.fd = conn_fd;
-			connEv.from_fd = event->fd;
-
-			//增加到connection_list中
-			swServer_new_connection(serv, &connEv);
-			memcpy(&serv->connection_list[conn_fd].addr, &client_addr, sizeof(client_addr));
-
 			serv->connect_count++;
 
 			if(serv->onMasterConnect != NULL)
 			{
-				serv->onMasterConnect(serv, conn_fd, c_pti);
+				serv->onMasterConnect(serv, new_fd, reactor_id);
 			}
 			if(serv->onConnect != NULL)
 			{

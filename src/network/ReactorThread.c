@@ -74,7 +74,7 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
 {
 	swServer *serv = reactor->ptr;
 	swConnection *conn = swServer_get_connection(serv, event->fd);
-	if (conn != NULL && conn->active == 1)
+	if (conn != NULL)
 	{
 		swConnection_close(serv, event->fd, event->type == SW_EVENT_CLOSE ? 0 : 1);
 	}
@@ -86,14 +86,26 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
  */
 int swReactorThread_send(swEventData *resp)
 {
+	int fd = resp->info.fd;
+
 	swServer *serv = SwooleG.serv;
 	swSendData send_data;
 	swEvent closeFd;
 	swBuffer_trunk *trunk;
 	swTask_sendfile *task;
 
-	swConnection *conn = swServer_get_connection(serv, resp->info.fd);
+	swConnection *conn = swServer_get_connection(serv, fd);
+	swTraceLog(SW_TRACE_EVENT, "send-data. fd=%d|reactor_id=%d", fd, conn->from_id);
 	swReactor *reactor = &(serv->reactor_threads[conn->from_id].reactor);
+
+	if (conn->out_buffer == NULL)
+	{
+		conn->out_buffer = swBuffer_new(SW_BUFFER_SIZE);
+		if (conn->out_buffer == NULL)
+		{
+			return SW_ERR;
+		}
+	}
 
 	//recv length=0, will close connection
 	if (resp->info.len == 0)
@@ -102,8 +114,8 @@ int swReactorThread_send(swEventData *resp)
 		close_fd:
 #endif
 		{
-			closeFd.fd = resp->info.fd;
-			closeFd.from_id = resp->info.from_id;
+			closeFd.fd = fd;
+			closeFd.from_id = conn->from_id;
 			closeFd.type = SW_EVENT_CLOSE;
 			//printf("closeFd.fd=%d|from_id=%d\n", closeFd.fd, closeFd.from_id);
 			swReactorThread_onClose(reactor, &closeFd);
@@ -113,7 +125,7 @@ int swReactorThread_send(swEventData *resp)
 	//sendfile to client
 	else if(resp->info.type == SW_EVENT_SENDFILE)
 	{
-		trunk = swConnection_get_out_buffer(conn, SW_TRUNK_SENDFILE);
+		trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_SENDFILE, 0);
 		if (trunk == NULL)
 		{
 			swWarn("get out_buffer trunk failed.");
@@ -142,7 +154,7 @@ int swReactorThread_send(swEventData *resp)
 		task->filesize = file_stat.st_size;
 		task->fd = file_fd;
 		trunk->data = (void *)task;
-		reactor->set(reactor, resp->info.fd, SW_EVENT_TCP | SW_EVENT_WRITE | SW_EVENT_READ);
+		reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_WRITE | SW_EVENT_READ);
 	}
 	//send data
 	else
@@ -156,27 +168,22 @@ int swReactorThread_send(swEventData *resp)
 
 		send_data.data = resp->data;
 		send_data.info.len = resp->info.len;
-		send_data.info.from_id = resp->info.from_id;
-		send_data.info.fd = resp->info.fd;
+		send_data.info.from_id = conn->from_id;
+		send_data.info.fd = fd;
 
 #ifdef SW_REACTOR_DIRECT_SEND
 		if (!swBuffer_empty(conn->out_buffer))
 		{
-			swBuffer_get_trunk(conn->out_buffer);
-#else
-		{
-			swConnection_get_out_buffer(conn, SW_TRUNK_DATA);
-#endif
-
-#ifdef SW_REACTOR_DIRECT_SEND
 			append_out_buffer:
 #endif
 			//buffer enQueue
 			swBuffer_in(conn->out_buffer, &send_data);
+
 			//listen EPOLLOUT event
-			reactor->set(reactor, resp->info.fd, SW_EVENT_TCP | SW_EVENT_WRITE | SW_EVENT_READ);
-		}
+			reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_WRITE | SW_EVENT_READ);
+
 #ifdef SW_REACTOR_DIRECT_SEND
+		}
 		else
 		{
 			//try send
@@ -188,7 +195,7 @@ int swReactorThread_send(swEventData *resp)
 				{
 					goto close_fd;
 				}
-				swWarn("factory->onFinish failed.fd=%d|from_id=%d. Error: %s[%d]", resp->info.fd, resp->info.from_id, strerror(errno), errno);
+				swWarn("factory->onFinish failed.fd=%d|from_id=%d. Error: %s[%d]", , resp->info.from_id, strerror(errno), errno);
 			}
 			//Did not finish, add to writable event callback
 			else if(ret < resp->info.len)
@@ -197,7 +204,7 @@ int swReactorThread_send(swEventData *resp)
 				send_data.info.len -= ret;
 				goto append_out_buffer;
 			}
-			//printf("[writer]pop.fd=%d|from_id=%d|data=%s\n", resp->info.fd, resp->info.from_id, resp->data);
+			//printf("[writer]pop.fd=%d|from_id=%d|data=%s\n", , resp->info.from_id, resp->data);
 		}
 #endif
 	}

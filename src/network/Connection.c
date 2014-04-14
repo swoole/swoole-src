@@ -57,6 +57,8 @@ SWINLINE void swConnection_close(swServer *serv, int fd, int notify)
 		return;
 	}
 
+	conn->active = 0;
+
 	int reactor_id = conn->from_id;
 
 	swCloseQueue *queue = &serv->reactor_threads[reactor_id].close_queue;
@@ -113,7 +115,6 @@ SWINLINE void swConnection_close(swServer *serv, int fd, int notify)
 		swReactorThread_close_queue(reactor, queue);
 	}
 	//关闭此连接，必须放在最前面，以保证线程安全
-	conn->active = 0;
 	reactor->del(reactor, fd);
 }
 
