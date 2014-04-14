@@ -830,7 +830,7 @@ PHP_METHOD(swoole_client, connect)
 		sock_flag = 1;
 	}
 
-	if (cli->connected != 1)
+	if (cli->keep != 1 && cli->connected == 1)
 	{
 		zend_error(E_WARNING, "swoole_client is already connected.");
 		RETURN_FALSE;

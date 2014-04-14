@@ -1,6 +1,6 @@
 <?php
 //关闭错误输出
-error_reporting(0);
+//error_reporting(0);
 $shortopts = "c:";
 $shortopts .= "n:";
 $shortopts .= "s:";
