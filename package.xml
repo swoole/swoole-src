@@ -27,11 +27,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-	<date>2014-04-11</date>
-	<time>10:51:51</time>
+	<date>2014-04-16</date>
+	<time>19:51:51</time>
 	<version>
-		<release>1.6.12</release>
-		<api>1.6.12</api>
+		<release>1.7.0</release>
+		<api>1.7.0</api>
 	</version>
 	<stability>
 		<release>stable</release>
@@ -39,14 +39,7 @@
 	</stability>
 	<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
 	<notes>
-	- Added connection out_buffer
-	- Added async file read/write
-	- Added async dns lookup
-	- Added long tcp connection
-	- Added client timer
-	- Added swoole_server->sendfile
-	- Added signalfd usage
-    - Fixed some bugs
+    - Fixed compile error.
 	</notes>
 	<contents>
 		<dir name="/">
@@ -89,7 +82,7 @@
 				<file role="src" name="udp_server.php" />
 				<file role="src" name="udp_client.php" />
 				<file role="src" name="eof_check_server.php" />
-                <file role="src" name="eof_check_client.php" />
+				<file role="src" name="eof_check_client.php" />
 				<file role="src" name="task.php" />
 				<file role="src" name="stream.php" />
 				<file role="src" name="sendfile_server.php" />
@@ -129,13 +122,13 @@
 					<file role="src" name="ReactorKqueue.c" />
 				</dir>
 				<dir name="os">
-				    <file role="src" name="base.c" />
-                    <file role="src" name="gcc_aio.c" />
-                    <file role="src" name="linux_aio.c" />
-                    <file role="src" name="sendfile.c" />
-                    <file role="src" name="signal.c" />
-                    <file role="src" name="timer.c" />
-                </dir>
+					<file role="src" name="base.c" />
+					<file role="src" name="gcc_aio.c" />
+					<file role="src" name="linux_aio.c" />
+					<file role="src" name="sendfile.c" />
+					<file role="src" name="signal.c" />
+					<file role="src" name="timer.c" />
+				</dir>
 				<dir name="pipe">
 					<file role="src" name="PipeBase.c" />
 					<file role="src" name="PipeEventfd.c" />
@@ -159,7 +152,7 @@
 					<file role="src" name="ThreadPool.c" />
 					<file role="src" name="ReactorThread.c" />
 					<file role="src" name="Connection.c" />
-					
+
 				</dir>
 			</dir>
 		</dir>
@@ -177,28 +170,29 @@
 	<providesextension>swoole</providesextension>
 	<extsrcrelease />
 	<changelog>
-	   <release>
-	   <date>2014-02-27</date>
-    <version>
-        <release>1.6.11</release>
-        <api>1.6.11</api>
-    </version>
-    <stability>
-        <release>stable</release>
-        <api>stable</api>
-    </stability>
-        <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
-	    <notes>
-	    - Disable by default async_mysql
-	    - Disable by default sockets
-	    - Added event onWorkerError
-	    - Added event onWorkerStart for task_worker
-	    - swoole_server->task can assign worker_id
-	    - swoole_server->set() save params to swoole_server::$setting
-	    - swoole_client->send will check data length
-	    - swoole_server->connection_info for udp
-	    </notes>
-	   </release>
+		<release>
+			<date>2014-04-11</date>
+			<time>10:51:51</time>
+			<version>
+				<release>1.6.12</release>
+				<api>1.6.12</api>
+			</version>
+			<stability>
+				<release>stable</release>
+				<api>stable</api>
+			</stability>
+			<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
+			<notes>
+	- Added connection out_buffer
+	- Added async file read/write
+	- Added async dns lookup
+	- Added long tcp connection
+	- Added client timer
+	- Added swoole_server->sendfile
+	- Added signalfd usage
+    - Fixed some bugs
+	</notes>
+		</release>
 		<release>
 			<date>2014-02-27</date>
 			<version>
