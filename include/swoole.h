@@ -128,7 +128,7 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define SW_START_SLEEP         usleep(100000)  //sleep 1s,wait fork and pthread_create
 
 #define sw_malloc              malloc
-#define sw_free(s)             free(s)
+#define sw_free(ptr)           if(ptr){free(ptr);ptr=NULL;}
 #define sw_calloc              calloc
 #define sw_realloc             realloc
 

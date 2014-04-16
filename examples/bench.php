@@ -18,6 +18,7 @@ $bc = new Swoole_Benchmark(trim($opt['f']));
 $bc->process_num = (int)$opt['c'];
 $bc->request_num = (int)$opt['n'];
 $bc->server_url = trim($opt['s']);
+$bc->server_config = parse_url($bc->server_url);
 $bc->send_data = str_repeat('a', 2040);
 $bc->read_len = 2048;
 if(!empty($opt['p'])) $bc->show_detail = true;
@@ -29,27 +30,31 @@ function long_tcp(Swoole_Benchmark $bc)
 	$start = microtime(true);
 	if(empty($fp))
 	{
-		$fp = stream_socket_client( $bc->server_url, $errno, $errstr, 1);
+		$fp = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
 		$end = microtime(true);
 		$conn_use = $end-$start;
 		$bc->max_conn_time = $conn_use;
 		$i = 0;
 		//echo "connect {$bc->server_url} \n";
-		if(!$fp)
+		if(!$fp->connect($bc->server_config['host'], $bc->server_config['port'], 1))
 		{
-			echo "{$errstr}[{$errno}]\n";
-			return false;
+            error:
+            echo "Error: {$fp->errMsg}[{$fp->errCode}]\n";
+            return false;
 		}
 		$start = $end;
 	}
 	/*--------写入Sokcet-------*/
-	fwrite($fp, $bc->send_data);
+	if(!$fp->send($bc->send_data))
+    {
+        goto error;
+    }
 	$end = microtime(true);
 	$write_use = $end - $start;
 	if($write_use>$bc->max_write_time) $bc->max_write_time = $write_use;
 	$start = $end;
 	/*--------读取Sokcet-------*/
-	$ret = fread($fp,$bc->read_len);
+	$ret = $fp->recv();
 	$i++;
 	if(empty($ret)) 
 	{
@@ -119,18 +124,21 @@ function udp2(Swoole_Benchmark $bc)
 
 function short_tcp($bc)
 {
-	$fp = stream_socket_client($bc->server_url, $errno, $errstr, 1);
-	stream_set_blocking($fp, 1);
-	if(!$fp)
+	$fp = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
+	if(!$fp->connect($bc->server_config['host'], $bc->server_config['port'], 1))
 	{
-		echo "{$errstr}[{$errno}]\n";
+        error:
+		echo "Error: {$fp->errMsg}[{$fp->errCode}]\n";
 		return false;
 	}
 	else
 	{
-		fwrite($fp,$bc->send_data);
-		$ret = fread($fp, $bc->read_len);
-		fclose($fp);
+		if(!$fp->send($bc->send_data))
+        {
+            goto error;
+        }
+		$ret = $fp->recv();
+		$fp->close();
 		if(!empty($ret)) return true;
 		else return false;
 	}
@@ -148,6 +156,7 @@ class Swoole_Benchmark
 	public $process_num;
 	public $request_num;
 	public $server_url;
+	public $server_config;
 	public $send_data;
 	public $read_len;
 
@@ -195,7 +204,7 @@ class Swoole_Benchmark
 
 	function init_signal()
 	{
-		pcntl_signal(SIGUSR1,array($this,"sig_handle"));
+		pcntl_signal(SIGUSR1,array($this, "sig_handle"));
 	}
 
 	function sig_handle($sig)
