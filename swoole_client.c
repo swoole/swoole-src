@@ -861,7 +861,7 @@ PHP_METHOD(swoole_client, connect)
 
 		if (zend_hash_update(&php_sw_client_callback, hash_key, hash_key_len+1, &getThis(), sizeof(zval*), NULL) == FAILURE)
 		{
-			zend_error(E_WARNING, "swoole_client: add to hashtable fail");
+			zend_error(E_WARNING, "swoole_client: add to hashtable failed.");
 			efree(hash_key);
 			RETURN_FALSE;
 		}
@@ -905,7 +905,7 @@ PHP_METHOD(swoole_client, connect)
 	}
 	else if (ret < 0)
 	{
-		zend_error(E_WARNING, "swoole_client: connect to server[%s:%d] fail. Error: %s [%d]", host, (int)port, strerror(errno), errno);
+		zend_error(E_WARNING, "swoole_client: connect to server[%s:%d] failed. Error: %s [%d]", host, (int)port, strerror(errno), errno);
 		MAKE_STD_ZVAL(errCode);
 		ZVAL_LONG(errCode, errno);
 		zend_update_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errCode TSRMLS_CC);

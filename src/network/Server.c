@@ -1070,6 +1070,7 @@ void swServer_signal_init(void)
 	swSignal_set(SIGUSR1, swServer_signal_hanlder, 1, 0);
 	swSignal_set(SIGUSR2, swServer_signal_hanlder, 1, 0);
 	swSignal_set(SIGTERM, swServer_signal_hanlder, 1, 0);
+	swSignal_set(SIGALRM, swTimer_signal_handler, 1, 0);
 	swSignal_set(SIGVTALRM, swServer_signal_hanlder, 1, 0);
 #endif
 }
