@@ -39,6 +39,7 @@ SWINLINE swBuffer* swBuffer_new(int trunk_size);
 swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint16_t size);
 SWINLINE void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk);
 int swBuffer_in(swBuffer *buffer, swSendData *send_data);
+int swBuffer_send(swBuffer *buffer, int fd);
 
 void swBuffer_debug(swBuffer *buffer);
 int swBuffer_free(swBuffer *buffer);

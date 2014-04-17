@@ -59,9 +59,6 @@ extern "C" {
 #define SW_EVENT_PACKAGE_END       11
 #define SW_EVENT_SENDFILE          12
 
-#define SW_TRUNK_DATA              0 //send data
-#define SW_TRUNK_SENDFILE          1 //send file
-
 #define SW_STATUS_EMPTY            0
 #define SW_STATUS_ACTIVE           1
 #define SW_STATUS_CLOSED           2
@@ -76,6 +73,13 @@ extern "C" {
 #define SW_NUM_HOST                (1u << 4)
 #define SW_NUM_UNSIGN              (1u << 5)
 #define SW_NUM_SIGN                (1u << 6)
+
+enum
+{
+	SW_TRUNK_DATA, //send data
+	SW_TRUNK_SENDFILE, //send file
+	SW_TRUNK_CLOSE,
+};
 
 typedef struct _swUdpFd{
 	struct sockaddr addr;

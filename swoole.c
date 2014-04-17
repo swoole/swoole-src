@@ -2107,6 +2107,18 @@ PHP_FUNCTION(swoole_server_send)
 		}
 	}
 
+	if (conn_fd <= 0)
+	{
+		zend_error(E_WARNING, "swoole_server->send error: Invalid fd[%ld] error.", conn_fd);
+		RETURN_FALSE;
+	}
+
+	if (send_len <= 0)
+	{
+		zend_error(E_WARNING, "swoole_server->send error: data length<=0");
+		RETURN_FALSE;
+	}
+
 	SWOOLE_GET_SERVER(zobject, serv);
 
 	factory = &(serv->factory);
@@ -2187,6 +2199,14 @@ PHP_FUNCTION(swoole_server_sendfile)
 			return;
 		}
 	}
+
+	//check fd
+	if (conn_fd <= 0)
+	{
+		zend_error(E_WARNING, "swoole_server->send error: Invalid fd[%ld] error.", conn_fd);
+		RETURN_FALSE;
+	}
+
 	//file name size
 	if (send_data.info.len > SW_BUFFER_SIZE - 1)
 	{

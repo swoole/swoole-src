@@ -8,8 +8,8 @@ $client->on("connect", function(swoole_client $cli) {
 
 $client->on("receive", function(swoole_client $cli, $data){
     echo "Receive: $data";
-	usleep(100000);
-	$cli->send("GET / HTTP/1.1\r\n\r\n");
+	usleep(10000);
+	$cli->send(str_repeat('A', 100)."\n");
 });
 
 $client->on("error", function(swoole_client $cli){

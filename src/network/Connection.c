@@ -33,13 +33,12 @@ SWINLINE int swConnection_error(int fd, int err)
 	case ENETUNREACH:
 	case EHOSTDOWN:
 	case EHOSTUNREACH:
-		return SW_ERR;
+		return SW_CLOSE;
 	case EAGAIN:
 	case EOK:
-		return SW_OK;
+		return SW_WAIT;
 	default:
-		swWarn("recv from connection[fd=%d] failed. Error: %s[%d]", fd, strerror(err), err);
-		return SW_OK;
+		return SW_ERROR;
 	}
 }
 
@@ -51,6 +50,8 @@ SWINLINE void swConnection_close(swServer *serv, int fd, int notify)
 	swConnection *conn = swServer_get_connection(serv, fd);
 	swReactor *reactor;
 	swEvent notify_ev;
+	struct linger linger;
+
 	if(conn == NULL)
 	{
 		swWarn("[Master]connection not found. fd=%d|max_fd=%d", fd, swServer_get_maxfd(serv));
@@ -109,10 +110,19 @@ SWINLINE void swConnection_close(swServer *serv, int fd, int notify)
 		notify_ev.type = SW_EVENT_CLOSE;
 		SwooleG.factory->notify(SwooleG.factory, &notify_ev);
 	}
+
 	//通知主进程
 	if (queue->num == SW_CLOSE_QLEN)
 	{
 		swReactorThread_close_queue(reactor, queue);
+	}
+
+	linger.l_onoff = 1;
+	linger.l_linger = 0;
+
+	if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) == -1)
+	{
+		swWarn("setsockopt(SO_LINGER) failed. Error: %s[%d]", strerror(errno), errno);
 	}
 	//关闭此连接，必须放在最前面，以保证线程安全
 	reactor->del(reactor, fd);

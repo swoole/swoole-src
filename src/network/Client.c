@@ -18,6 +18,14 @@
 #include "Client.h"
 
 static int swClient_inet_addr(swClient *cli, char *string);
+static int swClient_tcp_connect(swClient *cli, char *host, int port, double _timeout, int udp_connect);
+static int swClient_tcp_send_sync(swClient *cli, char *data, int length);
+static int swClient_tcp_send_async(swClient *cli, char *data, int length);
+static int swClient_tcp_recv(swClient *cli, char *data, int len, int waitall);
+
+static int swClient_udp_connect(swClient *cli, char *host, int port, double _timeout, int udp_connect);
+static int swClient_udp_send(swClient *cli, char *data, int length);
+static int swClient_udp_recv(swClient *cli, char *data, int len, int waitall);
 
 int swClient_create(swClient *cli, int type, int async)
 {
@@ -50,11 +58,20 @@ int swClient_create(swClient *cli, int type, int async)
 	{
 		return SW_ERR;
 	}
+
 	if (type < SW_SOCK_UDP)
 	{
 		cli->connect = swClient_tcp_connect;
 		cli->recv = swClient_tcp_recv;
-		cli->send = swClient_tcp_send;
+
+		if (async)
+		{
+			cli->send = swClient_tcp_send_async;
+		}
+		else
+		{
+			cli->send = swClient_tcp_send_sync;
+		}
 	}
 	else
 	{
@@ -62,6 +79,7 @@ int swClient_create(swClient *cli, int type, int async)
 		cli->recv = swClient_udp_recv;
 		cli->send = swClient_udp_send;
 	}
+
 	cli->close = swClient_close;
 	cli->sock_domain = _domain;
 	cli->sock_type = SOCK_DGRAM;
@@ -153,7 +171,67 @@ int swClient_tcp_connect(swClient *cli, char *host, int port, double timeout, in
 	return ret;
 }
 
-int swClient_tcp_send(swClient *cli, char *data, int length)
+int swClient_tcp_send_async(swClient *cli, char *data, int length)
+{
+	int n;
+
+	while(1)
+	{
+		n = send(cli->sock, data, length, 0);
+		if (n < 0)
+		{
+			//continue
+			if (errno == EINTR)
+			{
+				continue;
+			}
+			//append to out_buffer
+			else if(errno == EAGAIN)
+			{
+				break;
+			}
+			//send error
+			else
+			{
+				return SW_ERR;
+			}
+		}
+		//append to out_buffer
+		else if (n < length)
+		{
+			data += n;
+			length -= n;
+		}
+		//send ok.
+		else
+		{
+			return SW_OK;
+		}
+	}
+
+	if (cli->out_buffer == NULL)
+	{
+		cli->out_buffer = swBuffer_new(SW_BUFFER_SIZE);
+		if (cli->out_buffer == NULL)
+		{
+			return SW_ERR;
+		}
+	}
+	swSendData _send;
+
+	_send.info.fd = cli->sock;
+	_send.info.len = length;
+	_send.data = data;
+
+	if (swBuffer_in(cli->out_buffer, &_send) < 0)
+	{
+		return SW_ERR;
+	}
+	SwooleG.main_reactor->set(SwooleG.main_reactor, cli->sock, cli->reactor_fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
+	return SW_OK;
+}
+
+int swClient_tcp_send_sync(swClient *cli, char *data, int length)
 {
 	int written = 0;
 	int n;

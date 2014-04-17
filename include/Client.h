@@ -21,6 +21,7 @@ typedef struct _swClient
 	int sock_type;
 	int sock_domain;
 	int protocol;
+	int reactor_fdtype;
 
 	uint8_t async;
 	uint8_t connected;
@@ -46,13 +47,5 @@ typedef struct _swClient
 
 int swClient_create(swClient *cli, int type, int async);
 int swClient_close(swClient *cli);
-
-int swClient_tcp_connect(swClient *cli, char *host, int port, double _timeout, int udp_connect);
-int swClient_tcp_send(swClient *cli, char *data, int length);
-int swClient_tcp_recv(swClient *cli, char *data, int len, int waitall);
-
-int swClient_udp_connect(swClient *cli, char *host, int port, double _timeout, int udp_connect);
-int swClient_udp_send(swClient *cli, char *data, int length);
-int swClient_udp_recv(swClient *cli, char *data, int len, int waitall);
 
 #endif /* SW_CLIENT_H_ */

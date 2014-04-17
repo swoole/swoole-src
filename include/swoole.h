@@ -190,13 +190,21 @@ exit(1)
 //#define swWarn(str,...)        {printf(sw_error);}
 #endif
 
-enum SW_TRACE_LOG
+enum
 {
 	SW_TRACE_SERVER = 1,
 	SW_TRACE_CLIENT = 2,
 	SW_TRACE_BUFFER = 3,
 	SW_TRACE_CONN   = 4,
 	SW_TRACE_EVENT  = 5,
+};
+
+enum
+{
+	SW_CONTINUE,
+	SW_WAIT,
+	SW_CLOSE,
+	SW_ERROR,
 };
 
 #if SW_LOG_TRACE_OPEN == 1

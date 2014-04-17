@@ -113,12 +113,19 @@ int swReactorThread_send(swEventData *resp)
 #ifdef SW_REACTOR_DIRECT_SEND
 		close_fd:
 #endif
+		//out_buffer empty. close it.
+		if (swBuffer_empty(conn->out_buffer))
 		{
 			closeFd.fd = fd;
 			closeFd.from_id = conn->from_id;
 			closeFd.type = SW_EVENT_CLOSE;
-			//printf("closeFd.fd=%d|from_id=%d\n", closeFd.fd, closeFd.from_id);
+			swTraceLog("closeFd.fd=%d|from_id=%d", closeFd.fd, closeFd.from_id);
 			swReactorThread_onClose(reactor, &closeFd);
+		}
+		//append close command to out_buffer
+		else
+		{
+			swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_CLOSE, 0);
 		}
 		return SW_OK;
 	}
@@ -221,6 +228,11 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 	swEvent closeFd;
 	swTask_sendfile *task = NULL;
 
+	if (conn->active == 0)
+	{
+		return SW_OK;
+	}
+
 	if (conn->out_buffer == NULL)
 	{
 		goto remove_out_event;
@@ -229,7 +241,16 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 	do
 	{
 		trunk = swBuffer_get_trunk(out_buffer);
-		if (trunk->type == SW_TRUNK_SENDFILE)
+		if (trunk->type == SW_TRUNK_CLOSE)
+		{
+			close_fd:
+			closeFd.fd = ev->fd;
+			closeFd.from_id = ev->from_id;
+			closeFd.type = SW_EVENT_CLOSE;
+			swReactorThread_onClose(reactor, &closeFd);
+			return SW_OK;
+		}
+		else if (trunk->type == SW_TRUNK_SENDFILE)
 		{
 			task = (swTask_sendfile *) trunk->data;
 			sendn = (task->filesize - task->offset > SW_SENDFILE_TRUNK) ? SW_SENDFILE_TRUNK : task->filesize - task->offset;
@@ -238,23 +259,16 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 
 			if (ret <= 0)
 			{
-				swWarn("sendfile failed. Error: %s[%d]", strerror(errno), errno);
-				if (errno == EAGAIN)
+				switch (swConnection_error(conn->fd, errno))
 				{
-					return SW_OK;
-				}
-				else if (swConnection_error(conn->fd, errno) < 0)
-				{
-					close_fd:
-					closeFd.fd = ev->fd;
-					closeFd.from_id = ev->from_id;
-					closeFd.type = SW_EVENT_CLOSE;
-					swReactorThread_onClose(reactor, &closeFd);
-				}
-				else
-				{
+				case SW_ERROR:
+					swWarn("sendfile failed. Error: %s[%d]", strerror(errno), errno);
 					swBuffer_pop_trunk(out_buffer, trunk);
-					return SW_ERR;
+					return SW_OK;
+				case SW_CLOSE:
+					goto close_fd;
+				default:
+					break;
 				}
 			}
 			//sendfile finish
@@ -269,38 +283,19 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 		}
 		else
 		{
-			sendn = trunk->length - trunk->offset;
-			if (sendn == 0)
+			ret = swBuffer_send(out_buffer, ev->fd);
+			switch(ret)
 			{
-				swBuffer_pop_trunk(out_buffer, trunk);
-				continue;
-			}
-			ret = send(ev->fd, trunk->data + trunk->offset, sendn, 0);
-			//printf("BufferOut: reactor=%d|sendn=%d|ret=%d|trunk->offset=%d|trunk_len=%d\n", reactor->id, sendn, ret, trunk->offset, trunk->length);
-			if (ret < 0)
-			{
-				if (swConnection_error(conn->fd, errno) < 0)
-				{
-					goto close_fd;
-				}
-				else if(errno == EAGAIN)
-				{
-					return SW_OK;
-				}
-				else
-				{
-					swWarn("send failed. fd=%d|from_id=%d. Error: %s[%d]", ev->fd, reactor->id, strerror(errno), errno);
-					return SW_OK;
-				}
-			}
-			//trunk full send
-			else if(ret == sendn || sendn == 0)
-			{
-				swBuffer_pop_trunk(out_buffer, trunk);
-			}
-			else
-			{
-				trunk->offset += ret;
+			//connection error, close it
+			case SW_CLOSE:
+				goto close_fd;
+			//send continue
+			case SW_CONTINUE:
+				break;
+			//reactor_wait
+			case SW_WAIT:
+			default:
+				return SW_OK;
 			}
 		}
 	} while (!swBuffer_empty(out_buffer));
@@ -345,10 +340,17 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 	swTrace("ReactorThread: recv[len=%d]", n);
 	if (n < 0)
 	{
-		if (swConnection_error(conn->fd, errno) < 0)
+		switch (swConnection_error(conn->fd, errno))
 		{
+		case SW_ERROR:
+			swWarn("recv from connection[fd=%d] failed. Error: %s[%d]", conn->fd, strerror(errno), errno);
+			return SW_OK;
+		case SW_CLOSE:
 			goto close_fd;
+		default:
+			break;
 		}
+
 		return SW_OK;
 	}
 	else if (n == 0)
@@ -431,11 +433,16 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 #endif
 	if (n < 0)
 	{
-		if (swConnection_error(conn->fd, errno) < 0)
+		switch (swConnection_error(conn->fd, errno))
 		{
+		case SW_ERROR:
+			swWarn("recv from connection[fd=%d] failed. Error: %s[%d]", conn->fd, strerror(errno), errno);
+			return SW_OK;
+		case SW_CLOSE:
 			goto close_fd;
+		default:
+			return SW_OK;
 		}
-		return SW_OK;
 	}
 	//需要检测errno来区分是EAGAIN还是ECONNRESET
 	else if (n == 0)
@@ -507,11 +514,16 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 
 	if (n < 0)
 	{
-		if (swConnection_error(conn->fd, errno) < 0)
+		switch (swConnection_error(conn->fd, errno))
 		{
+		case SW_ERROR:
+			swWarn("recv from connection[fd=%d] failed. Error: %s[%d]", conn->fd, strerror(errno), errno);
+			return SW_OK;
+		case SW_CLOSE:
 			goto close_fd;
+		default:
+			return SW_OK;
 		}
-		return SW_OK;
 	}
 	else if (n == 0)
 	{

@@ -143,6 +143,50 @@ int swBuffer_in(swBuffer *buffer, swSendData *send_data)
 }
 
 /**
+ * send buffer to client
+ */
+int swBuffer_send(swBuffer *buffer, int fd)
+{
+	int ret, sendn;
+	swBuffer_trunk *trunk = swBuffer_get_trunk(buffer);
+	sendn = trunk->length - trunk->offset;
+
+	if (sendn == 0)
+	{
+		swBuffer_pop_trunk(buffer, trunk);
+		return SW_CONTINUE;
+	}
+	ret = send(fd, trunk->data + trunk->offset, sendn, 0);
+	//printf("BufferOut: reactor=%d|sendn=%d|ret=%d|trunk->offset=%d|trunk_len=%d\n", reactor->id, sendn, ret, trunk->offset, trunk->length);
+	if (ret < 0)
+	{
+		if (swConnection_error(fd, errno) < 0)
+		{
+			return SW_CLOSE;
+		}
+		else if(errno == EAGAIN)
+		{
+			return SW_WAIT;
+		}
+		else
+		{
+			swWarn("send to fd[%d] failed. Error: %s[%d]", fd, strerror(errno), errno);
+			return SW_CONTINUE;
+		}
+	}
+	//trunk full send
+	else if(ret == sendn || sendn == 0)
+	{
+		swBuffer_pop_trunk(buffer, trunk);
+	}
+	else
+	{
+		trunk->offset += ret;
+	}
+	return SW_CONTINUE;
+}
+
+/**
  * print buffer
  */
 void swBuffer_debug(swBuffer *buffer)
