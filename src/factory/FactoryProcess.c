@@ -878,7 +878,7 @@ int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int work
 	//加1防止id为0的worker进程出错
 	in_data->mtype = pti + 1;
 
-	//swDataHead *info = (swDataHead *)in_data->mdata;
+	swDataHead *info = (swDataHead *)in_data->mdata;
 	ret = object->rd_queue.in(&object->rd_queue, in_data, send_len);
 	swTrace("[Master]rd_queue[%ld]->in: fd=%d|type=%d|len=%d", in_data->mtype, info->fd, info->type, info->len);
 #else
