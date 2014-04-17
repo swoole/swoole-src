@@ -879,6 +879,8 @@ int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int work
 	in_data->mtype = pti + 1;
 
 	//swDataHead *info = (swDataHead *)in_data->mdata;
+	//如果上面这句注释掉的话，*info 就找不到了，所以建议取消注释，否咋在 --enable-msgqueue 的状态下编译失败。
+	
 	ret = object->rd_queue.in(&object->rd_queue, in_data, send_len);
 	swTrace("[Master]rd_queue[%ld]->in: fd=%d|type=%d|len=%d", in_data->mtype, info->fd, info->type, info->len);
 #else
