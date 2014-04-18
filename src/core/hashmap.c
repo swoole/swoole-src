@@ -127,8 +127,6 @@ SWINLINE static int swHashMap_add_keyptr(swHashMap_node **root, swHashMap_node *
 	add->hh.hashv = swHashMap_jenkins_hash(add->key_str, add->key_int, (*root)->hh.tbl->num_buckets);
 	_ha_bkt = add->hh.hashv & ((*root)->hh.tbl->num_buckets - 1);
 	HASH_ADD_TO_BKT((*root)->hh.tbl->buckets[_ha_bkt], &add->hh);
-	HASH_EMIT_KEY(hh, (*root), keyptr, keylen_in);
-	HASH_FSCK(hh, (*root));
 
 	return SW_OK;
 }
@@ -233,7 +231,6 @@ static int swHashMap_delete_node(swHashMap_node *head, swHashMap_node *del_node)
 		HASH_DEL_IN_BKT(hh, head->hh.tbl->buckets[bucket], _hd_hh_del);
 		head->hh.tbl->num_items--;
 	}
-	HASH_FSCK(hh, head);
 	return SW_OK;
 }
 

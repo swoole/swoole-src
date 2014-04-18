@@ -748,7 +748,8 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
 			reactor_threads->ptid = pidt;
 		}
 	}
-	//定时器
+
+	//timer
 	if(SwooleG.timer.fd > 0)
 	{
 		main_reactor_ptr->add(main_reactor_ptr, SwooleG.timer.fd, SW_FD_TIMER);

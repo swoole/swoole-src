@@ -110,7 +110,6 @@ static int swoole_aio_thread_onTask(swThreadPool *pool, void *task, int task_len
 	case SW_AIO_DNS_LOOKUP:
 		if (!(host_entry = gethostbyname(event->buf)))
 		{
-			ret = -1;
 			event->error = errno;
 		}
 		else
@@ -118,6 +117,7 @@ static int swoole_aio_thread_onTask(swThreadPool *pool, void *task, int task_len
 			memcpy(&addr, host_entry->h_addr_list[0], host_entry->h_length);
 			ip_addr = inet_ntoa(addr);
 			memcpy(event->buf, ip_addr, strnlen(ip_addr, SW_IP_MAX_LENGTH));
+			ret = 0;
 		}
 		break;
 	default:
