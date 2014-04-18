@@ -186,11 +186,13 @@ static int php_swoole_client_onRead(swReactor *reactor, swEvent *event)
 	zval **args[2];
 	zval *retval;
 
+	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
 	char *hash_key;
 	int hash_key_len;
 	hash_key_len = spprintf(&hash_key, sizeof(int)+1, "%d", event->fd);
 
-	if(zend_hash_find(&php_sw_client_callback, hash_key, hash_key_len+1, (void **)&zobject) != SUCCESS)
+	if (zend_hash_find(&php_sw_client_callback, hash_key, hash_key_len+1, (void **)&zobject) != SUCCESS)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: Fd[%d] is not a swoole_client object", event->fd);
 		efree(hash_key);
@@ -201,7 +203,6 @@ static int php_swoole_client_onRead(swReactor *reactor, swEvent *event)
 
 	args[0] = zobject;
 	char buf[SW_CLIENT_BUFFER_SIZE];
-	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
 #ifdef SW_USE_EPOLLET
 	n = swRead(event->fd, buf, SW_CLIENT_BUFFER_SIZE);
@@ -262,6 +263,8 @@ static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event)
 	swBuffer *out_buffer;
 	zval **zobject, **zres;
 
+	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
 	char *hash_key;
 	int hash_key_len;
 	hash_key_len = spprintf(&hash_key, sizeof(int)+1, "%d", event->fd);
@@ -272,8 +275,6 @@ static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event)
 		efree(hash_key);
 		return SW_ERR;
 	}
-
-	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
 	if (zend_hash_find(Z_OBJPROP_PP(zobject), SW_STRL("_client"), (void **) &zres) != SUCCESS)
 	{
@@ -387,6 +388,8 @@ void php_swoole_check_reactor()
 {
 	if (php_sw_reactor_ok == 0)
 	{
+		TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
 		if (SwooleG.main_reactor == NULL)
 		{
 			SwooleG.main_reactor = sw_malloc(sizeof(swReactor));
@@ -419,6 +422,8 @@ static void php_swoole_onTimerCallback(swTimer *timer, int interval)
 	zval **args[1];
 	swoole_timer_item *timer_item;
 
+	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
 	if(zend_hash_find(&php_sw_timer_callback, (char *)&interval, sizeof(interval), (void**)&timer_item) != SUCCESS)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_timer: onReactorCallback not found");
@@ -430,7 +435,7 @@ static void php_swoole_onTimerCallback(swTimer *timer, int interval)
 	ZVAL_LONG(zinterval, interval);
 
 	args[0] = &zinterval;
-	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
 	if (call_user_function_ex(EG(function_table), NULL, timer_item->callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_timer: onReactorCallback handler error");
@@ -449,6 +454,8 @@ static int php_swoole_onReactorCallback(swReactor *reactor, swEvent *event)
 	zval **args[1];
 	swoole_reactor_fd *fd;
 
+	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
 	if(zend_hash_find(&php_sw_reactor_callback, (char *)&(event->fd), sizeof(event->fd), (void**)&fd) != SUCCESS)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onReactorCallback not found");
@@ -456,7 +463,7 @@ static int php_swoole_onReactorCallback(swReactor *reactor, swEvent *event)
 	}
 
 	args[0] = &fd->socket;
-	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
 	if (call_user_function_ex(EG(function_table), NULL, fd->callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onReactorCallback handler error");
