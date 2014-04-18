@@ -2,13 +2,16 @@ Swoole
 =====
 PHP's asynchronous & concurrent & distributed networking framework.
 
-* Event-driven
-* Full asynchronous non-blocking
-* Multi-Thread or Multi-Process
-* Millisecond timer
-* Asynchronous MySQL
-* AsyncTask workers
-* Linux native aio
+* event-driven
+* full asynchronous non-blocking
+* multi-thread reactor
+* multi-process worker
+* millisecond timer
+* async MySQL
+* async task
+* async read/write file system
+* async dns lookup
+* php websocket server/client
 
 Install
 -----
@@ -20,7 +23,7 @@ pecl install swoole
 Example
 -----
 
-__Server__
+__server__
 ```php
 $serv = new swoole_server("127.0.0.1", 9501);
 $serv->on('connect', function ($serv, $fd){
@@ -35,7 +38,7 @@ $serv->on('close', function ($serv, $fd) {
 });
 $serv->start();
 ```
-__Client__
+__client__
 ```php
 $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
 
@@ -57,7 +60,7 @@ $client->on("close", function($cli){
 
 $client->connect('127.0.0.1', 9501, 0.5);
 ```
-__Event__
+__event__
 ```php
 $fp = stream_socket_client("tcp://127.0.0.1:9501", $errno, $errstr, 30);
 if (!$fp) {
@@ -71,7 +74,20 @@ swoole_event_add($fp, function($fp){
 });
 ```
 
-__Task__
+__async mysql__
+```php
+$db = new mysqli;
+$db->connect('127.0.0.1', 'root', 'root', 'test');
+$db->query("show tables", MYSQLI_ASYNC);
+swoole_event_add(swoole_get_mysqli_sock($db), function($__db_sock) {
+    global $db;
+    $res = $db->reap_async_query();
+    var_dump($res->fetch_all(MYSQLI_ASSOC));
+    exit;
+});
+```
+
+__async task__
 ```php
 $serv = new swoole_server("127.0.0.1", 9502);
 $serv->set(array('task_worker_num' => 4));
@@ -89,7 +105,7 @@ $serv->on('Finish', function ($serv, $task_id, $data) {
 $serv->start();
 ```
 
-__Timer__
+__timer__
 
 ```php
 swoole_timer_add(1000, function($interval) {
