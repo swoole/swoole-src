@@ -202,7 +202,7 @@ int swReactorThread_send(swEventData *resp)
 				{
 					goto close_fd;
 				}
-				swWarn("factory->onFinish failed.fd=%d|from_id=%d. Error: %s[%d]", , resp->info.from_id, strerror(errno), errno);
+				swWarn("factory->onFinish failed.fd=%d|from_id=%d. Error: %s[%d]", fd, resp->info.from_id, strerror(errno), errno);
 			}
 			//Did not finish, add to writable event callback
 			else if(ret < resp->info.len)
@@ -211,7 +211,7 @@ int swReactorThread_send(swEventData *resp)
 				send_data.info.len -= ret;
 				goto append_out_buffer;
 			}
-			//printf("[writer]pop.fd=%d|from_id=%d|data=%s\n", , resp->info.from_id, resp->data);
+			swTraceLog(SW_TRACE_WORKER, "[writer]pop.fd=%d|from_id=%d|data=%s\n", , resp->info.from_id, resp->data);
 		}
 #endif
 	}
