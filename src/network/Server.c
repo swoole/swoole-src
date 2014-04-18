@@ -326,6 +326,15 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 			swServer_reactor_schedule(serv);
 		}
 #endif
+		connEv.type = SW_EVENT_CONNECT;
+		connEv.from_id = c_pti;
+		connEv.fd = conn_fd;
+		connEv.from_fd = event->fd;
+
+		//增加到connection_list中
+		swServer_new_connection(serv, &connEv);
+		memcpy(&serv->connection_list[conn_fd].addr, &client_addr, sizeof(client_addr));
+
 		ret = serv->reactor_threads[c_pti].reactor.add(&(serv->reactor_threads[c_pti].reactor), conn_fd,
 				SW_FD_TCP | SW_EVENT_READ);
 		if (ret < 0)
@@ -336,14 +345,6 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 		}
 		else
 		{
-			connEv.type = SW_EVENT_CONNECT;
-			connEv.from_id = c_pti;
-			connEv.fd = conn_fd;
-			connEv.from_fd = event->fd;
-
-			//增加到connection_list中
-			swServer_new_connection(serv, &connEv);
-			memcpy(&serv->connection_list[conn_fd].addr, &client_addr, sizeof(client_addr));
 			serv->connect_count++;
 
 			if(serv->onMasterConnect != NULL)
@@ -1756,11 +1757,9 @@ static int swServer_poll_onClose(swReactor *reactor, swEvent *event)
 	swServer *serv = reactor->ptr;
 	swCloseQueue *queue = &serv->reactor_threads[reactor->id].close_queue;
 
-	//关闭连接
-	reactor->del(reactor, event->fd);
 	event->from_id = -1;
-
 	queue->events[queue->num].fd = event->fd;
+
 	//-1表示直接在reactor内关闭
 	queue->events[queue->num].from_id = -1;
 	//增加计数
@@ -1770,6 +1769,8 @@ static int swServer_poll_onClose(swReactor *reactor, swEvent *event)
 	{
 		return swServer_poll_close_queue(reactor, queue);
 	}
+
+	reactor->del(reactor, event->fd);
 	return SW_OK;
 }
 
