@@ -305,7 +305,7 @@ SWINLINE swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn);
 int swConnection_send_in_buffer(swConnection *conn);
 
 int swReactorThread_onPackage(swReactor *reactor, swEvent *event);
-int swReactorThread_send(swEventData *resp);
+int swReactorThread_send(swSendData *_send);
 int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr);
 int swReactorThread_close_queue(swReactor *reactor, swCloseQueue *close_queue);
 int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event);

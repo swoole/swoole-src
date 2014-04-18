@@ -1,5 +1,5 @@
 <?php
-$serv = new swoole_server("0.0.0.0", 9501);
+$serv = new swoole_server("0.0.0.0", 9501, SWOOLE_BASE);
 $serv->set(array(
 	//'worker_num' => 1,
 	//'daemonize' => true,

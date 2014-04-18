@@ -73,9 +73,9 @@ int swFactory_end(swFactory *factory, swEvent *cev)
 	return swServer_close(serv, cev);
 }
 
-int swFactory_finish(swFactory *factory, swSendData *resp)
+int swFactory_finish(swFactory *factory, swSendData *_send)
 {
-	return factory->onFinish(factory, resp);
+	return swReactorThread_send(_send);
 }
 
 int swFactory_check_callback(swFactory *factory)

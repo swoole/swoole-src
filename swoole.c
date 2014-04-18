@@ -2126,7 +2126,7 @@ PHP_FUNCTION(swoole_server_send)
 
 	//UDP, UDP必然超过0x1000000
 	//原因：IPv4的第4字节最小为1,而这里的conn_fd是网络字节序
-	if(conn_fd > 0x1000000)
+	if (conn_fd > 0x1000000)
 	{
 		if (from_id == -1)
 		{
