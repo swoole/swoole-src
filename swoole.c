@@ -548,26 +548,33 @@ PHP_MINFO_FUNCTION(swoole)
 	php_info_print_table_row(2, "Author", "tianfeng.han[email: mikan.tenny@gmail.com]");
 
 #ifdef HAVE_EPOLL
-	php_info_print_table_row(2, "epoll", "enable");
+	php_info_print_table_row(2, "epoll", "enabled");
 #endif
 #ifdef HAVE_EVENTFD
-    php_info_print_table_row(2, "event_fd", "enable");
+    php_info_print_table_row(2, "event_fd", "enabled");
 #endif
 #ifdef HAVE_KQUEUE
-    php_info_print_table_row(2, "kqueue", "enable");
+    php_info_print_table_row(2, "kqueue", "enabled");
 #endif
 #ifdef HAVE_TIMERFD
-    php_info_print_table_row(2, "timerfd", "enable");
+    php_info_print_table_row(2, "timerfd", "enabled");
 #endif
 #ifdef SW_USE_ACCEPT4
-    php_info_print_table_row(2, "accept4", "enable");
+    php_info_print_table_row(2, "accept4", "enabled");
 #endif
 #ifdef HAVE_CPU_AFFINITY
-    php_info_print_table_row(2, "cpu affinity", "enable");
+    php_info_print_table_row(2, "cpu affinity", "enabled");
 #endif
 #ifdef HAVE_SPINLOCK
-    php_info_print_table_row(2, "spinlock", "enable");
+    php_info_print_table_row(2, "spinlock", "enabled");
 #endif
+#ifdef SW_ASYNC_MYSQL
+    php_info_print_table_row(2, "async mysql", "enabled");
+#endif
+#ifdef SW_SOCKETS
+    php_info_print_table_row(2, "sockets", "enabled");
+#endif
+
 	php_info_print_table_end();
 }
 /* }}} */
