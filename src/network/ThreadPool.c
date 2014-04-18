@@ -17,7 +17,7 @@
 #include "swoole.h"
 
 #define swThreadPool_thread(p,id) (&p->threads[id])
-static void *swThreadPool_loop(void *arg);
+static void* swThreadPool_loop(void *arg);
 
 int swThreadPool_create(swThreadPool *pool, int thread_num)
 {
@@ -122,7 +122,7 @@ int swThreadPool_free(swThreadPool *pool)
 	return 0;
 }
 
-static void *swThreadPool_loop(void *arg)
+static void* swThreadPool_loop(void *arg)
 {
 	swThreadParam *param = arg;
 	swThreadPool *pool = param->object;
@@ -170,4 +170,5 @@ static void *swThreadPool_loop(void *arg)
 		}
 	}
 	pthread_exit(NULL);
+	return NULL;
 }

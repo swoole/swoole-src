@@ -50,7 +50,6 @@ SWINLINE void swConnection_close(swServer *serv, int fd, int notify)
 	swConnection *conn = swServer_get_connection(serv, fd);
 	swReactor *reactor;
 	swEvent notify_ev;
-	struct linger linger;
 
 	if(conn == NULL)
 	{
@@ -117,6 +116,8 @@ SWINLINE void swConnection_close(swServer *serv, int fd, int notify)
 		swReactorThread_close_queue(reactor, queue);
 	}
 
+#ifdef SW_SOCKET_SET_LINGER
+	struct linger linger;
 	linger.l_onoff = 1;
 	linger.l_linger = 0;
 
@@ -124,6 +125,8 @@ SWINLINE void swConnection_close(swServer *serv, int fd, int notify)
 	{
 		swWarn("setsockopt(SO_LINGER) failed. Error: %s[%d]", strerror(errno), errno);
 	}
+#endif
+
 	//关闭此连接，必须放在最前面，以保证线程安全
 	reactor->del(reactor, fd);
 }
