@@ -1170,7 +1170,8 @@ PHP_FUNCTION(swoole_client_select)
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "no resource arrays were passed to select");
 		RETURN_FALSE;
 	}
-	if(max_fd >= FD_SETSIZE)
+
+	if (max_fd >= FD_SETSIZE)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "select max_fd > FD_SETSIZE[%d]", FD_SETSIZE);
 		RETURN_FALSE;
