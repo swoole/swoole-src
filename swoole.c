@@ -2386,7 +2386,7 @@ PHP_FUNCTION(swoole_get_local_ip)
 		}
 		else
 		{
-			if (strcmp(ip, "127.0.0.1") == 0)
+			if (ifa->ifa_addr->sa_family == AF_INET && *(in_addr_t *)in_addr == INADDR_LOOPBACK)
 			{
 					continue;
 			}
