@@ -719,12 +719,12 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 	}
 #else
 	SwooleG.main_reactor = sw_malloc(sizeof(swReactor));
-	if(SwooleG.main_reactor == NULL)
+	if (SwooleG.main_reactor == NULL)
 	{
 		swError("[Worker] malloc for reactor failed.");
 		return SW_ERR;
 	}
-	if(swReactor_auto(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS) < 0)
+	if (swReactor_auto(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS) < 0)
 	{
 		swError("[Worker] create worker_reactor failed.");
 		return SW_ERR;
@@ -990,14 +990,17 @@ int swFactoryProcess_send2client(swReactor *reactor, swDataHead *ev)
 {
 	int n;
 	swEventData resp;
+	swSendData _send;
 
 	//Unix Sock UDP
 	n = read(ev->fd, &resp, sizeof(resp));
+
 	swTrace("[WriteThread]recv: writer=%d|pipe=%d", ev->from_id, ev->fd);
 	//swWarn("send: type=%d|content=%s", resp.info.type, resp.data);
 	if (n > 0)
 	{
-		return swReactorThread_send(&resp);
+		memcpy(&_send.info, &resp.info, sizeof(resp.info));
+		return swReactorThread_send(&_send);
 	}
 	else
 	{

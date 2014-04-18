@@ -84,12 +84,11 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
 /**
  * send to client or append to out_buffer
  */
-int swReactorThread_send(swEventData *resp)
+int swReactorThread_send(swSendData *_send)
 {
-	int fd = resp->info.fd;
+	int fd = _send->info.fd;
 
 	swServer *serv = SwooleG.serv;
-	swSendData send_data;
 	swEvent closeFd;
 	swBuffer_trunk *trunk;
 	swTask_sendfile *task;
@@ -108,7 +107,7 @@ int swReactorThread_send(swEventData *resp)
 	}
 
 	//recv length=0, will close connection
-	if (resp->info.len == 0)
+	if (_send->info.len == 0)
 	{
 #ifdef SW_REACTOR_DIRECT_SEND
 		close_fd:
@@ -130,7 +129,7 @@ int swReactorThread_send(swEventData *resp)
 		return SW_OK;
 	}
 	//sendfile to client
-	else if(resp->info.type == SW_EVENT_SENDFILE)
+	else if(_send->info.type == SW_EVENT_SENDFILE)
 	{
 		trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_SENDFILE, 0);
 		if (trunk == NULL)
@@ -146,7 +145,7 @@ int swReactorThread_send(swEventData *resp)
 			return SW_ERR;
 		}
 		bzero(task, sizeof(swTask_sendfile));
-		int file_fd = open(resp->data, O_RDONLY);
+		int file_fd = open(_send->data, O_RDONLY);
 		if (file_fd < 0)
 		{
 			swWarn("open file[%s] failed. Error: %s[%d]", task->filename, strerror(errno), errno);
@@ -173,18 +172,13 @@ int swReactorThread_send(swEventData *resp)
 //		send_data.data = test_data;
 //		send_data.info.len = sizeof(test_data);
 
-		send_data.data = resp->data;
-		send_data.info.len = resp->info.len;
-		send_data.info.from_id = conn->from_id;
-		send_data.info.fd = fd;
-
 #ifdef SW_REACTOR_DIRECT_SEND
 		if (!swBuffer_empty(conn->out_buffer))
 		{
 			append_out_buffer:
 #endif
 			//buffer enQueue
-			swBuffer_in(conn->out_buffer, &send_data);
+			swBuffer_in(conn->out_buffer, _send);
 
 			//listen EPOLLOUT event
 			reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_WRITE | SW_EVENT_READ);
@@ -194,7 +188,7 @@ int swReactorThread_send(swEventData *resp)
 		else
 		{
 			//try send
-			int ret = send(send_data.info.fd, send_data.data, send_data.info.len, 0);
+			int ret = send(fd, _send->data, _send->info.len, 0);
 			if (ret < 0)
 			{
 				//连接已被关闭
@@ -202,13 +196,13 @@ int swReactorThread_send(swEventData *resp)
 				{
 					goto close_fd;
 				}
-				swWarn("factory->onFinish failed.fd=%d|from_id=%d. Error: %s[%d]", fd, resp->info.from_id, strerror(errno), errno);
+				swWarn("factory->onFinish failed.fd=%d|from_id=%d. Error: %s[%d]", fd, conn->from_id, strerror(errno), errno);
 			}
 			//Did not finish, add to writable event callback
-			else if(ret < resp->info.len)
+			else if(ret < _send->info.len)
 			{
-				send_data.data += ret;
-				send_data.info.len -= ret;
+				_send->info.len += ret;
+				_send->info.len -= ret;
 				goto append_out_buffer;
 			}
 			swTraceLog(SW_TRACE_WORKER, "[writer]pop.fd=%d|from_id=%d|data=%s\n", , resp->info.from_id, resp->data);

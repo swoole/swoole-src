@@ -680,7 +680,7 @@ int swFactory_create(swFactory *factory);
 int swFactory_start(swFactory *factory);
 int swFactory_shutdown(swFactory *factory);
 int swFactory_dispatch(swFactory *factory, swEventData *req);
-int swFactory_finish(swFactory *factory, swSendData *resp);
+int swFactory_finish(swFactory *factory, swSendData *_send);
 int swFactory_notify(swFactory *factory, swEvent *event);
 int swFactory_end(swFactory *factory, swDataHead *cev);
 int swFactory_check_callback(swFactory *factory);
