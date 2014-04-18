@@ -15,3 +15,7 @@ env:
 before_script:
     - ./travis/compile.sh
 
+script:
+    - exit 0
+
+
