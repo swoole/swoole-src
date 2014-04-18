@@ -1,10 +1,11 @@
 *.o
 *.lo
-.*
 *~
 *.so
 Debug/*
 modules/*
+/.deps
+/.libs/
 /core
 /examples/core
 /Debug
