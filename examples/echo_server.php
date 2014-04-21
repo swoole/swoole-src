@@ -1,7 +1,7 @@
 <?php
-$serv = new swoole_server("0.0.0.0", 9501, SWOOLE_BASE);
+$serv = new swoole_server("0.0.0.0", 9501);
 $serv->set(array(
-	//'worker_num' => 1,
+	'worker_num' => 1,
 	//'daemonize' => true,
 	//'log_file' => '/tmp/swoole.log'
 ));
@@ -16,7 +16,7 @@ $serv->on('connect', function ($serv, $fd, $from_id){
 });
 $serv->on('receive', function ($serv, $fd, $from_id, $data) {
     //echo "[#".posix_getpid()."]\tClient[$fd]: $data\n";
-    $serv->send($fd, "swoole: $data");
+    $serv->send($fd, json_encode(array("hello" => '1213', "bat" => "ab")));
     //$serv->close($fd);
 });
 $serv->on('close', function ($serv, $fd, $from_id) {

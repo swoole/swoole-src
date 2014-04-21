@@ -462,6 +462,7 @@ int swServer_start(swServer *serv)
 	//设置factory回调函数
 	serv->factory.ptr = serv;
 	serv->factory.onTask = serv->onReceive;
+
 	if (serv->have_udp_sock == 1 && serv->factory_mode != SW_MODE_PROCESS)
 	{
 		serv->factory.onFinish = swServer_onFinish2;
@@ -470,6 +471,7 @@ int swServer_start(swServer *serv)
 	{
 		serv->factory.onFinish = swServer_onFinish;
 	}
+
 	//for taskwait
 	if (serv->task_worker_num > 0 && serv->worker_num > 0)
 	{
@@ -1130,7 +1132,7 @@ int swServer_listen(swServer *serv, swReactor *reactor)
 			LL_DELETE(serv->listen_list, listen_host);
 			return SW_ERR;
 		}
-		if(reactor!=NULL)
+		if (reactor!=NULL)
 		{
 			reactor->add(reactor, sock, SW_FD_LISTEN);
 		}

@@ -109,7 +109,7 @@ function udp2(Swoole_Benchmark $bc)
 	$fp->send($bc->send_data);
 	$end = microtime(true);
 	$write_use = $end - $start;
-	if($write_use>$bc->max_write_time) $bc->max_write_time = $write_use;
+	if($write_use > $bc->max_write_time) $bc->max_write_time = $write_use;
 	$start = $end;
 	/*--------读取Sokcet-------*/
 	$ret = $fp->recv();

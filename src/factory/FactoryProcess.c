@@ -139,7 +139,6 @@ int swFactoryProcess_start(swFactory *factory)
 	//tcp & message queue require writer pthread
 	if (serv->have_tcp_sock == 1)
 	{
-
 		int ret = swFactoryProcess_writer_start(factory);
 		if (ret < 0)
 		{
@@ -942,6 +941,8 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 {
 	swFactory *factory = param->object;
 	swFactoryProcess *object = factory->object;
+	swEventData *resp;
+	swSendData _send;
 
 	int pti = param->pti;
 	swQueue_data sdata;
@@ -962,7 +963,10 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 		}
 		else
 		{
-			swReactorThread_send((swEventData *) sdata.mdata);
+			resp = (swEventData *) sdata.mdata;
+			memcpy(&_send.info, &resp->info, sizeof(resp->info));
+			_send.data = resp->data;
+			swReactorThread_send(&_send);
 		}
 	}
 	pthread_exit((void *) param);
