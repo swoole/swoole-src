@@ -131,7 +131,7 @@ extern zend_class_entry *swoole_lock_class_entry_ptr;
 extern zend_class_entry *swoole_client_class_entry_ptr;
 extern zend_class_entry *swoole_server_class_entry_ptr;
 
-extern HashTable php_sw_reactor_callback;
+extern HashTable php_sw_event_callback;
 extern HashTable php_sw_client_callback;
 extern HashTable php_sw_timer_callback;
 extern HashTable php_sw_long_connections;
@@ -168,6 +168,7 @@ PHP_FUNCTION(swoole_connection_list);
 PHP_FUNCTION(swoole_connection_info);
 
 PHP_FUNCTION(swoole_event_add);
+PHP_FUNCTION(swoole_event_set);
 PHP_FUNCTION(swoole_event_del);
 PHP_FUNCTION(swoole_event_wait);
 PHP_FUNCTION(swoole_event_exit);

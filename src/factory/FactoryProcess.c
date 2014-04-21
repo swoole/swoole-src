@@ -1004,6 +1004,7 @@ int swFactoryProcess_send2client(swReactor *reactor, swDataHead *ev)
 	if (n > 0)
 	{
 		memcpy(&_send.info, &resp.info, sizeof(resp.info));
+		_send.data = resp.data;
 		return swReactorThread_send(&_send);
 	}
 	else

@@ -26,7 +26,7 @@
 
 zval *php_sw_callback[PHP_SERVER_CALLBACK_NUM];
 
-HashTable php_sw_reactor_callback;
+HashTable php_sw_event_callback;
 HashTable php_sw_timer_callback;
 HashTable php_sw_client_callback;
 HashTable php_sw_aio_callback;
@@ -323,6 +323,7 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_connection_list, arginfo_swoole_connection_list)
 	/*------swoole_event-----*/
 	PHP_FE(swoole_event_add, arginfo_swoole_event_add)
+	PHP_FE(swoole_event_set, NULL)
 	PHP_FE(swoole_event_del, arginfo_swoole_event_del)
 	PHP_FE(swoole_event_exit, arginfo_swoole_event_exit)
 	PHP_FE(swoole_event_wait, arginfo_swoole_event_wait)
@@ -498,6 +499,9 @@ PHP_MINIT_FUNCTION(swoole)
 	REGISTER_LONG_CONSTANT("SWOOLE_ASYNC", SW_FLAG_ASYNC, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_KEEP", SW_FLAG_KEEP, CONST_CS | CONST_PERSISTENT);
 
+	REGISTER_LONG_CONSTANT("SWOOLE_EVENT_READ", SW_EVENT_READ, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SWOOLE_EVENT_WRITE", SW_EVENT_WRITE, CONST_CS | CONST_PERSISTENT);
+
 	REGISTER_LONG_CONSTANT("SWOOLE_SIGN", SW_NUM_SIGN, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_UNSIGN", SW_NUM_UNSIGN, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_NET", SW_NUM_NET, CONST_CS | CONST_PERSISTENT);
@@ -582,7 +586,7 @@ PHP_MINFO_FUNCTION(swoole)
 PHP_RINIT_FUNCTION(swoole)
 {
 	//swoole_event_add
-	zend_hash_init(&php_sw_reactor_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
+	zend_hash_init(&php_sw_event_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
 	//swoole_client::on
 	zend_hash_init(&php_sw_client_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
 	//swoole_timer_add
@@ -596,7 +600,7 @@ PHP_RINIT_FUNCTION(swoole)
 
 PHP_RSHUTDOWN_FUNCTION(swoole)
 {
-	zend_hash_destroy(&php_sw_reactor_callback);
+	zend_hash_destroy(&php_sw_event_callback);
 	zend_hash_destroy(&php_sw_client_callback);
 	zend_hash_destroy(&php_sw_timer_callback);
 	zend_hash_destroy(&php_sw_aio_callback);
@@ -974,7 +978,7 @@ PHP_FUNCTION(swoole_server_set)
 static int php_swoole_set_callback(int key, zval *cb TSRMLS_DC)
 {
 	char *func_name = NULL;
-	if(!zend_is_callable(cb, 0, &func_name TSRMLS_CC))
+	if (!zend_is_callable(cb, 0, &func_name TSRMLS_CC))
 	{
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
 		efree(func_name);

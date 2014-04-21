@@ -703,13 +703,9 @@ int swFactoryThread_finish(swFactory *factory, swSendData *data);
 enum SW_EVENTS
 {
 	SW_EVENT_DEAULT = 256,
-#define SW_EVENT_DEAULT SW_EVENT_DEAULT
 	SW_EVENT_READ = 1u << 9,
-#define SW_EVENT_READ SW_EVENT_READ
 	SW_EVENT_WRITE = 1u << 10,
-#define SW_EVENT_WRITE SW_EVENT_WRITE
 	SW_EVENT_ERROR = 1u << 11,
-#define SW_EVENT_ERROR SW_EVENT_ERROR
 };
 
 SWINLINE int swReactor_error(swReactor *reactor);
