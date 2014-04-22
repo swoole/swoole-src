@@ -172,42 +172,11 @@ int swReactorThread_send(swSendData *_send)
 //		send_data.data = test_data;
 //		send_data.info.len = sizeof(test_data);
 
-#ifdef SW_REACTOR_DIRECT_SEND
-		if (!swBuffer_empty(conn->out_buffer))
-		{
-			append_out_buffer:
-#endif
-			//buffer enQueue
-			swBuffer_in(conn->out_buffer, _send);
+		//buffer enQueue
+		swBuffer_in(conn->out_buffer, _send);
 
-			//listen EPOLLOUT event
-			reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_WRITE | SW_EVENT_READ);
-
-#ifdef SW_REACTOR_DIRECT_SEND
-		}
-		else
-		{
-			//try send
-			int ret = send(fd, _send->data, _send->info.len, 0);
-			if (ret < 0)
-			{
-				//连接已被关闭
-				if (errno == ECONNRESET || errno == EBADF)
-				{
-					goto close_fd;
-				}
-				swWarn("factory->onFinish failed.fd=%d|from_id=%d. Error: %s[%d]", fd, conn->from_id, strerror(errno), errno);
-			}
-			//Did not finish, add to writable event callback
-			else if(ret < _send->info.len)
-			{
-				_send->info.len += ret;
-				_send->info.len -= ret;
-				goto append_out_buffer;
-			}
-			swTraceLog(SW_TRACE_WORKER, "[writer]pop.fd=%d|from_id=%d|data=%s\n", , resp->info.from_id, resp->data);
-		}
-#endif
+		//listen EPOLLOUT event
+		reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_WRITE | SW_EVENT_READ);
 	}
 	return SW_OK;
 }

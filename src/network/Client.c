@@ -172,42 +172,6 @@ int swClient_tcp_connect(swClient *cli, char *host, int port, double timeout, in
 
 int swClient_tcp_send_async(swClient *cli, char *data, int length)
 {
-	int n;
-
-	while(1)
-	{
-		n = send(cli->sock, data, length, 0);
-		if (n < 0)
-		{
-			//continue
-			if (errno == EINTR)
-			{
-				continue;
-			}
-			//append to out_buffer
-			else if(errno == EAGAIN)
-			{
-				break;
-			}
-			//send error
-			else
-			{
-				return SW_ERR;
-			}
-		}
-		//append to out_buffer
-		else if (n < length)
-		{
-			data += n;
-			length -= n;
-		}
-		//send ok.
-		else
-		{
-			return SW_OK;
-		}
-	}
-
 	if (cli->out_buffer == NULL)
 	{
 		cli->out_buffer = swBuffer_new(SW_BUFFER_SIZE);
@@ -216,17 +180,23 @@ int swClient_tcp_send_async(swClient *cli, char *data, int length)
 			return SW_ERR;
 		}
 	}
+
 	swSendData _send;
 
 	_send.info.fd = cli->sock;
 	_send.info.len = length;
 	_send.data = data;
 
+	if (swBuffer_empty(cli->out_buffer))
+	{
+		SwooleG.main_reactor->set(SwooleG.main_reactor, cli->sock, cli->reactor_fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
+	}
+
 	if (swBuffer_in(cli->out_buffer, &_send) < 0)
 	{
 		return SW_ERR;
 	}
-	SwooleG.main_reactor->set(SwooleG.main_reactor, cli->sock, cli->reactor_fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
+
 	return SW_OK;
 }
 
