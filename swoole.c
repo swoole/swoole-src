@@ -977,6 +977,8 @@ PHP_FUNCTION(swoole_server_set)
 
 static int php_swoole_set_callback(int key, zval *cb TSRMLS_DC)
 {
+
+#ifdef PHP_SWOOLE_CHECK_CALLBACK
 	char *func_name = NULL;
 	if (!zend_is_callable(cb, 0, &func_name TSRMLS_CC))
 	{
@@ -984,15 +986,19 @@ static int php_swoole_set_callback(int key, zval *cb TSRMLS_DC)
 		efree(func_name);
 		return SW_ERR;
 	}
+	efree(func_name);
+#endif
+
 	//zval_add_ref(&cb);
 	php_sw_callback[key] = emalloc(sizeof(zval));
 	if(php_sw_callback[key] == NULL)
 	{
 		return SW_ERR;
 	}
+
 	*(php_sw_callback[key]) = *cb;
 	zval_copy_ctor(php_sw_callback[key]);
-	efree(func_name);
+
 	return SW_OK;
 }
 
@@ -2397,9 +2403,10 @@ PHP_FUNCTION(swoole_get_local_ip)
 		}
 		else
 		{
-			if (ifa->ifa_addr->sa_family == AF_INET && *(in_addr_t *)in_addr == INADDR_LOOPBACK)
+			//if (ifa->ifa_addr->sa_family == AF_INET && ntohl(((struct in_addr *) in_addr)->s_addr) == INADDR_LOOPBACK)
+			if (strcmp(ip, "127.0.0.1") == 0)
 			{
-					continue;
+				continue;
 			}
 			add_assoc_string(return_value, ifa->ifa_name, ip, 1);
 		}

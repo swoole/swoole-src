@@ -733,7 +733,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 	SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE, swFactoryProcess_worker_receive);
 #endif
 
-	if(factory->max_request < 1)
+	if (factory->max_request < 1)
 	{
 		worker_task_always = 1;
 	}

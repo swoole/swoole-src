@@ -138,7 +138,17 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
 {
 	swEventData buf;
 	int n, ret;
-	int task_n = pool->max_request;
+	int task_n, worker_task_always = 0;
+
+	if (pool->max_request == 0)
+	{
+		task_n = 1;
+		worker_task_always = 1;
+	}
+	else
+	{
+		task_n = pool->max_request;
+	}
 	//使用from_fd保存task_worker的id
 	buf.info.from_fd = worker->id;
 
@@ -151,7 +161,7 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
 			continue;
 		}
 		ret = pool->onTask(pool, &buf);
-		if (ret > 0)
+		if (ret > 0 && !worker_task_always)
 		{
 			task_n--;
 		}

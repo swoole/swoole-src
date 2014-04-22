@@ -148,8 +148,7 @@ int swClient_tcp_connect(swClient *cli, char *host, int port, double timeout, in
 	else
 	{
 		swSetTimeout(cli->sock, timeout);
-		//block default
-		//swSetBlock(cli->sock);
+		swSetBlock(cli->sock);
 	}
 
 	while (1)
