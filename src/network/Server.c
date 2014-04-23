@@ -141,7 +141,7 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 	swEvent connEv;
 	struct sockaddr_in client_addr;
 	uint32_t client_addrlen = sizeof(client_addr);
-	int new_fd, ret, reactor_id = 0, i;
+	int new_fd, ret, reactor_id = 0, i, sockopt;
 
 	//SW_ACCEPT_AGAIN
 	for (i = 0; i < SW_ACCEPT_MAX_COUNT; i++)
@@ -176,8 +176,8 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 		//TCP Nodelay
 		if (serv->open_tcp_nodelay == 1)
 		{
-			int flag = 1;
-			setsockopt(new_fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
+			sockopt = 1;
+			setsockopt(new_fd, IPPROTO_TCP, TCP_NODELAY, &sockopt, sizeof(sockopt));
 		}
 
 #ifdef SO_KEEPALIVE
@@ -1112,7 +1112,7 @@ int swServer_addListen(swServer *serv, int type, char *host, int port)
 
 int swServer_listen(swServer *serv, swReactor *reactor)
 {
-	int sock=-1;
+	int sock=-1, sockopt;
 
 	swListenList_node *listen_host;
 
@@ -1132,10 +1132,20 @@ int swServer_listen(swServer *serv, swReactor *reactor)
 			LL_DELETE(serv->listen_list, listen_host);
 			return SW_ERR;
 		}
+
 		if (reactor!=NULL)
 		{
 			reactor->add(reactor, sock, SW_FD_LISTEN);
 		}
+
+#ifdef TCP_DEFER_ACCEPT
+		if (serv->tcp_defer_accept > 0)
+		{
+			sockopt = serv->tcp_defer_accept;
+			setsockopt(sock, IPPROTO_TCP, TCP_DEFER_ACCEPT, &sockopt, sizeof(sockopt));
+		}
+#endif
+
 		listen_host->sock = sock;
 		//将server socket也放置到connection_list中
 		serv->connection_list[sock].addr.sin_port = listen_host->port;

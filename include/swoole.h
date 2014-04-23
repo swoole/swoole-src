@@ -70,6 +70,10 @@ static uint64_t orwl_timestart = 0;
 int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #endif
 
+#ifndef HAVE_DAEMON
+int daemon(int nochdir, int noclose);
+#endif
+
 /*----------------------------------------------------------------------------*/
 #ifndef ulong
 #define ulong unsigned long

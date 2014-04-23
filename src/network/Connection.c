@@ -118,7 +118,7 @@ SWINLINE void swConnection_close(swServer *serv, int fd, int notify)
 
 #ifdef SW_SOCKET_SET_LINGER
 	struct linger linger;
-	linger.l_onoff = 1;
+	linger.l_onoff = 0;
 	linger.l_linger = 0;
 
 	if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) == -1)

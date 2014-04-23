@@ -184,6 +184,8 @@ struct swServer_s
 	uint8_t open_cpu_affinity; //是否设置CPU亲和性
 	uint8_t open_tcp_nodelay;  //是否关闭Nagle算法
 
+	uint8_t tcp_defer_accept;  //TCP_DEFER_ACCEPT
+	uint8_t tcp_socket_linger; //SOCKET SO_LINGER
 
 	/* tcp keepalive */
 	uint8_t open_tcp_keepalive; //开启keepalive

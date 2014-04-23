@@ -89,7 +89,6 @@ int swReactorThread_send(swSendData *_send)
 	int fd = _send->info.fd;
 
 	swServer *serv = SwooleG.serv;
-	swEvent closeFd;
 	swBuffer_trunk *trunk;
 	swTask_sendfile *task;
 
@@ -109,23 +108,7 @@ int swReactorThread_send(swSendData *_send)
 	//recv length=0, will close connection
 	if (_send->info.len == 0)
 	{
-#ifdef SW_REACTOR_DIRECT_SEND
-		close_fd:
-#endif
-		//out_buffer empty. close it.
-		if (swBuffer_empty(conn->out_buffer))
-		{
-			closeFd.fd = fd;
-			closeFd.from_id = conn->from_id;
-			closeFd.type = SW_EVENT_CLOSE;
-			swTraceLog("closeFd.fd=%d|from_id=%d", closeFd.fd, closeFd.from_id);
-			swReactorThread_onClose(reactor, &closeFd);
-		}
-		//append close command to out_buffer
-		else
-		{
-			swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_CLOSE, 0);
-		}
+		swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_CLOSE, 0);
 		return SW_OK;
 	}
 	//sendfile to client
@@ -160,24 +143,15 @@ int swReactorThread_send(swSendData *_send)
 		task->filesize = file_stat.st_size;
 		task->fd = file_fd;
 		trunk->data = (void *)task;
-		reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_WRITE | SW_EVENT_READ);
 	}
 	//send data
 	else
 	{
-		//test
-//		char test_data[65530];
-//		memset(test_data, 'A', sizeof(test_data) - 1);
-//		test_data[sizeof(test_data)-1] = 0;
-//		send_data.data = test_data;
-//		send_data.info.len = sizeof(test_data);
-
 		//buffer enQueue
 		swBuffer_in(conn->out_buffer, _send);
-
-		//listen EPOLLOUT event
-		reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_WRITE | SW_EVENT_READ);
 	}
+	//listen EPOLLOUT event
+	reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_WRITE | SW_EVENT_READ);
 	return SW_OK;
 }
 

@@ -785,7 +785,7 @@ PHP_FUNCTION(swoole_server_set)
 		serv->timeout_sec = (int)timeout;
 		serv->timeout_usec = (int)((timeout*1000*1000) - (serv->timeout_sec*1000*1000));
 	}
-	//daemonize，守护进程化
+	//daemonize
 	if (zend_hash_find(vht, ZEND_STRS("daemonize"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
@@ -844,6 +844,18 @@ PHP_FUNCTION(swoole_server_set)
 	{
 		convert_to_long(*v);
 		serv->open_tcp_nodelay = (uint8_t)Z_LVAL_PP(v);
+	}
+	//tcp_defer_accept
+	if (zend_hash_find(vht, ZEND_STRS("tcp_defer_accept"), (void **)&v) == SUCCESS)
+	{
+		convert_to_long(*v);
+		serv->tcp_defer_accept = (uint8_t)Z_LVAL_PP(v);
+	}
+	//socket linger
+	if (zend_hash_find(vht, ZEND_STRS("tcp_socket_linger"), (void **)&v) == SUCCESS)
+	{
+		convert_to_long(*v);
+		serv->tcp_socket_linger = (uint8_t)Z_LVAL_PP(v);
 	}
 	//tcp_keepalive
 	if (zend_hash_find(vht, ZEND_STRS("open_tcp_keepalive"), (void **)&v) == SUCCESS)
