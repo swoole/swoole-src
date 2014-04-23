@@ -166,13 +166,15 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 			}
 		}
 		swTrace("[Master]accept.event->fd=%d|event->from_id=%d|conn=%d", event->fd, event->from_id, new_fd);
-		//连接过多
+
+		//too many connection
 		if(serv->connect_count >= serv->max_conn)
 		{
 			swWarn("too many connection");
 			close(new_fd);
 			return SW_OK;
 		}
+
 		//TCP Nodelay
 		if (serv->open_tcp_nodelay == 1)
 		{

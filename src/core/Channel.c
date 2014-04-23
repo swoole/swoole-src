@@ -46,7 +46,7 @@ swChannel* swChannel_create(int size, int maxlen, int flag)
 	int ret;
 	void *mem;
 
-	//是否使用共享内存
+	//use shared memory
 	if (flag & SW_CHAN_SHM)
 	{
 		mem = sw_shm_malloc(size);
@@ -66,23 +66,23 @@ swChannel* swChannel_create(int size, int maxlen, int flag)
 
 	bzero(object, sizeof(swChannel));
 
-	//允许溢出
+	//overflow space
 	object->size = size - maxlen;
 	object->mem = mem;
 	object->maxlen = maxlen;
 	object->flag = flag;
 
-	//是否启用锁
+	//use lock
 	if (flag & SW_CHAN_LOCK)
 	{
-		//初始化锁
+		//init lock
 		if (swMutex_create(&object->lock, 1) < 0)
 		{
 			swWarn("swChannel_create: mutex init fail");
 			return NULL;
 		}
 	}
-	//初始化通知系统
+	//use notify
 	if (flag & SW_CHAN_NOTIFY)
 	{
 #ifdef HAVE_EVENTFD
@@ -100,7 +100,7 @@ swChannel* swChannel_create(int size, int maxlen, int flag)
 }
 
 /**
- * 推入数据(无锁)
+ * push data(no lock)
  */
 int swChannel_in(swChannel *object, void *in, int data_length)
 {
@@ -145,7 +145,7 @@ int swChannel_in(swChannel *object, void *in, int data_length)
 }
 
 /**
- * 取出数据(无锁)
+ * pop data(no lock)
  */
 int swChannel_out(swChannel *object, void *out, int buffer_length)
 {
@@ -173,7 +173,7 @@ int swChannel_out(swChannel *object, void *out, int buffer_length)
 }
 
 /**
- * 等待新数据
+ * wait notify
  */
 int swChannel_wait(swChannel *object)
 {
@@ -183,7 +183,7 @@ int swChannel_wait(swChannel *object)
 }
 
 /**
- * 通知有新数据到来
+ * new data coming, notify to customer
  */
 int swChannel_notify(swChannel *object)
 {
@@ -193,7 +193,7 @@ int swChannel_notify(swChannel *object)
 }
 
 /**
- * 推入数据
+ * push data (lock)
  */
 int swChannel_push(swChannel *object, void *in, int data_length)
 {
@@ -205,7 +205,7 @@ int swChannel_push(swChannel *object, void *in, int data_length)
 }
 
 /**
- * 释放channel
+ * free channel
  */
 void swChannel_free(swChannel *object)
 {
@@ -228,7 +228,7 @@ void swChannel_free(swChannel *object)
 }
 
 /**
- * 弹出数据
+ * pop data (lock)
  */
 int swChannel_pop(swChannel *object, void *out, int buffer_length)
 {
