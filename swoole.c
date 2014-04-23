@@ -690,7 +690,7 @@ PHP_FUNCTION(swoole_server_create)
 	long serv_mode = SW_MODE_PROCESS;
 
 	//only cli env
-	if(strcasecmp("cli", sapi_module.name) != 0)
+	if (strcasecmp("cli", sapi_module.name) != 0)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_server must run at php_cli environment.");
 		RETURN_FALSE;
@@ -698,7 +698,7 @@ PHP_FUNCTION(swoole_server_create)
 
 	if (SwooleGS->start > 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is running. Unable to create swoole_server now.");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is already running. Unable to create swoole_server.");
 		RETURN_FALSE;
 	}
 
@@ -710,10 +710,10 @@ PHP_FUNCTION(swoole_server_create)
 		return;
 	}
 
-	if(serv_mode == SW_MODE_THREAD)
+	if (serv_mode == SW_MODE_THREAD || serv_mode == SW_MODE_BASE)
 	{
 		serv_mode = SW_MODE_SINGLE;
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "PHP can not running at multi-threading. Reset mode to SW_MODE_BASE");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "PHP can not running at multi-threading. Reset mode to SWOOLE_MODE_BASE");
 	}
 
 	serv->factory_mode = serv_mode;
