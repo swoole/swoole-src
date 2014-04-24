@@ -16,8 +16,6 @@
 
 #include "swoole.h"
 
-
-
 /**
  * clear all singal
  */
@@ -123,6 +121,7 @@ int swSignalfd_setup(swReactor *reactor)
 			swWarn("signalfd() failed. Error: %s[%d]", strerror(errno), errno);
 			return SW_ERR;
 		}
+		SwooleG.signal_fd = swoole_signalfd;
 		if (sigprocmask(SIG_BLOCK, &swoole_signalfd_mask, NULL) == -1)
 		{
 			swWarn("sigprocmask() failed. Error: %s[%d]", strerror(errno), errno);

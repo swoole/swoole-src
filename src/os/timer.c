@@ -30,7 +30,7 @@ int swTimer_create(swTimer *timer, int interval)
 	timer->lasttime = interval;
 
 #if defined(HAVE_TIMERFD) && SW_WORKER_IPC_MODE == 1
-	if(swTimer_timerfd_set(timer, interval) < 0)
+	if (swTimer_timerfd_set(timer, interval) < 0)
 	{
 		return SW_ERR;
 	}
@@ -75,7 +75,7 @@ int swTimer_timerfd_set(swTimer *timer, int interval)
 	struct itimerspec timer_set;
 	bzero(&timer_set, sizeof(timer_set));
 
-	if(timer->fd == 0)
+	if (timer->fd == 0)
 	{
 		timer->fd = timerfd_create(CLOCK_REALTIME, TFD_NONBLOCK | TFD_CLOEXEC);
 		if (timer->fd < 0)

@@ -265,9 +265,13 @@ int swServer_addTimer(swServer *serv, int interval)
 	//timer no init
 	if (SwooleG.timer.fd == 0)
 	{
-		if(swTimer_create(&SwooleG.timer, interval) < 0)
+		if (swTimer_create(&SwooleG.timer, interval) < 0)
 		{
 			return SW_ERR;
+		}
+		if (swIsMaster())
+		{
+			serv->connection_list[SW_SERVER_TIMER_FD_INDEX].fd = SwooleG.timer.fd;
 		}
 #if SW_WORKER_IPC_MODE == 1
 		SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_TIMER, swTimer_event_handler);
@@ -1064,6 +1068,7 @@ void swServer_signal_init(void)
 	swSignalfd_add(SIGALRM, swTimer_signal_handler);
 	//for test
 	swSignalfd_add(SIGVTALRM, swServer_signal_hanlder);
+	swServer_set_minfd(SwooleG.serv, SwooleG.signal_fd);
 #else
 	swSignal_set(SIGHUP, SIG_IGN, 1, 0);
 	swSignal_set(SIGPIPE, SIG_IGN, 1, 0);
@@ -1153,7 +1158,7 @@ int swServer_listen(swServer *serv, swReactor *reactor)
 		serv->connection_list[sock].addr.sin_port = listen_host->port;
 	}
 	//将最后一个fd作为minfd和maxfd
-	if (sock>=0)
+	if (sock >= 0)
 	{
 		swServer_set_minfd(serv, sock);
 		swServer_set_maxfd(serv, sock);

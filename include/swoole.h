@@ -844,6 +844,7 @@ typedef struct _swServerG{
 	int error;
 	int process_type;
 	int signal_alarm; //for timer with message queue
+	int signal_fd;
 
 	swServer *serv;
 	swFactory *factory;

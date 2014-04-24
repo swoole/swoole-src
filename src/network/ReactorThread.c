@@ -93,6 +93,13 @@ int swReactorThread_send(swSendData *_send)
 	swTask_sendfile *task;
 
 	swConnection *conn = swServer_get_connection(serv, fd);
+
+	if (conn == NULL || conn->active == 0)
+	{
+		swWarn("Connection[fd=%d] is not exists.", fd);
+		return SW_ERR;
+	}
+
 	swTraceLog(SW_TRACE_EVENT, "send-data. fd=%d|reactor_id=%d", fd, conn->from_id);
 	swReactor *reactor = &(serv->reactor_threads[conn->from_id].reactor);
 
@@ -656,6 +663,7 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
 			return SW_ERR;
 		}
 	}
+
 	//listen TCP
 	if (serv->have_tcp_sock == 1)
 	{
@@ -678,7 +686,7 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
 			param->object = serv;
 			param->pti = i;
 
-			if(pthread_create(&pidt, NULL, (void * (*)(void *)) swReactorThread_loop, (void *) param) < 0)
+			if (pthread_create(&pidt, NULL, (void * (*)(void *)) swReactorThread_loop, (void *) param) < 0)
 			{
 				swError("pthread_create[tcp_reactor] failed. Error: %s[%d]", strerror(errno), errno);
 			}

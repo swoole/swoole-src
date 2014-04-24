@@ -290,8 +290,9 @@ SWINLINE int swServer_new_connection(swServer *serv, swEvent *ev);
 SWINLINE void swConnection_close(swServer *serv, int fd, int notify);
 SWINLINE int swConnection_error(int fd, int err);
 
-#define SW_SERVER_MAX_FD_INDEX        0
-#define SW_SERVER_MIN_FD_INDEX        1
+#define SW_SERVER_MAX_FD_INDEX          0 //max connection socket
+#define SW_SERVER_MIN_FD_INDEX          1 //min listen socket
+#define SW_SERVER_TIMER_FD_INDEX        2 //for timerfd
 
 //使用connection_list[0]表示最大的FD
 #define swServer_set_maxfd(serv,maxfd) (serv->connection_list[SW_SERVER_MAX_FD_INDEX].fd=maxfd)

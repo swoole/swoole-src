@@ -1135,7 +1135,7 @@ PHP_FUNCTION(swoole_server_on)
 			break;
 		}
 	}
-	if(ret < 0)
+	if (ret < 0)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_server_on: unkown handler[%s].", ha_name);
 	}
@@ -1147,26 +1147,29 @@ PHP_FUNCTION(swoole_server_close)
 	zval *zobject = getThis();
 	swServer *serv;
 	swEvent ev;
-	long fd;
+	zval *fd;
 
 	if (zobject == NULL)
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ol", &zobject, swoole_server_class_entry_ptr, &fd) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Oz", &zobject, swoole_server_class_entry_ptr, &fd) == FAILURE)
 		{
 			return;
 		}
 	}
 	else
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &fd) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &fd) == FAILURE)
 		{
 			return;
 		}
 	}
+	convert_to_long(fd);
+
 	SWOOLE_GET_SERVER(zobject, serv);
-	ev.fd = (int)fd;
-	//主进程不应当执行此操作
-	if(swIsMaster())
+	ev.fd = Z_LVAL_P(fd);
+
+	//Master can't execute it
+	if (swIsMaster())
 	{
 		RETURN_FALSE;
 	}

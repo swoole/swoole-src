@@ -486,12 +486,16 @@ int swFactoryProcess_end(swFactory *factory, swDataHead *event)
 	int ret;
 	swServer *serv = factory->ptr;
 	swEvent ev;
-
 	bzero(&ev, sizeof(swEvent));
+
 	ev.fd = event->fd;
 	ev.len = 0; //len=0表示关闭此连接
 	ev.type = SW_EVENT_CLOSE;
 	ret = swFactoryProcess_finish(factory, (swSendData *)&ev);
+	if (ret < 0)
+	{
+		return  SW_ERR;
+	}
 	if (serv->onClose != NULL)
 	{
 		serv->onClose(serv, event->fd, event->from_id);
@@ -530,7 +534,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	memcpy(sdata._send.data, resp->data, resp->info.len);
 
 	swConnection *conn = swServer_get_connection(serv, fd);
-	if(conn == NULL)
+	if (conn == NULL || conn->active == 0)
 	{
 		swWarn("connection[%d] not found.", fd);
 		return SW_ERR;

@@ -32,8 +32,8 @@
 #include "Server.h"
 #include "Client.h"
 
-#define PHP_SWOOLE_VERSION  "1.7.1-alpha"
-//#define PHP_SWOOLE_CHECK_CALLBACK
+#define PHP_SWOOLE_VERSION  "1.7.1-beta"
+#define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
  * PHP5.2

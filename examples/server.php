@@ -8,17 +8,23 @@ $serv->set(array(
     'task_worker_num' => 2,
 	//'dispatch_mode' => 2,
 	//'daemonize' => 1,
-	'log_file' => '/tmp/swoole.log',
+	//'log_file' => '/tmp/swoole.log',
     //'heartbeat_idle_time' => 5,
     //'heartbeat_check_interval' => 5,
 ));
-function my_onStart($serv)
+
+function my_onStart(swoole_server $serv)
 {
     global $argv;
     swoole_set_process_name("php {$argv[0]}: master");
     echo "MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}\n";
     echo "Server: start.Swoole version is [".SWOOLE_VERSION."]\n";
-    //$serv->addtimer(1000);
+    $serv->addtimer(5000);
+}
+
+function my_log($msg)
+{
+    echo "#".posix_getpid()."\t".$msg.PHP_EOL;
 }
 
 function my_onShutdown($serv)
@@ -28,18 +34,18 @@ function my_onShutdown($serv)
 
 function my_onTimer($serv, $interval)
 {
-    echo "Server:Timer Call.Interval=$interval\n";
+    my_log("Server:Timer Call.Interval=$interval");
 }
 
 function my_onClose($serv, $fd, $from_id)
 {
-	//echo "Client: fd=$fd is closed.\n";
+    my_log("Client[$fd@$from_id]: fd=$fd is closed");
 }
 
 function my_onConnect($serv, $fd, $from_id)
 {
 	//throw new Exception("hello world");
- 	//echo "Client[$fd@$from_id]: Connect.\n";
+ 	echo "Client[$fd@$from_id]: Connect.\n";
 }
 
 function my_onWorkerStart($serv, $worker_id)
@@ -103,6 +109,12 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     elseif($cmd == "error")
     {
         hello_no_exists();
+    }
+    //关闭fd
+    elseif(substr($cmd, 0, 5) == "close")
+    {
+        $close_fd = substr($cmd, 6);
+        $serv->close($close_fd);
     }
 	elseif($cmd == "shutdown") 
     {
