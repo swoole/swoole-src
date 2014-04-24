@@ -162,8 +162,6 @@ SWINLINE int swRead(int fd, void *buf, int len)
 {
 	int n = 0, nread;
 	sw_errno = 0;
-	return recv(fd, buf, len, 0);
-
 
 	while (1)
 	{

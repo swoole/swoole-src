@@ -270,7 +270,7 @@ SWINLINE swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn)
 	else
 	{
 		buffer = conn->in_buffer;
-		trunk = swBuffer_get_trunk(buffer);
+		trunk = buffer->tail;
 		if (trunk == NULL || trunk->length == buffer->trunk_size)
 		{
 			trunk = swBuffer_new_trunk(buffer, SW_TRUNK_DATA, buffer->trunk_size);

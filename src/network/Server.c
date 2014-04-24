@@ -161,7 +161,7 @@ static int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 			case EINTR:
 				continue;
 			default:
-				swWarn("accept failed. Error: %s[%d]", strerror(errno), errno);
+				swWarn("accept() failed. Error: %s[%d]", strerror(errno), errno);
 				return SW_OK;
 			}
 		}

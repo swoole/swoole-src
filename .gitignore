@@ -42,5 +42,6 @@ modules/*
 /autom4te.cache
 /build
 /examples/async/data.txt
+/examples/.idea
 /examples/recv_file.jpg
 /modules

@@ -80,6 +80,7 @@
 #define SW_REACTOR_TIMEO_USEC      0
 #define SW_REACTOR_SCHEDULE        3    //连接分配模式: 1轮询分配, 2按FD取摸固定分配, 3根据连接数进行调度
 #define SW_REACTOR_MAXEVENTS       4096
+#define SW_REACTOR_SYNC_SEND            //sync send
 #define SW_SCHEDULE_INTERVAL       32   //平均调度的间隔次数,减少运算量
 
 #define SW_QUEUE_SIZE              100   //缩减版的RingQueue,用在线程模式下

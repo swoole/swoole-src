@@ -312,6 +312,7 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 		buffer->length += n;
 
 		//over max length, will discard
+		//TODO write to tmp file.
 		if (buffer->length > serv->buffer_input_size)
 		{
 			swWarn("Package is too big. package_length=%d", buffer->length);
@@ -335,7 +336,7 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 		}
 		else if(recv_again)
 		{
-			trunk = swConnection_get_in_buffer(conn);
+			trunk = swBuffer_new_trunk(buffer, SW_TRUNK_DATA, buffer->trunk_size);
 			if (trunk)
 			{
 				goto recv_data;
