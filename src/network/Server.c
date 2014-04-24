@@ -1225,7 +1225,7 @@ static void swServer_heartbeat_start(swServer *serv)
 	}
 	heartbeat_param->object = serv;
 	heartbeat_param->pti = 0;
-	if(pthread_create(&heartbeat_pidt, NULL, (void * (*)(void *)) swServer_heartbeat_check, (void *) heartbeat_param) < 0)
+	if (pthread_create(&heartbeat_pidt, NULL, (void * (*)(void *)) swServer_heartbeat_check, (void *) heartbeat_param) < 0)
 	{
 		swWarn("pthread_create[hbcheck] fail");
 	}
