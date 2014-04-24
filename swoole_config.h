@@ -66,7 +66,7 @@
 #define SW_AIO_EVENT_NUM           128
 
 #ifndef SW_WORKER_IPC_MODE
-#define SW_WORKER_IPC_MODE         2    //1:unix socket,2:IPC Message Queue
+#define SW_WORKER_IPC_MODE         1    //1:unix socket,2:IPC Message Queue
 #endif
 
 #define SW_USE_WRITER_THREAD       0    //使用单独的发送线程

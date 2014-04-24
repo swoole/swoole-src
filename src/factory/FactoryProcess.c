@@ -172,7 +172,7 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 		onTask:
 		factory->onTask(factory, task);
 		//只有数据请求任务才计算task_num
-		if(!worker_task_always)
+		if (!worker_task_always)
 		{
 			worker_task_num--;
 		}
@@ -183,7 +183,7 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 	case SW_EVENT_PACKAGE_TRUNK:
 	case SW_EVENT_PACKAGE_END:
 		package = SwooleWG.buffer_input[task->info.from_id];
-		//package开始
+		//package start
 		if(task->info.type == SW_EVENT_PACKAGE_START)
 		{
 			package->length = 0;
@@ -192,7 +192,7 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 		memcpy(package->str + package->length, task->data, task->info.len);
 		package->length += task->info.len;
 		swTrace("package[%d]. data_len=%d|total_length=%d\n", task->info.type, task->info.len, package->length);
-		//package已经完整接收
+		//package end
 		if(task->info.type == SW_EVENT_PACKAGE_END)
 		{
 			goto onTask;
