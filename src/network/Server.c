@@ -572,7 +572,7 @@ void swoole_init(void)
 		//将日志设置为标准输出
 		swoole_log_fn = stdout;
 		//初始化全局内存
-		SwooleG.memory_pool = swMemoryGlobal_create(SW_GLOBAL_MEMORY_PAGESIZE, 1);
+		SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
 		if(SwooleG.memory_pool == NULL)
 		{
 			swError("[Master] Fatal Error: create global memory fail. Error: %s[%d]", strerror(errno), errno);

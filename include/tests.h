@@ -9,7 +9,7 @@
 #define SW_TESTS_H_
 
 #define swUnitTest(x) int swUnitTest_##x(swUnitTest *object)
-#define swUnitTest_steup(x,n) _swUnitTest_setup(swUnitTest_##x, #x, n)
+#define swUnitTest_steup(x,n,t) _swUnitTest_setup(swUnitTest_##x, #x, n, t)
 
 typedef struct _swUnitTest
 {
@@ -18,7 +18,7 @@ typedef struct _swUnitTest
 } swUnitTest;
 typedef int (*swUnitTest_Func)(swUnitTest *object);
 
-void _swUnitTest_setup(swUnitTest_Func func, char *func_name, int run_times);
+void _swUnitTest_setup(swUnitTest_Func func, char *func_name, int run_times, char *comment);
 int swUnitTest_run(swUnitTest *object);
 
 swUnitTest(mem_test1);

@@ -250,7 +250,9 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/string.c \
         src/core/array.c \
         src/memory/ShareMemory.c \
-        src/memory/MemoryPool.c \
+        src/memory/MemoryGlobal.c \
+        src/memory/RingBuffer.c \
+        src/memory/FixedPool.c \
         src/factory/Factory.c \
         src/factory/FactoryThread.c \
         src/factory/FactoryProcess.c \

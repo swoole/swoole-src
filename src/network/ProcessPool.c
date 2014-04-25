@@ -82,13 +82,19 @@ int swProcessPool_start(swProcessPool *pool)
  */
 int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int worker_id)
 {
+	int ret;
 	//no worker_id, will round
-	if(worker_id < 0)
+	if (worker_id < 0)
 	{
 		worker_id = (pool->round_id++)%pool->worker_num;
 	}
 	swWorker *worker = &swProcessPool_worker(pool, worker_id);
-	return swWrite(worker->pipe_master, data, sizeof(data->info) + data->info.len);
+	ret = swWrite(worker->pipe_master, data, sizeof(data->info) + data->info.len);
+	if (ret < 0)
+	{
+		swWarn("sendto unix socket failed. Error: %s[%d]", strerror(errno), errno);
+	}
+	return ret;
 }
 
 void swProcessPool_shutdown(swProcessPool *pool)

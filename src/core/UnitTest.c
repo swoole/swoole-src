@@ -21,6 +21,7 @@
 typedef struct _swHashTable_FdInfo
 {
 	swUnitTest_Func func;
+	char *comment;
 	int run_times;
 	char *key;
 	UT_hash_handle hh;
@@ -28,13 +29,14 @@ typedef struct _swHashTable_FdInfo
 
 static swHashTable_unitTst *unitTest_ht;
 
-void _swUnitTest_setup(swUnitTest_Func func, char *func_name, int run_times)
+void _swUnitTest_setup(swUnitTest_Func func, char *func_name, int run_times, char *comment)
 {
 	swHashTable_unitTst *u;
 	u = (swHashTable_unitTst *) malloc(sizeof(swHashTable_unitTst));
 	u->key = func_name;
 	u->func = func;
 	u->run_times = run_times;
+	u->comment = comment;
 	HASH_ADD_STR(unitTest_ht, key, u);
 }
 
@@ -54,7 +56,7 @@ int swUnitTest_run(swUnitTest *object)
 		printf("Please enter %s unitTest_name\n", argv[0]);
 		for (tmp = unitTest_ht; tmp != NULL; tmp = tmp->hh.next)
 		{
-			printf("%d.\t%s\n", i++, tmp->key);
+			printf("#%d.\t%s: %s\n", ++i, tmp->key, tmp->comment);
 		}
 		return 0;
 	}

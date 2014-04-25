@@ -1,19 +1,30 @@
 #include "swoole.h"
 
+typedef struct _swRingBuffer
+{
+	uint8_t shared;
+	size_t size;
+	off_t alloc_offset;
+	off_t collect_offset;
+	uint32_t free_n;
+	void *memory;
+
+} swRingBuffer;
+
 typedef struct _swRingBuffer_item
 {
 	uint8_t lock;
 	uint32_t length;
 } swRingBuffer_head;
 
-static void swRingBuffer_destory(swAllocator *pool);
+static void swRingBuffer_destory(swMemoryPool *pool);
 SWINLINE static void swRingBuffer_collect(swRingBuffer *object);
-static void* swRingBuffer_alloc(swAllocator *pool, uint32_t size);
-static void swRingBuffer_free(swAllocator *pool, void *ptr);
+static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size);
+static void swRingBuffer_free(swMemoryPool *pool, void *ptr);
 
-swAllocator *swRingBuffer_new(size_t size, uint8_t shared)
+swMemoryPool *swRingBuffer_new(size_t size, uint8_t shared)
 {
-	size_t malloc_size = size + sizeof(swRingBuffer) + sizeof(swAllocator);
+	size_t malloc_size = size + sizeof(swRingBuffer) + sizeof(swMemoryPool);
 	void *mem = (shared == 1) ? sw_shm_malloc(malloc_size) : sw_malloc(malloc_size);
 	if (mem == NULL)
 	{
@@ -26,8 +37,8 @@ swAllocator *swRingBuffer_new(size_t size, uint8_t shared)
 	object->size = size;
 	object->shared = shared;
 
-	swAllocator *pool = mem;
-	mem += sizeof(swAllocator);
+	swMemoryPool *pool = mem;
+	mem += sizeof(swMemoryPool);
 	pool->object = object;
 	pool->destroy = swRingBuffer_destory;
 	pool->free = swRingBuffer_free;
@@ -64,7 +75,7 @@ SWINLINE static void swRingBuffer_collect(swRingBuffer *object)
 	}
 }
 
-static void* swRingBuffer_alloc(swAllocator *pool, uint32_t size)
+static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size)
 {
 	swRingBuffer *object = pool->object;
 	swRingBuffer_head *item = object->memory + object->alloc_offset;
@@ -127,7 +138,7 @@ static void* swRingBuffer_alloc(swAllocator *pool, uint32_t size)
 	return ret_mem;
 }
 
-static void swRingBuffer_free(swAllocator *pool, void *ptr)
+static void swRingBuffer_free(swMemoryPool *pool, void *ptr)
 {
 	swRingBuffer *object = pool->object;
 	swRingBuffer_head *item = ptr - sizeof(swRingBuffer_head);
@@ -135,7 +146,7 @@ static void swRingBuffer_free(swAllocator *pool, void *ptr)
 	object->free_n ++;
 }
 
-static void swRingBuffer_destory(swAllocator *pool)
+static void swRingBuffer_destory(swMemoryPool *pool)
 {
 	swRingBuffer *object = pool->object;
 	if (object->shared)

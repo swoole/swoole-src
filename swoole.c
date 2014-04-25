@@ -2629,18 +2629,21 @@ PHP_FUNCTION(swoole_server_finish)
 			return;
 		}
 	}
-	if(data_len > sizeof(buf.data))
+	if (data_len > sizeof(buf.data))
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: finish data max_size=%d.", (int) sizeof(buf.data));
 		RETURN_FALSE;
 	}
 	SWOOLE_GET_SERVER(zobject, serv);
-	if(serv->task_worker_num < 1)
+
+	if (serv->task_worker_num < 1)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: finish can not use here");
 		RETURN_FALSE;
 	}
+
 	swFactory *factory = &serv->factory;
+	int ret;
 
 	//for swoole_server_task
 	if (sw_current_task->info.type == SW_TASK_NONBLOCK)
@@ -2650,30 +2653,47 @@ PHP_FUNCTION(swoole_server_finish)
 		buf.info.type = SW_EVENT_FINISH;
 		buf.info.fd = sw_current_task->info.fd;
 
-		if(serv->factory_mode == SW_MODE_PROCESS)
+		if (serv->factory_mode == SW_MODE_PROCESS)
 		{
-			SW_CHECK_RETURN(swFactoryProcess_send2worker(factory, &buf, sw_current_task->info.from_id));
+			ret = swFactoryProcess_send2worker(factory, &buf, sw_current_task->info.from_id);
 		}
 		else
 		{
-			SW_CHECK_RETURN(swWrite(SwooleG.event_workers->workers[sw_current_task->info.from_id].pipe_worker, &buf, sizeof(buf.info)+data_len));
+			ret = swWrite(SwooleG.event_workers->workers[sw_current_task->info.from_id].pipe_worker, &buf, sizeof(buf.info)+data_len);
 		}
 	}
 	else
 	{
 		uint64_t flag = 1;
-		int ret;
 		swEventData *result = &SwooleG.task_result[sw_current_task->info.from_id];
 		memcpy(result->data, data, data_len);
 		result->info.len = data_len;
 		result->info.type = SW_EVENT_FINISH;
 		result->info.fd = sw_current_task->info.fd;
-		do
+
+		while(1)
 		{
 			ret = SwooleG.task_notify[sw_current_task->info.from_id].write(&SwooleG.task_notify[sw_current_task->info.from_id], &flag, sizeof(flag));
+			if (errno == EINTR)
+			{
+				continue;
+			}
+			else if (errno == EAGAIN)
+			{
+				swYield();
+				continue;
+			}
+			else
+			{
+				break;
+			}
 		}
-		while(ret < 0 && (errno==EINTR || errno==EAGAIN));
 	}
+	if (ret < 0)
+	{
+		swWarn("TaskWorker: send result to worker failed. Error: %s[%d]", strerror(errno), errno);
+	}
+	SW_CHECK_RETURN(ret);
 }
 
 /*

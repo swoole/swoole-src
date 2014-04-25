@@ -441,26 +441,7 @@ void *swShareMemory_sysv_create(swShareMemory *object, int size, int key);
 int swShareMemory_sysv_free(swShareMemory *object, int rm);
 int swShareMemory_mmap_free(swShareMemory *object);
 
-//-------------------share memory-------------------------
-typedef struct _swMemoryPoolSlab
-{
-	char tag; //1表示被占用 0未使用
-	struct _swMemoryPoolSlab *next;
-	struct _swMemoryPoolSlab *pre;
-	void *data; //读写区
-} swMemoryPoolSlab;
-
-typedef struct _swMemoryPool
-{
-	swMemoryPoolSlab *head;
-	swMemoryPoolSlab *tail;
-	int block_size; //每次扩容的长度
-	int memory_limit; //最大内存占用
-	int memory_usage; //内存使用量
-	int slab_size; //每个slab的长度
-	char shared; //是否使用共享内存
-} swMemoryPool;
-
+//-------------------memory manager-------------------------
 typedef struct _swString {
 	uint32_t length;
 	uint32_t size;
@@ -481,51 +462,33 @@ int swString_extend(swString *str, size_t new_size);
 #define swString_length(s) (s->length)
 #define swString_ptr(s) (s->str)
 
-typedef struct _swAllocator {
+typedef struct _swMemoryPool
+{
 	void *object;
-	void* (*alloc)(struct _swAllocator *pool, uint32_t size);
-	void (*free)(struct _swAllocator *pool, void *ptr);
-	void (*destroy)(struct _swAllocator *pool);
-} swAllocator;
-
-typedef struct _swMemoryGlobal
-{
-	int size;  //总容量
-	void *mem; //剩余内存的指针
-	int offset; //内存分配游标
-	char shared;
-	int pagesize;
-	swLock lock; //锁
-	void *root_page;
-	void *cur_page;
-} swMemoryGlobal;
-
-typedef struct _swRingBuffer
-{
-	uint8_t shared;
-	size_t size;
-	off_t alloc_offset;
-	off_t collect_offset;
-	uint32_t free_n;
-	void *memory;
-} swRingBuffer;
+	void* (*alloc)(struct _swMemoryPool *pool, uint32_t size);
+	void (*free)(struct _swMemoryPool *pool, void *ptr);
+	void (*destroy)(struct _swMemoryPool *pool);
+} swMemoryPool;
 
 /**
- * 内存池
+ * FixedPool, random alloc/free fixed size memory
  */
-int swMemoryPool_create(swMemoryPool *pool, int memory_limit, int slab_size);
-void swMemoryPool_free(swMemoryPool *pool, void *data);
-void* swMemoryPool_alloc(swMemoryPool *pool);
-
-swAllocator *swRingBuffer_new(size_t size, uint8_t shared);
+swMemoryPool * swFixedPool_new(uint32_t size, uint32_t trunk_size, uint8_t shared);
 
 /**
- * 全局内存,程序生命周期内只分配/释放一次
+ * RingBuffer, In order for malloc / free
  */
-swAllocator* swMemoryGlobal_create(int pagesize, char shared);
+swMemoryPool *swRingBuffer_new(size_t size, uint8_t shared);
 
 /**
- * 共享内存分配
+ * Global memory, the program life cycle only malloc / free one time
+ */
+swMemoryPool* swMemoryGlobal_new(int pagesize, char shared);
+
+void swFixedPool_debug(swMemoryPool *pool);
+
+/**
+ * alloc shared memory
  */
 void* sw_shm_malloc(size_t size);
 void sw_shm_free(void *ptr);
@@ -872,7 +835,7 @@ typedef struct _swServerG{
 	swProcessPool task_workers;
 	swProcessPool *event_workers;
 
-	swAllocator *memory_pool;
+	swMemoryPool *memory_pool;
 	swReactor *main_reactor;
 	swPipe *task_notify; //for taskwait
 	swEventData *task_result; //for taskwait
