@@ -15,7 +15,7 @@ $serv->on('workerStart', function($serv, $worker_id) {
 $serv->on('connect', function ($serv, $fd, $from_id){
     //echo "[#".posix_getpid()."]\tClient@[$fd:$from_id]: Connect.\n";
 });
-$serv->on('receive', function ($serv, $fd, $from_id, $data) {
+$serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
     //echo "[#".posix_getpid()."]\tClient[$fd]: $data\n";
     $serv->send($fd, json_encode(array("hello" => '1213', "bat" => "ab")));
     //$serv->close($fd);

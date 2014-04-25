@@ -483,9 +483,9 @@ int swString_extend(swString *str, size_t new_size);
 
 typedef struct _swAllocator {
 	void *object;
-	void* (*alloc)(struct _swAllocator *alloc, int size);
-	void (*free)(struct _swAllocator *alloc, void *ptr);
-	void (*destroy)(struct _swAllocator *alloc);
+	void* (*alloc)(struct _swAllocator *pool, uint32_t size);
+	void (*free)(struct _swAllocator *pool, void *ptr);
+	void (*destroy)(struct _swAllocator *pool);
 } swAllocator;
 
 typedef struct _swMemoryGlobal
@@ -500,12 +500,24 @@ typedef struct _swMemoryGlobal
 	void *cur_page;
 } swMemoryGlobal;
 
+typedef struct _swRingBuffer
+{
+	uint8_t shared;
+	size_t size;
+	off_t alloc_offset;
+	off_t collect_offset;
+	uint32_t free_n;
+	void *memory;
+} swRingBuffer;
+
 /**
  * 内存池
  */
 int swMemoryPool_create(swMemoryPool *pool, int memory_limit, int slab_size);
 void swMemoryPool_free(swMemoryPool *pool, void *data);
 void* swMemoryPool_alloc(swMemoryPool *pool);
+
+swAllocator *swRingBuffer_new(size_t size, uint8_t shared);
 
 /**
  * 全局内存,程序生命周期内只分配/释放一次

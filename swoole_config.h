@@ -90,6 +90,7 @@
 #define SW_RINGQUEUE_MEMSIZE       (1024*1024*4) //内存区大小,默认分配4M的内存
 
 //#define SW_USE_RINGQUEUE_TS       1     //使用线程安全版本的RingQueue
+#define SW_RINGBUFFER_COLLECT_N    100    //collect max_count
 #define SW_MEMORY_POOL_SLAB_PAGE   10     //内存池的页数
 
 #define SW_USE_FIXED_BUFFER

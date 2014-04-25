@@ -132,3 +132,71 @@ swUnitTest(mem_test3)
 	alloc->destroy(alloc);
 	return 0;
 }
+
+swUnitTest(mem_test4)
+{
+	swAllocator *pool = swRingBuffer_new(1024 * 1024, 0);
+
+	int i;
+	char *m;
+#define LOOP 80
+#define LOOP2 30
+	char *str[LOOP];
+	bzero(str, sizeof(char *) * LOOP);
+
+	printf("Alloc #1\n-----------------------------------------------\n");
+	for (i = 0; i < LOOP; i++)
+	{
+		m = pool->alloc(pool, 2048 + i);
+		if (m == NULL)
+		{
+			printf("[%d]Mempool Full\n", i);
+			str[i] = NULL;
+			break;
+		}
+		sprintf(m, "hello. index=%d\n", i);
+		str[i] = m;
+	}
+
+	for (i = 0; i < LOOP; i++)
+	{
+		if (str[i] == NULL)
+		{
+			continue;
+		}
+		printf("DATA=%s", str[i]);
+	}
+
+	printf("Free #1\n-----------------------------------------------\n");
+	for (i = 0; i <= 10; i++)
+	{
+		if (str[i] == NULL)
+		{
+			continue;
+		}
+		pool->free(pool, str[i]);
+	}
+
+	for (i = 0; i < LOOP2; i++)
+	{
+		m = pool->alloc(pool, 256+i);
+		if (m == NULL)
+		{
+			printf("Mempool Full\n");
+			str[i] = NULL;
+			break;
+		}
+		sprintf(m, "world. index=%d\n", i);
+		str[i] = m;
+	}
+
+	for (i = 0; i < LOOP2; i++)
+	{
+		if (str[i] == NULL)
+		{
+			break;
+		}
+		printf("DATA=%s", str[i]);
+	}
+	return 0;
+}
