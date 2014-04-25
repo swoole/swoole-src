@@ -13,7 +13,7 @@ PHP's asynchronous & concurrent & distributed networking framework.
 * async task
 * async read/write file system
 * async dns lookup
-* php websocket server/client
+* support IPv4/IPv6/UnixSocket/TCP/UDP
 
 Install
 -----
