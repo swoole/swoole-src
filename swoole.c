@@ -2140,7 +2140,7 @@ PHP_FUNCTION(swoole_server_send)
 
 	zval *zfd;
 
-	long conn_fd;
+	long conn_fd = 0;
 	long from_id = -1;
 
 	if (zobject == NULL)

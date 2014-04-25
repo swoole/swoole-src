@@ -93,6 +93,7 @@ static void swFixedPool_init(swFixedPool *object)
 	do
 	{
 		slice = (swFixedPool_slice *) cur;
+		bzero(slice, sizeof(swFixedPool_slice));
 
 		if (object->head != NULL)
 		{
