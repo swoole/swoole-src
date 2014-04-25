@@ -115,7 +115,7 @@ static void* swFixedPool_alloc(swMemoryPool *pool, uint32_t size)
 {
 	swFixedPool *object = pool->object;
 	swFixedPool_slice *slice;
-	alloc_start:
+
 	slice = object->head;
 
 	if (slice->lock == 0)
