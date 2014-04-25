@@ -65,7 +65,7 @@ uint32_t swoole_common_multiple(uint32_t u, uint32_t v)
 	return u * v / n_cup;
 }
 
-int swSocket_create(int type)
+SWINLINE int swSocket_create(int type)
 {
 	int _domain;
 	int _type;
@@ -88,6 +88,14 @@ int swSocket_create(int type)
 		_domain = PF_INET6;
 		_type = SOCK_DGRAM;
 		break;
+	case SW_SOCK_UNIX_DGRAM:
+			_domain = PF_UNIX;
+			_type = SOCK_DGRAM;
+			break;
+	case SW_SOCK_UNIX_STREAM:
+			_domain = PF_UNIX;
+			_type = SOCK_STREAM;
+			break;
 	default:
 		return SW_ERR;
 	}
@@ -100,6 +108,32 @@ SWINLINE void swFloat2timeval(float timeout, long int *sec, long int *usec)
 	*usec = (int) ((timeout * 1000 * 1000) - ((*sec) * 1000 * 1000));
 }
 
+SWINLINE int swSendto(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len)
+{
+	int count, n;
+	for (count = 0; count < SW_WORKER_SENDTO_COUNT; count++)
+	{
+		n = sendto(fd, __buf, __n, flag, __addr, __addr_len);
+		if (n == 0)
+		{
+			break;
+		}
+		else if (errno == EINTR)
+		{
+			continue;
+		}
+		else if (errno == EAGAIN)
+		{
+			swYield();
+		}
+		else
+		{
+			break;
+		}
+	}
+	return n;
+}
+
 int swSocket_listen(int type, char *host, int port, int backlog)
 {
 	int sock;
@@ -108,6 +142,7 @@ int swSocket_listen(int type, char *host, int port, int backlog)
 
 	struct sockaddr_in addr_in4;
 	struct sockaddr_in6 addr_in6;
+	struct sockaddr_un addr_un;
 
 	sock = swSocket_create(type);
 	if (sock < 0)
@@ -119,8 +154,17 @@ int swSocket_listen(int type, char *host, int port, int backlog)
 	option = 1;
 	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int));
 
+	//unix socket
+	if (type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM)
+	{
+		bzero(&addr_un, sizeof(addr_un));
+		unlink(host);
+		addr_un.sun_family = AF_UNIX;
+		strcpy(addr_un.sun_path, host);
+		ret = bind(sock, (struct sockaddr*)&addr_un, sizeof(addr_un));
+	}
 	//IPv6
-	if (type > SW_SOCK_UDP)
+	else if (type > SW_SOCK_UDP)
 	{
 		bzero(&addr_in6, sizeof(addr_in6));
 		inet_pton(AF_INET6, host, &(addr_in6.sin6_addr));
@@ -137,17 +181,17 @@ int swSocket_listen(int type, char *host, int port, int backlog)
 		addr_in4.sin_family = AF_INET;
 		ret = bind(sock, (struct sockaddr *) &addr_in4, sizeof(addr_in4));
 	}
-	//将监听套接字同sockaddr绑定
+	//bind failed
 	if (ret < 0)
 	{
-		swWarn("Bind fail.type=%d|host=%s|port=%d. Error: %s [%d]", type, host, port, strerror(errno), errno);
+		swWarn("Bind failed. type=%d|host=%s|port=%d. Error: %s [%d]", type, host, port, strerror(errno), errno);
 		return SW_ERR;
 	}
-	if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6)
+	if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM)
 	{
 		return sock;
 	}
-	//开始监听套接字
+	//listen stream socket
 	ret = listen(sock, backlog);
 	if (ret < 0)
 	{

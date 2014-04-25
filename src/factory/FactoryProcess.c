@@ -168,6 +168,7 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 	//no buffer
 	case SW_EVENT_TCP:
 	case SW_EVENT_UDP:
+	case SW_EVENT_UNIX_DGRAM:
 		//处理任务
 		onTask:
 		factory->onTask(factory, task);
@@ -503,18 +504,30 @@ int swFactoryProcess_end(swFactory *factory, swDataHead *event)
 	return ret;
 }
 /**
- * Worker进程,向writer发送数据
+ * worker: send to client
  */
 int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 {
-	//UDP直接在worker进程内发送
 	int ret, sendn, count;
 	swFactoryProcess *object = factory->object;
 	swServer *serv = factory->ptr;
 	int fd = resp->info.fd;
 
-	//UDP在worker进程中直接发送到客户端
-	if(resp->info.type == SW_EVENT_UDP)
+	//unix dgram
+	if (resp->info.type == SW_EVENT_UNIX_DGRAM)
+	{
+		socklen_t len;
+		struct sockaddr_un addr_un;
+		int from_sock = resp->info.from_fd;
+
+		addr_un.sun_family = AF_UNIX;
+		memcpy(addr_un.sun_path, resp->sun_path, resp->sun_path_len);
+		len = sizeof(addr_un);
+		ret = swSendto(from_sock, resp->data, resp->info.len, 0, (struct sockaddr *) &addr_un, len);
+		goto finish;
+	}
+	//UDP pacakge
+	else if (resp->info.type == SW_EVENT_UDP || resp->info.type == SW_EVENT_UDP6)
 	{
 		ret = swServer_send_udp_packet(serv, resp);
 		goto finish;
@@ -527,7 +540,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 		swEventData _send;
 	} sdata;
 
-	//写队列mtype
+	//for message queue
 	sdata.pti = (SwooleWG.id % serv->writer_num) + 1;
 
 	//copy
@@ -837,7 +850,7 @@ int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int work
 		{
 			//Fixed #48. 替换一下顺序
 			//udp use remote port
-			if (data->info.type == SW_EVENT_UDP)
+			if (data->info.type == SW_EVENT_UDP || data->info.type == SW_EVENT_UDP6 || data->info.type == SW_EVENT_UNIX_DGRAM)
 			{
 				pti = ((uint16_t) data->info.from_id) % object->worker_num;
 			}

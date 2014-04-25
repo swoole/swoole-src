@@ -52,6 +52,7 @@ extern "C" {
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/wait.h>
+#include <sys/un.h>
 
 #ifdef HAVE_TIMERFD
 #include <sys/timerfd.h>
@@ -168,6 +169,8 @@ int daemon(int nochdir, int noclose);
 #define SW_SOCK_UDP            2
 #define SW_SOCK_TCP6           3
 #define SW_SOCK_UDP6           4
+#define SW_SOCK_UNIX_DGRAM     5  //unix sock dgram
+#define SW_SOCK_UNIX_STREAM    6  //unix sock stream
 
 #define SW_LOG_DEBUG           0
 #define SW_LOG_INFO            1
@@ -250,6 +253,8 @@ typedef struct _swEventData
 typedef struct _swSendData
 {
 	swDataHead info;
+	char *sun_path;
+	uint8_t sun_path_len;
 	char *data;
 } swSendData;
 
@@ -572,7 +577,9 @@ SWINLINE void swSetBlock(int);
 void swoole_init(void);
 void swoole_clean(void);
 int swSocket_listen(int type, char *host, int port, int backlog);
-int swSocket_create(int type);
+SWINLINE int swSocket_create(int type);
+SWINLINE int swSendto(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
+SWINLINE void swFloat2timeval(float timeout, long int *sec, long int *usec);
 swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask);
 void swSignal_none(void);
 

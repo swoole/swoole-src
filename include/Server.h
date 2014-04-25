@@ -50,6 +50,9 @@ extern "C" {
 
 #define SW_EVENT_TCP               0
 #define SW_EVENT_UDP               1
+#define SW_EVENT_TCP6              2
+#define SW_EVENT_UDP6              3
+
 #define SW_EVENT_CLOSE             5
 #define SW_EVENT_CONNECT           6
 #define SW_EVENT_TIMER             7
@@ -59,11 +62,14 @@ extern "C" {
 #define SW_EVENT_PACKAGE_END       11
 #define SW_EVENT_SENDFILE          12
 
+#define SW_EVENT_UNIX_DGRAM        13
+#define SW_EVENT_UNIX_STREAM       14
+
 #define SW_STATUS_EMPTY            0
 #define SW_STATUS_ACTIVE           1
 #define SW_STATUS_CLOSED           2
 
-#define SW_HOST_MAXSIZE            48
+#define SW_HOST_MAXSIZE            128
 #define SW_MAX_TMP_PKG             1000
 #define SW_LOG_FILENAME            128
 
@@ -123,20 +129,51 @@ typedef struct {
 	off_t offset;
 } swTask_sendfile;
 
-typedef struct _swConnection {
-	uint8_t active;     //0表示非活动,1表示活动
-	int fd;             //文件描述符
-	uint16_t from_id;   //Reactor Id
-	uint16_t from_fd;   //从哪个ServerFD引发的
-	struct sockaddr_in addr; //socket的地址
+typedef struct _swConnection
+{
+	/**
+	 * is active
+	 * system fd must be 0. en: timerfd, signalfd, listen socket
+	 */
+	uint8_t active;
 
-	swString *string_buffer;    //缓存区
+	/**
+	 * file descript
+	 */
+	int fd;
+
+	/**
+	 * ReactorThread id
+	 */
+	uint16_t from_id;
+
+	/**
+	 * from which socket fd
+	 */
+	uint16_t from_fd;
+
+	/**
+	 * socket address
+	 */
+	struct sockaddr_in addr;
+
+	/**
+	 * link any thing
+	 */
+	void *object;
 
 	swBuffer *in_buffer;
 	swBuffer *out_buffer;
 
-	time_t connect_time; //连接时间戳
-	time_t last_time;	 //最近一次收到数据的时间
+	/**
+	 * connect time(seconds)
+	 */
+	time_t connect_time;
+	/**
+	 * received time with last data
+	 */
+	time_t last_time;
+
 } swConnection;
 
 struct swServer_s
@@ -260,6 +297,12 @@ struct swServer_s
 	int (*onTask)(swServer *serv, swEventData *data);
 	int (*onFinish)(swServer *serv, swEventData *data);
 };
+
+typedef struct _swSocketLocal
+{
+	socklen_t len;
+	char file[0];
+} swSocketLocal;
 
 int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);

@@ -827,34 +827,16 @@ int swServer_onFinish(swFactory *factory, swSendData *resp)
 
 int swServer_send_udp_packet(swServer *serv, swSendData *resp)
 {
-	int count, ret;
-	struct sockaddr_in to_addr;
-	to_addr.sin_family = AF_INET;
-	to_addr.sin_port = htons((unsigned short) resp->info.from_id); //from_id is port
-	to_addr.sin_addr.s_addr = resp->info.fd; //from_id is port
+	socklen_t len;
+	struct sockaddr_in addr_in;
 	int sock = resp->info.from_fd;
 
-	for (count = 0; count < SW_WORKER_SENDTO_COUNT; count++)
-	{
-		ret = sendto(sock, resp->data, resp->info.len, MSG_DONTWAIT, (struct sockaddr *) &to_addr, sizeof(to_addr));
-		if (ret == 0)
-		{
-			break;
-		}
-		else if (errno == EINTR)
-		{
-			continue;
-		}
-		else if (errno == EAGAIN)
-		{
-			swYield();
-		}
-		else
-		{
-			break;
-		}
-	}
-	return ret;
+	addr_in.sin_family = AF_INET;
+	addr_in.sin_port = htons((unsigned short) resp->info.from_id); //from_id is port
+	addr_in.sin_addr.s_addr = resp->info.fd; //from_id is port
+	len = sizeof(addr_in);
+
+	return swSendto(sock, resp->data, resp->info.len, 0, (struct sockaddr*) &addr_in, len);
 }
 
 /**
@@ -922,9 +904,11 @@ static int swServer_single_start(swServer *serv)
 		LL_FOREACH(serv->listen_list, listen_host)
 		{
 			//UDP
-			if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6)
+			if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6 || listen_host->type == SW_SOCK_UNIX_DGRAM)
 			{
 				serv->connection_list[listen_host->sock].addr.sin_port = listen_host->port;
+				serv->connection_list[listen_host->sock].fd = listen_host->sock;
+				serv->connection_list[listen_host->sock].object = listen_host;
 			}
 		}
 	}
@@ -1095,10 +1079,10 @@ int swServer_addListen(swServer *serv, int type, char *host, int port)
 	LL_APPEND(serv->listen_list, listen_host);
 
 	//UDP需要提前创建好
-	if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6)
+	if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM)
 	{
 		int sock = swSocket_listen(type, listen_host->host, port, serv->backlog);
-		if(sock < 0)
+		if (sock < 0)
 		{
 			return SW_ERR;
 		}
@@ -1112,11 +1096,20 @@ int swServer_addListen(swServer *serv, int type, char *host, int port)
 	}
 	else
 	{
+		if (type != SW_SOCK_UNIX_STREAM && port <= 0)
+		{
+			swError("swServer: listen port must greater than 0.");
+			return SW_ERR;
+		}
 		serv->have_tcp_sock = 1;
 	}
 	return SW_OK;
 }
 
+/**
+ * listen the TCP server socket
+ * UDP ignore
+ */
 int swServer_listen(swServer *serv, swReactor *reactor)
 {
 	int sock=-1, sockopt;
@@ -1126,12 +1119,11 @@ int swServer_listen(swServer *serv, swReactor *reactor)
 	LL_FOREACH(serv->listen_list, listen_host)
 	{
 		//UDP
-		if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6)
+		if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6 || listen_host->type == SW_SOCK_UNIX_DGRAM)
 		{
-			//设置到fdList中，发送UDP包时需要
-			serv->connection_list[listen_host->sock].fd = listen_host->sock;
 			continue;
 		}
+
 		//TCP
 		sock = swSocket_listen(listen_host->type, listen_host->host, listen_host->port, serv->backlog);
 		if (sock < 0)
@@ -1152,10 +1144,12 @@ int swServer_listen(swServer *serv, swReactor *reactor)
 			setsockopt(sock, IPPROTO_TCP, TCP_DEFER_ACCEPT, &sockopt, sizeof(sockopt));
 		}
 #endif
-
 		listen_host->sock = sock;
 		//将server socket也放置到connection_list中
+		serv->connection_list[sock].fd = sock;
 		serv->connection_list[sock].addr.sin_port = listen_host->port;
+		//save listen_host object
+		serv->connection_list[sock].object = listen_host;
 	}
 	//将最后一个fd作为minfd和maxfd
 	if (sock >= 0)

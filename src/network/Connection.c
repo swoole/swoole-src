@@ -82,9 +82,9 @@ SWINLINE void swConnection_close(swServer *serv, int fd, int notify)
 	}
 	else if (serv->open_length_check == 1)
 	{
-		if (conn->string_buffer != NULL)
+		if (conn->object != NULL)
 		{
-			swString_free(conn->string_buffer);
+			swString_free(conn->object);
 		}
 	}
 
@@ -178,7 +178,7 @@ SWINLINE int swServer_new_connection(swServer *serv, swEvent *ev)
 
 SWINLINE swString* swConnection_get_string_buffer(swConnection *conn)
 {
-	swString *buffer = conn->string_buffer;
+	swString *buffer = conn->object;
 	if (buffer == NULL)
 	{
 		return swString_new(SW_BUFFER_SIZE);
@@ -191,11 +191,11 @@ SWINLINE swString* swConnection_get_string_buffer(swConnection *conn)
 
 SWINLINE void swConnection_clear_string_buffer(swConnection *conn)
 {
-	swString *buffer = conn->string_buffer;
+	swString *buffer = conn->object;
 	if (buffer != NULL)
 	{
 		swString_free(buffer);
-		conn->string_buffer = NULL;
+		conn->object = NULL;
 	}
 }
 

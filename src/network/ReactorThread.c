@@ -20,8 +20,11 @@
 #include <sys/stat.h>
 
 static int swUDPThread_start(swServer *serv);
-static void swUDPThread_loop(swThreadParam *param);
-static int swReactorThread_loop(swThreadParam *param);
+
+static int swReactorThread_loop_udp(swThreadParam *param);
+static int swReactorThread_loop_tcp(swThreadParam *param);
+static int swReactorThread_loop_unix_dgram(swThreadParam *param);
+
 static int swReactorThread_onClose(swReactor *reactor, swEvent *event);
 static int swReactorThread_onWrite(swReactor *reactor, swDataHead *ev);
 static void swReactorThread_onTimeout(swReactor *reactor);
@@ -655,7 +658,7 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
 
 	int i, ret;
 	//listen UDP
-	if(serv->have_udp_sock == 1)
+	if (serv->have_udp_sock == 1)
 	{
 		if (swUDPThread_start(serv) < 0)
 		{
@@ -686,7 +689,7 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
 			param->object = serv;
 			param->pti = i;
 
-			if (pthread_create(&pidt, NULL, (void * (*)(void *)) swReactorThread_loop, (void *) param) < 0)
+			if (pthread_create(&pidt, NULL, (void * (*)(void *)) swReactorThread_loop_tcp, (void *) param) < 0)
 			{
 				swError("pthread_create[tcp_reactor] failed. Error: %s[%d]", strerror(errno), errno);
 			}
@@ -696,7 +699,7 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
 	}
 
 	//timer
-	if(SwooleG.timer.fd > 0)
+	if (SwooleG.timer.fd > 0)
 	{
 		main_reactor_ptr->add(main_reactor_ptr, SwooleG.timer.fd, SW_FD_TIMER);
 	}
@@ -708,7 +711,7 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
 /**
  * ReactorThread main Loop
  */
-static int swReactorThread_loop(swThreadParam *param)
+static int swReactorThread_loop_tcp(swThreadParam *param)
 {
 	swServer *serv = SwooleG.serv;
 	int ret;
@@ -790,17 +793,30 @@ static int swUDPThread_start(swServer *serv)
 	pthread_t pidt;
 	swListenList_node *listen_host;
 
+	void * (*thread_loop)(void *);
+
 	LL_FOREACH(serv->listen_list, listen_host)
 	{
 		param = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
 		//UDP
-		if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6)
+		if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6 || listen_host->type == SW_SOCK_UNIX_DGRAM)
 		{
 			serv->connection_list[listen_host->sock].addr.sin_port = listen_host->port;
+			serv->connection_list[listen_host->sock].object = listen_host;
+
 			param->object = serv;
 			param->pti = listen_host->sock;
 
-			if (pthread_create(&pidt, NULL, (void * (*)(void *)) swUDPThread_loop, (void *) param) < 0)
+			if (listen_host->type == SW_SOCK_UNIX_DGRAM)
+			{
+				thread_loop = (void * (*)(void *)) swReactorThread_loop_unix_dgram;
+			}
+			else
+			{
+				thread_loop = (void * (*)(void *)) swReactorThread_loop_udp;
+			}
+
+			if (pthread_create(&pidt, NULL, thread_loop, (void *) param) < 0)
 			{
 				swWarn("pthread_create[udp_listener] fail");
 				return SW_ERR;
@@ -815,19 +831,19 @@ static int swUDPThread_start(swServer *serv)
 /**
  * udp listener thread
  */
-static void swUDPThread_loop(swThreadParam *param)
+static int swReactorThread_loop_udp(swThreadParam *param)
 {
 	int ret;
+	socklen_t addrlen;
 	swServer *serv = param->object;
 
 	swEventData buf;
-	struct sockaddr_in addr;
-	socklen_t addrlen = sizeof(addr);
+	struct sockaddr_in addr_in;
+	addrlen = sizeof(addr_in);
 
-	//使用pti保存fd
 	int sock = param->pti;
 
-	//阻塞读取UDP
+	//blocking
 	swSetBlock(sock);
 
 	bzero(&buf.info, sizeof(buf.info));
@@ -835,14 +851,16 @@ static void swUDPThread_loop(swThreadParam *param)
 
 	while (SwooleG.running == 1)
 	{
-		ret = recvfrom(sock, buf.data, SW_BUFFER_SIZE, 0, (struct sockaddr *)&addr, &addrlen);
+		ret = recvfrom(sock, buf.data, SW_BUFFER_SIZE, 0, (struct sockaddr *)&addr_in, &addrlen);
 		if (ret > 0)
 		{
+			swBreakPoint();
+
 			buf.info.len = ret;
 			buf.info.type = SW_EVENT_UDP;
 			//UDP的from_id是PORT，FD是IP
-			buf.info.from_id = ntohs(addr.sin_port); //转换字节序
-			buf.info.fd = addr.sin_addr.s_addr;
+			buf.info.from_id = ntohs(addr_in.sin_port); //转换字节序
+			buf.info.fd = addr_in.sin_addr.s_addr;
 
 			swTrace("recvfrom udp socket.fd=%d|data=%s", sock, buf.data);
 			ret = serv->factory.dispatch(&serv->factory, &buf);
@@ -853,4 +871,59 @@ static void swUDPThread_loop(swThreadParam *param)
 		}
 	}
 	pthread_exit(0);
+	return 0;
 }
+
+/**
+ * unix socket dgram thread
+ */
+static int swReactorThread_loop_unix_dgram(swThreadParam *param)
+{
+	int n;
+	swServer *serv = param->object;
+
+	swEventData buf;
+	struct sockaddr_un addr_un;
+	socklen_t addrlen = sizeof(struct sockaddr_un);
+	int sock = param->pti;
+
+	uint16_t sun_path_offset;
+	uint8_t sun_path_len;
+
+	//blocking
+	swSetBlock(sock);
+
+	bzero(&buf.info, sizeof(buf.info));
+	buf.info.from_fd = sock;
+	buf.info.type = SW_EVENT_UNIX_DGRAM;
+
+	while (SwooleG.running == 1)
+	{
+		n = recvfrom(sock, buf.data, SW_BUFFER_SIZE, 0, (struct sockaddr *) &addr_un, &addrlen);
+		if (n > 0)
+		{
+			if (n > SW_BUFFER_SIZE - sizeof(addr_un.sun_path))
+			{
+				swWarn("Error: unix dgram length must be less than %ld", SW_BUFFER_SIZE - sizeof(addr_un.sun_path));
+				continue;
+			}
+
+			sun_path_len = strlen(addr_un.sun_path) + 1;
+			sun_path_offset = n;
+			buf.info.fd = sun_path_offset;
+			buf.info.len = n + sun_path_len;
+			memcpy(buf.data + n, addr_un.sun_path, sun_path_len);
+
+			swTrace("recvfrom udp socket.fd=%d|data=%s", sock, buf.data);
+
+			n = serv->factory.dispatch(&serv->factory, &buf);
+			if (n < 0)
+			{
+				swWarn("factory->dispatch[udp packet] fail\n");
+			}
+		}
+	}
+	pthread_exit(0);
+	return 0;
+}
+

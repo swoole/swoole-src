@@ -38,6 +38,7 @@ void ***sw_thread_ctx;
 static swEventData *sw_current_task;
 static int php_swoole_task_id;
 static int php_swoole_udp_from_id;
+static int php_swoole_unix_dgram_fd;
 
 extern sapi_module_struct sapi_module;
 
@@ -478,6 +479,8 @@ PHP_MINIT_FUNCTION(swoole)
 	REGISTER_LONG_CONSTANT("SWOOLE_TCP6", SW_SOCK_TCP6, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_UDP", SW_SOCK_UDP, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_UDP6", SW_SOCK_UDP6, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SWOOLE_UNIX_DGRAM", SW_SOCK_UNIX_DGRAM, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SWOOLE_UNIX_STREAM", SW_SOCK_UNIX_STREAM, CONST_CS | CONST_PERSISTENT);
 	/**
 	 * Lock type
 	 */
@@ -728,7 +731,7 @@ PHP_FUNCTION(swoole_server_create)
 
 	bzero(php_sw_callback, sizeof(zval*) * PHP_SERVER_CALLBACK_NUM);
 
-	if(swServer_addListen(serv, sock_type, serv_host, serv_port) < 0)
+	if (swServer_addListen(serv, sock_type, serv_host, serv_port) < 0)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "swServer_addListen fail. Error: %s [%d]", strerror(errno), errno);
 	}
@@ -1392,7 +1395,7 @@ PHP_FUNCTION(swoole_connection_list)
 	//sw_log(SW_END_LINE);
 }
 
-int php_swoole_onReceive(swFactory *factory, swEventData *req)
+static int php_swoole_onReceive(swFactory *factory, swEventData *req)
 {
 	swServer *serv = factory->ptr;
 	zval *zserv = (zval *)serv->ptr2;
@@ -1407,25 +1410,35 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	php_swoole_udp_t udp_info;
 
 	MAKE_STD_ZVAL(zfd);
-	ZVAL_LONG(zfd, (long)req->info.fd);
-
 	MAKE_STD_ZVAL(zfrom_id);
+	MAKE_STD_ZVAL(zdata);
 
-	if(req->info.type == SW_EVENT_UDP)
+	//udp
+	if (req->info.type == SW_EVENT_UDP)
 	{
 		udp_info.from_fd = req->info.from_fd;
 		udp_info.port = req->info.from_id;
 		memcpy(&php_swoole_udp_from_id, &udp_info, sizeof(php_swoole_udp_from_id));
 		factory->last_from_id = php_swoole_udp_from_id;
 		swTrace("SendTo: from_id=%d|from_fd=%d", (uint16_t)req->info.from_id, req->info.from_fd);
+
 		ZVAL_LONG(zfrom_id, (long) php_swoole_udp_from_id);
+		ZVAL_LONG(zfd, (long)req->info.fd);
+	}
+	//unix dgram
+	else if (req->info.type == SW_EVENT_UNIX_DGRAM)
+	{
+		uint16_t sun_path_offset = req->info.fd;
+		ZVAL_STRING(zfd, req->data + sun_path_offset, 1);
+		req->info.len -= (Z_STRLEN_P(zfd) + 1);
+		ZVAL_LONG(zfrom_id, (long)req->info.from_fd);
+		php_swoole_unix_dgram_fd = req->info.from_fd;
 	}
 	else
 	{
 		ZVAL_LONG(zfrom_id, (long)req->info.from_id);
+		ZVAL_LONG(zfd, (long)req->info.fd);
 	}
-
-	MAKE_STD_ZVAL(zdata);
 
 	char *data_ptr;
 	int data_len;
@@ -2125,12 +2138,14 @@ PHP_FUNCTION(swoole_server_send)
 	char *send_data;
 	int send_len;
 
+	zval *zfd;
+
 	long conn_fd;
 	long from_id = -1;
 
 	if (zobject == NULL)
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ols|l", &zobject, swoole_server_class_entry_ptr, &conn_fd, &send_data,
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ozs|l", &zobject, swoole_server_class_entry_ptr, &zfd, &send_data,
 				&send_len, &from_id) == FAILURE)
 		{
 			return;
@@ -2138,17 +2153,11 @@ PHP_FUNCTION(swoole_server_send)
 	}
 	else
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls|l", &conn_fd, &send_data,
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zs|l", &zfd, &send_data,
 				&send_len, &from_id) == FAILURE)
 		{
 			return;
 		}
-	}
-
-	if (conn_fd <= 0)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server->send error: Invalid fd[%ld] error.", conn_fd);
-		RETURN_FALSE;
 	}
 
 	if (send_len <= 0)
@@ -2158,8 +2167,34 @@ PHP_FUNCTION(swoole_server_send)
 	}
 
 	SWOOLE_GET_SERVER(zobject, serv);
-
 	factory = &(serv->factory);
+
+	if (Z_TYPE_P(zfd) == IS_STRING)
+	{
+		//unix dgram
+		if (!is_numeric_string(Z_STRVAL_P(zfd), Z_STRLEN_P(zfd), &conn_fd, NULL, 0))
+		{
+			_send.info.fd = (int)conn_fd;
+			_send.info.type = SW_EVENT_UNIX_DGRAM;
+			_send.info.from_fd = (from_id > 0) ? from_id : php_swoole_unix_dgram_fd;
+			_send.sun_path = Z_STRVAL_P(zfd);
+			_send.sun_path_len = Z_STRLEN_P(zfd);
+			_send.info.len = send_len;
+			_send.data = send_data;
+			SW_CHECK_RETURN(factory->finish(factory, &_send));
+		}
+	}
+	else
+	{
+		conn_fd = Z_LVAL_P(zfd);
+	}
+
+	if (conn_fd <= 0)
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server->send error: Invalid fd[%ld] error.", conn_fd);
+		RETURN_FALSE;
+	}
+
 	_send.info.fd = (int)conn_fd;
 
 	//UDP, UDP必然超过0x1000000
