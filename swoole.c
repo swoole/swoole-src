@@ -416,10 +416,10 @@ PHP_FUNCTION(swoole_server_create)
 		return;
 	}
 
-	if(serv_mode == SW_MODE_THREAD)
+	if (serv_mode == SW_MODE_THREAD || serv_mode == SW_MODE_BASE)
 	{
-		serv_mode = SW_MODE_SINGLE;
-		zend_error(E_WARNING, "PHP can not running at multi-threading. Reset mode to SW_MODE_BASE");
+		serv_mode = SW_MODE_PROCESS;
+		zend_error(E_WARNING, "PHP can not running at multi-threading. Reset mode to SWOOLE_PROCESS");
 	}
 
 	serv->factory_mode = serv_mode;
@@ -434,9 +434,9 @@ PHP_FUNCTION(swoole_server_create)
 
 	bzero(php_sw_callback, sizeof(zval*) * PHP_SERVER_CALLBACK_NUM);
 
-	if(swServer_addListen(serv, sock_type, serv_host, serv_port) < 0)
+	if (swServer_addListen(serv, sock_type, serv_host, serv_port) < 0)
 	{
-		zend_error(E_ERROR, "swServer_addListen fail. Error: %s [%d]", strerror(errno), errno);
+		zend_error(E_ERROR, "swServer_addListen failed. Error: %s [%d]", strerror(errno), errno);
 	}
 	if (!getThis())
 	{
@@ -1265,7 +1265,7 @@ int php_swoole_onReceive(swFactory *factory, swEventData *req)
 
 	MAKE_STD_ZVAL(zfrom_id);
 
-	if(req->info.type == SW_EVENT_UDP)
+	if (req->info.type == SW_EVENT_UDP)
 	{
 		udp_info.from_fd = req->info.from_fd;
 		udp_info.port = req->info.from_id;
