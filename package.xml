@@ -7,13 +7,16 @@
 	<channel>pecl.php.net</channel>
 	<summary>PHP's asynchronous concurrent distributed networking framework</summary>
 	<description>PHP's asynchronous concurrent distributed networking framework.
-- Event-driven
-- Asynchronous non-blocking
-- Multi-Thread reactor
-- Multi-Process worker
-- Millisecond timer
-- Asynchronous MySQL
-- AsyncTask workers
+- event-driven
+- full asynchronous non-blocking
+- multi-thread reactor
+- multi-process worker
+- millisecond timer
+- async MySQL
+- async task
+- async read/write file system
+- async dns lookup
+- support IPv4/IPv6/UnixSocket/TCP/UDP
     </description>
 	<lead>
 		<name>Tianfeng Han</name>
@@ -27,11 +30,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-	<date>2014-04-16</date>
+	<date>2014-04-30</date>
 	<time>19:51:51</time>
 	<version>
-		<release>1.7.0</release>
-		<api>1.7.0</api>
+		<release>1.7.1</release>
+		<api>1.7.1</api>
 	</version>
 	<stability>
 		<release>stable</release>
@@ -39,7 +42,16 @@
 	</stability>
 	<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
 	<notes>
-    - Fixed compile error.
+- Check close fd is not timer_fd
+- TCP_DEFER_ACCEPT option
+- socket LINGER option
+- Fixed eof_check memory error
+- Added swoole_event_set
+- Added swoole_client out_buffer
+- Added socket linger option
+- Fixed the swoole_server->close destroy out_buffer bug
+- Using php_error_docref
+- Fixed swoole_async_dns_lookup warning
 	</notes>
 	<contents>
 		<dir name="/">
@@ -183,6 +195,23 @@
 	<providesextension>swoole</providesextension>
 	<extsrcrelease />
 	<changelog>
+		<release>
+			<date>2014-04-16</date>
+			<time>19:51:51</time>
+			<version>
+				<release>1.7.0</release>
+				<api>1.7.0</api>
+			</version>
+			<stability>
+				<release>stable</release>
+				<api>stable</api>
+			</stability>
+			<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
+			<notes>
+		    - Fixed compile error.
+			</notes>
+		</release>
+
 		<release>
 			<date>2014-04-11</date>
 			<time>10:51:51</time>
