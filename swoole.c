@@ -1334,7 +1334,7 @@ PHP_FUNCTION(swoole_connection_info)
 	}
 
 	//connection is closed
-	if(conn->active == 0)
+	if (conn->active == 0)
 	{
 		RETURN_FALSE;
 	}
@@ -1468,16 +1468,35 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
 		data_ptr = SwooleWG.buffer_input[req->info.from_id]->str;
 		data_len = SwooleWG.buffer_input[req->info.from_id]->length;
 	}
+#ifdef SW_REACTOR_USE_RINGBUFFER
+	else if(req->info.type == SW_EVENT_PACKAGE)
+	{
+		swPackage package;
+		memcpy(&package, req->data, sizeof(package));
+
+		data_ptr = package.data;
+		data_len = package.length;
+	}
+#endif
 	else
 	{
 		data_ptr = req->data;
 		data_len = req->info.len;
 	}
 
+	//swError("data_len=%d|data_ptr=%p", data_len, data_ptr);
+
 	//zero copy
 	//ZVAL_STRINGL(zdata, data_ptr, data_len, 0);
 	ZVAL_STRINGL(zdata, data_ptr, data_len, 1);
-	swTrace("data_len=%d|data_ptr=%p", data_len, data_ptr);
+
+#ifdef SW_REACTOR_USE_RINGBUFFER
+	if(req->info.type == SW_EVENT_PACKAGE)
+	{
+		swMemoryPool *pool = serv->reactor_threads[req->info.from_id].pool;
+		pool->free(pool, data_ptr);
+	}
+#endif
 
 	args[0] = &zserv;
 	args[1] = &zfd;

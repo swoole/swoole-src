@@ -118,7 +118,7 @@ int swFactoryProcess_start(swFactory *factory)
 	object->workers_status = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(char)*serv->worker_num);
 
 	//worler idle or busy
-	if(object->workers_status == NULL)
+	if (object->workers_status == NULL)
 	{
 		swWarn("alloc for worker_status fail");
 		return SW_ERR;
@@ -169,6 +169,7 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 	case SW_EVENT_TCP:
 	case SW_EVENT_UDP:
 	case SW_EVENT_UNIX_DGRAM:
+	case SW_EVENT_PACKAGE:
 		//处理任务
 		onTask:
 		factory->onTask(factory, task);

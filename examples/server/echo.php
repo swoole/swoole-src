@@ -1,8 +1,9 @@
 <?php
-$serv = new swoole_server("0.0.0.0", 9501);
+$serv = new swoole_server("0.0.0.0", 9501, SWOOLE_BASE);
 $serv->set(array(
 	//'tcp_defer_accept' => 5,
-	'worker_num' => 1,
+	'worker_num' => 4,
+    'reactor_num' => 2,
 	//'daemonize' => true,
 	//'log_file' => '/tmp/swoole.log'
 ));
@@ -10,10 +11,10 @@ $serv->on('timer', function($serv, $interval) {
 	echo "onTimer: $interval\n";
 });
 $serv->on('workerStart', function($serv, $worker_id) {
-	if($worker_id == 0) $serv->addtimer(1000);
+	//if($worker_id == 0) $serv->addtimer(1000);
 });
 $serv->on('connect', function ($serv, $fd, $from_id){
-    //echo "[#".posix_getpid()."]\tClient@[$fd:$from_id]: Connect.\n";
+    echo "[#".posix_getpid()."]\tClient@[$fd:$from_id]: Connect.\n";
 });
 $serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
     //echo "[#".posix_getpid()."]\tClient[$fd]: $data\n";

@@ -57,13 +57,14 @@ extern "C" {
 #define SW_EVENT_CONNECT           6
 #define SW_EVENT_TIMER             7
 #define SW_EVENT_FINISH            8
+
 #define SW_EVENT_PACKAGE_START     9
 #define SW_EVENT_PACKAGE_TRUNK     10
 #define SW_EVENT_PACKAGE_END       11
 #define SW_EVENT_SENDFILE          12
-
 #define SW_EVENT_UNIX_DGRAM        13
 #define SW_EVENT_UNIX_STREAM       14
+#define SW_EVENT_PACKAGE           15
 
 #define SW_STATUS_EMPTY            0
 #define SW_STATUS_ACTIVE           1
@@ -99,12 +100,15 @@ typedef struct _swUdpFd{
 	int sock;
 } swUdpFd;
 
-typedef struct _swThreadPoll
+typedef struct _swReactorThread
 {
 	pthread_t ptid; //线程ID
 	swReactor reactor;
 	swUdpFd *udp_addrs;
 	swCloseQueue close_queue;
+#ifdef SW_REACTOR_USE_RINGBUFFER
+	swMemoryPool *pool;
+#endif
 	int c_udp_fd;
 } swReactorThread;
 
@@ -249,6 +253,11 @@ struct swServer_s
 
 	int udp_sock_buffer_size; //UDP临时包数量，超过数量未处理将会被丢弃
 
+	/**
+	 * reactor ringbuffer memory pool size
+	 */
+	size_t reactor_ringbuffer_size;
+
 	uint8_t have_udp_sock;      //是否有UDP监听端口
 	uint8_t have_tcp_sock;      //是否有TCP监听端口
 
@@ -343,6 +352,12 @@ typedef struct _swSocketLocal
 	char file[0];
 } swSocketLocal;
 
+typedef struct _swPackage
+{
+	void *data;
+	uint32_t length;
+} swPackage;
+
 int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
 
@@ -389,13 +404,24 @@ SWINLINE swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_
 SWINLINE swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn);
 int swConnection_send_in_buffer(swConnection *conn);
 
-int swReactorThread_onPackage(swReactor *reactor, swEvent *event);
-int swReactorThread_send(swSendData *_send);
+int swTaskWorker_onFinish(swReactor *reactor, swEvent *event);
+
+int swServer_master_onAccept(swReactor *reactor, swDataHead *event);
+void swServer_master_onReactorTimeout(swReactor *reactor);
+void swServer_master_onReactorFinish(swReactor *reactor);
+SWINLINE void swServer_update_time(void);
+
+int swReactorThread_create(swServer *serv);
 int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr);
 int swReactorThread_close_queue(swReactor *reactor, swCloseQueue *close_queue);
 int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event);
 int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event);
 int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *event);
+int swReactorThread_onPackage(swReactor *reactor, swEvent *event);
+int swReactorThread_send(swSendData *_send);
+
+int swReactorProcess_create(swServer *serv);
+int swReactorProcess_start(swServer *serv);
 
 #ifdef __cplusplus
 }

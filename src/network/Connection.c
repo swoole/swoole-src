@@ -203,19 +203,52 @@ SWINLINE void swConnection_clear_string_buffer(swConnection *conn)
 
 int swConnection_send_in_buffer(swConnection *conn)
 {
-	int ret;
-#ifdef SW_DEBUG
-    int i;
-#endif
-
 	swFactory *factory = SwooleG.factory;
 	swEventData _send;
 	swBuffer *buffer = conn->in_buffer;
 	swBuffer_trunk *trunk = swBuffer_get_trunk(buffer);
 
 	_send.info.fd = conn->fd;
-	_send.info.type = (buffer->trunk_num == 1) ? SW_EVENT_TCP : SW_EVENT_PACKAGE_START;
 	_send.info.from_id = conn->from_id;
+
+
+
+#ifdef SW_REACTOR_USE_RINGBUFFER
+	swServer *serv = SwooleG.serv;
+	swMemoryPool *pool = serv->reactor_threads[conn->from_id].pool;
+	swPackage package;
+
+	package.length = 0;
+	while (1)
+	{
+		package.data = pool->alloc(pool, buffer->length);
+		if (package.data == NULL)
+		{
+			swYield();
+			swWarn("reactor memory pool full.");
+			continue;
+		}
+		break;
+	}
+	_send.info.type = SW_EVENT_PACKAGE;
+
+	while (trunk != NULL)
+	{
+		_send.info.len = trunk->length;
+		memcpy(package.data + package.length , trunk->data, trunk->length);
+		package.length += trunk->length;
+
+		swBuffer_pop_trunk(buffer, trunk);
+		trunk = swBuffer_get_trunk(buffer);
+	}
+	_send.info.len = sizeof(package);
+	memcpy(_send.data, &package, sizeof(package));
+	//swWarn("[ReactorThread] copy_n=%d", package.length);
+	return factory->dispatch(factory, &_send);
+
+#else
+	int ret;
+	_send.info.type = (buffer->trunk_num == 1) ? SW_EVENT_TCP : SW_EVENT_PACKAGE_START;
 
 	while (trunk != NULL)
 	{
@@ -232,7 +265,7 @@ int swConnection_send_in_buffer(swConnection *conn)
 		swBuffer_pop_trunk(buffer, trunk);
 		trunk = swBuffer_get_trunk(buffer);
 
-		swTrace("send2worker[i=%d][trunk_num=%d][type=%d]\n", i++, buffer->trunk_num, _send.info.type);
+		swTrace("send2worker[trunk_num=%d][type=%d]\n", buffer->trunk_num, _send.info.type);
 
 		if (_send.info.type == SW_EVENT_PACKAGE_START)
 		{
@@ -244,6 +277,7 @@ int swConnection_send_in_buffer(swConnection *conn)
 			_send.info.type = SW_EVENT_PACKAGE_END;
 		}
 	}
+#endif
 	return SW_OK;
 }
 

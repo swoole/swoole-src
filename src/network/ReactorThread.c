@@ -650,6 +650,89 @@ static void swReactorThread_onTimeout(swReactor *reactor)
 	swReactorThread_onFinish(reactor);
 }
 
+int swReactorThread_create(swServer *serv)
+{
+	int ret = 0;
+	SW_START_SLEEP;
+	//初始化master pipe
+#ifdef SW_MAINREACTOR_USE_UNSOCK
+	ret = swPipeUnsock_create(&serv->main_pipe, 0, SOCK_STREAM);
+#else
+	ret = swPipeBase_create(&serv->main_pipe, 0);
+#endif
+
+	if (ret < 0)
+	{
+		swError("[swServerCreate]create event_fd fail");
+		return SW_ERR;
+	}
+
+	//初始化poll线程池
+	serv->reactor_threads = SwooleG.memory_pool->alloc(SwooleG.memory_pool, (serv->reactor_num * sizeof(swReactorThread)));
+	if (serv->reactor_threads == NULL)
+	{
+		swError("calloc[reactor_threads] fail.alloc_size=%d", (int )(serv->reactor_num * sizeof(swReactorThread)));
+		return SW_ERR;
+	}
+
+	serv->connection_list = sw_shm_calloc(serv->max_conn, sizeof(swConnection));
+	if (serv->connection_list == NULL)
+	{
+		swError("calloc[1] fail");
+		return SW_ERR;
+	}
+
+	//create factry object
+	if (serv->factory_mode == SW_MODE_THREAD)
+	{
+		if (serv->writer_num < 1)
+		{
+			swError("Fatal Error: serv->writer_num < 1");
+			return SW_ERR;
+		}
+		ret = swFactoryThread_create(&(serv->factory), serv->writer_num);
+	}
+	else if (serv->factory_mode == SW_MODE_PROCESS)
+	{
+		if (serv->writer_num < 1 || serv->worker_num < 1)
+		{
+			swError("Fatal Error: serv->writer_num < 1 or serv->worker_num < 1");
+			return SW_ERR;
+		}
+//		if (serv->max_request < 1)
+//		{
+//			swError("Fatal Error: serv->max_request < 1");
+//			return SW_ERR;
+//		}
+		serv->factory.max_request = serv->max_request;
+		ret = swFactoryProcess_create(&(serv->factory), serv->writer_num, serv->worker_num);
+	}
+	else
+	{
+		ret = swFactory_create(&(serv->factory));
+	}
+
+#ifdef SW_REACTOR_USE_RINGBUFFER
+	int i;
+	for(i=0; i < serv->reactor_num; i++)
+	{
+		serv->reactor_threads[i].pool = swRingBuffer_new(serv->reactor_ringbuffer_size, 1);
+		if (serv->reactor_threads[i].pool == NULL)
+		{
+			swError("create ringbuffer failed.");
+			return SW_ERR;
+		}
+	}
+#endif
+
+	if (ret < 0)
+	{
+		swError("create factory fail\n");
+		return SW_ERR;
+	}
+	return SW_OK;
+}
+
 int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
 {
 	swThreadParam *param;
