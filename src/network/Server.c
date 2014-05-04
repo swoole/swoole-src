@@ -265,18 +265,24 @@ int swServer_addTimer(swServer *serv, int interval)
 	//timer no init
 	if (SwooleG.timer.fd == 0)
 	{
-		if (swTimer_create(&SwooleG.timer, interval) < 0)
+		int use_pipe = (serv->ipc_mode == SW_IPC_MSGQUEUE) ? 0 : 1;
+
+		if (swTimer_create(&SwooleG.timer, interval, use_pipe) < 0)
 		{
 			return SW_ERR;
 		}
+
 		if (swIsMaster())
 		{
 			serv->connection_list[SW_SERVER_TIMER_FD_INDEX].fd = SwooleG.timer.fd;
 		}
-#if SW_WORKER_IPC_MODE == 1
-		SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_TIMER, swTimer_event_handler);
-		SwooleG.main_reactor->add(SwooleG.main_reactor, SwooleG.timer.fd, SW_FD_TIMER);
-#endif
+
+		if (serv->ipc_mode != SW_IPC_MSGQUEUE)
+		{
+			SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_TIMER, swTimer_event_handler);
+			SwooleG.main_reactor->add(SwooleG.main_reactor, SwooleG.timer.fd, SW_FD_TIMER);
+		}
+
 		SwooleG.timer.onTimer = swServer_onTimer;
 	}
 	return swTimer_add(&SwooleG.timer, interval);
@@ -452,6 +458,23 @@ int swServer_start(swServer *serv)
 	{
 		return SW_ERR;
 	}
+
+#if SW_WORKER_IPC_MODE == 2
+	serv->ipc_mode = SW_IPC_MSGQUEUE;
+#endif
+
+	if (serv->ipc_mode == SW_IPC_MSGQUEUE)
+	{
+		if (serv->message_queue_key == 0)
+		{
+			char path_buf[128];
+			char *path_ptr = getcwd(path_buf, 128);
+			serv->message_queue_key = ftok(path_ptr, 1);
+		}
+		SwooleG.use_timerfd = 0;
+		SwooleG.use_signalfd = 0;
+	}
+
 	//run as daemon
 	if (serv->daemonize > 0)
 	{
@@ -568,6 +591,12 @@ void swoole_init(void)
 		//init signalfd
 #ifdef HAVE_SIGNALFD
 		swSignalfd_init();
+		SwooleG.use_signalfd = 1;
+#endif
+
+		//timerfd
+#ifdef HAVE_TIMERFD
+		SwooleG.use_timerfd = 1;
 #endif
 		//将日志设置为标准输出
 		swoole_log_fn = stdout;
@@ -582,6 +611,7 @@ void swoole_init(void)
 		{
 			swError("[Master] Fatal Error: alloc memory for SwooleGS fail. Error: %s[%d]", strerror(errno), errno);
 		}
+
 	}
 }
 
@@ -611,6 +641,7 @@ void swServer_init(swServer *serv)
 	serv->backlog = SW_BACKLOG;
 	serv->factory_mode = SW_MODE_BASE;
 	serv->reactor_num = SW_REACTOR_NUM;
+	serv->ipc_mode = SW_IPC_UNSOCK;
 	serv->dispatch_mode = SW_DISPATCH_FDMOD;
 	serv->ringbuffer_size = SW_QUEUE_SIZE;
 
@@ -1039,33 +1070,37 @@ static int swServer_single_onClose(swReactor *reactor, swEvent *event)
 
 void swServer_signal_init(void)
 {
-#ifdef HAVE_SIGNALFD
-	swSignalfd_add(SIGHUP, NULL);
-	swSignalfd_add(SIGPIPE, NULL);
-	if (SwooleG.serv->daemonize)
+	if (SwooleG.use_signalfd)
 	{
-		swSignalfd_add(SIGINT, NULL);
+		swSignalfd_add(SIGHUP, NULL);
+		swSignalfd_add(SIGPIPE, NULL);
+		swSignalfd_add(SIGUSR1, swServer_signal_hanlder);
+		swSignalfd_add(SIGUSR2, swServer_signal_hanlder);
+		swSignalfd_add(SIGTERM, swServer_signal_hanlder);
+		swSignalfd_add(SIGALRM, swTimer_signal_handler);
+		//for test
+		swSignalfd_add(SIGVTALRM, swServer_signal_hanlder);
+		swServer_set_minfd(SwooleG.serv, SwooleG.signal_fd);
+		if (SwooleG.serv->daemonize)
+		{
+			swSignalfd_add(SIGINT, NULL);
+		}
 	}
-	swSignalfd_add(SIGUSR1, swServer_signal_hanlder);
-	swSignalfd_add(SIGUSR2, swServer_signal_hanlder);
-	swSignalfd_add(SIGTERM, swServer_signal_hanlder);
-	swSignalfd_add(SIGALRM, swTimer_signal_handler);
-	//for test
-	swSignalfd_add(SIGVTALRM, swServer_signal_hanlder);
-	swServer_set_minfd(SwooleG.serv, SwooleG.signal_fd);
-#else
-	swSignal_set(SIGHUP, SIG_IGN, 1, 0);
-	swSignal_set(SIGPIPE, SIG_IGN, 1, 0);
-	if (SwooleG.serv->daemonize)
+	else
 	{
-		swSignal_set(SIGINT, SIG_IGN, 1, 0);
+		swSignal_set(SIGHUP, SIG_IGN, 1, 0);
+		swSignal_set(SIGPIPE, SIG_IGN, 1, 0);
+		swSignal_set(SIGUSR1, swServer_signal_hanlder, 1, 0);
+		swSignal_set(SIGUSR2, swServer_signal_hanlder, 1, 0);
+		swSignal_set(SIGTERM, swServer_signal_hanlder, 1, 0);
+		swSignal_set(SIGALRM, swTimer_signal_handler, 1, 0);
+		swSignal_set(SIGVTALRM, swServer_signal_hanlder, 1, 0);
+
+		if (SwooleG.serv->daemonize)
+		{
+			swSignal_set(SIGINT, SIG_IGN, 1, 0);
+		}
 	}
-	swSignal_set(SIGUSR1, swServer_signal_hanlder, 1, 0);
-	swSignal_set(SIGUSR2, swServer_signal_hanlder, 1, 0);
-	swSignal_set(SIGTERM, swServer_signal_hanlder, 1, 0);
-	swSignal_set(SIGALRM, swTimer_signal_handler, 1, 0);
-	swSignal_set(SIGVTALRM, swServer_signal_hanlder, 1, 0);
-#endif
 }
 
 int swServer_addListen(swServer *serv, int type, char *host, int port)

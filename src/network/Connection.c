@@ -116,16 +116,18 @@ SWINLINE void swConnection_close(swServer *serv, int fd, int notify)
 		swReactorThread_close_queue(reactor, queue);
 	}
 
-#ifdef SW_SOCKET_SET_LINGER
-	struct linger linger;
-	linger.l_onoff = 0;
-	linger.l_linger = 0;
-
-	if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) == -1)
+	//立即关闭socket，清理缓存区
+	if (serv->tcp_socket_linger > 0)
 	{
-		swWarn("setsockopt(SO_LINGER) failed. Error: %s[%d]", strerror(errno), errno);
+		struct linger linger;
+		linger.l_onoff = 1;
+		linger.l_linger = 0;
+
+		if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) == -1)
+		{
+			swWarn("setsockopt(SO_LINGER) failed. Error: %s[%d]", strerror(errno), errno);
+		}
 	}
-#endif
 
 	//关闭此连接，必须放在最前面，以保证线程安全
 	reactor->del(reactor, fd);

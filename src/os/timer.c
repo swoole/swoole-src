@@ -17,51 +17,64 @@
 #include "swoole.h"
 #include "Server.h"
 
-int swTimer_signal_set(swTimer *timer, int interval);
 #ifdef HAVE_TIMERFD
-int swTimer_timerfd_set(swTimer *timer, int interval);
+#include <sys/timerfd.h>
 #endif
+
+static int swTimer_signal_set(swTimer *timer, int interval);
+static int swTimer_timerfd_set(swTimer *timer, int interval);
+
 /**
- * 创建定时器
+ * create timer
  */
-int swTimer_create(swTimer *timer, int interval)
+int swTimer_create(swTimer *timer, int interval, int use_pipe)
 {
 	timer->interval = interval;
 	timer->lasttime = interval;
 
-#if defined(HAVE_TIMERFD) && SW_WORKER_IPC_MODE == 1
-	if (swTimer_timerfd_set(timer, interval) < 0)
-	{
-		return SW_ERR;
-	}
-	timer->use_pipe = 0;
-#else
-//can not use timerfd
-#if SW_WORKER_IPC_MODE == 2
-	timer->fd = 1;
-#else
-	if (swPipeNotify_auto(&timer->pipe, 0, 0) < 0)
-	{
-		return SW_ERR;
-	}
-	timer->fd = timer->pipe.getFd(&timer->pipe, 0);
-	timer->use_pipe = 1;
+#ifndef HAVE_TIMERFD
+	SwooleG.use_timerfd = 0;
 #endif
-	if (swTimer_signal_set(timer, interval) < 0)
+
+	if (SwooleG.use_timerfd)
 	{
-		return SW_ERR;
+		if (swTimer_timerfd_set(timer, interval) < 0)
+		{
+			return SW_ERR;
+		}
+		timer->use_pipe = 0;
 	}
-//end
-#endif
+	else
+	{
+		if (use_pipe)
+		{
+			if (swPipeNotify_auto(&timer->pipe, 0, 0) < 0)
+			{
+				return SW_ERR;
+			}
+			timer->fd = timer->pipe.getFd(&timer->pipe, 0);
+		}
+		else
+		{
+			timer->fd = 1;
+			timer->use_pipe = 0;
+		}
+
+		if (swTimer_signal_set(timer, interval) < 0)
+		{
+			return SW_ERR;
+		}
+	}
 	return SW_OK;
 }
 
-#ifdef HAVE_TIMERFD
 /**
  * timerfd
  */
-int swTimer_timerfd_set(swTimer *timer, int interval)
+static int swTimer_timerfd_set(swTimer *timer, int interval)
 {
+#ifdef HAVE_TIMERFD
+
 	struct timeval now;
 	int sec = interval / 1000;
 	int msec = (((float) interval / 1000) - sec) * 1000;
@@ -96,13 +109,16 @@ int swTimer_timerfd_set(swTimer *timer, int interval)
 		return SW_ERR;
 	}
 	return SW_OK;
-}
+#else
+	swWarn("kernel not support timerfd.");
+	return SW_ERR;
 #endif
+}
 
 /**
  * setitimer
  */
-int swTimer_signal_set(swTimer *timer, int interval)
+static int swTimer_signal_set(swTimer *timer, int interval)
 {
 	struct itimerval timer_set;
 	int sec = interval / 1000;
@@ -148,19 +164,23 @@ int swTimer_add(swTimer *timer, int ms)
 		swWarn("swTimer_add malloc fail");
 		return SW_ERR;
 	}
+
 	bzero(node, sizeof(swTimer_node));
 	node->lasttime = swTimer_get_ms();
 	node->interval = ms;
 
-	if(ms < timer->interval)
+	if (ms < timer->interval)
 	{
 		int new_interval = swoole_common_divisor(ms, timer->interval);
 		timer->interval = new_interval;
-#if defined(HAVE_TIMERFD) && SW_WORKER_IPC_MODE == 1
-		swTimer_timerfd_set(timer, new_interval);
-#else
-		swTimer_signal_set(timer, new_interval);
-#endif
+		if (SwooleG.use_timerfd)
+		{
+			swTimer_timerfd_set(timer, new_interval);
+		}
+		else
+		{
+			swTimer_signal_set(timer, new_interval);
+		}
 	}
 	swHashMap_add_int(&timer->list, ms, node);
 	timer->num++;
@@ -187,8 +207,9 @@ int swTimer_select(swTimer *timer)
 
 	while (1)
 	{
+		//swWarn("timer foreach start\n----------------------------------------------");
 		tmp = swHashMap_foreach_int(&timer->list, &key, (void **)&timer_node, tmp);
-		//值为空
+		//hashmap empty
 		if (timer_node == NULL)
 		{
 			break;
@@ -199,7 +220,7 @@ int swTimer_select(swTimer *timer)
 			timer->onTimer(timer, timer_node->interval);
 			timer_node->lasttime += timer_node->interval;
 		}
-		//遍历结束
+		//foreach end
 		if (tmp == NULL)
 		{
 			break;
@@ -222,15 +243,15 @@ int swTimer_event_handler(swReactor *reactor, swEvent *event)
 
 void swTimer_signal_handler(int sig)
 {
-#if SW_WORKER_IPC_MODE == 2
-	SwooleG.signal_alarm = 1;
-#else
-	uint64_t flag = 1;
 	if (SwooleG.timer.use_pipe == 1)
 	{
+		uint64_t flag = 1;
 		SwooleG.timer.pipe.write(&SwooleG.timer.pipe, &flag, sizeof(flag));
 	}
-#endif
+	else
+	{
+		SwooleG.signal_alarm = 1;
+	}
 }
 
 SWINLINE uint64_t swTimer_get_ms()

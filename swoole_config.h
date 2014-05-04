@@ -51,7 +51,6 @@
 #define SW_MAINREACTOR_TIMEO       1    //main reactor
 #define SW_MAINREACTOR_USE_UNSOCK  1    //主线程使用unsock
 #define SW_REACTOR_WRITER_TIMEO    3    //writer线程的reactor
-#define SW_SOCKET_SET_LINGER
 #define SW_TASKWAIT_TIMEOUT        0.5
 
 //#define SW_AIO_LINUX_NATIVE
@@ -64,10 +63,6 @@
 #define SW_IP_MAX_LENGTH           32
 #define SW_AIO_MAX_FILESIZE        4194304
 #define SW_AIO_EVENT_NUM           128
-
-#ifndef SW_WORKER_IPC_MODE
-#define SW_WORKER_IPC_MODE         1    //1:unix socket,2:IPC Message Queue
-#endif
 
 #define SW_USE_WRITER_THREAD       0    //使用单独的发送线程
 

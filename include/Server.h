@@ -87,6 +87,13 @@ enum
 	SW_TRUNK_CLOSE,
 };
 
+enum
+{
+	SW_IPC_UNSOCK = 1,
+	SW_IPC_MSGQUEUE,
+	SW_IPC_CHANNEL,
+};
+
 typedef struct _swUdpFd{
 	struct sockaddr addr;
 	int sock;
@@ -178,10 +185,22 @@ typedef struct _swConnection
 
 struct swServer_s
 {
+	/**
+	 * tcp socket listen backlog
+	 */
 	uint16_t backlog;
+	/**
+	 * reactor thread/process num
+	 */
 	uint16_t reactor_num;
 	uint16_t writer_num;
+	/**
+	 * worker process num
+	 */
 	uint16_t worker_num;
+	/**
+	 * task worker process num
+	 */
 	uint16_t task_worker_num;
 	uint16_t reactor_pipe_num; //每个reactor维持的pipe数量
 
@@ -189,12 +208,27 @@ struct swServer_s
 	uint8_t daemonize;
 	uint8_t dispatch_mode; //分配模式，1平均分配，2按FD取摸固定分配，3,使用抢占式队列(IPC消息队列)分配
 
+	/**
+	 * 1: unix socket, 2: message queue, 3: memory channel
+	 */
+	uint8_t ipc_mode;
+
 	int worker_uid;
 	int worker_groupid;
-	int max_conn;
 
-	int connect_count; //连接计数
-	int max_request;
+	/**
+	 * max connection num
+	 */
+	uint32_t max_conn;
+
+	/**
+	 * connect count
+	 */
+	uint32_t connect_count;
+	/**
+	 * worker process max request
+	 */
+	uint32_t max_request;
 	int timeout_sec;
 	int timeout_usec;
 
@@ -209,8 +243,8 @@ struct swServer_s
 	int ringbuffer_size;
 
 	/*----------------------------Reactor schedule--------------------------------*/
-	uint16_t reactor_round_i;   //轮询调度
-	uint16_t reactor_next_i;    //平均算法调度
+	uint16_t reactor_round_i;         //轮询调度
+	uint16_t reactor_next_i;          //平均算法调度
 	uint16_t reactor_schedule_count;
 
 	int udp_sock_buffer_size; //UDP临时包数量，超过数量未处理将会被丢弃
@@ -277,6 +311,11 @@ struct swServer_s
 
 	swConnection *connection_list; //连接列表
 	int connection_list_capacity;  //超过此容量，会自动扩容
+
+	/**
+	 * message queue key
+	 */
+	uint64_t message_queue_key;
 
 	swReactor *reactor_ptr; //Main Reactor
 	swFactory *factory_ptr; //Factory

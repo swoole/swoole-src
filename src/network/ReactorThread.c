@@ -754,17 +754,19 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
 	reactor->setHandle(reactor, SW_FD_SEND_TO_CLIENT, swFactoryProcess_send2client);
 	reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_WRITE, swReactorThread_onWrite);
 
-#if SW_WORKER_IPC_MODE == 1
 	int i, worker_id;
-	//worker进程绑定reactor
-	for (i = 0; i < serv->reactor_pipe_num; i++)
+	if (serv->ipc_mode != SW_IPC_MSGQUEUE)
 	{
-		worker_id = (reactor->id * serv->reactor_pipe_num) + i;
-		//swWarn("reactor_id=%d|worker_id=%d", reactor->id, worker_id);
-		//将写pipe设置到writer的reactor中
-		reactor->add(reactor, serv->workers[worker_id].pipe_master, SW_FD_SEND_TO_CLIENT);
+		//worker进程绑定reactor
+		for (i = 0; i < serv->reactor_pipe_num; i++)
+		{
+			worker_id = (reactor->id * serv->reactor_pipe_num) + i;
+			//swWarn("reactor_id=%d|worker_id=%d", reactor->id, worker_id);
+			//将写pipe设置到writer的reactor中
+			reactor->add(reactor, serv->workers[worker_id].pipe_master, SW_FD_SEND_TO_CLIENT);
+		}
 	}
-#endif
+
 	//Thread mode must copy the data.
 	//will free after onFinish
 	if (serv->open_eof_check == 1)

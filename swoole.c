@@ -465,6 +465,14 @@ PHP_MINIT_FUNCTION(swoole)
 	REGISTER_LONG_CONSTANT("SWOOLE_BASE", SW_MODE_SINGLE, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_THREAD", SW_MODE_THREAD, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_PROCESS", SW_MODE_PROCESS, CONST_CS | CONST_PERSISTENT);
+
+	/**
+	 * ipc mode
+	 */
+	REGISTER_LONG_CONSTANT("SWOOLE_IPC_UNSOCK", SW_IPC_UNSOCK, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SWOOLE_IPC_MSGQUEUE", SW_IPC_MSGQUEUE, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SWOOLE_IPC_CHANNEL", SW_IPC_CHANNEL, CONST_CS | CONST_PERSISTENT);
+
 	/**
 	 * socket type
 	 */
@@ -985,6 +993,18 @@ PHP_FUNCTION(swoole_server_set)
 	{
 		convert_to_long(*v);
 		serv->buffer_input_size = (int)Z_LVAL_PP(v);
+	}
+	//ipc mode
+	if (zend_hash_find(vht, ZEND_STRS("ipc_mode"), (void **)&v) == SUCCESS)
+	{
+		convert_to_long(*v);
+		serv->ipc_mode = (int)Z_LVAL_PP(v);
+	}
+	//message queue key
+	if (zend_hash_find(vht, ZEND_STRS("message_queue_key"), (void **)&v) == SUCCESS)
+	{
+		convert_to_long(*v);
+		serv->message_queue_key = (int)Z_LVAL_PP(v);
 	}
 	zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zset TSRMLS_CC);
 	RETURN_TRUE;
@@ -2380,13 +2400,13 @@ PHP_FUNCTION(swoole_server_addtimer)
 		RETURN_FALSE;
 	}
 
-#if SW_WORKER_IPC_MODE == 1
-	if (SwooleG.main_reactor == NULL)
+	SWOOLE_GET_SERVER(zobject, serv);
+
+	if (serv->ipc_mode != SW_IPC_MSGQUEUE && SwooleG.main_reactor == NULL)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: can not use addtimer here.");
 		RETURN_FALSE;
 	}
-#endif
 
 	if (zobject == NULL)
 	{
@@ -2402,7 +2422,7 @@ PHP_FUNCTION(swoole_server_addtimer)
 			return;
 		}
 	}
-	SWOOLE_GET_SERVER(zobject, serv);
+
 	SW_CHECK_RETURN(swServer_addTimer(serv, (int)interval));
 }
 

@@ -12,7 +12,7 @@ $serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
     //$req = unserialize(trim($data));
     //echo $req['name'] . "\n";
     //echo "content_length: " . strlen($data) . "\n";
-    $respData = '<h1>Welcome to nginx!</h1>';
+    $respData = '<h1>Welcome to swoole-server!</h1>';
     $response = implode("\r\n", array(
         'HTTP/1.1 200 OK',
         'Cache-Control: must-revalidate,no-cache',

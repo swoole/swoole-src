@@ -54,10 +54,6 @@ extern "C" {
 #include <sys/wait.h>
 #include <sys/un.h>
 
-#ifdef HAVE_TIMERFD
-#include <sys/timerfd.h>
-#endif
-
 #ifdef __MACH__
 #include <mach/clock.h>
 #include <mach/mach_time.h>
@@ -808,7 +804,7 @@ typedef struct _swTimer
 	void (*onTimer)(struct _swTimer *timer, int interval);
 } swTimer;
 
-int swTimer_create(swTimer *timer, int interval_ms);
+int swTimer_create(swTimer *timer, int interval_ms, int no_pipe);
 void swTimer_del(swTimer *timer, int ms);
 int swTimer_free(swTimer *timer);
 int swTimer_add(swTimer *timer, int ms);
@@ -827,6 +823,9 @@ typedef struct _swServerG{
 	int process_type;
 	int signal_alarm; //for timer with message queue
 	int signal_fd;
+
+	uint8_t use_timerfd;
+	uint8_t use_signalfd;
 
 	swServer *serv;
 	swFactory *factory;

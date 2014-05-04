@@ -702,7 +702,7 @@ PHP_FUNCTION(swoole_timer_add)
 	zval_add_ref(&timer_item.callback);
 	timer_item.interval = (int)interval;
 
-	if(zend_hash_update(&php_sw_timer_callback, (char *)&timer_item.interval, sizeof(timer_item.interval), &timer_item, sizeof(swoole_timer_item), NULL) == FAILURE)
+	if (zend_hash_update(&php_sw_timer_callback, (char *)&timer_item.interval, sizeof(timer_item.interval), &timer_item, sizeof(swoole_timer_item), NULL) == FAILURE)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_timer_add add to hashtable failed.");
 		RETURN_FALSE;
@@ -711,7 +711,7 @@ PHP_FUNCTION(swoole_timer_add)
 
 	if (SwooleG.timer.fd == 0)
 	{
-		if(swTimer_create(&SwooleG.timer, timer_item.interval) < 0)
+		if (swTimer_create(&SwooleG.timer, timer_item.interval, 1) < 0)
 		{
 			RETURN_FALSE;
 		}
