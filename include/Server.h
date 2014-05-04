@@ -209,7 +209,15 @@ struct swServer_s
 	uint16_t reactor_pipe_num; //每个reactor维持的pipe数量
 
 	uint8_t factory_mode;
+
+	/**
+	 * run as a daemon process
+	 */
 	uint8_t daemonize;
+
+	/**
+	 * package dispatch mode
+	 */
 	uint8_t dispatch_mode; //分配模式，1平均分配，2按FD取摸固定分配，3,使用抢占式队列(IPC消息队列)分配
 
 	/**
@@ -258,12 +266,29 @@ struct swServer_s
 	 */
 	size_t reactor_ringbuffer_size;
 
-	uint8_t have_udp_sock;      //是否有UDP监听端口
-	uint8_t have_tcp_sock;      //是否有TCP监听端口
+	/**
+	 * have udp listen socket
+	 */
+	uint8_t have_udp_sock;
 
-	uint8_t open_cpu_affinity; //是否设置CPU亲和性
-	uint8_t open_tcp_nodelay;  //是否关闭Nagle算法
+	/**
+	 * have tcp listen socket
+	 */
+	uint8_t have_tcp_sock;
 
+	/**
+	 * oepn cpu affinity setting
+	 */
+	uint8_t open_cpu_affinity;
+
+	/**
+	 * open tcp nodelay option
+	 */
+	uint8_t open_tcp_nodelay;
+
+	/**
+	 * open tcp_defer_accept option
+	 */
 	uint8_t tcp_defer_accept;  //TCP_DEFER_ACCEPT
 	uint8_t tcp_socket_linger; //SOCKET SO_LINGER
 
