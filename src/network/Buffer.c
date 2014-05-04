@@ -65,7 +65,7 @@ swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint16_t siz
 	trunk->type = type;
 	buffer->trunk_num ++;
 
-	if(buffer->head == NULL)
+	if (buffer->head == NULL)
 	{
 		buffer->tail = buffer->head = trunk;
 	}
@@ -94,6 +94,7 @@ SWINLINE void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk)
 		buffer->head = trunk->next;
 		buffer->trunk_num --;
 	}
+
 	if (trunk->type == SW_TRUNK_DATA)
 	{
 		sw_free(trunk->data);
@@ -125,16 +126,18 @@ int swBuffer_free(swBuffer *buffer)
 /**
  * append to buffer queue
  */
-int swBuffer_in(swBuffer *buffer, swSendData *send_data)
+int swBuffer_append(swBuffer *buffer, void *data, uint32_t size)
 {
-	swBuffer_trunk *trunk = swBuffer_new_trunk(buffer, SW_TRUNK_DATA, send_data->info.len);
+	swBuffer_trunk *trunk = swBuffer_new_trunk(buffer, SW_TRUNK_DATA, size);
 	if (trunk == NULL)
 	{
 		return SW_ERR;
 	}
 
-	trunk->length = send_data->info.len;
-	memcpy(trunk->data, send_data->data, trunk->length);
+	buffer->length += size;
+	trunk->length = size;
+
+	memcpy(trunk->data, data, trunk->length);
 
 	swTraceLog(SW_TRACE_BUFFER, "trunk_n=%d|data_len=%d|trunk_len=%d|trunk=%p", buffer->trunk_num, send_data->info.len,
 			trunk->length, trunk);

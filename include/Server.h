@@ -173,13 +173,21 @@ typedef struct _swConnection
 	 */
 	void *object;
 
+	/**
+	 * input buffer
+	 */
 	swBuffer *in_buffer;
+
+	/**
+	 * output buffer
+	 */
 	swBuffer *out_buffer;
 
 	/**
 	 * connect time(seconds)
 	 */
 	time_t connect_time;
+
 	/**
 	 * received time with last data
 	 */
@@ -323,9 +331,9 @@ struct swServer_s
 	/* one package: length check */
 	uint8_t open_length_check;    //开启协议长度检测
 
-	uint16_t package_length_type;  //length field type
-	int package_length_offset;    //第几个字节开始表示长度
-	int package_body_start ;      //第几个字节开始计算长度
+	uint16_t package_length_type;          //length field type
+	uint16_t package_length_offset;        //第几个字节开始表示长度
+	uint16_t package_body_start;           //第几个字节开始计算长度
 
 	/* buffer output/input setting*/
 	uint32_t buffer_output_size;
@@ -424,6 +432,7 @@ SWINLINE int swConnection_error(int fd, int err);
 #define swServer_set_minfd(serv,maxfd) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd=maxfd)
 #define swServer_get_minfd(serv) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd)
 SWINLINE swString* swConnection_get_string_buffer(swConnection *conn);
+SWINLINE int swConnection_send_string_buffer(swConnection *conn);
 SWINLINE void swConnection_clear_string_buffer(swConnection *conn);
 SWINLINE swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type);
 SWINLINE swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn);

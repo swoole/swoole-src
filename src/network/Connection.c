@@ -191,6 +191,74 @@ SWINLINE swString* swConnection_get_string_buffer(swConnection *conn)
 	}
 }
 
+SWINLINE int swConnection_send_string_buffer(swConnection *conn)
+{
+	int ret;
+	swString *buffer = conn->object;
+	swFactory *factory = SwooleG.factory;
+	swEventData _send;
+
+	_send.info.fd = conn->fd;
+	_send.info.from_id = conn->from_id;
+
+#ifdef SW_REACTOR_USE_RINGBUFFER
+	swServer *serv = SwooleG.serv;
+	swMemoryPool *pool = serv->reactor_threads[conn->from_id].pool;
+	swPackage package;
+
+	package.length = buffer->length;
+	while (1)
+	{
+		package.data = pool->alloc(pool, buffer->length);
+		if (package.data == NULL)
+		{
+			swYield();
+			swWarn("reactor memory pool full.");
+			continue;
+		}
+		break;
+	}
+	_send.info.type = SW_EVENT_PACKAGE;
+	_send.info.len = sizeof(package);
+	memcpy(package.data, buffer->str, buffer->length);
+	memcpy(_send.data, &package, sizeof(package));
+	ret = factory->dispatch(factory, &_send);
+#else
+	int send_n = buffer->length;
+	_send.info.type = SW_EVENT_PACKAGE_START;
+	void *send_ptr = buffer->str;
+	do
+	{
+		if (send_n > SW_BUFFER_SIZE)
+		{
+			_send.info.len = SW_BUFFER_SIZE;
+			memcpy(_send.data, send_ptr, SW_BUFFER_SIZE);
+		}
+		else
+		{
+			_send.info.type = SW_EVENT_PACKAGE_END;
+			_send.info.len = send_n;
+			memcpy(_send.data, send_ptr, send_n);
+		}
+		ret = factory->dispatch(factory, &_send);
+		//处理数据失败，数据将丢失
+		if (ret < 0)
+		{
+			swWarn("factory->dispatch failed.");
+		}
+		send_n -= SW_BUFFER_SIZE;
+		send_ptr += _send.info.len;
+		//转为trunk
+		if (_send.info.type == SW_EVENT_PACKAGE_START)
+		{
+			_send.info.type = SW_EVENT_PACKAGE_TRUNK;
+		}
+	}
+	while (send_n > 0);
+#endif
+	return ret;
+}
+
 SWINLINE void swConnection_clear_string_buffer(swConnection *conn)
 {
 	swString *buffer = conn->object;
@@ -210,8 +278,6 @@ int swConnection_send_in_buffer(swConnection *conn)
 
 	_send.info.fd = conn->fd;
 	_send.info.from_id = conn->from_id;
-
-
 
 #ifdef SW_REACTOR_USE_RINGBUFFER
 	swServer *serv = SwooleG.serv;

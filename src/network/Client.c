@@ -181,18 +181,15 @@ int swClient_tcp_send_async(swClient *cli, char *data, int length)
 		}
 	}
 
-	swSendData _send;
-
-	_send.info.fd = cli->sock;
-	_send.info.len = length;
-	_send.data = data;
-
 	if (swBuffer_empty(cli->out_buffer))
 	{
 		SwooleG.main_reactor->set(SwooleG.main_reactor, cli->sock, cli->reactor_fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
 	}
 
-	if (swBuffer_in(cli->out_buffer, &_send) < 0)
+	/**
+	 * append data to buffer
+	 */
+	if (swBuffer_append(cli->out_buffer, data, length) < 0)
 	{
 		return SW_ERR;
 	}
