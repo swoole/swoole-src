@@ -222,6 +222,9 @@ SWINLINE int swConnection_send_string_buffer(swConnection *conn)
 	_send.info.len = sizeof(package);
 	memcpy(package.data, buffer->str, buffer->length);
 	memcpy(_send.data, &package, sizeof(package));
+
+	//swoole_dump_bin(package.data, 's', buffer->length);
+
 	ret = factory->dispatch(factory, &_send);
 #else
 	int send_n = buffer->length;

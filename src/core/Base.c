@@ -29,6 +29,92 @@ uint64_t swoole_hash_key(char *str, int str_len)
 	return hash;
 }
 
+void swoole_dump_ascii(char *data, int size)
+{
+	int i;
+	for(i = 0; i < size; i++)
+	{
+		printf("%d ", (unsigned) data[i]);
+	}
+	printf("\n");
+}
+
+void swoole_dump_bin(char *data, char type, int size)
+{
+	int i;
+	int type_size = swoole_type_size(type);
+	int n = size / type_size;
+
+	for(i = 0; i < n; i++)
+	{
+		printf("%d,", swoole_unpack(type, data + type_size*i));
+	}
+	printf("\n");
+}
+
+int swoole_type_size(char type)
+{
+	switch(type)
+	{
+	case 's':
+	case 'S':
+	case 'n':
+		return 2;
+	case 'l':
+	case 'L':
+	case 'N':
+		return 4;
+	default:
+		return 0;
+	}
+}
+
+SWINLINE uint32_t swoole_unpack(char type, void *data)
+{
+	int64_t tmp;
+
+	switch(type)
+	{
+	/*-------------------------16bit-----------------------------*/
+	/**
+	 * signed short (always 16 bit, machine byte order)
+	 */
+	case 's':
+		return *((int16_t *) data);
+	/**
+	 * unsigned short (always 16 bit, machine byte order)
+	 */
+	case 'S':
+		return *((uint16_t *) data);
+	/**
+	 * unsigned short (always 16 bit, big endian byte order)
+	 */
+	case 'n':
+		return ntohs(*((uint16_t *) data));
+
+	/*-------------------------32bit-----------------------------*/
+	/**
+	 * unsigned long (always 32 bit, big endian byte order)
+	 */
+	case 'N':
+		tmp = *((uint32_t *) data);
+		return ntohl(tmp);
+	/**
+	 * unsigned long (always 32 bit, machine byte order)
+	 */
+	case 'L':
+		return *((uint32_t *) data);
+	/**
+	 * signed long (always 32 bit, machine byte order)
+	 */
+	case 'l':
+		return *((int *) data);
+
+	default:
+		return *((uint32_t *) data);
+	}
+}
+
 uint32_t swoole_common_divisor(uint32_t u, uint32_t v)
 {
 	assert(u > 0);

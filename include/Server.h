@@ -331,9 +331,17 @@ struct swServer_s
 	/* one package: length check */
 	uint8_t open_length_check;    //开启协议长度检测
 
-	uint16_t package_length_type;          //length field type
-	uint16_t package_length_offset;        //第几个字节开始表示长度
-	uint16_t package_body_start;           //第几个字节开始计算长度
+	char package_length_type;          //length field type
+	uint8_t package_length_size;
+	uint16_t package_length_offset;    //第几个字节开始表示长度
+	uint16_t package_body_offset;      //第几个字节开始计算长度
+
+	/**
+	 * Use data key as factory->dispatch() param
+	 */
+	uint8_t open_dispatch_key;
+	uint16_t dispatch_key_offset;
+	uint16_t dispatch_key_type;
 
 	/* buffer output/input setting*/
 	uint32_t buffer_output_size;

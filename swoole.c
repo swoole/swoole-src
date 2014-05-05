@@ -947,7 +947,7 @@ PHP_FUNCTION(swoole_server_set)
 		serv->heartbeat_ping_length = Z_STRLEN_PP(v);
 		if (serv->heartbeat_ping_length > SW_HEARTBEAT_PING_LEN)
 		{
-			php_error_docref(NULL TSRMLS_CC, E_ERROR, "heartbeat ping package to long");
+			php_error_docref(NULL TSRMLS_CC, E_ERROR, "heartbeat ping package too long");
 			RETURN_FALSE;
 		}
 		memcpy(serv->heartbeat_ping, Z_STRVAL_PP(v), Z_STRLEN_PP(v));
@@ -959,7 +959,7 @@ PHP_FUNCTION(swoole_server_set)
 		serv->heartbeat_pong_length = Z_STRLEN_PP(v);
 		if (serv->heartbeat_pong_length > SW_HEARTBEAT_PING_LEN)
 		{
-			php_error_docref(NULL TSRMLS_CC, E_ERROR, "heartbeat pong package to long");
+			php_error_docref(NULL TSRMLS_CC, E_ERROR, "heartbeat pong package too long");
 			RETURN_FALSE;
 		}
 		memcpy(serv->heartbeat_pong, Z_STRVAL_PP(v), Z_STRLEN_PP(v));
@@ -973,8 +973,15 @@ PHP_FUNCTION(swoole_server_set)
 	//package length size
 	if (zend_hash_find(vht, ZEND_STRS("package_length_type"), (void **)&v) == SUCCESS)
 	{
-		convert_to_long(*v);
-		serv->package_length_type = (uint16_t)Z_LVAL_PP(v);
+		convert_to_string(*v);
+		serv->package_length_type = Z_STRVAL_PP(v)[0];
+		serv->package_length_size = swoole_type_size(serv->package_length_type);
+
+		if (serv->package_length_size == 0)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_ERROR, "unknow length type, see pack(). Link: http://php.net/pack");
+			RETURN_FALSE;
+		}
 	}
 	//package length offset
 	if (zend_hash_find(vht, ZEND_STRS("package_length_offset"), (void **)&v) == SUCCESS)
@@ -983,10 +990,11 @@ PHP_FUNCTION(swoole_server_set)
 		serv->package_length_offset = (int)Z_LVAL_PP(v);
 	}
 	//package body start
-	if (zend_hash_find(vht, ZEND_STRS("package_body_start"), (void **)&v) == SUCCESS)
+	if (zend_hash_find(vht, ZEND_STRS("package_body_offset"), (void **)&v) == SUCCESS ||
+			zend_hash_find(vht, ZEND_STRS("package_body_start"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->package_body_start  = (int)Z_LVAL_PP(v);
+		serv->package_body_offset  = (int)Z_LVAL_PP(v);
 	}
 	//package max length
 	if (zend_hash_find(vht, ZEND_STRS("package_max_length"), (void **)&v) == SUCCESS)
@@ -1476,6 +1484,8 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
 
 		data_ptr = package.data;
 		data_len = package.length;
+
+		//swoole_dump_bin(package.data, 's', package.length);
 	}
 #endif
 	else

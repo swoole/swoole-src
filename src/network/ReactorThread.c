@@ -475,53 +475,26 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
  */
 static int swReactorThread_get_package_length(swServer *serv, char *data, uint32_t size)
 {
-	uint16_t package_length_offset = serv->package_length_offset;
-	uint32_t package_length;
-	/**
-	 * length field size, 4byte or 2byte
-	 */
-	uint8_t package_length_size = (serv->package_length_type & SW_NUM_INT) ? 4 : 2;
-	int64_t package_body_length;
+	uint16_t length_offset = serv->package_length_offset;
+	uint32_t body_length;
 
 	/**
 	 * no have length field, wait more data
 	 */
-	if (size < package_length_offset + package_length_size)
+	if (size < length_offset + serv->package_length_size)
 	{
 		return 0;
 	}
-
-	/*--------------------计算包体长度---------------------*/
-	//sign int
-	if (serv->package_length_type & SW_NUM_SIGN)
-	{
-		int *length_sign = (int *) (data + package_length_offset);
-		package_body_length = *length_sign;
-	}
-	//unsigned int
-	else
-	{
-		uint32_t *length_unsign = (uint32_t *)(data + package_length_offset);
-		package_body_length = *length_unsign;
-	}
-	//network byte order convert to host byte order
-	//字节序转换
-	if (serv->package_length_type & SW_NUM_NET)
-	{
-		package_body_length = ntohl((uint32_t) package_body_length);
-	}
+	body_length = swoole_unpack(serv->package_length_type, data + length_offset);
 	//Length error
 	//协议长度不合法，越界或超过配置长度
-	if (package_body_length < 1 || package_body_length > serv->buffer_input_size)
+	if (body_length < 1 || body_length > serv->buffer_input_size)
 	{
-		swWarn("Invalid package [length=%ld].", package_body_length);
+		swWarn("Invalid package [length=%d].", body_length);
 		return SW_ERR;
 	}
-	/*-------------------isFinish check---------------------*/
-	//A complete package
-	//printf("package_body_length=%d\n", package_body_length);
-	package_length = serv->package_body_start + package_body_length;  //total package length
-	return package_length;
+	//printf("package_body_length=%d|total_length=%d\n", body_length, total_length);
+	return serv->package_body_offset + body_length;  //total package length
 }
 
 int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event)
@@ -618,6 +591,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 					buffer.length = package_total_length;
 					buffer.str = tmp_ptr;
 					conn->object = &buffer;
+					//swoole_dump_bin(buffer.str, 's', buffer.length);
 					swConnection_send_string_buffer(conn);
 					conn->object = NULL;
 

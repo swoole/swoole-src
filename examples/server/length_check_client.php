@@ -5,13 +5,13 @@ if(!$client->connect('127.0.0.1', 9501))
     exit("connect fail\n");
 }
 
-for ($l=0; $l < 100; $l++) 
+for ($l=0; $l < 1; $l++) 
 { 
     $datas = array();
     for($i=0; $i< 10; $i++) 
     {
         $body = '';
-        $bodyLen = rand(1, 10);
+        $bodyLen = rand(20, 80);
         for ($j=0; $j < $bodyLen; $j++) 
         {
             $body .= pack('s', $j);

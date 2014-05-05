@@ -536,6 +536,10 @@ void swLog_free(void);
 uint64_t swoole_hash_key(char *str, int str_len);
 uint32_t swoole_common_multiple(uint32_t u, uint32_t v);
 uint32_t swoole_common_divisor(uint32_t u, uint32_t v);
+SWINLINE uint32_t swoole_unpack(char type, void *data);
+void swoole_dump_bin(char *data, char type, int size);
+int swoole_type_size(char type);
+void swoole_dump_ascii(char *data, int size);
 
 //----------------------core function---------------------
 SWINLINE int swSetTimeout(int sock, double timeout);

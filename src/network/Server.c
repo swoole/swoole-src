@@ -646,6 +646,8 @@ void swServer_init(swServer *serv)
 
 	char eof[] = SW_DATA_EOF;
 	serv->package_eof_len = sizeof(SW_DATA_EOF) - 1;
+	serv->package_length_type = 'N';
+	serv->package_length_size = 4;
 	serv->buffer_input_size = SW_BUFFER_SIZE;
 	memcpy(serv->package_eof, eof, serv->package_eof_len);
 }

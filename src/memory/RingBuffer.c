@@ -128,7 +128,11 @@ static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size)
 	item->lock = 1;
 	item->length = size;
 	ret_mem = object->memory + object->alloc_offset + sizeof(swRingBuffer_head);
-	object->alloc_offset += size;
+
+	/**
+	 * 内存游标向后移动
+	 */
+	object->alloc_offset += size + sizeof(swRingBuffer_head);
 
 	if (object->free_n > 0)
 	{
