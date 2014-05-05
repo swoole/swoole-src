@@ -26,6 +26,7 @@ int main(int argc, char **argv)
 
 	swUnitTest_steup(u1_test1, 1, "user1 test");
 	swUnitTest_steup(u1_test2, 1, "user2 test");
+	swUnitTest_steup(u1_test3, 1, "user3 test");
 
 	swUnitTest_steup(aio_test, 1, "linux native aio test");
 	swUnitTest_steup(aio_test2, 1, "thread pool aio test");

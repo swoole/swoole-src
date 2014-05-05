@@ -14,28 +14,31 @@
   +----------------------------------------------------------------------+
 */
 
+#include <string>
 #include <iostream>
 
 using namespace std;
 
-void test(void);
-
 extern "C"
 {
 	#include "swoole.h"
+	swModule* swModule_init(void);
+}
 
-	swModule* swModule_init(void)
+void test(void);
+
+swModule* swModule_init(void)
+{
+	swModule *module = (swModule *) sw_malloc(sizeof(swModule));
+	if (module == NULL)
 	{
-		swModule *module = (swModule *) sw_malloc(sizeof(swModule));
-		if (module == NULL)
-		{
-			swWarn("malloc failed.");
-			return NULL;
-		}
-		module->name = "test";
-		module->test = test;
-		return module;
+		swWarn("malloc failed.");
+		return NULL;
 	}
+	string name = "test";
+	module->name = (char *)name.c_str();
+	module->test = test;
+	return module;
 }
 
 void test(void)

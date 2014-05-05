@@ -45,6 +45,7 @@ int swModule_load(char *so_file)
 		swWarn("module init failed.");
 		return SW_ERR;
 	}
+	printf("module_name=%s\n", module->name);
 	module->test();
 	return SW_OK;
 }

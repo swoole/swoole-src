@@ -30,20 +30,20 @@ add_library(swoole_static STATIC ${SRC_LIST})
 set_target_properties(swoole_shared PROPERTIES OUTPUT_NAME "swoole" VERSION ${SWOOLE_VERSION})
 set_target_properties(swoole_static PROPERTIES OUTPUT_NAME "swoole" VERSION ${SWOOLE_VERSION})
 
-target_link_libraries(swoole_shared pthread rt)
-target_link_libraries(swoole_static pthread rt)
+target_link_libraries(swoole_shared pthread rt dl)
+target_link_libraries(swoole_static pthread rt dl)
 
 LINK_DIRECTORIES(${LIBRARY_OUTPUT_PATH})
 
 #test_server
 set(TEST_SRC_LIST examples/test_server.c)
 add_executable(test_server ${TEST_SRC_LIST};${SRC_LIST})
-target_link_libraries(test_server pthread rt)
+target_link_libraries(test_server pthread rt dl)
 
 #unittest
 file(GLOB_RECURSE UNITTEST_SRC_LIST FOLLOW_SYMLINKS tests/*.c)
 add_executable(unittest ${UNITTEST_SRC_LIST};${SRC_LIST})
-target_link_libraries(unittest pthread rt)
+target_link_libraries(unittest pthread rt dl)
 
 #add_dependencies(test_server swoole_static swoole_shared)
 #TARGET_LINK_LIBRARIES(test_server swoole)
