@@ -71,6 +71,7 @@ class SwooleUploadServer
                 $info['recv'] += strlen($data);
                 if ($info['recv'] >= $info['size']) {
                     $this->message($fd, 0, "Success, transmission finish. Close connection.");
+                    unset($this->files[$fd]);
                 }
             }
         }
