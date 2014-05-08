@@ -1,4 +1,7 @@
 <?php
+/**
+ * usage: php upload_client.php -h 127.0.0.1 -p 9507 -f test.jpg
+ */
 $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
 $args = getopt("p:h:f:t");
 if (empty($args['p']) or empty($args['h']) or empty($args['f'])) {
