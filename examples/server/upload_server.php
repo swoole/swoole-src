@@ -8,7 +8,6 @@ class SwooleUploadServer
      * @var swoole_server
      */
     protected $serv;
-    protected $buffer;
     protected $files;
 
     protected $root_path = '/tmp/';
@@ -38,8 +37,7 @@ class SwooleUploadServer
             $req = json_decode($data, true);
             if ($req === false) {
                 return $this->message($fd, 400, 'Error Request');
-            }
-            if (empty($req['size']) or empty($req['name'])) {
+            } elseif (empty($req['size']) or empty($req['name'])) {
                 return $this->message($fd, 500, 'require file name and size.');
             } elseif ($req['size'] > self::$max_file_size) {
                 return $this->message($fd, 501, 'over the max_file_size. ' . self::$max_file_size);
@@ -53,7 +51,7 @@ class SwooleUploadServer
             }
             $fp = fopen($file, 'w');
             if (!$fp) {
-                return $this->message($fd, 5034, 'can open file.');
+                return $this->message($fd, 504, 'can open file.');
             } else {
                 $this->message($fd, 0, 'transmission start');
                 $this->files[$fd] = array('fp' => $fp, 'name' => $file, 'size' => $req['size'], 'recv' => 0);
@@ -63,7 +61,6 @@ class SwooleUploadServer
             $info = & $this->files[$fd];
             $fp = $info['fp'];
             $file = $info['name'];
-
             if (!fwrite($fp, $data)) {
                 $this->message($fd, 600, "fwrite failed. transmission stop.");
                 unlink($file);
@@ -87,7 +84,7 @@ class SwooleUploadServer
     {
         $serv = new swoole_server("0.0.0.0", 9507);
         $serv->set(array(
-            'worker_num' => 4,
+            'worker_num' => 1,
         ));
         $serv->on('Start', function ($serv) {
             echo "Swoole Upload Server running\n";
@@ -100,6 +97,3 @@ class SwooleUploadServer
         $serv->start();
     }
 }
-
-
-

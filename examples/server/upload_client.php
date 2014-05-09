@@ -26,9 +26,10 @@ if (!$client->connect($args['h'], $args['p'], $args['t'], 0)) {
 }
 
 $data = array(
-    'name' => $file,
+    'name' => basename($file),
     'size' => $size,
 );
+
 if (!$client->send(json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\r\n\r\n")) {
     die("Error: send header failed.\n");
 }
@@ -40,9 +41,10 @@ $fp = fopen($file, 'r');
 if (!$fp) {
     die("Error: open $file failed.\n");
 }
+$i = 0;
 while(!feof($fp))
 {
-    $read = fread($fp, 8192);
+    $read = fread($fp, 8000);
     if (!$client->send($read)) {
         echo "send failed. ErrCode=".$client->errCode."\n";
         break;
