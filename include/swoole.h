@@ -196,11 +196,12 @@ exit(1)
 enum
 {
 	SW_TRACE_SERVER = 1,
-	SW_TRACE_CLIENT,
-	SW_TRACE_BUFFER,
-	SW_TRACE_CONN,
-	SW_TRACE_EVENT,
-	SW_TRACE_WORKER,
+	SW_TRACE_CLIENT = 2,
+	SW_TRACE_BUFFER = 3,
+	SW_TRACE_CONN   = 4,
+	SW_TRACE_EVENT  = 5,
+	SW_TRACE_WORKER = 6,
+	SW_TRACE_MEMORY = 7,
 };
 
 enum
@@ -556,6 +557,7 @@ SWINLINE int swSocket_create(int type);
 SWINLINE int swSendto(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
 SWINLINE void swFloat2timeval(float timeout, long int *sec, long int *usec);
 swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask);
+void swSignal_add(int signo, swSignalFunc func);
 void swSignal_none(void);
 
 //------------------Factory--------------------
@@ -816,6 +818,16 @@ void swTimer_signal_handler(int sig);
 int swTimer_event_handler(swReactor *reactor, swEvent *event);
 int swTimer_select(swTimer *timer);
 SWINLINE uint64_t swTimer_get_ms();
+
+typedef struct _swModule
+{
+	char *name;
+	void (*test)(void);
+	int (*shutdown)(struct _swModule*);
+
+} swModule;
+
+int swModule_load(char *so_file);
 
 typedef struct swServer_s swServer;
 

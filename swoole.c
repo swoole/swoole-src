@@ -741,7 +741,7 @@ PHP_FUNCTION(swoole_server_create)
 
 	if (swServer_addListen(serv, sock_type, serv_host, serv_port) < 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_ERROR, "swServer_addListen fail. Error: %s [%d]", strerror(errno), errno);
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "addListener fail. Error: %s [%d]", strerror(errno), errno);
 	}
 	if (!getThis())
 	{
@@ -911,12 +911,45 @@ PHP_FUNCTION(swoole_server_set)
 		convert_to_long(*v);
 		serv->tcp_keepcount = (uint16_t)Z_LVAL_PP(v);
 	}
-	//max_request
+	//dispatch_mode
 	if (zend_hash_find(vht, ZEND_STRS("dispatch_mode"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
 		serv->dispatch_mode = (int)Z_LVAL_PP(v);
 	}
+	//dispatch_mode
+	if (zend_hash_find(vht, ZEND_STRS("dispatch_key_type"), (void **)&v) == SUCCESS)
+	{
+		convert_to_long(*v);
+		serv->dispatch_mode = (int)Z_LVAL_PP(v);
+	}
+
+	//dispatch_mode
+	if (zend_hash_find(vht, ZEND_STRS("open_dispatch_key"), (void **)&v) == SUCCESS)
+	{
+		convert_to_long(*v);
+		serv->open_dispatch_key = (int)Z_LVAL_PP(v);
+	}
+
+	if (zend_hash_find(vht, ZEND_STRS("dispatch_key_type"), (void **)&v) == SUCCESS)
+	{
+		convert_to_string(*v);
+		serv->dispatch_key_type = Z_STRVAL_PP(v)[0];
+		serv->dispatch_key_size = swoole_type_size(serv->dispatch_key_type);
+
+		if (serv->dispatch_key_size == 0)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_ERROR, "unknow dispatch_key_type, see pack(). Link: http://php.net/pack");
+			RETURN_FALSE;
+		}
+	}
+
+	if (zend_hash_find(vht, ZEND_STRS("dispatch_key_offset"), (void **)&v) == SUCCESS)
+	{
+		convert_to_long(*v);
+		serv->dispatch_key_offset = (uint16_t) Z_LVAL_PP(v);
+	}
+
 	//log_file
 	if (zend_hash_find(vht, ZEND_STRS("log_file"), (void **)&v) == SUCCESS)
 	{
@@ -979,7 +1012,7 @@ PHP_FUNCTION(swoole_server_set)
 
 		if (serv->package_length_size == 0)
 		{
-			php_error_docref(NULL TSRMLS_CC, E_ERROR, "unknow length type, see pack(). Link: http://php.net/pack");
+			php_error_docref(NULL TSRMLS_CC, E_ERROR, "unknow package_length_type, see pack(). Link: http://php.net/pack");
 			RETURN_FALSE;
 		}
 	}
@@ -1278,9 +1311,9 @@ PHP_FUNCTION(swoole_server_shutdown)
 		}
 	}
 	SWOOLE_GET_SERVER(zobject, serv);
-	if(kill(SwooleGS->master_pid, SIGTERM) < 0)
+	if (kill(SwooleGS->master_pid, SIGTERM) < 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: shutdown fail. kill -SIGTERM master_pid[%d] fail. Error: %s[%d]", SwooleGS->master_pid, strerror(errno), errno);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "shutdown failed. kill -SIGTERM master_pid[%d] fail. Error: %s[%d]", SwooleGS->master_pid, strerror(errno), errno);
 		RETURN_FALSE;
 	}
 	else
@@ -1471,13 +1504,8 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	char *data_ptr;
 	int data_len;
 
-	if (req->info.type == SW_EVENT_PACKAGE_END)
-	{
-		data_ptr = SwooleWG.buffer_input[req->info.from_id]->str;
-		data_len = SwooleWG.buffer_input[req->info.from_id]->length;
-	}
 #ifdef SW_REACTOR_USE_RINGBUFFER
-	else if(req->info.type == SW_EVENT_PACKAGE)
+	if (req->info.type == SW_EVENT_PACKAGE)
 	{
 		swPackage package;
 		memcpy(&package, req->data, sizeof(package));
@@ -1485,7 +1513,14 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
 		data_ptr = package.data;
 		data_len = package.length;
 
+		//printf("len=%d\n", package.length);
 		//swoole_dump_bin(package.data, 's', package.length);
+	}
+#else
+	if (req->info.type == SW_EVENT_PACKAGE_END)
+	{
+		data_ptr = SwooleWG.buffer_input[req->info.from_id]->str;
+		data_len = SwooleWG.buffer_input[req->info.from_id]->length;
 	}
 #endif
 	else
@@ -1501,7 +1536,7 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	ZVAL_STRINGL(zdata, data_ptr, data_len, 1);
 
 #ifdef SW_REACTOR_USE_RINGBUFFER
-	if(req->info.type == SW_EVENT_PACKAGE)
+	if (req->info.type == SW_EVENT_PACKAGE)
 	{
 		swMemoryPool *pool = serv->reactor_threads[req->info.from_id].pool;
 		pool->free(pool, data_ptr);

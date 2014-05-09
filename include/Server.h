@@ -340,6 +340,7 @@ struct swServer_s
 	 * Use data key as factory->dispatch() param
 	 */
 	uint8_t open_dispatch_key;
+	uint8_t dispatch_key_size;
 	uint16_t dispatch_key_offset;
 	uint16_t dispatch_key_type;
 

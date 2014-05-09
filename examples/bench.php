@@ -19,7 +19,7 @@ $bc->process_num = (int)$opt['c'];
 $bc->request_num = (int)$opt['n'];
 $bc->server_url = trim($opt['s']);
 $bc->server_config = parse_url($bc->server_url);
-$bc->send_data = str_repeat('a', 2040);
+$bc->send_data = str_repeat('a', 2032);
 $bc->read_len = 2048;
 if(!empty($opt['p'])) $bc->show_detail = true;
 
@@ -39,7 +39,7 @@ function long_tcp(Swoole_Benchmark $bc)
 		if(!$fp->connect($bc->server_config['host'], $bc->server_config['port'], 1))
 		{
             error:
-            echo "Error: {$fp->errMsg}[{$fp->errCode}]\n";
+            echo "Error: ".swoole_strerror($fp->errCode)."[{$fp->errCode}]\n";
             return false;
 		}
 		$start = $end;
@@ -51,12 +51,12 @@ function long_tcp(Swoole_Benchmark $bc)
     }
 	$end = microtime(true);
 	$write_use = $end - $start;
-	if($write_use>$bc->max_write_time) $bc->max_write_time = $write_use;
+	if($write_use > $bc->max_write_time) $bc->max_write_time = $write_use;
 	$start = $end;
 	/*--------读取Sokcet-------*/
 	$ret = $fp->recv();
 	$i++;
-	if(empty($ret)) 
+	if (empty($ret)) 
 	{
 		echo $bc->pid,"#$i@"," is lost\n";
 		return false;

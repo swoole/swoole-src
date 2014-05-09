@@ -139,7 +139,7 @@ int swBuffer_append(swBuffer *buffer, void *data, uint32_t size)
 
 	memcpy(trunk->data, data, trunk->length);
 
-	swTraceLog(SW_TRACE_BUFFER, "trunk_n=%d|data_len=%d|trunk_len=%d|trunk=%p", buffer->trunk_num, send_data->info.len,
+	swTraceLog(SW_TRACE_BUFFER, "trunk_n=%d|size=%d|trunk_len=%d|trunk=%p", buffer->trunk_num, size,
 			trunk->length, trunk);
 
 	return SW_OK;

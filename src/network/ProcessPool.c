@@ -78,7 +78,7 @@ int swProcessPool_start(swProcessPool *pool)
 }
 
 /**
- * dispatch
+ * dispatch data to worker
  */
 int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int worker_id)
 {
@@ -122,7 +122,7 @@ pid_t swProcessPool_spawn(swWorker *worker)
 	{
 	//child
 	case 0:
-		if(pool->onWorkerStart != NULL)
+		if (pool->onWorkerStart != NULL)
 		{
 			pool->onWorkerStart(pool, worker->id);
 		}
@@ -175,6 +175,9 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
 	return SW_OK;
 }
 
+/**
+ * add a worker to pool
+ */
 int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker)
 {
 	swHashMap_add_int(&pool->map, worker->pid, worker);

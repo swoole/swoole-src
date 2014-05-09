@@ -32,7 +32,7 @@
 
 //#define SW_DEBUG                  //debug
 #define SW_LOG_NO_SRCINFO          //no source info
-#define SW_LOG_TRACE_OPEN          0 //1: open all trace log, 0: close all trace log, >1: open some[traceId=n] trace log
+#define SW_LOG_TRACE_OPEN          0  //1: open all trace log, 0: close all trace log, >1: open some[traceId=n] trace log
 //#define SW_BUFFER_SIZE            65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_CLIENT_BUFFER_SIZE      65535
 #define SW_BUFFER_SIZE             (8192-sizeof(struct _swDataHead)) //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
@@ -68,6 +68,7 @@
 
 #define SW_WORKER_SENDTO_COUNT     2    //写回客户端失败尝试次数
 #define SW_WORKER_SENDTO_YIELD     10   //yield after sendto
+#define SW_WORKER_READ_COUNT       10
 
 #define SW_MAINREACTOR_USE_POLL         //main thread to use select or poll
 
@@ -80,12 +81,13 @@
 
 #define SW_QUEUE_SIZE              100   //缩减版的RingQueue,用在线程模式下
 
-#define SW_RINGQUEUE_USE           0             //使用RingQueue代替系统消息队列，此特性正在测试中，启用此特性会用内存队列来替代IPC通信，会减少系统调用、内存申请和复制，提高性能
-#define SW_RINGQUEUE_LEN           100           //RingQueue队列长度
-#define SW_RINGQUEUE_MEMSIZE       (1024*1024*4) //内存区大小,默认分配4M的内存
+#define SW_RINGQUEUE_USE           0              //使用RingQueue代替系统消息队列，此特性正在测试中，启用此特性会用内存队列来替代IPC通信，会减少系统调用、内存申请和复制，提高性能
+#define SW_RINGQUEUE_LEN           100            //RingQueue队列长度
+#define SW_RINGQUEUE_MEMSIZE       (1024*1024*4)  //内存区大小,默认分配4M的内存
 
-//#define SW_USE_RINGQUEUE_TS       1     //使用线程安全版本的RingQueue
-#define SW_RINGBUFFER_COLLECT_N    100    //collect max_count
+//#define SW_USE_RINGQUEUE_TS          1     //使用线程安全版本的RingQueue
+#define SW_RINGBUFFER_COLLECT_N        100   //collect max_count
+#define SW_RINGBUFFER_FREE_N_MAX       4    //when free_n > MAX, execute collect
 
 /**
  * use ringbuffer memory pool

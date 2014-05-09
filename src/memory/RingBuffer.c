@@ -13,7 +13,7 @@ typedef struct _swRingBuffer
 
 typedef struct _swRingBuffer_item
 {
-	uint8_t lock;
+	uint32_t lock;
 	uint32_t length;
 } swRingBuffer_head;
 
@@ -51,14 +51,20 @@ swMemoryPool *swRingBuffer_new(size_t size, uint8_t shared)
 SWINLINE static void swRingBuffer_collect(swRingBuffer *object)
 {
 	int i;
+	swRingBuffer_head *item;
+
+	swTraceLog(SW_TRACE_MEMORY, "collect_offset=%ld, free_n=%d", object->collect_offset, object->free_n);
+
 	for(i = 0; i<SW_RINGBUFFER_COLLECT_N; i++)
 	{
-		swRingBuffer_head *item = object->memory + object->collect_offset;
+		item = (swRingBuffer_head *) (object->memory + object->collect_offset);
+
+		swTraceLog(SW_TRACE_MEMORY, "collect_offset=%d, item_length=%d, lock=%d", object->collect_offset, item->length, item->lock);
 
 		//can collect
 		if (item->lock == 0)
 		{
-			object->collect_offset += sizeof(swRingBuffer_head) + item->length;
+			object->collect_offset += (sizeof(swRingBuffer_head) + item->length);
 			if (object->free_n > 0)
 			{
 				object->free_n --;
@@ -78,22 +84,36 @@ SWINLINE static void swRingBuffer_collect(swRingBuffer *object)
 static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size)
 {
 	swRingBuffer *object = pool->object;
-	swRingBuffer_head *item = object->memory + object->alloc_offset;
+	swRingBuffer_head *item;
 	size_t n;
 	uint8_t try_collect = 0;
 	void *ret_mem = NULL;
 
+	swTraceLog(SW_TRACE_MEMORY, "[0] alloc_offset=%ld|collect_offset=%ld", object->alloc_offset, object->collect_offset);
+
+	start_alloc:
+
 	if (object->alloc_offset < object->collect_offset)
 	{
 		head_alloc:
+		item = object->memory + object->alloc_offset;
+		/**
+		 * 剩余内存的长度
+		 */
 		n = object->collect_offset - object->alloc_offset;
-		if (n > size)
+		/**
+		 * 剩余内存可供本次分配,必须是>size
+		 */
+		if ((n - sizeof(swRingBuffer_head)) > size)
 		{
 			goto do_alloc;
 		}
-		//no enough memory space
+		/**
+		 * 内存不足,已尝试回收过
+		 */
 		else if (try_collect == 1)
 		{
+			swWarn("alloc_offset=%ld|collect_offset=%ld", object->alloc_offset, object->collect_offset);
 			return NULL;
 		}
 		//try collect memory, then try head_alloc
@@ -101,6 +121,7 @@ static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size)
 		{
 			try_collect = 1;
 			swRingBuffer_collect(object);
+			goto start_alloc;
 		}
 	}
 	else
@@ -109,7 +130,9 @@ static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size)
 		n = object->size - object->alloc_offset;
 		item = object->memory + object->alloc_offset;
 
-		if (n >= size)
+		swTraceLog(SW_TRACE_MEMORY, "[1] size=%ld, ac_size=%d, n_size=%ld", object->size, size, n);
+
+		if ((n - sizeof(swRingBuffer_head)) >= size)
 		{
 			goto do_alloc;
 		}
@@ -117,9 +140,13 @@ static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size)
 		{
 			//unlock
 			item->lock = 0;
-			item->length = n;
+			item->length = n - sizeof(swRingBuffer_head);
+
 			//goto head
 			object->alloc_offset = 0;
+
+			swTraceLog(SW_TRACE_MEMORY, "switch to head_alloc. ac_size=%d, n_size=%ld", size, n);
+
 			goto head_alloc;
 		}
 	}
@@ -127,7 +154,7 @@ static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size)
 	do_alloc:
 	item->lock = 1;
 	item->length = size;
-	ret_mem = object->memory + object->alloc_offset + sizeof(swRingBuffer_head);
+	ret_mem = (void*) (object->memory + object->alloc_offset + sizeof(swRingBuffer_head));
 
 	/**
 	 * 内存游标向后移动

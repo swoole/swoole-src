@@ -808,36 +808,18 @@ int swTaskWorker_onFinish(swReactor *reactor, swEvent *event)
 
 void swServer_signal_init(void)
 {
-	if (SwooleG.use_signalfd)
+	swSignal_add(SIGHUP, NULL);
+	swSignal_add(SIGPIPE, NULL);
+	swSignal_add(SIGUSR1, swServer_signal_hanlder);
+	swSignal_add(SIGUSR2, swServer_signal_hanlder);
+	swSignal_add(SIGTERM, swServer_signal_hanlder);
+	swSignal_add(SIGALRM, swTimer_signal_handler);
+	//for test
+	swSignal_add(SIGVTALRM, swServer_signal_hanlder);
+	swServer_set_minfd(SwooleG.serv, SwooleG.signal_fd);
+	if (SwooleG.serv->daemonize)
 	{
-		swSignalfd_add(SIGHUP, NULL);
-		swSignalfd_add(SIGPIPE, NULL);
-		swSignalfd_add(SIGUSR1, swServer_signal_hanlder);
-		swSignalfd_add(SIGUSR2, swServer_signal_hanlder);
-		swSignalfd_add(SIGTERM, swServer_signal_hanlder);
-		swSignalfd_add(SIGALRM, swTimer_signal_handler);
-		//for test
-		swSignalfd_add(SIGVTALRM, swServer_signal_hanlder);
-		swServer_set_minfd(SwooleG.serv, SwooleG.signal_fd);
-		if (SwooleG.serv->daemonize)
-		{
-			swSignalfd_add(SIGINT, NULL);
-		}
-	}
-	else
-	{
-		swSignal_set(SIGHUP, SIG_IGN, 1, 0);
-		swSignal_set(SIGPIPE, SIG_IGN, 1, 0);
-		swSignal_set(SIGUSR1, swServer_signal_hanlder, 1, 0);
-		swSignal_set(SIGUSR2, swServer_signal_hanlder, 1, 0);
-		swSignal_set(SIGTERM, swServer_signal_hanlder, 1, 0);
-		swSignal_set(SIGALRM, swTimer_signal_handler, 1, 0);
-		swSignal_set(SIGVTALRM, swServer_signal_hanlder, 1, 0);
-
-		if (SwooleG.serv->daemonize)
-		{
-			swSignal_set(SIGINT, SIG_IGN, 1, 0);
-		}
+		swSignal_add(SIGINT, NULL);
 	}
 }
 

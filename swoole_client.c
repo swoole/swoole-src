@@ -953,7 +953,7 @@ PHP_FUNCTION(swoole_event_wait)
 		int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, &timeo);
 		if(ret < 0)
 		{
-			php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_client: reactor wait fail. Errno: %s [%d]", strerror(errno), errno);
+			php_error_docref(NULL TSRMLS_CC, E_ERROR, "reactor wait failed. Error: %s [%d]", strerror(errno), errno);
 		}
 	}
 }
@@ -965,7 +965,7 @@ PHP_METHOD(swoole_client, __construct)
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|l", &ztype, &async) == FAILURE)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_client: require soclet type param.");
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "require socket type param.");
 		RETURN_FALSE;
 	}
 
@@ -1027,7 +1027,7 @@ PHP_METHOD(swoole_client, connect)
 			callback = zend_read_property(swoole_client_class_entry_ptr, getThis(), php_sw_callbacks[i], strlen(php_sw_callbacks[i]), 1 TSRMLS_CC);
 			if (ZVAL_IS_NULL(callback))
 			{
-				php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_client->connect: no %s callback.", php_sw_callbacks[i]);
+				php_error_docref(NULL TSRMLS_CC, E_ERROR, "no %s callback.", php_sw_callbacks[i]);
 				RETURN_FALSE;
 			}
 		}
@@ -1037,7 +1037,7 @@ PHP_METHOD(swoole_client, connect)
 
 		if (zend_hash_update(&php_sw_client_callback, (char *) &cli->sock, sizeof(cli->sock), &getThis(), sizeof(zval*), NULL) == FAILURE)
 		{
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: add to hashtable failed.");
+			php_error_docref(NULL TSRMLS_CC, E_WARNING, "add to hashtable failed.");
 			RETURN_FALSE;
 		}
 
@@ -1061,12 +1061,12 @@ PHP_METHOD(swoole_client, connect)
 			zcallback = zend_read_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("connect")-1, 0 TSRMLS_CC);
 			if (ZVAL_IS_NULL(callback))
 			{
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: swoole_client object have not connect callback.");
+				php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client object have not connect callback.");
 				RETURN_FALSE;
 			}
 			if (call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
 			{
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: onConnect[udp] handler error");
+				php_error_docref(NULL TSRMLS_CC, E_WARNING, "onConnect[udp] handler error");
 				RETURN_FALSE;
 			}
 			if (retval)
@@ -1080,7 +1080,7 @@ PHP_METHOD(swoole_client, connect)
 	}
 	else if (ret < 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: connect to server[%s:%d] failed. Error: %s [%d]", host, (int)port, strerror(errno), errno);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "connect to server[%s:%d] failed. Error: %s [%d]", host, (int)port, strerror(errno), errno);
 		MAKE_STD_ZVAL(errCode);
 		ZVAL_LONG(errCode, errno);
 		zend_update_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errCode TSRMLS_CC);

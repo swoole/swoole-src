@@ -219,7 +219,7 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 	object->workers_status[SwooleWG.id] = SW_WORKER_IDLE;
 
 	//stop
-	if(worker_task_num < 0)
+	if (worker_task_num < 0)
 	{
 		SwooleG.running = 0;
 	}
@@ -357,6 +357,9 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 	int ret;
 	int worker_exit_code;
 
+	SwooleG.use_signalfd = 0;
+	SwooleG.use_timerfd = 0;
+
 	swFactoryProcess *object = factory->object;
 	swServer *serv = factory->ptr;
 	swWorker *reload_workers;
@@ -374,7 +377,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 	}
 
 	//for reload
-	swSignal_set(SIGUSR1, swManagerSignalHanlde, 1, 0);
+	swSignal_add(SIGUSR1, swManagerSignalHanlde);
 
 	while (SwooleG.running > 0)
 	{
@@ -619,38 +622,18 @@ static int swRandom(int worker_pti)
 
 static void swFactoryProcess_worker_signal_init(void)
 {
-	if (SwooleG.use_signalfd)
-	{
-		swSignalfd_add(SIGHUP, NULL);
-		swSignalfd_add(SIGPIPE, NULL);
-		swSignalfd_add(SIGUSR1, NULL);
-		swSignalfd_add(SIGUSR2, NULL);
-		swSignalfd_add(SIGTERM, swFactoryProcess_worker_signal_handler);
-		swSignalfd_add(SIGALRM, swTimer_signal_handler);
-		//for test
-		swSignalfd_add(SIGVTALRM, swFactoryProcess_worker_signal_handler);
+	swSignal_add(SIGHUP, NULL);
+	swSignal_add(SIGPIPE, NULL);
+	swSignal_add(SIGUSR1, NULL);
+	swSignal_add(SIGUSR2, NULL);
+	swSignal_add(SIGTERM, swFactoryProcess_worker_signal_handler);
+	swSignal_add(SIGALRM, swTimer_signal_handler);
+	//for test
+	swSignal_add(SIGVTALRM, swFactoryProcess_worker_signal_handler);
 
-		if (SwooleG.serv->daemonize)
-		{
-			swSignalfd_add(SIGINT, NULL);
-		}
-	}
-	else
+	if (SwooleG.serv->daemonize)
 	{
-		swSignal_set(SIGHUP, SIG_IGN, 1, 0);
-		swSignal_set(SIGPIPE, SIG_IGN, 1, 0);
-		swSignal_set(SIGUSR1, SIG_IGN, 1, 0);
-		swSignal_set(SIGUSR2, SIG_IGN, 1, 0);
-		swSignal_set(SIGTERM, SIG_IGN, 1, 0);
-		swSignal_set(SIGTERM, swFactoryProcess_worker_signal_handler, 1, 0);
-		swSignal_set(SIGALRM, swTimer_signal_handler, 1, 0);
-		//for test
-		swSignal_set(SIGVTALRM, swFactoryProcess_worker_signal_handler, 1, 0);
-
-		if (SwooleG.serv->daemonize)
-		{
-			swSignal_set(SIGINT, SIG_IGN, 1, 0);
-		}
+		swSignal_add(SIGINT, NULL);
 	}
 }
 
@@ -685,7 +668,6 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 {
 	swFactoryProcess *object = factory->object;
 	swServer *serv = factory->ptr;
-	int i;
 	struct
 	{
 		long pti;
@@ -714,6 +696,8 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 	//worker_id
 	SwooleWG.id = worker_pti;
 
+#ifndef SW_REACTOR_USE_RINGBUFFER
+	int i;
 	//for open_check_eof and  open_check_length
 	if (serv->open_eof_check || serv->open_length_check)
 	{
@@ -733,6 +717,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 			}
 		}
 	}
+#endif
 
 	if (serv->ipc_mode == SW_IPC_MSGQUEUE)
 	{
@@ -761,6 +746,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 			swError("[Worker] create worker_reactor failed.");
 			return SW_ERR;
 		}
+		swSetNonBlock(pipe_rd);
 		SwooleG.main_reactor->ptr = serv;
 		SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_rd, SW_FD_PIPE);
 		SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE, swFactoryProcess_worker_receive);
@@ -1019,16 +1005,24 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 
 static int swFactoryProcess_worker_receive(swReactor *reactor, swEvent *event)
 {
-	int n;
+	int n, i, ret;
 	swEventData task;
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &serv->factory;
-	do
+
+	for (i = 0; i < SW_WORKER_READ_COUNT; i++)
 	{
 		n = read(event->fd, &task, sizeof(task));
+		if (n > 0)
+		{
+			ret = swFactoryProcess_worker_excute(factory, &task);
+		}
+		else if (errno == EAGAIN)
+		{
+			break;
+		}
 	}
-	while(n < 0 && errno == EINTR);
-	return swFactoryProcess_worker_excute(factory, &task);
+	return ret;
 }
 
 int swFactoryProcess_send2client(swReactor *reactor, swDataHead *ev)

@@ -424,21 +424,23 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 #ifdef SW_REACTOR_USE_RINGBUFFER
 		swMemoryPool *pool = serv->reactor_threads[reactor->id].pool;
 		swPackage package;
-
 		package.length = n;
+
 		while (1)
 		{
 			package.data = pool->alloc(pool, n);
 			if (package.data == NULL)
 			{
-				swYield();
-				swWarn("reactor memory pool full.");
+				swWarn("Reactor memory pool full. Wait memory collect. n=%d", n);
+				usleep(10);
+				//swYield();
 				continue;
 			}
 			break;
 		}
+
 		rdata.buf.info.type = SW_EVENT_PACKAGE;
-		memcpy(package.data + package.length , rdata.buf.data, n);
+		memcpy(package.data, rdata.buf.data, n);
 		rdata.buf.info.len = sizeof(package);
 		memcpy(rdata.buf.data, &package, sizeof(package));
 

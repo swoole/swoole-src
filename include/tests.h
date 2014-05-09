@@ -37,6 +37,7 @@ swUnitTest(chan_test);
 
 swUnitTest(u1_test2);
 swUnitTest(u1_test1);
+swUnitTest(u1_test3);
 
 swUnitTest(http_test2);
 

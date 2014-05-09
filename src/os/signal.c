@@ -53,6 +53,24 @@ swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask)
 	return oact.sa_handler;
 }
 
+void swSignal_add(int signo, swSignalFunc func)
+{
+#ifdef HAVE_SIGNALFD
+	if (SwooleG.use_signalfd)
+	{
+		swSignalfd_add(signo, func);
+	}
+	else
+#endif
+	{
+		if (func == NULL)
+		{
+			func = SIG_IGN;
+		}
+		swSignal_set(signo, func, 1, 0);
+	}
+}
+
 #ifdef HAVE_SIGNALFD
 /**
  * signalfd
