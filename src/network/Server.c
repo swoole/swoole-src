@@ -398,7 +398,10 @@ static int swServer_start_proxy(swServer *serv)
 	main_reactor->onTimeout = swServer_master_onReactorTimeout;
 
 #ifdef HAVE_SIGNALFD
-	swSignalfd_setup(main_reactor);
+	if (SwooleG.use_signalfd)
+	{
+		swSignalfd_setup(main_reactor);
+	}
 #endif
 
 	main_reactor->add(main_reactor, serv->main_pipe.getFd(&serv->main_pipe, 0), (SW_FD_USER+2));

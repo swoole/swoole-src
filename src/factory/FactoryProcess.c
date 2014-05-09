@@ -750,6 +750,14 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 		SwooleG.main_reactor->ptr = serv;
 		SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_rd, SW_FD_PIPE);
 		SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE, swFactoryProcess_worker_receive);
+
+#ifdef HAVE_SIGNALFD
+		if (SwooleG.use_signalfd)
+		{
+			swSignalfd_setup(SwooleG.main_reactor);
+		}
+#endif
+
 	}
 
 	if (factory->max_request < 1)

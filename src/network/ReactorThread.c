@@ -976,6 +976,8 @@ static int swReactorThread_loop_udp(swThreadParam *param)
 
 	int sock = param->pti;
 
+	swSignal_none();
+
 	//blocking
 	swSetBlock(sock);
 
@@ -1022,6 +1024,8 @@ static int swReactorThread_loop_unix_dgram(swThreadParam *param)
 
 	uint16_t sun_path_offset;
 	uint8_t sun_path_len;
+
+	swSignal_none();
 
 	//blocking
 	swSetBlock(sock);
