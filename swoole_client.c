@@ -1021,13 +1021,25 @@ PHP_METHOD(swoole_client, connect)
 	//nonblock async
 	if (cli->async == 1)
 	{
-		//check callback function
-		for(i=0; i<PHP_CLIENT_CALLBACK_NUM; i++)
+		if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
 		{
-			callback = zend_read_property(swoole_client_class_entry_ptr, getThis(), php_sw_callbacks[i], strlen(php_sw_callbacks[i]), 1 TSRMLS_CC);
+			//check callback function
+			for(i=0; i<PHP_CLIENT_CALLBACK_NUM; i++)
+			{
+				callback = zend_read_property(swoole_client_class_entry_ptr, getThis(), php_sw_callbacks[i], strlen(php_sw_callbacks[i]), 1 TSRMLS_CC);
+				if (ZVAL_IS_NULL(callback))
+				{
+					php_error_docref(NULL TSRMLS_CC, E_ERROR, "no %s callback.", php_sw_callbacks[i]);
+					RETURN_FALSE;
+				}
+			}
+		}
+		else
+		{
+			callback = zend_read_property(swoole_client_class_entry_ptr, getThis(), SW_STRL(php_sw_client_onReceive)-1, 1 TSRMLS_CC);
 			if (ZVAL_IS_NULL(callback))
 			{
-				php_error_docref(NULL TSRMLS_CC, E_ERROR, "no %s callback.", php_sw_callbacks[i]);
+				php_error_docref(NULL TSRMLS_CC, E_ERROR, "no receive callback.");
 				RETURN_FALSE;
 			}
 		}
@@ -1058,7 +1070,7 @@ PHP_METHOD(swoole_client, connect)
 			zval *retval;
 
 			args[0] = &getThis();
-			zcallback = zend_read_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("connect")-1, 0 TSRMLS_CC);
+			zcallback = zend_read_property(swoole_client_class_entry_ptr, getThis(), SW_STRL(php_sw_client_onConnect)-1, 0 TSRMLS_CC);
 			if (ZVAL_IS_NULL(callback))
 			{
 				php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client object have not connect callback.");
@@ -1269,7 +1281,7 @@ PHP_METHOD(swoole_client, on)
 	zval_add_ref(&getThis());
 	for(i=0; i<PHP_CLIENT_CALLBACK_NUM; i++)
 	{
-		if (strncasecmp(php_sw_callbacks[i]+2, cb_name, cb_name_len) == 0)
+		if (strncasecmp(php_sw_callbacks[i] + 2, cb_name, cb_name_len) == 0)
 		{
 			zval_add_ref(&zcallback);
 			zend_update_property(swoole_client_class_entry_ptr, getThis(), php_sw_callbacks[i], strlen(php_sw_callbacks[i]), zcallback TSRMLS_CC);

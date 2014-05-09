@@ -6,6 +6,14 @@ $client->on("connect", function($cli) {
     $cli->send("hello world\n");
 });
 
+$client->on('close', function($cli){
+    echo "closed\n";
+});
+
+$client->on('error', function($cli){
+    echo "error\n";
+});
+
 $client->on("receive", function($cli, $data){
 	echo "received: $data\n";
 	sleep(1);
