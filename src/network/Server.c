@@ -455,7 +455,7 @@ int swServer_start(swServer *serv)
 		close(STDERR_FILENO);
 
 		//redirect STDOUT to log file
-		if (SwooleG.log_fd > 0)
+		if (SwooleG.log_fd > STDOUT_FILENO)
 		{
 			dup2(SwooleG.log_fd, STDOUT_FILENO);
 		}

@@ -33,7 +33,10 @@ int swLog_init(char *logfile)
 
 void swLog_free(void)
 {
-	close(SwooleG.log_fd);
+	if (SwooleG.log_fd > STDOUT_FILENO)
+	{
+		close(SwooleG.log_fd);
+	}
 }
 
 void swLog_put(int level, char *cnt)
