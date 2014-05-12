@@ -839,6 +839,7 @@ typedef struct _swServerG{
 	int process_type;
 	int signal_alarm; //for timer with message queue
 	int signal_fd;
+	int log_fd;
 
 	uint8_t use_timerfd;
 	uint8_t use_signalfd;

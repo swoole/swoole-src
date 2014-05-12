@@ -668,6 +668,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 {
 	swFactoryProcess *object = factory->object;
 	swServer *serv = factory->ptr;
+
 	struct
 	{
 		long pti;

@@ -2195,6 +2195,7 @@ PHP_FUNCTION(swoole_server_start)
 
 	zval_add_ref(&zobject);
 	serv->ptr2 = zobject;
+
 	ret = swServer_create(serv);
 
 	if (ret < 0)
@@ -2513,7 +2514,7 @@ PHP_FUNCTION(swoole_get_local_ip)
 
 	if (getifaddrs(&ipaddrs) != 0)
 	{
-		perror("getifaddrs");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "getifaddrs() failed. Error: %s[%d]", strerror(errno), errno);
 		RETURN_FALSE;
 	}
 	array_init(return_value);

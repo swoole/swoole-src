@@ -451,7 +451,16 @@ int swServer_start(swServer *serv)
 	//run as daemon
 	if (serv->daemonize > 0)
 	{
-		if (daemon(0, 0) < 0)
+		close(STDIN_FILENO);
+		close(STDERR_FILENO);
+
+		//redirect STDOUT to log file
+		if (SwooleG.log_fd > 0)
+		{
+			dup2(SwooleG.log_fd, STDOUT_FILENO);
+		}
+
+		if (daemon(0, 1) < 0)
 		{
 			return SW_ERR;
 		}
@@ -556,7 +565,6 @@ int swServer_close(swServer *serv, swEvent *event)
 
 void swoole_init(void)
 {
-	extern FILE *swoole_log_fn;
 	if (SwooleG.running == 0)
 	{
 		bzero(&SwooleG, sizeof(SwooleG));
@@ -580,7 +588,7 @@ void swoole_init(void)
 		SwooleG.use_timerfd = 1;
 #endif
 		//将日志设置为标准输出
-		swoole_log_fn = stdout;
+		SwooleG.log_fd = STDOUT_FILENO;
 		//初始化全局内存
 		SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
 		if(SwooleG.memory_pool == NULL)
