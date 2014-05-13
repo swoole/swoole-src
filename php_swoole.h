@@ -211,6 +211,13 @@ void swoole_destory_lock(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 void php_swoole_check_reactor();
 void php_swoole_try_run_reactor();
 
+ZEND_BEGIN_MODULE_GLOBALS(swoole)
+	uint16_t task_worker_num;
+	uint8_t task_ipc_mode;
+	uint8_t task_auto_start;
+	key_t message_queue_key;
+ZEND_END_MODULE_GLOBALS(swoole)
+
 #ifdef ZTS
 #define SWOOLE_G(v) TSRMG(swoole_globals_id, zend_swoole_globals *, v)
 #else

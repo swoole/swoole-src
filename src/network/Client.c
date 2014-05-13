@@ -27,6 +27,15 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double _tim
 static int swClient_udp_send(swClient *cli, char *data, int length);
 static int swClient_udp_recv(swClient *cli, char *data, int len, int waitall);
 
+static swHashMap swoole_dns_cache = NULL;
+
+typedef struct
+{
+	int length;
+	char addr[0];
+
+} swDNS_cache;
+
 int swClient_create(swClient *cli, int type, int async)
 {
 	int _domain;
@@ -100,22 +109,38 @@ static int swClient_inet_addr(swClient *cli, char *string)
 	}
 	else
 	{
-		if (cli->async)
+		swDNS_cache *cache = swHashMap_find(&swoole_dns_cache, string, strlen(string));
+	    if (cache == NULL)
 		{
-			swWarn("DNS lookup will block the process. Please use swoole_async_dns_lookup.");
+	    	if (cli->async)
+			{
+				swWarn("DNS lookup will block the process. Please use swoole_async_dns_lookup.");
+			}
+			if (!(host_entry = gethostbyname(string)))
+			{
+				swWarn("SwooleClient: Host lookup failed. Error: %s[%d] ", strerror(errno), errno);
+				return SW_ERR;
+			}
+			if (host_entry->h_addrtype != AF_INET)
+			{
+				swWarn("Host lookup failed: Non AF_INET domain returned on AF_INET socket.");
+				return 0;
+			}
+			cache = sw_malloc(sizeof(int) + host_entry->h_length);
+			if (cache == NULL)
+			{
+				swWarn("malloc() failed.");
+				memcpy(&(sin->sin_addr.s_addr), host_entry->h_addr_list[0], host_entry->h_length);
+				return SW_OK;
+			}
+			else
+			{
+				memcpy(cache->addr, host_entry->h_addr_list[0], host_entry->h_length);
+				cache->length = host_entry->h_length;
+			}
+			swHashMap_add(&swoole_dns_cache, string, strlen(string), cache);
 		}
-
-		if (!(host_entry = gethostbyname(string)))
-		{
-			swWarn("SwooleClient: Host lookup failed. Error: %s[%d] ", strerror(errno), errno);
-			return SW_ERR;
-		}
-		if (host_entry->h_addrtype != AF_INET)
-		{
-			swWarn("Host lookup failed: Non AF_INET domain returned on AF_INET socket.");
-			return 0;
-		}
-		memcpy(&(sin->sin_addr.s_addr), host_entry->h_addr_list[0], host_entry->h_length);
+		memcpy(&(sin->sin_addr.s_addr), cache->addr, cache->length);
 	}
 	return SW_OK;
 }

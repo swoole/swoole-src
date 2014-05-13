@@ -42,6 +42,8 @@ static int php_swoole_unix_dgram_fd;
 
 extern sapi_module_struct sapi_module;
 
+ZEND_DECLARE_MODULE_GLOBALS(swoole)
+
 // arginfo server
 // *_oo : for object style
 
@@ -433,29 +435,27 @@ ZEND_GET_MODULE(swoole)
 
 /* {{{ PHP_INI
  */
-/* Remove comments and fill if you need to have entries in php.ini
- PHP_INI_BEGIN()
- STD_PHP_INI_ENTRY("swoole.global_value",      "42", PHP_INI_ALL, OnUpdateLong, global_value, zend_swoole_globals, swoole_globals)
- STD_PHP_INI_ENTRY("swoole.global_string", "foobar", PHP_INI_ALL, OnUpdateString, global_string, zend_swoole_globals, swoole_globals)
- PHP_INI_END()
- */
-/* }}} */
 
-/* {{{ php_swoole_init_globals
- */
-/* Uncomment this function if you have INI entries
- static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
- {
- swoole_globals->global_value = 0;
- swoole_globals->global_string = NULL;
- }
- */
-/* }}} */
+PHP_INI_BEGIN()
+STD_PHP_INI_ENTRY("swoole.task_worker_num", "0", PHP_INI_ALL, OnUpdateLong, task_worker_num, zend_swoole_globals, swoole_globals)
+STD_PHP_INI_ENTRY("swoole.task_ipc_mode", "0", PHP_INI_ALL, OnUpdateString, task_ipc_mode, zend_swoole_globals, swoole_globals)
+STD_PHP_INI_ENTRY("swoole.task_auto_start", "0", PHP_INI_ALL, OnUpdateString, task_auto_start, zend_swoole_globals, swoole_globals)
+STD_PHP_INI_ENTRY("swoole.message_queue_key", "0", PHP_INI_ALL, OnUpdateString, message_queue_key, zend_swoole_globals, swoole_globals)
+PHP_INI_END()
+
+static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
+{
+	swoole_globals->task_worker_num = 0;
+	swoole_globals->task_ipc_mode = 0;
+}
 
 /* {{{ PHP_MINIT_FUNCTION
  */
 PHP_MINIT_FUNCTION(swoole)
 {
+	ZEND_INIT_MODULE_GLOBALS(swoole, php_swoole_init_globals, php_swoole_shutdown_globals);
+	REGISTER_INI_ENTRIES();
+
 	le_swoole_server = zend_register_list_destructors_ex(swoole_destory_server, NULL, SW_RES_SERVER_NAME, module_number);
 	le_swoole_client = zend_register_list_destructors_ex(swoole_destory_client, NULL, SW_RES_CLIENT_NAME, module_number);
 	le_swoole_lock = zend_register_list_destructors_ex(swoole_destory_lock, NULL, SW_RES_LOCK_NAME, module_number);
@@ -591,6 +591,8 @@ PHP_MINFO_FUNCTION(swoole)
 #endif
 
 	php_info_print_table_end();
+
+	DISPLAY_INI_ENTRIES();
 }
 /* }}} */
 
