@@ -1257,9 +1257,9 @@ PHP_METHOD(swoole_client, close)
 
 	//Connection error, or short tcp connection.
 	//No keep connection
-	if (!(Z_LVAL_P(ztype) & SW_FLAG_KEEP) && swConnection_error(cli->sock, SwooleG.error) == SW_OK)
+	if (!(Z_LVAL_P(ztype) & SW_FLAG_KEEP) || swConnection_error(cli->sock, SwooleG.error) == SW_OK)
 	{
-		if(cli->async == 1 && SwooleG.main_reactor != NULL)
+		if (cli->async == 1 && SwooleG.main_reactor != NULL)
 		{
 			ret = php_swoole_client_close(&getThis(), cli->sock TSRMLS_CC);
 		}

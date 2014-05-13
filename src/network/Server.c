@@ -327,7 +327,7 @@ static int swServer_check_callback(swServer *serv)
 		return SW_ERR;
 	}
 	//AsyncTask
-	if (serv->task_worker_num > 0)
+	if (SwooleG.task_worker_num > 0)
 	{
 		if (serv->onTask == NULL)
 		{
@@ -436,14 +436,15 @@ int swServer_start(swServer *serv)
 	serv->ipc_mode = SW_IPC_MSGQUEUE;
 #endif
 
+	if (serv->message_queue_key == 0)
+	{
+		char path_buf[128];
+		char *path_ptr = getcwd(path_buf, 128);
+		serv->message_queue_key = ftok(path_ptr, 1);
+	}
+
 	if (serv->ipc_mode == SW_IPC_MSGQUEUE)
 	{
-		if (serv->message_queue_key == 0)
-		{
-			char path_buf[128];
-			char *path_ptr = getcwd(path_buf, 128);
-			serv->message_queue_key = ftok(path_ptr, 1);
-		}
 		SwooleG.use_timerfd = 0;
 		SwooleG.use_signalfd = 0;
 	}
@@ -484,7 +485,7 @@ int swServer_start(swServer *serv)
 	}
 
 	//for taskwait
-	if (serv->task_worker_num > 0 && serv->worker_num > 0)
+	if (SwooleG.task_worker_num > 0 && serv->worker_num > 0)
 	{
 		SwooleG.task_result = sw_shm_calloc(serv->worker_num, sizeof(swEventData));
 		SwooleG.task_notify = sw_calloc(serv->worker_num, sizeof(swPipe));
@@ -721,7 +722,7 @@ int swServer_free(swServer *serv)
 	}
 
 	//master pipe
-	if (serv->task_worker_num > 0)
+	if (SwooleG.task_worker_num > 0)
 	{
 		swProcessPool_shutdown(&SwooleG.task_workers);
 	}
@@ -804,6 +805,9 @@ void swTaskWorker_onWorkerStart(swProcessPool *pool, int worker_id)
 	serv->onWorkerStart(serv, worker_id + serv->worker_num);
 }
 
+/**
+ * in worker process
+ */
 int swTaskWorker_onFinish(swReactor *reactor, swEvent *event)
 {
 	swServer *serv = reactor->ptr;

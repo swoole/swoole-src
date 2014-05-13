@@ -830,7 +830,12 @@ PHP_FUNCTION(swoole_server_set)
 	if (zend_hash_find(vht, ZEND_STRS("task_worker_num"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->task_worker_num = (int)Z_LVAL_PP(v);
+		SwooleG.task_worker_num = (int)Z_LVAL_PP(v);
+	}
+	if (zend_hash_find(vht, ZEND_STRS("task_ipc_mode"), (void **)&v) == SUCCESS)
+	{
+		convert_to_long(*v);
+		SwooleG.task_ipc_mode = (int)Z_LVAL_PP(v);
 	}
 	//max_conn
 	if (zend_hash_find(vht, ZEND_STRS("max_conn"), (void **)&v) == SUCCESS)
@@ -2581,7 +2586,7 @@ PHP_FUNCTION(swoole_server_taskwait)
 	}
 
 	SWOOLE_GET_SERVER(zobject, serv);
-	if(serv->task_worker_num < 1)
+	if (SwooleG.task_worker_num < 1)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: task can not use. Please set task_worker_num.");
 		RETURN_FALSE;
@@ -2593,7 +2598,7 @@ PHP_FUNCTION(swoole_server_taskwait)
 		RETURN_FALSE;
 	}
 
-	if (worker_id >= serv->task_worker_num)
+	if (worker_id >= SwooleG.task_worker_num)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: worker_id must be less than serv->task_worker_num");
 		RETURN_FALSE;
@@ -2656,13 +2661,13 @@ PHP_FUNCTION(swoole_server_task)
 	}
 
 	SWOOLE_GET_SERVER(zobject, serv);
-	if(serv->task_worker_num < 1)
+	if (SwooleG.task_worker_num < 1)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: task can not use. Please set task_worker_num.");
 		RETURN_FALSE;
 	}
 
-	if (worker_id >= serv->task_worker_num)
+	if (worker_id >= SwooleG.task_worker_num)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: worker_id must be less than serv->task_worker_num");
 		RETURN_FALSE;
@@ -2682,7 +2687,7 @@ PHP_FUNCTION(swoole_server_task)
 	//from_id保存worker_id
 	buf.info.from_id = SwooleWG.id;
 
-	if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int) worker_id) > 0)
+	if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int) worker_id) >= 0)
 	{
 		RETURN_LONG(buf.info.fd);
 	}
@@ -2721,7 +2726,7 @@ PHP_FUNCTION(swoole_server_finish)
 	}
 	SWOOLE_GET_SERVER(zobject, serv);
 
-	if (serv->task_worker_num < 1)
+	if (SwooleG.task_worker_num < 1)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: finish can not use here");
 		RETURN_FALSE;

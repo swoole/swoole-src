@@ -275,9 +275,14 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 	}
 
 
-	if (serv->task_worker_num > 0)
+	if (SwooleG.task_worker_num > 0)
 	{
-		if (swProcessPool_create(&SwooleG.task_workers, serv->task_worker_num, serv->max_request)< 0)
+		key_t msgqueue_key = 0;
+		if (SwooleG.task_ipc_mode > 0)
+		{
+			msgqueue_key =  serv->message_queue_key + 2;
+		}
+		if (swProcessPool_create(&SwooleG.task_workers, SwooleG.task_worker_num, serv->max_request, msgqueue_key)< 0)
 		{
 			swWarn("[Master] create task_workers fail");
 			return SW_ERR;
@@ -312,8 +317,10 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 				object->workers[i].pid = pid;
 			}
 		}
-		//创建task_worker进程
-		if (serv->task_worker_num > 0)
+		/**
+		 * create task worker pool
+		 */
+		if (SwooleG.task_worker_num > 0)
 		{
 			swProcessPool_start(&SwooleG.task_workers);
 		}

@@ -57,7 +57,10 @@ int swReactorProcess_start(swServer *serv)
 	}
 	int ret, i;
 	swProcessPool pool;
-	swProcessPool_create(&pool, serv->worker_num, serv->max_request);
+	if (swProcessPool_create(&pool, serv->worker_num, serv->max_request, 0) < 0)
+	{
+		return SW_ERR;
+	}
 	pool.main_loop = swReactorProcess_loop;
 	pool.ptr = serv;
 
@@ -88,9 +91,9 @@ int swReactorProcess_start(swServer *serv)
 	}
 	SwooleG.event_workers = &pool;
 	//task workers
-	if (serv->task_worker_num > 0)
+	if (SwooleG.task_worker_num > 0)
 	{
-		if (swProcessPool_create(&SwooleG.task_workers, serv->task_worker_num, serv->max_request)< 0)
+		if (swProcessPool_create(&SwooleG.task_workers, SwooleG.task_worker_num, serv->max_request, serv->message_queue_key + 2)< 0)
 		{
 			swWarn("[Master] create task_workers fail");
 			return SW_ERR;

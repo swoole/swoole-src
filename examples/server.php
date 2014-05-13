@@ -6,6 +6,7 @@ $serv->set(array(
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
     'task_worker_num' => 2,
+    'task_ipc_mode' => 1,
 	//'dispatch_mode' => 2,
 	//'daemonize' => 1,
 	//'log_file' => '/tmp/swoole.log',
@@ -19,7 +20,7 @@ function my_onStart(swoole_server $serv)
     swoole_set_process_name("php {$argv[0]}: master");
     echo "MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}\n";
     echo "Server: start.Swoole version is [".SWOOLE_VERSION."]\n";
-    $serv->addtimer(5000);
+    //$serv->addtimer(5000);
 }
 
 function my_log($msg)
@@ -74,7 +75,7 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 	}
 	elseif($cmd == "task") 
     {
-		$task_id = $serv->task("hello world", 0);
+		$task_id = $serv->task("hello world");
 		echo "Dispath AsyncTask: id=$task_id\n";
 	}
 	elseif($cmd == "taskwait") 

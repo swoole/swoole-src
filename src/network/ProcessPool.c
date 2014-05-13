@@ -22,7 +22,7 @@ static void swProcessPool_free(swProcessPool *pool);
 /**
  * Process manager
  */
-int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request)
+int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, key_t msgqueue_key)
 {
 	bzero(pool, sizeof(swProcessPool));
 	pool->workers = sw_calloc(worker_num, sizeof(swWorker));
@@ -43,25 +43,42 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request)
 	}
 
 	int i;
-	swPipe *pipe;
-	for (i = 0; i < worker_num; i++)
+	if (msgqueue_key > 0)
 	{
-		pipe = &pool->pipes[i];
-		if (swPipeUnsock_create(pipe, 1, SOCK_DGRAM) < 0)
+		if (swQueueMsg_create(&pool->queue, 1, msgqueue_key, 1) < 0)
 		{
 			return SW_ERR;
 		}
-		swProcessPool_worker(pool, i).pipe_master = pipe->getFd(pipe, 1);
-		swProcessPool_worker(pool, i).pipe_worker = pipe->getFd(pipe, 0);
+		pool->use_msgqueue = 1;
+		pool->msgqueue_key = msgqueue_key;
+	}
+	else
+	{
+		swPipe *pipe;
+		for (i = 0; i < worker_num; i++)
+		{
+			pipe = &pool->pipes[i];
+			if (swPipeUnsock_create(pipe, 1, SOCK_DGRAM) < 0)
+			{
+				return SW_ERR;
+			}
+			swProcessPool_worker(pool, i).pipe_master = pipe->getFd(pipe, 1);
+			swProcessPool_worker(pool, i).pipe_worker = pipe->getFd(pipe, 0);
+		}
+	}
+
+	for (i = 0; i < worker_num; i++)
+	{
 		swProcessPool_worker(pool, i).id = i;
 		swProcessPool_worker(pool, i).pool = pool;
 	}
+
 	pool->main_loop = swProcessPool_worker_start;
 	return SW_OK;
 }
 
 /**
- * start
+ * start workers
  */
 int swProcessPool_start(swProcessPool *pool)
 {
@@ -88,11 +105,31 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int worker_id
 	{
 		worker_id = (pool->round_id++)%pool->worker_num;
 	}
-	swWorker *worker = &swProcessPool_worker(pool, worker_id);
-	ret = swWrite(worker->pipe_master, data, sizeof(data->info) + data->info.len);
-	if (ret < 0)
+
+	struct
 	{
-		swWarn("sendto unix socket failed. Error: %s[%d]", strerror(errno), errno);
+		long mtype;
+		swEventData buf;
+	} in;
+
+	if (pool->use_msgqueue)
+	{
+		in.mtype = worker_id + 1;
+		memcpy(&in.buf, data, sizeof(data->info) + data->info.len);
+		ret = pool->queue.in(&pool->queue, (swQueue_data *) &in, sizeof(data->info) + data->info.len);
+		if (ret < 0)
+		{
+			swWarn("msgsnd failed. Error: %s[%d]", strerror(errno), errno);
+		}
+	}
+	else
+	{
+		swWorker *worker = &swProcessPool_worker(pool, worker_id);
+		ret = swWrite(worker->pipe_master, data, sizeof(data->info) + data->info.len);
+		if (ret < 0)
+		{
+			swWarn("sendto unix socket failed. Error: %s[%d]", strerror(errno), errno);
+		}
 	}
 	return ret;
 }
@@ -142,7 +179,12 @@ pid_t swProcessPool_spawn(swWorker *worker)
 
 static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
 {
-	swEventData buf;
+	struct
+	{
+		long mtype;
+		swEventData buf;
+	} out;
+
 	int n, ret;
 	int task_n, worker_task_always = 0;
 
@@ -155,18 +197,40 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
 	{
 		task_n = pool->max_request;
 	}
+
 	//使用from_fd保存task_worker的id
-	buf.info.from_fd = worker->id;
+	out.buf.info.from_fd = worker->id;
+
+	if (SwooleG.task_ipc_mode > 1)
+	{
+		out.mtype = worker->id + 1;
+	}
+	else
+	{
+		out.mtype = 0;
+	}
 
 	while (SwooleG.running > 0 && task_n > 0)
 	{
-		n = read(worker->pipe_worker, &buf, sizeof(buf));
-		if (n < 0)
+		if (pool->use_msgqueue)
 		{
-			swWarn("[Worker#%d]read pipe fail. Error: %s [%d]", worker->id, strerror(errno), errno);
-			continue;
+			n = pool->queue.out(&pool->queue, (swQueue_data *) &out, sizeof(out.buf));
+			if (n < 0)
+			{
+				swWarn("[Worker#%d]deQueue failed. Error: %s [%d]", worker->id, strerror(errno), errno);
+				continue;
+			}
 		}
-		ret = pool->onTask(pool, &buf);
+		else
+		{
+			n = read(worker->pipe_worker, &out.buf, sizeof(out.buf));
+			if (n < 0)
+			{
+				swWarn("[Worker#%d]read pipe failed. Error: %s [%d]", worker->id, strerror(errno), errno);
+				continue;
+			}
+		}
+		ret = pool->onTask(pool, &out.buf);
 		if (ret > 0 && !worker_task_always)
 		{
 			task_n--;

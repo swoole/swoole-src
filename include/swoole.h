@@ -627,8 +627,20 @@ struct _swWorker
 
 struct _swProcessPool
 {
-	char reloading;
-	char reload_flag;
+	/**
+	 * reloading
+	 */
+	uint8_t reloading;
+	uint8_t reload_flag;
+	/**
+	 * use message queue IPC
+	 */
+	uint8_t use_msgqueue;
+	/**
+	 * message queue key
+	 */
+	key_t msgqueue_key;
+
 	int worker_num;
 	int max_request;
 
@@ -638,9 +650,11 @@ struct _swProcessPool
 	int (*main_loop)(struct _swProcessPool *pool, swWorker *worker);
 
 	int round_id;
+
 	swWorker *workers;
 	swPipe *pipes;
 	swHashMap map;
+	swQueue queue;
 
 	void *ptr;
 	void *ptr2;
@@ -711,7 +725,7 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num);
 int swReactorSelect_create(swReactor *reactor);
 
 /*----------------------------Process Pool-------------------------------*/
-int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request);
+int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, key_t msgqueue_key);
 int swProcessPool_wait(swProcessPool *pool);
 int swProcessPool_start(swProcessPool *pool);
 void swProcessPool_shutdown(swProcessPool *pool);
@@ -843,6 +857,12 @@ typedef struct _swServerG{
 
 	uint8_t use_timerfd;
 	uint8_t use_signalfd;
+	uint8_t task_ipc_mode;
+
+	/**
+	 *  task worker process num
+	 */
+	uint16_t task_worker_num;
 
 	swServer *serv;
 	swFactory *factory;
