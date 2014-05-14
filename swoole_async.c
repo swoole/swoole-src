@@ -130,7 +130,14 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 	{
 		MAKE_STD_ZVAL(zcontent);
 		args[0] = &dns_req->domain;
-		ZVAL_STRING(zcontent, event->buf, 0);
+		if (ret < 0)
+		{
+			ZVAL_STRING(zcontent, "", 0);
+		}
+		else
+		{
+			ZVAL_STRING(zcontent, event->buf, 0);
+		}
 		args[1] = &zcontent;
 	}
 	else
