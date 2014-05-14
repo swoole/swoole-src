@@ -1,3 +1,4 @@
+#!/usr/local/bin/php
 <?php
 /**
  * usage: php upload_client.php -h 127.0.0.1 -p 9507 -f test.jpg

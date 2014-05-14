@@ -201,7 +201,7 @@ SWINLINE int swConnection_send_string_buffer(swConnection *conn)
 	_send.info.fd = conn->fd;
 	_send.info.from_id = conn->from_id;
 
-#ifdef SW_REACTOR_USE_RINGBUFFER
+#ifdef SW_USE_RINGBUFFER
 	swServer *serv = SwooleG.serv;
 	swMemoryPool *pool = serv->reactor_threads[conn->from_id].pool;
 	swPackage package;
@@ -282,7 +282,7 @@ int swConnection_send_in_buffer(swConnection *conn)
 	_send.info.fd = conn->fd;
 	_send.info.from_id = conn->from_id;
 
-#ifdef SW_REACTOR_USE_RINGBUFFER
+#ifdef SW_USE_RINGBUFFER
 	swServer *serv = SwooleG.serv;
 	swMemoryPool *pool = serv->reactor_threads[conn->from_id].pool;
 	swPackage package;

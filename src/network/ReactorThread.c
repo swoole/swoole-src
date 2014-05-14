@@ -421,7 +421,7 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 		rdata.buf.info.fd = event->fd;
 		rdata.buf.info.from_id = event->from_id;
 
-#ifdef SW_REACTOR_USE_RINGBUFFER
+#ifdef SW_USE_RINGBUFFER
 		swMemoryPool *pool = serv->reactor_threads[reactor->id].pool;
 		swPackage package;
 		package.length = n;
@@ -760,7 +760,7 @@ int swReactorThread_create(swServer *serv)
 		ret = swFactory_create(&(serv->factory));
 	}
 
-#ifdef SW_REACTOR_USE_RINGBUFFER
+#ifdef SW_USE_RINGBUFFER
 	int i;
 	for(i=0; i < serv->reactor_num; i++)
 	{

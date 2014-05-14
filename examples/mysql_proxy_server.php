@@ -31,7 +31,7 @@ class DBServer
         $this->serv = $serv;
         for ($i = 0; $i < $this->pool_size; $i++) {
             $db = new mysqli;
-            $db->connect('127.0.0.1', 'root', 'root', 'test');
+            $db->connect('127.0.0.1', 'root', 'root', 'www4swoole');
             $db_sock = swoole_get_mysqli_sock($db);
             swoole_event_add($db_sock, array($this, 'onSQLReady'));
             $this->idle_pool[] = array(

@@ -106,7 +106,7 @@ typedef struct _swReactorThread
 	swReactor reactor;
 	swUdpFd *udp_addrs;
 	swCloseQueue close_queue;
-#ifdef SW_REACTOR_USE_RINGBUFFER
+#ifdef SW_USE_RINGBUFFER
 	swMemoryPool *pool;
 #endif
 	int c_udp_fd;

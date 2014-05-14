@@ -18,6 +18,9 @@ PHP_ARG_ENABLE(msgqueue, set ipc mode,
 PHP_ARG_ENABLE(sockets, enable sockets support,
 [  --enable-sockets        Do you have sockets extension?], no, no)
 
+PHP_ARG_ENABLE(ringbuffer, enable ringbuffer shared memory pool support,
+[  --enable-ringbuffer     Use ringbuffer memory pool?], no, no)
+
 PHP_ARG_ENABLE(async_mysql, enable async_mysql support,
 [  --enable-async-mysql    Do you have mysqli and mysqlnd?], no, no)
 
@@ -200,9 +203,12 @@ if test "$PHP_SWOOLE" != "no"; then
 		AC_DEFINE(HAVE_MYSQLI, 1, [have mysqli extension])
     fi
 
-
     if test "$PHP_SOCKETS" = "yes"; then
 		AC_DEFINE(SW_SOCKETS, 1, [enable sockets support])
+    fi
+
+    if test "$PHP_RINGBUFFER" = "yes"; then
+		AC_DEFINE(SW_USE_RINGBUFFER, 1, [enable ringbuffer support])
     fi
 
 	if test "$PHP_ASYNC_MYSQL" = "yes"; then

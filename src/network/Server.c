@@ -534,7 +534,7 @@ int swServer_start(swServer *serv)
 		pthread_cancel(SwooleG.heartbeat_pidt);
 	}
 
-#ifdef SW_REACTOR_USE_RINGBUFFER
+#ifdef SW_USE_RINGBUFFER
 	//destroy reactor ringbuffer
 	for(i=0; i < serv->reactor_num; i++)
 	{

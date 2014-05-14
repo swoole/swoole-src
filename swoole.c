@@ -1511,7 +1511,7 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	char *data_ptr;
 	int data_len;
 
-#ifdef SW_REACTOR_USE_RINGBUFFER
+#ifdef SW_USE_RINGBUFFER
 	if (req->info.type == SW_EVENT_PACKAGE)
 	{
 		swPackage package;
@@ -1542,7 +1542,7 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	//ZVAL_STRINGL(zdata, data_ptr, data_len, 0);
 	ZVAL_STRINGL(zdata, data_ptr, data_len, 1);
 
-#ifdef SW_REACTOR_USE_RINGBUFFER
+#ifdef SW_USE_RINGBUFFER
 	if (req->info.type == SW_EVENT_PACKAGE)
 	{
 		swMemoryPool *pool = serv->reactor_threads[req->info.from_id].pool;
