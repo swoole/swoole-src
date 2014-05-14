@@ -453,7 +453,7 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
  */
 PHP_MINIT_FUNCTION(swoole)
 {
-	ZEND_INIT_MODULE_GLOBALS(swoole, php_swoole_init_globals, php_swoole_shutdown_globals);
+	ZEND_INIT_MODULE_GLOBALS(swoole, php_swoole_init_globals, NULL);
 	REGISTER_INI_ENTRIES();
 
 	le_swoole_server = zend_register_list_destructors_ex(swoole_destory_server, NULL, SW_RES_SERVER_NAME, module_number);
