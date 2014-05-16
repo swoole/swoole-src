@@ -57,7 +57,8 @@ function my_onWorkerStart($serv, $worker_id)
     } else {
         swoole_set_process_name("php {$argv[0]}: worker");
     }
-    //echo "WorkerStart|MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}|WorkerId=$worker_id\n";
+    echo "WorkerStart: MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}";
+    echo "|WorkerId={$serv->worker_id}|WorkerPid={$serv->worker_pid}\n";
 	//$serv->addtimer(500); //500ms
 }
 

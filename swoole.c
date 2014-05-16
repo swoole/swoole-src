@@ -1813,9 +1813,12 @@ static void php_swoole_onShutdown(swServer *serv)
 static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
 {
 	zval *zserv = (zval *)serv->ptr2;
-	zval *zworker_id;
+	zval *zworker_id, *zworker_pid;
+	zval *zmaster_pid, *zmanager_pid;
 	zval **args[2]; //这里必须与下面的数字对应
 	zval *retval;
+
+	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
 	MAKE_STD_ZVAL(zworker_id);
 	ZVAL_LONG(zworker_id, worker_id);
@@ -1824,21 +1827,46 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
 	zval_add_ref(&zserv);
 	args[1] = &zworker_id;
 
-	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-
-	zval *zmaster_pid, *zmanager_pid;
-
 	MAKE_STD_ZVAL(zmaster_pid);
 	ZVAL_LONG(zmaster_pid, SwooleGS->master_pid);
 
 	MAKE_STD_ZVAL(zmanager_pid);
-	ZVAL_LONG(zmanager_pid, (serv->factory_mode == SW_MODE_PROCESS)?SwooleGS->manager_pid:0);
+	ZVAL_LONG(zmanager_pid, (serv->factory_mode == SW_MODE_PROCESS) ? SwooleGS->manager_pid : 0);
 
+	MAKE_STD_ZVAL(zworker_pid);
+	ZVAL_LONG(zworker_pid, getpid());
+
+	/**
+	 * Master Process ID
+	 */
 	zend_update_property(swoole_server_class_entry_ptr, zserv, ZEND_STRL("master_pid"), zmaster_pid TSRMLS_CC);
+
+	/**
+	 * Manager Process ID
+	 */
 	zend_update_property(swoole_server_class_entry_ptr, zserv, ZEND_STRL("manager_pid"), zmanager_pid TSRMLS_CC);
+
+	/**
+	 * Worker ID
+	 */
+	zend_update_property(swoole_server_class_entry_ptr, zserv, ZEND_STRL("worker_id"), zworker_id TSRMLS_CC);
+
+	/**
+	 * Worker Process ID
+	 */
+	zend_update_property(swoole_server_class_entry_ptr, zserv, ZEND_STRL("worker_pid"), zworker_pid TSRMLS_CC);
 
 	zval_ptr_dtor(&zmaster_pid);
 	zval_ptr_dtor(&zmanager_pid);
+	zval_ptr_dtor(&zworker_pid);
+
+	/**
+	 * Have not set the event callback
+	 */
+	if (php_sw_callback[SW_SERVER_CB_onWorkerStart] == NULL)
+	{
+		return;
+	}
 
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onWorkerStart], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
@@ -1848,6 +1876,7 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
 	{
 		zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
 	}
+
 	zval_ptr_dtor(&zworker_id);
 	if (retval != NULL)
 	{
@@ -2151,10 +2180,12 @@ PHP_FUNCTION(swoole_server_start)
 	{
 		serv->onMasterClose = php_swoole_onMasterClose;
 	}
-	if (php_sw_callback[SW_SERVER_CB_onWorkerStart] != NULL)
-	{
-		serv->onWorkerStart = php_swoole_onWorkerStart;
-	}
+
+	/**
+	 * require callback, set the master/manager/worker PID
+	 */
+	serv->onWorkerStart = php_swoole_onWorkerStart;
+
 	if (php_sw_callback[SW_SERVER_CB_onWorkerStop] != NULL)
 	{
 		serv->onWorkerStop = php_swoole_onWorkerStop;
