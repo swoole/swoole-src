@@ -69,6 +69,62 @@ int swoole_type_size(char type)
 	}
 }
 
+int swoole_sync_writefile(int fd, void *data, int len)
+{
+	int n = 0;
+	int count = len, towrite, written = 0;
+
+	while (count > 0)
+	{
+		towrite = count;
+		if (towrite > SW_FILE_CHUNK_SIZE)
+		{
+			towrite = SW_FILE_CHUNK_SIZE;
+		}
+		n = write(fd, data, towrite);
+		if (n > 0)
+		{
+			data += n;
+			count -= n;
+			written += n;
+		}
+		else
+		{
+			swWarn("write() failed. Error: %s[%d]", strerror(errno), errno);
+			break;
+		}
+	}
+	return written;
+}
+
+int swoole_sync_readfile(int fd, void *buf, int len)
+{
+	int n = 0;
+	int count = len, toread, readn = 0;
+
+	while (count > 0)
+	{
+		toread = count;
+		if (toread > SW_FILE_CHUNK_SIZE)
+		{
+			toread = SW_FILE_CHUNK_SIZE;
+		}
+		n = read(fd, buf, toread);
+		if (n > 0)
+		{
+			buf += n;
+			count -= n;
+			readn += n;
+		}
+		else
+		{
+			swWarn("read() failed. Error: %s[%d]", strerror(errno), errno);
+			break;
+		}
+	}
+	return readn;
+}
+
 SWINLINE uint32_t swoole_unpack(char type, void *data)
 {
 	int64_t tmp;

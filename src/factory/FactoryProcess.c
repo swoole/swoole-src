@@ -1017,7 +1017,7 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 
 static int swFactoryProcess_worker_receive(swReactor *reactor, swEvent *event)
 {
-	int n, i, ret;
+	int n, i, ret = -1;
 	swEventData task;
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &serv->factory;

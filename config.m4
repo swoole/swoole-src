@@ -277,6 +277,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/lock/SpinLock.c \
         src/lock/FileLock.c \
         src/network/Server.c \
+        src/network/TaskWorker.c \
         src/network/Client.c \
         src/network/Buffer.c \
         src/network/Connection.c \
