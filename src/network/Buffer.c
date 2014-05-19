@@ -163,16 +163,14 @@ int swBuffer_send(swBuffer *buffer, int fd)
 	//printf("BufferOut: reactor=%d|sendn=%d|ret=%d|trunk->offset=%d|trunk_len=%d\n", reactor->id, sendn, ret, trunk->offset, trunk->length);
 	if (ret < 0)
 	{
-		if (swConnection_error(fd, errno) < 0)
+		switch (swConnection_error(fd, errno))
 		{
+		case SW_ERROR:
+			swWarn("sendfile failed. Error: %s[%d]", strerror(errno), errno);
+			return SW_OK;
+		case SW_CLOSE:
 			return SW_CLOSE;
-		}
-		else if(errno == EAGAIN)
-		{
-			return SW_WAIT;
-		}
-		else
-		{
+		default:
 			swWarn("send to fd[%d] failed. Error: %s[%d]", fd, strerror(errno), errno);
 			return SW_CONTINUE;
 		}

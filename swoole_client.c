@@ -213,14 +213,15 @@ static int php_swoole_client_onRead(swReactor *reactor, swEvent *event)
 
 	if (n < 0)
 	{
-		if (swConnection_error(event->fd, errno) == SW_ERR)
+		switch (swConnection_error(event->fd, errno))
 		{
-			goto close_fd;
-		}
-		else
-		{
+		case SW_ERROR:
 			swWarn("Read from socket[%d] failed. Error: %s [%d]", event->fd, strerror(errno), errno);
-			return SW_ERR;
+			return SW_OK;
+		case SW_CLOSE:
+			goto close_fd;
+		default:
+			return SW_OK;
 		}
 	}
 	else if (n == 0)
@@ -579,7 +580,7 @@ static swClient* swoole_client_create_socket(zval *object, char *host, int host_
 			cli = *find;
 			//try recv, check connection status
 			ret = recv(cli->sock, &tmp_buf, sizeof(tmp_buf), MSG_DONTWAIT | MSG_PEEK);
-			if (ret == 0 || (ret < 0 && swConnection_error(cli->sock, errno) == SW_ERR))
+			if (ret == 0 || (ret < 0 && swConnection_error(cli->sock, errno) == SW_CLOSE))
 			{
                 
 				cli->close(cli);
@@ -1257,7 +1258,7 @@ PHP_METHOD(swoole_client, close)
 
 	//Connection error, or short tcp connection.
 	//No keep connection
-	if (!(Z_LVAL_P(ztype) & SW_FLAG_KEEP) || swConnection_error(cli->sock, SwooleG.error) == SW_OK)
+	if (!(Z_LVAL_P(ztype) & SW_FLAG_KEEP) || swConnection_error(cli->sock, SwooleG.error) == SW_CLOSE)
 	{
 		if (cli->async == 1 && SwooleG.main_reactor != NULL)
 		{

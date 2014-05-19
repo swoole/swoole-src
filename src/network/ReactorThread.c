@@ -297,10 +297,8 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 		case SW_CLOSE:
 			goto close_fd;
 		default:
-			break;
+			return SW_OK;
 		}
-
-		return SW_OK;
 	}
 	else if (n == 0)
 	{
