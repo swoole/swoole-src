@@ -203,6 +203,10 @@ if test "$PHP_SWOOLE" != "no"; then
 		AC_DEFINE(HAVE_MYSQLI, 1, [have mysqli extension])
     fi
 
+    if test "$PHP_MYSQLND" = "yes"; then
+		AC_DEFINE(HAVE_MYSQLND, 1, [have mysqlnd extension])
+    fi
+
     if test "$PHP_SOCKETS" = "yes"; then
 		AC_DEFINE(SW_SOCKETS, 1, [enable sockets support])
     fi
