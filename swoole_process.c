@@ -33,7 +33,7 @@ void swoole_destory_process(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 	efree(process);
 }
 
-PHP_METHOD(swoole_process, create)
+PHP_METHOD(swoole_process, __construct)
 {
 
 #ifdef ZTS
@@ -62,9 +62,6 @@ PHP_METHOD(swoole_process, create)
 	efree(func_name);
 
 	swWorker *process = emalloc(sizeof(swWorker));
-	object_init_ex(return_value, swoole_process_class_entry_ptr);
-	getThis() = return_value;
-
 	if (redirect_stdin_and_stdout)
 	{
 		process->redirect_stdin = 1;

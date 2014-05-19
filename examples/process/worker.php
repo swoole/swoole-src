@@ -1,7 +1,7 @@
 <?php
 $redirect_stdout = false;
-$worker = swoole_process::create('callback_function', $redirect_stdout);
-$worker_pid = $worker->start();
+$process = new swoole_process('callback_function', $redirect_stdout);
+$worker_pid = $process->start();
 echo "New worker, PID=".$worker_pid.PHP_EOL;
 
 function callback_function($worker)
@@ -16,9 +16,9 @@ function callback_function($worker)
     echo "Worker Receive: $recv\n";
     $worker->exit(0);
 }
-echo "Master Receive: ".$worker->read();
-$worker->write("master");
+echo "Master Receive: ".$process->read();
+$process->write("master");
 $ret = swoole_process::wait();
 var_dump($ret);
-unset($worker);
+unset($process);
 sleep(1);

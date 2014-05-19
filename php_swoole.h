@@ -129,11 +129,9 @@ extern int le_swoole_server;
 extern int le_swoole_client;
 extern int le_swoole_lock;
 extern int le_swoole_process;
-extern int le_swoole_worker;
 
 extern zend_class_entry *swoole_lock_class_entry_ptr;
 extern zend_class_entry *swoole_process_class_entry_ptr;
-extern zend_class_entry *swoole_worker_class_entry_ptr;
 extern zend_class_entry *swoole_client_class_entry_ptr;
 extern zend_class_entry *swoole_server_class_entry_ptr;
 
@@ -212,7 +210,7 @@ PHP_METHOD(swoole_lock, lock_read);
 PHP_METHOD(swoole_lock, trylock_read);
 PHP_METHOD(swoole_lock, unlock);
 
-PHP_METHOD(swoole_process, create);
+PHP_METHOD(swoole_process, __construct);
 PHP_METHOD(swoole_process, kill);
 PHP_METHOD(swoole_process, wait);
 
