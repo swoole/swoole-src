@@ -166,12 +166,11 @@ int swBuffer_send(swBuffer *buffer, int fd)
 		switch (swConnection_error(fd, errno))
 		{
 		case SW_ERROR:
-			swWarn("sendfile failed. Error: %s[%d]", strerror(errno), errno);
+			swWarn("send to fd[%d] failed. Error: %s[%d]", fd, strerror(errno), errno);
 			return SW_OK;
 		case SW_CLOSE:
 			return SW_CLOSE;
 		default:
-			swWarn("send to fd[%d] failed. Error: %s[%d]", fd, strerror(errno), errno);
 			return SW_CONTINUE;
 		}
 	}
