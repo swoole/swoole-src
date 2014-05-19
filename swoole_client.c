@@ -99,7 +99,7 @@ static int php_swoole_client_close(zval **zobject, int fd TSRMLS_DC)
 
 	//long tcp connection, clear from php_sw_long_connections
 	zval *ztype = zend_read_property(swoole_client_class_entry_ptr, *zobject, SW_STRL("type")-1, 0 TSRMLS_CC);
-	if (ZVAL_IS_NULL(ztype))
+	if (ztype == NULL || ZVAL_IS_NULL(ztype))
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "get swoole_client->type failed.");
 	}
@@ -135,7 +135,7 @@ static int php_swoole_client_close(zval **zobject, int fd TSRMLS_DC)
 		}
 
 		zcallback = zend_read_property(swoole_client_class_entry_ptr, *zobject, SW_STRL(php_sw_client_onClose)-1, 0 TSRMLS_CC);
-		if (ZVAL_IS_NULL(zcallback))
+		if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
 		{
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client->close[3]: no close callback.");
 			goto fatal_error;
@@ -238,7 +238,7 @@ static int php_swoole_client_onRead(swReactor *reactor, swEvent *event)
 		args[1] = &zdata;
 
 		zcallback = zend_read_property(swoole_client_class_entry_ptr, *zobject, SW_STRL(php_sw_client_onReceive)-1, 0 TSRMLS_CC);
-		if (ZVAL_IS_NULL(zcallback))
+		if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
 		{
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: swoole_client object have not receive callback.");
 			return SW_ERR;
@@ -327,7 +327,7 @@ static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event)
 			cli->connected = 1;
 
 			zcallback = zend_read_property(swoole_client_class_entry_ptr, *zobject, SW_STRL(php_sw_client_onConnect)-1, 0 TSRMLS_CC);
-			if (ZVAL_IS_NULL(zcallback))
+			if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
 			{
 				php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: swoole_client object have not connect callback.");
 				return SW_ERR;
@@ -353,7 +353,7 @@ static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event)
 			ZVAL_LONG(errCode, error);
 			zend_update_property(swoole_client_class_entry_ptr, *zobject, ZEND_STRL("errCode"), errCode TSRMLS_CC);
 
-			if (ZVAL_IS_NULL(zcallback))
+			if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
 			{
 				php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: swoole_client object have not error callback.");
 				return SW_ERR;
@@ -546,7 +546,7 @@ static swClient* swoole_client_create_socket(zval *object, char *host, int host_
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 	ztype = zend_read_property(swoole_client_class_entry_ptr, object, SW_STRL("type")-1, 0 TSRMLS_CC);
 
-	if (ZVAL_IS_NULL(ztype))
+	if (ztype == NULL || ZVAL_IS_NULL(ztype))
 	{
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "get swoole_client->type failed.");
 		return NULL;
@@ -770,7 +770,7 @@ PHP_FUNCTION(swoole_event_add)
 	}
 #endif
 
-	if (ZVAL_IS_NULL(cb_read) && ZVAL_IS_NULL(cb_write))
+	if ((cb_read == NULL && cb_write == NULL) || (ZVAL_IS_NULL(cb_read) && ZVAL_IS_NULL(cb_write)))
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "no read or write event callback.");
 		RETURN_FALSE;
@@ -866,7 +866,7 @@ PHP_FUNCTION(swoole_event_set)
 		RETURN_FALSE;
 	}
 
-	if (!ZVAL_IS_NULL(cb_read))
+	if (cb_read != NULL && !ZVAL_IS_NULL(cb_read))
 	{
 		if (!zend_is_callable(cb_read, 0, &func_name TSRMLS_CC))
 		{
@@ -881,7 +881,7 @@ PHP_FUNCTION(swoole_event_set)
 		}
 	}
 
-	if (!ZVAL_IS_NULL(cb_write))
+	if (cb_write != NULL && !ZVAL_IS_NULL(cb_write))
 	{
 		if (!zend_is_callable(cb_write, 0, &func_name TSRMLS_CC))
 		{
@@ -1031,7 +1031,7 @@ PHP_METHOD(swoole_client, connect)
 			for(i=0; i<PHP_CLIENT_CALLBACK_NUM; i++)
 			{
 				callback = zend_read_property(swoole_client_class_entry_ptr, getThis(), php_sw_callbacks[i], strlen(php_sw_callbacks[i]), 1 TSRMLS_CC);
-				if (ZVAL_IS_NULL(callback))
+				if (callback == NULL || ZVAL_IS_NULL(callback))
 				{
 					php_error_docref(NULL TSRMLS_CC, E_ERROR, "no %s callback.", php_sw_callbacks[i]);
 					RETURN_FALSE;
@@ -1041,7 +1041,7 @@ PHP_METHOD(swoole_client, connect)
 		else
 		{
 			callback = zend_read_property(swoole_client_class_entry_ptr, getThis(), SW_STRL(php_sw_client_onReceive)-1, 1 TSRMLS_CC);
-			if (ZVAL_IS_NULL(callback))
+			if (callback == NULL || ZVAL_IS_NULL(callback))
 			{
 				php_error_docref(NULL TSRMLS_CC, E_ERROR, "no receive callback.");
 				RETURN_FALSE;
@@ -1075,7 +1075,7 @@ PHP_METHOD(swoole_client, connect)
 
 			args[0] = &getThis();
 			zcallback = zend_read_property(swoole_client_class_entry_ptr, getThis(), SW_STRL(php_sw_client_onConnect)-1, 0 TSRMLS_CC);
-			if (ZVAL_IS_NULL(callback))
+			if (callback == NULL || ZVAL_IS_NULL(callback))
 			{
 				php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client object have not connect callback.");
 				RETURN_FALSE;
@@ -1250,7 +1250,7 @@ PHP_METHOD(swoole_client, close)
 	}
 
 	ztype = zend_read_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("type")-1, 0 TSRMLS_CC);
-	if (ZVAL_IS_NULL(ztype))
+	if (ztype == NULL || ZVAL_IS_NULL(ztype))
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "get swoole_client->type failed.");
 		RETURN_FALSE;
@@ -1383,7 +1383,7 @@ static int php_swoole_client_event_loop(zval *sock_array, fd_set *fds TSRMLS_DC)
 	{
 		ce = Z_OBJCE_P(*element);
 		zsock = zend_read_property(ce, *element, SW_STRL("sock")-1, 0 TSRMLS_CC);
-		if(ZVAL_IS_NULL(zsock))
+		if (zsock == NULL || ZVAL_IS_NULL(zsock))
 		{
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "object is not swoole_client object.");
 			continue;
@@ -1431,7 +1431,7 @@ static int php_swoole_client_event_add(zval *sock_array, fd_set *fds, int *max_f
 	{
 		ce = Z_OBJCE_P(*element);
 		zsock = zend_read_property(ce, *element, SW_STRL("sock")-1, 0 TSRMLS_CC);
-		if(ZVAL_IS_NULL(zsock))
+		if (zsock == NULL || ZVAL_IS_NULL(zsock))
 		{
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "object is not swoole_client object.");
 			continue;

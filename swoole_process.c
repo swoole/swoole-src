@@ -169,7 +169,7 @@ PHP_METHOD(swoole_process, start)
 		zval *zcallback = zend_read_property(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("callback"), 0 TSRMLS_CC);
 		zval **args[1];
 
-		if (ZVAL_IS_NULL(zcallback))
+		if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
 		{
 			php_error_docref(NULL TSRMLS_CC, E_ERROR, "no callback.");
 			RETURN_FALSE;
