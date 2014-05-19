@@ -107,6 +107,9 @@
 
 #define SW_AIO_MAX_EVENTS          128
 
+#define SW_TASK_TMP_FILE           "/tmp/swoole/task.XXXXXX"
+#define SW_FILE_CHUNK_SIZE         65536
+
 #if defined(HAVE_SIGNALFD) && SW_WORKER_IPC_MODE != 1
 #undef HAVE_SIGNALFD
 #endif

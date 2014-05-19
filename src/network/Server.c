@@ -796,34 +796,6 @@ int swServer_onFinish2(swFactory *factory, swSendData *resp)
 	return ret;
 }
 
-int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
-{
-	swServer *serv = pool->ptr;
-	return serv->onTask(serv, task);
-}
-
-void swTaskWorker_onWorkerStart(swProcessPool *pool, int worker_id)
-{
-	swServer *serv = pool->ptr;
-	serv->onWorkerStart(serv, worker_id + serv->worker_num);
-}
-
-/**
- * in worker process
- */
-int swTaskWorker_onFinish(swReactor *reactor, swEvent *event)
-{
-	swServer *serv = reactor->ptr;
-	swEventData task;
-	int n;
-	do
-	{
-		n = read(event->fd, &task, sizeof(task));
-	}
-	while(n < 0 && errno == EINTR);
-	return serv->onFinish(serv, &task);
-}
-
 void swServer_signal_init(void)
 {
 	swSignal_add(SIGHUP, NULL);

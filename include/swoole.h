@@ -541,6 +541,8 @@ SWINLINE uint32_t swoole_unpack(char type, void *data);
 void swoole_dump_bin(char *data, char type, int size);
 int swoole_type_size(char type);
 void swoole_dump_ascii(char *data, int size);
+int swoole_sync_writefile(int fd, void *data, int len);
+int swoole_sync_readfile(int fd, void *buf, int len);
 
 //----------------------core function---------------------
 SWINLINE int swSetTimeout(int sock, double timeout);

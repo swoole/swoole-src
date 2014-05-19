@@ -395,6 +395,13 @@ typedef struct _swPackage
 	uint32_t length;
 } swPackage;
 
+typedef struct
+{
+	int length;
+	char tmpfile[sizeof(SW_TASK_TMP_FILE)];
+} swPackage_task;
+
+
 int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
 
@@ -415,7 +422,25 @@ int swServer_reactor_del(swServer *serv, int fd, int reacot_id); //no use
 int swServer_get_manager_pid(swServer *serv);
 
 int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);
+int swTaskWorker_onFinish(swReactor *reactor, swEvent *event);
 void swTaskWorker_onWorkerStart(swProcessPool *pool, int worker_id);
+int swTaskWorker_large_pack(swEventData *task, void *data, int data_len);
+
+#define swTaskWorker_large_unpack(task, __malloc, _buf, _length)   swPackage_task _pkg;\
+	memcpy(&_pkg, task->data, sizeof(_pkg));\
+	_length = _pkg.length;\
+	_buf = __malloc(_length);\
+	int tmp_file_fd = open(_pkg.tmpfile, O_RDONLY);\
+	if (tmp_file_fd < 0){\
+		swWarn("open(%s) failed. Error: %s[%d]", task->data, strerror(errno), errno);\
+		_length = -1;\
+	} else if (swoole_sync_readfile(tmp_file_fd, _buf, _length) > 0) {\
+		unlink(_pkg.tmpfile);\
+	} else {\
+		_length = -1;\
+	}
+
+#define swTaskWorker_is_large(task)       (task->info.from_fd == 1)
 
 #define swPackage_data(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->str:task->data)
 #define swPackage_length(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->length:task->info.len)
@@ -441,8 +466,6 @@ SWINLINE void swConnection_clear_string_buffer(swConnection *conn);
 SWINLINE swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type);
 SWINLINE swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn);
 int swConnection_send_in_buffer(swConnection *conn);
-
-int swTaskWorker_onFinish(swReactor *reactor, swEvent *event);
 
 int swServer_master_onAccept(swReactor *reactor, swDataHead *event);
 void swServer_master_onReactorTimeout(swReactor *reactor);
