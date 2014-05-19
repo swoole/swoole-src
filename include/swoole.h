@@ -617,6 +617,16 @@ struct _swWorker
 	pthread_t tid;
 	swProcessPool *pool;
 
+	/**
+	 * redirect stdout to pipe_master
+	 */
+	uint8_t redirect_stdout;
+
+	/**
+	 * redirect stdin to pipe_worker
+	 */
+	uint8_t redirect_stdin;
+
 	int id;
 	int pipe_master;
 	int pipe_worker;

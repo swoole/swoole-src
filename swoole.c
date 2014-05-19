@@ -385,6 +385,18 @@ const zend_function_entry swoole_client_methods[] =
 	PHP_FE_END
 };
 
+const zend_function_entry swoole_process_methods[] =
+{
+	PHP_ME(swoole_process, create, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+	PHP_ME(swoole_process, wait, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+	PHP_ME(swoole_process, kill, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+	PHP_ME(swoole_process, start, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_process, write, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_process, read, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_process, exit, NULL, ZEND_ACC_PUBLIC)
+	PHP_FE_END
+};
+
 const zend_function_entry swoole_lock_methods[] =
 {
 	PHP_ME(swoole_lock, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
@@ -399,12 +411,16 @@ const zend_function_entry swoole_lock_methods[] =
 int le_swoole_server;
 int le_swoole_client;
 int le_swoole_lock;
+int le_swoole_process;
 
 zend_class_entry swoole_lock_ce;
 zend_class_entry *swoole_lock_class_entry_ptr;
 
 zend_class_entry swoole_client_ce;
 zend_class_entry *swoole_client_class_entry_ptr;
+
+zend_class_entry swoole_process_ce;
+zend_class_entry *swoole_process_class_entry_ptr;
 
 zend_class_entry swoole_server_ce;
 zend_class_entry *swoole_server_class_entry_ptr;
@@ -459,6 +475,7 @@ PHP_MINIT_FUNCTION(swoole)
 	le_swoole_server = zend_register_list_destructors_ex(swoole_destory_server, NULL, SW_RES_SERVER_NAME, module_number);
 	le_swoole_client = zend_register_list_destructors_ex(swoole_destory_client, NULL, SW_RES_CLIENT_NAME, module_number);
 	le_swoole_lock = zend_register_list_destructors_ex(swoole_destory_lock, NULL, SW_RES_LOCK_NAME, module_number);
+	le_swoole_process = zend_register_list_destructors_ex(swoole_destory_process, NULL, SW_RES_PROCESS_NAME, module_number);
 	/**
 	 * mode type
 	 */
@@ -533,6 +550,9 @@ PHP_MINIT_FUNCTION(swoole)
 
 	INIT_CLASS_ENTRY(swoole_lock_ce, "swoole_lock", swoole_lock_methods);
 	swoole_lock_class_entry_ptr = zend_register_internal_class(&swoole_lock_ce TSRMLS_CC);
+
+	INIT_CLASS_ENTRY(swoole_process_ce, "swoole_process", swoole_process_methods);
+	swoole_process_class_entry_ptr = zend_register_internal_class(&swoole_process_ce TSRMLS_CC);
 
 	zend_hash_init(&php_sw_long_connections, 16, NULL, ZVAL_PTR_DTOR, 1);
 
@@ -1355,7 +1375,7 @@ PHP_FUNCTION(swoole_connection_info)
 	swConnection *conn = swServer_get_connection(serv, fd);
 
 	//It's udp
-	if(conn == NULL)
+	if (conn == NULL)
 	{
 		array_init(return_value);
 		php_swoole_udp_t udp_info;

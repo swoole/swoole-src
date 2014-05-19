@@ -154,7 +154,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 		swTrace("[Master]accept.event->fd=%d|event->from_id=%d|conn=%d", event->fd, event->from_id, new_fd);
 
 		//too many connection
-		if(serv->connect_count >= serv->max_conn)
+		if (serv->connect_count >= serv->max_conn)
 		{
 			swWarn("too many connection");
 			close(new_fd);
@@ -170,7 +170,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 
 #ifdef SO_KEEPALIVE
 		//TCP keepalive
-		if(serv->open_tcp_keepalive == 1)
+		if (serv->open_tcp_keepalive == 1)
 		{
 			int keepalive = 1;
 			int keep_idle = serv->tcp_keepidle;
@@ -458,7 +458,10 @@ int swServer_start(swServer *serv)
 		//redirect STDOUT to log file
 		if (SwooleG.log_fd > STDOUT_FILENO)
 		{
-			dup2(SwooleG.log_fd, STDOUT_FILENO);
+			if (dup2(SwooleG.log_fd, STDOUT_FILENO) < 0)
+			{
+				swWarn("dup2() failed. Error: %s[%d]", strerror(errno), errno);
+			}
 		}
 
 		if (daemon(0, 1) < 0)

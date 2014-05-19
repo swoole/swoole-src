@@ -32,7 +32,7 @@
 #include "Server.h"
 #include "Client.h"
 
-#define PHP_SWOOLE_VERSION  "1.7.2-alpha"
+#define PHP_SWOOLE_VERSION  "1.7.2-beta"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -88,6 +88,7 @@ extern void ***sw_thread_ctx;
 #define SW_RES_SERVER_NAME          "SwooleServer"
 #define SW_RES_CLIENT_NAME          "SwooleClient"
 #define SW_RES_LOCK_NAME            "SwooleLock"
+#define SW_RES_PROCESS_NAME         "SwooleProcess"
 
 #define PHP_CLIENT_CALLBACK_NUM             4
 //---------------------------------------------------
@@ -127,8 +128,12 @@ extern void ***sw_thread_ctx;
 extern int le_swoole_server;
 extern int le_swoole_client;
 extern int le_swoole_lock;
+extern int le_swoole_process;
+extern int le_swoole_worker;
 
 extern zend_class_entry *swoole_lock_class_entry_ptr;
+extern zend_class_entry *swoole_process_class_entry_ptr;
+extern zend_class_entry *swoole_worker_class_entry_ptr;
 extern zend_class_entry *swoole_client_class_entry_ptr;
 extern zend_class_entry *swoole_server_class_entry_ptr;
 
@@ -207,7 +212,18 @@ PHP_METHOD(swoole_lock, lock_read);
 PHP_METHOD(swoole_lock, trylock_read);
 PHP_METHOD(swoole_lock, unlock);
 
+PHP_METHOD(swoole_process, create);
+PHP_METHOD(swoole_process, kill);
+PHP_METHOD(swoole_process, wait);
+
+PHP_METHOD(swoole_process, start);
+PHP_METHOD(swoole_process, write);
+PHP_METHOD(swoole_process, read);
+PHP_METHOD(swoole_process, exit);
+
 void swoole_destory_lock(zend_rsrc_list_entry *rsrc TSRMLS_DC);
+void swoole_destory_process(zend_rsrc_list_entry *rsrc TSRMLS_DC);
+
 void php_swoole_check_reactor();
 void php_swoole_try_run_reactor();
 

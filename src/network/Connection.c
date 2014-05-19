@@ -148,7 +148,7 @@ SWINLINE int swServer_new_connection(swServer *serv, swEvent *ev)
 	//新的fd超过了最大fd
 
 		//需要扩容
-		if(conn_fd == serv->connection_list_capacity - 1)
+		if (conn_fd == serv->connection_list_capacity - 1)
 		{
 			void *new_ptr = sw_shm_realloc(serv->connection_list, sizeof(swConnection)*(serv->connection_list_capacity + SW_CONNECTION_LIST_EXPAND));
 			if(new_ptr == NULL)
