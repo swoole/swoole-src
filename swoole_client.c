@@ -790,7 +790,7 @@ PHP_FUNCTION(swoole_event_add)
 
 	zval_add_ref(&event.socket);
 
-	if (!ZVAL_IS_NULL(cb_read))
+	if (cb_read!= NULL && !ZVAL_IS_NULL(cb_read))
 	{
 		if (!zend_is_callable(cb_read, 0, &func_name TSRMLS_CC))
 		{
@@ -801,7 +801,7 @@ PHP_FUNCTION(swoole_event_add)
 		zval_add_ref(&event.cb_read);
 	}
 
-	if (!ZVAL_IS_NULL(cb_write))
+	if (cb_write!= NULL && !ZVAL_IS_NULL(cb_write))
 	{
 		if (!zend_is_callable(cb_write, 0, &func_name TSRMLS_CC))
 		{
