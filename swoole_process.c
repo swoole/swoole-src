@@ -140,13 +140,18 @@ PHP_METHOD(swoole_process, start)
 	else if(pid > 0)
 	{
 		process->pid = pid;
+		process->pipe = process->pipe_master;
+
 		RETURN_LONG(pid);
 	}
 	else
 	{
+		process->pipe = process->pipe_worker;
+		process->pid = getpid();
+
 		if (process->redirect_stdin)
 		{
-			if (dup2(process->pipe_worker, STDIN_FILENO) < 0)
+			if (dup2(process->pipe, STDIN_FILENO) < 0)
 			{
 				php_error_docref(NULL TSRMLS_CC, E_WARNING, "dup2() failed. Error: %s[%d]", strerror(errno), errno);
 			}
@@ -154,7 +159,7 @@ PHP_METHOD(swoole_process, start)
 
 		if (process->redirect_stdout)
 		{
-			if (dup2(process->pipe_master, STDOUT_FILENO) < 0)
+			if (dup2(process->pipe, STDOUT_FILENO) < 0)
 			{
 				php_error_docref(NULL TSRMLS_CC, E_WARNING, "dup2() failed. Error: %s[%d]", strerror(errno), errno);
 			}
@@ -162,7 +167,7 @@ PHP_METHOD(swoole_process, start)
 
 		zval *zpid;
 		MAKE_STD_ZVAL(zpid);
-		ZVAL_LONG(zpid, getpid());
+		ZVAL_LONG(zpid, process->pid);
 		zend_update_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("pid"), zpid TSRMLS_CC);
 		zval_ptr_dtor(&zpid);
 
@@ -211,12 +216,12 @@ PHP_METHOD(swoole_process, read)
 	swWorker *process;
 	SWOOLE_GET_WORKER(getThis(), process);
 
-	void *buf = emalloc(buf_size);
+	char *buf = emalloc(buf_size);
 	int ret;
 
 	do
 	{
-		ret = read(process->pipe_worker, buf, buf_size);
+		ret = read(process->pipe, buf, buf_size - 1);
 	}
 	while(errno < 0 && errno == EINTR);
 
@@ -225,6 +230,7 @@ PHP_METHOD(swoole_process, read)
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "read() failed. Error: %s[%d]", strerror(errno), errno);
 		RETURN_FALSE;
 	}
+	buf[ret] = 0;
 	ZVAL_STRINGL(return_value, buf, ret, 0);
 }
 
@@ -251,7 +257,7 @@ PHP_METHOD(swoole_process, write)
 
 	do
 	{
-		ret = write(process->pipe_master, data, data_len);
+		ret = write(process->pipe, data, data_len);
 	}
 	while(errno < 0 && errno == EINTR);
 
@@ -266,6 +272,7 @@ PHP_METHOD(swoole_process, write)
 PHP_METHOD(swoole_process, exit)
 {
 	long ret_code = 0;
+
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &ret_code) == FAILURE)
 	{
 		RETURN_FALSE;
@@ -274,14 +281,19 @@ PHP_METHOD(swoole_process, exit)
 	swWorker *process;
 	SWOOLE_GET_WORKER(getThis(), process);
 
+	if (getpid() != process->pid)
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "not current process.");
+		RETURN_FALSE;
+	}
+
 	if (ret_code < 0 || ret_code > 255)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "exit ret_code range is [>0 and <255] ");
 		ret_code = 1;
 	}
 
-	shutdown(process->pipe_master, SHUT_RDWR);
-	shutdown(process->pipe_worker, SHUT_RDWR);
+	close(process->pipe);
 
 	if (ret_code == 0)
 	{

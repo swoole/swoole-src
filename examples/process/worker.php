@@ -1,24 +1,41 @@
 <?php
 $redirect_stdout = false;
-$process = new swoole_process('callback_function', $redirect_stdout);
-$worker_pid = $process->start();
-echo "New worker, PID=".$worker_pid.PHP_EOL;
+$workers = [];
+$worker_num = 8;
 
-function callback_function($worker)
+for($i = 0; $i < $worker_num; $i++)
 {
-    echo "WorkerStart. PID=".$worker->pid."\n";
-    //send data to master
-    $worker->write("hello world\n");
+    $process = new swoole_process('callback_function', $redirect_stdout);
+    $pid = $process->start();
+    $workers[$pid] = $process;
+    //echo "Master: new worker, PID=".$pid."\n";
+}
 
+function callback_function(swoole_process $worker)
+{
+    //echo "Worker: start. PID=".$worker->pid."\n";
     //recv data from master
     $recv = $worker->read();
 
-    echo "Worker Receive: $recv\n";
+    echo "From Master: $recv\n";
+
+    //send data to master
+    $worker->write("hello master\n");
+
+    sleep(10);
     $worker->exit(0);
 }
-echo "Master Receive: ".$process->read();
-$process->write("master");
-$ret = swoole_process::wait();
-var_dump($ret);
-unset($process);
-sleep(1);
+
+foreach($workers as $pid => $process)
+{
+    $process->write("hello worker[$pid]\n");
+    echo "From Worker: ".$process->read();
+}
+
+for($i = 0; $i < $worker_num; $i++)
+{
+    $ret = swoole_process::wait();
+    $pid = $ret['pid'];
+    unset($workers[$pid]);
+    echo "Worker Exit, PID=".$pid.PHP_EOL;
+}
