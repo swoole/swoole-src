@@ -1,7 +1,7 @@
 <?php
 $redirect_stdout = false;
 $workers = [];
-$worker_num = 2;
+$worker_num = 8;
 
 for($i = 0; $i < $worker_num; $i++)
 {

@@ -143,6 +143,8 @@ PHP_METHOD(swoole_process, start)
 		process->pid = pid;
 		process->pipe = process->pipe_master;
 
+		close(process->pipe_worker);
+
 		MAKE_STD_ZVAL(zpipe);
 		ZVAL_LONG(zpipe, process->pipe);
 
@@ -155,6 +157,8 @@ PHP_METHOD(swoole_process, start)
 	{
 		process->pipe = process->pipe_worker;
 		process->pid = getpid();
+
+		close(process->pipe_master);
 
 		if (process->redirect_stdin)
 		{
@@ -230,6 +234,12 @@ PHP_METHOD(swoole_process, read)
 	swWorker *process;
 	SWOOLE_GET_WORKER(getThis(), process);
 
+	if (process->pipe == 0)
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "have not pipe, can not use write()");
+		RETURN_FALSE;
+	}
+
 	char *buf = emalloc(buf_size);
 	int ret;
 
@@ -250,8 +260,8 @@ PHP_METHOD(swoole_process, read)
 
 PHP_METHOD(swoole_process, write)
 {
-	char *data;
-	long data_len;
+	char *data = NULL;
+	long data_len = 0;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &data, &data_len) == FAILURE)
 	{
@@ -267,11 +277,16 @@ PHP_METHOD(swoole_process, write)
 	swWorker *process;
 	SWOOLE_GET_WORKER(getThis(), process);
 
-	int ret;
+	if (process->pipe == 0)
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "have not pipe, can not use read()");
+		RETURN_FALSE;
+	}
 
+	int ret;
 	do
 	{
-		ret = write(process->pipe, data, data_len);
+		ret = write(process->pipe, data, (size_t) data_len);
 	}
 	while(errno < 0 && errno == EINTR);
 
