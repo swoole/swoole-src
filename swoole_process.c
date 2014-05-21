@@ -129,6 +129,7 @@ PHP_METHOD(swoole_process, start)
 {
 	swWorker *process;
 	SWOOLE_GET_WORKER(getThis(), process);
+	zval *zpipe;
 
 	pid_t pid = fork();
 
@@ -141,6 +142,12 @@ PHP_METHOD(swoole_process, start)
 	{
 		process->pid = pid;
 		process->pipe = process->pipe_master;
+
+		MAKE_STD_ZVAL(zpipe);
+		ZVAL_LONG(zpipe, process->pipe);
+
+		zend_update_property(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("pipe"), zpipe TSRMLS_CC);
+		zval_ptr_dtor(&zpipe);
 
 		RETURN_LONG(pid);
 	}
@@ -168,8 +175,15 @@ PHP_METHOD(swoole_process, start)
 		zval *zpid;
 		MAKE_STD_ZVAL(zpid);
 		ZVAL_LONG(zpid, process->pid);
+
 		zend_update_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("pid"), zpid TSRMLS_CC);
 		zval_ptr_dtor(&zpid);
+
+		MAKE_STD_ZVAL(zpipe);
+		ZVAL_LONG(zpipe, process->pipe);
+
+		zend_update_property(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("pipe"), zpipe TSRMLS_CC);
+		zval_ptr_dtor(&zpipe);
 
 		zval *zcallback = zend_read_property(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("callback"), 0 TSRMLS_CC);
 		zval **args[1];
@@ -194,7 +208,7 @@ PHP_METHOD(swoole_process, start)
 			zval_ptr_dtor(&retval);
 		}
 
-		exit(0);
+		zend_bailout();
 	}
 	RETURN_TRUE;
 }
@@ -294,6 +308,11 @@ PHP_METHOD(swoole_process, exit)
 	}
 
 	close(process->pipe);
+
+	if (SwooleG.main_reactor != NULL)
+	{
+		SwooleG.running = 0;
+	}
 
 	if (ret_code == 0)
 	{

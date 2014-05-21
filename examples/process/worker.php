@@ -1,7 +1,7 @@
 <?php
 $redirect_stdout = false;
 $workers = [];
-$worker_num = 8;
+$worker_num = 2;
 
 for($i = 0; $i < $worker_num; $i++)
 {
@@ -22,9 +22,31 @@ function callback_function(swoole_process $worker)
     //send data to master
     $worker->write("hello master\n");
 
-    sleep(10);
+    sleep(2);
     $worker->exit(0);
 }
+
+
+function callback_function_async(swoole_process $worker)
+{
+    //echo "Worker: start. PID=".$worker->pid."\n";
+    //recv data from master
+    $GLOBALS['worker'] = $worker;
+    swoole_event_add($worker->pipe, function($pipe) {
+        $worker = $GLOBALS['worker'];
+        $recv = $worker->read();
+
+        echo "From Master: $recv\n";
+
+        //send data to master
+        $worker->write("hello master\n");
+
+        sleep(2);
+
+        $worker->exit(0);
+    });
+}
+
 
 foreach($workers as $pid => $process)
 {
