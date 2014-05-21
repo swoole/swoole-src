@@ -62,6 +62,8 @@ PHP_METHOD(swoole_process, __construct)
 	efree(func_name);
 
 	swWorker *process = emalloc(sizeof(swWorker));
+	bzero(process, sizeof(swWorker));
+
 	if (redirect_stdin_and_stdout)
 	{
 		process->redirect_stdin = 1;
@@ -261,7 +263,7 @@ PHP_METHOD(swoole_process, read)
 PHP_METHOD(swoole_process, write)
 {
 	char *data = NULL;
-	long data_len = 0;
+	int data_len = 0;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &data, &data_len) == FAILURE)
 	{

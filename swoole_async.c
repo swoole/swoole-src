@@ -290,7 +290,7 @@ PHP_FUNCTION(swoole_async_write)
 	zval *filename;
 
 	char *fcnt;
-	int fcnt_len;
+	int fcnt_len = 0;
 	int fd;
 	off_t offset;
 

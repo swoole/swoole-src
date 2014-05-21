@@ -716,7 +716,7 @@ PHP_FUNCTION(swoole_get_mysqli_sock)
 
 PHP_FUNCTION(swoole_server_create)
 {
-	long host_len = 0;
+	int host_len = 0;
 	char *serv_host;
 	long sock_type = SW_SOCK_TCP;
 	long serv_port;
