@@ -189,15 +189,20 @@ int swBuffer_send(swBuffer *buffer, int fd)
 /**
  * print buffer
  */
-void swBuffer_debug(swBuffer *buffer)
+void swBuffer_debug(swBuffer *buffer, int print_data)
 {
 	int i = 0;
 	swBuffer_trunk *trunk = buffer->head;
 	printf("%s\n%s\n", SW_START_LINE, __func__);
-	while (trunk != NULL && trunk->next != NULL)
+	while (trunk != NULL)
 	{
 		i++;
-		printf("%d.\tlen=%d\tdata=%s\n", i, trunk->length, (char *)trunk->data);
+		printf("%d.\tlen=%d", i, trunk->length);
+		if (print_data)
+		{
+			printf("\tdata=%s", (char *)trunk->data);
+		}
+		printf("\n");
 		trunk = trunk->next;
 	}
 	printf("%s\n%s\n", SW_END_LINE, __func__);

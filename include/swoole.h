@@ -569,6 +569,7 @@ typedef struct _swFactory
 	int max_request; //worker max request
 	void *ptr; //server object
 	int last_from_id;
+
 	swReactor *reactor; //reserve for reactor
 
 	int (*start)(struct _swFactory *);
@@ -685,8 +686,6 @@ typedef struct _swFactoryProcess
 	//这里直接使用char来保存了，位运算速度会快，但需要前置计算
 	char *workers_status;
 
-	int writer_num; //writer thread num
-	int worker_num; //worker child process num
 	int writer_pti; //current writer id
 	int worker_pti; //current worker id
 } swFactoryProcess;
@@ -858,7 +857,8 @@ int swModule_load(char *so_file);
 
 typedef struct swServer_s swServer;
 
-typedef struct _swServerG{
+typedef struct
+{
 	swTimer timer;
 	int no_timerfd;
 	int running;
@@ -892,22 +892,32 @@ typedef struct _swServerG{
 } swServerG;
 
 //Share Memory
-typedef struct _swServerGS{
+typedef struct
+{
 	pid_t master_pid;
 	pid_t manager_pid;
 	uint8_t start; //after swServer_start will set start=1
 	time_t now;
 } swServerGS;
 
-typedef struct _swWorkerG{
+//worker global
+typedef struct
+{
 	int id; //Current Proccess Worker's id
 	swString **buffer_input;
-	atomic_uint_t worker_pti;
 } swWorkerG;
+
+typedef struct
+{
+	uint8_t factory_lock_target;
+	int16_t factory_target_worker;
+	atomic_uint_t worker_round_i;
+} swThreadG;
 
 extern swServerG SwooleG;    //Local Global Variable
 extern swServerGS *SwooleGS; //Share Memory Global Variable
 extern swWorkerG SwooleWG;   //Worker Global Variable
+extern __thread swThreadG SwooleTG;   //Thread Global Variable
 
 //-----------------------------------------------
 //OS Feature

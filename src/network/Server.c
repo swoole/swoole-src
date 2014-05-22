@@ -39,6 +39,7 @@ static void swServer_heartbeat_check(swThreadParam *heartbeat_param);
 swServerG SwooleG;
 swServerGS *SwooleGS;
 swWorkerG SwooleWG;
+__thread swThreadG SwooleTG;
 
 int16_t sw_errno;
 char sw_error[SW_ERROR_MSG_SIZE];

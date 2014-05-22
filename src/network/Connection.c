@@ -230,6 +230,11 @@ SWINLINE int swConnection_send_string_buffer(swConnection *conn)
 	int send_n = buffer->length;
 	_send.info.type = SW_EVENT_PACKAGE_START;
 
+	/**
+	 * lock target
+	 */
+	SwooleTG.factory_lock_target = 1;
+
 	void *send_ptr = buffer->str;
 	do
 	{
@@ -245,25 +250,25 @@ SWINLINE int swConnection_send_string_buffer(swConnection *conn)
 			memcpy(_send.data, send_ptr, send_n);
 		}
 
-		swTraceLog(10, "dispatch, type=%d|len=%d\n", _send.info.type, _send.info.len);
+		swTrace("dispatch, type=%d|len=%d\n", _send.info.type, _send.info.len);
 
 		ret = factory->dispatch(factory, &_send);
-		//处理数据失败，数据将丢失
+		//TODO: 处理数据失败，数据将丢失
 		if (ret < 0)
 		{
 			swWarn("factory->dispatch failed.");
 		}
-
 		send_n -= _send.info.len;
 		send_ptr += _send.info.len;
-
-		//转为trunk
-		if (_send.info.type == SW_EVENT_PACKAGE_START)
-		{
-			_send.info.type = SW_EVENT_PACKAGE_TRUNK;
-		}
 	}
 	while (send_n > 0);
+
+	/**
+	 * unlock
+	 */
+	SwooleTG.factory_target_worker = 0;
+	SwooleTG.factory_lock_target = 0;
+
 #endif
 	return ret;
 }
@@ -282,8 +287,6 @@ int swConnection_send_in_buffer(swConnection *conn)
 {
 	swFactory *factory = SwooleG.factory;
 	swEventData _send;
-	swBuffer *buffer = conn->in_buffer;
-	swBuffer_trunk *trunk = swBuffer_get_trunk(buffer);
 
 	_send.info.fd = conn->fd;
 	_send.info.from_id = conn->from_id;
@@ -322,36 +325,44 @@ int swConnection_send_in_buffer(swConnection *conn)
 	return factory->dispatch(factory, &_send);
 
 #else
+
+	swBuffer *buffer = conn->in_buffer;
+	swBuffer_trunk *trunk = swBuffer_get_trunk(buffer);
+
 	int ret;
-	_send.info.type = (buffer->trunk_num == 1) ? SW_EVENT_TCP : SW_EVENT_PACKAGE_START;
+	_send.info.type = SW_EVENT_PACKAGE_START;
+
+	/**
+	 * lock target
+	 */
+	SwooleTG.factory_lock_target = 1;
 
 	while (trunk != NULL)
 	{
 		_send.info.len = trunk->length;
 		memcpy(_send.data, trunk->data, _send.info.len);
+		//package end
+		if (trunk->next == NULL)
+		{
+			_send.info.type = SW_EVENT_PACKAGE_END;
+		}
 		ret = factory->dispatch(factory, &_send);
-
 		//TODO: 处理数据失败，数据将丢失
 		if (ret < 0)
 		{
 			swWarn("factory->dispatch failed.");
 		}
-
 		swBuffer_pop_trunk(buffer, trunk);
 		trunk = swBuffer_get_trunk(buffer);
 
 		swTrace("send2worker[trunk_num=%d][type=%d]\n", buffer->trunk_num, _send.info.type);
-
-		if (_send.info.type == SW_EVENT_PACKAGE_START)
-		{
-			_send.info.type = SW_EVENT_PACKAGE_TRUNK;
-		}
-		//package end
-		if (trunk == NULL || trunk->next == NULL)
-		{
-			_send.info.type = SW_EVENT_PACKAGE_END;
-		}
 	}
+	/**
+	 * unlock
+	 */
+	SwooleTG.factory_target_worker = -1;
+	SwooleTG.factory_lock_target = 0;
+
 #endif
 	return SW_OK;
 }

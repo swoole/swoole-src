@@ -59,12 +59,11 @@ extern "C" {
 #define SW_EVENT_FINISH            8
 
 #define SW_EVENT_PACKAGE_START     9
-#define SW_EVENT_PACKAGE_TRUNK     10
-#define SW_EVENT_PACKAGE_END       11
+#define SW_EVENT_PACKAGE_END       10
+#define SW_EVENT_PACKAGE           11
 #define SW_EVENT_SENDFILE          12
 #define SW_EVENT_UNIX_DGRAM        13
 #define SW_EVENT_UNIX_STREAM       14
-#define SW_EVENT_PACKAGE           15
 
 #define SW_STATUS_EMPTY            0
 #define SW_STATUS_ACTIVE           1

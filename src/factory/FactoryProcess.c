@@ -39,6 +39,8 @@ static int swFactoryProcess_notify(swFactory *factory, swEvent *event);
 static int swFactoryProcess_dispatch(swFactory *factory, swEventData *buf);
 static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
 
+SWINLINE static int swFactoryProcess_schedule(swFactoryProcess *object, swEventData *data);
+
 static int worker_task_num = 0;
 static int worker_task_always = 0;
 static int manager_worker_reloading = 0;
@@ -54,22 +56,20 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 		swWarn("[swFactoryProcess_create] malloc[0] failed");
 		return SW_ERR;
 	}
-	serv->writer_threads = SwooleG.memory_pool->alloc(SwooleG.memory_pool, writer_num * sizeof(swWriterThread));
+	serv->writer_threads = SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->reactor_num * sizeof(swWriterThread));
 	if (serv->writer_threads == NULL)
 	{
 		swWarn("[Main] malloc[object->writers] fail");
 		return SW_ERR;
 	}
-	object->writer_num = writer_num;
 	object->writer_pti = 0;
 
-	object->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, worker_num * sizeof(swWorker));
+	object->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
 	if (object->workers == NULL)
 	{
 		swWarn("[Main] malloc[object->workers] fail");
 		return SW_ERR;
 	}
-	object->worker_num = worker_num;
 
 	factory->object = object;
 	factory->dispatch = swFactoryProcess_dispatch;
@@ -91,7 +91,7 @@ int swFactoryProcess_shutdown(swFactory *factory)
 	//kill manager process
 	kill(SwooleGS->manager_pid, SIGTERM);
 	//kill all child process
-	for (i = 0; i < object->worker_num; i++)
+	for (i = 0; i < serv->worker_num; i++)
 	{
 		swTrace("[Main]kill worker processor");
 		kill(object->workers[i].pid, SIGTERM);
@@ -187,15 +187,15 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 
 	//package trunk
 	case SW_EVENT_PACKAGE_START:
-	case SW_EVENT_PACKAGE_TRUNK:
 	case SW_EVENT_PACKAGE_END:
+
 		package = SwooleWG.buffer_input[task->info.from_id];
 
 		//merge data to package buffer
 		memcpy(package->str + package->length, task->data, task->info.len);
 		package->length += task->info.len;
-		swTrace("package[%d]. data_len=%d|total_length=%d\n", task->info.type, task->info.len, package->length);
 
+		//printf("package[%d]. from_id=%d|data_len=%d|total_length=%d\n", task->info.type, task->info.from_id, task->info.len, package->length);
 		//package end
 		if (task->info.type == SW_EVENT_PACKAGE_END)
 		{
@@ -257,14 +257,14 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 	}
 	else
 	{
-		object->pipes = sw_calloc(object->worker_num, sizeof(swPipe));
+		object->pipes = sw_calloc(serv->worker_num, sizeof(swPipe));
 		if (object->pipes == NULL)
 		{
 			swError("malloc[worker_pipes] fail. Error: %s [%d]", strerror(errno), errno);
 			return SW_ERR;
 		}
 		//worker进程的pipes
-		for (i = 0; i < object->worker_num; i++)
+		for (i = 0; i < serv->worker_num; i++)
 		{
 			if (swPipeUnsock_create(&object->pipes[i], 1, SOCK_DGRAM) < 0)
 			{
@@ -303,10 +303,10 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 	//创建manager进程
 	case 0:
 		//创建子进程
-		for (i = 0; i < object->worker_num; i++)
+		for (i = 0; i < serv->worker_num; i++)
 		{
 			//close(worker_pipes[i].pipes[0]);
-			reactor_pti = (i % object->writer_num);
+			reactor_pti = (i % serv->writer_num);
 			object->workers[i].reactor_id = reactor_pti;
 			pid = swFactoryProcess_worker_spawn(factory, i);
 			if (pid < 0)
@@ -378,7 +378,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 		serv->onManagerStart(serv);
 	}
 
-	reload_workers = sw_calloc(object->worker_num, sizeof(swWorker));
+	reload_workers = sw_calloc(serv->worker_num, sizeof(swWorker));
 	if (reload_workers == NULL)
 	{
 		swError("[manager] malloc[reload_workers] failed");
@@ -400,14 +400,14 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 			}
 			else if (manager_reload_flag == 0)
 			{
-				memcpy(reload_workers, object->workers, sizeof(swWorker) * object->worker_num);
+				memcpy(reload_workers, object->workers, sizeof(swWorker) * serv->worker_num);
 				manager_reload_flag = 1;
 				goto kill_worker;
 			}
 		}
 		if (SwooleG.running == 1)
 		{
-			for (i = 0; i < object->worker_num; i++)
+			for (i = 0; i < serv->worker_num; i++)
 			{
 				//对比pid
 				if (pid != object->workers[i].pid)
@@ -448,7 +448,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 		kill_worker: if (manager_worker_reloading == 1)
 		{
 			//reload finish
-			if (reload_worker_i >= object->worker_num)
+			if (reload_worker_i >= serv->worker_num)
 			{
 				manager_worker_reloading = 0;
 				reload_worker_i = 0;
@@ -846,6 +846,59 @@ int swFactoryProcess_notify(swFactory *factory, swDataHead *ev)
 	return swFactoryProcess_send2worker(factory, (swEventData *) &sw_notify_data._send, -1);
 }
 
+SWINLINE static int swFactoryProcess_schedule(swFactoryProcess *object, swEventData *data)
+{
+	swServer *serv = SwooleG.serv;
+	int target_worker_id = 0;
+
+	//轮询
+	if (serv->dispatch_mode == SW_DISPATCH_ROUND)
+	{
+		target_worker_id = (object->worker_pti++) % serv->worker_num;
+	}
+	//使用fd取摸来散列
+	else if (serv->dispatch_mode == SW_DISPATCH_FDMOD)
+	{
+		//Fixed #48. 替换一下顺序
+		//udp use remote port
+		if (data->info.type == SW_EVENT_UDP || data->info.type == SW_EVENT_UDP6 || data->info.type == SW_EVENT_UNIX_DGRAM)
+		{
+			target_worker_id = ((uint16_t) data->info.from_id) % serv->worker_num;
+		}
+		else
+		{
+			target_worker_id = data->info.fd % serv->worker_num;
+		}
+	}
+	//使用抢占式队列(IPC消息队列)分配
+	else
+	{
+		if (serv->ipc_mode == SW_IPC_MSGQUEUE)
+		{
+			//msgsnd参数必须>0
+			//worker进程中正确的mtype应该是pti + 1
+			target_worker_id = serv->worker_num;
+		}
+		else
+		{
+			int i;
+			atomic_t *round = &SwooleTG.worker_round_i;
+			for (i = 0; i < serv->worker_num; i++)
+			{
+				sw_atomic_fetch_add(round, 1);
+				target_worker_id = (*round) % serv->worker_num;
+
+				if (object->workers_status[target_worker_id] == SW_WORKER_IDLE)
+				{
+					break;
+				}
+			}
+			swTrace("schedule=%d|round=%d\n", target_worker_id, *round);
+		}
+	}
+	return target_worker_id;
+}
+
 /**
  * 主进程向worker进程发送数据
  * @param worker_id 发到指定的worker进程
@@ -860,48 +913,21 @@ int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int work
 
 	if (worker_id < 0)
 	{
-		//轮询
-		if (serv->dispatch_mode == SW_DISPATCH_ROUND)
+		if (SwooleTG.factory_lock_target)
 		{
-			pti = (object->worker_pti++) % object->worker_num;
-		}
-		//使用fd取摸来散列
-		else if (serv->dispatch_mode == SW_DISPATCH_FDMOD)
-		{
-			//Fixed #48. 替换一下顺序
-			//udp use remote port
-			if (data->info.type == SW_EVENT_UDP || data->info.type == SW_EVENT_UDP6 || data->info.type == SW_EVENT_UNIX_DGRAM)
+			if (SwooleTG.factory_target_worker < 0)
 			{
-				pti = ((uint16_t) data->info.from_id) % object->worker_num;
+				pti = swFactoryProcess_schedule(object, data);
+				SwooleTG.factory_target_worker = pti;
 			}
 			else
 			{
-				pti = data->info.fd % object->worker_num;
+				pti = SwooleTG.factory_target_worker;
 			}
 		}
-		//使用抢占式队列(IPC消息队列)分配
 		else
 		{
-			if (serv->ipc_mode == SW_IPC_MSGQUEUE)
-			{
-				//msgsnd参数必须>0
-				//worker进程中正确的mtype应该是pti + 1
-				pti = object->worker_num;
-			}
-			else
-			{
-				int i;
-				atomic_t *round = &SwooleWG.worker_pti;
-				for (i = 0; i < serv->worker_num; i++)
-				{
-					sw_atomic_fetch_add(round, 1);
-					pti = (*round) % serv->worker_num;
-					if (object->workers_status[pti] == SW_WORKER_IDLE)
-					{
-						break;
-					}
-				}
-			}
+			pti = swFactoryProcess_schedule(object, data);
 		}
 	}
 	//指定了worker_id

@@ -41,7 +41,7 @@ SWINLINE void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk);
 int swBuffer_append(swBuffer *buffer, void *data, uint32_t size);
 int swBuffer_send(swBuffer *buffer, int fd);
 
-void swBuffer_debug(swBuffer *buffer);
+void swBuffer_debug(swBuffer *buffer, int print_data);
 int swBuffer_free(swBuffer *buffer);
 
 #ifdef __cplusplus

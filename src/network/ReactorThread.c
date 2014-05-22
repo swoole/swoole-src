@@ -329,18 +329,17 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 			goto close_fd;
 		}
 
-		//printf("buffer[len=%d][n=%d]-----------------\n", trunk->length, n);
+//		printf("buffer[len=%d][n=%d]-----------------\n", trunk->length, n);
 		//((char *)trunk->data)[trunk->length] = 0; //for printf
-		//printf("buffer-----------------: %s|fd=%d|len=%d\n", (char *) trunk->data, event->fd, trunk->length);
+//		printf("buffer-----------------: %s|fd=%d|len=%d\n", (char *) trunk->data, event->fd, trunk->length);
 
 		//EOF_Check
 		isEOF = memcmp(trunk->data + trunk->length - serv->package_eof_len, serv->package_eof, serv->package_eof_len);
-		//printf("buffer ok. EOF=%s|Len=%d|RecvEOF=%s|isEOF=%d\n", serv->package_eof, serv->package_eof_len, (char *)trunk->data + trunk->length - serv->package_eof_len, isEOF);
+//		printf("buffer ok. EOF=%s|Len=%d|RecvEOF=%s|isEOF=%d\n", serv->package_eof, serv->package_eof_len, (char *)trunk->data + trunk->length - serv->package_eof_len, isEOF);
 
 		//received EOF, will send package to worker
 		if (isEOF == 0)
 		{
-			//printf("---------------------------EOF---------------------------\n");
 			swConnection_send_in_buffer(conn);
 			return SW_OK;
 		}

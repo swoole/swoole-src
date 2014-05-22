@@ -17,6 +17,7 @@ class DBServer
         $serv = new swoole_server("127.0.0.1", 9509);
         $serv->set(array(
             'worker_num' => 1,
+            'max_request' => 0,
         ));
 
         $serv->on('WorkerStart', array($this, 'onStart'));
