@@ -19,7 +19,12 @@ $bc->process_num = (int)$opt['c'];
 $bc->request_num = (int)$opt['n'];
 $bc->server_url = trim($opt['s']);
 $bc->server_config = parse_url($bc->server_url);
-$bc->send_data = str_repeat('a', 2032);
+$bc->send_data = "GET /hello.html HTTP/1.1\r\n";
+$bc->send_data .= "Host: 127.0.0.1\r\n";
+$bc->send_data .= "Connection: keep-alive\r\n";
+$bc->send_data .= "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8\r\n";
+$bc->send_data .= "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/34.0.1847.116 Safari/537.36\r\n\r\n";
+
 $bc->read_len = 2048;
 if(!empty($opt['p'])) $bc->show_detail = true;
 
@@ -40,6 +45,7 @@ function long_tcp(Swoole_Benchmark $bc)
 		{
             error:
             echo "Error: ".swoole_strerror($fp->errCode)."[{$fp->errCode}]\n";
+            $fp = null;
             return false;
 		}
 		$start = $end;
@@ -55,6 +61,7 @@ function long_tcp(Swoole_Benchmark $bc)
 	$start = $end;
 	/*--------读取Sokcet-------*/
 	$ret = $fp->recv();
+	//var_dump($ret);
 	$i++;
 	if (empty($ret)) 
 	{
