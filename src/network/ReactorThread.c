@@ -591,7 +591,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 					buffer.length = package_total_length;
 					buffer.str = tmp_ptr;
 					conn->object = &buffer;
-					//swoole_dump_bin(buffer.str, 's', buffer.length);
+//					swoole_dump_bin(buffer.str, 's', buffer.length);
 					swConnection_send_string_buffer(conn);
 					conn->object = NULL;
 

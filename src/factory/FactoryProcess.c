@@ -169,33 +169,35 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 	case SW_EVENT_TCP:
 	case SW_EVENT_UDP:
 	case SW_EVENT_UNIX_DGRAM:
+
+	//ringbuffer shm package
 	case SW_EVENT_PACKAGE:
-		//处理任务
 		onTask:
 		factory->onTask(factory, task);
-		//只有数据请求任务才计算task_num
+		//only onTask increase the count
 		if (!worker_task_always)
 		{
 			worker_task_num--;
 		}
+		if (task->info.type == SW_EVENT_PACKAGE_END)
+		{
+			package->length = 0;
+		}
 		break;
 
-	//buffer
+	//package trunk
 	case SW_EVENT_PACKAGE_START:
 	case SW_EVENT_PACKAGE_TRUNK:
 	case SW_EVENT_PACKAGE_END:
 		package = SwooleWG.buffer_input[task->info.from_id];
-		//package start
-		if(task->info.type == SW_EVENT_PACKAGE_START)
-		{
-			package->length = 0;
-		}
-		//合并数据到package buffer中
+
+		//merge data to package buffer
 		memcpy(package->str + package->length, task->data, task->info.len);
 		package->length += task->info.len;
 		swTrace("package[%d]. data_len=%d|total_length=%d\n", task->info.type, task->info.len, package->length);
+
 		//package end
-		if(task->info.type == SW_EVENT_PACKAGE_END)
+		if (task->info.type == SW_EVENT_PACKAGE_END)
 		{
 			goto onTask;
 		}

@@ -229,6 +229,7 @@ SWINLINE int swConnection_send_string_buffer(swConnection *conn)
 #else
 	int send_n = buffer->length;
 	_send.info.type = SW_EVENT_PACKAGE_START;
+
 	void *send_ptr = buffer->str;
 	do
 	{
@@ -243,14 +244,19 @@ SWINLINE int swConnection_send_string_buffer(swConnection *conn)
 			_send.info.len = send_n;
 			memcpy(_send.data, send_ptr, send_n);
 		}
+
+		swTraceLog(10, "dispatch, type=%d|len=%d\n", _send.info.type, _send.info.len);
+
 		ret = factory->dispatch(factory, &_send);
 		//处理数据失败，数据将丢失
 		if (ret < 0)
 		{
 			swWarn("factory->dispatch failed.");
 		}
-		send_n -= SW_BUFFER_SIZE;
+
+		send_n -= _send.info.len;
 		send_ptr += _send.info.len;
+
 		//转为trunk
 		if (_send.info.type == SW_EVENT_PACKAGE_START)
 		{
