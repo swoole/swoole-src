@@ -2323,7 +2323,7 @@ PHP_FUNCTION(swoole_server_send)
 
 	zval *zfd;
 
-	long conn_fd = 0;
+	long _fd = 0;
 	long from_id = -1;
 
 	if (zobject == NULL)
@@ -2355,9 +2355,9 @@ PHP_FUNCTION(swoole_server_send)
 	if (Z_TYPE_P(zfd) == IS_STRING)
 	{
 		//unix dgram
-		if (!is_numeric_string(Z_STRVAL_P(zfd), Z_STRLEN_P(zfd), &conn_fd, NULL, 0))
+		if (!is_numeric_string(Z_STRVAL_P(zfd), Z_STRLEN_P(zfd), &_fd, NULL, 0))
 		{
-			_send.info.fd = (int)conn_fd;
+			_send.info.fd = (int)_fd;
 			_send.info.type = SW_EVENT_UNIX_DGRAM;
 			_send.info.from_fd = (from_id > 0) ? from_id : php_swoole_unix_dgram_fd;
 			_send.sun_path = Z_STRVAL_P(zfd);
@@ -2369,20 +2369,15 @@ PHP_FUNCTION(swoole_server_send)
 	}
 	else
 	{
-		conn_fd = Z_LVAL_P(zfd);
+		_fd = Z_LVAL_P(zfd);
 	}
 
-	if (conn_fd <= 0)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server->send error: Invalid fd[%ld] error.", conn_fd);
-		RETURN_FALSE;
-	}
-
-	_send.info.fd = (int)conn_fd;
+	uint32_t fd = (uint32_t) _fd;
+	_send.info.fd = fd;
 
 	//UDP, UDP必然超过0x1000000
 	//原因：IPv4的第4字节最小为1,而这里的conn_fd是网络字节序
-	if (conn_fd > 0x1000000)
+	if (fd > 0x1000000)
 	{
 		if (from_id == -1)
 		{

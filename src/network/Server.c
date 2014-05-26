@@ -1007,7 +1007,7 @@ static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
 			{
 				notify_ev.from_id = conn->from_id;
 				notify_ev.fd = fd;
-				factory->finish(factory, (swSendData *) &notify_ev);
+				factory->end(&serv->factory, &notify_ev);
 			}
 		}
 		sleep(serv->heartbeat_check_interval);
