@@ -28,8 +28,11 @@ void swoole_destory_process(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 {
 	swWorker *process = (swWorker *) rsrc->ptr;
 	swPipe *_pipe = process->ptr;
-	_pipe->close(_pipe);
-	efree(_pipe);
+	if (_pipe)
+	{
+		_pipe->close(_pipe);
+		efree(_pipe);
+	}
 	efree(process);
 }
 
