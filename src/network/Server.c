@@ -495,7 +495,7 @@ int swServer_start(swServer *serv)
 		SwooleG.task_notify = sw_calloc(serv->worker_num, sizeof(swPipe));
 		for(i =0; i< serv->worker_num; i++)
 		{
-			if(swPipeNotify_auto(&SwooleG.task_notify[i], 1, 0))
+			if (swPipeNotify_auto(&SwooleG.task_notify[i], 1, 0))
 			{
 				return SW_ERR;
 			}

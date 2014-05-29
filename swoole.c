@@ -2709,11 +2709,12 @@ PHP_FUNCTION(swoole_server_taskwait)
 		buf.info.from_fd = 0;
 	}
 
-	if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int) worker_id) > 0)
+	if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int) worker_id) >= 0)
 	{
 		int ret = 0;
 		uint64_t notify;
 		swSetTimeout(SwooleG.task_notify[SwooleWG.id].getFd(&SwooleG.task_notify[SwooleWG.id], 0), timeout);
+
 		do
 		{
 			ret = SwooleG.task_notify[SwooleWG.id].read(&SwooleG.task_notify[SwooleWG.id], &notify, sizeof(notify));

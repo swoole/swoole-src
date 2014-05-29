@@ -44,7 +44,7 @@ int swPipeBase_create(swPipe *p, int blocking)
 	else
 	{
 		//Nonblock
-		if(blocking == 0)
+		if (blocking == 0)
 		{
 			swSetNonBlock(object->pipes[0]);
 			swSetNonBlock(object->pipes[1]);
