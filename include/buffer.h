@@ -15,11 +15,19 @@ extern "C"
 
 typedef struct _swBuffer_trunk
 {
-	void *data;
 	uint32_t type;
 	uint32_t length;
 	uint16_t offset;
 	struct _swBuffer_trunk *next;
+	union
+	{
+		void *ptr;
+		struct
+		{
+			uint32_t val1;
+			uint32_t val2;
+		} data;
+	} store;
 } swBuffer_trunk;
 
 typedef struct _swBuffer

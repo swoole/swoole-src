@@ -340,7 +340,7 @@ int swConnection_send_in_buffer(swConnection *conn)
 	while (trunk != NULL)
 	{
 		_send.info.len = trunk->length;
-		memcpy(_send.data, trunk->data, _send.info.len);
+		memcpy(_send.data, trunk->store.ptr, _send.info.len);
 		//package end
 		if (trunk->next == NULL)
 		{

@@ -2,16 +2,16 @@
 $serv = new swoole_server("127.0.0.1", 9501);
 
 $serv->set(array(
-    'worker_num' => 2,
+    'worker_num' => 1,
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
-    'task_worker_num' => 2,
+    //'task_worker_num' => 2,
     'task_ipc_mode' => 1,
 	//'dispatch_mode' => 2,
 	//'daemonize' => 1,
 	//'log_file' => '/tmp/swoole.log',
-    //'heartbeat_idle_time' => 5,
-    //'heartbeat_check_interval' => 5,
+    'heartbeat_idle_time' => 5,
+    'heartbeat_check_interval' => 5,
 ));
 
 function my_onStart(swoole_server $serv)

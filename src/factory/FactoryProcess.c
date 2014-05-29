@@ -80,6 +80,7 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 	factory->end = swFactoryProcess_end;
 	factory->onTask = NULL;
 	factory->onFinish = NULL;
+
 	return SW_OK;
 }
 
@@ -275,7 +276,6 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 			object->workers[i].pipe_worker = object->pipes[i].getFd(&object->pipes[i], 0);
 		}
 	}
-
 
 	if (SwooleG.task_worker_num > 0)
 	{
@@ -498,24 +498,29 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti)
 
 int swFactoryProcess_end(swFactory *factory, swDataHead *event)
 {
-	int ret;
 	swServer *serv = factory->ptr;
 	swEvent ev;
 	bzero(&ev, sizeof(swEvent));
 
 	ev.fd = event->fd;
-	ev.len = 0; //len=0表示关闭此连接
-	ev.type = SW_EVENT_CLOSE;
-	ret = swFactoryProcess_finish(factory, (swSendData *)&ev);
-	if (ret < 0)
+	/**
+	 * length == 0, close the connection
+	 */
+	ev.len = 0;
+
+	/**
+	 * passive or initiative
+	 */
+	ev.type = event->type;
+
+	swConnection *conn = swServer_get_connection(serv, ev.fd);
+	if (conn == NULL || conn->active == 0)
 	{
-		return  SW_ERR;
+		swWarn("can not close. Connection[%d] not found.", ev.fd);
+		return SW_ERR;
 	}
-	if (serv->onClose != NULL)
-	{
-		serv->onClose(serv, event->fd, event->from_id);
-	}
-	return ret;
+	event->from_id = conn->from_id;
+	return swFactoryProcess_finish(factory, (swSendData *)&ev);
 }
 /**
  * worker: send to client
@@ -618,7 +623,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	finish:
 	if (ret < 0)
 	{
-		swWarn("[Worker#%d]sendto writer pipe or queue failed. Error: %s [%d]", getpid(), strerror(errno), errno);
+		swWarn("sendto to reactor failed. Error: %s [%d]", strerror(errno), errno);
 	}
 	return ret;
 }
@@ -1065,30 +1070,6 @@ static int swFactoryProcess_worker_receive(swReactor *reactor, swEvent *event)
 	return ret;
 }
 
-int swFactoryProcess_send2client(swReactor *reactor, swDataHead *ev)
-{
-	int n;
-	swEventData resp;
-	swSendData _send;
-
-	//Unix Sock UDP
-	n = read(ev->fd, &resp, sizeof(resp));
-
-	swTrace("[WriteThread]recv: writer=%d|pipe=%d", ev->from_id, ev->fd);
-	//swWarn("send: type=%d|content=%s", resp.info.type, resp.data);
-	if (n > 0)
-	{
-		memcpy(&_send.info, &resp.info, sizeof(resp.info));
-		_send.data = resp.data;
-		return swReactorThread_send(&_send);
-	}
-	else
-	{
-		swWarn("[WriteThread]sento fail. Error: %s[%d]", strerror(errno), errno);
-		return SW_ERR;
-	}
-}
-
 #if SW_USE_WRITER_THREAD
 /**
  * 使用Unix Socket通信
@@ -1112,7 +1093,7 @@ int swFactoryProcess_writer_loop_unsock(swThreadParam *param)
 		pthread_exit((void *) param);
 	}
 	swSingalNone();
-	reactor->setHandle(reactor, SW_FD_PIPE, swFactoryProcess_send2client);
+	reactor->setHandle(reactor, SW_FD_PIPE, swReactorThread_onPipeReceive);
 	reactor->wait(reactor, &tmo);
 	reactor->free(reactor);
 	pthread_exit((void *) param);

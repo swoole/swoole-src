@@ -94,6 +94,12 @@ enum
 	SW_IPC_CHANNEL,
 };
 
+enum
+{
+	SW_CLOSE_PASSIVE = 32,
+	SW_CLOSE_INITIATIVE,
+};
+
 typedef struct _swUdpFd{
 	struct sockaddr addr;
 	int sock;
@@ -478,6 +484,7 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event);
 int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event);
 int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *event);
 int swReactorThread_onPackage(swReactor *reactor, swEvent *event);
+int swReactorThread_onPipeReceive(swReactor *reactor, swDataHead *ev);
 int swReactorThread_send(swSendData *_send);
 
 int swReactorProcess_create(swServer *serv);

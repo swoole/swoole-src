@@ -986,7 +986,7 @@ static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
 	int checktime;
 
 	notify_ev.len = 0;
-	notify_ev.type = SW_EVENT_TCP;
+	notify_ev.type = SW_CLOSE_PASSIVE;
 
 	while (SwooleG.running)
 	{
@@ -1005,7 +1005,6 @@ static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
 			conn = swServer_get_connection(serv, fd);
 			if (conn != NULL && 1 == conn->active && conn->last_time < checktime)
 			{
-				notify_ev.from_id = conn->from_id;
 				notify_ev.fd = fd;
 				factory->end(&serv->factory, &notify_ev);
 			}

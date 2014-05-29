@@ -705,7 +705,6 @@ int swFactoryProcess_shutdown(swFactory *factory);
 int swFactoryProcess_end(swFactory *factory, swDataHead *event);
 int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task);
 int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int worker_id);
-int swFactoryProcess_send2client(swReactor *reactor, swDataHead *ev);
 
 int swFactoryThread_create(swFactory *factory, int writer_num);
 int swFactoryThread_start(swFactory *factory);

@@ -59,7 +59,7 @@ swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint16_t siz
 			sw_free(trunk);
 			return NULL;
 		}
-		trunk->data = buf;
+		trunk->store.ptr = buf;
 	}
 
 	trunk->type = type;
@@ -97,7 +97,7 @@ SWINLINE void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk)
 
 	if (trunk->type == SW_TRUNK_DATA)
 	{
-		sw_free(trunk->data);
+		sw_free(trunk->store.ptr);
 	}
 	sw_free(trunk);
 }
@@ -113,7 +113,7 @@ int swBuffer_free(swBuffer *buffer)
 	{
 		if (trunk->type == SW_TRUNK_DATA)
 		{
-			sw_free(trunk->data);
+			sw_free(trunk->store.ptr);
 		}
 		will_free_trunk = trunk;
 		trunk = trunk->next;
@@ -137,7 +137,7 @@ int swBuffer_append(swBuffer *buffer, void *data, uint32_t size)
 	buffer->length += size;
 	trunk->length = size;
 
-	memcpy(trunk->data, data, trunk->length);
+	memcpy(trunk->store.ptr, data, trunk->length);
 
 	swTraceLog(SW_TRACE_BUFFER, "trunk_n=%d|size=%d|trunk_len=%d|trunk=%p", buffer->trunk_num, size,
 			trunk->length, trunk);
@@ -159,7 +159,7 @@ int swBuffer_send(swBuffer *buffer, int fd)
 		swBuffer_pop_trunk(buffer, trunk);
 		return SW_CONTINUE;
 	}
-	ret = send(fd, trunk->data + trunk->offset, sendn, 0);
+	ret = send(fd, trunk->store.ptr + trunk->offset, sendn, 0);
 	//printf("BufferOut: reactor=%d|sendn=%d|ret=%d|trunk->offset=%d|trunk_len=%d\n", reactor->id, sendn, ret, trunk->offset, trunk->length);
 	if (ret < 0)
 	{
@@ -200,7 +200,7 @@ void swBuffer_debug(swBuffer *buffer, int print_data)
 		printf("%d.\tlen=%d", i, trunk->length);
 		if (print_data)
 		{
-			printf("\tdata=%s", (char *)trunk->data);
+			printf("\tdata=%s", (char *) trunk->store.ptr);
 		}
 		printf("\n");
 		trunk = trunk->next;

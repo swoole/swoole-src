@@ -81,9 +81,36 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
 	swConnection *conn = swServer_get_connection(serv, event->fd);
 	if (conn != NULL)
 	{
-		swConnection_close(serv, event->fd, event->type == SW_EVENT_CLOSE ? 0 : 1);
+		swConnection_close(serv, event->fd, 1);
 	}
 	return SW_OK;
+}
+
+/**
+ * receive data from worker process pipe
+ */
+int swReactorThread_onPipeReceive(swReactor *reactor, swDataHead *ev)
+{
+	int n;
+	swEventData resp;
+	swSendData _send;
+
+	//Unix Sock UDP
+	n = read(ev->fd, &resp, sizeof(resp));
+
+	swTrace("[WriteThread]recv: writer=%d|pipe=%d", ev->from_id, ev->fd);
+	//swWarn("send: type=%d|content=%s", resp.info.type, resp.data);
+	if (n > 0)
+	{
+		memcpy(&_send.info, &resp.info, sizeof(resp.info));
+		_send.data = resp.data;
+		return swReactorThread_send(&_send);
+	}
+	else
+	{
+		swWarn("read(worker_pipe) failed. Error: %s[%d]", strerror(errno), errno);
+		return SW_ERR;
+	}
 }
 
 /**
@@ -110,18 +137,27 @@ int swReactorThread_send(swSendData *_send)
 
 	if (conn->out_buffer == NULL)
 	{
-		conn->out_buffer = swBuffer_new(SW_BUFFER_SIZE);
-		if (conn->out_buffer == NULL)
+		//close connection
+		if (_send->info.len == 0)
 		{
-			return SW_ERR;
+			swConnection_close(serv, fd, _send->info.type == SW_CLOSE_INITIATIVE ? 0 : 1);
+			return SW_OK;
+		}
+		else
+		{
+			conn->out_buffer = swBuffer_new(SW_BUFFER_SIZE);
+			if (conn->out_buffer == NULL)
+			{
+				return SW_ERR;
+			}
 		}
 	}
 
-	//recv length=0, will close connection
+	//recv length=0, close connection
 	if (_send->info.len == 0)
 	{
-		swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_CLOSE, 0);
-		return SW_OK;
+		trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_CLOSE, 0);
+		trunk->store.data.val1 = _send->info.type;
 	}
 	//sendfile to client
 	else if(_send->info.type == SW_EVENT_SENDFILE)
@@ -154,7 +190,7 @@ int swReactorThread_send(swSendData *_send)
 		}
 		task->filesize = file_stat.st_size;
 		task->fd = file_fd;
-		trunk->data = (void *)task;
+		trunk->store.ptr = (void *)task;
 	}
 	//send data
 	else
@@ -174,7 +210,6 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 	swConnection *conn = swServer_get_connection(serv, ev->fd);
 	swBuffer *out_buffer = conn->out_buffer;
 	swBuffer_trunk *trunk;
-	swEvent closeFd;
 	swTask_sendfile *task = NULL;
 
 	if (conn->active == 0)
@@ -193,15 +228,12 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 		if (trunk->type == SW_TRUNK_CLOSE)
 		{
 			close_fd:
-			closeFd.fd = ev->fd;
-			closeFd.from_id = ev->from_id;
-			closeFd.type = SW_EVENT_CLOSE;
-			swReactorThread_onClose(reactor, &closeFd);
+			swConnection_close(serv, ev->fd, trunk->store.data.val1 == SW_CLOSE_INITIATIVE ? 0 : 1);
 			return SW_OK;
 		}
 		else if (trunk->type == SW_TRUNK_SENDFILE)
 		{
-			task = (swTask_sendfile *) trunk->data;
+			task = (swTask_sendfile *) trunk->store.ptr;
 			sendn = (task->filesize - task->offset > SW_SENDFILE_TRUNK) ? SW_SENDFILE_TRUNK : task->filesize - task->offset;
 			ret = swoole_sendfile(ev->fd, task->fd, &task->offset, sendn);
 			swTrace("ret=%d|task->offset=%ld|sendn=%d|filesize=%ld", ret, task->offset, sendn, task->filesize);
@@ -283,7 +315,7 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 	n = swRead(event->fd,  trunk->data, SW_BUFFER_SIZE);
 #else
 	//level trigger
-	n = recv(event->fd,  trunk->data + trunk->length, buf_size, 0);
+	n = recv(event->fd,  trunk->store.ptr + trunk->length, buf_size, 0);
 #endif
 
 	swTrace("ReactorThread: recv[len=%d]", n);
@@ -334,7 +366,7 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 //		printf("buffer-----------------: %s|fd=%d|len=%d\n", (char *) trunk->data, event->fd, trunk->length);
 
 		//EOF_Check
-		isEOF = memcmp(trunk->data + trunk->length - serv->package_eof_len, serv->package_eof, serv->package_eof_len);
+		isEOF = memcmp(trunk->store.ptr + trunk->length - serv->package_eof_len, serv->package_eof, serv->package_eof_len);
 //		printf("buffer ok. EOF=%s|Len=%d|RecvEOF=%s|isEOF=%d\n", serv->package_eof, serv->package_eof_len, (char *)trunk->data + trunk->length - serv->package_eof_len, isEOF);
 
 		//received EOF, will send package to worker
@@ -879,7 +911,7 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
 	reactor->onTimeout = swReactorThread_onTimeout;
 	reactor->setHandle(reactor, SW_FD_CLOSE, swReactorThread_onClose);
 	reactor->setHandle(reactor, SW_FD_UDP, swReactorThread_onPackage);
-	reactor->setHandle(reactor, SW_FD_SEND_TO_CLIENT, swFactoryProcess_send2client);
+	reactor->setHandle(reactor, SW_FD_SEND_TO_CLIENT, swReactorThread_onPipeReceive);
 	reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_WRITE, swReactorThread_onWrite);
 
 	int i, worker_id;

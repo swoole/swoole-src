@@ -1259,12 +1259,23 @@ PHP_FUNCTION(swoole_server_close)
 	SWOOLE_GET_SERVER(zobject, serv);
 	ev.fd = Z_LVAL_P(fd);
 
+	/**
+	 * Server refused to take the initiative
+	 */
+	ev.type = SW_CLOSE_INITIATIVE;
+
 	//Master can't execute it
 	if (swIsMaster())
 	{
 		RETURN_FALSE;
 	}
-	SW_CHECK_RETURN(serv->factory.end(&serv->factory, &ev));
+
+	if (serv->factory.end(&serv->factory, &ev) >= 0 && serv->onClose != NULL)
+	{
+		serv->onClose(serv, ev.fd, ev.from_id);
+		RETURN_TRUE;
+	}
+	RETURN_FALSE;
 }
 
 PHP_FUNCTION(swoole_server_reload)
