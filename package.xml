@@ -30,11 +30,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-	<date>2014-04-30</date>
-	<time>19:51:51</time>
+	<date>2014-05-30</date>
+	<time>15:51:51</time>
 	<version>
-		<release>1.7.1</release>
-		<api>1.7.1</api>
+		<release>1.7.2</release>
+		<api>1.7.2</api>
 	</version>
 	<stability>
 		<release>stable</release>
@@ -42,16 +42,12 @@
 	</stability>
 	<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
 	<notes>
-- Check close fd is not timer_fd
-- TCP_DEFER_ACCEPT option
-- socket LINGER option
-- Fixed eof_check memory error
-- Added swoole_event_set
-- Added swoole_client out_buffer
-- Added socket linger option
-- Fixed the swoole_server->close destroy out_buffer bug
-- Using php_error_docref
-- Fixed swoole_async_dns_lookup warning
+- Fixed udp sendto error
+- Fixed heartbeat no close connection
+- Added swoole_process module
+- Added swoole_server::task large package
+- Added swoole_server task worker use message queue
+- Added messge queue ipc move to swoole_server::set
 	</notes>
 	<contents>
 		<dir name="/">
@@ -87,16 +83,23 @@
 				<dir name="server">
 					<file role="src" name="echo.php" />
 					<file role="src" name="unix_dgram.php" />
+					<file role="src" name="unix_stream.php" />
 					<file role="src" name="ipv6.php" />
 					<file role="src" name="eof_client.php" />
 					<file role="src" name="eof_server.php" />
-					<file role="src" name="unix_stream.php" />
+					<file role="src" name="upload_server.php" />
+					<file role="src" name="upload_client.php" />
+					<file role="src" name="length_check_server.php" />
+					<file role="src" name="length_check_client.php" />
+					<file role="src" name="msgqueue.php" />
 				</dir>
 				<dir name="event">
 					<file role="src" name="stream.php" />
 					<file role="src" name="sockets.php" />
 				</dir>
-
+				<dir name="process">
+					<file role="src" name="worker.php" />
+				</dir>
 				<file role="src" name="server.php" />
 				<file role="src" name="mysql_proxy_server.php" />
 				<file role="src" name="async_mysql2.php" />
@@ -105,8 +108,6 @@
 				<file role="src" name="proxy_sync.php" />
 				<file role="src" name="udp_server.php" />
 				<file role="src" name="udp_client.php" />
-				<file role="src" name="eof_check_server.php" />
-				<file role="src" name="eof_check_client.php" />
 				<file role="src" name="task.php" />
 				<file role="src" name="sendfile_server.php" />
 				<file role="src" name="recv_file.php" />
@@ -118,6 +119,7 @@
 			<file role="src" name="swoole_lock.c" />
 			<file role="src" name="swoole_client.c" />
 			<file role="src" name="swoole_async.c" />
+			<file role="src" name="swoole_process.c" />
 			<dir name="src">
 				<dir name="core">
 					<file role="src" name="Base.c" />
@@ -146,14 +148,6 @@
 					<file role="src" name="ReactorEpoll.c" />
 					<file role="src" name="ReactorKqueue.c" />
 				</dir>
-				<dir name="os">
-					<file role="src" name="base.c" />
-					<file role="src" name="gcc_aio.c" />
-					<file role="src" name="linux_aio.c" />
-					<file role="src" name="sendfile.c" />
-					<file role="src" name="signal.c" />
-					<file role="src" name="timer.c" />
-				</dir>
 				<dir name="pipe">
 					<file role="src" name="PipeBase.c" />
 					<file role="src" name="PipeEventfd.c" />
@@ -170,14 +164,23 @@
 					<file role="src" name="FileLock.c" />
 				</dir>
 				<dir name="network">
-					<file role="src" name="Server.c" />
-					<file role="src" name="Client.c" />
 					<file role="src" name="Buffer.c" />
-					<file role="src" name="ProcessPool.c" />
-					<file role="src" name="ThreadPool.c" />
-					<file role="src" name="ReactorThread.c" />
+					<file role="src" name="Client.c" />
 					<file role="src" name="Connection.c" />
-
+					<file role="src" name="ProcessPool.c" />
+					<file role="src" name="ReactorProcess.c" />
+					<file role="src" name="ReactorThread.c" />
+					<file role="src" name="Server.c" />
+					<file role="src" name="TaskWorker.c" />
+					<file role="src" name="ThreadPool.c" />
+				</dir>
+				<dir name="os">
+					<file role="src" name="base.c" />
+					<file role="src" name="gcc_aio.c" />
+					<file role="src" name="linux_aio.c" />
+					<file role="src" name="sendfile.c" />
+					<file role="src" name="signal.c" />
+					<file role="src" name="timer.c" />
 				</dir>
 			</dir>
 		</dir>
@@ -195,6 +198,31 @@
 	<providesextension>swoole</providesextension>
 	<extsrcrelease />
 	<changelog>
+		<release>
+	<date>2014-04-30</date>
+	<time>19:51:51</time>
+	<version>
+		<release>1.7.1</release>
+		<api>1.7.1</api>
+	</version>
+	<stability>
+		<release>stable</release>
+		<api>stable</api>
+	</stability>
+	<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
+	<notes>
+- Check close fd is not timer_fd
+- TCP_DEFER_ACCEPT option
+- socket LINGER option
+- Fixed eof_check memory error
+- Added swoole_event_set
+- Added swoole_client out_buffer
+- Added socket linger option
+- Fixed the swoole_server->close destroy out_buffer bug
+- Using php_error_docref
+- Fixed swoole_async_dns_lookup warning
+	</notes>
+	</release>
 		<release>
 			<date>2014-04-16</date>
 			<time>19:51:51</time>
