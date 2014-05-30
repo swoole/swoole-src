@@ -5,7 +5,7 @@ $serv->set(array(
     'worker_num' => 1,
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
-    //'task_worker_num' => 2,
+    'task_worker_num' => 2,
     'task_ipc_mode' => 1,
 	//'dispatch_mode' => 2,
 	//'daemonize' => 1,
@@ -81,7 +81,7 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 	}
 	elseif($cmd == "taskwait") 
     {
-		$result = $serv->taskwait("hello world");
+		$result = $serv->taskwait("hello world", 2);
 		echo "SyncTask: result=$result\n";
 	}
 	elseif($cmd == "info") 
@@ -134,7 +134,8 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 
 function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
 {
-    echo "AsyncTask[PID=".posix_getpid()."]: task_id=$task_id.".PHP_EOL;
+    sleep(10);
+	echo "AsyncTask[PID=".posix_getpid()."]: task_id=$task_id.".PHP_EOL;
     $serv->finish("OK");
 }
 

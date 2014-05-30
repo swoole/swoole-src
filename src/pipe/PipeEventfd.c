@@ -18,6 +18,7 @@
 
 #ifdef HAVE_EVENTFD
 #include <sys/eventfd.h>
+#include <sys/poll.h>
 
 static int swPipeEventfd_read(swPipe *p, void *data, int length);
 static int swPipeEventfd_write(swPipe *p, void *data, int length);
@@ -39,7 +40,8 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore)
 		return -1;
 	}
 
-	if (blocking == 0)
+	//eventfd not support socket timeout
+	//if (blocking == 0)
 	{
 		flag = EFD_NONBLOCK;
 	}
@@ -73,10 +75,24 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore)
 static int swPipeEventfd_read(swPipe *p, void *data, int length)
 {
 	int ret;
-	swPipeEventfd *this = p->object;
+	swPipeEventfd *object = p->object;
+
+	//eventfd not support socket timeout
+	if (p->blocking == 1)
+	{
+		struct pollfd event;
+		event.fd = object->event_fd;
+		event.events = POLLIN;
+		ret = poll(&event, 1, p->timeout * 1000);
+		if (ret <= 0)
+		{
+			return ret;
+		}
+	}
+
 	while (1)
 	{
-		ret = read(this->event_fd, data, sizeof(uint64_t));
+		ret = read(object->event_fd, data, sizeof(uint64_t));
 		if (ret < 0 && errno == EINTR)
 		{
 			continue;

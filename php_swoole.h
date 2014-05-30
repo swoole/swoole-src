@@ -32,7 +32,7 @@
 #include "Server.h"
 #include "Client.h"
 
-#define PHP_SWOOLE_VERSION  "1.7.2"
+#define PHP_SWOOLE_VERSION  "1.7.3-alpha"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**

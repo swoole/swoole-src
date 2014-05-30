@@ -290,6 +290,8 @@ typedef struct _swPipe
 {
 	void *object;
 	int blocking;
+	double timeout;
+
 	int (*read)(struct _swPipe *, void *recv, int length);
 	int (*write)(struct _swPipe *, void *send, int length);
 	int (*getFd)(struct _swPipe *, int isWriteFd);

@@ -2722,22 +2722,24 @@ PHP_FUNCTION(swoole_server_taskwait)
 
 	if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int) worker_id) >= 0)
 	{
-		int ret = 0;
 		uint64_t notify;
+
+		/**
+		 * setTimeout
+		 */
+#ifdef HAVE_EVENTFD
+		SwooleG.task_notify[SwooleWG.id].timeout = timeout;
+#else
 		swSetTimeout(SwooleG.task_notify[SwooleWG.id].getFd(&SwooleG.task_notify[SwooleWG.id], 0), timeout);
+#endif
 
-		do
-		{
-			ret = SwooleG.task_notify[SwooleWG.id].read(&SwooleG.task_notify[SwooleWG.id], &notify, sizeof(notify));
-		} while (ret < 0 && errno == EINTR);
-
-		if (ret > 0)
+		if (SwooleG.task_notify[SwooleWG.id].read(&SwooleG.task_notify[SwooleWG.id], &notify, sizeof(notify)) > 0)
 		{
 			RETURN_STRINGL(SwooleG.task_result[SwooleWG.id].data, SwooleG.task_result[SwooleWG.id].info.len, 1);
 		}
 		else
 		{
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "taskwait fail. Error: %s[%d]", strerror(errno), errno);
+			php_error_docref(NULL TSRMLS_CC, E_WARNING, "taskwait failed. Error: %s[%d]", strerror(errno), errno);
 		}
 	}
 	RETURN_FALSE;
