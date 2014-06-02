@@ -644,11 +644,6 @@ static void swFactoryProcess_worker_signal_init(void)
 	swSignal_add(SIGALRM, swTimer_signal_handler);
 	//for test
 	swSignal_add(SIGVTALRM, swFactoryProcess_worker_signal_handler);
-
-	if (SwooleG.serv->daemonize)
-	{
-		swSignal_add(SIGINT, NULL);
-	}
 }
 
 static void swFactoryProcess_worker_signal_handler(int signo)
@@ -1053,7 +1048,6 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
  */
 static int swFactoryProcess_worker_onPipeReceive(swReactor *reactor, swEvent *event)
 {
-	int n, i;
 	swEventData task;
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &serv->factory;

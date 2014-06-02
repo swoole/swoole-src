@@ -808,10 +808,6 @@ void swServer_signal_init(void)
 	//for test
 	swSignal_add(SIGVTALRM, swServer_signal_hanlder);
 	swServer_set_minfd(SwooleG.serv, SwooleG.signal_fd);
-	if (SwooleG.serv->daemonize)
-	{
-		swSignal_add(SIGINT, NULL);
-	}
 }
 
 int swServer_addListen(swServer *serv, int type, char *host, int port)

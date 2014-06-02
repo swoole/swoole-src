@@ -49,6 +49,11 @@ int swPipeBase_create(swPipe *p, int blocking)
 			swSetNonBlock(object->pipes[0]);
 			swSetNonBlock(object->pipes[1]);
 		}
+		else
+		{
+			p->timeout = -1;
+		}
+
 		p->object = object;
 		p->read = swPipeBase_read;
 		p->write = swPipeBase_write;

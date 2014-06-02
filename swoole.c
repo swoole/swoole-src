@@ -282,9 +282,12 @@ static int php_swoole_onTask(swServer *, swEventData *task);
 static int php_swoole_onFinish(swServer *, swEventData *task);
 static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker_pid, int exit_code);
 
+
+
 static void swoole_destory_server(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 static void swoole_destory_client(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 
+static int php_swoole_task_finish(swServer *serv, char *data, int data_len TSRMLS_DC);
 static int php_swoole_set_callback(int key, zval *cb TSRMLS_DC);
 
 #define SWOOLE_GET_SERVER(zobject, serv) zval **zserv;\
@@ -1632,6 +1635,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
 	ZVAL_LONG(zfrom_id, (long)req->info.from_id);
 
 	MAKE_STD_ZVAL(zdata);
+
 	if (swTaskWorker_is_large(req))
 	{
 		int data_len;
@@ -1658,12 +1662,13 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
 	args[2] = &zfrom_id;
 	args[3] = &zdata;
 
-//	printf("task: fd=%d|len=%d|from_id=%d|data=%s\n", req->info.fd, req->info.len, req->info.from_id, req->data);
+	//printf("task: fd=%d|len=%d|from_id=%d|data=%s\n", req->info.fd, req->info.len, req->info.from_id, req->data);
 
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onTask], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onTask handler error");
 	}
+
 	if (EG(exception))
 	{
 		zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
@@ -1672,8 +1677,13 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
 	zval_ptr_dtor(&zfd);
 	zval_ptr_dtor(&zfrom_id);
 	zval_ptr_dtor(&zdata);
+
 	if (retval != NULL)
 	{
+		if (Z_TYPE_P(retval) == IS_STRING)
+		{
+			php_swoole_task_finish(serv, Z_STRVAL_P(retval), Z_STRLEN_P(retval) TSRMLS_CC);
+		}
 		zval_ptr_dtor(&retval);
 	}
 	return SW_OK;
@@ -2659,11 +2669,104 @@ PHP_FUNCTION(swoole_get_local_ip)
 	freeifaddrs(ipaddrs);
 }
 
+static int php_swoole_task_finish(swServer *serv, char *data, int data_len TSRMLS_DC)
+{
+	swEventData buf;
+	if (SwooleG.task_worker_num < 1)
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: finish can not use here");
+		return SW_ERR;
+	}
+
+	swFactory *factory = &serv->factory;
+	int ret;
+
+	//for swoole_server_task
+	if (sw_current_task->info.type == SW_TASK_NONBLOCK)
+	{
+
+		buf.info.type = SW_EVENT_FINISH;
+		buf.info.fd = sw_current_task->info.fd;
+
+		//write to file
+		if (data_len >= sizeof(buf.data))
+		{
+			if (swTaskWorker_large_pack(&buf, data, data_len) < 0 )
+			{
+				php_error_docref(NULL TSRMLS_CC, E_WARNING, "large task pack failed()");
+				return SW_ERR;
+			}
+		}
+		else
+		{
+			memcpy(buf.data, data, data_len);
+			buf.info.len = data_len;
+			buf.info.from_fd = 0;
+		}
+
+		if (serv->factory_mode == SW_MODE_PROCESS)
+		{
+			ret = swFactoryProcess_send2worker(factory, &buf, sw_current_task->info.from_id);
+		}
+		else
+		{
+			ret = swWrite(SwooleG.event_workers->workers[sw_current_task->info.from_id].pipe_worker, &buf, sizeof(buf.info)+data_len);
+		}
+	}
+	else
+	{
+		uint64_t flag = 1;
+		swEventData *result = &SwooleG.task_result[sw_current_task->info.from_id];
+
+		result->info.type = SW_EVENT_FINISH;
+		result->info.fd = sw_current_task->info.fd;
+
+		if (data_len >= sizeof(buf.data))
+		{
+			if (swTaskWorker_large_pack(result, data, data_len) < 0 )
+			{
+				php_error_docref(NULL TSRMLS_CC, E_WARNING, "large task pack failed()");
+				return SW_ERR;
+			}
+		}
+		else
+		{
+			memcpy(result->data, data, data_len);
+			result->info.len = data_len;
+			result->info.from_fd = 0;
+		}
+
+		while(1)
+		{
+			ret = SwooleG.task_notify[sw_current_task->info.from_id].write(&SwooleG.task_notify[sw_current_task->info.from_id], &flag, sizeof(flag));
+			if (errno == EINTR)
+			{
+				continue;
+			}
+			else if (errno == EAGAIN)
+			{
+				swYield();
+				continue;
+			}
+			else
+			{
+				break;
+			}
+		}
+	}
+	if (ret < 0)
+	{
+		swWarn("TaskWorker: send result to worker failed. Error: %s[%d]", strerror(errno), errno);
+	}
+	return ret;
+}
+
 PHP_FUNCTION(swoole_server_taskwait)
 {
 	zval *zobject = getThis();
 	swEventData buf;
 	swServer *serv;
+
 	double timeout = SW_TASKWAIT_TIMEOUT;
 	char *data;
 	int data_len;
@@ -2685,6 +2788,7 @@ PHP_FUNCTION(swoole_server_taskwait)
 	}
 
 	SWOOLE_GET_SERVER(zobject, serv);
+
 	if (SwooleG.task_worker_num < 1)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: task can not use. Please set task_worker_num.");
@@ -2818,7 +2922,7 @@ PHP_FUNCTION(swoole_server_finish)
 {
 	zval *zobject = getThis();
 	swServer *serv = NULL;
-	swEventData buf;
+
 	char *data;
 	int data_len;
 
@@ -2837,94 +2941,7 @@ PHP_FUNCTION(swoole_server_finish)
 		}
 	}
 	SWOOLE_GET_SERVER(zobject, serv);
-
-	if (SwooleG.task_worker_num < 1)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: finish can not use here");
-		RETURN_FALSE;
-	}
-
-	swFactory *factory = &serv->factory;
-	int ret;
-
-	//for swoole_server_task
-	if (sw_current_task->info.type == SW_TASK_NONBLOCK)
-	{
-
-		buf.info.type = SW_EVENT_FINISH;
-		buf.info.fd = sw_current_task->info.fd;
-
-		//write to file
-		if (data_len >= sizeof(buf.data))
-		{
-			if (swTaskWorker_large_pack(&buf, data, data_len) < 0 )
-			{
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "large task pack failed()");
-				RETURN_FALSE;
-			}
-		}
-		else
-		{
-			memcpy(buf.data, data, data_len);
-			buf.info.len = data_len;
-			buf.info.from_fd = 0;
-		}
-
-		if (serv->factory_mode == SW_MODE_PROCESS)
-		{
-			ret = swFactoryProcess_send2worker(factory, &buf, sw_current_task->info.from_id);
-		}
-		else
-		{
-			ret = swWrite(SwooleG.event_workers->workers[sw_current_task->info.from_id].pipe_worker, &buf, sizeof(buf.info)+data_len);
-		}
-	}
-	else
-	{
-		uint64_t flag = 1;
-		swEventData *result = &SwooleG.task_result[sw_current_task->info.from_id];
-
-		result->info.type = SW_EVENT_FINISH;
-		result->info.fd = sw_current_task->info.fd;
-
-		if (data_len >= sizeof(buf.data))
-		{
-			if (swTaskWorker_large_pack(result, data, data_len) < 0 )
-			{
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "large task pack failed()");
-				RETURN_FALSE;
-			}
-		}
-		else
-		{
-			memcpy(result->data, data, data_len);
-			result->info.len = data_len;
-			result->info.from_fd = 0;
-		}
-
-		while(1)
-		{
-			ret = SwooleG.task_notify[sw_current_task->info.from_id].write(&SwooleG.task_notify[sw_current_task->info.from_id], &flag, sizeof(flag));
-			if (errno == EINTR)
-			{
-				continue;
-			}
-			else if (errno == EAGAIN)
-			{
-				swYield();
-				continue;
-			}
-			else
-			{
-				break;
-			}
-		}
-	}
-	if (ret < 0)
-	{
-		swWarn("TaskWorker: send result to worker failed. Error: %s[%d]", strerror(errno), errno);
-	}
-	SW_CHECK_RETURN(ret);
+	SW_CHECK_RETURN(php_swoole_task_finish(serv, data, data_len TSRMLS_CC));
 }
 
 /*

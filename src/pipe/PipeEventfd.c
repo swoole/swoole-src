@@ -41,9 +41,11 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore)
 	}
 
 	//eventfd not support socket timeout
-	//if (blocking == 0)
+	flag = EFD_NONBLOCK;
+
+	if (blocking == 1)
 	{
-		flag = EFD_NONBLOCK;
+		p->timeout = -1;
 	}
 
 #ifdef EFD_SEMAPHORE
