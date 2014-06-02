@@ -3,7 +3,7 @@ $serv = new swoole_server("0.0.0.0", 9501);
 $serv->set(array(
 	//'tcp_defer_accept' => 5,
 	'worker_num' => 1,
-	//'daemonize' => true,
+	'daemonize' => true,
 	//'log_file' => '/tmp/swoole.log'
 ));
 $serv->on('timer', function($serv, $interval) {

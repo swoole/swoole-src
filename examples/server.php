@@ -5,13 +5,13 @@ $serv->set(array(
     'worker_num' => 1,
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
-    'task_worker_num' => 2,
+    'task_worker_num' => 1,
     'task_ipc_mode' => 1,
 	//'dispatch_mode' => 2,
 	//'daemonize' => 1,
 	//'log_file' => '/tmp/swoole.log',
-    'heartbeat_idle_time' => 5,
-    'heartbeat_check_interval' => 5,
+    //'heartbeat_idle_time' => 5,
+    //'heartbeat_check_interval' => 5,
 ));
 
 function my_onStart(swoole_server $serv)
@@ -134,9 +134,8 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 
 function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
 {
-    sleep(10);
 	echo "AsyncTask[PID=".posix_getpid()."]: task_id=$task_id.".PHP_EOL;
-    $serv->finish("OK");
+    //return "Task OK";
 }
 
 function my_onFinish(swoole_server $serv, $task_id, $data)

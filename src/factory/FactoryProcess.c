@@ -34,7 +34,7 @@ static int swFactoryProcess_writer_loop_queue(swThreadParam *param);
 static int swFactoryProcess_writer_loop_unsock(swThreadParam *param);
 #endif
 
-static int swFactoryProcess_worker_receive(swReactor *reactor, swEvent *event);
+static int swFactoryProcess_worker_onPipeReceive(swReactor *reactor, swEvent *event);
 static int swFactoryProcess_notify(swFactory *factory, swEvent *event);
 static int swFactoryProcess_dispatch(swFactory *factory, swEventData *buf);
 static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
@@ -764,7 +764,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 		swSetNonBlock(pipe_rd);
 		SwooleG.main_reactor->ptr = serv;
 		SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_rd, SW_FD_PIPE);
-		SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE, swFactoryProcess_worker_receive);
+		SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE, swFactoryProcess_worker_onPipeReceive);
 
 #ifdef HAVE_SIGNALFD
 		if (SwooleG.use_signalfd)
@@ -1048,26 +1048,21 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 	return SW_OK;
 }
 
-static int swFactoryProcess_worker_receive(swReactor *reactor, swEvent *event)
+/**
+ * receive data from reactor
+ */
+static int swFactoryProcess_worker_onPipeReceive(swReactor *reactor, swEvent *event)
 {
-	int n, i, ret = -1;
+	int n, i;
 	swEventData task;
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &serv->factory;
 
-	for (i = 0; i < SW_WORKER_READ_COUNT; i++)
+	if (read(event->fd, &task, sizeof(task)) > 0)
 	{
-		n = read(event->fd, &task, sizeof(task));
-		if (n > 0)
-		{
-			ret = swFactoryProcess_worker_excute(factory, &task);
-		}
-		else if (errno == EAGAIN)
-		{
-			break;
-		}
+		return swFactoryProcess_worker_excute(factory, &task);
 	}
-	return ret;
+	return SW_ERR;
 }
 
 #if SW_USE_WRITER_THREAD
