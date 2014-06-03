@@ -947,14 +947,8 @@ PHP_FUNCTION(swoole_server_set)
 		convert_to_long(*v);
 		serv->dispatch_mode = (int)Z_LVAL_PP(v);
 	}
-	//dispatch_mode
-	if (zend_hash_find(vht, ZEND_STRS("dispatch_key_type"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		serv->dispatch_mode = (int)Z_LVAL_PP(v);
-	}
 
-	//dispatch_mode
+	//open_dispatch_key
 	if (zend_hash_find(vht, ZEND_STRS("open_dispatch_key"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
