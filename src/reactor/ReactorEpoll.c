@@ -229,7 +229,7 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 		}
 		else if (n == 0)
 		{
-			if(reactor->onTimeout != NULL)
+			if (reactor->onTimeout != NULL)
 			{
 				reactor->onTimeout(reactor);
 			}
@@ -268,20 +268,26 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 			}
 			//error
 #ifndef NO_EPOLLRDHUP
-			//if ((object->events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)))
-			if ((object->events[i].events & (EPOLLRDHUP)))
+			if ((object->events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)))
+#else
+			if ((object->events[i].events & (EPOLLERR | EPOLLHUP)))
+#endif
 			{
-				handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, ev.type);
-				ret = handle(reactor, &ev);
-				if (ret < 0)
+				//ev.fd == 0, socket is closed.
+				if (ev.fd > 0)
 				{
-					swWarn("[Reactor#%d] epoll [EPOLLRDHUP] handle failed. fd=%d. Error: %s[%d]", reactor->id, ev.fd,
-							strerror(errno), errno);
+					handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, ev.type);
+					ret = handle(reactor, &ev);
+					if (ret < 0)
+					{
+						swWarn("[Reactor#%d] epoll [EPOLLRDHUP] handle failed. fd=%d. Error: %s[%d]", reactor->id, ev.fd,
+								strerror(errno), errno);
+					}
 				}
 			}
-#endif
 		}
-		if(reactor->onFinish != NULL)
+
+		if (reactor->onFinish != NULL)
 		{
 			reactor->onFinish(reactor);
 		}
