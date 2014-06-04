@@ -619,7 +619,7 @@ static swClient* swoole_client_create_socket(zval *object, char *host, int host_
 	conn_key_len = snprintf(conn_key, SW_LONG_CONNECTION_KEY_LEN, "%s:%d", host, port) + 1;
 
 	//new flag, swoole-1.6.12+
-	if(type & SW_FLAG_ASYNC)
+	if (type & SW_FLAG_ASYNC)
 	{
 		async = 1;
 	}

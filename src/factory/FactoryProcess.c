@@ -125,15 +125,15 @@ int swFactoryProcess_start(swFactory *factory)
 		return SW_ERR;
 	}
 
+	//保存下指针，需要和reactor做绑定
+	serv->workers = object->workers;
+
 	//必须先启动manager进程组，否则会带线程fork
 	if (swFactoryProcess_manager_start(factory) < 0)
 	{
 		swWarn("swFactoryProcess_manager_start fail");
 		return SW_ERR;
 	}
-
-	//保存下指针，需要和reactor做绑定
-	serv->workers = object->workers;
 
 	if (serv->ipc_mode == SW_IPC_MSGQUEUE)
 	{
@@ -416,7 +416,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 				}
 				else
 				{
-					if(serv->onWorkerError!=NULL && WEXITSTATUS(worker_exit_code) > 0)
+					if (serv->onWorkerError!=NULL && WEXITSTATUS(worker_exit_code) > 0)
 					{
 						serv->onWorkerError(serv, i, pid, WEXITSTATUS(worker_exit_code));
 					}

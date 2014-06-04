@@ -475,6 +475,7 @@ int swServer_start(swServer *serv)
 	SwooleGS->master_pid = getpid();
 	SwooleGS->start = 1;
 	serv->reactor_pipe_num = serv->worker_num / serv->reactor_num;
+
 	//设置factory回调函数
 	serv->factory.ptr = serv;
 	serv->factory.onTask = serv->onReceive;
