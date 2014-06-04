@@ -244,7 +244,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 					}
 				  }
 			}
-			if(reactor->onFinish != NULL)
+			if (reactor->onFinish != NULL)
 			{
 				reactor->onFinish(reactor);
 			}

@@ -169,7 +169,7 @@ static int swReactorKqueue_set(swReactor *reactor, int fd, int fdtype)
 			return SW_ERR;
 		}
 	}
-	if(swReactor_event_write(fdtype))
+	if (swReactor_event_write(fdtype))
 	{
 		EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, NULL);
 		memcpy(&e.udata, &fd_, sizeof(swFd));
@@ -292,7 +292,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 			}
 
 		}
-		if(reactor->onFinish != NULL)
+		if (reactor->onFinish != NULL)
 		{
 			reactor->onFinish(reactor);
 		}

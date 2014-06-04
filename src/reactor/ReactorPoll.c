@@ -188,7 +188,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *_timeo)
 		{
 			if (swReactor_error(reactor) < 0)
 			{
-				swWarn("poll error. Errno=%d\n", errno);
+				swWarn("poll error. Error: %s[%d]", strerror(errno), errno);
 			}
 			continue;
 		}
@@ -239,7 +239,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *_timeo)
 					}
 				}
 			}
-			if(reactor->onFinish != NULL)
+			if (reactor->onFinish != NULL)
 			{
 				reactor->onFinish(reactor);
 			}
