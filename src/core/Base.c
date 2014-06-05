@@ -17,6 +17,8 @@
 #include "swoole.h"
 #include "atomic.h"
 
+#include <sys/stat.h>
+
 uint64_t swoole_hash_key(char *str, int str_len)
 {
 	uint64_t hash = 5381;
@@ -50,6 +52,71 @@ void swoole_dump_bin(char *data, char type, int size)
 		printf("%d,", swoole_unpack(type, data + type_size*i));
 	}
 	printf("\n");
+}
+
+/**
+ * Recursive directory creation
+ */
+int swoole_mkdir_recursive(const char *dir)
+{
+	char tmp[1024];
+	strncpy(tmp, dir, 1024);
+	int i, len = strlen(tmp);
+
+	if (dir[len - 1] != '/')
+	{
+		strcat(tmp, "/");
+	}
+
+	len = strlen(tmp);
+
+	for (i = 1; i < len; i++)
+	{
+		if (tmp[i] == '/')
+		{
+			tmp[i] = 0;
+			if (access(tmp, R_OK) != 0)
+			{
+				if (mkdir(tmp, 0755) == -1)
+				{
+					swWarn("mkdir() failed. Error: %s[%d]", strerror(errno), errno);
+					return -1;
+				}
+			}
+			tmp[i] = '/';
+		}
+	}
+	return 0;
+}
+
+/**
+ * get parent dir name
+ */
+char* swoole_dirname(char *file)
+{
+	char *dirname = strdup(file);
+	if (dirname == NULL)
+	{
+		swWarn("strdup() failed.");
+		return NULL;
+	}
+
+	int i = strlen(dirname);
+
+	if (dirname[i-1] == '/')
+	{
+		i -= 2;
+	}
+
+	for(; i > 0; i--)
+	{
+		if ('/' == dirname[i])
+		{
+			dirname[i] = 0;
+			break;
+		}
+	}
+	return dirname;
 }
 
 int swoole_type_size(char type)

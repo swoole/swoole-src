@@ -183,6 +183,10 @@ double microtime(void)
 
 int main(int argc, char **argv)
 {
+	printf("dirname = %s\n", swoole_dirname("/tmp/hello/test/hello"));
+
+	return 0;
+
 	int ret;
 	swServer serv;
 	swServer_init(&serv); //初始化

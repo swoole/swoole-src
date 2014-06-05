@@ -72,4 +72,12 @@ void swTaskWorker_onWorkerStart(swProcessPool *pool, int worker_id)
 {
 	swServer *serv = pool->ptr;
 	serv->onWorkerStart(serv, worker_id + serv->worker_num);
+
+	char *tmp_dir = swoole_dirname(SW_TASK_TMP_FILE);
+	//create tmp dir
+	if (access(tmp_dir, R_OK) < 0 && swoole_mkdir_recursive(tmp_dir) < 0)
+	{
+		swWarn("create task tmp dir failed.");
+	}
+	free(tmp_dir);
 }
