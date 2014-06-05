@@ -370,6 +370,7 @@ static zend_function_entry swoole_server_methods[] = {
 	PHP_FALIAS(reload, swoole_server_reload, arginfo_swoole_server_reload_oo)
 	PHP_FALIAS(shutdown, swoole_server_shutdown, arginfo_swoole_server_shutdown_oo)
 	PHP_FALIAS(hbcheck, swoole_server_heartbeat, arginfo_swoole_server_heartbeat_oo)
+	PHP_FALIAS(heartbeat, swoole_server_heartbeat, arginfo_swoole_server_heartbeat_oo)
 	PHP_FALIAS(handler, swoole_server_handler, arginfo_swoole_server_handler_oo)
 	PHP_FALIAS(on, swoole_server_on, arginfo_swoole_server_on_oo)
 	PHP_FALIAS(connection_info, swoole_connection_info, arginfo_swoole_connection_info_oo)
