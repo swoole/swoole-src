@@ -63,21 +63,35 @@ static int swServer_master_onClose(swReactor *reactor, swEvent *event)
 	{
 		fd = queue[i];
 		conn = swServer_get_connection(serv, fd);
+		serv->connect_count--;
 
 		if (serv->onMasterClose != NULL)
 		{
 			serv->onMasterClose(serv, fd, conn->from_id);
 		}
-		//重新设置max_fd,此代码为了遍历connection_list服务
-		if(fd == swServer_get_maxfd(serv))
+
+		/**
+		 * Reset maxfd, use for connection_list
+		 */
+		if (fd == swServer_get_maxfd(serv))
 		{
 			int find_max_fd = fd - 1;
-			//找到第二大的max_fd作为新的max_fd
+
+			/**
+			 * Find the new max_fd
+			 */
 			for (; serv->connection_list[find_max_fd].active == 0 && find_max_fd > swServer_get_minfd(serv); find_max_fd--);
 			swServer_set_maxfd(serv, find_max_fd);
+
+			/**
+			 * Correction of the number of connections
+			 */
+			if (serv->connect_count > find_max_fd)
+			{
+				serv->connect_count = find_max_fd;
+			}
 			swTrace("set_maxfd=%d|close_fd=%d", find_max_fd, fd);
 		}
-		serv->connect_count--;
 	}
 	return SW_OK;
 }
@@ -157,7 +171,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 		//too many connection
 		if (serv->connect_count >= serv->max_conn)
 		{
-			swWarn("too many connection");
+			swWarn("Too many connections [now: %d].", serv->connect_count);
 			close(new_fd);
 			return SW_OK;
 		}
@@ -648,7 +662,7 @@ void swServer_init(swServer *serv)
 	serv->writer_num = SW_CPU_NUM;
 	serv->worker_num = SW_CPU_NUM;
 	serv->max_conn = SW_MAX_FDS;
-	serv->max_request = SW_MAX_REQUEST;
+	serv->max_request = 0;
 
 	serv->udp_sock_buffer_size = SW_UNSOCK_BUFSIZE;
 
@@ -666,6 +680,7 @@ void swServer_init(swServer *serv)
 	serv->package_length_type = 'N';
 	serv->package_length_size = 4;
 	serv->buffer_input_size = SW_BUFFER_SIZE;
+
 	memcpy(serv->package_eof, eof, serv->package_eof_len);
 }
 

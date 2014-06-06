@@ -42,7 +42,6 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
 SWINLINE static int swFactoryProcess_schedule(swFactoryProcess *object, swEventData *data);
 
 static int worker_task_num = 0;
-static int worker_task_always = 0;
 static int manager_worker_reloading = 0;
 static int manager_reload_flag = 0;
 
@@ -53,13 +52,13 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 	object = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swFactoryProcess));
 	if (object == NULL)
 	{
-		swWarn("[swFactoryProcess_create] malloc[0] failed");
+		swWarn("[Master] malloc[object] failed");
 		return SW_ERR;
 	}
 	serv->writer_threads = SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->reactor_num * sizeof(swWriterThread));
 	if (serv->writer_threads == NULL)
 	{
-		swWarn("[Main] malloc[object->writers] fail");
+		swWarn("[Master] malloc[object->writers] failed");
 		return SW_ERR;
 	}
 	object->writer_pti = 0;
@@ -67,7 +66,7 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 	object->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
 	if (object->workers == NULL)
 	{
-		swWarn("[Main] malloc[object->workers] fail");
+		swWarn("[Master] malloc[object->workers] failed");
 		return SW_ERR;
 	}
 
@@ -175,11 +174,13 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 	case SW_EVENT_PACKAGE:
 		onTask:
 		factory->onTask(factory, task);
-		//only onTask increase the count
-		if (!worker_task_always)
+
+		if (!SwooleWG.run_always)
 		{
-			worker_task_num--;
+			//only onTask increase the count
+			worker_task_num --;
 		}
+
 		if (task->info.type == SW_EVENT_PACKAGE_END)
 		{
 			package->length = 0;
@@ -772,7 +773,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 
 	if (factory->max_request < 1)
 	{
-		worker_task_always = 1;
+		SwooleWG.run_always = 1;
 	}
 	else
 	{

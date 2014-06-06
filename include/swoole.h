@@ -903,11 +903,21 @@ typedef struct
 	time_t now;
 } swServerGS;
 
-//worker global
+//Worker process global Variable
 typedef struct
 {
-	int id; //Current Proccess Worker's id
+	/**
+	 * Always run
+	 */
+	uint8_t run_always;
+
+	/**
+	 * Current Proccess Worker's id
+	 */
+	int id;
+
 	swString **buffer_input;
+
 } swWorkerG;
 
 typedef struct
