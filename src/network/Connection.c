@@ -144,6 +144,15 @@ SWINLINE int swServer_new_connection(swServer *serv, swEvent *ev)
 	if(conn_fd > swServer_get_maxfd(serv))
 	{
 		swServer_set_maxfd(serv, conn_fd);
+
+		/**
+		 * Correction of the number of connections
+		 */
+		if (serv->connect_count > conn_fd)
+		{
+			serv->connect_count = conn_fd;
+		}
+
 #ifdef SW_CONNECTION_LIST_EXPAND
 	//新的fd超过了最大fd
 
