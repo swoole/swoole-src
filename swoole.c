@@ -398,6 +398,7 @@ const zend_function_entry swoole_process_methods[] =
 	PHP_ME(swoole_process, write, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_process, read, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_process, exit, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_process, exec, NULL, ZEND_ACC_PUBLIC)
 	PHP_FE_END
 };
 

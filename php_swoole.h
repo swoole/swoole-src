@@ -122,6 +122,7 @@ extern void ***sw_thread_ctx;
 #define SW_FLAG_ASYNC                       (1u << 10)
 #define SW_FLAG_SYNC                        (1u << 11)
 #define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP))
+#define php_swoole_array_length(array)      (Z_ARRVAL_P(array)->nNumOfElements)
 
 #define SW_LONG_CONNECTION_KEY_LEN          64
 
@@ -218,6 +219,7 @@ PHP_METHOD(swoole_process, start);
 PHP_METHOD(swoole_process, write);
 PHP_METHOD(swoole_process, read);
 PHP_METHOD(swoole_process, exit);
+PHP_METHOD(swoole_process, exec);
 
 void swoole_destory_lock(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 void swoole_destory_process(zend_rsrc_list_entry *rsrc TSRMLS_DC);

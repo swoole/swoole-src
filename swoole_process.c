@@ -256,7 +256,7 @@ PHP_METHOD(swoole_process, read)
 
 	if (ret < 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "read() failed. Error: %s[%d]", strerror(errno), errno);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "failed. Error: %s[%d]", strerror(errno), errno);
 		RETURN_FALSE;
 	}
 	buf[ret] = 0;
@@ -297,10 +297,72 @@ PHP_METHOD(swoole_process, write)
 
 	if (ret < 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "write() failed. Error: %s[%d]", strerror(errno), errno);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "failed. Error: %s[%d]", strerror(errno), errno);
 		RETURN_FALSE;
 	}
 	ZVAL_LONG(return_value, ret);
+}
+
+PHP_METHOD(swoole_process, exec)
+{
+	char *execfile = NULL;
+	int execfile_len = 0;
+	zval *args;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sa", &execfile, &execfile_len, &args) == FAILURE)
+	{
+		RETURN_FALSE;
+	}
+
+	if (execfile_len < 1)
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "execfile name empty.");
+		RETURN_FALSE;
+	}
+
+	swWorker *process;
+	SWOOLE_GET_WORKER(getThis(), process);
+
+	if (process->pipe == 0)
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "have not pipe, can not use read()");
+		RETURN_FALSE;
+	}
+
+	swBreakPoint();
+
+	int exec_argc = php_swoole_array_length(args);
+	char **exec_args = emalloc(sizeof(char*) * exec_argc + 1);
+
+	zval **value;
+	Bucket *_p;
+	_p = Z_ARRVAL_P(args)->pListHead;
+	exec_args[0] = strdup(execfile);
+
+	int i = 1;
+	while(_p != NULL)
+	{
+		value = (zval **) _p->pData;
+		convert_to_string(*value);
+
+		zval_add_ref(value);
+		exec_args[i] = Z_STRVAL_PP(value);
+
+		_p = _p->pListNext;
+		i++;
+	}
+	exec_args[i] = NULL;
+
+	if (execv(execfile, exec_args) < 0)
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "execv() failed. Error: %s[%d]", strerror(errno), errno);
+		RETURN_FALSE;
+	}
+	else
+	{
+		printf("execv ok\n");
+		RETURN_TRUE;
+	}
 }
 
 PHP_METHOD(swoole_process, exit)
