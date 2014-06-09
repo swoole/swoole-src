@@ -242,10 +242,6 @@ struct swServer_s
 	uint32_t max_conn;
 
 	/**
-	 * connect count
-	 */
-	uint32_t connect_count;
-	/**
 	 * worker process max request
 	 */
 	uint32_t max_request;

@@ -1153,7 +1153,7 @@ PHP_FUNCTION(swoole_server_handler)
 			"onManagerStart",
 			"onManagerStop",
 	};
-	for(i=0; i<PHP_SERVER_CALLBACK_NUM; i++)
+	for (i=0; i<PHP_SERVER_CALLBACK_NUM; i++)
 	{
 		if(strncasecmp(callback[i], ha_name, len) == 0)
 		{
@@ -1161,7 +1161,7 @@ PHP_FUNCTION(swoole_server_handler)
 			break;
 		}
 	}
-	if(ret < 0)
+	if (ret < 0)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_server_handler: unkown handler[%s].", ha_name);
 	}
@@ -1217,7 +1217,8 @@ PHP_FUNCTION(swoole_server_on)
 			"managerStart",
 			"managerStop",
 	};
-	for(i=0; i<PHP_SERVER_CALLBACK_NUM; i++)
+
+	for (i=0; i<PHP_SERVER_CALLBACK_NUM; i++)
 	{
 		if(strncasecmp(callback[i], ha_name, len) == 0)
 		{
@@ -1274,6 +1275,7 @@ PHP_FUNCTION(swoole_server_close)
 		serv->onClose(serv, ev.fd, ev.from_id);
 		RETURN_TRUE;
 	}
+
 	RETURN_FALSE;
 }
 

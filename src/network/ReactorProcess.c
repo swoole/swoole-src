@@ -202,8 +202,6 @@ static int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
 	{
 		serv->onClose(serv, event->fd, event->from_id);
 	}
-
-	serv->connect_count--;
 	return SW_OK;
 }
 

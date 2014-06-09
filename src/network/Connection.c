@@ -51,9 +51,9 @@ SWINLINE void swConnection_close(swServer *serv, int fd, int notify)
 	swReactor *reactor;
 	swEvent notify_ev;
 
-	if(conn == NULL)
+	if (conn == NULL)
 	{
-		swWarn("[Master]connection not found. fd=%d|max_fd=%d", fd, swServer_get_maxfd(serv));
+		swWarn("[Reactor]connection not found. fd=%d|max_fd=%d", fd, swServer_get_maxfd(serv));
 		return;
 	}
 
@@ -145,14 +145,6 @@ SWINLINE int swServer_new_connection(swServer *serv, swEvent *ev)
 	{
 		swServer_set_maxfd(serv, conn_fd);
 
-		/**
-		 * Correction of the number of connections
-		 */
-		if (serv->connect_count > conn_fd)
-		{
-			serv->connect_count = conn_fd;
-		}
-
 #ifdef SW_CONNECTION_LIST_EXPAND
 	//新的fd超过了最大fd
 
@@ -172,6 +164,7 @@ SWINLINE int swServer_new_connection(swServer *serv, swEvent *ev)
 			}
 		}
 #endif
+
 	}
 
 	connection = &(serv->connection_list[conn_fd]);
@@ -294,7 +287,6 @@ SWINLINE void swConnection_clear_string_buffer(swConnection *conn)
 
 int swConnection_send_in_buffer(swConnection *conn)
 {
-	swServer *serv = SwooleG.serv;
 	swFactory *factory = SwooleG.factory;
 	swEventData _send;
 
@@ -306,6 +298,7 @@ int swConnection_send_in_buffer(swConnection *conn)
 
 #ifdef SW_USE_RINGBUFFER
 
+	swServer *serv = SwooleG.serv;
 	swMemoryPool *pool = serv->reactor_threads[conn->from_id].pool;
 	swPackage package;
 

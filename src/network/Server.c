@@ -63,7 +63,6 @@ static int swServer_master_onClose(swReactor *reactor, swEvent *event)
 	{
 		fd = queue[i];
 		conn = swServer_get_connection(serv, fd);
-		serv->connect_count--;
 
 		if (serv->onMasterClose != NULL)
 		{
@@ -83,13 +82,6 @@ static int swServer_master_onClose(swReactor *reactor, swEvent *event)
 			for (; serv->connection_list[find_max_fd].active == 0 && find_max_fd > swServer_get_minfd(serv); find_max_fd--);
 			swServer_set_maxfd(serv, find_max_fd);
 
-			/**
-			 * Correction of the number of connections
-			 */
-			if (serv->connect_count > find_max_fd)
-			{
-				serv->connect_count = find_max_fd;
-			}
 			swTrace("set_maxfd=%d|close_fd=%d", find_max_fd, fd);
 		}
 	}
@@ -166,12 +158,13 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 				return SW_OK;
 			}
 		}
-		swTrace("[Master]accept.event->fd=%d|event->from_id=%d|conn=%d", event->fd, event->from_id, new_fd);
+
+		swTrace("[Master] Accept new connection. maxfd=%d|reactor_id=%d|conn=%d", swServer_get_maxfd(serv), reactor->id, new_fd);
 
 		//too many connection
-		if (serv->connect_count >= serv->max_conn)
+		if (swServer_get_maxfd(serv) >= serv->max_conn)
 		{
-			swWarn("Too many connections [now: %d].", serv->connect_count);
+			swWarn("Too many connections [now: %d].", swServer_get_maxfd(serv));
 			close(new_fd);
 			return SW_OK;
 		}
@@ -191,6 +184,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 			int keep_idle = serv->tcp_keepidle;
 			int keep_interval = serv->tcp_keepinterval;
 			int keep_count = serv->tcp_keepcount;
+
 #ifdef TCP_KEEPIDLE
 			setsockopt(new_fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&keepalive , sizeof(keepalive));
 			setsockopt(new_fd, IPPROTO_TCP, TCP_KEEPIDLE, (void*)&keep_idle , sizeof(keep_idle));
@@ -214,6 +208,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 			swServer_reactor_schedule(serv);
 		}
 #endif
+
 		connEv.type = SW_EVENT_CONNECT;
 		connEv.from_id = reactor_id;
 		connEv.fd = new_fd;
@@ -235,8 +230,6 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 		}
 		else
 		{
-			serv->connect_count++;
-
 			if(serv->onMasterConnect != NULL)
 			{
 				serv->onMasterConnect(serv, new_fd, reactor_id);
