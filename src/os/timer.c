@@ -53,6 +53,7 @@ int swTimer_create(swTimer *timer, int interval, int use_pipe)
 				return SW_ERR;
 			}
 			timer->fd = timer->pipe.getFd(&timer->pipe, 0);
+			timer->use_pipe = 1;
 		}
 		else
 		{
@@ -73,8 +74,8 @@ int swTimer_create(swTimer *timer, int interval, int use_pipe)
  */
 static int swTimer_timerfd_set(swTimer *timer, int interval)
 {
-#ifdef HAVE_TIMERFD
 
+#ifdef HAVE_TIMERFD
 	struct timeval now;
 	int sec = interval / 1000;
 	int msec = (((float) interval / 1000) - sec) * 1000;
@@ -243,15 +244,7 @@ int swTimer_event_handler(swReactor *reactor, swEvent *event)
 
 void swTimer_signal_handler(int sig)
 {
-	if (SwooleG.timer.use_pipe == 1)
-	{
-		uint64_t flag = 1;
-		SwooleG.timer.pipe.write(&SwooleG.timer.pipe, &flag, sizeof(flag));
-	}
-	else
-	{
-		SwooleG.signal_alarm = 1;
-	}
+	SwooleG.signal_alarm = 1;
 }
 
 SWINLINE uint64_t swTimer_get_ms()

@@ -781,6 +781,11 @@ PHP_FUNCTION(swoole_timer_add)
 		{
 			RETURN_FALSE;
 		}
+		//no have signalfd
+		if (SwooleG.use_signalfd == 0)
+		{
+			swSignal_add(SIGALRM, swTimer_signal_handler);
+		}
 		SwooleG.timer.onTimer = php_swoole_onTimerCallback;
 		SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_TIMER, swTimer_event_handler);
 		SwooleG.main_reactor->add(SwooleG.main_reactor, SwooleG.timer.fd, SW_FD_TIMER);

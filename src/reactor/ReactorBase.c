@@ -37,9 +37,14 @@ int swReactor_accept(swReactor *reactor, swDataHead *event)
 
 SWINLINE int swReactor_error(swReactor *reactor)
 {
+	uint64_t flag = 1;
 	switch (errno)
 	{
 	case EINTR:
+		if (SwooleG.signal_alarm && SwooleG.timer.use_pipe)
+		{
+			SwooleG.timer.pipe.write(&SwooleG.timer.pipe, &flag, sizeof(flag));
+		}
 		return SW_OK;
 	}
 	return SW_ERR;

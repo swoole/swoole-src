@@ -9,6 +9,9 @@ $serv->set(array(
 $serv->on('timer', function($serv, $interval) {
 	echo "onTimer: $interval\n";
 });
+$serv->on('start', function($serv) {
+       $serv->addtimer(1000);
+});
 $serv->on('workerStart', function($serv, $worker_id) {
 	//if($worker_id == 0) $serv->addtimer(1000);
 });

@@ -325,7 +325,7 @@ PHP_METHOD(swoole_process, exec)
 
 	if (process->pipe == 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "have not pipe, can not use read()");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "have not pipe, can not use exec()");
 		RETURN_FALSE;
 	}
 
@@ -360,7 +360,6 @@ PHP_METHOD(swoole_process, exec)
 	}
 	else
 	{
-		printf("execv ok\n");
 		RETURN_TRUE;
 	}
 }
