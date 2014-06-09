@@ -294,14 +294,18 @@ SWINLINE void swConnection_clear_string_buffer(swConnection *conn)
 
 int swConnection_send_in_buffer(swConnection *conn)
 {
+	swServer *serv = SwooleG.serv;
 	swFactory *factory = SwooleG.factory;
 	swEventData _send;
 
 	_send.info.fd = conn->fd;
 	_send.info.from_id = conn->from_id;
 
+	swBuffer *buffer = conn->in_buffer;
+	swBuffer_trunk *trunk = swBuffer_get_trunk(buffer);
+
 #ifdef SW_USE_RINGBUFFER
-	swServer *serv = SwooleG.serv;
+
 	swMemoryPool *pool = serv->reactor_threads[conn->from_id].pool;
 	swPackage package;
 
@@ -322,7 +326,7 @@ int swConnection_send_in_buffer(swConnection *conn)
 	while (trunk != NULL)
 	{
 		_send.info.len = trunk->length;
-		memcpy(package.data + package.length , trunk->data, trunk->length);
+		memcpy(package.data + package.length , trunk->store.ptr, trunk->length);
 		package.length += trunk->length;
 
 		swBuffer_pop_trunk(buffer, trunk);
@@ -334,9 +338,6 @@ int swConnection_send_in_buffer(swConnection *conn)
 	return factory->dispatch(factory, &_send);
 
 #else
-
-	swBuffer *buffer = conn->in_buffer;
-	swBuffer_trunk *trunk = swBuffer_get_trunk(buffer);
 
 	int ret;
 	_send.info.type = SW_EVENT_PACKAGE_START;

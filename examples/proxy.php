@@ -61,13 +61,7 @@ class ProxyServer
     {
         $socket = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
         echo microtime() . ": Client[$fd] backend-sock[{$socket->sock}]: Connect.\n";
-        $this->backends[$socket->sock] = array(
-            'client_fd' => $fd,
-            'socket' => $socket,
-        );
-        $this->clients[$fd] = array(
-            'socket' => $socket,
-        );
+       
         $socket->on('connect', function (swoole_client $socket) {
             echo "connect to backend server success\n";
         });
@@ -87,7 +81,17 @@ class ProxyServer
             //可以修改为类静态变量
             $this->serv->send($this->backends[$socket->sock]['client_fd'], $data);
         });
-        $socket->connect('127.0.0.1', 80, 0.2);
+        
+        if ($socket->connect('127.0.0.1', 80, 0.2))
+        {
+			$this->backends[$socket->sock] = array(
+				'client_fd' => $fd,
+				'socket' => $socket,
+			);
+			$this->clients[$fd] = array(
+				'socket' => $socket,
+			);
+		}
     }
 
     function onReceive($serv, $fd, $from_id, $data)
