@@ -89,7 +89,6 @@ static int php_swoole_client_close(zval **zobject, int fd TSRMLS_DC)
 	zval **args[1];
 	swClient *cli;
 	zval **zres;
-	int free_n = 0;
 
 	if (zend_hash_find(Z_OBJPROP_PP(zobject), SW_STRL("_client"), (void **) &zres) == SUCCESS)
 	{
@@ -114,12 +113,11 @@ static int php_swoole_client_close(zval **zobject, int fd TSRMLS_DC)
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client_create_socket add to hashtable failed.");
 		}
 		free(cli->server_str);
-		free_n = 1;
+		ZVAL_LONG(ztype, 0);
 	}
 	else
 	{
 		free(cli->server_str);
-		free_n = 2;
 	}
 
 	//async connection
@@ -173,19 +171,11 @@ static int php_swoole_client_close(zval **zobject, int fd TSRMLS_DC)
 		{
 			zval_ptr_dtor(&retval);
 		}
+		cli->close(cli);
 	}
 	else
 	{
 		cli->close(cli);
-	}
-
-	if (free_n > 1)
-	{
-		efree(cli);
-	}
-	else if(free_n > 0)
-	{
-		pefree(cli, 1);
 	}
 	return SW_OK;
 }
@@ -1259,6 +1249,7 @@ PHP_METHOD(swoole_client, recv)
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: Server is not connected.");
 		RETURN_FALSE;
 	}
+
 	/**
 	 * UDP waitall=0 buf_len小于最大值这3种情况使用栈内存
 	 */
@@ -1288,7 +1279,7 @@ PHP_METHOD(swoole_client, recv)
 	}
 	else
 	{
-		if(ret == 0)
+		if (ret == 0)
 		{
 			php_swoole_client_close(&getThis(), cli->sock TSRMLS_CC);
 		}
@@ -1298,7 +1289,7 @@ PHP_METHOD(swoole_client, recv)
 			RETVAL_STRINGL(buf, ret, 1);
 		}
 	}
-	if(require_efree==1) efree(buf);
+	if (require_efree==1) efree(buf);
 }
 
 PHP_METHOD(swoole_client, close)

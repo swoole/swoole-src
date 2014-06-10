@@ -230,11 +230,11 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 		}
 		else
 		{
-			if(serv->onMasterConnect != NULL)
+			if (serv->onMasterConnect != NULL)
 			{
 				serv->onMasterConnect(serv, new_fd, reactor_id);
 			}
-			if(serv->onConnect != NULL)
+			if (serv->onConnect != NULL)
 			{
 				serv->factory.notify(&serv->factory, &connEv);
 			}
