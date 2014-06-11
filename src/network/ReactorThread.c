@@ -222,7 +222,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 		goto remove_out_event;
 	}
 
-	do
+	while (!swBuffer_empty(out_buffer))
 	{
 		trunk = swBuffer_get_trunk(out_buffer);
 		if (trunk->type == SW_TRUNK_CLOSE)
@@ -279,7 +279,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 				return SW_OK;
 			}
 		}
-	} while (!swBuffer_empty(out_buffer));
+	}
 
 	//remove EPOLLOUT event
 	remove_out_event:
