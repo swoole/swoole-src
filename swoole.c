@@ -1464,7 +1464,7 @@ PHP_FUNCTION(swoole_connection_list)
 	//复制出来避免被其他进程改写
 	int serv_max_fd = swServer_get_maxfd(serv);
 
-	if(start_fd == 0)
+	if (start_fd == 0)
 	{
 		start_fd = swServer_get_minfd(serv);
 	}
@@ -1481,13 +1481,13 @@ PHP_FUNCTION(swoole_connection_list)
 	for(; fd<= serv_max_fd; fd++)
 	{
 		 swTrace("maxfd=%d|fd=%d|find_count=%ld|start_fd=%ld", serv_max_fd, fd, find_count, start_fd);
-		 if(serv->connection_list[fd].active == 1)
+		 if (serv->connection_list[fd].active == 1)
 		 {
 			 add_next_index_long(return_value, fd);
 			 find_count--;
 		 }
 		 //finish fetch
-		 if(find_count <= 0)
+		 if (find_count <= 0)
 		 {
 			 break;
 		 }
