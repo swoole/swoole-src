@@ -55,7 +55,7 @@ swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint16_t siz
 		void *buf = sw_malloc(size);
 		if (buf == NULL)
 		{
-			swWarn("malloc for data failed. Error: %s[%d]", strerror(errno), errno);
+			swWarn("malloc(%d) for data failed. Error: %s[%d]", size, strerror(errno), errno);
 			sw_free(trunk);
 			return NULL;
 		}
@@ -74,6 +74,7 @@ swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint16_t siz
 		buffer->tail->next = trunk;
 		buffer->tail = trunk;
 	}
+
 	return trunk;
 }
 
@@ -87,11 +88,13 @@ SWINLINE void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk)
 	{
 		buffer->head = NULL;
 		buffer->tail = NULL;
+		buffer->length = 0;
 		buffer->trunk_num = 0;
 	}
 	else
 	{
 		buffer->head = trunk->next;
+		buffer->length -= trunk->length;
 		buffer->trunk_num --;
 	}
 

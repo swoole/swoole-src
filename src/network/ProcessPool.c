@@ -322,11 +322,16 @@ static void swProcessPool_free(swProcessPool *pool)
 {
 	int i;
 	swPipe *pipe;
-	for (i = 0; i < pool->worker_num; i++)
+
+	if (!pool->use_msgqueue)
 	{
-		pipe = &pool->pipes[i];
-		pipe->close(pipe);
+		for (i = 0; i < pool->worker_num; i++)
+		{
+			pipe = &pool->pipes[i];
+			pipe->close(pipe);
+		}
 	}
+
 	sw_free(pool->workers);
 	sw_free(pool->pipes);
 	swHashMap_free(&pool->map);
