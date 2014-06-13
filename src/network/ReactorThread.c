@@ -119,6 +119,7 @@ int swReactorThread_onPipeReceive(swReactor *reactor, swDataHead *ev)
 int swReactorThread_send(swSendData *_send)
 {
 	int fd = _send->info.fd;
+	uint16_t reactor_id = 0;
 
 	swServer *serv = SwooleG.serv;
 	swBuffer_trunk *trunk;
@@ -132,8 +133,14 @@ int swReactorThread_send(swSendData *_send)
 		return SW_ERR;
 	}
 
-	swTraceLog(SW_TRACE_EVENT, "send-data. fd=%d|reactor_id=%d", fd, conn->from_id);
-	swReactor *reactor = &(serv->reactor_threads[conn->from_id].reactor);
+#if SW_REACTOR_SCHEDULE == 2
+	reactor_id = fd % serv->reactor_num;
+#else
+	reactor_id = conn->from_id;
+#endif
+
+	swTraceLog(SW_TRACE_EVENT, "send-data. fd=%d|reactor_id=%d", fd, reactor_id);
+	swReactor *reactor = &(serv->reactor_threads[reactor_id].reactor);
 
 	if (conn->out_buffer == NULL)
 	{
