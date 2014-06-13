@@ -8,7 +8,7 @@ $client->on("connect", function(swoole_client $cli) {
 
 $client->on("receive", function(swoole_client $cli, $data){
     echo "Receive: $data";
-	usleep(10000);
+	usleep(1000000);
 	$cli->send(str_repeat('A', 100)."\n");
 });
 

@@ -576,7 +576,13 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	sdata._send.info.fd = fd;
 	sdata._send.info.type = resp->info.type;
 	sdata._send.info.len = resp->info.len;
+
+#if SW_REACTOR_SCHEDULE == 2
+	sdata._send.info.from_id = fd % serv->reactor_num;
+#else
 	sdata._send.info.from_id = conn->from_id;
+#endif
+
 	sendn = resp->info.len + sizeof(resp->info);
 
 	//swWarn("send: type=%d|content=%s", resp->info.type, resp->data);
@@ -591,7 +597,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 		else
 		{
 			int pipe_i;
-			swReactor *reactor = &(serv->reactor_threads[conn->from_id].reactor);
+			swReactor *reactor = &(serv->reactor_threads[sdata._send.info.from_id].reactor);
 			if (serv->reactor_pipe_num > 1)
 			{
 				pipe_i = fd % serv->reactor_pipe_num + reactor->id;
