@@ -1331,7 +1331,7 @@ PHP_METHOD(swoole_client, close)
 		{
 			ret = php_swoole_client_close(&getThis(), cli->sock TSRMLS_CC);
 		}
-		else
+		else if (cli->sock != 0)
 		{
 			ret = cli->close(cli);
 		}
