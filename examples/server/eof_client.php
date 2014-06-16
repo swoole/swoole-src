@@ -8,7 +8,7 @@ if(!$client->connect('127.0.0.1', 9501, 0.5, 0))
 
 $data = array(
 	'name' => __FILE__,
-	'content' => str_repeat('A', 8192 * 10),  //800K
+	'content' => str_repeat('A', 8192 * rand(100, 200)),  //800K
 );
 
 $_send = serialize($data)."\r\n\r\n";

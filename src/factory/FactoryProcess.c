@@ -1040,10 +1040,34 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 		}
 		else
 		{
+			int ret;
 			resp = (swEventData *) sdata.mdata;
-			memcpy(&_send.info, &resp->info, sizeof(resp->info));
-			_send.data = resp->data;
-			swReactorThread_send(&_send);
+
+			//Close
+			//TODO thread safe
+			if (resp->info.len == 0)
+			{
+				close_fd:
+				swConnection_close(SwooleG.serv, resp->info.fd, 0);
+				continue;
+			}
+			else
+			{
+				ret = send(resp->info.fd, resp->data, resp->info.len, MSG_NOSIGNAL | MSG_WAITALL);
+				if (ret < 0)
+				{
+					switch (swConnection_error(resp->info.fd, errno))
+					{
+					case SW_ERROR:
+						swWarn("send to fd[%d] failed. Error: %s[%d]", resp->info.fd, strerror(errno), errno);
+						break;
+					case SW_CLOSE:
+						goto close_fd;
+					default:
+						break;
+					}
+				}
+			}
 		}
 	}
 	pthread_exit((void *) param);

@@ -2,7 +2,8 @@
 $serv = new swoole_server("0.0.0.0", 9501);
 $serv->set(array(
 	//'tcp_defer_accept' => 5,
-	'worker_num' => 4,
+	'ipc_mode' => 2,
+	'worker_num' => 1,
 	'max_request' => 0,
 	//'daemonize' => true,
 	//'log_file' => '/tmp/swoole.log'

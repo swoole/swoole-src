@@ -4,7 +4,7 @@ $serv->set(array(
     'package_eof' => "\r\n\r\n",
     'open_eof_check' => true,
     'worker_num' => 4,
-    'dispatch_mode' => 3,
+    'dispatch_mode' => 1,
     'package_max_length' => 1024 * 1024 * 2, //2M
 ));
 //$serv->on('connect', function ($serv, $fd) {
