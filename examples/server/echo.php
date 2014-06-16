@@ -24,7 +24,8 @@ $serv->on('connect', function ($serv, $fd, $from_id){
 $serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
     //echo "[#".posix_getpid()."]\tClient[$fd]: $data\n";
     $info = $serv->connection_info($fd);
-	$serv->send($fd, json_encode(array("hello" => '1213', "bat" => "ab")).PHP_EOL);
+    $serv->send($fd, str_repeat('B', 1024*40));
+    //$serv->send($fd, json_encode(array("hello" => '1213', "bat" => "ab")).PHP_EOL);
     //$serv->close($fd);
 });
 $serv->on('close', function ($serv, $fd, $from_id) {

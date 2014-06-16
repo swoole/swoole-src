@@ -1019,7 +1019,6 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 	swFactory *factory = param->object;
 	swFactoryProcess *object = factory->object;
 	swEventData *resp;
-	swSendData _send;
 
 	int pti = param->pti;
 	swQueue_data sdata;
@@ -1044,7 +1043,7 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 			resp = (swEventData *) sdata.mdata;
 
 			//Close
-			//TODO thread safe
+			//TODO: thread safe, should close in reactor thread.
 			if (resp->info.len == 0)
 			{
 				close_fd:
@@ -1053,7 +1052,7 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 			}
 			else
 			{
-				ret = send(resp->info.fd, resp->data, resp->info.len, MSG_NOSIGNAL | MSG_WAITALL);
+				ret = swConnection_send_blocking(resp->info.fd, resp->data, resp->info.len, 1000*1000*3);
 				if (ret < 0)
 				{
 					switch (swConnection_error(resp->info.fd, errno))

@@ -449,6 +449,7 @@ int swTaskWorker_large_pack(swEventData *task, void *data, int data_len);
 SWINLINE int swServer_new_connection(swServer *serv, swEvent *ev);
 SWINLINE void swConnection_close(swServer *serv, int fd, int notify);
 SWINLINE int swConnection_error(int fd, int err);
+SWINLINE int swConnection_send_blocking(int fd, void *data, int length, int timeout);
 
 #define SW_SERVER_MAX_FD_INDEX          0 //max connection socket
 #define SW_SERVER_MIN_FD_INDEX          1 //min listen socket

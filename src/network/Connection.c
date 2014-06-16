@@ -16,6 +16,8 @@
 #include "swoole.h"
 #include "Server.h"
 
+#include <sys/poll.h>
+
 #ifndef EOK
 #define EOK      0
 #endif
@@ -40,6 +42,43 @@ SWINLINE int swConnection_error(int fd, int err)
 	default:
 		return SW_ERROR;
 	}
+}
+
+SWINLINE int swConnection_send_blocking(int fd, void *data, int length, int timeout)
+{
+	int ret, n, writen = length;
+	struct pollfd event;
+	event.fd = fd;
+	event.events = POLLOUT;
+
+	while(writen > 0)
+	{
+		ret = poll(&event, 1, timeout);
+		if (ret == 0)
+		{
+			return SW_ERR;
+		}
+		else if (ret > 0)
+		{
+			n = send(fd, data, writen, MSG_NOSIGNAL | MSG_DONTWAIT);
+			if (n < 0)
+			{
+				swWarn("send() failed. Error: %s[%d]", strerror(errno), errno);
+				return SW_ERR;
+			}
+			else
+			{
+				writen -= n;
+				continue;
+			}
+		}
+		else
+		{
+			swWarn("poll() failed. Error: %s[%d]", strerror(errno), errno);
+			return SW_ERR;
+		}
+	}
+	return 0;
 }
 
 /**
