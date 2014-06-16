@@ -2420,20 +2420,27 @@ PHP_FUNCTION(swoole_server_send)
 	int trunk_num = (send_len/SW_BUFFER_SIZE) + 1;
 	int send_n = 0;
 
-//	swWarn("SendTo: trunk_num=%d|send_len=%d", trunk_num, send_len);
-	for(i=0; i<trunk_num; i++)
+	swConnection *conn = swServer_get_connection(serv, fd);
+	if (conn == NULL || conn->active == 0)
 	{
-		//最后一页
-		if(i == (trunk_num-1))
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Connection[%d] has been closed.", fd);
+		RETURN_FALSE;
+	}
+
+	for (i = 0; i < trunk_num; i++)
+	{
+		//last chunk
+		if (i == (trunk_num - 1))
 		{
 			send_n = send_len % SW_BUFFER_SIZE;
-			if(send_n == 0) break;
+			if (send_n == 0)
+				break;
 		}
 		else
 		{
 			send_n = SW_BUFFER_SIZE;
 		}
-		memcpy(buffer, send_data + SW_BUFFER_SIZE*i, send_n);
+		memcpy(buffer, send_data + SW_BUFFER_SIZE * i, send_n);
 		_send.info.len = send_n;
 		ret = factory->finish(factory, &_send);
 #ifdef SW_WORKER_SENDTO_YIELD
