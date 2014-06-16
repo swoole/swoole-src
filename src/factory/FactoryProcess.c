@@ -1052,7 +1052,7 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 			}
 			else
 			{
-				ret = swConnection_send_blocking(resp->info.fd, resp->data, resp->info.len, 1000*1000*3);
+				ret = swConnection_send_blocking(resp->info.fd, resp->data, resp->info.len, 1000 * SW_WRITER_TIMEOUT);
 				if (ret < 0)
 				{
 					switch (swConnection_error(resp->info.fd, errno))
