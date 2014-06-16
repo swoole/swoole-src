@@ -188,7 +188,7 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
 	int n, ret;
 	int task_n, worker_task_always = 0;
 
-	if (pool->max_request == 0)
+	if (pool->max_request < 1)
 	{
 		task_n = 1;
 		worker_task_always = 1;
