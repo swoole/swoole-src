@@ -1188,13 +1188,13 @@ PHP_METHOD(swoole_client, send)
 	}
 	else
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: object is not instanceof swoole_client. ");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "object is not instanceof swoole_client.");
 		RETURN_FALSE;
 	}
 
 	if (cli->connected == 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: Server is not connected.");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not connected.");
 		RETURN_FALSE;
 	}
 
@@ -1206,7 +1206,7 @@ PHP_METHOD(swoole_client, send)
 	{
     	SwooleG.error = errno;
 		//这里的错误信息没用
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: send failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "send() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
 		MAKE_STD_ZVAL(errCode);
 		ZVAL_LONG(errCode, SwooleG.error);
 		zend_update_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errCode TSRMLS_CC);
@@ -1244,9 +1244,10 @@ PHP_METHOD(swoole_client, recv)
 	{
 		RETURN_FALSE;
 	}
+
 	if (cli->connected == 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: Server is not connected.");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not connected.");
 		RETURN_FALSE;
 	}
 
@@ -1270,7 +1271,7 @@ PHP_METHOD(swoole_client, recv)
 	{
 		SwooleG.error = errno;
 		//这里的错误信息没用
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: recv failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "recv() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
 		MAKE_STD_ZVAL(errCode);
 		ZVAL_LONG(errCode, SwooleG.error);
 		zend_update_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errCode TSRMLS_CC);

@@ -127,6 +127,35 @@ int swFactoryProcess_start(swFactory *factory)
 	//保存下指针，需要和reactor做绑定
 	serv->workers = object->workers;
 
+	swWorker *worker;
+	int i;
+
+	void *worker_shm = sw_shm_calloc(serv->worker_num, serv->response_max_length);
+	if (worker_shm == NULL)
+	{
+		swWarn("malloc for worker->shm failed.");
+		return SW_ERR;
+	}
+
+	swPipe *worker_notify = sw_calloc(serv->worker_num, sizeof(swPipe));
+	if (worker_shm == NULL)
+	{
+		swWarn("malloc for worker->notify failed.");
+		return SW_ERR;
+	}
+
+	for (i = 0; i < serv->worker_num; i++)
+	{
+		worker = swServer_get_worker(serv, i);
+		worker->notify = &(worker_notify[i]);
+		worker->shm = worker_shm + (i * serv->response_max_length);
+
+		if (swPipeNotify_auto(worker->notify, 1, 0))
+		{
+			return SW_ERR;
+		}
+	}
+
 	//必须先启动manager进程组，否则会带线程fork
 	if (swFactoryProcess_manager_start(factory) < 0)
 	{
@@ -500,28 +529,29 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti)
 int swFactoryProcess_end(swFactory *factory, swDataHead *event)
 {
 	swServer *serv = factory->ptr;
-	swEvent ev;
-	bzero(&ev, sizeof(swEvent));
+	swSendData _send;
 
-	ev.fd = event->fd;
+	bzero(&_send, sizeof(_send));
+
+	_send.info.fd = event->fd;
 	/**
 	 * length == 0, close the connection
 	 */
-	ev.len = 0;
+	_send.info.len = 0;
 
 	/**
 	 * passive or initiative
 	 */
-	ev.type = event->type;
+	_send.info.type = event->type;
 
-	swConnection *conn = swServer_get_connection(serv, ev.fd);
+	swConnection *conn = swServer_get_connection(serv, _send.info.fd);
 	if (conn == NULL || conn->active == 0)
 	{
-		swWarn("can not close. Connection[%d] not found.", ev.fd);
+		swWarn("can not close. Connection[%d] not found.", _send.info.fd);
 		return SW_ERR;
 	}
 	event->from_id = conn->from_id;
-	return swFactoryProcess_finish(factory, (swSendData *)&ev);
+	return swFactoryProcess_finish(factory, &_send);
 }
 /**
  * worker: send to client
@@ -549,7 +579,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	//UDP pacakge
 	else if (resp->info.type == SW_EVENT_UDP || resp->info.type == SW_EVENT_UDP6)
 	{
-		ret = swServer_send_udp_packet(serv, resp);
+		ret = swServer_udp_send(serv, resp);
 		goto finish;
 	}
 
@@ -563,9 +593,6 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	//for message queue
 	sdata.pti = (SwooleWG.id % serv->writer_num) + 1;
 
-	//copy
-	memcpy(sdata._send.data, resp->data, resp->info.len);
-
 	swConnection *conn = swServer_get_connection(serv, fd);
 	if (conn == NULL || conn->active == 0)
 	{
@@ -575,7 +602,32 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 
 	sdata._send.info.fd = fd;
 	sdata._send.info.type = resp->info.type;
-	sdata._send.info.len = resp->info.len;
+	swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
+
+	/**
+	 * Big response, use shared memory
+	 */
+	if (resp->length > 0)
+	{
+		swPackage_response response;
+
+		response.length = resp->length;
+		response.worker_id = SwooleWG.id;
+
+		sdata._send.info.from_fd = SW_RESPONSE_BIG;
+		sdata._send.info.len = sizeof(response);
+
+		memcpy(sdata._send.data, &response, sizeof(response));
+		memcpy(worker->shm, resp->data, resp->length);
+	}
+	else
+	{
+		//copy data
+		memcpy(sdata._send.data, resp->data, resp->info.len);
+
+		sdata._send.info.len = resp->info.len;
+		sdata._send.info.from_fd = SW_RESPONSE_SMALL;
+	}
 
 #if SW_REACTOR_SCHEDULE == 2
 	sdata._send.info.from_id = fd % serv->reactor_num;
@@ -583,9 +635,9 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	sdata._send.info.from_id = conn->from_id;
 #endif
 
-	sendn = resp->info.len + sizeof(resp->info);
+	sendn = sdata._send.info.len + sizeof(resp->info);
 
-	//swWarn("send: type=%d|content=%s", resp->info.type, resp->data);
+	//swWarn("send: sendn=%d|type=%d|content=%s", sendn, resp->info.type, resp->data);
 	swTrace("[Worker]wt_queue[%ld]->in| fd=%d", sdata.pti, fd);
 
 	for (count = 0; count < SW_WORKER_SENDTO_COUNT; count++)
@@ -631,6 +683,11 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	if (ret < 0)
 	{
 		swWarn("sendto to reactor failed. Error: %s [%d]", strerror(errno), errno);
+	}
+	else if (resp->length > 0)
+	{
+		int64_t wait_reactor;
+		worker->notify->read(worker->notify, &wait_reactor, sizeof(wait_reactor));
 	}
 	return ret;
 }
@@ -1052,7 +1109,15 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 			}
 			else
 			{
-				ret = swConnection_send_blocking(resp->info.fd, resp->data, resp->info.len, 1000 * SW_WRITER_TIMEOUT);
+				if (resp->info.type == SW_EVENT_SENDFILE)
+				{
+					ret = swConnection_sendfile_blocking(resp->info.fd, resp->data, 1000 * SW_WRITER_TIMEOUT);
+				}
+				else
+				{
+					ret = swConnection_send_blocking(resp->info.fd, resp->data, resp->info.len, 1000 * SW_WRITER_TIMEOUT);
+				}
+
 				if (ret < 0)
 				{
 					switch (swConnection_error(resp->info.fd, errno))

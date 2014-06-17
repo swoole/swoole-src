@@ -250,8 +250,18 @@ typedef struct _swEventData
 typedef struct _swSendData
 {
 	swDataHead info;
+
+	/**
+	 * for unix socket
+	 */
 	char *sun_path;
 	uint8_t sun_path_len;
+
+	/**
+	 * for big package
+	 */
+	uint32_t length;
+
 	char *data;
 } swSendData;
 
@@ -620,8 +630,16 @@ typedef struct _swProcessPool swProcessPool;
 
 struct _swWorker
 {
+	/**
+	 * worker process
+	 */
 	pid_t pid;
+
+	/**
+	 * worker thread
+	 */
 	pthread_t tid;
+
 	swProcessPool *pool;
 
 	/**
@@ -634,7 +652,21 @@ struct _swWorker
 	 */
 	uint8_t redirect_stdin;
 
-	int id;
+	/**
+	 * worker id
+	 */
+	uint32_t id;
+
+	/**
+	 * eventfd, process notify
+	 */
+	swPipe *notify;
+
+	/**
+	 * share memory
+	 */
+	void *shm; //for taskwait
+
 	int pipe_master;
 	int pipe_worker;
 	int pipe;
@@ -889,8 +921,8 @@ typedef struct
 
 	swMemoryPool *memory_pool;
 	swReactor *main_reactor;
-	swPipe *task_notify; //for taskwait
-	swEventData *task_result; //for taskwait
+	//swPipe *task_notify; //for taskwait
+	//swEventData *task_result; //for taskwait
 	pthread_t heartbeat_pidt;
 } swServerG;
 

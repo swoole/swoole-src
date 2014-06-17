@@ -432,7 +432,7 @@ static int swServer_start_proxy(swServer *serv)
 int swServer_start(swServer *serv)
 {
 	swFactory *factory = &serv->factory;
-	int ret, i;
+	int ret;
 
 	ret = swServer_check_callback(serv);
 	if (ret < 0)
@@ -496,19 +496,6 @@ int swServer_start(swServer *serv)
 		serv->factory.onFinish = swServer_onFinish;
 	}
 
-	//for taskwait
-	if (SwooleG.task_worker_num > 0 && serv->worker_num > 0)
-	{
-		SwooleG.task_result = sw_shm_calloc(serv->worker_num, sizeof(swEventData));
-		SwooleG.task_notify = sw_calloc(serv->worker_num, sizeof(swPipe));
-		for(i =0; i< serv->worker_num; i++)
-		{
-			if (swPipeNotify_auto(&SwooleG.task_notify[i], 1, 0))
-			{
-				return SW_ERR;
-			}
-		}
-	}
 	//factory start
 	if (factory->start(factory) < 0)
 	{
@@ -674,6 +661,8 @@ void swServer_init(swServer *serv)
 	serv->package_length_size = 4;
 	serv->buffer_input_size = SW_BUFFER_SIZE;
 
+	serv->response_max_length = SW_RESPONSE_MAX_LENGTH;
+
 	memcpy(serv->package_eof, eof, serv->package_eof_len);
 }
 
@@ -768,7 +757,7 @@ int swServer_onFinish(swFactory *factory, swSendData *resp)
 	return swWrite(resp->info.fd, resp->data, resp->info.len);
 }
 
-int swServer_send_udp_packet(swServer *serv, swSendData *resp)
+int swServer_udp_send(swServer *serv, swSendData *resp)
 {
 	socklen_t len;
 	struct sockaddr_in addr_in;
@@ -782,6 +771,81 @@ int swServer_send_udp_packet(swServer *serv, swSendData *resp)
 	return swSendto(sock, resp->data, resp->info.len, 0, (struct sockaddr*) &addr_in, len);
 }
 
+int swServer_tcp_send(swServer *serv, int fd, void *data, int length)
+{
+	swSendData _send;
+	swFactory *factory = &(serv->factory);
+
+#ifndef SW_WORKER_SEND_CHUNK
+	/**
+	 * More than the output buffer
+	 */
+	if (length >= serv->response_max_length)
+	{
+		swWarn("More than the output buffer size[%d], please use the sendfile.", serv->response_max_length);
+		return SW_ERR;
+	}
+	else
+	{
+		_send.info.fd = fd;
+		_send.info.type = SW_EVENT_TCP;
+		_send.data = data;
+
+		if (length >= SW_BUFFER_SIZE)
+		{
+			_send.length = length;
+		}
+		else
+		{
+			_send.info.len = length;
+			_send.length = 0;
+		}
+		return factory->finish(factory, &_send);
+	}
+#else
+	else
+	{
+		char buffer[SW_BUFFER_SIZE];
+		int trunk_num = (length / SW_BUFFER_SIZE) + 1;
+		int send_n = 0, i, ret;
+
+		swConnection *conn = swServer_get_connection(serv, fd);
+		if (conn == NULL || conn->active == 0)
+		{
+			swWarn("Connection[%d] has been closed.", fd);
+			return SW_ERR;
+		}
+
+		for (i = 0; i < trunk_num; i++)
+		{
+			//last chunk
+			if (i == (trunk_num - 1))
+			{
+				send_n = length % SW_BUFFER_SIZE;
+				if (send_n == 0)
+					break;
+			}
+			else
+			{
+				send_n = SW_BUFFER_SIZE;
+			}
+			memcpy(buffer, data + SW_BUFFER_SIZE * i, send_n);
+			_send.info.len = send_n;
+			ret = factory->finish(factory, &_send);
+
+#ifdef SW_WORKER_SENDTO_YIELD
+			if ((i % SW_WORKER_SENDTO_YIELD) == (SW_WORKER_SENDTO_YIELD - 1))
+			{
+				swYield();
+			}
+#endif
+		}
+		return ret;
+	}
+#endif
+	return SW_OK;
+}
+
 /**
  * for udp + tcp
  */
@@ -793,7 +857,7 @@ int swServer_onFinish2(swFactory *factory, swSendData *resp)
 	//UDP
 	if (resp->info.from_id >= serv->reactor_num)
 	{
-		ret = swServer_send_udp_packet(serv, resp);
+		ret = swServer_udp_send(serv, resp);
 	}
 	else
 	{

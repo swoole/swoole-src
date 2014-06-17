@@ -38,7 +38,7 @@ swBuffer* swBuffer_new(int trunk_size)
 /**
  * create new trunk
  */
-swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint16_t size)
+swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint32_t size)
 {
 	swBuffer_trunk *trunk = sw_malloc(sizeof(swBuffer_trunk));
 	if (trunk == NULL)

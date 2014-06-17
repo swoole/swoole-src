@@ -66,9 +66,10 @@
 
 #define SW_USE_WRITER_THREAD       0    //使用单独的发送线程
 
-#define SW_WORKER_SENDTO_COUNT     2    //写回客户端失败尝试次数
+#define SW_WORKER_SENDTO_COUNT     32    //写回客户端失败尝试次数
 #define SW_WORKER_SENDTO_YIELD     10   //yield after sendto
 #define SW_WORKER_READ_COUNT       10
+//#define SW_WORKER_SEND_CHUNK
 
 #define SW_MAINREACTOR_USE_POLL         //main thread to use select or poll
 
@@ -94,10 +95,13 @@
  * ringbuffer memory pool size
  */
 #define SW_REACTOR_RINGBUFFER_SIZE       (1024*1024*4)
+#define SW_RESPONSE_MAX_LENGTH           (1024*1024*2)
 
-#define SW_MEMORY_POOL_SLAB_PAGE   10     //内存池的页数
+#define SW_MEMORY_POOL_SLAB_PAGE         10     //内存池的页数
 
 #define SW_USE_FIXED_BUFFER
+
+
 
 //#define SW_USE_RINGBUFFER
 

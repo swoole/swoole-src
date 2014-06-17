@@ -95,22 +95,48 @@ int swReactorThread_onPipeReceive(swReactor *reactor, swDataHead *ev)
 	swEventData resp;
 	swSendData _send;
 
-	//Unix Sock UDP
-	n = read(ev->fd, &resp, sizeof(resp));
+	int64_t notify_worker = 1;
+	swPackage_response pkg_resp;
 
-	swTrace("[WriteThread]recv: writer=%d|pipe=%d", ev->from_id, ev->fd);
-	//swWarn("send: type=%d|content=%s", resp.info.type, resp.data);
-	if (n > 0)
+	//while(1)
 	{
-		memcpy(&_send.info, &resp.info, sizeof(resp.info));
-		_send.data = resp.data;
-		return swReactorThread_send(&_send);
+		//Unix Sock UDP
+		n = read(ev->fd, &resp, sizeof(resp));
+
+		swTrace("[WriteThread]recv: writer=%d|pipe=%d", ev->from_id, ev->fd);
+		//swWarn("send: type=%d|content=%s", resp.info.type, resp.data);
+		if (n > 0)
+		{
+			memcpy(&_send.info, &resp.info, sizeof(resp.info));
+			if (_send.info.from_fd == SW_RESPONSE_SMALL)
+			{
+				_send.data = resp.data;
+				_send.length = resp.info.len;
+				swReactorThread_send(&_send);
+			}
+			else
+			{
+				memcpy(&pkg_resp, resp.data, sizeof(pkg_resp));
+
+				swWorker *worker = swServer_get_worker(SwooleG.serv, pkg_resp.worker_id);
+				_send.data = worker->shm;
+				_send.length = pkg_resp.length;
+
+				swReactorThread_send(&_send);
+				worker->notify->write(worker->notify, &notify_worker, sizeof(notify_worker));
+			}
+		}
+		else if(errno == EAGAIN)
+		{
+			return SW_OK;
+		}
+		else
+		{
+			swWarn("read(worker_pipe) failed. Error: %s[%d]", strerror(errno), errno);
+			return SW_ERR;
+		}
 	}
-	else
-	{
-		swWarn("read(worker_pipe) failed. Error: %s[%d]", strerror(errno), errno);
-		return SW_ERR;
-	}
+	return SW_OK;
 }
 
 /**
@@ -183,6 +209,8 @@ int swReactorThread_send(swSendData *_send)
 			return SW_ERR;
 		}
 		bzero(task, sizeof(swTask_sendfile));
+
+		task->filename = strdup(_send->data);
 		int file_fd = open(_send->data, O_RDONLY);
 		if (file_fd < 0)
 		{
@@ -203,7 +231,7 @@ int swReactorThread_send(swSendData *_send)
 	else
 	{
 		//buffer enQueue
-		swBuffer_append(conn->out_buffer, _send->data, _send->info.len);
+		swBuffer_append(conn->out_buffer, _send->data, _send->length);
 	}
 	//listen EPOLLOUT event
 	reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_WRITE | SW_EVENT_READ);
@@ -930,6 +958,7 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
 			worker_id = (reactor->id * serv->reactor_pipe_num) + i;
 			//swWarn("reactor_id=%d|worker_id=%d", reactor->id, worker_id);
 			//将写pipe设置到writer的reactor中
+			swSetNonBlock(serv->workers[worker_id].pipe_master);
 			reactor->add(reactor, serv->workers[worker_id].pipe_master, SW_FD_SEND_TO_CLIENT);
 		}
 	}

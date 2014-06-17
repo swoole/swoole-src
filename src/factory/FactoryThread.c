@@ -29,29 +29,29 @@ static int swFactoryThread_writer_loop(swThreadParam *param);
 
 int swFactoryThread_create(swFactory *factory, int writer_num)
 {
-	swFactoryThread *this;
-	this = sw_calloc(writer_num, sizeof(swFactoryThread));
-	if (this == NULL)
+	swFactoryThread *object;
+	object = sw_calloc(writer_num, sizeof(swFactoryThread));
+	if (object == NULL)
 	{
 		swTrace("malloc[0] fail\n");
 		return SW_ERR;
 	}
-	this->writers = sw_calloc(writer_num, sizeof(swWriterThread));
-	if (this->writers == NULL)
+	object->writers = sw_calloc(writer_num, sizeof(swWriterThread));
+	if (object->writers == NULL)
 	{
 		swTrace("malloc[1] fail\n");
 		return SW_ERR;
 	}
-	this->queues = sw_calloc(writer_num, sizeof(swRingQueue));
-	if (this->queues == NULL)
+	object->queues = sw_calloc(writer_num, sizeof(swRingQueue));
+	if (object->queues == NULL)
 	{
 		swTrace("malloc[2] fail\n");
 		return SW_ERR;
 	}
-	this->writer_num = writer_num;
-	this->writer_pti = 0;
+	object->writer_num = writer_num;
+	object->writer_pti = 0;
 
-	factory->object = this;
+	factory->object = object;
 	factory->dispatch = swFactoryThread_dispatch;
 	factory->finish = swFactory_finish;
 	factory->end = swFactory_end;

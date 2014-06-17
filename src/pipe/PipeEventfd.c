@@ -80,7 +80,7 @@ static int swPipeEventfd_read(swPipe *p, void *data, int length)
 	swPipeEventfd *object = p->object;
 
 	//eventfd not support socket timeout
-	if (p->blocking == 1)
+	if (p->blocking == 1 && p->timeout > 0)
 	{
 		struct pollfd event;
 		event.fd = object->event_fd;
@@ -117,11 +117,11 @@ static int swPipeEventfd_write(swPipe *p, void *data, int length)
 			{
 				continue;
 			}
-			else if (errno == EAGAIN)
-			{
-				usleep(1);
-				continue;
-			}
+//			else if (errno == EAGAIN)
+//			{
+//				usleep(1);
+//				continue;
+//			}
 		}
 		break;
 	}

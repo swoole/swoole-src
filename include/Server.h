@@ -24,17 +24,17 @@
 extern "C" {
 #endif
 
-#define SW_REACTOR_NUM           SW_CPU_NUM
-#define SW_WRITER_NUM            SW_CPU_NUM
-#define SW_PIPES_NUM             (SW_WORKER_NUM/SW_WRITER_NUM + 1) //每个写线程pipes数组大小
-#define SW_WORKER_NUM            (SW_CPU_NUM*2)
+#define SW_REACTOR_NUM             SW_CPU_NUM
+#define SW_WRITER_NUM              SW_CPU_NUM
+#define SW_PIPES_NUM               (SW_WORKER_NUM/SW_WRITER_NUM + 1) //每个写线程pipes数组大小
+#define SW_WORKER_NUM              (SW_CPU_NUM*2)
 
-#define SW_DISPATCH_ROUND        1
-#define SW_DISPATCH_FDMOD        2
-#define SW_DISPATCH_QUEUE        3
+#define SW_DISPATCH_ROUND          1
+#define SW_DISPATCH_FDMOD          2
+#define SW_DISPATCH_QUEUE          3
 
-#define SW_WORKER_BUSY           1
-#define SW_WORKER_IDLE           0
+#define SW_WORKER_BUSY             1
+#define SW_WORKER_IDLE             0
 
 #define SW_BACKLOG                 512
 
@@ -89,15 +89,21 @@ enum
 
 enum
 {
-	SW_IPC_UNSOCK = 1,
-	SW_IPC_MSGQUEUE,
-	SW_IPC_CHANNEL,
+	SW_IPC_UNSOCK   = 1,
+	SW_IPC_MSGQUEUE = 2,
+	SW_IPC_CHANNEL  = 3,
 };
 
 enum
 {
 	SW_CLOSE_PASSIVE = 32,
 	SW_CLOSE_INITIATIVE,
+};
+
+enum
+{
+	SW_RESPONSE_SMALL = 0,
+	SW_RESPONSE_BIG   = 1,
 };
 
 typedef struct _swUdpFd{
@@ -235,6 +241,11 @@ struct swServer_s
 
 	int worker_uid;
 	int worker_groupid;
+
+	/**
+	 * Response package max length
+	 */
+	uint32_t response_max_length;
 
 	/**
 	 * max connection num
@@ -402,6 +413,11 @@ typedef struct
 	char tmpfile[sizeof(SW_TASK_TMP_FILE)];
 } swPackage_task;
 
+typedef struct
+{
+	int length;
+	int worker_id;
+} swPackage_response;
 
 int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
@@ -417,7 +433,8 @@ int swServer_process_close(swServer *serv, swDataHead *event);
 int swServer_shutdown(swServer *serv);
 int swServer_addTimer(swServer *serv, int interval);
 int swServer_reload(swServer *serv);
-int swServer_send_udp_packet(swServer *serv, swSendData *resp);
+int swServer_udp_send(swServer *serv, swSendData *resp);
+int swServer_tcp_send(swServer *serv, int fd, void *data, int length);
 int swServer_reactor_add(swServer *serv, int fd, int sock_type); //no use
 int swServer_reactor_del(swServer *serv, int fd, int reacot_id); //no use
 int swServer_get_manager_pid(swServer *serv);
@@ -450,6 +467,7 @@ SWINLINE int swServer_new_connection(swServer *serv, swEvent *ev);
 SWINLINE void swConnection_close(swServer *serv, int fd, int notify);
 SWINLINE int swConnection_error(int fd, int err);
 SWINLINE int swConnection_send_blocking(int fd, void *data, int length, int timeout);
+SWINLINE int swConnection_sendfile_blocking(int fd, char *filename, int timeout);
 
 #define SW_SERVER_MAX_FD_INDEX          0 //max connection socket
 #define SW_SERVER_MIN_FD_INDEX          1 //min listen socket
@@ -462,6 +480,8 @@ SWINLINE int swConnection_send_blocking(int fd, void *data, int length, int time
 //使用connection_list[1]表示最小的FD
 #define swServer_set_minfd(serv,maxfd) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd=maxfd)
 #define swServer_get_minfd(serv) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd)
+#define swServer_get_worker(serv, worker_id)  (&(serv->workers[worker_id]))
+
 SWINLINE swString* swConnection_get_string_buffer(swConnection *conn);
 SWINLINE int swConnection_send_string_buffer(swConnection *conn);
 SWINLINE void swConnection_clear_string_buffer(swConnection *conn);

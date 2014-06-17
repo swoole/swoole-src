@@ -17,8 +17,7 @@ typedef struct _swBuffer_trunk
 {
 	uint32_t type;
 	uint32_t length;
-	uint16_t offset;
-	struct _swBuffer_trunk *next;
+	uint32_t offset;
 	union
 	{
 		void *ptr;
@@ -28,6 +27,7 @@ typedef struct _swBuffer_trunk
 			uint32_t val2;
 		} data;
 	} store;
+	struct _swBuffer_trunk *next;
 } swBuffer_trunk;
 
 typedef struct _swBuffer
@@ -44,7 +44,7 @@ typedef struct _swBuffer
 #define swBuffer_empty(buffer)       (buffer == NULL || buffer->head == NULL)
 
 SWINLINE swBuffer* swBuffer_new(int trunk_size);
-swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint16_t size);
+swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint32_t size);
 SWINLINE void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk);
 int swBuffer_append(swBuffer *buffer, void *data, uint32_t size);
 int swBuffer_send(swBuffer *buffer, int fd);

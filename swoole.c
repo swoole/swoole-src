@@ -2335,7 +2335,6 @@ PHP_FUNCTION(swoole_server_send)
 	swServer *serv = NULL;
 	swFactory *factory = NULL;
 	swSendData _send;
-	char buffer[SW_BUFFER_SIZE];
 
 	char *send_data;
 	int send_len;
@@ -2392,7 +2391,6 @@ PHP_FUNCTION(swoole_server_send)
 	}
 
 	uint32_t fd = (uint32_t) _fd;
-	_send.info.fd = fd;
 
 	//UDP, UDP必然超过0x1000000
 	//原因：IPv4的第4字节最小为1,而这里的conn_fd是网络字节序
@@ -2404,53 +2402,20 @@ PHP_FUNCTION(swoole_server_send)
 		}
 		php_swoole_udp_t udp_info;
 		memcpy(&udp_info, &from_id, sizeof(udp_info));
+
+		_send.info.fd = fd;
 		_send.info.from_id = (uint16_t)(udp_info.port);
 		_send.info.from_fd = (uint16_t)(udp_info.from_fd);
 		_send.info.type = SW_EVENT_UDP;
+
 		swTrace("SendTo: from_id=%d|from_fd=%d", (uint16_t)_send.info.from_id, _send.info.from_fd);
+		SW_CHECK_RETURN(factory->finish(factory, &_send));
 	}
 	//TCP
 	else
 	{
-		_send.info.type = SW_EVENT_TCP;
+		SW_CHECK_RETURN(swServer_tcp_send(serv, fd, send_data, send_len));
 	}
-	_send.data = buffer;
-
-	int ret=-1, i;
-	int trunk_num = (send_len/SW_BUFFER_SIZE) + 1;
-	int send_n = 0;
-
-	swConnection *conn = swServer_get_connection(serv, fd);
-	if (conn == NULL || conn->active == 0)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Connection[%d] has been closed.", fd);
-		RETURN_FALSE;
-	}
-
-	for (i = 0; i < trunk_num; i++)
-	{
-		//last chunk
-		if (i == (trunk_num - 1))
-		{
-			send_n = send_len % SW_BUFFER_SIZE;
-			if (send_n == 0)
-				break;
-		}
-		else
-		{
-			send_n = SW_BUFFER_SIZE;
-		}
-		memcpy(buffer, send_data + SW_BUFFER_SIZE * i, send_n);
-		_send.info.len = send_n;
-		ret = factory->finish(factory, &_send);
-#ifdef SW_WORKER_SENDTO_YIELD
-		if ((i % SW_WORKER_SENDTO_YIELD) == (SW_WORKER_SENDTO_YIELD - 1))
-		{
-			swYield();
-		}
-#endif
-	}
-	SW_CHECK_RETURN(ret);
 }
 
 PHP_FUNCTION(swoole_server_sendfile)
@@ -2721,7 +2686,13 @@ static int php_swoole_task_finish(swServer *serv, char *data, int data_len TSRML
 	else
 	{
 		uint64_t flag = 1;
-		swEventData *result = &SwooleG.task_result[sw_current_task->info.from_id];
+		uint16_t worker_id = sw_current_task->info.from_id;
+		swWorker *worker = swServer_get_worker(serv, worker_id);
+
+		/**
+		 * Use worker shm store the result
+		 */
+		swEventData *result = worker->shm;
 
 		result->info.type = SW_EVENT_FINISH;
 		result->info.fd = sw_current_task->info.fd;
@@ -2743,7 +2714,7 @@ static int php_swoole_task_finish(swServer *serv, char *data, int data_len TSRML
 
 		while(1)
 		{
-			ret = SwooleG.task_notify[sw_current_task->info.from_id].write(&SwooleG.task_notify[sw_current_task->info.from_id], &flag, sizeof(flag));
+			ret = worker->notify->write(worker->notify, &flag, sizeof(flag));
 			if (errno == EINTR)
 			{
 				continue;
@@ -2811,8 +2782,11 @@ PHP_FUNCTION(swoole_server_taskwait)
 	buf.info.fd = php_swoole_task_id++;
 	//field from_id save the worker_id
 	buf.info.from_id = SwooleWG.id;
+
+	swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
+
 	//clear result buffer
-	bzero(&(SwooleG.task_result[SwooleWG.id]), sizeof(SwooleG.task_result[SwooleWG.id]));
+	bzero(worker->shm, sizeof(swEventData));
 
 	if (data_len >= sizeof(buf.data))
 	{
@@ -2837,14 +2811,15 @@ PHP_FUNCTION(swoole_server_taskwait)
 		 * setTimeout
 		 */
 #ifdef HAVE_EVENTFD
-		SwooleG.task_notify[SwooleWG.id].timeout = timeout;
+		worker->notify->timeout = timeout;
 #else
-		swSetTimeout(SwooleG.task_notify[SwooleWG.id].getFd(&SwooleG.task_notify[SwooleWG.id], 0), timeout);
+		swSetTimeout(worker->notify->getFd(worker->notify, 0), timeout);
 #endif
 
-		if (SwooleG.task_notify[SwooleWG.id].read(&SwooleG.task_notify[SwooleWG.id], &notify, sizeof(notify)) > 0)
+		swEventData *result = (swEventData *) worker->shm;
+		if (worker->notify->read(worker->notify, &notify, sizeof(notify)) > 0)
 		{
-			RETURN_STRINGL(SwooleG.task_result[SwooleWG.id].data, SwooleG.task_result[SwooleWG.id].info.len, 1);
+			RETURN_STRINGL(result->data, result->info.len, 1);
 		}
 		else
 		{
