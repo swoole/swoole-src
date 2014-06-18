@@ -162,7 +162,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 		swTrace("[Master] Accept new connection. maxfd=%d|reactor_id=%d|conn=%d", swServer_get_maxfd(serv), reactor->id, new_fd);
 
 		//too many connection
-		if (swServer_get_maxfd(serv) >= serv->max_conn)
+		if (new_fd >= serv->max_conn)
 		{
 			swWarn("Too many connections [now: %d].", swServer_get_maxfd(serv));
 			close(new_fd);
