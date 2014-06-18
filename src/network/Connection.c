@@ -360,7 +360,7 @@ SWINLINE int swConnection_send_string_buffer(swConnection *conn)
 	/**
 	 * unlock
 	 */
-	SwooleTG.factory_target_worker = 0;
+	SwooleTG.factory_target_worker = -1;
 	SwooleTG.factory_lock_target = 0;
 
 #endif
