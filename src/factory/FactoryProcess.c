@@ -148,7 +148,8 @@ int swFactoryProcess_start(swFactory *factory)
 	{
 		worker = swServer_get_worker(serv, i);
 		worker->notify = &(worker_notify[i]);
-		worker->shm = worker_shm + (i * serv->response_max_length);
+		worker->store.ptr = worker_shm + (i * serv->response_max_length);
+		worker->store.lock = 0;
 
 		if (swPipeNotify_auto(worker->notify, 1, 0))
 		{
@@ -609,6 +610,15 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	 */
 	if (resp->length > 0)
 	{
+		int64_t wait_reactor;
+
+		/**
+		 * Storage is in use right now, wait notify.
+		 */
+		if (worker->store.lock == 1)
+		{
+			worker->notify->read(worker->notify, &wait_reactor, sizeof(wait_reactor));
+		}
 		swPackage_response response;
 
 		response.length = resp->length;
@@ -618,7 +628,12 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 		sdata._send.info.len = sizeof(response);
 
 		memcpy(sdata._send.data, &response, sizeof(response));
-		memcpy(worker->shm, resp->data, resp->length);
+
+		/**
+		 * Lock the worker storage
+		 */
+		worker->store.lock = 1;
+		memcpy(worker->store.ptr, resp->data, resp->length);
 	}
 	else
 	{
@@ -683,11 +698,6 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	if (ret < 0)
 	{
 		swWarn("sendto to reactor failed. Error: %s [%d]", strerror(errno), errno);
-	}
-	else if (resp->length > 0)
-	{
-		int64_t wait_reactor;
-		worker->notify->read(worker->notify, &wait_reactor, sizeof(wait_reactor));
 	}
 	return ret;
 }
@@ -895,7 +905,8 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
  * for msg queue
  * 头部放一个long让msg queue可以直接插入到消息队列中
  */
-static __thread struct {
+static __thread struct
+{
 	long pti;
 	swDataHead _send;
 } sw_notify_data;

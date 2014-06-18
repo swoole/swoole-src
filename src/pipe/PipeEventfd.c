@@ -30,7 +30,7 @@ typedef struct _swPipeEventfd
 	int event_fd;
 } swPipeEventfd;
 
-int swPipeEventfd_create(swPipe *p, int blocking, int semaphore)
+int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout)
 {
 	int efd;
 	int flag = 0;
@@ -40,12 +40,19 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore)
 		return -1;
 	}
 
-	//eventfd not support socket timeout
 	flag = EFD_NONBLOCK;
 
 	if (blocking == 1)
 	{
-		p->timeout = -1;
+		if (timeout > 0)
+		{
+			flag = 0;
+			p->timeout = -1;
+		}
+		else
+		{
+			p->timeout = timeout;
+		}
 	}
 
 #ifdef EFD_SEMAPHORE

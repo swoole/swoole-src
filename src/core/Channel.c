@@ -40,7 +40,7 @@ void swChannel_debug(swChannel *chan)
 	printf("RingBuffer: num=%d|head=%d|tail=%d|tail_tag=%d|head_tag=%d\n", chan->num, chan->head, chan->tail, (int)chan->tail_tag, (int)chan->head_tag);
 }
 
-swChannel* swChannel_create(int size, int maxlen, int flag)
+swChannel* swChannel_new(int size, int maxlen, int flag)
 {
 	assert(size > SW_CHANNEL_MIN_MEM + maxlen);
 	int ret;
@@ -85,11 +85,7 @@ swChannel* swChannel_create(int size, int maxlen, int flag)
 	//use notify
 	if (flag & SW_CHAN_NOTIFY)
 	{
-#ifdef HAVE_EVENTFD
-		ret = swPipeEventfd_create(&object->notify_fd, 1, 1);
-#else
-		ret = swPipeBase_create(&object->notify_fd, 1);
-#endif
+		ret = swPipeNotify_auto(&object->notify_fd, 1, 1);
 		if (ret < 0)
 		{
 			swWarn("swChannel_create: notify_fd init fail");

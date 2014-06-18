@@ -283,7 +283,6 @@ static int php_swoole_onFinish(swServer *, swEventData *task);
 static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker_pid, int exit_code);
 
 
-
 static void swoole_destory_server(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 static void swoole_destory_client(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 
@@ -462,12 +461,17 @@ STD_PHP_INI_ENTRY("swoole.task_worker_num", "0", PHP_INI_ALL, OnUpdateLong, task
 STD_PHP_INI_ENTRY("swoole.task_ipc_mode", "0", PHP_INI_ALL, OnUpdateString, task_ipc_mode, zend_swoole_globals, swoole_globals)
 STD_PHP_INI_ENTRY("swoole.task_auto_start", "0", PHP_INI_ALL, OnUpdateString, task_auto_start, zend_swoole_globals, swoole_globals)
 STD_PHP_INI_ENTRY("swoole.message_queue_key", "0", PHP_INI_ALL, OnUpdateString, message_queue_key, zend_swoole_globals, swoole_globals)
+/**
+ * Unix socket buffer size
+ */
+STD_PHP_INI_ENTRY("swoole.unixsock_buffer_size", "8388608", PHP_INI_ALL, OnUpdateString, unixsock_buffer_size, zend_swoole_globals, swoole_globals)
 PHP_INI_END()
 
 static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
 {
 	swoole_globals->task_worker_num = 0;
 	swoole_globals->task_ipc_mode = 0;
+	swoole_globals->unixsock_buffer_size = SW_UNSOCK_BUFSIZE;
 }
 
 /* {{{ PHP_MINIT_FUNCTION
@@ -564,6 +568,10 @@ PHP_MINIT_FUNCTION(swoole)
 	//swoole init
 	swoole_init();
 
+	if (SWOOLE_G(unixsock_buffer_size) > 0)
+	{
+		SwooleG.unixsock_buffer_size = SWOOLE_G(unixsock_buffer_size);
+	}
 	return SUCCESS;
 }
 /* }}} */
@@ -2654,7 +2662,6 @@ static int php_swoole_task_finish(swServer *serv, char *data, int data_len TSRML
 	//for swoole_server_task
 	if (sw_current_task->info.type == SW_TASK_NONBLOCK)
 	{
-
 		buf.info.type = SW_EVENT_FINISH;
 		buf.info.fd = sw_current_task->info.fd;
 
@@ -2692,7 +2699,7 @@ static int php_swoole_task_finish(swServer *serv, char *data, int data_len TSRML
 		/**
 		 * Use worker shm store the result
 		 */
-		swEventData *result = worker->shm;
+		swEventData *result = worker->store.ptr;
 
 		result->info.type = SW_EVENT_FINISH;
 		result->info.fd = sw_current_task->info.fd;
@@ -2784,9 +2791,23 @@ PHP_FUNCTION(swoole_server_taskwait)
 	buf.info.from_id = SwooleWG.id;
 
 	swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
+	int64_t notify;
+
+	/**
+	 * Storage is in use right now, wait notify.
+	 */
+	if (worker->store.lock == 1)
+	{
+		worker->notify->read(worker->notify, &notify, sizeof(notify));
+	}
 
 	//clear result buffer
-	bzero(worker->shm, sizeof(swEventData));
+	bzero(worker->store.ptr, sizeof(swEventData));
+
+	/**
+	 * Lock the storage
+	 */
+	worker->store.lock = 1;
 
 	if (data_len >= sizeof(buf.data))
 	{
@@ -2805,8 +2826,6 @@ PHP_FUNCTION(swoole_server_taskwait)
 
 	if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int) worker_id) >= 0)
 	{
-		uint64_t notify;
-
 		/**
 		 * setTimeout
 		 */
@@ -2816,9 +2835,10 @@ PHP_FUNCTION(swoole_server_taskwait)
 		swSetTimeout(worker->notify->getFd(worker->notify, 0), timeout);
 #endif
 
-		swEventData *result = (swEventData *) worker->shm;
+		swEventData *result = (swEventData *) worker->store.ptr;
 		if (worker->notify->read(worker->notify, &notify, sizeof(notify)) > 0)
 		{
+			worker->store.lock = 0;
 			RETURN_STRINGL(result->data, result->info.len, 1);
 		}
 		else

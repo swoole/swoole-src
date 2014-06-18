@@ -119,10 +119,15 @@ int swReactorThread_onPipeReceive(swReactor *reactor, swDataHead *ev)
 				memcpy(&pkg_resp, resp.data, sizeof(pkg_resp));
 
 				swWorker *worker = swServer_get_worker(SwooleG.serv, pkg_resp.worker_id);
-				_send.data = worker->shm;
+				_send.data = worker->store.ptr;
 				_send.length = pkg_resp.length;
 
 				swReactorThread_send(&_send);
+
+				/**
+				 * Unlock the worker storage.
+				 */
+				worker->store.lock = 0;
 				worker->notify->write(worker->notify, &notify_worker, sizeof(notify_worker));
 			}
 		}
@@ -144,11 +149,12 @@ int swReactorThread_onPipeReceive(swReactor *reactor, swDataHead *ev)
  */
 int swReactorThread_send(swSendData *_send)
 {
+	swServer *serv = SwooleG.serv;
+
 	int fd = _send->info.fd;
 	uint16_t reactor_id = 0;
 
-	swServer *serv = SwooleG.serv;
-	swBuffer_trunk *trunk;
+	volatile swBuffer_trunk *trunk;
 	swTask_sendfile *task;
 
 	swConnection *conn = swServer_get_connection(serv, fd);
@@ -242,20 +248,21 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 {
 	int ret, sendn;
 	swServer *serv = SwooleG.serv;
-	swConnection *conn = swServer_get_connection(serv, ev->fd);
-	swBuffer *out_buffer = conn->out_buffer;
-	swBuffer_trunk *trunk;
-	swTask_sendfile *task = NULL;
 
+	swConnection *conn = swServer_get_connection(serv, ev->fd);
 	if (conn->active == 0)
 	{
 		return SW_OK;
 	}
 
+	swBuffer *out_buffer = conn->out_buffer;
 	if (conn->out_buffer == NULL)
 	{
 		goto remove_out_event;
 	}
+
+	volatile swBuffer_trunk *trunk;
+	swTask_sendfile *task = NULL;
 
 	while (!swBuffer_empty(out_buffer))
 	{
@@ -331,11 +338,12 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 	swServer *serv = SwooleG.serv;
 	//swDispatchData send_data;
 	swBuffer *buffer;
-	swBuffer_trunk *trunk;
 
 	swConnection *conn = swServer_get_connection(serv, event->fd);
 
+	volatile swBuffer_trunk *trunk;
 	trunk = swConnection_get_in_buffer(conn);
+
 	if (trunk == NULL)
 	{
 		return swReactorThread_onReceive_no_buffer(reactor, event);
@@ -427,7 +435,7 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 	int ret, n;
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &(serv->factory);
-	swConnection *conn = swServer_get_connection(serv, event->fd);
+	volatile swConnection *conn = swServer_get_connection(serv, event->fd);
 
 	struct
 	{

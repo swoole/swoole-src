@@ -81,7 +81,7 @@ swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint32_t siz
 /**
  * pop the head trunk
  */
-SWINLINE void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk)
+SWINLINE void swBuffer_pop_trunk(swBuffer *buffer, volatile swBuffer_trunk *trunk)
 {
 	//only one trunk
 	if (trunk->next == NULL)
@@ -102,7 +102,8 @@ SWINLINE void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk)
 	{
 		sw_free(trunk->store.ptr);
 	}
-	sw_free(trunk);
+	void *will_free_trunk = (void *) trunk;
+	sw_free(will_free_trunk);
 }
 
 /**
@@ -110,15 +111,15 @@ SWINLINE void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk)
  */
 int swBuffer_free(swBuffer *buffer)
 {
-	swBuffer_trunk *trunk = buffer->head;
-	swBuffer_trunk *will_free_trunk; //free the point
+	volatile swBuffer_trunk *trunk = buffer->head;
+	void * *will_free_trunk; //free the point
 	while (trunk != NULL)
 	{
 		if (trunk->type == SW_TRUNK_DATA)
 		{
 			sw_free(trunk->store.ptr);
 		}
-		will_free_trunk = trunk;
+		will_free_trunk = (void *) trunk;
 		trunk = trunk->next;
 		sw_free(will_free_trunk);
 	}
@@ -154,7 +155,7 @@ int swBuffer_append(swBuffer *buffer, void *data, uint32_t size)
 int swBuffer_send(swBuffer *buffer, int fd)
 {
 	int ret, sendn;
-	swBuffer_trunk *trunk = swBuffer_get_trunk(buffer);
+	volatile swBuffer_trunk *trunk = swBuffer_get_trunk(buffer);
 	sendn = trunk->length - trunk->offset;
 
 	if (sendn == 0)
@@ -195,7 +196,7 @@ int swBuffer_send(swBuffer *buffer, int fd)
 void swBuffer_debug(swBuffer *buffer, int print_data)
 {
 	int i = 0;
-	swBuffer_trunk *trunk = buffer->head;
+	volatile swBuffer_trunk *trunk = buffer->head;
 	printf("%s\n%s\n", SW_START_LINE, __func__);
 	while (trunk != NULL)
 	{

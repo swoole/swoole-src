@@ -232,6 +232,7 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
 	uint8_t task_ipc_mode;
 	uint8_t task_auto_start;
 	key_t message_queue_key;
+	uint32_t unixsock_buffer_size;
 ZEND_END_MODULE_GLOBALS(swoole)
 
 #ifdef ZTS

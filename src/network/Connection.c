@@ -386,7 +386,7 @@ int swConnection_send_in_buffer(swConnection *conn)
 	_send.info.from_id = conn->from_id;
 
 	swBuffer *buffer = conn->in_buffer;
-	swBuffer_trunk *trunk = swBuffer_get_trunk(buffer);
+	volatile swBuffer_trunk *trunk = swBuffer_get_trunk(buffer);
 
 #ifdef SW_USE_RINGBUFFER
 
@@ -462,9 +462,9 @@ int swConnection_send_in_buffer(swConnection *conn)
 	return SW_OK;
 }
 
-SWINLINE swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn)
+SWINLINE volatile swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn)
 {
-	swBuffer_trunk *trunk = NULL;
+	volatile swBuffer_trunk *trunk = NULL;
 	swBuffer *buffer;
 
 	if (conn->in_buffer == NULL)
@@ -496,9 +496,9 @@ SWINLINE swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn)
 	return trunk;
 }
 
-SWINLINE swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type)
+SWINLINE volatile swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type)
 {
-	swBuffer_trunk *trunk;
+	volatile swBuffer_trunk *trunk;
 	if (conn->out_buffer == NULL)
 	{
 		conn->out_buffer = swBuffer_new(SW_BUFFER_SIZE);

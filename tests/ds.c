@@ -82,7 +82,7 @@ swUnitTest(chan_test)
 	int ret;
 
 	char item[BUFSIZE];
-	swChannel *chan = swChannel_create(1024 * 80, 1000, SW_CHAN_NOTIFY | SW_CHAN_LOCK | SW_CHAN_SHM);
+	swChannel *chan = swChannel_new(1024 * 80, 1000, SW_CHAN_NOTIFY | SW_CHAN_LOCK | SW_CHAN_SHM);
 	if (chan == NULL)
 	{
 		err_exit("msgget");

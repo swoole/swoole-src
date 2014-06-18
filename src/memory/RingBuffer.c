@@ -4,17 +4,17 @@ typedef struct _swRingBuffer
 {
 	uint8_t shared;
 	size_t size;
-	off_t alloc_offset;
-	off_t collect_offset;
-	uint32_t free_n;
+	volatile off_t alloc_offset;
+	volatile off_t collect_offset;
+	volatile uint32_t free_n;
 	void *memory;
 
 } swRingBuffer;
 
 typedef struct _swRingBuffer_item
 {
-	uint32_t lock;
-	uint32_t length;
+	volatile uint32_t lock;
+	volatile uint32_t length;
 } swRingBuffer_head;
 
 static void swRingBuffer_destory(swMemoryPool *pool);

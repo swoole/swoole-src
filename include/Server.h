@@ -485,8 +485,8 @@ SWINLINE int swConnection_sendfile_blocking(int fd, char *filename, int timeout)
 SWINLINE swString* swConnection_get_string_buffer(swConnection *conn);
 SWINLINE int swConnection_send_string_buffer(swConnection *conn);
 SWINLINE void swConnection_clear_string_buffer(swConnection *conn);
-SWINLINE swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type);
-SWINLINE swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn);
+SWINLINE volatile swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type);
+SWINLINE volatile swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn);
 int swConnection_send_in_buffer(swConnection *conn);
 
 int swServer_master_onAccept(swReactor *reactor, swDataHead *event);

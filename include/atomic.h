@@ -3,12 +3,12 @@
 
 #if defined(__x86_64__)
 #define SW_ATOMIC_T_LEN            (sizeof("-9223372036854775808") - 1)
-typedef int64_t atomic_int_t;
-typedef uint64_t atomic_uint_t;
+typedef volatile int64_t atomic_int_t;
+typedef volatile uint64_t atomic_uint_t;
 #else
 #define SW_ATOMIC_T_LEN            (sizeof("-2147483648") - 1)
-typedef int32_t atomic_int_t;
-typedef uint32_t atomic_uint_t;
+typedef volatile int32_t atomic_int_t;
+typedef volatile uint32_t atomic_uint_t;
 #endif
 
 typedef volatile atomic_uint_t  atomic_t;

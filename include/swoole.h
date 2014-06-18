@@ -309,7 +309,7 @@ typedef struct _swPipe
 } swPipe;
 
 int swPipeBase_create(swPipe *p, int blocking);
-int swPipeEventfd_create(swPipe *p, int blocking, int semaphore);
+int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout);
 int swPipeUnsock_create(swPipe *p, int blocking, int protocol);
 int swPipeNotify_auto(swPipe *p, int blocking, int semaphore);
 void swBreakPoint(void);
@@ -663,9 +663,13 @@ struct _swWorker
 	swPipe *notify;
 
 	/**
-	 * share memory
+	 * share memory store
 	 */
-	void *shm; //for taskwait
+	struct
+	{
+		volatile uint8_t lock;
+		void *ptr;
+	} store;
 
 	int pipe_master;
 	int pipe_worker;
@@ -807,7 +811,7 @@ typedef struct _swChannel
 	swPipe notify_fd;
 } swChannel;
 
-swChannel* swChannel_create(int size, int maxlen, int flag);
+swChannel* swChannel_new(int size, int maxlen, int flag);
 int swChannel_pop(swChannel *object, void *out, int buffer_length);
 int swChannel_push(swChannel *object, void *in, int data_length);
 int swChannel_out(swChannel *object, void *out, int buffer_length);
@@ -912,6 +916,12 @@ typedef struct
 	 */
 	uint16_t task_worker_num;
 
+	/**
+	 * Unix socket default buffer size
+	 */
+	uint32_t unixsock_buffer_size;
+
+
 	swServer *serv;
 	swFactory *factory;
 	swLock lock;
@@ -954,8 +964,8 @@ typedef struct
 
 typedef struct
 {
-	uint8_t factory_lock_target;
-	int16_t factory_target_worker;
+	volatile uint8_t factory_lock_target;
+	volatile int16_t factory_target_worker;
 	atomic_uint_t worker_round_i;
 } swThreadG;
 

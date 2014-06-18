@@ -514,7 +514,7 @@ int swPipeNotify_auto(swPipe *p, int blocking, int semaphore)
 {
 	//eventfd是2.6.26提供的,timerfd是2.6.27提供的
 #ifdef HAVE_EVENTFD
-	return swPipeEventfd_create(p, blocking, semaphore);
+	return swPipeEventfd_create(p, blocking, semaphore, 0);
 #else
 	return swPipeBase_create(p, blocking);
 #endif
