@@ -380,6 +380,10 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 		close_fd:
 		swTrace("Close Event.FD=%d|From=%d", event->fd, event->from_id);
 		swConnection_close(serv, event->fd, 1);
+		/**
+		 * skip EPOLLERR
+		 */
+		event->fd = 0;
 		return SW_OK;
 	}
 	else
@@ -472,6 +476,10 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 		close_fd:
 		swTrace("Close Event.FD=%d|From=%d|errno=%d", event->fd, event->from_id, errno);
 		swConnection_close(serv, event->fd, 1);
+		/**
+		 * skip EPOLLERR
+		 */
+		event->fd = 0;
 		return SW_OK;
 	}
 	else
@@ -605,6 +613,10 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 		close_fd:
 		swTrace("Close Event.FD=%d|From=%d", event->fd, event->from_id);
 		swConnection_close(serv, event->fd, 1);
+		/**
+		 * skip EPOLLERR
+		 */
+		event->fd = 0;
 		return SW_OK;
 	}
 	else

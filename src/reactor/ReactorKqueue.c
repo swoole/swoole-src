@@ -101,7 +101,7 @@ static int swReactorKqueue_add(swReactor *reactor, int fd, int fdtype)
 	fd_.fd = fd;
 	fd_.fdtype = swReactor_fdtype(fdtype);
 
-	if(swReactor_event_read(fdtype))
+	if (swReactor_event_read(fdtype))
 	{
 #ifdef NOTE_EOF
 		fflags = NOTE_EOF;
