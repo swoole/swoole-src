@@ -30,11 +30,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-	<date>2014-05-30</date>
-	<time>15:51:51</time>
+	<date>2014-06-20</date>
+	<time>12:51:51</time>
 	<version>
-		<release>1.7.2</release>
-		<api>1.7.2</api>
+		<release>1.7.3</release>
+		<api>1.7.3</api>
 	</version>
 	<stability>
 		<release>stable</release>
@@ -42,12 +42,10 @@
 	</stability>
 	<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
 	<notes>
-- Fixed udp sendto error
-- Fixed heartbeat no close connection
-- Added swoole_process module
-- Added swoole_server::task large package
-- Added swoole_server task worker use message queue
-- Added messge queue ipc move to swoole_server::set
+- Fixed pipe_worker zero
+- Fixed serv->connect_count wrong
+- Fixed length_check dispatch error
+- Optimization of large size response packet
 	</notes>
 	<contents>
 		<dir name="/">
@@ -99,6 +97,7 @@
 				</dir>
 				<dir name="process">
 					<file role="src" name="worker.php" />
+					<file role="src" name="exec.php" />
 				</dir>
 				<file role="src" name="server.php" />
 				<file role="src" name="mysql_proxy_server.php" />
@@ -199,18 +198,39 @@
 	<extsrcrelease />
 	<changelog>
 		<release>
-	<date>2014-04-30</date>
-	<time>19:51:51</time>
-	<version>
-		<release>1.7.1</release>
-		<api>1.7.1</api>
-	</version>
-	<stability>
-		<release>stable</release>
-		<api>stable</api>
-	</stability>
-	<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
-	<notes>
+			<date>2014-05-30</date>
+			<time>15:51:51</time>
+			<version>
+				<release>1.7.2</release>
+				<api>1.7.2</api>
+			</version>
+			<stability>
+				<release>stable</release>
+				<api>stable</api>
+			</stability>
+			<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
+			<notes>
+- Fixed udp sendto error
+- Fixed heartbeat no close connection
+- Added swoole_process module
+- Added swoole_server::task large package
+- Added swoole_server task worker use message queue
+- Added messge queue ipc move to swoole_server::set
+	</notes>
+		</release>
+		<release>
+			<date>2014-04-30</date>
+			<time>19:51:51</time>
+			<version>
+				<release>1.7.1</release>
+				<api>1.7.1</api>
+			</version>
+			<stability>
+				<release>stable</release>
+				<api>stable</api>
+			</stability>
+			<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
+			<notes>
 - Check close fd is not timer_fd
 - TCP_DEFER_ACCEPT option
 - socket LINGER option
@@ -222,7 +242,7 @@
 - Using php_error_docref
 - Fixed swoole_async_dns_lookup warning
 	</notes>
-	</release>
+		</release>
 		<release>
 			<date>2014-04-16</date>
 			<time>19:51:51</time>
