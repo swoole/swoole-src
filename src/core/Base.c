@@ -612,11 +612,13 @@ SWINLINE int swSetTimeout(int sock, double timeout)
 	ret = setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (void *) &timeo, sizeof(timeo));
 	if (ret < 0)
 	{
+		swWarn("setsockopt(SO_SNDTIMEO) failed. Error: %s[%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
 	ret = setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (void *) &timeo, sizeof(timeo));
 	if (ret < 0)
 	{
+		swWarn("setsockopt(SO_RCVTIMEO) failed. Error: %s[%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
 	return SW_OK;

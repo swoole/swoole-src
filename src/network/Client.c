@@ -172,7 +172,10 @@ int swClient_tcp_connect(swClient *cli, char *host, int port, double timeout, in
 	}
 	else
 	{
-		swSetTimeout(cli->sock, timeout);
+		if (cli->timeout > 0)
+		{
+			swSetTimeout(cli->sock, timeout);
+		}
 		swSetBlock(cli->sock);
 	}
 
@@ -283,15 +286,12 @@ int swClient_tcp_recv(swClient *cli, char *data, int len, int waitall)
 
 int swClient_udp_connect(swClient *cli, char *host, int port, double timeout, int udp_connect)
 {
-	int ret;
 	char buf[1024];
 
 	cli->timeout = timeout;
-	ret = swSetTimeout(cli->sock, timeout);
-	if(ret < 0)
+	if (timeout > 0)
 	{
-		swWarn("setTimeout fail.errno=%d\n", errno);
-		return SW_ERR;
+		swSetTimeout(cli->sock, timeout);
 	}
 
 	cli->serv_addr.sin_family = cli->sock_domain;
@@ -303,12 +303,12 @@ int swClient_udp_connect(swClient *cli, char *host, int port, double timeout, in
 		return SW_ERR;
 	}
 
-	if(udp_connect != 1)
+	if (udp_connect != 1)
 	{
 		return SW_OK;
 	}
 
-	if(connect(cli->sock, (struct sockaddr *) (&cli->serv_addr), sizeof(cli->serv_addr)) == 0)
+	if (connect(cli->sock, (struct sockaddr *) (&cli->serv_addr), sizeof(cli->serv_addr)) == 0)
 	{
 		//清理connect前的buffer数据遗留
 		while(recv(cli->sock, buf, 1024 , MSG_DONTWAIT) > 0);
