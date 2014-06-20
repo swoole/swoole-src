@@ -1,5 +1,6 @@
 <?php
 $clients = array();
+
 for($i=0; $i< 2; $i++)
 {
     $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC); //同步阻塞
