@@ -23,6 +23,10 @@
 #define EOK      0
 #endif
 
+#ifndef MSG_NOSIGNAL
+#define MSG_NOSIGNAL    0
+#endif
+
 SWINLINE int swConnection_error(int fd, int err)
 {
 	switch(err)
