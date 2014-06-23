@@ -38,6 +38,7 @@ static int swFactoryProcess_worker_onPipeReceive(swReactor *reactor, swEvent *ev
 static int swFactoryProcess_notify(swFactory *factory, swEvent *event);
 static int swFactoryProcess_dispatch(swFactory *factory, swEventData *buf);
 static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
+static void swFactoryProcess_worker_onTimeout(swReactor *reactor);
 
 SWINLINE static int swFactoryProcess_schedule(swFactoryProcess *object, swEventData *data);
 
@@ -841,7 +842,6 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 			swSignalfd_setup(SwooleG.main_reactor);
 		}
 #endif
-
 	}
 
 	if (factory->max_request < 1)

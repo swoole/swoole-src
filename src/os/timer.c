@@ -245,6 +245,12 @@ int swTimer_event_handler(swReactor *reactor, swEvent *event)
 void swTimer_signal_handler(int sig)
 {
 	SwooleG.signal_alarm = 1;
+	uint64_t flag = 1;
+
+	if (SwooleG.timer.use_pipe)
+	{
+		SwooleG.timer.pipe.write(&SwooleG.timer.pipe, &flag, sizeof(flag));
+	}
 }
 
 SWINLINE uint64_t swTimer_get_ms()
