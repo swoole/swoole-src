@@ -101,8 +101,6 @@
 
 #define SW_USE_FIXED_BUFFER
 
-
-
 //#define SW_USE_RINGBUFFER
 
 #define SW_ACCEPT_AGAIN            1     //是否循环accept，可以一次性处理完全部的listen队列，用于大量并发连接的场景

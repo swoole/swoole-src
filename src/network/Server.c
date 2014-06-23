@@ -508,13 +508,13 @@ int swServer_start(swServer *serv)
 	SwooleG.process_type = SW_PROCESS_MASTER;
 
 	//启动心跳检测
-	if(serv->heartbeat_check_interval >= 1 && serv->heartbeat_check_interval <= serv->heartbeat_idle_time)
+	if (serv->heartbeat_check_interval >= 1 && serv->heartbeat_check_interval <= serv->heartbeat_idle_time)
 	{
 		swTrace("hb timer start, time: %d live time:%d", serv->heartbeat_check_interval, serv->heartbeat_idle_time);
 		swServer_heartbeat_start(serv);
 	}
 
-	if(serv->factory_mode == SW_MODE_SINGLE)
+	if (serv->factory_mode == SW_MODE_SINGLE)
 	{
 		ret = swReactorProcess_start(serv);
 	}
@@ -534,6 +534,7 @@ int swServer_start(swServer *serv)
 	}
 
 #ifdef SW_USE_RINGBUFFER
+	int i;
 	//destroy reactor ringbuffer
 	for(i=0; i < serv->reactor_num; i++)
 	{
