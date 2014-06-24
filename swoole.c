@@ -2371,7 +2371,7 @@ PHP_FUNCTION(swoole_server_send)
 
 	if (send_len <= 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server->send error: data length<=0");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "data is empty.");
 		RETURN_FALSE;
 	}
 
@@ -2453,20 +2453,20 @@ PHP_FUNCTION(swoole_server_sendfile)
 	//check fd
 	if (conn_fd <= 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server->send error: Invalid fd[%ld] error.", conn_fd);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "invalid fd[%ld] error.", conn_fd);
 		RETURN_FALSE;
 	}
 
 	//file name size
 	if (send_data.info.len > SW_BUFFER_SIZE - 1)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: sendfile name too long. [MAX_LENGTH=%ld]", SW_BUFFER_SIZE - 1);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "sendfile name too long. [MAX_LENGTH=%ld]", SW_BUFFER_SIZE - 1);
 		RETURN_FALSE;
 	}
 	//check file exists
 	if (access(filename, R_OK) < 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: file[%s] not found.", filename);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "file[%s] not found.", filename);
 		RETURN_FALSE;
 	}
 

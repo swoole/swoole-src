@@ -38,7 +38,6 @@ function socket_onConnect($socket)
 	if ($err == 0)
 	{
 		echo "connect server success\n";
-		swoole_event_set($socket, null, null, SWOOLE_EVENT_READ);
 		swoole_event_set($socket, null, 'socket_onWrite', SWOOLE_EVENT_READ);
 		socket_write($socket, "first package\n");
 	}
