@@ -1,6 +1,6 @@
 <?php
 $client = new swoole_client(SWOOLE_SOCK_TCP);
-if(!$client->connect('127.0.0.1', 12580))
+if(!$client->connect('127.0.0.1', 9504))
 {
     exit("connect failed\n");
 }

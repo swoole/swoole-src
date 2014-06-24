@@ -1,10 +1,10 @@
 <?php
 define('PID_FILE_NAME', '/tmp/swoole_server.pid');
 
-$serv = new WUPServer();
-$serv->run('0.0.0.0', 12580);
+$serv = new FixedHeaderServer();
+$serv->run('0.0.0.0', 9504);
 
-class WUPServer
+class FixedHeaderServer
 {
     protected $buffer = array();
     protected $length = array();
