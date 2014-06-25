@@ -73,7 +73,7 @@ void swTaskWorker_onWorkerStart(swProcessPool *pool, int worker_id)
 {
 	swServer *serv = pool->ptr;
 	SwooleWG.id = worker_id + serv->worker_num;
-	serv->onWorkerStart(serv, SwooleWG.id);
+	swServer_worker_onStart(serv);
 
 	char *tmp_dir = swoole_dirname(SW_TASK_TMP_FILE);
 	//create tmp dir

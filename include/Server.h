@@ -483,6 +483,11 @@ SWINLINE volatile swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn
 SWINLINE volatile swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn);
 int swConnection_send_in_buffer(swConnection *conn);
 SWINLINE swWorker* swServer_get_worker(swServer *serv, uint16_t worker_id);
+void swServer_worker_onStart(swServer *serv);
+void swServer_worker_onStop(swServer *serv);
+
+int swWorker_create(swWorker *worker);
+void swWorker_free(swWorker *worker);
 
 int swServer_master_onAccept(swReactor *reactor, swDataHead *event);
 void swServer_master_onReactorTimeout(swReactor *reactor);

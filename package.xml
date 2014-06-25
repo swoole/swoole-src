@@ -77,6 +77,8 @@
 				<dir name="client">
 					<file role="src" name="async.php" />
 					<file role="src" name="long_tcp.php" />
+					<file role="src" name="sync.php" />
+					<file role="src" name="select.php" />
 				</dir>
 				<dir name="server">
 					<file role="src" name="echo.php" />
@@ -102,7 +104,6 @@
 				<file role="src" name="server.php" />
 				<file role="src" name="mysql_proxy_server.php" />
 				<file role="src" name="async_mysql2.php" />
-				<file role="src" name="client.php" />
 				<file role="src" name="proxy.php" />
 				<file role="src" name="proxy_sync.php" />
 				<file role="src" name="udp_server.php" />
@@ -172,6 +173,7 @@
 					<file role="src" name="Server.c" />
 					<file role="src" name="TaskWorker.c" />
 					<file role="src" name="ThreadPool.c" />
+					<file role="src" name="Worker.c" />
 				</dir>
 				<dir name="os">
 					<file role="src" name="base.c" />

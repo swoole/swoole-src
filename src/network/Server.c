@@ -46,13 +46,51 @@ char sw_error[SW_ERROR_MSG_SIZE];
 
 SWINLINE swWorker* swServer_get_worker(swServer *serv, uint16_t worker_id)
 {
-	if (worker_id >= serv->worker_num)
+	if (worker_id > serv->worker_num + SwooleG.task_worker_num)
+	{
+		swWarn("worker_id is exceed serv->worker_num + SwooleG.task_worker_num");
+		return NULL;
+	}
+	else if (worker_id >= serv->worker_num)
 	{
 		return &(swProcessPool_worker((&SwooleG.task_workers), worker_id - serv->worker_num));
 	}
 	else
 	{
 		return &(serv->workers[worker_id]);
+	}
+}
+
+void swServer_worker_onStart(swServer *serv)
+{
+	/**
+	 * Release other worker process
+	 */
+	int i;
+	for (i = 0; i < serv->worker_num + SwooleG.task_worker_num; i++)
+	{
+		if (SwooleWG.id == i)
+		{
+			continue;
+		}
+		else
+		{
+			swWorker_free(swServer_get_worker(serv, i));
+		}
+	}
+	if (serv->onWorkerStart)
+	{
+		serv->onWorkerStart(serv, SwooleWG.id);
+	}
+}
+
+void swServer_worker_onStop(swServer *serv)
+{
+	swWorker_free(swServer_get_worker(serv, SwooleWG.id));
+
+	if (serv->onWorkerStop)
+	{
+		serv->onWorkerStart(serv, SwooleWG.id);
 	}
 }
 

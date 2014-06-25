@@ -127,34 +127,16 @@ int swFactoryProcess_start(swFactory *factory)
 	//保存下指针，需要和reactor做绑定
 	serv->workers = object->workers;
 
-	swWorker *worker;
 	int i;
+	swWorker *worker;
 
-	void *worker_shm = sw_shm_calloc(serv->worker_num, serv->buffer_output_size);
-	if (worker_shm == NULL)
+	for(i = 0; i < serv->worker_num; i++)
 	{
-		swWarn("malloc for worker->shm failed.");
-		return SW_ERR;
-	}
-
-	swPipe *worker_notify = sw_calloc(serv->worker_num, sizeof(swPipe));
-	if (worker_shm == NULL)
-	{
-		swWarn("malloc for worker->notify failed.");
-		return SW_ERR;
-	}
-
-	for (i = 0; i < serv->worker_num; i++)
-	{
-		worker = swServer_get_worker(serv, i);
-		worker->notify = &(worker_notify[i]);
-		worker->store.ptr = worker_shm + (i * serv->buffer_output_size);
-		worker->store.lock = 0;
-
-		if (swPipeNotify_auto(worker->notify, 1, 0))
-		{
-			return SW_ERR;
-		}
+		 worker = swServer_get_worker(serv, i);
+		 if (swWorker_create(worker) < 0)
+		 {
+			 return SW_ERR;
+		 }
 	}
 
 	//必须先启动manager进程组，否则会带线程fork
@@ -315,18 +297,27 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 		{
 			msgqueue_key =  serv->message_queue_key + 2;
 		}
-		if (swProcessPool_create(&SwooleG.task_workers, SwooleG.task_worker_num, serv->max_request, msgqueue_key)< 0)
+
+		if (swProcessPool_create(&SwooleG.task_workers, SwooleG.task_worker_num, serv->max_request, msgqueue_key) < 0)
 		{
-			swWarn("[Master] create task_workers fail");
+			swWarn("[Master] create task_workers failed.");
 			return SW_ERR;
 		}
+
+		swWorker *worker;
+		for(i = 0; i < SwooleG.task_worker_num; i++)
+		{
+			 worker = swServer_get_worker(serv, serv->worker_num + i);
+			 if (swWorker_create(worker) < 0)
+			 {
+				 return SW_ERR;
+			 }
+		}
+
 		//设置指针和回调函数
 		SwooleG.task_workers.ptr = serv;
 		SwooleG.task_workers.onTask = swTaskWorker_onTask;
-		if (serv->onWorkerStart != NULL)
-		{
-			SwooleG.task_workers.onWorkerStart = swTaskWorker_onWorkerStart;
-		}
+		SwooleG.task_workers.onWorkerStart = swTaskWorker_onWorkerStart;
 	}
 	pid = fork();
 	switch (pid)
@@ -854,10 +845,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 	}
 
 	//worker start
-	if (serv->onWorkerStart != NULL)
-	{
-		serv->onWorkerStart(serv, worker_pti);
-	}
+	swServer_worker_onStart(serv);
 
 	if (serv->ipc_mode == SW_IPC_MSGQUEUE)
 	{
@@ -891,11 +879,9 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 		SwooleG.main_reactor->wait(SwooleG.main_reactor, &timeo);
 	}
 
-	if (serv->onWorkerStop != NULL)
-	{
-		//worker shutdown
-		serv->onWorkerStop(serv, worker_pti);
-	}
+	//worker shutdown
+	swServer_worker_onStop(serv);
+
 	swTrace("[Worker]max request");
 	return SW_OK;
 }

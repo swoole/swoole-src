@@ -98,6 +98,16 @@ int swReactorProcess_start(swServer *serv)
 			swWarn("[Master] create task_workers fail");
 			return SW_ERR;
 		}
+		swWorker *worker;
+		for(i = 0; i < SwooleG.task_worker_num; i++)
+		{
+			 worker = swServer_get_worker(serv, serv->worker_num + i);
+			 if (swWorker_create(worker) < 0)
+			 {
+				 return SW_ERR;
+			 }
+		}
+
 		//设置指针和回调函数
 		SwooleG.task_workers.ptr = serv;
 		SwooleG.task_workers.onTask = swTaskWorker_onTask;
