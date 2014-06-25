@@ -472,7 +472,7 @@ static void php_swoole_onTimerCallback(swTimer *timer, int interval)
 
 	if(zend_hash_find(&php_sw_timer_callback, (char *)&interval, sizeof(interval), (void**)&timer_item) != SUCCESS)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_timer: onReactorCallback not found");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_timer: onTimerCallback not found");
 		return;
 	}
 
@@ -484,7 +484,7 @@ static void php_swoole_onTimerCallback(swTimer *timer, int interval)
 
 	if (call_user_function_ex(EG(function_table), NULL, timer_item->callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_timer: onReactorCallback handler error");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_timer: onTimerCallback handler error");
 		return;
 	}
 	if (retval != NULL)

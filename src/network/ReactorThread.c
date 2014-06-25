@@ -30,7 +30,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swDataHead *ev);
 static void swReactorThread_onTimeout(swReactor *reactor);
 static void swReactorThread_onFinish(swReactor *reactor);
 
-static int swReactorThread_get_package_length(swServer *serv, char *data, uint32_t size);
+static int swReactorThread_get_package_length(swServer *serv, void *data, uint32_t size);
 
 /**
  * for udp
@@ -555,11 +555,10 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 /**
  * return the package total length
  */
-static int swReactorThread_get_package_length(swServer *serv, char *data, uint32_t size)
+static int swReactorThread_get_package_length(swServer *serv, void *data, uint32_t size)
 {
 	uint16_t length_offset = serv->package_length_offset;
 	uint32_t body_length;
-
 	/**
 	 * no have length field, wait more data
 	 */
@@ -569,20 +568,20 @@ static int swReactorThread_get_package_length(swServer *serv, char *data, uint32
 	}
 	body_length = swoole_unpack(serv->package_length_type, data + length_offset);
 	//Length error
-	//协议长度不合法，越界或超过配置长度
+	//Protocol length is not legitimate, out of bounds or exceed the allocated length
 	if (body_length < 1 || body_length > serv->buffer_input_size)
 	{
 		swWarn("Invalid package [length=%d].", body_length);
 		return SW_ERR;
 	}
-	//printf("package_body_length=%d|total_length=%d\n", body_length, total_length);
-	return serv->package_body_offset + body_length;  //total package length
+	//total package length
+	return serv->package_body_offset + body_length;
 }
 
 int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event)
 {
 	int n;
-	uint32_t package_total_length;
+	volatile uint32_t package_total_length;
 	swServer *serv = reactor->ptr;
 	swConnection *conn = swServer_get_connection(serv, event->fd);
 
@@ -627,14 +626,14 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 		if (conn->object == NULL)
 		{
 			swString buffer;
-			char *tmp_ptr = recv_buf;
-			int tmp_n = n;
-			int try_count = 0;
+			volatile void *tmp_ptr = recv_buf;
+			volatile uint32_t tmp_n = n;
+			volatile uint32_t try_count = 0;
 
 			do_parse_package:
 			do
 			{
-				package_total_length = swReactorThread_get_package_length(serv, tmp_ptr, tmp_n);
+				package_total_length = swReactorThread_get_package_length(serv, (void *)tmp_ptr, (uint32_t) tmp_n);
 
 				//Invalid package, close connection
 				if (package_total_length < 0)
@@ -645,11 +644,11 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 				else if(package_total_length == 0)
 				{
 					char recv_buf_again[SW_BUFFER_SIZE];
-					memcpy(recv_buf_again, tmp_ptr, tmp_n);
+					memcpy(recv_buf_again, (void *) tmp_ptr, (uint32_t) tmp_n);
 					do
 					{
 						//前tmp_n个字节存放不完整包头
-						n = recv(event->fd, recv_buf_again + tmp_n, SW_BUFFER_SIZE, 0);
+						n = recv(event->fd, (void *)recv_buf_again + tmp_n, SW_BUFFER_SIZE, 0);
 						try_count ++;
 
 						//连续5次尝试补齐包头,认定为恶意请求
@@ -675,7 +674,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 				{
 					buffer.size = package_total_length;
 					buffer.length = package_total_length;
-					buffer.str = tmp_ptr;
+					buffer.str = (void *) tmp_ptr;
 					conn->object = &buffer;
 //					swoole_dump_bin(buffer.str, 's', buffer.length);
 					swConnection_send_string_buffer(conn);
@@ -688,14 +687,19 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 				//wait more data
 				else
 				{
+					if (package_total_length >= serv->buffer_input_size)
+					{
+						swWarn("Package length more than the maximum size[%d], Close connection.", serv->buffer_input_size);
+						goto close_fd;
+					}
 					swString *buffer = swString_new(package_total_length);
 					if (buffer == NULL)
 					{
 						return SW_ERR;
 					}
-					memcpy(buffer->str, tmp_ptr, tmp_n);
+					memcpy(buffer->str, (void *)tmp_ptr, (uint32_t) tmp_n);
 					buffer->length += tmp_n;
-					conn->object =buffer;
+					conn->object = buffer;
 					break;
 				}
 			}

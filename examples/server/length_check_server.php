@@ -6,7 +6,7 @@ $serv->set(array(
 		'package_length_type'   => 's',
 		'package_length_offset' => 2,     //第N个字节是包长度的值
 		'package_body_offset'   => 4,     //第几个字节开始计算长度
-		'package_max_length'    => 2000,  //协议最大长度
+		'package_max_length'    => 200000,  //协议最大长度
 ));
 $serv->on('connect', function ($serv, $fd){
 	echo "Client:Connect.\n";
