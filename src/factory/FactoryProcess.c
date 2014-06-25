@@ -615,6 +615,8 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 		response.length = resp->length;
 		response.worker_id = SwooleWG.id;
 
+		//swWarn("BigPackage, length=%d|worker_id=%d", response.length, response.worker_id);
+
 		sdata._send.info.from_fd = SW_RESPONSE_BIG;
 		sdata._send.info.len = sizeof(response);
 
