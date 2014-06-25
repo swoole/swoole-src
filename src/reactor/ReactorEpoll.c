@@ -258,12 +258,15 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 			//write
 			if ((object->events[i].events & EPOLLOUT))
 			{
-				handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, ev.type);
-				ret = handle(reactor, &ev);
-				if (ret < 0)
+				if (ev.fd > 0)
 				{
-					swWarn("[Reactor#%d] epoll [EPOLLOUT] handle failed. fd=%d. Error: %s[%d]", reactor->id, ev.fd,
-							strerror(errno), errno);
+					handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, ev.type);
+					ret = handle(reactor, &ev);
+					if (ret < 0)
+					{
+						swWarn("[Reactor#%d] epoll [EPOLLOUT] handle failed. fd=%d. Error: %s[%d]", reactor->id, ev.fd,
+								strerror(errno), errno);
+					}
 				}
 			}
 			//error

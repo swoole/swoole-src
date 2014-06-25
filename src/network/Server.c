@@ -472,7 +472,9 @@ int swServer_start(swServer *serv)
 	//run as daemon
 	if (serv->daemonize > 0)
 	{
-		//redirect STDOUT to log file
+		/**
+		 * redirect STDOUT to log file
+		 */
 		if (SwooleG.log_fd > STDOUT_FILENO)
 		{
 			if (dup2(SwooleG.log_fd, STDOUT_FILENO) < 0)
@@ -480,6 +482,29 @@ int swServer_start(swServer *serv)
 				swWarn("dup2() failed. Error: %s[%d]", strerror(errno), errno);
 			}
 		}
+		/**
+		 * redirect STDOUT_FILENO/STDERR_FILENO to /dev/null
+		 */
+		else
+		{
+			int null_fd = open("/dev/null", O_WRONLY);
+			if (null_fd > 0)
+			{
+				if (dup2(null_fd, STDOUT_FILENO) < 0)
+				{
+					swWarn("dup2(STDOUT_FILENO) failed. Error: %s[%d]", strerror(errno), errno);
+				}
+				if (dup2(null_fd, STDERR_FILENO) < 0)
+				{
+					swWarn("dup2(STDERR_FILENO) failed. Error: %s[%d]", strerror(errno), errno);
+				}
+			}
+			else
+			{
+				swWarn("open(/dev/null) failed. Error: %s[%d]", strerror(errno), errno);
+			}
+		}
+
 		if (daemon(0, 1) < 0)
 		{
 			return SW_ERR;

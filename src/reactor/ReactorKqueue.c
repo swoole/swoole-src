@@ -278,11 +278,14 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 				//write
 				else if (this->events[i].filter == EVFILT_WRITE)
 				{
-					handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
-					ret = handle(reactor, &event);
-					if (ret < 0)
+					if (ev.fd > 0)
 					{
-						swWarn("kqueue event handler fail. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
+						handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
+						ret = handle(reactor, &event);
+						if (ret < 0)
+						{
+							swWarn("kqueue event handler fail. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
+						}
 					}
 				}
 				else

@@ -218,24 +218,30 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *_timeo)
 						swWarn("poll[POLLIN] handler failed. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
 					}
 				}
-				//error
-				if (object->events[i].revents & (POLLHUP | POLLERR))
-				{
-					handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
-					ret = handle(reactor, &event);
-					if (ret < 0)
-					{
-						swWarn("poll[POLLERR] handler failed. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
-					}
-				}
 				//out
 				if (object->events[i].revents & POLLOUT)
 				{
-					handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
-					ret = handle(reactor, &event);
-					if (ret < 0)
+					if (event.fd > 0)
 					{
-						swWarn("poll[POLLOUT] handler failed. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
+						handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
+						ret = handle(reactor, &event);
+						if (ret < 0)
+						{
+							swWarn("poll[POLLOUT] handler failed. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
+						}
+					}
+				}
+				//error
+				if (object->events[i].revents & (POLLHUP | POLLERR))
+				{
+					if (event.fd > 0)
+					{
+						handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
+						ret = handle(reactor, &event);
+						if (ret < 0)
+						{
+							swWarn("poll[POLLERR] handler failed. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
+						}
 					}
 				}
 			}
