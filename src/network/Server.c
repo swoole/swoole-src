@@ -44,6 +44,18 @@ __thread swThreadG SwooleTG;
 int16_t sw_errno;
 char sw_error[SW_ERROR_MSG_SIZE];
 
+SWINLINE swWorker* swServer_get_worker(swServer *serv, uint16_t worker_id)
+{
+	if (worker_id >= serv->worker_num)
+	{
+		return &(swProcessPool_worker((&SwooleG.task_workers), worker_id - serv->worker_num));
+	}
+	else
+	{
+		return &(serv->workers[worker_id]);
+	}
+}
+
 static int swServer_master_onClose(swReactor *reactor, swEvent *event)
 {
 	swServer *serv = reactor->ptr;
@@ -460,9 +472,6 @@ int swServer_start(swServer *serv)
 	//run as daemon
 	if (serv->daemonize > 0)
 	{
-		close(STDIN_FILENO);
-		close(STDERR_FILENO);
-
 		//redirect STDOUT to log file
 		if (SwooleG.log_fd > STDOUT_FILENO)
 		{
@@ -471,7 +480,6 @@ int swServer_start(swServer *serv)
 				swWarn("dup2() failed. Error: %s[%d]", strerror(errno), errno);
 			}
 		}
-
 		if (daemon(0, 1) < 0)
 		{
 			return SW_ERR;
@@ -661,8 +669,7 @@ void swServer_init(swServer *serv)
 	serv->package_length_type = 'N';
 	serv->package_length_size = 4;
 	serv->buffer_input_size = SW_BUFFER_SIZE;
-
-	serv->response_max_length = SW_RESPONSE_MAX_LENGTH;
+	serv->buffer_output_size = SW_OUTPUT_BUFFER_SIZE;
 
 	memcpy(serv->package_eof, eof, serv->package_eof_len);
 }
@@ -781,9 +788,9 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, int length)
 	/**
 	 * More than the output buffer
 	 */
-	if (length >= serv->response_max_length)
+	if (length >= serv->buffer_output_size)
 	{
-		swWarn("More than the output buffer size[%d], please use the sendfile.", serv->response_max_length);
+		swWarn("More than the output buffer size[%d], please use the sendfile.", serv->buffer_output_size);
 		return SW_ERR;
 	}
 	else

@@ -1057,29 +1057,40 @@ PHP_FUNCTION(swoole_server_set)
 		serv->package_length_offset = (int)Z_LVAL_PP(v);
 	}
 	//package body start
-	if (zend_hash_find(vht, ZEND_STRS("package_body_offset"), (void **)&v) == SUCCESS ||
-			zend_hash_find(vht, ZEND_STRS("package_body_start"), (void **)&v) == SUCCESS)
+	if (zend_hash_find(vht, ZEND_STRS("package_body_offset"), (void **) &v) == SUCCESS
+			|| zend_hash_find(vht, ZEND_STRS("package_body_start"), (void **) &v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->package_body_offset  = (int)Z_LVAL_PP(v);
+		serv->package_body_offset = (int) Z_LVAL_PP(v);
 	}
-	//package max length
-	if (zend_hash_find(vht, ZEND_STRS("package_max_length"), (void **)&v) == SUCCESS)
+	/**
+	 * package max length
+	 */
+	if (zend_hash_find(vht, ZEND_STRS("package_max_length"), (void **) &v) == SUCCESS
+			|| zend_hash_find(vht, ZEND_STRS("buffer_input_size"), (void **) &v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->buffer_input_size = (int)Z_LVAL_PP(v);
+		serv->buffer_input_size = (int) Z_LVAL_PP(v);
+	}
+	/**
+	 * buffer output size
+	 */
+	if (zend_hash_find(vht, ZEND_STRS("buffer_output_size"), (void **) &v) == SUCCESS)
+	{
+		convert_to_long(*v);
+		serv->buffer_output_size = (int) Z_LVAL_PP(v);
 	}
 	//ipc mode
-	if (zend_hash_find(vht, ZEND_STRS("ipc_mode"), (void **)&v) == SUCCESS)
+	if (zend_hash_find(vht, ZEND_STRS("ipc_mode"), (void **) &v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->ipc_mode = (int)Z_LVAL_PP(v);
+		serv->ipc_mode = (int) Z_LVAL_PP(v);
 	}
 	//message queue key
-	if (zend_hash_find(vht, ZEND_STRS("message_queue_key"), (void **)&v) == SUCCESS)
+	if (zend_hash_find(vht, ZEND_STRS("message_queue_key"), (void **) &v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->message_queue_key = (int)Z_LVAL_PP(v);
+		serv->message_queue_key = (int) Z_LVAL_PP(v);
 	}
 	zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zset TSRMLS_CC);
 	RETURN_TRUE;

@@ -38,7 +38,6 @@ static int swFactoryProcess_worker_onPipeReceive(swReactor *reactor, swEvent *ev
 static int swFactoryProcess_notify(swFactory *factory, swEvent *event);
 static int swFactoryProcess_dispatch(swFactory *factory, swEventData *buf);
 static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
-static void swFactoryProcess_worker_onTimeout(swReactor *reactor);
 
 SWINLINE static int swFactoryProcess_schedule(swFactoryProcess *object, swEventData *data);
 
@@ -131,7 +130,7 @@ int swFactoryProcess_start(swFactory *factory)
 	swWorker *worker;
 	int i;
 
-	void *worker_shm = sw_shm_calloc(serv->worker_num, serv->response_max_length);
+	void *worker_shm = sw_shm_calloc(serv->worker_num, serv->buffer_output_size);
 	if (worker_shm == NULL)
 	{
 		swWarn("malloc for worker->shm failed.");
@@ -149,7 +148,7 @@ int swFactoryProcess_start(swFactory *factory)
 	{
 		worker = swServer_get_worker(serv, i);
 		worker->notify = &(worker_notify[i]);
-		worker->store.ptr = worker_shm + (i * serv->response_max_length);
+		worker->store.ptr = worker_shm + (i * serv->buffer_output_size);
 		worker->store.lock = 0;
 
 		if (swPipeNotify_auto(worker->notify, 1, 0))

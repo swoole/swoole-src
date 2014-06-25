@@ -97,6 +97,7 @@ int swReactorThread_onPipeReceive(swReactor *reactor, swDataHead *ev)
 
 	int64_t notify_worker = 1;
 	swPackage_response pkg_resp;
+	volatile swWorker *worker;
 
 	//while(1)
 	{
@@ -117,8 +118,8 @@ int swReactorThread_onPipeReceive(swReactor *reactor, swDataHead *ev)
 			else
 			{
 				memcpy(&pkg_resp, resp.data, sizeof(pkg_resp));
+				worker = swServer_get_worker(SwooleG.serv, pkg_resp.worker_id);
 
-				swWorker *worker = swServer_get_worker(SwooleG.serv, pkg_resp.worker_id);
 				_send.data = worker->store.ptr;
 				_send.length = pkg_resp.length;
 
@@ -676,7 +677,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 					buffer.length = package_total_length;
 					buffer.str = (void *) tmp_ptr;
 					conn->object = &buffer;
-//					swoole_dump_bin(buffer.str, 's', buffer.length);
+					//swoole_dump_bin(buffer.str, 's', buffer.length);
 					swConnection_send_string_buffer(conn);
 					conn->object = NULL;
 

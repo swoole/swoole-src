@@ -53,6 +53,7 @@ int swTaskWorker_large_pack(swEventData *task, void *data, int data_len)
 		swWarn("mkdtemp() failed. Error: %s[%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
+
 	if (swoole_sync_writefile(tpm_fd, data, data_len) <=0)
 	{
 		swWarn("write to tmp file failed.");
@@ -71,7 +72,8 @@ int swTaskWorker_large_pack(swEventData *task, void *data, int data_len)
 void swTaskWorker_onWorkerStart(swProcessPool *pool, int worker_id)
 {
 	swServer *serv = pool->ptr;
-	serv->onWorkerStart(serv, worker_id + serv->worker_num);
+	SwooleWG.id = worker_id + serv->worker_num;
+	serv->onWorkerStart(serv, SwooleWG.id);
 
 	char *tmp_dir = swoole_dirname(SW_TASK_TMP_FILE);
 	//create tmp dir

@@ -243,11 +243,6 @@ struct swServer_s
 	int worker_groupid;
 
 	/**
-	 * Response package max length
-	 */
-	uint32_t response_max_length;
-
-	/**
 	 * max connection num
 	 */
 	uint32_t max_conn;
@@ -480,7 +475,6 @@ SWINLINE int swConnection_sendfile_blocking(int fd, char *filename, int timeout)
 //使用connection_list[1]表示最小的FD
 #define swServer_set_minfd(serv,maxfd) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd=maxfd)
 #define swServer_get_minfd(serv) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd)
-#define swServer_get_worker(serv, worker_id)  (&(serv->workers[worker_id]))
 
 SWINLINE swString* swConnection_get_string_buffer(swConnection *conn);
 SWINLINE int swConnection_send_string_buffer(swConnection *conn);
@@ -488,6 +482,7 @@ SWINLINE void swConnection_clear_string_buffer(swConnection *conn);
 SWINLINE volatile swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type);
 SWINLINE volatile swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn);
 int swConnection_send_in_buffer(swConnection *conn);
+SWINLINE swWorker* swServer_get_worker(swServer *serv, uint16_t worker_id);
 
 int swServer_master_onAccept(swReactor *reactor, swDataHead *event);
 void swServer_master_onReactorTimeout(swReactor *reactor);
