@@ -1182,11 +1182,10 @@ int swFactoryProcess_writer_loop_unsock(swThreadParam *param)
 
 	reactor->factory = factory;
 	reactor->id = pti;
-	if (swReactorSelect_create(reactor) < 0)
-	{
-		swWarn("swReactorSelect_create fail");
-		pthread_exit((void *) param);
-	}
+	if (swReactorEpoll_create(reactor, SW_REACTOR_MAXEVENTS) < 0) {//worker过多epoll效率更高
+            swWarn("swReactorEpoll_create fail\n");
+            pthread_exit((void *) param);
+        }
 	swSingalNone();
 	reactor->setHandle(reactor, SW_FD_PIPE, swReactorThread_onPipeReceive);
 	reactor->wait(reactor, &tmo);
