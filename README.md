@@ -1,4 +1,4 @@
-Swoole
+![Swoole](http://www.swoole.com/static/images/swoole.png)
 =====
 [![Build Status](https://api.travis-ci.org/matyhtf/swoole.svg)](https://travis-ci.org/matyhtf/swoole)
 
