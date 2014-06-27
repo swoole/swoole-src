@@ -581,7 +581,7 @@ static int swReactorThread_get_package_length(swServer *serv, void *data, uint32
 
 int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event)
 {
-	int n;
+	volatile int n;
 	volatile uint32_t package_total_length;
 	swServer *serv = reactor->ptr;
 	swConnection *conn = swServer_get_connection(serv, event->fd);
@@ -623,14 +623,16 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 	{
 		conn->last_time = SwooleGS->now;
 
+		swString buffer;
+		volatile void *tmp_ptr = recv_buf;
+		volatile uint32_t tmp_n = n;
+		volatile uint32_t try_count = 0;
+
+		swTraceLog(40, "received data n=%d", n);
+
 		//new package
 		if (conn->object == NULL)
 		{
-			swString buffer;
-			volatile void *tmp_ptr = recv_buf;
-			volatile uint32_t tmp_n = n;
-			volatile uint32_t try_count = 0;
-
 			do_parse_package:
 			do
 			{
@@ -711,26 +713,30 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 		else
 		{
 			swString *buffer = conn->object;
+			swTraceLog(40, "wait_data, size=%d, length=%d", buffer->size, buffer->length);
 			//还差copy_n字节数据才是完整的包
-			int copy_n = buffer->size - buffer->length;
+			volatile int require_n = buffer->size - buffer->length;
+
 			//数据不完整，继续等待
-			if (copy_n > n)
+			if (require_n > n)
 			{
-				memcpy(buffer->str, recv_buf, n);
+				memcpy(buffer->str + buffer->length, recv_buf, n);
 				buffer->length += n;
 				return SW_OK;
 			}
 			else
 			{
-				memcpy(buffer->str, recv_buf, copy_n);
-				buffer->length += copy_n;
+				memcpy(buffer->str + buffer->length, recv_buf, require_n);
+				buffer->length += require_n;
 				swConnection_send_string_buffer(conn);
 				swString_free(buffer);
 				conn->object = NULL;
 
 				//仍然有数据，继续解析
-				if (n - copy_n > 0)
+				if (n - require_n > 0)
 				{
+					tmp_n = n - require_n;
+					tmp_ptr = recv_buf + require_n;
 					goto do_parse_package;
 				}
 			}
