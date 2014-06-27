@@ -623,7 +623,8 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 	{
 		conn->last_time = SwooleGS->now;
 
-		swString buffer;
+		swString tmp_package;
+		volatile swString *package;
 		volatile void *tmp_ptr = recv_buf;
 		volatile uint32_t tmp_n = n;
 		volatile uint32_t try_count = 0;
@@ -673,10 +674,10 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 				//complete package
 				if (package_total_length <= tmp_n)
 				{
-					buffer.size = package_total_length;
-					buffer.length = package_total_length;
-					buffer.str = (void *) tmp_ptr;
-					conn->object = &buffer;
+					tmp_package.size = package_total_length;
+					tmp_package.length = package_total_length;
+					tmp_package.str = (void *) tmp_ptr;
+					conn->object = &tmp_package;
 					//swoole_dump_bin(buffer.str, 's', buffer.length);
 					swConnection_send_string_buffer(conn);
 					conn->object = NULL;
@@ -693,14 +694,14 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 						swWarn("Package length more than the maximum size[%d], Close connection.", serv->buffer_input_size);
 						goto close_fd;
 					}
-					swString *buffer = swString_new(package_total_length);
-					if (buffer == NULL)
+					package = swString_new(package_total_length);
+					if (package == NULL)
 					{
 						return SW_ERR;
 					}
-					memcpy(buffer->str, (void *)tmp_ptr, (uint32_t) tmp_n);
-					buffer->length += tmp_n;
-					conn->object = buffer;
+					memcpy(package->str, (void *)tmp_ptr, (uint32_t) tmp_n);
+					package->length += tmp_n;
+					conn->object = (void *) package;
 					break;
 				}
 			}
@@ -710,29 +711,29 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 		//package wait data
 		else
 		{
-			swString *buffer = conn->object;
+			package = conn->object;
 			//swTraceLog(40, "wait_data, size=%d, length=%d", buffer->size, buffer->length);
 
 			/**
 			 * Also on the require_n byte data is complete.
 			 */
-			volatile int require_n = buffer->size - buffer->length;
+			volatile int require_n = package->size - package->length;
 
 			/**
 			 * Data is not complete, continue to wait
 			 */
 			if (require_n > n)
 			{
-				memcpy(buffer->str + buffer->length, recv_buf, n);
-				buffer->length += n;
+				memcpy(package->str + package->length, recv_buf, n);
+				package->length += n;
 				return SW_OK;
 			}
 			else
 			{
-				memcpy(buffer->str + buffer->length, recv_buf, require_n);
-				buffer->length += require_n;
+				memcpy(package->str + package->length, recv_buf, require_n);
+				package->length += require_n;
 				swConnection_send_string_buffer(conn);
-				swString_free(buffer);
+				swString_free((swString *) package);
 				conn->object = NULL;
 
 				/**
