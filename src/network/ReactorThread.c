@@ -628,8 +628,6 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 		volatile uint32_t tmp_n = n;
 		volatile uint32_t try_count = 0;
 
-		swTraceLog(40, "received data n=%d", n);
-
 		//new package
 		if (conn->object == NULL)
 		{
@@ -713,11 +711,16 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 		else
 		{
 			swString *buffer = conn->object;
-			swTraceLog(40, "wait_data, size=%d, length=%d", buffer->size, buffer->length);
-			//还差copy_n字节数据才是完整的包
+			//swTraceLog(40, "wait_data, size=%d, length=%d", buffer->size, buffer->length);
+
+			/**
+			 * Also on the require_n byte data is complete.
+			 */
 			volatile int require_n = buffer->size - buffer->length;
 
-			//数据不完整，继续等待
+			/**
+			 * Data is not complete, continue to wait
+			 */
 			if (require_n > n)
 			{
 				memcpy(buffer->str + buffer->length, recv_buf, n);
@@ -732,7 +735,9 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 				swString_free(buffer);
 				conn->object = NULL;
 
-				//仍然有数据，继续解析
+				/**
+				 * Still have the data, to parse.
+				 */
 				if (n - require_n > 0)
 				{
 					tmp_n = n - require_n;
