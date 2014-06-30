@@ -69,12 +69,11 @@ void swServer_worker_onStart(swServer *serv)
 
 void swServer_worker_onStop(swServer *serv)
 {
-	swWorker_free(swServer_get_worker(serv, SwooleWG.id));
-
 	if (serv->onWorkerStop)
 	{
-		serv->onWorkerStart(serv, SwooleWG.id);
+		serv->onWorkerStop(serv, SwooleWG.id);
 	}
+	swWorker_free(swServer_get_worker(serv, SwooleWG.id));
 }
 
 static int swServer_master_onClose(swReactor *reactor, swEvent *event)

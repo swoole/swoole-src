@@ -73,6 +73,8 @@ void swTaskWorker_onWorkerStart(swProcessPool *pool, int worker_id)
 {
 	swServer *serv = pool->ptr;
 	SwooleWG.id = worker_id + serv->worker_num;
+
+	swWorker_signal_init();
 	swServer_worker_onStart(serv);
 
 	char *tmp_dir = swoole_dirname(SW_TASK_TMP_FILE);
@@ -82,4 +84,10 @@ void swTaskWorker_onWorkerStart(swProcessPool *pool, int worker_id)
 		swWarn("create task tmp dir failed.");
 	}
 	free(tmp_dir);
+}
+
+void swTaskWorker_onWorkerStop(swProcessPool *pool, int worker_id)
+{
+	swServer *serv = pool->ptr;
+	swServer_worker_onStop(serv);
 }

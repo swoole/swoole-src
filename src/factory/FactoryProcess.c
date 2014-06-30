@@ -24,8 +24,6 @@ static int swFactoryProcess_manager_start(swFactory *factory);
 
 static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti);
 static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti);
-static void swFactoryProcess_worker_signal_init(void);
-static void swFactoryProcess_worker_signal_handler(int signo);
 
 static int swFactoryProcess_writer_start(swFactory *factory);
 static int swFactoryProcess_writer_loop_queue(swThreadParam *param);
@@ -318,6 +316,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 		SwooleG.task_workers.ptr = serv;
 		SwooleG.task_workers.onTask = swTaskWorker_onTask;
 		SwooleG.task_workers.onWorkerStart = swTaskWorker_onWorkerStart;
+		SwooleG.task_workers.onWorkerStop = swTaskWorker_onWorkerStop;
 	}
 	pid = fork();
 	switch (pid)
@@ -385,6 +384,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 	int pid, new_pid;
 	int i;
 	int reload_worker_i = 0;
+	int reload_worker_num;
 	int ret;
 	int worker_exit_code;
 
@@ -400,7 +400,8 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 		serv->onManagerStart(serv);
 	}
 
-	reload_workers = sw_calloc(serv->worker_num, sizeof(swWorker));
+	reload_worker_num = serv->worker_num + SwooleG.task_worker_num;
+	reload_workers = sw_calloc(reload_worker_num, sizeof(swWorker));
 	if (reload_workers == NULL)
 	{
 		swError("[manager] malloc[reload_workers] failed");
@@ -423,6 +424,11 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 			else if (manager_reload_flag == 0)
 			{
 				memcpy(reload_workers, object->workers, sizeof(swWorker) * serv->worker_num);
+				if (SwooleG.task_worker_num > 0)
+				{
+					memcpy(reload_workers + serv->worker_num, SwooleG.task_workers.workers,
+							sizeof(swWorker) * SwooleG.task_worker_num);
+				}
 				manager_reload_flag = 1;
 				goto kill_worker;
 			}
@@ -431,7 +437,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 		{
 			for (i = 0; i < serv->worker_num; i++)
 			{
-				//对比pid
+				//compare PID
 				if (pid != object->workers[i].pid)
 				{
 					continue;
@@ -443,21 +449,25 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 						serv->onWorkerError(serv, i, pid, WEXITSTATUS(worker_exit_code));
 					}
 					pid = 0;
-					new_pid = swFactoryProcess_worker_spawn(factory, i);
-					if (new_pid < 0)
+					while (1)
 					{
-						swWarn("Fork worker process failed. Error: %s [%d]", strerror(errno), errno);
-						return SW_ERR;
-					}
-					else
-					{
-						object->workers[i].pid = new_pid;
+						new_pid = swFactoryProcess_worker_spawn(factory, i);
+						if (new_pid < 0)
+						{
+							usleep(100000);
+							continue;
+						}
+						else
+						{
+							object->workers[i].pid = new_pid;
+							break;
+						}
 					}
 				}
 			}
 
 			//task worker
-			if(pid > 0)
+			if (pid > 0)
 			{
 				swWorker *exit_worker = swHashMap_find_int(&SwooleG.task_workers.map, pid);
 				if (exit_worker != NULL)
@@ -470,7 +480,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 		kill_worker: if (manager_worker_reloading == 1)
 		{
 			//reload finish
-			if (reload_worker_i >= serv->worker_num)
+			if (reload_worker_i >= reload_worker_num)
 			{
 				manager_worker_reloading = 0;
 				reload_worker_i = 0;
@@ -479,7 +489,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 			ret = kill(reload_workers[reload_worker_i].pid, SIGTERM);
 			if (ret < 0)
 			{
-				swWarn("[Manager]kill failed, pid=%d. Error: %s [%d]", reload_workers[reload_worker_i].pid, strerror(errno), errno);
+				swWarn("[Manager]kill() failed, pid=%d. Error: %s [%d]", reload_workers[reload_worker_i].pid, strerror(errno), errno);
 				continue;
 			}
 			reload_worker_i++;
@@ -701,42 +711,6 @@ static int swRandom(int worker_pti)
 	return rand()%10 * worker_pti;
 }
 
-static void swFactoryProcess_worker_signal_init(void)
-{
-	swSignal_add(SIGHUP, NULL);
-	swSignal_add(SIGPIPE, NULL);
-	swSignal_add(SIGUSR1, NULL);
-	swSignal_add(SIGUSR2, NULL);
-	swSignal_add(SIGTERM, swFactoryProcess_worker_signal_handler);
-	swSignal_add(SIGALRM, swTimer_signal_handler);
-	//for test
-	swSignal_add(SIGVTALRM, swFactoryProcess_worker_signal_handler);
-}
-
-static void swFactoryProcess_worker_signal_handler(int signo)
-{
-	switch (signo)
-	{
-	case SIGTERM:
-		SwooleG.running = 0;
-		break;
-	case SIGALRM:
-		swTimer_signal_handler(SIGALRM);
-		break;
-	/**
-	 * for test
-	 */
-	case SIGVTALRM:
-		swWarn("SIGVTALRM coming");
-		break;
-	case SIGUSR1:
-	case SIGUSR2:
-		break;
-	default:
-		break;
-	}
-}
-
 /**
  * worker main loop
  */
@@ -768,7 +742,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 #endif
 
 	//signal init
-	swFactoryProcess_worker_signal_init();
+	swWorker_signal_init();
 
 	//worker_id
 	SwooleWG.id = worker_pti;

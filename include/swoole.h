@@ -756,7 +756,9 @@ struct _swProcessPool
 	int max_request;
 
 	int (*onTask)(struct _swProcessPool *pool, swEventData *task);
+
 	void (*onWorkerStart)(struct _swProcessPool *pool, int worker_id);
+	void (*onWorkerStop)(struct _swProcessPool *pool, int worker_id);
 
 	int (*main_loop)(struct _swProcessPool *pool, swWorker *worker);
 

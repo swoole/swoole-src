@@ -72,7 +72,6 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
 		swProcessPool_worker(pool, i).id = i;
 		swProcessPool_worker(pool, i).pool = pool;
 	}
-
 	pool->main_loop = swProcessPool_worker_start;
 	return SW_OK;
 }
@@ -159,11 +158,25 @@ pid_t swProcessPool_spawn(swWorker *worker)
 	{
 	//child
 	case 0:
+		/**
+		 * Process start
+		 */
 		if (pool->onWorkerStart != NULL)
 		{
 			pool->onWorkerStart(pool, worker->id);
 		}
-		exit(pool->main_loop(pool, worker));
+		/**
+		 * Process main loop
+		 */
+		int ret_code = pool->main_loop(pool, worker);
+		/**
+		 * Process stop
+		 */
+		if (pool->onWorkerStop != NULL)
+		{
+			pool->onWorkerStop(pool, worker->id);
+		}
+		exit(ret_code);
 		break;
 	case -1:
 		swWarn("[swProcessPool_run] fork failed. Error: %s [%d]", strerror(errno), errno);
@@ -198,7 +211,9 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
 		task_n = pool->max_request;
 	}
 
-	//使用from_fd保存task_worker的id
+	/**
+	 * Use from_fd save the task_worker->id
+	 */
 	out.buf.info.from_fd = worker->id;
 
 	if (SwooleG.task_ipc_mode > 1)

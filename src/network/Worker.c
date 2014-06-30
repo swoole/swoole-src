@@ -17,6 +17,8 @@
 #include "swoole.h"
 #include "Server.h"
 
+static void swWorker_signal_handler(int signo);
+
 int swWorker_create(swWorker *worker)
 {
 	/**
@@ -57,5 +59,41 @@ void swWorker_free(swWorker *worker)
 {
 	sw_shm_free(worker->store.ptr);
 	worker->notify->close(worker->notify);
+}
+
+void swWorker_signal_init(void)
+{
+	swSignal_add(SIGHUP, NULL);
+	swSignal_add(SIGPIPE, NULL);
+	swSignal_add(SIGUSR1, NULL);
+	swSignal_add(SIGUSR2, NULL);
+	swSignal_add(SIGTERM, swWorker_signal_handler);
+	swSignal_add(SIGALRM, swTimer_signal_handler);
+	//for test
+	swSignal_add(SIGVTALRM, swWorker_signal_handler);
+}
+
+static void swWorker_signal_handler(int signo)
+{
+	switch (signo)
+	{
+	case SIGTERM:
+		SwooleG.running = 0;
+		break;
+	case SIGALRM:
+		swTimer_signal_handler(SIGALRM);
+		break;
+	/**
+	 * for test
+	 */
+	case SIGVTALRM:
+		swWarn("SIGVTALRM coming");
+		break;
+	case SIGUSR1:
+	case SIGUSR2:
+		break;
+	default:
+		break;
+	}
 }
 

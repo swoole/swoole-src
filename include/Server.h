@@ -437,6 +437,7 @@ int swServer_get_manager_pid(swServer *serv);
 int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);
 int swTaskWorker_onFinish(swReactor *reactor, swEvent *event);
 void swTaskWorker_onWorkerStart(swProcessPool *pool, int worker_id);
+void swTaskWorker_onWorkerStop(swProcessPool *pool, int worker_id);
 int swTaskWorker_large_pack(swEventData *task, void *data, int data_len);
 
 #define swTaskWorker_large_unpack(task, __malloc, _buf, _length)   swPackage_task _pkg;\
@@ -527,6 +528,7 @@ void swServer_worker_onStop(swServer *serv);
 
 int swWorker_create(swWorker *worker);
 void swWorker_free(swWorker *worker);
+void swWorker_signal_init(void);
 
 int swServer_master_onAccept(swReactor *reactor, swDataHead *event);
 void swServer_master_onReactorTimeout(swReactor *reactor);
