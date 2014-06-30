@@ -582,7 +582,7 @@ static int swReactorThread_get_package_length(swServer *serv, void *data, uint32
 int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event)
 {
 	volatile int n;
-	volatile uint32_t package_total_length;
+	volatile int package_total_length;
 	swServer *serv = reactor->ptr;
 	swConnection *conn = swServer_get_connection(serv, event->fd);
 
