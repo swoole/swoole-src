@@ -690,12 +690,12 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 				}
 				else
 				{
-					break;
+					goto finish;
 				}
 			}
 #endif
 		}
-		//printf("wt_queue->in: fd=%d|from_id=%d|data=%s|ret=%d|errno=%d\n", sdata._send.info.fd, sdata._send.info.from_id, sdata._send.data, ret, errno);
+		//swTraceLog("wt_queue->in: fd=%d|from_id=%d|data=%s|ret=%d|errno=%d", sdata._send.info.fd, sdata._send.info.from_id, sdata._send.data, ret, errno);
 		if (ret >= 0)
 		{
 			break;
@@ -713,6 +713,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 			break;
 		}
 	}
+
 	finish:
 	if (ret < 0)
 	{
