@@ -30,6 +30,7 @@ function send_test3($client, $len)
 	{
 		$client->send($ch);
 	}
+	echo "package: ".substr($data, -4, 4)."\n";
 }
 
 function send_test2($client, $len)

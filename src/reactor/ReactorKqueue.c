@@ -239,7 +239,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 		if (n < 0)
 		{
 			//swTrace("kqueue error.EP=%d | Errno=%d\n", this->epfd, errno);
-			if(swReactor_error(reactor) < 0)
+			if (swReactor_error(reactor) < 0)
 			{
 				swWarn("Kqueue[#%d] Error: %s[%d]", reactor->id, strerror(errno), errno);
 				return SW_ERR;
@@ -251,7 +251,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 		}
 		else if (n == 0)
 		{
-			if(reactor->onTimeout != NULL)
+			if (reactor->onTimeout != NULL)
 			{
 				reactor->onTimeout(reactor);
 			}
@@ -278,7 +278,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 				//write
 				else if (this->events[i].filter == EVFILT_WRITE)
 				{
-					if (ev.fd > 0)
+					if (event.fd > 0)
 					{
 						handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
 						ret = handle(reactor, &event);

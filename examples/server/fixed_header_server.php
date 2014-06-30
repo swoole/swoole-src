@@ -27,7 +27,7 @@ class FixedHeaderServer
     
     function onReceive($serv, $fd, $from_id, $data)
     {
-    	echo "package length=". (strlen($data) - 2)."\n";
+    	echo "package".substr($data, -4, 4)." length=". (strlen($data) - 2)."\n";
     }
 
     function onReceive_unpack_php($serv, $fd, $from_id, $data)

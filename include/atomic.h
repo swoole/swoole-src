@@ -11,7 +11,7 @@ typedef volatile int32_t atomic_int_t;
 typedef volatile uint32_t atomic_uint_t;
 #endif
 
-typedef volatile atomic_uint_t  atomic_t;
+typedef atomic_uint_t  atomic_t;
 
 #define sw_atomic_cmp_set(lock, old, set) __sync_bool_compare_and_swap(lock, old, set)
 #define sw_atomic_fetch_add(value, add)   __sync_fetch_and_add(value, add)
