@@ -627,6 +627,7 @@ void swoole_init(void);
 void swoole_clean(void);
 int swSocket_listen(int type, char *host, int port, int backlog);
 int swSocket_create(int type);
+int swSocket_wait(int fd, int timeout_ms, int events);
 int swSendto(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
 void swFloat2timeval(float timeout, long int *sec, long int *usec);
 swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask);

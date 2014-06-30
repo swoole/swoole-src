@@ -69,6 +69,9 @@
 #define SW_WORKER_SENDTO_COUNT     32    //写回客户端失败尝试次数
 #define SW_WORKER_SENDTO_YIELD     10   //yield after sendto
 #define SW_WORKER_READ_COUNT       10
+#define SW_WORKER_WAIT_PIPE
+#define SW_WORKER_WAIT_TIMEOUT     1000
+
 //#define SW_WORKER_SEND_CHUNK
 
 #define SW_MAINREACTOR_USE_POLL         //main thread to use select or poll

@@ -658,6 +658,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	//swWarn("send: sendn=%d|type=%d|content=%s", sendn, resp->info.type, resp->data);
 	swTrace("[Worker]wt_queue[%ld]->in| fd=%d", sdata.pti, fd);
 
+	int pipe_i;
 	for (count = 0; count < SW_WORKER_SENDTO_COUNT; count++)
 	{
 		if (serv->ipc_mode == SW_IPC_MSGQUEUE)
@@ -666,7 +667,6 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 		}
 		else
 		{
-			int pipe_i;
 			swReactor *reactor = &(serv->reactor_threads[sdata._send.info.from_id].reactor);
 			if (serv->reactor_pipe_num > 1)
 			{
@@ -678,6 +678,22 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 			}
 			//swWarn("send to reactor. fd=%d|pipe_i=%d|reactor_id=%d|reactor_pipe_num=%d", fd, pipe_i, conn->from_id, serv->reactor_pipe_num);
 			ret = write(object->workers[pipe_i].pipe_worker, &sdata._send, sendn);
+#ifdef SW_WORKER_WAIT_PIPE
+			if (ret < 0 && errno == EAGAIN)
+			{
+				/**
+				 * Wait pipe can be written.
+				 */
+				if (swSocket_wait(object->workers[pipe_i].pipe_worker, SW_WORKER_WAIT_TIMEOUT, SW_EVENT_WRITE) > 0)
+				{
+					continue;
+				}
+				else
+				{
+					break;
+				}
+			}
+#endif
 		}
 		//printf("wt_queue->in: fd=%d|from_id=%d|data=%s|ret=%d|errno=%d\n", sdata._send.info.fd, sdata._send.info.from_id, sdata._send.data, ret, errno);
 		if (ret >= 0)

@@ -18,6 +18,7 @@
 #include "atomic.h"
 
 #include <sys/stat.h>
+#include <sys/poll.h>
 
 uint64_t swoole_hash_key(char *str, int str_len)
 {
@@ -226,6 +227,40 @@ uint32_t swoole_common_multiple(uint32_t u, uint32_t v)
 		res = m_cup % n_cup;
 	}
 	return u * v / n_cup;
+}
+
+int swSocket_wait(int fd, int timeout_ms, int events)
+{
+	struct pollfd event;
+	event.fd = fd;
+	event.events = 0;
+
+	if (events & SW_EVENT_READ)
+	{
+		event.events |= POLLIN;
+	}
+	if (events & SW_EVENT_WRITE)
+	{
+		event.events |= POLLOUT;
+	}
+	while (1)
+	{
+		int ret = poll(&event, 1, timeout_ms);
+		if (ret == 0)
+		{
+			return SW_ERR;
+		}
+		else if (ret < 0 && errno != EINTR)
+		{
+			swWarn("poll() failed. Error: %s[%d]", strerror(errno), errno);
+			return SW_ERR;
+		}
+		else
+		{
+			return SW_OK;
+		}
+	}
+	return SW_OK;
 }
 
 int swSocket_create(int type)
