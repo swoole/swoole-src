@@ -192,52 +192,6 @@ int swoole_sync_readfile(int fd, void *buf, int len)
 	return readn;
 }
 
-SWINLINE uint32_t swoole_unpack(char type, void *data)
-{
-	int64_t tmp;
-
-	switch(type)
-	{
-	/*-------------------------16bit-----------------------------*/
-	/**
-	 * signed short (always 16 bit, machine byte order)
-	 */
-	case 's':
-		return *((int16_t *) data);
-	/**
-	 * unsigned short (always 16 bit, machine byte order)
-	 */
-	case 'S':
-		return *((uint16_t *) data);
-	/**
-	 * unsigned short (always 16 bit, big endian byte order)
-	 */
-	case 'n':
-		return ntohs(*((uint16_t *) data));
-
-	/*-------------------------32bit-----------------------------*/
-	/**
-	 * unsigned long (always 32 bit, big endian byte order)
-	 */
-	case 'N':
-		tmp = *((uint32_t *) data);
-		return ntohl(tmp);
-	/**
-	 * unsigned long (always 32 bit, machine byte order)
-	 */
-	case 'L':
-		return *((uint32_t *) data);
-	/**
-	 * signed long (always 32 bit, machine byte order)
-	 */
-	case 'l':
-		return *((int *) data);
-
-	default:
-		return *((uint32_t *) data);
-	}
-}
-
 uint32_t swoole_common_divisor(uint32_t u, uint32_t v)
 {
 	assert(u > 0);
@@ -274,7 +228,7 @@ uint32_t swoole_common_multiple(uint32_t u, uint32_t v)
 	return u * v / n_cup;
 }
 
-SWINLINE int swSocket_create(int type)
+int swSocket_create(int type)
 {
 	int _domain;
 	int _type;
@@ -311,13 +265,13 @@ SWINLINE int swSocket_create(int type)
 	return socket(_domain, _type, 0);
 }
 
-SWINLINE void swFloat2timeval(float timeout, long int *sec, long int *usec)
+void swFloat2timeval(float timeout, long int *sec, long int *usec)
 {
 	*sec = (int) timeout;
 	*usec = (int) ((timeout * 1000 * 1000) - ((*sec) * 1000 * 1000));
 }
 
-SWINLINE int swSendto(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len)
+int swSendto(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len)
 {
 	int count, n;
 	for (count = 0; count < SW_WORKER_SENDTO_COUNT; count++)
@@ -411,7 +365,7 @@ int swSocket_listen(int type, char *host, int port, int backlog)
 	return sock;
 }
 
-SWINLINE int swRead(int fd, void *buf, int len)
+int swRead(int fd, void *buf, int len)
 {
 	int n = 0, nread;
 	sw_errno = 0;
@@ -478,7 +432,7 @@ void swBreakPoint()
 
 }
 
-SWINLINE int swWrite(int fd, void *buf, int count)
+int swWrite(int fd, void *buf, int count)
 {
 	int nwritten = 0, totlen = 0;
 	while (totlen != count)
@@ -510,18 +464,8 @@ SWINLINE int swWrite(int fd, void *buf, int count)
 	return totlen;
 }
 
-int swPipeNotify_auto(swPipe *p, int blocking, int semaphore)
-{
-	//eventfd是2.6.26提供的,timerfd是2.6.27提供的
-#ifdef HAVE_EVENTFD
-	return swPipeEventfd_create(p, blocking, semaphore, 0);
-#else
-	return swPipeBase_create(p, blocking);
-#endif
-}
-
 //将套接字设置为非阻塞方式
-SWINLINE void swSetNonBlock(int sock)
+void swSetNonBlock(int sock)
 {
 	int	opts, ret;
 	do
@@ -545,7 +489,7 @@ SWINLINE void swSetNonBlock(int sock)
 	}
 }
 
-SWINLINE void swSetBlock(int sock)
+void swSetBlock(int sock)
 {
 	int opts, ret;
 	do
@@ -570,7 +514,7 @@ SWINLINE void swSetBlock(int sock)
 	}
 }
 
-SWINLINE int swAccept(int server_socket, struct sockaddr_in *addr, int addr_len)
+int swAccept(int server_socket, struct sockaddr_in *addr, int addr_len)
 {
 	int conn_fd;
 	bzero(addr, addr_len);
@@ -603,7 +547,7 @@ SWINLINE int swAccept(int server_socket, struct sockaddr_in *addr, int addr_len)
 	return conn_fd;
 }
 
-SWINLINE int swSetTimeout(int sock, double timeout)
+int swSetTimeout(int sock, double timeout)
 {
 	int ret;
 	struct timeval timeo;

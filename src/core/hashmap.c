@@ -25,10 +25,10 @@ typedef struct swHashMap_node
 	UT_hash_handle hh;
 } swHashMap_node;
 
-SWINLINE static int swHashMap_add_keyptr(swHashMap_node **root, swHashMap_node *add);
-SWINLINE static uint64_t swHashMap_jenkins_hash(char *key, uint64_t keylen, uint32_t num_bkts);
-SWINLINE static swHashMap_node *swHashMap_find_node(swHashMap_node *head, char *key_str, uint16_t key_len);
-SWINLINE static int swHashMap_delete_node(swHashMap_node *head, swHashMap_node *del_node);
+static int swHashMap_add_keyptr(swHashMap_node **root, swHashMap_node *add);
+static uint64_t swHashMap_jenkins_hash(char *key, uint64_t keylen, uint32_t num_bkts);
+static sw_inline swHashMap_node *swHashMap_find_node(swHashMap_node *head, char *key_str, uint16_t key_len);
+static int swHashMap_delete_node(swHashMap_node *head, swHashMap_node *del_node);
 
 static int swHashMap_create(swHashMap_node *head);
 
@@ -42,7 +42,7 @@ void swHashMap_free(swHashMap_node** root)
 	}
 }
 
-SWINLINE static uint64_t swHashMap_jenkins_hash(char *key, uint64_t keylen, uint32_t num_bkts)
+static sw_inline uint64_t swHashMap_jenkins_hash(char *key, uint64_t keylen, uint32_t num_bkts)
 {
 	uint64_t hashv;
 	do
@@ -99,7 +99,7 @@ SWINLINE static uint64_t swHashMap_jenkins_hash(char *key, uint64_t keylen, uint
 	return hashv;
 }
 
-SWINLINE static int swHashMap_add_keyptr(swHashMap_node **root, swHashMap_node *add)
+static int swHashMap_add_keyptr(swHashMap_node **root, swHashMap_node *add)
 {
 	unsigned _ha_bkt;
 	add->hh.next = NULL;
@@ -184,7 +184,7 @@ void swHashMap_add_int(swHashMap_node** root, uint64_t key, void *data)
 	HASH_ADD_INT(*root, key_int, node);
 }
 
-SWINLINE static swHashMap_node *swHashMap_find_node(swHashMap_node *head, char *key_str, uint16_t key_len)
+static sw_inline swHashMap_node *swHashMap_find_node(swHashMap_node *head, char *key_str, uint16_t key_len)
 {
 	swHashMap_node *out;
 	unsigned bucket, hash;
@@ -302,7 +302,7 @@ void swHashMap_del_int(swHashMap_node** root, uint64_t key)
 	sw_free(ret);
 }
 
-SWINLINE void* swHashMap_foreach(swHashMap_node** root, char **key, void **data, swHashMap_node *head)
+void* swHashMap_foreach(swHashMap_node** root, char **key, void **data, swHashMap_node *head)
 {
 	swHashMap_node *find = NULL, *tmp = NULL;
 	if (head == NULL)

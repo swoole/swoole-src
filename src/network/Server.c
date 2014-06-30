@@ -23,7 +23,7 @@
 static void swServer_signal_init(void);
 
 #if SW_REACTOR_SCHEDULE == 3
-SWINLINE static void swServer_reactor_schedule(swServer *serv);
+static sw_inline void swServer_reactor_schedule(swServer *serv);
 #endif
 
 static int swServer_check_callback(swServer *serv);
@@ -43,23 +43,6 @@ __thread swThreadG SwooleTG;
 
 int16_t sw_errno;
 char sw_error[SW_ERROR_MSG_SIZE];
-
-SWINLINE swWorker* swServer_get_worker(swServer *serv, uint16_t worker_id)
-{
-	if (worker_id > serv->worker_num + SwooleG.task_worker_num)
-	{
-		swWarn("worker_id is exceed serv->worker_num + SwooleG.task_worker_num");
-		return NULL;
-	}
-	else if (worker_id >= serv->worker_num)
-	{
-		return &(swProcessPool_worker((&SwooleG.task_workers), worker_id - serv->worker_num));
-	}
-	else
-	{
-		return &(serv->workers[worker_id]);
-	}
-}
 
 void swServer_worker_onStart(swServer *serv)
 {
@@ -148,7 +131,7 @@ void swServer_master_onReactorFinish(swReactor *reactor)
 	swServer_update_time();
 }
 
-SWINLINE void swServer_update_time(void)
+void swServer_update_time(void)
 {
 	time_t now = time(NULL);
 	if (now < 0)
@@ -162,7 +145,7 @@ SWINLINE void swServer_update_time(void)
 }
 
 #if SW_REACTOR_SCHEDULE == 3
-SWINLINE static void swServer_reactor_schedule(swServer *serv)
+static sw_inline void swServer_reactor_schedule(swServer *serv)
 {
 	//以第1个为基准进行排序，取出最小值
 	int i, event_num = serv->reactor_threads[0].reactor.event_num;

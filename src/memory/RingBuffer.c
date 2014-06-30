@@ -18,7 +18,7 @@ typedef struct _swRingBuffer_item
 } swRingBuffer_head;
 
 static void swRingBuffer_destory(swMemoryPool *pool);
-SWINLINE static void swRingBuffer_collect(swRingBuffer *object);
+static sw_inline void swRingBuffer_collect(swRingBuffer *object);
 static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size);
 static void swRingBuffer_free(swMemoryPool *pool, void *ptr);
 
@@ -48,7 +48,7 @@ swMemoryPool *swRingBuffer_new(size_t size, uint8_t shared)
 	return pool;
 }
 
-SWINLINE static void swRingBuffer_collect(swRingBuffer *object)
+static sw_inline void swRingBuffer_collect(swRingBuffer *object)
 {
 	int i;
 	swRingBuffer_head *item;

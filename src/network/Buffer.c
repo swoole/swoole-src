@@ -81,7 +81,7 @@ swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint32_t siz
 /**
  * pop the head trunk
  */
-SWINLINE void swBuffer_pop_trunk(swBuffer *buffer, volatile swBuffer_trunk *trunk)
+void swBuffer_pop_trunk(swBuffer *buffer, volatile swBuffer_trunk *trunk)
 {
 	//only one trunk
 	if (trunk->next == NULL)

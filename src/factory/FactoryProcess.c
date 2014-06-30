@@ -39,7 +39,7 @@ static int swFactoryProcess_notify(swFactory *factory, swEvent *event);
 static int swFactoryProcess_dispatch(swFactory *factory, swEventData *buf);
 static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
 
-SWINLINE static int swFactoryProcess_schedule(swFactoryProcess *object, swEventData *data);
+static sw_inline int swFactoryProcess_schedule(swFactoryProcess *object, swEventData *data);
 
 static int worker_task_num = 0;
 static int manager_worker_reloading = 0;
@@ -908,7 +908,7 @@ int swFactoryProcess_notify(swFactory *factory, swDataHead *ev)
 	return swFactoryProcess_send2worker(factory, (swEventData *) &sw_notify_data._send, -1);
 }
 
-SWINLINE static int swFactoryProcess_schedule(swFactoryProcess *object, swEventData *data)
+static sw_inline int swFactoryProcess_schedule(swFactoryProcess *object, swEventData *data)
 {
 	swServer *serv = SwooleG.serv;
 	int target_worker_id = 0;

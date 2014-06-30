@@ -19,37 +19,11 @@
 #include <sys/poll.h>
 #include <sys/stat.h>
 
-#ifndef EOK
-#define EOK      0
-#endif
-
 #ifndef MSG_NOSIGNAL
 #define MSG_NOSIGNAL    0
 #endif
 
-SWINLINE int swConnection_error(int fd, int err)
-{
-	switch(err)
-	{
-	case ECONNRESET:
-	case EPIPE:
-	case ENOTCONN:
-	case ETIMEDOUT:
-	case ECONNREFUSED:
-	case ENETDOWN:
-	case ENETUNREACH:
-	case EHOSTDOWN:
-	case EHOSTUNREACH:
-		return SW_CLOSE;
-	case EAGAIN:
-	case EOK:
-		return SW_WAIT;
-	default:
-		return SW_ERROR;
-	}
-}
-
-SWINLINE int swConnection_send_blocking(int fd, void *data, int length, int timeout)
+int swConnection_send_blocking(int fd, void *data, int length, int timeout)
 {
 	int ret, n, writen = length;
 	struct pollfd event;
@@ -86,7 +60,7 @@ SWINLINE int swConnection_send_blocking(int fd, void *data, int length, int time
 	return 0;
 }
 
-SWINLINE int swConnection_sendfile_blocking(int fd, char *filename, int timeout)
+int swConnection_sendfile_blocking(int fd, char *filename, int timeout)
 {
 	int file_fd = open(filename, O_RDONLY);
 	if (file_fd < 0)
@@ -103,7 +77,7 @@ SWINLINE int swConnection_sendfile_blocking(int fd, char *filename, int timeout)
 	}
 
 	int n, ret, sendn;
-	off_t offset;
+	off_t offset = 0;
 	struct pollfd event;
 	event.fd = fd;
 	event.events = POLLOUT;
@@ -141,7 +115,7 @@ SWINLINE int swConnection_sendfile_blocking(int fd, char *filename, int timeout)
 /**
  * close connection
  */
-SWINLINE void swConnection_close(swServer *serv, int fd, int notify)
+void swConnection_close(swServer *serv, int fd, int notify)
 {
 	swConnection *conn = swServer_get_connection(serv, fd);
 	swReactor *reactor;
@@ -232,7 +206,7 @@ SWINLINE void swConnection_close(swServer *serv, int fd, int notify)
 /**
  * new connection
  */
-SWINLINE int swServer_new_connection(swServer *serv, swEvent *ev)
+int swServer_new_connection(swServer *serv, swEvent *ev)
 {
 	int conn_fd = ev->fd;
 	swConnection* connection = NULL;
@@ -276,7 +250,7 @@ SWINLINE int swServer_new_connection(swServer *serv, swEvent *ev)
 	return SW_OK;
 }
 
-SWINLINE swString* swConnection_get_string_buffer(swConnection *conn)
+swString* swConnection_get_string_buffer(swConnection *conn)
 {
 	swString *buffer = conn->object;
 	if (buffer == NULL)
@@ -289,7 +263,7 @@ SWINLINE swString* swConnection_get_string_buffer(swConnection *conn)
 	}
 }
 
-SWINLINE int swConnection_send_string_buffer(swConnection *conn)
+int swConnection_send_string_buffer(swConnection *conn)
 {
 	int ret;
 	swString *buffer = conn->object;
@@ -371,7 +345,7 @@ SWINLINE int swConnection_send_string_buffer(swConnection *conn)
 	return ret;
 }
 
-SWINLINE void swConnection_clear_string_buffer(swConnection *conn)
+void swConnection_clear_string_buffer(swConnection *conn)
 {
 	swString *buffer = conn->object;
 	if (buffer != NULL)
@@ -466,7 +440,7 @@ int swConnection_send_in_buffer(swConnection *conn)
 	return SW_OK;
 }
 
-SWINLINE volatile swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn)
+volatile swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn)
 {
 	volatile swBuffer_trunk *trunk = NULL;
 	swBuffer *buffer;
@@ -500,7 +474,7 @@ SWINLINE volatile swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn)
 	return trunk;
 }
 
-SWINLINE volatile swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type)
+volatile swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type)
 {
 	volatile swBuffer_trunk *trunk;
 	if (conn->out_buffer == NULL)

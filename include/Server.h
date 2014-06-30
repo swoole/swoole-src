@@ -458,11 +458,33 @@ int swTaskWorker_large_pack(swEventData *task, void *data, int data_len);
 #define swPackage_data(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->str:task->data)
 #define swPackage_length(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->length:task->info.len)
 
-SWINLINE int swServer_new_connection(swServer *serv, swEvent *ev);
-SWINLINE void swConnection_close(swServer *serv, int fd, int notify);
-SWINLINE int swConnection_error(int fd, int err);
-SWINLINE int swConnection_send_blocking(int fd, void *data, int length, int timeout);
-SWINLINE int swConnection_sendfile_blocking(int fd, char *filename, int timeout);
+int swServer_new_connection(swServer *serv, swEvent *ev);
+void swConnection_close(swServer *serv, int fd, int notify);
+
+static sw_inline int swConnection_error(int fd, int err)
+{
+	switch (err)
+	{
+	case ECONNRESET:
+	case EPIPE:
+	case ENOTCONN:
+	case ETIMEDOUT:
+	case ECONNREFUSED:
+	case ENETDOWN:
+	case ENETUNREACH:
+	case EHOSTDOWN:
+	case EHOSTUNREACH:
+		return SW_CLOSE;
+	case EAGAIN:
+	case 0:
+		return SW_WAIT;
+	default:
+		return SW_ERROR;
+	}
+}
+
+int swConnection_send_blocking(int fd, void *data, int length, int timeout);
+int swConnection_sendfile_blocking(int fd, char *filename, int timeout);
 
 #define SW_SERVER_MAX_FD_INDEX          0 //max connection socket
 #define SW_SERVER_MIN_FD_INDEX          1 //min listen socket
@@ -476,13 +498,30 @@ SWINLINE int swConnection_sendfile_blocking(int fd, char *filename, int timeout)
 #define swServer_set_minfd(serv,maxfd) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd=maxfd)
 #define swServer_get_minfd(serv) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd)
 
-SWINLINE swString* swConnection_get_string_buffer(swConnection *conn);
-SWINLINE int swConnection_send_string_buffer(swConnection *conn);
-SWINLINE void swConnection_clear_string_buffer(swConnection *conn);
-SWINLINE volatile swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type);
-SWINLINE volatile swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn);
+swString* swConnection_get_string_buffer(swConnection *conn);
+int swConnection_send_string_buffer(swConnection *conn);
+void swConnection_clear_string_buffer(swConnection *conn);
+volatile swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type);
+volatile swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn);
 int swConnection_send_in_buffer(swConnection *conn);
-SWINLINE swWorker* swServer_get_worker(swServer *serv, uint16_t worker_id);
+
+static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_id)
+{
+	if (worker_id > serv->worker_num + SwooleG.task_worker_num)
+	{
+		swWarn("worker_id is exceed serv->worker_num + SwooleG.task_worker_num");
+		return NULL;
+	}
+	else if (worker_id >= serv->worker_num)
+	{
+		return &(swProcessPool_worker((&SwooleG.task_workers), worker_id - serv->worker_num));
+	}
+	else
+	{
+		return &(serv->workers[worker_id]);
+	}
+}
+
 void swServer_worker_onStart(swServer *serv);
 void swServer_worker_onStop(swServer *serv);
 
@@ -492,7 +531,7 @@ void swWorker_free(swWorker *worker);
 int swServer_master_onAccept(swReactor *reactor, swDataHead *event);
 void swServer_master_onReactorTimeout(swReactor *reactor);
 void swServer_master_onReactorFinish(swReactor *reactor);
-SWINLINE void swServer_update_time(void);
+void swServer_update_time(void);
 
 int swReactorThread_create(swServer *serv);
 int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr);

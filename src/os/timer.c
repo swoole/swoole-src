@@ -194,7 +194,7 @@ int swTimer_select(swTimer *timer)
 	uint64_t key;
 	swTimer_node *timer_node;
 
-	uint64_t now_ms = swTimer_get_ms();
+	int64_t now_ms = swTimer_get_ms();
 	if (now_ms < 0)
 	{
 		return SW_ERR;
@@ -253,7 +253,7 @@ void swTimer_signal_handler(int sig)
 	}
 }
 
-SWINLINE uint64_t swTimer_get_ms()
+int64_t swTimer_get_ms()
 {
 	struct timeval now;
 	if (gettimeofday(&now, NULL) < 0)

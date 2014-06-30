@@ -43,9 +43,9 @@ typedef struct _swBuffer
 #define swBuffer_get_trunk(buffer)   (buffer->head)
 #define swBuffer_empty(buffer)       (buffer == NULL || buffer->head == NULL)
 
-SWINLINE swBuffer* swBuffer_new(int trunk_size);
+swBuffer* swBuffer_new(int trunk_size);
 swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint32_t size);
-SWINLINE void swBuffer_pop_trunk(swBuffer *buffer, volatile swBuffer_trunk *trunk);
+void swBuffer_pop_trunk(swBuffer *buffer, volatile swBuffer_trunk *trunk);
 int swBuffer_append(swBuffer *buffer, void *data, uint32_t size);
 int swBuffer_send(swBuffer *buffer, int fd);
 

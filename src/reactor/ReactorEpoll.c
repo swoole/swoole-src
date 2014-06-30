@@ -42,7 +42,7 @@ static int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype);
 static int swReactorEpoll_del(swReactor *reactor, int fd);
 static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo);
 static void swReactorEpoll_free(swReactor *reactor);
-SWINLINE static int swReactorEpoll_event_set(int fdtype);
+static sw_inline int swReactorEpoll_event_set(int fdtype);
 
 struct swReactorEpoll_s
 {
@@ -150,7 +150,7 @@ int swReactorEpoll_del(swReactor *reactor, int fd)
 	return SW_OK;
 }
 
-SWINLINE static int swReactorEpoll_event_set(int fdtype)
+static sw_inline int swReactorEpoll_event_set(int fdtype)
 {
 	uint32_t flag = 0;
 #ifdef SW_USE_EPOLLET

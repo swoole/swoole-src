@@ -76,17 +76,16 @@ int daemon(int nochdir, int noclose);
 #define ulong unsigned long
 #endif
 
-#if __STDC_VERSION__ >= 199901L || defined(__cplusplus)
-#define SWINLINE inline
-#elif defined(_MSC_VER) || defined(__GNUC__)
-#define SWINLINE __inline
+#if defined(__GNUC__)
+#if __GNUC__ >= 3
+#define sw_inline inline __attribute__((always_inline))
 #else
-#define SWINLINE
+#define sw_inline inline
 #endif
-
-#ifdef __MACH__
-#undef SWINLINE
-#define SWINLINE
+#elif defined(_MSC_VER)
+#define sw_inline __forceinline
+#else
+#define sw_inline inline
 #endif
 
 #if defined(MAP_ANON) && !defined(MAP_ANONYMOUS)
@@ -311,7 +310,17 @@ typedef struct _swPipe
 int swPipeBase_create(swPipe *p, int blocking);
 int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout);
 int swPipeUnsock_create(swPipe *p, int blocking, int protocol);
-int swPipeNotify_auto(swPipe *p, int blocking, int semaphore);
+
+static inline int swPipeNotify_auto(swPipe *p, int blocking, int semaphore)
+{
+	//eventfd是2.6.26提供的,timerfd是2.6.27提供的
+#ifdef HAVE_EVENTFD
+	return swPipeEventfd_create(p, blocking, semaphore, 0);
+#else
+	return swPipeBase_create(p, blocking);
+#endif
+}
+
 void swBreakPoint(void);
 
 //------------------Queue--------------------
@@ -512,9 +521,9 @@ int swFileLock_create(swLock *lock, int fd);
 int swSpinLock_create(swLock *object, int spin);
 #endif
 int swAtomicLock_create(swLock *object, int spin);
-SWINLINE int swAtomicLock_lock(swLock *lock);
-SWINLINE int swAtomicLock_unlock(swLock *lock);
-SWINLINE int swAtomicLock_trylock(swLock *lock);
+sw_inline int swAtomicLock_lock(swLock *lock);
+sw_inline int swAtomicLock_unlock(swLock *lock);
+sw_inline int swAtomicLock_trylock(swLock *lock);
 
 int swCond_create(swCond *cond);
 int swCond_notify(swCond *cond);
@@ -549,7 +558,55 @@ void swLog_free(void);
 uint64_t swoole_hash_key(char *str, int str_len);
 uint32_t swoole_common_multiple(uint32_t u, uint32_t v);
 uint32_t swoole_common_divisor(uint32_t u, uint32_t v);
-SWINLINE uint32_t swoole_unpack(char type, void *data);
+
+static sw_inline uint32_t swoole_unpack(char type, void *data)
+{
+	{
+		int64_t tmp;
+
+		switch(type)
+		{
+		/*-------------------------16bit-----------------------------*/
+		/**
+		 * signed short (always 16 bit, machine byte order)
+		 */
+		case 's':
+			return *((int16_t *) data);
+		/**
+		 * unsigned short (always 16 bit, machine byte order)
+		 */
+		case 'S':
+			return *((uint16_t *) data);
+		/**
+		 * unsigned short (always 16 bit, big endian byte order)
+		 */
+		case 'n':
+			return ntohs(*((uint16_t *) data));
+
+		/*-------------------------32bit-----------------------------*/
+		/**
+		 * unsigned long (always 32 bit, big endian byte order)
+		 */
+		case 'N':
+			tmp = *((uint32_t *) data);
+			return ntohl(tmp);
+		/**
+		 * unsigned long (always 32 bit, machine byte order)
+		 */
+		case 'L':
+			return *((uint32_t *) data);
+		/**
+		 * signed long (always 32 bit, machine byte order)
+		 */
+		case 'l':
+			return *((int *) data);
+
+		default:
+			return *((uint32_t *) data);
+		}
+	}
+}
+
 void swoole_dump_bin(char *data, char type, int size);
 int swoole_type_size(char type);
 int swoole_mkdir_recursive(const char *dir);
@@ -559,19 +616,19 @@ int swoole_sync_writefile(int fd, void *data, int len);
 int swoole_sync_readfile(int fd, void *buf, int len);
 
 //----------------------core function---------------------
-SWINLINE int swSetTimeout(int sock, double timeout);
-SWINLINE int swRead(int, void *, int);
-SWINLINE int swWrite(int, void *, int);
-SWINLINE int swAccept(int server_socket, struct sockaddr_in *addr, int addr_len);
-SWINLINE void swSetNonBlock(int);
-SWINLINE void swSetBlock(int);
+int swSetTimeout(int sock, double timeout);
+int swRead(int, void *, int);
+int swWrite(int, void *, int);
+int swAccept(int server_socket, struct sockaddr_in *addr, int addr_len);
+void swSetNonBlock(int);
+void swSetBlock(int);
 
 void swoole_init(void);
 void swoole_clean(void);
 int swSocket_listen(int type, char *host, int port, int backlog);
-SWINLINE int swSocket_create(int type);
-SWINLINE int swSendto(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
-SWINLINE void swFloat2timeval(float timeout, long int *sec, long int *usec);
+int swSocket_create(int type);
+int swSendto(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
+void swFloat2timeval(float timeout, long int *sec, long int *usec);
 swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask);
 void swSignal_add(int signo, swSignalFunc func);
 void swSignal_none(void);
@@ -761,14 +818,40 @@ enum SW_EVENTS
 	SW_EVENT_ERROR = 1u << 11,
 };
 
-SWINLINE int swReactor_error(swReactor *reactor);
-SWINLINE int swReactor_fdtype(int fdtype);
-SWINLINE int swReactor_event_read(int fdtype);
-SWINLINE int swReactor_event_write(int fdtype);
-SWINLINE int swReactor_event_error(int fdtype);
+static sw_inline int swReactor_error(swReactor *reactor)
+{
+	switch (errno)
+	{
+	case EINTR:
+		return SW_OK;
+	}
+	return SW_ERR;
+}
+
+static sw_inline int swReactor_fdtype(int fdtype)
+{
+	return fdtype & (~SW_EVENT_READ) & (~SW_EVENT_WRITE) & (~SW_EVENT_ERROR);
+}
+
+static sw_inline int swReactor_event_read(int fdtype)
+{
+	return (fdtype < SW_EVENT_DEAULT) || (fdtype & SW_EVENT_READ);
+}
+
+static sw_inline int swReactor_event_write(int fdtype)
+{
+	return fdtype & SW_EVENT_WRITE;
+}
+
+static sw_inline int swReactor_event_error(int fdtype)
+{
+	return fdtype & SW_EVENT_ERROR;
+}
+
+int swReactor_auto(swReactor *reactor, int max_event);
 int swReactor_receive(swReactor *reactor, swEvent *event);
 int swReactor_setHandle(swReactor *, int, swReactor_handle);
-int swReactor_auto(swReactor *reactor, int max_event);
+
 swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype);
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);
 int swReactorPoll_create(swReactor *reactor, int max_event_num);
@@ -859,7 +942,7 @@ int swThreadPool_free(swThreadPool *pool);
 typedef struct _swTimer_node
 {
 	struct _swTimerList_node *next, *prev;
-	uint64_t lasttime;
+	int64_t lasttime;
 	int interval;
 } swTimer_node;
 
@@ -882,7 +965,7 @@ int swTimer_add(swTimer *timer, int ms);
 void swTimer_signal_handler(int sig);
 int swTimer_event_handler(swReactor *reactor, swEvent *event);
 int swTimer_select(swTimer *timer);
-SWINLINE uint64_t swTimer_get_ms();
+int64_t swTimer_get_ms();
 
 typedef struct _swModule
 {

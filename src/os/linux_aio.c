@@ -27,23 +27,23 @@ static int swoole_aio_eventfd;
 
 static int swoole_aio_onFinish(swReactor *reactor, swEvent *event);
 
-SWINLINE int io_setup(unsigned n_request, aio_context_t *context)
+static sw_inline int io_setup(unsigned n_request, aio_context_t *context)
 {
     return syscall(__NR_io_setup, n_request, context);
 }
 
-SWINLINE int io_submit(aio_context_t ctx, long n_request,  struct iocb **iocbpp)
+static sw_inline int io_submit(aio_context_t ctx, long n_request,  struct iocb **iocbpp)
 {
     return syscall(__NR_io_submit, ctx, n_request, iocbpp);
 }
 
-SWINLINE int io_getevents(aio_context_t ctx, long min_n_request, long max_n_request,
+static sw_inline int io_getevents(aio_context_t ctx, long min_n_request, long max_n_request,
         struct io_event *events, struct timespec *timeout)
 {
     return syscall(__NR_io_getevents, ctx, min_n_request, max_n_request, events, timeout);
 }
 
-SWINLINE int io_destroy(aio_context_t ctx)
+static sw_inline int io_destroy(aio_context_t ctx)
 {
     return syscall(__NR_io_destroy, ctx);
 }
@@ -59,7 +59,7 @@ int swoole_aio_init(swReactor *_reactor, int max_aio_events)
 			return SW_ERR;
 		}
 
-		if (swPipeEventfd_create(&swoole_aio_pipe, 0, 0) < 0)
+		if (swPipeNotify_auto(&swoole_aio_pipe, 0, 0) < 0)
 		{
 			return SW_ERR;
 		}
