@@ -678,13 +678,14 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 			}
 			//swWarn("send to reactor. fd=%d|pipe_i=%d|reactor_id=%d|reactor_pipe_num=%d", fd, pipe_i, conn->from_id, serv->reactor_pipe_num);
 			ret = write(object->workers[pipe_i].pipe_worker, &sdata._send, sendn);
+
 #ifdef SW_WORKER_WAIT_PIPE
 			if (ret < 0 && errno == EAGAIN)
 			{
 				/**
 				 * Wait pipe can be written.
 				 */
-				if (swSocket_wait(object->workers[pipe_i].pipe_worker, SW_WORKER_WAIT_TIMEOUT, SW_EVENT_WRITE) > 0)
+				if (swSocket_wait(object->workers[pipe_i].pipe_worker, SW_WORKER_WAIT_TIMEOUT, SW_EVENT_WRITE) == SW_OK)
 				{
 					continue;
 				}

@@ -551,6 +551,23 @@ int swServer_start(swServer *serv)
 		serv->factory.onFinish = swServer_onFinish;
 	}
 
+	/*
+	 * For swoole_server->taskwait, create notify pipe and result shared memory.
+	 */
+	if (SwooleG.task_worker_num > 0 && serv->worker_num > 0)
+	{
+		int i;
+		SwooleG.task_result = sw_shm_calloc(serv->worker_num, sizeof(swEventData));
+		SwooleG.task_notify = sw_calloc(serv->worker_num, sizeof(swPipe));
+		for(i =0; i< serv->worker_num; i++)
+		{
+			if (swPipeNotify_auto(&SwooleG.task_notify[i], 1, 0))
+			{
+				return SW_ERR;
+			}
+		}
+	}
+
 	//factory start
 	if (factory->start(factory) < 0)
 	{

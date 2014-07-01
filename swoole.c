@@ -1746,7 +1746,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
 	args[1] = &ztask_id;
 	args[2] = &zdata;
 
-//	printf("req: fd=%d|len=%d|from_id=%d|data=%s\n", req->info.fd, req->info.len, req->info.from_id, req->data);
+	//swTraceLog(60, "req: fd=%d|len=%d|from_id=%d|data=%s\n", req->info.fd, req->info.len, req->info.from_id, req->data);
 
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onFinish], &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
@@ -2698,19 +2698,19 @@ static int php_swoole_task_finish(swServer *serv, char *data, int data_len TSRML
 		}
 		else
 		{
-			ret = swWrite(SwooleG.event_workers->workers[sw_current_task->info.from_id].pipe_worker, &buf, sizeof(buf.info)+data_len);
+			ret = write(SwooleG.event_workers->workers[sw_current_task->info.from_id].pipe_worker, &buf, sizeof(buf.info)+data_len);
 		}
 	}
 	else
 	{
 		uint64_t flag = 1;
 		uint16_t worker_id = sw_current_task->info.from_id;
-		swWorker *worker = swServer_get_worker(serv, worker_id);
 
 		/**
 		 * Use worker shm store the result
 		 */
-		swEventData *result = worker->store.ptr;
+		swEventData *result = &(SwooleG.task_result[worker_id]);
+		swPipe *task_notify_pipe = &(SwooleG.task_notify[worker_id]);
 
 		result->info.type = SW_EVENT_FINISH;
 		result->info.fd = sw_current_task->info.fd;
@@ -2732,7 +2732,7 @@ static int php_swoole_task_finish(swServer *serv, char *data, int data_len TSRML
 
 		while(1)
 		{
-			ret = worker->notify->write(worker->notify, &flag, sizeof(flag));
+			ret = task_notify_pipe->write(task_notify_pipe, &flag, sizeof(flag));
 			if (errno == EINTR)
 			{
 				continue;
@@ -2800,25 +2800,11 @@ PHP_FUNCTION(swoole_server_taskwait)
 	buf.info.fd = php_swoole_task_id++;
 	//field from_id save the worker_id
 	buf.info.from_id = SwooleWG.id;
-
-	swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
-	int64_t notify;
-
-	/**
-	 * Storage is in use right now, wait notify.
-	 */
-	if (worker->store.lock == 1)
-	{
-		worker->notify->read(worker->notify, &notify, sizeof(notify));
-	}
-
 	//clear result buffer
-	bzero(worker->store.ptr, sizeof(swEventData));
+	swEventData *task_result = &(SwooleG.task_result[SwooleWG.id]);
+	bzero(task_result, sizeof(SwooleG.task_result[SwooleWG.id]));
 
-	/**
-	 * Lock the storage
-	 */
-	worker->store.lock = 1;
+	int64_t notify;
 
 	if (data_len >= sizeof(buf.data))
 	{
@@ -2840,17 +2826,33 @@ PHP_FUNCTION(swoole_server_taskwait)
 		/**
 		 * setTimeout
 		 */
-#ifdef HAVE_EVENTFD
-		worker->notify->timeout = timeout;
-#else
-		swSetTimeout(worker->notify->getFd(worker->notify, 0), timeout);
-#endif
+		swPipe *task_notify_pipe = &SwooleG.task_notify[SwooleWG.id];
+		task_notify_pipe->timeout = timeout;
 
-		swEventData *result = (swEventData *) worker->store.ptr;
-		if (worker->notify->read(worker->notify, &notify, sizeof(notify)) > 0)
+		if (task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify)) > 0)
 		{
-			worker->store.lock = 0;
-			RETURN_STRINGL(result->data, result->info.len, 1);
+			/**
+			 * Large result package
+			 */
+			if (swTaskWorker_is_large(task_result))
+			{
+				int data_len;
+				void *buf;
+				swTaskWorker_large_unpack(task_result, emalloc, buf, data_len);
+				/**
+				 * unpack failed
+				 */
+				if (data_len == -1)
+				{
+					efree(buf);
+					RETURN_FALSE;
+				}
+				RETURN_STRINGL(buf, data_len, 0);
+			}
+			else
+			{
+				RETURN_STRINGL(task_result->data, task_result->info.len, 1);
+			}
 		}
 		else
 		{

@@ -1017,9 +1017,15 @@ typedef struct
 
 	swMemoryPool *memory_pool;
 	swReactor *main_reactor;
-	//swPipe *task_notify; //for taskwait
-	//swEventData *task_result; //for taskwait
+
+	/**
+	 * for swoole_server->taskwait
+	 */
+	swPipe *task_notify;
+	swEventData *task_result;
+
 	pthread_t heartbeat_pidt;
+
 } swServerG;
 
 //Share Memory

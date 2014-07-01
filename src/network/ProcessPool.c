@@ -133,7 +133,7 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int worker_id
 				/**
 				 * Wait pipe can be written.
 				 */
-				if (errno == EAGAIN && swSocket_wait(worker->pipe_master, SW_WORKER_WAIT_TIMEOUT, SW_EVENT_WRITE) > 0)
+				if (errno == EAGAIN && swSocket_wait(worker->pipe_master, SW_WORKER_WAIT_TIMEOUT, SW_EVENT_WRITE) == SW_OK)
 				{
 					continue;
 				}
