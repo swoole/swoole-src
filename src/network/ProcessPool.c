@@ -124,7 +124,29 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int worker_id
 	else
 	{
 		swWorker *worker = &swProcessPool_worker(pool, worker_id);
-		ret = swWrite(worker->pipe_master, data, sizeof(data->info) + data->info.len);
+
+		while(1)
+		{
+			ret = write(worker->pipe_master, data, sizeof(data->info) + data->info.len);
+			if (ret < 0)
+			{
+				/**
+				 * Wait pipe can be written.
+				 */
+				if (errno == EAGAIN && swSocket_wait(worker->pipe_master, SW_WORKER_WAIT_TIMEOUT, SW_EVENT_WRITE) > 0)
+				{
+					continue;
+				}
+				else if (errno == EINTR)
+				{
+					continue;
+				}
+				else
+				{
+					break;
+				}
+			}
+		}
 		if (ret < 0)
 		{
 			swWarn("sendto unix socket failed. Error: %s[%d]", strerror(errno), errno);
