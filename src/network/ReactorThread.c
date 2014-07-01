@@ -319,7 +319,6 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 			//reactor_wait
 			case SW_WAIT:
 			default:
-				reactor->set(reactor, ev->fd, SW_EVENT_TCP | SW_EVENT_READ | SW_EVENT_WRITE);
 				return SW_OK;
 			}
 		}

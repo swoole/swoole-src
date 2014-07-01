@@ -60,7 +60,14 @@ function long_tcp(Swoole_Benchmark $bc)
 	if($write_use > $bc->max_write_time) $bc->max_write_time = $write_use;
 	$start = $end;
 	/*--------读取Sokcet-------*/
-	$ret = $fp->recv();
+	while(true)
+	{
+		$ret = $fp->recv(65530);
+		if (empty($ret) or substr($ret, -1, 1) == "\n")
+		{
+			break;
+		}
+	}
 	//var_dump($ret);
 	$i++;
 	if (empty($ret))
