@@ -146,6 +146,7 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int worker_id
 					break;
 				}
 			}
+			break;
 		}
 		if (ret < 0)
 		{

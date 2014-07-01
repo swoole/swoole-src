@@ -135,7 +135,7 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
 {
 	echo "AsyncTask[PID=".posix_getpid()."]: task_id=$task_id.".PHP_EOL;
-	//return "Task OK";
+	return "Task OK";
 }
 
 function my_onFinish(swoole_server $serv, $task_id, $data)
