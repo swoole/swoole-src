@@ -412,11 +412,13 @@ static int swServer_start_proxy(swServer *serv)
 {
 	int ret;
 	swReactor *main_reactor = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swReactor));
-	#ifdef SW_MAINREACTOR_USE_POLL
-		ret = swReactorPoll_create(main_reactor, 10);
+
+#ifdef SW_MAINREACTOR_USE_POLL
+	ret = swReactorPoll_create(main_reactor, 10);
 #else
-		ret = swReactorSelect_create(main_reactor);
+	ret = swReactorSelect_create(main_reactor);
 #endif
+
 	if (ret < 0)
 	{
 		swWarn("Swoole reactor create fail");
@@ -728,7 +730,7 @@ int swServer_create(swServer *serv)
 	}
 
 	//初始化日志
-	if(serv->log_file[0] != 0)
+	if (serv->log_file[0] != 0)
 	{
 		swLog_init(serv->log_file);
 	}

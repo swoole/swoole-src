@@ -239,7 +239,7 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_HAVE_MYSQLND, 1, [have mysqlnd])
     ])
 
-    CFLAGS="-Wall $CFLAGS"
+    CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
   
     AC_CHECK_LIB(c, accept4, AC_DEFINE(SW_USE_ACCEPT4, 1, [have accept4]))

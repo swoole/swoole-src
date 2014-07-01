@@ -174,6 +174,8 @@ int swBuffer_send(swBuffer *buffer, int fd)
 			return SW_OK;
 		case SW_CLOSE:
 			return SW_CLOSE;
+		case SW_WAIT:
+			return SW_WAIT;
 		default:
 			return SW_CONTINUE;
 		}
