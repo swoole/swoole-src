@@ -1182,9 +1182,9 @@ PHP_FUNCTION(swoole_server_handler)
 	}
 	if (ret < 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_server_handler: unkown handler[%s].", ha_name);
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Unknown event types[%s]", ha_name);
 	}
-	ZVAL_BOOL(return_value, ret);
+	SW_CHECK_RETURN(ret);
 }
 
 PHP_FUNCTION(swoole_server_on)
@@ -1247,9 +1247,9 @@ PHP_FUNCTION(swoole_server_on)
 	}
 	if (ret < 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_server_on: unkown handler[%s].", ha_name);
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Unknown event types[%s]", ha_name);
 	}
-	ZVAL_BOOL(return_value, ret);
+	SW_CHECK_RETURN(ret);
 }
 
 PHP_FUNCTION(swoole_server_close)
