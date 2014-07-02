@@ -22,7 +22,8 @@
 
 #define PHP_SWOOLE_AIO_MAXEVENTS       128
 
-typedef struct {
+typedef struct
+{
 	zval *callback;
 	zval *filename;
 	int fd;

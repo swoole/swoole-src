@@ -95,7 +95,7 @@ static int swoole_aio_onFinish(swReactor *reactor, swEvent *event)
 {
 	int i;
 	swAio_event *events[SW_AIO_EVENT_NUM];
-	int n = read(event->fd, events, sizeof(swAio_event*)*SW_AIO_EVENT_NUM);
+	int n = read(event->fd, events, sizeof(swAio_event*) * SW_AIO_EVENT_NUM);
 	if (n < 0)
 	{
 		swWarn("read failed. Error: %s[%d]", strerror(errno), errno);
@@ -165,7 +165,7 @@ static int swoole_aio_thread_onTask(swThreadPool *pool, void *task, int task_len
 		{
 			memcpy(&addr, host_entry->h_addr_list[0], host_entry->h_length);
 			ip_addr = inet_ntoa(addr);
-			memcpy(event->buf, ip_addr, strnlen(ip_addr, SW_IP_MAX_LENGTH));
+			memcpy(event->buf, ip_addr, strnlen(ip_addr, SW_IP_MAX_LENGTH) + 1);
 			ret = 0;
 		}
 		break;
