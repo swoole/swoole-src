@@ -925,8 +925,7 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
 			{
 				swError("pthread_create[tcp_reactor] failed. Error: %s[%d]", strerror(errno), errno);
 			}
-			pthread_detach(pidt);
-			reactor_threads->ptid = pidt;
+			reactor_threads->thread_id = pidt;
 		}
 	}
 
@@ -1025,7 +1024,7 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
 static int swUDPThread_start(swServer *serv)
 {
 	swThreadParam *param;
-	pthread_t pidt;
+	pthread_t thread_id;
 	swListenList_node *listen_host;
 
 	void * (*thread_loop)(void *);
@@ -1051,12 +1050,12 @@ static int swUDPThread_start(swServer *serv)
 				thread_loop = (void * (*)(void *)) swReactorThread_loop_udp;
 			}
 
-			if (pthread_create(&pidt, NULL, thread_loop, (void *) param) < 0)
+			if (pthread_create(&thread_id, NULL, thread_loop, (void *) param) < 0)
 			{
 				swWarn("pthread_create[udp_listener] fail");
 				return SW_ERR;
 			}
-			pthread_detach(pidt);
+			listen_host->thread_id = thread_id;
 		}
 	}
 	return SW_OK;
@@ -1166,3 +1165,36 @@ static int swReactorThread_loop_unix_dgram(swThreadParam *param)
 	return 0;
 }
 
+void swReactorThread_free(swServer *serv)
+{
+	int i;
+	swReactorThread *thread;
+
+	if (serv->have_tcp_sock == 1)
+	{
+		//create reactor thread
+		for (i = 0; i < serv->reactor_num; i++)
+		{
+			thread = &(serv->reactor_threads[i]);
+			if (pthread_join(thread->thread_id, NULL))
+			{
+				swWarn("pthread_join() failed. Error: %s[%d]", strerror(errno), errno);
+			}
+		}
+	}
+
+	if (serv->have_udp_sock == 1)
+	{
+		swListenList_node *listen_host;
+		LL_FOREACH(serv->listen_list, listen_host)
+		{
+			if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6 || listen_host->type == SW_SOCK_UNIX_DGRAM)
+			{
+				if (pthread_join(listen_host->thread_id, NULL))
+				{
+					swWarn("pthread_join() failed. Error: %s[%d]", strerror(errno), errno);
+				}
+			}
+		}
+	}
+}

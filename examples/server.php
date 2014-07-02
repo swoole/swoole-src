@@ -10,8 +10,8 @@ $serv->set(array(
 		//'dispatch_mode' => 2,
 		//'daemonize' => 1,
 		//'log_file' => '/tmp/swoole.log',
-		//'heartbeat_idle_time' => 5,
-		//'heartbeat_check_interval' => 5,
+		'heartbeat_idle_time' => 500,
+		'heartbeat_check_interval' => 500,
 ));
 
 function my_onStart(swoole_server $serv)

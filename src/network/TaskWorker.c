@@ -17,6 +17,8 @@
 #include "swoole.h"
 #include "Server.h"
 
+static void swTaskWorker_signal_init(void);
+
 /**
  * in worker process
  */
@@ -69,12 +71,21 @@ int swTaskWorker_large_pack(swEventData *task, void *data, int data_len)
 	return SW_OK;
 }
 
+static void swTaskWorker_signal_init(void)
+{
+	swSignal_set(SIGHUP, NULL, 1, 0);
+	swSignal_set(SIGPIPE, NULL, 1, 0);
+	swSignal_set(SIGUSR1, NULL, 1, 0);
+	swSignal_set(SIGUSR2, NULL, 1, 0);
+	swSignal_set(SIGTERM, swWorker_signal_handler, 1, 0);
+}
+
 void swTaskWorker_onWorkerStart(swProcessPool *pool, int worker_id)
 {
 	swServer *serv = pool->ptr;
 	SwooleWG.id = worker_id + serv->worker_num;
 
-	swWorker_signal_init();
+	swTaskWorker_signal_init();
 	swServer_worker_onStart(serv);
 
 	char *tmp_dir = swoole_dirname(SW_TASK_TMP_FILE);

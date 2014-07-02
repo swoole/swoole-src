@@ -395,6 +395,8 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 	swServer *serv = factory->ptr;
 	swWorker *reload_workers;
 
+	swSignal_set(SIGTERM, swWorker_signal_handler, 1, 0);
+
 	if (serv->onManagerStart)
 	{
 		serv->onManagerStart(serv);
@@ -414,7 +416,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 	while (SwooleG.running > 0)
 	{
 		pid = wait(&worker_exit_code);
-		swTrace("[manager] worker stop.pid=%d\n", pid);
+
 		if (pid < 0)
 		{
 			if (manager_worker_reloading == 0)

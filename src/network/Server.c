@@ -600,10 +600,6 @@ int swServer_start(swServer *serv)
 	{
 		serv->onShutdown(serv);
 	}
-	if (SwooleG.heartbeat_pidt)
-	{
-		pthread_cancel(SwooleG.heartbeat_pidt);
-	}
 
 #ifdef SW_USE_RINGBUFFER
 	int i;
@@ -673,7 +669,6 @@ void swoole_init(void)
 		{
 			swError("[Master] Fatal Error: alloc memory for SwooleGS fail. Error: %s[%d]", strerror(errno), errno);
 		}
-
 	}
 }
 
@@ -783,24 +778,34 @@ int swServer_free(swServer *serv)
 		serv->factory.shutdown(&(serv->factory));
 	}
 
+	/**
+	 * Shutdown heartbeat thread
+	 */
+	if (SwooleG.heartbeat_pidt)
+	{
+//		pthread_cancel(SwooleG.heartbeat_pidt, SIGTERM);
+		pthread_join(SwooleG.heartbeat_pidt, NULL);
+	}
+	/**
+	 * Wait until all the end of the thread
+	 */
+	swReactorThread_free(serv);
+
 	//reactor释放
 	if (serv->reactor.free != NULL)
 	{
 		serv->reactor.free(&(serv->reactor));
 	}
-
 	//master pipe
 	if (serv->main_pipe.close != NULL)
 	{
 		serv->main_pipe.close(&serv->main_pipe);
 	}
-
 	//master pipe
 	if (SwooleG.task_worker_num > 0)
 	{
 		swProcessPool_shutdown(&SwooleG.task_workers);
 	}
-
 	//connection_list释放
 	if (serv->factory_mode == SW_MODE_SINGLE)
 	{
@@ -810,13 +815,11 @@ int swServer_free(swServer *serv)
 	{
 		sw_shm_free(serv->connection_list);
 	}
-
 	//close log file
-	if(serv->log_file[0] != 0)
+	if (serv->log_file[0] != 0)
 	{
 		swLog_free();
 	}
-
 	swoole_clean();
 	return SW_OK;
 }
@@ -1128,6 +1131,8 @@ static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
 
 	notify_ev.len = 0;
 	notify_ev.type = SW_CLOSE_PASSIVE;
+
+	swSignal_none();
 
 	while (SwooleG.running)
 	{

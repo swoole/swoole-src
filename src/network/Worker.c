@@ -17,8 +17,6 @@
 #include "swoole.h"
 #include "Server.h"
 
-static void swWorker_signal_handler(int signo);
-
 int swWorker_create(swWorker *worker)
 {
 	/**
@@ -73,7 +71,7 @@ void swWorker_signal_init(void)
 	swSignal_add(SIGVTALRM, swWorker_signal_handler);
 }
 
-static void swWorker_signal_handler(int signo)
+void swWorker_signal_handler(int signo)
 {
 	switch (signo)
 	{

@@ -113,7 +113,7 @@ typedef struct _swUdpFd{
 
 typedef struct _swReactorThread
 {
-	pthread_t ptid; //线程ID
+	pthread_t thread_id;
 	swReactor reactor;
 	swUdpFd *udp_addrs;
 	swCloseQueue close_queue;
@@ -140,6 +140,7 @@ typedef struct _swListenList_node
 	int type;
 	int port;
 	int sock;
+	pthread_t thread_id;
 	char host[SW_HOST_MAXSIZE];
 } swListenList_node;
 
@@ -529,6 +530,7 @@ void swServer_worker_onStop(swServer *serv);
 int swWorker_create(swWorker *worker);
 void swWorker_free(swWorker *worker);
 void swWorker_signal_init(void);
+void swWorker_signal_handler(int signo);
 
 int swServer_master_onAccept(swReactor *reactor, swDataHead *event);
 void swServer_master_onReactorTimeout(swReactor *reactor);
@@ -537,6 +539,7 @@ void swServer_update_time(void);
 
 int swReactorThread_create(swServer *serv);
 int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr);
+void swReactorThread_free(swServer *serv);
 int swReactorThread_close_queue(swReactor *reactor, swCloseQueue *close_queue);
 int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event);
 int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event);

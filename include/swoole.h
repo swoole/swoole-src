@@ -632,6 +632,9 @@ int swSendto(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr,
 void swFloat2timeval(float timeout, long int *sec, long int *usec);
 swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask);
 void swSignal_add(int signo, swSignalFunc func);
+#ifdef HAVE_SIGNALFD
+int swSignalfd_onSignal(swReactor *reactor, swEvent *event);
+#endif
 void swSignal_none(void);
 
 //------------------Factory--------------------

@@ -255,7 +255,10 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
 			n = pool->queue.out(&pool->queue, (swQueue_data *) &out, sizeof(out.buf));
 			if (n < 0)
 			{
-				swWarn("[Worker#%d]deQueue failed. Error: %s [%d]", worker->id, strerror(errno), errno);
+				if (errno != EINTR)
+				{
+					swWarn("[Worker#%d]deQueue failed. Error: %s [%d]", worker->id, strerror(errno), errno);
+				}
 				continue;
 			}
 		}
@@ -264,7 +267,10 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
 			n = read(worker->pipe_worker, &out.buf, sizeof(out.buf));
 			if (n < 0)
 			{
-				swWarn("[Worker#%d]read pipe failed. Error: %s [%d]", worker->id, strerror(errno), errno);
+				if (errno != EINTR)
+				{
+					swWarn("[Worker#%d]read pipe failed. Error: %s [%d]", worker->id, strerror(errno), errno);
+				}
 				continue;
 			}
 		}
