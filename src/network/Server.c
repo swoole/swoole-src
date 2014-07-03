@@ -288,6 +288,12 @@ static void swServer_onTimer(swTimer *timer, int interval)
 
 int swServer_addTimer(swServer *serv, int interval)
 {
+	if (serv->onTimer == NULL)
+	{
+		swWarn("onTimer is null. Can not use timer.");
+		return SW_ERR;
+	}
+
 	//timer no init
 	if (SwooleG.timer.fd == 0)
 	{

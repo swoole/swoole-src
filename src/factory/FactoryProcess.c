@@ -852,10 +852,9 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 			{
 				if (errno == EINTR)
 				{
-					if (SwooleG.signal_alarm && serv->onTimer)
+					if (SwooleG.signal_alarm)
 					{
 						swTimer_select(&SwooleG.timer);
-						SwooleG.signal_alarm = 0;
 					}
 				}
 				else

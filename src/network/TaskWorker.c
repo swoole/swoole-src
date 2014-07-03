@@ -78,6 +78,7 @@ static void swTaskWorker_signal_init(void)
 	swSignal_set(SIGUSR1, NULL, 1, 0);
 	swSignal_set(SIGUSR2, NULL, 1, 0);
 	swSignal_set(SIGTERM, swWorker_signal_handler, 1, 0);
+	swSignal_set(SIGALRM, swTimer_signal_handler, 1, 0);
 }
 
 void swTaskWorker_onWorkerStart(swProcessPool *pool, int worker_id)

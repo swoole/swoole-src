@@ -5,13 +5,13 @@ $serv->set(array(
 		'worker_num' => 1,
 		//'open_eof_check' => true,
 		//'package_eof' => "\r\n",
-		'task_worker_num' => 1,
+		//'task_worker_num' => 1,
 		'task_ipc_mode' => 1,
 		//'dispatch_mode' => 2,
 		//'daemonize' => 1,
 		//'log_file' => '/tmp/swoole.log',
-		'heartbeat_idle_time' => 500,
-		'heartbeat_check_interval' => 500,
+		'heartbeat_idle_time' => 5,
+		'heartbeat_check_interval' => 10,
 ));
 
 function my_onStart(swoole_server $serv)

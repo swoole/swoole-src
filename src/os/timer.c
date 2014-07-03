@@ -239,6 +239,7 @@ int swTimer_event_handler(swReactor *reactor, swEvent *event)
 	{
 		return SW_ERR;
 	}
+	SwooleG.signal_alarm = 0;
 	return swTimer_select(timer);
 }
 
