@@ -988,7 +988,7 @@ typedef struct swServer_s swServer;
 typedef struct
 {
 	swTimer timer;
-	int no_timerfd;
+
 	int running;
 	int error;
 	int process_type;
@@ -998,6 +998,10 @@ typedef struct
 
 	uint8_t use_timerfd;
 	uint8_t use_signalfd;
+	/**
+	 * Timer used pipe
+	 */
+	uint8_t use_timer_pipe;
 	uint8_t task_ipc_mode;
 
 	/**

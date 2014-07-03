@@ -253,27 +253,25 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
 		if (pool->use_msgqueue)
 		{
 			n = pool->queue.out(&pool->queue, (swQueue_data *) &out, sizeof(out.buf));
-			if (n < 0)
-			{
-				if (errno != EINTR)
-				{
-					swWarn("[Worker#%d]deQueue failed. Error: %s [%d]", worker->id, strerror(errno), errno);
-				}
-				continue;
-			}
 		}
 		else
 		{
 			n = read(worker->pipe_worker, &out.buf, sizeof(out.buf));
-			if (n < 0)
-			{
-				if (errno != EINTR)
-				{
-					swWarn("[Worker#%d]read pipe failed. Error: %s [%d]", worker->id, strerror(errno), errno);
-				}
-				continue;
-			}
 		}
+
+		if (n < 0)
+		{
+			if (errno != EINTR)
+			{
+				swWarn("[Worker#%d]read() or msgrcv() failed. Error: %s [%d]", worker->id, strerror(errno), errno);
+			}
+			else if (SwooleG.signal_alarm)
+			{
+				swTimer_select(&SwooleG.timer);
+			}
+			continue;
+		}
+
 		ret = pool->onTask(pool, &out.buf);
 		if (ret > 0 && !worker_task_always)
 		{

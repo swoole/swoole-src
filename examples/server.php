@@ -5,12 +5,12 @@ $serv->set(array(
 		'worker_num' => 1,
 		//'open_eof_check' => true,
 		//'package_eof' => "\r\n",
-		//'task_worker_num' => 1,
+		'task_worker_num' => 1,
 		'task_ipc_mode' => 1,
 		//'dispatch_mode' => 2,
 		//'daemonize' => 1,
 		//'log_file' => '/tmp/swoole.log',
-		'heartbeat_idle_time' => 5,
+		'heartbeat_idle_time' => 10,
 		'heartbeat_check_interval' => 10,
 ));
 
@@ -59,7 +59,12 @@ function my_onWorkerStart($serv, $worker_id)
 	}
 	echo "WorkerStart: MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}";
 	echo "|WorkerId={$serv->worker_id}|WorkerPid={$serv->worker_pid}\n";
-	//$serv->addtimer(500); //500ms
+	
+	if ($worker_id == 1) 
+	{
+		$serv->addtimer(2000); //500ms
+		$serv->addtimer(6000); //500ms
+	}
 }
 
 function my_onWorkerStop($serv, $worker_id)

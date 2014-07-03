@@ -297,9 +297,7 @@ int swServer_addTimer(swServer *serv, int interval)
 	//timer no init
 	if (SwooleG.timer.fd == 0)
 	{
-		int use_pipe = (serv->ipc_mode == SW_IPC_MSGQUEUE) ? 0 : 1;
-
-		if (swTimer_create(&SwooleG.timer, interval, use_pipe) < 0)
+		if (swTimer_create(&SwooleG.timer, interval, SwooleG.use_timer_pipe) < 0)
 		{
 			return SW_ERR;
 		}
@@ -309,7 +307,7 @@ int swServer_addTimer(swServer *serv, int interval)
 			serv->connection_list[SW_SERVER_TIMER_FD_INDEX].fd = SwooleG.timer.fd;
 		}
 
-		if (serv->ipc_mode != SW_IPC_MSGQUEUE)
+		if (SwooleG.use_timer_pipe)
 		{
 			SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_TIMER, swTimer_event_handler);
 			SwooleG.main_reactor->add(SwooleG.main_reactor, SwooleG.timer.fd, SW_FD_TIMER);
@@ -495,6 +493,7 @@ int swServer_start(swServer *serv)
 	{
 		SwooleG.use_timerfd = 0;
 		SwooleG.use_signalfd = 0;
+		SwooleG.use_timer_pipe = 0;
 	}
 
 	//run as daemon
@@ -657,11 +656,11 @@ void swoole_init(void)
 		swSignalfd_init();
 		SwooleG.use_signalfd = 1;
 #endif
-
 		//timerfd
 #ifdef HAVE_TIMERFD
 		SwooleG.use_timerfd = 1;
 #endif
+		SwooleG.use_timer_pipe = 1;
 		//将日志设置为标准输出
 		SwooleG.log_fd = STDOUT_FILENO;
 		//初始化全局内存

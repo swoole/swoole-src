@@ -2577,7 +2577,7 @@ PHP_FUNCTION(swoole_server_addtimer)
 
 	SWOOLE_GET_SERVER(zobject, serv);
 
-	if (serv->ipc_mode != SW_IPC_MSGQUEUE && SwooleG.main_reactor == NULL)
+	if (SwooleG.use_timer_pipe && SwooleG.main_reactor == NULL)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: can not use addtimer here.");
 		RETURN_FALSE;

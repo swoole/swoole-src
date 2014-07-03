@@ -86,6 +86,9 @@ void swTaskWorker_onWorkerStart(swProcessPool *pool, int worker_id)
 	swServer *serv = pool->ptr;
 	SwooleWG.id = worker_id + serv->worker_num;
 
+	SwooleG.use_timer_pipe = 0;
+	SwooleG.use_timerfd = 0;
+
 	swTaskWorker_signal_init();
 	swServer_worker_onStart(serv);
 
