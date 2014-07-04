@@ -306,6 +306,7 @@ static int php_swoole_set_callback(int key, zval *cb TSRMLS_DC);
 const zend_function_entry swoole_functions[] =
 {
 	PHP_FE(swoole_version, NULL)
+	PHP_FE(swoole_cpu_num, NULL)
 	/*------swoole_server-----*/
 	PHP_FE(swoole_server_create, arginfo_swoole_server_create)
 	PHP_FE(swoole_server_set, arginfo_swoole_server_set)
@@ -694,6 +695,16 @@ PHP_FUNCTION(swoole_version)
     RETURN_STRING(swoole_version, 1);
 }
 
+PHP_FUNCTION(swoole_cpu_num)
+{
+    long cpu_num = 1;
+    cpu_num = sysconf(_SC_NPROCESSORS_CONF);
+    if(cpu_num < 1)
+    {
+        cpu_num = 1;
+    }
+    RETURN_LONG(cpu_num);
+}
 #ifdef SW_ASYNC_MYSQL
 PHP_FUNCTION(swoole_get_mysqli_sock)
 {
