@@ -42,7 +42,29 @@ static int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype);
 static int swReactorEpoll_del(swReactor *reactor, int fd);
 static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo);
 static void swReactorEpoll_free(swReactor *reactor);
-static sw_inline int swReactorEpoll_event_set(int fdtype);
+
+static sw_inline int swReactorEpoll_event_set(int fdtype)
+{
+	uint32_t flag = 0;
+#ifdef SW_USE_EPOLLET
+	flag = EPOLLET;
+#endif
+
+	if (swReactor_event_read(fdtype))
+	{
+		flag |= EPOLLIN;
+	}
+	if (swReactor_event_write(fdtype))
+	{
+		flag |= EPOLLOUT;
+	}
+	if (swReactor_event_error(fdtype))
+	{
+		flag |= (EPOLLRDHUP);
+		//flag |= (EPOLLRDHUP | EPOLLHUP | EPOLLERR);
+	}
+	return flag;
+}
 
 struct swReactorEpoll_s
 {
@@ -148,29 +170,6 @@ int swReactorEpoll_del(swReactor *reactor, int fd)
 	}
 	swTraceLog(SW_TRACE_EVENT, "remove event[reactor_id=%d|fd=%d]", reactor->id, fd);
 	return SW_OK;
-}
-
-static sw_inline int swReactorEpoll_event_set(int fdtype)
-{
-	uint32_t flag = 0;
-#ifdef SW_USE_EPOLLET
-	flag = EPOLLET;
-#endif
-
-	if (swReactor_event_read(fdtype))
-	{
-		flag |= EPOLLIN;
-	}
-	if (swReactor_event_write(fdtype))
-	{
-		flag |= EPOLLOUT;
-	}
-	if (swReactor_event_error(fdtype))
-	{
-		flag |= (EPOLLRDHUP);
-		//flag |= (EPOLLRDHUP | EPOLLHUP | EPOLLERR);
-	}
-	return flag;
 }
 
 int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype)
