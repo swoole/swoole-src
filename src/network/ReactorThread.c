@@ -177,14 +177,40 @@ int swReactorThread_send(swSendData *_send)
 
 	if (conn->out_buffer == NULL)
 	{
-		//close connection
+		//Close connection
 		if (_send->info.len == 0)
 		{
 			swConnection_close(serv, fd, _send->info.type == SW_CLOSE_INITIATIVE ? 0 : 1);
 			return SW_OK;
 		}
+		//Direct send
+		else if (_send->info.type != SW_EVENT_SENDFILE)
+		{
+			int n;
+
+			direct_send:
+			n = send(fd, _send->data, _send->length, 0);
+			if (n == _send->length)
+			{
+				return SW_OK;
+			}
+			else if (n > 0)
+			{
+				_send->data += n;
+				_send->length -= n;
+			}
+			else if (errno == EINTR)
+			{
+				goto direct_send;
+			}
+			else
+			{
+				goto buffer_send;
+			}
+		}
 		else
 		{
+			buffer_send:
 			conn->out_buffer = swBuffer_new(SW_BUFFER_SIZE);
 			if (conn->out_buffer == NULL)
 			{
@@ -200,7 +226,7 @@ int swReactorThread_send(swSendData *_send)
 		trunk->store.data.val1 = _send->info.type;
 	}
 	//sendfile to client
-	else if(_send->info.type == SW_EVENT_SENDFILE)
+	else if (_send->info.type == SW_EVENT_SENDFILE)
 	{
 		trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_SENDFILE, 0);
 		if (trunk == NULL)
