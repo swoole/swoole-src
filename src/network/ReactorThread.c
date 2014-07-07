@@ -183,6 +183,7 @@ int swReactorThread_send(swSendData *_send)
 			swConnection_close(serv, fd, _send->info.type == SW_CLOSE_INITIATIVE ? 0 : 1);
 			return SW_OK;
 		}
+#ifdef SW_REACTOR_SYNC_SEND
 		//Direct send
 		else if (_send->info.type != SW_EVENT_SENDFILE)
 		{
@@ -208,6 +209,7 @@ int swReactorThread_send(swSendData *_send)
 				goto buffer_send;
 			}
 		}
+#endif
 		//Buffer send
 		else
 		{
