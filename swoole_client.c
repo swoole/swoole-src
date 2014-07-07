@@ -1257,7 +1257,10 @@ PHP_METHOD(swoole_client, recv)
 	if (cli->type == SW_SOCK_UDP || cli->type == SW_SOCK_UDP6 || waitall == 0 || buf_len < SW_PHP_CLIENT_BUFFER_SIZE)
 	{
 		buf = buf_array;
-		if(buf_len >= SW_PHP_CLIENT_BUFFER_SIZE)  buf_len = SW_PHP_CLIENT_BUFFER_SIZE-1;
+		if (buf_len >= SW_PHP_CLIENT_BUFFER_SIZE)
+		{
+			buf_len = SW_PHP_CLIENT_BUFFER_SIZE-1;
+		}
 	}
 	else
 	{
@@ -1290,7 +1293,10 @@ PHP_METHOD(swoole_client, recv)
 			RETVAL_STRINGL(buf, ret, 1);
 		}
 	}
-	if (require_efree==1) efree(buf);
+	if (require_efree == 1)
+	{
+		efree(buf);
+	}
 }
 
 PHP_METHOD(swoole_client, close)

@@ -100,14 +100,14 @@ int daemon(int nochdir, int noclose);
 #define CLOCK_REALTIME 0
 #endif
 
-#if !__GLIBC_PREREQ(2, 3)
+#if !defined(__GNUC__) || __GNUC__ < 3
 #define __builtin_expect(x, expected_value) (x)
 #endif
 #ifndef likely
-#define likely(x)  __builtin_expect(!!(x), 1)
+#define likely(x)        __builtin_expect(!!(x), 1)
 #endif
 #ifndef unlikely
-#define unlikely(x)  __builtin_expect(!!(x), 0)
+#define unlikely(x)      __builtin_expect(!!(x), 0)
 #endif
 
 #define SW_START_LINE  "-------------------------START----------------------------"

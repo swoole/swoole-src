@@ -8,16 +8,16 @@ if(!$client->connect('127.0.0.1', 9501))
 for ($l=0; $l < 1; $l++) 
 { 
     $datas = array();
-    for($i=0; $i< 10; $i++) 
+    for($i=0; $i< 1; $i++) 
     {
         $body = '';
-        $bodyLen = rand(20, 80);
+        $bodyLen = rand(50000, 100000);
         for ($j=0; $j < $bodyLen; $j++) 
         {
             $body .= pack('s', $j);
         }
         echo ">> body_length=".strlen($body).PHP_EOL;
-        $data = pack('ss', $i, strlen($body));
+        $data = pack('NN', $i, strlen($body));
         $data .= $body;
 
         $protocol = unpack('s*', $data);
@@ -26,7 +26,7 @@ for ($l=0; $l < 1; $l++)
         {
             $output .= sprintf('%d,', $v);
         }
-        echo $output . "\n";
+        //echo $output . "\n";
         $datas[] = $data;
     }
     //一次发送20个包

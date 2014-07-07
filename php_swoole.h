@@ -97,8 +97,8 @@ extern void ***sw_thread_ctx;
 #define SW_CLIENT_CB_onClose                2
 #define SW_CLIENT_CB_onError                3
 
-#define SW_MAX_FIND_COUNT                   100 //for swoole_server::connection_list
-#define SW_PHP_CLIENT_BUFFER_SIZE           65535
+#define SW_MAX_FIND_COUNT                   100    //for swoole_server::connection_list
+#define SW_PHP_CLIENT_BUFFER_SIZE           65536
 
 #define PHP_SERVER_CALLBACK_NUM             15
 //--------------------------------------------------------
