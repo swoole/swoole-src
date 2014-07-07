@@ -35,5 +35,7 @@ int main(int argc, char **argv)
 	//swUnitTest_steup(pool_thread, 1);
 
 	swUnitTest_steup(type_test1, 1, "type test");
+
+	swUnitTest_steup(ws_test1, 1, "websocket decode test");
 	return swUnitTest_run(&test);
 }

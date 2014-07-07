@@ -27,6 +27,7 @@ typedef struct _swBuffer_trunk
 			uint32_t val2;
 		} data;
 	} store;
+	uint32_t size;
 	volatile struct _swBuffer_trunk *next;
 } swBuffer_trunk;
 

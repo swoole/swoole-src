@@ -100,6 +100,16 @@ int daemon(int nochdir, int noclose);
 #define CLOCK_REALTIME 0
 #endif
 
+#if !__GLIBC_PREREQ(2, 3)
+#define __builtin_expect(x, expected_value) (x)
+#endif
+#ifndef likely
+#define likely(x)  __builtin_expect(!!(x), 1)
+#endif
+#ifndef unlikely
+#define unlikely(x)  __builtin_expect(!!(x), 0)
+#endif
+
 #define SW_START_LINE  "-------------------------START----------------------------"
 #define SW_END_LINE    "-------------------------END------------------------------"
 /*----------------------------------------------------------------------------*/
@@ -1057,6 +1067,11 @@ typedef struct
 	 */
 	int id;
 
+	/**
+	 * Write to reactor
+	 */
+	uint16_t pipe_round;
+
 	swString **buffer_input;
 
 } swWorkerG;
@@ -1068,9 +1083,9 @@ typedef struct
 	atomic_uint_t worker_round_i;
 } swThreadG;
 
-extern swServerG SwooleG;    //Local Global Variable
-extern swServerGS *SwooleGS; //Share Memory Global Variable
-extern swWorkerG SwooleWG;   //Worker Global Variable
+extern swServerG SwooleG;              //Local Global Variable
+extern swServerGS *SwooleGS;           //Share Memory Global Variable
+extern swWorkerG SwooleWG;             //Worker Global Variable
 extern __thread swThreadG SwooleTG;   //Thread Global Variable
 
 //-----------------------------------------------

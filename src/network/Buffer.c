@@ -59,6 +59,7 @@ swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint32_t siz
 			sw_free(trunk);
 			return NULL;
 		}
+		trunk->size = size;
 		trunk->store.ptr = buf;
 	}
 

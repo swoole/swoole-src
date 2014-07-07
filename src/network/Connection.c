@@ -20,7 +20,7 @@
 #include <sys/stat.h>
 
 #ifndef MSG_NOSIGNAL
-#define MSG_NOSIGNAL    0
+#define MSG_NOSIGNAL        0
 #endif
 
 int swConnection_send_blocking(int fd, void *data, int length, int timeout)

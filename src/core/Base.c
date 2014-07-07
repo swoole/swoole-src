@@ -184,6 +184,10 @@ int swoole_sync_readfile(int fd, void *buf, int len)
 			count -= n;
 			readn += n;
 		}
+		else if(n == 0)
+		{
+			break;
+		}
 		else
 		{
 			swWarn("read() failed. Error: %s[%d]", strerror(errno), errno);

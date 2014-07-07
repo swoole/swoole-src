@@ -946,19 +946,19 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
 {
 	swServer *serv = SwooleG.serv;
 	int ret;
-	int pti = param->pti;
+	int reactor_id = param->pti;
 
-	swReactor *reactor = &(serv->reactor_threads[pti].reactor);
+	swReactor *reactor = &(serv->reactor_threads[reactor_id].reactor);
 	struct timeval timeo;
 
 	//cpu affinity setting
 #if HAVE_CPU_AFFINITY
-	if(serv->open_cpu_affinity)
+	if (serv->open_cpu_affinity)
 	{
 		cpu_set_t cpu_set;
 		CPU_ZERO(&cpu_set);
-		CPU_SET(pti % SW_CPU_NUM, &cpu_set);
-		if(0 != pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set))
+		CPU_SET(reactor_id % SW_CPU_NUM, &cpu_set);
+		if (0 != pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set))
 		{
 			swWarn("pthread_setaffinity_np set failed");
 		}
@@ -976,7 +976,7 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
 	timeo.tv_sec = serv->timeout_sec;
 	timeo.tv_usec = serv->timeout_usec; //300ms
 	reactor->ptr = serv;
-	reactor->id = pti;
+	reactor->id = reactor_id;
 
 	reactor->onFinish = swReactorThread_onFinish;
 	reactor->onTimeout = swReactorThread_onTimeout;
@@ -985,17 +985,17 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
 	reactor->setHandle(reactor, SW_FD_SEND_TO_CLIENT, swReactorThread_onPipeReceive);
 	reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_WRITE, swReactorThread_onWrite);
 
-	int i, worker_id;
+	int i;
+
 	if (serv->ipc_mode != SW_IPC_MSGQUEUE)
 	{
-		//worker进程绑定reactor
-		for (i = 0; i < serv->reactor_pipe_num; i++)
+		for (i = 0; i < serv->worker_num; i++)
 		{
-			worker_id = (reactor->id * serv->reactor_pipe_num) + i;
-			//swWarn("reactor_id=%d|worker_id=%d", reactor->id, worker_id);
-			//将写pipe设置到writer的reactor中
-			swSetNonBlock(serv->workers[worker_id].pipe_master);
-			reactor->add(reactor, serv->workers[worker_id].pipe_master, SW_FD_SEND_TO_CLIENT);
+			if (i % serv->reactor_num == reactor_id)
+			{
+				swSetNonBlock(serv->workers[i].pipe_master);
+				reactor->add(reactor, serv->workers[i].pipe_master, SW_FD_SEND_TO_CLIENT);
+			}
 		}
 	}
 

@@ -23,7 +23,20 @@
 static void swServer_signal_init(void);
 
 #if SW_REACTOR_SCHEDULE == 3
-static sw_inline void swServer_reactor_schedule(swServer *serv);
+static sw_inline void swServer_reactor_schedule(swServer *serv)
+{
+	//以第1个为基准进行排序，取出最小值
+	int i, event_num = serv->reactor_threads[0].reactor.event_num;
+	serv->reactor_next_i = 0;
+	for (i = 1; i < serv->reactor_num; i++)
+	{
+		if (serv->reactor_threads[i].reactor.event_num < event_num)
+		{
+			serv->reactor_next_i = i;
+			event_num = serv->reactor_threads[i].reactor.event_num;
+		}
+	}
+}
 #endif
 
 static int swServer_check_callback(swServer *serv);
@@ -142,23 +155,6 @@ void swServer_update_time(void)
 		SwooleGS->now = now;
 	}
 }
-
-#if SW_REACTOR_SCHEDULE == 3
-static sw_inline void swServer_reactor_schedule(swServer *serv)
-{
-	//以第1个为基准进行排序，取出最小值
-	int i, event_num = serv->reactor_threads[0].reactor.event_num;
-	serv->reactor_next_i = 0;
-	for (i = 1; i < serv->reactor_num; i++)
-	{
-		if (serv->reactor_threads[i].reactor.event_num < event_num)
-		{
-			serv->reactor_next_i = i;
-			event_num = serv->reactor_threads[i].reactor.event_num;
-		}
-	}
-}
-#endif
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 {

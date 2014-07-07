@@ -46,6 +46,8 @@ swUnitTest(type_test1);
 swUnitTest(aio_test);
 swUnitTest(aio_test2);
 
+swUnitTest(ws_test1);
+
 swUnitTest(rbtree_test);
 void p_str(void *str);
 

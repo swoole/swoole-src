@@ -222,7 +222,12 @@ struct swServer_s
 	 * worker process num
 	 */
 	uint16_t worker_num;
-	uint16_t reactor_pipe_num; //每个reactor维持的pipe数量
+
+	/**
+	 * The number of pipe per reactor maintenance
+	 */
+	uint16_t reactor_pipe_num;
+
 	uint8_t factory_mode;
 
 	/**
