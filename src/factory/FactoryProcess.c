@@ -231,7 +231,7 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 {
 	swServer *serv = factory->ptr;
 	swFactoryProcess *object = factory->object;
-	swString *package;
+	swString *package = NULL;
 
 	factory->last_from_id = task->info.from_id;
 	//worker busy

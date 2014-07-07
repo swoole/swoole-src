@@ -208,6 +208,7 @@ int swReactorThread_send(swSendData *_send)
 				goto buffer_send;
 			}
 		}
+		//Buffer send
 		else
 		{
 			buffer_send:

@@ -40,13 +40,13 @@ function my_onTimer($serv, $interval)
 
 function my_onClose($serv, $fd, $from_id)
 {
-	my_log("Client[$fd@$from_id]: fd=$fd is closed");
+	//my_log("Client[$fd@$from_id]: fd=$fd is closed");
 }
 
 function my_onConnect($serv, $fd, $from_id)
 {
 	//throw new Exception("hello world");
-	echo "Client[$fd@$from_id]: Connect.\n";
+	//echo "Client[$fd@$from_id]: Connect.\n";
 }
 
 function my_onWorkerStart($serv, $worker_id)
