@@ -231,7 +231,7 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 {
 	swServer *serv = factory->ptr;
 	swFactoryProcess *object = factory->object;
-	swString *package;
+	swString *package = SwooleWG.buffer_input[task->info.from_id];
 
 	factory->last_from_id = task->info.from_id;
 
@@ -265,13 +265,9 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 	//package trunk
 	case SW_EVENT_PACKAGE_START:
 	case SW_EVENT_PACKAGE_END:
-
-		package = SwooleWG.buffer_input[task->info.from_id];
-
 		//merge data to package buffer
 		memcpy(package->str + package->length, task->data, task->info.len);
 		package->length += task->info.len;
-
 		//printf("package[%d]. from_id=%d|data_len=%d|total_length=%d\n", task->info.type, task->info.from_id, task->info.len, package->length);
 		//package end
 		if (task->info.type == SW_EVENT_PACKAGE_END)
