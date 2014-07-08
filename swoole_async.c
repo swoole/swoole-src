@@ -172,7 +172,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 #endif
 			close(event->fd);
 			//remove from hashtable
-			zend_hash_del(&php_sw_aio_callback, (char *)&(event->fd), sizeof(event->fd));
+			//zend_hash_del(&php_sw_aio_callback, (char *)&(event->fd), sizeof(event->fd));
 		}
 		else if(file_req->type == SW_AIO_WRITE)
 		{
