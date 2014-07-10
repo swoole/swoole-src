@@ -24,6 +24,9 @@ PHP_ARG_ENABLE(ringbuffer, enable ringbuffer shared memory pool support,
 PHP_ARG_ENABLE(async_mysql, enable async_mysql support,
 [  --enable-async-mysql    Do you have mysqli and mysqlnd?], no, no)
 
+PHP_ARG_ENABLE(openssl, enable openssl support,
+[  --enable-openssl        Use openssl?], no, no)
+
 PHP_ARG_WITH(swoole, swoole support,
 [  --with-swoole           Include swoole support])
 
@@ -248,9 +251,17 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(c, mkostemp, AC_DEFINE(HAVE_MKOSTEMP, 1, [have mkostemp]))
     AC_CHECK_LIB(pthread, pthread_spin_lock, AC_DEFINE(HAVE_SPINLOCK, 1, [have pthread_spin_lock]))
     AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
+    AC_CHECK_LIB(ssl, SSL_library_init, AC_DEFINE(HAVE_OPENSSL, 1, [have openssl]))
 
     dnl PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
     dnl PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
+
+    if test "$PHP_OPENSSL" = "yes"; then
+        AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])
+        PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
+        PHP_ADD_LIBRARY(crypt, 1, SWOOLE_SHARED_LIBADD)
+        PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
+    fi
 
     PHP_NEW_EXTENSION(swoole, swoole.c swoole_lock.c swoole_client.c swoole_async.c swoole_process.c\
         src/core/Base.c \
@@ -309,5 +320,6 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_BUILD_DIR($ext_builddir/src/lock)
     PHP_ADD_BUILD_DIR($ext_builddir/src/os)
     PHP_ADD_BUILD_DIR($ext_builddir/src/network)
+    PHP_ADD_BUILD_DIR($ext_builddir/src/protocol)
 fi
 
