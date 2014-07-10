@@ -2,7 +2,7 @@
 =====
 [![Build Status](https://api.travis-ci.org/swoole/swoole-src.svg)](https://travis-ci.org/matyhtf/swoole)
 
-PHP's asynchronous & concurrent & distributed networking framework.
+Asynchronous & concurrent & distributed networking framework for PHP.
 
 * event-driven
 * full asynchronous non-blocking
