@@ -138,7 +138,8 @@ typedef struct _swThreadWriter
 typedef struct _swListenList_node
 {
 	struct _swListenList_node *next, *prev;
-	int type;
+	uint8_t type;
+	uint8_t ssl;
 	int port;
 	int sock;
 	pthread_t thread_id;
@@ -377,7 +378,7 @@ int swServer_onFinish2(swFactory *factory, swSendData *resp);
 
 void swServer_init(swServer *serv);
 int swServer_start(swServer *serv);
-int swServer_addListen(swServer *serv, int type, char *host,int port);
+int swServer_addListener(swServer *serv, int type, char *host,int port);
 int swServer_create(swServer *serv);
 int swServer_listen(swServer *serv, swReactor *reactor);
 int swServer_free(swServer *serv);

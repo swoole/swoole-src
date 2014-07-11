@@ -83,7 +83,7 @@ static sw_inline int swFactoryProcess_schedule(swFactoryProcess *object, swEvent
 				sw_atomic_fetch_add(round, 1);
 				target_worker_id = (*round) % serv->worker_num;
 
-				if (object->workers_status[target_worker_id] == SW_WORKER_IDLE)
+				if (serv->workers[target_worker_id].status == SW_WORKER_IDLE)
 				{
 					break;
 				}
@@ -126,13 +126,6 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 	}
 	object->writer_pti = 0;
 
-	object->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
-	if (object->workers == NULL)
-	{
-		swWarn("[Master] malloc[object->workers] failed");
-		return SW_ERR;
-	}
-
 	factory->object = object;
 	factory->dispatch = swFactoryProcess_dispatch;
 	factory->finish = swFactoryProcess_finish;
@@ -157,7 +150,7 @@ int swFactoryProcess_shutdown(swFactory *factory)
 	for (i = 0; i < serv->worker_num; i++)
 	{
 		swTrace("[Main]kill worker processor");
-		kill(object->workers[i].pid, SIGTERM);
+		kill(serv->workers[i].pid, SIGTERM);
 	}
 	if (serv->ipc_mode == SW_IPC_MSGQUEUE)
 	{
@@ -176,21 +169,8 @@ int swFactoryProcess_start(swFactory *factory)
 		return SW_ERR;
 	}
 
-	swServer *serv = factory->ptr;
-	swFactoryProcess *object = factory->object;
-	object->workers_status = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(char)*serv->worker_num);
-
-	//worler idle or busy
-	if (object->workers_status == NULL)
-	{
-		swWarn("alloc for worker_status fail");
-		return SW_ERR;
-	}
-
-	//保存下指针，需要和reactor做绑定
-	serv->workers = object->workers;
-
 	int i;
+	swServer *serv = factory->ptr;
 	swWorker *worker;
 
 	for(i = 0; i < serv->worker_num; i++)
@@ -230,12 +210,11 @@ int swFactoryProcess_start(swFactory *factory)
 int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 {
 	swServer *serv = factory->ptr;
-	swFactoryProcess *object = factory->object;
 	swString *package = NULL;
 
 	factory->last_from_id = task->info.from_id;
 	//worker busy
-	object->workers_status[SwooleWG.id] = SW_WORKER_BUSY;
+	serv->workers[SwooleWG.id].status = SW_WORKER_BUSY;
 
 	switch(task->info.type)
 	{
@@ -292,7 +271,7 @@ int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 	}
 
 	//worker idle
-	object->workers_status[SwooleWG.id] = SW_WORKER_IDLE;
+	serv->workers[SwooleWG.id].status = SW_WORKER_IDLE;
 
 	//stop
 	if (worker_task_num < 0)
@@ -345,8 +324,8 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 				swError("create unix socket[1] fail");
 				return SW_ERR;
 			}
-			object->workers[i].pipe_master = object->pipes[i].getFd(&object->pipes[i], 1);
-			object->workers[i].pipe_worker = object->pipes[i].getFd(&object->pipes[i], 0);
+			serv->workers[i].pipe_master = object->pipes[i].getFd(&object->pipes[i], 1);
+			serv->workers[i].pipe_worker = object->pipes[i].getFd(&object->pipes[i], 0);
 		}
 	}
 
@@ -390,7 +369,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 		{
 			//close(worker_pipes[i].pipes[0]);
 			reactor_pti = (i % serv->writer_num);
-			object->workers[i].reactor_id = reactor_pti;
+			serv->workers[i].reactor_id = reactor_pti;
 			pid = swFactoryProcess_worker_spawn(factory, i);
 			if (pid < 0)
 			{
@@ -399,7 +378,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 			}
 			else
 			{
-				object->workers[i].pid = pid;
+				serv->workers[i].pid = pid;
 			}
 		}
 		/**
@@ -453,7 +432,6 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 	SwooleG.use_signalfd = 0;
 	SwooleG.use_timerfd = 0;
 
-	swFactoryProcess *object = factory->object;
 	swServer *serv = factory->ptr;
 	swWorker *reload_workers;
 
@@ -487,7 +465,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 			}
 			else if (manager_reload_flag == 0)
 			{
-				memcpy(reload_workers, object->workers, sizeof(swWorker) * serv->worker_num);
+				memcpy(reload_workers, serv->workers, sizeof(swWorker) * serv->worker_num);
 				if (SwooleG.task_worker_num > 0)
 				{
 					memcpy(reload_workers + serv->worker_num, SwooleG.task_workers.workers,
@@ -502,7 +480,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 			for (i = 0; i < serv->worker_num; i++)
 			{
 				//compare PID
-				if (pid != object->workers[i].pid)
+				if (pid != serv->workers[i].pid)
 				{
 					continue;
 				}
@@ -523,7 +501,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 						}
 						else
 						{
-							object->workers[i].pid = new_pid;
+							serv->workers[i].pid = new_pid;
 							break;
 						}
 					}
@@ -799,7 +777,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 	} rdata;
 	int n;
 
-	int pipe_rd = object->workers[worker_pti].pipe_worker;
+	int pipe_rd = serv->workers[worker_pti].pipe_worker;
 
 #ifdef HAVE_CPU_AFFINITY
 	if (serv->open_cpu_affinity == 1)
@@ -1005,7 +983,7 @@ int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int work
 	{
 		//send to unix sock
 		//swWarn("pti=%d|from_id=%d|data_len=%d|swDataHead_size=%ld", pti, data->info.from_id, send_len, sizeof(swDataHead));
-		ret = swWrite(object->workers[pti].pipe_master, (void *) data, send_len);
+		ret = swWrite(serv->workers[pti].pipe_master, (void *) data, send_len);
 	}
 	return ret;
 }

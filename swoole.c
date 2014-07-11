@@ -535,6 +535,7 @@ PHP_MINIT_FUNCTION(swoole)
 	REGISTER_LONG_CONSTANT("SWOOLE_SYNC", SW_FLAG_SYNC, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_ASYNC", SW_FLAG_ASYNC, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_KEEP", SW_FLAG_KEEP, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SWOOLE_SSL", SW_SOCK_SSL, CONST_CS | CONST_PERSISTENT);
 
 	REGISTER_LONG_CONSTANT("SWOOLE_EVENT_READ", SW_EVENT_READ, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_EVENT_WRITE", SW_EVENT_WRITE, CONST_CS | CONST_PERSISTENT);
@@ -763,7 +764,7 @@ PHP_FUNCTION(swoole_server_create)
 	}
 
 	serv->factory_mode = serv_mode;
-	swTrace("Create swoole_server host=%s, port=%ld, mode=%d", serv_host, serv_port, serv->factory_mode);
+	swTrace("Create swoole_server host=%s, port=%ld, mode=%d, type=%d", serv_host, serv_port, serv->factory_mode, sock_type);
 
 #ifdef ZTS
 	if(sw_thread_ctx == NULL)
@@ -774,9 +775,10 @@ PHP_FUNCTION(swoole_server_create)
 
 	bzero(php_sw_callback, sizeof(zval*) * PHP_SERVER_CALLBACK_NUM);
 
-	if (swServer_addListen(serv, sock_type, serv_host, serv_port) < 0)
+	if (swServer_addListener(serv, sock_type, serv_host, serv_port) < 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_ERROR, "addListener fail. Error: %s [%d]", strerror(errno), errno);
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "addListener failed. Error: %s [%d]", strerror(errno), errno);
+		return;
 	}
 	if (!getThis())
 	{
@@ -1099,6 +1101,36 @@ PHP_FUNCTION(swoole_server_set)
 		convert_to_long(*v);
 		serv->message_queue_key = (int) Z_LVAL_PP(v);
 	}
+
+#ifdef SW_USE_OPENSSL
+	if (zend_hash_find(vht, ZEND_STRS("ssl_cert_file"), (void **) &v) == SUCCESS)
+	{
+		convert_to_string(*v);
+		serv->ssl_cert_file = strdup(Z_STRVAL_PP(v));
+		if (access(serv->ssl_cert_file, R_OK) < 0)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_ERROR, "ssl cert file[%s] not found.", serv->ssl_cert_file);
+			return;
+		}
+		serv->open_ssl = 1;
+	}
+	if (zend_hash_find(vht, ZEND_STRS("ssl_key_file"), (void **) &v) == SUCCESS)
+	{
+		convert_to_string(*v);
+		serv->ssl_key_file = strdup(Z_STRVAL_PP(v));
+		if (access(serv->ssl_key_file, R_OK) < 0)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_ERROR, "ssl key file[%s] not found.", serv->ssl_key_file);
+			return;
+		}
+	}
+	if (serv->open_ssl && !serv->ssl_key_file)
+	{
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "ssl require key file.");
+		return;
+	}
+#endif
+
 	zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zset TSRMLS_CC);
 	RETURN_TRUE;
 }
@@ -2530,7 +2562,7 @@ PHP_FUNCTION(swoole_server_addlisten)
 		}
 	}
 	SWOOLE_GET_SERVER(zobject, serv);
-	SW_CHECK_RETURN(swServer_addListen(serv, (int)sock_type, host, (int)port));
+	SW_CHECK_RETURN(swServer_addListener(serv, (int)sock_type, host, (int)port));
 }
 
 PHP_FUNCTION(swoole_server_deltimer)

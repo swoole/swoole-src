@@ -308,6 +308,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/os/sendfile.c \
         src/os/signal.c \
         src/os/timer.c \
+        src/protocol/SSL.c \
       , $ext_shared)
       
     PHP_ADD_INCLUDE([$ext_srcdir/include])

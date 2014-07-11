@@ -151,13 +151,13 @@ int daemon(int nochdir, int noclose);
 
 #define METHOD_DEF(class,name,...)  class##_##name(class *object, ##__VA_ARGS__)
 #define METHOD(class,name,...)      class##_##name(object, ##__VA_ARGS__)
-
+//-------------------------------------------------------------------------------
 #define SW_OK                  0
 #define SW_ERR                -1
-
+//-------------------------------------------------------------------------------
 #define SW_TRUE                1
 #define SW_FALSE               0
-
+//-------------------------------------------------------------------------------
 #define SW_FD_TCP              0 //tcp socket
 #define SW_FD_LISTEN           1 //server socket
 #define SW_FD_CLOSE            2 //socket closed
@@ -169,27 +169,28 @@ int daemon(int nochdir, int noclose);
 #define SW_FD_AIO              9 //linux native aio
 #define SW_FD_SEND_TO_CLIENT   10 //sendtoclient
 #define SW_FD_SIGNAL           11
-
+//-------------------------------------------------------------------------------
 #define SW_FD_USER             15 //SW_FD_USER or SW_FD_USER+n: for custom event
-
+//-------------------------------------------------------------------------------
 #define SW_MODE_BASE           1
 #define SW_MODE_THREAD         2
 #define SW_MODE_PROCESS        3
 #define SW_MODE_SINGLE         4  //single thread mode
-
+//-------------------------------------------------------------------------------
 #define SW_SOCK_TCP            1
 #define SW_SOCK_UDP            2
 #define SW_SOCK_TCP6           3
 #define SW_SOCK_UDP6           4
-#define SW_SOCK_UNIX_DGRAM     5  //unix sock dgram
-#define SW_SOCK_UNIX_STREAM    6  //unix sock stream
-
+#define SW_SOCK_UNIX_DGRAM     5        //unix sock dgram
+#define SW_SOCK_UNIX_STREAM    6        //unix sock stream
+#define SW_SOCK_SSL            (1u << 9)
+//-------------------------------------------------------------------------------
 #define SW_LOG_DEBUG           0
 #define SW_LOG_INFO            1
 #define SW_LOG_WARN            2
 #define SW_LOG_ERROR           3
 #define SW_LOG_TRACE           4
-
+//-------------------------------------------------------------------------------
 #define swWarn(str,...)        SwooleG.lock.lock(&SwooleG.lock);\
 snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str,__func__,##__VA_ARGS__);\
 swLog_put(SW_LOG_WARN, sw_error);\
@@ -726,6 +727,11 @@ struct _swWorker
 	uint8_t redirect_stdout;
 
 	/**
+	 * worker status, IDLE or BUSY
+	 */
+	uint8_t status;
+
+	/**
 	 * redirect stdin to pipe_worker
 	 */
 	uint8_t redirect_stdin;
@@ -796,15 +802,9 @@ struct _swProcessPool
 
 typedef struct _swFactoryProcess
 {
-	swWorker *workers;
-
 	swPipe *pipes;
 	swQueue rd_queue;
 	swQueue wt_queue;
-
-	//worker的忙闲状态
-	//这里直接使用char来保存了，位运算速度会快，但需要前置计算
-	char *workers_status;
 
 	int writer_pti; //current writer id
 	int worker_pti; //current worker id

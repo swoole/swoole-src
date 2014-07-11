@@ -22,6 +22,8 @@
 #include <openssl/err.h>
 #endif
 
+#include "buffer.h"
+
 typedef struct _swConnection
 {
 	/**

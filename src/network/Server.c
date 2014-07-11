@@ -255,10 +255,18 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 #ifdef SW_USE_OPENSSL
 		if (serv->open_ssl)
 		{
-			if (swSSL_create(conn) < 0 || swSSL_accept(conn) < 0)
+			swListenList_node *listen_host = serv->connection_list[event->fd].object;
+			if (listen_host->ssl)
 			{
-				conn->active = 0;
-				close(new_fd);
+				if (swSSL_create(conn) < 0 || swSSL_accept(conn) < 0)
+				{
+					conn->active = 0;
+					close(new_fd);
+				}
+			}
+			else
+			{
+				conn->ssl = NULL;
 			}
 		}
 #endif
@@ -589,6 +597,13 @@ int swServer_start(swServer *serv)
 		serv->factory.onFinish = swServer_onFinish;
 	}
 
+	serv->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
+	if (serv->workers == NULL)
+	{
+		swWarn("[Master] malloc[object->workers] failed");
+		return SW_ERR;
+	}
+
 	/*
 	 * For swoole_server->taskwait, create notify pipe and result shared memory.
 	 */
@@ -854,6 +869,8 @@ int swServer_free(swServer *serv)
 	if (serv->open_ssl)
 	{
 		swSSL_free();
+		free(serv->ssl_cert_file);
+		free(serv->ssl_key_file);
 	}
 #endif
 
@@ -1009,12 +1026,15 @@ void swServer_signal_init(void)
 	swServer_set_minfd(SwooleG.serv, SwooleG.signal_fd);
 }
 
-int swServer_addListen(swServer *serv, int type, char *host, int port)
+int swServer_addListener(swServer *serv, int type, char *host, int port)
 {
 	swListenList_node *listen_host = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenList_node));
+
 	listen_host->type = type;
 	listen_host->port = port;
 	listen_host->sock = 0;
+	listen_host->ssl = 0;
+
 	bzero(listen_host->host, SW_HOST_MAXSIZE);
 	strncpy(listen_host->host, host, SW_HOST_MAXSIZE);
 	LL_APPEND(serv->listen_list, listen_host);
@@ -1037,9 +1057,16 @@ int swServer_addListen(swServer *serv, int type, char *host, int port)
 	}
 	else
 	{
+		if (type & SW_SOCK_SSL)
+		{
+			type = type & (~SW_SOCK_SSL);
+			listen_host->type = type;
+			listen_host->ssl = 1;
+		}
+
 		if (type != SW_SOCK_UNIX_STREAM && port <= 0)
 		{
-			swError("swServer: listen port must greater than 0.");
+			swError("listen port must greater than 0.");
 			return SW_ERR;
 		}
 		serv->have_tcp_sock = 1;
