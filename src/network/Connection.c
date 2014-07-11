@@ -132,7 +132,7 @@ int swConnection_buffer_send(swConnection *conn)
 	//printf("BufferOut: reactor=%d|sendn=%d|ret=%d|trunk->offset=%d|trunk_len=%d\n", reactor->id, sendn, ret, trunk->offset, trunk->length);
 	if (ret < 0)
 	{
-		switch (swConnection_error(conn->fd, errno))
+		switch (swConnection_error(errno))
 		{
 		case SW_ERROR:
 			swWarn("send to fd[%d] failed. Error: %s[%d]", conn->fd, strerror(errno), errno);

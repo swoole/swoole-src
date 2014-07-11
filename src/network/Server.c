@@ -1300,6 +1300,13 @@ void swServer_connection_close(swServer *serv, int fd, int notify)
 		}
 	}
 
+#ifdef SW_USE_OPENSSL
+	if (conn->ssl)
+	{
+		swSSL_close(conn);
+	}
+#endif
+
 	//关闭此连接，必须放在最前面，以保证线程安全
 	reactor->del(reactor, fd);
 }

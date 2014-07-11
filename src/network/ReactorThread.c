@@ -308,7 +308,7 @@ int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 
 			if (ret <= 0)
 			{
-				switch (swConnection_error(conn->fd, errno))
+				switch (swConnection_error(errno))
 				{
 				case SW_ERROR:
 					swWarn("sendfile failed. Error: %s[%d]", strerror(errno), errno);
@@ -392,7 +392,7 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 	swTrace("ReactorThread: recv[len=%d]", n);
 	if (n < 0)
 	{
-		switch (swConnection_error(conn->fd, errno))
+		switch (swConnection_error(errno))
 		{
 		case SW_ERROR:
 			swWarn("recv from connection[fd=%d] failed. Error: %s[%d]", conn->fd, strerror(errno), errno);
@@ -487,7 +487,7 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 #endif
 	if (n < 0)
 	{
-		switch (swConnection_error(conn->fd, errno))
+		switch (swConnection_error(errno))
 		{
 		case SW_ERROR:
 			swWarn("recv from connection[fd=%d] failed. Error: %s[%d]", conn->fd, strerror(errno), errno);
@@ -624,7 +624,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 
 	if (n < 0)
 	{
-		switch (swConnection_error(conn->fd, errno))
+		switch (swConnection_error(errno))
 		{
 		case SW_ERROR:
 			swWarn("recv from connection[fd=%d] failed. Error: %s[%d]", conn->fd, strerror(errno), errno);

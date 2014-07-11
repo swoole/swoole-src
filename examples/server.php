@@ -7,7 +7,7 @@ $serv->set(array(
 		//'package_eof' => "\r\n",
 		'task_worker_num' => 2,
 		//'task_ipc_mode' => 1,
-		//'dispatch_mode' => 2,
+		'dispatch_mode' => 1,
 		//'daemonize' => 1,
 		//'log_file' => '/tmp/swoole.log',
 		//'heartbeat_idle_time' => 10,
@@ -74,6 +74,7 @@ function my_onWorkerStop($serv, $worker_id)
 
 function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 {
+	my_log("received: $data");
 	$cmd = trim($data);
 	if($cmd == "reload")
 	{

@@ -1111,7 +1111,7 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 
 				if (ret < 0)
 				{
-					switch (swConnection_error(resp->info.fd, errno))
+					switch (swConnection_error(errno))
 					{
 					case SW_ERROR:
 						swWarn("send to fd[%d] failed. Error: %s[%d]", resp->info.fd, strerror(errno), errno);

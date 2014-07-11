@@ -100,6 +100,9 @@ int swSSL_accept(swConnection *conn);
 void swSSL_close(swConnection *conn);
 #endif
 
+/**
+ * Receive data from connection
+ */
 static sw_inline int swConnection_recv(swConnection *conn, void *__buf, size_t __n, int __flags)
 {
 #ifdef SW_USE_OPENSSL
@@ -116,6 +119,9 @@ static sw_inline int swConnection_recv(swConnection *conn, void *__buf, size_t _
 #endif
 }
 
+/**
+ * Send data to connection
+ */
 static sw_inline int swConnection_send(swConnection *conn, void *__buf, size_t __n, int __flags)
 {
 #ifdef SW_USE_OPENSSL
@@ -132,7 +138,7 @@ static sw_inline int swConnection_send(swConnection *conn, void *__buf, size_t _
 #endif
 }
 
-static sw_inline int swConnection_error(int fd, int err)
+static sw_inline int swConnection_error(int err)
 {
 	switch (err)
 	{

@@ -15,7 +15,9 @@
  */
 
 #include "swoole.h"
-#include "Server.h"
+#include "Connection.h"
+
+#ifdef SW_USE_OPENSSL
 
 static SSL_CTX *ssl_context = NULL;
 
@@ -105,3 +107,5 @@ void swSSL_free()
 		SSL_CTX_free(ssl_context);
 	}
 }
+
+#endif
