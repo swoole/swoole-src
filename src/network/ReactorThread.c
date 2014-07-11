@@ -350,7 +350,6 @@ int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 	}
 
 	//remove EPOLLOUT event
-	remove_out_event:
 	if (swBuffer_empty(conn->out_buffer))
 	{
 		reactor->set(reactor, ev->fd, SW_EVENT_TCP | SW_EVENT_READ);

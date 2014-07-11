@@ -46,6 +46,15 @@ PHP_METHOD(swoole_process, __construct)
 	}
 #endif
 
+	/**
+	 * Reactor has already been created, Dont fork.
+	 */
+	if (SwooleG.main_reactor && SwooleGS->start == 0)
+	{
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_process must be create before the event loop.");
+		return;
+	}
+
 	zend_bool redirect_stdin_and_stdout = 0;
 	zend_bool create_pipe = 1;
 	zval *callback;
@@ -179,6 +188,16 @@ PHP_METHOD(swoole_process, start)
 			{
 				php_error_docref(NULL TSRMLS_CC, E_WARNING, "dup2() failed. Error: %s[%d]", strerror(errno), errno);
 			}
+		}
+
+		/**
+		 * Close EventLoop
+		 */
+		if (SwooleG.main_reactor)
+		{
+			SwooleG.main_reactor->free(SwooleG.main_reactor);
+			SwooleG.main_reactor = NULL;
+			php_sw_reactor_ok = 0;
 		}
 
 		zval *zpid;

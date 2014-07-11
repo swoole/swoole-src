@@ -32,7 +32,7 @@
 #include "Server.h"
 #include "Client.h"
 
-#define PHP_SWOOLE_VERSION  "1.7.4-beta"
+#define PHP_SWOOLE_VERSION  "1.7.4"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -49,14 +49,14 @@
 #define SW_HOST_SIZE  128
 
 #pragma pack(4)
-typedef struct {
+typedef struct
+{
 	uint16_t port;
 	uint16_t from_fd;
 } php_swoole_udp_t;
 #pragma pack()
 
 extern zend_module_entry swoole_module_entry;
-extern char php_sw_reactor_wait_onexit;
 
 #define phpext_swoole_ptr &swoole_module_entry
 
@@ -147,6 +147,9 @@ extern HashTable php_sw_client_callback;
 extern HashTable php_sw_timer_callback;
 extern HashTable php_sw_long_connections;
 extern HashTable php_sw_aio_callback;
+
+extern uint8_t php_sw_reactor_ok;
+extern uint8_t php_sw_reactor_wait_onexit;
 
 PHP_MINIT_FUNCTION(swoole);
 PHP_MSHUTDOWN_FUNCTION(swoole);

@@ -34,21 +34,24 @@
 #define php_sw_client_onClose       "onClose"
 #define php_sw_client_onError       "onError"
 
-typedef struct {
+typedef struct
+{
 	zval *cb_read;
 	zval *cb_write;
 	zval *socket;
 } swoole_reactor_fd;
 
-typedef struct {
+typedef struct
+{
 	zval *callback;
 	int interval;
 } swoole_timer_item;
 
-char php_sw_reactor_wait_onexit = 0;
-static char php_sw_reactor_ok = 0;
-static char php_sw_in_client = 0;
-static char php_sw_event_wait = 0;
+uint8_t php_sw_reactor_wait_onexit = 0;
+uint8_t php_sw_reactor_ok = 0;
+
+static uint8_t php_sw_in_client = 0;
+static uint8_t php_sw_event_wait = 0;
 
 static char *php_sw_callbacks[PHP_CLIENT_CALLBACK_NUM] =
 {
