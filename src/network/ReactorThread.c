@@ -1198,6 +1198,11 @@ void swReactorThread_free(swServer *serv)
 	int i;
 	swReactorThread *thread;
 
+	if (SwooleGS->start == 0)
+	{
+		return;
+	}
+
 	if (serv->have_tcp_sock == 1)
 	{
 		//create reactor thread

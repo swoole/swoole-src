@@ -85,6 +85,12 @@ extern void ***sw_thread_ctx;
 #endif
 #endif
 
+#ifdef SW_USE_OPENSSL
+#ifndef HAVE_OPENSSL
+#error "Enable openssl support, But no openssl library."
+#endif
+#endif
+
 #define SW_RES_SERVER_NAME          "SwooleServer"
 #define SW_RES_CLIENT_NAME          "SwooleClient"
 #define SW_RES_LOCK_NAME            "SwooleLock"

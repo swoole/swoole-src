@@ -448,13 +448,13 @@ static int swServer_start_proxy(swServer *serv)
 
 	if (ret < 0)
 	{
-		swWarn("Swoole reactor create fail");
+		swWarn("Reactor create failed");
 		return SW_ERR;
 	}
 	ret = swReactorThread_start(serv, main_reactor);
 	if (ret < 0)
 	{
-		swWarn("Swoole poll thread start fail");
+		swWarn("ReactorThread start failed");
 		return SW_ERR;
 	}
 	SwooleG.main_reactor = main_reactor;
@@ -631,6 +631,11 @@ int swServer_start(swServer *serv)
 	else
 	{
 		ret = swServer_start_proxy(serv);
+	}
+
+	if (ret < 0)
+	{
+		SwooleGS->start = 0;
 	}
 
 	//server stop
