@@ -80,7 +80,7 @@ int swoole_mkdir_recursive(const char *dir)
 			{
 				if (mkdir(tmp, 0755) == -1)
 				{
-					swWarn("mkdir() failed. Error: %s[%d]", strerror(errno), errno);
+					swWarn("mkdir(%s) failed. Error: %s[%d]", tmp, strerror(errno), errno);
 					return -1;
 				}
 			}

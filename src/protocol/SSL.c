@@ -61,44 +61,40 @@ int swSSL_init(char *cert_file, char *key_file)
 
 int swSSL_accept(swConnection *conn)
 {
-	int ret = SSL_accept(conn->ssl->ssl);
+	int ret = SSL_accept(conn->ssl);
 	if (ret)
 	{
 		return SW_OK;
 	}
 	else
 	{
-		long err = SSL_get_error(conn->ssl->ssl, ret);
+		long err = SSL_get_error(conn->ssl, ret);
 		swWarn("SSL_accept() failed. Error: %s[%ld]", ERR_reason_error_string(err), err);
 		return SW_ERR;
 	}
 }
 
+void swSSL_close(swConnection *conn)
+{
+	SSL_free(conn->ssl);
+}
+
 int swSSL_create(swConnection *conn)
 {
-	swSSL_socket *ssl_sock = sw_malloc(sizeof(swSSL_socket));
-	if (ssl_sock == NULL)
-	{
-		swWarn("malloc(%ld) failed", sizeof(swSSL_socket));
-		return SW_ERR;
-	}
-
-	ssl_sock->ssl = SSL_new(ssl_context);
-	if (ssl_sock->ssl == NULL)
+	SSL *ssl = SSL_new(ssl_context);
+	if (ssl == NULL)
 	{
 		swWarn("SSL_new() failed.");
-		sw_free(ssl_sock);
 		return SW_ERR;
 	}
 
-	if (!SSL_set_fd(ssl_sock->ssl, conn->fd))
+	if (!SSL_set_fd(ssl, conn->fd))
 	{
-		sw_free(ssl_sock);
 		long err = ERR_get_error();
 		swWarn("SSL_set_fd() failed. Error: %s[%ld]", ERR_reason_error_string(err), err);
 		return SW_ERR;
 	}
-	conn->ssl = ssl_sock;
+	conn->ssl = ssl;
 	return SW_OK;
 }
 

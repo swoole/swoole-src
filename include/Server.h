@@ -19,6 +19,7 @@
 
 #include "swoole.h"
 #include "buffer.h"
+#include "Connection.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -151,61 +152,6 @@ typedef struct {
 	off_t filesize;
 	off_t offset;
 } swTask_sendfile;
-
-typedef struct _swConnection
-{
-	/**
-	 * is active
-	 * system fd must be 0. en: timerfd, signalfd, listen socket
-	 */
-	uint8_t active;
-
-	/**
-	 * file descript
-	 */
-	int fd;
-
-	/**
-	 * ReactorThread id
-	 */
-	uint16_t from_id;
-
-	/**
-	 * from which socket fd
-	 */
-	uint16_t from_fd;
-
-	/**
-	 * socket address
-	 */
-	struct sockaddr_in addr;
-
-	/**
-	 * link any thing
-	 */
-	void *object;
-
-	/**
-	 * input buffer
-	 */
-	swBuffer *in_buffer;
-
-	/**
-	 * output buffer
-	 */
-	swBuffer *out_buffer;
-
-	/**
-	 * connect time(seconds)
-	 */
-	time_t connect_time;
-
-	/**
-	 * received time with last data
-	 */
-	time_t last_time;
-
-} swConnection;
 
 struct swServer_s
 {
@@ -356,6 +302,12 @@ struct swServer_s
 	uint32_t buffer_output_size;
 	uint32_t buffer_input_size;
 
+#ifdef SW_USE_OPENSSL
+	uint8_t open_ssl;
+	char *ssl_cert_file;
+	char *ssl_key_file;
+#endif
+
 	void *ptr2;
 
 	swPipe main_pipe;
@@ -465,33 +417,8 @@ int swTaskWorker_large_pack(swEventData *task, void *data, int data_len);
 #define swPackage_data(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->str:task->data)
 #define swPackage_length(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->length:task->info.len)
 
-int swServer_new_connection(swServer *serv, swEvent *ev);
-void swConnection_close(swServer *serv, int fd, int notify);
-
-static sw_inline int swConnection_error(int fd, int err)
-{
-	switch (err)
-	{
-	case ECONNRESET:
-	case EPIPE:
-	case ENOTCONN:
-	case ETIMEDOUT:
-	case ECONNREFUSED:
-	case ENETDOWN:
-	case ENETUNREACH:
-	case EHOSTDOWN:
-	case EHOSTUNREACH:
-		return SW_CLOSE;
-	case EAGAIN:
-	case 0:
-		return SW_WAIT;
-	default:
-		return SW_ERROR;
-	}
-}
-
-int swConnection_send_blocking(int fd, void *data, int length, int timeout);
-int swConnection_sendfile_blocking(int fd, char *filename, int timeout);
+swConnection* swServer_connection_new(swServer *serv, swEvent *ev);
+void swServer_connection_close(swServer *serv, int fd, int notify);
 
 #define SW_SERVER_MAX_FD_INDEX          0 //max connection socket
 #define SW_SERVER_MIN_FD_INDEX          1 //min listen socket
@@ -500,17 +427,10 @@ int swConnection_sendfile_blocking(int fd, char *filename, int timeout);
 //使用connection_list[0]表示最大的FD
 #define swServer_set_maxfd(serv,maxfd) (serv->connection_list[SW_SERVER_MAX_FD_INDEX].fd=maxfd)
 #define swServer_get_maxfd(serv) (serv->connection_list[SW_SERVER_MAX_FD_INDEX].fd)
-#define swServer_get_connection(serv,fd) ((fd>serv->max_conn|| fd<= 2)?NULL:&serv->connection_list[fd])
+#define swServer_connection_get(serv,fd) ((fd>serv->max_conn|| fd<= 2)?NULL:&serv->connection_list[fd])
 //使用connection_list[1]表示最小的FD
 #define swServer_set_minfd(serv,maxfd) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd=maxfd)
 #define swServer_get_minfd(serv) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd)
-
-swString* swConnection_get_string_buffer(swConnection *conn);
-int swConnection_send_string_buffer(swConnection *conn);
-void swConnection_clear_string_buffer(swConnection *conn);
-volatile swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type);
-volatile swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn);
-int swConnection_send_in_buffer(swConnection *conn);
 
 static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_id)
 {
@@ -551,6 +471,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *event);
 int swReactorThread_onPackage(swReactor *reactor, swEvent *event);
 int swReactorThread_onPipeReceive(swReactor *reactor, swDataHead *ev);
+int swReactorThread_onWrite(swReactor *reactor, swEvent *ev);
 int swReactorThread_send(swSendData *_send);
 
 int swReactorProcess_create(swServer *serv);

@@ -82,7 +82,7 @@ swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint32_t siz
 /**
  * pop the head trunk
  */
-void swBuffer_pop_trunk(swBuffer *buffer, volatile swBuffer_trunk *trunk)
+void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk)
 {
 	//only one trunk
 	if (trunk->next == NULL)
@@ -103,8 +103,7 @@ void swBuffer_pop_trunk(swBuffer *buffer, volatile swBuffer_trunk *trunk)
 	{
 		sw_free(trunk->store.ptr);
 	}
-	void *will_free_trunk = (void *) trunk;
-	sw_free(will_free_trunk);
+	sw_free(trunk);
 }
 
 /**
@@ -148,49 +147,6 @@ int swBuffer_append(swBuffer *buffer, void *data, uint32_t size)
 			trunk->length, trunk);
 
 	return SW_OK;
-}
-
-/**
- * send buffer to client
- */
-int swBuffer_send(swBuffer *buffer, int fd)
-{
-	int ret, sendn;
-	volatile swBuffer_trunk *trunk = swBuffer_get_trunk(buffer);
-	sendn = trunk->length - trunk->offset;
-
-	if (sendn == 0)
-	{
-		swBuffer_pop_trunk(buffer, trunk);
-		return SW_CONTINUE;
-	}
-	ret = send(fd, trunk->store.ptr + trunk->offset, sendn, 0);
-	//printf("BufferOut: reactor=%d|sendn=%d|ret=%d|trunk->offset=%d|trunk_len=%d\n", reactor->id, sendn, ret, trunk->offset, trunk->length);
-	if (ret < 0)
-	{
-		switch (swConnection_error(fd, errno))
-		{
-		case SW_ERROR:
-			swWarn("send to fd[%d] failed. Error: %s[%d]", fd, strerror(errno), errno);
-			return SW_OK;
-		case SW_CLOSE:
-			return SW_CLOSE;
-		case SW_WAIT:
-			return SW_WAIT;
-		default:
-			return SW_CONTINUE;
-		}
-	}
-	//trunk full send
-	else if(ret == sendn || sendn == 0)
-	{
-		swBuffer_pop_trunk(buffer, trunk);
-	}
-	else
-	{
-		trunk->offset += ret;
-	}
-	return SW_CONTINUE;
 }
 
 /**

@@ -16,6 +16,7 @@
 
 #include "swoole.h"
 #include "Server.h"
+#include "Connection.h"
 #include "memory.h"
 
 #include <netinet/tcp.h>
@@ -63,15 +64,21 @@ void swServer_worker_onStart(swServer *serv)
 	 * Release other worker process
 	 */
 	int i;
+	swWorker *worker;
 	for (i = 0; i < serv->worker_num + SwooleG.task_worker_num; i++)
 	{
+		worker = swServer_get_worker(serv, i);
 		if (SwooleWG.id == i)
 		{
 			continue;
 		}
 		else
 		{
-			swWorker_free(swServer_get_worker(serv, i));
+			swWorker_free(worker);
+		}
+		if (SwooleWG.id < serv->worker_num && i < serv->worker_num)
+		{
+			close(worker->pipe_master);
 		}
 	}
 	if (serv->onWorkerStart)
@@ -107,7 +114,7 @@ static int swServer_master_onClose(swReactor *reactor, swEvent *event)
 	for (i = 0; i < n / sizeof(int); i++)
 	{
 		fd = queue[i];
-		conn = swServer_get_connection(serv, fd);
+		conn = swServer_connection_get(serv, fd);
 
 		if (serv->onMasterClose != NULL)
 		{
@@ -243,9 +250,19 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 		connEv.from_fd = event->fd;
 
 		//add to connection_list
-		swServer_new_connection(serv, &connEv);
-		memcpy(&serv->connection_list[new_fd].addr, &client_addr, sizeof(client_addr));
+		swConnection *conn = swServer_connection_new(serv, &connEv);
 
+#ifdef SW_USE_OPENSSL
+		if (serv->open_ssl)
+		{
+			if (swSSL_create(conn) < 0 || swSSL_accept(conn) < 0)
+			{
+				conn->active = 0;
+				close(new_fd);
+			}
+		}
+#endif
+		memcpy(&conn->addr, &client_addr, sizeof(client_addr));
 		/*
 		 * [!!!] new_connection function must before reactor->add
 		 */
@@ -401,6 +418,16 @@ static int swServer_check_callback(swServer *serv)
 	{
 		serv->writer_num = serv->worker_num;
 	}
+#ifdef SW_USE_OPENSSL
+	if (serv->open_ssl)
+	{
+		if (serv->ssl_cert_file == NULL || serv->ssl_key_file == NULL)
+		{
+			swWarn("ssl_cert_file or ssl_key_file is null.");
+			return SW_ERR;
+		}
+	}
+#endif
 	return SW_OK;
 }
 
@@ -491,6 +518,16 @@ int swServer_start(swServer *serv)
 		SwooleG.use_signalfd = 0;
 		SwooleG.use_timer_pipe = 0;
 	}
+
+#ifdef SW_USE_OPENSSL
+	if (serv->open_ssl)
+	{
+		if (swSSL_init(serv->ssl_cert_file, serv->ssl_key_file) < 0)
+		{
+			return SW_ERR;
+		}
+	}
+#endif
 
 	//run as daemon
 	if (serv->daemonize > 0)
@@ -807,6 +844,14 @@ int swServer_free(swServer *serv)
 	{
 		swProcessPool_shutdown(&SwooleG.task_workers);
 	}
+
+#ifdef SW_USE_OPENSSL
+	if (serv->open_ssl)
+	{
+		swSSL_free();
+	}
+#endif
+
 	//connection_list释放
 	if (serv->factory_mode == SW_MODE_SINGLE)
 	{
@@ -885,7 +930,7 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, int length)
 		int trunk_num = (length / SW_BUFFER_SIZE) + 1;
 		int send_n = 0, i, ret;
 
-		swConnection *conn = swServer_get_connection(serv, fd);
+		swConnection *conn = swServer_connection_get(serv, fd);
 		if (conn == NULL || conn->active == 0)
 		{
 			swWarn("Connection[%d] has been closed.", fd);
@@ -1003,7 +1048,7 @@ int swServer_addListen(swServer *serv, int type, char *host, int port)
  */
 int swServer_listen(swServer *serv, swReactor *reactor)
 {
-	int sock=-1, sockopt;
+	int sock=-1;
 
 	swListenList_node *listen_host;
 
@@ -1029,6 +1074,7 @@ int swServer_listen(swServer *serv, swReactor *reactor)
 		}
 
 #ifdef TCP_DEFER_ACCEPT
+		int sockopt;
 		if (serv->tcp_defer_accept > 0)
 		{
 			sockopt = serv->tcp_defer_accept;
@@ -1149,7 +1195,7 @@ static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
 		for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
 		{
 			swTrace("check fd=%d", fd);
-			conn = swServer_get_connection(serv, fd);
+			conn = swServer_connection_get(serv, fd);
 			if (conn != NULL && 1 == conn->active && conn->last_time < checktime)
 			{
 				notify_ev.fd = fd;
@@ -1159,4 +1205,144 @@ static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
 		sleep(serv->heartbeat_check_interval);
 	}
 	pthread_exit(0);
+}
+
+
+/**
+ * close connection
+ */
+void swServer_connection_close(swServer *serv, int fd, int notify)
+{
+	swConnection *conn = swServer_connection_get(serv, fd);
+	swReactor *reactor;
+	swEvent notify_ev;
+
+	if (conn == NULL)
+	{
+		swWarn("[Reactor]connection not found. fd=%d|max_fd=%d", fd, swServer_get_maxfd(serv));
+		return;
+	}
+
+	conn->active = 0;
+
+	int reactor_id = conn->from_id;
+
+	swCloseQueue *queue = &serv->reactor_threads[reactor_id].close_queue;
+
+	//将关闭的fd放入队列
+	queue->events[queue->num] = fd;
+	//增加计数
+	queue->num ++;
+
+	reactor = &(serv->reactor_threads[reactor_id].reactor);
+	swTrace("Close Event.fd=%d|from=%d", fd, reactor_id);
+
+	//释放缓存区占用的内存
+	if (serv->open_eof_check == 1)
+	{
+		if (conn->in_buffer != NULL)
+		{
+			swBuffer_free(conn->in_buffer);
+			conn->in_buffer = NULL;
+		}
+	}
+	else if (serv->open_length_check == 1)
+	{
+		if (conn->object != NULL)
+		{
+			swString_free(conn->object);
+		}
+	}
+
+	if (conn->out_buffer != NULL)
+	{
+		swBuffer_free(conn->out_buffer);
+		conn->out_buffer = NULL;
+	}
+
+	if (conn->in_buffer != NULL)
+	{
+		swBuffer_free(conn->in_buffer);
+		conn->in_buffer = NULL;
+	}
+
+	//通知到worker进程
+	if (serv->onClose != NULL && notify == 1)
+	{
+		//通知worker进程
+		notify_ev.from_id = reactor_id;
+		notify_ev.fd = fd;
+		notify_ev.type = SW_EVENT_CLOSE;
+		SwooleG.factory->notify(SwooleG.factory, &notify_ev);
+	}
+
+	//通知主进程
+	if (queue->num == SW_CLOSE_QLEN)
+	{
+		swReactorThread_close_queue(reactor, queue);
+	}
+
+	//立即关闭socket，清理缓存区
+	if (serv->tcp_socket_linger > 0)
+	{
+		struct linger linger;
+		linger.l_onoff = 1;
+		linger.l_linger = 0;
+
+		if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) == -1)
+		{
+			swWarn("setsockopt(SO_LINGER) failed. Error: %s[%d]", strerror(errno), errno);
+		}
+	}
+
+	//关闭此连接，必须放在最前面，以保证线程安全
+	reactor->del(reactor, fd);
+}
+
+
+/**
+ * new connection
+ */
+swConnection* swServer_connection_new(swServer *serv, swEvent *ev)
+{
+	int conn_fd = ev->fd;
+	swConnection* connection = NULL;
+
+	if (conn_fd > swServer_get_maxfd(serv))
+	{
+		swServer_set_maxfd(serv, conn_fd);
+
+#ifdef SW_CONNECTION_LIST_EXPAND
+	//新的fd超过了最大fd
+
+		//需要扩容
+		if (conn_fd == serv->connection_list_capacity - 1)
+		{
+			void *new_ptr = sw_shm_realloc(serv->connection_list, sizeof(swConnection)*(serv->connection_list_capacity + SW_CONNECTION_LIST_EXPAND));
+			if(new_ptr == NULL)
+			{
+				swWarn("connection_list realloc fail");
+				return SW_ERR;
+			}
+			else
+			{
+				serv->connection_list_capacity += SW_CONNECTION_LIST_EXPAND;
+				serv->connection_list = (swConnection *)new_ptr;
+			}
+		}
+#endif
+
+	}
+
+	connection = &(serv->connection_list[conn_fd]);
+	bzero(connection, sizeof(swConnection));
+
+	connection->fd = conn_fd;
+	connection->from_id = ev->from_id;
+	connection->from_fd = ev->from_fd;
+	connection->connect_time = SwooleGS->now;
+	connection->last_time = SwooleGS->now;
+	connection->active = 1; //使此连接激活,必须在最后，保证线程安全
+
+	return connection;
 }

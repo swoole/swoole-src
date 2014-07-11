@@ -610,7 +610,7 @@ int swFactoryProcess_end(swFactory *factory, swDataHead *event)
 	 */
 	_send.info.type = event->type;
 
-	swConnection *conn = swServer_get_connection(serv, _send.info.fd);
+	swConnection *conn = swServer_connection_get(serv, _send.info.fd);
 	if (conn == NULL || conn->active == 0)
 	{
 		swWarn("can not close. Connection[%d] not found.", _send.info.fd);
@@ -659,7 +659,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 	//for message queue
 	sdata.pti = (SwooleWG.id % serv->writer_num) + 1;
 
-	swConnection *conn = swServer_get_connection(serv, fd);
+	swConnection *conn = swServer_connection_get(serv, fd);
 	if (conn == NULL || conn->active == 0)
 	{
 		swWarn("connection[%d] not found.", fd);
@@ -1095,7 +1095,7 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 			if (resp->info.len == 0)
 			{
 				close_fd:
-				swConnection_close(SwooleG.serv, resp->info.fd, 0);
+				swServer_connection_close(SwooleG.serv, resp->info.fd, 0);
 				continue;
 			}
 			else

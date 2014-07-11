@@ -62,8 +62,8 @@ int swClient_create(swClient *cli, int type, int async)
 	default:
 		return SW_ERR;
 	}
-	cli->sock = socket(_domain, _type, 0);
-	if (cli->sock < 0)
+	cli->connection.fd = socket(_domain, _type, 0);
+	if (cli->connection.fd < 0)
 	{
 		return SW_ERR;
 	}
@@ -147,9 +147,9 @@ static int swClient_inet_addr(swClient *cli, char *string)
 
 int swClient_close(swClient *cli)
 {
-	int fd = cli->sock;
-	cli->sock = 0;
-	cli->connected = 0;
+	int fd = cli->connection.fd;
+	cli->connection.fd = 0;
+	cli->connection.active = 0;
 	return close(fd);
 }
 
@@ -168,20 +168,20 @@ int swClient_tcp_connect(swClient *cli, char *host, int port, double timeout, in
 
 	if (nonblock == 1)
 	{
-		swSetNonBlock(cli->sock);
+		swSetNonBlock(cli->connection.fd);
 	}
 	else
 	{
 		if (cli->timeout > 0)
 		{
-			swSetTimeout(cli->sock, timeout);
+			swSetTimeout(cli->connection.fd, timeout);
 		}
-		swSetBlock(cli->sock);
+		swSetBlock(cli->connection.fd);
 	}
 
 	while (1)
 	{
-		ret = connect(cli->sock, (struct sockaddr *) (&cli->serv_addr), sizeof(cli->serv_addr));
+		ret = connect(cli->connection.fd, (struct sockaddr *) (&cli->serv_addr), sizeof(cli->serv_addr));
 		if (ret < 0)
 		{
 			if (errno == EINTR)
@@ -193,31 +193,31 @@ int swClient_tcp_connect(swClient *cli, char *host, int port, double timeout, in
 	}
 	if (ret >= 0)
 	{
-		cli->connected = 1;
+		cli->connection.active = 1;
 	}
 	return ret;
 }
 
 int swClient_tcp_send_async(swClient *cli, char *data, int length)
 {
-	if (cli->out_buffer == NULL)
+	if (cli->connection.out_buffer == NULL)
 	{
-		cli->out_buffer = swBuffer_new(SW_BUFFER_SIZE);
-		if (cli->out_buffer == NULL)
+		cli->connection.out_buffer = swBuffer_new(SW_BUFFER_SIZE);
+		if (cli->connection.out_buffer == NULL)
 		{
 			return SW_ERR;
 		}
 	}
 
-	if (swBuffer_empty(cli->out_buffer))
+	if (swBuffer_empty(cli->connection.out_buffer))
 	{
-		SwooleG.main_reactor->set(SwooleG.main_reactor, cli->sock, cli->reactor_fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
+		SwooleG.main_reactor->set(SwooleG.main_reactor, cli->connection.fd, cli->reactor_fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
 	}
 
 	/**
 	 * append data to buffer
 	 */
-	if (swBuffer_append(cli->out_buffer, data, length) < 0)
+	if (swBuffer_append(cli->connection.out_buffer, data, length) < 0)
 	{
 		return SW_ERR;
 	}
@@ -235,7 +235,7 @@ int swClient_tcp_send_sync(swClient *cli, char *data, int length)
 
 	while (written < length)
 	{
-		n = send(cli->sock, data, length - written, 0);
+		n = send(cli->connection.fd, data, length - written, 0);
 		if (n < 0)
 		{
 			//中断
@@ -268,13 +268,13 @@ int swClient_tcp_recv(swClient *cli, char *data, int len, int waitall)
 		flag = MSG_WAITALL;
 	}
 
-	ret = recv(cli->sock, data, len, flag);
+	ret = recv(cli->connection.fd, data, len, flag);
 
 	if (ret < 0)
 	{
 		if (errno == EINTR)
 		{
-			ret = recv(cli->sock, data, len, flag);
+			ret = recv(cli->connection.fd, data, len, flag);
 		}
 		else
 		{
@@ -291,12 +291,12 @@ int swClient_udp_connect(swClient *cli, char *host, int port, double timeout, in
 	cli->timeout = timeout;
 	if (timeout > 0)
 	{
-		swSetTimeout(cli->sock, timeout);
+		swSetTimeout(cli->connection.fd, timeout);
 	}
 
 	cli->serv_addr.sin_family = cli->sock_domain;
 	cli->serv_addr.sin_port = htons(port);
-	cli->connected = 1;
+	cli->connection.active = 1;
 
 	if (swClient_inet_addr(cli, host) < 0)
 	{
@@ -308,10 +308,10 @@ int swClient_udp_connect(swClient *cli, char *host, int port, double timeout, in
 		return SW_OK;
 	}
 
-	if (connect(cli->sock, (struct sockaddr *) (&cli->serv_addr), sizeof(cli->serv_addr)) == 0)
+	if (connect(cli->connection.fd, (struct sockaddr *) (&cli->serv_addr), sizeof(cli->serv_addr)) == 0)
 	{
 		//清理connect前的buffer数据遗留
-		while(recv(cli->sock, buf, 1024 , MSG_DONTWAIT) > 0);
+		while(recv(cli->connection.fd, buf, 1024 , MSG_DONTWAIT) > 0);
 		return SW_OK;
 	}
 	else
@@ -323,7 +323,7 @@ int swClient_udp_connect(swClient *cli, char *host, int port, double timeout, in
 int swClient_udp_send(swClient *cli, char *data, int len)
 {
 	int n;
-	n = sendto(cli->sock, data, len , 0, (struct sockaddr *) (&cli->serv_addr), sizeof(struct sockaddr));
+	n = sendto(cli->connection.fd, data, len , 0, (struct sockaddr *) (&cli->serv_addr), sizeof(struct sockaddr));
 	if(n < 0 || n < len)
 	{
 
@@ -346,12 +346,12 @@ int swClient_udp_recv(swClient *cli, char *data, int length, int waitall)
 
 	}
 	len = sizeof(struct sockaddr);
-	ret = recvfrom(cli->sock, data, length, flag, (struct sockaddr *) (&cli->remote_addr), &len);
+	ret = recvfrom(cli->connection.fd, data, length, flag, (struct sockaddr *) (&cli->remote_addr), &len);
 	if(ret < 0)
 	{
 		if(errno == EINTR)
 		{
-			ret = recvfrom(cli->sock, data, length, flag, (struct sockaddr *) (&cli->remote_addr), &len);
+			ret = recvfrom(cli->connection.fd, data, length, flag, (struct sockaddr *) (&cli->remote_addr), &len);
 		}
 		else
 		{

@@ -15,6 +15,7 @@
 */
 #include "swoole.h"
 #include "Server.h"
+#include "Connection.h"
 
 #include <sys/poll.h>
 #include <sys/stat.h>
@@ -113,141 +114,47 @@ int swConnection_sendfile_blocking(int fd, char *filename, int timeout)
 }
 
 /**
- * close connection
+ * send buffer to client
  */
-void swConnection_close(swServer *serv, int fd, int notify)
+int swConnection_buffer_send(swConnection *conn)
 {
-	swConnection *conn = swServer_get_connection(serv, fd);
-	swReactor *reactor;
-	swEvent notify_ev;
+	int ret, sendn;
+	swBuffer *buffer = conn->out_buffer;
+	swBuffer_trunk *trunk = swBuffer_get_trunk(buffer);
+	sendn = trunk->length - trunk->offset;
 
-	if (conn == NULL)
+	if (sendn == 0)
 	{
-		swWarn("[Reactor]connection not found. fd=%d|max_fd=%d", fd, swServer_get_maxfd(serv));
-		return;
+		swBuffer_pop_trunk(buffer, trunk);
+		return SW_CONTINUE;
 	}
-
-	conn->active = 0;
-
-	int reactor_id = conn->from_id;
-
-	swCloseQueue *queue = &serv->reactor_threads[reactor_id].close_queue;
-
-	//将关闭的fd放入队列
-	queue->events[queue->num] = fd;
-	//增加计数
-	queue->num ++;
-
-	reactor = &(serv->reactor_threads[reactor_id].reactor);
-	swTrace("Close Event.fd=%d|from=%d", fd, reactor_id);
-
-	//释放缓存区占用的内存
-	if (serv->open_eof_check == 1)
+	ret = swConnection_send(conn, trunk->store.ptr + trunk->offset, sendn, 0);
+	//printf("BufferOut: reactor=%d|sendn=%d|ret=%d|trunk->offset=%d|trunk_len=%d\n", reactor->id, sendn, ret, trunk->offset, trunk->length);
+	if (ret < 0)
 	{
-		if (conn->in_buffer != NULL)
+		switch (swConnection_error(conn->fd, errno))
 		{
-			swBuffer_free(conn->in_buffer);
-			conn->in_buffer = NULL;
+		case SW_ERROR:
+			swWarn("send to fd[%d] failed. Error: %s[%d]", conn->fd, strerror(errno), errno);
+			return SW_OK;
+		case SW_CLOSE:
+			return SW_CLOSE;
+		case SW_WAIT:
+			return SW_WAIT;
+		default:
+			return SW_CONTINUE;
 		}
 	}
-	else if (serv->open_length_check == 1)
+	//trunk full send
+	else if(ret == sendn || sendn == 0)
 	{
-		if (conn->object != NULL)
-		{
-			swString_free(conn->object);
-		}
+		swBuffer_pop_trunk(buffer, trunk);
 	}
-
-	if (conn->out_buffer != NULL)
+	else
 	{
-		swBuffer_free(conn->out_buffer);
-		conn->out_buffer = NULL;
+		trunk->offset += ret;
 	}
-
-	if (conn->in_buffer != NULL)
-	{
-		swBuffer_free(conn->in_buffer);
-		conn->in_buffer = NULL;
-	}
-
-	//通知到worker进程
-	if (serv->onClose != NULL && notify == 1)
-	{
-		//通知worker进程
-		notify_ev.from_id = reactor_id;
-		notify_ev.fd = fd;
-		notify_ev.type = SW_EVENT_CLOSE;
-		SwooleG.factory->notify(SwooleG.factory, &notify_ev);
-	}
-
-	//通知主进程
-	if (queue->num == SW_CLOSE_QLEN)
-	{
-		swReactorThread_close_queue(reactor, queue);
-	}
-
-	//立即关闭socket，清理缓存区
-	if (serv->tcp_socket_linger > 0)
-	{
-		struct linger linger;
-		linger.l_onoff = 1;
-		linger.l_linger = 0;
-
-		if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) == -1)
-		{
-			swWarn("setsockopt(SO_LINGER) failed. Error: %s[%d]", strerror(errno), errno);
-		}
-	}
-
-	//关闭此连接，必须放在最前面，以保证线程安全
-	reactor->del(reactor, fd);
-}
-
-/**
- * new connection
- */
-int swServer_new_connection(swServer *serv, swEvent *ev)
-{
-	int conn_fd = ev->fd;
-	swConnection* connection = NULL;
-
-	if(conn_fd > swServer_get_maxfd(serv))
-	{
-		swServer_set_maxfd(serv, conn_fd);
-
-#ifdef SW_CONNECTION_LIST_EXPAND
-	//新的fd超过了最大fd
-
-		//需要扩容
-		if (conn_fd == serv->connection_list_capacity - 1)
-		{
-			void *new_ptr = sw_shm_realloc(serv->connection_list, sizeof(swConnection)*(serv->connection_list_capacity + SW_CONNECTION_LIST_EXPAND));
-			if(new_ptr == NULL)
-			{
-				swWarn("connection_list realloc fail");
-				return SW_ERR;
-			}
-			else
-			{
-				serv->connection_list_capacity += SW_CONNECTION_LIST_EXPAND;
-				serv->connection_list = (swConnection *)new_ptr;
-			}
-		}
-#endif
-
-	}
-
-	connection = &(serv->connection_list[conn_fd]);
-	bzero(connection, sizeof(swConnection));
-
-	connection->fd = conn_fd;
-	connection->from_id = ev->from_id;
-	connection->from_fd = ev->from_fd;
-	connection->connect_time = SwooleGS->now;
-	connection->last_time = SwooleGS->now;
-	connection->active = 1; //使此连接激活,必须在最后，保证线程安全
-
-	return SW_OK;
+	return SW_CONTINUE;
 }
 
 swString* swConnection_get_string_buffer(swConnection *conn)
@@ -364,7 +271,7 @@ int swConnection_send_in_buffer(swConnection *conn)
 	_send.info.from_id = conn->from_id;
 
 	swBuffer *buffer = conn->in_buffer;
-	volatile swBuffer_trunk *trunk = swBuffer_get_trunk(buffer);
+	swBuffer_trunk *trunk = swBuffer_get_trunk(buffer);
 
 #ifdef SW_USE_RINGBUFFER
 

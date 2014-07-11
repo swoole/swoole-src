@@ -38,7 +38,7 @@ LINK_DIRECTORIES(${LIBRARY_OUTPUT_PATH})
 #test_server
 set(TEST_SRC_LIST examples/test_server.c)
 add_executable(test_server ${TEST_SRC_LIST};${SRC_LIST})
-target_link_libraries(test_server pthread rt dl)
+target_link_libraries(test_server pthread rt dl ssl crypt crypto)
 
 #unittest
 file(GLOB_RECURSE UNITTEST_SRC_LIST FOLLOW_SYMLINKS tests/*.c)

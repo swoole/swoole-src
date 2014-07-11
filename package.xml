@@ -57,6 +57,7 @@
 				<file role="src" name="swoole.h" />
 				<file role="src" name="Server.h" />
 				<file role="src" name="Client.h" />
+				<file role="src" name="Connection.h" />
 				<file role="src" name="atomic.h" />
 				<file role="src" name="buffer.h" />
 				<file role="src" name="hashmap.h" />
@@ -182,6 +183,9 @@
 					<file role="src" name="sendfile.c" />
 					<file role="src" name="signal.c" />
 					<file role="src" name="timer.c" />
+				</dir>
+				<dir name="protocol">
+					<file role="src" name="SSL.c" />
 				</dir>
 			</dir>
 		</dir>

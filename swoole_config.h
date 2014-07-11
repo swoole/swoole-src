@@ -22,6 +22,10 @@
 
 #define SW_GLOBAL_MEMORY_PAGESIZE  (1024*1024*2) //全局内存的分页
 
+#ifndef SW_USE_OPENSSL
+#define SW_USE_OPENSSL
+#endif
+
 #define SW_MAX_THREAD_NCPU         4 // n * cpu_num
 #define SW_MAX_WORKER_NCPU         100 // n * cpu_num
 #define SW_MAX_FDS                 (1024*10)      //最大tcp连接数

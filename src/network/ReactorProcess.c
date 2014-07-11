@@ -163,6 +163,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 	reactor->setHandle(reactor, SW_FD_PIPE, swTaskWorker_onFinish);
 	//udp receive
 	reactor->setHandle(reactor, SW_FD_UDP, swReactorThread_onPackage);
+	//write
+	reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_WRITE, swReactorThread_onWrite);
 	//tcp receive
 	if (serv->open_eof_check == 1)
 	{
@@ -207,7 +209,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 static int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
 {
 	swServer *serv = reactor->ptr;
-	swConnection_close(serv, event->fd, 0);
+	swServer_connection_close(serv, event->fd, 0);
 
 	if (serv->onClose != NULL)
 	{

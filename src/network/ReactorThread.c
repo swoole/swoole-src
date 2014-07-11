@@ -26,7 +26,6 @@ static int swReactorThread_loop_tcp(swThreadParam *param);
 static int swReactorThread_loop_unix_dgram(swThreadParam *param);
 
 static int swReactorThread_onClose(swReactor *reactor, swEvent *event);
-static int swReactorThread_onWrite(swReactor *reactor, swDataHead *ev);
 static void swReactorThread_onTimeout(swReactor *reactor);
 static void swReactorThread_onFinish(swReactor *reactor);
 
@@ -78,10 +77,10 @@ int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
 static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
 {
 	swServer *serv = reactor->ptr;
-	swConnection *conn = swServer_get_connection(serv, event->fd);
+	swConnection *conn = swServer_connection_get(serv, event->fd);
 	if (conn != NULL)
 	{
-		swConnection_close(serv, event->fd, 1);
+		swServer_connection_close(serv, event->fd, 1);
 	}
 	return SW_OK;
 }
@@ -158,7 +157,7 @@ int swReactorThread_send(swSendData *_send)
 	volatile swBuffer_trunk *trunk;
 	swTask_sendfile *task;
 
-	swConnection *conn = swServer_get_connection(serv, fd);
+	swConnection *conn = swServer_connection_get(serv, fd);
 
 	if (conn == NULL || conn->active == 0)
 	{
@@ -180,7 +179,7 @@ int swReactorThread_send(swSendData *_send)
 		//Close connection
 		if (_send->info.len == 0)
 		{
-			swConnection_close(serv, fd, _send->info.type == SW_CLOSE_INITIATIVE ? 0 : 1);
+			swServer_connection_close(serv, fd, _send->info.type == SW_CLOSE_INITIATIVE ? 0 : 1);
 			return SW_OK;
 		}
 #ifdef SW_REACTOR_SYNC_SEND
@@ -199,6 +198,7 @@ int swReactorThread_send(swSendData *_send)
 			{
 				_send->data += n;
 				_send->length -= n;
+				goto buffer_send;
 			}
 			else if (errno == EINTR)
 			{
@@ -213,7 +213,9 @@ int swReactorThread_send(swSendData *_send)
 		//Buffer send
 		else
 		{
+#ifdef SW_REACTOR_SYNC_SEND
 			buffer_send:
+#endif
 			conn->out_buffer = swBuffer_new(SW_BUFFER_SIZE);
 			if (conn->out_buffer == NULL)
 			{
@@ -274,33 +276,27 @@ int swReactorThread_send(swSendData *_send)
 	return SW_OK;
 }
 
-static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
+int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 {
 	int ret, sendn;
 	swServer *serv = SwooleG.serv;
 
-	swConnection *conn = swServer_get_connection(serv, ev->fd);
+	swConnection *conn = swServer_connection_get(serv, ev->fd);
 	if (conn->active == 0)
 	{
 		return SW_OK;
 	}
 
-	swBuffer *out_buffer = conn->out_buffer;
-	if (conn->out_buffer == NULL)
-	{
-		goto remove_out_event;
-	}
-
-	volatile swBuffer_trunk *trunk;
+	swBuffer_trunk *trunk;
 	swTask_sendfile *task = NULL;
 
-	while (!swBuffer_empty(out_buffer))
+	while (!swBuffer_empty(conn->out_buffer))
 	{
-		trunk = swBuffer_get_trunk(out_buffer);
+		trunk = swBuffer_get_trunk(conn->out_buffer);
 		if (trunk->type == SW_TRUNK_CLOSE)
 		{
 			close_fd:
-			swConnection_close(serv, ev->fd, trunk->store.data.val1 == SW_CLOSE_INITIATIVE ? 0 : 1);
+			swServer_connection_close(serv, ev->fd, trunk->store.data.val1 == SW_CLOSE_INITIATIVE ? 0 : 1);
 			return SW_OK;
 		}
 		else if (trunk->type == SW_TRUNK_SENDFILE)
@@ -316,7 +312,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 				{
 				case SW_ERROR:
 					swWarn("sendfile failed. Error: %s[%d]", strerror(errno), errno);
-					swBuffer_pop_trunk(out_buffer, trunk);
+					swBuffer_pop_trunk(conn->out_buffer, trunk);
 					return SW_OK;
 				case SW_CLOSE:
 					goto close_fd;
@@ -328,7 +324,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 			if (task->offset >= task->filesize)
 			{
 				reactor->set(reactor, ev->fd, SW_EVENT_TCP | SW_EVENT_READ);
-				swBuffer_pop_trunk(out_buffer, trunk);
+				swBuffer_pop_trunk(conn->out_buffer, trunk);
 				close(task->fd);
 				sw_free(task);
 			}
@@ -336,7 +332,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 		}
 		else
 		{
-			ret = swBuffer_send(out_buffer, ev->fd);
+			ret = swConnection_buffer_send(conn);
 			switch(ret)
 			{
 			//connection error, close it
@@ -355,7 +351,10 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 
 	//remove EPOLLOUT event
 	remove_out_event:
-	reactor->set(reactor, ev->fd, SW_EVENT_TCP | SW_EVENT_READ);
+	if (swBuffer_empty(conn->out_buffer))
+	{
+		reactor->set(reactor, ev->fd, SW_EVENT_TCP | SW_EVENT_READ);
+	}
 	return SW_OK;
 }
 
@@ -369,7 +368,7 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 	//swDispatchData send_data;
 	swBuffer *buffer;
 
-	swConnection *conn = swServer_get_connection(serv, event->fd);
+	swConnection *conn = swServer_connection_get(serv, event->fd);
 
 	volatile swBuffer_trunk *trunk;
 	trunk = swConnection_get_in_buffer(conn);
@@ -409,7 +408,7 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 	{
 		close_fd:
 		swTrace("Close Event.FD=%d|From=%d", event->fd, event->from_id);
-		swConnection_close(serv, event->fd, 1);
+		swServer_connection_close(serv, event->fd, 1);
 		/**
 		 * skip EPOLLERR
 		 */
@@ -469,7 +468,7 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 	int ret, n;
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &(serv->factory);
-	volatile swConnection *conn = swServer_get_connection(serv, event->fd);
+	swConnection *conn = swServer_connection_get(serv, event->fd);
 
 	struct
 	{
@@ -485,7 +484,7 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 	n = swRead(event->fd, rdata.buf.data, SW_BUFFER_SIZE);
 #else
 	//非ET模式会持续通知
-	n = recv(event->fd, rdata.buf.data, SW_BUFFER_SIZE, 0);
+	n = swConnection_recv(conn, rdata.buf.data, SW_BUFFER_SIZE, 0);
 #endif
 	if (n < 0)
 	{
@@ -505,7 +504,7 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 	{
 		close_fd:
 		swTrace("Close Event.FD=%d|From=%d|errno=%d", event->fd, event->from_id, errno);
-		swConnection_close(serv, event->fd, 1);
+		swServer_connection_close(serv, event->fd, 1);
 		/**
 		 * skip EPOLLERR
 		 */
@@ -613,7 +612,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 	volatile int n;
 	volatile int package_total_length;
 	swServer *serv = reactor->ptr;
-	swConnection *conn = swServer_get_connection(serv, event->fd);
+	swConnection *conn = swServer_connection_get(serv, event->fd);
 
 	char recv_buf[SW_BUFFER_SIZE];
 
@@ -641,7 +640,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 	{
 		close_fd:
 		swTrace("Close Event.FD=%d|From=%d", event->fd, event->from_id);
-		swConnection_close(serv, event->fd, 1);
+		swServer_connection_close(serv, event->fd, 1);
 		/**
 		 * skip EPOLLERR
 		 */

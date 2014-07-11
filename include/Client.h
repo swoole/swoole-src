@@ -9,13 +9,13 @@
 #define SW_CLIENT_H_
 
 #include "buffer.h"
+#include "Connection.h"
 
 #define SW_SOCK_ASYNC    1
 #define SW_SOCK_SYNC     0
 
 typedef struct _swClient
 {
-	int sock;
 	int id;
 	int type;
 	int sock_type;
@@ -24,8 +24,8 @@ typedef struct _swClient
 	int reactor_fdtype;
 
 	uint8_t async;
-	uint8_t connected;
 	uint8_t keep;
+
 	char *server_str;
 	uint8_t server_strlen;
 	double timeout;
@@ -33,7 +33,7 @@ typedef struct _swClient
 	struct sockaddr_in serv_addr;
 	struct sockaddr_in remote_addr;
 
-	swBuffer *out_buffer;
+	swConnection connection;
 
 	void (*onConnect)(struct _swClient *cli);
 	int (*onReceive)(struct _swClient *cli, swSendData *data);

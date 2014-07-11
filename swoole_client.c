@@ -129,7 +129,7 @@ static int php_swoole_client_close(zval **zobject, int fd TSRMLS_DC)
 			SwooleG.main_reactor->del(SwooleG.main_reactor, fd);
 		}
 
-		if (zend_hash_find(&php_sw_client_callback, (char *) &cli->sock, sizeof(cli->sock), (void **)&zobject) != SUCCESS)
+		if (zend_hash_find(&php_sw_client_callback, (char *) &cli->connection.fd, sizeof(cli->connection.fd), (void **)&zobject) != SUCCESS)
 		{
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client->close[2]: Fd[%d] is not a swoole_client object", fd);
 			fatal_error:
@@ -156,14 +156,14 @@ static int php_swoole_client_close(zval **zobject, int fd TSRMLS_DC)
 			SwooleG.running = 0;
 		}
 
-		if (zend_hash_del(&php_sw_client_callback, (char *) &cli->sock, sizeof(cli->sock)) == FAILURE)
+		if (zend_hash_del(&php_sw_client_callback, (char *) &cli->connection.fd, sizeof(cli->connection.fd)) == FAILURE)
 		{
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: del from client callback hashtable failed.");
 		}
 
-		if (cli->out_buffer != NULL)
+		if (cli->connection.out_buffer != NULL)
 		{
-			swBuffer_free(cli->out_buffer);
+			swBuffer_free(cli->connection.out_buffer);
 		}
 
 		//free the callback return value
@@ -314,13 +314,13 @@ static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event)
 
 	ZEND_FETCH_RESOURCE_NO_RETURN(cli, swClient*, zres, -1, SW_RES_CLIENT_NAME, le_swoole_client);
 
-	if (cli->connected)
+	if (cli->connection.active)
 	{
-		out_buffer = cli->out_buffer;
+		out_buffer = cli->connection.out_buffer;
 
 		do
 		{
-			ret = swBuffer_send(out_buffer, event->fd);
+			ret = swConnection_buffer_send(&cli->connection);
 			switch(ret)
 			{
 			//connection error, close it
@@ -359,7 +359,7 @@ static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event)
 			SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, (SW_FD_USER+1) | SW_EVENT_READ);
 
 			//connected
-			cli->connected = 1;
+			cli->connection.active = 1;
 
 			zcallback = zend_read_property(swoole_client_class_entry_ptr, *zobject, SW_STRL(php_sw_client_onConnect)-1, 0 TSRMLS_CC);
 			if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
@@ -631,8 +631,8 @@ static swClient* swoole_client_create_socket(zval *object, char *host, int host_
 		{
 			cli = *find;
 			//try recv, check connection status
-			ret = recv(cli->sock, &tmp_buf, sizeof(tmp_buf), MSG_DONTWAIT | MSG_PEEK);
-			if (ret == 0 || (ret < 0 && swConnection_error(cli->sock, errno) == SW_CLOSE))
+			ret = recv(cli->connection.fd, &tmp_buf, sizeof(tmp_buf), MSG_DONTWAIT | MSG_PEEK);
+			if (ret == 0 || (ret < 0 && swConnection_error(cli->connection.fd, errno) == SW_CLOSE))
 			{
                 
 				cli->close(cli);
@@ -660,7 +660,7 @@ static swClient* swoole_client_create_socket(zval *object, char *host, int host_
 
 	MAKE_STD_ZVAL(zres);
 	MAKE_STD_ZVAL(zsockfd);
-	ZVAL_LONG(zsockfd, cli->sock);
+	ZVAL_LONG(zsockfd, cli->connection.fd);
 
 	ZEND_REGISTER_RESOURCE(zres, cli, le_swoole_client);
 
@@ -1071,7 +1071,7 @@ PHP_METHOD(swoole_client, connect)
 		sock_flag = 1;
 	}
 
-	if (cli->keep != 1 && cli->connected == 1)
+	if (cli->keep != 1 && cli->connection.active == 1)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client is already connected.");
 		RETURN_FALSE;
@@ -1108,7 +1108,7 @@ PHP_METHOD(swoole_client, connect)
 		int reactor_flag = 0;
 		zval_add_ref(&getThis());
 
-		if (zend_hash_update(&php_sw_client_callback, (char *) &cli->sock, sizeof(cli->sock), &getThis(), sizeof(zval*), NULL) == FAILURE)
+		if (zend_hash_update(&php_sw_client_callback, (char *) &cli->connection.fd, sizeof(cli->connection.fd), &getThis(), sizeof(zval*), NULL) == FAILURE)
 		{
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "add to hashtable failed.");
 			RETURN_FALSE;
@@ -1147,7 +1147,7 @@ PHP_METHOD(swoole_client, connect)
 				zval_ptr_dtor(&retval);
 			}
 		}
-		ret = SwooleG.main_reactor->add(SwooleG.main_reactor, cli->sock, reactor_flag);
+		ret = SwooleG.main_reactor->add(SwooleG.main_reactor, cli->connection.fd, reactor_flag);
 		php_swoole_try_run_reactor();
 		SW_CHECK_RETURN(ret);
 	}
@@ -1192,7 +1192,7 @@ PHP_METHOD(swoole_client, send)
 		RETURN_FALSE;
 	}
 
-	if (cli->connected == 0)
+	if (cli->connection.active == 0)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not connected.");
 		RETURN_FALSE;
@@ -1245,7 +1245,7 @@ PHP_METHOD(swoole_client, recv)
 		RETURN_FALSE;
 	}
 
-	if (cli->connected == 0)
+	if (cli->connection.active == 0)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not connected.");
 		RETURN_FALSE;
@@ -1285,7 +1285,7 @@ PHP_METHOD(swoole_client, recv)
 	{
 		if (ret == 0)
 		{
-			php_swoole_client_close(&getThis(), cli->sock TSRMLS_CC);
+			php_swoole_client_close(&getThis(), cli->connection.fd TSRMLS_CC);
 		}
 		else
 		{
@@ -1323,13 +1323,13 @@ PHP_METHOD(swoole_client, close)
 
 	//Connection error, or short tcp connection.
 	//No keep connection
-	if (!(Z_LVAL_P(ztype) & SW_FLAG_KEEP) || swConnection_error(cli->sock, SwooleG.error) == SW_CLOSE)
+	if (!(Z_LVAL_P(ztype) & SW_FLAG_KEEP) || swConnection_error(cli->connection.fd, SwooleG.error) == SW_CLOSE)
 	{
 		if (cli->async == 1 && SwooleG.main_reactor != NULL)
 		{
-			ret = php_swoole_client_close(&getThis(), cli->sock TSRMLS_CC);
+			ret = php_swoole_client_close(&getThis(), cli->connection.fd TSRMLS_CC);
 		}
-		else if (cli->sock != 0)
+		else if (cli->connection.fd != 0)
 		{
 			ret = cli->close(cli);
 		}

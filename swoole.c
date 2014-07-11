@@ -679,7 +679,7 @@ static void swoole_destory_client(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 	swClient *cli = (swClient *) rsrc->ptr;
 	if (cli->keep == 0)
 	{
-		if (cli->sock != 0)
+		if (cli->connection.fd != 0)
 		{
 			cli->close(cli);
 		}
@@ -1410,7 +1410,7 @@ PHP_FUNCTION(swoole_connection_info)
 	}
 	SWOOLE_GET_SERVER(zobject, serv);
 
-	swConnection *conn = swServer_get_connection(serv, fd);
+	swConnection *conn = swServer_connection_get(serv, fd);
 
 	//It's udp
 	if (conn == NULL)
@@ -1423,7 +1423,7 @@ PHP_FUNCTION(swoole_connection_info)
 		}
 		memcpy(&udp_info, &from_id, sizeof(udp_info));
 
-		swConnection *from_sock = swServer_get_connection(serv, udp_info.from_fd);
+		swConnection *from_sock = swServer_connection_get(serv, udp_info.from_fd);
 		struct in_addr sin_addr;
 		sin_addr.s_addr = fd;
 		if (from_sock != NULL)
