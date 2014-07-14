@@ -43,168 +43,168 @@ static int manager_reload_flag = 0;
 
 static sw_inline int swFactoryProcess_schedule(swFactoryProcess *object, swEventData *data)
 {
-	swServer *serv = SwooleG.serv;
-	int target_worker_id = 0;
+    swServer *serv = SwooleG.serv;
+    int target_worker_id = 0;
 
-	//轮询
-	if (serv->dispatch_mode == SW_DISPATCH_ROUND)
-	{
-		target_worker_id = (object->worker_pti++) % serv->worker_num;
-	}
-	//使用fd取摸来散列
-	else if (serv->dispatch_mode == SW_DISPATCH_FDMOD)
-	{
-		//Fixed #48. 替换一下顺序
-		//udp use remote port
-		if (data->info.type == SW_EVENT_UDP || data->info.type == SW_EVENT_UDP6 || data->info.type == SW_EVENT_UNIX_DGRAM)
-		{
-			target_worker_id = ((uint16_t) data->info.from_id) % serv->worker_num;
-		}
-		else
-		{
-			target_worker_id = data->info.fd % serv->worker_num;
-		}
-	}
-	//使用抢占式队列(IPC消息队列)分配
-	else
-	{
-		if (serv->ipc_mode == SW_IPC_MSGQUEUE)
-		{
-			//msgsnd参数必须>0
-			//worker进程中正确的mtype应该是pti + 1
-			target_worker_id = serv->worker_num;
-		}
-		else
-		{
-			int i;
-			atomic_t *round = &SwooleTG.worker_round_i;
-			for (i = 0; i < serv->worker_num; i++)
-			{
-				sw_atomic_fetch_add(round, 1);
-				target_worker_id = (*round) % serv->worker_num;
+    //轮询
+    if (serv->dispatch_mode == SW_DISPATCH_ROUND)
+    {
+        target_worker_id = (object->worker_pti++) % serv->worker_num;
+    }
+    //使用fd取摸来散列
+    else if (serv->dispatch_mode == SW_DISPATCH_FDMOD)
+    {
+        //Fixed #48. 替换一下顺序
+        //udp use remote port
+        if (data->info.type == SW_EVENT_UDP || data->info.type == SW_EVENT_UDP6
+                || data->info.type == SW_EVENT_UNIX_DGRAM)
+        {
+            target_worker_id = ((uint16_t) data->info.from_id) % serv->worker_num;
+        }
+        else
+        {
+            target_worker_id = data->info.fd % serv->worker_num;
+        }
+    }
+    //使用抢占式队列(IPC消息队列)分配
+    else
+    {
+        if (serv->ipc_mode == SW_IPC_MSGQUEUE)
+        {
+            //msgsnd参数必须>0
+            //worker进程中正确的mtype应该是pti + 1
+            target_worker_id = serv->worker_num;
+        }
+        else
+        {
+            int i;
+            atomic_t *round = &SwooleTG.worker_round_i;
+            for (i = 0; i < serv->worker_num; i++)
+            {
+                sw_atomic_fetch_add(round, 1);
+                target_worker_id = (*round) % serv->worker_num;
 
-				if (serv->workers[target_worker_id].status == SW_WORKER_IDLE)
-				{
-					break;
-				}
-			}
-			swTrace("schedule=%d|round=%d\n", target_worker_id, *round);
-		}
-	}
-	return target_worker_id;
+                if (serv->workers[target_worker_id].status == SW_WORKER_IDLE)
+                {
+                    break;
+                }
+            } swTrace("schedule=%d|round=%d\n", target_worker_id, *round);
+        }
+    }
+    return target_worker_id;
 }
 
 static sw_inline int swWorker_get_write_pipe(swServer *serv, int fd)
 {
-	/**
-	 * reactor_id: The fd in which the reactor.
-	 */
-	int reactor_id = fd % serv->reactor_num;
-	int round_i = (SwooleWG.pipe_round++) % serv->reactor_pipe_num;
-	/**
-	 * pipe_worker_id: The pipe in which worker.
-	 */
-	int pipe_worker_id = reactor_id + (round_i * serv->reactor_num);
-	return serv->workers[pipe_worker_id].pipe_worker;
+    /**
+     * reactor_id: The fd in which the reactor.
+     */
+    int reactor_id = fd % serv->reactor_num;
+    int round_i = (SwooleWG.pipe_round++) % serv->reactor_pipe_num;
+    /**
+     * pipe_worker_id: The pipe in which worker.
+     */
+    int pipe_worker_id = reactor_id + (round_i * serv->reactor_num);
+    return serv->workers[pipe_worker_id].pipe_worker;
 }
 
 int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 {
-	swFactoryProcess *object;
-	swServer *serv = SwooleG.serv;
-	object = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swFactoryProcess));
-	if (object == NULL)
-	{
-		swWarn("[Master] malloc[object] failed");
-		return SW_ERR;
-	}
-	serv->writer_threads = SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->reactor_num * sizeof(swWriterThread));
-	if (serv->writer_threads == NULL)
-	{
-		swWarn("[Master] malloc[object->writers] failed");
-		return SW_ERR;
-	}
-	object->writer_pti = 0;
+    swFactoryProcess *object;
+    swServer *serv = SwooleG.serv;
+    object = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swFactoryProcess));
+    if (object == NULL)
+    {
+        swWarn("[Master] malloc[object] failed");
+        return SW_ERR;
+    }
+    serv->writer_threads = SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->reactor_num * sizeof(swWriterThread));
+    if (serv->writer_threads == NULL)
+    {
+        swWarn("[Master] malloc[object->writers] failed");
+        return SW_ERR;
+    }
+    object->writer_pti = 0;
 
-	factory->object = object;
-	factory->dispatch = swFactoryProcess_dispatch;
-	factory->finish = swFactoryProcess_finish;
-	factory->start = swFactoryProcess_start;
-	factory->notify = swFactoryProcess_notify;
-	factory->shutdown = swFactoryProcess_shutdown;
-	factory->end = swFactoryProcess_end;
-	factory->onTask = NULL;
-	factory->onFinish = NULL;
+    factory->object = object;
+    factory->dispatch = swFactoryProcess_dispatch;
+    factory->finish = swFactoryProcess_finish;
+    factory->start = swFactoryProcess_start;
+    factory->notify = swFactoryProcess_notify;
+    factory->shutdown = swFactoryProcess_shutdown;
+    factory->end = swFactoryProcess_end;
+    factory->onTask = NULL;
+    factory->onFinish = NULL;
 
-	return SW_OK;
+    return SW_OK;
 }
 
 int swFactoryProcess_shutdown(swFactory *factory)
 {
-	swFactoryProcess *object = factory->object;
-	swServer *serv = SwooleG.serv;
-	int i;
-	//kill manager process
-	kill(SwooleGS->manager_pid, SIGTERM);
-	//kill all child process
-	for (i = 0; i < serv->worker_num; i++)
-	{
-		swTrace("[Main]kill worker processor");
-		kill(serv->workers[i].pid, SIGTERM);
-	}
-	if (serv->ipc_mode == SW_IPC_MSGQUEUE)
-	{
-		object->rd_queue.free(&object->rd_queue);
-		object->wt_queue.free(&object->wt_queue);
-	}
-	//close pipes
-	return SW_OK;
+    swFactoryProcess *object = factory->object;
+    swServer *serv = SwooleG.serv;
+    int i;
+    //kill manager process
+    kill(SwooleGS->manager_pid, SIGTERM);
+    //kill all child process
+    for (i = 0; i < serv->worker_num; i++)
+    {
+        swTrace("[Main]kill worker processor");
+        kill(serv->workers[i].pid, SIGTERM);
+    }
+    if (serv->ipc_mode == SW_IPC_MSGQUEUE)
+    {
+        object->rd_queue.free(&object->rd_queue);
+        object->wt_queue.free(&object->wt_queue);
+    }
+    //close pipes
+    return SW_OK;
 }
 
 int swFactoryProcess_start(swFactory *factory)
 {
-	if (swFactory_check_callback(factory) < 0)
-	{
-		swWarn("swFactory_check_callback fail");
-		return SW_ERR;
-	}
+    if (swFactory_check_callback(factory) < 0)
+    {
+        swWarn("swFactory_check_callback fail");
+        return SW_ERR;
+    }
 
-	int i;
-	swServer *serv = factory->ptr;
-	swWorker *worker;
+    int i;
+    swServer *serv = factory->ptr;
+    swWorker *worker;
 
-	for(i = 0; i < serv->worker_num; i++)
-	{
-		 worker = swServer_get_worker(serv, i);
-		 if (swWorker_create(worker) < 0)
-		 {
-			 return SW_ERR;
-		 }
-	}
+    for (i = 0; i < serv->worker_num; i++)
+    {
+        worker = swServer_get_worker(serv, i);
+        if (swWorker_create(worker) < 0)
+        {
+            return SW_ERR;
+        }
+    }
 
-	//必须先启动manager进程组，否则会带线程fork
-	if (swFactoryProcess_manager_start(factory) < 0)
-	{
-		swWarn("swFactoryProcess_manager_start fail");
-		return SW_ERR;
-	}
+    //必须先启动manager进程组，否则会带线程fork
+    if (swFactoryProcess_manager_start(factory) < 0)
+    {
+        swWarn("swFactoryProcess_manager_start fail");
+        return SW_ERR;
+    }
 
-	if (serv->ipc_mode == SW_IPC_MSGQUEUE)
-	{
-		//tcp & message queue require writer pthread
-		if (serv->have_tcp_sock == 1)
-		{
-			int ret = swFactoryProcess_writer_start(factory);
-			if (ret < 0)
-			{
-				return SW_ERR;
-			}
-		}
-	}
+    if (serv->ipc_mode == SW_IPC_MSGQUEUE)
+    {
+        //tcp & message queue require writer pthread
+        if (serv->have_tcp_sock == 1)
+        {
+            int ret = swFactoryProcess_writer_start(factory);
+            if (ret < 0)
+            {
+                return SW_ERR;
+            }
+        }
+    }
 
-	//主进程需要设置为直写模式
-	factory->finish = swFactory_finish;
-	return SW_OK;
+    //主进程需要设置为直写模式
+    factory->finish = swFactory_finish;
+    return SW_OK;
 }
 
 int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
