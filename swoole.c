@@ -1325,6 +1325,7 @@ PHP_FUNCTION(swoole_server_close)
 	//Master can't execute it
 	if (swIsMaster())
 	{
+	    php_error_docref(NULL TSRMLS_CC, E_WARNING, "Can not close connection in master process.");
 		RETURN_FALSE;
 	}
 
@@ -1364,41 +1365,59 @@ PHP_FUNCTION(swoole_server_heartbeat)
 	zval *zobject = getThis();
 	swServer *serv;
 	swEvent ev;
+	zend_bool close_connection = 0;
 
 	if (zobject == NULL)
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O", &zobject, swoole_server_class_entry_ptr) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O|b", &zobject, swoole_server_class_entry_ptr) == FAILURE)
 		{
 			return;
 		}
 	}
+	else
+	{
+	    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b", &zobject, swoole_server_class_entry_ptr) == FAILURE)
+        {
+            return;
+        }
+	}
 	SWOOLE_GET_SERVER(zobject, serv);
 
-	if(serv->heartbeat_idle_time < 1) 
-	{
-		RETURN_FALSE;
-		return;
-	}
+    if (serv->heartbeat_idle_time < 1)
+    {
+        RETURN_FALSE;
+    }
 
-	int serv_max_fd = swServer_get_maxfd(serv);
-	int serv_min_fd = swServer_get_minfd(serv);
+    int serv_max_fd = swServer_get_maxfd(serv);
+    int serv_min_fd = swServer_get_minfd(serv);
 
-	array_init(return_value);
+    array_init(return_value);
 
-	int fd;
-	int checktime = (int) SwooleGS->now - serv->heartbeat_idle_time;
+    int fd;
+    int checktime = (int) SwooleGS->now - serv->heartbeat_idle_time;
 
-	//遍历到最大fd
-	for(fd = serv_min_fd; fd<= serv_max_fd; fd++)
-	{
-		 swTrace("check fd=%d", fd);
-		 if(1 == serv->connection_list[fd].active && (serv->connection_list[fd].last_time  < checktime))
-		 {
-		 	ev.fd = fd;
-		 	serv->factory.end(&serv->factory, &ev);
-			add_next_index_long(return_value, fd);
-		 }
-	}
+    ev.type = SW_CLOSE_INITIATIVE;
+
+    for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
+    {
+        swTrace("heartbeat check fd=%d", fd);
+        if (1 == serv->connection_list[fd].active && (serv->connection_list[fd].last_time < checktime))
+        {
+            /**
+             * Close the connection
+             */
+            if (close_connection)
+            {
+                ev.fd = fd;
+                serv->factory.end(&serv->factory, &ev);
+                if (serv->onClose != NULL)
+                {
+                    serv->onClose(serv, ev.fd, ev.from_id);
+                }
+            }
+            add_next_index_long(return_value, fd);
+        }
+    }
 }
 
 PHP_FUNCTION(swoole_server_shutdown)

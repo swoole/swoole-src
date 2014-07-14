@@ -1,6 +1,6 @@
 <?php
-$serv = new swoole_server("127.0.0.1", 9501);
-
+$serv = new swoole_server("0.0.0.0", 9501);
+$serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
 $serv->set(array(
 		'worker_num' => 2,
 		//'open_eof_check' => true,
@@ -172,6 +172,7 @@ function broadcast($serv, $fd = 0, $data = "hello")
 		foreach($conn_list as $conn)
 		{
 			if($conn === $fd) continue;
+			sleep(5);
 			$ret1 = $serv->send($conn, $data);
 			var_dump($ret1);
 			$ret2 = $serv->close($conn);
