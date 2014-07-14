@@ -2465,8 +2465,9 @@ PHP_FUNCTION(swoole_server_send)
 		_send.info.from_id = (uint16_t)(udp_info.port);
 		_send.info.from_fd = (uint16_t)(udp_info.from_fd);
 		_send.info.type = SW_EVENT_UDP;
-
-		swTrace("SendTo: from_id=%d|from_fd=%d", (uint16_t)_send.info.from_id, _send.info.from_fd);
+		_send.data = send_data;
+		_send.info.len = send_len;
+		swTrace("udp send: fd=%d|from_id=%d|from_fd=%d", _send.info.fd, (uint16_t)_send.info.from_id, _send.info.from_fd);
 		SW_CHECK_RETURN(factory->finish(factory, &_send));
 	}
 	//TCP
