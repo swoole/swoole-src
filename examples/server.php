@@ -59,8 +59,8 @@ function my_onWorkerStart($serv, $worker_id)
 	}
 	echo "WorkerStart: MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}";
 	echo "|WorkerId={$serv->worker_id}|WorkerPid={$serv->worker_pid}\n";
-	
-	//if ($worker_id == 1) 
+
+	//if ($worker_id == 1)
 	//{
 	//	$serv->addtimer(2000); //500ms
 	//	$serv->addtimer(6000); //500ms
@@ -90,6 +90,15 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 		$result = $serv->taskwait("hello world", 2);
 		echo "SyncTask: result=$result\n";
 	}
+	elseif ($cmd == "hellotask")
+	{
+		$serv->task("hellotask");
+	}
+	elseif($cmd == "close")
+	{
+		$serv->send($fd, "close connection\n");
+		$result = $serv->close($fd);
+	}
 	elseif($cmd == "info")
 	{
 		$info = $serv->connection_info($fd);
@@ -97,21 +106,7 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 	}
 	elseif($cmd == "broadcast")
 	{
-		$start_fd = 0;
-		while(true)
-		{
-			$conn_list = $serv->connection_list($start_fd, 10);
-			if($conn_list === false)
-			{
-				break;
-			}
-			$start_fd = end($conn_list);
-			foreach($conn_list as $conn)
-			{
-				if($conn === $fd) continue;
-				$serv->send($conn, "hello from $fd\n");
-			}
-		}
+		broadcast($serv, $fd, "hello from $fd\n");
 	}
 	//这里故意调用一个不存在的函数
 	elseif($cmd == "error")
@@ -130,7 +125,8 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 	}
 	else
 	{
-		$serv->send($fd, 'Swoole: '.$data, $from_id);
+		$ret = $serv->send($fd, 'Swoole: '.$data, $from_id);
+		var_dump($ret);
 		//$serv->close($fd);
 	}
 	//echo "Client:Data. fd=$fd|from_id=$from_id|data=$data";
@@ -140,8 +136,15 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 
 function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
 {
-	echo "AsyncTask[PID=".posix_getpid()."]: task_id=$task_id.".PHP_EOL;
-	return "Task OK";
+	if ($data == "hellotask")
+	{
+		broadcast($serv, 0, "hellotask");
+	}
+	else
+	{
+		echo "AsyncTask[PID=".posix_getpid()."]: task_id=$task_id.".PHP_EOL;
+		return "Task OK";
+	}
 }
 
 function my_onFinish(swoole_server $serv, $task_id, $data)
@@ -152,6 +155,29 @@ function my_onFinish(swoole_server $serv, $task_id, $data)
 function my_onWorkerError(swoole_server $serv, $worker_id, $worker_pid, $exit_code)
 {
 	echo "worker abnormal exit. WorkerId=$worker_id|Pid=$worker_pid|ExitCode=$exit_code\n";
+}
+
+function broadcast($serv, $fd = 0, $data = "hello")
+{
+	$start_fd = 0;
+	echo "broadcast\n";
+	while(true)
+	{
+		$conn_list = $serv->connection_list($start_fd, 10);
+		if($conn_list === false)
+		{
+			break;
+		}
+		$start_fd = end($conn_list);
+		foreach($conn_list as $conn)
+		{
+			if($conn === $fd) continue;
+			$ret1 = $serv->send($conn, $data);
+			var_dump($ret1);
+			$ret2 = $serv->close($conn);
+			var_dump($ret2);
+		}
+	}
 }
 
 $serv->on('Start', 'my_onStart');

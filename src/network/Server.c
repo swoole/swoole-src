@@ -81,6 +81,9 @@ void swServer_worker_onStart(swServer *serv)
 			close(worker->pipe_master);
 		}
 	}
+
+	SwooleG.process_type = SW_PROCESS_WORKER;
+
 	if (serv->onWorkerStart)
 	{
 		serv->onWorkerStart(serv, SwooleWG.id);

@@ -1328,13 +1328,19 @@ PHP_FUNCTION(swoole_server_close)
 		RETURN_FALSE;
 	}
 
-	if (serv->factory.end(&serv->factory, &ev) >= 0 && serv->onClose != NULL)
+	if (serv->factory.end(&serv->factory, &ev) >= 0)
 	{
-		serv->onClose(serv, ev.fd, ev.from_id);
-		RETURN_TRUE;
+		RETVAL_TRUE;
+	}
+	else
+	{
+	    RETVAL_FALSE;
 	}
 
-	RETURN_FALSE;
+	if (serv->onClose != NULL)
+	{
+	    serv->onClose(serv, ev.fd, ev.from_id);
+	}
 }
 
 PHP_FUNCTION(swoole_server_reload)

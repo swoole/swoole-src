@@ -558,8 +558,6 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti)
 	//worker child processor
 	else if (pid == 0)
 	{
-		//标识为worker进程
-		SwooleG.process_type = SW_PROCESS_WORKER;
 		ret = swFactoryProcess_worker_loop(factory, worker_pti);
 		exit(ret);
 	}
