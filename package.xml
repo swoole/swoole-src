@@ -5,8 +5,8 @@
 	xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0 http://pear.php.net/dtd/tasks-1.0.xsd http://pear.php.net/dtd/package-2.0 http://pear.php.net/dtd/package-2.0.xsd">
 	<name>swoole</name>
 	<channel>pecl.php.net</channel>
-	<summary>PHP's asynchronous concurrent distributed networking framework</summary>
-	<description>PHP's asynchronous concurrent distributed networking framework.
+	<summary>Asynchronous and concurrent and distributed networking framework for PHP.</summary>
+	<description>Asynchronous and concurrent and distributed networking framework for PHP.
 - event-driven
 - full asynchronous non-blocking
 - multi-thread reactor
@@ -17,6 +17,7 @@
 - async read/write file system
 - async dns lookup
 - support IPv4/IPv6/UnixSocket/TCP/UDP
+- SSL/TLS encrypted transmission
     </description>
 	<lead>
 		<name>Tianfeng Han</name>
@@ -30,11 +31,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-	<date>2014-06-20</date>
-	<time>12:51:51</time>
+	<date>2014-07-15</date>
+	<time>18:51:51</time>
 	<version>
-		<release>1.7.3</release>
-		<api>1.7.3</api>
+		<release>1.7.4</release>
+		<api>1.7.4</api>
 	</version>
 	<stability>
 		<release>stable</release>
@@ -42,11 +43,14 @@
 	</stability>
 	<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
 	<notes>
-- Fixed pipe_worker zero
-- Fixed serv->connect_count wrong
-- Fixed length_check dispatch error
-- Optimization of large size response packet
-	</notes>
+- Task process support timer
+- Repair UDP error BUG
+- Add SSL-server support
+- Reload is effective for task_worker.
+- When the pipe is filled with poll is waiting for the write, rather than packet loss
+- Increase the clang compiler support
+- Repair shutdown task_worker and manager abnormal stop
+    </notes>
 	<contents>
 		<dir name="/">
 			<file role="doc" name="CREDITS" />
@@ -202,7 +206,27 @@
 	</dependencies>
 	<providesextension>swoole</providesextension>
 	<extsrcrelease />
+
 	<changelog>
+		<release>
+			<date>2014-06-20</date>
+			<time>12:51:51</time>
+			<version>
+				<release>1.7.3</release>
+				<api>1.7.3</api>
+			</version>
+			<stability>
+				<release>stable</release>
+				<api>stable</api>
+			</stability>
+			<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
+			<notes>
+- Fixed pipe_worker zero
+- Fixed serv->connect_count wrong
+- Fixed length_check dispatch error
+- Optimization of large size response packet
+    </notes>
+		</release>
 		<release>
 			<date>2014-05-30</date>
 			<time>15:51:51</time>
