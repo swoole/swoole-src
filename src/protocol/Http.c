@@ -13,7 +13,7 @@
  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
  +----------------------------------------------------------------------+
  */
-
+#include "swoole.h"
 #include "Http.h"
 
 #include <assert.h>
