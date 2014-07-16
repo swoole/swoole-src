@@ -1227,6 +1227,7 @@ void swReactorThread_free(swServer *serv)
         swListenList_node *listen_host;
         LL_FOREACH(serv->listen_list, listen_host)
         {
+            shutdown(listen_host->sock, SHUT_RDWR);
             if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6 || listen_host->type == SW_SOCK_UNIX_DGRAM)
             {
                 if (pthread_join(listen_host->thread_id, NULL))
