@@ -53,4 +53,6 @@ void p_str(void *str);
 
 swUnitTest(pool_thread);
 
+swUnitTest(ringbuffer_test1);
+
 #endif /* SW_TESTS_H_ */
