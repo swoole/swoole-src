@@ -552,8 +552,10 @@ PHP_FUNCTION(swoole_async_dns_lookup)
 	Z_ADDREF_PP(&req->callback);
 	Z_ADDREF_PP(&req->domain);
 
-	void *buf = emalloc(SW_IP_MAX_LENGTH);
+	int buf_size = Z_STRLEN_P(domain)+1;
+	void *buf = emalloc(buf_size);
+	bzero(buf, buf_size);
 	memcpy(buf, Z_STRVAL_P(domain), Z_STRLEN_P(domain));
 	php_swoole_check_aio();
-	SW_CHECK_RETURN(swoole_aio_dns_lookup(req, buf, SW_IP_MAX_LENGTH));
+	SW_CHECK_RETURN(swoole_aio_dns_lookup(req, buf, buf_size));
 }
