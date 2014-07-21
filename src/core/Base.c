@@ -233,6 +233,9 @@ uint32_t swoole_common_multiple(uint32_t u, uint32_t v)
 	return u * v / n_cup;
 }
 
+/**
+ * Wait socket can read or write.
+ */
 int swSocket_wait(int fd, int timeout_ms, int events)
 {
 	struct pollfd event;

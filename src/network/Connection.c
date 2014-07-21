@@ -17,7 +17,6 @@
 #include "Server.h"
 #include "Connection.h"
 
-#include <sys/poll.h>
 #include <sys/stat.h>
 
 #ifndef MSG_NOSIGNAL
@@ -27,18 +26,14 @@
 int swConnection_send_blocking(int fd, void *data, int length, int timeout)
 {
 	int ret, n, writen = length;
-	struct pollfd event;
-	event.fd = fd;
-	event.events = POLLOUT;
 
 	while(writen > 0)
 	{
-		ret = poll(&event, 1, timeout);
-		if (ret == 0)
+	    if (swSocket_wait(fd, timeout, SW_EVENT_WRITE) < 0)
 		{
 			return SW_ERR;
 		}
-		else if (ret > 0)
+		else
 		{
 			n = send(fd, data, writen, MSG_NOSIGNAL | MSG_DONTWAIT);
 			if (n < 0)
@@ -51,11 +46,6 @@ int swConnection_send_blocking(int fd, void *data, int length, int timeout)
 				writen -= n;
 				continue;
 			}
-		}
-		else
-		{
-			swWarn("poll() failed. Error: %s[%d]", strerror(errno), errno);
-			return SW_ERR;
 		}
 	}
 	return 0;
@@ -79,19 +69,15 @@ int swConnection_sendfile_blocking(int fd, char *filename, int timeout)
 
 	int n, ret, sendn;
 	off_t offset = 0;
-	struct pollfd event;
-	event.fd = fd;
-	event.events = POLLOUT;
 	size_t file_size = file_stat.st_size;
 
 	while (offset < file_size)
 	{
-		ret = poll(&event, 1, timeout);
-		if (ret == 0)
-		{
+	    if (swSocket_wait(fd, timeout, SW_EVENT_WRITE) < 0)
+	    {
 			return SW_ERR;
 		}
-		else if (ret > 0)
+		else
 		{
 			sendn = (file_size - offset > SW_SENDFILE_TRUNK) ? SW_SENDFILE_TRUNK : file_size - offset;
 			n = swoole_sendfile(fd, file_fd, &offset, sendn);
@@ -103,11 +89,6 @@ int swConnection_sendfile_blocking(int fd, char *filename, int timeout)
 			{
 				continue;
 			}
-		}
-		else
-		{
-			swWarn("poll() failed. Error: %s[%d]", strerror(errno), errno);
-			return SW_ERR;
 		}
 	}
 	return 0;
