@@ -721,6 +721,9 @@ struct _swWorker
 
 	swProcessPool *pool;
 
+	swMemoryPool *pool_input;
+	swMemoryPool *pool_output;
+
 	/**
 	 * redirect stdout to pipe_master
 	 */
@@ -803,11 +806,7 @@ struct _swProcessPool
 typedef struct _swFactoryProcess
 {
 	swPipe *pipes;
-	swQueue rd_queue;
-	swQueue wt_queue;
-
 	int writer_pti; //current writer id
-	int worker_pti; //current worker id
 } swFactoryProcess;
 
 int swFactory_create(swFactory *factory);
@@ -824,7 +823,6 @@ int swFactoryProcess_start(swFactory *factory);
 int swFactoryProcess_shutdown(swFactory *factory);
 int swFactoryProcess_end(swFactory *factory, swDataHead *event);
 int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task);
-int swFactoryProcess_send2worker(swFactory *factory, swEventData *data, int worker_id);
 
 int swFactoryThread_create(swFactory *factory, int writer_num);
 int swFactoryThread_start(swFactory *factory);

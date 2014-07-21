@@ -118,9 +118,6 @@ typedef struct _swReactorThread
 	swReactor reactor;
 	swUdpFd *udp_addrs;
 	swCloseQueue close_queue;
-#ifdef SW_USE_RINGBUFFER
-	swMemoryPool *pool;
-#endif
 	int c_udp_fd;
 } swReactorThread;
 
@@ -222,6 +219,8 @@ struct swServer_s
 	uint16_t reactor_next_i;          //平均算法调度
 	uint16_t reactor_schedule_count;
 
+	uint16_t worker_round_id;
+
 	int udp_sock_buffer_size; //UDP临时包数量，超过数量未处理将会被丢弃
 
 	/**
@@ -319,7 +318,11 @@ struct swServer_s
 
 	swReactorThread *reactor_threads;
 	swWriterThread *writer_threads;
+
 	swWorker *workers;
+
+    swQueue read_queue;
+    swQueue write_queue;
 
 	swConnection *connection_list; //连接列表
 	int connection_list_capacity;  //超过此容量，会自动扩容
@@ -450,6 +453,49 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
 	}
 }
 
+static sw_inline int swServer_worker_schedule(swServer *serv, int schedule_key)
+{
+    int target_worker_id = 0;
+
+    //polling mode
+    if (serv->dispatch_mode == SW_DISPATCH_ROUND)
+    {
+        target_worker_id = (serv->worker_round_id++) % serv->worker_num;
+    }
+    //Using the FD touch access to hash
+    else if (serv->dispatch_mode == SW_DISPATCH_FDMOD)
+    {
+        target_worker_id = schedule_key % serv->worker_num;
+    }
+    //Preemptive distribution
+    else
+    {
+        if (serv->ipc_mode == SW_IPC_MSGQUEUE)
+        {
+            //msgsnd参数必须>0
+            //worker进程中正确的mtype应该是pti + 1
+            target_worker_id = serv->worker_num;
+        }
+        else
+        {
+            int i;
+            atomic_t *round = &SwooleTG.worker_round_i;
+            for (i = 0; i < serv->worker_num; i++)
+            {
+                sw_atomic_fetch_add(round, 1);
+                target_worker_id = (*round) % serv->worker_num;
+
+                if (serv->workers[target_worker_id].status == SW_WORKER_IDLE)
+                {
+                    break;
+                }
+            }
+            swTrace("schedule=%d|round=%d\n", target_worker_id, *round);
+        }
+    }
+    return target_worker_id;
+}
+
 void swServer_worker_onStart(swServer *serv);
 void swServer_worker_onStop(swServer *serv);
 
@@ -461,6 +507,7 @@ void swWorker_signal_handler(int signo);
 int swServer_master_onAccept(swReactor *reactor, swDataHead *event);
 void swServer_master_onReactorTimeout(swReactor *reactor);
 void swServer_master_onReactorFinish(swReactor *reactor);
+int swServer_send2worker(swServer *serv, swEventData *data, uint16_t worker_id);
 void swServer_update_time(void);
 
 int swReactorThread_create(swServer *serv);

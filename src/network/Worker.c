@@ -57,6 +57,13 @@ void swWorker_free(swWorker *worker)
 {
 	sw_shm_free(worker->store.ptr);
 	worker->notify->close(worker->notify);
+
+#ifdef SW_USE_RINGBUFFER
+	if (worker->pool_input)
+	{
+	    worker->pool_input->destroy(worker->pool_input);
+	}
+#endif
 }
 
 void swWorker_signal_init(void)

@@ -1662,8 +1662,6 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
 		data_len = req->info.len;
 	}
 
-	//swError("data_len=%d|data_ptr=%p", data_len, data_ptr);
-
 	//zero copy
 	//ZVAL_STRINGL(zdata, data_ptr, data_len, 0);
 	ZVAL_STRINGL(zdata, data_ptr, data_len, 1);
@@ -1671,8 +1669,8 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
 #ifdef SW_USE_RINGBUFFER
 	if (req->info.type == SW_EVENT_PACKAGE)
 	{
-		swMemoryPool *pool = serv->reactor_threads[req->info.from_id].pool;
-		pool->free(pool, data_ptr);
+	    swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
+	    worker->pool_input->free(worker->pool_input, data_ptr);
 	}
 #endif
 
@@ -2743,7 +2741,6 @@ static int php_swoole_task_finish(swServer *serv, char *data, int data_len TSRML
 		return SW_ERR;
 	}
 
-	swFactory *factory = &serv->factory;
 	int ret;
 
 	//for swoole_server_task
@@ -2770,7 +2767,7 @@ static int php_swoole_task_finish(swServer *serv, char *data, int data_len TSRML
 
 		if (serv->factory_mode == SW_MODE_PROCESS)
 		{
-			ret = swFactoryProcess_send2worker(factory, &buf, sw_current_task->info.from_id);
+			ret = swServer_send2worker(serv, &buf, sw_current_task->info.from_id);
 		}
 		else
 		{

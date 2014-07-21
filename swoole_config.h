@@ -35,6 +35,7 @@
 #define SW_LOG_TRACE_OPEN          0  //1: open all trace log, 0: close all trace log, >1: open some[traceId=n] trace log
 //#define SW_BUFFER_SIZE            65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_CLIENT_BUFFER_SIZE      65535
+
 #define SW_BUFFER_SIZE             (8192-sizeof(struct _swDataHead)) //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_SENDFILE_TRUNK          65535
 #define SW_SENDFILE_MAXLEN         4194304
@@ -103,8 +104,6 @@
 #define SW_MEMORY_POOL_SLAB_PAGE         10     //内存池的页数
 
 #define SW_USE_FIXED_BUFFER
-
-//#define SW_USE_RINGBUFFER
 
 #define SW_ACCEPT_AGAIN            1     //是否循环accept，可以一次性处理完全部的listen队列，用于大量并发连接的场景
 #define SW_ACCEPT_MAX_COUNT        64    //一次循环的最大accept次数

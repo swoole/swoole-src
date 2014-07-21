@@ -174,15 +174,17 @@ int swConnection_send_string_buffer(swConnection *conn)
 {
 	int ret;
 	swString *buffer = conn->object;
-	swFactory *factory = SwooleG.factory;
 	swEventData _send;
 
 	_send.info.fd = conn->fd;
 	_send.info.from_id = conn->from_id;
 
 #ifdef SW_USE_RINGBUFFER
+
 	swServer *serv = SwooleG.serv;
-	swMemoryPool *pool = serv->reactor_threads[conn->from_id].pool;
+	uint16_t target_worker_id = swServer_worker_schedule(serv, conn->fd);
+	swWorker *worker = swServer_get_worker(serv, target_worker_id);
+	swMemoryPool *pool = worker->pool_input;
 	swPackage package;
 
 	package.length = buffer->length;
@@ -199,14 +201,14 @@ int swConnection_send_string_buffer(swConnection *conn)
 	}
 	_send.info.type = SW_EVENT_PACKAGE;
 	_send.info.len = sizeof(package);
+	//swoole_dump_bin(package.data, 's', buffer->length);
 	memcpy(package.data, buffer->str, buffer->length);
 	memcpy(_send.data, &package, sizeof(package));
+	ret = swServer_send2worker(serv, &_send, target_worker_id);
 
-	//swoole_dump_bin(package.data, 's', buffer->length);
-
-	ret = factory->dispatch(factory, &_send);
 #else
 	int send_n = buffer->length;
+	swFactory *factory = SwooleG.factory;
 	_send.info.type = SW_EVENT_PACKAGE_START;
 
 	/**
@@ -264,7 +266,6 @@ void swConnection_clear_string_buffer(swConnection *conn)
 
 int swConnection_send_in_buffer(swConnection *conn)
 {
-	swFactory *factory = SwooleG.factory;
 	swEventData _send;
 
 	_send.info.fd = conn->fd;
@@ -276,8 +277,10 @@ int swConnection_send_in_buffer(swConnection *conn)
 #ifdef SW_USE_RINGBUFFER
 
 	swServer *serv = SwooleG.serv;
-	swMemoryPool *pool = serv->reactor_threads[conn->from_id].pool;
-	swPackage package;
+    uint16_t target_worker_id = swServer_worker_schedule(serv, conn->fd);
+    swWorker *worker = swServer_get_worker(serv, target_worker_id);
+    swMemoryPool *pool = worker->pool_input;
+    swPackage package;
 
 	package.length = 0;
 	while (1)
@@ -305,10 +308,11 @@ int swConnection_send_in_buffer(swConnection *conn)
 	_send.info.len = sizeof(package);
 	memcpy(_send.data, &package, sizeof(package));
 	//swWarn("[ReactorThread] copy_n=%d", package.length);
-	return factory->dispatch(factory, &_send);
+	return swServer_send2worker(serv, &_send, target_worker_id);
 
 #else
 
+	swFactory *factory = SwooleG.factory;
 	int ret;
 	_send.info.type = SW_EVENT_PACKAGE_START;
 

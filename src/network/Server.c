@@ -661,16 +661,6 @@ int swServer_start(swServer *serv)
 	{
 		serv->onShutdown(serv);
 	}
-
-#ifdef SW_USE_RINGBUFFER
-	int i;
-	//destroy reactor ringbuffer
-	for(i=0; i < serv->reactor_num; i++)
-	{
-		serv->reactor_threads[i].pool->destroy(serv->reactor_threads[i].pool);
-	}
-#endif
-
 	swServer_free(serv);
 	return SW_OK;
 }
@@ -1387,4 +1377,96 @@ swConnection* swServer_connection_new(swServer *serv, swEvent *ev)
 	connection->active = 1; //使此连接激活,必须在最后，保证线程安全
 
 	return connection;
+}
+
+/**
+ * 主进程向worker进程发送数据
+ * @param worker_id 发到指定的worker进程
+ */
+int swServer_send2worker(swServer *serv, swEventData *data, uint16_t worker_id)
+{
+    int pti = 0;
+    int ret, schedule_key;
+    int send_len = sizeof(data->info) + data->info.len;
+
+    if (worker_id < 0)
+    {
+        //udp use remote port
+        if (data->info.type == SW_EVENT_UDP || data->info.type == SW_EVENT_UDP6
+                || data->info.type == SW_EVENT_UNIX_DGRAM)
+        {
+            schedule_key = data->info.from_id;
+        }
+        else
+        {
+            schedule_key = data->info.fd;
+        }
+
+        if (SwooleTG.factory_lock_target)
+        {
+            if (SwooleTG.factory_target_worker < 0)
+            {
+                pti = swServer_worker_schedule(serv, schedule_key);
+                SwooleTG.factory_target_worker = pti;
+            }
+            else
+            {
+                pti = SwooleTG.factory_target_worker;
+            }
+        }
+        else
+        {
+            pti = swServer_worker_schedule(serv, schedule_key);
+        }
+    }
+    //指定了worker_id
+    else
+    {
+        pti = worker_id;
+    }
+
+    swWorker *worker = &(serv->workers[pti]);
+
+#ifdef SW_USE_RINGBUFFER
+
+    swMemoryPool *pool = worker->pool_input;
+    swPackage package;
+    package.length = data->info.len;
+
+    while (1)
+    {
+        package.data = pool->alloc(pool, data->info.len);
+        if (package.data == NULL)
+        {
+            swWarn("Input memory pool is full. Wait memory collect. alloc(%d)", data->info.len);
+            swYield();
+            continue;
+        }
+        break;
+    }
+
+    data->info.type = SW_EVENT_PACKAGE;
+    memcpy(package.data, data->data, data->info.len);
+    data->info.len = sizeof(package);
+    memcpy(data->data, &package, sizeof(package));
+
+#endif
+
+    if (serv->ipc_mode == SW_IPC_MSGQUEUE)
+    {
+        //insert to msg queue
+        swQueue_data *in_data = (swQueue_data *) ((void *) data - sizeof(long));
+
+        //加1防止id为0的worker进程出错
+        in_data->mtype = pti + 1;
+        ret = serv->read_queue.in(&serv->read_queue, in_data, send_len);
+        //swTrace("[Master]rd_queue[%ld]->in: fd=%d|type=%d|len=%d", in_data->mtype, info->fd, info->type, info->len);
+    }
+    else
+    {
+        //send to unix sock
+        //swWarn("pti=%d|from_id=%d|data_len=%d|swDataHead_size=%ld", pti, data->info.from_id, send_len, sizeof(swDataHead));
+        ret = swWrite(worker->pipe_master, (void *) data, send_len);
+    }
+    return ret;
 }

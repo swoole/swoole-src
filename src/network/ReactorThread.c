@@ -476,21 +476,14 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
     swFactory *factory = &(serv->factory);
     swConnection *conn = swServer_connection_get(serv, event->fd);
 
-    struct
-    {
-        /**
-         * For Message Queue
-         * 这里多一个long int 就可以直接插入到队列中，不需要内存拷贝
-         */
-        long queue_type;
-        swEventData buf;
-    } rdata;
+    swEventData buf;
+
 
 #ifdef SW_USE_EPOLLET
-    n = swRead(event->fd, rdata.buf.data, SW_BUFFER_SIZE);
+    n = swRead(event->fd, buf.data, SW_BUFFER_SIZE);
 #else
     //非ET模式会持续通知
-    n = swConnection_recv(conn, rdata.buf.data, SW_BUFFER_SIZE, 0);
+    n = swConnection_recv(conn, buf.data, SW_BUFFER_SIZE, 0);
 #endif
     if (n < 0)
     {
@@ -526,62 +519,29 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
         //heartbeat ping package
         if (serv->heartbeat_ping_length == n)
         {
-            if(serv->heartbeat_pong_length > 0)
+            if (serv->heartbeat_pong_length > 0)
             {
                 send(event->fd, serv->heartbeat_pong, serv->heartbeat_pong_length, 0);
             }
             return SW_OK;
         }
 
-        rdata.buf.info.fd = event->fd;
-        rdata.buf.info.from_id = event->from_id;
-
-#ifdef SW_USE_RINGBUFFER
-        swMemoryPool *pool = serv->reactor_threads[reactor->id].pool;
-        swPackage package;
-        package.length = n;
-
-        while (1)
-        {
-            package.data = pool->alloc(pool, n);
-            if (package.data == NULL)
-            {
-                swWarn("Reactor memory pool full. Wait memory collect. n=%d", n);
-                usleep(10);
-                //swYield();
-                continue;
-            }
-            break;
-        }
-
-        rdata.buf.info.type = SW_EVENT_PACKAGE;
-        memcpy(package.data, rdata.buf.data, n);
-        rdata.buf.info.len = sizeof(package);
-        memcpy(rdata.buf.data, &package, sizeof(package));
-
-#else
-        rdata.buf.info.len = n;
-        rdata.buf.info.type = SW_EVENT_TCP;
-#endif
+        buf.info.fd = event->fd;
+        buf.info.from_id = event->from_id;
+        buf.info.len = n;
+        buf.info.type = SW_EVENT_TCP;
 
         //dispatch to worker process
-        ret = factory->dispatch(factory, &rdata.buf);
+        ret = factory->dispatch(factory, &buf);
 
-        //dispatch failed
-        if (ret < 0)
-        {
-            swWarn("factory->dispatch fail.errno=%d|sw_errno=%d", errno, sw_errno);
-        }
-        if (sw_errno == SW_OK)
-        {
-            return ret;
-        }
+#ifdef SW_USE_EPOLLET
         //缓存区还有数据没读完，继续读，EPOLL的ET模式
-//        else if (sw_errno == EAGAIN)
-//        {
-//            swWarn("sw_errno == EAGAIN");
-//            ret = swReactorThread_onReceive_no_buffer(reactor, event);
-//        }
+        if (sw_errno == EAGAIN)
+        {
+            swWarn("sw_errno == EAGAIN");
+            ret = swReactorThread_onReceive_no_buffer(reactor, event);
+        }
+#endif
         return ret;
     }
     return SW_OK;
@@ -882,11 +842,6 @@ int swReactorThread_create(swServer *serv)
             swError("Fatal Error: serv->writer_num < 1 or serv->worker_num < 1");
             return SW_ERR;
         }
-//        if (serv->max_request < 1)
-//        {
-//            swError("Fatal Error: serv->max_request < 1");
-//            return SW_ERR;
-//        }
         serv->factory.max_request = serv->max_request;
         ret = swFactoryProcess_create(&(serv->factory), serv->writer_num, serv->worker_num);
     }
@@ -895,22 +850,9 @@ int swReactorThread_create(swServer *serv)
         ret = swFactory_create(&(serv->factory));
     }
 
-#ifdef SW_USE_RINGBUFFER
-    int i;
-    for(i=0; i < serv->reactor_num; i++)
-    {
-        serv->reactor_threads[i].pool = swRingBuffer_new(serv->reactor_ringbuffer_size, 1);
-        if (serv->reactor_threads[i].pool == NULL)
-        {
-            swError("create ringbuffer failed.");
-            return SW_ERR;
-        }
-    }
-#endif
-
     if (ret < 0)
     {
-        swError("create factory fail\n");
+        swError("create factory failed");
         return SW_ERR;
     }
     return SW_OK;
