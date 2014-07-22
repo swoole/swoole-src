@@ -507,7 +507,7 @@ void swWorker_signal_handler(int signo);
 int swServer_master_onAccept(swReactor *reactor, swDataHead *event);
 void swServer_master_onReactorTimeout(swReactor *reactor);
 void swServer_master_onReactorFinish(swReactor *reactor);
-int swServer_send2worker(swServer *serv, swEventData *data, uint16_t worker_id);
+int swServer_send2worker(swServer *serv, swEventData *data, int worker_id);
 void swServer_update_time(void);
 
 int swReactorThread_create(swServer *serv);

@@ -1383,7 +1383,7 @@ swConnection* swServer_connection_new(swServer *serv, swEvent *ev)
  * 主进程向worker进程发送数据
  * @param worker_id 发到指定的worker进程
  */
-int swServer_send2worker(swServer *serv, swEventData *data, uint16_t worker_id)
+int swServer_send2worker(swServer *serv, swEventData *data, int worker_id)
 {
     int pti = 0;
     int ret, schedule_key;
