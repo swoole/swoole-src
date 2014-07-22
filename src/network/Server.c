@@ -938,48 +938,44 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, int length)
 		}
 		return factory->finish(factory, &_send);
 	}
-	else
 #else
-	{
-		char buffer[SW_BUFFER_SIZE];
-		int trunk_num = (length / SW_BUFFER_SIZE) + 1;
-		int send_n = 0, i, ret;
+    char buffer[SW_BUFFER_SIZE];
+    int trunk_num = (length / SW_BUFFER_SIZE) + 1;
+    int send_n = 0, i, ret;
 
-		swConnection *conn = swServer_connection_get(serv, fd);
-		if (conn == NULL || conn->active == 0)
-		{
-			swWarn("Connection[%d] has been closed.", fd);
-			return SW_ERR;
-		}
+    swConnection *conn = swServer_connection_get(serv, fd);
+    if (conn == NULL || conn->active == 0)
+    {
+        swWarn("Connection[%d] has been closed.", fd);
+        return SW_ERR;
+    }
 
-		for (i = 0; i < trunk_num; i++)
-		{
-			//last chunk
-			if (i == (trunk_num - 1))
-			{
-				send_n = length % SW_BUFFER_SIZE;
-				if (send_n == 0)
-					break;
-			}
-			else
-			{
-				send_n = SW_BUFFER_SIZE;
-			}
-			memcpy(buffer, data + SW_BUFFER_SIZE * i, send_n);
-			_send.info.len = send_n;
-			ret = factory->finish(factory, &_send);
+    for (i = 0; i < trunk_num; i++)
+    {
+        //last chunk
+        if (i == (trunk_num - 1))
+        {
+            send_n = length % SW_BUFFER_SIZE;
+            if (send_n == 0)
+                break;
+        }
+        else
+        {
+            send_n = SW_BUFFER_SIZE;
+        }
+        memcpy(buffer, data + SW_BUFFER_SIZE * i, send_n);
+        _send.info.len = send_n;
+        ret = factory->finish(factory, &_send);
 
 #ifdef SW_WORKER_SENDTO_YIELD
-			if ((i % SW_WORKER_SENDTO_YIELD) == (SW_WORKER_SENDTO_YIELD - 1))
-			{
-				swYield();
-			}
+        if ((i % SW_WORKER_SENDTO_YIELD) == (SW_WORKER_SENDTO_YIELD - 1))
+        {
+            swYield();
+        }
 #endif
-		}
-		return ret;
-	}
+    }
+    return ret;
 #endif
-
 	return SW_OK;
 }
 
