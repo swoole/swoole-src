@@ -938,8 +938,8 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, int length)
 		}
 		return factory->finish(factory, &_send);
 	}
-#else
 	else
+#else
 	{
 		char buffer[SW_BUFFER_SIZE];
 		int trunk_num = (length / SW_BUFFER_SIZE) + 1;
@@ -979,6 +979,7 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, int length)
 		return ret;
 	}
 #endif
+
 	return SW_OK;
 }
 
