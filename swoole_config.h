@@ -20,6 +20,8 @@
 #define SW_ERROR_MSG_SIZE          512
 #define SW_MAX_WORKER_GROUP        2
 
+#define SW_USE_RINGBUFFER
+
 #define SW_GLOBAL_MEMORY_PAGESIZE  (1024*1024*2) //全局内存的分页
 
 #define SW_MAX_THREAD_NCPU         4 // n * cpu_num
@@ -36,7 +38,12 @@
 //#define SW_BUFFER_SIZE            65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_CLIENT_BUFFER_SIZE      65535
 
+#ifdef SW_USE_RINGBUFFER
+#define SW_BUFFER_SIZE             65535
+#else
 #define SW_BUFFER_SIZE             (8192-sizeof(struct _swDataHead)) //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
+#endif
+
 #define SW_SENDFILE_TRUNK          65535
 #define SW_SENDFILE_MAXLEN         4194304
 
@@ -95,6 +102,7 @@
 //#define SW_USE_RINGQUEUE_TS           1     //使用线程安全版本的RingQueue
 #define SW_RINGBUFFER_COLLECT_N         100   //collect max_count
 #define SW_RINGBUFFER_FREE_N_MAX        4    //when free_n > MAX, execute collect
+#define SW_RINGBUFFER_WARNING           100
 /**
  * ringbuffer memory pool size
  */

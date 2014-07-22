@@ -5,32 +5,21 @@ if(!$client->connect('127.0.0.1', 9501))
     exit("connect fail\n");
 }
 
-for ($l=0; $l < 1; $l++) 
-{ 
-    $datas = array();
-    for($i=0; $i< 1; $i++) 
-    {
-        $body = '';
-        $bodyLen = rand(50000, 100000);
-        for ($j=0; $j < $bodyLen; $j++) 
-        {
-            $body .= pack('s', $j);
-        }
-        echo ">> body_length=".strlen($body).PHP_EOL;
-        $data = pack('NN', $i, strlen($body));
-        $data .= $body;
+$data = array(
+    'str1' => str_repeat('A', 10240),
+    'str2' => str_repeat('B', 10240),
+    'str3' => str_repeat('C', 10240),
+);
 
-        $protocol = unpack('s*', $data);
-        $output = '>> data=';
-        foreach ($protocol as $k=>$v) 
-        {
-            $output .= sprintf('%d,', $v);
-        }
-        //echo $output . "\n";
-        $datas[] = $data;
+for ($l=0; $l < 1; $l++)
+{
+    $datas = array();
+    for($i=0; $i< 1000; $i++)
+    {
+        $data['int1'] = rand(100000, 999999);
+        $sendStr = serialize($data);
+        $client->send( pack('N', strlen($sendStr)). $sendStr);
+        echo "send length=".strlen($sendStr).", SerId={$data['int1']}\n";
     }
-    //一次发送20个包
-    echo 'total send size:', strlen(implode('', $datas)),"\n";
-    $client->send(implode('', $datas));
     sleep(1);
 }

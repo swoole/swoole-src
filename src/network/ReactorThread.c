@@ -39,13 +39,13 @@ int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
     int ret;
     swServer *serv = reactor->ptr;
     swFactory *factory = &(serv->factory);
-    swEventData buf;
+    swDispatchData task;
 
     struct sockaddr_in addr;
     socklen_t addrlen = sizeof(addr);
     while (1)
     {
-        ret = recvfrom(event->fd, buf.data, SW_BUFFER_SIZE, 0, (struct sockaddr *) &addr, &addrlen);
+        ret = recvfrom(event->fd, task.data.data, SW_BUFFER_SIZE, 0, (struct sockaddr *) &addr, &addrlen);
         if (ret < 0)
         {
             if (errno == EINTR)
@@ -56,14 +56,18 @@ int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
         }
         break;
     }
-    buf.info.len = ret;
+    task.data.info.len = ret;
+
     //UDP的from_id是PORT，FD是IP
-    buf.info.type = SW_EVENT_UDP;
-    buf.info.from_fd = event->fd; //from fd
-    buf.info.from_id = ntohs(addr.sin_port); //转换字节序
-    buf.info.fd = addr.sin_addr.s_addr;
+    task.data.info.type = SW_EVENT_UDP;
+    task.data.info.from_fd = event->fd; //from fd
+    task.data.info.from_id = ntohs(addr.sin_port); //转换字节序
+    task.data.info.fd = addr.sin_addr.s_addr;
+    task.target_worker_id = -1;
+
     swTrace("recvfrom udp socket.fd=%d|data=%s", event->fd, buf.data);
-    ret = factory->dispatch(factory, &buf);
+
+    ret = factory->dispatch(factory, &task);
     if (ret < 0)
     {
         swWarn("factory->dispatch[udp packet] fail\n");
@@ -475,15 +479,13 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
     swServer *serv = reactor->ptr;
     swFactory *factory = &(serv->factory);
     swConnection *conn = swServer_connection_get(serv, event->fd);
-
-    swEventData buf;
-
+    swDispatchData task;
 
 #ifdef SW_USE_EPOLLET
-    n = swRead(event->fd, buf.data, SW_BUFFER_SIZE);
+    n = swRead(event->fd, task.data.data, SW_BUFFER_SIZE);
 #else
     //非ET模式会持续通知
-    n = swConnection_recv(conn, buf.data, SW_BUFFER_SIZE, 0);
+    n = swConnection_recv(conn, task.data.data, SW_BUFFER_SIZE, 0);
 #endif
     if (n < 0)
     {
@@ -526,13 +528,32 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
             return SW_OK;
         }
 
-        buf.info.fd = event->fd;
-        buf.info.from_id = event->from_id;
-        buf.info.len = n;
-        buf.info.type = SW_EVENT_TCP;
+        task.data.info.fd = event->fd;
+        task.data.info.from_id = event->from_id;
+        task.data.info.len = n;
+
+#ifdef SW_USE_RINGBUFFER
+
+        uint16_t target_worker_id = swServer_worker_schedule(serv, conn->fd);
+        swWorker *worker = swServer_get_worker(serv, target_worker_id);
+        swPackage package;
+
+        package.length = task.data.info.len;
+        package.data = swWorker_input_alloc(worker, package.length);
+        task.data.info.type = SW_EVENT_PACKAGE;
+
+        memcpy(package.data, task.data.data, task.data.info.len);
+        task.data.info.len = sizeof(package);
+        task.target_worker_id = target_worker_id;
+        memcpy(task.data.data, &package, sizeof(package));
+
+#else
+        task.data.info.type = SW_EVENT_TCP;
+        task.target_worker_id = -1;
+#endif
 
         //dispatch to worker process
-        ret = factory->dispatch(factory, &buf);
+        ret = factory->dispatch(factory, &task);
 
 #ifdef SW_USE_EPOLLET
         //缓存区还有数据没读完，继续读，EPOLL的ET模式
@@ -924,6 +945,10 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     int ret;
     int reactor_id = param->pti;
 
+    SwooleTG.factory_lock_target = 0;
+    SwooleTG.factory_target_worker = -1;
+    SwooleTG.id = reactor_id;
+
     swReactor *reactor = &(serv->reactor_threads[reactor_id].reactor);
     struct timeval timeo;
 
@@ -1047,7 +1072,7 @@ static int swReactorThread_loop_udp(swThreadParam *param)
     socklen_t addrlen;
     swServer *serv = param->object;
 
-    swEventData buf;
+    swDispatchData task;
     struct sockaddr_in addr_in;
     addrlen = sizeof(addr_in);
 
@@ -1058,24 +1083,23 @@ static int swReactorThread_loop_udp(swThreadParam *param)
     //blocking
     swSetBlock(sock);
 
-    bzero(&buf.info, sizeof(buf.info));
-    buf.info.from_fd = sock;
+    bzero(&task.data.info, sizeof(task.data.info));
+    task.data.info.from_fd = sock;
 
     while (SwooleG.running == 1)
     {
-        ret = recvfrom(sock, buf.data, SW_BUFFER_SIZE, 0, (struct sockaddr *)&addr_in, &addrlen);
+        ret = recvfrom(sock, task.data.data, SW_BUFFER_SIZE, 0, (struct sockaddr *)&addr_in, &addrlen);
         if (ret > 0)
         {
-            swBreakPoint();
-
-            buf.info.len = ret;
-            buf.info.type = SW_EVENT_UDP;
+            task.data.info.len = ret;
+            task.data.info.type = SW_EVENT_UDP;
             //UDP的from_id是PORT，FD是IP
-            buf.info.from_id = ntohs(addr_in.sin_port); //转换字节序
-            buf.info.fd = addr_in.sin_addr.s_addr;
+            task.data.info.from_id = ntohs(addr_in.sin_port); //转换字节序
+            task.data.info.fd = addr_in.sin_addr.s_addr;
+            task.target_worker_id = -1;
 
             swTrace("recvfrom udp socket.fd=%d|data=%s", sock, buf.data);
-            ret = serv->factory.dispatch(&serv->factory, &buf);
+            ret = serv->factory.dispatch(&serv->factory, &task);
             if (ret < 0)
             {
                 swWarn("factory->dispatch[udp packet] fail\n");
@@ -1093,8 +1117,7 @@ static int swReactorThread_loop_unix_dgram(swThreadParam *param)
 {
     int n;
     swServer *serv = param->object;
-
-    swEventData buf;
+    swDispatchData task;
     struct sockaddr_un addr_un;
     socklen_t addrlen = sizeof(struct sockaddr_un);
     int sock = param->pti;
@@ -1107,13 +1130,13 @@ static int swReactorThread_loop_unix_dgram(swThreadParam *param)
     //blocking
     swSetBlock(sock);
 
-    bzero(&buf.info, sizeof(buf.info));
-    buf.info.from_fd = sock;
-    buf.info.type = SW_EVENT_UNIX_DGRAM;
+    bzero(&task.data.info, sizeof(task.data.info));
+    task.data.info.from_fd = sock;
+    task.data.info.type = SW_EVENT_UNIX_DGRAM;
 
     while (SwooleG.running == 1)
     {
-        n = recvfrom(sock, buf.data, SW_BUFFER_SIZE, 0, (struct sockaddr *) &addr_un, &addrlen);
+        n = recvfrom(sock, task.data.data, SW_BUFFER_SIZE, 0, (struct sockaddr *) &addr_un, &addrlen);
         if (n > 0)
         {
             if (n > SW_BUFFER_SIZE - sizeof(addr_un.sun_path))
@@ -1124,13 +1147,13 @@ static int swReactorThread_loop_unix_dgram(swThreadParam *param)
 
             sun_path_len = strlen(addr_un.sun_path) + 1;
             sun_path_offset = n;
-            buf.info.fd = sun_path_offset;
-            buf.info.len = n + sun_path_len;
-            memcpy(buf.data + n, addr_un.sun_path, sun_path_len);
-
+            task.data.info.fd = sun_path_offset;
+            task.data.info.len = n + sun_path_len;
+            task.target_worker_id = -1;
+            memcpy(task.data.data + n, addr_un.sun_path, sun_path_len);
             swTrace("recvfrom udp socket.fd=%d|data=%s", sock, buf.data);
 
-            n = serv->factory.dispatch(&serv->factory, &buf);
+            n = serv->factory.dispatch(&serv->factory, &task);
             if (n < 0)
             {
                 swWarn("factory->dispatch[udp packet] fail\n");

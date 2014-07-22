@@ -34,7 +34,7 @@ static int swFactoryProcess_writer_loop_unsock(swThreadParam *param);
 
 static int swFactoryProcess_worker_onPipeReceive(swReactor *reactor, swEvent *event);
 static int swFactoryProcess_notify(swFactory *factory, swEvent *event);
-static int swFactoryProcess_dispatch(swFactory *factory, swEventData *buf);
+static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *buf);
 static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
 
 static int worker_task_num = 0;
@@ -111,7 +111,7 @@ int swFactoryProcess_start(swFactory *factory)
 {
     if (swFactory_check_callback(factory) < 0)
     {
-        swWarn("swFactory_check_callback fail");
+        swWarn("swFactory_check_callback failed");
         return SW_ERR;
     }
 
@@ -129,7 +129,7 @@ int swFactoryProcess_start(swFactory *factory)
 
 #ifdef SW_USE_RINGBUFFER
         worker->pool_input = swRingBuffer_new(SwooleG.serv->buffer_input_size, 1);
-        if (worker->pool_input)
+        if (!worker->pool_input)
         {
             return SW_ERR;
         }
@@ -863,13 +863,9 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 	return SW_OK;
 }
 
-/**
- * for msg queue
- * 头部放一个long让msg queue可以直接插入到消息队列中
- */
 static __thread struct
 {
-	long pti;
+	long target_worker_id;
 	swDataHead _send;
 } sw_notify_data;
 
@@ -880,12 +876,49 @@ int swFactoryProcess_notify(swFactory *factory, swDataHead *ev)
 {
 	memcpy(&sw_notify_data._send, ev, sizeof(swDataHead));
 	sw_notify_data._send.len = 0;
-	return swServer_send2worker(SwooleG.serv, (swEventData *) &sw_notify_data._send, -1);
+	return factory->dispatch(factory, (swDispatchData *) &sw_notify_data);
 }
 
-int swFactoryProcess_dispatch(swFactory *factory, swEventData *data)
+int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
 {
-	return swServer_send2worker(SwooleG.serv, data, -1);
+    int schedule_key;
+    int send_len = sizeof(task->data.info) + task->data.info.len;
+    int target_worker_id = task->target_worker_id;
+    swServer *serv = SwooleG.serv;
+
+    if (target_worker_id < 0)
+    {
+        //udp use remote port
+        if (task->data.info.type == SW_EVENT_UDP || task->data.info.type == SW_EVENT_UDP6
+                || task->data.info.type == SW_EVENT_UNIX_DGRAM)
+        {
+            schedule_key = task->data.info.from_id;
+        }
+        else
+        {
+            schedule_key = task->data.info.fd;
+        }
+
+#ifndef SW_USE_RINGBUFFER
+        if (SwooleTG.factory_lock_target)
+        {
+            if (SwooleTG.factory_target_worker < 0)
+            {
+                target_worker_id = swServer_worker_schedule(serv, schedule_key);
+                SwooleTG.factory_target_worker = target_worker_id;
+            }
+            else
+            {
+                target_worker_id = SwooleTG.factory_target_worker;
+            }
+        }
+        else
+#endif
+        {
+            target_worker_id = swServer_worker_schedule(serv, schedule_key);
+        }
+    }
+    return swFactoryProcess_send2worker(serv, (void *) &(task->data), send_len, target_worker_id);
 }
 
 static int swFactoryProcess_writer_start(swFactory *factory)

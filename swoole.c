@@ -465,7 +465,7 @@ STD_PHP_INI_ENTRY("swoole.message_queue_key", "0", PHP_INI_ALL, OnUpdateString, 
 /**
  * Unix socket buffer size
  */
-STD_PHP_INI_ENTRY("swoole.unixsock_buffer_size", "8388608", PHP_INI_ALL, OnUpdateString, unixsock_buffer_size, zend_swoole_globals, swoole_globals)
+STD_PHP_INI_ENTRY("swoole.unixsock_buffer_size", "8388608", PHP_INI_ALL, OnUpdateLong, unixsock_buffer_size, zend_swoole_globals, swoole_globals)
 PHP_INI_END()
 
 static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
@@ -541,14 +541,7 @@ PHP_MINIT_FUNCTION(swoole)
 	REGISTER_LONG_CONSTANT("SWOOLE_EVENT_READ", SW_EVENT_READ, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_EVENT_WRITE", SW_EVENT_WRITE, CONST_CS | CONST_PERSISTENT);
 
-	REGISTER_LONG_CONSTANT("SWOOLE_SIGN", SW_NUM_SIGN, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("SWOOLE_UNSIGN", SW_NUM_UNSIGN, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("SWOOLE_NET", SW_NUM_NET, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("SWOOLE_HOST", SW_NUM_HOST, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("SWOOLE_SHORT", SW_NUM_SHORT, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("SWOOLE_INT", SW_NUM_INT, CONST_CS | CONST_PERSISTENT);
-
-        REGISTER_STRINGL_CONSTANT("SWOOLE_VERSION", PHP_SWOOLE_VERSION, sizeof(PHP_SWOOLE_VERSION) - 1, CONST_CS | CONST_PERSISTENT);
+    REGISTER_STRINGL_CONSTANT("SWOOLE_VERSION", PHP_SWOOLE_VERSION, sizeof(PHP_SWOOLE_VERSION) - 1, CONST_CS | CONST_PERSISTENT);
 
 	INIT_CLASS_ENTRY(swoole_client_ce, "swoole_client", swoole_client_methods);
 	swoole_client_class_entry_ptr = zend_register_internal_class(&swoole_client_ce TSRMLS_CC);
@@ -1646,7 +1639,6 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
 		data_ptr = package.data;
 		data_len = package.length;
 
-		//printf("len=%d\n", package.length);
 		//swoole_dump_bin(package.data, 's', package.length);
 	}
 #else
@@ -2542,29 +2534,30 @@ PHP_FUNCTION(swoole_server_sendfile)
 		RETURN_FALSE;
 	}
 
-	//file name size
-	if (send_data.info.len > SW_BUFFER_SIZE - 1)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "sendfile name too long. [MAX_LENGTH=%ld]", SW_BUFFER_SIZE - 1);
-		RETURN_FALSE;
-	}
-	//check file exists
-	if (access(filename, R_OK) < 0)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "file[%s] not found.", filename);
-		RETURN_FALSE;
-	}
+    //file name size
+    if (send_data.info.len > SW_BUFFER_SIZE - 1)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "sendfile name too long. [MAX_LENGTH=%d]",
+                (int) SW_BUFFER_SIZE - 1);
+        RETURN_FALSE;
+    }
+    //check file exists
+    if (access(filename, R_OK) < 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "file[%s] not found.", filename);
+        RETURN_FALSE;
+    }
 
-	SWOOLE_GET_SERVER(zobject, serv);
+    SWOOLE_GET_SERVER(zobject, serv);
 
-	send_data.info.fd = (int)conn_fd;
-	send_data.info.type = SW_EVENT_SENDFILE;
-	memcpy(buffer, filename, send_data.info.len);
-	buffer[send_data.info.len] = 0;
-	send_data.info.len++;
+    send_data.info.fd = (int) conn_fd;
+    send_data.info.type = SW_EVENT_SENDFILE;
+    memcpy(buffer, filename, send_data.info.len);
+    buffer[send_data.info.len] = 0;
+    send_data.info.len++;
 
-	send_data.data = buffer;
-	SW_CHECK_RETURN(serv->factory.finish(&serv->factory, &send_data));
+    send_data.data = buffer;
+    SW_CHECK_RETURN(serv->factory.finish(&serv->factory, &send_data));
 }
 
 PHP_FUNCTION(swoole_server_addlisten)
@@ -2767,7 +2760,7 @@ static int php_swoole_task_finish(swServer *serv, char *data, int data_len TSRML
 
 		if (serv->factory_mode == SW_MODE_PROCESS)
 		{
-			ret = swServer_send2worker(serv, &buf, sw_current_task->info.from_id);
+            ret = swFactoryProcess_send2worker(serv, &buf, sizeof(buf) + buf.info.len, sw_current_task->info.from_id);
 		}
 		else
 		{

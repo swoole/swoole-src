@@ -118,7 +118,7 @@ static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size)
 		{
 		    //swRingBuffer_head *tmp = (swRingBuffer_head *) (object->memory + object->collect_offset);
 		    //swWarn("item_length=%d, lock=%d", tmp->length, tmp->lock);
-			swWarn("alloc(%d) failed. alloc_offset=%ld|collect_offset=%ld", size, object->alloc_offset, object->collect_offset);
+			//swWarn("alloc(%d) failed. alloc_offset=%ld|collect_offset=%ld", size, object->alloc_offset, object->collect_offset);
 			return NULL;
 		}
 		//try collect memory, then try head_alloc

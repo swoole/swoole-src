@@ -655,26 +655,6 @@ int swSignalfd_onSignal(swReactor *reactor, swEvent *event);
 #endif
 void swSignal_none(void);
 
-//------------------Factory--------------------
-typedef struct _swFactory
-{
-	void *object;
-	int max_request; //worker max request
-	void *ptr; //server object
-	int last_from_id;
-
-	swReactor *reactor; //reserve for reactor
-
-	int (*start)(struct _swFactory *);
-	int (*shutdown)(struct _swFactory *);
-	int (*dispatch)(struct _swFactory *, swEventData *);
-	int (*finish)(struct _swFactory *, swSendData *);
-	int (*notify)(struct _swFactory *, swEvent *);    //send a event notify
-	int (*end)(struct _swFactory *, swDataHead *);
-
-	int (*onTask)(struct _swFactory *, swEventData *task); //worker function.get a task,goto to work
-	int (*onFinish)(struct _swFactory *, swSendData *result); //factory worker finish.callback
-} swFactory;
 
 struct swReactor_s
 {
@@ -689,8 +669,6 @@ struct swReactor_s
 	swReactor_handle handle[SW_MAX_FDTYPE];       //默认事件
 	swReactor_handle write_handle[SW_MAX_FDTYPE]; //扩展事件1(一般为写事件)
 	swReactor_handle error_handle[SW_MAX_FDTYPE]; //扩展事件2(一般为错误事件,如socket关闭)
-
-	swFactory *factory;
 
 	int (*add)(swReactor *, int fd, int fdtype);
 	int (*set)(swReactor *, int fd, int fdtype);
@@ -803,34 +781,7 @@ struct _swProcessPool
 	void *ptr2;
 };
 
-typedef struct _swFactoryProcess
-{
-	swPipe *pipes;
-	int writer_pti; //current writer id
-} swFactoryProcess;
-
-int swFactory_create(swFactory *factory);
-int swFactory_start(swFactory *factory);
-int swFactory_shutdown(swFactory *factory);
-int swFactory_dispatch(swFactory *factory, swEventData *req);
-int swFactory_finish(swFactory *factory, swSendData *_send);
-int swFactory_notify(swFactory *factory, swEvent *event);
-int swFactory_end(swFactory *factory, swDataHead *cev);
-int swFactory_check_callback(swFactory *factory);
-
-int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num);
-int swFactoryProcess_start(swFactory *factory);
-int swFactoryProcess_shutdown(swFactory *factory);
-int swFactoryProcess_end(swFactory *factory, swDataHead *event);
-int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task);
-
-int swFactoryThread_create(swFactory *factory, int writer_num);
-int swFactoryThread_start(swFactory *factory);
-int swFactoryThread_shutdown(swFactory *factory);
-int swFactoryThread_dispatch(swFactory *factory, swEventData *buf);
-int swFactoryThread_finish(swFactory *factory, swSendData *data);
-
-//------------------Reactor--------------------
+//----------------------------------------Reactor---------------------------------------
 enum SW_EVENTS
 {
 	SW_EVENT_DEAULT = 256,
@@ -998,58 +949,6 @@ typedef struct _swModule
 
 int swModule_load(char *so_file);
 
-typedef struct swServer_s swServer;
-
-typedef struct
-{
-	swTimer timer;
-
-	int running;
-	int error;
-	int process_type;
-	int signal_alarm; //for timer with message queue
-	int signal_fd;
-	int log_fd;
-
-	uint8_t use_timerfd;
-	uint8_t use_signalfd;
-	/**
-	 * Timer used pipe
-	 */
-	uint8_t use_timer_pipe;
-	uint8_t task_ipc_mode;
-
-	/**
-	 *  task worker process num
-	 */
-	uint16_t task_worker_num;
-
-	/**
-	 * Unix socket default buffer size
-	 */
-	uint32_t unixsock_buffer_size;
-
-
-	swServer *serv;
-	swFactory *factory;
-	swLock lock;
-
-	swProcessPool task_workers;
-	swProcessPool *event_workers;
-
-	swMemoryPool *memory_pool;
-	swReactor *main_reactor;
-
-	/**
-	 * for swoole_server->taskwait
-	 */
-	swPipe *task_notify;
-	swEventData *task_result;
-
-	pthread_t heartbeat_pidt;
-
-} swServerG;
-
 //Share Memory
 typedef struct
 {
@@ -1083,10 +982,64 @@ typedef struct
 
 typedef struct
 {
-	volatile uint8_t factory_lock_target;
-	volatile int16_t factory_target_worker;
+    uint16_t id;
+	uint8_t factory_lock_target;
+	int16_t factory_target_worker;
 	atomic_uint_t worker_round_i;
 } swThreadG;
+
+typedef struct _swServer swServer;
+typedef struct _swFactory swFactory;
+
+typedef struct
+{
+    swTimer timer;
+
+    int running;
+    int error;
+    int process_type;
+    int signal_alarm; //for timer with message queue
+    int signal_fd;
+    int log_fd;
+
+    uint8_t use_timerfd;
+    uint8_t use_signalfd;
+    /**
+     * Timer used pipe
+     */
+    uint8_t use_timer_pipe;
+    uint8_t task_ipc_mode;
+
+    /**
+     *  task worker process num
+     */
+    uint16_t task_worker_num;
+
+    /**
+     * Unix socket default buffer size
+     */
+    uint32_t unixsock_buffer_size;
+
+
+    swServer *serv;
+    swFactory *factory;
+    swLock lock;
+
+    swProcessPool task_workers;
+    swProcessPool *event_workers;
+
+    swMemoryPool *memory_pool;
+    swReactor *main_reactor;
+
+    /**
+     * for swoole_server->taskwait
+     */
+    swPipe *task_notify;
+    swEventData *task_result;
+
+    pthread_t heartbeat_pidt;
+
+} swServerG;
 
 extern swServerG SwooleG;              //Local Global Variable
 extern swServerGS *SwooleGS;           //Share Memory Global Variable
