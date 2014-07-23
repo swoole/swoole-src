@@ -337,6 +337,7 @@ struct _swServer
 	uint8_t package_length_size;
 	uint16_t package_length_offset;    //第几个字节开始表示长度
 	uint16_t package_body_offset;      //第几个字节开始计算长度
+	uint32_t package_max_length;
 
 	/**
 	 * Use data key as factory->dispatch() param

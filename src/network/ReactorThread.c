@@ -441,7 +441,7 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
 
         //over max length, will discard
         //TODO write to tmp file.
-        if (buffer->length > serv->buffer_input_size)
+        if (buffer->length > serv->package_max_length)
         {
             swWarn("Package is too big. package_length=%d", buffer->length);
             goto close_fd;
@@ -585,7 +585,7 @@ static int swReactorThread_get_package_length(swServer *serv, void *data, uint32
     body_length = swoole_unpack(serv->package_length_type, data + length_offset);
     //Length error
     //Protocol length is not legitimate, out of bounds or exceed the allocated length
-    if (body_length < 1 || body_length > serv->buffer_input_size)
+    if (body_length < 1 || body_length > serv->package_max_length)
     {
         swWarn("Invalid package [length=%d].", body_length);
         return SW_ERR;
@@ -704,9 +704,9 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
                 //wait more data
                 else
                 {
-                    if (package_total_length >= serv->buffer_input_size)
+                    if (package_total_length >= serv->package_max_length)
                     {
-                        swWarn("Package length more than the maximum size[%d], Close connection.", serv->buffer_input_size);
+                        swWarn("Package length more than the maximum size[%d], Close connection.", serv->package_max_length);
                         goto close_fd;
                     }
                     package = swString_new(package_total_length);

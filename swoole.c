@@ -1079,12 +1079,19 @@ PHP_FUNCTION(swoole_server_set)
 	/**
 	 * package max length
 	 */
-	if (zend_hash_find(vht, ZEND_STRS("package_max_length"), (void **) &v) == SUCCESS
-			|| zend_hash_find(vht, ZEND_STRS("buffer_input_size"), (void **) &v) == SUCCESS)
+	if (zend_hash_find(vht, ZEND_STRS("package_max_length"), (void **) &v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->buffer_input_size = (int) Z_LVAL_PP(v);
+		serv->package_max_length = (int) Z_LVAL_PP(v);
 	}
+    /**
+     * buffer input size
+     */
+    if (zend_hash_find(vht, ZEND_STRS("buffer_input_size"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(*v);
+        serv->buffer_input_size = (int) Z_LVAL_PP(v);
+    }
 	/**
 	 * buffer output size
 	 */

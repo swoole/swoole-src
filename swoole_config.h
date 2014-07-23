@@ -107,7 +107,8 @@
  * ringbuffer memory pool size
  */
 #define SW_REACTOR_RINGBUFFER_SIZE       (1024*1024*4)
-#define SW_OUTPUT_BUFFER_SIZE            (1024*1024*2)
+#define SW_BUFFER_OUTPUT_SIZE            (1024*1024*2)
+#define SW_BUFFER_INPUT_SIZE             (1024*1024*2)
 
 #define SW_MEMORY_POOL_SLAB_PAGE         10     //内存池的页数
 
