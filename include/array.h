@@ -8,7 +8,7 @@
 
 typedef struct
 {
-	void **items;
+	void **pages;
 	uint16_t page_num;
 	uint16_t page_size;
 	size_t item_size;
