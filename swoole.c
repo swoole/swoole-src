@@ -276,8 +276,6 @@ static void php_swoole_onClose(swServer *, int fd, int from_id);
 static void php_swoole_onTimer(swServer *serv, int interval);
 static void php_swoole_onWorkerStart(swServer *, int worker_id);
 static void php_swoole_onWorkerStop(swServer *, int worker_id);
-static void php_swoole_onMasterConnect(swServer *, int fd, int from_id);
-static void php_swoole_onMasterClose(swServer *, int fd, int from_id);
 static int php_swoole_onTask(swServer *, swEventData *task);
 static int php_swoole_onFinish(swServer *, swEventData *task);
 static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker_pid, int exit_code);
@@ -2221,81 +2219,6 @@ static void php_swoole_onClose(swServer *serv, int fd, int from_id)
 	}
 }
 
-static void php_swoole_onMasterConnect(swServer *serv, int fd, int from_id)
-{
-	zval *zserv = (zval *) serv->ptr2;
-	zval *zfd;
-	zval *zfrom_id;
-	zval **args[3];
-	zval *retval;
-
-	MAKE_STD_ZVAL(zfd);
-	ZVAL_LONG(zfd, fd);
-
-	MAKE_STD_ZVAL(zfrom_id);
-	ZVAL_LONG(zfrom_id, from_id);
-
-	args[0] = &zserv;
-	zval_add_ref(&zserv);
-	args[1] = &zfd;
-	args[2] = &zfrom_id;
-
-	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onMasterConnect], &retval, 3, args, 0,
-			NULL TSRMLS_CC) == FAILURE)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: ononMasterConnect handler error");
-	}
-	if (EG(exception))
-	{
-		zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
-	}
-	zval_ptr_dtor(&zfd);
-	zval_ptr_dtor(&zfrom_id);
-	if (retval != NULL)
-	{
-		zval_ptr_dtor(&retval);
-	}
-}
-
-static void php_swoole_onMasterClose(swServer *serv, int fd, int from_id)
-{
-	zval *zserv = (zval *) serv->ptr2;
-	zval *zfd;
-	zval *zfrom_id;
-	zval **args[3];
-	zval *retval;
-
-	MAKE_STD_ZVAL(zfd);
-	ZVAL_LONG(zfd, fd);
-
-	MAKE_STD_ZVAL(zfrom_id);
-	ZVAL_LONG(zfrom_id, from_id);
-
-	args[0] = &zserv;
-	zval_add_ref(&zserv);
-	args[1] = &zfd;
-	args[2] = &zfrom_id;
-
-	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onMasterClose], &retval, 3, args, 0,
-			NULL TSRMLS_CC) == FAILURE)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onMasterClose handler error");
-	}
-	if (EG(exception))
-	{
-		zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
-	}
-
-	zval_ptr_dtor(&zfd);
-	zval_ptr_dtor(&zfrom_id);
-	if (retval != NULL)
-	{
-		zval_ptr_dtor(&retval);
-	}
-}
-
 PHP_FUNCTION(swoole_strerror)
 {
 	int swoole_errno = 0;
@@ -2333,7 +2256,9 @@ PHP_FUNCTION(swoole_server_start)
 	}
 	SWOOLE_GET_SERVER(zobject, serv);
 
-	//可选事件
+	/*
+	 * optional callback
+	 */
 	if (php_sw_callback[SW_SERVER_CB_onStart] != NULL)
 	{
 		serv->onStart = php_swoole_onStart;
@@ -2342,15 +2267,6 @@ PHP_FUNCTION(swoole_server_start)
 	{
 		serv->onShutdown = php_swoole_onShutdown;
 	}
-	if (php_sw_callback[SW_SERVER_CB_onMasterConnect] != NULL)
-	{
-		serv->onMasterConnect = php_swoole_onMasterConnect;
-	}
-	if (php_sw_callback[SW_SERVER_CB_onMasterClose] != NULL)
-	{
-		serv->onMasterClose = php_swoole_onMasterClose;
-	}
-
 	/**
 	 * require callback, set the master/manager/worker PID
 	 */
@@ -2636,9 +2552,15 @@ PHP_FUNCTION(swoole_server_addtimer)
 	swServer *serv = NULL;
 	long interval;
 
+	if (swIsMaster())
+	{
+	    php_error_docref(NULL TSRMLS_CC, E_WARNING, "master process can not use timer.");
+	    RETURN_FALSE;
+	}
+
 	if (php_sw_callback[SW_SERVER_CB_onTimer] == NULL)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onTimer is null, Can not use timer.");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "onTimer is null, Can not use timer.");
 		RETURN_FALSE;
 	}
 
@@ -2646,7 +2568,7 @@ PHP_FUNCTION(swoole_server_addtimer)
 
 	if (SwooleG.use_timer_pipe && SwooleG.main_reactor == NULL)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: can not use addtimer here.");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "can not use addtimer here.");
 		RETURN_FALSE;
 	}
 

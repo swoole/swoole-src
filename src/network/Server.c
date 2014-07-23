@@ -102,7 +102,6 @@ void swServer_worker_onStop(swServer *serv)
 static int swServer_master_onClose(swReactor *reactor, swEvent *event)
 {
 	swServer *serv = reactor->ptr;
-	swConnection *conn;
 	int queue[SW_CLOSE_QLEN];
 
 	int i, n, fd;
@@ -117,13 +116,6 @@ static int swServer_master_onClose(swReactor *reactor, swEvent *event)
 	for (i = 0; i < n / sizeof(int); i++)
 	{
 		fd = queue[i];
-		conn = swServer_connection_get(serv, fd);
-
-		if (serv->onMasterClose != NULL)
-		{
-			serv->onMasterClose(serv, fd, conn->from_id);
-		}
-
 		/**
 		 * Reset maxfd, use for connection_list
 		 */
@@ -286,10 +278,6 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 		}
 		else
 		{
-			if (serv->onMasterConnect != NULL)
-			{
-				serv->onMasterConnect(serv, new_fd, reactor_id);
-			}
 			if (serv->onConnect != NULL)
 			{
 				serv->factory.notify(&serv->factory, &connEv);
