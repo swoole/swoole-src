@@ -17,12 +17,17 @@
 #ifndef SW_CONNECTION_H_
 #define SW_CONNECTION_H_
 
+#include "buffer.h"
+
 #ifdef SW_USE_OPENSSL
+#include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
-#endif
 
-#include "buffer.h"
+#define SW_SSL_BUFFER      1
+#define SW_SSL_CLIENT      2
+
+#endif
 
 typedef struct _swConnection
 {
@@ -79,6 +84,7 @@ typedef struct _swConnection
 
 #ifdef SW_USE_OPENSSL
 	SSL *ssl;
+	uint32_t ssl_state;
 #endif
 
 } swConnection;
@@ -97,25 +103,26 @@ int swConnection_send_in_buffer(swConnection *conn);
 #ifdef SW_USE_OPENSSL
 int swSSL_init(char *cert_file, char *key_file);
 void swSSL_free();
-int swSSL_create(swConnection *conn);
+int swSSL_create(swConnection *conn, int flags);
 int swSSL_accept(swConnection *conn);
 void swSSL_close(swConnection *conn);
+ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n);
 #endif
 
 /**
  * Receive data from connection
  */
-static sw_inline int swConnection_recv(swConnection *conn, void *__buf, size_t __n, int __flags)
+static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size_t __n, int __flags)
 {
 #ifdef SW_USE_OPENSSL
-	if (conn->ssl)
-	{
-		return SSL_read(conn->ssl, __buf, __n);
-	}
-	else
-	{
-		return recv(conn->fd, __buf, __n, __flags);
-	}
+    if (conn->ssl)
+    {
+        return swSSL_recv(conn, __buf, __n);
+    }
+    else
+    {
+        return recv(conn->fd, __buf, __n, __flags);
+    }
 #else
 	return recv(conn->fd, __buf, __n, __flags);
 #endif

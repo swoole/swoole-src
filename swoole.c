@@ -415,6 +415,7 @@ int le_swoole_server;
 int le_swoole_client;
 int le_swoole_lock;
 int le_swoole_process;
+int le_swoole_table;
 
 zend_class_entry swoole_lock_ce;
 zend_class_entry *swoole_lock_class_entry_ptr;
@@ -427,6 +428,9 @@ zend_class_entry *swoole_process_class_entry_ptr;
 
 zend_class_entry swoole_server_ce;
 zend_class_entry *swoole_server_class_entry_ptr;
+
+zend_class_entry swoole_table_ce;
+zend_class_entry *swoole_table_class_entry_ptr;
 
 zend_module_entry swoole_module_entry =
 {
@@ -779,7 +783,7 @@ PHP_FUNCTION(swoole_server_create)
 
 	if (swServer_addListener(serv, sock_type, serv_host, serv_port) < 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_ERROR, "addListener failed. Error: %s [%d]", strerror(errno), errno);
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "add listener failed.");
 		return;
 	}
 	if (!getThis())
@@ -2311,7 +2315,7 @@ PHP_FUNCTION(swoole_server_start)
  	}
 	if (php_sw_callback[SW_SERVER_CB_onReceive] == NULL)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_server: onReceive must set.");
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "require onReceive callback");
 		RETURN_FALSE;
 	}
 	//-------------------------------------------------------------
@@ -2324,13 +2328,13 @@ PHP_FUNCTION(swoole_server_start)
 
 	if (ret < 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_server: create server fail. Error: %s [%d][sw_error=%s]", strerror(errno), errno, sw_error);
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "create server failed. Error: %s", sw_error);
 		RETURN_LONG(ret);
 	}
 	ret = swServer_start(serv);
 	if (ret < 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_server: start server fail. Error: %s [%d][sw_error=%s]", strerror(errno), errno, sw_error);
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "start server failed. Error: %s", sw_error);
 		RETURN_LONG(ret);
 	}
 	RETURN_TRUE;

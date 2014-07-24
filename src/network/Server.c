@@ -253,7 +253,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 			swListenList_node *listen_host = serv->connection_list[event->fd].object;
 			if (listen_host->ssl)
 			{
-				if (swSSL_create(conn) < 0 || swSSL_accept(conn) < 0)
+				if (swSSL_create(conn, 0) < 0)
 				{
 					conn->active = 0;
 					close(new_fd);
@@ -422,7 +422,7 @@ static int swServer_check_callback(swServer *serv)
 	{
 		if (serv->ssl_cert_file == NULL || serv->ssl_key_file == NULL)
 		{
-			swWarn("ssl_cert_file or ssl_key_file is null.");
+			swWarn("SSL error, require ssl_cert_file and ssl_key_file.");
 			return SW_ERR;
 		}
 	}
@@ -1042,7 +1042,6 @@ int swServer_addListener(swServer *serv, int type, char *host, int port)
 			listen_host->type = type;
 			listen_host->ssl = 1;
 		}
-
 		if (type != SW_SOCK_UNIX_STREAM && port <= 0)
 		{
 			swError("listen port must greater than 0.");

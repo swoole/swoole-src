@@ -127,6 +127,10 @@
 #define SW_TASK_TMP_FILE           "/tmp/swoole/task.XXXXXX"
 #define SW_FILE_CHUNK_SIZE         65536
 
+#define SW_TABLE_CONFLICT_PROPORTION    0.2 //20%
+
+#define SW_SSL_BUFSIZE  16384
+
 #if defined(HAVE_SIGNALFD) && SW_WORKER_IPC_MODE != 1
 #undef HAVE_SIGNALFD
 #endif

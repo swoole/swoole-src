@@ -27,13 +27,16 @@ int swSSL_init(char *cert_file, char *key_file)
 	SSL_load_error_strings();
 	OpenSSL_add_all_algorithms();
 
-	ssl_context = SSL_CTX_new(SSLv23_method());
+    ssl_context = SSL_CTX_new(SSLv23_method());
+    if (ssl_context == NULL)
+    {
+        ERR_print_errors_fp(stderr);
+        return SW_ERR;
+    }
 
-	if (ssl_context == NULL)
-	{
-		ERR_print_errors_fp(stderr);
-		return SW_ERR;
-	}
+    SSL_CTX_set_options(ssl_context, SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG);
+    SSL_CTX_set_options(ssl_context, SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER);
+
 	/*
 	 * set the local certificate from CertFile
 	 */
@@ -63,17 +66,27 @@ int swSSL_init(char *cert_file, char *key_file)
 
 int swSSL_accept(swConnection *conn)
 {
-	int ret = SSL_accept(conn->ssl);
-	if (ret)
-	{
-		return SW_OK;
-	}
-	else
-	{
-		long err = SSL_get_error(conn->ssl, ret);
-		swWarn("SSL_accept() failed. Error: %s[%ld]", ERR_reason_error_string(err), err);
-		return SW_ERR;
-	}
+    int n = SSL_do_handshake(conn->ssl);
+    if (n == 1)
+    {
+        conn->ssl_state = 1;
+        if (conn->ssl->s3)
+        {
+            conn->ssl->s3->flags |= SSL3_FLAGS_NO_RENEGOTIATE_CIPHERS;
+        }
+        return SW_OK;
+    }
+    long err = SSL_get_error(conn->ssl, n);
+    if (err == SSL_ERROR_WANT_READ)
+    {
+        return SW_OK;
+    }
+    else if (err == SSL_ERROR_WANT_WRITE)
+    {
+        return SW_OK;
+    }
+    swWarn("SSL_do_handshake() failed.");
+    return SW_ERR;
 }
 
 void swSSL_close(swConnection *conn)
@@ -81,7 +94,17 @@ void swSSL_close(swConnection *conn)
 	SSL_free(conn->ssl);
 }
 
-int swSSL_create(swConnection *conn)
+ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
+{
+    if (conn->ssl_state == 0 && swSSL_accept(conn) < 0)
+    {
+        //close connection
+        return 0;
+    }
+    return SSL_read(conn->ssl, __buf, __n);
+}
+
+int swSSL_create(swConnection *conn, int flags)
 {
 	SSL *ssl = SSL_new(ssl_context);
 	if (ssl == NULL)
@@ -89,14 +112,22 @@ int swSSL_create(swConnection *conn)
 		swWarn("SSL_new() failed.");
 		return SW_ERR;
 	}
-
 	if (!SSL_set_fd(ssl, conn->fd))
 	{
 		long err = ERR_get_error();
 		swWarn("SSL_set_fd() failed. Error: %s[%ld]", ERR_reason_error_string(err), err);
 		return SW_ERR;
 	}
+    if (flags & SW_SSL_CLIENT)
+    {
+        SSL_set_connect_state(ssl);
+    }
+    else
+    {
+        SSL_set_accept_state(ssl);
+    }
 	conn->ssl = ssl;
+	conn->ssl_state = 0;
 	return SW_OK;
 }
 

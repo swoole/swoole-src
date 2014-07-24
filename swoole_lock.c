@@ -35,9 +35,9 @@ PHP_METHOD(swoole_lock, __construct)
 		RETURN_FALSE;
 	}
 	swLock *lock = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swLock));
-	if(lock == NULL)
+	if (lock == NULL)
 	{
-		zend_error(E_WARNING, "SwooleLock: alloc fail");
+	    php_error_docref(NULL TSRMLS_CC, E_WARNING, "alloc failed.");
 		RETURN_FALSE;
 	}
 
@@ -47,15 +47,15 @@ PHP_METHOD(swoole_lock, __construct)
 		ret = swRWLock_create(lock, 1);
 		break;
 	case SW_FILELOCK:
-		if(filelock_len <= 0)
+		if (filelock_len <= 0)
 		{
-			zend_error(E_ERROR, "SwooleLock: filelock require lock file name.");
+		    php_error_docref(NULL TSRMLS_CC, E_ERROR, "filelock require lock file name.");
 			RETURN_FALSE;
 		}
 		int fd;
 		if ((fd = open(filelock, O_RDWR | O_CREAT, 0666)) < 0)
 		{
-			zend_error(E_WARNING, "SwooleLock: open file[%s] fail. Error: %s [%d]", filelock, strerror(errno), errno);
+		    php_error_docref(NULL TSRMLS_CC, E_WARNING, "open file[%s] failed. Error: %s [%d]", filelock, strerror(errno), errno);
 			RETURN_FALSE;
 		}
 		ret = swFileLock_create(lock, fd);
@@ -73,9 +73,9 @@ PHP_METHOD(swoole_lock, __construct)
 		ret = swMutex_create(lock, 1);
 		break;
 	}
-	if(ret < 0)
+	if (ret < 0)
 	{
-		zend_error(E_WARNING, "SwooleLock: create lock fail");
+	    php_error_docref(NULL TSRMLS_CC, E_WARNING, "create lock failed");
 		RETURN_FALSE;
 	}
 	zval *zres;
@@ -135,9 +135,9 @@ PHP_METHOD(swoole_lock, trylock)
 	{
 		RETURN_FALSE;
 	}
-	if(lock->trylock == NULL)
+	if (lock->trylock == NULL)
 	{
-		zend_error(E_WARNING, "SwooleLock: lock[type=%d] can not trylock", lock->type);
+	    php_error_docref(NULL TSRMLS_CC, E_WARNING, "lock[type=%d] can not trylock", lock->type);
 		RETURN_FALSE;
 	}
 	SW_LOCK_CHECK_RETURN(lock->trylock(lock));
@@ -157,7 +157,7 @@ PHP_METHOD(swoole_lock, trylock_read)
 	}
 	if(lock->trylock_rd == NULL)
 	{
-		zend_error(E_WARNING, "SwooleLock: lock[type=%d] can not trylock_read", lock->type);
+	    php_error_docref(NULL TSRMLS_CC, E_WARNING, "lock[type=%d] can not trylock_read", lock->type);
 		RETURN_FALSE;
 	}
 	SW_LOCK_CHECK_RETURN(lock->trylock(lock));
@@ -175,9 +175,9 @@ PHP_METHOD(swoole_lock, lock_read)
 	{
 		RETURN_FALSE;
 	}
-	if(lock->lock_rd == NULL)
+	if (lock->lock_rd == NULL)
 	{
-		zend_error(E_WARNING, "SwooleLock: lock[type=%d] can not lock_read", lock->type);
+	    php_error_docref(NULL TSRMLS_CC, E_WARNING, "lock[type=%d] can not lock_read", lock->type);
 		RETURN_FALSE;
 	}
 	SW_LOCK_CHECK_RETURN(lock->trylock(lock));

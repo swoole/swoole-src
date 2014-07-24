@@ -26,7 +26,6 @@ typedef struct swHashMap_node
 } swHashMap_node;
 
 static int swHashMap_add_keyptr(swHashMap_node **root, swHashMap_node *add);
-static uint64_t swHashMap_jenkins_hash(char *key, uint64_t keylen, uint32_t num_bkts);
 static sw_inline swHashMap_node *swHashMap_find_node(swHashMap_node *head, char *key_str, uint16_t key_len);
 static int swHashMap_delete_node(swHashMap_node *head, swHashMap_node *del_node);
 

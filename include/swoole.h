@@ -154,6 +154,11 @@ int daemon(int nochdir, int noclose);
 //-------------------------------------------------------------------------------
 #define SW_OK                  0
 #define SW_ERR                -1
+#define SW_AGAIN              -2
+#define SW_BUSY               -3
+#define SW_DONE               -4
+#define SW_DECLINED           -5
+#define SW_ABORT              -6
 //-------------------------------------------------------------------------------
 #define SW_TRUE                1
 #define SW_FALSE               0
@@ -191,6 +196,7 @@ int daemon(int nochdir, int noclose);
 #define SW_LOG_ERROR           3
 #define SW_LOG_TRACE           4
 //-------------------------------------------------------------------------------
+
 #define swWarn(str,...)        SwooleG.lock.lock(&SwooleG.lock);\
 snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str,__func__,##__VA_ARGS__);\
 swLog_put(SW_LOG_WARN, sw_error);\
