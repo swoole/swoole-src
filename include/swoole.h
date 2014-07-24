@@ -485,8 +485,8 @@ int swShareMemory_mmap_free(swShareMemory *object);
 
 //-------------------memory manager-------------------------
 typedef struct _swString {
-	uint32_t length;
-	uint32_t size;
+	size_t length;
+	size_t size;
 	char *str;
 } swString;
 
@@ -495,6 +495,11 @@ typedef struct _swString {
 
 size_t swoole_utf8_length(u_char *p, size_t n);
 size_t swoole_utf8_length(u_char *p, size_t n);
+
+static sw_inline size_t swoole_size_align(size_t size, int pagesize)
+{
+    return size + (pagesize - (size % pagesize));
+}
 
 swString *swString_new(size_t size);
 void swString_free(swString *str);

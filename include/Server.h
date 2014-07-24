@@ -545,7 +545,7 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int schedule_key)
 
 static sw_inline int swFactoryProcess_send2worker(swServer *serv, void *data, int len, int target_worker_id)
 {
-    int ret;
+    int ret = -1;
     swWorker *worker = &(serv->workers[target_worker_id]);
 
     if (serv->ipc_mode == SW_IPC_MSGQUEUE)
@@ -562,7 +562,7 @@ static sw_inline int swFactoryProcess_send2worker(swServer *serv, void *data, in
     {
         //send to unix sock
         //swWarn("pti=%d|from_id=%d|data_len=%d|swDataHead_size=%ld", pti, data->info.from_id, send_len, sizeof(swDataHead));
-        target_worker_id = swWrite(worker->pipe_master, (void *) data, len);
+        ret = swWrite(worker->pipe_master, (void *) data, len);
     }
     return ret;
 }

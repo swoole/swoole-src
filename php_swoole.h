@@ -95,6 +95,7 @@ extern void ***sw_thread_ctx;
 #define SW_RES_CLIENT_NAME          "SwooleClient"
 #define SW_RES_LOCK_NAME            "SwooleLock"
 #define SW_RES_PROCESS_NAME         "SwooleProcess"
+#define SW_RES_BUFFER_NAME          "SwooleBuffer"
 
 #define PHP_CLIENT_CALLBACK_NUM             4
 //---------------------------------------------------
@@ -137,11 +138,13 @@ extern int le_swoole_server;
 extern int le_swoole_client;
 extern int le_swoole_lock;
 extern int le_swoole_process;
+extern int le_swoole_buffer;
 
 extern zend_class_entry *swoole_lock_class_entry_ptr;
 extern zend_class_entry *swoole_process_class_entry_ptr;
 extern zend_class_entry *swoole_client_class_entry_ptr;
 extern zend_class_entry *swoole_server_class_entry_ptr;
+extern zend_class_entry *swoole_buffer_class_entry_ptr;
 
 extern HashTable php_sw_event_callback;
 extern HashTable php_sw_client_callback;
@@ -232,8 +235,15 @@ PHP_METHOD(swoole_process, read);
 PHP_METHOD(swoole_process, exit);
 PHP_METHOD(swoole_process, exec);
 
+PHP_METHOD(swoole_buffer, __construct);
+PHP_METHOD(swoole_buffer, append);
+PHP_METHOD(swoole_buffer, substr);
+PHP_METHOD(swoole_buffer, copy);
+PHP_METHOD(swoole_buffer, expand);
+
 void swoole_destory_lock(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 void swoole_destory_process(zend_rsrc_list_entry *rsrc TSRMLS_DC);
+void swoole_destory_buffer(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 
 void php_swoole_check_reactor();
 void php_swoole_try_run_reactor();

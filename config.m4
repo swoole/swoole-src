@@ -166,7 +166,12 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
     fi
 
-    PHP_NEW_EXTENSION(swoole, swoole.c swoole_lock.c swoole_client.c swoole_async.c swoole_process.c\
+    PHP_NEW_EXTENSION(swoole, swoole.c \
+        swoole_lock.c \
+        swoole_client.c \
+        swoole_async.c \
+        swoole_process.c \
+        swoole_buffer.c \
         src/core/Base.c \
         src/core/log.c \
         src/core/hashmap.c \

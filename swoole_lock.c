@@ -84,6 +84,7 @@ PHP_METHOD(swoole_lock, __construct)
 	ZEND_REGISTER_RESOURCE(zres, lock, le_swoole_lock);
 	zend_update_property(swoole_lock_class_entry_ptr, getThis(), ZEND_STRL("_lock"), zres TSRMLS_CC);
 
+	zval_ptr_dtor(&zres);
 	RETURN_TRUE;
 }
 

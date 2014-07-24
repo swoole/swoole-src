@@ -131,6 +131,9 @@
 
 #define SW_SSL_BUFSIZE  16384
 
+#define SW_STRING_BUFFER_MAXLEN          (1024*1024*128)
+#define SW_STRING_BUFFER_DEFAULT         128
+
 #if defined(HAVE_SIGNALFD) && SW_WORKER_IPC_MODE != 1
 #undef HAVE_SIGNALFD
 #endif

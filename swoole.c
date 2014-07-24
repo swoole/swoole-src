@@ -400,6 +400,16 @@ const zend_function_entry swoole_process_methods[] =
 	PHP_FE_END
 };
 
+const zend_function_entry swoole_buffer_methods[] =
+{
+    PHP_ME(swoole_buffer, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_buffer, substr, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_buffer, copy, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_buffer, append, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_buffer, expand, NULL, ZEND_ACC_PUBLIC)
+    PHP_FE_END
+};
+
 const zend_function_entry swoole_lock_methods[] =
 {
 	PHP_ME(swoole_lock, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
@@ -416,6 +426,7 @@ int le_swoole_client;
 int le_swoole_lock;
 int le_swoole_process;
 int le_swoole_table;
+int le_swoole_buffer;
 
 zend_class_entry swoole_lock_ce;
 zend_class_entry *swoole_lock_class_entry_ptr;
@@ -431,6 +442,9 @@ zend_class_entry *swoole_server_class_entry_ptr;
 
 zend_class_entry swoole_table_ce;
 zend_class_entry *swoole_table_class_entry_ptr;
+
+zend_class_entry swoole_buffer_ce;
+zend_class_entry *swoole_buffer_class_entry_ptr;
 
 zend_module_entry swoole_module_entry =
 {
@@ -488,6 +502,8 @@ PHP_MINIT_FUNCTION(swoole)
 	le_swoole_client = zend_register_list_destructors_ex(swoole_destory_client, NULL, SW_RES_CLIENT_NAME, module_number);
 	le_swoole_lock = zend_register_list_destructors_ex(swoole_destory_lock, NULL, SW_RES_LOCK_NAME, module_number);
 	le_swoole_process = zend_register_list_destructors_ex(swoole_destory_process, NULL, SW_RES_PROCESS_NAME, module_number);
+	le_swoole_buffer = zend_register_list_destructors_ex(swoole_destory_buffer, NULL, SW_RES_BUFFER_NAME, module_number);
+
 	/**
 	 * mode type
 	 */
@@ -560,6 +576,9 @@ PHP_MINIT_FUNCTION(swoole)
 	INIT_CLASS_ENTRY(swoole_process_ce, "swoole_process", swoole_process_methods);
 	swoole_process_class_entry_ptr = zend_register_internal_class(&swoole_process_ce TSRMLS_CC);
 
+	INIT_CLASS_ENTRY(swoole_buffer_ce, "swoole_buffer", swoole_buffer_methods);
+	swoole_buffer_class_entry_ptr = zend_register_internal_class(&swoole_buffer_ce TSRMLS_CC);
+
 	zend_hash_init(&php_sw_long_connections, 16, NULL, ZVAL_PTR_DTOR, 1);
 
 	//swoole init
@@ -618,6 +637,12 @@ PHP_MINFO_FUNCTION(swoole)
 #endif
 #ifdef SW_SOCKETS
     php_info_print_table_row(2, "sockets", "enabled");
+#endif
+#ifdef SW_USE_OPENSSL
+    php_info_print_table_row(2, "openssl", "enabled");
+#endif
+#ifdef SW_USE_RINGBUFFER
+    php_info_print_table_row(2, "ringbuffer", "enabled");
 #endif
 
 	php_info_print_table_end();
