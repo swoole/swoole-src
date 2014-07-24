@@ -1,6 +1,6 @@
 ![Swoole](http://www.swoole.com/static/images/swoole.png)
 =====
-[![Build Status](https://api.travis-ci.org/swoole/swoole-src.svg)](https://travis-ci.org/matyhtf/swoole)
+[![Build Status](https://api.travis-ci.org/swoole/swoole-src.svg)](https://travis-ci.org/swoole/swoole-src)
 
 Asynchronous & concurrent & distributed networking framework for PHP.
 
