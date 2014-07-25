@@ -20,7 +20,7 @@ static sw_inline swString* php_swoole_buffer_get(zval *object TSRMLS_DC)
 {
     zval **zres;
     swString *str = NULL;
-    if (zend_hash_find(Z_OBJPROP_P(object), SW_STRL("_memory"), (void **) &zres) == SUCCESS)
+    if (zend_hash_find(Z_OBJPROP_P(object), SW_STRL("_buffer"), (void **) &zres) == SUCCESS)
     {
         ZEND_FETCH_RESOURCE_NO_RETURN(str, swString*, zres, -1, SW_RES_BUFFER_NAME, le_swoole_buffer);
     }
@@ -75,7 +75,7 @@ PHP_METHOD(swoole_buffer, __construct)
     }
 
     ZEND_REGISTER_RESOURCE(zres, buffer, le_swoole_buffer);
-    zend_update_property(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("_memory"), zres TSRMLS_CC);
+    zend_update_property(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("_buffer"), zres TSRMLS_CC);
     zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("capacity"), size TSRMLS_CC);
     zval_ptr_dtor(&zres);
 }
@@ -83,6 +83,7 @@ PHP_METHOD(swoole_buffer, __construct)
 PHP_METHOD(swoole_buffer, append)
 {
     swString str;
+    bzero(&str, sizeof(str));
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &str.str, &str.length) == FAILURE)
     {
@@ -94,10 +95,11 @@ PHP_METHOD(swoole_buffer, append)
         RETURN_FALSE;
     }
     swString *buffer = php_swoole_buffer_get(getThis() TSRMLS_CC);
-    if (str.length + buffer->size > SW_STRING_BUFFER_MAXLEN)
+
+    if ((str.length + buffer->size) > SW_STRING_BUFFER_MAXLEN)
     {
-       php_error_docref(NULL TSRMLS_CC, E_WARNING, "buffer size must not exceed %d", SW_STRING_BUFFER_MAXLEN);
-       RETURN_FALSE;
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "buffer size must not exceed %d", SW_STRING_BUFFER_MAXLEN);
+        RETURN_FALSE;
     }
 
     size_t size_old = buffer->size;
@@ -120,25 +122,42 @@ PHP_METHOD(swoole_buffer, substr)
 {
     long offset;
     long length = -1;
-    zend_bool copy = 1;
+    zend_bool seek = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|lb", &offset, &length, &copy) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|lb", &offset, &length, &seek) == FAILURE)
     {
         RETURN_FALSE;
     }
     swString *buffer = php_swoole_buffer_get(getThis() TSRMLS_CC);
+
+    if (seek && !(offset == 0 && length < buffer->length))
+    {
+        seek = 0;
+    }
     if (offset < 0)
     {
         offset = buffer->length + offset;
     }
+    offset += buffer->offset;
     if (length < 0)
     {
         length = buffer->length - offset;
     }
-    RETURN_STRINGL(buffer->str + offset, length, copy);
+    if (offset + length > buffer->length)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "offset(%ld,%ld) out of bounds.", offset, length);
+        RETURN_FALSE;
+    }
+    if (seek)
+    {
+        buffer->offset += length;
+        zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"),
+                buffer->length - buffer->offset TSRMLS_CC);
+    }
+    RETURN_STRINGL(buffer->str + offset, length, 1);
 }
 
-PHP_METHOD(swoole_buffer, copy)
+PHP_METHOD(swoole_buffer, write)
 {
     long offset;
     char *new_str;
@@ -153,6 +172,7 @@ PHP_METHOD(swoole_buffer, copy)
     {
         offset = buffer->length + offset;
     }
+    offset += buffer->offset;
     if (length < 0)
     {
         length = buffer->length - offset;
@@ -169,7 +189,6 @@ PHP_METHOD(swoole_buffer, copy)
 PHP_METHOD(swoole_buffer, expand)
 {
     long size = -1;
-
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &size) == FAILURE)
     {
         RETURN_FALSE;
@@ -182,4 +201,12 @@ PHP_METHOD(swoole_buffer, expand)
     }
     zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("capacity"), size TSRMLS_CC);
     SW_CHECK_RETURN(swString_extend(buffer, size));
+}
+
+PHP_METHOD(swoole_buffer, clear)
+{
+    swString *buffer = php_swoole_buffer_get(getThis() TSRMLS_CC);
+    buffer->length = 0;
+    buffer->offset = 0;
+    zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"), 0 TSRMLS_CC);
 }

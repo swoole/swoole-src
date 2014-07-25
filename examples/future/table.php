@@ -1,9 +1,11 @@
 <?php
-$table = new swoole_table(100000);  //table rows size
+$table = new swoole_table(1000);  //table rows size
 $table->column('id', swoole_table::TYPE_INT, 4);       //1,2,4,8
 $table->column('name', swoole_table::TYPE_STRING, 64);
 $table->column('num', swoole_table::TYPE_FLOAT, 4);     //4,8
 $table->create();
+
+exit;
 
 //memory size= 72 * (100000 + 20000) //20% conflict
 $key = 'tianfenghan@qq.com';

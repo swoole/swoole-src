@@ -51,7 +51,7 @@ PHP_METHOD(swoole_process, __construct)
 	 */
 	if (SwooleG.main_reactor && SwooleGS->start == 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_process must be create before the event loop.");
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_process must create before the event loop.");
 		return;
 	}
 

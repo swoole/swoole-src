@@ -172,6 +172,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_async.c \
         swoole_process.c \
         swoole_buffer.c \
+        swoole_table.c \
         src/core/Base.c \
         src/core/log.c \
         src/core/hashmap.c \

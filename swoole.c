@@ -404,9 +404,19 @@ const zend_function_entry swoole_buffer_methods[] =
 {
     PHP_ME(swoole_buffer, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
     PHP_ME(swoole_buffer, substr, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_buffer, copy, NULL, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_buffer, read, substr, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_buffer, write, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_buffer, append, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_buffer, expand, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_buffer, clear, NULL, ZEND_ACC_PUBLIC)
+    PHP_FE_END
+};
+
+const zend_function_entry swoole_table_methods[] =
+{
+    PHP_ME(swoole_table, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_table, column, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, create, NULL, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -503,6 +513,7 @@ PHP_MINIT_FUNCTION(swoole)
 	le_swoole_lock = zend_register_list_destructors_ex(swoole_destory_lock, NULL, SW_RES_LOCK_NAME, module_number);
 	le_swoole_process = zend_register_list_destructors_ex(swoole_destory_process, NULL, SW_RES_PROCESS_NAME, module_number);
 	le_swoole_buffer = zend_register_list_destructors_ex(swoole_destory_buffer, NULL, SW_RES_BUFFER_NAME, module_number);
+	le_swoole_table = zend_register_list_destructors_ex(swoole_destory_table, NULL, SW_RES_TABLE_NAME, module_number);
 
 	/**
 	 * mode type
@@ -578,6 +589,9 @@ PHP_MINIT_FUNCTION(swoole)
 
 	INIT_CLASS_ENTRY(swoole_buffer_ce, "swoole_buffer", swoole_buffer_methods);
 	swoole_buffer_class_entry_ptr = zend_register_internal_class(&swoole_buffer_ce TSRMLS_CC);
+
+	INIT_CLASS_ENTRY(swoole_buffer_ce, "swoole_table", swoole_table_methods);
+	swoole_table_class_entry_ptr = zend_register_internal_class(&swoole_table_ce TSRMLS_CC);
 
 	zend_hash_init(&php_sw_long_connections, 16, NULL, ZVAL_PTR_DTOR, 1);
 

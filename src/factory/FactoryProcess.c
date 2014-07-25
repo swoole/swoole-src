@@ -1055,29 +1055,29 @@ static int swFactoryProcess_worker_onPipeReceive(swReactor *reactor, swEvent *ev
  */
 int swFactoryProcess_writer_loop_unsock(swThreadParam *param)
 {
-	swFactory *factory = param->object;
-	swFactoryProcess *object = factory->object;
-	int pti = param->pti;
-	swReactor *reactor = &(object->writers[pti].reactor);
+    swFactory *factory = param->object;
+    swFactoryProcess *object = factory->object;
+    int pti = param->pti;
+    swReactor *reactor = &(object->writers[pti].reactor);
 
-	struct timeval tmo;
-	tmo.tv_sec = 3;
-	tmo.tv_usec = 0;
+    struct timeval tmo;
+    tmo.tv_sec = 3;
+    tmo.tv_usec = 0;
 
-	reactor->factory = factory;
-	reactor->id = pti;
-	//worker过多epoll效率更高
-	if (swReactor_auto(reactor, SW_REACTOR_MAXEVENTS) < 0)
-	{
-	    pthread_exit((void *) param);
+    reactor->factory = factory;
+    reactor->id = pti;
+    //worker过多epoll效率更高
+    if (swReactor_auto(reactor, SW_REACTOR_MAXEVENTS) < 0)
+    {
+        pthread_exit((void *) param);
         return SW_ERR;
     }
-	swSingalNone();
-	reactor->setHandle(reactor, SW_FD_PIPE, swReactorThread_onPipeReceive);
-	reactor->wait(reactor, &tmo);
-	reactor->free(reactor);
-	pthread_exit((void *) param);
-	return SW_OK;
+    swSingalNone();
+    reactor->setHandle(reactor, SW_FD_PIPE, swReactorThread_onPipeReceive);
+    reactor->wait(reactor, &tmo);
+    reactor->free(reactor);
+    pthread_exit((void *) param);
+    return SW_OK;
 }
 #endif
 

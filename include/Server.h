@@ -526,7 +526,7 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int schedule_key)
         else
         {
             int i;
-            atomic_t *round = &SwooleTG.worker_round_i;
+            sw_atomic_t *round = &SwooleTG.worker_round_i;
             for (i = 0; i < serv->worker_num; i++)
             {
                 sw_atomic_fetch_add(round, 1);

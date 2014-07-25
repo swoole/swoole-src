@@ -67,7 +67,7 @@ void swString_free(swString *str)
 
 int swString_append(swString *str, swString *append_str)
 {
-    int new_size = str->size + append_str->length;
+    int new_size = str->length + append_str->length;
     if (new_size > str->size)
     {
         if (swString_extend(str, swoole_size_align(new_size * 2, sysconf(_SC_PAGESIZE))) < 0)

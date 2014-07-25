@@ -420,7 +420,7 @@ typedef struct _swSpinLock
 //原子锁Lock-Free
 typedef struct _swAtomicLock
 {
-	atomic_t lock_t;
+	sw_atomic_t lock_t;
 	uint32_t spin;
 } swAtomicLock;
 
@@ -484,10 +484,12 @@ int swShareMemory_sysv_free(swShareMemory *object, int rm);
 int swShareMemory_mmap_free(swShareMemory *object);
 
 //-------------------memory manager-------------------------
-typedef struct _swString {
-	size_t length;
-	size_t size;
-	char *str;
+typedef struct _swString
+{
+    size_t length;
+    size_t size;
+    off_t offset;
+    char *str;
 } swString;
 
 #define swoole_tolower(c)      (u_char) ((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
@@ -502,6 +504,7 @@ static sw_inline size_t swoole_size_align(size_t size, int pagesize)
 }
 
 swString *swString_new(size_t size);
+swString *swString_dup(char *src_str, int length);
 void swString_free(swString *str);
 int swString_append(swString *str, swString *append_str);
 int swString_extend(swString *str, size_t new_size);
@@ -996,7 +999,7 @@ typedef struct
     uint16_t id;
 	uint8_t factory_lock_target;
 	int16_t factory_target_worker;
-	atomic_uint_t worker_round_i;
+	sw_atomic_t worker_round_i;
 } swThreadG;
 
 typedef struct _swServer swServer;
