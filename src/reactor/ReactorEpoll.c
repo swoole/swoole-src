@@ -201,7 +201,8 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 	swReactorEpoll *object = reactor->object;
 	swReactor_handle handle;
 	int i, n, ret, usec;
-
+        int pack_size = sizeof (uint32_t)*8;
+        
 	if (timeo == NULL)
 	{
 		usec = SW_MAX_UINT;
@@ -237,10 +238,14 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 		for (i = 0; i < n; i++)
 		{
 			//取出事件
-			memcpy(&fd_, &(object->events[i].data.u64), sizeof(fd_));
-			ev.fd = fd_.fd;
-			ev.from_id = reactor->id;
-			ev.type = fd_.fdtype;
+//			memcpy(&fd_, &(object->events[i].data.u64), sizeof(fd_));
+//			ev.fd = fd_.fd;
+//			ev.from_id = reactor->id;
+//			ev.type = fd_.fdtype;
+                        
+                        ev.fd = object->events[i].data.u64;
+                        ev.from_id = reactor->id;
+                        ev.type = object->events[i].data.u64 >> pack_size;//通过位操作避免一次memcpy调用
 
 			//read
 			if (object->events[i].events & EPOLLIN)
