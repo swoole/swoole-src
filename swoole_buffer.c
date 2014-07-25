@@ -16,7 +16,7 @@
 
 #include "php_swoole.h"
 
-static sw_inline swString* php_swoole_buffer_get(zval *object)
+static sw_inline swString* php_swoole_buffer_get(zval *object TSRMLS_DC)
 {
     zval **zres;
     swString *str = NULL;
@@ -93,11 +93,7 @@ PHP_METHOD(swoole_buffer, append)
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "string empty.");
         RETURN_FALSE;
     }
-    swString *buffer = php_swoole_buffer_get(getThis());
-    if (!buffer)
-    {
-        RETURN_FALSE;
-    }
+    swString *buffer = php_swoole_buffer_get(getThis() TSRMLS_CC);
     if (str.length + buffer->size > SW_STRING_BUFFER_MAXLEN)
     {
        php_error_docref(NULL TSRMLS_CC, E_WARNING, "buffer size must not exceed %d", SW_STRING_BUFFER_MAXLEN);
@@ -130,11 +126,7 @@ PHP_METHOD(swoole_buffer, substr)
     {
         RETURN_FALSE;
     }
-    swString *buffer = php_swoole_buffer_get(getThis());
-    if (!buffer)
-    {
-        RETURN_FALSE;
-    }
+    swString *buffer = php_swoole_buffer_get(getThis() TSRMLS_CC);
     if (offset < 0)
     {
         offset = buffer->length + offset;
@@ -156,11 +148,7 @@ PHP_METHOD(swoole_buffer, copy)
     {
         RETURN_FALSE;
     }
-    swString *buffer = php_swoole_buffer_get(getThis());
-    if (!buffer)
-    {
-        RETURN_FALSE;
-    }
+    swString *buffer = php_swoole_buffer_get(getThis() TSRMLS_CC);
     if (offset < 0)
     {
         offset = buffer->length + offset;
@@ -186,11 +174,7 @@ PHP_METHOD(swoole_buffer, expand)
     {
         RETURN_FALSE;
     }
-    swString *buffer = php_swoole_buffer_get(getThis());
-    if (!buffer)
-    {
-        RETURN_FALSE;
-    }
+    swString *buffer = php_swoole_buffer_get(getThis() TSRMLS_CC);
     if (size <= buffer->size)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "new size must more than %ld", buffer->size);
