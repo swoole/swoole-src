@@ -36,6 +36,29 @@ swString *swString_new(size_t size)
     return str;
 }
 
+swString *swString_dup(char *src_str, int length)
+{
+    swString *str = sw_malloc(sizeof(swString));
+    if (str == NULL)
+    {
+        swWarn("malloc[1] failed.");
+        return NULL;
+    }
+
+    bzero(str, sizeof(swString));
+    str->length = length;
+    str->size = length + 1;
+    str->str = sw_malloc(str->size);
+    if (str->str == NULL)
+    {
+        swWarn("malloc[2] failed.");
+        sw_free(str);
+        return NULL;
+    }
+    memcpy(str->str, src_str, length + 1);
+    return str;
+}
+
 void swString_free(swString *str)
 {
     sw_free(str->str);

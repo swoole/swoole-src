@@ -1066,10 +1066,12 @@ int swFactoryProcess_writer_loop_unsock(swThreadParam *param)
 
 	reactor->factory = factory;
 	reactor->id = pti;
-	if (swReactorEpoll_create(reactor, SW_REACTOR_MAXEVENTS) < 0) {//worker过多epoll效率更高
-            swWarn("swReactorEpoll_create fail\n");
-            pthread_exit((void *) param);
-        }
+	//worker过多epoll效率更高
+	if (swReactor_auto(reactor, SW_REACTOR_MAXEVENTS) < 0)
+	{
+	    pthread_exit((void *) param);
+        return SW_ERR;
+    }
 	swSingalNone();
 	reactor->setHandle(reactor, SW_FD_PIPE, swReactorThread_onPipeReceive);
 	reactor->wait(reactor, &tmo);
