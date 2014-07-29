@@ -872,7 +872,7 @@ PHP_FUNCTION(swoole_event_add)
 		zval_add_ref(&event.cb_write);
 	}
 
-	if (zend_hash_add(&php_sw_event_callback, (char *)&socket_fd, sizeof(socket_fd), &event, sizeof(swoole_reactor_fd), NULL) == FAILURE)
+	if (zend_hash_update(&php_sw_event_callback, (char *)&socket_fd, sizeof(socket_fd), &event, sizeof(swoole_reactor_fd), NULL) == FAILURE)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event_add add to hashtable failed");
 		RETURN_FALSE;
@@ -990,8 +990,6 @@ PHP_FUNCTION(swoole_event_del)
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "unknow type.");
 		RETURN_FALSE;
 	}
-	Z_DELREF_PP(fd);
-    zend_hash_del(&php_sw_event_callback, (char *)&socket_fd, sizeof(socket_fd));
 	SW_CHECK_RETURN(SwooleG.main_reactor->del(SwooleG.main_reactor, socket_fd));
 }
 
