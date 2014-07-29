@@ -836,12 +836,12 @@ PHP_FUNCTION(swoole_event_add)
 		RETURN_FALSE;
 	}
 
-	int socket_fd = swoole_convert_to_fd(fd);
-	if(socket_fd < 0)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "unknow type.");
-		RETURN_FALSE;
-	}
+    int socket_fd = swoole_convert_to_fd(fd);
+    if (socket_fd < 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "unknow type.");
+        RETURN_FALSE;
+    }
 
 	swoole_reactor_fd event;
 	event.socket = *fd;
@@ -991,6 +991,7 @@ PHP_FUNCTION(swoole_event_del)
 		RETURN_FALSE;
 	}
 	Z_DELREF_PP(fd);
+    zend_hash_del(&php_sw_event_callback, (char *)&socket_fd, sizeof(socket_fd));
 	SW_CHECK_RETURN(SwooleG.main_reactor->del(SwooleG.main_reactor, socket_fd));
 }
 
