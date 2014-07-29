@@ -179,3 +179,14 @@ static swTableRow* swTable_alloc(swTable *table)
     return NULL;
 }
 
+
+void swTableRow_spin_lock(swTableRow *row)
+{
+    sw_spinlock(&row->lock);
+}
+
+void swTableRow_spin_unlock(swTableRow *row)
+{
+    sw_atomic_t *lock = &row->lock;
+    sw_atomic_cmp_set(lock, 1, 0);
+}

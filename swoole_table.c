@@ -209,6 +209,21 @@ PHP_METHOD(swoole_table, get)
             }
             add_assoc_long_ex(return_value, col->name->str, col->name->length + 1, lval);
         }
-        if(tmp == NULL) break;
+        if (tmp == NULL)
+        {
+            break;
+        }
     }
+}
+
+PHP_METHOD(swoole_table, lock)
+{
+    swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
+    SW_LOCK_CHECK_RETURN(table->lock.lock(&table->lock));
+}
+
+PHP_METHOD(swoole_table, unlock)
+{
+    swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
+    SW_LOCK_CHECK_RETURN(table->lock.unlock(&table->lock));
 }

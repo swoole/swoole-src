@@ -407,7 +407,7 @@ static int swServer_check_callback(swServer *serv)
 	}
 	if (serv->worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU)
 	{
-		swWarn("serv->worker_num > %ld, Too many processes the system will be slow", SW_CPU_NUM * SW_MAX_WORKER_NCPU);
+		swWarn("serv->worker_num > %d, Too many processes the system will be slow", SW_CPU_NUM * SW_MAX_WORKER_NCPU);
 	}
 	if (serv->worker_num < serv->reactor_num)
 	{
@@ -669,61 +669,6 @@ int swServer_close(swServer *serv, swEvent *event)
 		return SW_ERR;
 	}
 	return SW_OK;
-}
-
-void swoole_init(void)
-{
-	if (SwooleG.running == 0)
-	{
-		bzero(&SwooleG, sizeof(SwooleG));
-		bzero(sw_error, SW_ERROR_MSG_SIZE);
-
-		//初始化全局变量
-		SwooleG.running = 1;
-		sw_errno = 0;
-
-		//init global lock
-		swMutex_create(&SwooleG.lock, 0);
-
-		//init signalfd
-#ifdef HAVE_SIGNALFD
-		swSignalfd_init();
-		SwooleG.use_signalfd = 1;
-#endif
-		//timerfd
-#ifdef HAVE_TIMERFD
-		SwooleG.use_timerfd = 1;
-#endif
-		SwooleG.use_timer_pipe = 1;
-		//将日志设置为标准输出
-		SwooleG.log_fd = STDOUT_FILENO;
-		//初始化全局内存
-		SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
-		if(SwooleG.memory_pool == NULL)
-		{
-			swError("[Master] Fatal Error: create global memory fail. Error: %s[%d]", strerror(errno), errno);
-		}
-		SwooleGS = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerGS));
-		if(SwooleGS == NULL)
-		{
-			swError("[Master] Fatal Error: alloc memory for SwooleGS fail. Error: %s[%d]", strerror(errno), errno);
-		}
-	}
-}
-
-void swoole_clean(void)
-{
-	//释放全局内存
-	if(SwooleG.memory_pool != NULL)
-	{
-		SwooleG.memory_pool->destroy(SwooleG.memory_pool);
-		SwooleG.memory_pool = NULL;
-		if(SwooleG.timer.fd > 0)
-		{
-			swTimer_free(&SwooleG.timer);
-		}
-		bzero(&SwooleG, sizeof(SwooleG));
-	}
 }
 
 /**

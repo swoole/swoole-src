@@ -132,11 +132,8 @@ int daemon(int nochdir, int noclose);
 #define MIN(a, b)              (a)<(b)?a:b;
 #endif
 
-#define SW_CPU_NUM             sysconf(_SC_NPROCESSORS_ONLN)
-
 #define SW_STRL(s)             s, sizeof(s)
 #define SW_START_SLEEP         usleep(100000)  //sleep 1s,wait fork and pthread_create
-
 
 #ifdef SW_MALLOC_DEBUG
 #define sw_malloc(__size)      malloc(__size);swWarn("malloc(%ld)", __size)
@@ -1029,6 +1026,8 @@ typedef struct
      */
     uint16_t task_worker_num;
 
+    uint16_t cpu_num;
+
     /**
      * Unix socket default buffer size
      */
@@ -1073,6 +1072,37 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
 #include <sys/sendfile.h>
 #define swoole_sendfile(out_fd, in_fd, offset, limit)    sendfile(out_fd, in_fd, offset, limit)
 #endif
+
+#define SW_CPU_NUM                 (SwooleG.cpu_num)
+
+static sw_inline void sw_spinlock(sw_atomic_t *lock)
+{
+    uint32_t i, n;
+    while (1)
+    {
+        if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1))
+        {
+            return;
+        }
+        if (SW_CPU_NUM > 1)
+        {
+            for (n = 1; n < 127; n <<= 1)
+            {
+                for (i = 0; i < n; i++)
+                {
+                    sw_atomic_cpu_pause();
+                }
+
+                if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1))
+                {
+                    return;
+                }
+            }
+        }
+        swYield();
+    }
+}
+
 
 #ifdef __cplusplus
 }

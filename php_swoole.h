@@ -251,6 +251,9 @@ PHP_METHOD(swoole_table, create);
 PHP_METHOD(swoole_table, add);
 PHP_METHOD(swoole_table, get);
 
+PHP_METHOD(swoole_table, lock);
+PHP_METHOD(swoole_table, unlock);
+
 void swoole_destory_lock(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 void swoole_destory_process(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 void swoole_destory_buffer(zend_rsrc_list_entry *rsrc TSRMLS_DC);

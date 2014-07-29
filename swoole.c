@@ -419,6 +419,8 @@ const zend_function_entry swoole_table_methods[] =
     PHP_ME(swoole_table, create, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, add, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, get, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, lock, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, unlock, NULL, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
