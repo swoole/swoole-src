@@ -417,6 +417,8 @@ const zend_function_entry swoole_table_methods[] =
     PHP_ME(swoole_table, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
     PHP_ME(swoole_table, column, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, create, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, add, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, get, NULL, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -590,10 +592,12 @@ PHP_MINIT_FUNCTION(swoole)
 	INIT_CLASS_ENTRY(swoole_buffer_ce, "swoole_buffer", swoole_buffer_methods);
 	swoole_buffer_class_entry_ptr = zend_register_internal_class(&swoole_buffer_ce TSRMLS_CC);
 
-	INIT_CLASS_ENTRY(swoole_buffer_ce, "swoole_table", swoole_table_methods);
+	INIT_CLASS_ENTRY(swoole_table_ce, "swoole_table", swoole_table_methods);
 	swoole_table_class_entry_ptr = zend_register_internal_class(&swoole_table_ce TSRMLS_CC);
 
 	zend_hash_init(&php_sw_long_connections, 16, NULL, ZVAL_PTR_DTOR, 1);
+
+	swoole_table_init();
 
 	//swoole init
 	swoole_init();
@@ -668,7 +672,7 @@ PHP_MINFO_FUNCTION(swoole)
 PHP_RINIT_FUNCTION(swoole)
 {
 	//swoole_event_add
-	zend_hash_init(&php_sw_event_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
+	zend_hash_init(&php_sw_event_callback, 16, NULL, NULL, 0);
 	//swoole_client::on
 	zend_hash_init(&php_sw_client_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
 	//swoole_timer_add

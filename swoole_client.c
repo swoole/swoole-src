@@ -891,7 +891,6 @@ PHP_FUNCTION(swoole_event_add)
 	RETURN_LONG(socket_fd);
 }
 
-
 PHP_FUNCTION(swoole_event_set)
 {
 	zval *cb_read = NULL;
@@ -926,35 +925,35 @@ PHP_FUNCTION(swoole_event_set)
 		RETURN_FALSE;
 	}
 
-	if (cb_read != NULL && !ZVAL_IS_NULL(cb_read))
-	{
-		if (!zend_is_callable(cb_read, 0, &func_name TSRMLS_CC))
-		{
-			php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
-			efree(func_name);
-			RETURN_FALSE;
-		}
-		else
-		{
-			ev_set->cb_read = cb_read;
-			zval_add_ref(&cb_read);
-		}
-	}
+    if (cb_read != NULL && !ZVAL_IS_NULL(cb_read))
+    {
+        if (!zend_is_callable(cb_read, 0, &func_name TSRMLS_CC))
+        {
+            php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
+            efree(func_name);
+            RETURN_FALSE;
+        }
+        else
+        {
+            ev_set->cb_read = cb_read;
+            zval_add_ref(&cb_read);
+        }
+    }
 
-	if (cb_write != NULL && !ZVAL_IS_NULL(cb_write))
-	{
-		if (!zend_is_callable(cb_write, 0, &func_name TSRMLS_CC))
-		{
-			php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
-			efree(func_name);
-			RETURN_FALSE;
-		}
-		else
-		{
-			ev_set->cb_write = cb_write;
-			zval_add_ref(&cb_write);
-		}
-	}
+    if (cb_write != NULL && !ZVAL_IS_NULL(cb_write))
+    {
+        if (!zend_is_callable(cb_write, 0, &func_name TSRMLS_CC))
+        {
+            php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
+            efree(func_name);
+            RETURN_FALSE;
+        }
+        else
+        {
+            ev_set->cb_write = cb_write;
+            zval_add_ref(&cb_write);
+        }
+    }
 
 	if ((event_flag & SW_EVENT_READ) && ev_set->cb_read == NULL)
 	{

@@ -173,11 +173,7 @@ PHP_METHOD(swoole_buffer, write)
         offset = buffer->length + offset;
     }
     offset += buffer->offset;
-    if (length < 0)
-    {
-        length = buffer->length - offset;
-    }
-    if (length > buffer->length - offset)
+    if (length > buffer->size - offset)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "string is too long.");
         RETURN_FALSE;

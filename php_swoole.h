@@ -248,6 +248,8 @@ PHP_METHOD(swoole_buffer, clear);
 PHP_METHOD(swoole_table, __construct);
 PHP_METHOD(swoole_table, column);
 PHP_METHOD(swoole_table, create);
+PHP_METHOD(swoole_table, add);
+PHP_METHOD(swoole_table, get);
 
 void swoole_destory_lock(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 void swoole_destory_process(zend_rsrc_list_entry *rsrc TSRMLS_DC);
@@ -256,6 +258,7 @@ void swoole_destory_table(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 
 void php_swoole_check_reactor();
 void php_swoole_try_run_reactor();
+void swoole_table_init(TSRMLS_DC);
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
 	uint16_t task_worker_num;

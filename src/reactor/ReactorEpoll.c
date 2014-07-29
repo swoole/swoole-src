@@ -196,7 +196,6 @@ int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype)
 int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 {
     swEvent ev;
-    swFd fd_;
     swReactorEpoll *object = reactor->object;
     swReactor_handle handle;
     int i, n, ret, usec;

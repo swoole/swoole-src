@@ -126,7 +126,7 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     else
     {
         $ret = $serv->send($fd, 'Swoole: '.$data, $from_id);
-        var_dump($ret);
+        //var_dump($ret);
         //$serv->close($fd);
     }
     //echo "Client:Data. fd=$fd|from_id=$from_id|data=$data";

@@ -1034,7 +1034,6 @@ typedef struct
      */
     uint32_t unixsock_buffer_size;
 
-
     swServer *serv;
     swFactory *factory;
     swLock lock;
