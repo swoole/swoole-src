@@ -672,7 +672,7 @@ PHP_MINFO_FUNCTION(swoole)
 PHP_RINIT_FUNCTION(swoole)
 {
 	//swoole_event_add
-	zend_hash_init(&php_sw_event_callback, 16, NULL, NULL, 0);
+	zend_hash_init(&php_sw_event_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
 	//swoole_client::on
 	zend_hash_init(&php_sw_client_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
 	//swoole_timer_add

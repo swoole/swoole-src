@@ -91,6 +91,11 @@ PHP_METHOD(swoole_table, column)
     {
         RETURN_FALSE;
     }
+    if (type == SW_TABLE_STRING && size < 1)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "string length must be more than 0.");
+        RETURN_FALSE;
+    }
     swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
     swTableColumn_add(table, name, len, type, size);
     RETURN_TRUE;
@@ -162,22 +167,21 @@ PHP_METHOD(swoole_table, get)
         RETURN_FALSE;
     }
 
+    array_init(return_value);
+
     swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
     swTableRow *row = swTableRow_get(table, key, keylen);
     swTableColumn *col = NULL;
-    void *value;
-    int i;
+
     void *tmp = NULL;
     char *k;
 
-    array_init(return_value);
     while(1)
     {
-        tmp = swHashMap_foreach(&table->columns, &k, &col, tmp);
+        tmp = swHashMap_foreach(&table->columns, &k, (void **) &col, tmp);
         if (col->type == SW_TABLE_STRING)
         {
             uint16_t vlen = *(int16_t *) (row->data + col->index);
-            printf("vlen=%d\n", vlen);
             add_assoc_stringl_ex(return_value, col->name->str, col->name->length + 1, row->data + col->index + 2, vlen, 1);
         }
         else if (col->type == SW_TABLE_FLOAT)

@@ -125,7 +125,7 @@ swTableRow* swTableRow_add(swTable *table, char *key, int keylen)
 {
     swTableRow *row = swTable_hash(table, key, keylen);
 
-    for(;;)
+    while(1)
     {
         //empty slot
         if (row->active == 0)
