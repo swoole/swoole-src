@@ -17,8 +17,6 @@
 #include "swoole.h"
 #include "table.h"
 
-static swTableRow* swTable_alloc(swTable *table);
-
 swTable* swTable_new(uint32_t rows_size)
 {
     swTable *table = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swTable));
@@ -85,9 +83,9 @@ int swTableColumn_add(swTable *table, char *name, int len, int type, int size)
 int swTable_create(swTable *table)
 {
     uint32_t row_num = table->size * (1 + SW_TABLE_CONFLICT_PROPORTION);
-    size_t alloc_size = row_num * (sizeof(swTableRow) + table->item_size);
+    size_t memory_size = row_num * (sizeof(swTableRow) + table->item_size);
 
-    void *memory = sw_shm_malloc(alloc_size);
+    void *memory = sw_shm_malloc(memory_size);
     if (memory == NULL)
     {
         return SW_ERR;
@@ -95,13 +93,19 @@ int swTable_create(swTable *table)
     table->memory = memory;
     table->rows = memory;
     memory += sizeof(swTableRow) * table->size;
+    memory_size -= sizeof(swTableRow) * table->size;
+
     int i;
     for (i = 0; i < table->size; i++)
     {
         table->rows[i] = memory + (sizeof(swTableRow) + table->item_size) * i;
     }
+    memory += (sizeof(swTableRow) + table->item_size) * table->size;
+    memory_size -= (sizeof(swTableRow) + table->item_size) * table->size;
+    table->pool = swFixedPool_new2(table->item_size, memory, memory_size);
     return SW_OK;
 }
+
 void swTable_free(swTable *table)
 {
 
@@ -125,6 +129,7 @@ swTableRow* swTableRow_add(swTable *table, char *key, int keylen)
 {
     swTableRow *row = swTable_hash(table, key, keylen);
 
+    sw_spinlock(&row->lock);
     while(1)
     {
         //empty slot
@@ -138,13 +143,15 @@ swTableRow* swTableRow_add(swTable *table, char *key, int keylen)
         }
         else
         {
-            swTableRow *new_row = swTable_alloc(table);
+            swTableRow *new_row =  table->pool->alloc(table->pool, 0);
             row->next = new_row;
             row = new_row;
             break;
         }
     }
     row->active = 1;
+    sw_spinlock_release(&row->lock);
+
     return row;
 }
 
@@ -174,19 +181,3 @@ swTableRow* swTableRow_get(swTable *table, char *key, int keylen)
     return row;
 }
 
-static swTableRow* swTable_alloc(swTable *table)
-{
-    return NULL;
-}
-
-
-void swTableRow_spin_lock(swTableRow *row)
-{
-    sw_spinlock(&row->lock);
-}
-
-void swTableRow_spin_unlock(swTableRow *row)
-{
-    sw_atomic_t *lock = &row->lock;
-    sw_atomic_cmp_set(lock, 1, 0);
-}

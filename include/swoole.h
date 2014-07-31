@@ -520,7 +520,9 @@ typedef struct _swMemoryPool
 /**
  * FixedPool, random alloc/free fixed size memory
  */
-swMemoryPool * swFixedPool_new(uint32_t size, uint32_t trunk_size, uint8_t shared);
+swMemoryPool* swFixedPool_new(uint32_t slice_num, uint32_t slice_size, uint8_t shared);
+
+swMemoryPool* swFixedPool_new2(uint32_t slice_size, void *memory, size_t size);
 
 /**
  * RingBuffer, In order for malloc / free
@@ -1058,6 +1060,8 @@ extern swServerGS *SwooleGS;           //Share Memory Global Variable
 extern swWorkerG SwooleWG;             //Worker Global Variable
 extern __thread swThreadG SwooleTG;   //Thread Global Variable
 
+#define SW_CPU_NUM                    (SwooleG.cpu_num)
+
 //-----------------------------------------------
 //OS Feature
 #ifdef HAVE_SIGNALFD
@@ -1072,8 +1076,6 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
 #include <sys/sendfile.h>
 #define swoole_sendfile(out_fd, in_fd, offset, limit)    sendfile(out_fd, in_fd, offset, limit)
 #endif
-
-#define SW_CPU_NUM                 (SwooleG.cpu_num)
 
 static sw_inline void sw_spinlock(sw_atomic_t *lock)
 {
@@ -1103,6 +1105,10 @@ static sw_inline void sw_spinlock(sw_atomic_t *lock)
     }
 }
 
+static sw_inline void sw_spinlock_release(sw_atomic_t *lock)
+{
+    *lock = 0;
+}
 
 #ifdef __cplusplus
 }

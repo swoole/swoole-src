@@ -40,6 +40,7 @@ typedef struct
     uint32_t size;
     uint32_t item_size;
     swTableRow **rows;
+    swMemoryPool *pool;
     void *memory;
 } swTable;
 
