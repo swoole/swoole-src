@@ -258,7 +258,7 @@ void swoole_destory_lock(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 void swoole_destory_process(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 void swoole_destory_buffer(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 void swoole_destory_table(zend_rsrc_list_entry *rsrc TSRMLS_DC);
-void swoole_table_init(TSRMLS_DC);
+void swoole_table_init(TSRMLS_D);
 
 void php_swoole_check_reactor();
 void php_swoole_try_run_reactor();

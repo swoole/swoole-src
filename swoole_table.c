@@ -39,7 +39,7 @@ void swoole_destory_table(zend_rsrc_list_entry *rsrc TSRMLS_DC)
     }
 }
 
-void swoole_table_init(TSRMLS_DC)
+void swoole_table_init(TSRMLS_D)
 {
     zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("TYPE_INT")-1, SW_TABLE_INT TSRMLS_CC);
     zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("TYPE_STRING")-1, SW_TABLE_STRING TSRMLS_CC);
