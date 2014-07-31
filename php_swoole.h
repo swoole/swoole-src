@@ -262,7 +262,6 @@ void swoole_table_init(TSRMLS_DC);
 
 void php_swoole_check_reactor();
 void php_swoole_try_run_reactor();
-void swoole_table_init(TSRMLS_DC);
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
 	uint16_t task_worker_num;
