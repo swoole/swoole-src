@@ -2030,8 +2030,7 @@ static void php_swoole_onShutdown(swServer *serv)
 static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
 {
 	zval *zserv = (zval *)serv->ptr2;
-	zval *zworker_id, *zworker_pid;
-	zval *zmaster_pid, *zmanager_pid;
+	zval *zworker_id;
 	zval **args[2]; //这里必须与下面的数字对应
 	zval *retval;
 
@@ -2044,24 +2043,10 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
 	zval_add_ref(&zserv);
 	args[1] = &zworker_id;
 
-	MAKE_STD_ZVAL(zmaster_pid);
-	ZVAL_LONG(zmaster_pid, SwooleGS->master_pid);
-
-	MAKE_STD_ZVAL(zmanager_pid);
-	ZVAL_LONG(zmanager_pid, (serv->factory_mode == SW_MODE_PROCESS) ? SwooleGS->manager_pid : 0);
-
-	MAKE_STD_ZVAL(zworker_pid);
-	ZVAL_LONG(zworker_pid, getpid());
-
-	/**
-	 * Master Process ID
-	 */
-	zend_update_property(swoole_server_class_entry_ptr, zserv, ZEND_STRL("master_pid"), zmaster_pid TSRMLS_CC);
-
 	/**
 	 * Manager Process ID
 	 */
-	zend_update_property(swoole_server_class_entry_ptr, zserv, ZEND_STRL("manager_pid"), zmanager_pid TSRMLS_CC);
+	zend_update_property_long(swoole_server_class_entry_ptr, zserv, ZEND_STRL("manager_pid"), SwooleGS->manager_pid TSRMLS_CC);
 
 	/**
 	 * Worker ID
@@ -2071,11 +2056,7 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
 	/**
 	 * Worker Process ID
 	 */
-	zend_update_property(swoole_server_class_entry_ptr, zserv, ZEND_STRL("worker_pid"), zworker_pid TSRMLS_CC);
-
-	zval_ptr_dtor(&zmaster_pid);
-	zval_ptr_dtor(&zmanager_pid);
-	zval_ptr_dtor(&zworker_pid);
+	zend_update_property_long(swoole_server_class_entry_ptr, zserv, ZEND_STRL("worker_pid"), getpid() TSRMLS_CC);
 
 	/**
 	 * Have not set the event callback
@@ -2376,6 +2357,12 @@ PHP_FUNCTION(swoole_server_start)
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "create server failed. Error: %s", sw_error);
 		RETURN_LONG(ret);
 	}
+
+	/**
+     * Master Process ID
+     */
+    zend_update_property_long(swoole_server_class_entry_ptr, zobject, ZEND_STRL("master_pid"), getpid() TSRMLS_CC);
+
 	ret = swServer_start(serv);
 	if (ret < 0)
 	{
