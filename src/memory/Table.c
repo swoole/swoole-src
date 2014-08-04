@@ -26,10 +26,14 @@ swTable* swTable_new(uint32_t rows_size)
     }
     if (swMutex_create(&table->lock, 1) < 0)
     {
-        swWarn( "mutex create failed.");
+        swWarn("mutex create failed.");
         return NULL;
     }
-    table->columns = NULL;
+    table->columns = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N);
+    if (!table->columns)
+    {
+        return NULL;
+    }
     table->size = rows_size;
     return table;
 }
@@ -77,7 +81,7 @@ int swTableColumn_add(swTable *table, char *name, int len, int type, int size)
     col->index = table->item_size;
     table->item_size += col->size;
     table->column_num ++;
-    return swHashMap_add(&table->columns, name, len, col);
+    return swHashMap_add(table->columns, name, len, col);
 }
 
 int swTable_create(swTable *table)

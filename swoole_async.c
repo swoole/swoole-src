@@ -42,12 +42,13 @@ typedef struct {
 static void php_swoole_check_aio();
 static void php_swoole_aio_onComplete(swAio_event *event);
 static char php_swoole_aio_init = 0;
-static swHashMap php_swoole_open_files = NULL;
+static swHashMap *php_swoole_open_files;
 
 static void php_swoole_check_aio()
 {
 	if (php_swoole_aio_init == 0)
 	{
+	    php_swoole_open_files = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N);
 		php_swoole_check_reactor();
 		swoole_aio_init(SwooleG.main_reactor, PHP_SWOOLE_AIO_MAXEVENTS);
 		swoole_aio_set_callback(php_swoole_aio_onComplete);
@@ -178,7 +179,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 		{
 			if (retval != NULL && !Z_BVAL_P(retval))
 			{
-				swHashMap_del(&php_swoole_open_files, Z_STRVAL_P(file_req->filename), Z_STRLEN_P(file_req->filename));
+				swHashMap_del(php_swoole_open_files, Z_STRVAL_P(file_req->filename), Z_STRLEN_P(file_req->filename));
 			}
 		}
 		else
@@ -313,7 +314,7 @@ PHP_FUNCTION(swoole_async_write)
 	wt_cnt = emalloc(fcnt_len);
 #endif
 
-	swoole_async_file_request *req = swHashMap_find(&php_swoole_open_files, Z_STRVAL_P(filename), Z_STRLEN_P(filename));
+	swoole_async_file_request *req = swHashMap_find(php_swoole_open_files, Z_STRVAL_P(filename), Z_STRLEN_P(filename));
 
 	if (req == NULL)
 	{
@@ -350,7 +351,7 @@ PHP_FUNCTION(swoole_async_write)
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async_write: add to hashtable[1] failed");
 			RETURN_FALSE;
 		}
-		swHashMap_add(&php_swoole_open_files, Z_STRVAL_P(filename), Z_STRLEN_P(filename), req);
+		swHashMap_add(php_swoole_open_files, Z_STRVAL_P(filename), Z_STRLEN_P(filename), req);
 	}
 	else
 	{

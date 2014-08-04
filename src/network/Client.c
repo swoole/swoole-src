@@ -27,7 +27,7 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double _tim
 static int swClient_udp_send(swClient *cli, char *data, int length);
 static int swClient_udp_recv(swClient *cli, char *data, int len, int waitall);
 
-static swHashMap swoole_dns_cache = NULL;
+static swHashMap *swoole_dns_cache = NULL;
 
 typedef struct
 {
@@ -109,7 +109,12 @@ static int swClient_inet_addr(swClient *cli, char *string)
 	}
 	else
 	{
-		swDNS_cache *cache = swHashMap_find(&swoole_dns_cache, string, strlen(string));
+	    if (!swoole_dns_cache)
+	    {
+	        swoole_dns_cache = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N);
+	    }
+
+		swDNS_cache *cache = swHashMap_find(swoole_dns_cache, string, strlen(string));
 	    if (cache == NULL)
 		{
 	    	if (cli->async)
@@ -138,7 +143,7 @@ static int swClient_inet_addr(swClient *cli, char *string)
 				memcpy(cache->addr, host_entry->h_addr_list[0], host_entry->h_length);
 				cache->length = host_entry->h_length;
 			}
-			swHashMap_add(&swoole_dns_cache, string, strlen(string), cache);
+			swHashMap_add(swoole_dns_cache, string, strlen(string), cache);
 		}
 		memcpy(&(sin->sin_addr.s_addr), cache->addr, cache->length);
 	}

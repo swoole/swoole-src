@@ -40,6 +40,6 @@ int swAtomicLock_unlock(swLock *lock)
 
 int swAtomicLock_trylock(swLock *lock)
 {
-	atomic_t *atomic = &lock->object.atomlock.lock_t;
+	sw_atomic_t *atomic = &lock->object.atomlock.lock_t;
 	return (*(atomic) == 0 && sw_atomic_cmp_set(atomic, 0, 1));
 }

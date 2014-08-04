@@ -787,7 +787,7 @@ struct _swProcessPool
 
 	swWorker *workers;
 	swPipe *pipes;
-	swHashMap map;
+	swHashMap *map;
 	swQueue queue;
 
 	void *ptr;
@@ -933,7 +933,7 @@ typedef struct _swTimer_node
 
 typedef struct _swTimer
 {
-	swHashMap list;
+	swHashMap *list;
 	int num;
 	int interval;
 	int use_pipe;

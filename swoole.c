@@ -599,7 +599,7 @@ PHP_MINIT_FUNCTION(swoole)
 
 	zend_hash_init(&php_sw_long_connections, 16, NULL, ZVAL_PTR_DTOR, 1);
 
-	swoole_table_init(TSRMLS_CC);
+	swoole_table_init(TSRMLS_C);
 
 	//swoole init
 	swoole_init();

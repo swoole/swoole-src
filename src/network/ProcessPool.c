@@ -42,6 +42,12 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
 		return SW_ERR;
 	}
 
+	pool->map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N);
+	if (pool->map)
+	{
+	    return SW_ERR;
+	}
+
 	int i;
 	if (msgqueue_key > 0)
 	{
@@ -207,7 +213,7 @@ pid_t swProcessPool_spawn(swWorker *worker)
 		//parent
 	default:
 		worker->pid = pid;
-		swHashMap_add_int(&pool->map, pid, worker);
+		swHashMap_add_int(pool->map, pid, worker);
 		break;
 	}
 	return pid;
@@ -286,7 +292,7 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
  */
 int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker)
 {
-	swHashMap_add_int(&pool->map, worker->pid, worker);
+	swHashMap_add_int(pool->map, worker->pid, worker);
 	return SW_OK;
 }
 
@@ -323,7 +329,7 @@ int swProcessPool_wait(swProcessPool *pool)
 		}
 		if (SwooleG.running == 1)
 		{
-			swWorker *exit_worker = swHashMap_find_int(&pool->map, pid);
+			swWorker *exit_worker = swHashMap_find_int(pool->map, pid);
 			if (exit_worker == NULL)
 			{
 				swWarn("[Manager]unknow worker[pid=%d]", pid);
@@ -335,7 +341,7 @@ int swProcessPool_wait(swProcessPool *pool)
 				swWarn("Fork worker process fail. Error: %s [%d]", strerror(errno), errno);
 				return SW_ERR;
 			}
-			swHashMap_del_int(&pool->map, pid);
+			swHashMap_del_int(pool->map, pid);
 		}
 		//reload worker
 		reload_worker: if (pool->reloading == 1)
@@ -376,5 +382,5 @@ static void swProcessPool_free(swProcessPool *pool)
 
 	sw_free(pool->workers);
 	sw_free(pool->pipes);
-	swHashMap_free(&pool->map);
+	swHashMap_free(pool->map);
 }

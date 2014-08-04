@@ -34,7 +34,7 @@ typedef struct _swTableRow
 
 typedef struct
 {
-    swHashMap columns;
+    swHashMap *columns;
     uint16_t column_num;
     swLock lock;
     uint32_t size;
@@ -84,7 +84,7 @@ swTableRow* swTableRow_get(swTable *table, char *key, int keylen);
 
 static sw_inline swTableColumn* swTableColumn_get(swTable *table, char *column_key, int keylen)
 {
-    return swHashMap_find(&table->columns, column_key, keylen);
+    return swHashMap_find(table->columns, column_key, keylen);
 }
 
 static sw_inline void swTableRow_set(swTableRow *row, swTableColumn * col, void *value, int vlen)

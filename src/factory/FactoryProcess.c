@@ -466,7 +466,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 			//task worker
 			if (pid > 0)
 			{
-				swWorker *exit_worker = swHashMap_find_int(&SwooleG.task_workers.map, pid);
+				swWorker *exit_worker = swHashMap_find_int(SwooleG.task_workers.map, pid);
 				if (exit_worker != NULL)
 				{
 					swProcessPool_spawn(exit_worker);

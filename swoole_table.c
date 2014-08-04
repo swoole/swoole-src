@@ -173,12 +173,15 @@ PHP_METHOD(swoole_table, get)
     swTableRow *row = swTableRow_get(table, key, keylen);
     swTableColumn *col = NULL;
 
-    void *tmp = NULL;
     char *k;
 
     while(1)
     {
-        tmp = swHashMap_foreach(&table->columns, &k, (void **) &col, tmp);
+        col = swHashMap_each(table->columns, &k);
+        if (col == NULL)
+        {
+            break;
+        }
         if (col->type == SW_TABLE_STRING)
         {
             uint16_t vlen = *(int16_t *) (row->data + col->index);
@@ -208,10 +211,6 @@ PHP_METHOD(swoole_table, get)
                 break;
             }
             add_assoc_long_ex(return_value, col->name->str, col->name->length + 1, lval);
-        }
-        if (tmp == NULL)
-        {
-            break;
         }
     }
 }

@@ -36,6 +36,12 @@ int swTimer_create(swTimer *timer, int interval, int use_pipe)
 	SwooleG.use_timerfd = 0;
 #endif
 
+	timer->list = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N);
+	if (!timer->list)
+	{
+	    return SW_ERR;
+	}
+
 	if (SwooleG.use_timerfd)
 	{
 		if (swTimer_timerfd_set(timer, interval) < 0)
@@ -141,12 +147,12 @@ static int swTimer_signal_set(swTimer *timer, int interval)
 
 void swTimer_del(swTimer *timer, int ms)
 {
-	swHashMap_del_int(&timer->list, ms);
+	swHashMap_del_int(timer->list, ms);
 }
 
 int swTimer_free(swTimer *timer)
 {
-	swHashMap_destory(&timer->list);
+	swHashMap_free(timer->list);
 	if (timer->use_pipe)
 	{
 		return timer->pipe.close(&timer->pipe);
@@ -162,7 +168,7 @@ int swTimer_add(swTimer *timer, int ms)
 	swTimer_node *node = sw_malloc(sizeof(swTimer_node));
 	if (node == NULL)
 	{
-		swWarn("swTimer_add malloc fail");
+		swWarn("malloc failed.");
 		return SW_ERR;
 	}
 
@@ -183,14 +189,13 @@ int swTimer_add(swTimer *timer, int ms)
 			swTimer_signal_set(timer, new_interval);
 		}
 	}
-	swHashMap_add_int(&timer->list, ms, node);
+	swHashMap_add_int(timer->list, ms, node);
 	timer->num++;
 	return SW_OK;
 }
 
 int swTimer_select(swTimer *timer)
 {
-	void *tmp = NULL;
 	uint64_t key;
 	swTimer_node *timer_node;
 
@@ -206,11 +211,12 @@ int swTimer_select(swTimer *timer)
 		return SW_ERR;
 	}
 
-	while (1)
+	do
 	{
 		//swWarn("timer foreach start\n----------------------------------------------");
-		tmp = swHashMap_foreach_int(&timer->list, &key, (void **)&timer_node, tmp);
-		//hashmap empty
+	    timer_node = swHashMap_each_int(timer->list, &key);
+
+	    //hashmap empty
 		if (timer_node == NULL)
 		{
 			break;
@@ -221,12 +227,7 @@ int swTimer_select(swTimer *timer)
 			timer->onTimer(timer, timer_node->interval);
 			timer_node->lasttime += timer_node->interval;
 		}
-		//foreach end
-		if (tmp == NULL)
-		{
-			break;
-		}
-	}
+	} while(timer_node);
 	return SW_OK;
 }
 
