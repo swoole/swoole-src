@@ -315,8 +315,11 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_server_handler, arginfo_swoole_server_handler)
 	PHP_FE(swoole_server_on, arginfo_swoole_server_on)
 	PHP_FE(swoole_server_addlisten, arginfo_swoole_server_addlisten)
+
 	PHP_FE(swoole_server_addtimer, arginfo_swoole_server_addtimer)
 	PHP_FE(swoole_server_deltimer, arginfo_swoole_server_deltimer)
+	PHP_FE(swoole_server_gettimer, NULL)
+
 	PHP_FE(swoole_server_task, arginfo_swoole_server_task)
 	PHP_FE(swoole_server_taskwait, arginfo_swoole_server_taskwait)
 	PHP_FE(swoole_server_finish, arginfo_swoole_server_finish)
@@ -365,6 +368,7 @@ static zend_function_entry swoole_server_methods[] = {
 	PHP_FALIAS(addlistener, swoole_server_addlisten, arginfo_swoole_server_addlisten_oo)
 	PHP_FALIAS(addtimer, swoole_server_addtimer, arginfo_swoole_server_addtimer_oo)
 	PHP_FALIAS(deltimer, swoole_server_deltimer, arginfo_swoole_server_deltimer_oo)
+	PHP_FALIAS(gettimer, swoole_server_gettimer, NULL)
 	PHP_FALIAS(reload, swoole_server_reload, arginfo_swoole_server_reload_oo)
 	PHP_FALIAS(shutdown, swoole_server_shutdown, arginfo_swoole_server_shutdown_oo)
 	PHP_FALIAS(hbcheck, swoole_server_heartbeat, arginfo_swoole_server_heartbeat_oo)
@@ -2580,6 +2584,42 @@ PHP_FUNCTION(swoole_server_deltimer)
 	}
 	swTimer_del(&SwooleG.timer, (int)interval);
 	RETURN_TRUE;
+}
+
+PHP_FUNCTION(swoole_server_gettimer)
+{
+    zval *zobject = getThis();
+    swServer *serv = NULL;
+    long interval;
+
+    if (zobject == NULL)
+    {
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O", &zobject, swoole_server_class_entry_ptr, &interval) == FAILURE)
+        {
+            return;
+        }
+    }
+    SWOOLE_GET_SERVER(zobject, serv);
+
+    if (SwooleG.timer.list == NULL)
+    {
+        RETURN_FALSE;
+    }
+
+    swTimer_node *timer_node;
+    uint64_t key;
+    array_init(return_value);
+
+    do
+    {
+        timer_node = swHashMap_each_int(SwooleG.timer.list, &key);
+        if (timer_node == NULL)
+        {
+            break;
+        }
+        add_next_index_long(return_value, key);
+
+    } while(timer_node);
 }
 
 PHP_FUNCTION(swoole_server_addtimer)

@@ -407,7 +407,8 @@ static int swServer_start_check(swServer *serv)
 	}
 	if (serv->worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU)
 	{
-		swWarn("serv->worker_num > %d, Too many processes the system will be slow", SW_CPU_NUM * SW_MAX_WORKER_NCPU);
+		swWarn("serv->worker_num > %d, Too many processes, the system will be slow", SW_CPU_NUM * SW_MAX_WORKER_NCPU);
+		serv->worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
 	}
 	if (serv->worker_num < serv->reactor_num)
 	{

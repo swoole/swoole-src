@@ -32,7 +32,7 @@
 #include "Server.h"
 #include "Client.h"
 
-#define PHP_SWOOLE_VERSION  "1.7.5-alpha"
+#define PHP_SWOOLE_VERSION  "1.7.5-beta"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -180,6 +180,7 @@ PHP_FUNCTION(swoole_server_handler);
 PHP_FUNCTION(swoole_server_addlisten);
 PHP_FUNCTION(swoole_server_addtimer);
 PHP_FUNCTION(swoole_server_deltimer);
+PHP_FUNCTION(swoole_server_gettimer);
 PHP_FUNCTION(swoole_server_task);
 PHP_FUNCTION(swoole_server_taskwait);
 PHP_FUNCTION(swoole_server_finish);

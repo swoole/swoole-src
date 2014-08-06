@@ -28,7 +28,7 @@ typedef struct swHashMap_node
 
 static int swHashMap_delete_node(swHashMap_node *root, swHashMap_node *del_node);
 
-static sw_inline int swHashMap_add_keyptr(swHashMap_node *root, swHashMap_node *add)
+static sw_inline int swHashMap_add_node(swHashMap_node *root, swHashMap_node *add)
 {
 	unsigned _ha_bkt;
 	add->hh.next = NULL;
@@ -46,6 +46,32 @@ static sw_inline int swHashMap_add_keyptr(swHashMap_node *root, swHashMap_node *
     HASH_ADD_TO_BKT(root->hh.tbl->buckets[_ha_bkt], &add->hh);
 
 	return SW_OK;
+}
+
+static sw_inline swHashMap_node* swHashMap_each_node(swHashMap* hmap)
+{
+    swHashMap_node *iterator = hmap->iterator;
+    swHashMap_node *tmp;
+
+    if (hmap->root->hh.tbl->num_items == 0)
+    {
+        return NULL;
+    }
+    if (iterator == NULL)
+    {
+        iterator = hmap->root;
+    }
+    tmp = iterator->hh.next;
+    if (tmp)
+    {
+        hmap->iterator = tmp;
+        return tmp;
+    }
+    else
+    {
+        hmap->iterator = NULL;
+        return NULL;
+    }
 }
 
 swHashMap* swHashMap_new(uint32_t bucket_num)
@@ -106,7 +132,7 @@ int swHashMap_add(swHashMap* hmap, char *key, uint16_t key_len, void *data)
 	node->key_str = strndup(key, key_len);
 	node->key_int = key_len;
 	node->data = data;
-	return swHashMap_add_keyptr(root, node);
+	return swHashMap_add_node(root, node);
 }
 
 void swHashMap_add_int(swHashMap *hmap, uint64_t key, void *data)
@@ -251,44 +277,31 @@ void swHashMap_del_int(swHashMap *hmap, uint64_t key)
 
 void* swHashMap_each(swHashMap* hmap, char **key)
 {
-    swHashMap_node *tmp = NULL;
-    swHashMap_node *root = hmap->root;
-    swHashMap_node *iterator = hmap->iterator;
-    if (iterator == NULL)
+
+    swHashMap_node *node = swHashMap_each_node(hmap);
+    if (node)
     {
-        iterator = root;
-    }
-    tmp = iterator->hh.next;
-    if (tmp)
-    {
-        hmap->iterator = tmp;
-        *key = tmp->key_str;
-        return tmp->data;
+        *key = node->key_str;
+        return node->data;
     }
     else
     {
-        hmap->iterator = NULL;
         return NULL;
     }
 }
 
 void* swHashMap_each_int(swHashMap* hmap, uint64_t *key)
 {
-    swHashMap_node *tmp = NULL;
-    swHashMap_node *root = hmap->root;
-    swHashMap_node *iterator = hmap->iterator;
-    if (iterator == NULL)
+    swHashMap_node *node = swHashMap_each_node(hmap);
+    if (node)
     {
-        iterator = root;
+        *key = node->key_int;
+        return node->data;
     }
-    tmp = iterator->hh.next;
-    if (tmp)
+    else
     {
-        hmap->iterator = tmp;
-        *key = tmp->key_int;
-        return tmp->data;
+        return NULL;
     }
-    return NULL;
 }
 
 void swHashMap_free(swHashMap* hmap)
