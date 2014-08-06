@@ -19,9 +19,11 @@
 
 #include <sys/stat.h>
 #include <sys/poll.h>
+#include <sys/resource.h>
 
 void swoole_init(void)
 {
+    struct rlimit rlmt;
     if (SwooleG.running == 0)
     {
         bzero(&SwooleG, sizeof(SwooleG));
@@ -32,6 +34,19 @@ void swoole_init(void)
         sw_errno = 0;
 
         SwooleG.cpu_num = sysconf(_SC_NPROCESSORS_ONLN);
+        SwooleG.pagesize = getpagesize();
+
+        if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
+        {
+            swWarn("getrlimit() failed. Error: %s[%d]", strerror(errno), errno);
+        }
+        else
+        {
+            SwooleG.max_sockets = (uint32_t) rlmt.rlim_cur;
+        }
+
+        //random seed
+        srandom(time(NULL));
 
         //init global lock
         swMutex_create(&SwooleG.lock, 0);

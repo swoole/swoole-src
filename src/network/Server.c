@@ -40,7 +40,7 @@ static sw_inline void swServer_reactor_schedule(swServer *serv)
 }
 #endif
 
-static int swServer_check_callback(swServer *serv);
+static int swServer_start_check(swServer *serv);
 
 static void swServer_signal_hanlder(int sig);
 static int swServer_master_onClose(swReactor *reactor, swDataHead *event);
@@ -359,7 +359,7 @@ int swServer_reactor_del(swServer *serv, int fd, int reacot_id)
 	return SW_OK;
 }
 
-static int swServer_check_callback(swServer *serv)
+static int swServer_start_check(swServer *serv)
 {
 //	if (serv->onConnect == NULL)
 //	{
@@ -416,6 +416,11 @@ static int swServer_check_callback(swServer *serv)
 	if (serv->worker_num < serv->writer_num)
 	{
 		serv->writer_num = serv->worker_num;
+	}
+	if (SwooleG.max_sockets > 0 && serv->max_conn > SwooleG.max_sockets)
+	{
+	    swWarn("serv->max_conn is exceed the maximum value[%d].", SwooleG.max_sockets);
+	    serv->max_conn = SwooleG.max_sockets;
 	}
 #ifdef SW_USE_OPENSSL
 	if (serv->open_ssl)
@@ -494,7 +499,7 @@ int swServer_start(swServer *serv)
 	swFactory *factory = &serv->factory;
 	int ret;
 
-	ret = swServer_check_callback(serv);
+	ret = swServer_start_check(serv);
 	if (ret < 0)
 	{
 		return SW_ERR;
@@ -693,7 +698,7 @@ void swServer_init(swServer *serv)
 
 	serv->writer_num = SW_CPU_NUM;
 	serv->worker_num = SW_CPU_NUM;
-	serv->max_conn = SW_MAX_FDS;
+	serv->max_conn = SwooleG.max_sockets;
 	serv->max_request = 0;
 
 	serv->udp_sock_buffer_size = SW_UNSOCK_BUFSIZE;

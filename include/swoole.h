@@ -1030,6 +1030,9 @@ typedef struct
 
     uint16_t cpu_num;
 
+    uint32_t pagesize;
+    uint32_t max_sockets;
+
     /**
      * Unix socket default buffer size
      */
