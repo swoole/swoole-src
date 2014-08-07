@@ -167,7 +167,8 @@ int swReactorEpoll_del(swReactor *reactor, int fd)
     if (ret >= 0)
     {
         (reactor->event_num <= 0) ? reactor->event_num = 0 : reactor->event_num--;
-    } swTraceLog(SW_TRACE_EVENT, "remove event[reactor_id=%d|fd=%d]", reactor->id, fd);
+    }
+    swTraceLog(SW_TRACE_EVENT, "remove event[reactor_id=%d|fd=%d]", reactor->id, fd);
     return SW_OK;
 }
 

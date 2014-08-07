@@ -160,17 +160,21 @@ int daemon(int nochdir, int noclose);
 #define SW_TRUE                1
 #define SW_FALSE               0
 //-------------------------------------------------------------------------------
-#define SW_FD_TCP              0 //tcp socket
-#define SW_FD_LISTEN           1 //server socket
-#define SW_FD_CLOSE            2 //socket closed
-#define SW_FD_ERROR            3 //socket error
-#define SW_FD_UDP              4 //udp socket
-#define SW_FD_PIPE             5 //pipe
-#define SW_FD_WRITE            7 //fd can write
-#define SW_FD_TIMER            8 //timer fd
-#define SW_FD_AIO              9 //linux native aio
-#define SW_FD_SEND_TO_CLIENT   10 //sendtoclient
-#define SW_FD_SIGNAL           11
+enum swFd_type
+{
+    SW_FD_TCP             = 0, //tcp socket
+    SW_FD_LISTEN          = 1, //server socket
+    SW_FD_CLOSE           = 2, //socket closed
+    SW_FD_ERROR           = 3, //socket error
+    SW_FD_UDP             = 4, //udp socket
+    SW_FD_PIPE            = 5, //pipe
+    SW_FD_WRITE           = 7, //fd can write
+    SW_FD_TIMER           = 8, //timer fd
+    SW_FD_AIO             = 9, //linux native aio
+    SW_FD_SEND_TO_CLIENT  = 10, //sendto client
+    SW_FD_SIGNAL          = 11, //signalfd
+    SW_FD_DNS_RESOLVER    = 12, //dns resolver
+};
 //-------------------------------------------------------------------------------
 #define SW_FD_USER             15 //SW_FD_USER or SW_FD_USER+n: for custom event
 //-------------------------------------------------------------------------------
@@ -252,6 +256,10 @@ SwooleG.lock.unlock(&SwooleG.lock);}
 #define SW_ERROR_MSG_SIZE      512
 
 //------------------Base--------------------
+#ifndef uchar
+typedef unsigned char uchar;
+#endif
+
 typedef struct _swDataHead
 {
 	int fd; //文件描述符
@@ -260,6 +268,8 @@ typedef struct _swDataHead
 	uint8_t type; //类型
 	uint8_t from_fd; //从哪个ServerFD引发的
 } swDataHead;
+
+typedef swDataHead swEvent;
 
 typedef struct _swEventData
 {
@@ -285,7 +295,6 @@ typedef struct _swSendData
 	char *data;
 } swSendData;
 
-typedef swDataHead swEvent;
 
 //typedef struct _swEvent
 //{
@@ -667,7 +676,6 @@ void swSignal_add(int signo, swSignalFunc func);
 int swSignalfd_onSignal(swReactor *reactor, swEvent *event);
 #endif
 void swSignal_none(void);
-
 
 struct swReactor_s
 {

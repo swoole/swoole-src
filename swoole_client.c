@@ -279,20 +279,20 @@ static int php_swoole_client_onError(swReactor *reactor, swEvent *event)
 
 static int php_swoole_event_onError(swReactor *reactor, swEvent *event)
 {
-	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-	int error;
-	socklen_t len = sizeof(error);
+    int error;
+    socklen_t len = sizeof(error);
 
-	if (getsockopt (event->fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event: getsockopt[sock=%d] failed. Error: %s[%d]", event->fd, strerror(errno), errno);
-	}
+    if (getsockopt(event->fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event: getsockopt[sock=%d] failed. Error: %s[%d]", event->fd, strerror(errno), errno);
+    }
 
-	php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event: socket error. Error: %s [%d]", strerror(error), error);
+    php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event: socket error. Error: %s [%d]", strerror(error), error);
 
-	SwooleG.main_reactor->del(SwooleG.main_reactor, event->fd);
-	return SW_OK;
+    SwooleG.main_reactor->del(SwooleG.main_reactor, event->fd);
+    return SW_OK;
 }
 
 static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event)
@@ -304,16 +304,16 @@ static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event)
 
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-	if (zend_hash_find(&php_sw_client_callback, (char*) &event->fd, sizeof(event->fd), (void **)&zobject) != SUCCESS)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: Fd[%d] is not a swoole_client object", event->fd);
-		return SW_ERR;
-	}
+    if (zend_hash_find(&php_sw_client_callback, (char*) &event->fd, sizeof(event->fd), (void **) &zobject) != SUCCESS)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: Fd[%d] is not a swoole_client object", event->fd);
+        return SW_ERR;
+    }
 
-	if (zend_hash_find(Z_OBJPROP_PP(zobject), SW_STRL("_client"), (void **) &zres) != SUCCESS)
-	{
-		return SW_ERR;
-	}
+    if (zend_hash_find(Z_OBJPROP_PP(zobject), SW_STRL("_client"), (void **) &zres) != SUCCESS)
+    {
+        return SW_ERR;
+    }
 
 	ZEND_FETCH_RESOURCE_NO_RETURN(cli, swClient*, zres, -1, SW_RES_CLIENT_NAME, le_swoole_client);
 
@@ -1106,18 +1106,18 @@ PHP_METHOD(swoole_client, connect)
 			}
 		}
 
-		int reactor_flag = 0;
-		zval_add_ref(&getThis());
+        int reactor_flag = 0;
+        zval_add_ref(&getThis());
 
-		if (zend_hash_update(&php_sw_client_callback, (char *) &cli->connection.fd, sizeof(cli->connection.fd), &getThis(), sizeof(zval*), NULL) == FAILURE)
-		{
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "add to hashtable failed.");
-			RETURN_FALSE;
-		}
+        if (zend_hash_update(&php_sw_client_callback, (char *) &cli->connection.fd, sizeof(cli->connection.fd), &getThis(), sizeof(zval*), NULL) == FAILURE)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "add to hashtable failed.");
+            RETURN_FALSE;
+        }
 
-		php_swoole_check_reactor();
+        php_swoole_check_reactor();
 
-		cli->reactor_fdtype = SW_FD_USER+1;
+        cli->reactor_fdtype = SW_FD_USER + 1;
 
 		if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
 		{
@@ -1133,24 +1133,24 @@ PHP_METHOD(swoole_client, connect)
 
 			args[0] = &getThis();
 			zcallback = zend_read_property(swoole_client_class_entry_ptr, getThis(), SW_STRL(php_sw_client_onConnect)-1, 0 TSRMLS_CC);
-			if (callback == NULL || ZVAL_IS_NULL(callback))
+            if (callback == NULL || ZVAL_IS_NULL(callback))
 			{
 				php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client object have not connect callback.");
 				RETURN_FALSE;
 			}
 			if (call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
-			{
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "onConnect[udp] handler error");
-				RETURN_FALSE;
-			}
-			if (retval)
-			{
-				zval_ptr_dtor(&retval);
-			}
-		}
-		ret = SwooleG.main_reactor->add(SwooleG.main_reactor, cli->connection.fd, reactor_flag);
-		php_swoole_try_run_reactor();
-		SW_CHECK_RETURN(ret);
+            {
+                php_error_docref(NULL TSRMLS_CC, E_WARNING, "onConnect[udp] handler error");
+                RETURN_FALSE;
+            }
+            if (retval)
+            {
+                zval_ptr_dtor(&retval);
+            }
+        }
+        ret = SwooleG.main_reactor->add(SwooleG.main_reactor, cli->connection.fd, reactor_flag);
+        php_swoole_try_run_reactor();
+        SW_CHECK_RETURN(ret);
 	}
 	else if (ret < 0)
 	{

@@ -164,7 +164,7 @@ struct _swFactory
     int (*shutdown)(struct _swFactory *);
     int (*dispatch)(struct _swFactory *, swDispatchData *);
     int (*finish)(struct _swFactory *, swSendData *);
-    int (*notify)(struct _swFactory *, swEvent *);    //send a event notify
+    int (*notify)(struct _swFactory *, swDataHead *);    //send a event notify
     int (*end)(struct _swFactory *, swDataHead *);
 
     int (*onTask)(struct _swFactory *, swEventData *task); //worker function.get a task,goto to work
@@ -182,7 +182,7 @@ int swFactory_start(swFactory *factory);
 int swFactory_shutdown(swFactory *factory);
 int swFactory_dispatch(swFactory *factory, swDispatchData *req);
 int swFactory_finish(swFactory *factory, swSendData *_send);
-int swFactory_notify(swFactory *factory, swEvent *event);
+int swFactory_notify(swFactory *factory, swDataHead *event);
 int swFactory_end(swFactory *factory, swDataHead *cev);
 int swFactory_check_callback(swFactory *factory);
 

@@ -27,6 +27,8 @@ typedef struct _swClient
 	uint8_t keep;
 
 	char *server_str;
+	void *ptr;
+
 	uint8_t server_strlen;
 	double timeout;
 
@@ -47,5 +49,7 @@ typedef struct _swClient
 
 int swClient_create(swClient *cli, int type, int async);
 int swClient_close(swClient *cli);
+
+int swDNSResolver_request(char *domain, void (*callback)(void *addrs));
 
 #endif /* SW_CLIENT_H_ */

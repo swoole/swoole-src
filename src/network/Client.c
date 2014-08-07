@@ -65,9 +65,9 @@ int swClient_create(swClient *cli, int type, int async)
 	cli->connection.fd = socket(_domain, _type, 0);
 	if (cli->connection.fd < 0)
 	{
+	    swWarn("socket() failed. Error: %s[%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
-
 	if (type < SW_SOCK_UDP)
 	{
 		cli->connect = swClient_tcp_connect;

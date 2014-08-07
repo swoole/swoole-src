@@ -1,208 +1,366 @@
 /*
-  +----------------------------------------------------------------------+
-  | Swoole                                                               |
-  +----------------------------------------------------------------------+
-  | This source file is subject to version 2.0 of the Apache license,    |
-  | that is bundled with this package in the file LICENSE, and is        |
-  | available through the world-wide-web at the following url:           |
-  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
-  | If you did not receive a copy of the Apache2.0 license and are unable|
-  | to obtain it through the world-wide-web, please send a note to       |
-  | license@php.net so we can mail you a copy immediately.               |
-  +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
-  +----------------------------------------------------------------------+
-*/
+ +----------------------------------------------------------------------+
+ | Swoole                                                               |
+ +----------------------------------------------------------------------+
+ | This source file is subject to version 2.0 of the Apache license,    |
+ | that is bundled with this package in the file LICENSE, and is        |
+ | available through the world-wide-web at the following url:           |
+ | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+ | If you did not receive a copy of the Apache2.0 license and are unable|
+ | to obtain it through the world-wide-web, please send a note to       |
+ | license@php.net so we can mail you a copy immediately.               |
+ +----------------------------------------------------------------------+
+ | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ +----------------------------------------------------------------------+
+ */
 
 #include "swoole.h"
+#include "Client.h"
+
+#define SW_DNS_SERVER_CONF   "/etc/resolv.conf"
+#define SW_DNS_SERVER_NUM    2
+#define SW_DNS_SERVER_PORT   53
+
+enum swDNS_type
+{
+    SW_DNS_A_RECORD = 0x01, //Lookup IP address
+    SW_DNS_AAAA_RECORD = 0x1c, //Lookup IPv6 address
+    SW_DNS_MX_RECORD = 0x0f //Lookup mail server for domain
+};
+
+enum swDNS_error
+{
+    SW_DNS_NOT_EXIST, //Error: adress does not exist
+    SW_DNS_TIMEOUT, //Lookup time expired
+    SW_DNS_ERROR //No memory or other error
+};
 
 typedef struct
 {
-    unsigned short id;
-    unsigned short flag;
-    unsigned short questions;
-    unsigned short answerRRs;
-    unsigned short authorityRRs;
-    unsigned short additionalRRs;
-} DNS_PKG_HEADER, *DNS_PKG_HEADER_PTR;
+    int id;
+    union
+    {
+        uchar v4[INET_ADDRSTRLEN];
+        uchar v6[INET6_ADDRSTRLEN];
+    } ipaddr;
+} swDNS_server;
 
+/* Struct for the DNS Header */
 typedef struct
 {
-    unsigned char * dns_name;
-    unsigned short dns_type;
-    unsigned short dns_class;
-} DNS_PKG_QUERY, *DNS_PKG_QUERY_PTR;
+    uint16_t id;
+    uchar rd :1;
+    uchar tc :1;
+    uchar aa :1;
+    uchar opcode :4;
+    uchar qr :1;
+    uchar rcode :4;
+    uchar z :3;
+    uchar ra :1;
+    uint16_t qdcount;
+    uint16_t ancount;
+    uint16_t nscount;
+    uint16_t arcount;
+} swDNSResolver_header;
 
-typedef struct
+/* Struct for the flags for the DNS Question */
+typedef struct q_flags
 {
-    unsigned short dns_name;
-    unsigned short dns_type;
-    unsigned short dns_class;
-    unsigned short dns_ttl;
-    unsigned char* data;
-} DNS_RESPONSE_ANSWER, *DNS_RESPONSE_ANSWER_PTR;
+    uint16_t qtype;
+    uint16_t qclass;
+} Q_FLAGS;
 
-
-int swDNS_resolve(const char* domain, char* ip, unsigned short id)
+/* Struct for the flags for the DNS RRs */
+typedef struct rr_flags
 {
-    int result = SW_FALSE;
+    uint16_t type;
+    uint16_t class;
+    uint32_t ttl;
+    uint16_t rdlength;
+} RR_FLAGS;
 
-    DNS_PKG_HEADER_PTR nphp;
-    DNS_PKG_QUERY_PTR dkqp;
+static swDNS_server swoole_dns_servers[SW_DNS_SERVER_NUM];
+static int swoole_dns_server_num = 0;
+static int swoole_dns_request_id = 102;
+static void* swoole_dns_request_ptr[10];
 
-    char dnsBuff[1024];
-    char dnsRecv[2048];
+static void swDNSResolver_domain_encode(uchar *src, uchar *dest);
+static void swDNSResolver_domain_decode(uchar *str);
+static int swDNSResolver_get_servers(swDNS_server *dns_server);
 
-    int send_size = swDNS_send_request(domain, nphp, dkqp, dnsBuff, id);
-    if (send_size < 0)
+static int swDNSResolver_get_servers(swDNS_server *dns_server)
+{
+    FILE *fp;
+    uchar line[100];
+    swoole_dns_server_num = 0;
+
+    if ((fp = fopen(SW_DNS_SERVER_CONF, "rt")) == NULL)
     {
-
+        swWarn("fopen("SW_DNS_SERVER_CONF") failed. Error: %s[%d]", strerror(errno), errno);
         return SW_ERR;
     }
-    swClient cli;
-    if (swClient_create(&cli, SW_SOCK_UDP, 1) < 0)
+
+    while (fgets(line, 100, fp))
     {
-        return SW_ERR;
-    }
-    struct sockaddr_in server_addr;
-    unsigned int pkg_len = 0;
-    bzero(&server_addr, sizeof(struct sockaddr_in));
-    int server_id  = id % DNS_SERVERS;
-    server_addr.sin_family = AF_INET;
-        inet_aton(DNS_ADDR, &server_addr.sin_addr);
-        server_addr.sin_port = htons(DNS_PORT);
-        pkg_len = sizeof(server_addr);
-        int in_len = sendto(sockfd, dnsBuff, sizeof(dnsBuff), 0,
-                (struct sockaddr*) &server_addr, pkg_len);
-        if (in_len < 0)
+        if (strncmp(line, "nameserver", 10) == 0)
         {
-            std::cout << "tiny dns:ERROR sendto" << strerror(errno)<<std::endl;
-            close(sockfd);
-            return false;
+            strcpy(dns_server[swoole_dns_server_num].ipaddr.v4, strtok(line, " "));
+            strcpy(dns_server[swoole_dns_server_num].ipaddr.v4, strtok(NULL, "\n"));
+            swoole_dns_server_num++;
         }
-        int recv_len = 0;
-        // if time is out , try again (3 times totally)
-//      for (int i = 0; i < 3 && recv_len == 0; i++)
-            recv_len = recvfromTimeOut(sockfd, 0, 10000000);//wait 10 seconds
-        if (recv_len == 0 || recv_len < 0) {
-            // if in_len == 0 stands for timeout, if -1 stands for error
-            strncpy(dnscache._domain, domain, 256);
-            dnscache._ip[0] = '/0';
-            close(sockfd);
-            return false;
-        }
-        else
+        if (swoole_dns_server_num >= SW_DNS_SERVER_NUM)
         {
-            //select returns fd it must be sockfd, because only sockfd is selected;
-            recv_len = recvfrom(sockfd, dnsRecv, sizeof(dnsRecv), 0,
-                    (struct sockaddr*) &server_addr, &pkg_len);
-            if (recv_len < 0) {
-                std::cout << "tiny dns:ERROR recvfrom" << std::endl;
-                strncpy(dnscache._domain, domain, 256);
-                dnscache._ip[0] = '/0';
-                close(sockfd);
-                return false;
-            }
-            result = recvAnalyse(dnsRecv, recv_len, send_size, ip);
-            if (result)
-            {
-                strncpy(dnscache._domain, domain, 256);
-                if(strcmp(ip, "125.211.213.133") == 0){
-                    result = false;
-                    dnscache._ip[0] = '/0';
-                }
-                else{
-                    strncpy(dnscache._ip, ip, 16);
-                }
-            }
-        }
-        close(sockfd);
-        return result;
-
-}
-
-int swDNS_send_request(const char* domain, DNS_PKG_HEADER_PTR *nphp, DNS_PKG_QUERY_PTR *dkqp, unsigned char* dnsBuff,
-        unsigned short id)
-{
-    char tmpBuf[256];
-    bzero(tmpBuf, 256);
-    int domainLen = strlen(domain);
-    if (domainLen <= 0)
-        return -1;
-    memcpy(tmpBuf, domain, domainLen);
-    dkqp->dns_name = sw_malloc(domainLen + 2 * sizeof(unsigned char));
-    bzero(dkqp->dns_name, domainLen + 2 * sizeof(unsigned char));
-    char* tok = NULL;
-    tok = strtok(tmpBuf, ".");
-    unsigned char dot = '/0';
-    int offset = 0;
-    while (tok != NULL)
-    {
-        dot = (unsigned char) strlen(tok);
-        memcpy(dkqp->dns_name + offset, &dot, sizeof(unsigned char));
-        offset += sizeof(unsigned char);
-        memcpy(dkqp->dns_name + offset, tok, strlen(tok));
-        offset += strlen(tok);
-        tok = strtok(NULL, ".");
-    }
-    dkqp->dns_name[domainLen + 2 * sizeof(unsigned char) - 1] = 0x00;
-    nphp->id = htons(id); //dns transaction id, given randomly
-    nphp->flag = htons(0x0100); //dns standard query;
-    nphp->questions = htons(0x0001); //num of questions;
-    nphp->answerRRs = htons(0x0000);
-    nphp->authorityRRs = htons(0x0000);
-    nphp->additionalRRs = htons(0x0000);
-    dkqp->dns_type = htons(0x0001); //Type   : A
-    dkqp->dns_class = htons(0x0001); //Class : IN
-    memcpy(dnsBuff, (unsigned char*) nphp, sizeof(DNS_PKG_HEADER));
-    memcpy(dnsBuff + sizeof(DNS_PKG_HEADER), (unsigned char*) dkqp->dns_name, domainLen + 2 * sizeof(unsigned char));
-    memcpy(dnsBuff + sizeof(DNS_PKG_HEADER) + (domainLen + 2 * sizeof(unsigned char)), (unsigned char*) &dkqp->dns_type,
-            sizeof(unsigned short));
-    memcpy(dnsBuff + sizeof(DNS_PKG_HEADER) + (domainLen + 2 * sizeof(unsigned char)) + sizeof(unsigned short),
-            (unsigned char*) &dkqp->dns_class, sizeof(unsigned short));
-    sw_free(dkqp->dns_name);
-    return sizeof(DNS_PKG_HEADER) + (domainLen + 2 * sizeof(unsigned char)) + sizeof(unsigned short)
-            + sizeof(unsigned short);
-}
-
-int swDNS_recvAnalyse(unsigned char* buf, size_t buf_size, size_t send_size, char* ip)
-{
-    int result = SW_FALSE;
-    unsigned char* p = buf;
-    p += 2; //dns id
-    unsigned short flag = ntohs(*((unsigned short*) p)); // p[0] * 0x100 + p[1];
-
-    if (flag != 0x8180)
-    {
-        printf("not a \"standard query response no error\"!\n");
-        return SW_ERR;
-    }
-    p += 2; //dns flag
-    p += 2; //dns questions
-    unsigned short answerRRs = ntohs(*((unsigned short*) p)); //p[0] * 0x100 + p[1];//dns answer RRs
-    p = buf + send_size; //p point to Answers
-    unsigned short type;
-    unsigned short dataLen;
-    for (int i = 0; i < answerRRs; i++)
-    {
-        p += 2; //Name
-        type = ntohs(*((unsigned short*) p)); //p[0] * 0x100 + p[1];
-        p += 2; //Type;
-        if (type == 0x0001)
-        {
-            p += 2; //Class
-            p += 4; //TTL
-            p += 2; //Data Length
-            strncpy(ip, inet_ntoa(*(struct in_addr*) p), 16);
-            result = SW_OK;
             break;
         }
-        p += 2; //Class
-        p += 4; //TTL
-        dataLen = ntohs(*((unsigned short*) p)); //p[0] * 0x100 + p[1];
-        p += 2; //Data Length
-        p += dataLen; //data
     }
-    return result;
+    if (swoole_dns_server_num == 0)
+    {
+        return SW_ERR;
+    }
+    fclose(fp);
+    return SW_OK;
 }
 
+int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
+{
+    swDNSResolver_header *header = NULL;
+    swClient *cli;
+    Q_FLAGS *qflags = NULL;
+    RR_FLAGS *rrflags = NULL;
+
+    uchar packet[65536];
+    uchar rdata[10][254];
+    uint32_t type[10];
+
+    uchar *temp;
+    uint16_t steps;
+
+    uchar *_domain_name;
+    uchar name[10][254];
+    int i, j;
+
+    if (recv(event->fd, (uchar *) packet, 65536, 0) <= 0)
+    {
+        //cli->close(cli);
+        return SW_ERR;
+    }
+
+    header = (swDNSResolver_header *) &packet;
+    steps = sizeof(swDNSResolver_header);
+
+    printf("id=%d\n", ntohs(header->id));
+    SwooleG.running = 0;
+    return SW_OK;
+
+    _domain_name = (uchar *) &packet[steps];
+    swDNSResolver_domain_decode(_domain_name);
+    steps = steps + (strlen((const uchar *) _domain_name) + 2);
+
+    qflags = (Q_FLAGS *) &packet[steps];
+    steps = steps + sizeof(Q_FLAGS);
+
+    /* Parsing the RRs from the reply packet */
+    for (i = 0; i < ntohs(header->ancount); ++i)
+    {
+        /* Parsing the NAME portion of the RR */
+        temp = (uchar *) &packet[steps];
+        j = 0;
+        while (*temp != 0)
+        {
+            if (*temp == 0xc0)
+            {
+                ++temp;
+                temp = (uchar*) &packet[*temp];
+            }
+            else
+            {
+                name[i][j] = *temp;
+                ++j;
+                ++temp;
+            }
+        }
+        name[i][j] = '\0';
+        swDNSResolver_domain_decode(name[i]);
+        steps = steps + 2;
+
+        /* Parsing the RR flags of the RR */
+        rrflags = (RR_FLAGS *) &packet[steps];
+        steps = steps + sizeof(RR_FLAGS) - 2;
+
+        /* Parsing the IPv4 address in the RR */
+        if (ntohs(rrflags->type) == 1)
+        {
+            for (j = 0; j < ntohs(rrflags->rdlength); ++j)
+                rdata[i][j] = (uchar) packet[steps + j];
+            type[i] = ntohs(rrflags->type);
+        }
+
+        /* Parsing the canonical name in the RR */
+        if (ntohs(rrflags->type) == 5)
+        {
+            temp = (uchar *) &packet[steps];
+            j = 0;
+            while (*temp != 0)
+            {
+                if (*temp == 0xc0)
+                {
+                    ++temp;
+                    temp = (uchar*) &packet[*temp];
+                }
+                else
+                {
+                    rdata[i][j] = *temp;
+                    ++j;
+                    ++temp;
+                }
+            }
+            rdata[i][j] = '\0';
+            swDNSResolver_domain_decode(rdata[i]);
+            type[i] = ntohs(rrflags->type);
+        }
+        steps = steps + ntohs(rrflags->rdlength);
+    }
+
+    /* Printing the output */
+    printf("QNAME: %s\n", _domain_name);
+    printf("ANCOUNT: %d\n", ntohs(header->ancount));
+    printf("\nRDATA:");
+
+    for (i = 0; i < ntohs(header->ancount); ++i)
+    {
+        printf("\nNAME: %s\n\t", name[i]);
+        if (type[i] == 5)
+            printf("CNAME: %s", rdata[i]);
+        else if (type[i] == 1)
+        {
+            printf("IPv4: ");
+            for (j = 0; j < ntohs(rrflags->rdlength); ++j)
+                printf("%d.", rdata[i][j]);
+            printf("\b ");
+        }
+    }
+    putchar('\n');
+    return SW_OK;
+}
+
+int swDNSResolver_request(char *domain, void (*callback)(void *addrs))
+{
+    uchar *_domain_name;
+    Q_FLAGS *qflags = NULL;
+    uchar packet[65536];
+    swDNSResolver_header *header = NULL;
+    int i, j, steps = 0;
+
+    if (swoole_dns_server_num == 0)
+    {
+        if (swDNSResolver_get_servers(swoole_dns_servers) < 0)
+        {
+            return SW_ERR;
+        }
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_DNS_RESOLVER, swDNSResolver_onReceive);
+    }
+
+    header = (swDNSResolver_header *) &packet;
+    header->id = (uint16_t) htons(swoole_dns_request_id);
+    header->qr = 0;
+    header->opcode = 0;
+    header->aa = 0;
+    header->tc = 0;
+    header->rd = 1;
+    header->ra = 0;
+    header->z = 0;
+    header->rcode = 0;
+    header->qdcount = htons(1);
+    header->ancount = 0x0000;
+    header->nscount = 0x0000;
+    header->arcount = 0x0000;
+
+    steps = sizeof(swDNSResolver_header);
+
+    _domain_name = (uchar *) &packet[steps];
+    swDNSResolver_domain_encode(domain, _domain_name);
+
+    steps += (strlen((const uchar *) _domain_name) + 1);
+
+    qflags = (Q_FLAGS *) &packet[steps];
+    qflags->qtype = htons(SW_DNS_A_RECORD);
+    qflags->qclass = htons(0x0001);
+    steps += sizeof(Q_FLAGS);
+
+    swClient *cli = sw_malloc(sizeof(swClient));
+    if (cli == NULL)
+    {
+        swWarn("malloc failed.");
+        return SW_ERR;
+    }
+    if (swClient_create(cli, SW_SOCK_UDP, 0) < 0)
+    {
+        return SW_ERR;
+    }
+    if (cli->connect(cli, swoole_dns_servers[0].ipaddr.v4, SW_DNS_SERVER_PORT, 1, 0) < 0)
+    {
+        cli->close(cli);
+        return SW_ERR;
+    }
+    if (cli->send(cli, (uchar *) packet, steps) < 0)
+    {
+        cli->close(cli);
+        return SW_ERR;
+    }
+    if (SwooleG.main_reactor->add(SwooleG.main_reactor, cli->connection.fd, SW_FD_DNS_RESOLVER))
+    {
+        cli->close(cli);
+        return SW_ERR;
+    }
+    cli->ptr = callback;
+    swoole_dns_request_ptr[swoole_dns_request_id] = cli;
+    swoole_dns_request_id++;
+    return SW_OK;
+}
+
+/**
+ * The function converts the dot-based hostname into the DNS format
+ * (i.e. www.apple.com into 3www5apple3com0)
+ */
+static void swDNSResolver_domain_encode(uchar *src, uchar *dest)
+{
+    int pos = 0;
+    int len = 0;
+    int i;
+    strcat(src, ".");
+    for (i = 0; i < (int) strlen(src); ++i)
+    {
+        if (src[i] == '.')
+        {
+            dest[pos] = i - len;
+            ++pos;
+            for (; len < i; ++len)
+            {
+                dest[pos] = src[len];
+                ++pos;
+            }
+            len++;
+        }
+    }
+    dest[pos] = '\0';
+}
+
+/**
+ * This function converts a DNS-based hostname into dot-based format
+ * (i.e. 3www5apple3com0 into www.apple.com)
+ */
+static void swDNSResolver_domain_decode(uchar *str)
+{
+    int i, j;
+    for (i = 0; i < strlen((const char*) str); ++i)
+    {
+        unsigned int len = str[i];
+        for (j = 0; j < len; ++j)
+        {
+            str[i] = str[i + 1];
+            ++i;
+        }
+        str[i] = '.';
+    }
+    str[i - 1] = '\0';
+}
