@@ -17,11 +17,21 @@
 #include "swoole.h"
 #include "async.h"
 
+swAIO SwooleAIO;
+
 swPipe swoole_aio_pipe;
 int swoole_aio_have_init = 0;
 swReactor *swoole_aio_reactor;
 
-void (*swoole_aio_complete_callback)(swAio_event *aio_event);
+static void swAioBase_destroy();
+static int swAioBase_read(int fd, void *inbuf, size_t size, off_t offset);
+static int swAioBase_write(int fd, void *inbuf, size_t size, off_t offset);
+static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len);
+static int swAioBase_onFinish(swReactor *reactor, swEvent *event);
+
+static swThreadPool swAioBase_thread_pool;
+static int swAioBase_pipe_read;
+static int swAioBase_pipe_write;
 
 /**
  * for test
@@ -83,15 +93,7 @@ int daemon(int nochdir, int noclose)
 }
 #endif
 
-#ifdef SW_AIO_THREAD_POOL
-
-static int swoole_aio_thread_onTask(swThreadPool *pool, void *task, int task_len);
-static int swoole_aio_onFinish(swReactor *reactor, swEvent *event);
-static swThreadPool swoole_aio_thread_pool;
-static int swoole_aio_pipe_read;
-static int swoole_aio_pipe_write;
-
-static int swoole_aio_onFinish(swReactor *reactor, swEvent *event)
+static int swAioBase_onFinish(swReactor *reactor, swEvent *event)
 {
 	int i;
 	swAio_event *events[SW_AIO_EVENT_NUM];
@@ -103,13 +105,13 @@ static int swoole_aio_onFinish(swReactor *reactor, swEvent *event)
 	}
 	for(i = 0; i < n/sizeof(swAio_event*); i++)
 	{
-		swoole_aio_complete_callback(events[i]);
+	    SwooleAIO.callback(events[i]);
 		sw_free(events[i]);
 	}
 	return SW_OK;
 }
 
-int swoole_aio_init(swReactor *_reactor, int max_aio_events)
+int swAioBase_init(swReactor *_reactor, int max_aio_events)
 {
 	if (swoole_aio_have_init == 0)
 	{
@@ -117,28 +119,32 @@ int swoole_aio_init(swReactor *_reactor, int max_aio_events)
 		{
 			return SW_ERR;
 		}
-		if (swThreadPool_create(&swoole_aio_thread_pool, SW_AIO_THREAD_NUM) < 0)
+		if (swThreadPool_create(&swAioBase_thread_pool, SW_AIO_THREAD_NUM) < 0)
 		{
 			return SW_ERR;
 		}
-		swoole_aio_complete_callback = swoole_aio_callback;
-		swoole_aio_thread_pool.onTask = swoole_aio_thread_onTask;
 
-		swoole_aio_pipe_read = swoole_aio_pipe.getFd(&swoole_aio_pipe, 0);
-		swoole_aio_pipe_write = swoole_aio_pipe.getFd(&swoole_aio_pipe, 1);
-		_reactor->setHandle(_reactor, SW_FD_AIO, swoole_aio_onFinish);
-		_reactor->add(_reactor, swoole_aio_pipe_read, SW_FD_AIO);
+		swAioBase_thread_pool.onTask = swAioBase_thread_onTask;
 
-		if (swThreadPool_run(&swoole_aio_thread_pool) < 0)
+		swAioBase_pipe_read = swoole_aio_pipe.getFd(&swoole_aio_pipe, 0);
+		swAioBase_pipe_write = swoole_aio_pipe.getFd(&swoole_aio_pipe, 1);
+		_reactor->setHandle(_reactor, SW_FD_AIO, swAioBase_onFinish);
+		_reactor->add(_reactor, swAioBase_pipe_read, SW_FD_AIO);
+
+		if (swThreadPool_run(&swAioBase_thread_pool) < 0)
 		{
 			return SW_ERR;
 		}
 		swoole_aio_have_init = 1;
+		SwooleAIO.callback = swoole_aio_callback;
+		SwooleAIO.destroy = swAioBase_destroy;
+		SwooleAIO.read = swAioBase_read;
+		SwooleAIO.write = swAioBase_write;
 	}
 	return SW_OK;
 }
 
-static int swoole_aio_thread_onTask(swThreadPool *pool, void *task, int task_len)
+static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
 {
 	swAio_event *event = task;
 	struct hostent *host_entry;
@@ -190,7 +196,7 @@ static int swoole_aio_thread_onTask(swThreadPool *pool, void *task, int task_len
 	swTrace("aio_thread ok. ret=%d", ret);
 	do
 	{
-		ret = write(swoole_aio_pipe_write, &task, sizeof(task));
+		ret = write(swAioBase_pipe_write, &task, sizeof(task));
 		if (ret < 0)
 		{
 			if (errno == EAGAIN)
@@ -213,7 +219,7 @@ static int swoole_aio_thread_onTask(swThreadPool *pool, void *task, int task_len
 	return SW_OK;
 }
 
-int swoole_aio_write(int fd, void *inbuf, size_t size, off_t offset)
+static int swAioBase_write(int fd, void *inbuf, size_t size, off_t offset)
 {
 	swAio_event *aio_ev = (swAio_event *) sw_malloc(sizeof(swAio_event));
 	if (aio_ev == NULL)
@@ -227,7 +233,7 @@ int swoole_aio_write(int fd, void *inbuf, size_t size, off_t offset)
 	aio_ev->type = SW_AIO_WRITE;
 	aio_ev->nbytes = size;
 	aio_ev->offset = offset;
-	return swThreadPool_dispatch(&swoole_aio_thread_pool, aio_ev, sizeof(aio_ev));
+	return swThreadPool_dispatch(&swAioBase_thread_pool, aio_ev, sizeof(aio_ev));
 }
 
 int swoole_aio_dns_lookup(void *hostname, void *ip_addr, size_t size)
@@ -243,10 +249,10 @@ int swoole_aio_dns_lookup(void *hostname, void *ip_addr, size_t size)
 	aio_ev->req = hostname;
 	aio_ev->type = SW_AIO_DNS_LOOKUP;
 	aio_ev->nbytes = size;
-	return swThreadPool_dispatch(&swoole_aio_thread_pool, aio_ev, sizeof(aio_ev));
+	return swThreadPool_dispatch(&swAioBase_thread_pool, aio_ev, sizeof(aio_ev));
 }
 
-int swoole_aio_read(int fd, void *inbuf, size_t size, off_t offset)
+static int swAioBase_read(int fd, void *inbuf, size_t size, off_t offset)
 {
 	swAio_event *aio_ev = (swAio_event *) sw_malloc(sizeof(swAio_event));
 	if (aio_ev == NULL)
@@ -260,12 +266,10 @@ int swoole_aio_read(int fd, void *inbuf, size_t size, off_t offset)
 	aio_ev->type = SW_AIO_READ;
 	aio_ev->nbytes = size;
 	aio_ev->offset = offset;
-	return swThreadPool_dispatch(&swoole_aio_thread_pool, aio_ev, sizeof(aio_ev));
+	return swThreadPool_dispatch(&swAioBase_thread_pool, aio_ev, sizeof(aio_ev));
 }
 
-void swoole_aio_destroy()
+void swAioBase_destroy()
 {
-	swThreadPool_free(&swoole_aio_thread_pool);
+	swThreadPool_free(&swAioBase_thread_pool);
 }
-
-#endif

@@ -18,8 +18,6 @@
 #include "php_streams.h"
 #include "php_network.h"
 
-#include "async.h"
-
 #define PHP_SWOOLE_AIO_MAXEVENTS       128
 
 typedef struct
@@ -50,8 +48,27 @@ static void php_swoole_check_aio()
 	{
 	    php_swoole_open_files = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N);
 		php_swoole_check_reactor();
-		swoole_aio_init(SwooleG.main_reactor, PHP_SWOOLE_AIO_MAXEVENTS);
-		swoole_aio_set_callback(php_swoole_aio_onComplete);
+
+        switch (SWOOLE_G(aio_mode))
+        {
+#ifdef HAVE_LINUX_AIO
+        case SW_AIO_LINUX:
+            swAioLinux_init(SwooleG.main_reactor, PHP_SWOOLE_AIO_MAXEVENTS);
+            break;
+#endif
+
+#ifdef HAVE_GCC_AIO
+        case SW_AIO_GCC:
+            swAioGcc_init(SwooleG.main_reactor, PHP_SWOOLE_AIO_MAXEVENTS);
+            break;
+#endif
+
+        default:
+            swAioBase_init(SwooleG.main_reactor, PHP_SWOOLE_AIO_MAXEVENTS);
+            break;
+        }
+
+        SwooleAIO.callback = php_swoole_aio_onComplete;
 		php_swoole_try_run_reactor();
 		php_swoole_aio_init = 1;
 	}
@@ -166,11 +183,15 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 			close_file:
 			zval_ptr_dtor(&file_req->callback);
 			zval_ptr_dtor(&file_req->filename);
-#ifdef SW_AIO_LINUX_NATIVE
-			free(event->buf);
-#else
-			efree(event->buf);
-#endif
+
+			if (SWOOLE_G(aio_mode) == SW_AIO_LINUX)
+			{
+			    free(event->buf);
+			}
+			else
+			{
+			    efree(event->buf);
+			}
 			close(event->fd);
 			//remove from hashtable
 			//zend_hash_del(&php_sw_aio_callback, (char *)&(event->fd), sizeof(event->fd));
@@ -182,18 +203,17 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 				swHashMap_del(php_swoole_open_files, Z_STRVAL_P(file_req->filename), Z_STRLEN_P(file_req->filename));
 			}
 		}
-		else
-		{
-			if (!Z_BVAL_P(retval) || isEOF)
-			{
-				goto close_file;
-			}
-			else if (swoole_aio_read(event->fd, event->buf, event->nbytes, file_req->offset) < 0)
-			{
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async: continue to read failed. Error: %s[%d]", strerror(event->error),
-						event->error);
-			}
-		}
+        else
+        {
+            if (!Z_BVAL_P(retval) || isEOF)
+            {
+                goto close_file;
+            }
+            else if (SwooleAIO.read(event->fd, event->buf, event->nbytes, file_req->offset) < 0)
+            {
+                php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async: continue to read failed. Error: %s[%d]", strerror(event->error), event->error);
+            }
+        }
 	}
 	else if(dns_req != NULL)
 	{
@@ -222,6 +242,7 @@ PHP_FUNCTION(swoole_async_read)
 	zval *cb;
 	zval *filename;
 	long trunk_len = 8192;
+	int open_flag = O_RDONLY;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zz|l", &filename, &cb, &trunk_len) == FAILURE)
 	{
@@ -229,11 +250,11 @@ PHP_FUNCTION(swoole_async_read)
 	}
 	convert_to_string(filename);
 
-#ifdef HAVE_LINUX_NATIVE_AIO
-	int open_flag =  O_RDONLY | O_DIRECT;
-#else
-	int open_flag = O_RDONLY;
-#endif
+	if (SWOOLE_G(aio_mode) == SW_AIO_LINUX)
+	{
+	    open_flag |= O_DIRECT;
+	}
+
 	int fd = open(Z_STRVAL_P(filename), open_flag, 0644);
 	if (fd < 0)
 	{
@@ -242,21 +263,25 @@ PHP_FUNCTION(swoole_async_read)
 	}
 
 	void *fcnt;
-#ifdef HAVE_LINUX_NATIVE_AIO
-	int buf_len = trunk_len + (sysconf(_SC_PAGESIZE) - (trunk_len % sysconf(_SC_PAGESIZE)));
-	if (posix_memalign((void **)&fcnt, sysconf(_SC_PAGESIZE), buf_len))
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "posix_memalign failed. Error: %s[%d]", strerror(errno), errno);
-		RETURN_FALSE;
-	}
-#else
-	fcnt = emalloc(trunk_len);
-	if (fcnt == NULL)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "malloc failed. Error: %s[%d]", strerror(errno), errno);
-		RETURN_FALSE;
-	}
-#endif
+
+    if (SWOOLE_G(aio_mode) == SW_AIO_LINUX)
+    {
+        int buf_len = trunk_len + (sysconf(_SC_PAGESIZE) - (trunk_len % sysconf(_SC_PAGESIZE)));
+        if (posix_memalign((void **) &fcnt, sysconf(_SC_PAGESIZE), buf_len))
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "posix_memalign failed. Error: %s[%d]", strerror(errno), errno);
+            RETURN_FALSE;
+        }
+    }
+    else
+    {
+        fcnt = emalloc(trunk_len);
+        if (fcnt == NULL)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "malloc failed. Error: %s[%d]", strerror(errno), errno);
+            RETURN_FALSE;
+        }
+    }
 
 	//printf("buf_len=%d|addr=%p\n", buf_len, fcnt);
 	//printf("pagesize=%d|st_size=%d\n", sysconf(_SC_PAGESIZE), buf_len);
@@ -274,15 +299,14 @@ PHP_FUNCTION(swoole_async_read)
 	Z_ADDREF_PP(&cb);
 	Z_ADDREF_PP(&filename);
 
-	if (zend_hash_update(&php_sw_aio_callback, (char * )&fd, sizeof(fd), &req, sizeof(swoole_async_file_request),
-			NULL) == FAILURE)
+	if (zend_hash_update(&php_sw_aio_callback, (char * )&fd, sizeof(fd), &req, sizeof(swoole_async_file_request), NULL) == FAILURE)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async_readfile add to hashtable[1] failed");
 		RETURN_FALSE;
 	}
 
 	php_swoole_check_aio();
-	SW_CHECK_RETURN(swoole_aio_read(fd, fcnt, trunk_len, 0));
+	SW_CHECK_RETURN(SwooleAIO.read(fd, fcnt, trunk_len, 0));
 	RETURN_TRUE;
 }
 
@@ -303,26 +327,27 @@ PHP_FUNCTION(swoole_async_write)
 	convert_to_string(filename);
 
 	char *wt_cnt;
-#ifdef SW_AIO_LINUX_NATIVE
-	if (posix_memalign((void **)&wt_cnt, sysconf(_SC_PAGESIZE), fcnt_len))
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "posix_memalign failed. Error: %s[%d]", strerror(errno), errno);
-		RETURN_FALSE;
-	}
-#else
-	wt_cnt = fcnt;
-	wt_cnt = emalloc(fcnt_len);
-#endif
+	int open_flag = O_WRONLY | O_CREAT;
+
+	if (SWOOLE_G(aio_mode) == SW_AIO_LINUX)
+    {
+        if (posix_memalign((void **) &wt_cnt, sysconf(_SC_PAGESIZE), fcnt_len))
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "posix_memalign failed. Error: %s[%d]", strerror(errno), errno);
+            RETURN_FALSE;
+        }
+        open_flag |= O_DIRECT;
+    }
+    else
+    {
+        wt_cnt = fcnt;
+        wt_cnt = emalloc(fcnt_len);
+    }
 
 	swoole_async_file_request *req = swHashMap_find(php_swoole_open_files, Z_STRVAL_P(filename), Z_STRLEN_P(filename));
 
 	if (req == NULL)
 	{
-#ifdef HAVE_LINUX_NATIVE_AIO
-		int open_flag = O_WRONLY | O_DIRECT | O_CREAT;
-#else
-		int open_flag = O_WRONLY | O_CREAT;
-#endif
 		fd = open(Z_STRVAL_P(filename), open_flag, 0644);
 		if (fd < 0)
 		{
@@ -364,7 +389,7 @@ PHP_FUNCTION(swoole_async_write)
 	memcpy(wt_cnt, fcnt, fcnt_len);
 
 	php_swoole_check_aio();
-	SW_CHECK_RETURN(swoole_aio_write(fd, wt_cnt, fcnt_len, offset));
+	SW_CHECK_RETURN(SwooleAIO.write(fd, wt_cnt, fcnt_len, offset));
 	RETURN_TRUE;
 }
 
@@ -373,11 +398,12 @@ PHP_FUNCTION(swoole_async_readfile)
 	zval *cb;
 	zval *filename;
 
-#ifdef HAVE_LINUX_NATIVE_AIO
-	int open_flag =  O_RDONLY | O_DIRECT;
-#else
 	int open_flag = O_RDONLY;
-#endif
+
+	if (SWOOLE_G(aio_mode) == SW_AIO_LINUX)
+	{
+	    open_flag |=  O_DIRECT;
+	}
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zz", &filename, &cb) == FAILURE)
 	{
@@ -411,22 +437,27 @@ PHP_FUNCTION(swoole_async_readfile)
 	}
 
 	void *fcnt;
-#ifdef HAVE_LINUX_NATIVE_AIO
-	int buf_len = file_stat.st_size + (sysconf(_SC_PAGESIZE) - (file_stat.st_size % sysconf(_SC_PAGESIZE)));
-	if (posix_memalign((void **)&fcnt, sysconf(_SC_PAGESIZE), buf_len))
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "posix_memalign failed. Error: %s[%d]", strerror(errno), errno);
-		RETURN_FALSE;
-	}
-#else
-	int buf_len = file_stat.st_size;
-	fcnt = emalloc(buf_len);
-	if (fcnt == NULL)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "malloc failed. Error: %s[%d]", strerror(errno), errno);
-		RETURN_FALSE;
-	}
-#endif
+	int buf_len;
+
+	if (SWOOLE_G(aio_mode) == SW_AIO_LINUX)
+    {
+        buf_len = file_stat.st_size + (sysconf(_SC_PAGESIZE) - (file_stat.st_size % sysconf(_SC_PAGESIZE)));
+        if (posix_memalign((void **) &fcnt, sysconf(_SC_PAGESIZE), buf_len))
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "posix_memalign failed. Error: %s[%d]", strerror(errno), errno);
+            RETURN_FALSE;
+        }
+    }
+    else
+    {
+        buf_len = file_stat.st_size;
+        fcnt = emalloc(buf_len);
+        if (fcnt == NULL)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "malloc failed. Error: %s[%d]", strerror(errno), errno);
+            RETURN_FALSE;
+        }
+    }
 
 	//printf("buf_len=%d|addr=%p\n", buf_len, fcnt);
 	//printf("pagesize=%d|st_size=%d\n", sysconf(_SC_PAGESIZE), buf_len);
@@ -451,7 +482,7 @@ PHP_FUNCTION(swoole_async_readfile)
 	}
 
 	php_swoole_check_aio();
-	SW_CHECK_RETURN(swoole_aio_read(fd, fcnt, buf_len, 0));
+	SW_CHECK_RETURN(SwooleAIO.read(fd, fcnt, buf_len, 0));
 }
 
 PHP_FUNCTION(swoole_async_writefile)
@@ -528,7 +559,7 @@ PHP_FUNCTION(swoole_async_writefile)
 
 	memcpy(wt_cnt, fcnt, fcnt_len);
 	php_swoole_check_aio();
-	SW_CHECK_RETURN(swoole_aio_write(fd, wt_cnt, fcnt_len, 0));
+	SW_CHECK_RETURN(SwooleAIO.read(fd, wt_cnt, fcnt_len, 0));
 }
 
 PHP_FUNCTION(swoole_async_dns_lookup)

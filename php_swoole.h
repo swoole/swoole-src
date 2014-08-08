@@ -31,6 +31,7 @@
 #include "swoole.h"
 #include "Server.h"
 #include "Client.h"
+#include "async.h"
 
 #define PHP_SWOOLE_VERSION  "1.7.5-beta"
 #define PHP_SWOOLE_CHECK_CALLBACK
@@ -269,8 +270,11 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
 	uint8_t task_ipc_mode;
 	uint8_t task_auto_start;
 	key_t message_queue_key;
+	uint8_t aio_mode;
 	uint32_t unixsock_buffer_size;
 ZEND_END_MODULE_GLOBALS(swoole)
+
+extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 
 #ifdef ZTS
 #define SWOOLE_G(v) TSRMG(swoole_globals_id, zend_swoole_globals *, v)

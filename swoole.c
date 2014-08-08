@@ -280,7 +280,6 @@ static int php_swoole_onTask(swServer *, swEventData *task);
 static int php_swoole_onFinish(swServer *, swEventData *task);
 static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker_pid, int exit_code);
 
-
 static void swoole_destory_server(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 static void swoole_destory_client(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 
@@ -496,6 +495,7 @@ STD_PHP_INI_ENTRY("swoole.task_worker_num", "0", PHP_INI_ALL, OnUpdateLong, task
 STD_PHP_INI_ENTRY("swoole.task_ipc_mode", "0", PHP_INI_ALL, OnUpdateString, task_ipc_mode, zend_swoole_globals, swoole_globals)
 STD_PHP_INI_ENTRY("swoole.task_auto_start", "0", PHP_INI_ALL, OnUpdateString, task_auto_start, zend_swoole_globals, swoole_globals)
 STD_PHP_INI_ENTRY("swoole.message_queue_key", "0", PHP_INI_ALL, OnUpdateString, message_queue_key, zend_swoole_globals, swoole_globals)
+STD_PHP_INI_ENTRY("swoole.aio_mode", "0", PHP_INI_ALL, OnUpdateLong, aio_mode, zend_swoole_globals, swoole_globals)
 /**
  * Unix socket buffer size
  */
@@ -507,6 +507,7 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
 	swoole_globals->task_worker_num = 0;
 	swoole_globals->task_ipc_mode = 0;
 	swoole_globals->unixsock_buffer_size = SW_UNSOCK_BUFSIZE;
+	swoole_globals->aio_mode = SW_AIO_BASE;
 }
 
 /* {{{ PHP_MINIT_FUNCTION

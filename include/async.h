@@ -20,6 +20,13 @@ typedef struct _swAio_event
 	int error;
 } swAio_event;
 
+enum swAioMode
+{
+    SW_AIO_BASE = 0,
+    SW_AIO_GCC,
+    SW_AIO_LINUX,
+};
+
 enum
 {
 	SW_AIO_READ = 0,
@@ -32,16 +39,31 @@ enum
 #endif
 
 extern swPipe swoole_aio_pipe;
-extern int swoole_aio_have_init;
 extern swReactor *swoole_aio_reactor;
-extern void (*swoole_aio_complete_callback)(swAio_event *aio_event);
+
+typedef struct
+{
+    void (*destroy)(void);
+    void (*callback)(swAio_event *aio_event);
+    int (*read)(int fd, void *outbuf, size_t size, off_t offset);
+    int (*write)(int fd, void *inbuf, size_t size, off_t offset);
+} swAIO;
+
+extern swAIO SwooleAIO;
+extern int swoole_aio_have_init;
 
 void swoole_aio_callback(swAio_event *aio_event);
-int swoole_aio_init(swReactor *reactor, int max_aio_events);
-void swoole_aio_destroy();
-int swoole_aio_read(int fd, void *outbuf, size_t size, off_t offset);
-int swoole_aio_write(int fd, void *inbuf, size_t size, off_t offset);
+
+int swAioBase_init(swReactor *_reactor, int max_aio_events);
+
+#ifdef HAVE_GCC_AIO
+int swAioGcc_init(swReactor *_reactor, int max_aio_events);
+#endif
+
+#ifdef HAVE_LINUX_AIO
+int swAioLinux_init(swReactor *_reactor, int max_aio_events);
+#endif
+
 int swoole_aio_dns_lookup(void *hostname, void *ip_addr, size_t size);
-#define swoole_aio_set_callback(callback) swoole_aio_complete_callback = callback
 
 #endif /* _SW_ASYNC_H_ */
