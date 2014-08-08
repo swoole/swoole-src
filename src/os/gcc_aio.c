@@ -36,30 +36,26 @@ static int swAioGcc_write(int fd, void *inbuf, size_t size, off_t offset);
 static int swAioGcc_onFinish(swReactor *reactor, swEvent *event);
 static void swAioGcc_destroy(void);
 
-int swAioGcc_init(swReactor *_reactor, int max_aio_events)
+int swAioGcc_init(int max_aio_events)
 {
-    if (swoole_aio_have_init == 0)
+    if (swPipeBase_create(&swoole_aio_pipe, 0) < 0)
     {
-        if (swPipeBase_create(&swoole_aio_pipe, 0) < 0)
-        {
-            return SW_ERR;
-        }
-
-        swSignal_set(SIGIO, swAioGcc_signal_handler, 1, 0);
-
-        swoole_aio_reactor = _reactor;
-        swAioGcc_pipe_read = swoole_aio_pipe.getFd(&swoole_aio_pipe, 0);
-        swAioGcc_pipe_write = swoole_aio_pipe.getFd(&swoole_aio_pipe, 1);
-        swoole_aio_reactor->setHandle(swoole_aio_reactor, SW_FD_AIO, swAioGcc_onFinish);
-        swoole_aio_reactor->add(swoole_aio_reactor, swAioGcc_pipe_read, SW_FD_AIO);
-
-        swoole_aio_have_init = 1;
-
-        SwooleAIO.callback = swoole_aio_callback;
-        SwooleAIO.read = swAioGcc_aio_read;
-        SwooleAIO.write = swAioGcc_write;
-        SwooleAIO.destroy = swAioGcc_destroy;
+        return SW_ERR;
     }
+
+    swSignal_set(SIGIO, swAioGcc_signal_handler, 1, 0);
+
+    swAioGcc_pipe_read = swoole_aio_pipe.getFd(&swoole_aio_pipe, 0);
+    swAioGcc_pipe_write = swoole_aio_pipe.getFd(&swoole_aio_pipe, 1);
+
+    SwooleAIO.reactor->setHandle(SwooleAIO.reactor, SW_FD_AIO, swAioGcc_onFinish);
+    SwooleAIO.reactor->add(SwooleAIO.reactor, swAioGcc_pipe_read, SW_FD_AIO);
+
+    SwooleAIO.callback = swAio_callback_test;
+    SwooleAIO.read = swAioGcc_aio_read;
+    SwooleAIO.write = swAioGcc_write;
+    SwooleAIO.destroy = swAioGcc_destroy;
+
     return SW_OK;
 }
 

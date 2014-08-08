@@ -17,7 +17,6 @@
 /* $Id: swoole.c 2013-12-24 10:31:55Z tianfeng $ */
 
 #include "php_swoole.h"
-#include <ext/standard/info.h>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -337,6 +336,7 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_timer_add, arginfo_swoole_timer_add)
 	PHP_FE(swoole_timer_del, arginfo_swoole_timer_del)
 	/*------swoole_async_io------*/
+	PHP_FE(swoole_async_set, NULL)
 	PHP_FE(swoole_async_read, NULL)
 	PHP_FE(swoole_async_write, NULL)
 	PHP_FE(swoole_async_readfile, NULL)
@@ -495,7 +495,6 @@ STD_PHP_INI_ENTRY("swoole.task_worker_num", "0", PHP_INI_ALL, OnUpdateLong, task
 STD_PHP_INI_ENTRY("swoole.task_ipc_mode", "0", PHP_INI_ALL, OnUpdateString, task_ipc_mode, zend_swoole_globals, swoole_globals)
 STD_PHP_INI_ENTRY("swoole.task_auto_start", "0", PHP_INI_ALL, OnUpdateString, task_auto_start, zend_swoole_globals, swoole_globals)
 STD_PHP_INI_ENTRY("swoole.message_queue_key", "0", PHP_INI_ALL, OnUpdateString, message_queue_key, zend_swoole_globals, swoole_globals)
-STD_PHP_INI_ENTRY("swoole.aio_mode", "0", PHP_INI_ALL, OnUpdateLong, aio_mode, zend_swoole_globals, swoole_globals)
 /**
  * Unix socket buffer size
  */
@@ -507,7 +506,6 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
 	swoole_globals->task_worker_num = 0;
 	swoole_globals->task_ipc_mode = 0;
 	swoole_globals->unixsock_buffer_size = SW_UNSOCK_BUFSIZE;
-	swoole_globals->aio_mode = SW_AIO_BASE;
 }
 
 /* {{{ PHP_MINIT_FUNCTION
@@ -604,10 +602,11 @@ PHP_MINIT_FUNCTION(swoole)
 
 	zend_hash_init(&php_sw_long_connections, 16, NULL, ZVAL_PTR_DTOR, 1);
 
-	swoole_table_init(TSRMLS_C);
-
 	//swoole init
 	swoole_init();
+
+	swoole_async_init(module_number TSRMLS_C);
+	swoole_table_init(module_number TSRMLS_C);
 
 	if (SWOOLE_G(unixsock_buffer_size) > 0)
 	{
@@ -852,7 +851,7 @@ PHP_FUNCTION(swoole_server_set)
 {
 	zval *zset = NULL;
 	zval *zobject = getThis();
-	HashTable * vht;
+	HashTable *vht;
 	swServer *serv;
 	zval **v;
 	double timeout;
@@ -889,17 +888,17 @@ PHP_FUNCTION(swoole_server_set)
 		serv->timeout_sec = (int)timeout;
 		serv->timeout_usec = (int)((timeout*1000*1000) - (serv->timeout_sec*1000*1000));
 	}
-	//daemonize
-	if (zend_hash_find(vht, ZEND_STRS("daemonize"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		serv->daemonize = (int)Z_LVAL_PP(v);
-	}
-	//backlog
-	if (zend_hash_find(vht, ZEND_STRS("backlog"), (void **)&v) == SUCCESS)
-	{
-		serv->backlog = (int)Z_LVAL_PP(v);
-	}
+    //daemonize
+    if (zend_hash_find(vht, ZEND_STRS("daemonize"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(*v);
+        serv->daemonize = (int) Z_LVAL_PP(v);
+    }
+    //backlog
+    if (zend_hash_find(vht, ZEND_STRS("backlog"), (void **) &v) == SUCCESS)
+    {
+        serv->backlog = (int) Z_LVAL_PP(v);
+    }
 	//poll_thread_num
 	if (zend_hash_find(vht, ZEND_STRS("reactor_num"), (void **) &v) == SUCCESS
 			|| zend_hash_find(vht, ZEND_STRS("poll_thread_num"), (void **) &v) == SUCCESS)

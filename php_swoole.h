@@ -24,6 +24,8 @@
 #include "php_globals.h"
 #include "php_main.h"
 
+#include <ext/standard/info.h>
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -203,6 +205,7 @@ PHP_FUNCTION(swoole_async_close);
 PHP_FUNCTION(swoole_async_readfile);
 PHP_FUNCTION(swoole_async_writefile);
 PHP_FUNCTION(swoole_async_dns_lookup);
+PHP_FUNCTION(swoole_async_set);
 
 PHP_FUNCTION(swoole_timer_add);
 PHP_FUNCTION(swoole_timer_del);
@@ -260,7 +263,9 @@ void swoole_destory_lock(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 void swoole_destory_process(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 void swoole_destory_buffer(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 void swoole_destory_table(zend_rsrc_list_entry *rsrc TSRMLS_DC);
-void swoole_table_init(TSRMLS_D);
+
+void swoole_async_init(int module_number TSRMLS_DC);
+void swoole_table_init(int module_number TSRMLS_DC);
 
 void php_swoole_check_reactor();
 void php_swoole_try_run_reactor();
@@ -270,7 +275,6 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
 	uint8_t task_ipc_mode;
 	uint8_t task_auto_start;
 	key_t message_queue_key;
-	uint8_t aio_mode;
 	uint32_t unixsock_buffer_size;
 ZEND_END_MODULE_GLOBALS(swoole)
 

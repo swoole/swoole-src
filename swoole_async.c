@@ -18,8 +18,6 @@
 #include "php_streams.h"
 #include "php_network.h"
 
-#define PHP_SWOOLE_AIO_MAXEVENTS       128
-
 typedef struct
 {
 	zval *callback;
@@ -42,6 +40,14 @@ static void php_swoole_aio_onComplete(swAio_event *event);
 static char php_swoole_aio_init = 0;
 static swHashMap *php_swoole_open_files;
 
+void swoole_async_init(int module_number TSRMLS_DC)
+{
+    bzero(&SwooleAIO, sizeof(SwooleAIO));
+    REGISTER_LONG_CONSTANT("SWOOLE_AIO_BASE", SW_AIO_BASE, CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("SWOOLE_AIO_GCC", SW_AIO_GCC, CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("SWOOLE_AIO_LINUX", SW_AIO_LINUX, CONST_CS | CONST_PERSISTENT);
+}
+
 static void php_swoole_check_aio()
 {
 	if (php_swoole_aio_init == 0)
@@ -49,24 +55,6 @@ static void php_swoole_check_aio()
 	    php_swoole_open_files = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N);
 		php_swoole_check_reactor();
 
-        switch (SWOOLE_G(aio_mode))
-        {
-#ifdef HAVE_LINUX_AIO
-        case SW_AIO_LINUX:
-            swAioLinux_init(SwooleG.main_reactor, PHP_SWOOLE_AIO_MAXEVENTS);
-            break;
-#endif
-
-#ifdef HAVE_GCC_AIO
-        case SW_AIO_GCC:
-            swAioGcc_init(SwooleG.main_reactor, PHP_SWOOLE_AIO_MAXEVENTS);
-            break;
-#endif
-
-        default:
-            swAioBase_init(SwooleG.main_reactor, PHP_SWOOLE_AIO_MAXEVENTS);
-            break;
-        }
 
         SwooleAIO.callback = php_swoole_aio_onComplete;
 		php_swoole_try_run_reactor();
@@ -184,7 +172,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 			zval_ptr_dtor(&file_req->callback);
 			zval_ptr_dtor(&file_req->filename);
 
-			if (SWOOLE_G(aio_mode) == SW_AIO_LINUX)
+			if (SwooleAIO.mode == SW_AIO_LINUX)
 			{
 			    free(event->buf);
 			}
@@ -250,7 +238,7 @@ PHP_FUNCTION(swoole_async_read)
 	}
 	convert_to_string(filename);
 
-	if (SWOOLE_G(aio_mode) == SW_AIO_LINUX)
+	if (SwooleAIO.mode == SW_AIO_LINUX)
 	{
 	    open_flag |= O_DIRECT;
 	}
@@ -264,7 +252,7 @@ PHP_FUNCTION(swoole_async_read)
 
 	void *fcnt;
 
-    if (SWOOLE_G(aio_mode) == SW_AIO_LINUX)
+    if (SwooleAIO.mode == SW_AIO_LINUX)
     {
         int buf_len = trunk_len + (sysconf(_SC_PAGESIZE) - (trunk_len % sysconf(_SC_PAGESIZE)));
         if (posix_memalign((void **) &fcnt, sysconf(_SC_PAGESIZE), buf_len))
@@ -329,7 +317,7 @@ PHP_FUNCTION(swoole_async_write)
 	char *wt_cnt;
 	int open_flag = O_WRONLY | O_CREAT;
 
-	if (SWOOLE_G(aio_mode) == SW_AIO_LINUX)
+	if (SwooleAIO.mode == SW_AIO_LINUX)
     {
         if (posix_memalign((void **) &wt_cnt, sysconf(_SC_PAGESIZE), fcnt_len))
         {
@@ -400,7 +388,7 @@ PHP_FUNCTION(swoole_async_readfile)
 
 	int open_flag = O_RDONLY;
 
-	if (SWOOLE_G(aio_mode) == SW_AIO_LINUX)
+	if (SwooleAIO.mode == SW_AIO_LINUX)
 	{
 	    open_flag |=  O_DIRECT;
 	}
@@ -439,7 +427,7 @@ PHP_FUNCTION(swoole_async_readfile)
 	void *fcnt;
 	int buf_len;
 
-	if (SWOOLE_G(aio_mode) == SW_AIO_LINUX)
+	if (SwooleAIO.mode == SW_AIO_LINUX)
     {
         buf_len = file_stat.st_size + (sysconf(_SC_PAGESIZE) - (file_stat.st_size % sysconf(_SC_PAGESIZE)));
         if (posix_memalign((void **) &fcnt, sysconf(_SC_PAGESIZE), buf_len))
@@ -562,6 +550,32 @@ PHP_FUNCTION(swoole_async_writefile)
 	SW_CHECK_RETURN(SwooleAIO.read(fd, wt_cnt, fcnt_len, 0));
 }
 
+PHP_FUNCTION(swoole_async_set)
+{
+    zval *zset;
+    HashTable *vht;
+    zval **v;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &zset) == FAILURE)
+    {
+        return;
+    }
+
+    vht = Z_ARRVAL_P(zset);
+
+    if (zend_hash_find(vht, ZEND_STRS("aio_mode"), (void **)&v) == SUCCESS)
+    {
+        convert_to_long(*v);
+        SwooleAIO.mode = (uint8_t) Z_LVAL_PP(v);
+    }
+
+    if (zend_hash_find(vht, ZEND_STRS("thread_num"), (void **)&v) == SUCCESS)
+    {
+        convert_to_long(*v);
+        SwooleAIO.thread_num = (uint8_t) Z_LVAL_PP(v);
+    }
+}
+
 PHP_FUNCTION(swoole_async_dns_lookup)
 {
 	zval *domain;
@@ -588,5 +602,5 @@ PHP_FUNCTION(swoole_async_dns_lookup)
 	void *buf = emalloc(SW_IP_MAX_LENGTH);
 	memcpy(buf, Z_STRVAL_P(domain), Z_STRLEN_P(domain));
 	php_swoole_check_aio();
-	SW_CHECK_RETURN(swoole_aio_dns_lookup(req, buf, SW_IP_MAX_LENGTH));
+	SW_CHECK_RETURN(swAio_dns_lookup(req, buf, SW_IP_MAX_LENGTH));
 }

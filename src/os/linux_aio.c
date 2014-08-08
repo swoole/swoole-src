@@ -51,35 +51,30 @@ static sw_inline int io_destroy(aio_context_t ctx)
     return syscall(__NR_io_destroy, ctx);
 }
 
-int swAioLinux_init(swReactor *_reactor, int max_aio_events)
+int swAioLinux_init(int max_aio_events)
 {
-	if (swoole_aio_have_init == 0)
-	{
-		swoole_aio_context = 0;
-		if (io_setup(SW_AIO_MAX_EVENTS, &swoole_aio_context) < 0)
-		{
-			swWarn("io_setup() failed. Error: %s[%d]", strerror(errno), errno);
-			return SW_ERR;
-		}
+    swoole_aio_context = 0;
+    if (io_setup(SW_AIO_MAX_EVENTS, &swoole_aio_context) < 0)
+    {
+        swWarn("io_setup() failed. Error: %s[%d]", strerror(errno), errno);
+        return SW_ERR;
+    }
 
-		if (swPipeNotify_auto(&swoole_aio_pipe, 0, 0) < 0)
-		{
-			return SW_ERR;
-		}
+    if (swPipeNotify_auto(&swoole_aio_pipe, 0, 0) < 0)
+    {
+        return SW_ERR;
+    }
 
-		swoole_aio_reactor = _reactor;
-		swoole_aio_eventfd = swoole_aio_pipe.getFd(&swoole_aio_pipe, 0);
-		swoole_aio_reactor->setHandle(swoole_aio_reactor, SW_FD_AIO, swAioLinux_onFinish);
-		swoole_aio_reactor->add(swoole_aio_reactor, swoole_aio_eventfd, SW_FD_AIO);
+    swoole_aio_eventfd = swoole_aio_pipe.getFd(&swoole_aio_pipe, 0);
+    SwooleAIO.reactor->setHandle(SwooleAIO.reactor, SW_FD_AIO, swAioLinux_onFinish);
+    SwooleAIO.reactor->add(SwooleAIO.reactor, swoole_aio_eventfd, SW_FD_AIO);
 
-		SwooleAIO.callback = swoole_aio_callback;
-		SwooleAIO.destroy = swAioLinux_destroy;
-		SwooleAIO.read = swAioLinux_read;
-		SwooleAIO.write = swAioLinux_write;
+    SwooleAIO.callback = swAio_callback_test;
+    SwooleAIO.destroy = swAioLinux_destroy;
+    SwooleAIO.read = swAioLinux_read;
+    SwooleAIO.write = swAioLinux_write;
 
-		swoole_aio_have_init = 1;
-	}
-	return SW_OK;
+    return SW_OK;
 }
 
 static int swAioLinux_onFinish(swReactor *reactor, swEvent *event)

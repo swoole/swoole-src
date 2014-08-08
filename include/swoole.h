@@ -1099,7 +1099,7 @@ static sw_inline void sw_spinlock(sw_atomic_t *lock)
         }
         if (SW_CPU_NUM > 1)
         {
-            for (n = 1; n < 127; n <<= 1)
+            for (n = 1; n < SW_SPINLOCK_LOOP_N; n <<= 1)
             {
                 for (i = 0; i < n; i++)
                 {
@@ -1114,11 +1114,6 @@ static sw_inline void sw_spinlock(sw_atomic_t *lock)
         }
         swYield();
     }
-}
-
-static sw_inline void sw_spinlock_release(sw_atomic_t *lock)
-{
-    *lock = 0;
 }
 
 #ifdef __cplusplus

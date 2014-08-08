@@ -154,7 +154,7 @@ swTableRow* swTableRow_add(swTable *table, char *key, int keylen)
         }
     }
     row->active = 1;
-    sw_atomic_lock_release(&row->lock);
+    sw_spinlock_release(&row->lock);
     return row;
 }
 
