@@ -149,15 +149,15 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(c, eventfd, AC_DEFINE(HAVE_EVENTFD, 1, [have eventfd]))
     AC_CHECK_LIB(c, epoll_create, AC_DEFINE(HAVE_EPOLL, 1, [have epoll]))
     AC_CHECK_LIB(c, kqueue, AC_DEFINE(HAVE_KQUEUE, 1, [have kqueue]))
-    
     AC_CHECK_LIB(c, daemon, AC_DEFINE(HAVE_DAEMON, 1, [have daemon]))
     AC_CHECK_LIB(c, mkostemp, AC_DEFINE(HAVE_MKOSTEMP, 1, [have mkostemp]))
     AC_CHECK_LIB(pthread, pthread_spin_lock, AC_DEFINE(HAVE_SPINLOCK, 1, [have pthread_spin_lock]))
     AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
+    AC_CHECK_LIB(rt, aio_read, AC_DEFINE(HAVE_GCC_AIO, 1, [have gcc aio]))
     AC_CHECK_LIB(ssl, SSL_library_init, AC_DEFINE(HAVE_OPENSSL, 1, [have openssl]))
 
-    dnl PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
-    dnl PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
+    PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
+    PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
 
     if test "$PHP_OPENSSL" = "yes"; then
         AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])

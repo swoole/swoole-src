@@ -45,7 +45,7 @@ int swAioGcc_init(swReactor *_reactor, int max_aio_events)
             return SW_ERR;
         }
 
-        swSignal_add(SIGIO, swAioGcc_signal_handler);
+        swSignal_set(SIGIO, swAioGcc_signal_handler, 1, 0);
 
         swoole_aio_reactor = _reactor;
         swAioGcc_pipe_read = swoole_aio_pipe.getFd(&swoole_aio_pipe, 0);

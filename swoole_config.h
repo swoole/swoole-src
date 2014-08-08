@@ -60,8 +60,9 @@
 #define SW_REACTOR_WRITER_TIMEO    3    //writer线程的reactor
 #define SW_TASKWAIT_TIMEOUT        0.5
 
+#ifdef HAVE_EVENTFD
 #define HAVE_LINUX_AIO
-#define HAVE_GCC_AIO
+#endif
 
 #define SW_AIO_THREAD_POOL
 #define SW_AIO_THREAD_NUM          2
