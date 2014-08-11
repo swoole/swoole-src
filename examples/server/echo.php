@@ -5,7 +5,7 @@ $serv->set(array(
 		//'ipc_mode' => 2,
 		'worker_num' => 4,
 		'task_worker_num' => 2,
-		'max_request' => 1000,
+		//'max_request' => 1000,
 		//'daemonize' => true,
 		//'log_file' => '/tmp/swoole.log'
 ));

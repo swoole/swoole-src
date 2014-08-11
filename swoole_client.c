@@ -323,20 +323,57 @@ static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event)
 
 		do
 		{
-			ret = swConnection_buffer_send(&cli->connection);
-			switch(ret)
-			{
-			//connection error, close it
-			case SW_CLOSE:
-				return php_swoole_client_close(zobject, event->fd TSRMLS_CC);
-			//send continue
-			case SW_CONTINUE:
-				break;
-			//reactor_wait
-			case SW_WAIT:
-			default:
-				return SW_OK;
-			}
+		    swBuffer_trunk *trunk = swBuffer_get_trunk(out_buffer);
+		    if (trunk->type == SW_TRUNK_SENDFILE)
+		    {
+		        swTask_sendfile *task = trunk->store.ptr;
+                int sendn = (task->filesize - task->offset > SW_SENDFILE_TRUNK) ? SW_SENDFILE_TRUNK : task->filesize - task->offset;
+                ret = swoole_sendfile(cli->connection.fd, task->fd, &task->offset, sendn);
+                swTrace("ret=%d|task->offset=%ld|sendn=%d|filesize=%ld", ret, task->offset, sendn, task->filesize);
+
+                if (ret <= 0)
+                {
+                    switch (swConnection_error(errno))
+                    {
+                    case SW_ERROR:
+                        swWarn("sendfile failed. Error: %s[%d]", strerror(errno), errno);
+                        swBuffer_pop_trunk(out_buffer, trunk);
+                        return SW_OK;
+                    case SW_CLOSE:
+                        goto close_fd;
+                    default:
+                        break;
+                    }
+                }
+                //sendfile finish
+                if (task->offset >= task->filesize)
+                {
+                    swBuffer_pop_trunk(out_buffer, trunk);
+                    close(task->fd);
+                    sw_free(task);
+                }
+		    }
+		    else
+		    {
+                ret = swConnection_buffer_send(&cli->connection);
+                switch (ret)
+                {
+                //connection error, close it
+                case SW_CLOSE:
+                    close_fd:
+                    {
+                        return php_swoole_client_close(zobject, event->fd TSRMLS_CC);
+                    }
+                    break;
+                    //send continue
+                case SW_CONTINUE:
+                    break;
+                    //reactor_wait
+                case SW_WAIT:
+                default:
+                    return SW_OK;
+                }
+		    }
 		} while (!swBuffer_empty(out_buffer));
 
 		SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, cli->reactor_fdtype | SW_EVENT_READ);

@@ -74,7 +74,7 @@ extern "C" {
 #define SW_MAX_TMP_PKG             1000
 #define SW_LOG_FILENAME            128
 
-enum
+enum swTrunk
 {
 	SW_TRUNK_DATA, //send data
 	SW_TRUNK_SENDFILE, //send file
@@ -100,9 +100,10 @@ enum
 	SW_RESPONSE_BIG   = 1,
 };
 
-typedef struct _swUdpFd{
-	struct sockaddr addr;
-	int sock;
+typedef struct _swUdpFd
+{
+    struct sockaddr addr;
+    int sock;
 } swUdpFd;
 
 typedef struct _swReactorThread
