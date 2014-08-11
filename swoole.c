@@ -668,8 +668,14 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef SW_USE_RINGBUFFER
     php_info_print_table_row(2, "ringbuffer", "enabled");
 #endif
+#ifdef HAVE_LINUX_AIO
+    php_info_print_table_row(2, "Linux Native AIO", "enabled");
+#endif
+#ifdef HAVE_GCC_AIO
+    php_info_print_table_row(2, "Gcc AIO", "enabled");
+#endif
 
-	php_info_print_table_end();
+    php_info_print_table_end();
 
 	DISPLAY_INI_ENTRIES();
 }
@@ -1052,25 +1058,28 @@ PHP_FUNCTION(swoole_server_set)
 		}
 		memcpy(serv->log_file, Z_STRVAL_PP(v), Z_STRLEN_PP(v));
 	}
-	//heartbeat idle time
-	if (zend_hash_find(vht, ZEND_STRS("heartbeat_idle_time"), (void **) &v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		serv->heartbeat_idle_time = (int) Z_LVAL_PP(v);
-	}
 	//heartbeat_check_interval
 	if (zend_hash_find(vht, ZEND_STRS("heartbeat_check_interval"), (void **) &v) == SUCCESS)
 	{
 		convert_to_long(*v);
 		serv->heartbeat_check_interval = (int) Z_LVAL_PP(v);
 	}
+	//heartbeat idle time
+    if (zend_hash_find(vht, ZEND_STRS("heartbeat_idle_time"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(*v);
+        serv->heartbeat_idle_time = (int) Z_LVAL_PP(v);
 
-	if (serv->heartbeat_check_interval > serv->heartbeat_idle_time)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "heartbeat_idle_time must be greater than heartbeat_check_interval.");
-		serv->heartbeat_check_interval = serv->heartbeat_idle_time;
-	}
-
+        if (serv->heartbeat_check_interval > serv->heartbeat_idle_time)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "heartbeat_idle_time must be greater than heartbeat_check_interval.");
+            serv->heartbeat_check_interval = serv->heartbeat_idle_time;
+        }
+    }
+    else if (serv->heartbeat_check_interval > 0)
+    {
+        serv->heartbeat_idle_time = serv->heartbeat_check_interval;
+    }
 	//heartbeat_ping
 	if (zend_hash_find(vht, ZEND_STRS("heartbeat_ping"), (void **) &v) == SUCCESS)
 	{
