@@ -38,7 +38,7 @@ swBuffer* swBuffer_new(int trunk_size)
 /**
  * create new trunk
  */
-swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint16_t size)
+swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint32_t size)
 {
 	swBuffer_trunk *trunk = sw_malloc(sizeof(swBuffer_trunk));
 	if (trunk == NULL)
@@ -55,11 +55,12 @@ swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint16_t siz
 		void *buf = sw_malloc(size);
 		if (buf == NULL)
 		{
-			swWarn("malloc for data failed. Error: %s[%d]", strerror(errno), errno);
+			swWarn("malloc(%d) for data failed. Error: %s[%d]", size, strerror(errno), errno);
 			sw_free(trunk);
 			return NULL;
 		}
-		trunk->data = buf;
+		trunk->size = size;
+		trunk->store.ptr = buf;
 	}
 
 	trunk->type = type;
@@ -74,30 +75,33 @@ swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint16_t siz
 		buffer->tail->next = trunk;
 		buffer->tail = trunk;
 	}
+
 	return trunk;
 }
 
 /**
  * pop the head trunk
  */
-SWINLINE void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk)
+void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk)
 {
 	//only one trunk
 	if (trunk->next == NULL)
 	{
 		buffer->head = NULL;
 		buffer->tail = NULL;
+		buffer->length = 0;
 		buffer->trunk_num = 0;
 	}
 	else
 	{
 		buffer->head = trunk->next;
+		buffer->length -= trunk->length;
 		buffer->trunk_num --;
 	}
 
 	if (trunk->type == SW_TRUNK_DATA)
 	{
-		sw_free(trunk->data);
+		sw_free(trunk->store.ptr);
 	}
 	sw_free(trunk);
 }
@@ -107,15 +111,15 @@ SWINLINE void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk)
  */
 int swBuffer_free(swBuffer *buffer)
 {
-	swBuffer_trunk *trunk = buffer->head;
-	swBuffer_trunk *will_free_trunk; //free the point
+	volatile swBuffer_trunk *trunk = buffer->head;
+	void * *will_free_trunk; //free the point
 	while (trunk != NULL)
 	{
 		if (trunk->type == SW_TRUNK_DATA)
 		{
-			sw_free(trunk->data);
+			sw_free(trunk->store.ptr);
 		}
-		will_free_trunk = trunk;
+		will_free_trunk = (void *) trunk;
 		trunk = trunk->next;
 		sw_free(will_free_trunk);
 	}
@@ -137,7 +141,7 @@ int swBuffer_append(swBuffer *buffer, void *data, uint32_t size)
 	buffer->length += size;
 	trunk->length = size;
 
-	memcpy(trunk->data, data, trunk->length);
+	memcpy(trunk->store.ptr, data, trunk->length);
 
 	swTraceLog(SW_TRACE_BUFFER, "trunk_n=%d|size=%d|trunk_len=%d|trunk=%p", buffer->trunk_num, size,
 			trunk->length, trunk);
@@ -146,61 +150,22 @@ int swBuffer_append(swBuffer *buffer, void *data, uint32_t size)
 }
 
 /**
- * send buffer to client
- */
-int swBuffer_send(swBuffer *buffer, int fd)
-{
-	int ret, sendn;
-	swBuffer_trunk *trunk = swBuffer_get_trunk(buffer);
-	sendn = trunk->length - trunk->offset;
-
-	if (sendn == 0)
-	{
-		swBuffer_pop_trunk(buffer, trunk);
-		return SW_CONTINUE;
-	}
-	ret = send(fd, trunk->data + trunk->offset, sendn, 0);
-	//printf("BufferOut: reactor=%d|sendn=%d|ret=%d|trunk->offset=%d|trunk_len=%d\n", reactor->id, sendn, ret, trunk->offset, trunk->length);
-	if (ret < 0)
-	{
-		if (swConnection_error(fd, errno) < 0)
-		{
-			return SW_CLOSE;
-		}
-		else if(errno == EAGAIN)
-		{
-			return SW_WAIT;
-		}
-		else
-		{
-			swWarn("send to fd[%d] failed. Error: %s[%d]", fd, strerror(errno), errno);
-			return SW_CONTINUE;
-		}
-	}
-	//trunk full send
-	else if(ret == sendn || sendn == 0)
-	{
-		swBuffer_pop_trunk(buffer, trunk);
-	}
-	else
-	{
-		trunk->offset += ret;
-	}
-	return SW_CONTINUE;
-}
-
-/**
  * print buffer
  */
-void swBuffer_debug(swBuffer *buffer)
+void swBuffer_debug(swBuffer *buffer, int print_data)
 {
 	int i = 0;
-	swBuffer_trunk *trunk = buffer->head;
+	volatile swBuffer_trunk *trunk = buffer->head;
 	printf("%s\n%s\n", SW_START_LINE, __func__);
-	while (trunk != NULL && trunk->next != NULL)
+	while (trunk != NULL)
 	{
 		i++;
-		printf("%d.\tlen=%d\tdata=%s\n", i, trunk->length, (char *)trunk->data);
+		printf("%d.\tlen=%d", i, trunk->length);
+		if (print_data)
+		{
+			printf("\tdata=%s", (char *) trunk->store.ptr);
+		}
+		printf("\n");
 		trunk = trunk->next;
 	}
 	printf("%s\n%s\n", SW_END_LINE, __func__);

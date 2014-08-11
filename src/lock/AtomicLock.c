@@ -29,32 +29,8 @@ int swAtomicLock_create(swLock *lock, int spin)
 
 int swAtomicLock_lock(swLock *lock)
 {
-	atomic_t *atomic = &lock->object.atomlock.lock_t;
-	uint32_t i, n;
-	while (1)
-	{
-		if (*atomic == 0 && sw_atomic_cmp_set(atomic, 0, 1))
-		{
-			return SW_OK;
-		}
-		if (SW_CPU_NUM > 1)
-		{
-			for (n = 1; n < lock->object.atomlock.spin; n <<= 1)
-			{
-				for (i = 0; i < n; i++)
-				{
-					sw_atomic_cpu_pause();
-				}
-
-				if (*atomic == 0 && sw_atomic_cmp_set(atomic, 0, 1))
-				{
-					return SW_OK;
-				}
-			}
-		}
-		swYield();
-	}
-	return SW_ERR;
+	sw_spinlock(&lock->object.atomlock.lock_t);
+	return SW_OK;
 }
 
 int swAtomicLock_unlock(swLock *lock)
@@ -64,6 +40,6 @@ int swAtomicLock_unlock(swLock *lock)
 
 int swAtomicLock_trylock(swLock *lock)
 {
-	atomic_t *atomic = &lock->object.atomlock.lock_t;
+	sw_atomic_t *atomic = &lock->object.atomlock.lock_t;
 	return (*(atomic) == 0 && sw_atomic_cmp_set(atomic, 0, 1));
 }

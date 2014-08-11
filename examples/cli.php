@@ -5,7 +5,7 @@
 //$client->send(str_repeat("B", 566));
 //$client->send(str_repeat("C", 900));
 // pcntl_fork();
-
+function test_client(){
 $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC); //同步阻塞
 if(!$client->connect('127.0.0.1', 9501))
 {
@@ -35,7 +35,9 @@ for($i=0; $i<$loop; $i++)
 //echo "len=".strlen($data)."\n";
 // $client->send("HELLO\0\nWORLD");
 // $data = $client->recv(9000, 0);
-//$client->close();
+$client->close();
 var_dump($data);
-
-sleep(1000);
+unset($client);
+}
+test_client();
+sleep(1);

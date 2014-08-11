@@ -71,6 +71,10 @@ void swLog_put(int level, char *cnt)
 	p = localtime(&t);
 	snprintf(date_str, SW_LOG_DATE_STRLEN, "%d-%02d-%02d %02d:%02d:%02d", p->tm_year + 1900, p->tm_mon+1, p->tm_mday , p->tm_hour, p->tm_min, p->tm_sec);
 	n = snprintf(log_str, SW_LOG_BUFFER_SIZE, SW_LOG_FORMAT, date_str, level_str, cnt);
-	write(SwooleG.log_fd, log_str, n);
+
+	if (write(SwooleG.log_fd, log_str, n) < 0)
+	{
+		//write to log failed.
+	}
 }
 

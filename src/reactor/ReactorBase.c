@@ -16,6 +16,21 @@
 
 #include "swoole.h"
 
+int swReactor_auto(swReactor *reactor, int max_event)
+{
+	int ret;
+#ifdef HAVE_EPOLL
+	ret = swReactorEpoll_create(reactor, max_event);
+#elif defined(HAVE_KQUEUE)
+	ret = swReactorKqueue_create(reactor, max_event);
+#elif defined(SW_MAINREACTOR_USE_POLL)
+	ret = swReactorPoll_create(reactor, max_event);
+#else
+	ret = swReactorSelect_create(SwooleG.main_reactor)
+#endif
+	return ret;
+}
+
 int swReactor_accept(swReactor *reactor, swDataHead *event)
 {
 	swEventConnect conn_ev;
@@ -35,36 +50,6 @@ int swReactor_accept(swReactor *reactor, swDataHead *event)
 	return conn_ev.conn_fd;
 }
 
-SWINLINE int swReactor_error(swReactor *reactor)
-{
-	switch (errno)
-	{
-	case EINTR:
-		return SW_OK;
-	}
-	return SW_ERR;
-}
-
-SWINLINE int swReactor_fdtype(int fdtype)
-{
-	return fdtype & (~SW_EVENT_READ) & (~SW_EVENT_WRITE) & (~SW_EVENT_ERROR);
-}
-
-SWINLINE int swReactor_event_read(int fdtype)
-{
-	return (fdtype < SW_EVENT_DEAULT) || (fdtype & SW_EVENT_READ);
-}
-
-SWINLINE int swReactor_event_write(int fdtype)
-{
-	return fdtype & SW_EVENT_WRITE;
-}
-
-SWINLINE int swReactor_event_error(int fdtype)
-{
-	return fdtype & SW_EVENT_ERROR;
-}
-
 swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype)
 {
 	if (event_type == SW_EVENT_WRITE)
@@ -78,24 +63,6 @@ swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdt
 		return (reactor->error_handle[fdtype] != NULL) ? reactor->error_handle[fdtype] : reactor->handle[SW_FD_CLOSE];
 	}
 	return reactor->handle[fdtype];
-}
-
-/**
- * 自动适配reactor
- */
-int swReactor_auto(swReactor *reactor, int max_event)
-{
-	int ret;
-#ifdef HAVE_EPOLL
-	ret = swReactorEpoll_create(reactor, max_event);
-#elif defined(HAVE_KQUEUE)
-	ret = swReactorKqueue_create(reactor, max_event);
-#elif defined(SW_MAINREACTOR_USE_POLL)
-	ret = swReactorPoll_create(reactor, max_event);
-#else
-	ret = swReactorSelect_create(SwooleG.main_reactor)
-#endif
-	return ret;
 }
 
 int swReactor_setHandle(swReactor *reactor, int _fdtype, swReactor_handle handle)

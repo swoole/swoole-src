@@ -36,6 +36,12 @@ int swTimer_create(swTimer *timer, int interval, int use_pipe)
 	SwooleG.use_timerfd = 0;
 #endif
 
+	timer->list = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N);
+	if (!timer->list)
+	{
+	    return SW_ERR;
+	}
+
 	if (SwooleG.use_timerfd)
 	{
 		if (swTimer_timerfd_set(timer, interval) < 0)
@@ -53,6 +59,7 @@ int swTimer_create(swTimer *timer, int interval, int use_pipe)
 				return SW_ERR;
 			}
 			timer->fd = timer->pipe.getFd(&timer->pipe, 0);
+			timer->use_pipe = 1;
 		}
 		else
 		{
@@ -73,8 +80,8 @@ int swTimer_create(swTimer *timer, int interval, int use_pipe)
  */
 static int swTimer_timerfd_set(swTimer *timer, int interval)
 {
-#ifdef HAVE_TIMERFD
 
+#ifdef HAVE_TIMERFD
 	struct timeval now;
 	int sec = interval / 1000;
 	int msec = (((float) interval / 1000) - sec) * 1000;
@@ -140,12 +147,12 @@ static int swTimer_signal_set(swTimer *timer, int interval)
 
 void swTimer_del(swTimer *timer, int ms)
 {
-	swHashMap_del_int(&timer->list, ms);
+	swHashMap_del_int(timer->list, ms);
 }
 
 int swTimer_free(swTimer *timer)
 {
-	swHashMap_destory(&timer->list);
+	swHashMap_free(timer->list);
 	if (timer->use_pipe)
 	{
 		return timer->pipe.close(&timer->pipe);
@@ -161,7 +168,7 @@ int swTimer_add(swTimer *timer, int ms)
 	swTimer_node *node = sw_malloc(sizeof(swTimer_node));
 	if (node == NULL)
 	{
-		swWarn("swTimer_add malloc fail");
+		swWarn("malloc failed.");
 		return SW_ERR;
 	}
 
@@ -182,18 +189,17 @@ int swTimer_add(swTimer *timer, int ms)
 			swTimer_signal_set(timer, new_interval);
 		}
 	}
-	swHashMap_add_int(&timer->list, ms, node);
+	swHashMap_add_int(timer->list, ms, node);
 	timer->num++;
 	return SW_OK;
 }
 
 int swTimer_select(swTimer *timer)
 {
-	void *tmp = NULL;
 	uint64_t key;
 	swTimer_node *timer_node;
 
-	uint64_t now_ms = swTimer_get_ms();
+	int64_t now_ms = swTimer_get_ms();
 	if (now_ms < 0)
 	{
 		return SW_ERR;
@@ -205,11 +211,12 @@ int swTimer_select(swTimer *timer)
 		return SW_ERR;
 	}
 
-	while (1)
+	do
 	{
-		//swWarn("timer foreach start\n----------------------------------------------");
-		tmp = swHashMap_foreach_int(&timer->list, &key, (void **)&timer_node, tmp);
-		//hashmap empty
+	    //swWarn("timer foreach start\n----------------------------------------------");
+	    timer_node = swHashMap_each_int(timer->list, &key);
+
+	    //hashmap empty
 		if (timer_node == NULL)
 		{
 			break;
@@ -220,12 +227,7 @@ int swTimer_select(swTimer *timer)
 			timer->onTimer(timer, timer_node->interval);
 			timer_node->lasttime += timer_node->interval;
 		}
-		//foreach end
-		if (tmp == NULL)
-		{
-			break;
-		}
-	}
+	} while(timer_node);
 	return SW_OK;
 }
 
@@ -238,23 +240,22 @@ int swTimer_event_handler(swReactor *reactor, swEvent *event)
 	{
 		return SW_ERR;
 	}
+	SwooleG.signal_alarm = 0;
 	return swTimer_select(timer);
 }
 
 void swTimer_signal_handler(int sig)
 {
-	if (SwooleG.timer.use_pipe == 1)
+	SwooleG.signal_alarm = 1;
+	uint64_t flag = 1;
+
+	if (SwooleG.timer.use_pipe)
 	{
-		uint64_t flag = 1;
 		SwooleG.timer.pipe.write(&SwooleG.timer.pipe, &flag, sizeof(flag));
-	}
-	else
-	{
-		SwooleG.signal_alarm = 1;
 	}
 }
 
-SWINLINE uint64_t swTimer_get_ms()
+int64_t swTimer_get_ms()
 {
 	struct timeval now;
 	if (gettimeofday(&now, NULL) < 0)

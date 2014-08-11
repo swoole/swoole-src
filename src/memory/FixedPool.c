@@ -82,6 +82,37 @@ swMemoryPool* swFixedPool_new(uint32_t slice_num, uint32_t slice_size, uint8_t s
 }
 
 /**
+ * create new FixedPool, Using the given memory
+ */
+swMemoryPool* swFixedPool_new2(uint32_t slice_size, void *memory, size_t size)
+{
+    swFixedPool *object = memory;
+    memory += sizeof(swFixedPool);
+    bzero(object, sizeof(swFixedPool));
+
+    object->slice_size = slice_size;
+    object->size = size - sizeof(swMemoryPool) - sizeof(swFixedPool);
+    object->slice_num = object->size / slice_size;
+
+    swMemoryPool *pool = memory;
+    memory += sizeof(swMemoryPool);
+
+    pool->object = object;
+    pool->alloc = swFixedPool_alloc;
+    pool->free = NULL;
+    pool->destroy = NULL;
+
+    object->memory = memory;
+
+    /**
+     * init linked list
+     */
+    swFixedPool_init(object);
+
+    return pool;
+}
+
+/**
  * linked list
  */
 static void swFixedPool_init(swFixedPool *object)

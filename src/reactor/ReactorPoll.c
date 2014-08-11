@@ -188,13 +188,13 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *_timeo)
 		{
 			if (swReactor_error(reactor) < 0)
 			{
-				swWarn("poll error. Errno=%d\n", errno);
+				swWarn("poll error. Error: %s[%d]", strerror(errno), errno);
 			}
 			continue;
 		}
 		else if (ret == 0)
 		{
-			if(reactor->onTimeout != NULL)
+			if (reactor->onTimeout != NULL)
 			{
 				reactor->onTimeout(reactor);
 			}
@@ -215,31 +215,37 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *_timeo)
 					ret = handle(reactor, &event);
 					if (ret < 0)
 					{
-						swWarn("poll[POLLIN] handler failed. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
-					}
-				}
-				//error
-				if (object->events[i].revents & (POLLHUP | POLLERR))
-				{
-					handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
-					ret = handle(reactor, &event);
-					if (ret < 0)
-					{
-						swWarn("poll[POLLERR] handler failed. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
+						swWarn("poll[POLLIN] handler failed. fd=%d. Error: %s[%d]", event.fd, strerror(errno), errno);
 					}
 				}
 				//out
 				if (object->events[i].revents & POLLOUT)
 				{
-					handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
-					ret = handle(reactor, &event);
-					if (ret < 0)
+					if (event.fd > 0)
 					{
-						swWarn("poll[POLLOUT] handler failed. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
+						handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
+						ret = handle(reactor, &event);
+						if (ret < 0)
+						{
+							swWarn("poll[POLLOUT] handler failed. fd=%d. Error: %s[%d]", event.fd, strerror(errno), errno);
+						}
+					}
+				}
+				//error
+				if (object->events[i].revents & (POLLHUP | POLLERR))
+				{
+					if (event.fd > 0)
+					{
+						handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, event.type);
+						ret = handle(reactor, &event);
+						if (ret < 0)
+						{
+							swWarn("poll[POLLERR] handler failed. fd=%d. Error: %s[%d]", event.fd, strerror(errno), errno);
+						}
 					}
 				}
 			}
-			if(reactor->onFinish != NULL)
+			if (reactor->onFinish != NULL)
 			{
 				reactor->onFinish(reactor);
 			}

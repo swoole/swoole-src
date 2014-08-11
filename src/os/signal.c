@@ -35,6 +35,10 @@ void swSignal_none(void)
  */
 swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask)
 {
+	if (func == NULL)
+	{
+		func =  SIG_IGN;
+	}
 	struct sigaction act, oact;
 	act.sa_handler = func;
 	if (mask)
@@ -63,10 +67,6 @@ void swSignal_add(int signo, swSignalFunc func)
 	else
 #endif
 	{
-		if (func == NULL)
-		{
-			func = SIG_IGN;
-		}
 		swSignal_set(signo, func, 1, 0);
 	}
 }
@@ -78,8 +78,6 @@ void swSignal_add(int signo, swSignalFunc func)
 #include <sys/signalfd.h>
 
 #define SW_SIGNAL_INIT_NUM    8
-
-static int swSignalfd_onSignal(swReactor *reactor, swEvent *event);
 
 static sigset_t swoole_signalfd_mask;
 static int swoole_signalfd = 0;
@@ -156,7 +154,7 @@ int swSignalfd_setup(swReactor *reactor)
 	}
 }
 
-static int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
+int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
 {
 	int n, i;
 	struct signalfd_siginfo siginfo;

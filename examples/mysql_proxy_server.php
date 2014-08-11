@@ -17,6 +17,7 @@ class DBServer
         $serv = new swoole_server("127.0.0.1", 9509);
         $serv->set(array(
             'worker_num' => 1,
+            'max_request' => 0,
         ));
 
         $serv->on('WorkerStart', array($this, 'onStart'));
@@ -76,8 +77,10 @@ class DBServer
 
     function onReceive($serv, $fd, $from_id, $data)
     {
+	echo "Received: $data\n";
         //没有空闲的数据库连接
-        if (count($this->idle_pool) == 0) {
+        
+	if (count($this->idle_pool) == 0) {
             //等待队列未满
             if (count($this->wait_queue) < $this->wait_queue_max) {
                 $this->wait_queue[] = array(

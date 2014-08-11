@@ -1,19 +1,25 @@
 #ifndef __SW_HASHMAP_H
 #define __SW_HASHMAP_H
 
-typedef struct swHashMap_node* swHashMap;
+typedef struct
+{
+    struct swHashMap_node *root;
+    struct swHashMap_node *iterator;
+} swHashMap;
 
-void swHashMap_free(swHashMap *hm);
-int swHashMap_add(swHashMap *hm, char *key, uint16_t key_len, void *data);
-void swHashMap_add_int(swHashMap *hm, uint64_t key, void *data);
-void* swHashMap_find(swHashMap *hm, char *key, uint16_t key_len);
-void* swHashMap_find_int(swHashMap *hm, uint64_t key);
-void swHashMap_update_int(swHashMap *hm, uint64_t key, void *data);
-int swHashMap_update(swHashMap *hm, char *key, uint16_t key_len, void *data);
-int swHashMap_del(swHashMap *hm, char *key, uint16_t key_len);
-void swHashMap_del_int(swHashMap *hm, uint64_t key);
-SWINLINE void* swHashMap_foreach(swHashMap* root, char **key, void **data, swHashMap head);
-void* swHashMap_foreach_int(swHashMap* root, uint64_t *key, void **data, swHashMap head);
-void swHashMap_destory(swHashMap* root);
+swHashMap* swHashMap_new(uint32_t bucket_num);
+void swHashMap_free(swHashMap *hmap);
+
+int swHashMap_add(swHashMap *hmap, char *key, uint16_t key_len, void *data);
+void swHashMap_add_int(swHashMap *hmap, uint64_t key, void *data);
+void* swHashMap_find(swHashMap *hmap, char *key, uint16_t key_len);
+void* swHashMap_find_int(swHashMap *hmap, uint64_t key);
+void swHashMap_update_int(swHashMap *hmap, uint64_t key, void *data);
+int swHashMap_update(swHashMap *hmap, char *key, uint16_t key_len, void *data);
+int swHashMap_del(swHashMap *hmap, char *key, uint16_t key_len);
+void swHashMap_del_int(swHashMap *hmap, uint64_t key);
+void* swHashMap_each(swHashMap* hmap, char **key);
+void* swHashMap_each_int(swHashMap* hmap, uint64_t *key);
+#define swHashMap_each_reset(hmap)    (hmap->iterator = NULL)
 
 #endif

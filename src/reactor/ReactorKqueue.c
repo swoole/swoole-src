@@ -101,7 +101,7 @@ static int swReactorKqueue_add(swReactor *reactor, int fd, int fdtype)
 	fd_.fd = fd;
 	fd_.fdtype = swReactor_fdtype(fdtype);
 
-	if(swReactor_event_read(fdtype))
+	if (swReactor_event_read(fdtype))
 	{
 #ifdef NOTE_EOF
 		fflags = NOTE_EOF;
@@ -169,7 +169,7 @@ static int swReactorKqueue_set(swReactor *reactor, int fd, int fdtype)
 			return SW_ERR;
 		}
 	}
-	if(swReactor_event_write(fdtype))
+	if (swReactor_event_write(fdtype))
 	{
 		EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, NULL);
 		memcpy(&e.udata, &fd_, sizeof(swFd));
@@ -239,7 +239,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 		if (n < 0)
 		{
 			//swTrace("kqueue error.EP=%d | Errno=%d\n", this->epfd, errno);
-			if(swReactor_error(reactor) < 0)
+			if (swReactor_error(reactor) < 0)
 			{
 				swWarn("Kqueue[#%d] Error: %s[%d]", reactor->id, strerror(errno), errno);
 				return SW_ERR;
@@ -251,7 +251,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 		}
 		else if (n == 0)
 		{
-			if(reactor->onTimeout != NULL)
+			if (reactor->onTimeout != NULL)
 			{
 				reactor->onTimeout(reactor);
 			}
@@ -278,11 +278,14 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 				//write
 				else if (this->events[i].filter == EVFILT_WRITE)
 				{
-					handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
-					ret = handle(reactor, &event);
-					if (ret < 0)
+					if (event.fd > 0)
 					{
-						swWarn("kqueue event handler fail. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
+						handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
+						ret = handle(reactor, &event);
+						if (ret < 0)
+						{
+							swWarn("kqueue event handler fail. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
+						}
 					}
 				}
 				else
@@ -292,7 +295,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 			}
 
 		}
-		if(reactor->onFinish != NULL)
+		if (reactor->onFinish != NULL)
 		{
 			reactor->onFinish(reactor);
 		}

@@ -5,12 +5,20 @@
  */
 $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
 $args = getopt("p:h:f:t");
-if (empty($args['p']) or empty($args['h']) or empty($args['f'])) {
-    echo "Usage: php {$argv[0]} -h server_ip -p server_port -f file\n";
+
+if (empty($args['h']) or empty($args['f'])) 
+{
+    echo "Usage: php {$argv[0]} -h server_ip -p server_port -f file -t timeout\n";
     exit;
 }
 
-if (empty($args['t'])) {
+if (empty($args['p']))
+{
+	$args['p'] = 9507;
+}
+
+if (empty($args['t'])) 
+{
     $args['t'] = 30;
 }
 

@@ -1,8 +1,8 @@
-Swoole
+![Swoole](http://www.swoole.com/static/images/swoole.png)
 =====
-[![Build Status](https://api.travis-ci.org/matyhtf/swoole.svg)](https://travis-ci.org/matyhtf/swoole)
+[![Build Status](https://api.travis-ci.org/swoole/swoole-src.svg)](https://travis-ci.org/swoole/swoole-src)
 
-PHP's asynchronous & concurrent & distributed networking framework.
+Asynchronous & concurrent & distributed networking framework for PHP.
 
 * event-driven
 * full asynchronous non-blocking

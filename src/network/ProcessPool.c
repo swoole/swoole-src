@@ -42,6 +42,12 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
 		return SW_ERR;
 	}
 
+	pool->map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N);
+	if (pool->map == NULL)
+	{
+	    return SW_ERR;
+	}
+
 	int i;
 	if (msgqueue_key > 0)
 	{
@@ -72,7 +78,6 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
 		swProcessPool_worker(pool, i).id = i;
 		swProcessPool_worker(pool, i).pool = pool;
 	}
-
 	pool->main_loop = swProcessPool_worker_start;
 	return SW_OK;
 }
@@ -125,7 +130,30 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int worker_id
 	else
 	{
 		swWorker *worker = &swProcessPool_worker(pool, worker_id);
-		ret = swWrite(worker->pipe_master, data, sizeof(data->info) + data->info.len);
+
+		while(1)
+		{
+			ret = write(worker->pipe_master, data, sizeof(data->info) + data->info.len);
+			if (ret < 0)
+			{
+				/**
+				 * Wait pipe can be written.
+				 */
+				if (errno == EAGAIN && swSocket_wait(worker->pipe_master, SW_WORKER_WAIT_TIMEOUT, SW_EVENT_WRITE) == SW_OK)
+				{
+					continue;
+				}
+				else if (errno == EINTR)
+				{
+					continue;
+				}
+				else
+				{
+					break;
+				}
+			}
+			break;
+		}
 		if (ret < 0)
 		{
 			swWarn("sendto unix socket failed. Error: %s[%d]", strerror(errno), errno);
@@ -159,11 +187,25 @@ pid_t swProcessPool_spawn(swWorker *worker)
 	{
 	//child
 	case 0:
+		/**
+		 * Process start
+		 */
 		if (pool->onWorkerStart != NULL)
 		{
 			pool->onWorkerStart(pool, worker->id);
 		}
-		exit(pool->main_loop(pool, worker));
+		/**
+		 * Process main loop
+		 */
+		int ret_code = pool->main_loop(pool, worker);
+		/**
+		 * Process stop
+		 */
+		if (pool->onWorkerStop != NULL)
+		{
+			pool->onWorkerStop(pool, worker->id);
+		}
+		exit(ret_code);
 		break;
 	case -1:
 		swWarn("[swProcessPool_run] fork failed. Error: %s [%d]", strerror(errno), errno);
@@ -171,7 +213,7 @@ pid_t swProcessPool_spawn(swWorker *worker)
 		//parent
 	default:
 		worker->pid = pid;
-		swHashMap_add_int(&pool->map, pid, worker);
+		swHashMap_add_int(pool->map, pid, worker);
 		break;
 	}
 	return pid;
@@ -188,7 +230,7 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
 	int n, ret;
 	int task_n, worker_task_always = 0;
 
-	if (pool->max_request == 0)
+	if (pool->max_request < 1)
 	{
 		task_n = 1;
 		worker_task_always = 1;
@@ -198,7 +240,9 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
 		task_n = pool->max_request;
 	}
 
-	//使用from_fd保存task_worker的id
+	/**
+	 * Use from_fd save the task_worker->id
+	 */
 	out.buf.info.from_fd = worker->id;
 
 	if (SwooleG.task_ipc_mode > 1)
@@ -215,21 +259,25 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
 		if (pool->use_msgqueue)
 		{
 			n = pool->queue.out(&pool->queue, (swQueue_data *) &out, sizeof(out.buf));
-			if (n < 0)
-			{
-				swWarn("[Worker#%d]deQueue failed. Error: %s [%d]", worker->id, strerror(errno), errno);
-				continue;
-			}
 		}
 		else
 		{
 			n = read(worker->pipe_worker, &out.buf, sizeof(out.buf));
-			if (n < 0)
-			{
-				swWarn("[Worker#%d]read pipe failed. Error: %s [%d]", worker->id, strerror(errno), errno);
-				continue;
-			}
 		}
+
+		if (n < 0)
+		{
+			if (errno != EINTR)
+			{
+				swWarn("[Worker#%d]read() or msgrcv() failed. Error: %s [%d]", worker->id, strerror(errno), errno);
+			}
+			else if (SwooleG.signal_alarm)
+			{
+				swTimer_select(&SwooleG.timer);
+			}
+			continue;
+		}
+
 		ret = pool->onTask(pool, &out.buf);
 		if (ret > 0 && !worker_task_always)
 		{
@@ -244,7 +292,7 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
  */
 int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker)
 {
-	swHashMap_add_int(&pool->map, worker->pid, worker);
+	swHashMap_add_int(pool->map, worker->pid, worker);
 	return SW_OK;
 }
 
@@ -281,7 +329,7 @@ int swProcessPool_wait(swProcessPool *pool)
 		}
 		if (SwooleG.running == 1)
 		{
-			swWorker *exit_worker = swHashMap_find_int(&pool->map, pid);
+			swWorker *exit_worker = swHashMap_find_int(pool->map, pid);
 			if (exit_worker == NULL)
 			{
 				swWarn("[Manager]unknow worker[pid=%d]", pid);
@@ -293,7 +341,7 @@ int swProcessPool_wait(swProcessPool *pool)
 				swWarn("Fork worker process fail. Error: %s [%d]", strerror(errno), errno);
 				return SW_ERR;
 			}
-			swHashMap_del_int(&pool->map, pid);
+			swHashMap_del_int(pool->map, pid);
 		}
 		//reload worker
 		reload_worker: if (pool->reloading == 1)
@@ -322,12 +370,17 @@ static void swProcessPool_free(swProcessPool *pool)
 {
 	int i;
 	swPipe *pipe;
-	for (i = 0; i < pool->worker_num; i++)
+
+	if (!pool->use_msgqueue)
 	{
-		pipe = &pool->pipes[i];
-		pipe->close(pipe);
+		for (i = 0; i < pool->worker_num; i++)
+		{
+			pipe = &pool->pipes[i];
+			pipe->close(pipe);
+		}
 	}
+
 	sw_free(pool->workers);
 	sw_free(pool->pipes);
-	swHashMap_free(&pool->map);
+	swHashMap_free(pool->map);
 }

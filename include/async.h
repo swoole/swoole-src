@@ -8,6 +8,24 @@
 #ifndef _SW_ASYNC_H_
 #define _SW_ASYNC_H_
 
+#ifndef O_DIRECT
+#define O_DIRECT         040000
+#endif
+
+enum swAioMode
+{
+    SW_AIO_BASE = 0,
+    SW_AIO_GCC,
+    SW_AIO_LINUX,
+};
+
+enum
+{
+    SW_AIO_READ = 0,
+    SW_AIO_WRITE = 1,
+    SW_AIO_DNS_LOOKUP = 2,
+};
+
 typedef struct _swAio_event
 {
 	int fd;
@@ -20,28 +38,34 @@ typedef struct _swAio_event
 	int error;
 } swAio_event;
 
-enum
+typedef struct
 {
-	SW_AIO_READ = 0,
-	SW_AIO_WRITE = 1,
-	SW_AIO_DNS_LOOKUP = 2,
-};
+    uint8_t init;
+    uint8_t mode;
+    uint8_t thread_num;
 
-#ifndef O_DIRECT
-#define O_DIRECT         040000
-#endif
+    swReactor *reactor;
+
+    void (*destroy)(void);
+    void (*callback)(swAio_event *aio_event);
+    int (*read)(int fd, void *outbuf, size_t size, off_t offset);
+    int (*write)(int fd, void *inbuf, size_t size, off_t offset);
+} swAIO;
 
 extern swPipe swoole_aio_pipe;
-extern int swoole_aio_have_init;
-extern swReactor *swoole_aio_reactor;
-extern void (*swoole_aio_complete_callback)(swAio_event *aio_event);
+extern swAIO SwooleAIO;
 
-void swoole_aio_callback(swAio_event *aio_event);
-int swoole_aio_init(swReactor *reactor, int max_aio_events);
-void swoole_aio_destroy();
-int swoole_aio_read(int fd, void *outbuf, size_t size, off_t offset);
-int swoole_aio_write(int fd, void *inbuf, size_t size, off_t offset);
-int swoole_aio_dns_lookup(void *hostname, void *ip_addr, size_t size);
-#define swoole_aio_set_callback(callback) swoole_aio_complete_callback = callback
+void swAio_callback_test(swAio_event *aio_event);
+int swAio_init(uint8_t aio_mode);
+int swAioBase_init(int max_aio_events);
+int swAio_dns_lookup(void *hostname, void *ip_addr, size_t size);
+
+#ifdef HAVE_GCC_AIO
+int swAioGcc_init(int max_aio_events);
+#endif
+
+#ifdef HAVE_LINUX_AIO
+int swAioLinux_init(int max_aio_events);
+#endif
 
 #endif /* _SW_ASYNC_H_ */
