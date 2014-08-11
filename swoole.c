@@ -605,8 +605,8 @@ PHP_MINIT_FUNCTION(swoole)
 	//swoole init
 	swoole_init();
 
-	swoole_async_init(module_number TSRMLS_C);
-	swoole_table_init(module_number TSRMLS_C);
+	swoole_async_init(module_number TSRMLS_CC);
+	swoole_table_init(module_number TSRMLS_CC);
 
 	if (SWOOLE_G(unixsock_buffer_size) > 0)
 	{
