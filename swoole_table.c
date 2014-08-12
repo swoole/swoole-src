@@ -152,7 +152,7 @@ PHP_METHOD(swoole_table, add)
         else
         {
             convert_to_long(v);
-            swTableRow_set(row, col, (void *) Z_LVAL_P(v), 0);
+            swTableRow_set(row, col, &Z_LVAL_P(v), 0);
         }
     } while (p);
 }

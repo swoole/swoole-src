@@ -812,52 +812,52 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 #endif
 	}
 
-	if (factory->max_request < 1)
-	{
-		SwooleWG.run_always = 1;
-	}
-	else
-	{
-		worker_task_num = factory->max_request;
-		worker_task_num += swRandom(worker_pti);
-	}
+    if (serv->max_request < 1)
+    {
+        SwooleWG.run_always = 1;
+    }
+    else
+    {
+        worker_task_num = serv->max_request;
+        worker_task_num += swRandom(worker_pti);
+    }
 
 	//worker start
 	swServer_worker_onStart(serv);
 
-	if (serv->ipc_mode == SW_IPC_MSGQUEUE)
-	{
-		while (SwooleG.running > 0)
-		{
-			n = serv->read_queue.out(&serv->read_queue, (swQueue_data *)&rdata, sizeof(rdata.req));
-			if (n < 0)
-			{
-				if (errno == EINTR)
-				{
-					if (SwooleG.signal_alarm)
-					{
-						swTimer_select(&SwooleG.timer);
-					}
-				}
-				else
-				{
-					swWarn("[Worker]read_queue[%ld]->out wait failed. Error: %s [%d]", rdata.pti, strerror(errno), errno);
-				}
-				continue;
-			}
-			swFactoryProcess_worker_excute(factory, &rdata.req);
-		}
-	}
-	else
-	{
-		struct timeval timeo;
-		timeo.tv_sec = SW_REACTOR_TIMEO_SEC;
-		timeo.tv_usec = SW_REACTOR_TIMEO_USEC;
-		SwooleG.main_reactor->wait(SwooleG.main_reactor, &timeo);
-	}
+    if (serv->ipc_mode == SW_IPC_MSGQUEUE)
+    {
+        while (SwooleG.running > 0)
+        {
+            n = serv->read_queue.out(&serv->read_queue, (swQueue_data *) &rdata, sizeof(rdata.req));
+            if (n < 0)
+            {
+                if (errno == EINTR)
+                {
+                    if (SwooleG.signal_alarm)
+                    {
+                        swTimer_select(&SwooleG.timer);
+                    }
+                }
+                else
+                {
+                    swWarn("[Worker%ld] read_queue->out() failed. Error: %s [%d]", rdata.pti, strerror(errno), errno);
+                }
+                continue;
+            }
+            swFactoryProcess_worker_excute(factory, &rdata.req);
+        }
+    }
+    else
+    {
+        struct timeval timeo;
+        timeo.tv_sec = SW_REACTOR_TIMEO_SEC;
+        timeo.tv_usec = SW_REACTOR_TIMEO_USEC;
+        SwooleG.main_reactor->wait(SwooleG.main_reactor, &timeo);
+    }
 
-	//worker shutdown
-	swServer_worker_onStop(serv);
+    //worker shutdown
+    swServer_worker_onStop(serv);
 
 	swTrace("[Worker]max request");
 	return SW_OK;
