@@ -223,6 +223,7 @@ PHP_METHOD(swoole_client, __construct);
 PHP_METHOD(swoole_client, connect);
 PHP_METHOD(swoole_client, recv);
 PHP_METHOD(swoole_client, send);
+PHP_METHOD(swoole_client, sendfile);
 PHP_METHOD(swoole_client, close);
 PHP_METHOD(swoole_client, on);
 

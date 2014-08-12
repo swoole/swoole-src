@@ -305,6 +305,51 @@ uint32_t swoole_common_multiple(uint32_t u, uint32_t v)
     return u * v / n_cup;
 }
 
+int swSocket_sendfile_sync(int sock, char *filename, double timeout)
+{
+    int timeout_ms = timeout < 0 ? -1 : timeout * 1000;
+    int file_fd = open(filename, O_RDONLY);
+    if (file_fd < 0)
+    {
+        swWarn("open(%s) failed. Error: %s[%d]", filename, strerror(errno), errno);
+        return SW_ERR;
+    }
+
+    struct stat file_stat;
+    if (fstat(file_fd, &file_stat) < 0)
+    {
+        swWarn("fstat() failed. Error: %s[%d]", strerror(errno), errno);
+        return SW_ERR;
+    }
+
+    int n, sendn;
+    off_t offset = 0;
+    size_t file_size = file_stat.st_size;
+
+    while (offset < file_size)
+    {
+        if (swSocket_wait(sock, timeout_ms, SW_EVENT_WRITE) < 0)
+        {
+            return SW_ERR;
+        }
+        else
+        {
+            sendn = (file_size - offset > SW_SENDFILE_TRUNK) ? SW_SENDFILE_TRUNK : file_size - offset;
+            n = swoole_sendfile(sock, file_fd, &offset, sendn);
+            if (n <= 0)
+            {
+                swWarn("sendfile() failed. Error: %s[%d]", strerror(errno), errno);
+                return SW_ERR;
+            }
+            else
+            {
+                continue;
+            }
+        }
+    }
+    return SW_OK;
+}
+
 /**
  * Wait socket can read or write.
  */

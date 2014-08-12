@@ -90,7 +90,6 @@ typedef struct _swConnection
 } swConnection;
 
 int swConnection_send_blocking(int fd, void *data, int length, int timeout);
-int swConnection_sendfile_blocking(int fd, char *filename, int timeout);
 int swConnection_buffer_send(swConnection *conn);
 
 swString* swConnection_get_string_buffer(swConnection *conn);

@@ -1006,7 +1006,7 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 			{
 				if (resp->info.type == SW_EVENT_SENDFILE)
 				{
-					ret = swConnection_sendfile_blocking(resp->info.fd, resp->data, 1000 * SW_WRITER_TIMEOUT);
+					ret = swSocket_sendfile_sync(resp->info.fd, resp->data, SW_WRITER_TIMEOUT);
 				}
 				else
 				{

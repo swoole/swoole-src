@@ -385,6 +385,7 @@ const zend_function_entry swoole_client_methods[] =
 	PHP_ME(swoole_client, connect, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_client, recv, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_client, send, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_client, sendfile, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_client, close, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_client, on, NULL, ZEND_ACC_PUBLIC)
 	PHP_FE_END
@@ -990,7 +991,7 @@ PHP_FUNCTION(swoole_server_set)
 		serv->package_eof_len = Z_STRLEN_PP(v);
 		if (serv->package_eof_len > SW_DATA_EOF_MAXLEN)
 		{
-			php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_server date_eof max length is %d", SW_DATA_EOF_MAXLEN);
+			php_error_docref(NULL TSRMLS_CC, E_ERROR, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
 			RETURN_FALSE;
 		}
 		bzero(serv->package_eof, SW_DATA_EOF_MAXLEN);
@@ -2509,8 +2510,7 @@ PHP_FUNCTION(swoole_server_sendfile)
     //file name size
     if (send_data.info.len > SW_BUFFER_SIZE - 1)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "sendfile name too long. [MAX_LENGTH=%d]",
-                (int) SW_BUFFER_SIZE - 1);
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "sendfile name too long. [MAX_LENGTH=%d]", (int) SW_BUFFER_SIZE - 1);
         RETURN_FALSE;
     }
     //check file exists
