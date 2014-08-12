@@ -21,6 +21,8 @@ static int swClient_inet_addr(swClient *cli, char *string);
 static int swClient_tcp_connect(swClient *cli, char *host, int port, double _timeout, int udp_connect);
 static int swClient_tcp_send_sync(swClient *cli, char *data, int length);
 static int swClient_tcp_send_async(swClient *cli, char *data, int length);
+static int swClient_tcp_sendfile_sync(swClient *cli, char *filename);
+static int swClient_tcp_sendfile_async(swClient *cli, char *filename);
 static int swClient_tcp_recv(swClient *cli, char *data, int len, int waitall);
 
 static int swClient_udp_connect(swClient *cli, char *host, int port, double _timeout, int udp_connect);
@@ -76,10 +78,12 @@ int swClient_create(swClient *cli, int type, int async)
 		if (async)
 		{
 			cli->send = swClient_tcp_send_async;
+			cli->sendfile = swClient_tcp_sendfile_async;
 		}
 		else
 		{
 			cli->send = swClient_tcp_send_sync;
+			cli->sendfile = swClient_tcp_sendfile_sync;
 		}
 	}
 	else
@@ -101,7 +105,7 @@ static int swClient_inet_addr(swClient *cli, char *string)
 {
 	struct in_addr tmp;
 	struct hostent *host_entry;
-	struct sockaddr_in *sin = &cli->serv_addr;
+	struct sockaddr_in *sin = &cli->server_addr;
 
 	if (inet_aton(string, &tmp))
 	{
@@ -161,8 +165,8 @@ int swClient_close(swClient *cli)
 int swClient_tcp_connect(swClient *cli, char *host, int port, double timeout, int nonblock)
 {
 	int ret;
-	cli->serv_addr.sin_family = cli->sock_domain;
-	cli->serv_addr.sin_port = htons(port);
+	cli->server_addr.sin_family = cli->sock_domain;
+	cli->server_addr.sin_port = htons(port);
 
 	if (swClient_inet_addr(cli, host) < 0)
 	{
@@ -186,7 +190,7 @@ int swClient_tcp_connect(swClient *cli, char *host, int port, double timeout, in
 
 	while (1)
 	{
-		ret = connect(cli->connection.fd, (struct sockaddr *) (&cli->serv_addr), sizeof(cli->serv_addr));
+		ret = connect(cli->connection.fd, (struct sockaddr *) (&cli->server_addr), sizeof(cli->server_addr));
 		if (ret < 0)
 		{
 			if (errno == EINTR)
@@ -265,6 +269,26 @@ int swClient_tcp_send_sync(swClient *cli, char *data, int length)
 	return written;
 }
 
+int swClient_tcp_sendfile_sync(swClient *cli, char *filename)
+{
+    if (swSocket_sendfile_sync(cli->connection.fd, filename, cli->timeout) < 0)
+    {
+        SwooleG.error = errno;
+        return SW_ERR;
+    }
+    return SW_OK;
+}
+
+int swClient_tcp_sendfile_async(swClient *cli, char *filename)
+{
+    if (swSocket_sendfile_sync(cli->connection.fd, filename, cli->timeout) < 0)
+    {
+        SwooleG.error = errno;
+        return SW_ERR;
+    }
+    return SW_OK;
+}
+
 int swClient_tcp_recv(swClient *cli, char *data, int len, int waitall)
 {
 	int flag = 0, ret;
@@ -299,8 +323,8 @@ int swClient_udp_connect(swClient *cli, char *host, int port, double timeout, in
 		swSetTimeout(cli->connection.fd, timeout);
 	}
 
-	cli->serv_addr.sin_family = cli->sock_domain;
-	cli->serv_addr.sin_port = htons(port);
+	cli->server_addr.sin_family = cli->sock_domain;
+	cli->server_addr.sin_port = htons(port);
 	cli->connection.active = 1;
 
 	if (swClient_inet_addr(cli, host) < 0)
@@ -313,7 +337,7 @@ int swClient_udp_connect(swClient *cli, char *host, int port, double timeout, in
 		return SW_OK;
 	}
 
-	if (connect(cli->connection.fd, (struct sockaddr *) (&cli->serv_addr), sizeof(cli->serv_addr)) == 0)
+	if (connect(cli->connection.fd, (struct sockaddr *) (&cli->server_addr), sizeof(cli->server_addr)) == 0)
 	{
 		//清理connect前的buffer数据遗留
 		while(recv(cli->connection.fd, buf, 1024 , MSG_DONTWAIT) > 0);
@@ -328,7 +352,7 @@ int swClient_udp_connect(swClient *cli, char *host, int port, double timeout, in
 int swClient_udp_send(swClient *cli, char *data, int len)
 {
 	int n;
-	n = sendto(cli->connection.fd, data, len , 0, (struct sockaddr *) (&cli->serv_addr), sizeof(struct sockaddr));
+	n = sendto(cli->connection.fd, data, len , 0, (struct sockaddr *) (&cli->server_addr), sizeof(struct sockaddr));
 	if(n < 0 || n < len)
 	{
 

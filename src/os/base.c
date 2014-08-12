@@ -201,7 +201,7 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
 		ret = pread(event->fd, event->buf, event->nbytes, event->offset);
 		break;
 	case SW_AIO_DNS_LOOKUP:
-		if (!(host_entry = gethostbyname(event->req)))
+		if (!(host_entry = gethostbyname(event->buf)))
 		{
 			event->error = errno;
 		}
@@ -209,7 +209,6 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
 		{
 			memcpy(&addr, host_entry->h_addr_list[0], host_entry->h_length);
 			ip_addr = inet_ntoa(addr);
-			bzero(event->buf, event->nbytes);
 			memcpy(event->buf, ip_addr, strnlen(ip_addr, SW_IP_MAX_LENGTH) + 1);
 			ret = 0;
 		}

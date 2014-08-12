@@ -517,21 +517,21 @@ int swServer_start(swServer *serv)
 		serv->message_queue_key = ftok(path_ptr, 1);
 	}
 
-	if (serv->ipc_mode == SW_IPC_MSGQUEUE)
-	{
-		SwooleG.use_timerfd = 0;
-		SwooleG.use_signalfd = 0;
-		SwooleG.use_timer_pipe = 0;
-	}
+    if (serv->ipc_mode == SW_IPC_MSGQUEUE)
+    {
+        SwooleG.use_timerfd = 0;
+        SwooleG.use_signalfd = 0;
+        SwooleG.use_timer_pipe = 0;
+    }
 
 #ifdef SW_USE_OPENSSL
-	if (serv->open_ssl)
-	{
-		if (swSSL_init(serv->ssl_cert_file, serv->ssl_key_file) < 0)
-		{
-			return SW_ERR;
-		}
-	}
+    if (serv->open_ssl)
+    {
+        if (swSSL_init(serv->ssl_cert_file, serv->ssl_key_file) < 0)
+        {
+            return SW_ERR;
+        }
+    }
 #endif
 
 	//run as daemon

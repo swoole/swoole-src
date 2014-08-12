@@ -154,7 +154,6 @@ typedef struct
 struct _swFactory
 {
     void *object;
-    int max_request; //worker max request
     void *ptr; //server object
     int last_from_id;
 

@@ -183,12 +183,16 @@ enum swFd_type
 #define SW_MODE_PROCESS        3
 #define SW_MODE_SINGLE         4  //single thread mode
 //-------------------------------------------------------------------------------
-#define SW_SOCK_TCP            1
-#define SW_SOCK_UDP            2
-#define SW_SOCK_TCP6           3
-#define SW_SOCK_UDP6           4
-#define SW_SOCK_UNIX_DGRAM     5        //unix sock dgram
-#define SW_SOCK_UNIX_STREAM    6        //unix sock stream
+enum swSocket_type
+{
+    SW_SOCK_TCP          =  1,
+    SW_SOCK_UDP          =  2,
+    SW_SOCK_TCP6         =  3,
+    SW_SOCK_UDP6         =  4,
+    SW_SOCK_UNIX_DGRAM   =  5,  //unix sock dgram
+    SW_SOCK_UNIX_STREAM  =  6,  //unix sock stream
+};
+
 #define SW_SOCK_SSL            (1u << 9)
 //-------------------------------------------------------------------------------
 #define SW_LOG_DEBUG           0
@@ -669,6 +673,7 @@ int swSocket_listen(int type, char *host, int port, int backlog);
 int swSocket_create(int type);
 int swSocket_wait(int fd, int timeout_ms, int events);
 int swSendto(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
+int swSocket_sendfile_sync(int sock, char *filename, double timeout);
 void swFloat2timeval(float timeout, long int *sec, long int *usec);
 swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask);
 void swSignal_add(int signo, swSignalFunc func);

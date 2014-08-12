@@ -385,6 +385,7 @@ const zend_function_entry swoole_client_methods[] =
 	PHP_ME(swoole_client, connect, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_client, recv, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_client, send, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_client, sendfile, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_client, close, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_client, on, NULL, ZEND_ACC_PUBLIC)
 	PHP_FE_END
@@ -951,36 +952,36 @@ PHP_FUNCTION(swoole_server_set)
 	if (zend_hash_find(vht, ZEND_STRS("open_cpu_affinity"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->open_cpu_affinity = (uint8_t)Z_LVAL_PP(v);
+		serv->open_cpu_affinity = (uint8_t) Z_LVAL_PP(v);
 	}
 	//tcp_nodelay
 	if (zend_hash_find(vht, ZEND_STRS("open_tcp_nodelay"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->open_tcp_nodelay = (uint8_t)Z_LVAL_PP(v);
+		serv->open_tcp_nodelay = (uint8_t) Z_LVAL_PP(v);
 	}
 	//tcp_defer_accept
 	if (zend_hash_find(vht, ZEND_STRS("tcp_defer_accept"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->tcp_defer_accept = (uint8_t)Z_LVAL_PP(v);
+		serv->tcp_defer_accept = (uint8_t) Z_LVAL_PP(v);
 	}
 	//socket linger
 	if (zend_hash_find(vht, ZEND_STRS("tcp_socket_linger"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->tcp_socket_linger = (uint8_t)Z_LVAL_PP(v);
+		serv->tcp_socket_linger = (uint8_t) Z_LVAL_PP(v);
 	}
 	//tcp_keepalive
 	if (zend_hash_find(vht, ZEND_STRS("open_tcp_keepalive"), (void **)&v) == SUCCESS)
 	{
-		serv->open_tcp_keepalive = (uint8_t)Z_LVAL_PP(v);
+		serv->open_tcp_keepalive = (uint8_t) Z_LVAL_PP(v);
 	}
 	//buffer: check eof
 	if (zend_hash_find(vht, ZEND_STRS("open_eof_check"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->open_eof_check = (uint8_t)Z_LVAL_PP(v);
+		serv->open_eof_check = (uint8_t) Z_LVAL_PP(v);
 	}
 	//package eof
 	if (zend_hash_find(vht, ZEND_STRS("package_eof"), (void **) &v) == SUCCESS
@@ -990,7 +991,7 @@ PHP_FUNCTION(swoole_server_set)
 		serv->package_eof_len = Z_STRLEN_PP(v);
 		if (serv->package_eof_len > SW_DATA_EOF_MAXLEN)
 		{
-			php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_server date_eof max length is %d", SW_DATA_EOF_MAXLEN);
+			php_error_docref(NULL TSRMLS_CC, E_ERROR, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
 			RETURN_FALSE;
 		}
 		bzero(serv->package_eof, SW_DATA_EOF_MAXLEN);
@@ -2509,8 +2510,7 @@ PHP_FUNCTION(swoole_server_sendfile)
     //file name size
     if (send_data.info.len > SW_BUFFER_SIZE - 1)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "sendfile name too long. [MAX_LENGTH=%d]",
-                (int) SW_BUFFER_SIZE - 1);
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "sendfile name too long. [MAX_LENGTH=%d]", (int) SW_BUFFER_SIZE - 1);
         RETURN_FALSE;
     }
     //check file exists

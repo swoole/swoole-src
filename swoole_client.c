@@ -438,11 +438,11 @@ void php_swoole_check_reactor()
 		if (SwooleG.main_reactor == NULL)
 		{
 			SwooleG.main_reactor = sw_malloc(sizeof(swReactor));
-			if(SwooleG.main_reactor == NULL)
-			{
-				php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_client: malloc SwooleG.main_reactor failed.");
-				return;
-			}
+            if (SwooleG.main_reactor == NULL)
+            {
+                php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_client: malloc SwooleG.main_reactor failed.");
+                return;
+            }
 			if (swReactor_auto(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS) < 0)
 			{
 				php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_client: create SwooleG.main_reactor failed.");
@@ -1220,6 +1220,63 @@ PHP_METHOD(swoole_client, send)
 	}
 }
 
+PHP_METHOD(swoole_client, sendfile)
+{
+    char *file;
+    int file_len;
+
+    zval **zres;
+    zval *errCode;
+    swClient *cli;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &file, &file_len) == FAILURE)
+    {
+        return;
+    }
+    if (file_len <= 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "file is empty.");
+        RETURN_FALSE;
+    }
+    if (zend_hash_find(Z_OBJPROP_P(getThis()), SW_STRL("_client"), (void **) &zres) == SUCCESS)
+    {
+        ZEND_FETCH_RESOURCE(cli, swClient*, zres, -1, SW_RES_CLIENT_NAME, le_swoole_client);
+    }
+    else
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "object is not instanceof swoole_client.");
+        RETURN_FALSE;
+    }
+    if (!(cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6 || cli->type == SW_SOCK_UNIX_STREAM))
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "dgram socket cannot use sendfile.");
+        RETURN_FALSE;
+    }
+    if (cli->connection.active == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not connected.");
+        RETURN_FALSE;
+    }
+    //clear errno
+    SwooleG.error = 0;
+    int ret = cli->sendfile(cli, file);
+    if (ret < 0)
+    {
+        SwooleG.error = errno;
+        //这里的错误信息没用
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "sendfile() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
+        MAKE_STD_ZVAL(errCode);
+        ZVAL_LONG(errCode, SwooleG.error);
+        zend_update_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errCode TSRMLS_CC);
+        zval_ptr_dtor(&errCode);
+        RETVAL_FALSE;
+    }
+    else
+    {
+        RETVAL_TRUE;
+    }
+}
+
 PHP_METHOD(swoole_client, recv)
 {
 	long buf_len = SW_PHP_CLIENT_BUFFER_SIZE, waitall = 0;
@@ -1299,6 +1356,105 @@ PHP_METHOD(swoole_client, recv)
 		efree(buf);
 	}
 }
+
+PHP_METHOD(swoole_client, set)
+{
+    zval *zset = NULL;
+    zval *zobject = getThis();
+    HashTable *vht;
+    swClient *cli;
+    zval **zres;
+    zval **v;
+
+    if (zend_hash_find(Z_OBJPROP_P(getThis()), SW_STRL("_client"), (void **) &zres) == SUCCESS)
+    {
+        ZEND_FETCH_RESOURCE(cli, swClient*, zres, -1, SW_RES_CLIENT_NAME, le_swoole_client);
+    }
+    else
+    {
+        RETURN_FALSE;
+    }
+
+    if (zobject == NULL)
+    {
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Oa", &zobject, swoole_server_class_entry_ptr, &zset) == FAILURE)
+        {
+            return;
+        }
+    }
+    else
+    {
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &zset) == FAILURE)
+        {
+            return;
+        }
+    }
+
+    vht = Z_ARRVAL_P(zset);
+    //buffer: check eof
+    if (zend_hash_find(vht, ZEND_STRS("open_eof_check"), (void **)&v) == SUCCESS)
+    {
+        convert_to_long(*v);
+        cli->open_eof_check = (uint8_t)Z_LVAL_PP(v);
+    }
+    //package eof
+    if (zend_hash_find(vht, ZEND_STRS("package_eof"), (void **) &v) == SUCCESS
+            || zend_hash_find(vht, ZEND_STRS("data_eof"), (void **) &v) == SUCCESS)
+    {
+        convert_to_string(*v);
+        cli->open_eof_check = 1;
+        cli->package_eof_len = Z_STRLEN_PP(v);
+        if (cli->package_eof_len > SW_DATA_EOF_MAXLEN)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_ERROR, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
+            RETURN_FALSE;
+        }
+        cli->package_eof = strdup(Z_STRVAL_PP(v));
+    }
+    //open length check
+    if (zend_hash_find(vht, ZEND_STRS("open_length_check"), (void **)&v) == SUCCESS)
+    {
+        convert_to_long(*v);
+        cli->open_length_check = (uint8_t)Z_LVAL_PP(v);
+    }
+    //package length size
+    if (zend_hash_find(vht, ZEND_STRS("package_length_type"), (void **)&v) == SUCCESS)
+    {
+        convert_to_string(*v);
+        cli->package_length_type = Z_STRVAL_PP(v)[0];
+        cli->package_length_size = swoole_type_size(cli->package_length_type);
+
+        if (cli->package_length_size == 0)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_ERROR, "unknow package_length_type, see pack(). Link: http://php.net/pack");
+            RETURN_FALSE;
+        }
+    }
+    //package length offset
+    if (zend_hash_find(vht, ZEND_STRS("package_length_offset"), (void **)&v) == SUCCESS)
+    {
+        convert_to_long(*v);
+        cli->package_length_offset = (int)Z_LVAL_PP(v);
+    }
+    //package body start
+    if (zend_hash_find(vht, ZEND_STRS("package_body_offset"), (void **) &v) == SUCCESS
+            || zend_hash_find(vht, ZEND_STRS("package_body_start"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(*v);
+        cli->package_body_offset = (int) Z_LVAL_PP(v);
+    }
+    /**
+     * package max length
+     */
+    if (zend_hash_find(vht, ZEND_STRS("package_max_length"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(*v);
+        cli->package_max_length = (int) Z_LVAL_PP(v);
+    }
+    zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zset TSRMLS_CC);
+    RETURN_TRUE;
+}
+
 
 PHP_METHOD(swoole_client, close)
 {
