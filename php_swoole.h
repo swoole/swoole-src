@@ -192,6 +192,7 @@ PHP_FUNCTION(swoole_server_shutdown);
 PHP_FUNCTION(swoole_server_heartbeat);
 PHP_FUNCTION(swoole_connection_list);
 PHP_FUNCTION(swoole_connection_info);
+PHP_METHOD(swoole_server, stats);
 
 PHP_FUNCTION(swoole_event_add);
 PHP_FUNCTION(swoole_event_set);

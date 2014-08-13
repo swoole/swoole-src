@@ -1071,10 +1071,20 @@ typedef struct
 
 } swServerG;
 
+typedef struct
+{
+    time_t start_time;
+    sw_atomic_t connection_num;
+    sw_atomic_t accept_count;
+    sw_atomic_t close_count;
+
+} swServerStats;
+
 extern swServerG SwooleG;              //Local Global Variable
 extern swServerGS *SwooleGS;           //Share Memory Global Variable
 extern swWorkerG SwooleWG;             //Worker Global Variable
 extern __thread swThreadG SwooleTG;   //Thread Global Variable
+extern swServerStats *SwooleStats;
 
 #define SW_CPU_NUM                    (SwooleG.cpu_num)
 

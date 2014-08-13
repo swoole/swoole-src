@@ -53,6 +53,7 @@ static void swServer_heartbeat_check(swThreadParam *heartbeat_param);
 swServerG SwooleG;
 swServerGS *SwooleGS;
 swWorkerG SwooleWG;
+swServerStats *SwooleStats;
 __thread swThreadG SwooleTG;
 
 int16_t sw_errno;
@@ -579,6 +580,8 @@ int swServer_start(swServer *serv)
 	//master pid
 	SwooleGS->master_pid = getpid();
 	SwooleGS->start = 1;
+	SwooleGS->now = SwooleStats->start_time = time(NULL);
+
 	serv->reactor_pipe_num = serv->worker_num / serv->reactor_num;
 
 	//设置factory回调函数
@@ -1185,6 +1188,11 @@ void swServer_connection_close(swServer *serv, int fd, int notify)
 	}
 
 	conn->active = 0;
+	/**
+	 * Close count
+	 */
+	sw_atomic_fetch_add(&SwooleStats->close_count, 1);
+	sw_atomic_fetch_sub(&SwooleStats->connection_num, 1);
 
 	int reactor_id = conn->from_id;
 
@@ -1275,6 +1283,9 @@ swConnection* swServer_connection_new(swServer *serv, swEvent *ev)
 {
 	int conn_fd = ev->fd;
 	swConnection* connection = NULL;
+
+	SwooleStats->accept_count ++;
+	sw_atomic_fetch_add(&SwooleStats->connection_num, 1);
 
 	if (conn_fd > swServer_get_maxfd(serv))
 	{

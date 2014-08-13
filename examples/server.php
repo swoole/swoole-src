@@ -1,17 +1,17 @@
 <?php
 $serv = new swoole_server("0.0.0.0", 9501);
-$serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
+// $serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
 $serv->set(array(
-    'worker_num' => 2,
+    'worker_num' => 4,
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
-    'ipc_mode' => 2,
-    'task_worker_num' => 2,
-    'task_ipc_mode' => 1,
-    'dispatch_mode' => 1,
+    //'ipc_mode' => 2,
+    //'task_worker_num' => 2,
+    //'task_ipc_mode' => 1,
+    //'dispatch_mode' => 1,
     //'daemonize' => 1,
     //'log_file' => '/tmp/swoole.log',
-    'heartbeat_check_interval' => 10,
+    //'heartbeat_check_interval' => 10,
 ));
 
 function my_onStart(swoole_server $serv)
@@ -59,12 +59,12 @@ function my_onWorkerStart($serv, $worker_id)
     echo "WorkerStart: MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}";
     echo "|WorkerId={$serv->worker_id}|WorkerPid={$serv->worker_pid}\n";
 
-    if ($worker_id == 2)
-    {
-    	$serv->addtimer(2000); //500ms
-    	$serv->addtimer(6000); //500ms
-    	var_dump($serv->gettimer());
-    }
+//     if ($worker_id == 2)
+//     {
+//     	$serv->addtimer(2000); //500ms
+//     	$serv->addtimer(6000); //500ms
+//     	var_dump($serv->gettimer());
+//     }
 }
 
 function my_onWorkerStop($serv, $worker_id)
@@ -74,7 +74,7 @@ function my_onWorkerStop($serv, $worker_id)
 
 function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 {
-    my_log("received: $data");
+    //my_log("received: $data");
     $cmd = trim($data);
     if($cmd == "reload")
     {
@@ -103,6 +103,11 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     {
         $info = $serv->connection_info($fd);
         $serv->send($fd, 'Info: '.var_export($info, true).PHP_EOL);
+    }
+    elseif($cmd == "stats")
+    {
+        $serv_stats = $serv->stats();
+        $serv->send($fd, 'Stats: '.var_export($serv_stats, true).PHP_EOL);
     }
     elseif($cmd == "broadcast")
     {

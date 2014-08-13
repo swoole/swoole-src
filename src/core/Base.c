@@ -60,6 +60,7 @@ void swoole_init(void)
 #ifdef HAVE_TIMERFD
         SwooleG.use_timerfd = 1;
 #endif
+
         SwooleG.use_timer_pipe = 1;
         //将日志设置为标准输出
         SwooleG.log_fd = STDOUT_FILENO;
@@ -67,12 +68,17 @@ void swoole_init(void)
         SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
         if (SwooleG.memory_pool == NULL)
         {
-            swError("[Master] Fatal Error: create global memory fail. Error: %s[%d]", strerror(errno), errno);
+            swError("[Master] Fatal Error: create global memory failed.");
         }
         SwooleGS = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerGS));
         if (SwooleGS == NULL)
         {
-            swError("[Master] Fatal Error: alloc memory for SwooleGS fail. Error: %s[%d]", strerror(errno), errno);
+            swError("[Master] Fatal Error: alloc memory for SwooleGS failed.");
+        }
+        SwooleStats = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerStats));
+        if (SwooleGS == NULL)
+        {
+            swError("[Master] Fatal Error: alloc memory for SwooleStats failed.");
         }
     }
 }
