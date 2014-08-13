@@ -587,6 +587,13 @@ PHP_FUNCTION(swoole_async_dns_lookup)
 		return;
 	}
 
+#ifdef ZTS
+	if(sw_thread_ctx == NULL)
+	{
+		TSRMLS_SET_CTX(sw_thread_ctx);
+	}
+#endif
+	
 	if (Z_STRLEN_P(domain) == 0)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async_dns_lookup: domain name empty.");
