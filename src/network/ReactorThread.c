@@ -159,7 +159,6 @@ int swReactorThread_send(swSendData *_send)
     uint16_t reactor_id = 0;
 
     volatile swBuffer_trunk *trunk;
-    swTask_sendfile *task;
 
     swConnection *conn = swServer_connection_get(serv, fd);
 
@@ -237,37 +236,7 @@ int swReactorThread_send(swSendData *_send)
     //sendfile to client
     else if (_send->info.type == SW_EVENT_SENDFILE)
     {
-        trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_SENDFILE, 0);
-        if (trunk == NULL)
-        {
-            swWarn("get out_buffer trunk failed.");
-            return SW_ERR;
-        }
-        task = sw_malloc(sizeof(swTask_sendfile));
-        if (task == NULL)
-        {
-            swWarn("malloc for swTask_sendfile failed.");
-            //TODO: 回收这里的内存
-            return SW_ERR;
-        }
-        bzero(task, sizeof(swTask_sendfile));
-
-        task->filename = strdup(_send->data);
-        int file_fd = open(_send->data, O_RDONLY);
-        if (file_fd < 0)
-        {
-            swWarn("open file[%s] failed. Error: %s[%d]", task->filename, strerror(errno), errno);
-            return SW_ERR;
-        }
-        struct stat file_stat;
-        if (fstat(file_fd, &file_stat) < 0)
-        {
-            swWarn("swoole_async_readfile: fstat failed. Error: %s[%d]", strerror(errno), errno);
-            return SW_ERR;
-        }
-        task->filesize = file_stat.st_size;
-        task->fd = file_fd;
-        trunk->store.ptr = (void *)task;
+        swConnection_sendfile(conn, _send->data);
     }
     //send data
     else
@@ -289,7 +258,7 @@ int swReactorThread_send(swSendData *_send)
 
 int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 {
-    int ret, sendn;
+    int ret;
     swServer *serv = SwooleG.serv;
 
     swConnection *conn = swServer_connection_get(serv, ev->fd);
@@ -299,7 +268,6 @@ int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     }
 
     swBuffer_trunk *trunk;
-    swTask_sendfile *task = NULL;
 
     while (!swBuffer_empty(conn->out_buffer))
     {
@@ -312,8 +280,8 @@ int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         }
         else if (trunk->type == SW_TRUNK_SENDFILE)
         {
-            task = (swTask_sendfile *) trunk->store.ptr;
-            sendn = (task->filesize - task->offset > SW_SENDFILE_TRUNK) ? SW_SENDFILE_TRUNK : task->filesize - task->offset;
+            swTask_sendfile *task = trunk->store.ptr;
+            int sendn = (task->filesize - task->offset > SW_SENDFILE_TRUNK) ? SW_SENDFILE_TRUNK : task->filesize - task->offset;
             ret = swoole_sendfile(ev->fd, task->fd, &task->offset, sendn);
             swTrace("ret=%d|task->offset=%ld|sendn=%d|filesize=%ld", ret, task->offset, sendn, task->filesize);
 
@@ -334,12 +302,10 @@ int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
             //sendfile finish
             if (task->offset >= task->filesize)
             {
-                reactor->set(reactor, ev->fd, SW_EVENT_TCP | SW_EVENT_READ);
                 swBuffer_pop_trunk(conn->out_buffer, trunk);
                 close(task->fd);
                 sw_free(task);
             }
-            return SW_OK;
         }
         else
         {

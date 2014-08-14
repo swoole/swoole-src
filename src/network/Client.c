@@ -281,7 +281,11 @@ int swClient_tcp_sendfile_sync(swClient *cli, char *filename)
 
 int swClient_tcp_sendfile_async(swClient *cli, char *filename)
 {
-    if (swSocket_sendfile_sync(cli->connection.fd, filename, cli->timeout) < 0)
+    if (swBuffer_empty(cli->connection.out_buffer))
+    {
+        SwooleG.main_reactor->set(SwooleG.main_reactor, cli->connection.fd, cli->reactor_fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
+    }
+    if (swConnection_sendfile(&cli->connection, filename) < 0)
     {
         SwooleG.error = errno;
         return SW_ERR;

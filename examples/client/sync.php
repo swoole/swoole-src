@@ -4,6 +4,7 @@ if (!$client->connect('127.0.0.1', 9501, -1))
 {
 	exit("connect failed. Error: {$client->errCode}\n");
 }
+//if ($client->sendfile(__DIR__.'/test.txt') === false)
 if ($client->send(str_repeat("A", 600)) === false)
 {
 	echo "send failed. Error: {$client->errCode}\n";
