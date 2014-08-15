@@ -1,7 +1,6 @@
 <?php
 $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC); //异步非阻塞
 
-
 $client->on("connect", function(swoole_client $cli) {
     //$cli->send("GET / HTTP/1.1\r\n\r\n");
     $cli->sendfile(__DIR__.'/test.txt');
@@ -20,7 +19,6 @@ $client->on("error", function(swoole_client $cli){
 $client->on("close", function(swoole_client $cli){
     echo "Connection close";
 });
-
 
 $client->connect('localhost', 9501, 0.5);
 

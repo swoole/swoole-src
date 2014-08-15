@@ -789,7 +789,7 @@ PHP_FUNCTION(swoole_timer_add)
 	}
 
 #ifdef ZTS
-	if(sw_thread_ctx == NULL)
+	if (sw_thread_ctx == NULL)
 	{
 		TSRMLS_SET_CTX(sw_thread_ctx);
 	}
@@ -861,7 +861,7 @@ PHP_FUNCTION(swoole_event_add)
 	}
 
 #ifdef ZTS
-	if(sw_thread_ctx == NULL)
+	if (sw_thread_ctx == NULL)
 	{
 		TSRMLS_SET_CTX(sw_thread_ctx);
 	}
@@ -943,18 +943,18 @@ PHP_FUNCTION(swoole_event_set)
 	}
 
 #ifdef ZTS
-	if(sw_thread_ctx == NULL)
+	if (sw_thread_ctx == NULL)
 	{
 		TSRMLS_SET_CTX(sw_thread_ctx);
 	}
 #endif
 
-	int socket_fd = swoole_convert_to_fd(fd);
-	if (socket_fd < 0)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "unknow type.");
-		RETURN_FALSE;
-	}
+    int socket_fd = swoole_convert_to_fd(fd);
+    if (socket_fd < 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "unknow type.");
+        RETURN_FALSE;
+    }
 
 	if (zend_hash_find(&php_sw_event_callback, (char *)&socket_fd, sizeof(socket_fd), (void **)&ev_set) != SUCCESS)
 	{

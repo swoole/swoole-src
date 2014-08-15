@@ -562,8 +562,8 @@ static int swReactorThread_get_package_length(swServer *serv, void *data, uint32
 
 int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event)
 {
-    volatile int n;
-    volatile int package_total_length;
+    int n;
+    int package_total_length;
     swServer *serv = reactor->ptr;
     swConnection *conn = swServer_connection_get(serv, event->fd);
 
@@ -698,7 +698,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
             /**
              * Also on the require_n byte data is complete.
              */
-            volatile int require_n = package->size - package->length;
+            int require_n = package->size - package->length;
 
             /**
              * Data is not complete, continue to wait
