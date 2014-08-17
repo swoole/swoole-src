@@ -20,15 +20,35 @@
 
 typedef struct swHashMap_node
 {
-	uint64_t key_int;
-	char *key_str;
-	void *data;
-	UT_hash_handle hh;
+    uint64_t key_int;
+    char *key_str;
+    void *data;
+    swHashMap_dtor dtor;
+    UT_hash_handle hh;
 } swHashMap_node;
 
-static int swHashMap_delete_node(swHashMap_node *root, swHashMap_node *del_node);
+static int swHashMap_node_delete(swHashMap_node *root, swHashMap_node *del_node);
 
-static sw_inline int swHashMap_add_node(swHashMap_node *root, swHashMap_node *add)
+static sw_inline void swHashMap_node_dtor(swHashMap *hmap, swHashMap_node *node)
+{
+    if (node->dtor)
+    {
+        node->dtor(node->data);
+    }
+    else if (hmap->dtor)
+    {
+        hmap->dtor(node->data);
+    }
+}
+
+static sw_inline void swHashMap_node_free(swHashMap *hmap, swHashMap_node *node)
+{
+    swHashMap_node_dtor(hmap, node);
+    sw_free(node->key_str);
+    sw_free(node);
+}
+
+static sw_inline int swHashMap_node_add(swHashMap_node *root, swHashMap_node *add)
 {
 	unsigned _ha_bkt;
 	add->hh.next = NULL;
@@ -48,7 +68,7 @@ static sw_inline int swHashMap_add_node(swHashMap_node *root, swHashMap_node *ad
 	return SW_OK;
 }
 
-static sw_inline swHashMap_node* swHashMap_each_node(swHashMap* hmap)
+static sw_inline swHashMap_node* swHashMap_node_each(swHashMap* hmap)
 {
     swHashMap_node *iterator = hmap->iterator;
     swHashMap_node *tmp;
@@ -74,7 +94,7 @@ static sw_inline swHashMap_node* swHashMap_each_node(swHashMap* hmap)
     }
 }
 
-swHashMap* swHashMap_new(uint32_t bucket_num)
+swHashMap* swHashMap_new(uint32_t bucket_num, swHashMap_dtor dtor)
 {
     swHashMap *hmap = sw_malloc(sizeof(swHashMap));
     if (!hmap)
@@ -116,10 +136,12 @@ swHashMap* swHashMap_new(uint32_t bucket_num)
 	memset(root->hh.tbl->buckets, 0, SW_HASHMAP_INIT_BUCKET_N * sizeof(struct UT_hash_bucket));
 	root->hh.tbl->signature = HASH_SIGNATURE;
 
+	hmap->dtor = dtor;
+
 	return hmap;
 }
 
-int swHashMap_add(swHashMap* hmap, char *key, uint16_t key_len, void *data)
+int swHashMap_add(swHashMap* hmap, char *key, uint16_t key_len, void *data, swHashMap_dtor dtor)
 {
 	swHashMap_node *node = (swHashMap_node*) sw_malloc(sizeof(swHashMap_node));
 	if (node == NULL)
@@ -132,10 +154,11 @@ int swHashMap_add(swHashMap* hmap, char *key, uint16_t key_len, void *data)
 	node->key_str = strndup(key, key_len);
 	node->key_int = key_len;
 	node->data = data;
-	return swHashMap_add_node(root, node);
+	node->dtor = dtor;
+	return swHashMap_node_add(root, node);
 }
 
-void swHashMap_add_int(swHashMap *hmap, uint64_t key, void *data)
+void swHashMap_add_int(swHashMap *hmap, uint64_t key, void *data, swHashMap_dtor dtor)
 {
 	swHashMap_node *node = (swHashMap_node*) sw_malloc(sizeof(swHashMap_node));
 	swHashMap_node *root = hmap->root;
@@ -147,10 +170,11 @@ void swHashMap_add_int(swHashMap *hmap, uint64_t key, void *data)
 	node->key_int = key;
 	node->data = data;
 	node->key_str = NULL;
+	node->dtor = dtor;
 	HASH_ADD_INT(root, key_int, node);
 }
 
-static sw_inline swHashMap_node *swHashMap_find_node(swHashMap_node *root, char *key_str, uint16_t key_len)
+static sw_inline swHashMap_node *swHashMap_node_find(swHashMap_node *root, char *key_str, uint16_t key_len)
 {
 	swHashMap_node *out;
 	unsigned bucket, hash;
@@ -164,7 +188,7 @@ static sw_inline swHashMap_node *swHashMap_find_node(swHashMap_node *root, char 
 	return out;
 }
 
-static int swHashMap_delete_node(swHashMap_node *root, swHashMap_node *del_node)
+static int swHashMap_node_delete(swHashMap_node *root, swHashMap_node *del_node)
 {
 	unsigned bucket;
 	struct UT_hash_handle *_hd_hh_del;
@@ -203,7 +227,7 @@ static int swHashMap_delete_node(swHashMap_node *root, swHashMap_node *del_node)
 void* swHashMap_find(swHashMap* hmap, char *key, uint16_t key_len)
 {
     swHashMap_node *root = hmap->root;
-	swHashMap_node *ret = swHashMap_find_node(root, key, key_len);
+	swHashMap_node *ret = swHashMap_node_find(root, key, key_len);
 	if (ret == NULL)
 	{
 		return NULL;
@@ -226,11 +250,12 @@ void* swHashMap_find_int(swHashMap* hmap, uint64_t key)
 int swHashMap_update(swHashMap* hmap, char *key, uint16_t key_len, void *data)
 {
     swHashMap_node *root = hmap->root;
-	swHashMap_node *node = swHashMap_find_node(root, key, key_len);
+	swHashMap_node *node = swHashMap_node_find(root, key, key_len);
 	if (node == NULL)
 	{
 		return SW_ERR;
 	}
+	swHashMap_node_dtor(hmap, node);
 	node->data = data;
 	return SW_OK;
 }
@@ -244,20 +269,20 @@ void swHashMap_update_int(swHashMap* hmap, uint64_t key, void *data)
 	{
 		return;
 	}
+	swHashMap_node_dtor(hmap, ret);
 	ret->data = data;
 }
 
 int swHashMap_del(swHashMap* hmap, char *key, uint16_t key_len)
 {
     swHashMap_node *root = hmap->root;
-	swHashMap_node *node = swHashMap_find_node(root, key, key_len);;
+	swHashMap_node *node = swHashMap_node_find(root, key, key_len);;
 	if (node == NULL)
 	{
 		return SW_ERR;
 	}
-	swHashMap_delete_node(root, node);
-	sw_free(node->key_str);
-	sw_free(node);
+	swHashMap_node_delete(root, node);
+	swHashMap_node_free(hmap, node);
 	return SW_OK;
 }
 
@@ -272,13 +297,12 @@ void swHashMap_del_int(swHashMap *hmap, uint64_t key)
 		return;
 	}
 	HASH_DEL(root, ret);
-	sw_free(ret);
+	swHashMap_node_free(hmap, ret);
 }
 
 void* swHashMap_each(swHashMap* hmap, char **key)
 {
-
-    swHashMap_node *node = swHashMap_each_node(hmap);
+    swHashMap_node *node = swHashMap_node_each(hmap);
     if (node)
     {
         *key = node->key_str;
@@ -292,7 +316,7 @@ void* swHashMap_each(swHashMap* hmap, char **key)
 
 void* swHashMap_each_int(swHashMap* hmap, uint64_t *key)
 {
-    swHashMap_node *node = swHashMap_each_node(hmap);
+    swHashMap_node *node = swHashMap_node_each(hmap);
     if (node)
     {
         *key = node->key_int;
@@ -311,14 +335,14 @@ void swHashMap_free(swHashMap* hmap)
 	HASH_ITER(hh, root, find, tmp)
 	{
 	    if (find == root) continue;
-		swHashMap_delete_node(root, find);
-		sw_free(find);
+		swHashMap_node_delete(root, find);
+		swHashMap_node_free(hmap, find);
 	}
-	
+
 	sw_free(hmap->root->hh.tbl->buckets);
 	sw_free(hmap->root->hh.tbl);
 	sw_free(hmap->root);
-	
+
 	sw_free(hmap);
 }
 
@@ -409,7 +433,7 @@ static unsigned int crc32_tab[] = {
     0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d,
 };
 
-static inline unsigned int crc32(char *buf, unsigned int size)
+static inline uint32_t crc32(char *buf, unsigned int size)
 {
     const char *p;
     register int crc = 0;
@@ -423,7 +447,7 @@ static inline unsigned int crc32(char *buf, unsigned int size)
     return crc ^ ~0U;
 }
 
-uint64_t swoole_crc32(char *data, uint32_t size)
+uint32_t swoole_crc32(char *data, uint32_t size)
 {
     if (size < CRC_STRING_MAXLEN)
     {

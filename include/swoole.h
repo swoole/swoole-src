@@ -439,7 +439,6 @@ typedef struct _swSem
 {
 	key_t key;
 	int semid;
-	int lock_num;
 } swSem;
 
 struct _swLock
@@ -464,16 +463,17 @@ struct _swLock
 	int (*free)(struct _swLock *lock);
 };
 
-//Cond
+//Thread Condition
 typedef struct _swCond
 {
-	swLock lock;
-	pthread_cond_t cond;
+    swLock lock;
+    pthread_cond_t cond;
 
-	int (*wait)(struct _swCond *object);
-	int (*timewait)(struct _swCond *object,long,long);
-	int (*notify)(struct _swCond *object);
-	int (*broadcast)(struct _swCond *object);
+    int (*wait)(struct _swCond *object);
+    int (*timewait)(struct _swCond *object, long, long);
+    int (*notify)(struct _swCond *object);
+    int (*broadcast)(struct _swCond *object);
+    void (*free)(struct _swCond *object);
 } swCond;
 
 
@@ -534,7 +534,6 @@ typedef struct _swMemoryPool
  * FixedPool, random alloc/free fixed size memory
  */
 swMemoryPool* swFixedPool_new(uint32_t slice_num, uint32_t slice_size, uint8_t shared);
-
 swMemoryPool* swFixedPool_new2(uint32_t slice_size, void *memory, size_t size);
 
 /**
@@ -558,7 +557,7 @@ void* sw_shm_calloc(size_t num, size_t _size);
 void* sw_shm_realloc(void *ptr, size_t new_size);
 
 int swRWLock_create(swLock *lock, int use_in_process);
-int swSem_create(swLock *lock, key_t key, int n);
+int swSem_create(swLock *lock, key_t key);
 int swMutex_create(swLock *lock, int use_in_process);
 int swFileLock_create(swLock *lock, int fd);
 #ifdef HAVE_SPINLOCK
@@ -570,11 +569,6 @@ sw_inline int swAtomicLock_unlock(swLock *lock);
 sw_inline int swAtomicLock_trylock(swLock *lock);
 
 int swCond_create(swCond *cond);
-int swCond_notify(swCond *cond);
-int swCond_broadcast(swCond *cond);
-int swCond_timewait(swCond *cond, long sec, long nsec);
-int swCond_wait(swCond *cond);
-void swCond_free(swCond *cond);
 
 typedef struct _swThreadParam
 {
@@ -725,7 +719,6 @@ struct _swWorker
 
 	swProcessPool *pool;
 
-	swMemoryPool *pool_input;
 	swMemoryPool *pool_output;
 
 	/**

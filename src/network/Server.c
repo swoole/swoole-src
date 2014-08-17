@@ -195,7 +195,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 		//too many connection
 		if (new_fd >= serv->max_conn)
 		{
-			swWarn("Too many connections [now: %d].", swServer_get_maxfd(serv));
+			swWarn("Too many connections [now: %d].", new_fd);
 			close(new_fd);
 			return SW_OK;
 		}
@@ -515,7 +515,7 @@ int swServer_start(swServer *serv)
 	{
 		char path_buf[128];
 		char *path_ptr = getcwd(path_buf, 128);
-		serv->message_queue_key = ftok(path_ptr, 1);
+		serv->message_queue_key = ftok(path_ptr, 1) + getpid();
 	}
 
     if (serv->ipc_mode == SW_IPC_MSGQUEUE)
@@ -607,19 +607,19 @@ int swServer_start(swServer *serv)
 	/*
 	 * For swoole_server->taskwait, create notify pipe and result shared memory.
 	 */
-	if (SwooleG.task_worker_num > 0 && serv->worker_num > 0)
-	{
-		int i;
-		SwooleG.task_result = sw_shm_calloc(serv->worker_num, sizeof(swEventData));
-		SwooleG.task_notify = sw_calloc(serv->worker_num, sizeof(swPipe));
-		for(i =0; i< serv->worker_num; i++)
-		{
-			if (swPipeNotify_auto(&SwooleG.task_notify[i], 1, 0))
-			{
-				return SW_ERR;
-			}
-		}
-	}
+    if (SwooleG.task_worker_num > 0 && serv->worker_num > 0)
+    {
+        int i;
+        SwooleG.task_result = sw_shm_calloc(serv->worker_num, sizeof(swEventData));
+        SwooleG.task_notify = sw_calloc(serv->worker_num, sizeof(swPipe));
+        for (i = 0; i < serv->worker_num; i++)
+        {
+            if (swPipeNotify_auto(&SwooleG.task_notify[i], 1, 0))
+            {
+                return SW_ERR;
+            }
+        }
+    }
 
 	//factory start
 	if (factory->start(factory) < 0)
@@ -632,21 +632,21 @@ int swServer_start(swServer *serv)
 	//标识为主进程
 	SwooleG.process_type = SW_PROCESS_MASTER;
 
-	//启动心跳检测
-	if (serv->heartbeat_check_interval >= 1 && serv->heartbeat_check_interval <= serv->heartbeat_idle_time)
-	{
-		swTrace("hb timer start, time: %d live time:%d", serv->heartbeat_check_interval, serv->heartbeat_idle_time);
-		swServer_heartbeat_start(serv);
-	}
+    //启动心跳检测
+    if (serv->heartbeat_check_interval >= 1 && serv->heartbeat_check_interval <= serv->heartbeat_idle_time)
+    {
+        swTrace("hb timer start, time: %d live time:%d", serv->heartbeat_check_interval, serv->heartbeat_idle_time);
+        swServer_heartbeat_start(serv);
+    }
 
-	if (serv->factory_mode == SW_MODE_SINGLE)
-	{
-		ret = swReactorProcess_start(serv);
-	}
-	else
-	{
-		ret = swServer_start_proxy(serv);
-	}
+    if (serv->factory_mode == SW_MODE_SINGLE)
+    {
+        ret = swReactorProcess_start(serv);
+    }
+    else
+    {
+        ret = swServer_start_proxy(serv);
+    }
 
 	if (ret < 0)
 	{

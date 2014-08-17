@@ -93,11 +93,9 @@ int swConnection_send_blocking(int fd, void *data, int length, int timeout);
 int swConnection_buffer_send(swConnection *conn);
 
 swString* swConnection_get_string_buffer(swConnection *conn);
-int swConnection_send_string_buffer(swConnection *conn);
 void swConnection_clear_string_buffer(swConnection *conn);
 volatile swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type);
 volatile swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn);
-int swConnection_send_in_buffer(swConnection *conn);
 int swConnection_sendfile(swConnection *conn, char *filename);
 
 #ifdef SW_USE_OPENSSL

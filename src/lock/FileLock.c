@@ -57,13 +57,13 @@ static int swFileLock_unlock(swLock *lock)
 
 static int swFileLock_trylock_rw(swLock *lock)
 {
-	lock->object.filelock.lock_t.l_type = F_RDLCK;
+	lock->object.filelock.lock_t.l_type = F_WRLCK;
 	return fcntl(lock->object.filelock.fd, F_SETLK, &lock->object.filelock);
 }
 
 static int swFileLock_trylock_rd(swLock *lock)
 {
-	lock->object.filelock.lock_t.l_type = F_WRLCK;
+	lock->object.filelock.lock_t.l_type = F_RDLCK;
 	return fcntl(lock->object.filelock.fd, F_SETLK, &lock->object.filelock);
 }
 

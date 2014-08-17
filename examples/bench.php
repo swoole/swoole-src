@@ -28,6 +28,61 @@ $bc->send_data .= "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.3
 $bc->read_len = 65536;
 if(!empty($opt['p'])) $bc->show_detail = true;
 
+
+function eof(Swoole_Benchmark $bc)
+{
+    static $fp = null;
+    static $i;
+    $start = microtime(true);
+    if(empty($fp))
+    {
+        $fp = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
+        $end = microtime(true);
+        $conn_use = $end-$start;
+        $bc->max_conn_time = $conn_use;
+        $i = 0;
+        //echo "connect {$bc->server_url} \n";
+        if (!$fp->connect($bc->server_config['host'], $bc->server_config['port'], 2))
+        {
+            error:
+            echo "Error: ".swoole_strerror($fp->errCode)."[{$fp->errCode}]\n";
+            $fp = null;
+            return false;
+        }
+        $start = $end;
+    }
+    /*--------写入Sokcet-------*/
+    $data = str_repeat('A', rand(2000, 4000)."\r\n\r\n");
+    if (!$fp->send($data))
+    {
+        goto error;
+    }
+    $end = microtime(true);
+    $write_use = $end - $start;
+    if($write_use > $bc->max_write_time) $bc->max_write_time = $write_use;
+    $start = $end;
+    /*--------读取Sokcet-------*/
+    while(true)
+    {
+        $ret = $fp->recv(65530);
+        if (empty($ret) or substr($ret, -1, 1) == "\n")
+        {
+            break;
+        }
+    }
+    //var_dump($ret);
+    $i++;
+    if (empty($ret))
+    {
+        echo $bc->pid,"#$i@"," is lost\n";
+        return false;
+    }
+    $end = microtime(true);
+    $read_use = $end - $start;
+    if($read_use>$bc->max_read_time) $bc->max_read_time = $read_use;
+    return true;
+}
+
 function long_tcp(Swoole_Benchmark $bc)
 {
 	static $fp = null;
@@ -183,6 +238,8 @@ class Swoole_Benchmark
 	public $max_write_time = 0;
 	public $max_read_time = 0;
 	public $max_conn_time = 0;
+
+    public $pid;
 
 	function __construct($func)
 	{

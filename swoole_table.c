@@ -18,6 +18,22 @@
 #include "php_swoole.h"
 #include "table.h"
 
+zend_class_entry swoole_table_ce;
+zend_class_entry *swoole_table_class_entry_ptr;
+
+const zend_function_entry swoole_table_methods[] =
+{
+    PHP_ME(swoole_table, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_table, column, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, create, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, set, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, get, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, del, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, lock, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, unlock, NULL, ZEND_ACC_PUBLIC)
+    PHP_FE_END
+};
+
 static sw_inline swTable* php_swoole_table_get(zval *object TSRMLS_DC)
 {
     zval **zres;
@@ -41,6 +57,9 @@ void swoole_destory_table(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 
 void swoole_table_init(int module_number TSRMLS_DC)
 {
+    INIT_CLASS_ENTRY(swoole_table_ce, "swoole_table", swoole_table_methods);
+    swoole_table_class_entry_ptr = zend_register_internal_class(&swoole_table_ce TSRMLS_CC);
+
     zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("TYPE_INT")-1, SW_TABLE_INT TSRMLS_CC);
     zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("TYPE_STRING")-1, SW_TABLE_STRING TSRMLS_CC);
     zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("TYPE_FLOAT")-1, SW_TABLE_FLOAT TSRMLS_CC);
@@ -108,7 +127,7 @@ PHP_METHOD(swoole_table, create)
     RETURN_TRUE;
 }
 
-PHP_METHOD(swoole_table, add)
+PHP_METHOD(swoole_table, set)
 {
     zval *array;
     char *key;
@@ -120,7 +139,7 @@ PHP_METHOD(swoole_table, add)
     }
 
     swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
-    swTableRow *row = swTableRow_add(table, key, keylen);
+    swTableRow *row = swTableRow_set(table, key, keylen);
     swTableColumn *col;
     zval *v;
     char *k;
@@ -142,17 +161,17 @@ PHP_METHOD(swoole_table, add)
         else if (col->type == SW_TABLE_STRING)
         {
             convert_to_string(v);
-            swTableRow_set(row, col, Z_STRVAL_P(v), Z_STRLEN_P(v));
+            swTableRow_set_value(row, col, Z_STRVAL_P(v), Z_STRLEN_P(v));
         }
         else if (col->type == SW_TABLE_FLOAT)
         {
             convert_to_double(v);
-            swTableRow_set(row, col, &Z_DVAL_P(v), 0);
+            swTableRow_set_value(row, col, &Z_DVAL_P(v), 0);
         }
         else
         {
             convert_to_long(v);
-            swTableRow_set(row, col, &Z_LVAL_P(v), 0);
+            swTableRow_set_value(row, col, &Z_LVAL_P(v), 0);
         }
     } while (p);
 }
@@ -171,8 +190,12 @@ PHP_METHOD(swoole_table, get)
 
     swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
     swTableRow *row = swTableRow_get(table, key, keylen);
-    swTableColumn *col = NULL;
+    if (!row)
+    {
+        RETURN_FALSE;
+    }
 
+    swTableColumn *col = NULL;
     char *k;
 
     while(1)
@@ -213,6 +236,22 @@ PHP_METHOD(swoole_table, get)
             add_assoc_long_ex(return_value, col->name->str, col->name->length + 1, lval);
         }
     }
+}
+
+PHP_METHOD(swoole_table, del)
+{
+    char *key;
+    int keylen;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &key, &keylen) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+
+    array_init(return_value);
+
+    swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
+    swTableRow_del(table, key, keylen);
 }
 
 PHP_METHOD(swoole_table, lock)

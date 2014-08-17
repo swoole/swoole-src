@@ -380,18 +380,6 @@ static zend_function_entry swoole_server_methods[] = {
 	{NULL, NULL, NULL}
 };
 
-const zend_function_entry swoole_client_methods[] =
-{
-	PHP_ME(swoole_client, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-	PHP_ME(swoole_client, connect, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_client, recv, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_client, send, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_client, sendfile, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_client, close, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_client, on, NULL, ZEND_ACC_PUBLIC)
-	PHP_FE_END
-};
-
 const zend_function_entry swoole_process_methods[] =
 {
 	PHP_ME(swoole_process, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
@@ -417,18 +405,6 @@ const zend_function_entry swoole_buffer_methods[] =
     PHP_FE_END
 };
 
-const zend_function_entry swoole_table_methods[] =
-{
-    PHP_ME(swoole_table, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-    PHP_ME(swoole_table, column, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, create, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, add, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, get, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, lock, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, unlock, NULL, ZEND_ACC_PUBLIC)
-    PHP_FE_END
-};
-
 const zend_function_entry swoole_lock_methods[] =
 {
 	PHP_ME(swoole_lock, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
@@ -450,17 +426,11 @@ int le_swoole_buffer;
 zend_class_entry swoole_lock_ce;
 zend_class_entry *swoole_lock_class_entry_ptr;
 
-zend_class_entry swoole_client_ce;
-zend_class_entry *swoole_client_class_entry_ptr;
-
 zend_class_entry swoole_process_ce;
 zend_class_entry *swoole_process_class_entry_ptr;
 
 zend_class_entry swoole_server_ce;
 zend_class_entry *swoole_server_class_entry_ptr;
-
-zend_class_entry swoole_table_ce;
-zend_class_entry *swoole_table_class_entry_ptr;
 
 zend_class_entry swoole_buffer_ce;
 zend_class_entry *swoole_buffer_class_entry_ptr;
@@ -581,12 +551,6 @@ PHP_MINIT_FUNCTION(swoole)
 
     REGISTER_STRINGL_CONSTANT("SWOOLE_VERSION", PHP_SWOOLE_VERSION, sizeof(PHP_SWOOLE_VERSION) - 1, CONST_CS | CONST_PERSISTENT);
 
-	INIT_CLASS_ENTRY(swoole_client_ce, "swoole_client", swoole_client_methods);
-	swoole_client_class_entry_ptr = zend_register_internal_class(&swoole_client_ce TSRMLS_CC);
-
-	zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-	zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-
 	INIT_CLASS_ENTRY(swoole_server_ce, "swoole_server", swoole_server_methods);
 	swoole_server_class_entry_ptr = zend_register_internal_class(&swoole_server_ce TSRMLS_CC);
 
@@ -599,14 +563,10 @@ PHP_MINIT_FUNCTION(swoole)
 	INIT_CLASS_ENTRY(swoole_buffer_ce, "swoole_buffer", swoole_buffer_methods);
 	swoole_buffer_class_entry_ptr = zend_register_internal_class(&swoole_buffer_ce TSRMLS_CC);
 
-	INIT_CLASS_ENTRY(swoole_table_ce, "swoole_table", swoole_table_methods);
-	swoole_table_class_entry_ptr = zend_register_internal_class(&swoole_table_ce TSRMLS_CC);
-
-	zend_hash_init(&php_sw_long_connections, 16, NULL, ZVAL_PTR_DTOR, 1);
-
 	//swoole init
 	swoole_init();
 
+	swoole_client_init(module_number TSRMLS_CC);
 	swoole_async_init(module_number TSRMLS_CC);
 	swoole_table_init(module_number TSRMLS_CC);
 
@@ -1426,6 +1386,11 @@ PHP_FUNCTION(swoole_server_close)
 		RETURN_FALSE;
 	}
 
+    if (serv->onClose != NULL)
+    {
+        serv->onClose(serv, ev.fd, ev.from_id);
+    }
+
 	if (serv->factory.end(&serv->factory, &ev) >= 0)
 	{
 		RETVAL_TRUE;
@@ -1433,11 +1398,6 @@ PHP_FUNCTION(swoole_server_close)
 	else
 	{
 	    RETVAL_FALSE;
-	}
-
-	if (serv->onClose != NULL)
-	{
-	    serv->onClose(serv, ev.fd, ev.from_id);
 	}
 }
 
@@ -1705,20 +1665,20 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
 		ZVAL_LONG(zfrom_id, (long) php_swoole_udp_from_id);
 		ZVAL_LONG(zfd, (long)req->info.fd);
 	}
-	//unix dgram
-	else if (req->info.type == SW_EVENT_UNIX_DGRAM)
-	{
-		uint16_t sun_path_offset = req->info.fd;
-		ZVAL_STRING(zfd, req->data + sun_path_offset, 1);
-		req->info.len -= (Z_STRLEN_P(zfd) + 1);
-		ZVAL_LONG(zfrom_id, (long)req->info.from_fd);
-		php_swoole_unix_dgram_fd = req->info.from_fd;
-	}
-	else
-	{
-		ZVAL_LONG(zfrom_id, (long)req->info.from_id);
-		ZVAL_LONG(zfd, (long)req->info.fd);
-	}
+    //unix dgram
+    else if (req->info.type == SW_EVENT_UNIX_DGRAM)
+    {
+        uint16_t sun_path_offset = req->info.fd;
+        ZVAL_STRING(zfd, req->data + sun_path_offset, 1);
+        req->info.len -= (Z_STRLEN_P(zfd) + 1);
+        ZVAL_LONG(zfrom_id, (long)req->info.from_fd);
+        php_swoole_unix_dgram_fd = req->info.from_fd;
+    }
+    else
+    {
+        ZVAL_LONG(zfrom_id, (long)req->info.from_id);
+        ZVAL_LONG(zfd, (long)req->info.fd);
+    }
 
 	char *data_ptr;
 	int data_len;
@@ -1752,11 +1712,11 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	ZVAL_STRINGL(zdata, data_ptr, data_len, 1);
 
 #ifdef SW_USE_RINGBUFFER
-	if (req->info.type == SW_EVENT_PACKAGE)
-	{
-	    swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
-	    worker->pool_input->free(worker->pool_input, data_ptr);
-	}
+    if (req->info.type == SW_EVENT_PACKAGE)
+    {
+        swReactorThread *thread = swServer_get_thread(serv, req->info.from_id);
+        thread->buffer_input->free(thread->buffer_input, data_ptr);
+    }
 #endif
 
 	args[0] = &zserv;
@@ -2273,7 +2233,7 @@ static void php_swoole_onClose(swServer *serv, int fd, int from_id)
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onClose], &retval, 3, args, 0,
 			NULL TSRMLS_CC) == FAILURE)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onClose handler error");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "onClose handler error");
 	}
 	if (EG(exception))
 	{

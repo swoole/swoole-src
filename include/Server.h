@@ -112,6 +112,7 @@ typedef struct _swReactorThread
 	swReactor reactor;
 	swUdpFd *udp_addrs;
 	swCloseQueue close_queue;
+	swMemoryPool *buffer_input;
 	int c_udp_fd;
 } swReactorThread;
 
@@ -483,10 +484,12 @@ void swServer_connection_close(swServer *serv, int fd, int notify);
 //使用connection_list[0]表示最大的FD
 #define swServer_set_maxfd(serv,maxfd) (serv->connection_list[SW_SERVER_MAX_FD_INDEX].fd=maxfd)
 #define swServer_get_maxfd(serv) (serv->connection_list[SW_SERVER_MAX_FD_INDEX].fd)
-#define swServer_connection_get(serv,fd) ((fd>serv->max_conn|| fd<= 2)?NULL:&serv->connection_list[fd])
+#define swServer_connection_get(serv,fd) ((fd>serv->max_conn || fd<=2)?NULL:&serv->connection_list[fd])
 //使用connection_list[1]表示最小的FD
 #define swServer_set_minfd(serv,maxfd) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd=maxfd)
 #define swServer_get_minfd(serv) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd)
+
+#define swServer_get_thread(serv, reactor_id)    (&(serv->reactor_threads[reactor_id]))
 
 static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_id)
 {
@@ -579,28 +582,6 @@ int swWorker_create(swWorker *worker);
 void swWorker_free(swWorker *worker);
 void swWorker_signal_init(void);
 void swWorker_signal_handler(int signo);
-
-static sw_inline void* swWorker_input_alloc(swWorker *worker, uint32_t size)
-{
-    void *ptr = NULL;
-    int try_count = 0;
-
-    while (1)
-    {
-        ptr = worker->pool_input->alloc(worker->pool_input, size);
-        if (ptr == NULL)
-        {
-            if (try_count > SW_RINGBUFFER_WARNING)
-            {
-                swWarn("Input memory pool is full. Wait memory collect. alloc(%d)", size);
-            }
-            swYield();
-            continue;
-        }
-        break;
-    }
-    return ptr;
-}
 
 int swServer_master_onAccept(swReactor *reactor, swDataHead *event);
 void swServer_master_onReactorTimeout(swReactor *reactor);

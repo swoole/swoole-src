@@ -226,6 +226,7 @@ PHP_METHOD(swoole_client, connect);
 PHP_METHOD(swoole_client, recv);
 PHP_METHOD(swoole_client, send);
 PHP_METHOD(swoole_client, sendfile);
+PHP_METHOD(swoole_client, isConnected);
 PHP_METHOD(swoole_client, close);
 PHP_METHOD(swoole_client, on);
 
@@ -256,9 +257,9 @@ PHP_METHOD(swoole_buffer, clear);
 PHP_METHOD(swoole_table, __construct);
 PHP_METHOD(swoole_table, column);
 PHP_METHOD(swoole_table, create);
-PHP_METHOD(swoole_table, add);
+PHP_METHOD(swoole_table, set);
 PHP_METHOD(swoole_table, get);
-
+PHP_METHOD(swoole_table, del);
 PHP_METHOD(swoole_table, lock);
 PHP_METHOD(swoole_table, unlock);
 
@@ -269,6 +270,7 @@ void swoole_destory_table(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 
 void swoole_async_init(int module_number TSRMLS_DC);
 void swoole_table_init(int module_number TSRMLS_DC);
+void swoole_client_init(int module_number TSRMLS_DC);
 
 void php_swoole_check_reactor();
 void php_swoole_try_run_reactor();

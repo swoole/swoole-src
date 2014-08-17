@@ -61,7 +61,7 @@ PHP_METHOD(swoole_lock, __construct)
 		ret = swFileLock_create(lock, fd);
 		break;
 	case SW_SEM:
-		ret = swSem_create(lock, IPC_PRIVATE, 1);
+		ret = swSem_create(lock, IPC_PRIVATE);
 		break;
 #ifdef HAVE_SPINLOCK
 	case SW_SPINLOCK:

@@ -118,7 +118,7 @@ static int swClient_inet_addr(swClient *cli, char *string)
     {
         if (!swoole_dns_cache)
         {
-            swoole_dns_cache = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N);
+            swoole_dns_cache = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
         }
 
         swDNS_cache *cache = swHashMap_find(swoole_dns_cache, string, strlen(string));
@@ -150,7 +150,7 @@ static int swClient_inet_addr(swClient *cli, char *string)
                 memcpy(cache->addr, host_entry->h_addr_list[0], host_entry->h_length);
                 cache->length = host_entry->h_length;
             }
-            swHashMap_add(swoole_dns_cache, string, strlen(string), cache);
+            swHashMap_add(swoole_dns_cache, string, strlen(string), cache, NULL);
         }
         memcpy(&(sin->sin_addr.s_addr), cache->addr, cache->length);
     }
