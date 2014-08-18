@@ -292,7 +292,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 			msgqueue_key =  serv->message_queue_key + 2;
 		}
 
-		if (swProcessPool_create(&SwooleG.task_workers, SwooleG.task_worker_num, serv->max_request, msgqueue_key) < 0)
+		if (swProcessPool_create(&SwooleG.task_workers, SwooleG.task_worker_num, serv->task_max_request, msgqueue_key) < 0)
 		{
 			swWarn("[Master] create task_workers failed.");
 			return SW_ERR;

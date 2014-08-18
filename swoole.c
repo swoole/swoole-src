@@ -957,12 +957,18 @@ PHP_FUNCTION(swoole_server_set)
 		convert_to_long(*v);
 		serv->max_conn = (int)Z_LVAL_PP(v);
 	}
-	//max_request
-	if (zend_hash_find(vht, ZEND_STRS("max_request"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		serv->max_request = (int)Z_LVAL_PP(v);
-	}
+    //max_request
+    if (zend_hash_find(vht, ZEND_STRS("max_request"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(*v);
+        serv->max_request = (int) Z_LVAL_PP(v);
+    }
+    //task_max_request
+    if (zend_hash_find(vht, ZEND_STRS("task_max_request"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(*v);
+        serv->task_max_request = (int) Z_LVAL_PP(v);
+    }
 	//cpu affinity
 	if (zend_hash_find(vht, ZEND_STRS("open_cpu_affinity"), (void **)&v) == SUCCESS)
 	{

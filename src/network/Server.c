@@ -703,7 +703,9 @@ void swServer_init(swServer *serv)
 	serv->writer_num = SW_CPU_NUM;
 	serv->worker_num = SW_CPU_NUM;
 	serv->max_conn = SwooleG.max_sockets;
+
 	serv->max_request = 0;
+	serv->task_max_request = SW_MAX_REQUEST;
 
 	serv->udp_sock_buffer_size = SW_UNSOCK_BUFSIZE;
 
