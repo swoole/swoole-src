@@ -55,8 +55,9 @@ static void php_swoole_check_aio()
 	    php_swoole_open_files = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N);
 		php_swoole_check_reactor();
 
+		swAio_init();
 
-        SwooleAIO.callback = php_swoole_aio_onComplete;
+		SwooleAIO.callback = php_swoole_aio_onComplete;
 		php_swoole_try_run_reactor();
 		php_swoole_aio_init = 1;
 	}
