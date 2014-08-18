@@ -623,6 +623,10 @@ PHP_MINIT_FUNCTION(swoole)
 PHP_MSHUTDOWN_FUNCTION(swoole)
 {
 	swoole_clean();
+	if (php_sw_in_client && SwooleG.main_reactor)
+	{
+	    sw_free(SwooleG.main_reactor);
+	}
 	return SUCCESS;
 }
 /* }}} */

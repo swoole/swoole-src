@@ -49,8 +49,8 @@ typedef struct
 
 uint8_t php_sw_reactor_wait_onexit = 0;
 uint8_t php_sw_reactor_ok = 0;
+uint8_t php_sw_in_client = 0;
 
-static uint8_t php_sw_in_client = 0;
 static uint8_t php_sw_event_wait = 0;
 
 static char *php_sw_callbacks[PHP_CLIENT_CALLBACK_NUM] =
