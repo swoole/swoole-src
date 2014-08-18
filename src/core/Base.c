@@ -94,6 +94,13 @@ void swoole_clean(void)
         {
             swTimer_free(&SwooleG.timer);
         }
+        
+        if (SwooleG.main_reactor)
+        {
+        	SwooleG.main_reactor->free(SwooleG.main_reactor);
+        }
+        sw_free(SwooleG.main_reactor);
+        
         bzero(&SwooleG, sizeof(SwooleG));
     }
 }

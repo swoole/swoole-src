@@ -674,7 +674,6 @@ static swClient* swoole_client_create_socket(zval *object, char *host, int host_
 			ret = recv(cli->connection.fd, &tmp_buf, sizeof(tmp_buf), MSG_DONTWAIT | MSG_PEEK);
 			if (ret == 0 || (ret < 0 && swConnection_error(errno) == SW_CLOSE))
 			{
-                
 				cli->close(cli);
 				goto create_socket;
 			}
@@ -1541,12 +1540,11 @@ PHP_METHOD(swoole_client, on)
 	{
 		return;
 	}
-	zval_add_ref(&getThis());
+
 	for(i=0; i<PHP_CLIENT_CALLBACK_NUM; i++)
 	{
 		if (strncasecmp(php_sw_callbacks[i] + 2, cb_name, cb_name_len) == 0)
 		{
-			zval_add_ref(&zcallback);
 			zend_update_property(swoole_client_class_entry_ptr, getThis(), php_sw_callbacks[i], strlen(php_sw_callbacks[i]), zcallback TSRMLS_CC);
 			RETURN_TRUE;
 		}

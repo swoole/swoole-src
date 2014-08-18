@@ -314,6 +314,11 @@ void swHashMap_free(swHashMap* hmap)
 		swHashMap_delete_node(root, find);
 		sw_free(find);
 	}
+	
+	sw_free(hmap->root->hh.tbl->buckets);
+	sw_free(hmap->root->hh.tbl);
+	sw_free(hmap->root);
+	
 	sw_free(hmap);
 }
 
