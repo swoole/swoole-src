@@ -13,8 +13,8 @@ typedef struct _swRingBuffer
 
 typedef struct _swRingBuffer_item
 {
-    volatile uint32_t lock;
-    volatile uint32_t length;
+    uint32_t lock;
+    uint32_t length;
 } swRingBuffer_head;
 
 static void swRingBuffer_destory(swMemoryPool *pool);

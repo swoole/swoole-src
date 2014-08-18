@@ -39,6 +39,8 @@ typedef struct _swClient
     uint16_t package_body_offset;
     uint32_t package_max_length;
 
+    uint32_t udp_sock_buffer_size;
+
 	char *server_str;
 	void *ptr;
 

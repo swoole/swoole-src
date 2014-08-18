@@ -24,8 +24,8 @@ static int swClient_tcp_send_async(swClient *cli, char *data, int length);
 static int swClient_tcp_sendfile_sync(swClient *cli, char *filename);
 static int swClient_tcp_sendfile_async(swClient *cli, char *filename);
 static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, int len, int waitall);
-static int swClient_tcp_recv_eof_check(swClient *cli, char *data, int len, int waitall);
-static int swClient_tcp_recv_length_check(swClient *cli, char *data, int len, int waitall);
+//static int swClient_tcp_recv_eof_check(swClient *cli, char *data, int len, int waitall);
+//static int swClient_tcp_recv_length_check(swClient *cli, char *data, int len, int waitall);
 static int swClient_udp_connect(swClient *cli, char *host, int port, double _timeout, int udp_connect);
 static int swClient_udp_send(swClient *cli, char *data, int length);
 static int swClient_udp_recv(swClient *cli, char *data, int len, int waitall);
@@ -86,6 +86,8 @@ int swClient_create(swClient *cli, int type, int async)
             cli->send = swClient_tcp_send_sync;
             cli->sendfile = swClient_tcp_sendfile_sync;
         }
+
+        cli->udp_sock_buffer_size = SW_UNSOCK_BUFSIZE;
     }
     else
     {
@@ -341,6 +343,10 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
     {
         return SW_OK;
     }
+
+    int bufsize = cli->udp_sock_buffer_size;
+    setsockopt(cli->connection.fd, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize));
+    setsockopt(cli->connection.fd, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize));
 
     if (connect(cli->connection.fd, (struct sockaddr *) (&cli->server_addr), sizeof(cli->server_addr)) == 0)
     {
