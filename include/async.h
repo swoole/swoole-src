@@ -56,7 +56,7 @@ extern swPipe swoole_aio_pipe;
 extern swAIO SwooleAIO;
 
 void swAio_callback_test(swAio_event *aio_event);
-int swAio_init(uint8_t aio_mode);
+int swAio_init(void);
 int swAioBase_init(int max_aio_events);
 int swAio_dns_lookup(void *hostname, void *ip_addr, size_t size);
 

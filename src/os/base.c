@@ -30,7 +30,7 @@ static swThreadPool swAioBase_thread_pool;
 static int swAioBase_pipe_read;
 static int swAioBase_pipe_write;
 
-int swAio_init(uint8_t aio_mode)
+int swAio_init(void)
 {
     if (SwooleAIO.init)
     {
@@ -46,7 +46,7 @@ int swAio_init(uint8_t aio_mode)
     SwooleAIO.reactor = SwooleG.main_reactor;
     int ret = 0;
 
-    switch (aio_mode)
+    switch (SwooleAIO.mode)
     {
 #ifdef HAVE_LINUX_AIO
     case SW_AIO_LINUX:
