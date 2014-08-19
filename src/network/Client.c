@@ -118,7 +118,7 @@ static int swClient_inet_addr(swClient *cli, char *string)
     {
         if (!swoole_dns_cache)
         {
-            swoole_dns_cache = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N);
+            swoole_dns_cache = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
         }
 
         swDNS_cache *cache = swHashMap_find(swoole_dns_cache, string, strlen(string));

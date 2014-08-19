@@ -1,13 +1,16 @@
 #ifndef __SW_HASHMAP_H
 #define __SW_HASHMAP_H
 
+typedef void swHashMap_dtor(void *data);
+
 typedef struct
 {
     struct swHashMap_node *root;
     struct swHashMap_node *iterator;
+    swHashMap_dtor *dtor;
 } swHashMap;
 
-swHashMap* swHashMap_new(uint32_t bucket_num);
+swHashMap* swHashMap_new(uint32_t bucket_num, swHashMap_dtor *dtor);
 void swHashMap_free(swHashMap *hmap);
 
 int swHashMap_add(swHashMap *hmap, char *key, uint16_t key_len, void *data);

@@ -52,7 +52,7 @@ static void php_swoole_check_aio()
 {
 	if (php_swoole_aio_init == 0)
 	{
-	    php_swoole_open_files = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N);
+	    php_swoole_open_files = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
 		php_swoole_check_reactor();
 
 		swAio_init();

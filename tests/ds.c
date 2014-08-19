@@ -21,7 +21,7 @@ swUnitTest(type_test1)
 
 swUnitTest(hashmap_test1)
 {
-	swHashMap *hm = swHashMap_new(16);
+	swHashMap *hm = swHashMap_new(16, NULL);
 
 	printf("----------------------insert to hashmap----------------------\n");
 	swHashMap_add(hm, SW_STRL("hello")-1, (void *)199);
@@ -146,7 +146,7 @@ swUnitTest(chan_test)
  */
 swUnitTest(ds_test2)
 {
-	swHashMap *ht = swHashMap_new(16);
+	swHashMap *ht = swHashMap_new(16, free);
 	swFdInfo *pkt, *tmp;
 	int i;
 

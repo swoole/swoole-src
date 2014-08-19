@@ -17,6 +17,12 @@
 #include "swoole.h"
 #include "table.h"
 
+static void swTableColumn_free(swTableColumn *col)
+{
+    swString_free(col->name);
+    sw_free(col);
+}
+
 swTable* swTable_new(uint32_t rows_size)
 {
     swTable *table = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swTable));
@@ -29,7 +35,7 @@ swTable* swTable_new(uint32_t rows_size)
         swWarn("mutex create failed.");
         return NULL;
     }
-    table->columns = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N);
+    table->columns = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, swTableColumn_free);
     if (!table->columns)
     {
         return NULL;
@@ -113,11 +119,13 @@ int swTable_create(swTable *table)
 void swTable_free(swTable *table)
 {
 
-    //TODO free columns
+//    TODO free columns
 //    if (table->item_size > 0)
 //    {
 //
 //    }
+    swHashMap_free(table->columns);
+
     sw_shm_free(table->memory);
 }
 

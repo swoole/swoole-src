@@ -42,7 +42,7 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
 		return SW_ERR;
 	}
 
-	pool->map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N);
+	pool->map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
 	if (pool->map == NULL)
 	{
 	    return SW_ERR;

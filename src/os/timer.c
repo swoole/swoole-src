@@ -36,7 +36,7 @@ int swTimer_create(swTimer *timer, int interval, int use_pipe)
 	SwooleG.use_timerfd = 0;
 #endif
 
-	timer->list = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N);
+	timer->list = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
 	if (!timer->list)
 	{
 	    return SW_ERR;
@@ -224,8 +224,8 @@ int swTimer_select(swTimer *timer)
 		//swWarn("Timer=%ld|lasttime=%ld|now=%ld", key, timer_node->lasttime, now_ms);
 		if (timer_node->lasttime < now_ms - timer_node->interval)
 		{
-			timer->onTimer(timer, timer_node->interval);
 			timer_node->lasttime += timer_node->interval;
+			timer->onTimer(timer, timer_node->interval);
 		}
 	} while(timer_node);
 	return SW_OK;
