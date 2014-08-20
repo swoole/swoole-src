@@ -14,6 +14,7 @@ $data = $client->recv(7000);
 if ($data === false)
 {
 	echo "recv failed. Error: {$client->errCode}\n";
+	break;
 }
 //var_dump($data);
 
