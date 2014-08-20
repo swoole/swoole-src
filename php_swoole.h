@@ -256,9 +256,9 @@ PHP_METHOD(swoole_buffer, clear);
 PHP_METHOD(swoole_table, __construct);
 PHP_METHOD(swoole_table, column);
 PHP_METHOD(swoole_table, create);
-PHP_METHOD(swoole_table, add);
+PHP_METHOD(swoole_table, set);
 PHP_METHOD(swoole_table, get);
-
+PHP_METHOD(swoole_table, del);
 PHP_METHOD(swoole_table, lock);
 PHP_METHOD(swoole_table, unlock);
 

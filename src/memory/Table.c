@@ -87,8 +87,9 @@ int swTableColumn_add(swTable *table, char *name, int len, int type, int size)
 int swTable_create(swTable *table)
 {
     uint32_t row_num = table->size * (1 + SW_TABLE_CONFLICT_PROPORTION);
-    size_t memory_size = row_num * (sizeof(swTableRow) + table->item_size);
+    uint32_t row_memory_size = sizeof(swTableRow) + table->item_size;
 
+    size_t memory_size = row_num * row_memory_size;
     void *memory = sw_shm_malloc(memory_size);
     if (memory == NULL)
     {
@@ -96,31 +97,22 @@ int swTable_create(swTable *table)
     }
     table->memory = memory;
     table->rows = memory;
-    memory += sizeof(swTableRow) * table->size;
-    memory_size -= sizeof(swTableRow) * table->size;
 
     int i;
     for (i = 0; i < table->size; i++)
     {
-        table->rows[i] = memory + (sizeof(swTableRow) + table->item_size) * i;
+        table->rows[i] = memory + (row_memory_size * i);
     }
-    memory += (sizeof(swTableRow) + table->item_size) * table->size;
-    memory_size -= (sizeof(swTableRow) + table->item_size) * table->size;
-    table->pool = swFixedPool_new2(table->item_size, memory, memory_size);
+    memory += row_memory_size * table->size;
+    memory_size -= row_memory_size * table->size;
+    table->pool = swFixedPool_new2(row_memory_size, memory, memory_size);
     return SW_OK;
 }
 
 void swTable_free(swTable *table)
 {
-
-    //TODO free columns
-//    if (table->item_size > 0)
-//    {
-//
-//    }
     sw_shm_free(table->memory);
 }
-
 
 static sw_inline swTableRow* swTable_hash(swTable *table, char *key, int keylen)
 {
@@ -129,31 +121,36 @@ static sw_inline swTableRow* swTable_hash(swTable *table, char *key, int keylen)
     return table->rows[index];
 }
 
-swTableRow* swTableRow_add(swTable *table, char *key, int keylen)
+swTableRow* swTableRow_set(swTable *table, char *key, int keylen)
 {
     swTableRow *row = swTable_hash(table, key, keylen);
+    uint32_t crc32 = swoole_crc32(key, keylen);
 
     sw_spinlock(&row->lock);
-    while(1)
+    if (row->active)
     {
-        //empty slot
-        if (row->active == 0)
+        for (;;)
         {
-            break;
-        }
-        else if (row->next)
-        {
-            row = row->next;
-        }
-        else
-        {
-            swTableRow *new_row =  table->pool->alloc(table->pool, 0);
-            row->next = new_row;
-            row = new_row;
-            break;
+            if (row->crc32 == crc32)
+            {
+                break;
+            }
+            else if (row->next == NULL)
+            {
+                swTableRow *new_row = table->pool->alloc(table->pool, 0);
+                row->next = new_row;
+                row = new_row;
+                break;
+            }
+            else
+            {
+                row = row->next;
+            }
         }
     }
+    row->crc32 = crc32;
     row->active = 1;
+    swTrace("row=%p, crc32=%u, key=%s\n", row, crc32, key);
     sw_spinlock_release(&row->lock);
     return row;
 }
@@ -161,26 +158,56 @@ swTableRow* swTableRow_add(swTable *table, char *key, int keylen)
 swTableRow* swTableRow_get(swTable *table, char *key, int keylen)
 {
     swTableRow *row = swTable_hash(table, key, keylen);
+    uint32_t crc32 = swoole_crc32(key, keylen);
 
-//    for(;;)
-//    {
-//        //empty slot
-//        if (row->active == 0)
-//        {
-//            break;
-//        }
-//        else if (row->next)
-//        {
-//            row = row->next;
-//        }
-//        else
-//        {
-//            swTableRow *new_row = swTable_alloc(table);
-//            row->next = new_row;
-//            row = new_row;
-//            break;
-//        }
-//    }
+    swTrace("row=%p, crc32=%u, key=%s\n", row, crc32, key);
+    sw_spinlock(&row->lock);
+    for (;;)
+    {
+        if (row->crc32 == crc32)
+        {
+            break;
+        }
+        else if (row->next == NULL)
+        {
+            row = NULL;
+            break;
+        }
+        else
+        {
+            row = row->next;
+        }
+    }
+    sw_spinlock_release(&row->lock);
     return row;
 }
 
+int swTableRow_del(swTable *table, char *key, int keylen)
+{
+    swTableRow *row = swTable_hash(table, key, keylen);
+    uint32_t crc32 = swoole_crc32(key, keylen);
+
+    sw_spinlock(&row->lock);
+    while (row->active)
+    {
+        for (;;)
+        {
+            if (row->crc32 == crc32)
+            {
+                table->pool->free(table->pool, row);
+                break;
+            }
+            else if (row->next == NULL)
+            {
+                return SW_ERR;
+            }
+            else
+            {
+                row = row->next;
+            }
+        }
+    }
+    row->active = 0;
+    sw_spinlock_release(&row->lock);
+    return SW_OK;
+}
