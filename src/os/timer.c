@@ -189,7 +189,7 @@ int swTimer_add(swTimer *timer, int ms)
 			swTimer_signal_set(timer, new_interval);
 		}
 	}
-	swHashMap_add_int(timer->list, ms, node);
+	swHashMap_add_int(timer->list, ms, node, NULL);
 	timer->num++;
 	return SW_OK;
 }

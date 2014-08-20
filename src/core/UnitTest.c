@@ -40,7 +40,7 @@ void _swUnitTest_setup(swUnitTest_Func func, char *func_name, int run_times, cha
 	u->func = func;
 	u->run_times = run_times;
 	u->comment = comment;
-	swHashMap_add(utmap, func_name, strlen(func_name), u);
+	swHashMap_add(utmap, func_name, strlen(func_name), u, NULL);
 }
 
 int swUnitTest_run(swUnitTest *object)

@@ -365,7 +365,7 @@ PHP_FUNCTION(swoole_async_write)
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async_write: add to hashtable[1] failed");
 			RETURN_FALSE;
 		}
-		swHashMap_add(php_swoole_open_files, Z_STRVAL_P(filename), Z_STRLEN_P(filename), req);
+		swHashMap_add(php_swoole_open_files, Z_STRVAL_P(filename), Z_STRLEN_P(filename), req, NULL);
 	}
 	else
 	{
@@ -593,7 +593,7 @@ PHP_FUNCTION(swoole_async_dns_lookup)
 		TSRMLS_SET_CTX(sw_thread_ctx);
 	}
 #endif
-	
+
 	if (Z_STRLEN_P(domain) == 0)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async_dns_lookup: domain name empty.");

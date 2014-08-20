@@ -24,12 +24,12 @@ swUnitTest(hashmap_test1)
 	swHashMap *hm = swHashMap_new(16, NULL);
 
 	printf("----------------------insert to hashmap----------------------\n");
-	swHashMap_add(hm, SW_STRL("hello")-1, (void *)199);
-	swHashMap_add(hm, SW_STRL("swoole22")-1, (void *)8877);
-	swHashMap_add(hm, SW_STRL("hello2")-1, (void *)200);
-	swHashMap_add(hm, SW_STRL("willdel")-1, (void *)888);
-	swHashMap_add(hm, SW_STRL("willupadte")-1, (void *)9999);
-	swHashMap_add(hm, SW_STRL("hello3")-1, (void *)78978);
+	swHashMap_add(hm, SW_STRL("hello")-1, (void *)199, NULL);
+	swHashMap_add(hm, SW_STRL("swoole22")-1, (void *)8877, NULL);
+	swHashMap_add(hm, SW_STRL("hello2")-1, (void *)200, NULL);
+	swHashMap_add(hm, SW_STRL("willdel")-1, (void *)888, NULL);
+	swHashMap_add(hm, SW_STRL("willupadte")-1, (void *)9999, NULL);
+	swHashMap_add(hm, SW_STRL("hello3")-1, (void *)78978, NULL);
 
 	printf("----------------------delete node key=willdel----------------------\n");
 	swHashMap_del(hm, SW_STRL("willdel")-1);
@@ -155,7 +155,7 @@ swUnitTest(ds_test2)
 		pkt = (swFdInfo *) malloc(sizeof(swFdInfo));
 		pkt->key = i;
 		pkt->fd = i * 34;
-		swHashMap_add_int(ht, i, pkt);
+		swHashMap_add_int(ht, i, pkt, NULL);
 	}
 
 	tmp = swHashMap_find_int(ht, 7);
