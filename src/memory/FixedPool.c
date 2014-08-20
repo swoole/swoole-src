@@ -96,11 +96,12 @@ swMemoryPool* swFixedPool_new2(uint32_t slice_size, void *memory, size_t size)
 
     swMemoryPool *pool = memory;
     memory += sizeof(swMemoryPool);
+    bzero(pool, sizeof(swMemoryPool));
 
     pool->object = object;
     pool->alloc = swFixedPool_alloc;
-    pool->free = NULL;
-    pool->destroy = NULL;
+    pool->free = swFixedPool_free;
+    pool->destroy = swFixedPool_destroy;
 
     object->memory = memory;
 

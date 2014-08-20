@@ -534,7 +534,6 @@ typedef struct _swMemoryPool
  * FixedPool, random alloc/free fixed size memory
  */
 swMemoryPool* swFixedPool_new(uint32_t slice_num, uint32_t slice_size, uint8_t shared);
-
 swMemoryPool* swFixedPool_new2(uint32_t slice_size, void *memory, size_t size);
 
 /**
@@ -725,7 +724,6 @@ struct _swWorker
 
 	swProcessPool *pool;
 
-	swMemoryPool *pool_input;
 	swMemoryPool *pool_output;
 
 	/**

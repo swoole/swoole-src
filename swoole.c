@@ -422,8 +422,9 @@ const zend_function_entry swoole_table_methods[] =
     PHP_ME(swoole_table, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
     PHP_ME(swoole_table, column, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, create, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, add, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, set, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, get, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, del, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, lock, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, unlock, NULL, ZEND_ACC_PUBLIC)
     PHP_FE_END
@@ -1705,20 +1706,20 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
 		ZVAL_LONG(zfrom_id, (long) php_swoole_udp_from_id);
 		ZVAL_LONG(zfd, (long)req->info.fd);
 	}
-	//unix dgram
-	else if (req->info.type == SW_EVENT_UNIX_DGRAM)
-	{
-		uint16_t sun_path_offset = req->info.fd;
-		ZVAL_STRING(zfd, req->data + sun_path_offset, 1);
-		req->info.len -= (Z_STRLEN_P(zfd) + 1);
-		ZVAL_LONG(zfrom_id, (long)req->info.from_fd);
-		php_swoole_unix_dgram_fd = req->info.from_fd;
-	}
-	else
-	{
-		ZVAL_LONG(zfrom_id, (long)req->info.from_id);
-		ZVAL_LONG(zfd, (long)req->info.fd);
-	}
+    //unix dgram
+    else if (req->info.type == SW_EVENT_UNIX_DGRAM)
+    {
+        uint16_t sun_path_offset = req->info.fd;
+        ZVAL_STRING(zfd, req->data + sun_path_offset, 1);
+        req->info.len -= (Z_STRLEN_P(zfd) + 1);
+        ZVAL_LONG(zfrom_id, (long)req->info.from_fd);
+        php_swoole_unix_dgram_fd = req->info.from_fd;
+    }
+    else
+    {
+        ZVAL_LONG(zfrom_id, (long)req->info.from_id);
+        ZVAL_LONG(zfd, (long)req->info.fd);
+    }
 
 	char *data_ptr;
 	int data_len;
@@ -1752,11 +1753,11 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	ZVAL_STRINGL(zdata, data_ptr, data_len, 1);
 
 #ifdef SW_USE_RINGBUFFER
-	if (req->info.type == SW_EVENT_PACKAGE)
-	{
-	    swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
-	    worker->pool_input->free(worker->pool_input, data_ptr);
-	}
+    if (req->info.type == SW_EVENT_PACKAGE)
+    {
+        swReactorThread *thread = swServer_get_thread(serv, req->info.from_id);
+        thread->buffer_input->free(thread->buffer_input, data_ptr);
+    }
 #endif
 
 	args[0] = &zserv;

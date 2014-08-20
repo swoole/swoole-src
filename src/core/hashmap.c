@@ -429,7 +429,7 @@ static unsigned int crc32_tab[] = {
     0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d,
 };
 
-static inline unsigned int crc32(char *buf, unsigned int size)
+static inline uint32_t crc32(char *buf, unsigned int size)
 {
     const char *p;
     register int crc = 0;
@@ -443,7 +443,7 @@ static inline unsigned int crc32(char *buf, unsigned int size)
     return crc ^ ~0U;
 }
 
-uint64_t swoole_crc32(char *data, uint32_t size)
+uint32_t swoole_crc32(char *data, uint32_t size)
 {
     if (size < CRC_STRING_MAXLEN)
     {

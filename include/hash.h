@@ -195,6 +195,6 @@ static inline uint64_t swoole_hash_php(char *key, uint32_t len)
 
 #define CRC_STRING_MAXLEN      256
 
-uint64_t swoole_crc32(char *data, uint32_t size);
+uint32_t swoole_crc32(char *data, uint32_t size);
 
 #endif /* SW_HASH_H_ */
