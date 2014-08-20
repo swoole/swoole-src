@@ -126,15 +126,6 @@ int swFactoryProcess_start(swFactory *factory)
         {
             return SW_ERR;
         }
-
-#ifdef SW_USE_RINGBUFFER
-        worker->pool_input = swRingBuffer_new(SwooleG.serv->buffer_input_size, 1);
-        if (!worker->pool_input)
-        {
-            return SW_ERR;
-        }
-#endif
-
     }
 
     //必须先启动manager进程组，否则会带线程fork

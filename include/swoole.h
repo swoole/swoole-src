@@ -725,7 +725,6 @@ struct _swWorker
 
 	swProcessPool *pool;
 
-	swMemoryPool *pool_input;
 	swMemoryPool *pool_output;
 
 	/**
