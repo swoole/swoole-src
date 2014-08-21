@@ -201,7 +201,7 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
 		ret = pread(event->fd, event->buf, event->nbytes, event->offset);
 		break;
 	case SW_AIO_DNS_LOOKUP:
-		if (!(host_entry = gethostbyname(event->req)))
+		if (!(host_entry = gethostbyname(event->buf)))
 		{
 			event->error = errno;
 		}
