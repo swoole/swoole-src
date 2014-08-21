@@ -32,7 +32,7 @@ void _swUnitTest_setup(swUnitTest_Func func, char *func_name, int run_times, cha
 {
     if (!utmap)
     {
-        utmap = swHashMap_new(32);
+        utmap = swHashMap_new(32, free);
     }
 	swHashTable_unitTest *u;
 	u = (swHashTable_unitTest *) malloc(sizeof(swHashTable_unitTest));
@@ -40,7 +40,7 @@ void _swUnitTest_setup(swUnitTest_Func func, char *func_name, int run_times, cha
 	u->func = func;
 	u->run_times = run_times;
 	u->comment = comment;
-	swHashMap_add(utmap, func_name, strlen(func_name), u);
+	swHashMap_add(utmap, func_name, strlen(func_name), u, NULL);
 }
 
 int swUnitTest_run(swUnitTest *object)

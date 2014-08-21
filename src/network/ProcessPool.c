@@ -42,7 +42,7 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
 		return SW_ERR;
 	}
 
-	pool->map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N);
+	pool->map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
 	if (pool->map == NULL)
 	{
 	    return SW_ERR;
@@ -213,7 +213,7 @@ pid_t swProcessPool_spawn(swWorker *worker)
 		//parent
 	default:
 		worker->pid = pid;
-		swHashMap_add_int(pool->map, pid, worker);
+		swHashMap_add_int(pool->map, pid, worker, NULL);
 		break;
 	}
 	return pid;
@@ -292,7 +292,7 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
  */
 int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker)
 {
-	swHashMap_add_int(pool->map, worker->pid, worker);
+	swHashMap_add_int(pool->map, worker->pid, worker, NULL);
 	return SW_OK;
 }
 
