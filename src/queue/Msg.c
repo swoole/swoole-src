@@ -42,6 +42,7 @@ int swQueueMsg_create(swQueue *p, int blocking, int msg_key, long type)
 	swQueueMsg *object = sw_malloc(sizeof(swQueueMsg));
 	if (object == NULL)
 	{
+	    swWarn("malloc failed. Error: %s[%d]", strerror(errno), errno);
 		return -1;
 	}
 	if (blocking == 0)

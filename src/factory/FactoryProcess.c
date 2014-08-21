@@ -259,7 +259,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 		object->pipes = sw_calloc(serv->worker_num, sizeof(swPipe));
 		if (object->pipes == NULL)
 		{
-			swError("malloc[worker_pipes] fail. Error: %s [%d]", strerror(errno), errno);
+			swError("malloc[worker_pipes] failed. Error: %s [%d]", strerror(errno), errno);
 			return SW_ERR;
 		}
 		//worker进程的pipes
@@ -267,7 +267,6 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 		{
 			if (swPipeUnsock_create(&object->pipes[i], 1, SOCK_DGRAM) < 0)
 			{
-				swError("create unix socket[1] fail");
 				return SW_ERR;
 			}
 			serv->workers[i].pipe_master = object->pipes[i].getFd(&object->pipes[i], 1);

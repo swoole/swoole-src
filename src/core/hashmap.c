@@ -20,29 +20,35 @@
 
 typedef struct swHashMap_node
 {
-	uint64_t key_int;
-	char *key_str;
-	void *data;
-	swHashMap_dtor dtor;
-	UT_hash_handle hh;
+    uint64_t key_int;
+    char *key_str;
+    void *data;
+    swHashMap_dtor dtor;
+    UT_hash_handle hh;
 } swHashMap_node;
 
-#define FREE_NODE_DATA(hmap, node)                                          \
-    if ((node)->dtor) {                                                     \
-        (node)->dtor((node)->data);                                         \
-    } else if ((hmap)->dtor) {                                              \
-        (hmap)->dtor((node)->data);                                         \
-    }                                                                       \
+static int swHashMap_node_delete(swHashMap_node *root, swHashMap_node *del_node);
 
-#define FREE_NODE(hmap, node)                                               \
-    FREE_NODE_DATA(hmap, node);                                             \
-    sw_free(node->key_str);                                                 \
-    sw_free(node);                                                          \
+static sw_inline void swHashMap_node_dtor(swHashMap *hmap, swHashMap_node *node)
+{
+    if (node->dtor)
+    {
+        node->dtor(node->data);
+    }
+    else if ((hmap)->dtor)
+    {
+        hmap->dtor(node->data);
+    }
+}
 
+static sw_inline void swHashMap_node_free(swHashMap *hmap, swHashMap_node *node)
+{
+    swHashMap_node_dtor(hmap, node);
+    sw_free(node->key_str);
+    sw_free(node);
+}
 
-static int swHashMap_delete_node(swHashMap_node *root, swHashMap_node *del_node);
-
-static sw_inline int swHashMap_add_node(swHashMap_node *root, swHashMap_node *add)
+static sw_inline int swHashMap_node_add(swHashMap_node *root, swHashMap_node *add)
 {
 	unsigned _ha_bkt;
 	add->hh.next = NULL;
@@ -62,7 +68,7 @@ static sw_inline int swHashMap_add_node(swHashMap_node *root, swHashMap_node *ad
 	return SW_OK;
 }
 
-static sw_inline swHashMap_node* swHashMap_each_node(swHashMap* hmap)
+static sw_inline swHashMap_node* swHashMap_node_each(swHashMap* hmap)
 {
     swHashMap_node *iterator = hmap->iterator;
     swHashMap_node *tmp;
@@ -149,7 +155,7 @@ int swHashMap_add(swHashMap* hmap, char *key, uint16_t key_len, void *data, swHa
 	node->key_int = key_len;
 	node->data = data;
 	node->dtor = dtor;
-	return swHashMap_add_node(root, node);
+	return swHashMap_node_add(root, node);
 }
 
 void swHashMap_add_int(swHashMap *hmap, uint64_t key, void *data, swHashMap_dtor dtor)
@@ -168,7 +174,7 @@ void swHashMap_add_int(swHashMap *hmap, uint64_t key, void *data, swHashMap_dtor
 	HASH_ADD_INT(root, key_int, node);
 }
 
-static sw_inline swHashMap_node *swHashMap_find_node(swHashMap_node *root, char *key_str, uint16_t key_len)
+static sw_inline swHashMap_node *swHashMap_node_find(swHashMap_node *root, char *key_str, uint16_t key_len)
 {
 	swHashMap_node *out;
 	unsigned bucket, hash;
@@ -182,7 +188,7 @@ static sw_inline swHashMap_node *swHashMap_find_node(swHashMap_node *root, char 
 	return out;
 }
 
-static int swHashMap_delete_node(swHashMap_node *root, swHashMap_node *del_node)
+static int swHashMap_node_delete(swHashMap_node *root, swHashMap_node *del_node)
 {
 	unsigned bucket;
 	struct UT_hash_handle *_hd_hh_del;
@@ -221,7 +227,7 @@ static int swHashMap_delete_node(swHashMap_node *root, swHashMap_node *del_node)
 void* swHashMap_find(swHashMap* hmap, char *key, uint16_t key_len)
 {
     swHashMap_node *root = hmap->root;
-	swHashMap_node *ret = swHashMap_find_node(root, key, key_len);
+	swHashMap_node *ret = swHashMap_node_find(root, key, key_len);
 	if (ret == NULL)
 	{
 		return NULL;
@@ -244,12 +250,12 @@ void* swHashMap_find_int(swHashMap* hmap, uint64_t key)
 int swHashMap_update(swHashMap* hmap, char *key, uint16_t key_len, void *data)
 {
     swHashMap_node *root = hmap->root;
-	swHashMap_node *node = swHashMap_find_node(root, key, key_len);
+	swHashMap_node *node = swHashMap_node_find(root, key, key_len);
 	if (node == NULL)
 	{
 		return SW_ERR;
 	}
-	FREE_NODE_DATA(hmap, node);
+	swHashMap_node_dtor(hmap, node);
 	node->data = data;
 	return SW_OK;
 }
@@ -263,22 +269,20 @@ void swHashMap_update_int(swHashMap* hmap, uint64_t key, void *data)
 	{
 		return;
 	}
-	FREE_NODE_DATA(hmap, ret);
+	swHashMap_node_dtor(hmap, ret);
 	ret->data = data;
 }
 
 int swHashMap_del(swHashMap* hmap, char *key, uint16_t key_len)
 {
     swHashMap_node *root = hmap->root;
-	swHashMap_node *node = swHashMap_find_node(root, key, key_len);;
+	swHashMap_node *node = swHashMap_node_find(root, key, key_len);;
 	if (node == NULL)
 	{
 		return SW_ERR;
 	}
-	swHashMap_delete_node(root, node);
-
-	FREE_NODE(hmap, node);
-
+	swHashMap_node_delete(root, node);
+	swHashMap_node_free(hmap, node);
 	return SW_OK;
 }
 
@@ -293,12 +297,12 @@ void swHashMap_del_int(swHashMap *hmap, uint64_t key)
 		return;
 	}
 	HASH_DEL(root, ret);
-	FREE_NODE(hmap, ret);
+	swHashMap_node_free(hmap, ret);
 }
 
 void* swHashMap_each(swHashMap* hmap, char **key)
 {
-    swHashMap_node *node = swHashMap_each_node(hmap);
+    swHashMap_node *node = swHashMap_node_each(hmap);
     if (node)
     {
         *key = node->key_str;
@@ -312,7 +316,7 @@ void* swHashMap_each(swHashMap* hmap, char **key)
 
 void* swHashMap_each_int(swHashMap* hmap, uint64_t *key)
 {
-    swHashMap_node *node = swHashMap_each_node(hmap);
+    swHashMap_node *node = swHashMap_node_each(hmap);
     if (node)
     {
         *key = node->key_int;
@@ -331,8 +335,8 @@ void swHashMap_free(swHashMap* hmap)
 	HASH_ITER(hh, root, find, tmp)
 	{
 	    if (find == root) continue;
-		swHashMap_delete_node(root, find);
-		FREE_NODE(hmap, find);
+		swHashMap_node_delete(root, find);
+		swHashMap_node_free(hmap, find);
 	}
 
 	sw_free(hmap->root->hh.tbl->buckets);

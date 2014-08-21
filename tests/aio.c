@@ -19,7 +19,9 @@ swUnitTest(aio_test2)
 	{
 		return 1;
 	}
-	swAioBase_init(&reactor, 0);
+    bzero(&SwooleAIO, sizeof(SwooleAIO));
+    SwooleG.main_reactor = &reactor;
+	swAio_init();
 
 	char *outbuf = malloc(BUF_SIZE);
 
@@ -47,7 +49,7 @@ swUnitTest(aio_test)
 		return 3;
 	}
 	char *buf;
-	if (posix_memalign(&buf, getpagesize(), BUF_SIZE))
+	if (posix_memalign((void **)&buf, getpagesize(), BUF_SIZE))
 	{
 		perror("posix_memalign");
 		return 5;
@@ -67,7 +69,9 @@ swUnitTest(aio_test)
 	{
 		return 1;
 	}
-	swAioBase_init(&reactor, 0);
+	bzero(&SwooleAIO, sizeof(SwooleAIO));
+	SwooleG.main_reactor = &reactor;
+	swAio_init();
 
 	//ftruncate(fd, BUF_SIZE);
 	memset(buf, 'A', BUF_SIZE - 1);

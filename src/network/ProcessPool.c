@@ -26,14 +26,15 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
 {
 	bzero(pool, sizeof(swProcessPool));
 	pool->workers = sw_calloc(worker_num, sizeof(swWorker));
+	if (pool->workers == NULL)
+    {
+        swWarn("malloc[1] failed.");
+        return SW_ERR;
+    }
+
 	pool->worker_num = worker_num;
 	pool->max_request = max_request;
 
-	if (pool->workers == NULL)
-	{
-		swWarn("malloc[1] failed.");
-		return SW_ERR;
-	}
 	pool->pipes = sw_calloc(worker_num, sizeof(swPipe));
 	if (pool->pipes == NULL)
 	{
