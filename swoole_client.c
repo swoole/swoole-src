@@ -1507,6 +1507,12 @@ PHP_METHOD(swoole_client, close)
 		RETURN_FALSE;
 	}
 
+	if (!cli->connection.active)
+	{
+	    php_error_docref(NULL TSRMLS_CC, E_WARNING, "not connected to the server");
+	    RETURN_FALSE;
+	}
+
 	ztype = zend_read_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("type")-1, 0 TSRMLS_CC);
 	if (ztype == NULL || ZVAL_IS_NULL(ztype))
 	{

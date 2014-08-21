@@ -137,7 +137,10 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen)
             }
             else if (row->next == NULL)
             {
+                table->lock.lock(&table->lock);
                 swTableRow *new_row = table->pool->alloc(table->pool, 0);
+                table->lock.unlock(&table->lock);
+
                 row->next = new_row;
                 row = new_row;
                 break;
@@ -159,13 +162,19 @@ swTableRow* swTableRow_get(swTable *table, char *key, int keylen)
 {
     swTableRow *row = swTable_hash(table, key, keylen);
     uint32_t crc32 = swoole_crc32(key, keylen);
+    sw_atomic_t *lock = &row->lock;
 
     swTrace("row=%p, crc32=%u, key=%s\n", row, crc32, key);
-    sw_spinlock(&row->lock);
+
+    sw_spinlock(lock);
     for (;;)
     {
         if (row->crc32 == crc32)
         {
+            if (!row->active)
+            {
+                row = NULL;
+            }
             break;
         }
         else if (row->next == NULL)
@@ -178,7 +187,7 @@ swTableRow* swTableRow_get(swTable *table, char *key, int keylen)
             row = row->next;
         }
     }
-    sw_spinlock_release(&row->lock);
+    sw_spinlock_release(lock);
     return row;
 }
 
@@ -194,7 +203,9 @@ int swTableRow_del(swTable *table, char *key, int keylen)
         {
             if (row->crc32 == crc32)
             {
+                table->lock.lock(&table->lock);
                 table->pool->free(table->pool, row);
+                table->lock.unlock(&table->lock);
                 break;
             }
             else if (row->next == NULL)

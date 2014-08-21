@@ -171,8 +171,12 @@ PHP_METHOD(swoole_table, get)
 
     swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
     swTableRow *row = swTableRow_get(table, key, keylen);
-    swTableColumn *col = NULL;
+    if (!row)
+    {
+        RETURN_FALSE;
+    }
 
+    swTableColumn *col = NULL;
     char *k;
 
     while(1)
