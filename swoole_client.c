@@ -61,7 +61,23 @@ static char *php_sw_callbacks[PHP_CLIENT_CALLBACK_NUM] =
 	php_sw_client_onError,
 };
 
+const zend_function_entry swoole_client_methods[] =
+{
+    PHP_ME(swoole_client, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_client, connect, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, recv, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, send, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, sendfile, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, isConnected, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, close, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, on, NULL, ZEND_ACC_PUBLIC)
+    PHP_FE_END
+};
+
 HashTable php_sw_long_connections;
+
+zend_class_entry swoole_client_ce;
+zend_class_entry *swoole_client_class_entry_ptr;
 
 static int php_swoole_client_event_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_DC);
 static int php_swoole_client_event_loop(zval *sock_array, fd_set *fds TSRMLS_DC);
@@ -81,6 +97,17 @@ static int swoole_client_error_callback(zval *zobject, swEvent *event, int error
 
 static int swoole_convert_to_fd(zval **fd);
 static swClient* swoole_client_create_socket(zval *object, char *host, int host_len, int port);
+
+void swoole_client_init(int module_number TSRMLS_DC)
+{
+    INIT_CLASS_ENTRY(swoole_client_ce, "swoole_client", swoole_client_methods);
+    swoole_client_class_entry_ptr = zend_register_internal_class(&swoole_client_ce TSRMLS_CC);
+
+    zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+
+    zend_hash_init(&php_sw_long_connections, 16, NULL, ZVAL_PTR_DTOR, 1);
+}
 
 /**
  * @zobject: swoole_client object
@@ -1391,6 +1418,23 @@ PHP_METHOD(swoole_client, recv)
 	{
 		efree(buf);
 	}
+}
+
+PHP_METHOD(swoole_client, isConnected)
+{
+    swClient *cli;
+    zval **zres;
+
+    if (zend_hash_find(Z_OBJPROP_P(getThis()), SW_STRL("_client"), (void **) &zres) == SUCCESS)
+    {
+        ZEND_FETCH_RESOURCE(cli, swClient*, zres, -1, SW_RES_CLIENT_NAME, le_swoole_client);
+    }
+    else
+    {
+        RETURN_FALSE;
+    }
+
+    RETURN_BOOL(cli->connection.active);
 }
 
 PHP_METHOD(swoole_client, set)

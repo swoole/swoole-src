@@ -195,7 +195,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 		//too many connection
 		if (new_fd >= serv->max_conn)
 		{
-			swWarn("Too many connections [now: %d].", swServer_get_maxfd(serv));
+			swWarn("Too many connections [now: %d].", new_fd);
 			close(new_fd);
 			return SW_OK;
 		}

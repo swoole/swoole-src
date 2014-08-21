@@ -467,8 +467,8 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
     int ret, n;
     swServer *serv = reactor->ptr;
     swFactory *factory = &(serv->factory);
-    swConnection *conn = swServer_connection_get(serv, event->fd);
     swDispatchData task;
+    swConnection *conn = swServer_connection_get(serv, event->fd);
 
 #ifdef SW_USE_EPOLLET
     n = swRead(event->fd, task.data.data, SW_BUFFER_SIZE);
@@ -476,12 +476,13 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
     //非ET模式会持续通知
     n = swConnection_recv(conn, task.data.data, SW_BUFFER_SIZE, 0);
 #endif
+
     if (n < 0)
     {
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swWarn("recv from connection[fd=%d] failed. Error: %s[%d]", conn->fd, strerror(errno), errno);
+            swWarn("recv from connection[fd=%d] failed. Error: %s[%d]", event->fd, strerror(errno), errno);
             return SW_OK;
         case SW_CLOSE:
             goto close_fd;
