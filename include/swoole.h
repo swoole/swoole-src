@@ -464,16 +464,17 @@ struct _swLock
 	int (*free)(struct _swLock *lock);
 };
 
-//Cond
+//Thread Condition
 typedef struct _swCond
 {
-	swLock lock;
-	pthread_cond_t cond;
+    swLock lock;
+    pthread_cond_t cond;
 
-	int (*wait)(struct _swCond *object);
-	int (*timewait)(struct _swCond *object,long,long);
-	int (*notify)(struct _swCond *object);
-	int (*broadcast)(struct _swCond *object);
+    int (*wait)(struct _swCond *object);
+    int (*timewait)(struct _swCond *object, long, long);
+    int (*notify)(struct _swCond *object);
+    int (*broadcast)(struct _swCond *object);
+    void (*free)(struct _swCond *object);
 } swCond;
 
 
@@ -569,11 +570,6 @@ sw_inline int swAtomicLock_unlock(swLock *lock);
 sw_inline int swAtomicLock_trylock(swLock *lock);
 
 int swCond_create(swCond *cond);
-int swCond_notify(swCond *cond);
-int swCond_broadcast(swCond *cond);
-int swCond_timewait(swCond *cond, long sec, long nsec);
-int swCond_wait(swCond *cond);
-void swCond_free(swCond *cond);
 
 typedef struct _swThreadParam
 {
