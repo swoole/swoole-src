@@ -35,7 +35,7 @@ static sw_inline void swHashMap_node_dtor(swHashMap *hmap, swHashMap_node *node)
     {
         node->dtor(node->data);
     }
-    else if ((hmap)->dtor)
+    else if (hmap->dtor)
     {
         hmap->dtor(node->data);
     }

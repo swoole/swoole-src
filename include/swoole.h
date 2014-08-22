@@ -439,7 +439,6 @@ typedef struct _swSem
 {
 	key_t key;
 	int semid;
-	int lock_num;
 } swSem;
 
 struct _swLock
@@ -558,7 +557,7 @@ void* sw_shm_calloc(size_t num, size_t _size);
 void* sw_shm_realloc(void *ptr, size_t new_size);
 
 int swRWLock_create(swLock *lock, int use_in_process);
-int swSem_create(swLock *lock, key_t key, int n);
+int swSem_create(swLock *lock, key_t key);
 int swMutex_create(swLock *lock, int use_in_process);
 int swFileLock_create(swLock *lock, int fd);
 #ifdef HAVE_SPINLOCK
