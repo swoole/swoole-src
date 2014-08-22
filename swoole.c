@@ -1386,6 +1386,11 @@ PHP_FUNCTION(swoole_server_close)
 		RETURN_FALSE;
 	}
 
+    if (serv->onClose != NULL)
+    {
+        serv->onClose(serv, ev.fd, ev.from_id);
+    }
+
 	if (serv->factory.end(&serv->factory, &ev) >= 0)
 	{
 		RETVAL_TRUE;
@@ -1393,11 +1398,6 @@ PHP_FUNCTION(swoole_server_close)
 	else
 	{
 	    RETVAL_FALSE;
-	}
-
-	if (serv->onClose != NULL)
-	{
-	    serv->onClose(serv, ev.fd, ev.from_id);
 	}
 }
 
@@ -2233,7 +2233,7 @@ static void php_swoole_onClose(swServer *serv, int fd, int from_id)
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onClose], &retval, 3, args, 0,
 			NULL TSRMLS_CC) == FAILURE)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onClose handler error");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "onClose handler error");
 	}
 	if (EG(exception))
 	{
