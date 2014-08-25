@@ -111,34 +111,37 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async: Aio Error: %s[%d]", strerror(event->error), event->error);
 	}
-	else if (file_req != NULL)
-	{
-		if (ret == 0)
-		{
-			bzero(event->buf, event->nbytes);
-			isEOF = SW_TRUE;
-		}
-		else if (file_req->once == 1 && ret < file_req->content_length)
-		{
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async: ret_length[%d] < req->length[%d].", (int) ret, file_req->content_length);
-		}
-		file_req->offset += event->ret;
-	}
+    else if (file_req != NULL)
+    {
+        if (ret == 0)
+        {
+            bzero(event->buf, event->nbytes);
+            isEOF = SW_TRUE;
+        }
+        else if (file_req->once == 1 && ret < file_req->content_length)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async: ret_length[%d] < req->length[%d].", (int) ret, file_req->content_length);
+        }
+        else if (event->type == SW_AIO_READ)
+        {
+            file_req->offset += event->ret;
+        }
+    }
 
-	if (event->type == SW_AIO_READ)
-	{
-		MAKE_STD_ZVAL(zcontent);
-		args[0] = &file_req->filename;
-		args[1] = &zcontent;
-		ZVAL_STRINGL(zcontent, event->buf, ret, 0);
-	}
-	else if(event->type == SW_AIO_WRITE)
-	{
-		MAKE_STD_ZVAL(zwriten);
-		args[0] = &file_req->filename;
-		args[1] = &zwriten;
-		ZVAL_LONG(zwriten, ret);
-	}
+    if (event->type == SW_AIO_READ)
+    {
+        MAKE_STD_ZVAL(zcontent);
+        args[0] = &file_req->filename;
+        args[1] = &zcontent;
+        ZVAL_STRINGL(zcontent, event->buf, ret, 0);
+    }
+    else if (event->type == SW_AIO_WRITE)
+    {
+        MAKE_STD_ZVAL(zwriten);
+        args[0] = &file_req->filename;
+        args[1] = &zwriten;
+        ZVAL_LONG(zwriten, ret);
+    }
 	else if(event->type == SW_AIO_DNS_LOOKUP)
 	{
 		MAKE_STD_ZVAL(zcontent);
@@ -159,14 +162,14 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 		return;
 	}
 
-	if (zcallback)
-	{
-		if (call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
-		{
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async: onAsyncComplete handler error");
-			return;
-		}
-	}
+    if (zcallback)
+    {
+        if (call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async: onAsyncComplete handler error");
+            return;
+        }
+    }
 
 	//readfile/writefile
 	if (file_req != NULL)
