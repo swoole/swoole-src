@@ -24,6 +24,8 @@
 	RETURN_FALSE;}\
 	ZEND_FETCH_RESOURCE(process, swWorker *, zprocess, -1, SW_RES_PROCESS_NAME, le_swoole_process);
 
+static uint32_t php_swoole_worker_round_id = 1;
+
 void swoole_destory_process(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 {
 	swWorker *process = (swWorker *) rsrc->ptr;
@@ -33,6 +35,11 @@ void swoole_destory_process(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 		_pipe->close(_pipe);
 		efree(_pipe);
 	}
+	if (process->queue)
+	{
+	    process->queue->free(process->queue);
+	    efree(process->queue);
+	}
 	efree(process);
 }
 
@@ -40,10 +47,10 @@ PHP_METHOD(swoole_process, __construct)
 {
 
 #ifdef ZTS
-	if(sw_thread_ctx == NULL)
-	{
-		TSRMLS_SET_CTX(sw_thread_ctx);
-	}
+    if (sw_thread_ctx == NULL)
+    {
+        TSRMLS_SET_CTX(sw_thread_ctx);
+    }
 #endif
 
 	/**
@@ -59,41 +66,48 @@ PHP_METHOD(swoole_process, __construct)
 	zend_bool create_pipe = 1;
 	zval *callback;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|bb", &callback, &redirect_stdin_and_stdout, &create_pipe) == FAILURE)
-	{
-		RETURN_FALSE;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|bb", &callback, &redirect_stdin_and_stdout, &create_pipe) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
 
-	char *func_name = NULL;
-	if (!zend_is_callable(callback, 0, &func_name TSRMLS_CC))
-	{
-		php_error_docref(NULL TSRMLS_CC, E_ERROR, "function '%s' is not callable", func_name);
-		efree(func_name);
-		RETURN_FALSE;
-	}
-	efree(func_name);
+    char *func_name = NULL;
+    if (!zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+    {
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "function '%s' is not callable", func_name);
+        efree(func_name);
+        RETURN_FALSE;
+    }
+    efree(func_name);
 
 	swWorker *process = emalloc(sizeof(swWorker));
 	bzero(process, sizeof(swWorker));
 
-	if (redirect_stdin_and_stdout)
-	{
-		process->redirect_stdin = 1;
-		process->redirect_stdout = 1;
-		create_pipe = 1;
-	}
+    process->id = php_swoole_worker_round_id++;
 
-	if (create_pipe)
-	{
-		swPipe *_pipe = emalloc(sizeof(swWorker));
-		if (swPipeUnsock_create(_pipe, 1, SOCK_STREAM) < 0)
-		{
-			RETURN_FALSE;
-		}
-		process->ptr = _pipe;
-		process->pipe_master = _pipe->getFd(_pipe, 1);
-		process->pipe_worker = _pipe->getFd(_pipe, 0);
-	}
+    if (php_swoole_worker_round_id == 0)
+    {
+        php_swoole_worker_round_id = 1;
+    }
+
+    if (redirect_stdin_and_stdout)
+    {
+        process->redirect_stdin = 1;
+        process->redirect_stdout = 1;
+        create_pipe = 1;
+    }
+
+    if (create_pipe)
+    {
+        swPipe *_pipe = emalloc(sizeof(swWorker));
+        if (swPipeUnsock_create(_pipe, 1, SOCK_STREAM) < 0)
+        {
+            RETURN_FALSE;
+        }
+        process->ptr = _pipe;
+        process->pipe_master = _pipe->getFd(_pipe, 1);
+        process->pipe_worker = _pipe->getFd(_pipe, 0);
+    }
 
 	zval *zres;
 	MAKE_STD_ZVAL(zres);
@@ -118,6 +132,34 @@ PHP_METHOD(swoole_process, wait)
 	{
 		RETURN_FALSE;
 	}
+}
+
+PHP_METHOD(swoole_process, useQueue)
+{
+    long msgkey = -1;
+    long mode = 2;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ll", &msgkey, &mode) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+
+    swWorker *process;
+    SWOOLE_GET_WORKER(getThis(), process);
+
+    if (msgkey < 0)
+    {
+        msgkey = ftok(__FILE__, process->id);
+    }
+
+    swQueue *queue = emalloc(sizeof(swQueue));
+    if (swQueueMsg_create(queue, 1, msgkey, 0) < 0)
+    {
+        RETURN_FALSE;
+    }
+    process->queue = queue;
+    process->ipc_mode = mode;
+    RETURN_TRUE;
 }
 
 PHP_METHOD(swoole_process, kill)
@@ -320,6 +362,113 @@ PHP_METHOD(swoole_process, write)
 		RETURN_FALSE;
 	}
 	ZVAL_LONG(return_value, ret);
+}
+
+PHP_METHOD(swoole_process, push)
+{
+    char *data;
+    int length;
+
+    struct
+    {
+        long type;
+        char data[65536];
+    } message;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &data, &length) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+
+    if (length <= 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "data empty.");
+        RETURN_FALSE;
+    }
+    else if (length >= sizeof(message.data))
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "data too big.");
+        RETURN_FALSE;
+    }
+
+    swWorker *process;
+    SWOOLE_GET_WORKER(getThis(), process);
+
+    if (!process->queue)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "have not msgqueue, can not use push()");
+        RETURN_FALSE;
+    }
+
+    message.type = process->id;
+    memcpy(message.data, data, length);
+
+    int ret;
+    do
+    {
+        ret = process->queue->in(process->queue, (swQueue_data *)&message, length);
+    }
+    while(errno < 0 && errno == EINTR);
+
+    if (ret < 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "msgsnd() failed. Error: %s[%d]", strerror(errno), errno);
+        RETURN_FALSE;
+    }
+    RETURN_TRUE;
+}
+
+PHP_METHOD(swoole_process, pop)
+{
+    long maxsize = 8192;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &maxsize) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+    if (maxsize <= 0)
+    {
+        maxsize = 8192;
+    }
+
+    swWorker *process;
+    SWOOLE_GET_WORKER(getThis(), process);
+
+    if (!process->queue)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "have not msgqueue, can not use push()");
+        RETURN_FALSE;
+    }
+
+    typedef struct
+    {
+        long type;
+        char data[0];
+    } message_t;
+
+    message_t *message = emalloc(sizeof(message_t) + maxsize);
+    if (process->ipc_mode == 2)
+    {
+        message->type = 0;
+    }
+    else
+    {
+        message->type = process->id;
+    }
+
+    int ret;
+    do
+    {
+        ret = process->queue->out(process->queue, (swQueue_data *)message, maxsize);
+    }
+    while(errno < 0 && errno == EINTR);
+
+    if (ret < 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "msgrcv() failed. Error: %s[%d]", strerror(errno), errno);
+        RETURN_FALSE;
+    }
+    RETURN_STRINGL(message->data, ret, 0);
 }
 
 PHP_METHOD(swoole_process, exec)

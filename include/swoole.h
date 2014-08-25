@@ -375,7 +375,8 @@ typedef struct _swQueue
 	int (*wait)(struct _swQueue *);
 } swQueue;
 
-int swQueueMsg_create(swQueue *p, int wait, int msg_key, long type);
+int swQueueMsg_create(swQueue *p, int wait, key_t msg_key, long type);
+void swQueueMsg_set_blocking(swQueue *p, uint8_t blocking);
 
 //------------------Lock--------------------------------------
 
@@ -722,6 +723,8 @@ struct _swWorker
 
 	swMemoryPool *pool_output;
 
+	swQueue *queue;
+
 	/**
 	 * redirect stdout to pipe_master
 	 */
@@ -731,6 +734,8 @@ struct _swWorker
 	 * worker status, IDLE or BUSY
 	 */
 	uint8_t status;
+
+	uint8_t ipc_mode;
 
 	/**
 	 * redirect stdin to pipe_worker
@@ -752,7 +757,7 @@ struct _swWorker
 	 */
 	struct
 	{
-		volatile uint8_t lock;
+		uint8_t lock;
 		void *ptr;
 	} store;
 

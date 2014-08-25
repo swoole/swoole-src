@@ -26,7 +26,6 @@ function callback_function(swoole_process $worker)
     $worker->exit(0);
 }
 
-
 function callback_function_async(swoole_process $worker)
 {
     //echo "Worker: start. PID=".$worker->pid."\n";
@@ -46,7 +45,6 @@ function callback_function_async(swoole_process $worker)
         $worker->exit(0);
     });
 }
-
 
 foreach($workers as $pid => $process)
 {

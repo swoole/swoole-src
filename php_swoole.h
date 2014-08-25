@@ -238,9 +238,11 @@ PHP_METHOD(swoole_lock, trylock_read);
 PHP_METHOD(swoole_lock, unlock);
 
 PHP_METHOD(swoole_process, __construct);
+PHP_METHOD(swoole_process, useQueue);
+PHP_METHOD(swoole_process, pop);
+PHP_METHOD(swoole_process, push);
 PHP_METHOD(swoole_process, kill);
 PHP_METHOD(swoole_process, wait);
-
 PHP_METHOD(swoole_process, start);
 PHP_METHOD(swoole_process, write);
 PHP_METHOD(swoole_process, read);

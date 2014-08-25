@@ -137,6 +137,7 @@ int swFactoryProcess_start(swFactory *factory)
 
     if (serv->ipc_mode == SW_IPC_MSGQUEUE)
     {
+        swQueueMsg_set_blocking(&serv->read_queue, 0);
         //tcp & message queue require writer pthread
         if (serv->have_tcp_sock == 1)
         {
@@ -343,7 +344,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 		SwooleGS->manager_pid = pid;
 		break;
 	case -1:
-		swError("[swFactoryProcess_worker_start]fork manager process fail");
+		swError("fork() failed.");
 		return SW_ERR;
 	}
 	return SW_OK;

@@ -15,6 +15,7 @@
 */
 
 #include "swoole.h"
+#include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
 
@@ -26,17 +27,27 @@ typedef struct _swQueueMsg
 {
 	int msg_id;
 	int ipc_wait;
+	uint8_t delete;
 	long type;
 } swQueueMsg;
 
 void swQueueMsg_free(swQueue *p)
 {
 	swQueueMsg *object = p->object;
-	msgctl(object->msg_id, IPC_RMID, 0);
+	if (object->delete)
+	{
+	    msgctl(object->msg_id, IPC_RMID, 0);
+	}
 	sw_free(object);
 }
 
-int swQueueMsg_create(swQueue *p, int blocking, int msg_key, long type)
+void swQueueMsg_set_blocking(swQueue *p, uint8_t blocking)
+{
+    swQueueMsg *object = p->object;
+    object->ipc_wait = blocking ? 0 : IPC_NOWAIT;
+}
+
+int swQueueMsg_create(swQueue *p, int blocking, key_t msg_key, long type)
 {
 	int msg_id;
 	swQueueMsg *object = sw_malloc(sizeof(swQueueMsg));
@@ -89,8 +100,7 @@ int swQueueMsg_in(swQueue *p, swQueue_data *in, int length)
 
 	while (1)
 	{
-		//send一定不可以阻塞
-		ret = msgsnd(object->msg_id, in, length, IPC_NOWAIT);
+		ret = msgsnd(object->msg_id, in, length, object->ipc_wait);
 		if (ret < 0)
 		{
 			if (errno == EINTR)
