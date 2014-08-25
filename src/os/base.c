@@ -195,7 +195,7 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
 	switch(event->type)
 	{
 	case SW_AIO_WRITE:
-		ret = pwrite(event->fd, event->buf, event->nbytes, event->offset);
+	    ret = pwrite(event->fd, event->buf, event->nbytes, event->offset);
 		break;
 	case SW_AIO_READ:
 		ret = pread(event->fd, event->buf, event->nbytes, event->offset);

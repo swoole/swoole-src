@@ -171,6 +171,7 @@ static int swAioGcc_write(int fd, void *inbuf, size_t size, off_t offset)
     aiocb->aiocb.aio_buf = inbuf;
     aiocb->aiocb.aio_nbytes = size;
     aiocb->aiocb.aio_lio_opcode = LIO_WRITE;
+    aiocb->aiocb.aio_offset = offset;
 
     aiocb->aiocb.aio_sigevent.sigev_notify = SIGEV_SIGNAL;
     aiocb->aiocb.aio_sigevent.sigev_signo = SIGIO;

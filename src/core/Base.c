@@ -247,6 +247,57 @@ int swoole_sync_writefile(int fd, void *data, int len)
     return written;
 }
 
+swString* swoole_file_get_contents(char *filename)
+{
+    struct stat file_stat;
+    if (lstat(filename, &file_stat) < 0)
+    {
+        swWarn("lstat(%s) failed. Error: %s[%d]", filename, strerror(errno), errno);
+        return NULL;
+    }
+    if (file_stat.st_size > SW_MAX_FILE_CONTENT)
+    {
+        swWarn("file is too big");
+        return NULL;
+    }
+    int fd = open(filename, O_RDONLY);
+    if (fd < 0)
+    {
+        swWarn("open(%s) failed. Error: %s[%d]", filename, strerror(errno), errno);
+        return NULL;
+    }
+
+    swString *content = swString_new(file_stat.st_size);
+    if (!content)
+    {
+        swWarn("malloc failed");
+        return NULL;
+    }
+
+    int readn = 0;
+    int n;
+
+    while(readn < file_stat.st_size)
+    {
+        n = pread(fd, content->str + readn, file_stat.st_size - readn, readn);
+        if (n < 0)
+        {
+            if (errno == EINTR)
+            {
+                continue;
+            }
+            else
+            {
+                swWarn("pread() failed. Error: %s[%d]", strerror(errno), errno);
+                swString_free(content);
+                return NULL;
+            }
+        }
+        readn += n;
+    }
+    return content;
+}
+
 int swoole_sync_readfile(int fd, void *buf, int len)
 {
     int n = 0;

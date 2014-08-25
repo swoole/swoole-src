@@ -1386,11 +1386,6 @@ PHP_FUNCTION(swoole_server_close)
 		RETURN_FALSE;
 	}
 
-    if (serv->onClose != NULL)
-    {
-        serv->onClose(serv, ev.fd, ev.from_id);
-    }
-
 	if (serv->factory.end(&serv->factory, &ev) >= 0)
 	{
 		RETVAL_TRUE;
