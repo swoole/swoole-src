@@ -43,9 +43,11 @@ PHP_METHOD(swoole_lock, __construct)
 
 	switch(type)
 	{
+#ifdef HAVE_RWLOCK
 	case SW_RWLOCK:
 		ret = swRWLock_create(lock, 1);
 		break;
+#endif
 	case SW_FILELOCK:
 		if (filelock_len <= 0)
 		{
