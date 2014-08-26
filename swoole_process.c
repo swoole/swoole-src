@@ -149,7 +149,7 @@ PHP_METHOD(swoole_process, useQueue)
 
     if (msgkey < 0)
     {
-        msgkey = ftok(__FILE__, process->id);
+        msgkey = ftok(EG(active_op_array)->filename, 0);
     }
 
     swQueue *queue = emalloc(sizeof(swQueue));

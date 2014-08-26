@@ -5,7 +5,7 @@ $worker_num = 2;
 for($i = 0; $i < $worker_num; $i++)
 {
     $process = new swoole_process('callback_function', false, false);
-    $process->useQueue(ftok(__FILE__, 1), 1);
+    $process->useQueue();
     $pid = $process->start();
     $workers[$pid] = $process;
     //echo "Master: new worker, PID=".$pid."\n";
