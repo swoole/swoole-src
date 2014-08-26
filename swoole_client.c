@@ -93,6 +93,8 @@ static int php_swoole_client_onRead(swReactor *reactor, swEvent *event);
 static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event);
 static int php_swoole_client_onError(swReactor *reactor, swEvent *event);
 
+static void php_swoole_check_eventloop(swReactor *reactor);
+
 static int swoole_client_error_callback(zval *zobject, swEvent *event, int error TSRMLS_DC);
 
 static int swoole_convert_to_fd(zval **fd);
@@ -493,6 +495,14 @@ static int swoole_client_error_callback(zval *zobject, swEvent *event, int error
 	return SW_OK;
 }
 
+static void php_swoole_check_eventloop(swReactor *reactor)
+{
+    if (reactor->event_num == 0)
+    {
+        SwooleG.running = 0;
+    }
+}
+
 void php_swoole_check_reactor()
 {
 	if (php_sw_reactor_ok == 0)
@@ -512,6 +522,7 @@ void php_swoole_check_reactor()
 				php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_client: create SwooleG.main_reactor failed.");
 				return;
 			}
+			SwooleG.main_reactor->onFinish = php_swoole_check_eventloop;
 			//client, swoole_event_exit will set swoole_running = 0
 			php_sw_in_client = 1;
 		}
