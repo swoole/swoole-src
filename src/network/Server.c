@@ -952,6 +952,7 @@ void swServer_signal_init(void)
 {
 	swSignal_add(SIGHUP, NULL);
 	swSignal_add(SIGPIPE, NULL);
+	swSignal_add(SIGCHLD, swServer_signal_hanlder);
 	swSignal_add(SIGUSR1, swServer_signal_hanlder);
 	swSignal_add(SIGUSR2, swServer_signal_hanlder);
 	swSignal_add(SIGTERM, swServer_signal_hanlder);
@@ -1084,30 +1085,37 @@ int swServer_reload(swServer *serv)
 
 static void swServer_signal_hanlder(int sig)
 {
-	switch (sig)
-	{
-	case SIGTERM:
-		SwooleG.running = 0;
-		break;
-	case SIGALRM:
-		swTimer_signal_handler(SIGALRM);
-		break;
-	/**
-	 * for test
-	 */
-	case SIGVTALRM:
-		swWarn("SIGVTALRM coming");
-		break;
-	/**
-	 * proxy the restart signal
-	 */
-	case SIGUSR1:
-	case SIGUSR2:
-		kill(SwooleGS->manager_pid, SIGUSR1);
-		break;
-	default:
-		break;
-	}
+    int status;
+    switch (sig)
+    {
+    case SIGTERM:
+        SwooleG.running = 0;
+        break;
+    case SIGALRM:
+        swTimer_signal_handler(SIGALRM);
+        break;
+    case SIGCHLD:
+        if (waitpid(SwooleGS->manager_pid, &status, 0) >= 0)
+        {
+            swWarn("Fatal Error: manager process exit. status=%d, signal=%d.", WEXITSTATUS(status), WTERMSIG(status));
+        }
+        break;
+        /**
+         * for test
+         */
+    case SIGVTALRM:
+        swWarn("SIGVTALRM coming");
+        break;
+        /**
+         * proxy the restart signal
+         */
+    case SIGUSR1:
+    case SIGUSR2:
+        kill(SwooleGS->manager_pid, SIGUSR1);
+        break;
+    default:
+        break;
+    }
 }
 
 static void swServer_heartbeat_start(swServer *serv)

@@ -2,7 +2,7 @@
 $serv = new swoole_server("0.0.0.0", 9501);
 // $serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
 $serv->set(array(
-    'worker_num' => 4,
+    'worker_num' => 1,
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
     //'ipc_mode' => 2,
