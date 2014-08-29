@@ -185,7 +185,6 @@ PHP_METHOD(swoole_process, start)
 {
 	swWorker *process;
 	SWOOLE_GET_WORKER(getThis(), process);
-	zval *zpipe;
 
 	pid_t pid = fork();
 
@@ -201,11 +200,8 @@ PHP_METHOD(swoole_process, start)
 
 		close(process->pipe_worker);
 
-		MAKE_STD_ZVAL(zpipe);
-		ZVAL_LONG(zpipe, process->pipe);
-
-		zend_update_property(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("pipe"), zpipe TSRMLS_CC);
-		zval_ptr_dtor(&zpipe);
+		zend_update_property_long(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("pid"), process->pid TSRMLS_CC);
+		zend_update_property_long(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("pipe"), process->pipe TSRMLS_CC);
 
 		RETURN_LONG(pid);
 	}
@@ -242,18 +238,8 @@ PHP_METHOD(swoole_process, start)
 			php_sw_reactor_ok = 0;
 		}
 
-		zval *zpid;
-		MAKE_STD_ZVAL(zpid);
-		ZVAL_LONG(zpid, process->pid);
-
-		zend_update_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("pid"), zpid TSRMLS_CC);
-		zval_ptr_dtor(&zpid);
-
-		MAKE_STD_ZVAL(zpipe);
-		ZVAL_LONG(zpipe, process->pipe);
-
-		zend_update_property(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("pipe"), zpipe TSRMLS_CC);
-		zval_ptr_dtor(&zpipe);
+		zend_update_property_long(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("pid"), process->pid TSRMLS_CC);
+		zend_update_property_long(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("pipe"), process->pipe TSRMLS_CC);
 
 		zval *zcallback = zend_read_property(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("callback"), 0 TSRMLS_CC);
 		zval **args[1];
