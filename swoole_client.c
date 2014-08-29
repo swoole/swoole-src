@@ -465,13 +465,10 @@ static int swoole_client_error_callback(zval *zobject, swEvent *event, int error
 
 	php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: connect to server failed. Error: %s [%d]", strerror(error), error);
 
-	SwooleG.main_reactor->del(SwooleG.main_reactor, event->fd);
-	zcallback = zend_read_property(swoole_client_class_entry_ptr, zobject, SW_STRL(php_sw_client_onError)-1, 0 TSRMLS_CC);
+    SwooleG.main_reactor->del(SwooleG.main_reactor, event->fd);
+    zcallback = zend_read_property(swoole_client_class_entry_ptr, zobject, SW_STRL(php_sw_client_onError)-1, 0 TSRMLS_CC);
 
-	zval *errCode;
-	MAKE_STD_ZVAL(errCode);
-	ZVAL_LONG(errCode, error);
-	zend_update_property(swoole_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), errCode TSRMLS_CC);
+    zend_update_property_long(swoole_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), error TSRMLS_CC);
 
 	args[0] = &zobject;
 
@@ -487,7 +484,6 @@ static int swoole_client_error_callback(zval *zobject, swEvent *event, int error
 		return SW_ERR;
 	}
 
-	zval_ptr_dtor(&errCode);
 	if (retval)
 	{
 		zval_ptr_dtor(&retval);
@@ -665,7 +661,7 @@ void php_swoole_try_run_reactor()
 
 static swClient* swoole_client_create_socket(zval *object, char *host, int host_len, int port)
 {
-	zval *ztype, *zres, *zsockfd, *zerrorCode;
+	zval *ztype, *zres;
 	int async = 0;
 	swClient *cli;
 	char conn_key[SW_LONG_CONNECTION_KEY_LEN];
@@ -724,10 +720,8 @@ static swClient* swoole_client_create_socket(zval *object, char *host, int host_
 		create_socket:
 		if (swClient_create(cli, php_swoole_socktype(type), async) < 0)
 		{
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: create failed. Error: %s [%d]", strerror(errno), errno);
-			MAKE_STD_ZVAL(zerrorCode);
-			ZVAL_LONG(zerrorCode, errno);
-			zend_update_property(swoole_client_class_entry_ptr, object, ZEND_STRL("errCode"), zerrorCode TSRMLS_CC);
+			php_error_docref(NULL TSRMLS_CC, E_WARNING, "create failed. Error: %s [%d]", strerror(errno), errno);
+			zend_update_property_long(swoole_client_class_entry_ptr, object, ZEND_STRL("errCode"), errno TSRMLS_CC);
 			return NULL;
 		}
 		//don't forget free it
@@ -736,16 +730,12 @@ static swClient* swoole_client_create_socket(zval *object, char *host, int host_
 	}
 
 	MAKE_STD_ZVAL(zres);
-	MAKE_STD_ZVAL(zsockfd);
-	ZVAL_LONG(zsockfd, cli->connection.fd);
-
 	ZEND_REGISTER_RESOURCE(zres, cli, le_swoole_client);
 
-	zend_update_property(swoole_client_class_entry_ptr, object, ZEND_STRL("sock"), zsockfd TSRMLS_CC);
+	zend_update_property_long(swoole_client_class_entry_ptr, object, ZEND_STRL("sock"), cli->connection.fd TSRMLS_CC);
 	zend_update_property(swoole_client_class_entry_ptr, object, ZEND_STRL("_client"), zres TSRMLS_CC);
 
 	zval_ptr_dtor(&zres);
-	zval_ptr_dtor(&zsockfd);
 
 	if (type & SW_FLAG_KEEP)
 	{
@@ -1106,7 +1096,7 @@ PHP_METHOD(swoole_client, __construct)
 	}
 
 #ifdef ZTS
-	if(sw_thread_ctx == NULL)
+	if (sw_thread_ctx == NULL)
 	{
 		TSRMLS_SET_CTX(sw_thread_ctx);
 	}
@@ -1128,7 +1118,6 @@ PHP_METHOD(swoole_client, connect)
 	int host_len;
 	double timeout = 0.1; //默认100ms超时
 
-	zval *errCode;
 	zval *callback = NULL;
 	swClient *cli = NULL;
 
@@ -1229,10 +1218,7 @@ PHP_METHOD(swoole_client, connect)
 	else if (ret < 0)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "connect to server[%s:%d] failed. Error: %s [%d]", host, (int)port, strerror(errno), errno);
-		MAKE_STD_ZVAL(errCode);
-		ZVAL_LONG(errCode, errno);
-		zend_update_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errCode TSRMLS_CC);
-		zval_ptr_dtor(&errCode);
+		zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errno TSRMLS_CC);
 		RETURN_FALSE;
 	}
 	RETURN_TRUE;
@@ -1244,7 +1230,6 @@ PHP_METHOD(swoole_client, send)
 	int data_len;
 
 	zval **zres;
-	zval *errCode;
 	swClient *cli;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &data, &data_len) == FAILURE)
@@ -1280,12 +1265,8 @@ PHP_METHOD(swoole_client, send)
     if (ret < 0)
 	{
     	SwooleG.error = errno;
-		//这里的错误信息没用
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "send() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
-		MAKE_STD_ZVAL(errCode);
-		ZVAL_LONG(errCode, SwooleG.error);
-		zend_update_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errCode TSRMLS_CC);
-		zval_ptr_dtor(&errCode);
+		zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1,  SwooleG.error TSRMLS_CC);
 		RETVAL_FALSE;
 	}
 	else
@@ -1300,7 +1281,6 @@ PHP_METHOD(swoole_client, sendfile)
     int file_len;
 
     zval **zres;
-    zval *errCode;
     swClient *cli;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &file, &file_len) == FAILURE)
@@ -1337,12 +1317,8 @@ PHP_METHOD(swoole_client, sendfile)
     if (ret < 0)
     {
         SwooleG.error = errno;
-        //这里的错误信息没用
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "sendfile() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
-        MAKE_STD_ZVAL(errCode);
-        ZVAL_LONG(errCode, SwooleG.error);
-        zend_update_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errCode TSRMLS_CC);
-        zval_ptr_dtor(&errCode);
+        zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
         RETVAL_FALSE;
     }
     else
@@ -1358,7 +1334,6 @@ PHP_METHOD(swoole_client, recv)
 	char buf_array[SW_PHP_CLIENT_BUFFER_SIZE];
 	char *buf;
 	zval **zres;
-	zval *errCode;
 
 	//zval *zdata;
 	int ret;
@@ -1405,12 +1380,8 @@ PHP_METHOD(swoole_client, recv)
 	if (ret < 0)
 	{
 		SwooleG.error = errno;
-		//这里的错误信息没用
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "recv() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
-		MAKE_STD_ZVAL(errCode);
-		ZVAL_LONG(errCode, SwooleG.error);
-		zend_update_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errCode TSRMLS_CC);
-		zval_ptr_dtor(&errCode);
+		zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
 		RETVAL_FALSE;
 	}
 	else
@@ -1618,7 +1589,6 @@ PHP_FUNCTION(swoole_client_select)
 {
 	zval *r_array, *w_array, *e_array;
 	fd_set rfds, wfds, efds;
-	zval *errCode;
 
 	int max_fd = 0;
 	int	retval, sets = 0;
@@ -1655,10 +1625,8 @@ PHP_FUNCTION(swoole_client_select)
 
 	if (retval == -1)
 	{
-		MAKE_STD_ZVAL(errCode);
-		ZVAL_LONG(errCode, errno);
-		zend_update_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errCode TSRMLS_CC);
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: unable to select. Error: %s [%d]", strerror(errno), errno);
+        zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errno TSRMLS_CC);
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "unable to select. Error: %s [%d]", strerror(errno), errno);
 		RETURN_FALSE;
 	}
 	if (r_array != NULL)
