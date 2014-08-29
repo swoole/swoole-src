@@ -1301,7 +1301,7 @@ static int swReactorThread_loop_unix_dgram(swThreadParam *param)
             task.data.info.len = n + sun_path_len;
             task.target_worker_id = -1;
             memcpy(task.data.data + n, addr_un.sun_path, sun_path_len);
-            swTrace("recvfrom udp socket.fd=%d|data=%s", sock, buf.data);
+            swTrace("recvfrom udp socket.fd=%d|data=%s", sock, task.data.data);
 
             n = serv->factory.dispatch(&serv->factory, &task);
             if (n < 0)
