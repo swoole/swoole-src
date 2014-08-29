@@ -140,6 +140,11 @@ PHP_METHOD(swoole_table, set)
 
     swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
     swTableRow *row = swTableRow_set(table, key, keylen);
+    if (!row)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to allocate memory.");
+        RETURN_FALSE;
+    }
     swTableColumn *col;
     zval *v;
     char *k;

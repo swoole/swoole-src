@@ -2849,20 +2849,21 @@ PHP_FUNCTION(swoole_server_taskwait)
 
 	if (SwooleG.task_worker_num < 1)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: task can not use. Please set task_worker_num.");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "task cannot use. Please set task_worker_num.");
 		RETURN_FALSE;
 	}
 
 	if (worker_id >= SwooleG.task_worker_num)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: worker_id must be less than serv->task_worker_num");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "worker_id must be less than serv->task_worker_num");
 		RETURN_FALSE;
 	}
 
-	if (SwooleWG.id  >= serv->worker_num) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "dispatch tasks in task workers is not supported");
-		RETURN_FALSE;
-	}
+    if (SwooleWG.id >= serv->worker_num)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "dispatch tasks in task workers is not supported");
+        RETURN_FALSE;
+    }
 
 	buf.info.type = SW_TASK_BLOCKING;
 	//field fd save task_id
@@ -2968,10 +2969,11 @@ PHP_FUNCTION(swoole_server_task)
 		RETURN_FALSE;
 	}
 
-	if (SwooleWG.id  >= serv->worker_num) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "dispatch tasks in task workers is not supported");
-		RETURN_FALSE;
-	}
+    if (SwooleWG.id >= serv->worker_num)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "dispatch tasks in task workers is not supported");
+        RETURN_FALSE;
+    }
 
 	buf.info.type = SW_TASK_NONBLOCK;
 	//使用fd保存task_id

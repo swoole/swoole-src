@@ -148,6 +148,12 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen)
                 swTableRow *new_row = table->pool->alloc(table->pool, 0);
                 table->lock.unlock(&table->lock);
 
+                if (!new_row)
+                {
+                    sw_spinlock_release(&row->lock);
+                    return NULL;
+                }
+
                 row->next = new_row;
                 row = new_row;
                 break;
