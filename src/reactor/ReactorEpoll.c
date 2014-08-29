@@ -60,8 +60,8 @@ static sw_inline int swReactorEpoll_event_set(int fdtype)
     }
     if (swReactor_event_error(fdtype))
     {
-        flag |= (EPOLLRDHUP);
-        //flag |= (EPOLLRDHUP | EPOLLHUP | EPOLLERR);
+        //flag |= (EPOLLRDHUP);
+        flag |= (EPOLLRDHUP | EPOLLHUP | EPOLLERR);
     }
     return flag;
 }

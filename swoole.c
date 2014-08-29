@@ -895,18 +895,30 @@ PHP_FUNCTION(swoole_server_set)
 	{
 		convert_to_long(*v);
 		serv->reactor_num = (int) Z_LVAL_PP(v);
+        if (serv->reactor_num <= 0)
+        {
+            serv->reactor_num = SwooleG.cpu_num;
+        }
 	}
 	//writer_num
 	if (zend_hash_find(vht, ZEND_STRS("writer_num"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
 		serv->writer_num = (int)Z_LVAL_PP(v);
+        if (serv->writer_num <= 0)
+        {
+            serv->writer_num = SwooleG.cpu_num;
+        }
 	}
 	//worker_num
 	if (zend_hash_find(vht, ZEND_STRS("worker_num"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
 		serv->worker_num = (int)Z_LVAL_PP(v);
+        if (serv->worker_num <= 0)
+        {
+            serv->worker_num = SwooleG.cpu_num;
+        }
 	}
 	//task_worker_num
 	if (zend_hash_find(vht, ZEND_STRS("task_worker_num"), (void **)&v) == SUCCESS)

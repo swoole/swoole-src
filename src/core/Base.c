@@ -530,7 +530,7 @@ int swSocket_listen(int type, char *host, int port, int backlog)
     sock = swSocket_create(type);
     if (sock < 0)
     {
-        swWarn("swSocket_listen: Create socket fail.type=%d|Errno=%d", type, errno);
+        swWarn("create socket failed. Error: %s[%d]", strerror(errno), errno);
         return SW_ERR;
     }
     //reuse
@@ -567,7 +567,7 @@ int swSocket_listen(int type, char *host, int port, int backlog)
     //bind failed
     if (ret < 0)
     {
-        swWarn("Bind failed. type=%d|host=%s|port=%d. Error: %s [%d]", type, host, port, strerror(errno), errno);
+        swWarn("bind(%s:%d) failed. Error: %s [%d]", host, port, strerror(errno), errno);
         return SW_ERR;
     }
     if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM)
@@ -578,7 +578,7 @@ int swSocket_listen(int type, char *host, int port, int backlog)
     ret = listen(sock, backlog);
     if (ret < 0)
     {
-        swWarn("Listen fail.type=%d|host=%s|port=%d. Error: %s [%d]", type, host, port, strerror(errno), errno);
+        swWarn("listen(%d) failed. Error: %s [%d]", backlog, strerror(errno), errno);
         return SW_ERR;
     }
     swSetNonBlock(sock);
