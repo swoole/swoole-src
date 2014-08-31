@@ -43,7 +43,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_get, 0, 0, 1)
     ZEND_ARG_INFO(0, key)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_count, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_count, 0, 0, 0)
     ZEND_ARG_INFO(0, mode)
 ZEND_END_ARG_INFO()
 
