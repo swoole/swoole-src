@@ -41,6 +41,8 @@ typedef struct _swTableRow
      * next slot
      */
     struct _swTableRow *next;
+    struct _swTableRow *list_prev;
+    struct _swTableRow *list_next;
     char data[0];
 } swTableRow;
 
@@ -52,6 +54,9 @@ typedef struct
     uint32_t size;
     uint32_t item_size;
     swTableRow **rows;
+    swTableRow *head;
+    swTableRow *tail;
+    swTableRow *iter;
     swMemoryPool *pool;
     void *memory;
 } swTable;
@@ -93,6 +98,9 @@ void swTable_free(swTable *table);
 int swTableColumn_add(swTable *table, char *name, int len, int type, int size);
 swTableRow* swTableRow_set(swTable *table, char *key, int keylen);
 swTableRow* swTableRow_get(swTable *table, char *key, int keylen);
+void swTable_iter_rewind(swTable *table);
+swTableRow* swTable_iter_current(swTable *table);
+int swTable_iter_forward(swTable *table);
 int swTableRow_del(swTable *table, char *key, int keylen);
 
 static sw_inline swTableColumn* swTableColumn_get(swTable *table, char *column_key, int keylen)
