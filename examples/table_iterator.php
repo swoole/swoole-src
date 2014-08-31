@@ -15,14 +15,14 @@ foreach($table as $key => $value)
 {
     var_dump($value);
 }
-echo "===================================================\n";
+echo "======================= Total Elements: {$table->count()} ============================\n";
 
 $table->del('350749960@qq.com'); // delete a exist element
 foreach($table as $value)
 {
     var_dump($value);
 }
-echo "===================================================\n";
+echo "======================= Total Elements: {$table->count()} ============================\n";
 
 
 $table->del('a invalid key'); // delete a invalid element
@@ -30,4 +30,4 @@ foreach($table as $value)
 {
     var_dump($value);
 }
-echo "===================================================\n";
+echo "======================= Total Elements: {$table->count()} ============================\n";

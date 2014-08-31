@@ -53,6 +53,7 @@ typedef struct
     swLock lock;
     uint32_t size;
     uint32_t item_size;
+    uint32_t row_num; /* total rows that in active state */
     swTableRow **rows;
     swTableRow *head;
     swTableRow *tail;

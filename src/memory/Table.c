@@ -177,6 +177,8 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen)
             row->list_prev = NULL;
             table->iter = row;
         }
+
+        table->row_num += 1;
     }
 
     row->crc32 = crc32;
@@ -291,6 +293,8 @@ int swTableRow_del(swTable *table, char *key, int keylen)
         if (table->iter == row) {
             table->iter = row->list_next;
         }
+
+        table->row_num -= 1;
     }
 
     row->active = 0;

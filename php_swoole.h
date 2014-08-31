@@ -268,6 +268,7 @@ PHP_METHOD(swoole_table, next);
 PHP_METHOD(swoole_table, current);
 PHP_METHOD(swoole_table, key);
 PHP_METHOD(swoole_table, valid);
+PHP_METHOD(swoole_table, count);
 PHP_METHOD(swoole_table, del);
 PHP_METHOD(swoole_table, lock);
 PHP_METHOD(swoole_table, unlock);

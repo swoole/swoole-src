@@ -33,6 +33,7 @@ const zend_function_entry swoole_table_methods[] =
     PHP_ME(swoole_table, current, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, key, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, valid, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, count, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, del, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, lock, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, unlock, NULL, ZEND_ACC_PUBLIC)
@@ -111,7 +112,7 @@ void swoole_table_init(int module_number TSRMLS_DC)
 {
     INIT_CLASS_ENTRY(swoole_table_ce, "swoole_table", swoole_table_methods);
     swoole_table_class_entry_ptr = zend_register_internal_class(&swoole_table_ce TSRMLS_CC);
-    zend_class_implements(swoole_table_class_entry_ptr, 1, spl_ce_Iterator);
+    zend_class_implements(swoole_table_class_entry_ptr, 2, spl_ce_Iterator, spl_ce_Countable);
 
     zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("TYPE_INT")-1, SW_TABLE_INT TSRMLS_CC);
     zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("TYPE_STRING")-1, SW_TABLE_STRING TSRMLS_CC);
@@ -306,6 +307,29 @@ PHP_METHOD(swoole_table, valid)
     swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
     swTableRow *row = swTable_iter_current(table);
     RETURN_BOOL(row != NULL);
+}
+
+PHP_METHOD(swoole_table, count)
+{
+    #define COUNT_NORMAL            0
+    #define COUNT_RECURSIVE         1
+
+    long mode = COUNT_NORMAL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &mode) == FAILURE)
+    {
+        return;
+    }
+
+    swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
+
+    if (mode == COUNT_NORMAL)
+    {
+        RETURN_LONG(table->row_num);
+    }
+    else
+    {
+        RETURN_LONG(table->row_num * table->column_num);
+    }
 }
 
 PHP_METHOD(swoole_table, del)
