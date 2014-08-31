@@ -23,7 +23,9 @@
 #include "php_ini.h"
 #include "php_globals.h"
 #include "php_main.h"
+#include "zend_interfaces.h"
 
+#include <ext/spl/spl_iterators.h>
 #include <ext/standard/info.h>
 
 #ifdef HAVE_CONFIG_H
@@ -35,7 +37,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.7.5-beta"
+#define PHP_SWOOLE_VERSION  "1.7.6-alpha"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -238,9 +240,12 @@ PHP_METHOD(swoole_lock, trylock_read);
 PHP_METHOD(swoole_lock, unlock);
 
 PHP_METHOD(swoole_process, __construct);
+PHP_METHOD(swoole_process, useQueue);
+PHP_METHOD(swoole_process, pop);
+PHP_METHOD(swoole_process, push);
 PHP_METHOD(swoole_process, kill);
 PHP_METHOD(swoole_process, wait);
-
+PHP_METHOD(swoole_process, daemon);
 PHP_METHOD(swoole_process, start);
 PHP_METHOD(swoole_process, write);
 PHP_METHOD(swoole_process, read);
@@ -259,6 +264,12 @@ PHP_METHOD(swoole_table, column);
 PHP_METHOD(swoole_table, create);
 PHP_METHOD(swoole_table, set);
 PHP_METHOD(swoole_table, get);
+PHP_METHOD(swoole_table, rewind);
+PHP_METHOD(swoole_table, next);
+PHP_METHOD(swoole_table, current);
+PHP_METHOD(swoole_table, key);
+PHP_METHOD(swoole_table, valid);
+PHP_METHOD(swoole_table, count);
 PHP_METHOD(swoole_table, del);
 PHP_METHOD(swoole_table, lock);
 PHP_METHOD(swoole_table, unlock);
@@ -276,9 +287,7 @@ void php_swoole_check_reactor();
 void php_swoole_try_run_reactor();
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
-	uint16_t task_worker_num;
-	uint8_t task_ipc_mode;
-	uint8_t task_auto_start;
+	uint16_t aio_thread_num;
 	key_t message_queue_key;
 	uint32_t unixsock_buffer_size;
 ZEND_END_MODULE_GLOBALS(swoole)

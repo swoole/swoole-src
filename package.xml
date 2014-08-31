@@ -31,11 +31,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-	<date>2014-07-15</date>
-	<time>18:51:51</time>
+	<date>2014-09-10</date>
+	<time>15:51:51</time>
 	<version>
-		<release>1.7.4</release>
-		<api>1.7.4</api>
+		<release>1.7.5</release>
+		<api>1.7.5</api>
 	</version>
 	<stability>
 		<release>stable</release>
@@ -43,13 +43,11 @@
 	</stability>
 	<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
 	<notes>
-- Task process support timer
-- Repair UDP error BUG
-- Add SSL-server support
-- Reload is effective for task_worker.
-- When the pipe is filled with poll is waiting for the write, rather than packet loss
-- Increase the clang compiler support
-- Repair shutdown task_worker and manager abnormal stop
+- Added swoole_client->sendfile()
+- Added swoole_table
+- Remove onMasterConnect/onMasterClose
+- Added pipe output buffer
+- TCP short connection have 50% performance improvement
     </notes>
 	<contents>
 		<dir name="/">
@@ -71,6 +69,9 @@
 				<file role="src" name="tests.h" />
 				<file role="src" name="array.h" />
 				<file role="src" name="async.h" />
+				<file role="src" name="hash.h" />
+				<file role="src" name="table.h" />
+				<file role="src" name="Http.h" />
 			</dir>
 			<dir name="examples">
 				<dir name="async">
@@ -105,15 +106,21 @@
 				<dir name="process">
 					<file role="src" name="worker.php" />
 					<file role="src" name="exec.php" />
+					<file role="src" name="msgqueue.php" />
+					<file role="src" name="echo.py" />
+					<file role="src" name="python.php" />
 				</dir>
 				<file role="src" name="server.php" />
+				<file role="src" name="table.php" />
 				<file role="src" name="mysql_proxy_server.php" />
 				<file role="src" name="async_mysql2.php" />
 				<file role="src" name="proxy.php" />
 				<file role="src" name="proxy_sync.php" />
 				<file role="src" name="udp_server.php" />
 				<file role="src" name="udp_client.php" />
+				<file role="src" name="udp_sync_client.php" />
 				<file role="src" name="task.php" />
+				<file role="src" name="timer.php" />
 				<file role="src" name="sendfile_server.php" />
 				<file role="src" name="recv_file.php" />
 				<file role="doc" name="test.jpg" />
@@ -125,6 +132,8 @@
 			<file role="src" name="swoole_client.c" />
 			<file role="src" name="swoole_async.c" />
 			<file role="src" name="swoole_process.c" />
+			<file role="src" name="swoole_table.c" />
+			<file role="src" name="swoole_buffer.c" />
 			<dir name="src">
 				<dir name="core">
 					<file role="src" name="Base.c" />
@@ -140,6 +149,7 @@
 					<file role="src" name="MemoryGlobal.c" />
 					<file role="src" name="FixedPool.c" />
 					<file role="src" name="RingBuffer.c" />
+					<file role="src" name="Table.c" />
 				</dir>
 				<dir name="factory">
 					<file role="src" name="Factory.c" />
@@ -190,6 +200,7 @@
 				</dir>
 				<dir name="protocol">
 					<file role="src" name="SSL.c" />
+					<file role="src" name="Http.c" />
 				</dir>
 			</dir>
 		</dir>
@@ -208,25 +219,48 @@
 	<extsrcrelease />
 
 	<changelog>
-		<release>
-			<date>2014-06-20</date>
-			<time>12:51:51</time>
-			<version>
-				<release>1.7.3</release>
-				<api>1.7.3</api>
-			</version>
-			<stability>
-				<release>stable</release>
-				<api>stable</api>
-			</stability>
-			<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
-			<notes>
-- Fixed pipe_worker zero
-- Fixed serv->connect_count wrong
-- Fixed length_check dispatch error
-- Optimization of large size response packet
-    </notes>
-		</release>
+	<release>
+		<date>2014-07-15</date>
+		<time>18:51:51</time>
+		<version>
+			<release>1.7.4</release>
+			<api>1.7.4</api>
+		</version>
+		<stability>
+			<release>stable</release>
+			<api>stable</api>
+		</stability>
+		<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
+		<notes>
+			- Task process support timer
+			- Repair UDP error BUG
+			- Add SSL-server support
+			- Reload is effective for task_worker.
+			- When the pipe is filled with poll is waiting for the write, rather
+			than packet loss
+			- Increase the clang compiler support
+			- Repair shutdown task_worker and manager abnormal stop
+		</notes>
+	</release>
+	<release>
+		<date>2014-06-20</date>
+		<time>12:51:51</time>
+		<version>
+			<release>1.7.3</release>
+			<api>1.7.3</api>
+		</version>
+		<stability>
+			<release>stable</release>
+			<api>stable</api>
+		</stability>
+		<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
+		<notes>
+			- Fixed pipe_worker zero
+			- Fixed serv->connect_count wrong
+			- Fixed length_check dispatch error
+			- Optimization of large size response packet
+		</notes>
+	</release>
 		<release>
 			<date>2014-05-30</date>
 			<time>15:51:51</time>

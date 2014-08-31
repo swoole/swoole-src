@@ -45,20 +45,22 @@ int swTaskWorker_large_pack(swEventData *task, void *data, int data_len)
 {
 	swPackage_task pkg;
 	memcpy(pkg.tmpfile, SW_TASK_TMP_FILE, sizeof(SW_TASK_TMP_FILE));
+
 #ifdef HAVE_MKOSTEMP
 	int tpm_fd  = mkostemp(pkg.tmpfile, O_WRONLY);
 #else
 	int tpm_fd  = mkstemp(pkg.tmpfile);
 #endif
+
 	if (tpm_fd < 0)
 	{
-		swWarn("mkdtemp() failed. Error: %s[%d]", strerror(errno), errno);
+		swWarn("mkdtemp(%s) failed. Error: %s[%d]", pkg.tmpfile, strerror(errno), errno);
 		return SW_ERR;
 	}
 
 	if (swoole_sync_writefile(tpm_fd, data, data_len) <=0)
 	{
-		swWarn("write to tmp file failed.");
+		swWarn("write to tmpfile failed.");
 		return SW_ERR;
 	}
 	/**

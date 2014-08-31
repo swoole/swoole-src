@@ -25,6 +25,18 @@ extern "C"
 #include <sys/types.h>
 #include <stdint.h>
 
+enum http_method
+{
+    HTTP_DELETE = 0, HTTP_GET, HTTP_HEAD, HTTP_POST, HTTP_PUT,
+    /* pathological */
+    HTTP_CONNECT, HTTP_OPTIONS, HTTP_TRACE,
+    /* webdav */
+    HTTP_COPY, HTTP_LOCK, HTTP_MKCOL, HTTP_MOVE, HTTP_PROPFIND, HTTP_PROPPATCH, HTTP_UNLOCK,
+    /* subversion */
+    HTTP_REPORT, HTTP_MKACTIVITY, HTTP_CHECKOUT, HTTP_MERGE,
+    /* upnp */
+    HTTP_MSEARCH, HTTP_NOTIFY, HTTP_SUBSCRIBE, HTTP_UNSUBSCRIBE,
+};
 
 /**
  * Compile with -DHTTP_PARSER_STRICT=0 to make less checks, but run faster
@@ -57,23 +69,15 @@ typedef struct http_parser_settings http_parser_settings;
 typedef int (*http_data_cb)(http_parser *, const char *at, size_t length);
 typedef int (*http_cb)(http_parser *);
 
-/* Request Methods */
-enum http_method
-{
-	HTTP_DELETE = 0, HTTP_GET, HTTP_HEAD, HTTP_POST, HTTP_PUT
-	/* pathological */
-	, HTTP_CONNECT, HTTP_OPTIONS, HTTP_TRACE
-	/* webdav */
-	, HTTP_COPY, HTTP_LOCK, HTTP_MKCOL, HTTP_MOVE, HTTP_PROPFIND, HTTP_PROPPATCH, HTTP_UNLOCK
-	/* subversion */
-	, HTTP_REPORT, HTTP_MKACTIVITY, HTTP_CHECKOUT, HTTP_MERGE
-	/* upnp */
-	, HTTP_MSEARCH, HTTP_NOTIFY, HTTP_SUBSCRIBE, HTTP_UNSUBSCRIBE
-};
-
 enum http_parser_type
 {
 	HTTP_REQUEST, HTTP_RESPONSE, HTTP_BOTH
+};
+
+enum http_version
+{
+    HTTP_VERSION_10,
+    HTTP_VERSION_11,
 };
 
 struct http_parser
@@ -105,6 +109,7 @@ struct http_parser
 	void *data; /* A pointer to get hook to the "connection" or "socket" object */
 };
 
+
 struct http_parser_settings
 {
 	http_cb on_message_begin;
@@ -118,6 +123,25 @@ struct http_parser_settings
 	http_data_cb on_body;
 	http_cb on_message_complete;
 };
+
+
+typedef struct _swHttpRequest
+{
+    uint8_t method;
+    uint8_t version;
+    uint8_t state;
+    uint8_t free_memory;
+
+    uint32_t header_length;
+    uint32_t content_length;
+
+    swString *buffer;
+
+} swHttpRequest;
+
+int swHttpRequest_get_protocol(swHttpRequest *request);
+int swHttpRequest_get_content_length(swHttpRequest *request);
+void swHttpRequest_free(swHttpRequest *request);
 
 void http_parser_init(http_parser *parser, enum http_parser_type type);
 

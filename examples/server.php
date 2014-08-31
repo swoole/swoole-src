@@ -5,7 +5,7 @@ $serv->set(array(
     'worker_num' => 4,
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
-    //'ipc_mode' => 2,
+    'ipc_mode' => 2,
     //'task_worker_num' => 2,
     //'task_ipc_mode' => 1,
     //'dispatch_mode' => 1,
@@ -39,20 +39,20 @@ function my_onTimer($serv, $interval)
 
 function my_onClose($serv, $fd, $from_id)
 {
-    //my_log("Client[$fd@$from_id]: fd=$fd is closed");
+    my_log("Worker#{$serv->worker_pid} Client[$fd@$from_id]: fd=$fd is closed");
 }
 
 function my_onConnect($serv, $fd, $from_id)
 {
     //throw new Exception("hello world");
-    //echo "Client[$fd@$from_id]: Connect.\n";
+    echo "Worker#{$serv->worker_pid} Client[$fd@$from_id]: Connect.\n";
 }
 
 function my_onWorkerStart($serv, $worker_id)
 {
     global $argv;
     if($worker_id >= $serv->setting['worker_num']) {
-        swoole_set_process_name("php {$argv[0]}: task_worker");
+        swoole_set_process_name("php {$argv[0]}: task");
     } else {
         swoole_set_process_name("php {$argv[0]}: worker");
     }
@@ -74,7 +74,7 @@ function my_onWorkerStop($serv, $worker_id)
 
 function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 {
-    //my_log("received: $data");
+    my_log("Worker#{$serv->worker_pid} Client[$fd@$from_id]: received: $data");
     $cmd = trim($data);
     if($cmd == "reload")
     {
@@ -177,11 +177,10 @@ function broadcast($serv, $fd = 0, $data = "hello")
         foreach($conn_list as $conn)
         {
             if($conn === $fd) continue;
-            sleep(5);
             $ret1 = $serv->send($conn, $data);
-            var_dump($ret1);
-            $ret2 = $serv->close($conn);
-            var_dump($ret2);
+            //var_dump($ret1);
+            //$ret2 = $serv->close($conn);
+            //var_dump($ret2);
         }
     }
 }

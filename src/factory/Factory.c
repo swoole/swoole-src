@@ -49,7 +49,7 @@ int swFactory_dispatch(swFactory *factory, swDispatchData *task)
     return factory->onTask(factory, &(task->data));
 }
 
-int swFactory_notify(swFactory *factory, swEvent *req)
+int swFactory_notify(swFactory *factory, swDataHead *req)
 {
     swServer *serv = factory->ptr;
     switch (req->type)
@@ -67,15 +67,52 @@ int swFactory_notify(swFactory *factory, swEvent *req)
     return SW_OK;
 }
 
-int swFactory_end(swFactory *factory, swEvent *cev)
+int swFactory_end(swFactory *factory, swDataHead *event)
 {
     swServer *serv = factory->ptr;
-    return swServer_close(serv, cev);
+    if (serv->onClose != NULL)
+    {
+        serv->onClose(serv, event->fd, event->from_id);
+    }
+    return swServer_connection_close(serv, event->fd, 0);
 }
 
-int swFactory_finish(swFactory *factory, swSendData *_send)
+int swFactory_finish(swFactory *factory, swSendData *resp)
 {
-    return swReactorThread_send(_send);
+    int ret = 0;
+    swServer *serv = SwooleG.serv;
+
+    //unix dgram
+    if (resp->info.type == SW_EVENT_UNIX_DGRAM)
+    {
+        socklen_t len;
+        struct sockaddr_un addr_un;
+        int from_sock = resp->info.from_fd;
+
+        addr_un.sun_family = AF_UNIX;
+        memcpy(addr_un.sun_path, resp->sun_path, resp->sun_path_len);
+        len = sizeof(addr_un);
+        ret = swSendto(from_sock, resp->data, resp->info.len, 0, (struct sockaddr *) &addr_un, len);
+        goto finish;
+    }
+    //UDP pacakge
+    else if (resp->info.type == SW_EVENT_UDP || resp->info.type == SW_EVENT_UDP6)
+    {
+        ret = swServer_udp_send(serv, resp);
+        goto finish;
+    }
+    else
+    {
+        resp->length = resp->info.len;
+        ret = swReactorThread_send(resp);
+    }
+
+    finish:
+    if (ret < 0)
+    {
+        swWarn("sendto to reactor failed. Error: %s [%d]", strerror(errno), errno);
+    }
+    return ret;
 }
 
 int swFactory_check_callback(swFactory *factory)

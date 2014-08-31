@@ -174,7 +174,7 @@ static int swReactorPoll_del(swReactor *reactor, int fd)
 static int swReactorPoll_wait(swReactor *reactor, struct timeval *_timeo)
 {
 	swReactorPoll *object = reactor->object;
-	swDataHead event;
+	swEvent event;
 	swReactor_handle handle;
 
 	struct timeval timeo = *_timeo;

@@ -150,7 +150,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 {
 	swReactorSelect *object = reactor->object;
 	swFdList_node *ev;
-	swDataHead event;
+	swEvent event;
 	swReactor_handle handle;
 	struct timeval timeout;
 	int ret;

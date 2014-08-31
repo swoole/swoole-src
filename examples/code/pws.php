@@ -8,9 +8,6 @@ define('DOCUMENT_ROOT', '/var/www/html/');
  */
 $serv = swoole_server_create("127.0.0.1", 8848, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
 swoole_server_setopt($serv, array(
-            'timeout' => 2.5,  //select and epoll_wait timeout.
-            'poll_thread_num' => 4, //reactor thread num
-            'writer_num' => 4,     //writer thread num
             'worker_num' => 8,    //worker process num
             'backlog' => 128,   //listen backlog
             'max_request' => 20000,

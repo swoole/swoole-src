@@ -31,25 +31,6 @@ int swReactor_auto(swReactor *reactor, int max_event)
 	return ret;
 }
 
-int swReactor_accept(swReactor *reactor, swDataHead *event)
-{
-	swEventConnect conn_ev;
-	conn_ev.from_id = event->from_id;
-	conn_ev.serv_fd = event->fd;
-	conn_ev.addrlen = sizeof(conn_ev.addr);
-	bzero(&conn_ev.addr, conn_ev.addrlen);
-
-	conn_ev.conn_fd = accept(conn_ev.serv_fd, (struct sockaddr *) &conn_ev.addr, &conn_ev.addrlen);
-	if (conn_ev.conn_fd < 0)
-	{
-		swTrace("[swReactorEpollWait]accept fail\n");
-		return -1;
-	}
-	swSetNonBlock(conn_ev.conn_fd);
-	reactor->add(reactor, conn_ev.conn_fd, SW_FD_TCP);
-	return conn_ev.conn_fd;
-}
-
 swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype)
 {
 	if (event_type == SW_EVENT_WRITE)

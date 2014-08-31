@@ -60,8 +60,8 @@ static sw_inline int swReactorEpoll_event_set(int fdtype)
     }
     if (swReactor_event_error(fdtype))
     {
-        flag |= (EPOLLRDHUP);
-        //flag |= (EPOLLRDHUP | EPOLLHUP | EPOLLERR);
+        //flag |= (EPOLLRDHUP);
+        flag |= (EPOLLRDHUP | EPOLLHUP | EPOLLERR);
     }
     return flag;
 }
@@ -146,16 +146,13 @@ int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
 int swReactorEpoll_del(swReactor *reactor, int fd)
 {
     swReactorEpoll *object = reactor->object;
-    struct epoll_event e;
     int ret;
-    e.data.fd = fd;
 
     if (fd <= 0)
     {
         return SW_ERR;
     }
-    //	e.events = EPOLLIN | EPOLLET | EPOLLOUT;
-    ret = epoll_ctl(object->epfd, EPOLL_CTL_DEL, fd, &e);
+    ret = epoll_ctl(object->epfd, EPOLL_CTL_DEL, fd, NULL);
     if (ret < 0)
     {
         swWarn("epoll remove fd[=%d] failed. Error: %s[%d]", fd, strerror(errno), errno);
@@ -188,7 +185,8 @@ int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype)
     ret = epoll_ctl(object->epfd, EPOLL_CTL_MOD, fd, &e);
     if (ret < 0)
     {
-        swWarn("set event[reactor_id=%d|fd=%d] failed. Error: %s[%d]", reactor->id, fd, strerror(errno), errno);
+        swWarn("set event[reactor_id=%d|fd=%d|type=%d|events=%d] failed. Error: %s[%d]", reactor->id, fd, fd_.fdtype,
+                e.events, strerror(errno), errno);
         return SW_ERR;
     }
     return SW_OK;

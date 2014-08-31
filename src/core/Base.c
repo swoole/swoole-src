@@ -247,6 +247,57 @@ int swoole_sync_writefile(int fd, void *data, int len)
     return written;
 }
 
+swString* swoole_file_get_contents(char *filename)
+{
+    struct stat file_stat;
+    if (lstat(filename, &file_stat) < 0)
+    {
+        swWarn("lstat(%s) failed. Error: %s[%d]", filename, strerror(errno), errno);
+        return NULL;
+    }
+    if (file_stat.st_size > SW_MAX_FILE_CONTENT)
+    {
+        swWarn("file is too big");
+        return NULL;
+    }
+    int fd = open(filename, O_RDONLY);
+    if (fd < 0)
+    {
+        swWarn("open(%s) failed. Error: %s[%d]", filename, strerror(errno), errno);
+        return NULL;
+    }
+
+    swString *content = swString_new(file_stat.st_size);
+    if (!content)
+    {
+        swWarn("malloc failed");
+        return NULL;
+    }
+
+    int readn = 0;
+    int n;
+
+    while(readn < file_stat.st_size)
+    {
+        n = pread(fd, content->str + readn, file_stat.st_size - readn, readn);
+        if (n < 0)
+        {
+            if (errno == EINTR)
+            {
+                continue;
+            }
+            else
+            {
+                swWarn("pread() failed. Error: %s[%d]", strerror(errno), errno);
+                swString_free(content);
+                return NULL;
+            }
+        }
+        readn += n;
+    }
+    return content;
+}
+
 int swoole_sync_readfile(int fd, void *buf, int len)
 {
     int n = 0;
@@ -479,7 +530,7 @@ int swSocket_listen(int type, char *host, int port, int backlog)
     sock = swSocket_create(type);
     if (sock < 0)
     {
-        swWarn("swSocket_listen: Create socket fail.type=%d|Errno=%d", type, errno);
+        swWarn("create socket failed. Error: %s[%d]", strerror(errno), errno);
         return SW_ERR;
     }
     //reuse
@@ -516,7 +567,7 @@ int swSocket_listen(int type, char *host, int port, int backlog)
     //bind failed
     if (ret < 0)
     {
-        swWarn("Bind failed. type=%d|host=%s|port=%d. Error: %s [%d]", type, host, port, strerror(errno), errno);
+        swWarn("bind(%s:%d) failed. Error: %s [%d]", host, port, strerror(errno), errno);
         return SW_ERR;
     }
     if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM)
@@ -527,7 +578,7 @@ int swSocket_listen(int type, char *host, int port, int backlog)
     ret = listen(sock, backlog);
     if (ret < 0)
     {
-        swWarn("Listen fail.type=%d|host=%s|port=%d. Error: %s [%d]", type, host, port, strerror(errno), errno);
+        swWarn("listen(%d) failed. Error: %s [%d]", backlog, strerror(errno), errno);
         return SW_ERR;
     }
     swSetNonBlock(sock);

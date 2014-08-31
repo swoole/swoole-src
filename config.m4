@@ -12,9 +12,6 @@ dnl Otherwise use enable:
 PHP_ARG_ENABLE(swoole-debug, whether to enable swoole debug,
 [  --enable-swoole-debug   Enable swoole debug], no, no)
 
-PHP_ARG_ENABLE(msgqueue, set ipc mode,
-[  --enable-msgqueue       Use message queue?], no, no)
-
 PHP_ARG_ENABLE(sockets, enable sockets support,
 [  --enable-sockets        Do you have sockets extension?], no, no)
 
@@ -123,12 +120,6 @@ if test "$PHP_SWOOLE" != "no"; then
 	if test "$PHP_ASYNC_MYSQL" = "yes"; then
 		AC_DEFINE(SW_ASYNC_MYSQL, 1, [enable async_mysql support])
     fi
-    
-    if test "$PHP_MSGQUEUE" != "no"; then
-        AC_DEFINE(SW_WORKER_IPC_MODE, 2, [use message queue])
-    else
-        AC_DEFINE(SW_WORKER_IPC_MODE, 1, [use unix socket])
-    fi
         
     AC_SWOOLE_CPU_AFFINITY
     
@@ -151,12 +142,20 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(c, kqueue, AC_DEFINE(HAVE_KQUEUE, 1, [have kqueue]))
     AC_CHECK_LIB(c, daemon, AC_DEFINE(HAVE_DAEMON, 1, [have daemon]))
     AC_CHECK_LIB(c, mkostemp, AC_DEFINE(HAVE_MKOSTEMP, 1, [have mkostemp]))
+    AC_CHECK_LIB(pthread, pthread_rwlock_init, AC_DEFINE(HAVE_RWLOCK, 1, [have pthread_rwlock_init]))
     AC_CHECK_LIB(pthread, pthread_spin_lock, AC_DEFINE(HAVE_SPINLOCK, 1, [have pthread_spin_lock]))
-    AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
-    AC_CHECK_LIB(rt, aio_read, AC_DEFINE(HAVE_GCC_AIO, 1, [have gcc aio]))
     AC_CHECK_LIB(ssl, SSL_library_init, AC_DEFINE(HAVE_OPENSSL, 1, [have openssl]))
 
-    PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
+    if test `uname` = "Darwin" ; then
+        AC_CHECK_LIB(c, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
+        AC_CHECK_LIB(c, aio_read, AC_DEFINE(HAVE_GCC_AIO, 1, [have gcc aio]))
+    else
+        AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
+        AC_CHECK_LIB(rt, aio_read, AC_DEFINE(HAVE_GCC_AIO, 1, [have gcc aio]))
+        PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
+    fi
+
+
     PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
 
     if test "$PHP_OPENSSL" = "yes"; then
@@ -219,6 +218,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/os/signal.c \
         src/os/timer.c \
         src/protocol/SSL.c \
+        src/protocol/Http.c \
       , $ext_shared)
       
     PHP_ADD_INCLUDE([$ext_srcdir/include])

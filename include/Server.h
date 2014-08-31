@@ -19,6 +19,7 @@
 
 #include "swoole.h"
 #include "buffer.h"
+#include "array.h"
 #include "Connection.h"
 
 #ifdef __cplusplus
@@ -36,12 +37,6 @@ extern "C" {
 
 #define SW_WORKER_BUSY             1
 #define SW_WORKER_IDLE             0
-
-#define SW_BACKLOG                 512
-
-#define SW_TCP_KEEPCOUNT           5
-#define SW_TCP_KEEPIDLE            3600 //1小时
-#define SW_TCP_KEEPINTERVAL        60
 
 #define SW_HEARTBEAT_IDLE          0   //心跳存活最大时间
 #define SW_HEARTBEAT_CHECK         0   //心跳定时侦测时间
@@ -108,15 +103,15 @@ typedef struct _swUdpFd
 
 typedef struct _swReactorThread
 {
-	pthread_t thread_id;
-	swReactor reactor;
-	swUdpFd *udp_addrs;
-	swCloseQueue close_queue;
-	swMemoryPool *buffer_input;
-	int c_udp_fd;
+    pthread_t thread_id;
+    swReactor reactor;
+    swUdpFd *udp_addrs;
+    swMemoryPool *buffer_input;
+    swArray *buffer_pipe;
+    int c_udp_fd;
 } swReactorThread;
 
-typedef struct _swThreadWriter
+typedef struct _swWorkerThread
 {
 	pthread_t ptid; //线程ID
 	int pipe_num; //writer thread's pipe num
@@ -125,7 +120,7 @@ typedef struct _swThreadWriter
 	swReactor reactor;
 	swShareMemory shm; //共享内存
 	swPipe evfd;       //eventfd
-} swWriterThread;
+} swWorkerThread;
 
 typedef struct _swListenList_node
 {
@@ -191,218 +186,223 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num);
 int swFactoryProcess_start(swFactory *factory);
 int swFactoryProcess_shutdown(swFactory *factory);
 int swFactoryProcess_end(swFactory *factory, swDataHead *event);
-int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task);
 
 int swFactoryThread_create(swFactory *factory, int writer_num);
 int swFactoryThread_start(swFactory *factory);
 int swFactoryThread_shutdown(swFactory *factory);
 int swFactoryThread_dispatch(swFactory *factory, swDispatchData *buf);
 int swFactoryThread_finish(swFactory *factory, swSendData *data);
-//------------------------------------Server-------------------------------------------
 
+//------------------------------------Server-------------------------------------------
 struct _swServer
 {
-	/**
-	 * tcp socket listen backlog
-	 */
-	uint16_t backlog;
-	/**
-	 * reactor thread/process num
-	 */
-	uint16_t reactor_num;
-	uint16_t writer_num;
-	/**
-	 * worker process num
-	 */
-	uint16_t worker_num;
+    /**
+     * tcp socket listen backlog
+     */
+    uint16_t backlog;
+    /**
+     * reactor thread/process num
+     */
+    uint16_t reactor_num;
+    uint16_t writer_num;
+    /**
+     * worker process num
+     */
+    uint16_t worker_num;
 
-	/**
-	 * The number of pipe per reactor maintenance
-	 */
-	uint16_t reactor_pipe_num;
+    /**
+     * The number of pipe per reactor maintenance
+     */
+    uint16_t reactor_pipe_num;
 
-	uint8_t factory_mode;
+    uint8_t factory_mode;
 
-	/**
-	 * run as a daemon process
-	 */
-	uint8_t daemonize;
+    /**
+     * run as a daemon process
+     */
+    uint8_t daemonize;
 
-	/**
-	 * package dispatch mode
-	 */
-	uint8_t dispatch_mode; //分配模式，1平均分配，2按FD取摸固定分配，3,使用抢占式队列(IPC消息队列)分配
+    /**
+     * package dispatch mode
+     */
+    uint8_t dispatch_mode; //分配模式，1平均分配，2按FD取摸固定分配，3,使用抢占式队列(IPC消息队列)分配
 
-	/**
-	 * 1: unix socket, 2: message queue, 3: memory channel
-	 */
-	uint8_t ipc_mode;
+    /**
+     * 1: unix socket, 2: message queue, 3: memory channel
+     */
+    uint8_t ipc_mode;
 
-	int worker_uid;
-	int worker_groupid;
+    int worker_uid;
+    int worker_groupid;
 
-	/**
-	 * max connection num
-	 */
-	uint32_t max_conn;
+    /**
+     * max connection num
+     */
+    uint32_t max_connection;
 
-	/**
-	 * worker process max request
-	 */
-	uint32_t max_request;
-	/**
+    /**
+     * worker process max request
+     */
+    uint32_t max_request;
+    /**
      * task worker process max request
      */
-	uint32_t task_max_request;
+    uint32_t task_max_request;
 
-	int timeout_sec;
-	int timeout_usec;
+    int timeout_sec;
+    int timeout_usec;
 
-	int sock_client_buffer_size;    //client的socket缓存区设置
-	int sock_server_buffer_size;    //server的socket缓存区设置
+    int sock_client_buffer_size; //client的socket缓存区设置
+    int sock_server_buffer_size; //server的socket缓存区设置
 
-	char log_file[SW_LOG_FILENAME];      //日志文件
+    char log_file[SW_LOG_FILENAME]; //日志文件
 
-	int signal_fd;
-	int event_fd;
+    int signal_fd;
+    int event_fd;
 
-	int ringbuffer_size;
+    int ringbuffer_size;
 
-	/*----------------------------Reactor schedule--------------------------------*/
-	uint16_t reactor_round_i;         //轮询调度
-	uint16_t reactor_next_i;          //平均算法调度
-	uint16_t reactor_schedule_count;
+    /*----------------------------Reactor schedule--------------------------------*/
+    uint16_t reactor_round_i; //轮询调度
+    uint16_t reactor_next_i; //平均算法调度
+    uint16_t reactor_schedule_count;
 
-	uint16_t worker_round_id;
+    uint16_t worker_round_id;
 
-	int udp_sock_buffer_size; //UDP临时包数量，超过数量未处理将会被丢弃
+    int udp_sock_buffer_size; //UDP临时包数量，超过数量未处理将会被丢弃
 
-	/**
-	 * reactor ringbuffer memory pool size
-	 */
-	size_t reactor_ringbuffer_size;
+    /**
+     * reactor ringbuffer memory pool size
+     */
+    size_t reactor_ringbuffer_size;
 
-	/**
-	 * have udp listen socket
-	 */
-	uint8_t have_udp_sock;
+    /**
+     * have udp listen socket
+     */
+    uint8_t have_udp_sock;
 
-	/**
-	 * have tcp listen socket
-	 */
-	uint8_t have_tcp_sock;
+    /**
+     * have tcp listen socket
+     */
+    uint8_t have_tcp_sock;
 
-	/**
-	 * oepn cpu affinity setting
-	 */
-	uint8_t open_cpu_affinity;
+    /**
+     * oepn cpu affinity setting
+     */
+    uint8_t open_cpu_affinity;
 
-	/**
-	 * open tcp nodelay option
-	 */
-	uint8_t open_tcp_nodelay;
+    /**
+     * open tcp nodelay option
+     */
+    uint8_t open_tcp_nodelay;
 
-	/**
-	 * open tcp_defer_accept option
-	 */
-	uint8_t tcp_defer_accept;  //TCP_DEFER_ACCEPT
-	uint8_t tcp_socket_linger; //SOCKET SO_LINGER
+    /**
+     * open tcp_defer_accept option
+     */
+    uint8_t tcp_defer_accept; //TCP_DEFER_ACCEPT
 
-	/* tcp keepalive */
-	uint8_t open_tcp_keepalive; //开启keepalive
-	uint16_t tcp_keepidle;      //如该连接在规定时间内没有任何数据往来,则进行探测
-	uint16_t tcp_keepinterval;  //探测时发包的时间间隔
-	uint16_t tcp_keepcount;     //探测尝试的次数
+    /* tcp keepalive */
+    uint8_t open_tcp_keepalive; //开启keepalive
+    uint16_t tcp_keepidle; //如该连接在规定时间内没有任何数据往来,则进行探测
+    uint16_t tcp_keepinterval; //探测时发包的时间间隔
+    uint16_t tcp_keepcount; //探测尝试的次数
 
-	/* heartbeat check time*/
-	uint16_t heartbeat_idle_time;			//心跳存活时间
-	uint16_t heartbeat_check_interval;		//心跳定时侦测时间, 必需小于heartbeat_idle_time
+    /* heartbeat check time*/
+    uint16_t heartbeat_idle_time; //心跳存活时间
+    uint16_t heartbeat_check_interval; //心跳定时侦测时间, 必需小于heartbeat_idle_time
 
-	/**
-	 * 来自客户端的心跳侦测包
-	 */
-	char heartbeat_ping[SW_HEARTBEAT_PING_LEN];
-	uint8_t heartbeat_ping_length;
-	/**
-	 * 服务器端对心跳包的响应
-	 */
-	char heartbeat_pong[SW_HEARTBEAT_PING_LEN];
-	uint8_t heartbeat_pong_length;
+    /**
+     * 来自客户端的心跳侦测包
+     */
+    char heartbeat_ping[SW_HEARTBEAT_PING_LEN];
+    uint8_t heartbeat_ping_length;
 
-	/* one package: eof check */
-	uint8_t open_eof_check;    //检测数据EOF
-	uint8_t package_eof_len;                //数据缓存结束符长度
-	//int data_buffer_max_num;             //数据缓存最大个数(超过此数值的连接会被当作坏连接，将清除缓存&关闭连接)
-	//uint8_t max_trunk_num;               //每个请求最大允许创建的trunk数
-	char package_eof[SW_DATA_EOF_MAXLEN];   //数据缓存结束符
+    /**
+     * 服务器端对心跳包的响应
+     */
+    char heartbeat_pong[SW_HEARTBEAT_PING_LEN];
+    uint8_t heartbeat_pong_length;
 
-	/* one package: length check */
-	uint8_t open_length_check;    //开启协议长度检测
+    /* one package: eof check */
+    uint8_t open_eof_check; //检测数据EOF
+    uint8_t package_eof_len; //数据缓存结束符长度
+    //int data_buffer_max_num;             //数据缓存最大个数(超过此数值的连接会被当作坏连接，将清除缓存&关闭连接)
+    //uint8_t max_trunk_num;               //每个请求最大允许创建的trunk数
+    char package_eof[SW_DATA_EOF_MAXLEN]; //数据缓存结束符
 
-	char package_length_type;          //length field type
-	uint8_t package_length_size;
-	uint16_t package_length_offset;    //第几个字节开始表示长度
-	uint16_t package_body_offset;      //第几个字节开始计算长度
-	uint32_t package_max_length;
+    /**
+     * built-in http protocol
+     */
+    uint8_t open_http_protocol;
+    uint32_t http_max_post_size;
+    uint32_t http_max_websocket_size;
 
-	/**
-	 * Use data key as factory->dispatch() param
-	 */
-	uint8_t open_dispatch_key;
-	uint8_t dispatch_key_size;
-	uint16_t dispatch_key_offset;
-	uint16_t dispatch_key_type;
+    /* one package: length check */
+    uint8_t open_length_check; //开启协议长度检测
 
-	/* buffer output/input setting*/
-	uint32_t buffer_output_size;
-	uint32_t buffer_input_size;
+    char package_length_type; //length field type
+    uint8_t package_length_size;
+    uint16_t package_length_offset; //第几个字节开始表示长度
+    uint16_t package_body_offset; //第几个字节开始计算长度
+    uint32_t package_max_length;
+
+    /**
+     * Use data key as factory->dispatch() param
+     */
+    uint8_t open_dispatch_key;
+    uint8_t dispatch_key_size;
+    uint16_t dispatch_key_offset;
+    uint16_t dispatch_key_type;
+
+    /* buffer output/input setting*/
+    uint32_t buffer_output_size;
+    uint32_t buffer_input_size;
 
 #ifdef SW_USE_OPENSSL
-	uint8_t open_ssl;
-	char *ssl_cert_file;
-	char *ssl_key_file;
+    uint8_t open_ssl;
+    char *ssl_cert_file;
+    char *ssl_key_file;
 #endif
 
-	void *ptr2;
+    void *ptr2;
 
-	swPipe main_pipe;
-	swReactor reactor;
-	swFactory factory;
+    swReactor reactor;
+    swFactory factory;
 
-	swListenList_node *listen_list;
+    swListenList_node *listen_list;
 
-	swReactorThread *reactor_threads;
-	swWriterThread *writer_threads;
+    swReactorThread *reactor_threads;
+    swWorkerThread *writer_threads;
 
-	swWorker *workers;
+    swWorker *workers;
 
     swQueue read_queue;
     swQueue write_queue;
 
-	swConnection *connection_list; //连接列表
-	int connection_list_capacity;  //超过此容量，会自动扩容
+    swConnection *connection_list; //连接列表
+    int connection_list_capacity; //超过此容量，会自动扩容
 
-	/**
-	 * message queue key
-	 */
-	uint64_t message_queue_key;
+    /**
+     * message queue key
+     */
+    uint64_t message_queue_key;
 
-	swReactor *reactor_ptr; //Main Reactor
-	swFactory *factory_ptr; //Factory
+    swReactor *reactor_ptr; //Main Reactor
+    swFactory *factory_ptr; //Factory
 
-	void (*onStart)(swServer *serv);
-	void (*onManagerStart)(swServer *serv);
-	void (*onManagerStop)(swServer *serv);
-	int (*onReceive)(swFactory *factory, swEventData *data);
-	void (*onClose)(swServer *serv, int fd, int from_id);
-	void (*onConnect)(swServer *serv, int fd, int from_id);
-	void (*onShutdown)(swServer *serv);
-	void (*onTimer)(swServer *serv, int interval);
-	void (*onWorkerStart)(swServer *serv, int worker_id); //Only process mode
-	void (*onWorkerStop)(swServer *serv, int worker_id);  //Only process mode
-	void (*onWorkerError)(swServer *serv, int worker_id, pid_t worker_pid, int exit_code);   //Only process mode
-	int (*onTask)(swServer *serv, swEventData *data);
-	int (*onFinish)(swServer *serv, swEventData *data);
+    void (*onStart)(swServer *serv);
+    void (*onManagerStart)(swServer *serv);
+    void (*onManagerStop)(swServer *serv);
+    int (*onReceive)(swFactory *factory, swEventData *data);
+    void (*onClose)(swServer *serv, int fd, int from_id);
+    void (*onConnect)(swServer *serv, int fd, int from_id);
+    void (*onShutdown)(swServer *serv);
+    void (*onTimer)(swServer *serv, int interval);
+    void (*onWorkerStart)(swServer *serv, int worker_id); //Only process mode
+    void (*onWorkerStop)(swServer *serv, int worker_id); //Only process mode
+    void (*onWorkerError)(swServer *serv, int worker_id, pid_t worker_pid, int exit_code); //Only process mode
+    int (*onTask)(swServer *serv, swEventData *data);
+    int (*onFinish)(swServer *serv, swEventData *data);
 };
 
 typedef struct _swSocketLocal
@@ -433,13 +433,12 @@ int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
 
 void swServer_init(swServer *serv);
+void swServer_signal_init(void);
 int swServer_start(swServer *serv);
 int swServer_addListener(swServer *serv, int type, char *host,int port);
 int swServer_create(swServer *serv);
 int swServer_listen(swServer *serv, swReactor *reactor);
 int swServer_free(swServer *serv);
-int swServer_close(swServer *factory, swDataHead *event);
-int swServer_process_close(swServer *serv, swDataHead *event);
 int swServer_shutdown(swServer *serv);
 int swServer_addTimer(swServer *serv, int interval);
 int swServer_reload(swServer *serv);
@@ -474,8 +473,8 @@ int swTaskWorker_large_pack(swEventData *task, void *data, int data_len);
 #define swPackage_data(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->str:task->data)
 #define swPackage_length(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->length:task->info.len)
 
-swConnection* swServer_connection_new(swServer *serv, swEvent *ev);
-void swServer_connection_close(swServer *serv, int fd, int notify);
+swConnection* swServer_connection_new(swServer *serv, swDataHead *ev);
+int swServer_connection_close(swServer *serv, int fd, int notify);
 
 #define SW_SERVER_MAX_FD_INDEX          0 //max connection socket
 #define SW_SERVER_MIN_FD_INDEX          1 //min listen socket
@@ -484,7 +483,7 @@ void swServer_connection_close(swServer *serv, int fd, int notify);
 //使用connection_list[0]表示最大的FD
 #define swServer_set_maxfd(serv,maxfd) (serv->connection_list[SW_SERVER_MAX_FD_INDEX].fd=maxfd)
 #define swServer_get_maxfd(serv) (serv->connection_list[SW_SERVER_MAX_FD_INDEX].fd)
-#define swServer_connection_get(serv,fd) ((fd>serv->max_conn || fd<=2)?NULL:&serv->connection_list[fd])
+#define swServer_connection_get(serv,fd) ((fd>serv->max_connection || fd<=2)?NULL:&serv->connection_list[fd])
 //使用connection_list[1]表示最小的FD
 #define swServer_set_minfd(serv,maxfd) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd=maxfd)
 #define swServer_get_minfd(serv) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd)
@@ -508,9 +507,41 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
 	}
 }
 
-static sw_inline int swServer_worker_schedule(swServer *serv, int schedule_key)
+static sw_inline int swServer_send2worker_blocking(swServer *serv, void *data, int len, uint16_t target_worker_id)
 {
-    int target_worker_id = 0;
+    int ret = -1;
+    swWorker *worker = &(serv->workers[target_worker_id]);
+
+    if (serv->ipc_mode == SW_IPC_MSGQUEUE)
+    {
+        swQueue_data *in_data = (swQueue_data *) ((void *) data - sizeof(long));
+
+        //加1,消息队列的type必须不能为0
+        in_data->mtype = target_worker_id + 1;
+        ret = serv->read_queue.in(&serv->read_queue, in_data, len);
+    }
+    else
+    {
+        sendto_unix_sock:
+        ret = write(worker->pipe_master, (void *) data, len);
+        if (ret < 0)
+        {
+            if (errno == EINTR)
+            {
+                goto sendto_unix_sock;
+            }
+            else if (errno == EAGAIN)
+            {
+                swSocket_wait(worker->pipe_master, SW_WORKER_WAIT_TIMEOUT, SW_EVENT_WRITE);
+            }
+        }
+    }
+    return ret;
+}
+
+static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t schedule_key)
+{
+    uint32_t target_worker_id = 0;
 
     //polling mode
     if (serv->dispatch_mode == SW_DISPATCH_ROUND)
@@ -551,30 +582,6 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int schedule_key)
     return target_worker_id;
 }
 
-static sw_inline int swFactoryProcess_send2worker(swServer *serv, void *data, int len, int target_worker_id)
-{
-    int ret = -1;
-    swWorker *worker = &(serv->workers[target_worker_id]);
-
-    if (serv->ipc_mode == SW_IPC_MSGQUEUE)
-    {
-        //insert to msg queue
-        swQueue_data *in_data = (swQueue_data *) ((void *) data - sizeof(long));
-
-        //加1防止id为0的worker进程出错
-        in_data->mtype = target_worker_id + 1;
-        ret = serv->read_queue.in(&serv->read_queue, in_data, len);
-        //swTrace("[Master]rd_queue[%ld]->in: fd=%d|type=%d|len=%d", in_data->mtype, info->fd, info->type, info->len);
-    }
-    else
-    {
-        //send to unix sock
-        //swWarn("pti=%d|from_id=%d|data_len=%d|swDataHead_size=%ld", pti, data->info.from_id, send_len, sizeof(swDataHead));
-        ret = swWrite(worker->pipe_master, (void *) data, len);
-    }
-    return ret;
-}
-
 void swServer_worker_onStart(swServer *serv);
 void swServer_worker_onStop(swServer *serv);
 
@@ -583,7 +590,7 @@ void swWorker_free(swWorker *worker);
 void swWorker_signal_init(void);
 void swWorker_signal_handler(int signo);
 
-int swServer_master_onAccept(swReactor *reactor, swDataHead *event);
+int swServer_master_onAccept(swReactor *reactor, swEvent *event);
 void swServer_master_onReactorTimeout(swReactor *reactor);
 void swServer_master_onReactorFinish(swReactor *reactor);
 void swServer_update_time(void);
@@ -591,14 +598,17 @@ void swServer_update_time(void);
 int swReactorThread_create(swServer *serv);
 int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr);
 void swReactorThread_free(swServer *serv);
-int swReactorThread_close_queue(swReactor *reactor, swCloseQueue *close_queue);
+
 int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event);
 int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event);
 int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *event);
+int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event);
 int swReactorThread_onPackage(swReactor *reactor, swEvent *event);
-int swReactorThread_onPipeReceive(swReactor *reactor, swDataHead *ev);
+int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev);
 int swReactorThread_onWrite(swReactor *reactor, swEvent *ev);
+
 int swReactorThread_send(swSendData *_send);
+int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id);
 
 int swReactorProcess_create(swServer *serv);
 int swReactorProcess_start(swServer *serv);

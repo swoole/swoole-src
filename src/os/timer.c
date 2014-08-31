@@ -80,7 +80,6 @@ int swTimer_create(swTimer *timer, int interval, int use_pipe)
  */
 static int swTimer_timerfd_set(swTimer *timer, int interval)
 {
-
 #ifdef HAVE_TIMERFD
 	struct timeval now;
 	int sec = interval / 1000;
@@ -105,10 +104,11 @@ static int swTimer_timerfd_set(swTimer *timer, int interval)
 		}
 	}
 
+    timer_set.it_interval.tv_sec = sec;
+    timer_set.it_interval.tv_nsec = msec * 1000 * 1000;
+
 	timer_set.it_value.tv_sec = now.tv_sec + sec;
-	timer_set.it_value.tv_nsec = now.tv_usec + msec * 1000;
-	timer_set.it_interval.tv_sec = sec;
-	timer_set.it_interval.tv_nsec = msec * 1000 * 1000;
+	timer_set.it_value.tv_nsec = now.tv_usec + timer_set.it_interval.tv_nsec;
 
 	if (timerfd_settime(timer->fd, TFD_TIMER_ABSTIME, &timer_set, NULL) == -1)
 	{
@@ -165,33 +165,33 @@ int swTimer_free(swTimer *timer)
 
 int swTimer_add(swTimer *timer, int ms)
 {
-	swTimer_node *node = sw_malloc(sizeof(swTimer_node));
-	if (node == NULL)
-	{
-		swWarn("malloc failed.");
-		return SW_ERR;
-	}
+    swTimer_node *node = sw_malloc(sizeof(swTimer_node));
+    if (node == NULL)
+    {
+        swWarn("malloc failed.");
+        return SW_ERR;
+    }
 
-	bzero(node, sizeof(swTimer_node));
-	node->lasttime = swTimer_get_ms();
-	node->interval = ms;
+    bzero(node, sizeof(swTimer_node));
+    node->lasttime = 0;
+    node->interval = ms;
 
-	if (ms < timer->interval)
-	{
-		int new_interval = swoole_common_divisor(ms, timer->interval);
-		timer->interval = new_interval;
-		if (SwooleG.use_timerfd)
-		{
-			swTimer_timerfd_set(timer, new_interval);
-		}
-		else
-		{
-			swTimer_signal_set(timer, new_interval);
-		}
-	}
-	swHashMap_add_int(timer->list, ms, node, NULL);
-	timer->num++;
-	return SW_OK;
+    if (ms < timer->interval)
+    {
+        int new_interval = swoole_common_divisor(ms, timer->interval);
+        timer->interval = new_interval;
+        if (SwooleG.use_timerfd)
+        {
+            swTimer_timerfd_set(timer, new_interval);
+        }
+        else
+        {
+            swTimer_signal_set(timer, new_interval);
+        }
+    }
+    swHashMap_add_int(timer->list, ms, node, NULL);
+    timer->num++;
+    return SW_OK;
 }
 
 int swTimer_select(swTimer *timer)

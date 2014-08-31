@@ -3,6 +3,8 @@ $redirect_stdout = false;
 $workers = [];
 $worker_num = 8;
 
+//swoole_process::daemon(0, 1);
+
 for($i = 0; $i < $worker_num; $i++)
 {
     $process = new swoole_process('callback_function', $redirect_stdout);
@@ -26,7 +28,6 @@ function callback_function(swoole_process $worker)
     $worker->exit(0);
 }
 
-
 function callback_function_async(swoole_process $worker)
 {
     //echo "Worker: start. PID=".$worker->pid."\n";
@@ -47,7 +48,6 @@ function callback_function_async(swoole_process $worker)
     });
 }
 
-
 foreach($workers as $pid => $process)
 {
     $process->write("hello worker[$pid]\n");
@@ -61,3 +61,5 @@ for($i = 0; $i < $worker_num; $i++)
     unset($workers[$pid]);
     echo "Worker Exit, PID=".$pid.PHP_EOL;
 }
+
+sleep(10000);

@@ -21,7 +21,7 @@ function child1($worker)
 //master
 sleep(1);
 $s = microtime(true);
-for($i =0; $i < 1000000; $i++)
+for($i =0; $i < 1000; $i++)
 {
     $arr = $table->get('350749960@qq.com');
 }

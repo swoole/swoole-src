@@ -38,6 +38,9 @@ int main(int argc, char **argv)
 
 	swUnitTest_steup(ws_test1, 1, "websocket decode test");
 
+	swUnitTest_steup(http_test1, 1, "http get test");
+	swUnitTest_steup(http_test2, 1, "http post test");
+
 	swUnitTest_steup(ringbuffer_test1, 1, "ringbuffer test");
 	return swUnitTest_run(&test);
 }

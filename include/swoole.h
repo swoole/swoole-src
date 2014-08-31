@@ -112,6 +112,8 @@ int daemon(int nochdir, int noclose);
 
 #define SW_START_LINE  "-------------------------START----------------------------"
 #define SW_END_LINE    "-------------------------END------------------------------"
+#define SW_SPACE       ' '
+#define SW_CRLF        "\r\n"
 /*----------------------------------------------------------------------------*/
 
 #include "swoole_config.h"
@@ -171,7 +173,7 @@ enum swFd_type
     SW_FD_WRITE           = 7, //fd can write
     SW_FD_TIMER           = 8, //timer fd
     SW_FD_AIO             = 9, //linux native aio
-    SW_FD_SEND_TO_CLIENT  = 10, //sendto client
+
     SW_FD_SIGNAL          = 11, //signalfd
     SW_FD_DNS_RESOLVER    = 12, //dns resolver
 };
@@ -234,7 +236,7 @@ enum
 
 enum
 {
-	SW_CONTINUE,
+	SW_CONTINUE = 1,
 	SW_WAIT,
 	SW_CLOSE,
 	SW_ERROR,
@@ -254,246 +256,18 @@ swLog_put(SW_LOG_TRACE, sw_error);\
 SwooleG.lock.unlock(&SwooleG.lock);}
 #endif
 
+
 #define swYield()              sched_yield() //or usleep(1)
 //#define swYield()              usleep(500000)
 #define SW_MAX_FDTYPE          32 //32 kinds of event
 #define SW_ERROR_MSG_SIZE      512
 
-//------------------Base--------------------
+//------------------------------Base--------------------------------
 #ifndef uchar
 typedef unsigned char uchar;
 #endif
 
-typedef struct _swDataHead
-{
-	int fd; //文件描述符
-	uint16_t len; //长度
-	int16_t from_id; //Reactor Id
-	uint8_t type; //类型
-	uint8_t from_fd; //从哪个ServerFD引发的
-} swDataHead;
-
-typedef swDataHead swEvent;
-
-typedef struct _swEventData
-{
-	swDataHead info;
-	char data[SW_BUFFER_SIZE];
-} swEventData;
-
-typedef struct _swSendData
-{
-	swDataHead info;
-
-	/**
-	 * for unix socket
-	 */
-	char *sun_path;
-	uint8_t sun_path_len;
-
-	/**
-	 * for big package
-	 */
-	uint32_t length;
-
-	char *data;
-} swSendData;
-
-
-//typedef struct _swEvent
-//{
-//	uint16_t from_id; //Reactor Id
-//	uint8_t type; //类型
-//	int fd;
-//} swEvent;
-
-typedef struct _swEventClose_queue {
-	int events[SW_CLOSE_QLEN];
-	int num;
-} swCloseQueue;
-
-typedef struct _swEventConnect
-{
-	int from_id; //Reactor Id
-	int conn_fd;
-	int serv_fd;
-	struct sockaddr_in addr;
-	socklen_t addrlen;
-} swEventConnect;
-
-typedef void * (*swThreadStartFunc)(void *);
-typedef int (*swHandle)(swEventData *buf);
-typedef void (*swSignalFunc)(int);
-typedef void* (*swCallback)(void *);
-typedef struct swReactor_s swReactor;
-typedef int (*swReactor_handle)(swReactor *reactor, swDataHead *event);
-
-//------------------Pipe--------------------
-typedef struct _swPipe
-{
-	void *object;
-	int blocking;
-	double timeout;
-
-	int (*read)(struct _swPipe *, void *recv, int length);
-	int (*write)(struct _swPipe *, void *send, int length);
-	int (*getFd)(struct _swPipe *, int isWriteFd);
-	int (*close)(struct _swPipe *);
-} swPipe;
-
-int swPipeBase_create(swPipe *p, int blocking);
-int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout);
-int swPipeUnsock_create(swPipe *p, int blocking, int protocol);
-
-static inline int swPipeNotify_auto(swPipe *p, int blocking, int semaphore)
-{
-	//eventfd是2.6.26提供的,timerfd是2.6.27提供的
-#ifdef HAVE_EVENTFD
-	return swPipeEventfd_create(p, blocking, semaphore, 0);
-#else
-	return swPipeBase_create(p, blocking);
-#endif
-}
-
-void swBreakPoint(void);
-
-//------------------Queue--------------------
-typedef struct _swQueue_Data
-{
-	long mtype;		             /* type of received/sent message */
-	char mdata[sizeof(swEventData)];  /* text of the message */
-} swQueue_data;
-
-typedef struct _swQueue
-{
-	void *object;
-	int blocking;
-	int (*in)(struct _swQueue *, swQueue_data *in, int data_length);
-	int (*out)(struct _swQueue *, swQueue_data *out, int buffer_length);
-	void (*free)(struct _swQueue *);
-	int (*notify)(struct _swQueue *);
-	int (*wait)(struct _swQueue *);
-} swQueue;
-
-int swQueueMsg_create(swQueue *p, int wait, int msg_key, long type);
-
-//------------------Lock--------------------------------------
-
-enum SW_LOCKS
-{
-	SW_RWLOCK = 1,
-#define SW_RWLOCK SW_RWLOCK
-	SW_FILELOCK = 2,
-#define SW_FILELOCK SW_FILELOCK
-	SW_MUTEX = 3,
-#define SW_MUTEX SW_MUTEX
-	SW_SEM = 4,
-#define SW_SEM SW_SEM
-	SW_SPINLOCK = 5,
-#define SW_SPINLOCK SW_SPINLOCK
-	SW_ATOMLOCK = 6,
-#define SW_ATOMLOCK SW_ATOMLOCK
-};
-
-typedef struct _swLock swLock;
-
-//文件锁
-typedef struct _swFileLock
-{
-	struct flock lock_t;
-	int fd;
-} swFileLock;
-
-//互斥锁
-typedef struct _swMutex
-{
-	pthread_mutex_t _lock;
-	pthread_mutexattr_t attr;
-} swMutex;
-
-//读写锁
-typedef struct _swRWLock
-{
-	pthread_rwlock_t _lock;
-	pthread_rwlockattr_t attr;
-
-} swRWLock;
-
-//自旋锁
-#ifdef HAVE_SPINLOCK
-typedef struct _swSpinLock
-{
-	pthread_spinlock_t lock_t;
-} swSpinLock;
-#endif
-
-//原子锁Lock-Free
-typedef struct _swAtomicLock
-{
-	sw_atomic_t lock_t;
-	uint32_t spin;
-} swAtomicLock;
-
-//信号量
-typedef struct _swSem
-{
-	key_t key;
-	int semid;
-} swSem;
-
-struct _swLock
-{
-	int type;
-	union
-	{
-		swMutex mutex;
-		swRWLock rwlock;
-		swFileLock filelock;
-		swSem sem;
-		swAtomicLock atomlock;
-#ifdef HAVE_SPINLOCK
-		swSpinLock spinlock;
-#endif
-	} object;
-	int (*lock_rd)(struct _swLock *lock);
-	int (*lock)(struct _swLock *lock);
-	int (*unlock)(struct _swLock *lock);
-	int (*trylock_rd)(struct _swLock *lock);
-	int (*trylock)(struct _swLock *lock);
-	int (*free)(struct _swLock *lock);
-};
-
-//Thread Condition
-typedef struct _swCond
-{
-    swLock lock;
-    pthread_cond_t cond;
-
-    int (*wait)(struct _swCond *object);
-    int (*timewait)(struct _swCond *object, long, long);
-    int (*notify)(struct _swCond *object);
-    int (*broadcast)(struct _swCond *object);
-    void (*free)(struct _swCond *object);
-} swCond;
-
-
-#define SW_SHM_MMAP_FILE_LEN  64
-typedef struct _swShareMemory_mmap
-{
-	int size;
-	char mapfile[SW_SHM_MMAP_FILE_LEN];
-	int tmpfd;
-	int key;
-	int shmid;
-	void *mem;
-} swShareMemory;
-
-void *swShareMemory_mmap_create(swShareMemory *object, int size, char *mapfile);
-void *swShareMemory_sysv_create(swShareMemory *object, int size, int key);
-int swShareMemory_sysv_free(swShareMemory *object, int rm);
-int swShareMemory_mmap_free(swShareMemory *object);
-
-//-------------------memory manager-------------------------
+//------------------------------String--------------------------------
 typedef struct _swString
 {
     size_t length;
@@ -515,13 +289,239 @@ static sw_inline size_t swoole_size_align(size_t size, int pagesize)
 
 swString *swString_new(size_t size);
 swString *swString_dup(char *src_str, int length);
+swString *swString_dup2(swString *src);
+void swString_print(swString *str);
 void swString_free(swString *str);
 int swString_append(swString *str, swString *append_str);
 int swString_extend(swString *str, size_t new_size);
 
 #define swString_length(s) (s->length)
 #define swString_ptr(s) (s->str)
+//------------------------------Base--------------------------------
 
+typedef struct _swDataHead
+{
+    int fd; //文件描述符
+    uint16_t len; //长度
+    int16_t from_id; //Reactor Id
+    uint8_t type; //类型
+    uint8_t from_fd; //从哪个ServerFD引发的
+} swDataHead;
+
+typedef struct _swEvent
+{
+    int fd;
+    int16_t from_id;
+    uint8_t type;
+    void *object;
+} swEvent;
+
+typedef struct _swEventData
+{
+    swDataHead info;
+    char data[SW_BUFFER_SIZE];
+} swEventData;
+
+typedef struct _swSendData
+{
+    swDataHead info;
+
+    /**
+     * for unix socket
+     */
+    char *sun_path;
+    uint8_t sun_path_len;
+
+    /**
+     * for big package
+     */
+    uint32_t length;
+
+    char *data;
+} swSendData;
+
+//typedef struct _swEvent
+//{
+//	uint16_t from_id; //Reactor Id
+//	uint8_t type; //类型
+//	int fd;
+//} swEvent;
+
+typedef void * (*swThreadStartFunc)(void *);
+typedef int (*swHandle)(swEventData *buf);
+typedef void (*swSignalFunc)(int);
+typedef void* (*swCallback)(void *);
+typedef struct swReactor_s swReactor;
+typedef int (*swReactor_handle)(swReactor *reactor, swEvent *event);
+
+//------------------Pipe--------------------
+typedef struct _swPipe
+{
+    void *object;
+    int blocking;
+    double timeout;
+
+    int (*read)(struct _swPipe *, void *recv, int length);
+    int (*write)(struct _swPipe *, void *send, int length);
+    int (*getFd)(struct _swPipe *, int isWriteFd);
+    int (*close)(struct _swPipe *);
+} swPipe;
+
+int swPipeBase_create(swPipe *p, int blocking);
+int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout);
+int swPipeUnsock_create(swPipe *p, int blocking, int protocol);
+
+static inline int swPipeNotify_auto(swPipe *p, int blocking, int semaphore)
+{
+	//eventfd是2.6.26提供的,timerfd是2.6.27提供的
+#ifdef HAVE_EVENTFD
+	return swPipeEventfd_create(p, blocking, semaphore, 0);
+#else
+	return swPipeBase_create(p, blocking);
+#endif
+}
+
+void swBreakPoint(void);
+
+//------------------Queue--------------------
+typedef struct _swQueue_Data
+{
+    long mtype; /* type of received/sent message */
+    char mdata[sizeof(swEventData)]; /* text of the message */
+} swQueue_data;
+
+typedef struct _swQueue
+{
+    void *object;
+    int blocking;
+    int (*in)(struct _swQueue *, swQueue_data *in, int data_length);
+    int (*out)(struct _swQueue *, swQueue_data *out, int buffer_length);
+    void (*free)(struct _swQueue *);
+    int (*notify)(struct _swQueue *);
+    int (*wait)(struct _swQueue *);
+} swQueue;
+
+int swQueueMsg_create(swQueue *p, int wait, key_t msg_key, long type);
+void swQueueMsg_set_blocking(swQueue *p, uint8_t blocking);
+
+//------------------Lock--------------------------------------
+
+enum SW_LOCKS
+{
+    SW_RWLOCK = 1,
+#define SW_RWLOCK SW_RWLOCK
+    SW_FILELOCK = 2,
+#define SW_FILELOCK SW_FILELOCK
+    SW_MUTEX = 3,
+#define SW_MUTEX SW_MUTEX
+    SW_SEM = 4,
+#define SW_SEM SW_SEM
+    SW_SPINLOCK = 5,
+#define SW_SPINLOCK SW_SPINLOCK
+    SW_ATOMLOCK = 6,
+#define SW_ATOMLOCK SW_ATOMLOCK
+};
+
+//文件锁
+typedef struct _swFileLock
+{
+    struct flock lock_t;
+    int fd;
+} swFileLock;
+
+//互斥锁
+typedef struct _swMutex
+{
+    pthread_mutex_t _lock;
+    pthread_mutexattr_t attr;
+} swMutex;
+
+#ifdef HAVE_RWLOCK
+//读写锁
+typedef struct _swRWLock
+{
+    pthread_rwlock_t _lock;
+    pthread_rwlockattr_t attr;
+
+} swRWLock;
+#endif
+
+//自旋锁
+#ifdef HAVE_SPINLOCK
+typedef struct _swSpinLock
+{
+    pthread_spinlock_t lock_t;
+} swSpinLock;
+#endif
+
+typedef struct _swAtomicLock
+{
+    sw_atomic_t lock_t;
+    uint32_t spin;
+} swAtomicLock;
+
+typedef struct _swSem
+{
+    key_t key;
+    int semid;
+} swSem;
+
+typedef struct _swLock
+{
+	int type;
+    union
+    {
+        swMutex mutex;
+#ifdef HAVE_RWLOCK
+        swRWLock rwlock;
+#endif
+        swFileLock filelock;
+        swSem sem;
+        swAtomicLock atomlock;
+#ifdef HAVE_SPINLOCK
+        swSpinLock spinlock;
+#endif
+    } object;
+
+	int (*lock_rd)(struct _swLock *);
+	int (*lock)(struct _swLock *);
+	int (*unlock)(struct _swLock *);
+	int (*trylock_rd)(struct _swLock *);
+	int (*trylock)(struct _swLock *);
+	int (*free)(struct _swLock *);
+} swLock;
+
+//Thread Condition
+typedef struct _swCond
+{
+    swLock lock;
+    pthread_cond_t cond;
+
+    int (*wait)(struct _swCond *object);
+    int (*timewait)(struct _swCond *object, long, long);
+    int (*notify)(struct _swCond *object);
+    int (*broadcast)(struct _swCond *object);
+    void (*free)(struct _swCond *object);
+} swCond;
+
+#define SW_SHM_MMAP_FILE_LEN  64
+
+typedef struct _swShareMemory_mmap
+{
+    int size;
+    char mapfile[SW_SHM_MMAP_FILE_LEN];
+    int tmpfd;
+    int key;
+    int shmid;
+    void *mem;
+} swShareMemory;
+
+void *swShareMemory_mmap_create(swShareMemory *object, int size, char *mapfile);
+void *swShareMemory_sysv_create(swShareMemory *object, int size, int key);
+int swShareMemory_sysv_free(swShareMemory *object, int rm);
+int swShareMemory_mmap_free(swShareMemory *object);
+
+//-------------------memory manager-------------------------
 typedef struct _swMemoryPool
 {
 	void *object;
@@ -555,8 +555,9 @@ void* sw_shm_malloc(size_t size);
 void sw_shm_free(void *ptr);
 void* sw_shm_calloc(size_t num, size_t _size);
 void* sw_shm_realloc(void *ptr, size_t new_size);
-
+#ifdef HAVE_RWLOCK
 int swRWLock_create(swLock *lock, int use_in_process);
+#endif
 int swSem_create(swLock *lock, key_t key);
 int swMutex_create(swLock *lock, int use_in_process);
 int swFileLock_create(swLock *lock, int fd);
@@ -599,50 +600,48 @@ uint32_t swoole_common_divisor(uint32_t u, uint32_t v);
 
 static sw_inline uint32_t swoole_unpack(char type, void *data)
 {
-	{
-		int64_t tmp;
+    int64_t tmp;
 
-		switch(type)
-		{
-		/*-------------------------16bit-----------------------------*/
-		/**
-		 * signed short (always 16 bit, machine byte order)
-		 */
-		case 's':
-			return *((int16_t *) data);
-		/**
-		 * unsigned short (always 16 bit, machine byte order)
-		 */
-		case 'S':
-			return *((uint16_t *) data);
-		/**
-		 * unsigned short (always 16 bit, big endian byte order)
-		 */
-		case 'n':
-			return ntohs(*((uint16_t *) data));
+    switch(type)
+    {
+    /*-------------------------16bit-----------------------------*/
+    /**
+     * signed short (always 16 bit, machine byte order)
+     */
+    case 's':
+        return *((int16_t *) data);
+    /**
+     * unsigned short (always 16 bit, machine byte order)
+     */
+    case 'S':
+        return *((uint16_t *) data);
+    /**
+     * unsigned short (always 16 bit, big endian byte order)
+     */
+    case 'n':
+        return ntohs(*((uint16_t *) data));
 
-		/*-------------------------32bit-----------------------------*/
-		/**
-		 * unsigned long (always 32 bit, big endian byte order)
-		 */
-		case 'N':
-			tmp = *((uint32_t *) data);
-			return ntohl(tmp);
-		/**
-		 * unsigned long (always 32 bit, machine byte order)
-		 */
-		case 'L':
-			return *((uint32_t *) data);
-		/**
-		 * signed long (always 32 bit, machine byte order)
-		 */
-		case 'l':
-			return *((int *) data);
+    /*-------------------------32bit-----------------------------*/
+    /**
+     * unsigned long (always 32 bit, big endian byte order)
+     */
+    case 'N':
+        tmp = *((uint32_t *) data);
+        return ntohl(tmp);
+    /**
+     * unsigned long (always 32 bit, machine byte order)
+     */
+    case 'L':
+        return *((uint32_t *) data);
+    /**
+     * signed long (always 32 bit, machine byte order)
+     */
+    case 'l':
+        return *((int *) data);
 
-		default:
-			return *((uint32_t *) data);
-		}
-	}
+    default:
+        return *((uint32_t *) data);
+    }
 }
 
 void swoole_dump_bin(char *data, char type, int size);
@@ -652,6 +651,7 @@ char* swoole_dirname(char *file);
 void swoole_dump_ascii(char *data, int size);
 int swoole_sync_writefile(int fd, void *data, int len);
 int swoole_sync_readfile(int fd, void *buf, int len);
+swString* swoole_file_get_contents(char *filename);
 
 //----------------------core function---------------------
 int swSetTimeout(int sock, double timeout);
@@ -668,6 +668,22 @@ int swSocket_create(int type);
 int swSocket_wait(int fd, int timeout_ms, int events);
 int swSendto(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
 int swSocket_sendfile_sync(int sock, char *filename, double timeout);
+
+static sw_inline int swSocket_write(int fd, void *data, int len)
+{
+    int n;
+    while (1)
+    {
+        n = write(fd, data, len);
+        if (n < 0 && errno == EINTR)
+        {
+            continue;
+        }
+        break;
+    }
+    return n;
+}
+
 void swFloat2timeval(float timeout, long int *sec, long int *usec);
 swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask);
 void swSignal_add(int signo, swSignalFunc func);
@@ -721,6 +737,8 @@ struct _swWorker
 
 	swMemoryPool *pool_output;
 
+	swQueue *queue;
+
 	/**
 	 * redirect stdout to pipe_master
 	 */
@@ -730,6 +748,8 @@ struct _swWorker
 	 * worker status, IDLE or BUSY
 	 */
 	uint8_t status;
+
+	uint8_t ipc_mode;
 
 	/**
 	 * redirect stdin to pipe_worker
@@ -751,7 +771,7 @@ struct _swWorker
 	 */
 	struct
 	{
-		volatile uint8_t lock;
+		uint8_t lock;
 		void *ptr;
 	} store;
 
@@ -870,6 +890,7 @@ enum SW_CHANNEL_FLAGS
 	SW_CHAN_SHM = 1u << 3,
 #define SW_CHAN_SHM SW_CHAN_SHM
 };
+
 typedef struct _swChannel
 {
 	int head;    //头部，出队列方向
@@ -895,6 +916,16 @@ int swChannel_notify(swChannel *object);
 void swChannel_free(swChannel *object);
 
 /*----------------------------Thread Pool-------------------------------*/
+enum swThread_type
+{
+    SW_THREAD_MASTER = 1,
+    SW_THREAD_REACTOR,
+    SW_THREAD_WRITER,
+    SW_THREAD_UDP,
+    SW_THREAD_UNIX_DGRAM,
+    SW_THREAD_HEARTBEAT,
+};
+
 typedef struct _swThreadPool
 {
 	pthread_mutex_t mutex;
@@ -995,6 +1026,11 @@ typedef struct
 	 */
 	uint16_t pipe_round;
 
+	/**
+	 * pipe_worker
+	 */
+	int pipe_fd;
+
 	swString **buffer_input;
 
 } swWorkerG;
@@ -1002,6 +1038,7 @@ typedef struct
 typedef struct
 {
     uint16_t id;
+    uint8_t type;
 	uint8_t factory_lock_target;
 	int16_t factory_target_worker;
 	sw_atomic_t worker_round_i;
@@ -1070,7 +1107,6 @@ typedef struct
     sw_atomic_t connection_num;
     sw_atomic_t accept_count;
     sw_atomic_t close_count;
-
 } swServerStats;
 
 extern swServerG SwooleG;              //Local Global Variable
