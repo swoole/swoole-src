@@ -21,22 +21,52 @@
 zend_class_entry swoole_table_ce;
 zend_class_entry *swoole_table_class_entry_ptr;
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_void, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_construct, 0, 0, 1)
+    ZEND_ARG_INFO(0, table_size)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_column, 0, 0, 1)
+    ZEND_ARG_INFO(0, name)
+    ZEND_ARG_INFO(0, type)
+    ZEND_ARG_INFO(0, size)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_set, 0, 0, 2)
+    ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, value)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_get, 0, 0, 1)
+    ZEND_ARG_INFO(0, key)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_count, 0, 0, 1)
+    ZEND_ARG_INFO(0, mode)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_del, 0, 0, 1)
+    ZEND_ARG_INFO(0, key)
+ZEND_END_ARG_INFO()
+
 const zend_function_entry swoole_table_methods[] =
 {
-    PHP_ME(swoole_table, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-    PHP_ME(swoole_table, column, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, create, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, set, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, get, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, rewind, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, next, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, current, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, key, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, valid, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, count, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, del, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, lock, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, unlock, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, __construct, arginfo_swoole_table_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_table, column,      arginfo_swoole_table_column, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, create,      arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, set,         arginfo_swoole_table_set, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, get,         arginfo_swoole_table_get, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, rewind,      arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, next,        arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, current,     arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, key,         arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, valid,       arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, count,       arginfo_swoole_table_count, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, del,         arginfo_swoole_table_del, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, lock,        arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, unlock,      arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
