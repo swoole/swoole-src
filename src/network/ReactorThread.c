@@ -88,7 +88,7 @@ int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
     task.data.info.fd = addr.sin_addr.s_addr;
     task.target_worker_id = -1;
 
-    swTrace("recvfrom udp socket.fd=%d|data=%s", event->fd, buf.data);
+    swTrace("recvfrom udp socket.fd=%d|data=%s", event->fd, task.data.data);
 
     ret = factory->dispatch(factory, &task);
     if (ret < 0)
@@ -504,7 +504,7 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
     }
     else
     {
-        swTrace("recv: %s|fd=%d|len=%d\n", rdata.buf.data, event->fd, n);
+        swTrace("recv: %s|fd=%d|len=%d\n", task.data.data, event->fd, n);
         //更新最近收包时间
         conn->last_time =  SwooleGS->now;
 
@@ -1099,7 +1099,7 @@ static int swReactorThread_loop_udp(swThreadParam *param)
             task.data.info.fd = addr_in.sin_addr.s_addr;
             task.target_worker_id = -1;
 
-            swTrace("recvfrom udp socket.fd=%d|data=%s", sock, buf.data);
+            swTrace("recvfrom udp socket.fd=%d|data=%s", sock, task.data.data);
             ret = serv->factory.dispatch(&serv->factory, &task);
             if (ret < 0)
             {
@@ -1162,7 +1162,7 @@ int swReactorThread_send_string_buffer(swReactorThread *thread, swConnection *co
             memcpy(task.data.data, send_ptr, send_n);
         }
 
-        swTrace("dispatch, type=%d|len=%d\n", _send.info.type, _send.info.len);
+        swTrace("dispatch, type=%d|len=%d\n", task.data.info.type, task.data.info.len);
 
         ret = factory->dispatch(factory, &task);
         //TODO: 处理数据失败，数据将丢失
@@ -1248,7 +1248,7 @@ int swReactorThread_send_in_buffer(swReactorThread *thread, swConnection *conn)
         swBuffer_pop_trunk(buffer, trunk);
         trunk = swBuffer_get_trunk(buffer);
 
-        swTrace("send2worker[trunk_num=%d][type=%d]\n", buffer->trunk_num, _send.info.type);
+        swTrace("send2worker[trunk_num=%d][type=%d]\n", buffer->trunk_num, task.data.info.type);
     }
     /**
      * unlock

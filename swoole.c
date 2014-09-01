@@ -795,7 +795,7 @@ PHP_FUNCTION(swoole_server_create)
 	}
 
 	serv->factory_mode = serv_mode;
-	swTrace("Create swoole_server host=%s, port=%ld, mode=%d, type=%d", serv_host, serv_port, serv->factory_mode, sock_type);
+	swTrace("Create swoole_server host=%s, port=%d, mode=%d, type=%d", serv_host, (int) serv_port, serv->factory_mode, (int) sock_type);
 
 #ifdef ZTS
 	if(sw_thread_ctx == NULL)
