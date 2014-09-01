@@ -103,6 +103,9 @@ int swTable_create(swTable *table)
     }
     table->memory = memory;
     table->rows = memory;
+    table->iter = NULL;
+    table->head = NULL;
+    table->tail = NULL;
 
     int i;
     for (i = 0; i < table->size; i++)
@@ -164,6 +167,26 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen)
             }
         }
     }
+
+    if (!row->active)
+    {
+        row->list_next = NULL;
+        if (table->head)
+        {
+            row->list_prev = table->tail;
+            table->tail->list_next = row;
+            table->tail = row;
+        }
+        else
+        {
+            table->head = table->tail = row;
+            row->list_prev = NULL;
+            table->iter = row;
+        }
+
+        table->row_num += 1;
+    }
+
     row->crc32 = crc32;
     row->active = 1;
     swTrace("row=%p, crc32=%u, key=%s\n", row, crc32, key);
@@ -204,13 +227,36 @@ swTableRow* swTableRow_get(swTable *table, char *key, int keylen)
     return row;
 }
 
+void swTable_iter_rewind(swTable *table)
+{
+    table->iter = table->head;
+}
+
+swTableRow* swTable_iter_current(swTable *table)
+{
+    return table->iter;
+}
+
+int swTable_iter_forward(swTable *table)
+{
+    if (table->iter)
+    {
+        table->iter = table->iter->list_next;
+        return SW_OK;
+    }
+    else
+    {
+        return SW_ERR;
+    }
+}
+
 int swTableRow_del(swTable *table, char *key, int keylen)
 {
     swTableRow *row = swTable_hash(table, key, keylen);
     uint32_t crc32 = swoole_crc32(key, keylen);
 
     sw_spinlock(&row->lock);
-    while (row->active)
+    if (row->active)
     {
         for (;;)
         {
@@ -230,7 +276,33 @@ int swTableRow_del(swTable *table, char *key, int keylen)
                 row = row->next;
             }
         }
+
+
+        if (row->list_prev != NULL)
+        {
+            row->list_prev->list_next = row->list_next;
+        }
+        else
+        {
+            table->head = row->list_next;
+        }
+
+        if (row->list_next != NULL)
+        {
+            row->list_next->list_prev = row->list_prev;
+        }
+        else
+        {
+            table->tail = row->list_prev;
+        }
+
+        if (table->iter == row) {
+            table->iter = row->list_next;
+        }
+
+        table->row_num -= 1;
     }
+
     row->active = 0;
     sw_spinlock_release(&row->lock);
     return SW_OK;
