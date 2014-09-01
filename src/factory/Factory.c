@@ -77,9 +77,42 @@ int swFactory_end(swFactory *factory, swEvent *event)
     return swServer_close(serv, event);
 }
 
-int swFactory_finish(swFactory *factory, swSendData *_send)
+int swFactory_finish(swFactory *factory, swSendData *resp)
 {
-    return swReactorThread_send(_send);
+    int ret;
+    swServer *serv = SwooleG.serv;
+
+    //unix dgram
+    if (resp->info.type == SW_EVENT_UNIX_DGRAM)
+    {
+        socklen_t len;
+        struct sockaddr_un addr_un;
+        int from_sock = resp->info.from_fd;
+
+        addr_un.sun_family = AF_UNIX;
+        memcpy(addr_un.sun_path, resp->sun_path, resp->sun_path_len);
+        len = sizeof(addr_un);
+        ret = swSendto(from_sock, resp->data, resp->info.len, 0, (struct sockaddr *) &addr_un, len);
+        goto finish;
+    }
+    //UDP pacakge
+    else if (resp->info.type == SW_EVENT_UDP || resp->info.type == SW_EVENT_UDP6)
+    {
+        ret = swServer_udp_send(serv, resp);
+        goto finish;
+    }
+    else
+    {
+        resp->length = resp->info.len;
+        swReactorThread_send(resp);
+    }
+
+    finish:
+    if (ret < 0)
+    {
+        swWarn("sendto to reactor failed. Error: %s [%d]", strerror(errno), errno);
+    }
+    return ret;
 }
 
 int swFactory_check_callback(swFactory *factory)

@@ -21,8 +21,6 @@
 
 #include <netinet/tcp.h>
 
-static void swServer_signal_init(void);
-
 #if SW_REACTOR_SCHEDULE == 3
 static sw_inline void swServer_reactor_schedule(swServer *serv)
 {
@@ -1111,7 +1109,15 @@ static void swServer_signal_hanlder(int sig)
          */
     case SIGUSR1:
     case SIGUSR2:
-        kill(SwooleGS->manager_pid, SIGUSR1);
+        if (SwooleG.serv->factory_mode == SW_MODE_SINGLE)
+        {
+            SwooleG.event_workers->reloading = 1;
+            SwooleG.event_workers->reload_flag = 0;
+        }
+        else
+        {
+            kill(SwooleGS->manager_pid, SIGUSR1);
+        }
         break;
     default:
         break;

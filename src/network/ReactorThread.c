@@ -32,6 +32,7 @@ static int swReactorThread_send_string_buffer(swReactorThread *thread, swConnect
 static int swReactorThread_send_in_buffer(swReactorThread *thread, swConnection *conn);
 static int swReactorThread_get_package_length(swServer *serv, void *data, uint32_t size);
 
+#ifdef SW_USE_RINGBUFFER
 static sw_inline void* swReactorThread_alloc(swReactorThread *thread, uint32_t size)
 {
     void *ptr = NULL;
@@ -53,6 +54,7 @@ static sw_inline void* swReactorThread_alloc(swReactorThread *thread, uint32_t s
     }
     return ptr;
 }
+#endif
 
 /**
  * for udp
@@ -1248,7 +1250,7 @@ int swReactorThread_send_in_buffer(swReactorThread *thread, swConnection *conn)
         swBuffer_pop_trunk(buffer, trunk);
         trunk = swBuffer_get_trunk(buffer);
 
-        swTrace("send2worker[trunk_num=%d][type=%d]\n", buffer->trunk_num, task.data.info.type);
+        swTrace("send2worker[trunk_num=%d][type=%d]", buffer->trunk_num, task.data.info.type);
     }
     /**
      * unlock

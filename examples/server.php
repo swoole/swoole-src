@@ -1,5 +1,5 @@
 <?php
-$serv = new swoole_server("0.0.0.0", 9501);
+$serv = new swoole_server("0.0.0.0", 9501, SWOOLE_BASE);
 // $serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
 $serv->set(array(
     'worker_num' => 1,
@@ -52,7 +52,7 @@ function my_onWorkerStart($serv, $worker_id)
 {
     global $argv;
     if($worker_id >= $serv->setting['worker_num']) {
-        swoole_set_process_name("php {$argv[0]}: task_worker");
+        swoole_set_process_name("php {$argv[0]}: task");
     } else {
         swoole_set_process_name("php {$argv[0]}: worker");
     }
@@ -74,7 +74,7 @@ function my_onWorkerStop($serv, $worker_id)
 
 function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 {
-    //my_log("received: $data");
+    my_log("received: $data");
     $cmd = trim($data);
     if($cmd == "reload")
     {

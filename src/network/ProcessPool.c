@@ -314,20 +314,22 @@ int swProcessPool_wait(swProcessPool *pool)
 	while (1)
 	{
 		pid = wait(NULL);
-		swTrace("[manager] worker stop.pid=%d\n", pid);
+
 		if (pid < 0)
 		{
 			if (pool->reloading == 0)
 			{
-				swTrace("[Manager] wait fail. Error: %s [%d]", strerror(errno), errno);
+				swTrace("[Manager] wait failed. Error: %s [%d]", strerror(errno), errno);
 			}
 			else if (pool->reload_flag == 0)
 			{
+			    swTrace("[Manager] reload workers.");
 				memcpy(reload_workers, pool->workers, sizeof(swWorker) * pool->worker_num);
 				pool->reload_flag = 1;
 				goto reload_worker;
 			}
 		}
+		swTrace("[Manager] worker stop.pid=%d", pid);
 		if (SwooleG.running == 1)
 		{
 			swWorker *exit_worker = swHashMap_find_int(pool->map, pid);
@@ -339,7 +341,7 @@ int swProcessPool_wait(swProcessPool *pool)
 			new_pid = swProcessPool_spawn(exit_worker);
 			if (new_pid < 0)
 			{
-				swWarn("Fork worker process fail. Error: %s [%d]", strerror(errno), errno);
+				swWarn("Fork worker process failed. Error: %s [%d]", strerror(errno), errno);
 				return SW_ERR;
 			}
 			swHashMap_del_int(pool->map, pid);

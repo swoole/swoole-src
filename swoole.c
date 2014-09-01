@@ -798,10 +798,10 @@ PHP_FUNCTION(swoole_server_create)
 	swTrace("Create swoole_server host=%s, port=%d, mode=%d, type=%d", serv_host, (int) serv_port, serv->factory_mode, (int) sock_type);
 
 #ifdef ZTS
-	if(sw_thread_ctx == NULL)
-	{
-		TSRMLS_SET_CTX(sw_thread_ctx);
-	}
+    if (sw_thread_ctx == NULL)
+    {
+        TSRMLS_SET_CTX(sw_thread_ctx);
+    }
 #endif
 
 	bzero(php_sw_callback, sizeof(zval*) * PHP_SERVER_CALLBACK_NUM);

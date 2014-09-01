@@ -125,6 +125,16 @@ int swReactorProcess_start(swServer *serv)
             swProcessPool_add_worker(&pool, &SwooleG.task_workers.workers[i]);
         }
     }
+    /**
+     * BASE模式，管理进程就是主进程
+     */
+    SwooleGS->manager_pid = getpid();
+
+    SwooleG.use_timerfd = 0;
+    SwooleG.use_signalfd = 0;
+    SwooleG.use_timer_pipe = 0;
+    swServer_signal_init();
+
     swProcessPool_start(&pool);
     return swProcessPool_wait(&pool);
 }
