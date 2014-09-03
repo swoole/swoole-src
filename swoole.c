@@ -844,7 +844,6 @@ PHP_FUNCTION(swoole_server_set)
 	HashTable *vht;
 	swServer *serv;
 	zval **v;
-	double timeout;
 
 	if (SwooleGS->start > 0)
 	{
@@ -870,14 +869,6 @@ PHP_FUNCTION(swoole_server_set)
 
 	vht = Z_ARRVAL_P(zset);
 
-	//timeout
-	if (zend_hash_find(vht, ZEND_STRS("timeout"), (void **)&v) == SUCCESS)
-	{
-		convert_to_double(*v);
-		timeout = Z_DVAL_PP(v);
-		serv->timeout_sec = (int)timeout;
-		serv->timeout_usec = (int)((timeout*1000*1000) - (serv->timeout_sec*1000*1000));
-	}
     //daemonize
     if (zend_hash_find(vht, ZEND_STRS("daemonize"), (void **) &v) == SUCCESS)
     {
@@ -967,12 +958,6 @@ PHP_FUNCTION(swoole_server_set)
 	{
 		convert_to_long(*v);
 		serv->tcp_defer_accept = (uint8_t) Z_LVAL_PP(v);
-	}
-	//socket linger
-	if (zend_hash_find(vht, ZEND_STRS("tcp_socket_linger"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		serv->tcp_socket_linger = (uint8_t) Z_LVAL_PP(v);
 	}
 	//tcp_keepalive
 	if (zend_hash_find(vht, ZEND_STRS("open_tcp_keepalive"), (void **)&v) == SUCCESS)

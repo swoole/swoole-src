@@ -171,7 +171,7 @@ enum swFd_type
     SW_FD_WRITE           = 7, //fd can write
     SW_FD_TIMER           = 8, //timer fd
     SW_FD_AIO             = 9, //linux native aio
-    SW_FD_SEND_TO_CLIENT  = 10, //sendto client
+
     SW_FD_SIGNAL          = 11, //signalfd
     SW_FD_DNS_RESOLVER    = 12, //dns resolver
 };

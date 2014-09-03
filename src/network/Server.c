@@ -1267,8 +1267,9 @@ void swServer_connection_close(swServer *serv, int fd, int notify)
 		swReactorThread_close_queue(reactor, queue);
 	}
 
+#if 0
 	//立即关闭socket，清理缓存区
-	if (serv->tcp_socket_linger > 0)
+	if (0)
 	{
 		struct linger linger;
 		linger.l_onoff = 1;
@@ -1279,6 +1280,7 @@ void swServer_connection_close(swServer *serv, int fd, int notify)
 			swWarn("setsockopt(SO_LINGER) failed. Error: %s[%d]", strerror(errno), errno);
 		}
 	}
+#endif
 
 #ifdef SW_USE_OPENSSL
 	if (conn->ssl)

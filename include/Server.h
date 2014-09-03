@@ -202,210 +202,209 @@ int swFactoryThread_dispatch(swFactory *factory, swDispatchData *buf);
 int swFactoryThread_finish(swFactory *factory, swSendData *data);
 
 //------------------------------------Server-------------------------------------------
-
 struct _swServer
 {
-	/**
-	 * tcp socket listen backlog
-	 */
-	uint16_t backlog;
-	/**
-	 * reactor thread/process num
-	 */
-	uint16_t reactor_num;
-	uint16_t writer_num;
-	/**
-	 * worker process num
-	 */
-	uint16_t worker_num;
+    /**
+     * tcp socket listen backlog
+     */
+    uint16_t backlog;
+    /**
+     * reactor thread/process num
+     */
+    uint16_t reactor_num;
+    uint16_t writer_num;
+    /**
+     * worker process num
+     */
+    uint16_t worker_num;
 
-	/**
-	 * The number of pipe per reactor maintenance
-	 */
-	uint16_t reactor_pipe_num;
+    /**
+     * The number of pipe per reactor maintenance
+     */
+    uint16_t reactor_pipe_num;
 
-	uint8_t factory_mode;
+    uint8_t factory_mode;
 
-	/**
-	 * run as a daemon process
-	 */
-	uint8_t daemonize;
+    /**
+     * run as a daemon process
+     */
+    uint8_t daemonize;
 
-	/**
-	 * package dispatch mode
-	 */
-	uint8_t dispatch_mode; //分配模式，1平均分配，2按FD取摸固定分配，3,使用抢占式队列(IPC消息队列)分配
+    /**
+     * package dispatch mode
+     */
+    uint8_t dispatch_mode; //分配模式，1平均分配，2按FD取摸固定分配，3,使用抢占式队列(IPC消息队列)分配
 
-	/**
-	 * 1: unix socket, 2: message queue, 3: memory channel
-	 */
-	uint8_t ipc_mode;
+    /**
+     * 1: unix socket, 2: message queue, 3: memory channel
+     */
+    uint8_t ipc_mode;
 
-	int worker_uid;
-	int worker_groupid;
+    int worker_uid;
+    int worker_groupid;
 
-	/**
-	 * max connection num
-	 */
-	uint32_t max_connection;
+    /**
+     * max connection num
+     */
+    uint32_t max_connection;
 
-	/**
-	 * worker process max request
-	 */
-	uint32_t max_request;
-	/**
+    /**
+     * worker process max request
+     */
+    uint32_t max_request;
+    /**
      * task worker process max request
      */
-	uint32_t task_max_request;
+    uint32_t task_max_request;
 
-	int timeout_sec;
-	int timeout_usec;
+    int timeout_sec;
+    int timeout_usec;
 
-	int sock_client_buffer_size;    //client的socket缓存区设置
-	int sock_server_buffer_size;    //server的socket缓存区设置
+    int sock_client_buffer_size; //client的socket缓存区设置
+    int sock_server_buffer_size; //server的socket缓存区设置
 
-	char log_file[SW_LOG_FILENAME];      //日志文件
+    char log_file[SW_LOG_FILENAME]; //日志文件
 
-	int signal_fd;
-	int event_fd;
+    int signal_fd;
+    int event_fd;
 
-	int ringbuffer_size;
+    int ringbuffer_size;
 
-	/*----------------------------Reactor schedule--------------------------------*/
-	uint16_t reactor_round_i;         //轮询调度
-	uint16_t reactor_next_i;          //平均算法调度
-	uint16_t reactor_schedule_count;
+    /*----------------------------Reactor schedule--------------------------------*/
+    uint16_t reactor_round_i; //轮询调度
+    uint16_t reactor_next_i; //平均算法调度
+    uint16_t reactor_schedule_count;
 
-	uint16_t worker_round_id;
+    uint16_t worker_round_id;
 
-	int udp_sock_buffer_size; //UDP临时包数量，超过数量未处理将会被丢弃
+    int udp_sock_buffer_size; //UDP临时包数量，超过数量未处理将会被丢弃
 
-	/**
-	 * reactor ringbuffer memory pool size
-	 */
-	size_t reactor_ringbuffer_size;
+    /**
+     * reactor ringbuffer memory pool size
+     */
+    size_t reactor_ringbuffer_size;
 
-	/**
-	 * have udp listen socket
-	 */
-	uint8_t have_udp_sock;
+    /**
+     * have udp listen socket
+     */
+    uint8_t have_udp_sock;
 
-	/**
-	 * have tcp listen socket
-	 */
-	uint8_t have_tcp_sock;
+    /**
+     * have tcp listen socket
+     */
+    uint8_t have_tcp_sock;
 
-	/**
-	 * oepn cpu affinity setting
-	 */
-	uint8_t open_cpu_affinity;
+    /**
+     * oepn cpu affinity setting
+     */
+    uint8_t open_cpu_affinity;
 
-	/**
-	 * open tcp nodelay option
-	 */
-	uint8_t open_tcp_nodelay;
+    /**
+     * open tcp nodelay option
+     */
+    uint8_t open_tcp_nodelay;
 
-	/**
-	 * open tcp_defer_accept option
-	 */
-	uint8_t tcp_defer_accept;  //TCP_DEFER_ACCEPT
-	uint8_t tcp_socket_linger; //SOCKET SO_LINGER
+    /**
+     * open tcp_defer_accept option
+     */
+    uint8_t tcp_defer_accept; //TCP_DEFER_ACCEPT
 
-	/* tcp keepalive */
-	uint8_t open_tcp_keepalive; //开启keepalive
-	uint16_t tcp_keepidle;      //如该连接在规定时间内没有任何数据往来,则进行探测
-	uint16_t tcp_keepinterval;  //探测时发包的时间间隔
-	uint16_t tcp_keepcount;     //探测尝试的次数
+    /* tcp keepalive */
+    uint8_t open_tcp_keepalive; //开启keepalive
+    uint16_t tcp_keepidle; //如该连接在规定时间内没有任何数据往来,则进行探测
+    uint16_t tcp_keepinterval; //探测时发包的时间间隔
+    uint16_t tcp_keepcount; //探测尝试的次数
 
-	/* heartbeat check time*/
-	uint16_t heartbeat_idle_time;			//心跳存活时间
-	uint16_t heartbeat_check_interval;		//心跳定时侦测时间, 必需小于heartbeat_idle_time
+    /* heartbeat check time*/
+    uint16_t heartbeat_idle_time; //心跳存活时间
+    uint16_t heartbeat_check_interval; //心跳定时侦测时间, 必需小于heartbeat_idle_time
 
-	/**
-	 * 来自客户端的心跳侦测包
-	 */
-	char heartbeat_ping[SW_HEARTBEAT_PING_LEN];
-	uint8_t heartbeat_ping_length;
-	/**
-	 * 服务器端对心跳包的响应
-	 */
-	char heartbeat_pong[SW_HEARTBEAT_PING_LEN];
-	uint8_t heartbeat_pong_length;
+    /**
+     * 来自客户端的心跳侦测包
+     */
+    char heartbeat_ping[SW_HEARTBEAT_PING_LEN];
+    uint8_t heartbeat_ping_length;
 
-	/* one package: eof check */
-	uint8_t open_eof_check;    //检测数据EOF
-	uint8_t package_eof_len;                //数据缓存结束符长度
-	//int data_buffer_max_num;             //数据缓存最大个数(超过此数值的连接会被当作坏连接，将清除缓存&关闭连接)
-	//uint8_t max_trunk_num;               //每个请求最大允许创建的trunk数
-	char package_eof[SW_DATA_EOF_MAXLEN];   //数据缓存结束符
+    /**
+     * 服务器端对心跳包的响应
+     */
+    char heartbeat_pong[SW_HEARTBEAT_PING_LEN];
+    uint8_t heartbeat_pong_length;
 
-	/* one package: length check */
-	uint8_t open_length_check;    //开启协议长度检测
+    /* one package: eof check */
+    uint8_t open_eof_check; //检测数据EOF
+    uint8_t package_eof_len; //数据缓存结束符长度
+    //int data_buffer_max_num;             //数据缓存最大个数(超过此数值的连接会被当作坏连接，将清除缓存&关闭连接)
+    //uint8_t max_trunk_num;               //每个请求最大允许创建的trunk数
+    char package_eof[SW_DATA_EOF_MAXLEN]; //数据缓存结束符
 
-	char package_length_type;          //length field type
-	uint8_t package_length_size;
-	uint16_t package_length_offset;    //第几个字节开始表示长度
-	uint16_t package_body_offset;      //第几个字节开始计算长度
-	uint32_t package_max_length;
+    /* one package: length check */
+    uint8_t open_length_check; //开启协议长度检测
 
-	/**
-	 * Use data key as factory->dispatch() param
-	 */
-	uint8_t open_dispatch_key;
-	uint8_t dispatch_key_size;
-	uint16_t dispatch_key_offset;
-	uint16_t dispatch_key_type;
+    char package_length_type; //length field type
+    uint8_t package_length_size;
+    uint16_t package_length_offset; //第几个字节开始表示长度
+    uint16_t package_body_offset; //第几个字节开始计算长度
+    uint32_t package_max_length;
 
-	/* buffer output/input setting*/
-	uint32_t buffer_output_size;
-	uint32_t buffer_input_size;
+    /**
+     * Use data key as factory->dispatch() param
+     */
+    uint8_t open_dispatch_key;
+    uint8_t dispatch_key_size;
+    uint16_t dispatch_key_offset;
+    uint16_t dispatch_key_type;
+
+    /* buffer output/input setting*/
+    uint32_t buffer_output_size;
+    uint32_t buffer_input_size;
 
 #ifdef SW_USE_OPENSSL
-	uint8_t open_ssl;
-	char *ssl_cert_file;
-	char *ssl_key_file;
+    uint8_t open_ssl;
+    char *ssl_cert_file;
+    char *ssl_key_file;
 #endif
 
-	void *ptr2;
+    void *ptr2;
 
-	swPipe main_pipe;
-	swReactor reactor;
-	swFactory factory;
+    swPipe main_pipe;
+    swReactor reactor;
+    swFactory factory;
 
-	swListenList_node *listen_list;
+    swListenList_node *listen_list;
 
-	swReactorThread *reactor_threads;
-	swWriterThread *writer_threads;
+    swReactorThread *reactor_threads;
+    swWriterThread *writer_threads;
 
-	swWorker *workers;
+    swWorker *workers;
 
     swQueue read_queue;
     swQueue write_queue;
 
-	swConnection *connection_list; //连接列表
-	int connection_list_capacity;  //超过此容量，会自动扩容
+    swConnection *connection_list; //连接列表
+    int connection_list_capacity; //超过此容量，会自动扩容
 
-	/**
-	 * message queue key
-	 */
-	uint64_t message_queue_key;
+    /**
+     * message queue key
+     */
+    uint64_t message_queue_key;
 
-	swReactor *reactor_ptr; //Main Reactor
-	swFactory *factory_ptr; //Factory
+    swReactor *reactor_ptr; //Main Reactor
+    swFactory *factory_ptr; //Factory
 
-	void (*onStart)(swServer *serv);
-	void (*onManagerStart)(swServer *serv);
-	void (*onManagerStop)(swServer *serv);
-	int (*onReceive)(swFactory *factory, swEventData *data);
-	void (*onClose)(swServer *serv, int fd, int from_id);
-	void (*onConnect)(swServer *serv, int fd, int from_id);
-	void (*onShutdown)(swServer *serv);
-	void (*onTimer)(swServer *serv, int interval);
-	void (*onWorkerStart)(swServer *serv, int worker_id); //Only process mode
-	void (*onWorkerStop)(swServer *serv, int worker_id);  //Only process mode
-	void (*onWorkerError)(swServer *serv, int worker_id, pid_t worker_pid, int exit_code);   //Only process mode
-	int (*onTask)(swServer *serv, swEventData *data);
-	int (*onFinish)(swServer *serv, swEventData *data);
+    void (*onStart)(swServer *serv);
+    void (*onManagerStart)(swServer *serv);
+    void (*onManagerStop)(swServer *serv);
+    int (*onReceive)(swFactory *factory, swEventData *data);
+    void (*onClose)(swServer *serv, int fd, int from_id);
+    void (*onConnect)(swServer *serv, int fd, int from_id);
+    void (*onShutdown)(swServer *serv);
+    void (*onTimer)(swServer *serv, int interval);
+    void (*onWorkerStart)(swServer *serv, int worker_id); //Only process mode
+    void (*onWorkerStop)(swServer *serv, int worker_id); //Only process mode
+    void (*onWorkerError)(swServer *serv, int worker_id, pid_t worker_pid, int exit_code); //Only process mode
+    int (*onTask)(swServer *serv, swEventData *data);
+    int (*onFinish)(swServer *serv, swEventData *data);
 };
 
 typedef struct _swSocketLocal
