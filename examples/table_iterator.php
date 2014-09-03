@@ -10,8 +10,7 @@ $table->set('tianfenghan@qq.com', array('id' => 145, 'name' => 'rango', 'num' =>
 $table->set('350749960@qq.com', array('id' => 358, 'name' => "Rango1234", 'num' => 3.1415));
 $table->set('hello@qq.com', array('id' => 189, 'name' => 'rango3', 'num' => 3.1415));
 
-
-foreach($table as $key => $value)
+foreach($table as $value)
 {
     var_dump($value);
 }

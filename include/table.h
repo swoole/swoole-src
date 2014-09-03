@@ -41,10 +41,21 @@ typedef struct _swTableRow
      * next slot
      */
     struct _swTableRow *next;
+
+#ifdef SW_TABLE_USE_LINKED_LIST
     struct _swTableRow *list_prev;
     struct _swTableRow *list_next;
+#endif
+
     char data[0];
 } swTableRow;
+
+typedef struct
+{
+    int absolute_index;
+    int collision_index;
+    swTableRow *tmp_row;
+} swTable_iterator;
 
 typedef struct
 {
@@ -53,12 +64,19 @@ typedef struct
     swLock lock;
     uint32_t size;
     uint32_t item_size;
-    uint32_t row_num; /* total rows that in active state */
+
+    /**
+     * total rows that in active state(shm)
+     */
+    sw_atomic_t row_num;
+
     swTableRow **rows;
+    swMemoryPool *pool;
+
     swTableRow *head;
     swTableRow *tail;
-    swTableRow *iter;
-    swMemoryPool *pool;
+    swTable_iterator *iterator;
+
     void *memory;
 } swTable;
 
@@ -99,9 +117,10 @@ void swTable_free(swTable *table);
 int swTableColumn_add(swTable *table, char *name, int len, int type, int size);
 swTableRow* swTableRow_set(swTable *table, char *key, int keylen);
 swTableRow* swTableRow_get(swTable *table, char *key, int keylen);
-void swTable_iter_rewind(swTable *table);
-swTableRow* swTable_iter_current(swTable *table);
-int swTable_iter_forward(swTable *table);
+
+void swTable_iterator_rewind(swTable *table);
+swTableRow* swTable_iterator_current(swTable *table);
+void swTable_iterator_forward(swTable *table);
 int swTableRow_del(swTable *table, char *key, int keylen);
 
 static sw_inline swTableColumn* swTableColumn_get(swTable *table, char *column_key, int keylen)

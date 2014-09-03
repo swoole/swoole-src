@@ -293,7 +293,7 @@ PHP_METHOD(swoole_table, rewind)
     }
 
     swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
-    swTable_iter_rewind(table);
+    swTable_iterator_rewind(table);
 }
 
 PHP_METHOD(swoole_table, current)
@@ -304,7 +304,7 @@ PHP_METHOD(swoole_table, current)
     }
 
     swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
-    swTableRow *row = swTable_iter_current(table);
+    swTableRow *row = swTable_iterator_current(table);
 
     php_swoole_table_row2array(table, row, return_value);
 }
@@ -317,7 +317,7 @@ PHP_METHOD(swoole_table, key)
     }
 
     swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
-    swTableRow *row = swTable_iter_current(table);
+    swTableRow *row = swTable_iterator_current(table);
     RETURN_LONG(row->crc32);
 }
 
@@ -327,9 +327,8 @@ PHP_METHOD(swoole_table, next)
     {
         return;
     }
-
     swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
-    swTable_iter_forward(table);
+    swTable_iterator_forward(table);
 }
 
 PHP_METHOD(swoole_table, valid)
@@ -340,7 +339,7 @@ PHP_METHOD(swoole_table, valid)
     }
 
     swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
-    swTableRow *row = swTable_iter_current(table);
+    swTableRow *row = swTable_iterator_current(table);
     RETURN_BOOL(row != NULL);
 }
 

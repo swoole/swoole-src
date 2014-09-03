@@ -338,6 +338,13 @@ struct _swServer
     //uint8_t max_trunk_num;               //每个请求最大允许创建的trunk数
     char package_eof[SW_DATA_EOF_MAXLEN]; //数据缓存结束符
 
+    /**
+     * built-in http protocol
+     */
+    uint8_t open_http_protocol;
+    uint32_t http_max_post_size;
+    uint32_t http_max_websocket_size;
+
     /* one package: length check */
     uint8_t open_length_check; //开启协议长度检测
 

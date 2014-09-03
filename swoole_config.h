@@ -130,6 +130,7 @@
 #define SW_FILE_CHUNK_SIZE               65536
 
 #define SW_TABLE_CONFLICT_PROPORTION     0.2 //20%
+#define SW_TABLE_USE_LINKED_LIST
 
 #define SW_SSL_BUFSIZE  16384
 

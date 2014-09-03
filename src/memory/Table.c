@@ -35,12 +35,19 @@ swTable* swTable_new(uint32_t rows_size)
         swWarn("mutex create failed.");
         return NULL;
     }
+    table->iterator = sw_malloc(sizeof(swTable_iterator));
+    if (!table->iterator)
+    {
+        swWarn("malloc failed.");
+        return NULL;
+    }
     table->columns = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, (swHashMap_dtor)swTableColumn_free);
     if (!table->columns)
     {
         return NULL;
     }
     table->size = rows_size;
+    bzero(table->iterator, sizeof(swTable_iterator));
     return table;
 }
 
@@ -97,15 +104,13 @@ int swTable_create(swTable *table)
 
     size_t memory_size = row_num * row_memory_size;
     void *memory = sw_shm_malloc(memory_size);
+
     if (memory == NULL)
     {
         return SW_ERR;
     }
     table->memory = memory;
     table->rows = memory;
-    table->iter = NULL;
-    table->head = NULL;
-    table->tail = NULL;
 
     int i;
     for (i = 0; i < table->size; i++)
@@ -121,6 +126,7 @@ int swTable_create(swTable *table)
 void swTable_free(swTable *table)
 {
     swHashMap_free(table->columns);
+    sw_free(table->iterator);
     sw_shm_free(table->memory);
 }
 
@@ -129,69 +135,6 @@ static sw_inline swTableRow* swTable_hash(swTable *table, char *key, int keylen)
     uint64_t hashv = swoole_hash_austin(key, keylen);
     uint32_t index = hashv & (table->size - 1);
     return table->rows[index];
-}
-
-swTableRow* swTableRow_set(swTable *table, char *key, int keylen)
-{
-    swTableRow *row = swTable_hash(table, key, keylen);
-    uint32_t crc32 = swoole_crc32(key, keylen);
-
-    sw_spinlock(&row->lock);
-    if (row->active)
-    {
-        for (;;)
-        {
-            if (row->crc32 == crc32)
-            {
-                break;
-            }
-            else if (row->next == NULL)
-            {
-                table->lock.lock(&table->lock);
-                swTableRow *new_row = table->pool->alloc(table->pool, 0);
-                table->lock.unlock(&table->lock);
-
-                if (!new_row)
-                {
-                    sw_spinlock_release(&row->lock);
-                    return NULL;
-                }
-
-                row->next = new_row;
-                row = new_row;
-                break;
-            }
-            else
-            {
-                row = row->next;
-            }
-        }
-    }
-
-    if (!row->active)
-    {
-        row->list_next = NULL;
-        if (table->head)
-        {
-            row->list_prev = table->tail;
-            table->tail->list_next = row;
-            table->tail = row;
-        }
-        else
-        {
-            table->head = table->tail = row;
-            row->list_prev = NULL;
-            table->iter = row;
-        }
-
-        table->row_num += 1;
-    }
-
-    row->crc32 = crc32;
-    row->active = 1;
-    swTrace("row=%p, crc32=%u, key=%s\n", row, crc32, key);
-    sw_spinlock_release(&row->lock);
-    return row;
 }
 
 swTableRow* swTableRow_get(swTable *table, char *key, int keylen)
@@ -227,30 +170,91 @@ swTableRow* swTableRow_get(swTable *table, char *key, int keylen)
     return row;
 }
 
-void swTable_iter_rewind(swTable *table)
+#ifdef SW_TABLE_USE_LINKED_LIST
+
+void swTable_iterator_rewind(swTable *table)
 {
-    table->iter = table->head;
+    table->iterator->tmp_row = table->head;
 }
 
-swTableRow* swTable_iter_current(swTable *table)
+swTableRow* swTable_iterator_current(swTable *table)
 {
-    return table->iter;
+    return table->iterator->tmp_row;
 }
 
-int swTable_iter_forward(swTable *table)
+void swTable_iterator_forward(swTable *table)
 {
-    if (table->iter)
+    if (table->iterator->tmp_row)
     {
-        table->iter = table->iter->list_next;
-        return SW_OK;
+        table->iterator->tmp_row = table->iterator->tmp_row->list_next;
+    }
+}
+
+#else
+
+void swTable_iterator_rewind(swTable *table)
+{
+    bzero(table->iterator, sizeof(swTable_iterator));
+}
+
+swTableRow* swTable_iterator_current(swTable *table)
+{
+    printf("current\n");
+    swTableRow *row = table->rows[table->iterator->absolute_index];
+
+    if (table->iterator->collision_index == 0)
+    {
+        return row;
+    }
+    int i;
+    for (i = 0; i < table->iterator->collision_index; i++)
+    {
+        row = row->next;
+    }
+    return row;
+}
+
+void swTable_iterator_forward(swTable *table)
+{
+    swTableRow *row = table->rows[table->iterator->absolute_index];
+
+    if (row->next == NULL)
+    {
+        table->iterator->absolute_index++;
+        for(;;)
+        {
+            swTableRow *row = table->rows[table->iterator->absolute_index];
+            if (row->active == 0)
+            {
+                table->iterator->absolute_index++;
+            }
+        }
     }
     else
     {
-        return SW_ERR;
+        int i = 0;
+        for (;; i++)
+        {
+            row = row->next;
+            if (i == table->iterator->collision_index)
+            {
+                if (row == NULL)
+                {
+                    table->iterator->absolute_index++;
+                    table->iterator->collision_index = 0;
+                }
+                else
+                {
+                    table->iterator->collision_index++;
+                }
+            }
+        }
     }
 }
+#endif
 
-int swTableRow_del(swTable *table, char *key, int keylen)
+
+swTableRow* swTableRow_set(swTable *table, char *key, int keylen)
 {
     swTableRow *row = swTable_hash(table, key, keylen);
     uint32_t crc32 = swoole_crc32(key, keylen);
@@ -262,13 +266,88 @@ int swTableRow_del(swTable *table, char *key, int keylen)
         {
             if (row->crc32 == crc32)
             {
-                table->lock.lock(&table->lock);
-                table->pool->free(table->pool, row);
-                table->lock.unlock(&table->lock);
                 break;
             }
             else if (row->next == NULL)
             {
+                table->lock.lock(&table->lock);
+                swTableRow *new_row = table->pool->alloc(table->pool, 0);
+                table->lock.unlock(&table->lock);
+
+                if (!new_row)
+                {
+                    sw_spinlock_release(&row->lock);
+                    return NULL;
+                }
+                //add row_num
+                sw_atomic_fetch_add(&(table->row_num), 1);
+                row->next = new_row;
+                row = new_row;
+                break;
+            }
+            else
+            {
+                row = row->next;
+            }
+        }
+    }
+    else
+    {
+        sw_atomic_fetch_add(&(table->row_num), 1);
+    }
+
+#ifdef SW_TABLE_USE_LINKED_LIST
+    if (!row->active)
+    {
+        row->list_next = NULL;
+        if (table->head)
+        {
+            row->list_prev = table->tail;
+            table->tail->list_next = row;
+            table->tail = row;
+        }
+        else
+        {
+            table->head = table->tail = row;
+            row->list_prev = NULL;
+            table->iterator->tmp_row = row;
+        }
+    }
+#endif
+
+    row->crc32 = crc32;
+    row->active = 1;
+
+    swTrace("row=%p, crc32=%u, key=%s\n", row, crc32, key);
+    sw_spinlock_release(&row->lock);
+
+    return row;
+}
+
+int swTableRow_del(swTable *table, char *key, int keylen)
+{
+    swTableRow *row = swTable_hash(table, key, keylen);
+    uint32_t crc32 = swoole_crc32(key, keylen);
+    int i = 0;
+
+    sw_spinlock(&row->lock);
+    if (row->active)
+    {
+        for (;; i++)
+        {
+            if (row->crc32 == crc32)
+            {
+                if (i > 0)
+                {
+                    table->lock.lock(&table->lock);
+                    table->pool->free(table->pool, row);
+                    table->lock.unlock(&table->lock);
+                }
+                break;
+            }
+            else if (row->next == NULL)
+            {
+                sw_spinlock_release(&row->lock);
                 return SW_ERR;
             }
             else
@@ -277,7 +356,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
             }
         }
 
-
+#ifdef SW_TABLE_USE_LINKED_LIST
         if (row->list_prev != NULL)
         {
             row->list_prev->list_next = row->list_next;
@@ -296,13 +375,14 @@ int swTableRow_del(swTable *table, char *key, int keylen)
             table->tail = row->list_prev;
         }
 
-        if (table->iter == row) {
-            table->iter = row->list_next;
+        if (table->iterator->tmp_row == row)
+        {
+            table->iterator->tmp_row = row->list_next;
         }
-
-        table->row_num -= 1;
+#endif
     }
 
+    sw_atomic_fetch_sub(&(table->row_num), 1);
     row->active = 0;
     sw_spinlock_release(&row->lock);
     return SW_OK;
