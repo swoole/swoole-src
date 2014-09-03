@@ -146,16 +146,13 @@ int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
 int swReactorEpoll_del(swReactor *reactor, int fd)
 {
     swReactorEpoll *object = reactor->object;
-    struct epoll_event e;
     int ret;
-    e.data.fd = fd;
 
     if (fd <= 0)
     {
         return SW_ERR;
     }
-    //	e.events = EPOLLIN | EPOLLET | EPOLLOUT;
-    ret = epoll_ctl(object->epfd, EPOLL_CTL_DEL, fd, &e);
+    ret = epoll_ctl(object->epfd, EPOLL_CTL_DEL, fd, NULL);
     if (ret < 0)
     {
         swWarn("epoll remove fd[=%d] failed. Error: %s[%d]", fd, strerror(errno), errno);

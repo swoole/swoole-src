@@ -41,7 +41,7 @@ static sw_inline void swServer_reactor_schedule(swServer *serv)
 static int swServer_start_check(swServer *serv);
 
 static void swServer_signal_hanlder(int sig);
-static int swServer_master_onClose(swReactor *reactor, swDataHead *event);
+static int swServer_master_onClose(swReactor *reactor, swEvent *event);
 
 static int swServer_start_proxy(swServer *serv);
 
@@ -160,7 +160,7 @@ void swServer_update_time(void)
 int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 {
 	swServer *serv = reactor->ptr;
-	swEvent connEv;
+	swDataHead connEv;
 	struct sockaddr_in client_addr;
 	uint32_t client_addrlen = sizeof(client_addr);
 	int new_fd, ret, reactor_id = 0, i, sockopt;
@@ -191,7 +191,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 		swTrace("[Master] Accept new connection. maxfd=%d|reactor_id=%d|conn=%d", swServer_get_maxfd(serv), reactor->id, new_fd);
 
 		//too many connection
-		if (new_fd >= serv->max_conn)
+		if (new_fd >= serv->max_connection)
 		{
 			swWarn("Too many connections [now: %d].", new_fd);
 			close(new_fd);
@@ -417,10 +417,10 @@ static int swServer_start_check(swServer *serv)
 	{
 		serv->writer_num = serv->worker_num;
 	}
-	if (SwooleG.max_sockets > 0 && serv->max_conn > SwooleG.max_sockets)
+	if (SwooleG.max_sockets > 0 && serv->max_connection > SwooleG.max_sockets)
 	{
 	    swWarn("serv->max_conn is exceed the maximum value[%d].", SwooleG.max_sockets);
-	    serv->max_conn = SwooleG.max_sockets;
+	    serv->max_connection = SwooleG.max_sockets;
 	}
 #ifdef SW_USE_OPENSSL
 	if (serv->open_ssl)
@@ -663,7 +663,7 @@ int swServer_start(swServer *serv)
 /**
  * 关闭连接
  */
-int swServer_close(swServer *serv, swEvent *event)
+int swServer_close(swServer *serv, swDataHead *event)
 {
 	if (event->from_id > serv->reactor_num)
 	{
@@ -700,7 +700,7 @@ void swServer_init(swServer *serv)
 
 	serv->writer_num = SW_CPU_NUM;
 	serv->worker_num = SW_CPU_NUM;
-	serv->max_conn = SwooleG.max_sockets;
+	serv->max_connection = SwooleG.max_sockets;
 
 	serv->max_request = 0;
 	serv->task_max_request = SW_MAX_REQUEST;
@@ -1146,7 +1146,7 @@ static void swServer_heartbeat_start(swServer *serv)
 
 static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
 {
-	swEvent notify_ev;
+    swDataHead notify_ev;
 	swServer *serv;
 	swFactory *factory;
 	swConnection *conn;
@@ -1195,7 +1195,7 @@ void swServer_connection_close(swServer *serv, int fd, int notify)
 {
 	swConnection *conn = swServer_connection_get(serv, fd);
 	swReactor *reactor;
-	swEvent notify_ev;
+	swDataHead notify_ev;
 
 	if (conn == NULL)
 	{
@@ -1295,7 +1295,7 @@ void swServer_connection_close(swServer *serv, int fd, int notify)
 /**
  * new connection
  */
-swConnection* swServer_connection_new(swServer *serv, swEvent *ev)
+swConnection* swServer_connection_new(swServer *serv, swDataHead *ev)
 {
 	int conn_fd = ev->fd;
 	swConnection* connection = NULL;
@@ -1306,27 +1306,24 @@ swConnection* swServer_connection_new(swServer *serv, swEvent *ev)
 	if (conn_fd > swServer_get_maxfd(serv))
 	{
 		swServer_set_maxfd(serv, conn_fd);
-
 #ifdef SW_CONNECTION_LIST_EXPAND
-	//新的fd超过了最大fd
-
-		//需要扩容
-		if (conn_fd == serv->connection_list_capacity - 1)
-		{
-			void *new_ptr = sw_shm_realloc(serv->connection_list, sizeof(swConnection)*(serv->connection_list_capacity + SW_CONNECTION_LIST_EXPAND));
-			if(new_ptr == NULL)
-			{
-				swWarn("connection_list realloc fail");
-				return SW_ERR;
-			}
-			else
-			{
-				serv->connection_list_capacity += SW_CONNECTION_LIST_EXPAND;
-				serv->connection_list = (swConnection *)new_ptr;
-			}
-		}
+        //新的fd超过了最大fd
+        //需要扩容
+        if (conn_fd == serv->connection_list_capacity - 1)
+        {
+            void *new_ptr = sw_shm_realloc(serv->connection_list, sizeof(swConnection)*(serv->connection_list_capacity + SW_CONNECTION_LIST_EXPAND));
+            if (new_ptr == NULL)
+            {
+                swWarn("connection_list realloc fail");
+                return SW_ERR;
+            }
+            else
+            {
+                serv->connection_list_capacity += SW_CONNECTION_LIST_EXPAND;
+                serv->connection_list = (swConnection *)new_ptr;
+            }
+        }
 #endif
-
 	}
 
 	connection = &(serv->connection_list[conn_fd]);

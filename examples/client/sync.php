@@ -4,6 +4,17 @@ if (!$client->connect('127.0.0.1', 9501, -1))
 {
 	exit("connect failed. Error: {$client->errCode}\n");
 }
+for($i=0; $i < 100; $i ++)
+{
+	//if ($client->sendfile(__DIR__.'/test.txt') === false)
+	if ($client->send(str_repeat("A", 8000)) === false)
+	{
+		echo "send failed. Error: {$client->errCode}\n";
+		break;
+	}
+	usleep(20000);
+}
+sleep(10000);
 //if ($client->sendfile(__DIR__.'/test.txt') === false)
 if ($client->send(str_repeat("A", 600)) === false)
 {

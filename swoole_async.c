@@ -37,6 +37,7 @@ typedef struct {
 
 static void php_swoole_check_aio();
 static void php_swoole_aio_onComplete(swAio_event *event);
+
 static char php_swoole_aio_init = 0;
 static swHashMap *php_swoole_open_files;
 

@@ -49,7 +49,7 @@ int swFactory_dispatch(swFactory *factory, swDispatchData *task)
     return factory->onTask(factory, &(task->data));
 }
 
-int swFactory_notify(swFactory *factory, swEvent *req)
+int swFactory_notify(swFactory *factory, swDataHead *req)
 {
     swServer *serv = factory->ptr;
     switch (req->type)
@@ -67,7 +67,7 @@ int swFactory_notify(swFactory *factory, swEvent *req)
     return SW_OK;
 }
 
-int swFactory_end(swFactory *factory, swEvent *event)
+int swFactory_end(swFactory *factory, swDataHead *event)
 {
     swServer *serv = factory->ptr;
     if (serv->onClose != NULL)

@@ -1,5 +1,5 @@
 <?php
-$serv = new swoole_server("0.0.0.0", 9501, SWOOLE_BASE);
+$serv = new swoole_server("0.0.0.0", 9501);
 // $serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
 $serv->set(array(
     'worker_num' => 1,
@@ -74,7 +74,8 @@ function my_onWorkerStop($serv, $worker_id)
 
 function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 {
-    my_log("received: $data");
+	sleep(100000);
+    //my_log("received: $data");
     $cmd = trim($data);
     if($cmd == "reload")
     {

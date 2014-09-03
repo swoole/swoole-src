@@ -180,6 +180,8 @@ static void swFixedPool_free(swMemoryPool *pool, void *ptr)
 	swFixedPool *object = pool->object;
 	swFixedPool_slice *slice;
 
+	assert(ptr > object->memory && ptr < object->memory + object->size);
+
 	slice = ptr - sizeof(swFixedPool_slice);
 	slice->lock = 0;
 

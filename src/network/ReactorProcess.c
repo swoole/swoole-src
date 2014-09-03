@@ -29,7 +29,7 @@ int swReactorProcess_create(swServer *serv)
         swError("calloc[reactor_threads] fail.alloc_size=%d", (int )(serv->reactor_num * sizeof(swReactorThread)));
         return SW_ERR;
     }
-    serv->connection_list = sw_calloc(serv->max_conn, sizeof(swConnection));
+    serv->connection_list = sw_calloc(serv->max_connection, sizeof(swConnection));
 
     if (serv->connection_list == NULL)
     {

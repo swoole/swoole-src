@@ -98,3 +98,15 @@ void *swArray_fetch(swArray *array, uint32_t n)
     }
     return array->pages[page] + (swArray_offset(array, n) * array->item_size);
 }
+
+int swArray_store(swArray *array, uint32_t n, void *data, uint32_t len)
+{
+    int page = swArray_page(array, n);
+    if (page >= array->page_num)
+    {
+        swWarn("fetch index[%d] out of array", n);
+        return SW_ERR;
+    }
+    memcpy(array->pages[page] + (swArray_offset(array, n) * array->item_size), data, len);
+    return SW_OK;
+}

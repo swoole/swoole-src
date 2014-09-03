@@ -33,7 +33,7 @@ static int swFactoryProcess_writer_loop_unsock(swThreadParam *param);
 #endif
 
 static int swFactoryProcess_worker_onPipeReceive(swReactor *reactor, swEvent *event);
-static int swFactoryProcess_notify(swFactory *factory, swEvent *event);
+static int swFactoryProcess_notify(swFactory *factory, swDataHead *event);
 static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *buf);
 static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
 
@@ -873,6 +873,9 @@ int swFactoryProcess_notify(swFactory *factory, swDataHead *ev)
 	return factory->dispatch(factory, (swDispatchData *) &sw_notify_data);
 }
 
+/**
+ * [ReactorThread] dispatch request to worker
+ */
 int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
 {
     int schedule_key;
@@ -912,7 +915,7 @@ int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
             target_worker_id = swServer_worker_schedule(serv, schedule_key);
         }
     }
-    return swFactoryProcess_send2worker(serv, (void *) &(task->data), send_len, target_worker_id);
+    return swReactorThread_send2worker((void *) &(task->data), send_len, target_worker_id);
 }
 
 static int swFactoryProcess_writer_start(swFactory *factory)

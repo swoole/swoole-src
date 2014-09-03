@@ -932,10 +932,11 @@ PHP_FUNCTION(swoole_server_set)
 		SwooleG.task_ipc_mode = (int)Z_LVAL_PP(v);
 	}
 	//max_conn
-	if (zend_hash_find(vht, ZEND_STRS("max_conn"), (void **)&v) == SUCCESS)
+	if (zend_hash_find(vht, ZEND_STRS("max_connection"), (void **)&v) == SUCCESS ||
+	        zend_hash_find(vht, ZEND_STRS("max_conn"), (void **)&v) == SUCCESS)
 	{
 		convert_to_long(*v);
-		serv->max_conn = (int)Z_LVAL_PP(v);
+		serv->max_connection = (int)Z_LVAL_PP(v);
 	}
     //max_request
     if (zend_hash_find(vht, ZEND_STRS("max_request"), (void **) &v) == SUCCESS)
@@ -1368,7 +1369,7 @@ PHP_FUNCTION(swoole_server_close)
 {
 	zval *zobject = getThis();
 	swServer *serv;
-	swEvent ev;
+	swDataHead ev;
 	zval *fd;
 
 	if (zobject == NULL)
@@ -1432,7 +1433,7 @@ PHP_FUNCTION(swoole_server_heartbeat)
 {
 	zval *zobject = getThis();
 	swServer *serv;
-	swEvent ev;
+	swDataHead ev;
 	zend_bool close_connection = 0;
 
 	if (zobject == NULL)
@@ -2759,14 +2760,17 @@ static int php_swoole_task_finish(swServer *serv, char *data, int data_len TSRML
 			buf.info.from_fd = 0;
 		}
 
+		/**
+		 * TODO: 这里需要重构，改成统一的模式
+		 */
 		if (serv->factory_mode == SW_MODE_PROCESS)
-		{
-            ret = swFactoryProcess_send2worker(serv, &buf, sizeof(buf) + buf.info.len, sw_current_task->info.from_id);
-		}
-		else
-		{
-			ret = write(SwooleG.event_workers->workers[sw_current_task->info.from_id].pipe_worker, &buf, sizeof(buf.info)+data_len);
-		}
+        {
+            ret = swServer_send2worker_blocking(serv, &buf, sizeof(buf) + buf.info.len, sw_current_task->info.from_id);
+        }
+        else
+        {
+            ret = swWrite(SwooleG.event_workers->workers[sw_current_task->info.from_id].pipe_worker, &buf, sizeof(buf.info) + data_len);
+        }
 	}
 	else
 	{
