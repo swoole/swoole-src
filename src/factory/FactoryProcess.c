@@ -1043,6 +1043,9 @@ static int swFactoryProcess_worker_onPipeReceive(swReactor *reactor, swEvent *ev
 	read_from_pipe:
 	if (read(event->fd, &task, sizeof(task)) > 0)
 	{
+	    /**
+	     * Big package
+	     */
 	    ret = swFactoryProcess_worker_excute(factory, &task);
 	    if (task.info.type == SW_EVENT_PACKAGE_START)
 	    {

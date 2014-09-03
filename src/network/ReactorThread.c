@@ -335,8 +335,8 @@ int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
 {
     int ret;
     swReactorThread *thread = swServer_get_thread(SwooleG.serv, SwooleTG.id);
-    swBuffer *buffer = swArray_fetch(thread->buffer_pipe, ev->fd);
-    swBuffer_trunk *trunk;
+    swBuffer *buffer = *(swBuffer **) swArray_fetch(thread->buffer_pipe, ev->fd);
+    swBuffer_trunk *trunk = NULL;
 
     while (!swBuffer_empty(buffer))
     {
