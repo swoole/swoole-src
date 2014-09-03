@@ -154,7 +154,7 @@ int swFactoryProcess_start(swFactory *factory)
     return SW_OK;
 }
 
-int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
+static sw_inline int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task)
 {
 	swServer *serv = factory->ptr;
 	swString *package = NULL;
@@ -1038,10 +1038,17 @@ static int swFactoryProcess_worker_onPipeReceive(swReactor *reactor, swEvent *ev
 	swEventData task;
 	swServer *serv = reactor->ptr;
 	swFactory *factory = &serv->factory;
+	int ret;
 
+	read_from_pipe:
 	if (read(event->fd, &task, sizeof(task)) > 0)
 	{
-		return swFactoryProcess_worker_excute(factory, &task);
+	    ret = swFactoryProcess_worker_excute(factory, &task);
+	    if (task.info.type == SW_EVENT_PACKAGE_START)
+	    {
+	        goto read_from_pipe;
+	    }
+	    return ret;
 	}
 	return SW_ERR;
 }

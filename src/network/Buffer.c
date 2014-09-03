@@ -132,21 +132,21 @@ int swBuffer_free(swBuffer *buffer)
  */
 int swBuffer_append(swBuffer *buffer, void *data, uint32_t size)
 {
-	swBuffer_trunk *trunk = swBuffer_new_trunk(buffer, SW_TRUNK_DATA, size);
-	if (trunk == NULL)
-	{
-		return SW_ERR;
-	}
+    swBuffer_trunk *trunk = swBuffer_new_trunk(buffer, SW_TRUNK_DATA, size);
+    if (trunk == NULL)
+    {
+        return SW_ERR;
+    }
 
-	buffer->length += size;
-	trunk->length = size;
+    buffer->length += size;
+    trunk->length = size;
 
-	memcpy(trunk->store.ptr, data, trunk->length);
+    memcpy(trunk->store.ptr, data, trunk->length);
 
-	swTraceLog(SW_TRACE_BUFFER, "trunk_n=%d|size=%d|trunk_len=%d|trunk=%p", buffer->trunk_num, size,
-			trunk->length, trunk);
+    swTraceLog(SW_TRACE_BUFFER, "trunk_n=%d|size=%d|trunk_len=%d|trunk=%p", buffer->trunk_num, size,
+            trunk->length, trunk);
 
-	return SW_OK;
+    return SW_OK;
 }
 
 /**

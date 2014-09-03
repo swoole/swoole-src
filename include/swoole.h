@@ -1020,6 +1020,11 @@ typedef struct
 	 */
 	uint16_t pipe_round;
 
+	/**
+	 * pipe_worker
+	 */
+	int pipe_fd;
+
 	swString **buffer_input;
 
 } swWorkerG;

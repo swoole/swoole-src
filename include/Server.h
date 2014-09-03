@@ -193,7 +193,6 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num);
 int swFactoryProcess_start(swFactory *factory);
 int swFactoryProcess_shutdown(swFactory *factory);
 int swFactoryProcess_end(swFactory *factory, swDataHead *event);
-int swFactoryProcess_worker_excute(swFactory *factory, swEventData *task);
 
 int swFactoryThread_create(swFactory *factory, int writer_num);
 int swFactoryThread_start(swFactory *factory);
