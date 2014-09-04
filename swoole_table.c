@@ -142,7 +142,7 @@ void swoole_table_init(int module_number TSRMLS_DC)
 {
     INIT_CLASS_ENTRY(swoole_table_ce, "swoole_table", swoole_table_methods);
     swoole_table_class_entry_ptr = zend_register_internal_class(&swoole_table_ce TSRMLS_CC);
-    zend_class_implements(swoole_table_class_entry_ptr, 2, spl_ce_Iterator, spl_ce_Countable);
+    zend_class_implements(swoole_table_class_entry_ptr TSRMLS_CC, 2, spl_ce_Iterator, spl_ce_Countable);
 
     zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("TYPE_INT")-1, SW_TABLE_INT TSRMLS_CC);
     zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("TYPE_STRING")-1, SW_TABLE_STRING TSRMLS_CC);

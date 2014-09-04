@@ -1434,7 +1434,6 @@ PHP_METHOD(swoole_client, isConnected)
     {
         RETURN_FALSE;
     }
-
     RETURN_BOOL(cli->connection.active);
 }
 

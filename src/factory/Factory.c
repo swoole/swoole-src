@@ -79,7 +79,7 @@ int swFactory_end(swFactory *factory, swDataHead *event)
 
 int swFactory_finish(swFactory *factory, swSendData *resp)
 {
-    int ret;
+    int ret = 0;
     swServer *serv = SwooleG.serv;
 
     //unix dgram
@@ -104,7 +104,7 @@ int swFactory_finish(swFactory *factory, swSendData *resp)
     else
     {
         resp->length = resp->info.len;
-        swReactorThread_send(resp);
+        ret = swReactorThread_send(resp);
     }
 
     finish:
