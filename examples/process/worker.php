@@ -3,6 +3,8 @@ $redirect_stdout = false;
 $workers = [];
 $worker_num = 8;
 
+//swoole_process::daemon(0, 1);
+
 for($i = 0; $i < $worker_num; $i++)
 {
     $process = new swoole_process('callback_function', $redirect_stdout);
@@ -59,3 +61,5 @@ for($i = 0; $i < $worker_num; $i++)
     unset($workers[$pid]);
     echo "Worker Exit, PID=".$pid.PHP_EOL;
 }
+
+sleep(10000);

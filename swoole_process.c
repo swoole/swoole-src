@@ -518,6 +518,18 @@ PHP_METHOD(swoole_process, exec)
 	}
 }
 
+PHP_METHOD(swoole_process, daemon)
+{
+    zend_bool nochdir = 0;
+    zend_bool noclose = 0;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|bb", &nochdir, &noclose) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+    RETURN_BOOL(daemon(nochdir, noclose) == 0);
+}
+
 PHP_METHOD(swoole_process, exit)
 {
 	long ret_code = 0;

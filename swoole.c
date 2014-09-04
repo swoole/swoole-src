@@ -385,6 +385,7 @@ const zend_function_entry swoole_process_methods[] =
 	PHP_ME(swoole_process, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
 	PHP_ME(swoole_process, wait, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	PHP_ME(swoole_process, kill, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+	PHP_ME(swoole_process, daemon, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	PHP_ME(swoole_process, useQueue, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_process, start, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_process, write, NULL, ZEND_ACC_PUBLIC)
