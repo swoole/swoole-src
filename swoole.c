@@ -693,6 +693,7 @@ static void swoole_destory_server(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 	if (serv != NULL)
 	{
 		swServer_shutdown(serv);
+		sw_free(serv);
 	}
 }
 
@@ -1423,14 +1424,14 @@ PHP_FUNCTION(swoole_server_heartbeat)
 
 	if (zobject == NULL)
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O|b", &zobject, swoole_server_class_entry_ptr) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O|b", &zobject, swoole_server_class_entry_ptr, &close_connection) == FAILURE)
 		{
 			return;
 		}
 	}
 	else
 	{
-	    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b", &zobject, swoole_server_class_entry_ptr) == FAILURE)
+	    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b", &close_connection) == FAILURE)
         {
             return;
         }

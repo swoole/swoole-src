@@ -74,7 +74,6 @@ function my_onWorkerStop($serv, $worker_id)
 
 function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 {
-	sleep(100000);
     //my_log("received: $data");
     $cmd = trim($data);
     if($cmd == "reload")
