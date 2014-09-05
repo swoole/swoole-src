@@ -86,25 +86,27 @@
 
 #define SW_MAINREACTOR_USE_POLL         //main thread to use select or poll
 
-#define SW_REACTOR_TIMEO_SEC       3
-#define SW_REACTOR_TIMEO_USEC      0
-#define SW_REACTOR_SCHEDULE        2    //连接分配模式: 1轮询分配, 2按FD取摸固定分配, 3根据连接数进行调度
-#define SW_REACTOR_MAXEVENTS       4096
+#define SW_REACTOR_TIMEO_SEC             3
+#define SW_REACTOR_TIMEO_USEC            0
+#define SW_REACTOR_SCHEDULE              2    //连接分配模式: 1轮询分配, 2按FD取摸固定分配, 3根据连接数进行调度
+
+#define SW_REACTOR_MAXEVENTS             4096
 #define SW_REACTOR_SYNC_SEND            //direct send
-#define SW_SCHEDULE_INTERVAL       32   //平均调度的间隔次数,减少运算量
+#define SW_SCHEDULE_INTERVAL             32   //平均调度的间隔次数,减少运算量
 
-#define SW_QUEUE_SIZE              100   //缩减版的RingQueue,用在线程模式下
+#define SW_QUEUE_SIZE                    100   //缩减版的RingQueue,用在线程模式下
 
-#define SW_WRITER_TIMEOUT          3
+#define SW_WRITER_TIMEOUT                3
 
-#define SW_RINGQUEUE_USE           0              //使用RingQueue代替系统消息队列，此特性正在测试中，启用此特性会用内存队列来替代IPC通信，会减少系统调用、内存申请和复制，提高性能
-#define SW_RINGQUEUE_LEN           100            //RingQueue队列长度
-#define SW_RINGQUEUE_MEMSIZE       (1024*1024*4)  //内存区大小,默认分配4M的内存
+#define SW_RINGQUEUE_USE                 0              //使用RingQueue代替系统消息队列，此特性正在测试中，启用此特性会用内存队列来替代IPC通信，会减少系统调用、内存申请和复制，提高性能
+#define SW_RINGQUEUE_LEN                 100            //RingQueue队列长度
+#define SW_RINGQUEUE_MEMSIZE             (1024*1024*4)  //内存区大小,默认分配4M的内存
 
-//#define SW_USE_RINGQUEUE_TS           1     //使用线程安全版本的RingQueue
-#define SW_RINGBUFFER_COLLECT_N         100   //collect max_count
-#define SW_RINGBUFFER_FREE_N_MAX        4    //when free_n > MAX, execute collect
-#define SW_RINGBUFFER_WARNING           100
+//#define SW_USE_RINGQUEUE_TS            1     //使用线程安全版本的RingQueue
+#define SW_RINGBUFFER_COLLECT_N          100   //collect max_count
+#define SW_RINGBUFFER_FREE_N_MAX         4    //when free_n > MAX, execute collect
+#define SW_RINGBUFFER_WARNING            100
+
 /**
  * ringbuffer memory pool size
  */
@@ -116,11 +118,15 @@
 
 #define SW_USE_FIXED_BUFFER
 
-#define SW_ACCEPT_AGAIN            1     //是否循环accept，可以一次性处理完全部的listen队列，用于大量并发连接的场景
-#define SW_ACCEPT_MAX_COUNT        64    //一次循环的最大accept次数
+#define SW_BACKLOG                       512
 
-#define SW_CLOSE_AGAIN             1
-#define SW_CLOSE_QLEN              1024
+#define SW_ACCEPT_AGAIN                  1     //是否循环accept，可以一次性处理完全部的listen队列，用于大量并发连接的场景
+#define SW_ACCEPT_MAX_COUNT              64    //一次循环的最大accept次数
+
+#define SW_TCP_KEEPCOUNT                 5
+#define SW_TCP_KEEPIDLE                  3600 //1 hour
+#define SW_TCP_KEEPINTERVAL              60
+
 //#define SW_USE_EPOLLET
 #define SW_USE_EVENTFD                   //是否使用eventfd来做消息通知，需要Linux 2.6.22以上版本才会支持
 

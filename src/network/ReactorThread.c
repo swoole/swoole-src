@@ -104,12 +104,7 @@ int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
 static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
 {
     swServer *serv = reactor->ptr;
-    swConnection *conn = swServer_connection_get(serv, event->fd);
-    if (conn != NULL)
-    {
-        swServer_connection_close(serv, event->fd, 1);
-    }
-    return SW_OK;
+    return swServer_connection_close(serv, event->fd, 1);
 }
 
 /**

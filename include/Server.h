@@ -38,12 +38,6 @@ extern "C" {
 #define SW_WORKER_BUSY             1
 #define SW_WORKER_IDLE             0
 
-#define SW_BACKLOG                 512
-
-#define SW_TCP_KEEPCOUNT           5
-#define SW_TCP_KEEPIDLE            3600 //1小时
-#define SW_TCP_KEEPINTERVAL        60
-
 #define SW_HEARTBEAT_IDLE          0   //心跳存活最大时间
 #define SW_HEARTBEAT_CHECK         0   //心跳定时侦测时间
 
@@ -480,7 +474,7 @@ int swTaskWorker_large_pack(swEventData *task, void *data, int data_len);
 #define swPackage_length(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->length:task->info.len)
 
 swConnection* swServer_connection_new(swServer *serv, swDataHead *ev);
-void swServer_connection_close(swServer *serv, int fd, int notify);
+int swServer_connection_close(swServer *serv, int fd, int notify);
 
 #define SW_SERVER_MAX_FD_INDEX          0 //max connection socket
 #define SW_SERVER_MIN_FD_INDEX          1 //min listen socket

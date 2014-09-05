@@ -1125,7 +1125,7 @@ static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
 /**
  * close connection
  */
-void swServer_connection_close(swServer *serv, int fd, int notify)
+int swServer_connection_close(swServer *serv, int fd, int notify)
 {
 	swConnection *conn = swServer_connection_get(serv, fd);
 	swReactor *reactor;
@@ -1134,7 +1134,7 @@ void swServer_connection_close(swServer *serv, int fd, int notify)
 	if (conn == NULL)
 	{
 		swWarn("[Reactor]connection not found. fd=%d|max_fd=%d", fd, swServer_get_maxfd(serv));
-		return;
+		return SW_ERR;
 	}
 
 	conn->active = 0;
@@ -1210,11 +1210,8 @@ void swServer_connection_close(swServer *serv, int fd, int notify)
 	}
 #endif
 
-	//关闭此连接，必须放在最前面，以保证线程安全
-	reactor->del(reactor, fd);
-
-	/**
-     * Reset maxfd, use for connection_list
+    /**
+     * reset maxfd, for connection_list
      */
     if (fd == swServer_get_maxfd(serv))
     {
@@ -1228,6 +1225,9 @@ void swServer_connection_close(swServer *serv, int fd, int notify)
         swServer_set_maxfd(serv, find_max_fd);
         SwooleG.lock.unlock(&SwooleG.lock);
     }
+
+	//关闭此连接，必须放在最前面，以保证线程安全
+	return reactor->del(reactor, fd);
 }
 
 

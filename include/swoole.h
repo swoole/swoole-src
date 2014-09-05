@@ -343,12 +343,6 @@ typedef struct _swSendData
 //	int fd;
 //} swEvent;
 
-typedef struct _swEventClose_queue
-{
-    int events[SW_CLOSE_QLEN];
-    int num;
-} swCloseQueue;
-
 typedef void * (*swThreadStartFunc)(void *);
 typedef int (*swHandle)(swEventData *buf);
 typedef void (*swSignalFunc)(int);

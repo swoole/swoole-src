@@ -185,7 +185,8 @@ int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype)
     ret = epoll_ctl(object->epfd, EPOLL_CTL_MOD, fd, &e);
     if (ret < 0)
     {
-        swWarn("set event[reactor_id=%d|fd=%d] failed. Error: %s[%d]", reactor->id, fd, strerror(errno), errno);
+        swWarn("set event[reactor_id=%d|fd=%d|type=%d|events=%d] failed. Error: %s[%d]", reactor->id, fd, fd_.fdtype,
+                e.events, strerror(errno), errno);
         return SW_ERR;
     }
     return SW_OK;
