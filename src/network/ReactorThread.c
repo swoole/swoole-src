@@ -26,8 +26,6 @@ static int swReactorThread_loop_tcp(swThreadParam *param);
 static int swReactorThread_loop_unix_dgram(swThreadParam *param);
 
 static int swReactorThread_onClose(swReactor *reactor, swEvent *event);
-static void swReactorThread_onTimeout(swReactor *reactor);
-static void swReactorThread_onFinish(swReactor *reactor);
 static int swReactorThread_send_string_buffer(swReactorThread *thread, swConnection *conn);
 static int swReactorThread_send_in_buffer(swReactorThread *thread, swConnection *conn);
 static int swReactorThread_get_package_length(swServer *serv, void *data, uint32_t size);
@@ -836,72 +834,14 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
     return SW_OK;
 }
 
-int swReactorThread_close_queue(swReactor *reactor, swCloseQueue *close_queue)
-{
-    swServer *serv = reactor->ptr;
-    int ret;
-    while (1)
-    {
-        ret = serv->main_pipe.write(&(serv->main_pipe), close_queue->events, sizeof(int) * close_queue->num);
-        if (ret < 0)
-        {
-            //close事件缓存区满了，必须阻塞写入
-            if (errno == EAGAIN && close_queue->num == SW_CLOSE_QLEN)
-            {
-                //切换一次进程
-                swYield();
-                continue;
-            }
-            else if (errno == EINTR)
-            {
-                continue;
-            }
-        }
-        break;
-    }
-    if (ret < 0)
-    {
-        swWarn("write to main_pipe failed. Error: %s[%d]", strerror(errno), errno);
-        return SW_ERR;
-    }
-    bzero(close_queue, sizeof(swCloseQueue));
-    return SW_OK;
-}
-
-static void swReactorThread_onFinish(swReactor *reactor)
-{
-    swServer *serv = reactor->ptr;
-    swCloseQueue *queue = &serv->reactor_threads[reactor->id].close_queue;
-    //打开关闭队列
-    if (queue->num > 0)
-    {
-        swReactorThread_close_queue(reactor, queue);
-    }
-}
-
-static void swReactorThread_onTimeout(swReactor *reactor)
-{
-    swReactorThread_onFinish(reactor);
-}
-
 int swReactorThread_create(swServer *serv)
 {
     int ret = 0;
     SW_START_SLEEP;
-    //初始化master pipe
-#ifdef SW_MAINREACTOR_USE_UNSOCK
-    ret = swPipeUnsock_create(&serv->main_pipe, 0, SOCK_STREAM);
-#else
-    ret = swPipeBase_create(&serv->main_pipe, 0);
-#endif
 
-    if (ret < 0)
-    {
-        swError("[swServerCreate]create event_fd fail");
-        return SW_ERR;
-    }
-
-    //初始化poll线程池
+    /**
+     * init reactor thread pool
+     */
     serv->reactor_threads = SwooleG.memory_pool->alloc(SwooleG.memory_pool, (serv->reactor_num * sizeof(swReactorThread)));
     if (serv->reactor_threads == NULL)
     {
@@ -1064,8 +1004,9 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     reactor->ptr = serv;
     reactor->id = reactor_id;
 
-    reactor->onFinish = swReactorThread_onFinish;
-    reactor->onTimeout = swReactorThread_onTimeout;
+    reactor->onFinish = NULL;
+    reactor->onTimeout = NULL;
+
     reactor->setHandle(reactor, SW_FD_CLOSE, swReactorThread_onClose);
     reactor->setHandle(reactor, SW_FD_UDP, swReactorThread_onPackage);
     reactor->setHandle(reactor, SW_FD_PIPE, swReactorThread_onPipeReceive);

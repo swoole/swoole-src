@@ -41,8 +41,6 @@ static sw_inline void swServer_reactor_schedule(swServer *serv)
 static int swServer_start_check(swServer *serv);
 
 static void swServer_signal_hanlder(int sig);
-static int swServer_master_onClose(swReactor *reactor, swEvent *event);
-
 static int swServer_start_proxy(swServer *serv);
 
 static void swServer_heartbeat_start(swServer *serv);
@@ -96,42 +94,6 @@ void swServer_worker_onStop(swServer *serv)
 		serv->onWorkerStop(serv, SwooleWG.id);
 	}
 	swWorker_free(swServer_get_worker(serv, SwooleWG.id));
-}
-
-static int swServer_master_onClose(swReactor *reactor, swEvent *event)
-{
-	swServer *serv = reactor->ptr;
-	int queue[SW_CLOSE_QLEN];
-
-	int i, n, fd;
-	n = serv->main_pipe.read(&serv->main_pipe, queue, sizeof(queue));
-
-	if (n <= 0)
-	{
-		swWarn("[Master]main_pipe read failed. Error: %s[%d]", strerror(errno), errno);
-		return SW_ERR;
-	}
-
-	for (i = 0; i < n / sizeof(int); i++)
-	{
-		fd = queue[i];
-		/**
-		 * Reset maxfd, use for connection_list
-		 */
-		if (fd == swServer_get_maxfd(serv))
-		{
-			int find_max_fd = fd - 1;
-
-			/**
-			 * Find the new max_fd
-			 */
-			for (; serv->connection_list[find_max_fd].active == 0 && find_max_fd > swServer_get_minfd(serv); find_max_fd--);
-			swServer_set_maxfd(serv, find_max_fd);
-
-			swTrace("set_maxfd=%d|close_fd=%d", find_max_fd, fd);
-		}
-	}
-	return SW_OK;
 }
 
 void swServer_master_onReactorTimeout(swReactor *reactor)
@@ -465,7 +427,6 @@ static int swServer_start_proxy(swServer *serv)
 	main_reactor->id = serv->reactor_num; //设为一个特别的ID
 	main_reactor->ptr = serv;
 	main_reactor->setHandle(main_reactor, SW_FD_LISTEN, swServer_master_onAccept);
-	main_reactor->setHandle(main_reactor, (SW_FD_USER+2), swServer_master_onClose);
 
 	main_reactor->onFinish = swServer_master_onReactorFinish;
 	main_reactor->onTimeout = swServer_master_onReactorTimeout;
@@ -476,9 +437,6 @@ static int swServer_start_proxy(swServer *serv)
 		swSignalfd_setup(main_reactor);
 	}
 #endif
-
-	main_reactor->add(main_reactor, serv->main_pipe.getFd(&serv->main_pipe, 0), (SW_FD_USER+2));
-	//no use
 	//SW_START_SLEEP;
 	if (serv->onStart != NULL)
 	{
@@ -661,24 +619,6 @@ int swServer_start(swServer *serv)
 }
 
 /**
- * 关闭连接
- */
-int swServer_close(swServer *serv, swDataHead *event)
-{
-	if (event->from_id > serv->reactor_num)
-	{
-		swWarn("Error: From_id > serv->reactor_num.from_id=%d", event->from_id);
-		return SW_ERR;
-	}
-	if( serv->main_pipe.write(&(serv->main_pipe), &(event->fd), sizeof(event->fd)) < 0)
-	{
-		swWarn("write to main_pipe failed. Error: %s[%d]", strerror(errno), errno);
-		return SW_ERR;
-	}
-	return SW_OK;
-}
-
-/**
  * initializing server config, set default
  */
 void swServer_init(swServer *serv)
@@ -771,7 +711,6 @@ int swServer_free(swServer *serv)
 	{
 		serv->factory.shutdown(&(serv->factory));
 	}
-
 	/**
 	 * Shutdown heartbeat thread
 	 */
@@ -789,11 +728,6 @@ int swServer_free(swServer *serv)
 	if (serv->reactor.free != NULL)
 	{
 		serv->reactor.free(&(serv->reactor));
-	}
-	//master pipe
-	if (serv->main_pipe.close != NULL)
-	{
-		serv->main_pipe.close(&serv->main_pipe);
 	}
 	//master pipe
 	if (SwooleG.task_worker_num > 0)
@@ -1212,13 +1146,6 @@ void swServer_connection_close(swServer *serv, int fd, int notify)
 
 	int reactor_id = conn->from_id;
 
-	swCloseQueue *queue = &serv->reactor_threads[reactor_id].close_queue;
-
-	//将关闭的fd放入队列
-	queue->events[queue->num] = fd;
-	//增加计数
-	queue->num ++;
-
 	reactor = &(serv->reactor_threads[reactor_id].reactor);
 	swTrace("Close Event.fd=%d|from=%d", fd, reactor_id);
 
@@ -1261,12 +1188,6 @@ void swServer_connection_close(swServer *serv, int fd, int notify)
 		SwooleG.factory->notify(SwooleG.factory, &notify_ev);
 	}
 
-	//通知主进程
-	if (queue->num == SW_CLOSE_QLEN)
-	{
-		swReactorThread_close_queue(reactor, queue);
-	}
-
 #if 0
 	//立即关闭socket，清理缓存区
 	if (0)
@@ -1291,6 +1212,22 @@ void swServer_connection_close(swServer *serv, int fd, int notify)
 
 	//关闭此连接，必须放在最前面，以保证线程安全
 	reactor->del(reactor, fd);
+
+	/**
+     * Reset maxfd, use for connection_list
+     */
+    if (fd == swServer_get_maxfd(serv))
+    {
+        SwooleG.lock.lock(&SwooleG.lock);
+        int find_max_fd = fd - 1;
+        swTrace("set_maxfd=%d|close_fd=%d\n", find_max_fd, fd);
+        /**
+         * Find the new max_fd
+         */
+        for (; serv->connection_list[find_max_fd].active == 0 && find_max_fd > swServer_get_minfd(serv); find_max_fd--);
+        swServer_set_maxfd(serv, find_max_fd);
+        SwooleG.lock.unlock(&SwooleG.lock);
+    }
 }
 
 

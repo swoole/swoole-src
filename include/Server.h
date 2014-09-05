@@ -112,7 +112,6 @@ typedef struct _swReactorThread
     pthread_t thread_id;
     swReactor reactor;
     swUdpFd *udp_addrs;
-    swCloseQueue close_queue;
     swMemoryPool *buffer_input;
     swArray *buffer_pipe;
     int c_udp_fd;
@@ -373,7 +372,6 @@ struct _swServer
 
     void *ptr2;
 
-    swPipe main_pipe;
     swReactor reactor;
     swFactory factory;
 
@@ -447,8 +445,6 @@ int swServer_addListener(swServer *serv, int type, char *host,int port);
 int swServer_create(swServer *serv);
 int swServer_listen(swServer *serv, swReactor *reactor);
 int swServer_free(swServer *serv);
-int swServer_close(swServer *factory, swDataHead *event);
-int swServer_process_close(swServer *serv, swDataHead *event);
 int swServer_shutdown(swServer *serv);
 int swServer_addTimer(swServer *serv, int interval);
 int swServer_reload(swServer *serv);
@@ -565,7 +561,6 @@ void swServer_update_time(void);
 int swReactorThread_create(swServer *serv);
 int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr);
 void swReactorThread_free(swServer *serv);
-int swReactorThread_close_queue(swReactor *reactor, swCloseQueue *close_queue);
 
 int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event);
 int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event);
