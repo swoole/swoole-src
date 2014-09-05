@@ -1106,7 +1106,15 @@ static int swFactoryProcess_worker_onPipeReceive(swReactor *reactor, swEvent *ev
 	    ret = swFactoryProcess_worker_excute(factory, &task);
 	    if (task.info.type == SW_EVENT_PACKAGE_START)
 	    {
-	        goto read_from_pipe;
+	        //no data
+            if (ret < 0 && errno == EAGAIN)
+            {
+                return SW_OK;
+            }
+            else if (ret > 0)
+            {
+                goto read_from_pipe;
+            }
 	    }
 	    return ret;
 	}

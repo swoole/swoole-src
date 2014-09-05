@@ -686,7 +686,7 @@ static swClient* swoole_client_create_socket(zval *object, char *host, int host_
 	}
 
 	bzero(conn_key, SW_LONG_CONNECTION_KEY_LEN);
-	zval *connection_id = zend_read_property(swoole_client_class_entry_ptr, object, ZEND_STRL("id"), 0 TSRMLS_CC);
+	zval *connection_id = zend_read_property(swoole_client_class_entry_ptr, object, ZEND_STRL("id"), 1 TSRMLS_CC);
 	if (connection_id == NULL || ZVAL_IS_NULL(connection_id))
 	{
 	    conn_key_len = snprintf(conn_key, SW_LONG_CONNECTION_KEY_LEN, "%s:%d", host, port) + 1;
