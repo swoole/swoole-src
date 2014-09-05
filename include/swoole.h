@@ -895,6 +895,7 @@ enum SW_CHANNEL_FLAGS
 	SW_CHAN_SHM = 1u << 3,
 #define SW_CHAN_SHM SW_CHAN_SHM
 };
+
 typedef struct _swChannel
 {
 	int head;    //头部，出队列方向
@@ -920,6 +921,15 @@ int swChannel_notify(swChannel *object);
 void swChannel_free(swChannel *object);
 
 /*----------------------------Thread Pool-------------------------------*/
+enum swThread_type
+{
+    SW_THREAD_REACTOR,
+    SW_THREAD_WRITER,
+    SW_THREAD_UDP,
+    SW_THREAD_UNIX_DGRAM,
+    SW_THREAD_HEARTBEAT,
+};
+
 typedef struct _swThreadPool
 {
 	pthread_mutex_t mutex;
@@ -1032,6 +1042,7 @@ typedef struct
 typedef struct
 {
     uint16_t id;
+    uint8_t type;
 	uint8_t factory_lock_target;
 	int16_t factory_target_worker;
 	sw_atomic_t worker_round_i;

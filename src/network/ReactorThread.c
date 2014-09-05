@@ -1030,6 +1030,7 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     SwooleTG.factory_lock_target = 0;
     SwooleTG.factory_target_worker = -1;
     SwooleTG.id = reactor_id;
+    SwooleTG.type = SW_THREAD_REACTOR;
 
     swReactorThread *thread = swServer_get_thread(serv, reactor_id);
     swReactor *reactor = &thread->reactor;
@@ -1177,6 +1178,11 @@ static int swReactorThread_loop_udp(swThreadParam *param)
     addrlen = sizeof(addr_in);
 
     int sock = param->pti;
+
+    SwooleTG.factory_lock_target = 0;
+    SwooleTG.factory_target_worker = -1;
+    SwooleTG.id = sock;
+    SwooleTG.type = SW_THREAD_UDP;
 
     swSignal_none();
 
@@ -1373,6 +1379,11 @@ static int swReactorThread_loop_unix_dgram(swThreadParam *param)
 
     uint16_t sun_path_offset;
     uint8_t sun_path_len;
+
+    SwooleTG.factory_lock_target = 0;
+    SwooleTG.factory_target_worker = -1;
+    SwooleTG.id = param->pti;
+    SwooleTG.type = SW_THREAD_UNIX_DGRAM;
 
     swSignal_none();
 

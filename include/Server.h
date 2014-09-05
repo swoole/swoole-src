@@ -517,50 +517,7 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
 	}
 }
 
-static sw_inline int swServer_worker_schedule(swServer *serv, int schedule_key)
-{
-    int target_worker_id = 0;
-
-    //polling mode
-    if (serv->dispatch_mode == SW_DISPATCH_ROUND)
-    {
-        target_worker_id = (serv->worker_round_id++) % serv->worker_num;
-    }
-    //Using the FD touch access to hash
-    else if (serv->dispatch_mode == SW_DISPATCH_FDMOD)
-    {
-        target_worker_id = schedule_key % serv->worker_num;
-    }
-    //Preemptive distribution
-    else
-    {
-        if (serv->ipc_mode == SW_IPC_MSGQUEUE)
-        {
-            //msgsnd参数必须>0
-            //worker进程中正确的mtype应该是pti + 1
-            target_worker_id = serv->worker_num;
-        }
-        else
-        {
-            int i;
-            sw_atomic_t *round = &SwooleTG.worker_round_i;
-            for (i = 0; i < serv->worker_num; i++)
-            {
-                sw_atomic_fetch_add(round, 1);
-                target_worker_id = (*round) % serv->worker_num;
-
-                if (serv->workers[target_worker_id].status == SW_WORKER_IDLE)
-                {
-                    break;
-                }
-            }
-            swTrace("schedule=%d|round=%d\n", target_worker_id, *round);
-        }
-    }
-    return target_worker_id;
-}
-
-static sw_inline int swServer_send2worker_blocking(swServer *serv, void *data, int len, int target_worker_id)
+static sw_inline int swServer_send2worker_blocking(swServer *serv, void *data, int len, uint16_t target_worker_id)
 {
     int ret = -1;
     swWorker *worker = &(serv->workers[target_worker_id]);

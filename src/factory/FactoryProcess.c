@@ -873,17 +873,61 @@ int swFactoryProcess_notify(swFactory *factory, swDataHead *ev)
 	return factory->dispatch(factory, (swDispatchData *) &sw_notify_data);
 }
 
+
+static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t schedule_key)
+{
+    uint32_t target_worker_id = 0;
+
+    //polling mode
+    if (serv->dispatch_mode == SW_DISPATCH_ROUND)
+    {
+        target_worker_id = (serv->worker_round_id++) % serv->worker_num;
+    }
+    //Using the FD touch access to hash
+    else if (serv->dispatch_mode == SW_DISPATCH_FDMOD)
+    {
+        target_worker_id = schedule_key % serv->worker_num;
+    }
+    //Preemptive distribution
+    else
+    {
+        if (serv->ipc_mode == SW_IPC_MSGQUEUE)
+        {
+            //msgsnd参数必须>0
+            //worker进程中正确的mtype应该是pti + 1
+            target_worker_id = serv->worker_num;
+        }
+        else
+        {
+            int i;
+            sw_atomic_t *round = &SwooleTG.worker_round_i;
+            for (i = 0; i < serv->worker_num; i++)
+            {
+                sw_atomic_fetch_add(round, 1);
+                target_worker_id = (*round) % serv->worker_num;
+
+                if (serv->workers[target_worker_id].status == SW_WORKER_IDLE)
+                {
+                    break;
+                }
+            }
+            swTrace("schedule=%d|round=%d\n", target_worker_id, *round);
+        }
+    }
+    return target_worker_id;
+}
+
 /**
  * [ReactorThread] dispatch request to worker
  */
 int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
 {
-    int schedule_key;
-    int send_len = sizeof(task->data.info) + task->data.info.len;
-    int target_worker_id = task->target_worker_id;
+    uint32_t schedule_key;
+    uint32_t send_len = sizeof(task->data.info) + task->data.info.len;
+    uint16_t target_worker_id;
     swServer *serv = SwooleG.serv;
 
-    if (target_worker_id < 0)
+    if (task->target_worker_id < 0)
     {
         //udp use remote port
         if (task->data.info.type == SW_EVENT_UDP || task->data.info.type == SW_EVENT_UDP6
@@ -915,7 +959,20 @@ int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
             target_worker_id = swServer_worker_schedule(serv, schedule_key);
         }
     }
-    return swReactorThread_send2worker((void *) &(task->data), send_len, target_worker_id);
+    else
+    {
+        target_worker_id = task->target_worker_id;
+    }
+
+    if (SwooleTG.type == SW_THREAD_REACTOR)
+    {
+        return swReactorThread_send2worker((void *) &(task->data), send_len, target_worker_id);
+    }
+    else
+    {
+        swTrace("dispatch to worker#%d", target_worker_id);
+        return swServer_send2worker_blocking(serv, (void *) &(task->data), send_len, target_worker_id);
+    }
 }
 
 static int swFactoryProcess_writer_start(swFactory *factory)
