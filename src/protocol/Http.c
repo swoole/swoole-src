@@ -19,6 +19,111 @@
 #include <assert.h>
 #include <stddef.h>
 
+/**
+ * only GET/POST
+ */
+int swHttpRequest_get_protocol(swHttpRequest *request)
+{
+    char *buf = request->buffer->str;
+    char *pe = buf + request->buffer->length;
+
+    //http method
+    if (memcmp(buf, "GET", 3) == 0)
+    {
+        request->method = HTTP_GET;
+        buf += 4;
+    }
+    else if (memcmp(buf, "POST", 4) == 0)
+    {
+        request->method = HTTP_POST;
+        buf += 5;
+    }
+    else
+    {
+        return SW_ERROR;
+    }
+
+    //http version
+    char *p;
+    char cmp = 0;
+    for (p = buf; p < pe; p++)
+    {
+        if (cmp == 0 && *p == SW_SPACE)
+        {
+            cmp = 1;
+        }
+        else
+        {
+            if (p + 8 > pe)
+            {
+                return SW_WAIT;
+            }
+            if (memcmp(p, "HTTP/1.1", 8) == 0)
+            {
+                request->version = HTTP_VERSION_11;
+            }
+            else if (memcmp(p, "HTTP/1.0", 8) == 0)
+            {
+                request->method = HTTP_VERSION_10;
+            }
+            else
+            {
+                return SW_ERROR;
+            }
+        }
+    }
+    buf += 8;
+    request->buffer->offset = buf - request->buffer->str;
+    return SW_OK;
+}
+
+/**
+ * POST content-length
+ */
+int swHttpRequest_get_content_length(swHttpRequest *request)
+{
+    swString *buffer = request->buffer;
+    char *buf = buffer->str + buffer->offset;
+    int len = buffer->length - buffer->offset;
+
+    char *pe = buf + len - sizeof("Content-Length");
+    char *p;
+    char state = 0;
+
+    for (p = buf; p < pe; p++)
+    {
+        if (*p == '\r' && *(p + 1) == '\n')
+        {
+            if (state == 0)
+            {
+                if (memcmp(p + 2, SW_STRL("Content-Length") - 1) == 0)
+                {
+                    p += sizeof("Content-Length:");
+                    state = 1;
+                }
+                else
+                {
+                    p++;
+                }
+            }
+            else if (state == 1)
+            {
+                request->content_length = atoi(p);
+                state = 2;
+            }
+            else
+            {
+                if (memcmp(p + 2, SW_STRL("\r\n") - 1) == 0)
+                {
+                    request->header_length = buffer->str - p + 2;
+                    buffer->offset = request->header_length;
+                    return SW_OK;
+                }
+            }
+        }
+    }
+    return SW_ERR;
+}
 
 #define CALLBACK2(FOR)                                               \
     do {                                                                 \

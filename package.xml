@@ -190,6 +190,7 @@
 				</dir>
 				<dir name="protocol">
 					<file role="src" name="SSL.c" />
+					<file role="src" name="Http.c" />
 				</dir>
 			</dir>
 		</dir>

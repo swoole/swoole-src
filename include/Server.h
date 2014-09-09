@@ -559,6 +559,7 @@ void swReactorThread_free(swServer *serv);
 int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event);
 int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event);
 int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *event);
+int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event);
 int swReactorThread_onPackage(swReactor *reactor, swEvent *event);
 int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev);
 int swReactorThread_onWrite(swReactor *reactor, swEvent *ev);

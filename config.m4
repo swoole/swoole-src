@@ -227,6 +227,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/os/signal.c \
         src/os/timer.c \
         src/protocol/SSL.c \
+        src/protocol/Http.c \
       , $ext_shared)
       
     PHP_ADD_INCLUDE([$ext_srcdir/include])

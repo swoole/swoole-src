@@ -112,6 +112,8 @@ int daemon(int nochdir, int noclose);
 
 #define SW_START_LINE  "-------------------------START----------------------------"
 #define SW_END_LINE    "-------------------------END------------------------------"
+#define SW_SPACE       ' '
+#define SW_CRLF        "\r\n"
 /*----------------------------------------------------------------------------*/
 
 #include "swoole_config.h"
@@ -287,6 +289,7 @@ static sw_inline size_t swoole_size_align(size_t size, int pagesize)
 
 swString *swString_new(size_t size);
 swString *swString_dup(char *src_str, int length);
+swString *swString_dup2(swString *src);
 void swString_free(swString *str);
 int swString_append(swString *str, swString *append_str);
 int swString_extend(swString *str, size_t new_size);

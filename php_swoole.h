@@ -37,7 +37,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.7.5-RC2"
+#define PHP_SWOOLE_VERSION  "1.7.5"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**

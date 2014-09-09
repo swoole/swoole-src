@@ -986,6 +986,12 @@ PHP_FUNCTION(swoole_server_set)
 		bzero(serv->package_eof, SW_DATA_EOF_MAXLEN);
 		memcpy(serv->package_eof, Z_STRVAL_PP(v), Z_STRLEN_PP(v));
 	}
+	//buffer: http_protocol
+    if (zend_hash_find(vht, ZEND_STRS("open_http_protocol"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(*v);
+        serv->open_http_protocol = (uint8_t) Z_LVAL_PP(v);
+    }
 	//tcp_keepidle
 	if (zend_hash_find(vht, ZEND_STRS("tcp_keepidle"), (void **)&v) == SUCCESS)
 	{
