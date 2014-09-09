@@ -52,19 +52,21 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
         {
             cmp = 1;
         }
-        else
+        else if (cmp == 1)
         {
             if (p + 8 > pe)
             {
-                return SW_WAIT;
+                return SW_ERROR;
             }
             if (memcmp(p, "HTTP/1.1", 8) == 0)
             {
                 request->version = HTTP_VERSION_11;
+                break;
             }
             else if (memcmp(p, "HTTP/1.0", 8) == 0)
             {
                 request->method = HTTP_VERSION_10;
+                break;
             }
             else
             {
@@ -72,9 +74,24 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
             }
         }
     }
-    buf += 8;
-    request->buffer->offset = buf - request->buffer->str;
+    p += 8;
+    request->buffer->offset = p - request->buffer->str;
     return SW_OK;
+}
+
+void swHttpRequest_free(swHttpRequest *request)
+{
+    if (request->state > 0 && request->buffer)
+    {
+        swTrace("RequestShutdown. free buffer=%p, request=%p\n", request->buffer, request);
+        swString_free(request->buffer);
+    }
+    request->content_length = 0;
+    request->header_length = 0;
+    request->state = 0;
+    request->method = 0;
+    request->version = 0;
+    request->buffer = NULL;
 }
 
 /**
@@ -98,7 +115,8 @@ int swHttpRequest_get_content_length(swHttpRequest *request)
             {
                 if (memcmp(p + 2, SW_STRL("Content-Length") - 1) == 0)
                 {
-                    p += sizeof("Content-Length:");
+                    p += sizeof("Content-Length: ");
+                    request->content_length = atoi(p);
                     state = 1;
                 }
                 else
@@ -106,22 +124,18 @@ int swHttpRequest_get_content_length(swHttpRequest *request)
                     p++;
                 }
             }
-            else if (state == 1)
-            {
-                request->content_length = atoi(p);
-                state = 2;
-            }
             else
             {
                 if (memcmp(p + 2, SW_STRL("\r\n") - 1) == 0)
                 {
-                    request->header_length = buffer->str - p + 2;
+                    request->header_length = p - buffer->str + 4;
                     buffer->offset = request->header_length;
                     return SW_OK;
                 }
             }
         }
     }
+    buffer->offset = p - buffer->str;
     return SW_ERR;
 }
 

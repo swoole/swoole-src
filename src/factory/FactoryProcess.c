@@ -350,7 +350,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 	return SW_OK;
 }
 
-static void swManagerSignalHanlde(int sig)
+static void swManager_signal_handle(int sig)
 {
 	switch (sig)
 	{
@@ -397,7 +397,8 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 	}
 
 	//for reload
-	swSignal_add(SIGUSR1, swManagerSignalHanlde);
+	swSignal_add(SIGUSR1, swManager_signal_handle);
+	swSignal_add(SIGINT, swManager_signal_handle);
 
 	while (SwooleG.running > 0)
 	{
@@ -746,24 +747,24 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 #ifndef SW_USE_RINGBUFFER
 	int i;
 	//for open_check_eof and  open_check_length
-	if (serv->open_eof_check || serv->open_length_check)
-	{
-		SwooleWG.buffer_input = sw_malloc(sizeof(swString*) * serv->reactor_num);
-		if (SwooleWG.buffer_input == NULL)
-		{
-			swError("malloc for SwooleWG.buffer_input failed.");
-			return SW_ERR;
-		}
-		for (i = 0; i < serv->reactor_num; i++)
-		{
-			SwooleWG.buffer_input[i] = swString_new(serv->buffer_input_size);
-			if (SwooleWG.buffer_input[i] == NULL)
-			{
-				swError("buffer_input init failed.");
-				return SW_ERR;
-			}
-		}
-	}
+    if (serv->open_eof_check || serv->open_length_check || serv->open_http_protocol)
+    {
+        SwooleWG.buffer_input = sw_malloc(sizeof(swString*) * serv->reactor_num);
+        if (SwooleWG.buffer_input == NULL)
+        {
+            swError("malloc for SwooleWG.buffer_input failed.");
+            return SW_ERR;
+        }
+        for (i = 0; i < serv->reactor_num; i++)
+        {
+            SwooleWG.buffer_input[i] = swString_new(serv->buffer_input_size);
+            if (SwooleWG.buffer_input[i] == NULL)
+            {
+                swError("buffer_input init failed.");
+                return SW_ERR;
+            }
+        }
+    }
 #endif
 
 	if (serv->ipc_mode == SW_IPC_MSGQUEUE)

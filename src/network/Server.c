@@ -16,6 +16,7 @@
 
 #include "swoole.h"
 #include "Server.h"
+#include "Http.h"
 #include "Connection.h"
 #include "memory.h"
 
@@ -1150,43 +1151,56 @@ int swServer_connection_close(swServer *serv, int fd, int notify)
 	swTrace("Close Event.fd=%d|from=%d", fd, reactor_id);
 
 	//释放缓存区占用的内存
-	if (serv->open_eof_check == 1)
-	{
-		if (conn->in_buffer != NULL)
-		{
-			swBuffer_free(conn->in_buffer);
-			conn->in_buffer = NULL;
-		}
-	}
-	else if (serv->open_length_check == 1)
-	{
-		if (conn->object != NULL)
-		{
-			swString_free(conn->object);
-		}
-	}
+    if (serv->open_eof_check)
+    {
+        if (conn->in_buffer)
+        {
+            swBuffer_free(conn->in_buffer);
+            conn->in_buffer = NULL;
+        }
+    }
+    else if (serv->open_length_check)
+    {
+        if (conn->object)
+        {
+            swString_free(conn->object);
+        }
+    }
+    else if (serv->open_http_protocol)
+    {
+        if (conn->object)
+        {
+            swHttpRequest *request = (swHttpRequest *) conn->object;
+            if (request->state > 0 && request->buffer)
+            {
+                swTrace("ConnectionClose. free buffer=%p, request=%p\n", request->buffer, request);
+                swString_free(request->buffer);
+                bzero(request, sizeof(swHttpRequest));
+            }
+        }
+    }
 
-	if (conn->out_buffer != NULL)
-	{
-		swBuffer_free(conn->out_buffer);
-		conn->out_buffer = NULL;
-	}
+    if (conn->out_buffer != NULL)
+    {
+        swBuffer_free(conn->out_buffer);
+        conn->out_buffer = NULL;
+    }
 
-	if (conn->in_buffer != NULL)
-	{
-		swBuffer_free(conn->in_buffer);
-		conn->in_buffer = NULL;
-	}
+    if (conn->in_buffer != NULL)
+    {
+        swBuffer_free(conn->in_buffer);
+        conn->in_buffer = NULL;
+    }
 
-	//通知到worker进程
-	if (serv->onClose != NULL && notify == 1)
-	{
-		//通知worker进程
-		notify_ev.from_id = reactor_id;
-		notify_ev.fd = fd;
-		notify_ev.type = SW_EVENT_CLOSE;
-		SwooleG.factory->notify(SwooleG.factory, &notify_ev);
-	}
+    //通知到worker进程
+    if (serv->onClose != NULL && notify == 1)
+    {
+        //通知worker进程
+        notify_ev.from_id = reactor_id;
+        notify_ev.fd = fd;
+        notify_ev.type = SW_EVENT_CLOSE;
+        SwooleG.factory->notify(SwooleG.factory, &notify_ev);
+    }
 
 #if 0
 	//立即关闭socket，清理缓存区
@@ -1236,15 +1250,15 @@ int swServer_connection_close(swServer *serv, int fd, int notify)
  */
 swConnection* swServer_connection_new(swServer *serv, swDataHead *ev)
 {
-	int conn_fd = ev->fd;
-	swConnection* connection = NULL;
+    int conn_fd = ev->fd;
+    swConnection* connection = NULL;
 
-	SwooleStats->accept_count ++;
-	sw_atomic_fetch_add(&SwooleStats->connection_num, 1);
+    SwooleStats->accept_count++;
+    sw_atomic_fetch_add(&SwooleStats->connection_num, 1);
 
-	if (conn_fd > swServer_get_maxfd(serv))
-	{
-		swServer_set_maxfd(serv, conn_fd);
+    if (conn_fd > swServer_get_maxfd(serv))
+    {
+        swServer_set_maxfd(serv, conn_fd);
 #ifdef SW_CONNECTION_LIST_EXPAND
         //新的fd超过了最大fd
         //需要扩容
@@ -1263,17 +1277,16 @@ swConnection* swServer_connection_new(swServer *serv, swDataHead *ev)
             }
         }
 #endif
-	}
+    }
 
-	connection = &(serv->connection_list[conn_fd]);
-	bzero(connection, sizeof(swConnection));
+    connection = &(serv->connection_list[conn_fd]);
 
-	connection->fd = conn_fd;
-	connection->from_id = ev->from_id;
-	connection->from_fd = ev->from_fd;
-	connection->connect_time = SwooleGS->now;
-	connection->last_time = SwooleGS->now;
-	connection->active = 1; //使此连接激活,必须在最后，保证线程安全
+    connection->fd = conn_fd;
+    connection->from_id = ev->from_id;
+    connection->from_fd = ev->from_fd;
+    connection->connect_time = SwooleGS->now;
+    connection->last_time = SwooleGS->now;
+    connection->active = 1; //使此连接激活,必须在最后，保证线程安全
 
 	return connection;
 }

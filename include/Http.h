@@ -130,6 +130,7 @@ typedef struct _swHttpRequest
     uint8_t method;
     uint8_t version;
     uint8_t state;
+    uint8_t free_memory;
 
     uint32_t header_length;
     uint32_t content_length;
@@ -140,6 +141,7 @@ typedef struct _swHttpRequest
 
 int swHttpRequest_get_protocol(swHttpRequest *request);
 int swHttpRequest_get_content_length(swHttpRequest *request);
+void swHttpRequest_free(swHttpRequest *request);
 
 void http_parser_init(http_parser *parser, enum http_parser_type type);
 

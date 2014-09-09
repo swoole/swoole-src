@@ -36,6 +36,12 @@ swString *swString_new(size_t size)
     return str;
 }
 
+void swString_print(swString *str)
+{
+    printf("String[length=%d,size=%d,offset=%d]=%s\n", (int) str->length, (int) str->size, (int) str->offset,
+            str->str);
+}
+
 swString *swString_dup2(swString *src)
 {
     swString *dst = swString_new(src->size);

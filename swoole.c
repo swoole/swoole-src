@@ -991,6 +991,11 @@ PHP_FUNCTION(swoole_server_set)
     {
         convert_to_long(*v);
         serv->open_http_protocol = (uint8_t) Z_LVAL_PP(v);
+
+        if (serv->dispatch_mode == 0)
+        {
+            serv->dispatch_mode = 3;
+        }
     }
 	//tcp_keepidle
 	if (zend_hash_find(vht, ZEND_STRS("tcp_keepidle"), (void **)&v) == SUCCESS)

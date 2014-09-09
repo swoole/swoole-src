@@ -236,7 +236,7 @@ enum
 
 enum
 {
-	SW_CONTINUE,
+	SW_CONTINUE = 1,
 	SW_WAIT,
 	SW_CLOSE,
 	SW_ERROR,
@@ -290,6 +290,7 @@ static sw_inline size_t swoole_size_align(size_t size, int pagesize)
 swString *swString_new(size_t size);
 swString *swString_dup(char *src_str, int length);
 swString *swString_dup2(swString *src);
+void swString_print(swString *str);
 void swString_free(swString *str);
 int swString_append(swString *str, swString *append_str);
 int swString_extend(swString *str, size_t new_size);
