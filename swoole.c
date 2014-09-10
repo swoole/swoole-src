@@ -587,12 +587,16 @@ PHP_MINIT_FUNCTION(swoole)
  */
 PHP_MSHUTDOWN_FUNCTION(swoole)
 {
-	swoole_clean();
-	if (php_sw_in_client && SwooleG.main_reactor)
-	{
-	    sw_free(SwooleG.main_reactor);
-	}
-	return SUCCESS;
+    swoole_clean();
+    if (php_sw_in_client && SwooleG.main_reactor)
+    {
+        sw_free(SwooleG.main_reactor);
+    }
+    if (SwooleG.serv)
+    {
+        sw_free(SwooleG.serv);
+    }
+    return SUCCESS;
 }
 /* }}} */
 
@@ -694,7 +698,7 @@ static void swoole_destory_server(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 	if (serv != NULL)
 	{
 		swServer_shutdown(serv);
-		sw_free(serv);
+		//Don't free() here.
 	}
 }
 
