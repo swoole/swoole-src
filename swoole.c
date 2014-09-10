@@ -1561,7 +1561,7 @@ PHP_FUNCTION(swoole_connection_info)
 		}
 		if (from_id !=0 )
 		{
-			add_assoc_long(return_value, "remote_port", ntohs(from_id));
+			add_assoc_long(return_value, "remote_port", udp_info.port);
 		}
 		add_assoc_string(return_value, "remote_ip", inet_ntoa(sin_addr), 1);
 		return;

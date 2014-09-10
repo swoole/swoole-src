@@ -398,7 +398,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 
 	//for reload
 	swSignal_add(SIGUSR1, swManager_signal_handle);
-	swSignal_add(SIGINT, swManager_signal_handle);
+	//swSignal_add(SIGINT, swManager_signal_handle);
 
 	while (SwooleG.running > 0)
 	{
