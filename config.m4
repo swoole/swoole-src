@@ -12,9 +12,6 @@ dnl Otherwise use enable:
 PHP_ARG_ENABLE(swoole-debug, whether to enable swoole debug,
 [  --enable-swoole-debug   Enable swoole debug], no, no)
 
-PHP_ARG_ENABLE(msgqueue, set ipc mode,
-[  --enable-msgqueue       Use message queue?], no, no)
-
 PHP_ARG_ENABLE(sockets, enable sockets support,
 [  --enable-sockets        Do you have sockets extension?], no, no)
 
@@ -122,12 +119,6 @@ if test "$PHP_SWOOLE" != "no"; then
 
 	if test "$PHP_ASYNC_MYSQL" = "yes"; then
 		AC_DEFINE(SW_ASYNC_MYSQL, 1, [enable async_mysql support])
-    fi
-    
-    if test "$PHP_MSGQUEUE" != "no"; then
-        AC_DEFINE(SW_WORKER_IPC_MODE, 2, [use message queue])
-    else
-        AC_DEFINE(SW_WORKER_IPC_MODE, 1, [use unix socket])
     fi
         
     AC_SWOOLE_CPU_AFFINITY

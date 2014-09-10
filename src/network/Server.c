@@ -464,10 +464,6 @@ int swServer_start(swServer *serv)
 		return SW_ERR;
 	}
 
-#if SW_WORKER_IPC_MODE == 2
-	serv->ipc_mode = SW_IPC_MSGQUEUE;
-#endif
-
 	if (serv->message_queue_key == 0)
 	{
 		char path_buf[128];
