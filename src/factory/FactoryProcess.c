@@ -131,13 +131,13 @@ int swFactoryProcess_start(swFactory *factory)
     //必须先启动manager进程组，否则会带线程fork
     if (swFactoryProcess_manager_start(factory) < 0)
     {
-        swWarn("swFactoryProcess_manager_start fail");
+        swWarn("swFactoryProcess_manager_start failed.");
         return SW_ERR;
     }
 
     if (serv->ipc_mode == SW_IPC_MSGQUEUE)
     {
-        swQueueMsg_set_blocking(&serv->read_queue, 0);
+        swQueueMsg_set_blocking(&serv->read_queue, 1);
         //tcp & message queue require writer pthread
         if (serv->have_tcp_sock == 1)
         {
@@ -860,8 +860,8 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
 
 static __thread struct
 {
-	long target_worker_id;
-	swDataHead _send;
+    long target_worker_id;
+    swDataHead _send;
 } sw_notify_data;
 
 /**
@@ -871,51 +871,8 @@ int swFactoryProcess_notify(swFactory *factory, swDataHead *ev)
 {
 	memcpy(&sw_notify_data._send, ev, sizeof(swDataHead));
 	sw_notify_data._send.len = 0;
+	sw_notify_data.target_worker_id = -1;
 	return factory->dispatch(factory, (swDispatchData *) &sw_notify_data);
-}
-
-
-static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t schedule_key)
-{
-    uint32_t target_worker_id = 0;
-
-    //polling mode
-    if (serv->dispatch_mode == SW_DISPATCH_ROUND)
-    {
-        target_worker_id = (serv->worker_round_id++) % serv->worker_num;
-    }
-    //Using the FD touch access to hash
-    else if (serv->dispatch_mode == SW_DISPATCH_FDMOD)
-    {
-        target_worker_id = schedule_key % serv->worker_num;
-    }
-    //Preemptive distribution
-    else
-    {
-        if (serv->ipc_mode == SW_IPC_MSGQUEUE)
-        {
-            //msgsnd参数必须>0
-            //worker进程中正确的mtype应该是pti + 1
-            target_worker_id = serv->worker_num;
-        }
-        else
-        {
-            int i;
-            sw_atomic_t *round = &SwooleTG.worker_round_i;
-            for (i = 0; i < serv->worker_num; i++)
-            {
-                sw_atomic_fetch_add(round, 1);
-                target_worker_id = (*round) % serv->worker_num;
-
-                if (serv->workers[target_worker_id].status == SW_WORKER_IDLE)
-                {
-                    break;
-                }
-            }
-            swTrace("schedule=%d|round=%d\n", target_worker_id, *round);
-        }
-    }
-    return target_worker_id;
 }
 
 /**
