@@ -89,6 +89,7 @@ static void php_swoole_table_row2array(swTable *table, swTableRow *row, zval *re
     swTableColumn *col = NULL;
     char *k;
 
+    sw_spinlock(&row->lock);
     while(1)
     {
         col = swHashMap_each(table->columns, &k);
@@ -127,6 +128,7 @@ static void php_swoole_table_row2array(swTable *table, swTableRow *row, zval *re
             add_assoc_long_ex(return_value, col->name->str, col->name->length + 1, lval);
         }
     }
+    sw_spinlock_release(&row->lock);
 }
 
 void swoole_destory_table(zend_rsrc_list_entry *rsrc TSRMLS_DC)
@@ -277,6 +279,7 @@ PHP_METHOD(swoole_table, get)
 
     swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
     swTableRow *row = swTableRow_get(table, key, keylen);
+
     if (!row)
     {
         RETURN_FALSE;
