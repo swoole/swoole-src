@@ -111,7 +111,7 @@ typedef struct _swReactorThread
     int c_udp_fd;
 } swReactorThread;
 
-typedef struct _swThreadWriter
+typedef struct _swWorkerThread
 {
 	pthread_t ptid; //线程ID
 	int pipe_num; //writer thread's pipe num
@@ -120,7 +120,7 @@ typedef struct _swThreadWriter
 	swReactor reactor;
 	swShareMemory shm; //共享内存
 	swPipe evfd;       //eventfd
-} swWriterThread;
+} swWorkerThread;
 
 typedef struct _swListenList_node
 {
@@ -372,7 +372,7 @@ struct _swServer
     swListenList_node *listen_list;
 
     swReactorThread *reactor_threads;
-    swWriterThread *writer_threads;
+    swWorkerThread *writer_threads;
 
     swWorker *workers;
 

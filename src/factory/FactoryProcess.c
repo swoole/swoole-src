@@ -65,7 +65,7 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
         swWarn("[Master] malloc[object] failed");
         return SW_ERR;
     }
-    serv->writer_threads = SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->reactor_num * sizeof(swWriterThread));
+    serv->writer_threads = SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->reactor_num * sizeof(swWorkerThread));
     if (serv->writer_threads == NULL)
     {
         swWarn("[Master] malloc[object->writers] failed");

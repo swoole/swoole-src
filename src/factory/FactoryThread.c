@@ -19,37 +19,37 @@
 
 typedef struct _swFactoryThread
 {
-    int writer_num;
-    int writer_pti;
+    int worker_num;
+    int worker_pti;
     swRingQueue *queues; //消息队列
-    swWriterThread *writers;
+    swWorkerThread *workers;
 } swFactoryThread;
 
 static int swFactoryThread_writer_loop(swThreadParam *param);
 
-int swFactoryThread_create(swFactory *factory, int writer_num)
+int swFactoryThread_create(swFactory *factory, int worker_num)
 {
     swFactoryThread *object;
-    object = sw_calloc(writer_num, sizeof(swFactoryThread));
+    object = sw_calloc(worker_num, sizeof(swFactoryThread));
     if (object == NULL)
     {
-        swTrace("malloc[0] fail\n");
+        swWarn("malloc[0] failed");
         return SW_ERR;
     }
-    object->writers = sw_calloc(writer_num, sizeof(swWriterThread));
-    if (object->writers == NULL)
+    object->workers = sw_calloc(worker_num, sizeof(swWorkerThread));
+    if (object->workers == NULL)
     {
-        swTrace("malloc[1] fail\n");
+        swWarn("malloc[1] failed");
         return SW_ERR;
     }
-    object->queues = sw_calloc(writer_num, sizeof(swRingQueue));
+    object->queues = sw_calloc(worker_num, sizeof(swRingQueue));
     if (object->queues == NULL)
     {
-        swTrace("malloc[2] fail\n");
+        swTrace("malloc[2] failed");
         return SW_ERR;
     }
-    object->writer_num = writer_num;
-    object->writer_pti = 0;
+    object->worker_num = worker_num;
+    object->worker_pti = 0;
 
     factory->object = object;
     factory->dispatch = swFactoryThread_dispatch;
@@ -77,11 +77,10 @@ int swFactoryThread_start(swFactory *factory)
     {
         return SW_ERR;
     }
-    for (i = 0; i < this->writer_num; i++)
+    for (i = 0; i < this->worker_num; i++)
     {
-        if (swPipeNotify_auto(&this->writers[i].evfd, 1, 1) < 0)
+        if (swPipeNotify_auto(&this->workers[i].evfd, 1, 1) < 0)
         {
-            swWarn("create eventfd fail");
             return SW_ERR;
         }
         param = sw_malloc(sizeof(swThreadParam));
@@ -93,15 +92,15 @@ int swFactoryThread_start(swFactory *factory)
         param->pti = i;
         if (pthread_create(&pidt, NULL, (void * (*)(void *)) swFactoryThread_writer_loop, (void *) param) < 0)
         {
-            swTrace("pthread_create fail\n");
+            swWarn("pthread_create failed");
             return SW_ERR;
         }
         if (swRingQueue_init(&this->queues[i], SW_RINGQUEUE_LEN) < 0)
         {
-            swTrace("create ring queue fail\n");
+            swWarn("create ring queue failed");
             return SW_ERR;
         }
-        this->writers[i].ptid = pidt;
+        this->workers[i].ptid = pidt;
         //SW_START_SLEEP;
     }
     return SW_OK;
@@ -110,7 +109,7 @@ int swFactoryThread_shutdown(swFactory *factory)
 {
     SwooleG.running = 0;
     swFactoryThread *this = factory->object;
-    sw_free(this->writers);
+    sw_free(this->workers);
     sw_free(this->queues);
     sw_free(this);
     return SW_OK;
@@ -131,39 +130,39 @@ int swFactoryThread_dispatch(swFactory *factory, swDispatchData *task)
     if (serv->dispatch_mode == SW_DISPATCH_ROUND)
     {
         //使用平均分配
-        pti = object->writer_pti;
-        if (object->writer_pti >= object->writer_num)
+        pti = object->worker_pti;
+        if (object->worker_pti >= object->worker_num)
         {
-            object->writer_pti = 0;
+            object->worker_pti = 0;
             pti = 0;
         }
-        object->writer_pti++;
+        object->worker_pti++;
     }
     else
     {
         //使用fd取摸来散列
-        pti = task->data.info.fd % object->writer_num;
+        pti = task->data.info.fd % object->worker_num;
     }
 
     data = sw_malloc(datasize);
     if (data == NULL)
     {
-        swTrace("malloc fail\n");
+        swWarn("malloc failed");
         return SW_ERR;
     }
     memcpy(data, &(task->data), datasize);
     //send data ptr. use event_fd
     if (swRingQueue_push(&(object->queues[pti]), (void *) data) < 0)
     {
-        swWarn("swRingQueue_push fail.Buffer is full.Writer=%d\n", pti);
+        swWarn("RingQueue#%d is full", pti);
         return SW_ERR;
     }
     else
     {
-        ret = object->writers[pti].evfd.write(&object->writers[pti].evfd, &flag, sizeof(flag));
+        ret = object->workers[pti].evfd.write(&object->workers[pti].evfd, &flag, sizeof(flag));
         if (ret < 0)
         {
-            swWarn("Send queue notice fail.errno=%d\n", errno);
+            swWarn("write() to eventfd failed. Error: %s[%d]", strerror(errno), errno);
         }
         return ret;
     }
@@ -188,7 +187,7 @@ static int swFactoryThread_writer_loop(swThreadParam *param)
         CPU_SET(pti % SW_CPU_NUM, &cpu_set);
         if (0 != pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set))
         {
-            swTrace("pthread_setaffinity_np set fail\n");
+            swWarn("pthread_setaffinity_np() failed");
         }
     }
 #endif
@@ -198,6 +197,7 @@ static int swFactoryThread_writer_loop(swThreadParam *param)
         serv->onWorkerStart(serv, pti);
     }
     swSignal_none();
+
     //main loop
     while (SwooleG.running > 0)
     {
@@ -209,15 +209,15 @@ static int swFactoryThread_writer_loop(swThreadParam *param)
         }
         else
         {
-            ret = this->writers[pti].evfd.read(&this->writers[pti].evfd, &flag, sizeof(flag));
+            ret = this->workers[pti].evfd.read(&this->workers[pti].evfd, &flag, sizeof(flag));
             if (ret < 0)
             {
-                swTrace("read fail.errno=%d", errno);
+                swTrace("read() failed. Error: %s[%d]", strerror(errno), errno);
             }
         }
     }
     //shutdown
-    this->writers[pti].evfd.close(&this->writers[pti].evfd);
+    this->workers[pti].evfd.close(&this->workers[pti].evfd);
 
     if (serv->onWorkerStop != NULL)
     {
