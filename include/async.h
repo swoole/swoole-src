@@ -47,6 +47,7 @@ typedef struct
     uint8_t init;
     uint8_t mode;
     uint8_t thread_num;
+    uint32_t task_num;
 
     swReactor *reactor;
 

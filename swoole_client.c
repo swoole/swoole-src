@@ -497,6 +497,10 @@ static void php_swoole_check_eventloop(swReactor *reactor)
     {
         SwooleG.running = 0;
     }
+    else if (reactor->event_num == 1 && SwooleAIO.task_num == 0)
+    {
+        SwooleG.running = 0;
+    }
 }
 
 void php_swoole_check_reactor()
@@ -1076,21 +1080,21 @@ PHP_FUNCTION(swoole_event_exit)
 
 PHP_FUNCTION(swoole_event_wait)
 {
-	if (php_sw_in_client == 1 && php_sw_event_wait == 0)
-	{
-		SwooleG.running = 1;
-		php_sw_event_wait = 1;
+    if (php_sw_in_client == 1 && php_sw_event_wait == 0)
+    {
+        SwooleG.running = 1;
+        php_sw_event_wait = 1;
 
-		struct timeval timeo;
-		timeo.tv_sec = SW_REACTOR_TIMEO_SEC;
-		timeo.tv_usec = SW_REACTOR_TIMEO_USEC;
+        struct timeval timeo;
+        timeo.tv_sec = SW_REACTOR_TIMEO_SEC;
+        timeo.tv_usec = SW_REACTOR_TIMEO_USEC;
 
-		int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, &timeo);
-		if(ret < 0)
-		{
-			php_error_docref(NULL TSRMLS_CC, E_ERROR, "reactor wait failed. Error: %s [%d]", strerror(errno), errno);
-		}
-	}
+        int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, &timeo);
+        if (ret < 0)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_ERROR, "reactor wait failed. Error: %s [%d]", strerror(errno), errno);
+        }
+    }
 }
 
 PHP_METHOD(swoole_client, __construct)

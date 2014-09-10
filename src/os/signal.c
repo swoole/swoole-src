@@ -26,7 +26,7 @@ void swSignal_none(void)
 	int ret = pthread_sigmask(SIG_BLOCK, &mask, NULL);
 	if (ret < 0)
 	{
-		swWarn("pthread_sigmask fail: %s", strerror(ret));
+		swWarn("pthread_sigmask() failed. Error: %s[%d]", strerror(ret), ret);
 	}
 }
 

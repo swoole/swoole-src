@@ -84,6 +84,7 @@ static int swAioGcc_onFinish(swReactor *reactor, swEvent *event)
             aio_ev.offset = req->aiocb.aio_offset;
             aio_ev.buf = (void *) req->aiocb.aio_buf;
             SwooleAIO.callback(&aio_ev);
+            SwooleAIO.task_num--;
         }
 
         if (req->next == NULL)
@@ -145,6 +146,7 @@ static int swAioGcc_aio_read(int fd, void *outbuf, size_t size, off_t offset)
         swWarn("aio_read failed. Error: %s[%d]", strerror(errno), errno);
         return SW_ERR;
     }
+    SwooleAIO.task_num++;
     return SW_OK;
 }
 
@@ -181,6 +183,7 @@ static int swAioGcc_write(int fd, void *inbuf, size_t size, off_t offset)
         swWarn("aio_write failed. Error: %s[%d]", strerror(errno), errno);
         return SW_ERR;
     }
+    SwooleAIO.task_num++;
     return SW_OK;
 }
 

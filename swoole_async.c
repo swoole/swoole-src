@@ -142,6 +142,15 @@ static void php_swoole_aio_onComplete(swAio_event *event)
         args[0] = &file_req->filename;
         args[1] = &zwriten;
         ZVAL_LONG(zwriten, ret);
+
+        if (SwooleAIO.mode == SW_AIO_LINUX)
+        {
+            free(event->buf);
+        }
+        else
+        {
+            efree(event->buf);
+        }
     }
 	else if(event->type == SW_AIO_DNS_LOOKUP)
 	{
@@ -192,20 +201,20 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 			}
 			close(event->fd);
 			//remove from hashtable
-			//zend_hash_del(&php_sw_aio_callback, (char *)&(event->fd), sizeof(event->fd));
+			zend_hash_del(&php_sw_aio_callback, (char *)&(event->fd), sizeof(event->fd));
 		}
 		else if(file_req->type == SW_AIO_WRITE)
 		{
 			if (retval != NULL && !Z_BVAL_P(retval))
 			{
 				swHashMap_del(php_swoole_open_files, Z_STRVAL_P(file_req->filename), Z_STRLEN_P(file_req->filename));
+				goto close_file;
 			}
 		}
         else
         {
             if (!Z_BVAL_P(retval) || isEOF)
             {
-
                 goto close_file;
             }
             else if (SwooleAIO.read(event->fd, event->buf, event->nbytes, file_req->offset) < 0)
@@ -625,11 +634,11 @@ PHP_FUNCTION(swoole_async_dns_lookup)
 	}
 #endif
 
-	if (Z_STRLEN_P(domain) == 0)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async_dns_lookup: domain name empty.");
-		RETURN_FALSE;
-	}
+    if (Z_STRLEN_P(domain) == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async_dns_lookup: domain name empty.");
+        RETURN_FALSE;
+    }
 
 	swoole_async_dns_request *req = emalloc(sizeof(swoole_async_dns_request));
 	req->callback = cb;
