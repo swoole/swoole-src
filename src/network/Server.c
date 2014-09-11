@@ -1024,7 +1024,7 @@ static void swServer_signal_hanlder(int sig)
         swTimer_signal_handler(SIGALRM);
         break;
     case SIGCHLD:
-        if (waitpid(SwooleGS->manager_pid, &status, 0) >= 0)
+        if (waitpid(SwooleGS->manager_pid, &status, 0) >= 0 && SwooleG.running > 0)
         {
             swWarn("Fatal Error: manager process exit. status=%d, signal=%d.", WEXITSTATUS(status), WTERMSIG(status));
         }

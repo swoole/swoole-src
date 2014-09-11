@@ -1227,6 +1227,17 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     //main loop
     reactor->wait(reactor, &timeo);
     //shutdown
+    if (serv->ipc_mode != SW_IPC_MSGQUEUE)
+    {
+        int j;
+        for (j = 0; j < serv->worker_num; j++)
+        {
+            swWorker *worker = swServer_get_worker(serv, i);
+            swBuffer *buffer = *(swBuffer **) swArray_fetch(thread->buffer_pipe, worker->pipe_master);
+            swBuffer_free(buffer);
+        }
+        swArray_free(thread->buffer_pipe);
+    }
     reactor->free(reactor);
     pthread_exit(0);
     return SW_OK;
@@ -1535,7 +1546,7 @@ static int swReactorThread_loop_unix_dgram(swThreadParam *param)
 
 void swReactorThread_free(swServer *serv)
 {
-    int i, j;
+    int i;
     swReactorThread *thread;
 
     if (SwooleGS->start == 0)
@@ -1553,15 +1564,6 @@ void swReactorThread_free(swServer *serv)
             {
                 swWarn("pthread_join() failed. Error: %s[%d]", strerror(errno), errno);
             }
-
-            for (j = 0; j < serv->worker_num; j++)
-            {
-                swWorker *worker = swServer_get_worker(serv, i);
-                swBuffer *buffer = *(swBuffer **) swArray_fetch(thread->buffer_pipe, worker->pipe_master);
-                swBuffer_free(buffer);
-            }
-            swArray_free(thread->buffer_pipe);
-
 #ifdef SW_USE_RINGBUFFER
             thread->buffer_input->destroy(thread->buffer_input);
 #endif

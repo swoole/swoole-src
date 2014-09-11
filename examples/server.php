@@ -8,7 +8,7 @@ $serv->set(array(
     'ipc_mode' => 2,
     //'task_worker_num' => 2,
     //'task_ipc_mode' => 1,
-    'dispatch_mode' => 1,
+    //'dispatch_mode' => 1,
     //'daemonize' => 1,
     //'log_file' => '/tmp/swoole.log',
     //'heartbeat_check_interval' => 10,
@@ -39,13 +39,13 @@ function my_onTimer($serv, $interval)
 
 function my_onClose($serv, $fd, $from_id)
 {
-    //my_log("Client[$fd@$from_id]: fd=$fd is closed");
+    my_log("Worker#{$serv->worker_pid} Client[$fd@$from_id]: fd=$fd is closed");
 }
 
 function my_onConnect($serv, $fd, $from_id)
 {
     //throw new Exception("hello world");
-    //echo "Client[$fd@$from_id]: Connect.\n";
+    echo "Worker#{$serv->worker_pid} Client[$fd@$from_id]: Connect.\n";
 }
 
 function my_onWorkerStart($serv, $worker_id)
@@ -74,7 +74,7 @@ function my_onWorkerStop($serv, $worker_id)
 
 function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 {
-    //my_log("received: $data");
+    my_log("Worker#{$serv->worker_pid} Client[$fd@$from_id]: received: $data");
     $cmd = trim($data);
     if($cmd == "reload")
     {
