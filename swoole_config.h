@@ -30,8 +30,6 @@
 #define SW_MAX_REQUEST             5000          //最大请求包数
 #define SW_UNSOCK_BUFSIZE          (8*1024*1024)  //UDP socket的buffer区大小
 
-#define SW_WORKER_IPC_MODE  2
-
 //#define SW_CONNECTION_LIST_EXPAND  (4096*2)  //动态扩容的数量
 
 //#define SW_DEBUG                  //debug

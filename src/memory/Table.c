@@ -102,15 +102,18 @@ int swTable_create(swTable *table)
     uint32_t row_num = table->size * (1 + SW_TABLE_CONFLICT_PROPORTION);
     uint32_t row_memory_size = sizeof(swTableRow) + table->item_size;
 
-    size_t memory_size = row_num * row_memory_size;
+    size_t memory_size = (row_num * row_memory_size) + (table->size * sizeof(swTableRow *));
     void *memory = sw_shm_malloc(memory_size);
 
     if (memory == NULL)
     {
         return SW_ERR;
     }
+
+    memset(memory, 0, memory_size);
     table->memory = memory;
     table->rows = memory;
+    memory += table->size * sizeof(swTableRow *);
 
     int i;
     for (i = 0; i < table->size; i++)
@@ -134,6 +137,7 @@ static sw_inline swTableRow* swTable_hash(swTable *table, char *key, int keylen)
 {
     uint64_t hashv = swoole_hash_austin(key, keylen);
     uint32_t index = hashv & (table->size - 1);
+    assert(index < table->size);
     return table->rows[index];
 }
 

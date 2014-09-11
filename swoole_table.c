@@ -231,6 +231,7 @@ PHP_METHOD(swoole_table, set)
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to allocate memory.");
         RETURN_FALSE;
     }
+
     swTableColumn *col;
     zval *v;
     char *k;
@@ -265,6 +266,8 @@ PHP_METHOD(swoole_table, set)
             swTableRow_set_value(row, col, &Z_LVAL_P(v), 0);
         }
     } while (p);
+
+    RETURN_TRUE;
 }
 
 PHP_METHOD(swoole_table, get)

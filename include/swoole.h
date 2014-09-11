@@ -469,7 +469,6 @@ typedef struct _swSem
 typedef struct _swLock
 {
 	int type;
-
     union
     {
         swMutex mutex;
@@ -601,50 +600,48 @@ uint32_t swoole_common_divisor(uint32_t u, uint32_t v);
 
 static sw_inline uint32_t swoole_unpack(char type, void *data)
 {
-	{
-		int64_t tmp;
+    int64_t tmp;
 
-		switch(type)
-		{
-		/*-------------------------16bit-----------------------------*/
-		/**
-		 * signed short (always 16 bit, machine byte order)
-		 */
-		case 's':
-			return *((int16_t *) data);
-		/**
-		 * unsigned short (always 16 bit, machine byte order)
-		 */
-		case 'S':
-			return *((uint16_t *) data);
-		/**
-		 * unsigned short (always 16 bit, big endian byte order)
-		 */
-		case 'n':
-			return ntohs(*((uint16_t *) data));
+    switch(type)
+    {
+    /*-------------------------16bit-----------------------------*/
+    /**
+     * signed short (always 16 bit, machine byte order)
+     */
+    case 's':
+        return *((int16_t *) data);
+    /**
+     * unsigned short (always 16 bit, machine byte order)
+     */
+    case 'S':
+        return *((uint16_t *) data);
+    /**
+     * unsigned short (always 16 bit, big endian byte order)
+     */
+    case 'n':
+        return ntohs(*((uint16_t *) data));
 
-		/*-------------------------32bit-----------------------------*/
-		/**
-		 * unsigned long (always 32 bit, big endian byte order)
-		 */
-		case 'N':
-			tmp = *((uint32_t *) data);
-			return ntohl(tmp);
-		/**
-		 * unsigned long (always 32 bit, machine byte order)
-		 */
-		case 'L':
-			return *((uint32_t *) data);
-		/**
-		 * signed long (always 32 bit, machine byte order)
-		 */
-		case 'l':
-			return *((int *) data);
+    /*-------------------------32bit-----------------------------*/
+    /**
+     * unsigned long (always 32 bit, big endian byte order)
+     */
+    case 'N':
+        tmp = *((uint32_t *) data);
+        return ntohl(tmp);
+    /**
+     * unsigned long (always 32 bit, machine byte order)
+     */
+    case 'L':
+        return *((uint32_t *) data);
+    /**
+     * signed long (always 32 bit, machine byte order)
+     */
+    case 'l':
+        return *((int *) data);
 
-		default:
-			return *((uint32_t *) data);
-		}
-	}
+    default:
+        return *((uint32_t *) data);
+    }
 }
 
 void swoole_dump_bin(char *data, char type, int size);
