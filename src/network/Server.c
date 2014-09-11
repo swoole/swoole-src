@@ -238,17 +238,17 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 			close(new_fd);
 			return SW_OK;
 		}
-		else
-		{
-			if (serv->onConnect != NULL)
-			{
-				serv->factory.notify(&serv->factory, &connEv);
-			}
-		}
+        else
+        {
+            if (serv->onConnect != NULL)
+            {
+                serv->factory.notify(&serv->factory, &connEv);
+            }
+        }
 #ifdef SW_ACCEPT_AGAIN
-		continue;
+        continue;
 #else
-		break;
+        break;
 #endif
 	}
 	return SW_OK;
@@ -418,12 +418,25 @@ static int swServer_start_proxy(swServer *serv)
 		swWarn("Reactor create failed");
 		return SW_ERR;
 	}
+
+	/**
+	 * create reactor thread
+	 */
 	ret = swReactorThread_start(serv, main_reactor);
 	if (ret < 0)
 	{
 		swWarn("ReactorThread start failed");
 		return SW_ERR;
 	}
+
+	/**
+     * master thread loop
+     */
+	SwooleTG.type = SW_THREAD_MASTER;
+	SwooleTG.factory_target_worker = -1;
+	SwooleTG.factory_lock_target = 0;
+	SwooleTG.id = 0;
+
 	SwooleG.main_reactor = main_reactor;
 	main_reactor->id = serv->reactor_num; //设为一个特别的ID
 	main_reactor->ptr = serv;
@@ -438,6 +451,7 @@ static int swServer_start_proxy(swServer *serv)
 		swSignalfd_setup(main_reactor);
 	}
 #endif
+
 	//SW_START_SLEEP;
 	if (serv->onStart != NULL)
 	{
@@ -447,7 +461,6 @@ static int swServer_start_proxy(swServer *serv)
 	tmo.tv_sec = SW_MAINREACTOR_TIMEO;
 	tmo.tv_usec = 0;
 
-	//先更新一次时间
 	swServer_update_time();
 
 	return main_reactor->wait(main_reactor, &tmo);
@@ -1047,7 +1060,7 @@ static void swServer_signal_hanlder(int sig)
         }
         else
         {
-            kill(SwooleGS->manager_pid, SIGUSR1);
+            kill(SwooleGS->manager_pid, sig);
         }
         break;
     default:

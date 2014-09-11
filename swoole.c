@@ -1078,12 +1078,12 @@ PHP_FUNCTION(swoole_server_set)
         if (serv->heartbeat_check_interval > serv->heartbeat_idle_time)
         {
             php_error_docref(NULL TSRMLS_CC, E_WARNING, "heartbeat_idle_time must be greater than heartbeat_check_interval.");
-            serv->heartbeat_check_interval = serv->heartbeat_idle_time;
+            serv->heartbeat_check_interval = serv->heartbeat_idle_time / 2;
         }
     }
     else if (serv->heartbeat_check_interval > 0)
     {
-        serv->heartbeat_idle_time = serv->heartbeat_check_interval;
+        serv->heartbeat_idle_time = serv->heartbeat_check_interval * 2;
     }
 	//heartbeat_ping
 	if (zend_hash_find(vht, ZEND_STRS("heartbeat_ping"), (void **) &v) == SUCCESS)

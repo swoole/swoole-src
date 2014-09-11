@@ -918,6 +918,7 @@ void swChannel_free(swChannel *object);
 /*----------------------------Thread Pool-------------------------------*/
 enum swThread_type
 {
+    SW_THREAD_MASTER = 1,
     SW_THREAD_REACTOR,
     SW_THREAD_WRITER,
     SW_THREAD_UDP,

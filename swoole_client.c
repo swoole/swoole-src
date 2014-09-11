@@ -350,9 +350,9 @@ static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event)
 	{
 		out_buffer = cli->connection.out_buffer;
 
-		do
-		{
-		    swBuffer_trunk *trunk = swBuffer_get_trunk(out_buffer);
+        while (!swBuffer_empty(out_buffer))
+        {
+            swBuffer_trunk *trunk = swBuffer_get_trunk(out_buffer);
 		    if (trunk->type == SW_TRUNK_SENDFILE)
 		    {
 		        swTask_sendfile *task = trunk->store.ptr;
@@ -403,8 +403,8 @@ static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event)
                     return SW_OK;
                 }
 		    }
-		} while (!swBuffer_empty(out_buffer));
-
+		}
+        //remove write event
 		SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, cli->reactor_fdtype | SW_EVENT_READ);
 	}
 	else
