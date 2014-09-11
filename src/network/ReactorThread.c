@@ -1177,8 +1177,7 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_WRITE, swReactorThread_onPipeWrite);
     reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_WRITE, swReactorThread_onWrite);
 
-    int i;
-
+    int i = 0;
     if (serv->ipc_mode != SW_IPC_MSGQUEUE)
     {
         thread->buffer_pipe = swArray_new(serv->workers[serv->worker_num - 1].pipe_master + 1, sizeof(void*), 0);
@@ -1229,8 +1228,7 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     //shutdown
     if (serv->ipc_mode != SW_IPC_MSGQUEUE)
     {
-        int j;
-        for (j = 0; j < serv->worker_num; j++)
+        for (i = 0; i < serv->worker_num; i++)
         {
             swWorker *worker = swServer_get_worker(serv, i);
             swBuffer *buffer = *(swBuffer **) swArray_fetch(thread->buffer_pipe, worker->pipe_master);
