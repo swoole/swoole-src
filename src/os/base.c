@@ -155,7 +155,7 @@ int swAioBase_init(int max_aio_events)
     }
     if (SwooleAIO.thread_num <= 0)
     {
-        SwooleAIO.thread_num = SW_AIO_THREAD_NUM;
+        SwooleAIO.thread_num = SW_AIO_THREAD_NUM_DEFAULT;
     }
     if (swThreadPool_create(&swAioBase_thread_pool, SwooleAIO.thread_num) < 0)
     {

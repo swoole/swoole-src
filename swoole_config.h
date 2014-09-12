@@ -66,11 +66,12 @@
 #define HAVE_LINUX_AIO
 #endif
 
-#define SW_AIO_THREAD_POOL
-#define SW_AIO_THREAD_NUM          2
-#define SW_AIO_MAX_FILESIZE        4194304
-#define SW_AIO_EVENT_NUM           128
+#define SW_AIO_THREAD_NUM_DEFAULT        2
+#define SW_AIO_THREAD_NUM_MAX            32
+#define SW_AIO_MAX_FILESIZE              4194304  //4M
+#define SW_AIO_EVENT_NUM                 128
 //#define SW_AIO_THREAD_USE_CHANNEL
+#define SW_AIO_MAX_EVENTS                128
 //#define SW_THREADPOOL_USE_CHANNEL
 #define SW_THREADPOOL_QUEUE_LEN    100
 #define SW_IP_MAX_LENGTH           32
@@ -130,8 +131,6 @@
 
 //#define SW_USE_EPOLLET
 #define SW_USE_EVENTFD                   //是否使用eventfd来做消息通知，需要Linux 2.6.22以上版本才会支持
-
-#define SW_AIO_MAX_EVENTS                128
 
 #define SW_TASK_TMP_FILE                 "/tmp/swoole/task.XXXXXX"
 #define SW_FILE_CHUNK_SIZE               65536

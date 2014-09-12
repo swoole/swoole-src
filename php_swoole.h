@@ -287,9 +287,7 @@ void php_swoole_check_reactor();
 void php_swoole_try_run_reactor();
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
-	uint16_t task_worker_num;
-	uint8_t task_ipc_mode;
-	uint8_t task_auto_start;
+	uint16_t aio_thread_num;
 	key_t message_queue_key;
 	uint32_t unixsock_buffer_size;
 ZEND_END_MODULE_GLOBALS(swoole)

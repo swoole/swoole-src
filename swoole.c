@@ -467,9 +467,7 @@ ZEND_GET_MODULE(swoole)
  */
 
 PHP_INI_BEGIN()
-STD_PHP_INI_ENTRY("swoole.task_worker_num", "0", PHP_INI_ALL, OnUpdateLong, task_worker_num, zend_swoole_globals, swoole_globals)
-STD_PHP_INI_ENTRY("swoole.task_ipc_mode", "0", PHP_INI_ALL, OnUpdateString, task_ipc_mode, zend_swoole_globals, swoole_globals)
-STD_PHP_INI_ENTRY("swoole.task_auto_start", "0", PHP_INI_ALL, OnUpdateString, task_auto_start, zend_swoole_globals, swoole_globals)
+STD_PHP_INI_ENTRY("swoole.aio_thread_num", "2", PHP_INI_ALL, OnUpdateLong, aio_thread_num, zend_swoole_globals, swoole_globals)
 STD_PHP_INI_ENTRY("swoole.message_queue_key", "0", PHP_INI_ALL, OnUpdateString, message_queue_key, zend_swoole_globals, swoole_globals)
 /**
  * Unix socket buffer size
@@ -479,9 +477,9 @@ PHP_INI_END()
 
 static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
 {
-	swoole_globals->task_worker_num = 0;
-	swoole_globals->task_ipc_mode = 0;
-	swoole_globals->unixsock_buffer_size = SW_UNSOCK_BUFSIZE;
+    swoole_globals->message_queue_key = 0;
+    swoole_globals->aio_thread_num = SW_AIO_THREAD_NUM_DEFAULT;
+    swoole_globals->unixsock_buffer_size = SW_UNSOCK_BUFSIZE;
 }
 
 /* {{{ PHP_MINIT_FUNCTION
@@ -575,10 +573,18 @@ PHP_MINIT_FUNCTION(swoole)
 	swoole_async_init(module_number TSRMLS_CC);
 	swoole_table_init(module_number TSRMLS_CC);
 
-	if (SWOOLE_G(unixsock_buffer_size) > 0)
-	{
-		SwooleG.unixsock_buffer_size = SWOOLE_G(unixsock_buffer_size);
-	}
+    if (SWOOLE_G(unixsock_buffer_size) > 0)
+    {
+        SwooleG.unixsock_buffer_size = SWOOLE_G(unixsock_buffer_size);
+    }
+    if (SWOOLE_G(aio_thread_num) > 0)
+    {
+        if (SWOOLE_G(aio_thread_num) > SW_AIO_THREAD_NUM_MAX)
+        {
+            SWOOLE_G(aio_thread_num) = SW_AIO_THREAD_NUM_MAX;
+        }
+        SwooleAIO.thread_num = SWOOLE_G(aio_thread_num);
+    }
 	return SUCCESS;
 }
 /* }}} */
@@ -614,13 +620,16 @@ PHP_MINFO_FUNCTION(swoole)
 	php_info_print_table_row(2, "epoll", "enabled");
 #endif
 #ifdef HAVE_EVENTFD
-    php_info_print_table_row(2, "event_fd", "enabled");
+    php_info_print_table_row(2, "eventfd", "enabled");
 #endif
 #ifdef HAVE_KQUEUE
     php_info_print_table_row(2, "kqueue", "enabled");
 #endif
 #ifdef HAVE_TIMERFD
     php_info_print_table_row(2, "timerfd", "enabled");
+#endif
+#ifdef HAVE_SIGNALFD
+    php_info_print_table_row(2, "signalfd", "enabled");
 #endif
 #ifdef SW_USE_ACCEPT4
     php_info_print_table_row(2, "accept4", "enabled");
@@ -630,6 +639,9 @@ PHP_MINFO_FUNCTION(swoole)
 #endif
 #ifdef HAVE_SPINLOCK
     php_info_print_table_row(2, "spinlock", "enabled");
+#endif
+#ifdef HAVE_RWLOCK
+    php_info_print_table_row(2, "rwlock", "enabled");
 #endif
 #ifdef SW_ASYNC_MYSQL
     php_info_print_table_row(2, "async mysql", "enabled");
