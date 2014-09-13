@@ -143,13 +143,16 @@ static void php_swoole_aio_onComplete(swAio_event *event)
         args[1] = &zwriten;
         ZVAL_LONG(zwriten, ret);
 
-        if (SwooleAIO.mode == SW_AIO_LINUX)
+        if (file_req->once != 1)
         {
-            free(event->buf);
-        }
-        else
-        {
-            efree(event->buf);
+            if (SwooleAIO.mode == SW_AIO_LINUX)
+            {
+                free(event->buf);
+            }
+            else
+            {
+                efree(event->buf);
+            }
         }
     }
 	else if(event->type == SW_AIO_DNS_LOOKUP)
@@ -393,7 +396,6 @@ PHP_FUNCTION(swoole_async_write)
 		{
 			Z_ADDREF_PP(&cb);
 		}
-		Z_ADDREF_PP(&filename);
 
 		if (zend_hash_update(&php_sw_aio_callback, (char *)&fd, sizeof(fd), (void **) &new_req, sizeof(new_req), (void **) &req) == FAILURE)
 		{
@@ -588,7 +590,7 @@ PHP_FUNCTION(swoole_async_writefile)
 
 	memcpy(wt_cnt, fcnt, fcnt_len);
 	php_swoole_check_aio();
-	SW_CHECK_RETURN(SwooleAIO.read(fd, wt_cnt, fcnt_len, 0));
+	SW_CHECK_RETURN(SwooleAIO.write(fd, wt_cnt, fcnt_len, 0));
 }
 
 PHP_FUNCTION(swoole_async_set)
