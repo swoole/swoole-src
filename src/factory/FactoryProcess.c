@@ -284,7 +284,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 	if (SwooleG.task_worker_num > 0)
 	{
 		key_t msgqueue_key = 0;
-		if (SwooleG.task_ipc_mode > 0)
+		if (SwooleG.task_ipc_mode == SW_IPC_MSGQUEUE)
 		{
 			msgqueue_key =  serv->message_queue_key + 2;
 		}

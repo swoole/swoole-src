@@ -25,39 +25,44 @@ static void swProcessPool_free(swProcessPool *pool);
 int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, key_t msgqueue_key)
 {
 	bzero(pool, sizeof(swProcessPool));
+
+	pool->worker_num = worker_num;
+	pool->max_request = max_request;
+
+	if (msgqueue_key > 0) {
+	    pool->use_msgqueue = 1;
+	    pool->msgqueue_key = msgqueue_key;
+	}
+
 	pool->workers = sw_calloc(worker_num, sizeof(swWorker));
-	if (pool->workers == NULL)
+    if (pool->workers == NULL)
     {
         swWarn("malloc[1] failed.");
         return SW_ERR;
     }
 
-	pool->worker_num = worker_num;
-	pool->max_request = max_request;
-
-	pool->pipes = sw_calloc(worker_num, sizeof(swPipe));
-	if (pool->pipes == NULL)
-	{
-		swWarn("malloc[2] failed.");
-		sw_free(pool->workers);
-		return SW_ERR;
-	}
-
 	pool->map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
-	if (pool->map == NULL)
-	{
-	    return SW_ERR;
-	}
+    if (pool->map == NULL)
+    {
+        sw_free(pool->workers);
+        return SW_ERR;
+    }
 
 	int i;
-	if (msgqueue_key > 0)
+	if (pool->use_msgqueue)
 	{
-		if (swQueueMsg_create(&pool->queue, 1, msgqueue_key, 1) < 0)
+	    pool->pipes = sw_calloc(worker_num, sizeof(swPipe));
+        if (pool->pipes == NULL)
+        {
+            swWarn("malloc[2] failed.");
+            sw_free(pool->workers);
+            return SW_ERR;
+        }
+
+		if (swQueueMsg_create(&pool->queue, 1, pool->msgqueue_key, 1) < 0)
 		{
 			return SW_ERR;
 		}
-		pool->use_msgqueue = 1;
-		pool->msgqueue_key = msgqueue_key;
 	}
 	else
 	{
@@ -246,7 +251,7 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
 	 */
 	out.buf.info.from_fd = worker->id;
 
-	if (SwooleG.task_ipc_mode > 1)
+	if (SwooleG.task_ipc_mode == SW_IPC_MSGQUEUE)
 	{
 		out.mtype = worker->id + 1;
 	}
