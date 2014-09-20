@@ -251,7 +251,7 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
      */
     out.buf.info.from_fd = worker->id;
 
-    if (SwooleG.task_ipc_mode == SW_IPC_MSGQUEUE)
+    if (SwooleG.task_ipc_mode == 2)
     {
         out.mtype = worker->id + 1;
     }
