@@ -530,6 +530,45 @@ typedef struct _swMemoryPool
 	void (*destroy)(struct _swMemoryPool *pool);
 } swMemoryPool;
 
+
+typedef struct _swFixedPool_slice
+{
+    uint8_t lock;
+    struct _swFixedPool_slice *next;
+    struct _swFixedPool_slice *pre;
+    char data[0];
+
+} swFixedPool_slice;
+
+typedef struct _swFixedPool
+{
+    void *memory;
+    size_t size;
+
+    swFixedPool_slice *head;
+    swFixedPool_slice *tail;
+
+    /**
+     * total memory size
+     */
+    uint32_t slice_num;
+
+    /**
+     * memory usage
+     */
+    uint32_t slice_use;
+
+    /**
+     * Fixed slice size, not include the memory used by swFixedPool_slice
+     */
+    uint32_t slice_size;
+
+    /**
+     * use shared memory
+     */
+    uint8_t shared;
+
+} swFixedPool;
 /**
  * FixedPool, random alloc/free fixed size memory
  */

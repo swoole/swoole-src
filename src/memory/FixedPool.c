@@ -1,44 +1,5 @@
 #include "swoole.h"
 
-typedef struct _swFixedPool_slice
-{
-	uint8_t lock;
-	struct _swFixedPool_slice *next;
-	struct _swFixedPool_slice *pre;
-	char data[0];
-
-} swFixedPool_slice;
-
-typedef struct _swFixedPool
-{
-	void *memory;
-	size_t size;
-
-	swFixedPool_slice *head;
-	swFixedPool_slice *tail;
-
-	/**
-	 * total memory size
-	 */
-	uint32_t slice_num;
-
-	/**
-	 * memory usage
-	 */
-	uint32_t slice_use;
-
-	/**
-	 * Fixed slice size
-	 */
-	uint32_t slice_size;
-
-	/**
-	 * use shared memory
-	 */
-	uint8_t shared;
-
-} swFixedPool;
-
 static void swFixedPool_init(swFixedPool *object);
 static void* swFixedPool_alloc(swMemoryPool *pool, uint32_t size);
 static void swFixedPool_free(swMemoryPool *pool, void *ptr);
@@ -51,7 +12,7 @@ void swFixedPool_debug_slice(swFixedPool_slice *slice);
  */
 swMemoryPool* swFixedPool_new(uint32_t slice_num, uint32_t slice_size, uint8_t shared)
 {
-	size_t size = slice_size * slice_num;
+	size_t size = slice_size * slice_num + slice_num * sizeof(swFixedPool_slice);
 	size_t alloc_size = size + sizeof(swFixedPool) + sizeof(swMemoryPool);
 	void *memory = (shared == 1) ? sw_shm_malloc(alloc_size) : sw_malloc(alloc_size);
 
@@ -92,7 +53,7 @@ swMemoryPool* swFixedPool_new2(uint32_t slice_size, void *memory, size_t size)
 
     object->slice_size = slice_size;
     object->size = size - sizeof(swMemoryPool) - sizeof(swFixedPool);
-    object->slice_num = object->size / slice_size;
+    object->slice_num = object->size / (slice_size + sizeof(swFixedPool_slice));
 
     swMemoryPool *pool = memory;
     memory += sizeof(swMemoryPool);
@@ -121,7 +82,6 @@ static void swFixedPool_init(swFixedPool *object)
 	swFixedPool_slice *slice;
 	void *cur = object->memory;
 	void *max = object->memory + object->size;
-
 	do
 	{
 		slice = (swFixedPool_slice *) cur;

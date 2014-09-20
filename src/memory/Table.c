@@ -48,6 +48,7 @@ swTable* swTable_new(uint32_t rows_size)
     }
     table->size = rows_size;
     bzero(table->iterator, sizeof(swTable_iterator));
+    table->memory = NULL;
     return table;
 }
 
@@ -102,7 +103,9 @@ int swTable_create(swTable *table)
     uint32_t row_num = table->size * (1 + SW_TABLE_CONFLICT_PROPORTION);
     uint32_t row_memory_size = sizeof(swTableRow) + table->item_size;
 
-    size_t memory_size = (row_num * row_memory_size) + (table->size * sizeof(swTableRow *));
+    size_t memory_size = (row_num * row_memory_size) + (table->size * sizeof(swTableRow *))
+        + sizeof(swMemoryPool) + sizeof(swFixedPool) + ((row_num - table->size) * sizeof(swFixedPool_slice));
+
     void *memory = sw_shm_malloc(memory_size);
 
     if (memory == NULL)
@@ -114,6 +117,7 @@ int swTable_create(swTable *table)
     table->memory = memory;
     table->rows = memory;
     memory += table->size * sizeof(swTableRow *);
+    memory_size -= table->size * sizeof(swTableRow *);
 
     int i;
     for (i = 0; i < table->size; i++)
@@ -130,7 +134,9 @@ void swTable_free(swTable *table)
 {
     swHashMap_free(table->columns);
     sw_free(table->iterator);
-    sw_shm_free(table->memory);
+    if (table->memory) {
+        sw_shm_free(table->memory);
+    }
 }
 
 static sw_inline swTableRow* swTable_hash(swTable *table, char *key, int keylen)
@@ -386,7 +392,11 @@ int swTableRow_del(swTable *table, char *key, int keylen)
 #endif
     }
 
-    sw_atomic_fetch_sub(&(table->row_num), 1);
+    if (row->active)
+    {
+        sw_atomic_fetch_sub(&(table->row_num), 1);
+    }
+
     row->active = 0;
     sw_spinlock_release(&row->lock);
     return SW_OK;
