@@ -134,7 +134,8 @@ void swTable_free(swTable *table)
 {
     swHashMap_free(table->columns);
     sw_free(table->iterator);
-    if (table->memory) {
+    if (table->memory)
+    {
         sw_shm_free(table->memory);
     }
 }
