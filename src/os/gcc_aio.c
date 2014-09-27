@@ -48,8 +48,8 @@ int swAioGcc_init(int max_aio_events)
     swAioGcc_pipe_read = swoole_aio_pipe.getFd(&swoole_aio_pipe, 0);
     swAioGcc_pipe_write = swoole_aio_pipe.getFd(&swoole_aio_pipe, 1);
 
-    SwooleAIO.reactor->setHandle(SwooleAIO.reactor, SW_FD_AIO, swAioGcc_onFinish);
-    SwooleAIO.reactor->add(SwooleAIO.reactor, swAioGcc_pipe_read, SW_FD_AIO);
+    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_AIO, swAioGcc_onFinish);
+    SwooleG.main_reactor->add(SwooleG.main_reactor, swAioGcc_pipe_read, SW_FD_AIO);
 
     SwooleAIO.callback = swAio_callback_test;
     SwooleAIO.read = swAioGcc_aio_read;

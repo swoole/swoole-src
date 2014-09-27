@@ -497,10 +497,6 @@ static void php_swoole_check_eventloop(swReactor *reactor)
     {
         SwooleG.running = 0;
     }
-    else if (reactor->event_num == 1 && SwooleAIO.task_num == 0)
-    {
-        SwooleG.running = 0;
-    }
 }
 
 void php_swoole_check_reactor()

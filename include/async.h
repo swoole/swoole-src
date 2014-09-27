@@ -49,8 +49,6 @@ typedef struct
     uint8_t thread_num;
     uint32_t task_num;
 
-    swReactor *reactor;
-
     void (*destroy)(void);
     void (*callback)(swAio_event *aio_event);
     int (*read)(int fd, void *outbuf, size_t size, off_t offset);

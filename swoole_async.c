@@ -246,6 +246,10 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 	{
 		zval_ptr_dtor(&retval);
 	}
+    if (php_sw_in_client && SwooleG.main_reactor->event_num == 1 && SwooleAIO.task_num == 0)
+    {
+        SwooleG.running = 0;
+    }
 }
 
 PHP_FUNCTION(swoole_async_read)

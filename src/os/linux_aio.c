@@ -66,8 +66,8 @@ int swAioLinux_init(int max_aio_events)
     }
 
     swoole_aio_eventfd = swoole_aio_pipe.getFd(&swoole_aio_pipe, 0);
-    SwooleAIO.reactor->setHandle(SwooleAIO.reactor, SW_FD_AIO, swAioLinux_onFinish);
-    SwooleAIO.reactor->add(SwooleAIO.reactor, swoole_aio_eventfd, SW_FD_AIO);
+    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_AIO, swAioLinux_onFinish);
+    SwooleG.main_reactor->add(SwooleG.main_reactor, swoole_aio_eventfd, SW_FD_AIO);
 
     SwooleAIO.callback = swAio_callback_test;
     SwooleAIO.destroy = swAioLinux_destroy;
