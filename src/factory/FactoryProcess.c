@@ -311,12 +311,21 @@ static int swFactoryProcess_manager_start(swFactory *factory)
         SwooleG.task_workers.onWorkerStart = swTaskWorker_onWorkerStart;
         SwooleG.task_workers.onWorkerStop = swTaskWorker_onWorkerStop;
     }
+
     pid = fork();
     switch (pid)
     {
     //创建manager进程
     case 0:
-        //创建子进程
+        //wait master process
+        SW_START_SLEEP();
+        if (SwooleGS->start == 0)
+        {
+            return SW_OK;
+        }
+        /**
+         * create worker process
+         */
         for (i = 0; i < serv->worker_num; i++)
         {
             //close(worker_pipes[i].pipes[0]);
@@ -325,7 +334,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
             pid = swFactoryProcess_worker_spawn(factory, i);
             if (pid < 0)
             {
-                swError("Fork worker process fail");
+                swError("fork() failed.");
                 return SW_ERR;
             }
             else
@@ -333,8 +342,9 @@ static int swFactoryProcess_manager_start(swFactory *factory)
                 serv->workers[i].pid = pid;
             }
         }
+
         /**
-         * create task worker pool
+         * create task worker process
          */
         if (SwooleG.task_worker_num > 0)
         {
@@ -401,7 +411,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
     reload_workers = sw_calloc(reload_worker_num, sizeof(swWorker));
     if (reload_workers == NULL)
     {
-        swError("[manager] malloc[reload_workers] failed");
+        swError("malloc[reload_workers] failed");
         return SW_ERR;
     }
 
@@ -417,7 +427,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
         {
             if (ManagerProcess.worker_reloading == 0)
             {
-                swTrace("[Manager] wait failed. Error: %s [%d]", strerror(errno), errno);
+                swTrace("wait() failed. Error: %s [%d]", strerror(errno), errno);
             }
             else if (ManagerProcess.reload_flag == 0)
             {

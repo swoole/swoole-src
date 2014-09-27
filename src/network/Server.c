@@ -468,21 +468,21 @@ static int swServer_start_proxy(swServer *serv)
 
 int swServer_start(swServer *serv)
 {
-	swFactory *factory = &serv->factory;
-	int ret;
+    swFactory *factory = &serv->factory;
+    int ret;
 
-	ret = swServer_start_check(serv);
-	if (ret < 0)
-	{
-		return SW_ERR;
-	}
+    ret = swServer_start_check(serv);
+    if (ret < 0)
+    {
+        return SW_ERR;
+    }
 
-	if (serv->message_queue_key == 0)
-	{
-		char path_buf[128];
-		char *path_ptr = getcwd(path_buf, 128);
-		serv->message_queue_key = ftok(path_ptr, 1) + getpid();
-	}
+    if (serv->message_queue_key == 0)
+    {
+        char path_buf[128];
+        char *path_ptr = getcwd(path_buf, 128);
+        serv->message_queue_key = ftok(path_ptr, 1) + getpid();
+    }
 
     if (serv->ipc_mode == SW_IPC_MSGQUEUE)
     {
