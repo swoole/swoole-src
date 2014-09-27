@@ -2363,7 +2363,6 @@ PHP_FUNCTION(swoole_server_start)
 	//-------------------------------------------------------------
 	serv->onReceive = php_swoole_onReceive;
 
-	zval_add_ref(&zobject);
 	serv->ptr2 = zobject;
 
 	ret = swServer_create(serv);

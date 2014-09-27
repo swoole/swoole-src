@@ -51,6 +51,13 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
     int i;
     if (pool->use_msgqueue)
     {
+        if (swQueueMsg_create(&pool->queue, 1, pool->msgqueue_key, 1) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+    else
+    {
         pool->pipes = sw_calloc(worker_num, sizeof(swPipe));
         if (pool->pipes == NULL)
         {
@@ -59,13 +66,6 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
             return SW_ERR;
         }
 
-        if (swQueueMsg_create(&pool->queue, 1, pool->msgqueue_key, 1) < 0)
-        {
-            return SW_ERR;
-        }
-    }
-    else
-    {
         swPipe *pipe;
         for (i = 0; i < worker_num; i++)
         {
