@@ -318,7 +318,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
     //创建manager进程
     case 0:
         //wait master process
-        SW_START_SLEEP();
+        SW_START_SLEEP;
         if (SwooleGS->start == 0)
         {
             return SW_OK;
