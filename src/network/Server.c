@@ -385,6 +385,34 @@ static int swServer_start_check(swServer *serv)
 	    swWarn("serv->max_conn is exceed the maximum value[%d].", SwooleG.max_sockets);
 	    serv->max_connection = SwooleG.max_sockets;
 	}
+
+
+#ifdef __MACH__
+
+#include <sys/sysctl.h>
+
+	if (serv->ipc_mode == SW_IPC_UNSOCK || (SwooleG.task_ipc_mode == SW_IPC_UNSOCK && SwooleG.task_worker_num > 0))
+	{
+		int maxdgram = 0, recvspace = 0;
+		size_t size;
+
+		size = sizeof(maxdgram);
+		sysctlbyname("net.local.dgram.maxdgram", &maxdgram, &size, NULL, 0);
+
+		size = sizeof(recvspace);
+		sysctlbyname("net.local.dgram.recvspace", &recvspace, &size, NULL, 0);
+
+		if (maxdgram < 8192 || recvspace < 8192)
+		{
+			swWarn("swoole requires both the 'net.local.dgram.maxdgram' and 'net.local.dgram.recvspace' system configuration "
+					"at least 8192 bytes to work properly, please tune this using sysctl before start server.");
+			return SW_ERR;
+		}
+	}
+
+#endif
+
+
 #ifdef SW_USE_OPENSSL
 	if (serv->open_ssl)
 	{
