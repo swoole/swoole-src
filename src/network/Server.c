@@ -389,8 +389,6 @@ static int swServer_start_check(swServer *serv)
 
 #ifdef __MACH__
 
-#include <sys/sysctl.h>
-
 	if (serv->ipc_mode == SW_IPC_UNSOCK || (SwooleG.task_ipc_mode == SW_IPC_UNSOCK && SwooleG.task_worker_num > 0))
 	{
 		int maxdgram = 0, recvspace = 0;
