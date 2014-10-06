@@ -2778,7 +2778,7 @@ static int php_swoole_task_finish(swServer *serv, char *data, int data_len TSRML
 		 */
 		if (serv->factory_mode == SW_MODE_PROCESS)
         {
-            ret = swServer_send2worker_blocking(serv, &buf, sizeof(buf) + buf.info.len, sw_current_task->info.from_id);
+            ret = swServer_send2worker_blocking(serv, &buf, sizeof(buf.info) + buf.info.len, sw_current_task->info.from_id);
         }
         else
         {
