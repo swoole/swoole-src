@@ -723,6 +723,19 @@ static sw_inline int swSocket_write(int fd, void *data, int len)
     return n;
 }
 
+#ifdef TCP_NOPUSH
+static sw_inline int swSocket_tcp_nopush(int sock, int nopush)
+{
+    return setsockopt(sock, IPPROTO_TCP, TCP_NOPUSH, (const void *) &nopush, sizeof(int));
+}
+
+#elif defined(TCP_CORK)
+static sw_inline int swSocket_tcp_nopush(int sock, int nopush)
+{
+    return setsockopt(sock, IPPROTO_TCP, TCP_CORK, (const void *) &nopush, sizeof(int));
+}
+#endif
+
 void swFloat2timeval(float timeout, long int *sec, long int *usec);
 swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask);
 void swSignal_add(int signo, swSignalFunc func);

@@ -297,6 +297,11 @@ struct _swServer
     uint8_t open_tcp_nodelay;
 
     /**
+     * open tcp cork option
+     */
+    uint8_t open_tcp_nopush;
+
+    /**
      * open tcp_defer_accept option
      */
     uint8_t tcp_defer_accept; //TCP_DEFER_ACCEPT
