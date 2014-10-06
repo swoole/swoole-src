@@ -57,6 +57,7 @@ extern "C" {
 #ifdef __MACH__
 #include <mach/clock.h>
 #include <mach/mach_time.h>
+#include <sys/sysctl.h>
 
 #define ORWL_NANO (+1.0E-9)
 #define ORWL_GIGA UINT64_C(1000000000)
