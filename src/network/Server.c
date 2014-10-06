@@ -683,6 +683,8 @@ void swServer_init(swServer *serv)
 
 	serv->udp_sock_buffer_size = SW_UNSOCK_BUFSIZE;
 
+	serv->open_tcp_nopush = 1;
+
 	//tcp keepalive
 	serv->tcp_keepcount = SW_TCP_KEEPCOUNT;
 	serv->tcp_keepinterval = SW_TCP_KEEPINTERVAL;
