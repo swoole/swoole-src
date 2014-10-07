@@ -210,7 +210,6 @@ void swTable_iterator_rewind(swTable *table)
 
 swTableRow* swTable_iterator_current(swTable *table)
 {
-    printf("current\n");
     swTableRow *row = table->rows[table->iterator->absolute_index];
 
     if (table->iterator->collision_index == 0)
@@ -269,8 +268,9 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen)
 {
     swTableRow *row = swTable_hash(table, key, keylen);
     uint32_t crc32 = swoole_crc32(key, keylen);
+    sw_atomic_t *lock = &row->lock;
 
-    sw_spinlock(&row->lock);
+    sw_spinlock(lock);
     if (row->active)
     {
         for (;;)
@@ -287,7 +287,7 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen)
 
                 if (!new_row)
                 {
-                    sw_spinlock_release(&row->lock);
+                    sw_spinlock_release(lock);
                     return NULL;
                 }
                 //add row_num
@@ -330,8 +330,7 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen)
     row->active = 1;
 
     swTrace("row=%p, crc32=%u, key=%s\n", row, crc32, key);
-    sw_spinlock_release(&row->lock);
-
+    sw_spinlock_release(lock);
     return row;
 }
 
@@ -339,9 +338,10 @@ int swTableRow_del(swTable *table, char *key, int keylen)
 {
     swTableRow *row = swTable_hash(table, key, keylen);
     uint32_t crc32 = swoole_crc32(key, keylen);
+    sw_atomic_t *lock = &row->lock;
     int i = 0;
 
-    sw_spinlock(&row->lock);
+    sw_spinlock(lock);
     if (row->active)
     {
         for (;; i++)
@@ -358,7 +358,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
             }
             else if (row->next == NULL)
             {
-                sw_spinlock_release(&row->lock);
+                sw_spinlock_release(lock);
                 return SW_ERR;
             }
             else
@@ -399,6 +399,6 @@ int swTableRow_del(swTable *table, char *key, int keylen)
     }
 
     row->active = 0;
-    sw_spinlock_release(&row->lock);
+    sw_spinlock_release(lock);
     return SW_OK;
 }
