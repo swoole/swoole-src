@@ -40,9 +40,12 @@
 
 #ifdef SW_USE_RINGBUFFER
 #define SW_BUFFER_SIZE             65536
+#elif __MACH__
+#define SW_BUFFER_SIZE             (2048-sizeof(struct _swDataHead))
 #else
-#define SW_BUFFER_SIZE             (8192-sizeof(struct _swDataHead)) //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
+#define SW_BUFFER_SIZE             (8192-sizeof(struct _swDataHead))
 #endif
+
 #define SW_BUFFER_SIZE_BIG         65536
 
 #define SW_SENDFILE_TRUNK          65535
