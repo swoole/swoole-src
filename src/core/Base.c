@@ -578,7 +578,7 @@ int swSocket_listen(int type, char *host, int port, int backlog)
     ret = listen(sock, backlog);
     if (ret < 0)
     {
-        swWarn("listen(%d) failed. Error: %s [%d]", backlog, strerror(errno), errno);
+        swWarn("listen(%d) failed. Error: %s[%d]", backlog, strerror(errno), errno);
         return SW_ERR;
     }
     swSetNonBlock(sock);
@@ -684,7 +684,6 @@ int swWrite(int fd, void *buf, int count)
     return totlen;
 }
 
-//将套接字设置为非阻塞方式
 void swSetNonBlock(int sock)
 {
     int opts, ret;
@@ -694,16 +693,17 @@ void swSetNonBlock(int sock)
     } while (opts < 0 && errno == EINTR);
     if (opts < 0)
     {
-        swWarn("fcntl(sock,GETFL) fail");
+        swWarn("fcntl(sock,GETFL) failed. Error: %s[%d]", strerror(errno), errno);
     }
     opts = opts | O_NONBLOCK;
     do
     {
         ret = fcntl(sock, F_SETFL, opts);
     } while (ret < 0 && errno == EINTR);
+
     if (ret < 0)
     {
-        swWarn("fcntl(sock,SETFL,opts) fail");
+        swWarn("fcntl(sock,SETFL,opts) failed. Error: %s[%d]", strerror(errno), errno);
     }
 }
 
@@ -717,7 +717,7 @@ void swSetBlock(int sock)
 
     if (opts < 0)
     {
-        swWarn("fcntl(sock,GETFL) fail");
+        swWarn("fcntl(sock,GETFL) failed. Error: %s[%d]", strerror(errno), errno);
     }
     opts = opts & ~O_NONBLOCK;
     do
@@ -726,7 +726,7 @@ void swSetBlock(int sock)
     } while (ret < 0 && errno == EINTR);
     if (ret < 0)
     {
-        swWarn("fcntl(sock,SETFL,opts) fail");
+        swWarn("fcntl(sock,SETFL,opts) failed. Error: %s[%d]", strerror(errno), errno);
     }
 }
 
@@ -751,7 +751,7 @@ int swAccept(int server_socket, struct sockaddr_in *addr, int addr_len)
             }
             else
             {
-                swTrace("accept fail. Error: %s[%d]", strerror(errno), errno);
+                swTrace("accept failed. Error: %s[%d]", strerror(errno), errno);
                 return SW_ERR;
             }
         }
