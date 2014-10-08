@@ -771,16 +771,15 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
                 else if(package_total_length == 0)
                 {
                     char recv_buf_again[SW_BUFFER_SIZE_BIG];
-                    int recv_n = 0;
                     memcpy(recv_buf_again, (void *) tmp_ptr, (uint32_t) tmp_n);
 
                     for(;;)
                     {
                         //前tmp_n个字节存放不完整包头
-                        n = recv(event->fd, (void *) recv_buf_again + recv_n, SW_BUFFER_SIZE_BIG - recv_n, 0);
+                        n = recv(event->fd, (void *) recv_buf_again + tmp_n, SW_BUFFER_SIZE_BIG - tmp_n, 0);
                         if (n > 0)
                         {
-                            recv_n += n;
+                            tmp_n += n;
                         }
                         else if (n == 0)
                         {
@@ -813,8 +812,6 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
                     }
 
                     tmp_ptr = recv_buf_again;
-                    tmp_n = tmp_n + recv_n;
-
                     goto do_parse_package;
                 }
                 //complete package
