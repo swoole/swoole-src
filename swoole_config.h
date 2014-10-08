@@ -46,7 +46,7 @@
 #define SW_BUFFER_SIZE             (8192-sizeof(struct _swDataHead))
 #endif
 
-#define SW_BUFFER_SIZE_BIG         65535
+#define SW_BUFFER_SIZE_BIG         65536
 #define SW_SENDFILE_TRUNK          65536
 
 #define SW_SENDFILE_MAXLEN         4194304
@@ -86,6 +86,7 @@
 #define SW_WORKER_READ_COUNT       10
 #define SW_WORKER_WAIT_PIPE
 #define SW_WORKER_WAIT_TIMEOUT     1000
+//#define SW_WORKER_USE_SIGNALFD
 
 //#define SW_WORKER_SEND_CHUNK
 

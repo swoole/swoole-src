@@ -96,10 +96,9 @@ int swFactoryProcess_shutdown(swFactory *factory)
 {
     swServer *serv = SwooleG.serv;
 
-    while(kill(SwooleGS->manager_pid, SIGTERM) >= 0)
+    if (kill(SwooleGS->manager_pid, SIGTERM) < 0)
     {
-        //sleep 100ms
-        usleep(100000);
+        swWarn("kill(%d) failed. Error: %s[%d]", SwooleGS->manager_pid, strerror(errno), errno);
     }
 
     if (serv->ipc_mode == SW_IPC_MSGQUEUE)
@@ -771,6 +770,10 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
             swWarn("pthread_setaffinity_np set failed");
         }
     }
+#endif
+
+#ifndef SW_WORKER_USE_SIGNALFD
+    SwooleG.use_signalfd = 0;
 #endif
 
     //signal init
