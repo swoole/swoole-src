@@ -29,7 +29,8 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
     pool->worker_num = worker_num;
     pool->max_request = max_request;
 
-    if (msgqueue_key > 0) {
+    if (msgqueue_key > 0)
+    {
         pool->use_msgqueue = 1;
         pool->msgqueue_key = msgqueue_key;
     }
@@ -41,7 +42,7 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
         return SW_ERR;
     }
 
-    pool->map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
+    pool->map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
     if (pool->map == NULL)
     {
         sw_free(pool->workers);

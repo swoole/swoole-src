@@ -504,10 +504,12 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
         }
     }
 
+    sw_free(reload_workers);
+
     //kill all child process
     for (i = 0; i < serv->worker_num; i++)
     {
-        swTrace("[Main]kill worker processor");
+        swTrace("[Manager]kill worker processor");
         kill(serv->workers[i].pid, SIGTERM);
     }
 
@@ -516,7 +518,6 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
         swProcessPool_shutdown(&SwooleG.task_workers);
     }
 
-    sw_free(reload_workers);
     if (serv->onManagerStop)
     {
         serv->onManagerStop(serv);
