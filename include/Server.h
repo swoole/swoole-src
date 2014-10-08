@@ -297,7 +297,7 @@ struct _swServer
     uint8_t open_tcp_nodelay;
 
     /**
-     * open tcp cork option
+     * open tcp nopush option(for sendfile)
      */
     uint8_t open_tcp_nopush;
 

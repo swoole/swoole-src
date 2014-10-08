@@ -427,7 +427,6 @@ int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
                 close(task->fd);
                 sw_free(task);
 
-#ifdef TCP_CORK
                 if (serv->open_tcp_nopush)
                 {
                     /**
@@ -449,7 +448,6 @@ int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
                         }
                     }
                 }
-#endif
             }
         }
         else
@@ -794,6 +792,10 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
                             {
                                 continue;
                             }
+                            else if (errno == EAGAIN)
+                            {
+                                break;
+                            }
                             else
                             {
                                 goto error_fd;
@@ -811,7 +813,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
                     }
 
                     tmp_ptr = recv_buf_again;
-                    tmp_n = tmp_n + n;
+                    tmp_n = tmp_n + recv_n;
 
                     goto do_parse_package;
                 }

@@ -39,16 +39,16 @@
 #define SW_CLIENT_BUFFER_SIZE      65536
 
 #ifdef SW_USE_RINGBUFFER
-#define SW_BUFFER_SIZE             65536
+#define SW_BUFFER_SIZE             65535
 #elif __MACH__
 #define SW_BUFFER_SIZE             (2048-sizeof(struct _swDataHead))
 #else
 #define SW_BUFFER_SIZE             (8192-sizeof(struct _swDataHead))
 #endif
 
-#define SW_BUFFER_SIZE_BIG         65536
+#define SW_BUFFER_SIZE_BIG         65535
+#define SW_SENDFILE_TRUNK          65536
 
-#define SW_SENDFILE_TRUNK          65535
 #define SW_SENDFILE_MAXLEN         4194304
 
 #define SW_HASHMAP_KEY_MAXLEN      256

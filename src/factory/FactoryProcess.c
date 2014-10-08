@@ -565,6 +565,7 @@ int swFactoryProcess_end(swFactory *factory, swDataHead *event)
     }
     return swFactoryProcess_finish(factory, &_send);
 }
+
 /**
  * worker: send to client
  */
@@ -615,7 +616,8 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     sdata._send.info.type = resp->info.type;
     swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
 
-    /**
+
+	/**
      * Big response, use shared memory
      */
     if (resp->length > 0)

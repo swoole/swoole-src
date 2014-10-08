@@ -59,12 +59,12 @@ function my_onWorkerStart($serv, $worker_id)
     echo "WorkerStart: MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}";
     echo "|WorkerId={$serv->worker_id}|WorkerPid={$serv->worker_pid}\n";
 
-//     if ($worker_id == 2)
-//     {
-//     	$serv->addtimer(2000); //500ms
-//     	$serv->addtimer(6000); //500ms
-//     	var_dump($serv->gettimer());
-//     }
+    if ($worker_id == 0)
+    {
+    	$serv->addtimer(2000); //500ms
+    	//$serv->addtimer(6000); //500ms
+    	//var_dump($serv->gettimer());
+    }
 }
 
 function my_onWorkerStop($serv, $worker_id)
