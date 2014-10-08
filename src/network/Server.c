@@ -737,13 +737,13 @@ int swServer_free(swServer *serv)
 	 */
 	swReactorThread_free(serv);
 
-	//reactor释放
+	//reactor free
 	if (serv->reactor.free != NULL)
 	{
 		serv->reactor.free(&(serv->reactor));
 	}
-	//master pipe
-	if (SwooleG.task_worker_num > 0)
+
+	if (serv->factory_mode == SW_MODE_SINGLE && SwooleG.task_worker_num > 0)
 	{
 		swProcessPool_shutdown(&SwooleG.task_workers);
 	}

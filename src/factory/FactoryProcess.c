@@ -95,15 +95,13 @@ int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 int swFactoryProcess_shutdown(swFactory *factory)
 {
     swServer *serv = SwooleG.serv;
-    int i;
-    //kill manager process
-    kill(SwooleGS->manager_pid, SIGTERM);
-    //kill all child process
-    for (i = 0; i < serv->worker_num; i++)
+
+    while(kill(SwooleGS->manager_pid, SIGTERM) >= 0)
     {
-        swTrace("[Main]kill worker processor");
-        kill(serv->workers[i].pid, SIGTERM);
+        //sleep 100ms
+        usleep(100000);
     }
+
     if (serv->ipc_mode == SW_IPC_MSGQUEUE)
     {
         serv->read_queue.free(&serv->read_queue);
@@ -504,6 +502,19 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
             reload_worker_i++;
         }
     }
+
+    //kill all child process
+    for (i = 0; i < serv->worker_num; i++)
+    {
+        swTrace("[Main]kill worker processor");
+        kill(serv->workers[i].pid, SIGTERM);
+    }
+
+    if (SwooleG.task_worker_num > 0)
+    {
+        swProcessPool_shutdown(&SwooleG.task_workers);
+    }
+
     sw_free(reload_workers);
     if (serv->onManagerStop)
     {
