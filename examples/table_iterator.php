@@ -1,7 +1,7 @@
 <?php
 $table = new swoole_table(1024);
-$table->column('id', swoole_table::TYPE_INT, 4);       //1,2,4,8
 $table->column('name', swoole_table::TYPE_STRING, 64);
+$table->column('id', swoole_table::TYPE_INT, 4);       //1,2,4,8
 $table->column('num', swoole_table::TYPE_FLOAT);
 $table->create();
 
