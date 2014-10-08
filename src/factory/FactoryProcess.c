@@ -368,6 +368,9 @@ static void swManager_signal_handle(int sig)
 {
     switch (sig)
     {
+    case SIGTERM:
+        SwooleG.running = 0;
+        break;
     case SIGUSR2:
     case SIGUSR1:
         if (ManagerProcess.worker_reloading == 0)
@@ -398,8 +401,6 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
     swServer *serv = factory->ptr;
     swWorker *reload_workers;
 
-    swSignal_set(SIGTERM, swWorker_signal_handler, 1, 0);
-
     if (serv->onManagerStart)
     {
         serv->onManagerStart(serv);
@@ -414,6 +415,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
     }
 
     //for reload
+    swSignal_add(SIGTERM, swManager_signal_handle);
     swSignal_add(SIGUSR1, swManager_signal_handle);
     //swSignal_add(SIGINT, swManager_signal_handle);
 
