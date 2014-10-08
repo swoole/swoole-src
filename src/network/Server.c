@@ -619,12 +619,11 @@ int swServer_start(swServer *serv)
 	{
 		SwooleGS->start = 0;
 	}
-
-	//server stop
-	if (serv->onShutdown != NULL)
+	else if (serv->onShutdown != NULL)
 	{
 		serv->onShutdown(serv);
 	}
+
 	swServer_free(serv);
 	return SW_OK;
 }
