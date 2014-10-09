@@ -25,7 +25,7 @@ func Echo(c net.Conn) {
 
 func main() {
 
-    runtime.GOMAXPROCS( runtime.NumCPU() - 1 )
+    runtime.GOMAXPROCS(runtime.NumCPU() - 1)
 
     fmt.Printf("Server is ready...\n")
     l, err := net.Listen("tcp", ":8053")

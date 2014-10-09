@@ -87,7 +87,7 @@ static int swTimer_timerfd_set(swTimer *timer, int interval)
 
 	if (gettimeofday(&now, NULL) < 0)
 	{
-		swWarn("gettimeofday failed");
+		swWarn("gettimeofday() failed. Error: %s[%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
 
@@ -99,7 +99,7 @@ static int swTimer_timerfd_set(swTimer *timer, int interval)
 		timer->fd = timerfd_create(CLOCK_REALTIME, TFD_NONBLOCK | TFD_CLOEXEC);
 		if (timer->fd < 0)
 		{
-			swWarn("create timerfd failed. Error: %s[%d]", strerror(errno), errno);
+			swWarn("timerfd_create() failed. Error: %s[%d]", strerror(errno), errno);
 			return SW_ERR;
 		}
 	}
@@ -107,12 +107,18 @@ static int swTimer_timerfd_set(swTimer *timer, int interval)
     timer_set.it_interval.tv_sec = sec;
     timer_set.it_interval.tv_nsec = msec * 1000 * 1000;
 
-	timer_set.it_value.tv_sec = now.tv_sec + sec;
-	timer_set.it_value.tv_nsec = now.tv_usec + timer_set.it_interval.tv_nsec;
+    timer_set.it_value.tv_sec = now.tv_sec + sec;
+    timer_set.it_value.tv_nsec = (now.tv_usec * 1000) + timer_set.it_interval.tv_nsec;
+
+    if (timer_set.it_value.tv_nsec > 1e9)
+    {
+        timer_set.it_value.tv_nsec = timer_set.it_value.tv_nsec - 1e9;
+        timer_set.it_value.tv_sec += 1;
+    }
 
 	if (timerfd_settime(timer->fd, TFD_TIMER_ABSTIME, &timer_set, NULL) == -1)
 	{
-		swWarn("set timer failed. Error: %s[%d]", strerror(errno), errno);
+		swWarn("timerfd_settime() failed. Error: %s[%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
 	return SW_OK;
@@ -131,15 +137,29 @@ static int swTimer_signal_set(swTimer *timer, int interval)
 	int sec = interval / 1000;
 	int msec = (((float) interval / 1000) - sec) * 1000;
 
+	struct timeval now;
+    if (gettimeofday(&now, NULL) < 0)
+    {
+        swWarn("gettimeofday() failed. Error: %s[%d]", strerror(errno), errno);
+        return SW_ERR;
+    }
+
 	memset(&timer_set, 0, sizeof(timer_set));
-	timer_set.it_value.tv_sec = sec;
-	timer_set.it_value.tv_usec = msec * 1000;
-	timer_set.it_interval.tv_sec = sec;
-	timer_set.it_interval.tv_usec = msec * 1000;
+    timer_set.it_interval.tv_sec = sec;
+    timer_set.it_interval.tv_usec = msec * 1000;
+
+    timer_set.it_value.tv_sec = now.tv_sec + sec;
+    timer_set.it_value.tv_usec = (now.tv_usec * 1000) + timer_set.it_interval.tv_usec;
+
+    if (timer_set.it_value.tv_usec > 1e6)
+    {
+        timer_set.it_value.tv_usec = timer_set.it_value.tv_usec - 1e6;
+        timer_set.it_value.tv_sec += 1;
+    }
 
 	if (setitimer(ITIMER_REAL, &timer_set, NULL) < 0)
 	{
-		swWarn("set timer failed. Error: %s[%d]", strerror(errno), errno);
+		swWarn("setitimer() failed. Error: %s[%d]", strerror(errno), errno);
 		return SW_ERR;
 	}
 	return SW_OK;
@@ -173,8 +193,13 @@ int swTimer_add(swTimer *timer, int ms)
     }
 
     bzero(node, sizeof(swTimer_node));
-    node->lasttime = 0;
     node->interval = ms;
+    if (gettimeofday(&node->lasttime, NULL) < 0)
+    {
+        swWarn("gettimeofday() failed. Error: %s[%d]", strerror(errno), errno);
+        return SW_ERR;
+    }
+    //swWarn("%d.%d", node->lasttime.tv_sec, node->lasttime.tv_usec);
 
     if (ms < timer->interval)
     {
@@ -196,39 +221,47 @@ int swTimer_add(swTimer *timer, int ms)
 
 int swTimer_select(swTimer *timer)
 {
-	uint64_t key;
-	swTimer_node *timer_node;
+    uint64_t key;
+    swTimer_node *timer_node;
+    struct timeval now;
 
-	int64_t now_ms = swTimer_get_ms();
-	if (now_ms < 0)
-	{
-		return SW_ERR;
-	}
+    if (gettimeofday(&now, NULL) < 0)
+    {
+        swWarn("gettimeofday() failed. Error: %s[%d]", strerror(errno), errno);
+        return SW_ERR;
+    }
+    //swWarn("%d.%d", now.tv_sec, now.tv_usec);
 
-	if (timer->onTimer == NULL)
-	{
-		swWarn("timer->onTimer is NULL");
-		return SW_ERR;
-	}
+    if (timer->onTimer == NULL)
+    {
+        swWarn("timer->onTimer is NULL");
+        return SW_ERR;
+    }
 
-	do
-	{
-	    //swWarn("timer foreach start\n----------------------------------------------");
-	    timer_node = swHashMap_each_int(timer->list, &key);
+    uint32_t interval = 0;
+    do
+    {
+        //swWarn("timer foreach start\n----------------------------------------------");
+        timer_node = swHashMap_each_int(timer->list, &key);
 
-	    //hashmap empty
-		if (timer_node == NULL)
-		{
-			break;
-		}
-		//swWarn("Timer=%ld|lasttime=%ld|now=%ld", key, timer_node->lasttime, now_ms);
-		if (timer_node->lasttime < now_ms - timer_node->interval)
-		{
-			timer_node->lasttime += timer_node->interval;
-			timer->onTimer(timer, timer_node->interval);
-		}
-	} while(timer_node);
-	return SW_OK;
+        //hashmap empty
+        if (timer_node == NULL)
+        {
+            break;
+        }
+        //the interval time(ms)
+        interval = (now.tv_sec - timer_node->lasttime.tv_sec) * 1000 + (now.tv_usec - timer_node->lasttime.tv_usec) / 1000;
+
+        /**
+         * deviation 1ms
+         */
+        if (interval >= timer_node->interval - 1)
+        {
+            memcpy(&timer_node->lasttime, &now, sizeof(now));
+            timer->onTimer(timer, timer_node->interval);
+        }
+    } while (timer_node);
+    return SW_OK;
 }
 
 int swTimer_event_handler(swReactor *reactor, swEvent *event)
@@ -253,15 +286,4 @@ void swTimer_signal_handler(int sig)
 	{
 		SwooleG.timer.pipe.write(&SwooleG.timer.pipe, &flag, sizeof(flag));
 	}
-}
-
-int64_t swTimer_get_ms()
-{
-	struct timeval now;
-	if (gettimeofday(&now, NULL) < 0)
-	{
-		swWarn("gettimeofday fail.Error: %s[%d]", strerror(errno), errno);
-		return SW_ERR;
-	}
-	return (now.tv_sec * 1000) + (now.tv_usec / 1000);
 }
