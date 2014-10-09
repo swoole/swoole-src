@@ -27,7 +27,7 @@ extern "C"
 
 enum http_method
 {
-    HTTP_DELETE = 0, HTTP_GET, HTTP_HEAD, HTTP_POST, HTTP_PUT,
+    HTTP_DELETE = 1, HTTP_GET, HTTP_HEAD, HTTP_POST, HTTP_PUT,
     /* pathological */
     HTTP_CONNECT, HTTP_OPTIONS, HTTP_TRACE,
     /* webdav */
@@ -71,12 +71,14 @@ typedef int (*http_cb)(http_parser *);
 
 enum http_parser_type
 {
-	HTTP_REQUEST, HTTP_RESPONSE, HTTP_BOTH
+	HTTP_REQUEST = 1,
+	HTTP_RESPONSE,
+	HTTP_BOTH,
 };
 
 enum http_version
 {
-    HTTP_VERSION_10,
+    HTTP_VERSION_10 = 1,
     HTTP_VERSION_11,
 };
 
