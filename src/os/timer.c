@@ -148,8 +148,8 @@ static int swTimer_signal_set(swTimer *timer, int interval)
     timer_set.it_interval.tv_sec = sec;
     timer_set.it_interval.tv_usec = msec * 1000;
 
-    timer_set.it_value.tv_sec = now.tv_sec + sec;
-    timer_set.it_value.tv_usec = now.tv_usec + timer_set.it_interval.tv_usec;
+    timer_set.it_value.tv_sec = sec;
+    timer_set.it_value.tv_usec = timer_set.it_interval.tv_usec;
 
     if (timer_set.it_value.tv_usec > 1e6)
     {
