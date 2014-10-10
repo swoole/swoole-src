@@ -133,16 +133,16 @@ static sw_inline void swTableRow_set_value(swTableRow *row, swTableColumn * col,
     switch(col->type)
     {
     case SW_TABLE_INT8:
-        *((int8_t *)row->data + col->index) = *(int8_t*) value;
+        *(int8_t *)(row->data + col->index) = *(int8_t*) value;
         break;
     case SW_TABLE_INT16:
-        *((int16_t *)row->data + col->index) = *(int16_t*) value;
+        *(int16_t *)(row->data + col->index) = *(int16_t*) value;
         break;
     case SW_TABLE_INT32:
-        *((int32_t *)row->data + col->index) = *(int32_t*) value;
+        *(int32_t *)(row->data + col->index) = *(int32_t*) value;
         break;
     case SW_TABLE_INT64:
-        *((int64_t *)row->data + col->index) = *(int64_t*) value;
+        *(int64_t *)(row->data + col->index) = *(int64_t*) value;
         break;
     case SW_TABLE_FLOAT:
         memcpy(row->data + col->index, value, sizeof(double));

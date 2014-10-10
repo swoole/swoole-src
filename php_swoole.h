@@ -37,7 +37,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.7.6-alpha"
+#define PHP_SWOOLE_VERSION  "1.7.6"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -83,7 +83,7 @@ extern void ***sw_thread_ctx;
 #define SW_LOCK_CHECK_RETURN(s)    if(s==0){RETURN_TRUE;}else{RETURN_FALSE;}return
 
 #ifdef SW_ASYNC_MYSQL
-#if PHP_MAJOR_VERSION >= 5 && PHP_MINOR_VERSION >= 4 && defined(SW_HAVE_MYSQLI) && defined(SW_HAVE_MYSQLND)
+#if defined(SW_HAVE_MYSQLI) && defined(SW_HAVE_MYSQLND)
 #else
 #error "Enable async_mysql support, But no mysqli or mysqlnd."
 #undef SW_ASYNC_MYSQL

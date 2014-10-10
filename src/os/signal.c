@@ -16,6 +16,10 @@
 
 #include "swoole.h"
 
+#ifdef HAVE_SIGNALFD
+#include <sys/signalfd.h>
+#endif
+
 /**
  * clear all singal
  */
@@ -72,11 +76,6 @@ void swSignal_add(int signo, swSignalFunc func)
 }
 
 #ifdef HAVE_SIGNALFD
-/**
- * signalfd
- */
-#include <sys/signalfd.h>
-
 #define SW_SIGNAL_INIT_NUM    8
 
 static sigset_t swoole_signalfd_mask;

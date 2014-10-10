@@ -143,13 +143,16 @@ static void php_swoole_aio_onComplete(swAio_event *event)
         args[1] = &zwriten;
         ZVAL_LONG(zwriten, ret);
 
-        if (SwooleAIO.mode == SW_AIO_LINUX)
+        if (file_req->once != 1)
         {
-            free(event->buf);
-        }
-        else
-        {
-            efree(event->buf);
+            if (SwooleAIO.mode == SW_AIO_LINUX)
+            {
+                free(event->buf);
+            }
+            else
+            {
+                efree(event->buf);
+            }
         }
     }
 	else if(event->type == SW_AIO_DNS_LOOKUP)
@@ -243,6 +246,10 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 	{
 		zval_ptr_dtor(&retval);
 	}
+    if (php_sw_in_client && SwooleG.main_reactor->event_num == 1 && SwooleAIO.task_num == 0)
+    {
+        SwooleG.running = 0;
+    }
 }
 
 PHP_FUNCTION(swoole_async_read)
@@ -266,7 +273,7 @@ PHP_FUNCTION(swoole_async_read)
 	int fd = open(Z_STRVAL_P(filename), open_flag, 0644);
 	if (fd < 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async_readfile: open file[%s] failed. Error: %s[%d]", Z_STRVAL_P(filename), strerror(errno), errno);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "open file[%s] failed. Error: %s[%d]", Z_STRVAL_P(filename), strerror(errno), errno);
 		RETURN_FALSE;
 	}
 
@@ -309,7 +316,7 @@ PHP_FUNCTION(swoole_async_read)
 
 	if (zend_hash_update(&php_sw_aio_callback, (char * )&fd, sizeof(fd), &req, sizeof(swoole_async_file_request), NULL) == FAILURE)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async_readfile add to hashtable[1] failed");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "add to hashtable[1] failed");
 		RETURN_FALSE;
 	}
 
@@ -393,11 +400,10 @@ PHP_FUNCTION(swoole_async_write)
 		{
 			Z_ADDREF_PP(&cb);
 		}
-		Z_ADDREF_PP(&filename);
 
 		if (zend_hash_update(&php_sw_aio_callback, (char *)&fd, sizeof(fd), (void **) &new_req, sizeof(new_req), (void **) &req) == FAILURE)
 		{
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async_write: add to hashtable[1] failed");
+			php_error_docref(NULL TSRMLS_CC, E_WARNING, "add to hashtable[1] failed");
 			RETURN_FALSE;
 		}
 		swHashMap_add(php_swoole_open_files, Z_STRVAL_P(filename), Z_STRLEN_P(filename), req, NULL);
@@ -443,24 +449,23 @@ PHP_FUNCTION(swoole_async_readfile)
 	int fd = open(Z_STRVAL_P(filename), open_flag, 0644);
 	if (fd < 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async_readfile: open file[%s] failed. Error: %s[%d]", Z_STRVAL_P(filename), strerror(errno), errno);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "open file[%s] failed. Error: %s[%d]", Z_STRVAL_P(filename), strerror(errno), errno);
 		RETURN_FALSE;
 	}
 	struct stat file_stat;
 	if (fstat(fd, &file_stat) < 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async_readfile: fstat failed. Error: %s[%d]", strerror(errno), errno);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "fstat failed. Error: %s[%d]", strerror(errno), errno);
 		RETURN_FALSE;
 	}
 	if (file_stat.st_size <= 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async_readfile: file is empty.");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "file is empty.");
 		RETURN_FALSE;
 	}
 	if (file_stat.st_size > SW_AIO_MAX_FILESIZE)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,
-				"swoole_async_readfile: file_size[size=%ld|max_size=%d] is too big. Please use swoole_async_read.",
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,	"file_size[size=%ld|max_size=%d] is too big. Please use swoole_async_read.",
 				(long int) file_stat.st_size, SW_AIO_MAX_FILESIZE);
 		RETURN_FALSE;
 	}
@@ -491,24 +496,24 @@ PHP_FUNCTION(swoole_async_readfile)
 	//printf("buf_len=%d|addr=%p\n", buf_len, fcnt);
 	//printf("pagesize=%d|st_size=%d\n", sysconf(_SC_PAGESIZE), buf_len);
 
-	swoole_async_file_request req;
-	req.fd = fd;
-	req.filename = filename;
-	req.callback = cb;
-	req.file_content = fcnt;
-	req.once = 1;
-	req.type = SW_AIO_READ;
-	req.content_length = file_stat.st_size;
-	req.offset = 0;
+    swoole_async_file_request req;
+    req.fd = fd;
+    req.filename = filename;
+    req.callback = cb;
+    req.file_content = fcnt;
+    req.once = 1;
+    req.type = SW_AIO_READ;
+    req.content_length = file_stat.st_size;
+    req.offset = 0;
 
-	Z_ADDREF_PP(&cb);
-	Z_ADDREF_PP(&filename);
+    Z_ADDREF_PP(&cb);
+    Z_ADDREF_PP(&filename);
 
-	if(zend_hash_update(&php_sw_aio_callback, (char *)&fd, sizeof(fd), &req, sizeof(swoole_async_file_request), NULL) == FAILURE)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async_readfile add to hashtable failed");
-		RETURN_FALSE;
-	}
+    if (zend_hash_update(&php_sw_aio_callback, (char * )&fd, sizeof(fd), &req, sizeof(swoole_async_file_request), NULL) == FAILURE)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "add to hashtable failed");
+        RETURN_FALSE;
+    }
 
 	php_swoole_check_aio();
 	SW_CHECK_RETURN(SwooleAIO.read(fd, fcnt, buf_len, 0));
@@ -533,13 +538,12 @@ PHP_FUNCTION(swoole_async_writefile)
 	}
 	if (fcnt_len <= 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async_writefile: file is empty.");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "file is empty.");
 		RETURN_FALSE;
 	}
 	if (fcnt_len > SW_AIO_MAX_FILESIZE)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,
-				"swoole_async_writefile: file_size[size=%d|max_size=%d] is too big. Please use swoole_async_read.",
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,	"file_size[size=%d|max_size=%d] is too big. Please use swoole_async_read.",
 				fcnt_len, SW_AIO_MAX_FILESIZE);
 		RETURN_FALSE;
 	}
@@ -547,7 +551,7 @@ PHP_FUNCTION(swoole_async_writefile)
 	int fd = open(Z_STRVAL_P(filename), open_flag, 0644);
 	if (fd < 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async_writefile: open file failed. Error: %s[%d]", strerror(errno), errno);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "open file failed. Error: %s[%d]", strerror(errno), errno);
 		RETURN_FALSE;
 	}
 	char *wt_cnt;
@@ -582,13 +586,13 @@ PHP_FUNCTION(swoole_async_writefile)
 
 	if (zend_hash_update(&php_sw_aio_callback, (char *)&fd, sizeof(fd), &req, sizeof(swoole_async_file_request), NULL) == FAILURE)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async_writefile add to hashtable failed");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "add to hashtable failed");
 		RETURN_FALSE;
 	}
 
 	memcpy(wt_cnt, fcnt, fcnt_len);
 	php_swoole_check_aio();
-	SW_CHECK_RETURN(SwooleAIO.read(fd, wt_cnt, fcnt_len, 0));
+	SW_CHECK_RETURN(SwooleAIO.write(fd, wt_cnt, fcnt_len, 0));
 }
 
 PHP_FUNCTION(swoole_async_set)
@@ -636,7 +640,7 @@ PHP_FUNCTION(swoole_async_dns_lookup)
 
     if (Z_STRLEN_P(domain) == 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async_dns_lookup: domain name empty.");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "domain name empty.");
         RETURN_FALSE;
     }
 

@@ -2363,7 +2363,6 @@ PHP_FUNCTION(swoole_server_start)
 	//-------------------------------------------------------------
 	serv->onReceive = php_swoole_onReceive;
 
-	zval_add_ref(&zobject);
 	serv->ptr2 = zobject;
 
 	ret = swServer_create(serv);
@@ -2429,53 +2428,53 @@ PHP_FUNCTION(swoole_server_send)
 	SWOOLE_GET_SERVER(zobject, serv);
 	factory = &(serv->factory);
 
-	if (Z_TYPE_P(zfd) == IS_STRING)
-	{
-		//unix dgram
-		if (!is_numeric_string(Z_STRVAL_P(zfd), Z_STRLEN_P(zfd), &_fd, NULL, 0))
-		{
-			_send.info.fd = (int)_fd;
-			_send.info.type = SW_EVENT_UNIX_DGRAM;
-			_send.info.from_fd = (from_id > 0) ? from_id : php_swoole_unix_dgram_fd;
-			_send.sun_path = Z_STRVAL_P(zfd);
-			_send.sun_path_len = Z_STRLEN_P(zfd);
-			_send.info.len = send_len;
-			_send.data = send_data;
-			SW_CHECK_RETURN(factory->finish(factory, &_send));
-		}
-	}
-	else
-	{
-		_fd = Z_LVAL_P(zfd);
-	}
+    if (Z_TYPE_P(zfd) == IS_STRING)
+    {
+        //unix dgram
+        if (!is_numeric_string(Z_STRVAL_P(zfd), Z_STRLEN_P(zfd), &_fd, NULL, 0))
+        {
+            _send.info.fd = (int) _fd;
+            _send.info.type = SW_EVENT_UNIX_DGRAM;
+            _send.info.from_fd = (from_id > 0) ? from_id : php_swoole_unix_dgram_fd;
+            _send.sun_path = Z_STRVAL_P(zfd);
+            _send.sun_path_len = Z_STRLEN_P(zfd);
+            _send.info.len = send_len;
+            _send.data = send_data;
+            SW_CHECK_RETURN(factory->finish(factory, &_send));
+        }
+    }
+    else
+    {
+        _fd = Z_LVAL_P(zfd);
+    }
 
 	uint32_t fd = (uint32_t) _fd;
 
 	//UDP, UDP必然超过0x1000000
 	//原因：IPv4的第4字节最小为1,而这里的conn_fd是网络字节序
-	if (fd > 0x1000000)
-	{
-		if (from_id == -1)
-		{
-			from_id = php_swoole_udp_from_id;
-		}
-		php_swoole_udp_t udp_info;
-		memcpy(&udp_info, &from_id, sizeof(udp_info));
+    if (fd > 0x1000000)
+    {
+        if (from_id == -1)
+        {
+            from_id = php_swoole_udp_from_id;
+        }
+        php_swoole_udp_t udp_info;
+        memcpy(&udp_info, &from_id, sizeof(udp_info));
 
-		_send.info.fd = fd;
-		_send.info.from_id = (uint16_t)(udp_info.port);
-		_send.info.from_fd = (uint16_t)(udp_info.from_fd);
-		_send.info.type = SW_EVENT_UDP;
-		_send.data = send_data;
-		_send.info.len = send_len;
-		swTrace("udp send: fd=%d|from_id=%d|from_fd=%d", _send.info.fd, (uint16_t)_send.info.from_id, _send.info.from_fd);
-		SW_CHECK_RETURN(factory->finish(factory, &_send));
-	}
-	//TCP
-	else
-	{
-		SW_CHECK_RETURN(swServer_tcp_send(serv, fd, send_data, send_len));
-	}
+        _send.info.fd = fd;
+        _send.info.from_id = (uint16_t) (udp_info.port);
+        _send.info.from_fd = (uint16_t) (udp_info.from_fd);
+        _send.info.type = SW_EVENT_UDP;
+        _send.data = send_data;
+        _send.info.len = send_len;
+        swTrace("udp send: fd=%d|from_id=%d|from_fd=%d", _send.info.fd, (uint16_t)_send.info.from_id, _send.info.from_fd);
+        SW_CHECK_RETURN(factory->finish(factory, &_send));
+    }
+    //TCP
+    else
+    {
+        SW_CHECK_RETURN(swServer_tcp_send(serv, fd, send_data, send_len));
+    }
 }
 
 PHP_FUNCTION(swoole_server_sendfile)
@@ -2779,7 +2778,7 @@ static int php_swoole_task_finish(swServer *serv, char *data, int data_len TSRML
 		 */
 		if (serv->factory_mode == SW_MODE_PROCESS)
         {
-            ret = swServer_send2worker_blocking(serv, &buf, sizeof(buf) + buf.info.len, sw_current_task->info.from_id);
+            ret = swServer_send2worker_blocking(serv, &buf, sizeof(buf.info) + buf.info.len, sw_current_task->info.from_id);
         }
         else
         {

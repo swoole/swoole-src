@@ -47,3 +47,4 @@ modules/*
 /examples/.idea
 /examples/recv_file.jpg
 /modules
+/examples/async/test.copy

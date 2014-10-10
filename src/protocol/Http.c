@@ -65,7 +65,7 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
             }
             else if (memcmp(p, "HTTP/1.0", 8) == 0)
             {
-                request->method = HTTP_VERSION_10;
+                request->version = HTTP_VERSION_10;
                 break;
             }
             else

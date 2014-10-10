@@ -379,6 +379,29 @@ int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         else if (trunk->type == SW_TRUNK_SENDFILE)
         {
             swTask_sendfile *task = trunk->store.ptr;
+
+            if (task->offset == 0 && serv->open_tcp_nopush)
+            {
+                /**
+                 * disable tcp_nodelay
+                 */
+                if (serv->open_tcp_nodelay)
+                {
+                    int tcp_nodelay = 0;
+                    if (setsockopt(ev->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &tcp_nodelay, sizeof(int)) == -1)
+                    {
+                        swWarn("setsockopt(TCP_NODELAY) failed. Error: %s[%d]", strerror(errno), errno);
+                    }
+                }
+                /**
+                 * enable tcp_nopush
+                 */
+                if (swSocket_tcp_nopush(ev->fd, 1) == -1)
+                {
+                    swWarn("swSocket_tcp_nopush() failed. Error: %s[%d]", strerror(errno), errno);
+                }
+            }
+
             int sendn = (task->filesize - task->offset > SW_SENDFILE_TRUNK) ? SW_SENDFILE_TRUNK : task->filesize - task->offset;
             ret = swoole_sendfile(ev->fd, task->fd, &task->offset, sendn);
             swTrace("ret=%d|task->offset=%ld|sendn=%d|filesize=%ld", ret, task->offset, sendn, task->filesize);
@@ -403,6 +426,28 @@ int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
                 swBuffer_pop_trunk(conn->out_buffer, trunk);
                 close(task->fd);
                 sw_free(task);
+
+                if (serv->open_tcp_nopush)
+                {
+                    /**
+                     * disable tcp_nopush
+                     */
+                    if (swSocket_tcp_nopush(ev->fd, 0) == -1)
+                    {
+                        swWarn("swSocket_tcp_nopush() failed. Error: %s[%d]", strerror(errno), errno);
+                    }
+                    /**
+                     * enable tcp_nodelay
+                     */
+                    if (serv->open_tcp_nodelay)
+                    {
+                        int value = 1;
+                        if (setsockopt(ev->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &value, sizeof(int)) == -1)
+                        {
+                            swWarn("setsockopt(TCP_NODELAY) failed. Error: %s[%d]", strerror(errno), errno);
+                        }
+                    }
+                }
             }
         }
         else
@@ -676,6 +721,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 
     if (n < 0)
     {
+        error_fd:
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
@@ -724,13 +770,38 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
                 //no package_length
                 else if(package_total_length == 0)
                 {
-                    char recv_buf_again[SW_BUFFER_SIZE];
+                    char recv_buf_again[SW_BUFFER_SIZE_BIG];
                     memcpy(recv_buf_again, (void *) tmp_ptr, (uint32_t) tmp_n);
-                    do
+
+                    for(;;)
                     {
                         //前tmp_n个字节存放不完整包头
-                        n = recv(event->fd, (void *)recv_buf_again + tmp_n, SW_BUFFER_SIZE, 0);
-                        try_count ++;
+                        n = recv(event->fd, (void *) recv_buf_again + tmp_n, SW_BUFFER_SIZE_BIG - tmp_n, 0);
+                        if (n > 0)
+                        {
+                            tmp_n += n;
+                        }
+                        else if (n == 0)
+                        {
+                            goto close_fd;
+                        }
+                        else
+                        {
+                            if (errno == EINTR)
+                            {
+                                continue;
+                            }
+                            else if (errno == EAGAIN)
+                            {
+                                break;
+                            }
+                            else
+                            {
+                                goto error_fd;
+                            }
+                        }
+
+                        try_count++;
 
                         //连续5次尝试补齐包头,认定为恶意请求
                         if (try_count > 5)
@@ -739,15 +810,8 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
                             goto close_fd;
                         }
                     }
-                    while(n < 0 && errno == EINTR);
 
-                    if (n == 0)
-                    {
-                        goto close_fd;
-                    }
                     tmp_ptr = recv_buf_again;
-                    tmp_n = tmp_n + n;
-
                     goto do_parse_package;
                 }
                 //complete package

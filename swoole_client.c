@@ -203,7 +203,7 @@ static int php_swoole_client_close(zval **zobject, int fd TSRMLS_DC)
 		{
 			zval_ptr_dtor(&retval);
 		}
-		cli->close(cli);
+		bzero(cli, sizeof(swClient));
 	}
 	else
 	{
@@ -494,10 +494,6 @@ static int swoole_client_error_callback(zval *zobject, swEvent *event, int error
 static void php_swoole_check_eventloop(swReactor *reactor)
 {
     if (reactor->event_num == 0)
-    {
-        SwooleG.running = 0;
-    }
-    else if (reactor->event_num == 1 && SwooleAIO.task_num == 0)
     {
         SwooleG.running = 0;
     }

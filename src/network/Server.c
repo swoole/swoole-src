@@ -385,6 +385,7 @@ static int swServer_start_check(swServer *serv)
 	    swWarn("serv->max_conn is exceed the maximum value[%d].", SwooleG.max_sockets);
 	    serv->max_connection = SwooleG.max_sockets;
 	}
+
 #ifdef SW_USE_OPENSSL
 	if (serv->open_ssl)
 	{
@@ -468,21 +469,21 @@ static int swServer_start_proxy(swServer *serv)
 
 int swServer_start(swServer *serv)
 {
-	swFactory *factory = &serv->factory;
-	int ret;
+    swFactory *factory = &serv->factory;
+    int ret;
 
-	ret = swServer_start_check(serv);
-	if (ret < 0)
-	{
-		return SW_ERR;
-	}
+    ret = swServer_start_check(serv);
+    if (ret < 0)
+    {
+        return SW_ERR;
+    }
 
-	if (serv->message_queue_key == 0)
-	{
-		char path_buf[128];
-		char *path_ptr = getcwd(path_buf, 128);
-		serv->message_queue_key = ftok(path_ptr, 1) + getpid();
-	}
+    if (serv->message_queue_key == 0)
+    {
+        char path_buf[128];
+        char *path_ptr = getcwd(path_buf, 128);
+        serv->message_queue_key = ftok(path_ptr, 1) + getpid();
+    }
 
     if (serv->ipc_mode == SW_IPC_MSGQUEUE)
     {
@@ -618,12 +619,11 @@ int swServer_start(swServer *serv)
 	{
 		SwooleGS->start = 0;
 	}
-
-	//server stop
-	if (serv->onShutdown != NULL)
+	else if (serv->onShutdown != NULL)
 	{
 		serv->onShutdown(serv);
 	}
+
 	swServer_free(serv);
 	return SW_OK;
 }
@@ -656,6 +656,8 @@ void swServer_init(swServer *serv)
 	serv->task_max_request = SW_MAX_REQUEST;
 
 	serv->udp_sock_buffer_size = SW_UNSOCK_BUFSIZE;
+
+	serv->open_tcp_nopush = 1;
 
 	//tcp keepalive
 	serv->tcp_keepcount = SW_TCP_KEEPCOUNT;
@@ -734,13 +736,13 @@ int swServer_free(swServer *serv)
 	 */
 	swReactorThread_free(serv);
 
-	//reactor释放
+	//reactor free
 	if (serv->reactor.free != NULL)
 	{
 		serv->reactor.free(&(serv->reactor));
 	}
-	//master pipe
-	if (SwooleG.task_worker_num > 0)
+
+	if (serv->factory_mode == SW_MODE_SINGLE && SwooleG.task_worker_num > 0)
 	{
 		swProcessPool_shutdown(&SwooleG.task_workers);
 	}
@@ -782,16 +784,20 @@ int swServer_onFinish(swFactory *factory, swSendData *resp)
 
 int swServer_udp_send(swServer *serv, swSendData *resp)
 {
-	socklen_t len;
-	struct sockaddr_in addr_in;
-	int sock = resp->info.from_fd;
+    struct sockaddr_in addr_in;
+    int sock = resp->info.from_fd;
 
-	addr_in.sin_family = AF_INET;
-	addr_in.sin_port = htons((unsigned short) resp->info.from_id); //from_id is port
-	addr_in.sin_addr.s_addr = resp->info.fd; //from_id is port
-	len = sizeof(addr_in);
+    addr_in.sin_family = AF_INET;
+    addr_in.sin_port = htons((uint16_t) resp->info.from_id); //from_id is remote port
+    addr_in.sin_addr.s_addr = (uint32_t) resp->info.fd; //fd is remote ip address
 
-	return swSendto(sock, resp->data, resp->info.len, 0, (struct sockaddr*) &addr_in, len);
+    int ret = swSendto(sock, resp->data, resp->info.len, 0, (struct sockaddr*) &addr_in, sizeof(addr_in));
+    if (ret < 0)
+    {
+        swWarn("sendto to client[%s:%d] failed. Error: %s [%d]", inet_ntoa(addr_in.sin_addr), resp->info.from_id,
+                strerror(errno), errno);
+    }
+    return ret;
 }
 
 int swServer_tcp_send(swServer *serv, int fd, void *data, int length)

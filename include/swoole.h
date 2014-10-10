@@ -57,6 +57,7 @@ extern "C" {
 #ifdef __MACH__
 #include <mach/clock.h>
 #include <mach/mach_time.h>
+#include <sys/sysctl.h>
 
 #define ORWL_NANO (+1.0E-9)
 #define ORWL_GIGA UINT64_C(1000000000)
@@ -530,6 +531,45 @@ typedef struct _swMemoryPool
 	void (*destroy)(struct _swMemoryPool *pool);
 } swMemoryPool;
 
+
+typedef struct _swFixedPool_slice
+{
+    uint8_t lock;
+    struct _swFixedPool_slice *next;
+    struct _swFixedPool_slice *pre;
+    char data[0];
+
+} swFixedPool_slice;
+
+typedef struct _swFixedPool
+{
+    void *memory;
+    size_t size;
+
+    swFixedPool_slice *head;
+    swFixedPool_slice *tail;
+
+    /**
+     * total memory size
+     */
+    uint32_t slice_num;
+
+    /**
+     * memory usage
+     */
+    uint32_t slice_use;
+
+    /**
+     * Fixed slice size, not include the memory used by swFixedPool_slice
+     */
+    uint32_t slice_size;
+
+    /**
+     * use shared memory
+     */
+    uint8_t shared;
+
+} swFixedPool;
 /**
  * FixedPool, random alloc/free fixed size memory
  */
@@ -683,6 +723,19 @@ static sw_inline int swSocket_write(int fd, void *data, int len)
     }
     return n;
 }
+
+#ifdef TCP_NOPUSH
+static sw_inline int swSocket_tcp_nopush(int sock, int nopush)
+{
+    return setsockopt(sock, IPPROTO_TCP, TCP_NOPUSH, (const void *) &nopush, sizeof(int));
+}
+
+#elif defined(TCP_CORK)
+static sw_inline int swSocket_tcp_nopush(int sock, int nopush)
+{
+    return setsockopt(sock, IPPROTO_TCP, TCP_CORK, (const void *) &nopush, sizeof(int));
+}
+#endif
 
 void swFloat2timeval(float timeout, long int *sec, long int *usec);
 swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask);
@@ -964,8 +1017,8 @@ int swThreadPool_free(swThreadPool *pool);
 typedef struct _swTimer_node
 {
 	struct _swTimerList_node *next, *prev;
-	int64_t lasttime;
-	int interval;
+	struct timeval lasttime;
+	uint32_t interval;
 } swTimer_node;
 
 typedef struct _swTimer
@@ -987,7 +1040,6 @@ int swTimer_add(swTimer *timer, int ms);
 void swTimer_signal_handler(int sig);
 int swTimer_event_handler(swReactor *reactor, swEvent *event);
 int swTimer_select(swTimer *timer);
-int64_t swTimer_get_ms();
 
 typedef struct _swModule
 {

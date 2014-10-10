@@ -2,11 +2,11 @@
 $serv = new swoole_server("0.0.0.0", 9501);
 // $serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
 $serv->set(array(
-    'worker_num' => 4,
+    'worker_num' => 1,
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
-    'ipc_mode' => 2,
-    //'task_worker_num' => 2,
+    //'ipc_mode' => 2,
+    'task_worker_num' => 1,
     //'task_ipc_mode' => 1,
     //'dispatch_mode' => 1,
     //'daemonize' => 1,
@@ -34,6 +34,7 @@ function my_onShutdown($serv)
 
 function my_onTimer($serv, $interval)
 {
+	//echo microtime(true)."\n";
     my_log("Server:Timer Call.Interval=$interval");
 }
 
@@ -51,20 +52,24 @@ function my_onConnect($serv, $fd, $from_id)
 function my_onWorkerStart($serv, $worker_id)
 {
     global $argv;
-    if($worker_id >= $serv->setting['worker_num']) {
+    if($worker_id >= $serv->setting['worker_num']) 
+    {
         swoole_set_process_name("php {$argv[0]}: task");
-    } else {
+    } 
+    else 
+    {
         swoole_set_process_name("php {$argv[0]}: worker");
     }
     echo "WorkerStart: MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}";
     echo "|WorkerId={$serv->worker_id}|WorkerPid={$serv->worker_pid}\n";
 
-//     if ($worker_id == 2)
-//     {
-//     	$serv->addtimer(2000); //500ms
-//     	$serv->addtimer(6000); //500ms
-//     	var_dump($serv->gettimer());
-//     }
+    if ($worker_id == 1)
+    {
+    	$serv->addtimer(2000);
+    	$serv->addtimer(6000);
+    	//echo microtime(true)."\n";
+    	//var_dump($serv->gettimer());
+    }
 }
 
 function my_onWorkerStop($serv, $worker_id)
