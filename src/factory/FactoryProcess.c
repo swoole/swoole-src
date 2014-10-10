@@ -604,8 +604,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     //UDP pacakge
     else if (resp->info.type == SW_EVENT_UDP || resp->info.type == SW_EVENT_UDP6)
     {
-        ret = swServer_udp_send(serv, resp);
-        goto finish;
+        return swServer_udp_send(serv, resp);
     }
 
     //swQueue_data for msg queue
@@ -628,7 +627,6 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     sdata._send.info.fd = fd;
     sdata._send.info.type = resp->info.type;
     swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
-
 
 	/**
      * Big response, use shared memory

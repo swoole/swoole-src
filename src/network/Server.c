@@ -784,16 +784,20 @@ int swServer_onFinish(swFactory *factory, swSendData *resp)
 
 int swServer_udp_send(swServer *serv, swSendData *resp)
 {
-	socklen_t len;
-	struct sockaddr_in addr_in;
-	int sock = resp->info.from_fd;
+    struct sockaddr_in addr_in;
+    int sock = resp->info.from_fd;
 
-	addr_in.sin_family = AF_INET;
-	addr_in.sin_port = htons((unsigned short) resp->info.from_id); //from_id is port
-	addr_in.sin_addr.s_addr = resp->info.fd; //from_id is port
-	len = sizeof(addr_in);
+    addr_in.sin_family = AF_INET;
+    addr_in.sin_port = htons((uint16_t) resp->info.from_id); //from_id is remote port
+    addr_in.sin_addr.s_addr = (uint32_t) resp->info.fd; //fd is remote ip address
 
-	return swSendto(sock, resp->data, resp->info.len, 0, (struct sockaddr*) &addr_in, len);
+    int ret = swSendto(sock, resp->data, resp->info.len, 0, (struct sockaddr*) &addr_in, sizeof(addr_in));
+    if (ret < 0)
+    {
+        swWarn("sendto to client[%s:%d] failed. Error: %s [%d]", inet_ntoa(addr_in.sin_addr), resp->info.from_id,
+                strerror(errno), errno);
+    }
+    return ret;
 }
 
 int swServer_tcp_send(swServer *serv, int fd, void *data, int length)
