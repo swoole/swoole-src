@@ -31,11 +31,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-	<date>2014-09-10</date>
-	<time>15:51:51</time>
+	<date>2014-10-10</date>
+	<time>12:51:51</time>
 	<version>
-		<release>1.7.5</release>
-		<api>1.7.5</api>
+		<release>1.7.6</release>
+		<api>1.7.6</api>
 	</version>
 	<stability>
 		<release>stable</release>
@@ -43,11 +43,7 @@
 	</stability>
 	<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
 	<notes>
-- Added swoole_client->sendfile()
-- Added swoole_table
-- Remove onMasterConnect/onMasterClose
-- Added pipe output buffer
-- TCP short connection have 50% performance improvement
+- Fixed all known issues
     </notes>
 	<contents>
 		<dir name="/">
@@ -219,6 +215,26 @@
 	<extsrcrelease />
 
 	<changelog>
+	<release>
+		<date>2014-09-10</date>
+	    <time>15:51:51</time>
+	    <version>
+	        <release>1.7.5</release>
+	        <api>1.7.5</api>
+	    </version>
+	    <stability>
+	        <release>stable</release>
+	        <api>stable</api>
+	    </stability>
+	    <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
+	    <notes>
+	- Added swoole_client->sendfile()
+	- Added swoole_table
+	- Remove onMasterConnect/onMasterClose
+	- Added pipe output buffer
+	- TCP short connection have 50% performance improvement
+	    </notes>
+	</release>
 	<release>
 		<date>2014-07-15</date>
 		<time>18:51:51</time>
