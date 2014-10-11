@@ -24,7 +24,8 @@ function my_onStart(swoole_server $serv)
 
 function my_log($msg)
 {
-    echo "#".posix_getpid()."\t".$msg.PHP_EOL;
+	global $serv;
+    echo "#".$serv->worker_pid."\t".$msg.PHP_EOL;
 }
 
 function my_onShutdown($serv)
@@ -74,7 +75,7 @@ function my_onWorkerStart($serv, $worker_id)
 
 function my_onWorkerStop($serv, $worker_id)
 {
-    echo "WorkerStop[$worker_id]|pid=".posix_getpid().".\n";
+    echo "WorkerStop[$worker_id]|pid=".$serv->worker_pid.".\n";
 }
 
 function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
@@ -152,14 +153,14 @@ function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
     }
     else
     {
-        echo "AsyncTask[PID=".posix_getpid()."]: task_id=$task_id.".PHP_EOL;
+        echo "AsyncTask[PID=".$serv->worker_pid."]: task_id=$task_id.".PHP_EOL;
         return "Task OK";
     }
 }
 
 function my_onFinish(swoole_server $serv, $task_id, $data)
 {
-    echo "AsyncTask Finish: result={$data}. PID=".posix_getpid().PHP_EOL;
+    echo "AsyncTask Finish: result={$data}. PID=".$serv->worker_pid.PHP_EOL;
 }
 
 function my_onWorkerError(swoole_server $serv, $worker_id, $worker_pid, $exit_code)
