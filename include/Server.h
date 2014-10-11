@@ -462,7 +462,8 @@ int swTaskWorker_large_pack(swEventData *task, void *data, int data_len);
 #define swTaskWorker_large_unpack(task, __malloc, _buf, _length)   swPackage_task _pkg;\
 	memcpy(&_pkg, task->data, sizeof(_pkg));\
 	_length = _pkg.length;\
-	_buf = __malloc(_length);\
+	_buf = __malloc(_length + 1);\
+	_buf[_length] = 0;\
 	int tmp_file_fd = open(_pkg.tmpfile, O_RDONLY);\
 	if (tmp_file_fd < 0){\
 		swWarn("open(%s) failed. Error: %s[%d]", task->data, strerror(errno), errno);\

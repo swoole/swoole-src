@@ -940,7 +940,21 @@ PHP_FUNCTION(swoole_server_set)
 		convert_to_long(*v);
 		SwooleG.task_ipc_mode = (int)Z_LVAL_PP(v);
 	}
-	//max_conn
+	/**
+	 * Temporary file directory for task_worker
+	 */
+    if (zend_hash_find(vht, ZEND_STRS("task_tmpdir"), (void **) &v) == SUCCESS)
+    {
+        convert_to_string(*v);
+        SwooleG.task_tmpdir = emalloc(SW_DIR_MAXLEN);
+        SwooleG.task_tmpdir_len = snprintf(SwooleG.task_tmpdir, SW_DIR_MAXLEN, "%s/task.XXXXXX", Z_STRVAL_PP(v)) + 1;
+    }
+    else
+    {
+        SwooleG.task_tmpdir = strndup(SW_TASK_TMP_FILE, sizeof(SW_TASK_TMP_FILE));
+        SwooleG.task_tmpdir_len = sizeof(SW_TASK_TMP_FILE);
+    }
+	//max_connection
 	if (zend_hash_find(vht, ZEND_STRS("max_connection"), (void **)&v) == SUCCESS ||
 	        zend_hash_find(vht, ZEND_STRS("max_conn"), (void **)&v) == SUCCESS)
 	{
@@ -1800,7 +1814,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
 	if (swTaskWorker_is_large(req))
 	{
 		int data_len;
-		void *buf;
+		char *buf;
 		swTaskWorker_large_unpack(req, emalloc, buf, data_len);
 
 		/**
@@ -1868,7 +1882,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
 	if (swTaskWorker_is_large(req))
 	{
 		int data_len;
-		void *buf;
+		char *buf;
 		swTaskWorker_large_unpack(req, emalloc, buf, data_len);
 
 		/**
@@ -2927,7 +2941,7 @@ PHP_FUNCTION(swoole_server_taskwait)
 			if (swTaskWorker_is_large(task_result))
 			{
 				int data_len;
-				void *buf;
+				char *buf;
 				swTaskWorker_large_unpack(task_result, emalloc, buf, data_len);
 				/**
 				 * unpack failed
@@ -2937,7 +2951,7 @@ PHP_FUNCTION(swoole_server_taskwait)
 					efree(buf);
 					RETURN_FALSE;
 				}
-				RETURN_STRINGL(buf, data_len, 0);
+                RETURN_STRINGL(buf, data_len, 0);
 			}
 			else
 			{

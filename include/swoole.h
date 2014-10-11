@@ -1115,12 +1115,15 @@ typedef struct
      * Timer used pipe
      */
     uint8_t use_timer_pipe;
-    uint8_t task_ipc_mode;
+
 
     /**
      *  task worker process num
      */
     uint16_t task_worker_num;
+    char *task_tmpdir;
+    uint16_t task_tmpdir_len;
+    uint8_t task_ipc_mode;
 
     uint16_t cpu_num;
 
