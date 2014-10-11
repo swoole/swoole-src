@@ -50,7 +50,6 @@ extern "C" {
 #include <sys/select.h>
 #include <sys/mman.h>
 #include <sys/ipc.h>
-#include <sys/shm.h>
 #include <sys/wait.h>
 #include <sys/un.h>
 
@@ -1177,7 +1176,7 @@ void swSignalfd_add(int signo, __sighandler_t callback);
 int swSignalfd_setup(swReactor *reactor);
 #endif
 
-#ifdef HAVE_KQUEUE
+#if defined(HAVE_KQUEUE) || !defined(HAVE_SENDFILE)
 int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
 #else
 #include <sys/sendfile.h>

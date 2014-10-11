@@ -15,7 +15,7 @@
 */
 
 #include "swoole.h"
-#include "memory.h"
+#include <sys/shm.h>
 
 void* sw_shm_malloc(size_t size)
 {
@@ -142,7 +142,8 @@ void *swShareMemory_sysv_create(swShareMemory *object, int size, int key)
 	{
 		key = IPC_PRIVATE;
 	}
-	if ((shmid = shmget(key, size, SHM_R | SHM_W | IPC_CREAT)) < 0)
+	//SHM_R | SHM_W |
+	if ((shmid = shmget(key, size, IPC_CREAT)) < 0)
 	{
 		swWarn("shmget() failed. Error: %s[%d]", strerror(errno), errno);
 		return NULL;
