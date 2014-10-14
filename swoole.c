@@ -1545,19 +1545,20 @@ PHP_FUNCTION(swoole_connection_info)
 {
 	zval *zobject = getThis();
 	swServer *serv;
+	zend_bool noCheckConnection = 0;
 	long fd = 0;
 	long from_id = -1;
 
 	if (zobject == NULL)
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ol|l", &zobject, swoole_server_class_entry_ptr, &fd, &from_id) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ol|lb", &zobject, swoole_server_class_entry_ptr, &fd, &from_id, &noCheckConnection) == FAILURE)
 		{
 			return;
 		}
 	}
 	else
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|l", &fd, &from_id) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|lb", &fd, &from_id, &noCheckConnection) == FAILURE)
 		{
 			return;
 		}
@@ -1566,49 +1567,49 @@ PHP_FUNCTION(swoole_connection_info)
 
 	swConnection *conn = swServer_connection_get(serv, fd);
 
-	//It's udp
-	if (conn == NULL)
-	{
-		array_init(return_value);
-		php_swoole_udp_t udp_info;
-		if (from_id < 0)
-		{
-			from_id = php_swoole_udp_from_id;
-		}
-		memcpy(&udp_info, &from_id, sizeof(udp_info));
+	//udp client
+    if (conn == NULL)
+    {
+        array_init(return_value);
+        php_swoole_udp_t udp_info;
+        if (from_id < 0)
+        {
+            from_id = php_swoole_udp_from_id;
+        }
+        memcpy(&udp_info, &from_id, sizeof(udp_info));
 
-		swConnection *from_sock = swServer_connection_get(serv, udp_info.from_fd);
-		struct in_addr sin_addr;
-		sin_addr.s_addr = fd;
-		if (from_sock != NULL)
-		{
-			add_assoc_long(return_value, "from_fd", udp_info.from_fd);
-			add_assoc_long(return_value, "from_port",  from_sock->addr.sin_port);
-		}
-		if (from_id !=0 )
-		{
-			add_assoc_long(return_value, "remote_port", udp_info.port);
-		}
-		add_assoc_string(return_value, "remote_ip", inet_ntoa(sin_addr), 1);
-		return;
-	}
+        swConnection *from_sock = swServer_connection_get(serv, udp_info.from_fd);
+        struct in_addr sin_addr;
+        sin_addr.s_addr = fd;
+        if (from_sock != NULL)
+        {
+            add_assoc_long(return_value, "from_fd", udp_info.from_fd);
+            add_assoc_long(return_value, "from_port", from_sock->addr.sin_port);
+        }
+        if (from_id != 0)
+        {
+            add_assoc_long(return_value, "remote_port", udp_info.port);
+        }
+        add_assoc_string(return_value, "remote_ip", inet_ntoa(sin_addr), 1);
+        return;
+    }
 
-	//connection is closed
-	if (conn->active == 0)
-	{
-		RETURN_FALSE;
-	}
-	else
-	{
-		array_init(return_value);
-		add_assoc_long(return_value, "from_id", conn->from_id);
-		add_assoc_long(return_value, "from_fd", conn->from_fd);
-		add_assoc_long(return_value, "connect_time", conn->connect_time);
-		add_assoc_long(return_value, "last_time", conn->last_time);
-		add_assoc_long(return_value, "from_port",  serv->connection_list[conn->from_fd].addr.sin_port);
-		add_assoc_long(return_value, "remote_port", ntohs(conn->addr.sin_port));
-		add_assoc_string(return_value, "remote_ip", inet_ntoa(conn->addr.sin_addr), 1);
-	}
+    //connection is closed
+    if (conn->active == 0 && !noCheckConnection)
+    {
+        RETURN_FALSE;
+    }
+    else
+    {
+        array_init(return_value);
+        add_assoc_long(return_value, "from_id", conn->from_id);
+        add_assoc_long(return_value, "from_fd", conn->from_fd);
+        add_assoc_long(return_value, "connect_time", conn->connect_time);
+        add_assoc_long(return_value, "last_time", conn->last_time);
+        add_assoc_long(return_value, "from_port", serv->connection_list[conn->from_fd].addr.sin_port);
+        add_assoc_long(return_value, "remote_port", ntohs(conn->addr.sin_port));
+        add_assoc_string(return_value, "remote_ip", inet_ntoa(conn->addr.sin_addr), 1);
+    }
 }
 
 PHP_FUNCTION(swoole_connection_list)

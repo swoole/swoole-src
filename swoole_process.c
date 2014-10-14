@@ -238,6 +238,12 @@ PHP_METHOD(swoole_process, start)
 			php_sw_reactor_ok = 0;
 		}
 
+		if (SwooleG.timer.fd)
+		{
+		    swTimer_free(&SwooleG.timer);
+		    bzero(&SwooleG.timer, sizeof(SwooleG.timer));
+		}
+
 		zend_update_property_long(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("pid"), process->pid TSRMLS_CC);
 		zend_update_property_long(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("pipe"), process->pipe TSRMLS_CC);
 

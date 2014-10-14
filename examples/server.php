@@ -6,7 +6,7 @@ $serv->set(array(
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
     //'ipc_mode' => 2,
-    'task_worker_num' => 1,
+    //'task_worker_num' => 1,
     //'task_ipc_mode' => 1,
     //'dispatch_mode' => 1,
     //'daemonize' => 1,
@@ -26,6 +26,48 @@ function my_log($msg)
 {
 	global $serv;
     echo "#".$serv->worker_pid."\t".$msg.PHP_EOL;
+}
+
+function forkChildInWorker() {
+	global $serv;
+	echo "on worker start\n";
+	$serv->addtimer(2000);
+	$process = new swoole_process ( function (swoole_process $worker) {
+		swoole_event_add ($worker->pipe, function ($pipe) use ($worker) {
+			echo $worker->read()."\n";
+		});
+		
+		swoole_timer_add (1000, function ($interval) use ($worker) {
+			echo "#{$worker->pid} child process timer $interval\n"; // 如果worker中没有定时器，则会输出 process timer xxx
+		});
+	} );
+	$pid = $process->start();
+	echo "Fork child process success. pid={$pid}\n";
+	//保存子进程对象，这里如果不保存，那对象会被销毁，管道也会被关闭
+	$serv->childprocess = $process;
+}
+
+function processRename($serv, $worker_id) {
+	
+	global $argv;
+	if($worker_id >= $serv->setting['worker_num'])
+	{
+		swoole_set_process_name("php {$argv[0]}: task");
+	}
+	else
+	{
+		swoole_set_process_name("php {$argv[0]}: worker");
+	}
+	echo "WorkerStart: MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}";
+	echo "|WorkerId={$serv->worker_id}|WorkerPid={$serv->worker_pid}\n";
+	
+	if ($worker_id == 1)
+	{
+	$serv->addtimer(2000);
+	$serv->addtimer(6000);
+	//echo microtime(true)."\n";
+	//var_dump($serv->gettimer());
+	}
 }
 
 function my_onShutdown($serv)
@@ -52,25 +94,8 @@ function my_onConnect($serv, $fd, $from_id)
 
 function my_onWorkerStart($serv, $worker_id)
 {
-    global $argv;
-    if($worker_id >= $serv->setting['worker_num']) 
-    {
-        swoole_set_process_name("php {$argv[0]}: task");
-    } 
-    else 
-    {
-        swoole_set_process_name("php {$argv[0]}: worker");
-    }
-    echo "WorkerStart: MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}";
-    echo "|WorkerId={$serv->worker_id}|WorkerPid={$serv->worker_pid}\n";
-
-    if ($worker_id == 1)
-    {
-    	$serv->addtimer(2000);
-    	$serv->addtimer(6000);
-    	//echo microtime(true)."\n";
-    	//var_dump($serv->gettimer());
-    }
+	//forkChildInWorker();
+	processRename($serv, $worker_id);
 }
 
 function my_onWorkerStop($serv, $worker_id)
