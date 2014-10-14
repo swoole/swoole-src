@@ -330,6 +330,9 @@ int swoole_sync_readfile(int fd, void *buf, int len)
     return readn;
 }
 
+/**
+ * 最大公约数
+ */
 uint32_t swoole_common_divisor(uint32_t u, uint32_t v)
 {
     assert(u > 0);
@@ -348,6 +351,9 @@ uint32_t swoole_common_divisor(uint32_t u, uint32_t v)
     return v;
 }
 
+/**
+ * 最小公倍数
+ */
 uint32_t swoole_common_multiple(uint32_t u, uint32_t v)
 {
     assert(u > 0);

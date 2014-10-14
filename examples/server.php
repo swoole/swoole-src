@@ -61,12 +61,12 @@ function processRename($serv, $worker_id) {
 	echo "WorkerStart: MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}";
 	echo "|WorkerId={$serv->worker_id}|WorkerPid={$serv->worker_pid}\n";
 	
-	if ($worker_id == 1)
+	if ($worker_id == 0)
 	{
-	$serv->addtimer(2000);
-	$serv->addtimer(6000);
-	//echo microtime(true)."\n";
-	//var_dump($serv->gettimer());
+		echo "Start: ".microtime(true)."\n";
+		$serv->addtimer(3000);
+		//$serv->addtimer(6000);
+		//var_dump($serv->gettimer());
 	}
 }
 
@@ -77,8 +77,7 @@ function my_onShutdown($serv)
 
 function my_onTimer($serv, $interval)
 {
-	//echo microtime(true)."\n";
-    my_log("Server:Timer Call.Interval=$interval");
+	echo "Timer#$interval: ".microtime(true)."\n";
 }
 
 function my_onClose($serv, $fd, $from_id)
@@ -96,6 +95,12 @@ function my_onWorkerStart($serv, $worker_id)
 {
 	//forkChildInWorker();
 	processRename($serv, $worker_id);
+	$serv->timeout(2000, function(){
+		echo "Timeout: ".microtime(true)."\n";
+	});
+	$serv->timeout(10000, function(){
+		echo "Timeout: ".microtime(true)."\n";
+	});
 }
 
 function my_onWorkerStop($serv, $worker_id)

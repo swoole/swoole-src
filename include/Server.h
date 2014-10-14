@@ -445,13 +445,13 @@ int swServer_create(swServer *serv);
 int swServer_listen(swServer *serv, swReactor *reactor);
 int swServer_free(swServer *serv);
 int swServer_shutdown(swServer *serv);
-int swServer_addTimer(swServer *serv, int interval);
 int swServer_reload(swServer *serv);
 int swServer_udp_send(swServer *serv, swSendData *resp);
 int swServer_tcp_send(swServer *serv, int fd, void *data, int length);
 int swServer_reactor_add(swServer *serv, int fd, int sock_type); //no use
 int swServer_reactor_del(swServer *serv, int fd, int reacot_id); //no use
 int swServer_get_manager_pid(swServer *serv);
+void swServer_onTimer(swTimer *timer, int interval);
 
 int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);
 int swTaskWorker_onFinish(swReactor *reactor, swEvent *event);

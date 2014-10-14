@@ -33,7 +33,7 @@ int swTimer_create(swTimer *timer, int interval, int use_pipe)
 	timer->lasttime = interval;
 
 #ifndef HAVE_TIMERFD
-	SwooleG.use_timerfd = 0;
+    SwooleG.use_timerfd = 0;
 #endif
 
 	timer->list = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
@@ -183,16 +183,28 @@ int swTimer_free(swTimer *timer)
 	}
 }
 
+int swTimer_set(swTimer *timer, int new_interval)
+{
+    if (SwooleG.use_timerfd)
+    {
+        return swTimer_timerfd_set(timer, new_interval);
+    }
+    else
+    {
+        return swTimer_signal_set(timer, new_interval);
+    }
+}
+
 int swTimer_add(swTimer *timer, int ms)
 {
-    swTimer_node *node = sw_malloc(sizeof(swTimer_node));
+    swTimer_interval_node *node = sw_malloc(sizeof(swTimer_interval_node));
     if (node == NULL)
     {
         swWarn("malloc failed.");
         return SW_ERR;
     }
 
-    bzero(node, sizeof(swTimer_node));
+    bzero(node, sizeof(swTimer_interval_node));
     node->interval = ms;
     if (gettimeofday(&node->lasttime, NULL) < 0)
     {
@@ -205,14 +217,7 @@ int swTimer_add(swTimer *timer, int ms)
     {
         int new_interval = swoole_common_divisor(ms, timer->interval);
         timer->interval = new_interval;
-        if (SwooleG.use_timerfd)
-        {
-            swTimer_timerfd_set(timer, new_interval);
-        }
-        else
-        {
-            swTimer_signal_set(timer, new_interval);
-        }
+        swTimer_set(timer, new_interval);
     }
     swHashMap_add_int(timer->list, ms, node, NULL);
     timer->num++;
@@ -222,7 +227,7 @@ int swTimer_add(swTimer *timer, int ms)
 int swTimer_select(swTimer *timer)
 {
     uint64_t key;
-    swTimer_node *timer_node;
+    swTimer_interval_node *timer_node;
     struct timeval now;
 
     if (gettimeofday(&now, NULL) < 0)
@@ -232,12 +237,36 @@ int swTimer_select(swTimer *timer)
     }
     //swWarn("%d.%d", now.tv_sec, now.tv_usec);
 
+    if (timer->onTimeout == NULL)
+    {
+        swWarn("timer->onTimeout is NULL");
+        return SW_ERR;
+    }
+    /**
+     * timeout task list
+     */
+    uint32_t now_ms = now.tv_sec * 1000 + now.tv_usec / 1000;
+    swTimer_timeout_node *tmp = timer->timeout_root;
+    while (tmp)
+    {
+        if (tmp->exectime > now_ms)
+        {
+            break;
+        }
+        else
+        {
+            timer->onTimeout(timer, tmp->data);
+            timer->timeout_root = tmp->next;
+            sw_free(tmp);
+            tmp = timer->timeout_root;
+        }
+    }
+
     if (timer->onTimer == NULL)
     {
         swWarn("timer->onTimer is NULL");
         return SW_ERR;
     }
-
     uint32_t interval = 0;
     do
     {
@@ -286,4 +315,73 @@ void swTimer_signal_handler(int sig)
 	{
 		SwooleG.timer.pipe.write(&SwooleG.timer.pipe, &flag, sizeof(flag));
 	}
+}
+
+int swTimer_addtimeout(swTimer *timer, int timeout_ms, void *data)
+{
+    int new_interval = swoole_common_divisor(timeout_ms, timer->interval);
+    if (new_interval < timer->interval)
+    {
+        swTimer_set(timer, new_interval);
+        timer->interval = new_interval;
+    }
+
+    struct timeval now;
+    if (gettimeofday(&now, NULL) < 0)
+    {
+        swWarn("gettimeofday() failed. Error: %s[%d]", strerror(errno), errno);
+        return SW_ERR;
+    }
+
+    uint32_t now_ms = now.tv_sec * 1000 + now.tv_usec / 1000;
+    swTimer_timeout_node *node = sw_malloc(sizeof(swTimer_timeout_node));
+    if (node == NULL)
+    {
+        swWarn("malloc(%d) failed. Error: %s[%d]", (int ) sizeof(swTimer_timeout_node), strerror(errno), errno);
+        return SW_ERR;
+    }
+
+    bzero(node, sizeof(swTimer_timeout_node));
+    node->data = data;
+    node->exectime = now_ms + timeout_ms;
+
+    if (timer->timeout_root == NULL)
+    {
+        timer->timeout_root = node;
+        return SW_OK;
+    }
+
+    swTimer_timeout_node *tmp = timer->timeout_root;
+
+    while (1)
+    {
+        if (tmp->exectime >= node->exectime)
+        {
+            node->prev = tmp->prev;
+            node->next = tmp;
+            if (node->prev)
+            {
+                node->prev->next = node;
+            }
+
+            tmp->prev = node;
+
+            if (tmp == timer->timeout_root)
+            {
+                timer->timeout_root = node;
+            }
+            break;
+        }
+        else if (tmp->next)
+        {
+            tmp = tmp->next;
+        }
+        else
+        {
+            tmp->next = node;
+            node->prev = tmp;
+            break;
+        }
+    }
+    return SW_OK;
 }

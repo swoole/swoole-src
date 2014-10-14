@@ -41,12 +41,6 @@ typedef struct
 	zval *socket;
 } swoole_reactor_fd;
 
-typedef struct
-{
-	zval *callback;
-	int interval;
-} swoole_timer_item;
-
 uint8_t php_sw_reactor_wait_onexit = 0;
 uint8_t php_sw_reactor_ok = 0;
 uint8_t php_sw_in_client = 0;
@@ -86,8 +80,6 @@ static int php_swoole_client_close(zval **zobject, int fd TSRMLS_DC);
 static int php_swoole_event_onRead(swReactor *reactor, swEvent *event);
 static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event);
 static int php_swoole_event_onError(swReactor *reactor, swEvent *event);
-
-static void php_swoole_onTimerCallback(swTimer *timer, int interval);
 
 static int php_swoole_client_onRead(swReactor *reactor, swEvent *event);
 static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event);
@@ -536,7 +528,68 @@ void php_swoole_check_reactor()
 	return;
 }
 
-static void php_swoole_onTimerCallback(swTimer *timer, int interval)
+void php_swoole_check_timer(int interval)
+{
+    if (SwooleG.timer.fd == 0)
+    {
+        if (SwooleG.serv)
+        {
+            if (SwooleG.serv->onTimer == NULL)
+            {
+                swWarn("onTimer is null. Can not use timer.");
+                return;
+            }
+            SwooleG.timer.onTimer = swServer_onTimer;
+        }
+        else
+        {
+            SwooleG.timer.onTimer = php_swoole_onTimerInterval;
+        }
+
+        if (swTimer_create(&SwooleG.timer, interval, SwooleG.use_timer_pipe) < 0)
+        {
+            return;
+        }
+        //no have signalfd
+        if (SwooleG.use_signalfd == 0)
+        {
+            swSignal_add(SIGALRM, swTimer_signal_handler);
+        }
+        SwooleG.timer.interval = interval;
+        SwooleG.timer.onTimeout = php_swoole_onTimeout;
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_TIMER, swTimer_event_handler);
+        SwooleG.main_reactor->add(SwooleG.main_reactor, SwooleG.timer.fd, SW_FD_TIMER);
+    }
+}
+
+void php_swoole_onTimeout(swTimer *timer, void *data)
+{
+    zval *callback = data;
+    zval *retval;
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+//    char *func_name = NULL;
+//    if (!zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+//    {
+//        php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
+//        efree(func_name);
+//        return;
+//    }
+//    efree(func_name);
+
+    if (call_user_function_ex(EG(function_table), NULL, callback, &retval, 0, NULL, 0, NULL TSRMLS_CC) == FAILURE)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_timer: onTimerout handler error");
+        return;
+    }
+    if (retval != NULL)
+    {
+        zval_ptr_dtor(&retval);
+    }
+    zval_ptr_dtor(&callback);
+}
+
+void php_swoole_onTimerInterval(swTimer *timer, int interval)
 {
 	zval *retval;
 	zval **args[1];
@@ -544,11 +597,11 @@ static void php_swoole_onTimerCallback(swTimer *timer, int interval)
 
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-	if(zend_hash_find(&php_sw_timer_callback, (char *)&interval, sizeof(interval), (void**)&timer_item) != SUCCESS)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_timer: onTimerCallback not found");
-		return;
-	}
+    if (zend_hash_find(&php_sw_timer_callback, (char *) &interval, sizeof(interval), (void**) &timer_item) != SUCCESS)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_timer: onTimerCallback not found");
+        return;
+    }
 
 	zval *zinterval;
 	MAKE_STD_ZVAL(zinterval);
@@ -840,22 +893,7 @@ PHP_FUNCTION(swoole_timer_add)
 		RETURN_FALSE;
 	}
 	php_swoole_check_reactor();
-
-	if (SwooleG.timer.fd == 0)
-	{
-		if (swTimer_create(&SwooleG.timer, timer_item.interval, 1) < 0)
-		{
-			RETURN_FALSE;
-		}
-		//no have signalfd
-		if (SwooleG.use_signalfd == 0)
-		{
-			swSignal_add(SIGALRM, swTimer_signal_handler);
-		}
-		SwooleG.timer.onTimer = php_swoole_onTimerCallback;
-		SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_TIMER, swTimer_event_handler);
-		SwooleG.main_reactor->add(SwooleG.main_reactor, SwooleG.timer.fd, SW_FD_TIMER);
-	}
+	php_swoole_check_timer(timer_item.interval);
 
 	if (swTimer_add(&SwooleG.timer, timer_item.interval) < 0)
 	{

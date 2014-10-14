@@ -1013,16 +1013,24 @@ int swThreadPool_run(swThreadPool *pool);
 int swThreadPool_free(swThreadPool *pool);
 
 //-----------------------------------------------
-typedef struct _swTimer_node
+typedef struct _swTimer_interval_node
 {
-	struct _swTimerList_node *next, *prev;
-	struct timeval lasttime;
-	uint32_t interval;
-} swTimer_node;
+    struct _swTimerList_node *next, *prev;
+    struct timeval lasttime;
+    uint32_t interval;
+} swTimer_interval_node;
+
+typedef struct _swTimer_timeout_node
+{
+    struct _swTimer_timeout_node *next, *prev;
+    void *data;
+    uint32_t exectime;
+} swTimer_timeout_node;
 
 typedef struct _swTimer
 {
 	swHashMap *list;
+	swTimer_timeout_node *timeout_root;
 	int num;
 	int interval;
 	int use_pipe;
@@ -1030,12 +1038,15 @@ typedef struct _swTimer
 	int fd;
 	swPipe pipe;
 	void (*onTimer)(struct _swTimer *timer, int interval);
+	void (*onTimeout)(struct _swTimer *timer, void *data);
 } swTimer;
 
 int swTimer_create(swTimer *timer, int interval_ms, int no_pipe);
 void swTimer_del(swTimer *timer, int ms);
 int swTimer_free(swTimer *timer);
 int swTimer_add(swTimer *timer, int ms);
+int swTimer_set(swTimer *timer, int new_interval);
+int swTimer_addtimeout(swTimer *timer, int timeout_ms, void *data);
 void swTimer_signal_handler(int sig);
 int swTimer_event_handler(swReactor *reactor, swEvent *event);
 int swTimer_select(swTimer *timer);

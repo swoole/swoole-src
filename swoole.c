@@ -377,6 +377,7 @@ static zend_function_entry swoole_server_methods[] = {
 	PHP_FALIAS(connection_info, swoole_connection_info, arginfo_swoole_connection_info_oo)
 	PHP_FALIAS(connection_list, swoole_connection_list, arginfo_swoole_connection_list_oo)
 	PHP_ME(swoole_server, stats, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_server, timeout, NULL, ZEND_ACC_PUBLIC)
 	{NULL, NULL, NULL}
 };
 
@@ -853,6 +854,30 @@ PHP_METHOD(swoole_server, stats)
     add_assoc_long_ex(return_value, SW_STRL("connection_num"), SwooleStats->connection_num);
     add_assoc_long_ex(return_value, SW_STRL("accept_count"), SwooleStats->accept_count);
     add_assoc_long_ex(return_value, SW_STRL("close_count"), SwooleStats->close_count);
+}
+
+PHP_METHOD(swoole_server, timeout)
+{
+    long interval;
+    zval *callback;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz", &interval, &callback) == FAILURE)
+    {
+        return;
+    }
+
+    php_swoole_check_reactor();
+    php_swoole_check_timer(interval);
+
+    zval_add_ref(&callback);
+
+    if (swTimer_addtimeout(&SwooleG.timer, interval, callback) < 0)
+    {
+        RETURN_FALSE;
+    }
+
+    php_swoole_try_run_reactor();
+    RETURN_TRUE;
 }
 
 PHP_FUNCTION(swoole_server_set)
@@ -2631,7 +2656,7 @@ PHP_FUNCTION(swoole_server_gettimer)
         RETURN_FALSE;
     }
 
-    swTimer_node *timer_node;
+    swTimer_interval_node *timer_node;
     uint64_t key;
     array_init(return_value);
 
@@ -2687,8 +2712,8 @@ PHP_FUNCTION(swoole_server_addtimer)
 			return;
 		}
 	}
-
-	SW_CHECK_RETURN(swServer_addTimer(serv, (int)interval));
+    php_swoole_check_timer(interval);
+    SW_CHECK_RETURN(swTimer_add(&SwooleG.timer, (int )interval));
 }
 
 PHP_FUNCTION(swoole_set_process_name)

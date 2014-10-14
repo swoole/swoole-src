@@ -254,42 +254,10 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 	return SW_OK;
 }
 
-static void swServer_onTimer(swTimer *timer, int interval)
+void swServer_onTimer(swTimer *timer, int interval)
 {
 	swServer *serv = SwooleG.serv;
 	serv->onTimer(serv, interval);
-}
-
-int swServer_addTimer(swServer *serv, int interval)
-{
-	if (serv->onTimer == NULL)
-	{
-		swWarn("onTimer is null. Can not use timer.");
-		return SW_ERR;
-	}
-
-	//timer no init
-	if (SwooleG.timer.fd == 0)
-	{
-		if (swTimer_create(&SwooleG.timer, interval, SwooleG.use_timer_pipe) < 0)
-		{
-			return SW_ERR;
-		}
-
-		if (swIsMaster())
-		{
-			serv->connection_list[SW_SERVER_TIMER_FD_INDEX].fd = SwooleG.timer.fd;
-		}
-
-		if (SwooleG.use_timer_pipe)
-		{
-			SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_TIMER, swTimer_event_handler);
-			SwooleG.main_reactor->add(SwooleG.main_reactor, SwooleG.timer.fd, SW_FD_TIMER);
-		}
-
-		SwooleG.timer.onTimer = swServer_onTimer;
-	}
-	return swTimer_add(&SwooleG.timer, interval);
 }
 
 /**
