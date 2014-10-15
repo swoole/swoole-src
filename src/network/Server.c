@@ -1118,17 +1118,21 @@ int swServer_connection_close(swServer *serv, int fd)
 		return SW_ERR;
 	}
 
+    swReactor *reactor = &(serv->reactor_threads[conn->from_id].reactor);
+    if (conn->active == 1 && reactor->del(reactor, fd) < 0)
+    {
+        return SW_ERR;
+    }
+
 	conn->active = 0;
-	/**
-	 * Close count
-	 */
+
 	sw_atomic_fetch_add(&SwooleStats->close_count, 1);
 	sw_atomic_fetch_sub(&SwooleStats->connection_num, 1);
 
 	swTrace("Close Event.fd=%d|from=%d", fd, reactor_id);
 
-	//释放缓存区占用的内存
-    if (serv->open_eof_check)
+	//clear output buffer
+	if (serv->open_eof_check)
     {
         if (conn->in_buffer)
         {
@@ -1205,11 +1209,6 @@ int swServer_connection_close(swServer *serv, int fd)
         for (; serv->connection_list[find_max_fd].active == 0 && find_max_fd > swServer_get_minfd(serv); find_max_fd--);
         swServer_set_maxfd(serv, find_max_fd);
         SwooleG.lock.unlock(&SwooleG.lock);
-    }
-    swReactor *reactor = &(serv->reactor_threads[conn->from_id].reactor);
-    if (conn->active == 1 && reactor->del(reactor, fd) < 0)
-    {
-        return SW_ERR;
     }
     return close(fd);
 }
