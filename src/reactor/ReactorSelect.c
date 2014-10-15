@@ -112,23 +112,23 @@ static int swReactorSelect_cmp(swFdList_node *a, swFdList_node *b)
 
 int swReactorSelect_del(swReactor *reactor, int fd)
 {
-	swReactorSelect *object = reactor->object;
-	swFdList_node ev, *s_ev = NULL;
-	ev.fd = fd;
+    swReactorSelect *object = reactor->object;
+    swFdList_node ev, *s_ev = NULL;
+    ev.fd = fd;
 
-	LL_SEARCH(object->fds, s_ev, &ev, swReactorSelect_cmp);
-	if (s_ev == NULL)
-	{
-		swWarn("swReactorSelect: fd[%d] not found", fd);
-		return SW_ERR;
-	}
-	LL_DELETE(object->fds, s_ev);
-	SW_FD_CLR(fd, &object->rfds);
-	SW_FD_CLR(fd, &object->wfds);
-	SW_FD_CLR(fd, &object->efds);
-	reactor->event_num--;
-	sw_free(s_ev);
-	return SW_OK;
+    LL_SEARCH(object->fds, s_ev, &ev, swReactorSelect_cmp);
+    if (s_ev == NULL)
+    {
+        swWarn("swReactorSelect: fd[%d] not found", fd);
+        return SW_ERR;
+    }
+    LL_DELETE(object->fds, s_ev);
+    SW_FD_CLR(fd, &object->rfds);
+    SW_FD_CLR(fd, &object->wfds);
+    SW_FD_CLR(fd, &object->efds);
+    reactor->event_num = reactor->event_num <= 0 ? 0 : reactor->event_num - 1;
+    sw_free(s_ev);
+    return SW_OK;
 }
 
 int swReactorSelect_set(swReactor *reactor, int fd, int fdtype)

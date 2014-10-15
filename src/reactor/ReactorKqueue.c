@@ -211,11 +211,7 @@ static int swReactorKqueue_del(swReactor *reactor, int fd)
 		swWarn("kqueue remove fd[=%d] failed. Error: %s[%d]", fd, strerror(errno), errno);
 		return SW_ERR;
 	}
-	ret = close(fd);
-	if (ret >= 0)
-	{
-		(reactor->event_num <= 0) ? reactor->event_num = 0 : reactor->event_num--;
-	}
+	reactor->event_num = reactor->event_num <= 0 ? 0 : reactor->event_num - 1;
 	return SW_OK;
 }
 

@@ -149,7 +149,7 @@ static int swReactorPoll_del(swReactor *reactor, int fd)
 		if (object->events[i].fd == fd)
 		{
 			uint32_t old_num = reactor->event_num;
-			reactor->event_num--;;
+			reactor->event_num = reactor->event_num <= 0 ? 0 : reactor->event_num - 1;
 			for (; i < old_num; i++)
 			{
 				if (i == old_num)
@@ -164,7 +164,6 @@ static int swReactorPoll_del(swReactor *reactor, int fd)
 					object->events[i] = object->events[i + 1];
 				}
 			}
-			close(fd);
 			return SW_OK;
 		}
 	}

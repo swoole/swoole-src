@@ -867,7 +867,7 @@ PHP_FUNCTION(swoole_timer_after)
         return;
     }
 
-    if (interval > 86400)
+    if (interval > 86400000)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "The given parameters is too big.");
         RETURN_FALSE;
