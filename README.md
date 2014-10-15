@@ -219,7 +219,7 @@ bool swoole_async_write(string $filename, string $content, int $offset = -1, mix
 swoole_async_dns_lookup(string $domain, function($host, $ip){});
 ``` 
 
-Refer [API Reference](#) for more detail information of these functions.
+Refer [API Reference](http://wiki.swoole.com/wiki/page/183.html) for more detail information of these functions.
 
 
 ### Client
@@ -240,7 +240,7 @@ string swoole_client::recv(int $size = 65535, bool $waitall = 0);
 bool swoole_client::close();
 ```
 
-Refer [API Reference](#) for more detail information of these functions.
+Refer [API Reference](http://wiki.swoole.com/wiki/page/3.html) for more detail information of these functions.
 
 
 ## API Reference
@@ -250,7 +250,7 @@ Refer [API Reference](#) for more detail information of these functions.
 
 ## Related Projects
 
-* [SwooleFramework](https://github.com/swoole/framework) Web framewrok powered by Swoole
+* [SwooleFramework](https://github.com/swoole/framework) Web framework powered by Swoole
 
 ## Contribution
 
