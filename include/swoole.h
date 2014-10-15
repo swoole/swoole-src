@@ -816,16 +816,11 @@ struct _swWorker
 	/**
 	 * eventfd, process notify
 	 */
-	swPipe *notify;
+	//swPipe *notify;
 
-	/**
-	 * share memory store
-	 */
-	struct
-	{
-		uint8_t lock;
-		void *ptr;
-	} store;
+	swLock lock;
+
+	void *send_shm;
 
 	int pipe_master;
 	int pipe_worker;
@@ -1081,7 +1076,7 @@ typedef struct
 	/**
 	 * Current Proccess Worker's id
 	 */
-	int id;
+	uint32_t id;
 
 	/**
 	 * Write to reactor

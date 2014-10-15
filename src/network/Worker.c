@@ -19,80 +19,67 @@
 
 int swWorker_create(swWorker *worker)
 {
-	/**
-	 * Create shared memory storage
-	 */
-	void *store = sw_shm_malloc(SwooleG.serv->buffer_output_size);
-	if (store == NULL)
-	{
-		swWarn("malloc for worker->store failed.");
-		return SW_ERR;
-	}
+    /**
+     * Create shared memory storage
+     */
+    worker->send_shm = sw_shm_malloc(SwooleG.serv->buffer_output_size);
+    if (worker->send_shm == NULL)
+    {
+        swWarn("malloc for worker->store failed.");
+        return SW_ERR;
+    }
 
-	swPipe *worker_notify = sw_malloc(sizeof(swPipe));
-	if (worker_notify == NULL)
-	{
-		swWarn("malloc for worker->notify failed.");
-		sw_shm_free(store);
-		return SW_ERR;
-	}
-
-	/**
-	 * Create notify pipe
-	 */
-	if (swPipeNotify_auto(worker_notify, 1, 0))
-	{
-		sw_shm_free(store);
-		sw_free(worker_notify);
-		return SW_ERR;
-	}
-
-	worker->notify = worker_notify;
-	worker->store.ptr = store;
-	worker->store.lock = 0;
-	return SW_OK;
+    swPipe *worker_notify = sw_malloc(sizeof(swPipe));
+    if (worker_notify == NULL)
+    {
+        swWarn("malloc for worker->notify failed.");
+        sw_shm_free(worker->send_shm);
+        return SW_ERR;
+    }
+    swMutex_create(&worker->lock, 1);
+    return SW_OK;
 }
 
 void swWorker_free(swWorker *worker)
 {
-	sw_shm_free(worker->store.ptr);
-	worker->notify->close(worker->notify);
+    sw_shm_free(worker->send_shm);
+    worker->lock.free(&worker->lock);
 }
 
 void swWorker_signal_init(void)
 {
-	swSignal_add(SIGHUP, NULL);
-	swSignal_add(SIGPIPE, NULL);
-	swSignal_add(SIGUSR1, NULL);
-	swSignal_add(SIGUSR2, NULL);
-	//swSignal_add(SIGINT, swWorker_signal_handler);
-	swSignal_add(SIGTERM, swWorker_signal_handler);
-	swSignal_add(SIGALRM, swTimer_signal_handler);
-	//for test
-	swSignal_add(SIGVTALRM, swWorker_signal_handler);
+    swSignal_add(SIGHUP, NULL);
+    swSignal_add(SIGPIPE, NULL);
+    swSignal_add(SIGUSR1, NULL);
+    swSignal_add(SIGUSR2, NULL);
+    //swSignal_add(SIGINT, swWorker_signal_handler);
+    swSignal_add(SIGTERM, swWorker_signal_handler);
+    swSignal_add(SIGALRM, swTimer_signal_handler);
+    //for test
+    swSignal_add(SIGVTALRM, swWorker_signal_handler);
 }
 
 void swWorker_signal_handler(int signo)
 {
-	switch (signo)
-	{
-	case SIGTERM:
-		SwooleG.running = 0;
-		break;
-	case SIGALRM:
-		swTimer_signal_handler(SIGALRM);
-		break;
-	/**
-	 * for test
-	 */
-	case SIGVTALRM:
-		swWarn("SIGVTALRM coming");
-		break;
-	case SIGUSR1:
-	case SIGUSR2:
-		break;
-	default:
-		break;
-	}
+    switch (signo)
+    {
+    case SIGTERM:
+        SwooleG.running = 0;
+        break;
+    case SIGALRM:
+        swTimer_signal_handler(SIGALRM);
+        break;
+        /**
+         * for test
+         */
+    case SIGVTALRM:
+        swWarn("SIGVTALRM coming");
+        break;
+    case SIGUSR1:
+    case SIGUSR2:
+        break;
+    default:
+        break;
+    }
 }
 

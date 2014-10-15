@@ -18,6 +18,7 @@
 #include "Server.h"
 #include <signal.h>
 #include <sys/wait.h>
+#include <sys/time.h>
 
 typedef struct
 {
@@ -633,16 +634,9 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
      */
     if (resp->length > 0)
     {
-        int64_t wait_reactor;
-
-        /**
-         * Storage is in use right now, wait notify.
-         */
-        if (worker->store.lock == 1)
-        {
-            worker->notify->read(worker->notify, &wait_reactor, sizeof(wait_reactor));
-        }
         swPackage_response response;
+
+        worker->lock.lock(&worker->lock);
 
         response.length = resp->length;
         response.worker_id = SwooleWG.id;
@@ -653,12 +647,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         sdata._send.info.len = sizeof(response);
 
         memcpy(sdata._send.data, &response, sizeof(response));
-
-        /**
-         * Lock the worker storage
-         */
-        worker->store.lock = 1;
-        memcpy(worker->store.ptr, resp->data, resp->length);
+        memcpy(worker->send_shm, resp->data, resp->length);
     }
     else
     {

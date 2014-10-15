@@ -117,7 +117,6 @@ int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
     swEventData resp;
     swSendData _send;
 
-    int64_t notify_worker = 1;
     swPackage_response pkg_resp;
     swWorker *worker;
 
@@ -125,9 +124,6 @@ int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
     {
         //Unix Sock UDP
         n = read(ev->fd, &resp, sizeof(resp));
-
-        swTrace("[WriteThread]recv: writer=%d|pipe=%d", ev->from_id, ev->fd);
-        //swWarn("send: type=%d|content=%s", resp.info.type, resp.data);
         if (n > 0)
         {
             memcpy(&_send.info, &resp.info, sizeof(resp.info));
@@ -142,16 +138,11 @@ int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
                 memcpy(&pkg_resp, resp.data, sizeof(pkg_resp));
                 worker = swServer_get_worker(SwooleG.serv, pkg_resp.worker_id);
 
-                _send.data = worker->store.ptr;
+                _send.data = worker->send_shm;
                 _send.length = pkg_resp.length;
 
                 swReactorThread_send(&_send);
-
-                /**
-                 * Unlock the worker storage.
-                 */
-                worker->store.lock = 0;
-                worker->notify->write(worker->notify, &notify_worker, sizeof(notify_worker));
+                worker->lock.unlock(&worker->lock);
             }
         }
         else if (errno == EAGAIN)
