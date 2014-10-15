@@ -94,7 +94,7 @@ int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
     ret = factory->dispatch(factory, &task);
     if (ret < 0)
     {
-        swWarn("factory->dispatch[udp packet] fail\n");
+        swWarn("factory->dispatch[udp packet] failed");
     }
     return SW_OK;
 }
@@ -217,7 +217,6 @@ int swReactorThread_send(swSendData *_send)
     volatile swBuffer_trunk *trunk;
 
     swConnection *conn = swServer_connection_get(serv, fd);
-
     if (conn == NULL || conn->active == 0)
     {
         swWarn("Connection[fd=%d] is not exists.", fd);
@@ -895,6 +894,19 @@ int swReactorThread_close(swReactor *reactor, int fd)
     notify_ev.from_id = reactor->id;
     notify_ev.fd = fd;
     notify_ev.type = SW_EVENT_CLOSE;
+
+    if (reactor->del(reactor, fd) < 0)
+    {
+        swWarn("remove from epoll failed.");
+        return SW_ERR;
+    }
+    swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
+    if (conn == NULL || conn->active == 0)
+    {
+        return SW_ERR;
+    }
+    conn->active = 2;
+
     return SwooleG.factory->notify(SwooleG.factory, &notify_ev);
 }
 

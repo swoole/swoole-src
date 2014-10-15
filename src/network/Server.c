@@ -1207,7 +1207,7 @@ int swServer_connection_close(swServer *serv, int fd)
         SwooleG.lock.unlock(&SwooleG.lock);
     }
     swReactor *reactor = &(serv->reactor_threads[conn->from_id].reactor);
-    if (reactor->del(reactor, fd) < 0)
+    if (conn->active == 1 && reactor->del(reactor, fd) < 0)
     {
         return SW_ERR;
     }
