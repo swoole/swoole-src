@@ -202,7 +202,6 @@ PHP_FUNCTION(swoole_server_heartbeat);
 PHP_FUNCTION(swoole_connection_list);
 PHP_FUNCTION(swoole_connection_info);
 PHP_METHOD(swoole_server, stats);
-PHP_METHOD(swoole_server, timeout);
 
 PHP_FUNCTION(swoole_event_add);
 PHP_FUNCTION(swoole_event_set);
@@ -220,6 +219,7 @@ PHP_FUNCTION(swoole_async_set);
 
 PHP_FUNCTION(swoole_timer_add);
 PHP_FUNCTION(swoole_timer_del);
+PHP_FUNCTION(swoole_timer_after);
 
 PHP_FUNCTION(swoole_strerror);
 PHP_FUNCTION(swoole_errno);

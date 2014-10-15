@@ -95,10 +95,10 @@ function my_onWorkerStart($serv, $worker_id)
 {
 	//forkChildInWorker();
 	processRename($serv, $worker_id);
-	$serv->timeout(2000, function(){
+	$serv->after(2000, function(){
 		echo "Timeout: ".microtime(true)."\n";
 	});
-	$serv->timeout(10000, function(){
+	$serv->after(10000, function(){
 		echo "Timeout: ".microtime(true)."\n";
 	});
 }

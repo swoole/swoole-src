@@ -335,6 +335,7 @@ const zend_function_entry swoole_functions[] =
 	/*------swoole_timer-----*/
 	PHP_FE(swoole_timer_add, arginfo_swoole_timer_add)
 	PHP_FE(swoole_timer_del, arginfo_swoole_timer_del)
+	PHP_FE(swoole_timer_after, NULL)
 	/*------swoole_async_io------*/
 	PHP_FE(swoole_async_set, NULL)
 	PHP_FE(swoole_async_read, NULL)
@@ -376,8 +377,8 @@ static zend_function_entry swoole_server_methods[] = {
 	PHP_FALIAS(on, swoole_server_on, arginfo_swoole_server_on_oo)
 	PHP_FALIAS(connection_info, swoole_connection_info, arginfo_swoole_connection_info_oo)
 	PHP_FALIAS(connection_list, swoole_connection_list, arginfo_swoole_connection_list_oo)
+	PHP_FALIAS(after, swoole_timer_after, NULL)
 	PHP_ME(swoole_server, stats, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_server, timeout, NULL, ZEND_ACC_PUBLIC)
 	{NULL, NULL, NULL}
 };
 
@@ -856,7 +857,7 @@ PHP_METHOD(swoole_server, stats)
     add_assoc_long_ex(return_value, SW_STRL("close_count"), SwooleStats->close_count);
 }
 
-PHP_METHOD(swoole_server, timeout)
+PHP_FUNCTION(swoole_timer_after)
 {
     long interval;
     zval *callback;
