@@ -1111,28 +1111,27 @@ static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
  */
 int swServer_connection_close(swServer *serv, int fd)
 {
-	swConnection *conn = swServer_connection_get(serv, fd);
-	if (conn == NULL)
-	{
-		swWarn("[Reactor]connection not found. fd=%d|max_fd=%d", fd, swServer_get_maxfd(serv));
-		return SW_ERR;
-	}
-
-    swReactor *reactor = &(serv->reactor_threads[conn->from_id].reactor);
-    if (conn->active == 1 && reactor->del(reactor, fd) < 0)
+    swConnection *conn = swServer_connection_get(serv, fd);
+    if (conn == NULL)
     {
+        swWarn("[Reactor]connection not found. fd=%d|max_fd=%d", fd, swServer_get_maxfd(serv));
         return SW_ERR;
     }
 
-	conn->active = 0;
+    swReactor *reactor = &(serv->reactor_threads[conn->from_id].reactor);
+    if (conn->active != SW_STATE_REMOVED && reactor->del(reactor, fd) < 0)
+    {
+        return SW_ERR;
+    }
+    conn->active = 0;
 
-	sw_atomic_fetch_add(&SwooleStats->close_count, 1);
-	sw_atomic_fetch_sub(&SwooleStats->connection_num, 1);
+    sw_atomic_fetch_add(&SwooleStats->close_count, 1);
+    sw_atomic_fetch_sub(&SwooleStats->connection_num, 1);
 
-	swTrace("Close Event.fd=%d|from=%d", fd, reactor_id);
+    swTrace("Close Event.fd=%d|from=%d", fd, reactor_id);
 
-	//clear output buffer
-	if (serv->open_eof_check)
+    //clear output buffer
+    if (serv->open_eof_check)
     {
         if (conn->in_buffer)
         {
@@ -1174,25 +1173,25 @@ int swServer_connection_close(swServer *serv, int fd)
     }
 
 #if 0
-	//立即关闭socket，清理缓存区
-	if (0)
-	{
-		struct linger linger;
-		linger.l_onoff = 1;
-		linger.l_linger = 0;
+    //立即关闭socket，清理缓存区
+    if (0)
+    {
+        struct linger linger;
+        linger.l_onoff = 1;
+        linger.l_linger = 0;
 
-		if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) == -1)
-		{
-			swWarn("setsockopt(SO_LINGER) failed. Error: %s[%d]", strerror(errno), errno);
-		}
-	}
+        if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) == -1)
+        {
+            swWarn("setsockopt(SO_LINGER) failed. Error: %s[%d]", strerror(errno), errno);
+        }
+    }
 #endif
 
 #ifdef SW_USE_OPENSSL
-	if (conn->ssl)
-	{
-		swSSL_close(conn);
-	}
+    if (conn->ssl)
+    {
+        swSSL_close(conn);
+    }
 #endif
 
     /**
@@ -1212,7 +1211,6 @@ int swServer_connection_close(swServer *serv, int fd)
     }
     return close(fd);
 }
-
 
 /**
  * new connection

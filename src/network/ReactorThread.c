@@ -905,7 +905,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
     {
         return SW_ERR;
     }
-    conn->active = 2;
+    conn->active = SW_STATE_REMOVED;
 
     return SwooleG.factory->notify(SwooleG.factory, &notify_ev);
 }
