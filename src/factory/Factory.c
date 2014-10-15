@@ -74,7 +74,7 @@ int swFactory_end(swFactory *factory, swDataHead *event)
     {
         serv->onClose(serv, event->fd, event->from_id);
     }
-    return swServer_connection_close(serv, event->fd, 0);
+    return swServer_connection_close(serv, event->fd);
 }
 
 int swFactory_finish(swFactory *factory, swSendData *resp)

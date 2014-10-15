@@ -162,6 +162,7 @@ static sw_inline int swFactoryProcess_worker_excute(swFactory *factory, swEventD
 {
     swServer *serv = factory->ptr;
     swString *package = NULL;
+    swDataHead ev;
 
     factory->last_from_id = task->info.from_id;
     //worker busy
@@ -208,16 +209,21 @@ static sw_inline int swFactoryProcess_worker_excute(swFactory *factory, swEventD
         break;
 
     case SW_EVENT_CLOSE:
-        serv->onClose(serv, task->info.fd, task->info.from_id);
+        ev.fd = task->info.fd;
+        ev.type = SW_EVENT_CLOSE;
+        factory->end(factory, &ev);
         break;
+
     case SW_EVENT_CONNECT:
         serv->onConnect(serv, task->info.fd, task->info.from_id);
         break;
+
     case SW_EVENT_FINISH:
         serv->onFinish(serv, task);
         break;
+
     default:
-        swWarn("[Worker] error event[type=%d]", (int)task->info.type);
+        swWarn("[Worker] error event[type=%d]", (int )task->info.type);
         break;
     }
 
@@ -607,7 +613,6 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     {
         return swServer_udp_send(serv, resp);
     }
-
     //swQueue_data for msg queue
     struct
     {
@@ -871,10 +876,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
     }
     else
     {
-        struct timeval timeo;
-        timeo.tv_sec = SW_REACTOR_TIMEO_SEC;
-        timeo.tv_usec = SW_REACTOR_TIMEO_USEC;
-        SwooleG.main_reactor->wait(SwooleG.main_reactor, &timeo);
+        SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
     }
 
     //worker shutdown
@@ -1032,39 +1034,39 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
             int ret;
             resp = (swEventData *) sdata.mdata;
 
-            //Close
+            //close connection
             //TODO: thread safe, should close in reactor thread.
-            if (resp->info.len == 0)
+            if (resp->info.type == SW_EVENT_CLOSE)
             {
                 close_fd:
-                swServer_connection_close(SwooleG.serv, resp->info.fd, 0);
+                swServer_connection_close(SwooleG.serv, resp->info.fd);
                 continue;
             }
+            //sendfile
+            else if (resp->info.type == SW_EVENT_SENDFILE)
+            {
+                ret = swSocket_sendfile_sync(resp->info.fd, resp->data, SW_WRITER_TIMEOUT);
+            }
+            //send data
             else
             {
-                if (resp->info.type == SW_EVENT_SENDFILE)
-                {
-                    ret = swSocket_sendfile_sync(resp->info.fd, resp->data, SW_WRITER_TIMEOUT);
-                }
-                else
-                {
-                    ret = swConnection_send_blocking(resp->info.fd, resp->data, resp->info.len, 1000 * SW_WRITER_TIMEOUT);
-                }
+                ret = swConnection_send_blocking(resp->info.fd, resp->data, resp->info.len, 1000 * SW_WRITER_TIMEOUT);
+            }
 
-                if (ret < 0)
+            if (ret < 0)
+            {
+                switch (swConnection_error(errno))
                 {
-                    switch (swConnection_error(errno))
-                    {
-                    case SW_ERROR:
-                        swWarn("send to fd[%d] failed. Error: %s[%d]", resp->info.fd, strerror(errno), errno);
-                        break;
-                    case SW_CLOSE:
-                        goto close_fd;
-                    default:
-                        break;
-                    }
+                case SW_ERROR:
+                    swWarn("send to fd[%d] failed. Error: %s[%d]", resp->info.fd, strerror(errno), errno);
+                    break;
+                case SW_CLOSE:
+                    goto close_fd;
+                default:
+                    break;
                 }
             }
+
         }
     }
     pthread_exit((void *) param);

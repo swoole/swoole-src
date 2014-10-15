@@ -44,22 +44,25 @@ extern "C" {
 #define SW_TASK_BLOCKING           1
 #define SW_TASK_NONBLOCK           0
 
-#define SW_EVENT_TCP               0
-#define SW_EVENT_UDP               1
-#define SW_EVENT_TCP6              2
-#define SW_EVENT_UDP6              3
+enum swEventType
+{
+    SW_EVENT_TCP = 0,
+    SW_EVENT_UDP = 1,
+    SW_EVENT_TCP6 = 2,
+    SW_EVENT_UDP6 = 3,
 
-#define SW_EVENT_CLOSE             5
-#define SW_EVENT_CONNECT           6
-#define SW_EVENT_TIMER             7
-#define SW_EVENT_FINISH            8
+    SW_EVENT_CLOSE = 5,
+    SW_EVENT_CONNECT = 6,
+    SW_EVENT_TIMER = 7,
+    SW_EVENT_FINISH = 8,
 
-#define SW_EVENT_PACKAGE_START     9
-#define SW_EVENT_PACKAGE_END       10
-#define SW_EVENT_PACKAGE           11
-#define SW_EVENT_SENDFILE          12
-#define SW_EVENT_UNIX_DGRAM        13
-#define SW_EVENT_UNIX_STREAM       14
+    SW_EVENT_PACKAGE_START = 9,
+    SW_EVENT_PACKAGE_END = 10,
+    SW_EVENT_PACKAGE = 11,
+    SW_EVENT_SENDFILE = 12,
+    SW_EVENT_UNIX_DGRAM = 13,
+    SW_EVENT_UNIX_STREAM = 14,
+};
 
 #define SW_STATUS_EMPTY            0
 #define SW_STATUS_ACTIVE           1
@@ -480,7 +483,7 @@ int swTaskWorker_large_pack(swEventData *task, void *data, int data_len);
 #define swPackage_length(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->length:task->info.len)
 
 swConnection* swServer_connection_new(swServer *serv, swDataHead *ev);
-int swServer_connection_close(swServer *serv, int fd, int notify);
+int swServer_connection_close(swServer *serv, int fd);
 
 #define SW_SERVER_MAX_FD_INDEX          0 //max connection socket
 #define SW_SERVER_MIN_FD_INDEX          1 //min listen socket
@@ -614,6 +617,7 @@ int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev);
 int swReactorThread_onWrite(swReactor *reactor, swEvent *ev);
 
 int swReactorThread_send(swSendData *_send);
+int swReactorThread_close(swReactor *reactor, int fd);
 int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id);
 
 int swReactorProcess_create(swServer *serv);

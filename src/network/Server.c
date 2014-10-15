@@ -1109,12 +1109,9 @@ static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
 /**
  * close connection
  */
-int swServer_connection_close(swServer *serv, int fd, int notify)
+int swServer_connection_close(swServer *serv, int fd)
 {
 	swConnection *conn = swServer_connection_get(serv, fd);
-	swReactor *reactor;
-	swDataHead notify_ev;
-
 	if (conn == NULL)
 	{
 		swWarn("[Reactor]connection not found. fd=%d|max_fd=%d", fd, swServer_get_maxfd(serv));
@@ -1128,9 +1125,6 @@ int swServer_connection_close(swServer *serv, int fd, int notify)
 	sw_atomic_fetch_add(&SwooleStats->close_count, 1);
 	sw_atomic_fetch_sub(&SwooleStats->connection_num, 1);
 
-	int reactor_id = conn->from_id;
-
-	reactor = &(serv->reactor_threads[reactor_id].reactor);
 	swTrace("Close Event.fd=%d|from=%d", fd, reactor_id);
 
 	//释放缓存区占用的内存
@@ -1175,16 +1169,6 @@ int swServer_connection_close(swServer *serv, int fd, int notify)
         conn->in_buffer = NULL;
     }
 
-    //通知到worker进程
-    if (serv->onClose != NULL && notify == 1)
-    {
-        //通知worker进程
-        notify_ev.from_id = reactor_id;
-        notify_ev.fd = fd;
-        notify_ev.type = SW_EVENT_CLOSE;
-        SwooleG.factory->notify(SwooleG.factory, &notify_ev);
-    }
-
 #if 0
 	//立即关闭socket，清理缓存区
 	if (0)
@@ -1222,9 +1206,12 @@ int swServer_connection_close(swServer *serv, int fd, int notify)
         swServer_set_maxfd(serv, find_max_fd);
         SwooleG.lock.unlock(&SwooleG.lock);
     }
-
-	//关闭此连接，必须放在最前面，以保证线程安全
-	return reactor->del(reactor, fd);
+    swReactor *reactor = &(serv->reactor_threads[conn->from_id].reactor);
+    if (reactor->del(reactor, fd) < 0)
+    {
+        return SW_ERR;
+    }
+    return close(fd);
 }
 
 

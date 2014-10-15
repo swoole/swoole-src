@@ -110,7 +110,7 @@
 
 //#define SW_USE_RINGQUEUE_TS            1     //使用线程安全版本的RingQueue
 #define SW_RINGBUFFER_COLLECT_N          100   //collect max_count
-#define SW_RINGBUFFER_FREE_N_MAX         4    //when free_n > MAX, execute collect
+#define SW_RINGBUFFER_FREE_N_MAX         4     //when free_n > MAX, execute collect
 #define SW_RINGBUFFER_WARNING            100
 
 /**

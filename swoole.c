@@ -1459,12 +1459,7 @@ PHP_FUNCTION(swoole_server_close)
 
 	SWOOLE_GET_SERVER(zobject, serv);
 	ev.fd = Z_LVAL_P(fd);
-
-	/**
-	 * Server refused to take the initiative
-	 */
-	ev.type = SW_CLOSE_INITIATIVE;
-
+	ev.type = SW_EVENT_CLOSE;
 	//Master can't execute it
 	if (swIsMaster())
 	{
@@ -2288,37 +2283,34 @@ static void php_swoole_onClose(swServer *serv, int fd, int from_id)
 	zval **args[3];
 	zval *retval;
 
-	MAKE_STD_ZVAL(zfd);
-	ZVAL_LONG(zfd, fd);
-
-	MAKE_STD_ZVAL(zfrom_id);
-	ZVAL_LONG(zfrom_id, from_id);
-
-	args[0] = &zserv;
-	zval_add_ref(&zserv);
-	args[1] = &zfd;
-	args[2] = &zfrom_id;
-
-//	php_printf("fd=%d|from_id=%d\n", fd, from_id);
-
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onClose], &retval, 3, args, 0,
-			NULL TSRMLS_CC) == FAILURE)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "onClose handler error");
-	}
-	if (EG(exception))
-	{
-		zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
-	}
+    MAKE_STD_ZVAL(zfd);
+    ZVAL_LONG(zfd, fd);
 
-	zval_ptr_dtor(&zfd);
-	zval_ptr_dtor(&zfrom_id);
-	if (retval != NULL)
-	{
-		zval_ptr_dtor(&retval);
-	}
+    MAKE_STD_ZVAL(zfrom_id);
+    ZVAL_LONG(zfrom_id, from_id);
+
+    args[0] = &zserv;
+    zval_add_ref(&zserv);
+    args[1] = &zfd;
+    args[2] = &zfrom_id;
+
+    if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onClose], &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "onClose handler error");
+    }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+    }
+
+    zval_ptr_dtor(&zfd);
+    zval_ptr_dtor(&zfrom_id);
+    if (retval != NULL)
+    {
+        zval_ptr_dtor(&retval);
+    }
 }
 
 PHP_FUNCTION(swoole_strerror)
@@ -2399,26 +2391,25 @@ PHP_FUNCTION(swoole_server_start)
 		serv->onManagerStop = php_swoole_onManagerStop;
 	}
 	//-------------------------------------------------------------
-	if (php_sw_callback[SW_SERVER_CB_onTimer] != NULL)
-	{
-		serv->onTimer = php_swoole_onTimer;
-	}
- 	if (php_sw_callback[SW_SERVER_CB_onClose] != NULL)
- 	{
- 		serv->onClose = php_swoole_onClose;
- 	}
- 	if (php_sw_callback[SW_SERVER_CB_onConnect] != NULL)
- 	{
- 		serv->onConnect = php_swoole_onConnect;
- 	}
-	if (php_sw_callback[SW_SERVER_CB_onReceive] == NULL)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_ERROR, "require onReceive callback");
-		RETURN_FALSE;
-	}
+    if (php_sw_callback[SW_SERVER_CB_onTimer] != NULL)
+    {
+        serv->onTimer = php_swoole_onTimer;
+    }
+    if (php_sw_callback[SW_SERVER_CB_onClose] != NULL)
+    {
+        serv->onClose = php_swoole_onClose;
+    }
+    if (php_sw_callback[SW_SERVER_CB_onConnect] != NULL)
+    {
+        serv->onConnect = php_swoole_onConnect;
+    }
+    if (php_sw_callback[SW_SERVER_CB_onReceive] == NULL)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "require onReceive callback");
+        RETURN_FALSE;
+    }
 	//-------------------------------------------------------------
 	serv->onReceive = php_swoole_onReceive;
-
 	serv->ptr2 = zobject;
 
 	ret = swServer_create(serv);
