@@ -867,6 +867,21 @@ PHP_FUNCTION(swoole_timer_after)
         return;
     }
 
+    if (interval > 86400)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "The given parameters is too big.");
+        RETURN_FALSE;
+    }
+
+    char *func_name = NULL;
+    if (!zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+    {
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
+        efree(func_name);
+        RETURN_FALSE;
+    }
+    efree(func_name);
+
     php_swoole_check_reactor();
     php_swoole_check_timer(interval);
 
@@ -1267,27 +1282,27 @@ static int php_swoole_set_callback(int key, zval *cb TSRMLS_DC)
 {
 
 #ifdef PHP_SWOOLE_CHECK_CALLBACK
-	char *func_name = NULL;
-	if (!zend_is_callable(cb, 0, &func_name TSRMLS_CC))
-	{
-		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
-		efree(func_name);
-		return SW_ERR;
-	}
-	efree(func_name);
+    char *func_name = NULL;
+    if (!zend_is_callable(cb, 0, &func_name TSRMLS_CC))
+    {
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
+        efree(func_name);
+        return SW_ERR;
+    }
+    efree(func_name);
 #endif
 
-	//zval_add_ref(&cb);
-	php_sw_callback[key] = emalloc(sizeof(zval));
-	if(php_sw_callback[key] == NULL)
-	{
-		return SW_ERR;
-	}
+    //zval_add_ref(&cb);
+    php_sw_callback[key] = emalloc(sizeof(zval));
+    if (php_sw_callback[key] == NULL)
+    {
+        return SW_ERR;
+    }
 
-	*(php_sw_callback[key]) = *cb;
-	zval_copy_ctor(php_sw_callback[key]);
+    *(php_sw_callback[key]) = *cb;
+    zval_copy_ctor(php_sw_callback[key]);
 
-	return SW_OK;
+    return SW_OK;
 }
 
 PHP_FUNCTION(swoole_server_handler)
