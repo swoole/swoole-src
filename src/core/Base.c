@@ -247,6 +247,29 @@ int swoole_sync_writefile(int fd, void *data, int len)
     return written;
 }
 
+int swoole_system_random(int min, int max)
+{
+    static int dev_random_fd = -1;
+    char *next_random_byte;
+    int bytes_to_read;
+    unsigned random_value;
+
+    assert(max > min);
+
+    if (dev_random_fd == -1)
+    {
+        dev_random_fd = open("/dev/urandom", O_RDONLY);
+        assert(dev_random_fd != -1);
+    }
+
+    next_random_byte = (char *) &random_value;
+    bytes_to_read = sizeof(random_value);
+
+    read(dev_random_fd, next_random_byte, bytes_to_read);
+
+    return min + (random_value % (max - min + 1));
+}
+
 swString* swoole_file_get_contents(char *filename)
 {
     struct stat file_stat;
