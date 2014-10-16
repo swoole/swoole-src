@@ -20,7 +20,7 @@ With the synchronous logic execution, you can easily write large and robust appl
 in-memory
 ------
 
-Unlike with traditional apache/php-fpm stuff, the memory allocated in Swoole will not be free'd after a request, which can improve preformance a lot.
+Unlike traditional apache/php-fpm stuff, the memory allocated in Swoole will not be free'd after a request, which can improve preformance a lot.
 
 
 ## Why Swoole?
@@ -109,15 +109,15 @@ task executed asynchronously without blocking the server workers.
 Task workers are mainly used for time-consuming tasks, such as sending password recovery emails. And ensure
 the main request returns as soon as possible.
 
-The following example demonstrated a simple server with task support.
+The following example shows a simple server with task support.
 
 ```php
 $serv = new swoole_server("127.0.0.1", 9502);
 
-// sets server configuration, we let task_worker_num config greater than 0 to enable task worker
+// sets server configuration, we set task_worker_num config greater than 0 to enable task workers support
 $serv->set(array('task_worker_num' => 4));
 
-// attach handler for receive event, which explained above.
+// attach handler for receive event, which have explained above.
 $serv->on('receive', function($serv, $fd, $from_id, $data) {
     // we dispath a task to task workers by invoke the task() method of $serv
     // this method returns a task id as the identity of ths task
@@ -130,12 +130,11 @@ $serv->on('task', function ($serv, $task_id, $from_id, $data) {
     // handle the task, do what you want with $data
     echo "New AsyncTask[id=$task_id]".PHP_EOL;
 
-    // after the task task is handled, we can tell 
+    // after the task task is handled, we return the results to caller worker.
     $serv->finish("$data -> OK");
 });
 
-// attach handler for finish event, the handler will be executed in server workers, the same worker 
-// that task dispath from.
+// attach handler for finish event, the handler will be executed in server workers, the same worker dispatched this task before.
 $serv->on('finish', function ($serv, $task_id, $data) {
     echo "AsyncTask[$task_id] Finish: $data".PHP_EOL;
 });
