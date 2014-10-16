@@ -225,13 +225,29 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 	int i, n, ret;
     struct timespec t;
 
-    t.tv_sec = timeo->tv_sec;
-    t.tv_nsec = timeo->tv_usec;
+    if (timeo == NULL)
+    {
+        reactor->timeout_msec = -1;
+    }
+    else
+    {
+        reactor->timeout_msec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
+    }
 
 	while (SwooleG.running > 0)
 	{
-		n = kevent(this->epfd, NULL, 0, this->events, this->event_max, &t);
+	    if (reactor->timeout_msec < 0)
+	    {
+	        t.tv_sec = SW_MAX_UINT;
+	        t.tv_nsec = 0;
+	    }
+	    else
+	    {
+	        t.tv_sec = reactor->timeout_msec / 1000;
+	        t.tv_nsec = (reactor->timeout_msec - t.tv_sec * 1000) * 1000;
+	    }
 
+		n = kevent(this->epfd, NULL, 0, this->events, this->event_max, &t);
 		if (n < 0)
 		{
 			//swTrace("kqueue error.EP=%d | Errno=%d\n", this->epfd, errno);

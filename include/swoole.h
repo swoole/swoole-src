@@ -750,8 +750,14 @@ struct swReactor_s
 	void *ptr; //reserve
 	uint32_t event_num;
 	uint32_t max_event_num;
+
+	/**
+	 * reactor->wait timeout (millisecond)
+	 */
+	uint32_t timeout_msec;
 	uint16_t id; //Reactor ID
 	uint16_t flag; //flag
+
 	char running;
 
 	swReactor_handle handle[SW_MAX_FDTYPE];       //默认事件

@@ -191,7 +191,7 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
     swEvent ev;
     swReactorEpoll *object = reactor->object;
     swReactor_handle handle;
-    int i, n, ret, usec;
+    int i, n, ret, msec;
 
     int reactor_id = reactor->id;
     int epoll_fd = object->epfd;
@@ -200,16 +200,17 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 
     if (timeo == NULL)
     {
-        usec = SW_MAX_UINT;
+        reactor->timeout_msec = -1;
     }
     else
     {
-        usec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
+        reactor->timeout_msec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
     }
 
     while (SwooleG.running > 0)
     {
-        n = epoll_wait(epoll_fd, events, max_event_num, usec);
+        msec = reactor->timeout_msec;
+        n = epoll_wait(epoll_fd, events, max_event_num, msec);
         if (n < 0)
         {
             if (swReactor_error(reactor) < 0)
