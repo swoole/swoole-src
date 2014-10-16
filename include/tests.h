@@ -1,10 +1,3 @@
-/*
- * tests.h
- *
- *  Created on: 2013-4-22
- *      Author: htf
- */
-
 #ifndef SW_TESTS_H_
 #define SW_TESTS_H_
 
@@ -50,6 +43,8 @@ swUnitTest(ws_test1);
 
 swUnitTest(http_test1);
 swUnitTest(http_test2);
+
+swUnitTest(heap_test1);
 
 swUnitTest(rbtree_test);
 void p_str(void *str);
