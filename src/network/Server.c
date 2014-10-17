@@ -696,8 +696,9 @@ int swServer_free(swServer *serv)
 	 */
 	if (SwooleG.heartbeat_pidt)
 	{
-//		pthread_cancel(SwooleG.heartbeat_pidt, SIGTERM);
+	    pthread_cancel(SwooleG.heartbeat_pidt);
 		pthread_join(SwooleG.heartbeat_pidt, NULL);
+		swNotice("[Shutdown] Heartbeat thread shutdown.");
 	}
 	/**
 	 * Wait until all the end of the thread
@@ -716,12 +717,13 @@ int swServer_free(swServer *serv)
 	}
 
 #ifdef SW_USE_OPENSSL
-	if (serv->open_ssl)
-	{
-		swSSL_free();
-		free(serv->ssl_cert_file);
-		free(serv->ssl_key_file);
-	}
+    if (serv->open_ssl)
+    {
+        swSSL_free();
+        free(serv->ssl_cert_file);
+        free(serv->ssl_key_file);
+    }
+    swNotice("[Shutdown] Free SSL.");
 #endif
 
 	//connection_list释放

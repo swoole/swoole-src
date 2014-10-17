@@ -1634,6 +1634,7 @@ void swReactorThread_free(swServer *serv)
         for (i = 0; i < serv->reactor_num; i++)
         {
             thread = &(serv->reactor_threads[i]);
+            pthread_cancel(thread->thread_id);
             if (pthread_join(thread->thread_id, NULL))
             {
                 swWarn("pthread_join() failed. Error: %s[%d]", strerror(errno), errno);
@@ -1649,9 +1650,10 @@ void swReactorThread_free(swServer *serv)
         swListenList_node *listen_host;
         LL_FOREACH(serv->listen_list, listen_host)
         {
-            shutdown(listen_host->sock, SHUT_RDWR);
-            if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6 || listen_host->type == SW_SOCK_UNIX_DGRAM)
+            if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6
+                    || listen_host->type == SW_SOCK_UNIX_DGRAM)
             {
+                pthread_cancel(listen_host->thread_id);
                 if (pthread_join(listen_host->thread_id, NULL))
                 {
                     swWarn("pthread_join() failed. Error: %s[%d]", strerror(errno), errno);

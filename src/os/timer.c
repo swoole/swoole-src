@@ -249,7 +249,7 @@ int swTimer_select(swTimer *timer)
     swTimer_timeout_node *tmp = timer->timeout_root;
     while (tmp)
     {
-        if (tmp->exectime > now_ms)
+        if (tmp->exec_msec > now_ms)
         {
             break;
         }
@@ -343,7 +343,7 @@ int swTimer_addtimeout(swTimer *timer, int timeout_ms, void *data)
 
     bzero(node, sizeof(swTimer_timeout_node));
     node->data = data;
-    node->exectime = now_ms + timeout_ms;
+    node->exec_msec = now_ms + timeout_ms;
 
     if (timer->timeout_root == NULL)
     {
@@ -355,7 +355,7 @@ int swTimer_addtimeout(swTimer *timer, int timeout_ms, void *data)
 
     while (1)
     {
-        if (tmp->exectime >= node->exectime)
+        if (tmp->exec_msec >= node->exec_msec)
         {
             node->prev = tmp->prev;
             node->next = tmp;
