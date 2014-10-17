@@ -950,16 +950,6 @@ int swServer_get_manager_pid(swServer *serv)
 	return SwooleGS->manager_pid;
 }
 
-int swServer_reload(swServer *serv)
-{
-	int manager_pid = swServer_get_manager_pid(serv);
-	if (manager_pid > 0)
-	{
-		return kill(manager_pid, SIGUSR1);
-	}
-	return SW_ERR;
-}
-
 static void swServer_signal_hanlder(int sig)
 {
     int status;

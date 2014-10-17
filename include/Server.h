@@ -448,7 +448,6 @@ int swServer_create(swServer *serv);
 int swServer_listen(swServer *serv, swReactor *reactor);
 int swServer_free(swServer *serv);
 int swServer_shutdown(swServer *serv);
-int swServer_reload(swServer *serv);
 int swServer_udp_send(swServer *serv, swSendData *resp);
 int swServer_tcp_send(swServer *serv, int fd, void *data, int length);
 int swServer_reactor_add(swServer *serv, int fd, int sock_type); //no use

@@ -1493,16 +1493,32 @@ PHP_FUNCTION(swoole_server_reload)
 {
 	zval *zobject = getThis();
 	swServer *serv;
+	zend_bool only_reload_taskworker = 0;
 
-	if (zobject == NULL)
-	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O", &zobject, swoole_server_class_entry_ptr) == FAILURE)
-		{
-			return;
-		}
-	}
+    if (zobject == NULL)
+    {
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O|b", &zobject, swoole_server_class_entry_ptr,
+                &only_reload_taskworker) == FAILURE)
+        {
+            return;
+        }
+    }
+    else
+    {
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b", &only_reload_taskworker) == FAILURE)
+        {
+            return;
+        }
+    }
 	SWOOLE_GET_SERVER(zobject, serv);
-	SW_CHECK_RETURN(swServer_reload(serv));
+
+	int sig = only_reload_taskworker ? SIGUSR2 : SIGUSR1;
+    if (kill(SwooleGS->manager_pid, sig) < 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "kill() failed. Error: %s[%d]", strerror(errno), errno);
+        RETURN_FALSE;
+    }
+	RETURN_TRUE;
 }
 
 PHP_FUNCTION(swoole_server_heartbeat)
