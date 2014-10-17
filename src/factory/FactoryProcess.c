@@ -22,8 +22,9 @@
 
 typedef struct
 {
-    uint8_t worker_reloading;
-    uint8_t reload_flag;
+    uint8_t reloading;
+    uint8_t reload_event_worker;
+    uint8_t reload_task_worker;
 
 } swManagerProcess;
 
@@ -298,12 +299,24 @@ static void swManager_signal_handle(int sig)
     case SIGTERM:
         SwooleG.running = 0;
         break;
-    case SIGUSR2:
+    /**
+     * reload all workers
+     */
     case SIGUSR1:
-        if (ManagerProcess.worker_reloading == 0)
+        if (ManagerProcess.reloading == 0)
         {
-            ManagerProcess.worker_reloading = 1;
-            ManagerProcess.reload_flag = 0;
+            ManagerProcess.reloading = 1;
+            ManagerProcess.reload_event_worker = 1;
+        }
+        break;
+    /**
+     * only reload task workers
+     */
+    case SIGUSR2:
+        if (ManagerProcess.reloading == 0)
+        {
+            ManagerProcess.reloading = 1;
+            ManagerProcess.reload_task_worker = 1;
         }
         break;
     default:
@@ -344,6 +357,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
     //for reload
     swSignal_add(SIGTERM, swManager_signal_handle);
     swSignal_add(SIGUSR1, swManager_signal_handle);
+    swSignal_add(SIGUSR2, swManager_signal_handle);
     //swSignal_add(SIGINT, swManager_signal_handle);
 
     while (SwooleG.running > 0)
@@ -352,19 +366,35 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 
         if (pid < 0)
         {
-            if (ManagerProcess.worker_reloading == 0)
+            if (ManagerProcess.reloading == 0)
             {
                 swTrace("wait() failed. Error: %s [%d]", strerror(errno), errno);
             }
-            else if (ManagerProcess.reload_flag == 0)
+            else if (ManagerProcess.reload_event_worker == 1)
             {
                 memcpy(reload_workers, serv->workers, sizeof(swWorker) * serv->worker_num);
+                reload_worker_num = serv->worker_num;
                 if (SwooleG.task_worker_num > 0)
                 {
                     memcpy(reload_workers + serv->worker_num, SwooleG.task_workers.workers,
                             sizeof(swWorker) * SwooleG.task_worker_num);
+                    reload_worker_num += SwooleG.task_worker_num;
                 }
-                ManagerProcess.reload_flag = 1;
+                reload_worker_i = 0;
+                ManagerProcess.reload_event_worker = 0;
+                goto kill_worker;
+            }
+            else if (ManagerProcess.reload_task_worker == 1)
+            {
+                if (SwooleG.task_worker_num == 0)
+                {
+                    swWarn("Cannot reload workers, because server no have task workers.");
+                    continue;
+                }
+                memcpy(reload_workers, SwooleG.task_workers.workers, sizeof(swWorker) * SwooleG.task_worker_num);
+                reload_worker_num = SwooleG.task_worker_num;
+                reload_worker_i = 0;
+                ManagerProcess.reload_task_worker = 0;
                 goto kill_worker;
             }
         }
@@ -413,19 +443,19 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
         }
         //reload worker
         kill_worker:
-        if (ManagerProcess.worker_reloading == 1)
+        if (ManagerProcess.reloading == 1)
         {
             //reload finish
             if (reload_worker_i >= reload_worker_num)
             {
-                ManagerProcess.worker_reloading = 0;
+                ManagerProcess.reloading = 0;
                 reload_worker_i = 0;
                 continue;
             }
             ret = kill(reload_workers[reload_worker_i].pid, SIGTERM);
             if (ret < 0)
             {
-                swWarn("[Manager]kill() failed, pid=%d. Error: %s [%d]", reload_workers[reload_worker_i].pid, strerror(errno), errno);
+                swSysError("[Manager]kill(%d) failed.", reload_workers[reload_worker_i].pid);
                 continue;
             }
             reload_worker_i++;
