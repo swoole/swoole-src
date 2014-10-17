@@ -634,12 +634,17 @@ typedef struct _swThreadParam
 extern int16_t sw_errno;
 extern char sw_error[SW_ERROR_MSG_SIZE];
 
-#define SW_PROCESS_MASTER      1
-#define SW_PROCESS_WORKER      2
-#define SW_PROCESS_MANAGER     3
+enum swProcessType
+{
+    SW_PROCESS_MASTER = 1,
+    SW_PROCESS_WORKER,
+    SW_PROCESS_MANAGER,
+    SW_PROCESS_TASKWORKER,
+};
 
 #define swIsMaster()          (SwooleG.process_type==SW_PROCESS_MASTER)
 #define swIsWorker()          (SwooleG.process_type==SW_PROCESS_WORKER)
+#define swIsTaskWorker()      (SwooleG.process_type==SW_PROCESS_TASKWORKER)
 #define swIsManager()         (SwooleG.process_type==SW_PROCESS_MANAGER)
 
 //----------------------tool function---------------------

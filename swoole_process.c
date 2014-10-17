@@ -240,7 +240,7 @@ PHP_METHOD(swoole_process, start)
 
 		if (SwooleG.timer.fd)
 		{
-		    swTimer_free(&SwooleG.timer);
+		    SwooleG.timer.free(&SwooleG.timer);
 		    bzero(&SwooleG.timer, sizeof(SwooleG.timer));
 		}
 
