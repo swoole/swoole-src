@@ -24,9 +24,9 @@
 static void swHeap_bubble_up(swHeap *heap, uint32_t i);
 static uint32_t swHeap_maxchild(swHeap *heap, uint32_t i);
 static void swHeap_percolate_down(swHeap *heap, uint32_t i);
-static int subtree_is_valid(swHeap *q, uint32_t pos);
+static int subtree_is_valid(swHeap *heap, uint32_t pos);
 
-swHeap *swHeap_init(size_t n, uint8_t type)
+swHeap *swHeap_new(size_t n, uint8_t type)
 {
     swHeap *heap = sw_malloc(sizeof(swHeap));
     if (!heap)
@@ -150,20 +150,20 @@ void* swHeap_insert(swHeap *heap, uint32_t priority, void *data)
     return node;
 }
 
-void swHeap_change_priority(swHeap *q, uint32_t new_pri, void* ptr)
+void swHeap_change_priority(swHeap *heap, uint32_t new_pri, void* ptr)
 {
     swHeap_node *node = ptr;
     uint32_t pos = node->position;
     uint32_t old_pri = node->priority;
 
     node->priority = new_pri;
-    if (swHeap_compare(q->type, old_pri, new_pri))
+    if (swHeap_compare(heap->type, old_pri, new_pri))
     {
-        swHeap_bubble_up(q, pos);
+        swHeap_bubble_up(heap, pos);
     }
     else
     {
-        swHeap_percolate_down(q, pos);
+        swHeap_percolate_down(heap, pos);
     }
 }
 
@@ -212,27 +212,26 @@ void *swHeap_peek(swHeap *heap)
     return d->data;
 }
 
-static int subtree_is_valid(swHeap *q, uint32_t pos)
+static int subtree_is_valid(swHeap *heap, uint32_t pos)
 {
-    if (left(pos) < q->size)
+    if (left(pos) < heap->size)
     {
-        /* has a left child */
-        if (swHeap_compare(q->type, q->nodes[pos]->priority, q->nodes[left(pos)]->priority))
+        if (swHeap_compare(heap->type, heap->nodes[pos]->priority, heap->nodes[left(pos)]->priority))
         {
             return 0;
         }
-        if (!subtree_is_valid(q, left(pos)))
+        if (!subtree_is_valid(heap, left(pos)))
         {
             return 0;
         }
     }
-    if (right(pos) < q->size)
+    if (right(pos) < heap->size)
     {
-        if (swHeap_compare(q->type, q->nodes[pos]->priority, q->nodes[right(pos)]->priority))
+        if (swHeap_compare(heap->type, heap->nodes[pos]->priority, heap->nodes[right(pos)]->priority))
         {
             return 0;
         }
-        if (!subtree_is_valid(q, right(pos)))
+        if (!subtree_is_valid(heap, right(pos)))
         {
             return 0;
         }

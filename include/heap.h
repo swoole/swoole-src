@@ -38,7 +38,7 @@ typedef struct _swHeap
     swHeap_node **nodes;
 } swHeap;
 
-swHeap *swHeap_init(size_t n, uint8_t type);
+swHeap *swHeap_new(size_t n, uint8_t type);
 void swHeap_free(swHeap *q);
 uint32_t swHeap_size(swHeap *q);
 void* swHeap_insert(swHeap *q, uint32_t priority, void *data);

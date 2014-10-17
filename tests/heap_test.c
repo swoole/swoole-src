@@ -32,7 +32,7 @@ swUnitTest(heap_test1)
 
 #define SIZE    100
 
-    pq = swHeap_init(SIZE, SW_MAX_HEAP);
+    pq = swHeap_new(SIZE, SW_MAX_HEAP);
     if (!pq)
     {
         return 1;
