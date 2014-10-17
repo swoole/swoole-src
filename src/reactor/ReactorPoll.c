@@ -178,14 +178,17 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
 
     int ret, msec, i;
 
-	if (timeo == NULL)
-	{
-	    reactor->timeout_msec = -1;
-	}
-	else
-	{
-	    reactor->timeout_msec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
-	}
+    if (reactor->timeout_msec == 0)
+    {
+        if (timeo == NULL)
+        {
+            reactor->timeout_msec = -1;
+        }
+        else
+        {
+            reactor->timeout_msec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
+        }
+    }
 
 	while (SwooleG.running > 0)
 	{

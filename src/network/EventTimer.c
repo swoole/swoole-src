@@ -61,18 +61,16 @@ static int swEventTimer_add(swTimer *timer, int _msec, int interval, void *data)
     {
         return SW_ERR;
     }
-
     node->data = data;
     node->exec_msec = now_msec + _msec;
     node->interval = interval ? _msec : 0;
     swTimer_node_insert(&timer->root, node);
-
     return SW_OK;
 }
 
 static int swEventTimer_del(swTimer *timer, int _msec)
 {
-    return SW_OK;
+    return swTimer_node_delete(&timer->root, _msec);
 }
 
 static int swEventTimer_select(swTimer *timer)
@@ -92,9 +90,20 @@ static int swEventTimer_select(swTimer *timer)
         }
         else
         {
-            timer->onTimeout(timer, tmp->data);
-            timer->root = tmp->next;
+            if (tmp->interval > 0)
+            {
+                timer->onTimer(timer, tmp->interval);
+            }
+            else
+            {
+                timer->onTimeout(timer, tmp->data);
+            }
 
+            timer->root = tmp->next;
+            if (timer->root)
+            {
+                timer->root->prev = NULL;
+            }
             if (tmp->interval > 0)
             {
                 tmp->exec_msec += tmp->interval;
@@ -107,6 +116,13 @@ static int swEventTimer_select(swTimer *timer)
             tmp = timer->root;
         }
     }
-    SwooleG.main_reactor->timeout_msec = timer->root->exec_msec - now_msec;
+    if (timer->root == NULL)
+    {
+        SwooleG.main_reactor->timeout_msec = -1;
+    }
+    else
+    {
+        SwooleG.main_reactor->timeout_msec = timer->root->exec_msec - now_msec;
+    }
     return SW_OK;
 }

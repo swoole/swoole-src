@@ -92,7 +92,9 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
     SwooleG.use_timerfd = 0;
 
     swTaskWorker_signal_init();
-    swServer_worker_onStart(serv);
+    swWorker_onStart(serv);
+
+    SwooleG.process_type = SW_PROCESS_TASKWORKER;
 
     char *tmp_dir = swoole_dirname(SwooleG.task_tmpdir);
     //create tmp dir
@@ -106,5 +108,5 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
 void swTaskWorker_onStop(swProcessPool *pool, int worker_id)
 {
 	swServer *serv = pool->ptr;
-	swServer_worker_onStop(serv);
+	swWorker_onStop(serv);
 }

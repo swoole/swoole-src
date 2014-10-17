@@ -2163,46 +2163,34 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
 
 static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
 {
-	zval *zobject = (zval *)serv->ptr2;
-	zval *zworker_id;
-	zval **args[2]; //这里必须与下面的数字对应
-	zval *retval;
+    zval *zobject = (zval *) serv->ptr2;
+    zval *zworker_id;
+    zval **args[2];  //这里必须与下面的数字对应
+    zval *retval;
 
-	MAKE_STD_ZVAL(zworker_id);
-	ZVAL_LONG(zworker_id, worker_id);
+    MAKE_STD_ZVAL(zworker_id);
+    ZVAL_LONG(zworker_id, worker_id);
 
-	zval_add_ref(&zobject);
-	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+    zval_add_ref(&zobject);
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-	// 这里是什么逻辑？
-//	if (php_sw_callback[SW_SERVER_CB_onWorkerStop] == NULL)
-//	{
-//		args[0] = &zworker_id;
-//		zval func;
-//		ZVAL_STRING(&func, "onWorkerStop", 0);
-//
-//		if (call_user_function_ex(EG(function_table), &zobject, &func, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
-//		{
-//			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onWorkerStop handler error");
-//		}
-//	}
+    args[0] = &zobject;
+    args[1] = &zworker_id;
+    if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onWorkerStop], &retval, 2, args, 0,
+            NULL TSRMLS_CC) == FAILURE)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onWorkerStop handler error");
+    }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+    }
 
-	args[0] = &zobject;
-	args[1] = &zworker_id;
-	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onWorkerStop], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onWorkerStop handler error");
-	}
-	if (EG(exception))
-	{
-		zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
-	}
-
-	zval_ptr_dtor(&zworker_id);
-	if (retval != NULL)
-	{
-		zval_ptr_dtor(&retval);
-	}
+    zval_ptr_dtor(&zworker_id);
+    if (retval != NULL)
+    {
+        zval_ptr_dtor(&retval);
+    }
 }
 
 

@@ -597,6 +597,10 @@ void swServer_worker_onStop(swServer *serv);
 int swWorker_create(swWorker *worker);
 void swWorker_free(swWorker *worker);
 void swWorker_signal_init(void);
+void swWorker_onStart(swServer *serv);
+void swWorker_onStop(swServer *serv);
+void swWorker_onReactorFinish(swReactor* reactor);
+void swWorker_onReactorTimeout(swReactor* reactor);
 int swWorker_loop(swFactory *factory, int worker_pti);
 void swWorker_signal_handler(int signo);
 

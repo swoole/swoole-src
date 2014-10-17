@@ -56,47 +56,6 @@ __thread swThreadG SwooleTG;
 int16_t sw_errno;
 char sw_error[SW_ERROR_MSG_SIZE];
 
-void swServer_worker_onStart(swServer *serv)
-{
-	/**
-	 * Release other worker process
-	 */
-	int i;
-	swWorker *worker;
-	for (i = 0; i < serv->worker_num + SwooleG.task_worker_num; i++)
-	{
-		worker = swServer_get_worker(serv, i);
-		if (SwooleWG.id == i)
-		{
-			continue;
-		}
-		else
-		{
-			swWorker_free(worker);
-		}
-		if (SwooleWG.id < serv->worker_num && i < serv->worker_num)
-		{
-			close(worker->pipe_master);
-		}
-	}
-
-	SwooleG.process_type = SW_PROCESS_WORKER;
-
-	if (serv->onWorkerStart)
-	{
-		serv->onWorkerStart(serv, SwooleWG.id);
-	}
-}
-
-void swServer_worker_onStop(swServer *serv)
-{
-	if (serv->onWorkerStop)
-	{
-		serv->onWorkerStop(serv, SwooleWG.id);
-	}
-	swWorker_free(swServer_get_worker(serv, SwooleWG.id));
-}
-
 void swServer_master_onReactorTimeout(swReactor *reactor)
 {
 	swServer_update_time();

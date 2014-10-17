@@ -528,7 +528,7 @@ void php_swoole_check_reactor()
 	return;
 }
 
-void php_swoole_check_timer(int interval)
+void php_swoole_check_timer(int msec)
 {
     if (SwooleG.timer.fd == 0)
     {
@@ -546,11 +546,19 @@ void php_swoole_check_timer(int interval)
             SwooleG.timer.onTimer = php_swoole_onTimerInterval;
         }
 
-        if (swTimer_init(interval, SwooleG.use_timer_pipe) < 0)
+        if (swIsTaskWorker())
         {
-            return;
+            swTimer_init(msec, SwooleG.use_timer_pipe);
         }
-        SwooleG.timer.interval = interval;
+        else
+        {
+            swEventTimer_init();
+            SwooleG.main_reactor->onFinish = swWorker_onReactorFinish;
+            SwooleG.main_reactor->onTimeout = swWorker_onReactorTimeout;
+            SwooleG.main_reactor->timeout_msec = msec;
+        }
+
+        SwooleG.timer.interval = msec;
         SwooleG.timer.onTimeout = php_swoole_onTimeout;
     }
 }
@@ -558,17 +566,8 @@ void php_swoole_check_timer(int interval)
 void php_swoole_onTimeout(swTimer *timer, void *data)
 {
     zval *callback = data;
-    zval *retval;
+    zval *retval = NULL;
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-
-//    char *func_name = NULL;
-//    if (!zend_is_callable(callback, 0, &func_name TSRMLS_CC))
-//    {
-//        php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
-//        efree(func_name);
-//        return;
-//    }
-//    efree(func_name);
 
     if (call_user_function_ex(EG(function_table), NULL, callback, &retval, 0, NULL, 0, NULL TSRMLS_CC) == FAILURE)
     {

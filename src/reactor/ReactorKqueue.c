@@ -115,7 +115,8 @@ static int swReactorKqueue_add(swReactor *reactor, int fd, int fdtype)
 			return SW_ERR;
 		}
 	}
-	if(swReactor_event_write(fdtype))
+
+	if (swReactor_event_write(fdtype))
 	{
 		EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, NULL);
 		memcpy(&e.udata, &fd_, sizeof(swFd));
@@ -225,13 +226,16 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 	int i, n, ret;
     struct timespec t;
 
-    if (timeo == NULL)
+    if (reactor->timeout_msec == 0)
     {
-        reactor->timeout_msec = -1;
-    }
-    else
-    {
-        reactor->timeout_msec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
+        if (timeo == NULL)
+        {
+            reactor->timeout_msec = -1;
+        }
+        else
+        {
+            reactor->timeout_msec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
+        }
     }
 
 	while (SwooleG.running > 0)

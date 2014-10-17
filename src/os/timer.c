@@ -373,6 +373,9 @@ int swTimer_addtimeout(swTimer *timer, int timeout_ms, void *data)
 
 void swTimer_node_insert(swTimer_node **root, swTimer_node *new_node)
 {
+    new_node->next = NULL;
+    new_node->prev = NULL;
+
     if (*root == NULL)
     {
         *root = new_node;
@@ -391,7 +394,6 @@ void swTimer_node_insert(swTimer_node **root, swTimer_node *new_node)
             }
 
             tmp->prev = new_node;
-
             if (tmp == *root)
             {
                 *root = new_node;
@@ -408,5 +410,44 @@ void swTimer_node_insert(swTimer_node **root, swTimer_node *new_node)
             new_node->prev = tmp;
             break;
         }
+    }
+}
+
+int swTimer_node_delete(swTimer_node **root, int interval_msec)
+{
+    swTimer_node *tmp = *root;
+
+    while (tmp)
+    {
+        if (tmp->interval == interval_msec)
+        {
+            if (tmp->prev)
+            {
+                tmp->prev->next = tmp->next;
+                if (tmp->next)
+                {
+                    tmp->next->prev = tmp->prev;
+                }
+                return SW_OK;
+            }
+            else
+            {
+                *root = tmp->next;
+                sw_free(tmp);
+                return SW_OK;
+            }
+        }
+        tmp = tmp->next;
+    }
+    return SW_ERR;
+}
+
+void swTimer_node_print(swTimer_node **root)
+{
+    swTimer_node *tmp = *root;
+    while (tmp)
+    {
+        printf("TimerNode: when=%d, interval=%d\n", tmp->exec_msec, tmp->interval);
+        tmp = tmp->next;
     }
 }

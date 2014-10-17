@@ -155,13 +155,16 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
     struct timeval timeout;
     int ret;
 
-    if (timeo == NULL)
+    if (reactor->timeout_msec == 0)
     {
-        reactor->timeout_msec = -1;
-    }
-    else
-    {
-        reactor->timeout_msec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
+        if (timeo == NULL)
+        {
+            reactor->timeout_msec = -1;
+        }
+        else
+        {
+            reactor->timeout_msec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
+        }
     }
 
     while (SwooleG.running > 0)

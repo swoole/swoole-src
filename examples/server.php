@@ -65,7 +65,7 @@ function processRename($serv, $worker_id) {
 	{
 		echo "Start: ".microtime(true)."\n";
 		$serv->addtimer(3000);
-		//$serv->addtimer(6000);
+		$serv->addtimer(7000);
 		//var_dump($serv->gettimer());
 	}
 }
@@ -98,8 +98,10 @@ function my_onWorkerStart($serv, $worker_id)
 	$serv->after(2000, function(){
 		echo "Timeout: ".microtime(true)."\n";
 	});
-	$serv->after(10000, function(){
+	$serv->after(5000, function(){
 		echo "Timeout: ".microtime(true)."\n";
+		global $serv;
+		$serv->deltimer(3000);
 	});
 }
 

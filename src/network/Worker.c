@@ -159,8 +159,7 @@ static sw_inline int swWorker_excute(swFactory *factory, swEventData *task)
         break;
 
     default:
-        swWarn("[Worker] error event[type=%d]", (int )task->info.type)
-        ;
+        swWarn("[Worker] error event[type=%d]", (int )task->info.type);
         break;
     }
 
@@ -173,6 +172,47 @@ static sw_inline int swWorker_excute(swFactory *factory, swEventData *task)
         SwooleG.running = 0;
     }
     return SW_OK;
+}
+
+void swWorker_onStart(swServer *serv)
+{
+    /**
+     * Release other worker process
+     */
+    int i;
+    swWorker *worker;
+    for (i = 0; i < serv->worker_num + SwooleG.task_worker_num; i++)
+    {
+        worker = swServer_get_worker(serv, i);
+        if (SwooleWG.id == i)
+        {
+            continue;
+        }
+        else
+        {
+            swWorker_free(worker);
+        }
+        if (SwooleWG.id < serv->worker_num && i < serv->worker_num)
+        {
+            close(worker->pipe_master);
+        }
+    }
+
+    SwooleG.process_type = SW_PROCESS_WORKER;
+
+    if (serv->onWorkerStart)
+    {
+        serv->onWorkerStart(serv, SwooleWG.id);
+    }
+}
+
+void swWorker_onStop(swServer *serv)
+{
+    if (serv->onWorkerStop)
+    {
+        serv->onWorkerStop(serv, SwooleWG.id);
+    }
+    swWorker_free(swServer_get_worker(serv, SwooleWG.id));
 }
 
 /**
@@ -287,8 +327,7 @@ int swWorker_loop(swFactory *factory, int worker_id)
         worker_task_num += swRandom(worker_id);
     }
 
-    //worker start
-    swServer_worker_onStart(serv);
+    swWorker_onStart(serv);
 
     if (serv->ipc_mode == SW_IPC_MSGQUEUE)
     {
@@ -318,11 +357,18 @@ int swWorker_loop(swFactory *factory, int worker_id)
         SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
     }
 
-    //worker shutdown
-    swServer_worker_onStop(serv);
-
-    swTrace("[Worker]max request");
+    swWorker_onStop(serv);
     return SW_OK;
+}
+
+void swWorker_onReactorFinish(swReactor* reactor)
+{
+    SwooleG.timer.select(&SwooleG.timer);
+}
+
+void swWorker_onReactorTimeout(swReactor* reactor)
+{
+    SwooleG.timer.select(&SwooleG.timer);
 }
 
 /**
