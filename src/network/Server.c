@@ -25,17 +25,17 @@
 #if SW_REACTOR_SCHEDULE == 3
 static sw_inline void swServer_reactor_schedule(swServer *serv)
 {
-	//以第1个为基准进行排序，取出最小值
-	int i, event_num = serv->reactor_threads[0].reactor.event_num;
-	serv->reactor_next_i = 0;
-	for (i = 1; i < serv->reactor_num; i++)
-	{
-		if (serv->reactor_threads[i].reactor.event_num < event_num)
-		{
-			serv->reactor_next_i = i;
-			event_num = serv->reactor_threads[i].reactor.event_num;
-		}
-	}
+    //以第1个为基准进行排序，取出最小值
+    int i, event_num = serv->reactor_threads[0].reactor.event_num;
+    serv->reactor_next_i = 0;
+    for (i = 1; i < serv->reactor_num; i++)
+    {
+        if (serv->reactor_threads[i].reactor.event_num < event_num)
+        {
+            serv->reactor_next_i = i;
+            event_num = serv->reactor_threads[i].reactor.event_num;
+        }
+    }
 }
 #endif
 
@@ -686,6 +686,7 @@ int swServer_shutdown(swServer *serv)
 
 int swServer_free(swServer *serv)
 {
+    swNotice("Server is shutdown now.");
 	//factory释放
 	if (serv->factory.shutdown != NULL)
 	{
@@ -698,7 +699,6 @@ int swServer_free(swServer *serv)
 	{
 	    pthread_cancel(SwooleG.heartbeat_pidt);
 		pthread_join(SwooleG.heartbeat_pidt, NULL);
-		swNotice("[Shutdown] Heartbeat thread shutdown.");
 	}
 	/**
 	 * Wait until all the end of the thread
@@ -861,7 +861,7 @@ int swServer_onFinish2(swFactory *factory, swSendData *resp)
 	}
 	if (ret < 0)
 	{
-		swWarn("[Writer]sendto client fail. errno=%d", errno);
+		swWarn("[Writer]sendto client failed. errno=%d", errno);
 	}
 	return ret;
 }

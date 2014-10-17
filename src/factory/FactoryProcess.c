@@ -315,8 +315,8 @@ static int swFactoryProcess_manager_start(swFactory *factory)
         //设置指针和回调函数
         SwooleG.task_workers.ptr = serv;
         SwooleG.task_workers.onTask = swTaskWorker_onTask;
-        SwooleG.task_workers.onWorkerStart = swTaskWorker_onWorkerStart;
-        SwooleG.task_workers.onWorkerStop = swTaskWorker_onWorkerStop;
+        SwooleG.task_workers.onWorkerStart = swTaskWorker_onStart;
+        SwooleG.task_workers.onWorkerStop = swTaskWorker_onStop;
     }
 
     pid = fork();
@@ -461,7 +461,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
                 }
                 else
                 {
-                    if (serv->onWorkerError!=NULL && WEXITSTATUS(worker_exit_code) > 0)
+                    if (serv->onWorkerError != NULL && WEXITSTATUS(worker_exit_code) > 0)
                     {
                         serv->onWorkerError(serv, i, pid, WEXITSTATUS(worker_exit_code));
                     }
@@ -865,7 +865,7 @@ static int swFactoryProcess_worker_loop(swFactory *factory, int worker_pti)
                 {
                     if (SwooleG.signal_alarm)
                     {
-                        swTimer_select(&SwooleG.timer);
+                        SwooleG.timer.select(&SwooleG.timer);
                     }
                 }
                 else
@@ -1030,7 +1030,7 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
             {
                 continue;
             }
-            swWarn("[writer]wt_queue->out fail.Error: %s [%d]", strerror(errno), errno);
+            swSysError("[writer#%d]wt_queue->out() failed.", pti);
         }
         else
         {
@@ -1061,7 +1061,7 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
                 switch (swConnection_error(errno))
                 {
                 case SW_ERROR:
-                    swWarn("send to fd[%d] failed. Error: %s[%d]", resp->info.fd, strerror(errno), errno);
+                    swSysError("send to client[%d] failed.", resp->info.fd);
                     break;
                 case SW_CLOSE:
                     goto close_fd;
@@ -1069,7 +1069,6 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
                     break;
                 }
             }
-
         }
     }
     pthread_exit((void *) param);

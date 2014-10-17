@@ -225,6 +225,11 @@ swLog_put(SW_LOG_ERROR, sw_error);\
 SwooleG.lock.unlock(&SwooleG.lock);\
 exit(1)
 
+#define swSysError(str,...) SwooleG.lock.lock(&SwooleG.lock);\
+snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str" Error: %s[%d].",__func__,##__VA_ARGS__,strerror(errno),errno);\
+swLog_put(SW_LOG_WARN, sw_error);\
+SwooleG.lock.unlock(&SwooleG.lock)
+
 #ifdef SW_DEBUG
 #define swTrace(str,...)       {printf("[%s:%d@%s]"str"\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);}
 //#define swWarn(str,...)        {printf("[%s:%d@%s]"str"\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);}
@@ -1024,7 +1029,7 @@ int swThreadPool_create(swThreadPool *pool, int max_num);
 int swThreadPool_run(swThreadPool *pool);
 int swThreadPool_free(swThreadPool *pool);
 
-//-----------------------------------------------
+//--------------------------------timer------------------------------
 typedef struct _swTimer_interval_node
 {
     struct _swTimerList_node *next, *prev;
@@ -1032,37 +1037,44 @@ typedef struct _swTimer_interval_node
     uint32_t interval;
 } swTimer_interval_node;
 
-typedef struct _swTimer_timeout_node
+typedef struct _swTimer_node
 {
-    struct _swTimer_timeout_node *next, *prev;
+    struct _swTimer_node *next, *prev;
     void *data;
     uint32_t exec_msec;
-} swTimer_timeout_node;
+    uint32_t interval;
+} swTimer_node;
 
 typedef struct _swTimer
 {
+	swTimer_node *root;
+	/*--------------timerfd & signal timer--------------*/
 	swHashMap *list;
-	swTimer_timeout_node *timeout_root;
 	int num;
 	int interval;
 	int use_pipe;
 	int lasttime;
 	int fd;
 	swPipe pipe;
-	void (*onTimer)(struct _swTimer *timer, int interval);
+	/*-----------------for EventTimer-------------------*/
+	struct timeval basetime;
+	/*--------------------------------------------------*/
+	int (*add)(struct _swTimer *timer, int _msec, int _interval, void *data);
+	int (*del)(struct _swTimer *timer, int _interval_ms);
+	int (*select)(struct _swTimer *timer);
+	void (*free)(struct _swTimer *timer);
+	/*-----------------event callback-------------------*/
+	void (*onTimer)(struct _swTimer *timer, int interval_msec);
 	void (*onTimeout)(struct _swTimer *timer, void *data);
 } swTimer;
 
-int swTimer_create(swTimer *timer, int interval_ms, int no_pipe);
-void swTimer_del(swTimer *timer, int ms);
-int swTimer_free(swTimer *timer);
-int swTimer_add(swTimer *timer, int ms);
-int swTimer_set(swTimer *timer, int new_interval);
-int swTimer_addtimeout(swTimer *timer, int timeout_ms, void *data);
+int swTimer_init(int interval_ms, int no_pipe);
+int swEventTimer_init();
 void swTimer_signal_handler(int sig);
 int swTimer_event_handler(swReactor *reactor, swEvent *event);
-int swTimer_select(swTimer *timer);
+void swTimer_node_insert(swTimer_node **root, swTimer_node *new_node);
 
+//--------------------------------------------------------------
 typedef struct _swModule
 {
 	char *name;

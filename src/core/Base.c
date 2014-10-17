@@ -92,7 +92,7 @@ void swoole_clean(void)
         SwooleG.memory_pool = NULL;
         if (SwooleG.timer.fd > 0)
         {
-            swTimer_free(&SwooleG.timer);
+            SwooleG.timer.free(&SwooleG.timer);
         }
         if (SwooleG.main_reactor)
         {

@@ -546,19 +546,12 @@ void php_swoole_check_timer(int interval)
             SwooleG.timer.onTimer = php_swoole_onTimerInterval;
         }
 
-        if (swTimer_create(&SwooleG.timer, interval, SwooleG.use_timer_pipe) < 0)
+        if (swTimer_init(interval, SwooleG.use_timer_pipe) < 0)
         {
             return;
         }
-        //no have signalfd
-        if (SwooleG.use_signalfd == 0)
-        {
-            swSignal_add(SIGALRM, swTimer_signal_handler);
-        }
         SwooleG.timer.interval = interval;
         SwooleG.timer.onTimeout = php_swoole_onTimeout;
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_TIMER, swTimer_event_handler);
-        SwooleG.main_reactor->add(SwooleG.main_reactor, SwooleG.timer.fd, SW_FD_TIMER);
     }
 }
 
@@ -892,10 +885,11 @@ PHP_FUNCTION(swoole_timer_add)
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_timer_add add to hashtable failed.");
 		RETURN_FALSE;
 	}
+
 	php_swoole_check_reactor();
 	php_swoole_check_timer(timer_item.interval);
 
-	if (swTimer_add(&SwooleG.timer, timer_item.interval) < 0)
+	if (SwooleG.timer.add(&SwooleG.timer, timer_item.interval, 1, NULL) < 0)
 	{
 		RETURN_FALSE;
 	}
@@ -917,7 +911,7 @@ PHP_FUNCTION(swoole_timer_del)
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "no timer.");
 		RETURN_FALSE;
 	}
-	swTimer_del(&SwooleG.timer, (int)interval);
+	SwooleG.timer.del(&SwooleG.timer, (int)interval);
 	RETURN_TRUE;
 }
 
@@ -1169,7 +1163,7 @@ PHP_METHOD(swoole_client, connect)
 	long port, sock_flag = 0;
 	char *host;
 	int host_len;
-	double timeout = 0.1; //默认100ms超时
+	double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
 
 	zval *callback = NULL;
 	swClient *cli = NULL;

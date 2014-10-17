@@ -887,7 +887,7 @@ PHP_FUNCTION(swoole_timer_after)
 
     zval_add_ref(&callback);
 
-    if (swTimer_addtimeout(&SwooleG.timer, interval, callback) < 0)
+    if (SwooleG.timer.add(&SwooleG.timer, interval, 0, callback) < 0)
     {
         RETURN_FALSE;
     }
@@ -2659,7 +2659,7 @@ PHP_FUNCTION(swoole_server_deltimer)
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: no timer.");
 		RETURN_FALSE;
 	}
-	swTimer_del(&SwooleG.timer, (int)interval);
+	SwooleG.timer.del(&SwooleG.timer, (int)interval);
 	RETURN_TRUE;
 }
 
@@ -2740,7 +2740,7 @@ PHP_FUNCTION(swoole_server_addtimer)
 		}
 	}
     php_swoole_check_timer(interval);
-    SW_CHECK_RETURN(swTimer_add(&SwooleG.timer, (int )interval));
+    SW_CHECK_RETURN(SwooleG.timer.add(&SwooleG.timer, (int )interval, 1, NULL));
 }
 
 PHP_FUNCTION(swoole_set_process_name)

@@ -83,7 +83,7 @@ static void swTaskWorker_signal_init(void)
 	swSignal_set(SIGALRM, swTimer_signal_handler, 1, 0);
 }
 
-void swTaskWorker_onWorkerStart(swProcessPool *pool, int worker_id)
+void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
 {
     swServer *serv = pool->ptr;
     SwooleWG.id = worker_id + serv->worker_num;
@@ -103,7 +103,7 @@ void swTaskWorker_onWorkerStart(swProcessPool *pool, int worker_id)
     free(tmp_dir);
 }
 
-void swTaskWorker_onWorkerStop(swProcessPool *pool, int worker_id)
+void swTaskWorker_onStop(swProcessPool *pool, int worker_id)
 {
 	swServer *serv = pool->ptr;
 	swServer_worker_onStop(serv);

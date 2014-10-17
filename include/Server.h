@@ -74,25 +74,25 @@ enum swEventType
 
 enum swTrunk
 {
-	SW_TRUNK_DATA, //send data
-	SW_TRUNK_SENDFILE, //send file
+	SW_TRUNK_DATA,
+	SW_TRUNK_SENDFILE,
 	SW_TRUNK_CLOSE,
 };
 
-enum
+enum swIPCMode
 {
 	SW_IPC_UNSOCK   = 1,
 	SW_IPC_MSGQUEUE = 2,
 	SW_IPC_CHANNEL  = 3,
 };
 
-enum
+enum swCloseType
 {
 	SW_CLOSE_PASSIVE = 32,
 	SW_CLOSE_INITIATIVE,
 };
 
-enum
+enum swResponseType
 {
 	SW_RESPONSE_SMALL = 0,
 	SW_RESPONSE_BIG   = 1,
@@ -458,8 +458,8 @@ void swServer_onTimer(swTimer *timer, int interval);
 
 int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);
 int swTaskWorker_onFinish(swReactor *reactor, swEvent *event);
-void swTaskWorker_onWorkerStart(swProcessPool *pool, int worker_id);
-void swTaskWorker_onWorkerStop(swProcessPool *pool, int worker_id);
+void swTaskWorker_onStart(swProcessPool *pool, int worker_id);
+void swTaskWorker_onStop(swProcessPool *pool, int worker_id);
 int swTaskWorker_large_pack(swEventData *task, void *data, int data_len);
 
 #define swTaskWorker_large_unpack(task, __malloc, _buf, _length)   swPackage_task _pkg;\

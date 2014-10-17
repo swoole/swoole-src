@@ -114,8 +114,8 @@ int swReactorProcess_start(swServer *serv)
         SwooleG.task_workers.onTask = swTaskWorker_onTask;
         if (serv->onWorkerStart != NULL)
         {
-            SwooleG.task_workers.onWorkerStart = swTaskWorker_onWorkerStart;
-            SwooleG.task_workers.onWorkerStop = swTaskWorker_onWorkerStop;
+            SwooleG.task_workers.onWorkerStart = swTaskWorker_onStart;
+            SwooleG.task_workers.onWorkerStop = swTaskWorker_onStop;
         }
         swProcessPool_start(&SwooleG.task_workers);
 
