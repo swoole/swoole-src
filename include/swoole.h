@@ -197,16 +197,26 @@ enum swSocket_type
 
 #define SW_SOCK_SSL            (1u << 9)
 //-------------------------------------------------------------------------------
-#define SW_LOG_DEBUG           0
-#define SW_LOG_INFO            1
-#define SW_LOG_WARN            2
-#define SW_LOG_ERROR           3
-#define SW_LOG_TRACE           4
+enum swLogLevel
+{
+    SW_LOG_DEBUG = 0,
+    SW_LOG_TRACE,
+    SW_LOG_INFO,
+    SW_LOG_NOTICE,
+    SW_LOG_WARN,
+    SW_LOG_ERROR,
+
+};
 //-------------------------------------------------------------------------------
 
 #define swWarn(str,...)        SwooleG.lock.lock(&SwooleG.lock);\
 snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str,__func__,##__VA_ARGS__);\
 swLog_put(SW_LOG_WARN, sw_error);\
+SwooleG.lock.unlock(&SwooleG.lock)
+
+#define swNotice(str,...)        SwooleG.lock.lock(&SwooleG.lock);\
+snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);\
+swLog_put(SW_LOG_NOTICE, sw_error);\
 SwooleG.lock.unlock(&SwooleG.lock)
 
 #define swError(str,...)       SwooleG.lock.lock(&SwooleG.lock);\
@@ -1026,7 +1036,7 @@ typedef struct _swTimer_timeout_node
 {
     struct _swTimer_timeout_node *next, *prev;
     void *data;
-    uint32_t exectime;
+    uint32_t exec_msec;
 } swTimer_timeout_node;
 
 typedef struct _swTimer

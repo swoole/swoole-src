@@ -46,24 +46,27 @@ void swLog_put(int level, char *cnt)
 	char log_str[SW_LOG_BUFFER_SIZE];
 	int n;
 
-	switch (level)
-	{
-	case SW_LOG_DEBUG:
-		level_str = "DEBUG";
-		break;
-	case SW_LOG_ERROR:
-		level_str = "ERR";
-		break;
-	case SW_LOG_WARN:
-		level_str = "WARN";
-		break;
-	case SW_LOG_TRACE:
-		level_str = "TRACE";
-		break;
-	default:
-		level_str = "INFO";
-		break;
-	}
+    switch (level)
+    {
+    case SW_LOG_DEBUG:
+        level_str = "DEBUG";
+        break;
+    case SW_LOG_NOTICE:
+        level_str = "NOTICE";
+        break;
+    case SW_LOG_ERROR:
+        level_str = "ERR";
+        break;
+    case SW_LOG_WARN:
+        level_str = "WARN";
+        break;
+    case SW_LOG_TRACE:
+        level_str = "TRACE";
+        break;
+    default:
+        level_str = "INFO";
+        break;
+    }
 
 	time_t t;
 	struct tm *p;
