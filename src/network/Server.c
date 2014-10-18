@@ -84,7 +84,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 	swServer *serv = reactor->ptr;
 	swDataHead connEv;
 	struct sockaddr_in client_addr;
-	uint32_t client_addrlen = sizeof(client_addr);
+	socklen_t client_addrlen = sizeof(client_addr);
 	int new_fd, ret, reactor_id = 0, i, sockopt;
 
 	//SW_ACCEPT_AGAIN
@@ -127,7 +127,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 			setsockopt(new_fd, IPPROTO_TCP, TCP_NODELAY, &sockopt, sizeof(sockopt));
 		}
 
-#ifdef SO_KEEPALIVE
+#if defined(SO_KEEPALIVE) && defined(TCP_KEEPIDLE)
 		//TCP keepalive
 		if (serv->open_tcp_keepalive == 1)
 		{
@@ -136,12 +136,10 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 			int keep_interval = serv->tcp_keepinterval;
 			int keep_count = serv->tcp_keepcount;
 
-#ifdef TCP_KEEPIDLE
 			setsockopt(new_fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&keepalive , sizeof(keepalive));
 			setsockopt(new_fd, IPPROTO_TCP, TCP_KEEPIDLE, (void*)&keep_idle , sizeof(keep_idle));
 			setsockopt(new_fd, IPPROTO_TCP, TCP_KEEPINTVL, (void *)&keep_interval , sizeof(keep_interval));
 			setsockopt(new_fd, IPPROTO_TCP, TCP_KEEPCNT, (void *)&keep_count , sizeof(keep_count));
-#endif
 		}
 #endif
 
