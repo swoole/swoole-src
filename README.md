@@ -1,6 +1,5 @@
-Swoole  -   Asynchronous & concurrent & distributed networking framework for PHP.
+Swoole
 ======
-
 [![Build Status](https://api.travis-ci.org/swoole/swoole-src.svg)](https://travis-ci.org/swoole/swoole-src)
 
 Swoole is an event-based & concurrent framework for internet applications, written in C, for PHP.
