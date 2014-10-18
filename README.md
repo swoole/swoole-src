@@ -166,9 +166,13 @@ $serv->on('timer', function ($interval) {
         break;
     }
 });
-$serv->on('start', function ($serv) {
-     $serv->addtimer(10000);
-     $serv->addtimer(20000);
+$serv->on('workerStart', function ($serv) {
+    $serv->addtimer(10000);
+    $serv->addtimer(20000);
+    //Remove timer1 500 milliseconds after
+    $serv->after(500, function(){
+        $serv->deltimer(10000);
+    }); 
 });
 ```
 
