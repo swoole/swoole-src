@@ -1219,6 +1219,7 @@ extern swServerStats *SwooleStats;
 void swSignalfd_init();
 void swSignalfd_add(int signo, __sighandler_t callback);
 int swSignalfd_setup(swReactor *reactor);
+void swSignalfd_clear();
 #endif
 
 #if defined(HAVE_KQUEUE) || !defined(HAVE_SENDFILE)

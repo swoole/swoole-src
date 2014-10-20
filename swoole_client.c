@@ -682,20 +682,20 @@ void php_swoole_try_run_reactor()
 
 #if PHP_MAJOR_VERSION >= 5 && PHP_MINOR_VERSION >= 4
 
-		php_shutdown_function_entry shutdown_function_entry;
+        php_shutdown_function_entry shutdown_function_entry;
 
-		shutdown_function_entry.arg_count = 1;
-	    shutdown_function_entry.arguments = (zval **) safe_emalloc(sizeof(zval *), 1, 0);
+        shutdown_function_entry.arg_count = 1;
+        shutdown_function_entry.arguments = (zval **) safe_emalloc(sizeof(zval *), 1, 0);
 
-		ZVAL_STRING(callback, "swoole_event_wait", 1);
-		shutdown_function_entry.arguments[0] = callback;
+        ZVAL_STRING(callback, "swoole_event_wait", 1);
+        shutdown_function_entry.arguments[0] = callback;
 
-		if (!register_user_shutdown_function("swoole_event_wait", sizeof("swoole_event_wait"), &shutdown_function_entry TSRMLS_CC))
-		{
-			efree(shutdown_function_entry.arguments);
-			zval_ptr_dtor(&callback);
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
-		}
+        if (!register_user_shutdown_function("swoole_event_wait", sizeof("swoole_event_wait"), &shutdown_function_entry TSRMLS_CC))
+        {
+            efree(shutdown_function_entry.arguments);
+            zval_ptr_dtor(&callback);
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
+        }
 #else
 		SwooleG.running = 1;
         php_sw_event_wait = 1;

@@ -153,6 +153,14 @@ int swSignalfd_setup(swReactor *reactor)
 	}
 }
 
+void swSignalfd_clear()
+{
+    if (sigprocmask(SIG_UNBLOCK, &swoole_signalfd_mask, NULL) < 0)
+    {
+        swSysError("sigprocmask(SIG_UNBLOCK) failed.");
+    }
+}
+
 int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
 {
 	int n, i;
