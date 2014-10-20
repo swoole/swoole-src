@@ -697,7 +697,14 @@ void php_swoole_try_run_reactor()
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
 		}
 #else
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: PHP%d.%d not support auto run swoole_event_wait. Please append swoole_event_wait at the script end.", PHP_MAJOR_VERSION, PHP_MINOR_VERSION);
+		SwooleG.running = 1;
+        php_sw_event_wait = 1;
+
+        int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
+        if (ret < 0)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_ERROR, "reactor wait failed. Error: %s [%d]", strerror(errno), errno);
+        }
 #endif
 		php_sw_reactor_wait_onexit = 1;
 		php_sw_event_wait = 0;
@@ -1112,11 +1119,7 @@ PHP_FUNCTION(swoole_event_wait)
         SwooleG.running = 1;
         php_sw_event_wait = 1;
 
-        struct timeval timeo;
-        timeo.tv_sec = SW_REACTOR_TIMEO_SEC;
-        timeo.tv_usec = SW_REACTOR_TIMEO_USEC;
-
-        int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, &timeo);
+        int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
         if (ret < 0)
         {
             php_error_docref(NULL TSRMLS_CC, E_ERROR, "reactor wait failed. Error: %s [%d]", strerror(errno), errno);
