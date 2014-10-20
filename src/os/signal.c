@@ -159,6 +159,7 @@ void swSignalfd_clear()
     {
         swSysError("sigprocmask(SIG_UNBLOCK) failed.");
     }
+    bzero(&swoole_signalfd_mask, sizeof(swoole_signalfd_mask));
 }
 
 int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
