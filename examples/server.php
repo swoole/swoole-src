@@ -2,11 +2,11 @@
 $serv = new swoole_server("0.0.0.0", 9501);
 // $serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
 $serv->set(array(
-    'worker_num' => 1,
+    'worker_num' => 2,
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
     //'ipc_mode' => 2,
-    //'task_worker_num' => 1,
+    'task_worker_num' => 2,
     //'task_ipc_mode' => 1,
     //'dispatch_mode' => 1,
     //'daemonize' => 1,

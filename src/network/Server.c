@@ -1079,7 +1079,7 @@ int swServer_connection_close(swServer *serv, int fd)
     sw_atomic_fetch_add(&SwooleStats->close_count, 1);
     sw_atomic_fetch_sub(&SwooleStats->connection_num, 1);
 
-    swTrace("Close Event.fd=%d|from=%d", fd, reactor_id);
+    swTrace("Close Event.fd=%d|from=%d", fd, reactor->id);
 
     //clear output buffer
     if (serv->open_eof_check)

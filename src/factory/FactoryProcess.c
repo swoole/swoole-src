@@ -751,7 +751,6 @@ int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
     }
     else
     {
-        swTrace("dispatch to worker#%d", target_worker_id);
         return swServer_send2worker_blocking(serv, (void *) &(task->data), send_len, target_worker_id);
     }
 }
