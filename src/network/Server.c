@@ -123,25 +123,12 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 		//TCP Nodelay
 		if (serv->open_tcp_nodelay == 1)
 		{
-			sockopt = 1;
-			setsockopt(new_fd, IPPROTO_TCP, TCP_NODELAY, &sockopt, sizeof(sockopt));
+            sockopt = 1;
+            if (setsockopt(new_fd, IPPROTO_TCP, TCP_NODELAY, &sockopt, sizeof(sockopt)) < 0)
+            {
+                swSysError("setsockopt(TCP_NODELAY) failed.");
+            }
 		}
-
-#if defined(SO_KEEPALIVE) && defined(TCP_KEEPIDLE)
-		//TCP keepalive
-		if (serv->open_tcp_keepalive == 1)
-		{
-			int keepalive = 1;
-			int keep_idle = serv->tcp_keepidle;
-			int keep_interval = serv->tcp_keepinterval;
-			int keep_count = serv->tcp_keepcount;
-
-			setsockopt(new_fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&keepalive , sizeof(keepalive));
-			setsockopt(new_fd, IPPROTO_TCP, TCP_KEEPIDLE, (void*)&keep_idle , sizeof(keep_idle));
-			setsockopt(new_fd, IPPROTO_TCP, TCP_KEEPINTVL, (void *)&keep_interval , sizeof(keep_interval));
-			setsockopt(new_fd, IPPROTO_TCP, TCP_KEEPCNT, (void *)&keep_count , sizeof(keep_count));
-		}
-#endif
 
 #if SW_REACTOR_SCHEDULE == 1
 		//轮询分配
@@ -445,22 +432,22 @@ int swServer_start(swServer *serv)
 		 */
 		else
 		{
-			int null_fd = open("/dev/null", O_WRONLY);
-			if (null_fd > 0)
-			{
-				if (dup2(null_fd, STDOUT_FILENO) < 0)
-				{
-					swWarn("dup2(STDOUT_FILENO) failed. Error: %s[%d]", strerror(errno), errno);
-				}
-				if (dup2(null_fd, STDERR_FILENO) < 0)
-				{
-					swWarn("dup2(STDERR_FILENO) failed. Error: %s[%d]", strerror(errno), errno);
-				}
-			}
-			else
-			{
-				swWarn("open(/dev/null) failed. Error: %s[%d]", strerror(errno), errno);
-			}
+            SwooleG.null_fd = open("/dev/null", O_WRONLY);
+            if (SwooleG.null_fd > 0)
+            {
+                if (dup2(SwooleG.null_fd, STDOUT_FILENO) < 0)
+                {
+                    swWarn("dup2(STDOUT_FILENO) failed. Error: %s[%d]", strerror(errno), errno);
+                }
+                if (dup2(SwooleG.null_fd, STDERR_FILENO) < 0)
+                {
+                    swWarn("dup2(STDERR_FILENO) failed. Error: %s[%d]", strerror(errno), errno);
+                }
+            }
+            else
+            {
+                swWarn("open(/dev/null) failed. Error: %s[%d]", strerror(errno), errno);
+            }
 		}
 
 		if (daemon(0, 1) < 0)
@@ -697,6 +684,10 @@ int swServer_free(swServer *serv)
 	{
 		swLog_free();
 	}
+    if (SwooleG.null_fd > 0)
+    {
+        close(SwooleG.null_fd);
+    }
 	swoole_clean();
 	return SW_OK;
 }
@@ -890,7 +881,7 @@ int swServer_addListener(swServer *serv, int type, char *host, int port)
  */
 int swServer_listen(swServer *serv, swReactor *reactor)
 {
-	int sock=-1;
+    int sock = -1, sockopt;
 
 	swListenList_node *listen_host;
 
@@ -916,13 +907,41 @@ int swServer_listen(swServer *serv, swReactor *reactor)
 		}
 
 #ifdef TCP_DEFER_ACCEPT
-		int sockopt;
-		if (serv->tcp_defer_accept > 0)
-		{
-			sockopt = serv->tcp_defer_accept;
-			setsockopt(sock, IPPROTO_TCP, TCP_DEFER_ACCEPT, &sockopt, sizeof(sockopt));
-		}
+        if (serv->tcp_defer_accept)
+        {
+            if (setsockopt(sock, IPPROTO_TCP, TCP_DEFER_ACCEPT, (const void*) &serv->tcp_defer_accept, sizeof(int)) < 0)
+            {
+                swSysError("setsockopt(TCP_DEFER_ACCEPT) failed.");
+            }
+        }
 #endif
+
+#ifdef TCP_FASTOPEN
+        if (serv->tcp_fastopen)
+        {
+            if (setsockopt(sock, IPPROTO_TCP, TCP_FASTOPEN, (const void*) &serv->tcp_fastopen, sizeof(int)) < 0)
+            {
+                swSysError("setsockopt(TCP_FASTOPEN) failed.");
+            }
+        }
+#endif
+
+#ifdef SO_KEEPALIVE
+        if (serv->open_tcp_keepalive == 1)
+        {
+            sockopt = 1;
+            if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (void *) &sockopt, sizeof(int)) < 0)
+            {
+                swSysError("setsockopt(SO_KEEPALIVE) failed.");
+            }
+#ifdef TCP_KEEPIDLE
+            setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, (void*) &serv->tcp_keepidle, sizeof(int));
+            setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, (void *) &serv->tcp_keepinterval, sizeof(int));
+            setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, (void *) &serv->tcp_keepcount, sizeof(int));
+#endif
+        }
+#endif
+
 		listen_host->sock = sock;
 		//将server socket也放置到connection_list中
 		serv->connection_list[sock].fd = sock;
@@ -1183,7 +1202,7 @@ swConnection* swServer_connection_new(swServer *serv, swDataHead *ev)
             void *new_ptr = sw_shm_realloc(serv->connection_list, sizeof(swConnection)*(serv->connection_list_capacity + SW_CONNECTION_LIST_EXPAND));
             if (new_ptr == NULL)
             {
-                swWarn("connection_list realloc fail");
+                swWarn("connection_list realloc failed.");
                 return SW_ERR;
             }
             else

@@ -307,13 +307,19 @@ struct _swServer
     /**
      * open tcp_defer_accept option
      */
-    uint8_t tcp_defer_accept; //TCP_DEFER_ACCEPT
+    int tcp_defer_accept;
+    /**
+     * TCP_FASTOPEN
+     */
+    int tcp_fastopen;
 
-    /* tcp keepalive */
-    uint8_t open_tcp_keepalive; //开启keepalive
-    uint16_t tcp_keepidle; //如该连接在规定时间内没有任何数据往来,则进行探测
-    uint16_t tcp_keepinterval; //探测时发包的时间间隔
-    uint16_t tcp_keepcount; //探测尝试的次数
+    /**
+     * open tcp keepalive
+     */
+    uint8_t open_tcp_keepalive;
+    int tcp_keepidle;
+    int tcp_keepinterval;
+    int tcp_keepcount;
 
     /* heartbeat check time*/
     uint16_t heartbeat_idle_time; //心跳存活时间

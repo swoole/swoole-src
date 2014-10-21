@@ -94,63 +94,63 @@ typedef struct
 	uint16_t size;
 } swSignal;
 
-static swSignal object;
+static swSignal signalfd_object;
 
 void swSignalfd_init()
 {
-	sigemptyset(&swoole_signalfd_mask);
-	object.items = sw_calloc(SW_SIGNAL_INIT_NUM, sizeof(swSignal_item));
-	if (object.items == NULL)
-	{
-		swError("malloc for swSignal_item failed.");
-	}
-	object.size = SW_SIGNAL_INIT_NUM;
-	object.num = 0;
+    sigemptyset(&swoole_signalfd_mask);
+    signalfd_object.items = sw_calloc(SW_SIGNAL_INIT_NUM, sizeof(swSignal_item));
+    if (signalfd_object.items == NULL)
+    {
+        swError("malloc for swSignal_item failed.");
+    }
+    signalfd_object.size = SW_SIGNAL_INIT_NUM;
+    signalfd_object.num = 0;
 }
 
 void swSignalfd_add(int signo, __sighandler_t callback)
 {
-	if (object.num == object.size)
-	{
-		object.items = sw_realloc(object.items, sizeof(swSignal_item) * object.size * 2);
-		if (object.items == NULL)
-		{
-			swError("realloc for swSignal_item failed.");
-			return;
-		}
-		object.size = object.size * 2;
-	}
-	sigaddset(&swoole_signalfd_mask, signo);
-	object.items[object.num].callback = callback;
-	object.items[object.num].signo = signo;
-	object.num ++;
+    if (signalfd_object.num == signalfd_object.size)
+    {
+        signalfd_object.items = sw_realloc(signalfd_object.items, sizeof(swSignal_item) * signalfd_object.size * 2);
+        if (signalfd_object.items == NULL)
+        {
+            swError("realloc for swSignal_item failed.");
+            return;
+        }
+        signalfd_object.size = signalfd_object.size * 2;
+    }
+    sigaddset(&swoole_signalfd_mask, signo);
+    signalfd_object.items[signalfd_object.num].callback = callback;
+    signalfd_object.items[signalfd_object.num].signo = signo;
+    signalfd_object.num++;
 }
 
 int swSignalfd_setup(swReactor *reactor)
 {
-	if (swoole_signalfd == 0)
-	{
-		swoole_signalfd = signalfd(-1, &swoole_signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
-		if (swoole_signalfd < 0)
-		{
-			swWarn("signalfd() failed. Error: %s[%d]", strerror(errno), errno);
-			return SW_ERR;
-		}
-		SwooleG.signal_fd = swoole_signalfd;
-		if (sigprocmask(SIG_BLOCK, &swoole_signalfd_mask, NULL) == -1)
-		{
-			swWarn("sigprocmask() failed. Error: %s[%d]", strerror(errno), errno);
-			return SW_ERR;
-		}
-		reactor->setHandle(reactor, SW_FD_SIGNAL, swSignalfd_onSignal);
-		reactor->add(reactor, swoole_signalfd, SW_FD_SIGNAL);
-		return SW_OK;
-	}
-	else
-	{
-		swWarn("signalfd has been created");
-		return SW_ERR;
-	}
+    if (swoole_signalfd == 0)
+    {
+        swoole_signalfd = signalfd(-1, &swoole_signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
+        if (swoole_signalfd < 0)
+        {
+            swWarn("signalfd() failed. Error: %s[%d]", strerror(errno), errno);
+            return SW_ERR;
+        }
+        SwooleG.signal_fd = swoole_signalfd;
+        if (sigprocmask(SIG_BLOCK, &swoole_signalfd_mask, NULL) == -1)
+        {
+            swWarn("sigprocmask() failed. Error: %s[%d]", strerror(errno), errno);
+            return SW_ERR;
+        }
+        reactor->setHandle(reactor, SW_FD_SIGNAL, swSignalfd_onSignal);
+        reactor->add(reactor, swoole_signalfd, SW_FD_SIGNAL);
+        return SW_OK;
+    }
+    else
+    {
+        swWarn("signalfd has been created");
+        return SW_ERR;
+    }
 }
 
 void swSignalfd_clear()
@@ -159,27 +159,29 @@ void swSignalfd_clear()
     {
         swSysError("sigprocmask(SIG_UNBLOCK) failed.");
     }
+    sw_free(signalfd_object.items);
+    bzero(&signalfd_object, sizeof(signalfd_object));
     bzero(&swoole_signalfd_mask, sizeof(swoole_signalfd_mask));
 }
 
 int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
 {
-	int n, i;
-	struct signalfd_siginfo siginfo;
-	n = read(event->fd, &siginfo, sizeof(siginfo));
-	if (n < 0)
-	{
-		swWarn("read from signalfd failed. Error: %s[%d]", strerror(errno), errno);
-		return SW_ERR;
-	}
-	for(i = 0; i < object.num; i++)
-	{
-		if (siginfo.ssi_signo == object.items[i].signo && object.items[i].callback)
-		{
-			object.items[i].callback(siginfo.ssi_signo);
-		}
-	}
-	return SW_OK;
+    int n, i;
+    struct signalfd_siginfo siginfo;
+    n = read(event->fd, &siginfo, sizeof(siginfo));
+    if (n < 0)
+    {
+        swWarn("read from signalfd failed. Error: %s[%d]", strerror(errno), errno);
+        return SW_ERR;
+    }
+    for (i = 0; i < signalfd_object.num; i++)
+    {
+        if (siginfo.ssi_signo == signalfd_object.items[i].signo && signalfd_object.items[i].callback)
+        {
+            signalfd_object.items[i].callback(siginfo.ssi_signo);
+        }
+    }
+    return SW_OK;
 }
 
 #endif

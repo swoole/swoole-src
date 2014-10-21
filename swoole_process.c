@@ -487,24 +487,16 @@ PHP_METHOD(swoole_process, exec)
 		RETURN_FALSE;
 	}
 
-	swWorker *process;
-	SWOOLE_GET_WORKER(getThis(), process);
+    swWorker *process;
+    SWOOLE_GET_WORKER(getThis(), process);
 
-	if (process->pipe == 0)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "have not pipe, can not use exec()");
-		RETURN_FALSE;
-	}
+    int exec_argc = php_swoole_array_length(args);
+    char **exec_args = emalloc(sizeof(char*) * exec_argc + 1);
 
-	swBreakPoint();
-
-	int exec_argc = php_swoole_array_length(args);
-	char **exec_args = emalloc(sizeof(char*) * exec_argc + 1);
-
-	zval **value;
-	Bucket *_p;
-	_p = Z_ARRVAL_P(args)->pListHead;
-	exec_args[0] = strdup(execfile);
+    zval **value;
+    Bucket *_p;
+    _p = Z_ARRVAL_P(args)->pListHead;
+    exec_args[0] = strdup(execfile);
 
 	int i = 1;
 	while(_p != NULL)

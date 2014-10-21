@@ -1,18 +1,39 @@
 <?php
-$serv = new swoole_server("0.0.0.0", 9501);
-// $serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
-$serv->set(array(
-    'worker_num' => 2,
+class G
+{
+	static $serv;
+}
+
+
+$config = array(
+    'worker_num' => 1,
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
     //'ipc_mode' => 2,
-    'task_worker_num' => 2,
+    'task_worker_num' => 1,
     //'task_ipc_mode' => 1,
     //'dispatch_mode' => 1,
-    //'daemonize' => 1,
-    //'log_file' => '/tmp/swoole.log',
+    'log_file' => '/tmp/swoole.log',
     //'heartbeat_check_interval' => 10,
-));
+);
+
+if ($argv[1] == 'daemon') {
+	$config['daemonize'] = true;
+} else {
+	$config['daemonize'] = false;
+}
+
+$serv = new swoole_server("0.0.0.0", 9501);
+$serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
+$serv->set($config);
+/**
+ * 保存数据到对象属性，在任意位置均可访问
+ */
+$serv->config = $config;
+/**
+ * 使用类的静态属性，可以直接访问
+ */
+G::$serv = $serv;
 
 function my_onStart(swoole_server $serv)
 {
@@ -31,7 +52,6 @@ function my_log($msg)
 function forkChildInWorker() {
 	global $serv;
 	echo "on worker start\n";
-	$serv->addtimer(2000);
 	$process = new swoole_process ( function (swoole_process $worker) {
 		swoole_event_add ($worker->pipe, function ($pipe) use ($worker) {
 			echo $worker->read()."\n";
@@ -60,14 +80,24 @@ function processRename($serv, $worker_id) {
 	}
 	echo "WorkerStart: MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}";
 	echo "|WorkerId={$serv->worker_id}|WorkerPid={$serv->worker_pid}\n";
+}
+
+function setTimerInWorker($serv, $worker_id) {
 	
-	if ($worker_id == 0)
-	{
+	if ($worker_id == 0) {
 		echo "Start: ".microtime(true)."\n";
 		$serv->addtimer(3000);
 		$serv->addtimer(7000);
 		//var_dump($serv->gettimer());
 	}
+	$serv->after(2000, function(){
+		echo "Timeout: ".microtime(true)."\n";
+	});
+	$serv->after(5000, function(){
+		echo "Timeout: ".microtime(true)."\n";
+		global $serv;
+		$serv->deltimer(3000);
+	});
 }
 
 function my_onShutdown($serv)
@@ -93,16 +123,9 @@ function my_onConnect($serv, $fd, $from_id)
 
 function my_onWorkerStart($serv, $worker_id)
 {
-	//forkChildInWorker();
 	processRename($serv, $worker_id);
-	$serv->after(2000, function(){
-		echo "Timeout: ".microtime(true)."\n";
-	});
-	$serv->after(5000, function(){
-		echo "Timeout: ".microtime(true)."\n";
-		global $serv;
-		$serv->deltimer(3000);
-	});
+	//forkChildInWorker();
+	//setTimerInWorker($serv, $worker_id);
 }
 
 function my_onWorkerStop($serv, $worker_id)
@@ -120,12 +143,15 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     }
     elseif($cmd == "task")
     {
-        $task_id = $serv->task("hello world");
+        $task_id = $serv->task("task-".$fd);
         echo "Dispath AsyncTask: id=$task_id\n";
     }
     elseif($cmd == "taskwait")
     {
-        $result = $serv->taskwait("hello world", 2);
+        $result = $serv->taskwait("taskwait");
+        if ($result) {
+        	$serv->send($fd, "taskwaitok");
+        }
         echo "SyncTask: result=$result\n";
     }
     elseif ($cmd == "hellotask")
@@ -186,12 +212,16 @@ function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
     else
     {
         echo "AsyncTask[PID=".$serv->worker_pid."]: task_id=$task_id.".PHP_EOL;
-        return "Task OK";
+        //eg: test-18
+        return $data;
     }
 }
 
 function my_onFinish(swoole_server $serv, $task_id, $data)
 {
+	list($str, $fd) = explode('-', $data);
+	$serv->send($fd, 'taskok');
+	var_dump($str, $fd);
     echo "AsyncTask Finish: result={$data}. PID=".$serv->worker_pid.PHP_EOL;
 }
 
