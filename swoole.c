@@ -2721,28 +2721,28 @@ PHP_FUNCTION(swoole_server_addtimer)
 		RETURN_FALSE;
 	}
 
-	SWOOLE_GET_SERVER(zobject, serv);
+    if (SwooleG.use_timer_pipe && SwooleG.main_reactor == NULL)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "can not use addtimer here.");
+        RETURN_FALSE;
+    }
 
-	if (SwooleG.use_timer_pipe && SwooleG.main_reactor == NULL)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "can not use addtimer here.");
-		RETURN_FALSE;
-	}
+    if (zobject == NULL)
+    {
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ol", &zobject, swoole_server_class_entry_ptr, &interval) == FAILURE)
+        {
+            return;
+        }
+    }
+    else
+    {
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &interval) == FAILURE)
+        {
+            return;
+        }
+    }
 
-	if (zobject == NULL)
-	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ol", &zobject, swoole_server_class_entry_ptr, &interval) == FAILURE)
-		{
-			return;
-		}
-	}
-	else
-	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &interval) == FAILURE)
-		{
-			return;
-		}
-	}
+    SWOOLE_GET_SERVER(zobject, serv);
     php_swoole_check_timer(interval);
     SW_CHECK_RETURN(SwooleG.timer.add(&SwooleG.timer, (int )interval, 1, NULL));
 }
