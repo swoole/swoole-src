@@ -24,6 +24,7 @@ struct swRbtree_s
 };
 
 swRbtree* swRbtree_new();
+void swRbtree_free(swRbtree*);
 void swRbtree_insert(swRbtree *tree, uint32_t key, void *value);
 void swRbtree_delete(swRbtree *tree, uint32_t key);
 void *swRbtree_find(swRbtree *tree, uint32_t key);

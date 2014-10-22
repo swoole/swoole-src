@@ -92,7 +92,7 @@ void swoole_clean(void)
         SwooleG.memory_pool = NULL;
         if (SwooleG.timer.fd > 0)
         {
-            swTimer_free(&SwooleG.timer);
+            SwooleG.timer.free(&SwooleG.timer);
         }
         if (SwooleG.main_reactor)
         {
@@ -247,6 +247,29 @@ int swoole_sync_writefile(int fd, void *data, int len)
     return written;
 }
 
+int swoole_system_random(int min, int max)
+{
+    static int dev_random_fd = -1;
+    char *next_random_byte;
+    int bytes_to_read;
+    unsigned random_value;
+
+    assert(max > min);
+
+    if (dev_random_fd == -1)
+    {
+        dev_random_fd = open("/dev/urandom", O_RDONLY);
+        assert(dev_random_fd != -1);
+    }
+
+    next_random_byte = (char *) &random_value;
+    bytes_to_read = sizeof(random_value);
+
+    read(dev_random_fd, next_random_byte, bytes_to_read);
+
+    return min + (random_value % (max - min + 1));
+}
+
 swString* swoole_file_get_contents(char *filename)
 {
     struct stat file_stat;
@@ -330,6 +353,9 @@ int swoole_sync_readfile(int fd, void *buf, int len)
     return readn;
 }
 
+/**
+ * 最大公约数
+ */
 uint32_t swoole_common_divisor(uint32_t u, uint32_t v)
 {
     assert(u > 0);
@@ -348,6 +374,9 @@ uint32_t swoole_common_divisor(uint32_t u, uint32_t v)
     return v;
 }
 
+/**
+ * 最小公倍数
+ */
 uint32_t swoole_common_multiple(uint32_t u, uint32_t v)
 {
     assert(u > 0);

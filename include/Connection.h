@@ -29,6 +29,15 @@
 
 #endif
 
+enum swConnectionState
+{
+    SW_STATE_NULL = 0,
+    SW_STATE_ACTIVE = 1 << 0,
+    SW_STATE_REMOVED = 1 << 1,
+    SW_STATE_CLOSEING = 1 << 2,
+    SW_STATE_CLOSED = 1 << 3,
+};
+
 typedef struct _swConnection
 {
 	/**

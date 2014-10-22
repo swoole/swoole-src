@@ -100,7 +100,6 @@ void swRbtree_insert(swRbtree *tree, uint32_t key, void *value)
 			}
 		}
 	}
-
 	swRbtree_black(*root);
 }
 
@@ -355,11 +354,6 @@ static inline void swRbtree_right_rotate(swRbtree_node **root, swRbtree_node *se
 	temp->right = node;
 	node->parent = temp;
 }
-struct TestNode
-{
-	swRbtree_node node;
-	int value;
-};
 
 void *swRbtree_find(swRbtree *tree, uint32_t key)
 {
@@ -379,8 +373,8 @@ void *swRbtree_find(swRbtree *tree, uint32_t key)
 
 swRbtree* swRbtree_new()
 {
-	swRbtree *rbtree = malloc(sizeof(swRbtree));
-	swRbtree_node *sentinel = malloc(sizeof(swRbtree_node));
+	swRbtree *rbtree = sw_malloc(sizeof(swRbtree));
+	swRbtree_node *sentinel = sw_malloc(sizeof(swRbtree_node));
 
 	sentinel->color = 0;
 	rbtree->root = sentinel;
@@ -388,3 +382,8 @@ swRbtree* swRbtree_new()
 	return rbtree;
 }
 
+void swRbtree_free(swRbtree* rbtree)
+{
+    sw_free(rbtree->root);
+    sw_free(rbtree);
+}

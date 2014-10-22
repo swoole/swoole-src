@@ -94,7 +94,7 @@ int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
     ret = factory->dispatch(factory, &task);
     if (ret < 0)
     {
-        swWarn("factory->dispatch[udp packet] fail\n");
+        swWarn("factory->dispatch[udp packet] failed");
     }
     return SW_OK;
 }
@@ -104,8 +104,7 @@ int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
  */
 static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
 {
-    swServer *serv = reactor->ptr;
-    return swServer_connection_close(serv, event->fd, 1);
+    return swReactorThread_close(reactor, event->fd);
 }
 
 /**
@@ -117,7 +116,6 @@ int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
     swEventData resp;
     swSendData _send;
 
-    int64_t notify_worker = 1;
     swPackage_response pkg_resp;
     swWorker *worker;
 
@@ -125,9 +123,6 @@ int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
     {
         //Unix Sock UDP
         n = read(ev->fd, &resp, sizeof(resp));
-
-        swTrace("[WriteThread]recv: writer=%d|pipe=%d", ev->from_id, ev->fd);
-        //swWarn("send: type=%d|content=%s", resp.info.type, resp.data);
         if (n > 0)
         {
             memcpy(&_send.info, &resp.info, sizeof(resp.info));
@@ -142,16 +137,11 @@ int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
                 memcpy(&pkg_resp, resp.data, sizeof(pkg_resp));
                 worker = swServer_get_worker(SwooleG.serv, pkg_resp.worker_id);
 
-                _send.data = worker->store.ptr;
+                _send.data = worker->send_shm;
                 _send.length = pkg_resp.length;
 
                 swReactorThread_send(&_send);
-
-                /**
-                 * Unlock the worker storage.
-                 */
-                worker->store.lock = 0;
-                worker->notify->write(worker->notify, &notify_worker, sizeof(notify_worker));
+                worker->lock.unlock(&worker->lock);
             }
         }
         else if (errno == EAGAIN)
@@ -227,7 +217,6 @@ int swReactorThread_send(swSendData *_send)
     volatile swBuffer_trunk *trunk;
 
     swConnection *conn = swServer_connection_get(serv, fd);
-
     if (conn == NULL || conn->active == 0)
     {
         swWarn("Connection[fd=%d] is not exists.", fd);
@@ -245,15 +234,18 @@ int swReactorThread_send(swSendData *_send)
 
     if (conn->out_buffer == NULL)
     {
-        //Close connection
-        if (_send->info.len == 0)
+        /**
+         * close connection.
+         */
+        if (_send->info.type == SW_EVENT_CLOSE)
         {
-            swServer_connection_close(serv, fd, _send->info.type == SW_CLOSE_INITIATIVE ? 0 : 1);
+            close_fd:
+            swServer_connection_close(serv, fd);
             return SW_OK;
         }
 #ifdef SW_REACTOR_SYNC_SEND
         //Direct send
-        else if (_send->info.type != SW_EVENT_SENDFILE)
+        if (_send->info.type != SW_EVENT_SENDFILE)
         {
             int n;
 
@@ -293,8 +285,15 @@ int swReactorThread_send(swSendData *_send)
         }
     }
 
-    //recv length=0, close connection
-    if (_send->info.len == 0)
+    //listen EPOLLOUT event
+    if (reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_WRITE | SW_EVENT_READ) < 0
+            && (errno == EBADF || errno == ENOENT))
+    {
+        goto close_fd;
+    }
+
+    //close connection
+    if (_send->info.type == SW_EVENT_CLOSE)
     {
         trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_CLOSE, 0);
         trunk->store.data.val1 = _send->info.type;
@@ -317,8 +316,6 @@ int swReactorThread_send(swSendData *_send)
         //buffer enQueue
         swBuffer_append(conn->out_buffer, _send->data, _send->length);
     }
-    //listen EPOLLOUT event
-    reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_WRITE | SW_EVENT_READ);
     return SW_OK;
 }
 
@@ -373,7 +370,7 @@ int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         if (trunk->type == SW_TRUNK_CLOSE)
         {
             close_fd:
-            swServer_connection_close(serv, ev->fd, trunk->store.data.val1 == SW_CLOSE_INITIATIVE ? 0 : 1);
+            swServer_connection_close(serv, ev->fd);
             return SW_OK;
         }
         else if (trunk->type == SW_TRUNK_SENDFILE)
@@ -526,8 +523,7 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
     else if (n == 0)
     {
         close_fd:
-        swTrace("Close Event.FD=%d|From=%d", event->fd, event->from_id);
-        swServer_connection_close(serv, event->fd, 1);
+        swReactorThread_close(reactor, event->fd);
         /**
          * skip EPOLLERR
          */
@@ -614,8 +610,7 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
     else if (n == 0)
     {
         close_fd:
-        swTrace("Close Event.FD=%d|From=%d|errno=%d", event->fd, event->from_id, errno);
-        swServer_connection_close(serv, event->fd, 1);
+        swReactorThread_close(reactor, event->fd);
         /**
          * skip EPOLLERR
          */
@@ -737,7 +732,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
     {
         close_fd:
         swTrace("Close Event.FD=%d|From=%d", event->fd, event->from_id);
-        swServer_connection_close(serv, event->fd, 1);
+        swReactorThread_close(reactor, event->fd);
         /**
          * skip EPOLLERR
          */
@@ -893,6 +888,32 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
     return SW_OK;
 }
 
+int swReactorThread_close(swReactor *reactor, int fd)
+{
+    swDataHead notify_ev;
+    bzero(&notify_ev, sizeof(notify_ev));
+
+    notify_ev.from_id = reactor->id;
+    notify_ev.fd = fd;
+    notify_ev.type = SW_EVENT_CLOSE;
+
+    swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
+    if (conn == NULL || conn->active == 0)
+    {
+        return SW_ERR;
+    }
+
+    if (reactor->del(reactor, fd) == 0)
+    {
+        conn->active |= SW_STATE_REMOVED;
+        return SwooleG.factory->notify(SwooleG.factory, &notify_ev);
+    }
+    else
+    {
+        return SW_ERR;
+    }
+}
+
 /**
  * For Http Protocol
  */
@@ -955,8 +976,7 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
     else if (n == 0)
     {
         close_fd:
-        swTrace("Close Event.FD=%d|From=%d", event->fd, event->from_id);
-        swServer_connection_close(serv, event->fd, 1);
+        swReactorThread_close(reactor, event->fd);
         /**
          * skip EPOLLERR
          */
@@ -1203,8 +1223,6 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     swReactorThread *thread = swServer_get_thread(serv, reactor_id);
     swReactor *reactor = &thread->reactor;
 
-    struct timeval timeo;
-
     //cpu affinity setting
 #if HAVE_CPU_AFFINITY
     if (serv->open_cpu_affinity)
@@ -1227,8 +1245,6 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
 
     swSignal_none();
 
-    timeo.tv_sec = serv->timeout_sec;
-    timeo.tv_usec = serv->timeout_usec; //300ms
     reactor->ptr = serv;
     reactor->id = reactor_id;
 
@@ -1288,7 +1304,7 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
         reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_no_buffer);
     }
     //main loop
-    reactor->wait(reactor, &timeo);
+    reactor->wait(reactor, NULL);
     //shutdown
     if (serv->ipc_mode != SW_IPC_MSGQUEUE)
     {
@@ -1622,6 +1638,7 @@ void swReactorThread_free(swServer *serv)
         for (i = 0; i < serv->reactor_num; i++)
         {
             thread = &(serv->reactor_threads[i]);
+            pthread_cancel(thread->thread_id);
             if (pthread_join(thread->thread_id, NULL))
             {
                 swWarn("pthread_join() failed. Error: %s[%d]", strerror(errno), errno);
@@ -1637,9 +1654,10 @@ void swReactorThread_free(swServer *serv)
         swListenList_node *listen_host;
         LL_FOREACH(serv->listen_list, listen_host)
         {
-            shutdown(listen_host->sock, SHUT_RDWR);
-            if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6 || listen_host->type == SW_SOCK_UNIX_DGRAM)
+            if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6
+                    || listen_host->type == SW_SOCK_UNIX_DGRAM)
             {
+                pthread_cancel(listen_host->thread_id);
                 if (pthread_join(listen_host->thread_id, NULL))
                 {
                     swWarn("pthread_join() failed. Error: %s[%d]", strerror(errno), errno);

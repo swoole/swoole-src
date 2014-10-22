@@ -41,6 +41,9 @@ int main(int argc, char **argv)
 	swUnitTest_steup(http_test1, 1, "http get test");
 	swUnitTest_steup(http_test2, 1, "http post test");
 
+
+	swUnitTest_steup(heap_test1, 1, "heap test");
+
 	swUnitTest_steup(ringbuffer_test1, 1, "ringbuffer test");
 	return swUnitTest_run(&test);
 }

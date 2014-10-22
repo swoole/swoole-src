@@ -50,7 +50,6 @@ extern "C" {
 #include <sys/select.h>
 #include <sys/mman.h>
 #include <sys/ipc.h>
-#include <sys/shm.h>
 #include <sys/wait.h>
 #include <sys/un.h>
 
@@ -198,11 +197,16 @@ enum swSocket_type
 
 #define SW_SOCK_SSL            (1u << 9)
 //-------------------------------------------------------------------------------
-#define SW_LOG_DEBUG           0
-#define SW_LOG_INFO            1
-#define SW_LOG_WARN            2
-#define SW_LOG_ERROR           3
-#define SW_LOG_TRACE           4
+enum swLogLevel
+{
+    SW_LOG_DEBUG = 0,
+    SW_LOG_TRACE,
+    SW_LOG_INFO,
+    SW_LOG_NOTICE,
+    SW_LOG_WARN,
+    SW_LOG_ERROR,
+
+};
 //-------------------------------------------------------------------------------
 
 #define swWarn(str,...)        SwooleG.lock.lock(&SwooleG.lock);\
@@ -210,11 +214,21 @@ snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str,__func__,##__VA_ARGS__);\
 swLog_put(SW_LOG_WARN, sw_error);\
 SwooleG.lock.unlock(&SwooleG.lock)
 
+#define swNotice(str,...)        SwooleG.lock.lock(&SwooleG.lock);\
+snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);\
+swLog_put(SW_LOG_NOTICE, sw_error);\
+SwooleG.lock.unlock(&SwooleG.lock)
+
 #define swError(str,...)       SwooleG.lock.lock(&SwooleG.lock);\
 snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
 swLog_put(SW_LOG_ERROR, sw_error);\
 SwooleG.lock.unlock(&SwooleG.lock);\
 exit(1)
+
+#define swSysError(str,...) SwooleG.lock.lock(&SwooleG.lock);\
+snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str" Error: %s[%d].",__func__,##__VA_ARGS__,strerror(errno),errno);\
+swLog_put(SW_LOG_WARN, sw_error);\
+SwooleG.lock.unlock(&SwooleG.lock)
 
 #ifdef SW_DEBUG
 #define swTrace(str,...)       {printf("[%s:%d@%s]"str"\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);}
@@ -620,12 +634,17 @@ typedef struct _swThreadParam
 extern int16_t sw_errno;
 extern char sw_error[SW_ERROR_MSG_SIZE];
 
-#define SW_PROCESS_MASTER      1
-#define SW_PROCESS_WORKER      2
-#define SW_PROCESS_MANAGER     3
+enum swProcessType
+{
+    SW_PROCESS_MASTER = 1,
+    SW_PROCESS_WORKER,
+    SW_PROCESS_MANAGER,
+    SW_PROCESS_TASKWORKER,
+};
 
 #define swIsMaster()          (SwooleG.process_type==SW_PROCESS_MASTER)
 #define swIsWorker()          (SwooleG.process_type==SW_PROCESS_WORKER)
+#define swIsTaskWorker()      (SwooleG.process_type==SW_PROCESS_TASKWORKER)
 #define swIsManager()         (SwooleG.process_type==SW_PROCESS_MANAGER)
 
 //----------------------tool function---------------------
@@ -691,6 +710,7 @@ char* swoole_dirname(char *file);
 void swoole_dump_ascii(char *data, int size);
 int swoole_sync_writefile(int fd, void *data, int len);
 int swoole_sync_readfile(int fd, void *buf, int len);
+int swoole_system_random(int min, int max);
 swString* swoole_file_get_contents(char *filename);
 
 //----------------------core function---------------------
@@ -751,8 +771,14 @@ struct swReactor_s
 	void *ptr; //reserve
 	uint32_t event_num;
 	uint32_t max_event_num;
+
+	/**
+	 * reactor->wait timeout (millisecond)
+	 */
+	uint32_t timeout_msec;
 	uint16_t id; //Reactor ID
 	uint16_t flag; //flag
+
 	char running;
 
 	swReactor_handle handle[SW_MAX_FDTYPE];       //默认事件
@@ -817,16 +843,11 @@ struct _swWorker
 	/**
 	 * eventfd, process notify
 	 */
-	swPipe *notify;
+	//swPipe *notify;
 
-	/**
-	 * share memory store
-	 */
-	struct
-	{
-		uint8_t lock;
-		void *ptr;
-	} store;
+	swLock lock;
+
+	void *send_shm;
 
 	int pipe_master;
 	int pipe_worker;
@@ -1013,16 +1034,26 @@ int swThreadPool_create(swThreadPool *pool, int max_num);
 int swThreadPool_run(swThreadPool *pool);
 int swThreadPool_free(swThreadPool *pool);
 
-//-----------------------------------------------
+//--------------------------------timer------------------------------
+typedef struct _swTimer_interval_node
+{
+    struct _swTimerList_node *next, *prev;
+    struct timeval lasttime;
+    uint32_t interval;
+} swTimer_interval_node;
+
 typedef struct _swTimer_node
 {
-	struct _swTimerList_node *next, *prev;
-	struct timeval lasttime;
-	uint32_t interval;
+    struct _swTimer_node *next, *prev;
+    void *data;
+    uint32_t exec_msec;
+    uint32_t interval;
 } swTimer_node;
 
 typedef struct _swTimer
 {
+	swTimer_node *root;
+	/*--------------timerfd & signal timer--------------*/
 	swHashMap *list;
 	int num;
 	int interval;
@@ -1030,17 +1061,28 @@ typedef struct _swTimer
 	int lasttime;
 	int fd;
 	swPipe pipe;
-	void (*onTimer)(struct _swTimer *timer, int interval);
+	/*-----------------for EventTimer-------------------*/
+	struct timeval basetime;
+	/*--------------------------------------------------*/
+	int (*add)(struct _swTimer *timer, int _msec, int _interval, void *data);
+	int (*del)(struct _swTimer *timer, int _interval_ms);
+	int (*select)(struct _swTimer *timer);
+	void (*free)(struct _swTimer *timer);
+	/*-----------------event callback-------------------*/
+	void (*onTimer)(struct _swTimer *timer, int interval_msec);
+	void (*onTimeout)(struct _swTimer *timer, void *data);
 } swTimer;
 
-int swTimer_create(swTimer *timer, int interval_ms, int no_pipe);
-void swTimer_del(swTimer *timer, int ms);
-int swTimer_free(swTimer *timer);
-int swTimer_add(swTimer *timer, int ms);
+int swTimer_init(int interval_ms, int no_pipe);
+int swEventTimer_init();
 void swTimer_signal_handler(int sig);
 int swTimer_event_handler(swReactor *reactor, swEvent *event);
-int swTimer_select(swTimer *timer);
+void swTimer_node_insert(swTimer_node **root, swTimer_node *new_node);
+void swTimer_node_print(swTimer_node **root);
+int swTimer_node_delete(swTimer_node **root, int interval_msec);
+void swTimer_node_destory(swTimer_node **root);
 
+//--------------------------------------------------------------
 typedef struct _swModule
 {
 	char *name;
@@ -1071,7 +1113,7 @@ typedef struct
 	/**
 	 * Current Proccess Worker's id
 	 */
-	int id;
+	uint32_t id;
 
 	/**
 	 * Write to reactor
@@ -1109,6 +1151,7 @@ typedef struct
     int signal_alarm; //for timer with message queue
     int signal_fd;
     int log_fd;
+    int null_fd;
 
     uint8_t use_timerfd;
     uint8_t use_signalfd;
@@ -1116,12 +1159,15 @@ typedef struct
      * Timer used pipe
      */
     uint8_t use_timer_pipe;
-    uint8_t task_ipc_mode;
+
 
     /**
      *  task worker process num
      */
     uint16_t task_worker_num;
+    char *task_tmpdir;
+    uint16_t task_tmpdir_len;
+    uint8_t task_ipc_mode;
 
     uint16_t cpu_num;
 
@@ -1175,9 +1221,10 @@ extern swServerStats *SwooleStats;
 void swSignalfd_init();
 void swSignalfd_add(int signo, __sighandler_t callback);
 int swSignalfd_setup(swReactor *reactor);
+void swSignalfd_clear();
 #endif
 
-#ifdef HAVE_KQUEUE
+#if defined(HAVE_KQUEUE) || !defined(HAVE_SENDFILE)
 int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
 #else
 #include <sys/sendfile.h>

@@ -3,6 +3,7 @@ $serv = new swoole_server("127.0.0.1", 9501);
 $serv->set(array(
     'worker_num' => 1,
     'task_worker_num' => 1,
+    //'task_tmpdir' => '/data/task/',
 ));
 $serv->on('Receive', function(swoole_server $serv, $fd, $from_id, $data) {
 	//AsyncTask
@@ -57,4 +58,3 @@ $serv->on('workerStart', function($serv, $worker_id) {
     }
 });
 $serv->start();
-

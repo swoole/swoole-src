@@ -114,8 +114,8 @@ int swReactorProcess_start(swServer *serv)
         SwooleG.task_workers.onTask = swTaskWorker_onTask;
         if (serv->onWorkerStart != NULL)
         {
-            SwooleG.task_workers.onWorkerStart = swTaskWorker_onWorkerStart;
-            SwooleG.task_workers.onWorkerStop = swTaskWorker_onWorkerStop;
+            SwooleG.task_workers.onWorkerStart = swTaskWorker_onStart;
+            SwooleG.task_workers.onWorkerStop = swTaskWorker_onStop;
         }
         swProcessPool_start(&SwooleG.task_workers);
 
@@ -220,12 +220,9 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 static int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
 {
     swServer *serv = reactor->ptr;
-    swServer_connection_close(serv, event->fd, 0);
-
     if (serv->onClose != NULL)
     {
         serv->onClose(serv, event->fd, event->from_id);
     }
-    return SW_OK;
+    return swServer_connection_close(serv, event->fd);
 }
-

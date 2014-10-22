@@ -37,7 +37,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.7.6"
+#define PHP_SWOOLE_VERSION  "1.7.7-RC2"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -60,6 +60,12 @@ typedef struct
 	uint16_t from_fd;
 } php_swoole_udp_t;
 #pragma pack()
+
+typedef struct
+{
+    zval *callback;
+    int interval;
+} swoole_timer_item;
 
 extern zend_module_entry swoole_module_entry;
 
@@ -213,6 +219,7 @@ PHP_FUNCTION(swoole_async_set);
 
 PHP_FUNCTION(swoole_timer_add);
 PHP_FUNCTION(swoole_timer_del);
+PHP_FUNCTION(swoole_timer_after);
 
 PHP_FUNCTION(swoole_strerror);
 PHP_FUNCTION(swoole_errno);
@@ -284,7 +291,10 @@ void swoole_table_init(int module_number TSRMLS_DC);
 void swoole_client_init(int module_number TSRMLS_DC);
 
 void php_swoole_check_reactor();
+void php_swoole_check_timer(int interval);
 void php_swoole_try_run_reactor();
+void php_swoole_onTimerInterval(swTimer *timer, int interval);
+void php_swoole_onTimeout(swTimer *timer, void *data);
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
 	uint16_t aio_thread_num;

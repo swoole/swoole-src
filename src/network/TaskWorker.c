@@ -44,7 +44,7 @@ int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
 int swTaskWorker_large_pack(swEventData *task, void *data, int data_len)
 {
 	swPackage_task pkg;
-	memcpy(pkg.tmpfile, SW_TASK_TMP_FILE, sizeof(SW_TASK_TMP_FILE));
+	memcpy(pkg.tmpfile, SwooleG.task_tmpdir, SwooleG.task_tmpdir_len);
 
 #ifdef HAVE_MKOSTEMP
 	int tpm_fd  = mkostemp(pkg.tmpfile, O_WRONLY);
@@ -83,28 +83,30 @@ static void swTaskWorker_signal_init(void)
 	swSignal_set(SIGALRM, swTimer_signal_handler, 1, 0);
 }
 
-void swTaskWorker_onWorkerStart(swProcessPool *pool, int worker_id)
+void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
 {
-	swServer *serv = pool->ptr;
-	SwooleWG.id = worker_id + serv->worker_num;
+    swServer *serv = pool->ptr;
+    SwooleWG.id = worker_id + serv->worker_num;
 
-	SwooleG.use_timer_pipe = 0;
-	SwooleG.use_timerfd = 0;
+    SwooleG.use_timer_pipe = 0;
+    SwooleG.use_timerfd = 0;
 
-	swTaskWorker_signal_init();
-	swServer_worker_onStart(serv);
+    swTaskWorker_signal_init();
+    swWorker_onStart(serv);
 
-	char *tmp_dir = swoole_dirname(SW_TASK_TMP_FILE);
-	//create tmp dir
-	if (access(tmp_dir, R_OK) < 0 && swoole_mkdir_recursive(tmp_dir) < 0)
-	{
-		swWarn("create task tmp dir failed.");
-	}
-	free(tmp_dir);
+    SwooleG.process_type = SW_PROCESS_TASKWORKER;
+
+    char *tmp_dir = swoole_dirname(SwooleG.task_tmpdir);
+    //create tmp dir
+    if (access(tmp_dir, R_OK) < 0 && swoole_mkdir_recursive(tmp_dir) < 0)
+    {
+        swWarn("create task tmp dir failed.");
+    }
+    free(tmp_dir);
 }
 
-void swTaskWorker_onWorkerStop(swProcessPool *pool, int worker_id)
+void swTaskWorker_onStop(swProcessPool *pool, int worker_id)
 {
 	swServer *serv = pool->ptr;
-	swServer_worker_onStop(serv);
+	swWorker_onStop(serv);
 }

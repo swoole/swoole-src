@@ -139,6 +139,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(c, timerfd_create, AC_DEFINE(HAVE_TIMERFD, 1, [have timerfd]))
     AC_CHECK_LIB(c, eventfd, AC_DEFINE(HAVE_EVENTFD, 1, [have eventfd]))
     AC_CHECK_LIB(c, epoll_create, AC_DEFINE(HAVE_EPOLL, 1, [have epoll]))
+	AC_CHECK_LIB(c, sendfile, AC_DEFINE(HAVE_SENDFILE, 1, [have sendfile]))
     AC_CHECK_LIB(c, kqueue, AC_DEFINE(HAVE_KQUEUE, 1, [have kqueue]))
     AC_CHECK_LIB(c, daemon, AC_DEFINE(HAVE_DAEMON, 1, [have daemon]))
     AC_CHECK_LIB(c, mkostemp, AC_DEFINE(HAVE_MKOSTEMP, 1, [have mkostemp]))
@@ -211,6 +212,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/ReactorThread.c \
         src/network/ReactorProcess.c \
         src/network/Worker.c \
+        src/network/EventTimer.c \
         src/os/base.c \
         src/os/linux_aio.c \
         src/os/gcc_aio.c \

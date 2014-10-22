@@ -17,6 +17,8 @@
 #include "swoole.h"
 #include "async.h"
 
+#ifdef HAVE_GCC_AIO
+
 #include <aio.h>
 
 typedef struct _swAio_gcc_t
@@ -191,3 +193,5 @@ static void swAioGcc_destroy(void)
 {
     swoole_aio_pipe.close(&swoole_aio_pipe);
 }
+
+#endif

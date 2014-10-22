@@ -280,7 +280,7 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
             }
             else if (SwooleG.signal_alarm)
             {
-                swTimer_select(&SwooleG.timer);
+                SwooleG.timer.select(&SwooleG.timer);
             }
             continue;
         }

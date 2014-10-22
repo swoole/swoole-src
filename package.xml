@@ -185,6 +185,7 @@
 					<file role="src" name="TaskWorker.c" />
 					<file role="src" name="ThreadPool.c" />
 					<file role="src" name="Worker.c" />
+                    <file role="src" name="EventTimer.c" />
 				</dir>
 				<dir name="os">
 					<file role="src" name="base.c" />

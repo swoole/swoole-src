@@ -22,6 +22,7 @@
 #define SW_MAX_FILE_CONTENT        (64*1024*1024) //for swoole_file_get_contents
 
 //#define SW_USE_RINGBUFFER
+#define SW_USE_EVENT_TIMER
 
 #define SW_GLOBAL_MEMORY_PAGESIZE  (1024*1024*2) //全局内存的分页
 
@@ -37,6 +38,7 @@
 #define SW_LOG_TRACE_OPEN          0  //1: open all trace log, 0: close all trace log, >1: open some[traceId=n] trace log
 //#define SW_BUFFER_SIZE            65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_CLIENT_BUFFER_SIZE      65536
+#define SW_CLIENT_DEFAULT_TIMEOUT  0.5
 
 #ifdef SW_USE_RINGBUFFER
 #define SW_BUFFER_SIZE             65535
@@ -86,7 +88,8 @@
 #define SW_WORKER_READ_COUNT       10
 #define SW_WORKER_WAIT_PIPE
 #define SW_WORKER_WAIT_TIMEOUT     1000
-//#define SW_WORKER_USE_SIGNALFD
+
+#define SW_WORKER_USE_SIGNALFD
 
 //#define SW_WORKER_SEND_CHUNK
 
@@ -110,7 +113,7 @@
 
 //#define SW_USE_RINGQUEUE_TS            1     //使用线程安全版本的RingQueue
 #define SW_RINGBUFFER_COLLECT_N          100   //collect max_count
-#define SW_RINGBUFFER_FREE_N_MAX         4    //when free_n > MAX, execute collect
+#define SW_RINGBUFFER_FREE_N_MAX         4     //when free_n > MAX, execute collect
 #define SW_RINGBUFFER_WARNING            100
 
 /**
@@ -137,6 +140,8 @@
 #define SW_USE_EVENTFD                   //是否使用eventfd来做消息通知，需要Linux 2.6.22以上版本才会支持
 
 #define SW_TASK_TMP_FILE                 "/tmp/swoole/task.XXXXXX"
+
+#define SW_DIR_MAXLEN                    128
 #define SW_FILE_CHUNK_SIZE               65536
 
 #define SW_TABLE_CONFLICT_PROPORTION     0.2 //20%

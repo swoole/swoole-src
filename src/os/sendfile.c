@@ -70,4 +70,10 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
 	}
 	return SW_OK;
 }
+#elif !defined(HAVE_SENDFILE)
+int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
+{
+	swWarn("no have sendfile");
+	return SW_ERR;
+}
 #endif

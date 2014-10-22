@@ -158,13 +158,7 @@ int swReactorEpoll_del(swReactor *reactor, int fd)
         swWarn("epoll remove fd[=%d] failed. Error: %s[%d]", fd, strerror(errno), errno);
         return SW_ERR;
     }
-    //close时会自动从epoll事件中移除
-    //swoole中未使用dup
-    ret = close(fd);
-    if (ret >= 0)
-    {
-        (reactor->event_num <= 0) ? reactor->event_num = 0 : reactor->event_num--;
-    }
+    reactor->event_num = reactor->event_num <= 0 ? 0 : reactor->event_num - 1;
     swTraceLog(SW_TRACE_EVENT, "remove event[reactor_id=%d|fd=%d]", reactor->id, fd);
     return SW_OK;
 }
@@ -178,6 +172,7 @@ int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype)
 
     bzero(&e, sizeof(struct epoll_event));
     e.events = swReactorEpoll_event_set(fdtype);
+
     fd_.fd = fd;
     fd_.fdtype = swReactor_fdtype(fdtype);
     memcpy(&(e.data.u64), &fd_, sizeof(fd_));
@@ -197,25 +192,29 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
     swEvent ev;
     swReactorEpoll *object = reactor->object;
     swReactor_handle handle;
-    int i, n, ret, usec;
+    int i, n, ret, msec;
 
     int reactor_id = reactor->id;
     int epoll_fd = object->epfd;
     int max_event_num = reactor->max_event_num;
     struct epoll_event *events = object->events;
 
-    if (timeo == NULL)
+    if (reactor->timeout_msec == 0)
     {
-        usec = SW_MAX_UINT;
-    }
-    else
-    {
-        usec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
+        if (timeo == NULL)
+        {
+            reactor->timeout_msec = -1;
+        }
+        else
+        {
+            reactor->timeout_msec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
+        }
     }
 
     while (SwooleG.running > 0)
     {
-        n = epoll_wait(epoll_fd, events, max_event_num, usec);
+        msec = reactor->timeout_msec;
+        n = epoll_wait(epoll_fd, events, max_event_num, msec);
         if (n < 0)
         {
             if (swReactor_error(reactor) < 0)
