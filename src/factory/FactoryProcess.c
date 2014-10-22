@@ -527,21 +527,21 @@ int swFactoryProcess_end(swFactory *factory, swDataHead *event)
     swConnection *conn = swServer_connection_get(serv, _send.info.fd);
     if (conn == NULL || conn->active == 0)
     {
-        swWarn("can not close. Connection[%d] not found.", _send.info.fd);
+        //swWarn("can not close. Connection[%d] not found.", _send.info.fd);
         return SW_ERR;
     }
-    if (conn->active != SW_STATE_CLOSED)
+    if (conn->active & SW_STATE_CLOSED)
+    {
+        return SW_ERR;
+    }
+    else
     {
         if (serv->onClose != NULL)
         {
             serv->onClose(serv, event->fd, conn->from_id);
         }
-        conn->active = SW_STATE_CLOSED;
+        conn->active |= SW_STATE_CLOSED;
         return swFactoryProcess_finish(factory, &_send);
-    }
-    else
-    {
-        return SW_ERR;
     }
 }
 

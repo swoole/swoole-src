@@ -1088,7 +1088,7 @@ int swServer_connection_close(swServer *serv, int fd)
     }
 
     swReactor *reactor = &(serv->reactor_threads[conn->from_id].reactor);
-    if (reactor->del(reactor, fd) < 0)
+    if (!(conn->active & SW_STATE_REMOVED) && reactor->del(reactor, fd) < 0)
     {
         return SW_ERR;
     }

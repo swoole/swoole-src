@@ -195,7 +195,7 @@ static int php_swoole_client_close(zval **zobject, int fd TSRMLS_DC)
 		{
 			zval_ptr_dtor(&retval);
 		}
-		bzero(cli, sizeof(swClient));
+		cli->close(cli);
 	}
 	else
 	{

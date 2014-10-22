@@ -1473,7 +1473,7 @@ PHP_FUNCTION(swoole_server_close)
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "The connection[%d] not found.", ev.fd);
         RETURN_FALSE;
     }
-    else if (conn->active == SW_STATE_CLOSEING)
+    else if (conn->active & SW_STATE_CLOSEING)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "The connection[%d] is closeing.", ev.fd);
         RETURN_FALSE;
@@ -2312,8 +2312,7 @@ static void php_swoole_onClose(swServer *serv, int fd, int from_id)
     args[2] = &zfrom_id;
 
     swConnection *conn = swServer_connection_get(serv, fd);
-    uint8_t state = conn->active;
-    conn->active = SW_STATE_CLOSEING;
+    conn->active |= SW_STATE_CLOSEING;
 
     if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onClose], &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
@@ -2324,7 +2323,6 @@ static void php_swoole_onClose(swServer *serv, int fd, int from_id)
     {
         zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
     }
-    conn->active = state;
 
     zval_ptr_dtor(&zfd);
     zval_ptr_dtor(&zfrom_id);

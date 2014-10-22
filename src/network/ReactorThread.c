@@ -902,9 +902,16 @@ int swReactorThread_close(swReactor *reactor, int fd)
     {
         return SW_ERR;
     }
-    //shutdown(fd, SHUT_RD);
-    reactor->set(reactor, fd, SW_FD_TCP | SW_EVENT_WRITE);
-    return SwooleG.factory->notify(SwooleG.factory, &notify_ev);
+
+    if (reactor->del(reactor, fd) == 0)
+    {
+        conn->active |= SW_STATE_REMOVED;
+        return SwooleG.factory->notify(SwooleG.factory, &notify_ev);
+    }
+    else
+    {
+        return SW_ERR;
+    }
 }
 
 /**
