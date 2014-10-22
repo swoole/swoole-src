@@ -891,6 +891,8 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 int swReactorThread_close(swReactor *reactor, int fd)
 {
     swDataHead notify_ev;
+    bzero(&notify_ev, sizeof(notify_ev));
+
     notify_ev.from_id = reactor->id;
     notify_ev.fd = fd;
     notify_ev.type = SW_EVENT_CLOSE;
@@ -900,6 +902,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
     {
         return SW_ERR;
     }
+    //shutdown(fd, SHUT_RD);
     reactor->set(reactor, fd, SW_FD_TCP | SW_EVENT_WRITE);
     return SwooleG.factory->notify(SwooleG.factory, &notify_ev);
 }

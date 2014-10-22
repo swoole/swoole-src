@@ -172,6 +172,7 @@ int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype)
 
     bzero(&e, sizeof(struct epoll_event));
     e.events = swReactorEpoll_event_set(fdtype);
+
     fd_.fd = fd;
     fd_.fdtype = swReactor_fdtype(fdtype);
     memcpy(&(e.data.u64), &fd_, sizeof(fd_));
