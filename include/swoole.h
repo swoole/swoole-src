@@ -1080,6 +1080,7 @@ int swTimer_event_handler(swReactor *reactor, swEvent *event);
 void swTimer_node_insert(swTimer_node **root, swTimer_node *new_node);
 void swTimer_node_print(swTimer_node **root);
 int swTimer_node_delete(swTimer_node **root, int interval_msec);
+void swTimer_node_destory(swTimer_node **root);
 
 //--------------------------------------------------------------
 typedef struct _swModule

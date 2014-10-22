@@ -19,6 +19,7 @@
 static int swEventTimer_add(swTimer *timer, int _msec, int interval, void *data);
 static int swEventTimer_del(swTimer *timer, int _msec);
 static int swEventTimer_select(swTimer *timer);
+static void swEventTimer_free(swTimer *timer);
 
 static sw_inline uint32_t swEventTimer_get_relative_msec()
 {
@@ -44,7 +45,16 @@ int swEventTimer_init()
     SwooleG.timer.add = swEventTimer_add;
     SwooleG.timer.del = swEventTimer_del;
     SwooleG.timer.select = swEventTimer_select;
+    SwooleG.timer.free = swEventTimer_free;
     return SW_OK;
+}
+
+static void swEventTimer_free(swTimer *timer)
+{
+    if (timer->root)
+    {
+        swTimer_node_destory(&timer->root);
+    }
 }
 
 static int swEventTimer_add(swTimer *timer, int _msec, int interval, void *data)

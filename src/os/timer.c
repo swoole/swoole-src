@@ -201,6 +201,10 @@ static void swTimer_free(swTimer *timer)
     {
         swSysError("close(%d) failed.", timer->fd);
     }
+    if (timer->root)
+    {
+        swTimer_node_destory(&timer->root);
+    }
 }
 
 static int swTimer_set(swTimer *timer, int new_interval)
@@ -440,6 +444,17 @@ int swTimer_node_delete(swTimer_node **root, int interval_msec)
         tmp = tmp->next;
     }
     return SW_ERR;
+}
+
+void swTimer_node_destory(swTimer_node **root)
+{
+    swTimer_node *tmp, *node = *root;
+    while (node)
+    {
+        tmp = node;
+        node = node->next;
+        sw_free(tmp);
+    }
 }
 
 void swTimer_node_print(swTimer_node **root)
