@@ -1033,43 +1033,44 @@ static void swServer_heartbeat_start(swServer *serv)
 static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
 {
     swDataHead notify_ev;
-	swServer *serv;
-	swFactory *factory;
-	swConnection *conn;
+    swServer *serv;
+    swFactory *factory;
+    swConnection *conn;
 
-	int fd;
-	int serv_max_fd;
-	int serv_min_fd;
-	int checktime;
+    int fd;
+    int serv_max_fd;
+    int serv_min_fd;
+    int checktime;
 
-	notify_ev.len = 0;
-	notify_ev.type = SW_CLOSE_PASSIVE;
+    bzero(&notify_ev, sizeof(notify_ev));
+    notify_ev.type = SW_EVENT_CLOSE;
 
-	swSignal_none();
+    swSignal_none();
 
-	while (SwooleG.running)
-	{
-		serv = heartbeat_param->object;
-		factory = &serv->factory;
+    while (SwooleG.running)
+    {
+        serv = heartbeat_param->object;
+        factory = &serv->factory;
 
-		serv_max_fd = swServer_get_maxfd(serv);
-		serv_min_fd = swServer_get_minfd(serv);
+        serv_max_fd = swServer_get_maxfd(serv);
+        serv_min_fd = swServer_get_minfd(serv);
 
-		checktime = (int) time(NULL) - serv->heartbeat_idle_time;
+        checktime = (int) time(NULL) - serv->heartbeat_idle_time;
 
-		//遍历到最大fd
-		for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
-		{
-			swTrace("check fd=%d", fd);
-			conn = swServer_connection_get(serv, fd);
-			if (conn != NULL && 1 == conn->active && conn->last_time < checktime)
-			{
-				notify_ev.fd = fd;
-				factory->end(&serv->factory, &notify_ev);
-			}
-		}
-		sleep(serv->heartbeat_check_interval);
-	}
+        //遍历到最大fd
+        for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
+        {
+            swTrace("check fd=%d", fd);
+            conn = swServer_connection_get(serv, fd);
+            if (conn != NULL && 1 == conn->active && conn->last_time < checktime)
+            {
+                notify_ev.fd = fd;
+                notify_ev.from_id = conn->from_id;
+                factory->notify(&serv->factory, &notify_ev);
+            }
+        }
+        sleep(serv->heartbeat_check_interval);
+    }
 	pthread_exit(0);
 }
 
@@ -1087,7 +1088,7 @@ int swServer_connection_close(swServer *serv, int fd)
     }
 
     swReactor *reactor = &(serv->reactor_threads[conn->from_id].reactor);
-    if (conn->active != SW_STATE_REMOVED && reactor->del(reactor, fd) < 0)
+    if (reactor->del(reactor, fd) < 0)
     {
         return SW_ERR;
     }

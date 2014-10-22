@@ -176,6 +176,14 @@ typedef struct _swFactoryProcess
     int writer_pti; //current writer id
 } swFactoryProcess;
 
+typedef struct _swRequest
+{
+    int fd;
+    uint8_t type;
+    uint8_t status;
+    void *object;
+} swRequest;
+
 int swFactory_create(swFactory *factory);
 int swFactory_start(swFactory *factory);
 int swFactory_shutdown(swFactory *factory);
@@ -408,6 +416,7 @@ struct _swServer
     void (*onManagerStart)(swServer *serv);
     void (*onManagerStop)(swServer *serv);
     int (*onReceive)(swFactory *factory, swEventData *data);
+    int (*onRequest)(swServer *serv, swRequest *request);
     void (*onClose)(swServer *serv, int fd, int from_id);
     void (*onConnect)(swServer *serv, int fd, int from_id);
     void (*onShutdown)(swServer *serv);

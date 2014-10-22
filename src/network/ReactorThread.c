@@ -895,18 +895,12 @@ int swReactorThread_close(swReactor *reactor, int fd)
     notify_ev.fd = fd;
     notify_ev.type = SW_EVENT_CLOSE;
 
-    if (reactor->del(reactor, fd) < 0)
-    {
-        swWarn("remove from epoll failed.");
-        return SW_ERR;
-    }
     swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
     if (conn == NULL || conn->active == 0)
     {
         return SW_ERR;
     }
-    conn->active = SW_STATE_REMOVED;
-
+    reactor->set(reactor, fd, SW_FD_TCP | SW_EVENT_WRITE);
     return SwooleG.factory->notify(SwooleG.factory, &notify_ev);
 }
 

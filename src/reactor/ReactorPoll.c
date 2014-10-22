@@ -147,7 +147,7 @@ static int swReactorPoll_del(swReactor *reactor, int fd)
 	uint32_t i;
 	swReactorPoll *object = reactor->object;
 
-	swTrace("fd=%d, fdtype=%d", fd, fdtype);
+	swTrace("fd=%d", fd);
 
 	for (i = 0; i < reactor->event_num; i++)
 	{

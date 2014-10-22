@@ -31,10 +31,10 @@
 
 enum swConnectionState
 {
-    SW_STATE_NULL = 0,
-    SW_STATE_ACTIVE = 1,
-    SW_STATE_CLOSEING = 2,
-    SW_STATE_REMOVED = 3,
+    SW_STATE_NULL,
+    SW_STATE_ACTIVE,
+    SW_STATE_CLOSEING,
+    SW_STATE_CLOSED,
 };
 
 typedef struct _swConnection

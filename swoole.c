@@ -1478,7 +1478,6 @@ PHP_FUNCTION(swoole_server_close)
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "The connection[%d] is closeing.", ev.fd);
         RETURN_FALSE;
     }
-
 	if (serv->factory.end(&serv->factory, &ev) >= 0)
 	{
 		RETVAL_TRUE;
