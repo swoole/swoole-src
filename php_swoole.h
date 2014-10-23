@@ -37,7 +37,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.7.7-RC2"
+#define PHP_SWOOLE_VERSION  "1.7.7-RC3"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -87,6 +87,11 @@ extern void ***sw_thread_ctx;
 #define SW_HANDLE_NUM
 #define SW_CHECK_RETURN(s)         if(s<0){RETURN_FALSE;}else{RETURN_TRUE;}return
 #define SW_LOCK_CHECK_RETURN(s)    if(s==0){RETURN_TRUE;}else{RETURN_FALSE;}return
+#define SWOOLE_GET_SERVER(zobject, serv) zval **zserv;\
+    if (zend_hash_find(Z_OBJPROP_P(zobject), ZEND_STRS("_server"), (void **) &zserv) == FAILURE){ \
+    php_error_docref(NULL TSRMLS_CC, E_WARNING, "Not have swoole server");\
+    RETURN_FALSE;}\
+    ZEND_FETCH_RESOURCE(serv, swServer *, zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
 
 #ifdef SW_ASYNC_MYSQL
 #if defined(SW_HAVE_MYSQLI) && defined(SW_HAVE_MYSQLND)
@@ -159,6 +164,7 @@ extern zend_class_entry *swoole_client_class_entry_ptr;
 extern zend_class_entry *swoole_server_class_entry_ptr;
 extern zend_class_entry *swoole_buffer_class_entry_ptr;
 extern zend_class_entry *swoole_table_class_entry_ptr;
+extern zend_class_entry *swoole_http_server_class_entry_ptr;
 
 extern HashTable php_sw_event_callback;
 extern HashTable php_sw_client_callback;
@@ -281,6 +287,9 @@ PHP_METHOD(swoole_table, del);
 PHP_METHOD(swoole_table, lock);
 PHP_METHOD(swoole_table, unlock);
 
+PHP_METHOD(swoole_http_server, on);
+PHP_METHOD(swoole_http_server, start);
+
 void swoole_destory_lock(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 void swoole_destory_process(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 void swoole_destory_buffer(zend_rsrc_list_entry *rsrc TSRMLS_DC);
@@ -289,12 +298,15 @@ void swoole_destory_table(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 void swoole_async_init(int module_number TSRMLS_DC);
 void swoole_table_init(int module_number TSRMLS_DC);
 void swoole_client_init(int module_number TSRMLS_DC);
+void swoole_http_init(int module_number TSRMLS_DC);
 
 void php_swoole_check_reactor();
 void php_swoole_check_timer(int interval);
+void php_swoole_register_callback(swServer *serv);
 void php_swoole_try_run_reactor();
 void php_swoole_onTimerInterval(swTimer *timer, int interval);
 void php_swoole_onTimeout(swTimer *timer, void *data);
+zval *php_swoole_get_data(swEventData *req TSRMLS_DC);
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
 	uint16_t aio_thread_num;

@@ -27,7 +27,14 @@ extern "C" {
 
 
 #include <sys/types.h>
-#include <stdint.h>
+#if defined(_WIN32) && !defined(__MINGW32__)
+# include <windows.h>
+# include "config.w32.h"
+#else
+# include "php_config.h"
+#endif
+
+#include "php_stdint.h"
 
 /* Compile with -DPHP_HTTP_PARSER_STRICT=0 to make less checks, but run
  * faster

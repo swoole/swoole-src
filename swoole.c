@@ -278,6 +278,8 @@ static void php_swoole_onWorkerStop(swServer *, int worker_id);
 static int php_swoole_onTask(swServer *, swEventData *task);
 static int php_swoole_onFinish(swServer *, swEventData *task);
 static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker_pid, int exit_code);
+static void php_swoole_onManagerStart(swServer *serv);
+static void php_swoole_onManagerStop(swServer *serv);
 
 static void swoole_destory_server(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 static void swoole_destory_client(zend_rsrc_list_entry *rsrc TSRMLS_DC);
@@ -285,11 +287,106 @@ static void swoole_destory_client(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 static int php_swoole_task_finish(swServer *serv, char *data, int data_len TSRMLS_DC);
 static int php_swoole_set_callback(int key, zval *cb TSRMLS_DC);
 
-#define SWOOLE_GET_SERVER(zobject, serv) zval **zserv;\
-	if (zend_hash_find(Z_OBJPROP_P(zobject), ZEND_STRS("_server"), (void **) &zserv) == FAILURE){ \
-	php_error_docref(NULL TSRMLS_CC, E_WARNING, "Not have swoole server");\
-	RETURN_FALSE;}\
-	ZEND_FETCH_RESOURCE(serv, swServer *, zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
+zval *php_swoole_get_data(swEventData *req TSRMLS_DC)
+{
+    zval *zdata;
+    char *data_ptr;
+    int data_len;
+    MAKE_STD_ZVAL(zdata);
+
+#ifdef SW_USE_RINGBUFFER
+    if (req->info.type == SW_EVENT_PACKAGE)
+    {
+        swPackage package;
+        memcpy(&package, req->data, sizeof(package));
+
+        data_ptr = package.data;
+        data_len = package.length;
+        //swoole_dump_bin(package.data, 's', package.length);
+    }
+#else
+    if (req->info.type == SW_EVENT_PACKAGE_END)
+    {
+        data_ptr = SwooleWG.buffer_input[req->info.from_id]->str;
+        data_len = SwooleWG.buffer_input[req->info.from_id]->length;
+    }
+#endif
+    else
+    {
+        data_ptr = req->data;
+        data_len = req->info.len;
+    }
+
+    //zero copy
+    //ZVAL_STRINGL(zdata, data_ptr, data_len, 0);
+    ZVAL_STRINGL(zdata, data_ptr, data_len, 1);
+
+#ifdef SW_USE_RINGBUFFER
+    if (req->info.type == SW_EVENT_PACKAGE)
+    {
+        swReactorThread *thread = swServer_get_thread(serv, req->info.from_id);
+        thread->buffer_input->free(thread->buffer_input, data_ptr);
+    }
+#endif
+    return zdata;
+}
+
+void php_swoole_register_callback(swServer *serv)
+{
+    /*
+     * optional callback
+     */
+    if (php_sw_callback[SW_SERVER_CB_onStart] != NULL)
+    {
+        serv->onStart = php_swoole_onStart;
+    }
+    if (php_sw_callback[SW_SERVER_CB_onShutdown] != NULL)
+    {
+        serv->onShutdown = php_swoole_onShutdown;
+    }
+    /**
+     * require callback, set the master/manager/worker PID
+     */
+    serv->onWorkerStart = php_swoole_onWorkerStart;
+
+    if (php_sw_callback[SW_SERVER_CB_onWorkerStop] != NULL)
+    {
+        serv->onWorkerStop = php_swoole_onWorkerStop;
+    }
+    if (php_sw_callback[SW_SERVER_CB_onTask] != NULL)
+    {
+        serv->onTask = php_swoole_onTask;
+    }
+    if (php_sw_callback[SW_SERVER_CB_onFinish] != NULL)
+    {
+        serv->onFinish = php_swoole_onFinish;
+    }
+    if (php_sw_callback[SW_SERVER_CB_onWorkerError] != NULL)
+    {
+        serv->onWorkerError = php_swoole_onWorkerError;
+    }
+    if (php_sw_callback[SW_SERVER_CB_onManagerStart] != NULL)
+    {
+        serv->onManagerStart = php_swoole_onManagerStart;
+    }
+    if (php_sw_callback[SW_SERVER_CB_onManagerStop] != NULL)
+    {
+        serv->onManagerStop = php_swoole_onManagerStop;
+    }
+    //-------------------------------------------------------------
+    if (php_sw_callback[SW_SERVER_CB_onTimer] != NULL)
+    {
+        serv->onTimer = php_swoole_onTimer;
+    }
+    if (php_sw_callback[SW_SERVER_CB_onClose] != NULL)
+    {
+        serv->onClose = php_swoole_onClose;
+    }
+    if (php_sw_callback[SW_SERVER_CB_onConnect] != NULL)
+    {
+        serv->onConnect = php_swoole_onConnect;
+    }
+}
 
 #ifdef SW_ASYNC_MYSQL
 #include "ext/mysqlnd/mysqlnd.h"
@@ -574,6 +671,7 @@ PHP_MINIT_FUNCTION(swoole)
 	swoole_client_init(module_number TSRMLS_CC);
 	swoole_async_init(module_number TSRMLS_CC);
 	swoole_table_init(module_number TSRMLS_CC);
+	swoole_http_init(module_number TSRMLS_CC);
 
     if (SWOOLE_G(unixsock_buffer_size) > 0)
     {
@@ -1356,7 +1454,7 @@ PHP_FUNCTION(swoole_server_handler)
 	};
 	for (i=0; i<PHP_SERVER_CALLBACK_NUM; i++)
 	{
-		if(strncasecmp(callback[i], ha_name, len) == 0)
+		if (strncasecmp(callback[i], ha_name, len) == 0)
 		{
 			ret = php_swoole_set_callback(i, cb TSRMLS_CC);
 			break;
@@ -1750,12 +1848,13 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
 	zval *zdata;
 	zval *retval;
 
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
 	//UDP使用from_id作为port,fd做为ip
 	php_swoole_udp_t udp_info;
 
 	MAKE_STD_ZVAL(zfd);
 	MAKE_STD_ZVAL(zfrom_id);
-	MAKE_STD_ZVAL(zdata);
 
 	//udp
 	if (req->info.type == SW_EVENT_UDP)
@@ -1784,44 +1883,7 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
         ZVAL_LONG(zfd, (long)req->info.fd);
     }
 
-	char *data_ptr;
-	int data_len;
-
-#ifdef SW_USE_RINGBUFFER
-	if (req->info.type == SW_EVENT_PACKAGE)
-	{
-		swPackage package;
-		memcpy(&package, req->data, sizeof(package));
-
-		data_ptr = package.data;
-		data_len = package.length;
-
-		//swoole_dump_bin(package.data, 's', package.length);
-	}
-#else
-	if (req->info.type == SW_EVENT_PACKAGE_END)
-	{
-		data_ptr = SwooleWG.buffer_input[req->info.from_id]->str;
-		data_len = SwooleWG.buffer_input[req->info.from_id]->length;
-	}
-#endif
-	else
-	{
-		data_ptr = req->data;
-		data_len = req->info.len;
-	}
-
-	//zero copy
-	//ZVAL_STRINGL(zdata, data_ptr, data_len, 0);
-	ZVAL_STRINGL(zdata, data_ptr, data_len, 1);
-
-#ifdef SW_USE_RINGBUFFER
-    if (req->info.type == SW_EVENT_PACKAGE)
-    {
-        swReactorThread *thread = swServer_get_thread(serv, req->info.from_id);
-        thread->buffer_input->free(thread->buffer_input, data_ptr);
-    }
-#endif
+	zdata = php_swoole_get_data(req TSRMLS_CC);
 
 	args[0] = &zserv;
 	args[1] = &zfd;
@@ -1830,7 +1892,6 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
 
 	//printf("req: fd=%d|len=%d|from_id=%d|data=%s\n", req->fd, req->len, req->from_id, req->data);
 
-	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 	if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onReceive], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onReceive handler error");
@@ -2369,61 +2430,10 @@ PHP_FUNCTION(swoole_server_start)
 			return;
 		}
 	}
+
 	SWOOLE_GET_SERVER(zobject, serv);
+	php_swoole_register_callback(serv);
 
-	/*
-	 * optional callback
-	 */
-	if (php_sw_callback[SW_SERVER_CB_onStart] != NULL)
-	{
-		serv->onStart = php_swoole_onStart;
-	}
-	if (php_sw_callback[SW_SERVER_CB_onShutdown] != NULL)
-	{
-		serv->onShutdown = php_swoole_onShutdown;
-	}
-	/**
-	 * require callback, set the master/manager/worker PID
-	 */
-	serv->onWorkerStart = php_swoole_onWorkerStart;
-
-	if (php_sw_callback[SW_SERVER_CB_onWorkerStop] != NULL)
-	{
-		serv->onWorkerStop = php_swoole_onWorkerStop;
-	}
-	if (php_sw_callback[SW_SERVER_CB_onTask] != NULL)
-	{
-		serv->onTask = php_swoole_onTask;
-	}
-	if (php_sw_callback[SW_SERVER_CB_onFinish] != NULL)
-	{
-		serv->onFinish = php_swoole_onFinish;
-	}
-	if (php_sw_callback[SW_SERVER_CB_onWorkerError] != NULL)
-	{
-		serv->onWorkerError = php_swoole_onWorkerError;
-	}
-	if (php_sw_callback[SW_SERVER_CB_onManagerStart] != NULL)
-	{
-		serv->onManagerStart = php_swoole_onManagerStart;
-	}
-	if (php_sw_callback[SW_SERVER_CB_onManagerStop] != NULL)
-	{
-		serv->onManagerStop = php_swoole_onManagerStop;
-	}
-	//-------------------------------------------------------------
-    if (php_sw_callback[SW_SERVER_CB_onTimer] != NULL)
-    {
-        serv->onTimer = php_swoole_onTimer;
-    }
-    if (php_sw_callback[SW_SERVER_CB_onClose] != NULL)
-    {
-        serv->onClose = php_swoole_onClose;
-    }
-    if (php_sw_callback[SW_SERVER_CB_onConnect] != NULL)
-    {
-        serv->onConnect = php_swoole_onConnect;
-    }
     if (php_sw_callback[SW_SERVER_CB_onReceive] == NULL)
     {
         php_error_docref(NULL TSRMLS_CC, E_ERROR, "require onReceive callback");
@@ -2434,7 +2444,6 @@ PHP_FUNCTION(swoole_server_start)
 	serv->ptr2 = zobject;
 
 	ret = swServer_create(serv);
-
 	if (ret < 0)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "create server failed. Error: %s", sw_error);
