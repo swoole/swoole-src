@@ -1,5 +1,7 @@
 /**
-* gcc -o server server.c -lswoole
+* cmake .
+* make && sudo make install
+* gcc -o test_server test_server.c -lswoole
 */
 #include "Server.h"
 
@@ -194,7 +196,7 @@ int main(int argc, char **argv)
 	serv.worker_num = 1;      //worker进程数量
 
 	serv.factory_mode = SW_MODE_PROCESS; //SW_MODE_PROCESS/SW_MODE_THREAD/SW_MODE_BASE/SW_MODE_SINGLE
-	serv.max_conn = 1000;
+	serv.max_connection = 1000;
 	//serv.open_cpu_affinity = 1;
 	//serv.open_tcp_nodelay = 1;
 	//serv.daemonize = 1;
