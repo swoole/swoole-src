@@ -24,6 +24,7 @@
 #include "php_globals.h"
 #include "php_main.h"
 #include "zend_interfaces.h"
+#include "Zend/zend_exceptions.h"
 
 #include <ext/spl/spl_iterators.h>
 #include <ext/standard/info.h>
@@ -289,6 +290,12 @@ PHP_METHOD(swoole_table, unlock);
 
 PHP_METHOD(swoole_http_server, on);
 PHP_METHOD(swoole_http_server, start);
+
+PHP_METHOD(swoole_http_channel, close);
+PHP_METHOD(swoole_http_channel, response);
+PHP_METHOD(swoole_http_channel, cookie);
+PHP_METHOD(swoole_http_channel, header);
+PHP_METHOD(swoole_http_channel, message);
 
 void swoole_destory_lock(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 void swoole_destory_process(zend_rsrc_list_entry *rsrc TSRMLS_DC);

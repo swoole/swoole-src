@@ -308,6 +308,15 @@ swString *swString_dup2(swString *src);
 void swString_print(swString *str);
 void swString_free(swString *str);
 int swString_append(swString *str, swString *append_str);
+
+static sw_inline int swString_append_ptr(swString *str, char *append_str, uint32_t length)
+{
+    swString tmp;
+    tmp.length = length;
+    tmp.str = append_str;
+    return swString_append(str, &tmp);
+}
+
 int swString_extend(swString *str, size_t new_size);
 
 #define swString_length(s) (s->length)

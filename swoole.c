@@ -324,7 +324,7 @@ zval *php_swoole_get_data(swEventData *req TSRMLS_DC)
 #ifdef SW_USE_RINGBUFFER
     if (req->info.type == SW_EVENT_PACKAGE)
     {
-        swReactorThread *thread = swServer_get_thread(serv, req->info.from_id);
+        swReactorThread *thread = swServer_get_thread(SwooleG.serv, req->info.from_id);
         thread->buffer_input->free(thread->buffer_input, data_ptr);
     }
 #endif

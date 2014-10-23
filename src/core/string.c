@@ -29,7 +29,7 @@ swString *swString_new(size_t size)
     str->str = sw_malloc(size);
     if (str->str == NULL)
     {
-        swWarn("malloc[2] failed.");
+        swSysError("malloc[2](%ld) failed.", size);
         sw_free(str);
         return NULL;
     }
