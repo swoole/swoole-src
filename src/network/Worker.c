@@ -82,7 +82,6 @@ static int swWorker_onPipeWrite(swReactor *reactor, swEvent *ev)
     {
         if (worker_id == SwooleWG.id)
         {
-            printf("remove epollout\n");
             ret = reactor->set(reactor, ev->fd, SW_FD_PIPE | SW_EVENT_READ);
         }
         else

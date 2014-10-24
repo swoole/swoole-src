@@ -18,6 +18,43 @@
 #include <ext/standard/url.h>
 #include "thirdparty/php_http_parser.h"
 
+typedef struct php_swoole_http_request
+{
+    enum php_http_method request_method;
+    int protocol_version;
+    char *request_uri;
+    size_t request_uri_len;
+    char *vpath;
+    size_t vpath_len;
+    char *path_translated;
+    size_t path_translated_len;
+    char *path_info;
+    size_t path_info_len;
+    char *query_string;
+    size_t query_string_len;
+    zval* headers;
+    char *content;
+    size_t content_len;
+    const char *ext;
+    size_t ext_len;
+    zval *raw_content;
+} php_swoole_http_request;
+
+typedef struct php_swoole_http_channel
+{
+    int fd;
+    uint16_t from_id;
+    zval *object;
+
+    php_http_parser parser;
+    unsigned int request_read :1;
+    char *current_header_name;
+    size_t current_header_name_len;
+    unsigned int current_header_name_allocated :1;
+    php_swoole_http_request request;
+    unsigned int content_sender_initialized :1;
+} php_swoole_http_channel;
+
 zend_class_entry swoole_http_server_ce;
 zend_class_entry *swoole_http_server_class_entry_ptr;
 
@@ -31,6 +68,7 @@ static zval* php_sw_http_server_callbacks[2];
 static swHashMap *php_sw_http_channels;
 
 static int php_swoole_http_onReceive(swFactory *factory, swEventData *req);
+static void php_swoole_http_onClose(swServer *serv, int fd, int from_id);
 
 static int php_swoole_http_request_on_path(php_http_parser *parser, const char *at, size_t length);
 static int php_swoole_http_request_on_query_string(php_http_parser *parser, const char *at, size_t length);
@@ -41,6 +79,9 @@ static int php_swoole_http_request_on_header_field(php_http_parser *parser, cons
 static int php_swoole_http_request_on_header_value(php_http_parser *parser, const char *at, size_t length);
 static int php_swoole_http_request_on_headers_complete(php_http_parser *parser);
 static int php_swoole_http_request_message_complete(php_http_parser *parser);
+
+static void php_swoole_http_channel_free(void *channel);
+static void php_swoole_http_request_free(php_swoole_http_request *req);
 
 static const php_http_parser_settings php_sw_http_parser_settings =
 {
@@ -73,42 +114,6 @@ const zend_function_entry swoole_http_channel_methods[] =
     PHP_FE_END
 };
 
-typedef struct php_swoole_http_request
-{
-    enum php_http_method request_method;
-    int protocol_version;
-    char *request_uri;
-    size_t request_uri_len;
-    char *vpath;
-    size_t vpath_len;
-    char *path_translated;
-    size_t path_translated_len;
-    char *path_info;
-    size_t path_info_len;
-    char *query_string;
-    size_t query_string_len;
-    zval* headers;
-    char *content;
-    size_t content_len;
-    const char *ext;
-    size_t ext_len;
-} php_swoole_http_request;
-
-typedef struct php_swoole_http_channel
-{
-    int fd;
-    uint16_t from_id;
-    zval *object;
-
-    php_http_parser parser;
-    unsigned int request_read :1;
-    char *current_header_name;
-    size_t current_header_name_len;
-    unsigned int current_header_name_allocated :1;
-    php_swoole_http_request request;
-    unsigned int content_sender_initialized :1;
-} php_swoole_http_channel;
-
 static int php_swoole_http_request_on_path(php_http_parser *parser, const char *at, size_t length)
 {
     php_swoole_http_channel *client = parser->data;
@@ -137,8 +142,9 @@ static int php_swoole_http_request_on_url(php_http_parser *parser, const char *a
 static int php_swoole_http_request_on_header_field(php_http_parser *parser, const char *at, size_t length)
 {
     php_swoole_http_channel *client = parser->data;
-    if (client->current_header_name_allocated) {
-        pefree(client->current_header_name, 1);
+    if (client->current_header_name_allocated)
+    {
+        efree(client->current_header_name);
         client->current_header_name_allocated = 0;
     }
     client->current_header_name = (char *)at;
@@ -149,19 +155,14 @@ static int php_swoole_http_request_on_header_field(php_http_parser *parser, cons
 static int php_swoole_http_request_on_header_value(php_http_parser *parser, const char *at, size_t length)
 {
     php_swoole_http_channel *client = parser->data;
-    char *value = pestrndup(at, length, 1);
-    if (!value)
-    {
-        return 1;
-    }
 
     char *header_name = zend_str_tolower_dup(client->current_header_name, client->current_header_name_len);
-    add_assoc_stringl_ex(client->request.headers, header_name, client->current_header_name_len + 1, value, strlen(value), 1);
+    add_assoc_stringl_ex(client->request.headers, header_name, client->current_header_name_len + 1, (char *) at, length, 1);
     efree(header_name);
 
     if (client->current_header_name_allocated)
     {
-        pefree(client->current_header_name, 1);
+        efree(client->current_header_name);
         client->current_header_name_allocated = 0;
     }
     return 0;
@@ -172,7 +173,7 @@ static int php_swoole_http_request_on_headers_complete(php_http_parser *parser)
     php_swoole_http_channel *client = parser->data;
     if (client->current_header_name_allocated)
     {
-        pefree(client->current_header_name, 1);
+        efree(client->current_header_name);
         client->current_header_name_allocated = 0;
     }
     client->current_header_name = NULL;
@@ -221,6 +222,11 @@ static int php_swoole_http_request_message_complete(php_http_parser *parser)
     return 0;
 }
 
+static void php_swoole_http_onClose(swServer *serv, int fd, int from_id)
+{
+    swHashMap_del_int(php_sw_http_channels, fd);
+}
+
 static int php_swoole_http_onReceive(swFactory *factory, swEventData *req)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -259,6 +265,7 @@ static int php_swoole_http_onReceive(swFactory *factory, swEventData *req)
     size_t n = php_http_parser_execute(parser, &php_sw_http_parser_settings, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
     if (n < 0)
     {
+        zval_ptr_dtor(&zdata);
         swWarn("error");
     }
     else
@@ -274,6 +281,7 @@ static int php_swoole_http_onReceive(swFactory *factory, swEventData *req)
 
         args[0] = &zchannel;
         args[1] = &zrequest;
+        channel->request.raw_content = zdata;
 
         if (call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[0], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
         {
@@ -283,6 +291,11 @@ static int php_swoole_http_onReceive(swFactory *factory, swEventData *req)
         {
             zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
         }
+        if (retval)
+        {
+            zval_ptr_dtor(&retval);
+        }
+        zval_ptr_dtor(&zrequest);
     }
     return SW_OK;
 }
@@ -350,7 +363,7 @@ static void php_swoole_http_channel_free(void *channel)
     efree(channel);
 }
 
-static void php_swoole_http_request_free(php_swoole_http_request *req) /* {{{ */
+static void php_swoole_http_request_free(php_swoole_http_request *req)
 {
     if (req->request_uri)
     {
@@ -377,6 +390,7 @@ static void php_swoole_http_request_free(php_swoole_http_request *req) /* {{{ */
     {
         efree(req->content);
     }
+    zval_ptr_dtor(&req->raw_content);
     bzero(req, sizeof(php_swoole_http_request));
 }
 
@@ -402,6 +416,7 @@ PHP_METHOD(swoole_http_server, start)
 
     serv->dispatch_mode = SW_DISPATCH_QUEUE;
     serv->onReceive = php_swoole_http_onReceive;
+    serv->onClose = php_swoole_http_onClose;
     serv->open_http_protocol = 1;
 
     serv->ptr2 = getThis();
