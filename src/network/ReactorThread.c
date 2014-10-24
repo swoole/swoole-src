@@ -175,13 +175,21 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
     }
     else
     {
+        int pipe_fd = worker->pipe_master;
         swBuffer *buffer = *(swBuffer **) swArray_fetch(thread->buffer_pipe, worker->pipe_master);
         if (swBuffer_empty(buffer))
         {
-            ret = write(worker->pipe_master, (void *) data, len);
+            ret = write(pipe_fd, (void *) data, len);
             if (ret < 0 && errno == EAGAIN)
             {
-                thread->reactor.set(&thread->reactor, worker->pipe_master, SW_FD_PIPE | SW_EVENT_WRITE);
+                if (serv->connection_list[pipe_fd].from_id == SwooleTG.id)
+                {
+                    thread->reactor.set(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_WRITE);
+                }
+                else
+                {
+                    thread->reactor.add(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_WRITE);
+                }
                 goto append_pipe_buffer;
             }
         }
@@ -346,7 +354,18 @@ int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
     //remove EPOLLOUT event
     if (swBuffer_empty(buffer))
     {
-        reactor->set(reactor, ev->fd, SW_FD_PIPE | SW_EVENT_READ);
+        if (SwooleG.serv->connection_list[ev->fd].from_id == reactor->id)
+        {
+            ret = reactor->set(reactor, ev->fd, SW_FD_PIPE | SW_EVENT_READ);
+        }
+        else
+        {
+            ret = reactor->del(reactor, ev->fd);
+        }
+        if (ret < 0)
+        {
+            swSysError("reactor->set() failed.");
+        }
     }
     return SW_OK;
 }
@@ -1257,13 +1276,14 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_WRITE, swReactorThread_onPipeWrite);
     reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_WRITE, swReactorThread_onWrite);
 
-    int i = 0;
+    int i = 0, pipe_fd;
     if (serv->ipc_mode != SW_IPC_MSGQUEUE)
     {
         thread->buffer_pipe = swArray_new(serv->workers[serv->worker_num - 1].pipe_master + 1, sizeof(void*), 0);
 
         for (i = 0; i < serv->worker_num; i++)
         {
+            pipe_fd = serv->workers[i].pipe_master;
             //for request
             swBuffer *buffer = swBuffer_new(sizeof(swEventData));
             if (!buffer)
@@ -1271,7 +1291,7 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
                 swWarn("create buffer failed.");
                 break;
             }
-            if (swArray_store(thread->buffer_pipe, serv->workers[i].pipe_master, &buffer, sizeof(buffer)) < 0)
+            if (swArray_store(thread->buffer_pipe, pipe_fd, &buffer, sizeof(buffer)) < 0)
             {
                 swWarn("create buffer failed.");
                 break;
@@ -1279,8 +1299,12 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
             //for response
             if (i % serv->reactor_num == reactor_id)
             {
-                swSetNonBlock(serv->workers[i].pipe_master);
-                reactor->add(reactor, serv->workers[i].pipe_master, SW_FD_PIPE);
+                swSetNonBlock(pipe_fd);
+                reactor->add(reactor, pipe_fd, SW_FD_PIPE);
+                /**
+                 * mapping reactor_id and worker pipe
+                 */
+                serv->connection_list[pipe_fd].from_id = reactor_id;
             }
         }
     }
