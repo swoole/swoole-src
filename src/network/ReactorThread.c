@@ -26,6 +26,7 @@ static int swReactorThread_loop_udp(swThreadParam *param);
 static int swReactorThread_loop_tcp(swThreadParam *param);
 static int swReactorThread_loop_unix_dgram(swThreadParam *param);
 
+static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onClose(swReactor *reactor, swEvent *event);
 static int swReactorThread_send_string_buffer(swReactorThread *thread, swConnection *conn, swString *buffer);
 static int swReactorThread_send_in_buffer(swReactorThread *thread, swConnection *conn);
@@ -121,7 +122,6 @@ int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
 
     //while(1)
     {
-        //Unix Sock UDP
         n = read(ev->fd, &resp, sizeof(resp));
         if (n > 0)
         {
@@ -179,6 +179,7 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
         swBuffer *buffer = *(swBuffer **) swArray_fetch(thread->buffer_pipe, worker->pipe_master);
         if (swBuffer_empty(buffer))
         {
+            write_to_pipe:
             ret = write(pipe_fd, (void *) data, len);
             if (ret < 0 && errno == EAGAIN)
             {
@@ -191,6 +192,10 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
                     thread->reactor.add(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_WRITE);
                 }
                 goto append_pipe_buffer;
+            }
+            else if (errno == EINTR)
+            {
+                goto write_to_pipe;
             }
         }
         else
@@ -330,7 +335,7 @@ int swReactorThread_send(swSendData *_send)
 /**
  * [ReactorThread] worker pipe can write.
  */
-int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
+static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
 {
     int ret;
     swReactorThread *thread = swServer_get_thread(SwooleG.serv, SwooleTG.id);
@@ -354,7 +359,7 @@ int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
     //remove EPOLLOUT event
     if (swBuffer_empty(buffer))
     {
-        if (SwooleG.serv->connection_list[ev->fd].from_id == reactor->id)
+        if (SwooleG.serv->connection_list[ev->fd].from_id == SwooleTG.id)
         {
             ret = reactor->set(reactor, ev->fd, SW_FD_PIPE | SW_EVENT_READ);
         }

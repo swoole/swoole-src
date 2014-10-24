@@ -584,7 +584,7 @@ void swServer_init(swServer *serv)
 	serv->package_eof_len = sizeof(SW_DATA_EOF) - 1;
 	serv->package_length_type = 'N';
 	serv->package_length_size = 4;
-	serv->package_body_offset = 4;
+	serv->package_body_offset = 0;
 
 	serv->package_max_length = SW_BUFFER_INPUT_SIZE;
 

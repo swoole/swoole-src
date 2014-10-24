@@ -828,6 +828,11 @@ struct _swWorker
 	swQueue *queue;
 
 	/**
+	 * pipe buffer
+	 */
+	 struct _swBuffer *pipe_buffer;
+
+	/**
 	 * redirect stdout to pipe_master
 	 */
 	uint8_t redirect_stdout;

@@ -125,6 +125,12 @@ typedef struct _swWorkerThread
 	swPipe evfd;       //eventfd
 } swWorkerThread;
 
+typedef struct
+{
+    long pti;
+    swEventData _send;
+} swEventData_overflow;
+
 typedef struct _swListenList_node
 {
 	struct _swListenList_node *next, *prev;
@@ -616,6 +622,7 @@ void swWorker_onStop(swServer *serv);
 void swWorker_onReactorFinish(swReactor* reactor);
 void swWorker_onReactorTimeout(swReactor* reactor);
 int swWorker_loop(swFactory *factory, int worker_pti);
+int swWorker_send2reactor(swEventData_overflow *sdata, size_t sendn, int fd);
 void swWorker_signal_handler(int signo);
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event);
