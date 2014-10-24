@@ -16,9 +16,12 @@
 
 #include "php_swoole.h"
 #include <ext/standard/url.h>
+#include <ext/date/php_date.h>
+#include <main/php_variables.h>
+
 #include "thirdparty/php_http_parser.h"
 
-typedef struct php_swoole_http_request
+typedef struct
 {
     enum php_http_method request_method;
     int protocol_version;
@@ -32,7 +35,6 @@ typedef struct php_swoole_http_request
     size_t path_info_len;
     char *query_string;
     size_t query_string_len;
-    zval* headers;
     char *content;
     size_t content_len;
     const char *ext;
@@ -40,11 +42,19 @@ typedef struct php_swoole_http_request
     zval *raw_content;
 } php_swoole_http_request;
 
+typedef struct
+{
+    enum php_http_method method;
+    int version;
+    int status;
+    swString *cookie;
+} http_response;
+
 typedef struct php_swoole_http_channel
 {
     int fd;
-    uint16_t from_id;
     zval *object;
+    zval *request_object;
 
     php_http_parser parser;
     unsigned int request_read :1;
@@ -52,6 +62,7 @@ typedef struct php_swoole_http_channel
     size_t current_header_name_len;
     unsigned int current_header_name_allocated :1;
     php_swoole_http_request request;
+    http_response response;
     unsigned int content_sender_initialized :1;
 } php_swoole_http_channel;
 
@@ -67,34 +78,35 @@ zend_class_entry *swoole_http_request_class_entry_ptr;
 static zval* php_sw_http_server_callbacks[2];
 static swHashMap *php_sw_http_channels;
 
-static int php_swoole_http_onReceive(swFactory *factory, swEventData *req);
-static void php_swoole_http_onClose(swServer *serv, int fd, int from_id);
+static int http_onReceive(swFactory *factory, swEventData *req);
+static void http_onClose(swServer *serv, int fd, int from_id);
 
-static int php_swoole_http_request_on_path(php_http_parser *parser, const char *at, size_t length);
-static int php_swoole_http_request_on_query_string(php_http_parser *parser, const char *at, size_t length);
-static int php_swoole_http_request_on_url(php_http_parser *parser, const char *at, size_t length);
+static int http_request_on_path(php_http_parser *parser, const char *at, size_t length);
+static int http_request_on_query_string(php_http_parser *parser, const char *at, size_t length);
+static int http_request_on_url(php_http_parser *parser, const char *at, size_t length);
 
-static int php_swoole_http_request_on_body(php_http_parser *parser, const char *at, size_t length);
-static int php_swoole_http_request_on_header_field(php_http_parser *parser, const char *at, size_t length);
-static int php_swoole_http_request_on_header_value(php_http_parser *parser, const char *at, size_t length);
-static int php_swoole_http_request_on_headers_complete(php_http_parser *parser);
-static int php_swoole_http_request_message_complete(php_http_parser *parser);
+static int http_request_on_body(php_http_parser *parser, const char *at, size_t length);
+static int http_request_on_header_field(php_http_parser *parser, const char *at, size_t length);
+static int http_request_on_header_value(php_http_parser *parser, const char *at, size_t length);
+static int http_request_on_headers_complete(php_http_parser *parser);
+static int http_request_message_complete(php_http_parser *parser);
 
-static void php_swoole_http_channel_free(void *channel);
-static void php_swoole_http_request_free(php_swoole_http_request *req);
+static void http_channel_free(void *channel);
+static void http_request_free(php_swoole_http_request *req);
+static php_swoole_http_channel* http_channel_new(int fd TSRMLS_DC);
 
 static const php_http_parser_settings php_sw_http_parser_settings =
 {
     NULL,
-    php_swoole_http_request_on_path,
-    php_swoole_http_request_on_query_string,
-    php_swoole_http_request_on_url,
+    http_request_on_path,
+    http_request_on_query_string,
+    http_request_on_url,
     NULL,
-    php_swoole_http_request_on_header_field,
-    php_swoole_http_request_on_header_value,
-    php_swoole_http_request_on_headers_complete,
-    php_swoole_http_request_on_body,
-    php_swoole_http_request_message_complete
+    http_request_on_header_field,
+    http_request_on_header_value,
+    http_request_on_headers_complete,
+    http_request_on_body,
+    http_request_message_complete
 };
 
 const zend_function_entry swoole_http_server_methods[] =
@@ -108,13 +120,14 @@ const zend_function_entry swoole_http_channel_methods[] =
 {
     PHP_ME(swoole_http_channel, close, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_channel, cookie, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_channel, status, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_channel, header, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_channel, response, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_channel, message, NULL, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
-static int php_swoole_http_request_on_path(php_http_parser *parser, const char *at, size_t length)
+static int http_request_on_path(php_http_parser *parser, const char *at, size_t length)
 {
     php_swoole_http_channel *client = parser->data;
     client->request.vpath = estrndup(at, length);
@@ -122,15 +135,23 @@ static int php_swoole_http_request_on_path(php_http_parser *parser, const char *
     return 0;
 }
 
-static int php_swoole_http_request_on_query_string(php_http_parser *parser, const char *at, size_t length)
+static int http_request_on_query_string(php_http_parser *parser, const char *at, size_t length)
 {
-    php_swoole_http_channel *client = parser->data;
-    client->request.query_string = estrndup(at, length);
-    client->request.query_string_len = length;
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+    php_swoole_http_channel *channel = parser->data;
+    char *query = estrndup(at, length);
+
+    zval *get;
+    MAKE_STD_ZVAL(get);
+    array_init(get);
+    zend_update_property(swoole_http_request_class_entry_ptr, channel->request_object, ZEND_STRL("get"), get TSRMLS_CC);
+    sapi_module.treat_data(PARSE_STRING, query, get TSRMLS_CC);
+
     return 0;
 }
 
-static int php_swoole_http_request_on_url(php_http_parser *parser, const char *at, size_t length)
+static int http_request_on_url(php_http_parser *parser, const char *at, size_t length)
 {
     php_swoole_http_channel *client = parser->data;
     client->request.request_method = parser->method;
@@ -139,7 +160,7 @@ static int php_swoole_http_request_on_url(php_http_parser *parser, const char *a
     return 0;
 }
 
-static int php_swoole_http_request_on_header_field(php_http_parser *parser, const char *at, size_t length)
+static int http_request_on_header_field(php_http_parser *parser, const char *at, size_t length)
 {
     php_swoole_http_channel *client = parser->data;
     if (client->current_header_name_allocated)
@@ -152,23 +173,76 @@ static int php_swoole_http_request_on_header_field(php_http_parser *parser, cons
     return 0;
 }
 
-static int php_swoole_http_request_on_header_value(php_http_parser *parser, const char *at, size_t length)
+static int http_request_on_header_value(php_http_parser *parser, const char *at, size_t length)
 {
-    php_swoole_http_channel *client = parser->data;
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-    char *header_name = zend_str_tolower_dup(client->current_header_name, client->current_header_name_len);
-    add_assoc_stringl_ex(client->request.headers, header_name, client->current_header_name_len + 1, (char *) at, length, 1);
-    efree(header_name);
+    php_swoole_http_channel *channel = parser->data;
+    char *header_name = zend_str_tolower_dup(channel->current_header_name, channel->current_header_name_len);
 
-    if (client->current_header_name_allocated)
+    if (strncmp(header_name, ZEND_STRL("cookie")) == 0)
     {
-        efree(client->current_header_name);
-        client->current_header_name_allocated = 0;
+
+        char *cookie_str = estrndup(at, length);
+        zval *cookie;
+        MAKE_STD_ZVAL(cookie);
+        array_init(cookie);
+        zend_update_property(swoole_http_request_class_entry_ptr, channel->request_object, ZEND_STRL("cookie"), cookie TSRMLS_CC);
+
+        struct
+        {
+            char *k;
+            int klen;
+            char *v;
+            int vlen;
+        } kv = { 0 };
+
+        char *_c = cookie_str;
+        int n = 0;
+
+        while (_c < cookie_str + length)
+        {
+            if (*_c == '=')
+            {
+                kv.k = _c - n;
+                kv.klen = n + 1;
+                n = 0;
+            }
+            else if (*_c == ';')
+            {
+                kv.v = _c - n;
+                kv.vlen = n;
+                add_assoc_stringl_ex(cookie, kv.k, kv.klen, kv.v, kv.vlen, 1);
+                n = 0;
+            }
+            else
+            {
+                n++;
+            }
+            _c++;
+        }
+        kv.v = kv.k + kv.klen;
+        kv.vlen = cookie_str + length + 1 - kv.v;
+        add_assoc_stringl_ex(cookie, kv.k, kv.klen - 1, kv.v, kv.vlen, 1);
+        //why cannot use?
+        //sapi_module.treat_data(PARSE_COOKIE, cookie_str, cookie TSRMLS_CC);
     }
+    else
+    {
+        zval *header = zend_read_property(swoole_http_request_class_entry_ptr, channel->request_object, ZEND_STRL("header"), 1 TSRMLS_CC);
+        add_assoc_stringl_ex(header, header_name, channel->current_header_name_len + 1, (char *) at, length, 1);
+    }
+
+    if (channel->current_header_name_allocated)
+    {
+        efree(channel->current_header_name);
+        channel->current_header_name_allocated = 0;
+    }
+    efree(header_name);
     return 0;
 }
 
-static int php_swoole_http_request_on_headers_complete(php_http_parser *parser)
+static int http_request_on_headers_complete(php_http_parser *parser)
 {
     php_swoole_http_channel *client = parser->data;
     if (client->current_header_name_allocated)
@@ -180,26 +254,22 @@ static int php_swoole_http_request_on_headers_complete(php_http_parser *parser)
     return 0;
 }
 
-static int php_swoole_http_request_on_body(php_http_parser *parser, const char *at, size_t length)
+static int http_request_on_body(php_http_parser *parser, const char *at, size_t length)
 {
-    php_swoole_http_channel *client = parser->data;
-    if (!client->request.content)
-    {
-        client->request.content = emalloc(parser->content_length);
-        if (!client->request.content)
-        {
-            return -1;
-        }
-        client->request.content_len = 0;
-    }
-    client->request.content = erealloc(client->request.content, client->request.content_len + length);
-    memmove(client->request.content + client->request.content_len, at, length);
-    client->request.content_len += length;
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
+    php_swoole_http_channel *channel = parser->data;
+    char *body = estrndup(at, length);
+
+    zval *post;
+    MAKE_STD_ZVAL(post);
+    array_init(post);
+    zend_update_property(swoole_http_request_class_entry_ptr, channel->request_object, ZEND_STRL("post"), post TSRMLS_CC);
+    sapi_module.treat_data(PARSE_STRING, body, post TSRMLS_CC);
     return 0;
 }
 
-static int php_swoole_http_request_message_complete(php_http_parser *parser)
+static int http_request_message_complete(php_http_parser *parser)
 {
     php_swoole_http_channel *client = parser->data;
     client->request.protocol_version = parser->http_major * 100 + parser->http_minor;
@@ -222,12 +292,12 @@ static int php_swoole_http_request_message_complete(php_http_parser *parser)
     return 0;
 }
 
-static void php_swoole_http_onClose(swServer *serv, int fd, int from_id)
+static void http_onClose(swServer *serv, int fd, int from_id)
 {
     swHashMap_del_int(php_sw_http_channels, fd);
 }
 
-static int php_swoole_http_onReceive(swFactory *factory, swEventData *req)
+static int http_onReceive(swFactory *factory, swEventData *req)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
@@ -237,47 +307,37 @@ static int php_swoole_http_onReceive(swFactory *factory, swEventData *req)
 
     if (!channel)
     {
-        channel = emalloc(sizeof(php_swoole_http_channel));
-        bzero(channel, sizeof(php_swoole_http_channel));
-        channel->fd = fd;
-        channel->from_id = req->info.from_id;
-        swHashMap_add_int(php_sw_http_channels, fd, channel, NULL);
-
-        MAKE_STD_ZVAL(zchannel);
-        object_init_ex(zchannel, swoole_http_channel_class_entry_ptr TSRMLS_CC);
-
-        channel->object = zchannel;
-        zend_update_property_long(swoole_http_channel_class_entry_ptr, zchannel, ZEND_STRL("fd"), fd TSRMLS_CC);
+        channel = http_channel_new(fd TSRMLS_CC);
     }
-    else
-    {
-        zchannel = channel->object;
-    }
+    zchannel = channel->object;
+
     php_http_parser *parser = &channel->parser;
+
+    zval *zrequest;
+    MAKE_STD_ZVAL(zrequest);
+    object_init_ex(zrequest, swoole_http_request_class_entry_ptr TSRMLS_CC);
+
+    zval *header;
+    MAKE_STD_ZVAL(header);
+    array_init(header);
+    zend_update_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("header"), header TSRMLS_CC);
+
+    channel->request_object = zrequest;
 
     parser->data = channel;
     php_http_parser_init(parser, PHP_HTTP_REQUEST);
-
-    MAKE_STD_ZVAL(channel->request.headers);
-    array_init(channel->request.headers);
 
     zval *zdata = php_swoole_get_data(req TSRMLS_CC);
     size_t n = php_http_parser_execute(parser, &php_sw_http_parser_settings, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
     if (n < 0)
     {
         zval_ptr_dtor(&zdata);
-        swWarn("error");
+        swWarn("php_http_parser_execute failed.");
     }
     else
     {
-        zval *zrequest;
         zval *retval;
         zval **args[2];
-
-        MAKE_STD_ZVAL(zrequest);
-        object_init_ex(zrequest, swoole_http_request_class_entry_ptr TSRMLS_CC);
-
-        zend_update_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("header"), channel->request.headers TSRMLS_CC);
 
         args[0] = &zchannel;
         args[1] = &zrequest;
@@ -358,12 +418,29 @@ PHP_METHOD(swoole_http_server, on)
     }
 }
 
-static void php_swoole_http_channel_free(void *channel)
+static void http_channel_free(void *channel)
 {
     efree(channel);
 }
 
-static void php_swoole_http_request_free(php_swoole_http_request *req)
+static php_swoole_http_channel* http_channel_new(int fd TSRMLS_DC)
+{
+    php_swoole_http_channel *channel = emalloc(sizeof(php_swoole_http_channel));
+    bzero(channel, sizeof(php_swoole_http_channel));
+    channel->fd = fd;
+    swHashMap_add_int(php_sw_http_channels, fd, channel, NULL);
+
+    zval *zchannel;
+    MAKE_STD_ZVAL(zchannel);
+    object_init_ex(zchannel, swoole_http_channel_class_entry_ptr TSRMLS_CC);
+
+    channel->object = zchannel;
+    zend_update_property_long(swoole_http_channel_class_entry_ptr, zchannel, ZEND_STRL("fd"), fd TSRMLS_CC);
+
+    return channel;
+}
+
+static void http_request_free(php_swoole_http_request *req)
 {
     if (req->request_uri)
     {
@@ -385,13 +462,87 @@ static void php_swoole_http_request_free(php_swoole_http_request *req)
     {
         efree(req->query_string);
     }
-    zval_ptr_dtor(&req->headers);
     if (req->content)
     {
         efree(req->content);
     }
     zval_ptr_dtor(&req->raw_content);
     bzero(req, sizeof(php_swoole_http_request));
+}
+
+static void http_response_free(http_response *resp)
+{
+    if (resp->cookie)
+    {
+        swString_free(resp->cookie);
+    }
+    bzero(resp, sizeof(http_response));
+}
+
+static char *http_status_message(int code)
+{
+    switch (code)
+    {
+    case 100:
+        return "100 Continue";
+    case 101:
+        return "101 Switching Protocols";
+    case 201:
+        return "201 Created";
+    case 204:
+        return "204 No Content";
+    case 206:
+        return "206 Partial Content";
+    case 300:
+        return "300 Multiple Choices";
+    case 301:
+        return "301 Moved Permanently";
+    case 302:
+        return "302 Found";
+    case 303:
+        return "303 See Other";
+    case 304:
+        return "304 Not Modified";
+    case 307:
+        return "307 Temporary Redirect";
+    case 400:
+        return "400 Bad Request";
+    case 401:
+        return "401 Unauthorized";
+    case 403:
+        return "403 Forbidden";
+    case 404:
+        return "404 Not Found";
+    case 405:
+        return "405 Method Not Allowed";
+    case 406:
+        return "406 Not Acceptable";
+    case 408:
+        return "408 Request Timeout";
+    case 410:
+        return "410 Gone";
+    case 413:
+        return "413 Request Entity Too Large";
+    case 414:
+        return "414 Request URI Too Long";
+    case 415:
+        return "415 Unsupported Media Type";
+    case 416:
+        return "416 Requested Range Not Satisfiable";
+    case 417:
+        return "417 Expectation Failed";
+    case 500:
+        return "500 Internal Server Error";
+    case 501:
+        return "501 Method Not Implemented";
+    case 503:
+        return "503 Service Unavailable";
+    case 506:
+        return "506 Variant Also Negotiates";
+    case 200:
+    default:
+        return "200 OK";
+    }
 }
 
 PHP_METHOD(swoole_http_server, start)
@@ -415,13 +566,13 @@ PHP_METHOD(swoole_http_server, start)
     }
 
     serv->dispatch_mode = SW_DISPATCH_QUEUE;
-    serv->onReceive = php_swoole_http_onReceive;
-    serv->onClose = php_swoole_http_onClose;
+    serv->onReceive = http_onReceive;
+    serv->onClose = http_onClose;
     serv->open_http_protocol = 1;
 
     serv->ptr2 = getThis();
 
-    php_sw_http_channels = swHashMap_new(1024, php_swoole_http_channel_free);
+    php_sw_http_channels = swHashMap_new(1024, http_channel_free);
 
     ret = swServer_create(serv);
     if (ret < 0)
@@ -441,7 +592,25 @@ PHP_METHOD(swoole_http_server, start)
 
 PHP_METHOD(swoole_http_channel, close)
 {
+    zval *zfd = zend_read_property(swoole_http_channel_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
 
+    swServer *serv = SwooleG.serv;
+    swDataHead ev;
+    ev.fd = Z_LVAL_P(zfd);
+    ev.type = SW_EVENT_CLOSE;
+
+    swConnection *conn = swServer_connection_get(serv, ev.fd);
+    if (conn == NULL)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "The connection[%d] not found.", ev.fd);
+        RETURN_FALSE;
+    }
+    else if (conn->active & SW_STATE_CLOSEING)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "The connection[%d] is closeing.", ev.fd);
+        RETURN_FALSE;
+    }
+    SW_CHECK_RETURN(serv->factory.end(&serv->factory, &ev));
 }
 
 PHP_METHOD(swoole_http_channel, response)
@@ -455,33 +624,226 @@ PHP_METHOD(swoole_http_channel, response)
     }
 
     zval *zfd = zend_read_property(swoole_http_channel_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
+    php_swoole_http_channel *channel = swHashMap_find_int(php_sw_http_channels, Z_LVAL_P(zfd));
 
-    char content_length[128];
+    char buf[128];
+    int n;
+
     swString *response = swString_new(body.length + 1024);
-    swString_append_ptr(response, ZEND_STRL("HTTP/1.1 200 OK\r\nServer: swoole-http-server\r\nCContent-Type: text/html\r\nConnection: keep-alive\r\n"));
 
-    int n = snprintf(content_length, 128, "Content-Length: %d\r\n\r\n", body.length);
-    swString_append_ptr(response, content_length, n);
+    /**
+     * Http status line
+     */
+    n = snprintf(buf, 128, "HTTP/1.1 %s\r\n", http_status_message(channel->response.status));
+    swString_append_ptr(response, buf, n);
+
+    /**
+     * Http header
+     */
+    zval *header =  zend_read_property(swoole_http_channel_class_entry_ptr, getThis(), ZEND_STRL("header"), 1 TSRMLS_CC);
+    if (!ZVAL_IS_NULL(header))
+    {
+        HashTable *ht = Z_ARRVAL_P(header);
+        if (!zend_hash_exists(ht, ZEND_STRL("Server")))
+        {
+            swString_append_ptr(response, ZEND_STRL("Server: "SW_HTTP_SERVER_SOFTWARE"\r\n"));
+        }
+        if (!zend_hash_exists(ht, ZEND_STRL("Connection")))
+        {
+            swString_append_ptr(response, ZEND_STRL("Connection: keep-alive\r\n"));
+        }
+        if (!zend_hash_exists(ht, ZEND_STRL("Content-Length")))
+        {
+            n = snprintf(buf, 128, "Content-Length: %d\r\n", body.length);
+            swString_append_ptr(response, buf, n);
+        }
+        if (!zend_hash_exists(ht, ZEND_STRL("Date")))
+        {
+            n = snprintf(buf, 128, "Date: %s\r\n", php_format_date(ZEND_STRL("D, d-M-Y H:i:s T"), SwooleGS->now, 0 TSRMLS_CC));
+            swString_append_ptr(response, buf, n);
+        }
+        for (zend_hash_internal_pointer_reset(ht); zend_hash_has_more_elements(ht) == 0; zend_hash_move_forward(ht))
+        {
+            char *key;
+            uint keylen;
+            ulong idx;
+            int type;
+            zval **value;
+
+            type = zend_hash_get_current_key_ex(ht, &key, &keylen, &idx, 0, NULL);
+            if (type == HASH_KEY_IS_LONG || zend_hash_get_current_data(ht, (void**)&value) == FAILURE)
+            {
+                continue;
+            }
+            n = snprintf(buf, 128, "%s: %s\r\n", key, Z_STRVAL_PP(value));
+            swString_append_ptr(response, buf, n);
+        }
+    }
+    else
+    {
+        swString_append_ptr(response, ZEND_STRL("Server: "SW_HTTP_SERVER_SOFTWARE"\r\n"));
+        swString_append_ptr(response, ZEND_STRL("Connection: keep-alive\r\n"));
+
+        n = snprintf(buf, 128, "Date: %s\r\n", php_format_date(ZEND_STRL("D, d-M-Y H:i:s T"), 1, 0 TSRMLS_CC));
+        swString_append_ptr(response, buf, n);
+
+        n = snprintf(buf, 128, "Content-Length: %d\r\n", body.length);
+        swString_append_ptr(response, buf, n);
+    }
+
+    if (channel->response.cookie)
+    {
+        swString_append(response, channel->response.cookie);
+    }
+
+    swString_append_ptr(response, ZEND_STRL("\r\n"));
     swString_append(response, &body);
 
     int ret = swServer_tcp_send(SwooleG.serv, Z_LVAL_P(zfd), response->str, response->length);
 
-    php_swoole_http_channel *channel = swHashMap_find_int(php_sw_http_channels, Z_LVAL_P(zfd));
-
     swString_free(response);
-
-    php_swoole_http_request_free(&channel->request);
+    http_response_free(&channel->response);
+    http_request_free(&channel->request);
     SW_CHECK_RETURN(ret);
 }
 
 PHP_METHOD(swoole_http_channel, cookie)
 {
+    char *name, *value = NULL, *path = NULL, *domain = NULL;
+    long expires = 0;
+    zend_bool secure = 0, httponly = 0;
+    int name_len, value_len = 0, path_len = 0, domain_len = 0;
 
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|slssbb", &name, &name_len, &value, &value_len, &expires,
+            &path, &path_len, &domain, &domain_len, &secure, &httponly) == FAILURE)
+    {
+        return;
+    }
+
+    zval *zfd = zend_read_property(swoole_http_channel_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
+    php_swoole_http_channel *channel = swHashMap_find_int(php_sw_http_channels, Z_LVAL_P(zfd));
+
+    char *cookie, *encoded_value = NULL;
+    int len = sizeof("Set-Cookie: ");
+    char *dt;
+
+    if (name && strpbrk(name, "=,; \t\r\n\013\014") != NULL)
+    {
+        zend_error(E_WARNING, "Cookie names cannot contain any of the following '=,; \\t\\r\\n\\013\\014'");
+        RETURN_FALSE;
+    }
+
+    if (!channel->response.cookie)
+    {
+        channel->response.cookie = swString_new(1024);
+    }
+
+    len += name_len;
+    if (value)
+    {
+        int encoded_value_len;
+        encoded_value = php_url_encode(value, value_len, &encoded_value_len);
+        len += encoded_value_len;
+    }
+    else if (value)
+    {
+        encoded_value = estrdup(value);
+        len += value_len;
+    }
+    if (path)
+    {
+        len += path_len;
+    }
+    if (domain)
+    {
+        len += domain_len;
+    }
+
+    cookie = emalloc(len + 100);
+
+    if (value && value_len == 0)
+    {
+        dt = php_format_date("D, d-M-Y H:i:s T", sizeof("D, d-M-Y H:i:s T") - 1, 1, 0 TSRMLS_CC);
+        snprintf(cookie, len + 100, "Set-Cookie: %s=deleted; expires=%s", name, dt);
+        efree(dt);
+    }
+    else
+    {
+        snprintf(cookie, len + 100, "Set-Cookie: %s=%s", name, value ? encoded_value : "");
+        if (expires > 0)
+        {
+            const char *p;
+            strlcat(cookie, "; expires=", len + 100);
+            dt = php_format_date("D, d-M-Y H:i:s T", sizeof("D, d-M-Y H:i:s T") - 1, expires, 0 TSRMLS_CC);
+            p = zend_memrchr(dt, '-', strlen(dt));
+            if (!p || *(p + 5) != ' ')
+            {
+                efree(dt);
+                efree(cookie);
+                efree(encoded_value);
+                zend_error(E_WARNING, "Expiry date cannot have a year greater than 9999");
+                RETURN_FALSE;
+            }
+            strlcat(cookie, dt, len + 100);
+            efree(dt);
+        }
+    }
+    if (encoded_value)
+    {
+        efree(encoded_value);
+    }
+    if (path && path_len > 0)
+    {
+        strlcat(cookie, "; path=", len + 100);
+        strlcat(cookie, path, len + 100);
+    }
+    if (domain && domain_len > 0)
+    {
+        strlcat(cookie, "; domain=", len + 100);
+        strlcat(cookie, domain, len + 100);
+    }
+    if (secure)
+    {
+        strlcat(cookie, "; secure", len + 100);
+    }
+    if (httponly)
+    {
+        strlcat(cookie, "; httponly", len + 100);
+    }
+    swString_append_ptr(channel->response.cookie, cookie, strlen(cookie));
+    swString_append_ptr(channel->response.cookie, ZEND_STRL("\r\n"));
+}
+
+PHP_METHOD(swoole_http_channel, status)
+{
+    long http_status;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &http_status) == FAILURE)
+    {
+        return;
+    }
+
+    zval *zfd = zend_read_property(swoole_http_channel_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
+    php_swoole_http_channel *channel = swHashMap_find_int(php_sw_http_channels, Z_LVAL_P(zfd));
+
+    channel->response.status = http_status;
 }
 
 PHP_METHOD(swoole_http_channel, header)
 {
-
+    char *k, *v;
+    int klen, vlen;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss", &k, &klen, &v, &vlen) == FAILURE)
+    {
+        return;
+    }
+    zval *header = zend_read_property(swoole_http_request_class_entry_ptr, getThis(), ZEND_STRL("header"), 1 TSRMLS_CC);
+    if (!header || ZVAL_IS_NULL(header))
+    {
+        MAKE_STD_ZVAL(header);
+        array_init(header);
+        zend_update_property(swoole_http_request_class_entry_ptr, getThis(), ZEND_STRL("header"), header TSRMLS_CC);
+    }
+    add_assoc_stringl_ex(header, k, klen + 1, v, vlen, 1);
 }
 
 PHP_METHOD(swoole_http_channel, message)

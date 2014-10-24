@@ -179,7 +179,6 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
         swBuffer *buffer = *(swBuffer **) swArray_fetch(thread->buffer_pipe, worker->pipe_master);
         if (swBuffer_empty(buffer))
         {
-            write_to_pipe:
             ret = write(pipe_fd, (void *) data, len);
             if (ret < 0 && errno == EAGAIN)
             {
@@ -192,10 +191,6 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
                     thread->reactor.add(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_WRITE);
                 }
                 goto append_pipe_buffer;
-            }
-            else if (errno == EINTR)
-            {
-                goto write_to_pipe;
             }
         }
         else

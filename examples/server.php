@@ -4,13 +4,12 @@ class G
 	static $serv;
 }
 
-
 $config = array(
     'worker_num' => 1,
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
     //'ipc_mode' => 2,
-    'task_worker_num' => 1,
+    //'task_worker_num' => 1,
     //'task_ipc_mode' => 1,
     //'dispatch_mode' => 1,
     'log_file' => '/tmp/swoole.log',
@@ -52,15 +51,23 @@ function my_log($msg)
 function forkChildInWorker() {
 	global $serv;
 	echo "on worker start\n";
-	$process = new swoole_process ( function (swoole_process $worker) {
-		swoole_event_add ($worker->pipe, function ($pipe) use ($worker) {
-			echo $worker->read()."\n";
+	$process = new swoole_process( function (swoole_process $worker) {
+		$serv = new swoole_server( "0.0.0.0", 9503 );
+		$serv->set(array(
+				'worker_num' => 1 
+		));
+		$serv->on ( 'receive', function (swoole_server $serv, $fd, $from_id, $data) {
+			$serv->send ( $fd, "Swoole: " . $data );
+			$serv->close ( $fd );
 		});
-		
-		swoole_timer_add (1000, function ($interval) use ($worker) {
-			echo "#{$worker->pid} child process timer $interval\n"; // 如果worker中没有定时器，则会输出 process timer xxx
-		});
-	} );
+		$serv->start ();
+// 		swoole_event_add ($worker->pipe, function ($pipe) use ($worker) {
+// 			echo $worker->read()."\n";
+// 		});
+// 		swoole_timer_add (1000, function ($interval) use ($worker) {
+// 			echo "#{$worker->pid} child process timer $interval\n"; // 如果worker中没有定时器，则会输出 process timer xxx
+// 		});
+	});
 	$pid = $process->start();
 	echo "Fork child process success. pid={$pid}\n";
 	//保存子进程对象，这里如果不保存，那对象会被销毁，管道也会被关闭
@@ -82,7 +89,7 @@ function processRename($serv, $worker_id) {
 	echo "|WorkerId={$serv->worker_id}|WorkerPid={$serv->worker_pid}\n";
 }
 
-function setTimerInWorker($serv, $worker_id) {
+function setTimerInWorker(swoole_server $serv, $worker_id) {
 	
 	if ($worker_id == 0) {
 		echo "Start: ".microtime(true)."\n";
@@ -124,7 +131,7 @@ function my_onConnect($serv, $fd, $from_id)
 function my_onWorkerStart($serv, $worker_id)
 {
 	processRename($serv, $worker_id);
-	//forkChildInWorker();
+	forkChildInWorker();
 	//setTimerInWorker($serv, $worker_id);
 }
 
@@ -199,7 +206,11 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
         //$serv->close($fd);
     }
     //echo "Client:Data. fd=$fd|from_id=$from_id|data=$data";
-    //$serv->deltimer(800);
+//    $serv->after(
+//        800, function () {
+//            echo "hello";
+//        }
+//    );
     //swoole_server_send($serv, $other_fd, "Server: $data", $other_from_id);
 }
 
@@ -230,7 +241,7 @@ function my_onWorkerError(swoole_server $serv, $worker_id, $worker_pid, $exit_co
     echo "worker abnormal exit. WorkerId=$worker_id|Pid=$worker_pid|ExitCode=$exit_code\n";
 }
 
-function broadcast($serv, $fd = 0, $data = "hello")
+function broadcast(swoole_server $serv, $fd = 0, $data = "hello")
 {
     $start_fd = 0;
     echo "broadcast\n";

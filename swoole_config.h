@@ -154,4 +154,6 @@
 #define SW_STRING_BUFFER_MAXLEN          (1024*1024*128)
 #define SW_STRING_BUFFER_DEFAULT         128
 
+#define SW_HTTP_SERVER_SOFTWARE          "swoole-http-server"
+
 #endif /* SWOOLE_CONFIG_H_ */

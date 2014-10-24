@@ -98,6 +98,21 @@ int swString_append(swString *str, swString *append_str)
     return SW_OK;
 }
 
+int swString_append_ptr(swString *str, char *append_str, int length)
+{
+    int new_size = str->length + length;
+    if (new_size > str->size)
+    {
+        if (swString_extend(str, swoole_size_align(new_size * 2, sysconf(_SC_PAGESIZE))) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+    memcpy(str->str + str->length, append_str, length);
+    str->length += length;
+    return SW_OK;
+}
+
 int swString_extend(swString *str, size_t new_size)
 {
     assert (new_size > str->size);

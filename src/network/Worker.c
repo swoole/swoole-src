@@ -438,6 +438,10 @@ int swWorker_send2reactor(swEventData_overflow *sdata, size_t sendn, int fd)
             {
                 continue;
             }
+            else
+            {
+                break;
+            }
         }
     }
     else
@@ -457,7 +461,6 @@ int swWorker_send2reactor(swEventData_overflow *sdata, size_t sendn, int fd)
 
         if (swBuffer_empty(dst_worker->pipe_buffer))
         {
-            write_to_pipe:
             ret = write(pipe_fd, (void *) &sdata->_send, sendn);
             if (ret < 0 && errno == EAGAIN)
             {
@@ -471,10 +474,6 @@ int swWorker_send2reactor(swEventData_overflow *sdata, size_t sendn, int fd)
                     SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_WRITE);
                 }
                 goto append_pipe_buffer;
-            }
-            else if (errno == EINTR)
-            {
-                goto write_to_pipe;
             }
         }
         else

@@ -19,8 +19,8 @@ $body2 .= "RA-Sid: 2A784AF7-20140212-113827-085a9c-c4de6e\r\n";
 
 
 //-------------------------------POST------------------------------
-$http_post1 = "POST /home/explore/ HTTP/1.1\r\n";
-$_postBody = str_repeat('A', 8192 * 5);
+$http_post1 = "POST /home/explore/?hello=123&world=swoole#hello HTTP/1.1\r\n";
+$_postBody = http_build_query(['body1' => 'swoole_http-server', 'message' => 'nihao']);
 $_sendStr = $http_post1.$body.$body2."Content-Length: ".strlen($_postBody)."\r\n\r\n".$_postBody;
 
 $cli->send($_sendStr);
