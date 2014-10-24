@@ -46,20 +46,6 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
 
 static swManagerProcess ManagerProcess;
 
-static sw_inline int swWorker_get_write_pipe(swServer *serv, int fd)
-{
-    /**
-     * reactor_id: The fd in which the reactor.
-     */
-    int reactor_id = fd % serv->reactor_num;
-    int round_i = (SwooleWG.pipe_round++) % serv->reactor_pipe_num;
-    /**
-     * pipe_worker_id: The pipe in which worker.
-     */
-    int pipe_worker_id = reactor_id + (round_i * serv->reactor_num);
-    return serv->workers[pipe_worker_id].pipe_worker;
-}
-
 int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
 {
     swFactoryProcess *object;
@@ -550,7 +536,7 @@ int swFactoryProcess_end(swFactory *factory, swDataHead *event)
  */
 int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 {
-    int ret, sendn, count;
+    int ret, sendn;
     swServer *serv = factory->ptr;
     int fd = resp->info.fd;
 
@@ -572,12 +558,8 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     {
         return swServer_udp_send(serv, resp);
     }
-    //swQueue_data for msg queue
-    struct
-    {
-        long pti;
-        swEventData _send;
-    } sdata;
+
+    swEventData_overflow sdata;
 
     //for message queue
     sdata.pti = (SwooleWG.id % serv->writer_num) + 1;
@@ -629,57 +611,10 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 #endif
 
     sendn = sdata._send.info.len + sizeof(resp->info);
-
     //swWarn("send: sendn=%d|type=%d|content=%s", sendn, resp->info.type, resp->data);
     swTrace("[Worker]input_queue[%ld]->in| fd=%d", sdata.pti, fd);
 
-    for (count = 0; count < SW_WORKER_SENDTO_COUNT; count++)
-    {
-        if (serv->ipc_mode == SW_IPC_MSGQUEUE)
-        {
-            ret = serv->write_queue.in(&serv->write_queue, (swQueue_data *) &sdata, sendn);
-        }
-        else
-        {
-            int master_pipe = swWorker_get_write_pipe(serv, fd);
-            //swWarn("send to reactor. fd=%d|pipe=%d|reactor_id=%d|reactor_pipe_num=%d", fd, master_pipe, conn->from_id, serv->reactor_pipe_num);
-            ret = write(master_pipe, &sdata._send, sendn);
-
-#ifdef SW_WORKER_WAIT_PIPE
-            if (ret < 0 && errno == EAGAIN)
-            {
-                /**
-                 * Wait pipe can be written.
-                 */
-                if (swSocket_wait(master_pipe, SW_WORKER_WAIT_TIMEOUT, SW_EVENT_WRITE) == SW_OK)
-                {
-                    continue;
-                }
-                else
-                {
-                    goto finish;
-                }
-            }
-#endif
-        }
-        //swTraceLog("wt_queue->in: fd=%d|from_id=%d|data=%s|ret=%d|errno=%d", sdata._send.info.fd, sdata._send.info.from_id, sdata._send.data, ret, errno);
-        if (ret >= 0)
-        {
-            break;
-        }
-        else if (errno == EINTR)
-        {
-            continue;
-        }
-        else if (errno == EAGAIN)
-        {
-            swYield();
-        }
-        else
-        {
-            break;
-        }
-    }
+    ret = swWorker_send2reactor(&sdata, sendn, fd);
 
     finish:
     if (ret < 0)

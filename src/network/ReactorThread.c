@@ -185,7 +185,7 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
             {
                 if (serv->connection_list[pipe_fd].from_id == SwooleTG.id)
                 {
-                    thread->reactor.set(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_WRITE);
+                    thread->reactor.set(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_READ | SW_EVENT_WRITE);
                 }
                 else
                 {

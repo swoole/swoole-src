@@ -33,15 +33,16 @@ int swWorker_create(swWorker *worker)
         swWarn("malloc for worker->store failed.");
         return SW_ERR;
     }
+    swMutex_create(&worker->lock, 1);
 
-    swPipe *worker_notify = sw_malloc(sizeof(swPipe));
-    if (worker_notify == NULL)
+    swBuffer *buffer = swBuffer_new(sizeof(swEventData));
+    if (!buffer)
     {
-        swWarn("malloc for worker->notify failed.");
+        swWarn("create buffer failed.");
         sw_shm_free(worker->send_shm);
         return SW_ERR;
     }
-    swMutex_create(&worker->lock, 1);
+    worker->pipe_buffer = buffer;
     return SW_OK;
 }
 
@@ -49,6 +50,51 @@ void swWorker_free(swWorker *worker)
 {
     sw_shm_free(worker->send_shm);
     worker->lock.free(&worker->lock);
+}
+
+/**
+ * [Worker] worker pipe can write.
+ */
+static int swWorker_onPipeWrite(swReactor *reactor, swEvent *ev)
+{
+    int ret;
+    swServer *serv = SwooleG.serv;
+    int worker_id = serv->connection_list[ev->fd].from_id;
+    swWorker *worker = swServer_get_worker(serv, worker_id);
+    swBuffer_trunk *trunk = NULL;
+
+    while (!swBuffer_empty(worker->pipe_buffer))
+    {
+        trunk = swBuffer_get_trunk(worker->pipe_buffer);
+        ret = write(ev->fd, trunk->store.ptr, trunk->length);
+        if (ret < 0)
+        {
+            return errno == EAGAIN ? SW_OK : SW_ERR;
+        }
+        else
+        {
+            swBuffer_pop_trunk(worker->pipe_buffer, trunk);
+        }
+    }
+
+    //remove EPOLLOUT event
+    if (swBuffer_empty(worker->pipe_buffer))
+    {
+        if (worker_id == SwooleWG.id)
+        {
+            printf("remove epollout\n");
+            ret = reactor->set(reactor, ev->fd, SW_FD_PIPE | SW_EVENT_READ);
+        }
+        else
+        {
+            ret = reactor->del(reactor, ev->fd);
+        }
+        if (ret < 0)
+        {
+            swSysError("reactor->set() failed.");
+        }
+    }
+    return SW_OK;
 }
 
 void swWorker_signal_init(void)
@@ -230,6 +276,10 @@ int swWorker_loop(swFactory *factory, int worker_id)
     int n;
 
     int pipe_rd = serv->workers[worker_id].pipe_worker;
+    /**
+     * mapping pipe and worker
+     */
+    serv->connection_list[pipe_rd].from_id = worker_id;
 
 #ifdef HAVE_CPU_AFFINITY
     if (serv->open_cpu_affinity == 1)
@@ -308,6 +358,7 @@ int swWorker_loop(swFactory *factory, int worker_id)
         SwooleG.main_reactor->ptr = serv;
         SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_rd, SW_FD_PIPE);
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE, swWorker_onPipeReceive);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE | SW_EVENT_WRITE, swWorker_onPipeWrite);
 
 #ifdef HAVE_SIGNALFD
         if (SwooleG.use_signalfd)
@@ -369,6 +420,82 @@ void swWorker_onReactorFinish(swReactor* reactor)
 void swWorker_onReactorTimeout(swReactor* reactor)
 {
     SwooleG.timer.select(&SwooleG.timer);
+}
+
+/**
+ * Send data to ReactorThread
+ */
+int swWorker_send2reactor(swEventData_overflow *sdata, size_t sendn, int fd)
+{
+    int ret, count;
+    swServer *serv = SwooleG.serv;
+
+    if (serv->ipc_mode == SW_IPC_MSGQUEUE)
+    {
+        for (count = 0; count < SW_WORKER_SENDTO_COUNT; count++)
+        {
+            ret = serv->write_queue.in(&serv->write_queue, (swQueue_data *) &sdata, sendn);
+            if (ret < 0)
+            {
+                continue;
+            }
+        }
+    }
+    else
+    {
+        /**
+         * reactor_id: The fd in which the reactor.
+         */
+        int reactor_id = fd % serv->reactor_num;
+        int round_i = (SwooleWG.pipe_round++) % serv->reactor_pipe_num;
+        /**
+         * pipe_worker_id: The pipe in which worker.
+         */
+        int pipe_worker_id = reactor_id + (round_i * serv->reactor_num);
+
+        swWorker *dst_worker = &serv->workers[pipe_worker_id];
+        int pipe_fd = dst_worker->pipe_worker;
+
+        if (swBuffer_empty(dst_worker->pipe_buffer))
+        {
+            write_to_pipe:
+            ret = write(pipe_fd, (void *) &sdata->_send, sendn);
+            if (ret < 0 && errno == EAGAIN)
+            {
+                if (pipe_worker_id == SwooleWG.id)
+                {
+                    SwooleG.main_reactor->set(SwooleG.main_reactor, pipe_fd,
+                            SW_FD_PIPE | SW_EVENT_READ | SW_EVENT_WRITE);
+                }
+                else
+                {
+                    SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_WRITE);
+                }
+                goto append_pipe_buffer;
+            }
+            else if (errno == EINTR)
+            {
+                goto write_to_pipe;
+            }
+        }
+        else
+        {
+            append_pipe_buffer:
+            if (dst_worker->pipe_buffer->length > SwooleG.unixsock_buffer_size)
+            {
+                swWarn("Fatal Error: unix socket buffer overflow");
+                return SW_ERR;
+            }
+            if (swBuffer_append(dst_worker->pipe_buffer, &sdata->_send, sendn) < 0)
+            {
+                swWarn("append to pipe_buffer failed.");
+                return SW_ERR;
+            }
+            return SW_OK;
+        }
+
+    }
+    return ret;
 }
 
 /**

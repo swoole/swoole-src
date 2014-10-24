@@ -12,7 +12,7 @@ func main() {
     runtime.GOMAXPROCS( runtime.NumCPU() - 1 )
 
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-        fmt.Fprint(w, "It works!")
+        fmt.Fprint(w, "<h1>Hello world!</h1>")
     })
 
     log.Fatal(http.ListenAndServe(":8080", nil))
