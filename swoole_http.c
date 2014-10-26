@@ -180,7 +180,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
     php_swoole_http_channel *channel = parser->data;
     char *header_name = zend_str_tolower_dup(channel->current_header_name, channel->current_header_name_len);
 
-    if (strncmp(header_name, ZEND_STRL("cookie")) == 0)
+    if (strcmp(header_name, "cookie") == 0)
     {
 
         char *cookie_str = estrndup(at, length);
