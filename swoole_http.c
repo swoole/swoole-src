@@ -83,8 +83,8 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
 static int http_request_on_headers_complete(php_http_parser *parser);
 static int http_request_message_complete(php_http_parser *parser);
 
-static void http_client_free(http_client *client);
-static void http_request_free(http_client *client);
+static void http_client_free(http_client *client TSRMLS_DC);
+static void http_request_free(http_client *client TSRMLS_DC);
 static http_client* http_client_new(int fd TSRMLS_DC);
 
 static const php_http_parser_settings http_parser_settings =
@@ -411,7 +411,7 @@ PHP_METHOD(swoole_http_server, on)
     }
 }
 
-static void http_client_free(http_client *client)
+static void http_client_free(http_client *client TSRMLS_DC)
 {
     if (client->zrequest)
     {
@@ -429,7 +429,7 @@ static http_client* http_client_new(int fd TSRMLS_DC)
     return client;
 }
 
-static void http_request_free(http_client *client)
+static void http_request_free(http_client *client TSRMLS_DC)
 {
     http_request *req = &client->request;
     if (req->request_uri)
@@ -713,7 +713,7 @@ PHP_METHOD(swoole_http_response, end)
     int ret = swServer_tcp_send(SwooleG.serv, Z_LVAL_P(zfd), response->str, response->length);
 
     swString_free(response);
-    http_request_free(client);
+    http_request_free(client TSRMLS_CC);
 
     if (!keepalive)
     {
