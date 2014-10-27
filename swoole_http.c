@@ -411,11 +411,12 @@ PHP_METHOD(swoole_http_server, on)
     }
 }
 
-static void http_client_free(http_client *client TSRMLS_DC)
+static void http_client_free(http_client *client)
 {
     if (client->zrequest)
     {
-        http_request_free(client);
+        TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+        http_request_free(client TSRMLS_CC);
     }
     efree(client);
 }
