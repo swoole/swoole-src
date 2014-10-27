@@ -2545,7 +2545,7 @@ PHP_FUNCTION(swoole_server_sendfile)
 #ifdef __CYGWIN__
 	php_error_docref(NULL TSRMLS_CC, E_WARNING, "cannot use swoole_server->sendfile() in cygwin.", filename);
 	RETURN_FALSE;;
-#else
+#endif
 
 	if (zobject == NULL)
 	{
