@@ -291,12 +291,11 @@ PHP_METHOD(swoole_table, unlock);
 PHP_METHOD(swoole_http_server, on);
 PHP_METHOD(swoole_http_server, start);
 
-PHP_METHOD(swoole_http_channel, close);
-PHP_METHOD(swoole_http_channel, response);
-PHP_METHOD(swoole_http_channel, cookie);
-PHP_METHOD(swoole_http_channel, header);
-PHP_METHOD(swoole_http_channel, message);
-PHP_METHOD(swoole_http_channel, status);
+PHP_METHOD(swoole_http_response, end);
+PHP_METHOD(swoole_http_response, cookie);
+PHP_METHOD(swoole_http_response, header);
+PHP_METHOD(swoole_http_response, message);
+PHP_METHOD(swoole_http_response, status);
 
 void swoole_destory_lock(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 void swoole_destory_process(zend_rsrc_list_entry *rsrc TSRMLS_DC);

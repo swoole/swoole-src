@@ -144,7 +144,6 @@ static sw_inline int swWorker_excute(swFactory *factory, swEventData *task)
 {
     swServer *serv = factory->ptr;
     swString *package = NULL;
-    swDataHead ev;
 
     factory->last_from_id = task->info.from_id;
     //worker busy
@@ -190,9 +189,7 @@ static sw_inline int swWorker_excute(swFactory *factory, swEventData *task)
         break;
 
     case SW_EVENT_CLOSE:
-        ev.fd = task->info.fd;
-        ev.type = SW_EVENT_CLOSE;
-        factory->end(factory, &ev);
+        factory->end(factory, task->info.fd);
         break;
 
     case SW_EVENT_CONNECT:

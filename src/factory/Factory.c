@@ -67,14 +67,14 @@ int swFactory_notify(swFactory *factory, swDataHead *req)
     return SW_OK;
 }
 
-int swFactory_end(swFactory *factory, swDataHead *event)
+int swFactory_end(swFactory *factory, int fd)
 {
     swServer *serv = factory->ptr;
     if (serv->onClose != NULL)
     {
-        serv->onClose(serv, event->fd, event->from_id);
+        serv->onClose(serv, fd, 0);
     }
-    return swServer_connection_close(serv, event->fd);
+    return swServer_connection_close(serv, fd);
 }
 
 int swFactory_finish(swFactory *factory, swSendData *resp)

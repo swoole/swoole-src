@@ -492,23 +492,18 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti)
     }
 }
 
-int swFactoryProcess_end(swFactory *factory, swDataHead *event)
+/**
+ * Close the connection
+ */
+int swFactoryProcess_end(swFactory *factory, int fd)
 {
     swServer *serv = factory->ptr;
     swSendData _send;
 
     bzero(&_send, sizeof(_send));
-
-    _send.info.fd = event->fd;
-    /**
-     * length == 0, close the connection
-     */
+    _send.info.fd = fd;
     _send.info.len = 0;
-
-    /**
-     * passive or initiative
-     */
-    _send.info.type = event->type;
+    _send.info.type = SW_EVENT_CLOSE;
 
     swConnection *conn = swServer_connection_get(serv, _send.info.fd);
     if (conn == NULL || conn->active == 0)
@@ -516,7 +511,12 @@ int swFactoryProcess_end(swFactory *factory, swDataHead *event)
         //swWarn("can not close. Connection[%d] not found.", _send.info.fd);
         return SW_ERR;
     }
-    if (conn->active & SW_STATE_CLOSED)
+    else if (conn->active & SW_STATE_CLOSEING)
+    {
+        swWarn("The connection[%d] is closeing.", fd);
+        return SW_ERR;
+    }
+    else if (conn->active & SW_STATE_CLOSED)
     {
         return SW_ERR;
     }
@@ -524,7 +524,7 @@ int swFactoryProcess_end(swFactory *factory, swDataHead *event)
     {
         if (serv->onClose != NULL)
         {
-            serv->onClose(serv, event->fd, conn->from_id);
+            serv->onClose(serv, fd, conn->from_id);
         }
         conn->active |= SW_STATE_CLOSED;
         return swFactoryProcess_finish(factory, &_send);

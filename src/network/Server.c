@@ -476,12 +476,12 @@ int swServer_start(swServer *serv)
 		serv->factory.onFinish = swServer_onFinish;
 	}
 
-	serv->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
-	if (serv->workers == NULL)
-	{
-		swWarn("[Master] malloc[object->workers] failed");
-		return SW_ERR;
-	}
+    serv->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
+    if (serv->workers == NULL)
+    {
+        swWarn("[Master] malloc[object->workers] failed");
+        return SW_ERR;
+    }
 
 	/*
 	 * For swoole_server->taskwait, create notify pipe and result shared memory.
@@ -500,16 +500,16 @@ int swServer_start(swServer *serv)
         }
     }
 
-	//factory start
-	if (factory->start(factory) < 0)
-	{
-		return SW_ERR;
-	}
-	//Signal Init
-	swServer_signal_init();
+    //factory start
+    if (factory->start(factory) < 0)
+    {
+        return SW_ERR;
+    }
+    //Signal Init
+    swServer_signal_init();
 
-	//标识为主进程
-	SwooleG.process_type = SW_PROCESS_MASTER;
+    //标识为主进程
+    SwooleG.process_type = SW_PROCESS_MASTER;
 
     //启动心跳检测
     if (serv->heartbeat_check_interval >= 1 && serv->heartbeat_check_interval <= serv->heartbeat_idle_time)

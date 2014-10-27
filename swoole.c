@@ -1536,8 +1536,7 @@ PHP_FUNCTION(swoole_server_close)
 {
 	zval *zobject = getThis();
 	swServer *serv;
-	swDataHead ev;
-	zval *fd;
+	zval *zfd;
 
     if (swIsMaster())
     {
@@ -1547,43 +1546,21 @@ PHP_FUNCTION(swoole_server_close)
 
 	if (zobject == NULL)
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Oz", &zobject, swoole_server_class_entry_ptr, &fd) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Oz", &zobject, swoole_server_class_entry_ptr, &zfd) == FAILURE)
 		{
 			return;
 		}
 	}
 	else
 	{
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &fd) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zfd) == FAILURE)
 		{
 			return;
 		}
 	}
-	convert_to_long(fd);
-
+	convert_to_long(zfd);
 	SWOOLE_GET_SERVER(zobject, serv);
-	ev.fd = Z_LVAL_P(fd);
-	ev.type = SW_EVENT_CLOSE;
-
-	swConnection *conn = swServer_connection_get(serv, ev.fd);
-    if (conn == NULL)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "The connection[%d] not found.", ev.fd);
-        RETURN_FALSE;
-    }
-    else if (conn->active & SW_STATE_CLOSEING)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "The connection[%d] is closeing.", ev.fd);
-        RETURN_FALSE;
-    }
-	if (serv->factory.end(&serv->factory, &ev) >= 0)
-	{
-		RETVAL_TRUE;
-	}
-	else
-	{
-	    RETVAL_FALSE;
-	}
+	SW_CHECK_RETURN(serv->factory.end(&serv->factory, Z_LVAL_P(zfd)));
 }
 
 PHP_FUNCTION(swoole_server_reload)
@@ -1622,7 +1599,6 @@ PHP_FUNCTION(swoole_server_heartbeat)
 {
 	zval *zobject = getThis();
 	swServer *serv;
-	swDataHead ev;
 	zend_bool close_connection = 0;
 
 	if (zobject == NULL)
@@ -1654,23 +1630,22 @@ PHP_FUNCTION(swoole_server_heartbeat)
     int fd;
     int checktime = (int) SwooleGS->now - serv->heartbeat_idle_time;
 
-    ev.type = SW_CLOSE_INITIATIVE;
-
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
     {
         swTrace("heartbeat check fd=%d", fd);
-        if (1 == serv->connection_list[fd].active && (serv->connection_list[fd].last_time < checktime))
+        swConnection *conn = &serv->connection_list[fd];
+
+        if (1 == conn->active && conn->last_time < checktime)
         {
             /**
              * Close the connection
              */
             if (close_connection)
             {
-                ev.fd = fd;
-                serv->factory.end(&serv->factory, &ev);
+                serv->factory.end(&serv->factory, fd);
                 if (serv->onClose != NULL)
                 {
-                    serv->onClose(serv, ev.fd, ev.from_id);
+                    serv->onClose(serv, fd, conn->from_id);
                 }
             }
             add_next_index_long(return_value, fd);

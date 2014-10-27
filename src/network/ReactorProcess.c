@@ -26,14 +26,13 @@ int swReactorProcess_create(swServer *serv)
     serv->reactor_threads = sw_calloc(1, sizeof(swReactorThread));
     if (serv->reactor_threads == NULL)
     {
-        swError("calloc[reactor_threads] fail.alloc_size=%d", (int )(serv->reactor_num * sizeof(swReactorThread)));
+        swSysError("calloc[1](%d) failed.", (int )(serv->reactor_num * sizeof(swReactorThread)));
         return SW_ERR;
     }
     serv->connection_list = sw_calloc(serv->max_connection, sizeof(swConnection));
-
     if (serv->connection_list == NULL)
     {
-        swError("calloc[1] failed.");
+        swSysError("calloc[2](%d) failed.", (int )(serv->max_connection * sizeof(swConnection)));
         return SW_ERR;
     }
     //create factry object
@@ -136,7 +135,10 @@ int swReactorProcess_start(swServer *serv)
     swServer_signal_init();
 
     swProcessPool_start(&pool);
-    return swProcessPool_wait(&pool);
+    swProcessPool_wait(&pool);
+    swProcessPool_shutdown(&pool);
+
+    return SW_OK;
 }
 
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)

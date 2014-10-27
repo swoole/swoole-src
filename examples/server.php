@@ -16,7 +16,7 @@ $config = array(
     //'heartbeat_check_interval' => 10,
 );
 
-if ($argv[1] == 'daemon') {
+if (isset($argv[1]) and $argv[1] == 'daemon') {
 	$config['daemonize'] = true;
 } else {
 	$config['daemonize'] = false;
@@ -52,15 +52,15 @@ function forkChildInWorker() {
 	global $serv;
 	echo "on worker start\n";
 	$process = new swoole_process( function (swoole_process $worker) {
-		$serv = new swoole_server( "0.0.0.0", 9503 );
-		$serv->set(array(
-				'worker_num' => 1 
-		));
-		$serv->on ( 'receive', function (swoole_server $serv, $fd, $from_id, $data) {
-			$serv->send ( $fd, "Swoole: " . $data );
-			$serv->close ( $fd );
-		});
-		$serv->start ();
+// 		$serv = new swoole_server( "0.0.0.0", 9503 );
+// 		$serv->set(array(
+// 				'worker_num' => 1 
+// 		));
+// 		$serv->on ( 'receive', function (swoole_server $serv, $fd, $from_id, $data) {
+// 			$serv->send ( $fd, "Swoole: " . $data );
+// 			$serv->close ( $fd );
+// 		});
+// 		$serv->start ();
 // 		swoole_event_add ($worker->pipe, function ($pipe) use ($worker) {
 // 			echo $worker->read()."\n";
 // 		});

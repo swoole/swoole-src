@@ -171,15 +171,24 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int worker_id
 
 void swProcessPool_shutdown(swProcessPool *pool)
 {
-    int i, ret;
+    int i, status;
+    swWorker *worker;
     SwooleG.running = 0;
+
     for (i = 0; i < pool->worker_num; i++)
     {
-        ret = kill(pool->workers[i].pid, SIGTERM);
-        if (ret < 0)
+        for (i = 0; i < pool->worker_num; i++)
         {
-            swWarn("[Manager]kill fail.pid=%d. Error: %s [%d]", pool->workers[i].pid, strerror(errno), errno);
-            continue;
+            worker = &pool->workers[i];
+            if (kill(worker->pid, SIGTERM) < 0)
+            {
+                swSysError("kill(%d) failed.", worker->pid);
+                continue;
+            }
+            if (waitpid(worker->pid, &status, 0) < 0)
+            {
+                swSysError("waitpid(%d) failed.", worker->pid);
+            }
         }
     }
     swProcessPool_free(pool);
@@ -317,10 +326,9 @@ int swProcessPool_wait(swProcessPool *pool)
         return SW_ERR;
     }
 
-    while (1)
+    while (SwooleG.running)
     {
         pid = wait(NULL);
-
         if (pid < 0)
         {
             if (pool->reloading == 0)
@@ -333,6 +341,10 @@ int swProcessPool_wait(swProcessPool *pool)
                 memcpy(reload_workers, pool->workers, sizeof(swWorker) * pool->worker_num);
                 pool->reload_flag = 1;
                 goto reload_worker;
+            }
+            else if (SwooleG.running == 0)
+            {
+                break;
             }
         }
         swTrace("[Manager] worker stop.pid=%d", pid);
@@ -353,7 +365,8 @@ int swProcessPool_wait(swProcessPool *pool)
             swHashMap_del_int(pool->map, pid);
         }
         //reload worker
-        reload_worker: if (pool->reloading == 1)
+        reload_worker:
+        if (pool->reloading == 1)
         {
             //reload finish
             if (reload_worker_i >= pool->worker_num)
@@ -378,14 +391,14 @@ int swProcessPool_wait(swProcessPool *pool)
 static void swProcessPool_free(swProcessPool *pool)
 {
     int i;
-    swPipe *pipe;
+    swPipe *_pipe;
 
     if (!pool->use_msgqueue)
     {
         for (i = 0; i < pool->worker_num; i++)
         {
-            pipe = &pool->pipes[i];
-            pipe->close(pipe);
+            _pipe = &pool->pipes[i];
+            _pipe->close(_pipe);
         }
     }
 
