@@ -906,13 +906,17 @@ PHP_FUNCTION(swoole_server_create)
 		return;
 	}
 
-	if (serv_mode == SW_MODE_THREAD || serv_mode == SW_MODE_BASE)
-	{
-		serv_mode = SW_MODE_SINGLE;
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "PHP can not running at multi-threading. Reset mode to SWOOLE_MODE_BASE");
-	}
+#ifdef __CYGWIN__
+    serv->factory_mode = SW_MODE_SINGLE;
+#else
+    if (serv_mode == SW_MODE_THREAD || serv_mode == SW_MODE_BASE)
+    {
+        serv_mode = SW_MODE_SINGLE;
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "PHP can not running at multi-threading. Reset mode to SWOOLE_MODE_BASE");
+    }
+    serv->factory_mode = serv_mode;
+#endif
 
-	serv->factory_mode = serv_mode;
 	swTrace("Create swoole_server host=%s, port=%d, mode=%d, type=%d", serv_host, (int) serv_port, serv->factory_mode, (int) sock_type);
 
 #ifdef ZTS
@@ -2537,6 +2541,11 @@ PHP_FUNCTION(swoole_server_sendfile)
 	char buffer[SW_BUFFER_SIZE];
 	char *filename;
 	long conn_fd;
+
+#ifdef __CYGWIN__
+	php_error_docref(NULL TSRMLS_CC, E_WARNING, "cannot use swoole_server->sendfile() in cygwin.", filename);
+	RETURN_FALSE;;
+#else
 
 	if (zobject == NULL)
 	{
