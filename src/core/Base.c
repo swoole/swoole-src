@@ -265,8 +265,11 @@ int swoole_system_random(int min, int max)
     next_random_byte = (char *) &random_value;
     bytes_to_read = sizeof(random_value);
 
-    read(dev_random_fd, next_random_byte, bytes_to_read);
-
+    if (read(dev_random_fd, next_random_byte, bytes_to_read) < 0)
+    {
+        swSysError("read() failed.");
+        return SW_ERR;
+    }
     return min + (random_value % (max - min + 1));
 }
 
