@@ -83,7 +83,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
 static int http_request_on_headers_complete(php_http_parser *parser);
 static int http_request_message_complete(php_http_parser *parser);
 
-static void http_client_free(http_client *client TSRMLS_DC);
+static void http_client_free(http_client *client);
 static void http_request_free(http_client *client TSRMLS_DC);
 static http_client* http_client_new(int fd TSRMLS_DC);
 
@@ -300,7 +300,7 @@ static int http_onReceive(swFactory *factory, swEventData *req)
 
     zval *zrequest;
     MAKE_STD_ZVAL(zrequest);
-    object_init_ex(zrequest, swoole_http_request_class_entry_ptr TSRMLS_CC);
+    object_init_ex(zrequest, swoole_http_request_class_entry_ptr);
 
     zval *header;
     MAKE_STD_ZVAL(header);
@@ -311,7 +311,8 @@ static int http_onReceive(swFactory *factory, swEventData *req)
 
     zval *zresponse;
     MAKE_STD_ZVAL(zresponse);
-    object_init_ex(zresponse, swoole_http_response_class_entry_ptr TSRMLS_CC);
+    object_init_ex(zresponse, swoole_http_response_class_entry_ptr);
+
     //socket fd
     zend_update_property_long(swoole_http_response_class_entry_ptr, zresponse, ZEND_STRL("fd"), fd TSRMLS_CC);
 
