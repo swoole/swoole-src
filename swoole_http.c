@@ -87,6 +87,11 @@ static void http_client_free(http_client *client);
 static void http_request_free(http_client *client TSRMLS_DC);
 static http_client* http_client_new(int fd TSRMLS_DC);
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_server_on, 0, 0, 2)
+    ZEND_ARG_INFO(0, ha_name)
+    ZEND_ARG_INFO(0, cb)
+ZEND_END_ARG_INFO()
+
 static const php_http_parser_settings http_parser_settings =
 {
     NULL,
@@ -103,7 +108,7 @@ static const php_http_parser_settings http_parser_settings =
 
 const zend_function_entry swoole_http_server_methods[] =
 {
-    PHP_ME(swoole_http_server, on,         NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_server, on,         arginfo_swoole_http_server_on, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_server, start,      NULL, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };

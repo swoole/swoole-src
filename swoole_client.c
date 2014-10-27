@@ -1175,13 +1175,28 @@ PHP_METHOD(swoole_client, connect)
 	{
 		return;
 	}
+
+	if (host_len <= 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "The host is empty.");
+        RETURN_FALSE;
+    }
+
 	cli = swoole_client_create_socket(getThis(), host, host_len, port);
 
-	if (cli->async == 1 && (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6))
+	if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
 	{
-		//for tcp: nonblock
-		//for udp: have udp connect
-		sock_flag = 1;
+        if (port <= 0 || port > SW_CLIENT_MAX_PORT)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "The port is invalid.");
+            RETURN_FALSE;
+        }
+        if (cli->async == 1)
+        {
+            //for tcp: nonblock
+            //for udp: have udp connect
+            sock_flag = 1;
+        }
 	}
 
     if (cli->keep == 1 && cli->connection.active == 1)

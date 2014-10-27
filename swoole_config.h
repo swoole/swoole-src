@@ -39,6 +39,7 @@
 //#define SW_BUFFER_SIZE            65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_CLIENT_BUFFER_SIZE      65536
 #define SW_CLIENT_DEFAULT_TIMEOUT  0.5
+#define SW_CLIENT_MAX_PORT         65535
 
 #ifdef SW_USE_RINGBUFFER
 #define SW_BUFFER_SIZE             65535
