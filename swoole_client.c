@@ -546,7 +546,7 @@ void php_swoole_check_timer(int msec)
             SwooleG.timer.onTimer = php_swoole_onTimerInterval;
         }
 
-        if (swIsTaskWorker())
+        if (!SwooleG.main_reactor)
         {
             swTimer_init(msec, SwooleG.use_timer_pipe);
         }
