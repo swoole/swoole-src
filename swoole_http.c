@@ -180,10 +180,8 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
     php_swoole_http_channel *channel = parser->data;
     char *header_name = zend_str_tolower_dup(channel->current_header_name, channel->current_header_name_len);
 
-    if (strcmp(header_name, "cookie") == 0)
+    if (strncmp(header_name, "cookie", 6) == 0)
     {
-
-        char *cookie_str = estrndup(at, length);
         zval *cookie;
         MAKE_STD_ZVAL(cookie);
         array_init(cookie);
@@ -197,22 +195,23 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
             int vlen;
         } kv = { 0 };
 
-        char *_c = cookie_str;
-        int n = 0;
+        char *_c = (char *) at;
+        int n = 1;
+        kv.k = _c;
 
-        while (_c < cookie_str + length)
+        while (_c < at + length)
         {
             if (*_c == '=')
             {
-                kv.k = _c - n;
-                kv.klen = n + 1;
+                kv.v = _c + 1;
+                kv.klen = n;
                 n = 0;
             }
             else if (*_c == ';')
             {
-                kv.v = _c - n;
                 kv.vlen = n;
                 add_assoc_stringl_ex(cookie, kv.k, kv.klen, kv.v, kv.vlen, 1);
+                kv.k = _c + 2;
                 n = 0;
             }
             else
@@ -221,11 +220,8 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
             }
             _c++;
         }
-        kv.v = kv.k + kv.klen;
-        kv.vlen = cookie_str + length + 1 - kv.v;
-        add_assoc_stringl_ex(cookie, kv.k, kv.klen - 1, kv.v, kv.vlen, 1);
-        //why cannot use?
-        //sapi_module.treat_data(PARSE_COOKIE, cookie_str, cookie TSRMLS_CC);
+        kv.vlen = n;
+        add_assoc_stringl_ex(cookie, kv.k, kv.klen, kv.v, kv.vlen, 1);
     }
     else
     {
