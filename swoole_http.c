@@ -31,7 +31,6 @@ typedef struct
     size_t vpath_len;
     const char *ext;
     size_t ext_len;
-    zval *content;
 } http_request;
 
 typedef struct
@@ -57,7 +56,7 @@ typedef struct
     size_t current_header_name_len;
     unsigned int current_header_name_allocated :1;
     unsigned int content_sender_initialized :1;
-} http_channel;
+} http_client;
 
 zend_class_entry swoole_http_server_ce;
 zend_class_entry *swoole_http_server_class_entry_ptr;
@@ -69,7 +68,7 @@ zend_class_entry swoole_http_request_ce;
 zend_class_entry *swoole_http_request_class_entry_ptr;
 
 static zval* php_sw_http_server_callbacks[2];
-static swHashMap *php_sw_http_channels;
+static swHashMap *php_sw_http_clients;
 
 static int http_onReceive(swFactory *factory, swEventData *req);
 static void http_onClose(swServer *serv, int fd, int from_id);
@@ -84,9 +83,9 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
 static int http_request_on_headers_complete(php_http_parser *parser);
 static int http_request_message_complete(php_http_parser *parser);
 
-static void http_channel_free(void *channel);
-static void http_request_free(http_channel *channel);
-static http_channel* http_channel_new(int fd TSRMLS_DC);
+static void http_client_free(http_client *client);
+static void http_request_free(http_client *client);
+static http_client* http_client_new(int fd TSRMLS_DC);
 
 static const php_http_parser_settings http_parser_settings =
 {
@@ -121,7 +120,7 @@ const zend_function_entry swoole_http_response_methods[] =
 
 static int http_request_on_path(php_http_parser *parser, const char *at, size_t length)
 {
-    http_channel *client = parser->data;
+    http_client *client = parser->data;
     client->request.vpath = estrndup(at, length);
     client->request.vpath_len = length;
 
@@ -132,21 +131,20 @@ static int http_request_on_query_string(php_http_parser *parser, const char *at,
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-    http_channel *channel = parser->data;
+    http_client *client = parser->data;
     char *query = estrndup(at, length);
 
     zval *get;
     MAKE_STD_ZVAL(get);
     array_init(get);
-    zend_update_property(swoole_http_request_class_entry_ptr, channel->zrequest, ZEND_STRL("get"), get TSRMLS_CC);
+    zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("get"), get TSRMLS_CC);
     sapi_module.treat_data(PARSE_STRING, query, get TSRMLS_CC);
-
     return 0;
 }
 
 static int http_request_on_url(php_http_parser *parser, const char *at, size_t length)
 {
-    http_channel *client = parser->data;
+    http_client *client = parser->data;
     client->request.method = parser->method;
     client->request.request_uri = estrndup(at, length);
     client->request.request_uri_len = length;
@@ -155,7 +153,7 @@ static int http_request_on_url(php_http_parser *parser, const char *at, size_t l
 
 static int http_request_on_header_field(php_http_parser *parser, const char *at, size_t length)
 {
-    http_channel *client = parser->data;
+    http_client *client = parser->data;
     if (client->current_header_name_allocated)
     {
         efree(client->current_header_name);
@@ -170,15 +168,15 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-    http_channel *channel = parser->data;
-    char *header_name = zend_str_tolower_dup(channel->current_header_name, channel->current_header_name_len);
+    http_client *client = parser->data;
+    char *header_name = zend_str_tolower_dup(client->current_header_name, client->current_header_name_len);
 
     if (strncmp(header_name, "cookie", 6) == 0)
     {
         zval *cookie;
         MAKE_STD_ZVAL(cookie);
         array_init(cookie);
-        zend_update_property(swoole_http_request_class_entry_ptr, channel->zrequest, ZEND_STRL("cookie"), cookie TSRMLS_CC);
+        zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("cookie"), cookie TSRMLS_CC);
 
         struct
         {
@@ -218,14 +216,14 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
     }
     else
     {
-        zval *header = zend_read_property(swoole_http_request_class_entry_ptr, channel->zrequest, ZEND_STRL("header"), 1 TSRMLS_CC);
-        add_assoc_stringl_ex(header, header_name, channel->current_header_name_len + 1, (char *) at, length, 1);
+        zval *header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("header"), 1 TSRMLS_CC);
+        add_assoc_stringl_ex(header, header_name, client->current_header_name_len + 1, (char *) at, length, 1);
     }
 
-    if (channel->current_header_name_allocated)
+    if (client->current_header_name_allocated)
     {
-        efree(channel->current_header_name);
-        channel->current_header_name_allocated = 0;
+        efree(client->current_header_name);
+        client->current_header_name_allocated = 0;
     }
     efree(header_name);
     return 0;
@@ -233,7 +231,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
 
 static int http_request_on_headers_complete(php_http_parser *parser)
 {
-    http_channel *client = parser->data;
+    http_client *client = parser->data;
     if (client->current_header_name_allocated)
     {
         efree(client->current_header_name);
@@ -247,13 +245,13 @@ static int http_request_on_body(php_http_parser *parser, const char *at, size_t 
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-    http_channel *channel = parser->data;
+    http_client *client = parser->data;
     char *body = estrndup(at, length);
 
     zval *post;
     MAKE_STD_ZVAL(post);
     array_init(post);
-    zend_update_property(swoole_http_request_class_entry_ptr, channel->zrequest, ZEND_STRL("post"), post TSRMLS_CC);
+    zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("post"), post TSRMLS_CC);
     sapi_module.treat_data(PARSE_STRING, body, post TSRMLS_CC);
 
     return 0;
@@ -261,7 +259,7 @@ static int http_request_on_body(php_http_parser *parser, const char *at, size_t 
 
 static int http_request_message_complete(php_http_parser *parser)
 {
-    http_channel *client = parser->data;
+    http_client *client = parser->data;
     client->request.version = parser->http_major * 100 + parser->http_minor;
 
     const char *vpath = client->request.vpath, *end = vpath + client->request.vpath_len, *p = end;
@@ -284,7 +282,7 @@ static int http_request_message_complete(php_http_parser *parser)
 
 static void http_onClose(swServer *serv, int fd, int from_id)
 {
-    swHashMap_del_int(php_sw_http_channels, fd);
+    swHashMap_del_int(php_sw_http_clients, fd);
 }
 
 static int http_onReceive(swFactory *factory, swEventData *req)
@@ -292,13 +290,13 @@ static int http_onReceive(swFactory *factory, swEventData *req)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
     int fd = req->info.fd;
-    http_channel *channel = swHashMap_find_int(php_sw_http_channels, fd);
+    http_client *client = swHashMap_find_int(php_sw_http_clients, fd);
 
-    if (!channel)
+    if (!client)
     {
-        channel = http_channel_new(fd TSRMLS_CC);
+        client = http_client_new(fd TSRMLS_CC);
     }
-    php_http_parser *parser = &channel->parser;
+    php_http_parser *parser = &client->parser;
 
     zval *zrequest;
     MAKE_STD_ZVAL(zrequest);
@@ -317,17 +315,18 @@ static int http_onReceive(swFactory *factory, swEventData *req)
     //socket fd
     zend_update_property_long(swoole_http_response_class_entry_ptr, zresponse, ZEND_STRL("fd"), fd TSRMLS_CC);
 
-    channel->zresponse = zresponse;
-    channel->zrequest = zrequest;
+    client->zresponse = zresponse;
+    client->zrequest = zrequest;
 
-    parser->data = channel;
+    parser->data = client;
     php_http_parser_init(parser, PHP_HTTP_REQUEST);
 
     zval *zdata = php_swoole_get_data(req TSRMLS_CC);
     size_t n = php_http_parser_execute(parser, &http_parser_settings, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
+    zval_ptr_dtor(&zdata);
+
     if (n < 0)
     {
-        zval_ptr_dtor(&zdata);
         swWarn("php_http_parser_execute failed.");
     }
     else
@@ -337,8 +336,6 @@ static int http_onReceive(swFactory *factory, swEventData *req)
 
         args[0] = &zrequest;
         args[1] = &zresponse;
-
-        channel->request.content = zdata;
 
         if (call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[0], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
         {
@@ -414,23 +411,27 @@ PHP_METHOD(swoole_http_server, on)
     }
 }
 
-static void http_channel_free(void *channel)
+static void http_client_free(http_client *client)
 {
-    efree(channel);
+    if (client->zrequest)
+    {
+        http_request_free(client);
+    }
+    efree(client);
 }
 
-static http_channel* http_channel_new(int fd TSRMLS_DC)
+static http_client* http_client_new(int fd TSRMLS_DC)
 {
-    http_channel *channel = emalloc(sizeof(http_channel));
-    bzero(channel, sizeof(http_channel));
-    channel->fd = fd;
-    swHashMap_add_int(php_sw_http_channels, fd, channel, NULL);
-    return channel;
+    http_client *client = emalloc(sizeof(http_client));
+    bzero(client, sizeof(http_client));
+    client->fd = fd;
+    swHashMap_add_int(php_sw_http_clients, fd, client, NULL);
+    return client;
 }
 
-static void http_request_free(http_channel *channel)
+static void http_request_free(http_client *client)
 {
-    http_request *req = &channel->request;
+    http_request *req = &client->request;
     if (req->request_uri)
     {
         efree(req->request_uri);
@@ -439,18 +440,46 @@ static void http_request_free(http_channel *channel)
     {
         efree(req->vpath);
     }
-
-    zval_ptr_dtor(&req->content);
     bzero(req, sizeof(http_request));
 
-    http_response *resp = &channel->response;
+    http_response *resp = &client->response;
     if (resp->cookie)
     {
         swString_free(resp->cookie);
     }
     bzero(resp, sizeof(http_response));
-    zval_ptr_dtor(&channel->zrequest);
-    zval_ptr_dtor(&channel->zresponse);
+
+    /**
+     * Free request object
+     */
+    zval *zheader = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("header"), 1 TSRMLS_CC);
+    if (!ZVAL_IS_NULL(zheader))
+    {
+        zval_ptr_dtor(&zheader);
+    }
+    zval *zget = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("get"), 1 TSRMLS_CC);
+    if (!ZVAL_IS_NULL(zget))
+    {
+        zval_ptr_dtor(&zget);
+    }
+    zval *zpost = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("post"), 1 TSRMLS_CC);
+    if (!ZVAL_IS_NULL(zpost))
+    {
+        zval_ptr_dtor(&zpost);
+    }
+    zval_ptr_dtor(&client->zrequest);
+    client->zrequest = NULL;
+
+    /**
+     * Free response object
+     */
+    zval *zfd = zend_read_property(swoole_http_response_class_entry_ptr, client->zresponse, ZEND_STRL("fd"), 1 TSRMLS_CC);
+    if (!ZVAL_IS_NULL(zfd))
+    {
+        zval_ptr_dtor(&zfd);
+    }
+    zval_ptr_dtor(&client->zresponse);
+    client->zresponse = NULL;
 }
 
 static char *http_status_message(int code)
@@ -546,7 +575,7 @@ PHP_METHOD(swoole_http_server, start)
 
     serv->ptr2 = getThis();
 
-    php_sw_http_channels = swHashMap_new(1024, http_channel_free);
+    php_sw_http_clients = swHashMap_new(1024, (void (*)(void *)) http_client_free);
 
     ret = swServer_create(serv);
     if (ret < 0)
@@ -564,29 +593,6 @@ PHP_METHOD(swoole_http_server, start)
     RETURN_TRUE;
 }
 
-//PHP_METHOD(swoole_http_response, close)
-//{
-//    zval *zfd = zend_read_property(swoole_http_response_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
-//
-//    swServer *serv = SwooleG.serv;
-//    swDataHead ev;
-//    ev.fd = Z_LVAL_P(zfd);
-//    ev.type = SW_EVENT_CLOSE;
-//
-//    swConnection *conn = swServer_connection_get(serv, ev.fd);
-//    if (conn == NULL)
-//    {
-//        php_error_docref(NULL TSRMLS_CC, E_WARNING, "The connection[%d] not found.", ev.fd);
-//        RETURN_FALSE;
-//    }
-//    else if (conn->active & SW_STATE_CLOSEING)
-//    {
-//        php_error_docref(NULL TSRMLS_CC, E_WARNING, "The connection[%d] is closeing.", ev.fd);
-//        RETURN_FALSE;
-//    }
-//    SW_CHECK_RETURN(serv->factory.end(&serv->factory, &ev));
-//}
-
 PHP_METHOD(swoole_http_response, end)
 {
     swString body;
@@ -598,18 +604,30 @@ PHP_METHOD(swoole_http_response, end)
     }
 
     zval *zfd = zend_read_property(swoole_http_response_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
-    http_channel *channel = swHashMap_find_int(php_sw_http_channels, Z_LVAL_P(zfd));
+    if (ZVAL_IS_NULL(zfd))
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "http client not exists.");
+        RETURN_FALSE;
+    }
+
+    http_client *client = swHashMap_find_int(php_sw_http_clients, Z_LVAL_P(zfd));
+    if (!client)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "http client[#%d] not exists.", (int) Z_LVAL_P(zfd));
+        RETURN_FALSE;
+    }
 
     char buf[128];
     int n;
 
-    int keepalive = php_http_should_keep_alive(&channel->parser);
+    int keepalive = php_http_should_keep_alive(&client->parser);
     swString *response = swString_new(body.length + 1024);
+    char *date_str;
 
     /**
      * Http status line
      */
-    n = snprintf(buf, 128, "HTTP/1.1 %s\r\n", http_status_message(channel->response.status));
+    n = snprintf(buf, 128, "HTTP/1.1 %s\r\n", http_status_message(client->response.status));
     swString_append_ptr(response, buf, n);
 
     /**
@@ -641,8 +659,10 @@ PHP_METHOD(swoole_http_response, end)
         }
         if (!zend_hash_exists(ht, ZEND_STRL("Date")))
         {
-            n = snprintf(buf, 128, "Date: %s\r\n", php_format_date(ZEND_STRL("D, d-M-Y H:i:s T"), SwooleGS->now, 0 TSRMLS_CC));
+            date_str = php_format_date(ZEND_STRL("D, d-M-Y H:i:s T"), SwooleGS->now, 0 TSRMLS_CC);
+            n = snprintf(buf, 128, "Date: %s\r\n", date_str);
             swString_append_ptr(response, buf, n);
+            efree(date_str);
         }
         for (zend_hash_internal_pointer_reset(ht); zend_hash_has_more_elements(ht) == 0; zend_hash_move_forward(ht))
         {
@@ -672,16 +692,19 @@ PHP_METHOD(swoole_http_response, end)
         {
             swString_append_ptr(response, ZEND_STRL("Connection: close\r\n"));
         }
-        n = snprintf(buf, 128, "Date: %s\r\n", php_format_date(ZEND_STRL("D, d-M-Y H:i:s T"), 1, 0 TSRMLS_CC));
+
+        date_str = php_format_date(ZEND_STRL("D, d-M-Y H:i:s T"), 1, SwooleGS->now TSRMLS_CC);
+        n = snprintf(buf, 128, "Date: %s\r\n", date_str);
+        efree(date_str);
         swString_append_ptr(response, buf, n);
 
         n = snprintf(buf, 128, "Content-Length: %d\r\n", body.length);
         swString_append_ptr(response, buf, n);
     }
 
-    if (channel->response.cookie)
+    if (client->response.cookie)
     {
-        swString_append(response, channel->response.cookie);
+        swString_append(response, client->response.cookie);
     }
 
     swString_append_ptr(response, ZEND_STRL("\r\n"));
@@ -690,7 +713,7 @@ PHP_METHOD(swoole_http_response, end)
     int ret = swServer_tcp_send(SwooleG.serv, Z_LVAL_P(zfd), response->str, response->length);
 
     swString_free(response);
-    http_request_free(channel);
+    http_request_free(client);
 
     if (!keepalive)
     {
@@ -713,7 +736,7 @@ PHP_METHOD(swoole_http_response, cookie)
     }
 
     zval *zfd = zend_read_property(swoole_http_response_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
-    http_channel *channel = swHashMap_find_int(php_sw_http_channels, Z_LVAL_P(zfd));
+    http_client *client = swHashMap_find_int(php_sw_http_clients, Z_LVAL_P(zfd));
 
     char *cookie, *encoded_value = NULL;
     int len = sizeof("Set-Cookie: ");
@@ -725,9 +748,9 @@ PHP_METHOD(swoole_http_response, cookie)
         RETURN_FALSE;
     }
 
-    if (!channel->response.cookie)
+    if (!client->response.cookie)
     {
-        channel->response.cookie = swString_new(1024);
+        client->response.cookie = swString_new(1024);
     }
 
     len += name_len;
@@ -802,8 +825,8 @@ PHP_METHOD(swoole_http_response, cookie)
     {
         strlcat(cookie, "; httponly", len + 100);
     }
-    swString_append_ptr(channel->response.cookie, cookie, strlen(cookie));
-    swString_append_ptr(channel->response.cookie, ZEND_STRL("\r\n"));
+    swString_append_ptr(client->response.cookie, cookie, strlen(cookie));
+    swString_append_ptr(client->response.cookie, ZEND_STRL("\r\n"));
     efree(cookie);
 }
 
@@ -816,9 +839,9 @@ PHP_METHOD(swoole_http_response, status)
     }
 
     zval *zfd = zend_read_property(swoole_http_response_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
-    http_channel *channel = swHashMap_find_int(php_sw_http_channels, Z_LVAL_P(zfd));
+    http_client *client = swHashMap_find_int(php_sw_http_clients, Z_LVAL_P(zfd));
 
-    channel->response.status = http_status;
+    client->response.status = http_status;
 }
 
 PHP_METHOD(swoole_http_response, header)
