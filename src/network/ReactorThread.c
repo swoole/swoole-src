@@ -939,8 +939,9 @@ int swReactorThread_close(swReactor *reactor, int fd)
 int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
 {
     int n = 0;
+    int fd = event->fd;
     swServer *serv = reactor->ptr;
-    swConnection *conn = swServer_connection_get(serv, event->fd);
+    swConnection *conn = swServer_connection_get(serv, fd);
 
     char *buf;
     int buf_len;
@@ -974,10 +975,10 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
     }
 
 #ifdef SW_USE_EPOLLET
-    n = swRead(event->fd, buf, buf_len);
+    n = swRead(fd, buf, buf_len);
 #else
     //非ET模式会持续通知
-    n = recv(event->fd, buf, buf_len, 0);
+    n = recv(fd, buf, buf_len, 0);
 #endif
 
     if (n < 0)
@@ -996,7 +997,7 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
     else if (n == 0)
     {
         close_fd:
-        swReactorThread_close(reactor, event->fd);
+        swReactorThread_close(reactor, fd);
         /**
          * skip EPOLLERR
          */
@@ -1021,6 +1022,14 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
         if (request->method == 0 && swHttpRequest_get_protocol(request) < 0)
         {
             swWarn("get protocol failed.");
+            request->buffer = NULL;
+
+#ifdef SW_HTTP_BAD_REQUEST
+            if (write(fd, SW_STRL(SW_HTTP_BAD_REQUEST) - 1) < 0)
+			{
+            	swSysError("write() failed.");
+			}
+#endif
             goto close_fd;
         }
         //GET

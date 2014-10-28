@@ -40,7 +40,7 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
     }
     else
     {
-        return SW_ERROR;
+        return SW_ERR;
     }
 
     //http version
@@ -56,7 +56,7 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
         {
             if (p + 8 > pe)
             {
-                return SW_ERROR;
+                return SW_ERR;
             }
             if (memcmp(p, "HTTP/1.1", 8) == 0)
             {
@@ -70,7 +70,7 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
             }
             else
             {
-                return SW_ERROR;
+                return SW_ERR;
             }
         }
     }

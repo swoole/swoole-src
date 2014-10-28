@@ -156,5 +156,6 @@
 #define SW_STRING_BUFFER_DEFAULT         128
 
 #define SW_HTTP_SERVER_SOFTWARE          "swoole-http-server"
+#define SW_HTTP_BAD_REQUEST              "<h1>400 Bad Request</h1>\r\n"
 
 #endif /* SWOOLE_CONFIG_H_ */
