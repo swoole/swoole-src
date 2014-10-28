@@ -947,6 +947,7 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
     char recv_buf[SW_BUFFER_SIZE];
 
     swHttpRequest *request;
+    swString tmp_package;
 
     //new http request
     if (conn->object == NULL)
@@ -1008,7 +1009,6 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
 
         if (request->method == 0)
         {
-            swString tmp_package;
             bzero(&tmp_package, sizeof(tmp_package));
             tmp_package.str = recv_buf;
             tmp_package.size = SW_BUFFER_SIZE;
