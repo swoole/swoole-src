@@ -103,7 +103,7 @@ int swHttpRequest_get_content_length(swHttpRequest *request)
     char *buf = buffer->str + buffer->offset;
     int len = buffer->length - buffer->offset;
 
-    char *pe = buf + len - sizeof("Content-Length");
+    char *pe = buf + len;
     char *p;
     char state = 0;
 
