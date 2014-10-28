@@ -29,9 +29,6 @@ typedef struct
     size_t path_len;
     const char *ext;
     size_t ext_len;
-    uint16_t get_param_num;
-    uint16_t post_param_num;
-    uint16_t cookie_param_num;
 } http_request;
 
 typedef struct
@@ -45,6 +42,8 @@ typedef struct
 typedef struct
 {
     int fd;
+    uint8_t end;
+
     http_request request;
     http_response response;
 
@@ -465,6 +464,8 @@ static int http_request_new(http_client* client TSRMLS_DC)
 	zend_update_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("header"), header TSRMLS_CC);
 
 	client->zrequest = zrequest;
+	bzero(&client->request, sizeof(client->request));
+	bzero(&client->response, sizeof(client->response));
 	return SW_OK;
 }
 
@@ -475,14 +476,12 @@ static void http_request_free(http_client *client TSRMLS_DC)
     {
         efree(req->path);
     }
-    bzero(req, sizeof(http_request));
 
     http_response *resp = &client->response;
     if (resp->cookie)
     {
         swString_free(resp->cookie);
     }
-    bzero(resp, sizeof(http_response));
 
     /**
      * Free request object
@@ -510,16 +509,10 @@ static void http_request_free(http_client *client TSRMLS_DC)
     zval_ptr_dtor(&client->zrequest);
     client->zrequest = NULL;
 
-    /**
-     * Free response object
-     */
-    zval *zfd = zend_read_property(swoole_http_response_class_entry_ptr, client->zresponse, ZEND_STRL("fd"), 1 TSRMLS_CC);
-    if (!ZVAL_IS_NULL(zfd))
-    {
-        zval_ptr_dtor(&zfd);
-    }
     zval_ptr_dtor(&client->zresponse);
     client->zresponse = NULL;
+
+    client->end = 1;
 }
 
 static char *http_status_message(int code)
@@ -657,6 +650,12 @@ PHP_METHOD(swoole_http_response, end)
         RETURN_FALSE;
     }
 
+    if (client->end)
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Response is end.");
+		RETURN_FALSE;
+	}
+
     char buf[128];
     int n;
 
@@ -776,7 +775,24 @@ PHP_METHOD(swoole_http_response, cookie)
     }
 
     zval *zfd = zend_read_property(swoole_http_response_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
+    if (ZVAL_IS_NULL(zfd))
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "http client not exists.");
+        RETURN_FALSE;
+    }
+
     http_client *client = swHashMap_find_int(php_sw_http_clients, Z_LVAL_P(zfd));
+    if (!client)
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "http client[#%d] not exists.", (int) Z_LVAL_P(zfd));
+		RETURN_FALSE;
+	}
+
+    if (client->end)
+    {
+    	php_error_docref(NULL TSRMLS_CC, E_WARNING, "Response is end.");
+    	RETURN_FALSE;
+    }
 
     char *cookie, *encoded_value = NULL;
     int len = sizeof("Set-Cookie: ");
