@@ -156,7 +156,6 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
     fi
 
-
     PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
 
     if test "$PHP_OPENSSL" = "yes"; then
@@ -224,7 +223,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/SSL.c \
         src/protocol/Http.c \
       , $ext_shared)
-      
+
     PHP_ADD_INCLUDE([$ext_srcdir/include])
     PHP_ADD_BUILD_DIR($ext_builddir/src/core)
     PHP_ADD_BUILD_DIR($ext_builddir/src/memory)
@@ -236,5 +235,6 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_BUILD_DIR($ext_builddir/src/os)
     PHP_ADD_BUILD_DIR($ext_builddir/src/network)
     PHP_ADD_BUILD_DIR($ext_builddir/src/protocol)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty)
 fi
 
