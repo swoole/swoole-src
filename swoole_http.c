@@ -464,6 +464,7 @@ static int http_request_new(http_client* client TSRMLS_DC)
 	zend_update_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("header"), header TSRMLS_CC);
 
 	client->zrequest = zrequest;
+	client->end = 0;
 	bzero(&client->request, sizeof(client->request));
 	bzero(&client->response, sizeof(client->response));
 	return SW_OK;
