@@ -68,6 +68,12 @@ typedef struct
     int interval;
 } swoole_timer_item;
 
+typedef struct _swTimer_callback
+{
+	zval* callback;
+	zval* data;
+}swTimer_callback;
+
 extern zend_module_entry swoole_module_entry;
 
 #define phpext_swoole_ptr &swoole_module_entry
@@ -312,7 +318,7 @@ void php_swoole_check_timer(int interval);
 void php_swoole_register_callback(swServer *serv);
 void php_swoole_try_run_reactor();
 void php_swoole_onTimerInterval(swTimer *timer, int interval);
-void php_swoole_onTimeout(swTimer *timer, swTimer_callback *data);
+void php_swoole_onTimeout(swTimer *timer, void *data);
 zval *php_swoole_get_data(swEventData *req TSRMLS_DC);
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
