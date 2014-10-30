@@ -1049,6 +1049,8 @@ typedef struct _swTimer_interval_node
     uint32_t interval;
 } swTimer_interval_node;
 
+
+
 typedef struct _swTimer_node
 {
     struct _swTimer_node *next, *prev;
@@ -1056,6 +1058,8 @@ typedef struct _swTimer_node
     uint32_t exec_msec;
     uint32_t interval;
 } swTimer_node;
+
+
 
 typedef struct _swTimer
 {

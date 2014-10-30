@@ -565,11 +565,12 @@ void php_swoole_check_timer(int msec)
 
 void php_swoole_onTimeout(swTimer *timer, void *data)
 {
-    zval *callback = data;
+	swTimer_callback* callback = (swTimer_callback*)data;
     zval *retval = NULL;
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-
-    if (call_user_function_ex(EG(function_table), NULL, callback, &retval, 0, NULL, 0, NULL TSRMLS_CC) == FAILURE)
+    zval **args[1];
+    args[0] = &callback->data;
+    if (call_user_function_ex(EG(function_table), NULL, callback->callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_timer: onTimerout handler error");
         return;
@@ -578,7 +579,8 @@ void php_swoole_onTimeout(swTimer *timer, void *data)
     {
         zval_ptr_dtor(&retval);
     }
-    zval_ptr_dtor(&callback);
+    zval_ptr_dtor(&callback->callback);
+    zval_ptr_dtor(&callback->data);
 }
 
 void php_swoole_onTimerInterval(swTimer *timer, int interval)

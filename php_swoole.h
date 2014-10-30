@@ -68,6 +68,12 @@ typedef struct
     int interval;
 } swoole_timer_item;
 
+typedef struct _swTimer_callback
+{
+	zval* callback;
+	zval* data;
+}swTimer_callback;
+
 extern zend_module_entry swoole_module_entry;
 
 #define phpext_swoole_ptr &swoole_module_entry

@@ -962,13 +962,12 @@ PHP_METHOD(swoole_server, stats)
 PHP_FUNCTION(swoole_timer_after)
 {
     long interval;
-    zval *callback;
+    swTimer_callback* callback = sw_malloc(sizeof(swTimer_callback));
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz", &interval, &callback) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lzz",  &interval ,&(callback->callback), &(callback->data) ) == FAILURE)
     {
         return;
     }
-
     if (interval > 86400000)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "The given parameters is too big.");
@@ -976,7 +975,7 @@ PHP_FUNCTION(swoole_timer_after)
     }
 
     char *func_name = NULL;
-    if (!zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+    if (!zend_is_callable(callback->callback, 0, &func_name TSRMLS_CC))
     {
         php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
         efree(func_name);
@@ -987,7 +986,8 @@ PHP_FUNCTION(swoole_timer_after)
     php_swoole_check_reactor();
     php_swoole_check_timer(interval);
 
-    zval_add_ref(&callback);
+    zval_add_ref(&callback->callback);
+    zval_add_ref(&callback->data);
 
     if (SwooleG.timer.add(&SwooleG.timer, interval, 0, callback) < 0)
     {
