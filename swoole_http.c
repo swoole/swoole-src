@@ -389,9 +389,8 @@ void swoole_http_init(int module_number TSRMLS_DC)
 PHP_METHOD(swoole_http_server, on)
 {
     zval *callback;
-    char *event_name;
+    zval *event_name;
     swServer *serv;
-    int len;
 
     if (SwooleGS->start > 0)
     {
@@ -399,7 +398,7 @@ PHP_METHOD(swoole_http_server, on)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &event_name, &len, &callback) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zz", &event_name, &callback) == FAILURE)
     {
         return;
     }
@@ -415,20 +414,19 @@ PHP_METHOD(swoole_http_server, on)
     }
     efree(func_name);
 
-    if (strncasecmp("request", event_name, len) == 0)
+    if (strncasecmp("request", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
         zval_add_ref(&callback);
         php_sw_http_server_callbacks[0] = callback;
     }
-    else if (strncasecmp("message", event_name, len) == 0)
+    else if (strncasecmp("message", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
         zval_add_ref(&callback);
         php_sw_http_server_callbacks[1] = callback;
     }
     else
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "Unknown event types[%s]", event_name);
-        RETURN_FALSE;
+        zend_call_method_with_2_params(&getThis(), swoole_server_class_entry_ptr, NULL, "on", &return_value, event_name, callback);
     }
 }
 
@@ -465,6 +463,7 @@ static int http_request_new(http_client* client TSRMLS_DC)
 
 	client->zrequest = zrequest;
 	client->end = 0;
+
 	bzero(&client->request, sizeof(client->request));
 	bzero(&client->response, sizeof(client->response));
 	return SW_OK;
