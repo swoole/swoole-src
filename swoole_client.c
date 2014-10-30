@@ -88,6 +88,8 @@ static int php_swoole_client_onError(swReactor *reactor, swEvent *event);
 static void php_swoole_check_eventloop(swReactor *reactor);
 
 static int swoole_client_error_callback(zval *zobject, swEvent *event, int error TSRMLS_DC);
+static void php_swoole_onTimeout(swTimer *timer, void *data);
+static void php_swoole_onTimerInterval(swTimer *timer, int interval);
 
 static int swoole_convert_to_fd(zval **fd);
 static swClient* swoole_client_create_socket(zval *object, char *host, int host_len, int port);
@@ -563,7 +565,7 @@ void php_swoole_check_timer(int msec)
     }
 }
 
-void php_swoole_onTimeout(swTimer *timer, void *data)
+static void php_swoole_onTimeout(swTimer *timer, void *data)
 {
 	swTimer_callback* callback = (swTimer_callback*)data;
     zval *retval = NULL;
@@ -583,7 +585,7 @@ void php_swoole_onTimeout(swTimer *timer, void *data)
     zval_ptr_dtor(&callback->data);
 }
 
-void php_swoole_onTimerInterval(swTimer *timer, int interval)
+static void php_swoole_onTimerInterval(swTimer *timer, int interval)
 {
 	zval *retval;
 	zval **args[1];

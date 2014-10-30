@@ -38,7 +38,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.7.7"
+#define PHP_SWOOLE_VERSION  "1.7.8-alpha"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -72,7 +72,7 @@ typedef struct _swTimer_callback
 {
 	zval* callback;
 	zval* data;
-}swTimer_callback;
+} swTimer_callback;
 
 extern zend_module_entry swoole_module_entry;
 
@@ -317,8 +317,7 @@ void php_swoole_check_reactor();
 void php_swoole_check_timer(int interval);
 void php_swoole_register_callback(swServer *serv);
 void php_swoole_try_run_reactor();
-void php_swoole_onTimerInterval(swTimer *timer, int interval);
-void php_swoole_onTimeout(swTimer *timer, void *data);
+
 zval *php_swoole_get_data(swEventData *req TSRMLS_DC);
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
