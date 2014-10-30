@@ -312,7 +312,7 @@ void php_swoole_check_timer(int interval);
 void php_swoole_register_callback(swServer *serv);
 void php_swoole_try_run_reactor();
 void php_swoole_onTimerInterval(swTimer *timer, int interval);
-void php_swoole_onTimeout(swTimer *timer, void *data);
+void php_swoole_onTimeout(swTimer *timer, swTimer_callback *data);
 zval *php_swoole_get_data(swEventData *req TSRMLS_DC);
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)

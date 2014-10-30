@@ -25,9 +25,9 @@ static int swTimer_signal_set(swTimer *timer, int interval);
 static int swTimer_timerfd_set(swTimer *timer, int interval);
 static int swTimer_del(swTimer *timer, int ms);
 static void swTimer_free(swTimer *timer);
-static int swTimer_add(swTimer *timer, int msec, int interval, void *data);
+static int swTimer_add(swTimer *timer, int msec, int interval, swTimer_callback *data);
 static int swTimer_set(swTimer *timer, int new_interval);
-static int swTimer_addtimeout(swTimer *timer, int timeout_ms, void *data);
+static int swTimer_addtimeout(swTimer *timer, int timeout_ms, swTimer_callback *data);
 static int swTimer_select(swTimer *timer);
 
 /**
@@ -219,7 +219,7 @@ static int swTimer_set(swTimer *timer, int new_interval)
     }
 }
 
-static int swTimer_add(swTimer *timer, int msec, int interval, void *data)
+static int swTimer_add(swTimer *timer, int msec, int interval, swTimer_callback *data)
 {
     if (interval == 0)
     {
@@ -344,7 +344,7 @@ void swTimer_signal_handler(int sig)
 	}
 }
 
-int swTimer_addtimeout(swTimer *timer, int timeout_ms, void *data)
+int swTimer_addtimeout(swTimer *timer, int timeout_ms, swTimer_callback *data)
 {
     int new_interval = swoole_common_divisor(timeout_ms, timer->interval);
     if (new_interval < timer->interval)

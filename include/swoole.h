@@ -1049,13 +1049,21 @@ typedef struct _swTimer_interval_node
     uint32_t interval;
 } swTimer_interval_node;
 
+typedef struct _swTimer_callback
+{
+	zval* callback;
+	zval* data;
+}swTimer_callback;
+
 typedef struct _swTimer_node
 {
     struct _swTimer_node *next, *prev;
-    void *data;
+    swTimer_callback *data;
     uint32_t exec_msec;
     uint32_t interval;
 } swTimer_node;
+
+
 
 typedef struct _swTimer
 {
@@ -1071,13 +1079,13 @@ typedef struct _swTimer
 	/*-----------------for EventTimer-------------------*/
 	struct timeval basetime;
 	/*--------------------------------------------------*/
-	int (*add)(struct _swTimer *timer, int _msec, int _interval, void *data);
+	int (*add)(struct _swTimer *timer, int _msec, int _interval, swTimer_callback *data);
 	int (*del)(struct _swTimer *timer, int _interval_ms);
 	int (*select)(struct _swTimer *timer);
 	void (*free)(struct _swTimer *timer);
 	/*-----------------event callback-------------------*/
 	void (*onTimer)(struct _swTimer *timer, int interval_msec);
-	void (*onTimeout)(struct _swTimer *timer, void *data);
+	void (*onTimeout)(struct _swTimer *timer, swTimer_callback *data);
 } swTimer;
 
 int swTimer_init(int interval_ms, int no_pipe);
