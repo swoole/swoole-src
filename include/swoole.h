@@ -616,15 +616,12 @@ int swRWLock_create(swLock *lock, int use_in_process);
 #endif
 int swSem_create(swLock *lock, key_t key);
 int swMutex_create(swLock *lock, int use_in_process);
+int swMutex_lockwait(swLock *lock, int timeout_msec);
 int swFileLock_create(swLock *lock, int fd);
 #ifdef HAVE_SPINLOCK
 int swSpinLock_create(swLock *object, int spin);
 #endif
 int swAtomicLock_create(swLock *object, int spin);
-sw_inline int swAtomicLock_lock(swLock *lock);
-sw_inline int swAtomicLock_unlock(swLock *lock);
-sw_inline int swAtomicLock_trylock(swLock *lock);
-
 int swCond_create(swCond *cond);
 
 typedef struct _swThreadParam
@@ -853,6 +850,7 @@ struct _swWorker
 	//swPipe *notify;
 
 	swLock lock;
+	swLock lock_task;
 
 	void *send_shm;
 
@@ -1200,10 +1198,6 @@ typedef struct
     swMemoryPool *memory_pool;
     swReactor *main_reactor;
 
-    /**
-     * for swoole_server->taskwait
-     */
-    swPipe *task_notify;
     swEventData *task_result;
 
     pthread_t heartbeat_pidt;

@@ -16,6 +16,10 @@
 
 #include "swoole.h"
 
+static int swAtomicLock_lock(swLock *lock);
+static int swAtomicLock_unlock(swLock *lock);
+static int swAtomicLock_trylock(swLock *lock);
+
 int swAtomicLock_create(swLock *lock, int spin)
 {
 	bzero(lock, sizeof(swLock));
@@ -27,18 +31,18 @@ int swAtomicLock_create(swLock *lock, int spin)
 	return SW_OK;
 }
 
-int swAtomicLock_lock(swLock *lock)
+static int swAtomicLock_lock(swLock *lock)
 {
 	sw_spinlock(&lock->object.atomlock.lock_t);
 	return SW_OK;
 }
 
-int swAtomicLock_unlock(swLock *lock)
+static int swAtomicLock_unlock(swLock *lock)
 {
 	return lock->object.atomlock.lock_t = 0;
 }
 
-int swAtomicLock_trylock(swLock *lock)
+static int swAtomicLock_trylock(swLock *lock)
 {
 	sw_atomic_t *atomic = &lock->object.atomlock.lock_t;
 	return (*(atomic) == 0 && sw_atomic_cmp_set(atomic, 0, 1));
