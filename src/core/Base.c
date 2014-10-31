@@ -444,6 +444,14 @@ int swSocket_sendfile_sync(int sock, char *filename, double timeout)
 }
 
 /**
+ * clear socket buffer.
+ */
+void swSocket_clean(int fd, void *buf, int len)
+{
+    while (recv(fd, buf, len, MSG_DONTWAIT) > 0);
+}
+
+/**
  * Wait socket can read or write.
  */
 int swSocket_wait(int fd, int timeout_ms, int events)

@@ -390,11 +390,10 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol);
 
 static inline int swPipeNotify_auto(swPipe *p, int blocking, int semaphore)
 {
-	//eventfd是2.6.26提供的,timerfd是2.6.27提供的
 #ifdef HAVE_EVENTFD
-	return swPipeEventfd_create(p, blocking, semaphore, 0);
+    return swPipeEventfd_create(p, blocking, semaphore, 0);
 #else
-	return swPipeBase_create(p, blocking);
+    return swPipeBase_create(p, blocking);
 #endif
 }
 
@@ -725,6 +724,7 @@ void swoole_clean(void);
 int swSocket_listen(int type, char *host, int port, int backlog);
 int swSocket_create(int type);
 int swSocket_wait(int fd, int timeout_ms, int events);
+void swSocket_clean(int fd, void *buf, int len);
 int swSendto(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
 int swSocket_sendfile_sync(int sock, char *filename, double timeout);
 
@@ -844,13 +844,7 @@ struct _swWorker
 	 */
 	uint32_t id;
 
-	/**
-	 * eventfd, process notify
-	 */
-	//swPipe *notify;
-
 	swLock lock;
-	swLock lock_task;
 
 	void *send_shm;
 
@@ -1198,6 +1192,7 @@ typedef struct
     swMemoryPool *memory_pool;
     swReactor *main_reactor;
 
+    swPipe *task_notify;
     swEventData *task_result;
 
     pthread_t heartbeat_pidt;
