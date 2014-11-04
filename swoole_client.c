@@ -215,14 +215,18 @@ static int php_swoole_client_onRead(swReactor *reactor, swEvent *event)
 
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-	if (zend_hash_find(&php_sw_client_callback, (char*) &event->fd, sizeof(event->fd), (void **)&zobject) != SUCCESS)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: Fd[%d] is not a swoole_client object", event->fd);
-		return SW_ERR;
-	}
+    if (zend_hash_find(&php_sw_client_callback, (char*) &event->fd, sizeof(event->fd), (void **) &zobject) != SUCCESS)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: Fd[%d] is not a swoole_client object", event->fd);
+        return SW_ERR;
+    }
 
-	args[0] = zobject;
-	char buf[SW_CLIENT_BUFFER_SIZE];
+    args[0] = zobject;
+    char *buf = emalloc(SW_CLIENT_BUFFER_SIZE + 1);
+
+#ifdef SW_CLIENT_RECV_AGAIN
+    recv_again:
+#endif
 
 #ifdef SW_USE_EPOLLET
 	n = swRead(event->fd, buf, SW_CLIENT_BUFFER_SIZE);
@@ -237,23 +241,25 @@ static int php_swoole_client_onRead(swReactor *reactor, swEvent *event)
 		{
 		case SW_ERROR:
 			swWarn("Read from socket[%d] failed. Error: %s [%d]", event->fd, strerror(errno), errno);
-			return SW_OK;
+			goto free_buf;
 		case SW_CLOSE:
 			goto close_fd;
 		default:
-			return SW_OK;
+		    goto free_buf;
 		}
 	}
 	else if (n == 0)
 	{
 		close_fd:
+		efree(buf);
 		return php_swoole_client_close(zobject, event->fd TSRMLS_CC);
 	}
 	else
 	{
 		zval *zdata;
 		MAKE_STD_ZVAL(zdata);
-		ZVAL_STRINGL(zdata, buf, n, 1);
+	    buf[n] = 0;
+		ZVAL_STRINGL(zdata, buf, n, 0);
 
 		args[1] = &zdata;
 
@@ -261,19 +267,32 @@ static int php_swoole_client_onRead(swReactor *reactor, swEvent *event)
 		if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
 		{
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: swoole_client object have not receive callback.");
-			return SW_ERR;
+			goto free_zdata;
 		}
+
 		if (call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
 		{
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onReactorCallback handler error");
-			return SW_ERR;
+			goto free_zdata;
 		}
-		zval_ptr_dtor(&zdata);
 		if (retval != NULL)
 		{
 			zval_ptr_dtor(&retval);
 		}
+
+#ifdef SW_CLIENT_RECV_AGAIN
+        if (n == SW_CLIENT_BUFFER_SIZE)
+        {
+            goto recv_again;
+        }
+#endif
+        free_zdata:
+        zval_ptr_dtor(&zdata);
+        return SW_OK;
 	}
+
+	free_buf:
+	efree(buf);
 	return SW_OK;
 }
 
