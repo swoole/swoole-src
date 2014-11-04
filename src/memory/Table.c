@@ -33,7 +33,7 @@ static void swTable_compress_list(swTable *table)
     swTableRow **tmp = sw_malloc(sizeof(swTableRow *) * table->size);
     if (!tmp)
     {
-        swWarn("compress the jump table failed.");
+        swWarn("malloc() failed, cannot compress the jump table.");
         goto unlock;
     }
 
@@ -159,10 +159,12 @@ int swTable_create(swTable *table)
     {
         return SW_ERR;
     }
+
     memset(memory, 0, memory_size);
     table->memory = memory;
-
+    table->compress_threshold = table->size * SW_TABLE_COMPRESS_PROPORTION;
     table->rows_list = memory;
+
     memory += table->size * sizeof(swTableRow *);
     memory_size -= table->size * sizeof(swTableRow *);
 
@@ -246,6 +248,7 @@ swTableRow* swTable_iterator_current(swTable *table)
         row = table->rows_list[table->iterator->absolute_index];
         if (row == NULL)
         {
+            table->iterator->skip_count++;
             continue;
         }
         else
@@ -414,6 +417,11 @@ int swTableRow_del(swTable *table, char *key, int keylen)
     sw_atomic_fetch_sub(&(table->row_num), 1);
     row->active = 0;
     sw_spinlock_release(lock);
+
+    if (table->iterator->skip_count > table->compress_threshold)
+    {
+        swTable_compress_list(table);
+    }
 
     return SW_OK;
 }

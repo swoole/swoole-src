@@ -247,6 +247,8 @@ PHP_METHOD(swoole_table, set)
     int klen;
     Bucket *p = Z_ARRVAL_P(array)->pListHead;
 
+    sw_atomic_t *lock = &row->lock;
+    sw_spinlock(lock);
     do
     {
         v = p->pDataPtr;
@@ -275,6 +277,7 @@ PHP_METHOD(swoole_table, set)
             swTableRow_set_value(row, col, &Z_LVAL_P(v), 0);
         }
     } while (p);
+    sw_spinlock_release(lock);
 
     RETURN_TRUE;
 }

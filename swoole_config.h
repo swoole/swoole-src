@@ -147,6 +147,7 @@
 #define SW_FILE_CHUNK_SIZE               65536
 
 #define SW_TABLE_CONFLICT_PROPORTION     0.2 //20%
+#define SW_TABLE_COMPRESS_PROPORTION     0.5 //50% skip, will compress the row list
 
 #define SW_SSL_BUFSIZE  16384
 
