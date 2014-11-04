@@ -377,7 +377,6 @@ int swTableRow_del(swTable *table, char *key, int keylen)
     swTableRow *row = swTable_hash(table, key, keylen);
     uint32_t crc32 = swoole_crc32(key, keylen);
     sw_atomic_t *lock = &row->lock;
-    int i = 0;
 
     //no exists
     if (!row->active)
@@ -386,42 +385,62 @@ int swTableRow_del(swTable *table, char *key, int keylen)
     }
 
     sw_spinlock(lock);
-    for (;; i++)
+
+    if (row->next == NULL)
     {
         if (row->crc32 == crc32)
         {
-            if (i > 0)
+            table->rows_list[row->list_index] = NULL;
+            if (table->iterator->skip_count > table->compress_threshold)
             {
-                table->lock.lock(&table->lock);
-                table->pool->free(table->pool, row);
-                table->lock.unlock(&table->lock);
+                swTable_compress_list(table);
             }
-            break;
-        }
-        else if (row->next == NULL)
-        {
-            sw_spinlock_release(lock);
-            return SW_ERR;
+            row->active = 0;
+            goto delete_element;
         }
         else
         {
-            row = row->next;
+            goto not_exists;
         }
     }
-
-    if (i == 0)
+    else
     {
-        table->rows_list[row->list_index] = NULL;
+        swTableRow *tmp = row;
+        swTableRow *prev;
+
+        while (tmp)
+        {
+            if (tmp->crc32 == crc32)
+            {
+                break;
+            }
+            prev = tmp;
+            tmp = tmp->next;
+        }
+
+        if (tmp == NULL)
+        {
+            not_exists:
+            sw_spinlock_release(lock);
+            return SW_ERR;
+        }
+        //root node
+        if (tmp == row)
+        {
+            memcpy(row, tmp, sizeof(swTableRow) + table->item_size);
+        }
+        else
+        {
+            prev->next = tmp->next;
+        }
+        table->lock.lock(&table->lock);
+        table->pool->free(table->pool, tmp);
+        table->lock.unlock(&table->lock);
     }
 
+    delete_element:
     sw_atomic_fetch_sub(&(table->row_num), 1);
-    row->active = 0;
     sw_spinlock_release(lock);
-
-    if (table->iterator->skip_count > table->compress_threshold)
-    {
-        swTable_compress_list(table);
-    }
 
     return SW_OK;
 }
