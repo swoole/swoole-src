@@ -1421,12 +1421,7 @@ PHP_METHOD(swoole_client, sendfile)
 PHP_METHOD(swoole_client, recv)
 {
 	long buf_len = SW_PHP_CLIENT_BUFFER_SIZE, waitall = 0;
-	char require_efree = 0;
-	char buf_array[SW_PHP_CLIENT_BUFFER_SIZE];
-	char *buf;
 	zval **zres;
-
-	//zval *zdata;
 	int ret;
 	swClient *cli;
 
@@ -1449,23 +1444,7 @@ PHP_METHOD(swoole_client, recv)
 		RETURN_FALSE;
 	}
 
-	/**
-	 * UDP waitall=0 buf_len小于最大值这3种情况使用栈内存
-	 */
-	if (cli->type == SW_SOCK_UDP || cli->type == SW_SOCK_UDP6 || waitall == 0 || buf_len < SW_PHP_CLIENT_BUFFER_SIZE)
-	{
-		buf = buf_array;
-		if (buf_len >= SW_PHP_CLIENT_BUFFER_SIZE)
-		{
-			buf_len = SW_PHP_CLIENT_BUFFER_SIZE-1;
-		}
-	}
-	else
-	{
-		buf = emalloc(buf_len + 1);
-		require_efree = 1;
-	}
-
+    char *buf = emalloc(buf_len + 1);
 	SwooleG.error = 0;
 	ret = cli->recv(cli, buf, buf_len, waitall);
 	if (ret < 0)
@@ -1473,24 +1452,23 @@ PHP_METHOD(swoole_client, recv)
 		SwooleG.error = errno;
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "recv() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
 		zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
-		RETVAL_FALSE;
-	}
-	else
-	{
-		if (ret == 0)
-		{
-			php_swoole_client_close(&getThis(), cli->connection.fd TSRMLS_CC);
-		}
-		else
-		{
-			buf[ret] = 0;
-			RETVAL_STRINGL(buf, ret, 1);
-		}
-	}
-	if (require_efree == 1)
-	{
 		efree(buf);
+		RETURN_FALSE;
 	}
+    else
+    {
+        if (ret == 0)
+        {
+            php_swoole_client_close(&getThis(), cli->connection.fd TSRMLS_CC);
+            efree(buf);
+            RETURN_FALSE;
+        }
+        else
+        {
+            buf[ret] = 0;
+            RETURN_STRINGL(buf, ret, 0);
+        }
+    }
 }
 
 PHP_METHOD(swoole_client, isConnected)
