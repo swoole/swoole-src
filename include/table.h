@@ -38,14 +38,14 @@ typedef struct _swTableRow
     uint8_t active;
 
     /**
+     * iterator
+     */
+    uint32_t list_index;
+
+    /**
      * next slot
      */
     struct _swTableRow *next;
-
-#ifdef SW_TABLE_USE_LINKED_LIST
-    struct _swTableRow *list_prev;
-    struct _swTableRow *list_next;
-#endif
 
     char data[0];
 } swTableRow;
@@ -73,8 +73,12 @@ typedef struct
     swTableRow **rows;
     swMemoryPool *pool;
 
-    swTableRow *head;
-    swTableRow *tail;
+    /**
+     * for iterator
+     */
+    swTableRow **rows_list;
+    sw_atomic_t list_n;
+
     swTable_iterator *iterator;
 
     void *memory;

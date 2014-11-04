@@ -167,6 +167,7 @@ void swoole_table_column_free(swTableColumn *col)
 PHP_METHOD(swoole_table, __construct)
 {
     long table_size;
+
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &table_size) == FAILURE)
     {
         RETURN_FALSE;
@@ -175,6 +176,14 @@ PHP_METHOD(swoole_table, __construct)
     {
         RETURN_FALSE;
     }
+
+#ifdef ZTS
+    if (sw_thread_ctx == NULL)
+    {
+        TSRMLS_SET_CTX(sw_thread_ctx);
+    }
+#endif
+
     swTable *table = swTable_new(table_size);
     zval *zres;
     MAKE_STD_ZVAL(zres);
@@ -311,7 +320,6 @@ PHP_METHOD(swoole_table, current)
 
     swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
     swTableRow *row = swTable_iterator_current(table);
-
     php_swoole_table_row2array(table, row, return_value);
 }
 
@@ -382,10 +390,8 @@ PHP_METHOD(swoole_table, del)
         RETURN_FALSE;
     }
 
-    array_init(return_value);
-
     swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
-    swTableRow_del(table, key, keylen);
+    SW_CHECK_RETURN(swTableRow_del(table, key, keylen));
 }
 
 PHP_METHOD(swoole_table, lock)

@@ -17,10 +17,41 @@
 #include "swoole.h"
 #include "table.h"
 
+static void swTable_compress_list(swTable *table);
+static void swTableColumn_free(swTableColumn *col);
+
 static void swTableColumn_free(swTableColumn *col)
 {
     swString_free(col->name);
     sw_free(col);
+}
+
+static void swTable_compress_list(swTable *table)
+{
+    table->lock.lock(&table->lock);
+
+    swTableRow **tmp = sw_malloc(sizeof(swTableRow *) * table->size);
+    if (!tmp)
+    {
+        swWarn("compress the jump table failed.");
+        goto unlock;
+    }
+
+    int i, tmp_i = 0;
+    for (i = 0; i < table->size; i++)
+    {
+        if (table->rows_list[i] != NULL)
+        {
+            tmp[tmp_i] = table->rows_list[i];
+            tmp_i++;
+        }
+    }
+
+    memcpy(table->rows_list, tmp, sizeof(swTableRow *) * (tmp_i - 1));
+    sw_free(tmp);
+    table->list_n = tmp_i;
+
+    unlock: table->lock.unlock(&table->lock);
 }
 
 swTable* swTable_new(uint32_t rows_size)
@@ -103,18 +134,38 @@ int swTable_create(swTable *table)
     uint32_t row_num = table->size * (1 + SW_TABLE_CONFLICT_PROPORTION);
     uint32_t row_memory_size = sizeof(swTableRow) + table->item_size;
 
-    size_t memory_size = (row_num * row_memory_size) + (table->size * sizeof(swTableRow *))
-        + sizeof(swMemoryPool) + sizeof(swFixedPool) + ((row_num - table->size) * sizeof(swFixedPool_slice));
+    /**
+     * row data & header
+     */
+    size_t memory_size = row_num * row_memory_size;
+
+    /**
+     * row point
+     */
+    memory_size += table->size * sizeof(swTableRow *);
+
+    /**
+     * memory pool for conflict rows
+     */
+    memory_size += sizeof(swMemoryPool) + sizeof(swFixedPool) + ((row_num - table->size) * sizeof(swFixedPool_slice));
+
+    /**
+     * for iterator, Iterate through all the elements
+     */
+    memory_size += table->size * sizeof(swTableRow *);
 
     void *memory = sw_shm_malloc(memory_size);
-
     if (memory == NULL)
     {
         return SW_ERR;
     }
-
     memset(memory, 0, memory_size);
     table->memory = memory;
+
+    table->rows_list = memory;
+    memory += table->size * sizeof(swTableRow *);
+    memory_size -= table->size * sizeof(swTableRow *);
+
     table->rows = memory;
     memory += table->size * sizeof(swTableRow *);
     memory_size -= table->size * sizeof(swTableRow *);
@@ -181,28 +232,6 @@ swTableRow* swTableRow_get(swTable *table, char *key, int keylen)
     return row;
 }
 
-#ifdef SW_TABLE_USE_LINKED_LIST
-
-void swTable_iterator_rewind(swTable *table)
-{
-    table->iterator->tmp_row = table->head;
-}
-
-swTableRow* swTable_iterator_current(swTable *table)
-{
-    return table->iterator->tmp_row;
-}
-
-void swTable_iterator_forward(swTable *table)
-{
-    if (table->iterator->tmp_row)
-    {
-        table->iterator->tmp_row = table->iterator->tmp_row->list_next;
-    }
-}
-
-#else
-
 void swTable_iterator_rewind(swTable *table)
 {
     bzero(table->iterator, sizeof(swTable_iterator));
@@ -210,7 +239,20 @@ void swTable_iterator_rewind(swTable *table)
 
 swTableRow* swTable_iterator_current(swTable *table)
 {
-    swTableRow *row = table->rows[table->iterator->absolute_index];
+    swTableRow *row = NULL;
+
+    for (; table->iterator->absolute_index < table->list_n; table->iterator->absolute_index++)
+    {
+        row = table->rows_list[table->iterator->absolute_index];
+        if (row == NULL)
+        {
+            continue;
+        }
+        else
+        {
+            break;
+        }
+    }
 
     if (table->iterator->collision_index == 0)
     {
@@ -226,43 +268,42 @@ swTableRow* swTable_iterator_current(swTable *table)
 
 void swTable_iterator_forward(swTable *table)
 {
-    swTableRow *row = table->rows[table->iterator->absolute_index];
+    for ( ; table->iterator->absolute_index < table->list_n; table->iterator->absolute_index++)
+    {
+        swTableRow *row = table->rows_list[table->iterator->absolute_index];
 
-    if (row->next == NULL)
-    {
-        table->iterator->absolute_index++;
-        for(;;)
+        if (row == NULL)
         {
-            swTableRow *row = table->rows[table->iterator->absolute_index];
-            if (row->active == 0)
-            {
-                table->iterator->absolute_index++;
-            }
+            continue;
         }
-    }
-    else
-    {
-        int i = 0;
-        for (;; i++)
+        else if (row->next == NULL)
         {
-            row = row->next;
-            if (i == table->iterator->collision_index)
+            table->iterator->absolute_index++;
+            return;
+        }
+        else
+        {
+            int i = 0;
+            for (;; i++)
             {
-                if (row == NULL)
+                row = row->next;
+                if (i == table->iterator->collision_index)
                 {
-                    table->iterator->absolute_index++;
-                    table->iterator->collision_index = 0;
-                }
-                else
-                {
-                    table->iterator->collision_index++;
+                    if (row == NULL)
+                    {
+                        table->iterator->absolute_index++;
+                        table->iterator->collision_index = 0;
+                    }
+                    else
+                    {
+                        table->iterator->collision_index++;
+                    }
+                    return;
                 }
             }
         }
     }
 }
-#endif
-
 
 swTableRow* swTableRow_set(swTable *table, char *key, int keylen)
 {
@@ -307,30 +348,24 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen)
         sw_atomic_fetch_add(&(table->row_num), 1);
     }
 
-#ifdef SW_TABLE_USE_LINKED_LIST
     if (!row->active)
     {
-        row->list_next = NULL;
-        if (table->head)
+        //Need to compress the jump table
+        if (table->list_n == table->size - 1)
         {
-            row->list_prev = table->tail;
-            table->tail->list_next = row;
-            table->tail = row;
+            swTable_compress_list(table);
         }
-        else
-        {
-            table->head = table->tail = row;
-            row->list_prev = NULL;
-            table->iterator->tmp_row = row;
-        }
+        table->rows_list[table->list_n] = row;
+        row->list_index = table->list_n;
+        sw_atomic_fetch_add(&table->list_n, 1);
     }
-#endif
 
     row->crc32 = crc32;
     row->active = 1;
 
     swTrace("row=%p, crc32=%u, key=%s\n", row, crc32, key);
     sw_spinlock_release(lock);
+
     return row;
 }
 
@@ -341,64 +376,44 @@ int swTableRow_del(swTable *table, char *key, int keylen)
     sw_atomic_t *lock = &row->lock;
     int i = 0;
 
+    //no exists
+    if (!row->active)
+    {
+        return SW_ERR;
+    }
+
     sw_spinlock(lock);
-    if (row->active)
+    for (;; i++)
     {
-        for (;; i++)
+        if (row->crc32 == crc32)
         {
-            if (row->crc32 == crc32)
+            if (i > 0)
             {
-                if (i > 0)
-                {
-                    table->lock.lock(&table->lock);
-                    table->pool->free(table->pool, row);
-                    table->lock.unlock(&table->lock);
-                }
-                break;
+                table->lock.lock(&table->lock);
+                table->pool->free(table->pool, row);
+                table->lock.unlock(&table->lock);
             }
-            else if (row->next == NULL)
-            {
-                sw_spinlock_release(lock);
-                return SW_ERR;
-            }
-            else
-            {
-                row = row->next;
-            }
+            break;
         }
-
-#ifdef SW_TABLE_USE_LINKED_LIST
-        if (row->list_prev != NULL)
+        else if (row->next == NULL)
         {
-            row->list_prev->list_next = row->list_next;
+            sw_spinlock_release(lock);
+            return SW_ERR;
         }
         else
         {
-            table->head = row->list_next;
+            row = row->next;
         }
-
-        if (row->list_next != NULL)
-        {
-            row->list_next->list_prev = row->list_prev;
-        }
-        else
-        {
-            table->tail = row->list_prev;
-        }
-
-        if (table->iterator->tmp_row == row)
-        {
-            table->iterator->tmp_row = row->list_next;
-        }
-#endif
     }
 
-    if (row->active)
+    if (i == 0)
     {
-        sw_atomic_fetch_sub(&(table->row_num), 1);
+        table->rows_list[row->list_index] = NULL;
     }
 
+    sw_atomic_fetch_sub(&(table->row_num), 1);
     row->active = 0;
     sw_spinlock_release(lock);
+
     return SW_OK;
 }
