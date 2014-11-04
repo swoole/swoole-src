@@ -99,8 +99,8 @@ static void php_swoole_table_row2array(swTable *table, swTableRow *row, zval *re
         }
         if (col->type == SW_TABLE_STRING)
         {
-            uint16_t vlen = *(int16_t *) (row->data + col->index);
-            add_assoc_stringl_ex(return_value, col->name->str, col->name->length + 1, row->data + col->index + 2, vlen, 1);
+            swTable_string_length_t vlen = *(swTable_string_length_t *) (row->data + col->index);
+            add_assoc_stringl_ex(return_value, col->name->str, col->name->length + 1, row->data + col->index + sizeof(swTable_string_length_t), vlen, 1);
         }
         else if (col->type == SW_TABLE_FLOAT)
         {

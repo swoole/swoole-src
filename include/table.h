@@ -128,6 +128,8 @@ static sw_inline swTableColumn* swTableColumn_get(swTable *table, char *column_k
     return swHashMap_find(table->columns, column_key, keylen);
 }
 
+typedef uint32_t swTable_string_length_t;
+
 static sw_inline void swTableRow_set_value(swTableRow *row, swTableColumn * col, void *value, int vlen)
 {
     switch(col->type)
@@ -148,13 +150,13 @@ static sw_inline void swTableRow_set_value(swTableRow *row, swTableColumn * col,
         memcpy(row->data + col->index, value, sizeof(double));
         break;
     default:
-        if (vlen > (col->size - sizeof(uint16_t)))
+        if (vlen > (col->size - sizeof(swTable_string_length_t)))
         {
             swWarn("string is too long.");
-            vlen = col->size - sizeof(uint16_t);
+            vlen = col->size - sizeof(swTable_string_length_t);
         }
-        *(uint16_t *)(row->data + col->index) = vlen;
-        memcpy(row->data + col->index + sizeof(uint16_t), value, vlen);
+        *(swTable_string_length_t *)(row->data + col->index) = vlen;
+        memcpy(row->data + col->index + sizeof(swTable_string_length_t), value, vlen);
         break;
     }
 }
