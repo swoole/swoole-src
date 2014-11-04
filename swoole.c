@@ -949,6 +949,7 @@ PHP_METHOD(swoole_server, stats)
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
         RETURN_FALSE;
     }
+
     array_init(return_value);
     add_assoc_long_ex(return_value, SW_STRL("start_time"), SwooleStats->start_time);
     add_assoc_long_ex(return_value, SW_STRL("connection_num"), SwooleStats->connection_num);
@@ -965,6 +966,7 @@ PHP_FUNCTION(swoole_timer_after)
     {
         return;
     }
+
     if (interval > 86400000)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "The given parameters is too big.");
@@ -1539,6 +1541,12 @@ PHP_FUNCTION(swoole_server_close)
 	swServer *serv;
 	zval *zfd;
 
+    if (SwooleGS->start == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
+
     if (swIsMaster())
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "Cannot close connection in master process.");
@@ -1569,6 +1577,12 @@ PHP_FUNCTION(swoole_server_reload)
 	zval *zobject = getThis();
 	swServer *serv;
 	zend_bool only_reload_taskworker = 0;
+
+    if (SwooleGS->start == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
 
     if (zobject == NULL)
     {
@@ -1601,6 +1615,12 @@ PHP_FUNCTION(swoole_server_heartbeat)
 	zval *zobject = getThis();
 	swServer *serv;
 	zend_bool close_connection = 0;
+
+    if (SwooleGS->start == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
 
 	if (zobject == NULL)
 	{
@@ -1659,6 +1679,12 @@ PHP_FUNCTION(swoole_server_shutdown)
 	zval *zobject = getThis();
 	swServer *serv;
 
+    if (SwooleGS->start == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
+
 	if (zobject == NULL)
 	{
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O", &zobject, swoole_server_class_entry_ptr) == FAILURE)
@@ -1685,6 +1711,12 @@ PHP_FUNCTION(swoole_connection_info)
 	zend_bool noCheckConnection = 0;
 	long fd = 0;
 	long from_id = -1;
+
+    if (SwooleGS->start == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
 
 	if (zobject == NULL)
 	{
@@ -1755,6 +1787,12 @@ PHP_FUNCTION(swoole_connection_list)
 	swServer *serv;
 	long start_fd = 0;
 	long find_count = 10;
+
+    if (SwooleGS->start == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
 
 	if (zobject == NULL)
 	{
@@ -2452,6 +2490,12 @@ PHP_FUNCTION(swoole_server_send)
 	long _fd = 0;
 	long from_id = -1;
 
+    if (SwooleGS->start == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
+
 	if (zobject == NULL)
 	{
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ozs|l", &zobject, swoole_server_class_entry_ptr, &zfd, &send_data,
@@ -2532,9 +2576,16 @@ PHP_FUNCTION(swoole_server_sendfile)
 	zval *zobject = getThis();
 	swServer *serv;
 	swSendData send_data;
+
 	char buffer[SW_BUFFER_SIZE];
 	char *filename;
 	long conn_fd;
+
+    if (SwooleGS->start == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
 
 #ifdef __CYGWIN__
 	php_error_docref(NULL TSRMLS_CC, E_WARNING, "cannot use swoole_server->sendfile() in cygwin.", filename);
@@ -2627,6 +2678,12 @@ PHP_FUNCTION(swoole_server_deltimer)
 	swServer *serv = NULL;
 	long interval;
 
+    if (SwooleGS->start == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
+
 	if (zobject == NULL)
 	{
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ol", &zobject, swoole_server_class_entry_ptr, &interval) == FAILURE)
@@ -2656,6 +2713,12 @@ PHP_FUNCTION(swoole_server_gettimer)
     zval *zobject = getThis();
     swServer *serv = NULL;
     long interval;
+
+    if (SwooleGS->start == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
 
     if (zobject == NULL)
     {
@@ -2695,9 +2758,15 @@ PHP_FUNCTION(swoole_server_addtimer)
 
 	if (swIsMaster())
 	{
-	    php_error_docref(NULL TSRMLS_CC, E_WARNING, "master process can not use timer.");
+	    php_error_docref(NULL TSRMLS_CC, E_WARNING, "master process cannot use timer.");
 	    RETURN_FALSE;
 	}
+
+    if (SwooleGS->start == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
 
 	if (php_sw_callback[SW_SERVER_CB_onTimer] == NULL)
 	{
@@ -2806,6 +2875,12 @@ PHP_FUNCTION(swoole_server_taskwait)
 	char *data;
 	int data_len;
 	long worker_id = -1;
+
+    if (SwooleGS->start == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
 
 	if (zobject == NULL)
 	{
@@ -2920,6 +2995,12 @@ PHP_FUNCTION(swoole_server_task)
 	int data_len;
 	long worker_id = -1;
 
+    if (SwooleGS->start == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
+
 	if (zobject == NULL)
 	{
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Os|l", &zobject, swoole_server_class_entry_ptr, &data, &data_len, &worker_id) == FAILURE)
@@ -2993,6 +3074,12 @@ PHP_FUNCTION(swoole_server_finish)
 
 	char *data;
 	int data_len;
+
+    if (SwooleGS->start == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
 
 	if (zobject == NULL)
 	{
