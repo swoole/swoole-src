@@ -147,7 +147,6 @@
 #define SW_FILE_CHUNK_SIZE               65536
 
 #define SW_TABLE_CONFLICT_PROPORTION     0.2 //20%
-#define SW_TABLE_USE_LINKED_LIST
 
 #define SW_SSL_BUFSIZE  16384
 
@@ -159,5 +158,6 @@
 #define SW_HTTP_SERVER_SOFTWARE          "swoole-http-server"
 #define SW_HTTP_BAD_REQUEST              "<h1>400 Bad Request</h1>\r\n"
 #define SW_HTTP_PARAM_MAX_NUM            128
+#define SW_HTTP_COOKIE_KEYLEN            128
 
 #endif /* SWOOLE_CONFIG_H_ */

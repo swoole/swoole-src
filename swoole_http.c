@@ -180,6 +180,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
             int vlen;
         } kv = { 0 };
 
+        char keybuf[SW_HTTP_COOKIE_KEYLEN];
         char *_c = (char *) at;
         int n = 1;
         kv.k = _c;
@@ -195,7 +196,13 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
             else if (*_c == ';')
             {
                 kv.vlen = n;
-                add_assoc_stringl_ex(cookie, kv.k, kv.klen, kv.v, kv.vlen, 1);
+                if (kv.klen >= SW_HTTP_COOKIE_KEYLEN)
+                {
+                    kv.klen = SW_HTTP_COOKIE_KEYLEN - 1;
+                }
+                memcpy(keybuf, kv.k, kv.klen - 1);
+                keybuf[kv.klen - 1] = 0;
+                add_assoc_stringl_ex(cookie, keybuf, kv.klen, kv.v, kv.vlen, 1);
                 kv.k = _c + 2;
                 n = 0;
             }
@@ -206,7 +213,13 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
             _c++;
         }
         kv.vlen = n;
-        add_assoc_stringl_ex(cookie, kv.k, kv.klen, kv.v, kv.vlen, 1);
+        if (kv.klen >= SW_HTTP_COOKIE_KEYLEN)
+        {
+            kv.klen = SW_HTTP_COOKIE_KEYLEN - 1;
+        }
+        memcpy(keybuf, kv.k, kv.klen - 1);
+        keybuf[kv.klen - 1] = 0;
+        add_assoc_stringl_ex(cookie, keybuf, kv.klen , kv.v, kv.vlen, 1);
     }
     else
     {
