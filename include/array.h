@@ -19,9 +19,8 @@ typedef struct
 #define swArray_page(array, n)      ((n) / (array)->page_size)
 #define swArray_offset(array, n)    ((n) % (array)->page_size)
 
-swArray *swArray_new(int page_size, size_t elem_size, int flag);
+swArray *swArray_new(int page_size, size_t item_size, int flag);
 void swArray_free(swArray *array);
-uint32_t swArray_push(swArray *array, void *data);
 void *swArray_fetch(swArray *array, uint32_t n);
 int swArray_store(swArray *array, uint32_t n, void *data, uint32_t len);
 

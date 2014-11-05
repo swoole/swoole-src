@@ -74,20 +74,6 @@ int swArray_extend(swArray *array)
     return SW_OK;
 }
 
-uint32_t swArray_push(swArray *array, void *data)
-{
-    int n = array->item_num;
-    array->item_num++;
-    if (array->item_num >= (array->page_num * array->page_size))
-    {
-        if (swArray_extend(array) < 0)
-        {
-            return SW_ERR;
-        }
-    }
-    return n;
-}
-
 void *swArray_fetch(swArray *array, uint32_t n)
 {
     int page = swArray_page(array, n);
