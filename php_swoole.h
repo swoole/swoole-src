@@ -322,6 +322,7 @@ zval *php_swoole_get_data(swEventData *req TSRMLS_DC);
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
 	uint16_t aio_thread_num;
+    zend_bool display_errors;
 	key_t message_queue_key;
 	uint32_t unixsock_buffer_size;
 ZEND_END_MODULE_GLOBALS(swoole)

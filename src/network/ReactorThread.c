@@ -888,7 +888,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
             {
                 memcpy(package->str + package->length, recv_buf, require_n);
                 package->length += require_n;
-                swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, package);
+                swReactorThread_send_string_buffer(swServer_get_thread(serv, reactor->id), conn, package);
                 swString_free((swString *) package);
                 conn->object = NULL;
 

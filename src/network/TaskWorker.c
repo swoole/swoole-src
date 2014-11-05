@@ -114,6 +114,9 @@ void swTaskWorker_onStop(swProcessPool *pool, int worker_id)
 	swWorker_onStop(serv);
 }
 
+/**
+ * Send the task result to worker
+ */
 int swTaskWorker_finish(swServer *serv, char *data, int data_len)
 {
     swEventData buf;
