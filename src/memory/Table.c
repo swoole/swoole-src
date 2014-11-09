@@ -38,16 +38,17 @@ static void swTable_compress_list(swTable *table)
     }
 
     int i, tmp_i = 0;
-    for (i = 0; i < table->size; i++)
+    for (i = 0; i < table->list_n; i++)
     {
         if (table->rows_list[i] != NULL)
         {
             tmp[tmp_i] = table->rows_list[i];
+            tmp[tmp_i]->list_index = tmp_i;
             tmp_i++;
         }
     }
 
-    memcpy(table->rows_list, tmp, sizeof(swTableRow *) * (tmp_i - 1));
+    memcpy(table->rows_list, tmp, sizeof(swTableRow *) * tmp_i);
     sw_free(tmp);
     table->list_n = tmp_i;
 
@@ -335,6 +336,7 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen)
                     return NULL;
                 }
                 //add row_num
+                bzero(new_row, sizeof(swTableRow));
                 sw_atomic_fetch_add(&(table->row_num), 1);
                 row->next = new_row;
                 row = new_row;
@@ -349,12 +351,10 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen)
     else
     {
         sw_atomic_fetch_add(&(table->row_num), 1);
-    }
 
-    if (!row->active)
-    {
-        //Need to compress the jump table
-        if (table->list_n == table->size - 1)
+        // when the root node become active, we may need compress the jump table
+
+        if (table->list_n >= table->size - 1)
         {
             swTable_compress_list(table);
         }
@@ -406,7 +406,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
     else
     {
         swTableRow *tmp = row;
-        swTableRow *prev;
+        swTableRow *prev = NULL;
 
         while (tmp)
         {
@@ -424,13 +424,23 @@ int swTableRow_del(swTable *table, char *key, int keylen)
             sw_spinlock_release(lock);
             return SW_ERR;
         }
-        //root node
+
+        //when the deleting element is root, we should move the first element's data to root,
+        //and remove the element from the collision list.
         if (tmp == row)
         {
-            memcpy(row, tmp, sizeof(swTableRow) + table->item_size);
+            tmp = tmp->next;
+            row->next = tmp->next;
+
+            if (table->iterator->skip_count > table->compress_threshold)
+            {
+                swTable_compress_list(table);
+            }
+
+            memcpy(row->data, tmp->data, table->item_size);
         }
-        else
-        {
+
+        if (prev) {
             prev->next = tmp->next;
         }
         table->lock.lock(&table->lock);
