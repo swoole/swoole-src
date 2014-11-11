@@ -258,7 +258,7 @@ int swReactorThread_send(swSendData *_send)
             int n;
 
             direct_send:
-            n = send(fd, _send->data, _send->length, 0);
+            n = swConnection_send(conn, _send->data, _send->length, 0);
             if (n == _send->length)
             {
                 return SW_OK;

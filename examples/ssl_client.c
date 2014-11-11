@@ -1,3 +1,6 @@
+/**
+ * gcc -g -o ssl_client ssl_client.c -lssl -lcrypt -lcrypto
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
