@@ -208,6 +208,16 @@ enum swLogLevel
 
 };
 //-------------------------------------------------------------------------------
+enum swDispatchMode
+{
+    SW_DISPATCH_ROUND = 1, SW_DISPATCH_FDMOD = 2, SW_DISPATCH_QUEUE = 3,
+};
+enum swWorkerStatus
+{
+    SW_WORKER_BUSY = 1,
+    SW_WORKER_IDLE = 0,
+};
+//-------------------------------------------------------------------------------
 
 #define swWarn(str,...)        SwooleG.lock.lock(&SwooleG.lock);\
 snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str,__func__,##__VA_ARGS__);\
@@ -863,6 +873,9 @@ struct _swProcessPool
 	 */
 	uint8_t reloading;
 	uint8_t reload_flag;
+
+	uint8_t dispatch_mode;
+
 	/**
 	 * use message queue IPC
 	 */
@@ -1170,9 +1183,10 @@ typedef struct
     uint16_t task_worker_num;
     char *task_tmpdir;
     uint16_t task_tmpdir_len;
-    uint8_t task_ipc_mode;
-
     uint16_t cpu_num;
+
+    uint8_t task_ipc_mode;
+    uint8_t task_dispatch_mode;
 
     uint32_t pagesize;
     uint32_t max_sockets;

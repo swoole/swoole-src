@@ -21,6 +21,27 @@ static swEventData *current_task;
 
 static void swTaskWorker_signal_init(void);
 
+void swTaskWorker_init(swProcessPool *pool)
+{
+    SwooleG.task_workers.ptr = SwooleG.serv;
+    SwooleG.task_workers.onTask = swTaskWorker_onTask;
+    SwooleG.task_workers.onWorkerStart = swTaskWorker_onStart;
+    SwooleG.task_workers.onWorkerStop = swTaskWorker_onStop;
+
+    char *tmp_dir = swoole_dirname(SwooleG.task_tmpdir);
+    //create tmp dir
+    if (access(tmp_dir, R_OK) < 0 && swoole_mkdir_recursive(tmp_dir) < 0)
+    {
+        swWarn("create task tmp dir failed.");
+    }
+    free(tmp_dir);
+
+    if (SwooleG.task_dispatch_mode == SW_DISPATCH_QUEUE || SwooleG.task_ipc_mode == 3)
+    {
+        pool->dispatch_mode = SW_DISPATCH_QUEUE;
+    }
+}
+
 /**
  * in worker process
  */
@@ -98,14 +119,6 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
     swWorker_onStart(serv);
 
     SwooleG.process_type = SW_PROCESS_TASKWORKER;
-
-    char *tmp_dir = swoole_dirname(SwooleG.task_tmpdir);
-    //create tmp dir
-    if (access(tmp_dir, R_OK) < 0 && swoole_mkdir_recursive(tmp_dir) < 0)
-    {
-        swWarn("create task tmp dir failed.");
-    }
-    free(tmp_dir);
 }
 
 void swTaskWorker_onStop(swProcessPool *pool, int worker_id)

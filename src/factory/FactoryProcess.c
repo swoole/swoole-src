@@ -219,6 +219,8 @@ static int swFactoryProcess_manager_start(swFactory *factory)
             return SW_ERR;
         }
 
+        swTaskWorker_init(&SwooleG.task_workers);
+
         swWorker *worker;
         for(i = 0; i < SwooleG.task_worker_num; i++)
         {
@@ -228,12 +230,6 @@ static int swFactoryProcess_manager_start(swFactory *factory)
                  return SW_ERR;
              }
         }
-
-        //设置指针和回调函数
-        SwooleG.task_workers.ptr = serv;
-        SwooleG.task_workers.onTask = swTaskWorker_onTask;
-        SwooleG.task_workers.onWorkerStart = swTaskWorker_onStart;
-        SwooleG.task_workers.onWorkerStop = swTaskWorker_onStop;
     }
 
     pid = fork();

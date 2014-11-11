@@ -1075,15 +1075,20 @@ PHP_FUNCTION(swoole_server_set)
 	}
 	//task_worker_num
 	if (zend_hash_find(vht, ZEND_STRS("task_worker_num"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		SwooleG.task_worker_num = (int)Z_LVAL_PP(v);
-	}
-	if (zend_hash_find(vht, ZEND_STRS("task_ipc_mode"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		SwooleG.task_ipc_mode = (int)Z_LVAL_PP(v);
-	}
+    {
+        convert_to_long(*v);
+        SwooleG.task_worker_num = (int) Z_LVAL_PP(v);
+    }
+    if (zend_hash_find(vht, ZEND_STRS("task_ipc_mode"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(*v);
+        SwooleG.task_ipc_mode = (int) Z_LVAL_PP(v);
+    }
+    if (zend_hash_find(vht, ZEND_STRS("task_dispatch_mode"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(*v);
+        SwooleG.task_dispatch_mode = (int) Z_LVAL_PP(v);
+    }
 	/**
 	 * Temporary file directory for task_worker
 	 */

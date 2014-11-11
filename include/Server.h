@@ -31,13 +31,6 @@ extern "C" {
 #define SW_PIPES_NUM               (SW_WORKER_NUM/SW_WRITER_NUM + 1) //每个写线程pipes数组大小
 #define SW_WORKER_NUM              (SW_CPU_NUM*2)
 
-#define SW_DISPATCH_ROUND          1
-#define SW_DISPATCH_FDMOD          2
-#define SW_DISPATCH_QUEUE          3
-
-#define SW_WORKER_BUSY             1
-#define SW_WORKER_IDLE             0
-
 #define SW_HEARTBEAT_IDLE          0   //心跳存活最大时间
 #define SW_HEARTBEAT_CHECK         0   //心跳定时侦测时间
 
@@ -476,6 +469,7 @@ int swServer_reactor_del(swServer *serv, int fd, int reacot_id); //no use
 int swServer_get_manager_pid(swServer *serv);
 void swServer_onTimer(swTimer *timer, int interval);
 
+void swTaskWorker_init(swProcessPool *pool);
 int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);
 int swTaskWorker_onFinish(swReactor *reactor, swEvent *event);
 void swTaskWorker_onStart(swProcessPool *pool, int worker_id);

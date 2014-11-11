@@ -112,10 +112,28 @@ int swProcessPool_start(swProcessPool *pool)
 int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int worker_id)
 {
     int ret;
-    //no worker_id, will round
+
     if (worker_id < 0)
     {
-        worker_id = (pool->round_id++)%pool->worker_num;
+        if (!pool->use_msgqueue && pool->dispatch_mode == SW_DISPATCH_QUEUE)
+        {
+            int i, target_worker_id;
+            for (i = 0; i < pool->worker_num; i++)
+            {
+                pool->round_id++;
+                target_worker_id = pool->round_id % pool->worker_num;
+
+                if (swProcessPool_worker(pool, worker_id).status == SW_WORKER_IDLE)
+                {
+                    break;
+                }
+            }
+            worker_id = target_worker_id;
+        }
+        else
+        {
+            worker_id = (pool->round_id++) % pool->worker_num;
+        }
     }
 
     struct
@@ -261,7 +279,7 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
      */
     out.buf.info.from_fd = worker->id;
 
-    if (SwooleG.task_ipc_mode == 2)
+    if (SwooleG.task_dispatch_mode)
     {
         out.mtype = worker->id + 1;
     }
@@ -378,8 +396,7 @@ int swProcessPool_wait(swProcessPool *pool)
             ret = kill(reload_workers[reload_worker_i].pid, SIGTERM);
             if (ret < 0)
             {
-                swWarn("[Manager]kill fail.pid=%d. Error: %s [%d]", reload_workers[reload_worker_i].pid,
-                        strerror(errno), errno);
+                swSysError("[Manager]kill(%d) failed.", reload_workers[reload_worker_i].pid);
                 continue;
             }
             reload_worker_i++;
