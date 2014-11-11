@@ -1116,6 +1116,7 @@ int swServer_connection_close(swServer *serv, int fd)
         if (conn->object)
         {
             swString_free(conn->object);
+            conn->object = NULL;
         }
     }
     else if (serv->open_http_protocol)

@@ -855,7 +855,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
                     {
                         return SW_ERR;
                     }
-                    memcpy(package->str, (void *)tmp_ptr, (uint32_t) tmp_n);
+                    memcpy(package->str, (void *) tmp_ptr, (uint32_t) tmp_n);
                     package->length += tmp_n;
                     conn->object = (void *) package;
                     break;
