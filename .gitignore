@@ -48,3 +48,4 @@ modules/*
 /examples/recv_file.jpg
 /modules
 /examples/async/test.copy
+/examples/ssl_client

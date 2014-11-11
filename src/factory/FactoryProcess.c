@@ -81,19 +81,31 @@ int swFactoryProcess_shutdown(swFactory *factory)
 {
     swServer *serv = SwooleG.serv;
     int status;
+
     if (kill(SwooleGS->manager_pid, SIGTERM) < 0)
     {
         swWarn("kill(%d) failed. Error: %s[%d]", SwooleGS->manager_pid, strerror(errno), errno);
     }
-    if (waitpid(SwooleGS->manager_pid, &status, 0) < 0)
+
+    do
     {
-        swWarn("waitpid(%d) failed. Error: %s[%d]", SwooleGS->manager_pid, strerror(errno), errno);;
-    }
+        if (waitpid(SwooleGS->manager_pid, &status, 0) < 0 && errno == EINTR)
+        {
+            continue;
+        }
+        else
+        {
+            swWarn("waitpid(%d) failed. Error: %s[%d]", SwooleGS->manager_pid, strerror(errno), errno);
+            break;
+        }
+    } while (1);
+
     if (serv->ipc_mode == SW_IPC_MSGQUEUE)
     {
         serv->read_queue.free(&serv->read_queue);
         serv->write_queue.free(&serv->write_queue);
     }
+
     //close pipes
     return SW_OK;
 }
