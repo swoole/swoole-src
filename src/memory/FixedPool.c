@@ -99,8 +99,15 @@ static void swFixedPool_init(swFixedPool *object)
 
         object->head = slice;
         cur += (sizeof(swFixedPool_slice) + object->slice_size);
-        slice->pre = (swFixedPool_slice *) cur;
-    } while (cur < max);
+
+        if (cur < max) {
+            slice->pre = (swFixedPool_slice *) cur;
+        } else {
+            slice->pre = NULL; // we must ensure the previous element of the head be NULL
+            break;
+        }
+
+    } while (1);
 }
 
 static void* swFixedPool_alloc(swMemoryPool *pool, uint32_t size)
@@ -113,6 +120,7 @@ static void* swFixedPool_alloc(swMemoryPool *pool, uint32_t size)
     if (slice->lock == 0)
     {
         slice->lock = 1;
+        object->slice_use += 1;
         /**
          * move next slice to head (idle list)
          */
@@ -143,6 +151,10 @@ static void swFixedPool_free(swMemoryPool *pool, void *ptr)
     assert(ptr > object->memory && ptr < object->memory + object->size);
 
     slice = ptr - sizeof(swFixedPool_slice);
+    if (slice->lock) {
+        object->slice_use -= 1;
+    }
+
     slice->lock = 0;
 
     //list head, AB
@@ -154,6 +166,7 @@ static void swFixedPool_free(swMemoryPool *pool, void *ptr)
     if (slice->next == NULL)
     {
         slice->pre->next = NULL;
+        object->tail = slice->pre;
     }
     //middle BCD
     else
@@ -161,6 +174,7 @@ static void swFixedPool_free(swMemoryPool *pool, void *ptr)
         slice->pre->next = slice->next;
         slice->next->pre = slice->pre;
     }
+
     slice->pre = NULL;
     slice->next = object->head;
     object->head->pre = slice;
