@@ -203,7 +203,7 @@ void swProcessPool_shutdown(swProcessPool *pool)
                 swSysError("kill(%d) failed.", worker->pid);
                 continue;
             }
-            if (waitpid(worker->pid, &status, 0) < 0)
+            if (swWaitpid(worker->pid, &status, 0) < 0)
             {
                 swSysError("waitpid(%d) failed.", worker->pid);
             }

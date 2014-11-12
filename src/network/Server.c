@@ -235,16 +235,6 @@ int swServer_reactor_del(swServer *serv, int fd, int reacot_id)
 
 static int swServer_start_check(swServer *serv)
 {
-//	if (serv->onConnect == NULL)
-//	{
-//		swWarn("onConnect is null");
-//		return SW_ERR;
-//	}
-//	if (serv->onClose == NULL)
-//	{
-//		swWarn("onClose is null");
-//		return SW_ERR;
-//	}
 	if (serv->onReceive == NULL)
 	{
 		swWarn("onReceive is null");
@@ -284,19 +274,19 @@ static int swServer_start_check(swServer *serv)
 		swWarn("serv->worker_num > %d, Too many processes, the system will be slow", SW_CPU_NUM * SW_MAX_WORKER_NCPU);
 		serv->worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
 	}
-	if (serv->worker_num < serv->reactor_num)
-	{
-		serv->reactor_num = serv->worker_num;
-	}
-	if (serv->worker_num < serv->writer_num)
-	{
-		serv->writer_num = serv->worker_num;
-	}
-	if (SwooleG.max_sockets > 0 && serv->max_connection > SwooleG.max_sockets)
-	{
-	    swWarn("serv->max_conn is exceed the maximum value[%d].", SwooleG.max_sockets);
-	    serv->max_connection = SwooleG.max_sockets;
-	}
+    if (serv->worker_num < serv->reactor_num)
+    {
+        serv->reactor_num = serv->worker_num;
+    }
+    if (serv->worker_num < serv->writer_num)
+    {
+        serv->writer_num = serv->worker_num;
+    }
+    if (SwooleG.max_sockets > 0 && serv->max_connection > SwooleG.max_sockets)
+    {
+        swWarn("serv->max_conn is exceed the maximum value[%d].", SwooleG.max_sockets);
+        serv->max_connection = SwooleG.max_sockets;
+    }
 
 #ifdef SW_USE_OPENSSL
 	if (serv->open_ssl)
@@ -596,32 +586,32 @@ void swServer_init(swServer *serv)
 
 int swServer_create(swServer *serv)
 {
-	//EOF最大长度为8字节
-	if (serv->package_eof_len > sizeof(serv->package_eof))
-	{
-		serv->package_eof_len = sizeof(serv->package_eof);
-	}
+    //EOF最大长度为8字节
+    if (serv->package_eof_len > sizeof(serv->package_eof))
+    {
+        serv->package_eof_len = sizeof(serv->package_eof);
+    }
 
-	//初始化日志
-	if (serv->log_file[0] != 0)
-	{
-		swLog_init(serv->log_file);
-	}
+    //初始化日志
+    if (serv->log_file[0] != 0)
+    {
+        swLog_init(serv->log_file);
+    }
 
-	//保存指针到全局变量中去
-	//TODO 未来全部使用此方式访问swServer/swFactory对象
-	SwooleG.serv = serv;
-	SwooleG.factory = &serv->factory;
+    //保存指针到全局变量中去
+    //TODO 未来全部使用此方式访问swServer/swFactory对象
+    SwooleG.serv = serv;
+    SwooleG.factory = &serv->factory;
 
-	//单进程单线程模式
-	if (serv->factory_mode == SW_MODE_SINGLE)
-	{
-		return swReactorProcess_create(serv);
-	}
-	else
-	{
-		return swReactorThread_create(serv);
-	}
+    //单进程单线程模式
+    if (serv->factory_mode == SW_MODE_SINGLE)
+    {
+        return swReactorProcess_create(serv);
+    }
+    else
+    {
+        return swReactorThread_create(serv);
+    }
 }
 
 int swServer_shutdown(swServer *serv)
@@ -647,21 +637,28 @@ int swServer_free(swServer *serv)
 	    pthread_cancel(SwooleG.heartbeat_pidt);
 		pthread_join(SwooleG.heartbeat_pidt, NULL);
 	}
-	/**
-	 * Wait until all the end of the thread
-	 */
-	swReactorThread_free(serv);
 
-	//reactor free
-	if (serv->reactor.free != NULL)
-	{
-		serv->reactor.free(&(serv->reactor));
-	}
 
-	if (serv->factory_mode == SW_MODE_SINGLE && SwooleG.task_worker_num > 0)
-	{
-		swProcessPool_shutdown(&SwooleG.task_workers);
-	}
+	if (serv->factory_mode == SW_MODE_SINGLE)
+    {
+        if (SwooleG.task_worker_num > 0)
+        {
+            swProcessPool_shutdown(&SwooleG.task_workers);
+        }
+    }
+    else
+    {
+        /**
+         * Wait until all the end of the thread
+         */
+        swReactorThread_free(serv);
+    }
+
+    //reactor free
+    if (serv->reactor.free != NULL)
+    {
+        serv->reactor.free(&(serv->reactor));
+    }
 
 #ifdef SW_USE_OPENSSL
     if (serv->open_ssl)

@@ -1064,15 +1064,19 @@ PHP_FUNCTION(swoole_server_set)
         }
 	}
 	//worker_num
-	if (zend_hash_find(vht, ZEND_STRS("worker_num"), (void **)&v) == SUCCESS)
-	{
-		convert_to_long(*v);
-		serv->worker_num = (int)Z_LVAL_PP(v);
+    if (zend_hash_find(vht, ZEND_STRS("worker_num"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(*v);
+        serv->worker_num = (int) Z_LVAL_PP(v);
         if (serv->worker_num <= 0)
         {
             serv->worker_num = SwooleG.cpu_num;
         }
-	}
+    }
+    else if (serv->factory_mode == SW_MODE_SINGLE)
+    {
+        serv->worker_num = 1;
+    }
 	//task_worker_num
 	if (zend_hash_find(vht, ZEND_STRS("task_worker_num"), (void **)&v) == SUCCESS)
     {
@@ -1115,6 +1119,10 @@ PHP_FUNCTION(swoole_server_set)
     {
         convert_to_long(*v);
         serv->max_request = (int) Z_LVAL_PP(v);
+    }
+    else if (serv->factory_mode == SW_MODE_SINGLE)
+    {
+        serv->max_request = 0;
     }
     //task_max_request
     if (zend_hash_find(vht, ZEND_STRS("task_max_request"), (void **) &v) == SUCCESS)

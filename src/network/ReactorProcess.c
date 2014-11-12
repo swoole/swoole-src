@@ -54,15 +54,6 @@ int swReactorProcess_start(swServer *serv)
     {
         serv->onStart(serv);
     }
-    int ret, i;
-    swProcessPool pool;
-    if (swProcessPool_create(&pool, serv->worker_num, serv->max_request, 0) < 0)
-    {
-        return SW_ERR;
-    }
-    pool.main_loop = swReactorProcess_loop;
-    pool.ptr = serv;
-
     //listen UDP
     if (serv->have_udp_sock == 1)
     {
@@ -83,13 +74,28 @@ int swReactorProcess_start(swServer *serv)
     if (serv->have_tcp_sock == 1)
     {
         //listen server socket
-        ret = swServer_listen(serv, NULL);
-        if (ret < 0)
+        if (swServer_listen(serv, NULL) < 0)
         {
             return SW_ERR;
         }
     }
+
+    swProcessPool pool;
+    pool.ptr = serv;
+
+    //no worker
+    if (serv->worker_num == 1 && SwooleG.task_worker_num == 0 && serv->max_request == 0)
+    {
+        return swReactorProcess_loop(&pool, NULL);
+    }
+
+    pool.main_loop = swReactorProcess_loop;
+    if (swProcessPool_create(&pool, serv->worker_num, serv->max_request, 0) < 0)
+    {
+        return SW_ERR;
+    }
     SwooleG.event_workers = &pool;
+
     //task workers
     if (SwooleG.task_worker_num > 0)
     {
@@ -99,6 +105,7 @@ int swReactorProcess_start(swServer *serv)
             return SW_ERR;
         }
 
+        int i;
         swWorker *worker;
         for (i = 0; i < SwooleG.task_worker_num; i++)
         {
@@ -144,7 +151,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     //create reactor
     if (swReactor_auto(reactor, SW_REACTOR_MAXEVENTS) < 0)
     {
-        swWarn("Swoole reactor create fail");
+        swWarn("ReactorProcess create failed.");
         return SW_ERR;
     }
 
@@ -167,8 +174,6 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     reactor->setHandle(reactor, SW_FD_LISTEN, swServer_master_onAccept);
     //close
     reactor->setHandle(reactor, SW_FD_CLOSE, swReactorProcess_onClose);
-    //task finish
-    reactor->setHandle(reactor, SW_FD_PIPE, swTaskWorker_onFinish);
     //udp receive
     reactor->setHandle(reactor, SW_FD_UDP, swReactorThread_onPackage);
     //write
@@ -186,8 +191,6 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     {
         reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_no_buffer);
     }
-    //pipe
-    reactor->add(reactor, worker->pipe_master, SW_FD_PIPE);
 
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_timerfd)
