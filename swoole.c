@@ -964,7 +964,7 @@ PHP_FUNCTION(swoole_timer_after)
     long interval;
     swTimer_callback* callback = sw_malloc(sizeof(swTimer_callback));
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lzz",  &interval ,&(callback->callback), &(callback->data) ) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz|z",  &interval ,&(callback->callback), &(callback->data) ) == FAILURE)
     {
         return;
     }
