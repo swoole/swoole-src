@@ -102,7 +102,10 @@ int swFactoryProcess_shutdown(swFactory *factory)
 
     if (serv->ipc_mode == SW_IPC_MSGQUEUE)
     {
+        swQueueMsg_set_destory(&serv->read_queue, 1);
         serv->read_queue.free(&serv->read_queue);
+
+        swQueueMsg_set_destory(&serv->read_queue, 1);
         serv->write_queue.free(&serv->write_queue);
     }
 

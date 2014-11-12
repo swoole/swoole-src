@@ -429,6 +429,7 @@ typedef struct _swQueue
 
 int swQueueMsg_create(swQueue *p, int wait, key_t msg_key, long type);
 void swQueueMsg_set_blocking(swQueue *p, uint8_t blocking);
+void swQueueMsg_set_destory(swQueue *p, uint8_t destory);
 
 //------------------Lock--------------------------------------
 

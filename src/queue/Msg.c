@@ -47,6 +47,12 @@ void swQueueMsg_set_blocking(swQueue *p, uint8_t blocking)
     object->ipc_wait = blocking ? 0 : IPC_NOWAIT;
 }
 
+void swQueueMsg_set_destory(swQueue *p, uint8_t destory)
+{
+    swQueueMsg *object = p->object;
+    object->delete = destory;
+}
+
 int swQueueMsg_create(swQueue *p, int blocking, key_t msg_key, long type)
 {
     int msg_id;
