@@ -394,7 +394,7 @@ int swServer_start(swServer *serv)
     {
         char path_buf[128];
         char *path_ptr = getcwd(path_buf, 128);
-        serv->message_queue_key = ftok(path_ptr, 1) + getpid();
+        serv->message_queue_key = ftok(path_ptr, 1);
     }
 
     if (serv->ipc_mode == SW_IPC_MSGQUEUE)
