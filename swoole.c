@@ -1818,44 +1818,44 @@ PHP_FUNCTION(swoole_connection_list)
 	SWOOLE_GET_SERVER(zobject, serv);
 
 	//超过最大查找数量
-	if (find_count > SW_MAX_FIND_COUNT)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_connection_list max_find_count=%d", SW_MAX_FIND_COUNT);
-		RETURN_FALSE;
-	}
+    if (find_count > SW_MAX_FIND_COUNT)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_connection_list max_find_count=%d", SW_MAX_FIND_COUNT);
+        RETURN_FALSE;
+    }
 
 	//复制出来避免被其他进程改写
-	int serv_max_fd = swServer_get_maxfd(serv);
+    int serv_max_fd = swServer_get_maxfd(serv);
 
-	if (start_fd == 0)
-	{
-		start_fd = swServer_get_minfd(serv);
-	}
+    if (start_fd == 0)
+    {
+        start_fd = swServer_get_minfd(serv);
+    }
 
 	//达到最大，表示已经取完了
-	if ((int)start_fd >= serv_max_fd)
-	{
+    if ((int) start_fd >= serv_max_fd)
+    {
+
 		RETURN_FALSE;
 	}
-	array_init(return_value);
-	int fd = start_fd+1;
 
-	//循环到最大fd
-	for(; fd<= serv_max_fd; fd++)
-	{
-		 swTrace("maxfd=%d|fd=%d|find_count=%ld|start_fd=%ld", serv_max_fd, fd, find_count, start_fd);
-		 if (serv->connection_list[fd].active == 1)
-		 {
-			 add_next_index_long(return_value, fd);
-			 find_count--;
-		 }
-		 //finish fetch
-		 if (find_count <= 0)
-		 {
-			 break;
-		 }
-	}
-	//sw_log(SW_END_LINE);
+	array_init(return_value);
+    int fd = start_fd + 1;
+
+    for (; fd <= serv_max_fd; fd++)
+    {
+        swTrace("maxfd=%d|fd=%d|find_count=%ld|start_fd=%ld", serv_max_fd, fd, find_count, start_fd);
+        if (serv->connection_list[fd].active)
+        {
+            add_next_index_long(return_value, fd);
+            find_count--;
+        }
+        //finish fetch
+        if (find_count <= 0)
+        {
+            break;
+        }
+    }
 }
 
 static int php_swoole_onReceive(swFactory *factory, swEventData *req)
