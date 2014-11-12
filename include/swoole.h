@@ -173,17 +173,18 @@ enum swFd_type
     SW_FD_WRITE           = 7, //fd can write
     SW_FD_TIMER           = 8, //timer fd
     SW_FD_AIO             = 9, //linux native aio
-
     SW_FD_SIGNAL          = 11, //signalfd
     SW_FD_DNS_RESOLVER    = 12, //dns resolver
+    SW_FD_USER            = 15, //SW_FD_USER or SW_FD_USER+n: for custom event
 };
 //-------------------------------------------------------------------------------
-#define SW_FD_USER             15 //SW_FD_USER or SW_FD_USER+n: for custom event
-//-------------------------------------------------------------------------------
-#define SW_MODE_BASE           1
-#define SW_MODE_THREAD         2
-#define SW_MODE_PROCESS        3
-#define SW_MODE_SINGLE         4  //single thread mode
+enum swServer_mode
+{
+    SW_MODE_BASE          =  1,
+    SW_MODE_THREAD        =  2,
+    SW_MODE_PROCESS       =  3,
+    SW_MODE_SINGLE        =  4,
+};
 //-------------------------------------------------------------------------------
 enum swSocket_type
 {
@@ -752,6 +753,21 @@ static sw_inline int swSocket_write(int fd, void *data, int len)
         break;
     }
     return n;
+}
+
+static sw_inline int swWaitpid(__pid_t __pid, int *__stat_loc, int __options)
+{
+    int ret;
+    do
+    {
+        ret = waitpid(__pid, __stat_loc, __options);
+        if (ret < 0 && errno == EINTR)
+        {
+            continue;
+        }
+        break;
+    } while(1);
+    return ret;
 }
 
 #ifdef TCP_NOPUSH
