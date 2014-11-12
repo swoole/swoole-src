@@ -555,11 +555,6 @@ void php_swoole_check_timer(int msec)
     {
         if (SwooleG.serv)
         {
-            if (SwooleG.serv->onTimer == NULL)
-            {
-                swWarn("onTimer is null. Can not use timer.");
-                return;
-            }
             SwooleG.timer.onTimer = swServer_onTimer;
         }
         else
