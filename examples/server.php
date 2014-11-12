@@ -131,8 +131,8 @@ function my_onConnect($serv, $fd, $from_id)
 function my_onWorkerStart($serv, $worker_id)
 {
 	processRename($serv, $worker_id);
-	forkChildInWorker();
-	//setTimerInWorker($serv, $worker_id);
+	//forkChildInWorker();
+	setTimerInWorker($serv, $worker_id);
 }
 
 function my_onWorkerStop($serv, $worker_id)
