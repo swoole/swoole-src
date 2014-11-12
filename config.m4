@@ -185,6 +185,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/memory/MemoryGlobal.c \
         src/memory/RingBuffer.c \
         src/memory/FixedPool.c \
+        src/memory/Malloc.c \
         src/memory/Table.c \
         src/factory/Factory.c \
         src/factory/FactoryThread.c \
