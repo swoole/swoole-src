@@ -55,13 +55,20 @@ int swFactory_notify(swFactory *factory, swDataHead *req)
     switch (req->type)
     {
     case SW_EVENT_CLOSE:
-        serv->onClose(serv, req->fd, req->from_id);
+        if (serv->onClose)
+        {
+            serv->onClose(serv, req->fd, req->from_id);
+        }
         break;
+
     case SW_EVENT_CONNECT:
-        serv->onConnect(serv, req->fd, req->from_id);
+        if (serv->onConnect)
+        {
+            serv->onConnect(serv, req->fd, req->from_id);
+        }
         break;
     default:
-        swWarn("Error event[type=%d]", (int)req->type);
+        swWarn("Error event[type=%d]", (int )req->type);
         break;
     }
     return SW_OK;

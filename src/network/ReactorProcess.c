@@ -169,6 +169,12 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     reactor->id = 0;
     reactor->ptr = serv;
 
+    serv->reactor_threads[0].buffer_input = swMalloc_new();
+    if (serv->reactor_threads[0].buffer_input == NULL)
+    {
+        return SW_ERR;
+    }
+
     //set event handler
     //connect
     reactor->setHandle(reactor, SW_FD_LISTEN, swServer_master_onAccept);

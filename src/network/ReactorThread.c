@@ -655,26 +655,25 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
         task.data.info.fd = event->fd;
         task.data.info.from_id = event->from_id;
         task.data.info.len = n;
-
-#ifdef SW_USE_RINGBUFFER
-
-        uint16_t target_worker_id = swServer_worker_schedule(serv, conn->fd);
-        swPackage package;
-
-        package.length = task.data.info.len;
-        package.data = swReactorThread_alloc(&serv->reactor_threads[SwooleTG.id], package.length);
-        task.data.info.type = SW_EVENT_PACKAGE;
-
-        memcpy(package.data, task.data.data, task.data.info.len);
-        task.data.info.len = sizeof(package);
-        task.target_worker_id = target_worker_id;
-        memcpy(task.data.data, &package, sizeof(package));
-
-#else
         task.data.info.type = SW_EVENT_TCP;
         task.target_worker_id = -1;
-#endif
 
+#ifdef SW_USE_RINGBUFFER
+        if (serv->factory_mode == SW_MODE_PROCESS)
+        {
+            uint16_t target_worker_id = swServer_worker_schedule(serv, conn->fd);
+            swPackage package;
+
+            package.length = task.data.info.len;
+            package.data = swReactorThread_alloc(&serv->reactor_threads[SwooleTG.id], package.length);
+            task.data.info.type = SW_EVENT_PACKAGE;
+
+            memcpy(package.data, task.data.data, task.data.info.len);
+            task.data.info.len = sizeof(package);
+            task.target_worker_id = target_worker_id;
+            memcpy(task.data.data, &package, sizeof(package));
+        }
+#endif
         //dispatch to worker process
         ret = factory->dispatch(factory, &task);
 
@@ -1181,6 +1180,8 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
     swThreadParam *param;
     swReactorThread *thread;
     pthread_t pidt;
+
+    serv->reactor_pipe_num = serv->worker_num / serv->reactor_num;
 
     int i, ret;
     //listen UDP

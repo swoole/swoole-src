@@ -341,6 +341,7 @@ static int swServer_start_proxy(swServer *serv)
 	SwooleTG.id = 0;
 
 	SwooleG.main_reactor = main_reactor;
+
 	main_reactor->id = serv->reactor_num; //设为一个特别的ID
 	main_reactor->ptr = serv;
 	main_reactor->setHandle(main_reactor, SW_FD_LISTEN, swServer_master_onAccept);
@@ -450,8 +451,6 @@ int swServer_start(swServer *serv)
 	SwooleGS->master_pid = getpid();
 	SwooleGS->start = 1;
 	SwooleGS->now = SwooleStats->start_time = time(NULL);
-
-	serv->reactor_pipe_num = serv->worker_num / serv->reactor_num;
 
 	//设置factory回调函数
 	serv->factory.ptr = serv;
