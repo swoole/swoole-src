@@ -18,6 +18,7 @@
 #include "Server.h"
 
 static swEventData *current_task;
+static swWorker *current_worker;
 
 static void swTaskWorker_signal_init(void);
 
@@ -60,9 +61,14 @@ int swTaskWorker_onFinish(swReactor *reactor, swEvent *event)
 
 int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
 {
-	swServer *serv = pool->ptr;
-	current_task = task;
-	return serv->onTask(serv, task);
+    swServer *serv = pool->ptr;
+    current_task = task;
+
+    current_worker->status = SW_WORKER_BUSY;
+    int ret = serv->onTask(serv, task);
+    current_worker->status = SW_WORKER_IDLE;
+
+    return ret;
 }
 
 int swTaskWorker_large_pack(swEventData *task, void *data, int data_len)
@@ -117,6 +123,8 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
 
     swTaskWorker_signal_init();
     swWorker_onStart(serv);
+
+    current_worker = &pool->workers[worker_id];
 
     SwooleG.process_type = SW_PROCESS_TASKWORKER;
 }
