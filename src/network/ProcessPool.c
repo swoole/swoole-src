@@ -117,7 +117,7 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int worker_id
     {
         if (!pool->use_msgqueue && pool->dispatch_mode == SW_DISPATCH_QUEUE)
         {
-            int i, target_worker_id;
+            int i, target_worker_id = 0;
             for (i = 0; i < pool->worker_num; i++)
             {
                 pool->round_id++;

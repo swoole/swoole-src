@@ -169,11 +169,13 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     reactor->id = 0;
     reactor->ptr = serv;
 
+#ifdef SW_USE_RINGBUFFER
     serv->reactor_threads[0].buffer_input = swMalloc_new();
     if (serv->reactor_threads[0].buffer_input == NULL)
     {
         return SW_ERR;
     }
+#endif
 
     //set event handler
     //connect

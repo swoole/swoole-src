@@ -1194,7 +1194,6 @@ typedef struct
      */
     uint8_t use_timer_pipe;
 
-
     /**
      *  task worker process num
      */

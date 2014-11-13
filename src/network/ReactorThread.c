@@ -1181,8 +1181,6 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
     swReactorThread *thread;
     pthread_t pidt;
 
-    serv->reactor_pipe_num = serv->worker_num / serv->reactor_num;
-
     int i, ret;
     //listen UDP
     if (serv->have_udp_sock == 1)

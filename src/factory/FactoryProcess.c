@@ -126,6 +126,8 @@ int swFactoryProcess_start(swFactory *factory)
         }
     }
 
+    serv->reactor_pipe_num = serv->worker_num / serv->reactor_num;
+
     //必须先启动manager进程组，否则会带线程fork
     if (swFactoryProcess_manager_start(factory) < 0)
     {
