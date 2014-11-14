@@ -166,6 +166,7 @@ if test "$PHP_SWOOLE" != "no"; then
     fi
 
     PHP_NEW_EXTENSION(swoole, swoole.c \
+        swoole_server.c \
         swoole_lock.c \
         swoole_client.c \
         swoole_async.c \

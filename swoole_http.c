@@ -26,9 +26,11 @@ typedef struct
     enum php_http_method method;
     int version;
     char *path;
-    size_t path_len;
+    uint32_t path_len;
     const char *ext;
-    size_t ext_len;
+    uint32_t ext_len;
+    char *post_content;
+    uint32_t post_length;
 } http_request;
 
 typedef struct
@@ -261,6 +263,9 @@ static int http_request_on_body(php_http_parser *parser, const char *at, size_t 
     zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("post"), post TSRMLS_CC);
     sapi_module.treat_data(PARSE_STRING, body, post TSRMLS_CC);
 
+    client->request.post_content = body;
+    client->request.post_length = length;
+
     return 0;
 }
 
@@ -488,6 +493,10 @@ static void http_request_free(http_client *client TSRMLS_DC)
     if (req->path)
     {
         efree(req->path);
+    }
+    if (req->post_content)
+    {
+        efree(req->post_content);
     }
 
     http_response *resp = &client->response;
