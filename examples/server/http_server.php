@@ -7,7 +7,10 @@ $http->on('request', function ($request, $response) {
     //$response->header("Location", "http://www.baidu.com/");
 	//$response->cookie("hello", "world", time() + 3600);
     //$response->header("Content-Type", "text/html; charset=utf-8");
-    $response->end("<h1>Hello Swoole. #".rand(1000, 9999)."</h1>");
+    var_dump($request->rawContent());
+    
+    var_dump($request->post);
+	$response->end("<h1>Hello Swoole. #".rand(1000, 9999)."</h1>");
     //global $http;
     //$http->task("hello world");
 });

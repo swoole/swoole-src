@@ -299,6 +299,8 @@ PHP_METHOD(swoole_table, unlock);
 PHP_METHOD(swoole_http_server, on);
 PHP_METHOD(swoole_http_server, start);
 
+PHP_METHOD(swoole_http_request, rawcontent);
+
 PHP_METHOD(swoole_http_response, end);
 PHP_METHOD(swoole_http_response, cookie);
 PHP_METHOD(swoole_http_response, header);

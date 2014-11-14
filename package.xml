@@ -135,6 +135,7 @@
 		<file role="src" name="php_swoole.h" />
 		<file role="src" name="swoole_config.h" />
 		<file role="src" name="swoole.c" />
+		<file role="src" name="swoole_server.c" />
 		<file role="src" name="swoole_lock.c" />
 		<file role="src" name="swoole_client.c" />
 		<file role="src" name="swoole_async.c" />

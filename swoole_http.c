@@ -29,6 +29,7 @@ typedef struct
     uint32_t path_len;
     const char *ext;
     uint32_t ext_len;
+    uint8_t post_form_urlencoded;
     char *post_content;
     uint32_t post_length;
 } http_request;
@@ -114,6 +115,12 @@ const zend_function_entry swoole_http_server_methods[] =
     PHP_FE_END
 };
 
+const zend_function_entry swoole_http_request_methods[] =
+{
+    PHP_ME(swoole_http_request, rawcontent,         NULL, ZEND_ACC_PUBLIC)
+    PHP_FE_END
+};
+
 const zend_function_entry swoole_http_response_methods[] =
 {
     PHP_ME(swoole_http_response, cookie, NULL, ZEND_ACC_PUBLIC)
@@ -167,7 +174,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
     http_client *client = parser->data;
     char *header_name = zend_str_tolower_dup(client->current_header_name, client->current_header_name_len);
 
-    if (strncmp(header_name, "cookie", 6) == 0)
+    if (memcmp(header_name, ZEND_STRL("cookie")) == 0)
     {
         zval *cookie;
         MAKE_STD_ZVAL(cookie);
@@ -223,6 +230,11 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
         keybuf[kv.klen - 1] = 0;
         add_assoc_stringl_ex(cookie, keybuf, kv.klen , kv.v, kv.vlen, 1);
     }
+    else if (parser->method == PHP_HTTP_POST && memcmp(header_name, ZEND_STRL("content-type")) == 0
+            && memcmp(at, ZEND_STRL("application/x-www-form-urlencoded")) == 0)
+    {
+        client->request.post_form_urlencoded = 1;
+    }
     else
     {
         zval *header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("header"), 1 TSRMLS_CC);
@@ -257,14 +269,19 @@ static int http_request_on_body(php_http_parser *parser, const char *at, size_t 
     http_client *client = parser->data;
     char *body = estrndup(at, length);
 
-    zval *post;
-    MAKE_STD_ZVAL(post);
-    array_init(post);
-    zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("post"), post TSRMLS_CC);
-    sapi_module.treat_data(PARSE_STRING, body, post TSRMLS_CC);
-
-    client->request.post_content = body;
-    client->request.post_length = length;
+    if (client->request.post_form_urlencoded)
+    {
+        zval *post;
+        MAKE_STD_ZVAL(post);
+        array_init(post);
+        zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("post"), post TSRMLS_CC);
+        sapi_module.treat_data(PARSE_STRING, body, post TSRMLS_CC);
+    }
+    else
+    {
+        client->request.post_content = body;
+        client->request.post_length = length;
+    }
 
     return 0;
 }
@@ -400,7 +417,7 @@ void swoole_http_init(int module_number TSRMLS_DC)
     INIT_CLASS_ENTRY(swoole_http_response_ce, "swoole_http_response", swoole_http_response_methods);
     swoole_http_response_class_entry_ptr = zend_register_internal_class(&swoole_http_response_ce TSRMLS_CC);
 
-    INIT_CLASS_ENTRY(swoole_http_request_ce, "swoole_http_request", NULL);
+    INIT_CLASS_ENTRY(swoole_http_request_ce, "swoole_http_request", swoole_http_request_methods);
     swoole_http_request_class_entry_ptr = zend_register_internal_class(&swoole_http_request_ce TSRMLS_CC);
 }
 
@@ -482,8 +499,11 @@ static int http_request_new(http_client* client TSRMLS_DC)
 	client->zrequest = zrequest;
 	client->end = 0;
 
+	zend_update_property_long(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("fd"), client->fd TSRMLS_CC);
+
 	bzero(&client->request, sizeof(client->request));
 	bzero(&client->response, sizeof(client->response));
+
 	return SW_OK;
 }
 
@@ -498,13 +518,11 @@ static void http_request_free(http_client *client TSRMLS_DC)
     {
         efree(req->post_content);
     }
-
     http_response *resp = &client->response;
     if (resp->cookie)
     {
         swString_free(resp->cookie);
     }
-
     /**
      * Free request object
      */
@@ -646,6 +664,27 @@ PHP_METHOD(swoole_http_server, start)
         RETURN_LONG(ret);
     }
     RETURN_TRUE;
+}
+
+PHP_METHOD(swoole_http_request, rawcontent)
+{
+    zval *zfd = zend_read_property(swoole_http_request_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
+    if (ZVAL_IS_NULL(zfd))
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "http client not exists.");
+        RETURN_FALSE;
+    }
+    http_client *client = swHashMap_find_int(php_sw_http_clients, Z_LVAL_P(zfd));
+    if (!client)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "http client[#%d] not exists.", (int) Z_LVAL_P(zfd));
+        RETURN_FALSE;
+    }
+    if (!client->request.post_content)
+    {
+        RETURN_FALSE;
+    }
+    RETURN_STRINGL(client->request.post_content, client->request.post_length, 1);
 }
 
 PHP_METHOD(swoole_http_response, end)
