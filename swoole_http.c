@@ -684,7 +684,8 @@ PHP_METHOD(swoole_http_request, rawcontent)
     {
         RETURN_FALSE;
     }
-    RETURN_STRINGL(client->request.post_content, client->request.post_length, 1);
+    RETVAL_STRINGL(client->request.post_content, client->request.post_length, 0);
+    client->request.post_content = NULL;
 }
 
 PHP_METHOD(swoole_http_response, end)
