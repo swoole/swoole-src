@@ -266,13 +266,13 @@ static int php_swoole_client_onRead(swReactor *reactor, swEvent *event)
 		zcallback = zend_read_property(swoole_client_class_entry_ptr, *zobject, SW_STRL(php_sw_client_onReceive)-1, 0 TSRMLS_CC);
 		if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
 		{
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: swoole_client object have not receive callback.");
+			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client object have not receive callback.");
 			goto free_zdata;
 		}
 
 		if (call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
 		{
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onReactorCallback handler error");
+			php_error_docref(NULL TSRMLS_CC, E_WARNING, "onReactorCallback handler error");
 			goto free_zdata;
 		}
 		if (retval != NULL)

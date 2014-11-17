@@ -227,7 +227,7 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
     }
     if (EG(exception))
     {
-        zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
     zval_ptr_dtor(&zfd);
     zval_ptr_dtor(&zfrom_id);
@@ -297,7 +297,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
 
     if (EG(exception))
     {
-        zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
 
     zval_ptr_dtor(&zfd);
@@ -363,7 +363,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     }
     if (EG(exception))
     {
-        zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
     zval_ptr_dtor(&ztask_id);
     zval_ptr_dtor(&zdata);
@@ -396,7 +396,7 @@ static void php_swoole_onStart(swServer *serv)
     }
     if (EG(exception))
     {
-        zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
     if (retval != NULL)
     {
@@ -421,7 +421,7 @@ static void php_swoole_onManagerStart(swServer *serv)
     }
     if (EG(exception))
     {
-        zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
     if (retval != NULL)
     {
@@ -446,7 +446,7 @@ static void php_swoole_onManagerStop(swServer *serv)
     }
     if (EG(exception))
     {
-        zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
     if (retval != NULL)
     {
@@ -475,7 +475,7 @@ static void php_swoole_onTimer(swServer *serv, int interval)
     }
     if (EG(exception))
     {
-        zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
     zval_ptr_dtor(&zinterval);
     if (retval != NULL)
@@ -500,7 +500,7 @@ static void php_swoole_onShutdown(swServer *serv)
     }
     if (EG(exception))
     {
-        zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
     if (retval != NULL)
     {
@@ -553,7 +553,7 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     }
     if (EG(exception))
     {
-        zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
 
     zval_ptr_dtor(&zworker_id);
@@ -585,9 +585,8 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
     }
     if (EG(exception))
     {
-        zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-
     zval_ptr_dtor(&zworker_id);
     if (retval != NULL)
     {
@@ -624,9 +623,10 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onWorkerError handler error");
     }
+
     if (EG(exception))
     {
-        zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
 
     zval_ptr_dtor(&zworker_id);
@@ -666,7 +666,7 @@ static void php_swoole_onConnect(swServer *serv, int fd, int from_id)
     }
     if (EG(exception))
     {
-        zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
 
     zval_ptr_dtor(&zfd);
@@ -708,7 +708,7 @@ static void php_swoole_onClose(swServer *serv, int fd, int from_id)
 
     if (EG(exception))
     {
-        zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
 
     zval_ptr_dtor(&zfd);
@@ -869,7 +869,6 @@ PHP_FUNCTION(swoole_server_set)
             serv->worker_num = SwooleG.cpu_num;
         }
     }
-
     //task_worker_num
     if (zend_hash_find(vht, ZEND_STRS("task_worker_num"), (void **)&v) == SUCCESS)
     {
@@ -912,10 +911,6 @@ PHP_FUNCTION(swoole_server_set)
     {
         convert_to_long(*v);
         serv->max_request = (int) Z_LVAL_PP(v);
-    }
-    else if (serv->factory_mode == SW_MODE_SINGLE)
-    {
-        serv->max_request = 0;
     }
     //task_max_request
     if (zend_hash_find(vht, ZEND_STRS("task_max_request"), (void **) &v) == SUCCESS)
