@@ -860,7 +860,7 @@ PHP_FUNCTION(swoole_server_set)
         }
     }
     //worker_num
-    if (zend_hash_find(vht, ZEND_STRS("worker_num"), (void **) &v) == SUCCESS)
+    if (serv->factory_mode != SW_MODE_SINGLE && zend_hash_find(vht, ZEND_STRS("worker_num"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->worker_num = (int) Z_LVAL_PP(v);
@@ -869,10 +869,7 @@ PHP_FUNCTION(swoole_server_set)
             serv->worker_num = SwooleG.cpu_num;
         }
     }
-    else if (serv->factory_mode == SW_MODE_SINGLE)
-    {
-        serv->worker_num = 1;
-    }
+
     //task_worker_num
     if (zend_hash_find(vht, ZEND_STRS("task_worker_num"), (void **)&v) == SUCCESS)
     {
@@ -974,11 +971,6 @@ PHP_FUNCTION(swoole_server_set)
     {
         convert_to_long(*v);
         serv->open_http_protocol = (uint8_t) Z_LVAL_PP(v);
-
-        if (serv->dispatch_mode == 0)
-        {
-            serv->dispatch_mode = 3;
-        }
     }
     //tcp_keepidle
     if (zend_hash_find(vht, ZEND_STRS("tcp_keepidle"), (void **)&v) == SUCCESS)

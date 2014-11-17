@@ -211,7 +211,7 @@ enum swLogLevel
 //-------------------------------------------------------------------------------
 enum swDispatchMode
 {
-    SW_DISPATCH_ROUND = 1, SW_DISPATCH_FDMOD = 2, SW_DISPATCH_QUEUE = 3,
+    SW_DISPATCH_ROUND = 1, SW_DISPATCH_FDMOD = 2, SW_DISPATCH_QUEUE = 3,SW_DISPATCH_IPMOD = 4, 
 };
 enum swWorkerStatus
 {

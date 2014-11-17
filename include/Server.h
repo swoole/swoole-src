@@ -577,6 +577,12 @@ static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t sche
     {
         target_worker_id = schedule_key % serv->worker_num;
     }
+    //Using the IP touch access to hash
+    else if (serv->dispatch_mode == SW_DISPATCH_IPMOD)
+    {
+        swConnection *conn = swServer_connection_get(serv, schedule_key);
+        target_worker_id = conn->addr.sin_addr.s_addr % serv->worker_num;
+    }
     //Preemptive distribution
     else
     {
