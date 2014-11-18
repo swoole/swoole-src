@@ -330,9 +330,10 @@ static int php_swoole_event_onError(swReactor *reactor, swEvent *event)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event: getsockopt[sock=%d] failed. Error: %s[%d]", event->fd, strerror(errno), errno);
     }
-
-    php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event: socket error. Error: %s [%d]", strerror(error), error);
-
+    if (error != 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event: socket error. Error: %s [%d]", strerror(error), error);
+    }
     SwooleG.main_reactor->del(SwooleG.main_reactor, event->fd);
     return SW_OK;
 }

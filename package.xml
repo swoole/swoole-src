@@ -110,6 +110,17 @@
 				<file role="src" name="echo.py" />
 				<file role="src" name="python.php" />
 			</dir>
+			<dir name="task">
+                <file role="src" name="task.php" />
+                <file role="src" name="task_shared_client.php" />
+                <file role="src" name="task_shared_serv.php" />
+            </dir>
+            <dir name="table">
+                <file role="src" name="iterator.php" />
+                <file role="src" name="server.php" />
+                <file role="src" name="set.php" />
+                <file role="src" name="simulation.php" />
+            </dir>
 			<dir name="code">
 				<file role="src" name="http.js" />
 				<file role="src" name="tcp.js" />
@@ -118,7 +129,6 @@
 				<file role="src" name="echo.php" />
 			</dir>
 			<file role="src" name="server.php" />
-			<file role="src" name="table.php" />
 			<file role="src" name="mysql_proxy_server.php" />
 			<file role="src" name="async_mysql2.php" />
 			<file role="src" name="proxy.php" />
@@ -126,7 +136,6 @@
 			<file role="src" name="udp_server.php" />
 			<file role="src" name="udp_client.php" />
 			<file role="src" name="udp_sync_client.php" />
-			<file role="src" name="task.php" />
 			<file role="src" name="timer.php" />
 			<file role="src" name="sendfile_server.php" />
 			<file role="src" name="recv_file.php" />
