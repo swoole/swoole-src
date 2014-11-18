@@ -91,6 +91,11 @@ typedef struct _swConnection
 	 */
 	time_t last_time;
 
+    /**
+     * bind uid
+     */
+    long uid;
+
 #ifdef SW_USE_OPENSSL
 	SSL *ssl;
 	uint32_t ssl_state;

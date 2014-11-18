@@ -1223,6 +1223,6 @@ swConnection* swServer_connection_new(swServer *serv, swDataHead *ev)
     connection->connect_time = SwooleGS->now;
     connection->last_time = SwooleGS->now;
     connection->active = 1; //使此连接激活,必须在最后，保证线程安全
-
+    connection->uid = 0;
 	return connection;
 }

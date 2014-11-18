@@ -215,6 +215,7 @@ PHP_FUNCTION(swoole_server_reload);
 PHP_FUNCTION(swoole_server_shutdown);
 PHP_FUNCTION(swoole_server_heartbeat);
 PHP_FUNCTION(swoole_connection_list);
+PHP_FUNCTION(swoole_bind_uid);
 PHP_FUNCTION(swoole_connection_info);
 PHP_METHOD(swoole_server, stats);
 

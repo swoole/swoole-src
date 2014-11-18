@@ -211,7 +211,7 @@ enum swLogLevel
 //-------------------------------------------------------------------------------
 enum swDispatchMode
 {
-    SW_DISPATCH_ROUND = 1, SW_DISPATCH_FDMOD = 2, SW_DISPATCH_QUEUE = 3,SW_DISPATCH_IPMOD = 4, 
+    SW_DISPATCH_ROUND = 1, SW_DISPATCH_FDMOD = 2, SW_DISPATCH_QUEUE = 3,SW_DISPATCH_IPMOD = 4, SW_DISPATCH_UIDMOD = 5,
 };
 enum swWorkerStatus
 {
@@ -1236,6 +1236,7 @@ typedef struct
     sw_atomic_t connection_num;
     sw_atomic_t accept_count;
     sw_atomic_t close_count;
+    sw_atomic_t tasking_num;
 } swServerStats;
 
 extern swServerG SwooleG;              //Local Global Variable

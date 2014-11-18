@@ -1607,6 +1607,7 @@ PHP_METHOD(swoole_server, stats)
     add_assoc_long_ex(return_value, SW_STRL("connection_num"), SwooleStats->connection_num);
     add_assoc_long_ex(return_value, SW_STRL("accept_count"), SwooleStats->accept_count);
     add_assoc_long_ex(return_value, SW_STRL("close_count"), SwooleStats->close_count);
+    add_assoc_long_ex(return_value, SW_STRL("tasking_num"), SwooleStats->tasking_num);
 }
 
 PHP_FUNCTION(swoole_server_reload)
@@ -2040,6 +2041,7 @@ PHP_FUNCTION(swoole_server_task)
 
     if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int) worker_id) >= 0)
     {
+
         RETURN_LONG(buf.info.fd);
     }
     else
@@ -2078,6 +2080,55 @@ PHP_FUNCTION(swoole_server_finish)
     }
     SWOOLE_GET_SERVER(zobject, serv);
     SW_CHECK_RETURN(swTaskWorker_finish(serv, data, data_len));
+}
+
+PHP_FUNCTION(swoole_bind_uid)
+{
+    zval *zobject = getThis();
+    swServer *serv;
+    long fd = 0;
+    long uid = 0;
+
+    if (SwooleGS->start == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
+
+    if (zobject == NULL)
+    {
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ol|l", &zobject, swoole_server_class_entry_ptr, &fd, &uid) == FAILURE)
+        {
+            return;
+        }
+    }
+    else
+    {
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|l", &fd, &uid) == FAILURE)
+        {
+            return;
+        }
+    }
+    SWOOLE_GET_SERVER(zobject, serv);
+
+    swConnection *conn = swServer_connection_get(serv, fd);
+
+    //udp client
+    if (conn == NULL)
+    {
+        RETURN_FALSE;
+    }
+
+    //connection is closed
+    if (conn->active == 0)
+    {
+        RETURN_FALSE;
+    }
+    else
+    {
+        conn->uid = uid;
+        RETURN_TRUE;
+    }
 }
 
 
@@ -2148,6 +2199,7 @@ PHP_FUNCTION(swoole_connection_info)
     else
     {
         array_init(return_value);
+        add_assoc_long(return_value, "uid", conn->uid);
         add_assoc_long(return_value, "from_id", conn->from_id);
         add_assoc_long(return_value, "from_fd", conn->from_fd);
         add_assoc_long(return_value, "connect_time", conn->connect_time);
