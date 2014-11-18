@@ -44,12 +44,19 @@ $serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
     echo "worker_id: ".$serv->workerid.PHP_EOL;
     if(empty($conn['uid'])) {
         $uid = $fd+1;
-        $serv->bind_uid($fd, $uid);
-        $serv->fdlist[$fd] = $uid;
+        if($serv->bind_uid($fd, $uid)) {
+            $serv->send($fd, "bind {$uid} success");
+        }
+    }else{
+        if(empty($serv->fdlist[$fd])) {
+            $serv->fdlist[$fd] = $conn['uid'];
+        }
+        print_r($serv->fdlist);
+        foreach($serv->fdlist as $_fd=>$uid) {
+            $serv->send($_fd, "{$fd} say:".$data.PHP_EOL);
+        }
     }
-    foreach($serv->fdlist as $_fd=>$uid) {
-        $serv->send($_fd, "{$fd} say:".$data.PHP_EOL);
-    }
+
 });
 
 $serv->on('close', function ($serv, $fd, $from_id) {
