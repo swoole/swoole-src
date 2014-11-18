@@ -14,6 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
+#include <include/swoole.h>
 #include "php_swoole.h"
 
 static int php_swoole_task_id;
@@ -312,6 +313,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
         }
         zval_ptr_dtor(&retval);
     }
+    sw_atomic_fetch_sub(&SwooleStats->tasking_num, 1);
     return SW_OK;
 }
 
@@ -2041,7 +2043,7 @@ PHP_FUNCTION(swoole_server_task)
 
     if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int) worker_id) >= 0)
     {
-
+        sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
         RETURN_LONG(buf.info.fd);
     }
     else
