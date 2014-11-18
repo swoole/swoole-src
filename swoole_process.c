@@ -53,15 +53,6 @@ PHP_METHOD(swoole_process, __construct)
     }
 #endif
 
-    /**
-     * Reactor has already been created, Dont fork.
-     */
-    if (SwooleG.main_reactor && SwooleGS->start == 0)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_process must create before the event loop.");
-        return;
-    }
-
 	zend_bool redirect_stdin_and_stdout = 0;
 	zend_bool create_pipe = 1;
 	zval *callback;
