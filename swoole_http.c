@@ -399,7 +399,7 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         }
         if (EG(exception))
         {
-            zend_exception_error(EG(exception), E_WARNING TSRMLS_CC);
+            zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
         }
         if (retval)
         {
