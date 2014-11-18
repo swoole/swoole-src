@@ -8,16 +8,18 @@ $serv->set(array(
 
 $serv->on('Receive', function(swoole_server $serv, $fd, $from_id, $data) {
 	//AsyncTask
-    $data = trim($data);
-    $tid = mt_rand(0,1);
-    echo "to task: {$tid}".PHP_EOL;
-    $serv->task($data, $tid);
+    $data = intval($data);
+    for($i=0;$i<$data;$i++) {
+        $tid = mt_rand(0,1);
+        echo "data:{$i} to task: {$tid} ".PHP_EOL;
+        $serv->task($i, $tid);
+    }
 
 });
 $serv->on('Task', function (swoole_server $serv, $task_id, $from_id, $data) {
     echo "onTask: [PID=".posix_getpid()."]: task_id=$task_id, data_len=".strlen($data).".".PHP_EOL;
     sleep(10);
-    $serv->finish($data);
+    //$serv->finish($data);
     echo 'finish'.PHP_EOL;
     return;
 });

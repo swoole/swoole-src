@@ -67,7 +67,6 @@ int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
     current_worker->status = SW_WORKER_BUSY;
     int ret = serv->onTask(serv, task);
     current_worker->status = SW_WORKER_IDLE;
-
     return ret;
 }
 

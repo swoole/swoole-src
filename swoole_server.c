@@ -245,6 +245,7 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
 
 static int php_swoole_onTask(swServer *serv, swEventData *req)
 {
+
     zval *zserv = (zval *)serv->ptr2;
     zval **args[4];
 
@@ -293,11 +294,13 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
 
     if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onTask], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
+        sw_atomic_fetch_sub(&SwooleStats->tasking_num, 1);
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onTask handler error");
     }
 
     if (EG(exception))
     {
+        sw_atomic_fetch_sub(&SwooleStats->tasking_num, 1);
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
 
