@@ -583,6 +583,15 @@ static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t sche
         swConnection *conn = swServer_connection_get(serv, schedule_key);
         target_worker_id = conn->addr.sin_addr.s_addr % serv->worker_num;
     }
+    else if (serv->dispatch_mode == SW_DISPATCH_UIDMOD)
+    {
+        swConnection *conn = swServer_connection_get(serv, schedule_key);
+        if(conn->uid) {
+            target_worker_id = conn->uid % serv->worker_num;
+        }else{
+            target_worker_id = schedule_key % serv->worker_num;
+        }
+    }
     //Preemptive distribution
     else
     {

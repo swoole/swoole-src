@@ -1,4 +1,5 @@
 /.cproject
+/.idea
 /.project
 *.o
 *.lo

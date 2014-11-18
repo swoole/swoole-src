@@ -7,7 +7,7 @@ $serv->set(array(
 		//'ipc_mode' => 2,
 		'worker_num' => 4,
 		//'task_worker_num' => 2,
-		'dispatch_mode' => 4,   //ip dispatch
+		'dispatch_mode' => 5,   //uid dispatch
 		//'max_request' => 1000,
 		//'daemonize' => true,
 		//'log_file' => '/tmp/swoole.log'
@@ -29,16 +29,9 @@ $serv->on('workerStart', function($serv, $worker_id) {
 $serv->on('connect', function ($serv, $fd, $from_id){
 	//echo "[#".posix_getpid()."]\tClient@[$fd:$from_id]: Connect.\n";
 	echo "{$fd} connect, worker:".$serv->workerid.PHP_EOL;
-	$conn = print_r($serv->connection_info($fd));
-	$serv->fdlist[$fd] = 1;
-	print_r($serv->fdlist);
-
 });
 
 $serv->on('task', function ($serv, $task_id, $from_id, $data){
-	//var_dump($task_id, $from_id, $data);
-	$fd = $data;
-	$serv->send($fd, str_repeat('B', 1024*rand(40, 60)).rand(10000, 99999)."\n");
 });
 
 $serv->on('finish', function ($serv, $fd, $from_id){
@@ -46,8 +39,15 @@ $serv->on('finish', function ($serv, $fd, $from_id){
 });
 
 $serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
-
-    foreach($serv->fdlist as $_fd=>$val) {
+    $conn = $serv->connection_info($fd);
+    print_r($conn);
+    echo "worker_id: ".$serv->workerid.PHP_EOL;
+    if(empty($conn['uid'])) {
+        $uid = $fd+1;
+        $serv->bind_uid($fd, $uid);
+        $serv->fdlist[$fd] = $uid;
+    }
+    foreach($serv->fdlist as $_fd=>$uid) {
         $serv->send($_fd, "{$fd} say:".$data.PHP_EOL);
     }
 });
