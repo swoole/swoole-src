@@ -26,10 +26,6 @@ for($i = 0; $i < $worker_num; $i++)
     $process->id = $i;
     $pid = $process->start();
     $workers[$process->pipe] = $process;
-}
-
-foreach($workers as $process)
-{
     swoole_event_add($process->pipe, 'onReceive');
 }
 

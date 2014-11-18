@@ -131,7 +131,7 @@ static void php_swoole_table_row2array(swTable *table, swTableRow *row, zval *re
     sw_spinlock_release(&row->lock);
 }
 
-void swoole_destory_table(zend_rsrc_list_entry *rsrc TSRMLS_DC)
+void swoole_destory_table(zend_resource *rsrc TSRMLS_DC)
 {
     swTable *table = (swTable *) rsrc->ptr;
     if (table)

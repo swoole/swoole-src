@@ -71,9 +71,16 @@ static int swEventTimer_add(swTimer *timer, int _msec, int interval, void *data)
     {
         return SW_ERR;
     }
+
     node->data = data;
     node->exec_msec = now_msec + _msec;
     node->interval = interval ? _msec : 0;
+
+    if (SwooleG.main_reactor->timeout_msec > _msec)
+    {
+        SwooleG.main_reactor->timeout_msec = _msec;
+    }
+
     swTimer_node_insert(&timer->root, node);
     return SW_OK;
 }
