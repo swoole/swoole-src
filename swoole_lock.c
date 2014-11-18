@@ -90,7 +90,7 @@ PHP_METHOD(swoole_lock, __construct)
 	RETURN_TRUE;
 }
 
-void swoole_destory_lock(zend_rsrc_list_entry *rsrc TSRMLS_DC)
+void swoole_destory_lock(zend_resource *rsrc TSRMLS_DC)
 {
 	swLock *lock = (swLock *) rsrc->ptr;
 	lock->free(lock);

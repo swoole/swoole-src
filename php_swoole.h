@@ -90,6 +90,7 @@ extern zend_module_entry swoole_module_entry;
 #include "TSRM.h"
 extern void ***sw_thread_ctx;
 #endif
+
 //#define SW_USE_PHP        1
 #define SW_HANDLE_NUM
 #define SW_CHECK_RETURN(s)         if(s<0){RETURN_FALSE;}else{RETURN_TRUE;}return
@@ -112,6 +113,10 @@ extern void ***sw_thread_ctx;
 #ifndef HAVE_OPENSSL
 #error "Enable openssl support, But no openssl library."
 #endif
+#endif
+
+#if PHP_MAJOR_VERSION < 7
+typedef zend_rsrc_list_entry zend_resource;
 #endif
 
 #define SW_RES_SERVER_NAME          "SwooleServer"
@@ -308,10 +313,10 @@ PHP_METHOD(swoole_http_response, header);
 PHP_METHOD(swoole_http_response, message);
 PHP_METHOD(swoole_http_response, status);
 
-void swoole_destory_lock(zend_rsrc_list_entry *rsrc TSRMLS_DC);
-void swoole_destory_process(zend_rsrc_list_entry *rsrc TSRMLS_DC);
-void swoole_destory_buffer(zend_rsrc_list_entry *rsrc TSRMLS_DC);
-void swoole_destory_table(zend_rsrc_list_entry *rsrc TSRMLS_DC);
+void swoole_destory_lock(zend_resource *rsrc TSRMLS_DC);
+void swoole_destory_process(zend_resource *rsrc TSRMLS_DC);
+void swoole_destory_buffer(zend_resource *rsrc TSRMLS_DC);
+void swoole_destory_table(zend_resource *rsrc TSRMLS_DC);
 
 void swoole_async_init(int module_number TSRMLS_DC);
 void swoole_table_init(int module_number TSRMLS_DC);

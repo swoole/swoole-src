@@ -26,7 +26,7 @@
 
 static uint32_t php_swoole_worker_round_id = 1;
 
-void swoole_destory_process(zend_rsrc_list_entry *rsrc TSRMLS_DC)
+void swoole_destory_process(zend_resource *rsrc TSRMLS_DC)
 {
     swWorker *process = (swWorker *) rsrc->ptr;
     swPipe *_pipe = process->ptr;

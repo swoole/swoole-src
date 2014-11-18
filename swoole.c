@@ -271,8 +271,8 @@ ZEND_END_ARG_INFO()
 
 //arginfo end
 
-static void swoole_destory_server(zend_rsrc_list_entry *rsrc TSRMLS_DC);
-static void swoole_destory_client(zend_rsrc_list_entry *rsrc TSRMLS_DC);
+static void swoole_destory_client(zend_resource *rsrc TSRMLS_DC);
+static void swoole_destory_server(zend_resource *rsrc TSRMLS_DC);
 
 #ifdef SW_ASYNC_MYSQL
 #include "ext/mysqlnd/mysqlnd.h"
@@ -693,18 +693,19 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
 	return SUCCESS;
 }
 
-static void swoole_destory_server(zend_rsrc_list_entry *rsrc TSRMLS_DC)
+static void swoole_destory_server(zend_resource *rsrc TSRMLS_DC)
 {
-	SwooleG.running = 0;
-	swServer *serv = (swServer *) rsrc->ptr;
-	if (serv != NULL)
-	{
-		swServer_shutdown(serv);
-		//Don't free() here.
-	}
+    SwooleG.running = 0;
+    swServer *serv = (swServer *) rsrc->ptr;
+    if (serv != NULL)
+    {
+        swServer_shutdown(serv);
+        //Don't free() here.
+    }
 }
 
-static void swoole_destory_client(zend_rsrc_list_entry *rsrc TSRMLS_DC)
+
+static void swoole_destory_client(zend_resource *rsrc TSRMLS_DC)
 {
 	swClient *cli = (swClient *) rsrc->ptr;
 	if (cli->keep == 0)
