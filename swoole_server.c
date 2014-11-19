@@ -15,7 +15,6 @@
 */
 
 #include <include/swoole.h>
-#include <include/Connection.h>
 #include "php_swoole.h"
 
 static int php_swoole_task_id;
