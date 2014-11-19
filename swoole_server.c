@@ -15,6 +15,7 @@
 */
 
 #include <include/swoole.h>
+#include <include/Connection.h>
 #include "php_swoole.h"
 
 static int php_swoole_task_id;
@@ -2168,22 +2169,32 @@ PHP_FUNCTION(swoole_bind_uid)
     }
 
     //connection is closed
-    if (conn->active == 0 || conn->uid != 0)
+    if (conn->active == 0)
     {
         swTrace("fd:%d a:%d, uid: %d", fd, conn->active, conn->uid);
         RETURN_FALSE;
     }
-    else
-    {
 
-        int l;
-        l = SwooleG.lock.trylock(&SwooleG.lock);
-        swTrace("try lock :%d", l);
-        if( 0 == l) { //lock success
+    if(conn->uid != 0)
+    {
+        RETURN_FALSE;
+    }
+
+    int ret = 0;
+    int l = -1;
+    l = SwooleG.lock.trylock(&SwooleG.lock);
+    swTrace("try lock :%d", l);
+    if (0 == l) { //lock success
+        if(conn->uid == 0) {
             conn->uid = uid;
-            SwooleG.lock.unlock(&SwooleG.lock);
+            ret = 1;
         }
+        SwooleG.lock.unlock(&SwooleG.lock);
+    }
+    if(ret) {
         RETURN_TRUE;
+    } else {
+        RETURN_FALSE;
     }
 }
 
