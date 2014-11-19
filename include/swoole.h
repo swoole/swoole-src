@@ -756,7 +756,7 @@ static sw_inline int swSocket_write(int fd, void *data, int len)
     return n;
 }
 
-static sw_inline int swWaitpid(__pid_t __pid, int *__stat_loc, int __options)
+static sw_inline int swWaitpid(pid_t __pid, int *__stat_loc, int __options)
 {
     int ret;
     do
