@@ -2182,15 +2182,12 @@ PHP_FUNCTION(swoole_bind_uid)
 
     int ret = 0;
     int l = -1;
-    l = SwooleG.lock.trylock(&SwooleG.lock);
-    swTrace("try lock :%d", l);
-    if (0 == l) { //lock success
-        if(conn->uid == 0) {
-            conn->uid = uid;
-            ret = 1;
-        }
-        SwooleG.lock.unlock(&SwooleG.lock);
+    SwooleG.lock.lock(&SwooleG.lock);
+    if(conn->uid == 0) {
+        conn->uid = uid;
+        ret = 1;
     }
+    SwooleG.lock.unlock(&SwooleG.lock);
     if(ret) {
         RETURN_TRUE;
     } else {
