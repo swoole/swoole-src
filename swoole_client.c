@@ -217,7 +217,7 @@ static int php_swoole_client_onRead(swReactor *reactor, swEvent *event)
 
     if (zend_hash_find(&php_sw_client_callback, (char*) &event->fd, sizeof(event->fd), (void **) &zobject) != SUCCESS)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: Fd[%d] is not a swoole_client object", event->fd);
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client->onRead: Fd[%d] is not a swoole_client object", event->fd);
         return SW_ERR;
     }
 
@@ -304,7 +304,7 @@ static int php_swoole_client_onError(swReactor *reactor, swEvent *event)
 
 	if (zend_hash_find(&php_sw_client_callback, (char*) &event->fd, sizeof(event->fd), (void **)&zobject) != SUCCESS)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: Fd[%d] is not a swoole_client object", event->fd);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client->onError[1]: Fd[%d] is not a swoole_client object", event->fd);
 		return SW_ERR;
 	}
 
@@ -313,7 +313,7 @@ static int php_swoole_client_onError(swReactor *reactor, swEvent *event)
 
 	if (getsockopt (event->fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: getsockopt[sock=%d] failed. Error: %s[%d]", event->fd, strerror(errno), errno);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client->onError[2]: getsockopt[sock=%d] failed. Error: %s[%d]", event->fd, strerror(errno), errno);
 	}
 	swoole_client_error_callback(*zobject, event, error TSRMLS_CC);
 	return SW_OK;
@@ -328,11 +328,11 @@ static int php_swoole_event_onError(swReactor *reactor, swEvent *event)
 
     if (getsockopt(event->fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event: getsockopt[sock=%d] failed. Error: %s[%d]", event->fd, strerror(errno), errno);
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event->onError[1]: getsockopt[sock=%d] failed. Error: %s[%d]", event->fd, strerror(errno), errno);
     }
     if (error != 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event: socket error. Error: %s [%d]", strerror(error), error);
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event->onError[1]: socket error. Error: %s [%d]", strerror(error), error);
     }
     SwooleG.main_reactor->del(SwooleG.main_reactor, event->fd);
     return SW_OK;
@@ -349,7 +349,7 @@ static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event)
 
     if (zend_hash_find(&php_sw_client_callback, (char*) &event->fd, sizeof(event->fd), (void **) &zobject) != SUCCESS)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: Fd[%d] is not a swoole_client object", event->fd);
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client->onWrite: Fd[%d] is not a swoole_client object", event->fd);
         return SW_ERR;
     }
 
