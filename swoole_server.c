@@ -2181,7 +2181,6 @@ PHP_FUNCTION(swoole_bind_uid)
     }
 
     int ret = 0;
-    int l = -1;
     SwooleG.lock.lock(&SwooleG.lock);
     if(conn->uid == 0) {
         conn->uid = uid;
