@@ -787,19 +787,44 @@ PHP_FUNCTION(swoole_errno)
     RETURN_LONG(errno);
 }
 
-
 PHP_FUNCTION(swoole_set_process_name)
 {
-	char *name;
-	int name_len;
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &name, &name_len) == FAILURE)
+	zval *name;
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &name) == FAILURE)
 	{
 		return;
 	}
-	//it's safe.
-#define ARGV_MAX_LENGTH 127
-	bzero(sapi_module.executable_location, ARGV_MAX_LENGTH);
-	memcpy(sapi_module.executable_location, name, name_len);
+
+    if (Z_STRLEN_P(name) == 0)
+    {
+        return;
+    }
+
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 4
+	zval *retval;
+	zval **args[1];
+	args[0] = &name;
+
+	zval *function;
+	MAKE_STD_ZVAL(function);
+    ZVAL_STRING(function, "cli_set_process_title", 1);
+
+	if (call_user_function_ex(EG(function_table), NULL, function, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+	{
+	    return;
+	}
+
+	zval_ptr_dtor(&function);
+    if (retval)
+    {
+        zval_ptr_dtor(&retval);
+    }
+
+#else
+    bzero(sapi_module.executable_location, 127);
+    memcpy(sapi_module.executable_location, Z_STRVAL_P(name));
+#endif
+
 }
 
 PHP_FUNCTION(swoole_get_local_ip)
