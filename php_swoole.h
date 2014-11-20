@@ -329,6 +329,7 @@ void php_swoole_register_callback(swServer *serv);
 void php_swoole_try_run_reactor();
 
 zval *php_swoole_get_data(swEventData *req TSRMLS_DC);
+void php_swoole_onClose(swServer *, int fd, int from_id);
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
 	uint16_t aio_thread_num;

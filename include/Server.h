@@ -653,11 +653,11 @@ int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev);
 int swReactorThread_onWrite(swReactor *reactor, swEvent *ev);
 
 int swReactorThread_send(swSendData *_send);
-int swReactorThread_close(swReactor *reactor, int fd);
 int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id);
 
 int swReactorProcess_create(swServer *serv);
 int swReactorProcess_start(swServer *serv);
+int swReactorProcess_onClose(swReactor *reactor, swEvent *event);
 
 #ifdef __cplusplus
 }

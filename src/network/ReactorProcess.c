@@ -18,7 +18,6 @@
 #include "Server.h"
 
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker);
-static int swReactorProcess_onClose(swReactor *reactor, swEvent *event);
 
 int swReactorProcess_create(swServer *serv)
 {
@@ -187,13 +186,17 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     //write
     reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_WRITE, swReactorThread_onWrite);
     //tcp receive
-    if (serv->open_eof_check == 1)
+    if (serv->open_eof_check)
     {
         reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_eof);
     }
-    else if (serv->open_length_check == 1)
+    else if (serv->open_length_check)
     {
         reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_length);
+    }
+    else if (serv->open_http_protocol)
+    {
+        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_http_request);
     }
     else
     {
@@ -225,7 +228,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     return SW_OK;
 }
 
-static int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
+int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
 {
     swServer *serv = reactor->ptr;
     if (serv->onClose != NULL)

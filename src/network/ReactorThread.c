@@ -105,7 +105,34 @@ int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
  */
 static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
 {
-    return swReactorThread_close(reactor, event->fd);
+    if (SwooleG.serv->factory_mode == SW_MODE_SINGLE)
+    {
+        return swReactorProcess_onClose(reactor, event);
+    }
+
+    int fd = event->fd;
+    swDataHead notify_ev;
+    bzero(&notify_ev, sizeof(notify_ev));
+
+    notify_ev.from_id = reactor->id;
+    notify_ev.fd = fd;
+    notify_ev.type = SW_EVENT_CLOSE;
+
+    swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
+    if (conn == NULL || conn->active == 0)
+    {
+        return SW_ERR;
+    }
+
+    if (reactor->del(reactor, fd) == 0)
+    {
+        conn->active |= SW_STATE_REMOVED;
+        return SwooleG.factory->notify(SwooleG.factory, &notify_ev);
+    }
+    else
+    {
+        return SW_ERR;
+    }
 }
 
 /**
@@ -542,7 +569,7 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
     else if (n == 0)
     {
         close_fd:
-        swReactorThread_close(reactor, event->fd);
+        swReactorThread_onClose(reactor, event);
         /**
          * skip EPOLLERR
          */
@@ -629,7 +656,7 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
     else if (n == 0)
     {
         close_fd:
-        swReactorThread_close(reactor, event->fd);
+        swReactorThread_onClose(reactor, event);
         /**
          * skip EPOLLERR
          */
@@ -750,7 +777,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
     {
         close_fd:
         swTrace("Close Event.FD=%d|From=%d", event->fd, event->from_id);
-        swReactorThread_close(reactor, event->fd);
+        swReactorThread_onClose(reactor, event);
         /**
          * skip EPOLLERR
          */
@@ -903,32 +930,6 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
     return SW_OK;
 }
 
-int swReactorThread_close(swReactor *reactor, int fd)
-{
-    swDataHead notify_ev;
-    bzero(&notify_ev, sizeof(notify_ev));
-
-    notify_ev.from_id = reactor->id;
-    notify_ev.fd = fd;
-    notify_ev.type = SW_EVENT_CLOSE;
-
-    swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
-    if (conn == NULL || conn->active == 0)
-    {
-        return SW_ERR;
-    }
-
-    if (reactor->del(reactor, fd) == 0)
-    {
-        conn->active |= SW_STATE_REMOVED;
-        return SwooleG.factory->notify(SwooleG.factory, &notify_ev);
-    }
-    else
-    {
-        return SW_ERR;
-    }
-}
-
 /**
  * For Http Protocol
  */
@@ -993,7 +994,7 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
     else if (n == 0)
     {
         close_fd:
-        swReactorThread_close(reactor, fd);
+        swReactorThread_onClose(reactor, event);
         /**
          * skip EPOLLERR
          */

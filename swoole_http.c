@@ -312,6 +312,11 @@ static int http_request_message_complete(php_http_parser *parser)
 static void http_onClose(swServer *serv, int fd, int from_id)
 {
     swHashMap_del_int(php_sw_http_clients, fd);
+
+    if (php_sw_callback[SW_SERVER_CB_onClose] != NULL)
+    {
+        php_swoole_onClose(serv, fd, from_id);
+    }
 }
 
 static int http_onReceive(swFactory *factory, swEventData *req)
