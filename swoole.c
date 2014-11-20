@@ -822,7 +822,7 @@ PHP_FUNCTION(swoole_set_process_name)
 
 #else
     bzero(sapi_module.executable_location, 127);
-    memcpy(sapi_module.executable_location, Z_STRVAL_P(name));
+    memcpy(sapi_module.executable_location, Z_STRVAL_P(name), Z_STRLEN_P(name));
 #endif
 
 }
