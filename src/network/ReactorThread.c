@@ -693,7 +693,7 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 /**
  * return the package total length
  */
-static int swReactorThread_get_package_length(swServer *serv, void *data, uint32_t size)
+static sw_inline int swReactorThread_get_package_length(swServer *serv, void *data, uint32_t size)
 {
     uint16_t length_offset = serv->package_length_offset;
     uint32_t body_length;
@@ -709,7 +709,7 @@ static int swReactorThread_get_package_length(swServer *serv, void *data, uint32
     //Protocol length is not legitimate, out of bounds or exceed the allocated length
     if (body_length < 1 || body_length > serv->package_max_length)
     {
-        swWarn("Invalid package [length=%d].", body_length);
+        swWarn("invalid package [length=%d].", body_length);
         return SW_ERR;
     }
     //total package length
@@ -781,7 +781,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
                     goto close_fd;
                 }
                 //no package_length
-                else if(package_total_length == 0)
+                else if (package_total_length == 0)
                 {
                     char recv_buf_again[SW_BUFFER_SIZE_BIG];
                     memcpy(recv_buf_again, (void *) tmp_ptr, (uint32_t) tmp_n);
@@ -819,7 +819,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
                         //连续5次尝试补齐包头,认定为恶意请求
                         if (try_count > 5)
                         {
-                            swWarn("No package head. Close connection.");
+                            swWarn("no package header, close the connection.");
                             goto close_fd;
                         }
                     }
@@ -844,11 +844,6 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
                 //wait more data
                 else
                 {
-                    if (package_total_length >= serv->package_max_length)
-                    {
-                        swWarn("Package length more than the maximum size[%d], Close connection.", serv->package_max_length);
-                        goto close_fd;
-                    }
                     package = swString_new(package_total_length);
                     if (package == NULL)
                     {
@@ -887,13 +882,15 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
             {
                 memcpy(package->str + package->length, recv_buf, require_n);
                 package->length += require_n;
+
+                //send buffer to worker pipe
                 swReactorThread_send_string_buffer(swServer_get_thread(serv, reactor->id), conn, package);
+
+                //free the buffer memory
                 swString_free((swString *) package);
                 conn->object = NULL;
 
-                /**
-                 * Still have the data, to parse.
-                 */
+                //still have the data, to parse
                 if (n - require_n > 0)
                 {
                     tmp_n = n - require_n;
@@ -1446,7 +1443,7 @@ static int swReactorThread_loop_udp(swThreadParam *param)
     return 0;
 }
 
-int swReactorThread_send_string_buffer(swReactorThread *thread, swConnection *conn, swString *buffer)
+static int swReactorThread_send_string_buffer(swReactorThread *thread, swConnection *conn, swString *buffer)
 {
     int ret;
     swFactory *factory = SwooleG.factory;
@@ -1520,7 +1517,7 @@ int swReactorThread_send_string_buffer(swReactorThread *thread, swConnection *co
     return ret;
 }
 
-int swReactorThread_send_in_buffer(swReactorThread *thread, swConnection *conn)
+static int swReactorThread_send_in_buffer(swReactorThread *thread, swConnection *conn)
 {
     swDispatchData task;
     swFactory *factory = SwooleG.factory;
