@@ -833,6 +833,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
                             }
                             else if (errno == EAGAIN)
                             {
+                                try_count++;
                                 break;
                             }
                             else
@@ -840,8 +841,6 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
                                 goto error_fd;
                             }
                         }
-
-                        try_count++;
 
                         //连续5次尝试补齐包头,认定为恶意请求
                         if (try_count > 5)
