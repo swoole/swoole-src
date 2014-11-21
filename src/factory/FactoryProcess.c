@@ -36,10 +36,6 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti);
 static int swFactoryProcess_writer_start(swFactory *factory);
 static int swFactoryProcess_writer_loop_queue(swThreadParam *param);
 
-#if SW_USE_WRITER_THREAD
-static int swFactoryProcess_writer_loop_unsock(swThreadParam *param);
-#endif
-
 static int swFactoryProcess_notify(swFactory *factory, swDataHead *event);
 static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *buf);
 static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
@@ -564,9 +560,8 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         return swServer_udp_send(serv, resp);
     }
 
-    swEventData_overflow sdata;
-
     //for message queue
+    swEventData_overflow sdata;
     sdata.pti = (SwooleWG.id % serv->writer_num) + 1;
 
     swConnection *conn = swServer_connection_get(serv, fd);
@@ -703,40 +698,29 @@ int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
     }
 }
 
+/**
+ * for message queue
+ */
 static int swFactoryProcess_writer_start(swFactory *factory)
 {
     swServer *serv = SwooleG.serv;
     swThreadParam *param;
     int i;
     pthread_t pidt;
-    swThreadStartFunc thread_main;
-
-    if (serv->ipc_mode == SW_IPC_MSGQUEUE)
-    {
-        thread_main = (swThreadStartFunc) swFactoryProcess_writer_loop_queue;
-    }
-    else
-    {
-#if SW_USE_WRITER_THREAD
-        thread_main = (swThreadStartFunc) swFactoryProcess_writer_loop_unsock;
-#else
-        swError("never get here");
-#endif
-    }
 
     for (i = 0; i < serv->writer_num; i++)
     {
         param = sw_malloc(sizeof(swPipe));
         if (param == NULL)
         {
-            swError("malloc fail\n");
+            swSysError("malloc failed.");
             return SW_ERR;
         }
         param->object = factory;
         param->pti = i;
-        if (pthread_create(&pidt, NULL, thread_main, (void *) param) < 0)
+        if (pthread_create(&pidt, NULL, (swThreadStartFunc) swFactoryProcess_writer_loop_queue, (void *) param) < 0)
         {
-            swTrace("pthread_create fail\n");
+            swSysError("pthread_create() failed.");
             return SW_ERR;
         }
         pthread_detach(pidt);
@@ -813,36 +797,4 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
     pthread_exit((void *) param);
     return SW_OK;
 }
-
-#if SW_USE_WRITER_THREAD
-/**
- * 使用Unix Socket通信
- */
-int swFactoryProcess_writer_loop_unsock(swThreadParam *param)
-{
-    swFactory *factory = param->object;
-    swFactoryProcess *object = factory->object;
-    int pti = param->pti;
-    swReactor *reactor = &(object->writers[pti].reactor);
-
-    struct timeval tmo;
-    tmo.tv_sec = 3;
-    tmo.tv_usec = 0;
-
-    reactor->factory = factory;
-    reactor->id = pti;
-    //worker过多epoll效率更高
-    if (swReactor_auto(reactor, SW_REACTOR_MAXEVENTS) < 0)
-    {
-        pthread_exit((void *) param);
-        return SW_ERR;
-    }
-    swSingalNone();
-    reactor->setHandle(reactor, SW_FD_PIPE, swReactorThread_onPipeReceive);
-    reactor->wait(reactor, &tmo);
-    reactor->free(reactor);
-    pthread_exit((void *) param);
-    return SW_OK;
-}
-#endif
 

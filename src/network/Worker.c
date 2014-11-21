@@ -430,7 +430,7 @@ int swWorker_send2reactor(swEventData_overflow *sdata, size_t sendn, int fd)
     {
         for (count = 0; count < SW_WORKER_SENDTO_COUNT; count++)
         {
-            ret = serv->write_queue.in(&serv->write_queue, (swQueue_data *) &sdata, sendn);
+            ret = serv->write_queue.in(&serv->write_queue, (swQueue_data *) sdata, sendn);
             if (ret < 0)
             {
                 continue;
