@@ -583,9 +583,9 @@ static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t sche
         swConnection *conn = swServer_connection_get(serv, schedule_key);
         //UDP
         if (conn == NULL)
-		{
-			target_worker_id = schedule_key % serv->worker_num;
-		}
+        {
+            target_worker_id = schedule_key % serv->worker_num;
+        }
         else
         {
         	target_worker_id = conn->addr.sin_addr.s_addr % serv->worker_num;
