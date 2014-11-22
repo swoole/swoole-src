@@ -864,16 +864,15 @@ PHP_METHOD(swoole_http_response, end)
     SW_CHECK_RETURN(ret);
 }
 
-
-
-static void _setcookie(int encode)
+PHP_METHOD(swoole_http_response, cookie)
 {
     char *name, *value = NULL, *path = NULL, *domain = NULL;
     long expires = 0;
+    int encode = 1;
     zend_bool secure = 0, httponly = 0;
     int name_len, value_len = 0, path_len = 0, domain_len = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|slssbbb", &name, &name_len, &value, &value_len, &expires,
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|slssbb", &name, &name_len, &value, &value_len, &expires,
                 &path, &path_len, &domain, &domain_len, &secure, &httponly) == FAILURE)
     {
         return;
@@ -991,14 +990,130 @@ static void _setcookie(int encode)
     efree(cookie);
 }
 
-PHP_METHOD(swoole_http_response, cookie)
-{
-    _setcookie(1);
-}
-
 PHP_METHOD(swoole_http_response, rawcookie)
 {
-    _setcookie(0);
+    char *name, *value = NULL, *path = NULL, *domain = NULL;
+    long expires = 0;
+    int encode = 0;
+    zend_bool secure = 0, httponly = 0;
+    int name_len, value_len = 0, path_len = 0, domain_len = 0;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|slssbb", &name, &name_len, &value, &value_len, &expires,
+                &path, &path_len, &domain, &domain_len, &secure, &httponly) == FAILURE)
+    {
+        return;
+    }
+
+    zval *zfd = zend_read_property(swoole_http_response_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
+    if (ZVAL_IS_NULL(zfd))
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "http client not exists.");
+        RETURN_FALSE;
+    }
+
+    http_client *client = swHashMap_find_int(php_sw_http_clients, Z_LVAL_P(zfd));
+    if (!client)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "http client[#%d] not exists.", (int) Z_LVAL_P(zfd));
+        RETURN_FALSE;
+    }
+
+    if (client->end)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Response is end.");
+        RETURN_FALSE;
+    }
+
+    char *cookie, *encoded_value = NULL;
+    int len = sizeof("Set-Cookie: ");
+    char *dt;
+
+    if (name && strpbrk(name, "=,; \t\r\n\013\014") != NULL)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Cookie names cannot contain any of the following '=,; \\t\\r\\n\\013\\014'");
+        RETURN_FALSE;
+    }
+
+    if (!client->response.cookie)
+    {
+        client->response.cookie = swString_new(1024);
+    }
+
+    len += name_len;
+    if (encode && value)
+    {
+        int encoded_value_len;
+        encoded_value = php_url_encode(value, value_len, &encoded_value_len);
+        len += encoded_value_len;
+    }
+    else if (value)
+    {
+        encoded_value = estrdup(value);
+        len += value_len;
+    }
+    if (path)
+    {
+        len += path_len;
+    }
+    if (domain)
+    {
+        len += domain_len;
+    }
+
+    cookie = emalloc(len + 100);
+
+    if (value && value_len == 0)
+    {
+        dt = php_format_date("D, d-M-Y H:i:s T", sizeof("D, d-M-Y H:i:s T") - 1, 1, 0 TSRMLS_CC);
+        snprintf(cookie, len + 100, "Set-Cookie: %s=deleted; expires=%s", name, dt);
+        efree(dt);
+    }
+    else
+    {
+        snprintf(cookie, len + 100, "Set-Cookie: %s=%s", name, value ? encoded_value : "");
+        if (expires > 0)
+        {
+            const char *p;
+            strlcat(cookie, "; expires=", len + 100);
+            dt = php_format_date("D, d-M-Y H:i:s T", sizeof("D, d-M-Y H:i:s T") - 1, expires, 0 TSRMLS_CC);
+            p = zend_memrchr(dt, '-', strlen(dt));
+            if (!p || *(p + 5) != ' ')
+            {
+                efree(dt);
+                efree(cookie);
+                efree(encoded_value);
+                php_error_docref(NULL TSRMLS_CC, E_WARNING, "Expiry date cannot have a year greater than 9999");
+                RETURN_FALSE;
+            }
+            strlcat(cookie, dt, len + 100);
+            efree(dt);
+        }
+    }
+    if (encoded_value)
+    {
+        efree(encoded_value);
+    }
+    if (path && path_len > 0)
+    {
+        strlcat(cookie, "; path=", len + 100);
+        strlcat(cookie, path, len + 100);
+    }
+    if (domain && domain_len > 0)
+    {
+        strlcat(cookie, "; domain=", len + 100);
+        strlcat(cookie, domain, len + 100);
+    }
+    if (secure)
+    {
+        strlcat(cookie, "; secure", len + 100);
+    }
+    if (httponly)
+    {
+        strlcat(cookie, "; httponly", len + 100);
+    }
+    swString_append_ptr(client->response.cookie, cookie, strlen(cookie));
+    swString_append_ptr(client->response.cookie, ZEND_STRL("\r\n"));
+    efree(cookie);
 }
 
 PHP_METHOD(swoole_http_response, status)
