@@ -124,6 +124,7 @@ const zend_function_entry swoole_http_request_methods[] =
 const zend_function_entry swoole_http_response_methods[] =
 {
     PHP_ME(swoole_http_response, cookie, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, rawcookie, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, status, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, header, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, end, NULL, ZEND_ACC_PUBLIC)
@@ -361,16 +362,49 @@ static int http_onReceive(swFactory *factory, swEventData *req)
     	array_init(zserver);
     	zend_update_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("server"), zserver TSRMLS_CC);
 
-    	if (parser->method == PHP_HTTP_POST)
-    	{
-    		add_assoc_string(zserver, "request_method", "POST", 1);
-    	}
-    	else
-    	{
-    		add_assoc_string(zserver, "request_method", "GET", 1);
-    	}
+        switch (parser->method) {
+            case PHP_HTTP_GET: add_assoc_string(zserver, "request_method", "GET", 1);break;
+            case PHP_HTTP_POST: add_assoc_string(zserver, "request_method", "POST", 1);break;
+            case PHP_HTTP_HEAD: add_assoc_string(zserver, "request_method", "HEAD", 1);break;
+            case PHP_HTTP_PUT: add_assoc_string(zserver, "request_method", "PUT", 1);break;
+            case PHP_HTTP_DELETE: add_assoc_string(zserver, "request_method", "DELETE", 1);break;
+            case PHP_HTTP_PATCH: add_assoc_string(zserver, "request_method", "PATCH", 1);break;
+                /* pathological */
+            case PHP_HTTP_CONNECT: add_assoc_string(zserver, "request_method", "CONNECT", 1);break;
+            case PHP_HTTP_OPTIONS: add_assoc_string(zserver, "request_method", "OPTIONS", 1);break;
+            case PHP_HTTP_TRACE: add_assoc_string(zserver, "request_method", "TRACE", 1);break;
+                /* webdav */
+            case PHP_HTTP_COPY: add_assoc_string(zserver, "request_method", "COPY", 1);break;
+            case PHP_HTTP_LOCK: add_assoc_string(zserver, "request_method", "LOCK", 1);break;
+            case PHP_HTTP_MKCOL: add_assoc_string(zserver, "request_method", "MKCOL", 1);break;
+            case PHP_HTTP_MOVE: add_assoc_string(zserver, "request_method", "MOVE", 1);break;
+            case PHP_HTTP_PROPFIND: add_assoc_string(zserver, "request_method", "PROPFIND", 1);break;
+            case PHP_HTTP_PROPPATCH: add_assoc_string(zserver, "request_method", "PROPPATCH", 1);break;
+            case PHP_HTTP_UNLOCK: add_assoc_string(zserver, "request_method", "UNLOCK", 1);break;
+                /* subversion */
+            case PHP_HTTP_REPORT: add_assoc_string(zserver, "request_method", "REPORT", 1);break;
+            case PHP_HTTP_MKACTIVITY: add_assoc_string(zserver, "request_method", "MKACTIVITY", 1);break;
+            case PHP_HTTP_CHECKOUT: add_assoc_string(zserver, "request_method", "CHECKOUT", 1);break;
+            case PHP_HTTP_MERGE: add_assoc_string(zserver, "request_method", "MERGE", 1);break;
+                /* upnp */
+            case PHP_HTTP_MSEARCH: add_assoc_string(zserver, "request_method", "MSEARCH", 1);break;
+            case PHP_HTTP_NOTIFY: add_assoc_string(zserver, "request_method", "NOTIFY", 1);break;
+            case PHP_HTTP_SUBSCRIBE: add_assoc_string(zserver, "request_method", "SUBSCRIBE", 1);break;
+            case PHP_HTTP_UNSUBSCRIBE: add_assoc_string(zserver, "request_method", "UNSUBSCRIBE", 1);break;
+            case PHP_HTTP_NOT_IMPLEMENTED: add_assoc_string(zserver, "request_method", "GET", 1);break;
+        }
+
+//    	if (parser->method == PHP_HTTP_POST)
+//    	{
+//    		add_assoc_string(zserver, "request_method", "POST", 1);
+//    	}
+//    	else
+//    	{
+//    		add_assoc_string(zserver, "request_method", "GET", 1);
+//    	}
 
     	add_assoc_stringl(zserver, "request_uri", client->request.path, client->request.path_len, 1);
+    	add_assoc_stringl(zserver, "path_info", client->request.path, client->request.path_len, 1);
     	add_assoc_long_ex(zserver,  ZEND_STRS("request_time"), SwooleGS->now);
 
     	swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
@@ -384,8 +418,10 @@ static int http_onReceive(swFactory *factory, swEventData *req)
     	}
     	else
     	{
-    		add_assoc_string(zserver, "server_protocol", "HTTP/1.0", 1);
-    	}
+            add_assoc_string(zserver, "server_protocol", "HTTP/1.0", 1);
+        }
+        add_assoc_string(zserver, "server_software", SW_HTTP_SERVER_SOFTWARE, 1);
+        add_assoc_string(zserver, "gateway_interface", SW_HTTP_SERVER_SOFTWARE, 1);
 
     	zval *zresponse;
     	MAKE_STD_ZVAL(zresponse);
@@ -828,15 +864,17 @@ PHP_METHOD(swoole_http_response, end)
     SW_CHECK_RETURN(ret);
 }
 
-PHP_METHOD(swoole_http_response, cookie)
+
+
+static void _setcookie(int encode)
 {
     char *name, *value = NULL, *path = NULL, *domain = NULL;
     long expires = 0;
     zend_bool secure = 0, httponly = 0;
     int name_len, value_len = 0, path_len = 0, domain_len = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|slssbb", &name, &name_len, &value, &value_len, &expires,
-            &path, &path_len, &domain, &domain_len, &secure, &httponly) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|slssbbb", &name, &name_len, &value, &value_len, &expires,
+                &path, &path_len, &domain, &domain_len, &secure, &httponly) == FAILURE)
     {
         return;
     }
@@ -850,15 +888,15 @@ PHP_METHOD(swoole_http_response, cookie)
 
     http_client *client = swHashMap_find_int(php_sw_http_clients, Z_LVAL_P(zfd));
     if (!client)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "http client[#%d] not exists.", (int) Z_LVAL_P(zfd));
-		RETURN_FALSE;
-	}
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "http client[#%d] not exists.", (int) Z_LVAL_P(zfd));
+        RETURN_FALSE;
+    }
 
     if (client->end)
     {
-    	php_error_docref(NULL TSRMLS_CC, E_WARNING, "Response is end.");
-    	RETURN_FALSE;
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Response is end.");
+        RETURN_FALSE;
     }
 
     char *cookie, *encoded_value = NULL;
@@ -867,7 +905,7 @@ PHP_METHOD(swoole_http_response, cookie)
 
     if (name && strpbrk(name, "=,; \t\r\n\013\014") != NULL)
     {
-    	php_error_docref(NULL TSRMLS_CC, E_WARNING, "Cookie names cannot contain any of the following '=,; \\t\\r\\n\\013\\014'");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Cookie names cannot contain any of the following '=,; \\t\\r\\n\\013\\014'");
         RETURN_FALSE;
     }
 
@@ -877,7 +915,7 @@ PHP_METHOD(swoole_http_response, cookie)
     }
 
     len += name_len;
-    if (value)
+    if (encode && value)
     {
         int encoded_value_len;
         encoded_value = php_url_encode(value, value_len, &encoded_value_len);
@@ -951,6 +989,16 @@ PHP_METHOD(swoole_http_response, cookie)
     swString_append_ptr(client->response.cookie, cookie, strlen(cookie));
     swString_append_ptr(client->response.cookie, ZEND_STRL("\r\n"));
     efree(cookie);
+}
+
+PHP_METHOD(swoole_http_response, cookie)
+{
+    _setcookie(1);
+}
+
+PHP_METHOD(swoole_http_response, rawcookie)
+{
+    _setcookie(0);
 }
 
 PHP_METHOD(swoole_http_response, status)
