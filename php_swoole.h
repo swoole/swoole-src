@@ -309,6 +309,7 @@ PHP_METHOD(swoole_http_request, rawcontent);
 
 PHP_METHOD(swoole_http_response, end);
 PHP_METHOD(swoole_http_response, cookie);
+PHP_METHOD(swoole_http_response, rawcookie);
 PHP_METHOD(swoole_http_response, header);
 PHP_METHOD(swoole_http_response, message);
 PHP_METHOD(swoole_http_response, status);
