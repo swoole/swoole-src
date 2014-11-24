@@ -549,7 +549,7 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
     n = swRead(event->fd,  trunk->data, SW_BUFFER_SIZE);
 #else
     //level trigger
-    n = recv(event->fd,  trunk->store.ptr + trunk->length, buf_size, 0);
+    n = swConnection_recv(conn, trunk->store.ptr + trunk->length, buf_size, 0);
 #endif
 
     swTrace("ReactorThread: recv[len=%d]", n);
@@ -756,7 +756,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
     n = swRead(event->fd, recv_buf, SW_BUFFER_SIZE_BIG);
 #else
     //非ET模式会持续通知
-    n = recv(event->fd, recv_buf, SW_BUFFER_SIZE_BIG, 0);
+    n = swConnection_recv(conn, recv_buf, SW_BUFFER_SIZE_BIG, 0);
 #endif
 
     if (n < 0)
@@ -816,7 +816,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
                     for(;;)
                     {
                         //前tmp_n个字节存放不完整包头
-                        n = recv(event->fd, (void *) recv_buf_again + tmp_n, SW_BUFFER_SIZE_BIG - tmp_n, 0);
+                        n = swConnection_recv(conn, (void *) recv_buf_again + tmp_n, SW_BUFFER_SIZE_BIG - tmp_n, 0);
                         if (n > 0)
                         {
                             tmp_n += n;
@@ -974,7 +974,7 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
     n = swRead(fd, buf, buf_len);
 #else
     //非ET模式会持续通知
-    n = recv(fd, buf, buf_len, 0);
+    n = swConnection_recv(conn, buf, buf_len, 0);
 #endif
 
     if (n < 0)
@@ -1021,9 +1021,9 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
             request->buffer = NULL;
 
 #ifdef SW_HTTP_BAD_REQUEST
-            if (write(fd, SW_STRL(SW_HTTP_BAD_REQUEST) - 1) < 0)
+            if (swConnection_send(conn, SW_STRL(SW_HTTP_BAD_REQUEST) - 1, 0) < 0)
 			{
-            	swSysError("write() failed.");
+            	swSysError("send() failed.");
 			}
 #endif
             goto close_fd;
