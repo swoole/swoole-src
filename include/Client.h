@@ -47,8 +47,8 @@ typedef struct _swClient
 	uint8_t server_strlen;
 	double timeout;
 
-	struct sockaddr_in server_addr;
-	struct sockaddr_in remote_addr;
+	swSocketAddress server_addr;
+	swSocketAddress remote_addr;
 
 	swConnection connection;
 

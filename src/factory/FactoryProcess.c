@@ -342,6 +342,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
     }
 
     //for reload
+    swSignal_add(SIGHUP, NULL);
     swSignal_add(SIGTERM, swManager_signal_handle);
     swSignal_add(SIGUSR1, swManager_signal_handle);
     swSignal_add(SIGUSR2, swManager_signal_handle);

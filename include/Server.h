@@ -516,19 +516,19 @@ int swServer_connection_close(swServer *serv, int fd);
 
 static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_id)
 {
-	if (worker_id > serv->worker_num + SwooleG.task_worker_num)
-	{
-		swWarn("worker_id is exceed serv->worker_num + SwooleG.task_worker_num");
-		return NULL;
-	}
-	else if (worker_id >= serv->worker_num)
-	{
-		return &(swProcessPool_worker((&SwooleG.task_workers), worker_id - serv->worker_num));
-	}
-	else
-	{
-		return &(serv->workers[worker_id]);
-	}
+    if (worker_id > serv->worker_num + SwooleG.task_worker_num)
+    {
+        swWarn("worker_id is exceed serv->worker_num + SwooleG.task_worker_num");
+        return NULL;
+    }
+    else if (worker_id >= serv->worker_num)
+    {
+        return &(swProcessPool_worker((&SwooleG.task_workers), worker_id - serv->worker_num));
+    }
+    else
+    {
+        return &(serv->workers[worker_id]);
+    }
 }
 
 static sw_inline int swServer_send2worker_blocking(swServer *serv, void *data, int len, uint16_t target_worker_id)

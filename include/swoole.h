@@ -293,6 +293,17 @@ SwooleG.lock.unlock(&SwooleG.lock);}
 typedef unsigned char uchar;
 #endif
 
+typedef struct
+{
+    union
+    {
+        struct sockaddr_in inet_v4;
+        struct sockaddr_in6 inet_v6;
+        struct sockaddr_un un;
+    } addr;
+    socklen_t len;
+} swSocketAddress;
+
 //------------------------------String--------------------------------
 typedef struct _swString
 {

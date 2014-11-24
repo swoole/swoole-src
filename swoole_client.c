@@ -1193,7 +1193,7 @@ PHP_METHOD(swoole_client, __construct)
 PHP_METHOD(swoole_client, connect)
 {
 	int ret, i;
-	long port, sock_flag = 0;
+	long port = 0, sock_flag = 0;
 	char *host;
 	int host_len;
 	double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
@@ -1201,7 +1201,7 @@ PHP_METHOD(swoole_client, connect)
 	zval *callback = NULL;
 	swClient *cli = NULL;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl|dl", &host, &host_len, &port, &timeout,
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|ldl", &host, &host_len, &port, &timeout,
 			&sock_flag) == FAILURE)
 	{
 		return;

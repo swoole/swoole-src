@@ -17,7 +17,7 @@
 #include "swoole.h"
 #include "Client.h"
 
-static int swClient_inet_addr(swClient *cli, char *string);
+static int swClient_inet_addr(swClient *cli, char *host, int port);
 static int swClient_tcp_connect(swClient *cli, char *host, int port, double _timeout, int udp_connect);
 static int swClient_tcp_send_sync(swClient *cli, char *data, int length);
 static int swClient_tcp_send_async(swClient *cli, char *data, int length);
@@ -54,12 +54,20 @@ int swClient_create(swClient *cli, int type, int async)
         _domain = AF_INET6;
         _type = SOCK_STREAM;
         break;
+    case SW_SOCK_UNIX_STREAM:
+        _domain = AF_UNIX;
+        _type = SOCK_STREAM;
+        break;
     case SW_SOCK_UDP:
         _domain = AF_INET;
         _type = SOCK_DGRAM;
         break;
     case SW_SOCK_UDP6:
         _domain = AF_INET6;
+        _type = SOCK_DGRAM;
+        break;
+    case SW_SOCK_UNIX_DGRAM:
+        _domain = AF_UNIX;
         _type = SOCK_DGRAM;
         break;
     default:
@@ -71,7 +79,7 @@ int swClient_create(swClient *cli, int type, int async)
         swWarn("socket() failed. Error: %s[%d]", strerror(errno), errno);
         return SW_ERR;
     }
-    if (type < SW_SOCK_UDP)
+    if (type == SW_SOCK_TCP || type == SW_SOCK_TCP6 || type == SW_SOCK_UNIX_STREAM)
     {
         cli->connect = swClient_tcp_connect;
         cli->recv = swClient_tcp_recv_no_buffer;
@@ -104,56 +112,80 @@ int swClient_create(swClient *cli, int type, int async)
     return SW_OK;
 }
 
-static int swClient_inet_addr(swClient *cli, char *string)
+static int swClient_inet_addr(swClient *cli, char *host, int port)
 {
-    struct in_addr tmp;
     struct hostent *host_entry;
-    struct sockaddr_in *sin = &cli->server_addr;
+    void *s_addr;
 
-    if (inet_aton(string, &tmp))
+    if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_UDP)
     {
-        sin->sin_addr.s_addr = tmp.s_addr;
-    }
-    else
-    {
-        if (!swoole_dns_cache)
+        cli->server_addr.addr.inet_v4.sin_family = AF_INET;
+        cli->server_addr.addr.inet_v4.sin_port = htons(port);
+        cli->server_addr.len = sizeof(cli->server_addr.addr.inet_v4);
+        s_addr = &cli->server_addr.addr.inet_v4.sin_addr.s_addr;
+
+        if (inet_pton(AF_INET, host, s_addr))
         {
-            swoole_dns_cache = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
+            return SW_OK;
         }
+    }
+    else if (cli->type == SW_SOCK_TCP6 || cli->type == SW_SOCK_UDP6)
+    {
+        cli->server_addr.addr.inet_v6.sin6_family = AF_INET6;
+        cli->server_addr.addr.inet_v6.sin6_port = htons(port);
+        cli->server_addr.len = sizeof(cli->server_addr.addr.inet_v6);
+        s_addr = cli->server_addr.addr.inet_v6.sin6_addr.s6_addr;
 
-        swDNS_cache *cache = swHashMap_find(swoole_dns_cache, string, strlen(string));
+        if (inet_pton(AF_INET6, host, s_addr))
+        {
+            return SW_OK;
+        }
+    }
+    else if (cli->type == SW_SOCK_UNIX_STREAM || cli->type == SW_SOCK_UNIX_DGRAM)
+    {
+        cli->server_addr.addr.un.sun_family = AF_UNIX;
+        strncpy(cli->server_addr.addr.un.sun_path, host, sizeof(cli->server_addr.addr.un.sun_path));
+        cli->server_addr.len = sizeof(cli->server_addr.addr.un);
+        return SW_OK;
+    }
+
+    if (!swoole_dns_cache)
+    {
+        swoole_dns_cache = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
+    }
+
+    swDNS_cache *cache = swHashMap_find(swoole_dns_cache, host, strlen(host));
+    if (cache == NULL)
+    {
+        if (cli->async)
+        {
+            swWarn("DNS lookup will block the process. Please use swoole_async_dns_lookup.");
+        }
+        if (!(host_entry = gethostbyname(host)))
+        {
+            swWarn("SwooleClient: Host lookup failed. Error: %s[%d] ", strerror(errno), errno);
+            return SW_ERR;
+        }
+        if (host_entry->h_addrtype != AF_INET)
+        {
+            swWarn("Host lookup failed: Non AF_INET domain returned on AF_INET socket.");
+            return 0;
+        }
+        cache = sw_malloc(sizeof(int) + host_entry->h_length);
         if (cache == NULL)
         {
-            if (cli->async)
-            {
-                swWarn("DNS lookup will block the process. Please use swoole_async_dns_lookup.");
-            }
-            if (!(host_entry = gethostbyname(string)))
-            {
-                swWarn("SwooleClient: Host lookup failed. Error: %s[%d] ", strerror(errno), errno);
-                return SW_ERR;
-            }
-            if (host_entry->h_addrtype != AF_INET)
-            {
-                swWarn("Host lookup failed: Non AF_INET domain returned on AF_INET socket.");
-                return 0;
-            }
-            cache = sw_malloc(sizeof(int) + host_entry->h_length);
-            if (cache == NULL)
-            {
-                swWarn("malloc() failed.");
-                memcpy(&(sin->sin_addr.s_addr), host_entry->h_addr_list[0], host_entry->h_length);
-                return SW_OK;
-            }
-            else
-            {
-                memcpy(cache->addr, host_entry->h_addr_list[0], host_entry->h_length);
-                cache->length = host_entry->h_length;
-            }
-            swHashMap_add(swoole_dns_cache, string, strlen(string), cache, NULL);
+            swWarn("malloc() failed.");
+            memcpy(s_addr, host_entry->h_addr_list[0], host_entry->h_length);
+            return SW_OK;
         }
-        memcpy(&(sin->sin_addr.s_addr), cache->addr, cache->length);
+        else
+        {
+            memcpy(cache->addr, host_entry->h_addr_list[0], host_entry->h_length);
+            cache->length = host_entry->h_length;
+        }
+        swHashMap_add(swoole_dns_cache, host, strlen(host), cache, NULL);
     }
+    memcpy(s_addr, cache->addr, cache->length);
     return SW_OK;
 }
 
@@ -168,15 +200,12 @@ static int swClient_close(swClient *cli)
 static int swClient_tcp_connect(swClient *cli, char *host, int port, double timeout, int nonblock)
 {
     int ret;
-    cli->server_addr.sin_family = cli->sock_domain;
-    cli->server_addr.sin_port = htons(port);
+    cli->timeout = timeout;
 
-    if (swClient_inet_addr(cli, host) < 0)
+    if (swClient_inet_addr(cli, host, port) < 0)
     {
         return SW_ERR;
     }
-
-    cli->timeout = timeout;
 
     if (nonblock == 1)
     {
@@ -193,7 +222,7 @@ static int swClient_tcp_connect(swClient *cli, char *host, int port, double time
 
     while (1)
     {
-        ret = connect(cli->connection.fd, (struct sockaddr *) (&cli->server_addr), sizeof(cli->server_addr));
+        ret = connect(cli->connection.fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
         if (ret < 0)
         {
             if (errno == EINTR)
@@ -324,20 +353,17 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
 {
     char buf[1024];
 
+    if (swClient_inet_addr(cli, host, port) < 0)
+    {
+        return SW_ERR;
+    }
+
     cli->timeout = timeout;
     if (timeout > 0)
     {
         swSetTimeout(cli->connection.fd, timeout);
     }
-
-    cli->server_addr.sin_family = cli->sock_domain;
-    cli->server_addr.sin_port = htons(port);
     cli->connection.active = 1;
-
-    if (swClient_inet_addr(cli, host) < 0)
-    {
-        return SW_ERR;
-    }
 
     if (udp_connect != 1)
     {
@@ -356,6 +382,8 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
     }
     else
     {
+        swSysError("connect() failed.");
+        cli->connection.active = 0;
         return SW_ERR;
     }
 }
@@ -363,7 +391,7 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
 static int swClient_udp_send(swClient *cli, char *data, int len)
 {
     int n;
-    n = sendto(cli->connection.fd, data, len, 0, (struct sockaddr *) (&cli->server_addr), sizeof(struct sockaddr));
+    n = sendto(cli->connection.fd, data, len, 0, (struct sockaddr *) (&cli->server_addr.addr), cli->server_addr.len);
     if (n < 0 || n < len)
     {
 

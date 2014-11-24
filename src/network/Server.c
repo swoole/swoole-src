@@ -815,8 +815,8 @@ int swServer_onFinish2(swFactory *factory, swSendData *resp)
 
 void swServer_signal_init(void)
 {
+    swSignal_add(SIGPIPE, NULL);
 	swSignal_add(SIGHUP, NULL);
-	swSignal_add(SIGPIPE, NULL);
 	swSignal_add(SIGCHLD, swServer_signal_hanlder);
 	swSignal_add(SIGUSR1, swServer_signal_hanlder);
 	swSignal_add(SIGUSR2, swServer_signal_hanlder);
