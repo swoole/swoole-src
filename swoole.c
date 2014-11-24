@@ -672,7 +672,7 @@ PHP_RINIT_FUNCTION(swoole)
 	//swoole_aio
 	zend_hash_init(&php_sw_aio_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
 	//running
-	SwooleG.running = 1;
+    SwooleG.running = 1;
 	return SUCCESS;
 }
 
@@ -803,8 +803,9 @@ PHP_FUNCTION(swoole_set_process_name)
         return;
     }
 
-#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 4
-	zval *retval;
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION > 4
+
+    zval *retval;
 	zval **args[1];
 	args[0] = &name;
 

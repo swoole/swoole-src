@@ -194,7 +194,12 @@ static int swClient_close(swClient *cli)
     int fd = cli->connection.fd;
     cli->connection.fd = 0;
     cli->connection.active = 0;
-    return close(fd);
+    int ret = close(fd);
+    if (cli->type == SW_SOCK_UNIX_DGRAM)
+    {
+        unlink(cli->client_addr.addr.un.sun_path);
+    }
+    return ret;
 }
 
 static int swClient_tcp_connect(swClient *cli, char *host, int port, double timeout, int nonblock)
@@ -363,9 +368,23 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
     {
         swSetTimeout(cli->connection.fd, timeout);
     }
+
     cli->connection.active = 1;
 
-    if (udp_connect != 1)
+    if (cli->type == SW_SOCK_UNIX_DGRAM)
+    {
+        struct sockaddr_un* client_addr = &cli->client_addr.addr.un;
+        sprintf(client_addr->sun_path, "/tmp/swoole-client.%d.%d.sock", getpid(), cli->connection.fd);
+        client_addr->sun_family = AF_UNIX;
+        unlink(client_addr->sun_path);
+
+        if (bind(cli->connection.fd, (struct sockaddr *) client_addr, sizeof(cli->client_addr.addr.un)) < 0)
+        {
+            swSysError("bind(%s) failed.", client_addr->sun_path);
+            return SW_ERR;
+        }
+    }
+    else if (udp_connect != 1)
     {
         return SW_OK;
     }
@@ -374,7 +393,7 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
     setsockopt(cli->connection.fd, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize));
     setsockopt(cli->connection.fd, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize));
 
-    if (connect(cli->connection.fd, (struct sockaddr *) (&cli->server_addr), sizeof(cli->server_addr)) == 0)
+    if (connect(cli->connection.fd, (struct sockaddr *) (&cli->server_addr), cli->server_addr.len) == 0)
     {
         //清理connect前的buffer数据遗留
         while (recv(cli->connection.fd, buf, 1024, MSG_DONTWAIT) > 0);

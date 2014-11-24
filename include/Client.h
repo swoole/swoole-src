@@ -49,6 +49,7 @@ typedef struct _swClient
 
 	swSocketAddress server_addr;
 	swSocketAddress remote_addr;
+	swSocketAddress client_addr;
 
 	swConnection connection;
 
