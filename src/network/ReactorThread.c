@@ -761,7 +761,6 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
 
     if (n < 0)
     {
-        error_fd:
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
@@ -792,7 +791,6 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
         swString *package;
         void *tmp_ptr = recv_buf;
         uint32_t tmp_n = n;
-        uint32_t try_count = 0;
 
         //new package
         if (conn->object == NULL)
