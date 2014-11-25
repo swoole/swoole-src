@@ -300,28 +300,35 @@ int swWorker_loop(swFactory *factory, int worker_id)
     //worker_id
     SwooleWG.id = worker_id;
 
-#ifndef SW_USE_RINGBUFFER
     int i;
-    //for open_check_eof and  open_check_length
+
+    SwooleWG.buffer_input = sw_malloc(sizeof(swString*) * serv->reactor_num);
+
+    if (SwooleWG.buffer_input == NULL)
+    {
+        swError("malloc for SwooleWG.buffer_input failed.");
+        return SW_ERR;
+    }
+
+    int buffer_input_size;
     if (serv->open_eof_check || serv->open_length_check || serv->open_http_protocol)
     {
-        SwooleWG.buffer_input = sw_malloc(sizeof(swString*) * serv->reactor_num);
-        if (SwooleWG.buffer_input == NULL)
+        buffer_input_size = serv->package_max_length;
+    }
+    else
+    {
+        buffer_input_size = SW_BUFFER_SIZE_BIG;
+    }
+
+    for (i = 0; i < serv->reactor_num; i++)
+    {
+        SwooleWG.buffer_input[i] = swString_new(buffer_input_size);
+        if (SwooleWG.buffer_input[i] == NULL)
         {
-            swError("malloc for SwooleWG.buffer_input failed.");
+            swError("buffer_input init failed.");
             return SW_ERR;
         }
-        for (i = 0; i < serv->reactor_num; i++)
-        {
-            SwooleWG.buffer_input[i] = swString_new(serv->buffer_input_size);
-            if (SwooleWG.buffer_input[i] == NULL)
-            {
-                swError("buffer_input init failed.");
-                return SW_ERR;
-            }
-        }
     }
-#endif
 
     if (serv->ipc_mode == SW_IPC_MSGQUEUE)
     {
