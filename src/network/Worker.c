@@ -310,6 +310,7 @@ int swWorker_loop(swFactory *factory, int worker_id)
         return SW_ERR;
     }
 
+#ifndef SW_USE_RINGBUFFER
     int buffer_input_size;
     if (serv->open_eof_check || serv->open_length_check || serv->open_http_protocol)
     {
@@ -329,6 +330,7 @@ int swWorker_loop(swFactory *factory, int worker_id)
             return SW_ERR;
         }
     }
+#endif
 
     if (serv->ipc_mode == SW_IPC_MSGQUEUE)
     {
