@@ -658,7 +658,14 @@ int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
         if (task->data.info.type == SW_EVENT_UDP || task->data.info.type == SW_EVENT_UDP6
                 || task->data.info.type == SW_EVENT_UNIX_DGRAM)
         {
-            schedule_key = task->data.info.from_id;
+        	if (serv->dispatch_mode == SW_DISPATCH_IPMOD)
+        	{
+        		schedule_key = task->data.info.fd;
+        	}
+        	else
+        	{
+        		schedule_key = task->data.info.from_id;
+        	}
         }
         else
         {
