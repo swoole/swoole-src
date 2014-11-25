@@ -729,6 +729,7 @@ static sw_inline int swReactorThread_get_package_length(swServer *serv, void *da
      */
     if (size < length_offset + serv->package_length_size)
     {
+        swWarn("no enough data.");
         return 0;
     }
     body_length = swoole_unpack(serv->package_length_type, data + length_offset);

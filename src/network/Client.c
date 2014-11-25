@@ -115,7 +115,7 @@ int swClient_create(swClient *cli, int type, int async)
 static int swClient_inet_addr(swClient *cli, char *host, int port)
 {
     struct hostent *host_entry;
-    void *s_addr;
+    void *s_addr = NULL;
 
     if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_UDP)
     {
