@@ -31,11 +31,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-	<date>2014-10-28</date>
+	<date>2014-11-26</date>
 	<time>16:19:51</time>
 	<version>
-		<release>1.7.7</release>
-		<api>1.7.7</api>
+		<release>1.7.8</release>
+		<api>1.7.8</api>
 	</version>
 	<stability>
 		<release>stable</release>
@@ -242,6 +242,24 @@
 	<extsrcrelease />
 
 	<changelog>
+	<release>
+		<date>2014-10-28</date>
+		<time>16:19:51</time>
+		<version>
+			<release>1.7.7</release>
+			<api>1.7.7</api>
+		</version>
+		<stability>
+			<release>stable</release>
+			<api>stable</api>
+		</stability>
+		<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
+		<notes>
+			- Added swoole_http_server
+			- Added swoole_server->after and swoole_timer_after
+			- Fixed all known issues
+		</notes>
+	</release>
 	<release>
 		<date>2014-10-10</date>
 		<time>12:51:51</time>

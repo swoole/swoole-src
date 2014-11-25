@@ -800,58 +800,12 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
             do_parse_package:
             do
             {
-                package_total_length = swReactorThread_get_package_length(serv, (void *)tmp_ptr, (uint32_t) tmp_n);
+                package_total_length = swReactorThread_get_package_length(serv, (void *) tmp_ptr, (uint32_t) tmp_n);
 
                 //Invalid package, close connection
-                if (package_total_length < 0)
+                if (package_total_length <= 0)
                 {
                     goto close_fd;
-                }
-                //no package_length
-                else if (package_total_length == 0)
-                {
-                    char recv_buf_again[SW_BUFFER_SIZE_BIG];
-                    memcpy(recv_buf_again, (void *) tmp_ptr, (uint32_t) tmp_n);
-
-                    for(;;)
-                    {
-                        //前tmp_n个字节存放不完整包头
-                        n = swConnection_recv(conn, (void *) recv_buf_again + tmp_n, SW_BUFFER_SIZE_BIG - tmp_n, 0);
-                        if (n > 0)
-                        {
-                            tmp_n += n;
-                        }
-                        else if (n == 0)
-                        {
-                            goto close_fd;
-                        }
-                        else
-                        {
-                            if (errno == EINTR)
-                            {
-                                continue;
-                            }
-                            else if (errno == EAGAIN)
-                            {
-                                try_count++;
-                                break;
-                            }
-                            else
-                            {
-                                goto error_fd;
-                            }
-                        }
-
-                        //连续5次尝试补齐包头,认定为恶意请求
-                        if (try_count > 5)
-                        {
-                            swWarn("no package header, close the connection.");
-                            goto close_fd;
-                        }
-                    }
-
-                    tmp_ptr = recv_buf_again;
-                    goto do_parse_package;
                 }
                 //complete package
                 if (package_total_length <= tmp_n)
