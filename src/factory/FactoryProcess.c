@@ -200,13 +200,13 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 
     if (SwooleG.task_worker_num > 0)
     {
-        key_t msgqueue_key = 0;
+        key_t key = 0;
         if (SwooleG.task_ipc_mode == SW_IPC_MSGQUEUE)
         {
-            msgqueue_key =  serv->message_queue_key + 2;
+            key = serv->message_queue_key + 2;
         }
 
-        if (swProcessPool_create(&SwooleG.task_workers, SwooleG.task_worker_num, serv->task_max_request, msgqueue_key) < 0)
+        if (swProcessPool_create(&SwooleG.task_workers, SwooleG.task_worker_num, serv->task_max_request, key, 1) < 0)
         {
             swWarn("[Master] create task_workers failed.");
             return SW_ERR;

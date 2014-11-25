@@ -80,25 +80,23 @@ int swReactorProcess_start(swServer *serv)
     }
 
     swProcessPool pool;
+    if (swProcessPool_create(&pool, serv->worker_num, serv->max_request, 0, 0) < 0)
+    {
+        return SW_ERR;
+    }
     pool.ptr = serv;
+    pool.main_loop = swReactorProcess_loop;
+    SwooleG.event_workers = &pool;
 
     //no worker
     if (serv->worker_num == 1 && SwooleG.task_worker_num == 0 && serv->max_request == 0)
     {
         return swReactorProcess_loop(&pool, NULL);
     }
-
-    pool.main_loop = swReactorProcess_loop;
-    if (swProcessPool_create(&pool, serv->worker_num, serv->max_request, 0) < 0)
-    {
-        return SW_ERR;
-    }
-    SwooleG.event_workers = &pool;
-
     //task workers
     if (SwooleG.task_worker_num > 0)
     {
-        if (swProcessPool_create(&SwooleG.task_workers, SwooleG.task_worker_num, serv->task_max_request, serv->message_queue_key + 2) < 0)
+        if (swProcessPool_create(&SwooleG.task_workers, SwooleG.task_worker_num, serv->task_max_request, serv->message_queue_key + 2, 1) < 0)
         {
             swWarn("[Master] create task_workers failed.");
             return SW_ERR;
@@ -217,10 +215,14 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     swServer_update_time();
 
     struct timeval timeo;
-    if (serv->onWorkerStart != NULL)
+
+
+    if (serv->onWorkerStart)
     {
-        serv->onWorkerStart(serv, 0);
+
+        serv->onWorkerStart(serv, worker->id);
     }
+
     timeo.tv_sec = SW_MAINREACTOR_TIMEO;
     timeo.tv_usec = 0;
     reactor->wait(reactor, &timeo);

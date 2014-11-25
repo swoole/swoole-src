@@ -844,7 +844,7 @@ PHP_FUNCTION(swoole_server_set)
     {
         serv->backlog = (int) Z_LVAL_PP(v);
     }
-    //poll_thread_num
+    //reactor thread num
     if (zend_hash_find(vht, ZEND_STRS("reactor_num"), (void **) &v) == SUCCESS
             || zend_hash_find(vht, ZEND_STRS("poll_thread_num"), (void **) &v) == SUCCESS)
     {
@@ -866,7 +866,7 @@ PHP_FUNCTION(swoole_server_set)
         }
     }
     //worker_num
-    if (serv->factory_mode != SW_MODE_SINGLE && zend_hash_find(vht, ZEND_STRS("worker_num"), (void **) &v) == SUCCESS)
+    if (zend_hash_find(vht, ZEND_STRS("worker_num"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->worker_num = (int) Z_LVAL_PP(v);

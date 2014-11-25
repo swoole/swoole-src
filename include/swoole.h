@@ -985,7 +985,7 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num);
 int swReactorSelect_create(swReactor *reactor);
 
 /*----------------------------Process Pool-------------------------------*/
-int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, key_t msgqueue_key);
+int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, key_t msgqueue_key, int nopipe);
 int swProcessPool_wait(swProcessPool *pool);
 int swProcessPool_start(swProcessPool *pool);
 void swProcessPool_shutdown(swProcessPool *pool);

@@ -22,7 +22,7 @@ static void swProcessPool_free(swProcessPool *pool);
 /**
  * Process manager
  */
-int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, key_t msgqueue_key)
+int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, key_t msgqueue_key, int create_pipe)
 {
     bzero(pool, sizeof(swProcessPool));
 
@@ -57,7 +57,7 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
             return SW_ERR;
         }
     }
-    else
+    else if (create_pipe)
     {
         pool->pipes = sw_calloc(worker_num, sizeof(swPipe));
         if (pool->pipes == NULL)

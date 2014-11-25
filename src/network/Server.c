@@ -516,14 +516,14 @@ int swServer_start(swServer *serv)
         ret = swServer_start_proxy(serv);
     }
 
-	if (ret < 0)
-	{
-		SwooleGS->start = 0;
-	}
-	else if (serv->onShutdown != NULL)
-	{
-		serv->onShutdown(serv);
-	}
+    if (ret < 0)
+    {
+        SwooleGS->start = 0;
+    }
+    else if (serv->onShutdown != NULL)
+    {
+        serv->onShutdown(serv);
+    }
 
 	swServer_free(serv);
 	return SW_OK;
