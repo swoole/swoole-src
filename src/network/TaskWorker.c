@@ -124,8 +124,6 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
     swWorker_onStart(serv);
 
     current_worker = &pool->workers[worker_id];
-
-    SwooleG.process_type = SW_PROCESS_TASKWORKER;
 }
 
 void swTaskWorker_onStop(swProcessPool *pool, int worker_id)

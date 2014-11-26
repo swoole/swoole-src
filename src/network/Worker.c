@@ -223,6 +223,7 @@ void swWorker_onStart(swServer *serv)
      */
     int i;
     swWorker *worker;
+
     for (i = 0; i < serv->worker_num + SwooleG.task_worker_num; i++)
     {
         worker = swServer_get_worker(serv, i);
@@ -240,7 +241,14 @@ void swWorker_onStart(swServer *serv)
         }
     }
 
-    SwooleG.process_type = SW_PROCESS_WORKER;
+    if (SwooleWG.id >= serv->worker_num)
+    {
+        SwooleG.process_type = SW_PROCESS_TASKWORKER;
+    }
+    else
+    {
+        SwooleG.process_type = SW_PROCESS_WORKER;
+    }
 
     if (serv->onWorkerStart)
     {

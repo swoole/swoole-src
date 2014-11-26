@@ -526,8 +526,6 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     MAKE_STD_ZVAL(zworker_id);
     ZVAL_LONG(zworker_id, worker_id);
 
-    printf("process_type=%d\n", SwooleG.process_type);
-
     args[0] = &zserv;
     zval_add_ref(&zserv);
     args[1] = &zworker_id;
