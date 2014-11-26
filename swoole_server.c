@@ -526,6 +526,8 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     MAKE_STD_ZVAL(zworker_id);
     ZVAL_LONG(zworker_id, worker_id);
 
+    printf("process_type=%d\n", SwooleG.process_type);
+
     args[0] = &zserv;
     zval_add_ref(&zserv);
     args[1] = &zworker_id;
@@ -1856,6 +1858,7 @@ PHP_FUNCTION(swoole_timer_after)
 {
     long interval;
     swTimer_callback* callback = sw_malloc(sizeof(swTimer_callback));
+    callback->data = NULL;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz|z",  &interval ,&(callback->callback), &(callback->data) ) == FAILURE)
     {

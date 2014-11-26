@@ -658,10 +658,10 @@ extern char sw_error[SW_ERROR_MSG_SIZE];
 
 enum swProcessType
 {
-    SW_PROCESS_MASTER = 1,
-    SW_PROCESS_WORKER,
-    SW_PROCESS_MANAGER,
-    SW_PROCESS_TASKWORKER,
+    SW_PROCESS_MASTER     = 1,
+    SW_PROCESS_WORKER     = 2,
+    SW_PROCESS_MANAGER    = 3,
+    SW_PROCESS_TASKWORKER = 4,
 };
 
 #define swIsMaster()          (SwooleG.process_type==SW_PROCESS_MASTER)
