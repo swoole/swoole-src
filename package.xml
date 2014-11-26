@@ -43,9 +43,15 @@
 	</stability>
 	<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
 	<notes>
-	- Added swoole_http_server
-	- Added swoole_server->after and swoole_timer_after
-	- Fixed all known issues
+	- Fixed swoole_http_server::on no implementation parent class methods
+	- Fixed cannot read cookie in swoole_http_server
+	- Added swoole_http_server support to POST RawContent
+	- swoole_timer_after interface can pass a user parameter
+	- swoole_client->recv and onReceive zero copy
+	- Fixed swoole_table->set cannot be set more than 64K string
+	- Fixed open_length_check connection memory buffer is not reset bug
+	- Added dispatch_mode=4/5, dispatch data by client ip and uid
+	- Event callback function exception error level changed from E_WARNING to E_ERROR
     </notes>
 	<contents>
 	<dir name="/">
@@ -172,6 +178,7 @@
 			<file role="src" name="FixedPool.c" />
 			<file role="src" name="RingBuffer.c" />
 			<file role="src" name="Table.c" />
+			<file role="src" name="Malloc.c" />
 		</dir>
 		<dir name="factory">
 			<file role="src" name="Factory.c" />

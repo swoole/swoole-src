@@ -42,13 +42,15 @@
 #define SW_CLIENT_DEFAULT_TIMEOUT  0.5
 #define SW_CLIENT_MAX_PORT         65535
 
+//!!!Don't modify.----------------------------------------------------------
 #ifdef SW_USE_RINGBUFFER
 #define SW_BUFFER_SIZE             65535
 #elif __MACH__
-#define SW_BUFFER_SIZE             (2048-sizeof(struct _swDataHead))
+#define SW_BUFFER_SIZE             (2048-sizeof(struct _swDataHead)) //MacOS
 #else
-#define SW_BUFFER_SIZE             (8192-sizeof(struct _swDataHead))
+#define SW_BUFFER_SIZE             (8192-sizeof(struct _swDataHead)) //for IPC, dgram and message-queue max size
 #endif
+//!!!End.-------------------------------------------------------------------
 
 #define SW_BUFFER_SIZE_BIG         65536
 #define SW_SENDFILE_TRUNK          65536
