@@ -729,7 +729,6 @@ static sw_inline int swReactorThread_get_package_length(swServer *serv, void *da
      */
     if (size < length_offset + serv->package_length_size)
     {
-        swWarn("no enough data.");
         return 0;
     }
     body_length = swoole_unpack(serv->package_length_type, data + length_offset);
@@ -801,10 +800,30 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
             {
                 package_total_length = swReactorThread_get_package_length(serv, (void *) tmp_ptr, (uint32_t) tmp_n);
 
-                //Invalid package, close connection
-                if (package_total_length <= 0)
+                //invalid package, close connection.
+                if (package_total_length < 0)
                 {
                     goto close_fd;
+                }
+                //no enough data
+                else if (package_total_length == 0)
+                {
+                    //recv again
+                    n = swConnection_recv(conn, (void *) (recv_buf + tmp_n), SW_BUFFER_SIZE_BIG - tmp_n, 0);
+                    if (n > 0)
+                    {
+                        tmp_n += n;
+                        goto do_parse_package;
+                    }
+                    else if (n == 0)
+                    {
+                        goto close_fd;
+                    }
+                    else
+                    {
+                        swWarn("no enough data, close the connection.");
+                        goto close_fd;
+                    }
                 }
                 //complete package
                 if (package_total_length <= tmp_n)
@@ -872,8 +891,13 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
                 //still have the data, to parse
                 if (n - require_n > 0)
                 {
+                    char tmp_buf[SW_BUFFER_SIZE_BIG];
+                    //reset tmp_n
                     tmp_n = n - require_n;
-                    tmp_ptr = recv_buf + require_n;
+                    //reset recv_buf
+                    memcpy(tmp_buf, recv_buf + require_n, tmp_n);
+                    memcpy(recv_buf, tmp_buf, tmp_n);
+
                     goto do_parse_package;
                 }
             }
