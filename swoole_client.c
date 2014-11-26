@@ -517,6 +517,12 @@ void php_swoole_check_reactor()
 {
 	if (php_sw_reactor_ok == 0)
 	{
+	    if (strcasecmp("cli", sapi_module.name) != 0)
+	    {
+	        php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole async io must use in php_cli environment.");
+	        return;
+	    }
+
 		TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
 		if (SwooleG.main_reactor == NULL)
