@@ -327,6 +327,7 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_async_readfile, NULL)
 	PHP_FE(swoole_async_writefile, NULL)
 	PHP_FE(swoole_async_dns_lookup, NULL)
+	PHP_FE(swoole_async_signal, NULL)
 	/*------other-----*/
 	PHP_FE(swoole_client_select, NULL)
 	PHP_FE(swoole_set_process_name, NULL)

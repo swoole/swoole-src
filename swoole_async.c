@@ -37,13 +37,16 @@ typedef struct {
 
 static void php_swoole_check_aio();
 static void php_swoole_aio_onComplete(swAio_event *event);
+static void php_swoole_user_signal(int signo);
 
 static char php_swoole_aio_init = 0;
 static swHashMap *php_swoole_open_files;
+static zval *php_sw_signal_callback[128];
 
 void swoole_async_init(int module_number TSRMLS_DC)
 {
     bzero(&SwooleAIO, sizeof(SwooleAIO));
+
     REGISTER_LONG_CONSTANT("SWOOLE_AIO_BASE", SW_AIO_BASE, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SWOOLE_AIO_GCC", SW_AIO_GCC, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SWOOLE_AIO_LINUX", SW_AIO_LINUX, CONST_CS | CONST_PERSISTENT);
@@ -659,6 +662,80 @@ PHP_FUNCTION(swoole_async_set)
     }
 }
 
+PHP_FUNCTION(swoole_async_signal)
+{
+    zval *callback = NULL;
+    long signo = 0;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz", &signo, &callback) == FAILURE)
+    {
+        return;
+    }
+
+#ifdef ZTS
+    if (sw_thread_ctx == NULL)
+    {
+        TSRMLS_SET_CTX(sw_thread_ctx);
+    }
+#endif
+
+    if (callback == NULL || ZVAL_IS_NULL(callback))
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "no callback.");
+        RETURN_FALSE;
+    }
+
+    char *func_name;
+    if (!zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+    {
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
+        efree(func_name);
+        RETURN_FALSE;
+    }
+
+    zval_add_ref(&callback);
+    php_sw_signal_callback[signo] = callback;
+
+    php_swoole_check_reactor();
+
+#ifdef HAVE_SIGNALFD
+    swSignalfd_init();
+    SwooleG.use_signalfd = 1;
+
+    swSignal_add(signo, php_swoole_user_signal);
+    swSignalfd_setup(SwooleG.main_reactor);
+
+    php_swoole_try_run_reactor();
+    RETURN_TRUE;
+#endif
+
+}
+
+static void php_swoole_user_signal(int signo)
+{
+    zval *retval;
+    zval **args[1];
+    zval *callback = php_sw_signal_callback[signo];
+
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+    zval *zsigno;
+    MAKE_STD_ZVAL(zsigno);
+    ZVAL_LONG(zsigno, signo);
+
+    args[0] = &zsigno;
+
+    if (call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "user_signal handler error");
+    }
+    if (retval != NULL)
+    {
+        zval_ptr_dtor(&retval);
+    }
+    zval_ptr_dtor(&zsigno);
+}
+
 PHP_FUNCTION(swoole_async_dns_lookup)
 {
 
@@ -676,13 +753,6 @@ PHP_FUNCTION(swoole_async_dns_lookup)
 	{
 		return;
 	}
-
-#ifdef ZTS
-	if(sw_thread_ctx == NULL)
-	{
-		TSRMLS_SET_CTX(sw_thread_ctx);
-	}
-#endif
 
     if (Z_STRLEN_P(domain) == 0)
     {

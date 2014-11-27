@@ -245,6 +245,7 @@ PHP_FUNCTION(swoole_async_readfile);
 PHP_FUNCTION(swoole_async_writefile);
 PHP_FUNCTION(swoole_async_dns_lookup);
 PHP_FUNCTION(swoole_async_set);
+PHP_FUNCTION(swoole_async_signal);
 
 PHP_FUNCTION(swoole_timer_add);
 PHP_FUNCTION(swoole_timer_del);
