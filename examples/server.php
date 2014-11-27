@@ -9,7 +9,7 @@ $config = array(
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
     //'ipc_mode' => 2,
-    //'task_worker_num' => 1,
+    'task_worker_num' => 1,
     //'task_ipc_mode' => 1,
     //'dispatch_mode' => 1,
     'log_file' => '/tmp/swoole.log',
@@ -24,6 +24,10 @@ if (isset($argv[1]) and $argv[1] == 'daemon') {
 
 $serv = new swoole_server("0.0.0.0", 9501);
 $serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
+
+$process1 = new swoole_process("my_process1", false, false);
+$serv->addprocess($process1);
+
 $serv->set($config);
 /**
  * 保存数据到对象属性，在任意位置均可访问
@@ -33,6 +37,14 @@ $serv->config = $config;
  * 使用类的静态属性，可以直接访问
  */
 G::$serv = $serv;
+
+function my_process1($process)
+{
+	global $argv;
+	var_dump($process);
+	swoole_set_process_name("php {$argv[0]}: my_process1");
+	sleep(1000);
+}
 
 function my_onStart(swoole_server $serv)
 {
@@ -130,9 +142,9 @@ function my_onConnect($serv, $fd, $from_id)
 
 function my_onWorkerStart($serv, $worker_id)
 {
-	processRename($serv, $worker_id);
+	//processRename($serv, $worker_id);
 	//forkChildInWorker();
-	setTimerInWorker($serv, $worker_id);
+	//setTimerInWorker($serv, $worker_id);
 }
 
 function my_onWorkerStop($serv, $worker_id)
@@ -216,6 +228,7 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 
 function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
 {
+    swoole_timer_after(1000, "test");
     if ($data == "hellotask")
     {
         broadcast($serv, 0, "hellotask");

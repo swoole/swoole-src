@@ -33,6 +33,7 @@ static void php_swoole_onConnect(swServer *, int fd, int from_id);
 static void php_swoole_onTimer(swServer *serv, int interval);
 static void php_swoole_onWorkerStart(swServer *, int worker_id);
 static void php_swoole_onWorkerStop(swServer *, int worker_id);
+static void php_swoole_onUserWorkerStart(swServer *serv, swWorker *worker);
 static int php_swoole_onTask(swServer *, swEventData *task);
 static int php_swoole_onFinish(swServer *, swEventData *task);
 static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker_pid, int exit_code);
@@ -600,6 +601,16 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
     }
 }
 
+static void php_swoole_onUserWorkerStart(swServer *serv, swWorker *worker)
+{
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+    zval *object = worker->ptr;
+    int id =  worker->id + serv->worker_num + SwooleG.task_worker_num;
+    zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("id"), id TSRMLS_CC);
+
+    php_swoole_process_start(worker, object TSRMLS_CC);
+}
 
 static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker_pid, int exit_code)
 {
@@ -1353,37 +1364,43 @@ PHP_METHOD(swoole_server, addprocess)
         RETURN_FALSE;
     }
 
-    zval *zobject = getThis();
-    zval *zprocess;
-    long worker_num = 1;
+    zval *process = NULL;
     swServer *serv = NULL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|l", &zprocess, &worker_num) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &process) == FAILURE)
     {
         return;
     }
 
-    if (!instanceof_function(Z_OBJCE_P(getThis()), swoole_process_class_entry_ptr TSRMLS_CC))
+    SWOOLE_GET_SERVER(getThis(), serv);
+
+    if (!instanceof_function(Z_OBJCE_P(process), swoole_process_class_entry_ptr TSRMLS_CC))
     {
         php_error_docref(NULL TSRMLS_CC, E_ERROR, "object is not instanceof swoole_process.");
         RETURN_FALSE;
     }
 
-    if (worker_num == 0 || worker_num > 65535)
+    if (serv->onUserWorkerStart == NULL)
     {
-        worker_num = 1;
+        serv->onUserWorkerStart = php_swoole_onUserWorkerStart;
     }
 
-    zval_add_ref(&zprocess);
+    zval_add_ref(&process);
 
-    swWorker *process;
-    swUserWorker *pool = sw_malloc(sizeof(swUserWorker));
-    pool->num = worker_num;
+    swWorker *worker = NULL;
+    SWOOLE_GET_WORKER(process, worker);
 
-    SWOOLE_GET_WORKER(zprocess, process);
+    worker->ptr = process;
 
-    pool->process = process;
+    int id = swServer_add_worker(serv, worker);
 
+    if (id < 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swServer_add_worker failed.");
+        RETURN_FALSE;
+    }
+    zend_update_property_long(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("id"), id TSRMLS_CC);
+    RETURN_LONG(id);
 }
 
 PHP_FUNCTION(swoole_server_start)

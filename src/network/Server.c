@@ -827,18 +827,41 @@ void swServer_signal_init(void)
 	swServer_set_minfd(SwooleG.serv, SwooleG.signal_fd);
 }
 
+static int user_worker_list_i = 0;
+
+int swServer_add_worker(swServer *serv, swWorker *worker)
+{
+    swUserWorker_node *user_worker = sw_malloc(sizeof(swUserWorker_node));
+    if (!user_worker)
+    {
+        return SW_ERR;
+    }
+
+    worker->id = user_worker_list_i++;
+    user_worker->worker = worker;
+
+    LL_APPEND(serv->user_worker_list, user_worker);
+
+    if (!serv->user_worker_map)
+    {
+        serv->user_worker_map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
+    }
+
+    return worker->id;
+}
+
 int swServer_addListener(swServer *serv, int type, char *host, int port)
 {
 	swListenList_node *listen_host = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenList_node));
 
-	listen_host->type = type;
-	listen_host->port = port;
-	listen_host->sock = 0;
-	listen_host->ssl = 0;
+    listen_host->type = type;
+    listen_host->port = port;
+    listen_host->sock = 0;
+    listen_host->ssl = 0;
 
-	bzero(listen_host->host, SW_HOST_MAXSIZE);
-	strncpy(listen_host->host, host, SW_HOST_MAXSIZE);
-	LL_APPEND(serv->listen_list, listen_host);
+    bzero(listen_host->host, SW_HOST_MAXSIZE);
+    strncpy(listen_host->host, host, SW_HOST_MAXSIZE);
+    LL_APPEND(serv->listen_list, listen_host);
 
 	//UDP需要提前创建好
 	if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM)

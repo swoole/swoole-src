@@ -166,6 +166,82 @@ PHP_METHOD(swoole_process, kill)
 	RETURN_TRUE;
 }
 
+int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
+{
+    process->pipe = process->pipe_worker;
+    process->pid = getpid();
+
+    close(process->pipe_master);
+
+    if (process->redirect_stdin)
+    {
+        if (dup2(process->pipe, STDIN_FILENO) < 0)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "dup2() failed. Error: %s[%d]", strerror(errno), errno);
+        }
+    }
+
+    if (process->redirect_stdout)
+    {
+        if (dup2(process->pipe, STDOUT_FILENO) < 0)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "dup2() failed. Error: %s[%d]", strerror(errno), errno);
+        }
+    }
+
+    /**
+     * Close EventLoop
+     */
+    if (SwooleG.main_reactor)
+    {
+        SwooleG.main_reactor->free(SwooleG.main_reactor);
+        SwooleG.main_reactor = NULL;
+        php_sw_reactor_ok = 0;
+    }
+
+    if (SwooleG.timer.fd)
+    {
+        SwooleG.timer.free(&SwooleG.timer);
+        bzero(&SwooleG.timer, sizeof(SwooleG.timer));
+    }
+
+#ifdef HAVE_SIGNALFD
+    if (SwooleG.use_signalfd)
+    {
+        swSignalfd_clear();
+    }
+#endif
+
+    zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("pid"), process->pid TSRMLS_CC);
+    zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("pipe"), process->pipe TSRMLS_CC);
+
+    zval *zcallback = zend_read_property(swoole_process_class_entry_ptr, object, ZEND_STRL("callback"), 0 TSRMLS_CC);
+    zval **args[1];
+
+    if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
+    {
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "no callback.");
+        return SW_ERR;
+    }
+
+    zval *retval;
+    args[0] = &object;
+
+    if (call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "callback function error");
+        return SW_ERR;
+    }
+
+    if (retval)
+    {
+        zval_ptr_dtor(&retval);
+    }
+
+    zend_bailout();
+    return SW_OK;
+}
+
 PHP_METHOD(swoole_process, start)
 {
 	swWorker *process;
@@ -192,77 +268,7 @@ PHP_METHOD(swoole_process, start)
 	}
 	else
 	{
-		process->pipe = process->pipe_worker;
-		process->pid = getpid();
-
-		close(process->pipe_master);
-
-		if (process->redirect_stdin)
-		{
-			if (dup2(process->pipe, STDIN_FILENO) < 0)
-			{
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "dup2() failed. Error: %s[%d]", strerror(errno), errno);
-			}
-		}
-
-		if (process->redirect_stdout)
-		{
-			if (dup2(process->pipe, STDOUT_FILENO) < 0)
-			{
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "dup2() failed. Error: %s[%d]", strerror(errno), errno);
-			}
-		}
-
-		/**
-		 * Close EventLoop
-		 */
-		if (SwooleG.main_reactor)
-		{
-			SwooleG.main_reactor->free(SwooleG.main_reactor);
-			SwooleG.main_reactor = NULL;
-			php_sw_reactor_ok = 0;
-		}
-
-		if (SwooleG.timer.fd)
-		{
-		    SwooleG.timer.free(&SwooleG.timer);
-		    bzero(&SwooleG.timer, sizeof(SwooleG.timer));
-		}
-
-#ifdef HAVE_SIGNALFD
-		if (SwooleG.use_signalfd)
-		{
-		    swSignalfd_clear();
-		}
-#endif
-
-		zend_update_property_long(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("pid"), process->pid TSRMLS_CC);
-		zend_update_property_long(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("pipe"), process->pipe TSRMLS_CC);
-
-		zval *zcallback = zend_read_property(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("callback"), 0 TSRMLS_CC);
-		zval **args[1];
-
-		if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
-		{
-			php_error_docref(NULL TSRMLS_CC, E_ERROR, "no callback.");
-			RETURN_FALSE;
-		}
-
-		zval *retval;
-		args[0] = &getThis();
-
-		if (call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
-		{
-			php_error_docref(NULL TSRMLS_CC, E_ERROR, "callback function error");
-			RETURN_FALSE;
-		}
-
-		if (retval)
-		{
-			zval_ptr_dtor(&retval);
-		}
-
-		zend_bailout();
+        SW_CHECK_RETURN(php_swoole_process_start(process, getThis() TSRMLS_CC));
 	}
 	RETURN_TRUE;
 }

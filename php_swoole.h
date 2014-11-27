@@ -332,6 +332,8 @@ void swoole_table_init(int module_number TSRMLS_DC);
 void swoole_client_init(int module_number TSRMLS_DC);
 void swoole_http_init(int module_number TSRMLS_DC);
 
+int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC);
+
 void php_swoole_check_reactor();
 void php_swoole_check_timer(int interval);
 void php_swoole_register_callback(swServer *serv);

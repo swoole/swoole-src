@@ -522,7 +522,13 @@ void php_swoole_check_reactor()
         if (strcasecmp("cli", sapi_module.name) != 0)
         {
             php_printf("swoole async io must use in cli environment.");
-            php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole async io must use in cli environment.");
+            php_error_docref(NULL TSRMLS_CC, E_ERROR, "async-io must use in cli environment.");
+            return;
+        }
+
+        if (swIsTaskWorker())
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "cannot use async-io in task process.");
             return;
         }
 

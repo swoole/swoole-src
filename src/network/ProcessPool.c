@@ -248,7 +248,13 @@ pid_t swProcessPool_spawn(swWorker *worker)
         break;
         //parent
     default:
+        //remove old process
+        if (worker->pid)
+        {
+            swHashMap_del_int(pool->map, worker->pid);
+        }
         worker->pid = pid;
+        //insert new process
         swHashMap_add_int(pool->map, pid, worker, NULL);
         break;
     }

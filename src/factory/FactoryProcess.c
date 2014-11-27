@@ -40,6 +40,9 @@ static int swFactoryProcess_notify(swFactory *factory, swDataHead *event);
 static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *buf);
 static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
 
+static void swManager_signal_handle(int sig);
+static pid_t swManager_create_user_worker(swServer *serv, swWorker* worker);
+
 static swManagerProcess ManagerProcess;
 
 int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num)
@@ -155,7 +158,8 @@ int swFactoryProcess_start(swFactory *factory)
 static int swFactoryProcess_manager_start(swFactory *factory)
 {
     swFactoryProcess *object = factory->object;
-    int i, pid, ret;
+    int i, ret;
+    pid_t pid;
     int reactor_pti;
     swServer *serv = factory->ptr;
 
@@ -263,6 +267,19 @@ static int swFactoryProcess_manager_start(swFactory *factory)
         {
             swProcessPool_start(&SwooleG.task_workers);
         }
+
+        /**
+         * create user workers
+         */
+        if (serv->user_worker_list)
+        {
+            swUserWorker_node *user_worker;
+            LL_FOREACH(serv->user_worker_list, user_worker)
+            {
+                swManager_create_user_worker(serv, user_worker->worker);
+            }
+        }
+
         //标识为管理进程
         SwooleG.process_type = SW_PROCESS_MANAGER;
         ret = swFactoryProcess_manager_loop(factory);
@@ -277,6 +294,34 @@ static int swFactoryProcess_manager_start(swFactory *factory)
         return SW_ERR;
     }
     return SW_OK;
+}
+
+static pid_t swManager_create_user_worker(swServer *serv, swWorker* worker)
+{
+    pid_t pid = fork();
+
+    if (pid < 0)
+    {
+        swWarn("Fork Worker failed. Error: %s [%d]", strerror(errno), errno);
+        return SW_ERR;
+    }
+    //child
+    else if (pid == 0)
+    {
+        serv->onUserWorkerStart(serv, worker);
+        exit(0);
+    }
+    //parent
+    else
+    {
+        if (worker->pid)
+        {
+            swHashMap_del_int(serv->user_worker_map, worker->pid);
+        }
+        worker->pid = pid;
+        swHashMap_add_int(serv->user_worker_map, pid, worker, NULL);
+        return pid;
+    }
 }
 
 static void swManager_signal_handle(int sig)
@@ -426,6 +471,14 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
                 if (exit_worker != NULL)
                 {
                     swProcessPool_spawn(exit_worker);
+                    goto kill_worker;
+                }
+
+                exit_worker = swHashMap_find_int(serv->user_worker_map, pid);
+                if (exit_worker != NULL)
+                {
+                    swManager_create_user_worker(serv, exit_worker);
+                    goto kill_worker;
                 }
             }
         }

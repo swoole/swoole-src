@@ -135,6 +135,12 @@ typedef struct _swListenList_node
 	char host[SW_HOST_MAXSIZE];
 } swListenList_node;
 
+typedef struct _swUserWorker_node
+{
+    struct _swUserWorker_node *next, *prev;
+    swWorker *worker;
+} swUserWorker_node;
+
 typedef struct {
 	char *filename;
 	uint16_t name_len;
@@ -145,8 +151,7 @@ typedef struct {
 
 typedef struct
 {
-    void *object;
-    swWorker *process;
+
     uint16_t num;
 } swUserWorker;
 
@@ -399,6 +404,9 @@ struct _swServer
 
     swListenList_node *listen_list;
 
+    swUserWorker_node *user_worker_list;
+    swHashMap *user_worker_map;
+
     swReactorThread *reactor_threads;
     swWorkerThread *writer_threads;
 
@@ -427,9 +435,10 @@ struct _swServer
     void (*onConnect)(swServer *serv, int fd, int from_id);
     void (*onShutdown)(swServer *serv);
     void (*onTimer)(swServer *serv, int interval);
-    void (*onWorkerStart)(swServer *serv, int worker_id); //Only process mode
-    void (*onWorkerStop)(swServer *serv, int worker_id); //Only process mode
+    void (*onWorkerStart)(swServer *serv, int worker_id);
+    void (*onWorkerStop)(swServer *serv, int worker_id);
     void (*onWorkerError)(swServer *serv, int worker_id, pid_t worker_pid, int exit_code); //Only process mode
+    void (*onUserWorkerStart)(swServer *serv, swWorker *worker);
     int (*onTask)(swServer *serv, swEventData *data);
     int (*onFinish)(swServer *serv, swEventData *data);
 };
@@ -465,6 +474,8 @@ void swServer_init(swServer *serv);
 void swServer_signal_init(void);
 int swServer_start(swServer *serv);
 int swServer_addListener(swServer *serv, int type, char *host,int port);
+int swServer_add_worker(swServer *serv, swWorker *worker);
+
 int swServer_create(swServer *serv);
 int swServer_listen(swServer *serv, swReactor *reactor);
 int swServer_free(swServer *serv);
