@@ -517,25 +517,26 @@ void php_swoole_check_reactor()
 {
 	if (php_sw_reactor_ok == 0)
 	{
-	    if (strcasecmp("cli", sapi_module.name) != 0)
-	    {
-	        php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole async io must use in php_cli environment.");
-	        return;
-	    }
-
 		TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+        if (strcasecmp("cli", sapi_module.name) != 0)
+        {
+            php_printf("swoole async io must use in cli environment.");
+            php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole async io must use in cli environment.");
+            return;
+        }
 
 		if (SwooleG.main_reactor == NULL)
 		{
 			SwooleG.main_reactor = sw_malloc(sizeof(swReactor));
             if (SwooleG.main_reactor == NULL)
             {
-                php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_client: malloc SwooleG.main_reactor failed.");
+                php_error_docref(NULL TSRMLS_CC, E_ERROR, "malloc SwooleG.main_reactor failed.");
                 return;
             }
 			if (swReactor_auto(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS) < 0)
 			{
-				php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_client: create SwooleG.main_reactor failed.");
+				php_error_docref(NULL TSRMLS_CC, E_ERROR, "create SwooleG.main_reactor failed.");
 				return;
 			}
 			SwooleG.main_reactor->onFinish = php_swoole_check_eventloop;
