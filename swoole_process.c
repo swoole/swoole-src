@@ -18,18 +18,12 @@
 #include "php_streams.h"
 #include "php_network.h"
 
-#define SWOOLE_GET_WORKER(zobject, process) zval **zprocess;\
-    if (zend_hash_find(Z_OBJPROP_P(zobject), ZEND_STRS("_process"), (void **) &zprocess) == FAILURE){ \
-    php_error_docref(NULL TSRMLS_CC, E_WARNING, "Not have process");\
-    RETURN_FALSE;}\
-    ZEND_FETCH_RESOURCE(process, swWorker *, zprocess, -1, SW_RES_PROCESS_NAME, le_swoole_process);
-
 static uint32_t php_swoole_worker_round_id = 1;
 
 void swoole_destory_process(zend_resource *rsrc TSRMLS_DC)
 {
     swWorker *process = (swWorker *) rsrc->ptr;
-    swPipe *_pipe = process->ptr;
+    swPipe *_pipe = process->pipe_object;
     if (_pipe)
     {
         _pipe->close(_pipe);
@@ -95,7 +89,7 @@ PHP_METHOD(swoole_process, __construct)
         {
             RETURN_FALSE;
         }
-        process->ptr = _pipe;
+        process->pipe_object = _pipe;
         process->pipe_master = _pipe->getFd(_pipe, 1);
         process->pipe_worker = _pipe->getFd(_pipe, 0);
     }

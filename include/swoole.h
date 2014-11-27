@@ -887,8 +887,11 @@ struct _swWorker
 
 	void *send_shm;
 
+	swPipe *pipe_object;
+
 	int pipe_master;
 	int pipe_worker;
+
 	int pipe;
 	int reactor_id;
 	void *ptr;

@@ -1323,7 +1323,7 @@ PHP_FUNCTION(swoole_server_addlisten)
 
     if (SwooleGS->start > 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is running. Unable to add listener.");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is running. cannot add listener.");
         RETURN_FALSE;
     }
 
@@ -1343,6 +1343,47 @@ PHP_FUNCTION(swoole_server_addlisten)
     }
     SWOOLE_GET_SERVER(zobject, serv);
     SW_CHECK_RETURN(swServer_addListener(serv, (int)sock_type, host, (int)port));
+}
+
+PHP_METHOD(swoole_server, addprocess)
+{
+    if (SwooleGS->start > 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is running. cannot add process.");
+        RETURN_FALSE;
+    }
+
+    zval *zobject = getThis();
+    zval *zprocess;
+    long worker_num = 1;
+    swServer *serv = NULL;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|l", &zprocess, &worker_num) == FAILURE)
+    {
+        return;
+    }
+
+    if (!instanceof_function(Z_OBJCE_P(getThis()), swoole_process_class_entry_ptr TSRMLS_CC))
+    {
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "object is not instanceof swoole_process.");
+        RETURN_FALSE;
+    }
+
+    if (worker_num == 0 || worker_num > 65535)
+    {
+        worker_num = 1;
+    }
+
+    zval_add_ref(&zprocess);
+
+    swWorker *process;
+    swUserWorker *pool = sw_malloc(sizeof(swUserWorker));
+    pool->num = worker_num;
+
+    SWOOLE_GET_WORKER(zprocess, process);
+
+    pool->process = process;
+
 }
 
 PHP_FUNCTION(swoole_server_start)
@@ -2194,7 +2235,6 @@ PHP_FUNCTION(swoole_bind_uid)
         RETURN_FALSE;
     }
 }
-
 
 PHP_FUNCTION(swoole_connection_info)
 {

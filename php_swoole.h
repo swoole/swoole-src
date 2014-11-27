@@ -95,11 +95,18 @@ extern void ***sw_thread_ctx;
 #define SW_HANDLE_NUM
 #define SW_CHECK_RETURN(s)         if(s<0){RETURN_FALSE;}else{RETURN_TRUE;}return
 #define SW_LOCK_CHECK_RETURN(s)    if(s==0){RETURN_TRUE;}else{RETURN_FALSE;}return
+
 #define SWOOLE_GET_SERVER(zobject, serv) zval **zserv;\
     if (zend_hash_find(Z_OBJPROP_P(zobject), ZEND_STRS("_server"), (void **) &zserv) == FAILURE){ \
     php_error_docref(NULL TSRMLS_CC, E_WARNING, "Not have swoole server");\
     RETURN_FALSE;}\
     ZEND_FETCH_RESOURCE(serv, swServer *, zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
+
+#define SWOOLE_GET_WORKER(zobject, process) zval **zprocess;\
+    if (zend_hash_find(Z_OBJPROP_P(zobject), ZEND_STRS("_process"), (void **) &zprocess) == FAILURE){ \
+    php_error_docref(NULL TSRMLS_CC, E_WARNING, "Not have process");\
+    RETURN_FALSE;}\
+    ZEND_FETCH_RESOURCE(process, swWorker *, zprocess, -1, SW_RES_PROCESS_NAME, le_swoole_process);
 
 #ifdef SW_ASYNC_MYSQL
 #if defined(SW_HAVE_MYSQLI) && defined(SW_HAVE_MYSQLND)
@@ -222,6 +229,7 @@ PHP_FUNCTION(swoole_server_heartbeat);
 PHP_FUNCTION(swoole_connection_list);
 PHP_FUNCTION(swoole_bind_uid);
 PHP_FUNCTION(swoole_connection_info);
+PHP_METHOD(swoole_server, addprocess);
 PHP_METHOD(swoole_server, stats);
 
 PHP_FUNCTION(swoole_event_add);

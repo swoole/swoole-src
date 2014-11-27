@@ -143,6 +143,13 @@ typedef struct {
 	off_t offset;
 } swTask_sendfile;
 
+typedef struct
+{
+    void *object;
+    swWorker *process;
+    uint16_t num;
+} swUserWorker;
+
 //-----------------------------------Factory--------------------------------------------
 typedef struct
 {
