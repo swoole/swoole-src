@@ -147,6 +147,20 @@ int swFactoryProcess_start(swFactory *factory)
             }
         }
     }
+    else if (serv->ipc_mode == SW_IPC_UNSOCK)
+    {
+        for (i = 0; i < serv->worker_num; i++)
+        {
+            worker = swServer_get_worker(serv, i);
+            close(worker->pipe_worker);
+        }
+
+        for (i = serv->worker_num; i < SwooleG.task_worker_num; i++)
+        {
+            worker = swServer_get_worker(serv, i);
+            close(worker->pipe_worker);
+        }
+    }
 
     //主进程需要设置为直写模式
     factory->finish = swFactory_finish;

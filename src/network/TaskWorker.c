@@ -48,15 +48,16 @@ void swTaskWorker_init(swProcessPool *pool)
  */
 int swTaskWorker_onFinish(swReactor *reactor, swEvent *event)
 {
-	swServer *serv = reactor->ptr;
-	swEventData task;
-	int n;
-	do
-	{
-		n = read(event->fd, &task, sizeof(task));
-	}
-	while(n < 0 && errno == EINTR);
-	return serv->onFinish(serv, &task);
+    swServer *serv = reactor->ptr;
+    swEventData task;
+    int n;
+
+    do
+    {
+        n = read(event->fd, &task, sizeof(task));
+    } while (n < 0 && errno == EINTR);
+
+    return serv->onFinish(serv, &task);
 }
 
 int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
