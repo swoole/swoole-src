@@ -149,16 +149,18 @@ int swFactoryProcess_start(swFactory *factory)
     }
     else if (serv->ipc_mode == SW_IPC_UNSOCK)
     {
+        //close pipe_worker
         for (i = 0; i < serv->worker_num; i++)
         {
             worker = swServer_get_worker(serv, i);
             close(worker->pipe_worker);
         }
 
-        for (i = serv->worker_num; i < SwooleG.task_worker_num; i++)
+        //master no need task worker
+        for (i = 0; i < SwooleG.task_worker_num; i++)
         {
-            worker = swServer_get_worker(serv, i);
-            close(worker->pipe_worker);
+            worker = swServer_get_worker(serv, serv->worker_num + i);
+            worker->pipe_object->close(worker->pipe_object);
         }
     }
 
@@ -213,6 +215,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
             }
             serv->workers[i].pipe_master = object->pipes[i].getFd(&object->pipes[i], 1);
             serv->workers[i].pipe_worker = object->pipes[i].getFd(&object->pipes[i], 0);
+            serv->workers[i].pipe_object = &object->pipes[i];
         }
     }
 

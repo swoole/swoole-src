@@ -50,6 +50,11 @@ void swWorker_free(swWorker *worker)
 {
     sw_shm_free(worker->send_shm);
     worker->lock.free(&worker->lock);
+
+    if (worker->pipe_buffer)
+    {
+        swBuffer_free(worker->pipe_buffer);
+    }
 }
 
 /**
