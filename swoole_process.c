@@ -19,7 +19,6 @@
 #include "php_network.h"
 
 static uint32_t php_swoole_worker_round_id = 1;
-static char php_swoole_signal_init = 0;
 static zval *signal_callback[SW_SIGNO_MAX];
 
 static void php_swoole_onSignal(int signo);
@@ -219,21 +218,16 @@ PHP_METHOD(swoole_process, signal)
     zval_add_ref(&callback);
     signal_callback[signo] = callback;
 
-    php_swoole_check_reactor();
-
-    if (php_swoole_signal_init == 0)
-    {
-#ifdef HAVE_SIGNALFD
-        swSignalfd_init();
-        SwooleG.use_signalfd = 1;
-        swSignalfd_setup(SwooleG.main_reactor);
+#if PHP_MAJOR_VERSION >= 5 && PHP_MINOR_VERSION >= 4
+    SwooleG.use_signalfd = 1;
+#else
+    SwooleG.use_signalfd = 0;
 #endif
-        php_swoole_signal_init = 1;
-    }
 
+    php_swoole_check_reactor();
     swSignal_add(signo, php_swoole_onSignal);
-
     php_swoole_try_run_reactor();
+
     RETURN_TRUE;
 }
 

@@ -174,6 +174,13 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     }
 #endif
 
+#ifdef HAVE_SIGNALFD
+    if (SwooleG.use_signalfd)
+    {
+        swSignalfd_setup(SwooleG.main_reactor);
+    }
+#endif
+
     //set event handler
     //connect
     reactor->setHandle(reactor, SW_FD_LISTEN, swServer_master_onAccept);
@@ -201,20 +208,12 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_no_buffer);
     }
 
-#ifdef HAVE_SIGNALFD
-    if (SwooleG.use_timerfd)
-    {
-        swSignalfd_setup(reactor);
-    }
-#endif
-
-    struct timeval timeo;
-
     if (serv->onWorkerStart)
     {
         serv->onWorkerStart(serv, worker->id);
     }
 
+    struct timeval timeo;
     timeo.tv_sec = SW_MAINREACTOR_TIMEO;
     timeo.tv_usec = 0;
     reactor->wait(reactor, &timeo);

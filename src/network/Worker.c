@@ -377,13 +377,6 @@ int swWorker_loop(swFactory *factory, int worker_id)
         SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_rd, SW_FD_PIPE);
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE, swWorker_onPipeReceive);
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE | SW_EVENT_WRITE, swWorker_onPipeWrite);
-
-#ifdef HAVE_SIGNALFD
-        if (SwooleG.use_signalfd)
-        {
-            swSignalfd_setup(SwooleG.main_reactor);
-        }
-#endif
     }
 
     if (serv->max_request < 1)
@@ -423,6 +416,12 @@ int swWorker_loop(swFactory *factory, int worker_id)
     }
     else
     {
+#ifdef HAVE_SIGNALFD
+        if (SwooleG.use_signalfd)
+        {
+            swSignalfd_setup(SwooleG.main_reactor);
+        }
+#endif
         SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
     }
 

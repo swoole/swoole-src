@@ -20,7 +20,7 @@
 #include <sys/signalfd.h>
 #endif
 
-static swSignalFunc async_signal_callback[SW_SIGNO_MAX];
+static void *async_signal_callback[SW_SIGNO_MAX];
 static void swSignal_async_handler(int signo);
 
 /**
@@ -67,11 +67,11 @@ swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask)
 void swSignal_add(int signo, swSignalFunc func)
 {
 #ifdef HAVE_SIGNALFD
-	if (SwooleG.use_signalfd)
-	{
-		swSignalfd_add(signo, func);
-	}
-	else
+    if (SwooleG.use_signalfd)
+    {
+        swSignalfd_add(signo, func);
+    }
+    else
 #endif
     {
         async_signal_callback[signo] = func;
@@ -81,7 +81,14 @@ void swSignal_add(int signo, swSignalFunc func)
 
 static void swSignal_async_handler(int signo)
 {
-    SwooleG.main_reactor->singal_no = signo;
+    if (SwooleG.main_reactor)
+    {
+        SwooleG.main_reactor->singal_no = signo;
+    }
+    else
+    {
+        swSignal_callback(signo);
+    }
 }
 
 void swSignal_callback(int signo)
@@ -135,6 +142,7 @@ void swSignalfd_add(int signo, __sighandler_t callback)
         }
         signalfd_object.size = signalfd_object.size * 2;
     }
+
     sigaddset(&swoole_signalfd_mask, signo);
     signalfd_object.items[signalfd_object.num].callback = callback;
     signalfd_object.items[signalfd_object.num].signo = signo;

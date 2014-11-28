@@ -580,6 +580,47 @@ void php_swoole_check_timer(int msec)
     }
 }
 
+void php_swoole_try_run_reactor()
+{
+    //only client side
+    if (php_sw_in_client == 1 && php_sw_reactor_wait_onexit == 0)
+    {
+        TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+        zval *callback;
+        MAKE_STD_ZVAL(callback);
+
+#if PHP_MAJOR_VERSION >= 5 && PHP_MINOR_VERSION >= 4
+
+        php_shutdown_function_entry shutdown_function_entry;
+
+        shutdown_function_entry.arg_count = 1;
+        shutdown_function_entry.arguments = (zval **) safe_emalloc(sizeof(zval *), 1, 0);
+
+        ZVAL_STRING(callback, "swoole_event_wait", 1);
+        shutdown_function_entry.arguments[0] = callback;
+
+        if (!register_user_shutdown_function("swoole_event_wait", sizeof("swoole_event_wait"), &shutdown_function_entry TSRMLS_CC))
+        {
+            efree(shutdown_function_entry.arguments);
+            zval_ptr_dtor(&callback);
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
+        }
+#else
+        SwooleG.running = 1;
+        php_sw_event_wait = 1;
+
+        int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
+        if (ret < 0)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_ERROR, "reactor wait failed. Error: %s [%d]", strerror(errno), errno);
+        }
+#endif
+        php_sw_reactor_wait_onexit = 1;
+        php_sw_event_wait = 0;
+    }
+}
+
 static void php_swoole_onTimeout(swTimer *timer, void *data)
 {
     swTimer_callback* callback = (swTimer_callback*) data;
@@ -699,47 +740,6 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
 		zval_ptr_dtor(&retval);
 	}
 	return SW_OK;
-}
-
-void php_swoole_try_run_reactor()
-{
-	//only client side
-	if (php_sw_in_client == 1 && php_sw_reactor_wait_onexit == 0)
-	{
-		TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-
-		zval *callback;
-		MAKE_STD_ZVAL(callback);
-
-#if PHP_MAJOR_VERSION >= 5 && PHP_MINOR_VERSION >= 4
-
-        php_shutdown_function_entry shutdown_function_entry;
-
-        shutdown_function_entry.arg_count = 1;
-        shutdown_function_entry.arguments = (zval **) safe_emalloc(sizeof(zval *), 1, 0);
-
-        ZVAL_STRING(callback, "swoole_event_wait", 1);
-        shutdown_function_entry.arguments[0] = callback;
-
-        if (!register_user_shutdown_function("swoole_event_wait", sizeof("swoole_event_wait"), &shutdown_function_entry TSRMLS_CC))
-        {
-            efree(shutdown_function_entry.arguments);
-            zval_ptr_dtor(&callback);
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
-        }
-#else
-		SwooleG.running = 1;
-        php_sw_event_wait = 1;
-
-        int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
-        if (ret < 0)
-        {
-            php_error_docref(NULL TSRMLS_CC, E_ERROR, "reactor wait failed. Error: %s [%d]", strerror(errno), errno);
-        }
-#endif
-		php_sw_reactor_wait_onexit = 1;
-		php_sw_event_wait = 0;
-	}
 }
 
 static swClient* swoole_client_create_socket(zval *object, char *host, int host_len, int port)
@@ -1149,6 +1149,13 @@ PHP_FUNCTION(swoole_event_wait)
     {
         SwooleG.running = 1;
         php_sw_event_wait = 1;
+
+#ifdef HAVE_SIGNALFD
+        if (SwooleG.use_signalfd)
+        {
+            swSignalfd_setup(SwooleG.main_reactor);
+        }
+#endif
 
         int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
         if (ret < 0)

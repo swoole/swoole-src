@@ -16,18 +16,36 @@
 
 #include "swoole.h"
 
+static void swReactor_onTimeout_and_Finish(swReactor *reactor);
+static void swReactor_onTimeout(swReactor *reactor);
+static void swReactor_onFinish(swReactor *reactor);
+
 int swReactor_auto(swReactor *reactor, int max_event)
 {
     int ret;
-#ifdef HAVE_EPOLL
-    ret = swReactorEpoll_create(reactor, max_event);
-#elif defined(HAVE_KQUEUE)
-    ret = swReactorKqueue_create(reactor, max_event);
-#elif defined(SW_MAINREACTOR_USE_POLL)
-    ret = swReactorPoll_create(reactor, max_event);
+
+    //event less than SW_REACTOR_MINEVENTS, use poll/select
+    if (max_event <= SW_REACTOR_MINEVENTS)
+    {
+#ifdef SW_MAINREACTOR_USE_POLL
+        ret = swReactorPoll_create(reactor, SW_REACTOR_MINEVENTS);
 #else
-    ret = swReactorSelect_create(SwooleG.main_reactor);
+        ret = swReactorSelect_create(reactor);
 #endif
+    }
+    //use epoll or kqueue
+    else
+    {
+#ifdef HAVE_EPOLL
+        ret = swReactorEpoll_create(reactor, max_event);
+#elif defined(HAVE_KQUEUE)
+        ret = swReactorKqueue_create(reactor, max_event);
+#elif defined(SW_MAINREACTOR_USE_POLL)
+        ret = swReactorPoll_create(reactor, max_event);
+#else
+        ret = swReactorSelect_create(SwooleG.main_reactor);
+#endif
+    }
 
     reactor->onFinish = swReactor_onFinish;
     reactor->onTimeout = swReactor_onTimeout;
@@ -83,7 +101,7 @@ int swReactor_setHandle(swReactor *reactor, int _fdtype, swReactor_handle handle
 /**
  * execute when reactor timeout and reactor finish
  */
-void swReactor_onTimeout_and_Finish(swReactor *reactor)
+static void swReactor_onTimeout_and_Finish(swReactor *reactor)
 {
     //check timer
     if (reactor->check_timer)
@@ -96,12 +114,12 @@ void swReactor_onTimeout_and_Finish(swReactor *reactor)
     }
 }
 
-void swReactor_onTimeout(swReactor *reactor)
+static void swReactor_onTimeout(swReactor *reactor)
 {
     swReactor_onTimeout_and_Finish(reactor);
 }
 
-void swReactor_onFinish(swReactor *reactor)
+static void swReactor_onFinish(swReactor *reactor)
 {
     //client exit
     if (SwooleG.serv == NULL && reactor->event_num == 0)

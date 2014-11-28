@@ -284,20 +284,22 @@ static int swServer_start_check(swServer *serv)
  */
 static int swServer_start_proxy(swServer *serv)
 {
-	int ret;
-	swReactor *main_reactor = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swReactor));
+    int ret;
+    swReactor *main_reactor = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swReactor));
 
-#ifdef SW_MAINREACTOR_USE_POLL
-	ret = swReactorPoll_create(main_reactor, 10);
-#else
-	ret = swReactorSelect_create(main_reactor);
-#endif
-
+    ret = swReactor_auto(main_reactor, SW_REACTOR_MINEVENTS);
 	if (ret < 0)
 	{
 		swWarn("Reactor create failed");
 		return SW_ERR;
 	}
+
+#ifdef HAVE_SIGNALFD
+    if (SwooleG.use_signalfd)
+    {
+        swSignalfd_setup(main_reactor);
+    }
+#endif
 
 	/**
 	 * create reactor thread
@@ -323,21 +325,12 @@ static int swServer_start_proxy(swServer *serv)
 	main_reactor->ptr = serv;
 	main_reactor->setHandle(main_reactor, SW_FD_LISTEN, swServer_master_onAccept);
 
-	main_reactor->onFinish = swReactor_onFinish;
-	main_reactor->onTimeout = swReactor_onTimeout;
-
-#ifdef HAVE_SIGNALFD
-	if (SwooleG.use_signalfd)
-	{
-		swSignalfd_setup(main_reactor);
-	}
-#endif
-
 	//SW_START_SLEEP;
 	if (serv->onStart != NULL)
 	{
 		serv->onStart(serv);
 	}
+
 	struct timeval tmo;
 	tmo.tv_sec = SW_MAINREACTOR_TIMEO;
 	tmo.tv_usec = 0;

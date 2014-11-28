@@ -830,8 +830,6 @@ struct swReactor_s
 	uint16_t id; //Reactor ID
 	uint16_t flag; //flag
 
-	char running;
-
 	swReactor_handle handle[SW_MAX_FDTYPE];       //默认事件
 	swReactor_handle write_handle[SW_MAX_FDTYPE]; //扩展事件1(一般为写事件)
 	swReactor_handle error_handle[SW_MAX_FDTYPE]; //扩展事件2(一般为错误事件,如socket关闭)
@@ -843,8 +841,8 @@ struct swReactor_s
 	void (*free)(swReactor *);
 	int (*setHandle)(swReactor *, int fdtype, swReactor_handle);
 
-	void (*onTimeout)(swReactor *); //发生超时时
-	void (*onFinish)(swReactor *);  //完成一次轮询
+	void (*onTimeout)(swReactor *);
+	void (*onFinish)(swReactor *);
 };
 
 typedef struct _swWorker swWorker;
@@ -997,8 +995,6 @@ static sw_inline int swReactor_event_error(int fdtype)
 
 int swReactor_auto(swReactor *reactor, int max_event);
 int swReactor_setHandle(swReactor *, int, swReactor_handle);
-void swReactor_onFinish(swReactor *reactor);
-void swReactor_onTimeout(swReactor *reactor);
 
 swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype);
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);
