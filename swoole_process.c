@@ -92,6 +92,9 @@ PHP_METHOD(swoole_process, __construct)
         process->pipe_object = _pipe;
         process->pipe_master = _pipe->getFd(_pipe, 1);
         process->pipe_worker = _pipe->getFd(_pipe, 0);
+        process->pipe = process->pipe_master;
+
+        zend_update_property_long(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("pipe"), process->pipe_master TSRMLS_CC);
     }
 
 	zval *zres;
@@ -213,7 +216,7 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
 #endif
 
     zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("pid"), process->pid TSRMLS_CC);
-    zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("pipe"), process->pipe TSRMLS_CC);
+    zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("pipe"), process->pipe_worker TSRMLS_CC);
 
     zval *zcallback = zend_read_property(swoole_process_class_entry_ptr, object, ZEND_STRL("callback"), 0 TSRMLS_CC);
     zval **args[1];
@@ -254,16 +257,12 @@ PHP_METHOD(swoole_process, start)
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "fork() failed. Error: %s[%d]", strerror(errno), errno);
 		RETURN_FALSE;
 	}
-	else if(pid > 0)
+    else if (pid > 0)
 	{
 		process->pid = pid;
-		process->pipe = process->pipe_master;
-
 		close(process->pipe_worker);
 
 		zend_update_property_long(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("pid"), process->pid TSRMLS_CC);
-		zend_update_property_long(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("pipe"), process->pipe TSRMLS_CC);
-
 		RETURN_LONG(pid);
 	}
 	else

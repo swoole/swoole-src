@@ -40,6 +40,7 @@ static void php_swoole_aio_onComplete(swAio_event *event);
 static void php_swoole_user_signal(int signo);
 
 static char php_swoole_aio_init = 0;
+static char php_swoole_signal_init = 0;
 static swHashMap *php_swoole_open_files;
 static zval *php_sw_signal_callback[128];
 
@@ -679,6 +680,12 @@ PHP_FUNCTION(swoole_async_signal)
     }
 #endif
 
+    if (SwooleGS->start)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is running. Cannot use swoole_async_signal.");
+        RETURN_FALSE;
+    }
+
     if (callback == NULL || ZVAL_IS_NULL(callback))
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "no callback.");
@@ -698,17 +705,20 @@ PHP_FUNCTION(swoole_async_signal)
 
     php_swoole_check_reactor();
 
+    if (php_swoole_signal_init == 0)
+    {
 #ifdef HAVE_SIGNALFD
-    swSignalfd_init();
-    SwooleG.use_signalfd = 1;
+        swSignalfd_init();
+        SwooleG.use_signalfd = 1;
+        swSignalfd_setup(SwooleG.main_reactor);
+#endif
+        php_swoole_signal_init = 1;
+    }
 
     swSignal_add(signo, php_swoole_user_signal);
-    swSignalfd_setup(SwooleG.main_reactor);
 
     php_swoole_try_run_reactor();
     RETURN_TRUE;
-#endif
-
 }
 
 static void php_swoole_user_signal(int signo)

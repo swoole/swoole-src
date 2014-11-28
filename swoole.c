@@ -383,6 +383,7 @@ const zend_function_entry swoole_process_methods[] =
 	PHP_ME(swoole_process, pop, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_process, exit, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_process, exec, NULL, ZEND_ACC_PUBLIC)
+    PHP_FALIAS(singal, swoole_async_signal, NULL)
 	PHP_FE_END
 };
 
@@ -708,7 +709,6 @@ static void swoole_destory_server(zend_resource *rsrc TSRMLS_DC)
         //Don't free() here.
     }
 }
-
 
 static void swoole_destory_client(zend_resource *rsrc TSRMLS_DC)
 {

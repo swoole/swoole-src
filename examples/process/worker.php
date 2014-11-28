@@ -1,13 +1,13 @@
 <?php
 $redirect_stdout = false;
 $workers = [];
-$worker_num = 8;
+$worker_num = 1;
 
 //swoole_process::daemon(0, 1);
 
 for($i = 0; $i < $worker_num; $i++)
 {
-    $process = new swoole_process('callback_function', $redirect_stdout);
+    $process = new swoole_process('callback_function_async', $redirect_stdout);
     $pid = $process->start();
     $workers[$pid] = $process;
     //echo "Master: new worker, PID=".$pid."\n";
@@ -33,6 +33,11 @@ function callback_function_async(swoole_process $worker)
     //echo "Worker: start. PID=".$worker->pid."\n";
     //recv data from master
     $GLOBALS['worker'] = $worker;
+   
+    swoole_async_signal(15, function($signal_num){
+		echo "signal call = $signal_num\n";
+    });
+
     swoole_event_add($worker->pipe, function($pipe) {
         $worker = $GLOBALS['worker'];
         $recv = $worker->read();
@@ -42,9 +47,9 @@ function callback_function_async(swoole_process $worker)
         //send data to master
         $worker->write("hello master\n");
 
-        sleep(2);
+        //sleep(2);
 
-        $worker->exit(0);
+        //$worker->exit(0);
     });
 }
 

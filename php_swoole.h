@@ -92,7 +92,6 @@ extern void ***sw_thread_ctx;
 #endif
 
 //#define SW_USE_PHP        1
-#define SW_HANDLE_NUM
 #define SW_CHECK_RETURN(s)         if(s<0){RETURN_FALSE;}else{RETURN_TRUE;}return
 #define SW_LOCK_CHECK_RETURN(s)    if(s==0){RETURN_TRUE;}else{RETURN_FALSE;}return
 
