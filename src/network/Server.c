@@ -56,29 +56,6 @@ __thread swThreadG SwooleTG;
 int16_t sw_errno;
 char sw_error[SW_ERROR_MSG_SIZE];
 
-void swServer_master_onReactorTimeout(swReactor *reactor)
-{
-	swServer_update_time();
-}
-
-void swServer_master_onReactorFinish(swReactor *reactor)
-{
-	swServer_update_time();
-}
-
-void swServer_update_time(void)
-{
-	time_t now = time(NULL);
-	if (now < 0)
-	{
-		swWarn("get time failed. Error: %s[%d]", strerror(errno), errno);
-	}
-	else
-	{
-		SwooleGS->now = now;
-	}
-}
-
 int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 {
 	swServer *serv = reactor->ptr;
@@ -346,8 +323,8 @@ static int swServer_start_proxy(swServer *serv)
 	main_reactor->ptr = serv;
 	main_reactor->setHandle(main_reactor, SW_FD_LISTEN, swServer_master_onAccept);
 
-	main_reactor->onFinish = swServer_master_onReactorFinish;
-	main_reactor->onTimeout = swServer_master_onReactorTimeout;
+	main_reactor->onFinish = swReactor_onFinish;
+	main_reactor->onTimeout = swReactor_onTimeout;
 
 #ifdef HAVE_SIGNALFD
 	if (SwooleG.use_signalfd)
@@ -364,9 +341,6 @@ static int swServer_start_proxy(swServer *serv)
 	struct timeval tmo;
 	tmo.tv_sec = SW_MAINREACTOR_TIMEO;
 	tmo.tv_usec = 0;
-
-	swServer_update_time();
-
 	return main_reactor->wait(main_reactor, &tmo);
 }
 

@@ -430,16 +430,6 @@ int swWorker_loop(swFactory *factory, int worker_id)
     return SW_OK;
 }
 
-void swWorker_onReactorFinish(swReactor* reactor)
-{
-    SwooleG.timer.select(&SwooleG.timer);
-}
-
-void swWorker_onReactorTimeout(swReactor* reactor)
-{
-    SwooleG.timer.select(&SwooleG.timer);
-}
-
 /**
  * Send data to ReactorThread
  */

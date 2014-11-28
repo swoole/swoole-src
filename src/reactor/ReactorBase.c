@@ -26,8 +26,12 @@ int swReactor_auto(swReactor *reactor, int max_event)
 #elif defined(SW_MAINREACTOR_USE_POLL)
     ret = swReactorPoll_create(reactor, max_event);
 #else
-    ret = swReactorSelect_create(SwooleG.main_reactor)
+    ret = swReactorSelect_create(SwooleG.main_reactor);
 #endif
+
+    reactor->onFinish = swReactor_onFinish;
+    reactor->onTimeout = swReactor_onTimeout;
+
     return ret;
 }
 
@@ -35,12 +39,10 @@ swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdt
 {
     if (event_type == SW_EVENT_WRITE)
     {
-        //默认可写回调函数SW_FD_WRITE
         return (reactor->write_handle[fdtype] != NULL) ? reactor->write_handle[fdtype] : reactor->handle[SW_FD_WRITE];
     }
     if (event_type == SW_EVENT_ERROR)
     {
-        //默认关闭回调函数SW_FD_CLOSE
         return (reactor->error_handle[fdtype] != NULL) ? reactor->error_handle[fdtype] : reactor->handle[SW_FD_CLOSE];
     }
     return reactor->handle[fdtype];
@@ -76,4 +78,41 @@ int swReactor_setHandle(swReactor *reactor, int _fdtype, swReactor_handle handle
         }
     }
     return SW_OK;
+}
+
+/**
+ * execute when reactor timeout and reactor finish
+ */
+void swReactor_onTimeout_and_Finish(swReactor *reactor)
+{
+    //check timer
+    if (reactor->check_timer)
+    {
+        SwooleG.timer.select(&SwooleG.timer);
+    }
+    if (SwooleG.serv && swIsMaster())
+    {
+        swoole_update_time();
+    }
+}
+
+void swReactor_onTimeout(swReactor *reactor)
+{
+    swReactor_onTimeout_and_Finish(reactor);
+}
+
+void swReactor_onFinish(swReactor *reactor)
+{
+    //client exit
+    if (SwooleG.serv == NULL && reactor->event_num == 0)
+    {
+        SwooleG.running = 0;
+    }
+    //check signal
+    if (reactor->singal_no)
+    {
+        swSignal_callback(reactor->singal_no);
+        reactor->singal_no = 0;
+    }
+    swReactor_onTimeout_and_Finish(reactor);
 }

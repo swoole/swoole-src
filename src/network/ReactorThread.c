@@ -1273,7 +1273,7 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
                 swWarn("create buffer failed.");
                 break;
             }
-            if (swArray_store(thread->buffer_pipe, pipe_fd, &buffer, sizeof(buffer)) < 0)
+            if (swArray_store(thread->buffer_pipe, pipe_fd, &buffer) < 0)
             {
                 swWarn("create buffer failed.");
                 break;

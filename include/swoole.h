@@ -747,6 +747,8 @@ void swSetBlock(int);
 
 void swoole_init(void);
 void swoole_clean(void);
+void swoole_update_time(void);
+
 int swSocket_listen(int type, char *host, int port, int backlog);
 int swSocket_create(int type);
 int swSocket_wait(int fd, int timeout_ms, int events);
@@ -815,6 +817,8 @@ struct swReactor_s
 	 * last signal number
 	 */
 	int singal_no;
+
+	uint8_t check_timer;
 
 	uint32_t event_num;
 	uint32_t max_event_num;
@@ -960,7 +964,7 @@ static sw_inline int swReactor_error(swReactor *reactor)
 {
 	switch (errno)
 	{
-	case EINTR:
+    case EINTR:
         if (reactor->singal_no)
         {
             swSignal_callback(reactor->singal_no);
@@ -992,8 +996,9 @@ static sw_inline int swReactor_event_error(int fdtype)
 }
 
 int swReactor_auto(swReactor *reactor, int max_event);
-int swReactor_receive(swReactor *reactor, swEvent *event);
 int swReactor_setHandle(swReactor *, int, swReactor_handle);
+void swReactor_onFinish(swReactor *reactor);
+void swReactor_onTimeout(swReactor *reactor);
 
 swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype);
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);

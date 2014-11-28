@@ -80,6 +80,7 @@ void swoole_init(void)
         {
             swError("[Master] Fatal Error: alloc memory for SwooleStats failed.");
         }
+        swoole_update_time();
     }
 }
 
@@ -271,6 +272,19 @@ int swoole_system_random(int min, int max)
         return SW_ERR;
     }
     return min + (random_value % (max - min + 1));
+}
+
+void swoole_update_time(void)
+{
+    time_t now = time(NULL);
+    if (now < 0)
+    {
+        swWarn("get time failed. Error: %s[%d]", strerror(errno), errno);
+    }
+    else
+    {
+        SwooleGS->now = now;
+    }
 }
 
 swString* swoole_file_get_contents(char *filename)

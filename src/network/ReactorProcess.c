@@ -208,18 +208,10 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     }
 #endif
 
-    reactor->onFinish = swServer_master_onReactorFinish;
-    reactor->onTimeout = swServer_master_onReactorTimeout;
-
-    //update system time
-    swServer_update_time();
-
     struct timeval timeo;
-
 
     if (serv->onWorkerStart)
     {
-
         serv->onWorkerStart(serv, worker->id);
     }
 

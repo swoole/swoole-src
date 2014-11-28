@@ -85,9 +85,8 @@ static int php_swoole_client_onRead(swReactor *reactor, swEvent *event);
 static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event);
 static int php_swoole_client_onError(swReactor *reactor, swEvent *event);
 
-static void php_swoole_check_eventloop(swReactor *reactor);
-
 static int swoole_client_error_callback(zval *zobject, swEvent *event, int error TSRMLS_DC);
+
 static void php_swoole_onTimeout(swTimer *timer, void *data);
 static void php_swoole_onTimerInterval(swTimer *timer, int interval);
 
@@ -505,23 +504,14 @@ static int swoole_client_error_callback(zval *zobject, swEvent *event, int error
 	return SW_OK;
 }
 
-static void php_swoole_check_eventloop(swReactor *reactor)
-{
-    if (reactor->event_num == 0)
-    {
-        SwooleG.running = 0;
-    }
-}
-
 void php_swoole_check_reactor()
 {
 	if (php_sw_reactor_ok == 0)
 	{
 		TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-        if (strcasecmp("cli", sapi_module.name) != 0)
+        if (!SWOOLE_G(cli))
         {
-            php_printf("swoole async io must use in cli environment.");
             php_error_docref(NULL TSRMLS_CC, E_ERROR, "async-io must use in cli environment.");
             return;
         }
@@ -537,22 +527,21 @@ void php_swoole_check_reactor()
 			SwooleG.main_reactor = sw_malloc(sizeof(swReactor));
             if (SwooleG.main_reactor == NULL)
             {
-                php_error_docref(NULL TSRMLS_CC, E_ERROR, "malloc SwooleG.main_reactor failed.");
+                php_error_docref(NULL TSRMLS_CC, E_ERROR, "malloc failed.");
                 return;
             }
 			if (swReactor_auto(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS) < 0)
 			{
-				php_error_docref(NULL TSRMLS_CC, E_ERROR, "create SwooleG.main_reactor failed.");
+				php_error_docref(NULL TSRMLS_CC, E_ERROR, "create reactor failed.");
 				return;
 			}
-			SwooleG.main_reactor->onFinish = php_swoole_check_eventloop;
 			//client, swoole_event_exit will set swoole_running = 0
 			php_sw_in_client = 1;
 		}
 
-		SwooleG.main_reactor->setHandle(SwooleG.main_reactor, (SW_FD_USER+1) | SW_EVENT_READ, php_swoole_client_onRead);
-		SwooleG.main_reactor->setHandle(SwooleG.main_reactor, (SW_FD_USER+1) | SW_EVENT_WRITE, php_swoole_client_onWrite);
-		SwooleG.main_reactor->setHandle(SwooleG.main_reactor, (SW_FD_USER+1) | SW_EVENT_ERROR, php_swoole_client_onError);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, (SW_FD_USER + 1) | SW_EVENT_READ, php_swoole_client_onRead);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, (SW_FD_USER + 1) | SW_EVENT_WRITE, php_swoole_client_onWrite);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, (SW_FD_USER + 1) | SW_EVENT_ERROR, php_swoole_client_onError);
 
 		SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_READ , php_swoole_event_onRead);
 		SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_WRITE, php_swoole_event_onWrite);
@@ -583,8 +572,6 @@ void php_swoole_check_timer(int msec)
         else
         {
             swEventTimer_init();
-            SwooleG.main_reactor->onFinish = swWorker_onReactorFinish;
-            SwooleG.main_reactor->onTimeout = swWorker_onReactorTimeout;
             SwooleG.main_reactor->timeout_msec = msec;
         }
 
@@ -610,7 +597,7 @@ static void php_swoole_onTimeout(swTimer *timer, void *data)
 
     if (call_user_function_ex(EG(function_table), NULL, callback->callback, &retval, argc, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_timer: onTimerout handler error");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_timer: onTimeout handler error");
         return;
     }
 

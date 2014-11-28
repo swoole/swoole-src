@@ -11,8 +11,9 @@ typedef struct
     void **pages;
     uint16_t page_num;
     uint16_t page_size;
-    size_t item_size;
+    uint32_t item_size;
     uint32_t item_num;
+    uint32_t offset;
     char flag;
 } swArray;
 
@@ -22,6 +23,7 @@ typedef struct
 swArray *swArray_new(int page_size, size_t item_size, int flag);
 void swArray_free(swArray *array);
 void *swArray_fetch(swArray *array, uint32_t n);
-int swArray_store(swArray *array, uint32_t n, void *data, uint32_t len);
+int swArray_store(swArray *array, uint32_t n, void *data);
+int swArray_push(swArray *array, void *data);
 
 #endif /* _SW_ARRAY_H_ */

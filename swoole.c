@@ -674,6 +674,12 @@ PHP_RINIT_FUNCTION(swoole)
 	zend_hash_init(&php_sw_aio_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
 	//running
     SwooleG.running = 1;
+
+    if (strcasecmp("cli", sapi_module.name) == 0)
+    {
+        SWOOLE_G(cli) = 1;
+    }
+
 	return SUCCESS;
 }
 

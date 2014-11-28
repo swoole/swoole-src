@@ -655,16 +655,11 @@ void swWorker_free(swWorker *worker);
 void swWorker_signal_init(void);
 void swWorker_onStart(swServer *serv);
 void swWorker_onStop(swServer *serv);
-void swWorker_onReactorFinish(swReactor* reactor);
-void swWorker_onReactorTimeout(swReactor* reactor);
 int swWorker_loop(swFactory *factory, int worker_pti);
 int swWorker_send2reactor(swEventData_overflow *sdata, size_t sendn, int fd);
 void swWorker_signal_handler(int signo);
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event);
-void swServer_master_onReactorTimeout(swReactor *reactor);
-void swServer_master_onReactorFinish(swReactor *reactor);
-void swServer_update_time(void);
 
 int swReactorThread_create(swServer *serv);
 int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr);

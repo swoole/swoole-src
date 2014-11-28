@@ -22,7 +22,7 @@ static uint32_t php_swoole_worker_round_id = 1;
 static char php_swoole_signal_init = 0;
 static zval *signal_callback[SW_SIGNO_MAX];
 
-static void php_swoole_user_signal(int signo);
+static void php_swoole_onSignal(int signo);
 
 void swoole_destory_process(zend_resource *rsrc TSRMLS_DC)
 {
@@ -190,9 +190,15 @@ PHP_METHOD(swoole_process, signal)
     }
 #endif
 
+    if (!SWOOLE_G(cli))
+    {
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "Cannot use swoole_process::signal here.");
+        RETURN_FALSE;
+    }
+
     if (SwooleGS->start)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is running. Cannot use swoole_async_signal.");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Cannot use swoole_process::signal in swoole_server.");
         RETURN_FALSE;
     }
 
@@ -225,13 +231,16 @@ PHP_METHOD(swoole_process, signal)
         php_swoole_signal_init = 1;
     }
 
-    swSignal_add(signo, php_swoole_user_signal);
+    swSignal_add(signo, php_swoole_onSignal);
 
     php_swoole_try_run_reactor();
     RETURN_TRUE;
 }
 
-static void php_swoole_user_signal(int signo)
+/**
+ * safe signal
+ */
+static void php_swoole_onSignal(int signo)
 {
     zval *retval;
     zval **args[1];
@@ -337,6 +346,12 @@ PHP_METHOD(swoole_process, start)
 {
 	swWorker *process;
 	SWOOLE_GET_WORKER(getThis(), process);
+
+    if (process->pid > 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "process is already started.");
+        RETURN_FALSE;
+    }
 
 	pid_t pid = fork();
 

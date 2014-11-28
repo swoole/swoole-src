@@ -41,11 +41,15 @@ int swEventTimer_init()
         swSysError("gettimeofday() failed.");
         return SW_ERR;
     }
+
     SwooleG.timer.fd = 1;
     SwooleG.timer.add = swEventTimer_add;
     SwooleG.timer.del = swEventTimer_del;
     SwooleG.timer.select = swEventTimer_select;
     SwooleG.timer.free = swEventTimer_free;
+
+    SwooleG.main_reactor->check_timer = SW_TRUE;
+
     return SW_OK;
 }
 
