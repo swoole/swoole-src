@@ -244,7 +244,6 @@ PHP_FUNCTION(swoole_async_readfile);
 PHP_FUNCTION(swoole_async_writefile);
 PHP_FUNCTION(swoole_async_dns_lookup);
 PHP_FUNCTION(swoole_async_set);
-PHP_FUNCTION(swoole_async_signal);
 
 PHP_FUNCTION(swoole_timer_add);
 PHP_FUNCTION(swoole_timer_del);
@@ -280,6 +279,7 @@ PHP_METHOD(swoole_process, useQueue);
 PHP_METHOD(swoole_process, pop);
 PHP_METHOD(swoole_process, push);
 PHP_METHOD(swoole_process, kill);
+PHP_METHOD(swoole_process, signal);
 PHP_METHOD(swoole_process, wait);
 PHP_METHOD(swoole_process, daemon);
 PHP_METHOD(swoole_process, start);

@@ -296,11 +296,9 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_server_handler, arginfo_swoole_server_handler)
 	PHP_FE(swoole_server_on, arginfo_swoole_server_on)
 	PHP_FE(swoole_server_addlisten, arginfo_swoole_server_addlisten)
-
 	PHP_FE(swoole_server_addtimer, arginfo_swoole_server_addtimer)
 	PHP_FE(swoole_server_deltimer, arginfo_swoole_server_deltimer)
 	PHP_FE(swoole_server_gettimer, NULL)
-
 	PHP_FE(swoole_server_task, arginfo_swoole_server_task)
 	PHP_FE(swoole_server_taskwait, arginfo_swoole_server_taskwait)
 	PHP_FE(swoole_server_finish, arginfo_swoole_server_finish)
@@ -327,13 +325,13 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_async_readfile, NULL)
 	PHP_FE(swoole_async_writefile, NULL)
 	PHP_FE(swoole_async_dns_lookup, NULL)
-	PHP_FE(swoole_async_signal, NULL)
 	/*------other-----*/
 	PHP_FE(swoole_client_select, NULL)
 	PHP_FE(swoole_set_process_name, NULL)
 	PHP_FE(swoole_get_local_ip, NULL)
 	PHP_FE(swoole_strerror, NULL)
 	PHP_FE(swoole_errno, NULL)
+	/*------async mysql-----*/
 #ifdef SW_ASYNC_MYSQL
 	PHP_FE(swoole_get_mysqli_sock, NULL)
 #endif
@@ -373,6 +371,7 @@ const zend_function_entry swoole_process_methods[] =
 {
 	PHP_ME(swoole_process, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
 	PHP_ME(swoole_process, wait, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_process, signal, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	PHP_ME(swoole_process, kill, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	PHP_ME(swoole_process, daemon, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	PHP_ME(swoole_process, useQueue, NULL, ZEND_ACC_PUBLIC)
@@ -383,7 +382,6 @@ const zend_function_entry swoole_process_methods[] =
 	PHP_ME(swoole_process, pop, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_process, exit, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_process, exec, NULL, ZEND_ACC_PUBLIC)
-    PHP_FALIAS(singal, swoole_async_signal, NULL)
 	PHP_FE_END
 };
 

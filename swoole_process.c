@@ -19,6 +19,10 @@
 #include "php_network.h"
 
 static uint32_t php_swoole_worker_round_id = 1;
+static char php_swoole_signal_init = 0;
+static zval *signal_callback[SW_SIGNO_MAX];
+
+static void php_swoole_user_signal(int signo);
 
 void swoole_destory_process(zend_resource *rsrc TSRMLS_DC)
 {
@@ -168,6 +172,90 @@ PHP_METHOD(swoole_process, kill)
 	}
 	RETURN_TRUE;
 }
+
+PHP_METHOD(swoole_process, signal)
+{
+    zval *callback = NULL;
+    long signo = 0;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz", &signo, &callback) == FAILURE)
+    {
+        return;
+    }
+
+#ifdef ZTS
+    if (sw_thread_ctx == NULL)
+    {
+        TSRMLS_SET_CTX(sw_thread_ctx);
+    }
+#endif
+
+    if (SwooleGS->start)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is running. Cannot use swoole_async_signal.");
+        RETURN_FALSE;
+    }
+
+    if (callback == NULL || ZVAL_IS_NULL(callback))
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "no callback.");
+        RETURN_FALSE;
+    }
+
+    char *func_name;
+    if (!zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+    {
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
+        efree(func_name);
+        RETURN_FALSE;
+    }
+
+    zval_add_ref(&callback);
+    signal_callback[signo] = callback;
+
+    php_swoole_check_reactor();
+
+    if (php_swoole_signal_init == 0)
+    {
+#ifdef HAVE_SIGNALFD
+        swSignalfd_init();
+        SwooleG.use_signalfd = 1;
+        swSignalfd_setup(SwooleG.main_reactor);
+#endif
+        php_swoole_signal_init = 1;
+    }
+
+    swSignal_add(signo, php_swoole_user_signal);
+
+    php_swoole_try_run_reactor();
+    RETURN_TRUE;
+}
+
+static void php_swoole_user_signal(int signo)
+{
+    zval *retval;
+    zval **args[1];
+    zval *callback = signal_callback[signo];
+
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+    zval *zsigno;
+    MAKE_STD_ZVAL(zsigno);
+    ZVAL_LONG(zsigno, signo);
+
+    args[0] = &zsigno;
+
+    if (call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "user_signal handler error");
+    }
+    if (retval != NULL)
+    {
+        zval_ptr_dtor(&retval);
+    }
+    zval_ptr_dtor(&zsigno);
+}
+
 
 int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
 {

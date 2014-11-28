@@ -20,18 +20,21 @@
 #include <sys/signalfd.h>
 #endif
 
+static swSignalFunc async_signal_callback[SW_SIGNO_MAX];
+static void swSignal_async_handler(int signo);
+
 /**
  * clear all singal
  */
 void swSignal_none(void)
 {
-	sigset_t mask;
-	sigfillset(&mask);
-	int ret = pthread_sigmask(SIG_BLOCK, &mask, NULL);
-	if (ret < 0)
-	{
-		swWarn("pthread_sigmask() failed. Error: %s[%d]", strerror(ret), ret);
-	}
+    sigset_t mask;
+    sigfillset(&mask);
+    int ret = pthread_sigmask(SIG_BLOCK, &mask, NULL);
+    if (ret < 0)
+    {
+        swWarn("pthread_sigmask() failed. Error: %s[%d]", strerror(ret), ret);
+    }
 }
 
 /**
@@ -70,9 +73,21 @@ void swSignal_add(int signo, swSignalFunc func)
 	}
 	else
 #endif
-	{
-		swSignal_set(signo, func, 1, 0);
-	}
+    {
+        async_signal_callback[signo] = func;
+        swSignal_set(signo, swSignal_async_handler, 1, 0);
+    }
+}
+
+static void swSignal_async_handler(int signo)
+{
+    SwooleG.main_reactor->singal_no = signo;
+}
+
+void swSignal_callback(int signo)
+{
+    swSignalFunc callback = async_signal_callback[signo];
+    callback(signo);
 }
 
 #ifdef HAVE_SIGNALFD

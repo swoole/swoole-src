@@ -1967,7 +1967,13 @@ PHP_FUNCTION(swoole_server_taskwait)
 
     if (SwooleGS->start == 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "server is not running.");
+        RETURN_FALSE;
+    }
+
+    if (swIsMaster())
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "cannot use task in master process.");
         RETURN_FALSE;
     }
 
@@ -1990,7 +1996,7 @@ PHP_FUNCTION(swoole_server_taskwait)
 
     if (SwooleG.task_worker_num < 1)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "task cannot use. Please set task_worker_num.");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "cannot use task. Please set task_worker_num.");
         RETURN_FALSE;
     }
 
@@ -2043,7 +2049,6 @@ PHP_FUNCTION(swoole_server_taskwait)
         int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
         if (ret > 0)
         {
-            printf("readn=%ld, ret = %d\n", notify, ret);
             /**
              * Large result package
              */
@@ -2106,6 +2111,7 @@ PHP_FUNCTION(swoole_server_task)
     }
 
     SWOOLE_GET_SERVER(zobject, serv);
+
     if (SwooleG.task_worker_num < 1)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "task can not use. Please set task_worker_num.");

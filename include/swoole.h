@@ -386,6 +386,8 @@ typedef struct _swSendData
 //	int fd;
 //} swEvent;
 
+#define SW_SIGNO_MAX         128
+
 typedef void * (*swThreadStartFunc)(void *);
 typedef int (*swHandle)(swEventData *buf);
 typedef void (*swSignalFunc)(int);
@@ -798,6 +800,7 @@ static sw_inline int swSocket_tcp_nopush(int sock, int nopush)
 void swFloat2timeval(float timeout, long int *sec, long int *usec);
 swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask);
 void swSignal_add(int signo, swSignalFunc func);
+void swSignal_callback(int signo);
 #ifdef HAVE_SIGNALFD
 int swSignalfd_onSignal(swReactor *reactor, swEvent *event);
 #endif
@@ -807,6 +810,12 @@ struct swReactor_s
 {
 	void *object;
 	void *ptr; //reserve
+
+	/**
+	 * last signal number
+	 */
+	int singal_no;
+
 	uint32_t event_num;
 	uint32_t max_event_num;
 
@@ -952,6 +961,11 @@ static sw_inline int swReactor_error(swReactor *reactor)
 	switch (errno)
 	{
 	case EINTR:
+        if (reactor->singal_no)
+        {
+            swSignal_callback(reactor->singal_no);
+            reactor->singal_no = 0;
+        }
 		return SW_OK;
 	}
 	return SW_ERR;
@@ -1203,6 +1217,7 @@ typedef struct
 
     uint8_t use_timerfd;
     uint8_t use_signalfd;
+
     /**
      * Timer used pipe
      */
