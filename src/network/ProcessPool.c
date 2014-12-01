@@ -15,6 +15,7 @@
 */
 
 #include "swoole.h"
+#include "Server.h"
 
 static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker);
 static void swProcessPool_free(swProcessPool *pool);
@@ -110,11 +111,11 @@ int swProcessPool_start(swProcessPool *pool)
 /**
  * dispatch data to worker
  */
-int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int worker_id)
+int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int dst_worker_id)
 {
     int ret;
 
-    if (worker_id < 0)
+    if (dst_worker_id < 0)
     {
         if (!pool->use_msgqueue && pool->dispatch_mode == SW_DISPATCH_QUEUE)
         {
@@ -124,16 +125,16 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int worker_id
                 pool->round_id++;
                 target_worker_id = pool->round_id % pool->worker_num;
 
-                if (swProcessPool_worker(pool, worker_id).status == SW_WORKER_IDLE)
+                if (swProcessPool_worker(pool, dst_worker_id).status == SW_WORKER_IDLE)
                 {
                     break;
                 }
             }
-            worker_id = target_worker_id;
+            dst_worker_id = target_worker_id;
         }
         else
         {
-            worker_id = (pool->round_id++) % pool->worker_num;
+            dst_worker_id = (pool->round_id++) % pool->worker_num;
         }
     }
 
@@ -143,48 +144,23 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int worker_id
         swEventData buf;
     } in;
 
-
-
     if (pool->use_msgqueue)
     {
-        in.mtype = worker_id + 1;
+        in.mtype = dst_worker_id + 1;
         memcpy(&in.buf, data, sizeof(data->info) + data->info.len);
         ret = pool->queue.in(&pool->queue, (swQueue_data *) &in, sizeof(data->info) + data->info.len);
         if (ret < 0)
         {
-            swWarn("msgsnd failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("msgsnd() failed.");
         }
     }
     else
     {
-        swWorker *worker = &swProcessPool_worker(pool, worker_id);
-
-        while(1)
-        {
-            ret = write(worker->pipe_master, data, sizeof(data->info) + data->info.len);
-            if (ret < 0)
-            {
-                /**
-                 * Wait pipe can be written.
-                 */
-                if (errno == EAGAIN && swSocket_wait(worker->pipe_master, SW_WORKER_WAIT_TIMEOUT, SW_EVENT_WRITE) == SW_OK)
-                {
-                    continue;
-                }
-                else if (errno == EINTR)
-                {
-                    continue;
-                }
-                else
-                {
-                    break;
-                }
-            }
-            break;
-        }
+        swWorker *worker = &swProcessPool_worker(pool, dst_worker_id);
+        ret = worker->pipe_object->write(worker->pipe_object, data, sizeof(data->info) + data->info.len);
         if (ret < 0)
         {
-            swWarn("sendto unix socket failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("sendto unix socket failed.");
         }
     }
     return ret;

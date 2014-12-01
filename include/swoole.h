@@ -121,6 +121,7 @@ int daemon(int nochdir, int noclose);
 #include "hashmap.h"
 #include "list.h"
 #include "RingQueue.h"
+#include "array.h"
 
 #define SW_TIMEO_SEC           0
 #define SW_TIMEO_USEC          3000000
@@ -401,6 +402,7 @@ typedef struct _swPipe
     void *object;
     int blocking;
     double timeout;
+    int pipe_used;
 
     int (*read)(struct _swPipe *, void *recv, int length);
     int (*write)(struct _swPipe *, void *send, int length);
@@ -411,6 +413,7 @@ typedef struct _swPipe
 int swPipeBase_create(swPipe *p, int blocking);
 int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout);
 int swPipeUnsock_create(swPipe *p, int blocking, int protocol);
+int swPipeUnsock_onWrite(swReactor *reactor, swEvent *ev);
 
 static inline int swPipeNotify_auto(swPipe *p, int blocking, int semaphore)
 {
@@ -868,11 +871,6 @@ struct _swWorker
 	swQueue *queue;
 
 	/**
-	 * pipe buffer
-	 */
-	 struct _swBuffer *pipe_buffer;
-
-	/**
 	 * redirect stdout to pipe_master
 	 */
 	uint8_t redirect_stdout;
@@ -916,8 +914,12 @@ struct _swProcessPool
 	 */
 	uint8_t reloading;
 	uint8_t reload_flag;
-
 	uint8_t dispatch_mode;
+
+	/**
+	 * process type
+	 */
+	uint8_t type;
 
 	/**
 	 * use message queue IPC
@@ -1186,9 +1188,11 @@ typedef struct
 	/**
 	 * pipe_worker
 	 */
-	int pipe_fd;
+	int pipe_used;
 
 	swString **buffer_input;
+    swArray *fd_map;
+    swWorker *worker;
 
 } swWorkerG;
 

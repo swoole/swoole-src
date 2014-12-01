@@ -18,16 +18,16 @@
 #include "Server.h"
 
 static swEventData *current_task;
-static swWorker *current_worker;
 
 static void swTaskWorker_signal_init(void);
 
 void swTaskWorker_init(swProcessPool *pool)
 {
-    SwooleG.task_workers.ptr = SwooleG.serv;
-    SwooleG.task_workers.onTask = swTaskWorker_onTask;
-    SwooleG.task_workers.onWorkerStart = swTaskWorker_onStart;
-    SwooleG.task_workers.onWorkerStop = swTaskWorker_onStop;
+    pool->ptr = SwooleG.serv;
+    pool->onTask = swTaskWorker_onTask;
+    pool->onWorkerStart = swTaskWorker_onStart;
+    pool->onWorkerStop = swTaskWorker_onStop;
+    pool->type = SW_PROCESS_TASKWORKER;
 
     char *tmp_dir = swoole_dirname(SwooleG.task_tmpdir);
     //create tmp dir
@@ -65,9 +65,9 @@ int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
     swServer *serv = pool->ptr;
     current_task = task;
 
-    current_worker->status = SW_WORKER_BUSY;
+    SwooleWG.worker->status = SW_WORKER_BUSY;
     int ret = serv->onTask(serv, task);
-    current_worker->status = SW_WORKER_IDLE;
+    SwooleWG.worker->status = SW_WORKER_IDLE;
     return ret;
 }
 
@@ -124,7 +124,7 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
     swTaskWorker_signal_init();
     swWorker_onStart(serv);
 
-    current_worker = &pool->workers[worker_id];
+    SwooleWG.worker = &pool->workers[worker_id];
 }
 
 void swTaskWorker_onStop(swProcessPool *pool, int worker_id)
@@ -169,7 +169,6 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len)
         }
 
         //tasking
-
         /**
          * TODO: 这里需要重构，改成统一的模式
          */

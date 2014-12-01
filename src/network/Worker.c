@@ -35,14 +35,6 @@ int swWorker_create(swWorker *worker)
     }
     swMutex_create(&worker->lock, 1);
 
-    swBuffer *buffer = swBuffer_new(sizeof(swEventData));
-    if (!buffer)
-    {
-        swWarn("create buffer failed.");
-        sw_shm_free(worker->send_shm);
-        return SW_ERR;
-    }
-    worker->pipe_buffer = buffer;
     return SW_OK;
 }
 
@@ -50,55 +42,6 @@ void swWorker_free(swWorker *worker)
 {
     sw_shm_free(worker->send_shm);
     worker->lock.free(&worker->lock);
-
-    if (worker->pipe_buffer)
-    {
-        swBuffer_free(worker->pipe_buffer);
-    }
-}
-
-/**
- * [Worker] worker pipe can write.
- */
-static int swWorker_onPipeWrite(swReactor *reactor, swEvent *ev)
-{
-    int ret;
-    swServer *serv = SwooleG.serv;
-    int worker_id = serv->connection_list[ev->fd].from_id;
-    swWorker *worker = swServer_get_worker(serv, worker_id);
-    swBuffer_trunk *trunk = NULL;
-
-    while (!swBuffer_empty(worker->pipe_buffer))
-    {
-        trunk = swBuffer_get_trunk(worker->pipe_buffer);
-        ret = write(ev->fd, trunk->store.ptr, trunk->length);
-        if (ret < 0)
-        {
-            return errno == EAGAIN ? SW_OK : SW_ERR;
-        }
-        else
-        {
-            swBuffer_pop_trunk(worker->pipe_buffer, trunk);
-        }
-    }
-
-    //remove EPOLLOUT event
-    if (swBuffer_empty(worker->pipe_buffer))
-    {
-        if (worker_id == SwooleWG.id)
-        {
-            ret = reactor->set(reactor, ev->fd, SW_FD_PIPE | SW_EVENT_READ);
-        }
-        else
-        {
-            ret = reactor->del(reactor, ev->fd);
-        }
-        if (ret < 0)
-        {
-            swSysError("reactor->set() failed.");
-        }
-    }
-    return SW_OK;
 }
 
 void swWorker_signal_init(void)
@@ -229,6 +172,31 @@ void swWorker_onStart(swServer *serv)
     int i;
     swWorker *worker;
 
+    if (SwooleWG.id >= serv->worker_num)
+    {
+        SwooleG.process_type = SW_PROCESS_TASKWORKER;
+    }
+    else
+    {
+        SwooleG.process_type = SW_PROCESS_WORKER;
+    }
+
+    SwooleWG.worker = swServer_get_worker(serv, SwooleWG.id);
+
+    if (swIsWorker())
+    {
+        int maxfd;
+        if (SwooleG.task_worker_num > 0)
+        {
+            maxfd = SwooleG.task_workers.workers[SwooleG.task_worker_num - 1].pipe_master + 1;
+        }
+        else
+        {
+            maxfd = serv->workers[serv->worker_num - 1].pipe_master + 1;
+        }
+        SwooleWG.fd_map = swArray_new(maxfd, sizeof(swPipe *), 0);
+    }
+
     for (i = 0; i < serv->worker_num + SwooleG.task_worker_num; i++)
     {
         worker = swServer_get_worker(serv, i);
@@ -240,19 +208,18 @@ void swWorker_onStart(swServer *serv)
         {
             swWorker_free(worker);
         }
+
         if (SwooleWG.id < serv->worker_num && i < serv->worker_num)
         {
-            close(worker->pipe_master);
+            close(worker->pipe_worker);
         }
-    }
 
-    if (SwooleWG.id >= serv->worker_num)
-    {
-        SwooleG.process_type = SW_PROCESS_TASKWORKER;
-    }
-    else
-    {
-        SwooleG.process_type = SW_PROCESS_WORKER;
+        if (swIsWorker())
+        {
+            swSetNonBlock(worker->pipe_master);
+            swArray_store(SwooleWG.fd_map, worker->pipe_master, &worker->pipe_object);
+            worker->pipe_object->pipe_used = worker->pipe_master;
+        }
     }
 
     if (serv->onWorkerStart)
@@ -283,12 +250,6 @@ int swWorker_loop(swFactory *factory, int worker_id)
         swEventData req;
     } rdata;
     int n;
-
-    int pipe_rd = serv->workers[worker_id].pipe_worker;
-    /**
-     * mapping pipe and worker
-     */
-    serv->connection_list[pipe_rd].from_id = worker_id;
 
 #ifdef HAVE_CPU_AFFINITY
     if (serv->open_cpu_affinity == 1)
@@ -372,11 +333,14 @@ int swWorker_loop(swFactory *factory, int worker_id)
             swError("[Worker] create worker_reactor failed.");
             return SW_ERR;
         }
-        swSetNonBlock(pipe_rd);
+
+        int pipe_worker = serv->workers[worker_id].pipe_worker;
+
+        swSetNonBlock(pipe_worker);
         SwooleG.main_reactor->ptr = serv;
-        SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_rd, SW_FD_PIPE);
+        SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_worker, SW_FD_PIPE);
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE, swWorker_onPipeReceive);
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE | SW_EVENT_WRITE, swWorker_onPipeWrite);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE | SW_EVENT_WRITE, swPipeUnsock_onWrite);
     }
 
     if (serv->max_request < 1)
@@ -463,43 +427,8 @@ int swWorker_send2reactor(swEventData_overflow *sdata, size_t sendn, int fd)
          * pipe_worker_id: The pipe in which worker.
          */
         int pipe_worker_id = reactor_id + (round_i * serv->reactor_num);
-
         swWorker *dst_worker = &serv->workers[pipe_worker_id];
-        int pipe_fd = dst_worker->pipe_worker;
-
-        if (swBuffer_empty(dst_worker->pipe_buffer))
-        {
-            ret = write(pipe_fd, (void *) &sdata->_send, sendn);
-            if (ret < 0 && errno == EAGAIN)
-            {
-                if (pipe_worker_id == SwooleWG.id)
-                {
-                    SwooleG.main_reactor->set(SwooleG.main_reactor, pipe_fd,
-                            SW_FD_PIPE | SW_EVENT_READ | SW_EVENT_WRITE);
-                }
-                else
-                {
-                    SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_WRITE);
-                }
-                goto append_pipe_buffer;
-            }
-        }
-        else
-        {
-            append_pipe_buffer:
-            if (dst_worker->pipe_buffer->length > SwooleG.unixsock_buffer_size)
-            {
-                swWarn("Fatal Error: unix socket buffer overflow");
-                return SW_ERR;
-            }
-            if (swBuffer_append(dst_worker->pipe_buffer, &sdata->_send, sendn) < 0)
-            {
-                swWarn("append to pipe_buffer failed.");
-                return SW_ERR;
-            }
-            return SW_OK;
-        }
-
+        ret = dst_worker->pipe_object->write(dst_worker->pipe_object, &sdata->_send, sendn);
     }
     return ret;
 }
@@ -514,7 +443,9 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
     swFactory *factory = &serv->factory;
     int ret;
 
-    read_from_pipe: if (read(event->fd, &task, sizeof(task)) > 0)
+    read_from_pipe:
+
+    if (read(event->fd, &task, sizeof(task)) > 0)
     {
         /**
          * Big package

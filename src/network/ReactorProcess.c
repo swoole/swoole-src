@@ -86,6 +86,7 @@ int swReactorProcess_start(swServer *serv)
     }
     pool.ptr = serv;
     pool.main_loop = swReactorProcess_loop;
+    pool.type = SW_PROCESS_WORKER;
     SwooleG.event_workers = &pool;
 
     //no worker
@@ -114,7 +115,6 @@ int swReactorProcess_start(swServer *serv)
         }
 
         swTaskWorker_init(&SwooleG.task_workers);
-
         swProcessPool_start(&SwooleG.task_workers);
 
         //将taskworker也加入到wait中来

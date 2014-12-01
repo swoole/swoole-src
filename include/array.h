@@ -6,7 +6,7 @@
  */
 #define SW_ARRAY_PAGE_MAX      128
 
-typedef struct
+typedef struct _swArray
 {
     void **pages;
     uint16_t page_num;
@@ -14,7 +14,7 @@ typedef struct
     uint32_t item_size;
     uint32_t item_num;
     uint32_t offset;
-    char flag;
+    int flag;
 } swArray;
 
 #define swArray_page(array, n)      ((n) / (array)->page_size)

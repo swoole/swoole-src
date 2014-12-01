@@ -19,7 +19,6 @@
 
 #include "swoole.h"
 #include "buffer.h"
-#include "array.h"
 #include "Connection.h"
 
 #ifdef __cplusplus
