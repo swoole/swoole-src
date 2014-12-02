@@ -351,7 +351,10 @@ int swWorker_loop(swFactory *factory, int worker_id)
     else
     {
         worker_task_num = serv->max_request;
-        worker_task_num += swRandom(worker_id);
+        if (worker_task_num > 10)
+        {
+            worker_task_num += swRandom(worker_id);
+        }
     }
 
     swWorker_onStart(serv);

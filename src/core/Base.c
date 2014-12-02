@@ -20,68 +20,71 @@
 #include <sys/stat.h>
 #include <sys/poll.h>
 #include <sys/resource.h>
+#include <sys/ioctl.h>
 
 void swoole_init(void)
 {
     struct rlimit rlmt;
-    if (SwooleG.running == 0)
+    if (SwooleG.running)
     {
-        bzero(&SwooleG, sizeof(SwooleG));
-        bzero(sw_error, SW_ERROR_MSG_SIZE);
-
-        //初始化全局变量
-        SwooleG.running = 1;
-        sw_errno = 0;
-
-        SwooleG.cpu_num = sysconf(_SC_NPROCESSORS_ONLN);
-        SwooleG.pagesize = getpagesize();
-
-        if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
-        {
-            swWarn("getrlimit() failed. Error: %s[%d]", strerror(errno), errno);
-        }
-        else
-        {
-            SwooleG.max_sockets = (uint32_t) rlmt.rlim_cur;
-        }
-
-        //random seed
-        srandom(time(NULL));
-
-        //init global lock
-        swMutex_create(&SwooleG.lock, 0);
-
-        //init signalfd
-#ifdef HAVE_SIGNALFD
-        swSignalfd_init();
-        SwooleG.use_signalfd = 1;
-#endif
-        //timerfd
-#ifdef HAVE_TIMERFD
-        SwooleG.use_timerfd = 1;
-#endif
-
-        SwooleG.use_timer_pipe = 1;
-        //将日志设置为标准输出
-        SwooleG.log_fd = STDOUT_FILENO;
-        //初始化全局内存
-        SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
-        if (SwooleG.memory_pool == NULL)
-        {
-            swError("[Master] Fatal Error: create global memory failed.");
-        }
-        SwooleGS = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerGS));
-        if (SwooleGS == NULL)
-        {
-            swError("[Master] Fatal Error: alloc memory for SwooleGS failed.");
-        }
-        SwooleStats = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerStats));
-        if (SwooleGS == NULL)
-        {
-            swError("[Master] Fatal Error: alloc memory for SwooleStats failed.");
-        }
-        swoole_update_time();
+        return;
     }
+
+    bzero(&SwooleG, sizeof(SwooleG));
+    bzero(&SwooleWG, sizeof(SwooleWG));
+    bzero(sw_error, SW_ERROR_MSG_SIZE);
+
+    SwooleG.running = 1;
+    sw_errno = 0;
+
+    SwooleG.cpu_num = sysconf(_SC_NPROCESSORS_ONLN);
+    SwooleG.pagesize = getpagesize();
+
+    if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
+    {
+        swWarn("getrlimit() failed. Error: %s[%d]", strerror(errno), errno);
+    }
+    else
+    {
+        SwooleG.max_sockets = (uint32_t) rlmt.rlim_cur;
+    }
+
+    //random seed
+    srandom(time(NULL));
+
+    //init global lock
+    swMutex_create(&SwooleG.lock, 0);
+
+    //init signalfd
+#ifdef HAVE_SIGNALFD
+    swSignalfd_init();
+    SwooleG.use_signalfd = 1;
+#endif
+    //timerfd
+#ifdef HAVE_TIMERFD
+    SwooleG.use_timerfd = 1;
+#endif
+
+    SwooleG.use_timer_pipe = 1;
+    //将日志设置为标准输出
+    SwooleG.log_fd = STDOUT_FILENO;
+    //初始化全局内存
+    SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
+    if (SwooleG.memory_pool == NULL)
+    {
+        swError("[Master] Fatal Error: create global memory failed.");
+    }
+    SwooleGS = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerGS));
+    if (SwooleGS == NULL)
+    {
+        swError("[Master] Fatal Error: alloc memory for SwooleGS failed.");
+    }
+    SwooleStats = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerStats));
+    if (SwooleGS == NULL)
+    {
+        swError("[Master] Fatal Error: alloc memory for SwooleStats failed.");
+    }
+    swoole_update_time();
 }
 
 void swoole_clean(void)
@@ -738,49 +741,53 @@ int swWrite(int fd, void *buf, int count)
     return totlen;
 }
 
-void swSetNonBlock(int sock)
+void swoole_ioctl_set_block(int sock, int nonblock)
 {
-    int opts, ret;
+    int ret;
     do
     {
-        opts = fcntl(sock, F_GETFL);
-    } while (opts < 0 && errno == EINTR);
-    if (opts < 0)
-    {
-        swWarn("fcntl(sock,GETFL) failed. Error: %s[%d]", strerror(errno), errno);
+        ret = ioctl(sock, FIONBIO, &nonblock);
     }
-    opts = opts | O_NONBLOCK;
-    do
-    {
-        ret = fcntl(sock, F_SETFL, opts);
-    } while (ret < 0 && errno == EINTR);
+    while (ret == -1 && errno == EINTR);
 
     if (ret < 0)
     {
-        swWarn("fcntl(sock,SETFL,opts) failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("ioctl(%d, FIONBIO, %d) failed.", sock, nonblock);
     }
 }
 
-void swSetBlock(int sock)
+void swoole_fcntl_set_block(int sock, int nonblock)
 {
     int opts, ret;
     do
     {
         opts = fcntl(sock, F_GETFL);
-    } while (opts < 0 && errno == EINTR);
+    }
+    while (opts < 0 && errno == EINTR);
 
     if (opts < 0)
     {
-        swWarn("fcntl(sock,GETFL) failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("fcntl(sock,GETFL) failed.");
     }
-    opts = opts & ~O_NONBLOCK;
+
+    if (nonblock)
+    {
+        opts = opts | O_NONBLOCK;
+    }
+    else
+    {
+        opts = opts & ~O_NONBLOCK;
+    }
+
     do
     {
         ret = fcntl(sock, F_SETFL, opts);
-    } while (ret < 0 && errno == EINTR);
+    }
+    while (ret < 0 && errno == EINTR);
+
     if (ret < 0)
     {
-        swWarn("fcntl(sock,SETFL,opts) failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("fcntl(sock,SETFL,opts) failed.");
     }
 }
 

@@ -84,6 +84,7 @@ int swReactorProcess_start(swServer *serv)
     {
         return SW_ERR;
     }
+
     pool.ptr = serv;
     pool.main_loop = swReactorProcess_loop;
     pool.type = SW_PROCESS_WORKER;
@@ -144,6 +145,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 {
     swServer *serv = pool->ptr;
     swReactor *reactor = &(serv->reactor_threads[0].reactor);
+    SwooleG.process_type = SW_PROCESS_WORKER;
 
     //create reactor
     if (swReactor_auto(reactor, SW_REACTOR_MAXEVENTS) < 0)

@@ -740,13 +740,22 @@ int swoole_sync_readfile(int fd, void *buf, int len);
 int swoole_system_random(int min, int max);
 swString* swoole_file_get_contents(char *filename);
 
+void swoole_ioctl_set_block(int sock, int nonblock);
+void swoole_fcntl_set_block(int sock, int nonblock);
+
 //----------------------core function---------------------
 int swSetTimeout(int sock, double timeout);
 int swRead(int, void *, int);
 int swWrite(int, void *, int);
 int swAccept(int server_socket, struct sockaddr_in *addr, int addr_len);
-void swSetNonBlock(int);
-void swSetBlock(int);
+
+#ifdef SW_USE_IOCTL
+#define swSetNonBlock(sock)   swoole_ioctl_set_block(sock, 1)
+#define swSetBlock(sock)      swoole_ioctl_set_block(sock, 0)
+#else
+#define swSetNonBlock(sock)   swoole_fcntl_set_block(sock, 1)
+#define swSetBlock(sock)      swoole_fcntl_set_block(sock, 0)
+#endif
 
 void swoole_init(void);
 void swoole_clean(void);
