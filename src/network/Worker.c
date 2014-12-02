@@ -197,29 +197,32 @@ void swWorker_onStart(swServer *serv)
         SwooleWG.fd_map = swArray_new(maxfd, sizeof(swPipe *), 0);
     }
 
-    for (i = 0; i < serv->worker_num + SwooleG.task_worker_num; i++)
+    if (serv->ipc_mode != SW_IPC_MSGQUEUE)
     {
-        worker = swServer_get_worker(serv, i);
-        if (SwooleWG.id == i)
+        for (i = 0; i < serv->worker_num + SwooleG.task_worker_num; i++)
         {
-            worker->pipe_object->pipe_used = worker->pipe_worker;
-            continue;
-        }
-        else
-        {
-            swWorker_free(worker);
-        }
+            worker = swServer_get_worker(serv, i);
+            if (SwooleWG.id == i)
+            {
+                worker->pipe_object->pipe_used = worker->pipe_worker;
+                continue;
+            }
+            else
+            {
+                swWorker_free(worker);
+            }
 
-        if (SwooleWG.id < serv->worker_num && i < serv->worker_num)
-        {
-            close(worker->pipe_worker);
-        }
+            if (SwooleWG.id < serv->worker_num && i < serv->worker_num)
+            {
+                close(worker->pipe_worker);
+            }
 
-        if (swIsWorker())
-        {
-            swSetNonBlock(worker->pipe_master);
-            swArray_store(SwooleWG.fd_map, worker->pipe_master, &worker->pipe_object);
-            worker->pipe_object->pipe_used = worker->pipe_master;
+            if (swIsWorker())
+            {
+                swSetNonBlock(worker->pipe_master);
+                swArray_store(SwooleWG.fd_map, worker->pipe_master, &worker->pipe_object);
+                worker->pipe_object->pipe_used = worker->pipe_master;
+            }
         }
     }
 
