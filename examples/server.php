@@ -9,10 +9,10 @@ $config = array(
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
     //'ipc_mode' => 2,
-    'task_worker_num' => 1,
+    //'task_worker_num' => 2,
     //'task_ipc_mode' => 1,
     //'dispatch_mode' => 1,
-    'log_file' => '/tmp/swoole.log',
+    //'log_file' => '/tmp/swoole.log',
     //'heartbeat_check_interval' => 10,
 );
 
@@ -26,7 +26,7 @@ $serv = new swoole_server("0.0.0.0", 9501);
 $serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
 
 $process1 = new swoole_process("my_process1", false, false);
-$serv->addprocess($process1);
+//$serv->addprocess($process1);
 
 $serv->set($config);
 /**

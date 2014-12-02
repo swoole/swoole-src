@@ -10,8 +10,8 @@ $serv->on('Receive', function(swoole_server $serv, $fd, $from_id, $data) {
 	//AsyncTask
     $data = trim($data);
     //$data = str_repeat('A', 8192*100);
-    //if ($data == 'async')
-    if (false)
+    if ($data == 'async')
+    //if (false)
     {
         $task_id = $serv->task($data);
         echo "Dispath AsyncTask: id=$task_id\n";

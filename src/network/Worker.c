@@ -202,6 +202,7 @@ void swWorker_onStart(swServer *serv)
         worker = swServer_get_worker(serv, i);
         if (SwooleWG.id == i)
         {
+            worker->pipe_object->pipe_used = worker->pipe_worker;
             continue;
         }
         else
