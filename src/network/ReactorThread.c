@@ -17,6 +17,7 @@
 #include "swoole.h"
 #include "Server.h"
 #include "Http.h"
+#include "websocket.h"
 
 #include <sys/stat.h>
 
@@ -127,6 +128,7 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
     if (reactor->del(reactor, fd) == 0)
     {
         conn->active |= SW_STATE_REMOVED;
+        conn->websocket_status = 0;
         return SwooleG.factory->notify(SwooleG.factory, &notify_ev);
     }
     else
@@ -992,6 +994,56 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
         swString *buffer = request->buffer;
         buffer->length += n;
 
+        if(conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE)   //upgrade websocket
+        {
+            int ret = swWebSocket_decode(request);
+            if(ret == SW_ERR) {
+                swWarn("frame decode error.");
+                goto close_fd;
+            }
+
+
+            if (request->content_length > serv->package_max_length)
+            {
+                swWarn("Package length more than the maximum size[%d], Close connection.", serv->package_max_length);
+                goto close_fd;
+            }
+
+            switch (request->opcode)
+            {
+                case WEBSOCKET_OPCODE_TEXT_FRAME:
+                case WEBSOCKET_OPCODE_BINARY_FRAME:
+                    if(request->state== 0) {
+                        buffer->length = request->content_length;
+                        swTrace("websocket send fd: %d %s, lenght:%d, content-lenght:%d", conn->fd, request->buffer->str, request->buffer->length, request->content_length);
+                        swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, buffer);
+                        goto wait_more_data;
+                    }
+                    break;
+                case WEBSOCKET_OPCODE_PING: //ping
+                    if(request->state || 0x7d  < request->content_length) {
+                        goto close_fd;
+                    }
+                    //send(event->fd, *pongdata, ponglenght, 0);
+                    break;
+                case WEBSOCKET_OPCODE_PONG: //pong
+                    if(request->state) {
+                        goto close_fd;
+                    }
+                    break;
+                case WEBSOCKET_OPCODE_CONNECTION_CLOSE:
+                    if(0x7d < request->content_length) {
+                        goto  close_fd;
+                    }
+                    break;
+            }
+
+            swHttpRequest_free(request);
+
+
+            return SW_OK;
+        }
+
         if (request->method == 0 && swHttpRequest_get_protocol(request) < 0)
         {
             swWarn("get protocol failed.");
@@ -1005,8 +1057,11 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
 #endif
             goto close_fd;
         }
-        //GET
-        if (request->method == HTTP_GET)
+
+        swTrace("method: %d", request->method);
+
+        //GET HEAD DELETE OPTIONS
+        if (request->method == HTTP_GET || request->method == HTTP_HEAD || request->method == HTTP_OPTIONS || request->method == HTTP_DELETE )
         {
             if (memcmp(buffer->str + buffer->length - 4, "\r\n\r\n", 4) == 0)
             {
@@ -1030,8 +1085,8 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
                 goto recv_data;
             }
         }
-        //POST
-        else
+        //POST PUT
+        else if(request->method == HTTP_POST || request->method == HTTP_PUT)
         {
             if (request->content_length == 0)
             {
@@ -1078,6 +1133,11 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
                 }
                 goto wait_more_data;
             }
+        }
+        else
+        {
+            swWarn("method no support");
+            goto close_fd;
         }
     }
     return SW_OK;
