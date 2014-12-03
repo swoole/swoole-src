@@ -22,6 +22,7 @@
 #include <main/php_variables.h>
 #include <include/swoole.h>
 #include <include/websocket.h>
+#include <include/Connection.h>
 
 #include "thirdparty/php_http_parser.h"
 
@@ -399,10 +400,12 @@ static int http_onReceive(swFactory *factory, swEventData *req)
     int fd = req->info.fd;
     zval *zdata = php_swoole_get_data(req TSRMLS_CC);
 
+    swTrace("on receive:%s\n", zdata);
     swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
 
     if(conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE)  //websocket callback
     {
+        swTrace("on message callback\n");
         zval *retval;
         zval **args[2];
         args[0] = &zdata;
@@ -456,29 +459,34 @@ static int http_onReceive(swFactory *factory, swEventData *req)
 
     size_t n = php_http_parser_execute(parser, &http_parser_settings, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
     zval_ptr_dtor(&zdata);
-    if(conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) // need handshake
-    {
-        int ret = websocket_handshake(client);
-        if(ret == SW_ERR) {
-            SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
-        } else {
-            SwooleG.lock.lock(&SwooleG.lock);
-            swConnection *conn = swServer_connection_get(SwooleG.serv, client->fd);
-            if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) {
-                conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
-            }
-            SwooleG.lock.unlock(&SwooleG.lock);
-            swTrace("conn ws status:%d\n", conn->websocket_status);
-        }
-        return ret;
-    }
-
     if (n < 0)
     {
         swWarn("php_http_parser_execute failed.");
+        if(conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
+        {
+            SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+        }
+
     }
     else
     {
+        if(conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) // need handshake
+        {
+            int ret = websocket_handshake(client);
+            if(ret == SW_ERR) {
+                SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+            } else {
+                SwooleG.lock.lock(&SwooleG.lock);
+                swConnection *conn = swServer_connection_get(SwooleG.serv, client->fd);
+                if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) {
+                    conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
+                }
+                SwooleG.lock.unlock(&SwooleG.lock);
+                swTrace("conn ws status:%d\n", conn->websocket_status);
+            }
+            return ret;
+        }
+
         zval *retval;
         zval **args[2];
         zval *zrequest = client->zrequest;
