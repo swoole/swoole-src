@@ -96,6 +96,11 @@ typedef struct _swConnection
      */
     long uid;
 
+    /**
+    *  upgarde websocket
+    */
+    uint8_t websocket_status;
+
 #ifdef SW_USE_OPENSSL
 	SSL *ssl;
 	uint32_t ssl_state;

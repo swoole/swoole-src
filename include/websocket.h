@@ -18,8 +18,76 @@
 
 #ifndef SW_WEBSOCKET_H_
 #define SW_WEBSOCKET_H_
+#include <include/Http.h>
+#define SW_WEBSOCKET_GUID "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+#define SW_WEBSOCKET_HEADER_LEN  2
+#define SW_WEBSOCKET_MASK_LEN    4
+#define SW_WEBSOCKET_EXT16_LENGTH 0x7E
+#define SW_WEBSOCKET_EXT16_MAX_LEN 0xFFFF
+#define SW_WEBSOCKET_EXT64_LENGTH 0x7F
+#define SW_WEBSOCKET_MASKED(frm) (frm->header.MASK)
 
-int swWebSocket_encode(char *data, int length);
-int swWebSocket_decode(char *data, int length);
+#define FRAME_SET_FIN(BYTE) (((BYTE) & 0x01) << 7)
+#define FRAME_SET_OPCODE(BYTE) ((BYTE) & 0x0F)
+#define FRAME_SET_MASK(BYTE) (((BYTE) & 0x01) << 7)
+#define FRAME_SET_LENGTH(X64, IDX) (unsigned char)(((X64) >> ((IDX)*8)) & 0xFF)
+
+enum SW_WEBSOCKET_STATUS
+{
+	WEBSOCKET_STATUS_CONNECTION = 1,
+	WEBSOCKET_STATUS_HANDSHAKE,
+
+};
+
+
+typedef struct
+{
+	/**
+	 * fin:1 rsv1:1 rsv2:1 rsv3:1 opcode:4
+	 */
+	struct
+	{
+		unsigned char OPCODE :4;
+		unsigned char RSV3 :1;
+		unsigned char RSV2 :1;
+		unsigned char RSV1 :1;
+		unsigned char FIN :1;
+		unsigned char LENGTH :7;
+		unsigned char MASK :1;
+	} header;
+	char mask[SW_WEBSOCKET_MASK_LEN];
+	size_t length;
+	char *payload;
+} swWebSocket_frame;
+
+
+enum
+{
+	WEBSOCKET_OPCODE_CONTINUATION_FRAME = 0x0,
+	WEBSOCKET_OPCODE_TEXT_FRAME = 0x1,
+	WEBSOCKET_OPCODE_BINARY_FRAME = 0x2,
+	WEBSOCKET_OPCODE_CONNECTION_CLOSE = 0x8,
+	WEBSOCKET_OPCODE_PING = 0x9,
+	WEBSOCKET_OPCODE_PONG = 0xa,
+
+	WEBSOCKET_CLOSE_NORMAL = 1000,
+	WEBSOCKET_CLOSE_GOING_AWAY = 1001,
+	WEBSOCKET_CLOSE_PROTOCOL_ERROR = 1002,
+	WEBSOCKET_CLOSE_DATA_ERROR = 1003,
+	WEBSOCKET_CLOSE_STATUS_ERROR = 1005,
+	WEBSOCKET_CLOSE_ABNORMAL = 1006,
+	WEBSOCKET_CLOSE_MESSAGE_ERROR = 1007,
+	WEBSOCKET_CLOSE_POLICY_ERROR = 1008,
+	WEBSOCKET_CLOSE_MESSAGE_TOO_BIG = 1009,
+	WEBSOCKET_CLOSE_EXTENSION_MISSING = 1010,
+	WEBSOCKET_CLOSE_SERVER_ERROR = 1011,
+	WEBSOCKET_CLOSE_TLS = 1015,
+	WEBSOCKET_VERSION = 13,
+
+} SW_WEBSOCKET;
+swString *swWebSocket_encode(swString *data);
+int swWebSocket_decode(swHttpRequest *request);
+int swWebSocket_isEof(char *data);
+swString *swWebSocket_handShake(char *key);
 
 #endif /* SW_WEBSOCKET_H_ */
