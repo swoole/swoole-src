@@ -388,7 +388,7 @@ static int websocket_handshake(http_client *client)
     swTrace("websocket header len:%d\n%s \n", buf->length, buf->str);
     int ret = swServer_tcp_send(SwooleG.serv, client->fd, buf->str, buf->length);
     swString_free(buf);
-    if(ret)
+    if(ret == SW_OK)
     {
         SwooleG.lock.lock(&SwooleG.lock);
         swConnection *conn = swServer_connection_get(SwooleG.serv, client->fd);
