@@ -467,7 +467,10 @@ static int http_onReceive(swFactory *factory, swEventData *req)
     if(conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) // need handshake
     {
         int ret = websocket_handshake(client);
-        SW_CHECK_RETURN(ret);
+        if(ret == SW_ERROR) {
+            SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+        }
+        return ret;
     }
 
     if (n < 0)
