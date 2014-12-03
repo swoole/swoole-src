@@ -93,7 +93,9 @@ int swReactorProcess_start(swServer *serv)
     //no worker
     if (serv->worker_num == 1 && SwooleG.task_worker_num == 0 && serv->max_request == 0)
     {
-        return swReactorProcess_loop(&pool, NULL);
+        swWorker single_worker;
+        single_worker.id = 0;
+        return swReactorProcess_loop(&pool, &single_worker);
     }
     //task workers
     if (SwooleG.task_worker_num > 0)
@@ -146,6 +148,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     swServer *serv = pool->ptr;
     swReactor *reactor = &(serv->reactor_threads[0].reactor);
     SwooleG.process_type = SW_PROCESS_WORKER;
+
+    swServer_worker_init(serv, worker);
 
     //create reactor
     if (swReactor_auto(reactor, SW_REACTOR_MAXEVENTS) < 0)

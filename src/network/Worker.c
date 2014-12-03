@@ -255,61 +255,15 @@ int swWorker_loop(swFactory *factory, int worker_id)
     } rdata;
     int n;
 
-#ifdef HAVE_CPU_AFFINITY
-    if (serv->open_cpu_affinity == 1)
-    {
-        cpu_set_t cpu_set;
-        CPU_ZERO(&cpu_set);
-        CPU_SET(worker_id % SW_CPU_NUM, &cpu_set);
-        if (0 != sched_setaffinity(getpid(), sizeof(cpu_set), &cpu_set))
-        {
-            swWarn("pthread_setaffinity_np set failed");
-        }
-    }
-#endif
-
 #ifndef SW_WORKER_USE_SIGNALFD
     SwooleG.use_signalfd = 0;
 #endif
 
     //signal init
     swWorker_signal_init();
-
-    //worker_id
-    SwooleWG.id = worker_id;
-
+    swWorker *worker = swServer_get_worker(serv, worker_id);
+    swServer_worker_init(serv, worker);
     int i;
-
-    SwooleWG.buffer_input = sw_malloc(sizeof(swString*) * serv->reactor_num);
-
-    if (SwooleWG.buffer_input == NULL)
-    {
-        swError("malloc for SwooleWG.buffer_input failed.");
-        return SW_ERR;
-    }
-
-#ifndef SW_USE_RINGBUFFER
-    int buffer_input_size;
-    if (serv->open_eof_check || serv->open_length_check || serv->open_http_protocol)
-    {
-        buffer_input_size = serv->package_max_length;
-    }
-    else
-    {
-        buffer_input_size = SW_BUFFER_SIZE_BIG;
-    }
-
-    for (i = 0; i < serv->reactor_num; i++)
-    {
-        SwooleWG.buffer_input[i] = swString_new(buffer_input_size);
-        if (SwooleWG.buffer_input[i] == NULL)
-        {
-            swError("buffer_input init failed.");
-            return SW_ERR;
-        }
-    }
-#endif
-
     if (serv->ipc_mode == SW_IPC_MSGQUEUE)
     {
         //抢占式,使用相同的队列type

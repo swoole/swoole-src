@@ -336,6 +336,57 @@ static int swServer_start_proxy(swServer *serv)
 	return main_reactor->wait(main_reactor, &tmo);
 }
 
+int swServer_worker_init(swServer *serv, swWorker *worker)
+{
+#ifdef HAVE_CPU_AFFINITY
+    if (serv->open_cpu_affinity == 1)
+    {
+        cpu_set_t cpu_set;
+        CPU_ZERO(&cpu_set);
+        CPU_SET(worker->id % SW_CPU_NUM, &cpu_set);
+        if (sched_setaffinity(getpid(), sizeof(cpu_set), &cpu_set) < 0)
+        {
+            swSysError("sched_setaffinity() failed.");
+        }
+    }
+#endif
+
+    //worker_id
+    SwooleWG.id = worker->id;
+
+    SwooleWG.buffer_input = sw_malloc(sizeof(swString*) * serv->reactor_num);
+    if (SwooleWG.buffer_input == NULL)
+    {
+        swError("malloc for SwooleWG.buffer_input failed.");
+        return SW_ERR;
+    }
+
+    int i;
+#ifndef SW_USE_RINGBUFFER
+    int buffer_input_size;
+    if (serv->open_eof_check || serv->open_length_check || serv->open_http_protocol)
+    {
+        buffer_input_size = serv->package_max_length;
+    }
+    else
+    {
+        buffer_input_size = SW_BUFFER_SIZE_BIG;
+    }
+
+    for (i = 0; i < serv->reactor_num; i++)
+    {
+        SwooleWG.buffer_input[i] = swString_new(buffer_input_size);
+        if (SwooleWG.buffer_input[i] == NULL)
+        {
+            swError("buffer_input init failed.");
+            return SW_ERR;
+        }
+    }
+#endif
+
+    return SW_OK;
+}
+
 int swServer_start(swServer *serv)
 {
     swFactory *factory = &serv->factory;

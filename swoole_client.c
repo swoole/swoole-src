@@ -1247,7 +1247,7 @@ PHP_METHOD(swoole_client, connect)
         RETURN_FALSE;
     }
 
-	ret = cli->connect(cli, host, port, (float) timeout, sock_flag);
+	ret = cli->connect(cli, host, port, timeout, sock_flag);
 
 	//nonblock async
 	if (cli->async == 1)

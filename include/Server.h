@@ -484,6 +484,7 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, int length);
 int swServer_reactor_add(swServer *serv, int fd, int sock_type); //no use
 int swServer_reactor_del(swServer *serv, int fd, int reacot_id); //no use
 int swServer_get_manager_pid(swServer *serv);
+int swServer_worker_init(swServer *serv, swWorker *worker);
 void swServer_onTimer(swTimer *timer, int interval);
 
 void swTaskWorker_init(swProcessPool *pool);
