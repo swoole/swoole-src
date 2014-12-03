@@ -228,27 +228,27 @@ static void php_swoole_aio_onComplete(swAio_event *event)
             }
         }
 	}
-	else if(dns_req != NULL)
-	{
-		zval_ptr_dtor(&dns_req->callback);
-		zval_ptr_dtor(&dns_req->domain);
+    else if (dns_req != NULL)
+    {
+        zval_ptr_dtor(&dns_req->callback);
+        zval_ptr_dtor(&dns_req->domain);
 
-		efree(dns_req);
-		efree(event->buf);
-	}
-	if (zcontent != NULL)
-	{
-		efree(zcontent);
-	}
-	if (zwriten != NULL)
-	{
-		zval_ptr_dtor(&zwriten);
-	}
-	if (retval != NULL)
-	{
-		zval_ptr_dtor(&retval);
-	}
-    if (php_sw_in_client && SwooleG.main_reactor->event_num == 1 && SwooleAIO.task_num == 0)
+        efree(dns_req);
+        efree(event->buf);
+    }
+    if (zcontent != NULL)
+    {
+        efree(zcontent);
+    }
+    if (zwriten != NULL)
+    {
+        zval_ptr_dtor(&zwriten);
+    }
+    if (retval != NULL)
+    {
+        zval_ptr_dtor(&retval);
+    }
+    if (php_sw_in_client && SwooleG.main_reactor->event_num == 1 && SwooleAIO.task_num == 1)
     {
         SwooleG.running = 0;
     }
@@ -396,7 +396,6 @@ PHP_FUNCTION(swoole_async_write)
 		new_req.once = 0;
 		new_req.type = SW_AIO_WRITE;
 		new_req.content_length = fcnt_len;
-
 
 		if (offset < 0)
         {

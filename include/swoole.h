@@ -831,6 +831,7 @@ struct swReactor_s
 	int singal_no;
 
 	uint8_t check_timer;
+	uint8_t check_signalfd;
 
 	uint32_t event_num;
 	uint32_t max_event_num;

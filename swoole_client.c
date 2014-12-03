@@ -1151,7 +1151,7 @@ PHP_FUNCTION(swoole_event_wait)
         php_sw_event_wait = 1;
 
 #ifdef HAVE_SIGNALFD
-        if (SwooleG.use_signalfd)
+        if (SwooleG.main_reactor->check_signalfd)
         {
             swSignalfd_setup(SwooleG.main_reactor);
         }
