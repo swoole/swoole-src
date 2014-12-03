@@ -386,7 +386,7 @@ static int websocket_handshake(http_client *client)
     swString_append_ptr(buf, ZEND_STRL("Sec-WebSocket-Version: 13\r\n"));
     swString_append_ptr(buf, ZEND_STRL("Server: swoole-websocket\r\n\r\n"));
     swTrace("websocket header len:%d\n%s \n", buf->length, buf->str);
-    int ret = swServer_tcp_send(SwooleG.serv, client->fd, buf->str, buf->length));
+    int ret = swServer_tcp_send(SwooleG.serv, client->fd, buf->str, buf->length);
     swString_free(buf);
     if(ret)
     {
