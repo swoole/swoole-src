@@ -400,7 +400,7 @@ static int http_onReceive(swFactory *factory, swEventData *req)
     int fd = req->info.fd;
     zval *zdata = php_swoole_get_data(req TSRMLS_CC);
 
-    swTrace("on receive:%s\n", zdata);
+    swTrace("on receive:%s pid:%d\n", zdata, getpid());
     swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
 
     if(conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE)  //websocket callback
