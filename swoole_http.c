@@ -93,7 +93,7 @@ static void http_request_free(http_client *client TSRMLS_DC);
 static http_client* http_client_new(int fd TSRMLS_DC);
 static int http_request_new(http_client* c TSRMLS_DC);
 
-static void websocket_handshake(http_client *client);
+static int websocket_handshake(http_client *client);
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_server_on, 0, 0, 2)
     ZEND_ARG_INFO(0, ha_name)
@@ -350,7 +350,7 @@ static void sha1(const char *str, unsigned char *digest)
     return;
 }
 
-static void websocket_handshake(http_client *client)
+static int websocket_handshake(http_client *client)
 {
 
     //HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\nSec-WebSocket-Version: %s\r\nKeepAlive: off\r\nContent-Length: 0\r\nServer: ZWebSocket\r\n
@@ -360,6 +360,7 @@ static void websocket_handshake(http_client *client)
     zval **pData;
     if(zend_hash_find(ht, ZEND_STRS("sec-websocket-key") , (void **) &pData) == FAILURE) {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "header no sec-websocket-key");
+        return SW_ERR;
     }
     convert_to_string(*pData);
     swTrace("key: %s len:%d\n", Z_STRVAL_PP(pData), Z_STRLEN_PP(pData));
@@ -393,9 +394,10 @@ static void websocket_handshake(http_client *client)
         }
         SwooleG.lock.unlock(&SwooleG.lock);
         swTrace("conn ws status:%d\n", conn->websocket_status);
+        return SW_OK;
     }
     swTrace("handshake error");
-
+    return SW_ERR;
 }
 
 static int http_onReceive(swFactory *factory, swEventData *req)
@@ -464,8 +466,8 @@ static int http_onReceive(swFactory *factory, swEventData *req)
     zval_ptr_dtor(&zdata);
     if(conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) // need handshake
     {
-        websocket_handshake(client);
-        return SW_OK;
+        int ret = websocket_handshake(client);
+        SW_CHECK_RETURN(ret);
     }
 
     if (n < 0)
