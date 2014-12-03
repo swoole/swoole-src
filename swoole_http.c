@@ -806,9 +806,9 @@ PHP_METHOD(swoole_http_server, start)
     SWOOLE_GET_SERVER(getThis(), serv);
     php_swoole_register_callback(serv);
 
-    if (php_sw_http_server_callbacks[0] == NULL)
+    if (php_sw_http_server_callbacks[0] == NULL && php_sw_http_server_callbacks[1] == NULL)
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "require onRequest callback");
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "require onRequest or onMessage callback");
         RETURN_FALSE;
     }
 
