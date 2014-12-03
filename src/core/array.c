@@ -106,6 +106,7 @@ int swArray_push(swArray *array, void *data)
     {
         return SW_ERR;
     }
+    array->item_num++;
     memcpy(array->pages[page] + (swArray_offset(array, n) * array->item_size), data, array->item_size);
     return SW_OK;
 }

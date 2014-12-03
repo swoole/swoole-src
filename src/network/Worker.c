@@ -259,10 +259,14 @@ int swWorker_loop(swFactory *factory, int worker_id)
     SwooleG.use_signalfd = 0;
 #endif
 
+    //worker_id
+    SwooleWG.id = worker_id;
+
     //signal init
     swWorker_signal_init();
     swWorker *worker = swServer_get_worker(serv, worker_id);
     swServer_worker_init(serv, worker);
+
     int i;
     if (serv->ipc_mode == SW_IPC_MSGQUEUE)
     {

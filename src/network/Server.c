@@ -351,9 +351,6 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     }
 #endif
 
-    //worker_id
-    SwooleWG.id = worker->id;
-
     SwooleWG.buffer_input = sw_malloc(sizeof(swString*) * serv->reactor_num);
     if (SwooleWG.buffer_input == NULL)
     {

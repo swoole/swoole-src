@@ -1284,8 +1284,8 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     swReactorThread *thread = swServer_get_thread(serv, reactor_id);
     swReactor *reactor = &thread->reactor;
 
+#ifdef HAVE_CPU_AFFINITY
     //cpu affinity setting
-#if HAVE_CPU_AFFINITY
     if (serv->open_cpu_affinity)
     {
         cpu_set_t cpu_set;
@@ -1293,7 +1293,7 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
         CPU_SET(reactor_id % SW_CPU_NUM, &cpu_set);
         if (0 != pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set))
         {
-            swWarn("pthread_setaffinity_np set failed");
+            swSysError("pthread_setaffinity_np() failed");
         }
     }
 #endif
