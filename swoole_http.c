@@ -817,7 +817,7 @@ PHP_METHOD(swoole_http_server, start)
         RETURN_FALSE;
     }
 
-    serv->dispatch_mode = SW_DISPATCH_QUEUE;
+    serv->dispatch_mode = SW_DISPATCH_FDMOD;
     serv->onReceive = http_onReceive;
     serv->onClose = http_onClose;
     serv->open_http_protocol = 1;
