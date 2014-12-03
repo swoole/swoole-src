@@ -386,7 +386,10 @@ static int websocket_handshake(http_client *client)
     swString_append_ptr(buf, ZEND_STRL("Sec-WebSocket-Version: 13\r\n"));
     swString_append_ptr(buf, ZEND_STRL("Server: swoole-websocket\r\n\r\n"));
     swTrace("websocket header len:%d\n%s \n", buf->length, buf->str);
-    if(swServer_tcp_send(SwooleG.serv, client->fd, buf->str, buf->length)) {
+    int ret = swServer_tcp_send(SwooleG.serv, client->fd, buf->str, buf->length);
+    swString_free(buf);
+    if(ret == SW_OK)
+    {
         SwooleG.lock.lock(&SwooleG.lock);
         swConnection *conn = swServer_connection_get(SwooleG.serv, client->fd);
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) {
@@ -396,7 +399,7 @@ static int websocket_handshake(http_client *client)
         swTrace("conn ws status:%d\n", conn->websocket_status);
         return SW_OK;
     }
-    swTrace("handshake error");
+    swTrace("handshake send lenght: %d\n", ret);
     return SW_ERR;
 }
 
@@ -803,9 +806,9 @@ PHP_METHOD(swoole_http_server, start)
     SWOOLE_GET_SERVER(getThis(), serv);
     php_swoole_register_callback(serv);
 
-    if (php_sw_http_server_callbacks[0] == NULL)
+    if (php_sw_http_server_callbacks[0] == NULL && php_sw_http_server_callbacks[1] == NULL)
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "require onRequest callback");
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "require onRequest or onMessage callback");
         RETURN_FALSE;
     }
 
