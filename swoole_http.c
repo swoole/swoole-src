@@ -386,7 +386,10 @@ static int websocket_handshake(http_client *client)
     swString_append_ptr(buf, ZEND_STRL("Sec-WebSocket-Version: 13\r\n"));
     swString_append_ptr(buf, ZEND_STRL("Server: swoole-websocket\r\n\r\n"));
     swTrace("websocket header len:%d\n%s \n", buf->length, buf->str);
-    if(swServer_tcp_send(SwooleG.serv, client->fd, buf->str, buf->length)) {
+    int ret = swServer_tcp_send(SwooleG.serv, client->fd, buf->str, buf->length));
+    swString_free(buf);
+    if(ret)
+    {
         SwooleG.lock.lock(&SwooleG.lock);
         swConnection *conn = swServer_connection_get(SwooleG.serv, client->fd);
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) {
@@ -396,7 +399,7 @@ static int websocket_handshake(http_client *client)
         swTrace("conn ws status:%d\n", conn->websocket_status);
         return SW_OK;
     }
-    swTrace("handshake error");
+    swTrace("handshake send lenght: %d\n", ret);
     return SW_ERR;
 }
 
