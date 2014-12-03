@@ -366,8 +366,7 @@ static int websocket_handshake(http_client *client)
     convert_to_string(*pData);
     swTrace("key: %s len:%d\n", Z_STRVAL_PP(pData), Z_STRLEN_PP(pData));
     swString *buf = swString_new(1024);
-    char _buf[128];
-    int n = 0;
+
 
     swString_append_ptr(buf, ZEND_STRL("HTTP/1.1 101 Switching Protocols\r\n"));
     swString_append_ptr(buf, ZEND_STRL("Upgrade: websocket\r\nConnection: Upgrade\r\n"));
@@ -381,6 +380,8 @@ static int websocket_handshake(http_client *client)
     char *encoded_value = NULL;
     int encoded_len;
     encoded_value = php_base64_encode((unsigned char*) data_str, sizeof(data_str), &encoded_len);
+    char _buf[128];
+    int n = 0;
     n = snprintf(_buf, 128, "Sec-WebSocket-Accept: %s\r\n", encoded_value);
     //efree(data_str);
 
@@ -392,7 +393,7 @@ static int websocket_handshake(http_client *client)
 
     int ret = swServer_tcp_send(SwooleG.serv, client->fd, buf->str, buf->length);
     swString_free(buf);
-    swTrace("handshake send lenght: %d\n", ret);
+    swTrace("handshake send: %d lenght: %d\n", client->fd, ret);
     return ret;
 }
 
