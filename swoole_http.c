@@ -354,6 +354,7 @@ static void websocket_handshake(http_client *client)
 {
 
     //HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\nSec-WebSocket-Version: %s\r\nKeepAlive: off\r\nContent-Length: 0\r\nServer: ZWebSocket\r\n
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
     zval *header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("header"), 1 TSRMLS_CC);
     HashTable *ht = Z_ARRVAL_P(header);
     zval **pData;
@@ -394,6 +395,7 @@ static void websocket_handshake(http_client *client)
         swTrace("conn ws status:%d\n", conn->websocket_status);
     }
     swTrace("handshake error");
+
 }
 
 static int http_onReceive(swFactory *factory, swEventData *req)
