@@ -406,7 +406,7 @@ PHP_FUNCTION(swoole_async_write)
                 php_error_docref(NULL TSRMLS_CC, E_WARNING, "fstat() failed. Error: %s[%d]", strerror(errno), errno);
                 RETURN_FALSE;
             }
-            offset = file_stat.st_size - 1;
+            offset = file_stat.st_size;
             new_req.offset = offset + fcnt_len;
         }
         else
