@@ -388,19 +388,8 @@ static int websocket_handshake(http_client *client)
     swTrace("websocket header len:%d\n%s \n", buf->length, buf->str);
     int ret = swServer_tcp_send(SwooleG.serv, client->fd, buf->str, buf->length);
     swString_free(buf);
-    if(ret == SW_OK)
-    {
-        SwooleG.lock.lock(&SwooleG.lock);
-        swConnection *conn = swServer_connection_get(SwooleG.serv, client->fd);
-        if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) {
-            conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
-        }
-        SwooleG.lock.unlock(&SwooleG.lock);
-        swTrace("conn ws status:%d\n", conn->websocket_status);
-        return SW_OK;
-    }
     swTrace("handshake send lenght: %d\n", ret);
-    return SW_ERR;
+    return ret;
 }
 
 static int http_onReceive(swFactory *factory, swEventData *req)
@@ -472,6 +461,14 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         int ret = websocket_handshake(client);
         if(ret == SW_ERR) {
             SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+        } else {
+            SwooleG.lock.lock(&SwooleG.lock);
+            swConnection *conn = swServer_connection_get(SwooleG.serv, client->fd);
+            if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) {
+                conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
+            }
+            SwooleG.lock.unlock(&SwooleG.lock);
+            swTrace("conn ws status:%d\n", conn->websocket_status);
         }
         return ret;
     }
