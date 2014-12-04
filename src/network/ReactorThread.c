@@ -19,10 +19,6 @@
 #include "Http.h"
 #include "websocket.h"
 
-#include <sys/stat.h>
-#include <tkDecls.h>
-#include <CoreFoundation/CoreFoundation.h>
-
 static int swUDPThread_start(swServer *serv);
 
 static int swReactorThread_loop_udp(swThreadParam *param);
