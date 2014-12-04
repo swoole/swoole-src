@@ -2331,6 +2331,7 @@ PHP_FUNCTION(swoole_connection_info)
         add_assoc_long(return_value, "from_fd", conn->from_fd);
         add_assoc_long(return_value, "connect_time", conn->connect_time);
         add_assoc_long(return_value, "last_time", conn->last_time);
+        add_assoc_long(return_value, "websocket_status", conn->websocket_status);
         add_assoc_long(return_value, "from_port", serv->connection_list[conn->from_fd].addr.sin_port);
         add_assoc_long(return_value, "remote_port", ntohs(conn->addr.sin_port));
         add_assoc_string(return_value, "remote_ip", inet_ntoa(conn->addr.sin_addr), 1);
