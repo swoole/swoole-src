@@ -39,10 +39,13 @@ static int swPipeUnsock_close(swPipe *p)
 {
     int ret1, ret2;
     swPipeUnsock *object = p->object;
+
     ret1 = close(object->socks[0]);
     ret2 = close(object->socks[1]);
 
-    swBuffer_free(p->write_buffer);
+    swBuffer_free(p->master_buffer);
+    swBuffer_free(p->worker_buffer);
+
     sw_free(object);
 
     return 0 - ret1 - ret2;
@@ -66,6 +69,7 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
     }
     else
     {
+        swBuffer *buffer;
         //Nonblock
         if (blocking == 0)
         {
@@ -73,14 +77,21 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
             swSetNonBlock(object->socks[1]);
         }
 
-        swBuffer *buffer = swBuffer_new(sizeof(swEventData));
+        buffer = swBuffer_new(sizeof(swEventData));
         if (!buffer)
         {
-            swWarn("create buffer failed.");
+            swWarn("create worker buffer failed.");
             return SW_ERR;
         }
+        p->worker_buffer = buffer;
 
-        p->write_buffer = buffer;
+        buffer = swBuffer_new(sizeof(swEventData));
+        if (!buffer)
+        {
+            swWarn("create master buffer failed.");
+            return SW_ERR;
+        }
+        p->master_buffer = buffer;
 
         int sbsize = SwooleG.unixsock_buffer_size;
         setsockopt(object->socks[1], SOL_SOCKET, SO_SNDBUF, &sbsize, sizeof(sbsize));

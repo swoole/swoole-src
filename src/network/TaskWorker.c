@@ -28,6 +28,7 @@ void swTaskWorker_init(swProcessPool *pool)
     pool->onWorkerStart = swTaskWorker_onStart;
     pool->onWorkerStop = swTaskWorker_onStop;
     pool->type = SW_PROCESS_TASKWORKER;
+    pool->start_id = SwooleG.serv->worker_num;
 
     char *tmp_dir = swoole_dirname(SwooleG.task_tmpdir);
     //create tmp dir
@@ -62,11 +63,20 @@ int swTaskWorker_onFinish(swReactor *reactor, swEvent *event)
 
 int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
 {
+    int ret = SW_OK;
     swServer *serv = pool->ptr;
     current_task = task;
 
     SwooleWG.worker->status = SW_WORKER_BUSY;
-    int ret = serv->onTask(serv, task);
+
+    if (task->info.type == SW_EVENT_PIPE_MESSAGE)
+    {
+        serv->onPipeMessage(serv, task);
+    }
+    else
+    {
+        ret = serv->onTask(serv, task);
+    }
     SwooleWG.worker->status = SW_WORKER_IDLE;
     return ret;
 }
@@ -116,7 +126,7 @@ static void swTaskWorker_signal_init(void)
 void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
 {
     swServer *serv = pool->ptr;
-    SwooleWG.id = worker_id + serv->worker_num;
+    SwooleWG.id = worker_id;
 
     SwooleG.use_timer_pipe = 0;
     SwooleG.use_timerfd = 0;
@@ -124,7 +134,7 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
     swTaskWorker_signal_init();
     swWorker_onStart(serv);
 
-    SwooleWG.worker = &pool->workers[worker_id];
+    SwooleWG.worker = swProcessPool_get_worker(pool, worker_id);
 }
 
 void swTaskWorker_onStop(swProcessPool *pool, int worker_id)
@@ -147,7 +157,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len)
 
     int ret;
     //for swoole_server_task
-    if (current_task->info.type == SW_TASK_NONBLOCK)
+    if (current_task->info.type == SW_EVENT_TASK_NONBLOCK)
     {
         buf.info.type = SW_EVENT_FINISH;
         buf.info.fd = current_task->info.fd;

@@ -403,7 +403,8 @@ typedef struct _swPipe
     int blocking;
     double timeout;
 
-    struct _swBuffer *write_buffer;
+    struct _swBuffer *worker_buffer;
+    struct _swBuffer *master_buffer;
 
     int (*read)(struct _swPipe *, void *recv, int length);
     int (*write)(struct _swPipe *, void *send, int length);
@@ -889,7 +890,7 @@ struct _swWorker
 	 * worker status, IDLE or BUSY
 	 */
 	uint8_t status;
-
+	uint8_t type;
 	uint8_t ipc_mode;
 
 	/**
@@ -930,6 +931,11 @@ struct _swProcessPool
 	 * process type
 	 */
 	uint8_t type;
+
+	/**
+	 * worker->id = start_id + i
+	 */
+	uint16_t start_id;
 
 	/**
 	 * use message queue IPC
@@ -1023,7 +1029,10 @@ pid_t swProcessPool_spawn(swWorker *worker);
 int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int worker_id);
 int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker);
 
-#define swProcessPool_worker(ma,id) (ma->workers[id])
+static sw_inline swWorker* swProcessPool_get_worker(swProcessPool *pool, int worker_id)
+{
+    return &(pool->workers[worker_id - pool->start_id]);
+}
 
 //-----------------------------Channel---------------------------
 enum SW_CHANNEL_FLAGS

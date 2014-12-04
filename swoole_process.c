@@ -93,8 +93,8 @@ PHP_METHOD(swoole_process, __construct)
             RETURN_FALSE;
         }
         process->pipe_object = _pipe;
-        process->pipe_master = _pipe->getFd(_pipe, 1);
-        process->pipe_worker = _pipe->getFd(_pipe, 0);
+        process->pipe_master = _pipe->getFd(_pipe, SW_PIPE_MASTER);
+        process->pipe_worker = _pipe->getFd(_pipe, SW_PIPE_WORKER);
         process->pipe = process->pipe_master;
 
         zend_update_property_long(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("pipe"), process->pipe_master TSRMLS_CC);
