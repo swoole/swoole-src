@@ -33,27 +33,30 @@ extern "C" {
 #define SW_HEARTBEAT_IDLE          0   //心跳存活最大时间
 #define SW_HEARTBEAT_CHECK         0   //心跳定时侦测时间
 
-#define SW_TASK_BLOCKING           1
-#define SW_TASK_NONBLOCK           0
-
 enum swEventType
 {
-    SW_EVENT_TCP = 0,
-    SW_EVENT_UDP = 1,
-    SW_EVENT_TCP6 = 2,
-    SW_EVENT_UDP6 = 3,
-
-    SW_EVENT_CLOSE = 5,
-    SW_EVENT_CONNECT = 6,
-    SW_EVENT_TIMER = 7,
-    SW_EVENT_FINISH = 8,
-
-    SW_EVENT_PACKAGE_START = 9,
-    SW_EVENT_PACKAGE_END = 10,
-    SW_EVENT_PACKAGE = 11,
-    SW_EVENT_SENDFILE = 12,
-    SW_EVENT_UNIX_DGRAM = 13,
-    SW_EVENT_UNIX_STREAM = 14,
+    //networking socket
+    SW_EVENT_TCP             = 0,
+    SW_EVENT_UDP             = 1,
+    SW_EVENT_TCP6            = 2,
+    SW_EVENT_UDP6            = 3,
+    //tcp event
+    SW_EVENT_CLOSE           = 5,
+    SW_EVENT_CONNECT         = 6,
+    //timer
+    SW_EVENT_TIMER           = 7,
+    SW_EVENT_FINISH          = 8,
+    //package
+    SW_EVENT_PACKAGE_START   = 9,
+    SW_EVENT_PACKAGE_END     = 10,
+    SW_EVENT_PACKAGE         = 11,
+    SW_EVENT_SENDFILE        = 12,
+    SW_EVENT_UNIX_DGRAM      = 13,
+    SW_EVENT_UNIX_STREAM     = 14,
+    SW_EVENT_PIPE_MESSAGE    = 15,
+    //task
+    SW_EVENT_TASK_BLOCKING   = 16,
+    SW_EVENT_TASK_NONBLOCK   = 17,
 };
 
 #define SW_STATUS_EMPTY            0
@@ -88,6 +91,12 @@ enum swResponseType
 {
 	SW_RESPONSE_SMALL = 0,
 	SW_RESPONSE_BIG   = 1,
+};
+
+enum swWorkerPipeType
+{
+    SW_PIPE_WORKER   = 0,
+    SW_PIPE_MASTER   = 1,
 };
 
 typedef struct _swUdpFd
@@ -428,12 +437,13 @@ struct _swServer
     void (*onStart)(swServer *serv);
     void (*onManagerStart)(swServer *serv);
     void (*onManagerStop)(swServer *serv);
-    int (*onReceive)(swFactory *factory, swEventData *data);
+    int (*onReceive)(swFactory *, swEventData *);
     int (*onRequest)(swServer *serv, swRequest *request);
     void (*onClose)(swServer *serv, int fd, int from_id);
     void (*onConnect)(swServer *serv, int fd, int from_id);
     void (*onShutdown)(swServer *serv);
     void (*onTimer)(swServer *serv, int interval);
+    void (*onPipeMessage)(swServer *, swEventData *);
     void (*onWorkerStart)(swServer *serv, int worker_id);
     void (*onWorkerStop)(swServer *serv, int worker_id);
     void (*onWorkerError)(swServer *serv, int worker_id, pid_t worker_pid, int exit_code); //Only process mode
@@ -482,13 +492,12 @@ int swServer_shutdown(swServer *serv);
 
 int swServer_udp_send(swServer *serv, swSendData *resp);
 int swServer_tcp_send(swServer *serv, int fd, void *data, int length);
-int swServer_pipe_send(swServer *serv, int worker_id, void *buf, int n);
 
 int swServer_reactor_add(swServer *serv, int fd, int sock_type); //no use
 int swServer_reactor_del(swServer *serv, int fd, int reacot_id); //no use
 
 swPipe * swServer_pipe_get(swServer *serv, int pipe_fd);
-void swServer_pipe_set(swServer *serv, int worker_id, swPipe *p);
+void swServer_pipe_set(swServer *serv, swPipe *p);
 
 int swServer_get_manager_pid(swServer *serv);
 int swServer_worker_init(swServer *serv, swWorker *worker);
@@ -548,7 +557,7 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
     }
     else if (worker_id >= serv->worker_num)
     {
-        return &(swProcessPool_worker((&SwooleG.task_workers), worker_id - serv->worker_num));
+        return &(SwooleG.task_workers.workers[worker_id - serv->worker_num]);
     }
     else
     {
@@ -665,6 +674,7 @@ void swWorker_onStop(swServer *serv);
 int swWorker_loop(swFactory *factory, int worker_pti);
 int swWorker_send2reactor(swEventData_overflow *sdata, size_t sendn, int fd);
 int swWorker_onPipeWrite(swReactor *reactor, swEvent *ev);
+int swWorker_send(swWorker *worker, uint16_t is_master, void *buf, int n);
 void swWorker_signal_handler(int signo);
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event);

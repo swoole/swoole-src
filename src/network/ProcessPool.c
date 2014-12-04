@@ -76,16 +76,14 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
             {
                 return SW_ERR;
             }
-            swProcessPool_worker(pool, i).pipe_master = pipe->getFd(pipe, 1);
-            swProcessPool_worker(pool, i).pipe_worker = pipe->getFd(pipe, 0);
-            swProcessPool_worker(pool, i).pipe_object = pipe;
+            pool->workers[i].pipe_master = pipe->getFd(pipe, SW_PIPE_MASTER);
+            pool->workers[i].pipe_worker = pipe->getFd(pipe, SW_PIPE_WORKER);
+            pool->workers[i].pipe_object = pipe;
         }
     }
-
-    for (i = 0; i < worker_num; i++)
+    for (i = 0; i < pool->worker_num; i++)
     {
-        swProcessPool_worker(pool, i).id = i;
-        swProcessPool_worker(pool, i).pool = pool;
+        pool->workers[i].pool = pool;
     }
     pool->main_loop = swProcessPool_worker_start;
     return SW_OK;
@@ -99,7 +97,11 @@ int swProcessPool_start(swProcessPool *pool)
     int i;
     for (i = 0; i < pool->worker_num; i++)
     {
-        if(swProcessPool_spawn(&(pool->workers[i])) < 0)
+        pool->workers[i].id = pool->start_id + i;
+        pool->workers[i].pool = pool;
+        pool->workers[i].type = pool->type;
+
+        if (swProcessPool_spawn(&(pool->workers[i])) < 0)
         {
             swWarn("swProcessPool_spawn fail");
             return SW_ERR;
@@ -120,21 +122,22 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int dst_worke
         if (!pool->use_msgqueue && pool->dispatch_mode == SW_DISPATCH_QUEUE)
         {
             int i, target_worker_id = 0;
+            swWorker *worker;
             for (i = 0; i < pool->worker_num; i++)
             {
                 pool->round_id++;
                 target_worker_id = pool->round_id % pool->worker_num;
-
-                if (swProcessPool_worker(pool, dst_worker_id).status == SW_WORKER_IDLE)
+                worker = swProcessPool_get_worker(pool, dst_worker_id);
+                if (worker->status == SW_WORKER_IDLE)
                 {
                     break;
                 }
             }
-            dst_worker_id = target_worker_id;
+            dst_worker_id = pool->start_id + target_worker_id;
         }
         else
         {
-            dst_worker_id = (pool->round_id++) % pool->worker_num;
+            dst_worker_id = pool->start_id + ((pool->round_id++) % pool->worker_num);
         }
     }
 
@@ -156,8 +159,8 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int dst_worke
     }
     else
     {
-        swWorker *worker = &swProcessPool_worker(pool, dst_worker_id);
-        ret = worker->pipe_object->write(worker->pipe_object, data, sizeof(data->info) + data->info.len);
+        swWorker *worker = swProcessPool_get_worker(pool, dst_worker_id);
+        ret = swWorker_send(worker, SW_PIPE_MASTER, data, sizeof(data->info) + data->info.len);
         if (ret < 0)
         {
             swSysError("sendto unix socket failed.");
@@ -278,19 +281,23 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
         if (pool->use_msgqueue)
         {
             n = pool->queue.out(&pool->queue, (swQueue_data *) &out, sizeof(out.buf));
+            if (n < 0 && errno != EINTR)
+            {
+                swSysError("[Worker#%d] msgrcv() failed.", worker->id);
+            }
         }
         else
         {
             n = read(worker->pipe_worker, &out.buf, sizeof(out.buf));
+            if (n < 0 && errno != EINTR)
+            {
+                swSysError("[Worker#%d] read(%d) failed.", worker->id, worker->pipe_worker);
+            }
         }
 
         if (n < 0)
         {
-            if (errno != EINTR)
-            {
-                swWarn("[Worker#%d]read() or msgrcv() failed. Error: %s [%d]", worker->id, strerror(errno), errno);
-            }
-            else if (SwooleG.signal_alarm)
+            if (errno == EINTR && SwooleG.signal_alarm)
             {
                 SwooleG.timer.select(&SwooleG.timer);
             }

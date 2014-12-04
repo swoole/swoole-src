@@ -362,8 +362,9 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_FALIAS(connection_info, swoole_connection_info, arginfo_swoole_connection_info_oo)
 	PHP_FALIAS(connection_list, swoole_connection_list, arginfo_swoole_connection_list_oo)
 	PHP_FALIAS(after, swoole_timer_after, NULL)
-	PHP_ME(swoole_server, addprocess, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_server, stats, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, sendmessage, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, addprocess, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, stats, NULL, ZEND_ACC_PUBLIC)
 	{NULL, NULL, NULL}
 };
 

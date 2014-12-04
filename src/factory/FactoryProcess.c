@@ -196,10 +196,10 @@ static int swFactoryProcess_manager_start(swFactory *factory)
             {
                 return SW_ERR;
             }
-            serv->workers[i].pipe_master = object->pipes[i].getFd(&object->pipes[i], 1);
-            serv->workers[i].pipe_worker = object->pipes[i].getFd(&object->pipes[i], 0);
+            serv->workers[i].pipe_master = object->pipes[i].getFd(&object->pipes[i], SW_PIPE_MASTER);
+            serv->workers[i].pipe_worker = object->pipes[i].getFd(&object->pipes[i], SW_PIPE_WORKER);
             serv->workers[i].pipe_object = &object->pipes[i];
-            swServer_pipe_set(serv, i, serv->workers[i].pipe_object);
+            swServer_pipe_set(serv, serv->workers[i].pipe_object);
         }
     }
 
@@ -229,7 +229,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
             {
                 return SW_ERR;
             }
-            swServer_pipe_set(serv, worker_id, worker->pipe_object);
+            swServer_pipe_set(serv, worker->pipe_object);
         }
     }
 

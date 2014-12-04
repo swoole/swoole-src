@@ -93,7 +93,17 @@ static void swSignal_async_handler(int signo)
 
 void swSignal_callback(int signo)
 {
+    if (signo >= SW_SIGNO_MAX)
+    {
+        swWarn("signal[%d] numberis invalid.", signo);
+        return;
+    }
     swSignalFunc callback = async_signal_callback[signo];
+    if (!callback)
+    {
+        swWarn("signal[%d] callback is null.", signo);
+        return;
+    }
     callback(signo);
 }
 

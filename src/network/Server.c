@@ -260,7 +260,12 @@ static int swServer_start_check(swServer *serv)
     }
     if (SwooleG.max_sockets > 0 && serv->max_connection > SwooleG.max_sockets)
     {
-        swWarn("serv->max_conn is exceed the maximum value[%d].", SwooleG.max_sockets);
+        swWarn("serv->max_connection is exceed the maximum value[%d].", SwooleG.max_sockets);
+        serv->max_connection = SwooleG.max_sockets;
+    }
+    if (serv->max_connection < (serv->worker_num + SwooleG.task_worker_num) * 2 + 32)
+    {
+        swWarn("serv->max_connection is too small.");
         serv->max_connection = SwooleG.max_sockets;
     }
 
@@ -731,62 +736,22 @@ int swServer_udp_send(swServer *serv, swSendData *resp)
     return ret;
 }
 
-void swServer_pipe_set(swServer *serv, int worker_id, swPipe *p)
+void swServer_pipe_set(swServer *serv, swPipe *p)
 {
-    serv->connection_list[p->getFd(p, 0)].object = p;
-    serv->connection_list[p->getFd(p, 1)].object = p;
+    int master_fd = p->getFd(p, SW_PIPE_MASTER);
+
+    serv->connection_list[p->getFd(p, SW_PIPE_WORKER)].object = p;
+    serv->connection_list[master_fd].object = p;
+
+    if (master_fd > swServer_get_minfd(serv))
+    {
+        swServer_set_minfd(serv, master_fd);
+    }
 }
 
 swPipe * swServer_pipe_get(swServer *serv, int pipe_fd)
 {
     return (swPipe *) serv->connection_list[pipe_fd].object;
-}
-
-int swServer_pipe_send(swServer *serv, int worker_id, void *buf, int n)
-{
-    swWorker *worker = swServer_get_worker(serv, worker_id);
-    swBuffer *buffer = worker->pipe_object->write_buffer;
-
-    int ret;
-    //int pipe_used = (SwooleWG.id == worker_id) ? worker->pipe_worker : worker->pipe_master;
-    int pipe_used = worker->pipe_worker;
-
-    swTrace("SwooleWG.id = %d, pipe_used=%d, sendto %d %d bytes.\n", SwooleWG.id, pipe_used, worker_id, n);
-
-    if (swBuffer_empty(buffer))
-    {
-        ret = write(pipe_used, buf, n);
-
-        if (ret < 0 && errno == EAGAIN)
-        {
-            if (SwooleWG.id == worker_id)
-            {
-                SwooleG.main_reactor->set(SwooleG.main_reactor, pipe_used, SW_FD_PIPE | SW_EVENT_READ | SW_EVENT_WRITE);
-            }
-            else
-            {
-                SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_used, SW_FD_PIPE | SW_EVENT_WRITE);
-            }
-            goto append_pipe_buffer;
-        }
-    }
-    else
-    {
-        append_pipe_buffer:
-
-        if (buffer->length > SwooleG.unixsock_buffer_size)
-        {
-            swWarn("Fatal Error: unix socket buffer overflow");
-            return SW_ERR;
-        }
-
-        if (swBuffer_append(buffer, buf, n) < 0)
-        {
-            swWarn("append to pipe_buffer failed.");
-            return SW_ERR;
-        }
-    }
-    return SW_OK;
 }
 
 int swServer_tcp_send(swServer *serv, int fd, void *data, int length)
@@ -913,6 +878,7 @@ int swServer_add_worker(swServer *serv, swWorker *worker)
     user_worker->worker = worker;
 
     LL_APPEND(serv->user_worker_list, user_worker);
+    swServer_pipe_set(serv, worker->pipe_object);
 
     if (!serv->user_worker_map)
     {

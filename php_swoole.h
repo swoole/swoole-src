@@ -142,7 +142,7 @@ typedef zend_rsrc_list_entry zend_resource;
 #define SW_MAX_FIND_COUNT                   100    //for swoole_server::connection_list
 #define SW_PHP_CLIENT_BUFFER_SIZE           65535
 
-#define PHP_SERVER_CALLBACK_NUM             15
+#define PHP_SERVER_CALLBACK_NUM             16
 //--------------------------------------------------------
 #define SW_SERVER_CB_onStart                0 //Server start(master)
 #define SW_SERVER_CB_onConnect              1 //accept new connection(worker)
@@ -159,6 +159,7 @@ typedef zend_rsrc_list_entry zend_resource;
 #define SW_SERVER_CB_onWorkerError          12 //worker exception(manager)
 #define SW_SERVER_CB_onManagerStart         13
 #define SW_SERVER_CB_onManagerStop          14
+#define SW_SERVER_CB_onPipeMessage          15
 //---------------------------------------------------------
 #define SW_FLAG_KEEP                        (1u << 9)
 #define SW_FLAG_ASYNC                       (1u << 10)
@@ -228,6 +229,7 @@ PHP_FUNCTION(swoole_server_heartbeat);
 PHP_FUNCTION(swoole_connection_list);
 PHP_FUNCTION(swoole_bind_uid);
 PHP_FUNCTION(swoole_connection_info);
+PHP_METHOD(swoole_server, sendmessage);
 PHP_METHOD(swoole_server, addprocess);
 PHP_METHOD(swoole_server, stats);
 
