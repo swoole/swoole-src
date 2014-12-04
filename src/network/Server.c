@@ -260,7 +260,12 @@ static int swServer_start_check(swServer *serv)
     }
     if (SwooleG.max_sockets > 0 && serv->max_connection > SwooleG.max_sockets)
     {
-        swWarn("serv->max_conn is exceed the maximum value[%d].", SwooleG.max_sockets);
+        swWarn("serv->max_connection is exceed the maximum value[%d].", SwooleG.max_sockets);
+        serv->max_connection = SwooleG.max_sockets;
+    }
+    if (serv->max_connection < (serv->worker_num + SwooleG.task_worker_num) * 2 + 32)
+    {
+        swWarn("serv->max_connection is too small.");
         serv->max_connection = SwooleG.max_sockets;
     }
 
@@ -733,8 +738,15 @@ int swServer_udp_send(swServer *serv, swSendData *resp)
 
 void swServer_pipe_set(swServer *serv, swPipe *p)
 {
-    serv->connection_list[p->getFd(p, 0)].object = p;
-    serv->connection_list[p->getFd(p, 1)].object = p;
+    int master_fd = p->getFd(p, SW_PIPE_MASTER);
+
+    serv->connection_list[p->getFd(p, SW_PIPE_WORKER)].object = p;
+    serv->connection_list[master_fd].object = p;
+
+    if (master_fd > swServer_get_minfd(serv))
+    {
+        swServer_set_minfd(serv, master_fd);
+    }
 }
 
 swPipe * swServer_pipe_get(swServer *serv, int pipe_fd)
