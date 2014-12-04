@@ -180,9 +180,9 @@ static void swWebSocket_unmask(char *masks, swHttpRequest *request)
 	int i;
 	for (i =0  ; i < request->content_length; i++)
 	{
-                swTrace("unmask i:%d %c\n", i, request->buffer->str[i]);
+//                swTrace("unmask i:%d %c\n", i, request->buffer->str[i]);
 		request->buffer->str[i+request->buffer->offset]  ^=  masks[i % SW_WEBSOCKET_MASK_LEN];
-                swTrace("unmask i:%d %c\n", i, request->buffer->str[i]);
+//                swTrace("unmask i:%d %c\n", i, request->buffer->str[i]);
 	}
 }
 

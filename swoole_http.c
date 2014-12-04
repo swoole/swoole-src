@@ -22,6 +22,7 @@
 #include <main/php_variables.h>
 #include <include/swoole.h>
 #include <include/websocket.h>
+#include <include/Connection.h>
 
 #include "thirdparty/php_http_parser.h"
 
@@ -365,8 +366,7 @@ static int websocket_handshake(http_client *client)
     convert_to_string(*pData);
     swTrace("key: %s len:%d\n", Z_STRVAL_PP(pData), Z_STRLEN_PP(pData));
     swString *buf = swString_new(1024);
-    char _buf[128];
-    int n = 0;
+
 
     swString_append_ptr(buf, ZEND_STRL("HTTP/1.1 101 Switching Protocols\r\n"));
     swString_append_ptr(buf, ZEND_STRL("Upgrade: websocket\r\nConnection: Upgrade\r\n"));
@@ -380,6 +380,8 @@ static int websocket_handshake(http_client *client)
     char *encoded_value = NULL;
     int encoded_len;
     encoded_value = php_base64_encode((unsigned char*) data_str, sizeof(data_str), &encoded_len);
+    char _buf[128];
+    int n = 0;
     n = snprintf(_buf, 128, "Sec-WebSocket-Accept: %s\r\n", encoded_value);
     //efree(data_str);
 
@@ -391,7 +393,7 @@ static int websocket_handshake(http_client *client)
 
     int ret = swServer_tcp_send(SwooleG.serv, client->fd, buf->str, buf->length);
     swString_free(buf);
-    swTrace("handshake send lenght: %d\n", ret);
+    swTrace("handshake send: %d lenght: %d\n", client->fd, ret);
     return ret;
 }
 
@@ -402,10 +404,12 @@ static int http_onReceive(swFactory *factory, swEventData *req)
     int fd = req->info.fd;
     zval *zdata = php_swoole_get_data(req TSRMLS_CC);
 
+    swTrace("on receive:%s pid:%d\n", zdata, getpid());
     swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
 
     if(conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE)  //websocket callback
     {
+        swTrace("on message callback\n");
         zval *retval;
         zval **args[2];
         args[0] = &zdata;
@@ -459,29 +463,34 @@ static int http_onReceive(swFactory *factory, swEventData *req)
 
     size_t n = php_http_parser_execute(parser, &http_parser_settings, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
     zval_ptr_dtor(&zdata);
-    if(conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) // need handshake
-    {
-        int ret = websocket_handshake(client);
-        if(ret == SW_ERR) {
-            SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
-        } else {
-            SwooleG.lock.lock(&SwooleG.lock);
-            swConnection *conn = swServer_connection_get(SwooleG.serv, client->fd);
-            if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) {
-                conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
-            }
-            SwooleG.lock.unlock(&SwooleG.lock);
-            swTrace("conn ws status:%d\n", conn->websocket_status);
-        }
-        return ret;
-    }
-
     if (n < 0)
     {
         swWarn("php_http_parser_execute failed.");
+        if(conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
+        {
+            SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+        }
+
     }
     else
     {
+        if(conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) // need handshake
+        {
+            int ret = websocket_handshake(client);
+            if(ret == SW_ERR) {
+                SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+            } else {
+                SwooleG.lock.lock(&SwooleG.lock);
+                swConnection *conn = swServer_connection_get(SwooleG.serv, client->fd);
+                if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) {
+                    conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
+                }
+                SwooleG.lock.unlock(&SwooleG.lock);
+                swTrace("conn ws status:%d\n", conn->websocket_status);
+            }
+            return ret;
+        }
+
         zval *retval;
         zval **args[2];
         zval *zrequest = client->zrequest;
@@ -812,7 +821,7 @@ PHP_METHOD(swoole_http_server, start)
         RETURN_FALSE;
     }
 
-    serv->dispatch_mode = SW_DISPATCH_QUEUE;
+    serv->dispatch_mode = SW_DISPATCH_FDMOD;
     serv->onReceive = http_onReceive;
     serv->onClose = http_onClose;
     serv->open_http_protocol = 1;
