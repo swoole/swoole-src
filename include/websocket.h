@@ -85,7 +85,7 @@ enum
 	WEBSOCKET_VERSION = 13,
 
 } SW_WEBSOCKET;
-swString *swWebSocket_encode(swString *data);
+swString *swWebSocket_encode(swString *data, char opcode);
 int swWebSocket_decode(swHttpRequest *request);
 int swWebSocket_isEof(char *data);
 swString *swWebSocket_handShake(char *key);

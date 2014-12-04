@@ -20,6 +20,8 @@
 #include "websocket.h"
 
 #include <sys/stat.h>
+#include <tkDecls.h>
+#include <CoreFoundation/CoreFoundation.h>
 
 static int swUDPThread_start(swServer *serv);
 
@@ -977,6 +979,7 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
          * skip EPOLLERR
          */
         event->fd = 0;
+        swHttpRequest_free(request);
         return SW_OK;
     }
     else
@@ -1024,7 +1027,9 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
                     if(request->state || 0x7d  < request->content_length) {
                         goto close_fd;
                     }
-                    //send(event->fd, *pongdata, ponglenght, 0);
+                    swString *_buf = swWebSocket_encode(buffer, WEBSOCKET_OPCODE_PONG);
+                    send(event->fd, _buf->str, _buf->length, 0);
+                    swString_free(_buf);
                     break;
                 case WEBSOCKET_OPCODE_PONG: //pong
                     if(request->state) {
@@ -1035,6 +1040,10 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
                     if(0x7d < request->content_length) {
                         goto  close_fd;
                     }
+                    swString *__buf = swWebSocket_encode(buffer, WEBSOCKET_OPCODE_CONNECTION_CLOSE);
+                    send(event->fd, __buf->str, __buf->length, 0);
+                    swString_free(__buf);
+                    goto close_fd;
                     break;
             }
 
