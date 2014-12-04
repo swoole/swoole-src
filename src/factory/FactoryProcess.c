@@ -147,23 +147,6 @@ int swFactoryProcess_start(swFactory *factory)
             }
         }
     }
-    else if (serv->ipc_mode == SW_IPC_UNSOCK)
-    {
-        //close pipe_worker
-        for (i = 0; i < serv->worker_num; i++)
-        {
-            worker = swServer_get_worker(serv, i);
-            close(worker->pipe_worker);
-        }
-
-        //master no need task worker
-        for (i = 0; i < SwooleG.task_worker_num; i++)
-        {
-            worker = swServer_get_worker(serv, serv->worker_num + i);
-            worker->pipe_object->close(worker->pipe_object);
-        }
-    }
-
     //主进程需要设置为直写模式
     factory->finish = swFactory_finish;
     return SW_OK;
@@ -216,6 +199,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
             serv->workers[i].pipe_master = object->pipes[i].getFd(&object->pipes[i], 1);
             serv->workers[i].pipe_worker = object->pipes[i].getFd(&object->pipes[i], 0);
             serv->workers[i].pipe_object = &object->pipes[i];
+            swServer_pipe_set(serv, i, serv->workers[i].pipe_object);
         }
     }
 
@@ -235,14 +219,17 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 
         swTaskWorker_init(&SwooleG.task_workers);
 
+        int worker_id;
         swWorker *worker;
-        for(i = 0; i < SwooleG.task_worker_num; i++)
+        for (i = 0; i < SwooleG.task_worker_num; i++)
         {
-             worker = swServer_get_worker(serv, serv->worker_num + i);
-             if (swWorker_create(worker) < 0)
-             {
-                 return SW_ERR;
-             }
+            worker_id = serv->worker_num + i;
+            worker = swServer_get_worker(serv, worker_id);
+            if (swWorker_create(worker) < 0)
+            {
+                return SW_ERR;
+            }
+            swServer_pipe_set(serv, worker_id, worker->pipe_object);
         }
     }
 

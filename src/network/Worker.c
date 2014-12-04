@@ -169,7 +169,6 @@ void swWorker_onStart(swServer *serv)
     /**
      * Release other worker process
      */
-    int i;
     swWorker *worker;
 
     if (SwooleWG.id >= serv->worker_num)
@@ -183,45 +182,23 @@ void swWorker_onStart(swServer *serv)
 
     SwooleWG.worker = swServer_get_worker(serv, SwooleWG.id);
 
-    if (swIsWorker())
-    {
-        int maxfd;
-        if (SwooleG.task_worker_num > 0)
-        {
-            maxfd = SwooleG.task_workers.workers[SwooleG.task_worker_num - 1].pipe_master + 1;
-        }
-        else
-        {
-            maxfd = serv->workers[serv->worker_num - 1].pipe_master + 1;
-        }
-        SwooleWG.fd_map = swArray_new(maxfd, sizeof(swPipe *), 0);
-    }
-
     if (serv->ipc_mode != SW_IPC_MSGQUEUE)
     {
+        int i;
         for (i = 0; i < serv->worker_num + SwooleG.task_worker_num; i++)
         {
             worker = swServer_get_worker(serv, i);
             if (SwooleWG.id == i)
             {
-                worker->pipe_object->pipe_used = worker->pipe_worker;
                 continue;
             }
             else
             {
                 swWorker_free(worker);
             }
-
-            if (SwooleWG.id < serv->worker_num && i < serv->worker_num)
-            {
-                close(worker->pipe_worker);
-            }
-
             if (swIsWorker())
             {
                 swSetNonBlock(worker->pipe_master);
-                swArray_store(SwooleWG.fd_map, worker->pipe_master, &worker->pipe_object);
-                worker->pipe_object->pipe_used = worker->pipe_master;
             }
         }
     }
@@ -267,7 +244,6 @@ int swWorker_loop(swFactory *factory, int worker_id)
     swWorker *worker = swServer_get_worker(serv, worker_id);
     swServer_worker_init(serv, worker);
 
-    int i;
     if (serv->ipc_mode == SW_IPC_MSGQUEUE)
     {
         //抢占式,使用相同的队列type
@@ -302,7 +278,7 @@ int swWorker_loop(swFactory *factory, int worker_id)
         SwooleG.main_reactor->ptr = serv;
         SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_worker, SW_FD_PIPE);
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE, swWorker_onPipeReceive);
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE | SW_EVENT_WRITE, swPipeUnsock_onWrite);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE | SW_EVENT_WRITE, swWorker_onPipeWrite);
     }
 
     if (serv->max_request < 1)
@@ -392,8 +368,7 @@ int swWorker_send2reactor(swEventData_overflow *sdata, size_t sendn, int fd)
          * pipe_worker_id: The pipe in which worker.
          */
         int pipe_worker_id = reactor_id + (round_i * serv->reactor_num);
-        swWorker *dst_worker = &serv->workers[pipe_worker_id];
-        ret = dst_worker->pipe_object->write(dst_worker->pipe_object, &sdata->_send, sendn);
+        ret = swServer_pipe_send(serv, pipe_worker_id, &sdata->_send, sendn);
     }
     return ret;
 }
@@ -431,4 +406,48 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
         return ret;
     }
     return SW_ERR;
+}
+
+
+/**
+ * pipe can write.
+ */
+int swWorker_onPipeWrite(swReactor *reactor, swEvent *ev)
+{
+    int ret;
+    swPipe *p = swServer_pipe_get(SwooleG.serv, ev->fd);
+    swBuffer_trunk *trunk = NULL;
+    swBuffer *buffer = p->write_buffer;
+
+    while (!swBuffer_empty(buffer))
+    {
+        trunk = swBuffer_get_trunk(buffer);
+        ret = write(ev->fd, trunk->store.ptr, trunk->length);
+        if (ret < 0)
+        {
+            return errno == EAGAIN ? SW_OK : SW_ERR;
+        }
+        else
+        {
+            swBuffer_pop_trunk(buffer, trunk);
+        }
+    }
+
+    //remove EPOLLOUT event
+    if (swBuffer_empty(buffer))
+    {
+        if (ev->fd == SwooleWG.pipe_used)
+        {
+            ret = reactor->set(reactor, ev->fd, SW_FD_PIPE | SW_EVENT_READ);
+        }
+        else
+        {
+            ret = reactor->del(reactor, ev->fd);
+        }
+        if (ret < 0)
+        {
+            swSysError("reactor->set() failed.");
+        }
+    }
+    return SW_OK;
 }

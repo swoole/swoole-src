@@ -479,10 +479,17 @@ int swServer_create(swServer *serv);
 int swServer_listen(swServer *serv, swReactor *reactor);
 int swServer_free(swServer *serv);
 int swServer_shutdown(swServer *serv);
+
 int swServer_udp_send(swServer *serv, swSendData *resp);
 int swServer_tcp_send(swServer *serv, int fd, void *data, int length);
+int swServer_pipe_send(swServer *serv, int worker_id, void *buf, int n);
+
 int swServer_reactor_add(swServer *serv, int fd, int sock_type); //no use
 int swServer_reactor_del(swServer *serv, int fd, int reacot_id); //no use
+
+swPipe * swServer_pipe_get(swServer *serv, int pipe_fd);
+void swServer_pipe_set(swServer *serv, int worker_id, swPipe *p);
+
 int swServer_get_manager_pid(swServer *serv);
 int swServer_worker_init(swServer *serv, swWorker *worker);
 void swServer_onTimer(swTimer *timer, int interval);
@@ -657,6 +664,7 @@ void swWorker_onStart(swServer *serv);
 void swWorker_onStop(swServer *serv);
 int swWorker_loop(swFactory *factory, int worker_pti);
 int swWorker_send2reactor(swEventData_overflow *sdata, size_t sendn, int fd);
+int swWorker_onPipeWrite(swReactor *reactor, swEvent *ev);
 void swWorker_signal_handler(int signo);
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event);

@@ -402,7 +402,8 @@ typedef struct _swPipe
     void *object;
     int blocking;
     double timeout;
-    int pipe_used;
+
+    struct _swBuffer *write_buffer;
 
     int (*read)(struct _swPipe *, void *recv, int length);
     int (*write)(struct _swPipe *, void *send, int length);
@@ -413,7 +414,6 @@ typedef struct _swPipe
 int swPipeBase_create(swPipe *p, int blocking);
 int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout);
 int swPipeUnsock_create(swPipe *p, int blocking, int protocol);
-int swPipeUnsock_onWrite(swReactor *reactor, swEvent *ev);
 
 static inline int swPipeNotify_auto(swPipe *p, int blocking, int semaphore)
 {
@@ -1201,7 +1201,6 @@ typedef struct
 	int pipe_used;
 
 	swString **buffer_input;
-    swArray *fd_map;
     swWorker *worker;
 
 } swWorkerG;
