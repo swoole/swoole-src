@@ -1307,18 +1307,23 @@ PHP_METHOD(swoole_http_response, message)
 {
     swString data;
     data.length = 0;
+    long fd = 0;
     long opcode = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &data.str, &data.length, &opcode) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|ll", &data.str, &data.length, &fd, &opcode) == FAILURE)
     {
         return;
     }
 
-    zval *zfd = zend_read_property(swoole_http_response_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
-    if (ZVAL_IS_NULL(zfd))
+    if(fd == 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "http client not exists.");
-        RETURN_FALSE;
+        zval *zfd = zend_read_property(swoole_http_response_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
+        if (ZVAL_IS_NULL(zfd))
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "http client not exists.");
+            RETURN_FALSE;
+        }
+        fd = Z_LVAL_P(zfd);
     }
 
     char _opcode = WEBSOCKET_OPCODE_TEXT_FRAME;
@@ -1330,7 +1335,7 @@ PHP_METHOD(swoole_http_response, message)
 
     swTrace("need send:%s len:%d\n", data.str, data.length);
     swString *response = swWebSocket_encode(&data, _opcode);
-    int ret = swServer_tcp_send(SwooleG.serv, Z_LVAL_P(zfd), response->str, response->length);
+    int ret = swServer_tcp_send(SwooleG.serv, fd, response->str, response->length);
     swTrace("need send:%s len:%d\n", response->str, response->length);
     swString_free(response);
     SW_CHECK_RETURN(ret);
