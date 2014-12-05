@@ -123,7 +123,7 @@ void swSha1_update(SHA_CTX *context, sha1_byte *data, unsigned int len) {
 
 
 /* Add padding and return the message digest. */
-void swSha1_final(sha1_byte digest[swSha1_DIGEST_LENGTH], SHA_CTX *context) {
+void swSha1_final(sha1_byte digest[SHA1_DIGEST_LENGTH], SHA_CTX *context) {
     sha1_quadbyte i, j;
     sha1_byte finalcount[8];
 
@@ -137,14 +137,14 @@ void swSha1_final(sha1_byte digest[swSha1_DIGEST_LENGTH], SHA_CTX *context) {
     }
     /* Should cause a swSha1_Transform() */
     swSha1_update(context, finalcount, 8);
-    for (i = 0; i < swSha1_DIGEST_LENGTH; i++) {
+    for (i = 0; i < SHA1_DIGEST_LENGTH; i++) {
         digest[i] = (sha1_byte)
                 ((context->state[i>>2] >> ((3-(i & 3)) * 8) ) & 255);
     }
     /* Wipe variables */
     i = j = 0;
-    memset(context->buffer, 0, swSha1_BLOCK_LENGTH);
-    memset(context->state, 0, swSha1_DIGEST_LENGTH);
+    memset(context->buffer, 0, SHA1_BLOCK_LENGTH);
+    memset(context->state, 0, SHA1_DIGEST_LENGTH);
     memset(context->count, 0, 8);
     memset(&finalcount, 0, 8);
 }

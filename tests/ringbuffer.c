@@ -19,9 +19,9 @@
 #include "tests.h"
 
 #define READ_THREAD_N       4
-#define WRITE_N             1000000
+#define WRITE_N             10000000
 #define PRINT_SERNUM_N      10000
-#define PRINT_SERNUM_OPEN
+//#define PRINT_SERNUM_OPEN
 
 static swMemoryPool *pool = NULL;
 
@@ -48,7 +48,6 @@ swUnitTest(ringbuffer_test1)
 {
     int i;
     //pthread_t pids[READ_THREAD_N];
-
 
     swSignal_set(SIGCHLD, SIG_IGN, 1, 0);
 
@@ -141,7 +140,7 @@ static void thread_write(void)
 #ifdef PRINT_SERNUM_OPEN
         if (i % PRINT_SERNUM_N == 0)
         {
-            printf("send.serial_num=%d\n", send_pkg.serial_num);
+            printf("send. send_count=%d, serial_num=%d\n", i, send_pkg.serial_num);
         }
 #endif
         if (threads[i % READ_THREAD_N].pipe.write(&threads[i % READ_THREAD_N].pipe, &send_pkg, sizeof(send_pkg)) < 0)
@@ -193,10 +192,9 @@ static void thread_read(int i)
 #ifdef PRINT_SERNUM_OPEN
         if (j % PRINT_SERNUM_N == 0)
         {
-            printf("recv.serial_num=%d\n", tmp);
+            printf("recv. recv_count=%d, serial_num=%d\n", recv_count, tmp);
         }
 #endif
-        j++;
         //printf("Thread#%d: ptr=%p,size=%d\n", i, recv_pkg.ptr, recv_pkg.size);
         pool->free(pool, recv_pkg.ptr);
         recv_count++;
