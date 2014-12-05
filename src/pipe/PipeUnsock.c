@@ -115,5 +115,5 @@ static int swPipeUnsock_read(swPipe *p, void *data, int length)
 
 static int swPipeUnsock_write(swPipe *p, void *data, int length)
 {
-    return read(((swPipeUnsock *) p->object)->socks[1], data, length);
+    return write(((swPipeUnsock *) p->object)->socks[1], data, length);
 }

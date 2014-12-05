@@ -878,6 +878,10 @@ int swServer_add_worker(swServer *serv, swWorker *worker)
     user_worker->worker = worker;
 
     LL_APPEND(serv->user_worker_list, user_worker);
+
+    /**
+     * store the pipe object
+     */
     swServer_pipe_set(serv, worker->pipe_object);
 
     if (!serv->user_worker_map)
