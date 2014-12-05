@@ -126,7 +126,6 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
     if (reactor->del(reactor, fd) == 0)
     {
         conn->active |= SW_STATE_REMOVED;
-        conn->websocket_status = 0;
         return SwooleG.factory->notify(SwooleG.factory, &notify_ev);
     }
     else

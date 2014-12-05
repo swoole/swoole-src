@@ -1157,6 +1157,7 @@ int swServer_connection_close(swServer *serv, int fd)
         return SW_ERR;
     }
     conn->active = 0;
+	conn->websocket_status = 0;
 
     sw_atomic_fetch_add(&SwooleStats->close_count, 1);
     sw_atomic_fetch_sub(&SwooleStats->connection_num, 1);
