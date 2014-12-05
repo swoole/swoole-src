@@ -186,7 +186,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
     MAKE_STD_ZVAL(zworker_id);
     MAKE_STD_ZVAL(zdata);
 
-    zval **args[2];
+    zval **args[3];
 
     ZVAL_LONG(zworker_id, (long )req->info.from_id);
 
@@ -1639,7 +1639,7 @@ PHP_FUNCTION(swoole_server_sendfile)
     }
 
 #ifdef __CYGWIN__
-    php_error_docref(NULL TSRMLS_CC, E_WARNING, "cannot use swoole_server->sendfile() in cygwin.", filename);
+    php_error_docref(NULL TSRMLS_CC, E_WARNING, "cannot use swoole_server->sendfile() in cygwin.");
     RETURN_FALSE;;
 #endif
 
