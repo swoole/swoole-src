@@ -624,7 +624,7 @@ swMemoryPool* swMalloc_new();
 /**
  * RingBuffer, In order for malloc / free
  */
-swMemoryPool *swRingBuffer_new(size_t size, uint8_t shared);
+swMemoryPool *swRingBuffer_new(uint32_t size, uint8_t shared);
 
 /**
  * Global memory, the program life cycle only malloc / free one time
