@@ -939,6 +939,7 @@ PHP_METHOD(swoole_http_response, end)
     zval *header =  zend_read_property(swoole_http_response_class_entry_ptr, getThis(), ZEND_STRL("header"), 1 TSRMLS_CC);
     if (!ZVAL_IS_NULL(header))
     {
+        HashTable *ht = Z_ARRVAL_P(header);
         for (zend_hash_internal_pointer_reset(ht); zend_hash_has_more_elements(ht) == 0; zend_hash_move_forward(ht))
         {
             char *key;
@@ -955,7 +956,7 @@ PHP_METHOD(swoole_http_response, end)
             n = snprintf(buf, 128, "%s: %s\r\n", key, Z_STRVAL_PP(value));
             swString_append_ptr(response, buf, n);
         }
-        HashTable *ht = Z_ARRVAL_P(header);
+        
         if (!zend_hash_exists(ht, ZEND_STRL("Server")))
         {
             swString_append_ptr(response, ZEND_STRL("Server: "SW_HTTP_SERVER_SOFTWARE"\r\n"));
