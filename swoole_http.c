@@ -365,9 +365,7 @@ static int websocket_handshake(http_client *client)
     }
     convert_to_string(*pData);
     swTrace("key: %s len:%d\n", Z_STRVAL_PP(pData), Z_STRLEN_PP(pData));
-    swString *buf = swString_new(1024);
-
-
+    swString *buf = swString_new(256);
     swString_append_ptr(buf, ZEND_STRL("HTTP/1.1 101 Switching Protocols\r\n"));
     swString_append_ptr(buf, ZEND_STRL("Upgrade: websocket\r\nConnection: Upgrade\r\n"));
     swString *shaBuf = swString_new(Z_STRLEN_PP(pData)+36);
@@ -385,7 +383,9 @@ static int websocket_handshake(http_client *client)
     n = snprintf(_buf, 128, "Sec-WebSocket-Accept: %s\r\n", encoded_value);
     //efree(data_str);
 
-    efree(encoded_value); swTrace("accept value: %s", _buf);
+    efree(encoded_value);
+    swString_free(shaBuf);
+    swTrace("accept value: %s\n", _buf);
     swString_append_ptr(buf, _buf, n);
     swString_append_ptr(buf, ZEND_STRL("Sec-WebSocket-Version: 13\r\n"));
     swString_append_ptr(buf, ZEND_STRL("Server: swoole-websocket\r\n\r\n"));
@@ -404,7 +404,7 @@ static int http_onReceive(swFactory *factory, swEventData *req)
     int fd = req->info.fd;
     zval *zdata = php_swoole_get_data(req TSRMLS_CC);
 
-    swTrace("on receive:%s pid:%d\n", zdata, getpid());
+//    swTrace("on receive:%s pid:%d\n", zdata, getpid());
     swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
 
     if(conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE)  //websocket callback
@@ -478,6 +478,7 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         {
             int ret = websocket_handshake(client);
             if(ret == SW_ERR) {
+                swTrace("websocket handshake error\n");
                 SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
             } else {
                 SwooleG.lock.lock(&SwooleG.lock);

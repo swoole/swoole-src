@@ -1032,7 +1032,9 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
                     }
                     break;
                 case WEBSOCKET_OPCODE_CONNECTION_CLOSE:
+                    swTrace("fd: %d close, opcode:%d, lenght: %d\n", event->fd, request->opcode, request->content_length);
                     if(0x7d < request->content_length) {
+                        swTrace("close error\n");
                         goto  close_fd;
                     }
                     swString *__buf = swWebSocket_encode(buffer, WEBSOCKET_OPCODE_CONNECTION_CLOSE);
@@ -1062,7 +1064,7 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
             goto close_fd;
         }
 
-        swTrace("method: %d", request->method);
+//        swTrace("method: %d", request->method);
 
         //GET HEAD DELETE OPTIONS
         if (request->method == HTTP_GET || request->method == HTTP_HEAD || request->method == HTTP_OPTIONS || request->method == HTTP_DELETE )
