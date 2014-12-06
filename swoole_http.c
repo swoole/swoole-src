@@ -482,6 +482,7 @@ static int http_onReceive(swFactory *factory, swEventData *req)
                     swTrace("websocket handshake error\n");
                     SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
                 } else {
+                    handshake_success:
                     SwooleG.lock.lock(&SwooleG.lock);
                     swConnection *conn = swServer_connection_get(SwooleG.serv, client->fd);
                     if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) {
@@ -592,6 +593,9 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         if (retval)
         {
             zval_ptr_dtor(&retval);
+        }
+        if(called == 2) {
+            goto handshake_success;
         }
     }
     return SW_OK;
