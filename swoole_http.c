@@ -963,7 +963,7 @@ PHP_METHOD(swoole_http_response, end)
             }
             else if(strcmp(key, key_content_lenght) == 0) 
             {
-                flag |= 0x4
+                flag |= 0x4;
             }
             else if(strcmp(key, key_date) == 0) 
             {
