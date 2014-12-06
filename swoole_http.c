@@ -488,7 +488,12 @@ static int http_onReceive(swFactory *factory, swEventData *req)
                     if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) {
                         conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
                     }
+                    swHttpRequest *request = (swHttpRequest *) conn->object;
+                    if(request->method > 0 ) {
+                        request->method = 0;
+                    }
                     SwooleG.lock.unlock(&SwooleG.lock);
+
                     swTrace("conn ws status:%d\n", conn->websocket_status);
                 }
                 return ret;
