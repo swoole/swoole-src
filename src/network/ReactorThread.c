@@ -1000,7 +1000,6 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
                 goto close_fd;
             }
 
-
             if (request->content_length > serv->package_max_length)
             {
                 swWarn("Package length more than the maximum size[%d], Close connection.", serv->package_max_length);
@@ -1015,6 +1014,7 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
                         buffer->length = request->content_length;
                         swTrace("websocket send fd: %d %s, lenght:%d, content-lenght:%d", conn->fd, request->buffer->str, request->buffer->length, request->content_length);
                         swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, buffer);
+                    } else {
                         goto wait_more_data;
                     }
                     break;
