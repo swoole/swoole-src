@@ -430,7 +430,7 @@ int swWorker_send(swWorker *worker, uint16_t is_master, void *buf, int n)
     }
 
     //int pipe_used = (SwooleWG.id == worker_id) ? worker->pipe_worker : worker->pipe_master;
-    swTrace("SwooleWG.id = %d, pipe_used=%d, sendto %d %d bytes.\n", SwooleWG.id, pipefd, worker_id, n);
+    swTrace("SwooleWG.id = %d, pipe_used=%d, sendto %d %d bytes.\n", SwooleWG.id, pipefd, worker->id, n);
 
     if (swBuffer_empty(buffer))
     {
