@@ -75,7 +75,7 @@ zend_class_entry *swoole_http_response_class_entry_ptr;
 zend_class_entry swoole_http_request_ce;
 zend_class_entry *swoole_http_request_class_entry_ptr;
 
-static zval* php_sw_http_server_callbacks[2];
+static zval* php_sw_http_server_callbacks[3];
 static swHashMap *php_sw_http_clients;
 
 static int http_onReceive(swFactory *factory, swEventData *req);
@@ -476,20 +476,22 @@ static int http_onReceive(swFactory *factory, swEventData *req)
     {
         if(conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) // need handshake
         {
-            int ret = websocket_handshake(client);
-            if(ret == SW_ERR) {
-                swTrace("websocket handshake error\n");
-                SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
-            } else {
-                SwooleG.lock.lock(&SwooleG.lock);
-                swConnection *conn = swServer_connection_get(SwooleG.serv, client->fd);
-                if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) {
-                    conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
+            if(php_sw_http_server_callbacks[2] == NULL) {
+                int ret = websocket_handshake(client);
+                if (ret == SW_ERR) {
+                    swTrace("websocket handshake error\n");
+                    SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+                } else {
+                    SwooleG.lock.lock(&SwooleG.lock);
+                    swConnection *conn = swServer_connection_get(SwooleG.serv, client->fd);
+                    if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) {
+                        conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
+                    }
+                    SwooleG.lock.unlock(&SwooleG.lock);
+                    swTrace("conn ws status:%d\n", conn->websocket_status);
                 }
-                SwooleG.lock.unlock(&SwooleG.lock);
-                swTrace("conn ws status:%d\n", conn->websocket_status);
+                return ret;
             }
-            return ret;
         }
 
         zval *retval;
@@ -574,7 +576,12 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         args[0] = &zrequest;
         args[1] = &zresponse;
 
-        if (call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[0], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+        int called = 0;
+        if(conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
+        {
+            called = 2;
+        }
+        if (call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[called], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
         {
             php_error_docref(NULL TSRMLS_CC, E_WARNING, "onRequest handler error");
         }
@@ -639,6 +646,11 @@ PHP_METHOD(swoole_http_server, on)
     {
         zval_add_ref(&callback);
         php_sw_http_server_callbacks[1] = callback;
+    }
+    else if (strncasecmp("handshake", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
+    {
+        zval_add_ref(&callback);
+        php_sw_http_server_callbacks[2] = callback;
     }
     else
     {
