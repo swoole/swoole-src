@@ -939,6 +939,11 @@ PHP_METHOD(swoole_http_response, end)
     zval *header =  zend_read_property(swoole_http_response_class_entry_ptr, getThis(), ZEND_STRL("header"), 1 TSRMLS_CC);
     if (!ZVAL_IS_NULL(header))
     {
+        int flag = 0x0;
+        char *key_server = "Server";
+        char *key_connection = "Connection";
+        char *key_content_lenght = "Content-Length";
+        char *key_date = "Date";
         HashTable *ht = Z_ARRVAL_P(header);
         for (zend_hash_internal_pointer_reset(ht); zend_hash_has_more_elements(ht) == 0; zend_hash_move_forward(ht))
         {
@@ -947,6 +952,25 @@ PHP_METHOD(swoole_http_response, end)
             ulong idx;
             int type;
             zval **value;
+
+            if(strcmp(key, key_server) == 0) 
+            {
+                flag |= 0x1;
+            }
+            else if(strcmp(key, key_connection) == 0) 
+            {
+                flag |= 0x2;
+            }
+            else if(strcmp(key, key_content_lenght) == 0) 
+            {
+                flag |= 0x4
+            }
+            else if(strcmp(key, key_date) == 0) 
+            {
+                flag |= 0x8;
+            }
+
+
 
             type = zend_hash_get_current_key_ex(ht, &key, &keylen, &idx, 0, NULL);
             if (type == HASH_KEY_IS_LONG || zend_hash_get_current_data(ht, (void**)&value) == FAILURE)
@@ -957,11 +981,11 @@ PHP_METHOD(swoole_http_response, end)
             swString_append_ptr(response, buf, n);
         }
         
-        if (!zend_hash_exists(ht, ZEND_STRL("Server")))
+        if (!(flag & 0x1))
         {
             swString_append_ptr(response, ZEND_STRL("Server: "SW_HTTP_SERVER_SOFTWARE"\r\n"));
         }
-        if (!zend_hash_exists(ht, ZEND_STRL("Connection")))
+        if (!(flag & 0x2))
         {
             if (keepalive)
             {
@@ -979,7 +1003,7 @@ PHP_METHOD(swoole_http_response, end)
         }
         else
         {
-            if (!zend_hash_exists(ht, ZEND_STRL("Content-Length")))
+            if (!(flag & 0x4))
             {
                 n = snprintf(buf, 128, "Content-Length: %d\r\n", body.length);
                 swString_append_ptr(response, buf, n);
@@ -987,7 +1011,7 @@ PHP_METHOD(swoole_http_response, end)
         }
 
 
-        if (!zend_hash_exists(ht, ZEND_STRL("Date")))
+        if (!(flag & 0x8))
         {
             date_str = php_format_date(ZEND_STRL("D, d-M-Y H:i:s T"), SwooleGS->now, 0 TSRMLS_CC);
             n = snprintf(buf, 128, "Date: %s\r\n", date_str);
