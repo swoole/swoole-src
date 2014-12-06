@@ -939,6 +939,22 @@ PHP_METHOD(swoole_http_response, end)
     zval *header =  zend_read_property(swoole_http_response_class_entry_ptr, getThis(), ZEND_STRL("header"), 1 TSRMLS_CC);
     if (!ZVAL_IS_NULL(header))
     {
+        for (zend_hash_internal_pointer_reset(ht); zend_hash_has_more_elements(ht) == 0; zend_hash_move_forward(ht))
+        {
+            char *key;
+            uint keylen;
+            ulong idx;
+            int type;
+            zval **value;
+
+            type = zend_hash_get_current_key_ex(ht, &key, &keylen, &idx, 0, NULL);
+            if (type == HASH_KEY_IS_LONG || zend_hash_get_current_data(ht, (void**)&value) == FAILURE)
+            {
+                continue;
+            }
+            n = snprintf(buf, 128, "%s: %s\r\n", key, Z_STRVAL_PP(value));
+            swString_append_ptr(response, buf, n);
+        }
         HashTable *ht = Z_ARRVAL_P(header);
         if (!zend_hash_exists(ht, ZEND_STRL("Server")))
         {
@@ -976,22 +992,6 @@ PHP_METHOD(swoole_http_response, end)
             n = snprintf(buf, 128, "Date: %s\r\n", date_str);
             swString_append_ptr(response, buf, n);
             efree(date_str);
-        }
-        for (zend_hash_internal_pointer_reset(ht); zend_hash_has_more_elements(ht) == 0; zend_hash_move_forward(ht))
-        {
-            char *key;
-            uint keylen;
-            ulong idx;
-            int type;
-            zval **value;
-
-            type = zend_hash_get_current_key_ex(ht, &key, &keylen, &idx, 0, NULL);
-            if (type == HASH_KEY_IS_LONG || zend_hash_get_current_data(ht, (void**)&value) == FAILURE)
-            {
-                continue;
-            }
-            n = snprintf(buf, 128, "%s: %s\r\n", key, Z_STRVAL_PP(value));
-            swString_append_ptr(response, buf, n);
         }
     }
     else
