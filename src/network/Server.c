@@ -19,7 +19,6 @@
 #include "Http.h"
 #include "Connection.h"
 
-#include <netinet/tcp.h>
 
 #if SW_REACTOR_SCHEDULE == 3
 static sw_inline void swServer_reactor_schedule(swServer *serv)
@@ -1157,7 +1156,6 @@ int swServer_connection_close(swServer *serv, int fd)
         return SW_ERR;
     }
     conn->active = 0;
-	conn->websocket_status = 0;
 
     sw_atomic_fetch_add(&SwooleStats->close_count, 1);
     sw_atomic_fetch_sub(&SwooleStats->connection_num, 1);
@@ -1193,6 +1191,7 @@ int swServer_connection_close(swServer *serv, int fd)
                 bzero(request, sizeof(swHttpRequest));
             }
         }
+		conn->websocket_status = 0;
     }
 
     if (conn->out_buffer != NULL)
@@ -1290,5 +1289,6 @@ swConnection* swServer_connection_new(swServer *serv, swDataHead *ev)
     connection->last_time = SwooleGS->now;
     connection->active = 1; //使此连接激活,必须在最后，保证线程安全
     connection->uid = 0;
+	connection->websocket_status = 0;
 	return connection;
 }
