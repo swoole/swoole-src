@@ -942,7 +942,7 @@ PHP_METHOD(swoole_http_response, end)
         int flag = 0x0;
         char *key_server = "Server";
         char *key_connection = "Connection";
-        char *key_content_lenght = "Content-Length";
+        char *key_content_length = "Content-Length";
         char *key_date = "Date";
         HashTable *ht = Z_ARRVAL_P(header);
         for (zend_hash_internal_pointer_reset(ht); zend_hash_has_more_elements(ht) == 0; zend_hash_move_forward(ht))
@@ -953,6 +953,11 @@ PHP_METHOD(swoole_http_response, end)
             int type;
             zval **value;
 
+            type = zend_hash_get_current_key_ex(ht, &key, &keylen, &idx, 0, NULL);
+            if (type == HASH_KEY_IS_LONG || zend_hash_get_current_data(ht, (void**)&value) == FAILURE)
+            {
+                continue;
+            }
             if(strcmp(key, key_server) == 0) 
             {
                 flag |= 0x1;
@@ -961,21 +966,13 @@ PHP_METHOD(swoole_http_response, end)
             {
                 flag |= 0x2;
             }
-            else if(strcmp(key, key_content_lenght) == 0) 
+            else if(strcmp(key, key_content_length) == 0) 
             {
                 flag |= 0x4;
             }
             else if(strcmp(key, key_date) == 0) 
             {
                 flag |= 0x8;
-            }
-
-
-
-            type = zend_hash_get_current_key_ex(ht, &key, &keylen, &idx, 0, NULL);
-            if (type == HASH_KEY_IS_LONG || zend_hash_get_current_data(ht, (void**)&value) == FAILURE)
-            {
-                continue;
             }
             n = snprintf(buf, 128, "%s: %s\r\n", key, Z_STRVAL_PP(value));
             swString_append_ptr(response, buf, n);
