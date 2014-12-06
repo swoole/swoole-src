@@ -1012,7 +1012,7 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
                 case WEBSOCKET_OPCODE_BINARY_FRAME:
                     if(request->state== 0) {
                         buffer->length = request->content_length;
-                        swTrace("websocket send fd: %d %s, lenght:%d, content-lenght:%d", conn->fd, request->buffer->str, request->buffer->length, request->content_length);
+                        swTrace("websocket send fd: %d %d, lenght:%d, content-lenght:%d", conn->fd, strlen(request->buffer->str), request->buffer->length, request->content_length);
                         swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, buffer);
                     } else {
                         goto wait_more_data;
