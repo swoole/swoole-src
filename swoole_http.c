@@ -478,13 +478,14 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         {
             if(php_sw_http_server_callbacks[2] == NULL) {
                 int ret = websocket_handshake(client);
+                http_request_free(client TSRMLS_CC);
                 if (ret == SW_ERR) {
                     swTrace("websocket handshake error\n");
                     SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
                 } else {
                     handshake_success:
                     SwooleG.lock.lock(&SwooleG.lock);
-                    swConnection *conn = swServer_connection_get(SwooleG.serv, client->fd);
+                    swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
                     if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) {
                         conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
                     }
@@ -493,8 +494,8 @@ static int http_onReceive(swFactory *factory, swEventData *req)
                         request->method = 0;
                     }
                     SwooleG.lock.unlock(&SwooleG.lock);
-
                     swTrace("conn ws status:%d\n", conn->websocket_status);
+                    return SW_OK;
                 }
                 return ret;
             }
@@ -1032,8 +1033,11 @@ PHP_METHOD(swoole_http_response, end)
         n = snprintf(buf, 128, "Date: %s\r\n", date_str);
         efree(date_str);
         swString_append_ptr(response, buf, n);
-
-        n = snprintf(buf, 128, "Content-Length: %d\r\n", body.length);
+        if(client->request.method == PHP_HTTP_OPTIONS) {
+            n = snprintf(buf, 128, "Allow: GET, POST, PUT, DELETE, HEAD, OPTIONS\r\nContent-Length: %d\r\n", 0);
+        } else {
+            n = snprintf(buf, 128, "Content-Length: %d\r\n", body.length);
+        }
         swString_append_ptr(response, buf, n);
     }
 
