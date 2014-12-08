@@ -369,6 +369,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     PHP_VAR_UNSERIALIZE_INIT(var_hash);
     zdata_strval = Z_STRVAL_P(zdata);
     zdata_strlen = Z_STRLEN_P(zdata);
+    ALLOC_INIT_ZVAL(zdata_unserialized);
     if (php_var_unserialize(&zdata_unserialized, (const unsigned char **) &zdata_strval, zdata_strval + zdata_strlen, &var_hash TSRMLS_CC))
     {
         args[3] = &zdata_unserialized;
@@ -396,6 +397,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     zval_ptr_dtor(&zfd);
     zval_ptr_dtor(&zfrom_id);
     zval_ptr_dtor(&zdata);
+    zval_ptr_dtor(&zdata_unserialized);
 
     if (retval != NULL)
     {
@@ -2147,6 +2149,10 @@ PHP_FUNCTION(swoole_server_taskwait)
         
         if (ret > 0)
         {
+            zval *notify_zdata, *notify_zdata_unserialized;
+            char *notify_data_val;
+            int notify_data_len;
+            php_unserialize_data_t var_hash;
             /**
              * Large result package
              */
@@ -2163,12 +2169,28 @@ PHP_FUNCTION(swoole_server_taskwait)
                     efree(buf);
                     RETURN_FALSE;
                 }
-                RETURN_STRINGL(buf, data_len, 0);
+                notify_data_val = buf;
+                notify_data_len = data_len;
             }
             else
             {
-                RETURN_STRINGL(task_result->data, task_result->info.len, 1);
+                notify_data_val = task_result->data;
+                notify_data_len = task_result->info.len;
             }
+
+            PHP_VAR_UNSERIALIZE_INIT(var_hash);
+            ALLOC_INIT_ZVAL(notify_zdata_unserialized);
+            if (php_var_unserialize(&notify_zdata_unserialized, (const unsigned char **) &notify_data_val, notify_data_val + notify_data_len, &var_hash TSRMLS_CC))
+            {
+                notify_zdata = notify_zdata_unserialized;
+            }
+            else
+            {
+                ZVAL_STRINGL(notify_zdata, notify_data_val, notify_data_len, 1);
+            }
+            PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
+            
+            RETURN_ZVAL(notify_zdata, 0, 0);
         }
         else
         {

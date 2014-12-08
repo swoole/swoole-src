@@ -110,8 +110,8 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
             switch ($data['cmd']) {
                 case 'get':
                     $key = $data['key'];
-                    $result = $serv->taskwait($data, 0.5, 0);
-                    $serv->send($fd, "get {$key}: ". $result . PHP_EOL);
+                    $res = $serv->taskwait($data, 0.5, 0);
+                    $serv->send($fd, PHP_EOL . "get " . $res['key'] . ": " . $res['val']);
                     break;
                 case "set":
                     $serv->task($data, 0);
@@ -140,8 +140,8 @@ function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
         switch ($data['cmd']) {
             case 'get':
                 $key = $data['key'];
-                $result = isset($datas[$key]) ? $datas[$key] : "";
-                $serv->finish(array('result' => $result));
+                $val = isset($datas[$key]) ? $datas[$key] : "";
+                $serv->finish(array('key'=>$key, 'val' => $val));
                 break;
             case "set":
                 $key = $data['key'];

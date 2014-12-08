@@ -29,4 +29,4 @@ if(empty($sends)) {
 }
 $client->send(json_encode($sends));
 $data = $client->recv();
-var_dump($data);
+echo $data . PHP_EOL;
