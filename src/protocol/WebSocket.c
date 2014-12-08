@@ -16,7 +16,6 @@
 
 #include "swoole.h"
 #include <include/websocket.h>
-#include <CryptoTokenKit/CryptoTokenKit.h>
 
 
 //static uint64_t hton64(uint64_t host);
