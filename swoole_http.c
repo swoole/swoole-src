@@ -375,7 +375,7 @@ static int websocket_handshake(http_client *client)
     char data_str[20];
     sha1(shaBuf->str, (unsigned char*) data_str);
 
-    char *encoded_value = NULL;
+    unsigned char *encoded_value = NULL;
     int encoded_len;
     encoded_value = php_base64_encode((unsigned char*) data_str, sizeof(data_str), &encoded_len);
     char _buf[128];
@@ -389,7 +389,7 @@ static int websocket_handshake(http_client *client)
     swString_append_ptr(buf, _buf, n);
     swString_append_ptr(buf, ZEND_STRL("Sec-WebSocket-Version: 13\r\n"));
     swString_append_ptr(buf, ZEND_STRL("Server: swoole-websocket\r\n\r\n"));
-    swTrace("websocket header len:%d\n%s \n", buf->length, buf->str);
+    swTrace("websocket header len:%zd\n%s \n", buf->length, buf->str);
 
     int ret = swServer_tcp_send(SwooleG.serv, client->fd, buf->str, buf->length);
     swString_free(buf);
@@ -1381,10 +1381,10 @@ PHP_METHOD(swoole_http_response, message)
             break;
     }
 
-    swTrace("need send:%s len:%d\n", data.str, data.length);
+    swTrace("need send:%s len:%zd\n", data.str, data.length);
     swString *response = swWebSocket_encode(&data, _opcode);
     int ret = swServer_tcp_send(SwooleG.serv, fd, response->str, response->length);
-    swTrace("need send:%s len:%d\n", response->str, response->length);
+    swTrace("need send:%s len:%zd\n", response->str, response->length);
     swString_free(response);
     SW_CHECK_RETURN(ret);
 }
