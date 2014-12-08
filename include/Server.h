@@ -41,10 +41,12 @@ enum swEventType
     SW_EVENT_TCP6            = 2,
     SW_EVENT_UDP6            = 3,
     //tcp event
-    SW_EVENT_CLOSE           = 5,
-    SW_EVENT_CONNECT         = 6,
+    SW_EVENT_CLOSE           = 4,
+    SW_EVENT_CONNECT         = 5,
     //timer
-    SW_EVENT_TIMER           = 7,
+    SW_EVENT_TIMER           = 6,
+    //task
+    SW_EVENT_TASK            = 7,
     SW_EVENT_FINISH          = 8,
     //package
     SW_EVENT_PACKAGE_START   = 9,
@@ -53,10 +55,8 @@ enum swEventType
     SW_EVENT_SENDFILE        = 12,
     SW_EVENT_UNIX_DGRAM      = 13,
     SW_EVENT_UNIX_STREAM     = 14,
+    //pipe
     SW_EVENT_PIPE_MESSAGE    = 15,
-    //task
-    SW_EVENT_TASK_BLOCKING   = 16,
-    SW_EVENT_TASK_NONBLOCK   = 17,
 };
 
 #define SW_STATUS_EMPTY            0
@@ -97,6 +97,18 @@ enum swWorkerPipeType
 {
     SW_PIPE_WORKER   = 0,
     SW_PIPE_MASTER   = 1,
+};
+
+/**
+ * use swDataHead->from_fd, 1 byte 8 bit
+ */
+enum swTaskType
+{
+    SW_TASK_TMPFILE    = 1,  //tmp file
+    SW_TASK_SERIALIZE  = 2,  //php serialize
+    SW_TASK_BLOCKING   = 4,  //taskwait
+    SW_TASK_NONBLOCK   = 8,  //task
+    SW_TASK_MESSAGE    = 16, //pipe message
 };
 
 typedef struct _swUdpFd
@@ -511,6 +523,8 @@ void swTaskWorker_onStop(swProcessPool *pool, int worker_id);
 int swTaskWorker_large_pack(swEventData *task, void *data, int data_len);
 int swTaskWorker_finish(swServer *serv, char *data, int data_len);
 
+#define swTask_type(task)                  (task)->info.from_fd
+
 #define swTaskWorker_large_unpack(task, __malloc, _buf, _length)   swPackage_task _pkg;\
 	memcpy(&_pkg, task->data, sizeof(_pkg));\
 	_length = _pkg.length;\
@@ -525,8 +539,6 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len);
 	} else {\
 		_length = -1;\
 	}
-
-#define swTaskWorker_is_large(task)       (task->info.from_fd == 1)
 
 #define swPackage_data(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->str:task->data)
 #define swPackage_length(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->length:task->info.len)
