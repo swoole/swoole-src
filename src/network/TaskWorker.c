@@ -68,7 +68,6 @@ int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
     current_task = task;
 
     SwooleWG.worker->status = SW_WORKER_BUSY;
-
     if (task->info.type == SW_EVENT_PIPE_MESSAGE)
     {
         serv->onPipeMessage(serv, task);
@@ -103,11 +102,12 @@ int swTaskWorker_large_pack(swEventData *task, void *data, int data_len)
 		swWarn("write to tmpfile failed.");
 		return SW_ERR;
 	}
-	/**
-	 * from_fd == 1, read from file
-	 */
+
 	task->info.from_fd = 1;
 	task->info.len = sizeof(swPackage_task);
+	//use tmp file
+    swTask_type(task) |= SW_TASK_TMPFILE;
+
 	pkg.length = data_len;
 	memcpy(task->data, &pkg, sizeof(swPackage_task));
 	return SW_OK;
@@ -157,7 +157,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len)
 
     int ret;
     //for swoole_server_task
-    if (current_task->info.type == SW_EVENT_TASK_NONBLOCK)
+    if (swTask_type(current_task) & SW_TASK_NONBLOCK)
     {
         buf.info.type = SW_EVENT_FINISH;
         buf.info.fd = current_task->info.fd;

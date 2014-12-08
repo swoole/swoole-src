@@ -212,7 +212,11 @@ enum swLogLevel
 //-------------------------------------------------------------------------------
 enum swDispatchMode
 {
-    SW_DISPATCH_ROUND = 1, SW_DISPATCH_FDMOD = 2, SW_DISPATCH_QUEUE = 3,SW_DISPATCH_IPMOD = 4, SW_DISPATCH_UIDMOD = 5,
+    SW_DISPATCH_ROUND = 1,
+    SW_DISPATCH_FDMOD = 2,
+    SW_DISPATCH_QUEUE = 3,
+    SW_DISPATCH_IPMOD = 4,
+    SW_DISPATCH_UIDMOD = 5,
 };
 enum swWorkerStatus
 {
@@ -341,11 +345,11 @@ int swString_extend(swString *str, size_t new_size);
 
 typedef struct _swDataHead
 {
-    int fd; //文件描述符
-    uint16_t len; //长度
-    int16_t from_id; //Reactor Id
-    uint8_t type; //类型
-    uint8_t from_fd; //从哪个ServerFD引发的
+    int fd;  //文件描述符
+    uint16_t len;  //长度
+    int16_t from_id;  //Reactor Id
+    uint8_t type;  //类型
+    uint8_t from_fd;  //从哪个ServerFD引发的
 } swDataHead;
 
 typedef struct _swEvent
