@@ -362,8 +362,8 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
         return SW_ERR;
     }
 
-    int i;
 #ifndef SW_USE_RINGBUFFER
+	int i;
     int buffer_input_size;
     if (serv->open_eof_check || serv->open_length_check || serv->open_http_protocol)
     {

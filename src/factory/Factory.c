@@ -44,7 +44,7 @@ int swFactory_shutdown(swFactory *factory)
 
 int swFactory_dispatch(swFactory *factory, swDispatchData *task)
 {
-    swTrace("New Task:%s\n", task->data);
+    swTrace("New Task:%s\n", task->data.data);
     factory->last_from_id = task->data.info.from_id;
     return factory->onTask(factory, &(task->data));
 }

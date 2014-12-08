@@ -16,9 +16,10 @@
 
 #include "swoole.h"
 #include <include/websocket.h>
+#include <CryptoTokenKit/CryptoTokenKit.h>
 
 
-static uint64_t hton64(uint64_t host);
+//static uint64_t hton64(uint64_t host);
 static uint64_t ntoh64(uint64_t network);
 
 //static void swWebSocket_print_frame(swWebSocket_frame *frm);
@@ -54,20 +55,20 @@ swString *swWebSocket_encode(swString *data, char opcode)
 	return buf;
 }
 
-uint64_t hton64(uint64_t host)
-{
-	uint64_t ret = 0;
-	uint32_t high, low;
-
-	low = host & 0xFFFFFFFF;
-	high = (host >> 32) & 0xFFFFFFFF;
-	low = htonl(low);
-	high = htonl(high);
-	ret = low;
-	ret <<= 32;
-	ret |= high;
-	return ret;
-}
+//uint64_t hton64(uint64_t host)
+//{
+//	uint64_t ret = 0;
+//	uint32_t high, low;
+//
+//	low = host & 0xFFFFFFFF;
+//	high = (host >> 32) & 0xFFFFFFFF;
+//	low = htonl(low);
+//	high = htonl(high);
+//	ret = low;
+//	ret <<= 32;
+//	ret |= high;
+//	return ret;
+//}
 
 uint64_t ntoh64(uint64_t host)
 {
@@ -188,7 +189,8 @@ static void swWebSocket_unmask(char *masks, swHttpRequest *request)
 
 swString *swWebSocket_handShake(char *key)
 {
-
+    swString *response = swString_new(1024);
+    return response;
 }
 
 //static void swWebSocket_print_frame(swWebSocket_frame *frm)

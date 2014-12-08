@@ -2360,14 +2360,14 @@ PHP_FUNCTION(swoole_bind_uid)
     //udp client
     if (conn == NULL)
     {
-        swTrace("%d conn error", fd);
+        swTrace("%ld conn error", fd);
         RETURN_FALSE;
     }
 
     //connection is closed
     if (conn->active == 0)
     {
-        swTrace("fd:%d a:%d, uid: %d", fd, conn->active, conn->uid);
+        swTrace("fd:%ld a:%d, uid: %ld", fd, conn->active, conn->uid);
         RETURN_FALSE;
     }
 
