@@ -1,5 +1,5 @@
 <?php
-$http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
+$http = new swoole_http_server("127.0.0.1", 9501);
 //$http->set(['worker_num' => 4, 'task_worker_num' => 4]);
 $http->on('request', function ($request, $response) {
 //	var_dump($request->cookie);
