@@ -1028,7 +1028,7 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
                     swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, buffer);
                     break;
                 case WEBSOCKET_OPCODE_PING: //ping
-                    if(request->state == 0 || 0x7d  < request->content_length) {
+                    if(request->state == -1 || 0x7d  < request->content_length) {
                         goto close_fd;
                     }
                     buffer->length = request->content_length;
@@ -1037,7 +1037,7 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
                     swString_free(_buf);
                     break;
                 case WEBSOCKET_OPCODE_PONG: //pong
-                    if(request->state == 0) {
+                    if(request->state == -1) {
                         goto close_fd;
                     }
                     break;
