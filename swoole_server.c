@@ -2167,35 +2167,34 @@ PHP_FUNCTION(swoole_server_taskwait)
     int efd = task_notify_pipe->getFd(task_notify_pipe, 0);
     //clear history task
     while (read(efd, &notify, sizeof(notify)) > 0);
-
+ 
     if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int) (serv->worker_num + worker_id)) >= 0)
     {
         task_notify_pipe->timeout = timeout;
         int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
-        
         if (ret > 0)
         {
             zval *task_notify_data, *task_notify_unserialized_data;
             char *task_notify_data_str;
-            int task_notify_data_len;
+            int task_notify_data_len = 0;
             php_unserialize_data_t var_hash;
             /**
              * Large result package
-             */
+             */        
             if (task_result->info.type & SW_TASK_TMPFILE)
             {
                 int data_len;
-                char *buf;
-                swTaskWorker_large_unpack(task_result, emalloc, buf, data_len);
+                char *data_str;
+                swTaskWorker_large_unpack(task_result, emalloc, data_str, data_len);
                 /**
                  * unpack failed
                  */
                 if (data_len == -1)
                 {
-                    efree(buf);
+                    efree(data_str);
                     RETURN_FALSE;
                 }
-                task_notify_data_str = buf;
+                task_notify_data_str = data_str;
                 task_notify_data_len = data_len;
             }
             else
@@ -2410,6 +2409,8 @@ PHP_FUNCTION(swoole_server_finish)
     swServer *serv = NULL;
 
     zval **data;
+    char *data_str;
+    int data_len = 0;
     smart_str serialized_data = {0};
     php_serialize_data_t var_hash;
 
@@ -2437,12 +2438,26 @@ PHP_FUNCTION(swoole_server_finish)
     }
 
     SWOOLE_GET_SERVER(zobject, serv);
+    
+    //need serialize
+    if (Z_TYPE_PP(data) != IS_STRING)
+    {
+        //serialize
+        // swTask_type(XXX) |= SW_TASK_SERIALIZE;
+        //TODO php serialize
+        PHP_VAR_SERIALIZE_INIT(var_hash);
+        php_var_serialize(&serialized_data, data, &var_hash TSRMLS_CC);
+        PHP_VAR_SERIALIZE_DESTROY(var_hash);
+        data_str = serialized_data.c;
+        data_len = serialized_data.len;
+    }
+    else
+    {
+        data_str = Z_STRVAL_PP(data);
+        data_len = Z_STRLEN_PP(data);
+    }
 
-    PHP_VAR_SERIALIZE_INIT(var_hash);
-    php_var_serialize(&serialized_data, data, &var_hash TSRMLS_CC);
-    PHP_VAR_SERIALIZE_DESTROY(var_hash);
-
-    ret = swTaskWorker_finish(serv, serialized_data.c, serialized_data.len);
+    ret = swTaskWorker_finish(serv, data_str, data_len);
     
     smart_str_free(&serialized_data);
 
