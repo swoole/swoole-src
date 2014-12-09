@@ -123,7 +123,7 @@ int swWebSocket_decode(swHttpRequest *request) {
         return SW_ERR;
     }
     request->opcode = opcode;
-    request->state = 0;
+    request->state = fin;
 
     //0-125
     char length = buf[1] & 0x7f;
