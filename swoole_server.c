@@ -2364,7 +2364,7 @@ PHP_FUNCTION(swoole_server_task)
     }
     smart_str_free(&serialized_data);
 
-    if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int) worker_id) >= 0)
+    if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int) serv->worker_num + worker_id) >= 0)
     {
         sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
         RETURN_LONG(buf.info.fd);
