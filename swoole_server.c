@@ -27,6 +27,7 @@ static int php_swoole_unix_dgram_fd;
 
 zval *php_sw_callback[PHP_SERVER_CALLBACK_NUM];
 
+static int php_swoole_task_finish(swServer *serv, zval **data TSRMLS_DC);
 static int php_swoole_set_callback(int key, zval *cb TSRMLS_DC);
 static int php_swoole_onReceive(swFactory *, swEventData *);
 static void php_swoole_onPipeMessage(swServer *serv, swEventData *req);
@@ -149,6 +150,38 @@ void php_swoole_register_callback(swServer *serv)
     }
 }
 
+static int php_swoole_task_finish(swServer *serv, zval **data TSRMLS_DC)
+{
+    int flags = 0;
+    smart_str serialized_data = {0};
+    php_serialize_data_t var_hash;
+    char *data_str;
+    int data_len = 0;
+    int ret;
+
+    //need serialize
+    if (Z_TYPE_PP(data) != IS_STRING)
+    {
+        //serialize
+    	flags |= SW_TASK_SERIALIZE;
+        //TODO php serialize
+        PHP_VAR_SERIALIZE_INIT(var_hash);
+        php_var_serialize(&serialized_data, data, &var_hash TSRMLS_CC);
+        PHP_VAR_SERIALIZE_DESTROY(var_hash);
+        data_str = serialized_data.c;
+        data_len = serialized_data.len;
+    }
+    else
+    {
+        data_str = Z_STRVAL_PP(data);
+        data_len = Z_STRLEN_PP(data);
+    }
+
+    ret = swTaskWorker_finish(serv, data_str, data_len, flags);
+
+    smart_str_free(&serialized_data);
+    return ret;
+}
 
 static int php_swoole_set_callback(int key, zval *cb TSRMLS_DC)
 {
@@ -317,7 +350,6 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
 
 static int php_swoole_onTask(swServer *serv, swEventData *req)
 {
-
     zval *zserv = (zval *)serv->ptr2;
     zval **args[4];
 
@@ -338,12 +370,6 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     ZVAL_LONG(zfrom_id, (long)req->info.from_id);
 
     MAKE_STD_ZVAL(zdata);
-
-    //TODO unserialize
-    if (swTask_type(req) & SW_TASK_SERIALIZE)
-    {
-
-    }
 
     if (swTask_type(req) & SW_TASK_TMPFILE)
     {
@@ -412,17 +438,15 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     zval_ptr_dtor(&zfd);
     zval_ptr_dtor(&zfrom_id);
     zval_ptr_dtor(&zdata);
-    if(unserialized_zdata)
+
+    if (unserialized_zdata)
     {
         zval_ptr_dtor(&unserialized_zdata);
     }
 
-    if (retval != NULL)
+    if (retval != NULL && Z_TYPE_P(retval) == IS_NULL)
     {
-        if (Z_TYPE_P(retval) == IS_STRING)
-        {
-            swTaskWorker_finish(serv, Z_STRVAL_P(retval), Z_STRLEN_P(retval));
-        }
+        php_swoole_task_finish(serv, &retval);
         zval_ptr_dtor(&retval);
     }
     sw_atomic_fetch_sub(&SwooleStats->tasking_num, 1);
@@ -2075,7 +2099,6 @@ PHP_FUNCTION(swoole_server_taskwait)
 
     double timeout = SW_TASKWAIT_TIMEOUT;
     long worker_id = -1;
-    zval *data;
 
     if (SwooleGS->start == 0)
     {
@@ -2249,7 +2272,10 @@ PHP_FUNCTION(swoole_server_task)
     zval *zobject = getThis();
     swEventData buf;
     swServer *serv;
-    zval *data;
+    zval **data;
+	smart_str serialized_data = {0};
+	php_serialize_data_t var_hash;
+
     long worker_id = -1;
 
     if (SwooleGS->start == 0)
@@ -2260,14 +2286,14 @@ PHP_FUNCTION(swoole_server_task)
 
     if (zobject == NULL)
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Os|l", &zobject, swoole_server_class_entry_ptr, &data, &worker_id) == FAILURE)
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "OZ|l", &zobject, swoole_server_class_entry_ptr, &data, &worker_id) == FAILURE)
         {
             return;
         }
     }
     else
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &data, &worker_id) == FAILURE)
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Z|l", &data, &worker_id) == FAILURE)
         {
             return;
         }
@@ -2417,12 +2443,6 @@ PHP_FUNCTION(swoole_server_finish)
     swServer *serv = NULL;
 
     zval **data;
-    char *data_str;
-    int data_len = 0;
-    smart_str serialized_data = {0};
-    php_serialize_data_t var_hash;
-
-    int ret;
 
     if (SwooleGS->start == 0)
     {
@@ -2446,30 +2466,7 @@ PHP_FUNCTION(swoole_server_finish)
     }
 
     SWOOLE_GET_SERVER(zobject, serv);
-    
-    //need serialize
-    if (Z_TYPE_PP(data) != IS_STRING)
-    {
-        //serialize
-        // swTask_type(XXX) |= SW_TASK_SERIALIZE;
-        //TODO php serialize
-        PHP_VAR_SERIALIZE_INIT(var_hash);
-        php_var_serialize(&serialized_data, data, &var_hash TSRMLS_CC);
-        PHP_VAR_SERIALIZE_DESTROY(var_hash);
-        data_str = serialized_data.c;
-        data_len = serialized_data.len;
-    }
-    else
-    {
-        data_str = Z_STRVAL_PP(data);
-        data_len = Z_STRLEN_PP(data);
-    }
-
-    ret = swTaskWorker_finish(serv, data_str, data_len);
-    
-    smart_str_free(&serialized_data);
-
-    SW_CHECK_RETURN(ret);
+    SW_CHECK_RETURN(php_swoole_task_finish(serv, data TSRMLS_CC));
 }
 
 PHP_FUNCTION(swoole_bind_uid)

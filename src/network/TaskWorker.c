@@ -146,7 +146,7 @@ void swTaskWorker_onStop(swProcessPool *pool, int worker_id)
 /**
  * Send the task result to worker
  */
-int swTaskWorker_finish(swServer *serv, char *data, int data_len)
+int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
 {
     swEventData buf;
     if (SwooleG.task_worker_num < 1)
