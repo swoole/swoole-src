@@ -446,7 +446,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
 
     if (retval != NULL && Z_TYPE_P(retval) == IS_NULL)
     {
-        php_swoole_task_finish(serv, &retval);
+        php_swoole_task_finish(serv, &retval TSRMLS_CC);
         zval_ptr_dtor(&retval);
     }
     sw_atomic_fetch_sub(&SwooleStats->tasking_num, 1);
