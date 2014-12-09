@@ -161,6 +161,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
     {
         buf.info.type = SW_EVENT_FINISH;
         buf.info.fd = current_task->info.fd;
+        swTask_type(&buf) = flags;
 
         //write to file
         if (data_len >= sizeof(buf.data))
@@ -204,6 +205,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
 
         result->info.type = SW_EVENT_FINISH;
         result->info.fd = current_task->info.fd;
+        swTask_type(result) = flags;
 
         if (data_len >= sizeof(buf.data))
         {
