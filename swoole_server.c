@@ -2098,7 +2098,7 @@ PHP_FUNCTION(swoole_server_taskwait)
 
     uint64_t notify;
 
-    char *task_data_str;
+    char *task_data_str = NULL;
     int task_data_len = 0;
     //need serialize
     if (Z_TYPE_P(data) != IS_STRING)
@@ -2227,7 +2227,7 @@ PHP_FUNCTION(swoole_server_task)
     buf.info.from_id = SwooleWG.id;
     swTask_type(&buf) |= SW_TASK_NONBLOCK;
 
-    char *task_data_str;
+    char *task_data_str=NULL;
     int task_data_len = 0;
 
     //need serialize

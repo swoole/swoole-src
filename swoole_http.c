@@ -896,7 +896,7 @@ PHP_METHOD(swoole_http_response, end)
     swString body;
     body.length = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &body.str, &body.length) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|s", &body.str, &body.length) == FAILURE)
     {
         return;
     }
