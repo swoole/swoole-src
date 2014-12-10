@@ -16,6 +16,7 @@
 
 #include "swoole.h"
 #include <include/websocket.h>
+#include <Foundation/Foundation.h>
 
 
 //static uint64_t hton64(uint64_t host);
@@ -122,11 +123,7 @@ int swWebSocket_decode(swHttpRequest *request) {
         return SW_ERR;
     }
     request->opcode = opcode;
-    if(fin) {
-        request->state = 0;
-    }else{
-        request->state = -1;
-    }
+    request->state = 0;
 
     //0-125
     char length = buf[1] & 0x7f;
@@ -162,6 +159,11 @@ int swWebSocket_decode(swHttpRequest *request) {
     }
 
     request->buffer->str += request->buffer->offset;
+    request->buffer->offset--;
+    request->buffer->str[request->buffer->offset] = opcode;
+    request->buffer->offset--;
+    request->buffer->str[request->buffer->offset] = fin;
+    request->content_length += 2;
 
     swTrace("decode end\n");
 
