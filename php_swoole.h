@@ -321,8 +321,9 @@ PHP_METHOD(swoole_http_response, end);
 PHP_METHOD(swoole_http_response, cookie);
 PHP_METHOD(swoole_http_response, rawcookie);
 PHP_METHOD(swoole_http_response, header);
-PHP_METHOD(swoole_http_response, message);
 PHP_METHOD(swoole_http_response, status);
+
+PHP_METHOD(swoole_http_wsresponse, message);
 
 void swoole_destory_lock(zend_resource *rsrc TSRMLS_DC);
 void swoole_destory_process(zend_resource *rsrc TSRMLS_DC);

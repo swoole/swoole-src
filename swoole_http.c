@@ -139,14 +139,14 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_ME(swoole_http_response, status, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, header, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, end, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, message, NULL, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
+
 const zend_function_entry swoole_http_wsresponse_methods[] =
 {
-        PHP_ME(swoole_http_wsresponse, message, NULL, ZEND_ACC_PUBLIC)
-        PHP_FE_END
+    PHP_ME(swoole_http_wsresponse, message,         NULL, ZEND_ACC_PUBLIC)
+    PHP_FE_END
 };
 
 static int http_request_on_path(php_http_parser *parser, const char *at, size_t length)
@@ -422,9 +422,9 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         zval *zdata = php_swoole_get_data(req TSRMLS_CC);
         swTrace("on message callback\n");
         char *buf = Z_STRVAL_P(zdata);
-        long fin = ((buf[0] >> 7) & 0x1) ? 1 : 0;
-        long opcode = (opcode = buf[0] & 0xf) ? 1 : 0;
-        buf++;
+        long fin = buf[0] ? 1 : 0;
+        long opcode = buf[1] ? 1 : 0;
+        buf+=2;
         zval *zresponse;
         MAKE_STD_ZVAL(zresponse);
         object_init_ex(zresponse, swoole_http_wsresponse_class_entry_ptr);
@@ -432,9 +432,11 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         zend_update_property_long(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("fd"), fd TSRMLS_CC);
         zend_update_property_long(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("fin"), fin TSRMLS_CC);
         zend_update_property_long(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("opcode"), opcode TSRMLS_CC);
-        zend_update_property_stringl(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("data"), buf, (Z_STRLEN_P(zdata)-1) TSRMLS_CC);
+        zend_update_property_stringl(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("data"), buf, (Z_STRLEN_P(zdata)-2) TSRMLS_CC);
 
+        zval *args[1];
         args[0] = &zresponse;
+        zval *retval;
         if (call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[1], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
         {
             zval_ptr_dtor(&zdata);
@@ -633,6 +635,9 @@ void swoole_http_init(int module_number TSRMLS_DC)
 
     INIT_CLASS_ENTRY(swoole_http_request_ce, "swoole_http_request", swoole_http_request_methods);
     swoole_http_request_class_entry_ptr = zend_register_internal_class(&swoole_http_request_ce TSRMLS_CC);
+    
+    INIT_CLASS_ENTRY(swoole_http_wsresponse_ce, "swoole_http_wsresponse", swoole_http_wsresponse_methods);
+    swoole_http_wsresponse_class_entry_ptr = zend_register_internal_class(&swoole_http_wsresponse_ce TSRMLS_CC);
 }
 
 PHP_METHOD(swoole_http_server, on)
