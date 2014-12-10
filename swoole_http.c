@@ -23,7 +23,6 @@
 #include <include/swoole.h>
 #include <include/websocket.h>
 #include <include/Connection.h>
-#include <Python/Python.h>
 
 #include "thirdparty/php_http_parser.h"
 
