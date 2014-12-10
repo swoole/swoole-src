@@ -26,10 +26,12 @@ $http->on('handshake', function($request, $response) {
     $response->end('');
 });
 
-$http->on('message', function($data, $response){
-    //var_dump($data);
-    $response->message("server send:".$data);
+$http->on('message', function($response){
+    //var_dump($response);
+    //echo "fd:".$response->fd . "fin:".$response->fin . "opcode:".$response->opcode
+    $response->message("server send:".$response->data);
 });
+
 $http->on('request', function ($request, $response) {
 	$response->end("<h1>Hello Swoole. #".rand(1000, 9999)."</h1>");
 });
