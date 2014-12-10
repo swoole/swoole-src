@@ -1,22 +1,21 @@
 /*
-  +----------------------------------------------------------------------+
-  | Swoole                                                               |
-  +----------------------------------------------------------------------+
-  | This source file is subject to version 2.0 of the Apache license,    |
-  | that is bundled with this package in the file LICENSE, and is        |
-  | available through the world-wide-web at the following url:           |
-  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
-  | If you did not receive a copy of the Apache2.0 license and are unable|
-  | to obtain it through the world-wide-web, please send a note to       |
-  | license@php.net so we can mail you a copy immediately.               |
-  +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
-  +----------------------------------------------------------------------+
-*/
+   +----------------------------------------------------------------------+
+   | Swoole                                                               |
+   +----------------------------------------------------------------------+
+   | This source file is subject to version 2.0 of the Apache license,    |
+   | that is bundled with this package in the file LICENSE, and is        |
+   | available through the world-wide-web at the following url:           |
+   | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+   | If you did not receive a copy of the Apache2.0 license and are unable|
+   | to obtain it through the world-wide-web, please send a note to       |
+   | license@php.net so we can mail you a copy immediately.               |
+   +----------------------------------------------------------------------+
+   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+   +----------------------------------------------------------------------+
+   */
 
 #include "swoole.h"
 #include <include/websocket.h>
-#include <Foundation/Foundation.h>
 
 
 //static uint64_t hton64(uint64_t host);
@@ -31,7 +30,7 @@ swString *swWebSocket_encode(swString *data, char opcode) {
     buf->str[pos++] = FRAME_SET_FIN(1) | FRAME_SET_OPCODE(opcode);
     if (data->length < 126) {
         buf->str[pos++] =
-                FRAME_SET_MASK(0) | FRAME_SET_LENGTH(data->length, 0);
+            FRAME_SET_MASK(0) | FRAME_SET_LENGTH(data->length, 0);
     }
     else {
         if (data->length < 65536) {
@@ -50,9 +49,7 @@ swString *swWebSocket_encode(swString *data, char opcode) {
         buf->str[pos++] = FRAME_SET_LENGTH(data->length, 0);
     }
     buf->length = pos;
-    if (data->length) {
-        swString_append(buf, data);
-    }
+    swString_append(buf, data);
     return buf;
 }
 
@@ -91,25 +88,25 @@ int swWebSocket_isEof(char *buf) {
 
 /*  The following is websocket data frame:
 
-      0                   1                   2                   3
-      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-     +-+-+-+-+-------+-+-------------+-------------------------------+
-     |F|R|R|R| opcode|M| Payload len |    Extended payload length    |
-     |I|S|S|S|  (4)  |A|     (7)     |             (16/64)           |
-     |N|V|V|V|       |S|             |   (if payload len==126/127)   |
-     | |1|2|3|       |K|             |                               |
-     +-+-+-+-+-------+-+-------------+ - - - - - - - - - - - - - - - +
-     |     Extended payload length continued, if payload len == 127  |
-     + - - - - - - - - - - - - - - - +-------------------------------+
-     |                               |Masking-key, if MASK set to 1  |
-     +-------------------------------+-------------------------------+
-     | Masking-key (continued)       |          Payload Data         |
-     +-------------------------------- - - - - - - - - - - - - - - - +
-     :                     Payload Data continued ...                :
-     + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
-     |                     Payload Data continued ...                |
-     +---------------------------------------------------------------+
-*/
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-------+-+-------------+-------------------------------+
+    |F|R|R|R| opcode|M| Payload len |    Extended payload length    |
+    |I|S|S|S|  (4)  |A|     (7)     |             (16/64)           |
+    |N|V|V|V|       |S|             |   (if payload len==126/127)   |
+    | |1|2|3|       |K|             |                               |
+    +-+-+-+-+-------+-+-------------+ - - - - - - - - - - - - - - - +
+    |     Extended payload length continued, if payload len == 127  |
+    + - - - - - - - - - - - - - - - +-------------------------------+
+    |                               |Masking-key, if MASK set to 1  |
+    +-------------------------------+-------------------------------+
+    | Masking-key (continued)       |          Payload Data         |
+    +-------------------------------- - - - - - - - - - - - - - - - +
+    :                     Payload Data continued ...                :
+    + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
+    |                     Payload Data continued ...                |
+    +---------------------------------------------------------------+
+    */
 int swWebSocket_decode(swHttpRequest *request) {
     char *buf = request->buffer->str;
     char fin = (buf[0] >> 7) & 0x1;
@@ -130,42 +127,44 @@ int swWebSocket_decode(swHttpRequest *request) {
     buf += SW_WEBSOCKET_HEADER_LEN;
     request->buffer->offset += SW_WEBSOCKET_HEADER_LEN;
     /**
-    * 126
-    */
+     * 126
+     */
     if (length < 0x7E) {
         request->content_length = length;
     }
-        /**
-        * Short
-        */
+    /**
+     * Short
+     */
     else if (0x7E == length) {
         request->content_length = ntohs(*((uint16_t *) buf));
-        int _offset = sizeof(short);
-        request->buffer->offset += _offset;
+        request->buffer->offset += sizeof(short);
     }
     else {
         request->content_length = ntoh64(*((uint64_t *) buf));
-        int _offset = sizeof(int64_t);
-        request->buffer->offset += _offset;
+        request->buffer->offset += sizeof(int64_t);
     }
 
-    if (mask) {
+    if (mask && request->state == 0)
+    {
+        char masks[SW_WEBSOCKET_MASK_LEN];
+        memcpy(masks, (request->buffer->str + request->buffer->offset), SW_WEBSOCKET_MASK_LEN);
         request->buffer->offset += SW_WEBSOCKET_MASK_LEN;
-        if (request->content_length && request->state == 0) {
-            char masks[SW_WEBSOCKET_MASK_LEN];
-            memcpy(masks, (request->buffer->str + request->buffer->offset), SW_WEBSOCKET_MASK_LEN);
+
+        if (request->content_length)
+        {
             swWebSocket_unmask(masks, request);
         }
     }
 
+      swTrace("offset: %d\n", request->buffer->offset);
+      request->buffer->offset--;
+      request->buffer->str[request->buffer->offset] = opcode ? 1 : 0;
+      request->buffer->offset--;
+      request->buffer->str[request->buffer->offset] = fin ? 1 : 0;
+      request->content_length += 2;
     request->buffer->str += request->buffer->offset;
-    request->buffer->offset--;
-    request->buffer->str[request->buffer->offset] = opcode;
-    request->buffer->offset--;
-    request->buffer->str[request->buffer->offset] = fin;
-    request->content_length += 2;
-
-    swTrace("decode end\n");
+      
+    swTrace("decode end %d %d %d====\n", request->buffer->offset, request->buffer->str[request->buffer->offset], opcode);
 
     return SW_OK;
 }
@@ -173,9 +172,9 @@ int swWebSocket_decode(swHttpRequest *request) {
 static void swWebSocket_unmask(char *masks, swHttpRequest *request) {
     int i;
     for (i = 0; i < request->content_length; i++) {
-//                swTrace("unmask i:%d %c\n", i, request->buffer->str[i]);
+        //                swTrace("unmask i:%d %c\n", i, request->buffer->str[i]);
         request->buffer->str[i + request->buffer->offset] ^= masks[i % SW_WEBSOCKET_MASK_LEN];
-//                swTrace("unmask i:%d %c\n", i, request->buffer->str[i]);
+        //                swTrace("unmask i:%d %c\n", i, request->buffer->str[i]);
     }
 }
 

@@ -411,10 +411,10 @@ static int http_onReceive(swFactory *factory, swEventData *req)
     {
         swTrace("on message callback\n");
         zval *retval;
-        zval **args[4];
+        zval **args[2];
         args[0] = &zdata;
-        args[2] = args[0]++;
-        args[3] = args[0]++;
+        //args[2] = args[0]++;
+        //args[3] = args[0]++;
         zval *zresponse;
         MAKE_STD_ZVAL(zresponse);
         object_init_ex(zresponse, swoole_http_response_class_entry_ptr);
@@ -422,11 +422,12 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         zend_update_property_long(swoole_http_response_class_entry_ptr, zresponse, ZEND_STRL("fd"), fd TSRMLS_CC);
 
         args[1] = &zresponse;
-        if (call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[1], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
+        if (call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[1], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
         {
             zval_ptr_dtor(&zdata);
             php_error_docref(NULL TSRMLS_CC, E_WARNING, "onMessage handler error");
         }
+        swTrace("===== message callback end======");
         if (EG(exception))
         {
             zval_ptr_dtor(&zdata);
