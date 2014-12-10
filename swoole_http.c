@@ -75,6 +75,10 @@ zend_class_entry *swoole_http_response_class_entry_ptr;
 zend_class_entry swoole_http_request_ce;
 zend_class_entry *swoole_http_request_class_entry_ptr;
 
+
+zend_class_entry swoole_http_wsresponse_ce;
+zend_class_entry *swoole_http_wsresponse_class_entry_ptr;
+
 static zval* php_sw_http_server_callbacks[3];
 static swHashMap *php_sw_http_clients;
 
@@ -137,6 +141,12 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_ME(swoole_http_response, end, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, message, NULL, ZEND_ACC_PUBLIC)
     PHP_FE_END
+};
+
+const zend_function_entry swoole_http_wsresponse_methods[] =
+{
+        PHP_ME(swoole_http_wsresponse, message, NULL, ZEND_ACC_PUBLIC)
+        PHP_FE_END
 };
 
 static int http_request_on_path(php_http_parser *parser, const char *at, size_t length)
@@ -402,27 +412,30 @@ static int http_onReceive(swFactory *factory, swEventData *req)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
     int fd = req->info.fd;
-    zval *zdata = php_swoole_get_data(req TSRMLS_CC);
+
 
 //    swTrace("on receive:%s pid:%d\n", zdata, getpid());
     swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
 
     if(conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE)  //websocket callback
     {
+        zval *zdata = php_swoole_get_data(req TSRMLS_CC);
         swTrace("on message callback\n");
-        zval *retval;
-        zval **args[2];
-        args[0] = &zdata;
-        //args[2] = args[0]++;
-        //args[3] = args[0]++;
+        char *buf = Z_STRVAL_P(zdata);
+        long fin = ((buf[0] >> 7) & 0x1) ? 1 : 0;
+        long opcode = (opcode = buf[0] & 0xf) ? 1 : 0;
+        buf++;
         zval *zresponse;
         MAKE_STD_ZVAL(zresponse);
-        object_init_ex(zresponse, swoole_http_response_class_entry_ptr);
+        object_init_ex(zresponse, swoole_http_wsresponse_class_entry_ptr);
         //socket fd
-        zend_update_property_long(swoole_http_response_class_entry_ptr, zresponse, ZEND_STRL("fd"), fd TSRMLS_CC);
+        zend_update_property_long(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("fd"), fd TSRMLS_CC);
+        zend_update_property_long(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("fin"), fin TSRMLS_CC);
+        zend_update_property_long(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("opcode"), opcode TSRMLS_CC);
+        zend_update_property_stringl(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("data"), buf, (Z_STRLEN_P(zdata)-1) TSRMLS_CC);
 
-        args[1] = &zresponse;
-        if (call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[1], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+        args[0] = &zresponse;
+        if (call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[1], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
         {
             zval_ptr_dtor(&zdata);
             php_error_docref(NULL TSRMLS_CC, E_WARNING, "onMessage handler error");
@@ -461,9 +474,9 @@ static int http_onReceive(swFactory *factory, swEventData *req)
     parser->data = client;
     php_http_parser_init(parser, PHP_HTTP_REQUEST);
 
-    
 
 
+    zval *zdata = php_swoole_get_data(req TSRMLS_CC);
     size_t n = php_http_parser_execute(parser, &http_parser_settings, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
     zval_ptr_dtor(&zdata);
     if (n < 0)
@@ -1354,7 +1367,7 @@ PHP_METHOD(swoole_http_response, header)
 /**
  * For websocket send message
  */
-PHP_METHOD(swoole_http_response, message)
+PHP_METHOD(swoole_http_wsresponse, message)
 {
     swString data;
     data.length = 0;
@@ -1368,7 +1381,7 @@ PHP_METHOD(swoole_http_response, message)
 
     if(fd == 0)
     {
-        zval *zfd = zend_read_property(swoole_http_response_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
+        zval *zfd = zend_read_property(swoole_http_wsresponse_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
         if (ZVAL_IS_NULL(zfd))
         {
             php_error_docref(NULL TSRMLS_CC, E_WARNING, "http client not exists.");
