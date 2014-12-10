@@ -103,7 +103,6 @@ int swTaskWorker_large_pack(swEventData *task, void *data, int data_len)
 		return SW_ERR;
 	}
 
-	task->info.from_fd = 1;
 	task->info.len = sizeof(swPackage_task);
 	//use tmp file
     swTask_type(task) |= SW_TASK_TMPFILE;
@@ -176,7 +175,6 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
         {
             memcpy(buf.data, data, data_len);
             buf.info.len = data_len;
-            buf.info.from_fd = 0;
         }
 
         //tasking
@@ -219,7 +217,6 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
         {
             memcpy(result->data, data, data_len);
             result->info.len = data_len;
-            result->info.from_fd = 0;
         }
 
         while (1)
