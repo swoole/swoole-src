@@ -410,6 +410,7 @@ static int websocket_handshake(http_client *client)
 
 static void handshake_success(int fd)
 {
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
     SwooleG.lock.lock(&SwooleG.lock);
     swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
     if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) {
@@ -423,16 +424,14 @@ static void handshake_success(int fd)
         MAKE_STD_ZVAL(zresponse);
         object_init_ex(zresponse, swoole_http_wsresponse_class_entry_ptr);
         //socket fd
-        zend_update_property_long(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("fd"), fd
-        TSRMLS_CC);
+        zend_update_property_long(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("fd"), fd TSRMLS_CC);
 
         zval *args[1];
         args[0] = &zresponse;
         zval *retval;
         if (call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[3], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
         {
-            php_error_docref(NULL
-            TSRMLS_CC, E_WARNING, "onMessage handler error");
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "onMessage handler error");
         }
         swTrace("===== message callback end======");
         if (EG(exception)) {
