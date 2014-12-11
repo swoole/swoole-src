@@ -406,7 +406,9 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
         zdata_str = Z_STRVAL_P(zdata);
         zdata_len = Z_STRLEN_P(zdata);
         ALLOC_INIT_ZVAL(unserialized_zdata);
-        if (php_var_unserialize(&unserialized_zdata, (const unsigned char **) &zdata_str, zdata_str + zdata_len, &var_hash TSRMLS_CC))
+
+        if (php_var_unserialize(&unserialized_zdata, (const unsigned char **) &zdata_str,
+                (const unsigned char *) (zdata_str + zdata_len), &var_hash TSRMLS_CC))
         {
             args[3] = &unserialized_zdata;
         }
@@ -2240,7 +2242,9 @@ PHP_FUNCTION(swoole_server_taskwait)
             {
                 PHP_VAR_UNSERIALIZE_INIT(var_hash);
                 ALLOC_INIT_ZVAL(task_notify_unserialized_data);
-                if (php_var_unserialize(&task_notify_unserialized_data, (const unsigned char **) &task_notify_data_str, task_notify_data_str + task_notify_data_len, &var_hash TSRMLS_CC))
+
+                if (php_var_unserialize(&task_notify_unserialized_data, (const unsigned char **) &task_notify_data_str,
+                        (const unsigned char *) (task_notify_data_str + task_notify_data_len), &var_hash TSRMLS_CC))
                 {
                     task_notify_data = task_notify_unserialized_data;
                 }

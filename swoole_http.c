@@ -418,7 +418,9 @@ static void handshake_success(int fd)
     }
     SwooleG.lock.unlock(&SwooleG.lock);
     swTrace("\n\n\n\nconn ws status:%d\n\n\n", conn->websocket_status);
-    if(php_sw_http_server_callbacks[3] != NULL) {
+
+    if (php_sw_http_server_callbacks[3] != NULL)
+    {
         swTrace("\n\n\n\nhandshake success\n\n\n");
         zval *zresponse;
         MAKE_STD_ZVAL(zresponse);
@@ -426,9 +428,10 @@ static void handshake_success(int fd)
         //socket fd
         zend_update_property_long(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("fd"), fd TSRMLS_CC);
 
-        zval *args[1];
+        zval **args[1];
         args[0] = &zresponse;
         zval *retval;
+
         if (call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[3], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
         {
             php_error_docref(NULL TSRMLS_CC, E_WARNING, "onMessage handler error");
@@ -471,7 +474,7 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         zend_update_property_long(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("opcode"), opcode TSRMLS_CC);
         zend_update_property_stringl(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("data"), buf, (Z_STRLEN_P(zdata)-2) TSRMLS_CC);
 
-        zval *args[1];
+        zval **args[1];
         args[0] = &zresponse;
         zval *retval;
         if (call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[1], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
