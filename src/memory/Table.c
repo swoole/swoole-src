@@ -395,7 +395,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
             {
                 swTable_compress_list(table);
             }
-            row->active = 0;
+            bzero(row, sizeof(swTableRow));
             goto delete_element;
         }
         else
