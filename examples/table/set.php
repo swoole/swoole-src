@@ -21,10 +21,16 @@ function child1($worker)
 //master
 sleep(1);
 $s = microtime(true);
-for($i =0; $i < 1000; $i++)
-{
-    $arr = $table->get('350749960@qq.com');
-}
+//for($i =0; $i < 1000; $i++)
+//{
+//    $arr = $table->get('350749960@qq.com');
+//	var_dump($arr);
+//}
+
+var_dump($table->get('350749960@qq.com'));
+var_dump($table->get('tianfenghan@qq.com'));
+var_dump($table->get('hello@qq.com'));
+
 echo "use: ".((microtime(true) - $s) * 1000)."ms\n";
 //var_dump($table->get('350749960@qq.com'));
 sleep(100000);

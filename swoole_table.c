@@ -87,6 +87,9 @@ static void php_swoole_table_row2array(swTable *table, swTableRow *row, zval *re
     array_init(return_value);
 
     swTableColumn *col = NULL;
+    swTable_string_length_t vlen = 0;
+    double dval = 0;
+    int64_t lval = 0;
     char *k;
 
     sw_spinlock(&row->lock);
@@ -99,30 +102,29 @@ static void php_swoole_table_row2array(swTable *table, swTableRow *row, zval *re
         }
         if (col->type == SW_TABLE_STRING)
         {
-            swTable_string_length_t vlen = *(swTable_string_length_t *) (row->data + col->index);
+            memcpy(&vlen, row->data + col->index, sizeof(swTable_string_length_t));
             add_assoc_stringl_ex(return_value, col->name->str, col->name->length + 1, row->data + col->index + sizeof(swTable_string_length_t), vlen, 1);
         }
         else if (col->type == SW_TABLE_FLOAT)
         {
-            double dval = *(double *) (row->data + col->index);
+            memcpy(&dval, row->data + col->index, sizeof(dval));
             add_assoc_double_ex(return_value, col->name->str, col->name->length + 1, dval);
         }
         else
         {
-            int64_t lval;
             switch (col->type)
             {
             case SW_TABLE_INT8:
-                lval = *(int8_t *) (row->data + col->index);
+                memcpy(&lval, row->data + col->index, 1);
                 break;
             case SW_TABLE_INT16:
-                lval = *(int16_t *) (row->data + col->index);
+                memcpy(&lval, row->data + col->index, 2);
                 break;
             case SW_TABLE_INT32:
-                lval = *(int32_t *) (row->data + col->index);
+                memcpy(&lval, row->data + col->index, 4);
                 break;
             default:
-                lval = *(int64_t *) (row->data + col->index);
+                memcpy(&lval, row->data + col->index, 8);
                 break;
             }
             add_assoc_long_ex(return_value, col->name->str, col->name->length + 1, lval);
