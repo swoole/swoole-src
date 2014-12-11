@@ -440,10 +440,12 @@ int swTableRow_del(swTable *table, char *key, int keylen)
             memcpy(row->data, tmp->data, table->item_size);
         }
 
-        if (prev) {
+        if (prev)
+        {
             prev->next = tmp->next;
         }
         table->lock.lock(&table->lock);
+        bzero(tmp, sizeof(swTableRow));
         table->pool->free(table->pool, tmp);
         table->lock.unlock(&table->lock);
     }
