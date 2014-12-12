@@ -43,12 +43,16 @@
 #define SW_CLIENT_MAX_PORT         65535
 
 //!!!Don't modify.----------------------------------------------------------
+#if __MACH__
+#define SW_IPC_MAX_SIZE            2048  //MacOS
+#else
+#define SW_IPC_MAX_SIZE            8192  //for IPC, dgram and message-queue max size
+#endif
+
 #ifdef SW_USE_RINGBUFFER
 #define SW_BUFFER_SIZE             65535
-#elif __MACH__
-#define SW_BUFFER_SIZE             (2048-sizeof(struct _swDataHead)) //MacOS
 #else
-#define SW_BUFFER_SIZE             (8192-sizeof(struct _swDataHead)) //for IPC, dgram and message-queue max size
+#define SW_BUFFER_SIZE             (SW_IPC_MAX_SIZE - sizeof(struct _swDataHead))
 #endif
 //!!!End.-------------------------------------------------------------------
 

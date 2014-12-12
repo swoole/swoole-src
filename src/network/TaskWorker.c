@@ -205,7 +205,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
         result->info.fd = current_task->info.fd;
         swTask_type(result) = flags;
 
-        if (data_len >= sizeof(buf.data))
+        if (data_len >= SW_IPC_MAX_SIZE - sizeof(buf.info))
         {
             if (swTaskWorker_large_pack(result, data, data_len) < 0)
             {

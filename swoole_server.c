@@ -2181,7 +2181,7 @@ PHP_FUNCTION(swoole_server_taskwait)
         task_data_len = Z_STRLEN_PP(data);
     }
 
-    if (task_data_len >= sizeof(buf.data))
+    if (task_data_len >= SW_IPC_MAX_SIZE - sizeof(buf.info))
     {
         if (swTaskWorker_large_pack(&buf, task_data_str, task_data_len) < 0)
         {
@@ -2352,7 +2352,7 @@ PHP_FUNCTION(swoole_server_task)
     }
 
     //write to file
-    if (task_data_len >= sizeof(buf.data))
+    if (task_data_len >= SW_IPC_MAX_SIZE - sizeof(buf.info))
     {
         if (swTaskWorker_large_pack(&buf, task_data_str, task_data_len) < 0 )
         {
@@ -2423,7 +2423,7 @@ PHP_METHOD(swoole_server, sendmessage)
     buf.info.from_id = SwooleWG.id;
 
     //write to file
-    if (msglen >= sizeof(buf.data))
+    if (msglen >= SW_IPC_MAX_SIZE - sizeof(buf.info))
     {
         if (swTaskWorker_large_pack(&buf, msg, msglen) < 0)
         {
