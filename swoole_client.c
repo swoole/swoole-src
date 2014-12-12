@@ -476,7 +476,10 @@ static int swoole_client_error_callback(zval *zobject, swEvent *event, int error
 	zval *retval;
 	zval **args[1];
 
-	php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: connect to server failed. Error: %s [%d]", strerror(error), error);
+	if (error != 0)
+	{
+	    php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: connect to server failed. Error: %s [%d]", strerror(error), error);
+	}
 
     SwooleG.main_reactor->del(SwooleG.main_reactor, event->fd);
     zcallback = zend_read_property(swoole_client_class_entry_ptr, zobject, SW_STRL(php_sw_client_onError)-1, 0 TSRMLS_CC);
