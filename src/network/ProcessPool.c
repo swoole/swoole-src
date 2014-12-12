@@ -133,13 +133,15 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int dst_worke
                     break;
                 }
             }
-            dst_worker_id = pool->start_id + target_worker_id;
+            dst_worker_id = target_worker_id;
         }
         else
         {
-            dst_worker_id = pool->start_id + ((pool->round_id++) % pool->worker_num);
+            dst_worker_id = (pool->round_id++) % pool->worker_num;
         }
     }
+
+    dst_worker_id += pool->start_id;
 
     struct
     {

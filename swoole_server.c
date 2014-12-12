@@ -2202,7 +2202,7 @@ PHP_FUNCTION(swoole_server_taskwait)
     //clear history task
     while (read(efd, &notify, sizeof(notify)) > 0);
  
-    if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int) (serv->worker_num + worker_id)) >= 0)
+    if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int) worker_id) >= 0)
     {
         task_notify_pipe->timeout = timeout;
         int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
@@ -2368,7 +2368,7 @@ PHP_FUNCTION(swoole_server_task)
     }
     smart_str_free(&serialized_data);
 
-    if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int) serv->worker_num + worker_id) >= 0)
+    if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int) worker_id) >= 0)
     {
         sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
         RETURN_LONG(buf.info.fd);
