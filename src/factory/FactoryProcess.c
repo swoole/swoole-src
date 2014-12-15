@@ -631,7 +631,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     swConnection *conn = swServer_connection_get(serv, fd);
     if (conn == NULL || conn->active == 0)
     {
-        swWarn("connection[%d] not found.", fd);
+        swWarn("send failed, because connection[%d] has been closed.", fd);
         return SW_ERR;
     }
 

@@ -192,6 +192,7 @@ using `bool swoole_event_del(int $fd);` to remove registered file descriptor fro
 The following are prototypes for the related functions:
 
 ```
+bool swoole_event_add($fd, mixed $read_callback, mixed $write_callback, int $flag);
 bool swoole_event_set($fd, mixed $read_callback, mixed $write_callback, int $flag);
 bool swoole_event_del($fd);
 ```
@@ -214,11 +215,14 @@ are signatures for these functions:
 
 
 ```php
-swoole_async_readfile(string $filename, mixed $callback);
-swoole_async_writefile('test.log', $file_content, mixed $callback);
+bool swoole_async_readfile(string $filename, mixed $callback);
+bool swoole_async_writefile('test.log', $file_content, mixed $callback);
 bool swoole_async_read(string $filename, mixed $callback, int $trunk_size = 8192);
 bool swoole_async_write(string $filename, string $content, int $offset = -1, mixed $callback = NULL);
-swoole_async_dns_lookup(string $domain, function($host, $ip){});
+void swoole_async_dns_lookup(string $domain, function($host, $ip){});
+bool swoole_timer_add($interval_ms, mixed $callback);
+bool swoole_timer_del($interval_ms);
+bool swoole_timer_after($after_n_ms, mixed $callback);
 ``` 
 
 Refer [API Reference](http://wiki.swoole.com/wiki/page/183.html) for more detail information of these functions.
@@ -228,6 +232,50 @@ Refer [API Reference](http://wiki.swoole.com/wiki/page/183.html) for more detail
 
 Swoole also provides a Client component to build tcp/dup clients in both asynchronous and synchronous ways.
 Swoole uses the `swoole_client` class to expose all its functionalities.
+
+synchronous blocking:
+```php
+$client = new swoole_client(SWOOLE_SOCK_TCP);
+if (!$client->connect('127.0.0.1', 9501, 0.5))
+{
+    die("connect failed.");
+}
+
+if (!$client->send("hello world"))
+{
+    die("send failed.");
+}
+
+$data = $client->recv();
+if (!$data)
+{
+    die("recv failed.");
+}
+
+$client->close();
+
+```
+
+asynchronous nonblocking:
+
+```php
+$client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
+
+$client->on("connect", function($cli) {
+    $cli->send("hello world\n");
+});
+$client->on("receive", function($cli, $data){
+    echo "Received: ".$data."\n";
+});
+$client->on("error", function($cli){
+    echo "Connect failed\n";
+});
+$client->on("close", function($cli){
+    echo "Connection close\n";
+});
+
+$client->connect('127.0.0.1', 9501, 0.5);
+```
 
 The following methods are available in swoole_client:
 

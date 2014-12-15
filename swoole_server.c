@@ -885,9 +885,15 @@ PHP_FUNCTION(swoole_server_create)
         RETURN_FALSE;
     }
 
+    if (SwooleG.main_reactor != NULL)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "eventLoop has been created. Unable to create swoole_server.");
+        RETURN_FALSE;
+    }
+
     if (SwooleGS->start > 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is already running. Unable to create swoole_server.");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "server is already running. Unable to create swoole_server.");
         RETURN_FALSE;
     }
 
@@ -2021,7 +2027,7 @@ PHP_FUNCTION(swoole_server_addtimer)
 
     if (SwooleG.use_timer_pipe && SwooleG.main_reactor == NULL)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "can not use addtimer here.");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "cannot use addtimer here.");
         RETURN_FALSE;
     }
 
