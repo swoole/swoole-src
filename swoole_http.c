@@ -392,7 +392,7 @@ static int websocket_handshake(http_client *client)
     bzero(encoded_value, sizeof(encoded_value));
     int encoded_len;
     swTrace("base64_encode start:%d\n", sizeof(data_str));
-    encoded_len = swBase64_encode((unsigned char *) data_str, sizeof(data_str)-1, encoded_value);
+    encoded_len = swBase64_encode((unsigned char *) data_str, 20, encoded_value);
     swTrace("base64_encode end:%s %d %d\n", encoded_value, encoded_len, strlen(encoded_value));
     char _buf[128];
     int n = 0;
