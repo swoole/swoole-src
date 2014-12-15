@@ -226,6 +226,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/SSL.c \
         src/protocol/Http.c \
         src/protocol/WebSocket.c \
+        src/protocol/Base64.c \
       , $ext_shared)
 
     PHP_ADD_INCLUDE([$ext_srcdir/include])

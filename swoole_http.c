@@ -16,13 +16,13 @@
 
 #include "php_swoole.h"
 #include <ext/standard/url.h>
-#include <ext/standard/base64.h>
 #include <ext/standard/sha1.h>
 #include <ext/date/php_date.h>
 #include <main/php_variables.h>
 #include <include/swoole.h>
 #include <include/websocket.h>
 #include <include/Connection.h>
+#include <include/base64.h>
 
 #include "thirdparty/php_http_parser.h"
 
@@ -384,17 +384,21 @@ static int websocket_handshake(http_client *client)
     swString_append_ptr(shaBuf, ZEND_STRL(SW_WEBSOCKET_GUID));
 
     char data_str[20];
-    sha1(shaBuf->str, (unsigned char*) data_str);
+//    bzero(data_str, sizeof(data_str));
+    swTrace("sha1 start:%s\n", shaBuf->str);
+    sha1(shaBuf->str, (unsigned char *) data_str);
 
-    unsigned char *encoded_value = NULL;
+    char encoded_value[50];
+    bzero(encoded_value, sizeof(encoded_value));
     int encoded_len;
-    encoded_value = php_base64_encode((unsigned char*) data_str, sizeof(data_str), &encoded_len);
+    swTrace("base64_encode start:%d\n", sizeof(data_str));
+    encoded_len = swBase64_encode((unsigned char *) data_str, sizeof(data_str)-1, encoded_value);
+    swTrace("base64_encode end:%s %d %d\n", encoded_value, encoded_len, strlen(encoded_value));
     char _buf[128];
     int n = 0;
-    n = snprintf(_buf, 128, "Sec-WebSocket-Accept: %s\r\n", encoded_value);
-    //efree(data_str);
-
-    efree(encoded_value);
+    n = snprintf(_buf, strlen(encoded_value)+25, "Sec-WebSocket-Accept: %s\r\n", encoded_value);
+//    efree(data_str);
+//    efree(encoded_value);
     swString_free(shaBuf);
     swTrace("accept value: %s\n", _buf);
     swString_append_ptr(buf, _buf, n);
@@ -542,6 +546,7 @@ static int http_onReceive(swFactory *factory, swEventData *req)
                     SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
                 } else {
                     handshake_success(fd);
+                    swTrace("websocket handshake_success\n");
                     return SW_OK;
                 }
                 return ret;
