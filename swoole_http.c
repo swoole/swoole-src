@@ -375,7 +375,7 @@ static int websocket_handshake(http_client *client)
         return SW_ERR;
     }
     convert_to_string(*pData);
-    swTrace("key: %s len:%d\n", Z_STRVAL_PP(pData), Z_STRLEN_PP(pData));
+//    swTrace("key: %s len:%d\n", Z_STRVAL_PP(pData), Z_STRLEN_PP(pData));
     swString *buf = swString_new(256);
     swString_append_ptr(buf, ZEND_STRL("HTTP/1.1 101 Switching Protocols\r\n"));
     swString_append_ptr(buf, ZEND_STRL("Upgrade: websocket\r\nConnection: Upgrade\r\n"));
@@ -385,22 +385,22 @@ static int websocket_handshake(http_client *client)
 
     char data_str[20];
 //    bzero(data_str, sizeof(data_str));
-    swTrace("sha1 start:%s\n", shaBuf->str);
+//    swTrace("sha1 start:%s\n", shaBuf->str);
     sha1(shaBuf->str, (unsigned char *) data_str);
 
     char encoded_value[50];
     bzero(encoded_value, sizeof(encoded_value));
     int encoded_len;
-    swTrace("base64_encode start:%d\n", sizeof(data_str));
+//    swTrace("base64_encode start:%d\n", sizeof(data_str));
     encoded_len = swBase64_encode((unsigned char *) data_str, 20, encoded_value);
-    swTrace("base64_encode end:%s %d %d\n", encoded_value, encoded_len, strlen(encoded_value));
+//    swTrace("base64_encode end:%s %d %d\n", encoded_value, encoded_len, strlen(encoded_value));
     char _buf[128];
     int n = 0;
     n = snprintf(_buf, strlen(encoded_value)+25, "Sec-WebSocket-Accept: %s\r\n", encoded_value);
 //    efree(data_str);
 //    efree(encoded_value);
     swString_free(shaBuf);
-    swTrace("accept value: %s\n", _buf);
+//    swTrace("accept value: %s\n", _buf);
     swString_append_ptr(buf, _buf, n);
     swString_append_ptr(buf, ZEND_STRL("Sec-WebSocket-Version: 13\r\n"));
     swString_append_ptr(buf, ZEND_STRL("Server: swoole-websocket\r\n\r\n"));
@@ -408,7 +408,7 @@ static int websocket_handshake(http_client *client)
 
     int ret = swServer_tcp_send(SwooleG.serv, client->fd, buf->str, buf->length);
     swString_free(buf);
-    swTrace("handshake send: %d lenght: %d\n", client->fd, ret);
+//    swTrace("handshake send: %d lenght: %d\n", client->fd, ret);
     return ret;
 }
 
