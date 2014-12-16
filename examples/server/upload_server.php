@@ -72,6 +72,16 @@ class SwooleUploadServer
                 }
             }
         }
+        return true;
+    }
+
+    function setRootPath($path)
+    {
+        if (!is_dir($path))
+        {
+            throw new Exception(__METHOD__.": $path is not exists.");
+        }
+        $this->root_path = $path;
     }
 
     function onclose($serv, $fd, $from_id)
@@ -86,6 +96,7 @@ class SwooleUploadServer
         $runtime_config = array(
             'worker_num' => 1,
         );
+
         global $argv;
         if (!empty($argv[1]) and $argv[1] == 'daemon')
         {
