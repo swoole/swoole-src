@@ -9,7 +9,7 @@ $config = array(
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
     //'ipc_mode' => 2,
-    //'task_worker_num' => 2,
+    'task_worker_num' => 1,
     //'task_ipc_mode' => 1,
     //'dispatch_mode' => 1,
     //'log_file' => '/tmp/swoole.log',
@@ -126,7 +126,7 @@ function my_onShutdown($serv)
 
 function my_onTimer($serv, $interval)
 {
-	echo "Timer#$interval: ".microtime(true)."\n";
+	//echo "Timer#$interval: ".microtime(true)."\n";
 }
 
 function my_onClose($serv, $fd, $from_id)
@@ -144,7 +144,7 @@ function my_onWorkerStart($serv, $worker_id)
 {
 	//processRename($serv, $worker_id);
 	//forkChildInWorker();
-	//setTimerInWorker($serv, $worker_id);
+	setTimerInWorker($serv, $worker_id);
 }
 
 function my_onWorkerStop($serv, $worker_id)
@@ -228,7 +228,15 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 
 function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
 {
-    swoole_timer_after(1000, "test");
+    //swoole_timer_after(1000, "test");
+    var_dump($data);
+    $fd = str_replace('task-', '', $data);
+    $serv->send($fd, str_repeat('A', 8192*2));
+    $serv->send($fd, str_repeat('B', 8192*2));
+    $serv->send($fd, str_repeat('C', 8192*2));
+    $serv->send($fd, str_repeat('D', 8192*2));
+    return;
+    
     if ($data == "hellotask")
     {
         broadcast($serv, 0, "hellotask");
