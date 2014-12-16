@@ -191,7 +191,7 @@ using `bool swoole_event_del(int $fd);` to remove registered file descriptor fro
 
 The following are prototypes for the related functions:
 
-```
+```php
 bool swoole_event_add($fd, mixed $read_callback, mixed $write_callback, int $flag);
 bool swoole_event_set($fd, mixed $read_callback, mixed $write_callback, int $flag);
 bool swoole_event_del($fd);
