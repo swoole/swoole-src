@@ -2077,7 +2077,17 @@ PHP_FUNCTION(swoole_timer_after)
     }
     efree(func_name);
 
-    php_swoole_check_reactor();
+    int need_reactor = 1;
+    if (SwooleGS->start > 0 && swIsTaskWorker())
+    {
+        need_reactor = 0;
+    }
+
+    if (need_reactor)
+    {
+        php_swoole_check_reactor();
+    }
+
     php_swoole_check_timer(interval);
 
     zval_add_ref(&callback->callback);
@@ -2085,13 +2095,14 @@ PHP_FUNCTION(swoole_timer_after)
     {
         zval_add_ref(&callback->data);
     }
-
     if (SwooleG.timer.add(&SwooleG.timer, interval, 0, callback) < 0)
     {
         RETURN_FALSE;
     }
-
-    php_swoole_try_run_reactor();
+    if (need_reactor)
+    {
+        php_swoole_try_run_reactor();
+    }
     RETURN_TRUE;
 }
 
