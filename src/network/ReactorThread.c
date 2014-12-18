@@ -251,10 +251,17 @@ int swReactorThread_send(swSendData *_send)
     volatile swBuffer_trunk *trunk;
 
     swConnection *conn = swServer_connection_get(serv, fd);
+
+    //The connection has been closed.
     if (conn == NULL || conn->active == 0)
     {
         swWarn("Connection[fd=%d] is not exists.", fd);
         return SW_ERR;
+    }
+    //The connection has been removed from eventloop.
+    else if (conn->active & SW_STATE_REMOVED)
+    {
+        goto close_fd;
     }
 
 #if SW_REACTOR_SCHEDULE == 2

@@ -505,6 +505,10 @@ int swServer_shutdown(swServer *serv);
 int swServer_udp_send(swServer *serv, swSendData *resp);
 int swServer_tcp_send(swServer *serv, int fd, void *data, int length);
 
+//UDP, UDP必然超过0x1000000
+//原因：IPv4的第4字节最小为1,而这里的conn_fd是网络字节序
+#define swSocket_isUDP(fd)          (fd > 0x1000000)
+
 int swServer_reactor_add(swServer *serv, int fd, int sock_type); //no use
 int swServer_reactor_del(swServer *serv, int fd, int reacot_id); //no use
 

@@ -1667,9 +1667,8 @@ PHP_FUNCTION(swoole_server_send)
 
     uint32_t fd = (uint32_t) _fd;
 
-    //UDP, UDP必然超过0x1000000
-    //原因：IPv4的第4字节最小为1,而这里的conn_fd是网络字节序
-    if (fd > 0x1000000)
+    //UDP
+    if (swSocket_isUDP(fd))
     {
         if (from_id == -1)
         {
@@ -1690,6 +1689,7 @@ PHP_FUNCTION(swoole_server_send)
     //TCP
     else
     {
+        swTrace("tcp send: fd=%d|from_id=%d", _send.info.fd, (uint16_t)_send.info.from_id);
         SW_CHECK_RETURN(swServer_tcp_send(serv, fd, send_data, send_len));
     }
 }
@@ -2077,7 +2077,17 @@ PHP_FUNCTION(swoole_timer_after)
     }
     efree(func_name);
 
-    php_swoole_check_reactor();
+    int need_reactor = 1;
+    if (SwooleGS->start > 0 && swIsTaskWorker())
+    {
+        need_reactor = 0;
+    }
+
+    if (need_reactor)
+    {
+        php_swoole_check_reactor();
+    }
+
     php_swoole_check_timer(interval);
 
     zval_add_ref(&callback->callback);
@@ -2085,13 +2095,14 @@ PHP_FUNCTION(swoole_timer_after)
     {
         zval_add_ref(&callback->data);
     }
-
     if (SwooleG.timer.add(&SwooleG.timer, interval, 0, callback) < 0)
     {
         RETURN_FALSE;
     }
-
-    php_swoole_try_run_reactor();
+    if (need_reactor)
+    {
+        php_swoole_try_run_reactor();
+    }
     RETURN_TRUE;
 }
 

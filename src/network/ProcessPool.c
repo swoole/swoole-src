@@ -36,7 +36,7 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
         pool->msgqueue_key = msgqueue_key;
     }
 
-    pool->workers = sw_calloc(worker_num, sizeof(swWorker));
+    pool->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, worker_num * sizeof(swWorker));
     if (pool->workers == NULL)
     {
         swWarn("malloc[1] failed.");
