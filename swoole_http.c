@@ -170,6 +170,9 @@ static int http_request_on_query_string(php_http_parser *parser, const char *at,
     array_init(get);
     zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("get"), get TSRMLS_CC);
     sapi_module.treat_data(PARSE_STRING, query, get TSRMLS_CC);
+    ZEND_SET_SYMBOL(&EG(symbol_table), "_GET", get);
+    zval *_request = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("request"), 1 TSRMLS_CC);
+    zend_hash_copy(Z_ARRVAL_P(_request), Z_ARRVAL_P(get), NULL, NULL, sizeof(zval));
     return 0;
 }
 
@@ -248,6 +251,8 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
         memcpy(keybuf, kv.k, kv.klen - 1);
         keybuf[kv.klen - 1] = 0;
         add_assoc_stringl_ex(cookie, keybuf, kv.klen , kv.v, kv.vlen, 1);
+        ZEND_SET_SYMBOL(&EG(symbol_table), "_COOKIE", cookie);
+        
     }
     else if (memcmp(header_name, ZEND_STRL("upgrade")) == 0
             && memcmp(at, ZEND_STRL("websocket")) == 0)
@@ -310,6 +315,10 @@ static int http_request_on_body(php_http_parser *parser, const char *at, size_t 
         array_init(post);
         zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("post"), post TSRMLS_CC);
         sapi_module.treat_data(PARSE_STRING, body, post TSRMLS_CC);
+        ZEND_SET_SYMBOL(&EG(symbol_table), "_POST", post);
+        zval *_request = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("request"), 1 TSRMLS_CC);
+        zend_hash_copy(Z_ARRVAL_P(_request), Z_ARRVAL_P(post), NULL, NULL, sizeof(zval));
+
     }
     else
     {
@@ -522,6 +531,11 @@ static int http_onReceive(swFactory *factory, swEventData *req)
 
 
     zval *zdata = php_swoole_get_data(req TSRMLS_CC);
+    //server info
+    zval *_request;
+    MAKE_STD_ZVAL(_request);
+    array_init(_request);
+    zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("request"), _request TSRMLS_CC);
     size_t n = php_http_parser_execute(parser, &http_parser_settings, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
     zval_ptr_dtor(&zdata);
     if (n < 0)
@@ -563,65 +577,67 @@ static int http_onReceive(swFactory *factory, swEventData *req)
     	zend_update_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("server"), zserver TSRMLS_CC);
 
         switch (parser->method) {
-            case PHP_HTTP_GET: add_assoc_string(zserver, "request_method", "GET", 1);break;
-            case PHP_HTTP_POST: add_assoc_string(zserver, "request_method", "POST", 1);break;
-            case PHP_HTTP_HEAD: add_assoc_string(zserver, "request_method", "HEAD", 1);break;
-            case PHP_HTTP_PUT: add_assoc_string(zserver, "request_method", "PUT", 1);break;
-            case PHP_HTTP_DELETE: add_assoc_string(zserver, "request_method", "DELETE", 1);break;
-            case PHP_HTTP_PATCH: add_assoc_string(zserver, "request_method", "PATCH", 1);break;
+            case PHP_HTTP_GET: add_assoc_string(zserver, "REQUEST_METHOD", "GET", 1);break;
+            case PHP_HTTP_POST: add_assoc_string(zserver, "REQUEST_METHOD", "POST", 1);break;
+            case PHP_HTTP_HEAD: add_assoc_string(zserver, "REQUEST_METHOD", "HEAD", 1);break;
+            case PHP_HTTP_PUT: add_assoc_string(zserver, "REQUEST_METHOD", "PUT", 1);break;
+            case PHP_HTTP_DELETE: add_assoc_string(zserver, "REQUEST_METHOD", "DELETE", 1);break;
+            case PHP_HTTP_PATCH: add_assoc_string(zserver, "REQUEST_METHOD", "PATCH", 1);break;
                 /* pathological */
-            case PHP_HTTP_CONNECT: add_assoc_string(zserver, "request_method", "CONNECT", 1);break;
-            case PHP_HTTP_OPTIONS: add_assoc_string(zserver, "request_method", "OPTIONS", 1);break;
-            case PHP_HTTP_TRACE: add_assoc_string(zserver, "request_method", "TRACE", 1);break;
+            case PHP_HTTP_CONNECT: add_assoc_string(zserver, "REQUEST_METHOD", "CONNECT", 1);break;
+            case PHP_HTTP_OPTIONS: add_assoc_string(zserver, "REQUEST_METHOD", "OPTIONS", 1);break;
+            case PHP_HTTP_TRACE: add_assoc_string(zserver, "REQUEST_METHOD", "TRACE", 1);break;
                 /* webdav */
-            case PHP_HTTP_COPY: add_assoc_string(zserver, "request_method", "COPY", 1);break;
-            case PHP_HTTP_LOCK: add_assoc_string(zserver, "request_method", "LOCK", 1);break;
-            case PHP_HTTP_MKCOL: add_assoc_string(zserver, "request_method", "MKCOL", 1);break;
-            case PHP_HTTP_MOVE: add_assoc_string(zserver, "request_method", "MOVE", 1);break;
-            case PHP_HTTP_PROPFIND: add_assoc_string(zserver, "request_method", "PROPFIND", 1);break;
-            case PHP_HTTP_PROPPATCH: add_assoc_string(zserver, "request_method", "PROPPATCH", 1);break;
-            case PHP_HTTP_UNLOCK: add_assoc_string(zserver, "request_method", "UNLOCK", 1);break;
+            case PHP_HTTP_COPY: add_assoc_string(zserver, "REQUEST_METHOD", "COPY", 1);break;
+            case PHP_HTTP_LOCK: add_assoc_string(zserver, "REQUEST_METHOD", "LOCK", 1);break;
+            case PHP_HTTP_MKCOL: add_assoc_string(zserver, "REQUEST_METHOD", "MKCOL", 1);break;
+            case PHP_HTTP_MOVE: add_assoc_string(zserver, "REQUEST_METHOD", "MOVE", 1);break;
+            case PHP_HTTP_PROPFIND: add_assoc_string(zserver, "REQUEST_METHOD", "PROPFIND", 1);break;
+            case PHP_HTTP_PROPPATCH: add_assoc_string(zserver, "REQUEST_METHOD", "PROPPATCH", 1);break;
+            case PHP_HTTP_UNLOCK: add_assoc_string(zserver, "REQUEST_METHOD", "UNLOCK", 1);break;
                 /* subversion */
-            case PHP_HTTP_REPORT: add_assoc_string(zserver, "request_method", "REPORT", 1);break;
-            case PHP_HTTP_MKACTIVITY: add_assoc_string(zserver, "request_method", "MKACTIVITY", 1);break;
-            case PHP_HTTP_CHECKOUT: add_assoc_string(zserver, "request_method", "CHECKOUT", 1);break;
-            case PHP_HTTP_MERGE: add_assoc_string(zserver, "request_method", "MERGE", 1);break;
+            case PHP_HTTP_REPORT: add_assoc_string(zserver, "REQUEST_METHOD", "REPORT", 1);break;
+            case PHP_HTTP_MKACTIVITY: add_assoc_string(zserver, "REQUEST_METHOD", "MKACTIVITY", 1);break;
+            case PHP_HTTP_CHECKOUT: add_assoc_string(zserver, "REQUEST_METHOD", "CHECKOUT", 1);break;
+            case PHP_HTTP_MERGE: add_assoc_string(zserver, "REQUEST_METHOD", "MERGE", 1);break;
                 /* upnp */
-            case PHP_HTTP_MSEARCH: add_assoc_string(zserver, "request_method", "MSEARCH", 1);break;
-            case PHP_HTTP_NOTIFY: add_assoc_string(zserver, "request_method", "NOTIFY", 1);break;
-            case PHP_HTTP_SUBSCRIBE: add_assoc_string(zserver, "request_method", "SUBSCRIBE", 1);break;
-            case PHP_HTTP_UNSUBSCRIBE: add_assoc_string(zserver, "request_method", "UNSUBSCRIBE", 1);break;
-            case PHP_HTTP_NOT_IMPLEMENTED: add_assoc_string(zserver, "request_method", "GET", 1);break;
+            case PHP_HTTP_MSEARCH: add_assoc_string(zserver, "REQUEST_METHOD", "MSEARCH", 1);break;
+            case PHP_HTTP_NOTIFY: add_assoc_string(zserver, "REQUEST_METHOD", "NOTIFY", 1);break;
+            case PHP_HTTP_SUBSCRIBE: add_assoc_string(zserver, "REQUEST_METHOD", "SUBSCRIBE", 1);break;
+            case PHP_HTTP_UNSUBSCRIBE: add_assoc_string(zserver, "REQUEST_METHOD", "UNSUBSCRIBE", 1);break;
+            case PHP_HTTP_NOT_IMPLEMENTED: add_assoc_string(zserver, "REQUEST_METHOD", "GET", 1);break;
         }
 
 //    	if (parser->method == PHP_HTTP_POST)
 //    	{
-//    		add_assoc_string(zserver, "request_method", "POST", 1);
+//    		add_assoc_string(zserver, "REQUEST_METHOD", "POST", 1);
 //    	}
 //    	else
 //    	{
-//    		add_assoc_string(zserver, "request_method", "GET", 1);
+//    		add_assoc_string(zserver, "REQUEST_METHOD", "GET", 1);
 //    	}
 
-    	add_assoc_stringl(zserver, "request_uri", client->request.path, client->request.path_len, 1);
-    	add_assoc_stringl(zserver, "path_info", client->request.path, client->request.path_len, 1);
-    	add_assoc_long_ex(zserver,  ZEND_STRS("request_time"), SwooleGS->now);
+    	add_assoc_stringl(zserver, "REQUEST_URI", client->request.path, client->request.path_len, 1);
+    	add_assoc_stringl(zserver, "PATH_INFO", client->request.path, client->request.path_len, 1);
+    	add_assoc_long_ex(zserver,  ZEND_STRS("REQUEST_TIME"), SwooleGS->now);
 
     	swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
-    	add_assoc_long(zserver, "server_port", SwooleG.serv->connection_list[conn->from_fd].addr.sin_port);
-    	add_assoc_long(zserver, "remote_port", ntohs(conn->addr.sin_port));
-    	add_assoc_string(zserver, "remote_addr", inet_ntoa(conn->addr.sin_addr), 1);
+    	add_assoc_long(zserver, "SERVER_PORT", SwooleG.serv->connection_list[conn->from_fd].addr.sin_port);
+    	add_assoc_long(zserver, "REMOTE_PORT", ntohs(conn->addr.sin_port));
+    	add_assoc_string(zserver, "REMOTE_ADDR", inet_ntoa(conn->addr.sin_addr), 1);
 
     	if (client->request.version == 101)
     	{
-    		add_assoc_string(zserver, "server_protocol", "HTTP/1.1", 1);
+    		add_assoc_string(zserver, "SERVER_PROTOCOL", "HTTP/1.1", 1);
     	}
     	else
     	{
-            add_assoc_string(zserver, "server_protocol", "HTTP/1.0", 1);
+            add_assoc_string(zserver, "SERVER_PROTOCOL", "HTTP/1.0", 1);
         }
-        add_assoc_string(zserver, "server_software", SW_HTTP_SERVER_SOFTWARE, 1);
-        add_assoc_string(zserver, "gateway_interface", SW_HTTP_SERVER_SOFTWARE, 1);
+        add_assoc_string(zserver, "SERVER_SOFTWARE", SW_HTTP_SERVER_SOFTWARE, 1);
+        add_assoc_string(zserver, "GATEWAY_INTERFACE", SW_HTTP_SERVER_SOFTWARE, 1);
+//        ZEND_SET_SYMBOL(&EG(symbol_table), "_SERVER", zserver);
+
 
     	zval *zresponse;
     	MAKE_STD_ZVAL(zresponse);
