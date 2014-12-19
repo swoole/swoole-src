@@ -5,6 +5,7 @@
 *.lo
 *~
 *.so
+*.loT
 Debug/*
 modules/*
 /.deps

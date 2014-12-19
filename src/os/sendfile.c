@@ -73,7 +73,26 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
 #elif !defined(HAVE_SENDFILE)
 int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
 {
-	swWarn("no have sendfile");
-	return SW_ERR;
+    char buf[SW_BUFFER_SIZE_BIG];
+    int readn = size > sizeof(buf) ? sizeof(buf) : size;
+
+    int ret;
+    int n = pread(in_fd, offset, buf, readn);
+
+    if (n > 0)
+    {
+        ret = write(out_fd, buf, n);
+        if (ret < 0)
+        {
+            swSysError("write() failed.");
+        }
+        *offset += n;
+        return ret;
+    }
+    else
+    {
+        swSysError("pread() failed.");
+        return SW_ERR;
+    }
 }
 #endif
