@@ -564,7 +564,7 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swWarn("recv from connection[fd=%d] failed. Error: %s[%d]", conn->fd, strerror(errno), errno);
+            swSysError("recv from connection[%d@%d] failed.", event->fd, reactor->id);
             return SW_OK;
         case SW_CLOSE:
             goto close_fd;
@@ -650,7 +650,7 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swWarn("recv from connection[fd=%d] failed. Error: %s[%d]", event->fd, strerror(errno), errno);
+            swSysError("recv from connection[%d@%d] failed.", event->fd, reactor->id);
             return SW_OK;
         case SW_CLOSE:
             goto close_fd;
@@ -770,7 +770,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swWarn("recv from connection[fd=%d] failed. Error: %s[%d]", conn->fd, strerror(errno), errno);
+            swSysError("recv from connection[%d@%d] failed.", event->fd, reactor->id);
             return SW_OK;
         case SW_CLOSE:
             goto close_fd;
@@ -965,7 +965,7 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swWarn("recv from connection[fd=%d] failed. Error: %s[%d]", conn->fd, strerror(errno), errno);
+            swSysError("recv from connection[%d@%d] failed.", event->fd, reactor->id);
             return SW_OK;
         case SW_CLOSE:
             goto close_fd;
