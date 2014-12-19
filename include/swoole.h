@@ -220,6 +220,7 @@ enum swDispatchMode
 };
 enum swWorkerStatus
 {
+    SW_WORKER_DEL = 2,
     SW_WORKER_BUSY = 1,
     SW_WORKER_IDLE = 0,
 };
@@ -896,6 +897,13 @@ struct _swWorker
 	uint8_t status;
 	uint8_t type;
 	uint8_t ipc_mode;
+        
+        uint8_t del;
+        
+         /**
+	 * tasking num 
+	 */
+	sw_atomic_t tasking_num;
 
 	/**
 	 * redirect stdin to pipe_worker
@@ -1030,7 +1038,7 @@ int swProcessPool_wait(swProcessPool *pool);
 int swProcessPool_start(swProcessPool *pool);
 void swProcessPool_shutdown(swProcessPool *pool);
 pid_t swProcessPool_spawn(swWorker *worker);
-int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int worker_id);
+int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int *worker_id);
 int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker);
 
 static sw_inline swWorker* swProcessPool_get_worker(swProcessPool *pool, int worker_id)
@@ -1188,6 +1196,8 @@ typedef struct
 	pid_t manager_pid;
 	uint8_t start; //after swServer_start will set start=1
 	time_t now;
+        uint16_t task_num;
+        sw_atomic_t task_round;
 } swServerGS;
 
 //Worker process global Variable
@@ -1254,6 +1264,13 @@ typedef struct
      *  task worker process num
      */
     uint16_t task_worker_num;
+     /**
+      *  task worker process max
+    */
+    uint16_t task_worker_max;
+    
+    uint8_t task_recycle_num;
+    
     char *task_tmpdir;
     uint16_t task_tmpdir_len;
     uint16_t cpu_num;
