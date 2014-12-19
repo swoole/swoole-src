@@ -37,84 +37,88 @@ typedef struct _swReactorPoll
 
 int swReactorPoll_create(swReactor *reactor, int max_fd_num)
 {
-	//create reactor object
-	swReactorPoll *object = sw_malloc(sizeof(swReactorPoll));
-	if (object == NULL)
-	{
-		swError("malloc[0] failed");
-		return SW_ERR;
-	}
-	bzero(object, sizeof(swReactorPoll));
+    //create reactor object
+    swReactorPoll *object = sw_malloc(sizeof(swReactorPoll));
+    if (object == NULL)
+    {
+        swWarn("malloc[0] failed");
+        return SW_ERR;
+    }
+    bzero(object, sizeof(swReactorPoll));
 
-	object->fds = sw_calloc(max_fd_num, sizeof(swPollFdInfo));
-	if (object->fds == NULL)
-	{
-		swError("malloc[1] failed");
-		return SW_ERR;
-	}
-	object->events = sw_calloc(max_fd_num, sizeof(struct pollfd));
-	if (object->events == NULL)
-	{
-		swError("malloc[2] failed");
-		return SW_ERR;
-	}
-	object->max_fd_num = max_fd_num;
-	reactor->max_event_num = max_fd_num;
-	bzero(reactor->handle, sizeof(reactor->handle));
-	reactor->object = object;
-	//binding method
-	reactor->add = swReactorPoll_add;
-	reactor->del = swReactorPoll_del;
-	reactor->set = swReactorPoll_set;
-	reactor->wait = swReactorPoll_wait;
-	reactor->free = swReactorPoll_free;
-	reactor->setHandle = swReactor_setHandle;
-	reactor->onFinish = NULL;
-	reactor->onTimeout = NULL;
-	return SW_OK;
+    object->fds = sw_calloc(max_fd_num, sizeof(swPollFdInfo));
+    if (object->fds == NULL)
+    {
+        swWarn("malloc[1] failed");
+        return SW_ERR;
+    }
+    object->events = sw_calloc(max_fd_num, sizeof(struct pollfd));
+    if (object->events == NULL)
+    {
+        swWarn("malloc[2] failed");
+        return SW_ERR;
+    }
+    object->max_fd_num = max_fd_num;
+    reactor->max_event_num = max_fd_num;
+    bzero(reactor->handle, sizeof(reactor->handle));
+    reactor->object = object;
+    //binding method
+    reactor->add = swReactorPoll_add;
+    reactor->del = swReactorPoll_del;
+    reactor->set = swReactorPoll_set;
+    reactor->wait = swReactorPoll_wait;
+    reactor->free = swReactorPoll_free;
+    reactor->setHandle = swReactor_setHandle;
+    reactor->onFinish = NULL;
+    reactor->onTimeout = NULL;
+    return SW_OK;
 }
 
 static void swReactorPoll_free(swReactor *reactor)
 {
-	swReactorPoll *object = reactor->object;
-	sw_free(object->fds);
-	sw_free(reactor->object);
+    swReactorPoll *object = reactor->object;
+    sw_free(object->fds);
+    sw_free(reactor->object);
 }
 
 static int swReactorPoll_add(swReactor *reactor, int fd, int fdtype)
 {
-	swReactorPoll *object = reactor->object;
-	int cur = reactor->event_num;
-	if (reactor->event_num == object->max_fd_num)
-	{
-		swError("too many connection, more than %d", object->max_fd_num);
-		return SW_ERR;
-	}
-	object->fds[cur].fdtype = swReactor_fdtype(fdtype);
-	object->events[cur].fd = fd;
-	//object->events[cur].events = POLLRDHUP;
-	object->events[cur].events = 0;
+    swReactorPoll *object = reactor->object;
+    int cur = reactor->event_num;
+    if (reactor->event_num == object->max_fd_num)
+    {
+        swWarn("too many connection, more than %d", object->max_fd_num);
+        return SW_ERR;
+    }
 
-	if (swReactor_event_read(fdtype))
-	{
-		object->events[cur].events |= POLLIN;
-	}
-	if (swReactor_event_write(fdtype))
-	{
-		object->events[cur].events |= POLLOUT;
-	}
-	if (swReactor_event_error(fdtype))
-	{
-		object->events[cur].events |= POLLHUP;
-	}
-	reactor->event_num++;
-	return SW_OK;
+    swTrace("fd=%d, fdtype=%d", fd, fdtype);
+
+    object->fds[cur].fdtype = swReactor_fdtype(fdtype);
+    object->events[cur].fd = fd;
+    object->events[cur].events = 0;
+
+    if (swReactor_event_read(fdtype))
+    {
+        object->events[cur].events |= POLLIN;
+    }
+    if (swReactor_event_write(fdtype))
+    {
+        object->events[cur].events |= POLLOUT;
+    }
+    if (swReactor_event_error(fdtype))
+    {
+        object->events[cur].events |= POLLHUP;
+    }
+    reactor->event_num++;
+    return SW_OK;
 }
 
 static int swReactorPoll_set(swReactor *reactor, int fd, int fdtype)
 {
 	uint32_t i;
 	swReactorPoll *object = reactor->object;
+
+	swTrace("fd=%d, fdtype=%d", fd, fdtype);
 
 	for (i = 0; i < reactor->event_num; i++)
 	{
@@ -143,13 +147,15 @@ static int swReactorPoll_del(swReactor *reactor, int fd)
 	uint32_t i;
 	swReactorPoll *object = reactor->object;
 
+	swTrace("fd=%d", fd);
+
 	for (i = 0; i < reactor->event_num; i++)
 	{
 		//找到了
 		if (object->events[i].fd == fd)
 		{
 			uint32_t old_num = reactor->event_num;
-			reactor->event_num--;;
+			reactor->event_num = reactor->event_num <= 0 ? 0 : reactor->event_num - 1;
 			for (; i < old_num; i++)
 			{
 				if (i == old_num)
@@ -164,26 +170,36 @@ static int swReactorPoll_del(swReactor *reactor, int fd)
 					object->events[i] = object->events[i + 1];
 				}
 			}
-			close(fd);
 			return SW_OK;
 		}
 	}
 	return SW_ERR;
 }
 
-static int swReactorPoll_wait(swReactor *reactor, struct timeval *_timeo)
+static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
 {
-	swReactorPoll *object = reactor->object;
-	swDataHead event;
-	swReactor_handle handle;
+    swReactorPoll *object = reactor->object;
+    swEvent event;
+    swReactor_handle handle;
 
-	struct timeval timeo = *_timeo;
-	int ret;
-	int i;
+    int ret, msec, i;
+
+    if (reactor->timeout_msec == 0)
+    {
+        if (timeo == NULL)
+        {
+            reactor->timeout_msec = -1;
+        }
+        else
+        {
+            reactor->timeout_msec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
+        }
+    }
 
 	while (SwooleG.running > 0)
 	{
-		ret = poll(object->events, reactor->event_num, timeo.tv_sec * 1000 + timeo.tv_usec / 1000);
+	    msec = reactor->timeout_msec;
+		ret = poll(object->events, reactor->event_num, msec);
 		if (ret < 0)
 		{
 			if (swReactor_error(reactor) < 0)
@@ -194,7 +210,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *_timeo)
 		}
 		else if (ret == 0)
 		{
-			if(reactor->onTimeout != NULL)
+			if (reactor->onTimeout != NULL)
 			{
 				reactor->onTimeout(reactor);
 			}
@@ -215,27 +231,33 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *_timeo)
 					ret = handle(reactor, &event);
 					if (ret < 0)
 					{
-						swWarn("poll[POLLIN] handler failed. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
-					}
-				}
-				//error
-				if (object->events[i].revents & (POLLHUP | POLLERR))
-				{
-					handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
-					ret = handle(reactor, &event);
-					if (ret < 0)
-					{
-						swWarn("poll[POLLERR] handler failed. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
+						swWarn("poll[POLLIN] handler failed. fd=%d. Error: %s[%d]", event.fd, strerror(errno), errno);
 					}
 				}
 				//out
 				if (object->events[i].revents & POLLOUT)
 				{
-					handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
-					ret = handle(reactor, &event);
-					if (ret < 0)
+					if (event.fd > 0)
 					{
-						swWarn("poll[POLLOUT] handler failed. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno, strerror(errno), errno);
+						handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
+						ret = handle(reactor, &event);
+						if (ret < 0)
+						{
+							swWarn("poll[POLLOUT] handler failed. fd=%d. Error: %s[%d]", event.fd, strerror(errno), errno);
+						}
+					}
+				}
+				//error
+				if (object->events[i].revents & (POLLHUP | POLLERR))
+				{
+					if (event.fd > 0)
+					{
+						handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, event.type);
+						ret = handle(reactor, &event);
+						if (ret < 0)
+						{
+							swWarn("poll[POLLERR] handler failed. fd=%d. Error: %s[%d]", event.fd, strerror(errno), errno);
+						}
 					}
 				}
 			}

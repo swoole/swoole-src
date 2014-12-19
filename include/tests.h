@@ -1,8 +1,17 @@
 /*
- * tests.h
- *
- *  Created on: 2013-4-22
- *      Author: htf
+ +----------------------------------------------------------------------+
+ | Swoole                                                               |
+ +----------------------------------------------------------------------+
+ | This source file is subject to version 2.0 of the Apache license,    |
+ | that is bundled with this package in the file LICENSE, and is        |
+ | available through the world-wide-web at the following url:           |
+ | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+ | If you did not receive a copy of the Apache2.0 license and are unable|
+ | to obtain it through the world-wide-web, please send a note to       |
+ | license@php.net so we can mail you a copy immediately.               |
+ +----------------------------------------------------------------------+
+ | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ +----------------------------------------------------------------------+
  */
 
 #ifndef SW_TESTS_H_
@@ -46,9 +55,18 @@ swUnitTest(type_test1);
 swUnitTest(aio_test);
 swUnitTest(aio_test2);
 
+swUnitTest(ws_test1);
+
+swUnitTest(http_test1);
+swUnitTest(http_test2);
+
+swUnitTest(heap_test1);
+
 swUnitTest(rbtree_test);
 void p_str(void *str);
 
 swUnitTest(pool_thread);
+
+swUnitTest(ringbuffer_test1);
 
 #endif /* SW_TESTS_H_ */

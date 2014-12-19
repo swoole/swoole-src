@@ -15,7 +15,7 @@
 */
 
 #include "swoole.h"
-#include "memory.h"
+#include <sys/shm.h>
 
 void* sw_shm_malloc(size_t size)
 {
@@ -63,6 +63,7 @@ void sw_shm_free(void *ptr)
 	swShareMemory *object = ptr - sizeof(swShareMemory);
 #ifdef SW_DEBUG
 	char check = *(char *)(ptr + object->size); //尝试访问
+	swTrace("check:%c\n", check);
 #endif
 	swShareMemory_mmap_free(object);
 }
@@ -72,6 +73,7 @@ void* sw_shm_realloc(void *ptr, size_t new_size)
 	swShareMemory *object = ptr - sizeof(swShareMemory);
 #ifdef SW_DEBUG
 	char check = *(char *)(ptr + object->size); //尝试访问
+	swTrace("check:%c\n", check);
 #endif
 	void *new_ptr;
 	new_ptr = sw_shm_malloc(new_size);
@@ -142,7 +144,8 @@ void *swShareMemory_sysv_create(swShareMemory *object, int size, int key)
 	{
 		key = IPC_PRIVATE;
 	}
-	if ((shmid = shmget(key, size, SHM_R | SHM_W | IPC_CREAT)) < 0)
+	//SHM_R | SHM_W |
+	if ((shmid = shmget(key, size, IPC_CREAT)) < 0)
 	{
 		swWarn("shmget() failed. Error: %s[%d]", strerror(errno), errno);
 		return NULL;

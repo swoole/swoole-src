@@ -65,8 +65,15 @@ int swPipeBase_create(swPipe *p, int blocking)
 
 static int swPipeBase_read(swPipe *p, void *data, int length)
 {
-	swPipeBase *this = p->object;
-	return read(this->pipes[0], data, length);
+	swPipeBase *object = p->object;
+	if (p->blocking == 1 && p->timeout > 0)
+	{
+		if (swSocket_wait(object->pipes[0], p->timeout * 1000, SW_EVENT_READ) < 0)
+		{
+			return SW_ERR;
+		}
+	}
+	return read(object->pipes[0], data, length);
 }
 
 static int swPipeBase_write(swPipe *p, void *data, int length)

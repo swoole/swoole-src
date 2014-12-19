@@ -7,8 +7,9 @@ if(!$client->connect('127.0.0.1', 9501))
 function help()
 {
 	echo "get eg: php ".__FILE__." get key".PHP_EOL;
-	echo "set eg: php ".__FILE__." get key value".PHP_EOL;
-	echo "det eg: php ".__FILE__." del key".PHP_EOL;
+	echo "set eg: php ".__FILE__." set key value".PHP_EOL;
+	echo "del eg: php ".__FILE__." del key".PHP_EOL;
+	echo "task eg: php ".__FILE__." task key".PHP_EOL;
 	exit();
 }
 if($argc < 3) {
@@ -28,4 +29,4 @@ if(empty($sends)) {
 }
 $client->send(json_encode($sends));
 $data = $client->recv();
-var_dump($data);
+echo $data . PHP_EOL;

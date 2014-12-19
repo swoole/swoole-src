@@ -18,26 +18,29 @@
 #include "tests.h"
 #include "uthash.h"
 
-typedef struct _swHashTable_FdInfo
+typedef struct
 {
 	swUnitTest_Func func;
 	char *comment;
 	int run_times;
 	char *key;
-	UT_hash_handle hh;
-} swHashTable_unitTst;
+} swHashTable_unitTest;
 
-static swHashTable_unitTst *unitTest_ht;
+static swHashMap *utmap = NULL;
 
 void _swUnitTest_setup(swUnitTest_Func func, char *func_name, int run_times, char *comment)
 {
-	swHashTable_unitTst *u;
-	u = (swHashTable_unitTst *) malloc(sizeof(swHashTable_unitTst));
+    if (!utmap)
+    {
+        utmap = swHashMap_new(32, free);
+    }
+	swHashTable_unitTest *u;
+	u = (swHashTable_unitTest *) malloc(sizeof(swHashTable_unitTest));
 	u->key = func_name;
 	u->func = func;
 	u->run_times = run_times;
 	u->comment = comment;
-	HASH_ADD_STR(unitTest_ht, key, u);
+	swHashMap_add(utmap, func_name, strlen(func_name), u, NULL);
 }
 
 int swUnitTest_run(swUnitTest *object)
@@ -46,31 +49,39 @@ int swUnitTest_run(swUnitTest *object)
 	int argc = object->argc;
 	char **argv = object->argv;
 	int ret;
+	char *key;
 
 	swUnitTest_Func func;
-	swHashTable_unitTst *tmp;
+	swHashTable_unitTest *tmp;
+
 	int i = 0;
 
-	if (argc < 2)
-	{
-		printf("Please enter %s unitTest_name\n", argv[0]);
-		for (tmp = unitTest_ht; tmp != NULL; tmp = tmp->hh.next)
-		{
-			printf("#%d.\t%s: %s\n", ++i, tmp->key, tmp->comment);
-		}
-		return 0;
-	}
+    if (argc < 2)
+    {
+        printf("Please enter %s unitTest_name\n", argv[0]);
 
-	for (tmp = unitTest_ht; tmp != NULL; tmp = tmp->hh.next)
-	{
-		if (strncmp(argv[1], tmp->key, max_len) == 0)
-		{
-			func = tmp->func;
-			printf("running\n");
-			ret = func(object);
+        while (1)
+        {
+            tmp = swHashMap_each(utmap, &key);
+            if (!tmp)
+                break;
+            printf("#%d.\t%s: %s\n", ++i, tmp->key, tmp->comment);
+        }
+        return 0;
+    }
 
-		}
-	}
+	do
+    {
+        tmp = swHashMap_each(utmap, &key);
+        if (strncmp(argv[1], key, max_len) == 0)
+        {
+            func = tmp->func;
+            printf("running\n");
+            ret = func(object);
+            break;
+        }
+    } while (tmp);
+
 	printf("finish\n");
 	return ret;
 }

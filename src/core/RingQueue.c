@@ -30,6 +30,7 @@ int swRingQueue_init(swRingQueue *queue, int buffer_size)
 	queue->data = (void **)sw_calloc(queue->size, sizeof(void*));
 	if (queue->data == NULL)
 	{
+		sw_free(queue->flags);
 		return -1;
 	}
 	queue->head = 0;

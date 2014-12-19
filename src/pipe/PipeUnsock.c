@@ -15,6 +15,7 @@
 */
 
 #include "swoole.h"
+#include "buffer.h"
 #include <sys/ipc.h>
 #include <sys/msg.h>
 
@@ -25,63 +26,86 @@ static int swPipeUnsock_close(swPipe *p);
 
 typedef struct _swPipeUnsock
 {
-	int socks[2];
+    int socks[2];
 } swPipeUnsock;
 
 static int swPipeUnsock_getFd(swPipe *p, int isWriteFd)
 {
-	swPipeUnsock *this = p->object;
-	return isWriteFd == 1 ? this->socks[1] : this->socks[0];
+    swPipeUnsock *this = p->object;
+    return isWriteFd == 1 ? this->socks[1] : this->socks[0];
 }
 
 static int swPipeUnsock_close(swPipe *p)
 {
-	int ret1, ret2;
-	swPipeUnsock *this = p->object;
-	ret1 = close(this->socks[0]);
-	ret2 = close(this->socks[1]);
-	sw_free(this);
-	return 0-ret1-ret2;
+    int ret1, ret2;
+    swPipeUnsock *object = p->object;
+
+    ret1 = close(object->socks[0]);
+    ret2 = close(object->socks[1]);
+
+    swBuffer_free(p->master_buffer);
+    swBuffer_free(p->worker_buffer);
+
+    sw_free(object);
+
+    return 0 - ret1 - ret2;
 }
 
 int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
 {
-	int ret;
-	swPipeUnsock *object = sw_malloc(sizeof(swPipeUnsock));
-	if (object == NULL)
-	{
-		swWarn("malloc() failed.");
-		return SW_ERR;
-	}
-	p->blocking = blocking;
-	ret = socketpair(AF_UNIX, protocol, 0, object->socks);
-	if (ret < 0)
-	{
-		swWarn("socketpair() failed. Error: %s [%d]", strerror(errno), errno);
-		return SW_ERR;
-	}
-	else
-	{
-		//Nonblock
-		if (blocking == 0)
-		{
-			swSetNonBlock(object->socks[0]);
-			swSetNonBlock(object->socks[1]);
-		}
+    int ret;
+    swPipeUnsock *object = sw_malloc(sizeof(swPipeUnsock));
+    if (object == NULL)
+    {
+        swWarn("malloc() failed.");
+        return SW_ERR;
+    }
+    p->blocking = blocking;
+    ret = socketpair(AF_UNIX, protocol, 0, object->socks);
+    if (ret < 0)
+    {
+        swWarn("socketpair() failed. Error: %s [%d]", strerror(errno), errno);
+        return SW_ERR;
+    }
+    else
+    {
+        swBuffer *buffer;
+        //Nonblock
+        if (blocking == 0)
+        {
+            swSetNonBlock(object->socks[0]);
+            swSetNonBlock(object->socks[1]);
+        }
 
-		int sbsize = SwooleG.unixsock_buffer_size;
-		setsockopt(object->socks[1], SOL_SOCKET, SO_SNDBUF, &sbsize, sizeof(sbsize));
-		setsockopt(object->socks[1], SOL_SOCKET, SO_RCVBUF, &sbsize, sizeof(sbsize));
-		setsockopt(object->socks[0], SOL_SOCKET, SO_SNDBUF, &sbsize, sizeof(sbsize));
-		setsockopt(object->socks[0], SOL_SOCKET, SO_RCVBUF, &sbsize, sizeof(sbsize));
+        buffer = swBuffer_new(sizeof(swEventData));
+        if (!buffer)
+        {
+            swWarn("create worker buffer failed.");
+            return SW_ERR;
+        }
+        p->worker_buffer = buffer;
 
-		p->object = object;
-		p->read = swPipeUnsock_read;
-		p->write = swPipeUnsock_write;
-		p->getFd = swPipeUnsock_getFd;
-		p->close = swPipeUnsock_close;
-	}
-	return 0;
+        buffer = swBuffer_new(sizeof(swEventData));
+        if (!buffer)
+        {
+            swWarn("create master buffer failed.");
+            return SW_ERR;
+        }
+        p->master_buffer = buffer;
+
+        int sbsize = SwooleG.unixsock_buffer_size;
+        setsockopt(object->socks[1], SOL_SOCKET, SO_SNDBUF, &sbsize, sizeof(sbsize));
+        setsockopt(object->socks[1], SOL_SOCKET, SO_RCVBUF, &sbsize, sizeof(sbsize));
+        setsockopt(object->socks[0], SOL_SOCKET, SO_SNDBUF, &sbsize, sizeof(sbsize));
+        setsockopt(object->socks[0], SOL_SOCKET, SO_RCVBUF, &sbsize, sizeof(sbsize));
+
+        p->object = object;
+        p->read = swPipeUnsock_read;
+        p->write = swPipeUnsock_write;
+        p->getFd = swPipeUnsock_getFd;
+        p->close = swPipeUnsock_close;
+    }
+    return 0;
 }
 
 static int swPipeUnsock_read(swPipe *p, void *data, int length)
@@ -91,6 +115,5 @@ static int swPipeUnsock_read(swPipe *p, void *data, int length)
 
 static int swPipeUnsock_write(swPipe *p, void *data, int length)
 {
-	return write(((swPipeUnsock *) p->object)->socks[1], data, length);
+    return write(((swPipeUnsock *) p->object)->socks[1], data, length);
 }
-

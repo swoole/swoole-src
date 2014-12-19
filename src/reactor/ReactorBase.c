@@ -16,122 +16,121 @@
 
 #include "swoole.h"
 
-int swReactor_accept(swReactor *reactor, swDataHead *event)
-{
-	swEventConnect conn_ev;
-	conn_ev.from_id = event->from_id;
-	conn_ev.serv_fd = event->fd;
-	conn_ev.addrlen = sizeof(conn_ev.addr);
-	bzero(&conn_ev.addr, conn_ev.addrlen);
+static void swReactor_onTimeout_and_Finish(swReactor *reactor);
+static void swReactor_onTimeout(swReactor *reactor);
+static void swReactor_onFinish(swReactor *reactor);
 
-	conn_ev.conn_fd = accept(conn_ev.serv_fd, (struct sockaddr *) &conn_ev.addr, &conn_ev.addrlen);
-	if (conn_ev.conn_fd < 0)
-	{
-		swTrace("[swReactorEpollWait]accept fail\n");
-		return -1;
-	}
-	swSetNonBlock(conn_ev.conn_fd);
-	reactor->add(reactor, conn_ev.conn_fd, SW_FD_TCP);
-	return conn_ev.conn_fd;
-}
-
-SWINLINE int swReactor_error(swReactor *reactor)
+int swReactor_auto(swReactor *reactor, int max_event)
 {
-	switch (errno)
-	{
-	case EINTR:
-		return SW_OK;
-	}
-	return SW_ERR;
-}
+    int ret;
 
-SWINLINE int swReactor_fdtype(int fdtype)
-{
-	return fdtype & (~SW_EVENT_READ) & (~SW_EVENT_WRITE) & (~SW_EVENT_ERROR);
-}
+    //event less than SW_REACTOR_MINEVENTS, use poll/select
+    if (max_event <= SW_REACTOR_MINEVENTS)
+    {
+#ifdef SW_MAINREACTOR_USE_POLL
+        ret = swReactorPoll_create(reactor, SW_REACTOR_MINEVENTS);
+#else
+        ret = swReactorSelect_create(reactor);
+#endif
+    }
+    //use epoll or kqueue
+    else
+    {
+#ifdef HAVE_EPOLL
+        ret = swReactorEpoll_create(reactor, max_event);
+#elif defined(HAVE_KQUEUE)
+        ret = swReactorKqueue_create(reactor, max_event);
+#elif defined(SW_MAINREACTOR_USE_POLL)
+        ret = swReactorPoll_create(reactor, max_event);
+#else
+        ret = swReactorSelect_create(SwooleG.main_reactor);
+#endif
+    }
 
-SWINLINE int swReactor_event_read(int fdtype)
-{
-	return (fdtype < SW_EVENT_DEAULT) || (fdtype & SW_EVENT_READ);
-}
+    reactor->onFinish = swReactor_onFinish;
+    reactor->onTimeout = swReactor_onTimeout;
 
-SWINLINE int swReactor_event_write(int fdtype)
-{
-	return fdtype & SW_EVENT_WRITE;
-}
-
-SWINLINE int swReactor_event_error(int fdtype)
-{
-	return fdtype & SW_EVENT_ERROR;
+    return ret;
 }
 
 swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype)
 {
-	if (event_type == SW_EVENT_WRITE)
-	{
-		//默认可写回调函数SW_FD_WRITE
-		return (reactor->write_handle[fdtype] != NULL) ? reactor->write_handle[fdtype] : reactor->handle[SW_FD_WRITE];
-	}
-	if (event_type == SW_EVENT_ERROR)
-	{
-		//默认关闭回调函数SW_FD_CLOSE
-		return (reactor->error_handle[fdtype] != NULL) ? reactor->error_handle[fdtype] : reactor->handle[SW_FD_CLOSE];
-	}
-	return reactor->handle[fdtype];
-}
-
-/**
- * 自动适配reactor
- */
-int swReactor_auto(swReactor *reactor, int max_event)
-{
-	int ret;
-#ifdef HAVE_EPOLL
-	ret = swReactorEpoll_create(reactor, max_event);
-#elif defined(HAVE_KQUEUE)
-	ret = swReactorKqueue_create(reactor, max_event);
-#elif defined(SW_MAINREACTOR_USE_POLL)
-	ret = swReactorPoll_create(reactor, max_event);
-#else
-	ret = swReactorSelect_create(SwooleG.main_reactor)
-#endif
-	return ret;
+    if (event_type == SW_EVENT_WRITE)
+    {
+        return (reactor->write_handle[fdtype] != NULL) ? reactor->write_handle[fdtype] : reactor->handle[SW_FD_WRITE];
+    }
+    if (event_type == SW_EVENT_ERROR)
+    {
+        return (reactor->error_handle[fdtype] != NULL) ? reactor->error_handle[fdtype] : reactor->handle[SW_FD_CLOSE];
+    }
+    return reactor->handle[fdtype];
 }
 
 int swReactor_setHandle(swReactor *reactor, int _fdtype, swReactor_handle handle)
 {
-	int fdtype = swReactor_fdtype(_fdtype);
+    int fdtype = swReactor_fdtype(_fdtype);
 
-	if (fdtype >= SW_MAX_FDTYPE)
-	{
-		swWarn("fdtype > SW_MAX_FDTYPE[%d]", SW_MAX_FDTYPE);
-		return SW_ERR;
-	}
-	else
-	{
-		if (swReactor_event_read(_fdtype))
-		{
-			reactor->handle[fdtype] = handle;
-		}
-		else if (swReactor_event_write(_fdtype))
-		{
-			reactor->write_handle[fdtype] = handle;
-		}
-		else if (swReactor_event_error(_fdtype))
-		{
-			reactor->error_handle[fdtype] = handle;
-		}
-		else
-		{
-			swWarn("unknow fdtype");
-			return SW_ERR;
-		}
-	}
-	return SW_OK;
+    if (fdtype >= SW_MAX_FDTYPE)
+    {
+        swWarn("fdtype > SW_MAX_FDTYPE[%d]", SW_MAX_FDTYPE);
+        return SW_ERR;
+    }
+    else
+    {
+        if (swReactor_event_read(_fdtype))
+        {
+            reactor->handle[fdtype] = handle;
+        }
+        else if (swReactor_event_write(_fdtype))
+        {
+            reactor->write_handle[fdtype] = handle;
+        }
+        else if (swReactor_event_error(_fdtype))
+        {
+            reactor->error_handle[fdtype] = handle;
+        }
+        else
+        {
+            swWarn("unknow fdtype");
+            return SW_ERR;
+        }
+    }
+    return SW_OK;
 }
 
-int swReactor_receive(swReactor *reactor, swEvent *event)
+/**
+ * execute when reactor timeout and reactor finish
+ */
+static void swReactor_onTimeout_and_Finish(swReactor *reactor)
 {
-	swEventData data;
-	return swRead(event->fd, data.data, SW_BUFFER_SIZE);
+    //check timer
+    if (reactor->check_timer)
+    {
+        SwooleG.timer.select(&SwooleG.timer);
+    }
+    if (SwooleG.serv && swIsMaster())
+    {
+        swoole_update_time();
+    }
+}
+
+static void swReactor_onTimeout(swReactor *reactor)
+{
+    swReactor_onTimeout_and_Finish(reactor);
+}
+
+static void swReactor_onFinish(swReactor *reactor)
+{
+    //client exit
+    if (SwooleG.serv == NULL && reactor->event_num == 0)
+    {
+        SwooleG.running = 0;
+    }
+    //check signal
+    if (reactor->singal_no)
+    {
+        swSignal_callback(reactor->singal_no);
+        reactor->singal_no = 0;
+    }
+    swReactor_onTimeout_and_Finish(reactor);
 }

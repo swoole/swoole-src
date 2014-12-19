@@ -1,15 +1,22 @@
 <?php
 $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC); //异步非阻塞
-
-
+$client->finish = false;
 $client->on("connect", function(swoole_client $cli) {
     $cli->send("GET / HTTP/1.1\r\n\r\n");
+    //$cli->sendfile(__DIR__.'/test.txt');
+    //$cli->_count = 0;
 });
 
 $client->on("receive", function(swoole_client $cli, $data){
     echo "Receive: $data";
-	usleep(1000000);
-	$cli->send(str_repeat('A', 100)."\n");
+    $cli->_count++;
+    if ($cli->_count > 10)
+    {
+        $cli->close();
+        return;
+    }
+    $cli->send(str_repeat('A', 100)."\n");
+    $cli->finish = true;
 });
 
 $client->on("error", function(swoole_client $cli){
@@ -17,11 +24,18 @@ $client->on("error", function(swoole_client $cli){
 });
 
 $client->on("close", function(swoole_client $cli){
-    echo "Connection close";
+    echo "Connection close\n";
 });
 
-
-$client->connect('localhost', 9501, 0.5);
+$client->connect('www.baidu.com', 80);
+swoole_timer_after(1000, function () use ($client) {
+    if ($client->finish) {
+        return;
+    } else {
+        echo "socket timeout\n";
+        $client->close();
+    }
+});
 
 echo "connect to 127.0.0.1:9501\n";
 //for PHP5.3-

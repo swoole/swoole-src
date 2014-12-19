@@ -24,8 +24,13 @@ class FixedHeaderServer
         $this->serv->send($fd, $resp);
         $this->current_fd = '';
     }
-
+    
     function onReceive($serv, $fd, $from_id, $data)
+    {
+    	echo "package".substr($data, -4, 4)." length=". (strlen($data) - 2)."\n";
+    }
+
+    function onReceive_unpack_php($serv, $fd, $from_id, $data)
     {
         if (empty($this->buffer[$fd]))
         {
@@ -75,13 +80,13 @@ class FixedHeaderServer
 		
         $this->serv->set(array(
             'max_request' => 0,
-			'dispatch_mode' => 3,
+// 			'dispatch_mode' => 3,
 			'open_length_check' => true,
-			'package_max_length' => 8192000,
-			'package_length_type' => 'N', //see php pack()
+			'package_max_length' => 81920,
+			'package_length_type' => 'n', //see php pack()
 			'package_length_offset' => 0,
-			'package_body_offset' => 0,
-			'worker_num' => 10,
+			'package_body_offset' => 2,
+			'worker_num' => 2,
 		));
 
         $this->serv->on('receive', array($this, 'onReceive'));

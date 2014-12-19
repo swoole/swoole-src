@@ -59,6 +59,7 @@ swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint32_t siz
 			sw_free(trunk);
 			return NULL;
 		}
+		trunk->size = size;
 		trunk->store.ptr = buf;
 	}
 
@@ -81,7 +82,7 @@ swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint32_t siz
 /**
  * pop the head trunk
  */
-SWINLINE void swBuffer_pop_trunk(swBuffer *buffer, volatile swBuffer_trunk *trunk)
+void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk)
 {
 	//only one trunk
 	if (trunk->next == NULL)
@@ -102,8 +103,7 @@ SWINLINE void swBuffer_pop_trunk(swBuffer *buffer, volatile swBuffer_trunk *trun
 	{
 		sw_free(trunk->store.ptr);
 	}
-	void *will_free_trunk = (void *) trunk;
-	sw_free(will_free_trunk);
+	sw_free(trunk);
 }
 
 /**
@@ -132,62 +132,21 @@ int swBuffer_free(swBuffer *buffer)
  */
 int swBuffer_append(swBuffer *buffer, void *data, uint32_t size)
 {
-	swBuffer_trunk *trunk = swBuffer_new_trunk(buffer, SW_TRUNK_DATA, size);
-	if (trunk == NULL)
-	{
-		return SW_ERR;
-	}
+    swBuffer_trunk *trunk = swBuffer_new_trunk(buffer, SW_TRUNK_DATA, size);
+    if (trunk == NULL)
+    {
+        return SW_ERR;
+    }
 
-	buffer->length += size;
-	trunk->length = size;
+    buffer->length += size;
+    trunk->length = size;
 
-	memcpy(trunk->store.ptr, data, trunk->length);
+    memcpy(trunk->store.ptr, data, trunk->length);
 
-	swTraceLog(SW_TRACE_BUFFER, "trunk_n=%d|size=%d|trunk_len=%d|trunk=%p", buffer->trunk_num, size,
-			trunk->length, trunk);
+    swTraceLog(SW_TRACE_BUFFER, "trunk_n=%d|size=%d|trunk_len=%d|trunk=%p", buffer->trunk_num, size,
+            trunk->length, trunk);
 
-	return SW_OK;
-}
-
-/**
- * send buffer to client
- */
-int swBuffer_send(swBuffer *buffer, int fd)
-{
-	int ret, sendn;
-	volatile swBuffer_trunk *trunk = swBuffer_get_trunk(buffer);
-	sendn = trunk->length - trunk->offset;
-
-	if (sendn == 0)
-	{
-		swBuffer_pop_trunk(buffer, trunk);
-		return SW_CONTINUE;
-	}
-	ret = send(fd, trunk->store.ptr + trunk->offset, sendn, 0);
-	//printf("BufferOut: reactor=%d|sendn=%d|ret=%d|trunk->offset=%d|trunk_len=%d\n", reactor->id, sendn, ret, trunk->offset, trunk->length);
-	if (ret < 0)
-	{
-		switch (swConnection_error(fd, errno))
-		{
-		case SW_ERROR:
-			swWarn("send to fd[%d] failed. Error: %s[%d]", fd, strerror(errno), errno);
-			return SW_OK;
-		case SW_CLOSE:
-			return SW_CLOSE;
-		default:
-			return SW_CONTINUE;
-		}
-	}
-	//trunk full send
-	else if(ret == sendn || sendn == 0)
-	{
-		swBuffer_pop_trunk(buffer, trunk);
-	}
-	else
-	{
-		trunk->offset += ret;
-	}
-	return SW_CONTINUE;
+    return SW_OK;
 }
 
 /**

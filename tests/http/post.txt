@@ -1,0 +1,9 @@
+POST /sn/index.php HTTP/1.1
+Accept: */*
+Accept-Language: zh-cn
+host: localhost
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 12
+Connection: close
+
+sn=123&n=asa

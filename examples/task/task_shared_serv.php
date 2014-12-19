@@ -58,15 +58,18 @@ function my_onWorkerStop($serv, $worker_id)
 
 function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 {
-    $cmd = trim($data);
+    $data = json_decode(trim($data), TRUE);
+    $cmd = $data['cmd'];
     if($cmd == "reload") 
     {
         $serv->reload($serv);
     }
     elseif($cmd == "task") 
     {
-        $task_id = $serv->task("hello world", 0);
-        echo "Dispath AsyncTask: id=$task_id\n";
+        $task_id = $serv->task($data, 0);
+        $info = "Dispath AsyncTask: id=" . $task_id;
+        $serv->send($fd, $info);
+        echo $info . "\n";
     }
     elseif($cmd == "info") 
     {
@@ -102,21 +105,19 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     }
     else 
     {
-        $serv->send($fd, 'Server Receive: '.$data.PHP_EOL, $from_id);
-                
-        $data = json_decode($data, true);
+        $serv->send($fd, 'Server Receive: ' . json_encode($data), $from_id);
         if(isset($data['cmd'])) {
             switch ($data['cmd']) {
                 case 'get':
                     $key = $data['key'];
-                    $result =  $serv->taskwait(json_encode($data), 0.5, 0);
-                    $serv->send($fd, "get {$key}:". $result.PHP_EOL);
+                    $res = $serv->taskwait($data, 0.5, 0);
+                    $serv->send($fd, PHP_EOL . "get " . $res['key'] . ": " . $res['val']);
                     break;
                 case "set":
-                    $serv->task(json_encode($data), 0);
+                    $serv->task($data, 0);
                     break;
                 case "del":
-                    $serv->task(json_encode($data), 0);
+                    $serv->task($data, 0);
                     break;
                 case "reload":
                     break;
@@ -135,13 +136,12 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
 {
     static $datas = array();
-    $data = json_decode($data, true);
     if(isset($data['cmd'])) {
         switch ($data['cmd']) {
             case 'get':
                 $key = $data['key'];
-                $result = isset($datas[$key]) ? $datas[$key] : "";
-                $serv->finish($result);
+                $val = isset($datas[$key]) ? $datas[$key] : "";
+                $serv->finish(array('key'=>$key, 'val' => $val));
                 break;
             case "set":
                 $key = $data['key'];
@@ -155,12 +155,14 @@ function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
                     unset($datas[$key]);
                 }
                 break;
+            case "task":
+                $key = $data['key'];
+                echo "Do task " . $key . PHP_EOL;
+                break;
         }
     }
-
-    
-    //echo "AsyncTask[PID=".posix_getpid()."]: task_id=$task_id.".PHP_EOL;
-    //$serv->finish("OK");
+    echo "AsyncTask[PID=".posix_getpid()."]: task_id=$task_id.".PHP_EOL;
+    // $serv->finish("OK");
 }
 
 function my_onFinish(swoole_server $serv, $data)

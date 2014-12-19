@@ -1,5 +1,5 @@
 <?php
-$process = new swoole_process('callback_function', true);
+$process = new swoole_process('child_sync', true);
 $pid = $process->start();
 
 

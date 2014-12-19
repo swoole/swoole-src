@@ -18,7 +18,6 @@
 
 #ifdef HAVE_EVENTFD
 #include <sys/eventfd.h>
-#include <sys/poll.h>
 
 static int swPipeEventfd_read(swPipe *p, void *data, int length);
 static int swPipeEventfd_write(swPipe *p, void *data, int length);
@@ -83,19 +82,15 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout)
 
 static int swPipeEventfd_read(swPipe *p, void *data, int length)
 {
-	int ret;
+	int ret = -1;
 	swPipeEventfd *object = p->object;
 
 	//eventfd not support socket timeout
 	if (p->blocking == 1 && p->timeout > 0)
 	{
-		struct pollfd event;
-		event.fd = object->event_fd;
-		event.events = POLLIN;
-		ret = poll(&event, 1, p->timeout * 1000);
-		if (ret <= 0)
+		if (swSocket_wait(object->event_fd, p->timeout * 1000, SW_EVENT_READ) < 0)
 		{
-			return ret;
+			return SW_ERR;
 		}
 	}
 
@@ -113,26 +108,21 @@ static int swPipeEventfd_read(swPipe *p, void *data, int length)
 
 static int swPipeEventfd_write(swPipe *p, void *data, int length)
 {
-	int ret;
-	swPipeEventfd *this = p->object;
-	while (1)
-	{
-		ret = write(this->event_fd, data, sizeof(uint64_t));
-		if (ret < 0)
-		{
-			if (errno == EINTR)
-			{
-				continue;
-			}
-//			else if (errno == EAGAIN)
-//			{
-//				usleep(1);
-//				continue;
-//			}
-		}
-		break;
-	}
-	return ret;
+    int ret;
+    swPipeEventfd *this = p->object;
+    while (1)
+    {
+        ret = write(this->event_fd, data, sizeof(uint64_t));
+        if (ret < 0)
+        {
+            if (errno == EINTR)
+            {
+                continue;
+            }
+        }
+        break;
+    }
+    return ret;
 }
 
 static int swPipeEventfd_getFd(swPipe *p, int isWriteFd)
