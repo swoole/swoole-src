@@ -213,18 +213,20 @@ static int swFactoryProcess_manager_start(swFactory *factory)
         {
             key = serv->message_queue_key + 2;
         }
-
-        if (swProcessPool_create(&SwooleG.task_workers, SwooleG.task_worker_num, serv->task_max_request, key, 1) < 0)
+        int task_num = SwooleG.task_worker_max>0?SwooleG.task_worker_max:SwooleG.task_worker_num;
+        SwooleGS->task_num = SwooleG.task_worker_num;//启动min个.此时的pool->worker_num相当于max
+        if (swProcessPool_create(&SwooleG.task_workers, task_num, serv->task_max_request, key, 1) < 0)
         {
             swWarn("[Master] create task_workers failed.");
             return SW_ERR;
         }
-
-        swTaskWorker_init(&SwooleG.task_workers);
+        
+        swProcessPool *pool = &SwooleG.task_workers;
+        swTaskWorker_init(pool);
 
         int worker_id;
         swWorker *worker;
-        for (i = 0; i < SwooleG.task_worker_num; i++)
+        for (i = 0; i < task_num; i++)
         {
             worker_id = serv->worker_num + i;
             worker = swServer_get_worker(serv, worker_id);
@@ -236,6 +238,9 @@ static int swFactoryProcess_manager_start(swFactory *factory)
             {
                 swServer_pipe_set(serv, worker->pipe_object);
             }
+            pool->workers[i].id = pool->start_id + i;
+            pool->workers[i].pool = pool;
+            pool->workers[i].type = pool->type;
         }
     }
 
@@ -337,6 +342,7 @@ static pid_t swManager_create_user_worker(swServer *serv, swWorker* worker)
 static void swManager_signal_handle(int sig)
 {
     swProcessPool *pool = &(SwooleG.task_workers);
+    swWorker *worker = NULL;
     int i = 0,ret,over_load_num = 0,zero_load_num = 0;
         
     switch (sig)
@@ -345,29 +351,32 @@ static void swManager_signal_handle(int sig)
         SwooleG.running = 0;
         break;
     case SIGALRM:
+        worker = &(pool->workers[SwooleGS->task_num]);
+        if(worker->del == 1&&worker->tasking_num == 0){
+            ret = kill(worker->pid, SIGTERM);
+            if (ret < 0)
+            {
+                    swWarn("[Manager]kill fail.pid=%d. Error: %s [%d]", worker->pid, strerror(errno), errno);
+            }
+             alarm(1);
+             break;
+        }
         for(;i<SwooleGS->task_num;i++)
         {
-            swWorker *worker = swProcessPool_get_worker(pool, i);
-            if(worker->status==SW_WORKER_DEL&&worker->tasking_num==0){
-                ret = kill(pool->workers[i].pid, SIGTERM);
-                if (ret < 0)
-                {
-                        swWarn("[Manager]kill fail.pid=%d. Error: %s [%d]", pool->workers[i].pid, strerror(errno), errno);
-                }
-                continue;
-            }
+            worker = &(pool->workers[i]);
             if(worker->tasking_num >=1)//todo support config
             {
                 over_load_num++;
             }
-            if(worker->tasking_num == 0)
+            else// == 0
             {
                zero_load_num++;
             }
         }
-        if(over_load_num>SwooleG.task_worker_num/2)//todo support config
+        
+        if(over_load_num>SwooleGS->task_num/2&&SwooleGS->task_num<SwooleG.task_worker_max)
         {
-           if(swProcessPool_spawn(&(pool->workers[i])) < 0)
+           if(swProcessPool_spawn(&(pool->workers[SwooleGS->task_num])) < 0)
            {
                 swWarn("swProcessPool_spawn fail");
            }
@@ -376,11 +385,18 @@ static void swManager_signal_handle(int sig)
                 SwooleGS->task_num++;
            }
         }
-        else if(zero_load_num>SwooleG.task_worker_num/2)//todo support config
+        else if(zero_load_num>=SwooleG.task_worker_num&&SwooleGS->task_num>SwooleG.task_worker_num)
         { 
-                  pool->workers[SwooleGS->task_num].status = SW_WORKER_DEL;
-                  SwooleGS->task_num--;
+                  SwooleG.task_recycle_num++;
+                  if(SwooleG.task_recycle_num>3)
+                  {
+                    SwooleGS->task_num--;
+                    worker = &(pool->workers[SwooleGS->task_num]);
+                    worker->del = 1;
+                    SwooleG.task_recycle_num = 0;
+                  }
         }
+        alarm(1);
         break;
     /**
      * reload all workers
@@ -528,15 +544,25 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
                 swWorker *exit_worker = swHashMap_find_int(SwooleG.task_workers.map, pid);
                 if (exit_worker != NULL)
                 {
-                    swProcessPool_spawn(exit_worker);
-                    goto kill_worker;
+                    if(exit_worker->del == 1)//主动回收不重启
+                    {
+                        exit_worker->del = 0;
+                    }
+                    else
+                    {
+                      swProcessPool_spawn(exit_worker);
+                      goto kill_worker;
+                    }
                 }
 
-                exit_worker = swHashMap_find_int(serv->user_worker_map, pid);
-                if (exit_worker != NULL)
+                if(serv->user_worker_map != NULL)
                 {
-                    swManager_create_user_worker(serv, exit_worker);
-                    goto kill_worker;
+                    exit_worker = swHashMap_find_int(serv->user_worker_map, pid);
+                    if (exit_worker != NULL)
+                    {
+                        swManager_create_user_worker(serv, exit_worker);
+                        goto kill_worker;
+                    }
                 }
             }
         }

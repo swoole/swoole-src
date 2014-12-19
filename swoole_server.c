@@ -1820,6 +1820,7 @@ PHP_METHOD(swoole_server, stats)
     add_assoc_long_ex(return_value, SW_STRL("accept_count"), SwooleStats->accept_count);
     add_assoc_long_ex(return_value, SW_STRL("close_count"), SwooleStats->close_count);
     add_assoc_long_ex(return_value, SW_STRL("tasking_num"), SwooleStats->tasking_num);
+    add_assoc_long_ex(return_value, SW_STRL("task_process_num"), SwooleGS->task_num);
 }
 
 PHP_FUNCTION(swoole_server_reload)
@@ -2230,8 +2231,8 @@ PHP_FUNCTION(swoole_server_taskwait)
     {
         task_notify_pipe->timeout = timeout;
         int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
-        swWorker *worker = swProcessPool_get_worker(pool, worker_id);
-        sw_atomic_fetch_sub(worker->tasking_num,1);
+        swWorker *worker = swProcessPool_get_worker(&SwooleG.task_workers, worker_id);
+        sw_atomic_fetch_sub(&worker->tasking_num,1);
         
         if (ret > 0)
         {
