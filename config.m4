@@ -217,6 +217,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/ReactorProcess.c \
         src/network/Worker.c \
         src/network/EventTimer.c \
+        src/network/Socket.c \
         src/os/base.c \
         src/os/linux_aio.c \
         src/os/gcc_aio.c \
