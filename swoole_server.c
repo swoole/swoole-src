@@ -1031,6 +1031,13 @@ PHP_FUNCTION(swoole_server_set)
         convert_to_long(*v);
         SwooleG.task_worker_num = (int) Z_LVAL_PP(v);
     }
+    //task_worker_max
+    if (zend_hash_find(vht, ZEND_STRS("task_worker_max"), (void **)&v) == SUCCESS)
+    {
+	convert_to_long(*v);
+	SwooleG.task_worker_max = (int)Z_LVAL_PP(v);
+    }
+    
     if (zend_hash_find(vht, ZEND_STRS("task_ipc_mode"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
@@ -1813,6 +1820,7 @@ PHP_METHOD(swoole_server, stats)
     add_assoc_long_ex(return_value, SW_STRL("accept_count"), SwooleStats->accept_count);
     add_assoc_long_ex(return_value, SW_STRL("close_count"), SwooleStats->close_count);
     add_assoc_long_ex(return_value, SW_STRL("tasking_num"), SwooleStats->tasking_num);
+    add_assoc_long_ex(return_value, SW_STRL("task_process_num"), SwooleGS->task_num);
 }
 
 PHP_FUNCTION(swoole_server_reload)
@@ -2219,10 +2227,13 @@ PHP_FUNCTION(swoole_server_taskwait)
     //clear history task
     while (read(efd, &notify, sizeof(notify)) > 0);
  
-    if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int) worker_id) >= 0)
+    if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int*) &worker_id) >= 0)
     {
         task_notify_pipe->timeout = timeout;
         int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
+        swWorker *worker = swProcessPool_get_worker(&SwooleG.task_workers, worker_id);
+        sw_atomic_fetch_sub(&worker->tasking_num,1);
+        
         if (ret > 0)
         {
             zval *task_notify_data, *task_notify_unserialized_data;
@@ -2385,7 +2396,7 @@ PHP_FUNCTION(swoole_server_task)
     }
     smart_str_free(&serialized_data);
 
-    if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int) worker_id) >= 0)
+    if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int*) &worker_id) >= 0)
     {
         sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
         RETURN_LONG(buf.info.fd);

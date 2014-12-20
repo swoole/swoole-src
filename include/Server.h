@@ -566,7 +566,8 @@ int swServer_connection_close(swServer *serv, int fd);
 
 static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_id)
 {
-    if (worker_id > serv->worker_num + SwooleG.task_worker_num)
+    int task_num = SwooleG.task_worker_max>0?SwooleG.task_worker_max:SwooleG.task_worker_num;
+    if (worker_id > serv->worker_num + task_num)
     {
         swWarn("worker_id is exceed serv->worker_num + SwooleG.task_worker_num");
         return NULL;

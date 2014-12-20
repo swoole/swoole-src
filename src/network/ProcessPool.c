@@ -35,7 +35,7 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
         pool->use_msgqueue = 1;
         pool->msgqueue_key = msgqueue_key;
     }
-
+    
     pool->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, worker_num * sizeof(swWorker));
     if (pool->workers == NULL)
     {
@@ -79,11 +79,8 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
             pool->workers[i].pipe_master = pipe->getFd(pipe, SW_PIPE_MASTER);
             pool->workers[i].pipe_worker = pipe->getFd(pipe, SW_PIPE_WORKER);
             pool->workers[i].pipe_object = pipe;
+            
         }
-    }
-    for (i = 0; i < pool->worker_num; i++)
-    {
-        pool->workers[i].pool = pool;
     }
     pool->main_loop = swProcessPool_worker_start;
     return SW_OK;
@@ -95,12 +92,8 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
 int swProcessPool_start(swProcessPool *pool)
 {
     int i;
-    for (i = 0; i < pool->worker_num; i++)
+    for (i = 0; i < SwooleG.task_worker_num; i++)
     {
-        pool->workers[i].id = pool->start_id + i;
-        pool->workers[i].pool = pool;
-        pool->workers[i].type = pool->type;
-
         if (swProcessPool_spawn(&(pool->workers[i])) < 0)
         {
             swWarn("swProcessPool_spawn fail");
@@ -113,35 +106,35 @@ int swProcessPool_start(swProcessPool *pool)
 /**
  * dispatch data to worker
  */
-int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int dst_worker_id)
+int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int *dst_worker_id)
 {
     int ret;
 
-    if (dst_worker_id < 0)
+    if (*dst_worker_id < 0)
     {
-        if (!pool->use_msgqueue && pool->dispatch_mode == SW_DISPATCH_QUEUE)
-        {
-            int i, target_worker_id = 0;
-            swWorker *worker;
-            for (i = 0; i < pool->worker_num; i++)
-            {
-                pool->round_id++;
-                target_worker_id = pool->round_id % pool->worker_num;
-                worker = swProcessPool_get_worker(pool, dst_worker_id);
-                if (worker->status == SW_WORKER_IDLE)
-                {
-                    break;
-                }
-            }
-            dst_worker_id = target_worker_id;
-        }
-        else
-        {
-            dst_worker_id = (pool->round_id++) % pool->worker_num;
-        }
+//        if (!pool->use_msgqueue && pool->dispatch_mode == SW_DISPATCH_QUEUE)
+//        {
+//            int i, target_worker_id = 0;
+//            swWorker *worker;
+//            for (i = 0; i < pool->worker_num; i++)
+//            {
+//                pool->round_id++;
+//                target_worker_id = pool->round_id % pool->worker_num;
+//                worker = swProcessPool_get_worker(pool, dst_worker_id);
+//                if (worker->status == SW_WORKER_IDLE)
+//                {
+//                    break;
+//                }
+//            }
+//            dst_worker_id = target_worker_id;
+//        }
+//        else
+//        {
+          *dst_worker_id = sw_atomic_fetch_add(&SwooleGS->task_round,1) % SwooleGS->task_num;
+//        }
     }
 
-    dst_worker_id += pool->start_id;
+    *dst_worker_id += pool->start_id;
 
     struct
     {
@@ -151,7 +144,7 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int dst_worke
 
     if (pool->use_msgqueue)
     {
-        in.mtype = dst_worker_id + 1;
+        in.mtype = *dst_worker_id + 1;
         memcpy(&in.buf, data, sizeof(data->info) + data->info.len);
         ret = pool->queue.in(&pool->queue, (swQueue_data *) &in, sizeof(data->info) + data->info.len);
         if (ret < 0)
@@ -161,11 +154,15 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int dst_worke
     }
     else
     {
-        swWorker *worker = swProcessPool_get_worker(pool, dst_worker_id);
+        swWorker *worker = swProcessPool_get_worker(pool, *dst_worker_id);
         ret = swWorker_send(worker, SW_PIPE_MASTER, data, sizeof(data->info) + data->info.len);
         if (ret < 0)
         {
             swSysError("sendto unix socket failed.");
+        }
+        else
+        {
+            sw_atomic_fetch_add(&worker->tasking_num,1);
         }
     }
     return ret;
@@ -177,20 +174,17 @@ void swProcessPool_shutdown(swProcessPool *pool)
     swWorker *worker;
     SwooleG.running = 0;
 
-    for (i = 0; i < pool->worker_num; i++)
+    for (i = 0; i < SwooleGS->task_num; i++)
     {
-        for (i = 0; i < pool->worker_num; i++)
+        worker = &pool->workers[i];
+        if (kill(worker->pid, SIGTERM) < 0)
         {
-            worker = &pool->workers[i];
-            if (kill(worker->pid, SIGTERM) < 0)
-            {
-                swSysError("kill(%d) failed.", worker->pid);
-                continue;
-            }
-            if (swWaitpid(worker->pid, &status, 0) < 0)
-            {
-                swSysError("waitpid(%d) failed.", worker->pid);
-            }
+            swSysError("kill(%d) failed.", worker->pid);
+            continue;
+        }
+        if (swWaitpid(worker->pid, &status, 0) < 0)
+        {
+            swSysError("waitpid(%d) failed.", worker->pid);
         }
     }
     swProcessPool_free(pool);
@@ -235,6 +229,7 @@ pid_t swProcessPool_spawn(swWorker *worker)
         {
             swHashMap_del_int(pool->map, worker->pid);
         }
+        worker->del = 0;
         worker->pid = pid;
         //insert new process
         swHashMap_add_int(pool->map, pid, worker, NULL);
