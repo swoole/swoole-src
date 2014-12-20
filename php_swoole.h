@@ -314,6 +314,7 @@ PHP_METHOD(swoole_table, unlock);
 
 PHP_METHOD(swoole_http_server, on);
 PHP_METHOD(swoole_http_server, start);
+PHP_METHOD(swoole_http_server, setGlobal);
 
 PHP_METHOD(swoole_http_request, rawcontent);
 
