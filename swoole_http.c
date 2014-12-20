@@ -1433,8 +1433,9 @@ PHP_METHOD(swoole_http_wsresponse, message)
     data.length = 0;
     long fd = 0;
     long opcode = 0;
+    long fin = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|ll", &data.str, &data.length, &fd, &opcode) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|ll", &data.str, &data.length, &fd, &opcode, &fin) == FAILURE)
     {
         return;
     }
@@ -1458,7 +1459,7 @@ PHP_METHOD(swoole_http_wsresponse, message)
     }
 
     swTrace("need send:%s len:%zd\n", data.str, data.length);
-    swString *response = swWebSocket_encode(&data, _opcode);
+    swString *response = swWebSocket_encode(&data, _opcode, (int) fin);
     int ret = swServer_tcp_send(SwooleG.serv, fd, response->str, response->length);
     swTrace("need send:%s len:%zd\n", response->str, response->length);
     swString_free(response);
