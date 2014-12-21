@@ -155,7 +155,7 @@ int swHttpRequest_get_content_length(swHttpRequest *request)
             {
                 if (memcmp(p + 2, SW_STRL("\r\n") - 1) == 0)
                 {
-                    request->header_length = p - buffer->str + request->offset - 1;
+                    request->header_length = p - buffer->str + sizeof("\r\n\r\n") - 1;
                     buffer->offset = request->header_length;
                     return SW_OK;
                 }
