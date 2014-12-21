@@ -307,7 +307,8 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
         zval *header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("header"), 1 TSRMLS_CC);
         add_assoc_stringl_ex(header, header_name, client->current_header_name_len + 1, (char *) at, length, 1);
     }
-    else if (parser->method == PHP_HTTP_POST && memcmp(header_name, ZEND_STRL("content-type")) == 0
+    else if ((parser->method == PHP_HTTP_POST || parser->method == PHP_HTTP_PUT || parser->method == PHP_HTTP_PATCH)
+            && memcmp(header_name, ZEND_STRL("content-type")) == 0
             && memcmp(at, ZEND_STRL("application/x-www-form-urlencoded")) == 0)
     {
         client->request.post_form_urlencoded = 1;
@@ -1138,7 +1139,7 @@ PHP_METHOD(swoole_http_response, end)
 
         if(client->request.method == PHP_HTTP_OPTIONS)
         {
-            swString_append_ptr(response, ZEND_STRL("Allow: GET, POST, PUT, DELETE, HEAD, OPTIONS\r\nContent-Length: 0\r\n"));
+            swString_append_ptr(response, ZEND_STRL("Allow: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS\r\nContent-Length: 0\r\n"));
         }
         else
         {
