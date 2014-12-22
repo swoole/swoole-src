@@ -112,26 +112,23 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int *dst_work
 
     if (*dst_worker_id < 0)
     {
-//        if (!pool->use_msgqueue && pool->dispatch_mode == SW_DISPATCH_QUEUE)
-//        {
-//            int i, target_worker_id = 0;
-//            swWorker *worker;
-//            for (i = 0; i < pool->worker_num; i++)
-//            {
-//                pool->round_id++;
-//                target_worker_id = pool->round_id % pool->worker_num;
-//                worker = swProcessPool_get_worker(pool, dst_worker_id);
-//                if (worker->status == SW_WORKER_IDLE)
-//                {
-//                    break;
-//                }
-//            }
-//            dst_worker_id = target_worker_id;
-//        }
-//        else
-//        {
-          *dst_worker_id = sw_atomic_fetch_add(&SwooleGS->task_round,1) % SwooleGS->task_num;
-//        }
+        int i, target_worker_id = pool->round_id;
+        swWorker *worker;
+        int task_worker_num = SwooleGS->task_num;  //TODO: pool->worker_num
+
+        for (i = 0; i < task_worker_num; i++)
+        {
+            pool->round_id++;
+            target_worker_id = pool->round_id % task_worker_num;
+
+            worker = swProcessPool_get_worker(pool, *dst_worker_id);
+
+            if (worker->status == SW_WORKER_IDLE)
+            {
+                break;
+            }
+        }
+        *dst_worker_id = target_worker_id;
     }
 
     *dst_worker_id += pool->start_id;
@@ -155,14 +152,23 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int *dst_work
     else
     {
         swWorker *worker = swProcessPool_get_worker(pool, *dst_worker_id);
-        ret = swWorker_send(worker, SW_PIPE_MASTER, data, sizeof(data->info) + data->info.len);
+        if (SwooleG.main_reactor)
+        {
+            ret = SwooleG.main_reactor->write(SwooleG.main_reactor, worker->pipe_master, data,
+                    sizeof(data->info) + data->info.len);
+        }
+        else
+        {
+            swSocket_write(worker->pipe_master, data, sizeof(data->info) + data->info.len);
+        }
+
         if (ret < 0)
         {
             swSysError("sendto unix socket failed.");
         }
         else
         {
-            sw_atomic_fetch_add(&worker->tasking_num,1);
+            sw_atomic_fetch_add(&worker->tasking_num, 1);
         }
     }
     return ret;

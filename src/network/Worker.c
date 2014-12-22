@@ -270,6 +270,7 @@ int swWorker_loop(swFactory *factory, int worker_id)
             swError("[Worker] malloc for reactor failed.");
             return SW_ERR;
         }
+
         if (swReactor_auto(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS) < 0)
         {
             swError("[Worker] create worker_reactor failed.");
@@ -280,9 +281,9 @@ int swWorker_loop(swFactory *factory, int worker_id)
 
         swSetNonBlock(pipe_worker);
         SwooleG.main_reactor->ptr = serv;
-        SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_worker, SW_FD_PIPE);
+        SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_worker, SW_FD_PIPE | SW_EVENT_READ);
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE, swWorker_onPipeReceive);
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE | SW_EVENT_WRITE, swWorker_onPipeWrite);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE | SW_FD_WRITE, swReactor_onWrite);
     }
 
     if (serv->max_request < 1)
@@ -373,7 +374,7 @@ int swWorker_send2reactor(swEventData_overflow *sdata, size_t sendn, int fd)
          */
         int pipe_worker_id = reactor_id + (round_i * serv->reactor_num);
         swWorker *worker = swServer_get_worker(serv, pipe_worker_id);
-        ret = swWorker_send(worker, SW_PIPE_WORKER, &sdata->_send, sendn);
+        ret = SwooleG.main_reactor->write(SwooleG.main_reactor, worker->pipe_worker, &sdata->_send, sendn);
     }
     return ret;
 }
@@ -413,109 +414,3 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
     return SW_ERR;
 }
 
-int swWorker_send(swWorker *worker, uint16_t is_master, void *buf, int n)
-{
-    int pipefd, ret;
-    swBuffer *buffer;
-
-    if (is_master)
-    {
-        buffer = worker->pipe_object->master_buffer;
-        pipefd = worker->pipe_master;
-    }
-    else
-    {
-        buffer = worker->pipe_object->worker_buffer;
-        pipefd = worker->pipe_worker;
-    }
-
-    //int pipe_used = (SwooleWG.id == worker_id) ? worker->pipe_worker : worker->pipe_master;
-    swTrace("SwooleWG.id = %d, pipe_used=%d, sendto %d %d bytes.\n", SwooleWG.id, pipefd, worker->id, n);
-
-    if (swBuffer_empty(buffer))
-    {
-        ret = write(pipefd, buf, n);
-
-        if (ret < 0 && errno == EAGAIN)
-        {
-            if (SwooleWG.id == worker->id)
-            {
-                SwooleG.main_reactor->set(SwooleG.main_reactor, pipefd, SW_FD_PIPE | SW_EVENT_READ | SW_EVENT_WRITE);
-            }
-            else
-            {
-                SwooleG.main_reactor->add(SwooleG.main_reactor, pipefd, SW_FD_PIPE | SW_EVENT_WRITE);
-            }
-            goto append_pipe_buffer;
-        }
-    }
-    else
-    {
-        append_pipe_buffer:
-
-        if (buffer->length > SwooleG.unixsock_buffer_size)
-        {
-            swWarn("Fatal Error: unix socket buffer overflow");
-            return SW_ERR;
-        }
-
-        if (swBuffer_append(buffer, buf, n) < 0)
-        {
-            swWarn("append to pipe_buffer failed.");
-            return SW_ERR;
-        }
-    }
-    return SW_OK;
-}
-
-/**
- * pipe can write.
- */
-int swWorker_onPipeWrite(swReactor *reactor, swEvent *ev)
-{
-    int ret;
-    swPipe *p = swServer_pipe_get(SwooleG.serv, ev->fd);
-    swBuffer_trunk *trunk = NULL;
-    swBuffer *buffer;
-
-    if (ev->fd == p->getFd(p, SW_PIPE_MASTER))
-    {
-        buffer = p->master_buffer;
-    }
-    else
-    {
-        buffer = p->worker_buffer;
-    }
-
-    while (!swBuffer_empty(buffer))
-    {
-        trunk = swBuffer_get_trunk(buffer);
-        ret = write(ev->fd, trunk->store.ptr, trunk->length);
-        if (ret < 0)
-        {
-            return errno == EAGAIN ? SW_OK : SW_ERR;
-        }
-        else
-        {
-            swBuffer_pop_trunk(buffer, trunk);
-        }
-    }
-
-    //remove EPOLLOUT event
-    if (swBuffer_empty(buffer))
-    {
-        if (ev->fd == SwooleWG.pipe_used)
-        {
-            ret = reactor->set(reactor, ev->fd, SW_FD_PIPE | SW_EVENT_READ);
-        }
-        else
-        {
-            ret = reactor->del(reactor, ev->fd);
-        }
-        if (ret < 0)
-        {
-            swSysError("reactor->set() failed.");
-        }
-    }
-    return SW_OK;
-}

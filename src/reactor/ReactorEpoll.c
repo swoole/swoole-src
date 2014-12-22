@@ -138,6 +138,10 @@ int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
         swWarn("add event failed. Error: %s[%d]", strerror(errno), errno);
         return SW_ERR;
     }
+    if (swReactor_add(reactor, fd, fdtype) < 0)
+    {
+        return SW_ERR;
+    }
     swTraceLog(SW_TRACE_EVENT, "add event[reactor_id=%d|fd=%d]", reactor->id, fd);
     reactor->event_num++;
     return SW_OK;
@@ -158,6 +162,12 @@ int swReactorEpoll_del(swReactor *reactor, int fd)
         swWarn("epoll remove fd[=%d] failed. Error: %s[%d]", fd, strerror(errno), errno);
         return SW_ERR;
     }
+
+    if (swReactor_del(reactor, fd) < 0)
+    {
+        return SW_ERR;
+    }
+
     reactor->event_num = reactor->event_num <= 0 ? 0 : reactor->event_num - 1;
     swTraceLog(SW_TRACE_EVENT, "remove event[reactor_id=%d|fd=%d]", reactor->id, fd);
     return SW_OK;

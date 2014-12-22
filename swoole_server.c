@@ -2232,7 +2232,7 @@ PHP_FUNCTION(swoole_server_taskwait)
         task_notify_pipe->timeout = timeout;
         int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
         swWorker *worker = swProcessPool_get_worker(&SwooleG.task_workers, worker_id);
-        sw_atomic_fetch_sub(&worker->tasking_num,1);
+        sw_atomic_fetch_sub(&worker->tasking_num, 1);
         
         if (ret > 0)
         {
@@ -2466,7 +2466,7 @@ PHP_METHOD(swoole_server, sendmessage)
         buf.info.from_fd = 0;
     }
     swWorker *worker = swServer_get_worker(serv, worker_id);
-    SW_CHECK_RETURN(swWorker_send(worker, SW_PIPE_MASTER, &buf, sizeof(buf.info) + buf.info.len));
+    SW_CHECK_RETURN(SwooleG.main_reactor->write(SwooleG.main_reactor, worker->pipe_master, &buf, sizeof(buf.info) + buf.info.len));
 }
 
 PHP_FUNCTION(swoole_server_finish)

@@ -385,13 +385,6 @@ typedef struct _swSendData
     char *data;
 } swSendData;
 
-//typedef struct _swEvent
-//{
-//	uint16_t from_id; //Reactor Id
-//	uint8_t type; //类型
-//	int fd;
-//} swEvent;
-
 #define SW_SIGNO_MAX         128
 
 typedef void * (*swThreadStartFunc)(void *);
@@ -407,9 +400,6 @@ typedef struct _swPipe
     void *object;
     int blocking;
     double timeout;
-
-    struct _swBuffer *worker_buffer;
-    struct _swBuffer *master_buffer;
 
     int (*read)(struct _swPipe *, void *recv, int length);
     int (*write)(struct _swPipe *, void *send, int length);
@@ -843,11 +833,19 @@ struct swReactor_s
 	uint32_t max_event_num;
 
 	/**
+	 * multi-thread reactor, cannot realloc sockets.
+	 */
+	uint32_t thread: 1;
+
+	/**
 	 * reactor->wait timeout (millisecond)
 	 */
 	uint32_t timeout_msec;
 	uint16_t id; //Reactor ID
 	uint16_t flag; //flag
+
+    uint32_t max_socket;
+    struct _swConnection *sockets;
 
 	swReactor_handle handle[SW_MAX_FDTYPE];       //默认事件
 	swReactor_handle write_handle[SW_MAX_FDTYPE]; //扩展事件1(一般为写事件)
@@ -862,6 +860,8 @@ struct swReactor_s
 
 	void (*onTimeout)(swReactor *);
 	void (*onFinish)(swReactor *);
+
+	int (*write)(swReactor *, int fd, void *buf, int n);
 };
 
 typedef struct _swWorker swWorker;
@@ -896,14 +896,13 @@ struct _swWorker
 	 */
 	uint8_t status;
 	uint8_t type;
-	uint8_t ipc_mode;
-        
-        uint8_t del;
-        
-         /**
-	 * tasking num 
-	 */
-	sw_atomic_t tasking_num;
+    uint8_t ipc_mode;
+    uint8_t del;
+
+    /**
+     * tasking num
+     */
+    sw_atomic_t tasking_num;
 
 	/**
 	 * redirect stdin to pipe_worker
@@ -932,51 +931,52 @@ struct _swWorker
 
 struct _swProcessPool
 {
-	/**
-	 * reloading
-	 */
-	uint8_t reloading;
-	uint8_t reload_flag;
-	uint8_t dispatch_mode;
+    /**
+     * reloading
+     */
+    uint8_t reloading;
+    uint8_t reload_flag;
+    uint8_t dispatch_mode;
 
-	/**
-	 * process type
-	 */
-	uint8_t type;
+    /**
+     * process type
+     */
+    uint8_t type;
 
-	/**
-	 * worker->id = start_id + i
-	 */
-	uint16_t start_id;
+    /**
+     * worker->id = start_id + i
+     */
+    uint16_t start_id;
 
-	/**
-	 * use message queue IPC
-	 */
-	uint8_t use_msgqueue;
-	/**
-	 * message queue key
-	 */
-	key_t msgqueue_key;
+    /**
+     * use message queue IPC
+     */
+    uint8_t use_msgqueue;
+    /**
+     * message queue key
+     */
+    key_t msgqueue_key;
 
-	int worker_num;
-	int max_request;
+    int worker_num;
+    int max_request;
 
-	int (*onTask)(struct _swProcessPool *pool, swEventData *task);
+    int (*onTask)(struct _swProcessPool *pool, swEventData *task);
 
-	void (*onWorkerStart)(struct _swProcessPool *pool, int worker_id);
-	void (*onWorkerStop)(struct _swProcessPool *pool, int worker_id);
+    void (*onWorkerStart)(struct _swProcessPool *pool, int worker_id);
+    void (*onWorkerStop)(struct _swProcessPool *pool, int worker_id);
 
-	int (*main_loop)(struct _swProcessPool *pool, swWorker *worker);
+    int (*main_loop)(struct _swProcessPool *pool, swWorker *worker);
 
-	int round_id;
+    int round_id;
 
-	swWorker *workers;
-	swPipe *pipes;
-	swHashMap *map;
-	swQueue queue;
+    swWorker *workers;
+    swPipe *pipes;
+    swHashMap *map;
+    swReactor *reactor;
+    swQueue queue;
 
-	void *ptr;
-	void *ptr2;
+    void *ptr;
+    void *ptr2;
 };
 
 //----------------------------------------Reactor---------------------------------------
@@ -990,41 +990,62 @@ enum SW_EVENTS
 
 static sw_inline int swReactor_error(swReactor *reactor)
 {
-	switch (errno)
-	{
+    switch (errno)
+    {
     case EINTR:
         if (reactor->singal_no)
         {
             swSignal_callback(reactor->singal_no);
             reactor->singal_no = 0;
         }
-		return SW_OK;
-	}
-	return SW_ERR;
-}
-
-static sw_inline int swReactor_fdtype(int fdtype)
-{
-	return fdtype & (~SW_EVENT_READ) & (~SW_EVENT_WRITE) & (~SW_EVENT_ERROR);
+        return SW_OK;
+    }
+    return SW_ERR;
 }
 
 static sw_inline int swReactor_event_read(int fdtype)
 {
-	return (fdtype < SW_EVENT_DEAULT) || (fdtype & SW_EVENT_READ);
+    return (fdtype < SW_EVENT_DEAULT) || (fdtype & SW_EVENT_READ);
 }
 
 static sw_inline int swReactor_event_write(int fdtype)
 {
-	return fdtype & SW_EVENT_WRITE;
+    return fdtype & SW_EVENT_WRITE;
 }
 
 static sw_inline int swReactor_event_error(int fdtype)
 {
-	return fdtype & SW_EVENT_ERROR;
+    return fdtype & SW_EVENT_ERROR;
+}
+
+static sw_inline int swReactor_fdtype(int fdtype)
+{
+    return fdtype & (~SW_EVENT_READ) & (~SW_EVENT_WRITE) & (~SW_EVENT_ERROR);
+}
+
+static sw_inline int swReactor_events(int fdtype)
+{
+    int events = 0;
+    if (fdtype & SW_EVENT_READ)
+    {
+        events |= SW_EVENT_READ;
+    }
+    if (swReactor_event_write(fdtype))
+    {
+        events |= SW_EVENT_WRITE;
+    }
+    if (swReactor_event_error(fdtype))
+    {
+        events |= SW_EVENT_ERROR;
+    }
+    return events;
 }
 
 int swReactor_auto(swReactor *reactor, int max_event);
 int swReactor_setHandle(swReactor *, int, swReactor_handle);
+int swReactor_add(swReactor *reactor, int fd, int type);
+int swReactor_del(swReactor *reactor, int fd);
+int swReactor_onWrite(swReactor *reactor, swEvent *ev);
 
 swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype);
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);
@@ -1049,12 +1070,9 @@ static sw_inline swWorker* swProcessPool_get_worker(swProcessPool *pool, int wor
 //-----------------------------Channel---------------------------
 enum SW_CHANNEL_FLAGS
 {
-	SW_CHAN_LOCK = 1u << 1,
-#define SW_CHAN_LOCK SW_CHAN_LOCK
-	SW_CHAN_NOTIFY = 1u << 2,
-#define SW_CHAN_NOTIFY SW_CHAN_NOTIFY
-	SW_CHAN_SHM = 1u << 3,
-#define SW_CHAN_SHM SW_CHAN_SHM
+    SW_CHAN_LOCK     = 1u << 1,
+    SW_CHAN_NOTIFY   = 1u << 2,
+    SW_CHAN_SHM      = 1u << 3,
 };
 
 typedef struct _swChannel
@@ -1094,31 +1112,31 @@ enum swThread_type
 
 typedef struct _swThreadPool
 {
-	pthread_mutex_t mutex;
-	pthread_cond_t cond;
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
 
-	swThread *threads;
-	swThreadParam *params;
+    swThread *threads;
+    swThreadParam *params;
 
 #ifdef SW_THREADPOOL_USE_CHANNEL
-	swChannel *chan;
+    swChannel *chan;
 #else
-	swRingQueue queue;
+    swRingQueue queue;
 #endif
 
-	int thread_num;
-	int shutdown;
-	int task_num;
+    int thread_num;
+    int shutdown;
+    int task_num;
 
-	int (*onTask)(struct _swThreadPool *pool, void *task, int task_len);
+    int (*onTask)(struct _swThreadPool *pool, void *task, int task_len);
 
 } swThreadPool;
 
 struct _swThread
 {
-	pthread_t tid;
-	int id;
-	swThreadPool *pool;
+    pthread_t tid;
+    int id;
+    swThreadPool *pool;
 };
 
 int swThreadPool_dispatch(swThreadPool *pool, void *task, int task_len);
@@ -1134,8 +1152,6 @@ typedef struct _swTimer_interval_node
     uint32_t interval;
 } swTimer_interval_node;
 
-
-
 typedef struct _swTimer_node
 {
     struct _swTimer_node *next, *prev;
@@ -1143,8 +1159,6 @@ typedef struct _swTimer_node
     uint32_t exec_msec;
     uint32_t interval;
 } swTimer_node;
-
-
 
 typedef struct _swTimer
 {
@@ -1192,12 +1206,12 @@ int swModule_load(char *so_file);
 //Share Memory
 typedef struct
 {
-	pid_t master_pid;
-	pid_t manager_pid;
-	uint8_t start; //after swServer_start will set start=1
-	time_t now;
-        uint16_t task_num;
-        sw_atomic_t task_round;
+    pid_t master_pid;
+    pid_t manager_pid;
+    uint8_t start;  //after swServer_start will set start=1
+    time_t now;
+    sw_atomic_t task_num;
+    sw_atomic_t task_round;
 } swServerGS;
 
 //Worker process global Variable
@@ -1244,21 +1258,22 @@ typedef struct
 {
     swTimer timer;
 
-    int running;
+    uint8_t running :1;
+
+    uint8_t use_timerfd :1;
+    uint8_t use_signalfd :1;
+
+    /**
+     * Timer used pipe
+     */
+    uint8_t use_timer_pipe :1;
+
     int error;
     int process_type;
     int signal_alarm; //for timer with message queue
     int signal_fd;
     int log_fd;
     int null_fd;
-
-    uint8_t use_timerfd;
-    uint8_t use_signalfd;
-
-    /**
-     * Timer used pipe
-     */
-    uint8_t use_timer_pipe;
 
     /**
      *  task worker process num

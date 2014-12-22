@@ -50,6 +50,8 @@ typedef struct _swConnection
 	 * file descript
 	 */
 	int fd;
+	int type;
+	int events;
 
 	/**
 	 * ReactorThread id

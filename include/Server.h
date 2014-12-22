@@ -260,11 +260,6 @@ struct _swServer
     uint8_t factory_mode;
 
     /**
-     * run as a daemon process
-     */
-    uint8_t daemonize;
-
-    /**
      * package dispatch mode
      */
     uint8_t dispatch_mode; //分配模式，1平均分配，2按FD取摸固定分配，3,使用抢占式队列(IPC消息队列)分配
@@ -319,29 +314,59 @@ struct _swServer
     size_t reactor_ringbuffer_size;
 
     /**
+     * run as a daemon process
+     */
+    uint16_t daemonize :1;
+
+    /**
      * have udp listen socket
      */
-    uint8_t have_udp_sock;
+    uint16_t have_udp_sock :1;
 
     /**
      * have tcp listen socket
      */
-    uint8_t have_tcp_sock;
+    uint16_t have_tcp_sock :1;
 
     /**
      * oepn cpu affinity setting
      */
-    uint8_t open_cpu_affinity;
+    uint16_t open_cpu_affinity :1;
 
     /**
      * open tcp nodelay option
      */
-    uint8_t open_tcp_nodelay;
+    uint16_t open_tcp_nodelay :1;
 
     /**
      * open tcp nopush option(for sendfile)
      */
-    uint8_t open_tcp_nopush;
+    uint16_t open_tcp_nopush :1;
+
+    /**
+     * open tcp keepalive
+     */
+    uint16_t open_tcp_keepalive :1;
+
+    /**
+     * check data eof
+     */
+    uint16_t open_eof_check :1;
+
+    /**
+     * built-in http protocol
+     */
+    uint16_t open_http_protocol :1;
+
+    /**
+     *  one package: length check
+     */
+    uint16_t open_length_check :1;
+
+    /**
+     * Use data key as factory->dispatch() param.
+     */
+    uint16_t open_dispatch_key: 1;
 
     /**
      * open tcp_defer_accept option
@@ -352,10 +377,6 @@ struct _swServer
      */
     int tcp_fastopen;
 
-    /**
-     * open tcp keepalive
-     */
-    uint8_t open_tcp_keepalive;
     int tcp_keepidle;
     int tcp_keepinterval;
     int tcp_keepcount;
@@ -377,21 +398,14 @@ struct _swServer
     uint8_t heartbeat_pong_length;
 
     /* one package: eof check */
-    uint8_t open_eof_check; //检测数据EOF
+
     uint8_t package_eof_len; //数据缓存结束符长度
     //int data_buffer_max_num;             //数据缓存最大个数(超过此数值的连接会被当作坏连接，将清除缓存&关闭连接)
     //uint8_t max_trunk_num;               //每个请求最大允许创建的trunk数
     char package_eof[SW_DATA_EOF_MAXLEN]; //数据缓存结束符
 
-    /**
-     * built-in http protocol
-     */
-    uint8_t open_http_protocol;
     uint32_t http_max_post_size;
     uint32_t http_max_websocket_size;
-
-    /* one package: length check */
-    uint8_t open_length_check; //开启协议长度检测
 
     char package_length_type; //length field type
     uint8_t package_length_size;
@@ -399,10 +413,6 @@ struct _swServer
     uint16_t package_body_offset; //第几个字节开始计算长度
     uint32_t package_max_length;
 
-    /**
-     * Use data key as factory->dispatch() param
-     */
-    uint8_t open_dispatch_key;
     uint8_t dispatch_key_size;
     uint16_t dispatch_key_offset;
     uint16_t dispatch_key_type;
@@ -690,8 +700,6 @@ void swWorker_onStart(swServer *serv);
 void swWorker_onStop(swServer *serv);
 int swWorker_loop(swFactory *factory, int worker_pti);
 int swWorker_send2reactor(swEventData_overflow *sdata, size_t sendn, int fd);
-int swWorker_onPipeWrite(swReactor *reactor, swEvent *ev);
-int swWorker_send(swWorker *worker, uint16_t is_master, void *buf, int n);
 void swWorker_signal_handler(int signo);
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event);
