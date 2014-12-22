@@ -86,7 +86,10 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
         {
             swSysError("write() failed.");
         }
-        *offset += n;
+        else
+        {
+            *offset += ret;
+        }
         return ret;
     }
     else
