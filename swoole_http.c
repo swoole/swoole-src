@@ -173,8 +173,10 @@ static void mergeGlobal(zval * val, zval *zrequest, int type)
     zval *http_server = SwooleG.serv->ptr2;
     zval *http_global = zend_read_property(swoole_http_server_class_entry_ptr, http_server, ZEND_STRL("global"), 1 TSRMLS_CC);
     int global = Z_LVAL_P(http_global);
-    swTrace("http_global:%d\n", global);
-    if(!global) return;
+    zval *http_request_val = zend_read_property(swoole_http_server_class_entry_ptr, http_server, ZEND_STRL("request_val"), 1 TSRMLS_CC);
+    int request_val = Z_LVAL_P(http_request_val);
+    swTrace("http_global:%d %d\n", global, request_val);
+    if(!(global & type)) return;
     zval *_request;
     switch (type) {
         case HTTP_GLOBAL_GET:
@@ -184,9 +186,11 @@ static void mergeGlobal(zval * val, zval *zrequest, int type)
             ZEND_SET_SYMBOL(&EG(symbol_table), "_POST", val);
             break;
         case HTTP_GLOBAL_COOKIE:
+            swTrace("merge cookie\n");
             ZEND_SET_SYMBOL(&EG(symbol_table), "_COOKIE", val);
             break;
         case HTTP_GLOBAL_REQUEST:
+            if(!request_val) return;
             _request = zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), 1
             TSRMLS_CC);
             ZEND_SET_SYMBOL(&EG(symbol_table), "_REQUEST", _request);
@@ -197,7 +201,7 @@ static void mergeGlobal(zval * val, zval *zrequest, int type)
     }
 //    int flag = 0;
 
-    if(global & type) {
+    if(request_val & type) {
 //        swTrace("%d, %d match\n", global, type);
         _request = zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), 1
         TSRMLS_CC);
@@ -751,7 +755,7 @@ void swoole_http_init(int module_number TSRMLS_DC)
     REGISTER_LONG_CONSTANT("HTTP_GLOBAL_GET", HTTP_GLOBAL_GET, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("HTTP_GLOBAL_POST", HTTP_GLOBAL_POST, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("HTTP_GLOBAL_COOKIE", HTTP_GLOBAL_COOKIE, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("HTTP_GLOBAL_ALL", HTTP_GLOBAL_GET| HTTP_GLOBAL_POST| HTTP_GLOBAL_POST, CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("HTTP_GLOBAL_ALL", HTTP_GLOBAL_GET| HTTP_GLOBAL_POST| HTTP_GLOBAL_COOKIE | HTTP_GLOBAL_REQUEST |HTTP_GLOBAL_SERVER, CONST_CS | CONST_PERSISTENT);
 
 }
 
@@ -968,16 +972,18 @@ static char *http_status_message(int code)
 
 PHP_METHOD(swoole_http_server, setGlobal)
 {
-    long http_request = 0;
-    swTrace("setGlobal start:%d\n", http_request);
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &http_request) == FAILURE)
+    long global = 0;
+    long request_val = HTTP_GLOBAL_GET|HTTP_GLOBAL_POST;
+    swTrace("setGlobal start:%ld\n", global);
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|l", &global, &request_val) == FAILURE)
     {
         return;
     }
 
-    swTrace("setGlobal:%d\n", http_request);
+    swTrace("setGlobal:%ld\n", global);
 
-    zend_update_property_long(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("global"), http_request TSRMLS_CC);
+    zend_update_property_long(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("global"), global TSRMLS_CC);
+    zend_update_property_long(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("request_val"), request_val TSRMLS_CC);
     RETURN_TRUE;
 }
 
