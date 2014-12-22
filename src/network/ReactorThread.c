@@ -1008,7 +1008,7 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
                 buffer->str[0] = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_MESSAGE_ERROR, 1);
                 buffer->str[1] = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_MESSAGE_ERROR, 0);
                 buffer->length = 2;
-                swString *__buf = swWebSocket_encode(buffer, WEBSOCKET_OPCODE_CONNECTION_CLOSE);
+                swString *__buf = swWebSocket_encode(buffer, WEBSOCKET_OPCODE_CONNECTION_CLOSE, 1);
                 send(event->fd, __buf->str, __buf->length, 0);
                 swString_free(__buf);
                 goto close_fd;
@@ -1021,7 +1021,7 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
                 buffer->str[0] = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_MESSAGE_TOO_BIG, 1);
                 buffer->str[1] = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_MESSAGE_TOO_BIG, 0);
                 buffer->length = 2;
-                swString *__buf = swWebSocket_encode(buffer, WEBSOCKET_OPCODE_CONNECTION_CLOSE);
+                swString *__buf = swWebSocket_encode(buffer, WEBSOCKET_OPCODE_CONNECTION_CLOSE, 1);
                 send(event->fd, __buf->str, __buf->length, 0);
                 swString_free(__buf);
                 goto close_fd;
@@ -1041,7 +1041,7 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
                         goto close_fd;
                     }
                     buffer->length = request->content_length;
-                    swString *_buf = swWebSocket_encode(buffer, WEBSOCKET_OPCODE_PONG);
+                    swString *_buf = swWebSocket_encode(buffer, WEBSOCKET_OPCODE_PONG, 1);
                     send(event->fd, _buf->str, _buf->length, 0);
                     swString_free(_buf);
                     break;
@@ -1060,7 +1060,7 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
                     buffer->str[0] = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_NORMAL, 1);
                     buffer->str[1] = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_NORMAL, 0);
                     buffer->length = 2;
-                    swString *__buf = swWebSocket_encode(buffer, WEBSOCKET_OPCODE_CONNECTION_CLOSE);
+                    swString *__buf = swWebSocket_encode(buffer, WEBSOCKET_OPCODE_CONNECTION_CLOSE, 1);
                     send(event->fd, __buf->str, __buf->length, 0);
                     swString_free(__buf);
                     goto close_fd;

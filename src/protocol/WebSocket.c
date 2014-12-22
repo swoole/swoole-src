@@ -24,10 +24,10 @@ static uint64_t ntoh64(uint64_t network);
 //static void swWebSocket_print_frame(swWebSocket_frame *frm);
 static void swWebSocket_unmask(char *masks, swHttpRequest *request);
 
-swString *swWebSocket_encode(swString *data, char opcode) {
+swString *swWebSocket_encode(swString *data, char opcode, int fin) {
     swString *buf = swString_new(data->length + 16);
     int pos = 0;
-    buf->str[pos++] = FRAME_SET_FIN(1) | FRAME_SET_OPCODE(opcode);
+    buf->str[pos++] = FRAME_SET_FIN(fin) | FRAME_SET_OPCODE(opcode);
     if (data->length < 126) {
         buf->str[pos++] =
             FRAME_SET_MASK(0) | FRAME_SET_LENGTH(data->length, 0);
