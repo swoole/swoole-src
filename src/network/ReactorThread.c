@@ -1337,6 +1337,9 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
 
     reactor->ptr = serv;
     reactor->id = reactor_id;
+    reactor->thread = 1;
+    reactor->sockets = serv->connection_list;
+    reactor->max_socket = serv->max_connection;
 
     reactor->onFinish = NULL;
     reactor->onTimeout = NULL;

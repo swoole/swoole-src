@@ -91,6 +91,10 @@ int swReactorSelect_add(swReactor *reactor, int fd, int fdtype)
 		swWarn("max fd value is FD_SETSIZE(%d).\n", FD_SETSIZE);
 		return SW_ERR;
 	}
+    if (swReactor_add(reactor, fd, fdtype) < 0)
+    {
+        return SW_ERR;
+    }
 	swReactorSelect *object = reactor->object;
 	swFdList_node *ev = sw_malloc(sizeof(swFdList_node));
 	ev->fd = fd;
@@ -115,6 +119,11 @@ int swReactorSelect_del(swReactor *reactor, int fd)
     swReactorSelect *object = reactor->object;
     swFdList_node ev, *s_ev = NULL;
     ev.fd = fd;
+
+    if (swReactor_del(reactor, fd) < 0)
+    {
+        return SW_ERR;
+    }
 
     LL_SEARCH(object->fds, s_ev, &ev, swReactorSelect_cmp);
     if (s_ev == NULL)

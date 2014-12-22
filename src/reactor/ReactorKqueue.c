@@ -127,6 +127,10 @@ static int swReactorKqueue_add(swReactor *reactor, int fd, int fdtype)
 			return SW_ERR;
 		}
 	}
+    if (swReactor_add(reactor, fd, fdtype) < 0)
+    {
+        return SW_ERR;
+    }
 
 	memcpy(&e.udata, &fd_, sizeof(swFd));
 	swTrace("[THREAD #%ld]EP=%d|FD=%d\n", pthread_self(), this->epfd, fd);
@@ -212,6 +216,10 @@ static int swReactorKqueue_del(swReactor *reactor, int fd)
 		swWarn("kqueue remove fd[=%d] failed. Error: %s[%d]", fd, strerror(errno), errno);
 		return SW_ERR;
 	}
+    if (swReactor_del(reactor, fd) < 0)
+    {
+        return SW_ERR;
+    }
 	reactor->event_num = reactor->event_num <= 0 ? 0 : reactor->event_num - 1;
 	return SW_OK;
 }
