@@ -127,7 +127,7 @@ int swReactor_add(swReactor *reactor, int fd, int fdtype)
             reactor->max_socket = max_socket;
         }
 
-        if (reactor->sockets)
+        if (!reactor->sockets)
         {
             swSysError("Fatal Error: malloc(%ld) for reactor->sockets failed.",
                     reactor->max_socket * sizeof(swConnection));
