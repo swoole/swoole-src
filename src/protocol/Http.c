@@ -46,6 +46,11 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
         request->offset = 4;
         buf += 4;
     }
+    else if (memcmp(buf, "PATCH", 5) == 0) {
+        request->method = HTTP_PATCH;
+        request->offset = 6;
+        buf += 6;
+    }
     else if (memcmp(buf, "DELETE", 6) == 0)
     {
         request->method = HTTP_DELETE;
@@ -155,7 +160,7 @@ int swHttpRequest_get_content_length(swHttpRequest *request)
             {
                 if (memcmp(p + 2, SW_STRL("\r\n") - 1) == 0)
                 {
-                    request->header_length = p - buffer->str + request->offset - 1;
+                    request->header_length = p - buffer->str + sizeof("\r\n\r\n") - 1;
                     buffer->offset = request->header_length;
                     return SW_OK;
                 }

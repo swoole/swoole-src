@@ -27,7 +27,7 @@ extern "C"
 
 enum http_method
 {
-    HTTP_DELETE = 1, HTTP_GET, HTTP_HEAD, HTTP_POST, HTTP_PUT,
+    HTTP_DELETE = 1, HTTP_GET, HTTP_HEAD, HTTP_POST, HTTP_PUT, HTTP_PATCH,
     /* pathological */
     HTTP_CONNECT, HTTP_OPTIONS, HTTP_TRACE,
     /* webdav */

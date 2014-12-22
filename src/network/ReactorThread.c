@@ -1115,7 +1115,7 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
             }
         }
         //POST PUT
-        else if(request->method == HTTP_POST || request->method == HTTP_PUT)
+        else if(request->method == HTTP_POST || request->method == HTTP_PUT || request->method == HTTP_PATCH)
         {
             if (request->content_length == 0)
             {
