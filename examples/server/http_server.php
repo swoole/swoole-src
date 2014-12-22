@@ -1,8 +1,14 @@
 <?php
-$http = new swoole_http_server("127.0.0.1", 9501);
+$http = new swoole_http_server("0.0.0.0", 9501);
+//$http->setGlobal(HTTP_GLOBAL_ALL, HTTP_GLOBAL_GET|HTTP_GLOBAL_POST|HTTP_GLOBAL_COOKIE);
 //$http->set(['worker_num' => 4, 'task_worker_num' => 4]);
 $http->on('request', function ($request, $response) {
 //	var_dump($request->cookie);
+//var_dump($request);
+//var_dump($_GET);
+//var_dump($_POST);
+//var_dump($_COOKIE);
+//var_dump($_REQUEST);
 	//$response->status(301);
     //$response->header("Location", "http://www.baidu.com/");
 	//$response->cookie("hello", "world", time() + 3600);
