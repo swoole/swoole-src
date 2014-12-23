@@ -347,11 +347,11 @@ zval *php_swoole_get_data(swEventData *req TSRMLS_DC);
 void php_swoole_onClose(swServer *, int fd, int from_id);
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
-	uint16_t aio_thread_num;
+    long aio_thread_num;
     zend_bool display_errors;
     zend_bool cli;
-	key_t message_queue_key;
-	uint32_t unixsock_buffer_size;
+    key_t message_queue_key;
+    uint32_t unixsock_buffer_size;
 ZEND_END_MODULE_GLOBALS(swoole)
 
 extern ZEND_DECLARE_MODULE_GLOBALS(swoole);

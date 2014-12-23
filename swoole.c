@@ -458,7 +458,7 @@ ZEND_GET_MODULE(swoole)
 
 PHP_INI_BEGIN()
 STD_PHP_INI_ENTRY("swoole.aio_thread_num", "2", PHP_INI_ALL, OnUpdateLong, aio_thread_num, zend_swoole_globals, swoole_globals)
-STD_PHP_INI_ENTRY("swoole.display_errors", "2", PHP_INI_ALL, OnUpdateBool, display_errors, zend_swoole_globals, swoole_globals)
+STD_PHP_INI_ENTRY("swoole.display_errors", "On", PHP_INI_ALL, OnUpdateBool, display_errors, zend_swoole_globals, swoole_globals)
 STD_PHP_INI_ENTRY("swoole.message_queue_key", "0", PHP_INI_ALL, OnUpdateString, message_queue_key, zend_swoole_globals, swoole_globals)
 /**
  * Unix socket buffer size
