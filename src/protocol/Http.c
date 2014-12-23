@@ -46,7 +46,8 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
         request->offset = 4;
         buf += 4;
     }
-    else if (memcmp(buf, "PATCH", 5) == 0) {
+    else if (memcmp(buf, "PATCH", 5) == 0)
+    {
         request->method = HTTP_PATCH;
         request->offset = 6;
         buf += 6;

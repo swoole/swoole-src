@@ -500,14 +500,7 @@ PHP_METHOD(swoole_process, push)
     message.type = process->id;
     memcpy(message.data, data, length);
 
-    int ret;
-    do
-    {
-        ret = process->queue->in(process->queue, (swQueue_data *)&message, length);
-    }
-    while(errno < 0 && errno == EINTR);
-
-    if (ret < 0)
+    if (process->queue->in(process->queue, (swQueue_data *)&message, length) < 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "msgsnd() failed. Error: %s[%d]", strerror(errno), errno);
         RETURN_FALSE;
@@ -553,19 +546,13 @@ PHP_METHOD(swoole_process, pop)
         message->type = process->id;
     }
 
-    int ret;
-    do
-    {
-        ret = process->queue->out(process->queue, (swQueue_data *)message, maxsize);
-    }
-    while(errno < 0 && errno == EINTR);
-
-    if (ret < 0)
+    int n = process->queue->out(process->queue, (swQueue_data *) message, maxsize);
+    if (n < 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "msgrcv() failed. Error: %s[%d]", strerror(errno), errno);
         RETURN_FALSE;
     }
-    RETURN_STRINGL(message->data, ret, 0);
+    RETURN_STRINGL(message->data, n, 0);
 }
 
 PHP_METHOD(swoole_process, exec)
