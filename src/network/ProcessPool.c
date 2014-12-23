@@ -412,9 +412,7 @@ static void swProcessPool_free(swProcessPool *pool)
             _pipe = &pool->pipes[i];
             _pipe->close(_pipe);
         }
+        sw_free(pool->pipes);
     }
-
-    sw_free(pool->workers);
-    sw_free(pool->pipes);
     swHashMap_free(pool->map);
 }
