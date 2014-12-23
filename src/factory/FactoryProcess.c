@@ -897,10 +897,6 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
         swTrace("[Writer]wt_queue[%ld]->out wait", sdata.mtype);
         if (serv->write_queue.out(&serv->write_queue, &sdata, sizeof(sdata.mdata)) < 0)
         {
-            if (errno == EINTR)
-            {
-                continue;
-            }
             swSysError("[writer#%d]wt_queue->out() failed.", pti);
         }
         else

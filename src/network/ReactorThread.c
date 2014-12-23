@@ -347,7 +347,7 @@ int swReactorThread_send(swSendData *_send)
     //The connection has been closed.
     if (conn == NULL || conn->active == 0)
     {
-        swWarn("Connection[fd=%d] is not exists.", fd);
+        swWarn("Connection[fd=%d#%d] is not active.", fd, SwooleTG.id);
         return SW_ERR;
     }
     //The connection has been removed from eventloop.

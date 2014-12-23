@@ -51,6 +51,7 @@ int swReactor_auto(swReactor *reactor, int max_event)
 #endif
     }
 
+    reactor->setHandle = swReactor_setHandle;
     reactor->onFinish = swReactor_onFinish;
     reactor->onTimeout = swReactor_onTimeout;
 
