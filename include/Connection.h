@@ -53,6 +53,17 @@ typedef struct _swConnection
 	int type;
 	int events;
 
+    uint32_t recv_wait :1;
+    uint32_t send_wait :1;
+
+    uint32_t close_wait :1;
+    uint32_t closed :1;
+    uint32_t closeing :1;
+    uint32_t removed :1;
+
+    uint32_t tcp_nopush :1;
+    uint32_t tcp_nodelay :1;
+
 	/**
 	 * ReactorThread id
 	 */
@@ -118,6 +129,7 @@ void swConnection_clear_string_buffer(swConnection *conn);
 volatile swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type);
 volatile swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn);
 int swConnection_sendfile(swConnection *conn, char *filename);
+int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk);
 
 #ifdef SW_USE_OPENSSL
 int swSSL_init(char *cert_file, char *key_file);
