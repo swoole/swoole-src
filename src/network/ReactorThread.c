@@ -113,11 +113,10 @@ static int swReactorThread_close(swReactor *reactor, int fd)
         return SW_ERR;
     }
 
-    if (!(conn->active & SW_STATE_REMOVED) && reactor->del(reactor, fd) < 0)
+    if (!conn->removed && reactor->del(reactor, fd) < 0)
     {
         return SW_ERR;
     }
-    conn->active = 0;
 
     sw_atomic_fetch_add(&SwooleStats->close_count, 1);
     sw_atomic_fetch_sub(&SwooleStats->connection_num, 1);
@@ -152,20 +151,10 @@ static int swReactorThread_close(swReactor *reactor, int fd)
                 swString_free(request->buffer);
                 bzero(request, sizeof(swHttpRequest));
             }
+            swHttpRequest_free(request);
+            conn->object = NULL;
         }
         conn->websocket_status = 0;
-    }
-
-    if (conn->out_buffer != NULL)
-    {
-        swBuffer_free(conn->out_buffer);
-        conn->out_buffer = NULL;
-    }
-
-    if (conn->in_buffer != NULL)
-    {
-        swBuffer_free(conn->in_buffer);
-        conn->in_buffer = NULL;
     }
 
 #if 0
@@ -180,13 +169,6 @@ static int swReactorThread_close(swReactor *reactor, int fd)
         {
             swWarn("setsockopt(SO_LINGER) failed. Error: %s[%d]", strerror(errno), errno);
         }
-    }
-#endif
-
-#ifdef SW_USE_OPENSSL
-    if (conn->ssl)
-    {
-        swSSL_close(conn);
     }
 #endif
 
@@ -205,7 +187,8 @@ static int swReactorThread_close(swReactor *reactor, int fd)
         swServer_set_maxfd(serv, find_max_fd);
         SwooleG.lock.unlock(&SwooleG.lock);
     }
-    return close(fd);
+
+    return swReactor_close(reactor, fd);
 }
 
 /**
@@ -234,7 +217,7 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
 
     if (reactor->del(reactor, fd) == 0)
     {
-        conn->active |= SW_STATE_REMOVED;
+        conn->removed = 1;
         return SwooleG.factory->notify(SwooleG.factory, &notify_ev);
     }
     else
@@ -368,7 +351,7 @@ int swReactorThread_send(swSendData *_send)
         return SW_ERR;
     }
     //The connection has been removed from eventloop.
-    else if (conn->active & SW_STATE_REMOVED)
+    else if (conn->removed)
     {
         goto close_fd;
     }

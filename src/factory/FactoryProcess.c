@@ -652,12 +652,12 @@ int swFactoryProcess_end(swFactory *factory, int fd)
         //swWarn("can not close. Connection[%d] not found.", _send.info.fd);
         return SW_ERR;
     }
-    else if (conn->active & SW_STATE_CLOSEING)
+    else if (conn->closing)
     {
-        swWarn("The connection[%d] is closeing.", fd);
+        swWarn("The connection[%d] is closing.", fd);
         return SW_ERR;
     }
-    else if (conn->active & SW_STATE_CLOSED)
+    else if (conn->closed)
     {
         return SW_ERR;
     }
@@ -667,7 +667,7 @@ int swFactoryProcess_end(swFactory *factory, int fd)
         {
             serv->onClose(serv, fd, conn->from_id);
         }
-        conn->active |= SW_STATE_CLOSED;
+        conn->closed = 1;
         return swFactoryProcess_finish(factory, &_send);
     }
 }

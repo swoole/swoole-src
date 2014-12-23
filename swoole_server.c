@@ -849,7 +849,7 @@ void php_swoole_onClose(swServer *serv, int fd, int from_id)
     args[2] = &zfrom_id;
 
     swConnection *conn = swServer_connection_get(serv, fd);
-    conn->active |= SW_STATE_CLOSEING;
+    conn->closing = 1;
 
     if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onClose], &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
     {

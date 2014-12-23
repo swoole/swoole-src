@@ -21,7 +21,6 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor);
 static void swReactor_onTimeout(swReactor *reactor);
 static void swReactor_onFinish(swReactor *reactor);
 static int swReactor_write(swReactor *reactor, int fd, void *buf, int n);
-static int swReactor_close(swReactor *reactor, int fd);
 
 int swReactor_auto(swReactor *reactor, int max_event)
 {
@@ -193,30 +192,30 @@ static void swReactor_onFinish(swReactor *reactor)
     swReactor_onTimeout_and_Finish(reactor);
 }
 
-static int swReactor_close(swReactor *reactor, int fd)
+int swReactor_close(swReactor *reactor, int fd)
 {
     swConnection *socket = &reactor->sockets[fd];
 
-    if (socket->close_wait)
+    if (socket->out_buffer != NULL)
     {
-        if (socket->out_buffer != NULL)
-        {
-            swBuffer_free(socket->out_buffer);
-            socket->out_buffer = NULL;
-        }
-
-        if (socket->in_buffer != NULL)
-        {
-            swBuffer_free(socket->in_buffer);
-            socket->in_buffer = NULL;
-        }
-
-        return close(fd);
+        swBuffer_free(socket->out_buffer);
+        socket->out_buffer = NULL;
     }
-    else
+    if (socket->in_buffer != NULL)
     {
-        return SW_ERR;
+        swBuffer_free(socket->in_buffer);
+        socket->in_buffer = NULL;
     }
+#ifdef SW_USE_OPENSSL
+    if (socket->ssl)
+    {
+        swSSL_close(socket);
+    }
+#endif
+
+    bzero(socket, sizeof(swConnection));
+
+    return close(fd);
 }
 
 static int swReactor_write(swReactor *reactor, int fd, void *buf, int n)

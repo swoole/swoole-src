@@ -794,6 +794,8 @@ static sw_inline int swWaitpid(pid_t __pid, int *__stat_loc, int __options)
     return ret;
 }
 
+#if defined(TCP_NOPUSH) || defined(TCP_CORK)
+#define HAVE_TCP_NOPUSH
 #ifdef TCP_NOPUSH
 static sw_inline int swSocket_tcp_nopush(int sock, int nopush)
 {
@@ -805,6 +807,9 @@ static sw_inline int swSocket_tcp_nopush(int sock, int nopush)
 {
     return setsockopt(sock, IPPROTO_TCP, TCP_CORK, (const void *) &nopush, sizeof(int));
 }
+#endif
+#else
+#define swSocket_tcp_nopush(sock, nopush)
 #endif
 
 void swFloat2timeval(float timeout, long int *sec, long int *usec);
@@ -1047,6 +1052,7 @@ int swReactor_setHandle(swReactor *, int, swReactor_handle);
 int swReactor_add(swReactor *reactor, int fd, int type);
 int swReactor_del(swReactor *reactor, int fd);
 int swReactor_onWrite(swReactor *reactor, swEvent *ev);
+int swReactor_close(swReactor *reactor, int fd);
 
 swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype);
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);

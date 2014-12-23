@@ -1142,7 +1142,7 @@ swConnection* swServer_connection_new(swServer *serv, swDataHead *ev)
     }
 
     connection = &(serv->connection_list[conn_fd]);
-    
+
     //TCP Nodelay
     if (serv->open_tcp_nodelay)
     {
@@ -1154,14 +1154,22 @@ swConnection* swServer_connection_new(swServer *serv, swDataHead *ev)
         connection->tcp_nodelay = 1;
     }
 
+#ifdef HAVE_TCP_NOPUSH
+    //TCP NOPUSH
+    if (serv->open_tcp_nopush)
+    {
+        connection->tcp_nopush = 1;
+    }
+#endif
+
+    bzero(connection, sizeof(swConnection));
+
     connection->fd = conn_fd;
     connection->from_id = ev->from_id;
     connection->from_fd = ev->from_fd;
     connection->connect_time = SwooleGS->now;
     connection->last_time = SwooleGS->now;
-    connection->active = 1; //使此连接激活,必须在最后，保证线程安全
-    connection->uid = 0;
-	connection->websocket_status = 0;
-	
+    connection->active = 1;
+
 	return connection;
 }

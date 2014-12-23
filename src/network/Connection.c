@@ -56,6 +56,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
     int ret;
     swTask_sendfile *task = chunk->store.ptr;
 
+#ifdef HAVE_TCP_NOPUSH
     if (task->offset == 0 && conn->tcp_nopush)
     {
         /**
@@ -77,6 +78,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
             swWarn("swSocket_tcp_nopush() failed. Error: %s[%d]", strerror(errno), errno);
         }
     }
+#endif
 
     int sendn = (task->filesize - task->offset > SW_SENDFILE_TRUNK) ? SW_SENDFILE_TRUNK : task->filesize - task->offset;
     ret = swoole_sendfile(conn->fd, task->fd, &task->offset, sendn);
@@ -97,6 +99,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
             break;
         }
     }
+
     //sendfile finish
     if (task->offset >= task->filesize)
     {
@@ -104,6 +107,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
         close(task->fd);
         sw_free(task);
 
+#ifdef HAVE_TCP_NOPUSH
         if (conn->tcp_nopush)
         {
             /**
@@ -113,6 +117,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
             {
                 swWarn("swSocket_tcp_nopush() failed. Error: %s[%d]", strerror(errno), errno);
             }
+
             /**
              * enable tcp_nodelay
              */
@@ -125,6 +130,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
                 }
             }
         }
+#endif
     }
     return SW_OK;
 }

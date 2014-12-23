@@ -29,15 +29,6 @@
 
 #endif
 
-enum swConnectionState
-{
-    SW_STATE_NULL = 0,
-    SW_STATE_ACTIVE = 1 << 0,
-    SW_STATE_REMOVED = 1 << 1,
-    SW_STATE_CLOSEING = 1 << 2,
-    SW_STATE_CLOSED = 1 << 3,
-};
-
 typedef struct _swConnection
 {
 	/**
@@ -58,7 +49,7 @@ typedef struct _swConnection
 
     uint32_t close_wait :1;
     uint32_t closed :1;
-    uint32_t closeing :1;
+    uint32_t closing :1;
     uint32_t removed :1;
 
     uint32_t tcp_nopush :1;
