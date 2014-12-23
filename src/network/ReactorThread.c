@@ -26,6 +26,7 @@ static int swReactorThread_loop_tcp(swThreadParam *param);
 static int swReactorThread_loop_unix_dgram(swThreadParam *param);
 
 static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev);
+static int swReactorThread_close(swReactor *reactor, int fd);
 static int swReactorThread_onClose(swReactor *reactor, swEvent *event);
 static int swReactorThread_send_string_buffer(swReactorThread *thread, swConnection *conn, swString *buffer);
 static int swReactorThread_send_in_buffer(swReactorThread *thread, swConnection *conn);
@@ -97,6 +98,114 @@ int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
         swWarn("factory->dispatch[udp packet] failed");
     }
     return SW_OK;
+}
+
+/**
+ * close connection
+ */
+static int swReactorThread_close(swReactor *reactor, int fd)
+{
+    swServer *serv = reactor->ptr;
+    swConnection *conn = swServer_connection_get(serv, fd);
+    if (conn == NULL)
+    {
+        swWarn("[Reactor]connection not found. fd=%d|max_fd=%d", fd, swServer_get_maxfd(serv));
+        return SW_ERR;
+    }
+
+    if (!(conn->active & SW_STATE_REMOVED) && reactor->del(reactor, fd) < 0)
+    {
+        return SW_ERR;
+    }
+    conn->active = 0;
+
+    sw_atomic_fetch_add(&SwooleStats->close_count, 1);
+    sw_atomic_fetch_sub(&SwooleStats->connection_num, 1);
+
+    swTrace("Close Event.fd=%d|from=%d", fd, reactor->id);
+
+    //clear output buffer
+    if (serv->open_eof_check)
+    {
+        if (conn->in_buffer)
+        {
+            swBuffer_free(conn->in_buffer);
+            conn->in_buffer = NULL;
+        }
+    }
+    else if (serv->open_length_check)
+    {
+        if (conn->object)
+        {
+            swString_free(conn->object);
+            conn->object = NULL;
+        }
+    }
+    else if (serv->open_http_protocol)
+    {
+        if (conn->object)
+        {
+            swHttpRequest *request = (swHttpRequest *) conn->object;
+            if (request->state > 0 && request->buffer)
+            {
+                swTrace("ConnectionClose. free buffer=%p, request=%p\n", request->buffer, request);
+                swString_free(request->buffer);
+                bzero(request, sizeof(swHttpRequest));
+            }
+        }
+        conn->websocket_status = 0;
+    }
+
+    if (conn->out_buffer != NULL)
+    {
+        swBuffer_free(conn->out_buffer);
+        conn->out_buffer = NULL;
+    }
+
+    if (conn->in_buffer != NULL)
+    {
+        swBuffer_free(conn->in_buffer);
+        conn->in_buffer = NULL;
+    }
+
+#if 0
+    //立即关闭socket，清理缓存区
+    if (0)
+    {
+        struct linger linger;
+        linger.l_onoff = 1;
+        linger.l_linger = 0;
+
+        if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) == -1)
+        {
+            swWarn("setsockopt(SO_LINGER) failed. Error: %s[%d]", strerror(errno), errno);
+        }
+    }
+#endif
+
+#ifdef SW_USE_OPENSSL
+    if (conn->ssl)
+    {
+        swSSL_close(conn);
+    }
+#endif
+
+    /**
+     * reset maxfd, for connection_list
+     */
+    if (fd == swServer_get_maxfd(serv))
+    {
+        SwooleG.lock.lock(&SwooleG.lock);
+        int find_max_fd = fd - 1;
+        swTrace("set_maxfd=%d|close_fd=%d\n", find_max_fd, fd);
+        /**
+         * Find the new max_fd
+         */
+        for (; serv->connection_list[find_max_fd].active == 0 && find_max_fd > swServer_get_minfd(serv); find_max_fd--);
+        swServer_set_maxfd(serv, find_max_fd);
+        SwooleG.lock.unlock(&SwooleG.lock);
+    }
+    return close(fd);
 }
 
 /**
@@ -281,7 +390,7 @@ int swReactorThread_send(swSendData *_send)
         if (_send->info.type == SW_EVENT_CLOSE)
         {
             close_fd:
-            swServer_connection_close(serv, fd);
+            reactor->close(reactor, fd);
             return SW_OK;
         }
 #ifdef SW_REACTOR_SYNC_SEND
@@ -336,7 +445,7 @@ int swReactorThread_send(swSendData *_send)
     //close connection
     if (_send->info.type == SW_EVENT_CLOSE)
     {
-        trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_CLOSE, 0);
+        trunk = swBuffer_new_trunk(conn->out_buffer, SW_CHUNK_CLOSE, 0);
         trunk->store.data.val1 = _send->info.type;
     }
     //sendfile to client
@@ -419,100 +528,29 @@ int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     while (!swBuffer_empty(conn->out_buffer))
     {
         trunk = swBuffer_get_trunk(conn->out_buffer);
-        if (trunk->type == SW_TRUNK_CLOSE)
+        if (trunk->type == SW_CHUNK_CLOSE)
         {
             close_fd:
-            swServer_connection_close(serv, ev->fd);
+            reactor->close(reactor, ev->fd);
             return SW_OK;
         }
-        else if (trunk->type == SW_TRUNK_SENDFILE)
+        else if (trunk->type == SW_CHUNK_SENDFILE)
         {
-            swTask_sendfile *task = trunk->store.ptr;
-
-            if (task->offset == 0 && serv->open_tcp_nopush)
-            {
-                /**
-                 * disable tcp_nodelay
-                 */
-                if (serv->open_tcp_nodelay)
-                {
-                    int tcp_nodelay = 0;
-                    if (setsockopt(ev->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &tcp_nodelay, sizeof(int)) == -1)
-                    {
-                        swWarn("setsockopt(TCP_NODELAY) failed. Error: %s[%d]", strerror(errno), errno);
-                    }
-                }
-                /**
-                 * enable tcp_nopush
-                 */
-                if (swSocket_tcp_nopush(ev->fd, 1) == -1)
-                {
-                    swWarn("swSocket_tcp_nopush() failed. Error: %s[%d]", strerror(errno), errno);
-                }
-            }
-
-            int sendn = (task->filesize - task->offset > SW_SENDFILE_TRUNK) ? SW_SENDFILE_TRUNK : task->filesize - task->offset;
-            ret = swoole_sendfile(ev->fd, task->fd, &task->offset, sendn);
-            swTrace("ret=%d|task->offset=%ld|sendn=%d|filesize=%ld", ret, task->offset, sendn, task->filesize);
-
-            if (ret <= 0)
-            {
-                switch (swConnection_error(errno))
-                {
-                case SW_ERROR:
-                    swWarn("sendfile failed. Error: %s[%d]", strerror(errno), errno);
-                    swBuffer_pop_trunk(conn->out_buffer, trunk);
-                    return SW_OK;
-                case SW_CLOSE:
-                    goto close_fd;
-                default:
-                    break;
-                }
-            }
-            //sendfile finish
-            if (task->offset >= task->filesize)
-            {
-                swBuffer_pop_trunk(conn->out_buffer, trunk);
-                close(task->fd);
-                sw_free(task);
-
-                if (serv->open_tcp_nopush)
-                {
-                    /**
-                     * disable tcp_nopush
-                     */
-                    if (swSocket_tcp_nopush(ev->fd, 0) == -1)
-                    {
-                        swWarn("swSocket_tcp_nopush() failed. Error: %s[%d]", strerror(errno), errno);
-                    }
-                    /**
-                     * enable tcp_nodelay
-                     */
-                    if (serv->open_tcp_nodelay)
-                    {
-                        int value = 1;
-                        if (setsockopt(ev->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &value, sizeof(int)) == -1)
-                        {
-                            swWarn("setsockopt(TCP_NODELAY) failed. Error: %s[%d]", strerror(errno), errno);
-                        }
-                    }
-                }
-            }
+            ret = swConnection_onSendfile(conn, trunk);
         }
         else
         {
             ret = swConnection_buffer_send(conn);
-            switch(ret)
+        }
+
+        if (ret < 0)
+        {
+            if (conn->close_wait)
             {
-            //connection error, close it
-            case SW_CLOSE:
                 goto close_fd;
-            //send continue
-            case SW_CONTINUE:
-                break;
-            //reactor_wait
-            case SW_WAIT:
-            default:
+            }
+            else if (conn->send_wait)
+            {
                 return SW_OK;
             }
         }
@@ -620,7 +658,7 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
         }
         else if (recv_again)
         {
-            trunk = swBuffer_new_trunk(buffer, SW_TRUNK_DATA, buffer->trunk_size);
+            trunk = swBuffer_new_trunk(buffer, SW_CHUNK_DATA, buffer->trunk_size);
             if (trunk)
             {
                 goto recv_data;
@@ -1343,6 +1381,7 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
 
     reactor->onFinish = NULL;
     reactor->onTimeout = NULL;
+    reactor->close = swReactorThread_close;
 
     reactor->setHandle(reactor, SW_FD_CLOSE, swReactorThread_onClose);
     reactor->setHandle(reactor, SW_FD_UDP, swReactorThread_onPackage);

@@ -884,6 +884,7 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
 {
     swEventData *resp;
     swServer *serv = SwooleG.serv;
+    swConnection *conn;
 
     int pti = param->pti;
     swQueue_data sdata;
@@ -906,13 +907,19 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
         {
             int ret;
             resp = (swEventData *) sdata.mdata;
-
+            conn = swServer_connection_get(serv, resp->info.fd);
+            if (!conn)
+            {
+                swWarn("Connection[%d] not found.", resp->info.fd);
+                continue;
+            }
+            swReactor *reactor = &serv->reactor_threads[conn->from_id].reactor;
             //close connection
             //TODO: thread safe, should close in reactor thread.
             if (resp->info.type == SW_EVENT_CLOSE)
             {
                 close_fd:
-                swServer_connection_close(SwooleG.serv, resp->info.fd);
+                reactor->close(reactor, resp->info.fd);
                 continue;
             }
             //sendfile

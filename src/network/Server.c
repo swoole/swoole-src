@@ -19,7 +19,6 @@
 #include "Http.h"
 #include "Connection.h"
 
-
 #if SW_REACTOR_SCHEDULE == 3
 static sw_inline void swServer_reactor_schedule(swServer *serv)
 {
@@ -60,7 +59,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 	swDataHead connEv;
 	struct sockaddr_in client_addr;
 	socklen_t client_addrlen = sizeof(client_addr);
-	int new_fd, ret, reactor_id = 0, i, sockopt;
+	int new_fd, ret, reactor_id = 0, i;
 
 	//SW_ACCEPT_AGAIN
 	for (i = 0; i < SW_ACCEPT_MAX_COUNT; i++)
@@ -93,16 +92,6 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 			swWarn("Too many connections [now: %d].", new_fd);
 			close(new_fd);
 			return SW_OK;
-		}
-
-		//TCP Nodelay
-		if (serv->open_tcp_nodelay == 1)
-		{
-            sockopt = 1;
-            if (setsockopt(new_fd, IPPROTO_TCP, TCP_NODELAY, &sockopt, sizeof(sockopt)) < 0)
-            {
-                swSysError("setsockopt(TCP_NODELAY) failed.");
-            }
 		}
 
 #if SW_REACTOR_SCHEDULE == 1
@@ -655,7 +644,6 @@ int swServer_free(swServer *serv)
 		pthread_join(SwooleG.heartbeat_pidt, NULL);
 	}
 
-
 	if (serv->factory_mode == SW_MODE_SINGLE)
     {
         if (SwooleG.task_worker_num > 0)
@@ -1137,115 +1125,6 @@ static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
 	pthread_exit(0);
 }
 
-
-/**
- * close connection
- */
-int swServer_connection_close(swServer *serv, int fd)
-{
-    swConnection *conn = swServer_connection_get(serv, fd);
-    if (conn == NULL)
-    {
-        swWarn("[Reactor]connection not found. fd=%d|max_fd=%d", fd, swServer_get_maxfd(serv));
-        return SW_ERR;
-    }
-
-    swReactor *reactor = &(serv->reactor_threads[conn->from_id].reactor);
-    if (!(conn->active & SW_STATE_REMOVED) && reactor->del(reactor, fd) < 0)
-    {
-        return SW_ERR;
-    }
-    conn->active = 0;
-
-    sw_atomic_fetch_add(&SwooleStats->close_count, 1);
-    sw_atomic_fetch_sub(&SwooleStats->connection_num, 1);
-
-    swTrace("Close Event.fd=%d|from=%d", fd, reactor->id);
-
-    //clear output buffer
-    if (serv->open_eof_check)
-    {
-        if (conn->in_buffer)
-        {
-            swBuffer_free(conn->in_buffer);
-            conn->in_buffer = NULL;
-        }
-    }
-    else if (serv->open_length_check)
-    {
-        if (conn->object)
-        {
-            swString_free(conn->object);
-            conn->object = NULL;
-        }
-    }
-    else if (serv->open_http_protocol)
-    {
-        if (conn->object)
-        {
-            swHttpRequest *request = (swHttpRequest *) conn->object;
-            if (request->state > 0 && request->buffer)
-            {
-                swTrace("ConnectionClose. free buffer=%p, request=%p\n", request->buffer, request);
-                swString_free(request->buffer);
-                bzero(request, sizeof(swHttpRequest));
-            }
-        }
-		conn->websocket_status = 0;
-    }
-
-    if (conn->out_buffer != NULL)
-    {
-        swBuffer_free(conn->out_buffer);
-        conn->out_buffer = NULL;
-    }
-
-    if (conn->in_buffer != NULL)
-    {
-        swBuffer_free(conn->in_buffer);
-        conn->in_buffer = NULL;
-    }
-
-#if 0
-    //立即关闭socket，清理缓存区
-    if (0)
-    {
-        struct linger linger;
-        linger.l_onoff = 1;
-        linger.l_linger = 0;
-
-        if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) == -1)
-        {
-            swWarn("setsockopt(SO_LINGER) failed. Error: %s[%d]", strerror(errno), errno);
-        }
-    }
-#endif
-
-#ifdef SW_USE_OPENSSL
-    if (conn->ssl)
-    {
-        swSSL_close(conn);
-    }
-#endif
-
-    /**
-     * reset maxfd, for connection_list
-     */
-    if (fd == swServer_get_maxfd(serv))
-    {
-        SwooleG.lock.lock(&SwooleG.lock);
-        int find_max_fd = fd - 1;
-        swTrace("set_maxfd=%d|close_fd=%d\n", find_max_fd, fd);
-        /**
-         * Find the new max_fd
-         */
-        for (; serv->connection_list[find_max_fd].active == 0 && find_max_fd > swServer_get_minfd(serv); find_max_fd--);
-        swServer_set_maxfd(serv, find_max_fd);
-        SwooleG.lock.unlock(&SwooleG.lock);
-    }
-    return close(fd);
-}
-
 /**
  * new connection
  */
@@ -1260,27 +1139,20 @@ swConnection* swServer_connection_new(swServer *serv, swDataHead *ev)
     if (conn_fd > swServer_get_maxfd(serv))
     {
         swServer_set_maxfd(serv, conn_fd);
-#ifdef SW_CONNECTION_LIST_EXPAND
-        //新的fd超过了最大fd
-        //需要扩容
-        if (conn_fd == serv->connection_list_capacity - 1)
-        {
-            void *new_ptr = sw_shm_realloc(serv->connection_list, sizeof(swConnection)*(serv->connection_list_capacity + SW_CONNECTION_LIST_EXPAND));
-            if (new_ptr == NULL)
-            {
-                swWarn("connection_list realloc failed.");
-                return SW_ERR;
-            }
-            else
-            {
-                serv->connection_list_capacity += SW_CONNECTION_LIST_EXPAND;
-                serv->connection_list = (swConnection *)new_ptr;
-            }
-        }
-#endif
     }
 
     connection = &(serv->connection_list[conn_fd]);
+    
+    //TCP Nodelay
+    if (serv->open_tcp_nodelay)
+    {
+        int sockopt = 1;
+        if (setsockopt(conn_fd, IPPROTO_TCP, TCP_NODELAY, &sockopt, sizeof(sockopt)) < 0)
+        {
+            swSysError("setsockopt(TCP_NODELAY) failed.");
+        }
+        connection->tcp_nodelay = 1;
+    }
 
     connection->fd = conn_fd;
     connection->from_id = ev->from_id;
@@ -1290,5 +1162,6 @@ swConnection* swServer_connection_new(swServer *serv, swDataHead *ev)
     connection->active = 1; //使此连接激活,必须在最后，保证线程安全
     connection->uid = 0;
 	connection->websocket_status = 0;
+	
 	return connection;
 }

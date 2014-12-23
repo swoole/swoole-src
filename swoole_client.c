@@ -366,7 +366,7 @@ static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event)
         while (!swBuffer_empty(out_buffer))
         {
             swBuffer_trunk *trunk = swBuffer_get_trunk(out_buffer);
-		    if (trunk->type == SW_TRUNK_SENDFILE)
+		    if (trunk->type == SW_CHUNK_SENDFILE)
 		    {
 		        swTask_sendfile *task = trunk->store.ptr;
                 int sendn = (task->filesize - task->offset > SW_SENDFILE_TRUNK) ? SW_SENDFILE_TRUNK : task->filesize - task->offset;

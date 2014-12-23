@@ -27,6 +27,8 @@ int swReactor_auto(swReactor *reactor, int max_event)
 {
     int ret;
 
+    bzero(reactor, sizeof(swReactor));
+
     //event less than SW_REACTOR_MINEVENTS, use poll/select
     if (max_event <= SW_REACTOR_MINEVENTS)
     {
@@ -123,16 +125,15 @@ int swReactor_add(swReactor *reactor, int fd, int fdtype)
             int max_socket = reactor->max_socket * 2;
             if (max_socket > SwooleG.max_sockets)
             {
-                max_socket = SwooleG.max_sockets;
+                max_socket = SwooleG.max_sockets + 1;
             }
-            reactor->sockets = sw_calloc(reactor->max_socket, sizeof(swConnection));
+            reactor->sockets = sw_calloc(max_socket, sizeof(swConnection));
             reactor->max_socket = max_socket;
         }
 
         if (!reactor->sockets)
         {
-            swSysError("Fatal Error: malloc(%ld) for reactor->sockets failed.",
-                    reactor->max_socket * sizeof(swConnection));
+            swSysError("Fatal Error: malloc(%ld) failed.", reactor->max_socket * sizeof(swConnection));
             return SW_ERR;
         }
     }
@@ -223,6 +224,7 @@ static int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
     int ret;
     swConnection *socket = &reactor->sockets[fd];
     swBuffer *buffer = socket->out_buffer;
+    socket->fd = fd;
 
     if (swBuffer_empty(buffer))
     {
@@ -257,7 +259,6 @@ static int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
     else
     {
         append_pipe_buffer:
-
         if (swBuffer_append(buffer, buf, n) < 0)
         {
             return SW_ERR;

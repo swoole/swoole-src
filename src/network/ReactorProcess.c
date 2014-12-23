@@ -189,6 +189,13 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     }
 #endif
 
+    reactor->thread = 1;
+    reactor->sockets = serv->connection_list;
+    reactor->max_socket = serv->max_connection;
+
+    reactor->onFinish = NULL;
+    reactor->onTimeout = NULL;
+
     //set event handler
     //connect
     reactor->setHandle(reactor, SW_FD_LISTEN, swServer_master_onAccept);
@@ -236,5 +243,5 @@ int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
     {
         serv->onClose(serv, event->fd, event->from_id);
     }
-    return swServer_connection_close(serv, event->fd);
+    return reactor->close(reactor, event->fd);
 }

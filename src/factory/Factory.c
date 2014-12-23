@@ -81,7 +81,7 @@ int swFactory_end(swFactory *factory, int fd)
     {
         serv->onClose(serv, fd, 0);
     }
-    return swServer_connection_close(serv, fd);
+    return SwooleG.main_reactor->close(SwooleG.main_reactor, fd);
 }
 
 int swFactory_finish(swFactory *factory, swSendData *resp)

@@ -50,7 +50,7 @@ swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint32_t siz
 	bzero(trunk, sizeof(swBuffer_trunk));
 
 	//require alloc memory
-	if (type == SW_TRUNK_DATA && size > 0)
+	if (type == SW_CHUNK_DATA && size > 0)
 	{
 		void *buf = sw_malloc(size);
 		if (buf == NULL)
@@ -80,30 +80,30 @@ swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint32_t siz
 }
 
 /**
- * pop the head trunk
+ * pop the head chunk
  */
 void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk)
 {
-	//only one trunk
-	if (trunk->next == NULL)
-	{
-		buffer->head = NULL;
-		buffer->tail = NULL;
-		buffer->length = 0;
-		buffer->trunk_num = 0;
-	}
-	else
-	{
-		buffer->head = trunk->next;
-		buffer->length -= trunk->length;
-		buffer->trunk_num --;
-	}
+    //only one trunk
+    if (trunk->next == NULL)
+    {
+        buffer->head = NULL;
+        buffer->tail = NULL;
+        buffer->length = 0;
+        buffer->trunk_num = 0;
+    }
+    else
+    {
+        buffer->head = trunk->next;
+        buffer->length -= trunk->length;
+        buffer->trunk_num--;
+    }
 
-	if (trunk->type == SW_TRUNK_DATA)
-	{
-		sw_free(trunk->store.ptr);
-	}
-	sw_free(trunk);
+    if (trunk->type == SW_CHUNK_DATA)
+    {
+        sw_free(trunk->store.ptr);
+    }
+    sw_free(trunk);
 }
 
 /**
@@ -111,20 +111,20 @@ void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk)
  */
 int swBuffer_free(swBuffer *buffer)
 {
-	volatile swBuffer_trunk *trunk = buffer->head;
-	void * *will_free_trunk; //free the point
-	while (trunk != NULL)
-	{
-		if (trunk->type == SW_TRUNK_DATA)
-		{
-			sw_free(trunk->store.ptr);
-		}
-		will_free_trunk = (void *) trunk;
-		trunk = trunk->next;
-		sw_free(will_free_trunk);
-	}
-	sw_free(buffer);
-	return SW_OK;
+    volatile swBuffer_trunk *trunk = buffer->head;
+    void * *will_free_trunk;  //free the point
+    while (trunk != NULL)
+    {
+        if (trunk->type == SW_CHUNK_DATA)
+        {
+            sw_free(trunk->store.ptr);
+        }
+        will_free_trunk = (void *) trunk;
+        trunk = trunk->next;
+        sw_free(will_free_trunk);
+    }
+    sw_free(buffer);
+    return SW_OK;
 }
 
 /**
@@ -132,7 +132,7 @@ int swBuffer_free(swBuffer *buffer)
  */
 int swBuffer_append(swBuffer *buffer, void *data, uint32_t size)
 {
-    swBuffer_trunk *trunk = swBuffer_new_trunk(buffer, SW_TRUNK_DATA, size);
+    swBuffer_trunk *trunk = swBuffer_new_trunk(buffer, SW_CHUNK_DATA, size);
     if (trunk == NULL)
     {
         return SW_ERR;
@@ -154,19 +154,19 @@ int swBuffer_append(swBuffer *buffer, void *data, uint32_t size)
  */
 void swBuffer_debug(swBuffer *buffer, int print_data)
 {
-	int i = 0;
-	volatile swBuffer_trunk *trunk = buffer->head;
-	printf("%s\n%s\n", SW_START_LINE, __func__);
-	while (trunk != NULL)
-	{
-		i++;
-		printf("%d.\tlen=%d", i, trunk->length);
-		if (print_data)
-		{
-			printf("\tdata=%s", (char *) trunk->store.ptr);
-		}
-		printf("\n");
-		trunk = trunk->next;
-	}
-	printf("%s\n%s\n", SW_END_LINE, __func__);
+    int i = 0;
+    volatile swBuffer_trunk *trunk = buffer->head;
+    printf("%s\n%s\n", SW_START_LINE, __func__);
+    while (trunk != NULL)
+    {
+        i++;
+        printf("%d.\tlen=%d", i, trunk->length);
+        if (print_data)
+        {
+            printf("\tdata=%s", (char *) trunk->store.ptr);
+        }
+        printf("\n");
+        trunk = trunk->next;
+    }
+    printf("%s\n%s\n", SW_END_LINE, __func__);
 }

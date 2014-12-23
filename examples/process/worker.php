@@ -68,7 +68,8 @@ function child_async(swoole_process $worker)
     //echo "Worker: start. PID=".$worker->pid."\n";
     //recv data from master
     $GLOBALS['worker'] = $worker;
-
+    global $argv;
+    $worker->name("{$argv[0]}: worker");
     swoole_process::signal(SIGTERM, function($signal_num) use ($worker) {
 		echo "signal call = $signal_num, #{$worker->pid}\n";
     });

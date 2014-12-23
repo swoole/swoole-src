@@ -67,13 +67,6 @@ enum swEventType
 #define SW_MAX_TMP_PKG             1000
 #define SW_LOG_FILENAME            128
 
-enum swTrunk
-{
-	SW_TRUNK_DATA,
-	SW_TRUNK_SENDFILE,
-	SW_TRUNK_CLOSE,
-};
-
 enum swIPCMode
 {
 	SW_IPC_UNSOCK   = 1,
@@ -558,7 +551,6 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags);
 #define swPackage_length(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->length:task->info.len)
 
 swConnection* swServer_connection_new(swServer *serv, swDataHead *ev);
-int swServer_connection_close(swServer *serv, int fd);
 
 #define SW_SERVER_MAX_FD_INDEX          0 //max connection socket
 #define SW_SERVER_MIN_FD_INDEX          1 //min listen socket

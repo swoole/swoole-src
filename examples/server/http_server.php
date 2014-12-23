@@ -1,7 +1,7 @@
 <?php
 $http = new swoole_http_server("0.0.0.0", 9501);
 //$http->setGlobal(HTTP_GLOBAL_ALL, HTTP_GLOBAL_GET|HTTP_GLOBAL_POST|HTTP_GLOBAL_COOKIE);
-//$http->set(['worker_num' => 4, 'task_worker_num' => 4]);
+$http->set(['worker_num' => 1, 'task_worker_num' => 0]);
 $http->on('request', function ($request, $response) {
 //	var_dump($request->cookie);
 //var_dump($request);
@@ -28,10 +28,9 @@ $http->on('finish', function(){
 $http->on('task', function(){
     echo "async task\n";
 });
-
-$http->on('close', function(){
-    echo "on close\n";
-});
-
+//
+//$http->on('close', function(){
+//    echo "on close\n";
+//});
 
 $http->start();

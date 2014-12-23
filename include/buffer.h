@@ -22,6 +22,13 @@ extern "C"
 {
 #endif
 
+enum swBufferChunk
+{
+    SW_CHUNK_DATA,
+    SW_CHUNK_SENDFILE,
+    SW_CHUNK_CLOSE,
+};
+
 typedef struct _swBuffer_trunk
 {
 	uint32_t type;

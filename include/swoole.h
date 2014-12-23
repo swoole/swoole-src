@@ -818,24 +818,24 @@ void swSignal_none(void);
 
 struct swReactor_s
 {
-	void *object;
-	void *ptr; //reserve
+    void *object;
+    void *ptr;  //reserve
 
-	/**
-	 * last signal number
-	 */
-	int singal_no;
+    /**
+     * last signal number
+     */
+    int singal_no;
 
-	uint8_t check_timer;
-	uint8_t check_signalfd;
+    uint32_t event_num;
+    uint32_t max_event_num;
 
-	uint32_t event_num;
-	uint32_t max_event_num;
+    uint32_t check_timer :1;
+    uint32_t check_signalfd :1;
 
-	/**
-	 * multi-thread reactor, cannot realloc sockets.
-	 */
-	uint32_t thread: 1;
+    /**
+     * multi-thread reactor, cannot realloc sockets.
+     */
+    uint32_t thread :1;
 
 	/**
 	 * reactor->wait timeout (millisecond)
@@ -847,21 +847,22 @@ struct swReactor_s
     uint32_t max_socket;
     struct _swConnection *sockets;
 
-	swReactor_handle handle[SW_MAX_FDTYPE];       //默认事件
-	swReactor_handle write_handle[SW_MAX_FDTYPE]; //扩展事件1(一般为写事件)
-	swReactor_handle error_handle[SW_MAX_FDTYPE]; //扩展事件2(一般为错误事件,如socket关闭)
+    swReactor_handle handle[SW_MAX_FDTYPE];        //默认事件
+    swReactor_handle write_handle[SW_MAX_FDTYPE];  //扩展事件1(一般为写事件)
+    swReactor_handle error_handle[SW_MAX_FDTYPE];  //扩展事件2(一般为错误事件,如socket关闭)
 
-	int (*add)(swReactor *, int fd, int fdtype);
-	int (*set)(swReactor *, int fd, int fdtype);
-	int (*del)(swReactor *, int fd);
-	int (*wait)(swReactor *, struct timeval *);
-	void (*free)(swReactor *);
-	int (*setHandle)(swReactor *, int fdtype, swReactor_handle);
+    int (*add)(swReactor *, int fd, int fdtype);
+    int (*set)(swReactor *, int fd, int fdtype);
+    int (*del)(swReactor *, int fd);
+    int (*wait)(swReactor *, struct timeval *);
+    void (*free)(swReactor *);
+    int (*setHandle)(swReactor *, int fdtype, swReactor_handle);
 
-	void (*onTimeout)(swReactor *);
-	void (*onFinish)(swReactor *);
+    void (*onTimeout)(swReactor *);
+    void (*onFinish)(swReactor *);
 
-	int (*write)(swReactor *, int fd, void *buf, int n);
+    int (*write)(swReactor *, int __fd, void *__buf, int __n);
+    int (*close)(swReactor *, int __fd);
 };
 
 typedef struct _swWorker swWorker;
