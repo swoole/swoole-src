@@ -299,6 +299,89 @@ SwooleG.lock.unlock(&SwooleG.lock);}
 typedef unsigned char uchar;
 #endif
 
+typedef struct _swConnection
+{
+    /**
+     * is active
+     * system fd must be 0. en: timerfd, signalfd, listen socket
+     */
+    uint8_t active;
+
+    /**
+     * file descript
+     */
+    int fd;
+    int type;
+    int events;
+
+    uint32_t recv_wait :1;
+    uint32_t send_wait :1;
+
+    uint32_t close_wait :1;
+    uint32_t closed :1;
+    uint32_t closing :1;
+    uint32_t removed :1;
+
+    uint32_t tcp_nopush :1;
+    uint32_t tcp_nodelay :1;
+
+    /**
+     * ReactorThread id
+     */
+    uint16_t from_id;
+
+    /**
+     * from which socket fd
+     */
+    uint16_t from_fd;
+
+    /**
+     * socket address
+     */
+    struct sockaddr_in addr;
+
+    /**
+     * link any thing
+     */
+    void *object;
+
+    /**
+     * input buffer
+     */
+    struct _swBuffer *in_buffer;
+
+    /**
+     * output buffer
+     */
+    struct _swBuffer *out_buffer;
+
+    /**
+     * connect time(seconds)
+     */
+    time_t connect_time;
+
+    /**
+     * received time with last data
+     */
+    time_t last_time;
+
+    /**
+     * bind uid
+     */
+    long uid;
+
+    /**
+    *  upgarde websocket
+    */
+    uint8_t websocket_status;
+
+#ifdef SW_USE_OPENSSL
+    SSL *ssl;
+    uint32_t ssl_state;
+#endif
+
+} swConnection;
+
 typedef struct
 {
     union
@@ -1050,6 +1133,7 @@ static sw_inline int swReactor_events(int fdtype)
 int swReactor_auto(swReactor *reactor, int max_event);
 int swReactor_setHandle(swReactor *, int, swReactor_handle);
 int swReactor_add(swReactor *reactor, int fd, int type);
+swConnection* swReactor_get(swReactor *reactor, int fd);
 int swReactor_del(swReactor *reactor, int fd);
 int swReactor_onWrite(swReactor *reactor, swEvent *ev);
 int swReactor_close(swReactor *reactor, int fd);

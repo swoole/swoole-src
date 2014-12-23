@@ -51,7 +51,7 @@ typedef struct _swClient
 	swSocketAddress remote_addr;
 	swSocketAddress client_addr;
 
-	swConnection connection;
+	swConnection *socket;
 
 	void (*onConnect)(struct _swClient *cli);
 	int (*onReceive)(struct _swClient *cli, swSendData *data);

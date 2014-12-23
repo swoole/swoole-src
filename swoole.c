@@ -718,15 +718,15 @@ static void swoole_destory_server(zend_resource *rsrc TSRMLS_DC)
 
 static void swoole_destory_client(zend_resource *rsrc TSRMLS_DC)
 {
-	swClient *cli = (swClient *) rsrc->ptr;
-	if (cli->keep == 0)
-	{
-		if (cli->connection.fd != 0)
-		{
-			cli->close(cli);
-		}
-		efree(cli);
-	}
+    swClient *cli = (swClient *) rsrc->ptr;
+    if (cli->keep == 0)
+    {
+        if (cli->socket->fd != 0)
+        {
+            cli->close(cli);
+        }
+        efree(cli);
+    }
 }
 
 PHP_FUNCTION(swoole_version)

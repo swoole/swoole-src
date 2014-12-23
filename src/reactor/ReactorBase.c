@@ -104,14 +104,14 @@ int swReactor_setHandle(swReactor *reactor, int _fdtype, swReactor_handle handle
     return SW_OK;
 }
 
-int swReactor_add(swReactor *reactor, int fd, int fdtype)
+swConnection* swReactor_get(swReactor *reactor, int fd)
 {
     if (fd >= reactor->max_socket)
     {
         if (reactor->thread || fd > SwooleG.max_sockets)
         {
             swWarn("fd[%d] is invalid.", fd);
-            return SW_ERR;
+            return NULL;
         }
 
         if (reactor->max_socket == 0)
@@ -133,25 +133,26 @@ int swReactor_add(swReactor *reactor, int fd, int fdtype)
         if (!reactor->sockets)
         {
             swSysError("Fatal Error: malloc(%ld) failed.", reactor->max_socket * sizeof(swConnection));
-            return SW_ERR;
+            return NULL;
         }
     }
 
-    reactor->sockets[fd].active = 1;
-    reactor->sockets[fd].fd = fd;
-    reactor->sockets[fd].type = swReactor_fdtype(fdtype);
-    reactor->sockets[fd].events = swReactor_events(fdtype);
+    return &reactor->sockets[fd];
+}
+
+int swReactor_add(swReactor *reactor, int fd, int fdtype)
+{
+    swConnection *socket = swReactor_get(reactor, fd);
+
+    socket->type = swReactor_fdtype(fdtype);
+    socket->events = swReactor_events(fdtype);
 
     return SW_OK;
 }
 
 int swReactor_del(swReactor *reactor, int fd)
 {
-    assert(fd < reactor->max_socket);
-
-    reactor->sockets[fd].active = 0;
     reactor->sockets[fd].events = 0;
-
     return SW_OK;
 }
 
@@ -221,9 +222,15 @@ int swReactor_close(swReactor *reactor, int fd)
 static int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
 {
     int ret;
-    swConnection *socket = &reactor->sockets[fd];
+    swConnection *socket = swReactor_get(reactor, fd);
+
+    if (!socket->active)
+    {
+        socket->fd = fd;
+        socket->active = 1;
+    }
+
     swBuffer *buffer = socket->out_buffer;
-    socket->fd = fd;
 
     if (swBuffer_empty(buffer))
     {
@@ -246,7 +253,7 @@ static int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
 
             if (socket->events & SW_EVENT_READ)
             {
-                 SwooleG.main_reactor->set(SwooleG.main_reactor, fd, socket->type | socket->events);
+                SwooleG.main_reactor->set(SwooleG.main_reactor, fd, socket->type | socket->events);
             }
             else
             {
