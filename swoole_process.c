@@ -441,12 +441,17 @@ PHP_METHOD(swoole_process, write)
 		RETURN_FALSE;
 	}
 
-	int ret;
-	do
-	{
-		ret = write(process->pipe, data, (size_t) data_len);
-	}
-	while(errno < 0 && errno == EINTR);
+    int ret;
+
+    //async write
+    if (SwooleG.main_reactor)
+    {
+        ret = SwooleG.main_reactor->write(SwooleG.main_reactor, process->pipe, data, (size_t) data_len);
+    }
+    else
+    {
+        ret = swSocket_write(process->pipe, data, (size_t) data_len);
+    }
 
 	if (ret < 0)
 	{

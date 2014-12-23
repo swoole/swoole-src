@@ -21,6 +21,7 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor);
 static void swReactor_onTimeout(swReactor *reactor);
 static void swReactor_onFinish(swReactor *reactor);
 static int swReactor_write(swReactor *reactor, int fd, void *buf, int n);
+static int swReactor_close(swReactor *reactor, int fd);
 
 int swReactor_auto(swReactor *reactor, int max_event)
 {
@@ -53,6 +54,7 @@ int swReactor_auto(swReactor *reactor, int max_event)
     reactor->onTimeout = swReactor_onTimeout;
 
     reactor->write = swReactor_write;
+    reactor->close = swReactor_close;
 
     return ret;
 }
@@ -190,6 +192,32 @@ static void swReactor_onFinish(swReactor *reactor)
     swReactor_onTimeout_and_Finish(reactor);
 }
 
+static int swReactor_close(swReactor *reactor, int fd)
+{
+    swConnection *socket = &reactor->sockets[fd];
+
+    if (socket->close_wait)
+    {
+        if (socket->out_buffer != NULL)
+        {
+            swBuffer_free(socket->out_buffer);
+            socket->out_buffer = NULL;
+        }
+
+        if (socket->in_buffer != NULL)
+        {
+            swBuffer_free(socket->in_buffer);
+            socket->in_buffer = NULL;
+        }
+
+        return close(fd);
+    }
+    else
+    {
+        return SW_ERR;
+    }
+}
+
 static int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
 {
     int ret;
@@ -198,7 +226,7 @@ static int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
 
     if (swBuffer_empty(buffer))
     {
-        ret = swSocket_write(fd, buf, n);
+        ret = swConnection_send(socket, buf, n, 0);
 
         if (ret < 0 && errno == EAGAIN)
         {
@@ -244,21 +272,38 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev)
     int fd = ev->fd;
 
     swConnection *socket = &reactor->sockets[fd];
-    swBuffer_trunk *trunk = NULL;
+    swBuffer_trunk *chunk = NULL;
     swBuffer *buffer = socket->out_buffer;
 
     //send to socket
     while (!swBuffer_empty(buffer))
     {
-        trunk = swBuffer_get_trunk(buffer);
-        ret = write(fd, trunk->store.ptr, trunk->length);
-        if (ret < 0)
+        chunk = swBuffer_get_trunk(buffer);
+        if (chunk->type == SW_CHUNK_CLOSE)
         {
-            return errno == EAGAIN ? SW_OK : SW_ERR;
+            close_fd:
+            reactor->close(reactor, ev->fd);
+            return SW_OK;
+        }
+        else if (chunk->type == SW_CHUNK_SENDFILE)
+        {
+            ret = swConnection_onSendfile(socket, chunk);
         }
         else
         {
-            swBuffer_pop_trunk(buffer, trunk);
+            ret = swConnection_buffer_send(socket);
+        }
+
+        if (ret < 0)
+        {
+            if (socket->close_wait)
+            {
+                goto close_fd;
+            }
+            else if (socket->send_wait)
+            {
+                return SW_OK;
+            }
         }
     }
 
