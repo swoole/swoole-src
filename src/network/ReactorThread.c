@@ -340,10 +340,10 @@ int swReactorThread_send(swSendData *_send)
     int fd = _send->info.fd;
     uint16_t reactor_id = 0;
 
-    volatile swBuffer_trunk *trunk;
+    swBuffer_trunk *trunk;
+    swReactor *reactor = &(serv->reactor_threads[reactor_id].reactor);
 
     swConnection *conn = swServer_connection_get(serv, fd);
-
     //The connection has been closed.
     if (conn == NULL || conn->active == 0)
     {
@@ -363,13 +363,6 @@ int swReactorThread_send(swSendData *_send)
 #endif
 
     swTraceLog(SW_TRACE_EVENT, "send-data. fd=%d|reactor_id=%d", fd, reactor_id);
-
-    if (reactor_id >= serv->reactor_num)
-    {
-        printf("reactor_id=%d\n", reactor_id);
-    }
-
-    swReactor *reactor = &(serv->reactor_threads[reactor_id].reactor);
 
     if (conn->out_buffer == NULL)
     {
