@@ -347,7 +347,7 @@ PHP_METHOD(swoole_process, start)
 	swWorker *process;
 	SWOOLE_GET_WORKER(getThis(), process);
 
-    if (process->pid > 0)
+    if (process->pid > 0 && kill(process->pid, 0) == 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "process is already started.");
         RETURN_FALSE;

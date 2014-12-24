@@ -25,7 +25,10 @@ PHP_ARG_ENABLE(openssl, enable openssl support,
 [  --enable-openssl        Use openssl?], no, no)
 
 PHP_ARG_WITH(swoole, swoole support,
-[  --with-swoole           Include swoole support])
+[  --with-swoole           With swoole support])
+
+PHP_ARG_ENABLE(swoole, swoole support,
+[  --enable-swoole         Enable swoole support], [enable_swoole="yes"])
 
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
@@ -87,7 +90,13 @@ if test "$CLANG" = "yes"; then
 fi
 
 if test "$PHP_SWOOLE" != "no"; then
+   
+    PHP_ADD_INCLUDE($SWOOLE_DIR)
     PHP_ADD_INCLUDE($SWOOLE_DIR/include)
+
+    PHP_ADD_INCLUDE([$ext_srcdir])
+    PHP_ADD_INCLUDE([$ext_srcdir/include])
+        
     PHP_ADD_LIBRARY(pthread)
     PHP_SUBST(SWOOLE_SHARED_LIBADD)
 
@@ -165,8 +174,8 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_ADD_LIBRARY(crypt, 1, SWOOLE_SHARED_LIBADD)
         PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
     fi
-
-    PHP_NEW_EXTENSION(swoole, swoole.c \
+    
+    swoole_source_file="swoole.c \
         swoole_server.c \
         swoole_lock.c \
         swoole_client.c \
@@ -175,7 +184,6 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_buffer.c \
         swoole_table.c \
         swoole_http.c \
-        thirdparty/php_http_parser.c \
         src/core/Base.c \
         src/core/log.c \
         src/core/hashmap.c \
@@ -226,10 +234,14 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/SSL.c \
         src/protocol/Http.c \
         src/protocol/WebSocket.c \
-        src/protocol/Base64.c \
-      , $ext_shared)
+        src/protocol/Base64.c"
+        
+    if test "$enable_swoole" != "yes"; then
+        swoole_source_file="$swoole_source_file thirdparty/php_http_parser.c"
+    fi
 
-    PHP_ADD_INCLUDE([$ext_srcdir/include])
+    PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared)
+      
     PHP_ADD_BUILD_DIR($ext_builddir/src/core)
     PHP_ADD_BUILD_DIR($ext_builddir/src/memory)
     PHP_ADD_BUILD_DIR($ext_builddir/src/factory)
