@@ -59,10 +59,6 @@ enum swEventType
     SW_EVENT_PIPE_MESSAGE    = 15,
 };
 
-#define SW_STATUS_EMPTY            0
-#define SW_STATUS_ACTIVE           1
-#define SW_STATUS_CLOSED           2
-
 #define SW_HOST_MAXSIZE            128
 #define SW_MAX_TMP_PKG             1000
 #define SW_LOG_FILENAME            128

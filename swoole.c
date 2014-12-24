@@ -210,13 +210,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_heartbeat_oo, 0, 0, 1)
 	ZEND_ARG_INFO(0, from_id)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_bind_uid, 0, 0, 2)
-	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
-	ZEND_ARG_INFO(0, fd)
-	ZEND_ARG_INFO(0, uid)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_bind_uid_oo, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_bind, 0, 0, 2)
 	ZEND_ARG_INFO(0, fd)
 	ZEND_ARG_INFO(0, uid)
 ZEND_END_ARG_INFO()
@@ -305,7 +299,6 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_server_reload, arginfo_swoole_server_reload)
 	PHP_FE(swoole_server_shutdown, arginfo_swoole_server_shutdown)
 	PHP_FE(swoole_server_heartbeat, arginfo_swoole_server_heartbeat)
-	PHP_FE(swoole_bind_uid, arginfo_swoole_bind_uid)
     PHP_FE(swoole_connection_info, arginfo_swoole_connection_info)
 	PHP_FE(swoole_connection_list, arginfo_swoole_connection_list)
 	/*------swoole_event-----*/
@@ -358,13 +351,14 @@ static zend_function_entry swoole_server_methods[] = {
 	PHP_FALIAS(heartbeat, swoole_server_heartbeat, arginfo_swoole_server_heartbeat_oo)
 	PHP_FALIAS(handler, swoole_server_handler, arginfo_swoole_server_handler_oo)
 	PHP_FALIAS(on, swoole_server_on, arginfo_swoole_server_on_oo)
-	PHP_FALIAS(bind_uid, swoole_bind_uid, arginfo_swoole_bind_uid_oo)
     PHP_FALIAS(connection_info, swoole_connection_info, arginfo_swoole_connection_info_oo)
 	PHP_FALIAS(connection_list, swoole_connection_list, arginfo_swoole_connection_list_oo)
 	PHP_FALIAS(after, swoole_timer_after, NULL)
+
     PHP_ME(swoole_server, sendmessage, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, addprocess, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, stats, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, bind, arginfo_swoole_server_bind, ZEND_ACC_PUBLIC)
 	{NULL, NULL, NULL}
 };
 

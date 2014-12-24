@@ -179,7 +179,7 @@ static int swFactoryThread_writer_loop(swThreadParam *param)
     uint64_t flag;
 
     //cpu affinity setting
-#if HAVE_CPU_AFFINITY
+#ifdef HAVE_CPU_AFFINITY
     if (serv->open_cpu_affinity)
     {
         cpu_set_t cpu_set;
