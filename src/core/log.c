@@ -18,7 +18,6 @@
 
 #define SW_LOG_BUFFER_SIZE 1024
 #define SW_LOG_DATE_STRLEN  64
-#define SW_LOG_FORMAT "[%s]\t%s\t%s\n"
 
 int swLog_init(char *logfile)
 {
@@ -68,15 +67,16 @@ void swLog_put(int level, char *cnt)
         break;
     }
 
-	time_t t;
-	struct tm *p;
-	t = time(NULL);
-	p = localtime(&t);
-	snprintf(date_str, SW_LOG_DATE_STRLEN, "%d-%02d-%02d %02d:%02d:%02d", p->tm_year + 1900, p->tm_mon+1, p->tm_mday , p->tm_hour, p->tm_min, p->tm_sec);
-	n = snprintf(log_str, SW_LOG_BUFFER_SIZE, SW_LOG_FORMAT, date_str, level_str, cnt);
+    time_t t;
+    struct tm *p;
+    t = time(NULL);
+    p = localtime(&t);
+    snprintf(date_str, SW_LOG_DATE_STRLEN, "%d-%02d-%02d %02d:%02d:%02d", p->tm_year + 1900, p->tm_mon + 1, p->tm_mday,
+            p->tm_hour, p->tm_min, p->tm_sec);
+    n = snprintf(log_str, SW_LOG_BUFFER_SIZE, "[%s #%d]\t%s\t%s\n", date_str, SwooleG.pid, level_str, cnt);
 
-	if (write(SwooleG.log_fd, log_str, n) < 0)
-	{
-		//write to log failed.
-	}
+    if (write(SwooleG.log_fd, log_str, n) < 0)
+    {
+        //write to log failed.
+    }
 }

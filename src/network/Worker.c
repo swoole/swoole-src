@@ -71,8 +71,7 @@ void swWorker_signal_handler(int signo)
          * for test
          */
     case SIGVTALRM:
-        swWarn("SIGVTALRM coming")
-        ;
+        swWarn("SIGVTALRM coming");
         break;
     case SIGUSR1:
     case SIGUSR2:
@@ -242,6 +241,7 @@ int swWorker_loop(swFactory *factory, int worker_id)
 
     //worker_id
     SwooleWG.id = worker_id;
+    SwooleG.pid = getpid();
 
     //signal init
     swWorker_signal_init();

@@ -109,7 +109,7 @@ static int swReactorKqueue_add(swReactor *reactor, int fd, int fdtype)
 		ret = kevent(this->epfd, &e, 1, NULL, 0, NULL);
 		if (ret < 0)
 		{
-			swWarn("kevent fail. Error: %s[%d]", strerror(errno), errno);
+		    swSysError("add events[fd=%d#%d, type=%d, events=read] failed.", fd, reactor->id, fd_.fdtype, e.events);
 			return SW_ERR;
 		}
 	}
@@ -121,7 +121,7 @@ static int swReactorKqueue_add(swReactor *reactor, int fd, int fdtype)
 		ret = kevent(this->epfd, &e, 1, NULL, 0, NULL);
 		if (ret < 0)
 		{
-			swWarn("kevent fail. Error: %s[%d]", strerror(errno), errno);
+		    swSysError("add events[fd=%d#%d, type=%d, events=write] failed.", fd, reactor->id, fd_.fdtype, e.events);
 			return SW_ERR;
 		}
 	}

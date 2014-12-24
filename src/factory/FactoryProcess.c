@@ -299,6 +299,8 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 
         //标识为管理进程
         SwooleG.process_type = SW_PROCESS_MANAGER;
+        SwooleG.pid = getpid();
+
         ret = swFactoryProcess_manager_loop(factory);
         exit(ret);
         break;
@@ -463,10 +465,10 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
     //swSignal_add(SIGINT, swManager_signal_handle);
     
      //for add/recycle task process
-    if(SwooleG.task_worker_max>0)
+    if (SwooleG.task_worker_max > 0)
     {
-             swSignal_add(SIGALRM, swManager_signal_handle);
-             alarm(1);
+        swSignal_add(SIGALRM, swManager_signal_handle);
+        alarm(1);
     }
 
     while (SwooleG.running > 0)

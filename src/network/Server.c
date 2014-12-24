@@ -506,6 +506,7 @@ int swServer_start(swServer *serv)
 
     //标识为主进程
     SwooleG.process_type = SW_PROCESS_MASTER;
+    SwooleG.pid = getpid();
 
     //启动心跳检测
     if (serv->heartbeat_check_interval >= 1 && serv->heartbeat_check_interval <= serv->heartbeat_idle_time)
@@ -1130,24 +1131,25 @@ static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
  */
 swConnection* swServer_connection_new(swServer *serv, swDataHead *ev)
 {
-    int conn_fd = ev->fd;
+    int fd = ev->fd;
     swConnection* connection = NULL;
 
     SwooleStats->accept_count++;
     sw_atomic_fetch_add(&SwooleStats->connection_num, 1);
 
-    if (conn_fd > swServer_get_maxfd(serv))
+    if (fd > swServer_get_maxfd(serv))
     {
-        swServer_set_maxfd(serv, conn_fd);
+        swServer_set_maxfd(serv, fd);
     }
 
-    connection = &(serv->connection_list[conn_fd]);
+    connection = &(serv->connection_list[fd]);
+    bzero(connection, sizeof(swConnection));
 
     //TCP Nodelay
     if (serv->open_tcp_nodelay)
     {
         int sockopt = 1;
-        if (setsockopt(conn_fd, IPPROTO_TCP, TCP_NODELAY, &sockopt, sizeof(sockopt)) < 0)
+        if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &sockopt, sizeof(sockopt)) < 0)
         {
             swSysError("setsockopt(TCP_NODELAY) failed.");
         }
@@ -1162,9 +1164,7 @@ swConnection* swServer_connection_new(swServer *serv, swDataHead *ev)
     }
 #endif
 
-    bzero(connection, sizeof(swConnection));
-
-    connection->fd = conn_fd;
+    connection->fd = fd;
     connection->from_id = ev->from_id;
     connection->from_fd = ev->from_fd;
     connection->connect_time = SwooleGS->now;

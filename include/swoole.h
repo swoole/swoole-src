@@ -255,15 +255,16 @@ SwooleG.lock.unlock(&SwooleG.lock)
 //#define swWarn(str,...)        {printf(sw_error);}
 #endif
 
-enum
+enum swTraceType
 {
-	SW_TRACE_SERVER = 1,
-	SW_TRACE_CLIENT = 2,
-	SW_TRACE_BUFFER = 3,
-	SW_TRACE_CONN   = 4,
-	SW_TRACE_EVENT  = 5,
-	SW_TRACE_WORKER = 6,
-	SW_TRACE_MEMORY = 7,
+    SW_TRACE_SERVER = 1,
+    SW_TRACE_CLIENT = 2,
+    SW_TRACE_BUFFER = 3,
+    SW_TRACE_CONN = 4,
+    SW_TRACE_EVENT = 5,
+    SW_TRACE_WORKER = 6,
+    SW_TRACE_MEMORY = 7,
+    SW_TRACE_REACTOR = 8,
 };
 
 enum
@@ -1115,7 +1116,7 @@ static sw_inline int swReactor_fdtype(int fdtype)
 static sw_inline int swReactor_events(int fdtype)
 {
     int events = 0;
-    if (fdtype & SW_EVENT_READ)
+    if (swReactor_event_read(fdtype))
     {
         events |= SW_EVENT_READ;
     }
@@ -1361,6 +1362,8 @@ typedef struct
 
     int error;
     int process_type;
+    pid_t pid;
+
     int signal_alarm; //for timer with message queue
     int signal_fd;
     int log_fd;
