@@ -9,9 +9,11 @@ $data = $client->recv();
 echo "recv ".strlen($data)." bytes\n";
 sleep(1);
 
-for($i=0; $i<500; $i++)
+for ($i = 0; $i < 500; $i++)
 {
     $data .= $client->recv();
+
+    if (strlen($data) == 4000000) break;
 }
 echo "recv ".strlen($data)." bytes\n";
 

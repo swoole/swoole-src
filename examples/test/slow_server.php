@@ -1,12 +1,14 @@
 <?php
 $serv = new swoole_server("127.0.0.1", 9501);
-$serv->set(['worker_num' => 1, 'task_worker_num' => 1]);
+$serv->set(['worker_num' => 4, 'task_worker_num' => 0]);
 $serv->sleep = true;
 $serv->count = 500;
-$serv->on('connect', function ($serv, $fd){
+$serv->on('connect', function (swoole_server $serv, $fd){
     //echo "Client:Connect.\n";
+    $data = str_repeat("A", 8000);
     for ($i = 0; $i < $serv->count; $i++) {
-        $serv->task(str_repeat("A", 8000));
+        $serv->send($fd, $data);
+        //$serv->task();
     }
 });
 
@@ -16,7 +18,7 @@ $serv->on('receive', function ($serv, $fd, $from_id, $data) {
 //        $serv->sleep = false;
 //    }
 
-    echo "recv n=".strlen($data)."\n";
+    //echo "recv n=".strlen($data)."\n";
     //$serv->send($fd, 'Swoole: hello');
 });
 
