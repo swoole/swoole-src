@@ -454,7 +454,7 @@ PHP_METHOD(swoole_process, write)
 
 	if (ret < 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "failed. Error: %s[%d]", strerror(errno), errno);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "write() failed. Error: %s[%d]", strerror(errno), errno);
 		RETURN_FALSE;
 	}
 	ZVAL_LONG(return_value, ret);
@@ -658,4 +658,30 @@ PHP_METHOD(swoole_process, exit)
 	{
 		exit(ret_code);
 	}
+}
+
+PHP_METHOD(swoole_process, close)
+{
+    swWorker *process;
+    SWOOLE_GET_WORKER(getThis(), process);
+
+    if (process->pipe == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "have not pipe, can not use close()");
+        RETURN_FALSE;
+    }
+
+    int ret = process->pipe_object->close(process->pipe_object);
+    if (ret < 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "close() failed. Error: %s[%d]", strerror(errno), errno);
+        RETURN_FALSE;
+    }
+    else
+    {
+        process->pipe = 0;
+        efree(process->pipe_object);
+        process->pipe_object = NULL;
+    }
+    ZVAL_LONG(return_value, ret);
 }

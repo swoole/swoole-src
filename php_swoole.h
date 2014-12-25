@@ -286,6 +286,7 @@ PHP_METHOD(swoole_process, daemon);
 PHP_METHOD(swoole_process, start);
 PHP_METHOD(swoole_process, write);
 PHP_METHOD(swoole_process, read);
+PHP_METHOD(swoole_process, close);
 PHP_METHOD(swoole_process, exit);
 PHP_METHOD(swoole_process, exec);
 
