@@ -506,7 +506,6 @@ int swServer_start(swServer *serv)
 
     //标识为主进程
     SwooleG.process_type = SW_PROCESS_MASTER;
-    SwooleG.pid = getpid();
 
     //启动心跳检测
     if (serv->heartbeat_check_interval >= 1 && serv->heartbeat_check_interval <= serv->heartbeat_idle_time)
@@ -529,8 +528,8 @@ int swServer_start(swServer *serv)
         SwooleGS->start = 0;
     }
 
-	swServer_free(serv);
-	return SW_OK;
+    swServer_free(serv);
+    return SW_OK;
 }
 
 /**
@@ -627,21 +626,22 @@ int swServer_shutdown(swServer *serv)
 int swServer_free(swServer *serv)
 {
     swNotice("Server is shutdown now.");
-	//factory释放
-	if (serv->factory.shutdown != NULL)
-	{
-		serv->factory.shutdown(&(serv->factory));
-	}
-	/**
-	 * Shutdown heartbeat thread
-	 */
-	if (SwooleG.heartbeat_pidt)
-	{
-	    pthread_cancel(SwooleG.heartbeat_pidt);
-		pthread_join(SwooleG.heartbeat_pidt, NULL);
-	}
+    //factory释放
+    if (serv->factory.shutdown != NULL)
+    {
+        serv->factory.shutdown(&(serv->factory));
+    }
 
-	if (serv->factory_mode == SW_MODE_SINGLE)
+    /**
+     * Shutdown heartbeat thread
+     */
+    if (SwooleG.heartbeat_pidt)
+    {
+        pthread_cancel(SwooleG.heartbeat_pidt);
+        pthread_join(SwooleG.heartbeat_pidt, NULL);
+    }
+
+    if (serv->factory_mode == SW_MODE_SINGLE)
     {
         if (SwooleG.task_worker_num > 0)
         {
@@ -672,20 +672,20 @@ int swServer_free(swServer *serv)
     swNotice("[Shutdown] Free SSL.");
 #endif
 
-	//connection_list释放
-	if (serv->factory_mode == SW_MODE_SINGLE)
-	{
-		sw_free(serv->connection_list);
-	}
-	else
-	{
-		sw_shm_free(serv->connection_list);
-	}
-	//close log file
-	if (serv->log_file[0] != 0)
-	{
-		swLog_free();
-	}
+    //connection_list释放
+    if (serv->factory_mode == SW_MODE_SINGLE)
+    {
+        sw_free(serv->connection_list);
+    }
+    else
+    {
+        sw_shm_free(serv->connection_list);
+    }
+    //close log file
+    if (serv->log_file[0] != 0)
+    {
+        swLog_free();
+    }
     if (SwooleG.null_fd > 0)
     {
         close(SwooleG.null_fd);
@@ -696,8 +696,8 @@ int swServer_free(swServer *serv)
         serv->onShutdown(serv);
     }
 
-	swoole_clean();
-	return SW_OK;
+    swoole_clean();
+    return SW_OK;
 }
 
 /**
