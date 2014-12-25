@@ -697,7 +697,7 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(&retval);
     }

@@ -528,10 +528,6 @@ int swServer_start(swServer *serv)
     {
         SwooleGS->start = 0;
     }
-    else if (serv->onShutdown != NULL)
-    {
-        serv->onShutdown(serv);
-    }
 
 	swServer_free(serv);
 	return SW_OK;
@@ -694,6 +690,12 @@ int swServer_free(swServer *serv)
     {
         close(SwooleG.null_fd);
     }
+
+    if (SwooleGS->start > 0 && serv->onShutdown != NULL)
+    {
+        serv->onShutdown(serv);
+    }
+
 	swoole_clean();
 	return SW_OK;
 }
