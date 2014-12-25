@@ -52,6 +52,9 @@ extern "C" {
 #include <sys/ipc.h>
 #include <sys/wait.h>
 #include <sys/un.h>
+#include <sys/types.h>
+#include <pwd.h>
+#include <grp.h>
 
 #ifdef __MACH__
 #include <mach/clock.h>
@@ -1358,6 +1361,12 @@ typedef struct
     int signal_fd;
     int log_fd;
     int null_fd;
+
+    /**
+     * worker(worker and task_worker) process user / group
+     */
+    char *user;
+    char *group;
 
     /**
      *  task worker process num

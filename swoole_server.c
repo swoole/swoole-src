@@ -983,6 +983,22 @@ PHP_FUNCTION(swoole_server_set)
 
     vht = Z_ARRVAL_P(zset);
 
+    //user
+    if (zend_hash_find(vht, ZEND_STRS("user"), (void **) &v) == SUCCESS)
+    {
+        convert_to_string(*v);
+        SwooleG.user = emalloc(128);
+        snprintf(SwooleG.user, 128, "%s", Z_STRVAL_PP(v));
+    }
+
+    //group
+    if (zend_hash_find(vht, ZEND_STRS("group"), (void **) &v) == SUCCESS)
+    {
+        convert_to_string(*v);
+        SwooleG.group = emalloc(128);
+        snprintf(SwooleG.group, 128, "%s", Z_STRVAL_PP(v));
+    }
+
     //daemonize
     if (zend_hash_find(vht, ZEND_STRS("daemonize"), (void **) &v) == SUCCESS)
     {
@@ -1034,8 +1050,8 @@ PHP_FUNCTION(swoole_server_set)
     //task_worker_max
     if (zend_hash_find(vht, ZEND_STRS("task_worker_max"), (void **)&v) == SUCCESS)
     {
-	convert_to_long(*v);
-	SwooleG.task_worker_max = (int)Z_LVAL_PP(v);
+	    convert_to_long(*v);
+	    SwooleG.task_worker_max = (int)Z_LVAL_PP(v);
     }
     
     if (zend_hash_find(vht, ZEND_STRS("task_ipc_mode"), (void **) &v) == SUCCESS)

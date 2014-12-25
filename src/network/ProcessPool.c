@@ -204,6 +204,10 @@ pid_t swProcessPool_spawn(swWorker *worker)
     pid_t pid = fork();
     swProcessPool *pool = worker->pool;
 
+    struct passwd *passwd;
+    struct group *group;
+    int is_root = !geteuid();
+
     switch (pid)
     {
     //child
@@ -211,6 +215,36 @@ pid_t swProcessPool_spawn(swWorker *worker)
         /**
          * Process start
          */
+        if(is_root) 
+        {
+            passwd = getpwnam(SwooleG.user);
+            group  = getgrnam(SwooleG.group);
+
+            if(passwd != NULL) 
+            {
+                if (0 > setuid(passwd->pw_uid)) 
+                {
+                    swWarn("setuid to %s fail \r\n", SwooleG.user);
+                }
+            }
+            else
+            {
+                swWarn("get user %s info fail \r\n", SwooleG.user);
+            }
+
+            if(group != NULL) 
+            {
+                if(0 > setgid(group->gr_gid)) 
+                {
+                    swWarn("setgid to %s fail \r\n", SwooleG.group);
+                }
+            }
+            else
+            {
+                swWarn("get group %s info fail \r\n", SwooleG.group);
+            }
+        }
+
         if (pool->onWorkerStart != NULL)
         {
             pool->onWorkerStart(pool, worker->id);
