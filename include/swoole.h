@@ -54,6 +54,7 @@ extern "C" {
 #include <sys/un.h>
 #include <sys/types.h>
 #include <pwd.h>
+#include <grp.h>
 
 #ifdef __MACH__
 #include <mach/clock.h>
