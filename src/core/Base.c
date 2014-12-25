@@ -509,11 +509,11 @@ int swSocket_wait(int fd, int timeout_ms, int events)
 int swSocket_write_blocking(int __fd, void *__data, int __len)
 {
     int n = 0;
-    int writen = 0;
+    int written = 0;
 
-    while (writen < __len)
+    while (written < __len)
     {
-        n = write(__fd, __data + writen, __len - writen);
+        n = write(__fd, __data + written, __len - written);
         if (n < 0)
         {
             if (errno == EINTR)
@@ -531,9 +531,10 @@ int swSocket_write_blocking(int __fd, void *__data, int __len)
                 return SW_ERR;
             }
         }
-        writen -= n;
+        written += n;
     }
-    return n;
+
+    return written;
 }
 
 int swSocket_create(int type)
