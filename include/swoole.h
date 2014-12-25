@@ -843,7 +843,7 @@ int swSocket_listen(int type, char *host, int port, int backlog);
 int swSocket_create(int type);
 int swSocket_wait(int fd, int timeout_ms, int events);
 void swSocket_clean(int fd, void *buf, int len);
-int swSendto(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
+int swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
 int swSocket_sendfile_sync(int sock, char *filename, double timeout);
 int swSocket_write_blocking(int __fd, void *__data, int __len);
 

@@ -99,7 +99,7 @@ int swFactory_finish(swFactory *factory, swSendData *resp)
         addr_un.sun_family = AF_UNIX;
         memcpy(addr_un.sun_path, resp->sun_path, resp->sun_path_len);
         len = sizeof(addr_un);
-        ret = swSendto(from_sock, resp->data, resp->info.len, 0, (struct sockaddr *) &addr_un, len);
+        ret = swSocket_sendto_blocking(from_sock, resp->data, resp->info.len, 0, (struct sockaddr *) &addr_un, len);
         goto finish;
     }
     //UDP pacakge

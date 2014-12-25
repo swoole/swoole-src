@@ -717,7 +717,7 @@ int swServer_udp_send(swServer *serv, swSendData *resp)
     addr_in.sin_port = htons((uint16_t) resp->info.from_id); //from_id is remote port
     addr_in.sin_addr.s_addr = (uint32_t) resp->info.fd; //fd is remote ip address
 
-    int ret = swSendto(sock, resp->data, resp->info.len, 0, (struct sockaddr*) &addr_in, sizeof(addr_in));
+    int ret = swSocket_sendto_blocking(sock, resp->data, resp->info.len, 0, (struct sockaddr*) &addr_in, sizeof(addr_in));
     if (ret < 0)
     {
         swWarn("sendto to client[%s:%d] failed. Error: %s [%d]", inet_ntoa(addr_in.sin_addr), resp->info.from_id,
