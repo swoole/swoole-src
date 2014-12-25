@@ -121,9 +121,8 @@ typedef struct
 
 typedef struct
 {
-	swSignal_item *items;
+	swSignal_item items[SW_SIGNO_MAX];
 	uint16_t num;
-	uint16_t size;
 } swSignal;
 
 static swSignal signalfd_object;
@@ -131,28 +130,11 @@ static swSignal signalfd_object;
 void swSignalfd_init()
 {
     sigemptyset(&swoole_signalfd_mask);
-    signalfd_object.items = sw_calloc(SW_SIGNAL_INIT_NUM, sizeof(swSignal_item));
-    if (signalfd_object.items == NULL)
-    {
-        swError("malloc for swSignal_item failed.");
-    }
-    signalfd_object.size = SW_SIGNAL_INIT_NUM;
-    signalfd_object.num = 0;
+    bzero(&signalfd_object, sizeof(signalfd_object));
 }
 
 void swSignalfd_add(int signo, __sighandler_t callback)
 {
-    if (signalfd_object.num == signalfd_object.size)
-    {
-        signalfd_object.items = sw_realloc(signalfd_object.items, sizeof(swSignal_item) * signalfd_object.size * 2);
-        if (signalfd_object.items == NULL)
-        {
-            swError("realloc for swSignal_item failed.");
-            return;
-        }
-        signalfd_object.size = signalfd_object.size * 2;
-    }
-
     sigaddset(&swoole_signalfd_mask, signo);
     signalfd_object.items[signalfd_object.num].callback = callback;
     signalfd_object.items[signalfd_object.num].signo = signo;
@@ -192,7 +174,6 @@ void swSignalfd_clear()
     {
         swSysError("sigprocmask(SIG_UNBLOCK) failed.");
     }
-    sw_free(signalfd_object.items);
     bzero(&signalfd_object, sizeof(signalfd_object));
     bzero(&swoole_signalfd_mask, sizeof(swoole_signalfd_mask));
 }

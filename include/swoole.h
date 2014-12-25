@@ -469,8 +469,6 @@ typedef struct _swSendData
     char *data;
 } swSendData;
 
-#define SW_SIGNO_MAX         128
-
 typedef void * (*swThreadStartFunc)(void *);
 typedef int (*swHandle)(swEventData *buf);
 typedef void (*swSignalFunc)(int);
