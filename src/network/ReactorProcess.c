@@ -88,6 +88,7 @@ int swReactorProcess_start(swServer *serv)
     pool.ptr = serv;
     pool.main_loop = swReactorProcess_loop;
     pool.type = SW_PROCESS_WORKER;
+
     SwooleG.event_workers = &pool;
 
     //no worker

@@ -299,6 +299,8 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 
         //标识为管理进程
         SwooleG.process_type = SW_PROCESS_MANAGER;
+        SwooleG.pid = getpid();
+
         ret = swFactoryProcess_manager_loop(factory);
         exit(ret);
         break;
@@ -463,10 +465,10 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
     //swSignal_add(SIGINT, swManager_signal_handle);
     
      //for add/recycle task process
-    if(SwooleG.task_worker_max>0)
+    if (SwooleG.task_worker_max > 0)
     {
-             swSignal_add(SIGALRM, swManager_signal_handle);
-             alarm(1);
+        swSignal_add(SIGALRM, swManager_signal_handle);
+        alarm(1);
     }
 
     while (SwooleG.running > 0)
@@ -723,7 +725,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         addr_un.sun_family = AF_UNIX;
         memcpy(addr_un.sun_path, resp->sun_path, resp->sun_path_len);
         len = sizeof(addr_un);
-        ret = swSendto(from_sock, resp->data, resp->info.len, 0, (struct sockaddr *) &addr_un, len);
+        ret = swSocket_sendto_blocking(from_sock, resp->data, resp->info.len, 0, (struct sockaddr *) &addr_un, len);
         goto finish;
     }
     //UDP pacakge

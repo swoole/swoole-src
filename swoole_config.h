@@ -33,10 +33,10 @@
 
 //#define SW_CONNECTION_LIST_EXPAND  (4096*2)  //动态扩容的数量
 
-//#define SW_DEBUG                  //debug
+//#define SW_DEBUG                 //debug
 #define SW_LOG_NO_SRCINFO          //no source info
-#define SW_LOG_TRACE_OPEN          0  //1: open all trace log, 0: close all trace log, >1: open some[traceId=n] trace log
-//#define SW_BUFFER_SIZE            65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
+#define SW_LOG_TRACE_OPEN          0
+//#define SW_BUFFER_SIZE           65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_CLIENT_BUFFER_SIZE      65535
 #define SW_CLIENT_RECV_AGAIN
 #define SW_CLIENT_DEFAULT_TIMEOUT  0.5
@@ -162,6 +162,8 @@
 
 #define SW_STRING_BUFFER_MAXLEN          (1024*1024*128)
 #define SW_STRING_BUFFER_DEFAULT         128
+
+#define SW_SIGNO_MAX                     128
 
 #define SW_HTTP_SERVER_SOFTWARE          "swoole-http-server"
 #define SW_HTTP_BAD_REQUEST              "<h1>400 Bad Request</h1>\r\n"

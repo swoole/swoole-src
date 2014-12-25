@@ -23,8 +23,10 @@
 #include "php_ini.h"
 #include "php_globals.h"
 #include "php_main.h"
+
 #include "zend_interfaces.h"
-#include "Zend/zend_exceptions.h"
+#include "zend_exceptions.h"
+#include "zend_variables.h"
 
 #include <ext/spl/spl_iterators.h>
 #include <ext/standard/info.h>
@@ -33,12 +35,12 @@
 #include "config.h"
 #endif
 
-#include "swoole.h"
-#include "Server.h"
-#include "Client.h"
-#include "async.h"
+#include "include/swoole.h"
+#include "include/Server.h"
+#include "include/Client.h"
+#include "include/async.h"
 
-#define PHP_SWOOLE_VERSION  "1.7.9-beta"
+#define PHP_SWOOLE_VERSION  "1.7.9-rc1"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -193,10 +195,6 @@ extern HashTable php_sw_timer_callback;
 extern HashTable php_sw_long_connections;
 extern HashTable php_sw_aio_callback;
 
-extern uint8_t php_sw_reactor_ok;
-extern uint8_t php_sw_reactor_wait_onexit;
-extern uint8_t php_sw_in_client;
-
 PHP_MINIT_FUNCTION(swoole);
 PHP_MSHUTDOWN_FUNCTION(swoole);
 PHP_RINIT_FUNCTION(swoole);
@@ -227,11 +225,12 @@ PHP_FUNCTION(swoole_server_reload);
 PHP_FUNCTION(swoole_server_shutdown);
 PHP_FUNCTION(swoole_server_heartbeat);
 PHP_FUNCTION(swoole_connection_list);
-PHP_FUNCTION(swoole_bind_uid);
 PHP_FUNCTION(swoole_connection_info);
+
 PHP_METHOD(swoole_server, sendmessage);
 PHP_METHOD(swoole_server, addprocess);
 PHP_METHOD(swoole_server, stats);
+PHP_METHOD(swoole_server, bind);
 
 PHP_FUNCTION(swoole_event_add);
 PHP_FUNCTION(swoole_event_set);
@@ -287,6 +286,7 @@ PHP_METHOD(swoole_process, daemon);
 PHP_METHOD(swoole_process, start);
 PHP_METHOD(swoole_process, write);
 PHP_METHOD(swoole_process, read);
+PHP_METHOD(swoole_process, close);
 PHP_METHOD(swoole_process, exit);
 PHP_METHOD(swoole_process, exec);
 

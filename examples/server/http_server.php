@@ -2,7 +2,7 @@
 $http = new swoole_http_server("0.0.0.0", 9501);
 //$http->setGlobal(HTTP_GLOBAL_ALL, HTTP_GLOBAL_GET|HTTP_GLOBAL_POST|HTTP_GLOBAL_COOKIE);
 $http->set(['worker_num' => 1, 'task_worker_num' => 0]);
-$http->on('request', function ($request, $response) {
+$http->on('request', function (swoole_http_request $request, swoole_http_response $response) {
 //	var_dump($request->cookie);
 //var_dump($request);
 //var_dump($_GET);

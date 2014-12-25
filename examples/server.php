@@ -5,7 +5,7 @@ class G
 }
 
 $config = array(
-    'worker_num' => 1,
+    'worker_num' => 4,
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
     //'ipc_mode' => 2,

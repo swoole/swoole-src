@@ -46,7 +46,6 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
     pool->map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
     if (pool->map == NULL)
     {
-        sw_free(pool->workers);
         return SW_ERR;
     }
 
@@ -76,6 +75,7 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
             {
                 return SW_ERR;
             }
+
             pool->workers[i].pipe_master = pipe->getFd(pipe, SW_PIPE_MASTER);
             pool->workers[i].pipe_worker = pipe->getFd(pipe, SW_PIPE_WORKER);
             pool->workers[i].pipe_object = pipe;
@@ -92,8 +92,11 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
 int swProcessPool_start(swProcessPool *pool)
 {
     int i;
-    for (i = 0; i < SwooleG.task_worker_num; i++)
+    for (i = 0; i < pool->worker_num; i++)
     {
+        pool->workers[i].pool = pool;
+        pool->workers[i].id = pool->start_id + i;
+
         if (swProcessPool_spawn(&(pool->workers[i])) < 0)
         {
             swWarn("swProcessPool_spawn fail");
@@ -108,7 +111,7 @@ int swProcessPool_start(swProcessPool *pool)
  */
 int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int *dst_worker_id)
 {
-    int ret;
+    int ret = 0;
 
     if (*dst_worker_id < 0)
     {
@@ -159,7 +162,7 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int *dst_work
         }
         else
         {
-            swSocket_write(worker->pipe_master, data, sizeof(data->info) + data->info.len);
+            ret = swSocket_write_blocking(worker->pipe_master, data, sizeof(data->info) + data->info.len);
         }
 
         if (ret < 0)
@@ -355,6 +358,7 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
  */
 int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker)
 {
+    worker->pool = pool;
     swHashMap_add_int(pool->map, worker->pid, worker, NULL);
     return SW_OK;
 }

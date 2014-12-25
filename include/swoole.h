@@ -258,15 +258,16 @@ SwooleG.lock.unlock(&SwooleG.lock)
 //#define swWarn(str,...)        {printf(sw_error);}
 #endif
 
-enum
+enum swTraceType
 {
-	SW_TRACE_SERVER = 1,
-	SW_TRACE_CLIENT = 2,
-	SW_TRACE_BUFFER = 3,
-	SW_TRACE_CONN   = 4,
-	SW_TRACE_EVENT  = 5,
-	SW_TRACE_WORKER = 6,
-	SW_TRACE_MEMORY = 7,
+    SW_TRACE_SERVER = 1,
+    SW_TRACE_CLIENT = 2,
+    SW_TRACE_BUFFER = 3,
+    SW_TRACE_CONN = 4,
+    SW_TRACE_EVENT = 5,
+    SW_TRACE_WORKER = 6,
+    SW_TRACE_MEMORY = 7,
+    SW_TRACE_REACTOR = 8,
 };
 
 enum
@@ -470,8 +471,6 @@ typedef struct _swSendData
 
     char *data;
 } swSendData;
-
-#define SW_SIGNO_MAX         128
 
 typedef void * (*swThreadStartFunc)(void *);
 typedef int (*swHandle)(swEventData *buf);
@@ -847,23 +846,9 @@ int swSocket_listen(int type, char *host, int port, int backlog);
 int swSocket_create(int type);
 int swSocket_wait(int fd, int timeout_ms, int events);
 void swSocket_clean(int fd, void *buf, int len);
-int swSendto(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
+int swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
 int swSocket_sendfile_sync(int sock, char *filename, double timeout);
-
-static sw_inline int swSocket_write(int fd, void *data, int len)
-{
-    int n;
-    while (1)
-    {
-        n = write(fd, data, len);
-        if (n < 0 && errno == EINTR)
-        {
-            continue;
-        }
-        break;
-    }
-    return n;
-}
+int swSocket_write_blocking(int __fd, void *__data, int __len);
 
 static sw_inline int swWaitpid(pid_t __pid, int *__stat_loc, int __options)
 {
@@ -929,9 +914,10 @@ struct swReactor_s
     uint32_t thread :1;
 
 	/**
-	 * reactor->wait timeout (millisecond)
+	 * reactor->wait timeout (millisecond) or -1
 	 */
-	uint32_t timeout_msec;
+	int32_t timeout_msec;
+
 	uint16_t id; //Reactor ID
 	uint16_t flag; //flag
 
@@ -1118,7 +1104,7 @@ static sw_inline int swReactor_fdtype(int fdtype)
 static sw_inline int swReactor_events(int fdtype)
 {
     int events = 0;
-    if (fdtype & SW_EVENT_READ)
+    if (swReactor_event_read(fdtype))
     {
         events |= SW_EVENT_READ;
     }
@@ -1331,6 +1317,11 @@ typedef struct
 	 */
 	int pipe_used;
 
+    uint32_t reactor_wait_onexit :1;
+    uint32_t reactor_ok :1;
+    uint32_t in_client :1;
+    uint32_t event_wait :1;
+
 	swString **buffer_input;
     swWorker *worker;
 
@@ -1364,6 +1355,8 @@ typedef struct
 
     int error;
     int process_type;
+    pid_t pid;
+
     int signal_alarm; //for timer with message queue
     int signal_fd;
     int log_fd;

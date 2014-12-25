@@ -11,7 +11,7 @@ $serv->on('workerstart', function($server, $id) {
 		  $local_client = stream_socket_accept($server);
 		  
 		  swoole_event_add($local_client, function($client){
-			  echo fread($client);
+			  echo fread($client, 8192);
 			  fwrite($client, "hello");
 		  });
      });

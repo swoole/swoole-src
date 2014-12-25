@@ -115,19 +115,25 @@ swConnection* swReactor_get(swReactor *reactor, int fd)
             return NULL;
         }
 
-        if (reactor->max_socket == 0)
+        int max_socket = fd * 2;
+        if (max_socket > SwooleG.max_sockets)
         {
-            reactor->max_socket = fd * 2;
-            reactor->sockets = sw_calloc(reactor->max_socket, sizeof(swConnection));
+            max_socket = SwooleG.max_sockets + 1;
+        }
+
+        if (reactor->sockets == NULL)
+        {
+            reactor->sockets = sw_calloc(max_socket, sizeof(swConnection));
+            reactor->max_socket = max_socket;
         }
         else
         {
-            int max_socket = reactor->max_socket * 2;
-            if (max_socket > SwooleG.max_sockets)
+            reactor->sockets = sw_realloc(reactor->sockets, max_socket * sizeof(swConnection));
+            if (reactor->sockets)
             {
-                max_socket = SwooleG.max_sockets + 1;
+                bzero((void *) reactor->sockets + reactor->max_socket * sizeof(swConnection),
+                        (max_socket - reactor->max_socket) * sizeof(swConnection));
             }
-            reactor->sockets = sw_calloc(max_socket, sizeof(swConnection));
             reactor->max_socket = max_socket;
         }
 
@@ -138,7 +144,13 @@ swConnection* swReactor_get(swReactor *reactor, int fd)
         }
     }
 
-    return &reactor->sockets[fd];
+    swConnection *socket = &reactor->sockets[fd];
+    if (!socket->active)
+    {
+        socket->fd = fd;
+        socket->active = 1;
+    }
+    return socket;
 }
 
 int swReactor_add(swReactor *reactor, int fd, int fdtype)
@@ -147,6 +159,8 @@ int swReactor_add(swReactor *reactor, int fd, int fdtype)
 
     socket->type = swReactor_fdtype(fdtype);
     socket->events = swReactor_events(fdtype);
+
+    swTraceLog(SW_TRACE_REACTOR, "fd=%d, type=%d, events=%d", fd, socket->type, socket->events);
 
     return SW_OK;
 }
@@ -224,13 +238,6 @@ static int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
 {
     int ret;
     swConnection *socket = swReactor_get(reactor, fd);
-
-    if (!socket->active)
-    {
-        socket->fd = fd;
-        socket->active = 1;
-    }
-
     swBuffer *buffer = socket->out_buffer;
 
     if (swBuffer_empty(buffer))

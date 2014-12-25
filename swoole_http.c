@@ -15,14 +15,16 @@
 */
 
 #include "php_swoole.h"
+
 #include <ext/standard/url.h>
 #include <ext/standard/sha1.h>
 #include <ext/date/php_date.h>
 #include <main/php_variables.h>
-#include <include/swoole.h>
-#include <include/websocket.h>
-#include <include/Connection.h>
-#include <include/base64.h>
+
+#include "include/swoole.h"
+#include "include/websocket.h"
+#include "include/Connection.h"
+#include "include/base64.h"
 
 #include "thirdparty/php_http_parser.h"
 
@@ -81,6 +83,9 @@ zend_class_entry *swoole_http_wsresponse_class_entry_ptr;
 
 static zval* php_sw_http_server_callbacks[4];
 static swHashMap *php_sw_http_clients;
+
+static int http_websocket_onMessage(swEventData *req TSRMLS_DC);
+static int http_websocket_onHandshake(http_client *client TSRMLS_DC);
 
 static int http_onReceive(swFactory *factory, swEventData *req);
 static void http_onClose(swServer *serv, int fd, int from_id);
@@ -170,44 +175,65 @@ static int http_request_on_path(php_http_parser *parser, const char *at, size_t 
 static void mergeGlobal(zval * val, zval *zrequest, int type)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
     zval *http_server = SwooleG.serv->ptr2;
     zval *http_global = zend_read_property(swoole_http_server_class_entry_ptr, http_server, ZEND_STRL("global"), 1 TSRMLS_CC);
+
     int global = Z_LVAL_P(http_global);
     zval *http_request_val = zend_read_property(swoole_http_server_class_entry_ptr, http_server, ZEND_STRL("request_val"), 1 TSRMLS_CC);
     int request_val = Z_LVAL_P(http_request_val);
+
     swTrace("http_global:%d %d\n", global, request_val);
-    if(!(global & type)) return;
+
+    if (!(global & type))
+    {
+        return;
+    }
+
     zval *_request;
-    switch (type) {
-        case HTTP_GLOBAL_GET:
-            ZEND_SET_SYMBOL(&EG(symbol_table), "_GET", val);
-            break;
-        case HTTP_GLOBAL_POST:
-            ZEND_SET_SYMBOL(&EG(symbol_table), "_POST", val);
-            break;
-        case HTTP_GLOBAL_COOKIE:
-            swTrace("merge cookie\n");
-            ZEND_SET_SYMBOL(&EG(symbol_table), "_COOKIE", val);
-            break;
-        case HTTP_GLOBAL_REQUEST:
-            if(!request_val) return;
-            _request = zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), 1
-            TSRMLS_CC);
-            ZEND_SET_SYMBOL(&EG(symbol_table), "_REQUEST", _request);
+
+    switch (type)
+    {
+    case HTTP_GLOBAL_GET:
+        ZEND_SET_SYMBOL(&EG(symbol_table), "_GET", val);
+        break;
+
+    case HTTP_GLOBAL_POST:
+        ZEND_SET_SYMBOL(&EG(symbol_table), "_POST", val);
+        break;
+
+    case HTTP_GLOBAL_COOKIE:
+        swTrace("merge cookie\n");
+        ZEND_SET_SYMBOL(&EG(symbol_table), "_COOKIE", val);
+        break;
+
+    case HTTP_GLOBAL_REQUEST:
+        if (!request_val)
+        {
             return;
-        case HTTP_GLOBAL_SERVER:
-            ZEND_SET_SYMBOL(&EG(symbol_table), "_SERVER", val);
-            return;
+        }
+
+        zval *_request;
+        MAKE_STD_ZVAL(_request);
+        array_init(_request);
+        zend_update_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), _request TSRMLS_CC);
+
+        ZEND_SET_SYMBOL(&EG(symbol_table), "_REQUEST", _request);
+        return;
+
+    case HTTP_GLOBAL_SERVER:
+        ZEND_SET_SYMBOL(&EG(symbol_table), "_SERVER", val);
+        return;
     }
 //    int flag = 0;
 
-    if(request_val & type) {
-//        swTrace("%d, %d match\n", global, type);
-        _request = zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), 1
-        TSRMLS_CC);
+    if (request_val & type)
+    {
+        //swTrace("%d, %d match\n", global, type);
+        _request = zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), 1 TSRMLS_CC);
         zend_hash_copy(Z_ARRVAL_P(_request), Z_ARRVAL_P(val), NULL, NULL, sizeof(zval));
         zend_update_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), _request TSRMLS_CC);
-//        flag = 0;
+        //flag = 0;
         //ZEND_SET_SYMBOL(&EG(symbol_table), "_REQUEST", _request);
     }
 
@@ -221,6 +247,8 @@ static int http_request_on_query_string(php_http_parser *parser, const char *at,
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
     http_client *client = parser->data;
+
+    //no need free, will free by treat_data
     char *query = estrndup(at, length);
 
     zval *get;
@@ -229,6 +257,7 @@ static int http_request_on_query_string(php_http_parser *parser, const char *at,
     zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("get"), get TSRMLS_CC);
     sapi_module.treat_data(PARSE_STRING, query, get TSRMLS_CC);
     mergeGlobal(get, client->zrequest, HTTP_GLOBAL_GET);
+
     return 0;
 }
 
@@ -505,14 +534,79 @@ static void handshake_success(int fd)
             php_error_docref(NULL TSRMLS_CC, E_WARNING, "onMessage handler error");
         }
         swTrace("===== message callback end======");
-        if (EG(exception)) {
-            zend_exception_error(EG(exception), E_ERROR
-            TSRMLS_CC);
+        if (EG(exception))
+        {
+            zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
         }
-        if (retval) {
+        if (retval)
+        {
             zval_ptr_dtor(&retval);
         }
     }
+}
+
+static int http_websocket_onHandshake(http_client *client TSRMLS_DC)
+{
+    int fd = client->fd;
+    int ret = websocket_handshake(client);
+    http_request_free(client TSRMLS_CC);
+
+    if (ret == SW_ERR)
+    {
+        swTrace("websocket handshake error\n");
+        SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+    }
+    else
+    {
+        handshake_success(fd);
+        swTrace("websocket handshake_success\n");
+    }
+    return SW_OK;
+}
+
+static int http_websocket_onMessage(swEventData *req TSRMLS_DC)
+{
+    int fd = req->info.fd;
+    zval *zdata = php_swoole_get_data(req TSRMLS_CC);
+    swTrace("on message callback\n");
+    char *buf = Z_STRVAL_P(zdata);
+    long fin = buf[0] ? 1 : 0;
+    long opcode = buf[1] ? 1 : 0;
+
+    buf += 2;
+    zval *zresponse;
+    MAKE_STD_ZVAL(zresponse);
+    object_init_ex(zresponse, swoole_http_wsresponse_class_entry_ptr);
+
+    //socket fd
+    zend_update_property_long(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("fd"), fd TSRMLS_CC);
+    zend_update_property_long(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("fin"), fin TSRMLS_CC);
+    zend_update_property_long(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("opcode"), opcode TSRMLS_CC);
+    zend_update_property_stringl(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("data"), buf, (Z_STRLEN_P(zdata) - 2) TSRMLS_CC);
+
+    zval **args[1];
+    args[0] = &zresponse;
+    zval *retval;
+    if (call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[1], &retval, 1, args, 0,  NULL TSRMLS_CC) == FAILURE)
+    {
+        zval_ptr_dtor(&zdata);
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "onMessage handler error");
+    }
+
+    swTrace("===== message callback end======");
+
+    if (EG(exception))
+    {
+        zval_ptr_dtor(&zdata);
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+    }
+
+    if (retval)
+    {
+        zval_ptr_dtor(&retval);
+    }
+    zval_ptr_dtor(&zdata);
+    return SW_OK;
 }
 
 static int http_onReceive(swFactory *factory, swEventData *req)
@@ -521,58 +615,19 @@ static int http_onReceive(swFactory *factory, swEventData *req)
 
     int fd = req->info.fd;
 
-
 //    swTrace("on receive:%s pid:%d\n", zdata, getpid());
     swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
 
-    if(conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE)  //websocket callback
+    if (conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE)  //websocket callback
     {
-        zval *zdata = php_swoole_get_data(req TSRMLS_CC);
-        swTrace("on message callback\n");
-        char *buf = Z_STRVAL_P(zdata);
-        long fin = buf[0] ? 1 : 0;
-        long opcode = buf[1] ? 1 : 0;
-        buf+=2;
-        zval *zresponse;
-        MAKE_STD_ZVAL(zresponse);
-        object_init_ex(zresponse, swoole_http_wsresponse_class_entry_ptr);
-        //socket fd
-        zend_update_property_long(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("fd"), fd TSRMLS_CC);
-        zend_update_property_long(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("fin"), fin TSRMLS_CC);
-        zend_update_property_long(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("opcode"), opcode TSRMLS_CC);
-        zend_update_property_stringl(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("data"), buf, (Z_STRLEN_P(zdata)-2) TSRMLS_CC);
-
-        zval **args[1];
-        args[0] = &zresponse;
-        zval *retval;
-        if (call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[1], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
-        {
-            zval_ptr_dtor(&zdata);
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "onMessage handler error");
-        }
-        swTrace("===== message callback end======");
-        if (EG(exception))
-        {
-            zval_ptr_dtor(&zdata);
-            zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
-        }
-        if (retval)
-        {
-            zval_ptr_dtor(&retval);
-        }
-        zval_ptr_dtor(&zdata);
-        return SW_OK;
+        return http_websocket_onMessage(req TSRMLS_CC);
     }
 
     http_client *client = swHashMap_find_int(php_sw_http_clients, fd);
-
-
-
     if (!client)
     {
         client = http_client_new(fd TSRMLS_CC);
     }
-
 
     php_http_parser *parser = &client->parser;
 
@@ -584,42 +639,25 @@ static int http_onReceive(swFactory *factory, swEventData *req)
     parser->data = client;
     php_http_parser_init(parser, PHP_HTTP_REQUEST);
 
-
-
     zval *zdata = php_swoole_get_data(req TSRMLS_CC);
-    //server info
-    zval *_request;
-    MAKE_STD_ZVAL(_request);
-    array_init(_request);
-    zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("request"), _request TSRMLS_CC);
-    size_t n = php_http_parser_execute(parser, &http_parser_settings, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
+
+    long n = php_http_parser_execute(parser, &http_parser_settings, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
     zval_ptr_dtor(&zdata);
+
     if (n < 0)
     {
         swWarn("php_http_parser_execute failed.");
-        if(conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
+        if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
         {
-            SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+            return SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
         }
-
     }
     else
     {
-        if(conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) // need handshake
+        //websocket handshake
+        if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION && php_sw_http_server_callbacks[2] == NULL)
         {
-            if(php_sw_http_server_callbacks[2] == NULL) {
-                int ret = websocket_handshake(client);
-                http_request_free(client TSRMLS_CC);
-                if (ret == SW_ERR) {
-                    swTrace("websocket handshake error\n");
-                    SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
-                } else {
-                    handshake_success(fd);
-                    swTrace("websocket handshake_success\n");
-                    return SW_OK;
-                }
-                return ret;
-            }
+            return http_websocket_onHandshake(client TSRMLS_CC);
         }
 
         zval *retval;
@@ -629,58 +667,102 @@ static int http_onReceive(swFactory *factory, swEventData *req)
     	//server info
     	zval *zserver;
     	MAKE_STD_ZVAL(zserver);
+
     	array_init(zserver);
     	zend_update_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("server"), zserver TSRMLS_CC);
 
-        switch (parser->method) {
-            case PHP_HTTP_GET: add_assoc_string(zserver, "REQUEST_METHOD", "GET", 1);break;
-            case PHP_HTTP_POST: add_assoc_string(zserver, "REQUEST_METHOD", "POST", 1);break;
-            case PHP_HTTP_HEAD: add_assoc_string(zserver, "REQUEST_METHOD", "HEAD", 1);break;
-            case PHP_HTTP_PUT: add_assoc_string(zserver, "REQUEST_METHOD", "PUT", 1);break;
-            case PHP_HTTP_DELETE: add_assoc_string(zserver, "REQUEST_METHOD", "DELETE", 1);break;
-            case PHP_HTTP_PATCH: add_assoc_string(zserver, "REQUEST_METHOD", "PATCH", 1);break;
-                /* pathological */
-            case PHP_HTTP_CONNECT: add_assoc_string(zserver, "REQUEST_METHOD", "CONNECT", 1);break;
-            case PHP_HTTP_OPTIONS: add_assoc_string(zserver, "REQUEST_METHOD", "OPTIONS", 1);break;
-            case PHP_HTTP_TRACE: add_assoc_string(zserver, "REQUEST_METHOD", "TRACE", 1);break;
-                /* webdav */
-            case PHP_HTTP_COPY: add_assoc_string(zserver, "REQUEST_METHOD", "COPY", 1);break;
-            case PHP_HTTP_LOCK: add_assoc_string(zserver, "REQUEST_METHOD", "LOCK", 1);break;
-            case PHP_HTTP_MKCOL: add_assoc_string(zserver, "REQUEST_METHOD", "MKCOL", 1);break;
-            case PHP_HTTP_MOVE: add_assoc_string(zserver, "REQUEST_METHOD", "MOVE", 1);break;
-            case PHP_HTTP_PROPFIND: add_assoc_string(zserver, "REQUEST_METHOD", "PROPFIND", 1);break;
-            case PHP_HTTP_PROPPATCH: add_assoc_string(zserver, "REQUEST_METHOD", "PROPPATCH", 1);break;
-            case PHP_HTTP_UNLOCK: add_assoc_string(zserver, "REQUEST_METHOD", "UNLOCK", 1);break;
-                /* subversion */
-            case PHP_HTTP_REPORT: add_assoc_string(zserver, "REQUEST_METHOD", "REPORT", 1);break;
-            case PHP_HTTP_MKACTIVITY: add_assoc_string(zserver, "REQUEST_METHOD", "MKACTIVITY", 1);break;
-            case PHP_HTTP_CHECKOUT: add_assoc_string(zserver, "REQUEST_METHOD", "CHECKOUT", 1);break;
-            case PHP_HTTP_MERGE: add_assoc_string(zserver, "REQUEST_METHOD", "MERGE", 1);break;
-                /* upnp */
-            case PHP_HTTP_MSEARCH: add_assoc_string(zserver, "REQUEST_METHOD", "MSEARCH", 1);break;
-            case PHP_HTTP_NOTIFY: add_assoc_string(zserver, "REQUEST_METHOD", "NOTIFY", 1);break;
-            case PHP_HTTP_SUBSCRIBE: add_assoc_string(zserver, "REQUEST_METHOD", "SUBSCRIBE", 1);break;
-            case PHP_HTTP_UNSUBSCRIBE: add_assoc_string(zserver, "REQUEST_METHOD", "UNSUBSCRIBE", 1);break;
-            case PHP_HTTP_NOT_IMPLEMENTED: add_assoc_string(zserver, "REQUEST_METHOD", "GET", 1);break;
+        switch (parser->method)
+        {
+        case PHP_HTTP_GET:
+            add_assoc_string(zserver, "REQUEST_METHOD", "GET", 1);
+            break;
+        case PHP_HTTP_POST:
+            add_assoc_string(zserver, "REQUEST_METHOD", "POST", 1);
+            break;
+        case PHP_HTTP_HEAD:
+            add_assoc_string(zserver, "REQUEST_METHOD", "HEAD", 1);
+            break;
+        case PHP_HTTP_PUT:
+            add_assoc_string(zserver, "REQUEST_METHOD", "PUT", 1);
+            break;
+        case PHP_HTTP_DELETE:
+            add_assoc_string(zserver, "REQUEST_METHOD", "DELETE", 1);
+            break;
+        case PHP_HTTP_PATCH:
+            add_assoc_string(zserver, "REQUEST_METHOD", "PATCH", 1);
+            break;
+            /* pathological */
+        case PHP_HTTP_CONNECT:
+            add_assoc_string(zserver, "REQUEST_METHOD", "CONNECT", 1);
+            break;
+        case PHP_HTTP_OPTIONS:
+            add_assoc_string(zserver, "REQUEST_METHOD", "OPTIONS", 1);
+            break;
+        case PHP_HTTP_TRACE:
+            add_assoc_string(zserver, "REQUEST_METHOD", "TRACE", 1);
+            break;
+            /* webdav */
+        case PHP_HTTP_COPY:
+            add_assoc_string(zserver, "REQUEST_METHOD", "COPY", 1);
+            break;
+        case PHP_HTTP_LOCK:
+            add_assoc_string(zserver, "REQUEST_METHOD", "LOCK", 1);
+            break;
+        case PHP_HTTP_MKCOL:
+            add_assoc_string(zserver, "REQUEST_METHOD", "MKCOL", 1);
+            break;
+        case PHP_HTTP_MOVE:
+            add_assoc_string(zserver, "REQUEST_METHOD", "MOVE", 1);
+            break;
+        case PHP_HTTP_PROPFIND:
+            add_assoc_string(zserver, "REQUEST_METHOD", "PROPFIND", 1);
+            break;
+        case PHP_HTTP_PROPPATCH:
+            add_assoc_string(zserver, "REQUEST_METHOD", "PROPPATCH", 1);
+            break;
+        case PHP_HTTP_UNLOCK:
+            add_assoc_string(zserver, "REQUEST_METHOD", "UNLOCK", 1);
+            break;
+            /* subversion */
+        case PHP_HTTP_REPORT:
+            add_assoc_string(zserver, "REQUEST_METHOD", "REPORT", 1);
+            break;
+        case PHP_HTTP_MKACTIVITY:
+            add_assoc_string(zserver, "REQUEST_METHOD", "MKACTIVITY", 1);
+            break;
+        case PHP_HTTP_CHECKOUT:
+            add_assoc_string(zserver, "REQUEST_METHOD", "CHECKOUT", 1);
+            break;
+        case PHP_HTTP_MERGE:
+            add_assoc_string(zserver, "REQUEST_METHOD", "MERGE", 1);
+            break;
+            /* upnp */
+        case PHP_HTTP_MSEARCH:
+            add_assoc_string(zserver, "REQUEST_METHOD", "MSEARCH", 1);
+            break;
+        case PHP_HTTP_NOTIFY:
+            add_assoc_string(zserver, "REQUEST_METHOD", "NOTIFY", 1);
+            break;
+        case PHP_HTTP_SUBSCRIBE:
+            add_assoc_string(zserver, "REQUEST_METHOD", "SUBSCRIBE", 1);
+            break;
+        case PHP_HTTP_UNSUBSCRIBE:
+            add_assoc_string(zserver, "REQUEST_METHOD", "UNSUBSCRIBE", 1);
+            break;
+        case PHP_HTTP_NOT_IMPLEMENTED:
+            add_assoc_string(zserver, "REQUEST_METHOD", "GET", 1);
+            break;
         }
 
-//    	if (parser->method == PHP_HTTP_POST)
-//    	{
-//    		add_assoc_string(zserver, "REQUEST_METHOD", "POST", 1);
-//    	}
-//    	else
-//    	{
-//    		add_assoc_string(zserver, "REQUEST_METHOD", "GET", 1);
-//    	}
-
-    	add_assoc_stringl(zserver, "REQUEST_URI", client->request.path, client->request.path_len, 1);
-    	add_assoc_stringl(zserver, "PATH_INFO", client->request.path, client->request.path_len, 1);
-    	add_assoc_long_ex(zserver,  ZEND_STRS("REQUEST_TIME"), SwooleGS->now);
+        add_assoc_stringl(zserver, "REQUEST_URI", client->request.path, client->request.path_len, 1);
+        add_assoc_stringl(zserver, "PATH_INFO", client->request.path, client->request.path_len, 1);
+        add_assoc_long_ex(zserver, ZEND_STRS("REQUEST_TIME"), SwooleGS->now);
 
     	swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
-    	add_assoc_long(zserver, "SERVER_PORT", SwooleG.serv->connection_list[conn->from_fd].addr.sin_port);
-    	add_assoc_long(zserver, "REMOTE_PORT", ntohs(conn->addr.sin_port));
-    	add_assoc_string(zserver, "REMOTE_ADDR", inet_ntoa(conn->addr.sin_addr), 1);
+
+        add_assoc_long(zserver, "SERVER_PORT", SwooleG.serv->connection_list[conn->from_fd].addr.sin_port);
+        add_assoc_long(zserver, "REMOTE_PORT", ntohs(conn->addr.sin_port));
+        add_assoc_string(zserver, "REMOTE_ADDR", inet_ntoa(conn->addr.sin_addr), 1);
 
     	if (client->request.version == 101)
     	{
@@ -690,10 +772,13 @@ static int http_onReceive(swFactory *factory, swEventData *req)
     	{
             add_assoc_string(zserver, "SERVER_PROTOCOL", "HTTP/1.0", 1);
         }
+
         add_assoc_string(zserver, "SERVER_SOFTWARE", SW_HTTP_SERVER_SOFTWARE, 1);
         add_assoc_string(zserver, "GATEWAY_INTERFACE", SW_HTTP_SERVER_SOFTWARE, 1);
-//        ZEND_SET_SYMBOL(&EG(symbol_table), "_SERVER", zserver);
+
+        ZEND_SET_SYMBOL(&EG(symbol_table), "_SERVER", zserver);
         mergeGlobal(zserver, NULL, HTTP_GLOBAL_SERVER);
+
         //设置_REQUEST
         mergeGlobal(NULL, zrequest, HTTP_GLOBAL_REQUEST);
 
@@ -709,7 +794,7 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         args[1] = &zresponse;
 
         int called = 0;
-        if(conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
+        if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
         {
             called = 2;
         }
@@ -726,7 +811,8 @@ static int http_onReceive(swFactory *factory, swEventData *req)
             zval_ptr_dtor(&retval);
         }
         swTrace("======call end======\n");
-        if(called == 2) {
+        if (called == 2)
+        {
             handshake_success(fd);
         }
     }
@@ -756,7 +842,6 @@ void swoole_http_init(int module_number TSRMLS_DC)
     REGISTER_LONG_CONSTANT("HTTP_GLOBAL_POST", HTTP_GLOBAL_POST, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("HTTP_GLOBAL_COOKIE", HTTP_GLOBAL_COOKIE, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("HTTP_GLOBAL_ALL", HTTP_GLOBAL_GET| HTTP_GLOBAL_POST| HTTP_GLOBAL_COOKIE | HTTP_GLOBAL_REQUEST |HTTP_GLOBAL_SERVER, CONST_CS | CONST_PERSISTENT);
-
 }
 
 PHP_METHOD(swoole_http_server, on)
@@ -889,6 +974,16 @@ static void http_request_free(http_client *client TSRMLS_DC)
     {
         zval_ptr_dtor(&zpost);
     }
+    zval *zcookie = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("cookie"), 1 TSRMLS_CC);
+    if (!ZVAL_IS_NULL(zpost))
+    {
+        zval_ptr_dtor(&zcookie);
+    }
+    zval *zrequest = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("request"), 1 TSRMLS_CC);
+    if (!ZVAL_IS_NULL(zrequest))
+    {
+        zval_ptr_dtor(&zrequest);
+    }
     zval *zserver = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("server"), 1 TSRMLS_CC);
     if (!ZVAL_IS_NULL(zserver))
     {
@@ -896,7 +991,9 @@ static void http_request_free(http_client *client TSRMLS_DC)
     }
     zval_ptr_dtor(&client->zrequest);
     client->zrequest = NULL;
-    if(client->zresponse) {
+
+    if (client->zresponse)
+    {
         zval_ptr_dtor(&client->zresponse);
         client->zresponse = NULL;
     }
@@ -973,7 +1070,7 @@ static char *http_status_message(int code)
 PHP_METHOD(swoole_http_server, setGlobal)
 {
     long global = 0;
-    long request_val = HTTP_GLOBAL_GET|HTTP_GLOBAL_POST;
+    long request_val = HTTP_GLOBAL_GET | HTTP_GLOBAL_POST;
     swTrace("setGlobal start:%ld\n", global);
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|l", &global, &request_val) == FAILURE)
     {

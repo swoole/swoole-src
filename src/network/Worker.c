@@ -71,8 +71,7 @@ void swWorker_signal_handler(int signo)
          * for test
          */
     case SIGVTALRM:
-        swWarn("SIGVTALRM coming")
-        ;
+        swWarn("SIGVTALRM coming");
         break;
     case SIGUSR1:
     case SIGUSR2:
@@ -242,6 +241,7 @@ int swWorker_loop(swFactory *factory, int worker_id)
 
     //worker_id
     SwooleWG.id = worker_id;
+    SwooleG.pid = getpid();
 
     //signal init
     swWorker_signal_init();
@@ -374,7 +374,15 @@ int swWorker_send2reactor(swEventData_overflow *sdata, size_t sendn, int fd)
          */
         int pipe_worker_id = reactor_id + (round_i * serv->reactor_num);
         swWorker *worker = swServer_get_worker(serv, pipe_worker_id);
-        ret = SwooleG.main_reactor->write(SwooleG.main_reactor, worker->pipe_worker, &sdata->_send, sendn);
+
+        if (SwooleG.main_reactor)
+        {
+            ret = SwooleG.main_reactor->write(SwooleG.main_reactor, worker->pipe_worker, &sdata->_send, sendn);
+        }
+        else
+        {
+            ret = swSocket_write_blocking(worker->pipe_worker, &sdata->_send, sendn);
+        }
     }
     return ret;
 }

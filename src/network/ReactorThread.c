@@ -25,6 +25,7 @@ static int swReactorThread_loop_udp(swThreadParam *param);
 static int swReactorThread_loop_tcp(swThreadParam *param);
 static int swReactorThread_loop_unix_dgram(swThreadParam *param);
 
+static int swReactorThread_websocket_frame(swConnection *conn, swHttpRequest *request);
 static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev);
 static int swReactorThread_close(swReactor *reactor, int fd);
 static int swReactorThread_onClose(swReactor *reactor, swEvent *event);
@@ -105,7 +106,7 @@ int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
  */
 static int swReactorThread_close(swReactor *reactor, int fd)
 {
-    swServer *serv = reactor->ptr;
+    swServer *serv = SwooleG.serv;
     swConnection *conn = swServer_connection_get(serv, fd);
     if (conn == NULL)
     {
@@ -340,10 +341,10 @@ int swReactorThread_send(swSendData *_send)
     int fd = _send->info.fd;
     uint16_t reactor_id = 0;
 
-    volatile swBuffer_trunk *trunk;
+    swBuffer_trunk *trunk;
+    swReactor *reactor = &(serv->reactor_threads[reactor_id].reactor);
 
     swConnection *conn = swServer_connection_get(serv, fd);
-
     //The connection has been closed.
     if (conn == NULL || conn->active == 0)
     {
@@ -363,7 +364,6 @@ int swReactorThread_send(swSendData *_send)
 #endif
 
     swTraceLog(SW_TRACE_EVENT, "send-data. fd=%d|reactor_id=%d", fd, reactor_id);
-    swReactor *reactor = &(serv->reactor_threads[reactor_id].reactor);
 
     if (conn->out_buffer == NULL)
     {
@@ -933,6 +933,84 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
     return SW_OK;
 }
 
+static int swReactorThread_websocket_frame(swConnection *conn, swHttpRequest *request)
+{
+    swString *buffer = request->buffer;
+    swServer *serv = SwooleG.serv;
+
+    int ret = swWebSocket_decode(request);
+
+    if (ret == SW_ERR)
+    {
+        swWarn("frame decode error.");
+        buffer->offset = 0;
+        buffer->str[0] = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_MESSAGE_ERROR, 1);
+        buffer->str[1] = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_MESSAGE_ERROR, 0);
+        buffer->length = 2;
+        swString *__buf = swWebSocket_encode(buffer, WEBSOCKET_OPCODE_CONNECTION_CLOSE, 1);
+        send(conn->fd, __buf->str, __buf->length, 0);
+        swString_free(__buf);
+        return SW_ERR;
+    }
+
+    if (request->content_length > serv->package_max_length)
+    {
+        swWarn("Package length more than the maximum size[%d], Close connection.", serv->package_max_length);
+        buffer->offset = 0;
+        buffer->str[0] = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_MESSAGE_TOO_BIG, 1);
+        buffer->str[1] = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_MESSAGE_TOO_BIG, 0);
+        buffer->length = 2;
+        swString *__buf = swWebSocket_encode(buffer, WEBSOCKET_OPCODE_CONNECTION_CLOSE, 1);
+        send(conn->fd, __buf->str, __buf->length, 0);
+        swString_free(__buf);
+        return SW_ERR;
+    }
+
+    switch (request->opcode)
+    {
+    case WEBSOCKET_OPCODE_CONTINUATION_FRAME:
+    case WEBSOCKET_OPCODE_TEXT_FRAME:
+    case WEBSOCKET_OPCODE_BINARY_FRAME:
+        buffer->length = request->content_length;
+        swTrace("websocket send fd: %d %zd %s, lenght:%zd, content-lenght:%d", conn->fd, strlen(request->buffer->str), request->buffer->str, request->buffer->length, request->content_length);
+        swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, request->buffer);
+        break;
+    case WEBSOCKET_OPCODE_PING:  //ping
+        if (request->buffer->str[request->buffer->offset] == 0 || 0x7d < request->content_length)
+        {
+            return SW_ERR;
+        }
+        buffer->length = request->content_length;
+        swString *_buf = swWebSocket_encode(buffer, WEBSOCKET_OPCODE_PONG, 1);
+        send(conn->fd, _buf->str, _buf->length, 0);
+        swString_free(_buf);
+        break;
+    case WEBSOCKET_OPCODE_PONG:  //pong
+        if (request->buffer->str[request->buffer->offset] == 0)
+        {
+            return SW_ERR;
+        }
+        break;
+    case WEBSOCKET_OPCODE_CONNECTION_CLOSE:
+        swTrace("fd: %d close, opcode:%d, lenght: %d\n", event->fd, request->opcode, request->content_length);
+        if (0x7d < request->content_length)
+        {
+            swTrace("close error\n");
+            return SW_ERR;
+        }
+        buffer->offset = 0;
+        buffer->str[0] = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_NORMAL, 1);
+        buffer->str[1] = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_NORMAL, 0);
+        buffer->length = 2;
+        swString *__buf = swWebSocket_encode(buffer, WEBSOCKET_OPCODE_CONNECTION_CLOSE, 1);
+        send(conn->fd, __buf->str, __buf->length, 0);
+        swString_free(__buf);
+        break;
+    }
+
+    return SW_OK;
+}
+
 /**
  * For Http Protocol
  */
@@ -1020,78 +1098,17 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
         swString *buffer = request->buffer;
         buffer->length += n;
 
-        if(conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE)   //upgrade websocket
+        //upgrade websocket
+        if (conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE)
         {
-            int ret = swWebSocket_decode(request);
-            if(ret == SW_ERR) {
-                swWarn("frame decode error.");
-                buffer->offset = 0;
-                buffer->str[0] = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_MESSAGE_ERROR, 1);
-                buffer->str[1] = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_MESSAGE_ERROR, 0);
-                buffer->length = 2;
-                swString *__buf = swWebSocket_encode(buffer, WEBSOCKET_OPCODE_CONNECTION_CLOSE, 1);
-                send(event->fd, __buf->str, __buf->length, 0);
-                swString_free(__buf);
+            if (swReactorThread_websocket_frame(conn, request) < 0)
+            {
                 goto close_fd;
             }
-
-            if (request->content_length > serv->package_max_length)
+            else
             {
-                swWarn("Package length more than the maximum size[%d], Close connection.", serv->package_max_length);
-                buffer->offset = 0;
-                buffer->str[0] = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_MESSAGE_TOO_BIG, 1);
-                buffer->str[1] = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_MESSAGE_TOO_BIG, 0);
-                buffer->length = 2;
-                swString *__buf = swWebSocket_encode(buffer, WEBSOCKET_OPCODE_CONNECTION_CLOSE, 1);
-                send(event->fd, __buf->str, __buf->length, 0);
-                swString_free(__buf);
-                goto close_fd;
+                return SW_OK;
             }
-
-            switch (request->opcode)
-            {
-                case WEBSOCKET_OPCODE_CONTINUATION_FRAME:
-                case WEBSOCKET_OPCODE_TEXT_FRAME:
-                case WEBSOCKET_OPCODE_BINARY_FRAME:
-                    buffer->length = request->content_length;
-                    swTrace("websocket send fd: %d %zd %s, lenght:%zd, content-lenght:%d", conn->fd, strlen(request->buffer->str), request->buffer->str, request->buffer->length, request->content_length);
-                    swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, request->buffer);
-                    break;
-                case WEBSOCKET_OPCODE_PING: //ping
-                    if(request->buffer->str[request->buffer->offset] == 0 || 0x7d  < request->content_length) {
-                        goto close_fd;
-                    }
-                    buffer->length = request->content_length;
-                    swString *_buf = swWebSocket_encode(buffer, WEBSOCKET_OPCODE_PONG, 1);
-                    send(event->fd, _buf->str, _buf->length, 0);
-                    swString_free(_buf);
-                    break;
-                case WEBSOCKET_OPCODE_PONG: //pong
-                    if(request->buffer->str[request->buffer->offset] == 0) {
-                        goto close_fd;
-                    }
-                    break;
-                case WEBSOCKET_OPCODE_CONNECTION_CLOSE:
-                    swTrace("fd: %d close, opcode:%d, lenght: %d\n", event->fd, request->opcode, request->content_length);
-                    if(0x7d < request->content_length) {
-                        swTrace("close error\n");
-                        goto  close_fd;
-                    }
-                    buffer->offset = 0;
-                    buffer->str[0] = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_NORMAL, 1);
-                    buffer->str[1] = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_NORMAL, 0);
-                    buffer->length = 2;
-                    swString *__buf = swWebSocket_encode(buffer, WEBSOCKET_OPCODE_CONNECTION_CLOSE, 1);
-                    send(event->fd, __buf->str, __buf->length, 0);
-                    swString_free(__buf);
-                    goto close_fd;
-                    break;
-            }
-
-            swHttpRequest_free(request);
-
-
-            return SW_OK;
         }
 
         if (request->method == 0 && swHttpRequest_get_protocol(request) < 0)

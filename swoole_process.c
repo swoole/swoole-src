@@ -27,6 +27,7 @@ void swoole_destory_process(zend_resource *rsrc TSRMLS_DC)
 {
     swWorker *process = (swWorker *) rsrc->ptr;
     swPipe *_pipe = process->pipe_object;
+
     if (_pipe)
     {
         _pipe->close(_pipe);
@@ -265,7 +266,6 @@ static void php_swoole_onSignal(int signo)
     zval_ptr_dtor(&zsigno);
 }
 
-
 int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
 {
     process->pipe = process->pipe_worker;
@@ -296,7 +296,8 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
     {
         SwooleG.main_reactor->free(SwooleG.main_reactor);
         SwooleG.main_reactor = NULL;
-        php_sw_reactor_ok = 0;
+        bzero(&SwooleWG, sizeof(SwooleWG));
+        SwooleG.pid = process->pid;
     }
 
     if (SwooleG.timer.fd)
@@ -347,7 +348,7 @@ PHP_METHOD(swoole_process, start)
 	swWorker *process;
 	SWOOLE_GET_WORKER(getThis(), process);
 
-    if (process->pid > 0)
+    if (process->pid > 0 && kill(process->pid, 0) == 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "process is already started.");
         RETURN_FALSE;
@@ -363,8 +364,6 @@ PHP_METHOD(swoole_process, start)
     else if (pid > 0)
 	{
 		process->pid = pid;
-		close(process->pipe_worker);
-
 		zend_update_property_long(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("pid"), process->pid TSRMLS_CC);
 		RETURN_LONG(pid);
 	}
@@ -450,12 +449,12 @@ PHP_METHOD(swoole_process, write)
     }
     else
     {
-        ret = swSocket_write(process->pipe, data, (size_t) data_len);
+        ret = swSocket_write_blocking(process->pipe, data, data_len);
     }
 
 	if (ret < 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "failed. Error: %s[%d]", strerror(errno), errno);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "write() failed. Error: %s[%d]", strerror(errno), errno);
 		RETURN_FALSE;
 	}
 	ZVAL_LONG(return_value, ret);
@@ -659,4 +658,30 @@ PHP_METHOD(swoole_process, exit)
 	{
 		exit(ret_code);
 	}
+}
+
+PHP_METHOD(swoole_process, close)
+{
+    swWorker *process;
+    SWOOLE_GET_WORKER(getThis(), process);
+
+    if (process->pipe == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "have not pipe, can not use close()");
+        RETURN_FALSE;
+    }
+
+    int ret = process->pipe_object->close(process->pipe_object);
+    if (ret < 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "close() failed. Error: %s[%d]", strerror(errno), errno);
+        RETURN_FALSE;
+    }
+    else
+    {
+        process->pipe = 0;
+        efree(process->pipe_object);
+        process->pipe_object = NULL;
+    }
+    ZVAL_LONG(return_value, ret);
 }

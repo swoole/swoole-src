@@ -59,10 +59,6 @@ enum swEventType
     SW_EVENT_PIPE_MESSAGE    = 15,
 };
 
-#define SW_STATUS_EMPTY            0
-#define SW_STATUS_ACTIVE           1
-#define SW_STATUS_CLOSED           2
-
 #define SW_HOST_MAXSIZE            128
 #define SW_MAX_TMP_PKG             1000
 #define SW_LOG_FILENAME            128
@@ -530,7 +526,7 @@ void swTaskWorker_onStop(swProcessPool *pool, int worker_id);
 int swTaskWorker_large_pack(swEventData *task, void *data, int data_len);
 int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags);
 
-#define swTask_type(task)                  (task)->info.from_fd
+#define swTask_type(task)                  ((task)->info.from_fd)
 
 #define swTaskWorker_large_unpack(task, __malloc, _buf, _length)   swPackage_task _pkg;\
 	memcpy(&_pkg, task->data, sizeof(_pkg));\
@@ -704,6 +700,7 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event);
 int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event);
 int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *event);
 int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event);
+
 int swReactorThread_onPackage(swReactor *reactor, swEvent *event);
 int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev);
 int swReactorThread_onWrite(swReactor *reactor, swEvent *ev);

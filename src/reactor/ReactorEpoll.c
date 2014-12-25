@@ -133,7 +133,7 @@ int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
     ret = epoll_ctl(object->epfd, EPOLL_CTL_ADD, fd, &e);
     if (ret < 0)
     {
-        swWarn("add event failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("add events[fd=%d#%d, type=%d, events=%d] failed.", fd, reactor->id, fd_.fdtype, e.events);
         return SW_ERR;
     }
     if (swReactor_add(reactor, fd, fdtype) < 0)

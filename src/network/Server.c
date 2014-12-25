@@ -527,13 +527,9 @@ int swServer_start(swServer *serv)
     {
         SwooleGS->start = 0;
     }
-    else if (serv->onShutdown != NULL)
-    {
-        serv->onShutdown(serv);
-    }
 
-	swServer_free(serv);
-	return SW_OK;
+    swServer_free(serv);
+    return SW_OK;
 }
 
 /**
@@ -630,21 +626,22 @@ int swServer_shutdown(swServer *serv)
 int swServer_free(swServer *serv)
 {
     swNotice("Server is shutdown now.");
-	//factory释放
-	if (serv->factory.shutdown != NULL)
-	{
-		serv->factory.shutdown(&(serv->factory));
-	}
-	/**
-	 * Shutdown heartbeat thread
-	 */
-	if (SwooleG.heartbeat_pidt)
-	{
-	    pthread_cancel(SwooleG.heartbeat_pidt);
-		pthread_join(SwooleG.heartbeat_pidt, NULL);
-	}
+    //factory释放
+    if (serv->factory.shutdown != NULL)
+    {
+        serv->factory.shutdown(&(serv->factory));
+    }
 
-	if (serv->factory_mode == SW_MODE_SINGLE)
+    /**
+     * Shutdown heartbeat thread
+     */
+    if (SwooleG.heartbeat_pidt)
+    {
+        pthread_cancel(SwooleG.heartbeat_pidt);
+        pthread_join(SwooleG.heartbeat_pidt, NULL);
+    }
+
+    if (serv->factory_mode == SW_MODE_SINGLE)
     {
         if (SwooleG.task_worker_num > 0)
         {
@@ -675,26 +672,32 @@ int swServer_free(swServer *serv)
     swNotice("[Shutdown] Free SSL.");
 #endif
 
-	//connection_list释放
-	if (serv->factory_mode == SW_MODE_SINGLE)
-	{
-		sw_free(serv->connection_list);
-	}
-	else
-	{
-		sw_shm_free(serv->connection_list);
-	}
-	//close log file
-	if (serv->log_file[0] != 0)
-	{
-		swLog_free();
-	}
+    //connection_list释放
+    if (serv->factory_mode == SW_MODE_SINGLE)
+    {
+        sw_free(serv->connection_list);
+    }
+    else
+    {
+        sw_shm_free(serv->connection_list);
+    }
+    //close log file
+    if (serv->log_file[0] != 0)
+    {
+        swLog_free();
+    }
     if (SwooleG.null_fd > 0)
     {
         close(SwooleG.null_fd);
     }
-	swoole_clean();
-	return SW_OK;
+
+    if (SwooleGS->start > 0 && serv->onShutdown != NULL)
+    {
+        serv->onShutdown(serv);
+    }
+
+    swoole_clean();
+    return SW_OK;
 }
 
 /**
@@ -714,7 +717,7 @@ int swServer_udp_send(swServer *serv, swSendData *resp)
     addr_in.sin_port = htons((uint16_t) resp->info.from_id); //from_id is remote port
     addr_in.sin_addr.s_addr = (uint32_t) resp->info.fd; //fd is remote ip address
 
-    int ret = swSendto(sock, resp->data, resp->info.len, 0, (struct sockaddr*) &addr_in, sizeof(addr_in));
+    int ret = swSocket_sendto_blocking(sock, resp->data, resp->info.len, 0, (struct sockaddr*) &addr_in, sizeof(addr_in));
     if (ret < 0)
     {
         swWarn("sendto to client[%s:%d] failed. Error: %s [%d]", inet_ntoa(addr_in.sin_addr), resp->info.from_id,
@@ -1130,24 +1133,25 @@ static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
  */
 swConnection* swServer_connection_new(swServer *serv, swDataHead *ev)
 {
-    int conn_fd = ev->fd;
+    int fd = ev->fd;
     swConnection* connection = NULL;
 
     SwooleStats->accept_count++;
     sw_atomic_fetch_add(&SwooleStats->connection_num, 1);
 
-    if (conn_fd > swServer_get_maxfd(serv))
+    if (fd > swServer_get_maxfd(serv))
     {
-        swServer_set_maxfd(serv, conn_fd);
+        swServer_set_maxfd(serv, fd);
     }
 
-    connection = &(serv->connection_list[conn_fd]);
+    connection = &(serv->connection_list[fd]);
+    bzero(connection, sizeof(swConnection));
 
     //TCP Nodelay
     if (serv->open_tcp_nodelay)
     {
         int sockopt = 1;
-        if (setsockopt(conn_fd, IPPROTO_TCP, TCP_NODELAY, &sockopt, sizeof(sockopt)) < 0)
+        if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &sockopt, sizeof(sockopt)) < 0)
         {
             swSysError("setsockopt(TCP_NODELAY) failed.");
         }
@@ -1162,9 +1166,7 @@ swConnection* swServer_connection_new(swServer *serv, swDataHead *ev)
     }
 #endif
 
-    bzero(connection, sizeof(swConnection));
-
-    connection->fd = conn_fd;
+    connection->fd = fd;
     connection->from_id = ev->from_id;
     connection->from_fd = ev->from_fd;
     connection->connect_time = SwooleGS->now;

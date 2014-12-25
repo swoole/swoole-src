@@ -41,12 +41,6 @@ typedef struct
 	zval *socket;
 } swoole_reactor_fd;
 
-uint8_t php_sw_reactor_wait_onexit = 0;
-uint8_t php_sw_reactor_ok = 0;
-uint8_t php_sw_in_client = 0;
-
-static uint8_t php_sw_event_wait = 0;
-
 static char *php_sw_callbacks[PHP_CLIENT_CALLBACK_NUM] =
 {
 	php_sw_client_onConnect,
@@ -176,7 +170,7 @@ static int php_swoole_client_close(zval **zobject, int fd TSRMLS_DC)
 			goto fatal_error;
 		}
 
-		if (SwooleG.main_reactor->event_num == 0 && php_sw_in_client == 1)
+		if (SwooleG.main_reactor->event_num == 0 && SwooleWG.in_client == 1)
 		{
 			SwooleG.running = 0;
 		}
@@ -445,7 +439,7 @@ static int swoole_client_error_callback(zval *zobject, swEvent *event, int error
 
 void php_swoole_check_reactor()
 {
-	if (php_sw_reactor_ok == 0)
+	if (SwooleWG.reactor_ok == 0)
 	{
 		TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
@@ -475,7 +469,7 @@ void php_swoole_check_reactor()
 				return;
 			}
 			//client, swoole_event_exit will set swoole_running = 0
-			php_sw_in_client = 1;
+			SwooleWG.in_client = 1;
 		}
 
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, (SW_FD_USER + 1) | SW_EVENT_READ, php_swoole_client_onRead);
@@ -486,7 +480,7 @@ void php_swoole_check_reactor()
 		SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_WRITE, php_swoole_event_onWrite);
 		SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_ERROR, php_swoole_event_onError);
 
-		php_sw_reactor_ok = 1;
+		SwooleWG.reactor_ok = 1;
 	}
 	return;
 }
@@ -522,7 +516,7 @@ void php_swoole_check_timer(int msec)
 void php_swoole_try_run_reactor()
 {
     //only client side
-    if (php_sw_in_client == 1 && php_sw_reactor_wait_onexit == 0)
+    if (SwooleWG.in_client == 1 && SwooleWG.reactor_wait_onexit == 0)
     {
         TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
@@ -547,7 +541,7 @@ void php_swoole_try_run_reactor()
         }
 #else
         SwooleG.running = 1;
-        php_sw_event_wait = 1;
+        SwooleWG.event_wait = 1;
 
         int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
         if (ret < 0)
@@ -555,8 +549,8 @@ void php_swoole_try_run_reactor()
             php_error_docref(NULL TSRMLS_CC, E_ERROR, "reactor wait failed. Error: %s [%d]", strerror(errno), errno);
         }
 #endif
-        php_sw_reactor_wait_onexit = 1;
-        php_sw_event_wait = 0;
+        SwooleWG.reactor_wait_onexit = 1;
+        SwooleWG.event_wait = 0;
     }
 }
 
@@ -1075,7 +1069,7 @@ PHP_FUNCTION(swoole_event_del)
 
 PHP_FUNCTION(swoole_event_exit)
 {
-	if (php_sw_in_client == 1)
+	if (SwooleWG.in_client == 1)
 	{
 		//stop reactor
 		SwooleG.running = 0;
@@ -1084,10 +1078,11 @@ PHP_FUNCTION(swoole_event_exit)
 
 PHP_FUNCTION(swoole_event_wait)
 {
-    if (php_sw_in_client == 1 && php_sw_event_wait == 0)
+
+    if (SwooleWG.in_client == 1 && SwooleWG.event_wait == 0)
     {
         SwooleG.running = 1;
-        php_sw_event_wait = 1;
+        SwooleWG.event_wait = 1;
 
 #ifdef HAVE_SIGNALFD
         if (SwooleG.main_reactor->check_signalfd)
