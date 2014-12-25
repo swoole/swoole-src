@@ -374,7 +374,15 @@ int swWorker_send2reactor(swEventData_overflow *sdata, size_t sendn, int fd)
          */
         int pipe_worker_id = reactor_id + (round_i * serv->reactor_num);
         swWorker *worker = swServer_get_worker(serv, pipe_worker_id);
-        ret = SwooleG.main_reactor->write(SwooleG.main_reactor, worker->pipe_worker, &sdata->_send, sendn);
+
+        if (SwooleG.main_reactor)
+        {
+            ret = SwooleG.main_reactor->write(SwooleG.main_reactor, worker->pipe_worker, &sdata->_send, sendn);
+        }
+        else
+        {
+            ret = swSocket_write_blocking(worker->pipe_worker, &sdata->_send, sendn);
+        }
     }
     return ret;
 }

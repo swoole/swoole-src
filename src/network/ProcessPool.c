@@ -159,7 +159,7 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int *dst_work
         }
         else
         {
-            ret = swSocket_write(worker->pipe_master, data, sizeof(data->info) + data->info.len);
+            ret = swSocket_write_blocking(worker->pipe_master, data, sizeof(data->info) + data->info.len);
         }
 
         if (ret < 0)

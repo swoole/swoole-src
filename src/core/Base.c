@@ -506,6 +506,36 @@ int swSocket_wait(int fd, int timeout_ms, int events)
     return SW_OK;
 }
 
+int swSocket_write_blocking(int __fd, void *__data, int __len)
+{
+    int n = 0;
+    int writen = 0;
+
+    while (writen < __len)
+    {
+        n = write(__fd, __data + writen, __len - writen);
+        if (n < 0)
+        {
+            if (errno == EINTR)
+            {
+                continue;
+            }
+            else if (errno == EAGAIN)
+            {
+                swSocket_wait(__fd, SW_WORKER_WAIT_TIMEOUT, SW_EVENT_WRITE);
+                continue;
+            }
+            else
+            {
+                swSysError("write %d bytes failed.", __len);
+                return SW_ERR;
+            }
+        }
+        writen -= n;
+    }
+    return n;
+}
+
 int swSocket_create(int type)
 {
     int _domain;

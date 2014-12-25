@@ -845,21 +845,7 @@ int swSocket_wait(int fd, int timeout_ms, int events);
 void swSocket_clean(int fd, void *buf, int len);
 int swSendto(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
 int swSocket_sendfile_sync(int sock, char *filename, double timeout);
-
-static sw_inline int swSocket_write(int fd, void *data, int len)
-{
-    int n;
-    while (1)
-    {
-        n = write(fd, data, len);
-        if (n < 0 && errno == EINTR)
-        {
-            continue;
-        }
-        break;
-    }
-    return n;
-}
+int swSocket_write_blocking(int __fd, void *__data, int __len);
 
 static sw_inline int swWaitpid(pid_t __pid, int *__stat_loc, int __options)
 {

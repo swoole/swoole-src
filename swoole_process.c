@@ -449,7 +449,7 @@ PHP_METHOD(swoole_process, write)
     }
     else
     {
-        ret = swSocket_write(process->pipe, data, (size_t) data_len);
+        ret = swSocket_write_blocking(process->pipe, data, data_len);
     }
 
 	if (ret < 0)
