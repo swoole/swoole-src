@@ -226,6 +226,8 @@ static int http_request_on_query_string(php_http_parser *parser, const char *at,
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
     http_client *client = parser->data;
+
+    //no need free, will free by treat_data
     char *query = estrndup(at, length);
 
     zval *get;
@@ -234,6 +236,7 @@ static int http_request_on_query_string(php_http_parser *parser, const char *at,
     zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("get"), get TSRMLS_CC);
     sapi_module.treat_data(PARSE_STRING, query, get TSRMLS_CC);
     mergeGlobal(get, client->zrequest, HTTP_GLOBAL_GET);
+
     return 0;
 }
 
@@ -615,11 +618,6 @@ static int http_onReceive(swFactory *factory, swEventData *req)
     php_http_parser_init(parser, PHP_HTTP_REQUEST);
 
     zval *zdata = php_swoole_get_data(req TSRMLS_CC);
-    //server info
-    zval *_request;
-    MAKE_STD_ZVAL(_request);
-    array_init(_request);
-    zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("request"), _request TSRMLS_CC);
 
     long n = php_http_parser_execute(parser, &http_parser_settings, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
     zval_ptr_dtor(&zdata);
@@ -756,11 +754,11 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         add_assoc_string(zserver, "SERVER_SOFTWARE", SW_HTTP_SERVER_SOFTWARE, 1);
         add_assoc_string(zserver, "GATEWAY_INTERFACE", SW_HTTP_SERVER_SOFTWARE, 1);
 
-        //ZEND_SET_SYMBOL(&EG(symbol_table), "_SERVER", zserver);
+        ZEND_SET_SYMBOL(&EG(symbol_table), "_SERVER", zserver);
         mergeGlobal(zserver, NULL, HTTP_GLOBAL_SERVER);
 
         //设置_REQUEST
-        //mergeGlobal(NULL, zrequest, HTTP_GLOBAL_REQUEST);
+        mergeGlobal(NULL, zrequest, HTTP_GLOBAL_REQUEST);
 
     	zval *zresponse;
     	MAKE_STD_ZVAL(zresponse);
@@ -953,6 +951,11 @@ static void http_request_free(http_client *client TSRMLS_DC)
     if (!ZVAL_IS_NULL(zpost))
     {
         zval_ptr_dtor(&zpost);
+    }
+    zval *zcookie = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("cookie"), 1 TSRMLS_CC);
+    if (!ZVAL_IS_NULL(zpost))
+    {
+        zval_ptr_dtor(&zcookie);
     }
     zval *zserver = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("server"), 1 TSRMLS_CC);
     if (!ZVAL_IS_NULL(zserver))
