@@ -39,6 +39,7 @@ void swoole_init(void)
 
     SwooleG.cpu_num = sysconf(_SC_NPROCESSORS_ONLN);
     SwooleG.pagesize = getpagesize();
+    SwooleG.pid = getpid();
 
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
     {

@@ -27,6 +27,7 @@ void swoole_destory_process(zend_resource *rsrc TSRMLS_DC)
 {
     swWorker *process = (swWorker *) rsrc->ptr;
     swPipe *_pipe = process->pipe_object;
+
     if (_pipe)
     {
         _pipe->close(_pipe);
@@ -265,7 +266,6 @@ static void php_swoole_onSignal(int signo)
     zval_ptr_dtor(&zsigno);
 }
 
-
 int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
 {
     process->pipe = process->pipe_worker;
@@ -364,8 +364,6 @@ PHP_METHOD(swoole_process, start)
     else if (pid > 0)
 	{
 		process->pid = pid;
-		close(process->pipe_worker);
-
 		zend_update_property_long(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("pid"), process->pid TSRMLS_CC);
 		RETURN_LONG(pid);
 	}
