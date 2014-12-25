@@ -37,7 +37,7 @@ extern "C"
 #define FRAME_SET_MASK(BYTE) (((BYTE) & 0x01) << 7)
 #define FRAME_SET_LENGTH(X64, IDX) (unsigned char)(((X64) >> ((IDX)*8)) & 0xFF)
 
-enum SW_WEBSOCKET_STATUS
+enum swWebsocketStatus
 {
     WEBSOCKET_STATUS_CONNECTION = 1,
     WEBSOCKET_STATUS_HANDSHAKE = 2,
@@ -63,7 +63,7 @@ typedef struct
     char *payload;
 } swWebSocket_frame;
 
-enum
+enum swWebsocketCode
 {
     WEBSOCKET_OPCODE_CONTINUATION_FRAME = 0x0,
     WEBSOCKET_OPCODE_TEXT_FRAME = 0x1,
@@ -86,7 +86,7 @@ enum
     WEBSOCKET_CLOSE_TLS = 1015,
     WEBSOCKET_VERSION = 13,
 
-} SW_WEBSOCKET;
+};
 
 swString *swWebSocket_encode(swString *data, char opcode, int fin);
 int swWebSocket_decode(swHttpRequest *request);
