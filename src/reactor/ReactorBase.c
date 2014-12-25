@@ -122,12 +122,15 @@ swConnection* swReactor_get(swReactor *reactor, int fd)
         }
         else
         {
-            int max_socket = reactor->max_socket * 2;
+            int max_socket = fd * 2;
             if (max_socket > SwooleG.max_sockets)
             {
                 max_socket = SwooleG.max_sockets + 1;
             }
             reactor->sockets = sw_realloc(reactor->sockets, max_socket * sizeof(swConnection));
+            if(reactor->sockets)
+                bzero((void *)reactor->sockets+reactor->max_socket*sizeof(swConnection),(max_socket-reactor->max_socket)*sizeof(swConnection));
+            
             reactor->max_socket = max_socket;
         }
 
