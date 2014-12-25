@@ -175,44 +175,65 @@ static int http_request_on_path(php_http_parser *parser, const char *at, size_t 
 static void mergeGlobal(zval * val, zval *zrequest, int type)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
     zval *http_server = SwooleG.serv->ptr2;
     zval *http_global = zend_read_property(swoole_http_server_class_entry_ptr, http_server, ZEND_STRL("global"), 1 TSRMLS_CC);
+
     int global = Z_LVAL_P(http_global);
     zval *http_request_val = zend_read_property(swoole_http_server_class_entry_ptr, http_server, ZEND_STRL("request_val"), 1 TSRMLS_CC);
     int request_val = Z_LVAL_P(http_request_val);
+
     swTrace("http_global:%d %d\n", global, request_val);
-    if(!(global & type)) return;
+
+    if (!(global & type))
+    {
+        return;
+    }
+
     zval *_request;
-    switch (type) {
-        case HTTP_GLOBAL_GET:
-            ZEND_SET_SYMBOL(&EG(symbol_table), "_GET", val);
-            break;
-        case HTTP_GLOBAL_POST:
-            ZEND_SET_SYMBOL(&EG(symbol_table), "_POST", val);
-            break;
-        case HTTP_GLOBAL_COOKIE:
-            swTrace("merge cookie\n");
-            ZEND_SET_SYMBOL(&EG(symbol_table), "_COOKIE", val);
-            break;
-        case HTTP_GLOBAL_REQUEST:
-            if(!request_val) return;
-            _request = zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), 1
-            TSRMLS_CC);
-            ZEND_SET_SYMBOL(&EG(symbol_table), "_REQUEST", _request);
+
+    switch (type)
+    {
+    case HTTP_GLOBAL_GET:
+        ZEND_SET_SYMBOL(&EG(symbol_table), "_GET", val);
+        break;
+
+    case HTTP_GLOBAL_POST:
+        ZEND_SET_SYMBOL(&EG(symbol_table), "_POST", val);
+        break;
+
+    case HTTP_GLOBAL_COOKIE:
+        swTrace("merge cookie\n");
+        ZEND_SET_SYMBOL(&EG(symbol_table), "_COOKIE", val);
+        break;
+
+    case HTTP_GLOBAL_REQUEST:
+        if (!request_val)
+        {
             return;
-        case HTTP_GLOBAL_SERVER:
-            ZEND_SET_SYMBOL(&EG(symbol_table), "_SERVER", val);
-            return;
+        }
+
+        zval *_request;
+        MAKE_STD_ZVAL(_request);
+        array_init(_request);
+        zend_update_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), _request TSRMLS_CC);
+
+        ZEND_SET_SYMBOL(&EG(symbol_table), "_REQUEST", _request);
+        return;
+
+    case HTTP_GLOBAL_SERVER:
+        ZEND_SET_SYMBOL(&EG(symbol_table), "_SERVER", val);
+        return;
     }
 //    int flag = 0;
 
-    if(request_val & type) {
-//        swTrace("%d, %d match\n", global, type);
-        _request = zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), 1
-        TSRMLS_CC);
+    if (request_val & type)
+    {
+        //swTrace("%d, %d match\n", global, type);
+        _request = zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), 1 TSRMLS_CC);
         zend_hash_copy(Z_ARRVAL_P(_request), Z_ARRVAL_P(val), NULL, NULL, sizeof(zval));
         zend_update_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), _request TSRMLS_CC);
-//        flag = 0;
+        //flag = 0;
         //ZEND_SET_SYMBOL(&EG(symbol_table), "_REQUEST", _request);
     }
 
@@ -513,11 +534,12 @@ static void handshake_success(int fd)
             php_error_docref(NULL TSRMLS_CC, E_WARNING, "onMessage handler error");
         }
         swTrace("===== message callback end======");
-        if (EG(exception)) {
-            zend_exception_error(EG(exception), E_ERROR
-            TSRMLS_CC);
+        if (EG(exception))
+        {
+            zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
         }
-        if (retval) {
+        if (retval)
+        {
             zval_ptr_dtor(&retval);
         }
     }
@@ -956,6 +978,11 @@ static void http_request_free(http_client *client TSRMLS_DC)
     if (!ZVAL_IS_NULL(zpost))
     {
         zval_ptr_dtor(&zcookie);
+    }
+    zval *zrequest = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("request"), 1 TSRMLS_CC);
+    if (!ZVAL_IS_NULL(zrequest))
+    {
+        zval_ptr_dtor(&zrequest);
     }
     zval *zserver = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("server"), 1 TSRMLS_CC);
     if (!ZVAL_IS_NULL(zserver))

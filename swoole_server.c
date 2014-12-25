@@ -652,10 +652,13 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
 {
     zval *zserv = (zval *)serv->ptr2;
     zval *zworker_id;
-    zval **args[2]; //这里必须与下面的数字对应
-    zval *retval;
+    zval **args[2];
+    zval *retval = NULL;
 
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+    MAKE_STD_ZVAL(zworker_id);
+    ZVAL_LONG(zworker_id, worker_id);
 
     args[0] = &zserv;
     zval_add_ref(&zserv);
@@ -676,6 +679,8 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
      */
     zend_update_property_long(swoole_server_class_entry_ptr, zserv, ZEND_STRL("worker_pid"), getpid() TSRMLS_CC);
 
+    zval_ptr_dtor(&zworker_id);
+
     /**
      * Have not set the event callback
      */
@@ -684,7 +689,7 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
         return;
     }
 
-    if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onWorkerStart], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onWorkerStart], &retval, 2, args,  0, NULL TSRMLS_CC) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onWorkerStart handler error");
     }
@@ -692,8 +697,6 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-
-    zval_ptr_dtor(&zworker_id);
     if (retval != NULL)
     {
         zval_ptr_dtor(&retval);
