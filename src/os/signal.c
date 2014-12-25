@@ -188,7 +188,7 @@ int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
         return SW_ERR;
     }
 
-    if (signals[siginfo.ssi_signo].active)
+    if (signals[siginfo.ssi_signo].active && signals[siginfo.ssi_signo].callback)
     {
         signals[siginfo.ssi_signo].callback(siginfo.ssi_signo);
     }
