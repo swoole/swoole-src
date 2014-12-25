@@ -594,8 +594,10 @@ static int http_onReceive(swFactory *factory, swEventData *req)
     MAKE_STD_ZVAL(_request);
     array_init(_request);
     zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("request"), _request TSRMLS_CC);
-    size_t n = php_http_parser_execute(parser, &http_parser_settings, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
+
+    long n = php_http_parser_execute(parser, &http_parser_settings, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
     zval_ptr_dtor(&zdata);
+
     if (n < 0)
     {
         swWarn("php_http_parser_execute failed.");

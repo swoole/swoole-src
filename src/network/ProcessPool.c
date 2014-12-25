@@ -108,7 +108,7 @@ int swProcessPool_start(swProcessPool *pool)
  */
 int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int *dst_worker_id)
 {
-    int ret;
+    int ret = 0;
 
     if (*dst_worker_id < 0)
     {
@@ -159,7 +159,7 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int *dst_work
         }
         else
         {
-            swSocket_write(worker->pipe_master, data, sizeof(data->info) + data->info.len);
+            ret = swSocket_write(worker->pipe_master, data, sizeof(data->info) + data->info.len);
         }
 
         if (ret < 0)

@@ -21,7 +21,7 @@ static int swEventTimer_del(swTimer *timer, int _msec);
 static int swEventTimer_select(swTimer *timer);
 static void swEventTimer_free(swTimer *timer);
 
-static sw_inline uint32_t swEventTimer_get_relative_msec()
+static sw_inline int swEventTimer_get_relative_msec()
 {
     struct timeval now;
     if (gettimeofday(&now, NULL) < 0)
@@ -96,7 +96,7 @@ static int swEventTimer_del(swTimer *timer, int _msec)
 
 static int swEventTimer_select(swTimer *timer)
 {
-    uint32_t now_msec = swEventTimer_get_relative_msec();
+    int now_msec = swEventTimer_get_relative_msec();
     if (now_msec < 0)
     {
         return SW_ERR;

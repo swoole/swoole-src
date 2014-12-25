@@ -358,7 +358,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     zval *zdata;
     char *zdata_str;
     int zdata_len;
-    zval *unserialized_zdata;
+    zval *unserialized_zdata = NULL;
     zval *retval;
 
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);

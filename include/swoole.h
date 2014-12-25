@@ -925,9 +925,10 @@ struct swReactor_s
     uint32_t thread :1;
 
 	/**
-	 * reactor->wait timeout (millisecond)
+	 * reactor->wait timeout (millisecond) or -1
 	 */
-	uint32_t timeout_msec;
+	int32_t timeout_msec;
+
 	uint16_t id; //Reactor ID
 	uint16_t flag; //flag
 
