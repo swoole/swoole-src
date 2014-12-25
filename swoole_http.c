@@ -20,10 +20,11 @@
 #include <ext/standard/sha1.h>
 #include <ext/date/php_date.h>
 #include <main/php_variables.h>
-#include <include/swoole.h>
-#include <include/websocket.h>
-#include <include/Connection.h>
-#include <include/base64.h>
+
+#include "include/swoole.h"
+#include "include/websocket.h"
+#include "include/Connection.h"
+#include "include/base64.h"
 
 #include "thirdparty/php_http_parser.h"
 
