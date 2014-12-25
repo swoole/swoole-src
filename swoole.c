@@ -584,8 +584,7 @@ PHP_MINIT_FUNCTION(swoole)
  */
 PHP_MSHUTDOWN_FUNCTION(swoole)
 {
-    swoole_clean();
-    if (php_sw_in_client && SwooleG.main_reactor)
+    if (SwooleWG.in_client && SwooleG.main_reactor)
     {
         sw_free(SwooleG.main_reactor);
     }
@@ -593,6 +592,8 @@ PHP_MSHUTDOWN_FUNCTION(swoole)
     {
         sw_free(SwooleG.serv);
     }
+    swoole_clean();
+
     return SUCCESS;
 }
 /* }}} */
@@ -696,7 +697,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
 			efree(php_sw_callback[i]);
 		}
 	}
-	php_sw_reactor_wait_onexit = 0;
+	SwooleWG.reactor_wait_onexit = 0;
 	return SUCCESS;
 }
 

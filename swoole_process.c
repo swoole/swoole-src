@@ -296,7 +296,8 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
     {
         SwooleG.main_reactor->free(SwooleG.main_reactor);
         SwooleG.main_reactor = NULL;
-        php_sw_reactor_ok = 0;
+        bzero(&SwooleWG, sizeof(SwooleWG));
+        SwooleG.pid = process->pid;
     }
 
     if (SwooleG.timer.fd)

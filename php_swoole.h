@@ -195,10 +195,6 @@ extern HashTable php_sw_timer_callback;
 extern HashTable php_sw_long_connections;
 extern HashTable php_sw_aio_callback;
 
-extern uint8_t php_sw_reactor_ok;
-extern uint8_t php_sw_reactor_wait_onexit;
-extern uint8_t php_sw_in_client;
-
 PHP_MINIT_FUNCTION(swoole);
 PHP_MSHUTDOWN_FUNCTION(swoole);
 PHP_RINIT_FUNCTION(swoole);

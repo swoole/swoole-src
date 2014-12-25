@@ -176,6 +176,8 @@ void swSignalfd_clear()
     }
     bzero(&signalfd_object, sizeof(signalfd_object));
     bzero(&swoole_signalfd_mask, sizeof(swoole_signalfd_mask));
+    close(swoole_signalfd);
+    swoole_signalfd = 0;
 }
 
 int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
