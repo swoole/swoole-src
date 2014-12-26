@@ -987,16 +987,14 @@ PHP_FUNCTION(swoole_server_set)
     if (zend_hash_find(vht, ZEND_STRS("user"), (void **) &v) == SUCCESS)
     {
         convert_to_string(*v);
-        SwooleG.user = emalloc(128);
-        snprintf(SwooleG.user, 128, "%s", Z_STRVAL_PP(v));
+        SwooleG.user = strndup(Z_STRVAL_PP(v), 128);
     }
 
     //group
     if (zend_hash_find(vht, ZEND_STRS("group"), (void **) &v) == SUCCESS)
     {
         convert_to_string(*v);
-        SwooleG.group = emalloc(128);
-        snprintf(SwooleG.group, 128, "%s", Z_STRVAL_PP(v));
+        SwooleG.group = strndup(Z_STRVAL_PP(v), 128);
     }
 
     //daemonize

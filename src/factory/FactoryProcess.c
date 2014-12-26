@@ -616,8 +616,8 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti)
 {
     int pid, ret;
-    struct passwd *passwd;
-    struct group *group;
+    struct passwd *passwd = NULL;
+    struct group *group = NULL;
     int is_root = !geteuid();
 
     pid = fork();
@@ -631,31 +631,30 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti)
     {
         if (is_root)
         {
-            passwd = getpwnam(SwooleG.user);
             group = getgrnam(SwooleG.group);
-
-            if (passwd != NULL)
-            {
-                if (0 > setuid(passwd->pw_uid))
-                {
-                    swWarn("setuid to %s fail \r\n", SwooleG.user);
-                }
-            }
-            else
-            {
-                swWarn("get user %s info fail \r\n", SwooleG.user);
-            }
-
             if (group != NULL)
             {
-                if (0 > setgid(group->gr_gid))
+                if (setgid(group->gr_gid) < 0)
                 {
-                    swWarn("setgid to %s fail \r\n", SwooleG.group);
+                    swSysError("setgid to [%s] failed.", SwooleG.group);
                 }
             }
             else
             {
-                swWarn("get group %s info fail \r\n", SwooleG.group);
+                swSysError("get group [%s] info failed.", SwooleG.group);
+            }
+
+            passwd = getpwnam(SwooleG.user);
+            if (passwd != NULL)
+            {
+                if (setuid(passwd->pw_uid) < 0)
+                {
+                    swSysError("setuid to [%s] failed.", SwooleG.user);
+                }
+            }
+            else
+            {
+                swSysError("get user [%s] info failed.", SwooleG.user);
             }
         }
         ret = swWorker_loop(factory, worker_pti);
