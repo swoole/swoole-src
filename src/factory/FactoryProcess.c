@@ -546,20 +546,21 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
             if (pid > 0)
             {
                 swWorker *exit_worker = swHashMap_find_int(SwooleG.task_workers.map, pid);
+
                 if (exit_worker != NULL)
                 {
-                    if(exit_worker->del == 1)//主动回收不重启
+                    if (exit_worker->del == 1)  //主动回收不重启
                     {
                         exit_worker->del = 0;
                     }
                     else
                     {
-                      swProcessPool_spawn(exit_worker);
-                      goto kill_worker;
+                        swProcessPool_spawn(exit_worker);
+                        goto kill_worker;
                     }
                 }
 
-                if(serv->user_worker_map != NULL)
+                if (serv->user_worker_map != NULL)
                 {
                     exit_worker = swHashMap_find_int(serv->user_worker_map, pid);
                     if (exit_worker != NULL)

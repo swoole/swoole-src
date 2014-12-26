@@ -99,7 +99,6 @@ int swProcessPool_start(swProcessPool *pool)
 
         if (swProcessPool_spawn(&(pool->workers[i])) < 0)
         {
-            swWarn("swProcessPool_spawn fail");
             return SW_ERR;
         }
     }
@@ -229,7 +228,7 @@ pid_t swProcessPool_spawn(swWorker *worker)
         exit(ret_code);
         break;
     case -1:
-        swWarn("[swProcessPool_run] fork failed. Error: %s [%d]", strerror(errno), errno);
+        swWarn("fork() failed. Error: %s [%d]", strerror(errno), errno);
         break;
         //parent
     default:
