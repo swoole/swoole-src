@@ -244,6 +244,11 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_add, 0, 0, 2)
 	ZEND_ARG_INFO(0, cb)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_write, 0, 0, 2)
+    ZEND_ARG_INFO(0, fd)
+    ZEND_ARG_INFO(0, data)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_del, 0, 0, 1)
 	ZEND_ARG_INFO(0, fd)
 ZEND_END_ARG_INFO()
@@ -308,6 +313,7 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_event_del, arginfo_swoole_event_del)
 	PHP_FE(swoole_event_exit, arginfo_swoole_event_exit)
 	PHP_FE(swoole_event_wait, arginfo_swoole_event_wait)
+	PHP_FE(swoole_event_write, arginfo_swoole_event_write)
 	/*------swoole_timer-----*/
 	PHP_FE(swoole_timer_add, arginfo_swoole_timer_add)
 	PHP_FE(swoole_timer_del, arginfo_swoole_timer_del)

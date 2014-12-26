@@ -966,6 +966,53 @@ PHP_FUNCTION(swoole_event_add)
 	RETURN_LONG(socket_fd);
 }
 
+PHP_FUNCTION(swoole_event_write)
+{
+    zval **fd;
+    char *data;
+    int len;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Zs", &fd, &data, &len) == FAILURE)
+    {
+        return;
+    }
+
+#ifdef ZTS
+    if (sw_thread_ctx == NULL)
+    {
+        TSRMLS_SET_CTX(sw_thread_ctx);
+    }
+#endif
+
+    if (len <= 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "data empty.");
+        RETURN_FALSE;
+    }
+
+    if (!SwooleG.main_reactor)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "reactor no ready, cannot write.");
+        RETURN_FALSE;
+    }
+
+    int socket_fd = swoole_convert_to_fd(fd);
+    if (socket_fd < 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "unknow type.");
+        RETURN_FALSE;
+    }
+
+    if (SwooleG.main_reactor->write(SwooleG.main_reactor, socket_fd, data, len) < 0)
+    {
+        RETURN_FALSE;
+    }
+    else
+    {
+        RETURN_TRUE;
+    }
+}
+
 PHP_FUNCTION(swoole_event_set)
 {
 	zval *cb_read = NULL;

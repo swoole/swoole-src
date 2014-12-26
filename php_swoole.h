@@ -235,6 +235,7 @@ PHP_METHOD(swoole_server, bind);
 PHP_FUNCTION(swoole_event_add);
 PHP_FUNCTION(swoole_event_set);
 PHP_FUNCTION(swoole_event_del);
+PHP_FUNCTION(swoole_event_write);
 PHP_FUNCTION(swoole_event_wait);
 PHP_FUNCTION(swoole_event_exit);
 
