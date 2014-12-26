@@ -992,7 +992,7 @@ static int swReactorThread_websocket_frame(swConnection *conn, swHttpRequest *re
         }
         break;
     case WEBSOCKET_OPCODE_CONNECTION_CLOSE:
-        swTrace("fd: %d close, opcode:%d, lenght: %d\n", event->fd, request->opcode, request->content_length);
+        swTrace("fd: %d close, opcode:%d, lenght: %d\n", conn->fd, request->opcode, request->content_length);
         if (0x7d < request->content_length)
         {
             swTrace("close error\n");
