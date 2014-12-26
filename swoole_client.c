@@ -648,31 +648,36 @@ static int php_swoole_event_onRead(swReactor *reactor, swEvent *event)
 
 static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
 {
-	zval *retval;
-	zval **args[1];
-	swoole_reactor_fd *fd;
+    zval *retval;
+    zval **args[1];
+    swoole_reactor_fd *fd;
 
-	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-	if (zend_hash_find(&php_sw_event_callback, (char *)&(event->fd), sizeof(event->fd), (void**)&fd) != SUCCESS)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event: onWrite not found");
-		return SW_ERR;
-	}
+    if (zend_hash_find(&php_sw_event_callback, (char *) &(event->fd), sizeof(event->fd), (void**) &fd) != SUCCESS)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event: onWrite not found");
+        return SW_ERR;
+    }
 
-	args[0] = &fd->socket;
+    if (!fd->cb_write)
+    {
+        return swReactor_onWrite(reactor, event);
+    }
 
-	if (call_user_function_ex(EG(function_table), NULL, fd->cb_write, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event: onWrite handler error");
-		return SW_ERR;
-	}
+    args[0] = &fd->socket;
 
-	if (retval != NULL)
-	{
-		zval_ptr_dtor(&retval);
-	}
-	return SW_OK;
+    if (call_user_function_ex(EG(function_table), NULL, fd->cb_write, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event: onWrite handler error");
+        return SW_ERR;
+    }
+
+    if (retval != NULL)
+    {
+        zval_ptr_dtor(&retval);
+    }
+    return SW_OK;
 }
 
 static swClient* swoole_client_create_socket(zval *object, char *host, int host_len, int port)
