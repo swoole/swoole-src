@@ -190,31 +190,36 @@ pid_t swProcessPool_spawn(swWorker *worker)
          */
         if(is_root) 
         {
-            passwd = getpwnam(SwooleG.user);
-            group  = getgrnam(SwooleG.group);
-
-            if(passwd != NULL) 
+            if(SwooleG.group)
             {
-                if (0 > setuid(passwd->pw_uid)) 
+                group  = getgrnam(SwooleG.group);
+                if(group != NULL) 
                 {
-                    swWarn("setuid to %s fail \r\n", SwooleG.user);
+                    if(0 > setgid(group->gr_gid)) 
+                    {
+                        swSysError("setgid to [%s] failed.", SwooleG.group);
+                    }
+                }
+                else
+                {
+                    swSysError("get group [%s] info failed.", SwooleG.group);
                 }
             }
-            else
-            {
-                swWarn("get user %s info fail \r\n", SwooleG.user);
-            }
 
-            if(group != NULL) 
+            if(SwooleG.user)
             {
-                if(0 > setgid(group->gr_gid)) 
+                passwd = getpwnam(SwooleG.user);
+                if(passwd != NULL) 
                 {
-                    swWarn("setgid to %s fail \r\n", SwooleG.group);
+                    if (0 > setuid(passwd->pw_uid)) 
+                    {
+                        swSysError("setuid to [%s] failed.", SwooleG.user);
+                    }
                 }
-            }
-            else
-            {
-                swWarn("get group %s info fail \r\n", SwooleG.group);
+                else
+                {
+                    swSysError("get user [%s] info failed.", SwooleG.user);
+                }
             }
         }
 
