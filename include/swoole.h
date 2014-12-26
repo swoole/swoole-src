@@ -1318,9 +1318,9 @@ typedef struct
 	int pipe_used;
 
     uint32_t reactor_wait_onexit :1;
-    uint32_t reactor_ok :1;
+    uint32_t reactor_init :1;
+    uint32_t reactor_ready :1;
     uint32_t in_client :1;
-    uint32_t event_wait :1;
 
 	swString **buffer_input;
     swWorker *worker;
