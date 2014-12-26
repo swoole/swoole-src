@@ -975,6 +975,7 @@ static int swReactorThread_websocket_frame(swConnection *conn, swHttpRequest *re
         swTrace("websocket send fd: %d %zd %s, lenght:%zd, content-lenght:%d", conn->fd, strlen(request->buffer->str), request->buffer->str, request->buffer->length, request->content_length);
         swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, request->buffer);
         break;
+
     case WEBSOCKET_OPCODE_PING:  //ping
         if (request->buffer->str[request->buffer->offset] == 0 || 0x7d < request->content_length)
         {
@@ -985,14 +986,16 @@ static int swReactorThread_websocket_frame(swConnection *conn, swHttpRequest *re
         send(conn->fd, _buf->str, _buf->length, 0);
         swString_free(_buf);
         break;
+
     case WEBSOCKET_OPCODE_PONG:  //pong
         if (request->buffer->str[request->buffer->offset] == 0)
         {
             return SW_ERR;
         }
         break;
+
     case WEBSOCKET_OPCODE_CONNECTION_CLOSE:
-        swTrace("fd: %d close, opcode:%d, lenght: %d\n", event->fd, request->opcode, request->content_length);
+        swTrace("fd: %d close, opcode:%d, lenght: %d\n", conn->fd, request->opcode, request->content_length);
         if (0x7d < request->content_length)
         {
             swTrace("close error\n");

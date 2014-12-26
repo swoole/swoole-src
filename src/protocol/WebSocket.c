@@ -167,7 +167,8 @@ int swWebSocket_decode(swHttpRequest *request)
         }
     }
 
-    swTrace("offset: %d\n", request->buffer->offset);
+    swTrace("offset: %ld", request->buffer->offset);
+
     request->buffer->offset--;
     request->buffer->str[request->buffer->offset] = opcode;
     request->buffer->offset--;
@@ -175,7 +176,7 @@ int swWebSocket_decode(swHttpRequest *request)
     request->content_length += 2;
     request->buffer->str += request->buffer->offset;
 
-    swTrace("decode end %d %d %d====\n", request->buffer->offset, opcode, fin);
+    swTrace("decode end %ld %d %d====\n", request->buffer->offset, opcode, fin);
 
     return SW_OK;
 }
