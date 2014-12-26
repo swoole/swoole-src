@@ -1,18 +1,18 @@
 /*
-  +----------------------------------------------------------------------+
-  | Swoole                                                               |
-  +----------------------------------------------------------------------+
-  | This source file is subject to version 2.0 of the Apache license,    |
-  | that is bundled with this package in the file LICENSE, and is        |
-  | available through the world-wide-web at the following url:           |
-  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
-  | If you did not receive a copy of the Apache2.0 license and are unable|
-  | to obtain it through the world-wide-web, please send a note to       |
-  | license@php.net so we can mail you a copy immediately.               |
-  +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
-  +----------------------------------------------------------------------+
-*/
+ +----------------------------------------------------------------------+
+ | Swoole                                                               |
+ +----------------------------------------------------------------------+
+ | This source file is subject to version 2.0 of the Apache license,    |
+ | that is bundled with this package in the file LICENSE, and is        |
+ | available through the world-wide-web at the following url:           |
+ | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+ | If you did not receive a copy of the Apache2.0 license and are unable|
+ | to obtain it through the world-wide-web, please send a note to       |
+ | license@swoole.com so we can mail you a copy immediately.            |
+ +----------------------------------------------------------------------+
+ | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ +----------------------------------------------------------------------+
+ */
 
 #include "swoole.h"
 #include "Server.h"
@@ -152,7 +152,6 @@ int swFactoryProcess_start(swFactory *factory)
     return SW_OK;
 }
 
-
 //create worker child proccess
 static int swFactoryProcess_manager_start(swFactory *factory)
 {
@@ -222,7 +221,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
             swWarn("[Master] create task_workers failed.");
             return SW_ERR;
         }
-        
+
         swProcessPool *pool = &SwooleG.task_workers;
         swTaskWorker_init(pool);
 
@@ -309,7 +308,8 @@ static int swFactoryProcess_manager_start(swFactory *factory)
         SwooleGS->manager_pid = pid;
         break;
     case -1:
-        swError("fork() failed.");
+        swError("fork() failed.")
+        ;
         return SW_ERR;
     }
     return SW_OK;
@@ -347,8 +347,8 @@ static void swManager_signal_handle(int sig)
 {
     swProcessPool *pool = &(SwooleG.task_workers);
     swWorker *worker = NULL;
-    int i = 0,ret,over_load_num = 0,zero_load_num = 0;
-        
+    int i = 0, ret, over_load_num = 0, zero_load_num = 0;
+
     switch (sig)
     {
     case SIGTERM:
@@ -356,55 +356,56 @@ static void swManager_signal_handle(int sig)
         break;
     case SIGALRM:
         worker = &(pool->workers[SwooleGS->task_num]);
-        if(worker->del == 1&&worker->tasking_num == 0){
+        if (worker->del == 1 && worker->tasking_num == 0)
+        {
             ret = kill(worker->pid, SIGTERM);
             if (ret < 0)
             {
-                    swWarn("[Manager]kill fail.pid=%d. Error: %s [%d]", worker->pid, strerror(errno), errno);
+                swWarn("[Manager]kill fail.pid=%d. Error: %s [%d]", worker->pid, strerror(errno), errno);
             }
-             alarm(1);
-             break;
+            alarm(1);
+            break;
         }
-        for(;i<SwooleGS->task_num;i++)
+        for (; i < SwooleGS->task_num; i++)
         {
             worker = &(pool->workers[i]);
-            if(worker->tasking_num >=1)//todo support config
+            if (worker->tasking_num >= 1)  //todo support config
             {
                 over_load_num++;
             }
-            else// == 0
+            else  // == 0
             {
-               zero_load_num++;
+                zero_load_num++;
             }
         }
-        
-        if(over_load_num>SwooleGS->task_num/2&&SwooleGS->task_num<SwooleG.task_worker_max)
+
+        if (over_load_num > SwooleGS->task_num / 2 && SwooleGS->task_num < SwooleG.task_worker_max)
         {
-           if(swProcessPool_spawn(&(pool->workers[SwooleGS->task_num])) < 0)
-           {
+            if (swProcessPool_spawn(&(pool->workers[SwooleGS->task_num])) < 0)
+            {
                 swWarn("swProcessPool_spawn fail");
-           }
-           else
-           {
+            }
+            else
+            {
                 SwooleGS->task_num++;
-           }
+            }
         }
-        else if(zero_load_num>=SwooleG.task_worker_num&&SwooleGS->task_num>SwooleG.task_worker_num)
-        { 
-                  SwooleG.task_recycle_num++;
-                  if(SwooleG.task_recycle_num>3)
-                  {
-                    SwooleGS->task_num--;
-                    worker = &(pool->workers[SwooleGS->task_num]);
-                    worker->del = 1;
-                    SwooleG.task_recycle_num = 0;
-                  }
+        else if (zero_load_num >= SwooleG.task_worker_num && SwooleGS->task_num > SwooleG.task_worker_num)
+        {
+            SwooleG.task_recycle_num++;
+            if (SwooleG.task_recycle_num > 3)
+            {
+                SwooleGS->task_num--;
+                worker = &(pool->workers[SwooleGS->task_num]);
+                worker->del = 1;
+                SwooleG.task_recycle_num = 0;
+            }
         }
         alarm(1);
         break;
-    /**
-     * reload all workers
-     */
+        /**
+         * reload all workers
+         */
     case SIGUSR1:
         if (ManagerProcess.reloading == 0)
         {
@@ -412,9 +413,9 @@ static void swManager_signal_handle(int sig)
             ManagerProcess.reload_event_worker = 1;
         }
         break;
-    /**
-     * only reload task workers
-     */
+        /**
+         * only reload task workers
+         */
     case SIGUSR2:
         if (ManagerProcess.reloading == 0)
         {
@@ -463,8 +464,8 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
     swSignal_add(SIGUSR1, swManager_signal_handle);
     swSignal_add(SIGUSR2, swManager_signal_handle);
     //swSignal_add(SIGINT, swManager_signal_handle);
-    
-     //for add/recycle task process
+
+    //for add/recycle task process
     if (SwooleG.task_worker_max > 0)
     {
         swSignal_add(SIGALRM, swManager_signal_handle);
@@ -572,8 +573,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
             }
         }
         //reload worker
-        kill_worker:
-        if (ManagerProcess.reloading == 1)
+        kill_worker: if (ManagerProcess.reloading == 1)
         {
             //reload finish
             if (reload_worker_i >= reload_worker_num)
@@ -631,30 +631,36 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti)
     {
         if (is_root)
         {
-            group = getgrnam(SwooleG.group);
-            if (group != NULL)
+            if (SwooleG.group)
             {
-                if (setgid(group->gr_gid) < 0)
+                group = getgrnam(SwooleG.group);
+                if (group != NULL)
                 {
-                    swSysError("setgid to [%s] failed.", SwooleG.group);
+                    if (setgid(group->gr_gid) < 0)
+                    {
+                        swSysError("setgid to [%s] failed.", SwooleG.group);
+                    }
                 }
-            }
-            else
-            {
-                swSysError("get group [%s] info failed.", SwooleG.group);
+                else
+                {
+                    swSysError("get group [%s] info failed.", SwooleG.group);
+                }
             }
 
-            passwd = getpwnam(SwooleG.user);
-            if (passwd != NULL)
+            if (SwooleG.user)
             {
-                if (setuid(passwd->pw_uid) < 0)
+                passwd = getpwnam(SwooleG.user);
+                if (passwd != NULL)
                 {
-                    swSysError("setuid to [%s] failed.", SwooleG.user);
+                    if (setuid(passwd->pw_uid) < 0)
+                    {
+                        swSysError("setuid to [%s] failed.", SwooleG.user);
+                    }
                 }
-            }
-            else
-            {
-                swSysError("get user [%s] info failed.", SwooleG.user);
+                else
+                {
+                    swSysError("get user [%s] info failed.", SwooleG.user);
+                }
             }
         }
         ret = swWorker_loop(factory, worker_pti);
@@ -749,7 +755,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     sdata._send.info.type = resp->info.type;
     swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
 
-	/**
+    /**
      * Big response, use shared memory
      */
     if (resp->length > 0)
@@ -790,8 +796,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 
     ret = swWorker_send2reactor(&sdata, sendn, fd);
 
-    finish:
-    if (ret < 0)
+    finish: if (ret < 0)
     {
         swWarn("sendto to reactor failed. Error: %s [%d]", strerror(errno), errno);
     }
@@ -948,8 +953,7 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
             //TODO: thread safe, should close in reactor thread.
             if (resp->info.type == SW_EVENT_CLOSE)
             {
-                close_fd:
-                reactor->close(reactor, resp->info.fd);
+                close_fd: reactor->close(reactor, resp->info.fd);
                 continue;
             }
             //sendfile
@@ -968,7 +972,8 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
                 switch (swConnection_error(errno))
                 {
                 case SW_ERROR:
-                    swSysError("send to client[%d] failed.", resp->info.fd);
+                    swSysError("send to client[%d] failed.", resp->info.fd)
+                    ;
                     break;
                 case SW_CLOSE:
                     goto close_fd;
