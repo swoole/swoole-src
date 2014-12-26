@@ -177,18 +177,9 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
             buf.info.len = data_len;
         }
 
-        //tasking
-        /**
-         * TODO: 这里需要重构，改成统一的模式
-         */
-        if (serv->factory_mode == SW_MODE_PROCESS)
-        {
-            ret = swServer_send2worker_blocking(serv, &buf, sizeof(buf.info) + buf.info.len, current_task->info.from_id);
-        }
-        else
-        {
-            ret = swWrite(SwooleG.event_workers->workers[current_task->info.from_id].pipe_worker, &buf, sizeof(buf.info) + data_len);
-        }
+        uint16_t target_worker_id = current_task->info.from_id;
+        swWorker *worker = swServer_get_worker(serv, target_worker_id);
+        ret = swWorker_send2worker(worker, SW_PIPE_MASTER, &buf, sizeof(buf.info) + buf.info.len);
     }
     else
     {

@@ -479,12 +479,33 @@ int swServer_start(swServer *serv)
         return SW_ERR;
     }
 
+    /**
+     * store to swProcessPool object
+     */
+    SwooleGS->event_workers.workers = serv->workers;
+    SwooleGS->event_workers.worker_num = serv->worker_num;
+
+    if (serv->ipc_mode == SW_IPC_MSGQUEUE)
+    {
+        SwooleGS->event_workers.use_msgqueue = 1;
+    }
+    else
+    {
+        SwooleGS->event_workers.use_msgqueue = 0;
+    }
+
+    int i;
+    for (i = 0; i < serv->worker_num; i++)
+    {
+        SwooleGS->event_workers.workers[i].pool = &SwooleGS->event_workers;
+    }
+
 	/*
 	 * For swoole_server->taskwait, create notify pipe and result shared memory.
 	 */
     if (SwooleG.task_worker_num > 0 && serv->worker_num > 0)
     {
-        int i;
+
         SwooleG.task_result = sw_shm_calloc(serv->worker_num, sizeof(swEventData));
         SwooleG.task_notify = sw_calloc(serv->worker_num, sizeof(swPipe));
         for (i = 0; i < serv->worker_num; i++)
@@ -645,7 +666,7 @@ int swServer_free(swServer *serv)
     {
         if (SwooleG.task_worker_num > 0)
         {
-            swProcessPool_shutdown(&SwooleG.task_workers);
+            swProcessPool_shutdown(&SwooleGS->task_workers);
         }
     }
     else
@@ -1051,8 +1072,8 @@ static void swServer_signal_hanlder(int sig)
     case SIGUSR2:
         if (SwooleG.serv->factory_mode == SW_MODE_SINGLE)
         {
-            SwooleG.event_workers->reloading = 1;
-            SwooleG.event_workers->reload_flag = 0;
+            SwooleGS->event_workers.reloading = 1;
+            SwooleGS->event_workers.reload_flag = 0;
         }
         else
         {

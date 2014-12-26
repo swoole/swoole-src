@@ -1045,7 +1045,8 @@ struct _swProcessPool
 
     int (*main_loop)(struct _swProcessPool *pool, swWorker *worker);
 
-    int round_id;
+    sw_atomic_t round_id;
+    sw_atomic_t run_worker_num;
 
     swWorker *workers;
     swPipe *pipes;
@@ -1288,10 +1289,13 @@ typedef struct
 {
     pid_t master_pid;
     pid_t manager_pid;
+
     uint8_t start;  //after swServer_start will set start=1
     time_t now;
-    sw_atomic_t task_num;
-    sw_atomic_t task_round;
+
+    swProcessPool task_workers;
+    swProcessPool event_workers;
+
 } swServerGS;
 
 //Worker process global Variable
@@ -1397,9 +1401,6 @@ typedef struct
     swServer *serv;
     swFactory *factory;
     swLock lock;
-
-    swProcessPool task_workers;
-    swProcessPool *event_workers;
 
     swMemoryPool *memory_pool;
     swReactor *main_reactor;

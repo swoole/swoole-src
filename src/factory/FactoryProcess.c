@@ -214,15 +214,16 @@ static int swFactoryProcess_manager_start(swFactory *factory)
         }
 
         int task_num = SwooleG.task_worker_max > 0 ? SwooleG.task_worker_max : SwooleG.task_worker_num;
-        SwooleGS->task_num = SwooleG.task_worker_num;  //启动min个.此时的pool->worker_num相当于max
+        //启动min个.此时的pool->worker_num相当于max
+        SwooleGS->task_workers.run_worker_num = SwooleG.task_worker_num;
 
-        if (swProcessPool_create(&SwooleG.task_workers, task_num, serv->task_max_request, key, 1) < 0)
+        if (swProcessPool_create(&SwooleGS->task_workers, task_num, serv->task_max_request, key, 1) < 0)
         {
             swWarn("[Master] create task_workers failed.");
             return SW_ERR;
         }
 
-        swProcessPool *pool = &SwooleG.task_workers;
+        swProcessPool *pool = &SwooleGS->task_workers;
         swTaskWorker_init(pool);
 
         int worker_id;
@@ -281,7 +282,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
          */
         if (SwooleG.task_worker_num > 0)
         {
-            swProcessPool_start(&SwooleG.task_workers);
+            swProcessPool_start(&SwooleGS->task_workers);
         }
 
         /**
@@ -345,7 +346,7 @@ static pid_t swManager_create_user_worker(swServer *serv, swWorker* worker)
 
 static void swManager_signal_handle(int sig)
 {
-    swProcessPool *pool = &(SwooleG.task_workers);
+    swProcessPool *pool = &(SwooleGS->task_workers);
     swWorker *worker = NULL;
     int i = 0, ret, over_load_num = 0, zero_load_num = 0;
 
@@ -355,7 +356,7 @@ static void swManager_signal_handle(int sig)
         SwooleG.running = 0;
         break;
     case SIGALRM:
-        worker = &(pool->workers[SwooleGS->task_num]);
+        worker = &(pool->workers[pool->run_worker_num]);
         if (worker->del == 1 && worker->tasking_num == 0)
         {
             ret = kill(worker->pid, SIGTERM);
@@ -366,9 +367,11 @@ static void swManager_signal_handle(int sig)
             alarm(1);
             break;
         }
-        for (; i < SwooleGS->task_num; i++)
+
+        for (i = 0; i < pool->run_worker_num; i++)
         {
             worker = &(pool->workers[i]);
+
             if (worker->tasking_num >= 1)  //todo support config
             {
                 over_load_num++;
@@ -379,24 +382,24 @@ static void swManager_signal_handle(int sig)
             }
         }
 
-        if (over_load_num > SwooleGS->task_num / 2 && SwooleGS->task_num < SwooleG.task_worker_max)
+        if (over_load_num > pool->run_worker_num / 2 && pool->run_worker_num < SwooleG.task_worker_max)
         {
-            if (swProcessPool_spawn(&(pool->workers[SwooleGS->task_num])) < 0)
+            if (swProcessPool_spawn(&(pool->workers[pool->run_worker_num])) < 0)
             {
                 swWarn("swProcessPool_spawn fail");
             }
             else
             {
-                SwooleGS->task_num++;
+                pool->run_worker_num++;
             }
         }
-        else if (zero_load_num >= SwooleG.task_worker_num && SwooleGS->task_num > SwooleG.task_worker_num)
+        else if (zero_load_num >= SwooleG.task_worker_num && pool->run_worker_num > SwooleG.task_worker_num)
         {
             SwooleG.task_recycle_num++;
             if (SwooleG.task_recycle_num > 3)
             {
-                SwooleGS->task_num--;
-                worker = &(pool->workers[SwooleGS->task_num]);
+                pool->run_worker_num--;
+                worker = &(pool->workers[pool->run_worker_num]);
                 worker->del = 1;
                 SwooleG.task_recycle_num = 0;
             }
@@ -488,7 +491,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
                 reload_worker_num = serv->worker_num;
                 if (SwooleG.task_worker_num > 0)
                 {
-                    memcpy(reload_workers + serv->worker_num, SwooleG.task_workers.workers,
+                    memcpy(reload_workers + serv->worker_num, SwooleGS->task_workers.workers,
                             sizeof(swWorker) * SwooleG.task_worker_num);
                     reload_worker_num += SwooleG.task_worker_num;
                 }
@@ -503,7 +506,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
                     swWarn("Cannot reload workers, because server no have task workers.");
                     continue;
                 }
-                memcpy(reload_workers, SwooleG.task_workers.workers, sizeof(swWorker) * SwooleG.task_worker_num);
+                memcpy(reload_workers, SwooleGS->task_workers.workers, sizeof(swWorker) * SwooleG.task_worker_num);
                 reload_worker_num = SwooleG.task_worker_num;
                 reload_worker_i = 0;
                 ManagerProcess.reload_task_worker = 0;
@@ -546,7 +549,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
             //task worker
             if (pid > 0)
             {
-                swWorker *exit_worker = swHashMap_find_int(SwooleG.task_workers.map, pid);
+                swWorker *exit_worker = swHashMap_find_int(SwooleGS->task_workers.map, pid);
 
                 if (exit_worker != NULL)
                 {
@@ -603,7 +606,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 
     if (SwooleG.task_worker_num > 0)
     {
-        swProcessPool_shutdown(&SwooleG.task_workers);
+        swProcessPool_shutdown(&SwooleGS->task_workers);
     }
 
     if (serv->onManagerStop)
@@ -796,7 +799,8 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 
     ret = swWorker_send2reactor(&sdata, sendn, fd);
 
-    finish: if (ret < 0)
+    finish:
+    if (ret < 0)
     {
         swWarn("sendto to reactor failed. Error: %s [%d]", strerror(errno), errno);
     }
@@ -874,13 +878,16 @@ int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
         target_worker_id = task->target_worker_id;
     }
 
+    //reacthr thread
     if (SwooleTG.type == SW_THREAD_REACTOR)
     {
         return swReactorThread_send2worker((void *) &(task->data), send_len, target_worker_id);
     }
+    //master thread
     else
     {
-        return swServer_send2worker_blocking(serv, (void *) &(task->data), send_len, target_worker_id);
+        swWorker *worker = swServer_get_worker(serv, target_worker_id);
+        return swWorker_send2worker(worker, SW_PIPE_MASTER, (void *) &(task->data), send_len);
     }
 }
 
