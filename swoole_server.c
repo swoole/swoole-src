@@ -356,6 +356,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     zval *zfd;
     zval *zfrom_id;
     zval *zdata;
+
     char *zdata_str;
     int zdata_len;
     zval *unserialized_zdata = NULL;
@@ -364,17 +365,18 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
     MAKE_STD_ZVAL(zfd);
-    ZVAL_LONG(zfd, (long)req->info.fd);
+    ZVAL_LONG(zfd, (long )req->info.fd);
 
     MAKE_STD_ZVAL(zfrom_id);
-    ZVAL_LONG(zfrom_id, (long)req->info.from_id);
+    ZVAL_LONG(zfrom_id, (long )req->info.from_id);
 
     MAKE_STD_ZVAL(zdata);
 
     if (swTask_type(req) & SW_TASK_TMPFILE)
     {
         int data_len;
-        char *buf;
+        char *buf = NULL;
+
         swTaskWorker_large_unpack(req, emalloc, buf, data_len);
 
         /**
@@ -382,7 +384,10 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
          */
         if (data_len == -1)
         {
-            efree(buf);
+            if (buf)
+            {
+                efree(buf);
+            }
             return SW_OK;
         }
         ZVAL_STRINGL(zdata, buf, data_len, 0);
@@ -1834,7 +1839,7 @@ PHP_METHOD(swoole_server, stats)
     add_assoc_long_ex(return_value, SW_STRL("accept_count"), SwooleStats->accept_count);
     add_assoc_long_ex(return_value, SW_STRL("close_count"), SwooleStats->close_count);
     add_assoc_long_ex(return_value, SW_STRL("tasking_num"), SwooleStats->tasking_num);
-    add_assoc_long_ex(return_value, SW_STRL("task_process_num"), SwooleGS->task_num);
+    add_assoc_long_ex(return_value, SW_STRL("task_process_num"), SwooleGS->task_workers.run_worker_num);
 }
 
 PHP_FUNCTION(swoole_server_reload)
@@ -2193,6 +2198,8 @@ PHP_FUNCTION(swoole_server_taskwait)
     buf.info.fd = php_swoole_task_id++;
     //field from_id save the worker_id
     buf.info.from_id = SwooleWG.id;
+    swTask_type(&buf) = 0;
+
     swTask_type(&buf) |= SW_TASK_BLOCKING;
     //clear result buffer
     swEventData *task_result = &(SwooleG.task_result[SwooleWG.id]);
@@ -2241,11 +2248,11 @@ PHP_FUNCTION(swoole_server_taskwait)
     //clear history task
     while (read(efd, &notify, sizeof(notify)) > 0);
  
-    if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int*) &worker_id) >= 0)
+    if (swProcessPool_dispatch(&SwooleGS->task_workers, &buf, (int*) &worker_id) >= 0)
     {
         task_notify_pipe->timeout = timeout;
         int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
-        swWorker *worker = swProcessPool_get_worker(&SwooleG.task_workers, worker_id);
+        swWorker *worker = swProcessPool_get_worker(&SwooleGS->task_workers, worker_id);
         sw_atomic_fetch_sub(&worker->tasking_num, 1);
         
         if (ret > 0)
@@ -2370,6 +2377,8 @@ PHP_FUNCTION(swoole_server_task)
     buf.info.fd = php_swoole_task_id++;
     //source worker_id
     buf.info.from_id = SwooleWG.id;
+    swTask_type(&buf) = 0;
+
     swTask_type(&buf) |= SW_TASK_NONBLOCK;
 
     char *task_data_str;
@@ -2408,9 +2417,10 @@ PHP_FUNCTION(swoole_server_task)
         memcpy(buf.data, task_data_str, task_data_len);
         buf.info.len = task_data_len;
     }
+
     smart_str_free(&serialized_data);
 
-    if (swProcessPool_dispatch(&SwooleG.task_workers, &buf, (int*) &worker_id) >= 0)
+    if (swProcessPool_dispatch(&SwooleGS->task_workers, &buf, (int*) &worker_id) >= 0)
     {
         sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
         RETURN_LONG(buf.info.fd);
@@ -2479,8 +2489,9 @@ PHP_METHOD(swoole_server, sendmessage)
         buf.info.len = msglen;
         buf.info.from_fd = 0;
     }
-    swWorker *worker = swServer_get_worker(serv, worker_id);
-    SW_CHECK_RETURN(SwooleG.main_reactor->write(SwooleG.main_reactor, worker->pipe_master, &buf, sizeof(buf.info) + buf.info.len));
+
+    swWorker *to_worker = swServer_get_worker(serv, worker_id);
+    SW_CHECK_RETURN(swWorker_send2worker(to_worker, SW_PIPE_MASTER, &buf, sizeof(buf.info) + buf.info.len));
 }
 
 PHP_FUNCTION(swoole_server_finish)

@@ -344,23 +344,12 @@ int swWorker_loop(swFactory *factory, int worker_id)
  */
 int swWorker_send2reactor(swEventData_overflow *sdata, size_t sendn, int fd)
 {
-    int ret, count;
+    int ret;
     swServer *serv = SwooleG.serv;
 
     if (serv->ipc_mode == SW_IPC_MSGQUEUE)
     {
-        for (count = 0; count < SW_WORKER_SENDTO_COUNT; count++)
-        {
-            ret = serv->write_queue.in(&serv->write_queue, (swQueue_data *) sdata, sendn);
-            if (ret < 0)
-            {
-                continue;
-            }
-            else
-            {
-                break;
-            }
-        }
+        ret = serv->write_queue.in(&serv->write_queue, (swQueue_data *) sdata, sendn);
     }
     else
     {
@@ -422,3 +411,35 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
     return SW_ERR;
 }
 
+int swWorker_send2worker(swWorker *dst_worker, uint16_t is_master, void *buf, int n)
+{
+    int pipefd, ret;
+    pipefd = is_master ? dst_worker->pipe_master : dst_worker->pipe_worker;
+
+    //message-queue
+    if (dst_worker->pool->use_msgqueue)
+    {
+        struct
+        {
+            long mtype;
+            swEventData buf;
+        } msg;
+
+        msg.mtype = dst_worker->id + 1;
+        memcpy(&msg.buf, buf, n);
+
+        ret = dst_worker->pool->queue.in(&dst_worker->pool->queue, (swQueue_data *) &msg, n);
+    }
+    //event worker
+    else if (SwooleG.main_reactor)
+    {
+        ret = SwooleG.main_reactor->write(SwooleG.main_reactor, pipefd, buf, n);
+    }
+    //task worker
+    else
+    {
+        ret = swSocket_write_blocking(pipefd, buf, n);
+    }
+
+    return ret;
+}

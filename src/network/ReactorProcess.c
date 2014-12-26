@@ -79,29 +79,27 @@ int swReactorProcess_start(swServer *serv)
         }
     }
 
-    swProcessPool pool;
-    if (swProcessPool_create(&pool, serv->worker_num, serv->max_request, 0, 0) < 0)
+    if (swProcessPool_create(&SwooleGS->event_workers, serv->worker_num, serv->max_request, 0, 0) < 0)
     {
         return SW_ERR;
     }
 
-    pool.ptr = serv;
-    pool.main_loop = swReactorProcess_loop;
-    pool.type = SW_PROCESS_WORKER;
-
-    SwooleG.event_workers = &pool;
+    SwooleGS->event_workers.ptr = serv;
+    SwooleGS->event_workers.main_loop = swReactorProcess_loop;
+    SwooleGS->event_workers.type = SW_PROCESS_WORKER;
 
     //no worker
     if (serv->worker_num == 1 && SwooleG.task_worker_num == 0 && serv->max_request == 0)
     {
         swWorker single_worker;
         single_worker.id = 0;
-        return swReactorProcess_loop(&pool, &single_worker);
+        return swReactorProcess_loop(&SwooleGS->event_workers, &single_worker);
     }
+
     //task workers
     if (SwooleG.task_worker_num > 0)
     {
-        if (swProcessPool_create(&SwooleG.task_workers, SwooleG.task_worker_num, serv->task_max_request, serv->message_queue_key + 2, 1) < 0)
+        if (swProcessPool_create(&SwooleGS->task_workers, SwooleG.task_worker_num, serv->task_max_request, serv->message_queue_key + 2, 1) < 0)
         {
             swWarn("[Master] create task_workers failed.");
             return SW_ERR;
@@ -118,13 +116,13 @@ int swReactorProcess_start(swServer *serv)
             }
         }
 
-        swTaskWorker_init(&SwooleG.task_workers);
-        swProcessPool_start(&SwooleG.task_workers);
+        swTaskWorker_init(&SwooleGS->task_workers);
+        swProcessPool_start(&SwooleGS->task_workers);
 
         //将taskworker也加入到wait中来
-        for (i = 0; i < SwooleG.task_workers.worker_num; i++)
+        for (i = 0; i < SwooleGS->task_workers.worker_num; i++)
         {
-            swProcessPool_add_worker(&pool, &SwooleG.task_workers.workers[i]);
+            swProcessPool_add_worker(&SwooleGS->event_workers, &SwooleGS->task_workers.workers[i]);
         }
     }
     /**
@@ -137,9 +135,10 @@ int swReactorProcess_start(swServer *serv)
     SwooleG.use_timer_pipe = 0;
     swServer_signal_init();
 
-    swProcessPool_start(&pool);
-    swProcessPool_wait(&pool);
-    swProcessPool_shutdown(&pool);
+    swProcessPool_start(&SwooleGS->event_workers);
+    swProcessPool_wait(&SwooleGS->event_workers);
+
+    swProcessPool_shutdown(&SwooleGS->event_workers);
 
     return SW_OK;
 }

@@ -111,20 +111,19 @@ int swProcessPool_start(swProcessPool *pool)
 int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int *dst_worker_id)
 {
     int ret = 0;
+    swWorker *worker;
 
     if (*dst_worker_id < 0)
     {
         int i, target_worker_id = pool->round_id;
-        swWorker *worker;
-        int task_worker_num = SwooleGS->task_num;  //TODO: pool->worker_num
+        int run_worker_num = pool->run_worker_num;
 
-        for (i = 0; i < task_worker_num; i++)
+        for (i = 0; i < run_worker_num; i++)
         {
             pool->round_id++;
-            target_worker_id = pool->round_id % task_worker_num;
+            target_worker_id = pool->round_id % run_worker_num;
 
-            worker = swProcessPool_get_worker(pool, *dst_worker_id);
-
+            worker = &pool->workers[i];
             if (worker->status == SW_WORKER_IDLE)
             {
                 break;
@@ -134,45 +133,20 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int *dst_work
     }
 
     *dst_worker_id += pool->start_id;
+    worker = swProcessPool_get_worker(pool, *dst_worker_id);
 
-    struct
-    {
-        long mtype;
-        swEventData buf;
-    } in;
+    int sendn = sizeof(data->info) + data->info.len;
+    ret = swWorker_send2worker(worker, SW_PIPE_MASTER, data, sendn);
 
-    if (pool->use_msgqueue)
+    if (ret >= 0)
     {
-        in.mtype = *dst_worker_id + 1;
-        memcpy(&in.buf, data, sizeof(data->info) + data->info.len);
-        ret = pool->queue.in(&pool->queue, (swQueue_data *) &in, sizeof(data->info) + data->info.len);
-        if (ret < 0)
-        {
-            swSysError("msgsnd() failed.");
-        }
+        sw_atomic_fetch_add(&worker->tasking_num, 1);
     }
     else
     {
-        swWorker *worker = swProcessPool_get_worker(pool, *dst_worker_id);
-        if (SwooleG.main_reactor)
-        {
-            ret = SwooleG.main_reactor->write(SwooleG.main_reactor, worker->pipe_master, data,
-                    sizeof(data->info) + data->info.len);
-        }
-        else
-        {
-            ret = swSocket_write_blocking(worker->pipe_master, data, sizeof(data->info) + data->info.len);
-        }
-
-        if (ret < 0)
-        {
-            swSysError("sendto unix socket failed.");
-        }
-        else
-        {
-            sw_atomic_fetch_add(&worker->tasking_num, 1);
-        }
+        swWarn("send %d bytes to worker#%d failed.", sendn, *dst_worker_id);
     }
+
     return ret;
 }
 
@@ -182,7 +156,7 @@ void swProcessPool_shutdown(swProcessPool *pool)
     swWorker *worker;
     SwooleG.running = 0;
 
-    for (i = 0; i < SwooleGS->task_num; i++)
+    for (i = 0; i < pool->run_worker_num; i++)
     {
         worker = &pool->workers[i];
         if (kill(worker->pid, SIGTERM) < 0)
@@ -216,31 +190,36 @@ pid_t swProcessPool_spawn(swWorker *worker)
          */
         if(is_root) 
         {
-            passwd = getpwnam(SwooleG.user);
-            group  = getgrnam(SwooleG.group);
-
-            if(passwd != NULL) 
+            if(SwooleG.group)
             {
-                if (0 > setuid(passwd->pw_uid)) 
+                group  = getgrnam(SwooleG.group);
+                if(group != NULL) 
                 {
-                    swWarn("setuid to %s fail \r\n", SwooleG.user);
+                    if(0 > setgid(group->gr_gid)) 
+                    {
+                        swSysError("setgid to [%s] failed.", SwooleG.group);
+                    }
+                }
+                else
+                {
+                    swSysError("get group [%s] info failed.", SwooleG.group);
                 }
             }
-            else
-            {
-                swWarn("get user %s info fail \r\n", SwooleG.user);
-            }
 
-            if(group != NULL) 
+            if(SwooleG.user)
             {
-                if(0 > setgid(group->gr_gid)) 
+                passwd = getpwnam(SwooleG.user);
+                if(passwd != NULL) 
                 {
-                    swWarn("setgid to %s fail \r\n", SwooleG.group);
+                    if (0 > setuid(passwd->pw_uid)) 
+                    {
+                        swSysError("setuid to [%s] failed.", SwooleG.user);
+                    }
                 }
-            }
-            else
-            {
-                swWarn("get group %s info fail \r\n", SwooleG.group);
+                else
+                {
+                    swSysError("get user [%s] info failed.", SwooleG.user);
+                }
             }
         }
 

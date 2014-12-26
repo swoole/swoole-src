@@ -531,17 +531,22 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags);
 #define swTaskWorker_large_unpack(task, __malloc, _buf, _length)   swPackage_task _pkg;\
 	memcpy(&_pkg, task->data, sizeof(_pkg));\
 	_length = _pkg.length;\
-	_buf = __malloc(_length + 1);\
-	_buf[_length] = 0;\
-	int tmp_file_fd = open(_pkg.tmpfile, O_RDONLY);\
-	if (tmp_file_fd < 0){\
-		swWarn("open(%s) failed. Error: %s[%d]", task->data, strerror(errno), errno);\
-		_length = -1;\
-	} else if (swoole_sync_readfile(tmp_file_fd, _buf, _length) > 0) {\
-		unlink(_pkg.tmpfile);\
-	} else {\
-		_length = -1;\
-	}
+    if (_length > SwooleG.serv->package_max_length) {\
+        swWarn("task package is too big.");\
+	    _length = -1;\
+    } else { \
+        _buf = __malloc(_length + 1);\
+        _buf[_length] = 0;\
+        int tmp_file_fd = open(_pkg.tmpfile, O_RDONLY);\
+        if (tmp_file_fd < 0){\
+            swSysError("open(%s) failed.", task->data);\
+            _length = -1;\
+        } else if (swoole_sync_readfile(tmp_file_fd, _buf, _length) > 0) {\
+            unlink(_pkg.tmpfile);\
+        } else {\
+            _length = -1;\
+        }\
+    }
 
 #define swPackage_data(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->str:task->data)
 #define swPackage_length(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->length:task->info.len)
@@ -564,7 +569,7 @@ swConnection* swServer_connection_new(swServer *serv, swDataHead *ev);
 
 static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_id)
 {
-    int task_num = SwooleG.task_worker_max>0?SwooleG.task_worker_max:SwooleG.task_worker_num;
+    int task_num = SwooleG.task_worker_max > 0 ? SwooleG.task_worker_max : SwooleG.task_worker_num;
     if (worker_id > serv->worker_num + task_num)
     {
         swWarn("worker_id is exceed serv->worker_num + SwooleG.task_worker_num");
@@ -572,44 +577,12 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
     }
     else if (worker_id >= serv->worker_num)
     {
-        return &(SwooleG.task_workers.workers[worker_id - serv->worker_num]);
+        return &(SwooleGS->task_workers.workers[worker_id - serv->worker_num]);
     }
     else
     {
-        return &(serv->workers[worker_id]);
+        return &(SwooleGS->event_workers.workers[worker_id]);
     }
-}
-
-static sw_inline int swServer_send2worker_blocking(swServer *serv, void *data, int len, uint16_t target_worker_id)
-{
-    int ret = -1;
-    swWorker *worker = &(serv->workers[target_worker_id]);
-
-    if (serv->ipc_mode == SW_IPC_MSGQUEUE)
-    {
-        swQueue_data *in_data = (swQueue_data *) ((void *) data - sizeof(long));
-
-        //加1,消息队列的type必须不能为0
-        in_data->mtype = target_worker_id + 1;
-        ret = serv->read_queue.in(&serv->read_queue, in_data, len);
-    }
-    else
-    {
-        sendto_unix_sock:
-        ret = write(worker->pipe_master, (void *) data, len);
-        if (ret < 0)
-        {
-            if (errno == EINTR)
-            {
-                goto sendto_unix_sock;
-            }
-            else if (errno == EAGAIN)
-            {
-                swSocket_wait(worker->pipe_master, SW_WORKER_WAIT_TIMEOUT, SW_EVENT_WRITE);
-            }
-        }
-    }
-    return ret;
 }
 
 static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t schedule_key)
@@ -688,6 +661,7 @@ void swWorker_onStart(swServer *serv);
 void swWorker_onStop(swServer *serv);
 int swWorker_loop(swFactory *factory, int worker_pti);
 int swWorker_send2reactor(swEventData_overflow *sdata, size_t sendn, int fd);
+int swWorker_send2worker(swWorker *dst_worker, uint16_t is_master, void *buf, int n);
 void swWorker_signal_handler(int signo);
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event);
