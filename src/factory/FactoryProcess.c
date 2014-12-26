@@ -631,30 +631,36 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti)
     {
         if (is_root)
         {
-            group = getgrnam(SwooleG.group);
-            if (group != NULL)
+            if (SwooleG.group)
             {
-                if (setgid(group->gr_gid) < 0)
+                group = getgrnam(SwooleG.group);
+                if (group != NULL)
                 {
-                    swSysError("setgid to [%s] failed.", SwooleG.group);
+                    if (setgid(group->gr_gid) < 0)
+                    {
+                        swSysError("setgid to [%s] failed.", SwooleG.group);
+                    }
                 }
-            }
-            else
-            {
-                swSysError("get group [%s] info failed.", SwooleG.group);
+                else
+                {
+                    swSysError("get group [%s] info failed.", SwooleG.group);
+                }
             }
 
-            passwd = getpwnam(SwooleG.user);
-            if (passwd != NULL)
+            if (SwooleG.user)
             {
-                if (setuid(passwd->pw_uid) < 0)
+                passwd = getpwnam(SwooleG.user);
+                if (passwd != NULL)
                 {
-                    swSysError("setuid to [%s] failed.", SwooleG.user);
+                    if (setuid(passwd->pw_uid) < 0)
+                    {
+                        swSysError("setuid to [%s] failed.", SwooleG.user);
+                    }
                 }
-            }
-            else
-            {
-                swSysError("get user [%s] info failed.", SwooleG.user);
+                else
+                {
+                    swSysError("get user [%s] info failed.", SwooleG.user);
+                }
             }
         }
         ret = swWorker_loop(factory, worker_pti);
