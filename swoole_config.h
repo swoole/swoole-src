@@ -21,7 +21,10 @@
 #define SW_MAX_WORKER_GROUP        2
 #define SW_MAX_FILE_CONTENT        (64*1024*1024) //for swoole_file_get_contents
 
+#ifndef SW_USE_RINGBUFFER
 #define SW_USE_RINGBUFFER
+#endif
+
 #define SW_USE_EVENT_TIMER
 
 #define SW_GLOBAL_MEMORY_PAGESIZE  (1024*1024*2) //全局内存的分页
