@@ -31,7 +31,7 @@ swString *swWebSocket_encode(swString *data, char opcode, int fin)
     if (data->length < 126)
     {
         buf->str[pos++] =
-        FRAME_SET_MASK(0) | FRAME_SET_LENGTH(data->length, 0);
+                FRAME_SET_MASK(0) | FRAME_SET_LENGTH(data->length, 0);
     }
     else
     {
@@ -59,17 +59,17 @@ swString *swWebSocket_encode(swString *data, char opcode, int fin)
 
 //uint64_t hton64(uint64_t host)
 //{
-//	uint64_t ret = 0;
-//	uint32_t high, low;
+//  uint64_t ret = 0;
+//  uint32_t high, low;
 //
-//	low = host & 0xFFFFFFFF;
-//	high = (host >> 32) & 0xFFFFFFFF;
-//	low = htonl(low);
-//	high = htonl(high);
-//	ret = low;
-//	ret <<= 32;
-//	ret |= high;
-//	return ret;
+//  low = host & 0xFFFFFFFF;
+//  high = (host >> 32) & 0xFFFFFFFF;
+//  low = htonl(low);
+//  high = htonl(high);
+//  ret = low;
+//  ret <<= 32;
+//  ret |= high;
+//  return ret;
 //}
 
 uint64_t ntoh64(uint64_t host)
@@ -135,15 +135,15 @@ int swWebSocket_decode(swHttpRequest *request)
     buf += SW_WEBSOCKET_HEADER_LEN;
     request->buffer->offset += SW_WEBSOCKET_HEADER_LEN;
     /**
-     * 126
-     */
+    * 126
+    */
     if (length < 0x7E)
     {
         request->content_length = length;
     }
-    /**
-     * Short
-     */
+        /**
+        * Short
+        */
     else if (0x7E == length)
     {
         request->content_length = ntohs(*((uint16_t *) buf));
@@ -155,7 +155,12 @@ int swWebSocket_decode(swHttpRequest *request)
         request->buffer->offset += sizeof(int64_t);
     }
 
-    if (mask && request->state == 0)
+    if(request->content_length + request->buffer->offset > request->buffer->length) {
+        request->state = SW_WAIT;
+        return SW_OK;
+    }
+
+    if (mask)
     {
         char masks[SW_WEBSOCKET_MASK_LEN];
         memcpy(masks, (request->buffer->str + request->buffer->offset), SW_WEBSOCKET_MASK_LEN);
@@ -167,8 +172,7 @@ int swWebSocket_decode(swHttpRequest *request)
         }
     }
 
-    swTrace("offset: %ld", request->buffer->offset);
-
+    swTrace("offset: %d\n", request->buffer->offset);
     request->buffer->offset--;
     request->buffer->str[request->buffer->offset] = opcode;
     request->buffer->offset--;
@@ -176,7 +180,7 @@ int swWebSocket_decode(swHttpRequest *request)
     request->content_length += 2;
     request->buffer->str += request->buffer->offset;
 
-    swTrace("decode end %ld %d %d====\n", request->buffer->offset, opcode, fin);
+    swTrace("decode end %d %d %d====\n", request->buffer->offset, opcode, fin);
 
     return SW_OK;
 }
@@ -200,15 +204,14 @@ swString *swWebSocket_handShake(char *key)
 
 //static void swWebSocket_print_frame(swWebSocket_frame *frm)
 //{
-//	int i;
-//	printf("FIN: %x, RSV1: %d, RSV2: %d, RSV3: %d, opcode: %d, MASK: %d, length: %ld\n", frm->header.FIN,
-//			frm->header.RSV1, frm->header.RSV2, frm->header.RSV3, frm->header.OPCODE, frm->header.MASK,
-//			frm->length);
+//  int i;
+//  printf("FIN: %x, RSV1: %d, RSV2: %d, RSV3: %d, opcode: %d, MASK: %d, length: %ld\n", frm->header.FIN,
+//          frm->header.RSV1, frm->header.RSV2, frm->header.RSV3, frm->header.OPCODE, frm->header.MASK,
+//          frm->length);
 //
-//	if (frm->length)
-//	{
-//		printf("payload: %s = %d\n", frm->payload, strlen(frm->payload));
-//	}
+//  if (frm->length)
+//  {
+//      printf("payload: %s = %d\n", frm->payload, strlen(frm->payload));
+//  }
 //
-//}
-
+//

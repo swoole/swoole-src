@@ -1,6 +1,6 @@
 <?php
-$http = new swoole_http_server("127.0.0.1", 9501);
-$http->set(['worker_num' => 4]);
+$http = new swoole_http_server("0.0.0.0", 9501);
+$http->set(['worker_num' => 4, 'user'=>'www', 'group'=>'www', 'daemonize'=>0]);
 /*
 $http->on('open', function($response) {  //handshake成功之后回调, 和js的onopen对应
     echo "handshake success";
