@@ -229,7 +229,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
     if (swTask_type(req) & SW_TASK_TMPFILE)
     {
         int data_len;
-        char *buf;
+        char *buf = NULL;
         swTaskWorker_large_unpack(req, emalloc, buf, data_len);
 
         /**
@@ -237,7 +237,10 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
          */
         if (data_len == -1)
         {
-            efree(buf);
+            if (buf)
+			{
+				efree(buf);
+			}
             return;
         }
         ZVAL_STRINGL(zdata, buf, data_len, 0);
@@ -472,13 +475,14 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
     MAKE_STD_ZVAL(ztask_id);
-    ZVAL_LONG(ztask_id, (long)req->info.fd);
+    ZVAL_LONG(ztask_id, (long) req->info.fd);
 
     MAKE_STD_ZVAL(zdata);
-    if (req->info.type & SW_TASK_TMPFILE)
+    
+	if (swTask_type(req) & SW_TASK_TMPFILE)
     {
         int data_len;
-        char *buf;
+        char *buf = NULL;
         swTaskWorker_large_unpack(req, emalloc, buf, data_len);
 
         /**
@@ -486,7 +490,10 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
          */
         if (data_len == -1)
         {
-            efree(buf);
+            if (buf)
+			{
+				efree(buf);
+			}
             return SW_OK;
         }
         ZVAL_STRINGL(zdata, buf, data_len, 0);
@@ -2267,15 +2274,18 @@ PHP_FUNCTION(swoole_server_taskwait)
             if (task_result->info.type & SW_TASK_TMPFILE)
             {
                 int data_len;
-                char *data_str;
+                char *data_str = NULL;
                 swTaskWorker_large_unpack(task_result, emalloc, data_str, data_len);
                 /**
                  * unpack failed
                  */
                 if (data_len == -1)
                 {
-                    efree(data_str);
-                    RETURN_FALSE;
+                    if (data_str)
+					{
+						efree(data_str);
+                    }
+					RETURN_FALSE;
                 }
                 task_notify_data_str = data_str;
                 task_notify_data_len = data_len;
