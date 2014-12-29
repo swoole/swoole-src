@@ -571,7 +571,7 @@ static int http_websocket_onMessage(swEventData *req TSRMLS_DC)
 {
     int fd = req->info.fd;
     zval *zdata = php_swoole_get_data(req TSRMLS_CC);
-    swTrace("on message callback\n");
+    //swTrace("on message callback\n");
     char *buf = Z_STRVAL_P(zdata);
     long fin = buf[0] ? 1 : 0;
     long opcode = buf[1] ? 1 : 0;
@@ -593,14 +593,16 @@ static int http_websocket_onMessage(swEventData *req TSRMLS_DC)
     if (call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[1], &retval, 1, args, 0,  NULL TSRMLS_CC) == FAILURE)
     {
         zval_ptr_dtor(&zdata);
+        zval_ptr_dtor(&zresponse);
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "onMessage handler error");
     }
 
-    swTrace("===== message callback end======");
+    //swTrace("===== message callback end======");
 
     if (EG(exception))
     {
         zval_ptr_dtor(&zdata);
+        zval_ptr_dtor(&zresponse);
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
 
@@ -609,6 +611,7 @@ static int http_websocket_onMessage(swEventData *req TSRMLS_DC)
         zval_ptr_dtor(&retval);
     }
     zval_ptr_dtor(&zdata);
+    zval_ptr_dtor(&zresponse);
     return SW_OK;
 }
 
@@ -1645,10 +1648,10 @@ PHP_METHOD(swoole_http_wsresponse, message)
             break;
     }
 
-    swTrace("need send:%s len:%zd\n", data.str, data.length);
+    //swTrace("need send:%s len:%zd\n", data.str, data.length);
     swString *response = swWebSocket_encode(&data, _opcode, (int) fin);
     int ret = swServer_tcp_send(SwooleG.serv, fd, response->str, response->length);
-    swTrace("need send:%s len:%zd\n", response->str, response->length);
+    //swTrace("need send:%s len:%zd\n", response->str, response->length);
     swString_free(response);
     SW_CHECK_RETURN(ret);
 }

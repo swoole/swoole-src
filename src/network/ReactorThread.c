@@ -953,7 +953,6 @@ static int swReactorThread_websocket_frame(swConnection *conn, swHttpRequest *re
             swString_free(__buf);
             return SW_ERR;
         }
-        conn->object = NULL;
         return SW_OK;
     }
 
@@ -971,9 +970,10 @@ static int swReactorThread_websocket_frame(swConnection *conn, swHttpRequest *re
     }
 
 
-    if (request->state == SW_WAIT)
+    if (request->free_memory == SW_WAIT)
     {
         swTrace("waite more data\n");
+        request->version = 1;
         return SW_ERR;
     }
 
@@ -982,18 +982,21 @@ static int swReactorThread_websocket_frame(swConnection *conn, swHttpRequest *re
         case WEBSOCKET_OPCODE_CONTINUATION_FRAME:
         case WEBSOCKET_OPCODE_TEXT_FRAME:
         case WEBSOCKET_OPCODE_BINARY_FRAME:
-            swTrace("websocket send fd: %d %zd %s, offset: %zd, lenght:%zd, content-lenght:%d", conn->fd, strlen(request->buffer->str), request->buffer->str, request->buffer->offset, request->buffer->length, request->content_length);
+            swTrace("websocket send fd: %d %zd, offset: %zd, lenght:%zd, content-lenght:%d", conn->fd, strlen(request->buffer->str), request->buffer->offset, request->buffer->length, request->content_length);
             int flag = 0;
             //size_t tmpLength = request->buffer->length;
             flag = request->buffer->length - request->buffer->offset - request->content_length;
+            if (flag >=0) {
+                buffer->length = request->content_length;
+                swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, request->buffer);
+            }
             if (flag !=0 && flag < 4) {
-                request->state = SW_WAIT;
+                request->free_memory = SW_WAIT;
+                request->buffer->length = flag;
                 return SW_ERR;
                 break;
             }
-            buffer->length = request->content_length;
-            swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, request->buffer);
-            swTrace("============%d============\n", flag);
+            swTrace("============%d=========%d===\n", flag, request->state);
             if(flag > 0)
             {
                 request->buffer->str+=request->content_length;
@@ -1004,8 +1007,9 @@ static int swReactorThread_websocket_frame(swConnection *conn, swHttpRequest *re
             }
             else
             {
-                swHttpRequest_free(request);
-                conn->object = NULL;
+                request->state = 0;
+                //swHttpRequest_free(request);
+                //conn->object = NULL;
             }
             break;
         case WEBSOCKET_OPCODE_PING:  //ping
@@ -1085,7 +1089,7 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
     }
     else
     {
-        swTrace("recv_data 1\n");
+        swTrace("recv_data 1 %d\n",  request->buffer->length);
         buf = request->buffer->str + request->buffer->length;
         buf_len = request->buffer->size - request->buffer->length;
     }
@@ -1127,16 +1131,10 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
         
         if (request->method == 0)
         {
-            if (conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE && request->content_length > 0)
-            {
-                memcpy(request->buffer->str + request->buffer->length - request->content_length, recv_buf, n);
-                swTrace("more data:%d, %zd, %zd, %zd", n, sizeof(buf), sizeof(request->buffer->str), sizeof(recv_buf));
-            } else {
-               bzero(&tmp_package, sizeof(tmp_package));
-               tmp_package.str = recv_buf;
-               tmp_package.size = SW_BUFFER_SIZE;
-               request->buffer = &tmp_package;
-            }
+            bzero(&tmp_package, sizeof(tmp_package));
+            tmp_package.str = recv_buf;
+            tmp_package.size = SW_BUFFER_SIZE;
+            request->buffer = &tmp_package;
         }
 
         swString *buffer = request->buffer;
@@ -1145,14 +1143,29 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
         //upgrade websocket
         if (conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE)
         {
+                    request->method = 1;
+                    swTrace("@@@@@@@@%zd@@@@@ %d\n", sizeof(request->buffer->str),  request->header_length);
+
+            request->header_length  = request->buffer->length;
+            request->version = 0;
             if (swReactorThread_websocket_frame(conn, request, 0) < 0)
             {
                 swTrace("websocket frame error\n");
-                if (request->state == SW_WAIT) {
-                    swTrace("waite more data2\n");
-                    request->state = 0;
-                    request->method = 1;
-                    request->buffer->length -= request->content_length;
+                if (request->free_memory == SW_WAIT) {
+                    swTrace("waite more data2 %d %d\n", request->buffer->length, request->version);
+                    if(request->version) {
+                        request->buffer->offset = 0;
+                    }
+                    else
+                    {
+                        if(request->buffer->length < 0) {
+                            request->buffer->length += (request->buffer->offset + request->content_length);
+                        }
+                        request->buffer->offset = 0;
+                        swTrace("@@@@@@@@%zd@@@@@ %d\n", sizeof(request->buffer->str),  request->header_length);
+                        request->buffer->str += request->content_length;
+                        swTrace("@@@@@@@@%zd@@@@@\n", sizeof(request->buffer->str));
+                    }
                     goto wait_more_data;
                 }
                 else {
@@ -1162,6 +1175,8 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
             else
             {
                 swTrace("frame empty\n");
+                swHttpRequest_free(request);
+                swTrace("free success\n");
                 return SW_OK;
             }
         }
@@ -1201,7 +1216,7 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
                 wait_more_data:
                 if (request->state == 0)
                 {
-                    swTrace("wait data 0");
+                    swTrace("@@@@@@@@@@@@@@@@@##################################wait data 0");
                     request->buffer = swString_dup2(buffer);
                     request->state = SW_WAIT;
                 }
@@ -1859,4 +1874,5 @@ void swReactorThread_free(swServer *serv)
         }
     }
 }
+
 

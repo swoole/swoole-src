@@ -125,10 +125,11 @@ int swWebSocket_decode(swHttpRequest *request)
 
     if (0x0 != rsv1 || 0x0 != rsv2 || 0x0 != rsv3)
     {
+        swTrace("rsv error %d %d %d\n", rsv1, rsv2, rsv3);
         return SW_ERR;
     }
     request->opcode = opcode;
-    request->state = 0;
+    request->free_memory = 0;
 
     //0-125
     char length = buf[1] & 0x7f;
@@ -156,7 +157,7 @@ int swWebSocket_decode(swHttpRequest *request)
     }
 
     if(request->content_length + request->buffer->offset > request->buffer->length) {
-        request->state = SW_WAIT;
+        request->free_memory = SW_WAIT;
         return SW_OK;
     }
 
