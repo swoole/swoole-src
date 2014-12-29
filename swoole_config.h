@@ -120,7 +120,7 @@
 #define SW_WRITER_TIMEOUT                3
 
 #define SW_RINGQUEUE_USE                 0              //使用RingQueue代替系统消息队列，此特性正在测试中，启用此特性会用内存队列来替代IPC通信，会减少系统调用、内存申请和复制，提高性能
-#define SW_RINGQUEUE_LEN                 100            //RingQueue队列长度
+#define SW_RINGQUEUE_LEN                 1024           //RingQueue队列长度
 #define SW_RINGQUEUE_MEMSIZE             (1024*1024*4)  //内存区大小,默认分配4M的内存
 
 //#define SW_USE_RINGQUEUE_TS            1     //使用线程安全版本的RingQueue
