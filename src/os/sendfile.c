@@ -77,7 +77,7 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
     int readn = size > sizeof(buf) ? sizeof(buf) : size;
 
     int ret;
-    int n = pread(in_fd, offset, buf, readn);
+    int n = pread(in_fd, buf, readn, *offset);
 
     if (n > 0)
     {
