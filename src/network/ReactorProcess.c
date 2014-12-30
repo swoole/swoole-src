@@ -193,6 +193,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     reactor->sockets = serv->connection_list;
     reactor->max_socket = serv->max_connection;
 
+    reactor->close = swReactorThread_close;
+
     reactor->onFinish = NULL;
     reactor->onTimeout = NULL;
 

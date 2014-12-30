@@ -303,6 +303,10 @@ SwooleG.lock.unlock(&SwooleG.lock);}
 typedef unsigned char uchar;
 #endif
 
+#ifdef SW_USE_OPENSSL
+#include <openssl/ssl.h>
+#endif
+
 typedef struct _swConnection
 {
     /**

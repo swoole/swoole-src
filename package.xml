@@ -5,7 +5,7 @@
 	xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0 http://pear.php.net/dtd/tasks-1.0.xsd http://pear.php.net/dtd/package-2.0 http://pear.php.net/dtd/package-2.0.xsd">
 	<name>swoole</name>
 	<channel>pecl.php.net</channel>
-	<summary>Asynchronous and concurrent and distributed networking framework for PHP.</summary>
+	<summary>Asynchronous and concurrent and distributed networking	framework for PHP.</summary>
 	<description>Asynchronous and concurrent and distributed networking framework for PHP.
 - event-driven
 - full asynchronous non-blocking
@@ -18,7 +18,7 @@
 - async dns lookup
 - support IPv4/IPv6/UnixSocket/TCP/UDP
 - SSL/TLS encrypted transmission
-    </description>
+	</description>
 	<lead>
 		<name>Tianfeng Han</name>
 		<user>tianfenghan</user>
@@ -31,209 +31,216 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-	<date>2014-11-26</date>
-	<time>16:19:51</time>
-	<version>
-		<release>1.7.8</release>
-		<api>1.7.8</api>
-	</version>
-	<stability>
-		<release>stable</release>
-		<api>stable</api>
-	</stability>
-	<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
-	<notes>
-	- Fixed swoole_http_server::on no implementation parent class methods
-	- Fixed cannot read cookie in swoole_http_server
-	- Added swoole_http_server support to POST RawContent
-	- swoole_timer_after interface can pass a user parameter
-	- swoole_client->recv and onReceive zero copy
-	- Fixed swoole_table->set cannot be set more than 64K string
-	- Fixed open_length_check connection memory buffer is not reset bug
-	- Added dispatch_mode=4/5, dispatch data by client ip and uid
-	- Event callback function exception error level changed from E_WARNING to E_ERROR
+    <date>2014-12-30</date>
+    <time>16:19:51</time>
+    <version>
+        <release>1.7.9</release>
+        <api>1.7.9</api>
+    </version>
+    <stability>
+        <release>stable</release>
+        <api>stable</api>
+    </stability>
+    <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
+    <notes>
+    - Fixed swoole_http_server::on no implementation parent class methods
+    - Fixed cannot read cookie in swoole_http_server
+    - Added swoole_http_server support to POST RawContent
+    - swoole_timer_after interface can pass a user parameter
+    - swoole_client->recv and onReceive zero copy
+    - Fixed swoole_table->set cannot be set more than 64K string
+    - Fixed open_length_check connection memory buffer is not reset bug
+    - Added dispatch_mode=4/5, dispatch data by client ip and uid
+    - Event callback function exception error level changed from E_WARNING to E_ERROR
     </notes>
 	<contents>
-	<dir name="/">
-		<file role="doc" name="CREDITS" />
-		<file role="doc" name="LICENSE" />
-		<file role="doc" name="README.md" />
-		<file role="src" name="config.m4" />
-		<dir name="include">
-			<file role="src" name="swoole.h" />
-			<file role="src" name="Server.h" />
-			<file role="src" name="Client.h" />
-			<file role="src" name="Connection.h" />
-			<file role="src" name="atomic.h" />
-			<file role="src" name="buffer.h" />
-			<file role="src" name="hashmap.h" />
-			<file role="src" name="list.h" />
-			<file role="src" name="RingQueue.h" />
-			<file role="src" name="uthash.h" />
-			<file role="src" name="tests.h" />
-			<file role="src" name="array.h" />
-			<file role="src" name="async.h" />
-			<file role="src" name="hash.h" />
-			<file role="src" name="table.h" />
-			<file role="src" name="Http.h" />
-		</dir>
-		<dir name="examples">
-			<dir name="async">
-				<file role="src" name="read.php" />
-				<file role="src" name="readfile.php" />
-				<file role="src" name="write.php" />
-				<file role="src" name="dns_lookup.php" />
+		<dir name="/">
+			<file role="doc" name="CREDITS" />
+			<file role="doc" name="LICENSE" />
+			<file role="doc" name="README.md" />
+			<file role="src" name="config.m4" />
+			<dir name="include">
+				<file role="src" name="swoole.h" />
+				<file role="src" name="Server.h" />
+				<file role="src" name="Client.h" />
+				<file role="src" name="Connection.h" />
+				<file role="src" name="atomic.h" />
+				<file role="src" name="buffer.h" />
+				<file role="src" name="hashmap.h" />
+				<file role="src" name="list.h" />
+				<file role="src" name="RingQueue.h" />
+				<file role="src" name="uthash.h" />
+				<file role="src" name="tests.h" />
+				<file role="src" name="array.h" />
+				<file role="src" name="async.h" />
+				<file role="src" name="hash.h" />
+				<file role="src" name="table.h" />
+				<file role="src" name="Http.h" />
+				<file role="src" name="websocket.h" />
+				<file role="src" name="sha1.h" />
+				<file role="src" name="base64.h" />
 			</dir>
-			<dir name="client">
-				<file role="src" name="async.php" />
-				<file role="src" name="long_tcp.php" />
-				<file role="src" name="sync.php" />
-				<file role="src" name="select.php" />
+			<dir name="examples">
+				<dir name="async">
+					<file role="src" name="read.php" />
+					<file role="src" name="readfile.php" />
+					<file role="src" name="write.php" />
+					<file role="src" name="dns_lookup.php" />
+				</dir>
+				<dir name="client">
+					<file role="src" name="async.php" />
+					<file role="src" name="long_tcp.php" />
+					<file role="src" name="sync.php" />
+					<file role="src" name="select.php" />
+				</dir>
+				<dir name="server">
+					<file role="src" name="echo.php" />
+					<file role="src" name="unix_dgram.php" />
+					<file role="src" name="unix_stream.php" />
+					<file role="src" name="ipv6.php" />
+					<file role="src" name="eof_client.php" />
+					<file role="src" name="eof_server.php" />
+					<file role="src" name="length_check_server.php" />
+					<file role="src" name="length_check_client.php" />
+					<file role="src" name="msgqueue.php" />
+					<file role="src" name="http_server.php" />
+					<file role="src" name="http_client.php" />
+				</dir>
+				<dir name="event">
+					<file role="src" name="stream.php" />
+					<file role="src" name="sockets.php" />
+				</dir>
+				<dir name="process">
+					<file role="src" name="worker.php" />
+					<file role="src" name="exec.php" />
+					<file role="src" name="msgqueue.php" />
+					<file role="src" name="echo.py" />
+					<file role="src" name="python.php" />
+				</dir>
+				<dir name="task">
+					<file role="src" name="task.php" />
+					<file role="src" name="task_shared_client.php" />
+					<file role="src" name="task_shared_serv.php" />
+				</dir>
+				<dir name="table">
+					<file role="src" name="iterator.php" />
+					<file role="src" name="server.php" />
+					<file role="src" name="set.php" />
+					<file role="src" name="simulation.php" />
+				</dir>
+				<dir name="bench">
+					<file role="src" name="http.js" />
+					<file role="src" name="tcp.js" />
+					<file role="src" name="tcp.go" />
+					<file role="src" name="http.go" />
+					<file role="src" name="tcp.php" />
+					<file role="src" name="http.php" />
+					<file role="src" name="run.php" />
+				</dir>
+				<file role="src" name="server.php" />
+				<file role="src" name="mysql_proxy_server.php" />
+				<file role="src" name="async_mysql2.php" />
+				<file role="src" name="proxy.php" />
+				<file role="src" name="proxy_sync.php" />
+				<file role="src" name="udp_server.php" />
+				<file role="src" name="udp_client.php" />
+				<file role="src" name="udp_sync_client.php" />
+				<file role="src" name="timer.php" />
+				<file role="src" name="sendfile_server.php" />
+				<file role="src" name="recv_file.php" />
+				<file role="doc" name="test.jpg" />
 			</dir>
-			<dir name="server">
-				<file role="src" name="echo.php" />
-				<file role="src" name="unix_dgram.php" />
-				<file role="src" name="unix_stream.php" />
-				<file role="src" name="ipv6.php" />
-				<file role="src" name="eof_client.php" />
-				<file role="src" name="eof_server.php" />
-				<file role="src" name="upload_server.php" />
-				<file role="src" name="upload_client.php" />
-				<file role="src" name="length_check_server.php" />
-				<file role="src" name="length_check_client.php" />
-				<file role="src" name="msgqueue.php" />
-				<file role="src" name="http_server.php" />
-				<file role="src" name="http_client.php" />
+			<file role="src" name="php_swoole.h" />
+			<file role="src" name="swoole_config.h" />
+			<file role="src" name="swoole.c" />
+			<file role="src" name="swoole_server.c" />
+			<file role="src" name="swoole_lock.c" />
+			<file role="src" name="swoole_client.c" />
+			<file role="src" name="swoole_async.c" />
+			<file role="src" name="swoole_process.c" />
+			<file role="src" name="swoole_table.c" />
+			<file role="src" name="swoole_buffer.c" />
+			<file role="src" name="swoole_http.c" />
+			<dir name="thirdparty">
+				<file role="src" name="php_http_parser.c" />
+				<file role="src" name="php_http_parser.h" />
 			</dir>
-			<dir name="event">
-				<file role="src" name="stream.php" />
-				<file role="src" name="sockets.php" />
+			<dir name="src">
+				<dir name="core">
+					<file role="src" name="Base.c" />
+					<file role="src" name="socket.c" />
+					<file role="src" name="log.c" />
+					<file role="src" name="hashmap.c" />
+					<file role="src" name="RingQueue.c" />
+					<file role="src" name="Channel.c" />
+					<file role="src" name="string.c" />
+					<file role="src" name="array.c" />
+				</dir>
+				<dir name="memory">
+					<file role="src" name="ShareMemory.c" />
+					<file role="src" name="MemoryGlobal.c" />
+					<file role="src" name="FixedPool.c" />
+					<file role="src" name="RingBuffer.c" />
+					<file role="src" name="Table.c" />
+					<file role="src" name="Malloc.c" />
+				</dir>
+				<dir name="factory">
+					<file role="src" name="Factory.c" />
+					<file role="src" name="FactoryThread.c" />
+					<file role="src" name="FactoryProcess.c" />
+				</dir>
+				<dir name="reactor">
+					<file role="src" name="ReactorBase.c" />
+					<file role="src" name="ReactorSelect.c" />
+					<file role="src" name="ReactorPoll.c" />
+					<file role="src" name="ReactorEpoll.c" />
+					<file role="src" name="ReactorKqueue.c" />
+				</dir>
+				<dir name="pipe">
+					<file role="src" name="PipeBase.c" />
+					<file role="src" name="PipeEventfd.c" />
+					<file role="src" name="PipeUnsock.c" />
+				</dir>
+				<dir name="queue">
+					<file role="src" name="Msg.c" />
+				</dir>
+				<dir name="lock">
+					<file role="src" name="Semaphore.c" />
+					<file role="src" name="Mutex.c" />
+					<file role="src" name="RWLock.c" />
+					<file role="src" name="SpinLock.c" />
+					<file role="src" name="FileLock.c" />
+				</dir>
+				<dir name="network">
+					<file role="src" name="Buffer.c" />
+					<file role="src" name="Client.c" />
+					<file role="src" name="Connection.c" />
+					<file role="src" name="ProcessPool.c" />
+					<file role="src" name="ReactorProcess.c" />
+					<file role="src" name="ReactorThread.c" />
+					<file role="src" name="Server.c" />
+					<file role="src" name="TaskWorker.c" />
+					<file role="src" name="ThreadPool.c" />
+					<file role="src" name="Worker.c" />
+					<file role="src" name="EventTimer.c" />
+				</dir>
+				<dir name="os">
+					<file role="src" name="base.c" />
+					<file role="src" name="gcc_aio.c" />
+					<file role="src" name="linux_aio.c" />
+					<file role="src" name="sendfile.c" />
+					<file role="src" name="signal.c" />
+					<file role="src" name="timer.c" />
+				</dir>
+				<dir name="protocol">
+					<file role="src" name="SSL.c" />
+					<file role="src" name="Http.c" />
+					<file role="src" name="WebSocket.c" />
+					<file role="src" name="Sha1.c" />
+					<file role="src" name="Base64.c" />
+				</dir>
 			</dir>
-			<dir name="process">
-				<file role="src" name="worker.php" />
-				<file role="src" name="exec.php" />
-				<file role="src" name="msgqueue.php" />
-				<file role="src" name="echo.py" />
-				<file role="src" name="python.php" />
-			</dir>
-			<dir name="task">
-                <file role="src" name="task.php" />
-                <file role="src" name="task_shared_client.php" />
-                <file role="src" name="task_shared_serv.php" />
-            </dir>
-            <dir name="table">
-                <file role="src" name="iterator.php" />
-                <file role="src" name="server.php" />
-                <file role="src" name="set.php" />
-                <file role="src" name="simulation.php" />
-            </dir>
-			<dir name="code">
-				<file role="src" name="http.js" />
-				<file role="src" name="tcp.js" />
-				<file role="src" name="tcp.go" />
-				<file role="src" name="http.go" />
-				<file role="src" name="echo.php" />
-			</dir>
-			<file role="src" name="server.php" />
-			<file role="src" name="mysql_proxy_server.php" />
-			<file role="src" name="async_mysql2.php" />
-			<file role="src" name="proxy.php" />
-			<file role="src" name="proxy_sync.php" />
-			<file role="src" name="udp_server.php" />
-			<file role="src" name="udp_client.php" />
-			<file role="src" name="udp_sync_client.php" />
-			<file role="src" name="timer.php" />
-			<file role="src" name="sendfile_server.php" />
-			<file role="src" name="recv_file.php" />
-			<file role="doc" name="test.jpg" />
 		</dir>
-		<file role="src" name="php_swoole.h" />
-		<file role="src" name="swoole_config.h" />
-		<file role="src" name="swoole.c" />
-		<file role="src" name="swoole_server.c" />
-		<file role="src" name="swoole_lock.c" />
-		<file role="src" name="swoole_client.c" />
-		<file role="src" name="swoole_async.c" />
-		<file role="src" name="swoole_process.c" />
-		<file role="src" name="swoole_table.c" />
-		<file role="src" name="swoole_buffer.c" />
-		<file role="src" name="swoole_http.c" />
-		<dir name="thirdparty">
-			<file role="src" name="php_http_parser.c" />
-			<file role="src" name="php_http_parser.h" />
-		</dir>
-		<dir name="src">
-		<dir name="core">
-			<file role="src" name="Base.c" />
-			<file role="src" name="log.c" />
-			<file role="src" name="hashmap.c" />
-			<file role="src" name="RingQueue.c" />
-			<file role="src" name="Channel.c" />
-			<file role="src" name="string.c" />
-			<file role="src" name="array.c" />
-		</dir>
-		<dir name="memory">
-			<file role="src" name="ShareMemory.c" />
-			<file role="src" name="MemoryGlobal.c" />
-			<file role="src" name="FixedPool.c" />
-			<file role="src" name="RingBuffer.c" />
-			<file role="src" name="Table.c" />
-			<file role="src" name="Malloc.c" />
-		</dir>
-		<dir name="factory">
-			<file role="src" name="Factory.c" />
-			<file role="src" name="FactoryThread.c" />
-			<file role="src" name="FactoryProcess.c" />
-		</dir>
-		<dir name="reactor">
-			<file role="src" name="ReactorBase.c" />
-			<file role="src" name="ReactorSelect.c" />
-			<file role="src" name="ReactorPoll.c" />
-			<file role="src" name="ReactorEpoll.c" />
-			<file role="src" name="ReactorKqueue.c" />
-		</dir>
-		<dir name="pipe">
-			<file role="src" name="PipeBase.c" />
-			<file role="src" name="PipeEventfd.c" />
-			<file role="src" name="PipeUnsock.c" />
-		</dir>
-		<dir name="queue">
-			<file role="src" name="Msg.c" />
-		</dir>
-		<dir name="lock">
-			<file role="src" name="Semaphore.c" />
-			<file role="src" name="Mutex.c" />
-			<file role="src" name="RWLock.c" />
-			<file role="src" name="SpinLock.c" />
-			<file role="src" name="FileLock.c" />
-		</dir>
-		<dir name="network">
-			<file role="src" name="Buffer.c" />
-			<file role="src" name="Client.c" />
-			<file role="src" name="Connection.c" />
-			<file role="src" name="ProcessPool.c" />
-			<file role="src" name="ReactorProcess.c" />
-			<file role="src" name="ReactorThread.c" />
-			<file role="src" name="Server.c" />
-			<file role="src" name="TaskWorker.c" />
-			<file role="src" name="ThreadPool.c" />
-			<file role="src" name="Worker.c" />
-			<file role="src" name="EventTimer.c" />
-		</dir>
-		<dir name="os">
-			<file role="src" name="base.c" />
-			<file role="src" name="gcc_aio.c" />
-			<file role="src" name="linux_aio.c" />
-			<file role="src" name="sendfile.c" />
-			<file role="src" name="signal.c" />
-			<file role="src" name="timer.c" />
-		</dir>
-		<dir name="protocol">
-			<file role="src" name="SSL.c" />
-			<file role="src" name="Http.c" />
-		</dir>
-	</dir>
-	</dir>
 	</contents>
 	<dependencies>
 		<required>
@@ -247,246 +254,4 @@
 	</dependencies>
 	<providesextension>swoole</providesextension>
 	<extsrcrelease />
-
-	<changelog>
-	<release>
-		<date>2014-10-28</date>
-		<time>16:19:51</time>
-		<version>
-			<release>1.7.7</release>
-			<api>1.7.7</api>
-		</version>
-		<stability>
-			<release>stable</release>
-			<api>stable</api>
-		</stability>
-		<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
-		<notes>
-			- Added swoole_http_server
-			- Added swoole_server->after and swoole_timer_after
-			- Fixed all known issues
-		</notes>
-	</release>
-	<release>
-		<date>2014-10-10</date>
-		<time>12:51:51</time>
-		<version>
-			<release>1.7.6</release>
-			<api>1.7.6</api>
-		</version>
-		<stability>
-			<release>stable</release>
-			<api>stable</api>
-		</stability>
-		<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
-		<notes>
-			- Fixed all known issues
-		</notes>
-	</release>
-	<release>
-		<date>2014-09-10</date>
-	    <time>15:51:51</time>
-	    <version>
-	        <release>1.7.5</release>
-	        <api>1.7.5</api>
-	    </version>
-	    <stability>
-	        <release>stable</release>
-	        <api>stable</api>
-	    </stability>
-	    <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
-	    <notes>
-	- Added swoole_client->sendfile()
-	- Added swoole_table
-	- Remove onMasterConnect/onMasterClose
-	- Added pipe output buffer
-	- TCP short connection have 50% performance improvement
-	    </notes>
-	</release>
-	<release>
-		<date>2014-07-15</date>
-		<time>18:51:51</time>
-		<version>
-			<release>1.7.4</release>
-			<api>1.7.4</api>
-		</version>
-		<stability>
-			<release>stable</release>
-			<api>stable</api>
-		</stability>
-		<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
-		<notes>
-			- Task process support timer
-			- Repair UDP error BUG
-			- Add SSL-server support
-			- Reload is effective for task_worker.
-			- When the pipe is filled with poll is waiting for the write, rather
-			than packet loss
-			- Increase the clang compiler support
-			- Repair shutdown task_worker and manager abnormal stop
-		</notes>
-	</release>
-	<release>
-		<date>2014-06-20</date>
-		<time>12:51:51</time>
-		<version>
-			<release>1.7.3</release>
-			<api>1.7.3</api>
-		</version>
-		<stability>
-			<release>stable</release>
-			<api>stable</api>
-		</stability>
-		<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
-		<notes>
-			- Fixed pipe_worker zero
-			- Fixed serv->connect_count wrong
-			- Fixed length_check dispatch error
-			- Optimization of large size response packet
-		</notes>
-	</release>
-		<release>
-			<date>2014-05-30</date>
-			<time>15:51:51</time>
-			<version>
-				<release>1.7.2</release>
-				<api>1.7.2</api>
-			</version>
-			<stability>
-				<release>stable</release>
-				<api>stable</api>
-			</stability>
-			<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
-			<notes>
-- Fixed udp sendto error
-- Fixed heartbeat no close connection
-- Added swoole_process module
-- Added swoole_server::task large package
-- Added swoole_server task worker use message queue
-- Added messge queue ipc move to swoole_server::set
-	</notes>
-		</release>
-		<release>
-			<date>2014-04-30</date>
-			<time>19:51:51</time>
-			<version>
-				<release>1.7.1</release>
-				<api>1.7.1</api>
-			</version>
-			<stability>
-				<release>stable</release>
-				<api>stable</api>
-			</stability>
-			<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
-			<notes>
-- Check close fd is not timer_fd
-- TCP_DEFER_ACCEPT option
-- socket LINGER option
-- Fixed eof_check memory error
-- Added swoole_event_set
-- Added swoole_client out_buffer
-- Added socket linger option
-- Fixed the swoole_server->close destroy out_buffer bug
-- Using php_error_docref
-- Fixed swoole_async_dns_lookup warning
-	</notes>
-		</release>
-		<release>
-			<date>2014-04-16</date>
-			<time>19:51:51</time>
-			<version>
-				<release>1.7.0</release>
-				<api>1.7.0</api>
-			</version>
-			<stability>
-				<release>stable</release>
-				<api>stable</api>
-			</stability>
-			<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
-			<notes>
-		    - Fixed compile error.
-			</notes>
-		</release>
-
-		<release>
-			<date>2014-04-11</date>
-			<time>10:51:51</time>
-			<version>
-				<release>1.6.12</release>
-				<api>1.6.12</api>
-			</version>
-			<stability>
-				<release>stable</release>
-				<api>stable</api>
-			</stability>
-			<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
-			<notes>
-	- Added connection out_buffer
-	- Added async file read/write
-	- Added async dns lookup
-	- Added long tcp connection
-	- Added client timer
-	- Added swoole_server->sendfile
-	- Added signalfd usage
-    - Fixed some bugs
-	</notes>
-		</release>
-		<release>
-			<date>2014-02-27</date>
-			<version>
-				<release>1.6.11</release>
-				<api>1.6.11</api>
-			</version>
-			<stability>
-				<release>stable</release>
-				<api>stable</api>
-			</stability>
-			<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
-			<notes>
-	    - Disable by default async_mysql
-	    - Disable by default sockets
-	    - Added event onWorkerError
-	    - Added event onWorkerStart for task_worker
-	    - swoole_server->task can assign worker_id
-	    - swoole_server->set() save params to swoole_server::$setting
-	    - swoole_client->send will check data length
-	    - swoole_server->connection_info for udp
-	    </notes>
-		</release>
-		<release>
-			<date>2014-01-26</date>
-			<version>
-				<release>1.6.10</release>
-				<api>1.6.10</api>
-			</version>
-			<stability>
-				<release>stable</release>
-				<api>stable</api>
-			</stability>
-			<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
-			<notes>
-    - Enabled by default async_mysql
-    - Add tcp heartbeat mechanism
-    - UDP send no require from_id
-    - swoole_client on::Receive and on::Close no need to call recv/close
-    - Add last_time and connect_time to tcp connection_info
-    - rebuild data_buffer
-    </notes>
-		</release>
-		<release>
-			<date>2014-01-02</date>
-			<version>
-				<release>1.6.9</release>
-				<api>1.6.9</api>
-			</version>
-			<stability>
-				<release>stable</release>
-				<api>stable</api>
-			</stability>
-			<license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
-			<notes>
-		- use "pecl package"
-		 </notes>
-		</release>
-	</changelog>
 </package>
