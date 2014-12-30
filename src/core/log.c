@@ -40,10 +40,10 @@ void swLog_free(void)
 
 void swLog_put(int level, char *cnt)
 {
-	const char *level_str;
-	char date_str[SW_LOG_DATE_STRLEN];
-	char log_str[SW_LOG_BUFFER_SIZE];
-	int n;
+    const char *level_str;
+    char date_str[SW_LOG_DATE_STRLEN];
+    char log_str[SW_LOG_BUFFER_SIZE];
+    int n;
 
     switch (level)
     {
@@ -73,7 +73,8 @@ void swLog_put(int level, char *cnt)
     p = localtime(&t);
     snprintf(date_str, SW_LOG_DATE_STRLEN, "%d-%02d-%02d %02d:%02d:%02d", p->tm_year + 1900, p->tm_mon + 1, p->tm_mday,
             p->tm_hour, p->tm_min, p->tm_sec);
-    n = snprintf(log_str, SW_LOG_BUFFER_SIZE, "[%s #%d]\t%s\t%s\n", date_str, SwooleG.pid, level_str, cnt);
+    n = snprintf(log_str, SW_LOG_BUFFER_SIZE, "[%s #%d.%d]\t%s\t%s\n", date_str, SwooleG.pid, SwooleTG.id, level_str,
+            cnt);
 
     if (write(SwooleG.log_fd, log_str, n) < 0)
     {

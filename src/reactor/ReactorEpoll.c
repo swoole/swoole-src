@@ -157,7 +157,7 @@ int swReactorEpoll_del(swReactor *reactor, int fd)
     ret = epoll_ctl(object->epfd, EPOLL_CTL_DEL, fd, NULL);
     if (ret < 0)
     {
-        swWarn("epoll remove fd[=%d] failed. Error: %s[%d]", fd, strerror(errno), errno);
+        swSysError("epoll remove fd[%d#%d] failed.", fd, reactor->id);
         return SW_ERR;
     }
 
