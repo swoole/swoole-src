@@ -1007,9 +1007,10 @@ static int swReactorThread_websocket_frame(swConnection *conn, swHttpRequest *re
             }
             else
             {
-                request->state = 0;
+                //request->state = 0;
                 //swHttpRequest_free(request);
                 //conn->object = NULL;
+                return SW_OK;
             }
             break;
         case WEBSOCKET_OPCODE_PING:  //ping
@@ -1089,7 +1090,7 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
     }
     else
     {
-        swTrace("recv_data 1 %d\n",  request->buffer->length);
+        swTrace("recv_data 1 %zd\n",  request->buffer->length);
         buf = request->buffer->str + request->buffer->length;
         buf_len = request->buffer->size - request->buffer->length;
     }
@@ -1152,9 +1153,13 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
             {
                 swTrace("websocket frame error\n");
                 if (request->free_memory == SW_WAIT) {
-                    swTrace("waite more data2 %d %d\n", request->buffer->length, request->version);
+                    swTrace("waite more data2 %zd %d\n", request->buffer->length, request->version);
                     if(request->version) {
+                        swTrace("wait_more_data\n");
                         request->buffer->offset = 0;
+                        request->buffer = swString_dup2(buffer);
+                        return SW_OK;
+                        goto wait_more_data;
                     }
                     else
                     {
@@ -1166,7 +1171,7 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
                         request->buffer->str += request->content_length;
                         swTrace("@@@@@@@@%zd@@@@@\n", sizeof(request->buffer->str));
                     }
-                    goto wait_more_data;
+                    goto recv_data;
                 }
                 else {
                     goto close_fd;
@@ -1174,7 +1179,7 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
             }
             else
             {
-                swTrace("frame empty\n");
+                swTrace("frame empty %d %d %d %d\n", request->method, request->state, request->version, request->free_memory);
                 swHttpRequest_free(request);
                 swTrace("free success\n");
                 return SW_OK;

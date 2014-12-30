@@ -513,9 +513,9 @@ static void handshake_success(int fd)
     if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) {
         conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
     }
-    swHttpRequest *request = (swHttpRequest *) conn->object;
-    swHttpRequest_free(request);
-    conn->object = NULL;
+//    swHttpRequest *request = (swHttpRequest *) conn->object;
+//    swHttpRequest_free(request);
+//    conn->object = NULL;
     SwooleG.lock.unlock(&SwooleG.lock);
     swTrace("\n\n\n\nconn ws status:%d\n\n\n", conn->websocket_status);
 
