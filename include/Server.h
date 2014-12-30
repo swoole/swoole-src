@@ -669,7 +669,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event);
 int swReactorThread_create(swServer *serv);
 int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr);
 void swReactorThread_free(swServer *serv);
-
+int swReactorThread_close(swReactor *reactor, int fd);
 int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event);
 int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event);
 int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *event);

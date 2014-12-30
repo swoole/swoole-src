@@ -27,7 +27,6 @@ static int swReactorThread_loop_unix_dgram(swThreadParam *param);
 
 static int swReactorThread_websocket_frame(swConnection *conn, swHttpRequest *request, int first);
 static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev);
-static int swReactorThread_close(swReactor *reactor, int fd);
 static int swReactorThread_onClose(swReactor *reactor, swEvent *event);
 static int swReactorThread_send_string_buffer(swReactorThread *thread, swConnection *conn, swString *buffer);
 static int swReactorThread_send_in_buffer(swReactorThread *thread, swConnection *conn);
@@ -104,7 +103,7 @@ int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
 /**
 * close connection
 */
-static int swReactorThread_close(swReactor *reactor, int fd)
+int swReactorThread_close(swReactor *reactor, int fd)
 {
     swServer *serv = SwooleG.serv;
     swConnection *conn = swServer_connection_get(serv, fd);
