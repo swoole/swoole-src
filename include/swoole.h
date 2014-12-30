@@ -304,13 +304,7 @@ typedef unsigned char uchar;
 #endif
 
 #ifdef SW_USE_OPENSSL
-#include <openssl/bio.h>
 #include <openssl/ssl.h>
-#include <openssl/err.h>
-
-#define SW_SSL_BUFFER      1
-#define SW_SSL_CLIENT      2
-
 #endif
 
 typedef struct _swConnection

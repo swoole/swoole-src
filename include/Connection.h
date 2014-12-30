@@ -20,6 +20,7 @@
 #include "buffer.h"
 
 #ifdef SW_USE_OPENSSL
+
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
