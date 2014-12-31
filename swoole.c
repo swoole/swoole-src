@@ -465,14 +465,14 @@ STD_PHP_INI_ENTRY("swoole.message_queue_key", "0", PHP_INI_ALL, OnUpdateString, 
 /**
  * Unix socket buffer size
  */
-STD_PHP_INI_ENTRY("swoole.unixsock_buffer_size", "8388608", PHP_INI_ALL, OnUpdateLong, unixsock_buffer_size, zend_swoole_globals, swoole_globals)
+STD_PHP_INI_ENTRY("swoole.unixsock_buffer_size", "8388608", PHP_INI_ALL, OnUpdateLong, socket_buffer_size, zend_swoole_globals, swoole_globals)
 PHP_INI_END()
 
 static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
 {
     swoole_globals->message_queue_key = 0;
     swoole_globals->aio_thread_num = SW_AIO_THREAD_NUM_DEFAULT;
-    swoole_globals->unixsock_buffer_size = SW_UNSOCK_BUFSIZE;
+    swoole_globals->socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
     swoole_globals->display_errors = 1;
 }
 
@@ -571,9 +571,9 @@ PHP_MINIT_FUNCTION(swoole)
 	swoole_table_init(module_number TSRMLS_CC);
 	swoole_http_init(module_number TSRMLS_CC);
 
-    if (SWOOLE_G(unixsock_buffer_size) > 0)
+    if (SWOOLE_G(socket_buffer_size) > 0)
     {
-        SwooleG.unixsock_buffer_size = SWOOLE_G(unixsock_buffer_size);
+        SwooleG.socket_buffer_size = SWOOLE_G(socket_buffer_size);
     }
     if (SWOOLE_G(aio_thread_num) > 0)
     {

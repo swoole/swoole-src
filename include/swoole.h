@@ -1400,7 +1400,7 @@ typedef struct
     /**
      * Unix socket default buffer size
      */
-    uint32_t unixsock_buffer_size;
+    uint32_t socket_buffer_size;
 
     swServer *serv;
     swFactory *factory;

@@ -551,8 +551,6 @@ void swServer_init(swServer *serv)
 	serv->max_request = 0;
 	serv->task_max_request = SW_MAX_REQUEST;
 
-	serv->udp_sock_buffer_size = SW_UNSOCK_BUFSIZE;
-
 	serv->open_tcp_nopush = 1;
 
 	//tcp keepalive
@@ -894,8 +892,8 @@ int swServer_addListener(swServer *serv, int type, char *host, int port)
 		{
 			return SW_ERR;
 		}
-		//设置UDP缓存区尺寸，高并发UDP服务器必须设置
-		int bufsize = serv->udp_sock_buffer_size;
+
+		int bufsize = SwooleG.socket_buffer_size;
 		setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize));
 		setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize));
 

@@ -27,12 +27,14 @@
 
 #define SW_USE_EVENT_TIMER
 
+#define SW_SOCKET_OVERFLOW_WAIT    100
+#define SW_SOCKET_BUFFER_SIZE      (8*1024*1024)  //UDP socket的buffer区大小
+
 #define SW_GLOBAL_MEMORY_PAGESIZE  (1024*1024*2) //全局内存的分页
 
 #define SW_MAX_THREAD_NCPU         4 // n * cpu_num
 #define SW_MAX_WORKER_NCPU         1000 // n * cpu_num
 #define SW_MAX_REQUEST             5000          //最大请求包数
-#define SW_UNSOCK_BUFSIZE          (8*1024*1024)  //UDP socket的buffer区大小
 
 //#define SW_CONNECTION_LIST_EXPAND  (4096*2)  //动态扩容的数量
 

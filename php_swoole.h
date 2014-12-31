@@ -352,7 +352,7 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool display_errors;
     zend_bool cli;
     key_t message_queue_key;
-    uint32_t unixsock_buffer_size;
+    uint32_t socket_buffer_size;
 ZEND_END_MODULE_GLOBALS(swoole)
 
 extern ZEND_DECLARE_MODULE_GLOBALS(swoole);

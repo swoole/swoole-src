@@ -295,8 +295,6 @@ struct _swServer
 
     uint16_t worker_round_id;
 
-    int udp_sock_buffer_size; //UDP临时包数量，超过数量未处理将会被丢弃
-
     /**
      * reactor ringbuffer memory pool size
      */

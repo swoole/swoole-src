@@ -273,6 +273,13 @@ static int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
     else
     {
         append_pipe_buffer:
+
+        if (buffer->length > SwooleG.socket_buffer_size)
+        {
+            swWarn("pipe buffer overflow, reactor will block.");
+            swSocket_wait(fd, SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
+        }
+
         if (swBuffer_append(buffer, buf, n) < 0)
         {
             return SW_ERR;

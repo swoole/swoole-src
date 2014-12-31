@@ -114,8 +114,6 @@ int swClient_create(swClient *cli, int type, int async)
             cli->send = swClient_tcp_send_sync;
             cli->sendfile = swClient_tcp_sendfile_sync;
         }
-
-        cli->udp_sock_buffer_size = SW_UNSOCK_BUFSIZE;
     }
     else
     {
@@ -395,7 +393,7 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
         return SW_OK;
     }
 
-    int bufsize = cli->udp_sock_buffer_size;
+    int bufsize = SwooleG.socket_buffer_size;
     setsockopt(cli->socket->fd, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize));
     setsockopt(cli->socket->fd, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize));
 
