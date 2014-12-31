@@ -316,8 +316,8 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
             append_pipe_buffer:
             if (buffer->length > SwooleG.unixsock_buffer_size)
             {
-                swWarn("Fatal Error: unix socket buffer overflow");
-                return SW_ERR;
+                swWarn("pipe buffer overflow, reactor will block.");
+                swSocket_wait(pipe_fd, 10, SW_EVENT_WRITE);
             }
             if (swBuffer_append(buffer, data, len) < 0)
             {
@@ -1628,7 +1628,6 @@ static int swReactorThread_loop_udp(swThreadParam *param)
 
 static int swReactorThread_send_string_buffer(swReactorThread *thread, swConnection *conn, swString *buffer)
 {
-    int ret;
     swFactory *factory = SwooleG.factory;
     swDispatchData task;
 
@@ -1650,10 +1649,9 @@ static int swReactorThread_send_string_buffer(swReactorThread *thread, swConnect
     //swoole_dump_bin(package.data, 's', buffer->length);
     memcpy(package.data, buffer->str, buffer->length);
     memcpy(task.data.data, &package, sizeof(package));
-    ret = factory->dispatch(factory, &task);
+    return factory->dispatch(factory, &task);
 #else
 
-    int send_n = buffer->length;
     task.data.info.type = SW_EVENT_PACKAGE_START;
     task.target_worker_id = -1;
 
@@ -1662,33 +1660,33 @@ static int swReactorThread_send_string_buffer(swReactorThread *thread, swConnect
      */
     SwooleTG.factory_lock_target = 1;
 
-    void *send_ptr = buffer->str;
-    do
+    size_t send_n = buffer->length;
+    size_t offset = 0;
+
+    while (send_n > 0)
     {
-        if (send_n > SW_BUFFER_SIZE)
+        if (send_n >= SW_BUFFER_SIZE)
         {
             task.data.info.len = SW_BUFFER_SIZE;
-            memcpy(task.data.data, send_ptr, SW_BUFFER_SIZE);
         }
         else
         {
             task.data.info.type = SW_EVENT_PACKAGE_END;
             task.data.info.len = send_n;
-            memcpy(task.data.data, send_ptr, send_n);
         }
+
+        memcpy(task.data.data, buffer->str + offset, task.data.info.len);
+
+        send_n -= task.data.info.len;
+        offset += task.data.info.len;
 
         swTrace("dispatch, type=%d|len=%d\n", task.data.info.type, task.data.info.len);
 
-        ret = factory->dispatch(factory, &task);
-        //TODO: 处理数据失败，数据将丢失
-        if (ret < 0)
+        if (factory->dispatch(factory, &task) < 0)
         {
-            swWarn("factory->dispatch failed.");
+            break;
         }
-        send_n -= task.data.info.len;
-        send_ptr += task.data.info.len;
     }
-    while (send_n > 0);
 
     /**
      * unlock
@@ -1697,7 +1695,7 @@ static int swReactorThread_send_string_buffer(swReactorThread *thread, swConnect
     SwooleTG.factory_lock_target = 0;
 
 #endif
-    return ret;
+    return SW_OK;
 }
 
 static int swReactorThread_send_in_buffer(swReactorThread *thread, swConnection *conn)

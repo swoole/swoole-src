@@ -928,42 +928,45 @@ int swServer_listen(swServer *serv, swReactor *reactor)
 {
     int sock = -1, sockopt;
 
-	swListenList_node *listen_host;
+    swListenList_node *listen_host;
 
-	LL_FOREACH(serv->listen_list, listen_host)
-	{
-		//UDP
-		if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6 || listen_host->type == SW_SOCK_UNIX_DGRAM)
-		{
-			continue;
-		}
+    LL_FOREACH(serv->listen_list, listen_host)
+    {
+        //UDP
+        if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6
+                || listen_host->type == SW_SOCK_UNIX_DGRAM)
+        {
+            continue;
+        }
 
-		if (listen_host->ssl)
-		{
-		    if (!serv->ssl_cert_file)
-		    {
-		        swWarn("need to configure [server->ssl_cert_file].");
-		        return SW_ERR;
-		    }
-		    if (!serv->ssl_key_file)
-		    {
-		        swWarn("need to configure [server->ssl_key_file].");
-		        return SW_ERR;
-		    }
-		}
+#ifdef SW_USE_OPENSSL
+        if (listen_host->ssl)
+        {
+            if (!serv->ssl_cert_file)
+            {
+                swWarn("need to configure [server->ssl_cert_file].");
+                return SW_ERR;
+            }
+            if (!serv->ssl_key_file)
+            {
+                swWarn("need to configure [server->ssl_key_file].");
+                return SW_ERR;
+            }
+        }
+#endif
 
-		//TCP
-		sock = swSocket_listen(listen_host->type, listen_host->host, listen_host->port, serv->backlog);
-		if (sock < 0)
-		{
-			LL_DELETE(serv->listen_list, listen_host);
-			return SW_ERR;
-		}
+        //TCP
+        sock = swSocket_listen(listen_host->type, listen_host->host, listen_host->port, serv->backlog);
+        if (sock < 0)
+        {
+            LL_DELETE(serv->listen_list, listen_host);
+            return SW_ERR;
+        }
 
-		if (reactor!=NULL)
-		{
-			reactor->add(reactor, sock, SW_FD_LISTEN);
-		}
+        if (reactor != NULL)
+        {
+            reactor->add(reactor, sock, SW_FD_LISTEN);
+        }
 
 #ifdef TCP_DEFER_ACCEPT
         if (serv->tcp_defer_accept)
@@ -1001,20 +1004,20 @@ int swServer_listen(swServer *serv, swReactor *reactor)
         }
 #endif
 
-		listen_host->sock = sock;
-		//将server socket也放置到connection_list中
-		serv->connection_list[sock].fd = sock;
-		serv->connection_list[sock].addr.sin_port = listen_host->port;
-		//save listen_host object
-		serv->connection_list[sock].object = listen_host;
-	}
-	//将最后一个fd作为minfd和maxfd
-	if (sock >= 0)
-	{
-		swServer_set_minfd(serv, sock);
-		swServer_set_maxfd(serv, sock);
-	}
-	return SW_OK;
+        listen_host->sock = sock;
+        //将server socket也放置到connection_list中
+        serv->connection_list[sock].fd = sock;
+        serv->connection_list[sock].addr.sin_port = listen_host->port;
+        //save listen_host object
+        serv->connection_list[sock].object = listen_host;
+    }
+    //将最后一个fd作为minfd和maxfd
+    if (sock >= 0)
+    {
+        swServer_set_minfd(serv, sock);
+        swServer_set_maxfd(serv, sock);
+    }
+    return SW_OK;
 }
 
 int swServer_get_manager_pid(swServer *serv)
