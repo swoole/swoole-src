@@ -508,9 +508,6 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, int length);
 //原因：IPv4的第4字节最小为1,而这里的conn_fd是网络字节序
 #define swSocket_isUDP(fd)          (fd > 0x1000000)
 
-int swServer_reactor_add(swServer *serv, int fd, int sock_type); //no use
-int swServer_reactor_del(swServer *serv, int fd, int reacot_id); //no use
-
 swPipe * swServer_pipe_get(swServer *serv, int pipe_fd);
 void swServer_pipe_set(swServer *serv, swPipe *p);
 
@@ -532,7 +529,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags);
 	memcpy(&_pkg, task->data, sizeof(_pkg));\
 	_length = _pkg.length;\
     if (_length > SwooleG.serv->package_max_length) {\
-        swWarn("task package is too big.");\
+        swWarn("task package is too big.");\ 
 	    _length = -1;\
     } else { \
         _buf = __malloc(_length + 1);\

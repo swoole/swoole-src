@@ -168,35 +168,6 @@ void swServer_onTimer(swTimer *timer, int interval)
 	serv->onTimer(serv, interval);
 }
 
-/**
- * no use
- */
-int swServer_reactor_add(swServer *serv, int fd, int sock_type)
-{
-	int poll_id = (serv->reactor_round_i++) % serv->reactor_num;
-	swReactor *reactor = &(serv->reactor_threads[poll_id].reactor);
-	swSetNonBlock(fd); //must be nonblock
-	if(sock_type == SW_SOCK_TCP || sock_type == SW_SOCK_TCP6)
-	{
-		reactor->add(reactor, fd, SW_FD_TCP);
-	}
-	else
-	{
-		reactor->add(reactor, fd, SW_FD_UDP);
-	}
-	return SW_OK;
-}
-
-/**
- * no use
- */
-int swServer_reactor_del(swServer *serv, int fd, int reacot_id)
-{
-	swReactor *reactor = &(serv->reactor_threads[reacot_id].reactor);
-	reactor->del(reactor, fd);
-	return SW_OK;
-}
-
 static int swServer_start_check(swServer *serv)
 {
 	if (serv->onReceive == NULL)
