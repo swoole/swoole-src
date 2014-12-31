@@ -318,6 +318,7 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
             if (buffer->length > SwooleG.socket_buffer_size)
             {
                 swWarn("pipe buffer overflow, reactor will block.");
+                swYield();
                 swSocket_wait(pipe_fd, SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
             }
 
@@ -779,6 +780,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
     swConnection *conn = swServer_connection_get(serv, event->fd);
 
     char recv_buf[SW_BUFFER_SIZE_BIG];
+    char tmp_buf[SW_BUFFER_SIZE_BIG];
 
 #ifdef SW_USE_EPOLLET
     n = swRead(event->fd, recv_buf, SW_BUFFER_SIZE_BIG);
@@ -786,6 +788,8 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
     //非ET模式会持续通知
     n = swConnection_recv(conn, recv_buf, SW_BUFFER_SIZE_BIG, 0);
 #endif
+
+    int where = 0;
 
     if (n < 0)
     {
@@ -836,11 +840,11 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
                 //no enough data
                 else if (package_total_length == 0)
                 {
+                    swWarn("no enough data, where=%d, tmp_n=%d.", where, tmp_n);
                     //recv again
                     n = swConnection_recv(conn, (void *) (recv_buf + tmp_n), SW_BUFFER_SIZE_BIG - tmp_n, 0);
                     if (n > 0)
                     {
-                        swWarn("no enough data,");
                         tmp_n += n;
                         goto do_parse_package;
                     }
@@ -864,8 +868,11 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
                     //swoole_dump_bin(buffer.str, 's', buffer.length);
                     swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, &tmp_package);
 
-                    tmp_ptr += package_total_length;
                     tmp_n -= package_total_length;
+                    //reset recv_buf
+                    memcpy(tmp_buf, recv_buf + package_total_length, tmp_n);
+                    memcpy(recv_buf, tmp_buf, tmp_n);
+                    tmp_ptr = recv_buf;
                     continue;
                 }
                 //wait more data
@@ -920,13 +927,13 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
                 //still have the data, to parse
                 if (n - require_n > 0)
                 {
-                    char tmp_buf[SW_BUFFER_SIZE_BIG];
                     //reset tmp_n
                     tmp_n = n - require_n;
                     //reset recv_buf
                     memcpy(tmp_buf, recv_buf + require_n, tmp_n);
                     memcpy(recv_buf, tmp_buf, tmp_n);
                     tmp_ptr = recv_buf;
+                    where = 1;
                     goto do_parse_package;
                 }
             }

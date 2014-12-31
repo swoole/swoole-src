@@ -277,6 +277,7 @@ static int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
         if (buffer->length > SwooleG.socket_buffer_size)
         {
             swWarn("pipe buffer overflow, reactor will block.");
+            swYield();
             swSocket_wait(fd, SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
         }
 
