@@ -212,16 +212,14 @@ static int swFactoryProcess_manager_start(swFactory *factory)
         {
             key = serv->message_queue_key + 2;
         }
-
         int task_num = SwooleG.task_worker_max > 0 ? SwooleG.task_worker_max : SwooleG.task_worker_num;
         //启动min个.此时的pool->worker_num相当于max
-        SwooleGS->task_workers.run_worker_num = SwooleG.task_worker_num;
-
         if (swProcessPool_create(&SwooleGS->task_workers, task_num, serv->task_max_request, key, 1) < 0)
         {
             swWarn("[Master] create task_workers failed.");
             return SW_ERR;
         }
+        SwooleGS->task_workers.run_worker_num = SwooleG.task_worker_num;
 
         swProcessPool *pool = &SwooleGS->task_workers;
         swTaskWorker_init(pool);
