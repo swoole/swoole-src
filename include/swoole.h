@@ -1371,8 +1371,9 @@ typedef struct
     int null_fd;
 
     /**
-     * worker(worker and task_worker) process user / group
+     * worker(worker and task_worker) process chroot / user / group
      */
+    char *chroot;
     char *user;
     char *group;
 
