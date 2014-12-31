@@ -994,6 +994,13 @@ PHP_FUNCTION(swoole_server_set)
 
     vht = Z_ARRVAL_P(zset);
 
+    //chroot
+    if (zend_hash_find(vht, ZEND_STRS("chroot"), (void **) &v) == SUCCESS)
+    {
+        convert_to_string(*v);
+        SwooleG.chroot = strndup(Z_STRVAL_PP(v), 256);
+    }
+
     //user
     if (zend_hash_find(vht, ZEND_STRS("user"), (void **) &v) == SUCCESS)
     {

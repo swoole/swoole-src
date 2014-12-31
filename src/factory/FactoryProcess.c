@@ -634,6 +634,15 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti)
     {
         if (is_root)
         {
+
+            if (SwooleG.chroot)
+            {
+                if(0 > chroot(SwooleG.chroot)) 
+                {
+                    swSysError("chroot to [%s] failed.", SwooleG.chroot);
+                }
+            }
+
             if (SwooleG.group)
             {
                 group = getgrnam(SwooleG.group);

@@ -190,6 +190,14 @@ pid_t swProcessPool_spawn(swWorker *worker)
          */
         if(is_root) 
         {
+            if(SwooleG.chroot)
+            {
+                if(0 > chroot(SwooleG.chroot))
+                {
+                    swSysError("chroot to [%s] failed.", SwooleG.chroot);
+                }
+            }
+
             if(SwooleG.group)
             {
                 group  = getgrnam(SwooleG.group);
