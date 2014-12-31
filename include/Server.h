@@ -529,7 +529,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags);
 	memcpy(&_pkg, task->data, sizeof(_pkg));\
 	_length = _pkg.length;\
     if (_length > SwooleG.serv->package_max_length) {\
-        swWarn("task package is too big.");\ 
+        swWarn("task package is too big.");\
 	    _length = -1;\
     } else { \
         _buf = __malloc(_length + 1);\
