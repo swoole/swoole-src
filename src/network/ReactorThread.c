@@ -788,14 +788,12 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
     n = swConnection_recv(conn, recv_buf, SW_BUFFER_SIZE_BIG, 0);
 #endif
 
-    int where = 0;
-
     if (n < 0)
     {
         switch (swConnection_error(errno))
         {
             case SW_ERROR:
-            swSysError("recv from connection[%d@%d] failed.", event->fd, reactor->id);
+                swSysError("recv from connection[%d@%d] failed.", event->fd, reactor->id);
                 return SW_OK;
             case SW_CLOSE:
                 goto close_fd;
@@ -839,7 +837,6 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
                 //no enough data
                 else if (package_total_length == 0)
                 {
-                    swWarn("no enough data, where=%d, tmp_n=%d.", where, tmp_n);
                     //recv again
                     n = swConnection_recv(conn, (void *) (recv_buf + tmp_n), SW_BUFFER_SIZE_BIG - tmp_n, 0);
                     if (n > 0)
@@ -932,7 +929,6 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
                     memcpy(tmp_buf, recv_buf + require_n, tmp_n);
                     memcpy(recv_buf, tmp_buf, tmp_n);
                     tmp_ptr = recv_buf;
-                    where = 1;
                     goto do_parse_package;
                 }
             }
@@ -1674,7 +1670,7 @@ static int swReactorThread_send_string_buffer(swReactorThread *thread, swConnect
 
     while (send_n > 0)
     {
-        if (send_n >= SW_BUFFER_SIZE)
+        if (send_n > SW_BUFFER_SIZE)
         {
             task.data.info.len = SW_BUFFER_SIZE;
         }

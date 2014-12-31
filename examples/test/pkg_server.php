@@ -1,4 +1,5 @@
 <?php
+
 class PkgServer
 {
     private $count = array();
@@ -7,7 +8,8 @@ class PkgServer
     function onReceive($serv, $fd, $from_id, $data)
     {
         $header = unpack('nlen/Nindex/Nsid', substr($data, 0, 10));
-        if ($header['index'] % 1000 == 1) {
+        if ($header['index'] % 1000 == 0)
+        {
             echo "#{$header['index']} recv package. sid={$header['sid']}, length=" . strlen($data) . "\n";
         }
         $this->count[$fd]++;
@@ -23,13 +25,13 @@ class PkgServer
     {
         echo "Total Package:" . $this->count[$fd] . "\n";
 
-//        for ($i = 0; $i < 40000; $i++)
-//        {
-//            if (!isset($this->index[$fd][$i]))
-//            {
-//                echo "lost package#$i\n";
-//            }
-//        }
+        for ($i = 0; $i < 40000; $i++)
+        {
+            if (!isset($this->index[$fd][$i]))
+            {
+                echo "lost package#$i\n";
+            }
+        }
 
         unset($this->count[$fd], $this->index[$fd]);
     }
@@ -38,8 +40,8 @@ class PkgServer
 $serv = new swoole_server("127.0.0.1", 9501);
 $serv->set(
     [
-        'worker_num'            => 1,
-        'ipc_mode'              => 2,
+        'worker_num'            => 4,
+        //'ipc_mode'              => 2,
         'open_length_check'     => true,
         'package_max_length'    => 81920,
         'package_length_type'   => 'n', //see php pack()
