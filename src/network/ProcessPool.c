@@ -39,7 +39,7 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
     pool->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, worker_num * sizeof(swWorker));
     if (pool->workers == NULL)
     {
-        swWarn("malloc[1] failed.");
+        swSysError("malloc[1] failed.");
         return SW_ERR;
     }
 
@@ -49,10 +49,17 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
         return SW_ERR;
     }
 
+    pool->queue = sw_malloc(sizeof(swQueue));
+    if (pool->queue == NULL)
+    {
+        swSysError("malloc[2] failed.");
+        return SW_ERR;
+    }
+
     int i;
     if (pool->use_msgqueue)
     {
-        if (swQueueMsg_create(&pool->queue, 1, pool->msgqueue_key, 1) < 0)
+        if (swQueueMsg_create(pool->queue, 1, pool->msgqueue_key, 1) < 0)
         {
             return SW_ERR;
         }
@@ -306,7 +313,7 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
     {
         if (pool->use_msgqueue)
         {
-            n = pool->queue.out(&pool->queue, (swQueue_data *) &out, sizeof(out.buf));
+            n = pool->queue->out(pool->queue, (swQueue_data *) &out, sizeof(out.buf));
             if (n < 0 && errno != EINTR)
             {
                 swSysError("[Worker#%d] msgrcv() failed.", worker->id);

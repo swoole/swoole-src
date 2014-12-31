@@ -428,7 +428,7 @@ int swWorker_send2worker(swWorker *dst_worker, uint16_t is_master, void *buf, in
         msg.mtype = dst_worker->id + 1;
         memcpy(&msg.buf, buf, n);
 
-        ret = dst_worker->pool->queue.in(&dst_worker->pool->queue, (swQueue_data *) &msg, n);
+        ret = dst_worker->pool->queue->in(dst_worker->pool->queue, (swQueue_data *) &msg, n);
     }
     //event worker
     else if (SwooleG.main_reactor)

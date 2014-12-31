@@ -6,7 +6,7 @@ if (!$client->connect('127.0.0.1', 9501))
 }
 
 $data = '';
-for ($i = 0; $i < 40000; $i++)
+for ($i = 0; $i < 10000; $i++)
 {
     $len = rand(10000, 20000);
     $sid = rand(10000, 99999);
@@ -14,6 +14,7 @@ for ($i = 0; $i < 40000; $i++)
     if ($i % 1000 == 1)
     {
         echo "send package. sid={$sid}, length=" . ($len + 10) . "\n";
+        usleep(100);
     }
 
     $data = pack('nNN', $len + 8, $i, $sid);

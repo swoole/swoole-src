@@ -121,6 +121,7 @@ int swQueueMsg_in(swQueue *p, swQueue_data *in, int length)
     while (1)
     {
         ret = msgsnd(object->msg_id, in, length, object->ipc_wait);
+
         if (ret < 0)
         {
             if (errno == EINTR)

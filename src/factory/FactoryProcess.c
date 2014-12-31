@@ -887,17 +887,7 @@ int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
         target_worker_id = task->target_worker_id;
     }
 
-    //reacthr thread
-    if (SwooleTG.type == SW_THREAD_REACTOR)
-    {
-        return swReactorThread_send2worker((void *) &(task->data), send_len, target_worker_id);
-    }
-    //master thread
-    else
-    {
-        swWorker *worker = swServer_get_worker(serv, target_worker_id);
-        return swWorker_send2worker(worker, SW_PIPE_MASTER, (void *) &(task->data), send_len);
-    }
+    return swReactorThread_send2worker((void *) &(task->data), send_len, target_worker_id);
 }
 
 /**
@@ -969,7 +959,8 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
             //TODO: thread safe, should close in reactor thread.
             if (resp->info.type == SW_EVENT_CLOSE)
             {
-                close_fd: reactor->close(reactor, resp->info.fd);
+                close_fd:
+                reactor->close(reactor, resp->info.fd);
                 continue;
             }
             //sendfile
@@ -988,8 +979,7 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
                 switch (swConnection_error(errno))
                 {
                 case SW_ERROR:
-                    swSysError("send to client[%d] failed.", resp->info.fd)
-                    ;
+                    swSysError("send to client[%d] failed.", resp->info.fd);
                     break;
                 case SW_CLOSE:
                     goto close_fd;

@@ -285,11 +285,10 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
 
     if (serv->ipc_mode == SW_IPC_MSGQUEUE)
     {
-        swQueue_data *in_data = (swQueue_data *) ((void *) data - sizeof(long));
-
-        //加1,消息队列的type必须不能为0
-        in_data->mtype = target_worker_id + 1;
-        ret = serv->read_queue.in(&serv->read_queue, in_data, len);
+        swQueue_data in_data;
+        in_data.mtype = target_worker_id + 1;
+        memcpy(in_data.mdata, data, len);
+        ret = serv->read_queue.in(&serv->read_queue, &in_data, len);
     }
     else
     {

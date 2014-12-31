@@ -1056,7 +1056,7 @@ struct _swProcessPool
     swPipe *pipes;
     swHashMap *map;
     swReactor *reactor;
-    swQueue queue;
+    swQueue *queue;
 
     void *ptr;
     void *ptr2;
@@ -1188,11 +1188,11 @@ void swChannel_free(swChannel *object);
 enum swThread_type
 {
     SW_THREAD_MASTER = 1,
-    SW_THREAD_REACTOR,
-    SW_THREAD_WRITER,
-    SW_THREAD_UDP,
-    SW_THREAD_UNIX_DGRAM,
-    SW_THREAD_HEARTBEAT,
+    SW_THREAD_REACTOR = 2,
+    SW_THREAD_WRITER = 3,
+    SW_THREAD_UDP = 4,
+    SW_THREAD_UNIX_DGRAM = 5,
+    SW_THREAD_HEARTBEAT = 6,
 };
 
 typedef struct _swThreadPool
