@@ -1,6 +1,6 @@
 <?php
 $client = new swoole_client(SWOOLE_SOCK_TCP);
-if(!$client->connect('127.0.0.1', 9501))
+if (!$client->connect('127.0.0.1', 9501))
 {
     exit("connect failed\n");
 }
@@ -11,13 +11,17 @@ for ($i = 0; $i < 40000; $i++)
     $len = rand(10000, 20000);
     $sid = rand(10000, 99999);
 
-    if ($i % 1000 == 1) {
+    if ($i % 1000 == 1)
+    {
         echo "send package. sid={$sid}, length=" . ($len + 10) . "\n";
     }
 
     $data = pack('nNN', $len + 8, $i, $sid);
     $data .= str_repeat('A', $len);
-    if (!$client->send($data)) break;
+    if (!$client->send($data))
+    {
+        break;
+    }
 }
 
 sleep(1);
