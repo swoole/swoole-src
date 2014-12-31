@@ -26,34 +26,6 @@
 #define MSG_NOSIGNAL        0
 #endif
 
-int swConnection_send_blocking(int fd, void *data, int length, int timeout)
-{
-    int n, writen = length;
-
-    while (writen > 0)
-    {
-        if (swSocket_wait(fd, timeout, SW_EVENT_WRITE) < 0)
-        {
-            return SW_ERR;
-        }
-        else
-        {
-            n = send(fd, data, writen, MSG_NOSIGNAL | MSG_DONTWAIT);
-            if (n < 0)
-            {
-                swWarn("send() failed. Error: %s[%d]", strerror(errno), errno);
-                return SW_ERR;
-            }
-            else
-            {
-                writen -= n;
-                continue;
-            }
-        }
-    }
-    return 0;
-}
-
 int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
 {
     int ret;

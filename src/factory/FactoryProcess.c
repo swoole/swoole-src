@@ -971,7 +971,7 @@ int swFactoryProcess_writer_loop_queue(swThreadParam *param)
             //send data
             else
             {
-                ret = swConnection_send_blocking(resp->info.fd, resp->data, resp->info.len, 1000 * SW_WRITER_TIMEOUT);
+                ret = swSocket_write_blocking(resp->info.fd, resp->data, resp->info.len);
             }
 
             if (ret < 0)
