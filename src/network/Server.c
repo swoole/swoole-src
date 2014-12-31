@@ -661,7 +661,6 @@ int swServer_free(swServer *serv)
         free(serv->ssl_cert_file);
         free(serv->ssl_key_file);
     }
-    swNotice("[Shutdown] Free SSL.");
 #endif
 
     //connection_list释放
@@ -937,6 +936,20 @@ int swServer_listen(swServer *serv, swReactor *reactor)
 		if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6 || listen_host->type == SW_SOCK_UNIX_DGRAM)
 		{
 			continue;
+		}
+
+		if (listen_host->ssl)
+		{
+		    if (!serv->ssl_cert_file)
+		    {
+		        swWarn("need to configure [server->ssl_cert_file].");
+		        return SW_ERR;
+		    }
+		    if (!serv->ssl_key_file)
+		    {
+		        swWarn("need to configure [server->ssl_key_file].");
+		        return SW_ERR;
+		    }
 		}
 
 		//TCP

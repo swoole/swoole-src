@@ -962,7 +962,6 @@ PHP_FUNCTION(swoole_server_create)
     zval_ptr_dtor(&zres);
 }
 
-
 PHP_FUNCTION(swoole_server_set)
 {
     zval *zset = NULL;
