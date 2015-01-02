@@ -794,8 +794,11 @@ static int http_onReceive(swFactory *factory, swEventData *req)
 
     	//socket fd
     	zend_update_property_long(swoole_http_response_class_entry_ptr, zresponse, ZEND_STRL("fd"), client->fd TSRMLS_CC);
-    	client->zresponse = zresponse;
-
+    	client->zresponse = zresponse;      
+        
+        zval_add_ref(&zrequest);
+        zval_add_ref(&zresponse);
+        
         args[0] = &zrequest;
         args[1] = &zresponse;
 
