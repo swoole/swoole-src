@@ -1340,7 +1340,7 @@ PHP_METHOD(swoole_client, send)
 	}
 	else
 	{
-	    php_error_docref(NULL TSRMLS_CC, E_WARNING, "object is not instanceof swoole_client.");
+	    swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
 		RETURN_FALSE;
 	}
 
@@ -1390,7 +1390,7 @@ PHP_METHOD(swoole_client, sendfile)
     }
     else
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "object is not instanceof swoole_client.");
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
         RETURN_FALSE;
     }
     if (!(cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6 || cli->type == SW_SOCK_UNIX_STREAM))
@@ -1400,7 +1400,7 @@ PHP_METHOD(swoole_client, sendfile)
     }
     if (cli->socket->active == 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not connected.");
+        swoole_php_fatal_error(E_WARNING, "Server is not connected.");
         RETURN_FALSE;
     }
     //clear errno
