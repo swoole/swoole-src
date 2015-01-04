@@ -175,17 +175,17 @@ static int php_swoole_client_close(zval **zobject, int fd TSRMLS_DC)
 			SwooleG.running = 0;
 		}
 
-		if (zend_hash_del(&php_sw_client_callback, (char *) &cli->socket->fd, sizeof(cli->socket->fd)) == FAILURE)
+        cli->close(cli);
+        //free the callback return value
+        if (retval != NULL)
+        {
+            zval_ptr_dtor(&retval);
+        }
+
+		if (zend_hash_del(&php_sw_client_callback, (char *) &fd, sizeof(fd)) == FAILURE)
 		{
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: del from client callback hashtable failed.");
 		}
-
-		//free the callback return value
-		if (retval != NULL)
-		{
-			zval_ptr_dtor(&retval);
-		}
-		cli->close(cli);
 	}
 	else
 	{
