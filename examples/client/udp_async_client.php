@@ -1,7 +1,7 @@
 <?php
 $client = new swoole_client(SWOOLE_SOCK_UDP, SWOOLE_SOCK_ASYNC); //异步非阻塞
 
-$client->on("connect", function($cli) {
+$client->on("connect", function(swoole_client $cli) {
     echo "connected\n";
     $cli->send("hello world\n");
 });
@@ -14,7 +14,7 @@ $client->on('error', function($cli){
     echo "error\n";
 });
 
-$client->on("receive", function($cli, $data){
+$client->on("receive", function(swoole_client $cli, $data){
 	echo "received: $data\n";
 	sleep(1);
 	$cli->send("hello_".rand(1000,9999));

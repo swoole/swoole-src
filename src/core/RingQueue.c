@@ -119,19 +119,17 @@ int swRingQueue_push(swRingQueue *queue, void *push_data)
     if (swRingQueue_full(queue))
     {
         swWarn("ring queue is full.");
-        return -1;
+        return SW_ERR;
     }
 
     queue->data[queue->tail] = push_data;
     queue->tail = (queue->tail + 1) % queue->size;
 
-    /* 这个时候一定队列满了*/
     if (queue->tail == queue->head)
     {
         queue->tag = 1;
     }
-
-    return queue->tag;
+    return SW_OK;
 }
 
 int swRingQueue_pop(swRingQueue *queue, void **pop_data)
@@ -139,18 +137,17 @@ int swRingQueue_pop(swRingQueue *queue, void **pop_data)
     if (swRingQueue_empty(queue))
     {
         swWarn("ring queue is empty.");
-        return -1;
+        return SW_ERR;
     }
 
     *pop_data = queue->data[queue->head];
     queue->head = (queue->head + 1) % queue->size;
 
-    /* 这个时候一定队列空了*/
     if (queue->tail == queue->head)
     {
         queue->tag = 0;
     }
-    return queue->tag;
+    return SW_OK;
 }
 
 #endif

@@ -14,12 +14,17 @@
   +----------------------------------------------------------------------+
 */
 
-#include <include/swoole.h>
-#include <include/Connection.h>
 #include "php_swoole.h"
 
+#include "include/swoole.h"
+#include "include/Connection.h"
+
 #include "ext/standard/php_var.h"
+#if PHP_MAJOR_VERSION < 7
 #include "ext/standard/php_smart_str.h"
+#else
+#include "ext/standard/php_smart_string.h"
+#endif
 
 static int php_swoole_task_id;
 static int php_swoole_udp_from_id;
@@ -76,7 +81,7 @@ zval *php_swoole_get_data(swEventData *req TSRMLS_DC)
     }
 
     //zero copy
-    //ZVAL_STRINGL(zdata, data_ptr, data_len, 0);
+    //SW_ZVAL_STRINGL(zdata, data_ptr, data_len, 0);
     ZVAL_STRINGL(zdata, data_ptr, data_len, 1);
 
 #ifdef SW_USE_RINGBUFFER
@@ -243,11 +248,11 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
 			}
             return;
         }
-        ZVAL_STRINGL(zdata, buf, data_len, 0);
+        SW_ZVAL_STRINGL(zdata, buf, data_len, 0);
     }
     else
     {
-        ZVAL_STRINGL(zdata, req->data, req->info.len, 1);
+        SW_ZVAL_STRINGL(zdata, req->data, req->info.len, 1);
     }
 
     args[0] = &zserv;
@@ -393,11 +398,11 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
             }
             return SW_OK;
         }
-        ZVAL_STRINGL(zdata, buf, data_len, 0);
+        SW_ZVAL_STRINGL(zdata, buf, data_len, 0);
     }
     else
     {
-        ZVAL_STRINGL(zdata, req->data, req->info.len, 1);
+        SW_ZVAL_STRINGL(zdata, req->data, req->info.len, 1);
     }
 
     args[0] = &zserv;
@@ -496,11 +501,11 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
 			}
             return SW_OK;
         }
-        ZVAL_STRINGL(zdata, buf, data_len, 0);
+        SW_ZVAL_STRINGL(zdata, buf, data_len, 0);
     }
     else
     {
-        ZVAL_STRINGL(zdata, req->data, req->info.len, 1);
+        SW_ZVAL_STRINGL(zdata, req->data, req->info.len, 1);
     }
 
     args[0] = &zserv;
@@ -881,7 +886,6 @@ void php_swoole_onClose(swServer *serv, int fd, int from_id)
     }
 }
 
-
 PHP_FUNCTION(swoole_server_create)
 {
     int host_len = 0;
@@ -950,15 +954,18 @@ PHP_FUNCTION(swoole_server_create)
         php_error_docref(NULL TSRMLS_CC, E_ERROR, "add listener failed.");
         return;
     }
+
+    zval *server_object = getThis();
     if (!getThis())
     {
         object_init_ex(return_value, swoole_server_class_entry_ptr);
-        getThis() = return_value;
+        server_object = return_value;
     }
+
     zval *zres;
     MAKE_STD_ZVAL(zres);
     ZEND_REGISTER_RESOURCE(zres, serv, le_swoole_server);
-    zend_update_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("_server"), zres TSRMLS_CC);
+    zend_update_property(swoole_server_class_entry_ptr, server_object, ZEND_STRL("_server"), zres TSRMLS_CC);
     zval_ptr_dtor(&zres);
 }
 
@@ -995,40 +1002,40 @@ PHP_FUNCTION(swoole_server_set)
     vht = Z_ARRVAL_P(zset);
 
     //chroot
-    if (zend_hash_find(vht, ZEND_STRS("chroot"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("chroot"), (void **) &v) == SUCCESS)
     {
         convert_to_string(*v);
         SwooleG.chroot = strndup(Z_STRVAL_PP(v), 256);
     }
 
     //user
-    if (zend_hash_find(vht, ZEND_STRS("user"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("user"), (void **) &v) == SUCCESS)
     {
         convert_to_string(*v);
         SwooleG.user = strndup(Z_STRVAL_PP(v), 128);
     }
 
     //group
-    if (zend_hash_find(vht, ZEND_STRS("group"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("group"), (void **) &v) == SUCCESS)
     {
         convert_to_string(*v);
         SwooleG.group = strndup(Z_STRVAL_PP(v), 128);
     }
 
     //daemonize
-    if (zend_hash_find(vht, ZEND_STRS("daemonize"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("daemonize"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->daemonize = (int) Z_LVAL_PP(v);
     }
     //backlog
-    if (zend_hash_find(vht, ZEND_STRS("backlog"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("backlog"), (void **) &v) == SUCCESS)
     {
         serv->backlog = (int) Z_LVAL_PP(v);
     }
     //reactor thread num
-    if (zend_hash_find(vht, ZEND_STRS("reactor_num"), (void **) &v) == SUCCESS
-            || zend_hash_find(vht, ZEND_STRS("poll_thread_num"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("reactor_num"), (void **) &v) == SUCCESS
+            || sw_zend_hash_find(vht, ZEND_STRS("poll_thread_num"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->reactor_num = (int) Z_LVAL_PP(v);
@@ -1038,7 +1045,7 @@ PHP_FUNCTION(swoole_server_set)
         }
     }
     //writer_num
-    if (zend_hash_find(vht, ZEND_STRS("writer_num"), (void **)&v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("writer_num"), (void **)&v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->writer_num = (int)Z_LVAL_PP(v);
@@ -1048,7 +1055,7 @@ PHP_FUNCTION(swoole_server_set)
         }
     }
     //worker_num
-    if (zend_hash_find(vht, ZEND_STRS("worker_num"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("worker_num"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->worker_num = (int) Z_LVAL_PP(v);
@@ -1058,24 +1065,24 @@ PHP_FUNCTION(swoole_server_set)
         }
     }
     //task_worker_num
-    if (zend_hash_find(vht, ZEND_STRS("task_worker_num"), (void **)&v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("task_worker_num"), (void **)&v) == SUCCESS)
     {
         convert_to_long(*v);
         SwooleG.task_worker_num = (int) Z_LVAL_PP(v);
     }
     //task_worker_max
-    if (zend_hash_find(vht, ZEND_STRS("task_worker_max"), (void **)&v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("task_worker_max"), (void **)&v) == SUCCESS)
     {
 	    convert_to_long(*v);
 	    SwooleG.task_worker_max = (int)Z_LVAL_PP(v);
     }
     
-    if (zend_hash_find(vht, ZEND_STRS("task_ipc_mode"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("task_ipc_mode"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
         SwooleG.task_ipc_mode = (int) Z_LVAL_PP(v);
     }
-    if (zend_hash_find(vht, ZEND_STRS("task_dispatch_mode"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("task_dispatch_mode"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
         SwooleG.task_dispatch_mode = (int) Z_LVAL_PP(v);
@@ -1083,7 +1090,7 @@ PHP_FUNCTION(swoole_server_set)
     /**
      * Temporary file directory for task_worker
      */
-    if (zend_hash_find(vht, ZEND_STRS("task_tmpdir"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("task_tmpdir"), (void **) &v) == SUCCESS)
     {
         convert_to_string(*v);
         SwooleG.task_tmpdir = emalloc(SW_DIR_MAXLEN);
@@ -1095,56 +1102,56 @@ PHP_FUNCTION(swoole_server_set)
         SwooleG.task_tmpdir_len = sizeof(SW_TASK_TMP_FILE);
     }
     //max_connection
-    if (zend_hash_find(vht, ZEND_STRS("max_connection"), (void **)&v) == SUCCESS ||
-            zend_hash_find(vht, ZEND_STRS("max_conn"), (void **)&v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("max_connection"), (void **)&v) == SUCCESS ||
+            sw_zend_hash_find(vht, ZEND_STRS("max_conn"), (void **)&v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->max_connection = (int)Z_LVAL_PP(v);
     }
     //max_request
-    if (zend_hash_find(vht, ZEND_STRS("max_request"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("max_request"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->max_request = (int) Z_LVAL_PP(v);
     }
     //task_max_request
-    if (zend_hash_find(vht, ZEND_STRS("task_max_request"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("task_max_request"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->task_max_request = (int) Z_LVAL_PP(v);
     }
     //cpu affinity
-    if (zend_hash_find(vht, ZEND_STRS("open_cpu_affinity"), (void **)&v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("open_cpu_affinity"), (void **)&v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->open_cpu_affinity = (uint8_t) Z_LVAL_PP(v);
     }
     //tcp_nodelay
-    if (zend_hash_find(vht, ZEND_STRS("open_tcp_nodelay"), (void **)&v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("open_tcp_nodelay"), (void **)&v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->open_tcp_nodelay = (uint8_t) Z_LVAL_PP(v);
     }
     //tcp_defer_accept
-    if (zend_hash_find(vht, ZEND_STRS("tcp_defer_accept"), (void **)&v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("tcp_defer_accept"), (void **)&v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->tcp_defer_accept = (uint8_t) Z_LVAL_PP(v);
     }
     //tcp_keepalive
-    if (zend_hash_find(vht, ZEND_STRS("open_tcp_keepalive"), (void **)&v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("open_tcp_keepalive"), (void **)&v) == SUCCESS)
     {
         serv->open_tcp_keepalive = (uint8_t) Z_LVAL_PP(v);
     }
     //buffer: check eof
-    if (zend_hash_find(vht, ZEND_STRS("open_eof_check"), (void **)&v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("open_eof_check"), (void **)&v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->open_eof_check = (uint8_t) Z_LVAL_PP(v);
     }
     //package eof
-    if (zend_hash_find(vht, ZEND_STRS("package_eof"), (void **) &v) == SUCCESS
-            || zend_hash_find(vht, ZEND_STRS("data_eof"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("package_eof"), (void **) &v) == SUCCESS
+            || sw_zend_hash_find(vht, ZEND_STRS("data_eof"), (void **) &v) == SUCCESS)
     {
         convert_to_string(*v);
         serv->package_eof_len = Z_STRLEN_PP(v);
@@ -1157,44 +1164,44 @@ PHP_FUNCTION(swoole_server_set)
         memcpy(serv->package_eof, Z_STRVAL_PP(v), Z_STRLEN_PP(v));
     }
     //buffer: http_protocol
-    if (zend_hash_find(vht, ZEND_STRS("open_http_protocol"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("open_http_protocol"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->open_http_protocol = (uint8_t) Z_LVAL_PP(v);
     }
     //tcp_keepidle
-    if (zend_hash_find(vht, ZEND_STRS("tcp_keepidle"), (void **)&v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("tcp_keepidle"), (void **)&v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->tcp_keepidle = (uint16_t)Z_LVAL_PP(v);
     }
     //tcp_keepinterval
-    if (zend_hash_find(vht, ZEND_STRS("tcp_keepinterval"), (void **)&v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("tcp_keepinterval"), (void **)&v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->tcp_keepinterval = (uint16_t)Z_LVAL_PP(v);
     }
     //tcp_keepcount
-    if (zend_hash_find(vht, ZEND_STRS("tcp_keepcount"), (void **)&v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("tcp_keepcount"), (void **)&v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->tcp_keepcount = (uint16_t)Z_LVAL_PP(v);
     }
     //dispatch_mode
-    if (zend_hash_find(vht, ZEND_STRS("dispatch_mode"), (void **)&v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("dispatch_mode"), (void **)&v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->dispatch_mode = (int)Z_LVAL_PP(v);
     }
 
     //open_dispatch_key
-    if (zend_hash_find(vht, ZEND_STRS("open_dispatch_key"), (void **)&v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("open_dispatch_key"), (void **)&v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->open_dispatch_key = (int)Z_LVAL_PP(v);
     }
 
-    if (zend_hash_find(vht, ZEND_STRS("dispatch_key_type"), (void **)&v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("dispatch_key_type"), (void **)&v) == SUCCESS)
     {
         convert_to_string(*v);
         serv->dispatch_key_type = Z_STRVAL_PP(v)[0];
@@ -1207,14 +1214,14 @@ PHP_FUNCTION(swoole_server_set)
         }
     }
 
-    if (zend_hash_find(vht, ZEND_STRS("dispatch_key_offset"), (void **)&v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("dispatch_key_offset"), (void **)&v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->dispatch_key_offset = (uint16_t) Z_LVAL_PP(v);
     }
 
     //log_file
-    if (zend_hash_find(vht, ZEND_STRS("log_file"), (void **)&v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("log_file"), (void **)&v) == SUCCESS)
     {
         convert_to_string(*v);
         if (Z_STRLEN_PP(v) > SW_LOG_FILENAME)
@@ -1225,13 +1232,13 @@ PHP_FUNCTION(swoole_server_set)
         memcpy(serv->log_file, Z_STRVAL_PP(v), Z_STRLEN_PP(v));
     }
     //heartbeat_check_interval
-    if (zend_hash_find(vht, ZEND_STRS("heartbeat_check_interval"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("heartbeat_check_interval"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->heartbeat_check_interval = (int) Z_LVAL_PP(v);
     }
     //heartbeat idle time
-    if (zend_hash_find(vht, ZEND_STRS("heartbeat_idle_time"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("heartbeat_idle_time"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->heartbeat_idle_time = (int) Z_LVAL_PP(v);
@@ -1247,7 +1254,7 @@ PHP_FUNCTION(swoole_server_set)
         serv->heartbeat_idle_time = serv->heartbeat_check_interval * 2;
     }
     //heartbeat_ping
-    if (zend_hash_find(vht, ZEND_STRS("heartbeat_ping"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("heartbeat_ping"), (void **) &v) == SUCCESS)
     {
         convert_to_string(*v);
         serv->heartbeat_ping_length = Z_STRLEN_PP(v);
@@ -1259,7 +1266,7 @@ PHP_FUNCTION(swoole_server_set)
         memcpy(serv->heartbeat_ping, Z_STRVAL_PP(v), Z_STRLEN_PP(v));
     }
     //heartbeat_pong
-    if (zend_hash_find(vht, ZEND_STRS("heartbeat_pong"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("heartbeat_pong"), (void **) &v) == SUCCESS)
     {
         convert_to_string(*v);
         serv->heartbeat_pong_length = Z_STRLEN_PP(v);
@@ -1271,13 +1278,13 @@ PHP_FUNCTION(swoole_server_set)
         memcpy(serv->heartbeat_pong, Z_STRVAL_PP(v), Z_STRLEN_PP(v));
     }
     //open length check
-    if (zend_hash_find(vht, ZEND_STRS("open_length_check"), (void **)&v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("open_length_check"), (void **)&v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->open_length_check = (uint8_t)Z_LVAL_PP(v);
     }
     //package length size
-    if (zend_hash_find(vht, ZEND_STRS("package_length_type"), (void **)&v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("package_length_type"), (void **)&v) == SUCCESS)
     {
         convert_to_string(*v);
         serv->package_length_type = Z_STRVAL_PP(v)[0];
@@ -1290,14 +1297,14 @@ PHP_FUNCTION(swoole_server_set)
         }
     }
     //package length offset
-    if (zend_hash_find(vht, ZEND_STRS("package_length_offset"), (void **)&v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("package_length_offset"), (void **)&v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->package_length_offset = (int)Z_LVAL_PP(v);
     }
     //package body start
-    if (zend_hash_find(vht, ZEND_STRS("package_body_offset"), (void **) &v) == SUCCESS
-            || zend_hash_find(vht, ZEND_STRS("package_body_start"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("package_body_offset"), (void **) &v) == SUCCESS
+            || sw_zend_hash_find(vht, ZEND_STRS("package_body_start"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->package_body_offset = (int) Z_LVAL_PP(v);
@@ -1305,7 +1312,7 @@ PHP_FUNCTION(swoole_server_set)
     /**
      * package max length
      */
-    if (zend_hash_find(vht, ZEND_STRS("package_max_length"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("package_max_length"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->package_max_length = (int) Z_LVAL_PP(v);
@@ -1313,7 +1320,7 @@ PHP_FUNCTION(swoole_server_set)
     /**
      * buffer input size
      */
-    if (zend_hash_find(vht, ZEND_STRS("buffer_input_size"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("buffer_input_size"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->buffer_input_size = (int) Z_LVAL_PP(v);
@@ -1321,26 +1328,26 @@ PHP_FUNCTION(swoole_server_set)
     /**
      * buffer output size
      */
-    if (zend_hash_find(vht, ZEND_STRS("buffer_output_size"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("buffer_output_size"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->buffer_output_size = (int) Z_LVAL_PP(v);
     }
     //ipc mode
-    if (zend_hash_find(vht, ZEND_STRS("ipc_mode"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("ipc_mode"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->ipc_mode = (int) Z_LVAL_PP(v);
     }
     //message queue key
-    if (zend_hash_find(vht, ZEND_STRS("message_queue_key"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("message_queue_key"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->message_queue_key = (int) Z_LVAL_PP(v);
     }
 
 #ifdef SW_USE_OPENSSL
-    if (zend_hash_find(vht, ZEND_STRS("ssl_cert_file"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_cert_file"), (void **) &v) == SUCCESS)
     {
         convert_to_string(*v);
         serv->ssl_cert_file = strdup(Z_STRVAL_PP(v));
@@ -1351,7 +1358,7 @@ PHP_FUNCTION(swoole_server_set)
         }
         serv->open_ssl = 1;
     }
-    if (zend_hash_find(vht, ZEND_STRS("ssl_key_file"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_key_file"), (void **) &v) == SUCCESS)
     {
         convert_to_string(*v);
         serv->ssl_key_file = strdup(Z_STRVAL_PP(v));
@@ -2316,14 +2323,14 @@ PHP_FUNCTION(swoole_server_taskwait)
                 else
                 {
                     MAKE_STD_ZVAL(task_notify_data);
-                    ZVAL_STRINGL(task_notify_data, task_notify_data_str, task_notify_data_len, 1);
+                    SW_ZVAL_STRINGL(task_notify_data, task_notify_data_str, task_notify_data_len, 1);
                 }
                 PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
             }
             else
             {
                 MAKE_STD_ZVAL(task_notify_data);
-                ZVAL_STRINGL(task_notify_data, task_notify_data_str, task_notify_data_len, 1);
+                SW_ZVAL_STRINGL(task_notify_data, task_notify_data_str, task_notify_data_len, 1);
             }
             
             RETURN_ZVAL(task_notify_data, 0, 0);
@@ -2649,7 +2656,7 @@ PHP_FUNCTION(swoole_connection_info)
         {
             add_assoc_long(return_value, "remote_port", udp_info.port);
         }
-        add_assoc_string(return_value, "remote_ip", inet_ntoa(sin_addr), 1);
+        sw_add_assoc_string(return_value, "remote_ip", inet_ntoa(sin_addr), 1);
         return;
     }
 
@@ -2669,7 +2676,7 @@ PHP_FUNCTION(swoole_connection_info)
         add_assoc_long(return_value, "websocket_status", conn->websocket_status);
         add_assoc_long(return_value, "from_port", serv->connection_list[conn->from_fd].addr.sin_port);
         add_assoc_long(return_value, "remote_port", ntohs(conn->addr.sin_port));
-        add_assoc_string(return_value, "remote_ip", inet_ntoa(conn->addr.sin_addr), 1);
+        sw_add_assoc_string(return_value, "remote_ip", inet_ntoa(conn->addr.sin_addr), 1);
     }
 }
 

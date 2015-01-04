@@ -736,7 +736,7 @@ PHP_FUNCTION(swoole_version)
 {
 	char swoole_version[32] = {0};
 	snprintf(swoole_version, sizeof(PHP_SWOOLE_VERSION), "%s", PHP_SWOOLE_VERSION);
-    RETURN_STRING(swoole_version, 1);
+	SW_RETURN_STRING(swoole_version, 1);
 }
 
 PHP_FUNCTION(swoole_cpu_num)
@@ -793,7 +793,7 @@ PHP_FUNCTION(swoole_strerror)
         return;
     }
     snprintf(error_msg, sizeof(error_msg) - 1, "%s", strerror(swoole_errno));
-    RETURN_STRING(error_msg, 1);
+    SW_RETURN_STRING(error_msg, 1);
 }
 
 PHP_FUNCTION(swoole_errno)
@@ -886,7 +886,7 @@ PHP_FUNCTION(swoole_get_local_ip)
 			{
 				continue;
 			}
-			add_assoc_string(return_value, ifa->ifa_name, ip, 1);
+			sw_add_assoc_string(return_value, ifa->ifa_name, ip, 1);
 		}
 	}
 	freeifaddrs(ipaddrs);

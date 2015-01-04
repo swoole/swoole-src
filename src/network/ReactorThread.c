@@ -298,10 +298,12 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
         memcpy(in_data.mdata, data, len);
         ret = serv->read_queue.in(&serv->read_queue, &in_data, len);
     }
-    else
+    //reactor thread
+    else if (SwooleTG.type == SW_THREAD_REACTOR)
     {
         int pipe_fd = worker->pipe_master;
         swBuffer *buffer = *(swBuffer **) swArray_fetch(thread->buffer_pipe, worker->pipe_master);
+
         if (swBuffer_empty(buffer))
         {
             ret = write(pipe_fd, (void *) data, len);
@@ -334,6 +336,12 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
             }
             return SW_OK;
         }
+    }
+    //master/udp thread
+    else
+    {
+        int pipe_fd = worker->pipe_master;
+        ret = swSocket_write_blocking(pipe_fd, data, len);
     }
     return ret;
 }
