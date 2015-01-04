@@ -513,9 +513,6 @@ static void handshake_success(int fd)
     if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) {
         conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
     }
-//    swHttpRequest *request = (swHttpRequest *) conn->object;
-//    swHttpRequest_free(request);
-//    conn->object = NULL;
     SwooleG.lock.unlock(&SwooleG.lock);
     swTrace("\n\n\n\nconn ws status:%d\n\n\n", conn->websocket_status);
 
@@ -624,7 +621,7 @@ static int http_onReceive(swFactory *factory, swEventData *req)
 //    swTrace("on receive:%s pid:%d\n", zdata, getpid());
     swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
 
-    if (conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE)  //websocket callback
+    if (conn->websocket_status == WEBSOCKET_STATUS_FRAME)  //websocket callback
     {
         return http_websocket_onMessage(req TSRMLS_CC);
     }

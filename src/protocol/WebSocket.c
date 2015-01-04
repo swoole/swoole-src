@@ -22,7 +22,7 @@ static uint64_t ntoh64(uint64_t network);
 
 //static void swWebSocket_print_frame(swWebSocket_frame *frm);
 static void swWebSocket_unmask(char *masks, swHttpRequest *request);
-
+static void swWebSocket_unmask_frame(char *masks, int offset, int length, char *buf);
 swString *swWebSocket_encode(swString *data, char opcode, int fin)
 {
     swString *buf = swString_new(data->length + 16);
@@ -126,6 +126,7 @@ int swWebSocket_decode(swHttpRequest *request)
     if (0x0 != rsv1 || 0x0 != rsv2 || 0x0 != rsv3)
     {
         swTrace("rsv error %d %d %d\n", rsv1, rsv2, rsv3);
+        request->free_memory = SW_WAIT;
         return SW_ERR;
     }
     request->opcode = opcode;
@@ -180,10 +181,120 @@ int swWebSocket_decode(swHttpRequest *request)
     request->buffer->str[request->buffer->offset] = fin;
     request->content_length += 2;
     request->buffer->str += request->buffer->offset;
+    request->header_length += (request->content_length + request->buffer->offset);
 
     swTrace("decode end %d %d %d====\n", request->buffer->offset, opcode, fin);
 
     return SW_OK;
+}
+
+int swWebSocket_decode_frame(char *buf, swString *str, int n)
+{
+    char fin = (buf[0] >> 7) & 0x1;
+    char rsv1 = (buf[0] >> 6) & 0x1;
+    char rsv2 = (buf[0] >> 5) & 0x1;
+    char rsv3 = (buf[0] >> 4) & 0x1;
+    char opcode = buf[0] & 0xf;
+    char mask = (buf[1] >> 7) & 0x1;
+
+
+    if (0x0 != rsv1 || 0x0 != rsv2 || 0x0 != rsv3)
+    {
+        swTrace("rsv error %d %d %d\n", rsv1, rsv2, rsv3);
+        return SW_ERR;
+    }
+
+    int offset = 0;
+
+    //0-125
+    char length = buf[1] & 0x7f;
+    swTrace("frame length: %d offset: %d\n", length, offset);
+//    buf += SW_WEBSOCKET_HEADER_LEN;
+    offset += SW_WEBSOCKET_HEADER_LEN;
+    /**
+    * 126
+    */
+    if (length < 0x7E)
+    {
+        str->length = length;
+    }
+        /**
+        * Short
+        */
+    else if (0x7E == length)
+    {
+        buf += SW_WEBSOCKET_HEADER_LEN;
+        str->length = ntohs(*((uint16_t *) buf));
+        offset += sizeof(short);
+        buf -= SW_WEBSOCKET_HEADER_LEN;
+    }
+    else
+    {
+        buf += SW_WEBSOCKET_HEADER_LEN;
+        str->length = ntoh64(*((uint64_t *) buf));
+        offset += sizeof(int64_t);
+        buf -= SW_WEBSOCKET_HEADER_LEN;
+    }
+
+
+
+    if (mask)
+    {
+        char masks[SW_WEBSOCKET_MASK_LEN];
+        memcpy(masks, (buf + offset), SW_WEBSOCKET_MASK_LEN);
+//        swTrace("masks %s\n", masks);
+        offset += SW_WEBSOCKET_MASK_LEN;
+
+        str->size = str->length + offset;
+
+        if(str->size > n) {
+            swTrace("frame length: %d offset: %d\n", str->length, offset);
+            return SW_OK;
+        }
+
+        if (str->length)
+        {
+            int i;
+            for (i = 0; i < str->length; i++)
+            {
+//                swTrace("unmask i:%d %c %c \n", i, buf[i + offset], masks[i % SW_WEBSOCKET_MASK_LEN]);
+                buf[i + offset] ^= masks[i % SW_WEBSOCKET_MASK_LEN];
+//                swTrace("unmask i:%d %c\n", i, buf[i + offset]);
+            }
+        }
+    }
+    else
+    {
+        str->size = str->length + offset;
+
+        if(str->size > n) {
+            swTrace("frame length: %d offset: %d\n", str->length, offset);
+            return SW_OK;
+        }
+    }
+
+    swTrace("offset: %d lenght:%d opcode: %d, fin: %d\n", offset, str->length, opcode, fin);
+    offset--;
+    buf[offset] = opcode;
+    offset--;
+    buf[offset] = fin;
+    str->length += 2;
+    buf += offset;
+    str->offset = offset;
+//    str->size = str->length + str->offset;
+    str->str = buf;
+    return SW_OK;
+}
+
+static void swWebSocket_unmask_frame(char *masks, int offset, int length, char *buf)
+{
+    int i;
+    for (i = 0; i < length; i++)
+    {
+                        swTrace("unmask i:%d %c\n", i, buf[i]);
+        buf[i + offset] ^= masks[i % SW_WEBSOCKET_MASK_LEN];
+                        swTrace("unmask i:%d %c\n", i, buf[i]);
+    }
 }
 
 static void swWebSocket_unmask(char *masks, swHttpRequest *request)

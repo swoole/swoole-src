@@ -41,6 +41,7 @@ enum swWebsocketStatus
 {
     WEBSOCKET_STATUS_CONNECTION = 1,
     WEBSOCKET_STATUS_HANDSHAKE = 2,
+    WEBSOCKET_STATUS_FRAME = 3,
 };
 
 typedef struct
@@ -92,6 +93,7 @@ swString *swWebSocket_encode(swString *data, char opcode, int fin);
 int swWebSocket_decode(swHttpRequest *request);
 int swWebSocket_isEof(char *data);
 swString *swWebSocket_handShake(char *key);
+int swWebSocket_decode_frame(char *data, swString * str, int n);
 
 #ifdef __cplusplus
 }

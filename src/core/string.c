@@ -47,6 +47,7 @@ swString *swString_dup2(swString *src)
     swString *dst = swString_new(src->size);
     if (dst)
     {
+        swTrace("string dup2.  new=%p, old=%p\n", dst, src);
         dst->length = src->length;
         dst->offset = src->offset;
         memcpy(dst->str, src->str, src->length);
