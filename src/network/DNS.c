@@ -81,12 +81,13 @@ typedef struct rr_flags
 
 static swDNS_server swoole_dns_servers[SW_DNS_SERVER_NUM];
 static int swoole_dns_server_num = 0;
-static int swoole_dns_request_id = 102;
-static void* swoole_dns_request_ptr[10];
+static int swoole_dns_request_id = 1;
+static void* swoole_dns_request_ptr[1024];
 
 static void swDNSResolver_domain_encode(uchar *src, uchar *dest);
 static void swDNSResolver_domain_decode(uchar *str);
 static int swDNSResolver_get_servers(swDNS_server *dns_server);
+static int swDNSResolver_onReceive(swReactor *reactor, swEvent *event);
 
 static int swDNSResolver_get_servers(swDNS_server *dns_server)
 {
@@ -121,7 +122,7 @@ static int swDNSResolver_get_servers(swDNS_server *dns_server)
     return SW_OK;
 }
 
-int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
+static int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
 {
     swDNSResolver_header *header = NULL;
     swClient *cli;
@@ -148,16 +149,14 @@ int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
     header = (swDNSResolver_header *) &packet;
     steps = sizeof(swDNSResolver_header);
 
-    printf("id=%d\n", ntohs(header->id));
-    SwooleG.running = 0;
-    return SW_OK;
-
     _domain_name = (uchar *) &packet[steps];
     swDNSResolver_domain_decode(_domain_name);
     steps = steps + (strlen((const uchar *) _domain_name) + 2);
 
     qflags = (Q_FLAGS *) &packet[steps];
     steps = steps + sizeof(Q_FLAGS);
+
+    //printf("ancount=%d, nscount=%d, qdcount=%d, arcount=%d\n", ntohs(header->ancount), ntohs(header->nscount), ntohs(header->qdcount), ntohs(header->arcount));
 
     /* Parsing the RRs from the reply packet */
     for (i = 0; i < ntohs(header->ancount); ++i)
@@ -180,6 +179,7 @@ int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
             }
         }
         name[i][j] = '\0';
+
         swDNSResolver_domain_decode(name[i]);
         steps = steps + 2;
 
@@ -243,7 +243,7 @@ int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
-int swDNSResolver_request(char *domain, void (*callback)(void *addrs))
+int swDNSResolver_request(swDNS_request *request)
 {
     uchar *_domain_name;
     Q_FLAGS *qflags = NULL;
@@ -278,7 +278,7 @@ int swDNSResolver_request(char *domain, void (*callback)(void *addrs))
     steps = sizeof(swDNSResolver_header);
 
     _domain_name = (uchar *) &packet[steps];
-    swDNSResolver_domain_encode(domain, _domain_name);
+    swDNSResolver_domain_encode(request->domain, _domain_name);
 
     steps += (strlen((const uchar *) _domain_name) + 1);
 
@@ -312,7 +312,7 @@ int swDNSResolver_request(char *domain, void (*callback)(void *addrs))
         cli->close(cli);
         return SW_ERR;
     }
-    cli->ptr = callback;
+    cli->ptr = request;
     swoole_dns_request_ptr[swoole_dns_request_id] = cli;
     swoole_dns_request_id++;
     return SW_OK;

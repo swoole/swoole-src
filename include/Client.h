@@ -64,6 +64,14 @@ typedef struct _swClient
 } swClient;
 
 int swClient_create(swClient *cli, int type, int async);
-int swDNSResolver_request(char *domain, void (*callback)(void *addrs));
+
+typedef struct
+{
+    void (*callback)(void *addrs);
+    void *object;
+    char *domain;
+} swDNS_request;
+
+int swDNSResolver_request(swDNS_request *request);
 
 #endif /* SW_CLIENT_H_ */

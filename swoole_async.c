@@ -696,9 +696,23 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     {
         buf_size = Z_STRLEN_P(domain) + 1;
     }
-	void *buf = emalloc(buf_size);
-	bzero(buf, buf_size);
-	memcpy(buf, Z_STRVAL_P(domain), Z_STRLEN_P(domain));
-	php_swoole_check_aio();
-	SW_CHECK_RETURN(swAio_dns_lookup(req, buf, buf_size));
+
+#ifdef SW_DNS_LOOKUP_USE_THREAD
+    void *buf = emalloc(buf_size);
+    bzero(buf, buf_size);
+    memcpy(buf, Z_STRVAL_P(domain), Z_STRLEN_P(domain));
+    php_swoole_check_aio();
+    SW_CHECK_RETURN(swAio_dns_lookup(req, buf, buf_size));
+#else
+
+    swDNS_request *request = emalloc(sizeof(swDNS_request));
+    request->callback = php_swoole_aio_onDNSResponse;
+    request->object = req;
+    request->domain = Z_STRVAL_P(domain);
+
+    php_swoole_check_reactor();
+    swDNSResolver_request(request);
+    php_swoole_try_run_reactor();
+#endif
 }
+

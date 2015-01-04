@@ -226,7 +226,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 {
 	swEvent event;
 	swFd fd_;
-	swReactorKqueue *this = reactor->object;
+	swReactorKqueue *object = reactor->object;
 	swReactor_handle handle;
 
 	int i, n, ret;
@@ -257,10 +257,10 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 	        t.tv_nsec = (reactor->timeout_msec - t.tv_sec * 1000) * 1000;
 	    }
 
-		n = kevent(this->epfd, NULL, 0, this->events, this->event_max, &t);
+		n = kevent(object->epfd, NULL, 0, object->events, object->event_max, &t);
 		if (n < 0)
 		{
-			//swTrace("kqueue error.EP=%d | Errno=%d\n", this->epfd, errno);
+			//swTrace("kqueue error.EP=%d | Errno=%d\n", object->epfd, errno);
 			if (swReactor_error(reactor) < 0)
 			{
 				swWarn("Kqueue[#%d] Error: %s[%d]", reactor->id, strerror(errno), errno);
@@ -281,14 +281,14 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 		}
 		for (i = 0; i < n; i++)
 		{
-			if (this->events[i].udata)
+			if (object->events[i].udata)
 			{
-				memcpy(&fd_, &(this->events[i].udata), sizeof(fd_));
+				memcpy(&fd_, &(object->events[i].udata), sizeof(fd_));
 				event.fd = fd_.fd;
 				event.from_id = reactor->id;
 				event.type = fd_.fdtype;
 				//read
-				if (this->events[i].filter == EVFILT_READ)
+				if (object->events[i].filter == EVFILT_READ)
 				{
 					handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
 					ret = handle(reactor, &event);
@@ -298,7 +298,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 					}
 				}
 				//write
-				else if (this->events[i].filter == EVFILT_WRITE)
+				else if (object->events[i].filter == EVFILT_WRITE)
 				{
 					if (event.fd > 0)
 					{
@@ -312,7 +312,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 				}
 				else
 				{
-					swWarn("kqueue event unknow filter=%d", this->events[i].filter);
+					swWarn("kqueue event unknow filter=%d", object->events[i].filter);
 				}
 			}
 
