@@ -19,7 +19,11 @@
 #include "php_swoole.h"
 
 #include "ext/standard/php_var.h"
+#if PHP_MAJOR_VERSION < 7
 #include "ext/standard/php_smart_str.h"
+#else
+#include "ext/standard/php_smart_string.h"
+#endif
 
 static int php_swoole_task_id;
 static int php_swoole_udp_from_id;
@@ -76,7 +80,7 @@ zval *php_swoole_get_data(swEventData *req TSRMLS_DC)
     }
 
     //zero copy
-    //ZVAL_STRINGL(zdata, data_ptr, data_len, 0);
+    //SW_ZVAL_STRINGL(zdata, data_ptr, data_len, 0);
     ZVAL_STRINGL(zdata, data_ptr, data_len, 1);
 
 #ifdef SW_USE_RINGBUFFER
@@ -243,11 +247,11 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
 			}
             return;
         }
-        ZVAL_STRINGL(zdata, buf, data_len, 0);
+        SW_ZVAL_STRINGL(zdata, buf, data_len, 0);
     }
     else
     {
-        ZVAL_STRINGL(zdata, req->data, req->info.len, 1);
+        SW_ZVAL_STRINGL(zdata, req->data, req->info.len, 1);
     }
 
     args[0] = &zserv;
@@ -393,11 +397,11 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
             }
             return SW_OK;
         }
-        ZVAL_STRINGL(zdata, buf, data_len, 0);
+        SW_ZVAL_STRINGL(zdata, buf, data_len, 0);
     }
     else
     {
-        ZVAL_STRINGL(zdata, req->data, req->info.len, 1);
+        SW_ZVAL_STRINGL(zdata, req->data, req->info.len, 1);
     }
 
     args[0] = &zserv;
@@ -496,11 +500,11 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
 			}
             return SW_OK;
         }
-        ZVAL_STRINGL(zdata, buf, data_len, 0);
+        SW_ZVAL_STRINGL(zdata, buf, data_len, 0);
     }
     else
     {
-        ZVAL_STRINGL(zdata, req->data, req->info.len, 1);
+        SW_ZVAL_STRINGL(zdata, req->data, req->info.len, 1);
     }
 
     args[0] = &zserv;
@@ -881,7 +885,6 @@ void php_swoole_onClose(swServer *serv, int fd, int from_id)
     }
 }
 
-
 PHP_FUNCTION(swoole_server_create)
 {
     int host_len = 0;
@@ -950,15 +953,18 @@ PHP_FUNCTION(swoole_server_create)
         php_error_docref(NULL TSRMLS_CC, E_ERROR, "add listener failed.");
         return;
     }
+
+    zval *server_object = getThis();
     if (!getThis())
     {
         object_init_ex(return_value, swoole_server_class_entry_ptr);
-        getThis() = return_value;
+        server_object = return_value;
     }
+
     zval *zres;
     MAKE_STD_ZVAL(zres);
     ZEND_REGISTER_RESOURCE(zres, serv, le_swoole_server);
-    zend_update_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("_server"), zres TSRMLS_CC);
+    zend_update_property(swoole_server_class_entry_ptr, server_object, ZEND_STRL("_server"), zres TSRMLS_CC);
     zval_ptr_dtor(&zres);
 }
 
@@ -2316,14 +2322,14 @@ PHP_FUNCTION(swoole_server_taskwait)
                 else
                 {
                     MAKE_STD_ZVAL(task_notify_data);
-                    ZVAL_STRINGL(task_notify_data, task_notify_data_str, task_notify_data_len, 1);
+                    SW_ZVAL_STRINGL(task_notify_data, task_notify_data_str, task_notify_data_len, 1);
                 }
                 PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
             }
             else
             {
                 MAKE_STD_ZVAL(task_notify_data);
-                ZVAL_STRINGL(task_notify_data, task_notify_data_str, task_notify_data_len, 1);
+                SW_ZVAL_STRINGL(task_notify_data, task_notify_data_str, task_notify_data_len, 1);
             }
             
             RETURN_ZVAL(task_notify_data, 0, 0);
