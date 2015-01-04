@@ -1308,7 +1308,7 @@ PHP_METHOD(swoole_client, connect)
 	}
 	else if (ret < 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "connect to server[%s:%d] failed. Error: %s [%d]", host, (int)port, strerror(errno), errno);
+	    swoole_php_error(E_WARNING, "connect to server[%s:%d] failed. Error: %s [%d]", host, (int)port, strerror(errno), errno);
 		zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errno TSRMLS_CC);
 		RETURN_FALSE;
 	}
@@ -1327,6 +1327,7 @@ PHP_METHOD(swoole_client, send)
 	{
 		return;
 	}
+
 	if (data_len <= 0)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: data empty.");
@@ -1339,7 +1340,7 @@ PHP_METHOD(swoole_client, send)
 	}
 	else
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "object is not instanceof swoole_client.");
+	    php_error_docref(NULL TSRMLS_CC, E_WARNING, "object is not instanceof swoole_client.");
 		RETURN_FALSE;
 	}
 
@@ -1356,7 +1357,7 @@ PHP_METHOD(swoole_client, send)
     if (ret < 0)
 	{
     	SwooleG.error = errno;
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "send() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
+    	swoole_php_error(E_WARNING, "send() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
 		zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1,  SwooleG.error TSRMLS_CC);
 		RETVAL_FALSE;
 	}
@@ -1450,7 +1451,7 @@ PHP_METHOD(swoole_client, recv)
 	if (ret < 0)
 	{
 		SwooleG.error = errno;
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "recv() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
+		swoole_php_error(E_WARNING, "recv() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
 		zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
 		efree(buf);
 		RETURN_FALSE;

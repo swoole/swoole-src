@@ -40,7 +40,7 @@
 #include "include/Client.h"
 #include "include/async.h"
 
-#define PHP_SWOOLE_VERSION  "1.7.9-rc3"
+#define PHP_SWOOLE_VERSION  "1.7.9-rc4"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -108,6 +108,8 @@ extern void ***sw_thread_ctx;
     php_error_docref(NULL TSRMLS_CC, E_WARNING, "Not have process");\
     RETURN_FALSE;}\
     ZEND_FETCH_RESOURCE(process, swWorker *, zprocess, -1, SW_RES_PROCESS_NAME, le_swoole_process);
+
+#define swoole_php_error(level, fmt_str, ...)   if (SWOOLE_G(display_errors)) php_error_docref(NULL TSRMLS_CC, level, fmt_str, ##__VA_ARGS__)
 
 #ifdef SW_ASYNC_MYSQL
 #if defined(SW_HAVE_MYSQLI) && defined(SW_HAVE_MYSQLND)
