@@ -218,11 +218,9 @@ static int swClient_close(swClient *cli)
     }
     else
     {
+        bzero(cli->socket, sizeof(swConnection));
         ret = close(fd);
     }
-
-    cli->socket->fd = 0;
-    cli->socket->active = 0;
 
     if (cli->type == SW_SOCK_UNIX_DGRAM)
     {

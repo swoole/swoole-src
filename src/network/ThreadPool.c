@@ -77,15 +77,16 @@ int swThreadPool_dispatch(swThreadPool *pool, void *task, int task_len)
             break;
         }
     }
+
     pthread_mutex_unlock(&(pool->mutex));
 
     if (ret < 0)
     {
-        pool->task_num++;
+        return SW_ERR;
     }
     else
     {
-        return SW_ERR;
+        pool->task_num++;
     }
     return pthread_cond_signal(&(pool->cond));
 }
@@ -181,10 +182,11 @@ static void* swThreadPool_loop(void *arg)
         ret = swRingQueue_pop(&pool->queue, &task);
 #endif
         pthread_mutex_unlock(&(pool->mutex));
+
         if (ret >= 0)
         {
-            pool->onTask(pool, (void *) task, ret);
             pool->task_num--;
+            pool->onTask(pool, (void *) task, ret);
         }
     }
 

@@ -318,12 +318,14 @@ static int swAioBase_read(int fd, void *inbuf, size_t size, off_t offset)
         swWarn("malloc failed.");
         return SW_ERR;
     }
+
     bzero(aio_ev, sizeof(swAio_event));
     aio_ev->fd = fd;
     aio_ev->buf = inbuf;
     aio_ev->type = SW_AIO_READ;
     aio_ev->nbytes = size;
     aio_ev->offset = offset;
+
     if (swThreadPool_dispatch(&swAioBase_thread_pool, aio_ev, sizeof(aio_ev)) < 0)
     {
         return SW_ERR;

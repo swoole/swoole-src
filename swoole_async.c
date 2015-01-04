@@ -39,7 +39,6 @@ typedef struct
 static void php_swoole_check_aio();
 static void php_swoole_aio_onComplete(swAio_event *event);
 
-static char php_swoole_aio_init = 0;
 static swHashMap *php_swoole_open_files;
 
 void swoole_async_init(int module_number TSRMLS_DC)
@@ -59,16 +58,13 @@ void swoole_async_init(int module_number TSRMLS_DC)
 
 static void php_swoole_check_aio()
 {
-	if (php_swoole_aio_init == 0)
-	{
-		php_swoole_check_reactor();
-
-		swAio_init();
-
-		SwooleAIO.callback = php_swoole_aio_onComplete;
-		php_swoole_try_run_reactor();
-		php_swoole_aio_init = 1;
-	}
+    if (SwooleAIO.init == 0)
+    {
+        php_swoole_check_reactor();
+        swAio_init();
+        SwooleAIO.callback = php_swoole_aio_onComplete;
+        php_swoole_try_run_reactor();
+    }
 }
 
 static void php_swoole_aio_onComplete(swAio_event *event)
@@ -692,14 +688,14 @@ PHP_FUNCTION(swoole_async_dns_lookup)
 	Z_ADDREF_PP(&req->domain);
 
 	int buf_size;
-	if(Z_STRLEN_P(domain) < SW_IP_MAX_LENGTH)
-	{
-		buf_size = SW_IP_MAX_LENGTH+1;
-	}
-	else
-	{
-		buf_size = Z_STRLEN_P(domain)+1;
-	}
+    if (Z_STRLEN_P(domain) < SW_IP_MAX_LENGTH)
+    {
+        buf_size = SW_IP_MAX_LENGTH + 1;
+    }
+    else
+    {
+        buf_size = Z_STRLEN_P(domain) + 1;
+    }
 	void *buf = emalloc(buf_size);
 	bzero(buf, buf_size);
 	memcpy(buf, Z_STRVAL_P(domain), Z_STRLEN_P(domain));
