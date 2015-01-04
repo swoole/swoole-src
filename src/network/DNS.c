@@ -91,7 +91,7 @@ static int swDNSResolver_get_servers(swDNS_server *dns_server);
 static int swDNSResolver_get_servers(swDNS_server *dns_server)
 {
     FILE *fp;
-    uchar line[100];
+    char line[100];
     swoole_dns_server_num = 0;
 
     if ((fp = fopen(SW_DNS_SERVER_CONF, "rt")) == NULL)
@@ -307,7 +307,7 @@ int swDNSResolver_request(char *domain, void (*callback)(void *addrs))
         cli->close(cli);
         return SW_ERR;
     }
-    if (SwooleG.main_reactor->add(SwooleG.main_reactor, cli->connection.fd, SW_FD_DNS_RESOLVER))
+    if (SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, SW_FD_DNS_RESOLVER))
     {
         cli->close(cli);
         return SW_ERR;
@@ -326,9 +326,11 @@ static void swDNSResolver_domain_encode(uchar *src, uchar *dest)
 {
     int pos = 0;
     int len = 0;
+    int n = strlen(src);
     int i;
     strcat(src, ".");
-    for (i = 0; i < (int) strlen(src); ++i)
+
+    for (i = 0; i < n; ++i)
     {
         if (src[i] == '.')
         {
