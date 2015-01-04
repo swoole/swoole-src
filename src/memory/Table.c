@@ -196,7 +196,11 @@ void swTable_free(swTable *table)
 
 static sw_inline swTableRow* swTable_hash(swTable *table, char *key, int keylen)
 {
+#ifdef SW_TABLE_USE_PHP_HASH
+    uint64_t hashv = swoole_hash_php(key, keylen);
+#else
     uint64_t hashv = swoole_hash_austin(key, keylen);
+#endif
     uint32_t index = hashv & (table->size - 1);
     assert(index < table->size);
     return table->rows[index];

@@ -160,6 +160,7 @@
 
 #define SW_TABLE_CONFLICT_PROPORTION     0.2 //20%
 #define SW_TABLE_COMPRESS_PROPORTION     0.5 //50% skip, will compress the row list
+#define SW_TABLE_USE_PHP_HASH
 
 #define SW_SSL_BUFSIZE  16384
 
