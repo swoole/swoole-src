@@ -23,7 +23,7 @@ class ReconnectClient
         });
         $client->on("error", [$this, 'onError']);
         $client->on("close", [$this, 'onClose']);
-        $client->connect('127.0.0.1', 9501);
+        $client->connect($host, $port);
         $this->swoole_client = $client;
     }
 
