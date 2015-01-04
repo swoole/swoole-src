@@ -97,8 +97,6 @@ extern void ***sw_thread_ctx;
 #define SW_CHECK_RETURN(s)         if(s<0){RETURN_FALSE;}else{RETURN_TRUE;}return
 #define SW_LOCK_CHECK_RETURN(s)    if(s==0){RETURN_TRUE;}else{RETURN_FALSE;}return
 
-
-
 #define swoole_php_error(level, fmt_str, ...)   if (SWOOLE_G(display_errors)) php_error_docref(NULL TSRMLS_CC, level, fmt_str, ##__VA_ARGS__)
 #define swoole_php_fatal_error(level, fmt_str, ...)   php_error_docref(NULL TSRMLS_CC, level, fmt_str, ##__VA_ARGS__)
 
@@ -117,9 +115,11 @@ extern void ***sw_thread_ctx;
 #endif
 
 #if PHP_MAJOR_VERSION < 7
+
 typedef zend_rsrc_list_entry zend_resource;
 #define SW_RETURN_STRING                     RETURN_STRING
 #define sw_add_assoc_string                  add_assoc_string
+#define sw_zend_hash_find                    zend_hash_find
 #define SW_ZVAL_STRINGL                      ZVAL_STRINGL
 
 #define SWOOLE_GET_SERVER(zobject, serv) zval **zserv;\
@@ -137,20 +137,50 @@ typedef zend_rsrc_list_entry zend_resource;
 #else
 #define SW_RETURN_STRING(val, duplicate)     RETURN_STRING(val)
 #define sw_add_assoc_string(array, key, value, duplicate)   add_assoc_string(array, key, value)
+#define SW_ZVAL_STRINGL(z, s, l, dup)         ZVAL_STRINGL(z, s, l)
 
-#define SWOOLE_GET_SERVER(zobject, serv) zval *zserv = zend_hash_find(Z_OBJPROP_P(zobject), "_server");\
-    if (!zserv){ \
-    php_error_docref(NULL TSRMLS_CC, E_WARNING, "Not have swoole server");\
+static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
+{
+    char _key[128];
+    zend_string *key;
+
+    if (sizeof(zend_string) + len > sizeof(_key))
+    {
+        key = emalloc(sizeof(zend_string) + len);
+    }
+    else
+    {
+       key = _key;
+    }
+
+    key->len = len;
+    memcpy(key->val, k, len);
+    key->val[len] = 0;
+
+    zval *value = zend_hash_find(ht, key);
+
+    if (value == NULL)
+    {
+        return FAILURE;
+    }
+    else
+    {
+        *v = value;
+        return SUCCESS;
+    }
+}
+
+#define SWOOLE_GET_SERVER(zobject, serv) zval *zserv = zend_read_property(swoole_server_class_entry_ptr, zobject, SW_STRL("_server")-1, 0 TSRMLS_CC);\
+    if (!zserv || ZVAL_IS_NULL(zserv)){ \
+    php_error_docref(NULL TSRMLS_CC, E_WARNING, "Not have swoole_server");\
     RETURN_FALSE;}\
     ZEND_FETCH_RESOURCE(serv, swServer *, zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
 
-#define SWOOLE_GET_WORKER(zobject, process) zval *zprocess = zend_hash_find(Z_OBJPROP_P(zobject), "_process");\
-    if (!zprocess){ \
+#define SWOOLE_GET_WORKER(zobject, process) zval *zprocess = zend_read_property(swoole_process_class_entry_ptr, zobject, SW_STRL("_server")-1, 0 TSRMLS_CC);\
+    if (!zprocess || ZVAL_IS_NULL(zprocess)){ \
     php_error_docref(NULL TSRMLS_CC, E_WARNING, "Not have process");\
     RETURN_FALSE;}\
     ZEND_FETCH_RESOURCE(process, swWorker *, zprocess, -1, SW_RES_PROCESS_NAME, le_swoole_process);
-
-#define SW_ZVAL_STRINGL(z, s, l, dup)         ZVAL_STRINGL(z, s, l)
 
 #endif
 
