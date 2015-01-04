@@ -148,7 +148,6 @@ swConnection* swReactor_get(swReactor *reactor, int fd)
     if (!socket->active)
     {
         socket->fd = fd;
-        socket->active = 1;
     }
     return socket;
 }

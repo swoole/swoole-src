@@ -348,7 +348,7 @@ static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event)
 
     if (cli->socket->active)
     {
-        swReactor_onWrite(SwooleG.main_reactor, event);
+        return swReactor_onWrite(SwooleG.main_reactor, event);
     }
 	else
 	{
