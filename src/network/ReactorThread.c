@@ -171,7 +171,6 @@ int swReactorThread_close(swReactor *reactor, int fd)
         struct linger linger;
         linger.l_onoff = 1;
         linger.l_linger = 0;
-
         if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) == -1)
         {
             swWarn("setsockopt(SO_LINGER) failed. Error: %s[%d]", strerror(errno), errno);
@@ -1004,6 +1003,9 @@ static int swReactorThread_onReceive_websocket(swReactor *reactor, swEvent *even
             do_parse_package:
             do
             {
+                tmp_package.offset = 0;
+                tmp_package.length = 0;
+                tmp_package.str = NULL;
                 ret = swWebSocket_decode_frame((char *)tmp_ptr, &tmp_package, tmp_n);
                 swTrace("weboscket frame decode ret: %d\n", ret);
                 //invalid package, close connection.
@@ -1026,9 +1028,6 @@ static int swReactorThread_onReceive_websocket(swReactor *reactor, swEvent *even
                         case WEBSOCKET_OPCODE_TEXT_FRAME:
                         case WEBSOCKET_OPCODE_BINARY_FRAME:
                             swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, &tmp_package);
-                            tmp_package.offset = 0;
-                            tmp_package.length = 0;
-                            tmp_package.str = NULL;
                             break;
                         case WEBSOCKET_OPCODE_PING:  //ping
                             if (tmp_package.str[0] == 0 || 0x7d < (tmp_package.length - 2))
@@ -1977,5 +1976,4 @@ void swReactorThread_free(swServer *serv)
         }
     }
 }
-
 
