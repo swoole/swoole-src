@@ -1021,11 +1021,15 @@ static int swReactorThread_onReceive_websocket(swReactor *reactor, swEvent *even
 //                    swoole_dump_bin(buffer.str, 's', buffer.length);
 //                    swTrace("send data %s", tmp_package.str);
                     int opcode = tmp_package.str[1];
+                            char tmpsend[100];
+                            bzero(&tmpsend, sizeof(tmpsend));
                     switch (opcode)
                     {
                         case WEBSOCKET_OPCODE_CONTINUATION_FRAME:
                         case WEBSOCKET_OPCODE_TEXT_FRAME:
                         case WEBSOCKET_OPCODE_BINARY_FRAME:
+                            memcpy(tmpsend, tmp_package.str+2, (tmp_package.length-2));
+                            swTrace("send data %s\n", &tmpsend);
                             swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, &tmp_package);
                             tmp_package.offset = 0;
                             tmp_package.length = 0;
@@ -1080,6 +1084,7 @@ static int swReactorThread_onReceive_websocket(swReactor *reactor, swEvent *even
                     {
                         return SW_ERR;
                     }
+                    swTrace("waite more:%d\n", tmp_n);
                     memcpy(package->str, (void *) tmp_ptr, (uint32_t) tmp_n);
                     package->length += tmp_n;
                     conn->object = (void *) package;
@@ -1115,8 +1120,54 @@ static int swReactorThread_onReceive_websocket(swReactor *reactor, swEvent *even
                 package->length += require_n;
 
                 //send buffer to worker pipe
-                swReactorThread_send_string_buffer(swServer_get_thread(serv, reactor->id), conn, package);
+                //swReactorThread_send_string_buffer(swServer_get_thread(serv, reactor->id), conn, package);
 
+                ret = swWebSocket_decode_frame(package->str, &tmp_package, package->length);
+                if(ret < 0)
+                {
+                    goto close_fd;
+                }
+                int opcode = tmp_package.str[1];
+                switch (opcode)
+                {
+                    case WEBSOCKET_OPCODE_CONTINUATION_FRAME:
+                    case WEBSOCKET_OPCODE_TEXT_FRAME:
+                    case WEBSOCKET_OPCODE_BINARY_FRAME:
+                        swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, &tmp_package);
+                        tmp_package.offset = 0;
+                        tmp_package.length = 0;
+                        tmp_package.str = NULL;
+                        break;
+                    case WEBSOCKET_OPCODE_PING:  //ping
+                        if (tmp_package.str[0] == 0 || 0x7d < (tmp_package.length - 2))
+                        {
+                            goto close_fd;
+                            return SW_ERR;
+                        }
+                        tmp_package.str[0] = FRAME_SET_FIN(1) | FRAME_SET_OPCODE(opcode);
+                        send(conn->fd, tmp_package.str, tmp_package.length, 0);
+                        break;
+                    case WEBSOCKET_OPCODE_PONG:  //pong
+                        if (tmp_package.str[0] == 0 == 0)
+                        {
+                            goto close_fd;
+                            return SW_ERR;
+                        }
+                        break;
+                    case WEBSOCKET_OPCODE_CONNECTION_CLOSE:
+                        swTrace("fd: %d close, opcode:%d, lenght: %d\n", conn->fd, opcode, tmp_package.length);
+                        if (0x7d < (tmp_package.length - 2))
+                        {
+                            swTrace("close error\n");
+                            return SW_ERR;
+                        }
+                        tmp_package.str[0]  = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_NORMAL, 1);
+                        tmp_package.str[1]  = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_NORMAL, 0);
+                        tmp_package.length = 2;
+                        send(conn->fd, tmp_package.str, 2, 0);
+                        return SW_OK;
+                        break;
+                }
                 //free the buffer memory
                 swString_free((swString *) package);
                 conn->object = NULL;
