@@ -22,7 +22,6 @@ static uint64_t ntoh64(uint64_t network);
 
 //static void swWebSocket_print_frame(swWebSocket_frame *frm);
 static void swWebSocket_unmask(char *masks, swHttpRequest *request);
-static void swWebSocket_unmask_frame(char *masks, int offset, int length, char *buf);
 swString *swWebSocket_encode(swString *data, char opcode, int fin)
 {
     swString *buf = swString_new(data->length + 16);
@@ -174,7 +173,7 @@ int swWebSocket_decode(swHttpRequest *request)
         }
     }
 
-    swTrace("offset: %d\n", request->buffer->offset);
+    //swTrace("offset: %d\n", request->buffer->offset);
     request->buffer->offset--;
     request->buffer->str[request->buffer->offset] = opcode;
     request->buffer->offset--;
@@ -183,7 +182,7 @@ int swWebSocket_decode(swHttpRequest *request)
     request->buffer->str += request->buffer->offset;
     request->header_length += (request->content_length + request->buffer->offset);
 
-    swTrace("decode end %d %d %d====\n", request->buffer->offset, opcode, fin);
+    //swTrace("decode end %d %d %d====\n", request->buffer->offset, opcode, fin);
 
     return SW_OK;
 }
@@ -248,7 +247,7 @@ int swWebSocket_decode_frame(char *buf, swString *str, int n)
         str->size = str->length + offset;
 
         if(str->size > n) {
-            swTrace("frame length: %d offset: %d\n", str->length, offset);
+            //swTrace("frame length: %d offset: %d\n", str->length, offset);
             return SW_OK;
         }
 
@@ -268,12 +267,12 @@ int swWebSocket_decode_frame(char *buf, swString *str, int n)
         str->size = str->length + offset;
 
         if(str->size > n) {
-            swTrace("frame length: %d offset: %d\n", str->length, offset);
+            //swTrace("frame length: %d offset: %d\n", str->length, offset);
             return SW_OK;
         }
     }
 
-    swTrace("offset: %d lenght:%d opcode: %d, fin: %d\n", offset, str->length, opcode, fin);
+    //swTrace("offset: %d lenght:%d opcode: %d, fin: %d\n", offset, str->length, opcode, fin);
     offset--;
     buf[offset] = opcode;
     offset--;
@@ -286,16 +285,6 @@ int swWebSocket_decode_frame(char *buf, swString *str, int n)
     return SW_OK;
 }
 
-static void swWebSocket_unmask_frame(char *masks, int offset, int length, char *buf)
-{
-    int i;
-    for (i = 0; i < length; i++)
-    {
-                        swTrace("unmask i:%d %c\n", i, buf[i]);
-        buf[i + offset] ^= masks[i % SW_WEBSOCKET_MASK_LEN];
-                        swTrace("unmask i:%d %c\n", i, buf[i]);
-    }
-}
 
 static void swWebSocket_unmask(char *masks, swHttpRequest *request)
 {
