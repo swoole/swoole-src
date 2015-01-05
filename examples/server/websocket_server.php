@@ -34,7 +34,7 @@ $http->on('handshake', function($request, $response) {  //自定定握手规则�
 });
 */
 
-$http->on('message', function($response){
+$http->on('message', function(swoole_http_wsresponse $response){
     //var_dump($response);
     //echo "fd:".$response->fd . "fin:".$response->fin . "opcode:".$response->opcode
     $response->message("server send:".$response->data);

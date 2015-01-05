@@ -22,37 +22,39 @@ static uint64_t ntoh64(uint64_t network);
 
 //static void swWebSocket_print_frame(swWebSocket_frame *frm);
 static void swWebSocket_unmask(char *masks, swHttpRequest *request);
-swString *swWebSocket_encode(swString *data, char opcode, int fin)
+swString swWebSocket_encode(swString *data, char opcode, int fin)
 {
-    swString *buf = swString_new(data->length + 16);
+    swString buf;
+    char str[data->lstrength + 16];
+    buf.str = str;
     int pos = 0;
-    buf->str[pos++] = FRAME_SET_FIN(fin) | FRAME_SET_OPCODE(opcode);
+    buf.str[pos++] = FRAME_SET_FIN(fin) | FRAME_SET_OPCODE(opcode);
     if (data->length < 126)
     {
-        buf->str[pos++] =
+        buf.str[pos++] =
                 FRAME_SET_MASK(0) | FRAME_SET_LENGTH(data->length, 0);
     }
     else
     {
         if (data->length < 65536)
         {
-            buf->str[pos++] = FRAME_SET_MASK(0) | 126;
+            buf.str[pos++] = FRAME_SET_MASK(0) | 126;
         }
         else
         {
-            buf->str[pos++] = FRAME_SET_MASK(0) | 127;
-            buf->str[pos++] = FRAME_SET_LENGTH(data->length, 7);
-            buf->str[pos++] = FRAME_SET_LENGTH(data->length, 6);
-            buf->str[pos++] = FRAME_SET_LENGTH(data->length, 5);
-            buf->str[pos++] = FRAME_SET_LENGTH(data->length, 4);
-            buf->str[pos++] = FRAME_SET_LENGTH(data->length, 3);
-            buf->str[pos++] = FRAME_SET_LENGTH(data->length, 2);
+            buf.str[pos++] = FRAME_SET_MASK(0) | 127;
+            buf.str[pos++] = FRAME_SET_LENGTH(data->length, 7);
+            buf.str[pos++] = FRAME_SET_LENGTH(data->length, 6);
+            buf.str[pos++] = FRAME_SET_LENGTH(data->length, 5);
+            buf.str[pos++] = FRAME_SET_LENGTH(data->length, 4);
+            buf.str[pos++] = FRAME_SET_LENGTH(data->length, 3);
+            buf.str[pos++] = FRAME_SET_LENGTH(data->length, 2);
         }
-        buf->str[pos++] = FRAME_SET_LENGTH(data->length, 1);
-        buf->str[pos++] = FRAME_SET_LENGTH(data->length, 0);
+        buf.str[pos++] = FRAME_SET_LENGTH(data->length, 1);
+        buf.str[pos++] = FRAME_SET_LENGTH(data->length, 0);
     }
-    buf->length = pos;
-    swString_append(buf, data);
+    buf.length = pos;
+    swString_append(&buf, data);
     return buf;
 }
 

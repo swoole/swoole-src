@@ -1623,7 +1623,7 @@ PHP_METHOD(swoole_http_wsresponse, message)
     swString data;
     data.length = 0;
     long fd = 0;
-    long opcode = 0;
+    long opcode = WEBSOCKET_OPCODE_TEXT_FRAME;
     long fin = 1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|lll", &data.str, &data.length, &fd, &opcode, &fin) == FAILURE)
@@ -1642,18 +1642,25 @@ PHP_METHOD(swoole_http_wsresponse, message)
         fd = Z_LVAL_P(zfd);
     }
 
-    char _opcode = WEBSOCKET_OPCODE_TEXT_FRAME;
-    switch(opcode) {
-        case 2:
-            _opcode = WEBSOCKET_OPCODE_BINARY_FRAME;
-            break;
+//    char _opcode = WEBSOCKET_OPCODE_TEXT_FRAME;
+//    switch(opcode) {
+//        case 2:
+//            _opcode = WEBSOCKET_OPCODE_BINARY_FRAME;
+//            break;
+//    }
+
+
+    if (opcode > WEBSOCKET_OPCODE_PONG)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "opcode max 10");
+        RETURN_FALSE;
     }
 
     //swTrace("need send:%s len:%zd\n", data.str, data.length);
-    swString *response = swWebSocket_encode(&data, _opcode, (int) fin);
-    int ret = swServer_tcp_send(SwooleG.serv, fd, response->str, response->length);
+    swString response = swWebSocket_encode(&data, opcode, (int) fin);
+    int ret = swServer_tcp_send(SwooleG.serv, fd, response.str, response.ength);
     //swTrace("need send:%s len:%zd\n", response->str, response->length);
-    swString_free(response);
+//    swString_free(response);
     SW_CHECK_RETURN(ret);
 }
 
