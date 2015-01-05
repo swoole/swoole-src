@@ -1021,15 +1021,11 @@ static int swReactorThread_onReceive_websocket(swReactor *reactor, swEvent *even
 //                    swoole_dump_bin(buffer.str, 's', buffer.length);
 //                    swTrace("send data %s", tmp_package.str);
                     int opcode = tmp_package.str[1];
-                            char tmpsend[100];
-                            bzero(&tmpsend, sizeof(tmpsend));
                     switch (opcode)
                     {
                         case WEBSOCKET_OPCODE_CONTINUATION_FRAME:
                         case WEBSOCKET_OPCODE_TEXT_FRAME:
                         case WEBSOCKET_OPCODE_BINARY_FRAME:
-                            memcpy(tmpsend, tmp_package.str+2, (tmp_package.length-2));
-                            swTrace("send data %s\n", &tmpsend);
                             swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, &tmp_package);
                             tmp_package.offset = 0;
                             tmp_package.length = 0;
