@@ -15,20 +15,20 @@ $prot = 9501;
 $client = new Common\WebSocketClient($host, $prot);
 $data = $client->connect();
 //echo $data;
-$data = "";
+$data = "data";
 if(!empty($size)) {
     $data = str_repeat("A", $size * 1024);
 }
 for($i=0;$i<$count;$i++) {
     $client->send("hello swoole, number:".$i." data:".$data);
     $recvData = "";
-    while(1) {
+    //while(1) {
         $tmp = $client->recv();
         if(empty($tmp)) {
             break;
         }
         $recvData .=$tmp;
-    }
+    //}
     echo $recvData. "size:" .strlen($recvData).PHP_EOL;
 }
 echo PHP_EOL."======".PHP_EOL;

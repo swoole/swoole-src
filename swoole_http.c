@@ -1656,11 +1656,11 @@ PHP_METHOD(swoole_http_wsresponse, message)
         RETURN_FALSE;
     }
 
-    //swTrace("need send:%s len:%zd\n", data.str, data.length);
-    swString response = swWebSocket_encode(&data, opcode, (int) fin);
-    int ret = swServer_tcp_send(SwooleG.serv, fd, response.str, response.length);
-    //swTrace("need send:%s len:%zd\n", response->str, response->length);
-//    swString_free(response);
+    swTrace("need send:%s len:%zd\n", data.str, data.length);
+    swString *response = swWebSocket_encode(&data, opcode, (int) fin);
+    int ret = swServer_tcp_send(SwooleG.serv, fd, response->str, response->length);
+    swTrace("need send:%s len:%zd\n", response->str, response->length);
+    //swString_free(response);
     SW_CHECK_RETURN(ret);
 }
 
