@@ -25,7 +25,8 @@ static void swWebSocket_unmask(char *masks, swHttpRequest *request);
 swString swWebSocket_encode(swString *data, char opcode, int fin)
 {
     swString buf;
-    char str[data->lstrength + 16];
+    char str[data->length + 16];
+    bzero(&str, sizeof(str));
     buf.str = str;
     int pos = 0;
     buf.str[pos++] = FRAME_SET_FIN(fin) | FRAME_SET_OPCODE(opcode);
