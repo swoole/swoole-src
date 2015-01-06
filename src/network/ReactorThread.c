@@ -287,15 +287,8 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
     int ret = -1;
     swWorker *worker = &(serv->workers[target_worker_id]);
 
-    if (serv->ipc_mode == SW_IPC_MSGQUEUE)
-    {
-        swQueue_data in_data;
-        in_data.mtype = target_worker_id + 1;
-        memcpy(in_data.mdata, data, len);
-        ret = serv->read_queue.in(&serv->read_queue, &in_data, len);
-    }
     //reactor thread
-    else if (SwooleTG.type == SW_THREAD_REACTOR)
+    if (SwooleTG.type == SW_THREAD_REACTOR)
     {
         int pipe_fd = worker->pipe_master;
         swBuffer *buffer = *(swBuffer **) swArray_fetch(thread->buffer_pipe, worker->pipe_master);
@@ -1400,21 +1393,21 @@ int swReactorThread_create(swServer *serv)
     //create factry object
     if (serv->factory_mode == SW_MODE_THREAD)
     {
-        if (serv->writer_num < 1)
+        if (serv->worker_num < 1)
         {
             swError("Fatal Error: serv->writer_num < 1");
             return SW_ERR;
         }
-        ret = swFactoryThread_create(&(serv->factory), serv->writer_num);
+        ret = swFactoryThread_create(&(serv->factory), serv->worker_num);
     }
     else if (serv->factory_mode == SW_MODE_PROCESS)
     {
-        if (serv->writer_num < 1 || serv->worker_num < 1)
+        if (serv->worker_num < 1)
         {
             swError("Fatal Error: serv->writer_num < 1 or serv->worker_num < 1");
             return SW_ERR;
         }
-        ret = swFactoryProcess_create(&(serv->factory), serv->writer_num, serv->worker_num);
+        ret = swFactoryProcess_create(&(serv->factory), serv->worker_num);
     }
     else
     {
@@ -1543,35 +1536,32 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_WRITE, swReactorThread_onWrite);
 
     int i = 0, pipe_fd;
-    if (serv->ipc_mode != SW_IPC_MSGQUEUE)
-    {
-        thread->buffer_pipe = swArray_new(serv->workers[serv->worker_num - 1].pipe_master + 1, sizeof(void*), 0);
+    thread->buffer_pipe = swArray_new(serv->workers[serv->worker_num - 1].pipe_master + 1, sizeof(void*), 0);
 
-        for (i = 0; i < serv->worker_num; i++)
+    for (i = 0; i < serv->worker_num; i++)
+    {
+        pipe_fd = serv->workers[i].pipe_master;
+        //for request
+        swBuffer *buffer = swBuffer_new(sizeof(swEventData));
+        if (!buffer)
         {
-            pipe_fd = serv->workers[i].pipe_master;
-            //for request
-            swBuffer *buffer = swBuffer_new(sizeof(swEventData));
-            if (!buffer)
-            {
-                swWarn("create buffer failed.");
-                break;
-            }
-            if (swArray_store(thread->buffer_pipe, pipe_fd, &buffer) < 0)
-            {
-                swWarn("create buffer failed.");
-                break;
-            }
-            //for response
-            if (i % serv->reactor_num == reactor_id)
-            {
-                swSetNonBlock(pipe_fd);
-                reactor->add(reactor, pipe_fd, SW_FD_PIPE);
-                /**
-                * mapping reactor_id and worker pipe
-                */
-                serv->connection_list[pipe_fd].from_id = reactor_id;
-            }
+            swWarn("create buffer failed.");
+            break;
+        }
+        if (swArray_store(thread->buffer_pipe, pipe_fd, &buffer) < 0)
+        {
+            swWarn("create buffer failed.");
+            break;
+        }
+        //for response
+        if (i % serv->reactor_num == reactor_id)
+        {
+            swSetNonBlock(pipe_fd);
+            reactor->add(reactor, pipe_fd, SW_FD_PIPE);
+            /**
+             * mapping reactor_id and worker pipe
+             */
+            serv->connection_list[pipe_fd].from_id = reactor_id;
         }
     }
 
@@ -1596,16 +1586,13 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     //main loop
     reactor->wait(reactor, NULL);
     //shutdown
-    if (serv->ipc_mode != SW_IPC_MSGQUEUE)
+    for (i = 0; i < serv->worker_num; i++)
     {
-        for (i = 0; i < serv->worker_num; i++)
-        {
-            swWorker *worker = swServer_get_worker(serv, i);
-            swBuffer *buffer = *(swBuffer **) swArray_fetch(thread->buffer_pipe, worker->pipe_master);
-            swBuffer_free(buffer);
-        }
-        swArray_free(thread->buffer_pipe);
+        swWorker *worker = swServer_get_worker(serv, i);
+        swBuffer *buffer = *(swBuffer **) swArray_fetch(thread->buffer_pipe, worker->pipe_master);
+        swBuffer_free(buffer);
     }
+    swArray_free(thread->buffer_pipe);
     reactor->free(reactor);
     pthread_exit(0);
     return SW_OK;

@@ -200,10 +200,6 @@ static int swServer_start_check(swServer *serv)
 	{
 		serv->reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU;
 	}
-	if (serv->writer_num > SW_CPU_NUM * SW_MAX_THREAD_NCPU)
-	{
-		serv->writer_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU;
-	}
 	if (serv->worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU)
 	{
 		swWarn("serv->worker_num > %d, Too many processes, the system will be slow", SW_CPU_NUM * SW_MAX_WORKER_NCPU);
@@ -212,10 +208,6 @@ static int swServer_start_check(swServer *serv)
     if (serv->worker_num < serv->reactor_num)
     {
         serv->reactor_num = serv->worker_num;
-    }
-    if (serv->worker_num < serv->writer_num)
-    {
-        serv->writer_num = serv->worker_num;
     }
     if (SwooleG.max_sockets > 0 && serv->max_connection > SwooleG.max_sockets)
     {
@@ -366,13 +358,6 @@ int swServer_start(swServer *serv)
         serv->message_queue_key = ftok(path_ptr, 1);
     }
 
-    if (serv->ipc_mode == SW_IPC_MSGQUEUE)
-    {
-        SwooleG.use_timerfd = 0;
-        SwooleG.use_signalfd = 0;
-        SwooleG.use_timer_pipe = 0;
-    }
-
 #ifdef SW_USE_OPENSSL
     if (serv->open_ssl)
     {
@@ -455,15 +440,7 @@ int swServer_start(swServer *serv)
      */
     SwooleGS->event_workers.workers = serv->workers;
     SwooleGS->event_workers.worker_num = serv->worker_num;
-
-    if (serv->ipc_mode == SW_IPC_MSGQUEUE)
-    {
-        SwooleGS->event_workers.use_msgqueue = 1;
-    }
-    else
-    {
-        SwooleGS->event_workers.use_msgqueue = 0;
-    }
+    SwooleGS->event_workers.use_msgqueue = 0;
 
     int i;
     for (i = 0; i < serv->worker_num; i++)
@@ -537,14 +514,12 @@ void swServer_init(swServer *serv)
 	serv->reactor_num = SW_REACTOR_NUM;
 	serv->reactor_ringbuffer_size = SW_REACTOR_RINGBUFFER_SIZE;
 
-	serv->ipc_mode = SW_IPC_UNSOCK;
 	serv->dispatch_mode = SW_DISPATCH_FDMOD;
 	serv->ringbuffer_size = SW_QUEUE_SIZE;
 
 	serv->timeout_sec = SW_REACTOR_TIMEO_SEC;
 	serv->timeout_usec = SW_REACTOR_TIMEO_USEC; //300ms;
 
-	serv->writer_num = SW_CPU_NUM;
 	serv->worker_num = SW_CPU_NUM;
 	serv->max_connection = SwooleG.max_sockets;
 

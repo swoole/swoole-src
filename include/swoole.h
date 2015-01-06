@@ -1006,7 +1006,6 @@ struct _swWorker
 	int pipe_worker;
 
 	int pipe;
-	int reactor_id;
 	void *ptr;
 	void *ptr2;
 };

@@ -1044,16 +1044,6 @@ PHP_FUNCTION(swoole_server_set)
             serv->reactor_num = SwooleG.cpu_num;
         }
     }
-    //writer_num
-    if (sw_zend_hash_find(vht, ZEND_STRS("writer_num"), (void **)&v) == SUCCESS)
-    {
-        convert_to_long(*v);
-        serv->writer_num = (int)Z_LVAL_PP(v);
-        if (serv->writer_num <= 0)
-        {
-            serv->writer_num = SwooleG.cpu_num;
-        }
-    }
     //worker_num
     if (sw_zend_hash_find(vht, ZEND_STRS("worker_num"), (void **) &v) == SUCCESS)
     {
@@ -1332,12 +1322,6 @@ PHP_FUNCTION(swoole_server_set)
     {
         convert_to_long(*v);
         serv->buffer_output_size = (int) Z_LVAL_PP(v);
-    }
-    //ipc mode
-    if (sw_zend_hash_find(vht, ZEND_STRS("ipc_mode"), (void **) &v) == SUCCESS)
-    {
-        convert_to_long(*v);
-        serv->ipc_mode = (int) Z_LVAL_PP(v);
     }
     //message queue key
     if (sw_zend_hash_find(vht, ZEND_STRS("message_queue_key"), (void **) &v) == SUCCESS)

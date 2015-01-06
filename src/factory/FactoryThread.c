@@ -17,6 +17,17 @@
 #include "swoole.h"
 #include "Server.h"
 
+typedef struct _swWorkerThread
+{
+    pthread_t ptid;  //线程ID
+    int pipe_num;  //writer thread's pipe num
+    int *pipes;  //worker pipes
+    int c_pipe;  //current pipe
+    swReactor reactor;
+    swShareMemory shm;  //共享内存
+    swPipe evfd;  //eventfd
+} swWorkerThread;
+
 typedef struct _swFactoryThread
 {
     int worker_num;
