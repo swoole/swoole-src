@@ -120,7 +120,7 @@ static void* swFixedPool_alloc(swMemoryPool *pool, uint32_t size)
     if (slice->lock == 0)
     {
         slice->lock = 1;
-        object->slice_use += 1;
+        object->slice_use ++;
         /**
          * move next slice to head (idle list)
          */
@@ -151,8 +151,10 @@ static void swFixedPool_free(swMemoryPool *pool, void *ptr)
     assert(ptr > object->memory && ptr < object->memory + object->size);
 
     slice = ptr - sizeof(swFixedPool_slice);
-    if (slice->lock) {
-        object->slice_use -= 1;
+
+    if (slice->lock)
+    {
+        object->slice_use--;
     }
 
     slice->lock = 0;

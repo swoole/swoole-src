@@ -223,6 +223,7 @@
 					<file role="src" name="ThreadPool.c" />
 					<file role="src" name="Worker.c" />
 					<file role="src" name="EventTimer.c" />
+					<file role="src" name="DNS.c" />
 				</dir>
 				<dir name="os">
 					<file role="src" name="base.c" />
