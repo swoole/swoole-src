@@ -119,6 +119,11 @@ void swReactorEpoll_free(swReactor *reactor)
 
 int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
 {
+    if (swReactor_add(reactor, fd, fdtype) < 0)
+    {
+        return SW_ERR;
+    }
+
     swReactorEpoll *object = reactor->object;
     struct epoll_event e;
     swFd fd_;
@@ -134,10 +139,6 @@ int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
     if (ret < 0)
     {
         swSysError("add events[fd=%d#%d, type=%d, events=%d] failed.", fd, reactor->id, fd_.fdtype, e.events);
-        return SW_ERR;
-    }
-    if (swReactor_add(reactor, fd, fdtype) < 0)
-    {
         return SW_ERR;
     }
     swTraceLog(SW_TRACE_EVENT, "add event[reactor_id=%d|fd=%d]", reactor->id, fd);

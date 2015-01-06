@@ -81,6 +81,11 @@ static void swReactorPoll_free(swReactor *reactor)
 
 static int swReactorPoll_add(swReactor *reactor, int fd, int fdtype)
 {
+    if (swReactor_add(reactor, fd, fdtype) < 0)
+    {
+        return SW_ERR;
+    }
+
     swReactorPoll *object = reactor->object;
     int cur = reactor->event_num;
     if (reactor->event_num == object->max_fd_num)
@@ -106,10 +111,6 @@ static int swReactorPoll_add(swReactor *reactor, int fd, int fdtype)
     if (swReactor_event_error(fdtype))
     {
         object->events[cur].events |= POLLHUP;
-    }
-    if (swReactor_add(reactor, fd, fdtype) < 0)
-    {
-        return SW_ERR;
     }
     reactor->event_num++;
     return SW_OK;

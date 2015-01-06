@@ -154,8 +154,9 @@ swConnection* swReactor_get(swReactor *reactor, int fd)
 
 int swReactor_add(swReactor *reactor, int fd, int fdtype)
 {
-    swConnection *socket = swReactor_get(reactor, fd);
+    assert (fd <= SwooleG.max_sockets);
 
+    swConnection *socket = swReactor_get(reactor, fd);
     socket->type = swReactor_fdtype(fdtype);
     socket->events = swReactor_events(fdtype);
     socket->removed = 0;
