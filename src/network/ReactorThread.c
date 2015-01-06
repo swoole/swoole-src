@@ -29,7 +29,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onClose(swReactor *reactor, swEvent *event);
 static int swReactorThread_send_string_buffer(swReactorThread *thread, swConnection *conn, swString *buffer);
 static int swReactorThread_send_in_buffer(swReactorThread *thread, swConnection *conn);
-static int swReactorThread_get_package_length(swServer *serv, void *data, uint32_t size);
+static int swReactorThread_get_package_length(swServer *serv, swConnection *conn, void *data, uint32_t size);
 
 #ifdef SW_USE_RINGBUFFER
 static sw_inline void* swReactorThread_alloc(swReactorThread *thread, uint32_t size)
@@ -743,7 +743,7 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 /**
 * return the package total length
 */
-static sw_inline int swReactorThread_get_package_length(swServer *serv, void *data, uint32_t size)
+static int swReactorThread_get_package_length(swServer *serv, swConnection *conn, void *data, uint32_t size)
 {
     uint16_t length_offset = serv->package_length_offset;
     uint32_t body_length;
@@ -818,7 +818,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
             do_parse_package:
             do
             {
-                package_total_length = swReactorThread_get_package_length(serv, (void *) tmp_ptr, (uint32_t) tmp_n);
+                package_total_length = serv->get_package_length(serv, conn, (void *) tmp_ptr, (uint32_t) tmp_n);
 
                 //invalid package, close connection.
                 if (package_total_length < 0)
@@ -1573,6 +1573,7 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     }
     else if (serv->open_length_check)
     {
+        serv->get_package_length = swReactorThread_get_package_length;
         reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_length);
     }
     else if (serv->open_http_protocol)

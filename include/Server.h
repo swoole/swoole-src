@@ -430,6 +430,8 @@ struct _swServer
     void (*onUserWorkerStart)(swServer *serv, swWorker *worker);
     int (*onTask)(swServer *serv, swEventData *data);
     int (*onFinish)(swServer *serv, swEventData *data);
+
+    int (*get_package_length)(swServer *serv, swConnection *conn, void *data, uint32_t length);
 };
 
 typedef struct _swSocketLocal
