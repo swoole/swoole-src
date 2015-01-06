@@ -29,13 +29,13 @@ HashTable php_sw_timer_callback;
 HashTable php_sw_client_callback;
 HashTable php_sw_aio_callback;
 
+ZEND_DECLARE_MODULE_GLOBALS(swoole)
+
 #ifdef ZTS
 void ***sw_thread_ctx;
 #endif
 
 extern sapi_module_struct sapi_module;
-
-ZEND_DECLARE_MODULE_GLOBALS(swoole)
 
 // arginfo server
 // *_oo : for object style
@@ -679,6 +679,13 @@ PHP_RINIT_FUNCTION(swoole)
 	zend_hash_init(&php_sw_aio_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
 	//running
     SwooleG.running = 1;
+
+#ifdef ZTS
+    if (sw_thread_ctx == NULL)
+    {
+        TSRMLS_SET_CTX(sw_thread_ctx);
+    }
+#endif
 
     if (strcasecmp("cli", sapi_module.name) == 0)
     {

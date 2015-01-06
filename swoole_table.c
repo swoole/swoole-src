@@ -179,13 +179,6 @@ PHP_METHOD(swoole_table, __construct)
         RETURN_FALSE;
     }
 
-#ifdef ZTS
-    if (sw_thread_ctx == NULL)
-    {
-        TSRMLS_SET_CTX(sw_thread_ctx);
-    }
-#endif
-
     swTable *table = swTable_new(table_size);
     zval *zres;
     MAKE_STD_ZVAL(zres);

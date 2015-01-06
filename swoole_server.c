@@ -939,14 +939,6 @@ PHP_FUNCTION(swoole_server_create)
     }
 
     swTrace("Create swoole_server host=%s, port=%d, mode=%d, type=%d", serv_host, (int) serv_port, serv->factory_mode, (int) sock_type);
-
-#ifdef ZTS
-    if (sw_thread_ctx == NULL)
-    {
-        TSRMLS_SET_CTX(sw_thread_ctx);
-    }
-#endif
-
     bzero(php_sw_callback, sizeof(zval*) * PHP_SERVER_CALLBACK_NUM);
 
     if (swServer_addListener(serv, sock_type, serv_host, serv_port) < 0)
@@ -1980,7 +1972,7 @@ PHP_FUNCTION(swoole_server_deltimer)
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: no timer.");
         RETURN_FALSE;
     }
-    SwooleG.timer.del(&SwooleG.timer, (int)interval);
+    SwooleG.timer.del(&SwooleG.timer, (int) interval, -1);
     RETURN_TRUE;
 }
 
@@ -2133,6 +2125,20 @@ PHP_FUNCTION(swoole_timer_after)
     if (need_reactor)
     {
         php_swoole_try_run_reactor();
+    }
+    RETURN_TRUE;
+}
+
+PHP_FUNCTION(swoole_timer_clearAfter)
+{
+    long id;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &id) == FAILURE)
+    {
+        return;
+    }
+    if (SwooleG.timer.del(&SwooleG.timer, -1, id) < 0)
+    {
+        RETURN_FALSE;
     }
     RETURN_TRUE;
 }

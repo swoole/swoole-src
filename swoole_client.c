@@ -886,8 +886,8 @@ PHP_FUNCTION(swoole_timer_del)
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "no timer.");
 		RETURN_FALSE;
 	}
-	SwooleG.timer.del(&SwooleG.timer, (int)interval);
-	RETURN_TRUE;
+    SwooleG.timer.del(&SwooleG.timer, (int) interval, -1);
+    RETURN_TRUE;
 }
 
 PHP_FUNCTION(swoole_event_add)
@@ -981,13 +981,6 @@ PHP_FUNCTION(swoole_event_write)
     {
         return;
     }
-
-#ifdef ZTS
-    if (sw_thread_ctx == NULL)
-    {
-        TSRMLS_SET_CTX(sw_thread_ctx);
-    }
-#endif
 
     if (len <= 0)
     {
@@ -1161,13 +1154,6 @@ PHP_METHOD(swoole_client, __construct)
         php_error_docref(NULL TSRMLS_CC, E_ERROR, "require socket type param.");
         RETURN_FALSE;
     }
-
-#ifdef ZTS
-    if (sw_thread_ctx == NULL)
-    {
-        TSRMLS_SET_CTX(sw_thread_ctx);
-    }
-#endif
 
     if (async == 1)
     {

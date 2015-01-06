@@ -41,13 +41,6 @@ PHP_METHOD(swoole_buffer, __construct)
 {
     long size = SW_STRING_BUFFER_DEFAULT;
 
-#ifdef ZTS
-    if (sw_thread_ctx == NULL)
-    {
-        TSRMLS_SET_CTX(sw_thread_ctx);
-    }
-#endif
-
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &size) == FAILURE)
     {
         RETURN_FALSE;
