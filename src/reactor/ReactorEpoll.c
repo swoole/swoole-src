@@ -119,8 +119,6 @@ void swReactorEpoll_free(swReactor *reactor)
 
 int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
 {
-    assert(fd > 0);
-
     swReactorEpoll *object = reactor->object;
     struct epoll_event e;
     swFd fd_;
