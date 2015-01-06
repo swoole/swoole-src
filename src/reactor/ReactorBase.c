@@ -158,6 +158,7 @@ int swReactor_add(swReactor *reactor, int fd, int fdtype)
 
     socket->type = swReactor_fdtype(fdtype);
     socket->events = swReactor_events(fdtype);
+    socket->removed = 0;
 
     swTraceLog(SW_TRACE_REACTOR, "fd=%d, type=%d, events=%d", fd, socket->type, socket->events);
 
@@ -167,6 +168,7 @@ int swReactor_add(swReactor *reactor, int fd, int fdtype)
 int swReactor_del(swReactor *reactor, int fd)
 {
     reactor->sockets[fd].events = 0;
+    reactor->sockets[fd].removed = 1;
     return SW_OK;
 }
 

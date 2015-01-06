@@ -220,10 +220,8 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
     {
         return SW_ERR;
     }
-
     if (reactor->del(reactor, fd) == 0)
     {
-        conn->removed = 1;
         return SwooleG.factory->notify(SwooleG.factory, &notify_ev);
     }
     else
@@ -610,10 +608,6 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
     {
         close_fd:
         swReactorThread_onClose(reactor, event);
-        /**
-        * skip EPOLLERR
-        */
-        event->fd = 0;
         return SW_OK;
     }
     else
@@ -697,10 +691,6 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
     {
         close_fd:
         swReactorThread_onClose(reactor, event);
-        /**
-        * skip EPOLLERR
-        */
-        event->fd = 0;
         return SW_OK;
     }
     else
@@ -818,10 +808,6 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
         close_fd:
         swTrace("Close Event.FD=%d|From=%d", event->fd, event->from_id);
         swReactorThread_onClose(reactor, event);
-        /**
-        * skip EPOLLERR
-        */
-        event->fd = 0;
         return SW_OK;
     }
     else
@@ -983,10 +969,6 @@ static int swReactorThread_onReceive_websocket(swReactor *reactor, swEvent *even
         close_fd:
         swTrace("Close Event.FD=%d|From=%d", event->fd, event->from_id);
         swReactorThread_onClose(reactor, event);
-        /**
-        * skip EPOLLERR
-        */
-        event->fd = 0;
         return SW_OK;
     }
     else
@@ -1263,10 +1245,6 @@ int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
     {
         close_fd:
         swReactorThread_onClose(reactor, event);
-        /**
-        * skip EPOLLERR
-        */
-        event->fd = 0;
         swHttpRequest_free(request);
         return SW_OK;
     }

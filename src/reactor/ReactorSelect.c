@@ -231,12 +231,13 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
         {
 			LL_FOREACH(object->fds, ev)
 			{
+                event.fd = ev->fd;
+                event.from_id = reactor->id;
+                event.type = swReactor_fdtype(ev->fdtype);
+
                 //read
                 if (SW_FD_ISSET(ev->fd, &(object->rfds)))
                 {
-                    event.fd = ev->fd;
-                    event.from_id = reactor->id;
-                    event.type = swReactor_fdtype(ev->fdtype);
                     handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
                     ret = handle(reactor, &event);
                     if (ret < 0)
@@ -246,11 +247,8 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
                     }
                 }
                 //write
-                if (SW_FD_ISSET(ev->fd, &(object->wfds)) && reactor->handle[SW_FD_WRITE] != NULL)
+                if (SW_FD_ISSET(ev->fd, &(object->wfds)) && !reactor->sockets[event.fd].removed)
                 {
-                    event.fd = ev->fd;
-                    event.from_id = reactor->id;
-                    event.type = SW_FD_WRITE;
                     handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
                     ret = handle(reactor, &event);
                     if (ret < 0)
@@ -260,11 +258,8 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
                     }
                 }
                 //error
-                if (SW_FD_ISSET(ev->fd, &(object->efds)) && reactor->handle[SW_FD_ERROR] != NULL)
+                if (SW_FD_ISSET(ev->fd, &(object->efds)) && !reactor->sockets[event.fd].removed)
                 {
-                    event.fd = ev->fd;
-                    event.from_id = reactor->id;
-                    event.type = SW_FD_ERROR;
                     handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, event.type);
                     ret = handle(reactor, &event);
                     if (ret < 0)
