@@ -2118,7 +2118,9 @@ PHP_FUNCTION(swoole_timer_after)
     {
         zval_add_ref(&callback->data);
     }
-    if (SwooleG.timer.add(&SwooleG.timer, interval, 0, callback) < 0)
+
+    int timer_id = SwooleG.timer.add(&SwooleG.timer, interval, 0, callback);
+    if (timer_id < 0)
     {
         RETURN_FALSE;
     }
@@ -2126,10 +2128,10 @@ PHP_FUNCTION(swoole_timer_after)
     {
         php_swoole_try_run_reactor();
     }
-    RETURN_TRUE;
+    RETURN_LONG(timer_id);
 }
 
-PHP_FUNCTION(swoole_timer_clearAfter)
+PHP_FUNCTION(swoole_timer_clear)
 {
     long id;
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &id) == FAILURE)

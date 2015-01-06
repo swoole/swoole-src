@@ -318,6 +318,7 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_timer_add, arginfo_swoole_timer_add)
 	PHP_FE(swoole_timer_del, arginfo_swoole_timer_del)
 	PHP_FE(swoole_timer_after, NULL)
+	PHP_FE(swoole_timer_clear, NULL)
 	/*------swoole_async_io------*/
 	PHP_FE(swoole_async_set, NULL)
 	PHP_FE(swoole_async_read, NULL)
@@ -361,7 +362,7 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_FALIAS(connection_info, swoole_connection_info, arginfo_swoole_connection_info_oo)
 	PHP_FALIAS(connection_list, swoole_connection_list, arginfo_swoole_connection_list_oo)
 	PHP_FALIAS(after, swoole_timer_after, NULL)
-
+	PHP_FALIAS(clearAfter, swoole_timer_clear, NULL)
     PHP_ME(swoole_server, sendmessage, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, addprocess, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, stats, NULL, ZEND_ACC_PUBLIC)
