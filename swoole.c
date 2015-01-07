@@ -680,6 +680,13 @@ PHP_RINIT_FUNCTION(swoole)
 	//running
     SwooleG.running = 1;
 
+#ifdef ZTS
+    if (sw_thread_ctx == NULL)
+    {
+        TSRMLS_SET_CTX(sw_thread_ctx);
+    }
+#endif
+
     if (strcasecmp("cli", sapi_module.name) == 0)
     {
         SWOOLE_G(cli) = 1;
