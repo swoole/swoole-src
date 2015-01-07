@@ -372,6 +372,9 @@ struct _swServer
     uint16_t heartbeat_idle_time; //心跳存活时间
     uint16_t heartbeat_check_interval; //心跳定时侦测时间, 必需小于heartbeat_idle_time
 
+    int * cpu_affinity_available;
+    int   cpu_affinity_available_num;
+    
     /**
      * 来自客户端的心跳侦测包
      */

@@ -1126,6 +1126,33 @@ PHP_FUNCTION(swoole_server_set)
         convert_to_long(*v);
         serv->open_cpu_affinity = (uint8_t) Z_LVAL_PP(v);
     }
+    //cpu affinity set
+    if (sw_zend_hash_find(vht, ZEND_STRS("cpu_affinity_ignore"), (void **)&v) == SUCCESS)
+    {
+        int ignore_num = zend_hash_num_elements(Z_ARRVAL_PP(v));
+        int available_num = SW_CPU_NUM - ignore_num;
+        int *available_cpu = (int *)sw_malloc(sizeof(int)*available_num);
+        int flag,i,available_i = 0;
+        for(i=0;i<SW_CPU_NUM;i++){
+            flag = 1;
+             for (zend_hash_internal_pointer_reset(Z_ARRVAL_PP(v)); zend_hash_has_more_elements(Z_ARRVAL_PP(v)) == SUCCESS; zend_hash_move_forward(Z_ARRVAL_PP(v)))
+            {
+                zval **zval_core;
+                zend_hash_get_current_data(Z_ARRVAL_PP(v), (void**) &zval_core);
+                int core = (int)Z_LVAL_PP(zval_core);
+                if(i==core){
+                    flag = 0;
+                    break;
+                }
+            }
+           if(flag){
+                available_cpu[available_i] = i;
+                available_i++;
+            }
+        }
+        serv->cpu_affinity_available_num = available_num;
+        serv->cpu_affinity_available = available_cpu;
+    }
     //tcp_nodelay
     if (sw_zend_hash_find(vht, ZEND_STRS("open_tcp_nodelay"), (void **)&v) == SUCCESS)
     {

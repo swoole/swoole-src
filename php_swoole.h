@@ -120,6 +120,7 @@ typedef zend_rsrc_list_entry zend_resource;
 #define SW_RETURN_STRING                     RETURN_STRING
 #define sw_add_assoc_string                  add_assoc_string
 #define sw_zend_hash_find                    zend_hash_find
+#define sw_zend_hash_index_find              zend_hash_index_find
 #define SW_ZVAL_STRINGL                      ZVAL_STRINGL
 
 #define SWOOLE_GET_SERVER(zobject, serv) zval **zserv;\

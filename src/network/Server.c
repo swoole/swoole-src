@@ -307,7 +307,7 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     {
         cpu_set_t cpu_set;
         CPU_ZERO(&cpu_set);
-        CPU_SET(worker->id % SW_CPU_NUM, &cpu_set);
+        CPU_SET(serv->cpu_affinity_available[worker->id % serv->cpu_affinity_available_num], &cpu_set);
         if (sched_setaffinity(getpid(), sizeof(cpu_set), &cpu_set) < 0)
         {
             swSysError("sched_setaffinity() failed.");
