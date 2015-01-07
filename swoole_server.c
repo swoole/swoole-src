@@ -939,14 +939,6 @@ PHP_FUNCTION(swoole_server_create)
     }
 
     swTrace("Create swoole_server host=%s, port=%d, mode=%d, type=%d", serv_host, (int) serv_port, serv->factory_mode, (int) sock_type);
-
-#ifdef ZTS
-    if (sw_thread_ctx == NULL)
-    {
-        TSRMLS_SET_CTX(sw_thread_ctx);
-    }
-#endif
-
     bzero(php_sw_callback, sizeof(zval*) * PHP_SERVER_CALLBACK_NUM);
 
     if (swServer_addListener(serv, sock_type, serv_host, serv_port) < 0)
@@ -1042,16 +1034,6 @@ PHP_FUNCTION(swoole_server_set)
         if (serv->reactor_num <= 0)
         {
             serv->reactor_num = SwooleG.cpu_num;
-        }
-    }
-    //writer_num
-    if (sw_zend_hash_find(vht, ZEND_STRS("writer_num"), (void **)&v) == SUCCESS)
-    {
-        convert_to_long(*v);
-        serv->writer_num = (int)Z_LVAL_PP(v);
-        if (serv->writer_num <= 0)
-        {
-            serv->writer_num = SwooleG.cpu_num;
         }
     }
     //worker_num
@@ -1359,12 +1341,6 @@ PHP_FUNCTION(swoole_server_set)
     {
         convert_to_long(*v);
         serv->buffer_output_size = (int) Z_LVAL_PP(v);
-    }
-    //ipc mode
-    if (sw_zend_hash_find(vht, ZEND_STRS("ipc_mode"), (void **) &v) == SUCCESS)
-    {
-        convert_to_long(*v);
-        serv->ipc_mode = (int) Z_LVAL_PP(v);
     }
     //message queue key
     if (sw_zend_hash_find(vht, ZEND_STRS("message_queue_key"), (void **) &v) == SUCCESS)
@@ -2023,7 +1999,7 @@ PHP_FUNCTION(swoole_server_deltimer)
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: no timer.");
         RETURN_FALSE;
     }
-    SwooleG.timer.del(&SwooleG.timer, (int)interval);
+    SwooleG.timer.del(&SwooleG.timer, (int) interval, -1);
     RETURN_TRUE;
 }
 
@@ -2169,13 +2145,29 @@ PHP_FUNCTION(swoole_timer_after)
     {
         zval_add_ref(&callback->data);
     }
-    if (SwooleG.timer.add(&SwooleG.timer, interval, 0, callback) < 0)
+
+    int timer_id = SwooleG.timer.add(&SwooleG.timer, interval, 0, callback);
+    if (timer_id < 0)
     {
         RETURN_FALSE;
     }
     if (need_reactor)
     {
         php_swoole_try_run_reactor();
+    }
+    RETURN_LONG(timer_id);
+}
+
+PHP_FUNCTION(swoole_timer_clear)
+{
+    long id;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &id) == FAILURE)
+    {
+        return;
+    }
+    if (SwooleG.timer.del(&SwooleG.timer, -1, id) < 0)
+    {
+        RETURN_FALSE;
     }
     RETURN_TRUE;
 }

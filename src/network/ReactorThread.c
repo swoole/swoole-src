@@ -27,9 +27,17 @@ static int swReactorThread_loop_unix_dgram(swThreadParam *param);
 
 static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onClose(swReactor *reactor, swEvent *event);
+static int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event);
+static int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event);
+static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *event);
+static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event);
+static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev);
+static int swReactorThread_onPackage(swReactor *reactor, swEvent *event);
+static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev);
+
 static int swReactorThread_send_string_buffer(swReactorThread *thread, swConnection *conn, swString *buffer);
 static int swReactorThread_send_in_buffer(swReactorThread *thread, swConnection *conn);
-static int swReactorThread_get_package_length(swServer *serv, void *data, uint32_t size);
+static int swReactorThread_get_package_length(swServer *serv, swConnection *conn, void *data, uint32_t size);
 
 #ifdef SW_USE_RINGBUFFER
 static sw_inline void* swReactorThread_alloc(swReactorThread *thread, uint32_t size)
@@ -58,7 +66,7 @@ static sw_inline void* swReactorThread_alloc(swReactorThread *thread, uint32_t s
 /**
 * for udp
 */
-int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
+static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
 {
     int ret;
     swServer *serv = reactor->ptr;
@@ -233,7 +241,7 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
 /**
 * receive data from worker process pipe
 */
-int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
+static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
 {
     int n;
     swEventData resp;
@@ -287,15 +295,8 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
     int ret = -1;
     swWorker *worker = &(serv->workers[target_worker_id]);
 
-    if (serv->ipc_mode == SW_IPC_MSGQUEUE)
-    {
-        swQueue_data in_data;
-        in_data.mtype = target_worker_id + 1;
-        memcpy(in_data.mdata, data, len);
-        ret = serv->read_queue.in(&serv->read_queue, &in_data, len);
-    }
     //reactor thread
-    else if (SwooleTG.type == SW_THREAD_REACTOR)
+    if (SwooleTG.type == SW_THREAD_REACTOR)
     {
         int pipe_fd = worker->pipe_master;
         swBuffer *buffer = *(swBuffer **) swArray_fetch(thread->buffer_pipe, worker->pipe_master);
@@ -506,7 +507,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
     return SW_OK;
 }
 
-int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
+static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 {
     int ret;
     swServer *serv = SwooleG.serv;
@@ -558,7 +559,7 @@ int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     return SW_OK;
 }
 
-int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *event)
+static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *event)
 {
     int n, recv_again = SW_FALSE;
     int isEOF = -1;
@@ -658,7 +659,7 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
     return SW_OK;
 }
 
-int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
+static int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 {
     int ret, n;
     swServer *serv = reactor->ptr;
@@ -750,7 +751,7 @@ int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 /**
 * return the package total length
 */
-static sw_inline int swReactorThread_get_package_length(swServer *serv, void *data, uint32_t size)
+static int swReactorThread_get_package_length(swServer *serv, swConnection *conn, void *data, uint32_t size)
 {
     uint16_t length_offset = serv->package_length_offset;
     uint32_t body_length;
@@ -773,7 +774,35 @@ static sw_inline int swReactorThread_get_package_length(swServer *serv, void *da
     return serv->package_body_offset + body_length;
 }
 
-int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event)
+void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
+{
+    //udp receive
+    reactor->setHandle(reactor, SW_FD_UDP, swReactorThread_onPackage);
+    //write
+    reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_WRITE, swReactorThread_onWrite);
+
+    //Thread mode must copy the data.
+    //will free after onFinish
+    if (serv->open_eof_check)
+    {
+        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_eof);
+    }
+    else if (serv->open_length_check)
+    {
+        serv->get_package_length = swReactorThread_get_package_length;
+        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_length);
+    }
+    else if (serv->open_http_protocol)
+    {
+        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_http_request);
+    }
+    else
+    {
+        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_no_buffer);
+    }
+}
+
+static int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event)
 {
     int n;
     int package_total_length;
@@ -825,7 +854,7 @@ int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *e
             do_parse_package:
             do
             {
-                package_total_length = swReactorThread_get_package_length(serv, (void *) tmp_ptr, (uint32_t) tmp_n);
+                package_total_length = serv->get_package_length(serv, conn, (void *) tmp_ptr, (uint32_t) tmp_n);
 
                 //invalid package, close connection.
                 if (package_total_length < 0)
@@ -1169,7 +1198,7 @@ static int swReactorThread_onReceive_websocket(swReactor *reactor, swEvent *even
 /**
 * For Http Protocol
 */
-int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
+static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
 {
 
     int fd = event->fd;
@@ -1400,21 +1429,21 @@ int swReactorThread_create(swServer *serv)
     //create factry object
     if (serv->factory_mode == SW_MODE_THREAD)
     {
-        if (serv->writer_num < 1)
+        if (serv->worker_num < 1)
         {
             swError("Fatal Error: serv->writer_num < 1");
             return SW_ERR;
         }
-        ret = swFactoryThread_create(&(serv->factory), serv->writer_num);
+        ret = swFactoryThread_create(&(serv->factory), serv->worker_num);
     }
     else if (serv->factory_mode == SW_MODE_PROCESS)
     {
-        if (serv->writer_num < 1 || serv->worker_num < 1)
+        if (serv->worker_num < 1)
         {
             swError("Fatal Error: serv->writer_num < 1 or serv->worker_num < 1");
             return SW_ERR;
         }
-        ret = swFactoryProcess_create(&(serv->factory), serv->writer_num, serv->worker_num);
+        ret = swFactoryProcess_create(&(serv->factory), serv->worker_num);
     }
     else
     {
@@ -1537,75 +1566,53 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     reactor->close = swReactorThread_close;
 
     reactor->setHandle(reactor, SW_FD_CLOSE, swReactorThread_onClose);
-    reactor->setHandle(reactor, SW_FD_UDP, swReactorThread_onPackage);
-    reactor->setHandle(reactor, SW_FD_PIPE, swReactorThread_onPipeReceive);
+    reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_READ, swReactorThread_onPipeReceive);
     reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_WRITE, swReactorThread_onPipeWrite);
-    reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_WRITE, swReactorThread_onWrite);
+
+    //set protocol function point
+    swReactorThread_set_protocol(serv, reactor);
 
     int i = 0, pipe_fd;
-    if (serv->ipc_mode != SW_IPC_MSGQUEUE)
-    {
-        thread->buffer_pipe = swArray_new(serv->workers[serv->worker_num - 1].pipe_master + 1, sizeof(void*), 0);
+    thread->buffer_pipe = swArray_new(serv->workers[serv->worker_num - 1].pipe_master + 1, sizeof(void*), 0);
 
-        for (i = 0; i < serv->worker_num; i++)
+    for (i = 0; i < serv->worker_num; i++)
+    {
+        pipe_fd = serv->workers[i].pipe_master;
+        //for request
+        swBuffer *buffer = swBuffer_new(sizeof(swEventData));
+        if (!buffer)
         {
-            pipe_fd = serv->workers[i].pipe_master;
-            //for request
-            swBuffer *buffer = swBuffer_new(sizeof(swEventData));
-            if (!buffer)
-            {
-                swWarn("create buffer failed.");
-                break;
-            }
-            if (swArray_store(thread->buffer_pipe, pipe_fd, &buffer) < 0)
-            {
-                swWarn("create buffer failed.");
-                break;
-            }
-            //for response
-            if (i % serv->reactor_num == reactor_id)
-            {
-                swSetNonBlock(pipe_fd);
-                reactor->add(reactor, pipe_fd, SW_FD_PIPE);
-                /**
-                * mapping reactor_id and worker pipe
-                */
-                serv->connection_list[pipe_fd].from_id = reactor_id;
-            }
+            swWarn("create buffer failed.");
+            break;
+        }
+        if (swArray_store(thread->buffer_pipe, pipe_fd, &buffer) < 0)
+        {
+            swWarn("create buffer failed.");
+            break;
+        }
+        //for response
+        if (i % serv->reactor_num == reactor_id)
+        {
+            swSetNonBlock(pipe_fd);
+            reactor->add(reactor, pipe_fd, SW_FD_PIPE);
+            /**
+             * mapping reactor_id and worker pipe
+             */
+            serv->connection_list[pipe_fd].from_id = reactor_id;
         }
     }
 
-    //Thread mode must copy the data.
-    //will free after onFinish
-    if (serv->open_eof_check)
-    {
-        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_eof);
-    }
-    else if (serv->open_length_check)
-    {
-        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_length);
-    }
-    else if (serv->open_http_protocol)
-    {
-        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_http_request);
-    }
-    else
-    {
-        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_no_buffer);
-    }
+
     //main loop
     reactor->wait(reactor, NULL);
     //shutdown
-    if (serv->ipc_mode != SW_IPC_MSGQUEUE)
+    for (i = 0; i < serv->worker_num; i++)
     {
-        for (i = 0; i < serv->worker_num; i++)
-        {
-            swWorker *worker = swServer_get_worker(serv, i);
-            swBuffer *buffer = *(swBuffer **) swArray_fetch(thread->buffer_pipe, worker->pipe_master);
-            swBuffer_free(buffer);
-        }
-        swArray_free(thread->buffer_pipe);
+        swWorker *worker = swServer_get_worker(serv, i);
+        swBuffer *buffer = *(swBuffer **) swArray_fetch(thread->buffer_pipe, worker->pipe_master);
+        swBuffer_free(buffer);
     }
+    swArray_free(thread->buffer_pipe);
     reactor->free(reactor);
     pthread_exit(0);
     return SW_OK;

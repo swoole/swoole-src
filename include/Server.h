@@ -116,23 +116,6 @@ typedef struct _swReactorThread
     int c_udp_fd;
 } swReactorThread;
 
-typedef struct _swWorkerThread
-{
-	pthread_t ptid; //线程ID
-	int pipe_num; //writer thread's pipe num
-	int *pipes; //worker pipes
-	int c_pipe; //current pipe
-	swReactor reactor;
-	swShareMemory shm; //共享内存
-	swPipe evfd;       //eventfd
-} swWorkerThread;
-
-typedef struct
-{
-    long pti;
-    swEventData _send;
-} swEventData_overflow;
-
 typedef struct _swListenList_node
 {
 	struct _swListenList_node *next, *prev;
@@ -193,7 +176,6 @@ struct _swFactory
 typedef struct _swFactoryProcess
 {
     swPipe *pipes;
-    int writer_pti; //current writer id
 } swFactoryProcess;
 
 typedef struct _swRequest
@@ -213,7 +195,7 @@ int swFactory_notify(swFactory *factory, swDataHead *event);
 int swFactory_end(swFactory *factory, int fd);
 int swFactory_check_callback(swFactory *factory);
 
-int swFactoryProcess_create(swFactory *factory, int writer_num, int worker_num);
+int swFactoryProcess_create(swFactory *factory, int worker_num);
 int swFactoryProcess_start(swFactory *factory);
 int swFactoryProcess_shutdown(swFactory *factory);
 int swFactoryProcess_end(swFactory *factory, int fd);
@@ -235,7 +217,6 @@ struct _swServer
      * reactor thread/process num
      */
     uint16_t reactor_num;
-    uint16_t writer_num;
     /**
      * worker process num
      */
@@ -252,11 +233,6 @@ struct _swServer
      * package dispatch mode
      */
     uint8_t dispatch_mode; //分配模式，1平均分配，2按FD取摸固定分配，3,使用抢占式队列(IPC消息队列)分配
-
-    /**
-     * 1: unix socket, 2: message queue, 3: memory channel
-     */
-    uint8_t ipc_mode;
 
     int worker_uid;
     int worker_groupid;
@@ -428,12 +404,7 @@ struct _swServer
     swHashMap *user_worker_map;
 
     swReactorThread *reactor_threads;
-    swWorkerThread *writer_threads;
-
     swWorker *workers;
-
-    swQueue read_queue;
-    swQueue write_queue;
 
     swConnection *connection_list; //连接列表
     int connection_list_capacity; //超过此容量，会自动扩容
@@ -462,6 +433,8 @@ struct _swServer
     void (*onUserWorkerStart)(swServer *serv, swWorker *worker);
     int (*onTask)(swServer *serv, swEventData *data);
     int (*onFinish)(swServer *serv, swEventData *data);
+
+    int (*get_package_length)(swServer *serv, swConnection *conn, void *data, uint32_t length);
 };
 
 typedef struct _swSocketLocal
@@ -623,28 +596,19 @@ static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t sche
     //Preemptive distribution
     else
     {
-        if (serv->ipc_mode == SW_IPC_MSGQUEUE)
+        int i;
+        sw_atomic_t *round = &SwooleTG.worker_round_i;
+        for (i = 0; i < serv->worker_num; i++)
         {
-            //msgsnd参数必须>0
-            //worker进程中正确的mtype应该是pti + 1
-            target_worker_id = serv->worker_num;
-        }
-        else
-        {
-            int i;
-            sw_atomic_t *round = &SwooleTG.worker_round_i;
-            for (i = 0; i < serv->worker_num; i++)
-            {
-                sw_atomic_fetch_add(round, 1);
-                target_worker_id = (*round) % serv->worker_num;
+            sw_atomic_fetch_add(round, 1);
+            target_worker_id = (*round) % serv->worker_num;
 
-                if (serv->workers[target_worker_id].status == SW_WORKER_IDLE)
-                {
-                    break;
-                }
+            if (serv->workers[target_worker_id].status == SW_WORKER_IDLE)
+            {
+                break;
             }
-            swTrace("schedule=%d|round=%d\n", target_worker_id, *round);
         }
+        swTrace("schedule=%d|round=%d\n", target_worker_id, *round);
     }
     return target_worker_id;
 }
@@ -658,7 +622,7 @@ void swWorker_signal_init(void);
 void swWorker_onStart(swServer *serv);
 void swWorker_onStop(swServer *serv);
 int swWorker_loop(swFactory *factory, int worker_pti);
-int swWorker_send2reactor(swEventData_overflow *sdata, size_t sendn, int fd);
+int swWorker_send2reactor(swEventData *ev_data, size_t sendn, int fd);
 int swWorker_send2worker(swWorker *dst_worker, uint16_t is_master, void *buf, int n);
 void swWorker_signal_handler(int signo);
 
@@ -666,17 +630,9 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event);
 
 int swReactorThread_create(swServer *serv);
 int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr);
+void swReactorThread_set_protocol(swServer *serv, swReactor *reactor);
 void swReactorThread_free(swServer *serv);
 int swReactorThread_close(swReactor *reactor, int fd);
-int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event);
-int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event);
-int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *event);
-int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event);
-
-int swReactorThread_onPackage(swReactor *reactor, swEvent *event);
-int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev);
-int swReactorThread_onWrite(swReactor *reactor, swEvent *ev);
-
 int swReactorThread_send(swSendData *_send);
 int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id);
 

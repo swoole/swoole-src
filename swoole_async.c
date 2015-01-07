@@ -252,15 +252,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 
 PHP_FUNCTION(swoole_async_read)
 {
-
-#ifdef ZTS
-    if (sw_thread_ctx == NULL)
-    {
-        TSRMLS_SET_CTX(sw_thread_ctx);
-    }
-#endif
-
-	zval *cb;
+    zval *cb;
 	zval *filename;
 	long trunk_len = 8192;
 	int open_flag = O_RDONLY;
@@ -333,14 +325,6 @@ PHP_FUNCTION(swoole_async_read)
 
 PHP_FUNCTION(swoole_async_write)
 {
-
-#ifdef ZTS
-    if (sw_thread_ctx == NULL)
-    {
-        TSRMLS_SET_CTX(sw_thread_ctx);
-    }
-#endif
-
 	zval *cb = NULL;
 	zval *filename;
 
@@ -443,12 +427,6 @@ PHP_FUNCTION(swoole_async_write)
 
 PHP_FUNCTION(swoole_async_readfile)
 {
-#ifdef ZTS
-    if (sw_thread_ctx == NULL)
-    {
-        TSRMLS_SET_CTX(sw_thread_ctx);
-    }
-#endif
 	zval *cb;
 	zval *filename;
 
@@ -540,14 +518,6 @@ PHP_FUNCTION(swoole_async_readfile)
 
 PHP_FUNCTION(swoole_async_writefile)
 {
-
-#ifdef ZTS
-    if (sw_thread_ctx == NULL)
-    {
-        TSRMLS_SET_CTX(sw_thread_ctx);
-    }
-#endif
-
 	zval *cb = NULL;
 	zval *filename;
 	char *fcnt;
@@ -624,14 +594,6 @@ PHP_FUNCTION(swoole_async_writefile)
 
 PHP_FUNCTION(swoole_async_set)
 {
-
-#ifdef ZTS
-    if (sw_thread_ctx == NULL)
-    {
-        TSRMLS_SET_CTX(sw_thread_ctx);
-    }
-#endif
-
     zval *zset;
     HashTable *vht;
     zval **v;
@@ -658,14 +620,6 @@ PHP_FUNCTION(swoole_async_set)
 
 PHP_FUNCTION(swoole_async_dns_lookup)
 {
-
-#ifdef ZTS
-    if (sw_thread_ctx == NULL)
-    {
-        TSRMLS_SET_CTX(sw_thread_ctx);
-    }
-#endif
-
 	zval *domain;
 	zval *cb;
 

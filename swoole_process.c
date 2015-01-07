@@ -43,14 +43,6 @@ void swoole_destory_process(zend_resource *rsrc TSRMLS_DC)
 
 PHP_METHOD(swoole_process, __construct)
 {
-
-#ifdef ZTS
-    if (sw_thread_ctx == NULL)
-    {
-        TSRMLS_SET_CTX(sw_thread_ctx);
-    }
-#endif
-
 	zend_bool redirect_stdin_and_stdout = 0;
 	zend_bool create_pipe = 1;
 	zval *callback;
@@ -182,13 +174,6 @@ PHP_METHOD(swoole_process, signal)
     {
         return;
     }
-
-#ifdef ZTS
-    if (sw_thread_ctx == NULL)
-    {
-        TSRMLS_SET_CTX(sw_thread_ctx);
-    }
-#endif
 
     if (!SWOOLE_G(cli))
     {

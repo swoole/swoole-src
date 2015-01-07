@@ -1006,7 +1006,6 @@ struct _swWorker
 	int pipe_worker;
 
 	int pipe;
-	int reactor_id;
 	void *ptr;
 	void *ptr2;
 };
@@ -1243,6 +1242,7 @@ typedef struct _swTimer_node
     void *data;
     uint32_t exec_msec;
     uint32_t interval;
+    uint32_t id;
 } swTimer_node;
 
 typedef struct _swTimer
@@ -1255,12 +1255,13 @@ typedef struct _swTimer
 	int use_pipe;
 	int lasttime;
 	int fd;
+    uint32_t round;
 	swPipe pipe;
 	/*-----------------for EventTimer-------------------*/
 	struct timeval basetime;
 	/*--------------------------------------------------*/
 	int (*add)(struct _swTimer *timer, int _msec, int _interval, void *data);
-	int (*del)(struct _swTimer *timer, int _interval_ms);
+	int (*del)(struct _swTimer *timer, int _interval_ms, int id);
 	int (*select)(struct _swTimer *timer);
 	void (*free)(struct _swTimer *timer);
 	/*-----------------event callback-------------------*/
@@ -1274,7 +1275,7 @@ void swTimer_signal_handler(int sig);
 int swTimer_event_handler(swReactor *reactor, swEvent *event);
 void swTimer_node_insert(swTimer_node **root, swTimer_node *new_node);
 void swTimer_node_print(swTimer_node **root);
-int swTimer_node_delete(swTimer_node **root, int interval_msec);
+int swTimer_node_delete(swTimer_node **root, int interval_msec, int id);
 void swTimer_node_destory(swTimer_node **root);
 
 //--------------------------------------------------------------
