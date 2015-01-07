@@ -203,10 +203,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     reactor->setHandle(reactor, SW_FD_LISTEN, swServer_master_onAccept);
     //close
     reactor->setHandle(reactor, SW_FD_CLOSE, swReactorProcess_onClose);
-    //udp receive
-    reactor->setHandle(reactor, SW_FD_UDP, swReactorThread_onPackage);
-    //write
-    reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_WRITE, swReactorThread_onWrite);
+
     //set protocol function point
     swReactorThread_set_protocol(serv, reactor);
 

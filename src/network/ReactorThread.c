@@ -31,6 +31,9 @@ static int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *even
 static int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event);
 static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *event);
 static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event);
+static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev);
+static int swReactorThread_onPackage(swReactor *reactor, swEvent *event);
+static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev);
 
 static int swReactorThread_send_string_buffer(swReactorThread *thread, swConnection *conn, swString *buffer);
 static int swReactorThread_send_in_buffer(swReactorThread *thread, swConnection *conn);
@@ -63,7 +66,7 @@ static sw_inline void* swReactorThread_alloc(swReactorThread *thread, uint32_t s
 /**
 * for udp
 */
-int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
+static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
 {
     int ret;
     swServer *serv = reactor->ptr;
@@ -238,7 +241,7 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
 /**
 * receive data from worker process pipe
 */
-int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
+static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
 {
     int n;
     swEventData resp;
@@ -504,7 +507,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
     return SW_OK;
 }
 
-int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
+static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 {
     int ret;
     swServer *serv = SwooleG.serv;
@@ -773,6 +776,11 @@ static int swReactorThread_get_package_length(swServer *serv, swConnection *conn
 
 void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
 {
+    //udp receive
+    reactor->setHandle(reactor, SW_FD_UDP, swReactorThread_onPackage);
+    //write
+    reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_WRITE, swReactorThread_onWrite);
+
     //Thread mode must copy the data.
     //will free after onFinish
     if (serv->open_eof_check)
@@ -1558,10 +1566,8 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     reactor->close = swReactorThread_close;
 
     reactor->setHandle(reactor, SW_FD_CLOSE, swReactorThread_onClose);
-    reactor->setHandle(reactor, SW_FD_UDP, swReactorThread_onPackage);
-    reactor->setHandle(reactor, SW_FD_PIPE, swReactorThread_onPipeReceive);
+    reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_READ, swReactorThread_onPipeReceive);
     reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_WRITE, swReactorThread_onPipeWrite);
-    reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_WRITE, swReactorThread_onWrite);
 
     //set protocol function point
     swReactorThread_set_protocol(serv, reactor);

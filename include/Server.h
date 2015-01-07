@@ -630,11 +630,6 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr);
 void swReactorThread_set_protocol(swServer *serv, swReactor *reactor);
 void swReactorThread_free(swServer *serv);
 int swReactorThread_close(swReactor *reactor, int fd);
-
-int swReactorThread_onPackage(swReactor *reactor, swEvent *event);
-int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev);
-int swReactorThread_onWrite(swReactor *reactor, swEvent *ev);
-
 int swReactorThread_send(swSendData *_send);
 int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id);
 
