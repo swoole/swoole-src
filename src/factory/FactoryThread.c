@@ -184,7 +184,7 @@ static int swFactoryThread_writer_loop(swThreadParam *param)
     {
         cpu_set_t cpu_set;
         CPU_ZERO(&cpu_set);
-        CPU_SET(pti % SW_CPU_NUM, &cpu_set);
+        CPU_SET(serv->cpu_affinity_available[pti % serv->cpu_affinity_available_num], &cpu_set);
         if (0 != pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set))
         {
             swWarn("pthread_setaffinity_np() failed");
