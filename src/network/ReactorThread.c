@@ -27,6 +27,11 @@ static int swReactorThread_loop_unix_dgram(swThreadParam *param);
 
 static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onClose(swReactor *reactor, swEvent *event);
+static int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event);
+static int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event);
+static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *event);
+static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event);
+
 static int swReactorThread_send_string_buffer(swReactorThread *thread, swConnection *conn, swString *buffer);
 static int swReactorThread_send_in_buffer(swReactorThread *thread, swConnection *conn);
 static int swReactorThread_get_package_length(swServer *serv, swConnection *conn, void *data, uint32_t size);
@@ -551,7 +556,7 @@ int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     return SW_OK;
 }
 
-int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *event)
+static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *event)
 {
     int n, recv_again = SW_FALSE;
     int isEOF = -1;
@@ -651,7 +656,7 @@ int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *even
     return SW_OK;
 }
 
-int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
+static int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
 {
     int ret, n;
     swServer *serv = reactor->ptr;
@@ -766,7 +771,30 @@ static int swReactorThread_get_package_length(swServer *serv, swConnection *conn
     return serv->package_body_offset + body_length;
 }
 
-int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event)
+void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
+{
+    //Thread mode must copy the data.
+    //will free after onFinish
+    if (serv->open_eof_check)
+    {
+        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_eof);
+    }
+    else if (serv->open_length_check)
+    {
+        serv->get_package_length = swReactorThread_get_package_length;
+        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_length);
+    }
+    else if (serv->open_http_protocol)
+    {
+        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_http_request);
+    }
+    else
+    {
+        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_no_buffer);
+    }
+}
+
+static int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event)
 {
     int n;
     int package_total_length;
@@ -1162,7 +1190,7 @@ static int swReactorThread_onReceive_websocket(swReactor *reactor, swEvent *even
 /**
 * For Http Protocol
 */
-int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
+static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
 {
 
     int fd = event->fd;
@@ -1535,6 +1563,9 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_WRITE, swReactorThread_onPipeWrite);
     reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_WRITE, swReactorThread_onWrite);
 
+    //set protocol function point
+    swReactorThread_set_protocol(serv, reactor);
+
     int i = 0, pipe_fd;
     thread->buffer_pipe = swArray_new(serv->workers[serv->worker_num - 1].pipe_master + 1, sizeof(void*), 0);
 
@@ -1565,25 +1596,7 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
         }
     }
 
-    //Thread mode must copy the data.
-    //will free after onFinish
-    if (serv->open_eof_check)
-    {
-        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_eof);
-    }
-    else if (serv->open_length_check)
-    {
-        serv->get_package_length = swReactorThread_get_package_length;
-        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_length);
-    }
-    else if (serv->open_http_protocol)
-    {
-        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_http_request);
-    }
-    else
-    {
-        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_no_buffer);
-    }
+
     //main loop
     reactor->wait(reactor, NULL);
     //shutdown
