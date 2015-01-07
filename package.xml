@@ -31,8 +31,8 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2014-12-30</date>
-    <time>16:19:51</time>
+    <date>2015-01-07</date>
+    <time>19:39:51</time>
     <version>
         <release>1.7.9</release>
         <api>1.7.9</api>
@@ -43,15 +43,16 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-    - Fixed swoole_http_server::on no implementation parent class methods
-    - Fixed cannot read cookie in swoole_http_server
-    - Added swoole_http_server support to POST RawContent
-    - swoole_timer_after interface can pass a user parameter
-    - swoole_client->recv and onReceive zero copy
-    - Fixed swoole_table->set cannot be set more than 64K string
-    - Fixed open_length_check connection memory buffer is not reset bug
-    - Added dispatch_mode=4/5, dispatch data by client ip and uid
-    - Event callback function exception error level changed from E_WARNING to E_ERROR
+- Added websocket protocol support
+- Added swoole_process::signal
+- Added swoole_server->addProcess
+- Added swoole_process::name
+- Added swoole_server::listen
+- Added swoole_server::sendMessage and onPipeMessage event
+- Added swoole_event_write
+- Added swoole_process->close
+- Added swoole_server user/group setting
+- Added swoole_server task/finish automatic packing
     </notes>
 	<contents>
 		<dir name="/">
@@ -92,6 +93,8 @@
 					<file role="src" name="long_tcp.php" />
 					<file role="src" name="sync.php" />
 					<file role="src" name="select.php" />
+					<file role="src" name="udp_async.php" />
+					<file role="src" name="udp_sync.php" />
 				</dir>
 				<dir name="server">
 					<file role="src" name="echo.php" />
@@ -143,8 +146,6 @@
 				<file role="src" name="proxy.php" />
 				<file role="src" name="proxy_sync.php" />
 				<file role="src" name="udp_server.php" />
-				<file role="src" name="udp_client.php" />
-				<file role="src" name="udp_sync_client.php" />
 				<file role="src" name="timer.php" />
 				<file role="src" name="sendfile_server.php" />
 				<file role="src" name="recv_file.php" />
