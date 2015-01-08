@@ -19,10 +19,20 @@ master_async($workers);
 function master_async($workers)
 {
     swoole_process::signal(SIGCHLD, function ($signo) use ($workers) {
-        $ret = swoole_process::wait();
-        $pid = $ret['pid'];
-        unset($workers[$pid]);
-        echo "Worker Exit, PID=" . $pid . PHP_EOL;
+        while(1)
+        {
+            $ret = swoole_process::wait(false);
+            if ($ret)
+            {
+                $pid = $ret['pid'];
+                unset($workers[$pid]);
+                echo "Worker Exit, PID=" . $pid . PHP_EOL;
+            }
+            else
+            {
+                break;
+            }
+        }
     });
 
     /**
