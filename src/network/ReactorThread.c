@@ -1539,7 +1539,12 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     {
         cpu_set_t cpu_set;
         CPU_ZERO(&cpu_set);
-        CPU_SET(serv->cpu_affinity_available[reactor_id % serv->cpu_affinity_available_num], &cpu_set);
+        if(serv->cpu_affinity_available_num){
+           CPU_SET(serv->cpu_affinity_available[reactor_id % serv->cpu_affinity_available_num], &cpu_set);
+        }else{
+           CPU_SET(reactor_id%SW_CPU_NUM, &cpu_set);
+        }
+       
         if (0 != pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set))
         {
             swSysError("pthread_setaffinity_np() failed");
