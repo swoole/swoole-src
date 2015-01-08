@@ -105,7 +105,20 @@ PHP_METHOD(swoole_process, __construct)
 PHP_METHOD(swoole_process, wait)
 {
 	int status;
-	pid_t pid = wait(&status);
+	zend_bool blocking = 1;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b", &blocking) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+
+    int options = 0;
+    if (!blocking)
+    {
+        options |= WNOHANG;
+    }
+
+	pid_t pid = swWaitpid(-1, &status, options);
 	if (pid > 0)
 	{
 		array_init(return_value);
