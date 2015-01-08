@@ -1107,6 +1107,13 @@ PHP_FUNCTION(swoole_server_set)
     {
         convert_to_long(*v);
         serv->open_cpu_affinity = (uint8_t) Z_LVAL_PP(v);
+        int *available_cpu = (int *)sw_malloc(sizeof(int)*SW_CPU_NUM);
+        int i = 0;
+        for(;i<SW_CPU_NUM;i++){
+            available_cpu[i] = i;
+        }
+        serv->cpu_affinity_available_num = SW_CPU_NUM;
+        serv->cpu_affinity_available = available_cpu;
     }
     //cpu affinity set
     if (sw_zend_hash_find(vht, ZEND_STRS("cpu_affinity_ignore"), (void **)&v) == SUCCESS)
