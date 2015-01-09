@@ -993,7 +993,7 @@ static void http_request_free(http_client *client TSRMLS_DC)
         zval_ptr_dtor(&zpost);
     }
     zval *zcookie = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("cookie"), 1 TSRMLS_CC);
-    if (!ZVAL_IS_NULL(zpost))
+    if (!ZVAL_IS_NULL(zcookie))
     {
         zval_ptr_dtor(&zcookie);
     }
