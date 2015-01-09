@@ -28,6 +28,9 @@
 
 #include "thirdparty/php_http_parser.h"
 
+static uint8_t http_merge_global_flag = 0;
+static uint8_t http_merge_request_flag = 0;
+
 typedef struct
 {
     enum php_http_method method;
@@ -106,7 +109,9 @@ static int http_request_new(http_client* c TSRMLS_DC);
 static int websocket_handshake(http_client *client);
 static void handshake_success(int fd);
 
-static void mergeGlobal(zval *val, zval *zrequest, int type);
+static void http_merge_global(zval *val, zval *zrequest, int type);
+
+#define mergeGlobal(v,r,t)  if (http_merge_global_flag > 0) http_merge_global(v,r,t)
 
 #define HTTP_GLOBAL_GET     0x1
 #define HTTP_GLOBAL_POST    0x2
@@ -172,23 +177,9 @@ static int http_request_on_path(php_http_parser *parser, const char *at, size_t 
     return 0;
 }
 
-static void mergeGlobal(zval * val, zval *zrequest, int type)
+static void http_merge_global(zval *val, zval *zrequest, int type)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-
-    zval *http_server = SwooleG.serv->ptr2;
-    zval *http_global = zend_read_property(swoole_http_server_class_entry_ptr, http_server, ZEND_STRL("global"), 1 TSRMLS_CC);
-
-    int global = Z_LVAL_P(http_global);
-    zval *http_request_val = zend_read_property(swoole_http_server_class_entry_ptr, http_server, ZEND_STRL("request_val"), 1 TSRMLS_CC);
-    int request_val = Z_LVAL_P(http_request_val);
-
-    swTrace("http_global:%d %d\n", global, request_val);
-
-    if (!(global & type))
-    {
-        return;
-    }
 
     zval *_request;
 
@@ -208,11 +199,10 @@ static void mergeGlobal(zval * val, zval *zrequest, int type)
         break;
 
     case HTTP_GLOBAL_REQUEST:
-        if (!request_val)
+        if (!http_merge_request_flag)
         {
             return;
         }
-
         _request = zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), 1 TSRMLS_CC);
         if (_request && !(ZVAL_IS_NULL(_request)))
         {
@@ -223,10 +213,13 @@ static void mergeGlobal(zval * val, zval *zrequest, int type)
     case HTTP_GLOBAL_SERVER:
         ZEND_SET_SYMBOL(&EG(symbol_table), "_SERVER", val);
         return;
-    }
-//    int flag = 0;
 
-    if (request_val & type)
+    default:
+        swWarn("unknow global type [%d]", type);
+        return;
+    }
+
+    if (http_merge_request_flag & type)
     {
         //swTrace("%d, %d match\n", global, type);
         _request = zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), 1 TSRMLS_CC);
@@ -265,6 +258,7 @@ static int http_request_on_query_string(php_http_parser *parser, const char *at,
     array_init(get);
     zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("get"), get TSRMLS_CC);
     sapi_module.treat_data(PARSE_STRING, query, get TSRMLS_CC);
+
     mergeGlobal(get, client->zrequest, HTTP_GLOBAL_GET);
 
     return 0;
@@ -776,12 +770,12 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         add_assoc_long(zserver, "REMOTE_PORT", ntohs(conn->addr.sin_port));
         add_assoc_string(zserver, "REMOTE_ADDR", inet_ntoa(conn->addr.sin_addr), 1);
 
-    	if (client->request.version == 101)
-    	{
-    		add_assoc_string(zserver, "SERVER_PROTOCOL", "HTTP/1.1", 1);
-    	}
-    	else
-    	{
+        if (client->request.version == 101)
+        {
+            add_assoc_string(zserver, "SERVER_PROTOCOL", "HTTP/1.1", 1);
+        }
+        else
+        {
             add_assoc_string(zserver, "SERVER_PROTOCOL", "HTTP/1.0", 1);
         }
 
@@ -1084,21 +1078,19 @@ static char *http_status_message(int code)
     }
 }
 
-
 PHP_METHOD(swoole_http_server, setGlobal)
 {
-    long global = 0;
-    long request_val = HTTP_GLOBAL_GET | HTTP_GLOBAL_POST;
-    swTrace("setGlobal start:%ld\n", global);
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|l", &global, &request_val) == FAILURE)
+    long global_flag = 0;
+    long request_flag = HTTP_GLOBAL_GET | HTTP_GLOBAL_POST;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|l", &global_flag, &request_flag) == FAILURE)
     {
         return;
     }
 
-    swTrace("setGlobal:%ld\n", global);
+    http_merge_global_flag = global_flag;
+    http_merge_request_flag = request_flag;
 
-    zend_update_property_long(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("global"), global TSRMLS_CC);
-    zend_update_property_long(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("request_val"), request_val TSRMLS_CC);
     RETURN_TRUE;
 }
 
