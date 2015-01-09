@@ -13,12 +13,12 @@ $http->set([
     //'ssl_key_file' => $key_dir.'/ssl.key',
 ]);
 $http->on('request', function (swoole_http_request $request, swoole_http_response $response) {
-//	var_dump($request->cookie);
-//var_dump($request);
-var_dump($_GET);
-//var_dump($_POST);
-//var_dump($_COOKIE);
-var_dump($_REQUEST);
+    //	var_dump($request->cookie);
+    //var_dump($request);
+    var_dump($_GET);
+    //var_dump($_POST);
+    //var_dump($_COOKIE);
+    var_dump($_REQUEST);
 	//$response->status(301);
     //$response->header("Location", "http://www.baidu.com/");
 	//$response->cookie("hello", "world", time() + 3600);

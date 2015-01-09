@@ -18,7 +18,9 @@
 
 #include <ext/standard/url.h>
 #include <ext/standard/sha1.h>
+#include <ext/standard/php_var.h>
 #include <ext/date/php_date.h>
+
 #include <main/php_variables.h>
 
 #include "include/swoole.h"
@@ -109,9 +111,10 @@ static int http_request_new(http_client* c TSRMLS_DC);
 static int websocket_handshake(http_client *client);
 static void handshake_success(int fd);
 
-static void http_merge_global(zval *val, zval *zrequest, int type);
+static void http_global_merge(zval *val, zval *zrequest, int type);
+static void http_global_clear(TSRMLS_D);
 
-#define mergeGlobal(v,r,t)  if (http_merge_global_flag > 0) http_merge_global(v,r,t)
+#define mergeGlobal(v,r,t)  if (http_merge_global_flag > 0) http_global_merge(v,r,t)
 
 #define HTTP_GLOBAL_GET     0x1
 #define HTTP_GLOBAL_POST    0x2
@@ -177,7 +180,16 @@ static int http_request_on_path(php_http_parser *parser, const char *at, size_t 
     return 0;
 }
 
-static void http_merge_global(zval *val, zval *zrequest, int type)
+static void http_global_clear(TSRMLS_D)
+{
+    zend_hash_del(&EG(symbol_table), "_GET", sizeof("_GET"));
+    zend_hash_del(&EG(symbol_table), "_POST", sizeof("_POST"));
+    zend_hash_del(&EG(symbol_table), "_COOKIE", sizeof("_COOKIE"));
+    zend_hash_del(&EG(symbol_table), "_REQUEST", sizeof("_REQUEST"));
+    zend_hash_del(&EG(symbol_table), "_SERVER", sizeof("_SERVER"));
+}
+
+static void http_global_merge(zval *val, zval *zrequest, int type)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
@@ -186,6 +198,7 @@ static void http_merge_global(zval *val, zval *zrequest, int type)
     switch (type)
     {
     case HTTP_GLOBAL_GET:
+        //php_var_dump(&val, 5 TSRMLS_CC);
         ZEND_SET_SYMBOL(&EG(symbol_table), "_GET", val);
         break;
 
@@ -339,12 +352,9 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
         memcpy(keybuf, kv.k, kv.klen - 1);
         keybuf[kv.klen - 1] = 0;
         add_assoc_stringl_ex(cookie, keybuf, kv.klen , kv.v, kv.vlen, 1);
-//        ZEND_SET_SYMBOL(&EG(symbol_table), "_COOKIE", cookie);
         mergeGlobal(cookie, client->zrequest, HTTP_GLOBAL_COOKIE);
-        
     }
-    else if (memcmp(header_name, ZEND_STRL("upgrade")) == 0
-            && memcmp(at, ZEND_STRL("websocket")) == 0)
+    else if (memcmp(header_name, ZEND_STRL("upgrade")) == 0 && memcmp(at, ZEND_STRL("websocket")) == 0)
     {
         SwooleG.lock.lock(&SwooleG.lock);
         swConnection *conn = swServer_connection_get(SwooleG.serv, client->fd);
@@ -406,7 +416,6 @@ static int http_request_on_body(php_http_parser *parser, const char *at, size_t 
         zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("post"), post TSRMLS_CC);
         sapi_module.treat_data(PARSE_STRING, body, post TSRMLS_CC);
         mergeGlobal(post, client->zrequest, HTTP_GLOBAL_POST);
-
     }
     else
     {
@@ -1322,7 +1331,8 @@ PHP_METHOD(swoole_http_response, end)
 
     swString_append_ptr(response, ZEND_STRL("\r\n"));
 
-    if(client->request.method != PHP_HTTP_HEAD)  {
+    if (client->request.method != PHP_HTTP_HEAD)
+    {
         swString_append(response, &body);
     }
 
@@ -1334,6 +1344,10 @@ PHP_METHOD(swoole_http_response, end)
     if (!keepalive)
     {
         SwooleG.serv->factory.end(&SwooleG.serv->factory, Z_LVAL_P(zfd));
+    }
+    if (http_merge_global_flag > 0)
+    {
+        http_global_clear(TSRMLS_C);
     }
     SW_CHECK_RETURN(ret);
 }
