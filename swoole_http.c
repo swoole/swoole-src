@@ -213,12 +213,11 @@ static void mergeGlobal(zval * val, zval *zrequest, int type)
             return;
         }
 
-        zval *_request;
-        MAKE_STD_ZVAL(_request);
-        array_init(_request);
-        zend_update_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), _request TSRMLS_CC);
-
-        ZEND_SET_SYMBOL(&EG(symbol_table), "_REQUEST", _request);
+        _request = zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), 1 TSRMLS_CC);
+        if (_request && !(ZVAL_IS_NULL(_request)))
+        {
+            ZEND_SET_SYMBOL(&EG(symbol_table), "_REQUEST", _request);
+        }
         return;
 
     case HTTP_GLOBAL_SERVER:
@@ -231,7 +230,17 @@ static void mergeGlobal(zval * val, zval *zrequest, int type)
     {
         //swTrace("%d, %d match\n", global, type);
         _request = zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), 1 TSRMLS_CC);
-        zend_hash_copy(Z_ARRVAL_P(_request), Z_ARRVAL_P(val), NULL, NULL, sizeof(zval));
+        if (!_request || ZVAL_IS_NULL(_request))
+        {
+            _request = val;
+//            MAKE_STD_ZVAL(_request);
+//            array_init(_request);
+            //zend_update_property(swoole_http_request_class_entry_ptr, getThis(), ZEND_STRL("request"), _request TSRMLS_CC);
+        }
+        else
+        {
+            zend_hash_copy(Z_ARRVAL_P(_request), Z_ARRVAL_P(val), NULL, NULL, sizeof(zval));
+        }
         zend_update_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), _request TSRMLS_CC);
         //flag = 0;
         //ZEND_SET_SYMBOL(&EG(symbol_table), "_REQUEST", _request);
@@ -779,7 +788,7 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         add_assoc_string(zserver, "SERVER_SOFTWARE", SW_HTTP_SERVER_SOFTWARE, 1);
         add_assoc_string(zserver, "GATEWAY_INTERFACE", SW_HTTP_SERVER_SOFTWARE, 1);
 
-        ZEND_SET_SYMBOL(&EG(symbol_table), "_SERVER", zserver);
+        //ZEND_SET_SYMBOL(&EG(symbol_table), "_SERVER", zserver);
         mergeGlobal(zserver, NULL, HTTP_GLOBAL_SERVER);
 
         //设置_REQUEST
