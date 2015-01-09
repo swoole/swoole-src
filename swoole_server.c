@@ -1178,6 +1178,12 @@ PHP_FUNCTION(swoole_server_set)
         convert_to_long(*v);
         serv->open_http_protocol = (uint8_t) Z_LVAL_PP(v);
     }
+    //buffer: mqtt protocol
+    if (sw_zend_hash_find(vht, ZEND_STRS("open_mqtt_protocol"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(*v);
+        serv->open_mqtt_protocol = (uint8_t) Z_LVAL_PP(v);
+    }
     //tcp_keepidle
     if (sw_zend_hash_find(vht, ZEND_STRS("tcp_keepidle"), (void **)&v) == SUCCESS)
     {

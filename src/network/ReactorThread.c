@@ -18,6 +18,7 @@
 #include "Server.h"
 #include "Http.h"
 #include "websocket.h"
+#include "mqtt.h"
 
 static int swUDPThread_start(swServer *serv);
 
@@ -796,6 +797,11 @@ void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
     {
         reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_http_request);
     }
+    else if (serv->open_mqtt_protocol)
+    {
+        serv->get_package_length = swMqtt_get_package_length;
+        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_length);
+    }
     else
     {
         reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_no_buffer);
@@ -888,7 +894,7 @@ static int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swE
                     tmp_package.length = package_total_length;
                     tmp_package.str = (void *) tmp_ptr;
 
-                    //swoole_dump_bin(buffer.str, 's', buffer.length);
+                    //swoole_dump_bin(tmp_package.str, 's', tmp_package.length);
                     swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, &tmp_package);
 
                     tmp_n -= package_total_length;

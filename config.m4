@@ -235,6 +235,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/SSL.c \
         src/protocol/Http.c \
         src/protocol/WebSocket.c \
+        src/protocol/Mqtt.c \
         src/protocol/Base64.c"
         
     if test "$enable_swoole" != "yes"; then
