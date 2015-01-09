@@ -439,7 +439,7 @@ struct _swServer
     int (*onTask)(swServer *serv, swEventData *data);
     int (*onFinish)(swServer *serv, swEventData *data);
 
-    int (*get_package_length)(swServer *serv, swConnection *conn, void *data, uint32_t length);
+    int (*get_package_length)(swServer *serv, swConnection *conn, char *data, uint32_t length);
 };
 
 typedef struct _swSocketLocal
