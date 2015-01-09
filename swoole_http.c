@@ -1223,6 +1223,7 @@ PHP_METHOD(swoole_http_response, end)
         char *key_connection = "Connection";
         char *key_content_length = "Content-Length";
         char *key_date = "Date";
+
         HashTable *ht = Z_ARRVAL_P(header);
         for (zend_hash_internal_pointer_reset(ht); zend_hash_has_more_elements(ht) == 0; zend_hash_move_forward(ht))
         {
@@ -1237,19 +1238,19 @@ PHP_METHOD(swoole_http_response, end)
             {
                 continue;
             }
-            if(strcmp(key, key_server) == 0) 
+            if (strcmp(key, key_server) == 0)
             {
                 flag |= 0x1;
             }
-            else if(strcmp(key, key_connection) == 0) 
+            else if (strcmp(key, key_connection) == 0)
             {
                 flag |= 0x2;
             }
-            else if(strcmp(key, key_content_length) == 0) 
+            else if (strcmp(key, key_content_length) == 0)
             {
                 flag |= 0x4;
             }
-            else if(strcmp(key, key_date) == 0) 
+            else if (strcmp(key, key_date) == 0)
             {
                 flag |= 0x8;
             }
@@ -1273,7 +1274,7 @@ PHP_METHOD(swoole_http_response, end)
             }
         }
 
-        if(client->request.method == PHP_HTTP_OPTIONS)
+        if (client->request.method == PHP_HTTP_OPTIONS)
         {
             swString_append_ptr(response, ZEND_STRL("Allow: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS\r\nContent-Length: 0\r\n"));
         }
@@ -1285,7 +1286,6 @@ PHP_METHOD(swoole_http_response, end)
                 swString_append_ptr(response, buf, n);
             }
         }
-
 
         if (!(flag & 0x8))
         {
@@ -1307,13 +1307,17 @@ PHP_METHOD(swoole_http_response, end)
             swString_append_ptr(response, ZEND_STRL("Connection: close\r\n"));
         }
 
-        date_str = php_format_date(ZEND_STRL("D, d-M-Y H:i:s T"), 1, SwooleGS->now TSRMLS_CC);
+        date_str = php_format_date(ZEND_STRL("D, d-M-Y H:i:s T"), SwooleGS->now, 0 TSRMLS_CC);
         n = snprintf(buf, 128, "Date: %s\r\n", date_str);
         efree(date_str);
         swString_append_ptr(response, buf, n);
-        if(client->request.method == PHP_HTTP_OPTIONS) {
+
+        if (client->request.method == PHP_HTTP_OPTIONS)
+        {
             n = snprintf(buf, 128, "Allow: GET, POST, PUT, DELETE, HEAD, OPTIONS\r\nContent-Length: %d\r\n", 0);
-        } else {
+        }
+        else
+        {
             n = snprintf(buf, 128, "Content-Length: %d\r\n", body.length);
         }
         swString_append_ptr(response, buf, n);
