@@ -44,9 +44,41 @@ int swFactory_shutdown(swFactory *factory)
 
 int swFactory_dispatch(swFactory *factory, swDispatchData *task)
 {
-    swTrace("New Task:%s\n", task->data.data);
+    swString *package = NULL;
     factory->last_from_id = task->data.info.from_id;
-    return factory->onTask(factory, &(task->data));
+    int ret;
+
+    switch (task->data.info.type)
+    {
+    //no buffer
+    case SW_EVENT_TCP:
+    case SW_EVENT_UDP:
+    case SW_EVENT_UNIX_DGRAM:
+
+        //ringbuffer shm package
+    case SW_EVENT_PACKAGE:
+        onTask:
+        ret = factory->onTask(factory, &task->data);
+        if (task->data.info.type == SW_EVENT_PACKAGE_END)
+        {
+            package->length = 0;
+        }
+        break;
+    case SW_EVENT_PACKAGE_START:
+    case SW_EVENT_PACKAGE_END:
+        //input buffer
+        package = SwooleWG.buffer_input[task->data.info.from_id];
+        //merge task->data to package buffer
+        memcpy(package->str + package->length, task->data.data, task->data.info.len);
+        package->length += task->data.info.len;
+        //package end
+        if (task->data.info.type == SW_EVENT_PACKAGE_END)
+        {
+            goto onTask;
+        }
+        break;
+    }
+    return ret;
 }
 
 int swFactory_notify(swFactory *factory, swDataHead *req)
