@@ -279,57 +279,62 @@ struct _swServer
     /**
      * run as a daemon process
      */
-    uint16_t daemonize :1;
+    uint32_t daemonize :1;
 
     /**
      * have udp listen socket
      */
-    uint16_t have_udp_sock :1;
+    uint32_t have_udp_sock :1;
 
     /**
      * have tcp listen socket
      */
-    uint16_t have_tcp_sock :1;
+    uint32_t have_tcp_sock :1;
 
     /**
      * oepn cpu affinity setting
      */
-    uint16_t open_cpu_affinity :1;
+    uint32_t open_cpu_affinity :1;
 
     /**
      * open tcp nodelay option
      */
-    uint16_t open_tcp_nodelay :1;
+    uint32_t open_tcp_nodelay :1;
 
     /**
      * open tcp nopush option(for sendfile)
      */
-    uint16_t open_tcp_nopush :1;
+    uint32_t open_tcp_nopush :1;
 
     /**
      * open tcp keepalive
      */
-    uint16_t open_tcp_keepalive :1;
+    uint32_t open_tcp_keepalive :1;
 
     /**
      * check data eof
      */
-    uint16_t open_eof_check :1;
+    uint32_t open_eof_check :1;
 
     /**
      * built-in http protocol
      */
-    uint16_t open_http_protocol :1;
+    uint32_t open_http_protocol :1;
 
     /**
      *  one package: length check
      */
-    uint16_t open_length_check :1;
+    uint32_t open_length_check :1;
+
+    /**
+     * for mqtt protocol
+     */
+    uint32_t open_mqtt_protocol :1;
 
     /**
      * Use data key as factory->dispatch() param.
      */
-    uint16_t open_dispatch_key: 1;
+    uint32_t open_dispatch_key: 1;
 
     /**
      * open tcp_defer_accept option
