@@ -84,6 +84,20 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_send_oo, 0, 0, 2)
 	ZEND_ARG_INFO(0, from_id)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_sendto, 0, 0, 3)
+	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
+	ZEND_ARG_INFO(0, ip)
+	ZEND_ARG_INFO(0, port)
+	ZEND_ARG_INFO(0, send_data)
+ZEND_END_ARG_INFO()
+
+//for object style
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_sendto_oo, 0, 0, 2)
+	ZEND_ARG_INFO(0, ip)
+	ZEND_ARG_INFO(0, port)
+	ZEND_ARG_INFO(0, send_data)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_sendfile, 0, 0, 3)
 	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
 	ZEND_ARG_INFO(0, conn_fd)
@@ -405,6 +419,7 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_server_set, arginfo_swoole_server_set)
 	PHP_FE(swoole_server_start, arginfo_swoole_server_start)
 	PHP_FE(swoole_server_send, arginfo_swoole_server_send)
+	PHP_FE(swoole_server_sendto, arginfo_swoole_server_sendto)
 	PHP_FE(swoole_server_sendfile, arginfo_swoole_server_sendfile)
 	PHP_FE(swoole_server_close, arginfo_swoole_server_close)
 	PHP_FE(swoole_server_handler, arginfo_swoole_server_handler)
@@ -457,6 +472,7 @@ static zend_function_entry swoole_server_methods[] = {
 	PHP_FALIAS(set, swoole_server_set, arginfo_swoole_server_set_oo)
 	PHP_FALIAS(start, swoole_server_start, arginfo_swoole_server_start_oo)
 	PHP_FALIAS(send, swoole_server_send, arginfo_swoole_server_send_oo)
+	PHP_FALIAS(send, swoole_server_sendto, arginfo_swoole_server_sendto_oo)
 	PHP_FALIAS(sendfile, swoole_server_sendfile, arginfo_swoole_server_sendfile_oo)
 	PHP_FALIAS(close, swoole_server_close, arginfo_swoole_server_close_oo)
 	PHP_FALIAS(task, swoole_server_task, arginfo_swoole_server_task_oo)
@@ -2531,6 +2547,52 @@ PHP_FUNCTION(swoole_server_send)
     {
         SW_CHECK_RETURN(swServer_tcp_send(serv, fd, send_data, send_len));
     }
+}
+
+PHP_FUNCTION(swoole_server_sendto)
+{
+	zval *zobject = getThis();
+	swServer *serv = NULL;
+	swFactory *factory = NULL;
+	swSendData _send;
+
+	int sockfd;
+	char* ip;
+	int ip_len;
+	long port = 0;
+	char *send_data;
+	int send_len;
+
+	if (zobject == NULL)
+	{
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Osls", &zobject, swoole_server_class_entry_ptr, &ip, &ip_len, &port,
+				&send_data, &send_len) == FAILURE)
+		{
+			return;
+		}
+	}
+	else
+	{
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sls", &ip, &ip_len, &port,
+				&send_data, &send_len) == FAILURE)
+		{
+			return;
+		}
+	}
+	if ((sockfd=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP))==-1) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "create udp socket failed.Error: %s", sw_error);
+		RETURN_FALSE;
+	}
+	if (inet_aton(SRV_IP, &si_other.sin_addr)==0) {
+		fprintf(stderr, "inet_aton() failed\n");
+		exit(1);
+	}
+	_send.info.fd = fd;
+	_send.info.from_id = (uint16_t) port;
+	_send.info.from_fd = (uint16_t) sockfd;
+	_send.info.type = SW_EVENT_UDP;
+	_send.data = send_data;
+	_send.info.len = send_len;
 }
 
 PHP_FUNCTION(swoole_server_sendfile)
