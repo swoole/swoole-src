@@ -38,7 +38,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev);
 
 static int swReactorThread_send_string_buffer(swReactorThread *thread, swConnection *conn, swString *buffer);
 static int swReactorThread_send_in_buffer(swReactorThread *thread, swConnection *conn);
-static int swReactorThread_get_package_length(swServer *serv, swConnection *conn, void *data, uint32_t size);
+static int swReactorThread_get_package_length(swServer *serv, swConnection *conn, char *data, uint32_t size);
 
 #ifdef SW_USE_RINGBUFFER
 static sw_inline void* swReactorThread_alloc(swReactorThread *thread, uint32_t size)
@@ -752,7 +752,7 @@ static int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *even
 /**
 * return the package total length
 */
-static int swReactorThread_get_package_length(swServer *serv, swConnection *conn, void *data, uint32_t size)
+static int swReactorThread_get_package_length(swServer *serv, swConnection *conn, char *data, uint32_t size)
 {
     uint16_t length_offset = serv->package_length_offset;
     uint32_t body_length;
@@ -851,7 +851,7 @@ static int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swE
 
         swString tmp_package;
         swString *package;
-        void *tmp_ptr = recv_buf;
+        char *tmp_ptr = recv_buf;
         uint32_t tmp_n = n;
 
         //new package
@@ -860,7 +860,7 @@ static int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swE
             do_parse_package:
             do
             {
-                package_total_length = serv->get_package_length(serv, conn, (void *) tmp_ptr, (uint32_t) tmp_n);
+                package_total_length = serv->get_package_length(serv, conn, tmp_ptr, (uint32_t) tmp_n);
 
                 //invalid package, close connection.
                 if (package_total_length < 0)

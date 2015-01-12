@@ -203,7 +203,6 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     reactor->setHandle(reactor, SW_FD_LISTEN, swServer_master_onAccept);
     //close
     reactor->setHandle(reactor, SW_FD_CLOSE, swReactorProcess_onClose);
-
     //set protocol function point
     swReactorThread_set_protocol(serv, reactor);
 

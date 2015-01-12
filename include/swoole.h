@@ -130,6 +130,7 @@ int daemon(int nochdir, int noclose);
 #define SW_TIMEO_USEC          3000000
 
 #define SW_MAX_UINT            4294967295
+#define SW_MAX_INT             2147483647
 
 #ifndef MAX
 #define MAX(a, b)              (a)>(b)?a:b;

@@ -1026,8 +1026,7 @@ PHP_FUNCTION(swoole_server_set)
         serv->backlog = (int) Z_LVAL_PP(v);
     }
     //reactor thread num
-    if (sw_zend_hash_find(vht, ZEND_STRS("reactor_num"), (void **) &v) == SUCCESS
-            || sw_zend_hash_find(vht, ZEND_STRS("poll_thread_num"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("reactor_num"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
         serv->reactor_num = (int) Z_LVAL_PP(v);
@@ -2752,7 +2751,6 @@ PHP_FUNCTION(swoole_connection_list)
     //达到最大，表示已经取完了
     if ((int) start_fd >= serv_max_fd)
     {
-
         RETURN_FALSE;
     }
 
