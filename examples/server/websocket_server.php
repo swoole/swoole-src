@@ -34,14 +34,14 @@ $http->on('handshake', function($request, $response) {  //自定定握手规则�
 });
 */
 
-$http->on('message', function(swoole_http_wsresponse $response) use ($http) {
-    //var_dump($response);
-    //echo "fd:".$response->fd . "fin:".$response->fin . "opcode:".$response->opcode
-    //$response->message("server send:".$response->data);
-    $http->push($response->fd, "hello, i am swoole http server.");
+$http->on('message', function(swoole_websocket_frame $frame) use ($http) {
+    //var_dump($frame);
+    //echo "fd:".$frame->fd . "fin:".$frame->fin . "opcode:".$frame->opcode
+    //$frame->message("server send:".$response->data);
+    $http->push($frame->fd, "hello, i am swoole http server.");
 });
 
-$http->on('request', function ($request, $response) {
+$http->on('request', function ($request, swoole_http_response $response) {
     var_dump($request);
 	$response->end("<h1>Hello Swoole. #".rand(1000, 9999)."</h1>");
 });

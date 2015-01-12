@@ -83,9 +83,8 @@ zend_class_entry *swoole_http_response_class_entry_ptr;
 zend_class_entry swoole_http_request_ce;
 zend_class_entry *swoole_http_request_class_entry_ptr;
 
-
-zend_class_entry swoole_http_wsresponse_ce;
-zend_class_entry *swoole_http_wsresponse_class_entry_ptr;
+zend_class_entry swoole_websocket_frame_ce;
+zend_class_entry *swoole_websocket_frame_class_entry_ptr;
 
 static zval* php_sw_http_server_callbacks[4];
 static swHashMap *php_sw_http_clients;
@@ -229,9 +228,9 @@ const zend_function_entry swoole_http_response_methods[] =
 };
 
 
-const zend_function_entry swoole_http_wsresponse_methods[] =
+const zend_function_entry swoole_websocket_frame_methods[] =
 {
-    PHP_ME(swoole_http_wsresponse, message,         NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_websocket_frame, message,         NULL, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -650,9 +649,9 @@ static void handshake_success(int fd)
         swTrace("\n\n\n\nhandshake success\n\n\n");
         zval *zresponse;
         MAKE_STD_ZVAL(zresponse);
-        object_init_ex(zresponse, swoole_http_wsresponse_class_entry_ptr);
+        object_init_ex(zresponse, swoole_websocket_frame_class_entry_ptr);
         //socket fd
-        zend_update_property_long(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("fd"), fd TSRMLS_CC);
+        zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zresponse, ZEND_STRL("fd"), fd TSRMLS_CC);
 
         zval **args[1];
         args[0] = &zresponse;
@@ -705,13 +704,13 @@ static int http_websocket_onMessage(swEventData *req TSRMLS_DC)
     buf += 2;
     zval *zresponse;
     MAKE_STD_ZVAL(zresponse);
-    object_init_ex(zresponse, swoole_http_wsresponse_class_entry_ptr);
+    object_init_ex(zresponse, swoole_websocket_frame_class_entry_ptr);
 
     //socket fd
-    zend_update_property_long(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("fd"), fd TSRMLS_CC);
-    zend_update_property_long(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("fin"), fin TSRMLS_CC);
-    zend_update_property_long(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("opcode"), opcode TSRMLS_CC);
-    zend_update_property_stringl(swoole_http_wsresponse_class_entry_ptr, zresponse, ZEND_STRL("data"), buf, (Z_STRLEN_P(zdata) - 2) TSRMLS_CC);
+    zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zresponse, ZEND_STRL("fd"), fd TSRMLS_CC);
+    zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zresponse, ZEND_STRL("fin"), fin TSRMLS_CC);
+    zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zresponse, ZEND_STRL("opcode"), opcode TSRMLS_CC);
+    zend_update_property_stringl(swoole_websocket_frame_class_entry_ptr, zresponse, ZEND_STRL("data"), buf, (Z_STRLEN_P(zdata) - 2) TSRMLS_CC);
 
     zval **args[1];
     args[0] = &zresponse;
@@ -888,8 +887,8 @@ void swoole_http_init(int module_number TSRMLS_DC)
     INIT_CLASS_ENTRY(swoole_http_request_ce, "swoole_http_request", swoole_http_request_methods);
     swoole_http_request_class_entry_ptr = zend_register_internal_class(&swoole_http_request_ce TSRMLS_CC);
     
-    INIT_CLASS_ENTRY(swoole_http_wsresponse_ce, "swoole_http_wsresponse", swoole_http_wsresponse_methods);
-    swoole_http_wsresponse_class_entry_ptr = zend_register_internal_class(&swoole_http_wsresponse_ce TSRMLS_CC);
+    INIT_CLASS_ENTRY(swoole_websocket_frame_ce, "swoole_websocket_frame", swoole_websocket_frame_methods);
+    swoole_websocket_frame_class_entry_ptr = zend_register_internal_class(&swoole_websocket_frame_ce TSRMLS_CC);
 
     REGISTER_LONG_CONSTANT("WEBSOCKET_OPCODE_TEXT", WEBSOCKET_OPCODE_TEXT_FRAME, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("WEBSOCKET_OPCODE_BINARY", WEBSOCKET_OPCODE_BINARY_FRAME, CONST_CS | CONST_PERSISTENT);
@@ -1714,7 +1713,7 @@ PHP_METHOD(swoole_http_server, push)
 /**
  * For websocket send message
  */
-PHP_METHOD(swoole_http_wsresponse, message)
+PHP_METHOD(swoole_websocket_frame, message)
 {
     swString data;
     data.length = 0;
@@ -1727,9 +1726,9 @@ PHP_METHOD(swoole_http_wsresponse, message)
         return;
     }
 
-    if(fd == 0)
+    if (fd == 0)
     {
-        zval *zfd = zend_read_property(swoole_http_wsresponse_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
+        zval *zfd = zend_read_property(swoole_websocket_frame_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
         if (ZVAL_IS_NULL(zfd))
         {
             php_error_docref(NULL TSRMLS_CC, E_WARNING, "http client not exists.");
