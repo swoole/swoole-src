@@ -23,13 +23,6 @@ PHP_METHOD(swoole_lock, __construct)
 	int filelock_len = 0;
 	int ret;
 
-#ifdef ZTS
-    if (sw_thread_ctx == NULL)
-    {
-        TSRMLS_SET_CTX(sw_thread_ctx);
-    }
-#endif
-
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ls", &type, &filelock, &filelock_len) == FAILURE)
 	{
 		RETURN_FALSE;
@@ -90,7 +83,7 @@ PHP_METHOD(swoole_lock, __construct)
 	RETURN_TRUE;
 }
 
-void swoole_destory_lock(zend_rsrc_list_entry *rsrc TSRMLS_DC)
+void swoole_destory_lock(zend_resource *rsrc TSRMLS_DC)
 {
 	swLock *lock = (swLock *) rsrc->ptr;
 	lock->free(lock);

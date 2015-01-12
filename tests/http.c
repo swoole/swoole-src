@@ -13,7 +13,7 @@
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
 */
-
+#if 0
 #include "swoole.h"
 #include "tests.h"
 #include "Http.h"
@@ -81,3 +81,4 @@ swUnitTest(http_test2)
     swString_free(content);
     return 0;
 }
+#endif

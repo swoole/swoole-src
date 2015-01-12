@@ -44,9 +44,41 @@ int swFactory_shutdown(swFactory *factory)
 
 int swFactory_dispatch(swFactory *factory, swDispatchData *task)
 {
-    swTrace("New Task:%s\n", task->data);
+    swString *package = NULL;
     factory->last_from_id = task->data.info.from_id;
-    return factory->onTask(factory, &(task->data));
+    int ret = 0;
+
+    switch (task->data.info.type)
+    {
+    //no buffer
+    case SW_EVENT_TCP:
+    case SW_EVENT_UDP:
+    case SW_EVENT_UNIX_DGRAM:
+
+        //ringbuffer shm package
+    case SW_EVENT_PACKAGE:
+        onTask:
+        ret = factory->onTask(factory, &task->data);
+        if (task->data.info.type == SW_EVENT_PACKAGE_END)
+        {
+            package->length = 0;
+        }
+        break;
+    case SW_EVENT_PACKAGE_START:
+    case SW_EVENT_PACKAGE_END:
+        //input buffer
+        package = SwooleWG.buffer_input[task->data.info.from_id];
+        //merge task->data to package buffer
+        memcpy(package->str + package->length, task->data.data, task->data.info.len);
+        package->length += task->data.info.len;
+        //package end
+        if (task->data.info.type == SW_EVENT_PACKAGE_END)
+        {
+            goto onTask;
+        }
+        break;
+    }
+    return ret;
 }
 
 int swFactory_notify(swFactory *factory, swDataHead *req)
@@ -55,13 +87,20 @@ int swFactory_notify(swFactory *factory, swDataHead *req)
     switch (req->type)
     {
     case SW_EVENT_CLOSE:
-        serv->onClose(serv, req->fd, req->from_id);
+        if (serv->onClose)
+        {
+            serv->onClose(serv, req->fd, req->from_id);
+        }
         break;
+
     case SW_EVENT_CONNECT:
-        serv->onConnect(serv, req->fd, req->from_id);
+        if (serv->onConnect)
+        {
+            serv->onConnect(serv, req->fd, req->from_id);
+        }
         break;
     default:
-        swWarn("Error event[type=%d]", (int)req->type);
+        swWarn("Error event[type=%d]", (int )req->type);
         break;
     }
     return SW_OK;
@@ -74,7 +113,7 @@ int swFactory_end(swFactory *factory, int fd)
     {
         serv->onClose(serv, fd, 0);
     }
-    return swServer_connection_close(serv, fd);
+    return SwooleG.main_reactor->close(SwooleG.main_reactor, fd);
 }
 
 int swFactory_finish(swFactory *factory, swSendData *resp)
@@ -92,7 +131,7 @@ int swFactory_finish(swFactory *factory, swSendData *resp)
         addr_un.sun_family = AF_UNIX;
         memcpy(addr_un.sun_path, resp->sun_path, resp->sun_path_len);
         len = sizeof(addr_un);
-        ret = swSendto(from_sock, resp->data, resp->info.len, 0, (struct sockaddr *) &addr_un, len);
+        ret = swSocket_sendto_blocking(from_sock, resp->data, resp->info.len, 0, (struct sockaddr *) &addr_un, len);
         goto finish;
     }
     //UDP pacakge

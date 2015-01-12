@@ -18,69 +18,73 @@
 #include "atomic.h"
 
 #include <sys/stat.h>
-#include <sys/poll.h>
 #include <sys/resource.h>
+#include <sys/ioctl.h>
 
 void swoole_init(void)
 {
     struct rlimit rlmt;
-    if (SwooleG.running == 0)
+    if (SwooleG.running)
     {
-        bzero(&SwooleG, sizeof(SwooleG));
-        bzero(sw_error, SW_ERROR_MSG_SIZE);
-
-        //初始化全局变量
-        SwooleG.running = 1;
-        sw_errno = 0;
-
-        SwooleG.cpu_num = sysconf(_SC_NPROCESSORS_ONLN);
-        SwooleG.pagesize = getpagesize();
-
-        if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
-        {
-            swWarn("getrlimit() failed. Error: %s[%d]", strerror(errno), errno);
-        }
-        else
-        {
-            SwooleG.max_sockets = (uint32_t) rlmt.rlim_cur;
-        }
-
-        //random seed
-        srandom(time(NULL));
-
-        //init global lock
-        swMutex_create(&SwooleG.lock, 0);
-
-        //init signalfd
-#ifdef HAVE_SIGNALFD
-        swSignalfd_init();
-        SwooleG.use_signalfd = 1;
-#endif
-        //timerfd
-#ifdef HAVE_TIMERFD
-        SwooleG.use_timerfd = 1;
-#endif
-
-        SwooleG.use_timer_pipe = 1;
-        //将日志设置为标准输出
-        SwooleG.log_fd = STDOUT_FILENO;
-        //初始化全局内存
-        SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
-        if (SwooleG.memory_pool == NULL)
-        {
-            swError("[Master] Fatal Error: create global memory failed.");
-        }
-        SwooleGS = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerGS));
-        if (SwooleGS == NULL)
-        {
-            swError("[Master] Fatal Error: alloc memory for SwooleGS failed.");
-        }
-        SwooleStats = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerStats));
-        if (SwooleGS == NULL)
-        {
-            swError("[Master] Fatal Error: alloc memory for SwooleStats failed.");
-        }
+        return;
     }
+
+    bzero(&SwooleG, sizeof(SwooleG));
+    bzero(&SwooleWG, sizeof(SwooleWG));
+    bzero(sw_error, SW_ERROR_MSG_SIZE);
+
+    SwooleG.running = 1;
+    sw_errno = 0;
+
+    SwooleG.cpu_num = sysconf(_SC_NPROCESSORS_ONLN);
+    SwooleG.pagesize = getpagesize();
+    SwooleG.pid = getpid();
+
+    if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
+    {
+        swWarn("getrlimit() failed. Error: %s[%d]", strerror(errno), errno);
+    }
+    else
+    {
+        SwooleG.max_sockets = (uint32_t) rlmt.rlim_cur;
+    }
+
+    //random seed
+    srandom(time(NULL));
+
+    //init global lock
+    swMutex_create(&SwooleG.lock, 0);
+
+    //init signalfd
+#ifdef HAVE_SIGNALFD
+    swSignalfd_init();
+    SwooleG.use_signalfd = 1;
+#endif
+    //timerfd
+#ifdef HAVE_TIMERFD
+    SwooleG.use_timerfd = 1;
+#endif
+
+    SwooleG.use_timer_pipe = 1;
+    //将日志设置为标准输出
+    SwooleG.log_fd = STDOUT_FILENO;
+    //初始化全局内存
+    SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
+    if (SwooleG.memory_pool == NULL)
+    {
+        swError("[Master] Fatal Error: create global memory failed.");
+    }
+    SwooleGS = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerGS));
+    if (SwooleGS == NULL)
+    {
+        swError("[Master] Fatal Error: alloc memory for SwooleGS failed.");
+    }
+    SwooleStats = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerStats));
+    if (SwooleGS == NULL)
+    {
+        swError("[Master] Fatal Error: alloc memory for SwooleStats failed.");
+    }
+    swoole_update_time();
 }
 
 void swoole_clean(void)
@@ -273,6 +277,19 @@ int swoole_system_random(int min, int max)
     return min + (random_value % (max - min + 1));
 }
 
+void swoole_update_time(void)
+{
+    time_t now = time(NULL);
+    if (now < 0)
+    {
+        swWarn("get time failed. Error: %s[%d]", strerror(errno), errno);
+    }
+    else
+    {
+        SwooleGS->now = now;
+    }
+}
+
 swString* swoole_file_get_contents(char *filename)
 {
     struct stat file_stat;
@@ -398,223 +415,11 @@ uint32_t swoole_common_multiple(uint32_t u, uint32_t v)
     return u * v / n_cup;
 }
 
-int swSocket_sendfile_sync(int sock, char *filename, double timeout)
-{
-    int timeout_ms = timeout < 0 ? -1 : timeout * 1000;
-    int file_fd = open(filename, O_RDONLY);
-    if (file_fd < 0)
-    {
-        swWarn("open(%s) failed. Error: %s[%d]", filename, strerror(errno), errno);
-        return SW_ERR;
-    }
-
-    struct stat file_stat;
-    if (fstat(file_fd, &file_stat) < 0)
-    {
-        swWarn("fstat() failed. Error: %s[%d]", strerror(errno), errno);
-        return SW_ERR;
-    }
-
-    int n, sendn;
-    off_t offset = 0;
-    size_t file_size = file_stat.st_size;
-
-    while (offset < file_size)
-    {
-        if (swSocket_wait(sock, timeout_ms, SW_EVENT_WRITE) < 0)
-        {
-            return SW_ERR;
-        }
-        else
-        {
-            sendn = (file_size - offset > SW_SENDFILE_TRUNK) ? SW_SENDFILE_TRUNK : file_size - offset;
-            n = swoole_sendfile(sock, file_fd, &offset, sendn);
-            if (n <= 0)
-            {
-                swWarn("sendfile() failed. Error: %s[%d]", strerror(errno), errno);
-                return SW_ERR;
-            }
-            else
-            {
-                continue;
-            }
-        }
-    }
-    return SW_OK;
-}
-
-/**
- * Wait socket can read or write.
- */
-int swSocket_wait(int fd, int timeout_ms, int events)
-{
-    struct pollfd event;
-    event.fd = fd;
-    event.events = 0;
-
-    if (events & SW_EVENT_READ)
-    {
-        event.events |= POLLIN;
-    }
-    if (events & SW_EVENT_WRITE)
-    {
-        event.events |= POLLOUT;
-    }
-    while (1)
-    {
-        int ret = poll(&event, 1, timeout_ms);
-        if (ret == 0)
-        {
-            return SW_ERR;
-        }
-        else if (ret < 0 && errno != EINTR)
-        {
-            swWarn("poll() failed. Error: %s[%d]", strerror(errno), errno);
-            return SW_ERR;
-        }
-        else
-        {
-            return SW_OK;
-        }
-    }
-    return SW_OK;
-}
-
-int swSocket_create(int type)
-{
-    int _domain;
-    int _type;
-
-    switch (type)
-    {
-    case SW_SOCK_TCP:
-        _domain = PF_INET;
-        _type = SOCK_STREAM;
-        break;
-    case SW_SOCK_TCP6:
-        _domain = PF_INET6;
-        _type = SOCK_STREAM;
-        break;
-    case SW_SOCK_UDP:
-        _domain = PF_INET;
-        _type = SOCK_DGRAM;
-        break;
-    case SW_SOCK_UDP6:
-        _domain = PF_INET6;
-        _type = SOCK_DGRAM;
-        break;
-    case SW_SOCK_UNIX_DGRAM:
-        _domain = PF_UNIX;
-        _type = SOCK_DGRAM;
-        break;
-    case SW_SOCK_UNIX_STREAM:
-        _domain = PF_UNIX;
-        _type = SOCK_STREAM;
-        break;
-    default:
-        return SW_ERR;
-    }
-    return socket(_domain, _type, 0);
-}
 
 void swFloat2timeval(float timeout, long int *sec, long int *usec)
 {
     *sec = (int) timeout;
     *usec = (int) ((timeout * 1000 * 1000) - ((*sec) * 1000 * 1000));
-}
-
-int swSendto(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len)
-{
-    int count, n;
-    for (count = 0; count < SW_WORKER_SENDTO_COUNT; count++)
-    {
-        n = sendto(fd, __buf, __n, flag, __addr, __addr_len);
-        if (n == 0)
-        {
-            break;
-        }
-        else if (errno == EINTR)
-        {
-            continue;
-        }
-        else if (errno == EAGAIN)
-        {
-            swYield();
-        }
-        else
-        {
-            break;
-        }
-    }
-    return n;
-}
-
-int swSocket_listen(int type, char *host, int port, int backlog)
-{
-    int sock;
-    int option;
-    int ret;
-
-    struct sockaddr_in addr_in4;
-    struct sockaddr_in6 addr_in6;
-    struct sockaddr_un addr_un;
-
-    sock = swSocket_create(type);
-    if (sock < 0)
-    {
-        swWarn("create socket failed. Error: %s[%d]", strerror(errno), errno);
-        return SW_ERR;
-    }
-    //reuse
-    option = 1;
-    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int));
-
-    //unix socket
-    if (type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM)
-    {
-        bzero(&addr_un, sizeof(addr_un));
-        unlink(host);
-        addr_un.sun_family = AF_UNIX;
-        strcpy(addr_un.sun_path, host);
-        ret = bind(sock, (struct sockaddr*) &addr_un, sizeof(addr_un));
-    }
-    //IPv6
-    else if (type > SW_SOCK_UDP)
-    {
-        bzero(&addr_in6, sizeof(addr_in6));
-        inet_pton(AF_INET6, host, &(addr_in6.sin6_addr));
-        addr_in6.sin6_port = htons(port);
-        addr_in6.sin6_family = AF_INET6;
-        ret = bind(sock, (struct sockaddr *) &addr_in6, sizeof(addr_in6));
-    }
-    //IPv4
-    else
-    {
-        bzero(&addr_in4, sizeof(addr_in4));
-        inet_pton(AF_INET, host, &(addr_in4.sin_addr));
-        addr_in4.sin_port = htons(port);
-        addr_in4.sin_family = AF_INET;
-        ret = bind(sock, (struct sockaddr *) &addr_in4, sizeof(addr_in4));
-    }
-    //bind failed
-    if (ret < 0)
-    {
-        swWarn("bind(%s:%d) failed. Error: %s [%d]", host, port, strerror(errno), errno);
-        return SW_ERR;
-    }
-    if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM)
-    {
-        return sock;
-    }
-    //listen stream socket
-    ret = listen(sock, backlog);
-    if (ret < 0)
-    {
-        swWarn("listen(%d) failed. Error: %s[%d]", backlog, strerror(errno), errno);
-        return SW_ERR;
-    }
-    swSetNonBlock(sock);
-    return sock;
 }
 
 int swRead(int fd, void *buf, int len)
@@ -716,49 +521,53 @@ int swWrite(int fd, void *buf, int count)
     return totlen;
 }
 
-void swSetNonBlock(int sock)
+void swoole_ioctl_set_block(int sock, int nonblock)
 {
-    int opts, ret;
+    int ret;
     do
     {
-        opts = fcntl(sock, F_GETFL);
-    } while (opts < 0 && errno == EINTR);
-    if (opts < 0)
-    {
-        swWarn("fcntl(sock,GETFL) failed. Error: %s[%d]", strerror(errno), errno);
+        ret = ioctl(sock, FIONBIO, &nonblock);
     }
-    opts = opts | O_NONBLOCK;
-    do
-    {
-        ret = fcntl(sock, F_SETFL, opts);
-    } while (ret < 0 && errno == EINTR);
+    while (ret == -1 && errno == EINTR);
 
     if (ret < 0)
     {
-        swWarn("fcntl(sock,SETFL,opts) failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("ioctl(%d, FIONBIO, %d) failed.", sock, nonblock);
     }
 }
 
-void swSetBlock(int sock)
+void swoole_fcntl_set_block(int sock, int nonblock)
 {
     int opts, ret;
     do
     {
         opts = fcntl(sock, F_GETFL);
-    } while (opts < 0 && errno == EINTR);
+    }
+    while (opts < 0 && errno == EINTR);
 
     if (opts < 0)
     {
-        swWarn("fcntl(sock,GETFL) failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("fcntl(sock,GETFL) failed.");
     }
-    opts = opts & ~O_NONBLOCK;
+
+    if (nonblock)
+    {
+        opts = opts | O_NONBLOCK;
+    }
+    else
+    {
+        opts = opts & ~O_NONBLOCK;
+    }
+
     do
     {
         ret = fcntl(sock, F_SETFL, opts);
-    } while (ret < 0 && errno == EINTR);
+    }
+    while (ret < 0 && errno == EINTR);
+
     if (ret < 0)
     {
-        swWarn("fcntl(sock,SETFL,opts) failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("fcntl(sock,SETFL,opts) failed.");
     }
 }
 

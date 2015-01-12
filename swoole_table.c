@@ -16,7 +16,7 @@
 
 
 #include "php_swoole.h"
-#include "table.h"
+#include "include/table.h"
 
 zend_class_entry swoole_table_ce;
 zend_class_entry *swoole_table_class_entry_ptr;
@@ -87,6 +87,9 @@ static void php_swoole_table_row2array(swTable *table, swTableRow *row, zval *re
     array_init(return_value);
 
     swTableColumn *col = NULL;
+    swTable_string_length_t vlen = 0;
+    double dval = 0;
+    int64_t lval = 0;
     char *k;
 
     sw_spinlock(&row->lock);
@@ -99,30 +102,29 @@ static void php_swoole_table_row2array(swTable *table, swTableRow *row, zval *re
         }
         if (col->type == SW_TABLE_STRING)
         {
-            uint16_t vlen = *(int16_t *) (row->data + col->index);
-            add_assoc_stringl_ex(return_value, col->name->str, col->name->length + 1, row->data + col->index + 2, vlen, 1);
+            memcpy(&vlen, row->data + col->index, sizeof(swTable_string_length_t));
+            add_assoc_stringl_ex(return_value, col->name->str, col->name->length + 1, row->data + col->index + sizeof(swTable_string_length_t), vlen, 1);
         }
         else if (col->type == SW_TABLE_FLOAT)
         {
-            double dval = *(double *) (row->data + col->index);
+            memcpy(&dval, row->data + col->index, sizeof(dval));
             add_assoc_double_ex(return_value, col->name->str, col->name->length + 1, dval);
         }
         else
         {
-            int64_t lval;
             switch (col->type)
             {
             case SW_TABLE_INT8:
-                lval = *(int8_t *) (row->data + col->index);
+                memcpy(&lval, row->data + col->index, 1);
                 break;
             case SW_TABLE_INT16:
-                lval = *(int16_t *) (row->data + col->index);
+                memcpy(&lval, row->data + col->index, 2);
                 break;
             case SW_TABLE_INT32:
-                lval = *(int32_t *) (row->data + col->index);
+                memcpy(&lval, row->data + col->index, 4);
                 break;
             default:
-                lval = *(int64_t *) (row->data + col->index);
+                memcpy(&lval, row->data + col->index, 8);
                 break;
             }
             add_assoc_long_ex(return_value, col->name->str, col->name->length + 1, lval);
@@ -131,7 +133,7 @@ static void php_swoole_table_row2array(swTable *table, swTableRow *row, zval *re
     sw_spinlock_release(&row->lock);
 }
 
-void swoole_destory_table(zend_rsrc_list_entry *rsrc TSRMLS_DC)
+void swoole_destory_table(zend_resource *rsrc TSRMLS_DC)
 {
     swTable *table = (swTable *) rsrc->ptr;
     if (table)
@@ -167,6 +169,7 @@ void swoole_table_column_free(swTableColumn *col)
 PHP_METHOD(swoole_table, __construct)
 {
     long table_size;
+
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &table_size) == FAILURE)
     {
         RETURN_FALSE;
@@ -175,6 +178,7 @@ PHP_METHOD(swoole_table, __construct)
     {
         RETURN_FALSE;
     }
+
     swTable *table = swTable_new(table_size);
     zval *zres;
     MAKE_STD_ZVAL(zres);
@@ -238,6 +242,8 @@ PHP_METHOD(swoole_table, set)
     int klen;
     Bucket *p = Z_ARRVAL_P(array)->pListHead;
 
+    sw_atomic_t *lock = &row->lock;
+    sw_spinlock(lock);
     do
     {
         v = p->pDataPtr;
@@ -266,6 +272,7 @@ PHP_METHOD(swoole_table, set)
             swTableRow_set_value(row, col, &Z_LVAL_P(v), 0);
         }
     } while (p);
+    sw_spinlock_release(lock);
 
     RETURN_TRUE;
 }
@@ -311,7 +318,6 @@ PHP_METHOD(swoole_table, current)
 
     swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
     swTableRow *row = swTable_iterator_current(table);
-
     php_swoole_table_row2array(table, row, return_value);
 }
 
@@ -382,10 +388,8 @@ PHP_METHOD(swoole_table, del)
         RETURN_FALSE;
     }
 
-    array_init(return_value);
-
     swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
-    swTableRow_del(table, key, keylen);
+    SW_CHECK_RETURN(swTableRow_del(table, key, keylen));
 }
 
 PHP_METHOD(swoole_table, lock)

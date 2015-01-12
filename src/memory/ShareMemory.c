@@ -63,6 +63,7 @@ void sw_shm_free(void *ptr)
 	swShareMemory *object = ptr - sizeof(swShareMemory);
 #ifdef SW_DEBUG
 	char check = *(char *)(ptr + object->size); //尝试访问
+	swTrace("check:%c\n", check);
 #endif
 	swShareMemory_mmap_free(object);
 }
@@ -72,6 +73,7 @@ void* sw_shm_realloc(void *ptr, size_t new_size)
 	swShareMemory *object = ptr - sizeof(swShareMemory);
 #ifdef SW_DEBUG
 	char check = *(char *)(ptr + object->size); //尝试访问
+	swTrace("check:%c\n", check);
 #endif
 	void *new_ptr;
 	new_ptr = sw_shm_malloc(new_size);

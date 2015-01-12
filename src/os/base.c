@@ -286,19 +286,20 @@ static int swAioBase_write(int fd, void *inbuf, size_t size, off_t offset)
 
 int swAio_dns_lookup(void *hostname, void *ip_addr, size_t size)
 {
-	swAio_event *aio_ev = (swAio_event *) sw_malloc(sizeof(swAio_event));
-	if (aio_ev == NULL)
-	{
-		swWarn("malloc failed.");
-		return SW_ERR;
-	}
-	bzero(aio_ev, sizeof(swAio_event));
-	aio_ev->buf = ip_addr;
-	aio_ev->req = hostname;
-	aio_ev->type = SW_AIO_DNS_LOOKUP;
-	aio_ev->nbytes = size;
+    swAio_event *aio_ev = (swAio_event *) sw_malloc(sizeof(swAio_event));
+    if (aio_ev == NULL)
+    {
+        swWarn("malloc failed.");
+        return SW_ERR;
+    }
 
-	if (swThreadPool_dispatch(&swAioBase_thread_pool, aio_ev, sizeof(aio_ev)) < 0)
+    bzero(aio_ev, sizeof(swAio_event));
+    aio_ev->buf = ip_addr;
+    aio_ev->req = hostname;
+    aio_ev->type = SW_AIO_DNS_LOOKUP;
+    aio_ev->nbytes = size;
+
+    if (swThreadPool_dispatch(&swAioBase_thread_pool, aio_ev, sizeof(aio_ev)) < 0)
     {
         return SW_ERR;
     }
@@ -317,12 +318,14 @@ static int swAioBase_read(int fd, void *inbuf, size_t size, off_t offset)
         swWarn("malloc failed.");
         return SW_ERR;
     }
+
     bzero(aio_ev, sizeof(swAio_event));
     aio_ev->fd = fd;
     aio_ev->buf = inbuf;
     aio_ev->type = SW_AIO_READ;
     aio_ev->nbytes = size;
     aio_ev->offset = offset;
+
     if (swThreadPool_dispatch(&swAioBase_thread_pool, aio_ev, sizeof(aio_ev)) < 0)
     {
         return SW_ERR;

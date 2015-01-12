@@ -82,7 +82,7 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout)
 
 static int swPipeEventfd_read(swPipe *p, void *data, int length)
 {
-	int ret;
+	int ret = -1;
 	swPipeEventfd *object = p->object;
 
 	//eventfd not support socket timeout
@@ -108,26 +108,21 @@ static int swPipeEventfd_read(swPipe *p, void *data, int length)
 
 static int swPipeEventfd_write(swPipe *p, void *data, int length)
 {
-	int ret;
-	swPipeEventfd *this = p->object;
-	while (1)
-	{
-		ret = write(this->event_fd, data, sizeof(uint64_t));
-		if (ret < 0)
-		{
-			if (errno == EINTR)
-			{
-				continue;
-			}
-//			else if (errno == EAGAIN)
-//			{
-//				usleep(1);
-//				continue;
-//			}
-		}
-		break;
-	}
-	return ret;
+    int ret;
+    swPipeEventfd *this = p->object;
+    while (1)
+    {
+        ret = write(this->event_fd, data, sizeof(uint64_t));
+        if (ret < 0)
+        {
+            if (errno == EINTR)
+            {
+                continue;
+            }
+        }
+        break;
+    }
+    return ret;
 }
 
 static int swPipeEventfd_getFd(swPipe *p, int isWriteFd)

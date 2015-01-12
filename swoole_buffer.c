@@ -28,7 +28,7 @@ static sw_inline swString* php_swoole_buffer_get(zval *object TSRMLS_DC)
     return str;
 }
 
-void swoole_destory_buffer(zend_rsrc_list_entry *rsrc TSRMLS_DC)
+void swoole_destory_buffer(zend_resource *rsrc TSRMLS_DC)
 {
     swString *str = (swString *) rsrc->ptr;
     if (str)
@@ -40,13 +40,6 @@ void swoole_destory_buffer(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 PHP_METHOD(swoole_buffer, __construct)
 {
     long size = SW_STRING_BUFFER_DEFAULT;
-
-#ifdef ZTS
-    if (sw_thread_ctx == NULL)
-    {
-        TSRMLS_SET_CTX(sw_thread_ctx);
-    }
-#endif
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &size) == FAILURE)
     {

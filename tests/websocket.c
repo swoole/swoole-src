@@ -13,7 +13,7 @@
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
 */
-
+#if 0
 #include "swoole.h"
 #include "tests.h"
 #include "websocket.h"
@@ -25,7 +25,8 @@ swUnitTest(ws_test1)
 	int len = swoole_sync_readfile(fd, buf, 65536) ;
 	if (len > 0)
 	{
-		swWebSocket_decode(buf, len);
+		swWebSocket_decode(buf);
 	}
 	return 0;
 }
+#endif

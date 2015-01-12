@@ -47,6 +47,12 @@ void swQueueMsg_set_blocking(swQueue *p, uint8_t blocking)
     object->ipc_wait = blocking ? 0 : IPC_NOWAIT;
 }
 
+void swQueueMsg_set_destory(swQueue *p, uint8_t destory)
+{
+    swQueueMsg *object = p->object;
+    object->delete = destory;
+}
+
 int swQueueMsg_create(swQueue *p, int blocking, key_t msg_key, long type)
 {
     int msg_id;
@@ -87,10 +93,24 @@ int swQueueMsg_out(swQueue *p, swQueue_data *data, int length)
 {
     swQueueMsg *object = p->object;
 
+    int ret;
     int flag = object->ipc_wait;
     long type = data->mtype;
 
-    return msgrcv(object->msg_id, data, length, type, flag);
+    while (1)
+    {
+        ret = msgrcv(object->msg_id, data, length, type, flag);
+        if (ret < 0 && errno == EINTR)
+        {
+            continue;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    return ret;
 }
 
 int swQueueMsg_in(swQueue *p, swQueue_data *in, int length)
@@ -101,6 +121,7 @@ int swQueueMsg_in(swQueue *p, swQueue_data *in, int length)
     while (1)
     {
         ret = msgsnd(object->msg_id, in, length, object->ipc_wait);
+
         if (ret < 0)
         {
             if (errno == EINTR)

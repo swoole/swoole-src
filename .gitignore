@@ -1,9 +1,11 @@
 /.cproject
+/.idea
 /.project
 *.o
 *.lo
 *~
 *.so
+*.loT
 Debug/*
 modules/*
 /.deps
@@ -48,3 +50,4 @@ modules/*
 /examples/recv_file.jpg
 /modules
 /examples/async/test.copy
+/examples/ssl_client

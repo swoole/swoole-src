@@ -6,7 +6,7 @@ php:
   - 5.5
 
 notifications:
-  email: false
+  email: team@swoole.com
    
 env:
   - REPORT_EXIT_STATUS=1 NO_INTERACTION=1

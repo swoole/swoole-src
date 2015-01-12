@@ -25,7 +25,10 @@ PHP_ARG_ENABLE(openssl, enable openssl support,
 [  --enable-openssl        Use openssl?], no, no)
 
 PHP_ARG_WITH(swoole, swoole support,
-[  --with-swoole           Include swoole support])
+[  --with-swoole           With swoole support])
+
+PHP_ARG_ENABLE(swoole, swoole support,
+[  --enable-swoole         Enable swoole support], [enable_swoole="yes"])
 
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
@@ -87,7 +90,13 @@ if test "$CLANG" = "yes"; then
 fi
 
 if test "$PHP_SWOOLE" != "no"; then
+   
+    PHP_ADD_INCLUDE($SWOOLE_DIR)
     PHP_ADD_INCLUDE($SWOOLE_DIR/include)
+
+    PHP_ADD_INCLUDE([$ext_srcdir])
+    PHP_ADD_INCLUDE([$ext_srcdir/include])
+        
     PHP_ADD_LIBRARY(pthread)
     PHP_SUBST(SWOOLE_SHARED_LIBADD)
 
@@ -145,6 +154,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(c, mkostemp, AC_DEFINE(HAVE_MKOSTEMP, 1, [have mkostemp]))
     AC_CHECK_LIB(pthread, pthread_rwlock_init, AC_DEFINE(HAVE_RWLOCK, 1, [have pthread_rwlock_init]))
     AC_CHECK_LIB(pthread, pthread_spin_lock, AC_DEFINE(HAVE_SPINLOCK, 1, [have pthread_spin_lock]))
+	AC_CHECK_LIB(pthread, pthread_mutex_timedlock, AC_DEFINE(HAVE_MUTEX_TIMEDLOCK, 1, [have pthread_mutex_timedlock]))
     AC_CHECK_LIB(ssl, SSL_library_init, AC_DEFINE(HAVE_OPENSSL, 1, [have openssl]))
 
     if test `uname` = "Darwin" ; then
@@ -164,16 +174,17 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_ADD_LIBRARY(crypt, 1, SWOOLE_SHARED_LIBADD)
         PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
     fi
-
-    PHP_NEW_EXTENSION(swoole, swoole.c \
+    
+    swoole_source_file="swoole.c \
+        swoole_server.c \
         swoole_lock.c \
         swoole_client.c \
+        swoole_event.c \
         swoole_async.c \
         swoole_process.c \
         swoole_buffer.c \
         swoole_table.c \
         swoole_http.c \
-        thirdparty/php_http_parser.c \
         src/core/Base.c \
         src/core/log.c \
         src/core/hashmap.c \
@@ -181,10 +192,12 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/Channel.c \
         src/core/string.c \
         src/core/array.c \
+        src/core/socket.c \
         src/memory/ShareMemory.c \
         src/memory/MemoryGlobal.c \
         src/memory/RingBuffer.c \
         src/memory/FixedPool.c \
+        src/memory/Malloc.c \
         src/memory/Table.c \
         src/factory/Factory.c \
         src/factory/FactoryThread.c \
@@ -222,9 +235,16 @@ if test "$PHP_SWOOLE" != "no"; then
         src/os/timer.c \
         src/protocol/SSL.c \
         src/protocol/Http.c \
-      , $ext_shared)
+        src/protocol/WebSocket.c \
+        src/protocol/Mqtt.c \
+        src/protocol/Base64.c"
+        
+    if test "$enable_swoole" != "yes"; then
+        swoole_source_file="$swoole_source_file thirdparty/php_http_parser.c"
+    fi
 
-    PHP_ADD_INCLUDE([$ext_srcdir/include])
+    PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared)
+      
     PHP_ADD_BUILD_DIR($ext_builddir/src/core)
     PHP_ADD_BUILD_DIR($ext_builddir/src/memory)
     PHP_ADD_BUILD_DIR($ext_builddir/src/factory)

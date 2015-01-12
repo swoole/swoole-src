@@ -21,33 +21,45 @@
 #define SW_MAX_WORKER_GROUP        2
 #define SW_MAX_FILE_CONTENT        (64*1024*1024) //for swoole_file_get_contents
 
+//#ifndef SW_USE_RINGBUFFER
 //#define SW_USE_RINGBUFFER
+//#endif
+
 #define SW_USE_EVENT_TIMER
+
+#define SW_SOCKET_OVERFLOW_WAIT    100
+#define SW_SOCKET_BUFFER_SIZE      (8*1024*1024)  //UDP socket的buffer区大小
 
 #define SW_GLOBAL_MEMORY_PAGESIZE  (1024*1024*2) //全局内存的分页
 
 #define SW_MAX_THREAD_NCPU         4 // n * cpu_num
 #define SW_MAX_WORKER_NCPU         1000 // n * cpu_num
 #define SW_MAX_REQUEST             5000          //最大请求包数
-#define SW_UNSOCK_BUFSIZE          (8*1024*1024)  //UDP socket的buffer区大小
 
 //#define SW_CONNECTION_LIST_EXPAND  (4096*2)  //动态扩容的数量
 
-//#define SW_DEBUG                  //debug
+//#define SW_DEBUG                 //debug
 #define SW_LOG_NO_SRCINFO          //no source info
-#define SW_LOG_TRACE_OPEN          0  //1: open all trace log, 0: close all trace log, >1: open some[traceId=n] trace log
-//#define SW_BUFFER_SIZE            65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
-#define SW_CLIENT_BUFFER_SIZE      65536
+#define SW_LOG_TRACE_OPEN          0
+//#define SW_BUFFER_SIZE           65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
+#define SW_CLIENT_BUFFER_SIZE      65535
+#define SW_CLIENT_RECV_AGAIN
 #define SW_CLIENT_DEFAULT_TIMEOUT  0.5
 #define SW_CLIENT_MAX_PORT         65535
 
+//!!!Don't modify.----------------------------------------------------------
+#if __MACH__
+#define SW_IPC_MAX_SIZE            2048  //MacOS
+#else
+#define SW_IPC_MAX_SIZE            8192  //for IPC, dgram and message-queue max size
+#endif
+
 #ifdef SW_USE_RINGBUFFER
 #define SW_BUFFER_SIZE             65535
-#elif __MACH__
-#define SW_BUFFER_SIZE             (2048-sizeof(struct _swDataHead))
 #else
-#define SW_BUFFER_SIZE             (8192-sizeof(struct _swDataHead))
+#define SW_BUFFER_SIZE             (SW_IPC_MAX_SIZE - sizeof(struct _swDataHead))
 #endif
+//!!!End.-------------------------------------------------------------------
 
 #define SW_BUFFER_SIZE_BIG         65536
 #define SW_SENDFILE_TRUNK          65536
@@ -98,9 +110,10 @@
 
 #define SW_REACTOR_TIMEO_SEC             3
 #define SW_REACTOR_TIMEO_USEC            0
-#define SW_REACTOR_SCHEDULE              2    //连接分配模式: 1轮询分配, 2按FD取摸固定分配, 3根据连接数进行调度
-
+#define SW_REACTOR_SCHEDULE              2
+#define SW_REACTOR_MINEVENTS             128
 #define SW_REACTOR_MAXEVENTS             4096
+
 #define SW_REACTOR_SYNC_SEND            //direct send
 #define SW_SCHEDULE_INTERVAL             32   //平均调度的间隔次数,减少运算量
 
@@ -109,7 +122,7 @@
 #define SW_WRITER_TIMEOUT                3
 
 #define SW_RINGQUEUE_USE                 0              //使用RingQueue代替系统消息队列，此特性正在测试中，启用此特性会用内存队列来替代IPC通信，会减少系统调用、内存申请和复制，提高性能
-#define SW_RINGQUEUE_LEN                 100            //RingQueue队列长度
+#define SW_RINGQUEUE_LEN                 1024           //RingQueue队列长度
 #define SW_RINGQUEUE_MEMSIZE             (1024*1024*4)  //内存区大小,默认分配4M的内存
 
 //#define SW_USE_RINGQUEUE_TS            1     //使用线程安全版本的RingQueue
@@ -146,7 +159,8 @@
 #define SW_FILE_CHUNK_SIZE               65536
 
 #define SW_TABLE_CONFLICT_PROPORTION     0.2 //20%
-#define SW_TABLE_USE_LINKED_LIST
+#define SW_TABLE_COMPRESS_PROPORTION     0.5 //50% skip, will compress the row list
+#define SW_TABLE_USE_PHP_HASH
 
 #define SW_SSL_BUFSIZE  16384
 
@@ -155,8 +169,13 @@
 #define SW_STRING_BUFFER_MAXLEN          (1024*1024*128)
 #define SW_STRING_BUFFER_DEFAULT         128
 
+#define SW_SIGNO_MAX                     128
+
+#define SW_DNS_LOOKUP_USE_THREAD
+
 #define SW_HTTP_SERVER_SOFTWARE          "swoole-http-server"
 #define SW_HTTP_BAD_REQUEST              "<h1>400 Bad Request</h1>\r\n"
 #define SW_HTTP_PARAM_MAX_NUM            128
+#define SW_HTTP_COOKIE_KEYLEN            128
 
 #endif /* SWOOLE_CONFIG_H_ */

@@ -18,7 +18,6 @@
 #include "Server.h"
 
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker);
-static int swReactorProcess_onClose(swReactor *reactor, swEvent *event);
 
 int swReactorProcess_create(swServer *serv)
 {
@@ -54,15 +53,6 @@ int swReactorProcess_start(swServer *serv)
     {
         serv->onStart(serv);
     }
-    int ret, i;
-    swProcessPool pool;
-    if (swProcessPool_create(&pool, serv->worker_num, serv->max_request, 0) < 0)
-    {
-        return SW_ERR;
-    }
-    pool.main_loop = swReactorProcess_loop;
-    pool.ptr = serv;
-
     //listen UDP
     if (serv->have_udp_sock == 1)
     {
@@ -83,21 +73,39 @@ int swReactorProcess_start(swServer *serv)
     if (serv->have_tcp_sock == 1)
     {
         //listen server socket
-        ret = swServer_listen(serv, NULL);
-        if (ret < 0)
+        if (swServer_listen(serv, NULL) < 0)
         {
             return SW_ERR;
         }
     }
-    SwooleG.event_workers = &pool;
+
+    if (swProcessPool_create(&SwooleGS->event_workers, serv->worker_num, serv->max_request, 0, 0) < 0)
+    {
+        return SW_ERR;
+    }
+
+    SwooleGS->event_workers.ptr = serv;
+    SwooleGS->event_workers.main_loop = swReactorProcess_loop;
+    SwooleGS->event_workers.type = SW_PROCESS_WORKER;
+
+    //no worker
+    if (serv->worker_num == 1 && SwooleG.task_worker_num == 0 && serv->max_request == 0)
+    {
+        swWorker single_worker;
+        single_worker.id = 0;
+        return swReactorProcess_loop(&SwooleGS->event_workers, &single_worker);
+    }
+
     //task workers
     if (SwooleG.task_worker_num > 0)
     {
-        if (swProcessPool_create(&SwooleG.task_workers, SwooleG.task_worker_num, serv->task_max_request, serv->message_queue_key + 2) < 0)
+        if (swProcessPool_create(&SwooleGS->task_workers, SwooleG.task_worker_num, serv->task_max_request, serv->message_queue_key + 2, 1) < 0)
         {
             swWarn("[Master] create task_workers failed.");
             return SW_ERR;
         }
+
+        int i;
         swWorker *worker;
         for (i = 0; i < SwooleG.task_worker_num; i++)
         {
@@ -108,20 +116,13 @@ int swReactorProcess_start(swServer *serv)
             }
         }
 
-        //设置指针和回调函数
-        SwooleG.task_workers.ptr = serv;
-        SwooleG.task_workers.onTask = swTaskWorker_onTask;
-        if (serv->onWorkerStart != NULL)
-        {
-            SwooleG.task_workers.onWorkerStart = swTaskWorker_onStart;
-            SwooleG.task_workers.onWorkerStop = swTaskWorker_onStop;
-        }
-        swProcessPool_start(&SwooleG.task_workers);
+        swTaskWorker_init(&SwooleGS->task_workers);
+        swProcessPool_start(&SwooleGS->task_workers);
 
         //将taskworker也加入到wait中来
-        for (i = 0; i < SwooleG.task_workers.worker_num; i++)
+        for (i = 0; i < SwooleGS->task_workers.worker_num; i++)
         {
-            swProcessPool_add_worker(&pool, &SwooleG.task_workers.workers[i]);
+            swProcessPool_add_worker(&SwooleGS->event_workers, &SwooleGS->task_workers.workers[i]);
         }
     }
     /**
@@ -134,9 +135,10 @@ int swReactorProcess_start(swServer *serv)
     SwooleG.use_timer_pipe = 0;
     swServer_signal_init();
 
-    swProcessPool_start(&pool);
-    swProcessPool_wait(&pool);
-    swProcessPool_shutdown(&pool);
+    swProcessPool_start(&SwooleGS->event_workers);
+    swProcessPool_wait(&SwooleGS->event_workers);
+
+    swProcessPool_shutdown(&SwooleGS->event_workers);
 
     return SW_OK;
 }
@@ -146,10 +148,15 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     swServer *serv = pool->ptr;
     swReactor *reactor = &(serv->reactor_threads[0].reactor);
 
+    SwooleG.process_type = SW_PROCESS_WORKER;
+    SwooleWG.id = worker->id;
+
+    swServer_worker_init(serv, worker);
+
     //create reactor
     if (swReactor_auto(reactor, SW_REACTOR_MAXEVENTS) < 0)
     {
-        swWarn("Swoole reactor create fail");
+        swWarn("ReactorProcess create failed.");
         return SW_ERR;
     }
 
@@ -167,51 +174,44 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     reactor->id = 0;
     reactor->ptr = serv;
 
+#ifdef SW_USE_RINGBUFFER
+    serv->reactor_threads[0].buffer_input = swMalloc_new();
+    if (serv->reactor_threads[0].buffer_input == NULL)
+    {
+        return SW_ERR;
+    }
+#endif
+
+#ifdef HAVE_SIGNALFD
+    if (SwooleG.use_signalfd)
+    {
+        swSignalfd_setup(SwooleG.main_reactor);
+    }
+#endif
+
+    reactor->thread = 1;
+    reactor->sockets = serv->connection_list;
+    reactor->max_socket = serv->max_connection;
+
+    reactor->close = swReactorThread_close;
+
+    reactor->onFinish = NULL;
+    reactor->onTimeout = NULL;
+
     //set event handler
     //connect
     reactor->setHandle(reactor, SW_FD_LISTEN, swServer_master_onAccept);
     //close
     reactor->setHandle(reactor, SW_FD_CLOSE, swReactorProcess_onClose);
-    //task finish
-    reactor->setHandle(reactor, SW_FD_PIPE, swTaskWorker_onFinish);
-    //udp receive
-    reactor->setHandle(reactor, SW_FD_UDP, swReactorThread_onPackage);
-    //write
-    reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_WRITE, swReactorThread_onWrite);
-    //tcp receive
-    if (serv->open_eof_check == 1)
-    {
-        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_eof);
-    }
-    else if (serv->open_length_check == 1)
-    {
-        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_length);
-    }
-    else
-    {
-        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_no_buffer);
-    }
-    //pipe
-    reactor->add(reactor, worker->pipe_master, SW_FD_PIPE);
+    //set protocol function point
+    swReactorThread_set_protocol(serv, reactor);
 
-#ifdef HAVE_SIGNALFD
-    if (SwooleG.use_timerfd)
+    if (serv->onWorkerStart)
     {
-        swSignalfd_setup(reactor);
+        serv->onWorkerStart(serv, worker->id);
     }
-#endif
-
-    reactor->onFinish = swServer_master_onReactorFinish;
-    reactor->onTimeout = swServer_master_onReactorTimeout;
-
-    //update system time
-    swServer_update_time();
 
     struct timeval timeo;
-    if (serv->onWorkerStart != NULL)
-    {
-        serv->onWorkerStart(serv, 0);
-    }
     timeo.tv_sec = SW_MAINREACTOR_TIMEO;
     timeo.tv_usec = 0;
     reactor->wait(reactor, &timeo);
@@ -219,12 +219,12 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     return SW_OK;
 }
 
-static int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
+int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
 {
     swServer *serv = reactor->ptr;
     if (serv->onClose != NULL)
     {
         serv->onClose(serv, event->fd, event->from_id);
     }
-    return swServer_connection_close(serv, event->fd);
+    return reactor->close(reactor, event->fd);
 }

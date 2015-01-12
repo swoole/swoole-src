@@ -30,20 +30,21 @@ typedef struct
     uint32_t content_length;
 } swoole_async_file_request;
 
-typedef struct {
-	zval *callback;
-	zval *domain;
+typedef struct
+{
+    zval *callback;
+    zval *domain;
 } swoole_async_dns_request;
 
 static void php_swoole_check_aio();
 static void php_swoole_aio_onComplete(swAio_event *event);
 
-static char php_swoole_aio_init = 0;
 static swHashMap *php_swoole_open_files;
 
 void swoole_async_init(int module_number TSRMLS_DC)
 {
     bzero(&SwooleAIO, sizeof(SwooleAIO));
+
     REGISTER_LONG_CONSTANT("SWOOLE_AIO_BASE", SW_AIO_BASE, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SWOOLE_AIO_GCC", SW_AIO_GCC, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SWOOLE_AIO_LINUX", SW_AIO_LINUX, CONST_CS | CONST_PERSISTENT);
@@ -57,16 +58,13 @@ void swoole_async_init(int module_number TSRMLS_DC)
 
 static void php_swoole_check_aio()
 {
-	if (php_swoole_aio_init == 0)
-	{
-		php_swoole_check_reactor();
-
-		swAio_init();
-
-		SwooleAIO.callback = php_swoole_aio_onComplete;
-		php_swoole_try_run_reactor();
-		php_swoole_aio_init = 1;
-	}
+    if (SwooleAIO.init == 0)
+    {
+        php_swoole_check_reactor();
+        swAio_init();
+        SwooleAIO.callback = php_swoole_aio_onComplete;
+        php_swoole_try_run_reactor();
+    }
 }
 
 static void php_swoole_aio_onComplete(swAio_event *event)
@@ -226,27 +224,27 @@ static void php_swoole_aio_onComplete(swAio_event *event)
             }
         }
 	}
-	else if(dns_req != NULL)
-	{
-		zval_ptr_dtor(&dns_req->callback);
-		zval_ptr_dtor(&dns_req->domain);
+    else if (dns_req != NULL)
+    {
+        zval_ptr_dtor(&dns_req->callback);
+        zval_ptr_dtor(&dns_req->domain);
 
-		efree(dns_req);
-		efree(event->buf);
-	}
-	if (zcontent != NULL)
-	{
-		efree(zcontent);
-	}
-	if (zwriten != NULL)
-	{
-		zval_ptr_dtor(&zwriten);
-	}
-	if (retval != NULL)
-	{
-		zval_ptr_dtor(&retval);
-	}
-    if (php_sw_in_client && SwooleG.main_reactor->event_num == 1 && SwooleAIO.task_num == 0)
+        efree(dns_req);
+        efree(event->buf);
+    }
+    if (zcontent != NULL)
+    {
+        efree(zcontent);
+    }
+    if (zwriten != NULL)
+    {
+        zval_ptr_dtor(&zwriten);
+    }
+    if (retval != NULL)
+    {
+        zval_ptr_dtor(&retval);
+    }
+    if (SwooleWG.in_client && SwooleG.main_reactor->event_num == 1 && SwooleAIO.task_num == 1)
     {
         SwooleG.running = 0;
     }
@@ -254,7 +252,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 
 PHP_FUNCTION(swoole_async_read)
 {
-	zval *cb;
+    zval *cb;
 	zval *filename;
 	long trunk_len = 8192;
 	int open_flag = O_RDONLY;
@@ -378,7 +376,6 @@ PHP_FUNCTION(swoole_async_write)
 		new_req.once = 0;
 		new_req.type = SW_AIO_WRITE;
 		new_req.content_length = fcnt_len;
-
 
 		if (offset < 0)
         {
@@ -631,13 +628,6 @@ PHP_FUNCTION(swoole_async_dns_lookup)
 		return;
 	}
 
-#ifdef ZTS
-	if(sw_thread_ctx == NULL)
-	{
-		TSRMLS_SET_CTX(sw_thread_ctx);
-	}
-#endif
-
     if (Z_STRLEN_P(domain) == 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "domain name empty.");
@@ -652,17 +642,31 @@ PHP_FUNCTION(swoole_async_dns_lookup)
 	Z_ADDREF_PP(&req->domain);
 
 	int buf_size;
-	if(Z_STRLEN_P(domain) < SW_IP_MAX_LENGTH)
-	{
-		buf_size = SW_IP_MAX_LENGTH+1;
-	}
-	else
-	{
-		buf_size = Z_STRLEN_P(domain)+1;
-	}
-	void *buf = emalloc(buf_size);
-	bzero(buf, buf_size);
-	memcpy(buf, Z_STRVAL_P(domain), Z_STRLEN_P(domain));
-	php_swoole_check_aio();
-	SW_CHECK_RETURN(swAio_dns_lookup(req, buf, buf_size));
+    if (Z_STRLEN_P(domain) < SW_IP_MAX_LENGTH)
+    {
+        buf_size = SW_IP_MAX_LENGTH + 1;
+    }
+    else
+    {
+        buf_size = Z_STRLEN_P(domain) + 1;
+    }
+
+#ifdef SW_DNS_LOOKUP_USE_THREAD
+    void *buf = emalloc(buf_size);
+    bzero(buf, buf_size);
+    memcpy(buf, Z_STRVAL_P(domain), Z_STRLEN_P(domain));
+    php_swoole_check_aio();
+    SW_CHECK_RETURN(swAio_dns_lookup(req, buf, buf_size));
+#else
+
+    swDNS_request *request = emalloc(sizeof(swDNS_request));
+    request->callback = php_swoole_aio_onDNSResponse;
+    request->object = req;
+    request->domain = Z_STRVAL_P(domain);
+
+    php_swoole_check_reactor();
+    swDNSResolver_request(request);
+    php_swoole_try_run_reactor();
+#endif
 }
+

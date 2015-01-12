@@ -27,7 +27,7 @@ extern "C"
 
 enum http_method
 {
-    HTTP_DELETE = 1, HTTP_GET, HTTP_HEAD, HTTP_POST, HTTP_PUT,
+    HTTP_DELETE = 1, HTTP_GET, HTTP_HEAD, HTTP_POST, HTTP_PUT, HTTP_PATCH,
     /* pathological */
     HTTP_CONNECT, HTTP_OPTIONS, HTTP_TRACE,
     /* webdav */
@@ -51,7 +51,7 @@ enum http_method
 #define HTTP_MAX_HEADER_SIZE (80*1024)
 
 typedef struct http_parser http_parser;
-typedef struct http_parser_settings http_parser_settings;
+typedef struct _http_parser_settings _http_parser_settings;
 
 /* Callbacks should return non-zero to indicate an error. The parser will
  * then halt execution.
@@ -112,7 +112,7 @@ struct http_parser
 };
 
 
-struct http_parser_settings
+struct _http_parser_settings
 {
 	http_cb on_message_begin;
 	http_data_cb on_path;
@@ -130,6 +130,7 @@ struct http_parser_settings
 typedef struct _swHttpRequest
 {
     uint8_t method;
+    uint8_t offset;
     uint8_t version;
     uint8_t state;
     uint8_t free_memory;
@@ -139,6 +140,8 @@ typedef struct _swHttpRequest
 
     swString *buffer;
 
+    char opcode;
+
 } swHttpRequest;
 
 int swHttpRequest_get_protocol(swHttpRequest *request);
@@ -147,7 +150,7 @@ void swHttpRequest_free(swHttpRequest *request);
 
 void http_parser_init(http_parser *parser, enum http_parser_type type);
 
-size_t http_parser_execute(http_parser *parser, const http_parser_settings *settings, const char *data, size_t len);
+size_t http_parser_execute(http_parser *parser, const _http_parser_settings *settings, const char *data, size_t len);
 
 /* If http_should_keep_alive() in the on_headers_complete or
  * on_message_complete callback returns true, then this will be should be

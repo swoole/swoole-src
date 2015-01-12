@@ -17,6 +17,17 @@
 #include "swoole.h"
 #include "Server.h"
 
+typedef struct _swWorkerThread
+{
+    pthread_t ptid;  //线程ID
+    int pipe_num;  //writer thread's pipe num
+    int *pipes;  //worker pipes
+    int c_pipe;  //current pipe
+    swReactor reactor;
+    swShareMemory shm;  //共享内存
+    swPipe evfd;  //eventfd
+} swWorkerThread;
+
 typedef struct _swFactoryThread
 {
     int worker_num;
@@ -179,12 +190,16 @@ static int swFactoryThread_writer_loop(swThreadParam *param)
     uint64_t flag;
 
     //cpu affinity setting
-#if HAVE_CPU_AFFINITY
+#ifdef HAVE_CPU_AFFINITY
     if (serv->open_cpu_affinity)
     {
         cpu_set_t cpu_set;
         CPU_ZERO(&cpu_set);
-        CPU_SET(pti % SW_CPU_NUM, &cpu_set);
+        if(serv->cpu_affinity_available_num){
+            CPU_SET(serv->cpu_affinity_available[pti % serv->cpu_affinity_available_num], &cpu_set);
+        }else{
+            CPU_SET(pti%SW_CPU_NUM, &cpu_set);
+        }
         if (0 != pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set))
         {
             swWarn("pthread_setaffinity_np() failed");

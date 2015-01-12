@@ -31,12 +31,44 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
     if (memcmp(buf, "GET", 3) == 0)
     {
         request->method = HTTP_GET;
+        request->offset = 4;
         buf += 4;
     }
     else if (memcmp(buf, "POST", 4) == 0)
     {
         request->method = HTTP_POST;
+        request->offset = 5;
         buf += 5;
+    }
+    else if (memcmp(buf, "PUT", 3) == 0)
+    {
+        request->method = HTTP_PUT;
+        request->offset = 4;
+        buf += 4;
+    }
+    else if (memcmp(buf, "PATCH", 5) == 0)
+    {
+        request->method = HTTP_PATCH;
+        request->offset = 6;
+        buf += 6;
+    }
+    else if (memcmp(buf, "DELETE", 6) == 0)
+    {
+        request->method = HTTP_DELETE;
+        request->offset = 7;
+        buf += 7;
+    }
+    else if (memcmp(buf, "HEAD", 4) == 0)
+    {
+        request->method = HTTP_HEAD;
+        request->offset = 5;
+        buf += 5;
+    }
+    else if (memcmp(buf, "OPTIONS", 7) == 0)
+    {
+        request->method = HTTP_OPTIONS;
+        request->offset = 8;
+        buf += 8;
     }
     else
     {
@@ -90,6 +122,7 @@ void swHttpRequest_free(swHttpRequest *request)
     request->header_length = 0;
     request->state = 0;
     request->method = 0;
+    request->offset = 0;
     request->version = 0;
     request->buffer = NULL;
 }
@@ -128,7 +161,7 @@ int swHttpRequest_get_content_length(swHttpRequest *request)
             {
                 if (memcmp(p + 2, SW_STRL("\r\n") - 1) == 0)
                 {
-                    request->header_length = p - buffer->str + 4;
+                    request->header_length = p - buffer->str + sizeof("\r\n\r\n") - 1;
                     buffer->offset = request->header_length;
                     return SW_OK;
                 }

@@ -5,15 +5,17 @@ class G
 }
 
 $config = array(
-    'worker_num' => 1,
+    'worker_num' => 4,
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
     //'ipc_mode' => 2,
-    //'task_worker_num' => 1,
+    'task_worker_num' => 1,
     //'task_ipc_mode' => 1,
     //'dispatch_mode' => 1,
-    'log_file' => '/tmp/swoole.log',
+    //'log_file' => '/tmp/swoole.log',
     //'heartbeat_check_interval' => 10,
+    // open_cpu_affinity => 1,
+    //'cpu_affinity_ignore' =>array(0,1)//如果你的网卡2个队列（或者没有多队列那么默认是cpu0来处理中断）,并且绑定了core 0和core 1,那么可以通过这个设置避免swoole的线程或者进程绑定到这2个core，防止cpu0，1被耗光而造成的丢包
 );
 
 if (isset($argv[1]) and $argv[1] == 'daemon') {
@@ -24,6 +26,10 @@ if (isset($argv[1]) and $argv[1] == 'daemon') {
 
 $serv = new swoole_server("0.0.0.0", 9501);
 $serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
+
+$process1 = new swoole_process("my_process1", false, false);
+//$serv->addprocess($process1);
+
 $serv->set($config);
 /**
  * 保存数据到对象属性，在任意位置均可访问
@@ -33,6 +39,14 @@ $serv->config = $config;
  * 使用类的静态属性，可以直接访问
  */
 G::$serv = $serv;
+
+function my_process1($process)
+{
+	global $argv;
+	var_dump($process);
+	swoole_set_process_name("php {$argv[0]}: my_process1");
+	sleep(1000);
+}
 
 function my_onStart(swoole_server $serv)
 {
@@ -114,7 +128,7 @@ function my_onShutdown($serv)
 
 function my_onTimer($serv, $interval)
 {
-	echo "Timer#$interval: ".microtime(true)."\n";
+	//echo "Timer#$interval: ".microtime(true)."\n";
 }
 
 function my_onClose($serv, $fd, $from_id)
@@ -130,9 +144,9 @@ function my_onConnect($serv, $fd, $from_id)
 
 function my_onWorkerStart($serv, $worker_id)
 {
-	processRename($serv, $worker_id);
-	forkChildInWorker();
-	//setTimerInWorker($serv, $worker_id);
+	//processRename($serv, $worker_id);
+	//forkChildInWorker();
+	setTimerInWorker($serv, $worker_id);
 }
 
 function my_onWorkerStop($serv, $worker_id)
@@ -216,6 +230,15 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 
 function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
 {
+    //swoole_timer_after(1000, "test");
+    var_dump($data);
+    $fd = str_replace('task-', '', $data);
+    $serv->send($fd, str_repeat('A', 8192*2));
+    $serv->send($fd, str_repeat('B', 8192*2));
+    $serv->send($fd, str_repeat('C', 8192*2));
+    $serv->send($fd, str_repeat('D', 8192*2));
+    return;
+    
     if ($data == "hellotask")
     {
         broadcast($serv, 0, "hellotask");

@@ -2,17 +2,20 @@
  +----------------------------------------------------------------------+
  | Swoole                                                               |
  +----------------------------------------------------------------------+
+ | Copyright (c) 2012-2015 The Swoole Group                             |
+ +----------------------------------------------------------------------+
  | This source file is subject to version 2.0 of the Apache license,    |
  | that is bundled with this package in the file LICENSE, and is        |
  | available through the world-wide-web at the following url:           |
  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
  | If you did not receive a copy of the Apache2.0 license and are unable|
  | to obtain it through the world-wide-web, please send a note to       |
- | license@php.net so we can mail you a copy immediately.               |
+ | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
  +----------------------------------------------------------------------+
  */
+
 #include "swoole.h"
 #include "Server.h"
 #include "Connection.h"
@@ -23,32 +26,88 @@
 #define MSG_NOSIGNAL        0
 #endif
 
-int swConnection_send_blocking(int fd, void *data, int length, int timeout)
+int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
 {
-    int n, writen = length;
+    int ret;
+    swTask_sendfile *task = chunk->store.ptr;
 
-    while (writen > 0)
+#ifdef HAVE_TCP_NOPUSH
+    if (task->offset == 0 && conn->tcp_nopush)
     {
-        if (swSocket_wait(fd, timeout, SW_EVENT_WRITE) < 0)
+        /**
+         * disable tcp_nodelay
+         */
+        if (conn->tcp_nodelay)
         {
-            return SW_ERR;
+            int tcp_nodelay = 0;
+            if (setsockopt(conn->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &tcp_nodelay, sizeof(int)) == -1)
+            {
+                swWarn("setsockopt(TCP_NODELAY) failed. Error: %s[%d]", strerror(errno), errno);
+            }
         }
-        else
+        /**
+         * enable tcp_nopush
+         */
+        if (swSocket_tcp_nopush(conn->fd, 1) == -1)
         {
-            n = send(fd, data, writen, MSG_NOSIGNAL | MSG_DONTWAIT);
-            if (n < 0)
-            {
-                swWarn("send() failed. Error: %s[%d]", strerror(errno), errno);
-                return SW_ERR;
-            }
-            else
-            {
-                writen -= n;
-                continue;
-            }
+            swWarn("swSocket_tcp_nopush() failed. Error: %s[%d]", strerror(errno), errno);
         }
     }
-    return 0;
+#endif
+
+    int sendn = (task->filesize - task->offset > SW_SENDFILE_TRUNK) ? SW_SENDFILE_TRUNK : task->filesize - task->offset;
+    ret = swoole_sendfile(conn->fd, task->fd, &task->offset, sendn);
+    swTrace("ret=%d|task->offset=%ld|sendn=%d|filesize=%ld", ret, task->offset, sendn, task->filesize);
+
+    if (ret <= 0)
+    {
+        switch (swConnection_error(errno))
+        {
+        case SW_ERROR:
+            swSysError("sendfile() failed.");
+            swBuffer_pop_trunk(conn->out_buffer, chunk);
+            return SW_OK;
+        case SW_CLOSE:
+            conn->close_wait = 1;
+            return SW_ERR;
+        default:
+            break;
+        }
+    }
+
+    //sendfile finish
+    if (task->offset >= task->filesize)
+    {
+        swBuffer_pop_trunk(conn->out_buffer, chunk);
+        close(task->fd);
+        sw_free(task);
+
+#ifdef HAVE_TCP_NOPUSH
+        if (conn->tcp_nopush)
+        {
+            /**
+             * disable tcp_nopush
+             */
+            if (swSocket_tcp_nopush(conn->fd, 0) == -1)
+            {
+                swWarn("swSocket_tcp_nopush() failed. Error: %s[%d]", strerror(errno), errno);
+            }
+
+            /**
+             * enable tcp_nodelay
+             */
+            if (conn->tcp_nodelay)
+            {
+                int value = 1;
+                if (setsockopt(conn->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &value, sizeof(int)) == -1)
+                {
+                    swWarn("setsockopt(TCP_NODELAY) failed. Error: %s[%d]", strerror(errno), errno);
+                }
+            }
+        }
+#endif
+    }
+    return SW_OK;
 }
 
 /**
@@ -65,7 +124,7 @@ int swConnection_buffer_send(swConnection *conn)
     if (sendn == 0)
     {
         swBuffer_pop_trunk(buffer, trunk);
-        return SW_CONTINUE;
+        return SW_OK;
     }
     ret = swConnection_send(conn, trunk->store.ptr + trunk->offset, sendn, 0);
     //printf("BufferOut: reactor=%d|sendn=%d|ret=%d|trunk->offset=%d|trunk_len=%d\n", reactor->id, sendn, ret, trunk->offset, trunk->length);
@@ -75,14 +134,17 @@ int swConnection_buffer_send(swConnection *conn)
         {
         case SW_ERROR:
             swWarn("send to fd[%d] failed. Error: %s[%d]", conn->fd, strerror(errno), errno);
-            return SW_OK;
+            break;
         case SW_CLOSE:
-            return SW_CLOSE;
+            conn->close_wait = 1;
+            return SW_ERR;
         case SW_WAIT:
-            return SW_WAIT;
+            conn->send_wait = 1;
+            return SW_ERR;
         default:
-            return SW_CONTINUE;
+            break;
         }
+        return SW_OK;
     }
     //trunk full send
     else if (ret == sendn || sendn == 0)
@@ -93,7 +155,7 @@ int swConnection_buffer_send(swConnection *conn)
     {
         trunk->offset += ret;
     }
-    return SW_CONTINUE;
+    return SW_OK;
 }
 
 swString* swConnection_get_string_buffer(swConnection *conn)
@@ -120,7 +182,7 @@ int swConnection_sendfile(swConnection *conn, char *filename)
         }
     }
 
-    swBuffer_trunk *trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_SENDFILE, 0);
+    swBuffer_trunk *trunk = swBuffer_new_trunk(conn->out_buffer, SW_CHUNK_SENDFILE, 0);
     if (trunk == NULL)
     {
         swWarn("get out_buffer trunk failed.");
@@ -181,7 +243,7 @@ volatile swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn)
             return NULL;
         }
         //new trunk
-        trunk = swBuffer_new_trunk(buffer, SW_TRUNK_DATA, buffer->trunk_size);
+        trunk = swBuffer_new_trunk(buffer, SW_CHUNK_DATA, buffer->trunk_size);
         if (trunk == NULL)
         {
             sw_free(buffer);
@@ -195,7 +257,7 @@ volatile swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn)
         trunk = buffer->tail;
         if (trunk == NULL || trunk->length == buffer->trunk_size)
         {
-            trunk = swBuffer_new_trunk(buffer, SW_TRUNK_DATA, buffer->trunk_size);
+            trunk = swBuffer_new_trunk(buffer, SW_CHUNK_DATA, buffer->trunk_size);
         }
     }
     return trunk;
@@ -212,16 +274,16 @@ volatile swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_
             return NULL;
         }
     }
-    if (type == SW_TRUNK_SENDFILE)
+    if (type == SW_CHUNK_SENDFILE)
     {
-        trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_SENDFILE, 0);
+        trunk = swBuffer_new_trunk(conn->out_buffer, SW_CHUNK_SENDFILE, 0);
     }
     else
     {
         trunk = swBuffer_get_trunk(conn->out_buffer);
         if (trunk == NULL)
         {
-            trunk = swBuffer_new_trunk(conn->out_buffer, SW_TRUNK_DATA, conn->out_buffer->trunk_size);
+            trunk = swBuffer_new_trunk(conn->out_buffer, SW_CHUNK_DATA, conn->out_buffer->trunk_size);
         }
     }
     return trunk;

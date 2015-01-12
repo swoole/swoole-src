@@ -66,9 +66,7 @@ int swReactorSelect_create(swReactor *reactor)
 	reactor->del = swReactorSelect_del;
 	reactor->wait = swReactorSelect_wait;
 	reactor->free = swReactorSelect_free;
-	reactor->setHandle = swReactor_setHandle;
-	reactor->onFinish = NULL;
-	reactor->onTimeout = NULL;
+
 	return SW_OK;
 }
 
@@ -91,6 +89,10 @@ int swReactorSelect_add(swReactor *reactor, int fd, int fdtype)
 		swWarn("max fd value is FD_SETSIZE(%d).\n", FD_SETSIZE);
 		return SW_ERR;
 	}
+    if (swReactor_add(reactor, fd, fdtype) < 0)
+    {
+        return SW_ERR;
+    }
 	swReactorSelect *object = reactor->object;
 	swFdList_node *ev = sw_malloc(sizeof(swFdList_node));
 	ev->fd = fd;
@@ -115,6 +117,11 @@ int swReactorSelect_del(swReactor *reactor, int fd)
     swReactorSelect *object = reactor->object;
     swFdList_node ev, *s_ev = NULL;
     ev.fd = fd;
+
+    if (swReactor_del(reactor, fd) < 0)
+    {
+        return SW_ERR;
+    }
 
     LL_SEARCH(object->fds, s_ev, &ev, swReactorSelect_cmp);
     if (s_ev == NULL)
@@ -224,12 +231,13 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
         {
 			LL_FOREACH(object->fds, ev)
 			{
+                event.fd = ev->fd;
+                event.from_id = reactor->id;
+                event.type = swReactor_fdtype(ev->fdtype);
+
                 //read
                 if (SW_FD_ISSET(ev->fd, &(object->rfds)))
                 {
-                    event.fd = ev->fd;
-                    event.from_id = reactor->id;
-                    event.type = swReactor_fdtype(ev->fdtype);
                     handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
                     ret = handle(reactor, &event);
                     if (ret < 0)
@@ -239,11 +247,8 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
                     }
                 }
                 //write
-                if (SW_FD_ISSET(ev->fd, &(object->wfds)) && reactor->handle[SW_FD_WRITE] != NULL)
+                if (SW_FD_ISSET(ev->fd, &(object->wfds)) && !reactor->sockets[event.fd].removed)
                 {
-                    event.fd = ev->fd;
-                    event.from_id = reactor->id;
-                    event.type = SW_FD_WRITE;
                     handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
                     ret = handle(reactor, &event);
                     if (ret < 0)
@@ -253,11 +258,8 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
                     }
                 }
                 //error
-                if (SW_FD_ISSET(ev->fd, &(object->efds)) && reactor->handle[SW_FD_ERROR] != NULL)
+                if (SW_FD_ISSET(ev->fd, &(object->efds)) && !reactor->sockets[event.fd].removed)
                 {
-                    event.fd = ev->fd;
-                    event.from_id = reactor->id;
-                    event.type = SW_FD_ERROR;
                     handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, event.type);
                     ret = handle(reactor, &event);
                     if (ret < 0)

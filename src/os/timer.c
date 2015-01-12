@@ -23,7 +23,7 @@
 
 static int swTimer_signal_set(swTimer *timer, int interval);
 static int swTimer_timerfd_set(swTimer *timer, int interval);
-static int swTimer_del(swTimer *timer, int ms);
+static int swTimer_del(swTimer *timer, int ms, int id);
 static void swTimer_free(swTimer *timer);
 static int swTimer_add(swTimer *timer, int msec, int interval, void *data);
 static int swTimer_set(swTimer *timer, int new_interval);
@@ -184,9 +184,16 @@ static int swTimer_signal_set(swTimer *timer, int interval)
 	return SW_OK;
 }
 
-static int swTimer_del(swTimer *timer, int ms)
+static int swTimer_del(swTimer *timer, int ms, int id)
 {
-	swHashMap_del_int(timer->list, ms);
+    if (id > 0)
+    {
+        swTimer_node_delete(&timer->root, ms, id);
+    }
+    else
+    {
+        swHashMap_del_int(timer->list, ms);
+    }
 	return SW_OK;
 }
 
@@ -239,7 +246,6 @@ static int swTimer_add(swTimer *timer, int msec, int interval, void *data)
         swSysError("gettimeofday() failed.");
         return SW_ERR;
     }
-
     if (msec < timer->interval)
     {
         int new_interval = swoole_common_divisor(msec, timer->interval);
@@ -371,8 +377,11 @@ int swTimer_addtimeout(swTimer *timer, int timeout_ms, void *data)
     bzero(node, sizeof(swTimer_node));
     node->data = data;
     node->exec_msec = now_ms + timeout_ms;
+    timer->round++;
+    node->id = timer->round;
     swTimer_node_insert(&timer->root, node);
-    return SW_OK;
+
+    return node->id;
 }
 
 void swTimer_node_insert(swTimer_node **root, swTimer_node *new_node)
@@ -417,13 +426,13 @@ void swTimer_node_insert(swTimer_node **root, swTimer_node *new_node)
     }
 }
 
-int swTimer_node_delete(swTimer_node **root, int interval_msec)
+int swTimer_node_delete(swTimer_node **root, int interval_msec, int id)
 {
     swTimer_node *tmp = *root;
 
     while (tmp)
     {
-        if (tmp->interval == interval_msec)
+        if ((interval_msec > 0 && tmp->interval == interval_msec) || (id > 0 && tmp->id == id))
         {
             if (tmp->prev)
             {

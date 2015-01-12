@@ -17,11 +17,11 @@
 #include "swoole.h"
 
 static int swEventTimer_add(swTimer *timer, int _msec, int interval, void *data);
-static int swEventTimer_del(swTimer *timer, int _msec);
+static int swEventTimer_del(swTimer *timer, int _msec, int id);
 static int swEventTimer_select(swTimer *timer);
 static void swEventTimer_free(swTimer *timer);
 
-static sw_inline uint32_t swEventTimer_get_relative_msec()
+static sw_inline int swEventTimer_get_relative_msec()
 {
     struct timeval now;
     if (gettimeofday(&now, NULL) < 0)
@@ -41,11 +41,15 @@ int swEventTimer_init()
         swSysError("gettimeofday() failed.");
         return SW_ERR;
     }
+
     SwooleG.timer.fd = 1;
     SwooleG.timer.add = swEventTimer_add;
     SwooleG.timer.del = swEventTimer_del;
     SwooleG.timer.select = swEventTimer_select;
     SwooleG.timer.free = swEventTimer_free;
+
+    SwooleG.main_reactor->check_timer = SW_TRUE;
+
     return SW_OK;
 }
 
@@ -71,21 +75,31 @@ static int swEventTimer_add(swTimer *timer, int _msec, int interval, void *data)
     {
         return SW_ERR;
     }
+
     node->data = data;
     node->exec_msec = now_msec + _msec;
     node->interval = interval ? _msec : 0;
+
+    if (SwooleG.main_reactor->timeout_msec > _msec)
+    {
+        SwooleG.main_reactor->timeout_msec = _msec;
+    }
+
     swTimer_node_insert(&timer->root, node);
-    return SW_OK;
+    timer->round++;
+    node->id = timer->round;
+
+    return node->id;
 }
 
-static int swEventTimer_del(swTimer *timer, int _msec)
+static int swEventTimer_del(swTimer *timer, int _msec, int id)
 {
-    return swTimer_node_delete(&timer->root, _msec);
+    return swTimer_node_delete(&timer->root, _msec, id);
 }
 
 static int swEventTimer_select(swTimer *timer)
 {
-    uint32_t now_msec = swEventTimer_get_relative_msec();
+    int now_msec = swEventTimer_get_relative_msec();
     if (now_msec < 0)
     {
         return SW_ERR;

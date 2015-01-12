@@ -36,10 +36,10 @@ int main(int argc, char **argv)
 
 	swUnitTest_steup(type_test1, 1, "type test");
 
-	swUnitTest_steup(ws_test1, 1, "websocket decode test");
+	//swUnitTest_steup(ws_test1, 1, "websocket decode test");
 
-	swUnitTest_steup(http_test1, 1, "http get test");
-	swUnitTest_steup(http_test2, 1, "http post test");
+	//swUnitTest_steup(http_test1, 1, "http get test");
+	//swUnitTest_steup(http_test2, 1, "http post test");
 
 
 	swUnitTest_steup(heap_test1, 1, "heap test");

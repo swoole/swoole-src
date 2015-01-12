@@ -20,6 +20,7 @@
 #include "buffer.h"
 
 #ifdef SW_USE_OPENSSL
+
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -29,76 +30,6 @@
 
 #endif
 
-enum swConnectionState
-{
-    SW_STATE_NULL = 0,
-    SW_STATE_ACTIVE = 1 << 0,
-    SW_STATE_REMOVED = 1 << 1,
-    SW_STATE_CLOSEING = 1 << 2,
-    SW_STATE_CLOSED = 1 << 3,
-};
-
-typedef struct _swConnection
-{
-	/**
-	 * is active
-	 * system fd must be 0. en: timerfd, signalfd, listen socket
-	 */
-	uint8_t active;
-
-	/**
-	 * file descript
-	 */
-	int fd;
-
-	/**
-	 * ReactorThread id
-	 */
-	uint16_t from_id;
-
-	/**
-	 * from which socket fd
-	 */
-	uint16_t from_fd;
-
-	/**
-	 * socket address
-	 */
-	struct sockaddr_in addr;
-
-	/**
-	 * link any thing
-	 */
-	void *object;
-
-	/**
-	 * input buffer
-	 */
-	swBuffer *in_buffer;
-
-	/**
-	 * output buffer
-	 */
-	swBuffer *out_buffer;
-
-	/**
-	 * connect time(seconds)
-	 */
-	time_t connect_time;
-
-	/**
-	 * received time with last data
-	 */
-	time_t last_time;
-
-#ifdef SW_USE_OPENSSL
-	SSL *ssl;
-	uint32_t ssl_state;
-#endif
-
-} swConnection;
-
-int swConnection_send_blocking(int fd, void *data, int length, int timeout);
 int swConnection_buffer_send(swConnection *conn);
 
 swString* swConnection_get_string_buffer(swConnection *conn);
@@ -106,6 +37,7 @@ void swConnection_clear_string_buffer(swConnection *conn);
 volatile swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type);
 volatile swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn);
 int swConnection_sendfile(swConnection *conn, char *filename);
+int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk);
 
 #ifdef SW_USE_OPENSSL
 int swSSL_init(char *cert_file, char *key_file);

@@ -39,18 +39,17 @@ typedef struct _swClient
     uint16_t package_body_offset;
     uint32_t package_max_length;
 
-    uint32_t udp_sock_buffer_size;
-
 	char *server_str;
 	void *ptr;
 
 	uint8_t server_strlen;
 	double timeout;
 
-	struct sockaddr_in server_addr;
-	struct sockaddr_in remote_addr;
+	swSocketAddress server_addr;
+	swSocketAddress remote_addr;
+	swSocketAddress client_addr;
 
-	swConnection connection;
+	swConnection *socket;
 
 	void (*onConnect)(struct _swClient *cli);
 	int (*onReceive)(struct _swClient *cli, swSendData *data);
@@ -65,6 +64,14 @@ typedef struct _swClient
 } swClient;
 
 int swClient_create(swClient *cli, int type, int async);
-int swDNSResolver_request(char *domain, void (*callback)(void *addrs));
+
+typedef struct
+{
+    void (*callback)(void *addrs);
+    void *object;
+    char *domain;
+} swDNS_request;
+
+int swDNSResolver_request(swDNS_request *request);
 
 #endif /* SW_CLIENT_H_ */
