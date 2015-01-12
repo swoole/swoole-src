@@ -2751,7 +2751,6 @@ PHP_FUNCTION(swoole_connection_list)
     //达到最大，表示已经取完了
     if ((int) start_fd >= serv_max_fd)
     {
-
         RETURN_FALSE;
     }
 
