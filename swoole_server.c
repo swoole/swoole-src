@@ -1748,6 +1748,73 @@ PHP_FUNCTION(swoole_server_send)
     }
 }
 
+PHP_FUNCTION(swoole_server_sendto)
+{
+    zval *zobject = getThis();
+    swServer *serv = NULL;
+    swFactory *factory = NULL;
+    swSendData _send;
+
+    char *send_data;
+    int send_len;
+
+    char* ip;
+    char* ip_len;
+    long port;
+
+    if (SwooleGS->start == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
+
+    if (zobject == NULL)
+    {
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Osls", &zobject, swoole_server_class_entry_ptr, &ip, &ip_len,
+        		&port, &send_data, &send_len) == FAILURE)
+        {
+            return;
+        }
+    }
+    else
+    {
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sls", &ip, &ip_len,
+        		&port, &send_data, &send_len) == FAILURE)
+        {
+            return;
+        }
+    }
+
+    if (send_len <= 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "data is empty.");
+        RETURN_FALSE;
+    }
+
+    SWOOLE_GET_SERVER(zobject, serv);
+    factory = &(serv->factory);
+
+    if (serv->dgram_socket_fd <= 0)
+    {
+    	php_error_docref(NULL TSRMLS_CC, E_WARNING, "You must add an UDP listener to server before using sendto.");
+        RETURN_FALSE;
+    }
+
+    struct sockaddr_in addr_in;
+    if (inet_aton(ip, &addr_in.sin_addr)==0) {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "ip is invalid.");
+        RETURN_FALSE;
+	}
+    _send.info.fd = addr_in.sin_addr.s_addr;
+	_send.info.from_id = (uint16_t) port;
+	_send.info.from_fd = (uint16_t) serv->dgram_socket_fd;
+	_send.info.type = SW_EVENT_UDP;
+	_send.data = send_data;
+	_send.info.len = send_len;
+	 swTrace("udp send: fd=%d|from_id=%d|from_fd=%d", _send.info.fd, (uint16_t)_send.info.from_id, _send.info.from_fd);
+	 SW_CHECK_RETURN(factory->finish(factory, &_send));
+}
+
 PHP_FUNCTION(swoole_server_sendfile)
 {
     zval *zobject = getThis();
