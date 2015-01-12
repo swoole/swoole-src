@@ -206,8 +206,9 @@ static const php_http_parser_settings http_parser_settings =
 const zend_function_entry swoole_http_server_methods[] =
 {
     PHP_ME(swoole_http_server, on,         arginfo_swoole_http_server_on, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_server, setGlobal,      NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_server, setGlobal,  NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_server, start,      NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_server, push,       NULL, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -307,6 +308,15 @@ static void http_global_merge(zval *val, zval *zrequest, int type)
                 if (zend_hash_get_current_data(Z_ARRVAL_P(header), (void**)&value) == FAILURE)
                 {
                     continue;
+                }
+                int i;
+                //replace '-' to '_'
+                for (i = 0; i < keylen; i++)
+                {
+                    if (key[i] == '-')
+                    {
+                        key[i] = '_';
+                    }
                 }
                 keylen = snprintf(_php_key, sizeof(_php_key), "HTTP_%s", key) + 1;
                 php_strtoupper(_php_key, keylen);
@@ -484,14 +494,6 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
     else
     {
         zval *header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("header"), 1 TSRMLS_CC);
-        int i;
-        for (i = 0; i < length; i++)
-        {
-            if (header_name[i] == '-')
-            {
-                header_name[i] = '_';
-            }
-        }
         add_assoc_stringl_ex(header, header_name, client->current_header_name_len + 1, (char *) at, length, 1);
     }
 
@@ -1667,6 +1669,46 @@ PHP_METHOD(swoole_http_response, header)
         zend_update_property(swoole_http_request_class_entry_ptr, getThis(), ZEND_STRL("header"), header TSRMLS_CC);
     }
     add_assoc_stringl_ex(header, k, klen + 1, v, vlen, 1);
+}
+
+PHP_METHOD(swoole_http_server, push)
+{
+    swString data;
+    data.length = 0;
+    long fd = 0;
+    long opcode = WEBSOCKET_OPCODE_TEXT_FRAME;
+    zend_bool fin = 1;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls|lb", &fd, &data.str, &data.length, &opcode, &fin) == FAILURE)
+    {
+        return;
+    }
+
+    if (fd <= 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "fd[%d] is invalid.", (int )fd);
+        RETURN_FALSE;
+    }
+
+    if (opcode > WEBSOCKET_OPCODE_PONG)
+    {
+        swoole_php_fatal_error(E_WARNING, "opcode max 10");
+        RETURN_FALSE;
+    }
+
+    swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
+    if (!conn || conn->websocket_status < WEBSOCKET_STATUS_HANDSHAKE)
+    {
+        swoole_php_fatal_error(E_WARNING, "connection[%d] is not a websocket client.", (int ) fd);
+        RETURN_FALSE;
+    }
+
+    swTrace("need send:%s len:%zd\n", data.str, data.length);
+    swString *response = swWebSocket_encode(&data, opcode, (int) fin);
+    int ret = swServer_tcp_send(SwooleG.serv, fd, response->str, response->length);
+    swTrace("need send:%s len:%zd\n", response->str, response->length);
+    swString_free(response);
+    SW_CHECK_RETURN(ret);
 }
 
 /**
