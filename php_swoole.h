@@ -35,10 +35,10 @@
 #include "config.h"
 #endif
 
-#include "include/swoole.h"
-#include "include/Server.h"
-#include "include/Client.h"
-#include "include/async.h"
+#include "swoole.h"
+#include "Server.h"
+#include "Client.h"
+#include "async.h"
 
 #define PHP_SWOOLE_VERSION  "1.7.10-alpha"
 #define PHP_SWOOLE_CHECK_CALLBACK

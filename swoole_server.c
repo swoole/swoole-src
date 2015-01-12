@@ -16,8 +16,7 @@
 
 #include "php_swoole.h"
 
-#include "include/swoole.h"
-#include "include/Connection.h"
+#include "Connection.h"
 
 #include "ext/standard/php_var.h"
 #if PHP_MAJOR_VERSION < 7

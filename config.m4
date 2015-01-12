@@ -90,12 +90,6 @@ if test "$CLANG" = "yes"; then
 fi
 
 if test "$PHP_SWOOLE" != "no"; then
-   
-    PHP_ADD_INCLUDE($SWOOLE_DIR)
-    PHP_ADD_INCLUDE($SWOOLE_DIR/include)
-
-    PHP_ADD_INCLUDE([$ext_srcdir])
-    PHP_ADD_INCLUDE([$ext_srcdir/include])
         
     PHP_ADD_LIBRARY(pthread)
     PHP_SUBST(SWOOLE_SHARED_LIBADD)
@@ -148,7 +142,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(c, timerfd_create, AC_DEFINE(HAVE_TIMERFD, 1, [have timerfd]))
     AC_CHECK_LIB(c, eventfd, AC_DEFINE(HAVE_EVENTFD, 1, [have eventfd]))
     AC_CHECK_LIB(c, epoll_create, AC_DEFINE(HAVE_EPOLL, 1, [have epoll]))
-	AC_CHECK_LIB(c, sendfile, AC_DEFINE(HAVE_SENDFILE, 1, [have sendfile]))
+	AC_CHECK_LIB(c, sendfile,PGSQL_INCLUDE AC_DEFINE(HAVE_SENDFILE, 1, [have sendfile]))
     AC_CHECK_LIB(c, kqueue, AC_DEFINE(HAVE_KQUEUE, 1, [have kqueue]))
     AC_CHECK_LIB(c, daemon, AC_DEFINE(HAVE_DAEMON, 1, [have daemon]))
     AC_CHECK_LIB(c, mkostemp, AC_DEFINE(HAVE_MKOSTEMP, 1, [have mkostemp]))
@@ -244,7 +238,9 @@ if test "$PHP_SWOOLE" != "no"; then
     fi
 
     PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared)
-      
+    
+    PHP_ADD_INCLUDE([$ext_srcdir/include])
+
     PHP_ADD_BUILD_DIR($ext_builddir/src/core)
     PHP_ADD_BUILD_DIR($ext_builddir/src/memory)
     PHP_ADD_BUILD_DIR($ext_builddir/src/factory)

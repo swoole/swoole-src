@@ -24,10 +24,9 @@
 
 #include <main/php_variables.h>
 
-#include "include/swoole.h"
-#include "include/websocket.h"
-#include "include/Connection.h"
-#include "include/base64.h"
+#include "websocket.h"
+#include "Connection.h"
+#include "base64.h"
 
 #include "thirdparty/php_http_parser.h"
 

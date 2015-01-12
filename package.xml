@@ -80,6 +80,7 @@
 				<file role="src" name="websocket.h" />
 				<file role="src" name="sha1.h" />
 				<file role="src" name="base64.h" />
+				<file role="src" name="mqtt.h" />
 			</dir>
 			<dir name="examples">
 				<dir name="async">
@@ -241,6 +242,7 @@
 					<file role="src" name="WebSocket.c" />
 					<file role="src" name="Sha1.c" />
 					<file role="src" name="Base64.c" />
+					<file role="src" name="Mqtt.c" />
 				</dir>
 			</dir>
 		</dir>
