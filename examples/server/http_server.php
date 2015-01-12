@@ -1,6 +1,6 @@
 <?php
 $key_dir = dirname(dirname(__DIR__)).'/tests/ssl';
-$http = new swoole_http_server("0.0.0.0", 9501);
+$http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE);
 //https
 //$http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
 $http->setGlobal(HTTP_GLOBAL_ALL, HTTP_GLOBAL_GET|HTTP_GLOBAL_POST|HTTP_GLOBAL_COOKIE);
@@ -13,12 +13,13 @@ $http->set([
     //'ssl_key_file' => $key_dir.'/ssl.key',
 ]);
 $http->on('request', function (swoole_http_request $request, swoole_http_response $response) {
-    //	var_dump($request->cookie);
+//    var_dump($request->server);
+//    var_dump($request->header);
     //var_dump($request);
-    var_dump($_GET);
+    //var_dump($_GET);
     //var_dump($_POST);
     //var_dump($_COOKIE);
-    var_dump($_REQUEST);
+    var_dump($_SERVER['HTTP_HOST']);
 	//$response->status(301);
     //$response->header("Location", "http://www.baidu.com/");
 	//$response->cookie("hello", "world", time() + 3600);

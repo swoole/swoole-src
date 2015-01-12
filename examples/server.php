@@ -160,7 +160,7 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     $cmd = trim($data);
     if($cmd == "reload")
     {
-        $serv->reload($serv);
+        $serv->reload();
     }
     elseif($cmd == "task")
     {
