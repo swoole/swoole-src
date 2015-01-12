@@ -148,22 +148,25 @@ int swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct s
     while (1)
     {
         n = sendto(fd, __buf, __n, flag, __addr, __addr_len);
-        if (n == 0)
+        if (n >= 0)
         {
             break;
-        }
-        else if (errno == EINTR)
-        {
-            continue;
-        }
-        else if (errno == EAGAIN)
-        {
-            swSocket_wait(fd, 1000, SW_EVENT_WRITE);
-            continue;
         }
         else
         {
-            break;
+            if (errno == EINTR)
+            {
+                continue;
+            }
+            else if (errno == EAGAIN)
+            {
+                swSocket_wait(fd, 1000, SW_EVENT_WRITE);
+                continue;
+            }
+            else
+            {
+                break;
+            }
         }
     }
 

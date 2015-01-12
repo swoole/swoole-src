@@ -261,6 +261,7 @@ struct _swServer
 
     int signal_fd;
     int event_fd;
+    int dgram_socket_fd;
 
     int ringbuffer_size;
 

@@ -46,7 +46,7 @@ int swFactory_dispatch(swFactory *factory, swDispatchData *task)
 {
     swString *package = NULL;
     factory->last_from_id = task->data.info.from_id;
-    int ret;
+    int ret = 0;
 
     switch (task->data.info.type)
     {

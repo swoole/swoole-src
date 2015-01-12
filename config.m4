@@ -179,6 +179,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_server.c \
         swoole_lock.c \
         swoole_client.c \
+        swoole_event.c \
         swoole_async.c \
         swoole_process.c \
         swoole_buffer.c \
