@@ -395,6 +395,7 @@ void swoole_async_init(int module_number TSRMLS_DC);
 void swoole_table_init(int module_number TSRMLS_DC);
 void swoole_client_init(int module_number TSRMLS_DC);
 void swoole_http_init(int module_number TSRMLS_DC);
+void swoole_event_init(void);
 
 int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC);
 
