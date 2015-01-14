@@ -65,6 +65,7 @@ typedef struct
     uint16_t column_num;
     swLock lock;
     uint32_t size;
+    uint32_t mask;
     uint32_t item_size;
 
     /**
