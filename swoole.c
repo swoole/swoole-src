@@ -840,6 +840,8 @@ PHP_FUNCTION(swoole_set_process_name)
     if (Z_STRLEN_P(name) == 0)
     {
         return;
+    }else if(Z_STRLEN_P(name)>127){
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "process name is too long,the max len is 127");
     }
 
 #if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION > 4
