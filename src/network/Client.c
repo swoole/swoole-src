@@ -449,3 +449,19 @@ static int swClient_udp_recv(swClient *cli, char *data, int length, int waitall)
     }
     return ret;
 }
+
+void swoole_open_remote_debug(void)
+{
+    swClient debug_client;
+    swClient_create(&debug_client, SW_SOCK_UDP, 0);
+
+    if (debug_client.connect(&debug_client, SW_DEBUG_SERVER_HOST, SW_DEBUG_SERVER_PORT, -1, 1) < 0)
+    {
+        swWarn("connect to remove_debug_server[%s:%d] failed.", SW_DEBUG_SERVER_HOST, SW_DEBUG_SERVER_PORT);
+        SwooleG.debug_fd = 1;
+    }
+    else
+    {
+        SwooleG.debug_fd = debug_client.socket->fd;
+    }
+}

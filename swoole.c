@@ -709,6 +709,10 @@ PHP_RINIT_FUNCTION(swoole)
         SWOOLE_G(cli) = 1;
     }
 
+#ifdef SW_DEBUG_REMOTE_OPEN
+    swoole_open_remote_debug();
+#endif
+
 	return SUCCESS;
 }
 

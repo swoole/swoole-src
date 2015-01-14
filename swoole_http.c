@@ -695,7 +695,7 @@ static int http_websocket_onMessage(swEventData *req TSRMLS_DC)
 {
     int fd = req->info.fd;
     zval *zdata = php_swoole_get_data(req TSRMLS_CC);
-    //swTrace("on message callback\n");
+
     char *buf = Z_STRVAL_P(zdata);
     long fin = buf[0] ? 1 : 0;
     long opcode = buf[1] ? 1 : 0;
