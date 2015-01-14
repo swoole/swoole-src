@@ -102,24 +102,23 @@ static sw_inline int swWorker_excute(swFactory *factory, swEventData *task)
     case SW_EVENT_TCP:
     case SW_EVENT_UDP:
     case SW_EVENT_UNIX_DGRAM:
-
-        //ringbuffer shm package
+    //ringbuffer shm package
     case SW_EVENT_PACKAGE:
-        onTask: factory->onTask(factory, task);
+        onTask:
+        factory->onTask(factory, task);
 
         if (!SwooleWG.run_always)
         {
             //only onTask increase the count
             worker_task_num--;
         }
-
         if (task->info.type == SW_EVENT_PACKAGE_END)
         {
             package->length = 0;
         }
         break;
 
-        //package trunk
+    //package trunk
     case SW_EVENT_PACKAGE_START:
     case SW_EVENT_PACKAGE_END:
         //input buffer

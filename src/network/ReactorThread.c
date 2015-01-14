@@ -54,12 +54,16 @@ static sw_inline void* swReactorThread_alloc(swReactorThread *thread, uint32_t s
             if (try_count > SW_RINGBUFFER_WARNING)
             {
                 swWarn("memory pool is full. Wait memory collect. alloc(%d)", size);
+                usleep(1000);
+                try_count = 0;
             }
+            try_count++;
             swYield();
             continue;
         }
         break;
     }
+    //debug("%p\n", ptr);
     return ptr;
 }
 #endif
@@ -152,7 +156,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
     {
         if (conn->object)
         {
-            if(conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE)
+            if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE)
             {
                 swString *str = (swString *) conn->object;
                 swString_free(str);
@@ -161,7 +165,8 @@ int swReactorThread_close(swReactor *reactor, int fd)
             else
             {
                 swHttpRequest *request = (swHttpRequest *) conn->object;
-                if (request->state > 0 && request->buffer) {
+                if (request->state > 0 && request->buffer)
+                {
                     swTrace("ConnectionClose. free buffer=%p, request=%p\n", request->buffer, request);
                     swString_free(request->buffer);
                     bzero(request, sizeof(swHttpRequest));
@@ -367,10 +372,10 @@ int swReactorThread_send(swSendData *_send)
     //The connection has been closed.
     if (conn == NULL || conn->active == 0)
     {
-        swWarn("Connection[fd=%d#%d] is not active.", fd, SwooleTG.id);
+        swWarn("connection[fd=%d, event=%d] is not active.", fd, _send->info.type);
         return SW_ERR;
     }
-        //The connection has been removed from eventloop.
+    //The connection has been removed from eventloop.
     else if (conn->removed)
     {
         goto close_fd;
@@ -1413,18 +1418,6 @@ int swReactorThread_create(swServer *serv)
         return SW_ERR;
     }
 
-#ifdef SW_USE_RINGBUFFER
-    int i;
-    for (i = 0; i < serv->reactor_num; i++)
-    {
-        serv->reactor_threads[i].buffer_input = swRingBuffer_new(SwooleG.serv->buffer_input_size, 1);
-        if (!serv->reactor_threads[i].buffer_input)
-        {
-            return SW_ERR;
-        }
-    }
-#endif
-
     serv->connection_list = sw_shm_calloc(serv->max_connection, sizeof(swConnection));
     if (serv->connection_list == NULL)
     {
@@ -1700,13 +1693,13 @@ static int swReactorThread_loop_udp(swThreadParam *param)
 
     while (SwooleG.running == 1)
     {
-        ret = recvfrom(sock, task.data.data, SW_BUFFER_SIZE, 0, (struct sockaddr *)&addr_in, &addrlen);
+        ret = recvfrom(sock, task.data.data, SW_BUFFER_SIZE, 0, (struct sockaddr *) &addr_in, &addrlen);
         if (ret > 0)
         {
             task.data.info.len = ret;
             task.data.info.type = SW_EVENT_UDP;
             //UDP的from_id是PORT，FD是IP
-            task.data.info.from_id = ntohs(addr_in.sin_port); //转换字节序
+            task.data.info.from_id = ntohs(addr_in.sin_port);  //转换字节序
             task.data.info.fd = addr_in.sin_addr.s_addr;
             task.target_worker_id = -1;
 
@@ -1714,7 +1707,7 @@ static int swReactorThread_loop_udp(swThreadParam *param)
             ret = serv->factory.dispatch(&serv->factory, &task);
             if (ret < 0)
             {
-                swWarn("factory->dispatch[udp packet] fail\n");
+                swWarn("factory->dispatch[udp packet] failed");
             }
         }
     }
@@ -1733,8 +1726,8 @@ static int swReactorThread_send_string_buffer(swReactorThread *thread, swConnect
 #ifdef SW_USE_RINGBUFFER
     swServer *serv = SwooleG.serv;
     int target_worker_id = swServer_worker_schedule(serv, conn->fd);
-    swPackage package;
 
+    swPackage package;
     package.length = buffer->length;
     package.data = swReactorThread_alloc(thread, package.length);
 
@@ -1743,8 +1736,9 @@ static int swReactorThread_send_string_buffer(swReactorThread *thread, swConnect
     task.target_worker_id = target_worker_id;
 
     //swoole_dump_bin(package.data, 's', buffer->length);
-    memcpy(package.data, buffer->str, buffer->length);
+    memcpy(package.data, buffer->str, package.length);
     memcpy(task.data.data, &package, sizeof(package));
+
     return factory->dispatch(factory, &task);
 #else
 

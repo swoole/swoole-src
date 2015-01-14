@@ -452,6 +452,17 @@ int swServer_start(swServer *serv)
         SwooleGS->event_workers.workers[i].pool = &SwooleGS->event_workers;
     }
 
+#ifdef SW_USE_RINGBUFFER
+    for (i = 0; i < serv->reactor_num; i++)
+    {
+        serv->reactor_threads[i].buffer_input = swRingBuffer_new(SwooleG.serv->buffer_input_size, 1);
+        if (!serv->reactor_threads[i].buffer_input)
+        {
+            return SW_ERR;
+        }
+    }
+#endif
+
 	/*
 	 * For swoole_server->taskwait, create notify pipe and result shared memory.
 	 */

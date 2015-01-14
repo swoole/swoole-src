@@ -52,44 +52,46 @@ static void php_swoole_onManagerStop(swServer *serv);
 zval *php_swoole_get_data(swEventData *req TSRMLS_DC)
 {
     zval *zdata;
-    char *data_ptr;
+    char *data_ptr = NULL;
     int data_len;
+    swPackage package;
+
     MAKE_STD_ZVAL(zdata);
 
 #ifdef SW_USE_RINGBUFFER
     if (req->info.type == SW_EVENT_PACKAGE)
     {
-        swPackage package;
         memcpy(&package, req->data, sizeof(package));
+
+        swReactorThread *thread = swServer_get_thread(SwooleG.serv, req->info.from_id);
+
+        //swRingBuffer_check(thread->buffer_input, package.data);
 
         data_ptr = package.data;
         data_len = package.length;
         //swoole_dump_bin(package.data, 's', package.length);
+
+        ZVAL_STRINGL(zdata, data_ptr, data_len, 1);
+
+        swRingBuffer_check(thread->buffer_input, data_ptr);
+
+        thread->buffer_input->free(thread->buffer_input, data_ptr);
     }
 #else
     if (req->info.type == SW_EVENT_PACKAGE_END)
     {
         data_ptr = SwooleWG.buffer_input[req->info.from_id]->str;
         data_len = SwooleWG.buffer_input[req->info.from_id]->length;
+        ZVAL_STRINGL(zdata, data_ptr, data_len, 1);
     }
 #endif
     else
     {
         data_ptr = req->data;
         data_len = req->info.len;
+        ZVAL_STRINGL(zdata, data_ptr, data_len, 1);
     }
 
-    //zero copy
-    //SW_ZVAL_STRINGL(zdata, data_ptr, data_len, 0);
-    ZVAL_STRINGL(zdata, data_ptr, data_len, 1);
-
-#ifdef SW_USE_RINGBUFFER
-    if (req->info.type == SW_EVENT_PACKAGE)
-    {
-        swReactorThread *thread = swServer_get_thread(SwooleG.serv, req->info.from_id);
-        thread->buffer_input->free(thread->buffer_input, data_ptr);
-    }
-#endif
     return zdata;
 }
 
@@ -321,8 +323,8 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
     }
     else
     {
-        ZVAL_LONG(zfrom_id, (long)req->info.from_id);
-        ZVAL_LONG(zfd, (long)req->info.fd);
+        ZVAL_LONG(zfrom_id, (long )req->info.from_id);
+        ZVAL_LONG(zfd, (long )req->info.fd);
     }
 
     zdata = php_swoole_get_data(req TSRMLS_CC);
@@ -344,10 +346,7 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
     }
     zval_ptr_dtor(&zfd);
     zval_ptr_dtor(&zfrom_id);
-    //zero copy
-    //efree(zdata);
     zval_ptr_dtor(&zdata);
-
     if (retval != NULL)
     {
         zval_ptr_dtor(&retval);

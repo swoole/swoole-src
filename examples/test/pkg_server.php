@@ -57,7 +57,8 @@ require 'config.php';
 $serv = new swoole_server("127.0.0.1", 9501);
 $serv->set(
     [
-        'worker_num'            => 1,
+        'worker_num'            => 4,
+        'dispatch_mode'         => 1,
         'open_length_check'     => true,
         'package_max_length'    => 81920,
         'package_length_type'   => 'n', //see php pack()

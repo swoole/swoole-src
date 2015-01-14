@@ -451,8 +451,9 @@ typedef struct _swSocketLocal
 
 typedef struct _swPackage
 {
-	void *data;
-	uint32_t length;
+    void *data;
+    uint32_t length;
+    uint32_t id;
 } swPackage;
 
 typedef struct

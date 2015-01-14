@@ -27,7 +27,7 @@
 
 #define SW_USE_EVENT_TIMER
 
-#define SW_DEBUG_REMOTE_OPEN
+//#define SW_DEBUG_REMOTE_OPEN
 #define SW_DEBUG_SERVER_HOST       "127.0.0.1"
 #define SW_DEBUG_SERVER_PORT       9999
 

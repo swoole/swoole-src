@@ -20,18 +20,15 @@ class DebugServer
 
         if ($tag == 'alloc')
         {
-            if (isset( $this->alloc_point[$data['ptr']]))
-            {
-                echo "ptr={$data['ptr']} is alloced.";
-            }
-            else
-            {
-                $this->alloc_point[$data['ptr']] = $this->index ++;
-            }
+            file_put_contents(__DIR__.'/alloc.log', $data['ptr']."\n", FILE_APPEND);
+        }
+        elseif($tag =='memory')
+        {
+            var_dump($tag, $data);
         }
         elseif ($tag == 'free')
         {
-            $this->free_point[$data['ptr']] = $this->index ++;
+            file_put_contents(__DIR__.'/free.log', $data['ptr']."\n", FILE_APPEND);
         }
         elseif($tag == 'invalid')
         {
@@ -42,12 +39,14 @@ class DebugServer
         }
         else
         {
-            var_dump($tag, $data);
+            //var_dump($tag, $data);
         }
     }
 
     function run()
     {
+        unlink(__DIR__.'/alloc.log');
+        unlink(__DIR__.'/free.log');
         $socket = stream_socket_server("udp://127.0.0.1:9999", $errno, $errstr, STREAM_SERVER_BIND);
         if (!$socket)
         {

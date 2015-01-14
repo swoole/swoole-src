@@ -3,62 +3,27 @@
 typedef struct
 {
     uint8_t shared;
+    uint8_t status;
     uint32_t size;
     uint32_t alloc_offset;
     uint32_t collect_offset;
-    uint32_t free_n;
+    uint32_t alloc_count;
+    sw_atomic_t free_count;
     void *memory;
-
 } swRingBuffer;
 
 typedef struct
 {
-    uint32_t lock;
+    uint16_t lock;
+    uint16_t index;
     uint32_t length;
-
+    char data[0];
 } swRingBuffer_item;
 
 static void swRingBuffer_destory(swMemoryPool *pool);
 static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size);
 static void swRingBuffer_free(swMemoryPool *pool, void *ptr);
-static void swRingBuffer_collect(swRingBuffer *object);
-
-static void swRingBuffer_collect(swRingBuffer *object)
-{
-    int i;
-    swRingBuffer_item *item = NULL;
-
-    swTraceLog(SW_TRACE_MEMORY, "collect_offset=%ld, free_n=%d", object->collect_offset, object->free_n);
-
-    for (i = 0; i < SW_RINGBUFFER_COLLECT_N; i++)
-    {
-        item = (swRingBuffer_item *) (object->memory + object->collect_offset);
-
-        swTraceLog(SW_TRACE_MEMORY, "alloc_offset=%ld, collect_offset=%ld, item_length=%d, lock=%d", object->alloc_offset, object->collect_offset, item->length, item->lock);
-        if (object->alloc_offset == object->collect_offset)
-        {
-            object->free_n = 0;
-            break;
-        }
-        //can collect
-        if (item->lock == 0)
-        {
-            object->collect_offset += (sizeof(swRingBuffer_item) + item->length);
-            if (object->free_n > 0)
-            {
-                object->free_n--;
-            }
-            if (object->collect_offset >= object->size)
-            {
-                object->collect_offset = 0;
-            }
-        }
-        else
-        {
-            break;
-        }
-    }
-}
+static void swRingBuffer_print(swRingBuffer *object, char *prefix);
 
 swMemoryPool *swRingBuffer_new(uint32_t size, uint8_t shared)
 {
@@ -72,119 +37,155 @@ swMemoryPool *swRingBuffer_new(uint32_t size, uint8_t shared)
     swRingBuffer *object = mem;
     mem += sizeof(swRingBuffer);
     bzero(object, sizeof(swRingBuffer));
+
     object->size = (size - sizeof(swRingBuffer) - sizeof(swMemoryPool));
     object->shared = shared;
 
     swMemoryPool *pool = mem;
     mem += sizeof(swMemoryPool);
+
     pool->object = object;
     pool->destroy = swRingBuffer_destory;
     pool->free = swRingBuffer_free;
     pool->alloc = swRingBuffer_alloc;
 
     object->memory = mem;
+
+    swDebug("memory: ptr=%p", mem);
+
     return pool;
+}
+
+void swRingBuffer_check(swMemoryPool *pool, void *ptr)
+{
+    swRingBuffer *object = pool->object;
+    swRingBuffer_item *item = ptr - sizeof(swRingBuffer_item);
+
+    assert(ptr > object->memory);
+    assert(ptr < object->memory + object->size);
+}
+
+static void swRingBuffer_collect(swRingBuffer *object)
+{
+    swRingBuffer_item *item;
+    sw_atomic_t *free_count = &object->free_count;
+
+    int count = object->free_count;
+    int i;
+    uint32_t n_size;
+
+    for (i = 0; i < count; i++)
+    {
+        item = object->memory + object->collect_offset;
+        if (item->lock == 0)
+        {
+            n_size = item->length + sizeof(swRingBuffer_item);
+
+            object->collect_offset += n_size;
+
+            if (object->collect_offset >= object->size)
+            {
+                object->collect_offset = 0;
+                object->status = 0;
+            }
+            sw_atomic_fetch_sub(free_count, 1);
+        }
+        else
+        {
+            break;
+        }
+    }
+}
+
+static void swRingBuffer_print(swRingBuffer *object, char *prefix)
+{
+    printf("%s: size=%d, status=%d, alloc_count=%d, free_count=%d, offset=%d, next_offset=%d\n", prefix, object->size,
+            object->status, object->alloc_count, object->free_count, object->alloc_offset, object->collect_offset);
 }
 
 static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size)
 {
-    swRingBuffer *object = pool->object;
-    volatile swRingBuffer_item *item;
-    uint32_t n;
-    uint8_t try_collect = 0;
-    void *ret_mem = NULL;
-
     assert(size > 0);
 
-    swTraceLog(SW_TRACE_MEMORY, "[0] alloc_offset=%ld|collect_offset=%ld", object->alloc_offset, object->collect_offset);
+    swRingBuffer *object = pool->object;
+    swRingBuffer_item *item;
+    uint32_t capacity;
 
-    start_alloc:
+    uint32_t alloc_size = size + sizeof(swRingBuffer_item);
 
-    if (object->alloc_offset < object->collect_offset)
-    {
-        head_alloc:
-        item = object->memory + object->alloc_offset;
-        /**
-         * 剩余内存的长度
-         */
-        n = object->collect_offset - object->alloc_offset;
-        /**
-         * 剩余内存可供本次分配,必须是>size
-         */
-        if (n > (size + sizeof(swRingBuffer_item)))
-        {
-            goto do_alloc;
-        }
-        /**
-         * 内存不足,已尝试回收过
-         */
-        else if (try_collect == 1)
-        {
-            //swRingBuffer_head *tmp = (swRingBuffer_head *) (object->memory + object->collect_offset);
-            //swWarn("item_length=%d, lock=%d", tmp->length, tmp->lock);
-            //swWarn("alloc(%d) failed. alloc_offset=%d|collect_offset=%d", size, object->alloc_offset, object->collect_offset);
-            return NULL;
-        }
-        //try collect memory, then try head_alloc
-        else
-        {
-            try_collect = 1;
-            swRingBuffer_collect(object);
-            goto start_alloc;
-        }
-    }
-    else
-    {
-        assert(object->alloc_offset <= object->size);
-        //tail_alloc:
-        n = object->size - object->alloc_offset;
-        item = object->memory + object->alloc_offset;
-
-        swTraceLog(SW_TRACE_MEMORY, "[1] size=%ld, alloc_size=%d, n_size=%ld", object->size, size, n);
-
-        if (n >= size + sizeof(swRingBuffer_item))
-        {
-            goto do_alloc;
-        }
-        else
-        {
-            //unlock
-            item->lock = 0;
-            item->length = n - sizeof(swRingBuffer_item);
-
-            //goto head
-            object->alloc_offset = 0;
-
-            swTraceLog(SW_TRACE_MEMORY, "switch to head_alloc. ac_size=%d, n_size=%ld", size, n);
-            goto head_alloc;
-        }
-    }
-
-    do_alloc:
-
-    item->lock = 1;
-    item->length = size;
-    ret_mem = (void*) (object->memory + object->alloc_offset + sizeof(swRingBuffer_item));
-
-    /**
-     * 内存游标向后移动
-     */
-    object->alloc_offset += (size + sizeof(swRingBuffer_item));
-
-    if (object->free_n > 0)
+    if (object->free_count > 0)
     {
         swRingBuffer_collect(object);
     }
 
-    return ret_mem;
+    if (object->status == 0)
+    {
+        if (object->alloc_offset + alloc_size >= object->size)
+        {
+            uint32_t skip_n = object->size - object->alloc_offset;
+
+            item = object->memory + object->alloc_offset;
+            item->lock = 0;
+            item->length = skip_n - sizeof(swRingBuffer_item);
+
+            sw_atomic_t *free_count = &object->free_count;
+            sw_atomic_fetch_add(free_count, 1);
+
+            object->alloc_offset = 0;
+            object->status = 1;
+
+            capacity = object->collect_offset - object->alloc_offset;
+        }
+        else
+        {
+            capacity = object->size - object->alloc_offset;
+        }
+    }
+    else
+    {
+        capacity = object->collect_offset - object->alloc_offset;
+    }
+
+    if (capacity < alloc_size)
+    {
+        return NULL;
+    }
+
+    item = object->memory + object->alloc_offset;
+    item->lock = 1;
+    item->length = size;
+    item->index = object->alloc_count;
+
+    object->alloc_offset += alloc_size;
+    object->alloc_count ++;
+
+    swDebug("alloc: ptr=%d", (void *)item->data - object->memory);
+
+    return item->data;
 }
 
 static void swRingBuffer_free(swMemoryPool *pool, void *ptr)
 {
     swRingBuffer *object = pool->object;
     swRingBuffer_item *item = ptr - sizeof(swRingBuffer_item);
-    item->lock = 0;
-    object->free_n++;
+
+    assert(ptr >= object->memory);
+    assert(ptr <= object->memory + object->size);
+    assert(item->lock == 1);
+
+    if (item->lock != 1)
+    {
+        swDebug("invalid free: index=%d, ptr = %d\n", item->index,  (void * ) item->data - object->memory);
+    }
+    else
+    {
+        item->lock = 0;
+    }
+
+    swDebug("free: ptr=%d", (void * ) item->data - object->memory);
+
+    sw_atomic_t *free_count = &object->free_count;
+    sw_atomic_fetch_add(free_count, 1);
 }
 
 static void swRingBuffer_destory(swMemoryPool *pool)
