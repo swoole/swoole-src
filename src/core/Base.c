@@ -36,24 +36,26 @@ void swoole_init(void)
     SwooleG.running = 1;
     sw_errno = 0;
 
+    SwooleG.log_fd = STDOUT_FILENO;
     SwooleG.cpu_num = sysconf(_SC_NPROCESSORS_ONLN);
     SwooleG.pagesize = getpagesize();
     SwooleG.pid = getpid();
-
-    if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
-    {
-        swWarn("getrlimit() failed. Error: %s[%d]", strerror(errno), errno);
-    }
-    else
-    {
-        SwooleG.max_sockets = (uint32_t) rlmt.rlim_cur;
-    }
 
     //random seed
     srandom(time(NULL));
 
     //init global lock
     swMutex_create(&SwooleG.lock, 0);
+
+    if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
+    {
+        swWarn("getrlimit() failed. Error: %s[%d]", strerror(errno), errno);
+        SwooleG.max_sockets = 1024;
+    }
+    else
+    {
+        SwooleG.max_sockets = (uint32_t) rlmt.rlim_cur;
+    }
 
     //init signalfd
 #ifdef HAVE_SIGNALFD
@@ -66,8 +68,6 @@ void swoole_init(void)
 #endif
 
     SwooleG.use_timer_pipe = 1;
-    //将日志设置为标准输出
-    SwooleG.log_fd = STDOUT_FILENO;
     //初始化全局内存
     SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
     if (SwooleG.memory_pool == NULL)
