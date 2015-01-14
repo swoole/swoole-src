@@ -4,6 +4,14 @@ class PkgServer
 {
     private $count = array();
     private $index = array();
+    private $recv_bytes = 0;
+
+    private $show_lost_package = false;
+
+    function onWorkerStart($serv, $id)
+    {
+        sleep(1);
+    }
 
     function onReceive($serv, $fd, $from_id, $data)
     {
@@ -12,36 +20,44 @@ class PkgServer
         {
             echo "#{$header['index']} recv package. sid={$header['sid']}, length=" . strlen($data) . "\n";
         }
-        $this->count[$fd]++;
-        $this->index[$fd][$header['index']] = true;
+        $this->count++;
+        if ($header['index'] > PKG_NUM)
+        {
+            echo "invalid index #{$header['index']}\n";
+        }
+        $this->recv_bytes += strlen($data);
+        $this->index[$header['index']] = true;
     }
 
     function onConnect($serv, $fd, $from_id)
     {
-        $this->count[$fd] = 0;
+        $this->count = 0;
     }
 
     function onClose($serv, $fd, $from_id)
     {
-        echo "Total Package:" . $this->count[$fd] . "\n";
+        echo "Total count={$this->count}, bytes={$this->recv_bytes}\n";
 
-        for ($i = 0; $i < 40000; $i++)
+        if ($this->show_lost_package)
         {
-            if (!isset($this->index[$fd][$i]))
+            for ($i = 0; $i < PKG_NUM; $i++)
             {
-                echo "lost package#$i\n";
+                if (!isset($this->index[$i]))
+                {
+                    echo "lost package#$i\n";
+                }
             }
         }
-
-        unset($this->count[$fd], $this->index[$fd]);
+        $this->count = $this->recv_bytes = 0;
+        $this->index = array();
     }
 }
 
+require 'config.php';
 $serv = new swoole_server("127.0.0.1", 9501);
 $serv->set(
     [
-        'worker_num'            => 4,
-        //'ipc_mode'              => 2,
+        'worker_num'            => 1,
         'open_length_check'     => true,
         'package_max_length'    => 81920,
         'package_length_type'   => 'n', //see php pack()
@@ -54,5 +70,6 @@ $serv->set(
 $cb = new PkgServer();
 $serv->on('Connect', [$cb, 'onConnect']);
 $serv->on('receive', [$cb, 'onReceive']);
+$serv->on('workerStart', [$cb, 'onWorkerStart']);
 $serv->on('Close', [$cb, 'onClose']);
 $serv->start();

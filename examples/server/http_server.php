@@ -3,9 +3,9 @@ $key_dir = dirname(dirname(__DIR__)).'/tests/ssl';
 $http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE);
 //https
 //$http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
-$http->setGlobal(HTTP_GLOBAL_ALL, HTTP_GLOBAL_GET|HTTP_GLOBAL_POST|HTTP_GLOBAL_COOKIE);
+//$http->setGlobal(HTTP_GLOBAL_ALL, HTTP_GLOBAL_GET|HTTP_GLOBAL_POST|HTTP_GLOBAL_COOKIE);
 $http->set([
-    'worker_num' => 1,
+    'worker_num' => 4,
     //'task_worker_num' => 0,
     //'user' => 'www-data',
     //'group' => 'www-data'
@@ -19,10 +19,15 @@ $http->on('request', function (swoole_http_request $request, swoole_http_respons
     //var_dump($_GET);
     //var_dump($_POST);
     //var_dump($_COOKIE);
+<<<<<<< Updated upstream
     var_dump($_SERVER['HTTP_HOST']);
 	//$response->status(301);
+=======
+    //var_dump($_REQUEST);
+    //$response->status(301);
+>>>>>>> Stashed changes
     //$response->header("Location", "http://www.baidu.com/");
-	//$response->cookie("hello", "world", time() + 3600);
+    //$response->cookie("hello", "world", time() + 3600);
     //$response->header("Content-Type", "text/html; charset=utf-8");
     //var_dump($request->rawContent());
     

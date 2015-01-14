@@ -1,4 +1,6 @@
 <?php
+require 'config.php';
+
 $client = new swoole_client(SWOOLE_SOCK_TCP);
 if (!$client->connect('127.0.0.1', 9501))
 {
@@ -6,9 +8,10 @@ if (!$client->connect('127.0.0.1', 9501))
 }
 
 $data = '';
-for ($i = 0; $i < 40000; $i++)
+for ($i = 0; $i < PKG_NUM; $i++)
 {
-    $len = rand(10000, 20000);
+//    $len = rand(10000, 20000);
+    $len = 10240;
     $sid = rand(10000, 99999);
 
     if ($i % 1000 == 0)
