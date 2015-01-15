@@ -134,7 +134,7 @@
 #define SW_RINGBUFFER_COLLECT_N          100   //collect max_count
 #define SW_RINGBUFFER_FREE_N_MAX         4     //when free_n > MAX, execute collect
 #define SW_RINGBUFFER_WARNING            100
-#define SW_RINGBUFFER_DEBUG
+//#define SW_RINGBUFFER_DEBUG
 
 /**
  * ringbuffer memory pool size
@@ -167,7 +167,7 @@
 #define SW_TABLE_CONFLICT_PROPORTION     0.2 //20%
 #define SW_TABLE_COMPRESS_PROPORTION     0.5 //50% skip, will compress the row list
 //#define SW_TABLE_USE_PHP_HASH
-#define SW_TABLE_DEBUG
+//#define SW_TABLE_DEBUG
 
 #define SW_SSL_BUFSIZE  16384
 

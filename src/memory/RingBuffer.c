@@ -23,7 +23,16 @@ typedef struct
 static void swRingBuffer_destory(swMemoryPool *pool);
 static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size);
 static void swRingBuffer_free(swMemoryPool *pool, void *ptr);
+
+#ifdef SW_RINGBUFFER_DEBUG
 static void swRingBuffer_print(swRingBuffer *object, char *prefix);
+
+static void swRingBuffer_print(swRingBuffer *object, char *prefix)
+{
+    printf("%s: size=%d, status=%d, alloc_count=%d, free_count=%d, offset=%d, next_offset=%d\n", prefix, object->size,
+            object->status, object->alloc_count, object->free_count, object->alloc_offset, object->collect_offset);
+}
+#endif
 
 swMemoryPool *swRingBuffer_new(uint32_t size, uint8_t shared)
 {
@@ -56,15 +65,6 @@ swMemoryPool *swRingBuffer_new(uint32_t size, uint8_t shared)
     return pool;
 }
 
-void swRingBuffer_check(swMemoryPool *pool, void *ptr)
-{
-    swRingBuffer *object = pool->object;
-    swRingBuffer_item *item = ptr - sizeof(swRingBuffer_item);
-
-    assert(ptr > object->memory);
-    assert(ptr < object->memory + object->size);
-}
-
 static void swRingBuffer_collect(swRingBuffer *object)
 {
     swRingBuffer_item *item;
@@ -95,12 +95,6 @@ static void swRingBuffer_collect(swRingBuffer *object)
             break;
         }
     }
-}
-
-static void swRingBuffer_print(swRingBuffer *object, char *prefix)
-{
-    printf("%s: size=%d, status=%d, alloc_count=%d, free_count=%d, offset=%d, next_offset=%d\n", prefix, object->size,
-            object->status, object->alloc_count, object->free_count, object->alloc_offset, object->collect_offset);
 }
 
 static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size)

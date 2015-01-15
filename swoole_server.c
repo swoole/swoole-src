@@ -63,18 +63,12 @@ zval *php_swoole_get_data(swEventData *req TSRMLS_DC)
     {
         memcpy(&package, req->data, sizeof(package));
 
-        swReactorThread *thread = swServer_get_thread(SwooleG.serv, req->info.from_id);
-
-        //swRingBuffer_check(thread->buffer_input, package.data);
-
         data_ptr = package.data;
         data_len = package.length;
-        //swoole_dump_bin(package.data, 's', package.length);
 
         ZVAL_STRINGL(zdata, data_ptr, data_len, 1);
 
-        swRingBuffer_check(thread->buffer_input, data_ptr);
-
+        swReactorThread *thread = swServer_get_thread(SwooleG.serv, req->info.from_id);
         thread->buffer_input->free(thread->buffer_input, data_ptr);
     }
 #else

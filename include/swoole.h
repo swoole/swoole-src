@@ -337,6 +337,7 @@ typedef struct _swConnection
     uint32_t closed :1;
     uint32_t closing :1;
     uint32_t removed :1;
+    uint32_t overflow :1;
 
     uint32_t tcp_nopush :1;
     uint32_t tcp_nodelay :1;
@@ -717,8 +718,6 @@ swMemoryPool* swMalloc_new();
  * RingBuffer, In order for malloc / free
  */
 swMemoryPool *swRingBuffer_new(uint32_t size, uint8_t shared);
-
-void swRingBuffer_check(swMemoryPool *pool, void *ptr);
 
 /**
  * Global memory, the program life cycle only malloc / free one time
