@@ -361,6 +361,7 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen)
             {
                 table->lock.lock(&table->lock);
                 swTableRow *new_row = table->pool->alloc(table->pool, 0);
+
 #ifdef SW_TABLE_DEBUG
                 conflict_count ++;
 #endif

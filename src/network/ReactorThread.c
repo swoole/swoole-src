@@ -463,6 +463,7 @@ int swReactorThread_send(swSendData *_send)
         if (conn->out_buffer->length >= serv->buffer_output_size)
         {
             swWarn("Connection output buffer overflow.");
+            conn->overflow = 1;
         }
         //buffer enQueue
         swBuffer_append(conn->out_buffer, _send->data, _send->length);
@@ -524,20 +525,20 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         return SW_OK;
     }
 
-    swBuffer_trunk *trunk;
+    swBuffer_trunk *chunk;
 
     while (!swBuffer_empty(conn->out_buffer))
     {
-        trunk = swBuffer_get_trunk(conn->out_buffer);
-        if (trunk->type == SW_CHUNK_CLOSE)
+        chunk = swBuffer_get_trunk(conn->out_buffer);
+        if (chunk->type == SW_CHUNK_CLOSE)
         {
             close_fd:
             reactor->close(reactor, ev->fd);
             return SW_OK;
         }
-        else if (trunk->type == SW_CHUNK_SENDFILE)
+        else if (chunk->type == SW_CHUNK_SENDFILE)
         {
-            ret = swConnection_onSendfile(conn, trunk);
+            ret = swConnection_onSendfile(conn, chunk);
         }
         else
         {
@@ -555,6 +556,11 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
                 return SW_OK;
             }
         }
+    }
+
+    if (conn->overflow && conn->out_buffer->length < SwooleG.socket_buffer_size)
+    {
+        conn->overflow = 0;
     }
 
     //remove EPOLLOUT event

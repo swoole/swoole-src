@@ -695,6 +695,11 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         swWarn("send failed, because connection[%d] has been closed.", fd);
         return SW_ERR;
     }
+    else if (conn->overflow)
+    {
+        swWarn("send failed, connection[%d] output buffer has been overflowed.", fd);
+        return SW_ERR;
+    }
 
     ev_data.info.fd = fd;
     ev_data.info.type = resp->info.type;
