@@ -70,7 +70,7 @@ swTable* swTable_new(uint32_t rows_size)
     }
     else
     {
-        uint32_t i = 3;
+        uint32_t i = 10;
         while ((1U << i) < rows_size)
         {
             i++;
