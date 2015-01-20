@@ -10,8 +10,7 @@ $serv->on('pipeMessage', function($serv, $src_worker_id, $data) {
 });
 
 $serv->on('task', function ($serv, $task_id, $from_id, $data){
-	var_dump($task_id, $from_id, $data);
-	$fd = $data;
+    echo "#{$serv->worker_id} NewTask: $data\n";
 	//$serv->send($fd, str_repeat('B', 1024*rand(40, 60)).rand(10000, 99999)."\n");
 });
 
@@ -20,14 +19,23 @@ $serv->on('finish', function ($serv, $fd, $from_id){
 });
 
 $serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
-    if (trim($data) == 'task')
+    $cmd = trim($data);
+    if ($cmd == 'task')
     {
         $serv->task("async task coming");
     }
-    else
+    elseif($cmd == 'totask')
+    {
+        $serv->sendMessage("hello task process", 2);
+    }
+    elseif($cmd == 'toworker')
     {
         $worker_id = 1 - $serv->worker_id;
         $serv->sendMessage("hello task process", $worker_id);
+    }
+    else
+    {
+        echo "recv: $data\n";
     }
 });
 

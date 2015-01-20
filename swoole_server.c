@@ -2577,7 +2577,7 @@ PHP_METHOD(swoole_server, sendmessage)
         RETURN_FALSE;
     }
 
-    buf.info.type = SW_TASK_MESSAGE;
+    buf.info.type = SW_EVENT_PIPE_MESSAGE;
     buf.info.from_id = SwooleWG.id;
 
     //write to file
