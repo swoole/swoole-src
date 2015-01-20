@@ -95,9 +95,7 @@ enum swTaskType
 {
     SW_TASK_TMPFILE    = 1,  //tmp file
     SW_TASK_SERIALIZE  = 2,  //php serialize
-    SW_TASK_BLOCKING   = 4,  //taskwait
-    SW_TASK_NONBLOCK   = 8,  //task
-    SW_TASK_MESSAGE    = 16, //pipe message
+    SW_TASK_NONBLOCK   = 4,  //task
 };
 
 typedef struct _swUdpFd

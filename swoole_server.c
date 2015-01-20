@@ -2303,7 +2303,6 @@ PHP_FUNCTION(swoole_server_taskwait)
     buf.info.from_id = SwooleWG.id;
     swTask_type(&buf) = 0;
 
-    swTask_type(&buf) |= SW_TASK_BLOCKING;
     //clear result buffer
     swEventData *task_result = &(SwooleG.task_result[SwooleWG.id]);
     bzero(task_result, sizeof(SwooleG.task_result[SwooleWG.id]));
