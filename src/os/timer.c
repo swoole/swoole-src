@@ -200,14 +200,19 @@ static int swTimer_del(swTimer *timer, int ms, int id)
 static void swTimer_free(swTimer *timer)
 {
     swHashMap_free(timer->list);
+
     if (timer->use_pipe)
     {
         timer->pipe.close(&timer->pipe);
     }
-    else if (close(timer->fd) < 0)
+    else if (timer->fd > 2)
     {
-        swSysError("close(%d) failed.", timer->fd);
+        if (close(timer->fd) < 0)
+        {
+            swSysError("close(%d) failed.", timer->fd);
+        }
     }
+
     if (timer->root)
     {
         swTimer_node_destory(&timer->root);
