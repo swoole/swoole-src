@@ -173,7 +173,11 @@ void swSignalfd_clear()
     }
     bzero(&signals, sizeof(signals));
     bzero(&signalfd_mask, sizeof(signalfd_mask));
-    close(signal_fd);
+
+    if (signal_fd)
+    {
+        close(signal_fd);
+    }
     signal_fd = 0;
 }
 
