@@ -1,5 +1,5 @@
 <?php
-$ser = new swoole_server("127.0.0.1", 5900, SWOOLE_PROCESS | SWOOLE_PACKET);
+$ser = new swoole_server("127.0.0.1", 5900, SWOOLE_BASE | SWOOLE_PACKET);
 $ser->set(array("worker_num" => 1));
 
 $ser->on('receive',

@@ -18,6 +18,7 @@
 #include "Server.h"
 
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker);
+static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event);
 
 int swReactorProcess_create(swServer *serv)
 {
@@ -79,7 +80,9 @@ int swReactorProcess_start(swServer *serv)
         }
     }
 
-    if (swProcessPool_create(&SwooleGS->event_workers, serv->worker_num, serv->max_request, 0, 0) < 0)
+    int create_pipe = serv->onPipeMessage ? 1 : 0;
+
+    if (swProcessPool_create(&SwooleGS->event_workers, serv->worker_num, serv->max_request, 0, create_pipe) < 0)
     {
         return SW_ERR;
     }
@@ -143,6 +146,19 @@ int swReactorProcess_start(swServer *serv)
     return SW_OK;
 }
 
+static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event)
+{
+    swEventData task;
+    swServer *serv = reactor->ptr;
+
+    if (read(event->fd, &task, sizeof(task)) > 0)
+    {
+        serv->onPipeMessage(serv, &task);
+        return SW_OK;
+    }
+    return SW_ERR;
+}
+
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 {
     swServer *serv = pool->ptr;
@@ -203,6 +219,14 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     reactor->setHandle(reactor, SW_FD_LISTEN, swServer_master_onAccept);
     //close
     reactor->setHandle(reactor, SW_FD_CLOSE, swReactorProcess_onClose);
+
+    if (serv->onPipeMessage)
+    {
+        reactor->add(reactor, worker->pipe_worker, SW_FD_PIPE);
+        //close
+        reactor->setHandle(reactor, SW_FD_PIPE, swReactorProcess_onPipeRead);
+    }
+
     //set protocol function point
     swReactorThread_set_protocol(serv, reactor);
 

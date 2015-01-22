@@ -2595,14 +2595,14 @@ PHP_METHOD(swoole_server, sendmessage)
 
     if (worker_id == SwooleWG.id)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "worker_id is current worker.");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "cannot send message to self.");
         RETURN_FALSE;
     }
 
     SWOOLE_GET_SERVER(zobject, serv);
     if (worker_id >= serv->worker_num + SwooleG.task_worker_num)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "worker_id is invalid.");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "worker_id[%d] is invalid.", (int) worker_id);
         RETURN_FALSE;
     }
 
