@@ -723,7 +723,7 @@ swPipe * swServer_pipe_get(swServer *serv, int pipe_fd)
     return (swPipe *) serv->connection_list[pipe_fd].object;
 }
 
-int swServer_tcp_send(swServer *serv, int fd, void *data, int length)
+int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length)
 {
 	swSendData _send;
 	swFactory *factory = &(serv->factory);
@@ -737,23 +737,23 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, int length)
 		swWarn("More than the output buffer size[%d], please use the sendfile.", serv->buffer_output_size);
 		return SW_ERR;
 	}
-	else
-	{
-		_send.info.fd = fd;
-		_send.info.type = SW_EVENT_TCP;
-		_send.data = data;
+    else
+    {
+        _send.info.fd = fd;
+        _send.info.type = SW_EVENT_TCP;
+        _send.data = data;
 
-		if (length >= SW_BUFFER_SIZE)
-		{
-			_send.length = length;
-		}
-		else
-		{
-			_send.info.len = length;
-			_send.length = 0;
-		}
-		return factory->finish(factory, &_send);
-	}
+        if (length >= SW_IPC_MAX_SIZE - sizeof(swDataHead))
+        {
+            _send.length = length;
+        }
+        else
+        {
+            _send.info.len = length;
+            _send.length = 0;
+        }
+        return factory->finish(factory, &_send);
+    }
 #else
     char buffer[SW_BUFFER_SIZE];
     int trunk_num = (length / SW_BUFFER_SIZE) + 1;

@@ -190,6 +190,8 @@ enum swServer_mode
     SW_MODE_PROCESS       =  3,
     SW_MODE_SINGLE        =  4,
 };
+
+#define SW_MODE_PACKET		0x10 
 //-------------------------------------------------------------------------------
 enum swSocket_type
 {

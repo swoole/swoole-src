@@ -25,6 +25,7 @@ typedef struct _swClient
 
 	uint8_t async;
 	uint8_t keep;
+	uint8_t packet_mode;
 
 	uint8_t open_eof_check;
 	char *package_eof;
