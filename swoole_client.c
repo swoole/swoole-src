@@ -1061,10 +1061,11 @@ PHP_METHOD(swoole_client, sendfile)
 
 PHP_METHOD(swoole_client, recv)
 {
-	long buf_len = SW_PHP_CLIENT_BUFFER_SIZE, waitall = 0;
-	zval **zres;
-	int ret;
-	swClient *cli;
+    long buf_len = SW_PHP_CLIENT_BUFFER_SIZE, waitall = 0;
+    zval **zres;
+    int ret;
+    char *buf;
+    swClient *cli;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ll", &buf_len, &waitall) == FAILURE)
 	{
@@ -1084,26 +1085,34 @@ PHP_METHOD(swoole_client, recv)
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not connected.");
 		RETURN_FALSE;
 	}
-	 if(cli-> packet_mode == 1)
-        {
-                uint32_t len_tmp= 0;
-                ret = cli-> recv(cli, (char*)&len_tmp,  4,waitall);
-		if(ret < 0)
-		{
-			swoole_php_error(E_WARNING, "recv() header failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
-			RETURN_FALSE;
-		}
-		else
-		{
-			len_tmp=ntohl(len_tmp);
-			buf_len=len_tmp;
 
-		}
+    if (cli->packet_mode == 1)
+    {
+        uint32_t len_tmp = 0;
+        ret = cli->recv(cli, (char*) &len_tmp, 4, 1);
+        if (ret < 0)
+        {
+            swoole_php_error(E_WARNING, "recv() header failed. Error: %s [%d]", strerror(errno), errno);
+            RETURN_FALSE;
+        }
+        else
+        {
+            len_tmp = ntohl(len_tmp);
+            buf_len = len_tmp;
         }
 
-	char *buf = emalloc(buf_len + 1);
-	SwooleG.error = 0;
-	ret = cli->recv(cli, buf, buf_len, waitall);
+        buf = emalloc(buf_len + 1);
+        SwooleG.error = 0;
+        //PACKET mode, must use waitall.
+        ret = cli->recv(cli, buf, buf_len, 1);
+    }
+    else
+    {
+        buf = emalloc(buf_len + 1);
+        SwooleG.error = 0;
+        ret = cli->recv(cli, buf, buf_len, waitall);
+    }
+
 	if (ret < 0)
 	{
 		SwooleG.error = errno;
