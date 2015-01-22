@@ -40,8 +40,15 @@ int swWorker_create(swWorker *worker)
 
 void swWorker_free(swWorker *worker)
 {
-    sw_shm_free(worker->send_shm);
-    worker->lock.free(&worker->lock);
+    if (worker->send_shm)
+    {
+        sw_shm_free(worker->send_shm);
+    }
+
+    if (worker->lock.free)
+    {
+        worker->lock.free(&worker->lock);
+    }
 }
 
 void swWorker_signal_init(void)

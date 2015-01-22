@@ -2,7 +2,7 @@
 $serv = new swoole_server("0.0.0.0", 9501, SWOOLE_BASE);
 $serv->set(array(
     'worker_num' => 2,
-    //'task_worker_num' => 2,
+    'task_worker_num' => 2,
 ));
 
 $serv->on('pipeMessage', function($serv, $src_worker_id, $data) {

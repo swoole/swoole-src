@@ -102,7 +102,13 @@ int swReactorProcess_start(swServer *serv)
     //task workers
     if (SwooleG.task_worker_num > 0)
     {
-        if (swProcessPool_create(&SwooleGS->task_workers, SwooleG.task_worker_num, serv->task_max_request, serv->message_queue_key + 2, 1) < 0)
+        key_t key = 0;
+        if (SwooleG.task_ipc_mode == SW_IPC_MSGQUEUE)
+        {
+            key = serv->message_queue_key + 2;
+        }
+
+        if (swProcessPool_create(&SwooleGS->task_workers, SwooleG.task_worker_num, serv->task_max_request, key, 1) < 0)
         {
             swWarn("[Master] create task_workers failed.");
             return SW_ERR;
