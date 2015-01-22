@@ -206,6 +206,7 @@ static int php_swoole_client_onRead(swReactor *reactor, swEvent *event)
     {
         return SW_ERR;
     }
+
     ZEND_FETCH_RESOURCE_NO_RETURN(cli, swClient*, zres, -1, SW_RES_CLIENT_NAME, le_swoole_client);
     args[0] = zobject;
 
@@ -256,7 +257,7 @@ static int php_swoole_client_onRead(swReactor *reactor, swEvent *event)
                 goto free_buf;
             }
 		default:
-			swTrace("default \r\n");
+			swTrace("default");
 		    goto free_buf;
 		}
 	}
