@@ -176,7 +176,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     swServer_worker_init(serv, worker);
 
     //create reactor
-    if (swReactor_auto(reactor, SW_REACTOR_MAXEVENTS) < 0)
+    if (swReactor_auto(reactor, SW_REACTOR_MAXEVENTS, 0) < 0)
     {
         swWarn("ReactorProcess create failed.");
         return SW_ERR;

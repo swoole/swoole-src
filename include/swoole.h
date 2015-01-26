@@ -1135,7 +1135,7 @@ static sw_inline int swReactor_events(int fdtype)
     return events;
 }
 
-int swReactor_auto(swReactor *reactor, int max_event);
+int swReactor_auto(swReactor *reactor, int max_event, int alloc_sockets);
 int swReactor_setHandle(swReactor *, int, swReactor_handle);
 int swReactor_add(swReactor *reactor, int fd, int type);
 swConnection* swReactor_get(swReactor *reactor, int fd);

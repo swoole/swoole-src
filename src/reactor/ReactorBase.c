@@ -22,7 +22,7 @@ static void swReactor_onTimeout(swReactor *reactor);
 static void swReactor_onFinish(swReactor *reactor);
 static int swReactor_write(swReactor *reactor, int fd, void *buf, int n);
 
-int swReactor_auto(swReactor *reactor, int max_event)
+int swReactor_auto(swReactor *reactor, int max_event, int alloc_sockets)
 {
     int ret;
 
@@ -57,6 +57,18 @@ int swReactor_auto(swReactor *reactor, int max_event)
 
     reactor->write = swReactor_write;
     reactor->close = swReactor_close;
+
+    if (alloc_sockets)
+    {
+        int socket_num = SwooleG.max_sockets + 1;
+        reactor->sockets = sw_calloc(socket_num, sizeof(swConnection));
+
+        if (!reactor->sockets)
+        {
+            swSysError("Fatal Error: malloc(%ld) failed.", socket_num * sizeof(swConnection));
+            return SW_ERR;
+        }
+    }
 
     return ret;
 }

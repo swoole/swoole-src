@@ -1557,7 +1557,7 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     }
 #endif
 
-    ret = swReactor_auto(reactor, SW_REACTOR_MAXEVENTS);
+    ret = swReactor_auto(reactor, SW_REACTOR_MAXEVENTS, 0);
     if (ret < 0)
     {
         return SW_ERR;

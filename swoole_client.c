@@ -469,7 +469,7 @@ void php_swoole_check_reactor()
                 php_error_docref(NULL TSRMLS_CC, E_ERROR, "malloc failed.");
                 return;
             }
-			if (swReactor_auto(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS) < 0)
+			if (swReactor_auto(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS, 1) < 0)
 			{
 				php_error_docref(NULL TSRMLS_CC, E_ERROR, "create reactor failed.");
 				return;

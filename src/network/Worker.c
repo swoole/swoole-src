@@ -251,7 +251,7 @@ int swWorker_loop(swFactory *factory, int worker_id)
         return SW_ERR;
     }
 
-    if (swReactor_auto(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS) < 0)
+    if (swReactor_auto(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS, 1) < 0)
     {
         swError("[Worker] create worker_reactor failed.");
         return SW_ERR;
