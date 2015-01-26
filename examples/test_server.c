@@ -192,10 +192,10 @@ int main(int argc, char **argv)
 	//config
 	serv.backlog = 128;
 	serv.reactor_num = 1; //reactor线程数量
-	serv.writer_num = 1;      //writer线程数量
 	serv.worker_num = 1;      //worker进程数量
 
-	serv.factory_mode = SW_MODE_PROCESS; //SW_MODE_PROCESS/SW_MODE_THREAD/SW_MODE_BASE/SW_MODE_SINGLE
+	serv.factory_mode = SW_MODE_THREAD;
+	//serv.factory_mode = SW_MODE_SINGLE; //SW_MODE_PROCESS/SW_MODE_THREAD/SW_MODE_BASE/SW_MODE_SINGLE
 	serv.max_connection = 1000;
 	//serv.open_cpu_affinity = 1;
 	//serv.open_tcp_nodelay = 1;
@@ -207,9 +207,11 @@ int main(int argc, char **argv)
 	serv.dispatch_mode = 2;
 //	serv.open_tcp_keepalive = 1;
 
-	serv.ssl_cert_file = "tests/ssl/ssl.crt";
-	serv.ssl_key_file = "tests/ssl/ssl.key";
-	serv.open_ssl = 1;
+#ifdef HAVE_OPENSSL
+	//serv.ssl_cert_file = "tests/ssl/ssl.crt";
+	//serv.ssl_key_file = "tests/ssl/ssl.key";
+	//serv.open_ssl = 1;
+#endif
 
 	serv.onStart = my_onStart;
 	serv.onShutdown = my_onShutdown;
@@ -272,7 +274,6 @@ int my_onReceive(swFactory *factory, swEventData *req)
 	char resp_data[SW_BUFFER_SIZE];
 	swServer *serv = factory->ptr;
 
-
 	swSendData resp;
 	g_receive_count ++;
 	memcpy(&resp.info, &req->info, sizeof(resp.info));
@@ -287,11 +288,11 @@ int my_onReceive(swFactory *factory, swEventData *req)
 	{
 		printf("send to client fail.errno=%d\n", errno);
 	}
+
 	if (req->info.from_id >= serv->reactor_num)
 	{
 		struct in_addr addr;
 		addr.s_addr = req->info.fd;
-
 
 		printf("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d\n", g_receive_count,
 					inet_ntoa(addr), req->info.from_id,

@@ -1583,35 +1583,38 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     swReactorThread_set_protocol(serv, reactor);
 
     int i = 0, pipe_fd;
-    thread->buffer_pipe = swArray_new(serv->workers[serv->worker_num - 1].pipe_master + 1, sizeof(void*), 0);
 
-    for (i = 0; i < serv->worker_num; i++)
+    if (serv->factory_mode == SW_MODE_PROCESS)
     {
-        pipe_fd = serv->workers[i].pipe_master;
-        //for request
-        swBuffer *buffer = swBuffer_new(sizeof(swEventData));
-        if (!buffer)
+        thread->buffer_pipe = swArray_new(serv->workers[serv->worker_num - 1].pipe_master + 1, sizeof(void*), 0);
+
+        for (i = 0; i < serv->worker_num; i++)
         {
-            swWarn("create buffer failed.");
-            break;
-        }
-        if (swArray_store(thread->buffer_pipe, pipe_fd, &buffer) < 0)
-        {
-            swWarn("create buffer failed.");
-            break;
-        }
-        //for response
-        if (i % serv->reactor_num == reactor_id)
-        {
-            swSetNonBlock(pipe_fd);
-            reactor->add(reactor, pipe_fd, SW_FD_PIPE);
-            /**
-             * mapping reactor_id and worker pipe
-             */
-            serv->connection_list[pipe_fd].from_id = reactor_id;
+            pipe_fd = serv->workers[i].pipe_master;
+            //for request
+            swBuffer *buffer = swBuffer_new(sizeof(swEventData));
+            if (!buffer)
+            {
+                swWarn("create buffer failed.");
+                break;
+            }
+            if (swArray_store(thread->buffer_pipe, pipe_fd, &buffer) < 0)
+            {
+                swWarn("create buffer failed.");
+                break;
+            }
+            //for response
+            if (i % serv->reactor_num == reactor_id)
+            {
+                swSetNonBlock(pipe_fd);
+                reactor->add(reactor, pipe_fd, SW_FD_PIPE);
+                /**
+                 * mapping reactor_id and worker pipe
+                 */
+                serv->connection_list[pipe_fd].from_id = reactor_id;
+            }
         }
     }
-
 
     //main loop
     reactor->wait(reactor, NULL);

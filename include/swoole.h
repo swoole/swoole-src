@@ -1214,6 +1214,9 @@ typedef struct _swThreadPool
     swThread *threads;
     swThreadParam *params;
 
+    void *ptr1;
+    void *ptr2;
+
 #ifdef SW_THREADPOOL_USE_CHANNEL
     swChannel *chan;
 #else
@@ -1224,6 +1227,8 @@ typedef struct _swThreadPool
     int shutdown;
     int task_num;
 
+    void (*onStart)(struct _swThreadPool *pool, int id);
+    void (*onStop)(struct _swThreadPool *pool, int id);
     int (*onTask)(struct _swThreadPool *pool, void *task, int task_len);
 
 } swThreadPool;

@@ -47,7 +47,6 @@ int main(int argc, char **argv)
 	//config
 	serv.backlog = 128;
 	serv.reactor_num = 2; //reactor线程数量
-	serv.writer_num = 2;      //writer线程数量
 	serv.worker_num = 4;      //worker进程数量
 
 	serv.factory_mode = SW_MODE_PROCESS; //SW_MODE_PROCESS SW_MODE_THREAD SW_MODE_BASE

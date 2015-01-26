@@ -145,9 +145,7 @@ static void* swThreadPool_loop(void *arg)
     swThreadParam *param = arg;
     swThreadPool *pool = param->object;
 
-#ifdef SW_DEBUG
     int id = param->pti;
-#endif
     int ret;
 
 #ifdef SW_THREADPOOL_USE_CHANNEL
@@ -157,6 +155,11 @@ static void* swThreadPool_loop(void *arg)
 #endif
 
     swTrace("starting thread 0x%lx=%d", pthread_self(), id);
+
+    if (pool->onStart)
+    {
+        pool->onStart(pool, id);
+    }
 
     while (SwooleG.running)
     {
@@ -188,6 +191,11 @@ static void* swThreadPool_loop(void *arg)
             pool->task_num--;
             pool->onTask(pool, (void *) task, ret);
         }
+    }
+
+    if (pool->onStop)
+    {
+        pool->onStop(pool, id);
     }
 
     pthread_exit(NULL);
