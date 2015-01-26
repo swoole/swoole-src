@@ -985,18 +985,22 @@ PHP_METHOD(swoole_client, send)
 
 	//clear errno
 	SwooleG.error = 0;
-
-    int ret_len = -1;
+	int ret;
 
     if (cli->packet_mode == 1)
     {
         uint32_t len_tmp = htonl(data_len);
-        ret_len = cli->send(cli, (char *) &len_tmp, 4);
+        ret = cli->send(cli, (char *) &len_tmp, 4);
+        if (ret < 0)
+        {
+            goto send_error;
+        }
     }
 
-	int ret = cli->send(cli, data, data_len);
-    if (ret_len < 0 || (ret < 0))
+	ret = cli->send(cli, data, data_len);
+	if (ret < 0)
     {
+	    send_error:
         SwooleG.error = errno;
         swoole_php_error(E_WARNING, "send() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
         zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
