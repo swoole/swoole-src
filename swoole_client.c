@@ -373,8 +373,8 @@ static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event)
 		}
 		//success
 		if (error == 0)
-		{
-			SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, (SW_FD_USER+1) | SW_EVENT_READ);
+        {
+            SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, (SW_FD_USER + 1) | SW_EVENT_READ);
 
 			//connected
 			cli->socket->active = 1;
@@ -624,46 +624,49 @@ static void php_swoole_onTimerInterval(swTimer *timer, int interval)
 
 static swClient* swoole_client_create_socket(zval *object, char *host, int host_len, int port)
 {
-	zval *ztype, *zres;
-	int async = 0;
-	int packet_mode = 0;
-	swClient *cli;
-	char conn_key[SW_LONG_CONNECTION_KEY_LEN];
-	int conn_key_len = 0;
-	uint64_t tmp_buf;
-	int ret;
+    zval *ztype, *zres;
+    int async = 0;
+    int packet_mode = 0;
+    swClient *cli;
+    char conn_key[SW_LONG_CONNECTION_KEY_LEN];
+    int conn_key_len = 0;
+    uint64_t tmp_buf;
+    int ret;
 
-	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-	ztype = zend_read_property(swoole_client_class_entry_ptr, object, SW_STRL("type")-1, 0 TSRMLS_CC);
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+    ztype = zend_read_property(swoole_client_class_entry_ptr, object, SW_STRL("type")-1, 0 TSRMLS_CC);
 
-	if (ztype == NULL || ZVAL_IS_NULL(ztype))
-	{
-		php_error_docref(NULL TSRMLS_CC, E_ERROR, "get swoole_client->type failed.");
-		return NULL;
-	}
+    if (ztype == NULL || ZVAL_IS_NULL(ztype))
+    {
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "get swoole_client->type failed.");
+        return NULL;
+    }
 
-	long type_tmp = Z_LVAL_P(ztype);
-	packet_mode = type_tmp & SW_MODE_PACKET;
-	packet_mode >>= 4;
-	long type = type_tmp & (~SW_MODE_PACKET);
-//debug
-//swTrace("type:%d,type_tmp:%d\r\n",type,type_tmp);
-	//new flag, swoole-1.6.12+
-	if (type & SW_FLAG_ASYNC)
-	{
-		async = 1;
-	}
+    long type_tmp = Z_LVAL_P(ztype);
+    packet_mode = type_tmp & SW_MODE_PACKET;
+    packet_mode >>= 4;
+    long type = type_tmp & (~SW_MODE_PACKET);
+
+    //debug
+    //swTrace("type:%d,type_tmp:%d\r\n",type,type_tmp);
+
+    //new flag, swoole-1.6.12+
+    if (type & SW_FLAG_ASYNC)
+    {
+        async = 1;
+    }
 
 	bzero(conn_key, SW_LONG_CONNECTION_KEY_LEN);
 	zval *connection_id = zend_read_property(swoole_client_class_entry_ptr, object, ZEND_STRL("id"), 1 TSRMLS_CC);
-	if (connection_id == NULL || ZVAL_IS_NULL(connection_id))
-	{
-	    conn_key_len = snprintf(conn_key, SW_LONG_CONNECTION_KEY_LEN, "%s:%d", host, port) + 1;
-	}
-	else
-	{
+
+    if (connection_id == NULL || ZVAL_IS_NULL(connection_id))
+    {
+        conn_key_len = snprintf(conn_key, SW_LONG_CONNECTION_KEY_LEN, "%s:%d", host, port) + 1;
+    }
+    else
+    {
         conn_key_len = snprintf(conn_key, SW_LONG_CONNECTION_KEY_LEN, "%s", Z_STRVAL_P(connection_id)) + 1;
-	}
+    }
 
     //keep the tcp connection
     if (type & SW_FLAG_KEEP)
@@ -715,14 +718,14 @@ static swClient* swoole_client_create_socket(zval *object, char *host, int host_
 
 	zval_ptr_dtor(&zres);
 
-	if (type & SW_FLAG_KEEP)
-	{
-		cli->keep = 1;
-	}
-	if(packet_mode == 1)
-	{
-		cli-> packet_mode =1;
-	}
+    if (type & SW_FLAG_KEEP)
+    {
+        cli->keep = 1;
+    }
+    if (packet_mode == 1)
+    {
+        cli->packet_mode = 1;
+    }
 	return cli;
 }
 

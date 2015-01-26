@@ -124,23 +124,24 @@ swConnection* swReactor_get(swReactor *reactor, int fd)
         if (reactor->sockets == NULL)
         {
             reactor->sockets = sw_calloc(max_socket, sizeof(swConnection));
+            if (!reactor->sockets)
+            {
+                malloc_fail:
+                swSysError("Fatal Error: malloc(%ld) failed.", reactor->max_socket * sizeof(swConnection));
+                return NULL;
+            }
             reactor->max_socket = max_socket;
         }
         else
         {
-            reactor->sockets = sw_realloc(reactor->sockets, max_socket * sizeof(swConnection));
-            if (reactor->sockets)
+            void *new_ptr = sw_calloc(max_socket, sizeof(swConnection));
+            if (!new_ptr)
             {
-                bzero((void *) reactor->sockets + reactor->max_socket * sizeof(swConnection),
-                        (max_socket - reactor->max_socket) * sizeof(swConnection));
+                goto malloc_fail;
             }
+            memcpy(new_ptr, reactor->sockets, reactor->max_socket * sizeof(swConnection));
+            reactor->sockets = new_ptr;
             reactor->max_socket = max_socket;
-        }
-
-        if (!reactor->sockets)
-        {
-            swSysError("Fatal Error: malloc(%ld) failed.", reactor->max_socket * sizeof(swConnection));
-            return NULL;
         }
     }
 
@@ -217,13 +218,13 @@ int swReactor_close(swReactor *reactor, int fd)
     if (socket->out_buffer != NULL)
     {
         swBuffer_free(socket->out_buffer);
-        socket->out_buffer = NULL;
     }
+
     if (socket->in_buffer != NULL)
     {
         swBuffer_free(socket->in_buffer);
-        socket->in_buffer = NULL;
     }
+
 #ifdef SW_USE_OPENSSL
     if (socket->ssl)
     {

@@ -320,17 +320,17 @@ typedef unsigned char uchar;
 typedef struct _swConnection
 {
     /**
-     * is active
-     * system fd must be 0. en: timerfd, signalfd, listen socket
-     */
-    uint8_t active;
-
-    /**
      * file descript
      */
     int fd;
     int type;
     int events;
+
+    /**
+     * is active
+     * system fd must be 0. en: timerfd, signalfd, listen socket
+     */
+    uint32_t active :1;
 
     uint32_t recv_wait :1;
     uint32_t send_wait :1;
