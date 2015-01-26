@@ -190,6 +190,8 @@ enum swServer_mode
     SW_MODE_PROCESS       =  3,
     SW_MODE_SINGLE        =  4,
 };
+
+#define SW_MODE_PACKET		0x10 
 //-------------------------------------------------------------------------------
 enum swSocket_type
 {
@@ -318,17 +320,17 @@ typedef unsigned char uchar;
 typedef struct _swConnection
 {
     /**
-     * is active
-     * system fd must be 0. en: timerfd, signalfd, listen socket
-     */
-    uint8_t active;
-
-    /**
      * file descript
      */
     int fd;
     int type;
     int events;
+
+    /**
+     * is active
+     * system fd must be 0. en: timerfd, signalfd, listen socket
+     */
+    uint32_t active :1;
 
     uint32_t recv_wait :1;
     uint32_t send_wait :1;
@@ -1133,7 +1135,7 @@ static sw_inline int swReactor_events(int fdtype)
     return events;
 }
 
-int swReactor_auto(swReactor *reactor, int max_event);
+int swReactor_auto(swReactor *reactor, int max_event, int alloc_sockets);
 int swReactor_setHandle(swReactor *, int, swReactor_handle);
 int swReactor_add(swReactor *reactor, int fd, int type);
 swConnection* swReactor_get(swReactor *reactor, int fd);

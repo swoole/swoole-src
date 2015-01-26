@@ -1,5 +1,5 @@
 <?php
-$serv = new swoole_server("0.0.0.0", 9501);
+$serv = new swoole_server("0.0.0.0", 9501, SWOOLE_BASE);
 $serv->set(array(
     'worker_num' => 2,
     'task_worker_num' => 2,
@@ -31,11 +31,11 @@ $serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
     elseif($cmd == 'toworker')
     {
         $worker_id = 1 - $serv->worker_id;
-        $serv->sendMessage("hello task process", $worker_id);
+        $serv->sendMessage("hello worker", $worker_id);
     }
     else
     {
-        echo "recv: $data\n";
+        echo "#{$serv->worker_id} Recv: $data\n";
     }
 });
 

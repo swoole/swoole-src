@@ -18,6 +18,7 @@
 #include "Server.h"
 
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker);
+static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event);
 
 int swReactorProcess_create(swServer *serv)
 {
@@ -79,7 +80,9 @@ int swReactorProcess_start(swServer *serv)
         }
     }
 
-    if (swProcessPool_create(&SwooleGS->event_workers, serv->worker_num, serv->max_request, 0, 0) < 0)
+    int create_pipe = serv->onPipeMessage ? 1 : 0;
+
+    if (swProcessPool_create(&SwooleGS->event_workers, serv->worker_num, serv->max_request, 0, create_pipe) < 0)
     {
         return SW_ERR;
     }
@@ -99,7 +102,13 @@ int swReactorProcess_start(swServer *serv)
     //task workers
     if (SwooleG.task_worker_num > 0)
     {
-        if (swProcessPool_create(&SwooleGS->task_workers, SwooleG.task_worker_num, serv->task_max_request, serv->message_queue_key + 2, 1) < 0)
+        key_t key = 0;
+        if (SwooleG.task_ipc_mode == SW_IPC_MSGQUEUE)
+        {
+            key = serv->message_queue_key + 2;
+        }
+
+        if (swProcessPool_create(&SwooleGS->task_workers, SwooleG.task_worker_num, serv->task_max_request, key, 1) < 0)
         {
             swWarn("[Master] create task_workers failed.");
             return SW_ERR;
@@ -143,6 +152,19 @@ int swReactorProcess_start(swServer *serv)
     return SW_OK;
 }
 
+static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event)
+{
+    swEventData task;
+    swServer *serv = reactor->ptr;
+
+    if (read(event->fd, &task, sizeof(task)) > 0)
+    {
+        serv->onPipeMessage(serv, &task);
+        return SW_OK;
+    }
+    return SW_ERR;
+}
+
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 {
     swServer *serv = pool->ptr;
@@ -154,7 +176,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     swServer_worker_init(serv, worker);
 
     //create reactor
-    if (swReactor_auto(reactor, SW_REACTOR_MAXEVENTS) < 0)
+    if (swReactor_auto(reactor, SW_REACTOR_MAXEVENTS, 0) < 0)
     {
         swWarn("ReactorProcess create failed.");
         return SW_ERR;
@@ -203,6 +225,14 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     reactor->setHandle(reactor, SW_FD_LISTEN, swServer_master_onAccept);
     //close
     reactor->setHandle(reactor, SW_FD_CLOSE, swReactorProcess_onClose);
+
+    if (serv->onPipeMessage)
+    {
+        reactor->add(reactor, worker->pipe_worker, SW_FD_PIPE);
+        //close
+        reactor->setHandle(reactor, SW_FD_PIPE, swReactorProcess_onPipeRead);
+    }
+
     //set protocol function point
     swReactorThread_set_protocol(serv, reactor);
 

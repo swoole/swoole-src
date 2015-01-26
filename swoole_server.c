@@ -64,28 +64,38 @@ zval *php_swoole_get_data(swEventData *req TSRMLS_DC)
         memcpy(&package, req->data, sizeof(package));
 
         data_ptr = package.data;
-        data_len = package.length;
-
-        ZVAL_STRINGL(zdata, data_ptr, data_len, 1);
-
-        swReactorThread *thread = swServer_get_thread(SwooleG.serv, req->info.from_id);
-        thread->buffer_input->free(thread->buffer_input, data_ptr);
+        data_len = package.length;       
     }
 #else
     if (req->info.type == SW_EVENT_PACKAGE_END)
     {
         data_ptr = SwooleWG.buffer_input[req->info.from_id]->str;
         data_len = SwooleWG.buffer_input[req->info.from_id]->length;
-        ZVAL_STRINGL(zdata, data_ptr, data_len, 1);
     }
 #endif
     else
     {
         data_ptr = req->data;
         data_len = req->info.len;
+    }
+	
+    //add by andy
+    if (SwooleG.serv->packet_mode == 1)
+    {
+        ZVAL_STRINGL(zdata, data_ptr + 4, data_len - 4, 1);
+    }
+    else
+    {
         ZVAL_STRINGL(zdata, data_ptr, data_len, 1);
     }
 
+#ifdef SW_USE_RINGBUFFER
+    if (req->info.type == SW_EVENT_PACKAGE)
+    {
+        swReactorThread *thread = swServer_get_thread(SwooleG.serv, req->info.from_id);
+        thread->buffer_input->free(thread->buffer_input, data_ptr);
+    }
+#endif
     return zdata;
 }
 
@@ -885,6 +895,8 @@ PHP_FUNCTION(swoole_server_create)
     long sock_type = SW_SOCK_TCP;
     long serv_port;
     long serv_mode = SW_MODE_PROCESS;
+    long serv_mode_tmp = serv_mode;
+    long packet_mode = 0;
 
     //only cli env
     if (strcasecmp("cli", sapi_module.name) != 0)
@@ -908,10 +920,14 @@ PHP_FUNCTION(swoole_server_create)
     swServer *serv = sw_malloc(sizeof(swServer));
     swServer_init(serv);
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl|ll", &serv_host, &host_len, &serv_port, &serv_mode, &sock_type) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl|ll", &serv_host, &host_len, &serv_port, &serv_mode_tmp, &sock_type) == FAILURE)
     {
         return;
     }
+
+    serv_mode = serv_mode_tmp & 0x0f;
+    packet_mode = (serv_mode_tmp & 0xf0 ) >> 4;
+    serv-> packet_mode= packet_mode;
 
 #ifdef __CYGWIN__
     serv->factory_mode = SW_MODE_SINGLE;
@@ -1323,6 +1339,20 @@ PHP_FUNCTION(swoole_server_set)
         convert_to_long(*v);
         serv->package_max_length = (int) Z_LVAL_PP(v);
     }
+
+     /**
+     * swoole_packet_mode
+     */
+   if( serv-> packet_mode == 1)
+    {
+        serv-> package_max_length = 64*1024*1024;
+        serv-> open_length_check = 1;
+	serv-> package_length_offset = 0;
+	serv-> package_body_offset = 4;
+	serv-> package_length_type = 'N';
+	serv-> open_eof_check = 0;
+    }
+
     /**
      * buffer input size
      */
@@ -1735,6 +1765,12 @@ PHP_FUNCTION(swoole_server_send)
     //TCP
     else
     {
+        if (serv->packet_mode == 1)
+        {
+            uint32_t len_tmp= htonl(send_len);
+            swServer_tcp_send(serv, fd, &len_tmp, 4);
+        }
+
         swTrace("tcp send: fd=%d|from_id=%d", _send.info.fd, (uint16_t)_send.info.from_id);
         SW_CHECK_RETURN(swServer_tcp_send(serv, fd, send_data, send_len));
     }
@@ -2559,14 +2595,14 @@ PHP_METHOD(swoole_server, sendmessage)
 
     if (worker_id == SwooleWG.id)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "worker_id is current worker.");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "cannot send message to self.");
         RETURN_FALSE;
     }
 
     SWOOLE_GET_SERVER(zobject, serv);
     if (worker_id >= serv->worker_num + SwooleG.task_worker_num)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "worker_id is invalid.");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "worker_id[%d] is invalid.", (int) worker_id);
         RETURN_FALSE;
     }
 

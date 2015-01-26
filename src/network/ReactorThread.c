@@ -1436,7 +1436,7 @@ int swReactorThread_create(swServer *serv)
     {
         if (serv->worker_num < 1)
         {
-            swError("Fatal Error: serv->writer_num < 1");
+            swError("Fatal Error: serv->worker_num < 1");
             return SW_ERR;
         }
         ret = swFactoryThread_create(&(serv->factory), serv->worker_num);
@@ -1445,7 +1445,7 @@ int swReactorThread_create(swServer *serv)
     {
         if (serv->worker_num < 1)
         {
-            swError("Fatal Error: serv->writer_num < 1 or serv->worker_num < 1");
+            swError("Fatal Error: serv->worker_num < 1");
             return SW_ERR;
         }
         ret = swFactoryProcess_create(&(serv->factory), serv->worker_num);
@@ -1557,7 +1557,7 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     }
 #endif
 
-    ret = swReactor_auto(reactor, SW_REACTOR_MAXEVENTS);
+    ret = swReactor_auto(reactor, SW_REACTOR_MAXEVENTS, 0);
     if (ret < 0)
     {
         return SW_ERR;

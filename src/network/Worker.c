@@ -40,8 +40,15 @@ int swWorker_create(swWorker *worker)
 
 void swWorker_free(swWorker *worker)
 {
-    sw_shm_free(worker->send_shm);
-    worker->lock.free(&worker->lock);
+    if (worker->send_shm)
+    {
+        sw_shm_free(worker->send_shm);
+    }
+
+    if (worker->lock.free)
+    {
+        worker->lock.free(&worker->lock);
+    }
 }
 
 void swWorker_signal_init(void)
@@ -244,7 +251,7 @@ int swWorker_loop(swFactory *factory, int worker_id)
         return SW_ERR;
     }
 
-    if (swReactor_auto(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS) < 0)
+    if (swReactor_auto(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS, 1) < 0)
     {
         swError("[Worker] create worker_reactor failed.");
         return SW_ERR;

@@ -228,6 +228,11 @@ struct _swServer
     uint8_t factory_mode;
 
     /**
+     * swoole packet mode
+     */
+    int packet_mode;
+
+    /**
      * package dispatch mode
      */
     uint8_t dispatch_mode; //分配模式，1平均分配，2按FD取摸固定分配，3,使用抢占式队列(IPC消息队列)分配
@@ -481,7 +486,7 @@ int swServer_free(swServer *serv);
 int swServer_shutdown(swServer *serv);
 
 int swServer_udp_send(swServer *serv, swSendData *resp);
-int swServer_tcp_send(swServer *serv, int fd, void *data, int length);
+int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length);
 
 //UDP, UDP必然超过0x1000000
 //原因：IPv4的第4字节最小为1,而这里的conn_fd是网络字节序

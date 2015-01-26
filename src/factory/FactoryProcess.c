@@ -710,6 +710,12 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
      */
     if (resp->length > 0)
     {
+        if (worker->send_shm == NULL)
+        {
+            swWarn("send failed, data is too big.");
+            return SW_ERR;
+        }
+
         swPackage_response response;
 
         worker->lock.lock(&worker->lock);

@@ -19,18 +19,11 @@ $http->on('request', function (swoole_http_request $request, swoole_http_respons
     //var_dump($_GET);
     //var_dump($_POST);
     //var_dump($_COOKIE);
-<<<<<<< Updated upstream
-    var_dump($_SERVER['HTTP_HOST']);
 	//$response->status(301);
-=======
-    //var_dump($_REQUEST);
-    //$response->status(301);
->>>>>>> Stashed changes
     //$response->header("Location", "http://www.baidu.com/");
     //$response->cookie("hello", "world", time() + 3600);
     //$response->header("Content-Type", "text/html; charset=utf-8");
     //var_dump($request->rawContent());
-    
     //var_dump($request->post);
 	$response->end("<h1>Hello Swoole. #".rand(1000, 9999)."</h1>");
     //global $http;
