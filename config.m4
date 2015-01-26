@@ -193,6 +193,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/memory/FixedPool.c \
         src/memory/Malloc.c \
         src/memory/Table.c \
+        src/memory/Buffer.c \
         src/factory/Factory.c \
         src/factory/FactoryThread.c \
         src/factory/FactoryProcess.c \
@@ -213,7 +214,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/Server.c \
         src/network/TaskWorker.c \
         src/network/Client.c \
-        src/network/Buffer.c \
         src/network/Connection.c \
         src/network/ProcessPool.c \
         src/network/ThreadPool.c \

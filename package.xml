@@ -186,6 +186,7 @@
 					<file role="src" name="RingBuffer.c" />
 					<file role="src" name="Table.c" />
 					<file role="src" name="Malloc.c" />
+                    <file role="src" name="Buffer.c" />
 				</dir>
 				<dir name="factory">
 					<file role="src" name="Factory.c" />
@@ -215,7 +216,6 @@
 					<file role="src" name="FileLock.c" />
 				</dir>
 				<dir name="network">
-					<file role="src" name="Buffer.c" />
 					<file role="src" name="Client.c" />
 					<file role="src" name="Connection.c" />
 					<file role="src" name="ProcessPool.c" />

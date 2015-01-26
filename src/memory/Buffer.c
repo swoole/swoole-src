@@ -15,7 +15,7 @@
 */
 
 #include "swoole.h"
-#include "Server.h"
+#include "buffer.h"
 
 /**
  * create new buffer
