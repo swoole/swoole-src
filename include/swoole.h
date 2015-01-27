@@ -859,6 +859,8 @@ int swAccept(int server_socket, struct sockaddr_in *addr, int addr_len);
 void swoole_init(void);
 void swoole_clean(void);
 void swoole_update_time(void);
+double swoole_microtime(void);
+void swoole_rtrim(char *str, int len);
 
 int swSocket_listen(int type, char *host, int port, int backlog);
 int swSocket_create(int type);

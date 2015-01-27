@@ -290,6 +290,34 @@ void swoole_update_time(void)
     }
 }
 
+double swoole_microtime(void)
+{
+    struct timeval t;
+    gettimeofday(&t, NULL);
+    return (double) t.tv_sec + ((double) (t.tv_usec / 1000000));
+}
+
+void swoole_rtrim(char *str, int len)
+{
+    int i;
+    for (i = len; i > 0; i--)
+    {
+        switch (str[i])
+        {
+        case ' ':
+        case '\0':
+        case '\n':
+        case '\r':
+        case '\t':
+        case '\v':
+            str[i] = 0;
+            break;
+        default:
+            break;
+        }
+    }
+}
+
 swString* swoole_file_get_contents(char *filename)
 {
     struct stat file_stat;
