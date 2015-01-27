@@ -108,7 +108,7 @@ static http_client* http_client_new(int fd TSRMLS_DC);
 static int http_request_new(http_client* c TSRMLS_DC);
 
 static int websocket_handshake(http_client *client);
-static void handshake_success(int fd);
+static void handshake_success(http_client *client);
 
 static void http_global_merge(zval *val, zval *zrequest, int type);
 static void http_global_clear(TSRMLS_D);
@@ -632,28 +632,26 @@ static int websocket_handshake(http_client *client)
     return ret;
 }
 
-static void handshake_success(int fd)
+static void handshake_success(http_client *client)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
     SwooleG.lock.lock(&SwooleG.lock);
-    swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
-    if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) {
+    swConnection *conn = swServer_connection_get(SwooleG.serv, client->fd);
+    if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
+    {
         conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
     }
     SwooleG.lock.unlock(&SwooleG.lock);
+
     swTrace("\n\n\n\nconn ws status:%d\n\n\n", conn->websocket_status);
 
     if (php_sw_http_server_callbacks[3] != NULL)
     {
         swTrace("\n\n\n\nhandshake success\n\n\n");
-        zval *zresponse;
-        MAKE_STD_ZVAL(zresponse);
-        object_init_ex(zresponse, swoole_websocket_frame_class_entry_ptr);
-        //socket fd
-        zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zresponse, ZEND_STRL("fd"), fd TSRMLS_CC);
 
         zval **args[1];
-        args[0] = &zresponse;
+        args[0] = &client->zrequest;
         zval *retval;
 
         if (call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[3], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
@@ -676,7 +674,6 @@ static int http_websocket_onHandshake(http_client *client TSRMLS_DC)
 {
     int fd = client->fd;
     int ret = websocket_handshake(client);
-    http_request_free(client TSRMLS_CC);
 
     if (ret == SW_ERR)
     {
@@ -685,9 +682,10 @@ static int http_websocket_onHandshake(http_client *client TSRMLS_DC)
     }
     else
     {
-        handshake_success(fd);
+        handshake_success(client);
         swTrace("websocket handshake_success\n");
     }
+    http_request_free(client TSRMLS_CC);
     return SW_OK;
 }
 
@@ -867,7 +865,7 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         swTrace("======call end======\n");
         if (called == 2)
         {
-            handshake_success(fd);
+            handshake_success(client);
         }
     }
     return SW_OK;

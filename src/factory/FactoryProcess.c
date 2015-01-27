@@ -228,6 +228,13 @@ static int swFactoryProcess_manager_start(swFactory *factory)
             swUserWorker_node *user_worker;
             LL_FOREACH(serv->user_worker_list, user_worker)
             {
+                /**
+                 * store the pipe object
+                 */
+                if (user_worker->worker->pipe_object)
+                {
+                    swServer_pipe_set(serv, user_worker->worker->pipe_object);
+                }
                 swManager_create_user_worker(serv, user_worker->worker);
             }
         }
