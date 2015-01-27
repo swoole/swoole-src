@@ -242,7 +242,7 @@ static int swServer_start_proxy(swServer *serv)
     int ret;
     swReactor *main_reactor = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swReactor));
 
-    ret = swReactor_auto(main_reactor, SW_REACTOR_MINEVENTS, 0);
+    ret = swReactor_create(main_reactor, SW_REACTOR_MINEVENTS);
 	if (ret < 0)
 	{
 		swWarn("Reactor create failed");

@@ -11,7 +11,7 @@ void dns_callback(void *ptr)
 
 swUnitTest(client_test)
 {
-    swReactor_auto(&main_reactor, 1024);
+    swReactor_create(&main_reactor, 1024);
     SwooleG.main_reactor = &main_reactor;
 
     uchar domain[64] = "www.baidu.com";

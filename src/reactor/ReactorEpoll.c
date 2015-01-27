@@ -197,7 +197,7 @@ int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype)
 
 int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 {
-    swEvent ev;
+    swEvent event;
     swReactorEpoll *object = reactor->object;
     swReactor_handle handle;
     int i, n, ret, msec;
@@ -245,43 +245,44 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
         }
         for (i = 0; i < n; i++)
         {
-            ev.fd = events[i].data.u64;
-            ev.from_id = reactor_id;
-            ev.type = events[i].data.u64 >> 32;
+            event.fd = events[i].data.u64;
+            event.from_id = reactor_id;
+            event.type = events[i].data.u64 >> 32;
+            event.socket = swReactor_get(reactor, event.fd);
 
             //read
             if (events[i].events & EPOLLIN)
             {
                 //read
-                handle = swReactor_getHandle(reactor, SW_EVENT_READ, ev.type);
-                ret = handle(reactor, &ev);
+                handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
+                ret = handle(reactor, &event);
                 if (ret < 0)
                 {
-                    swWarn("[Reactor#%d] epoll [EPOLLIN] handle failed. fd=%d. Error: %s[%d]", reactor_id, ev.fd, strerror(errno), errno);
+                    swWarn("[Reactor#%d] epoll [EPOLLIN] handle failed. fd=%d. Error: %s[%d]", reactor_id, event.fd, strerror(errno), errno);
                 }
             }
             //write
-            if ((events[i].events & EPOLLOUT) && !reactor->sockets[ev.fd].removed)
+            if ((events[i].events & EPOLLOUT) && !event.socket->removed)
             {
-                handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, ev.type);
-                ret = handle(reactor, &ev);
+                handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
+                ret = handle(reactor, &event);
                 if (ret < 0)
                 {
-                    swWarn("[Reactor#%d] epoll [EPOLLOUT] handle failed. fd=%d. Error: %s[%d]", reactor_id, ev.fd, strerror(errno), errno);
+                    swWarn("[Reactor#%d] epoll [EPOLLOUT] handle failed. fd=%d. Error: %s[%d]", reactor_id, event.fd, strerror(errno), errno);
                 }
             }
             //error
 #ifndef NO_EPOLLRDHUP
-            if ((events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)) && !reactor->sockets[ev.fd].removed)
+            if ((events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)) && !event.socket->removed)
 #else
-            if ((events[i].events & (EPOLLERR | EPOLLHUP)) && !reactor->sockets[ev.fd].removed)
+            if ((events[i].events & (EPOLLERR | EPOLLHUP)) && !event.socket->removed)
 #endif
             {
-                handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, ev.type);
-                ret = handle(reactor, &ev);
+                handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, event.type);
+                ret = handle(reactor, &event);
                 if (ret < 0)
                 {
-                    swWarn("[Reactor#%d] epoll [EPOLLERR] handle failed. fd=%d. Error: %s[%d]", reactor_id, ev.fd, strerror(errno), errno);
+                    swWarn("[Reactor#%d] epoll [EPOLLERR] handle failed. fd=%d. Error: %s[%d]", reactor_id, event.fd, strerror(errno), errno);
                 }
             }
         }

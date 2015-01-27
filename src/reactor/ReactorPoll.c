@@ -231,6 +231,8 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
 				event.fd = object->events[i].fd;
 				event.from_id = reactor->id;
 				event.type = object->fds[i].fdtype;
+				event.socket = swReactor_get(reactor, event.fd);
+
 				swTrace("Event: fd=%d|from_id=%d|type=%d", event.fd, reactor->id, object->fds[i].fdtype);
 				//in
 				if (object->events[i].revents & POLLIN)
@@ -243,7 +245,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
 					}
 				}
 				//out
-                if ((object->events[i].revents & POLLOUT) && !reactor->sockets[event.fd].removed)
+                if ((object->events[i].revents & POLLOUT) && !event.socket->removed)
                 {
                     handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
                     ret = handle(reactor, &event);
@@ -253,7 +255,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
                     }
                 }
                 //error
-                if ((object->events[i].revents & (POLLHUP | POLLERR)) && !reactor->sockets[event.fd].removed)
+                if ((object->events[i].revents & (POLLHUP | POLLERR)) && !event.socket->removed)
                 {
                     handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, event.type);
                     ret = handle(reactor, &event);

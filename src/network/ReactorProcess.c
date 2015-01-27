@@ -176,7 +176,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     swServer_worker_init(serv, worker);
 
     //create reactor
-    if (swReactor_auto(reactor, SW_REACTOR_MAXEVENTS, 0) < 0)
+    if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
     {
         swWarn("ReactorProcess create failed.");
         return SW_ERR;
@@ -212,7 +212,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 #endif
 
     reactor->thread = 1;
-    reactor->sockets = serv->connection_list;
+    reactor->socket_list = serv->connection_list;
     reactor->max_socket = serv->max_connection;
 
     reactor->close = swReactorThread_close;

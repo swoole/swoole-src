@@ -26,7 +26,6 @@
 
 HashTable php_sw_event_callback;
 HashTable php_sw_timer_callback;
-HashTable php_sw_client_callback;
 HashTable php_sw_aio_callback;
 
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
@@ -689,8 +688,6 @@ PHP_RINIT_FUNCTION(swoole)
 {
 	//swoole_event_add
 	zend_hash_init(&php_sw_event_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
-	//swoole_client::on
-	zend_hash_init(&php_sw_client_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
 	//swoole_timer_add
 	zend_hash_init(&php_sw_timer_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
 	//swoole_aio
@@ -720,7 +717,6 @@ PHP_RINIT_FUNCTION(swoole)
 PHP_RSHUTDOWN_FUNCTION(swoole)
 {
 	zend_hash_destroy(&php_sw_event_callback);
-	zend_hash_destroy(&php_sw_client_callback);
 	zend_hash_destroy(&php_sw_timer_callback);
 	zend_hash_destroy(&php_sw_aio_callback);
 

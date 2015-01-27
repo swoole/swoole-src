@@ -462,7 +462,7 @@ typedef struct _swEvent
     int fd;
     int16_t from_id;
     uint8_t type;
-    void *object;
+    swConnection *socket;
 } swEvent;
 
 typedef struct _swEventData
@@ -942,7 +942,16 @@ struct swReactor_s
 	uint16_t flag; //flag
 
     uint32_t max_socket;
-    struct _swConnection *sockets;
+
+    /**
+     * for thread
+     */
+    swConnection *socket_list;
+
+    /**
+     * for process
+     */
+    swArray *socket_array;
 
     swReactor_handle handle[SW_MAX_FDTYPE];        //默认事件
     swReactor_handle write_handle[SW_MAX_FDTYPE];  //扩展事件1(一般为写事件)
@@ -1139,7 +1148,7 @@ static sw_inline int swReactor_events(int fdtype)
     return events;
 }
 
-int swReactor_auto(swReactor *reactor, int max_event, int alloc_sockets);
+int swReactor_create(swReactor *reactor, int max_event);
 int swReactor_setHandle(swReactor *, int, swReactor_handle);
 int swReactor_add(swReactor *reactor, int fd, int type);
 swConnection* swReactor_get(swReactor *reactor, int fd);

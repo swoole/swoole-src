@@ -1547,7 +1547,7 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     }
 #endif
 
-    ret = swReactor_auto(reactor, SW_REACTOR_MAXEVENTS, 0);
+    ret = swReactor_create(reactor, SW_REACTOR_MAXEVENTS);
     if (ret < 0)
     {
         return SW_ERR;
@@ -1558,7 +1558,7 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     reactor->ptr = serv;
     reactor->id = reactor_id;
     reactor->thread = 1;
-    reactor->sockets = serv->connection_list;
+    reactor->socket_list = serv->connection_list;
     reactor->max_socket = serv->max_connection;
 
     reactor->onFinish = NULL;

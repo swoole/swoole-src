@@ -17,8 +17,6 @@
 #include "swoole.h"
 #include "array.h"
 
-static int swArray_extend(swArray *array);
-
 swArray *swArray_new(int page_size, size_t item_size, int flag)
 {
     swArray *array = sw_malloc(sizeof(swArray));

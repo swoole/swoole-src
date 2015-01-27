@@ -22,7 +22,7 @@ static void swReactor_onTimeout(swReactor *reactor);
 static void swReactor_onFinish(swReactor *reactor);
 static int swReactor_write(swReactor *reactor, int fd, void *buf, int n);
 
-int swReactor_auto(swReactor *reactor, int max_event, int alloc_sockets)
+int swReactor_create(swReactor *reactor, int max_event)
 {
     int ret;
 
@@ -58,16 +58,11 @@ int swReactor_auto(swReactor *reactor, int max_event, int alloc_sockets)
     reactor->write = swReactor_write;
     reactor->close = swReactor_close;
 
-    if (alloc_sockets)
+    reactor->socket_array = swArray_new(1024, sizeof(swConnection), 0);
+    if (!reactor->socket_array)
     {
-        int socket_num = SwooleG.max_sockets + 1;
-        reactor->sockets = sw_calloc(socket_num, sizeof(swConnection));
-
-        if (!reactor->sockets)
-        {
-            swSysError("Fatal Error: malloc(%ld) failed.", socket_num * sizeof(swConnection));
-            return SW_ERR;
-        }
+        swWarn("create socket array failed.");
+        return SW_ERR;
     }
 
     return ret;
@@ -119,49 +114,24 @@ int swReactor_setHandle(swReactor *reactor, int _fdtype, swReactor_handle handle
 
 swConnection* swReactor_get(swReactor *reactor, int fd)
 {
-    if (fd >= reactor->max_socket)
+    assert(fd < SwooleG.max_sockets);
+
+    if (reactor->thread)
     {
-        if (reactor->thread || fd > SwooleG.max_sockets)
-        {
-            swWarn("fd[%d] is invalid.", fd);
-            return NULL;
-        }
-
-        int max_socket = fd * 2;
-        if (max_socket > SwooleG.max_sockets)
-        {
-            max_socket = SwooleG.max_sockets + 1;
-        }
-
-        if (reactor->sockets == NULL)
-        {
-            reactor->sockets = sw_calloc(max_socket, sizeof(swConnection));
-            if (!reactor->sockets)
-            {
-                malloc_fail:
-                swSysError("Fatal Error: malloc(%ld) failed.", reactor->max_socket * sizeof(swConnection));
-                return NULL;
-            }
-            reactor->max_socket = max_socket;
-        }
-        else
-        {
-            void *new_ptr = sw_calloc(max_socket, sizeof(swConnection));
-            if (!new_ptr)
-            {
-                goto malloc_fail;
-            }
-            memcpy(new_ptr, reactor->sockets, reactor->max_socket * sizeof(swConnection));
-            reactor->sockets = new_ptr;
-            reactor->max_socket = max_socket;
-        }
+        return &reactor->socket_list[fd];
     }
 
-    swConnection *socket = &reactor->sockets[fd];
+    while (fd >= reactor->socket_array->item_size)
+    {
+        swArray_extend(reactor->socket_array);
+    }
+
+    swConnection *socket = swArray_fetch(reactor->socket_array, fd);
     if (!socket->active)
     {
         socket->fd = fd;
     }
+
     return socket;
 }
 
@@ -170,6 +140,7 @@ int swReactor_add(swReactor *reactor, int fd, int fdtype)
     assert (fd <= SwooleG.max_sockets);
 
     swConnection *socket = swReactor_get(reactor, fd);
+
     socket->type = swReactor_fdtype(fdtype);
     socket->events = swReactor_events(fdtype);
     socket->removed = 0;
@@ -181,8 +152,9 @@ int swReactor_add(swReactor *reactor, int fd, int fdtype)
 
 int swReactor_del(swReactor *reactor, int fd)
 {
-    reactor->sockets[fd].events = 0;
-    reactor->sockets[fd].removed = 1;
+    swConnection *socket = swReactor_get(reactor, fd);
+    socket->events = 0;
+    socket->removed = 1;
     return SW_OK;
 }
 
@@ -225,7 +197,7 @@ static void swReactor_onFinish(swReactor *reactor)
 
 int swReactor_close(swReactor *reactor, int fd)
 {
-    swConnection *socket = &reactor->sockets[fd];
+    swConnection *socket = swReactor_get(reactor, fd);
 
     if (socket->out_buffer != NULL)
     {
@@ -309,7 +281,7 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev)
     int ret;
     int fd = ev->fd;
 
-    swConnection *socket = &reactor->sockets[fd];
+    swConnection *socket = swReactor_get(reactor, fd);
     swBuffer_trunk *chunk = NULL;
     swBuffer *buffer = socket->out_buffer;
 

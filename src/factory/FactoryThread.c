@@ -92,18 +92,11 @@ int swFactoryThread_create(swFactory *factory, int worker_num)
 int swFactoryThread_start(swFactory *factory)
 {
     swFactoryThread *object = factory->object;
-    swThreadParam *param;
-    int i;
-    int ret;
-    pthread_t pidt;
-
-    ret = swFactory_check_callback(factory);
-    if (ret < 0)
+    if (swFactory_check_callback(factory) < 0)
     {
         return SW_ERR;
     }
     swThreadPool_run(&object->workers);
-
     return SW_OK;
 }
 
@@ -118,14 +111,6 @@ int swFactoryThread_shutdown(swFactory *factory)
 
 static int swFactoryThread_finish(swFactory *factory, swSendData *data)
 {
-    swServer *serv = factory->ptr;
-    int reactor_id = data->info.fd % serv->reactor_num;
-    swReactorThread *thread = swServer_get_thread(serv, reactor_id);
-
-//    thread->lock.lock(&thread->lock);
-//    int ret = swFactory_finish(factory, data);
-//    thread->lock.unlock(&thread->lock);
-
     return swSocket_write_blocking(data->info.fd, data->data, data->info.len);
 }
 
