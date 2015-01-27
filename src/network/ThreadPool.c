@@ -25,6 +25,7 @@ int swThreadPool_create(swThreadPool *pool, int thread_num)
 
     pool->threads = (swThread *) sw_calloc(thread_num, sizeof(swThread));
     pool->params = (swThreadParam *) sw_calloc(thread_num, sizeof(swThreadParam));
+
     if (pool->threads == NULL || pool->params == NULL)
     {
         swWarn("swThreadPool_create malloc fail");
@@ -86,7 +87,8 @@ int swThreadPool_dispatch(swThreadPool *pool, void *task, int task_len)
     }
     else
     {
-        pool->task_num++;
+        sw_atomic_t *task_num = &pool->task_num;
+        sw_atomic_fetch_add(task_num, 1);
     }
     return pthread_cond_signal(&(pool->cond));
 }
@@ -147,14 +149,7 @@ static void* swThreadPool_loop(void *arg)
 
     int id = param->pti;
     int ret;
-
-#ifdef SW_THREADPOOL_USE_CHANNEL
-    char task[SW_BUFFER_SIZE];
-#else
     void *task;
-#endif
-
-    swTrace("starting thread 0x%lx=%d", pthread_self(), id);
 
     if (pool->onStart)
     {
@@ -164,11 +159,6 @@ static void* swThreadPool_loop(void *arg)
     while (SwooleG.running)
     {
         pthread_mutex_lock(&(pool->mutex));
-        while (pool->task_num == 0 && !pool->shutdown)
-        {
-            swTrace("thread 0x%lx is waiting\n", pthread_self());
-            pthread_cond_wait(&(pool->cond), &(pool->mutex));
-        }
 
         if (pool->shutdown)
         {
@@ -177,18 +167,21 @@ static void* swThreadPool_loop(void *arg)
             pthread_exit(NULL);
         }
 
+        if (pool->task_num == 0)
+        {
+            pthread_cond_wait(&(pool->cond), &(pool->mutex));
+        }
+
         swTrace("thread [%d] is starting to work\n", id);
 
-#ifdef SW_THREADPOOL_USE_CHANNEL
-        ret = swChannel_out(pool->chan, task, SW_BUFFER_SIZE);
-#else
         ret = swRingQueue_pop(&pool->queue, &task);
-#endif
         pthread_mutex_unlock(&(pool->mutex));
 
         if (ret >= 0)
         {
-            pool->task_num--;
+            sw_atomic_t *task_num = &pool->task_num;
+            sw_atomic_fetch_sub(task_num, 1);
+
             pool->onTask(pool, (void *) task, ret);
         }
     }

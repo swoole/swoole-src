@@ -54,11 +54,11 @@ zval *php_swoole_get_data(swEventData *req TSRMLS_DC)
     zval *zdata;
     char *data_ptr = NULL;
     int data_len;
-    swPackage package;
 
     MAKE_STD_ZVAL(zdata);
 
 #ifdef SW_USE_RINGBUFFER
+    swPackage package;
     if (req->info.type == SW_EVENT_PACKAGE)
     {
         memcpy(&package, req->data, sizeof(package));

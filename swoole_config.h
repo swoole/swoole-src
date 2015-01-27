@@ -91,8 +91,8 @@
 //#define SW_AIO_THREAD_USE_CHANNEL
 #define SW_AIO_MAX_EVENTS                128
 //#define SW_THREADPOOL_USE_CHANNEL
-#define SW_THREADPOOL_QUEUE_LEN    100
-#define SW_IP_MAX_LENGTH           32
+#define SW_THREADPOOL_QUEUE_LEN          10000
+#define SW_IP_MAX_LENGTH                 32
 
 #define SW_USE_WRITER_THREAD       0    //使用单独的发送线程
 

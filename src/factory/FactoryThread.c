@@ -122,11 +122,11 @@ static int swFactoryThread_finish(swFactory *factory, swSendData *data)
     int reactor_id = data->info.fd % serv->reactor_num;
     swReactorThread *thread = swServer_get_thread(serv, reactor_id);
 
-    thread->lock.lock(&thread->lock);
-    int ret = swFactory_finish(factory, data);
-    thread->lock.unlock(&thread->lock);
+//    thread->lock.lock(&thread->lock);
+//    int ret = swFactory_finish(factory, data);
+//    thread->lock.unlock(&thread->lock);
 
-    return ret;
+    return swSocket_write_blocking(data->info.fd, data->data, data->info.len);
 }
 
 /**
@@ -166,6 +166,9 @@ static void swFactoryThread_onStart(swThreadPool *pool, int id)
     }
 
     swSignal_none();
+
+    SwooleTG.id = serv->reactor_num + id;
+    SwooleTG.type = SW_THREAD_WORKER;
 
     //cpu affinity setting
 #ifdef HAVE_CPU_AFFINITY

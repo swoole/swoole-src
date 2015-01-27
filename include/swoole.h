@@ -1204,7 +1204,7 @@ enum swThread_type
 {
     SW_THREAD_MASTER = 1,
     SW_THREAD_REACTOR = 2,
-    SW_THREAD_WRITER = 3,
+    SW_THREAD_WORKER = 3,
     SW_THREAD_UDP = 4,
     SW_THREAD_UNIX_DGRAM = 5,
     SW_THREAD_HEARTBEAT = 6,
@@ -1229,7 +1229,7 @@ typedef struct _swThreadPool
 
     int thread_num;
     int shutdown;
-    int task_num;
+    sw_atomic_t task_num;
 
     void (*onStart)(struct _swThreadPool *pool, int id);
     void (*onStop)(struct _swThreadPool *pool, int id);

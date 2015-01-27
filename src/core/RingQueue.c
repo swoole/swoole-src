@@ -118,7 +118,6 @@ int swRingQueue_push(swRingQueue *queue, void *push_data)
 {
     if (swRingQueue_full(queue))
     {
-        swWarn("ring queue is full.");
         return SW_ERR;
     }
 
@@ -136,7 +135,6 @@ int swRingQueue_pop(swRingQueue *queue, void **pop_data)
 {
     if (swRingQueue_empty(queue))
     {
-        swWarn("ring queue is empty.");
         return SW_ERR;
     }
 
