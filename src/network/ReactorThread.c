@@ -357,16 +357,6 @@ int swReactorThread_send(swSendData *_send)
     swServer *serv = SwooleG.serv;
 
     int fd = _send->info.fd;
-    uint16_t reactor_id = 0;
-
-#if SW_REACTOR_SCHEDULE == 2
-    reactor_id = fd % serv->reactor_num;
-#else
-    reactor_id = conn->from_id;
-#endif
-
-    swBuffer_trunk *trunk;
-    swReactor *reactor = &(serv->reactor_threads[reactor_id].reactor);
 
     swConnection *conn = swServer_connection_get(serv, fd);
     //The connection has been closed.
@@ -375,15 +365,19 @@ int swReactorThread_send(swSendData *_send)
         swWarn("connection[fd=%d, event=%d] is not active.", fd, _send->info.type);
         return SW_ERR;
     }
+
+    swBuffer_trunk *trunk;
+    swReactor *reactor = &(serv->reactor_threads[conn->from_id].reactor);
+
     //The connection has been removed from eventloop.
-    else if (conn->removed)
+    if (conn->removed)
     {
         goto close_fd;
     }
 
     swTraceLog(SW_TRACE_EVENT, "send-data. fd=%d|reactor_id=%d", fd, reactor_id);
 
-    if (conn->out_buffer == NULL)
+    if (conn->direct_send)
     {
         /**
         * close connection.
@@ -394,8 +388,8 @@ int swReactorThread_send(swSendData *_send)
             reactor->close(reactor, fd);
             return SW_OK;
         }
-#ifdef SW_REACTOR_SYNC_SEND
-        //Direct send
+
+        //direct send
         if (_send->info.type != SW_EVENT_SENDFILE)
         {
             int n;
@@ -410,29 +404,20 @@ int swReactorThread_send(swSendData *_send)
             {
                 _send->data += n;
                 _send->length -= n;
-                goto buffer_send;
             }
             else if (errno == EINTR)
             {
                 goto direct_send;
             }
-            else
-            {
-                goto buffer_send;
-            }
         }
-#endif
-            //Buffer send
-        else
+    }
+
+    if (conn->out_buffer == NULL)
+    {
+        conn->out_buffer = swBuffer_new(SW_BUFFER_SIZE);
+        if (conn->out_buffer == NULL)
         {
-#ifdef SW_REACTOR_SYNC_SEND
-            buffer_send:
-#endif
-            conn->out_buffer = swBuffer_new(SW_BUFFER_SIZE);
-            if (conn->out_buffer == NULL)
-            {
-                return SW_ERR;
-            }
+            return SW_ERR;
         }
     }
 
@@ -449,23 +434,19 @@ int swReactorThread_send(swSendData *_send)
         trunk = swBuffer_new_trunk(conn->out_buffer, SW_CHUNK_CLOSE, 0);
         trunk->store.data.val1 = _send->info.type;
     }
-        //sendfile to client
+    //sendfile to client
     else if (_send->info.type == SW_EVENT_SENDFILE)
     {
         swConnection_sendfile(conn, _send->data);
     }
-        //send data
+    //send data
     else
     {
-        /**
-        * TODO: Connection output buffer overflow, close the connection.
-        */
         if (conn->out_buffer->length >= serv->buffer_output_size)
         {
             swWarn("Connection output buffer overflow.");
             conn->overflow = 1;
         }
-        //buffer enQueue
         swBuffer_append(conn->out_buffer, _send->data, _send->length);
     }
     return SW_OK;
@@ -1424,7 +1405,17 @@ int swReactorThread_create(swServer *serv)
         return SW_ERR;
     }
 
-    serv->connection_list = sw_shm_calloc(serv->max_connection, sizeof(swConnection));
+    /**
+    * alloc the memory for connection_list
+    */
+    if (serv->factory_mode == SW_MODE_PROCESS)
+    {
+        serv->connection_list = sw_shm_calloc(serv->max_connection, sizeof(swConnection));
+    }
+    else
+    {
+        serv->connection_list = sw_calloc(serv->max_connection, sizeof(swConnection));
+    }
     if (serv->connection_list == NULL)
     {
         swError("calloc[1] failed");

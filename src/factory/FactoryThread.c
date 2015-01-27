@@ -17,6 +17,9 @@
 #include "swoole.h"
 #include "Server.h"
 
+static int swFactoryThread_dispatch(swFactory *factory, swDispatchData *buf);
+static int swFactoryThread_finish(swFactory *factory, swSendData *data);
+
 typedef struct _swWorkerThread
 {
     pthread_t ptid;  //线程ID
@@ -41,6 +44,8 @@ static void swFactoryThread_onStop(swThreadPool *pool, int id);
 int swFactoryThread_create(swFactory *factory, int worker_num)
 {
     swFactoryThread *object;
+    swServer *serv = factory->ptr;
+
     object = sw_calloc(worker_num, sizeof(swFactoryThread));
     if (object == NULL)
     {
@@ -53,11 +58,19 @@ int swFactoryThread_create(swFactory *factory, int worker_num)
         return SW_ERR;
     }
 
+    int i;
+    swReactorThread *thread;
+    for (i = 0; i < serv->reactor_num; i++)
+    {
+        thread = swServer_get_thread(serv, i);
+        swMutex_create(&thread->lock, 0);
+    }
+
     object->worker_num = worker_num;
 
     factory->object = object;
     factory->dispatch = swFactoryThread_dispatch;
-    factory->finish = swFactory_finish;
+    factory->finish = swFactoryThread_finish;
     factory->end = swFactory_end;
     factory->start = swFactoryThread_start;
     factory->shutdown = swFactoryThread_shutdown;
@@ -101,6 +114,19 @@ int swFactoryThread_shutdown(swFactory *factory)
     swThreadPool_free(&object->workers);
     sw_free(object);
     return SW_OK;
+}
+
+static int swFactoryThread_finish(swFactory *factory, swSendData *data)
+{
+    swServer *serv = factory->ptr;
+    int reactor_id = data->info.fd % serv->reactor_num;
+    swReactorThread *thread = swServer_get_thread(serv, reactor_id);
+
+    thread->lock.lock(&thread->lock);
+    int ret = swFactory_finish(factory, data);
+    thread->lock.unlock(&thread->lock);
+
+    return ret;
 }
 
 /**

@@ -420,7 +420,6 @@ int swServer_start(swServer *serv)
 	SwooleGS->now = SwooleStats->start_time = time(NULL);
 
 	//设置factory回调函数
-	serv->factory.ptr = serv;
 	serv->factory.onTask = serv->onReceive;
 
 	if (serv->have_udp_sock == 1 && serv->factory_mode != SW_MODE_PROCESS)
@@ -584,6 +583,8 @@ int swServer_create(swServer *serv)
     //TODO 未来全部使用此方式访问swServer/swFactory对象
     SwooleG.serv = serv;
     SwooleG.factory = &serv->factory;
+
+    serv->factory.ptr = serv;
 
     //单进程单线程模式
     if (serv->factory_mode == SW_MODE_SINGLE)
@@ -1175,6 +1176,13 @@ swConnection* swServer_connection_new(swServer *serv, swDataHead *ev)
     connection->connect_time = SwooleGS->now;
     connection->last_time = SwooleGS->now;
     connection->active = 1;
+
+#ifdef SW_REACTOR_SYNC_SEND
+    if (serv->factory_mode != SW_MODE_THREAD)
+    {
+        connection->direct_send = 1;
+    }
+#endif
 
 	return connection;
 }

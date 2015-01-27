@@ -111,6 +111,7 @@ typedef struct _swReactorThread
     swUdpFd *udp_addrs;
     swMemoryPool *buffer_input;
     swArray *buffer_pipe;
+    swLock lock;
     int c_udp_fd;
 } swReactorThread;
 
@@ -201,8 +202,7 @@ int swFactoryProcess_end(swFactory *factory, int fd);
 int swFactoryThread_create(swFactory *factory, int writer_num);
 int swFactoryThread_start(swFactory *factory);
 int swFactoryThread_shutdown(swFactory *factory);
-int swFactoryThread_dispatch(swFactory *factory, swDispatchData *buf);
-int swFactoryThread_finish(swFactory *factory, swSendData *data);
+
 
 //------------------------------------Server-------------------------------------------
 struct _swServer

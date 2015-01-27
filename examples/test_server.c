@@ -281,8 +281,10 @@ int my_onReceive(swFactory *factory, swEventData *req)
 	resp.info.len = req->info.len + 8;
 	req->data[req->info.len] = 0;
 
-	snprintf(resp_data, resp.info.len, "Server:%s", req->data);
+	int n = snprintf(resp_data, resp.info.len, "Server:%s", req->data);
 	resp.data = resp_data;
+	resp.info.len = n;
+
 	ret = factory->finish(factory, &resp);
 	if (ret < 0)
 	{
