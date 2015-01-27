@@ -36,15 +36,9 @@ static int php_swoole_event_onRead(swReactor *reactor, swEvent *event)
 {
     zval *retval;
     zval **args[1];
-    swoole_reactor_fd *fd;
+    swoole_reactor_fd *fd = event->socket->object;
 
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-
-    if (zend_hash_find(&php_sw_event_callback, (char *)&(event->fd), sizeof(event->fd), (void**)&fd) != SUCCESS)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event: onRead not found");
-        return SW_ERR;
-    }
 
     args[0] = &fd->socket;
 
@@ -64,15 +58,9 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
 {
     zval *retval;
     zval **args[1];
-    swoole_reactor_fd *fd;
+    swoole_reactor_fd *fd = event->socket->object;
 
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-
-    if (zend_hash_find(&php_sw_event_callback, (char *) &(event->fd), sizeof(event->fd), (void**) &fd) != SUCCESS)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event: onWrite not found");
-        return SW_ERR;
-    }
 
     if (!fd->cb_write)
     {
@@ -109,7 +97,12 @@ static int php_swoole_event_onError(swReactor *reactor, swEvent *event)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event->onError[1]: socket error. Error: %s [%d]", strerror(error), error);
     }
+
+    efree(event->socket->object);
+    event->socket->active = 0;
+
     SwooleG.main_reactor->del(SwooleG.main_reactor, event->fd);
+
     return SW_OK;
 }
 
@@ -188,13 +181,6 @@ PHP_FUNCTION(swoole_event_add)
         return;
     }
 
-#ifdef ZTS
-    if (sw_thread_ctx == NULL)
-    {
-        TSRMLS_SET_CTX(sw_thread_ctx);
-    }
-#endif
-
     if ((cb_read == NULL && cb_write == NULL) || (ZVAL_IS_NULL(cb_read) && ZVAL_IS_NULL(cb_write)))
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "no read or write event callback.");
@@ -208,12 +194,13 @@ PHP_FUNCTION(swoole_event_add)
         RETURN_FALSE;
     }
 
-    swoole_reactor_fd event;
-    event.socket = *fd;
-    event.cb_read = cb_read;
-    event.cb_write = cb_write;
+    swoole_reactor_fd *reactor_fd = emalloc(sizeof(swoole_reactor_fd));
 
-    zval_add_ref(&event.socket);
+    reactor_fd->socket = *fd;
+    reactor_fd->cb_read = cb_read;
+    reactor_fd->cb_write = cb_write;
+
+    zval_add_ref(&reactor_fd->socket);
 
     if (cb_read!= NULL && !ZVAL_IS_NULL(cb_read))
     {
@@ -223,7 +210,8 @@ PHP_FUNCTION(swoole_event_add)
             efree(func_name);
             RETURN_FALSE;
         }
-        zval_add_ref(&event.cb_read);
+        efree(func_name);
+        zval_add_ref(&reactor_fd->cb_read);
     }
 
     if (cb_write!= NULL && !ZVAL_IS_NULL(cb_write))
@@ -234,13 +222,8 @@ PHP_FUNCTION(swoole_event_add)
             efree(func_name);
             RETURN_FALSE;
         }
-        zval_add_ref(&event.cb_write);
-    }
-
-    if (zend_hash_update(&php_sw_event_callback, (char *)&socket_fd, sizeof(socket_fd), &event, sizeof(swoole_reactor_fd), NULL) == FAILURE)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event_add add to hashtable failed");
-        RETURN_FALSE;
+        efree(func_name);
+        zval_add_ref(&reactor_fd->cb_write);
     }
 
     php_swoole_check_reactor();
@@ -251,6 +234,11 @@ PHP_FUNCTION(swoole_event_add)
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event_add failed.");
         RETURN_FALSE;
     }
+
+    swConnection *socket = swReactor_get(SwooleG.main_reactor, socket_fd);
+
+    socket->object = reactor_fd;
+    socket->active = 1;
 
     php_swoole_try_run_reactor();
     RETURN_LONG(socket_fd);
@@ -301,7 +289,7 @@ PHP_FUNCTION(swoole_event_set)
     zval *cb_read = NULL;
     zval *cb_write = NULL;
     zval **fd;
-    swoole_reactor_fd *ev_set;
+
     char *func_name = NULL;
     long event_flag = 0;
 
@@ -310,13 +298,6 @@ PHP_FUNCTION(swoole_event_set)
         return;
     }
 
-#ifdef ZTS
-    if (sw_thread_ctx == NULL)
-    {
-        TSRMLS_SET_CTX(sw_thread_ctx);
-    }
-#endif
-
     int socket_fd = swoole_convert_to_fd(fd);
     if (socket_fd < 0)
     {
@@ -324,11 +305,14 @@ PHP_FUNCTION(swoole_event_set)
         RETURN_FALSE;
     }
 
-    if (zend_hash_find(&php_sw_event_callback, (char *)&socket_fd, sizeof(socket_fd), (void **)&ev_set) != SUCCESS)
+    swConnection *socket = swReactor_get(SwooleG.main_reactor, socket_fd);
+    if (!socket->active)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event: no such socket [fd=%d].", socket_fd);
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "socket[%d] is not found in the reactor.", socket_fd);
+        efree(func_name);
         RETURN_FALSE;
     }
+    swoole_reactor_fd *ev_set = socket->object;
 
     if (cb_read != NULL && !ZVAL_IS_NULL(cb_read))
     {
@@ -342,6 +326,7 @@ PHP_FUNCTION(swoole_event_set)
         {
             ev_set->cb_read = cb_read;
             zval_add_ref(&cb_read);
+            efree(func_name);
         }
     }
 
@@ -357,6 +342,7 @@ PHP_FUNCTION(swoole_event_set)
         {
             ev_set->cb_write = cb_write;
             zval_add_ref(&cb_write);
+            efree(func_name);
         }
     }
 
@@ -388,12 +374,18 @@ PHP_FUNCTION(swoole_event_del)
     {
         return;
     }
+
     int socket_fd = swoole_convert_to_fd(fd);
     if (socket_fd < 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "unknow type.");
         RETURN_FALSE;
     }
+
+    swConnection *socket = swReactor_get(SwooleG.main_reactor, socket_fd);
+    efree(socket->object);
+    socket->active = 0;
+
     SW_CHECK_RETURN(SwooleG.main_reactor->del(SwooleG.main_reactor, socket_fd));
 }
 

@@ -24,7 +24,6 @@
 #include <net/if.h>
 #include <ifaddrs.h>
 
-HashTable php_sw_event_callback;
 HashTable php_sw_timer_callback;
 HashTable php_sw_aio_callback;
 
@@ -686,8 +685,6 @@ PHP_MINFO_FUNCTION(swoole)
 
 PHP_RINIT_FUNCTION(swoole)
 {
-	//swoole_event_add
-	zend_hash_init(&php_sw_event_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
 	//swoole_timer_add
 	zend_hash_init(&php_sw_timer_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
 	//swoole_aio
@@ -716,21 +713,21 @@ PHP_RINIT_FUNCTION(swoole)
 
 PHP_RSHUTDOWN_FUNCTION(swoole)
 {
-	zend_hash_destroy(&php_sw_event_callback);
-	zend_hash_destroy(&php_sw_timer_callback);
-	zend_hash_destroy(&php_sw_aio_callback);
+    zend_hash_destroy(&php_sw_timer_callback);
+    zend_hash_destroy(&php_sw_aio_callback);
 
-	int i;
-	for(i=0; i<PHP_SERVER_CALLBACK_NUM; i++)
-	{
-		if(php_sw_callback[i] != NULL)
-		{
-			zval_dtor(php_sw_callback[i]);
-			efree(php_sw_callback[i]);
-		}
-	}
-	SwooleWG.reactor_wait_onexit = 0;
-	return SUCCESS;
+    int i;
+    for (i = 0; i < PHP_SERVER_CALLBACK_NUM; i++)
+    {
+        if (php_sw_callback[i] != NULL)
+        {
+            zval_dtor(php_sw_callback[i]);
+            efree(php_sw_callback[i]);
+        }
+    }
+
+    SwooleWG.reactor_wait_onexit = 0;
+    return SUCCESS;
 }
 
 static void swoole_destory_server(zend_resource *rsrc TSRMLS_DC)
