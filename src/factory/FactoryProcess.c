@@ -221,7 +221,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
         }
 
         /**
-         * create user workers
+         * create user worker process
          */
         if (serv->user_worker_list)
         {
@@ -246,13 +246,13 @@ static int swFactoryProcess_manager_start(swFactory *factory)
         ret = swFactoryProcess_manager_loop(factory);
         exit(ret);
         break;
-        //主进程
+
+        //master process
     default:
         SwooleGS->manager_pid = pid;
         break;
     case -1:
-        swError("fork() failed.")
-        ;
+        swError("fork() failed.");
         return SW_ERR;
     }
     return SW_OK;

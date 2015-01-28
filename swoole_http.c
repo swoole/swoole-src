@@ -591,15 +591,18 @@ static int websocket_handshake(http_client *client)
     zval *header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("header"), 1 TSRMLS_CC);
     HashTable *ht = Z_ARRVAL_P(header);
     zval **pData;
-    if(zend_hash_find(ht, ZEND_STRS("sec-websocket-key") , (void **) &pData) == FAILURE) {
+    if (zend_hash_find(ht, ZEND_STRS("sec-websocket-key"), (void **) &pData) == FAILURE)
+    {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "header no sec-websocket-key");
         return SW_ERR;
     }
+
     convert_to_string(*pData);
 //    swTrace("key: %s len:%d\n", Z_STRVAL_PP(pData), Z_STRLEN_PP(pData));
-    swString *buf = swString_new(256);
-    swString_append_ptr(buf, ZEND_STRL("HTTP/1.1 101 Switching Protocols\r\n"));
-    swString_append_ptr(buf, ZEND_STRL("Upgrade: websocket\r\nConnection: Upgrade\r\n"));
+
+    swString *buf = swString_new(512);
+    swString_append_ptr(buf, ZEND_STRL("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"));
+
     swString *shaBuf = swString_new(Z_STRLEN_PP(pData)+36);
     swString_append_ptr(shaBuf, Z_STRVAL_PP(pData), Z_STRLEN_PP(pData));
     swString_append_ptr(shaBuf, ZEND_STRL(SW_WEBSOCKET_GUID));

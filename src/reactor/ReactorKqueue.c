@@ -290,7 +290,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 				event.fd = fd_.fd;
 				event.from_id = reactor->id;
 				event.type = fd_.fdtype;
-				event.socket = swReactor_get(reactor, ev.fd);
+				event.socket = swReactor_get(reactor, event.fd);
 
 				//read
 				if (object->events[i].filter == EVFILT_READ)
