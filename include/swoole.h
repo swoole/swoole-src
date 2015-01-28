@@ -367,11 +367,6 @@ typedef struct _swConnection
     void *object;
 
     /**
-     * link any thing, for application.
-     */
-    void *object_user;
-
-    /**
      * input buffer
      */
     struct _swBuffer *in_buffer;

@@ -30,6 +30,8 @@
 
 #include "thirdparty/php_http_parser.h"
 
+
+static swArray *http_client_array;
 static uint8_t http_merge_global_flag = 0;
 static uint8_t http_merge_request_flag = 0;
 
@@ -102,7 +104,6 @@ static int http_request_on_headers_complete(php_http_parser *parser);
 static int http_request_message_complete(php_http_parser *parser);
 
 static void http_request_free(http_client *client TSRMLS_DC);
-static http_client* http_client_new(int fd TSRMLS_DC);
 static int http_request_new(http_client* c TSRMLS_DC);
 
 static int websocket_handshake(http_client *client);
@@ -564,24 +565,14 @@ static int http_request_message_complete(php_http_parser *parser)
 
 static void http_onClose(swServer *serv, int fd, int from_id)
 {
-    swConnection *conn = swServer_connection_get(serv, fd);
-    http_client *client = conn->object_user;
-
+    http_client *client = swArray_fetch(http_client_array, fd);
     if (client)
     {
-        conn->object_user = NULL;
-
-        if (client->end == 0)
-        {
-            client->end = 1;
-        }
-
         if (client->zrequest)
         {
             TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
             http_request_free(client TSRMLS_CC);
         }
-        efree(client);
     }
 
     if (php_sw_callback[SW_SERVER_CB_onClose] != NULL)
@@ -769,13 +760,12 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         return http_websocket_onMessage(req TSRMLS_CC);
     }
 
-    http_client *client = conn->object_user;
-
-    if (!conn->object_user)
+    http_client *client = swArray_alloc(http_client_array, fd);
+    if (!client)
     {
-        client = http_client_new(fd TSRMLS_CC);
-        conn->object_user = client;
+        return SW_OK;
     }
+    client->fd = fd;
 
     php_http_parser *parser = &client->parser;
 
@@ -970,14 +960,6 @@ PHP_METHOD(swoole_http_server, on)
     }
 }
 
-static http_client* http_client_new(int fd TSRMLS_DC)
-{
-    http_client *client = emalloc(sizeof(http_client));
-    bzero(client, sizeof(http_client));
-    client->fd = fd;
-    return client;
-}
-
 static int http_request_new(http_client* client TSRMLS_DC)
 {
 	zval *zrequest;
@@ -1163,7 +1145,13 @@ PHP_METHOD(swoole_http_server, start)
         RETURN_FALSE;
     }
 
-    serv->dispatch_mode = SW_DISPATCH_FDMOD;
+    http_client_array = swArray_new(1024, sizeof(http_client), 0);
+    if (!http_client_array)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "require onRequest or onMessage callback");
+        RETURN_FALSE;
+    }
+
     serv->onReceive = http_onReceive;
     serv->onClose = http_onClose;
     serv->open_http_protocol = 1;
@@ -1194,8 +1182,7 @@ PHP_METHOD(swoole_http_request, rawcontent)
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "http client not exists.");
         RETURN_FALSE;
     }
-    swConnection *conn = swServer_connection_get(SwooleG.serv, Z_LVAL_P(zfd));
-    http_client *client = conn->object_user;
+    http_client *client = swArray_fetch(http_client_array, Z_LVAL_P(zfd));
     if (!client)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "http client[#%d] not exists.", (int) Z_LVAL_P(zfd));
@@ -1226,8 +1213,7 @@ PHP_METHOD(swoole_http_response, end)
         RETURN_FALSE;
     }
 
-    swConnection *conn = swServer_connection_get(SwooleG.serv, Z_LVAL_P(zfd));
-    http_client *client = conn->object_user;
+    http_client *client = swArray_fetch(http_client_array, Z_LVAL_P(zfd));
     if (!client)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "http client[#%d] not exists.", (int) Z_LVAL_P(zfd));
@@ -1413,8 +1399,7 @@ PHP_METHOD(swoole_http_response, cookie)
         RETURN_FALSE;
     }
 
-    swConnection *conn = swServer_connection_get(SwooleG.serv, Z_LVAL_P(zfd));
-    http_client *client = conn->object_user;
+    http_client *client = swArray_fetch(http_client_array, Z_LVAL_P(zfd));
     if (!client)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "http client[#%d] not exists.", (int) Z_LVAL_P(zfd));
@@ -1540,8 +1525,7 @@ PHP_METHOD(swoole_http_response, rawcookie)
         RETURN_FALSE;
     }
 
-    swConnection *conn = swServer_connection_get(SwooleG.serv, Z_LVAL_P(zfd));
-    http_client *client = conn->object_user;
+    http_client *client = swArray_fetch(http_client_array, Z_LVAL_P(zfd));
     if (!client)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "http client[#%d] not exists.", (int) Z_LVAL_P(zfd));
@@ -1656,8 +1640,7 @@ PHP_METHOD(swoole_http_response, status)
 
     zval *zfd = zend_read_property(swoole_http_response_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
 
-    swConnection *conn = swServer_connection_get(SwooleG.serv, Z_LVAL_P(zfd));
-    http_client *client = conn->object_user;
+    http_client *client = swArray_fetch(http_client_array, Z_LVAL_P(zfd));
     if (!client)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "http client[#%d] not exists.", (int) Z_LVAL_P(zfd));
