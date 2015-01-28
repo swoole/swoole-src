@@ -24,6 +24,7 @@ swArray *swArray_new(int page_size, size_t item_size, int flag);
 void swArray_free(swArray *array);
 void *swArray_fetch(swArray *array, uint32_t n);
 int swArray_store(swArray *array, uint32_t n, void *data);
+void *swArray_alloc(swArray *array, uint32_t n);
 int swArray_push(swArray *array, void *data);
 int swArray_extend(swArray *array);
 

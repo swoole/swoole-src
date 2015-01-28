@@ -597,9 +597,12 @@ static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t sche
     else if (serv->dispatch_mode == SW_DISPATCH_UIDMOD)
     {
         swConnection *conn = swServer_connection_get(serv, schedule_key);
-        if(conn->uid) {
+        if (conn->uid)
+        {
             target_worker_id = conn->uid % serv->worker_num;
-        }else{
+        }
+        else
+        {
             target_worker_id = schedule_key % serv->worker_num;
         }
     }
@@ -618,7 +621,7 @@ static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t sche
                 break;
             }
         }
-        swTrace("schedule=%d|round=%d\n", target_worker_id, *round);
+        //swWarn("schedule=%d|round=%d\n", target_worker_id, *round);
     }
     return target_worker_id;
 }

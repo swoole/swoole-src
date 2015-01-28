@@ -121,12 +121,12 @@ swConnection* swReactor_get(swReactor *reactor, int fd)
         return &reactor->socket_list[fd];
     }
 
-    while (fd >= reactor->socket_array->item_size)
+    swConnection *socket = swArray_alloc(reactor->socket_array, fd);
+    if (socket == NULL)
     {
-        swArray_extend(reactor->socket_array);
+        return NULL;
     }
 
-    swConnection *socket = swArray_fetch(reactor->socket_array, fd);
     if (!socket->active)
     {
         socket->fd = fd;

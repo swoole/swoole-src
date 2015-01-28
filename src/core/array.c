@@ -95,6 +95,25 @@ int swArray_store(swArray *array, uint32_t n, void *data)
     return SW_OK;
 }
 
+void *swArray_alloc(swArray *array, uint32_t n)
+{
+    while (n >= array->item_size)
+    {
+        if (swArray_extend(array) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+
+    int page = swArray_page(array, n);
+    if (page >= array->page_num)
+    {
+        swWarn("fetch index[%d] out of array", n);
+        return NULL;
+    }
+    return array->pages[page] + (swArray_offset(array, n) * array->item_size);
+}
+
 int swArray_push(swArray *array, void *data)
 {
     int n = array->offset++;
