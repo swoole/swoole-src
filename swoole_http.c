@@ -566,8 +566,13 @@ static int http_request_message_complete(php_http_parser *parser)
 
 static void http_onClose(swServer *serv, int fd, int from_id)
 {
+    swConnection *conn = swServer_connection_get(serv, fd);
+    http_client *client = conn->object;
+    if (client->end == 0)
+    {
+        client->end = 1;
+    }
     swHashMap_del_int(php_sw_http_clients, fd);
-
     if (php_sw_callback[SW_SERVER_CB_onClose] != NULL)
     {
         php_swoole_onClose(serv, fd, from_id);
@@ -585,7 +590,6 @@ static void sha1(const char *str, unsigned char *digest)
 
 static int websocket_handshake(http_client *client)
 {
-
     //HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\nSec-WebSocket-Version: %s\r\nKeepAlive: off\r\nContent-Length: 0\r\nServer: ZWebSocket\r\n
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
     zval *header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("header"), 1 TSRMLS_CC);
@@ -768,7 +772,9 @@ static int http_onReceive(swFactory *factory, swEventData *req)
      */
     http_request_new(client TSRMLS_CC);
 
+    conn->object = client;
     parser->data = client;
+
     php_http_parser_init(parser, PHP_HTTP_REQUEST);
 
     zval *zdata = php_swoole_get_data(req TSRMLS_CC);

@@ -139,6 +139,7 @@ function my_onClose($serv, $fd, $from_id)
 function my_onConnect($serv, $fd, $from_id)
 {
     //throw new Exception("hello world");
+    var_dump($serv->connection_info($fd));
     echo "Worker#{$serv->worker_pid} Client[$fd@$from_id]: Connect.\n";
 }
 
@@ -147,11 +148,6 @@ function my_onWorkerStart($serv, $worker_id)
 	//processRename($serv, $worker_id);
 	//forkChildInWorker();
 	//setTimerInWorker($serv, $worker_id);
-    if ($worker_id == 0)
-    {
-        sleep(20);
-        echo "sleep finish\n";
-    }
 }
 
 function my_onWorkerStop($serv, $worker_id)
