@@ -101,7 +101,7 @@ void *swArray_alloc(swArray *array, uint32_t n)
     {
         if (swArray_extend(array) < 0)
         {
-            return SW_ERR;
+            return NULL;
         }
     }
 
