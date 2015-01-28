@@ -126,7 +126,6 @@ struct _http_parser_settings
 	http_cb on_message_complete;
 };
 
-
 typedef struct _swHttpRequest
 {
     uint8_t method;
@@ -140,7 +139,7 @@ typedef struct _swHttpRequest
 
     swString *buffer;
 
-    char opcode;
+    uint8_t opcode;
 
 } swHttpRequest;
 

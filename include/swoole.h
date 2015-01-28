@@ -362,9 +362,14 @@ typedef struct _swConnection
     struct sockaddr_in addr;
 
     /**
-     * link any thing
+     * link any thing, for kernel, do not use with application.
      */
     void *object;
+
+    /**
+     * link any thing, for application.
+     */
+    void *object_user;
 
     /**
      * input buffer

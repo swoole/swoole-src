@@ -369,15 +369,9 @@ int swReactorThread_send(swSendData *_send)
     swBuffer_trunk *trunk;
     swReactor *reactor = &(serv->reactor_threads[conn->from_id].reactor);
 
-    //The connection has been removed from eventloop.
-    if (conn->removed)
-    {
-        goto close_fd;
-    }
-
     swTraceLog(SW_TRACE_EVENT, "send-data. fd=%d|reactor_id=%d", fd, reactor_id);
 
-    if (conn->direct_send)
+    if (conn->direct_send && conn->out_buffer == NULL)
     {
         /**
         * close connection.
@@ -392,22 +386,22 @@ int swReactorThread_send(swSendData *_send)
         //direct send
         if (_send->info.type != SW_EVENT_SENDFILE)
         {
-            int n;
-
             direct_send:
-            n = swConnection_send(conn, _send->data, _send->length, 0);
-            if (n == _send->length)
             {
-                return SW_OK;
-            }
-            else if (n > 0)
-            {
-                _send->data += n;
-                _send->length -= n;
-            }
-            else if (errno == EINTR)
-            {
-                goto direct_send;
+                int n = swConnection_send(conn, _send->data, _send->length, 0);
+                if (n == _send->length)
+                {
+                    return SW_OK;
+                }
+                else if (n > 0)
+                {
+                    _send->data += n;
+                    _send->length -= n;
+                }
+                else if (errno == EINTR)
+                {
+                    goto direct_send;
+                }
             }
         }
     }
