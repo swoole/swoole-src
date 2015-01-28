@@ -175,7 +175,6 @@ int swReactorThread_close(swReactor *reactor, int fd)
             }
             conn->object = NULL;
         }
-
     }
 
 #if 0
@@ -398,9 +397,17 @@ int swReactorThread_send(swSendData *_send)
                     _send->data += n;
                     _send->length -= n;
                 }
-                else if (errno == EINTR)
+                else
                 {
-                    goto direct_send;
+                    if (swConnection_error(errno) == SW_CLOSE)
+                    {
+                        conn->close_wait = 1;
+                        return SW_OK;
+                    }
+                    else if (errno == EINTR)
+                    {
+                        goto direct_send;
+                    }
                 }
             }
         }
@@ -1191,14 +1198,14 @@ static int swReactorThread_onReceive_websocket(swReactor *reactor, swEvent *even
 */
 static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
 {
-
-    int fd = event->fd;
     swServer *serv = reactor->ptr;
-    swConnection *conn = swServer_connection_get(serv, fd);
+    swConnection *conn = event->socket;
+
     if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE)
     {
-        if(conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE) {
-            if(conn->object != NULL)
+        if (conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE)
+        {
+            if (conn->object != NULL)
             {
                 swHttpRequest *request = (swHttpRequest *) conn->object;
                 swHttpRequest_free(request);
@@ -1241,13 +1248,7 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
         buf_len = request->buffer->size - request->buffer->length;
     }
 
-#ifdef SW_USE_EPOLLET
-    n = swRead(fd, buf, buf_len);
-#else
-    //非ET模式会持续通知
     n = swConnection_recv(conn, buf, buf_len, 0);
-#endif
-
     if (n < 0)
     {
         switch (swConnection_error(errno))
@@ -1297,10 +1298,10 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
             goto close_fd;
         }
 
-//        swTrace("method: %d", request->method);
+        swTrace("request->method=%d", request->method);
 
         //GET HEAD DELETE OPTIONS
-        if (request->method == HTTP_GET || request->method == HTTP_HEAD || request->method == HTTP_OPTIONS || request->method == HTTP_DELETE )
+        if (request->method == HTTP_GET || request->method == HTTP_HEAD || request->method == HTTP_OPTIONS || request->method == HTTP_DELETE)
         {
             if (memcmp(buffer->str + buffer->length - 4, "\r\n\r\n", 4) == 0)
             {
@@ -1312,7 +1313,7 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
                 swWarn("http header is too long.");
                 goto close_fd;
             }
-                //wait more data
+            //wait more data
             else
             {
                 wait_more_data:
@@ -1325,8 +1326,8 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
                 goto recv_data;
             }
         }
-            //POST PUT
-        else if(request->method == HTTP_POST || request->method == HTTP_PUT || request->method == HTTP_PATCH)
+        //POST PUT
+        else if (request->method == HTTP_POST || request->method == HTTP_PUT || request->method == HTTP_PATCH)
         {
             if (request->content_length == 0)
             {
@@ -1349,7 +1350,15 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
                 goto close_fd;
             }
 
-            if (request->content_length == buffer->length - request->header_length)
+            uint32_t request_size = request->content_length + request->header_length;
+
+            //discard the redundant data
+            if (buffer->length > request_size)
+            {
+                buffer->length = request_size;
+            }
+
+            if (buffer->length == request_size)
             {
                 swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, buffer);
                 swHttpRequest_free(request);
@@ -1369,7 +1378,7 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
                 }
                 else
                 {
-                    buffer->size = request->content_length + request->header_length;
+                    buffer->size = request_size;
                 }
                 goto wait_more_data;
             }
