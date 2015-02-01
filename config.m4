@@ -179,6 +179,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_buffer.c \
         swoole_table.c \
         swoole_http.c \
+        swoole_websocket.c \
         src/core/Base.c \
         src/core/log.c \
         src/core/hashmap.c \
