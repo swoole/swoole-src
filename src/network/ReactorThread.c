@@ -499,11 +499,26 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 {
     int ret;
     swServer *serv = SwooleG.serv;
+    int fd = ev->fd;
 
-    swConnection *conn = swServer_connection_get(serv, ev->fd);
+    swConnection *conn = swServer_connection_get(serv, fd);
     if (conn->active == 0)
     {
         return SW_OK;
+    }
+    //notify worker process
+    else if (conn->connect_notify)
+    {
+        swDataHead connect_event;
+        connect_event.type = SW_EVENT_CONNECT;
+        connect_event.from_id = reactor->id;
+        connect_event.fd = fd;
+        if (serv->factory.notify(&serv->factory, &connect_event) < 0)
+        {
+            swWarn("send notification [fd=%d] failed.", fd);
+        }
+        conn->connect_notify = 0;
+        return reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_READ);
     }
 
     swBuffer_trunk *chunk;
@@ -514,7 +529,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         if (chunk->type == SW_CHUNK_CLOSE)
         {
             close_fd:
-            reactor->close(reactor, ev->fd);
+            reactor->close(reactor, fd);
             return SW_OK;
         }
         else if (chunk->type == SW_CHUNK_SENDFILE)
@@ -547,7 +562,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     //remove EPOLLOUT event
     if (swBuffer_empty(conn->out_buffer))
     {
-        reactor->set(reactor, ev->fd, SW_FD_TCP | SW_EVENT_READ);
+        reactor->set(reactor, fd, SW_FD_TCP | SW_EVENT_READ);
     }
     return SW_OK;
 }

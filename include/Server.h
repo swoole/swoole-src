@@ -532,8 +532,6 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags);
 #define swPackage_data(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->str:task->data)
 #define swPackage_length(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->length:task->info.len)
 
-swConnection* swServer_connection_new(swServer *serv, swDataHead *ev);
-
 #define SW_SERVER_MAX_FD_INDEX          0 //max connection socket
 #define SW_SERVER_MIN_FD_INDEX          1 //min listen socket
 #define SW_SERVER_TIMER_FD_INDEX        2 //for timerfd

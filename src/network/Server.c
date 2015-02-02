@@ -43,6 +43,7 @@ static int swServer_start_proxy(swServer *serv);
 
 static void swServer_heartbeat_start(swServer *serv);
 static void swServer_heartbeat_check(swThreadParam *heartbeat_param);
+static swConnection* swServer_connection_new(swServer *serv, int fd, int from_fd, int reactor_id);
 
 swServerG SwooleG;
 swServerGS *SwooleGS;
@@ -56,7 +57,7 @@ char sw_error[SW_ERROR_MSG_SIZE];
 int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 {
 	swServer *serv = reactor->ptr;
-	swDataHead connEv;
+    swReactor *sub_reactor;
 	struct sockaddr_in client_addr;
 	socklen_t client_addrlen = sizeof(client_addr);
 	int new_fd, ret, reactor_id = 0, i;
@@ -109,13 +110,10 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 		}
 #endif
 
-		connEv.type = SW_EVENT_CONNECT;
-		connEv.from_id = reactor_id;
-		connEv.fd = new_fd;
-		connEv.from_fd = event->fd;
-
 		//add to connection_list
-		swConnection *conn = swServer_connection_new(serv, &connEv);
+        swConnection *conn = swServer_connection_new(serv, new_fd, event->fd, reactor_id);
+        memcpy(&conn->addr, &client_addr, sizeof(client_addr));
+        sub_reactor = &serv->reactor_threads[reactor_id].reactor;
 
 #ifdef SW_USE_OPENSSL
 		if (serv->open_ssl)
@@ -135,24 +133,25 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 			}
 		}
 #endif
-		memcpy(&conn->addr, &client_addr, sizeof(client_addr));
-		/*
-		 * [!!!] new_connection function must before reactor->add
-		 */
-		ret = serv->reactor_threads[reactor_id].reactor.add(&(serv->reactor_threads[reactor_id].reactor), new_fd,
-				SW_FD_TCP | SW_EVENT_READ);
-		if (ret < 0)
+
+        /*
+         * [!!!] new_connection function must before reactor->add
+         */
+        if (serv->onConnect)
+        {
+            conn->connect_notify = 1;
+            ret = sub_reactor->add(sub_reactor, new_fd, SW_FD_TCP | SW_EVENT_WRITE);
+        }
+        else
+        {
+            ret = sub_reactor->add(sub_reactor, new_fd, SW_FD_TCP | SW_EVENT_READ);
+        }
+
+        if (ret < 0)
 		{
 			close(new_fd);
 			return SW_OK;
 		}
-        else
-        {
-            if (serv->onConnect != NULL)
-            {
-                serv->factory.notify(&serv->factory, &connEv);
-            }
-        }
 #ifdef SW_ACCEPT_AGAIN
         continue;
 #else
@@ -1130,9 +1129,8 @@ static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
 /**
  * new connection
  */
-swConnection* swServer_connection_new(swServer *serv, swDataHead *ev)
+static swConnection* swServer_connection_new(swServer *serv, int fd, int from_fd, int reactor_id)
 {
-    int fd = ev->fd;
     swConnection* connection = NULL;
 
     SwooleStats->accept_count++;
@@ -1166,8 +1164,8 @@ swConnection* swServer_connection_new(swServer *serv, swDataHead *ev)
 #endif
 
     connection->fd = fd;
-    connection->from_id = ev->from_id;
-    connection->from_fd = ev->from_fd;
+    connection->from_id = reactor_id;
+    connection->from_fd = from_fd;
     connection->connect_time = SwooleGS->now;
     connection->last_time = SwooleGS->now;
     connection->active = 1;
