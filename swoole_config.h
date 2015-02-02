@@ -46,6 +46,7 @@
 #define SW_CLIENT_RECV_AGAIN
 #define SW_CLIENT_DEFAULT_TIMEOUT  0.5
 #define SW_CLIENT_MAX_PORT         65535
+//#define SW_CLIENT_SOCKET_WAIT
 
 //!!!Don't modify.----------------------------------------------------------
 #if __MACH__

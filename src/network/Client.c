@@ -43,6 +43,7 @@ int swClient_create(swClient *cli, int type, int async)
 {
     int _domain;
     int _type;
+
     bzero(cli, sizeof(*cli));
     switch (type)
     {
@@ -127,6 +128,7 @@ int swClient_create(swClient *cli, int type, int async)
     cli->sock_type = SOCK_DGRAM;
     cli->type = type;
     cli->async = async;
+
     return SW_OK;
 }
 
@@ -340,8 +342,14 @@ static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, int len, int w
         flag = MSG_WAITALL;
     }
 
-    ret = recv(cli->socket->fd, data, len, flag);
+#ifdef SW_CLIENT_SOCKET_WAIT
+    if (cli->socket->socket_wait)
+    {
+        swSocket_wait(cli->socket->fd, cli->timeout_ms, SW_EVENT_READ);
+    }
+#endif
 
+    ret = recv(cli->socket->fd, data, len, flag);
     if (ret < 0)
     {
         if (errno == EINTR)
@@ -353,6 +361,7 @@ static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, int len, int w
             return SW_ERR;
         }
     }
+
     return ret;
 }
 
