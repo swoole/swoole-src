@@ -120,7 +120,7 @@ static int swEventTimer_select(swTimer *timer)
             {
                 timer->onTimer(timer, tmp->interval);
             }
-            else
+            else if (!tmp->remove)
             {
                 timer->onTimeout(timer, tmp->data);
             }
