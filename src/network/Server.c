@@ -56,44 +56,44 @@ char sw_error[SW_ERROR_MSG_SIZE];
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 {
-	swServer *serv = reactor->ptr;
+    swServer *serv = reactor->ptr;
     swReactor *sub_reactor;
-	struct sockaddr_in client_addr;
-	socklen_t client_addrlen = sizeof(client_addr);
-	int new_fd, ret, reactor_id = 0, i;
+    struct sockaddr_in client_addr;
+    socklen_t client_addrlen = sizeof(client_addr);
+    int new_fd, ret, reactor_id = 0, i;
 
-	//SW_ACCEPT_AGAIN
-	for (i = 0; i < SW_ACCEPT_MAX_COUNT; i++)
-	{
-		//accept得到连接套接字
+    //SW_ACCEPT_AGAIN
+    for (i = 0; i < SW_ACCEPT_MAX_COUNT; i++)
+    {
+        //accept得到连接套接字
 #ifdef SW_USE_ACCEPT4
-	    new_fd = accept4(event->fd, (struct sockaddr *)&client_addr, &client_addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC);
+        new_fd = accept4(event->fd, (struct sockaddr *)&client_addr, &client_addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC);
 #else
-		new_fd = accept(event->fd,  (struct sockaddr *)&client_addr, &client_addrlen);
+        new_fd = accept(event->fd, (struct sockaddr *) &client_addr, &client_addrlen);
 #endif
-		if (new_fd < 0 )
-		{
-			switch(errno)
-			{
-			case EAGAIN:
-				return SW_OK;
-			case EINTR:
-				continue;
-			default:
-				swWarn("accept() failed. Error: %s[%d]", strerror(errno), errno);
-				return SW_OK;
-			}
-		}
+        if (new_fd < 0)
+        {
+            switch (errno)
+            {
+            case EAGAIN:
+                return SW_OK;
+            case EINTR:
+                continue;
+            default:
+                swWarn("accept() failed. Error: %s[%d]", strerror(errno), errno);
+                return SW_OK;
+            }
+        }
 
-		swTrace("[Master] Accept new connection. maxfd=%d|reactor_id=%d|conn=%d", swServer_get_maxfd(serv), reactor->id, new_fd);
+        swTrace("[Master] Accept new connection. maxfd=%d|reactor_id=%d|conn=%d", swServer_get_maxfd(serv), reactor->id, new_fd);
 
-		//too many connection
-		if (new_fd >= serv->max_connection)
-		{
-			swWarn("Too many connections [now: %d].", new_fd);
-			close(new_fd);
-			return SW_OK;
-		}
+        //too many connection
+        if (new_fd >= serv->max_connection)
+        {
+            swWarn("Too many connections [now: %d].", new_fd);
+            close(new_fd);
+            return SW_OK;
+        }
 
 #if SW_REACTOR_SCHEDULE == 1
 		//轮询分配
@@ -148,62 +148,62 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         }
 
         if (ret < 0)
-		{
-			close(new_fd);
-			return SW_OK;
-		}
+        {
+            close(new_fd);
+            return SW_OK;
+        }
 #ifdef SW_ACCEPT_AGAIN
         continue;
 #else
         break;
 #endif
-	}
-	return SW_OK;
+    }
+    return SW_OK;
 }
 
 void swServer_onTimer(swTimer *timer, int interval)
 {
-	swServer *serv = SwooleG.serv;
-	serv->onTimer(serv, interval);
+    swServer *serv = SwooleG.serv;
+    serv->onTimer(serv, interval);
 }
 
 static int swServer_start_check(swServer *serv)
 {
-	if (serv->onReceive == NULL)
-	{
-		swWarn("onReceive is null");
-		return SW_ERR;
-	}
-	//Timer
-	if (SwooleG.timer.interval > 0 && serv->onTimer == NULL)
-	{
-		swWarn("onTimer is null");
-		return SW_ERR;
-	}
-	//AsyncTask
-	if (SwooleG.task_worker_num > 0)
-	{
-		if (serv->onTask == NULL)
-		{
-			swWarn("onTask is null");
-			return SW_ERR;
-		}
-		if (serv->onFinish == NULL)
-		{
-			swWarn("onFinish is null");
-			return SW_ERR;
-		}
-	}
-	//check thread num
-	if (serv->reactor_num > SW_CPU_NUM * SW_MAX_THREAD_NCPU)
-	{
-		serv->reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU;
-	}
-	if (serv->worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU)
-	{
-		swWarn("serv->worker_num > %d, Too many processes, the system will be slow", SW_CPU_NUM * SW_MAX_WORKER_NCPU);
-		serv->worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
-	}
+    if (serv->onReceive == NULL)
+    {
+        swWarn("onReceive is null");
+        return SW_ERR;
+    }
+    //Timer
+    if (SwooleG.timer.interval > 0 && serv->onTimer == NULL)
+    {
+        swWarn("onTimer is null");
+        return SW_ERR;
+    }
+    //AsyncTask
+    if (SwooleG.task_worker_num > 0)
+    {
+        if (serv->onTask == NULL)
+        {
+            swWarn("onTask is null");
+            return SW_ERR;
+        }
+        if (serv->onFinish == NULL)
+        {
+            swWarn("onFinish is null");
+            return SW_ERR;
+        }
+    }
+    //check thread num
+    if (serv->reactor_num > SW_CPU_NUM * SW_MAX_THREAD_NCPU)
+    {
+        serv->reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU;
+    }
+    if (serv->worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU)
+    {
+        swWarn("serv->worker_num > %d, Too many processes, the system will be slow", SW_CPU_NUM * SW_MAX_WORKER_NCPU);
+        serv->worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
+    }
     if (serv->worker_num < serv->reactor_num)
     {
         serv->reactor_num = serv->worker_num;
@@ -220,16 +220,16 @@ static int swServer_start_check(swServer *serv)
     }
 
 #ifdef SW_USE_OPENSSL
-	if (serv->open_ssl)
-	{
-		if (serv->ssl_cert_file == NULL || serv->ssl_key_file == NULL)
-		{
-			swWarn("SSL error, require ssl_cert_file and ssl_key_file.");
-			return SW_ERR;
-		}
-	}
+    if (serv->open_ssl)
+    {
+        if (serv->ssl_cert_file == NULL || serv->ssl_key_file == NULL)
+        {
+            swWarn("SSL error, require ssl_cert_file and ssl_key_file.");
+            return SW_ERR;
+        }
+    }
 #endif
-	return SW_OK;
+    return SW_OK;
 }
 
 /**
