@@ -97,7 +97,7 @@ int swArray_store(swArray *array, uint32_t n, void *data)
 
 void *swArray_alloc(swArray *array, uint32_t n)
 {
-    while (n >= array->item_size)
+    while (n >= array->page_num * array->page_size)
     {
         if (swArray_extend(array) < 0)
         {

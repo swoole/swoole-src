@@ -25,7 +25,6 @@ static int swReactor_write(swReactor *reactor, int fd, void *buf, int n);
 int swReactor_create(swReactor *reactor, int max_event)
 {
     int ret;
-
     bzero(reactor, sizeof(swReactor));
 
     //event less than SW_REACTOR_MINEVENTS, use poll/select

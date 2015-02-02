@@ -9,9 +9,25 @@
 typedef struct _swArray
 {
     void **pages;
+
+    /**
+     * 页的数量
+     */
     uint16_t page_num;
+
+    /**
+     * 每页的数据元素个数
+     */
     uint16_t page_size;
+
+    /**
+     * 数据元素的尺寸
+     */
     uint32_t item_size;
+
+    /**
+     * 数据个数
+     */
     uint32_t item_num;
     uint32_t offset;
     int flag;

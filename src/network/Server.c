@@ -249,6 +249,9 @@ static int swServer_start_proxy(swServer *serv)
 		return SW_ERR;
 	}
 
+    main_reactor->thread = 1;
+    main_reactor->socket_list = serv->connection_list;
+
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd)
     {
