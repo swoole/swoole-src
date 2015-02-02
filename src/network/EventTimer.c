@@ -79,6 +79,7 @@ static int swEventTimer_add(swTimer *timer, int _msec, int interval, void *data)
     node->data = data;
     node->exec_msec = now_msec + _msec;
     node->interval = interval ? _msec : 0;
+    node->remove = 0;
 
     if (SwooleG.main_reactor->timeout_msec > _msec)
     {
@@ -86,8 +87,7 @@ static int swEventTimer_add(swTimer *timer, int _msec, int interval, void *data)
     }
 
     swTimer_node_insert(&timer->root, node);
-    timer->round++;
-    node->id = timer->round;
+    node->id = timer->round++;
 
     return node->id;
 }
@@ -106,6 +106,8 @@ static int swEventTimer_select(swTimer *timer)
     }
 
     swTimer_node *tmp = timer->root;
+    swTimer_node *free_node = NULL;
+
     while (tmp)
     {
         if (tmp->exec_msec > now_msec)
@@ -128,18 +130,25 @@ static int swEventTimer_select(swTimer *timer)
             {
                 timer->root->prev = NULL;
             }
-            if (tmp->interval > 0)
+
+            if (tmp->interval > 0 && !tmp->remove)
             {
                 tmp->exec_msec += tmp->interval;
-                swTimer_node_insert(&SwooleG.timer.root, tmp);
+                swTimer_node_insert(&timer->root, tmp);
             }
             else
             {
-                sw_free(tmp);
+                free_node = tmp;
             }
+
             tmp = timer->root;
+            if (free_node)
+            {
+                sw_free(free_node);
+            }
         }
     }
+
     if (timer->root == NULL)
     {
         SwooleG.main_reactor->timeout_msec = -1;

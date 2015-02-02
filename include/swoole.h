@@ -1273,6 +1273,7 @@ typedef struct _swTimer_node
     uint32_t exec_msec;
     uint32_t interval;
     uint32_t id;
+    uint8_t remove;
 } swTimer_node;
 
 typedef struct _swTimer

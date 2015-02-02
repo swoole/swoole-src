@@ -406,6 +406,7 @@ void swTimer_node_insert(swTimer_node **root, swTimer_node *new_node)
         {
             new_node->prev = tmp->prev;
             new_node->next = tmp;
+
             if (new_node->prev)
             {
                 new_node->prev->next = new_node;
@@ -434,26 +435,12 @@ void swTimer_node_insert(swTimer_node **root, swTimer_node *new_node)
 int swTimer_node_delete(swTimer_node **root, int interval_msec, int id)
 {
     swTimer_node *tmp = *root;
-
     while (tmp)
     {
         if ((interval_msec > 0 && tmp->interval == interval_msec) || (id > 0 && tmp->id == id))
         {
-            if (tmp->prev)
-            {
-                tmp->prev->next = tmp->next;
-                if (tmp->next)
-                {
-                    tmp->next->prev = tmp->prev;
-                }
-                return SW_OK;
-            }
-            else
-            {
-                *root = tmp->next;
-                sw_free(tmp);
-                return SW_OK;
-            }
+            tmp->remove = 1;
+            return SW_OK;
         }
         tmp = tmp->next;
     }
