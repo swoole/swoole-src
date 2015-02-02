@@ -286,15 +286,12 @@ PHP_METHOD(swoole_table, get)
     {
         RETURN_FALSE;
     }
-
     swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
     swTableRow *row = swTableRow_get(table, key, keylen);
-
     if (!row)
     {
         RETURN_FALSE;
     }
-
     php_swoole_table_row2array(table, row, return_value);
 }
 

@@ -18,10 +18,8 @@
 #include "table.h"
 
 #ifdef SW_TABLE_DEBUG
-
 static int conflict_count = 0;
 static int insert_count = 0;
-
 #endif
 
 static void swTable_compress_list(swTable *table);
@@ -343,12 +341,11 @@ void swTable_iterator_forward(swTable *table)
 
 swTableRow* swTableRow_set(swTable *table, char *key, int keylen)
 {
-    swTableRow *row = swTable_hash(table, key, keylen + 1);
-    uint32_t crc32 = swoole_crc32(key, keylen + 1);
+    swTableRow *row = swTable_hash(table, key, keylen);
+    uint32_t crc32 = swoole_crc32(key, keylen);
     sw_atomic_t *lock = &row->lock;
 
     sw_spinlock(lock);
-
     if (row->active)
     {
         for (;;)
@@ -394,11 +391,11 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen)
         sw_atomic_fetch_add(&(table->row_num), 1);
 
         // when the root node become active, we may need compress the jump table
-
         if (table->list_n >= table->size - 1)
         {
             swTable_compress_list(table);
         }
+
         table->rows_list[table->list_n] = row;
         row->list_index = table->list_n;
         sw_atomic_fetch_add(&table->list_n, 1);
