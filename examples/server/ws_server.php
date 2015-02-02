@@ -21,4 +21,6 @@ $ser-> on( 'close', function()
 	echo "client closed\r\n";
 });
 
+$ser-> start();
+
 ?>
