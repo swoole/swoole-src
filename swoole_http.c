@@ -779,6 +779,8 @@ static int http_onReceive(swFactory *factory, swEventData *req)
 
     zval *zdata = php_swoole_get_data(req TSRMLS_CC);
 
+    swTrace("httpRequest %d bytes:\n---------------------------------------\n%s\n", Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
+
     long n = php_http_parser_execute(parser, &http_parser_settings, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
     zval_ptr_dtor(&zdata);
 
@@ -832,7 +834,6 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         }
 
         add_assoc_string(zserver, "server_software", SW_HTTP_SERVER_SOFTWARE, 1);
-        add_assoc_string(zserver, "gateway_interface", SW_HTTP_SERVER_SOFTWARE, 1);
 
         http_merge_php_global(NULL, zrequest, HTTP_GLOBAL_SERVER);
         http_merge_php_global(NULL, zrequest, HTTP_GLOBAL_REQUEST);

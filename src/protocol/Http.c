@@ -111,20 +111,14 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
     return SW_OK;
 }
 
-void swHttpRequest_free(swHttpRequest *request)
+void swHttpRequest_free(swHttpRequest *request, int free_buffer)
 {
-    if (request->state > 0 && request->buffer)
+    if (free_buffer && request->buffer)
     {
         swTrace("RequestShutdown. free buffer=%p, request=%p\n", request->buffer, request);
         swString_free(request->buffer);
     }
-    request->content_length = 0;
-    request->header_length = 0;
-    request->state = 0;
-    request->method = 0;
-    request->offset = 0;
-    request->version = 0;
-    request->buffer = NULL;
+    bzero(request, sizeof(swHttpRequest));
 }
 
 /**
@@ -161,6 +155,7 @@ int swHttpRequest_get_content_length(swHttpRequest *request)
             {
                 if (memcmp(p + 2, SW_STRL("\r\n") - 1) == 0)
                 {
+                    //strlen(header) + sizeof("\r\n\r\n")
                     request->header_length = p - buffer->str + sizeof("\r\n\r\n") - 1;
                     buffer->offset = request->header_length;
                     return SW_OK;
@@ -172,3 +167,22 @@ int swHttpRequest_get_content_length(swHttpRequest *request)
     return SW_ERR;
 }
 
+/**
+ * POST get header-length
+ */
+int swHttpRequest_get_header_length(swHttpRequest *request)
+{
+    swString *buffer = request->buffer;
+
+    int n = swoole_strnpos(buffer->str, "\r\n\r\n", buffer->length);
+    if (n < 0)
+    {
+        return SW_ERR;
+    }
+    else
+    {
+        //strlen(header) + sizeof("\r\n\r\n")
+        request->header_length = n + 4;
+        return SW_OK;
+    }
+}

@@ -165,13 +165,11 @@ int swReactorThread_close(swReactor *reactor, int fd)
             else
             {
                 swHttpRequest *request = (swHttpRequest *) conn->object;
-                if (request->state > 0 && request->buffer)
+                if (request->buffer)
                 {
                     swTrace("ConnectionClose. free buffer=%p, request=%p\n", request->buffer, request);
-                    swString_free(request->buffer);
-                    bzero(request, sizeof(swHttpRequest));
+                    swHttpRequest_free(request, conn->http_buffered);
                 }
-                swHttpRequest_free(request);
             }
             conn->object = NULL;
         }
@@ -1223,7 +1221,7 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
             if (conn->object != NULL)
             {
                 swHttpRequest *request = (swHttpRequest *) conn->object;
-                swHttpRequest_free(request);
+                swHttpRequest_free(request, conn->http_buffered);
                 conn->object = NULL;
             }
             conn->websocket_status = WEBSOCKET_STATUS_FRAME;
@@ -1281,13 +1279,15 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
     {
         close_fd:
         swReactorThread_onClose(reactor, event);
-        swHttpRequest_free(request);
+        swHttpRequest_free(request, conn->http_buffered);
         return SW_OK;
     }
     else
     {
         conn->last_time = SwooleGS->now;
         
+        swTrace("receive %d bytes: %*s\n", n, n, buf);
+
         if (request->method == 0)
         {
             bzero(&tmp_package, sizeof(tmp_package));
@@ -1321,7 +1321,7 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
             if (memcmp(buffer->str + buffer->length - 4, "\r\n\r\n", 4) == 0)
             {
                 swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, buffer);
-                swHttpRequest_free(request);
+                swHttpRequest_free(request, conn->http_buffered);
             }
             else if (buffer->size == buffer->length)
             {
@@ -1332,11 +1332,11 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
             else
             {
                 wait_more_data:
-                if (request->state == 0)
+                if (!conn->http_buffered)
                 {
-                    swTrace("@@@@@@@@@@@@@@@@@##################################wait data 0");
+                    swTrace("wait more data. content_length=%d, header_length=%d", request->content_length, request->header_length);
                     request->buffer = swString_dup2(buffer);
-                    request->state = SW_WAIT;
+                    conn->http_buffered = 1;
                 }
                 goto recv_data;
             }
@@ -1365,6 +1365,29 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
                 goto close_fd;
             }
 
+            //http header is not the end
+            if (request->header_length == 0)
+            {
+                if (!conn->http_buffered)
+                {
+                    request->buffer = swString_dup2(buffer);
+                    conn->http_buffered = 1;
+                    return SW_OK;
+                }
+                else
+                {
+                    if (buffer->size == buffer->length)
+                    {
+                        swWarn("http header is too long.");
+                        goto close_fd;
+                    }
+                    if (swHttpRequest_get_header_length(request) < 0)
+                    {
+                        return SW_OK;
+                    }
+                }
+            }
+
             uint32_t request_size = request->content_length + request->header_length;
 
             //discard the redundant data
@@ -1376,14 +1399,14 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
             if (buffer->length == request_size)
             {
                 swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, buffer);
-                swHttpRequest_free(request);
+                swHttpRequest_free(request, conn->http_buffered);
             }
             else
             {
                 swTrace("PostWait: request->content_length=%d, buffer->length=%zd, request->header_length=%d\n",
                         request->content_length, buffer->length, request->header_length);
 
-                if (request->state > 0)
+                if (conn->http_buffered)
                 {
                     if (request->content_length > buffer->size && swString_extend(buffer, request->content_length) < 0)
                     {

@@ -653,6 +653,111 @@ int swSetTimeout(int sock, double timeout)
     return SW_OK;
 }
 
+static int *swoole_kmp_borders(char *needle, size_t nlen)
+{
+    if (!needle)
+    {
+        return NULL;
+    }
+
+    int i, j, *borders = malloc((nlen + 1) * sizeof(*borders));
+    if (!borders)
+    {
+        return NULL;
+    }
+
+    i = 0;
+    j = -1;
+    borders[i] = j;
+    while ((uint32_t) i < nlen)
+    {
+        while (j >= 0 && needle[i] != needle[j])
+        {
+            j = borders[j];
+        }
+        ++i;
+        ++j;
+        borders[i] = j;
+    }
+    return borders;
+}
+
+static char *swoole_kmp_search(char *haystack, size_t haylen, char *needle, uint32_t nlen, int *borders)
+{
+    uint32_t max_index = haylen - nlen, i = 0, j = 0;
+
+    while (i <= max_index)
+    {
+        while (j < nlen && *haystack && needle[j] == *haystack)
+        {
+            ++j;
+            ++haystack;
+        }
+        if (j == nlen)
+        {
+            return haystack - nlen;
+        }
+        if (!(*haystack))
+        {
+            return NULL;
+        }
+        if (j == 0)
+        {
+            ++haystack;
+            ++i;
+        }
+        else
+        {
+            do
+            {
+                i += j - (uint32_t) borders[j];
+                j = borders[j];
+            } while (j > 0 && needle[j] != *haystack);
+        }
+    }
+    return NULL;
+}
+
+char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
+{
+    if (!haystack || !needle)
+    {
+        return NULL;
+    }
+    size_t nlen = strlen(needle);
+    if (length < nlen)
+    {
+        return NULL;
+    }
+    int *borders = swoole_kmp_borders(needle, nlen);
+    if (!borders)
+    {
+        return NULL;
+    }
+    char *match = swoole_kmp_search(haystack, length, needle, nlen, borders);
+    free(borders);
+    return match;
+}
+
+int swoole_strnpos(char *haystack, char *needle, uint32_t length)
+{
+    uint32_t needle_length = strlen(needle);
+    uint32_t i;
+
+    for (i = 0; i < length; i++)
+    {
+        if (i + needle_length > length)
+        {
+            return -1;
+        }
+        if (strncmp(&haystack[i], needle, needle_length) == 0)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
 #ifndef HAVE_CLOCK_GETTIME
 #ifdef __MACH__
 int clock_gettime(clock_id_t which_clock, struct timespec *t)

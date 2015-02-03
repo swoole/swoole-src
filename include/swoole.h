@@ -350,6 +350,8 @@ typedef struct _swConnection
     uint32_t tcp_nopush :1;
     uint32_t tcp_nodelay :1;
 
+    uint32_t http_buffered :1;
+
     /**
      * ReactorThread id
      */
@@ -842,6 +844,7 @@ int swoole_sync_readfile(int fd, void *buf, int len);
 int swoole_system_random(int min, int max);
 swString* swoole_file_get_contents(char *filename);
 void swoole_open_remote_debug(void);
+int swoole_strnpos(char *haystack, char *needle, uint32_t length);
 
 void swoole_ioctl_set_block(int sock, int nonblock);
 void swoole_fcntl_set_block(int sock, int nonblock);
