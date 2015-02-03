@@ -877,6 +877,7 @@ void php_swoole_onClose(swServer *serv, int fd, int from_id)
 
     if (EG(exception))
     {
+        conn->closing = 0;
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
 
