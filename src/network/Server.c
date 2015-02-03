@@ -1118,6 +1118,7 @@ static void swServer_heartbeat_check(swThreadParam *heartbeat_param)
             {
                 notify_ev.fd = fd;
                 notify_ev.from_id = conn->from_id;
+                conn->close_force = 1;
                 factory->notify(&serv->factory, &notify_ev);
             }
         }
