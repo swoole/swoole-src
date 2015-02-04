@@ -18,20 +18,13 @@
 
 #define SW_LOG_BUFFER_SIZE 1024
 #define SW_LOG_DATE_STRLEN  64
-#define SW_LOG_FORMAT "[%s]\t%s\t%s\n"
-
-FILE *swoole_log_fn = NULL;
-static char bufr[SW_LOG_BUFFER_SIZE];
 
 int swLog_init(char *logfile)
 {
-	swoole_log_fn = fopen(logfile, "a+");
-	if(swoole_log_fn == NULL)
+	SwooleG.log_fd = open(logfile, O_APPEND| O_RDWR | O_CREAT, 0666);
+	if (SwooleG.log_fd < 0)
 	{
-		return SW_ERR;
-	}
-	if (setvbuf(swoole_log_fn, bufr, _IOLBF, SW_LOG_BUFFER_SIZE) < 0)
-	{
+		printf("open(%s) failed. Error: %s[%d]", logfile, strerror(errno), errno);
 		return SW_ERR;
 	}
 	return SW_OK;
@@ -39,35 +32,52 @@ int swLog_init(char *logfile)
 
 void swLog_free(void)
 {
-	fclose(swoole_log_fn);
+	if (SwooleG.log_fd > STDOUT_FILENO)
+	{
+		close(SwooleG.log_fd);
+	}
 }
 
 void swLog_put(int level, char *cnt)
 {
-	const char *level_str;
-	char date_str[SW_LOG_DATE_STRLEN];
+    const char *level_str;
+    char date_str[SW_LOG_DATE_STRLEN];
+    char log_str[SW_LOG_BUFFER_SIZE];
+    int n;
 
-	switch (level)
-	{
-	case SW_LOG_DEBUG:
-		level_str = "DEBUG";
-		break;
-	case SW_LOG_ERROR:
-		level_str = "ERR";
-		break;
-	case SW_LOG_WARN:
-		level_str = "WARN";
-		break;
-	default:
-		level_str = "INFO";
-		break;
-	}
+    switch (level)
+    {
+    case SW_LOG_DEBUG:
+        level_str = "DEBUG";
+        break;
+    case SW_LOG_NOTICE:
+        level_str = "NOTICE";
+        break;
+    case SW_LOG_ERROR:
+        level_str = "ERR";
+        break;
+    case SW_LOG_WARN:
+        level_str = "WARN";
+        break;
+    case SW_LOG_TRACE:
+        level_str = "TRACE";
+        break;
+    default:
+        level_str = "INFO";
+        break;
+    }
 
-	time_t t;
-	struct tm *p;
-	t = time(NULL);
-	p = localtime(&t);
-	snprintf(date_str, SW_LOG_DATE_STRLEN, "%d-%02d-%02d %02d:%02d:%02d", p->tm_year + 1900, p->tm_mon+1, p->tm_mday , p->tm_hour, p->tm_min, p->tm_sec);
-	fprintf(swoole_log_fn, SW_LOG_FORMAT, date_str, level_str, cnt);
+    time_t t;
+    struct tm *p;
+    t = time(NULL);
+    p = localtime(&t);
+    snprintf(date_str, SW_LOG_DATE_STRLEN, "%d-%02d-%02d %02d:%02d:%02d", p->tm_year + 1900, p->tm_mon + 1, p->tm_mday,
+            p->tm_hour, p->tm_min, p->tm_sec);
+    n = snprintf(log_str, SW_LOG_BUFFER_SIZE, "[%s #%d.%d]\t%s\t%s\n", date_str, SwooleG.pid, SwooleTG.id, level_str,
+            cnt);
+
+    if (write(SwooleG.log_fd, log_str, n) < 0)
+    {
+        //write to log failed.
+    }
 }
-

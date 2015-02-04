@@ -30,9 +30,10 @@ typedef struct _swRingQueue
 	void **data; /* 队列空间 */
 } swRingQueue;
 
-extern int swRingQueue_init(swRingQueue *, int buffer_size);
-extern int swRingQueue_push(swRingQueue *, void *);
-extern int swRingQueue_pop(swRingQueue *, void **);
+int swRingQueue_init(swRingQueue *queue, int buffer_size);
+int swRingQueue_push(swRingQueue *queue, void *);
+int swRingQueue_pop(swRingQueue *queue, void **);
+void swRingQueue_free(swRingQueue *queue);
 
 #define swRingQueue_empty(q) ( (q->head == q->tail) && (q->tag == 0))
 #define swRingQueue_full(q) ( (q->head == q->tail) && (q->tag == 1))

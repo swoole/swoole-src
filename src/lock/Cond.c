@@ -16,6 +16,12 @@
 
 #include "swoole.h"
 
+static int swCond_notify(swCond *cond);
+static int swCond_broadcast(swCond *cond);
+static int swCond_timewait(swCond *cond, long sec, long nsec);
+static int swCond_wait(swCond *cond);
+static void swCond_free(swCond *cond);
+
 int swCond_create(swCond *cond)
 {
 	if (pthread_cond_init(&cond->cond, NULL) < 0)
@@ -27,39 +33,42 @@ int swCond_create(swCond *cond)
 	{
 		return SW_ERR;
 	}
+
+	cond->notify = swCond_notify;
+	cond->broadcast = swCond_broadcast;
+	cond->timewait = swCond_timewait;
+	cond->wait = swCond_wait;
+	cond->free = swCond_free;
+
 	return SW_OK;
 }
 
-int swCond_notify(swCond *cond)
+static int swCond_notify(swCond *cond)
 {
 	return pthread_cond_signal(&cond->cond);
 }
 
-int swCond_broadcast(swCond *cond)
+static int swCond_broadcast(swCond *cond)
 {
 	return pthread_cond_broadcast(&cond->cond);
 }
 
-int swCond_timewait(swCond *cond, long sec, long nsec)
+static int swCond_timewait(swCond *cond, long sec, long nsec)
 {
-	int ret;
 	struct timespec timeo;
 
 	timeo.tv_sec = sec;
 	timeo.tv_nsec = nsec;
 
-	ret = pthread_cond_timedwait(&cond->cond, &cond->lock.object.mutex._lock, &timeo);
-	return ret;
+	return pthread_cond_timedwait(&cond->cond, &cond->lock.object.mutex._lock, &timeo);
 }
 
-int swCond_wait(swCond *cond)
+static int swCond_wait(swCond *cond)
 {
-	int ret;
-	ret = pthread_cond_wait(&cond->cond, &cond->lock.object.mutex._lock);
-	return ret;
+    return pthread_cond_wait(&cond->cond, &cond->lock.object.mutex._lock);
 }
 
-void swCond_free(swCond *cond)
+static void swCond_free(swCond *cond)
 {
 	pthread_cond_destroy(&cond->cond);
 	cond->lock.free(&cond->lock);

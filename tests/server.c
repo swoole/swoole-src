@@ -52,7 +52,7 @@ swUnitTest(server_test)
 	//serv.open_eof_check = 1;
 
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9500);
-	swServer_addListen(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
+	swServer_addListener(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9502);
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 8888);
 

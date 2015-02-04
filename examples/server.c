@@ -46,12 +46,11 @@ int main(int argc, char **argv)
 
 	//config
 	serv.backlog = 128;
-	serv.poll_thread_num = 2; //reactor线程数量
-	serv.writer_num = 2;      //writer线程数量
+	serv.reactor_num = 2; //reactor线程数量
 	serv.worker_num = 4;      //worker进程数量
 
 	serv.factory_mode = SW_MODE_PROCESS; //SW_MODE_PROCESS SW_MODE_THREAD SW_MODE_BASE
-	serv.max_conn = 100000;
+	serv.max_connection = 100000;
 	//serv.open_cpu_affinity = 1;
 	//serv.open_tcp_nodelay = 1;
 	//serv.daemonize = 1;
@@ -66,7 +65,7 @@ int main(int argc, char **argv)
 	}
 
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9500);
-	swServer_addListen(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
+	swServer_addListener(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9502);
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 8888);
 

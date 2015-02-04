@@ -1,12 +1,11 @@
 /**
-* gcc -o server server.c -lswoole
+* cmake .
+* make && sudo make install
+* gcc -o test_server test_server.c -lswoole
 */
 #include "Server.h"
 
 int my_onReceive(swFactory *factory, swEventData *req);
-char* rtrim(char *str, int len);
-double microtime(void);
-
 void my_onStart(swServer *serv);
 void my_onShutdown(swServer *serv);
 void my_onConnect(swServer *serv, int fd, int from_id);
@@ -14,32 +13,8 @@ void my_onClose(swServer *serv, int fd, int from_id);
 void my_onTimer(swServer *serv, int interval);
 void my_onWorkerStart(swServer *serv, int worker_id);
 void my_onWorkerStop(swServer *serv, int worker_id);
-int my_onControlEvent(swFactory *factory, swEventData *event);
 
 static int g_receive_count = 0;
-static int g_controller_id = 0;
-
-char* rtrim(char *str, int len)
-{
-	int i;
-	for (i = len; i > 0; i--)
-	{
-		switch(str[i])
-		{
-		case ' ':
-		case '\0':
-		case '\n':
-		case '\r':
-		case '\t':
-		case '\v':
-			str[i] = 0;
-			break;
-		default:
-			return str;
-		}
-	}
-	return str;
-}
 
 /*
 
@@ -174,12 +149,11 @@ char* rtrim(char *str, int len)
 //	msgctl(msgid, IPC_RMID, &msqds);
 //}
 
-double microtime(void)
-{
-	struct timeval t;
-	gettimeofday(&t,  NULL);
-	return (double)t.tv_sec + ((double)(t.tv_usec / 1000000));
-}
+//void user_signal(int signo)
+//{
+//    swThreadPool_debug();
+//    exit(0);
+//}
 
 int main(int argc, char **argv)
 {
@@ -189,21 +163,27 @@ int main(int argc, char **argv)
 
 	//config
 	serv.backlog = 128;
-	serv.reactor_num = 2; //reactor线程数量
-	serv.writer_num = 2;      //writer线程数量
-	serv.worker_num = 2;      //worker进程数量
+	serv.reactor_num = 4; //reactor线程数量
+	serv.worker_num = 4;      //worker进程数量
 
-	serv.factory_mode = SW_MODE_SINGLE; //SW_MODE_PROCESS/SW_MODE_THREAD/SW_MODE_BASE/SW_MODE_SINGLE
-	serv.max_conn = 1000;
+	serv.factory_mode = SW_MODE_THREAD;
+	//serv.factory_mode = SW_MODE_SINGLE; //SW_MODE_PROCESS/SW_MODE_THREAD/SW_MODE_BASE/SW_MODE_SINGLE
+	serv.max_connection = 10000;
 	//serv.open_cpu_affinity = 1;
 	//serv.open_tcp_nodelay = 1;
 	//serv.daemonize = 1;
 	serv.open_eof_check = 0;
-	memcpy(serv.data_eof, SW_STRL("\r\n\r\n")-1);      //开启eof检测，启用buffer区
+	memcpy(serv.package_eof, SW_STRL("\r\n\r\n")-1);      //开启eof检测，启用buffer区
 //	memcpy(serv.log_file, SW_STRL("/tmp/swoole.log")); //日志
 
 	serv.dispatch_mode = 2;
 //	serv.open_tcp_keepalive = 1;
+
+#ifdef HAVE_OPENSSL
+	//serv.ssl_cert_file = "tests/ssl/ssl.crt";
+	//serv.ssl_key_file = "tests/ssl/ssl.key";
+	//serv.open_ssl = 1;
+#endif
 
 	serv.onStart = my_onStart;
 	serv.onShutdown = my_onShutdown;
@@ -214,6 +194,8 @@ int main(int argc, char **argv)
 	serv.onWorkerStart = my_onWorkerStart;
 	serv.onWorkerStop = my_onWorkerStop;
 
+//	swSignal_add(SIGINT, user_signal);
+
 	//create Server
 	ret = swServer_create(&serv);
 	if (ret < 0)
@@ -222,7 +204,7 @@ int main(int argc, char **argv)
 		exit(0);
 	}
 //	swServer_addListen(&serv, SW_SOCK_UDP, "0.0.0.0", 9500);
-	swServer_addListen(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
+	swServer_addListener(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9502);
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 8888);
 
@@ -237,12 +219,6 @@ int main(int argc, char **argv)
 		exit(0);
 	}
 	return 0;
-}
-
-int my_onControlEvent(swFactory *factory, swEventData *event)
-{
-	printf("Event: type=%d|data=%s\n", event->info.type, event->data);
-	return SW_OK;
 }
 
 void my_onWorkerStart(swServer *serv, int worker_id)
@@ -266,38 +242,35 @@ int my_onReceive(swFactory *factory, swEventData *req)
 	char resp_data[SW_BUFFER_SIZE];
 	swServer *serv = factory->ptr;
 
-
 	swSendData resp;
 	g_receive_count ++;
 	memcpy(&resp.info, &req->info, sizeof(resp.info));
 
-	resp.info.len = req->info.len + 8;
-	req->data[req->info.len] = 0;
+	int n = snprintf(resp_data, sizeof(resp_data), "Server:%s", req->data);
 
-	snprintf(resp_data, resp.info.len, "Server:%s", req->data);
-	resp.data = resp_data;
-	ret = factory->finish(factory, &resp);
-	if (ret < 0)
-	{
-		printf("send to client fail.errno=%d\n", errno);
-	}
-	if (req->info.from_id >= serv->reactor_num)
-	{
-		struct in_addr addr;
-		addr.s_addr = req->info.fd;
+    resp.data = resp_data;
+    resp.info.len = n;
+    resp.info.type = SW_EVENT_TCP;
+    resp.data[n] = 0;
 
+    ret = factory->finish(factory, &resp);
+    if (ret < 0)
+    {
+        printf("send to client fail. errno=%d\n", errno);
+    }
 
-		printf("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d\n", g_receive_count,
-					inet_ntoa(addr), req->info.from_id,
-					rtrim(req->data, req->info.len), req->info.len);
-	}
-	else
-	{
-		swConnection *conn = swServer_get_connection(serv, req->info.fd);
-		printf("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d\n", g_receive_count,
-					inet_ntoa(conn->addr.sin_addr), conn->addr.sin_port,
-					rtrim(req->data, req->info.len), req->info.len);
-	}
+    if (req->info.from_id >= serv->reactor_num)
+    {
+        struct in_addr addr;
+        addr.s_addr = req->info.fd;
+
+        //printf("onReceive[%d]: ip=%s:%d, Data=%s\n", g_receive_count, inet_ntoa(addr), req->info.from_id, rtrim(req->data, req->info.len));
+    }
+    else
+    {
+        swConnection *conn = swServer_connection_get(serv, req->info.fd);
+        //printf("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d\n", g_receive_count, inet_ntoa(conn->addr.sin_addr), conn->addr.sin_port, rtrim(req->data, req->info.len), req->info.len);
+    }
 //	req->info.type = 99;
 //	factory->event(factory, g_controller_id, req);
 	return SW_OK;
@@ -305,22 +278,22 @@ int my_onReceive(swFactory *factory, swEventData *req)
 
 void my_onStart(swServer *serv)
 {
-	sw_log("Server is running");
+    sw_log("Server is running");
 }
 
 void my_onShutdown(swServer *serv)
 {
-	sw_log("Server is shutdown\n");
+    sw_log("Server is shutdown\n");
 }
 
 void my_onConnect(swServer *serv, int fd, int from_id)
 {
 //	ProfilerStart("/tmp/profile.prof");
-	printf("PID=%d\tConnect fd=%d|from_id=%d\n", getpid(), fd, from_id);
+	//printf("PID=%d\tConnect fd=%d|from_id=%d\n", getpid(), fd, from_id);
 }
 
 void my_onClose(swServer *serv, int fd, int from_id)
 {
-	printf("PID=%d\tClose fd=%d|from_id=%d\n", getpid(), fd, from_id);
+	//printf("PID=%d\tClose fd=%d|from_id=%d\n", getpid(), fd, from_id);
 //	ProfilerStop();
 }

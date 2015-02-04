@@ -400,19 +400,6 @@ do {                                                                            
   bkt = hashv & (num_bkts-1);                                                    \
 } while(0)
 
-#define HASH_JEN_MIX(a,b,c)                                                      \
-do {                                                                             \
-  a -= b; a -= c; a ^= ( c >> 13 );                                              \
-  b -= c; b -= a; b ^= ( a << 8 );                                               \
-  c -= a; c -= b; c ^= ( b >> 13 );                                              \
-  a -= b; a -= c; a ^= ( c >> 12 );                                              \
-  b -= c; b -= a; b ^= ( a << 16 );                                              \
-  c -= a; c -= b; c ^= ( b >> 5 );                                               \
-  a -= b; a -= c; a ^= ( c >> 3 );                                               \
-  b -= c; b -= a; b ^= ( a << 10 );                                              \
-  c -= a; c -= b; c ^= ( b >> 15 );                                              \
-} while (0)
-
 #define HASH_JEN(key,keylen,num_bkts,hashv,bkt)                                  \
 do {                                                                             \
   unsigned _hj_i,_hj_j,_hj_k;                                                    \

@@ -30,6 +30,7 @@ int swRingQueue_init(swRingQueue *queue, int buffer_size)
 	queue->data = (void **)sw_calloc(queue->size, sizeof(void*));
 	if (queue->data == NULL)
 	{
+		sw_free(queue->flags);
 		return -1;
 	}
 	queue->head = 0;
@@ -93,56 +94,58 @@ int swRingQueue_pop(swRingQueue *queue, void **ele)
 }
 #else
 
-int swRingQueue_init(swRingQueue * p_queue, int buffer_size)
+int swRingQueue_init(swRingQueue *queue, int buffer_size)
 {
-	p_queue->data = sw_calloc(buffer_size, sizeof(void*));
-	if(p_queue->data == NULL)
-	{
-		swError("malloc fail\n");
-		return -1;
-	}
-	p_queue->size = buffer_size;
-	p_queue->head = 0;
-	p_queue->tail = 0;
-	p_queue->tag = 0;
-	return 0;
+    queue->data = sw_calloc(buffer_size, sizeof(void*));
+    if (queue->data == NULL)
+    {
+        swWarn("malloc failed.");
+        return -1;
+    }
+    queue->size = buffer_size;
+    queue->head = 0;
+    queue->tail = 0;
+    queue->tag = 0;
+    return 0;
 }
 
-int swRingQueue_push(swRingQueue * p_queue, void *push_data)
+void swRingQueue_free(swRingQueue *queue)
 {
-	if (swRingQueue_full(p_queue))
-	{
-		swTrace("queue full\n");
-		return -1;
-	}
-
-	p_queue->data[p_queue->tail] = push_data;
-	p_queue->tail = (p_queue->tail + 1) % p_queue->size;
-
-	/* 这个时候一定队列满了*/
-	if (p_queue->tail == p_queue->head)
-	{
-		p_queue->tag = 1;
-	}
-	return p_queue->tag;
+	sw_free(queue->data);
 }
 
-int swRingQueue_pop(swRingQueue * p_queue, void **pop_data)
+int swRingQueue_push(swRingQueue *queue, void *push_data)
 {
-	if (swRingQueue_empty(p_queue))
-	{
-		swTrace("queue empty\n");
-		return -1;
-	}
+    if (swRingQueue_full(queue))
+    {
+        return SW_ERR;
+    }
 
-	*pop_data = p_queue->data[p_queue->head];
-	p_queue->head = (p_queue->head + 1) % p_queue->size;
+    queue->data[queue->tail] = push_data;
+    queue->tail = (queue->tail + 1) % queue->size;
 
-	/* 这个时候一定队列空了*/
-	if (p_queue->tail == p_queue->head)
-	{
-		p_queue->tag = 0;
-	}
-	return p_queue->tag;
+    if (queue->tail == queue->head)
+    {
+        queue->tag = 1;
+    }
+    return SW_OK;
 }
+
+int swRingQueue_pop(swRingQueue *queue, void **pop_data)
+{
+    if (swRingQueue_empty(queue))
+    {
+        return SW_ERR;
+    }
+
+    *pop_data = queue->data[queue->head];
+    queue->head = (queue->head + 1) % queue->size;
+
+    if (queue->tail == queue->head)
+    {
+        queue->tag = 0;
+    }
+    return SW_OK;
+}
+
 #endif
