@@ -265,7 +265,7 @@ pid_t swProcessPool_spawn(swWorker *worker)
         {
             swHashMap_del_int(pool->map, worker->pid);
         }
-        worker->del = 0;
+        worker->deleted = 0;
         worker->pid = pid;
         //insert new process
         swHashMap_add_int(pool->map, pid, worker, NULL);

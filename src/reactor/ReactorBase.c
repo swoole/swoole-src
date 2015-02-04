@@ -228,9 +228,14 @@ static int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
 
     if (swBuffer_empty(buffer))
     {
+        do_receive:
         ret = swConnection_send(socket, buf, n, 0);
 
-        if (ret < 0 && errno == EAGAIN)
+        if (ret > 0)
+        {
+            return ret;
+        }
+        else if (errno == EAGAIN)
         {
             if (!socket->out_buffer)
             {
@@ -254,6 +259,14 @@ static int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
                 SwooleG.main_reactor->add(SwooleG.main_reactor, fd, socket->type | socket->events);
             }
             goto append_pipe_buffer;
+        }
+        else if (errno == EINTR)
+        {
+            goto do_receive;
+        }
+        else
+        {
+            return SW_ERR;
         }
     }
     else

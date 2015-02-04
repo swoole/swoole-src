@@ -253,7 +253,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
     swPackage_response pkg_resp;
     swWorker *worker;
 
-    //while(1)
+    while (1)
     {
         n = read(ev->fd, &resp, sizeof(resp));
         if (n > 0)
@@ -287,6 +287,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
             return SW_ERR;
         }
     }
+
     return SW_OK;
 }
 

@@ -299,7 +299,7 @@ static void swManager_signal_handle(int sig)
         break;
     case SIGALRM:
         worker = &(pool->workers[pool->run_worker_num]);
-        if (worker->del == 1 && worker->tasking_num == 0)
+        if (worker->deleted == 1 && worker->tasking_num == 0)
         {
             ret = kill(worker->pid, SIGTERM);
             if (ret < 0)
@@ -342,7 +342,7 @@ static void swManager_signal_handle(int sig)
             {
                 pool->run_worker_num--;
                 worker = &(pool->workers[pool->run_worker_num]);
-                worker->del = 1;
+                worker->deleted = 1;
                 SwooleG.task_recycle_num = 0;
             }
         }
@@ -495,9 +495,9 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 
                 if (exit_worker != NULL)
                 {
-                    if (exit_worker->del == 1)  //主动回收不重启
+                    if (exit_worker->deleted == 1)  //主动回收不重启
                     {
-                        exit_worker->del = 0;
+                        exit_worker->deleted = 0;
                     }
                     else
                     {

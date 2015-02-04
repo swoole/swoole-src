@@ -159,7 +159,8 @@ int swWebSocket_decode(swHttpRequest *request)
         request->buffer->offset += sizeof(int64_t);
     }
 
-    if(request->content_length + request->buffer->offset > request->buffer->length) {
+    if (request->content_length + request->buffer->offset > request->buffer->length)
+    {
         request->free_memory = SW_WAIT;
         return SW_OK;
     }
