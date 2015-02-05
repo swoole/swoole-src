@@ -27,6 +27,10 @@
 #include "websocket.h"
 #include "Connection.h"
 #include "base64.h"
+/*******/
+#include "mylib/base64.h"
+#include "mylib/intLib.h"
+#include "mylib/sha1.h"
 
 #include "thirdparty/php_http_parser.h"
 
@@ -138,24 +142,26 @@ static int websocket_onMessage(swEventData *req TSRMLS_DC)
     long opcode = buf[1] ? 1 : 0;
 
     buf += 2;
-    zval *zresponse;
-    MAKE_STD_ZVAL(zresponse);
-    object_init_ex(zresponse, swoole_websocket_frame_class_entry_ptr);
 
-    //socket fd
-    zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zresponse, ZEND_STRL("fd"), fd TSRMLS_CC);
-    zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zresponse, ZEND_STRL("fin"), fin TSRMLS_CC);
-    zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zresponse, ZEND_STRL("opcode"), opcode TSRMLS_CC);
-    zend_update_property_stringl(swoole_websocket_frame_class_entry_ptr, zresponse, ZEND_STRL("data"), buf, (Z_STRLEN_P(zdata) - 2) TSRMLS_CC);
-
-    zval **args[1];
-    args[0] = &zresponse;
+	zval *zd, *zfd, *zopcode, *zfin;
+	MAKE_STD_ZVAL(zd);
+	MAKE_STD_ZVAL(zfd);
+	MAKE_STD_ZVAL(zopcode);
+	MAKE_STD_ZVAL(zfin);
+	SW_ZVAL_STRINGL(zd, buf, Z_STRLEN_P(zdata) - 2, 1);
+	ZVAL_LONG(zfd, fd);
+	ZVAL_LONG(zopcode, opcode);
+	ZVAL_LONG(zfin, fin);
+	zval **args[4];
+	args[0] = &zfd;
+	args[1] = &zd;
+	args[2] = &zopcode;
+	args[3] = &zfin;
     zval *retval;
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_websocket_server_callbacks[1], &retval, 4, args, 0,  NULL TSRMLS_CC) == FAILURE)
 
-    if (call_user_function_ex(EG(function_table), NULL, php_sw_websocket_server_callbacks[1], &retval, 1, args, 0,  NULL TSRMLS_CC) == FAILURE)
     {
         zval_ptr_dtor(&zdata);
-        zval_ptr_dtor(&zresponse);
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "onMessage handler error");
     }
 
@@ -164,7 +170,6 @@ static int websocket_onMessage(swEventData *req TSRMLS_DC)
     if (EG(exception))
     {
         zval_ptr_dtor(&zdata);
-        zval_ptr_dtor(&zresponse);
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
 
@@ -173,7 +178,11 @@ static int websocket_onMessage(swEventData *req TSRMLS_DC)
         zval_ptr_dtor(&retval);
     }
     zval_ptr_dtor(&zdata);
-    zval_ptr_dtor(&zresponse);
+	zval_ptr_dtor(&zfd);
+	zval_ptr_dtor(&zd);
+	zval_ptr_dtor(&zopcode);
+	zval_ptr_dtor(&zfin);
+
     return SW_OK;
 }
 
@@ -335,6 +344,7 @@ static int handshake_parse(swEventData *req TSRMLS_DC)
 	return SW_OK;
 }
 
+
 static void sha1(const char *str, unsigned char *digest)
 {
     PHP_SHA1_CTX context;
@@ -342,6 +352,78 @@ static void sha1(const char *str, unsigned char *digest)
     PHP_SHA1Update(&context, (unsigned char *)str, strlen(str));
     PHP_SHA1Final(digest, &context);
     return;
+}
+
+
+char * fetchSecKey(const char * buf)
+{
+  char *key;
+  char *keyBegin;
+  int i=0, bufLen=0;
+swTrace("fetchSecKey  start");
+  key=(char *)malloc(256);
+  memset(key,0, 256);
+  if(!buf)
+    {
+      return NULL;
+    }
+keyBegin=buf;
+  bufLen=strlen(buf);
+  for(i=0;i<bufLen;i++)
+    {
+      if(keyBegin[i]==0x0A||keyBegin[i]==0x0D)
+	{
+	  break;
+	}
+      key[i]=keyBegin[i];
+    }
+  
+  return key;
+}
+
+
+char * computeAcceptKey(const char * buf)
+{
+  char * clientKey;
+  char * serverKey; 
+  char * sha1DataTemp;
+  char * sha1Data;
+  int i,n;
+  const char * GUID="258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+swTrace("computeAcceptKey start\n");
+ 
+
+  if(!buf)
+    {
+      return NULL;
+    }
+  clientKey=(char *)malloc(LINE_MAX);
+  memset(clientKey,0,LINE_MAX);
+  clientKey=fetchSecKey(buf);
+ 
+  if(!clientKey)
+    {
+      return NULL;
+    }
+swTrace("fetchkey success,key=%s",clientKey);
+ 
+  strcat(clientKey,GUID);
+
+  sha1DataTemp=sha1_hash(clientKey);
+  n=strlen(sha1DataTemp);
+
+
+  sha1Data=(char *)malloc(n/2+1);
+  memset(sha1Data,0,n/2+1);
+ 
+  for(i=0;i<n;i+=2)
+    {      
+      sha1Data[i/2]=htoi(sha1DataTemp,i,2);    
+    } 
+
+  serverKey = mybase64_encode(sha1Data, strlen(sha1Data)); 
+
+  return serverKey;
 }
 
 static int handshake_response(websocket_client *client)
@@ -365,6 +447,7 @@ static int handshake_response(websocket_client *client)
 
     swString *shaBuf = swString_new(Z_STRLEN_PP(pData)+36);
     swString_append_ptr(shaBuf, Z_STRVAL_PP(pData), Z_STRLEN_PP(pData));
+/*
     swString_append_ptr(shaBuf, ZEND_STRL(SW_WEBSOCKET_GUID));
 
     char data_str[20];
@@ -377,9 +460,20 @@ static int handshake_response(websocket_client *client)
 //    swTrace("base64_encode start:%d\n", sizeof(data_str));
     swBase64_encode((unsigned char *) data_str, 20, encoded_value);
 //    swTrace("base64_encode end:%s %d %d\n", encoded_value, encoded_len, strlen(encoded_value));
+
+*/
+
     char _buf[128];
     int n = 0;
+
+
+/*******fix bug****/
+
+	char *encoded_value = computeAcceptKey( shaBuf->str);
     n = snprintf(_buf, strlen(encoded_value)+25, "Sec-WebSocket-Accept: %s\r\n", encoded_value);
+//    n = snprintf(_buf, strlen(encoded_value)+25, "Sec-WebSocket-Accept: %s\r\n", encoded_value);
+
+/****/
 //    efree(data_str);
 //    efree(encoded_value);
     swString_free(shaBuf);
@@ -394,6 +488,8 @@ static int handshake_response(websocket_client *client)
 //    swTrace("handshake send: %d lenght: %d\n", client->fd, ret);
     return ret;	
 }
+
+
 
 static void handshake_success(websocket_client *client)
 {
@@ -413,11 +509,17 @@ static void handshake_success(websocket_client *client)
     {
         swTrace("\n\n\n\nhandshake success\n\n\n");
 
-        zval **args[1];
-        args[0] = &client->zrequest;
-        zval *retval;
+		zval **args[2];
+		swServer *serv = SwooleG.serv;
+		zval *zserv = (zval *)serv->ptr2;
+		zval *zfd;
+		MAKE_STD_ZVAL(zfd);
+		ZVAL_LONG(zfd, client->fd);		
+		args[0] = &zserv;
+		args[1] = &zfd;
+		zval *retval;
 
-        if (call_user_function_ex(EG(function_table), NULL, php_sw_websocket_server_callbacks[0], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+		if (call_user_function_ex(EG(function_table), NULL, php_sw_websocket_server_callbacks[0], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
         {
             php_error_docref(NULL TSRMLS_CC, E_WARNING, "onOpen handler error");
         }
@@ -429,6 +531,8 @@ static void handshake_success(websocket_client *client)
         if (retval)
         {
             zval_ptr_dtor(&retval);
+			zval_ptr_dtor(&zserv);
+			zval_ptr_dtor(&zfd);
         }
     }
 }
@@ -483,7 +587,7 @@ static int websocket_onReceive(swFactory *factory, swEventData *req)
 	return websocket_onHandshake(req TSRMLS_CC);
 }
 
-static void websocet_onClose(swServer *serv, int fd, int from_id)
+static void websocket_onClose(swServer *serv, int fd, int from_id)
 {
 	websocket_client *client = swArray_fetch(websocket_client_array, fd);
     if (client)
@@ -588,7 +692,7 @@ PHP_METHOD( swoole_websocket_server, start)
 
     serv->onReceive = websocket_onReceive;
     serv->open_http_protocol = 1;
-	serv->onClose = websocet_onClose;
+	serv->onClose = websocket_onClose;
 
     serv->ptr2 = getThis();
 
@@ -621,6 +725,7 @@ PHP_METHOD(swoole_websocket_server, push)
     {
         return;
     }
+	swTrace("push to client: fd %d, data %s, opcode %d, fin %d", fd, data.str, opcode, fin);
 
     if (fd <= 0)
     {

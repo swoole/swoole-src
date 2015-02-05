@@ -6,19 +6,20 @@ $ser-> set(array(
 	"work_num" => 1
 ));
 
-$ser-> on( 'open', function()
+$ser-> on( 'open', function($ser, $fd)
 {
-	echo "server:shakehand success\r\n";
+	echo "server:shakehand success with fd{$fd}\r\n";
 });
 
-$ser-> on( 'message', function( swoole_websocket_frame $frame)
+$ser-> on( 'message', function( $fd, $data, $opcode, $fin) use($ser)
 {
-	echo "receive {$frame->data}\r\n";
+	echo "receive from {$fd}:{$data},opcode:{$opcode},fin:{$fin}\r\n";
+	$ser -> push( $fd, "this is server", WEBSOCKET_OPCODE_TEXT, 1 );
 });
 
-$ser-> on( 'close', function()
+$ser-> on( 'close', function($ser, $fd)
 {
-	echo "client closed\r\n";
+	echo "client {$fd} closed\r\n";
 });
 
 $ser-> start();
