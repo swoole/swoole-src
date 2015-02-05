@@ -118,11 +118,11 @@ static int swEventTimer_select(swTimer *timer)
         {
             if (tmp->interval > 0)
             {
-                timer->onTimer(timer, tmp->interval);
+                timer->onTimer(timer, tmp);
             }
             else if (!tmp->remove)
             {
-                timer->onTimeout(timer, tmp->data);
+                timer->onTimeout(timer, tmp);
             }
 
             timer->root = tmp->next;

@@ -1279,16 +1279,10 @@ int swThreadPool_run(swThreadPool *pool);
 int swThreadPool_free(swThreadPool *pool);
 
 //--------------------------------timer------------------------------
-typedef struct _swTimer_interval_node
-{
-    struct _swTimerList_node *next, *prev;
-    struct timeval lasttime;
-    uint32_t interval;
-} swTimer_interval_node;
-
 typedef struct _swTimer_node
 {
     struct _swTimer_node *next, *prev;
+    struct timeval lasttime;
     void *data;
     uint32_t exec_msec;
     uint32_t interval;
@@ -1316,8 +1310,8 @@ typedef struct _swTimer
 	int (*select)(struct _swTimer *timer);
 	void (*free)(struct _swTimer *timer);
 	/*-----------------event callback-------------------*/
-	void (*onTimer)(struct _swTimer *timer, int interval_msec);
-	void (*onTimeout)(struct _swTimer *timer, void *data);
+	void (*onTimer)(struct _swTimer *timer, swTimer_node *event);
+	void (*onTimeout)(struct _swTimer *timer, swTimer_node *event);
 } swTimer;
 
 int swTimer_init(int interval_ms, int no_pipe);

@@ -482,6 +482,7 @@ void swServer_signal_init(void);
 int swServer_start(swServer *serv);
 int swServer_addListener(swServer *serv, int type, char *host,int port);
 int swServer_add_worker(swServer *serv, swWorker *worker);
+void swServer_heartbeat_check(swServer *serv);
 
 int swServer_create(swServer *serv);
 int swServer_listen(swServer *serv, swReactor *reactor);
@@ -501,7 +502,7 @@ void swServer_pipe_set(swServer *serv, swPipe *p);
 
 int swServer_get_manager_pid(swServer *serv);
 int swServer_worker_init(swServer *serv, swWorker *worker);
-void swServer_onTimer(swTimer *timer, int interval);
+void swServer_onTimer(swTimer *timer, swTimer_node *event);
 
 void swTaskWorker_init(swProcessPool *pool);
 int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);

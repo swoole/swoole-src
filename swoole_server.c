@@ -2130,7 +2130,7 @@ PHP_FUNCTION(swoole_server_gettimer)
         RETURN_FALSE;
     }
 
-    swTimer_interval_node *timer_node;
+    swTimer_node *timer_node;
     uint64_t key;
     array_init(return_value);
 
@@ -2140,6 +2140,10 @@ PHP_FUNCTION(swoole_server_gettimer)
         if (timer_node == NULL)
         {
             break;
+        }
+        if (timer_node->interval == 0)
+        {
+            continue;
         }
         add_next_index_long(return_value, key);
 

@@ -237,14 +237,14 @@ static int swTimer_add(swTimer *timer, int msec, int interval, void *data)
     {
         return swTimer_addtimeout(timer, msec, data);
     }
-    swTimer_interval_node *node = sw_malloc(sizeof(swTimer_interval_node));
+    swTimer_node *node = sw_malloc(sizeof(swTimer_node));
     if (node == NULL)
     {
         swWarn("malloc failed.");
         return SW_ERR;
     }
 
-    bzero(node, sizeof(swTimer_interval_node));
+    bzero(node, sizeof(swTimer_node));
     node->interval = msec;
     if (gettimeofday(&node->lasttime, NULL) < 0)
     {
@@ -265,7 +265,7 @@ static int swTimer_add(swTimer *timer, int msec, int interval, void *data)
 int swTimer_select(swTimer *timer)
 {
     uint64_t key;
-    swTimer_interval_node *timer_node;
+    swTimer_node *timer_node;
     struct timeval now;
 
     if (gettimeofday(&now, NULL) < 0)
@@ -325,7 +325,7 @@ int swTimer_select(swTimer *timer)
         if (interval >= timer_node->interval - 1)
         {
             memcpy(&timer_node->lasttime, &now, sizeof(now));
-            timer->onTimer(timer, timer_node->interval);
+            timer->onTimer(timer, timer_node);
         }
     } while (timer_node);
     return SW_OK;

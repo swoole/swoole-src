@@ -19,6 +19,8 @@
 
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker);
 static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event);
+static void swReactorProcess_timer_init(swServer *serv);
+static void swReactorProcess_onTimer(swTimer *timer, swTimer_node *event);
 
 int swReactorProcess_create(swServer *serv)
 {
@@ -241,6 +243,12 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         serv->onWorkerStart(serv, worker->id);
     }
 
+    if (serv->heartbeat_check_interval > 0)
+    {
+        swReactorProcess_timer_init(serv);
+    }
+
+
     struct timeval timeo;
     timeo.tv_sec = SW_MAINREACTOR_TIMEO;
     timeo.tv_usec = 0;
@@ -257,4 +265,25 @@ int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
         serv->onClose(serv, event->fd, event->from_id);
     }
     return reactor->close(reactor, event->fd);
+}
+
+static void swReactorProcess_timer_init(swServer *serv)
+{
+    SwooleG.timer.onTimer = swReactorProcess_onTimer;
+    swEventTimer_init();
+    SwooleG.main_reactor->timeout_msec = serv->heartbeat_check_interval;
+    SwooleG.timer.interval = serv->heartbeat_check_interval;
+    SwooleG.timer.add(&SwooleG.timer, serv->heartbeat_check_interval, 1, serv);
+}
+
+static void swReactorProcess_onTimer(swTimer *timer, swTimer_node *event)
+{
+    if (event->data == SwooleG.serv)
+    {
+        swServer_heartbeat_check(SwooleG.serv);
+    }
+    else
+    {
+        swServer_onTimer(timer, event);
+    }
 }

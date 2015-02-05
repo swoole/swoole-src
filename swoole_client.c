@@ -70,8 +70,8 @@ static int php_swoole_client_onError(swReactor *reactor, swEvent *event);
 
 static int swoole_client_error_callback(zval *zobject, swEvent *event, int error TSRMLS_DC);
 
-static void php_swoole_onTimeout(swTimer *timer, void *data);
-static void php_swoole_onTimerInterval(swTimer *timer, int interval);
+static void php_swoole_onTimeout(swTimer *timer, swTimer_node *event);
+static void php_swoole_onTimerInterval(swTimer *timer, swTimer_node *event);
 
 static swClient* swoole_client_create_socket(zval *object, char *host, int host_len, int port);
 
@@ -521,9 +521,9 @@ void php_swoole_try_run_reactor()
     }
 }
 
-static void php_swoole_onTimeout(swTimer *timer, void *data)
+static void php_swoole_onTimeout(swTimer *timer, swTimer_node *event)
 {
-    swTimer_callback* callback = (swTimer_callback*) data;
+    swTimer_callback* callback = (swTimer_callback*) event->data;
     zval *retval = NULL;
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
@@ -553,11 +553,12 @@ static void php_swoole_onTimeout(swTimer *timer, void *data)
     zval_ptr_dtor(&callback->callback);
 }
 
-static void php_swoole_onTimerInterval(swTimer *timer, int interval)
+static void php_swoole_onTimerInterval(swTimer *timer, swTimer_node *event)
 {
-	zval *retval;
-	zval **args[1];
-	swoole_timer_item *timer_item;
+    zval *retval;
+    zval **args[1];
+    swoole_timer_item *timer_item;
+    uint32_t interval = event->interval;
 
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
