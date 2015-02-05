@@ -388,11 +388,6 @@ int swReactorThread_send(swSendData *_send)
         swWarn("connection#%d is not active, events=%d.", fd, _send->info.type);
         return SW_ERR;
     }
-    if (conn->removed)
-    {
-        swWarn("the connection#%d is closed by client.", fd);
-        return SW_ERR;
-    }
 
     swBuffer_trunk *trunk;
     swReactor *reactor = &(serv->reactor_threads[conn->from_id].reactor);
@@ -416,6 +411,11 @@ int swReactorThread_send(swSendData *_send)
         {
             direct_send:
             {
+                if (conn->removed)
+                {
+                    swWarn("the connection#%d is closed by client.", fd);
+                    return SW_ERR;
+                }
                 int n = swConnection_send(conn, _send->data, _send->length, 0);
                 if (n == _send->length)
                 {
@@ -471,6 +471,11 @@ int swReactorThread_send(swSendData *_send)
     //send data
     else
     {
+        if (conn->removed)
+        {
+            swWarn("the connection#%d is closed by client.", fd);
+            return SW_ERR;
+        }
         if (conn->out_buffer->length >= serv->buffer_output_size)
         {
             swWarn("Connection output buffer overflow.");
