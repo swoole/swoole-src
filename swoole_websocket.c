@@ -21,17 +21,14 @@
 #include <ext/standard/php_var.h>
 #include <ext/standard/php_string.h>
 #include <ext/date/php_date.h>
-
 #include <main/php_variables.h>
 
 #include "websocket.h"
 #include "Connection.h"
 #include "base64.h"
-/*******/
 #include "mylib/base64.h"
 #include "mylib/intLib.h"
 #include "mylib/sha1.h"
-
 #include "thirdparty/php_http_parser.h"
 
 
@@ -66,8 +63,6 @@ typedef struct
     unsigned int content_sender_initialized :1;
 } websocket_client;
 
-
-
 zend_class_entry swoole_websocket_server_ce;
 zend_class_entry *swoole_websocket_server_class_entry_ptr;
 
@@ -85,6 +80,9 @@ static int http_request_on_headers_complete(php_http_parser *parser);
 
 static int http_request_new(websocket_client* client TSRMLS_DC);
 static void http_request_free(websocket_client *client TSRMLS_DC);
+
+static char * fetchSecKey(const char * buf);
+static char * getAcceptKey(const char * buf);
 
 static int handshake_parse(swEventData *req TSRMLS_DC);
 static int handshake_response(websocket_client *client);
@@ -116,7 +114,6 @@ static const php_http_parser_settings http_parser_settings =
 	NULL,
 	NULL
 };
-
 
 const zend_function_entry swoole_websocket_server_methods[] =
 {
@@ -235,6 +232,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
     efree(header_name);
     return 0;
 }
+
 static int http_request_on_headers_complete(php_http_parser *parser)
 {
 	websocket_client *client = parser->data;
@@ -348,7 +346,7 @@ static int handshake_parse(swEventData *req TSRMLS_DC)
 	return SW_OK;
 }
 
-char * fetchSecKey(const char * buf)
+static char *fetchSecKey(const char * buf)
 {
   char *key;
   char *keyBegin;
@@ -358,7 +356,7 @@ char * fetchSecKey(const char * buf)
 
   keyBegin = buf;
   bufLen = strlen(buf);
-  for(i=0; i<bufLen; i++)
+  for(i = 0; i < bufLen; i++)
   {
       if(keyBegin[i] == 0x0A || keyBegin[i] == 0x0D)
 	  {
@@ -370,15 +368,14 @@ char * fetchSecKey(const char * buf)
   return key;
 }
 
-
-char * computeAcceptKey(const char * buf)
+static char *getAcceptKey(const char * buf)
 {
   char * clientKey;
   char * serverKey; 
   char * sha1DataTemp;
   char * sha1Data;
   int i,n;
-  const char * GUID="258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+  const char * GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
   clientKey = fetchSecKey(buf); 
   if(!clientKey)
@@ -388,13 +385,13 @@ char * computeAcceptKey(const char * buf)
   strcat(clientKey,GUID);
 
   sha1DataTemp = sha1_hash(clientKey);
-  n=strlen(sha1DataTemp);
-  sha1Data=(char *)malloc(n/2+1);
+  n = strlen(sha1DataTemp);
+  sha1Data = (char *)malloc(n/2+1);
   memset(sha1Data,0,n/2+1);
  
-  for(i=0;i<n;i+=2)
+  for(i = 0; i < n ;i +=2)
   {      
-      sha1Data[i/2]=htoi(sha1DataTemp,i,2);    
+      sha1Data[i/2] = htoi(sha1DataTemp,i,2);    
   } 
 
   serverKey = mybase64_encode(sha1Data, strlen(sha1Data)); 
@@ -426,7 +423,7 @@ static int handshake_response(websocket_client *client)
 
     swString *shaBuf = swString_new(Z_STRLEN_PP(pData)+36);
     swString_append_ptr(shaBuf, Z_STRVAL_PP(pData), Z_STRLEN_PP(pData));
-	char *encoded_value = computeAcceptKey( shaBuf->str);
+	char *encoded_value = getAcceptKey( shaBuf->str);
 
     char _buf[128];
     int n = 0;	
@@ -444,8 +441,6 @@ static int handshake_response(websocket_client *client)
 //    swTrace("handshake send: %d lenght: %d\n", client->fd, ret);
     return ret;	
 }
-
-
 
 static void handshake_success(websocket_client *client)
 {
@@ -526,7 +521,6 @@ swTrace("onhandshake\r\n");
     return SW_OK;
 
 }
-
 
 static int websocket_onReceive(swFactory *factory, swEventData *req)
 {
