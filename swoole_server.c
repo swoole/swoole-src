@@ -1881,7 +1881,7 @@ PHP_FUNCTION(swoole_server_sendfile)
     }
 
     //check fd
-    if (conn_fd <= 0)
+    if (conn_fd <= 0 || conn_fd > SW_MAX_SOCKET_ID)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "invalid fd[%ld] error.", conn_fd);
         RETURN_FALSE;
@@ -2750,10 +2750,8 @@ PHP_FUNCTION(swoole_connection_info)
     }
     SWOOLE_GET_SERVER(zobject, serv);
 
-    swConnection *conn = swServer_connection_get(serv, fd);
-
     //udp client
-    if (conn == NULL)
+    if (swSocket_isUDP(fd))
     {
         array_init(return_value);
         php_swoole_udp_t udp_info;
@@ -2779,6 +2777,11 @@ PHP_FUNCTION(swoole_connection_info)
         return;
     }
 
+#ifdef SW_REACTOR_USE_SESSION
+    fd = swServer_get_fd(serv, fd);
+#endif
+
+    swConnection *conn = swServer_connection_get(serv, fd);
     //connection is closed
     if (conn->active == 0 && !noCheckConnection)
     {

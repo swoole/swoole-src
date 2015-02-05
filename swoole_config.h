@@ -114,6 +114,8 @@
 #define SW_REACTOR_SCHEDULE              2
 #define SW_REACTOR_MINEVENTS             128
 #define SW_REACTOR_MAXEVENTS             4096
+//#define SW_REACTOR_USE_SESSION
+#define SW_REACTOR_MAX_THREAD            8
 
 #define SW_REACTOR_SYNC_SEND            //direct send
 #define SW_SCHEDULE_INTERVAL             32   //平均调度的间隔次数,减少运算量

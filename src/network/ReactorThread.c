@@ -189,6 +189,11 @@ int swReactorThread_close(swReactor *reactor, int fd)
     }
 #endif
 
+#ifdef SW_REACTOR_USE_SESSION
+    swSession *session = &serv->session_list[conn->session_id % serv->max_connection];
+    session->fd = 0;
+#endif
+
     /**
     * reset maxfd, for connection_list
     */
@@ -353,10 +358,28 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
 int swReactorThread_send(swSendData *_send)
 {
     swServer *serv = SwooleG.serv;
+    int fd;
 
-    int fd = _send->info.fd;
-
+#ifdef SW_REACTOR_USE_SESSION
+    int session_id = _send->info.fd;
+    swSession *session = &(serv->session_list[session_id % serv->max_connection]);
+    fd = session->fd;
     swConnection *conn = swServer_connection_get(serv, fd);
+    if (!conn)
+    {
+        swWarn("send to socket#%d failed, the connection is closed.", session_id);
+        return SW_ERR;
+    }
+    if (session->id != session_id || conn->session_id != session_id)
+    {
+        swWarn("send failed, the session#%d has expired.", session_id);
+        return SW_ERR;
+    }
+#else
+    fd = _send->info.fd;
+    swConnection *conn = swServer_connection_get(serv, fd);
+#endif
+
     //The connection has been closed.
     if (conn == NULL || conn->active == 0)
     {
@@ -1463,6 +1486,15 @@ int swReactorThread_create(swServer *serv)
         return SW_ERR;
     }
 
+#ifdef SW_REACTOR_USE_SESSION
+    serv->session_list = sw_shm_calloc(serv->max_connection, sizeof(swSession));
+    if (serv->session_list == NULL)
+    {
+        swError("sw_shm_calloc(%ld) for session_list failed", serv->max_connection * sizeof(swSession));
+        return SW_ERR;
+    }
+#endif
+
     //create factry object
     if (serv->factory_mode == SW_MODE_THREAD)
     {
@@ -1502,6 +1534,7 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
     pthread_t pidt;
 
     int i, ret;
+
     //listen UDP
     if (serv->have_udp_sock == 1)
     {

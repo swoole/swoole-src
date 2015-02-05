@@ -415,7 +415,10 @@ struct _swServer
     swReactorThread *reactor_threads;
     swWorker *workers;
 
-    swConnection *connection_list; //连接列表
+    swConnection *connection_list;  //连接列表
+    swSession *session_list;
+    uint32_t session_round;
+
     int connection_list_capacity; //超过此容量，会自动扩容
 
     /**
@@ -490,6 +493,7 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length);
 
 //UDP, UDP必然超过0x1000000
 //原因：IPv4的第4字节最小为1,而这里的conn_fd是网络字节序
+#define SW_MAX_SOCKET_ID            0x1000000
 #define swSocket_isUDP(fd)          (fd > 0x1000000)
 
 swPipe * swServer_pipe_get(swServer *serv, int pipe_fd);
@@ -562,6 +566,11 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
     {
         return &(SwooleGS->event_workers.workers[worker_id]);
     }
+}
+
+static sw_inline int swServer_get_fd(swServer *serv, uint32_t session_id)
+{
+    return serv->session_list[session_id % serv->max_connection].fd;
 }
 
 static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t schedule_key)

@@ -701,9 +701,13 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         return swServer_udp_send(serv, resp);
     }
 
-    swEventData ev_data;
-
+#ifdef SW_REACTOR_USE_SESSION
+    int real_fd = swServer_get_fd(serv, fd);
+    swConnection *conn = swServer_connection_get(serv, real_fd);
+#else
     swConnection *conn = swServer_connection_get(serv, fd);
+#endif
+
     if (conn == NULL || conn->active == 0)
     {
         swWarn("send failed, because connection[%d] has been closed.", fd);
@@ -715,6 +719,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         return SW_ERR;
     }
 
+    swEventData ev_data;
     ev_data.info.fd = fd;
     ev_data.info.type = resp->info.type;
     swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
@@ -844,6 +849,11 @@ int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
     {
         target_worker_id = task->target_worker_id;
     }
+
+#ifdef SW_REACTOR_USE_SESSION
+    swConnection *conn = swServer_connection_get(serv, task->data.info.fd);
+    task->data.info.fd = conn->session_id;
+#endif
 
     return swReactorThread_send2worker((void *) &(task->data), send_len, target_worker_id);
 }

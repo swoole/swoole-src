@@ -323,6 +323,12 @@ typedef struct _swConnection
      * file descript
      */
     int fd;
+
+    /**
+     * session id
+     */
+    uint32_t session_id;
+
     int type;
     int events;
 
@@ -408,6 +414,12 @@ typedef struct _swConnection
 #endif
 
 } swConnection;
+
+typedef struct
+{
+    uint32_t id;
+    int fd;
+} swSession;
 
 typedef struct
 {

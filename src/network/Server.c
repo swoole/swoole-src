@@ -115,6 +115,14 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         memcpy(&conn->addr, &client_addr, sizeof(client_addr));
         sub_reactor = &serv->reactor_threads[reactor_id].reactor;
 
+#ifdef SW_REACTOR_USE_SESSION
+        uint32_t session_id = (serv->session_round++) % SW_MAX_SOCKET_ID;
+        conn->session_id = session_id;
+        swSession *session = &serv->session_list[session_id % serv->max_connection];
+        session->fd = new_fd;
+        session->id = session_id;
+#endif
+
 #ifdef SW_USE_OPENSSL
 		if (serv->open_ssl)
 		{
@@ -522,49 +530,50 @@ int swServer_start(swServer *serv)
  */
 void swServer_init(swServer *serv)
 {
-	swoole_init();
-	bzero(serv, sizeof(swServer));
+    swoole_init();
+    bzero(serv, sizeof(swServer));
 
-	serv->backlog = SW_BACKLOG;
-	serv->factory_mode = SW_MODE_BASE;
-	serv->reactor_num = SW_REACTOR_NUM;
-	serv->reactor_ringbuffer_size = SW_REACTOR_RINGBUFFER_SIZE;
+    serv->backlog = SW_BACKLOG;
+    serv->factory_mode = SW_MODE_BASE;
 
-	serv->dispatch_mode = SW_DISPATCH_FDMOD;
-	serv->ringbuffer_size = SW_QUEUE_SIZE;
+    serv->reactor_num = SW_REACTOR_NUM > SW_REACTOR_MAX_THREAD ? SW_REACTOR_MAX_THREAD : SW_REACTOR_NUM;
+    serv->reactor_ringbuffer_size = SW_REACTOR_RINGBUFFER_SIZE;
 
-	serv->timeout_sec = SW_REACTOR_TIMEO_SEC;
-	serv->timeout_usec = SW_REACTOR_TIMEO_USEC; //300ms;
+    serv->dispatch_mode = SW_DISPATCH_FDMOD;
+    serv->ringbuffer_size = SW_QUEUE_SIZE;
 
-	serv->worker_num = SW_CPU_NUM;
-	serv->max_connection = SwooleG.max_sockets;
+    serv->timeout_sec = SW_REACTOR_TIMEO_SEC;
+    serv->timeout_usec = SW_REACTOR_TIMEO_USEC;  //300ms;
 
-	serv->max_request = 0;
-	serv->task_max_request = SW_MAX_REQUEST;
+    serv->worker_num = SW_CPU_NUM;
+    serv->max_connection = SwooleG.max_sockets;
 
-	serv->open_tcp_nopush = 1;
+    serv->max_request = 0;
+    serv->task_max_request = SW_MAX_REQUEST;
 
-	//tcp keepalive
-	serv->tcp_keepcount = SW_TCP_KEEPCOUNT;
-	serv->tcp_keepinterval = SW_TCP_KEEPINTERVAL;
-	serv->tcp_keepidle = SW_TCP_KEEPIDLE;
+    serv->open_tcp_nopush = 1;
 
-	//heartbeat check
-	serv->heartbeat_idle_time = SW_HEARTBEAT_IDLE;
-	serv->heartbeat_check_interval = SW_HEARTBEAT_CHECK;
+    //tcp keepalive
+    serv->tcp_keepcount = SW_TCP_KEEPCOUNT;
+    serv->tcp_keepinterval = SW_TCP_KEEPINTERVAL;
+    serv->tcp_keepidle = SW_TCP_KEEPIDLE;
 
-	char eof[] = SW_DATA_EOF;
-	serv->package_eof_len = sizeof(SW_DATA_EOF) - 1;
-	serv->package_length_type = 'N';
-	serv->package_length_size = 4;
-	serv->package_body_offset = 0;
+    //heartbeat check
+    serv->heartbeat_idle_time = SW_HEARTBEAT_IDLE;
+    serv->heartbeat_check_interval = SW_HEARTBEAT_CHECK;
 
-	serv->package_max_length = SW_BUFFER_INPUT_SIZE;
+    char eof[] = SW_DATA_EOF;
+    serv->package_eof_len = sizeof(SW_DATA_EOF) - 1;
+    serv->package_length_type = 'N';
+    serv->package_length_size = 4;
+    serv->package_body_offset = 0;
 
-	serv->buffer_input_size = SW_BUFFER_INPUT_SIZE;
-	serv->buffer_output_size = SW_BUFFER_OUTPUT_SIZE;
+    serv->package_max_length = SW_BUFFER_INPUT_SIZE;
 
-	memcpy(serv->package_eof, eof, serv->package_eof_len);
+    serv->buffer_input_size = SW_BUFFER_INPUT_SIZE;
+    serv->buffer_output_size = SW_BUFFER_OUTPUT_SIZE;
+
+    memcpy(serv->package_eof, eof, serv->package_eof_len);
 }
 
 int swServer_create(swServer *serv)
