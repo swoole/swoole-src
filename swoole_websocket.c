@@ -143,6 +143,8 @@ static int websocket_onMessage(swEventData *req TSRMLS_DC)
 
     buf += 2;
 
+	swServer *serv = SwooleG.serv;
+	zval *zserv = (zval *)serv->ptr2;
 	zval *zd, *zfd, *zopcode, *zfin;
 	MAKE_STD_ZVAL(zd);
 	MAKE_STD_ZVAL(zfd);
@@ -152,13 +154,14 @@ static int websocket_onMessage(swEventData *req TSRMLS_DC)
 	ZVAL_LONG(zfd, fd);
 	ZVAL_LONG(zopcode, opcode);
 	ZVAL_LONG(zfin, fin);
-	zval **args[4];
-	args[0] = &zfd;
-	args[1] = &zd;
-	args[2] = &zopcode;
-	args[3] = &zfin;
+	zval **args[5];
+	args[0] = &zserv;
+	args[1] = &zfd;
+	args[2] = &zd;
+	args[3] = &zopcode;
+	args[4] = &zfin;
     zval *retval;
-	if (call_user_function_ex(EG(function_table), NULL, php_sw_websocket_server_callbacks[1], &retval, 4, args, 0,  NULL TSRMLS_CC) == FAILURE)
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_websocket_server_callbacks[1], &retval, 5, args, 0,  NULL TSRMLS_CC) == FAILURE)
 
     {
         zval_ptr_dtor(&zdata);
@@ -182,6 +185,7 @@ static int websocket_onMessage(swEventData *req TSRMLS_DC)
 	zval_ptr_dtor(&zd);
 	zval_ptr_dtor(&zopcode);
 	zval_ptr_dtor(&zfin);
+	zval_ptr_dtor(&zserv);
 
     return SW_OK;
 }
@@ -344,39 +348,24 @@ static int handshake_parse(swEventData *req TSRMLS_DC)
 	return SW_OK;
 }
 
-
-static void sha1(const char *str, unsigned char *digest)
-{
-    PHP_SHA1_CTX context;
-    PHP_SHA1Init(&context);
-    PHP_SHA1Update(&context, (unsigned char *)str, strlen(str));
-    PHP_SHA1Final(digest, &context);
-    return;
-}
-
-
 char * fetchSecKey(const char * buf)
 {
   char *key;
   char *keyBegin;
-  int i=0, bufLen=0;
-swTrace("fetchSecKey  start");
-  key=(char *)malloc(256);
+  int i = 0, bufLen = 0;
+  key = (char *)malloc(256);
   memset(key,0, 256);
-  if(!buf)
-    {
-      return NULL;
-    }
-keyBegin=buf;
-  bufLen=strlen(buf);
-  for(i=0;i<bufLen;i++)
-    {
-      if(keyBegin[i]==0x0A||keyBegin[i]==0x0D)
-	{
-	  break;
-	}
-      key[i]=keyBegin[i];
-    }
+
+  keyBegin = buf;
+  bufLen = strlen(buf);
+  for(i=0; i<bufLen; i++)
+  {
+      if(keyBegin[i] == 0x0A || keyBegin[i] == 0x0D)
+	  {
+		break;
+	  }
+      key[i] = keyBegin[i];
+  }
   
   return key;
 }
@@ -390,38 +379,29 @@ char * computeAcceptKey(const char * buf)
   char * sha1Data;
   int i,n;
   const char * GUID="258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-swTrace("computeAcceptKey start\n");
- 
 
-  if(!buf)
-    {
-      return NULL;
-    }
-  clientKey=(char *)malloc(LINE_MAX);
-  memset(clientKey,0,LINE_MAX);
-  clientKey=fetchSecKey(buf);
- 
+  clientKey = fetchSecKey(buf); 
   if(!clientKey)
-    {
+  {
       return NULL;
-    }
-swTrace("fetchkey success,key=%s",clientKey);
- 
+  }
   strcat(clientKey,GUID);
 
-  sha1DataTemp=sha1_hash(clientKey);
+  sha1DataTemp = sha1_hash(clientKey);
   n=strlen(sha1DataTemp);
-
-
   sha1Data=(char *)malloc(n/2+1);
   memset(sha1Data,0,n/2+1);
  
   for(i=0;i<n;i+=2)
-    {      
+  {      
       sha1Data[i/2]=htoi(sha1DataTemp,i,2);    
-    } 
+  } 
 
   serverKey = mybase64_encode(sha1Data, strlen(sha1Data)); 
+
+  free(clientKey);
+  free(sha1DataTemp);
+  free(sha1Data);
 
   return serverKey;
 }
@@ -440,42 +420,18 @@ static int handshake_response(websocket_client *client)
     }
 
     convert_to_string(*pData);
-//    swTrace("key: %s len:%d\n", Z_STRVAL_PP(pData), Z_STRLEN_PP(pData));
 
     swString *buf = swString_new(512);
     swString_append_ptr(buf, ZEND_STRL("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"));
 
     swString *shaBuf = swString_new(Z_STRLEN_PP(pData)+36);
     swString_append_ptr(shaBuf, Z_STRVAL_PP(pData), Z_STRLEN_PP(pData));
-/*
-    swString_append_ptr(shaBuf, ZEND_STRL(SW_WEBSOCKET_GUID));
-
-    char data_str[20];
-//    bzero(data_str, sizeof(data_str));
-//    swTrace("sha1 start:%s\n", shaBuf->str);
-    sha1(shaBuf->str, (unsigned char *) data_str);
-
-    char encoded_value[50];
-    bzero(encoded_value, sizeof(encoded_value));
-//    swTrace("base64_encode start:%d\n", sizeof(data_str));
-    swBase64_encode((unsigned char *) data_str, 20, encoded_value);
-//    swTrace("base64_encode end:%s %d %d\n", encoded_value, encoded_len, strlen(encoded_value));
-
-*/
+	char *encoded_value = computeAcceptKey( shaBuf->str);
 
     char _buf[128];
-    int n = 0;
-
-
-/*******fix bug****/
-
-	char *encoded_value = computeAcceptKey( shaBuf->str);
+    int n = 0;	
     n = snprintf(_buf, strlen(encoded_value)+25, "Sec-WebSocket-Accept: %s\r\n", encoded_value);
-//    n = snprintf(_buf, strlen(encoded_value)+25, "Sec-WebSocket-Accept: %s\r\n", encoded_value);
-
-/****/
-//    efree(data_str);
-//    efree(encoded_value);
+	free(encoded_value);
     swString_free(shaBuf);
 //    swTrace("accept value: %s\n", _buf);
     swString_append_ptr(buf, _buf, n);
