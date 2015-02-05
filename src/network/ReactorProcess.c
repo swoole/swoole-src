@@ -19,7 +19,7 @@
 
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker);
 static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event);
-static void swReactorProcess_timer_init(swServer *serv);
+static void swReactorProcess_timer_init(swServer *serv, swReactor *reactor);
 static void swReactorProcess_onTimer(swTimer *timer, swTimer_node *event);
 
 int swReactorProcess_create(swServer *serv)
@@ -219,9 +219,6 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 
     reactor->close = swReactorThread_close;
 
-    reactor->onFinish = NULL;
-    reactor->onTimeout = NULL;
-
     //set event handler
     //connect
     reactor->setHandle(reactor, SW_FD_LISTEN, swServer_master_onAccept);
@@ -243,11 +240,13 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         serv->onWorkerStart(serv, worker->id);
     }
 
+    /**
+     * for heartbeat check
+     */
     if (serv->heartbeat_check_interval > 0)
     {
-        swReactorProcess_timer_init(serv);
+        swReactorProcess_timer_init(serv, reactor);
     }
-
 
     struct timeval timeo;
     timeo.tv_sec = SW_MAINREACTOR_TIMEO;
@@ -267,20 +266,43 @@ int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
     return reactor->close(reactor, event->fd);
 }
 
-static void swReactorProcess_timer_init(swServer *serv)
+static void swReactorProcess_timer_init(swServer *serv, swReactor *reactor)
 {
     SwooleG.timer.onTimer = swReactorProcess_onTimer;
+    int interval_ms = serv->heartbeat_check_interval * 1000;
     swEventTimer_init();
-    SwooleG.main_reactor->timeout_msec = serv->heartbeat_check_interval;
-    SwooleG.timer.interval = serv->heartbeat_check_interval;
-    SwooleG.timer.add(&SwooleG.timer, serv->heartbeat_check_interval, 1, serv);
+    reactor->timeout_msec = interval_ms;
+    SwooleG.timer.interval = interval_ms;
+    SwooleG.timer.add(&SwooleG.timer, interval_ms, 1, serv);
 }
 
 static void swReactorProcess_onTimer(swTimer *timer, swTimer_node *event)
 {
-    if (event->data == SwooleG.serv)
+    swServer *serv = SwooleG.serv;
+
+    if (event->data == serv)
     {
-        swServer_heartbeat_check(SwooleG.serv);
+        swFactory *factory = &serv->factory;
+        swConnection *conn;
+
+        int fd;
+        int serv_max_fd;
+        int serv_min_fd;
+        int checktime;
+
+        serv_max_fd = swServer_get_maxfd(serv);
+        serv_min_fd = swServer_get_minfd(serv);
+
+        checktime = (int) time(NULL) - serv->heartbeat_idle_time;
+
+        for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
+        {
+            conn = swServer_connection_get(serv, fd);
+            if (conn != NULL && 1 == conn->active && conn->last_time < checktime)
+            {
+                factory->end(&serv->factory, fd);
+            }
+        }
     }
     else
     {

@@ -146,7 +146,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         /*
          * [!!!] new_connection function must before reactor->add
          */
-        if (serv->onConnect)
+        if (serv->factory_mode == SW_MODE_PROCESS && serv->onConnect)
         {
             conn->connect_notify = 1;
             ret = sub_reactor->add(sub_reactor, new_fd, SW_FD_TCP | SW_EVENT_WRITE);
@@ -277,6 +277,15 @@ static int swServer_start_proxy(swServer *serv)
 		return SW_ERR;
 	}
 
+    /**
+     * heartbeat thread
+     */
+    if (serv->heartbeat_check_interval >= 1 && serv->heartbeat_check_interval <= serv->heartbeat_idle_time)
+    {
+        swTrace("hb timer start, time: %d live time:%d", serv->heartbeat_check_interval, serv->heartbeat_idle_time);
+        swHeartbeatThread_start(serv);
+    }
+
 	/**
      * master thread loop
      */
@@ -310,11 +319,14 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     {
         cpu_set_t cpu_set;
         CPU_ZERO(&cpu_set);
-         if(serv->cpu_affinity_available_num){
+        if (serv->cpu_affinity_available_num)
+        {
             CPU_SET(serv->cpu_affinity_available[worker->id % serv->cpu_affinity_available_num], &cpu_set);
-         }else{
+        }
+        else
+        {
             CPU_SET(worker->id %SW_CPU_NUM, &cpu_set);
-         }
+        }
         if (sched_setaffinity(getpid(), sizeof(cpu_set), &cpu_set) < 0)
         {
             swSysError("sched_setaffinity() failed.");
@@ -500,13 +512,6 @@ int swServer_start(swServer *serv)
 
     //标识为主进程
     SwooleG.process_type = SW_PROCESS_MASTER;
-
-    //启动心跳检测
-    if (serv->heartbeat_check_interval >= 1 && serv->heartbeat_check_interval <= serv->heartbeat_idle_time)
-    {
-        swTrace("hb timer start, time: %d live time:%d", serv->heartbeat_check_interval, serv->heartbeat_idle_time);
-        swHeartbeatThread_start(serv);
-    }
 
     if (serv->factory_mode == SW_MODE_SINGLE)
     {
@@ -1099,8 +1104,11 @@ static void swHeartbeatThread_start(swServer *serv)
     SwooleG.heartbeat_pidt = thread_id;
 }
 
-void swServer_heartbeat_check(swServer *serv)
+static void swHeartbeatThread_loop(swThreadParam *param)
 {
+    swSignal_none();
+
+    swServer *serv = param->object;
     swDataHead notify_ev;
     swFactory *factory = &serv->factory;
     swConnection *conn;
@@ -1110,37 +1118,31 @@ void swServer_heartbeat_check(swServer *serv)
     int serv_min_fd;
     int checktime;
 
-    bzero(&notify_ev, sizeof(notify_ev));
-    notify_ev.type = SW_EVENT_CLOSE;
-
-    serv_max_fd = swServer_get_maxfd(serv);
-    serv_min_fd = swServer_get_minfd(serv);
-
-    checktime = (int) time(NULL) - serv->heartbeat_idle_time;
-
-    //遍历到最大fd
-    for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
-    {
-        swTrace("check fd=%d", fd);
-        conn = swServer_connection_get(serv, fd);
-        if (conn != NULL && 1 == conn->active && conn->last_time < checktime)
-        {
-            notify_ev.fd = fd;
-            notify_ev.from_id = conn->from_id;
-            conn->close_force = 1;
-            factory->notify(&serv->factory, &notify_ev);
-        }
-    }
-}
-
-static void swHeartbeatThread_loop(swThreadParam *param)
-{
-    swSignal_none();
-    swServer *serv = param->object;
-
     while (SwooleG.running)
     {
-        swServer_heartbeat_check(serv);
+
+        bzero(&notify_ev, sizeof(notify_ev));
+        notify_ev.type = SW_EVENT_CLOSE;
+
+        serv_max_fd = swServer_get_maxfd(serv);
+        serv_min_fd = swServer_get_minfd(serv);
+
+        checktime = (int) time(NULL) - serv->heartbeat_idle_time;
+
+        //遍历到最大fd
+        for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
+        {
+            swTrace("check fd=%d", fd);
+            conn = swServer_connection_get(serv, fd);
+
+            if (conn != NULL && 1 == conn->active && conn->last_time < checktime)
+            {
+                notify_ev.fd = fd;
+                notify_ev.from_id = conn->from_id;
+                conn->close_force = 1;
+                factory->notify(&serv->factory, &notify_ev);
+            }
+        }
         sleep(serv->heartbeat_check_interval);
     }
 

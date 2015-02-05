@@ -482,7 +482,6 @@ void swServer_signal_init(void);
 int swServer_start(swServer *serv);
 int swServer_addListener(swServer *serv, int type, char *host,int port);
 int swServer_add_worker(swServer *serv, swWorker *worker);
-void swServer_heartbeat_check(swServer *serv);
 
 int swServer_create(swServer *serv);
 int swServer_listen(swServer *serv, swReactor *reactor);
