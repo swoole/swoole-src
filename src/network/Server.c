@@ -1118,12 +1118,11 @@ static void swHeartbeatThread_loop(swThreadParam *param)
     int serv_min_fd;
     int checktime;
 
+    bzero(&notify_ev, sizeof(notify_ev));
+    notify_ev.type = SW_EVENT_CLOSE;
+
     while (SwooleG.running)
     {
-
-        bzero(&notify_ev, sizeof(notify_ev));
-        notify_ev.type = SW_EVENT_CLOSE;
-
         serv_max_fd = swServer_get_maxfd(serv);
         serv_min_fd = swServer_get_minfd(serv);
 

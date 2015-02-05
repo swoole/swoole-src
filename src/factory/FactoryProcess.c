@@ -640,7 +640,7 @@ int swFactoryProcess_end(swFactory *factory, int fd)
     _send.info.len = 0;
     _send.info.type = SW_EVENT_CLOSE;
 
-    swConnection *conn = swServer_connection_get(serv, _send.info.fd);
+    swConnection *conn = swWorker_get_connection(serv, fd);
     if (conn == NULL || conn->active == 0)
     {
         //swWarn("can not close. Connection[%d] not found.", _send.info.fd);
@@ -701,13 +701,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         return swServer_udp_send(serv, resp);
     }
 
-#ifdef SW_REACTOR_USE_SESSION
-    int real_fd = swServer_get_fd(serv, fd);
-    swConnection *conn = swServer_connection_get(serv, real_fd);
-#else
-    swConnection *conn = swServer_connection_get(serv, fd);
-#endif
-
+    swConnection *conn = swWorker_get_connection(serv, fd);
     if (conn == NULL || conn->active == 0)
     {
         swWarn("send failed, because connection[%d] has been closed.", fd);

@@ -648,6 +648,18 @@ void swServer_worker_onStart(swServer *serv);
 void swServer_worker_onStop(swServer *serv);
 
 int swWorker_create(swWorker *worker);
+
+static sw_inline swConnection *swWorker_get_connection(swServer *serv, int fd)
+{
+#ifdef SW_REACTOR_USE_SESSION
+    int real_fd = swServer_get_fd(serv, fd);
+    swConnection *conn = swServer_connection_get(serv, real_fd);
+#else
+    swConnection *conn = swServer_connection_get(serv, fd);
+#endif
+    return conn;
+}
+
 void swWorker_free(swWorker *worker);
 void swWorker_signal_init(void);
 void swWorker_onStart(swServer *serv);
