@@ -335,11 +335,13 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
 
     if (read(event->fd, &task, sizeof(task)) > 0)
     {
+        ret = swWorker_excute(factory, &task);
+#ifndef SW_WORKER_RECV_AGAIN
         /**
          * Big package
          */
-        ret = swWorker_excute(factory, &task);
         if (task.info.type == SW_EVENT_PACKAGE_START)
+#endif
         {
             //no data
             if (ret < 0 && errno == EAGAIN)

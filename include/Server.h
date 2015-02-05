@@ -543,12 +543,23 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags);
 //使用connection_list[0]表示最大的FD
 #define swServer_set_maxfd(serv,maxfd) (serv->connection_list[SW_SERVER_MAX_FD_INDEX].fd=maxfd)
 #define swServer_get_maxfd(serv) (serv->connection_list[SW_SERVER_MAX_FD_INDEX].fd)
-#define swServer_connection_get(serv,fd) ((fd>serv->max_connection || fd<=2)?NULL:&serv->connection_list[fd])
 //使用connection_list[1]表示最小的FD
 #define swServer_set_minfd(serv,maxfd) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd=maxfd)
 #define swServer_get_minfd(serv) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd)
 
 #define swServer_get_thread(serv, reactor_id)    (&(serv->reactor_threads[reactor_id]))
+
+static sw_inline swConnection* swServer_connection_get(swServer *serv, int fd)
+{
+    if (fd > serv->max_connection || fd <= 2)
+    {
+        return NULL;
+    }
+    else
+    {
+        return &serv->connection_list[fd];
+    }
+}
 
 static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_id)
 {

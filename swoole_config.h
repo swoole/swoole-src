@@ -102,6 +102,7 @@
 #define SW_WORKER_READ_COUNT       10
 #define SW_WORKER_WAIT_PIPE
 #define SW_WORKER_WAIT_TIMEOUT     1000
+#define SW_WORKER_RECV_AGAIN
 
 #define SW_WORKER_USE_SIGNALFD
 
@@ -115,7 +116,16 @@
 #define SW_REACTOR_MINEVENTS             128
 #define SW_REACTOR_MAXEVENTS             4096
 //#define SW_REACTOR_USE_SESSION
+/**
+ * 最大Reactor线程数量，默认会启动CPU核数的线程数
+ * 如果超过8核，默认启动8个线程
+ */
 #define SW_REACTOR_MAX_THREAD            8
+
+/**
+ * 循环从管道中读取数据，有助于缓解管道缓存塞满问题，降低进程间通信的压力
+ */
+#define SW_REACTOR_RECV_AGAIN
 
 #define SW_REACTOR_SYNC_SEND            //direct send
 #define SW_SCHEDULE_INTERVAL             32   //平均调度的间隔次数,减少运算量
@@ -148,8 +158,15 @@
 
 #define SW_BACKLOG                       512
 
-#define SW_ACCEPT_AGAIN                  1     //是否循环accept，可以一次性处理完全部的listen队列，用于大量并发连接的场景
-#define SW_ACCEPT_MAX_COUNT              64    //一次循环的最大accept次数
+/**
+ * 是否循环accept，可以一次性处理完全部的listen队列，用于大量并发连接的场景
+ */
+#define SW_ACCEPT_AGAIN                  1
+
+/**
+ * 一次循环的最大accept次数
+ */
+#define SW_ACCEPT_MAX_COUNT              64
 
 #define SW_TCP_KEEPCOUNT                 5
 #define SW_TCP_KEEPIDLE                  3600 //1 hour

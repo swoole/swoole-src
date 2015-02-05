@@ -258,7 +258,9 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
     swPackage_response pkg_resp;
     swWorker *worker;
 
+#ifdef SW_REACTOR_RECV_AGAIN
     while (1)
+#endif
     {
         n = read(ev->fd, &resp, sizeof(resp));
         if (n > 0)
