@@ -385,7 +385,12 @@ int swReactorThread_send(swSendData *_send)
     //The connection has been closed.
     if (conn == NULL || conn->active == 0)
     {
-        swWarn("connection[fd=%d, event=%d] is not active.", fd, _send->info.type);
+        swWarn("connection#%d is not active, events=%d.", fd, _send->info.type);
+        return SW_ERR;
+    }
+    if (conn->removed)
+    {
+        swWarn("the connection#%d is closed by client.", fd);
         return SW_ERR;
     }
 
@@ -710,16 +715,16 @@ static int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *even
     {
         switch (swConnection_error(errno))
         {
-            case SW_ERROR:
+        case SW_ERROR:
             swSysError("recv from connection[%d@%d] failed.", event->fd, reactor->id);
-                return SW_OK;
-            case SW_CLOSE:
-                goto close_fd;
-            default:
-                return SW_OK;
+            return SW_OK;
+        case SW_CLOSE:
+            goto close_fd;
+        default:
+            return SW_OK;
         }
     }
-        //需要检测errno来区分是EAGAIN还是ECONNRESET
+    //需要检测errno来区分是EAGAIN还是ECONNRESET
     else if (n == 0)
     {
         close_fd:

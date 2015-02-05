@@ -800,6 +800,18 @@ int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
     uint16_t target_worker_id;
     swServer *serv = SwooleG.serv;
 
+    swConnection *conn = swServer_connection_get(serv, task->data.info.fd);
+    if (conn == NULL || conn->active == 0)
+    {
+        swWarn("connection#%d is not active.", task->data.info.fd);
+        return SW_ERR;
+    }
+    if (conn->closed)
+    {
+        swWarn("connection#%d is closed by server.", task->data.info.fd);
+        return SW_OK;
+    }
+
     if (task->target_worker_id < 0)
     {
         //udp use remote port
@@ -845,7 +857,6 @@ int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
     }
 
 #ifdef SW_REACTOR_USE_SESSION
-    swConnection *conn = swServer_connection_get(serv, task->data.info.fd);
     task->data.info.fd = conn->session_id;
 #endif
 
