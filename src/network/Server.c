@@ -118,6 +118,11 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 
 #ifdef SW_REACTOR_USE_SESSION
         uint32_t session_id = (serv->session_round++) % SW_MAX_SOCKET_ID;
+        if (session_id == 0)
+        {
+            session_id = 1;
+            serv->session_round++;
+        }
         conn->session_id = session_id;
         swSession *session = &serv->session_list[session_id % serv->max_connection];
         session->fd = new_fd;
