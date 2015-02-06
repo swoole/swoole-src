@@ -30,7 +30,6 @@
 
 #include "thirdparty/php_http_parser.h"
 
-
 static swArray *http_client_array;
 static uint8_t http_merge_global_flag = 0;
 static uint8_t http_merge_request_flag = 0;
@@ -468,20 +467,21 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
         add_assoc_stringl_ex(cookie, keybuf, kv.klen , kv.v, kv.vlen, 1);
         http_merge_php_global(cookie, client->zrequest, HTTP_GLOBAL_COOKIE);
     }
-    else if (memcmp(header_name, ZEND_STRL("upgrade")) == 0 && memcmp(at, ZEND_STRL("websocket")) == 0)
+    else if (strncasecmp(header_name, ZEND_STRL("upgrade")) == 0 && strncasecmp(at, ZEND_STRL("websocket")) == 0)
     {
-        SwooleG.lock.lock(&SwooleG.lock);
-        swConnection *conn = swServer_connection_get(SwooleG.serv, client->fd);
-        if(conn->websocket_status == 0) {
-            conn->websocket_status = WEBSOCKET_STATUS_CONNECTION;
+        swConnection *conn = swWorker_get_connection(SwooleG.serv, client->fd);
+        if (!conn)
+        {
+            swWarn("connection[%d] is closed.", client->fd);
+            return SW_ERR;
         }
-        SwooleG.lock.unlock(&SwooleG.lock);
+        conn->websocket_status = WEBSOCKET_STATUS_CONNECTION;
         zval *header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("header"), 1 TSRMLS_CC);
         add_assoc_stringl_ex(header, header_name, client->current_header_name_len + 1, (char *) at, length, 1);
     }
     else if ((parser->method == PHP_HTTP_POST || parser->method == PHP_HTTP_PUT || parser->method == PHP_HTTP_PATCH)
             && memcmp(header_name, ZEND_STRL("content-type")) == 0
-            && memcmp(at, ZEND_STRL("application/x-www-form-urlencoded")) == 0)
+            && strcasecmp(at, "application/x-www-form-urlencoded") == 0)
     {
         client->request.post_form_urlencoded = 1;
         zval *header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("header"), 1 TSRMLS_CC);
@@ -489,7 +489,8 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
     }
     else
     {
-        zval *header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("header"), 1 TSRMLS_CC);
+        zval *header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("header"), 1
+        TSRMLS_CC);
         add_assoc_stringl_ex(header, header_name, client->current_header_name_len + 1, (char *) at, length, 1);
     }
 
@@ -644,13 +645,16 @@ static void handshake_success(http_client *client)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-    SwooleG.lock.lock(&SwooleG.lock);
-    swConnection *conn = swServer_connection_get(SwooleG.serv, client->fd);
+    swConnection *conn = swWorker_get_connection(SwooleG.serv, client->fd);
+    if (!conn)
+    {
+        swWarn("connection[%d] is closed.", client->fd);
+        return;
+    }
     if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
     {
         conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
     }
-    SwooleG.lock.unlock(&SwooleG.lock);
 
     swTrace("\n\n\n\nconn ws status:%d\n\n\n", conn->websocket_status);
 
@@ -752,8 +756,12 @@ static int http_onReceive(swFactory *factory, swEventData *req)
 
     int fd = req->info.fd;
 
-    swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
-
+    swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
+    if (!conn)
+    {
+        swWarn("connection[%d] is closed.", fd);
+        return SW_ERR;
+    }
     if (conn->websocket_status == WEBSOCKET_STATUS_FRAME)  //websocket callback
     {
         return http_websocket_onMessage(req TSRMLS_CC);
@@ -818,7 +826,12 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         add_assoc_stringl(zserver, "path_info", client->request.path, client->request.path_len, 1);
         add_assoc_long_ex(zserver, ZEND_STRS("request_time"), SwooleGS->now);
 
-    	swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
+    	swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
+        if (!conn)
+        {
+            swWarn("connection[%d] is closed.", fd);
+            return SW_ERR;
+        }
 
         add_assoc_long(zserver, "server_port", SwooleG.serv->connection_list[conn->from_fd].addr.sin_port);
         add_assoc_long(zserver, "remote_port", ntohs(conn->addr.sin_port));
@@ -1693,7 +1706,7 @@ PHP_METHOD(swoole_http_server, push)
         RETURN_FALSE;
     }
 
-    swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
+    swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
     if (!conn || conn->websocket_status < WEBSOCKET_STATUS_HANDSHAKE)
     {
         swoole_php_fatal_error(E_WARNING, "connection[%d] is not a websocket client.", (int ) fd);
