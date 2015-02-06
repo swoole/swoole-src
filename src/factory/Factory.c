@@ -48,6 +48,12 @@ int swFactory_dispatch(swFactory *factory, swDispatchData *task)
     factory->last_from_id = task->data.info.from_id;
     int ret = 0;
 
+ #ifdef SW_REACTOR_USE_SESSION
+    swServer *serv = factory->ptr;
+    swConnection *conn = swServer_connection_get(serv, task->data.info.fd);
+    task->data.info.fd = conn->session_id;
+#endif
+
     switch (task->data.info.type)
     {
     //no buffer
@@ -149,7 +155,7 @@ int swFactory_finish(swFactory *factory, swSendData *resp)
     finish:
     if (ret < 0)
     {
-        swWarn("sendto to reactor failed. Error: %s [%d]", strerror(errno), errno);
+        swSysError("sendto to connection#%d failed.", resp->info.fd);
     }
     return ret;
 }

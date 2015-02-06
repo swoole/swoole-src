@@ -1727,9 +1727,15 @@ PHP_FUNCTION(swoole_server_send)
         //unix dgram
         if (!is_numeric_string(Z_STRVAL_P(zfd), Z_STRLEN_P(zfd), &_fd, NULL, 0))
         {
+            _send.info.from_fd = (from_id > 0) ? from_id : php_swoole_unix_dgram_fd;
+            if (_send.info.from_fd == 0)
+            {
+                php_error_docref(NULL TSRMLS_CC, E_WARNING, "no unix socket listener.", Z_STRVAL_P(zfd));
+                RETURN_FALSE;
+            }
+
             _send.info.fd = (int) _fd;
             _send.info.type = SW_EVENT_UNIX_DGRAM;
-            _send.info.from_fd = (from_id > 0) ? from_id : php_swoole_unix_dgram_fd;
             _send.sun_path = Z_STRVAL_P(zfd);
             _send.sun_path_len = Z_STRLEN_P(zfd);
             _send.info.len = send_len;
