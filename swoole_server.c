@@ -1730,7 +1730,7 @@ PHP_FUNCTION(swoole_server_send)
             _send.info.from_fd = (from_id > 0) ? from_id : php_swoole_unix_dgram_fd;
             if (_send.info.from_fd == 0)
             {
-                php_error_docref(NULL TSRMLS_CC, E_WARNING, "no unix socket listener.", Z_STRVAL_P(zfd));
+                php_error_docref(NULL TSRMLS_CC, E_WARNING, "no unix socket listener.");
                 RETURN_FALSE;
             }
 
