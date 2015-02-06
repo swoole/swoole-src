@@ -5,15 +5,15 @@ class G
 }
 
 $config = array(
-    'worker_num' => 4,
+   'worker_num' => 1,
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
     //'ipc_mode' => 2,
-    'task_worker_num' => 1,
+   'task_worker_num' => 1,
     //'task_ipc_mode' => 1,
     //'dispatch_mode' => 1,
     //'log_file' => '/tmp/swoole.log',
-    //'heartbeat_check_interval' => 10,
+//    'heartbeat_check_interval' => 5,
     // open_cpu_affinity => 1,
     //'cpu_affinity_ignore' =>array(0,1)//如果你的网卡2个队列（或者没有多队列那么默认是cpu0来处理中断）,并且绑定了core 0和core 1,那么可以通过这个设置避免swoole的线程或者进程绑定到这2个core，防止cpu0，1被耗光而造成的丢包
 );
@@ -24,7 +24,10 @@ if (isset($argv[1]) and $argv[1] == 'daemon') {
 	$config['daemonize'] = false;
 }
 
-$serv = new swoole_server("0.0.0.0", 9501);
+// $mode = SWOOLE_BASE;
+$mode = SWOOLE_PROCESS;
+
+$serv = new swoole_server("0.0.0.0", 9501, $mode);
 $serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
 
 $process1 = new swoole_process("my_process1", true, false);
@@ -136,7 +139,7 @@ function my_onClose($serv, $fd, $from_id)
     my_log("Worker#{$serv->worker_pid} Client[$fd@$from_id]: fd=$fd is closed");
 }
 
-function my_onConnect($serv, $fd, $from_id)
+function my_onConnect(swoole_server $serv, $fd, $from_id)
 {
     //throw new Exception("hello world");
     var_dump($serv->connection_info($fd));
@@ -174,7 +177,7 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
         if ($result) {
         	$serv->send($fd, "taskwaitok");
         }
-        echo "SyncTask: result=$result\n";
+        echo "SyncTask: result=".var_export($result, true)."\n";
     }
     elseif ($cmd == "hellotask")
     {
@@ -231,15 +234,24 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 
 function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
 {
-    //swoole_timer_after(1000, "test");
-    var_dump($data);
-    $fd = str_replace('task-', '', $data);
-    $serv->send($fd, str_repeat('A', 8192*2));
-    $serv->send($fd, str_repeat('B', 8192*2));
-    $serv->send($fd, str_repeat('C', 8192*2));
-    $serv->send($fd, str_repeat('D', 8192*2));
-    return;
-    
+    if ($data == 'taskwait')
+    {
+        $fd = str_replace('task-', '', $data);
+        $serv->send($fd, "hello world");
+        return array("task" => 'wait');
+    }
+    else
+    {
+        //swoole_timer_after(1000, "test");
+        var_dump($data);
+        $fd = str_replace('task-', '', $data);
+        $serv->send($fd, str_repeat('A', 8192 * 2));
+        $serv->send($fd, str_repeat('B', 8192 * 2));
+        $serv->send($fd, str_repeat('C', 8192 * 2));
+        $serv->send($fd, str_repeat('D', 8192 * 2));
+        return;
+    }
+
     if ($data == "hellotask")
     {
         broadcast($serv, 0, "hellotask");

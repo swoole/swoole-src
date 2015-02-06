@@ -213,6 +213,7 @@ PHP_METHOD(swoole_process, signal)
         efree(func_name);
         RETURN_FALSE;
     }
+    efree(func_name);
 
     zval_add_ref(&callback);
     signal_callback[signo] = callback;

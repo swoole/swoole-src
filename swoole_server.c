@@ -2215,7 +2215,7 @@ PHP_FUNCTION(swoole_server_addtimer)
 PHP_FUNCTION(swoole_timer_after)
 {
     long interval;
-    swTimer_callback* callback = sw_malloc(sizeof(swTimer_callback));
+    swTimer_callback* callback = emalloc(sizeof(swTimer_callback));
     callback->data = NULL;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz|z",  &interval ,&(callback->callback), &(callback->data) ) == FAILURE)
@@ -2276,10 +2276,20 @@ PHP_FUNCTION(swoole_timer_clear)
     {
         return;
     }
-    if (SwooleG.timer.del(&SwooleG.timer, -1, id) < 0)
+
+    swTimer_callback *callback = SwooleG.timer.del(&SwooleG.timer, -1, id);
+    if (!callback)
     {
         RETURN_FALSE;
     }
+
+    if (callback->data)
+    {
+        zval_ptr_dtor(&callback->data);
+    }
+    zval_ptr_dtor(&callback->callback);
+    efree(callback);
+
     RETURN_TRUE;
 }
 

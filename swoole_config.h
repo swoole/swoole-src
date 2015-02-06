@@ -115,7 +115,7 @@
 #define SW_REACTOR_SCHEDULE              2
 #define SW_REACTOR_MINEVENTS             128
 #define SW_REACTOR_MAXEVENTS             4096
-//#define SW_REACTOR_USE_SESSION
+#define SW_REACTOR_USE_SESSION
 /**
  * 最大Reactor线程数量，默认会启动CPU核数的线程数
  * 如果超过8核，默认启动8个线程

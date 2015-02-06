@@ -23,7 +23,7 @@
 
 static int swTimer_signal_set(swTimer *timer, int interval);
 static int swTimer_timerfd_set(swTimer *timer, int interval);
-static int swTimer_del(swTimer *timer, int ms, int id);
+static void* swTimer_del(swTimer *timer, int ms, int id);
 static void swTimer_free(swTimer *timer);
 static int swTimer_add(swTimer *timer, int msec, int interval, void *data);
 static int swTimer_set(swTimer *timer, int new_interval);
@@ -184,17 +184,19 @@ static int swTimer_signal_set(swTimer *timer, int interval)
 	return SW_OK;
 }
 
-static int swTimer_del(swTimer *timer, int ms, int id)
+static void* swTimer_del(swTimer *timer, int interval_ms, int id)
 {
-    if (id > 0)
+    swTimer_node *node = swTimer_node_find(&timer->root, interval_ms, id);
+    if (!node)
     {
-        swTimer_node_delete(&timer->root, ms, id);
+        return NULL;
     }
-    else
+    if (interval_ms)
     {
-        swHashMap_del_int(timer->list, ms);
+        swHashMap_del_int(timer->list, interval_ms);
     }
-	return SW_OK;
+    node->remove = 1;
+    return node->data;
 }
 
 static void swTimer_free(swTimer *timer)
@@ -432,19 +434,18 @@ void swTimer_node_insert(swTimer_node **root, swTimer_node *new_node)
     }
 }
 
-int swTimer_node_delete(swTimer_node **root, int interval_msec, int id)
+swTimer_node* swTimer_node_find(swTimer_node **root, int interval_msec, int id)
 {
     swTimer_node *tmp = *root;
     while (tmp)
     {
         if ((interval_msec > 0 && tmp->interval == interval_msec) || (id > 0 && tmp->id == id))
         {
-            tmp->remove = 1;
-            return SW_OK;
+            return tmp;
         }
         tmp = tmp->next;
     }
-    return SW_ERR;
+    return NULL;
 }
 
 void swTimer_node_destory(swTimer_node **root)

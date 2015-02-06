@@ -523,7 +523,7 @@ void php_swoole_try_run_reactor()
 
 static void php_swoole_onTimeout(swTimer *timer, swTimer_node *event)
 {
-    swTimer_callback* callback = (swTimer_callback*) event->data;
+    swTimer_callback *callback = (swTimer_callback*) event->data;
     zval *retval = NULL;
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
@@ -551,6 +551,7 @@ static void php_swoole_onTimeout(swTimer *timer, swTimer_node *event)
         zval_ptr_dtor(&callback->data);
     }
     zval_ptr_dtor(&callback->callback);
+    efree(callback);
 }
 
 static void php_swoole_onTimerInterval(swTimer *timer, swTimer_node *event)

@@ -15,4 +15,8 @@ $timer3 = swoole_timer_after(4000, 'timeout', 3);
 $timer4 = swoole_timer_after(8000, 'timeout', 4);
 $timer5 = swoole_timer_after(10000, 'timeout', 5);
 
+swoole_process::signal(SIGTERM, function() {
+	swoole_event_exit();
+});
+
 var_dump($timer1, $timer2, $timer3, $timer4, $timer5);
