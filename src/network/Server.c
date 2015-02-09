@@ -369,6 +369,19 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     }
 #endif
 
+    if (serv->max_request < 1)
+    {
+        SwooleWG.run_always = 1;
+    }
+    else
+    {
+        SwooleWG.request_num = serv->max_request;
+        if (SwooleWG.request_num > 10)
+        {
+            SwooleWG.request_num += rand() % 10 * worker->id;
+        }
+    }
+
     return SW_OK;
 }
 

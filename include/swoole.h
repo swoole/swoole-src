@@ -1378,6 +1378,8 @@ typedef struct
     uint32_t reactor_ready :1;
     uint32_t in_client :1;
 
+    int request_num;
+
 	swString **buffer_input;
     swWorker *worker;
 

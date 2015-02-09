@@ -17,10 +17,7 @@
 #include "swoole.h"
 #include "Server.h"
 
-static int worker_task_num;
-
 static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event);
-static int swRandom(int worker_pti);
 
 int swWorker_create(swWorker *worker)
 {
@@ -88,13 +85,7 @@ void swWorker_signal_handler(int signo)
     }
 }
 
-static int swRandom(int worker_pti)
-{
-    srand((int) time(0));
-    return rand() % 10 * worker_pti;
-}
-
-static sw_inline int swWorker_excute(swFactory *factory, swEventData *task)
+int swWorker_excute(swFactory *factory, swEventData *task)
 {
     swServer *serv = factory->ptr;
     swString *package = NULL;
@@ -129,7 +120,7 @@ static sw_inline int swWorker_excute(swFactory *factory, swEventData *task)
         if (!SwooleWG.run_always)
         {
             //only onTask increase the count
-            worker_task_num--;
+            SwooleWG.request_num--;
         }
         if (task->info.type == SW_EVENT_PACKAGE_END)
         {
@@ -178,7 +169,7 @@ static sw_inline int swWorker_excute(swFactory *factory, swEventData *task)
     serv->workers[SwooleWG.id].status = SW_WORKER_IDLE;
 
     //stop
-    if (worker_task_num < 0)
+    if (SwooleWG.request_num < 0)
     {
         SwooleG.running = 0;
     }
@@ -278,19 +269,6 @@ int swWorker_loop(swFactory *factory, int worker_id)
     SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_worker, SW_FD_PIPE | SW_EVENT_READ);
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE, swWorker_onPipeReceive);
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE | SW_FD_WRITE, swReactor_onWrite);
-
-    if (serv->max_request < 1)
-    {
-        SwooleWG.run_always = 1;
-    }
-    else
-    {
-        worker_task_num = serv->max_request;
-        if (worker_task_num > 10)
-        {
-            worker_task_num += swRandom(worker_id);
-        }
-    }
 
     swWorker_onStart(serv);
 
