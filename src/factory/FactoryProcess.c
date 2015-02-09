@@ -802,8 +802,7 @@ int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
     if (task->target_worker_id < 0)
     {
         //udp use remote port
-        if (task->data.info.type == SW_EVENT_UDP || task->data.info.type == SW_EVENT_UDP6
-                || task->data.info.type == SW_EVENT_UNIX_DGRAM)
+        if (swEventData_is_dgram(task->data.info.type))
         {
             if (serv->dispatch_mode == SW_DISPATCH_IPMOD)
             {
@@ -843,8 +842,7 @@ int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
         target_worker_id = task->target_worker_id;
     }
 
-    if (task->data.info.type == SW_EVENT_TCP || task->data.info.type == SW_EVENT_TCP6
-            || task->data.info.type == SW_EVENT_UNIX_STREAM)
+    if (swEventData_is_stream(task->data.info.type))
     {
         swConnection *conn = swServer_connection_get(serv, task->data.info.fd);
         if (conn == NULL || conn->active == 0)

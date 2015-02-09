@@ -1746,7 +1746,7 @@ PHP_FUNCTION(swoole_server_send)
     uint32_t fd = (uint32_t) _fd;
 
     //UDP
-    if (swSocket_isUDP(fd))
+    if (swServer_is_udp(fd))
     {
         if (from_id == -1)
         {
@@ -2766,7 +2766,7 @@ PHP_FUNCTION(swoole_connection_info)
     SWOOLE_GET_SERVER(zobject, serv);
 
     //udp client
-    if (swSocket_isUDP(fd))
+    if (swServer_is_udp(fd))
     {
         array_init(return_value);
         php_swoole_udp_t udp_info;

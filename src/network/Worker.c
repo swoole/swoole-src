@@ -112,13 +112,16 @@ static sw_inline int swWorker_excute(swFactory *factory, swEventData *task)
     case SW_EVENT_UNIX_DGRAM:
     //ringbuffer shm package
     case SW_EVENT_PACKAGE:
-        do_task:
-        conn = swWorker_get_connection(serv, task->info.fd);
-        //socket is closed, discard package.
-        if (!conn || conn->closed)
+
+        do_task: if (swEventData_is_stream(task->info.type))
         {
-            swWarn("received the wrong data from socket#%d", task->info.fd);
-            break;
+            conn = swWorker_get_connection(serv, task->info.fd);
+            //socket is closed, discard package.
+            if (!conn || conn->closed)
+            {
+                swWarn("received the wrong data from socket#%d", task->info.fd);
+                break;
+            }
         }
 
         factory->onTask(factory, task);
