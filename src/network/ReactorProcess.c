@@ -117,7 +117,7 @@ int swReactorProcess_start(swServer *serv)
         key_t key = 0;
         if (SwooleG.task_ipc_mode == SW_IPC_MSGQUEUE)
         {
-            key = serv->message_queue_key + 2;
+            key = serv->message_queue_key;
         }
 
         if (swProcessPool_create(&SwooleGS->task_workers, SwooleG.task_worker_num, serv->task_max_request, key, 1) < 0)
@@ -126,21 +126,10 @@ int swReactorProcess_start(swServer *serv)
             return SW_ERR;
         }
 
-        int i;
-        swWorker *worker;
-        for (i = 0; i < SwooleG.task_worker_num; i++)
-        {
-            worker = swServer_get_worker(serv, serv->worker_num + i);
-            if (swWorker_create(worker) < 0)
-            {
-                return SW_ERR;
-            }
-        }
-
         swTaskWorker_init(&SwooleGS->task_workers);
         swProcessPool_start(&SwooleGS->task_workers);
 
-        //将taskworker也加入到wait中来
+        int i;
         for (i = 0; i < SwooleGS->task_workers.worker_num; i++)
         {
             swProcessPool_add_worker(&SwooleGS->event_workers, &SwooleGS->task_workers.workers[i]);

@@ -1175,6 +1175,7 @@ swConnection* swReactor_get(swReactor *reactor, int fd);
 int swReactor_del(swReactor *reactor, int fd);
 int swReactor_onWrite(swReactor *reactor, swEvent *ev);
 int swReactor_close(swReactor *reactor, int fd);
+int swReactor_write(swReactor *reactor, int fd, void *buf, int n);
 
 swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype);
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);
@@ -1189,6 +1190,7 @@ int swProcessPool_start(swProcessPool *pool);
 void swProcessPool_shutdown(swProcessPool *pool);
 pid_t swProcessPool_spawn(swWorker *worker);
 int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int *worker_id);
+int swProcessPool_dispatch_blocking(swProcessPool *pool, swEventData *data, int *dst_worker_id);
 int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker);
 
 static sw_inline swWorker* swProcessPool_get_worker(swProcessPool *pool, int worker_id)

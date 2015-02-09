@@ -84,8 +84,9 @@ enum swResponseType
 
 enum swWorkerPipeType
 {
-    SW_PIPE_WORKER   = 0,
-    SW_PIPE_MASTER   = 1,
+    SW_PIPE_WORKER     = 0,
+    SW_PIPE_MASTER     = 1,
+    SW_PIPE_NONBLOCK   = 2,
 };
 
 /**
@@ -666,7 +667,7 @@ void swWorker_onStart(swServer *serv);
 void swWorker_onStop(swServer *serv);
 int swWorker_loop(swFactory *factory, int worker_pti);
 int swWorker_send2reactor(swEventData *ev_data, size_t sendn, int fd);
-int swWorker_send2worker(swWorker *dst_worker, uint16_t is_master, void *buf, int n);
+int swWorker_send2worker(swWorker *dst_worker, void *buf, int n, int flag);
 void swWorker_signal_handler(int signo);
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event);

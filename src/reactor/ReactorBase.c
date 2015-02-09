@@ -20,7 +20,6 @@
 static void swReactor_onTimeout_and_Finish(swReactor *reactor);
 static void swReactor_onTimeout(swReactor *reactor);
 static void swReactor_onFinish(swReactor *reactor);
-static int swReactor_write(swReactor *reactor, int fd, void *buf, int n);
 
 int swReactor_create(swReactor *reactor, int max_event)
 {
@@ -220,7 +219,7 @@ int swReactor_close(swReactor *reactor, int fd)
     return close(fd);
 }
 
-static int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
+int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
 {
     int ret;
     swConnection *socket = swReactor_get(reactor, fd);

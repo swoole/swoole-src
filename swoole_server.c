@@ -2407,7 +2407,7 @@ PHP_FUNCTION(swoole_server_taskwait)
     //clear history task
     while (read(efd, &notify, sizeof(notify)) > 0);
  
-    if (swProcessPool_dispatch(&SwooleGS->task_workers, &buf, (int*) &worker_id) >= 0)
+    if (swProcessPool_dispatch_blocking(&SwooleGS->task_workers, &buf, (int*) &worker_id) >= 0)
     {
         task_notify_pipe->timeout = timeout;
         int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
@@ -2653,7 +2653,7 @@ PHP_METHOD(swoole_server, sendmessage)
     }
 
     swWorker *to_worker = swServer_get_worker(serv, worker_id);
-    SW_CHECK_RETURN(swWorker_send2worker(to_worker, SW_PIPE_MASTER, &buf, sizeof(buf.info) + buf.info.len));
+    SW_CHECK_RETURN(swWorker_send2worker(to_worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER | SW_PIPE_NONBLOCK));
 }
 
 PHP_FUNCTION(swoole_server_finish)

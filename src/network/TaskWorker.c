@@ -179,7 +179,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
 
         uint16_t target_worker_id = current_task->info.from_id;
         swWorker *worker = swServer_get_worker(serv, target_worker_id);
-        ret = swWorker_send2worker(worker, SW_PIPE_MASTER, &buf, sizeof(buf.info) + buf.info.len);
+        ret = swWorker_send2worker(worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER);
     }
     else
     {

@@ -103,6 +103,7 @@ int swProcessPool_start(swProcessPool *pool)
     {
         pool->workers[i].pool = pool;
         pool->workers[i].id = pool->start_id + i;
+        pool->workers[i].type = pool->type;
 
         if (swProcessPool_spawn(&(pool->workers[i])) < 0)
         {
@@ -110,6 +111,26 @@ int swProcessPool_start(swProcessPool *pool)
         }
     }
     return SW_OK;
+}
+
+static int swProcessPool_schedule(swProcessPool *pool)
+{
+    swWorker *worker;
+    int i, target_worker_id = pool->round_id;
+    int run_worker_num = pool->run_worker_num;
+
+    for (i = 0; i < run_worker_num; i++)
+    {
+        pool->round_id++;
+        target_worker_id = pool->round_id % run_worker_num;
+
+        worker = &pool->workers[i];
+        if (worker->status == SW_WORKER_IDLE)
+        {
+            break;
+        }
+    }
+    return target_worker_id;
 }
 
 /**
@@ -122,34 +143,47 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int *dst_work
 
     if (*dst_worker_id < 0)
     {
-        int i, target_worker_id = pool->round_id;
-        int run_worker_num = pool->run_worker_num;
-
-        for (i = 0; i < run_worker_num; i++)
-        {
-            pool->round_id++;
-            target_worker_id = pool->round_id % run_worker_num;
-
-            worker = &pool->workers[i];
-            if (worker->status == SW_WORKER_IDLE)
-            {
-                break;
-            }
-        }
-        *dst_worker_id = target_worker_id;
+        *dst_worker_id = swProcessPool_schedule(pool);
     }
 
     *dst_worker_id += pool->start_id;
     worker = swProcessPool_get_worker(pool, *dst_worker_id);
 
     int sendn = sizeof(data->info) + data->info.len;
-    ret = swWorker_send2worker(worker, SW_PIPE_MASTER, data, sendn);
+    ret = swWorker_send2worker(worker, data, sendn, SW_PIPE_MASTER | SW_PIPE_NONBLOCK);
 
     if (ret >= 0)
     {
         sw_atomic_fetch_add(&worker->tasking_num, 1);
     }
     else
+    {
+        swWarn("send %d bytes to worker#%d failed.", sendn, *dst_worker_id);
+    }
+
+    return ret;
+}
+
+/**
+ * dispatch data to worker
+ */
+int swProcessPool_dispatch_blocking(swProcessPool *pool, swEventData *data, int *dst_worker_id)
+{
+    int ret = 0;
+    swWorker *worker;
+
+    if (*dst_worker_id < 0)
+    {
+        *dst_worker_id = swProcessPool_schedule(pool);
+    }
+
+    *dst_worker_id += pool->start_id;
+    worker = swProcessPool_get_worker(pool, *dst_worker_id);
+
+    int sendn = sizeof(data->info) + data->info.len;
+    ret = swWorker_send2worker(worker, data, sendn, SW_PIPE_MASTER);
+
+    if (ret < 0)
     {
         swWarn("send %d bytes to worker#%d failed.", sendn, *dst_worker_id);
     }
@@ -195,22 +229,22 @@ pid_t swProcessPool_spawn(swWorker *worker)
         /**
          * Process start
          */
-        if(is_root) 
+        if (is_root)
         {
-            if(SwooleG.chroot)
+            if (SwooleG.chroot)
             {
-                if(0 > chroot(SwooleG.chroot))
+                if (0 > chroot(SwooleG.chroot))
                 {
                     swSysError("chroot to [%s] failed.", SwooleG.chroot);
                 }
             }
 
-            if(SwooleG.group)
+            if (SwooleG.group)
             {
-                group  = getgrnam(SwooleG.group);
-                if(group != NULL) 
+                group = getgrnam(SwooleG.group);
+                if (group != NULL)
                 {
-                    if(0 > setgid(group->gr_gid)) 
+                    if (0 > setgid(group->gr_gid))
                     {
                         swSysError("setgid to [%s] failed.", SwooleG.group);
                     }
@@ -221,12 +255,12 @@ pid_t swProcessPool_spawn(swWorker *worker)
                 }
             }
 
-            if(SwooleG.user)
+            if (SwooleG.user)
             {
                 passwd = getpwnam(SwooleG.user);
-                if(passwd != NULL) 
+                if (passwd != NULL)
                 {
-                    if (0 > setuid(passwd->pw_uid)) 
+                    if (0 > setuid(passwd->pw_uid))
                     {
                         swSysError("setuid to [%s] failed.", SwooleG.user);
                     }
@@ -351,7 +385,6 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
  */
 int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker)
 {
-    worker->pool = pool;
     swHashMap_add_int(pool->map, worker->pid, worker, NULL);
     return SW_OK;
 }
@@ -445,5 +478,8 @@ static void swProcessPool_free(swProcessPool *pool)
         }
         sw_free(pool->pipes);
     }
-    swHashMap_free(pool->map);
+    if (pool->map)
+    {
+        swHashMap_free(pool->map);
+    }
 }

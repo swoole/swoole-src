@@ -163,23 +163,19 @@ static int swFactoryProcess_manager_start(swFactory *factory)
         swProcessPool *pool = &SwooleGS->task_workers;
         swTaskWorker_init(pool);
 
-        int worker_id;
+        int i;
         swWorker *worker;
-        for (i = 0; i < task_num; i++)
+        for (i = 0; i < pool->worker_num; i++)
         {
-            worker_id = serv->worker_num + i;
-            worker = swServer_get_worker(serv, worker_id);
+            worker = &pool->workers[i];
             if (swWorker_create(worker) < 0)
             {
                 return SW_ERR;
             }
             if (SwooleG.task_ipc_mode == SW_IPC_UNSOCK)
             {
-                swServer_pipe_set(serv, worker->pipe_object);
+                swServer_pipe_set(SwooleG.serv, worker->pipe_object);
             }
-            pool->workers[i].id = pool->start_id + i;
-            pool->workers[i].pool = pool;
-            pool->workers[i].type = pool->type;
         }
     }
 
