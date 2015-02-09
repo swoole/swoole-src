@@ -2051,5 +2051,10 @@ void swReactorThread_free(swServer *serv)
             }
         }
     }
+
+    if (serv->session_list)
+    {
+        sw_shm_free(serv->session_list);
+    }
 }
 

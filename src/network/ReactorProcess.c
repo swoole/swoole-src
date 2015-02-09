@@ -160,6 +160,7 @@ int swReactorProcess_start(swServer *serv)
     swProcessPool_wait(&SwooleGS->event_workers);
 
     swProcessPool_shutdown(&SwooleGS->event_workers);
+    sw_free(serv->session_list);
 
     return SW_OK;
 }
@@ -234,6 +235,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     reactor->setHandle(reactor, SW_FD_LISTEN, swServer_master_onAccept);
     //close
     reactor->setHandle(reactor, SW_FD_CLOSE, swReactorProcess_onClose);
+    //pipe
+    reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_WRITE, swReactor_onWrite);
 
     if (serv->onPipeMessage)
     {

@@ -684,11 +684,6 @@ int swServer_free(swServer *serv)
         sw_shm_free(serv->connection_list);
     }
 
-    if (serv->session_list)
-    {
-        sw_shm_free(serv->session_list);
-    }
-
     //close log file
     if (serv->log_file[0] != 0)
     {
