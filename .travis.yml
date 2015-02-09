@@ -1,0 +1,21 @@
+language: php 
+
+php:
+  - 5.3
+  - 5.4
+  - 5.5
+
+notifications:
+  email: team@swoole.com
+   
+env:
+  - REPORT_EXIT_STATUS=1 NO_INTERACTION=1
+
+#Compile
+before_script:
+    - ./travis/compile.sh
+
+script:
+    - exit 0
+
+

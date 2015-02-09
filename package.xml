@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package packagerversion="1.9.4" version="2.0"
+	xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0 http://pear.php.net/dtd/tasks-1.0.xsd http://pear.php.net/dtd/package-2.0 http://pear.php.net/dtd/package-2.0.xsd">
+	<name>swoole</name>
+	<channel>pecl.php.net</channel>
+	<summary>Asynchronous and concurrent and distributed networking	framework for PHP.</summary>
+	<description>Asynchronous and concurrent and distributed networking framework for PHP.
+- event-driven
+- full asynchronous non-blocking
+- multi-thread reactor
+- multi-process worker
+- millisecond timer
+- async MySQL
+- async task
+- async read/write file system
+- async dns lookup
+- support IPv4/IPv6/UnixSocket/TCP/UDP
+- SSL/TLS encrypted transmission
+	</description>
+	<lead>
+		<name>Tianfeng Han</name>
+		<user>tianfenghan</user>
+		<email>mikan.tenny@gmail.com</email>
+		<active>yes</active>
+	</lead>
+	<developer>
+		<name>Shen Zhe</name>
+		<user>shenzhe</user>
+		<email>shenzhe163@gmail.com</email>
+		<active>yes</active>
+	</developer>
+    <date>2015-01-07</date>
+    <time>19:39:51</time>
+    <version>
+        <release>1.7.9</release>
+        <api>1.7.9</api>
+    </version>
+    <stability>
+        <release>stable</release>
+        <api>stable</api>
+    </stability>
+    <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
+    <notes>
+- Added websocket protocol support
+- Added swoole_process::signal
+- Added swoole_server->addProcess
+- Added swoole_process::name
+- Added swoole_server::listen
+- Added swoole_server::sendMessage and onPipeMessage event
+- Added swoole_event_write
+- Added swoole_process->close
+- Added swoole_server user/group setting
+- Added swoole_server task/finish automatic packing
+    </notes>
+	<contents>
+		<dir name="/">
+			<file role="doc" name="CREDITS" />
+			<file role="doc" name="LICENSE" />
+			<file role="doc" name="README.md" />
+			<file role="src" name="config.m4" />
+			<dir name="include">
+				<file role="src" name="swoole.h" />
+				<file role="src" name="Server.h" />
+				<file role="src" name="Client.h" />
+				<file role="src" name="Connection.h" />
+				<file role="src" name="atomic.h" />
+				<file role="src" name="buffer.h" />
+				<file role="src" name="hashmap.h" />
+				<file role="src" name="list.h" />
+				<file role="src" name="RingQueue.h" />
+				<file role="src" name="uthash.h" />
+				<file role="src" name="tests.h" />
+				<file role="src" name="array.h" />
+				<file role="src" name="async.h" />
+				<file role="src" name="hash.h" />
+				<file role="src" name="table.h" />
+				<file role="src" name="Http.h" />
+				<file role="src" name="websocket.h" />
+				<file role="src" name="sha1.h" />
+				<file role="src" name="base64.h" />
+				<file role="src" name="mqtt.h" />
+			</dir>
+			<dir name="examples">
+				<dir name="async">
+					<file role="src" name="read.php" />
+					<file role="src" name="readfile.php" />
+					<file role="src" name="write.php" />
+					<file role="src" name="dns_lookup.php" />
+				</dir>
+				<dir name="client">
+					<file role="src" name="async.php" />
+					<file role="src" name="long_tcp.php" />
+					<file role="src" name="sync.php" />
+					<file role="src" name="select.php" />
+					<file role="src" name="udp_async.php" />
+					<file role="src" name="udp_sync.php" />
+				</dir>
+				<dir name="server">
+					<file role="src" name="echo.php" />
+					<file role="src" name="unix_dgram.php" />
+					<file role="src" name="unix_stream.php" />
+					<file role="src" name="ipv6.php" />
+					<file role="src" name="eof_client.php" />
+					<file role="src" name="eof_server.php" />
+					<file role="src" name="length_check_server.php" />
+					<file role="src" name="length_check_client.php" />
+					<file role="src" name="msgqueue.php" />
+					<file role="src" name="http_server.php" />
+					<file role="src" name="http_client.php" />
+				</dir>
+				<dir name="event">
+					<file role="src" name="stream.php" />
+					<file role="src" name="sockets.php" />
+				</dir>
+				<dir name="process">
+					<file role="src" name="worker.php" />
+					<file role="src" name="exec.php" />
+					<file role="src" name="msgqueue.php" />
+					<file role="src" name="echo.py" />
+					<file role="src" name="python.php" />
+				</dir>
+				<dir name="task">
+					<file role="src" name="task.php" />
+					<file role="src" name="task_shared_client.php" />
+					<file role="src" name="task_shared_serv.php" />
+				</dir>
+				<dir name="table">
+					<file role="src" name="iterator.php" />
+					<file role="src" name="server.php" />
+					<file role="src" name="set.php" />
+					<file role="src" name="simulation.php" />
+				</dir>
+				<dir name="bench">
+					<file role="src" name="http.js" />
+					<file role="src" name="tcp.js" />
+					<file role="src" name="tcp.go" />
+					<file role="src" name="http.go" />
+					<file role="src" name="tcp.php" />
+					<file role="src" name="http.php" />
+					<file role="src" name="run.php" />
+				</dir>
+				<file role="src" name="server.php" />
+				<file role="src" name="mysql_proxy_server.php" />
+				<file role="src" name="async_mysql2.php" />
+				<file role="src" name="proxy.php" />
+				<file role="src" name="proxy_sync.php" />
+				<file role="src" name="udp_server.php" />
+				<file role="src" name="timer.php" />
+				<file role="src" name="sendfile_server.php" />
+				<file role="src" name="recv_file.php" />
+				<file role="doc" name="test.jpg" />
+			</dir>
+			<file role="src" name="php_swoole.h" />
+			<file role="src" name="swoole_config.h" />
+			<file role="src" name="swoole.c" />
+			<file role="src" name="swoole_server.c" />
+			<file role="src" name="swoole_lock.c" />
+			<file role="src" name="swoole_client.c" />
+            <file role="src" name="swoole_event.c" />
+			<file role="src" name="swoole_async.c" />
+			<file role="src" name="swoole_process.c" />
+			<file role="src" name="swoole_table.c" />
+			<file role="src" name="swoole_buffer.c" />
+			<file role="src" name="swoole_http.c" />
+			<file role="src" name="swoole_websocket.c" />
+			<dir name="thirdparty">
+				<file role="src" name="php_http_parser.c" />
+				<file role="src" name="php_http_parser.h" />
+			</dir>
+			<dir name="src">
+				<dir name="core">
+					<file role="src" name="Base.c" />
+					<file role="src" name="socket.c" />
+					<file role="src" name="log.c" />
+					<file role="src" name="hashmap.c" />
+					<file role="src" name="RingQueue.c" />
+					<file role="src" name="Channel.c" />
+					<file role="src" name="string.c" />
+					<file role="src" name="array.c" />
+				</dir>
+				<dir name="memory">
+					<file role="src" name="ShareMemory.c" />
+					<file role="src" name="MemoryGlobal.c" />
+					<file role="src" name="FixedPool.c" />
+					<file role="src" name="RingBuffer.c" />
+					<file role="src" name="Table.c" />
+					<file role="src" name="Malloc.c" />
+                    <file role="src" name="Buffer.c" />
+				</dir>
+				<dir name="factory">
+					<file role="src" name="Factory.c" />
+					<file role="src" name="FactoryThread.c" />
+					<file role="src" name="FactoryProcess.c" />
+				</dir>
+				<dir name="reactor">
+					<file role="src" name="ReactorBase.c" />
+					<file role="src" name="ReactorSelect.c" />
+					<file role="src" name="ReactorPoll.c" />
+					<file role="src" name="ReactorEpoll.c" />
+					<file role="src" name="ReactorKqueue.c" />
+				</dir>
+				<dir name="pipe">
+					<file role="src" name="PipeBase.c" />
+					<file role="src" name="PipeEventfd.c" />
+					<file role="src" name="PipeUnsock.c" />
+				</dir>
+				<dir name="queue">
+					<file role="src" name="Msg.c" />
+				</dir>
+				<dir name="lock">
+					<file role="src" name="Semaphore.c" />
+					<file role="src" name="Mutex.c" />
+					<file role="src" name="RWLock.c" />
+					<file role="src" name="SpinLock.c" />
+					<file role="src" name="FileLock.c" />
+				</dir>
+				<dir name="network">
+					<file role="src" name="Client.c" />
+					<file role="src" name="Connection.c" />
+					<file role="src" name="ProcessPool.c" />
+					<file role="src" name="ReactorProcess.c" />
+					<file role="src" name="ReactorThread.c" />
+					<file role="src" name="Server.c" />
+					<file role="src" name="TaskWorker.c" />
+					<file role="src" name="ThreadPool.c" />
+					<file role="src" name="Worker.c" />
+					<file role="src" name="EventTimer.c" />
+					<file role="src" name="DNS.c" />
+				</dir>
+				<dir name="os">
+					<file role="src" name="base.c" />
+					<file role="src" name="gcc_aio.c" />
+					<file role="src" name="linux_aio.c" />
+					<file role="src" name="sendfile.c" />
+					<file role="src" name="signal.c" />
+					<file role="src" name="timer.c" />
+				</dir>
+				<dir name="protocol">
+					<file role="src" name="SSL.c" />
+					<file role="src" name="Http.c" />
+					<file role="src" name="WebSocket.c" />
+					<file role="src" name="Sha1.c" />
+					<file role="src" name="Base64.c" />
+					<file role="src" name="Mqtt.c" />
+				</dir>
+			</dir>
+		</dir>
+	</contents>
+	<dependencies>
+		<required>
+			<php>
+				<min>5.3.10</min>
+			</php>
+			<pearinstaller>
+				<min>1.4.0</min>
+			</pearinstaller>
+		</required>
+	</dependencies>
+	<providesextension>swoole</providesextension>
+	<extsrcrelease />
+</package>

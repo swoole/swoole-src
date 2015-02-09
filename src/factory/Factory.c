@@ -1,0 +1,174 @@
+/*
+ +----------------------------------------------------------------------+
+ | Swoole                                                               |
+ +----------------------------------------------------------------------+
+ | This source file is subject to version 2.0 of the Apache license,    |
+ | that is bundled with this package in the file LICENSE, and is        |
+ | available through the world-wide-web at the following url:           |
+ | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+ | If you did not receive a copy of the Apache2.0 license and are unable|
+ | to obtain it through the world-wide-web, please send a note to       |
+ | license@php.net so we can mail you a copy immediately.               |
+ +----------------------------------------------------------------------+
+ | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ +----------------------------------------------------------------------+
+ */
+
+#include "swoole.h"
+#include "Server.h"
+
+int swFactory_create(swFactory *factory)
+{
+    factory->dispatch = swFactory_dispatch;
+    factory->finish = swFactory_finish;
+    factory->start = swFactory_start;
+    factory->shutdown = swFactory_shutdown;
+    factory->end = swFactory_end;
+    factory->notify = swFactory_notify;
+
+    factory->onTask = NULL;
+    factory->onFinish = NULL;
+
+    return SW_OK;
+}
+
+int swFactory_start(swFactory *factory)
+{
+    return SW_OK;
+}
+
+int swFactory_shutdown(swFactory *factory)
+{
+    return SW_OK;
+}
+
+int swFactory_dispatch(swFactory *factory, swDispatchData *task)
+{
+    swString *package = NULL;
+    factory->last_from_id = task->data.info.from_id;
+    int ret = 0;
+
+ #ifdef SW_REACTOR_USE_SESSION
+    swServer *serv = factory->ptr;
+    swConnection *conn = swServer_connection_get(serv, task->data.info.fd);
+    task->data.info.fd = conn->session_id;
+#endif
+
+    switch (task->data.info.type)
+    {
+    //no buffer
+    case SW_EVENT_TCP:
+    case SW_EVENT_UDP:
+    case SW_EVENT_UNIX_DGRAM:
+
+        //ringbuffer shm package
+    case SW_EVENT_PACKAGE:
+        onTask:
+        ret = factory->onTask(factory, &task->data);
+        if (task->data.info.type == SW_EVENT_PACKAGE_END)
+        {
+            package->length = 0;
+        }
+        break;
+    case SW_EVENT_PACKAGE_START:
+    case SW_EVENT_PACKAGE_END:
+        //input buffer
+        package = SwooleWG.buffer_input[task->data.info.from_id];
+        //merge task->data to package buffer
+        memcpy(package->str + package->length, task->data.data, task->data.info.len);
+        package->length += task->data.info.len;
+        //package end
+        if (task->data.info.type == SW_EVENT_PACKAGE_END)
+        {
+            goto onTask;
+        }
+        break;
+    }
+    return ret;
+}
+
+int swFactory_notify(swFactory *factory, swDataHead *req)
+{
+    swServer *serv = factory->ptr;
+    switch (req->type)
+    {
+    case SW_EVENT_CLOSE:
+        if (serv->onClose)
+        {
+            serv->onClose(serv, req->fd, req->from_id);
+        }
+        break;
+
+    case SW_EVENT_CONNECT:
+        if (serv->onConnect)
+        {
+            serv->onConnect(serv, req->fd, req->from_id);
+        }
+        break;
+    default:
+        swWarn("Error event[type=%d]", (int )req->type);
+        break;
+    }
+    return SW_OK;
+}
+
+int swFactory_end(swFactory *factory, int fd)
+{
+    swServer *serv = factory->ptr;
+    if (serv->onClose != NULL)
+    {
+        serv->onClose(serv, fd, 0);
+    }
+    return SwooleG.main_reactor->close(SwooleG.main_reactor, fd);
+}
+
+int swFactory_finish(swFactory *factory, swSendData *resp)
+{
+    int ret = 0;
+    swServer *serv = SwooleG.serv;
+
+    //unix dgram
+    if (resp->info.type == SW_EVENT_UNIX_DGRAM)
+    {
+        socklen_t len;
+        struct sockaddr_un addr_un;
+        int from_sock = resp->info.from_fd;
+
+        addr_un.sun_family = AF_UNIX;
+        memcpy(addr_un.sun_path, resp->sun_path, resp->sun_path_len);
+        len = sizeof(addr_un);
+        ret = swSocket_sendto_blocking(from_sock, resp->data, resp->info.len, 0, (struct sockaddr *) &addr_un, len);
+        goto finish;
+    }
+    //UDP pacakge
+    else if (resp->info.type == SW_EVENT_UDP || resp->info.type == SW_EVENT_UDP6)
+    {
+        ret = swServer_udp_send(serv, resp);
+        goto finish;
+    }
+    else
+    {
+        resp->length = resp->info.len;
+        ret = swReactorThread_send(resp);
+    }
+
+    finish:
+    if (ret < 0)
+    {
+        swSysError("sendto to connection#%d failed.", resp->info.fd);
+    }
+    return ret;
+}
+
+int swFactory_check_callback(swFactory *factory)
+{
+    if (factory->onTask == NULL)
+    {
+        return SW_ERR;
+    }
+    if (factory->onFinish == NULL)
+    {
+        return SW_ERR;
+    }
+    return SW_OK;
+}
