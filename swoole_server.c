@@ -867,17 +867,12 @@ void php_swoole_onClose(swServer *serv, int fd, int from_id)
     args[1] = &zfd;
     args[2] = &zfrom_id;
 
-    swConnection *conn = swServer_connection_get(serv, fd);
-    conn->closing = 1;
-
     if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onClose], &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "onClose handler error");
     }
-
     if (EG(exception))
     {
-        conn->closing = 0;
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
 
@@ -2865,6 +2860,17 @@ PHP_FUNCTION(swoole_connection_list)
     {
         start_fd = swServer_get_minfd(serv);
     }
+#ifdef SW_REACTOR_USE_SESSION
+    else
+    {
+        swConnection *conn = swWorker_get_connection(serv, start_fd);
+        if (!conn)
+        {
+            RETURN_FALSE;
+        }
+        start_fd = conn->fd;
+    }
+#endif
 
     //达到最大，表示已经取完了
     if ((int) start_fd >= serv_max_fd)
@@ -2877,10 +2883,16 @@ PHP_FUNCTION(swoole_connection_list)
 
     for (; fd <= serv_max_fd; fd++)
     {
-        swTrace("maxfd=%d|fd=%d|find_count=%ld|start_fd=%ld", serv_max_fd, fd, find_count, start_fd);
-        if (serv->connection_list[fd].active)
+        swWarn("maxfd=%d, fd=%d, find_count=%ld, start_fd=%ld", serv_max_fd, fd, find_count, start_fd);
+        swConnection *conn = &serv->connection_list[fd];
+
+        if (conn->active && !conn->closed)
         {
+#ifdef SW_REACTOR_USE_SESSION
+            add_next_index_long(return_value, conn->session_id);
+#else
             add_next_index_long(return_value, fd);
+#endif
             find_count--;
         }
         //finish fetch

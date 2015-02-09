@@ -151,6 +151,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
         {
             key = serv->message_queue_key + 2;
         }
+
         int task_num = SwooleG.task_worker_max > 0 ? SwooleG.task_worker_max : SwooleG.task_worker_num;
         //启动min个.此时的pool->worker_num相当于max
         if (swProcessPool_create(&SwooleGS->task_workers, task_num, serv->task_max_request, key, 1) < 0)
@@ -165,7 +166,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
 
         int i;
         swWorker *worker;
-        for (i = 0; i < pool->worker_num; i++)
+        for (i = 0; i < task_num; i++)
         {
             worker = &pool->workers[i];
             if (swWorker_create(worker) < 0)
@@ -657,10 +658,12 @@ int swFactoryProcess_end(swFactory *factory, int fd)
     }
     else
     {
+        conn->closing = 1;
         if (serv->onClose != NULL)
         {
             serv->onClose(serv, fd, conn->from_id);
         }
+        conn->closing = 0;
 
         do_close:
         conn->closed = 1;
