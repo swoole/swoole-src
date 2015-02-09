@@ -15,5 +15,6 @@ func main() {
         fmt.Fprint(w, "<h1>Hello world!</h1>")
     })
 
+    log.Printf("Go http Server listen on :8080")
     log.Fatal(http.ListenAndServe(":8080", nil))
 }

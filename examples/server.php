@@ -148,7 +148,7 @@ function my_onConnect(swoole_server $serv, $fd, $from_id)
 
 function my_onWorkerStart($serv, $worker_id)
 {
-	//processRename($serv, $worker_id);
+	processRename($serv, $worker_id);
 	//forkChildInWorker();
 	//setTimerInWorker($serv, $worker_id);
 }
@@ -183,6 +183,10 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     {
         $serv->task("hellotask");
     }
+    elseif ($cmd == "sendto")
+    {
+        $serv->sendto("127.0.0.1", 9999, "hello world");
+    }
     elseif($cmd == "close")
     {
         $serv->send($fd, "close connection\n");
@@ -192,6 +196,22 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     {
         $info = $serv->connection_info($fd);
         $serv->send($fd, 'Info: '.var_export($info, true).PHP_EOL);
+    }
+    elseif($cmd == "list")
+    {
+        $start_fd = 0;
+        echo "broadcast\n";
+        while(true)
+        {
+            $conn_list = $serv->connection_list($start_fd, 10);
+            if (empty($conn_list))
+            {
+                echo "iterates finished\n";
+                break;
+            }
+            $start_fd = end($conn_list);
+            var_dump($conn_list);
+        }
     }
     elseif($cmd == "stats")
     {
@@ -242,13 +262,14 @@ function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
     }
     else
     {
+        $serv->sendto('127.0.0.1', 9999, "hello world");
         //swoole_timer_after(1000, "test");
-        var_dump($data);
-        $fd = str_replace('task-', '', $data);
-        $serv->send($fd, str_repeat('A', 8192 * 2));
-        $serv->send($fd, str_repeat('B', 8192 * 2));
-        $serv->send($fd, str_repeat('C', 8192 * 2));
-        $serv->send($fd, str_repeat('D', 8192 * 2));
+//        var_dump($data);
+//        $fd = str_replace('task-', '', $data);
+//        $serv->send($fd, str_repeat('A', 8192 * 2));
+//        $serv->send($fd, str_repeat('B', 8192 * 2));
+//        $serv->send($fd, str_repeat('C', 8192 * 2));
+//        $serv->send($fd, str_repeat('D', 8192 * 2));
         return;
     }
 
