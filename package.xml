@@ -170,7 +170,7 @@
 			</dir>
 			<dir name="src">
 				<dir name="core">
-					<file role="src" name="Base.c" />
+					<file role="src" name="base.c" />
 					<file role="src" name="socket.c" />
 					<file role="src" name="log.c" />
 					<file role="src" name="hashmap.c" />
