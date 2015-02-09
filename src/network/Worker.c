@@ -91,6 +91,17 @@ int swWorker_excute(swFactory *factory, swEventData *task)
     swString *package = NULL;
     swConnection *conn = NULL;
 
+    if (!swEventData_is_dgram(task->info.type))
+    {
+        conn = swWorker_get_connection(serv, task->info.fd);
+        //socket is closed, discard package.
+        if (!conn || conn->closed)
+        {
+            swWarn("received the wrong data from socket#%d", task->info.fd);
+            return SW_OK;
+        }
+    }
+
     factory->last_from_id = task->info.from_id;
     //worker busy
     serv->workers[SwooleWG.id].status = SW_WORKER_BUSY;
@@ -103,20 +114,7 @@ int swWorker_excute(swFactory *factory, swEventData *task)
     case SW_EVENT_UNIX_DGRAM:
     //ringbuffer shm package
     case SW_EVENT_PACKAGE:
-
-        do_task: if (swEventData_is_stream(task->info.type))
-        {
-            conn = swWorker_get_connection(serv, task->info.fd);
-            //socket is closed, discard package.
-            if (!conn || conn->closed)
-            {
-                swWarn("received the wrong data from socket#%d", task->info.fd);
-                break;
-            }
-        }
-
-        factory->onTask(factory, task);
-
+        do_task: factory->onTask(factory, task);
         if (!SwooleWG.run_always)
         {
             //only onTask increase the count
@@ -136,7 +134,6 @@ int swWorker_excute(swFactory *factory, swEventData *task)
         //merge data to package buffer
         memcpy(package->str + package->length, task->data, task->info.len);
         package->length += task->info.len;
-        //printf("package[%d]. from_id=%d|data_len=%d|total_length=%d\n", task->info.type, task->info.from_id, task->info.len, package->length);
         //package end
         if (task->info.type == SW_EVENT_PACKAGE_END)
         {

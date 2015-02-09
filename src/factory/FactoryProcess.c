@@ -842,7 +842,7 @@ int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
         target_worker_id = task->target_worker_id;
     }
 
-    if (swEventData_is_stream(task->data.info.type))
+    if (!swEventData_is_dgram(task->data.info.type))
     {
         swConnection *conn = swServer_connection_get(serv, task->data.info.fd);
         if (conn == NULL || conn->active == 0)
@@ -859,6 +859,7 @@ int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
 #ifdef SW_REACTOR_USE_SESSION
         task->data.info.fd = conn->session_id;
 #endif
+
     }
 
     return swReactorThread_send2worker((void *) &(task->data), send_len, target_worker_id);

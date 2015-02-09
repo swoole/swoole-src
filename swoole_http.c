@@ -757,11 +757,6 @@ static int http_onReceive(swFactory *factory, swEventData *req)
     int fd = req->info.fd;
 
     swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
-    if (!conn)
-    {
-        swWarn("connection[%d] is closed.", fd);
-        return SW_ERR;
-    }
     if (conn->websocket_status == WEBSOCKET_STATUS_FRAME)  //websocket callback
     {
         return http_websocket_onMessage(req TSRMLS_CC);
