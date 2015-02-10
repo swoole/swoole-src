@@ -374,7 +374,6 @@ PHP_METHOD(swoole_table, unlock);
 PHP_METHOD(swoole_http_server, on);
 PHP_METHOD(swoole_http_server, start);
 PHP_METHOD(swoole_http_server, setGlobal);
-PHP_METHOD(swoole_http_server, push);
 
 PHP_METHOD(swoole_http_request, rawcontent);
 
@@ -384,7 +383,8 @@ PHP_METHOD(swoole_http_response, rawcookie);
 PHP_METHOD(swoole_http_response, header);
 PHP_METHOD(swoole_http_response, status);
 
-PHP_METHOD(swoole_websocket_frame, message);
+PHP_METHOD(swoole_websocket_server, on);
+PHP_METHOD(swoole_websocket_server, push);
 
 void swoole_destory_lock(zend_resource *rsrc TSRMLS_DC);
 void swoole_destory_process(zend_resource *rsrc TSRMLS_DC);
@@ -395,6 +395,7 @@ void swoole_async_init(int module_number TSRMLS_DC);
 void swoole_table_init(int module_number TSRMLS_DC);
 void swoole_client_init(int module_number TSRMLS_DC);
 void swoole_http_init(int module_number TSRMLS_DC);
+void swoole_websocket_init(int module_number TSRMLS_DC);
 void swoole_event_init(void);
 
 int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC);

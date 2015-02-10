@@ -586,6 +586,7 @@ PHP_MINIT_FUNCTION(swoole)
 	swoole_async_init(module_number TSRMLS_CC);
 	swoole_table_init(module_number TSRMLS_CC);
 	swoole_http_init(module_number TSRMLS_CC);
+	swoole_websocket_init(module_number TSRMLS_CC);
 
     if (SWOOLE_G(socket_buffer_size) > 0)
     {
