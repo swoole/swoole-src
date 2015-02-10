@@ -17,9 +17,9 @@ $ser-> on( 'message', function( $ser, $fd, $data, $opcode, $fin)
 	$ser -> push( $fd, "this is server", WEBSOCKET_OPCODE_TEXT, 1 );
 });
 
-$ser-> on( 'close', function()
+$ser-> on( 'close', function( $ser, $fd)
 {
-	echo "client closed\r\n";
+	echo "client {$fd} closed\r\n";
 });
 
 $ser-> start();
