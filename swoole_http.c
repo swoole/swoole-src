@@ -34,6 +34,24 @@ static swArray *http_client_array;
 static uint8_t http_merge_global_flag = 0;
 static uint8_t http_merge_request_flag = 0;
 
+enum http_response_flag
+{
+    HTTP_RESPONSE_SERVER           = 1u << 1,
+    HTTP_RESPONSE_CONNECTION       = 1u << 2,
+    HTTP_RESPONSE_CONTENT_LENGTH   = 1u << 3,
+    HTTP_RESPONSE_DATE             = 1u << 4,
+    HTTP_RESPONSE_CONTENT_TYPE     = 1u << 5,
+};
+
+enum http_global_flag
+{
+    HTTP_GLOBAL_GET       = 1u << 1,
+    HTTP_GLOBAL_POST      = 1u << 2,
+    HTTP_GLOBAL_COOKIE    = 1u << 3,
+    HTTP_GLOBAL_REQUEST   = 1u << 4,
+    HTTP_GLOBAL_SERVER    = 1u << 5,
+};
+
 typedef struct
 {
     enum php_http_method method;
@@ -172,11 +190,6 @@ static sw_inline char* http_get_method_name(int method)
     }
 }
 
-#define HTTP_GLOBAL_GET     0x1
-#define HTTP_GLOBAL_POST    0x2
-#define HTTP_GLOBAL_COOKIE  0x4
-#define HTTP_GLOBAL_REQUEST  0x8
-#define HTTP_GLOBAL_SERVER  0x10
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_server_on, 0, 0, 2)
     ZEND_ARG_INFO(0, ha_name)
@@ -1146,6 +1159,7 @@ PHP_METHOD(swoole_http_response, end)
         char *key_server = "Server";
         char *key_connection = "Connection";
         char *key_content_length = "Content-Length";
+        char *key_content_type = "Content-Type";
         char *key_date = "Date";
 
         HashTable *ht = Z_ARRVAL_P(header);
@@ -1164,29 +1178,33 @@ PHP_METHOD(swoole_http_response, end)
             }
             if (strcmp(key, key_server) == 0)
             {
-                flag |= 0x1;
+                flag |= HTTP_RESPONSE_SERVER;
             }
             else if (strcmp(key, key_connection) == 0)
             {
-                flag |= 0x2;
+                flag |= HTTP_RESPONSE_CONNECTION;
             }
             else if (strcmp(key, key_content_length) == 0)
             {
-                flag |= 0x4;
+                flag |= HTTP_RESPONSE_CONTENT_LENGTH;
             }
             else if (strcmp(key, key_date) == 0)
             {
-                flag |= 0x8;
+                flag |= HTTP_RESPONSE_DATE;
+            }
+            else if (strcmp(key, key_content_type) == 0)
+            {
+                flag |= HTTP_RESPONSE_CONTENT_TYPE;
             }
             n = snprintf(buf, 128, "%s: %s\r\n", key, Z_STRVAL_PP(value));
             swString_append_ptr(response, buf, n);
         }
         
-        if (!(flag & 0x1))
+        if (!(flag & HTTP_RESPONSE_SERVER))
         {
             swString_append_ptr(response, ZEND_STRL("Server: "SW_HTTP_SERVER_SOFTWARE"\r\n"));
         }
-        if (!(flag & 0x2))
+        if (!(flag & HTTP_RESPONSE_CONNECTION))
         {
             if (keepalive)
             {
@@ -1204,24 +1222,28 @@ PHP_METHOD(swoole_http_response, end)
         }
         else
         {
-            if (!(flag & 0x4))
+            if (!(flag & HTTP_RESPONSE_CONTENT_LENGTH))
             {
                 n = snprintf(buf, 128, "Content-Length: %d\r\n", body.length);
                 swString_append_ptr(response, buf, n);
             }
         }
 
-        if (!(flag & 0x8))
+        if (!(flag & HTTP_RESPONSE_DATE))
         {
             date_str = php_format_date(ZEND_STRL("D, d-M-Y H:i:s T"), SwooleGS->now, 0 TSRMLS_CC);
             n = snprintf(buf, 128, "Date: %s\r\n", date_str);
             swString_append_ptr(response, buf, n);
             efree(date_str);
         }
+        if (!(flag & HTTP_RESPONSE_CONTENT_TYPE))
+        {
+            swString_append_ptr(response, ZEND_STRL("Content-Type: text/html\r\n"));
+        }
     }
     else
     {
-        swString_append_ptr(response, ZEND_STRL("Server: "SW_HTTP_SERVER_SOFTWARE"\r\n"));
+        swString_append_ptr(response, ZEND_STRL("Server: "SW_HTTP_SERVER_SOFTWARE"\r\nContent-Type: text/html\r\n"));
         if (keepalive)
         {
             swString_append_ptr(response, ZEND_STRL("Connection: keep-alive\r\n"));
