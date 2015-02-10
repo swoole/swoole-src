@@ -867,6 +867,7 @@ PHP_METHOD(swoole_client, connect)
 
         cli->socket->object = getThis();
         cli->reactor_fdtype = SW_FD_USER + 1;
+        zval_add_ref(&getThis());
 
 		if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
 		{
@@ -1375,20 +1376,22 @@ static int php_swoole_client_event_loop(zval *sock_array, fd_set *fds TSRMLS_DC)
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "object is not swoole_client object.");
 			continue;
 		}
-		if ((Z_LVAL(*zsock) < FD_SETSIZE) && FD_ISSET(Z_LVAL(*zsock), fds))
-		{
-			switch (zend_hash_get_current_key_ex(Z_ARRVAL_P(sock_array), &key, &key_len, &num_key, 0, NULL))
-			{
-			case HASH_KEY_IS_STRING:
-				zend_hash_add(new_hash, key, key_len, (void * )element, sizeof(zval *), (void ** )&dest_element);
-				break;
-			case HASH_KEY_IS_LONG:
-				zend_hash_index_update(new_hash, num_key, (void * )element, sizeof(zval *), (void ** )&dest_element);
-				break;
-			}
-			if (dest_element)
-				zval_add_ref(dest_element);
-		}
+        if ((Z_LVAL(*zsock) < FD_SETSIZE) && FD_ISSET(Z_LVAL(*zsock), fds))
+        {
+            switch (zend_hash_get_current_key_ex(Z_ARRVAL_P(sock_array), &key, &key_len, &num_key, 0, NULL))
+            {
+            case HASH_KEY_IS_STRING:
+                zend_hash_add(new_hash, key, key_len, (void * )element, sizeof(zval *), (void ** )&dest_element);
+                break;
+            case HASH_KEY_IS_LONG:
+                zend_hash_index_update(new_hash, num_key, (void * )element, sizeof(zval *), (void ** )&dest_element);
+                break;
+            }
+            if (dest_element)
+            {
+                zval_add_ref(dest_element);
+            }
+        }
 		num++;
 	}
 
