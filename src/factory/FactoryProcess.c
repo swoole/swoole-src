@@ -691,8 +691,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         memcpy(addr_un.sun_path, resp->sun_path, resp->sun_path_len);
         addr_un.sun_path[resp->sun_path_len] = 0;
         len = sizeof(addr_un);
-        ret = swSocket_sendto_blocking(from_sock, resp->data, resp->info.len, 0, (struct sockaddr *) &addr_un, len);
-        goto finish;
+        return swSocket_sendto_blocking(from_sock, resp->data, resp->info.len, 0, (struct sockaddr *) &addr_un, len);
     }
     //UDP pacakge
     else if (resp->info.type == SW_EVENT_UDP || resp->info.type == SW_EVENT_UDP6)
@@ -761,10 +760,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     sendn = ev_data.info.len + sizeof(resp->info);
     //swWarn("send: sendn=%d|type=%d|content=%s", sendn, resp->info.type, resp->data);
     swTrace("[Worker]input_queue[%ld]->in| fd=%d", sdata.pti, fd);
-
     ret = swWorker_send2reactor(&ev_data, sendn, fd);
-
-    finish:
     if (ret < 0)
     {
         swWarn("sendto to reactor failed. Error: %s [%d]", strerror(errno), errno);
