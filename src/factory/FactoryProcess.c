@@ -701,7 +701,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     }
 
     swConnection *conn = swWorker_get_connection(serv, fd);
-    if (conn == NULL || conn->active == 0)
+    if (conn == NULL || conn->active == 0 || conn->removed || conn->closed)
     {
         swWarn("send failed, because connection[%d] has been closed.", fd);
         return SW_ERR;
