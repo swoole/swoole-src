@@ -83,9 +83,9 @@ zend_class_entry *swoole_http_response_class_entry_ptr;
 zend_class_entry swoole_http_request_ce;
 zend_class_entry *swoole_http_request_class_entry_ptr;
 
-static zval* php_sw_http_server_callbacks[3];
+static zval* php_sw_http_server_callbacks[2];
 
-zend_bool isset_websocket_onMessage();
+int isset_websocket_onMessage();
 void websocket_onOpen(int fd);
 int websocket_onMessage(swEventData *req TSRMLS_DC);
 
@@ -703,7 +703,7 @@ static int http_onReceive(swFactory *factory, swEventData *req)
     else
     {
         //websocket handshake
-        if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION && php_sw_http_server_callbacks[2] == NULL)
+        if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION && php_sw_http_server_callbacks[1] == NULL)
         {
             return http_websocket_onHandshake(client TSRMLS_CC);
         }
@@ -771,7 +771,7 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         int called = 0;
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
         {
-            called = 2;
+            called = 1;
         }
         if (call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[called], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
         {
@@ -786,7 +786,7 @@ static int http_onReceive(swFactory *factory, swEventData *req)
             zval_ptr_dtor(&retval);
         }
         swTrace("======call end======\n");
-        if (called == 2)
+        if (called == 1)
         {
             websocket_onOpen(client->fd);
         }
@@ -846,15 +846,10 @@ PHP_METHOD(swoole_http_server, on)
         zval_add_ref(&callback);
         php_sw_http_server_callbacks[0] = callback;
     }
-    else if (strncasecmp("message", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
-    {
-        zval_add_ref(&callback);
-        php_sw_http_server_callbacks[1] = callback;
-    }
     else if (strncasecmp("handshake", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
         zval_add_ref(&callback);
-        php_sw_http_server_callbacks[2] = callback;
+        php_sw_http_server_callbacks[1] = callback;
     }
     else
     {

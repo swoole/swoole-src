@@ -34,7 +34,7 @@ zend_class_entry *swoole_websocket_server_class_entry_ptr;
 
 static zval* php_sw_websocket_server_callbacks[2];
 
-zend_bool isset_websocket_onMessage();
+int isset_websocket_onMessage();
 int websocket_onMessage(swEventData *req TSRMLS_DC);
 void websocket_onOpen(int fd);
 
@@ -51,10 +51,9 @@ const zend_function_entry swoole_websocket_server_methods[] =
 };
 
 
-
-zend_bool isset_websocket_onMessage()
+int isset_websocket_onMessage()
 {
-	zend_bool ret = 0;
+	int ret = 0;
 	if (php_sw_websocket_server_callbacks[1] != NULL)
 		ret = 1;
 	return ret;

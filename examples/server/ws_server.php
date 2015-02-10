@@ -1,6 +1,6 @@
 <?
 
-$ser= new swoole_websocket_server("0.0.0.0", 9502);
+$ser= new swoole_websocket_server("0.0.0.0", 9501);
 
 $ser-> set(array( 
 	"work_num" => 1
