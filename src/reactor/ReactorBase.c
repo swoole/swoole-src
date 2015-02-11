@@ -227,6 +227,11 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
 
     if (swBuffer_empty(buffer))
     {
+        if (socket->fd == 0)
+        {
+            socket->fd = fd;
+        }
+
         do_receive:
         ret = swConnection_send(socket, buf, n, 0);
 
