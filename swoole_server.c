@@ -2288,8 +2288,6 @@ PHP_FUNCTION(swoole_timer_clear)
     {
         zval_ptr_dtor(&callback->data);
     }
-
-    zval_ptr_dtor(&callback->callback);
     efree(callback);
 
     RETURN_TRUE;

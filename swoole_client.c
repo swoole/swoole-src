@@ -523,7 +523,7 @@ void php_swoole_try_run_reactor()
 
 static void php_swoole_onTimeout(swTimer *timer, swTimer_node *event)
 {
-    swTimer_callback *callback = (swTimer_callback*) event->data;
+    swTimer_callback *callback = event->data;
     zval *retval = NULL;
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
@@ -541,17 +541,20 @@ static void php_swoole_onTimeout(swTimer *timer, swTimer_node *event)
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_timer: onTimeout handler error");
         return;
     }
-
     if (retval)
     {
         zval_ptr_dtor(&retval);
     }
-    if (callback->data)
+
+    callback = event->data;
+    if (callback)
     {
-        zval_ptr_dtor(&callback->data);
+        if (callback->data)
+        {
+            zval_ptr_dtor(&callback->data);
+        }
+        efree(callback);
     }
-    zval_ptr_dtor(&callback->callback);
-    efree(callback);
 }
 
 static void php_swoole_onTimerInterval(swTimer *timer, swTimer_node *event)
