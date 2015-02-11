@@ -2209,23 +2209,23 @@ PHP_FUNCTION(swoole_server_addtimer)
 
 PHP_FUNCTION(swoole_timer_after)
 {
-    long interval;
-    swTimer_callback* callback = emalloc(sizeof(swTimer_callback));
-    callback->data = NULL;
+    long after_ms;
+    swTimer_callback* cb = emalloc(sizeof(swTimer_callback));
+    cb->data = NULL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz|z",  &interval ,&(callback->callback), &(callback->data) ) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz|z", &after_ms, &(cb->callback), &(cb->data)) == FAILURE)
     {
         return;
     }
 
-    if (interval > 86400000)
+    if (after_ms > 86400000)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "The given parameters is too big.");
         RETURN_FALSE;
     }
 
     char *func_name = NULL;
-    if (!zend_is_callable(callback->callback, 0, &func_name TSRMLS_CC))
+    if (!zend_is_callable(cb->callback, 0, &func_name TSRMLS_CC))
     {
         php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
         efree(func_name);
@@ -2244,15 +2244,15 @@ PHP_FUNCTION(swoole_timer_after)
         php_swoole_check_reactor();
     }
 
-    php_swoole_check_timer(interval);
+    php_swoole_check_timer(after_ms);
 
-    zval_add_ref(&callback->callback);
-    if (callback->data)
+    zval_add_ref(&cb->callback);
+    if (cb->data)
     {
-        zval_add_ref(&callback->data);
+        zval_add_ref(&cb->data);
     }
 
-    int timer_id = SwooleG.timer.add(&SwooleG.timer, interval, 0, callback);
+    int timer_id = SwooleG.timer.add(&SwooleG.timer, after_ms, 0, cb);
     if (timer_id < 0)
     {
         RETURN_FALSE;

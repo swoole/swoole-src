@@ -439,9 +439,19 @@ swTimer_node* swTimer_node_find(swTimer_node **root, int interval_msec, int id)
     swTimer_node *tmp = *root;
     while (tmp)
     {
-        if ((interval_msec > 0 && tmp->interval == interval_msec) || (id > 0 && tmp->id == id))
+        if (interval_msec < 0)
         {
-            return tmp;
+            if (tmp->id == id)
+            {
+                return tmp;
+            }
+        }
+        else
+        {
+            if (tmp->interval == interval_msec)
+            {
+                return tmp;
+            }
         }
         tmp = tmp->next;
     }
