@@ -851,11 +851,9 @@ int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
             swWarn("connection#%d is closed by server.", task->data.info.fd);
             return SW_OK;
         }
-
 #ifdef SW_REACTOR_USE_SESSION
         task->data.info.fd = conn->session_id;
 #endif
-
     }
 
     return swReactorThread_send2worker((void *) &(task->data), send_len, target_worker_id);

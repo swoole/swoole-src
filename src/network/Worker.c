@@ -85,22 +85,11 @@ void swWorker_signal_handler(int signo)
     }
 }
 
-int swWorker_excute(swFactory *factory, swEventData *task)
+int swWorker_onTask(swFactory *factory, swEventData *task)
 {
     swServer *serv = factory->ptr;
     swString *package = NULL;
     swConnection *conn = NULL;
-
-    if (!swEventData_is_dgram(task->info.type))
-    {
-        conn = swWorker_get_connection(serv, task->info.fd);
-        //socket is closed, discard package.
-        if (!conn || conn->closed)
-        {
-            swWarn("received the wrong data from socket#%d", task->info.fd);
-            return SW_OK;
-        }
-    }
 
     factory->last_from_id = task->info.from_id;
     //worker busy
@@ -114,7 +103,17 @@ int swWorker_excute(swFactory *factory, swEventData *task)
     case SW_EVENT_UNIX_DGRAM:
     //ringbuffer shm package
     case SW_EVENT_PACKAGE:
-        do_task: factory->onTask(factory, task);
+        do_task: if (!swEventData_is_dgram(task->info.type))
+        {
+            conn = swWorker_get_connection(serv, task->info.fd);
+            //socket is closed, discard package.
+            if (!conn || conn->closed)
+            {
+                swWarn("received the wrong data from socket#%d", task->info.fd);
+                return SW_OK;
+            }
+        }
+        factory->onTask(factory, task);
         if (!SwooleWG.run_always)
         {
             //only onTask increase the count
@@ -324,7 +323,7 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
 
     if (read(event->fd, &task, sizeof(task)) > 0)
     {
-        ret = swWorker_excute(factory, &task);
+        ret = swWorker_onTask(factory, &task);
 #ifndef SW_WORKER_RECV_AGAIN
         /**
          * Big package

@@ -650,7 +650,7 @@ void swServer_worker_onStart(swServer *serv);
 void swServer_worker_onStop(swServer *serv);
 
 int swWorker_create(swWorker *worker);
-int swWorker_excute(swFactory *factory, swEventData *task);
+int swWorker_onTask(swFactory *factory, swEventData *task);
 
 static sw_inline swConnection *swWorker_get_connection(swServer *serv, int fd)
 {
