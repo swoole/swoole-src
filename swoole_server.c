@@ -1767,6 +1767,12 @@ PHP_FUNCTION(swoole_server_send)
     //TCP
     else
     {
+        if (serv->factory_mode == SW_MODE_SINGLE && swIsTaskWorker())
+        {
+            swoole_php_error(E_WARNING, "cannot send to client in task worker with SWOOLE_BASE mode.");
+            RETURN_FALSE;
+        }
+
         if (serv->packet_mode == 1)
         {
             uint32_t len_tmp= htonl(send_len);

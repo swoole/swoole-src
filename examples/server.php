@@ -24,8 +24,8 @@ if (isset($argv[1]) and $argv[1] == 'daemon') {
 	$config['daemonize'] = false;
 }
 
-// $mode = SWOOLE_BASE;
-$mode = SWOOLE_PROCESS;
+$mode = SWOOLE_BASE;
+//$mode = SWOOLE_PROCESS;
 
 $serv = new swoole_server("0.0.0.0", 9501, $mode);
 $serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
@@ -262,10 +262,11 @@ function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
     }
     else
     {
-        $serv->sendto('127.0.0.1', 9999, "hello world");
+//        $serv->sendto('127.0.0.1', 9999, "hello world");
         //swoole_timer_after(1000, "test");
 //        var_dump($data);
-//        $fd = str_replace('task-', '', $data);
+        $fd = str_replace('task-', '', $data);
+        $serv->send($fd, "hello world in taskworker.");
 //        $serv->send($fd, str_repeat('A', 8192 * 2));
 //        $serv->send($fd, str_repeat('B', 8192 * 2));
 //        $serv->send($fd, str_repeat('C', 8192 * 2));
