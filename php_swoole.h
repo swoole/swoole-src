@@ -64,16 +64,11 @@ typedef struct
 } php_swoole_udp_t;
 #pragma pack()
 
-typedef struct
-{
-    zval *callback;
-    int interval;
-} swoole_timer_item;
-
 typedef struct _swTimer_callback
 {
 	zval* callback;
 	zval* data;
+	int interval;
 } swTimer_callback;
 
 extern zend_module_entry swoole_module_entry;
@@ -247,7 +242,6 @@ extern zend_class_entry *swoole_http_server_class_entry_ptr;
 
 extern zval *php_sw_callback[PHP_SERVER_CALLBACK_NUM];
 
-extern HashTable php_sw_timer_callback;
 extern HashTable php_sw_long_connections;
 extern HashTable php_sw_aio_callback;
 
@@ -273,7 +267,6 @@ PHP_FUNCTION(swoole_server_on);
 PHP_FUNCTION(swoole_server_handler);
 PHP_FUNCTION(swoole_server_addlisten);
 PHP_FUNCTION(swoole_server_addtimer);
-PHP_FUNCTION(swoole_server_deltimer);
 PHP_FUNCTION(swoole_server_gettimer);
 PHP_FUNCTION(swoole_server_task);
 PHP_FUNCTION(swoole_server_taskwait);

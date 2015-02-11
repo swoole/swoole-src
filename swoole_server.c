@@ -2075,42 +2075,6 @@ PHP_FUNCTION(swoole_server_heartbeat)
     }
 }
 
-PHP_FUNCTION(swoole_server_deltimer)
-{
-    zval *zobject = getThis();
-    swServer *serv = NULL;
-    long interval;
-
-    if (SwooleGS->start == 0)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
-        RETURN_FALSE;
-    }
-
-    if (zobject == NULL)
-    {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ol", &zobject, swoole_server_class_entry_ptr, &interval) == FAILURE)
-        {
-            return;
-        }
-    }
-    else
-    {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &interval) == FAILURE)
-        {
-            return;
-        }
-    }
-    SWOOLE_GET_SERVER(zobject, serv);
-    if (SwooleG.timer.fd == 0)
-    {
-        swoole_php_error(E_WARNING, "no timer interval=%d.", (int ) interval);
-        RETURN_FALSE;
-    }
-    SwooleG.timer.del(&SwooleG.timer, (int) interval, -1);
-    RETURN_TRUE;
-}
-
 PHP_FUNCTION(swoole_server_gettimer)
 {
     zval *zobject = getThis();
@@ -2216,7 +2180,7 @@ PHP_FUNCTION(swoole_server_addtimer)
 PHP_FUNCTION(swoole_timer_after)
 {
     long after_ms;
-    swTimer_callback* cb = emalloc(sizeof(swTimer_callback));
+    swTimer_callback *cb = emalloc(sizeof(swTimer_callback));
     cb->data = NULL;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz|z", &after_ms, &(cb->callback), &(cb->data)) == FAILURE)
@@ -2239,17 +2203,12 @@ PHP_FUNCTION(swoole_timer_after)
     }
     efree(func_name);
 
-    int need_reactor = 1;
     if (SwooleGS->start > 0 && swIsTaskWorker())
     {
-        need_reactor = 0;
+        swoole_php_error(E_WARNING, "cannot use swoole_server->after in task worker.");
     }
 
-    if (need_reactor)
-    {
-        php_swoole_check_reactor();
-    }
-
+    php_swoole_check_reactor();
     php_swoole_check_timer(after_ms);
 
     zval_add_ref(&cb->callback);
@@ -2263,10 +2222,8 @@ PHP_FUNCTION(swoole_timer_after)
     {
         RETURN_FALSE;
     }
-    if (need_reactor)
-    {
-        php_swoole_try_run_reactor();
-    }
+    php_swoole_try_run_reactor();
+
     RETURN_LONG(timer_id);
 }
 

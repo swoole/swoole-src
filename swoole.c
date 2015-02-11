@@ -24,7 +24,6 @@
 #include <net/if.h>
 #include <ifaddrs.h>
 
-HashTable php_sw_timer_callback;
 HashTable php_sw_aio_callback;
 
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
@@ -152,15 +151,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_addtimer, 0, 0, 2)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_addtimer_oo, 0, 0, 1)
-	ZEND_ARG_INFO(0, interval)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_deltimer, 0, 0, 2)
-	ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
-	ZEND_ARG_INFO(0, interval)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_deltimer_oo, 0, 0, 1)
 	ZEND_ARG_INFO(0, interval)
 ZEND_END_ARG_INFO()
 
@@ -310,7 +300,6 @@ const zend_function_entry swoole_functions[] =
 	PHP_FE(swoole_server_on, arginfo_swoole_server_on)
 	PHP_FE(swoole_server_addlisten, arginfo_swoole_server_addlisten)
 	PHP_FE(swoole_server_addtimer, arginfo_swoole_server_addtimer)
-	PHP_FE(swoole_server_deltimer, arginfo_swoole_server_deltimer)
 	PHP_FE(swoole_server_gettimer, NULL)
 	PHP_FE(swoole_server_task, arginfo_swoole_server_task)
 	PHP_FE(swoole_server_taskwait, arginfo_swoole_server_taskwait)
@@ -364,9 +353,6 @@ static zend_function_entry swoole_server_methods[] = {
 	PHP_FALIAS(taskwait, swoole_server_taskwait, arginfo_swoole_server_taskwait_oo)
 	PHP_FALIAS(finish, swoole_server_finish, arginfo_swoole_server_finish_oo)
 	PHP_FALIAS(addlistener, swoole_server_addlisten, arginfo_swoole_server_addlisten_oo)
-	PHP_FALIAS(addtimer, swoole_server_addtimer, arginfo_swoole_server_addtimer_oo)
-	PHP_FALIAS(deltimer, swoole_server_deltimer, arginfo_swoole_server_deltimer_oo)
-	PHP_FALIAS(gettimer, swoole_server_gettimer, NULL)
 	PHP_FALIAS(reload, swoole_server_reload, arginfo_swoole_server_reload_oo)
 	PHP_FALIAS(shutdown, swoole_server_shutdown, arginfo_swoole_server_shutdown_oo)
 	PHP_FALIAS(hbcheck, swoole_server_heartbeat, arginfo_swoole_server_heartbeat_oo)
@@ -375,8 +361,13 @@ static zend_function_entry swoole_server_methods[] = {
 	PHP_FALIAS(on, swoole_server_on, arginfo_swoole_server_on_oo)
     PHP_FALIAS(connection_info, swoole_connection_info, arginfo_swoole_connection_info_oo)
 	PHP_FALIAS(connection_list, swoole_connection_list, arginfo_swoole_connection_list_oo)
+	//timer
+    PHP_FALIAS(addtimer, swoole_server_addtimer, arginfo_swoole_server_addtimer_oo)
+    PHP_FALIAS(deltimer, swoole_timer_del, arginfo_swoole_timer_del)
+    PHP_FALIAS(gettimer, swoole_server_gettimer, NULL)
 	PHP_FALIAS(after, swoole_timer_after, NULL)
 	PHP_FALIAS(clearAfter, swoole_timer_clear, NULL)
+	//process
     PHP_ME(swoole_server, sendmessage, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, addprocess, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, stats, NULL, ZEND_ACC_PUBLIC)
@@ -686,8 +677,6 @@ PHP_MINFO_FUNCTION(swoole)
 
 PHP_RINIT_FUNCTION(swoole)
 {
-	//swoole_timer_add
-	zend_hash_init(&php_sw_timer_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
 	//swoole_aio
 	zend_hash_init(&php_sw_aio_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
 	//running
@@ -714,7 +703,6 @@ PHP_RINIT_FUNCTION(swoole)
 
 PHP_RSHUTDOWN_FUNCTION(swoole)
 {
-    zend_hash_destroy(&php_sw_timer_callback);
     zend_hash_destroy(&php_sw_aio_callback);
 
     int i;
