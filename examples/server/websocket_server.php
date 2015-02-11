@@ -1,27 +1,43 @@
-<?
+<?php
+$server = new swoole_websocket_server("0.0.0.0", 9501);
 
-$ser= new swoole_websocket_server("0.0.0.0", 9501);
-
-$ser-> set(array( 
-	"work_num" => 1
-));
-
-$ser-> on( 'open', function($ser, $fd)
-{
-	echo "server:shakehand success with fd{$fd}\r\n";
+$server->on('open', function ($server, $fd) {
+    echo "server: handshake success with fd{$fd}\n";
 });
 
-$ser-> on( 'message', function( $ser, $fd, $data, $opcode, $fin)
-{
-	echo "receive from {$fd}:{$data},opcode:{$opcode},fin:{$fin}\r\n";
-	$ser -> push( $fd, "this is server", WEBSOCKET_OPCODE_TEXT, 1 );
+$server->on('message', function (swoole_websocket_server $server, $fd, $data, $opcode, $fin) {
+    echo "receive from {$fd}:{$data},opcode:{$opcode},fin:{$fin}\n";
+    $server->push($fd, "this is server");
 });
 
-$ser-> on( 'close', function( $ser, $fd)
-{
-	echo "client {$fd} closed\r\n";
+$server->on('close', function ($ser, $fd) {
+    echo "client {$fd} closed\n";
 });
 
-$ser-> start();
+$server->on('request', function (swoole_http_request $request, swoole_http_response $response) {
+    $response->end(<<<HTML
+    <h1>Swoole WebSocket Server</h1>
+    <script>
+var wsServer = 'ws://127.0.0.1:9501';
+var websocket = new WebSocket(wsServer);
+websocket.onopen = function (evt) {
+	console.log("Connected to WebSocket server.");
+};
 
-?>
+websocket.onclose = function (evt) {
+	console.log("Disconnected");
+};
+
+websocket.onmessage = function (evt) {
+	console.log('Retrieved data from server: ' + evt.data);
+};
+
+websocket.onerror = function (evt, e) {
+	console.log('Error occured: ' + evt.data);
+};
+</script>
+HTML
+    );
+});
+
+$server->start();

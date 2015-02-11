@@ -2104,7 +2104,7 @@ PHP_FUNCTION(swoole_server_deltimer)
     SWOOLE_GET_SERVER(zobject, serv);
     if (SwooleG.timer.fd == 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: no timer.");
+        swoole_php_error(E_WARNING, "no timer interval=%d.", (int ) interval);
         RETURN_FALSE;
     }
     SwooleG.timer.del(&SwooleG.timer, (int) interval, -1);
@@ -2272,6 +2272,12 @@ PHP_FUNCTION(swoole_timer_after)
 
 PHP_FUNCTION(swoole_timer_clear)
 {
+    if (!SwooleG.timer.del)
+    {
+        swoole_php_error(E_WARNING, "no timer");
+        RETURN_FALSE;
+    }
+
     long id;
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &id) == FAILURE)
     {
