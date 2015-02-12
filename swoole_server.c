@@ -2151,12 +2151,6 @@ PHP_FUNCTION(swoole_server_addtimer)
         RETURN_FALSE;
     }
 
-    if (SwooleG.use_timer_pipe && SwooleG.main_reactor == NULL)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "cannot use addtimer here.");
-        RETURN_FALSE;
-    }
-
     if (zobject == NULL)
     {
         if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ol", &zobject, swoole_server_class_entry_ptr, &interval) == FAILURE)

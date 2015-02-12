@@ -171,6 +171,7 @@ PHP_FUNCTION(swoole_timer_del)
     {
         return;
     }
+
     if (SwooleG.timer.fd == 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "no timer.");
@@ -178,6 +179,12 @@ PHP_FUNCTION(swoole_timer_del)
     }
 
     swTimer_callback *callback = SwooleG.timer.del(&SwooleG.timer, (int) interval, -1);
+
+    if (SwooleGS->start > 0)
+    {
+        RETURN_TRUE;
+    }
+
     if (!callback)
     {
         RETURN_FALSE;
