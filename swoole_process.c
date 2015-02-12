@@ -119,12 +119,16 @@ PHP_METHOD(swoole_process, wait)
     }
 
 	pid_t pid = swWaitpid(-1, &status, options);
-	if (pid > 0)
-	{
-		array_init(return_value);
-		add_assoc_long(return_value, "code", WEXITSTATUS(status));
-		add_assoc_long(return_value, "pid", pid);
-	}
+    if (pid > 0)
+    {
+        array_init(return_value);
+        add_assoc_long(return_value, "code", WEXITSTATUS(status));
+        add_assoc_long(return_value, "pid", pid);
+        if (WIFSIGNALED(status))
+        {
+            add_assoc_long(return_value, "signal", WTERMSIG(status));
+        }
+    }
 	else
 	{
 		RETURN_FALSE;
