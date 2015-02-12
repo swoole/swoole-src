@@ -495,10 +495,30 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
     swReactorThread *thread = swServer_get_thread(SwooleG.serv, SwooleTG.id);
     swBuffer *buffer = *(swBuffer **) swArray_fetch(thread->buffer_pipe, ev->fd);
     swBuffer_trunk *trunk = NULL;
+    swEventData *send_data;
+    swConnection *conn;
+    swServer *serv = reactor->ptr;
 
     while (!swBuffer_empty(buffer))
     {
         trunk = swBuffer_get_trunk(buffer);
+        send_data = trunk->store.ptr;
+
+        //server active close, discard data.
+        if (swEventData_is_stream(send_data->info.type))
+        {
+#ifdef SW_REACTOR_USE_SESSION
+            conn = swWorker_get_connection(serv, send_data->info.fd);
+#else
+            conn = swServer_connection_get(serv, send_data->info.fd);
+#endif
+            if (conn == NULL || conn->closed)
+            {
+                swWarn("connection#%d is closed by server.", send_data->info.fd);
+                return SW_OK;
+            }
+        }
+
         ret = write(ev->fd, trunk->store.ptr, trunk->length);
         if (ret < 0)
         {

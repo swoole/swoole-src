@@ -851,6 +851,7 @@ int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
             swWarn("connection#%d is not active.", task->data.info.fd);
             return SW_ERR;
         }
+        //server active close, discard data.
         if (conn->closed)
         {
             swWarn("connection#%d is closed by server.", task->data.info.fd);
