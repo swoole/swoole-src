@@ -377,7 +377,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
     int reload_worker_i = 0;
     int reload_worker_num;
     int ret;
-    int worker_exit_code;
+    int status;
 
     SwooleG.use_signalfd = 0;
     SwooleG.use_timerfd = 0;
@@ -416,7 +416,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 
     while (SwooleG.running > 0)
     {
-        pid = wait(&worker_exit_code);
+        pid = wait(&status);
 
         if (pid < 0)
         {
@@ -442,7 +442,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
             {
                 if (SwooleG.task_worker_num == 0)
                 {
-                    swWarn("Cannot reload workers, because server no have task workers.");
+                    swWarn("cannot reload workers, because server no have task workers.");
                     continue;
                 }
                 memcpy(reload_workers, SwooleGS->task_workers.workers, sizeof(swWorker) * SwooleG.task_worker_num);
@@ -463,9 +463,14 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
                 }
                 else
                 {
-                    if (serv->onWorkerError != NULL && WEXITSTATUS(worker_exit_code) > 0)
+                    if (!WIFEXITED(status))
                     {
-                        serv->onWorkerError(serv, i, pid, WEXITSTATUS(worker_exit_code));
+                        swWarn("worker#%d abnormal exit, status=%d, signal=%d", i, WEXITSTATUS(status), WTERMSIG(status));
+
+                        if (serv->onWorkerError != NULL)
+                        {
+                            serv->onWorkerError(serv, i, pid, WEXITSTATUS(status));
+                        }
                     }
                     pid = 0;
                     while (1)
