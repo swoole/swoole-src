@@ -515,7 +515,8 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
             if (conn == NULL || conn->closed)
             {
                 swWarn("connection#%d is closed by server.", send_data->info.fd);
-                return SW_OK;
+                swBuffer_pop_trunk(buffer, trunk);
+                continue;
             }
         }
 
