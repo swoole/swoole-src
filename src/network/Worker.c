@@ -378,31 +378,28 @@ int swWorker_send2worker(swWorker *dst_worker, void *buf, int n, int flag)
         pipefd = dst_worker->pipe_worker;
     }
 
+    //message-queue
+    if (dst_worker->pool->use_msgqueue)
+    {
+        struct
+        {
+            long mtype;
+            swEventData buf;
+        } msg;
+
+        msg.mtype = dst_worker->id + 1;
+        memcpy(&msg.buf, buf, n);
+
+        ret = dst_worker->pool->queue->in(dst_worker->pool->queue, (swQueue_data *) &msg, n);
+    }
+
     if (flag & SW_PIPE_NONBLOCK)
     {
         return SwooleG.main_reactor->write(SwooleG.main_reactor, pipefd, buf, n);
     }
     else
     {
-        //message-queue
-        if (dst_worker->pool->use_msgqueue)
-        {
-            struct
-            {
-                long mtype;
-                swEventData buf;
-            } msg;
-
-            msg.mtype = dst_worker->id + 1;
-            memcpy(&msg.buf, buf, n);
-
-            ret = dst_worker->pool->queue->in(dst_worker->pool->queue, (swQueue_data *) &msg, n);
-        }
-        //task worker
-        else
-        {
-            ret = swSocket_write_blocking(pipefd, buf, n);
-        }
+        ret = swSocket_write_blocking(pipefd, buf, n);
     }
 
     return ret;
