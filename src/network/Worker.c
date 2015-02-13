@@ -390,7 +390,7 @@ int swWorker_send2worker(swWorker *dst_worker, void *buf, int n, int flag)
         msg.mtype = dst_worker->id + 1;
         memcpy(&msg.buf, buf, n);
 
-        ret = dst_worker->pool->queue->in(dst_worker->pool->queue, (swQueue_data *) &msg, n);
+        return dst_worker->pool->queue->in(dst_worker->pool->queue, (swQueue_data *) &msg, n);
     }
 
     if (flag & SW_PIPE_NONBLOCK)
