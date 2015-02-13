@@ -85,11 +85,26 @@ void swWorker_signal_handler(int signo)
     }
 }
 
+static sw_inline int swWorker_get_session_id(swServer *serv, int fd)
+{
+    swConnection *conn = swServer_connection_get(serv, fd);
+    //socket is closed, discard package.
+    if (!conn || conn->closed)
+    {
+        swWarn("received the wrong data from socket#%d", fd);
+        return SW_ERR;
+    }
+#ifdef SW_REACTOR_USE_SESSION
+    return conn->session_id;
+#else
+    return fd;
+#endif
+}
+
 int swWorker_onTask(swFactory *factory, swEventData *task)
 {
     swServer *serv = factory->ptr;
     swString *package = NULL;
-    swConnection *conn = NULL;
 
     factory->last_from_id = task->info.from_id;
     //worker busy
@@ -97,35 +112,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
 
     switch (task->info.type)
     {
-    //no buffer
     case SW_EVENT_TCP:
-    case SW_EVENT_UDP:
-    case SW_EVENT_UNIX_DGRAM:
-    //ringbuffer shm package
-    case SW_EVENT_PACKAGE:
-        do_task: if (!swEventData_is_dgram(task->info.type))
-        {
-            conn = swWorker_get_connection(serv, task->info.fd);
-            //socket is closed, discard package.
-            if (!conn || conn->closed)
-            {
-                swWarn("received the wrong data from socket#%d", task->info.fd);
-                return SW_OK;
-            }
-        }
-        factory->onTask(factory, task);
-        if (!SwooleWG.run_always)
-        {
-            //only onTask increase the count
-            SwooleWG.request_num--;
-        }
-        if (task->info.type == SW_EVENT_PACKAGE_END)
-        {
-            package->length = 0;
-        }
-        break;
-
-    //package trunk
     case SW_EVENT_PACKAGE_START:
     case SW_EVENT_PACKAGE_END:
         //input buffer
@@ -140,11 +127,43 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         }
         break;
 
+    //ringbuffer shm package
+    case SW_EVENT_PACKAGE:
+        do_task:
+        task->info.fd = swWorker_get_session_id(serv, task->info.fd);
+        if (task->info.fd < 0)
+        {
+            return SW_OK;
+        }
+
+        factory->onTask(factory, task);
+        if (!SwooleWG.run_always)
+        {
+            //only onTask increase the count
+            SwooleWG.request_num--;
+        }
+        if (task->info.type == SW_EVENT_PACKAGE_END)
+        {
+            package->length = 0;
+        }
+        break;
+
+    case SW_EVENT_UDP:
+    case SW_EVENT_UNIX_DGRAM:
+        factory->onTask(factory, task);
+        if (!SwooleWG.run_always)
+        {
+            SwooleWG.request_num--;
+        }
+        break;
+
     case SW_EVENT_CLOSE:
+        task->info.fd = swWorker_get_session_id(serv, task->info.fd);
         factory->end(factory, task->info.fd);
         break;
 
     case SW_EVENT_CONNECT:
+        task->info.fd = swWorker_get_session_id(serv, task->info.fd);
         serv->onConnect(serv, task->info.fd, task->info.from_id);
         break;
 

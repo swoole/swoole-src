@@ -45,14 +45,6 @@ int swFactory_shutdown(swFactory *factory)
 int swFactory_dispatch(swFactory *factory, swDispatchData *task)
 {
     factory->last_from_id = task->data.info.from_id;
-
-#ifdef SW_REACTOR_USE_SESSION
-    if (!swEventData_is_dgram(task->data.info.type))
-    {
-        task->data.info.fd = SwooleG.serv->connection_list[task->data.info.fd].session_id;
-    }
-#endif
-
     return swWorker_onTask(factory, &task->data);
 }
 

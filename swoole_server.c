@@ -1701,8 +1701,7 @@ PHP_FUNCTION(swoole_server_send)
     }
     else
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zs|l", &zfd, &send_data,
-                &send_len, &from_id) == FAILURE)
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zs|l", &zfd, &send_data, &send_len, &from_id) == FAILURE)
         {
             return;
         }
