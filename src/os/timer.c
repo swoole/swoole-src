@@ -404,7 +404,7 @@ void swTimer_node_insert(swTimer_node **root, swTimer_node *new_node)
     swTimer_node *tmp = *root;
     while (1)
     {
-        if (tmp->exec_msec >= new_node->exec_msec)
+        if (tmp->exec_msec > new_node->exec_msec)
         {
             new_node->prev = tmp->prev;
             new_node->next = tmp;
