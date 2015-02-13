@@ -114,19 +114,6 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     {
     case SW_EVENT_TCP:
     case SW_EVENT_PACKAGE_START:
-    case SW_EVENT_PACKAGE_END:
-        //input buffer
-        package = SwooleWG.buffer_input[task->info.from_id];
-        //merge data to package buffer
-        memcpy(package->str + package->length, task->data, task->info.len);
-        package->length += task->info.len;
-        //package end
-        if (task->info.type == SW_EVENT_PACKAGE_END)
-        {
-            goto do_task;
-        }
-        break;
-
     //ringbuffer shm package
     case SW_EVENT_PACKAGE:
         do_task:
@@ -145,6 +132,19 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         if (task->info.type == SW_EVENT_PACKAGE_END)
         {
             package->length = 0;
+        }
+        break;
+
+    case SW_EVENT_PACKAGE_END:
+        //input buffer
+        package = SwooleWG.buffer_input[task->info.from_id];
+        //merge data to package buffer
+        memcpy(package->str + package->length, task->data, task->info.len);
+        package->length += task->info.len;
+        //package end
+        if (task->info.type == SW_EVENT_PACKAGE_END)
+        {
+            goto do_task;
         }
         break;
 
