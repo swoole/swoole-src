@@ -507,11 +507,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
         //server active close, discard data.
         if (swEventData_is_stream(send_data->info.type))
         {
-#ifdef SW_REACTOR_USE_SESSION
-            conn = swWorker_get_connection(serv, send_data->info.fd);
-#else
             conn = swServer_connection_get(serv, send_data->info.fd);
-#endif
             if (conn == NULL || conn->closed)
             {
                 swWarn("connection#%d is closed by server.", send_data->info.fd);
