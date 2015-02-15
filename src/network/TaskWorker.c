@@ -83,6 +83,8 @@ int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
 int swTaskWorker_large_pack(swEventData *task, void *data, int data_len)
 {
 	swPackage_task pkg;
+	bzero(&pkg, sizeof(pkg));
+
 	memcpy(pkg.tmpfile, SwooleG.task_tmpdir, SwooleG.task_tmpdir_len);
 
 #ifdef HAVE_MKOSTEMP

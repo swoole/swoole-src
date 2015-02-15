@@ -31,11 +31,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2015-01-07</date>
-    <time>19:39:51</time>
+    <date>2015-02-15</date>
+    <time>15:39:51</time>
     <version>
-        <release>1.7.9</release>
-        <api>1.7.9</api>
+        <release>1.7.10</release>
+        <api>1.7.10</api>
     </version>
     <stability>
         <release>stable</release>
@@ -43,16 +43,16 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Added websocket protocol support
-- Added swoole_process::signal
-- Added swoole_server->addProcess
-- Added swoole_process::name
-- Added swoole_server::listen
-- Added swoole_server::sendMessage and onPipeMessage event
-- Added swoole_event_write
-- Added swoole_process->close
-- Added swoole_server user/group setting
-- Added swoole_server task/finish automatic packing
+- Fixed udp server after the reload cycle of death BUG
+- Fixed http server POST request segment fault error
+- Added non-blocking settings for swoole_process::wait
+- Fixed pecl script cannot use
+- Fixed swoole_server->sendMessage to fail
+- Added swoole_websocket_server
+- Added swoole_server->sendto
+- Optimization performance for http_server
+- Optimization performance for swoole_client and swoole_event
+- Added ARM platform support
     </notes>
 	<contents>
 		<dir name="/">

@@ -1078,8 +1078,14 @@ PHP_FUNCTION(swoole_server_set)
     if (sw_zend_hash_find(vht, ZEND_STRS("task_tmpdir"), (void **) &v) == SUCCESS)
     {
         convert_to_string(*v);
-        SwooleG.task_tmpdir = emalloc(SW_DIR_MAXLEN);
-        SwooleG.task_tmpdir_len = snprintf(SwooleG.task_tmpdir, SW_DIR_MAXLEN, "%s/task.XXXXXX", Z_STRVAL_PP(v)) + 1;
+        SwooleG.task_tmpdir = emalloc(SW_TASK_TMPDIR_SIZE);
+        SwooleG.task_tmpdir_len = snprintf(SwooleG.task_tmpdir, SW_TASK_TMPDIR_SIZE, "%s/task.XXXXXX", Z_STRVAL_PP(v)) + 1;
+
+        if (SwooleG.task_tmpdir_len > SW_TASK_TMPDIR_SIZE - 1)
+        {
+            swoole_php_fatal_error(E_ERROR, "task_tmpdir is too long, max size is %d.", SW_TASK_TMPDIR_SIZE - 1);
+            return;
+        }
     }
     else
     {
@@ -1112,25 +1118,30 @@ PHP_FUNCTION(swoole_server_set)
         serv->open_cpu_affinity = (uint8_t) Z_LVAL_PP(v);
     }
     //cpu affinity set
-    if (sw_zend_hash_find(vht, ZEND_STRS("cpu_affinity_ignore"), (void **)&v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("cpu_affinity_ignore"), (void **) &v) == SUCCESS)
     {
         int ignore_num = zend_hash_num_elements(Z_ARRVAL_PP(v));
         int available_num = SW_CPU_NUM - ignore_num;
-        int *available_cpu = (int *)sw_malloc(sizeof(int)*available_num);
-        int flag,i,available_i = 0;
-        for(i=0;i<SW_CPU_NUM;i++){
+        int *available_cpu = (int *) sw_malloc(sizeof(int) * available_num);
+        int flag, i, available_i = 0;
+
+        for (i = 0; i < SW_CPU_NUM; i++)
+        {
             flag = 1;
-             for (zend_hash_internal_pointer_reset(Z_ARRVAL_PP(v)); zend_hash_has_more_elements(Z_ARRVAL_PP(v)) == SUCCESS; zend_hash_move_forward(Z_ARRVAL_PP(v)))
+            for (zend_hash_internal_pointer_reset(Z_ARRVAL_PP(v));
+            zend_hash_has_more_elements(Z_ARRVAL_PP(v)) == SUCCESS; zend_hash_move_forward(Z_ARRVAL_PP(v)))
             {
                 zval **zval_core;
-                zend_hash_get_current_data(Z_ARRVAL_PP(v), (void**) &zval_core);
-                int core = (int)Z_LVAL_PP(zval_core);
-                if(i==core){
+                zend_hash_get_current_data(Z_ARRVAL_PP(v), (void** ) &zval_core);
+                int core = (int) Z_LVAL_PP(zval_core);
+                if (i == core)
+                {
                     flag = 0;
                     break;
                 }
             }
-           if(flag){
+            if (flag)
+            {
                 available_cpu[available_i] = i;
                 available_i++;
             }
@@ -2420,7 +2431,7 @@ PHP_FUNCTION(swoole_server_task)
 
     swTask_type(&buf) |= SW_TASK_NONBLOCK;
 
-    char *task_data_str;
+    char *task_data_str = NULL;
     int task_data_len = 0;
 
     //need serialize
@@ -2432,6 +2443,7 @@ PHP_FUNCTION(swoole_server_task)
         PHP_VAR_SERIALIZE_INIT(var_hash);
         php_var_serialize(&serialized_data, data, &var_hash TSRMLS_CC);
         PHP_VAR_SERIALIZE_DESTROY(var_hash);
+
         task_data_str = serialized_data.c;
         task_data_len = serialized_data.len;
     }
@@ -2444,7 +2456,7 @@ PHP_FUNCTION(swoole_server_task)
     //write to file
     if (task_data_len >= SW_IPC_MAX_SIZE - sizeof(buf.info))
     {
-        if (swTaskWorker_large_pack(&buf, task_data_str, task_data_len) < 0 )
+        if (swTaskWorker_large_pack(&buf, task_data_str, task_data_len) < 0)
         {
             smart_str_free(&serialized_data);
             php_error_docref(NULL TSRMLS_CC, E_WARNING, "large task pack failed()");

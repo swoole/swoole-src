@@ -8,7 +8,7 @@ $config = array(
    'worker_num' => 1,
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
-    //'ipc_mode' => 2,
+   'task_ipc_mode'   => 2,
    'task_worker_num' => 1,
     //'task_ipc_mode' => 1,
     //'dispatch_mode' => 1,
@@ -144,7 +144,6 @@ function my_onConnect(swoole_server $serv, $fd, $from_id)
     //throw new Exception("hello world");
     var_dump($serv->connection_info($fd));
     echo "Worker#{$serv->worker_pid} Client[$fd@$from_id]: Connect.\n";
-    swoole_timer_clear(100);
     echo "Client: Connect --- {$fd}\n";
 }
 

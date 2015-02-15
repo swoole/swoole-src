@@ -465,8 +465,8 @@ typedef struct _swPackage
 
 typedef struct
 {
-	int length;
-	char tmpfile[sizeof(SW_TASK_TMP_FILE)];
+    int length;
+    char tmpfile[SW_TASK_TMPDIR_SIZE + sizeof(SW_TASK_TMP_FILE)];
 } swPackage_task;
 
 typedef struct
