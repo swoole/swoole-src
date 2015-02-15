@@ -354,3 +354,16 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev)
     return SW_OK;
 }
 
+int swReactor_wait_write_buffer(swReactor *reactor, int fd)
+{
+    swConnection *conn = swReactor_get(reactor, fd);
+    swEvent event;
+
+    if (conn->out_buffer)
+    {
+        swSetBlock(fd);
+        event.fd = fd;
+        return swReactor_onWrite(reactor, &event);
+    }
+    return SW_OK;
+}
