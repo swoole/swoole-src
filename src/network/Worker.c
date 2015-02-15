@@ -307,18 +307,17 @@ static void swWorker_wait_buffer(swServer *serv)
 {
     int i;
     swWorker *worker;
-    swConnection *socket;
 
     for (i = 0; i < serv->worker_num + SwooleG.task_worker_num; i++)
     {
         worker = swServer_get_worker(serv, i);
         if (worker->pipe_worker)
         {
-            swReactor_wait_write_buffer(worker->pipe_worker);
+            swReactor_wait_write_buffer(SwooleG.main_reactor, worker->pipe_worker);
         }
         if (worker->pipe_master)
         {
-            swReactor_wait_write_buffer(worker->pipe_master);
+            swReactor_wait_write_buffer(SwooleG.main_reactor, worker->pipe_master);
         }
     }
 }
