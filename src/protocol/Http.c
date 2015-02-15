@@ -140,7 +140,7 @@ int swHttpRequest_get_content_length(swHttpRequest *request)
         {
             if (state == 0)
             {
-                if (memcmp(p + 2, SW_STRL("Content-Length") - 1) == 0)
+                if (strncasecmp(p + 2, SW_STRL("Content-Length") - 1) == 0)
                 {
                     p += sizeof("Content-Length: ");
                     request->content_length = atoi(p);
