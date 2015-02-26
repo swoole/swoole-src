@@ -484,7 +484,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
     }
     else if ((parser->method == PHP_HTTP_POST || parser->method == PHP_HTTP_PUT || parser->method == PHP_HTTP_PATCH)
             && memcmp(header_name, ZEND_STRL("content-type")) == 0
-            && strcasecmp(at, "application/x-www-form-urlencoded") == 0)
+            && strncasecmp(at, SW_STRL("application/x-www-form-urlencoded") - 1) == 0)
     {
         client->request.post_form_urlencoded = 1;
         zval *header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("header"), 1 TSRMLS_CC);
