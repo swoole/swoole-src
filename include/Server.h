@@ -495,7 +495,7 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length);
 //UDP, UDP必然超过0x1000000
 //原因：IPv4的第4字节最小为1,而这里的conn_fd是网络字节序
 #define SW_MAX_SOCKET_ID             0x1000000
-#define swServer_is_udp(fd)          (fd > 0x1000000)
+#define swServer_is_udp(fd)          ((uint32_t) fd > 0x1000000)
 #define swEventData_is_dgram(type)   (type == SW_EVENT_UDP || type == SW_EVENT_UDP6 || type == SW_EVENT_UNIX_DGRAM)
 #define swEventData_is_stream(type)  (type == SW_EVENT_TCP || type == SW_EVENT_TCP6 || type == SW_EVENT_UNIX_STREAM)
 
