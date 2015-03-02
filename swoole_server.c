@@ -2690,7 +2690,11 @@ PHP_FUNCTION(swoole_connection_info)
     fd = swServer_get_fd(serv, fd);
 #endif
 
-    swConnection *conn = swServer_connection_get(serv, fd);
+    swConnection *conn = swWorker_get_connection(serv, fd);
+    if (!conn)
+    {
+        RETURN_FALSE;
+    }
     //connection is closed
     if (conn->active == 0 && !noCheckConnection)
     {
