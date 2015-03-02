@@ -2774,11 +2774,12 @@ PHP_FUNCTION(swoole_connection_list)
 
     array_init(return_value);
     int fd = start_fd + 1;
+    swConnection *conn;
 
     for (; fd <= serv_max_fd; fd++)
     {
-        swWarn("maxfd=%d, fd=%d, find_count=%ld, start_fd=%ld", serv_max_fd, fd, find_count, start_fd);
-        swConnection *conn = &serv->connection_list[fd];
+        swTrace("maxfd=%d, fd=%d, find_count=%ld, start_fd=%ld", serv_max_fd, fd, find_count, start_fd);
+        conn = &serv->connection_list[fd];
 
         if (conn->active && !conn->closed)
         {
