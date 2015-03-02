@@ -530,6 +530,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags);
             swSysError("open(%s) failed.", task->data);\
             _length = -1;\
         } else if (swoole_sync_readfile(tmp_file_fd, _buf, _length) > 0) {\
+            close(tmp_file_fd);\
             unlink(_pkg.tmpfile);\
         } else {\
             _length = -1;\

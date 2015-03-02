@@ -139,14 +139,15 @@ function long_tcp(Swoole_Benchmark $bc)
 /**
  * 去掉计时信息的UDP
  * @param $bc
+ * @return bool
  */
 function udp(Swoole_Benchmark $bc)
 {
 	static $fp;
-	if(empty($fp))
+	if (empty($fp))
 	{
 		$fp = stream_socket_client($bc->server_url, $errno, $errstr, 1);
-		if(!$fp)
+		if (!$fp)
 		{
 			echo "{$errstr}[{$errno}]\n";
 			return false;
@@ -156,7 +157,10 @@ function udp(Swoole_Benchmark $bc)
 	fwrite($fp, $bc->send_data);
 	/*--------读取Sokcet-------*/
 	$ret = fread($fp, $bc->read_len);
-	if(empty($ret)) return false;
+	if (empty($ret))
+	{
+		return false;
+	}
 	return true;
 }
 
@@ -164,13 +168,13 @@ function udp2(Swoole_Benchmark $bc)
 {
 	static $fp;
 	$start = microtime(true);
-	if(empty($fp))
+	if (empty($fp))
 	{
 		$u = parse_url($bc->server_url);
 		$fp = new swoole_client(SWOOLE_SOCK_UDP);
 		$fp->connect($u['host'], $u['port'], 0.5, 0);
 		$end = microtime(true);
-		$conn_use = $end-$start;
+		$conn_use = $end - $start;
 		$bc->max_conn_time = $conn_use;
 		$start = $end;
 	}
@@ -178,17 +182,25 @@ function udp2(Swoole_Benchmark $bc)
 	$fp->send($bc->send_data);
 	$end = microtime(true);
 	$write_use = $end - $start;
-	if($write_use > $bc->max_write_time) $bc->max_write_time = $write_use;
+	if ($write_use > $bc->max_write_time)
+	{
+		$bc->max_write_time = $write_use;
+	}
 	$start = $end;
 	/*--------读取Sokcet-------*/
 	$ret = $fp->recv();
-	if(empty($ret)) return false;
+	if (empty($ret))
+	{
+		return false;
+	}
 
 	$end = microtime(true);
 	$read_use = $end - $start;
-	if($read_use>$bc->max_read_time) $bc->max_read_time = $read_use;
+	if ($read_use > $bc->max_read_time)
+	{
+		$bc->max_read_time = $read_use;
+	}
 	return true;
-
 }
 
 function short_tcp($bc)

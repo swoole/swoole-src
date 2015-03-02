@@ -77,51 +77,53 @@ int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
         ret = serv->onTask(serv, task);
     }
     SwooleWG.worker->status = SW_WORKER_IDLE;
+
     return ret;
 }
 
 int swTaskWorker_large_pack(swEventData *task, void *data, int data_len)
 {
-	swPackage_task pkg;
-	bzero(&pkg, sizeof(pkg));
+    swPackage_task pkg;
+    bzero(&pkg, sizeof(pkg));
 
-	memcpy(pkg.tmpfile, SwooleG.task_tmpdir, SwooleG.task_tmpdir_len);
+    memcpy(pkg.tmpfile, SwooleG.task_tmpdir, SwooleG.task_tmpdir_len);
 
 #ifdef HAVE_MKOSTEMP
-	int tpm_fd  = mkostemp(pkg.tmpfile, O_WRONLY);
+    int tpm_fd = mkostemp(pkg.tmpfile, O_WRONLY);
 #else
-	int tpm_fd  = mkstemp(pkg.tmpfile);
+    int tpm_fd = mkstemp(pkg.tmpfile);
 #endif
 
-	if (tpm_fd < 0)
-	{
-		swWarn("mkdtemp(%s) failed. Error: %s[%d]", pkg.tmpfile, strerror(errno), errno);
-		return SW_ERR;
-	}
+    if (tpm_fd < 0)
+    {
+        swWarn("mkdtemp(%s) failed. Error: %s[%d]", pkg.tmpfile, strerror(errno), errno);
+        return SW_ERR;
+    }
 
-	if (swoole_sync_writefile(tpm_fd, data, data_len) <=0)
-	{
-		swWarn("write to tmpfile failed.");
-		return SW_ERR;
-	}
+    if (swoole_sync_writefile(tpm_fd, data, data_len) <= 0)
+    {
+        swWarn("write to tmpfile failed.");
+        return SW_ERR;
+    }
 
-	task->info.len = sizeof(swPackage_task);
-	//use tmp file
+    task->info.len = sizeof(swPackage_task);
+    //use tmp file
     swTask_type(task) |= SW_TASK_TMPFILE;
 
-	pkg.length = data_len;
-	memcpy(task->data, &pkg, sizeof(swPackage_task));
-	return SW_OK;
+    pkg.length = data_len;
+    memcpy(task->data, &pkg, sizeof(swPackage_task));
+    close(tpm_fd);
+    return SW_OK;
 }
 
 static void swTaskWorker_signal_init(void)
 {
-	swSignal_set(SIGHUP, NULL, 1, 0);
-	swSignal_set(SIGPIPE, NULL, 1, 0);
-	swSignal_set(SIGUSR1, NULL, 1, 0);
-	swSignal_set(SIGUSR2, NULL, 1, 0);
-	swSignal_set(SIGTERM, swWorker_signal_handler, 1, 0);
-	swSignal_set(SIGALRM, swTimer_signal_handler, 1, 0);
+    swSignal_set(SIGHUP, NULL, 1, 0);
+    swSignal_set(SIGPIPE, NULL, 1, 0);
+    swSignal_set(SIGUSR1, NULL, 1, 0);
+    swSignal_set(SIGUSR2, NULL, 1, 0);
+    swSignal_set(SIGTERM, swWorker_signal_handler, 1, 0);
+    swSignal_set(SIGALRM, swTimer_signal_handler, 1, 0);
 }
 
 void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
@@ -140,8 +142,8 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
 
 void swTaskWorker_onStop(swProcessPool *pool, int worker_id)
 {
-	swServer *serv = pool->ptr;
-	swWorker_onStop(serv);
+    swServer *serv = pool->ptr;
+    swWorker_onStop(serv);
 }
 
 /**
