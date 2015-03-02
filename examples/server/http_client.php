@@ -27,17 +27,16 @@ else
     $header .= "RA-Sid: 2A784AF7-20140212-113827-085a9c-c4de6e\r\n";
 
     $_postData = ['body1' => 'swoole_http-server', 'message' => 'nihao'];
-//    $_postBody = json_encode($_postData);
-    $_postBody = http_build_query($_postData);
-
-//    $header .=  "Content-Length: " . strlen($_postBody);
+    $_postBody = json_encode($_postData);
+//    $_postBody = http_build_query($_postData);
+    $header .=  "Content-Length: " . strlen($_postBody);
     echo "http header length=".strlen($header)."\n";
     $header .=  "Content-Length: " . (strlen($_postBody) - 2);
 
-    $cli->send($header);
-    usleep(100000);
-//    $_sendStr = $header . "\r\n\r\n" . $_postBody;
-    $_sendStr = "\r\n\r\n" . $_postBody;
+//    $cli->send($header);
+//    usleep(100000);
+    $_sendStr = $header . "\r\n\r\n" . $_postBody;
+//    $_sendStr = "\r\n\r\n" . $_postBody;
     echo "postBody length=".strlen($_postBody)."\n";
 }
 

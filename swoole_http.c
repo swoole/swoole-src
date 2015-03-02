@@ -571,7 +571,7 @@ static void http_onClose(swServer *serv, int fd, int from_id)
     http_client *client = swArray_fetch(http_client_array, fd);
     if (client)
     {
-        if (client->zrequest)
+        if (client->zrequest && !client->end)
         {
             TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
             http_request_free(client TSRMLS_CC);
@@ -656,10 +656,13 @@ static int http_websocket_onHandshake(http_client *client TSRMLS_DC)
     }
     else
     {
-	websocket_onOpen(fd);
+        websocket_onOpen(fd);
         swTrace("websocket handshake_success\n");
     }
-    http_request_free(client TSRMLS_CC);
+    if (!client->end)
+    {
+        http_request_free(client TSRMLS_CC);
+    }
     return SW_OK;
 }
 

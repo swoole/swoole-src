@@ -15,6 +15,20 @@ $http->set([
     //'ssl_key_file' => $key_dir.'/ssl.key',
 ]);
 $http->on('request', function (swoole_http_request $request, swoole_http_response $response) {
+	
+//	try
+//	{
+//		if (rand(1, 99) % 2 == 1)
+//		{
+//			throw new Exception("just for fun.");
+//		}
+//		$response->end("<h1>Hello Swoole. #".rand(1000, 9999)."</h1>");
+//	}
+//	catch(Exception $e)
+//	{
+//		$response->end("<h1>Exceptiom</h1><div>".$e->getMessage()."</div>");
+//	}
+	
     //var_dump($request->server);
     //var_dump($request->header);
     //var_dump($request);

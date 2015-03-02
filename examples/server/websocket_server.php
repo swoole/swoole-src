@@ -1,7 +1,7 @@
 <?php
 $server = new swoole_websocket_server("0.0.0.0", 9501);
 
-$server->on('open', function ($server, $fd) {
+$server->on('open', function (swoole_websocket_server $server, $fd) {
     echo "server: handshake success with fd{$fd}\n";
 });
 
