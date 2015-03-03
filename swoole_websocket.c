@@ -28,15 +28,10 @@
 #include "base64.h"
 #include "thirdparty/php_http_parser.h"
 
-
 zend_class_entry swoole_websocket_server_ce;
 zend_class_entry *swoole_websocket_server_class_entry_ptr;
 
 static zval* php_sw_websocket_server_callbacks[2];
-
-int isset_websocket_onMessage();
-int websocket_onMessage(swEventData *req TSRMLS_DC);
-void websocket_onOpen(int fd);
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_on, 0, 0, 2)
     ZEND_ARG_INFO(0, ha_name)
@@ -50,15 +45,15 @@ const zend_function_entry swoole_websocket_server_methods[] =
     PHP_FE_END
 };
 
-int isset_websocket_onMessage()
+int php_swoole_websocket_isset_onMessage()
 {
-	int ret = 0;
-	if (php_sw_websocket_server_callbacks[1] != NULL)
-		ret = 1;
-	return ret;
+    int ret = 0;
+    if (php_sw_websocket_server_callbacks[1] != NULL)
+        ret = 1;
+    return ret;
 }
 
-void websocket_onOpen(int fd)
+void php_swoole_websocket_onOpen(int fd)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
@@ -105,7 +100,7 @@ void websocket_onOpen(int fd)
     }
 }
 
-int websocket_onMessage(swEventData *req TSRMLS_DC)
+int php_swoole_websocket_onMessage(swEventData *req TSRMLS_DC)
 {
 	int fd = req->info.fd;
 	zval *zdata = php_swoole_get_data(req TSRMLS_CC);
@@ -119,14 +114,17 @@ int websocket_onMessage(swEventData *req TSRMLS_DC)
 	swServer *serv = SwooleG.serv;
 	zval *zserv = (zval *)serv->ptr2;
 	zval *zd, *zfd, *zopcode, *zfin;
+
 	MAKE_STD_ZVAL(zd);
 	MAKE_STD_ZVAL(zfd);
 	MAKE_STD_ZVAL(zopcode);
 	MAKE_STD_ZVAL(zfin);
+
 	SW_ZVAL_STRINGL(zd, buf, Z_STRLEN_P(zdata) - 2, 1);
 	ZVAL_LONG(zfd, fd);
 	ZVAL_LONG(zopcode, opcode);
 	ZVAL_LONG(zfin, fin);
+
 	zval **args[5];
 	args[0] = &zserv;
 	args[1] = &zfd;
@@ -134,17 +132,15 @@ int websocket_onMessage(swEventData *req TSRMLS_DC)
 	args[3] = &zopcode;
 	args[4] = &zfin;
 	zval *retval;
-	if (call_user_function_ex(EG(function_table), NULL, php_sw_websocket_server_callbacks[1], &retval, 5, args, 0,  NULL TSRMLS_CC) == FAILURE)
-	{
-        	zval_ptr_dtor(&zdata);
-	        php_error_docref(NULL TSRMLS_CC, E_WARNING, "onMessage handler error");
-	}
 
-    //swTrace("===== message callback end======");
+	if (call_user_function_ex(EG(function_table), NULL, php_sw_websocket_server_callbacks[1], &retval, 5, args, 0, NULL
+            TSRMLS_CC) == FAILURE)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "onMessage handler error");
+    }
 
     if (EG(exception))
     {
-        zval_ptr_dtor(&zdata);
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
 

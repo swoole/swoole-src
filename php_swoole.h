@@ -402,6 +402,9 @@ void php_swoole_try_run_reactor();
 
 zval *php_swoole_get_data(swEventData *req TSRMLS_DC);
 void php_swoole_onClose(swServer *, int fd, int from_id);
+int php_swoole_websocket_onMessage(swEventData *req TSRMLS_DC);
+void php_swoole_websocket_onOpen(int fd);
+int php_swoole_websocket_isset_onMessage();
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
     long aio_thread_num;

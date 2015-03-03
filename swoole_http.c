@@ -103,10 +103,6 @@ zend_class_entry *swoole_http_request_class_entry_ptr;
 
 static zval* php_sw_http_server_callbacks[2];
 
-int isset_websocket_onMessage();
-void websocket_onOpen(int fd);
-int websocket_onMessage(swEventData *req TSRMLS_DC);
-
 static int http_websocket_onHandshake(http_client *client TSRMLS_DC);
 static int websocket_handshake(http_client *client);
 
@@ -656,7 +652,7 @@ static int http_websocket_onHandshake(http_client *client TSRMLS_DC)
     }
     else
     {
-        websocket_onOpen(fd);
+        php_swoole_websocket_onOpen(fd);
         swTrace("websocket handshake_success\n");
     }
     if (!client->end)
@@ -678,9 +674,10 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         swWarn("connection[%d] is closed.", fd);
         return SW_ERR;
     }
+
     if (conn->websocket_status == WEBSOCKET_STATUS_FRAME)  //websocket callback
     {
-        return websocket_onMessage(req TSRMLS_CC);
+        return php_swoole_websocket_onMessage(req TSRMLS_CC);
     }
 
     http_client *client = swArray_alloc(http_client_array, fd);
@@ -804,7 +801,7 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         swTrace("======call end======\n");
         if (called == 1)
         {
-            websocket_onOpen(client->fd);
+            php_swoole_websocket_onOpen(client->fd);
         }
     }
     return SW_OK;
@@ -1052,16 +1049,22 @@ PHP_METHOD(swoole_http_server, start)
     SWOOLE_GET_SERVER(getThis(), serv);
     php_swoole_register_callback(serv);
 
-    if (php_sw_http_server_callbacks[0] == NULL && isset_websocket_onMessage() == 0)
+    if (php_sw_http_server_callbacks[0] == NULL)
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "require onRequest or onMessage callback");
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "require onRequest callback");
+        RETURN_FALSE;
+    }
+
+    if (serv->open_websocket_protocol && !php_swoole_websocket_isset_onMessage())
+    {
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "require onMessage callback");
         RETURN_FALSE;
     }
 
     http_client_array = swArray_new(1024, sizeof(http_client), 0);
     if (!http_client_array)
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "require onRequest or onMessage callback");
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "swArray_new failed.");
         RETURN_FALSE;
     }
 
