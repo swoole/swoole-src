@@ -16,6 +16,11 @@
 
 
 #include "php_swoole.h"
+
+#ifdef HAVE_PCRE
+#include <ext/spl/spl_iterators.h>
+#endif
+
 #include "include/table.h"
 
 zend_class_entry swoole_table_ce;
@@ -43,12 +48,12 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_get, 0, 0, 1)
     ZEND_ARG_INFO(0, key)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_count, 0, 0, 0)
-    ZEND_ARG_INFO(0, mode)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_del, 0, 0, 1)
     ZEND_ARG_INFO(0, key)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_count, 0, 0, 0)
+    ZEND_ARG_INFO(0, mode)
 ZEND_END_ARG_INFO()
 
 const zend_function_entry swoole_table_methods[] =
@@ -58,15 +63,17 @@ const zend_function_entry swoole_table_methods[] =
     PHP_ME(swoole_table, create,      arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, set,         arginfo_swoole_table_set, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, get,         arginfo_swoole_table_get, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, count,       arginfo_swoole_table_count, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, del,         arginfo_swoole_table_del, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, lock,        arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, unlock,      arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
+#ifdef HAVE_PCRE
     PHP_ME(swoole_table, rewind,      arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, next,        arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, current,     arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, key,         arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, valid,       arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, count,       arginfo_swoole_table_count, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, del,         arginfo_swoole_table_del, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, lock,        arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, unlock,      arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
+#endif
     PHP_FE_END
 };
 
@@ -146,7 +153,10 @@ void swoole_table_init(int module_number TSRMLS_DC)
 {
     INIT_CLASS_ENTRY(swoole_table_ce, "swoole_table", swoole_table_methods);
     swoole_table_class_entry_ptr = zend_register_internal_class(&swoole_table_ce TSRMLS_CC);
+
+#ifdef HAVE_PCRE
     zend_class_implements(swoole_table_class_entry_ptr TSRMLS_CC, 2, spl_ce_Iterator, spl_ce_Countable);
+#endif
 
     zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("TYPE_INT")-1, SW_TABLE_INT TSRMLS_CC);
     zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("TYPE_STRING")-1, SW_TABLE_STRING TSRMLS_CC);
@@ -295,6 +305,58 @@ PHP_METHOD(swoole_table, get)
     php_swoole_table_row2array(table, row, return_value);
 }
 
+PHP_METHOD(swoole_table, del)
+{
+    char *key;
+    int keylen;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &key, &keylen) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+
+    swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
+    SW_CHECK_RETURN(swTableRow_del(table, key, keylen));
+}
+
+PHP_METHOD(swoole_table, lock)
+{
+    swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
+    SW_LOCK_CHECK_RETURN(table->lock.lock(&table->lock));
+}
+
+PHP_METHOD(swoole_table, unlock)
+{
+    swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
+    SW_LOCK_CHECK_RETURN(table->lock.unlock(&table->lock));
+}
+
+PHP_METHOD(swoole_table, count)
+{
+    #define COUNT_NORMAL            0
+    #define COUNT_RECURSIVE         1
+
+    long mode = COUNT_NORMAL;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &mode) == FAILURE)
+    {
+        return;
+    }
+
+    swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
+
+    if (mode == COUNT_NORMAL)
+    {
+        RETURN_LONG(table->row_num);
+    }
+    else
+    {
+        RETURN_LONG(table->row_num * table->column_num);
+    }
+}
+
+#ifdef HAVE_PCRE
+
 PHP_METHOD(swoole_table, rewind)
 {
     if (zend_parse_parameters_none() == FAILURE)
@@ -352,51 +414,4 @@ PHP_METHOD(swoole_table, valid)
     RETURN_BOOL(row != NULL);
 }
 
-PHP_METHOD(swoole_table, count)
-{
-    #define COUNT_NORMAL            0
-    #define COUNT_RECURSIVE         1
-
-    long mode = COUNT_NORMAL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &mode) == FAILURE)
-    {
-        return;
-    }
-
-    swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
-
-    if (mode == COUNT_NORMAL)
-    {
-        RETURN_LONG(table->row_num);
-    }
-    else
-    {
-        RETURN_LONG(table->row_num * table->column_num);
-    }
-}
-
-PHP_METHOD(swoole_table, del)
-{
-    char *key;
-    int keylen;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &key, &keylen) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-
-    swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
-    SW_CHECK_RETURN(swTableRow_del(table, key, keylen));
-}
-
-PHP_METHOD(swoole_table, lock)
-{
-    swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
-    SW_LOCK_CHECK_RETURN(table->lock.lock(&table->lock));
-}
-
-PHP_METHOD(swoole_table, unlock)
-{
-    swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
-    SW_LOCK_CHECK_RETURN(table->lock.unlock(&table->lock));
-}
+#endif

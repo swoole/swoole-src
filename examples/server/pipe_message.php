@@ -1,5 +1,6 @@
 <?php
-$serv = new swoole_server("0.0.0.0", 9501);
+$serv = new swoole_server("0.0.0.0", 9501, SWOOLE_BASE);
+//$serv = new swoole_server("0.0.0.0", 9501);
 $serv->set(array(
     'worker_num' => 2,
     'task_worker_num' => 2,

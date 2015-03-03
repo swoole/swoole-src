@@ -28,7 +28,6 @@
 #include "zend_exceptions.h"
 #include "zend_variables.h"
 
-#include <ext/spl/spl_iterators.h>
 #include <ext/standard/info.h>
 
 #ifdef HAVE_CONFIG_H
@@ -354,15 +353,18 @@ PHP_METHOD(swoole_table, column);
 PHP_METHOD(swoole_table, create);
 PHP_METHOD(swoole_table, set);
 PHP_METHOD(swoole_table, get);
+PHP_METHOD(swoole_table, count);
+
+#ifdef HAVE_PCRE
 PHP_METHOD(swoole_table, rewind);
 PHP_METHOD(swoole_table, next);
 PHP_METHOD(swoole_table, current);
 PHP_METHOD(swoole_table, key);
 PHP_METHOD(swoole_table, valid);
-PHP_METHOD(swoole_table, count);
 PHP_METHOD(swoole_table, del);
 PHP_METHOD(swoole_table, lock);
 PHP_METHOD(swoole_table, unlock);
+#endif
 
 PHP_METHOD(swoole_http_server, on);
 PHP_METHOD(swoole_http_server, start);
