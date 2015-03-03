@@ -353,6 +353,9 @@ PHP_METHOD(swoole_table, column);
 PHP_METHOD(swoole_table, create);
 PHP_METHOD(swoole_table, set);
 PHP_METHOD(swoole_table, get);
+PHP_METHOD(swoole_table, del);
+PHP_METHOD(swoole_table, lock);
+PHP_METHOD(swoole_table, unlock);
 PHP_METHOD(swoole_table, count);
 
 #ifdef HAVE_PCRE
@@ -361,9 +364,6 @@ PHP_METHOD(swoole_table, next);
 PHP_METHOD(swoole_table, current);
 PHP_METHOD(swoole_table, key);
 PHP_METHOD(swoole_table, valid);
-PHP_METHOD(swoole_table, del);
-PHP_METHOD(swoole_table, lock);
-PHP_METHOD(swoole_table, unlock);
 #endif
 
 PHP_METHOD(swoole_http_server, on);
