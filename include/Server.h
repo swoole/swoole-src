@@ -277,11 +277,6 @@ struct _swServer
     uint16_t worker_round_id;
 
     /**
-     * reactor ringbuffer memory pool size
-     */
-    size_t reactor_ringbuffer_size;
-
-    /**
      * run as a daemon process
      */
     uint32_t daemonize :1;

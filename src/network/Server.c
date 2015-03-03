@@ -561,7 +561,6 @@ void swServer_init(swServer *serv)
     serv->factory_mode = SW_MODE_BASE;
 
     serv->reactor_num = SW_REACTOR_NUM > SW_REACTOR_MAX_THREAD ? SW_REACTOR_MAX_THREAD : SW_REACTOR_NUM;
-    serv->reactor_ringbuffer_size = SW_REACTOR_RINGBUFFER_SIZE;
 
     serv->dispatch_mode = SW_DISPATCH_FDMOD;
     serv->ringbuffer_size = SW_QUEUE_SIZE;

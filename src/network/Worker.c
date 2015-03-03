@@ -416,7 +416,7 @@ int swWorker_send2worker(swWorker *dst_worker, void *buf, int n, int flag)
         return dst_worker->pool->queue->in(dst_worker->pool->queue, (swQueue_data *) &msg, n);
     }
 
-    if (flag & SW_PIPE_NONBLOCK)
+    if ((flag & SW_PIPE_NONBLOCK) && SwooleG.main_reactor)
     {
         return SwooleG.main_reactor->write(SwooleG.main_reactor, pipefd, buf, n);
     }

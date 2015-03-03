@@ -1347,17 +1347,17 @@ PHP_FUNCTION(swoole_server_set)
         serv->package_max_length = (int) Z_LVAL_PP(v);
     }
 
-     /**
+    /**
      * swoole_packet_mode
      */
-   if( serv-> packet_mode == 1)
+    if (serv->packet_mode == 1)
     {
-        serv-> package_max_length = 64*1024*1024;
-        serv-> open_length_check = 1;
-	serv-> package_length_offset = 0;
-	serv-> package_body_offset = 4;
-	serv-> package_length_type = 'N';
-	serv-> open_eof_check = 0;
+        serv->package_max_length = 64 * 1024 * 1024;
+        serv->open_length_check = 1;
+        serv->package_length_offset = 0;
+        serv->package_body_offset = 4;
+        serv->package_length_type = 'N';
+        serv->open_eof_check = 0;
     }
 
     /**
