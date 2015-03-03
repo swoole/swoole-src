@@ -50,7 +50,6 @@ const zend_function_entry swoole_websocket_server_methods[] =
     PHP_FE_END
 };
 
-
 int isset_websocket_onMessage()
 {
 	int ret = 0;
@@ -199,6 +198,8 @@ PHP_METHOD( swoole_websocket_server, on)
         RETURN_FALSE;
     }
     efree(func_name);
+
+    serv->open_websocket_protocol = 1;
 
     if (strncasecmp("open", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {

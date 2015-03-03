@@ -327,6 +327,11 @@ struct _swServer
     uint32_t open_http_protocol :1;
 
     /**
+     * built-in websocket protocol
+     */
+    uint32_t open_websocket_protocol :1;
+
+    /**
      *  one package: length check
      */
     uint32_t open_length_check :1;

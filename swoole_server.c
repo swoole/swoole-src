@@ -2686,10 +2686,6 @@ PHP_FUNCTION(swoole_connection_info)
         return;
     }
 
-#ifdef SW_REACTOR_USE_SESSION
-    fd = swServer_get_fd(serv, fd);
-#endif
-
     swConnection *conn = swWorker_get_connection(serv, fd);
     if (!conn)
     {
@@ -2703,12 +2699,20 @@ PHP_FUNCTION(swoole_connection_info)
     else
     {
         array_init(return_value);
-        add_assoc_long(return_value, "uid", conn->uid);
+
+        if (serv->dispatch_mode == SW_DISPATCH_UIDMOD)
+        {
+            add_assoc_long(return_value, "uid", conn->uid);
+        }
+        if (serv->open_websocket_protocol)
+        {
+            add_assoc_long(return_value, "websocket_status", conn->websocket_status);
+        }
+
         add_assoc_long(return_value, "from_id", conn->from_id);
         add_assoc_long(return_value, "from_fd", conn->from_fd);
         add_assoc_long(return_value, "connect_time", conn->connect_time);
         add_assoc_long(return_value, "last_time", conn->last_time);
-        add_assoc_long(return_value, "websocket_status", conn->websocket_status);
         add_assoc_long(return_value, "from_port", serv->connection_list[conn->from_fd].addr.sin_port);
         add_assoc_long(return_value, "remote_port", ntohs(conn->addr.sin_port));
         sw_add_assoc_string(return_value, "remote_ip", inet_ntoa(conn->addr.sin_addr), 1);
