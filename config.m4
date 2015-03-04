@@ -1,6 +1,21 @@
 dnl $Id$
 dnl config.m4 for extension swoole
 
+dnl  +----------------------------------------------------------------------+
+dnl  | Swoole                                                               |
+dnl  +----------------------------------------------------------------------+
+dnl  | This source file is subject to version 2.0 of the Apache license,    |
+dnl  | that is bundled with this package in the file LICENSE, and is        |
+dnl  | available through the world-wide-web at the following url:           |
+dnl  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+dnl  | If you did not receive a copy of the Apache2.0 license and are unable|
+dnl  | to obtain it through the world-wide-web, please send a note to       |
+dnl  | license@swoole.com so we can mail you a copy immediately.            |
+dnl  +----------------------------------------------------------------------+
+dnl  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+dnl  +----------------------------------------------------------------------+
+
+
 dnl Comments in this file start with the string 'dnl'.
 dnl Remove where necessary. This file will not work
 dnl without editing.
