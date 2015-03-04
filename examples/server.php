@@ -228,6 +228,10 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     {
         hello_no_exists();
     }
+    elseif($cmd == "exit")
+    {
+        exit("worker php exit.\n");
+    }
     //关闭fd
     elseif(substr($cmd, 0, 5) == "close")
     {

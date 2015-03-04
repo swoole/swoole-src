@@ -89,7 +89,7 @@ void swoole_init(void)
 
 void swoole_clean(void)
 {
-    //释放全局内存
+    //free the global memory
     if (SwooleG.memory_pool != NULL)
     {
         SwooleG.memory_pool->destroy(SwooleG.memory_pool);

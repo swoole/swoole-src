@@ -603,12 +603,16 @@ PHP_MSHUTDOWN_FUNCTION(swoole)
     {
         sw_free(SwooleG.main_reactor);
     }
+    //clear pipe buffer
+    else if (swIsWorker())
+    {
+        swWorker_clean();
+    }
     if (SwooleG.serv)
     {
         sw_free(SwooleG.serv);
     }
     swoole_clean();
-
     return SUCCESS;
 }
 /* }}} */

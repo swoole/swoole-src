@@ -673,6 +673,7 @@ int swWorker_loop(swFactory *factory, int worker_pti);
 int swWorker_send2reactor(swEventData *ev_data, size_t sendn, int fd);
 int swWorker_send2worker(swWorker *dst_worker, void *buf, int n, int flag);
 void swWorker_signal_handler(int signo);
+void swWorker_clean(void);
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event);
 
