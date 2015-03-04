@@ -18,7 +18,7 @@
 #include "Server.h"
 
 static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event);
-static void swWorker_wait_buffer(swServer *serv);
+static void swWorker_wait_buffer(void);
 
 int swWorker_create(swWorker *worker)
 {
@@ -297,15 +297,16 @@ int swWorker_loop(swFactory *factory, int worker_id)
     //main loop
     SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
     //clear pipe buffer
-    swWorker_wait_buffer(serv);
+    swWorker_wait_buffer();
     //worker shutdown
     swWorker_onStop(serv);
     return SW_OK;
 }
 
-static void swWorker_wait_buffer(swServer *serv)
+static void swWorker_wait_buffer(void)
 {
     int i;
+    swServer *serv = SwooleG.serv;
     swWorker *worker;
 
     for (i = 0; i < serv->worker_num + SwooleG.task_worker_num; i++)

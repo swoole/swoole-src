@@ -763,8 +763,7 @@ int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 #endif
 
     sendn = ev_data.info.len + sizeof(resp->info);
-    //swWarn("send: sendn=%d|type=%d|content=%s", sendn, resp->info.type, resp->data);
-    swTrace("[Worker]input_queue[%ld]->in| fd=%d", sdata.pti, fd);
+    swTrace("[Worker] send: sendn=%d|type=%d|content=%s", sendn, resp->info.type, resp->data);
     ret = swWorker_send2reactor(&ev_data, sendn, fd);
     if (ret < 0)
     {
