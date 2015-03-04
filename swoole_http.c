@@ -596,47 +596,41 @@ static int websocket_handshake(http_client *client)
     zval *header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("header"), 1 TSRMLS_CC);
     HashTable *ht = Z_ARRVAL_P(header);
     zval **pData;
+
     if (zend_hash_find(ht, ZEND_STRS("sec-websocket-key"), (void **) &pData) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "header no sec-websocket-key");
         return SW_ERR;
     }
-
     convert_to_string(*pData);
-//    swTrace("key: %s len:%d\n", Z_STRVAL_PP(pData), Z_STRLEN_PP(pData));
 
-    swString *buf = swString_new(512);
-    swString_append_ptr(buf, ZEND_STRL("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"));
+    swString *header_string = swString_new(SW_WEBSOCKET_HEADER_SIZE);
+    swString_append_ptr(header_string, ZEND_STRL("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"));
 
-    swString *shaBuf = swString_new(Z_STRLEN_PP(pData)+36);
-    swString_append_ptr(shaBuf, Z_STRVAL_PP(pData), Z_STRLEN_PP(pData));
-    swString_append_ptr(shaBuf, ZEND_STRL(SW_WEBSOCKET_GUID));
+    int n;
+    char sec_websocket_accept[128];
+    snprintf(sec_websocket_accept, sizeof(sec_websocket_accept), "%*s%s", Z_STRLEN_PP(pData), Z_STRVAL_PP(pData), SW_WEBSOCKET_GUID);
 
-    char data_str[20];
-//    bzero(data_str, sizeof(data_str));
-//    swTrace("sha1 start:%s\n", shaBuf->str);
-    sha1(shaBuf->str, (unsigned char *) data_str);
+    char sha1_str[20];
+    bzero(sha1_str, sizeof(sha1_str));
+    sha1(sec_websocket_accept, (unsigned char *) sha1_str);
 
-    char encoded_value[50];
-    bzero(encoded_value, sizeof(encoded_value));
-//    swTrace("base64_encode start:%d\n", sizeof(data_str));
-    swBase64_encode((unsigned char *) data_str, 20, encoded_value);
-//    swTrace("base64_encode end:%s %d %d\n", encoded_value, encoded_len, strlen(encoded_value));
+    char encoded_str[50];
+    bzero(encoded_str, sizeof(encoded_str));
+    n = swBase64_encode((unsigned char *) sha1_str, sizeof(sha1_str), encoded_str);
+
     char _buf[128];
-    int n = 0;
-    n = snprintf(_buf, strlen(encoded_value)+25, "Sec-WebSocket-Accept: %s\r\n", encoded_value);
-//    efree(data_str);
-//    efree(encoded_value);
-    swString_free(shaBuf);
-//    swTrace("accept value: %s\n", _buf);
-    swString_append_ptr(buf, _buf, n);
-    swString_append_ptr(buf, ZEND_STRL("Sec-WebSocket-Version: 13\r\n"));
-    swString_append_ptr(buf, ZEND_STRL("Server: swoole-websocket\r\n\r\n"));
-    swTrace("websocket header len:%zd\n%s \n", buf->length, buf->str);
+    n = snprintf(_buf, sizeof(_buf), "Sec-WebSocket-Accept: %*s\r\n", n, encoded_str);
 
-    int ret = swServer_tcp_send(SwooleG.serv, client->fd, buf->str, buf->length);
-    swString_free(buf);
-//    swTrace("handshake send: %d lenght: %d\n", client->fd, ret);
+    swString_append_ptr(header_string, _buf, n);
+    swString_append_ptr(header_string, ZEND_STRL("Sec-WebSocket-Version: "SW_WEBSOCKET_VERSION"\r\n"));
+    swString_append_ptr(header_string, ZEND_STRL("Server: "SW_WEBSOCKET_SERVER_SOFTWARE"\r\n\r\n"));
+
+    swTrace("websocket header len:%zd\n%s \n", header_string->length, header_string->str);
+
+    int ret = swServer_tcp_send(SwooleG.serv, client->fd, header_string->str, header_string->length);
+    swString_free(header_string);
+
     return ret;
 }
 
