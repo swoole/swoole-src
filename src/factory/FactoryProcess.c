@@ -663,14 +663,13 @@ int swFactoryProcess_end(swFactory *factory, int fd)
     }
     else
     {
+        do_close:
         conn->closing = 1;
         if (serv->onClose != NULL)
         {
             serv->onClose(serv, fd, conn->from_id);
         }
         conn->closing = 0;
-
-        do_close:
         conn->closed = 1;
         return swFactoryProcess_finish(factory, &_send);
     }
