@@ -925,15 +925,17 @@ PHP_METHOD(swoole_http_server, start)
     SWOOLE_GET_SERVER(getThis(), serv);
     php_swoole_register_callback(serv);
 
-    if (php_sw_http_server_callbacks[0] == NULL)
+    if (serv->open_websocket_protocol)
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "require onRequest callback");
-        RETURN_FALSE;
+        if (!swoole_websocket_isset_onMessage())
+        {
+            swoole_php_fatal_error(E_ERROR, "require onMessage callback");
+            RETURN_FALSE;
+        }
     }
-
-    if (serv->open_websocket_protocol && !swoole_websocket_isset_onMessage())
+    else if (php_sw_http_server_callbacks[0] == NULL)
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "require onMessage callback");
+        swoole_php_fatal_error(E_ERROR, "require onRequest callback");
         RETURN_FALSE;
     }
 
