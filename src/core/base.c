@@ -223,6 +223,31 @@ int swoole_type_size(char type)
     }
 }
 
+char* swoole_dec2hex(int value, int base)
+{
+    assert(base > 1 && base < 37);
+
+    static char digits[] = "0123456789abcdefghijklmnopqrstuvwxyz";
+    char buf[(sizeof(unsigned long) << 3) + 1];
+    char *ptr, *end;
+
+    if (base < 2 || base > 36)
+    {
+        return NULL;
+    }
+
+    end = ptr = buf + sizeof(buf) - 1;
+    *ptr = '\0';
+
+    do
+    {
+        *--ptr = digits[value % base];
+        value /= base;
+    } while (ptr > buf && value);
+
+    return strndup(ptr, end - ptr);
+}
+
 int swoole_sync_writefile(int fd, void *data, int len)
 {
     int n = 0;

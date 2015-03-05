@@ -165,6 +165,7 @@
 			<file role="src" name="swoole_table.c" />
 			<file role="src" name="swoole_buffer.c" />
 			<file role="src" name="swoole_http.c" />
+			<file role="src" name="swoole_http.h" />
 			<file role="src" name="swoole_websocket.c" />
 			<dir name="thirdparty">
 				<file role="src" name="php_http_parser.c" />

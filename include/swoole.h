@@ -857,6 +857,7 @@ int swoole_system_random(int min, int max);
 swString* swoole_file_get_contents(char *filename);
 void swoole_open_remote_debug(void);
 int swoole_strnpos(char *haystack, char *needle, uint32_t length);
+char *swoole_dec2hex(int value, int base);
 
 void swoole_ioctl_set_block(int sock, int nonblock);
 void swoole_fcntl_set_block(int sock, int nonblock);

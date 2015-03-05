@@ -1,0 +1,89 @@
+/*
+ +----------------------------------------------------------------------+
+ | Swoole                                                               |
+ +----------------------------------------------------------------------+
+ | Copyright (c) 2012-2015 The Swoole Group                             |
+ +----------------------------------------------------------------------+
+ | This source file is subject to version 2.0 of the Apache license,    |
+ | that is bundled with this package in the file LICENSE, and is        |
+ | available through the world-wide-web at the following url:           |
+ | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+ | If you did not receive a copy of the Apache2.0 license and are unable|
+ | to obtain it through the world-wide-web, please send a note to       |
+ | license@swoole.com so we can mail you a copy immediately.            |
+ +----------------------------------------------------------------------+
+ | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ +----------------------------------------------------------------------+
+ */
+
+#ifndef SWOOLE_HTTP_H_
+#define SWOOLE_HTTP_H_
+
+#include "thirdparty/php_http_parser.h"
+
+typedef struct
+{
+    enum php_http_method method;
+    int version;
+    char *path;
+    uint32_t path_len;
+    const char *ext;
+    uint32_t ext_len;
+    uint8_t post_form_urlencoded;
+    char *post_content;
+    uint32_t post_length;
+} http_request;
+
+typedef struct
+{
+    enum php_http_method method;
+    int version;
+    int status;
+    swString *cookie;
+} http_response;
+
+typedef struct
+{
+    int fd;
+
+    uint32_t end :1;
+    uint32_t send_header :1;
+    uint32_t chunk :1;
+    uint32_t keepalive :1;
+
+    uint32_t request_read :1;
+    uint32_t current_header_name_allocated :1;
+    uint32_t content_sender_initialized :1;
+
+    http_request request;
+    http_response response;
+
+    zval *zresponse;
+    zval *zrequest;
+
+    php_http_parser parser;
+
+    swString *response_buffer;
+
+    char *current_header_name;
+    size_t current_header_name_len;
+
+} http_client;
+
+int swoole_websocket_onMessage(swEventData *req);
+int swoole_websocket_onHandshake(http_client *client);
+void swoole_websocket_onOpen(int fd);
+int swoole_websocket_isset_onMessage(void);
+int swoole_websocket_handshake(http_client *client);
+void swoole_http_request_free(http_client *client TSRMLS_DC);
+
+zend_class_entry swoole_http_server_ce;
+zend_class_entry *swoole_http_server_class_entry_ptr;
+
+zend_class_entry swoole_http_response_ce;
+zend_class_entry *swoole_http_response_class_entry_ptr;
+
+zend_class_entry swoole_http_request_ce;
+zend_class_entry *swoole_http_request_class_entry_ptr;
+
+#endif /* SWOOLE_HTTP_H_ */

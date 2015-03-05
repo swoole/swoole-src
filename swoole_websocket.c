@@ -15,6 +15,7 @@
 */
 
 #include "php_swoole.h"
+#include "swoole_http.h"
 
 #include <ext/standard/url.h>
 #include <ext/standard/sha1.h>
@@ -31,6 +32,8 @@
 zend_class_entry swoole_websocket_server_ce;
 zend_class_entry *swoole_websocket_server_class_entry_ptr;
 
+static void sha1(const char *str, int _len, unsigned char *digest);
+
 static zval* php_sw_websocket_server_callbacks[2];
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_on, 0, 0, 2)
@@ -45,7 +48,7 @@ const zend_function_entry swoole_websocket_server_methods[] =
     PHP_FE_END
 };
 
-int php_swoole_websocket_isset_onMessage()
+int swoole_websocket_isset_onMessage(void)
 {
     int ret = 0;
     if (php_sw_websocket_server_callbacks[1] != NULL)
@@ -53,7 +56,7 @@ int php_swoole_websocket_isset_onMessage()
     return ret;
 }
 
-void php_swoole_websocket_onOpen(int fd)
+void swoole_websocket_onOpen(int fd)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
@@ -100,8 +103,64 @@ void php_swoole_websocket_onOpen(int fd)
     }
 }
 
-int php_swoole_websocket_onMessage(swEventData *req TSRMLS_DC)
+static void sha1(const char *str, int _len, unsigned char *digest)
 {
+    PHP_SHA1_CTX context;
+    PHP_SHA1Init(&context);
+    PHP_SHA1Update(&context, (unsigned char *) str, _len);
+    PHP_SHA1Final(digest, &context);
+}
+
+int swoole_websocket_handshake(http_client *client)
+{
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+    zval *header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("header"), 1 TSRMLS_CC);
+    HashTable *ht = Z_ARRVAL_P(header);
+    zval **pData;
+
+    if (zend_hash_find(ht, ZEND_STRS("sec-websocket-key"), (void **) &pData) == FAILURE)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "header no sec-websocket-key");
+        return SW_ERR;
+    }
+    convert_to_string(*pData);
+
+    swString *header_string = swString_new(SW_HTTP_HEADER_INIT_SIZE);
+    swString_append_ptr(header_string, ZEND_STRL("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"));
+
+    int n;
+    char sec_websocket_accept[128];
+    memcpy(sec_websocket_accept, Z_STRVAL_PP(pData), Z_STRLEN_PP(pData));
+    memcpy(sec_websocket_accept + Z_STRLEN_PP(pData), SW_STRL(SW_WEBSOCKET_GUID) - 1);
+
+    char sha1_str[20];
+    bzero(sha1_str, sizeof(sha1_str));
+    sha1(sec_websocket_accept, Z_STRLEN_PP(pData) + sizeof(SW_WEBSOCKET_GUID) - 1, (unsigned char *) sha1_str);
+
+    char encoded_str[50];
+    bzero(encoded_str, sizeof(encoded_str));
+    n = swBase64_encode((unsigned char *) sha1_str, sizeof(sha1_str), encoded_str);
+
+    char _buf[128];
+    n = snprintf(_buf, sizeof(_buf), "Sec-WebSocket-Accept: %*s\r\n", n, encoded_str);
+
+    swString_append_ptr(header_string, _buf, n);
+    swString_append_ptr(header_string, ZEND_STRL("Sec-WebSocket-Version: "SW_WEBSOCKET_VERSION"\r\n"));
+    swString_append_ptr(header_string, ZEND_STRL("Server: "SW_WEBSOCKET_SERVER_SOFTWARE"\r\n\r\n"));
+
+    swTrace("websocket header len:%zd\n%s \n", header_string->length, header_string->str);
+
+    int ret = swServer_tcp_send(SwooleG.serv, client->fd, header_string->str, header_string->length);
+    swString_free(header_string);
+
+    return ret;
+}
+
+int swoole_websocket_onMessage(swEventData *req)
+{
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
 	int fd = req->info.fd;
 	zval *zdata = php_swoole_get_data(req TSRMLS_CC);
 
@@ -155,6 +214,30 @@ int php_swoole_websocket_onMessage(swEventData *req TSRMLS_DC)
     zval_ptr_dtor(&zfin);
     zval_ptr_dtor(&zserv);
 
+    return SW_OK;
+}
+
+int swoole_websocket_onHandshake(http_client *client)
+{
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+    int fd = client->fd;
+    int ret = swoole_websocket_handshake(client);
+
+    if (ret == SW_ERR)
+    {
+        swTrace("websocket handshake error\n");
+        SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+    }
+    else
+    {
+        swoole_websocket_onOpen(fd);
+        swTrace("websocket handshake_success\n");
+    }
+    if (!client->end)
+    {
+        swoole_http_request_free(client TSRMLS_CC);
+    }
     return SW_OK;
 }
 

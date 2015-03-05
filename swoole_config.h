@@ -200,9 +200,10 @@
 #define SW_HTTP_BAD_REQUEST              "<h1>400 Bad Request</h1>\r\n"
 #define SW_HTTP_PARAM_MAX_NUM            128
 #define SW_HTTP_COOKIE_KEYLEN            128
+#define SW_HTTP_HEADER_INIT_SIZE         1024
 
 #define SW_WEBSOCKET_SERVER_SOFTWARE     "swoole-websocket-server"
 #define SW_WEBSOCKET_VERSION             "13"
-#define SW_WEBSOCKET_HEADER_SIZE         1024
+
 
 #endif /* SWOOLE_CONFIG_H_ */

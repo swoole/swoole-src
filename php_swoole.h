@@ -368,10 +368,10 @@ PHP_METHOD(swoole_table, valid);
 
 PHP_METHOD(swoole_http_server, on);
 PHP_METHOD(swoole_http_server, start);
-PHP_METHOD(swoole_http_server, setGlobal);
-
+PHP_METHOD(swoole_http_server, setglobal);
 PHP_METHOD(swoole_http_request, rawcontent);
 
+PHP_METHOD(swoole_http_response, write);
 PHP_METHOD(swoole_http_response, end);
 PHP_METHOD(swoole_http_response, cookie);
 PHP_METHOD(swoole_http_response, rawcookie);
@@ -402,9 +402,6 @@ void php_swoole_try_run_reactor();
 
 zval *php_swoole_get_data(swEventData *req TSRMLS_DC);
 void php_swoole_onClose(swServer *, int fd, int from_id);
-int php_swoole_websocket_onMessage(swEventData *req TSRMLS_DC);
-void php_swoole_websocket_onOpen(int fd);
-int php_swoole_websocket_isset_onMessage();
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
     long aio_thread_num;
