@@ -80,7 +80,7 @@ void swoole_init(void)
         swError("[Master] Fatal Error: alloc memory for SwooleGS failed.");
     }
     SwooleStats = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerStats));
-    if (SwooleGS == NULL)
+    if (SwooleStats == NULL)
     {
         swError("[Master] Fatal Error: alloc memory for SwooleStats failed.");
     }

@@ -117,7 +117,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         sub_reactor = &serv->reactor_threads[reactor_id].reactor;
 
 #ifdef SW_REACTOR_USE_SESSION
-        uint32_t session_id;
+        uint32_t session_id = 1;
         swSession *session;
 
         //get session id
