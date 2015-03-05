@@ -385,6 +385,9 @@ int swReactorThread_send(swSendData *_send)
     //The connection has been closed.
     if (conn == NULL || conn->active == 0)
     {
+#ifdef SW_REACTOR_USE_SESSION
+        fd = session_id;
+#endif
         swWarn("connection#%d is not active, events=%d.", fd, _send->info.type);
         return SW_ERR;
     }
