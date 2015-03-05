@@ -75,13 +75,13 @@ int swoole_websocket_isset_onMessage(void);
 int swoole_websocket_handshake(http_client *client);
 void swoole_http_request_free(http_client *client TSRMLS_DC);
 
-zend_class_entry swoole_http_server_ce;
-zend_class_entry *swoole_http_server_class_entry_ptr;
+extern zend_class_entry swoole_http_server_ce;
+extern zend_class_entry *swoole_http_server_class_entry_ptr;
 
-zend_class_entry swoole_http_response_ce;
-zend_class_entry *swoole_http_response_class_entry_ptr;
+extern zend_class_entry swoole_http_response_ce;
+extern zend_class_entry *swoole_http_response_class_entry_ptr;
 
-zend_class_entry swoole_http_request_ce;
-zend_class_entry *swoole_http_request_class_entry_ptr;
+extern zend_class_entry swoole_http_request_ce;
+extern zend_class_entry *swoole_http_request_class_entry_ptr;
 
 #endif /* SWOOLE_HTTP_H_ */
