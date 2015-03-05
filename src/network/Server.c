@@ -150,7 +150,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 			{
 				if (swSSL_create(conn, 0) < 0)
 				{
-					conn->active = 0;
+					bzero(conn, sizeof(swConnection));
 					close(new_fd);
 				}
 			}
@@ -176,6 +176,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 
         if (ret < 0)
         {
+            bzero(conn, sizeof(swConnection));
             close(new_fd);
             return SW_OK;
         }
