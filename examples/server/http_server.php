@@ -49,7 +49,7 @@ function no_chunk(swoole_http_request $request, swoole_http_response $response)
     //$response->status(301);
     //$response->header("Location", "http://www.baidu.com/");
     //$response->cookie("hello", "world", time() + 3600);
-    //$response->header("Content-Type", "text/html; charset=utf-8");
+    $response->header("Content-Type", "text/html; charset=utf-8");
     //var_dump($request->rawContent());
     //var_dump($request->post);
 //    var_dump($request->get);
@@ -57,7 +57,7 @@ function no_chunk(swoole_http_request $request, swoole_http_response $response)
     //global $http;
     //$http->task("hello world");
 }
-$http->on('request', 'chunk');
+$http->on('request', 'no_chunk');
 
 $http->on('finish', function(){
     echo "task finish";

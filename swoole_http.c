@@ -1134,7 +1134,7 @@ static void http_build_header(http_client *client, zval *object, swString *respo
             {
                 flag |= HTTP_RESPONSE_CONTENT_TYPE;
             }
-            n = snprintf(buf, sizeof(buf), "%s: %s\r\n", key, Z_STRVAL_PP(value));
+            n = snprintf(buf, sizeof(buf), "%*s: %*s\r\n", keylen - 1, key, Z_STRLEN_PP(value), Z_STRVAL_PP(value));
             swString_append_ptr(response, buf, n);
         }
         if (!(flag & HTTP_RESPONSE_SERVER))
