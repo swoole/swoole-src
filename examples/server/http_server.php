@@ -53,7 +53,7 @@ function no_chunk(swoole_http_request $request, swoole_http_response $response)
     //var_dump($request->rawContent());
     //var_dump($request->post);
 //    var_dump($request->get);
-    //$response->end("<h1>Hello Swoole. #".rand(1000, 9999)."</h1>");
+    $response->end("<h1>Hello Swoole. #".rand(1000, 9999)."</h1>");
     //global $http;
     //$http->task("hello world");
 }

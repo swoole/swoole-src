@@ -63,8 +63,6 @@ typedef struct
 
     php_http_parser parser;
 
-    swString *response_buffer;
-
     char *current_header_name;
     size_t current_header_name_len;
 

@@ -1083,7 +1083,7 @@ static void http_build_header(http_client *client, zval *object, swString *respo
     /**
      * http status line
      */
-    n = snprintf(buf, 128, "HTTP/1.1 %s\r\n", http_status_message(client->response.status));
+    n = snprintf(buf, sizeof(buf), "HTTP/1.1 %s\r\n", http_status_message(client->response.status));
     swString_append_ptr(response, buf, n);
 
     /**
@@ -1134,7 +1134,7 @@ static void http_build_header(http_client *client, zval *object, swString *respo
             {
                 flag |= HTTP_RESPONSE_CONTENT_TYPE;
             }
-            n = snprintf(buf, 128, "%s: %s\r\n", key, Z_STRVAL_PP(value));
+            n = snprintf(buf, sizeof(buf), "%s: %s\r\n", key, Z_STRVAL_PP(value));
             swString_append_ptr(response, buf, n);
         }
         if (!(flag & HTTP_RESPONSE_SERVER))
@@ -1160,14 +1160,14 @@ static void http_build_header(http_client *client, zval *object, swString *respo
         {
             if (!(flag & HTTP_RESPONSE_CONTENT_LENGTH) && body_length > 0)
             {
-                n = snprintf(buf, 128, "Content-Length: %d\r\n", body_length);
+                n = snprintf(buf, sizeof(buf), "Content-Length: %d\r\n", body_length);
                 swString_append_ptr(response, buf, n);
             }
         }
         if (!(flag & HTTP_RESPONSE_DATE))
         {
             date_str = php_format_date(ZEND_STRL("D, d-M-Y H:i:s T"), SwooleGS->now, 0 TSRMLS_CC);
-            n = snprintf(buf, 128, "Date: %s\r\n", date_str);
+            n = snprintf(buf, sizeof(buf), "Date: %s\r\n", date_str);
             swString_append_ptr(response, buf, n);
             efree(date_str);
         }
@@ -1189,19 +1189,20 @@ static void http_build_header(http_client *client, zval *object, swString *respo
         }
 
         date_str = php_format_date(ZEND_STRL("D, d-M-Y H:i:s T"), SwooleGS->now, 0 TSRMLS_CC);
-        n = snprintf(buf, 128, "Date: %s\r\n", date_str);
+        n = snprintf(buf, sizeof(buf), "Date: %s\r\n", date_str);
         efree(date_str);
         swString_append_ptr(response, buf, n);
 
         if (client->request.method == PHP_HTTP_OPTIONS)
         {
-            n = snprintf(buf, 128, "Allow: GET, POST, PUT, DELETE, HEAD, OPTIONS\r\nContent-Length: %d\r\n", 0);
+            n = snprintf(buf, sizeof(buf), "Allow: GET, POST, PUT, DELETE, HEAD, OPTIONS\r\nContent-Length: %d\r\n", 0);
+            swString_append_ptr(response, buf, n);
         }
         else if (body_length > 0)
         {
-            n = snprintf(buf, 128, "Content-Length: %d\r\n", body_length);
+            n = snprintf(buf, sizeof(buf), "Content-Length: %d\r\n", body_length);
+            swString_append_ptr(response, buf, n);
         }
-        swString_append_ptr(response, buf, n);
     }
 
     if (client->chunk)
@@ -1239,6 +1240,7 @@ PHP_METHOD(swoole_http_response, end)
     if (client->chunk)
     {
         ret = swServer_tcp_send(SwooleG.serv, client->fd, SW_STRL("0\r\n\r\n") - 1);
+        client->chunk = 0;
     }
     //no http chunk
     else
@@ -1256,22 +1258,16 @@ PHP_METHOD(swoole_http_response, end)
     }
 
     swoole_http_request_free(client TSRMLS_CC);
+    client->send_header = 0;
 
     if (!client->keepalive)
     {
         SwooleG.serv->factory.end(&SwooleG.serv->factory, client->fd);
     }
-    else
-    {
-        client->send_header = 0;
-        client->chunk = 0;
-    }
-
     if (http_merge_global_flag > 0)
     {
         http_global_clear(TSRMLS_C);
     }
-
     SW_CHECK_RETURN(ret);
 }
 
