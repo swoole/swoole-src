@@ -132,7 +132,7 @@ int swoole_websocket_handshake(http_client *client)
     int n;
     char sec_websocket_accept[128];
     memcpy(sec_websocket_accept, Z_STRVAL_PP(pData), Z_STRLEN_PP(pData));
-    memcpy(sec_websocket_accept + Z_STRLEN_PP(pData), SW_STRL(SW_WEBSOCKET_GUID) - 1);
+    memcpy(sec_websocket_accept + Z_STRLEN_PP(pData), SW_WEBSOCKET_GUID, sizeof(SW_WEBSOCKET_GUID) - 1);
 
     char sha1_str[20];
     bzero(sha1_str, sizeof(sha1_str));
