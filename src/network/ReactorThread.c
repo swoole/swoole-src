@@ -168,7 +168,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
                 if (request->buffer)
                 {
                     swTrace("ConnectionClose. free buffer=%p, request=%p\n", request->buffer, request);
-                    swHttpRequest_free(request, conn->http_buffered);
+                    swHttpRequest_free(conn, request);
                 }
             }
             conn->object = NULL;
@@ -1274,7 +1274,7 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
             if (conn->object != NULL)
             {
                 swHttpRequest *request = (swHttpRequest *) conn->object;
-                swHttpRequest_free(request, conn->http_buffered);
+                swHttpRequest_free(conn, request);
                 conn->object = NULL;
             }
             conn->websocket_status = WEBSOCKET_STATUS_FRAME;
@@ -1332,7 +1332,7 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
     {
         close_fd:
         swReactorThread_onClose(reactor, event);
-        swHttpRequest_free(request, conn->http_buffered);
+        swHttpRequest_free(conn, request);
         return SW_OK;
     }
     else
@@ -1374,7 +1374,7 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
             if (memcmp(buffer->str + buffer->length - 4, "\r\n\r\n", 4) == 0)
             {
                 swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, buffer);
-                swHttpRequest_free(request, conn->http_buffered);
+                swHttpRequest_free(conn, request);
             }
             else if (buffer->size == buffer->length)
             {
@@ -1452,7 +1452,7 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
             if (buffer->length == request_size)
             {
                 swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, buffer);
-                swHttpRequest_free(request, conn->http_buffered);
+                swHttpRequest_free(conn, request);
             }
             else
             {

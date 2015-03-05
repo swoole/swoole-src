@@ -63,7 +63,7 @@ typedef struct _swHttpRequest
 int swHttpRequest_get_protocol(swHttpRequest *request);
 int swHttpRequest_get_content_length(swHttpRequest *request);
 int swHttpRequest_get_header_length(swHttpRequest *request);
-void swHttpRequest_free(swHttpRequest *request, int free_buffer);
+void swHttpRequest_free(swConnection *conn, swHttpRequest *request);
 
 #ifdef __cplusplus
 }
