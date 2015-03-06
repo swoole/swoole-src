@@ -526,7 +526,11 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
         ret = write(ev->fd, trunk->store.ptr, trunk->length);
         if (ret < 0)
         {
+#ifdef HAVE_KQUEUE
+            return (errno == EAGAIN || errno == ENOBUFS) ? SW_OK : SW_ERR;
+#else
             return errno == EAGAIN ? SW_OK : SW_ERR;
+#endif
         }
         else
         {
