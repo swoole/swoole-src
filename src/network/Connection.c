@@ -182,17 +182,10 @@ int swConnection_sendfile(swConnection *conn, char *filename)
         }
     }
 
-    swBuffer_trunk *trunk = swBuffer_new_trunk(conn->out_buffer, SW_CHUNK_SENDFILE, 0);
-    if (trunk == NULL)
-    {
-        swWarn("get out_buffer trunk failed.");
-        return SW_ERR;
-    }
     swTask_sendfile *task = sw_malloc(sizeof(swTask_sendfile));
     if (task == NULL)
     {
         swWarn("malloc for swTask_sendfile failed.");
-        //TODO: 回收这里的内存
         return SW_ERR;
     }
     bzero(task, sizeof(swTask_sendfile));
@@ -201,19 +194,33 @@ int swConnection_sendfile(swConnection *conn, char *filename)
     int file_fd = open(filename, O_RDONLY);
     if (file_fd < 0)
     {
-        swWarn("open file[%s] failed. Error: %s[%d]", task->filename, strerror(errno), errno);
+        free(task->filename);
+        free(task);
+        swSysError("open(%s) failed.", task->filename);
         return SW_ERR;
     }
+
     struct stat file_stat;
     if (fstat(file_fd, &file_stat) < 0)
     {
-        swWarn("swoole_async_readfile: fstat failed. Error: %s[%d]", strerror(errno), errno);
+        free(task->filename);
+        free(task);
+        swSysError("fstat(%s) failed.", filename);
+        return SW_ERR;
+    }
+
+    swBuffer_trunk *trunk = swBuffer_new_trunk(conn->out_buffer, SW_CHUNK_SENDFILE, 0);
+    if (trunk == NULL)
+    {
+        free(task->filename);
+        free(task);
+        swWarn("get out_buffer trunk failed.");
         return SW_ERR;
     }
 
     task->filesize = file_stat.st_size;
     task->fd = file_fd;
-    trunk->store.ptr = (void *)task;
+    trunk->store.ptr = (void *) task;
 
     return SW_OK;
 }
