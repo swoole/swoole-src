@@ -312,8 +312,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
                     ret = handle(reactor, &event);
                     if (ret < 0)
                     {
-                        swWarn("kqueue event handler fail. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno,
-                                strerror(errno), errno);
+                        swSysError("kqueue event read socket#%d handler failed", event.fd);
                     }
                 }
                 //write
@@ -323,8 +322,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
                     ret = handle(reactor, &event);
                     if (ret < 0)
                     {
-                        swWarn("kqueue event handler fail. fd=%d|errno=%d.Error: %s[%d]", event.fd, errno,
-                                strerror(errno), errno);
+                        swSysError("kqueue event write socket#%d handler failed.", event.fd);
                     }
                 }
                 else

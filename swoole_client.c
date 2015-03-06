@@ -934,9 +934,7 @@ PHP_METHOD(swoole_client, recv)
     {
         if (ret == 0)
         {
-            php_swoole_client_close(getThis(), cli->socket->fd TSRMLS_CC);
-            efree(buf);
-            RETURN_FALSE;
+            RETURN_EMPTY_STRING();
         }
         else
         {

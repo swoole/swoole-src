@@ -253,11 +253,17 @@ class Swoole_Benchmark
 
     public $pid;
 
+	protected $tmp_dir = '/tmp/swoole_bench/';
+
 	function __construct($func)
 	{
-		if(!function_exists($func))
+		if (!function_exists($func))
 		{
-			exit(__CLASS__.": function[$func] not exists\n");
+			exit(__CLASS__ . ": function[$func] not exists\n");
+		}
+		if (!is_dir($this->tmp_dir))
+		{
+			mkdir($this->tmp_dir);
 		}
 		$this->test_func = $func;
 	}
@@ -266,18 +272,19 @@ class Swoole_Benchmark
 		unlink($this->shm_key);
 		foreach($this->child_pid as $pid)
 		{
-			unlink('/dev/shm/lost_'.$pid.'.log');
+			unlink($this->tmp_dir.'lost_'.$pid.'.log');
 		}
 	}
+
 	function run()
 	{
 		$this->main_pid = posix_getpid();
-		$this->shm_key = "/dev/shm/t.log";
-		for($i=0;$i<$this->process_num;$i++)
+		$this->shm_key = $this->tmp_dir.'t.log';
+		for ($i = 0; $i < $this->process_num; $i++)
 		{
-			$this->child_pid[] = $this->start(array($this,'worker'));
+			$this->child_pid[] = $this->start(array($this, 'worker'));
 		}
-		for($i=0;$i<$this->process_num;$i++)
+		for ($i = 0; $i < $this->process_num; $i++)
 		{
 			$status = 0;
 			$pid = pcntl_wait($status);
@@ -331,17 +338,17 @@ class Swoole_Benchmark
 			$func = $this->test_func;
 			if(!$func($this)) $lost++;
 		}
-		if($this->show_detail)
+		if ($this->show_detail)
 		{
-			$log  = $pid."#\ttotal_use(s):".substr(microtime(true)-$start,0,5);
-			$log .= "\tconnect(ms):".substr($this->max_conn_time*1000,0,5);
-			$log .= "\twrite(ms):".substr($this->max_write_time*1000,0,5);
-			$log .= "\tread(ms):".substr($this->max_read_time*1000,0,5);
-			file_put_contents('/dev/shm/lost_'.$this->pid.'.log', $lost."\n".$log);
+			$log = $pid . "#\ttotal_use(s):" . substr(microtime(true) - $start, 0, 5);
+			$log .= "\tconnect(ms):" . substr($this->max_conn_time * 1000, 0, 5);
+			$log .= "\twrite(ms):" . substr($this->max_write_time * 1000, 0, 5);
+			$log .= "\tread(ms):" . substr($this->max_read_time * 1000, 0, 5);
+			file_put_contents($this->tmp_dir.'lost_' . $this->pid . '.log', $lost . "\n" . $log);
 		}
 		else
 		{
-			file_put_contents('/dev/shm/lost_'.$this->pid.'.log', $lost);
+			file_put_contents($this->tmp_dir.'lost_'.$this->pid.'.log', $lost);
 		}
 		exit(0);
 	}
@@ -353,7 +360,7 @@ class Swoole_Benchmark
 
 		foreach ($this->child_pid as $f)
 		{
-			$_lost = file_get_contents('/dev/shm/lost_'.$f.'.log');
+			$_lost = file_get_contents($this->tmp_dir.'lost_'.$f.'.log');
 			$log = explode("\n",$_lost,2);
 			if(!empty($log))
 			{
