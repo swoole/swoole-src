@@ -239,7 +239,7 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
         {
             return ret;
         }
-        else if (errno == EAGAIN)
+        else if (errno == EAGAIN || errno == ENOBUFS)
         {
             if (!socket->out_buffer)
             {

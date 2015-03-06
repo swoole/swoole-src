@@ -101,6 +101,7 @@ static sw_inline int swConnection_error(int err)
 	case EHOSTUNREACH:
 		return SW_CLOSE;
 	case EAGAIN:
+	case ENOBUFS:
 	case 0:
 		return SW_WAIT;
 	default:
