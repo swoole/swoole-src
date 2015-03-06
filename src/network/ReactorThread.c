@@ -315,7 +315,11 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
         if (swBuffer_empty(buffer))
         {
             ret = write(pipe_fd, (void *) data, len);
+#ifdef HAVE_KQUEUE
+            if (ret < 0 && (errno == EAGAIN || errno == ENOBUFS))
+#else
             if (ret < 0 && errno == EAGAIN)
+#endif
             {
                 if (serv->connection_list[pipe_fd].from_id == SwooleTG.id)
                 {

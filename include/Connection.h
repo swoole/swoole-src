@@ -101,7 +101,9 @@ static sw_inline int swConnection_error(int err)
 	case EHOSTUNREACH:
 		return SW_CLOSE;
 	case EAGAIN:
+#ifdef HAVE_KQUEUE
 	case ENOBUFS:
+#endif
 	case 0:
 		return SW_WAIT;
 	default:
