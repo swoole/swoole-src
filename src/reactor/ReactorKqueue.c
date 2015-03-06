@@ -160,6 +160,7 @@ static int swReactorKqueue_set(swReactor *reactor, int fd, int fdtype)
     int fflags = 0;
     fd_.fd = fd;
     fd_.fdtype = swReactor_fdtype(fdtype);
+
     if (swReactor_event_read(fdtype))
     {
 #ifdef NOTE_EOF
@@ -185,6 +186,7 @@ static int swReactorKqueue_set(swReactor *reactor, int fd, int fdtype)
             return SW_ERR;
         }
     }
+
     if (swReactor_event_write(fdtype))
     {
         EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, NULL);
@@ -219,14 +221,30 @@ static int swReactorKqueue_del(swReactor *reactor, int fd)
     struct kevent e;
     int ret;
 
-    EV_SET(&e, fd, EVFILT_READ, EV_DELETE | EV_CLEAR, 0, 0, NULL);
+    swConnection *socket = swReactor_get(reactor, fd);
 
-    ret = kevent(this->epfd, &e, 1, NULL, 0, NULL);
-    if (ret < 0)
+    if (socket->events & SW_EVENT_READ)
     {
-        swWarn("kqueue remove fd[=%d] failed. Error: %s[%d]", fd, strerror(errno), errno);
-        return SW_ERR;
+        EV_SET(&e, fd, EVFILT_READ, EV_DELETE, 0, 0, NULL);
+        ret = kevent(this->epfd, &e, 1, NULL, 0, NULL);
+        if (ret < 0)
+        {
+            swWarn("kqueue remove fd[=%d] failed. Error: %s[%d]", fd, strerror(errno), errno);
+            return SW_ERR;
+        }
     }
+
+    if (socket->events & SW_EVENT_WRITE)
+    {
+        EV_SET(&e, fd, EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
+        ret = kevent(this->epfd, &e, 1, NULL, 0, NULL);
+        if (ret < 0)
+        {
+            swWarn("kqueue remove fd[=%d] failed. Error: %s[%d]", fd, strerror(errno), errno);
+            return SW_ERR;
+        }
+    }
+
     if (swReactor_del(reactor, fd) < 0)
     {
         return SW_ERR;
