@@ -553,10 +553,28 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
         swProcessPool_shutdown(&SwooleGS->task_workers);
     }
 
+    if (serv->user_worker_map)
+    {
+        swWorker* user_worker= NULL;
+        uint64_t key;
+
+        do
+        {
+            user_worker = swHashMap_each_int(serv->user_worker_map, &key);
+            //hashmap empty
+            if (user_worker == NULL)
+            {
+                break;
+            }
+            kill(user_worker->pid, SIGTERM);
+        } while (user_worker);
+    }
+
     if (serv->onManagerStop)
     {
         serv->onManagerStop(serv);
     }
+
     return SW_OK;
 }
 

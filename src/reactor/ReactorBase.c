@@ -362,6 +362,7 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev)
         }
         socket->events &= ~SW_EVENT_WRITE;
     }
+
     return SW_OK;
 }
 

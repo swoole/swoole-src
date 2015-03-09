@@ -922,8 +922,8 @@ PHP_FUNCTION(swoole_server_create)
     }
 
     serv_mode = serv_mode_tmp & 0x0f;
-    packet_mode = (serv_mode_tmp & 0xf0 ) >> 4;
-    serv-> packet_mode= packet_mode;
+    packet_mode = (serv_mode_tmp & 0xf0) >> 4;
+    serv->packet_mode = packet_mode;
 
 #ifdef __CYGWIN__
     serv->factory_mode = SW_MODE_SINGLE;

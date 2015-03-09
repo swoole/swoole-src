@@ -71,9 +71,9 @@ void swWorker_signal_handler(int signo)
     case SIGALRM:
         swTimer_signal_handler(SIGALRM);
         break;
-        /**
-         * for test
-         */
+    /**
+     * for test
+     */
     case SIGVTALRM:
         swWarn("SIGVTALRM coming");
         break;
