@@ -55,19 +55,17 @@
 
 #define SW_HOST_SIZE  128
 
-#pragma pack(4)
 typedef struct
 {
-	uint16_t port;
-	uint16_t from_fd;
+    uint16_t port;
+    uint16_t from_fd;
 } php_swoole_udp_t;
-#pragma pack()
 
 typedef struct _swTimer_callback
 {
-	zval* callback;
-	zval* data;
-	int interval;
+    zval* callback;
+    zval* data;
+    int interval;
 } swTimer_callback;
 
 extern zend_module_entry swoole_module_entry;
