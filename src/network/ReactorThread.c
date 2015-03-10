@@ -287,7 +287,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
         }
         else if (errno == EAGAIN)
         {
-            return SW_OK;
+            break;
         }
         else
         {
@@ -397,7 +397,6 @@ int swReactorThread_send(swSendData *_send)
         return SW_ERR;
     }
 
-    swBuffer_trunk *trunk;
     swReactor *reactor = &(serv->reactor_threads[conn->from_id].reactor);
 
     swTraceLog(SW_TRACE_EVENT, "send-data. fd=%d|reactor_id=%d", fd, reactor_id);
@@ -413,38 +412,34 @@ int swReactorThread_send(swSendData *_send)
             reactor->close(reactor, fd);
             return SW_OK;
         }
-
         //direct send
-        if (_send->info.type != SW_EVENT_SENDFILE)
+        else if (_send->info.type != SW_EVENT_SENDFILE)
         {
-            direct_send:
+            direct_send: if (conn->removed)
             {
-                if (conn->removed)
+                swWarn("the connection#%d is closed by client.", fd);
+                return SW_ERR;
+            }
+            int n = swConnection_send(conn, _send->data, _send->length, 0);
+            if (n == _send->length)
+            {
+                return SW_OK;
+            }
+            else if (n > 0)
+            {
+                _send->data += n;
+                _send->length -= n;
+            }
+            else
+            {
+                if (swConnection_error(errno) == SW_CLOSE)
                 {
-                    swWarn("the connection#%d is closed by client.", fd);
-                    return SW_ERR;
-                }
-                int n = swConnection_send(conn, _send->data, _send->length, 0);
-                if (n == _send->length)
-                {
+                    conn->close_wait = 1;
                     return SW_OK;
                 }
-                else if (n > 0)
+                else if (errno == EINTR)
                 {
-                    _send->data += n;
-                    _send->length -= n;
-                }
-                else
-                {
-                    if (swConnection_error(errno) == SW_CLOSE)
-                    {
-                        conn->close_wait = 1;
-                        return SW_OK;
-                    }
-                    else if (errno == EINTR)
-                    {
-                        goto direct_send;
-                    }
+                    goto direct_send;
                 }
             }
         }
@@ -458,13 +453,13 @@ int swReactorThread_send(swSendData *_send)
             return SW_ERR;
         }
         //listen EPOLLOUT event
-        if (reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_WRITE | SW_EVENT_READ) < 0
-                && (errno == EBADF || errno == ENOENT))
+        if (reactor->set(reactor, fd, SW_FD_TCP | SW_EVENT_WRITE | SW_EVENT_READ) < 0 && (errno == EBADF || errno == ENOENT))
         {
             goto close_fd;
         }
     }
 
+    swBuffer_trunk *trunk;
     //close connection
     if (_send->info.type == SW_EVENT_CLOSE)
     {
