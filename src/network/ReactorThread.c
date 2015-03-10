@@ -439,7 +439,7 @@ int swReactorThread_send(swSendData *_send)
             }
         }
 #endif
-            //Buffer send
+        //buffer send
         else
         {
 #ifdef SW_REACTOR_SYNC_SEND
@@ -474,12 +474,17 @@ int swReactorThread_send(swSendData *_send)
     //send data
     else
     {
-        /**
-        * TODO: Connection output buffer overflow, close the connection.
-        */
+        //connection is closed
+        if (conn->removed)
+        {
+            swWarn("the connection#%d is closed by client.", fd);
+            return SW_ERR;
+        }
+        //connection output buffer overflow
         if (conn->out_buffer->length >= serv->buffer_output_size)
         {
             swWarn("Connection output buffer overflow.");
+            conn->overflow = 1;
         }
         //buffer enQueue
         swBuffer_append(conn->out_buffer, _send->data, _send->length);
