@@ -296,9 +296,6 @@ PHP_FUNCTION(swoole_async_read)
         }
     }
 
-	//printf("buf_len=%d|addr=%p\n", buf_len, fcnt);
-	//printf("pagesize=%d|st_size=%d\n", sysconf(_SC_PAGESIZE), buf_len);
-
 	swoole_async_file_request req;
 	req.fd = fd;
 	req.filename = filename;
@@ -312,7 +309,7 @@ PHP_FUNCTION(swoole_async_read)
 	Z_ADDREF_PP(&cb);
 	Z_ADDREF_PP(&filename);
 
-	if (zend_hash_update(&php_sw_aio_callback, (char * )&fd, sizeof(fd), &req, sizeof(swoole_async_file_request), NULL) == FAILURE)
+    if (zend_hash_update(&php_sw_aio_callback, (char *)&fd, sizeof(fd), &req, sizeof(swoole_async_file_request), NULL) == FAILURE)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "add to hashtable[1] failed");
 		RETURN_FALSE;
@@ -398,7 +395,7 @@ PHP_FUNCTION(swoole_async_write)
 			Z_ADDREF_PP(&cb);
 		}
 
-		if (zend_hash_update(&php_sw_aio_callback, (char *)&fd, sizeof(fd), (void **) &new_req, sizeof(new_req), (void **) &req) == FAILURE)
+        if (zend_hash_update(&php_sw_aio_callback, (char *)&fd, sizeof(fd), (void **) &new_req, sizeof(new_req), (void **) &req) == FAILURE)
 		{
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "add to hashtable[1] failed");
 			RETURN_FALSE;

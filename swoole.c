@@ -682,7 +682,7 @@ PHP_MINFO_FUNCTION(swoole)
 PHP_RINIT_FUNCTION(swoole)
 {
     //swoole_aio
-    zend_hash_init(&php_sw_aio_callback, 16, NULL, ZVAL_PTR_DTOR, 0);
+    zend_hash_init(&php_sw_aio_callback, 16, NULL, NULL, 0);
     //running
     SwooleG.running = 1;
 
