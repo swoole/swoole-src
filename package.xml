@@ -31,11 +31,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2015-02-15</date>
+    <date>2015-03-10</date>
     <time>15:39:51</time>
     <version>
-        <release>1.7.10</release>
-        <api>1.7.10</api>
+        <release>1.7.11</release>
+        <api>1.7.11</api>
     </version>
     <stability>
         <release>stable</release>
@@ -43,16 +43,15 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed udp server after the reload cycle of death BUG
-- Fixed http server POST request segment fault error
-- Added non-blocking settings for swoole_process::wait
-- Fixed pecl script cannot use
-- Fixed swoole_server->sendMessage to fail
-- Added swoole_websocket_server
-- Added swoole_server->sendto
-- Optimization performance for http_server
-- Optimization performance for swoole_client and swoole_event
-- Added ARM platform support
+- Fixed udp server called connection_info wrong
+- Fixed temporary files task disk space does not release
+- Fixed WebSocket onOpen event callback core dump
+- Fixed cannot use sendMessage in the task process
+- Fixed Websocket server Sec-WebSocket-Accept handshake failed
+- Fixed HttpServer in turn the KeepAlive continuous POST data coredump
+- Fixed MacOS/FreeBSD error ENOBUFF occurred in a large number of concurrent
+- Added HttpServer chunk transmission support
+- Added PCRE detection
     </notes>
 	<contents>
 		<dir name="/">
@@ -109,6 +108,7 @@
 					<file role="src" name="msgqueue.php" />
 					<file role="src" name="http_server.php" />
 					<file role="src" name="http_client.php" />
+					<file role="src" name="websocket_server.php" />
 				</dir>
 				<dir name="event">
 					<file role="src" name="stream.php" />
@@ -138,6 +138,7 @@
 					<file role="src" name="tcp.go" />
 					<file role="src" name="http.go" />
 					<file role="src" name="tcp.php" />
+					<file role="src" name="udp.php" />
 					<file role="src" name="http.php" />
 					<file role="src" name="run.php" />
 				</dir>
@@ -146,7 +147,6 @@
 				<file role="src" name="async_mysql2.php" />
 				<file role="src" name="proxy.php" />
 				<file role="src" name="proxy_sync.php" />
-				<file role="src" name="udp_server.php" />
 				<file role="src" name="timer.php" />
 				<file role="src" name="sendfile_server.php" />
 				<file role="src" name="recv_file.php" />

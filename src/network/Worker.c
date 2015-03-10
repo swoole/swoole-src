@@ -222,18 +222,23 @@ void swWorker_onStart(swServer *serv)
     if (is_root)
     {
         //get group info
-        group = getgrnam(SwooleG.group);
-        if (!group)
+        if (SwooleG.group)
         {
-            swSysError("get group [%s] info failed.", SwooleG.group);
+            group = getgrnam(SwooleG.group);
+            if (!group)
+            {
+                swSysError("get group [%s] info failed.", SwooleG.group);
+            }
         }
         //get user info
-        passwd = getpwnam(SwooleG.user);
-        if (!passwd)
+        if (SwooleG.user)
         {
-            swSysError("get user [%s] info failed.", SwooleG.user);
+            passwd = getpwnam(SwooleG.user);
+            if (!passwd)
+            {
+                swSysError("get user [%s] info failed.", SwooleG.user);
+            }
         }
-
         //chroot
         if (SwooleG.chroot)
         {
