@@ -244,7 +244,6 @@ void swWorker_onStart(swServer *serv)
 void swWorker_onStop(swServer *serv)
 {
     swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
-
     if (serv->onWorkerStop)
     {
         serv->onWorkerStop(serv, SwooleWG.id);
@@ -323,6 +322,8 @@ int swWorker_loop(swFactory *factory, int worker_id)
 #endif
     //main loop
     SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
+    //clear pipe buffer
+    swWorker_clean();
     //worker shutdown
     swWorker_onStop(serv);
     return SW_OK;

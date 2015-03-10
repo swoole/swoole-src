@@ -603,11 +603,6 @@ PHP_MSHUTDOWN_FUNCTION(swoole)
     {
         sw_free(SwooleG.main_reactor);
     }
-    //clear pipe buffer
-    else if (swIsWorker())
-    {
-        swWorker_clean();
-    }
     if (SwooleG.serv)
     {
         sw_free(SwooleG.serv);
@@ -717,6 +712,12 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
             zval_dtor(php_sw_callback[i]);
             efree(php_sw_callback[i]);
         }
+    }
+
+    //clear pipe buffer
+    if (swIsWorker())
+    {
+        swWorker_clean();
     }
 
     SwooleWG.reactor_wait_onexit = 0;
