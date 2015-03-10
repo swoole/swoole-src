@@ -1,10 +1,15 @@
 <?php
 $serv = new swoole_server("127.0.0.1", 9501);
-$serv->set(['worker_num' => 1, 'task_worker_num' => 1, 'task_tmpdir' => __DIR__.'/task/']);
+
+$serv->set([
+    'worker_num'      => 1,
+    'task_worker_num' => 1,
+//    'task_tmpdir'     => __DIR__ . '/task/',
+]);
 
 $serv->on('connect', function (swoole_server $serv, $fd){
     echo "Client:Connect.\n";
-    $data = str_repeat("A", 800000);
+    $data = str_repeat("A", 8000000);
     $serv->task($data);
 });
 

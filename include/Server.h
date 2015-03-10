@@ -519,20 +519,18 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags);
 	_length = _pkg.length;\
     if (_length > SwooleG.serv->package_max_length) {\
         swWarn("task package is too big.");\
-	    _length = -1;\
-    } else { \
-        _buf = __malloc(_length + 1);\
-        _buf[_length] = 0;\
-        int tmp_file_fd = open(_pkg.tmpfile, O_RDONLY);\
-        if (tmp_file_fd < 0){\
-            swSysError("open(%s) failed.", task->data);\
-            _length = -1;\
-        } else if (swoole_sync_readfile(tmp_file_fd, _buf, _length) > 0) {\
-            close(tmp_file_fd);\
-            unlink(_pkg.tmpfile);\
-        } else {\
-            _length = -1;\
-        }\
+    }\
+    _buf = __malloc(_length + 1);\
+    _buf[_length] = 0;\
+    int tmp_file_fd = open(_pkg.tmpfile, O_RDONLY);\
+    if (tmp_file_fd < 0){\
+        swSysError("open(%s) failed.", task->data);\
+        _length = -1;\
+    } else if (swoole_sync_readfile(tmp_file_fd, _buf, _length) > 0) {\
+        close(tmp_file_fd);\
+        unlink(_pkg.tmpfile);\
+    } else {\
+        _length = -1;\
     }
 
 #define swPackage_data(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->str:task->data)
