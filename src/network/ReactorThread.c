@@ -1251,6 +1251,7 @@ static int swReactorThread_onReceive_websocket(swReactor *reactor, swEvent *even
                         tmp_package.str[1]  = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_NORMAL, 0);
                         tmp_package.length = 2;
                         send(conn->fd, tmp_package.str, 2, 0);
+                        swReactorThread_onClose(reactor, event);
                         return SW_OK;
                         break;
                 }
