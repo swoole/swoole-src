@@ -85,6 +85,7 @@ void swWorker_signal_handler(int signo)
     }
 }
 
+#ifdef SW_REACTOR_USE_SESSION
 static sw_inline int swWorker_get_session_id(swServer *serv, int fd)
 {
     swConnection *conn = swServer_connection_get(serv, fd);
@@ -94,12 +95,9 @@ static sw_inline int swWorker_get_session_id(swServer *serv, int fd)
         swWarn("received the wrong data from socket#%d", fd);
         return SW_ERR;
     }
-#ifdef SW_REACTOR_USE_SESSION
     return conn->session_id;
-#else
-    return fd;
-#endif
 }
+#endif
 
 int swWorker_onTask(swFactory *factory, swEventData *task)
 {
@@ -117,12 +115,13 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     //ringbuffer shm package
     case SW_EVENT_PACKAGE:
         do_task:
+#ifdef SW_REACTOR_USE_SESSION
         task->info.fd = swWorker_get_session_id(serv, task->info.fd);
         if (task->info.fd < 0)
         {
             return SW_OK;
         }
-
+#endif
         factory->onTask(factory, task);
         if (!SwooleWG.run_always)
         {
@@ -158,20 +157,24 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         break;
 
     case SW_EVENT_CLOSE:
+#ifdef SW_REACTOR_USE_SESSION
         task->info.fd = swWorker_get_session_id(serv, task->info.fd);
         if (task->info.fd < 0)
         {
             return SW_OK;
         }
+#endif
         factory->end(factory, task->info.fd);
         break;
 
     case SW_EVENT_CONNECT:
+#ifdef SW_REACTOR_USE_SESSION
         task->info.fd = swWorker_get_session_id(serv, task->info.fd);
         if (task->info.fd < 0)
         {
             return SW_OK;
         }
+#endif
         serv->onConnect(serv, task->info.fd, task->info.from_id);
         break;
 

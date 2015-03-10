@@ -374,7 +374,7 @@ int swReactorThread_send(swSendData *_send)
     swConnection *conn = swServer_connection_get(serv, fd);
     if (!conn)
     {
-        swWarn("send to socket#%d failed, the connection is closed.", session_id);
+        swWarn("send to socket#%d[session_id=%d] failed, the connection is closed.", fd, session_id);
         return SW_ERR;
     }
     if (session->id != session_id || conn->session_id != session_id)
