@@ -626,6 +626,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     if (swBuffer_empty(conn->out_buffer))
     {
         reactor->set(reactor, fd, SW_FD_TCP | SW_EVENT_READ);
+        conn->direct_send = 1;
     }
     return SW_OK;
 }
