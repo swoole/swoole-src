@@ -93,7 +93,6 @@ int swQueueMsg_out(swQueue *p, swQueue_data *data, int length)
 {
     swQueueMsg *object = p->object;
 
-    int ret;
     int flag = object->ipc_wait;
     long type = data->mtype;
 

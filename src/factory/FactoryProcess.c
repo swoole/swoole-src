@@ -33,9 +33,12 @@ static int swFactoryProcess_manager_start(swFactory *factory);
 
 static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti);
 
+static int swFactoryProcess_start(swFactory *factory);
 static int swFactoryProcess_notify(swFactory *factory, swDataHead *event);
 static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *buf);
 static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
+static int swFactoryProcess_shutdown(swFactory *factory);
+static int swFactoryProcess_end(swFactory *factory, int fd);
 
 static void swManager_signal_handle(int sig);
 static pid_t swManager_create_user_worker(swServer *serv, swWorker* worker);
@@ -65,7 +68,7 @@ int swFactoryProcess_create(swFactory *factory, int worker_num)
     return SW_OK;
 }
 
-int swFactoryProcess_shutdown(swFactory *factory)
+static int swFactoryProcess_shutdown(swFactory *factory)
 {
     int status;
 
@@ -82,7 +85,7 @@ int swFactoryProcess_shutdown(swFactory *factory)
     return SW_OK;
 }
 
-int swFactoryProcess_start(swFactory *factory)
+static int swFactoryProcess_start(swFactory *factory)
 {
     if (swFactory_check_callback(factory) < 0)
     {
@@ -650,7 +653,7 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti)
 /**
  * Close the connection
  */
-int swFactoryProcess_end(swFactory *factory, int fd)
+static int swFactoryProcess_end(swFactory *factory, int fd)
 {
     swServer *serv = factory->ptr;
     swSendData _send;
@@ -696,7 +699,7 @@ int swFactoryProcess_end(swFactory *factory, int fd)
 /**
  * worker: send to client
  */
-int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
+static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 {
     int ret, sendn;
     swServer *serv = factory->ptr;
@@ -796,9 +799,9 @@ static __thread struct
 } sw_notify_data;
 
 /**
- * 主进程通知worker进程
+ * [ReactorThread] notify info to worker process
  */
-int swFactoryProcess_notify(swFactory *factory, swDataHead *ev)
+static int swFactoryProcess_notify(swFactory *factory, swDataHead *ev)
 {
     memcpy(&sw_notify_data._send, ev, sizeof(swDataHead));
     sw_notify_data._send.len = 0;
@@ -809,7 +812,7 @@ int swFactoryProcess_notify(swFactory *factory, swDataHead *ev)
 /**
  * [ReactorThread] dispatch request to worker
  */
-int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
+static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
 {
     uint32_t schedule_key;
     uint32_t send_len = sizeof(task->data.info) + task->data.info.len;
@@ -859,7 +862,7 @@ int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
         target_worker_id = task->target_worker_id;
     }
 
-    if (!swEventData_is_dgram(task->data.info.type))
+    if (!swEventData_is_stream(task->data.info.type))
     {
         swConnection *conn = swServer_connection_get(serv, task->data.info.fd);
         if (conn == NULL || conn->active == 0)
