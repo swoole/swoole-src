@@ -221,6 +221,19 @@ void swWorker_onStart(swServer *serv)
 
     if (is_root)
     {
+        //get group info
+        group = getgrnam(SwooleG.group);
+        if (!group)
+        {
+            swSysError("get group [%s] info failed.", SwooleG.group);
+        }
+        //get user info
+        passwd = getpwnam(SwooleG.user);
+        if (!passwd)
+        {
+            swSysError("get user [%s] info failed.", SwooleG.user);
+        }
+
         //chroot
         if (SwooleG.chroot)
         {
@@ -230,35 +243,19 @@ void swWorker_onStart(swServer *serv)
             }
         }
         //set process group
-        if (SwooleG.group)
+        if (SwooleG.group && group)
         {
-            group = getgrnam(SwooleG.group);
-            if (group != NULL)
+            if (setgid(group->gr_gid) < 0)
             {
-                if (setgid(group->gr_gid) < 0)
-                {
-                    swSysError("setgid to [%s] failed.", SwooleG.group);
-                }
-            }
-            else
-            {
-                swSysError("get group [%s] info failed.", SwooleG.group);
+                swSysError("setgid to [%s] failed.", SwooleG.group);
             }
         }
         //set process user
-        if (SwooleG.user)
+        if (SwooleG.user && passwd)
         {
-            passwd = getpwnam(SwooleG.user);
-            if (passwd != NULL)
+            if (setuid(passwd->pw_uid) < 0)
             {
-                if (setuid(passwd->pw_uid) < 0)
-                {
-                    swSysError("setuid to [%s] failed.", SwooleG.user);
-                }
-            }
-            else
-            {
-                swSysError("get user [%s] info failed.", SwooleG.user);
+                swSysError("setuid to [%s] failed.", SwooleG.user);
             }
         }
     }
