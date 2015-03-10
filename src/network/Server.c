@@ -1144,6 +1144,8 @@ static void swHeartbeatThread_loop(swThreadParam *param)
     int serv_min_fd;
     int checktime;
 
+    SwooleTG.type = SW_THREAD_HEARTBEAT;
+
     bzero(&notify_ev, sizeof(notify_ev));
     notify_ev.type = SW_EVENT_CLOSE;
 
