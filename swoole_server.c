@@ -2061,26 +2061,28 @@ PHP_FUNCTION(swoole_server_heartbeat)
 
     int fd;
     int checktime = (int) SwooleGS->now - serv->heartbeat_idle_time;
+    swConnection *conn;
 
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
     {
         swTrace("heartbeat check fd=%d", fd);
-        swConnection *conn = &serv->connection_list[fd];
+        conn = &serv->connection_list[fd];
 
         if (1 == conn->active && conn->last_time < checktime)
         {
+            conn->close_force = 1;
             /**
              * Close the connection
              */
             if (close_connection)
             {
                 serv->factory.end(&serv->factory, fd);
-                if (serv->onClose != NULL)
-                {
-                    serv->onClose(serv, fd, conn->from_id);
-                }
             }
+#ifdef SW_REACTOR_USE_SESSION
+            add_next_index_long(return_value, conn->session_id);
+#else
             add_next_index_long(return_value, fd);
+#endif
         }
     }
 }
