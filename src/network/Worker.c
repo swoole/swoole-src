@@ -215,6 +215,54 @@ void swWorker_onStart(swServer *serv)
         SwooleG.process_type = SW_PROCESS_WORKER;
     }
 
+    int is_root = !geteuid();
+    struct passwd *passwd = NULL;
+    struct group *group = NULL;
+
+    if (is_root)
+    {
+        //chroot
+        if (SwooleG.chroot)
+        {
+            if (0 > chroot(SwooleG.chroot))
+            {
+                swSysError("chroot to [%s] failed.", SwooleG.chroot);
+            }
+        }
+        //set process group
+        if (SwooleG.group)
+        {
+            group = getgrnam(SwooleG.group);
+            if (group != NULL)
+            {
+                if (setgid(group->gr_gid) < 0)
+                {
+                    swSysError("setgid to [%s] failed.", SwooleG.group);
+                }
+            }
+            else
+            {
+                swSysError("get group [%s] info failed.", SwooleG.group);
+            }
+        }
+        //set process user
+        if (SwooleG.user)
+        {
+            passwd = getpwnam(SwooleG.user);
+            if (passwd != NULL)
+            {
+                if (setuid(passwd->pw_uid) < 0)
+                {
+                    swSysError("setuid to [%s] failed.", SwooleG.user);
+                }
+            }
+            else
+            {
+                swSysError("get user [%s] info failed.", SwooleG.user);
+            }
+        }
+    }
+
     SwooleWG.worker = swServer_get_worker(serv, SwooleWG.id);
 
     int i;

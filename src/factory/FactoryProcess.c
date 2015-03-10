@@ -583,12 +583,12 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
 
 static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti)
 {
-    int pid, ret;
-    struct passwd *passwd = NULL;
-    struct group *group = NULL;
-    int is_root = !geteuid();
+    pid_t pid;
+    int ret;
 
     pid = fork();
+
+    //fork() failed
     if (pid < 0)
     {
         swWarn("Fork Worker failed. Error: %s [%d]", strerror(errno), errno);
@@ -597,49 +597,6 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti)
     //worker child processor
     else if (pid == 0)
     {
-        if (is_root)
-        {
-
-            if (SwooleG.chroot)
-            {
-                if(0 > chroot(SwooleG.chroot)) 
-                {
-                    swSysError("chroot to [%s] failed.", SwooleG.chroot);
-                }
-            }
-
-            if (SwooleG.group)
-            {
-                group = getgrnam(SwooleG.group);
-                if (group != NULL)
-                {
-                    if (setgid(group->gr_gid) < 0)
-                    {
-                        swSysError("setgid to [%s] failed.", SwooleG.group);
-                    }
-                }
-                else
-                {
-                    swSysError("get group [%s] info failed.", SwooleG.group);
-                }
-            }
-
-            if (SwooleG.user)
-            {
-                passwd = getpwnam(SwooleG.user);
-                if (passwd != NULL)
-                {
-                    if (setuid(passwd->pw_uid) < 0)
-                    {
-                        swSysError("setuid to [%s] failed.", SwooleG.user);
-                    }
-                }
-                else
-                {
-                    swSysError("get user [%s] info failed.", SwooleG.user);
-                }
-            }
-        }
         ret = swWorker_loop(factory, worker_pti);
         exit(ret);
     }
