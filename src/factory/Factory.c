@@ -50,27 +50,7 @@ int swFactory_dispatch(swFactory *factory, swDispatchData *task)
 
 int swFactory_notify(swFactory *factory, swDataHead *req)
 {
-    swServer *serv = factory->ptr;
-    switch (req->type)
-    {
-    case SW_EVENT_CLOSE:
-        if (serv->onClose)
-        {
-            serv->onClose(serv, req->fd, req->from_id);
-        }
-        break;
-
-    case SW_EVENT_CONNECT:
-        if (serv->onConnect)
-        {
-            serv->onConnect(serv, req->fd, req->from_id);
-        }
-        break;
-    default:
-        swWarn("Error event[type=%d]", (int )req->type);
-        break;
-    }
-    return SW_OK;
+    return swWorker_onTask(factory, (swEventData *) req);
 }
 
 int swFactory_end(swFactory *factory, int fd)
