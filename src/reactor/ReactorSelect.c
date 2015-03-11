@@ -140,17 +140,19 @@ int swReactorSelect_del(swReactor *reactor, int fd)
 
 int swReactorSelect_set(swReactor *reactor, int fd, int fdtype)
 {
-	swReactorSelect *object = reactor->object;
-	swFdList_node ev, *s_ev = NULL;
-	ev.fd = fd;
-	LL_SEARCH(object->fds, s_ev, &ev, swReactorSelect_cmp);
-	if (s_ev == NULL)
-	{
-		swWarn("swReactorSelect: sock[%d] not found.", fd);
-		return SW_ERR;
-	}
-	s_ev->fdtype = fdtype;
-	return SW_OK;
+    swReactorSelect *object = reactor->object;
+    swFdList_node ev, *s_ev = NULL;
+    ev.fd = fd;
+    LL_SEARCH(object->fds, s_ev, &ev, swReactorSelect_cmp);
+    if (s_ev == NULL)
+    {
+        swWarn("swReactorSelect: sock[%d] not found.", fd);
+        return SW_ERR;
+    }
+    s_ev->fdtype = fdtype;
+    //execute parent method
+    swReactor_set(reactor, fd, fdtype);
+    return SW_OK;
 }
 
 int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
@@ -274,7 +276,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
             {
                 reactor->onFinish(reactor);
             }
-		}
-	}
-	return SW_OK;
+        }
+    }
+    return SW_OK;
 }

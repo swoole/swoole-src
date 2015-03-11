@@ -156,6 +156,12 @@ int swReactor_del(swReactor *reactor, int fd)
     return SW_OK;
 }
 
+void swReactor_set(swReactor *reactor, int fd, int fdtype)
+{
+    swConnection *socket = swReactor_get(reactor, fd);
+    socket->events = swReactor_events(fdtype);
+}
+
 /**
  * execute when reactor timeout and reactor finish
  */
@@ -267,7 +273,7 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
             }
             else
             {
-                if (SwooleG.main_reactor->add(SwooleG.main_reactor, fd, socket->type | socket->events) < 0)
+                if (SwooleG.main_reactor->add(SwooleG.main_reactor, fd, socket->type | SW_EVENT_WRITE) < 0)
                 {
                     swSysError("reactor->add(%d, SW_EVENT_WRITE) failed.", fd);
                 }
@@ -360,7 +366,6 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev)
                 swSysError("reactor->del(%d) failed.", fd);
             }
         }
-        socket->events &= ~SW_EVENT_WRITE;
     }
 
     return SW_OK;

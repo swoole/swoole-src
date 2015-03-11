@@ -192,6 +192,8 @@ int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype)
         swSysError("reactor#%d->set(fd=%d|type=%d|events=%d) failed.", reactor->id, fd, fd_.fdtype, e.events);
         return SW_ERR;
     }
+    //execute parent method
+    swReactor_set(reactor, fd, fdtype);
     return SW_OK;
 }
 

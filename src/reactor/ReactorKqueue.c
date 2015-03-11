@@ -171,7 +171,7 @@ static int swReactorKqueue_set(swReactor *reactor, int fd, int fdtype)
         ret = kevent(this->epfd, &e, 1, NULL, 0, NULL);
         if (ret < 0)
         {
-            swWarn("kevent fail. Error: %s[%d]", strerror(errno), errno);
+            swSysError("kqueue->set(%d, SW_EVENT_READ) failed.", fd);
             return SW_ERR;
         }
     }
@@ -182,7 +182,7 @@ static int swReactorKqueue_set(swReactor *reactor, int fd, int fdtype)
         ret = kevent(this->epfd, &e, 1, NULL, 0, NULL);
         if (ret < 0)
         {
-            swWarn("kevent fail. Error: %s[%d]", strerror(errno), errno);
+            swSysError("kqueue->del(%d, SW_EVENT_READ) failed.", fd);
             return SW_ERR;
         }
     }
@@ -194,7 +194,7 @@ static int swReactorKqueue_set(swReactor *reactor, int fd, int fdtype)
         ret = kevent(this->epfd, &e, 1, NULL, 0, NULL);
         if (ret < 0)
         {
-            swWarn("kevent fail. Error: %s[%d]", strerror(errno), errno);
+            swSysError("kqueue->set(%d, SW_EVENT_WRITE) failed.", fd);
             return SW_ERR;
         }
     }
@@ -205,13 +205,12 @@ static int swReactorKqueue_set(swReactor *reactor, int fd, int fdtype)
         ret = kevent(this->epfd, &e, 1, NULL, 0, NULL);
         if (ret < 0)
         {
-            swWarn("kevent fail. Error: %s[%d]", strerror(errno), errno);
+            swSysError("kqueue->del(%d, SW_EVENT_WRITE) failed.", fd);
             return SW_ERR;
         }
     }
-
-    swTrace("[THREAD #%ld]EP=%d|FD=%d\n", pthread_self(), this->epfd, fd);
-
+    //execute parent method
+    swReactor_set(reactor, fd, fdtype);
     return SW_OK;
 }
 
@@ -229,7 +228,7 @@ static int swReactorKqueue_del(swReactor *reactor, int fd)
         ret = kevent(this->epfd, &e, 1, NULL, 0, NULL);
         if (ret < 0)
         {
-            swWarn("kqueue remove fd[=%d] failed. Error: %s[%d]", fd, strerror(errno), errno);
+            swSysError("kqueue->del(%d, SW_EVENT_READ) failed.", fd);
             return SW_ERR;
         }
     }
@@ -240,7 +239,7 @@ static int swReactorKqueue_del(swReactor *reactor, int fd)
         ret = kevent(this->epfd, &e, 1, NULL, 0, NULL);
         if (ret < 0)
         {
-            swWarn("kqueue remove fd[=%d] failed. Error: %s[%d]", fd, strerror(errno), errno);
+            swSysError("kqueue->del(%d, SW_EVENT_WRITE) failed.", fd);
             return SW_ERR;
         }
     }

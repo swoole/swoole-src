@@ -139,6 +139,8 @@ static int swReactorPoll_set(swReactor *reactor, int fd, int fdtype)
 			{
 				object->events[i].events |= POLLOUT;
 			}
+		    //execute parent method
+		    swReactor_set(reactor, fd, fdtype);
 			return SW_OK;
 		}
 	}
