@@ -881,6 +881,7 @@ void swoole_clean(void);
 void swoole_update_time(void);
 double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
+uint64_t swoole_ntoh64(uint64_t n64);
 
 int swSocket_listen(int type, char *host, int port, int backlog);
 int swSocket_create(int type);
@@ -1178,6 +1179,7 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev);
 int swReactor_close(swReactor *reactor, int fd);
 int swReactor_write(swReactor *reactor, int fd, void *buf, int n);
 int swReactor_wait_write_buffer(swReactor *reactor, int fd);
+void swReactor_set(swReactor *reactor, int fd, int fdtype);
 
 swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype);
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);
