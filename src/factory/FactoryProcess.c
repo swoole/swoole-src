@@ -824,13 +824,14 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
         swConnection *conn = swServer_connection_get(serv, task->data.info.fd);
         if (conn == NULL || conn->active == 0)
         {
-            swWarn("connection#%d is not active.", task->data.info.fd);
+            swWarn("dispatch[type=%d] failed, connection#%d is not active.", task->data.info.type, task->data.info.fd);
             return SW_ERR;
         }
         //server active close, discard data.
         if (conn->closed)
         {
-            swWarn("connection#%d is closed by server.", task->data.info.fd);
+            swWarn("dispatch[type=%d] failed, connection#%d is closed by server.", task->data.info.type,
+                    task->data.info.fd);
             return SW_OK;
         }
     }
