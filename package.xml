@@ -31,11 +31,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2015-03-10</date>
-    <time>15:39:51</time>
+    <date>2015-03-11</date>
+    <time>19:55:51</time>
     <version>
-        <release>1.7.11</release>
-        <api>1.7.11</api>
+        <release>1.7.12</release>
+        <api>1.7.12</api>
     </version>
     <stability>
         <release>stable</release>
@@ -43,15 +43,8 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed udp server called connection_info wrong
-- Fixed temporary files task disk space does not release
-- Fixed WebSocket onOpen event callback core dump
-- Fixed cannot use sendMessage in the task process
-- Fixed Websocket server Sec-WebSocket-Accept handshake failed
-- Fixed HttpServer in turn the KeepAlive continuous POST data coredump
-- Fixed MacOS/FreeBSD error ENOBUFF occurred in a large number of concurrent
-- Added HttpServer chunk transmission support
-- Added PCRE detection
+- Fixed swoole_server tcp buffer error
+- Fixed wrong error log
     </notes>
 	<contents>
 		<dir name="/">
