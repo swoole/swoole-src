@@ -164,14 +164,29 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         /*
          * [!!!] new_connection function must before reactor->add
          */
-        if (serv->factory_mode == SW_MODE_PROCESS && serv->onConnect)
+        if (serv->factory_mode == SW_MODE_PROCESS)
         {
-            conn->connect_notify = 1;
-            ret = sub_reactor->add(sub_reactor, new_fd, SW_FD_TCP | SW_EVENT_WRITE);
+            int events = SW_EVENT_READ;
+            if (serv->onConnect)
+            {
+                conn->connect_notify = 1;
+                events |= SW_EVENT_WRITE;
+            }
+            ret = sub_reactor->add(sub_reactor, new_fd, SW_FD_TCP | events);
         }
         else
         {
             ret = sub_reactor->add(sub_reactor, new_fd, SW_FD_TCP | SW_EVENT_READ);
+
+            swDataHead connect_event;
+            connect_event.type = SW_EVENT_CONNECT;
+            connect_event.from_id = reactor->id;
+            connect_event.fd = new_fd;
+
+            if (serv->factory.notify(&serv->factory, &connect_event) < 0)
+            {
+                swWarn("send notification [fd=%d] failed.", new_fd);
+            }
         }
 
         if (ret < 0)
