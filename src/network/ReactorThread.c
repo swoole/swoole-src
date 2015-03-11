@@ -400,7 +400,8 @@ int swReactorThread_send(swSendData *_send)
     swReactor *reactor = &(serv->reactor_threads[conn->from_id].reactor);
 
     swTraceLog(SW_TRACE_EVENT, "send-data. fd=%d|reactor_id=%d", fd, reactor_id);
-    if (conn->out_buffer == NULL)
+
+    if (swBuffer_empty(conn->out_buffer))
     {
         /**
         * close connection.
@@ -445,10 +446,13 @@ int swReactorThread_send(swSendData *_send)
 #ifdef SW_REACTOR_SYNC_SEND
             buffer_send:
 #endif
-            conn->out_buffer = swBuffer_new(SW_BUFFER_SIZE);
-            if (conn->out_buffer == NULL)
+            if (!conn->out_buffer)
             {
-                return SW_ERR;
+                conn->out_buffer = swBuffer_new(SW_BUFFER_SIZE);
+                if (conn->out_buffer == NULL)
+                {
+                    return SW_ERR;
+                }
             }
         }
     }
