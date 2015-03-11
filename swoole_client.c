@@ -880,14 +880,20 @@ PHP_METHOD(swoole_client, recv)
 	{
 		return;
 	}
-	if (zend_hash_find(Z_OBJPROP_P(getThis()), SW_STRL("_client"), (void **) &zres) == SUCCESS)
-	{
-		ZEND_FETCH_RESOURCE(cli, swClient*, zres, -1, SW_RES_CLIENT_NAME, le_swoole_client);
-	}
+
+    if (zend_hash_find(Z_OBJPROP_P(getThis()), SW_STRL("_client"), (void **) &zres) == SUCCESS)
+    {
+        ZEND_FETCH_RESOURCE(cli, swClient*, zres, -1, SW_RES_CLIENT_NAME, le_swoole_client);
+    }
 	else
 	{
 		RETURN_FALSE;
 	}
+
+    if (!waitall || buf_len > SW_PHP_CLIENT_BUFFER_SIZE)
+    {
+        buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
+    }
 
 	if (cli->socket->active == 0)
 	{
