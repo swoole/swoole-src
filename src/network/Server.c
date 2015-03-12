@@ -166,11 +166,15 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
          */
         if (serv->factory_mode == SW_MODE_PROCESS)
         {
-            int events = SW_EVENT_READ;
+            int events;
             if (serv->onConnect)
             {
                 conn->connect_notify = 1;
-                events |= SW_EVENT_WRITE;
+                events = SW_EVENT_WRITE;
+            }
+            else
+            {
+                events = SW_EVENT_READ;
             }
             ret = sub_reactor->add(sub_reactor, new_fd, SW_FD_TCP | events);
         }

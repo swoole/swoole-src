@@ -107,6 +107,8 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     //worker busy
     serv->workers[SwooleWG.id].status = SW_WORKER_BUSY;
 
+    int fd = task->info.fd;
+
     switch (task->info.type)
     {
     case SW_EVENT_TCP:
@@ -115,10 +117,10 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     case SW_EVENT_PACKAGE:
         do_task:
 #ifdef SW_REACTOR_USE_SESSION
-        task->info.fd = swWorker_get_session_id(serv, task->info.fd);
+        task->info.fd = swWorker_get_session_id(serv, fd);
         if (task->info.fd < 0)
         {
-            swWarn("[1]received the wrong data[%d bytes] from socket#%d", task->info.len, task->info.fd);
+            swWarn("[1]received the wrong data[%d bytes] from socket#%d", task->info.len, fd);
             return SW_OK;
         }
 #endif
@@ -158,10 +160,10 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
 
     case SW_EVENT_CLOSE:
 #ifdef SW_REACTOR_USE_SESSION
-        task->info.fd = swWorker_get_session_id(serv, task->info.fd);
+        task->info.fd = swWorker_get_session_id(serv, fd);
         if (task->info.fd < 0)
         {
-            swWarn("[2]received the wrong data from socket#%d", task->info.fd);
+            swWarn("[2]received the wrong data from socket#%d", fd);
             return SW_OK;
         }
 #endif
@@ -170,10 +172,10 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
 
     case SW_EVENT_CONNECT:
 #ifdef SW_REACTOR_USE_SESSION
-        task->info.fd = swWorker_get_session_id(serv, task->info.fd);
+        task->info.fd = swWorker_get_session_id(serv, fd);
         if (task->info.fd < 0)
         {
-            swWarn("[3]received the wrong data from socket#%d", task->info.fd);
+            swWarn("[3]received the wrong data from socket#%d", fd);
             return SW_OK;
         }
 #endif
