@@ -945,7 +945,7 @@ PHP_FUNCTION(swoole_server_create)
     swTrace("Create swoole_server host=%s, port=%d, mode=%d, type=%d", serv_host, (int) serv_port, serv->factory_mode, (int) sock_type);
     bzero(php_sw_callback, sizeof(zval*) * PHP_SERVER_CALLBACK_NUM);
 
-    if (swServer_addListener(serv, sock_type, serv_host, serv_port) < 0)
+    if (swServer_add_listener(serv, sock_type, serv_host, serv_port) < 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_ERROR, "add listener failed.");
         return;
@@ -1577,7 +1577,7 @@ PHP_FUNCTION(swoole_server_addlisten)
         }
     }
     SWOOLE_GET_SERVER(zobject, serv);
-    SW_CHECK_RETURN(swServer_addListener(serv, (int)sock_type, host, (int)port));
+    SW_CHECK_RETURN(swServer_add_listener(serv, (int)sock_type, host, (int)port));
 }
 
 PHP_METHOD(swoole_server, addprocess)
@@ -2710,9 +2710,12 @@ PHP_FUNCTION(swoole_connection_info)
         {
             add_assoc_long(return_value, "websocket_status", conn->websocket_status);
         }
+        if (serv->listen_port_num > 1)
+        {
+            add_assoc_long(return_value, "from_fd", conn->from_fd);
+        }
 
         add_assoc_long(return_value, "from_id", conn->from_id);
-        add_assoc_long(return_value, "from_fd", conn->from_fd);
         add_assoc_long(return_value, "connect_time", conn->connect_time);
         add_assoc_long(return_value, "last_time", conn->last_time);
         add_assoc_long(return_value, "from_port", serv->connection_list[conn->from_fd].addr.sin_port);

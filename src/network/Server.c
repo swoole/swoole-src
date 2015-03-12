@@ -925,9 +925,15 @@ int swServer_add_worker(swServer *serv, swWorker *worker)
     return worker->id;
 }
 
-int swServer_addListener(swServer *serv, int type, char *host, int port)
+int swServer_add_listener(swServer *serv, int type, char *host, int port)
 {
-	swListenList_node *listen_host = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenList_node));
+    if (serv->listen_port_num >= SW_MAX_LISTEN_PORT)
+    {
+        swWarn("allows up to %d ports to listen", SW_MAX_LISTEN_PORT);
+        return SW_ERR;
+    }
+
+    swListenList_node *listen_host = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenList_node));
 
     listen_host->type = type;
     listen_host->port = port;
@@ -938,7 +944,7 @@ int swServer_addListener(swServer *serv, int type, char *host, int port)
     strncpy(listen_host->host, host, SW_HOST_MAXSIZE);
     LL_APPEND(serv->listen_list, listen_host);
 
-	//UDP需要提前创建好
+    //UDP需要提前创建好
     if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM)
     {
         int sock = swSocket_listen(type, listen_host->host, port, serv->backlog);
@@ -958,22 +964,23 @@ int swServer_addListener(swServer *serv, int type, char *host, int port)
             serv->dgram_socket_fd = sock;
         }
     }
-	else
-	{
-		if (type & SW_SOCK_SSL)
-		{
-			type = type & (~SW_SOCK_SSL);
-			listen_host->type = type;
-			listen_host->ssl = 1;
-		}
-		if (type != SW_SOCK_UNIX_STREAM && port <= 0)
-		{
-			swError("listen port must greater than 0.");
-			return SW_ERR;
-		}
-		serv->have_tcp_sock = 1;
-	}
-	return SW_OK;
+    else
+    {
+        if (type & SW_SOCK_SSL)
+        {
+            type = type & (~SW_SOCK_SSL);
+            listen_host->type = type;
+            listen_host->ssl = 1;
+        }
+        if (type != SW_SOCK_UNIX_STREAM && port <= 0)
+        {
+            swError("listen port must greater than 0.");
+            return SW_ERR;
+        }
+        serv->have_tcp_sock = 1;
+    }
+    serv->listen_port_num++;
+    return SW_OK;
 }
 
 /**

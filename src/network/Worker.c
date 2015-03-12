@@ -17,6 +17,9 @@
 #include "swoole.h"
 #include "Server.h"
 
+#include <pwd.h>
+#include <grp.h>
+
 static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event);
 
 int swWorker_create(swWorker *worker)

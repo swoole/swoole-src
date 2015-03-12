@@ -819,7 +819,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
         target_worker_id = task->target_worker_id;
     }
 
-    if (!swEventData_is_stream(task->data.info.type))
+    if (swEventData_is_stream(task->data.info.type))
     {
         swConnection *conn = swServer_connection_get(serv, task->data.info.fd);
         if (conn == NULL || conn->active == 0)

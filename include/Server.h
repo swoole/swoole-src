@@ -357,8 +357,10 @@ struct _swServer
     uint16_t heartbeat_check_interval; //心跳定时侦测时间, 必需小于heartbeat_idle_time
 
     int * cpu_affinity_available;
-    int   cpu_affinity_available_num;
+    int cpu_affinity_available_num;
     
+    uint8_t listen_port_num;
+
     /**
      * 来自客户端的心跳侦测包
      */
@@ -479,7 +481,7 @@ int swServer_onFinish2(swFactory *factory, swSendData *resp);
 void swServer_init(swServer *serv);
 void swServer_signal_init(void);
 int swServer_start(swServer *serv);
-int swServer_addListener(swServer *serv, int type, char *host,int port);
+int swServer_add_listener(swServer *serv, int type, char *host,int port);
 int swServer_add_worker(swServer *serv, swWorker *worker);
 
 int swServer_create(swServer *serv);
@@ -493,7 +495,7 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length);
 //UDP, UDP必然超过0x1000000
 //原因：IPv4的第4字节最小为1,而这里的conn_fd是网络字节序
 #define SW_MAX_SOCKET_ID             0x1000000
-#define swServer_is_udp(fd)          ((uint32_t) fd > 0x1000000)
+#define swServer_is_udp(fd)          ((uint32_t) fd > SW_MAX_SOCKET_ID)
 #define swEventData_is_dgram(type)   (type == SW_EVENT_UDP || type == SW_EVENT_UDP6 || type == SW_EVENT_UNIX_DGRAM)
 #define swEventData_is_stream(type)  (type == SW_EVENT_TCP || type == SW_EVENT_TCP6 || type == SW_EVENT_UNIX_STREAM)
 
