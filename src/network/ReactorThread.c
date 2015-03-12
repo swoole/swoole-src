@@ -1536,10 +1536,10 @@ int swReactorThread_create(swServer *serv)
     }
 
 #ifdef SW_REACTOR_USE_SESSION
-    serv->session_list = sw_shm_calloc(serv->max_connection, sizeof(swSession));
+    serv->session_list = sw_shm_calloc(SW_SESSION_LIST_SIZE, sizeof(swSession));
     if (serv->session_list == NULL)
     {
-        swError("sw_shm_calloc(%ld) for session_list failed", serv->max_connection * sizeof(swSession));
+        swError("sw_shm_calloc(%ld) for session_list failed", SW_SESSION_LIST_SIZE * sizeof(swSession));
         return SW_ERR;
     }
 #endif

@@ -39,10 +39,10 @@ int swReactorProcess_create(swServer *serv)
     }
 
 #ifdef SW_REACTOR_USE_SESSION
-    serv->session_list = sw_calloc(serv->max_connection, sizeof(swSession));
+    serv->session_list = sw_calloc(SW_SESSION_LIST_SIZE, sizeof(swSession));
     if (serv->session_list == NULL)
     {
-        swSysError("calloc[2](%d) failed.", (int )(serv->max_connection * sizeof(swSession)));
+        swSysError("calloc[2](%ld) failed.", SW_SESSION_LIST_SIZE * sizeof(swSession));
         return SW_ERR;
     }
 #endif

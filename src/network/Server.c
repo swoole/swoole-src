@@ -130,7 +130,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
                 serv->session_round++;
             }
 
-            session = &serv->session_list[session_id % serv->max_connection];
+            session = &serv->session_list[session_id % SW_SESSION_LIST_SIZE];
             //vacancy
             if (session->fd == 0)
             {
