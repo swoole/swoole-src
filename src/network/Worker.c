@@ -118,7 +118,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         task->info.fd = swWorker_get_session_id(serv, task->info.fd);
         if (task->info.fd < 0)
         {
-            swWarn("[1]received the wrong data[%bytes] from socket#%d", task->info.len, task->info.fd);
+            swWarn("[1]received the wrong data[%d bytes] from socket#%d", task->info.len, task->info.fd);
             return SW_OK;
         }
 #endif
