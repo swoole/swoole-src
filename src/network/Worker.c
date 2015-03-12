@@ -92,7 +92,6 @@ static sw_inline int swWorker_get_session_id(swServer *serv, int fd)
     //socket is closed, discard package.
     if (!conn || conn->closed || conn->session_id == 0)
     {
-        swWarn("received the wrong data from socket#%d", fd);
         return SW_ERR;
     }
     return conn->session_id;
@@ -119,6 +118,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         task->info.fd = swWorker_get_session_id(serv, task->info.fd);
         if (task->info.fd < 0)
         {
+            swWarn("[1]received the wrong data[%bytes] from socket#%d", task->info.len, task->info.fd);
             return SW_OK;
         }
 #endif
@@ -161,6 +161,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         task->info.fd = swWorker_get_session_id(serv, task->info.fd);
         if (task->info.fd < 0)
         {
+            swWarn("[2]received the wrong data from socket#%d", task->info.fd);
             return SW_OK;
         }
 #endif
@@ -172,6 +173,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         task->info.fd = swWorker_get_session_id(serv, task->info.fd);
         if (task->info.fd < 0)
         {
+            swWarn("[3]received the wrong data from socket#%d", task->info.fd);
             return SW_OK;
         }
 #endif
