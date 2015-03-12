@@ -7,6 +7,7 @@ if (!$client->connect('127.0.0.1', 9501, -1))
 	exit("connect failed. Error: {$client->errCode}\n");
 }
 
+var_dump($client->getsockname());
 for($i=0; $i < 10; $i ++)
 {
     $client->send("hello world\n");

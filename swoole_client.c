@@ -34,6 +34,27 @@
 #define php_sw_client_onClose       "onClose"
 #define php_sw_client_onError       "onError"
 
+static PHP_METHOD(swoole_client, __construct);
+static PHP_METHOD(swoole_client, connect);
+static PHP_METHOD(swoole_client, recv);
+static PHP_METHOD(swoole_client, send);
+static PHP_METHOD(swoole_client, sendfile);
+static PHP_METHOD(swoole_client, isConnected);
+static PHP_METHOD(swoole_client, getsockname);
+static PHP_METHOD(swoole_client, close);
+static PHP_METHOD(swoole_client, on);
+
+static int php_swoole_client_event_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_DC);
+static int php_swoole_client_event_loop(zval *sock_array, fd_set *fds TSRMLS_DC);
+static int php_swoole_client_close(zval *zobject, int fd TSRMLS_DC);
+
+static int php_swoole_client_onRead(swReactor *reactor, swEvent *event);
+static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event);
+static int php_swoole_client_onError(swReactor *reactor, swEvent *event);
+
+static int swoole_client_error_callback(zval *zobject, swEvent *event, int error TSRMLS_DC);
+static swClient* swoole_client_create_socket(zval *object, char *host, int host_len, int port);
+
 static char *php_sw_callbacks[PHP_CLIENT_CALLBACK_NUM] =
 {
 	php_sw_client_onConnect,
@@ -50,6 +71,7 @@ const zend_function_entry swoole_client_methods[] =
     PHP_ME(swoole_client, send, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, sendfile, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, isConnected, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, getsockname, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, close, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, on, NULL, ZEND_ACC_PUBLIC)
     PHP_FE_END
@@ -60,18 +82,6 @@ HashTable php_sw_long_connections;
 zend_class_entry swoole_client_ce;
 zend_class_entry *swoole_client_class_entry_ptr;
 
-static int php_swoole_client_event_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_DC);
-static int php_swoole_client_event_loop(zval *sock_array, fd_set *fds TSRMLS_DC);
-static int php_swoole_client_close(zval *zobject, int fd TSRMLS_DC);
-
-static int php_swoole_client_onRead(swReactor *reactor, swEvent *event);
-static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event);
-static int php_swoole_client_onError(swReactor *reactor, swEvent *event);
-
-static int swoole_client_error_callback(zval *zobject, swEvent *event, int error TSRMLS_DC);
-
-
-static swClient* swoole_client_create_socket(zval *object, char *host, int host_len, int port);
 
 void swoole_client_init(int module_number TSRMLS_DC)
 {
@@ -966,6 +976,41 @@ PHP_METHOD(swoole_client, isConnected)
     RETURN_BOOL(cli->socket->active);
 }
 
+PHP_METHOD(swoole_client, getsockname)
+{
+    swClient *cli;
+    zval **zres;
+
+    if (zend_hash_find(Z_OBJPROP_P(getThis()), SW_STRL("_client"), (void **) &zres) == SUCCESS)
+    {
+        ZEND_FETCH_RESOURCE(cli, swClient*, zres, -1, SW_RES_CLIENT_NAME, le_swoole_client);
+    }
+    else
+    {
+        RETURN_FALSE;
+    }
+
+    if (!cli->socket->active)
+    {
+        swoole_php_error(E_WARNING, "not connected to the server");
+        RETURN_FALSE;
+    }
+
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    socklen_t len = sizeof(addr);
+
+    if (getsockname(cli->socket->fd, (struct sockaddr_in*) &addr, &len) < 0)
+    {
+        swoole_php_sys_error(E_WARNING, "getsockname() failed.");
+        RETURN_FALSE;
+    }
+
+    array_init(return_value);
+    add_assoc_long(return_value, "port", ntohs(addr.sin_port));
+    sw_add_assoc_string(return_value, "host", inet_ntoa(addr.sin_addr), 1);
+}
+
 PHP_METHOD(swoole_client, set)
 {
     zval *zset = NULL;
@@ -1063,7 +1108,6 @@ PHP_METHOD(swoole_client, set)
     zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zset TSRMLS_CC);
     RETURN_TRUE;
 }
-
 
 PHP_METHOD(swoole_client, close)
 {

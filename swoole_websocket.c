@@ -159,6 +159,9 @@ int swoole_websocket_handshake(http_client *client)
     int ret = swServer_tcp_send(SwooleG.serv, client->fd, header_string->str, header_string->length);
     swString_free(header_string);
 
+    //close response
+    client->end = 1;
+
     return ret;
 }
 
