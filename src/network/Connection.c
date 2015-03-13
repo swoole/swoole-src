@@ -171,6 +171,38 @@ swString* swConnection_get_string_buffer(swConnection *conn)
     }
 }
 
+char* swConnection_get_ip(swConnection *conn)
+{
+    char ip_str[INET6_ADDRSTRLEN];
+    if (conn->type == SW_SOCK_TCP)
+    {
+        return inet_ntoa(conn->info.addr.inet_v4.sin_addr);
+    }
+    else
+    {
+        if (inet_ntop(AF_INET6, &conn->info.addr.inet_v6.sin6_addr, ip_str, sizeof(ip_str)) == NULL)
+        {
+            return NULL;
+        }
+        else
+        {
+            return strdup(ip_str);
+        }
+    }
+}
+
+int swConnection_get_port(swConnection *conn)
+{
+    if (conn->type == SW_SOCK_TCP)
+    {
+        return ntohs(conn->info.addr.inet_v4.sin_port);
+    }
+    else
+    {
+        return ntohs(conn->info.addr.inet_v6.sin6_port);
+    }
+}
+
 int swConnection_sendfile(swConnection *conn, char *filename)
 {
     if (conn->out_buffer == NULL)

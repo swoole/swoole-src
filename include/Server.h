@@ -636,9 +636,15 @@ static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t sche
         {
             target_worker_id = schedule_key % serv->worker_num;
         }
+        //IPv4
+        else if (conn->type == SW_EVENT_TCP)
+        {
+            target_worker_id = conn->info.addr.inet_v4.sin_addr.s_addr % serv->worker_num;
+        }
+        //IPv6
         else
         {
-            target_worker_id = conn->addr.sin_addr.s_addr % serv->worker_num;
+            target_worker_id = conn->info.addr.inet_v6.sin6_addr.s6_addr32[3] % serv->worker_num;
         }
     }
     else if (serv->dispatch_mode == SW_DISPATCH_UIDMOD)

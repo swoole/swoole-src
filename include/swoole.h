@@ -315,6 +315,23 @@ typedef unsigned char uchar;
 #include <openssl/ssl.h>
 #endif
 
+typedef struct
+{
+    uint32_t id;
+    int fd;
+} swSession;
+
+typedef struct
+{
+    union
+    {
+        struct sockaddr_in inet_v4;
+        struct sockaddr_in6 inet_v6;
+        struct sockaddr_un un;
+    } addr;
+    socklen_t len;
+} swSocketAddress;
+
 typedef struct _swConnection
 {
     /**
@@ -369,7 +386,7 @@ typedef struct _swConnection
     /**
      * socket address
      */
-    struct sockaddr_in addr;
+    swSocketAddress info;
 
     /**
      * link any thing, for kernel, do not use with application.
@@ -412,23 +429,6 @@ typedef struct _swConnection
 #endif
 
 } swConnection;
-
-typedef struct
-{
-    uint32_t id;
-    int fd;
-} swSession;
-
-typedef struct
-{
-    union
-    {
-        struct sockaddr_in inet_v4;
-        struct sockaddr_in6 inet_v6;
-        struct sockaddr_un un;
-    } addr;
-    socklen_t len;
-} swSocketAddress;
 
 //------------------------------String--------------------------------
 typedef struct _swString

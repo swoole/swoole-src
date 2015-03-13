@@ -622,9 +622,9 @@ static int http_onReceive(swFactory *factory, swEventData *req)
             return SW_ERR;
         }
 
-        add_assoc_long(zserver, "server_port", SwooleG.serv->connection_list[conn->from_fd].addr.sin_port);
-        add_assoc_long(zserver, "remote_port", ntohs(conn->addr.sin_port));
-        add_assoc_string(zserver, "remote_addr", inet_ntoa(conn->addr.sin_addr), 1);
+        add_assoc_long(zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[conn->from_fd]));
+        add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
+        add_assoc_string(zserver, "remote_addr", swConnection_get_ip(conn), 1);
 
         if (client->request.version == 101)
         {

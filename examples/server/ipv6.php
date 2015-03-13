@@ -8,7 +8,8 @@ $serv->on('connect', function ($serv, $fd, $from_id){
 });
 $serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
     echo "[#".posix_getpid()."]\tClient[$fd]: $data\n";
-    $serv->send($fd, json_encode(array("hello" => '1213', "bat" => "ab")));
+    var_dump($serv->connection_info($fd));
+	$serv->send($fd, json_encode(array("hello" => '1213', "bat" => "ab")));
     //$serv->close($fd);
 });
 $serv->on('close', function ($serv, $fd, $from_id) {

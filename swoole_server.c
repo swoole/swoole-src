@@ -2675,11 +2675,20 @@ PHP_FUNCTION(swoole_connection_info)
         swConnection *from_sock = swServer_connection_get(serv, udp_info.from_fd);
         struct in_addr sin_addr;
         sin_addr.s_addr = fd;
+
         if (from_sock != NULL)
         {
             add_assoc_long(return_value, "from_fd", udp_info.from_fd);
-            add_assoc_long(return_value, "from_port", from_sock->addr.sin_port);
+            if (from_sock->type == SW_SOCK_UDP6)
+            {
+                add_assoc_long(return_value, "from_port", from_sock->info.addr.inet_v6.sin6_port);
+            }
+            else
+            {
+                add_assoc_long(return_value, "from_port", from_sock->info.addr.inet_v4.sin_port);
+            }
         }
+
         if (from_id != 0)
         {
             add_assoc_long(return_value, "remote_port", udp_info.port);
@@ -2715,12 +2724,14 @@ PHP_FUNCTION(swoole_connection_info)
             add_assoc_long(return_value, "from_fd", conn->from_fd);
         }
 
+        swConnection *from_sock = swServer_connection_get(serv, conn->from_fd);
+        add_assoc_long(return_value, "server_port", swConnection_get_port(from_sock));
+        add_assoc_long(return_value, "remote_port", swConnection_get_port(conn));
+        sw_add_assoc_string(return_value, "remote_ip", swConnection_get_ip(conn), 1);
+
         add_assoc_long(return_value, "from_id", conn->from_id);
         add_assoc_long(return_value, "connect_time", conn->connect_time);
         add_assoc_long(return_value, "last_time", conn->last_time);
-        add_assoc_long(return_value, "from_port", serv->connection_list[conn->from_fd].addr.sin_port);
-        add_assoc_long(return_value, "remote_port", ntohs(conn->addr.sin_port));
-        sw_add_assoc_string(return_value, "remote_ip", inet_ntoa(conn->addr.sin_addr), 1);
     }
 }
 

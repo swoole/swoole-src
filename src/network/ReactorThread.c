@@ -1759,7 +1759,7 @@ static int swUDPThread_start(swServer *serv)
         //UDP
         if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6 || listen_host->type == SW_SOCK_UNIX_DGRAM)
         {
-            serv->connection_list[listen_host->sock].addr.sin_port = listen_host->port;
+            serv->connection_list[listen_host->sock].info.addr.inet_v4.sin_port = htons(listen_host->port);
             serv->connection_list[listen_host->sock].object = listen_host;
 
             param->object = serv;

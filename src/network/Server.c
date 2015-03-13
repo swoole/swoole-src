@@ -59,16 +59,17 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 {
     swServer *serv = reactor->ptr;
     swReactor *sub_reactor;
-    struct sockaddr_in client_addr;
+    swSocketAddress client_addr;
     socklen_t client_addrlen = sizeof(client_addr);
+    swListenList_node *listen_host = serv->connection_list[event->fd].object;
+
     int new_fd, ret, reactor_id = 0, i;
 
     //SW_ACCEPT_AGAIN
     for (i = 0; i < SW_ACCEPT_MAX_COUNT; i++)
     {
-        //accept得到连接套接字
-#ifdef SW_USE_ACCEPT4
-        new_fd = accept4(event->fd, (struct sockaddr *)&client_addr, &client_addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC);
+#ifdef HAVE_ACCEPT4
+        new_fd = accept4(event->fd, (struct sockaddr *) &client_addr, &client_addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC);
 #else
         new_fd = accept(event->fd, (struct sockaddr *) &client_addr, &client_addrlen);
 #endif
@@ -113,39 +114,14 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 
 		//add to connection_list
         swConnection *conn = swServer_connection_new(serv, new_fd, event->fd, reactor_id);
-        memcpy(&conn->addr, &client_addr, sizeof(client_addr));
+        memcpy(&conn->info.addr, &client_addr, sizeof(client_addr));
         sub_reactor = &serv->reactor_threads[reactor_id].reactor;
-
-#ifdef SW_REACTOR_USE_SESSION
-        uint32_t session_id = 1;
-        swSession *session;
-
-        //get session id
-        for (i = 0; i < serv->max_connection; i++)
-        {
-            session_id = (serv->session_round++) % SW_MAX_SOCKET_ID;
-            if (session_id == 0)
-            {
-                session_id = 1;
-                serv->session_round++;
-            }
-
-            session = &serv->session_list[session_id % SW_SESSION_LIST_SIZE];
-            //vacancy
-            if (session->fd == 0)
-            {
-                session->fd = new_fd;
-                session->id = session_id;
-                break;
-            }
-        }
-        conn->session_id = session_id;
-#endif
+        conn->type = listen_host->type;
 
 #ifdef SW_USE_OPENSSL
 		if (serv->open_ssl)
 		{
-			swListenList_node *listen_host = serv->connection_list[event->fd].object;
+
 			if (listen_host->ssl)
 			{
 				if (swSSL_create(conn, 0) < 0)
@@ -160,7 +136,6 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 			}
 		}
 #endif
-
         /*
          * [!!!] new_connection function must before reactor->add
          */
@@ -192,7 +167,6 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
                 swWarn("send notification [fd=%d] failed.", new_fd);
             }
         }
-
         if (ret < 0)
         {
             bzero(conn, sizeof(swConnection));
@@ -1068,9 +1042,19 @@ int swServer_listen(swServer *serv, swReactor *reactor)
 #endif
 
         listen_host->sock = sock;
-        //将server socket也放置到connection_list中
+        //save server socket to connection_list
         serv->connection_list[sock].fd = sock;
-        serv->connection_list[sock].addr.sin_port = listen_host->port;
+
+        //IPv4
+        if (listen_host->type == SW_SOCK_TCP)
+        {
+            serv->connection_list[sock].info.addr.inet_v4.sin_port = htons(listen_host->port);
+        }
+        //IPv6
+        else
+        {
+            serv->connection_list[sock].info.addr.inet_v6.sin6_port = htons(listen_host->port);
+        }
         //save listen_host object
         serv->connection_list[sock].object = listen_host;
     }
@@ -1251,6 +1235,31 @@ static swConnection* swServer_connection_new(swServer *serv, int fd, int from_fd
     {
         connection->direct_send = 1;
     }
+#endif
+
+#ifdef SW_REACTOR_USE_SESSION
+    uint32_t session_id = 1;
+    swSession *session;
+    int i;
+    //get session id
+    for (i = 0; i < serv->max_connection; i++)
+    {
+        session_id = (serv->session_round++) % SW_MAX_SOCKET_ID;
+        if (session_id == 0)
+        {
+            session_id = 1;
+            serv->session_round++;
+        }
+        session = &serv->session_list[session_id % SW_SESSION_LIST_SIZE];
+        //vacancy
+        if (session->fd == 0)
+        {
+            session->fd = fd;
+            session->id = session_id;
+            break;
+        }
+    }
+    connection->session_id = session_id;
 #endif
 
 	return connection;
