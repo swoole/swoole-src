@@ -26,6 +26,8 @@
 #define MSG_NOSIGNAL        0
 #endif
 
+char swoole_ip_tmp[INET6_ADDRSTRLEN];
+
 int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
 {
     int ret;
@@ -173,20 +175,19 @@ swString* swConnection_get_string_buffer(swConnection *conn)
 
 char* swConnection_get_ip(swConnection *conn)
 {
-    char ip_str[INET6_ADDRSTRLEN];
     if (conn->type == SW_SOCK_TCP)
     {
         return inet_ntoa(conn->info.addr.inet_v4.sin_addr);
     }
     else
     {
-        if (inet_ntop(AF_INET6, &conn->info.addr.inet_v6.sin6_addr, ip_str, sizeof(ip_str)) == NULL)
+        if (inet_ntop(AF_INET6, &conn->info.addr.inet_v6.sin6_addr, swoole_ip_tmp, sizeof(swoole_ip_tmp)) == NULL)
         {
             return NULL;
         }
         else
         {
-            return strdup(ip_str);
+            return swoole_ip_tmp;
         }
     }
 }
