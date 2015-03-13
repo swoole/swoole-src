@@ -496,8 +496,35 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length);
 //原因：IPv4的第4字节最小为1,而这里的conn_fd是网络字节序
 #define SW_MAX_SOCKET_ID             0x1000000
 #define swServer_is_udp(fd)          ((uint32_t) fd > SW_MAX_SOCKET_ID)
-#define swEventData_is_dgram(type)   (type == SW_EVENT_UDP || type == SW_EVENT_UDP6 || type == SW_EVENT_UNIX_DGRAM)
-#define swEventData_is_stream(type)  (type == SW_EVENT_TCP || type == SW_EVENT_TCP6 || type == SW_EVENT_UNIX_STREAM)
+
+static sw_inline int swEventData_is_dgram(uint8_t type)
+{
+    switch (type)
+    {
+    case SW_EVENT_UDP:
+    case SW_EVENT_UDP6:
+    case SW_EVENT_UNIX_DGRAM:
+        return SW_TRUE;
+    default:
+        return SW_FALSE;
+    }
+}
+
+static sw_inline int swEventData_is_stream(uint8_t type)
+{
+    switch (type)
+    {
+    case SW_EVENT_TCP:
+    case SW_EVENT_TCP6:
+    case SW_EVENT_UNIX_DGRAM:
+    case SW_EVENT_PACKAGE_START:
+    case SW_EVENT_PACKAGE:
+    case SW_EVENT_PACKAGE_END:
+        return SW_TRUE;
+    default:
+        return SW_FALSE;
+    }
+}
 
 swPipe * swServer_pipe_get(swServer *serv, int pipe_fd);
 void swServer_pipe_set(swServer *serv, swPipe *p);
