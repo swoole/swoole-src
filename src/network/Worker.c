@@ -153,6 +153,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         break;
 
     case SW_EVENT_UDP:
+    case SW_EVENT_UDP6:
     case SW_EVENT_UNIX_DGRAM:
         factory->onTask(factory, task);
         if (!SwooleWG.run_always)

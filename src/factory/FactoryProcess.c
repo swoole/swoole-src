@@ -665,20 +665,21 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     //unix dgram
     if (resp->info.type == SW_EVENT_UNIX_DGRAM)
     {
-        socklen_t len;
-        struct sockaddr_un addr_un;
         int from_sock = resp->info.from_fd;
-
-        addr_un.sun_family = AF_UNIX;
-        memcpy(addr_un.sun_path, resp->sun_path, resp->sun_path_len);
-        addr_un.sun_path[resp->sun_path_len] = 0;
-        len = sizeof(addr_un);
-        return swSocket_sendto_blocking(from_sock, resp->data, resp->info.len, 0, (struct sockaddr *) &addr_un, len);
+        return swSocket_sendto_blocking(from_sock, resp->data, resp->info.len, 0, (struct sockaddr *) &resp->dest.addr.un, resp->dest.len);
     }
-    //UDP pacakge
-    else if (resp->info.type == SW_EVENT_UDP || resp->info.type == SW_EVENT_UDP6)
+    //UDP IPv4
+    else if (resp->info.type == SW_EVENT_UDP)
     {
         return swServer_udp_send(serv, resp);
+    }
+    //UDP IPv6
+    else if ( resp->info.type == SW_EVENT_UDP6)
+    {
+        int from_sock = resp->info.from_fd;
+        return swSocket_sendto_blocking(from_sock, resp->data, resp->info.len, 0,
+                (struct sockaddr *) &resp->dest.addr.un, resp->dest.len);
+
     }
 
     swConnection *conn = swWorker_get_connection(serv, fd);

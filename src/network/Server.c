@@ -1055,6 +1055,8 @@ int swServer_listen(swServer *serv, swReactor *reactor)
         {
             serv->connection_list[sock].info.addr.inet_v6.sin6_port = htons(listen_host->port);
         }
+        //socket type
+        serv->connection_list[sock].type = listen_host->type;
         //save listen_host object
         serv->connection_list[sock].object = listen_host;
     }

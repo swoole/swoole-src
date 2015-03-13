@@ -492,10 +492,9 @@ typedef struct _swSendData
     swDataHead info;
 
     /**
-     * for unix socket
+     * dest host
      */
-    char *sun_path;
-    uint8_t sun_path_len;
+    swSocketAddress dest;
 
     /**
      * for big package

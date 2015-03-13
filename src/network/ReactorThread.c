@@ -481,13 +481,13 @@ int swReactorThread_send(swSendData *_send)
         //connection is closed
         if (conn->removed)
         {
-            swWarn("the connection#%d is closed by client.", fd);
+            swWarn("connection#%d is closed by client.", fd);
             return SW_ERR;
         }
         //connection output buffer overflow
         if (conn->out_buffer->length >= serv->buffer_output_size)
         {
-            swWarn("Connection output buffer overflow.");
+            swWarn("connection#%d output buffer overflow.", fd);
             conn->overflow = 1;
         }
         //buffer enQueue
@@ -1759,7 +1759,16 @@ static int swUDPThread_start(swServer *serv)
         //UDP
         if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6 || listen_host->type == SW_SOCK_UNIX_DGRAM)
         {
-            serv->connection_list[listen_host->sock].info.addr.inet_v4.sin_port = htons(listen_host->port);
+            if (listen_host->type == SW_SOCK_UDP)
+            {
+                serv->connection_list[listen_host->sock].info.addr.inet_v4.sin_port = htons(listen_host->port);
+            }
+            else
+            {
+                serv->connection_list[listen_host->sock].info.addr.inet_v6.sin6_port = htons(listen_host->port);
+            }
+
+            serv->connection_list[listen_host->sock].type = listen_host->type;
             serv->connection_list[listen_host->sock].object = listen_host;
 
             param->object = serv;
@@ -1792,41 +1801,70 @@ static int swUDPThread_start(swServer *serv)
 static int swReactorThread_loop_udp(swThreadParam *param)
 {
     int ret;
-    socklen_t addrlen;
     swServer *serv = param->object;
 
     swDispatchData task;
-    struct sockaddr_in addr_in;
-    addrlen = sizeof(addr_in);
+    swSocketAddress info;
+    info.len = sizeof(info.addr);
 
-    int sock = param->pti;
+    int fd = param->pti;
 
     SwooleTG.factory_lock_target = 0;
     SwooleTG.factory_target_worker = -1;
-    SwooleTG.id = sock;
+    SwooleTG.id = fd;
     SwooleTG.type = SW_THREAD_UDP;
 
     swSignal_none();
 
+    swConnection *server_sock = &serv->connection_list[fd];
     //blocking
-    swSetBlock(sock);
+    swSetBlock(fd);
 
     bzero(&task.data.info, sizeof(task.data.info));
-    task.data.info.from_fd = sock;
+    task.data.info.from_fd = fd;
+
+    int socket_type = server_sock->type;
+    int buffer_size;
+
+    //IPv4
+    if (socket_type == SW_SOCK_UDP)
+    {
+        task.data.info.type = SW_EVENT_UDP;
+        buffer_size = SW_IPC_MAX_SIZE - sizeof(struct _swDataHead);
+    }
+    //IPv6
+    else
+    {
+        task.data.info.type = SW_EVENT_UDP6;
+        buffer_size = SW_IPC_MAX_SIZE - sizeof(struct _swDataHead) - sizeof(info.addr.inet_v6.sin6_addr);
+    }
 
     while (SwooleG.running == 1)
     {
-        ret = recvfrom(sock, task.data.data, SW_BUFFER_SIZE, 0, (struct sockaddr *) &addr_in, &addrlen);
+        ret = recvfrom(fd, task.data.data, buffer_size, 0, (struct sockaddr *) &info.addr, &info.len);
         if (ret > 0)
         {
-            task.data.info.len = ret;
-            task.data.info.type = SW_EVENT_UDP;
-            //UDP的from_id是PORT，FD是IP
-            task.data.info.from_id = ntohs(addr_in.sin_port);  //转换字节序
-            task.data.info.fd = addr_in.sin_addr.s_addr;
+            //IPv4, swDataHead + data
+            if (socket_type == SW_SOCK_UDP)
+            {
+                //UDP的from_id是PORT，FD是IP
+                task.data.info.from_id = ntohs(info.addr.inet_v4.sin_port);
+                task.data.info.fd = info.addr.inet_v4.sin_addr.s_addr;
+                task.data.info.len = ret;
+            }
+            //IPv6, swDataHead + data + sin6_addr
+            else
+            {
+                task.data.info.from_id = ntohs(info.addr.inet_v6.sin6_port);
+                //fd record the offset
+                task.data.info.fd = ret;
+                memcpy(task.data.data + ret, &info.addr.inet_v6.sin6_addr, sizeof(info.addr.inet_v6.sin6_addr));
+                task.data.info.len = ret + sizeof(info.addr.inet_v6.sin6_addr);
+            }
+
             task.target_worker_id = -1;
 
-            swTrace("recvfrom udp socket.fd=%d|data=%s", sock, task.data.data);
+            swTrace("recvfrom udp socket. fd=%d|data=%*s", fd, ret, task.data.data);
             ret = serv->factory.dispatch(&serv->factory, &task);
             if (ret < 0)
             {
@@ -2014,18 +2052,14 @@ static int swReactorThread_loop_unix_dgram(swThreadParam *param)
     bzero(&task.data.info, sizeof(task.data.info));
     task.data.info.from_fd = sock;
     task.data.info.type = SW_EVENT_UNIX_DGRAM;
+    int buffer_size = SW_IPC_MAX_SIZE - sizeof(struct _swDataHead) - sizeof(addr_un.sun_path);
 
     while (SwooleG.running == 1)
     {
-        n = recvfrom(sock, task.data.data, SW_BUFFER_SIZE, 0, (struct sockaddr *) &addr_un, &addrlen);
+        n = recvfrom(sock, task.data.data, buffer_size, 0, (struct sockaddr *) &addr_un, &addrlen);
         if (n > 0)
         {
-            if (n > SW_BUFFER_SIZE - sizeof(addr_un.sun_path))
-            {
-                swWarn("Error: unix dgram length must be less than %ld", SW_BUFFER_SIZE - sizeof(addr_un.sun_path));
-                continue;
-            }
-
+            //unix dgram, swDataHead + data + sun_path
             sun_path_len = strlen(addr_un.sun_path) + 1;
             sun_path_offset = n;
             task.data.info.fd = sun_path_offset;
