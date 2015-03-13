@@ -610,7 +610,7 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
 
 static sw_inline int swServer_get_fd(swServer *serv, uint32_t session_id)
 {
-    return serv->session_list[session_id % serv->max_connection].fd;
+    return serv->session_list[session_id % SW_SESSION_LIST_SIZE].fd;
 }
 
 static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t schedule_key)
