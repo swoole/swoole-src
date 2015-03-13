@@ -1750,12 +1750,13 @@ PHP_FUNCTION(swoole_server_send)
 
         int ret;
         swSocketAddress dest_host;
-        bzero(&dest_host, sizeof(dest_host));
+
 
         //UDP IPv6
         if (server_socket > 65536)
         {
             php_swoole_udp_t udp_info;
+            bzero(&dest_host, sizeof(dest_host));
             memcpy(&udp_info, &server_socket, sizeof(udp_info));
             inet_pton(AF_INET6, Z_STRVAL_P(zfd), &_send.dest.addr.inet_v6.sin6_addr);
 
@@ -1771,7 +1772,8 @@ PHP_FUNCTION(swoole_server_send)
         {
             memcpy(dest_host.addr.un.sun_path, Z_STRVAL_P(zfd), Z_STRLEN_P(zfd));
             dest_host.addr.un.sun_family = AF_UNIX;
-            dest_host.len = Z_STRLEN_P(zfd);
+            dest_host.len = sizeof(dest_host.addr.un);
+            dest_host.addr.un.sun_path[Z_STRLEN_P(zfd)] = 0;
             ret = swSocket_sendto_blocking(server_socket, send_data, send_len, 0,
                     (struct sockaddr *) &dest_host.addr.un, dest_host.len);
         }

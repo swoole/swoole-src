@@ -662,26 +662,6 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     swServer *serv = factory->ptr;
     int fd = resp->info.fd;
 
-    //unix dgram
-    if (resp->info.type == SW_EVENT_UNIX_DGRAM)
-    {
-        int from_sock = resp->info.from_fd;
-        return swSocket_sendto_blocking(from_sock, resp->data, resp->info.len, 0, (struct sockaddr *) &resp->dest.addr.un, resp->dest.len);
-    }
-    //UDP IPv4
-    else if (resp->info.type == SW_EVENT_UDP)
-    {
-        return swServer_udp_send(serv, resp);
-    }
-    //UDP IPv6
-    else if ( resp->info.type == SW_EVENT_UDP6)
-    {
-        int from_sock = resp->info.from_fd;
-        return swSocket_sendto_blocking(from_sock, resp->data, resp->info.len, 0,
-                (struct sockaddr *) &resp->dest.addr.un, resp->dest.len);
-
-    }
-
     swConnection *conn = swWorker_get_connection(serv, fd);
     if (conn == NULL || conn->active == 0 || ((conn->closed || conn->removed) && resp->info.type != SW_EVENT_CLOSE))
     {

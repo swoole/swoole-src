@@ -66,34 +66,10 @@ int swFactory_end(swFactory *factory, int fd)
 int swFactory_finish(swFactory *factory, swSendData *resp)
 {
     int ret = 0;
-    swServer *serv = SwooleG.serv;
 
-    //unix dgram
-    if (resp->info.type == SW_EVENT_UNIX_DGRAM)
-    {
-        socklen_t len;
-        struct sockaddr_un addr_un;
-        int from_sock = resp->info.from_fd;
+    resp->length = resp->info.len;
+    ret = swReactorThread_send(resp);
 
-        addr_un.sun_family = AF_UNIX;
-        memcpy(addr_un.sun_path, resp->sun_path, resp->sun_path_len);
-        len = sizeof(addr_un);
-        ret = swSocket_sendto_blocking(from_sock, resp->data, resp->info.len, 0, (struct sockaddr *) &addr_un, len);
-        goto finish;
-    }
-    //UDP pacakge
-    else if (resp->info.type == SW_EVENT_UDP || resp->info.type == SW_EVENT_UDP6)
-    {
-        ret = swServer_udp_send(serv, resp);
-        goto finish;
-    }
-    else
-    {
-        resp->length = resp->info.len;
-        ret = swReactorThread_send(resp);
-    }
-
-    finish:
     if (ret < 0)
     {
         swSysError("sendto to connection#%d failed.", resp->info.fd);

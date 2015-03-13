@@ -516,7 +516,7 @@ static sw_inline int swEventData_is_stream(uint8_t type)
     {
     case SW_EVENT_TCP:
     case SW_EVENT_TCP6:
-    case SW_EVENT_UNIX_DGRAM:
+    case SW_EVENT_UNIX_STREAM:
     case SW_EVENT_PACKAGE_START:
     case SW_EVENT_PACKAGE:
     case SW_EVENT_PACKAGE_END:
