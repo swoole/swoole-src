@@ -156,7 +156,6 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 #ifdef SW_USE_OPENSSL
 		if (serv->open_ssl)
 		{
-
 			if (listen_host->ssl)
 			{
 				if (swSSL_create(conn, 0) < 0)
@@ -191,15 +190,18 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         else
         {
             ret = sub_reactor->add(sub_reactor, new_fd, SW_FD_TCP | SW_EVENT_READ);
-
-            swDataHead connect_event;
-            connect_event.type = SW_EVENT_CONNECT;
-            connect_event.from_id = reactor->id;
-            connect_event.fd = new_fd;
-
-            if (serv->factory.notify(&serv->factory, &connect_event) < 0)
+            
+            if (ret >= 0 && serv->onConnect)
             {
-                swWarn("send notification [fd=%d] failed.", new_fd);
+                swDataHead connect_event;
+                connect_event.type = SW_EVENT_CONNECT;
+                connect_event.from_id = reactor->id;
+                connect_event.fd = new_fd;
+
+                if (serv->factory.notify(&serv->factory, &connect_event) < 0)
+                {
+                    swWarn("send notification [fd=%d] failed.", new_fd);
+                }
             }
         }
         if (ret < 0)
