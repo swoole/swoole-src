@@ -40,7 +40,6 @@ static int swServer_start_check(swServer *serv);
 static void swServer_signal_hanlder(int sig);
 static int swServer_start_proxy(swServer *serv);
 static void swServer_disable_accept(swReactor *reactor);
-static void swServer_enable_accept(swReactor *reactor);
 
 static void swHeartbeatThread_start(swServer *serv);
 static void swHeartbeatThread_loop(swThreadParam *param);
@@ -71,7 +70,7 @@ static void swServer_disable_accept(swReactor *reactor)
     }
 }
 
-static void swServer_enable_accept(swReactor *reactor)
+void swServer_enable_accept(swReactor *reactor)
 {
     swListenList_node *ls;
 
@@ -306,7 +305,9 @@ static int swServer_start_proxy(swServer *serv)
 	}
 
     main_reactor->thread = 1;
-    main_reactor->socket_list = serv->connection_list;
+    main_reactor->socket_list = serv->connection_list;    
+    main_reactor->disable_accept = 0;
+    main_reactor->enable_accept = swServer_enable_accept;
 
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd)
@@ -1101,9 +1102,6 @@ int swServer_listen(swServer *serv, swReactor *reactor)
         //save listen_host object
         serv->connection_list[sock].object = ls;
     }
-
-    reactor->disable_accept = 0;
-    reactor->enable_accept = swServer_enable_accept;
 
     //将最后一个fd作为minfd和maxfd
     if (sock >= 0)

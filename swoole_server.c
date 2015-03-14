@@ -1701,7 +1701,6 @@ PHP_FUNCTION(swoole_server_send)
 {
     zval *zobject = getThis();
     swServer *serv = NULL;
-    swSocketAddress dest_host;
     int ret;
 
     char *send_data;
@@ -1751,26 +1750,17 @@ PHP_FUNCTION(swoole_server_send)
         if (server_socket > 65536)
         {
             php_swoole_udp_t udp_info;
-            bzero(&dest_host, sizeof(dest_host));
-            memcpy(&udp_info, &server_socket, sizeof(udp_info));
-            inet_pton(AF_INET6, Z_STRVAL_P(zfd), &dest_host.addr.inet_v6.sin6_addr);
-
-            dest_host.addr.inet_v6.sin6_port = (uint16_t) htons(udp_info.port);
-            dest_host.addr.inet_v6.sin6_family = AF_INET6;
-            dest_host.len = sizeof(dest_host.addr.inet_v6);
-
-            ret = swSocket_sendto_blocking(udp_info.from_fd, send_data, send_len, 0,
-                    (struct sockaddr *) &dest_host.addr.inet_v6, dest_host.len);
+            memcpy(&udp_info, &server_socket, sizeof(udp_info));           
+            ret = swSocket_udp_sendto6(udp_info.from_fd, Z_STRVAL_P(zfd), udp_info.port, send_data, send_len);
         }
         //UNIX DGRAM
         else
         {
-            memcpy(dest_host.addr.un.sun_path, Z_STRVAL_P(zfd), Z_STRLEN_P(zfd));
-            dest_host.addr.un.sun_family = AF_UNIX;
-            dest_host.len = sizeof(dest_host.addr.un);
-            dest_host.addr.un.sun_path[Z_STRLEN_P(zfd)] = 0;
-            ret = swSocket_sendto_blocking(server_socket, send_data, send_len, 0,
-                    (struct sockaddr *) &dest_host.addr.un, dest_host.len);
+            struct sockaddr_un addr_un;
+            memcpy(addr_un.sun_path, Z_STRVAL_P(zfd), Z_STRLEN_P(zfd));
+            addr_un.sun_family = AF_UNIX;
+            addr_un.sun_path[Z_STRLEN_P(zfd)] = 0;
+            ret = swSocket_sendto_blocking(server_socket, send_data, send_len, 0, (struct sockaddr *) &addr_un, sizeof(addr_un));
         }
         SW_CHECK_RETURN(ret);
     }
@@ -1787,15 +1777,11 @@ PHP_FUNCTION(swoole_server_send)
         php_swoole_udp_t udp_info;
         memcpy(&udp_info, &server_socket, sizeof(udp_info));
 
-        dest_host.addr.inet_v4.sin_family = AF_INET;
-        dest_host.addr.inet_v4.sin_port = htons((uint16_t) (uint16_t) (udp_info.port));
-        dest_host.addr.inet_v4.sin_addr.s_addr = fd;
-        dest_host.len = sizeof(dest_host.addr.inet_v4);
-
-        swTrace("udp send: fd=%d|from_id=%d|from_fd=%d", _send.info.fd, (uint16_t)_send.info.from_id, _send.info.from_fd);
-
-        ret = swSocket_sendto_blocking(udp_info.from_fd, send_data, send_len, 0,
-                            (struct sockaddr *) &dest_host.addr.inet_v4, dest_host.len);
+        struct sockaddr_in addr_in;
+        addr_in.sin_family = AF_INET;
+        addr_in.sin_port = htons((uint16_t) (uint16_t) (udp_info.port));
+        addr_in.sin_addr.s_addr = fd;
+        ret = swSocket_sendto_blocking(udp_info.from_fd, send_data, send_len, 0, (struct sockaddr *) &addr_in, sizeof(addr_in));
         SW_CHECK_RETURN(ret);
     }
     //TCP

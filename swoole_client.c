@@ -1000,7 +1000,7 @@ PHP_METHOD(swoole_client, getsockname)
     memset(&addr, 0, sizeof(addr));
     socklen_t len = sizeof(addr);
 
-    if (getsockname(cli->socket->fd, (struct sockaddr_in*) &addr, &len) < 0)
+    if (getsockname(cli->socket->fd, (struct sockaddr*) &addr, &len) < 0)
     {
         swoole_php_sys_error(E_WARNING, "getsockname() failed.");
         RETURN_FALSE;
