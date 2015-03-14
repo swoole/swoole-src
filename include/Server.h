@@ -263,7 +263,9 @@ struct _swServer
 
     int signal_fd;
     int event_fd;
-    int dgram_socket_fd;
+
+    int udp_socket_ipv4;
+    int udp_socket_ipv6;
 
     int ringbuffer_size;
 

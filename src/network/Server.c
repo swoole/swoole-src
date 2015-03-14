@@ -971,9 +971,13 @@ int swServer_add_listener(swServer *serv, int type, char *host, int port)
         ls->type = type;
         serv->have_udp_sock = 1;
 
-        if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6)
+        if (type == SW_SOCK_UDP)
         {
-            serv->dgram_socket_fd = sock;
+            serv->udp_socket_ipv4 = sock;
+        }
+        else if (type == SW_SOCK_UDP6)
+        {
+            serv->udp_socket_ipv6 = sock;
         }
     }
     else

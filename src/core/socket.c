@@ -141,6 +141,33 @@ int swSocket_write_blocking(int __fd, void *__data, int __len)
     return written;
 }
 
+int swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len)
+{
+    struct sockaddr_in addr;
+    if (inet_aton(dst_ip, &addr.sin_addr) == 0)
+    {
+        swWarn("ip[%s] is invalid.", dst_ip);
+        return SW_ERR;
+    }
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(dst_port);
+    return swSocket_sendto_blocking(server_sock, data, len, 0, (struct sockaddr *) &addr, sizeof(addr));
+}
+
+int swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len)
+{
+    struct sockaddr_in6 addr;
+    bzero(&addr, sizeof(addr));
+    if (inet_pton(AF_INET6, dst_ip, &addr.sin6_addr) < 0)
+    {
+        swWarn("ip[%s] is invalid.", dst_ip);
+        return SW_ERR;
+    }
+    addr.sin6_port = (uint16_t) htons(dst_port);
+    addr.sin6_family = AF_INET6;
+    return swSocket_sendto_blocking(server_sock, data, len, 0, (struct sockaddr *) &addr, sizeof(addr));
+}
+
 int swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len)
 {
     int n = 0;

@@ -258,7 +258,6 @@ PHP_FUNCTION(swoole_server_set);
 PHP_FUNCTION(swoole_server_start);
 PHP_FUNCTION(swoole_server_stop);
 PHP_FUNCTION(swoole_server_send);
-PHP_FUNCTION(swoole_server_sendto);
 PHP_FUNCTION(swoole_server_sendfile);
 PHP_FUNCTION(swoole_server_close);
 PHP_FUNCTION(swoole_server_on);
@@ -279,6 +278,7 @@ PHP_METHOD(swoole_server, sendmessage);
 PHP_METHOD(swoole_server, addprocess);
 PHP_METHOD(swoole_server, stats);
 PHP_METHOD(swoole_server, bind);
+PHP_METHOD(swoole_server, sendto);
 
 PHP_FUNCTION(swoole_event_add);
 PHP_FUNCTION(swoole_event_set);

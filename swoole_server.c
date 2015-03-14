@@ -1702,7 +1702,8 @@ PHP_FUNCTION(swoole_server_send)
     zval *zobject = getThis();
     swServer *serv = NULL;
     swFactory *factory = NULL;
-    swSendData _send;
+    swSocketAddress dest_host;
+    int ret;
 
     char *send_data;
     int send_len;
@@ -1743,13 +1744,10 @@ PHP_FUNCTION(swoole_server_send)
 
     if (Z_TYPE_P(zfd) == IS_STRING)
     {
-        if (server_socket < 0)
+        if (server_socket == -1)
         {
             server_socket = dgram_server_socket;
         }
-
-        int ret;
-        swSocketAddress dest_host;
 
         //UDP IPv6
         if (server_socket > 65536)
@@ -1787,17 +1785,20 @@ PHP_FUNCTION(swoole_server_send)
         {
             server_socket = udp_server_socket;
         }
+
         php_swoole_udp_t udp_info;
         memcpy(&udp_info, &server_socket, sizeof(udp_info));
 
-        _send.info.fd = fd;
-        _send.info.from_id = (uint16_t) (udp_info.port);
-        _send.info.from_fd = (uint8_t) (udp_info.from_fd);
-        _send.info.type = SW_EVENT_UDP;
-        _send.data = send_data;
-        _send.info.len = send_len;
+        dest_host.addr.inet_v4.sin_family = AF_INET;
+        dest_host.addr.inet_v4.sin_port = htons((uint16_t) (uint16_t) (udp_info.port));
+        dest_host.addr.inet_v4.sin_addr.s_addr = fd;
+        dest_host.len = sizeof(dest_host.addr.inet_v4);
+
         swTrace("udp send: fd=%d|from_id=%d|from_fd=%d", _send.info.fd, (uint16_t)_send.info.from_id, _send.info.from_fd);
-        SW_CHECK_RETURN(factory->finish(factory, &_send));
+
+        ret = swSocket_sendto_blocking(udp_info.from_fd, send_data, send_len, 0,
+                            (struct sockaddr *) &dest_host.addr.inet_v4, dest_host.len);
+        SW_CHECK_RETURN(ret);
     }
     //TCP
     else
@@ -1807,31 +1808,27 @@ PHP_FUNCTION(swoole_server_send)
             swoole_php_error(E_WARNING, "cannot send to client in task worker with SWOOLE_BASE mode.");
             RETURN_FALSE;
         }
-
         if (serv->packet_mode == 1)
         {
             uint32_t len_tmp= htonl(send_len);
             swServer_tcp_send(serv, fd, &len_tmp, 4);
         }
-
-        swTrace("tcp send: fd=%d|from_id=%d", _send.info.fd, (uint16_t)_send.info.from_id);
         SW_CHECK_RETURN(swServer_tcp_send(serv, fd, send_data, send_len));
     }
 }
 
-PHP_FUNCTION(swoole_server_sendto)
+PHP_METHOD(swoole_server, sendto)
 {
     zval *zobject = getThis();
     swServer *serv = NULL;
-    swFactory *factory = NULL;
-    swSendData _send;
 
-    char *send_data;
-    int send_len;
+    char *data;
+    int len;
 
     char* ip;
     char* ip_len;
     long port;
+    zend_bool ipv6 = 0;
 
     if (SwooleGS->start == 0)
     {
@@ -1839,51 +1836,40 @@ PHP_FUNCTION(swoole_server_sendto)
         RETURN_FALSE;
     }
 
-    if (zobject == NULL)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sls|b", &ip, &ip_len, &port, &data, &len, &ipv6) == FAILURE)
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Osls", &zobject, swoole_server_class_entry_ptr, &ip, &ip_len,
-        		&port, &send_data, &send_len) == FAILURE)
-        {
-            return;
-        }
-    }
-    else
-    {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sls", &ip, &ip_len,
-        		&port, &send_data, &send_len) == FAILURE)
-        {
-            return;
-        }
+        return;
     }
 
-    if (send_len <= 0)
+    if (len <= 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "data is empty.");
         RETURN_FALSE;
     }
 
     SWOOLE_GET_SERVER(zobject, serv);
-    factory = &(serv->factory);
 
-    if (serv->dgram_socket_fd <= 0)
+    if (ipv6 == 0 && serv->udp_socket_ipv4 <= 0)
     {
     	php_error_docref(NULL TSRMLS_CC, E_WARNING, "You must add an UDP listener to server before using sendto.");
         RETURN_FALSE;
     }
-
-    struct sockaddr_in addr_in;
-    if (inet_aton(ip, &addr_in.sin_addr)==0) {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "ip is invalid.");
+    else if (ipv6 == 1 && serv->udp_socket_ipv6 <= 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "You must add an UDP6 listener to server before using sendto.");
         RETURN_FALSE;
-	}
-    _send.info.fd = addr_in.sin_addr.s_addr;
-	_send.info.from_id = (uint16_t) port;
-	_send.info.from_fd = (uint16_t) serv->dgram_socket_fd;
-	_send.info.type = SW_EVENT_UDP;
-	_send.data = send_data;
-	_send.info.len = send_len;
-	 swTrace("udp send: fd=%d|from_id=%d|from_fd=%d", _send.info.fd, (uint16_t)_send.info.from_id, _send.info.from_fd);
-	 SW_CHECK_RETURN(factory->finish(factory, &_send));
+    }
+
+    int ret;
+    if (ipv6)
+    {
+        ret = swSocket_udp_sendto6(serv->udp_socket_ipv6, ip, port, data, len);
+    }
+    else
+    {
+        ret = swSocket_udp_sendto(serv->udp_socket_ipv4, ip, port, data, len);
+    }
+    SW_CHECK_RETURN(ret);
 }
 
 PHP_FUNCTION(swoole_server_sendfile)
