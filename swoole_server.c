@@ -322,11 +322,12 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
         udp_info.from_fd = req->info.from_fd;
         udp_info.port = req->info.from_id;
         memcpy(&dgram_server_socket, &udp_info, sizeof(udp_server_socket));
-        factory->last_from_id = udp_server_socket;
+        factory->last_from_id = dgram_server_socket;
+
         swTrace("SendTo: from_id=%d|from_fd=%d", (uint16_t)req->info.from_id, req->info.from_fd);
 
         uint16_t ipv6_addr_offset = req->info.fd;
-        ZVAL_LONG(zfrom_id, (long ) udp_server_socket);
+        ZVAL_LONG(zfrom_id, (long ) dgram_server_socket);
         req->info.len = ipv6_addr_offset;
         char tmp[INET6_ADDRSTRLEN];
         inet_ntop(AF_INET6, req->data + ipv6_addr_offset, tmp, sizeof(tmp));
