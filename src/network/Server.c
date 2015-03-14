@@ -943,21 +943,21 @@ int swServer_add_listener(swServer *serv, int type, char *host, int port)
         return SW_ERR;
     }
 
-    swListenList_node *listen_host = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenList_node));
+    swListenList_node *ls = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenList_node));
 
-    listen_host->type = type;
-    listen_host->port = port;
-    listen_host->sock = 0;
-    listen_host->ssl = 0;
+    ls->type = type;
+    ls->port = port;
+    ls->sock = 0;
+    ls->ssl = 0;
 
-    bzero(listen_host->host, SW_HOST_MAXSIZE);
-    strncpy(listen_host->host, host, SW_HOST_MAXSIZE);
-    LL_APPEND(serv->listen_list, listen_host);
+    bzero(ls->host, SW_HOST_MAXSIZE);
+    strncpy(ls->host, host, SW_HOST_MAXSIZE);
+    LL_APPEND(serv->listen_list, ls);
 
     //UDP需要提前创建好
     if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM)
     {
-        int sock = swSocket_listen(type, listen_host->host, port, serv->backlog);
+        int sock = swSocket_listen(type, ls->host, port, serv->backlog);
         if (sock < 0)
         {
             return SW_ERR;
@@ -967,8 +967,10 @@ int swServer_add_listener(swServer *serv, int type, char *host, int port)
         setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize));
         setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize));
 
-        listen_host->sock = sock;
+        ls->sock = sock;
+        ls->type = type;
         serv->have_udp_sock = 1;
+
         if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6)
         {
             serv->dgram_socket_fd = sock;
@@ -979,8 +981,8 @@ int swServer_add_listener(swServer *serv, int type, char *host, int port)
         if (type & SW_SOCK_SSL)
         {
             type = type & (~SW_SOCK_SSL);
-            listen_host->type = type;
-            listen_host->ssl = 1;
+            ls->type = type;
+            ls->ssl = 1;
         }
         if (type != SW_SOCK_UNIX_STREAM && port <= 0)
         {
@@ -1001,19 +1003,18 @@ int swServer_listen(swServer *serv, swReactor *reactor)
 {
     int sock = -1, sockopt;
 
-    swListenList_node *listen_host;
+    swListenList_node *ls;
 
-    LL_FOREACH(serv->listen_list, listen_host)
+    LL_FOREACH(serv->listen_list, ls)
     {
         //UDP
-        if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6
-                || listen_host->type == SW_SOCK_UNIX_DGRAM)
+        if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
         {
             continue;
         }
 
 #ifdef SW_USE_OPENSSL
-        if (listen_host->ssl)
+        if (ls->ssl)
         {
             if (!serv->ssl_cert_file)
             {
@@ -1029,10 +1030,10 @@ int swServer_listen(swServer *serv, swReactor *reactor)
 #endif
 
         //TCP
-        sock = swSocket_listen(listen_host->type, listen_host->host, listen_host->port, serv->backlog);
+        sock = swSocket_listen(ls->type, ls->host, ls->port, serv->backlog);
         if (sock < 0)
         {
-            LL_DELETE(serv->listen_list, listen_host);
+            LL_DELETE(serv->listen_list, ls);
             return SW_ERR;
         }
 
@@ -1077,24 +1078,24 @@ int swServer_listen(swServer *serv, swReactor *reactor)
         }
 #endif
 
-        listen_host->sock = sock;
+        ls->sock = sock;
         //save server socket to connection_list
         serv->connection_list[sock].fd = sock;
 
         //IPv4
-        if (listen_host->type == SW_SOCK_TCP)
+        if (ls->type == SW_SOCK_TCP)
         {
-            serv->connection_list[sock].info.addr.inet_v4.sin_port = htons(listen_host->port);
+            serv->connection_list[sock].info.addr.inet_v4.sin_port = htons(ls->port);
         }
         //IPv6
         else
         {
-            serv->connection_list[sock].info.addr.inet_v6.sin6_port = htons(listen_host->port);
+            serv->connection_list[sock].info.addr.inet_v6.sin6_port = htons(ls->port);
         }
         //socket type
-        serv->connection_list[sock].type = listen_host->type;
+        serv->connection_list[sock].type = ls->type;
         //save listen_host object
-        serv->connection_list[sock].object = listen_host;
+        serv->connection_list[sock].object = ls;
     }
 
     reactor->disable_accept = 0;

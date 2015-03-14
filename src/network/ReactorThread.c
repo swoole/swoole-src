@@ -1749,32 +1749,32 @@ static int swUDPThread_start(swServer *serv)
 {
     swThreadParam *param;
     pthread_t thread_id;
-    swListenList_node *listen_host;
+    swListenList_node *ls;
 
     void * (*thread_loop)(void *);
 
-    LL_FOREACH(serv->listen_list, listen_host)
+    LL_FOREACH(serv->listen_list, ls)
     {
         param = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
         //UDP
-        if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6 || listen_host->type == SW_SOCK_UNIX_DGRAM)
+        if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
         {
-            if (listen_host->type == SW_SOCK_UDP)
+            if (ls->type == SW_SOCK_UDP)
             {
-                serv->connection_list[listen_host->sock].info.addr.inet_v4.sin_port = htons(listen_host->port);
+                serv->connection_list[ls->sock].info.addr.inet_v4.sin_port = htons(ls->port);
             }
             else
             {
-                serv->connection_list[listen_host->sock].info.addr.inet_v6.sin6_port = htons(listen_host->port);
+                serv->connection_list[ls->sock].info.addr.inet_v6.sin6_port = htons(ls->port);
             }
 
-            serv->connection_list[listen_host->sock].type = listen_host->type;
-            serv->connection_list[listen_host->sock].object = listen_host;
+            serv->connection_list[ls->sock].type = ls->type;
+            serv->connection_list[ls->sock].object = ls;
 
             param->object = serv;
-            param->pti = listen_host->sock;
+            param->pti = ls->sock;
 
-            if (listen_host->type == SW_SOCK_UNIX_DGRAM)
+            if (ls->type == SW_SOCK_UNIX_DGRAM)
             {
                 thread_loop = (void * (*)(void *)) swReactorThread_loop_unix_dgram;
             }
@@ -1788,7 +1788,7 @@ static int swUDPThread_start(swServer *serv)
                 swWarn("pthread_create[udp_listener] fail");
                 return SW_ERR;
             }
-            listen_host->thread_id = thread_id;
+            ls->thread_id = thread_id;
         }
     }
     return SW_OK;
