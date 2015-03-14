@@ -181,6 +181,11 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
 static void swReactor_onTimeout(swReactor *reactor)
 {
     swReactor_onTimeout_and_Finish(reactor);
+
+    if (reactor->disable_accept)
+    {
+        reactor->enable_accept(reactor);
+    }
 }
 
 static void swReactor_onFinish(swReactor *reactor)

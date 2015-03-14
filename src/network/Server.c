@@ -37,9 +37,10 @@ static sw_inline void swServer_reactor_schedule(swServer *serv)
 #endif
 
 static int swServer_start_check(swServer *serv);
-
 static void swServer_signal_hanlder(int sig);
 static int swServer_start_proxy(swServer *serv);
+static void swServer_disable_accept(swReactor *reactor);
+static void swServer_enable_accept(swReactor *reactor);
 
 static void swHeartbeatThread_start(swServer *serv);
 static void swHeartbeatThread_loop(swThreadParam *param);
@@ -54,6 +55,36 @@ __thread swThreadG SwooleTG;
 
 int16_t sw_errno;
 char sw_error[SW_ERROR_MSG_SIZE];
+
+static void swServer_disable_accept(swReactor *reactor)
+{
+    swListenList_node *ls;
+
+    LL_FOREACH(SwooleG.serv->listen_list, ls)
+    {
+        //UDP
+        if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
+        {
+            continue;
+        }
+        reactor->del(reactor, ls->sock);
+    }
+}
+
+static void swServer_enable_accept(swReactor *reactor)
+{
+    swListenList_node *ls;
+
+    LL_FOREACH(SwooleG.serv->listen_list, ls)
+    {
+        //UDP
+        if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
+        {
+            continue;
+        }
+        reactor->add(reactor, ls->sock, SW_FD_LISTEN);
+    }
+}
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 {
@@ -82,6 +113,11 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
             case EINTR:
                 continue;
             default:
+                if (errno == EMFILE || errno == ENFILE)
+                {
+                    swServer_disable_accept(reactor);
+                    reactor->disable_accept = 1;
+                }
                 swWarn("accept() failed. Error: %s[%d]", strerror(errno), errno);
                 return SW_OK;
             }
@@ -1060,6 +1096,10 @@ int swServer_listen(swServer *serv, swReactor *reactor)
         //save listen_host object
         serv->connection_list[sock].object = listen_host;
     }
+
+    reactor->disable_accept = 0;
+    reactor->enable_accept = swServer_enable_accept;
+
     //将最后一个fd作为minfd和maxfd
     if (sock >= 0)
     {

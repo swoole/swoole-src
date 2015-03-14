@@ -944,6 +944,12 @@ struct swReactor_s
     uint32_t max_event_num;
 
     uint32_t check_timer :1;
+
+    /**
+     * disable accept new connection
+     */
+    uint32_t disable_accept :1;
+
     uint32_t check_signalfd :1;
 
     /**
@@ -984,6 +990,8 @@ struct swReactor_s
 
     void (*onTimeout)(swReactor *);
     void (*onFinish)(swReactor *);
+
+    void (*enable_accept)(swReactor *);
 
     int (*write)(swReactor *, int __fd, void *__buf, int __n);
     int (*close)(swReactor *, int __fd);

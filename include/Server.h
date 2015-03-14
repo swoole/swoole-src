@@ -118,13 +118,13 @@ typedef struct _swReactorThread
 
 typedef struct _swListenList_node
 {
-	struct _swListenList_node *next, *prev;
-	uint8_t type;
-	uint8_t ssl;
-	int port;
-	int sock;
-	pthread_t thread_id;
-	char host[SW_HOST_MAXSIZE];
+    struct _swListenList_node *next, *prev;
+    uint8_t type;
+    uint8_t ssl;
+    int port;
+    int sock;
+    pthread_t thread_id;
+    char host[SW_HOST_MAXSIZE];
 } swListenList_node;
 
 typedef struct _swUserWorker_node
@@ -337,7 +337,7 @@ struct _swServer
     /**
      * Use data key as factory->dispatch() param.
      */
-    uint32_t open_dispatch_key: 1;
+    uint32_t open_dispatch_key :1;
 
     /**
      * open tcp_defer_accept option
