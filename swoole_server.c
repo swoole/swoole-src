@@ -1316,7 +1316,7 @@ PHP_FUNCTION(swoole_server_set)
     {
         convert_to_string(*v);
         serv->heartbeat_pong_length = Z_STRLEN_PP(v);
-        if (serv->heartbeat_pong_length > SW_HEARTBEAT_PING_LEN)
+        if (serv->heartbeat_pong_length > SW_HEARTBEAT_PONG_LEN)
         {
             php_error_docref(NULL TSRMLS_CC, E_ERROR, "heartbeat pong package too long");
             RETURN_FALSE;

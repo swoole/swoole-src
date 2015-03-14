@@ -369,7 +369,7 @@ int swReactorThread_send(swSendData *_send)
 
 #ifdef SW_REACTOR_USE_SESSION
     int session_id = _send->info.fd;
-    swSession *session = &(serv->session_list[session_id % serv->max_connection]);
+    swSession *session = &(serv->session_list[session_id % SW_SESSION_LIST_SIZE]);
     fd = session->fd;
     swConnection *conn = swServer_connection_get(serv, fd);
     if (!conn)
