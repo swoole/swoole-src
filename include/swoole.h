@@ -490,17 +490,10 @@ typedef struct _swEventData
 typedef struct _swSendData
 {
     swDataHead info;
-
-    /**
-     * dest host
-     */
-    swSocketAddress dest;
-
     /**
      * for big package
      */
     uint32_t length;
-
     char *data;
 } swSendData;
 

@@ -1697,7 +1697,6 @@ PHP_FUNCTION(swoole_server_start)
     RETURN_TRUE;
 }
 
-
 PHP_FUNCTION(swoole_server_send)
 {
     zval *zobject = getThis();
@@ -1752,14 +1751,13 @@ PHP_FUNCTION(swoole_server_send)
         int ret;
         swSocketAddress dest_host;
 
-
         //UDP IPv6
         if (server_socket > 65536)
         {
             php_swoole_udp_t udp_info;
             bzero(&dest_host, sizeof(dest_host));
             memcpy(&udp_info, &server_socket, sizeof(udp_info));
-            inet_pton(AF_INET6, Z_STRVAL_P(zfd), &_send.dest.addr.inet_v6.sin6_addr);
+            inet_pton(AF_INET6, Z_STRVAL_P(zfd), &dest_host.addr.inet_v6.sin6_addr);
 
             dest_host.addr.inet_v6.sin6_port = (uint16_t) htons(udp_info.port);
             dest_host.addr.inet_v6.sin6_family = AF_INET6;
