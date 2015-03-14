@@ -1701,7 +1701,6 @@ PHP_FUNCTION(swoole_server_send)
 {
     zval *zobject = getThis();
     swServer *serv = NULL;
-    swFactory *factory = NULL;
     swSocketAddress dest_host;
     int ret;
 
@@ -1740,7 +1739,6 @@ PHP_FUNCTION(swoole_server_send)
     }
 
     SWOOLE_GET_SERVER(zobject, serv);
-    factory = &(serv->factory);
 
     if (Z_TYPE_P(zfd) == IS_STRING)
     {
