@@ -374,12 +374,12 @@ int swReactorThread_send(swSendData *_send)
     swConnection *conn = swServer_connection_get(serv, fd);
     if (!conn)
     {
-        swWarn("send to socket#%d[session_id=%d] failed, the connection is closed.", fd, session_id);
+        swWarn("send[%d] failed, the connection#%d[session=%d] is closed.", _send->info.type, fd, session_id);
         return SW_ERR;
     }
     if (session->id != session_id || conn->session_id != session_id)
     {
-        swWarn("send failed, the session#%d has expired.", session_id);
+        swWarn("send[%d] failed, the session#%d[socket=%d] has expired.", _send->info.type, session_id, conn->fd);
         return SW_ERR;
     }
 #else
