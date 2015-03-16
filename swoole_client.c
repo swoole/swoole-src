@@ -940,13 +940,14 @@ PHP_METHOD(swoole_client, sendfile)
 
 PHP_METHOD(swoole_client, recv)
 {
-    long buf_len = SW_PHP_CLIENT_BUFFER_SIZE, waitall = 0;
+    long buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
+    zend_bool waitall = 0;
     zval **zres;
     int ret;
     char *buf;
     swClient *cli;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ll", &buf_len, &waitall) == FAILURE)
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|lb", &buf_len, &waitall) == FAILURE)
 	{
 		return;
 	}
@@ -967,7 +968,7 @@ PHP_METHOD(swoole_client, recv)
 
 	if (cli->socket->active == 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not connected.");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "server is not connected.");
 		RETURN_FALSE;
 	}
 

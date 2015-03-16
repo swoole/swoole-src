@@ -616,6 +616,77 @@ static sw_inline int swServer_get_fd(swServer *serv, uint32_t session_id)
     return serv->session_list[session_id % SW_SESSION_LIST_SIZE].fd;
 }
 
+static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t schedule_key)
+{
+    uint32_t target_worker_id = 0;
+
+    //polling mode
+    if (serv->dispatch_mode == SW_DISPATCH_ROUND)
+    {
+        target_worker_id = (serv->worker_round_id++) % serv->worker_num;
+    }
+    //Using the FD touch access to hash
+    else if (serv->dispatch_mode == SW_DISPATCH_FDMOD)
+    {
+        target_worker_id = schedule_key % serv->worker_num;
+    }
+    //Using the IP touch access to hash
+    else if (serv->dispatch_mode == SW_DISPATCH_IPMOD)
+    {
+        swConnection *conn = swServer_connection_get(serv, schedule_key);
+        //UDP
+        if (conn == NULL)
+        {
+            target_worker_id = schedule_key % serv->worker_num;
+        }
+        //IPv4
+        else if (conn->type == SW_EVENT_TCP)
+        {
+            target_worker_id = conn->info.addr.inet_v4.sin_addr.s_addr % serv->worker_num;
+        }
+        //IPv6
+        else
+        {
+#ifdef HAVE_KQUEUE
+            uint32_t ipv6_last_int = *(((uint32_t *) &conn->info.addr.inet_v6.sin6_addr) + 3);
+            target_worker_id = ipv6_last_int % serv->worker_num;
+#else
+            target_worker_id = conn->info.addr.inet_v6.sin6_addr.s6_addr32[3] % serv->worker_num;
+#endif
+        }
+    }
+    else if (serv->dispatch_mode == SW_DISPATCH_UIDMOD)
+    {
+        swConnection *conn = swServer_connection_get(serv, schedule_key);
+        if (conn->uid)
+        {
+            target_worker_id = conn->uid % serv->worker_num;
+        }
+        else
+        {
+            target_worker_id = schedule_key % serv->worker_num;
+        }
+    }
+    //Preemptive distribution
+    else
+    {
+        int i;
+        sw_atomic_t *round = &SwooleTG.worker_round_i;
+        for (i = 0; i < serv->worker_num; i++)
+        {
+            sw_atomic_fetch_add(round, 1);
+            target_worker_id = (*round) % serv->worker_num;
+
+            if (serv->workers[target_worker_id].status == SW_WORKER_IDLE)
+            {
+                break;
+            }
+        }
+        //swWarn("schedule=%d|round=%d\n", target_worker_id, *round);
+    }
+    return target_worker_id;
+}
+
 void swServer_worker_onStart(swServer *serv);
 void swServer_worker_onStop(swServer *serv);
 
