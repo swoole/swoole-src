@@ -604,12 +604,11 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
                 continue;
             }
             ret = kill(reload_workers[reload_worker_i].pid, SIGTERM);
-            reload_worker_i++;
             if (ret < 0)
             {
                 swSysError("kill(%d, SIGTERM) failed.", reload_workers[reload_worker_i].pid);
-                continue;
             }
+            reload_worker_i++;
         }
     }
 

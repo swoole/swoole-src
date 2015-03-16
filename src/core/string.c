@@ -120,7 +120,7 @@ int swString_extend(swString *str, size_t new_size)
     str->str = sw_realloc(str->str, new_size);
     if (str->str == NULL)
     {
-        swWarn("realloc failed.");
+        swSysError("realloc(%ld) failed.", new_size);
         return SW_ERR;
     }
     str->size = new_size;

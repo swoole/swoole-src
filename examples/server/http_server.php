@@ -18,9 +18,9 @@ $http->set([
 function chunk(swoole_http_request $request, swoole_http_response $response)
 {
     $response->write("<h1>hello world1</h1>");
-    sleep(1);
+    //sleep(1);
     $response->write("<h1>hello world2</h1>");
-    sleep(1);
+    //sleep(1);
     $response->end();
 }
 
@@ -57,7 +57,7 @@ function no_chunk(swoole_http_request $request, swoole_http_response $response)
     //global $http;
     //$http->task("hello world");
 }
-$http->on('request', 'no_chunk');
+$http->on('request', 'chunk');
 
 $http->on('finish', function(){
     echo "task finish";

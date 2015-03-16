@@ -33,6 +33,7 @@
 static swArray *http_client_array;
 static uint8_t http_merge_global_flag = 0;
 static uint8_t http_merge_request_flag = 0;
+static swString *http_response_buffer;
 
 enum http_response_flag
 {
@@ -942,7 +943,14 @@ PHP_METHOD(swoole_http_server, start)
     http_client_array = swArray_new(1024, sizeof(http_client), 0);
     if (!http_client_array)
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "swArray_new failed.");
+        swoole_php_fatal_error(E_ERROR, "swArray_new(1024, %ld) failed.", sizeof(http_client));
+        RETURN_FALSE;
+    }
+
+    http_response_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
+    if (!http_response_buffer)
+    {
+        swoole_php_fatal_error(E_ERROR, "swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
         RETURN_FALSE;
     }
 
@@ -1000,6 +1008,12 @@ PHP_METHOD(swoole_http_response, write)
         return;
     }
 
+    if (body.length >= SW_BUFFER_OUTPUT_SIZE)
+    {
+        swoole_php_fatal_error(E_WARNING, "http response max_size is %d.", SW_BUFFER_OUTPUT_SIZE);
+        RETURN_FALSE;
+    }
+
     http_client *client = http_get_client(getThis() TSRMLS_CC);
     if (!client)
     {
@@ -1009,41 +1023,29 @@ PHP_METHOD(swoole_http_response, write)
     if (!client->send_header)
     {
         client->chunk = 1;
-        swString *buffer = swString_new(SW_HTTP_HEADER_INIT_SIZE);
-        http_build_header(client, getThis(), buffer, 0 TSRMLS_CC);
-        swServer_tcp_send(SwooleG.serv, client->fd, buffer->str, buffer->length);
-        swString_free(buffer);
+        swString_clear(http_response_buffer);
+        http_build_header(client, getThis(), http_response_buffer, 0 TSRMLS_CC);
+        if (swServer_tcp_send(SwooleG.serv, client->fd, http_response_buffer->str, http_response_buffer->length) < 0)
+        {
+            client->chunk = 0;
+            client->send_header = 0;
+            RETURN_FALSE;
+        }
     }
 
-    char stack_buf[4096];
+    swString_clear(http_response_buffer);
+
     char *hex_string = swoole_dec2hex(body.length, 16);
     int hex_len = strlen(hex_string);
 
-    char *buf;
-    int free_buf = 0;
-    size_t buf_size;
+    //"%*s\r\n%*s\r\n", hex_len, hex_string, body.length, body.str
+    swString_append_ptr(http_response_buffer, hex_string, hex_len);
+    swString_append_ptr(http_response_buffer, SW_STRL("\r\n") - 1);
+    swString_append_ptr(http_response_buffer, body.str, body.length);
+    swString_append_ptr(http_response_buffer, SW_STRL("\r\n") - 1);
 
-    if (body.length < sizeof(stack_buf) - 8)
-    {
-        buf = stack_buf;
-        buf_size = sizeof(stack_buf);
-    }
-    else
-    {
-        buf_size = body.length + hex_len + (2 * sizeof("\r\n") + sizeof('\n'));
-        buf = emalloc(buf_size);
-        free_buf = 1;
-    }
-
-    int n = snprintf(buf, buf_size, "%*s\r\n%*s\r\n", hex_len, hex_string, body.length, body.str);
-    int ret = swServer_tcp_send(SwooleG.serv, client->fd, buf, n);
-
-    if (free_buf)
-    {
-        efree(buf);
-    }
+    int ret = swServer_tcp_send(SwooleG.serv, client->fd, http_response_buffer->str, http_response_buffer->length);
     free(hex_string);
-
     SW_CHECK_RETURN(ret);
 }
 
@@ -1233,6 +1235,12 @@ PHP_METHOD(swoole_http_response, end)
         return;
     }
 
+    if (body.length >= SW_BUFFER_OUTPUT_SIZE)
+    {
+        swoole_php_fatal_error(E_WARNING, "http response max_size is %d.", SW_BUFFER_OUTPUT_SIZE);
+        RETURN_FALSE;
+    }
+
     http_client *client = http_get_client(getThis() TSRMLS_CC);
     if (!client)
     {
@@ -1242,21 +1250,29 @@ PHP_METHOD(swoole_http_response, end)
     if (client->chunk)
     {
         ret = swServer_tcp_send(SwooleG.serv, client->fd, SW_STRL("0\r\n\r\n") - 1);
+        if (ret < 0)
+        {
+            RETURN_FALSE;
+        }
         client->chunk = 0;
     }
     //no http chunk
     else
     {
-        swString *response = swString_new(body.length + SW_HTTP_HEADER_INIT_SIZE);
-        http_build_header(client, getThis(), response, body.length TSRMLS_CC);
+        swString_clear(http_response_buffer);
+        http_build_header(client, getThis(), http_response_buffer, body.length TSRMLS_CC);
 
         if (client->request.method != PHP_HTTP_HEAD && body.length > 0)
         {
-            swString_append(response, &body);
+            swString_append(http_response_buffer, &body);
         }
 
-        ret = swServer_tcp_send(SwooleG.serv, client->fd, response->str, response->length);
-        swString_free(response);
+        ret = swServer_tcp_send(SwooleG.serv, client->fd, http_response_buffer->str, http_response_buffer->length);
+        if (ret < 0)
+        {
+            client->send_header = 0;
+            RETURN_FALSE;
+        }
     }
 
     swoole_http_request_free(client TSRMLS_CC);
@@ -1270,7 +1286,7 @@ PHP_METHOD(swoole_http_response, end)
     {
         http_global_clear(TSRMLS_C);
     }
-    SW_CHECK_RETURN(ret);
+    RETURN_TRUE;
 }
 
 PHP_METHOD(swoole_http_response, cookie)
