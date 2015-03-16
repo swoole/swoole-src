@@ -84,4 +84,6 @@ extern zend_class_entry *swoole_http_response_class_entry_ptr;
 extern zend_class_entry swoole_http_request_ce;
 extern zend_class_entry *swoole_http_request_class_entry_ptr;
 
+extern swString *swoole_http_buffer;
+
 #endif /* SWOOLE_HTTP_H_ */

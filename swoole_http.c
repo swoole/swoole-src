@@ -33,7 +33,8 @@
 static swArray *http_client_array;
 static uint8_t http_merge_global_flag = 0;
 static uint8_t http_merge_request_flag = 0;
-static swString *http_response_buffer;
+
+swString *swoole_http_buffer;
 
 enum http_response_flag
 {
@@ -947,8 +948,8 @@ PHP_METHOD(swoole_http_server, start)
         RETURN_FALSE;
     }
 
-    http_response_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
-    if (!http_response_buffer)
+    swoole_http_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
+    if (!swoole_http_buffer)
     {
         swoole_php_fatal_error(E_ERROR, "swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
         RETURN_FALSE;
@@ -1023,9 +1024,9 @@ PHP_METHOD(swoole_http_response, write)
     if (!client->send_header)
     {
         client->chunk = 1;
-        swString_clear(http_response_buffer);
-        http_build_header(client, getThis(), http_response_buffer, 0 TSRMLS_CC);
-        if (swServer_tcp_send(SwooleG.serv, client->fd, http_response_buffer->str, http_response_buffer->length) < 0)
+        swString_clear(swoole_http_buffer);
+        http_build_header(client, getThis(), swoole_http_buffer, 0 TSRMLS_CC);
+        if (swServer_tcp_send(SwooleG.serv, client->fd, swoole_http_buffer->str, swoole_http_buffer->length) < 0)
         {
             client->chunk = 0;
             client->send_header = 0;
@@ -1033,18 +1034,18 @@ PHP_METHOD(swoole_http_response, write)
         }
     }
 
-    swString_clear(http_response_buffer);
+    swString_clear(swoole_http_buffer);
 
     char *hex_string = swoole_dec2hex(body.length, 16);
     int hex_len = strlen(hex_string);
 
     //"%*s\r\n%*s\r\n", hex_len, hex_string, body.length, body.str
-    swString_append_ptr(http_response_buffer, hex_string, hex_len);
-    swString_append_ptr(http_response_buffer, SW_STRL("\r\n") - 1);
-    swString_append_ptr(http_response_buffer, body.str, body.length);
-    swString_append_ptr(http_response_buffer, SW_STRL("\r\n") - 1);
+    swString_append_ptr(swoole_http_buffer, hex_string, hex_len);
+    swString_append_ptr(swoole_http_buffer, SW_STRL("\r\n") - 1);
+    swString_append_ptr(swoole_http_buffer, body.str, body.length);
+    swString_append_ptr(swoole_http_buffer, SW_STRL("\r\n") - 1);
 
-    int ret = swServer_tcp_send(SwooleG.serv, client->fd, http_response_buffer->str, http_response_buffer->length);
+    int ret = swServer_tcp_send(SwooleG.serv, client->fd, swoole_http_buffer->str, swoole_http_buffer->length);
     free(hex_string);
     SW_CHECK_RETURN(ret);
 }
@@ -1259,15 +1260,15 @@ PHP_METHOD(swoole_http_response, end)
     //no http chunk
     else
     {
-        swString_clear(http_response_buffer);
-        http_build_header(client, getThis(), http_response_buffer, body.length TSRMLS_CC);
+        swString_clear(swoole_http_buffer);
+        http_build_header(client, getThis(), swoole_http_buffer, body.length TSRMLS_CC);
 
         if (client->request.method != PHP_HTTP_HEAD && body.length > 0)
         {
-            swString_append(http_response_buffer, &body);
+            swString_append(swoole_http_buffer, &body);
         }
 
-        ret = swServer_tcp_send(SwooleG.serv, client->fd, http_response_buffer->str, http_response_buffer->length);
+        ret = swServer_tcp_send(SwooleG.serv, client->fd, swoole_http_buffer->str, swoole_http_buffer->length);
         if (ret < 0)
         {
             client->send_header = 0;

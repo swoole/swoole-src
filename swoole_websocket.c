@@ -131,8 +131,8 @@ int swoole_websocket_handshake(http_client *client)
     }
     convert_to_string(*pData);
 
-    swString *header_string = swString_new(SW_HTTP_HEADER_INIT_SIZE);
-    swString_append_ptr(header_string, ZEND_STRL("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"));
+    swString_clear(swoole_http_buffer);
+    swString_append_ptr(swoole_http_buffer, ZEND_STRL("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"));
 
     int n;
     char sec_websocket_accept[128];
@@ -150,14 +150,13 @@ int swoole_websocket_handshake(http_client *client)
     char _buf[128];
     n = snprintf(_buf, sizeof(_buf), "Sec-WebSocket-Accept: %*s\r\n", n, encoded_str);
 
-    swString_append_ptr(header_string, _buf, n);
-    swString_append_ptr(header_string, ZEND_STRL("Sec-WebSocket-Version: "SW_WEBSOCKET_VERSION"\r\n"));
-    swString_append_ptr(header_string, ZEND_STRL("Server: "SW_WEBSOCKET_SERVER_SOFTWARE"\r\n\r\n"));
+    swString_append_ptr(swoole_http_buffer, _buf, n);
+    swString_append_ptr(swoole_http_buffer, ZEND_STRL("Sec-WebSocket-Version: "SW_WEBSOCKET_VERSION"\r\n"));
+    swString_append_ptr(swoole_http_buffer, ZEND_STRL("Server: "SW_WEBSOCKET_SERVER_SOFTWARE"\r\n\r\n"));
 
     swTrace("websocket header len:%zd\n%s \n", header_string->length, header_string->str);
 
-    int ret = swServer_tcp_send(SwooleG.serv, client->fd, header_string->str, header_string->length);
-    swString_free(header_string);
+    int ret = swServer_tcp_send(SwooleG.serv, client->fd, swoole_http_buffer->str, swoole_http_buffer->length);
 
     //close response
     client->end = 1;
@@ -304,11 +303,11 @@ PHP_METHOD( swoole_websocket_server, on)
     }
 }
 
-
 PHP_METHOD(swoole_websocket_server, push)
 {
     swString data;
     data.length = 0;
+
     long fd = 0;
     long opcode = WEBSOCKET_OPCODE_TEXT_FRAME;
     zend_bool fin = 1;
@@ -336,12 +335,7 @@ PHP_METHOD(swoole_websocket_server, push)
         swoole_php_fatal_error(E_WARNING, "connection[%d] is not a websocket client.", (int ) fd);
         RETURN_FALSE;
     }
-
-    swTrace("need send:%s len:%zd\n", data.str, data.length);
-    swString *response = swWebSocket_encode(&data, opcode, (int) fin);
-    int ret = swServer_tcp_send(SwooleG.serv, fd, response->str, response->length);
-    swTrace("need send:%s len:%zd\n", response->str, response->length);
-    swString_free(response);
-    SW_CHECK_RETURN(ret);
+    swString_clear(swoole_http_buffer);
+    swWebSocket_encode(swoole_http_buffer, &data, opcode, (int) fin);
+    SW_CHECK_RETURN(swServer_tcp_send(SwooleG.serv, fd, swoole_http_buffer->str, swoole_http_buffer->length));
 }
-
