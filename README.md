@@ -72,7 +72,6 @@ With Swoole server, you can build web servers, chat messaging servers, game serv
 The following example shows a simple echo server.
 
 ~~~php
-
 // create a server instance
 $serv = new swoole_server("127.0.0.1", 9501); 
 
@@ -93,7 +92,6 @@ $serv->on('close', function ($serv, $fd) {
 
 // start our server, listen on port and ready to accept connections
 $serv->start();
-
 ~~~
 
 Try to extend your server and implement what you want!
@@ -116,9 +114,9 @@ $http->start();
 ```php
 $ws = new swoole_websocket_server("0.0.0.0", 9502);
 
-$ws->on('message', function ($ws_serv, $fd, $data, $opcode, $fin) {
+$ws->on('message', function ($ws, $fd, $data, $opcode, $fin) {
     echo "Message: $data";
-    $ws_serv->push($fd, "server: $data");
+    $ws->push($fd, "server: $data");
 });
 
 $ws->start();
