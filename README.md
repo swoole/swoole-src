@@ -98,7 +98,7 @@ $serv->start();
 
 Try to extend your server and implement what you want!
 
-### Web Server
+### Http Server
 
 ```php
 $http = new swoole_http_server("0.0.0.0", 9501);
@@ -114,10 +114,11 @@ $http->start();
 ### WebSocket Server
 
 ```php
-$ws = new swoole_http_server("0.0.0.0", 9502);
+$ws = new swoole_websocket_server("0.0.0.0", 9502);
 
-$ws->on('message', function ($frame) {
-    $frame->message("server send: ".$frame->data);
+$ws->on('message', function ($ws_serv, $fd, $data, $opcode, $fin) {
+    echo "Message: $data";
+    $ws_serv->push($fd, "server: $data");
 });
 
 $ws->start();
