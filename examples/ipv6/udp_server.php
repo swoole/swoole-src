@@ -1,5 +1,5 @@
 <?php
-$serv = new swoole_server("::1", 9501, SWOOLE_PROCESS, SWOOLE_SOCK_UDP6);
+$serv = new swoole_server("::1", 9502, SWOOLE_PROCESS, SWOOLE_SOCK_UDP6);
 $serv->set(array(
     'worker_num' => 1,
 ));

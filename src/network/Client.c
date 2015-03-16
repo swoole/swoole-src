@@ -125,7 +125,7 @@ int swClient_create(swClient *cli, int type, int async)
 
     cli->close = swClient_close;
     cli->sock_domain = _domain;
-    cli->sock_type = SOCK_DGRAM;
+    cli->sock_type = _type;
     cli->type = type;
     cli->async = async;
 
@@ -226,7 +226,7 @@ static int swClient_close(swClient *cli)
 
     if (cli->type == SW_SOCK_UNIX_DGRAM)
     {
-        unlink(cli->client_addr.addr.un.sun_path);
+        unlink(cli->socket->info.addr.un.sun_path);
     }
 
     return ret;
@@ -384,12 +384,12 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
 
     if (cli->type == SW_SOCK_UNIX_DGRAM)
     {
-        struct sockaddr_un* client_addr = &cli->client_addr.addr.un;
+        struct sockaddr_un* client_addr = &cli->socket->info.addr.un;
         sprintf(client_addr->sun_path, "/tmp/swoole-client.%d.%d.sock", getpid(), cli->socket->fd);
         client_addr->sun_family = AF_UNIX;
         unlink(client_addr->sun_path);
 
-        if (bind(cli->socket->fd, (struct sockaddr *) client_addr, sizeof(cli->client_addr.addr.un)) < 0)
+        if (bind(cli->socket->fd, (struct sockaddr *) client_addr, sizeof(cli->socket->info.addr.un)) < 0)
         {
             swSysError("bind(%s) failed.", client_addr->sun_path);
             return SW_ERR;
@@ -421,7 +421,7 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
 static int swClient_udp_send(swClient *cli, char *data, int len)
 {
     int n;
-    n = sendto(cli->socket->fd, data, len, 0, (struct sockaddr *) (&cli->server_addr.addr), cli->server_addr.len);
+    n = sendto(cli->socket->fd, data, len, 0, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
     if (n < 0 || n < len)
     {
 
@@ -436,20 +436,18 @@ static int swClient_udp_send(swClient *cli, char *data, int len)
 static int swClient_udp_recv(swClient *cli, char *data, int length, int waitall)
 {
     int flag = 0, ret;
-    socklen_t len;
 
     if (waitall == 1)
     {
         flag = MSG_WAITALL;
-
     }
-    len = sizeof(struct sockaddr);
-    ret = recvfrom(cli->socket->fd, data, length, flag, (struct sockaddr *) (&cli->remote_addr), &len);
+    cli->remote_addr.len = sizeof(cli->remote_addr.addr);
+    ret = recvfrom(cli->socket->fd, data, length, flag, (struct sockaddr *) &cli->remote_addr.addr, &cli->remote_addr.len);
     if (ret < 0)
     {
         if (errno == EINTR)
         {
-            ret = recvfrom(cli->socket->fd, data, length, flag, (struct sockaddr *) (&cli->remote_addr), &len);
+            ret = recvfrom(cli->socket->fd, data, length, flag, (struct sockaddr *) &cli->remote_addr, &cli->remote_addr.len);
         }
         else
         {

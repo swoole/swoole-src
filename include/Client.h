@@ -55,9 +55,15 @@ typedef struct _swClient
 	uint8_t server_strlen;
 	double timeout;
 
+	/**
+	 * sendto, read only.
+	 */
 	swSocketAddress server_addr;
+
+	/**
+	 * recvfrom
+	 */
 	swSocketAddress remote_addr;
-	swSocketAddress client_addr;
 
 	swConnection *socket;
 
