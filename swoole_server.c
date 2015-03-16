@@ -317,7 +317,7 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
         ZVAL_LONG(zfd, (long )req->info.fd);
     }
     //udp ipv6
-    if (req->info.type == SW_EVENT_UDP6)
+    else if (req->info.type == SW_EVENT_UDP6)
     {
         udp_info.from_fd = req->info.from_fd;
         udp_info.port = req->info.from_id;

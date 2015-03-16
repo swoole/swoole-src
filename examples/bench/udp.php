@@ -2,7 +2,7 @@
 //$serv = new swoole_server("0.0.0.0", 9502, SWOOLE_BASE, SWOOLE_SOCK_UDP);
 $serv = new swoole_server("0.0.0.0", 9502, SWOOLE_PROCESS, SWOOLE_SOCK_UDP);
 $serv->set(array( 
-    'worker_num' => 4,    //worker process num
+    'worker_num' => 1,    //worker process num
     //'log_file' => '/tmp/swoole.log',
     //'daemonize' => true,
 ));
