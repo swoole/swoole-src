@@ -2108,14 +2108,13 @@ void swReactorThread_free(swServer *serv)
 
     if (serv->have_udp_sock == 1)
     {
-        swListenList_node *listen_host;
-        LL_FOREACH(serv->listen_list, listen_host)
+        swListenList_node *ls;
+        LL_FOREACH(serv->listen_list, ls)
         {
-            if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6
-                    || listen_host->type == SW_SOCK_UNIX_DGRAM)
+            if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
             {
-                pthread_cancel(listen_host->thread_id);
-                if (pthread_join(listen_host->thread_id, NULL))
+                pthread_cancel(ls->thread_id);
+                if (pthread_join(ls->thread_id, NULL))
                 {
                     swWarn("pthread_join() failed. Error: %s[%d]", strerror(errno), errno);
                 }
