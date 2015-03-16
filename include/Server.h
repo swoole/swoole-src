@@ -593,6 +593,16 @@ static sw_inline swConnection* swServer_connection_get(swServer *serv, int fd)
     }
 }
 
+static sw_inline swSession* swServer_get_session(swServer *serv, uint32_t session_id)
+{
+    return &serv->session_list[session_id % SW_SESSION_LIST_SIZE];
+}
+
+static sw_inline int swServer_get_fd(swServer *serv, uint32_t session_id)
+{
+    return serv->session_list[session_id % SW_SESSION_LIST_SIZE].fd;
+}
+
 static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_id)
 {
     int task_num = SwooleG.task_worker_max > 0 ? SwooleG.task_worker_max : SwooleG.task_worker_num;
@@ -609,11 +619,6 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
     {
         return &(SwooleGS->event_workers.workers[worker_id]);
     }
-}
-
-static sw_inline int swServer_get_fd(swServer *serv, uint32_t session_id)
-{
-    return serv->session_list[session_id % SW_SESSION_LIST_SIZE].fd;
 }
 
 static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t schedule_key)

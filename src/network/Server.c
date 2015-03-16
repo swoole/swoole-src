@@ -1297,7 +1297,7 @@ static swConnection* swServer_connection_new(swServer *serv, int fd, int from_fd
             session_id = 1;
             serv->session_round++;
         }
-        session = &serv->session_list[session_id % SW_SESSION_LIST_SIZE];
+        session = swServer_get_session(serv, session_id);
         //vacancy
         if (session->fd == 0)
         {
