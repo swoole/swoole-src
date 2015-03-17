@@ -151,7 +151,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         swConnection *conn = swServer_connection_new(serv, new_fd, event->fd, reactor_id);
         memcpy(&conn->info.addr, &client_addr, sizeof(client_addr));
         sub_reactor = &serv->reactor_threads[reactor_id].reactor;
-        conn->type = listen_host->type;
+        conn->socket_type = listen_host->type;
 
 #ifdef SW_USE_OPENSSL
 		if (serv->open_ssl)
@@ -1100,7 +1100,7 @@ int swServer_listen(swServer *serv, swReactor *reactor)
             serv->connection_list[sock].info.addr.inet_v6.sin6_port = htons(ls->port);
         }
         //socket type
-        serv->connection_list[sock].type = ls->type;
+        serv->connection_list[sock].socket_type = ls->type;
         //save listen_host object
         serv->connection_list[sock].object = ls;
     }

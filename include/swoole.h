@@ -344,7 +344,16 @@ typedef struct _swConnection
      */
     uint32_t session_id;
 
-    int type;
+    /**
+     * socket type, SW_SOCK_TCP or SW_SOCK_UDP
+     */
+    uint8_t socket_type;
+
+    /**
+     * fd type, SW_FD_TCP or SW_FD_PIPE or SW_FD_TIMERFD
+     */
+    uint8_t fdtype;
+
     int events;
 
     /**

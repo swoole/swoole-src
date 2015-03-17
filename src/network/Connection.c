@@ -175,7 +175,7 @@ swString* swConnection_get_string_buffer(swConnection *conn)
 
 char* swConnection_get_ip(swConnection *conn)
 {
-    if (conn->type == SW_SOCK_TCP)
+    if (conn->socket_type == SW_SOCK_TCP)
     {
         return inet_ntoa(conn->info.addr.inet_v4.sin_addr);
     }
@@ -200,7 +200,7 @@ char* swConnection_get_ip(swConnection *conn)
 
 int swConnection_get_port(swConnection *conn)
 {
-    if (conn->type == SW_SOCK_TCP)
+    if (conn->socket_type == SW_SOCK_TCP)
     {
         return ntohs(conn->info.addr.inet_v4.sin_port);
     }

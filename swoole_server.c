@@ -2698,7 +2698,7 @@ PHP_FUNCTION(swoole_connection_info)
         if (from_sock != NULL && serv->listen_port_num > 1)
         {
             add_assoc_long(return_value, "server_fd", from_sock->fd);
-            add_assoc_long(return_value, "type", from_sock->type);
+            add_assoc_long(return_value, "socket_type", from_sock->socket_type);
             add_assoc_long(return_value, "server_port", swConnection_get_port(from_sock));
         }
         add_assoc_long(return_value, "remote_port", udp_info.port);
@@ -2733,7 +2733,7 @@ PHP_FUNCTION(swoole_connection_info)
         if (serv->listen_port_num > 1)
         {
             add_assoc_long(return_value, "server_fd", conn->from_fd);
-            add_assoc_long(return_value, "type", conn->type);
+            add_assoc_long(return_value, "socket_type", conn->socket_type);
             add_assoc_long(return_value, "server_port", swConnection_get_port(from_sock));
         }
 

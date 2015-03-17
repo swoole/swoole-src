@@ -645,7 +645,7 @@ static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t sche
             target_worker_id = schedule_key % serv->worker_num;
         }
         //IPv4
-        else if (conn->type == SW_EVENT_TCP)
+        else if (conn->socket_type == SW_SOCK_TCP)
         {
             target_worker_id = conn->info.addr.inet_v4.sin_addr.s_addr % serv->worker_num;
         }

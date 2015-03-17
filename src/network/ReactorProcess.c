@@ -187,14 +187,17 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         return SW_ERR;
     }
 
-    swListenList_node *listen_host;
-    int type;
+    swListenList_node *ls;
+    int fdtype;
 
     //listen the all tcp port
-    LL_FOREACH(serv->listen_list, listen_host)
+    LL_FOREACH(serv->listen_list, ls)
     {
-        type = (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6) ? SW_FD_UDP : SW_FD_LISTEN;
-        reactor->add(reactor, listen_host->sock, type);
+        fdtype = (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM) ?
+                        SW_FD_UDP : SW_FD_LISTEN;
+        serv->connection_list[ls->sock].fd = ls->sock;
+        serv->connection_list[ls->sock].socket_type = ls->type;
+        reactor->add(reactor, ls->sock, fdtype);
     }
     SwooleG.main_reactor = reactor;
 

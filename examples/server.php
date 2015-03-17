@@ -32,7 +32,8 @@ $mode = SWOOLE_PROCESS;
 
 $serv = new swoole_server("0.0.0.0", 9501, $mode);
 $serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
-
+$serv->addlistener('::', 9503, SWOOLE_SOCK_TCP6);
+$serv->addlistener('::', 9504, SWOOLE_SOCK_UDP6);
 $process1 = new swoole_process("my_process1", true, false);
 $serv->addprocess($process1);
 
@@ -198,7 +199,7 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     }
     elseif($cmd == "info")
     {
-        $info = $serv->connection_info($fd);
+        $info = $serv->connection_info($fd, $from_id);
         $serv->send($fd, 'Info: '.var_export($info, true).PHP_EOL);
     }
     elseif($cmd == "list")

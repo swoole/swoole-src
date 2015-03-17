@@ -1768,7 +1768,8 @@ static int swUDPThread_start(swServer *serv)
                 serv->connection_list[ls->sock].info.addr.inet_v6.sin6_port = htons(ls->port);
             }
 
-            serv->connection_list[ls->sock].type = ls->type;
+            serv->connection_list[ls->sock].fd = ls->sock;
+            serv->connection_list[ls->sock].socket_type = ls->type;
             serv->connection_list[ls->sock].object = ls;
 
             param->object = serv;
@@ -1823,7 +1824,7 @@ static int swReactorThread_loop_udp(swThreadParam *param)
     bzero(&task.data.info, sizeof(task.data.info));
     task.data.info.from_fd = fd;
 
-    int socket_type = server_sock->type;
+    int socket_type = server_sock->socket_type;
     int buffer_size;
 
     //IPv4
