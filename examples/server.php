@@ -27,8 +27,8 @@ if (isset($argv[1]) and $argv[1] == 'daemon') {
 	$config['daemonize'] = false;
 }
 
-//$mode = SWOOLE_BASE;
-$mode = SWOOLE_PROCESS;
+$mode = SWOOLE_BASE;
+//$mode = SWOOLE_PROCESS;
 
 $serv = new swoole_server("0.0.0.0", 9501, $mode);
 $serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
