@@ -123,6 +123,15 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         task->info.fd = swWorker_get_session_id(serv, fd);
         if (task->info.fd < 0)
         {
+#ifdef SW_USE_RINGBUFFER
+            if (task->info.type == SW_EVENT_PACKAGE)
+            {
+                swPackage package;
+                memcpy(&package, task->data, sizeof(package));
+                swReactorThread *thread = swServer_get_thread(SwooleG.serv, task->info.from_id);
+                thread->buffer_input->free(thread->buffer_input, package.data);
+            }
+#endif
             swWarn("[1]received the wrong data[%d bytes] from socket#%d", task->info.len, fd);
             return SW_OK;
         }
