@@ -524,10 +524,6 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
     swConnection *conn;
     swServer *serv = reactor->ptr;
 
-#ifdef SW_USE_RINGBUFFER
-    swPackage package;
-#endif
-
     while (!swBuffer_empty(buffer))
     {
         trunk = swBuffer_get_trunk(buffer);
