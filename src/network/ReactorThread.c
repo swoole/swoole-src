@@ -42,6 +42,19 @@ static int swReactorThread_send_in_buffer(swReactorThread *thread, swConnection 
 static int swReactorThread_get_package_length(swServer *serv, swConnection *conn, char *data, uint32_t size);
 
 #ifdef SW_USE_RINGBUFFER
+static sw_inline void swReactorThread_yield(swReactorThread *thread)
+{
+    swEvent event;
+    swServer *serv = SwooleG.serv;
+    int i;
+    for (i = 0; i < serv->reactor_pipe_num; i++)
+    {
+        event.fd = thread->pipe_read_list[i];
+        swReactorThread_onPipeReceive(&thread->reactor, &event);
+    }
+    swYield();
+}
+
 static sw_inline void* swReactorThread_alloc(swReactorThread *thread, uint32_t size)
 {
     void *ptr = NULL;
@@ -59,7 +72,7 @@ static sw_inline void* swReactorThread_alloc(swReactorThread *thread, uint32_t s
                 try_count = 0;
             }
             try_count++;
-            swYield();
+            swReactorThread_yield(thread);
             continue;
         }
         break;
@@ -67,6 +80,8 @@ static sw_inline void* swReactorThread_alloc(swReactorThread *thread, uint32_t s
     //debug("%p\n", ptr);
     return ptr;
 }
+
+
 #endif
 
 /**
@@ -1658,12 +1673,16 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     {
         cpu_set_t cpu_set;
         CPU_ZERO(&cpu_set);
-        if(serv->cpu_affinity_available_num){
-           CPU_SET(serv->cpu_affinity_available[reactor_id % serv->cpu_affinity_available_num], &cpu_set);
-        }else{
-           CPU_SET(reactor_id%SW_CPU_NUM, &cpu_set);
+
+        if (serv->cpu_affinity_available_num)
+        {
+            CPU_SET(serv->cpu_affinity_available[reactor_id % serv->cpu_affinity_available_num], &cpu_set);
         }
-       
+        else
+        {
+            CPU_SET(reactor_id%SW_CPU_NUM, &cpu_set);
+        }
+
         if (0 != pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set))
         {
             swSysError("pthread_setaffinity_np() failed");
@@ -1697,10 +1716,27 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     swReactorThread_set_protocol(serv, reactor);
 
     int i = 0, pipe_fd;
+#ifdef SW_USE_RINGBUFFER
+    int j = 0;
+#endif
 
     if (serv->factory_mode == SW_MODE_PROCESS)
     {
         thread->buffer_pipe = swArray_new(serv->workers[serv->worker_num - 1].pipe_master + 1, sizeof(void*), 0);
+        if (thread->buffer_pipe == NULL)
+        {
+            swSysError("thread->buffer_pipe create failed");
+            return SW_ERR;
+        }
+
+#ifdef SW_USE_RINGBUFFER
+        thread->pipe_read_list = sw_calloc(serv->reactor_pipe_num, sizeof(int));
+        if (thread->pipe_read_list == NULL)
+        {
+            swSysError("thread->buffer_pipe create failed");
+            return SW_ERR;
+        }
+#endif
 
         for (i = 0; i < serv->worker_num; i++)
         {
@@ -1726,6 +1762,10 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
                  * mapping reactor_id and worker pipe
                  */
                 serv->connection_list[pipe_fd].from_id = reactor_id;
+#ifdef SW_USE_RINGBUFFER
+                thread->pipe_read_list[j] = pipe_fd;
+                j++;
+#endif
             }
         }
     }

@@ -112,6 +112,9 @@ typedef struct _swReactorThread
     swUdpFd *udp_addrs;
     swMemoryPool *buffer_input;
     swArray *buffer_pipe;
+#ifdef SW_USE_RINGBUFFER
+    int *pipe_read_list;
+#endif
     swLock lock;
     int c_udp_fd;
 } swReactorThread;
