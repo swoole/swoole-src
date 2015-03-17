@@ -524,6 +524,10 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
     swConnection *conn;
     swServer *serv = reactor->ptr;
 
+#ifdef SW_USE_RINGBUFFER
+    swPackage package;
+#endif
+
     while (!swBuffer_empty(buffer))
     {
         trunk = swBuffer_get_trunk(buffer);
@@ -535,6 +539,11 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
             conn = swServer_connection_get(serv, send_data->info.fd);
             if (conn == NULL || conn->closed)
             {
+#ifdef SW_USE_RINGBUFFER
+                swPackage package;
+                memcpy(&package, send_data->data, sizeof(package));
+                thread->buffer_input->free(thread->buffer_input, package.data);
+#endif
                 swWarn("connection#%d is closed by server.", send_data->info.fd);
                 swBuffer_pop_trunk(buffer, trunk);
                 continue;
@@ -806,11 +815,10 @@ static int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *even
         task.target_worker_id = -1;
 
 #ifdef SW_USE_RINGBUFFER
+        swPackage package;
         if (serv->factory_mode == SW_MODE_PROCESS)
         {
             uint16_t target_worker_id = swServer_worker_schedule(serv, conn->fd);
-            swPackage package;
-
             package.length = task.data.info.len;
             package.data = swReactorThread_alloc(&serv->reactor_threads[SwooleTG.id], package.length);
             task.data.info.type = SW_EVENT_PACKAGE;
@@ -823,6 +831,14 @@ static int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *even
 #endif
         //dispatch to worker process
         ret = factory->dispatch(factory, &task);
+
+#ifdef SW_USE_RINGBUFFER
+        if (ret < 0)
+        {
+            swMemoryPool *pool = serv->reactor_threads[SwooleTG.id].buffer_input;
+            pool->free(pool, package.data);
+        }
+#endif
 
 #ifdef SW_USE_EPOLLET
         //缓存区还有数据没读完，继续读，EPOLL的ET模式
@@ -1941,7 +1957,15 @@ static int swReactorThread_send_string_buffer(swReactorThread *thread, swConnect
     memcpy(package.data, buffer->str, package.length);
     memcpy(task.data.data, &package, sizeof(package));
 
-    return factory->dispatch(factory, &task);
+    //dispatch failed, free the memory.
+    if (factory->dispatch(factory, &task) < 0)
+    {
+        thread->buffer_input->free(thread->buffer_input, package.data);
+    }
+    else
+    {
+        return SW_OK;
+    }
 #else
 
     task.data.info.type = SW_EVENT_PACKAGE_START;
@@ -2024,7 +2048,15 @@ static int swReactorThread_send_in_buffer(swReactorThread *thread, swConnection 
     task.target_worker_id = target_worker_id;
     memcpy(task.data.data, &package, sizeof(package));
     //swWarn("[ReactorThread] copy_n=%d", package.length);
-    return factory->dispatch(factory, &task);
+    //dispatch failed, free the memory.
+    if (factory->dispatch(factory, &task) < 0)
+    {
+        thread->buffer_input->free(thread->buffer_input, package.data);
+    }
+    else
+    {
+        return SW_OK;
+    }
 #else
     int ret;
     task.data.info.type = SW_EVENT_PACKAGE_START;
