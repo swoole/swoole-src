@@ -346,6 +346,8 @@ static int swServer_start_proxy(swServer *serv)
 	SwooleTG.id = 0;
 
 	SwooleG.main_reactor = main_reactor;
+	SwooleG.pid = getpid();
+	SwooleG.process_type = SW_PROCESS_MASTER;
 
 	main_reactor->id = serv->reactor_num; //设为一个特别的ID
 	main_reactor->ptr = serv;
@@ -573,9 +575,6 @@ int swServer_start(swServer *serv)
     }
     //Signal Init
     swServer_signal_init();
-
-    //标识为主进程
-    SwooleG.process_type = SW_PROCESS_MASTER;
 
     if (serv->factory_mode == SW_MODE_SINGLE)
     {
