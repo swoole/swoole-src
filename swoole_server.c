@@ -1739,22 +1739,21 @@ PHP_FUNCTION(swoole_server_send)
 
     SWOOLE_GET_SERVER(zobject, serv);
 
-    if (Z_TYPE_P(zfd) == IS_STRING)
+    if (serv->have_udp_sock && Z_TYPE_P(zfd) == IS_STRING)
     {
         if (server_socket == -1)
         {
             server_socket = dgram_server_socket;
         }
-
         //UDP IPv6
-        if (server_socket > 65536)
+        if (strchr(Z_STRVAL_P(zfd), ':'))
         {
             php_swoole_udp_t udp_info;
             memcpy(&udp_info, &server_socket, sizeof(udp_info));           
             ret = swSocket_udp_sendto6(udp_info.from_fd, Z_STRVAL_P(zfd), udp_info.port, send_data, send_len);
         }
         //UNIX DGRAM
-        else
+        else if (Z_STRVAL_P(zfd)[0] == '/')
         {
             struct sockaddr_un addr_un;
             memcpy(addr_un.sun_path, Z_STRVAL_P(zfd), Z_STRLEN_P(zfd));
@@ -1762,9 +1761,14 @@ PHP_FUNCTION(swoole_server_send)
             addr_un.sun_path[Z_STRLEN_P(zfd)] = 0;
             ret = swSocket_sendto_blocking(server_socket, send_data, send_len, 0, (struct sockaddr *) &addr_un, sizeof(addr_un));
         }
+        else
+        {
+            goto convert;
+        }
         SW_CHECK_RETURN(ret);
     }
 
+    convert: convert_to_long(zfd);
     uint32_t fd = (uint32_t) Z_LVAL_P(zfd);
     //UDP
     if (swServer_is_udp(fd))
