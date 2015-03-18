@@ -31,11 +31,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2015-03-11</date>
+    <date>2015-03-18</date>
     <time>19:55:51</time>
     <version>
-        <release>1.7.12</release>
-        <api>1.7.12</api>
+        <release>1.7.13</release>
+        <api>1.7.13</api>
     </version>
     <stability>
         <release>stable</release>
@@ -43,8 +43,14 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed swoole_server tcp buffer error
-- Fixed wrong error log
+- Update server session_list resized to 1M
+- Update connection_info from_fd, from_port rename to server_fd, server_port
+- Http server performance optimization
+- WebSocket server performance optimization
+- Added swoole_client->getpeername
+- Added swoole_client->getsockname
+- Fixed accept dead loop when server have too many connection
+- Fixed sequence of onConnect/onReceive events disorder
     </notes>
 	<contents>
 		<dir name="/">
@@ -93,7 +99,6 @@
 					<file role="src" name="echo.php" />
 					<file role="src" name="unix_dgram.php" />
 					<file role="src" name="unix_stream.php" />
-					<file role="src" name="ipv6.php" />
 					<file role="src" name="eof_client.php" />
 					<file role="src" name="eof_server.php" />
 					<file role="src" name="length_check_server.php" />
@@ -101,7 +106,6 @@
 					<file role="src" name="msgqueue.php" />
 					<file role="src" name="http_server.php" />
 					<file role="src" name="http_client.php" />
-					<file role="src" name="websocket_server.php" />
 				</dir>
 				<dir name="event">
 					<file role="src" name="stream.php" />
@@ -125,6 +129,18 @@
 					<file role="src" name="set.php" />
 					<file role="src" name="simulation.php" />
 				</dir>
+				<dir name="websocket">
+					<file role="src" name="server.php" />
+					<file role="src" name="client.php" />
+					<file role="src" name="client.php" />
+					<file role="src" name="WebSocketClient.php" />
+				</dir>
+				<dir name="ipv6">
+                    <file role="src" name="tcp_server.php" />
+                    <file role="src" name="udp_server.php" />
+                    <file role="src" name="tcp_client.php" />
+                    <file role="src" name="udp_client.php" />
+                </dir>
 				<dir name="bench">
 					<file role="src" name="http.js" />
 					<file role="src" name="tcp.js" />
@@ -135,6 +151,10 @@
 					<file role="src" name="http.php" />
 					<file role="src" name="run.php" />
 				</dir>
+				<dir name="timer">
+                    <file role="src" name="after.php" />
+                    <file role="src" name="interval.php" />
+                </dir>
 				<file role="src" name="server.php" />
 				<file role="src" name="mysql_proxy_server.php" />
 				<file role="src" name="async_mysql2.php" />
