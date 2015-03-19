@@ -68,10 +68,15 @@ function no_chunk(swoole_http_request $request, swoole_http_response $response)
         }
         else
         {
+            $response->header('Content-Type', 'image/jpeg');
             $response->gzip(false);
         }
         $content = file_get_contents($file);
         echo "response size = ".strlen($content)."\n";
+
+//        $response->write($content);
+//        $response->end();
+
         $response->end($content);
     }
     else

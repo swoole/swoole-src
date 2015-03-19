@@ -90,6 +90,7 @@ static void http_global_merge(zval *val, zval *zrequest, int type);
 static void http_global_clear(TSRMLS_D);
 static swoole_http_client *http_get_client(zval *object TSRMLS_DC);
 static void http_build_header(swoole_http_client *client, zval *object, swString *response, int body_length TSRMLS_DC);
+static int http_response_compress(swString *body, int level);
 
 #define http_merge_php_global(v,r,t)  if (http_merge_global_flag > 0) http_global_merge(v,r,t)
 
@@ -1068,14 +1069,33 @@ static PHP_METHOD(swoole_http_response, write)
 
     swString_clear(swoole_http_buffer);
 
-    char *hex_string = swoole_dec2hex(body.length, 16);
-    int hex_len = strlen(hex_string);
+    char *hex_string;
+    int hex_len;
 
-    //"%*s\r\n%*s\r\n", hex_len, hex_string, body.length, body.str
-    swString_append_ptr(swoole_http_buffer, hex_string, hex_len);
-    swString_append_ptr(swoole_http_buffer, SW_STRL("\r\n") - 1);
-    swString_append_ptr(swoole_http_buffer, body.str, body.length);
-    swString_append_ptr(swoole_http_buffer, SW_STRL("\r\n") - 1);
+    if (client->gzip_enable)
+    {
+        http_response_compress(&body, client->gzip_level);
+
+        hex_string = swoole_dec2hex(swoole_zlib_buffer->length, 16);
+        hex_len = strlen(hex_string);
+
+        //"%*s\r\n%*s\r\n", hex_len, hex_string, body.length, body.str
+        swString_append_ptr(swoole_http_buffer, hex_string, hex_len);
+        swString_append_ptr(swoole_http_buffer, SW_STRL("\r\n") - 1);
+        swString_append(swoole_http_buffer, swoole_zlib_buffer);
+        swString_append_ptr(swoole_http_buffer, SW_STRL("\r\n") - 1);
+    }
+    else
+    {
+        hex_string = swoole_dec2hex(body.length, 16);
+        hex_len = strlen(hex_string);
+
+        //"%*s\r\n%*s\r\n", hex_len, hex_string, body.length, body.str
+        swString_append_ptr(swoole_http_buffer, hex_string, hex_len);
+        swString_append_ptr(swoole_http_buffer, SW_STRL("\r\n") - 1);
+        swString_append_ptr(swoole_http_buffer, body.str, body.length);
+        swString_append_ptr(swoole_http_buffer, SW_STRL("\r\n") - 1);
+    }
 
     int ret = swServer_tcp_send(SwooleG.serv, client->fd, swoole_http_buffer->str, swoole_http_buffer->length);
     free(hex_string);
@@ -1197,6 +1217,10 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
         {
             if (!(flag & HTTP_RESPONSE_CONTENT_LENGTH) && body_length > 0)
             {
+                if (client->gzip_enable)
+                {
+                    body_length = swoole_zlib_buffer->length;
+                }
                 n = snprintf(buf, sizeof(buf), "Content-Length: %d\r\n", body_length);
                 swString_append_ptr(response, buf, n);
             }
@@ -1349,7 +1373,6 @@ PHP_METHOD(swoole_http_response, end)
     else
     {
         swString_clear(swoole_http_buffer);
-
         if (client->gzip_enable)
         {
             http_response_compress(&body, client->gzip_level);
