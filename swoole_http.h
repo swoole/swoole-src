@@ -51,6 +51,9 @@ typedef struct
     uint32_t chunk :1;
     uint32_t keepalive :1;
 
+    uint32_t gzip_enable :1;
+    uint32_t gzip_level :4;
+
     uint32_t request_read :1;
     uint32_t current_header_name_allocated :1;
     uint32_t content_sender_initialized :1;

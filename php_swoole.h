@@ -356,18 +356,6 @@ PHP_METHOD(swoole_table, key);
 PHP_METHOD(swoole_table, valid);
 #endif
 
-PHP_METHOD(swoole_http_server, on);
-PHP_METHOD(swoole_http_server, start);
-PHP_METHOD(swoole_http_server, setglobal);
-PHP_METHOD(swoole_http_request, rawcontent);
-
-PHP_METHOD(swoole_http_response, write);
-PHP_METHOD(swoole_http_response, end);
-PHP_METHOD(swoole_http_response, cookie);
-PHP_METHOD(swoole_http_response, rawcookie);
-PHP_METHOD(swoole_http_response, header);
-PHP_METHOD(swoole_http_response, status);
-
 PHP_METHOD(swoole_websocket_server, on);
 PHP_METHOD(swoole_websocket_server, push);
 

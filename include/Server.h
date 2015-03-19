@@ -386,7 +386,7 @@ struct _swServer
     char package_eof[SW_DATA_EOF_MAXLEN]; //数据缓存结束符
 
     uint32_t http_max_post_size;
-    uint32_t http_max_websocket_size;
+
 
     char package_length_type; //length field type
     uint8_t package_length_size;

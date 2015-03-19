@@ -1132,7 +1132,7 @@ PHP_FUNCTION(swoole_server_set)
     if (sw_zend_hash_find(vht, ZEND_STRS("open_cpu_affinity"), (void **)&v) == SUCCESS)
     {
         convert_to_long(*v);
-        serv->open_cpu_affinity = (uint8_t) Z_LVAL_PP(v);
+        serv->open_cpu_affinity = (uint8_t) Z_BVAL_PP(v);
     }
     //cpu affinity set
     if (sw_zend_hash_find(vht, ZEND_STRS("cpu_affinity_ignore"), (void **) &v) == SUCCESS)
@@ -1181,13 +1181,13 @@ PHP_FUNCTION(swoole_server_set)
     //tcp_keepalive
     if (sw_zend_hash_find(vht, ZEND_STRS("open_tcp_keepalive"), (void **)&v) == SUCCESS)
     {
-        serv->open_tcp_keepalive = (uint8_t) Z_LVAL_PP(v);
+        serv->open_tcp_keepalive = (uint8_t) Z_BVAL_PP(v);
     }
     //buffer: check eof
     if (sw_zend_hash_find(vht, ZEND_STRS("open_eof_check"), (void **)&v) == SUCCESS)
     {
         convert_to_long(*v);
-        serv->open_eof_check = (uint8_t) Z_LVAL_PP(v);
+        serv->open_eof_check = (uint8_t) Z_BVAL_PP(v);
     }
     //package eof
     if (sw_zend_hash_find(vht, ZEND_STRS("package_eof"), (void **) &v) == SUCCESS
@@ -1207,13 +1207,13 @@ PHP_FUNCTION(swoole_server_set)
     if (sw_zend_hash_find(vht, ZEND_STRS("open_http_protocol"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
-        serv->open_http_protocol = (uint8_t) Z_LVAL_PP(v);
+        serv->open_http_protocol = (uint8_t) Z_BVAL_PP(v);
     }
     //buffer: mqtt protocol
     if (sw_zend_hash_find(vht, ZEND_STRS("open_mqtt_protocol"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
-        serv->open_mqtt_protocol = (uint8_t) Z_LVAL_PP(v);
+        serv->open_mqtt_protocol = (uint8_t) Z_BVAL_PP(v);
     }
     //tcp_keepidle
     if (sw_zend_hash_find(vht, ZEND_STRS("tcp_keepidle"), (void **)&v) == SUCCESS)

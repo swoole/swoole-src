@@ -65,16 +65,19 @@ int swFactory_end(swFactory *factory, int fd)
 
 int swFactory_finish(swFactory *factory, swSendData *resp)
 {
-    int ret = 0;
-
-    resp->length = resp->info.len;
-    ret = swReactorThread_send(resp);
-
-    if (ret < 0)
+    if (resp->length == 0)
+    {
+        resp->length = resp->info.len;
+    }
+    if (swReactorThread_send(resp) < 0)
     {
         swSysError("sendto to connection#%d failed.", resp->info.fd);
+        return SW_ERR;
     }
-    return ret;
+    else
+    {
+        return SW_OK;
+    }
 }
 
 int swFactory_check_callback(swFactory *factory)
