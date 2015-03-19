@@ -34,13 +34,13 @@ zend_class_entry *swoole_websocket_server_class_entry_ptr;
 
 enum websocket_callback
 {
-    websocket_callback_onOpen = 0,
-    websocket_callback_onMessage,
+    WEBSOCKET_CALLBACK_onOpen = 0,
+    WEBSOCKET_CALLBACK_onMessage,
 };
 
+static int websocket_handshake(swoole_http_client *client);
 static void sha1(const char *str, int _len, unsigned char *digest);
 static zval* websocket_callbacks[2];
-
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_on, 0, 0, 2)
     ZEND_ARG_INFO(0, ha_name)
@@ -56,12 +56,14 @@ const zend_function_entry swoole_websocket_server_methods[] =
 
 int swoole_websocket_isset_onMessage(void)
 {
-    return (websocket_callbacks[websocket_callback_onMessage] != NULL);
+    return (websocket_callbacks[WEBSOCKET_CALLBACK_onMessage] != NULL);
 }
 
-void swoole_websocket_onOpen(int fd)
+void swoole_websocket_onOpen(swoole_http_client *client)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+    int fd = client->fd;
 
     swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
     if (!conn)
@@ -69,6 +71,7 @@ void swoole_websocket_onOpen(int fd)
         swWarn("connection[%d] is closed.", fd);
         return;
     }
+
     if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
     {
         conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
@@ -76,27 +79,33 @@ void swoole_websocket_onOpen(int fd)
 
     swTrace("\n\n\n\nconn ws status:%d, fd=%d\n\n\n", conn->websocket_status, fd);
 
-    if (websocket_callbacks[websocket_callback_onOpen] != NULL)
+    if (websocket_callbacks[WEBSOCKET_CALLBACK_onOpen])
     {
         swTrace("\n\n\n\nhandshake success\n\n\n");
 
-        zval **args[2];
+        zval **args[3];
         swServer *serv = SwooleG.serv;
         zval *zserv = (zval *) serv->ptr2;
         zval *zfd;
-        MAKE_STD_ZVAL(zfd);
-        ZVAL_LONG(zfd, fd);
-        args[0] = &zserv;
-        args[1] = &zfd;
+        zval *zrequest = client->zrequest;
         zval *retval;
 
-        if (call_user_function_ex(EG(function_table), NULL, websocket_callbacks[0], &retval, 2, args, 0,
-                NULL TSRMLS_CC) == FAILURE)
+        MAKE_STD_ZVAL(zfd);
+        ZVAL_LONG(zfd, fd);
+
+#ifdef __CYGWIN__
+        //TODO: memory error on cygwin.
+        zval_add_ref(&zrequest);
+#endif
+
+        args[0] = &zserv;
+        args[1] = &zfd;
+        args[2] = &zrequest;
+
+        if (call_user_function_ex(EG(function_table), NULL, websocket_callbacks[WEBSOCKET_CALLBACK_onOpen], &retval, 3, args, 0,  NULL TSRMLS_CC) == FAILURE)
         {
             php_error_docref(NULL TSRMLS_CC, E_WARNING, "onMessage handler error");
         }
-
-        swTrace("===== message callback end======");
         if (EG(exception))
         {
             zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
@@ -116,7 +125,7 @@ static void sha1(const char *str, int _len, unsigned char *digest)
     PHP_SHA1Final(digest, &context);
 }
 
-int swoole_websocket_handshake(http_client *client)
+static int websocket_handshake(swoole_http_client *client)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
@@ -156,12 +165,7 @@ int swoole_websocket_handshake(http_client *client)
 
     swTrace("websocket header len:%ld\n%s \n", swoole_http_buffer->length, swoole_http_buffer->str);
 
-    int ret = swServer_tcp_send(SwooleG.serv, client->fd, swoole_http_buffer->str, swoole_http_buffer->length);
-
-    //close response
-    client->end = 1;
-
-    return ret;
+    return swServer_tcp_send(SwooleG.serv, client->fd, swoole_http_buffer->str, swoole_http_buffer->length);
 }
 
 int swoole_websocket_onMessage(swEventData *req)
@@ -199,7 +203,7 @@ int swoole_websocket_onMessage(swEventData *req)
 	args[4] = &zfin;
 	zval *retval;
 
-    if (call_user_function_ex(EG(function_table), NULL, websocket_callbacks[websocket_callback_onMessage], &retval, 5,
+    if (call_user_function_ex(EG(function_table), NULL, websocket_callbacks[WEBSOCKET_CALLBACK_onMessage], &retval, 5,
             args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "onMessage handler error");
@@ -224,25 +228,20 @@ int swoole_websocket_onMessage(swEventData *req)
     return SW_OK;
 }
 
-int swoole_websocket_onHandshake(http_client *client)
+int swoole_websocket_onHandshake(swoole_http_client *client)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
     int fd = client->fd;
-    int ret = swoole_websocket_handshake(client);
-
+    int ret = websocket_handshake(client);
     if (ret == SW_ERR)
     {
         swTrace("websocket handshake error\n");
         SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
     }
-    else
-    {
-        swoole_websocket_onOpen(fd);
-        swTrace("websocket handshake_success\n");
-    }
     if (!client->end)
     {
+        swoole_websocket_onOpen(client);
         swoole_http_request_free(client TSRMLS_CC);
     }
     return SW_OK;

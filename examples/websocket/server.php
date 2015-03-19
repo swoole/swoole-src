@@ -3,8 +3,9 @@ $server = new swoole_websocket_server("0.0.0.0", 9501);
 
 $server->set(['worker_num' => 1]);
 
-$server->on('open', function (swoole_websocket_server $server, $fd) {
+$server->on('open', function (swoole_websocket_server $server, $fd, $request) {
     echo "server: handshake success with fd{$fd}\n";
+    var_dump($request);
 });
 
 $server->on('message', function (swoole_websocket_server $server, $fd, $data, $opcode, $fin) {
