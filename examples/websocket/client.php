@@ -9,7 +9,7 @@ if (empty($opt['c']) || empty($opt['n']))
 $clients = $opt['c'];
 $count = $opt['n'];
 $size = empty($opt['k']) ? 0 : $opt['k'];
-require __DIR__ . "WebSocketClient.php";
+require __DIR__ . "/WebSocketClient.php";
 $host = '127.0.0.1';
 $prot = 9501;
 

@@ -5,11 +5,12 @@ $server->set(['worker_num' => 1]);
 
 $server->on('open', function (swoole_websocket_server $server, $fd, $request) {
     echo "server: handshake success with fd{$fd}\n";
-    var_dump($request);
+//    var_dump($request);
 });
 
 $server->on('message', function (swoole_websocket_server $server, $fd, $data, $opcode, $fin) {
-    echo "receive from {$fd}:{$data},opcode:{$opcode},fin:{$fin}\n";
+    echo "received ".strlen($data)." bytes\n";
+    //echo "receive from {$fd}:{$data},opcode:{$opcode},fin:{$fin}\n";
     $server->push($fd, "this is server");
 });
 

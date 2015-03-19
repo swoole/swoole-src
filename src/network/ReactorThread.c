@@ -1907,6 +1907,8 @@ static int swReactorThread_send_string_buffer(swReactorThread *thread, swConnect
     task.data.info.fd = conn->fd;
     task.data.info.from_id = conn->from_id;
 
+    swTrace("send string package, size=%ldbytes.", buffer->length);
+
 #ifdef SW_USE_RINGBUFFER
     swServer *serv = SwooleG.serv;
     int target_worker_id = swServer_worker_schedule(serv, conn->fd);

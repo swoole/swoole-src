@@ -115,7 +115,6 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     switch (task->info.type)
     {
     case SW_EVENT_TCP:
-    case SW_EVENT_PACKAGE_START:
     //ringbuffer shm package
     case SW_EVENT_PACKAGE:
         do_task:
@@ -152,6 +151,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         }
         break;
 
+    case SW_EVENT_PACKAGE_START:
     case SW_EVENT_PACKAGE_END:
         //input buffer
         package = SwooleWG.buffer_input[task->info.from_id];
