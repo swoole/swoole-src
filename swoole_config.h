@@ -203,6 +203,7 @@
 #define SW_HTTP_PARAM_MAX_NUM            128
 #define SW_HTTP_COOKIE_KEYLEN            128
 #define SW_HTTP_RESPONSE_INIT_SIZE       65536
+#define SW_HTTP_COMPRESS_GZIP
 
 #define SW_WEBSOCKET_SERVER_SOFTWARE     "swoole-websocket-server"
 #define SW_WEBSOCKET_VERSION             "13"

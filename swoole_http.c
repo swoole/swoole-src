@@ -1237,6 +1237,10 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
         }
         else if (body_length > 0)
         {
+            if (client->gzip_enable)
+            {
+                body_length = swoole_zlib_buffer->length;
+            }
             n = snprintf(buf, sizeof(buf), "Content-Length: %d\r\n", body_length);
             swString_append_ptr(response, buf, n);
         }
@@ -1254,7 +1258,11 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
     //http compress
     if (client->gzip_enable)
     {
+#ifdef SW_HTTP_COMPRESS_GZIP
+        swString_append_ptr(response, SW_STRL("Content-Encoding: gzip\r\n") - 1);
+#else
         swString_append_ptr(response, SW_STRL("Content-Encoding: deflate\r\n") - 1);
+#endif
     }
     swString_append_ptr(response, ZEND_STRL("\r\n"));
     client->send_header = 1;
@@ -1264,16 +1272,24 @@ static int http_response_compress(swString *body, int level)
 {
     assert(level > 0 || level < 10);
 
-    if (body->length > swoole_zlib_buffer->size)
+    size_t memory_size = ((size_t) ((double) body->length * (double) 1.015)) + 10 + 8 + 4 + 1;
+
+    if (memory_size > swoole_zlib_buffer->size)
     {
-        swString_extend(swoole_zlib_buffer, body->length);
+        swString_extend(swoole_zlib_buffer, memory_size);
     }
 
     z_stream zstream;
     memset(&zstream, 0, sizeof(zstream));
-    long encoding = -0xf;
-    int status;
 
+    //deflate: -0xf, gzip: 0x1f
+#ifdef SW_HTTP_COMPRESS_GZIP
+    int encoding = 0x1f;
+#else
+    int encoding =  -0xf;
+#endif
+
+    int status;
     if (Z_OK == deflateInit2(&zstream, -1, Z_DEFLATED, encoding, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY))
     {
         zstream.next_in = (Bytef *) body->str;
@@ -1286,8 +1302,7 @@ static int http_response_compress(swString *body, int level)
 
         if (Z_STREAM_END == status)
         {
-            memcpy(body->str, swoole_zlib_buffer->str, zstream.total_out);
-            body->length = zstream.total_out;
+            swoole_zlib_buffer->length = zstream.total_out;
             return SW_OK;
         }
     }
@@ -1339,11 +1354,17 @@ PHP_METHOD(swoole_http_response, end)
         {
             http_response_compress(&body, client->gzip_level);
         }
-
         http_build_header(client, getThis(), swoole_http_buffer, body.length TSRMLS_CC);
         if (client->request.method != PHP_HTTP_HEAD && body.length > 0)
         {
-            swString_append(swoole_http_buffer, &body);
+            if (client->gzip_enable)
+            {
+                swString_append(swoole_http_buffer, swoole_zlib_buffer);
+            }
+            else
+            {
+                swString_append(swoole_http_buffer, &body);
+            }
         }
 
         ret = swServer_tcp_send(SwooleG.serv, client->fd, swoole_http_buffer->str, swoole_http_buffer->length);
