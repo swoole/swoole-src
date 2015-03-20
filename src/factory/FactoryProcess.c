@@ -662,7 +662,12 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     int fd = resp->info.fd;
 
     swConnection *conn = swWorker_get_connection(serv, fd);
-    if (conn == NULL || conn->active == 0 || ((conn->closed || conn->removed) && resp->info.type != SW_EVENT_CLOSE))
+    if (conn == NULL || conn->active == 0)
+    {
+        swWarn("connection[%d] does not exist.", fd);
+        return SW_ERR;
+    }
+    else if ((conn->closed || conn->removed) && resp->info.type != SW_EVENT_CLOSE)
     {
         swWarn("send failed, because connection[%d] has been closed.", fd);
         return SW_ERR;

@@ -143,7 +143,7 @@ PHP_FUNCTION(swoole_timer_add)
     char *func_name = NULL;
     if (!zend_is_callable(cb->callback, 0, &func_name TSRMLS_CC))
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Function '%s' is not callable", func_name);
         efree(func_name);
         RETURN_FALSE;
     }
