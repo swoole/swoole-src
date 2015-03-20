@@ -730,7 +730,7 @@ void swoole_http_init(int module_number TSRMLS_DC)
     REGISTER_LONG_CONSTANT("HTTP_GLOBAL_ALL", HTTP_GLOBAL_GET| HTTP_GLOBAL_POST| HTTP_GLOBAL_COOKIE | HTTP_GLOBAL_REQUEST |HTTP_GLOBAL_SERVER, CONST_CS | CONST_PERSISTENT);
 }
 
-PHP_METHOD(swoole_http_server, on)
+static PHP_METHOD(swoole_http_server, on)
 {
     zval *callback;
     zval *event_name;
@@ -855,6 +855,8 @@ void swoole_http_request_free(swoole_http_client *client TSRMLS_DC)
         client->zresponse = NULL;
     }
     client->end = 1;
+    client->send_header = 0;
+    client->gzip_enable = 0;
 }
 
 static char *http_status_message(int code)
@@ -923,7 +925,7 @@ static char *http_status_message(int code)
     }
 }
 
-PHP_METHOD(swoole_http_server, setglobal)
+static PHP_METHOD(swoole_http_server, setglobal)
 {
     long global_flag = 0;
     long request_flag = HTTP_GLOBAL_GET | HTTP_GLOBAL_POST;
@@ -939,7 +941,7 @@ PHP_METHOD(swoole_http_server, setglobal)
     RETURN_TRUE;
 }
 
-PHP_METHOD(swoole_http_server, start)
+static PHP_METHOD(swoole_http_server, start)
 {
     swServer *serv;
     int ret;
@@ -1337,7 +1339,7 @@ static int http_response_compress(swString *body, int level)
     return SW_ERR;
 }
 
-PHP_METHOD(swoole_http_response, end)
+static PHP_METHOD(swoole_http_response, end)
 {
     int ret;
     swString body;
@@ -1399,7 +1401,6 @@ PHP_METHOD(swoole_http_response, end)
     }
 
     swoole_http_request_free(client TSRMLS_CC);
-    client->send_header = 0;
 
     if (!client->keepalive)
     {
@@ -1684,7 +1685,7 @@ static PHP_METHOD(swoole_http_response, status)
     client->response.status = http_status;
 }
 
-PHP_METHOD(swoole_http_response, header)
+static PHP_METHOD(swoole_http_response, header)
 {
     char *k, *v;
     int klen, vlen;
@@ -1704,10 +1705,9 @@ PHP_METHOD(swoole_http_response, header)
 
 static PHP_METHOD(swoole_http_response, gzip)
 {
-    zend_bool enable = 1;
     long level = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|bl", &enable, &level) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &level) == FAILURE)
     {
         return;
     }
@@ -1716,10 +1716,21 @@ static PHP_METHOD(swoole_http_response, gzip)
     swoole_http_client *client = swArray_fetch(http_client_array, Z_LVAL_P(zfd));
     if (!client)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "http client[#%d] not exists.", (int) Z_LVAL_P(zfd));
+        swoole_php_error(E_WARNING, "http client[#%d] not exists.", (int) Z_LVAL_P(zfd));
         RETURN_FALSE;
     }
 
-    client->gzip_enable = enable;
+    if (client->send_header)
+    {
+        swoole_php_fatal_error(E_WARNING, "must use before send header.");
+        RETURN_FALSE;
+    }
+
+    if (level > 9)
+    {
+        level = 9;
+    }
+
+    client->gzip_enable = 1;
     client->gzip_level = level;
 }
