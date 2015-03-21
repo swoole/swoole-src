@@ -1725,7 +1725,7 @@ static PHP_METHOD(swoole_http_response, header)
 
 static PHP_METHOD(swoole_http_response, gzip)
 {
-#ifdef HAVE_ZLIB
+#ifndef HAVE_ZLIB
     swoole_php_error(E_WARNING, "zlib library is not installed, cannot use gzip.");
     RETURN_FALSE;
 #endif
