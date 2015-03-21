@@ -45,7 +45,7 @@ int swReactor_create(swReactor *reactor, int max_event)
 #elif defined(SW_MAINREACTOR_USE_POLL)
         ret = swReactorPoll_create(reactor, max_event);
 #else
-        ret = swReactorSelect_create(SwooleG.main_reactor);
+        ret = swReactorSelect_create(reactor);
 #endif
     }
 
@@ -235,14 +235,14 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
     int ret;
     swConnection *socket = swReactor_get(reactor, fd);
     swBuffer *buffer = socket->out_buffer;
+    
+    if (socket->fd == 0)
+    {
+        socket->fd = fd;
+    }
 
     if (swBuffer_empty(buffer))
     {
-        if (socket->fd == 0)
-        {
-            socket->fd = fd;
-        }
-
         do_receive:
         ret = swConnection_send(socket, buf, n, 0);
 
@@ -271,14 +271,14 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
 
             if (socket->events & SW_EVENT_READ)
             {
-                if (SwooleG.main_reactor->set(SwooleG.main_reactor, fd, socket->fdtype | socket->events) < 0)
+                if (reactor->set(reactor, fd, socket->fdtype | socket->events) < 0)
                 {
                     swSysError("reactor->set(%d, SW_EVENT_WRITE) failed.", fd);
                 }
             }
             else
             {
-                if (SwooleG.main_reactor->add(SwooleG.main_reactor, fd, socket->fdtype | SW_EVENT_WRITE) < 0)
+                if (reactor->add(reactor, fd, socket->fdtype | SW_EVENT_WRITE) < 0)
                 {
                     swSysError("reactor->add(%d, SW_EVENT_WRITE) failed.", fd);
                 }
