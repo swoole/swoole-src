@@ -29,14 +29,19 @@
 #include "websocket.h"
 #include "Connection.h"
 #include "base64.h"
-#include "zlib.h"
+
+#ifdef HAVE_ZLIB
+#include <zlib.h>
+#endif
 
 static swArray *http_client_array;
 static uint8_t http_merge_global_flag = 0;
 static uint8_t http_merge_request_flag = 0;
 
 swString *swoole_http_buffer;
+#ifdef HAVE_ZLIB
 swString *swoole_zlib_buffer;
+#endif
 
 enum http_response_flag
 {
@@ -982,13 +987,15 @@ static PHP_METHOD(swoole_http_server, start)
         swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
         RETURN_FALSE;
     }
-
+    
+#ifdef HAVE_ZLIB
     swoole_zlib_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
     if (!swoole_zlib_buffer)
     {
         swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
         RETURN_FALSE;
     }
+#endif
 
     serv->onReceive = http_onReceive;
     serv->onClose = http_onClose;
@@ -1074,6 +1081,7 @@ static PHP_METHOD(swoole_http_response, write)
     char *hex_string;
     int hex_len;
 
+#ifdef HAVE_ZLIB
     if (client->gzip_enable)
     {
         http_response_compress(&body, client->gzip_level);
@@ -1088,6 +1096,7 @@ static PHP_METHOD(swoole_http_response, write)
         swString_append_ptr(swoole_http_buffer, SW_STRL("\r\n") - 1);
     }
     else
+#endif
     {
         hex_string = swoole_dec2hex(body.length, 16);
         hex_len = strlen(hex_string);
@@ -1219,10 +1228,13 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
         {
             if (!(flag & HTTP_RESPONSE_CONTENT_LENGTH) && body_length > 0)
             {
+#ifdef HAVE_ZLIB
                 if (client->gzip_enable)
                 {
                     body_length = swoole_zlib_buffer->length;
                 }
+#endif
+                
                 n = snprintf(buf, sizeof(buf), "Content-Length: %d\r\n", body_length);
                 swString_append_ptr(response, buf, n);
             }
@@ -1263,10 +1275,12 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
         }
         else if (body_length > 0)
         {
+#ifdef HAVE_ZLIB
             if (client->gzip_enable)
             {
                 body_length = swoole_zlib_buffer->length;
             }
+#endif
             n = snprintf(buf, sizeof(buf), "Content-Length: %d\r\n", body_length);
             swString_append_ptr(response, buf, n);
         }
@@ -1294,6 +1308,7 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
     client->send_header = 1;
 }
 
+#ifdef HAVE_ZLIB
 static int http_response_compress(swString *body, int level)
 {
     assert(level > 0 || level < 10);
@@ -1338,6 +1353,7 @@ static int http_response_compress(swString *body, int level)
     }
     return SW_ERR;
 }
+#endif
 
 static PHP_METHOD(swoole_http_response, end)
 {
@@ -1375,18 +1391,22 @@ static PHP_METHOD(swoole_http_response, end)
     else
     {
         swString_clear(swoole_http_buffer);
+#ifdef HAVE_ZLIB
         if (client->gzip_enable)
         {
             http_response_compress(&body, client->gzip_level);
         }
+#endif
         http_build_header(client, getThis(), swoole_http_buffer, body.length TSRMLS_CC);
         if (client->request.method != PHP_HTTP_HEAD && body.length > 0)
         {
+#ifdef HAVE_ZLIB
             if (client->gzip_enable)
             {
                 swString_append(swoole_http_buffer, swoole_zlib_buffer);
             }
             else
+#endif
             {
                 swString_append(swoole_http_buffer, &body);
             }
@@ -1705,6 +1725,11 @@ static PHP_METHOD(swoole_http_response, header)
 
 static PHP_METHOD(swoole_http_response, gzip)
 {
+#ifdef HAVE_ZLIB
+    swoole_php_error(E_WARNING, "zlib library is not installed, cannot use gzip.");
+    RETURN_FALSE;
+#endif
+    
     long level = 1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &level) == FAILURE)

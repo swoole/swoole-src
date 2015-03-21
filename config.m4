@@ -166,7 +166,11 @@ if test "$PHP_SWOOLE" != "no"; then
 	AC_CHECK_LIB(pthread, pthread_mutex_timedlock, AC_DEFINE(HAVE_MUTEX_TIMEDLOCK, 1, [have pthread_mutex_timedlock]))
     AC_CHECK_LIB(ssl, SSL_library_init, AC_DEFINE(HAVE_OPENSSL, 1, [have openssl]))
     AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
-
+    
+    AC_CHECK_LIB(z, deflateInit2, [
+        AC_DEFINE(HAVE_ZLIB, 1, [have zlib])
+        PHP_ADD_LIBRARY(z, 1, SWOOLE_SHARED_LIBADD)
+    ])
 
     if test `uname` = "Darwin" ; then
         AC_CHECK_LIB(c, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
