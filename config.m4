@@ -168,7 +168,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
     
     AC_CHECK_LIB(z, gzgets, [
-        AC_DEFINE(HAVE_ZLIB, 1, [have zlib])
+        AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
         PHP_ADD_LIBRARY(z, 1, SWOOLE_SHARED_LIBADD)
     ])
 

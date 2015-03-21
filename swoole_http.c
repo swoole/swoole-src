@@ -30,7 +30,7 @@
 #include "Connection.h"
 #include "base64.h"
 
-#ifdef HAVE_ZLIB
+#ifdef SW_HAVE_ZLIB
 #include <zlib.h>
 #endif
 
@@ -39,7 +39,7 @@ static uint8_t http_merge_global_flag = 0;
 static uint8_t http_merge_request_flag = 0;
 
 swString *swoole_http_buffer;
-#ifdef HAVE_ZLIB
+#ifdef SW_HAVE_ZLIB
 swString *swoole_zlib_buffer;
 #endif
 
@@ -95,7 +95,10 @@ static void http_global_merge(zval *val, zval *zrequest, int type);
 static void http_global_clear(TSRMLS_D);
 static swoole_http_client *http_get_client(zval *object TSRMLS_DC);
 static void http_build_header(swoole_http_client *client, zval *object, swString *response, int body_length TSRMLS_DC);
+
+#ifdef SW_HAVE_ZLIB
 static int http_response_compress(swString *body, int level);
+#endif
 
 #define http_merge_php_global(v,r,t)  if (http_merge_global_flag > 0) http_global_merge(v,r,t)
 
@@ -988,7 +991,7 @@ static PHP_METHOD(swoole_http_server, start)
         RETURN_FALSE;
     }
     
-#ifdef HAVE_ZLIB
+#ifdef SW_HAVE_ZLIB
     swoole_zlib_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
     if (!swoole_zlib_buffer)
     {
@@ -1081,7 +1084,7 @@ static PHP_METHOD(swoole_http_response, write)
     char *hex_string;
     int hex_len;
 
-#ifdef HAVE_ZLIB
+#ifdef SW_HAVE_ZLIB
     if (client->gzip_enable)
     {
         http_response_compress(&body, client->gzip_level);
@@ -1228,7 +1231,7 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
         {
             if (!(flag & HTTP_RESPONSE_CONTENT_LENGTH) && body_length > 0)
             {
-#ifdef HAVE_ZLIB
+#ifdef SW_HAVE_ZLIB
                 if (client->gzip_enable)
                 {
                     body_length = swoole_zlib_buffer->length;
@@ -1275,7 +1278,7 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
         }
         else if (body_length > 0)
         {
-#ifdef HAVE_ZLIB
+#ifdef SW_HAVE_ZLIB
             if (client->gzip_enable)
             {
                 body_length = swoole_zlib_buffer->length;
@@ -1308,7 +1311,7 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
     client->send_header = 1;
 }
 
-#ifdef HAVE_ZLIB
+#ifdef SW_HAVE_ZLIB
 static int http_response_compress(swString *body, int level)
 {
     assert(level > 0 || level < 10);
@@ -1391,7 +1394,7 @@ static PHP_METHOD(swoole_http_response, end)
     else
     {
         swString_clear(swoole_http_buffer);
-#ifdef HAVE_ZLIB
+#ifdef SW_HAVE_ZLIB
         if (client->gzip_enable)
         {
             http_response_compress(&body, client->gzip_level);
@@ -1400,7 +1403,7 @@ static PHP_METHOD(swoole_http_response, end)
         http_build_header(client, getThis(), swoole_http_buffer, body.length TSRMLS_CC);
         if (client->request.method != PHP_HTTP_HEAD && body.length > 0)
         {
-#ifdef HAVE_ZLIB
+#ifdef SW_HAVE_ZLIB
             if (client->gzip_enable)
             {
                 swString_append(swoole_http_buffer, swoole_zlib_buffer);
@@ -1725,7 +1728,7 @@ static PHP_METHOD(swoole_http_response, header)
 
 static PHP_METHOD(swoole_http_response, gzip)
 {
-#ifndef HAVE_ZLIB
+#ifndef SW_HAVE_ZLIB
     swoole_php_error(E_WARNING, "zlib library is not installed, cannot use gzip.");
     RETURN_FALSE;
 #endif
