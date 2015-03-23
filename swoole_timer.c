@@ -21,6 +21,44 @@
 static void php_swoole_onTimeout(swTimer *timer, swTimer_node *event);
 static void php_swoole_onTimerInterval(swTimer *timer, swTimer_node *event);
 
+int php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tick TSRMLS_DC)
+{
+    if (ms > 86400000)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "The given parameters is too big.");
+        return SW_ERR;
+    }
+
+    char *func_name = NULL;
+    if (!zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+    {
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
+        efree(func_name);
+        return SW_ERR;
+    }
+    efree(func_name);
+
+    if (SwooleGS->start > 0 && swIsTaskWorker())
+    {
+        swoole_php_error(E_WARNING, "cannot use swoole_server->after in task worker.");
+    }
+
+    swTimer_callback *cb = emalloc(sizeof(swTimer_callback));
+
+    cb->data = param;
+    cb->callback = callback;
+
+    php_swoole_check_reactor();
+    php_swoole_check_timer(ms);
+
+    zval_add_ref(&cb->callback);
+    if (cb->data)
+    {
+        zval_add_ref(&cb->data);
+    }
+
+    return SwooleG.timer.add(&SwooleG.timer, ms, is_tick, cb);
+}
 
 static void php_swoole_onTimeout(swTimer *timer, swTimer_node *event)
 {
@@ -36,7 +74,6 @@ static void php_swoole_onTimeout(swTimer *timer, swTimer_node *event)
         args[0] = &callback->data;
         argc = 1;
     }
-
     if (call_user_function_ex(EG(function_table), NULL, callback->callback, &retval, argc, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_timer: onTimeout handler error");
@@ -46,7 +83,6 @@ static void php_swoole_onTimeout(swTimer *timer, swTimer_node *event)
     {
         zval_ptr_dtor(&retval);
     }
-
     callback = event->data;
     if (callback)
     {
@@ -194,54 +230,58 @@ PHP_FUNCTION(swoole_timer_del)
     RETURN_TRUE;
 }
 
-PHP_FUNCTION(swoole_timer_after)
+PHP_FUNCTION(swoole_timer_tick)
 {
     long after_ms;
-    swTimer_callback *cb = emalloc(sizeof(swTimer_callback));
-    cb->data = NULL;
+    zval *callback;
+    zval *param = NULL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz|z", &after_ms, &(cb->callback), &(cb->data)) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz|z", &after_ms, &callback, &param) == FAILURE)
     {
         return;
-    }
-
-    if (after_ms > 86400000)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "The given parameters is too big.");
-        RETURN_FALSE;
-    }
-
-    char *func_name = NULL;
-    if (!zend_is_callable(cb->callback, 0, &func_name TSRMLS_CC))
-    {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
-        efree(func_name);
-        RETURN_FALSE;
-    }
-    efree(func_name);
-
-    if (SwooleGS->start > 0 && swIsTaskWorker())
-    {
-        swoole_php_error(E_WARNING, "cannot use swoole_server->after in task worker.");
     }
 
     php_swoole_check_reactor();
     php_swoole_check_timer(after_ms);
 
-    zval_add_ref(&cb->callback);
-    if (cb->data)
-    {
-        zval_add_ref(&cb->data);
-    }
+    int timer_id = php_swoole_add_timer(after_ms, callback, param, 1 TSRMLS_CC);
 
-    int timer_id = SwooleG.timer.add(&SwooleG.timer, after_ms, 0, cb);
     if (timer_id < 0)
     {
         RETURN_FALSE;
     }
-    php_swoole_try_run_reactor();
+    else
+    {
+        php_swoole_try_run_reactor();
+        RETURN_LONG(timer_id);
+    }
+}
 
-    RETURN_LONG(timer_id);
+PHP_FUNCTION(swoole_timer_after)
+{
+    long after_ms;
+    zval *callback;
+    zval *param = NULL;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz|z", &after_ms, &callback, &param) == FAILURE)
+    {
+        return;
+    }
+
+    php_swoole_check_reactor();
+    php_swoole_check_timer(after_ms);
+
+    int timer_id = php_swoole_add_timer(after_ms, callback, param, 0 TSRMLS_CC);
+
+    if (timer_id < 0)
+    {
+        RETURN_FALSE;
+    }
+    else
+    {
+        php_swoole_try_run_reactor();
+        RETURN_LONG(timer_id);
+    }
 }
 
 PHP_FUNCTION(swoole_timer_clear)

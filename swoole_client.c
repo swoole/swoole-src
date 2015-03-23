@@ -473,6 +473,7 @@ void php_swoole_try_run_reactor()
 
         zval *callback;
         MAKE_STD_ZVAL(callback);
+        ZVAL_STRING(callback, "swoole_event_wait", 1);
 
         SwooleWG.reactor_wait_onexit = 1;
         SwooleWG.reactor_ready = 0;
@@ -484,7 +485,7 @@ void php_swoole_try_run_reactor()
         shutdown_function_entry.arg_count = 1;
         shutdown_function_entry.arguments = (zval **) safe_emalloc(sizeof(zval *), 1, 0);
 
-        ZVAL_STRING(callback, "swoole_event_wait", 1);
+
         shutdown_function_entry.arguments[0] = callback;
 
         if (!register_user_shutdown_function("swoole_event_wait", sizeof("swoole_event_wait"), &shutdown_function_entry TSRMLS_CC))
@@ -494,12 +495,16 @@ void php_swoole_try_run_reactor()
             php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
         }
 #else
-        SwooleWG.reactor_ready = 1;
+        zval *register_shutdown_function;
+        zval *retval;
+        MAKE_STD_ZVAL(register_shutdown_function);
+        ZVAL_STRING(register_shutdown_function, "register_shutdown_function", 1);
+        zval **args[1] = {&callback};
 
-        int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
-        if (ret < 0)
+        if (call_user_function_ex(EG(function_table), NULL, register_shutdown_function, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
         {
-            php_error_docref(NULL TSRMLS_CC, E_ERROR, "reactor wait failed. Error: %s [%d]", strerror(errno), errno);
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_timer: onTimeout handler error");
+            return;
         }
 #endif
     }
