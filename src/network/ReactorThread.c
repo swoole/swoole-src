@@ -495,12 +495,6 @@ int swReactorThread_send(swSendData *_send)
         }
     }
 
-    //listen EPOLLOUT event
-    if (reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_WRITE | SW_EVENT_READ) < 0 && (errno == EBADF || errno == ENOENT))
-    {
-        goto close_fd;
-    }
-
     swBuffer_trunk *trunk;
     //close connection
     if (_send->info.type == SW_EVENT_CLOSE)
@@ -531,6 +525,13 @@ int swReactorThread_send(swSendData *_send)
         //buffer enQueue
         swBuffer_append(conn->out_buffer, _send->data, _send->length);
     }
+
+    //listen EPOLLOUT event
+    if (reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_WRITE | SW_EVENT_READ) < 0 && (errno == EBADF || errno == ENOENT))
+    {
+        goto close_fd;
+    }
+
     return SW_OK;
 }
 
