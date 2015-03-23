@@ -18,6 +18,11 @@
 
 #include "php_swoole.h"
 
+enum swoole_timer_type
+{
+    SW_TIMER_TICK, SW_TIMER_AFTER, SW_TIMER_INTERVAL,
+};
+
 static void php_swoole_onTimeout(swTimer *timer, swTimer_node *event);
 static void php_swoole_onTimerInterval(swTimer *timer, swTimer_node *event);
 
@@ -47,6 +52,15 @@ int php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tick TSRMLS
 
     cb->data = param;
     cb->callback = callback;
+
+    if (is_tick)
+    {
+        cb->type = SW_TIMER_TICK;
+    }
+    else
+    {
+        cb->type = SW_TIMER_AFTER;
+    }
 
     php_swoole_check_reactor();
     php_swoole_check_timer(ms);
@@ -96,20 +110,36 @@ static void php_swoole_onTimeout(swTimer *timer, swTimer_node *event)
 
 static void php_swoole_onTimerInterval(swTimer *timer, swTimer_node *event)
 {
-    zval *retval;
-    zval **args[1];
-    swTimer_callback *cb = event->data;
-    uint32_t interval = event->interval;
-
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-    zval *zinterval;
-    MAKE_STD_ZVAL(zinterval);
-    ZVAL_LONG(zinterval, interval);
+    zval *retval;
+    zval **args[2];
+    int argc = 1;
 
-    args[0] = &zinterval;
+    zval *ztimer_id;
 
-    if (call_user_function_ex(EG(function_table), NULL, cb->callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    swTimer_callback *cb = event->data;
+
+    if (cb->type == SW_TIMER_TICK)
+    {
+        MAKE_STD_ZVAL(ztimer_id);
+        ZVAL_LONG(ztimer_id, event->id);
+
+        if (cb->data)
+        {
+            argc = 2;
+            zval_add_ref(&cb->data);
+            args[1] = &cb->data;
+        }
+    }
+    else
+    {
+        MAKE_STD_ZVAL(ztimer_id);
+        ZVAL_LONG(ztimer_id, event->interval);
+    }
+    args[0] = &ztimer_id;
+
+    if (call_user_function_ex(EG(function_table), NULL, cb->callback, &retval, argc, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_timer: onTimerCallback handler error");
         return;
@@ -118,7 +148,7 @@ static void php_swoole_onTimerInterval(swTimer *timer, swTimer_node *event)
     {
         zval_ptr_dtor(&retval);
     }
-    zval_ptr_dtor(&zinterval);
+    zval_ptr_dtor(&ztimer_id);
 }
 
 void php_swoole_check_timer(int msec)
@@ -174,6 +204,7 @@ PHP_FUNCTION(swoole_timer_add)
     swTimer_callback *cb = emalloc(sizeof(swTimer_callback));
     cb->callback = callback;
     cb->data = NULL;
+    cb->type = SW_TIMER_INTERVAL;
     zval_add_ref(&callback);
 
     char *func_name = NULL;

@@ -66,6 +66,7 @@ typedef struct _swTimer_callback
     zval* callback;
     zval* data;
     int interval;
+    int type;
 } swTimer_callback;
 
 extern zend_module_entry swoole_module_entry;
