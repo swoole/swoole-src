@@ -29,13 +29,11 @@
 
 typedef struct swReactorEpoll_s swReactorEpoll;
 
-#pragma pack(4)
 typedef struct _swFd
 {
     uint32_t fd;
     uint32_t fdtype;
 } swFd;
-#pragma pack()
 
 static int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype);
 static int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype);
