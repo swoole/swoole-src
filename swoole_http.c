@@ -607,7 +607,7 @@ static int http_onReceive(swFactory *factory, swEventData *req)
 
     php_http_parser_init(parser, PHP_HTTP_REQUEST);
 
-    zval *zdata = php_swoole_get_data(req TSRMLS_CC);
+    zval *zdata = php_swoole_get_recv_data(req TSRMLS_CC);
 
     swTrace("httpRequest %d bytes:\n---------------------------------------\n%s\n", Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
 
@@ -1046,18 +1046,10 @@ static PHP_METHOD(swoole_http_request, rawcontent)
 
 static PHP_METHOD(swoole_http_response, write)
 {
-    swString body;
-    body.length = 0;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &body.str, &body.length) == FAILURE)
+    zval *zdata;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zdata) == FAILURE)
     {
         return;
-    }
-
-    if (body.length >= SW_BUFFER_OUTPUT_SIZE)
-    {
-        swoole_php_fatal_error(E_WARNING, "http response max_size is %d.", SW_BUFFER_OUTPUT_SIZE);
-        RETURN_FALSE;
     }
 
     swoole_http_client *client = http_get_client(getThis() TSRMLS_CC);
@@ -1079,10 +1071,21 @@ static PHP_METHOD(swoole_http_response, write)
         }
     }
 
-    if (body.length <= 0)
+    swString http_body;
+    int length = php_swoole_get_send_data(zdata, &http_body.str TSRMLS_CC);
+
+    if (length < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "data is empty.");
         RETURN_FALSE;
+    }
+    else if (length == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "data is empty.");
+        RETURN_FALSE;
+    }
+    else
+    {
+        http_body.length = length;
     }
 
     swString_clear(swoole_http_buffer);
@@ -1093,7 +1096,7 @@ static PHP_METHOD(swoole_http_response, write)
 #ifdef SW_HAVE_ZLIB
     if (client->gzip_enable)
     {
-        http_response_compress(&body, client->gzip_level);
+        http_response_compress(&http_body, client->gzip_level);
 
         hex_string = swoole_dec2hex(swoole_zlib_buffer->length, 16);
         hex_len = strlen(hex_string);
@@ -1107,13 +1110,13 @@ static PHP_METHOD(swoole_http_response, write)
     else
 #endif
     {
-        hex_string = swoole_dec2hex(body.length, 16);
+        hex_string = swoole_dec2hex(http_body.length, 16);
         hex_len = strlen(hex_string);
 
         //"%*s\r\n%*s\r\n", hex_len, hex_string, body.length, body.str
         swString_append_ptr(swoole_http_buffer, hex_string, hex_len);
         swString_append_ptr(swoole_http_buffer, SW_STRL("\r\n") - 1);
-        swString_append_ptr(swoole_http_buffer, body.str, body.length);
+        swString_append_ptr(swoole_http_buffer, http_body.str, http_body.length);
         swString_append_ptr(swoole_http_buffer, SW_STRL("\r\n") - 1);
     }
 
@@ -1366,19 +1369,38 @@ static int http_response_compress(swString *body, int level)
 
 static PHP_METHOD(swoole_http_response, end)
 {
+    zval *zdata = NULL;
     int ret;
-    swString body;
-    body.length = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|s", &body.str, &body.length) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|z", &zdata) == FAILURE)
     {
         return;
     }
 
-    if (body.length >= SW_BUFFER_OUTPUT_SIZE)
+    swString http_body;
+
+    if (zdata)
     {
-        swoole_php_fatal_error(E_WARNING, "http response max_size is %d.", SW_BUFFER_OUTPUT_SIZE);
-        RETURN_FALSE;
+        int length = php_swoole_get_send_data(zdata, &http_body.str TSRMLS_CC);
+
+        if (length < 0)
+        {
+            RETURN_FALSE;
+        }
+        else if (length == 0)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "data is empty.");
+            RETURN_FALSE;
+        }
+        else
+        {
+            http_body.length = length;
+        }
+    }
+    else
+    {
+        http_body.length = 0;
+        http_body.str = NULL;
     }
 
     swoole_http_client *client = http_get_client(getThis() TSRMLS_CC);
@@ -1403,9 +1425,9 @@ static PHP_METHOD(swoole_http_response, end)
 #ifdef SW_HAVE_ZLIB
         if (client->gzip_enable)
         {
-            if (body.length > 0)
+            if (http_body.length > 0)
             {
-                http_response_compress(&body, client->gzip_level);
+                http_response_compress(&http_body, client->gzip_level);
             }
             else
             {
@@ -1413,9 +1435,9 @@ static PHP_METHOD(swoole_http_response, end)
             }
         }
 #endif
-        http_build_header(client, getThis(), swoole_http_buffer, body.length TSRMLS_CC);
+        http_build_header(client, getThis(), swoole_http_buffer, http_body.length TSRMLS_CC);
 
-        if (body.length > 0)
+        if (http_body.length > 0)
         {
 #ifdef SW_HAVE_ZLIB
             if (client->gzip_enable)
@@ -1425,7 +1447,7 @@ static PHP_METHOD(swoole_http_response, end)
             else
 #endif
             {
-                swString_append(swoole_http_buffer, &body);
+                swString_append(swoole_http_buffer, &http_body);
             }
         }
 

@@ -23,39 +23,39 @@ static uint64_t ntoh64(uint64_t network);
 //static void swWebSocket_print_frame(swWebSocket_frame *frm);
 static void swWebSocket_unmask(char *masks, swHttpRequest *request);
 
-void swWebSocket_encode(swString *buffer, swString *data, char opcode, int fin)
+void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode, int fin)
 {
     int pos = 0;
     char frame_header[16];
 
     frame_header[pos++] = FRAME_SET_FIN(fin) | FRAME_SET_OPCODE(opcode);
-    if (data->length < 126)
+    if (length < 126)
     {
-        frame_header[pos++] = FRAME_SET_MASK(0) | FRAME_SET_LENGTH(data->length, 0);
+        frame_header[pos++] = FRAME_SET_MASK(0) | FRAME_SET_LENGTH(length, 0);
     }
     else
     {
-        if (data->length < 65536)
+        if (length < 65536)
         {
             frame_header[pos++] = FRAME_SET_MASK(0) | 126;
         }
         else
         {
             frame_header[pos++] = FRAME_SET_MASK(0) | 127;
-            frame_header[pos++] = FRAME_SET_LENGTH(data->length, 7);
-            frame_header[pos++] = FRAME_SET_LENGTH(data->length, 6);
-            frame_header[pos++] = FRAME_SET_LENGTH(data->length, 5);
-            frame_header[pos++] = FRAME_SET_LENGTH(data->length, 4);
-            frame_header[pos++] = FRAME_SET_LENGTH(data->length, 3);
-            frame_header[pos++] = FRAME_SET_LENGTH(data->length, 2);
+            frame_header[pos++] = FRAME_SET_LENGTH(length, 7);
+            frame_header[pos++] = FRAME_SET_LENGTH(length, 6);
+            frame_header[pos++] = FRAME_SET_LENGTH(length, 5);
+            frame_header[pos++] = FRAME_SET_LENGTH(length, 4);
+            frame_header[pos++] = FRAME_SET_LENGTH(length, 3);
+            frame_header[pos++] = FRAME_SET_LENGTH(length, 2);
         }
-        frame_header[pos++] = FRAME_SET_LENGTH(data->length, 1);
-        frame_header[pos++] = FRAME_SET_LENGTH(data->length, 0);
+        frame_header[pos++] = FRAME_SET_LENGTH(length, 1);
+        frame_header[pos++] = FRAME_SET_LENGTH(length, 0);
     }
     //websocket frame header
     swString_append_ptr(buffer, frame_header, pos);
     //websocket frame body
-    swString_append(buffer, data);
+    swString_append_ptr(buffer, data, length);
 }
 
 //uint64_t hton64(uint64_t host)

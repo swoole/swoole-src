@@ -38,7 +38,6 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req);
 static void php_swoole_onStart(swServer *);
 static void php_swoole_onShutdown(swServer *);
 static void php_swoole_onConnect(swServer *, int fd, int from_id);
-
 static void php_swoole_onTimer(swServer *serv, int interval);
 static void php_swoole_onWorkerStart(swServer *, int worker_id);
 static void php_swoole_onWorkerStop(swServer *, int worker_id);
@@ -49,7 +48,7 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
 static void php_swoole_onManagerStart(swServer *serv);
 static void php_swoole_onManagerStop(swServer *serv);
 
-zval *php_swoole_get_data(swEventData *req TSRMLS_DC)
+zval *php_swoole_get_recv_data(swEventData *req TSRMLS_DC)
 {
     zval *zdata;
     char *data_ptr = NULL;
@@ -97,6 +96,41 @@ zval *php_swoole_get_data(swEventData *req TSRMLS_DC)
     }
 #endif
     return zdata;
+}
+
+int php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC)
+{
+    int length;
+
+    if (Z_TYPE_P(zdata) == IS_STRING)
+    {
+        length = Z_STRLEN_P(zdata);
+        *str = Z_STRVAL_P(zdata);
+    }
+    else if (Z_TYPE_P(zdata) == IS_OBJECT)
+    {
+        if (!instanceof_function(Z_OBJCE_P(zdata), swoole_buffer_class_entry_ptr TSRMLS_CC))
+        {
+            swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_buffer.");
+            return SW_ERR;
+        }
+        swString *str_buffer = php_swoole_buffer_get(zdata TSRMLS_CC);
+        length = str_buffer->length - str_buffer->offset;
+        *str = str_buffer->str + str_buffer->offset;
+    }
+    else
+    {
+        swoole_php_fatal_error(E_WARNING, "only supports string or swoole_buffer type.");
+        return SW_ERR;
+    }
+
+    if (length >= SwooleG.serv->buffer_output_size)
+    {
+        swoole_php_fatal_error(E_WARNING, "send data max_size is %d.", SwooleG.serv->buffer_output_size);
+        return SW_ERR;
+    }
+
+    return length;
 }
 
 void php_swoole_register_callback(swServer *serv)
@@ -348,7 +382,7 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
         ZVAL_LONG(zfd, (long )req->info.fd);
     }
 
-    zdata = php_swoole_get_data(req TSRMLS_CC);
+    zdata = php_swoole_get_recv_data(req TSRMLS_CC);
 
     args[0] = &zserv;
     args[1] = &zfd;
@@ -1728,32 +1762,14 @@ PHP_FUNCTION(swoole_server_send)
         }
     }
 
-    int length;
     char *data;
+    int length = php_swoole_get_send_data(zdata, &data TSRMLS_CC);
 
-    if (Z_TYPE_P(zdata) == IS_STRING)
+    if (length < 0)
     {
-        length = Z_STRLEN_P(zdata);
-        data = Z_STRVAL_P(zdata);
-    }
-    else if (Z_TYPE_P(zdata) == IS_OBJECT)
-    {
-        if (!instanceof_function(Z_OBJCE_P(zdata), swoole_buffer_class_entry_ptr TSRMLS_CC))
-        {
-            php_error_docref(NULL TSRMLS_CC, E_ERROR, "object is not instanceof swoole_buffer.");
-            RETURN_FALSE;
-        }
-        swString *str_buffer = php_swoole_buffer_get(zdata TSRMLS_CC);
-        length = str_buffer->length - str_buffer->offset;
-        data = str_buffer->str + str_buffer->offset;
-    }
-    else
-    {
-        swoole_php_fatal_error(E_WARNING, "only supports string or swoole_buffer type.");
         RETURN_FALSE;
     }
-
-    if (length <= 0)
+    else if (length == 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "data is empty.");
         RETURN_FALSE;

@@ -381,7 +381,8 @@ void php_swoole_register_callback(swServer *serv);
 void php_swoole_try_run_reactor();
 int php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tick TSRMLS_DC);
 
-zval *php_swoole_get_data(swEventData *req TSRMLS_DC);
+zval *php_swoole_get_recv_data(swEventData *req TSRMLS_DC);
+int php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC);
 void php_swoole_onClose(swServer *, int fd, int from_id);
 
 static sw_inline swString* php_swoole_buffer_get(zval *object TSRMLS_DC)

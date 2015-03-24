@@ -168,7 +168,7 @@ int swoole_websocket_onMessage(swEventData *req)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
 	int fd = req->info.fd;
-	zval *zdata = php_swoole_get_data(req TSRMLS_CC);
+	zval *zdata = php_swoole_get_recv_data(req TSRMLS_CC);
 
 	char *buf = Z_STRVAL_P(zdata);
 	long fin = buf[0] ? 1 : 0;
@@ -303,14 +303,12 @@ PHP_METHOD( swoole_websocket_server, on)
 
 PHP_METHOD(swoole_websocket_server, push)
 {
-    swString data;
-    data.length = 0;
-
+    zval *zdata;
     long fd = 0;
     long opcode = WEBSOCKET_OPCODE_TEXT_FRAME;
     zend_bool fin = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls|lb", &fd, &data.str, &data.length, &opcode, &fin) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz|lb", &fd, &zdata, &opcode, &fin) == FAILURE)
     {
         return;
     }
@@ -327,6 +325,19 @@ PHP_METHOD(swoole_websocket_server, push)
         RETURN_FALSE;
     }
 
+    char *data;
+    int length = php_swoole_get_send_data(zdata, &data TSRMLS_CC);
+
+    if (length < 0)
+    {
+        RETURN_FALSE;
+    }
+    else if (length == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "data is empty.");
+        RETURN_FALSE;
+    }
+
     swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
     if (!conn || conn->websocket_status < WEBSOCKET_STATUS_HANDSHAKE)
     {
@@ -334,6 +345,6 @@ PHP_METHOD(swoole_websocket_server, push)
         RETURN_FALSE;
     }
     swString_clear(swoole_http_buffer);
-    swWebSocket_encode(swoole_http_buffer, &data, opcode, (int) fin);
+    swWebSocket_encode(swoole_http_buffer, data, length, opcode, (int) fin);
     SW_CHECK_RETURN(swServer_tcp_send(SwooleG.serv, fd, swoole_http_buffer->str, swoole_http_buffer->length));
 }

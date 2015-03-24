@@ -1,7 +1,7 @@
 <?php
 $key_dir = dirname(dirname(__DIR__)).'/tests/ssl';
-$http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE);
-//$http = new swoole_http_server("0.0.0.0", 9501);
+//$http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE);
+$http = new swoole_http_server("0.0.0.0", 9501);
 //https
 //$http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
 //$http->setGlobal(HTTP_GLOBAL_ALL, HTTP_GLOBAL_GET|HTTP_GLOBAL_POST|HTTP_GLOBAL_COOKIE);
