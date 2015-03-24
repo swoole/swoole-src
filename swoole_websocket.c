@@ -218,12 +218,12 @@ int swoole_websocket_onMessage(swEventData *req)
     {
         zval_ptr_dtor(&retval);
     }
+
     zval_ptr_dtor(&zdata);
     zval_ptr_dtor(&zfd);
     zval_ptr_dtor(&zd);
     zval_ptr_dtor(&zopcode);
     zval_ptr_dtor(&zfin);
-    zval_ptr_dtor(&zserv);
 
     return SW_OK;
 }
