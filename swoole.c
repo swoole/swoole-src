@@ -759,6 +759,29 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
         swWorker_clean();
     }
 
+    if (SwooleGS->start > 0 && SwooleG.running > 0)
+    {
+        if (PG(last_error_message))
+        {
+            switch(PG(last_error_type))
+            {
+            case E_ERROR:
+            case E_CORE_ERROR:
+            case E_USER_ERROR:
+            case E_COMPILE_ERROR:
+                swWarn("Fatal error: %s in %s on line %d.", PG(last_error_message),
+                        PG(last_error_file)?PG(last_error_file):"-", PG(last_error_lineno));
+                break;
+            default:
+                break;
+            }
+        }
+        else
+        {
+            swWarn("worker process is terminated by exit()/die().");
+        }
+    }
+
     SwooleWG.reactor_wait_onexit = 0;
     return SUCCESS;
 }
