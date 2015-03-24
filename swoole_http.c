@@ -1070,13 +1070,19 @@ static PHP_METHOD(swoole_http_response, write)
     {
         client->chunk = 1;
         swString_clear(swoole_http_buffer);
-        http_build_header(client, getThis(), swoole_http_buffer, 0 TSRMLS_CC);
+        http_build_header(client, getThis(), swoole_http_buffer, -1 TSRMLS_CC);
         if (swServer_tcp_send(SwooleG.serv, client->fd, swoole_http_buffer->str, swoole_http_buffer->length) < 0)
         {
             client->chunk = 0;
             client->send_header = 0;
             RETURN_FALSE;
         }
+    }
+
+    if (body.length <= 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "data is empty.");
+        RETURN_FALSE;
     }
 
     swString_clear(swoole_http_buffer);
@@ -1229,7 +1235,7 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
         }
         else
         {
-            if (!(flag & HTTP_RESPONSE_CONTENT_LENGTH) && body_length > 0)
+            if (!(flag & HTTP_RESPONSE_CONTENT_LENGTH) && body_length >= 0)
             {
 #ifdef SW_HAVE_ZLIB
                 if (client->gzip_enable)
@@ -1276,7 +1282,7 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
             n = snprintf(buf, sizeof(buf), "Allow: GET, POST, PUT, DELETE, HEAD, OPTIONS\r\nContent-Length: %d\r\n", 0);
             swString_append_ptr(response, buf, n);
         }
-        else if (body_length > 0)
+        else if (body_length >= 0)
         {
 #ifdef SW_HAVE_ZLIB
             if (client->gzip_enable)
@@ -1397,11 +1403,19 @@ static PHP_METHOD(swoole_http_response, end)
 #ifdef SW_HAVE_ZLIB
         if (client->gzip_enable)
         {
-            http_response_compress(&body, client->gzip_level);
+            if (body.length > 0)
+            {
+                http_response_compress(&body, client->gzip_level);
+            }
+            else
+            {
+                client->gzip_enable = 0;
+            }
         }
 #endif
         http_build_header(client, getThis(), swoole_http_buffer, body.length TSRMLS_CC);
-        if (client->request.method != PHP_HTTP_HEAD && body.length > 0)
+
+        if (body.length > 0)
         {
 #ifdef SW_HAVE_ZLIB
             if (client->gzip_enable)
