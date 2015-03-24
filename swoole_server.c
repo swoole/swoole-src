@@ -1703,10 +1703,8 @@ PHP_FUNCTION(swoole_server_send)
     swServer *serv = NULL;
     int ret;
 
-    char *send_data;
-    int send_len;
-
     zval *zfd;
+    zval *zdata;
     long server_socket = -1;
 
     if (SwooleGS->start == 0)
@@ -1717,21 +1715,45 @@ PHP_FUNCTION(swoole_server_send)
 
     if (zobject == NULL)
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ozs|l", &zobject, swoole_server_class_entry_ptr, &zfd, &send_data,
-                &send_len, &server_socket) == FAILURE)
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ozz|l", &zobject, swoole_server_class_entry_ptr, &zfd, &zdata, &server_socket) == FAILURE)
         {
             return;
         }
     }
     else
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zs|l", &zfd, &send_data, &send_len, &server_socket) == FAILURE)
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zz|l", &zfd, &zdata, &server_socket) == FAILURE)
         {
             return;
         }
     }
 
-    if (send_len <= 0)
+    int length;
+    char *data;
+
+    if (Z_TYPE_P(zdata) == IS_STRING)
+    {
+        length = Z_STRLEN_P(zdata);
+        data = Z_STRVAL_P(zdata);
+    }
+    else if (Z_TYPE_P(zdata) == IS_OBJECT)
+    {
+        if (!instanceof_function(Z_OBJCE_P(zdata), swoole_buffer_class_entry_ptr TSRMLS_CC))
+        {
+            php_error_docref(NULL TSRMLS_CC, E_ERROR, "object is not instanceof swoole_buffer.");
+            RETURN_FALSE;
+        }
+        swString *str_buffer = php_swoole_buffer_get(zdata TSRMLS_CC);
+        length = str_buffer->length - str_buffer->offset;
+        data = str_buffer->str + str_buffer->offset;
+    }
+    else
+    {
+        swoole_php_fatal_error(E_WARNING, "only supports string or swoole_buffer type.");
+        RETURN_FALSE;
+    }
+
+    if (length <= 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "data is empty.");
         RETURN_FALSE;
@@ -1750,7 +1772,7 @@ PHP_FUNCTION(swoole_server_send)
         {
             php_swoole_udp_t udp_info;
             memcpy(&udp_info, &server_socket, sizeof(udp_info));           
-            ret = swSocket_udp_sendto6(udp_info.from_fd, Z_STRVAL_P(zfd), udp_info.port, send_data, send_len);
+            ret = swSocket_udp_sendto6(udp_info.from_fd, Z_STRVAL_P(zfd), udp_info.port, data, length);
         }
         //UNIX DGRAM
         else if (Z_STRVAL_P(zfd)[0] == '/')
@@ -1759,7 +1781,7 @@ PHP_FUNCTION(swoole_server_send)
             memcpy(addr_un.sun_path, Z_STRVAL_P(zfd), Z_STRLEN_P(zfd));
             addr_un.sun_family = AF_UNIX;
             addr_un.sun_path[Z_STRLEN_P(zfd)] = 0;
-            ret = swSocket_sendto_blocking(server_socket, send_data, send_len, 0, (struct sockaddr *) &addr_un, sizeof(addr_un));
+            ret = swSocket_sendto_blocking(server_socket, data, length, 0, (struct sockaddr *) &addr_un, sizeof(addr_un));
         }
         else
         {
@@ -1785,7 +1807,7 @@ PHP_FUNCTION(swoole_server_send)
         addr_in.sin_family = AF_INET;
         addr_in.sin_port = htons((uint16_t) (uint16_t) (udp_info.port));
         addr_in.sin_addr.s_addr = fd;
-        ret = swSocket_sendto_blocking(udp_info.from_fd, send_data, send_len, 0, (struct sockaddr *) &addr_in, sizeof(addr_in));
+        ret = swSocket_sendto_blocking(udp_info.from_fd, data, length, 0, (struct sockaddr *) &addr_in, sizeof(addr_in));
         SW_CHECK_RETURN(ret);
     }
     //TCP
@@ -1798,10 +1820,10 @@ PHP_FUNCTION(swoole_server_send)
         }
         if (serv->packet_mode == 1)
         {
-            uint32_t len_tmp= htonl(send_len);
+            uint32_t len_tmp= htonl(length);
             swServer_tcp_send(serv, fd, &len_tmp, 4);
         }
-        SW_CHECK_RETURN(swServer_tcp_send(serv, fd, send_data, send_len));
+        SW_CHECK_RETURN(swServer_tcp_send(serv, fd, data, length));
     }
 }
 

@@ -16,18 +16,6 @@
 
 #include "php_swoole.h"
 
-static sw_inline swString* php_swoole_buffer_get(zval *object TSRMLS_DC)
-{
-    zval **zres;
-    swString *str = NULL;
-    if (zend_hash_find(Z_OBJPROP_P(object), SW_STRL("_buffer"), (void **) &zres) == SUCCESS)
-    {
-        ZEND_FETCH_RESOURCE_NO_RETURN(str, swString*, zres, -1, SW_RES_BUFFER_NAME, le_swoole_buffer);
-    }
-    assert(str != NULL);
-    return str;
-}
-
 void swoole_destory_buffer(zend_resource *rsrc TSRMLS_DC)
 {
     swString *str = (swString *) rsrc->ptr;

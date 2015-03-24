@@ -384,6 +384,18 @@ int php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tick TSRMLS
 zval *php_swoole_get_data(swEventData *req TSRMLS_DC);
 void php_swoole_onClose(swServer *, int fd, int from_id);
 
+static sw_inline swString* php_swoole_buffer_get(zval *object TSRMLS_DC)
+{
+    zval **zres;
+    swString *str = NULL;
+    if (zend_hash_find(Z_OBJPROP_P(object), SW_STRL("_buffer"), (void **) &zres) == SUCCESS)
+    {
+        ZEND_FETCH_RESOURCE_NO_RETURN(str, swString*, zres, -1, SW_RES_BUFFER_NAME, le_swoole_buffer);
+    }
+    assert(str != NULL);
+    return str;
+}
+
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
     long aio_thread_num;
     zend_bool display_errors;

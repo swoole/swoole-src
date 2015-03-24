@@ -2,13 +2,31 @@
 class G
 {
 	static $serv;
+    private static $buffers = array();
+
+    /**
+     * @param $fd
+     * @return swoole_buffer
+     */
+    static function getBuffer($fd, $create = true)
+    {
+        if (!isset(self::$buffers[$fd]))
+        {
+            if (!$create)
+            {
+                return false;
+            }
+            self::$buffers[$fd] = new swoole_buffer(1024 * 128);
+        }
+        return self::$buffers[$fd];
+    }
 }
 
 $config = array(
-   'worker_num' => 1,
+   'worker_num' => 4,
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
-   'task_ipc_mode'   => 2,
+//   'task_ipc_mode'   => 2,
    'task_worker_num' => 1,
    'user' => 'www-data',
    'group' => 'www-data',
@@ -27,8 +45,8 @@ if (isset($argv[1]) and $argv[1] == 'daemon') {
 	$config['daemonize'] = false;
 }
 
-$mode = SWOOLE_BASE;
-//$mode = SWOOLE_PROCESS;
+//$mode = SWOOLE_BASE;
+$mode = SWOOLE_PROCESS;
 
 $serv = new swoole_server("0.0.0.0", 9501, $mode);
 $serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
@@ -115,17 +133,17 @@ function setTimerInWorker(swoole_server $serv, $worker_id) {
 	if ($worker_id == 0) {
 		echo "Start: ".microtime(true)."\n";
 		$serv->addtimer(3000);
-		$serv->addtimer(7000);
+//		$serv->addtimer(7000);
 		//var_dump($serv->gettimer());
 	}
-	$serv->after(2000, function(){
-		echo "Timeout: ".microtime(true)."\n";
-	});
-	$serv->after(5000, function(){
-		echo "Timeout: ".microtime(true)."\n";
-		global $serv;
-		$serv->deltimer(3000);
-	});
+//	$serv->after(2000, function(){
+//		echo "Timeout: ".microtime(true)."\n";
+//	});
+//	$serv->after(5000, function(){
+//		echo "Timeout: ".microtime(true)."\n";
+//		global $serv;
+//		$serv->deltimer(3000);
+//	});
 }
 
 function my_onShutdown($serv)
@@ -135,12 +153,18 @@ function my_onShutdown($serv)
 
 function my_onTimer($serv, $interval)
 {
-	//echo "Timer#$interval: ".microtime(true)."\n";
+	echo "Timer#$interval: ".microtime(true)."\n";
+    $serv->task("hello");
 }
 
 function my_onClose($serv, $fd, $from_id)
 {
     my_log("Worker#{$serv->worker_pid} Client[$fd@$from_id]: fd=$fd is closed");
+    $buffer = G::getBuffer($fd);
+    if ($buffer)
+    {
+        $buffer->clear();
+    }
 }
 
 function my_onConnect(swoole_server $serv, $fd, $from_id)
@@ -155,7 +179,7 @@ function my_onWorkerStart($serv, $worker_id)
 {
 	processRename($serv, $worker_id);
 	//forkChildInWorker();
-	//setTimerInWorker($serv, $worker_id);
+//	setTimerInWorker($serv, $worker_id);
 }
 
 function my_onWorkerStop($serv, $worker_id)
@@ -245,6 +269,12 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     elseif($cmd == "shutdown")
     {
         $serv->shutdown();
+    }
+    elseif($cmd == 'sendbuffer')
+    {
+        $buffer = G::getBuffer($fd);
+        $buffer->append("hello\n");
+        $serv->send($fd, $buffer);
     }
     else
     {
