@@ -83,15 +83,11 @@ void swoole_websocket_onOpen(swoole_http_client *client)
     {
         swTrace("\n\n\n\nhandshake success\n\n\n");
 
-        zval **args[3];
+        zval **args[2];
         swServer *serv = SwooleG.serv;
         zval *zserv = (zval *) serv->ptr2;
-        zval *zfd;
         zval *zrequest = client->zrequest;
         zval *retval;
-
-        MAKE_STD_ZVAL(zfd);
-        ZVAL_LONG(zfd, fd);
 
 #ifdef __CYGWIN__
         //TODO: memory error on cygwin.
@@ -99,10 +95,9 @@ void swoole_websocket_onOpen(swoole_http_client *client)
 #endif
 
         args[0] = &zserv;
-        args[1] = &zfd;
-        args[2] = &zrequest;
+        args[1] = &zrequest;
 
-        if (call_user_function_ex(EG(function_table), NULL, websocket_callbacks[WEBSOCKET_CALLBACK_onOpen], &retval, 3, args, 0,  NULL TSRMLS_CC) == FAILURE)
+        if (call_user_function_ex(EG(function_table), NULL, websocket_callbacks[WEBSOCKET_CALLBACK_onOpen], &retval, 2, args, 0,  NULL TSRMLS_CC) == FAILURE)
         {
             php_error_docref(NULL TSRMLS_CC, E_WARNING, "onMessage handler error");
         }
