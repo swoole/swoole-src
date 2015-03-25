@@ -771,7 +771,7 @@ PHP_METHOD(swoole_client, connect)
 	RETURN_TRUE;
 }
 
-PHP_METHOD(swoole_client, send)
+static PHP_METHOD(swoole_client, send)
 {
 	char *data;
 	int data_len;
@@ -835,7 +835,7 @@ PHP_METHOD(swoole_client, send)
 	}
 }
 
-PHP_METHOD(swoole_client, sendto)
+static PHP_METHOD(swoole_client, sendto)
 {
     char* ip;
     char* ip_len;
@@ -891,7 +891,7 @@ PHP_METHOD(swoole_client, sendto)
     SW_CHECK_RETURN(ret);
 }
 
-PHP_METHOD(swoole_client, sendfile)
+static PHP_METHOD(swoole_client, sendfile)
 {
     char *file;
     int file_len;
@@ -943,7 +943,7 @@ PHP_METHOD(swoole_client, sendfile)
     }
 }
 
-PHP_METHOD(swoole_client, recv)
+static PHP_METHOD(swoole_client, recv)
 {
     long buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
     zend_bool waitall = 0;
@@ -1142,104 +1142,6 @@ PHP_METHOD(swoole_client, getpeername)
         swoole_php_fatal_error(E_WARNING, "only support SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6.");
         RETURN_FALSE;
     }
-}
-
-PHP_METHOD(swoole_client, set)
-{
-    zval *zset = NULL;
-    zval *zobject = getThis();
-    HashTable *vht;
-    swClient *cli;
-    zval **zres;
-    zval **v;
-
-    if (zend_hash_find(Z_OBJPROP_P(getThis()), SW_STRL("_client"), (void **) &zres) == SUCCESS)
-    {
-        ZEND_FETCH_RESOURCE(cli, swClient*, zres, -1, SW_RES_CLIENT_NAME, le_swoole_client);
-    }
-    else
-    {
-        RETURN_FALSE;
-    }
-
-    if (zobject == NULL)
-    {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Oa", &zobject, swoole_server_class_entry_ptr, &zset) == FAILURE)
-        {
-            return;
-        }
-    }
-    else
-    {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &zset) == FAILURE)
-        {
-            return;
-        }
-    }
-
-    vht = Z_ARRVAL_P(zset);
-    //buffer: check eof
-    if (zend_hash_find(vht, ZEND_STRS("open_eof_check"), (void **)&v) == SUCCESS)
-    {
-        convert_to_long(*v);
-        cli->open_eof_check = (uint8_t)Z_LVAL_PP(v);
-    }
-    //package eof
-    if (zend_hash_find(vht, ZEND_STRS("package_eof"), (void **) &v) == SUCCESS
-            || zend_hash_find(vht, ZEND_STRS("data_eof"), (void **) &v) == SUCCESS)
-    {
-        convert_to_string(*v);
-        cli->open_eof_check = 1;
-        cli->package_eof_len = Z_STRLEN_PP(v);
-        if (cli->package_eof_len > SW_DATA_EOF_MAXLEN)
-        {
-            php_error_docref(NULL TSRMLS_CC, E_ERROR, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
-            RETURN_FALSE;
-        }
-        cli->package_eof = strdup(Z_STRVAL_PP(v));
-    }
-    //open length check
-    if (zend_hash_find(vht, ZEND_STRS("open_length_check"), (void **)&v) == SUCCESS)
-    {
-        convert_to_long(*v);
-        cli->open_length_check = (uint8_t)Z_LVAL_PP(v);
-    }
-    //package length size
-    if (zend_hash_find(vht, ZEND_STRS("package_length_type"), (void **)&v) == SUCCESS)
-    {
-        convert_to_string(*v);
-        cli->package_length_type = Z_STRVAL_PP(v)[0];
-        cli->package_length_size = swoole_type_size(cli->package_length_type);
-
-        if (cli->package_length_size == 0)
-        {
-            php_error_docref(NULL TSRMLS_CC, E_ERROR, "unknow package_length_type, see pack(). Link: http://php.net/pack");
-            RETURN_FALSE;
-        }
-    }
-    //package length offset
-    if (zend_hash_find(vht, ZEND_STRS("package_length_offset"), (void **)&v) == SUCCESS)
-    {
-        convert_to_long(*v);
-        cli->package_length_offset = (int)Z_LVAL_PP(v);
-    }
-    //package body start
-    if (zend_hash_find(vht, ZEND_STRS("package_body_offset"), (void **) &v) == SUCCESS
-            || zend_hash_find(vht, ZEND_STRS("package_body_start"), (void **) &v) == SUCCESS)
-    {
-        convert_to_long(*v);
-        cli->package_body_offset = (int) Z_LVAL_PP(v);
-    }
-    /**
-     * package max length
-     */
-    if (zend_hash_find(vht, ZEND_STRS("package_max_length"), (void **) &v) == SUCCESS)
-    {
-        convert_to_long(*v);
-        cli->package_max_length = (int) Z_LVAL_PP(v);
-    }
-    zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zset TSRMLS_CC);
-    RETURN_TRUE;
 }
 
 PHP_METHOD(swoole_client, close)

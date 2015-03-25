@@ -359,6 +359,7 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev)
     {
         if (socket->events & SW_EVENT_READ)
         {
+            socket->events &= (~SW_EVENT_WRITE);
             if (reactor->set(reactor, fd, socket->fdtype | socket->events) < 0)
             {
                 swSysError("reactor->set(%d, SW_EVENT_READ) failed.", fd);
