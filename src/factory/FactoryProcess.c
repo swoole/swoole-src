@@ -669,7 +669,8 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     }
     else if ((conn->closed || conn->removed) && resp->info.type != SW_EVENT_CLOSE)
     {
-        swWarn("send failed, because connection[%d] has been closed.", fd);
+        int _len = resp->length > 0 ? resp->length : resp->info.len;
+        swWarn("send %d byte failed, because connection[%d] has been closed.", _len, fd);
         return SW_ERR;
     }
     else if (conn->overflow)

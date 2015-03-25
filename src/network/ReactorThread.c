@@ -414,11 +414,11 @@ int swReactorThread_send(swSendData *_send)
     {
         if (_send->info.type == SW_EVENT_TCP)
         {
-            swWarn("send %dbyte failed, connection#%d[session=%d] is closed.", _send->length, fd, session_id);
+            swWarn("send %d byte failed, connection#%d[session=%d] is closed[%d].", _send->length, fd, session_id, conn->closed);
         }
         else
         {
-            swWarn("send [%d]  failed, connection#%d[session=%d] is closed.", _send->info.type, fd, session_id);
+            swWarn("send [%d] failed, connection#%d[session=%d] is closed.", _send->info.type, fd, session_id);
         }
         return SW_ERR;
     }
