@@ -206,7 +206,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
                 swHttpRequest *request = (swHttpRequest *) conn->object;
                 if (request->buffer)
                 {
-                    swTrace("ConnectionClose. free buffer=%p, request=%p\n", request->buffer, request);
+                    swTrace("Connection Close. free buffer=%p, request=%p\n", request->buffer, request);
                     swHttpRequest_free(conn, request);
                 }
             }
@@ -410,21 +410,26 @@ int swReactorThread_send(swSendData *_send)
     swSession *session = swServer_get_session(serv, session_id);
     fd = session->fd;
     swConnection *conn = swServer_connection_get(serv, fd);
-    if (!conn)
+    if (!conn || conn->active == 0)
     {
-        swWarn("send[%d] failed, the connection#%d[session=%d] is closed.", _send->info.type, fd, session_id);
+        if (_send->info.type == SW_EVENT_TCP)
+        {
+            swWarn("send %dbyte failed, connection#%d[session=%d] is closed.", _send->length, fd, session_id);
+        }
+        else
+        {
+            swWarn("send [%d]  failed, connection#%d[session=%d] is closed.", _send->info.type, fd, session_id);
+        }
         return SW_ERR;
     }
     if (session->id != session_id || conn->session_id != session_id)
     {
-        swWarn("send[%d] failed, the session#%d[socket=%d] has expired.", _send->info.type, session_id, conn->fd);
+        swWarn("send[%d] failed, session#%d[socket=%d] has expired.", _send->info.type, session_id, conn->fd);
         return SW_ERR;
     }
 #else
     fd = _send->info.fd;
     swConnection *conn = swServer_connection_get(serv, fd);
-#endif
-
     //The connection has been closed.
     if (conn == NULL || conn->active == 0)
     {
@@ -434,6 +439,7 @@ int swReactorThread_send(swSendData *_send)
         swWarn("connection#%d is not active, events=%d.", fd, _send->info.type);
         return SW_ERR;
     }
+#endif
 
     swReactor *reactor = &(serv->reactor_threads[conn->from_id].reactor);
 
