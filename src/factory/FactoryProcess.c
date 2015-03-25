@@ -664,18 +664,18 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     swConnection *conn = swWorker_get_connection(serv, fd);
     if (conn == NULL || conn->active == 0)
     {
-        swWarn("connection[%d] does not exist.", fd);
+        swWarn("session#%d does not exist.", fd);
         return SW_ERR;
     }
     else if ((conn->closed || conn->removed) && resp->info.type != SW_EVENT_CLOSE)
     {
         int _len = resp->length > 0 ? resp->length : resp->info.len;
-        swWarn("send %d byte failed, because connection[%d] has been closed.", _len, fd);
+        swWarn("send %d byte failed, because session#%d is closed.", _len, fd);
         return SW_ERR;
     }
     else if (conn->overflow)
     {
-        swWarn("send failed, connection[%d] output buffer has been overflowed.", fd);
+        swWarn("send failed, session#%d output buffer has been overflowed.", fd);
         return SW_ERR;
     }
 

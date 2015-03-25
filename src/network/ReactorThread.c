@@ -81,7 +81,6 @@ static sw_inline void* swReactorThread_alloc(swReactorThread *thread, uint32_t s
     return ptr;
 }
 
-
 #endif
 
 /**
@@ -414,7 +413,7 @@ int swReactorThread_send(swSendData *_send)
     {
         if (_send->info.type == SW_EVENT_TCP)
         {
-            swWarn("send %d byte failed, connection#%d[session=%d] is closed[%d].", _send->length, fd, session_id, conn->closed);
+            swWarn("send %d byte failed, connection#%d[session=%d] is closed.", _send->length, fd, session_id);
         }
         else
         {

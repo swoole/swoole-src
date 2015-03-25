@@ -410,15 +410,17 @@ int swWorker_send2reactor(swEventData *ev_data, size_t sendn, int fd)
 {
     int ret;
     swServer *serv = SwooleG.serv;
+
     /**
      * reactor_id: The fd in which the reactor.
      */
     int reactor_id = fd % serv->reactor_num;
-    int round_i = (SwooleWG.pipe_round++) % serv->reactor_pipe_num;
+    int pipe_index = fd % serv->reactor_pipe_num;
+
     /**
      * pipe_worker_id: The pipe in which worker.
      */
-    int pipe_worker_id = reactor_id + (round_i * serv->reactor_num);
+    int pipe_worker_id = reactor_id + (pipe_index * serv->reactor_num);
     swWorker *worker = swServer_get_worker(serv, pipe_worker_id);
 
     if (SwooleG.main_reactor)

@@ -1384,11 +1384,6 @@ typedef struct
 	uint32_t id;
 
 	/**
-	 * Write to reactor
-	 */
-	uint16_t pipe_round;
-
-	/**
 	 * pipe_worker
 	 */
 	int pipe_used;

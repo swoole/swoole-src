@@ -82,11 +82,9 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
             {
                 return SW_ERR;
             }
-
             pool->workers[i].pipe_master = pipe->getFd(pipe, SW_PIPE_MASTER);
             pool->workers[i].pipe_worker = pipe->getFd(pipe, SW_PIPE_WORKER);
             pool->workers[i].pipe_object = pipe;
-            
         }
     }
     pool->main_loop = swProcessPool_worker_start;
