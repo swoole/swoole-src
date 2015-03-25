@@ -73,8 +73,32 @@ void swLog_put(int level, char *cnt)
     p = localtime(&t);
     snprintf(date_str, SW_LOG_DATE_STRLEN, "%d-%02d-%02d %02d:%02d:%02d", p->tm_year + 1900, p->tm_mon + 1, p->tm_mday,
             p->tm_hour, p->tm_min, p->tm_sec);
-    n = snprintf(log_str, SW_LOG_BUFFER_SIZE, "[%s #%d.%d]\t%s\t%s\n", date_str, SwooleG.pid, SwooleTG.id, level_str,
-            cnt);
+
+    char process_flag = '.';
+    int process_id = 0;
+
+    switch(SwooleG.process_type)
+    {
+    case SW_PROCESS_MASTER:
+        process_flag = '#';
+        process_id = SwooleTG.id;
+        break;
+    case SW_PROCESS_MANAGER:
+        process_flag = '$';
+        break;
+    case SW_PROCESS_WORKER:
+        process_flag = '*';
+        process_id = SwooleWG.id;
+        break;
+    case SW_PROCESS_TASKWORKER:
+        process_flag = '^';
+        process_id = SwooleWG.id;
+        break;
+    default:
+        break;
+    }
+
+    n = snprintf(log_str, SW_LOG_BUFFER_SIZE, "[%s %c%d.%d]\t%s\t%s\n", date_str, process_flag, SwooleG.pid, process_id, level_str, cnt);
 
     if (write(SwooleG.log_fd, log_str, n) < 0)
     {
