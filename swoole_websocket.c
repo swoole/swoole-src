@@ -32,6 +32,9 @@
 zend_class_entry swoole_websocket_server_ce;
 zend_class_entry *swoole_websocket_server_class_entry_ptr;
 
+zend_class_entry swoole_websocket_frame_ce;
+zend_class_entry *swoole_websocket_frame_class_entry_ptr;
+
 enum websocket_callback
 {
     WEBSOCKET_CALLBACK_onOpen = 0,
@@ -170,35 +173,29 @@ int swoole_websocket_onMessage(swEventData *req)
 	int fd = req->info.fd;
 	zval *zdata = php_swoole_get_recv_data(req TSRMLS_CC);
 
-	char *buf = Z_STRVAL_P(zdata);
-	long fin = buf[0] ? 1 : 0;
-	long opcode = buf[1] ? 1 : 0;
+    char *buf = Z_STRVAL_P(zdata);
+    long finish = buf[0] ? 1 : 0;
+    long opcode = buf[1] ? 1 : 0;
 
-	buf += 2;
+	zval *zframe;
+    MAKE_STD_ZVAL(zframe);
+    object_init_ex(zframe, swoole_websocket_frame_class_entry_ptr);
 
-	swServer *serv = SwooleG.serv;
-	zval *zserv = (zval *)serv->ptr2;
-	zval *zd, *zfd, *zopcode, *zfin;
+    zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("fd"), fd TSRMLS_CC);
+    zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("finish"), finish TSRMLS_CC);
+    zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("opcode"), opcode TSRMLS_CC);
+    zend_update_property_stringl(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("data"), buf + 2, (Z_STRLEN_P(zdata) - 2) TSRMLS_CC);
 
-	MAKE_STD_ZVAL(zd);
-	MAKE_STD_ZVAL(zfd);
-	MAKE_STD_ZVAL(zopcode);
-	MAKE_STD_ZVAL(zfin);
+    swServer *serv = SwooleG.serv;
+    zval *zserv = (zval *) serv->ptr2;
 
-	SW_ZVAL_STRINGL(zd, buf, Z_STRLEN_P(zdata) - 2, 1);
-	ZVAL_LONG(zfd, fd);
-	ZVAL_LONG(zopcode, opcode);
-	ZVAL_LONG(zfin, fin);
-
-	zval **args[5];
+	zval **args[2];
 	args[0] = &zserv;
-	args[1] = &zfd;
-	args[2] = &zd;
-	args[3] = &zopcode;
-	args[4] = &zfin;
+	args[1] = &zframe;
+
 	zval *retval;
 
-    if (call_user_function_ex(EG(function_table), NULL, websocket_callbacks[WEBSOCKET_CALLBACK_onMessage], &retval, 5,
+    if (call_user_function_ex(EG(function_table), NULL, websocket_callbacks[WEBSOCKET_CALLBACK_onMessage], &retval, 2,
             args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "onMessage handler error");
@@ -215,10 +212,7 @@ int swoole_websocket_onMessage(swEventData *req)
     }
 
     zval_ptr_dtor(&zdata);
-    zval_ptr_dtor(&zfd);
-    zval_ptr_dtor(&zd);
-    zval_ptr_dtor(&zopcode);
-    zval_ptr_dtor(&zfin);
+    zval_ptr_dtor(&zframe);
 
     return SW_OK;
 }
@@ -246,6 +240,9 @@ void swoole_websocket_init(int module_number TSRMLS_DC)
 {
     INIT_CLASS_ENTRY(swoole_websocket_server_ce, "swoole_websocket_server", swoole_websocket_server_methods);
     swoole_websocket_server_class_entry_ptr = zend_register_internal_class_ex(&swoole_websocket_server_ce, swoole_http_server_class_entry_ptr, "swoole_http_server" TSRMLS_CC);
+
+    INIT_CLASS_ENTRY(swoole_websocket_frame_ce, "swoole_websocket_frame", NULL);
+    swoole_websocket_frame_class_entry_ptr = zend_register_internal_class(&swoole_websocket_frame_ce TSRMLS_CC);
 
     REGISTER_LONG_CONSTANT("WEBSOCKET_OPCODE_TEXT", WEBSOCKET_OPCODE_TEXT_FRAME, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("WEBSOCKET_OPCODE_BINARY", WEBSOCKET_OPCODE_BINARY_FRAME, CONST_CS | CONST_PERSISTENT);
