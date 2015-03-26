@@ -360,7 +360,7 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_FALIAS(gettimer, swoole_server_gettimer, NULL)
     PHP_FALIAS(after, swoole_timer_after, NULL)
     PHP_FALIAS(tick, swoole_timer_tick, NULL)
-    PHP_FALIAS(clearAfter, swoole_timer_clear, NULL)
+    PHP_FALIAS(clearTimer, swoole_timer_clear, NULL)
     //process
     PHP_ME(swoole_server, sendmessage, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, addprocess, NULL, ZEND_ACC_PUBLIC)
