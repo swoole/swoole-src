@@ -164,7 +164,7 @@ int swHttpRequest_get_content_length(swHttpRequest *request)
             }
         }
     }
-    buffer->offset = p - buffer->str;
+
     return SW_ERR;
 }
 
