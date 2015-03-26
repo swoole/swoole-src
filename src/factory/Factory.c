@@ -60,7 +60,11 @@ int swFactory_end(swFactory *factory, int fd)
     {
         serv->onClose(serv, fd, 0);
     }
-    return SwooleG.main_reactor->close(SwooleG.main_reactor, fd);
+    swSendData _send;
+    bzero(&_send, sizeof(_send));
+    _send.info.fd = fd;
+    _send.info.type = SW_EVENT_CLOSE;
+    return swReactorThread_send(&_send);
 }
 
 int swFactory_finish(swFactory *factory, swSendData *resp)
