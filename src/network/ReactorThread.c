@@ -1532,9 +1532,38 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
             }
             else
             {
-                swTrace("PostWait: request->content_length=%d, buffer->length=%zd, request->header_length=%d\n",
-                        request->content_length, buffer->length, request->header_length);
+#ifdef SW_HTTP_100_CONTINUE
+                //Expect: 100-continue
+                if (swHttpRequest_has_expect_header(request))
+                {
+                    swSendData _send;
+                    _send.data = "HTTP/1.1 100 Continue\r\n\r\n";
+                    _send.length = strlen(_send.data);
 
+                    int send_times = 0;
+                    direct_send:
+                    n = swConnection_send(conn, _send.data, _send.length, 0);
+                    if (n < _send.length)
+                    {
+                        _send.data += n;
+                        _send.length -= n;
+                        send_times++;
+                        if (send_times < 10)
+                        {
+                            goto direct_send;
+                        }
+                        else
+                        {
+                            swWarn("send http header failed");
+                        }
+                    }
+                }
+                else
+                {
+                    swTrace("PostWait: request->content_length=%d, buffer->length=%zd, request->header_length=%d\n",
+                            request->content_length, buffer->length, request->header_length);
+                }
+#endif
                 if (conn->http_buffered)
                 {
                     if (request->content_length > buffer->size && swString_extend(buffer, request->content_length) < 0)

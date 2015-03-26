@@ -64,6 +64,9 @@ int swHttpRequest_get_protocol(swHttpRequest *request);
 int swHttpRequest_get_content_length(swHttpRequest *request);
 int swHttpRequest_get_header_length(swHttpRequest *request);
 void swHttpRequest_free(swConnection *conn, swHttpRequest *request);
+#ifdef SW_HTTP_100_CONTINUE
+int swHttpRequest_has_expect_header(swHttpRequest *request);
+#endif
 
 #ifdef __cplusplus
 }

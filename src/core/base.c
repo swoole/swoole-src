@@ -334,7 +334,7 @@ double swoole_microtime(void)
 {
     struct timeval t;
     gettimeofday(&t, NULL);
-    return (double) t.tv_sec + ((double) (t.tv_usec / 1000000));
+    return (double) t.tv_sec + ((double) t.tv_usec / 1000000);
 }
 
 void swoole_rtrim(char *str, int len)
