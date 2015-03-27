@@ -10,7 +10,8 @@ $http->set([
 //    'open_tcp_nodelay' => true,
     //'task_worker_num' => 0,
     //'user' => 'www-data',
-    //'group' => 'www-data'
+    //'group' => 'www-data',
+//'daemonize' => true,
     //'ssl_cert_file' => $key_dir.'/ssl.crt',
     //'ssl_key_file' => $key_dir.'/ssl.key',
 ]);
