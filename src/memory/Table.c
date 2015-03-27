@@ -142,7 +142,7 @@ int swTableColumn_add(swTable *table, char *name, int len, int type, int size)
         col->type = SW_TABLE_FLOAT;
         break;
     default:
-        col->size = size + sizeof(uint16_t);
+        col->size = size + sizeof(swTable_string_length_t);
         col->type = SW_TABLE_STRING;
         break;
     }

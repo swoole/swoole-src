@@ -91,7 +91,7 @@ typedef struct
 typedef struct
 {
    uint8_t type;
-   uint16_t size;
+   uint32_t size;
    swString* name;
    uint16_t index;
 } swTableColumn;
