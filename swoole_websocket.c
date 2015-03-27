@@ -102,7 +102,7 @@ void swoole_websocket_onOpen(swoole_http_client *client)
 
         if (call_user_function_ex(EG(function_table), NULL, websocket_callbacks[WEBSOCKET_CALLBACK_onOpen], &retval, 2, args, 0,  NULL TSRMLS_CC) == FAILURE)
         {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "onMessage handler error");
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "onOpen handler error");
         }
         if (EG(exception))
         {
