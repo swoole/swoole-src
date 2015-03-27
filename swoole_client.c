@@ -966,7 +966,7 @@ static PHP_METHOD(swoole_client, recv)
 		RETURN_FALSE;
 	}
 
-    if (!waitall || buf_len > SW_PHP_CLIENT_BUFFER_SIZE)
+    if (!waitall && buf_len > SW_PHP_CLIENT_BUFFER_SIZE)
     {
         buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
     }
