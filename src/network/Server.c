@@ -378,7 +378,7 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
         }
         else
         {
-            CPU_SET(worker->id %SW_CPU_NUM, &cpu_set);
+            CPU_SET(worker->id % SW_CPU_NUM, &cpu_set);
         }
         if (sched_setaffinity(getpid(), sizeof(cpu_set), &cpu_set) < 0)
         {
