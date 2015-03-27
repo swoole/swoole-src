@@ -14,8 +14,12 @@ swUnitTest(client_test)
     swReactor_create(&main_reactor, 1024);
     SwooleG.main_reactor = &main_reactor;
 
-    uchar domain[64] = "www.baidu.com";
-    swDNSResolver_request(domain, dns_callback);
+    swDNS_request request;
+
+    request.domain = "www.baidu.com";
+    request.callback = dns_callback;
+
+    swDNSResolver_request(&request);
 
     return main_reactor.wait(&main_reactor, NULL);
 
