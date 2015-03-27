@@ -226,7 +226,6 @@ PHP_FUNCTION(swoole_timer_add)
         RETURN_FALSE;
     }
 
-    php_swoole_try_run_reactor();
     RETURN_TRUE;
 }
 
@@ -283,7 +282,6 @@ PHP_FUNCTION(swoole_timer_tick)
     }
     else
     {
-        php_swoole_try_run_reactor();
         RETURN_LONG(timer_id);
     }
 }
@@ -310,7 +308,6 @@ PHP_FUNCTION(swoole_timer_after)
     }
     else
     {
-        php_swoole_try_run_reactor();
         RETURN_LONG(timer_id);
     }
 }

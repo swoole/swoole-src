@@ -236,8 +236,6 @@ PHP_METHOD(swoole_process, signal)
     SwooleG.main_reactor->check_signalfd = 1;
     swSignal_add(signo, php_swoole_onSignal);
 
-    php_swoole_try_run_reactor();
-
     RETURN_TRUE;
 }
 

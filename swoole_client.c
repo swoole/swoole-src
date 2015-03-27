@@ -418,6 +418,44 @@ static int swoole_client_error_callback(zval *zobject, swEvent *event, int error
 	return SW_OK;
 }
 
+void php_swoole_at_shutdown(char *function)
+{
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+    zval *callback;
+    MAKE_STD_ZVAL(callback);
+    ZVAL_STRING(callback, "swoole_event_wait", 1);
+
+#if PHP_MAJOR_VERSION >= 5 && PHP_MINOR_VERSION >= 4
+    php_shutdown_function_entry shutdown_function_entry;
+
+    shutdown_function_entry.arg_count = 1;
+    shutdown_function_entry.arguments = (zval **) safe_emalloc(sizeof(zval *), 1, 0);
+
+
+    shutdown_function_entry.arguments[0] = callback;
+
+    if (!register_user_shutdown_function("swoole_event_wait", sizeof("swoole_event_wait"), &shutdown_function_entry TSRMLS_CC))
+    {
+        efree(shutdown_function_entry.arguments);
+        zval_ptr_dtor(&callback);
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
+    }
+#else
+    zval *register_shutdown_function;
+    zval *retval;
+    MAKE_STD_ZVAL(register_shutdown_function);
+    ZVAL_STRING(register_shutdown_function, "register_shutdown_function", 1);
+    zval **args[1] = {&callback};
+
+    if (call_user_function_ex(EG(function_table), NULL, register_shutdown_function, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
+        return;
+    }
+#endif
+}
+
 void php_swoole_check_reactor()
 {
 	if (SwooleWG.reactor_init == 0)
@@ -451,6 +489,10 @@ void php_swoole_check_reactor()
 			}
 			//client, swoole_event_exit will set swoole_running = 0
 			SwooleWG.in_client = 1;
+			SwooleWG.reactor_wait_onexit = 1;
+            SwooleWG.reactor_ready = 0;
+            //only client side
+            php_swoole_at_shutdown("swoole_event_wait");
 		}
 
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, (SW_FD_USER + 1) | SW_EVENT_READ, php_swoole_client_onRead);
@@ -462,52 +504,6 @@ void php_swoole_check_reactor()
 		SwooleWG.reactor_init = 1;
 	}
 	return;
-}
-
-void php_swoole_try_run_reactor()
-{
-    //only client side
-    if (SwooleWG.in_client == 1 && SwooleWG.reactor_wait_onexit == 0)
-    {
-        TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-
-        zval *callback;
-        MAKE_STD_ZVAL(callback);
-        ZVAL_STRING(callback, "swoole_event_wait", 1);
-
-        SwooleWG.reactor_wait_onexit = 1;
-        SwooleWG.reactor_ready = 0;
-
-#if PHP_MAJOR_VERSION >= 5 && PHP_MINOR_VERSION >= 4
-
-        php_shutdown_function_entry shutdown_function_entry;
-
-        shutdown_function_entry.arg_count = 1;
-        shutdown_function_entry.arguments = (zval **) safe_emalloc(sizeof(zval *), 1, 0);
-
-
-        shutdown_function_entry.arguments[0] = callback;
-
-        if (!register_user_shutdown_function("swoole_event_wait", sizeof("swoole_event_wait"), &shutdown_function_entry TSRMLS_CC))
-        {
-            efree(shutdown_function_entry.arguments);
-            zval_ptr_dtor(&callback);
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
-        }
-#else
-        zval *register_shutdown_function;
-        zval *retval;
-        MAKE_STD_ZVAL(register_shutdown_function);
-        ZVAL_STRING(register_shutdown_function, "register_shutdown_function", 1);
-        zval **args[1] = {&callback};
-
-        if (call_user_function_ex(EG(function_table), NULL, register_shutdown_function, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
-        {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_timer: onTimeout handler error");
-            return;
-        }
-#endif
-    }
 }
 
 static swClient* swoole_client_create_socket(zval *object, char *host, int host_len, int port)
@@ -759,7 +755,6 @@ PHP_METHOD(swoole_client, connect)
             }
         }
         ret = SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, reactor_flag);
-        php_swoole_try_run_reactor();
         SW_CHECK_RETURN(ret);
 	}
 	else if (ret < 0)

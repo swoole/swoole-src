@@ -236,11 +236,9 @@ PHP_FUNCTION(swoole_event_add)
     }
 
     swConnection *socket = swReactor_get(SwooleG.main_reactor, socket_fd);
-
     socket->object = reactor_fd;
     socket->active = 1;
 
-    php_swoole_try_run_reactor();
     RETURN_LONG(socket_fd);
 }
 
