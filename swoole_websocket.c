@@ -227,10 +227,11 @@ int swoole_websocket_onHandshake(swoole_http_client *client)
     {
         swTrace("websocket handshake error\n");
         SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+		return SW_ERR;
     }
+	swoole_websocket_onOpen(client);
     if (!client->end)
     {
-        swoole_websocket_onOpen(client);
         swoole_http_request_free(client TSRMLS_CC);
     }
     return SW_OK;
