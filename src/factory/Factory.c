@@ -56,15 +56,44 @@ int swFactory_notify(swFactory *factory, swDataHead *req)
 int swFactory_end(swFactory *factory, int fd)
 {
     swServer *serv = factory->ptr;
-    if (serv->onClose != NULL)
-    {
-        serv->onClose(serv, fd, 0);
-    }
     swSendData _send;
+
     bzero(&_send, sizeof(_send));
     _send.info.fd = fd;
+    _send.info.len = 0;
     _send.info.type = SW_EVENT_CLOSE;
-    return swReactorThread_send(&_send);
+
+    swConnection *conn = swWorker_get_connection(serv, fd);
+    if (conn == NULL || conn->active == 0)
+    {
+        //swWarn("can not close. Connection[%d] not found.", _send.info.fd);
+        return SW_ERR;
+    }
+    else if (conn->close_force)
+    {
+        goto do_close;
+    }
+    else if (conn->closing)
+    {
+        swWarn("The connection[%d] is closing.", fd);
+        return SW_ERR;
+    }
+    else if (conn->closed)
+    {
+        return SW_ERR;
+    }
+    else
+    {
+        do_close:
+        conn->closing = 1;
+        if (serv->onClose != NULL)
+        {
+            serv->onClose(serv, fd, conn->from_id);
+        }
+        conn->closing = 0;
+        conn->closed = 1;
+        return factory->finish(factory, &_send);
+    }
 }
 
 int swFactory_finish(swFactory *factory, swSendData *resp)
