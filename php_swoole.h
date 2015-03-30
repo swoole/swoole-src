@@ -340,24 +340,6 @@ PHP_METHOD(swoole_buffer, write);
 PHP_METHOD(swoole_buffer, expand);
 PHP_METHOD(swoole_buffer, clear);
 
-PHP_METHOD(swoole_table, __construct);
-PHP_METHOD(swoole_table, column);
-PHP_METHOD(swoole_table, create);
-PHP_METHOD(swoole_table, set);
-PHP_METHOD(swoole_table, get);
-PHP_METHOD(swoole_table, del);
-PHP_METHOD(swoole_table, lock);
-PHP_METHOD(swoole_table, unlock);
-PHP_METHOD(swoole_table, count);
-
-#ifdef HAVE_PCRE
-PHP_METHOD(swoole_table, rewind);
-PHP_METHOD(swoole_table, next);
-PHP_METHOD(swoole_table, current);
-PHP_METHOD(swoole_table, key);
-PHP_METHOD(swoole_table, valid);
-#endif
-
 void swoole_destory_lock(zend_resource *rsrc TSRMLS_DC);
 void swoole_destory_process(zend_resource *rsrc TSRMLS_DC);
 void swoole_destory_buffer(zend_resource *rsrc TSRMLS_DC);

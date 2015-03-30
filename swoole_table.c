@@ -52,11 +52,43 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_del, 0, 0, 1)
     ZEND_ARG_INFO(0, key)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_incr, 0, 0, 2)
+    ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, column)
+    ZEND_ARG_INFO(0, incrby)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_decr, 0, 0, 2)
+    ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, column)
+    ZEND_ARG_INFO(0, decrby)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_count, 0, 0, 0)
     ZEND_ARG_INFO(0, mode)
 ZEND_END_ARG_INFO()
 
-const zend_function_entry swoole_table_methods[] =
+static PHP_METHOD(swoole_table, __construct);
+static PHP_METHOD(swoole_table, column);
+static PHP_METHOD(swoole_table, create);
+static PHP_METHOD(swoole_table, set);
+static PHP_METHOD(swoole_table, get);
+static PHP_METHOD(swoole_table, del);
+static PHP_METHOD(swoole_table, incr);
+static PHP_METHOD(swoole_table, decr);
+static PHP_METHOD(swoole_table, lock);
+static PHP_METHOD(swoole_table, unlock);
+static PHP_METHOD(swoole_table, count);
+
+#ifdef HAVE_PCRE
+static PHP_METHOD(swoole_table, rewind);
+static PHP_METHOD(swoole_table, next);
+static PHP_METHOD(swoole_table, current);
+static PHP_METHOD(swoole_table, key);
+static PHP_METHOD(swoole_table, valid);
+#endif
+
+static const zend_function_entry swoole_table_methods[] =
 {
     PHP_ME(swoole_table, __construct, arginfo_swoole_table_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
     PHP_ME(swoole_table, column,      arginfo_swoole_table_column, ZEND_ACC_PUBLIC)
@@ -65,6 +97,8 @@ const zend_function_entry swoole_table_methods[] =
     PHP_ME(swoole_table, get,         arginfo_swoole_table_get, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, count,       arginfo_swoole_table_count, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, del,         arginfo_swoole_table_del, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, incr,        arginfo_swoole_table_incr, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, decr,        arginfo_swoole_table_decr, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, lock,        arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, unlock,      arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
 #ifdef HAVE_PCRE
@@ -220,14 +254,14 @@ PHP_METHOD(swoole_table, column)
     RETURN_TRUE;
 }
 
-PHP_METHOD(swoole_table, create)
+static PHP_METHOD(swoole_table, create)
 {
     swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
     swTable_create(table);
     RETURN_TRUE;
 }
 
-PHP_METHOD(swoole_table, set)
+static PHP_METHOD(swoole_table, set)
 {
     zval *array;
     char *key;
@@ -287,7 +321,117 @@ PHP_METHOD(swoole_table, set)
     RETURN_TRUE;
 }
 
-PHP_METHOD(swoole_table, get)
+static PHP_METHOD(swoole_table, incr)
+{
+    char *key;
+    int key_len;
+    char *col;
+    int col_len;
+    long incrby = 1;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|l", &key, &key_len, &col, &col_len, &incrby) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+
+    swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
+    swTableRow *row = swTableRow_set(table, key, key_len);
+    if (!row)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to allocate memory.");
+        RETURN_FALSE;
+    }
+
+    swTableColumn *column;
+    sw_atomic_t *lock = &row->lock;
+    sw_spinlock(lock);
+
+    column = swTableColumn_get(table, col, col_len);
+    if (column == NULL)
+    {
+        swoole_php_fatal_error(E_WARNING, "column[%s] not exist.", col);
+        RETURN_FALSE;
+    }
+    else if (column->type == SW_TABLE_STRING)
+    {
+        swoole_php_fatal_error(E_WARNING, "cannot use incr with string column.");
+        RETURN_FALSE;
+    }
+    else if (column->type == SW_TABLE_FLOAT)
+    {
+        double set_value;
+        memcpy(&set_value, row->data + column->index, sizeof(set_value));
+        set_value += incrby;
+        swTableRow_set_value(row, column, &set_value, 0);
+    }
+    else
+    {
+        uint64_t set_value;
+        memcpy(&set_value, row->data + column->index, column->size);
+        set_value += incrby;
+        swTableRow_set_value(row, column, &set_value, 0);
+    }
+    sw_spinlock_release(lock);
+
+    RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_table, decr)
+{
+    char *key;
+    int key_len;
+    char *col;
+    int col_len;
+    long decrby = 1;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|l", &key, &key_len, &col, &col_len, &decrby) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+
+    swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
+    swTableRow *row = swTableRow_set(table, key, key_len);
+    if (!row)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to allocate memory.");
+        RETURN_FALSE;
+    }
+
+    swTableColumn *column;
+    sw_atomic_t *lock = &row->lock;
+    sw_spinlock(lock);
+
+    column = swTableColumn_get(table, col, col_len);
+    if (column == NULL)
+    {
+        swoole_php_fatal_error(E_WARNING, "column[%s] not exist.", col);
+        RETURN_FALSE;
+    }
+    else if (column->type == SW_TABLE_STRING)
+    {
+        swoole_php_fatal_error(E_WARNING, "cannot use incr with string column.");
+        RETURN_FALSE;
+    }
+    else if (column->type == SW_TABLE_FLOAT)
+    {
+        double set_value;
+        memcpy(&set_value, row->data + column->index, sizeof(set_value));
+        set_value -= decrby;
+        swTableRow_set_value(row, column, &set_value, 0);
+    }
+    else
+    {
+        uint64_t set_value;
+        memcpy(&set_value, row->data + column->index, column->size);
+        set_value -= decrby;
+        swTableRow_set_value(row, column, &set_value, 0);
+    }
+    sw_spinlock_release(lock);
+
+    RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_table, get)
 {
     char *key;
     int keylen;
@@ -305,7 +449,7 @@ PHP_METHOD(swoole_table, get)
     php_swoole_table_row2array(table, row, return_value);
 }
 
-PHP_METHOD(swoole_table, del)
+static PHP_METHOD(swoole_table, del)
 {
     char *key;
     int keylen;
@@ -319,19 +463,19 @@ PHP_METHOD(swoole_table, del)
     SW_CHECK_RETURN(swTableRow_del(table, key, keylen));
 }
 
-PHP_METHOD(swoole_table, lock)
+static PHP_METHOD(swoole_table, lock)
 {
     swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
     SW_LOCK_CHECK_RETURN(table->lock.lock(&table->lock));
 }
 
-PHP_METHOD(swoole_table, unlock)
+static PHP_METHOD(swoole_table, unlock)
 {
     swTable *table = php_swoole_table_get(getThis() TSRMLS_CC);
     SW_LOCK_CHECK_RETURN(table->lock.unlock(&table->lock));
 }
 
-PHP_METHOD(swoole_table, count)
+static PHP_METHOD(swoole_table, count)
 {
     #define COUNT_NORMAL            0
     #define COUNT_RECURSIVE         1
@@ -357,7 +501,7 @@ PHP_METHOD(swoole_table, count)
 
 #ifdef HAVE_PCRE
 
-PHP_METHOD(swoole_table, rewind)
+static PHP_METHOD(swoole_table, rewind)
 {
     if (zend_parse_parameters_none() == FAILURE)
     {
@@ -368,7 +512,7 @@ PHP_METHOD(swoole_table, rewind)
     swTable_iterator_rewind(table);
 }
 
-PHP_METHOD(swoole_table, current)
+static PHP_METHOD(swoole_table, current)
 {
     if (zend_parse_parameters_none() == FAILURE)
     {
@@ -380,7 +524,7 @@ PHP_METHOD(swoole_table, current)
     php_swoole_table_row2array(table, row, return_value);
 }
 
-PHP_METHOD(swoole_table, key)
+static PHP_METHOD(swoole_table, key)
 {
     if (zend_parse_parameters_none() == FAILURE)
     {
@@ -392,7 +536,7 @@ PHP_METHOD(swoole_table, key)
     RETURN_LONG(row->crc32);
 }
 
-PHP_METHOD(swoole_table, next)
+static PHP_METHOD(swoole_table, next)
 {
     if (zend_parse_parameters_none() == FAILURE)
     {
@@ -402,7 +546,7 @@ PHP_METHOD(swoole_table, next)
     swTable_iterator_forward(table);
 }
 
-PHP_METHOD(swoole_table, valid)
+static PHP_METHOD(swoole_table, valid)
 {
     if (zend_parse_parameters_none() == FAILURE)
     {
