@@ -291,8 +291,8 @@ static int swReactorPoll_exist(swReactor *reactor, int fd)
     {
         if (object->events[i].fd == fd )
         {
-            return SW_OK;
+            return SW_TRUE;
         }
     }
-    return SW_ERR;
+    return SW_FALSE;
 }

@@ -204,12 +204,18 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
                 }
             }
         }
+
         if (ret < 0)
         {
             bzero(conn, sizeof(swConnection));
             close(new_fd);
             return SW_OK;
         }
+
+#ifndef HAVE_ACCEPT4
+        swSetNonBlock(new_fd);
+#endif
+
 #ifdef SW_ACCEPT_AGAIN
         continue;
 #else
