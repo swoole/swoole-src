@@ -613,7 +613,7 @@ static swClient* swoole_client_create_socket(zval *object, char *host, int host_
 	return cli;
 }
 
-PHP_METHOD(swoole_client, __construct)
+static PHP_METHOD(swoole_client, __construct)
 {
     long async = 0;
     zval *ztype;
@@ -641,7 +641,7 @@ PHP_METHOD(swoole_client, __construct)
     RETURN_TRUE;
 }
 
-PHP_METHOD(swoole_client, connect)
+static PHP_METHOD(swoole_client, connect)
 {
 	int ret, i;
 	long port = 0, sock_flag = 0;
@@ -1021,7 +1021,7 @@ static PHP_METHOD(swoole_client, recv)
     }
 }
 
-PHP_METHOD(swoole_client, isConnected)
+static PHP_METHOD(swoole_client, isConnected)
 {
     swClient *cli;
     zval **zres;
@@ -1037,7 +1037,7 @@ PHP_METHOD(swoole_client, isConnected)
     RETURN_BOOL(cli->socket->active);
 }
 
-PHP_METHOD(swoole_client, getsockname)
+static PHP_METHOD(swoole_client, getsockname)
 {
     swClient *cli;
     zval **zres;
@@ -1091,7 +1091,7 @@ PHP_METHOD(swoole_client, getsockname)
     }
 }
 
-PHP_METHOD(swoole_client, getpeername)
+static PHP_METHOD(swoole_client, getpeername)
 {
     swClient *cli;
     zval **zres;
@@ -1139,7 +1139,7 @@ PHP_METHOD(swoole_client, getpeername)
     }
 }
 
-PHP_METHOD(swoole_client, close)
+static PHP_METHOD(swoole_client, close)
 {
 	zval **zres, *ztype;
 	swClient *cli;
@@ -1156,14 +1156,14 @@ PHP_METHOD(swoole_client, close)
 
 	if (!cli->socket->active)
 	{
-	    php_error_docref(NULL TSRMLS_CC, E_WARNING, "not connected to the server");
+	    swoole_php_error(E_WARNING, "not connected to the server");
 	    RETURN_FALSE;
 	}
 
 	ztype = zend_read_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("type")-1, 0 TSRMLS_CC);
 	if (ztype == NULL || ZVAL_IS_NULL(ztype))
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "get swoole_client->type failed.");
+	    swoole_php_error(E_WARNING, "get swoole_client->type failed.");
 		RETURN_FALSE;
 	}
 
@@ -1183,7 +1183,7 @@ PHP_METHOD(swoole_client, close)
 	SW_CHECK_RETURN(ret);
 }
 
-PHP_METHOD(swoole_client, on)
+static PHP_METHOD(swoole_client, on)
 {
 	char *cb_name;
 	int i, cb_name_len;
