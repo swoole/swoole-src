@@ -65,7 +65,7 @@ static char *php_sw_callbacks[PHP_CLIENT_CALLBACK_NUM] =
 	php_sw_client_onError,
 };
 
-const zend_function_entry swoole_client_methods[] =
+static const zend_function_entry swoole_client_methods[] =
 {
     PHP_ME(swoole_client, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
     PHP_ME(swoole_client, connect, NULL, ZEND_ACC_PUBLIC)
@@ -85,7 +85,6 @@ HashTable php_sw_long_connections;
 
 zend_class_entry swoole_client_ce;
 zend_class_entry *swoole_client_class_entry_ptr;
-
 
 void swoole_client_init(int module_number TSRMLS_DC)
 {
@@ -797,7 +796,7 @@ static PHP_METHOD(swoole_client, send)
 
 	if (cli->socket->active == 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "server is not connected.");
+	    swoole_php_error(E_WARNING, "server is not connected.");
 		RETURN_FALSE;
 	}
 
@@ -849,7 +848,7 @@ static PHP_METHOD(swoole_client, sendto)
 
     if (len <= 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "data is empty.");
+        swoole_php_error(E_WARNING, "data is empty.");
         RETURN_FALSE;
     }
 
@@ -865,7 +864,7 @@ static PHP_METHOD(swoole_client, sendto)
 
     if (cli->socket->active == 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "server is not connected.");
+        swoole_php_error(E_WARNING, "server is not connected.");
         RETURN_FALSE;
     }
 
@@ -912,14 +911,15 @@ static PHP_METHOD(swoole_client, sendfile)
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
         RETURN_FALSE;
     }
+
     if (!(cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6 || cli->type == SW_SOCK_UNIX_STREAM))
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "dgram socket cannot use sendfile.");
+        swoole_php_error(E_WARNING, "dgram socket cannot use sendfile.");
         RETURN_FALSE;
     }
     if (cli->socket->active == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "Server is not connected.");
+        swoole_php_error(E_WARNING, "Server is not connected.");
         RETURN_FALSE;
     }
     //clear errno
@@ -968,7 +968,7 @@ static PHP_METHOD(swoole_client, recv)
 
 	if (cli->socket->active == 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "server is not connected.");
+		swoole_php_error(E_WARNING, "server is not connected.");
 		RETURN_FALSE;
 	}
 
