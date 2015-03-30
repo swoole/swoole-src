@@ -358,6 +358,14 @@ void swoole_rtrim(char *str, int len)
     }
 }
 
+long swoole_file_get_size(FILE *fp)
+{
+    fseek(fp, 0L, SEEK_END);
+    int size = ftell(fp);
+    fseek(fp, 0L, SEEK_SET); 
+    return size;
+}
+
 swString* swoole_file_get_contents(char *filename)
 {
     struct stat file_stat;

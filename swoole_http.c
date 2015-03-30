@@ -59,6 +59,7 @@ enum http_global_flag
     HTTP_GLOBAL_COOKIE    = 1u << 3,
     HTTP_GLOBAL_REQUEST   = 1u << 4,
     HTTP_GLOBAL_SERVER    = 1u << 5,
+	HTTP_GLOBAL_FILES     = 1u << 6,
 };
 
 enum http_callback_type
@@ -88,6 +89,13 @@ static int http_request_on_header_field(php_http_parser *parser, const char *at,
 static int http_request_on_header_value(php_http_parser *parser, const char *at, size_t length);
 static int http_request_on_headers_complete(php_http_parser *parser);
 static int http_request_message_complete(php_http_parser *parser);
+
+static int multipart_body_on_header_field(multipart_parser* p, const char *at, size_t length);
+static int multipart_body_on_header_value(multipart_parser* p, const char *at, size_t length);
+static int multipart_body_on_data(multipart_parser* p, const char *at, size_t length);
+static int multipart_body_on_header_complete(multipart_parser* p);
+static int multipart_body_on_data_end(multipart_parser* p);
+static int multipart_body_end(multipart_parser* p);
 
 static int http_request_new(swoole_http_client* c TSRMLS_DC);
 
@@ -193,6 +201,17 @@ static const php_http_parser_settings http_parser_settings =
     http_request_on_headers_complete,
     http_request_on_body,
     http_request_message_complete
+};
+
+static const multipart_parser_settings mt_parser_settings = 
+{
+	multipart_body_on_header_field,
+	multipart_body_on_header_value,
+	multipart_body_on_data,
+	NULL,
+	multipart_body_on_header_complete,
+	multipart_body_on_data_end,
+    multipart_body_end
 };
 
 const zend_function_entry swoole_http_server_methods[] =
@@ -477,6 +496,17 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
         zval *header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("header"), 1 TSRMLS_CC);
         add_assoc_stringl_ex(header, header_name, client->current_header_name_len + 1, (char *) at, length, 1);
     }
+	else if (parser->method == PHP_HTTP_POST && memcmp(header_name, ZEND_STRL("content-type")) == 0
+            && strncasecmp(at, ZEND_STRL("multipart/form-data")) == 0)
+	{
+		int boundary_len = length - strlen("multipart/form-data; boundary=");
+printf("client->mt_parser=%d\r\n\r\n", client->mt_parser);
+        multipart_parser *p = multipart_parser_init(at + length - boundary_len, boundary_len, &mt_parser_settings);
+		client->mt_parser = p;
+		p->data = client;
+	    zval *header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("header"), 1 TSRMLS_CC);
+        add_assoc_stringl_ex(header, header_name, client->current_header_name_len + 1, (char *) at, length, 1);
+	}
     else
     {
         zval *header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("header"), 1
@@ -505,6 +535,107 @@ static int http_request_on_headers_complete(php_http_parser *parser)
     return 0;
 }
 
+static int multipart_body_on_header_field(multipart_parser* p, const char *at, size_t length)
+{
+	swoole_http_client *client = (swoole_http_client *) p->data;
+    return http_request_on_header_field(&client->parser, at, length);
+}
+static int multipart_body_on_header_value(multipart_parser* p, const char *at, size_t length)
+{
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+    swoole_http_client *client = (swoole_http_client*) p->data;
+    char *headername = zend_str_tolower_dup(client->current_header_name, client->current_header_name_len);
+
+    if (strncasecmp(headername, ZEND_STRL("content-disposition") == 0))
+	{
+		char input_name[] = "file1";
+        char filename[] = "upload";
+        zval *multipart_header;
+        MAKE_STD_ZVAL(multipart_header);
+        array_init(multipart_header);
+        zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("multipart_header"), multipart_header TSRMLS_CC);
+        sw_add_assoc_string(multipart_header, "name", filename, 1);
+        sw_add_assoc_string(multipart_header, "inputname", input_name, 1);
+
+	}
+    if (strncasecmp(headername, ZEND_STRL("content-type")) == 0)
+    {
+        zval *multipart_header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("multipart_header"), 1 TSRMLS_CC);
+        add_assoc_stringl_ex(multipart_header, headername, client->current_header_name_len + 1, (char *) at, length, 1);
+    }
+
+    if (client->current_header_name_allocated)
+    {
+        efree(client->current_header_name);
+        client->current_header_name_allocated = 0;
+    }
+    efree(headername);
+
+	return 0;
+}
+
+static int multipart_body_on_data(multipart_parser* p, const char *at, size_t length)
+{
+    int n = fwrite(at, length, 1, (FILE *)p->fp);
+	if (n != 1)
+	{
+		swWarn("write upload file failed. Error %s[%d]", strerror(errno), errno);
+		return -1;
+	}
+//printf("write file:%s, ret=%d\r\n\r\n", at, n);
+	return 0;
+}
+
+static int multipart_body_on_header_complete(multipart_parser* p)
+{
+	char file_path[] = "/tmp/upload";
+	FILE *fp = fopen(file_path, "w+");
+	if (fp == NULL)
+	{
+		swWarn("fopen(%s) failed. Error %s[%d]", file_path, strerror(errno), errno);
+		return -1;
+	}
+	p->fp = fp;
+
+    swoole_http_client *client = (swoole_http_client *) p->data;
+    zval *multipart_header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("multipart_header"), 1 TSRMLS_CC);
+    sw_add_assoc_string(multipart_header, "tmp_name", file_path, 1);
+
+	return 0;
+}
+
+static int multipart_body_on_data_end(multipart_parser* p)
+{
+    swoole_http_client *client = (swoole_http_client *) p->data;
+    zval *multipart_header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("multipart_header"), 1 TSRMLS_CC);
+    long size = swoole_file_get_size((FILE*)p->fp);
+    add_assoc_long(multipart_header, "size", size);
+//    add_assoc_val_ex(, multipart_header);
+
+	int ret = fclose((FILE *)p->fp);
+	if (ret == -1)
+	{
+		swWarn("fclose failed. Error %s[%d]", strerror(errno), errno);
+	}
+printf("fclose fp=%d\r\n\r\n", p->fp);
+    p->fp = NULL;
+
+
+	return 0;
+}
+
+static int multipart_body_end(multipart_parser* p)
+{
+	swoole_http_client *client = (swoole_http_client *) p->data;
+    zval *multipart_header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("multipart_header"), 1 TSRMLS_CC);
+    if (!ZVAL_IS_NULL(multipart_header))
+    {
+        zval_ptr_dtor(&multipart_header);
+    }
+	return 0;
+}
+
 static int http_request_on_body(php_http_parser *parser, const char *at, size_t length)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -525,6 +656,20 @@ static int http_request_on_body(php_http_parser *parser, const char *at, size_t 
     {
         client->request.post_content = body;
         client->request.post_length = length;
+    }
+
+    if (client->mt_parser != NULL)
+    {
+		multipart_parser *multipart_parser = client->mt_parser;
+		size_t n = multipart_parser_execute(multipart_parser, body, length);
+printf("parse_length:%d\r\n", n);
+		if (n != length)
+		{
+//printf("error, fail to parse multipart body, n=%d\r\n\r\n", n);
+//			n = multipart_parser_execute(multipart_parser, body + n, length - n);
+//printf("error2, fail to parse multipart body, n=%d\r\n\r\n", n);
+			swoole_php_fatal_error(E_ERROR, "fail to parse multipart body");
+		}
     }
 
     return 0;
@@ -550,6 +695,12 @@ static int http_request_message_complete(php_http_parser *parser)
         }
     }
     client->request_read = 1;
+
+	if (client->mt_parser)
+	{
+		efree(client->mt_parser);
+		client->mt_parser = NULL;
+	}
     return 0;
 }
 
@@ -742,7 +893,7 @@ void swoole_http_init(int module_number TSRMLS_DC)
     REGISTER_LONG_CONSTANT("HTTP_GLOBAL_GET", HTTP_GLOBAL_GET, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("HTTP_GLOBAL_POST", HTTP_GLOBAL_POST, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("HTTP_GLOBAL_COOKIE", HTTP_GLOBAL_COOKIE, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("HTTP_GLOBAL_ALL", HTTP_GLOBAL_GET| HTTP_GLOBAL_POST| HTTP_GLOBAL_COOKIE | HTTP_GLOBAL_REQUEST |HTTP_GLOBAL_SERVER, CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("HTTP_GLOBAL_ALL", HTTP_GLOBAL_GET| HTTP_GLOBAL_POST| HTTP_GLOBAL_COOKIE | HTTP_GLOBAL_REQUEST |HTTP_GLOBAL_SERVER | HTTP_GLOBAL_FILES, CONST_CS | CONST_PERSISTENT);
 }
 
 static PHP_METHOD(swoole_http_server, on)

@@ -860,6 +860,7 @@ void swoole_dump_ascii(char *data, int size);
 int swoole_sync_writefile(int fd, void *data, int len);
 int swoole_sync_readfile(int fd, void *buf, int len);
 int swoole_system_random(int min, int max);
+long swoole_file_get_size(FILE *fp);
 swString* swoole_file_get_contents(char *filename);
 void swoole_open_remote_debug(void);
 int swoole_strnpos(char *haystack, char *needle, uint32_t length);

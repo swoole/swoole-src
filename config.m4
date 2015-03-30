@@ -258,6 +258,8 @@ if test "$PHP_SWOOLE" != "no"; then
         
     if test "$enable_swoole" != "yes"; then
         swoole_source_file="$swoole_source_file thirdparty/php_http_parser.c"
+		swoole_source_file="$swoole_source_file thirdparty/multipart_parser.c"
+
     fi
 
     PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared)

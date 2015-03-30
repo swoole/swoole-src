@@ -185,6 +185,8 @@
 			<dir name="thirdparty">
 				<file role="src" name="php_http_parser.c" />
 				<file role="src" name="php_http_parser.h" />
+				<file role="src" name="multipart_parser.c" />
+				<file role="src" name="multipart_parser.h" />
 			</dir>
 			<dir name="src">
 				<dir name="core">
