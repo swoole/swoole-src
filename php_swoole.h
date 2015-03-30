@@ -358,9 +358,6 @@ PHP_METHOD(swoole_table, key);
 PHP_METHOD(swoole_table, valid);
 #endif
 
-PHP_METHOD(swoole_websocket_server, on);
-PHP_METHOD(swoole_websocket_server, push);
-
 void swoole_destory_lock(zend_resource *rsrc TSRMLS_DC);
 void swoole_destory_process(zend_resource *rsrc TSRMLS_DC);
 void swoole_destory_buffer(zend_resource *rsrc TSRMLS_DC);

@@ -63,6 +63,7 @@ static sw_inline int swHashMap_node_add(swHashMap_node *root, swHashMap_node *ad
     add->hh.tbl = root->hh.tbl;
     add->hh.hashv = swoole_hash_jenkins(add->key_str, add->key_int);
     _ha_bkt = add->hh.hashv & (root->hh.tbl->num_buckets - 1);
+
     HASH_ADD_TO_BKT(root->hh.tbl->buckets[_ha_bkt], &add->hh);
 
 	return SW_OK;

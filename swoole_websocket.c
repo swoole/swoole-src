@@ -45,15 +45,33 @@ static int websocket_handshake(swoole_http_client *client);
 static void sha1(const char *str, int _len, unsigned char *digest);
 static zval* websocket_callbacks[2];
 
+static PHP_METHOD(swoole_websocket_server, on);
+static PHP_METHOD(swoole_websocket_server, push);
+static PHP_METHOD(swoole_websocket_server, send);
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_on, 0, 0, 2)
-    ZEND_ARG_INFO(0, ha_name)
-    ZEND_ARG_INFO(0, cb)
+    ZEND_ARG_INFO(0, event_name)
+    ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_push, 0, 0, 2)
+    ZEND_ARG_INFO(0, fd)
+    ZEND_ARG_INFO(0, data)
+    ZEND_ARG_INFO(0, opcode)
+    ZEND_ARG_INFO(0, finish)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_send, 0, 0, 2)
+    ZEND_ARG_INFO(0, fd)
+    ZEND_ARG_INFO(0, data)
+    ZEND_ARG_INFO(0, from_id)
 ZEND_END_ARG_INFO()
 
 const zend_function_entry swoole_websocket_server_methods[] =
 {
     PHP_ME(swoole_websocket_server, on,         arginfo_swoole_websocket_server_on, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_websocket_server, push,       NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_websocket_server, push,       arginfo_swoole_websocket_server_push, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_websocket_server, send,       arginfo_swoole_websocket_server_send, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -253,7 +271,7 @@ void swoole_websocket_init(int module_number TSRMLS_DC)
     REGISTER_LONG_CONSTANT("WEBSOCKET_STATUS_FRAME", WEBSOCKET_STATUS_FRAME, CONST_CS | CONST_PERSISTENT);
 }
 
-PHP_METHOD( swoole_websocket_server, on)
+static PHP_METHOD( swoole_websocket_server, on)
 {
     zval *callback;
     zval *event_name;
@@ -299,7 +317,7 @@ PHP_METHOD( swoole_websocket_server, on)
     }
 }
 
-PHP_METHOD(swoole_websocket_server, push)
+static PHP_METHOD(swoole_websocket_server, push)
 {
     zval *zdata;
     long fd = 0;
@@ -345,4 +363,10 @@ PHP_METHOD(swoole_websocket_server, push)
     swString_clear(swoole_http_buffer);
     swWebSocket_encode(swoole_http_buffer, data, length, opcode, (int) fin);
     SW_CHECK_RETURN(swServer_tcp_send(SwooleG.serv, fd, swoole_http_buffer->str, swoole_http_buffer->length));
+}
+
+static PHP_METHOD(swoole_websocket_server, send)
+{
+    swoole_php_fatal_error(E_WARNING, "please use swoole_websocket_server->push().");
+    RETURN_FALSE;
 }
