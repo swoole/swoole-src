@@ -7,7 +7,7 @@ $table->create();
 
 $worker = new swoole_process('child1', false, false);
 $worker->start();
-
+//
 //child
 function child1($worker)
 {
@@ -26,6 +26,9 @@ $s = microtime(true);
 //    $arr = $table->get('350749960@qq.com');
 //	var_dump($arr);
 //}
+
+$table->incr('tianfenghan@qq.com', 'id', 5);
+$table->decr('hello@qq.com', 'num', 1.1);
 
 var_dump($table->get('350749960@qq.com'));
 var_dump($table->get('tianfenghan@qq.com'));

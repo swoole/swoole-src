@@ -327,9 +327,9 @@ static PHP_METHOD(swoole_table, incr)
     int key_len;
     char *col;
     int col_len;
-    long incrby = 1;
+    zval* incrby = NULL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|l", &key, &key_len, &col, &col_len, &incrby) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|z", &key, &key_len, &col, &col_len, &incrby) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -361,14 +361,30 @@ static PHP_METHOD(swoole_table, incr)
     {
         double set_value;
         memcpy(&set_value, row->data + column->index, sizeof(set_value));
-        set_value += incrby;
+        if (incrby)
+        {
+            convert_to_double(incrby);
+            set_value += Z_DVAL_P(incrby);
+        }
+        else
+        {
+            set_value += 1;
+        }
         swTableRow_set_value(row, column, &set_value, 0);
     }
     else
     {
         uint64_t set_value;
         memcpy(&set_value, row->data + column->index, column->size);
-        set_value += incrby;
+        if (incrby)
+        {
+            convert_to_long(incrby);
+            set_value += Z_LVAL_P(incrby);
+        }
+        else
+        {
+            set_value += 1;
+        }
         swTableRow_set_value(row, column, &set_value, 0);
     }
     sw_spinlock_release(lock);
@@ -382,9 +398,9 @@ static PHP_METHOD(swoole_table, decr)
     int key_len;
     char *col;
     int col_len;
-    long decrby = 1;
+    zval *decrby = NULL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|l", &key, &key_len, &col, &col_len, &decrby) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|z", &key, &key_len, &col, &col_len, &decrby) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -416,14 +432,30 @@ static PHP_METHOD(swoole_table, decr)
     {
         double set_value;
         memcpy(&set_value, row->data + column->index, sizeof(set_value));
-        set_value -= decrby;
+        if (decrby)
+        {
+            convert_to_double(decrby);
+            set_value -= Z_DVAL_P(decrby);
+        }
+        else
+        {
+            set_value -= 1;
+        }
         swTableRow_set_value(row, column, &set_value, 0);
     }
     else
     {
         uint64_t set_value;
         memcpy(&set_value, row->data + column->index, column->size);
-        set_value -= decrby;
+        if (decrby)
+        {
+            convert_to_long(decrby);
+            set_value -= Z_LVAL_P(decrby);
+        }
+        else
+        {
+            set_value -= 1;
+        }
         swTableRow_set_value(row, column, &set_value, 0);
     }
     sw_spinlock_release(lock);
