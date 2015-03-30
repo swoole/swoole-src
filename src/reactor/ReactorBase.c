@@ -185,6 +185,7 @@ static void swReactor_onTimeout(swReactor *reactor)
     if (reactor->disable_accept)
     {
         reactor->enable_accept(reactor);
+        reactor->disable_accept = 0;
     }
 }
 
