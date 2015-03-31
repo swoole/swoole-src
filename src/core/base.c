@@ -358,6 +358,14 @@ void swoole_rtrim(char *str, int len)
     }
 }
 
+long swoole_file_get_size(FILE *fp)
+{
+    fseek(fp, 0L, SEEK_END);
+    int size = ftell(fp);
+    fseek(fp, 0L, SEEK_SET); 
+    return size;
+}
+
 swString* swoole_file_get_contents(char *filename)
 {
     struct stat file_stat;
@@ -779,7 +787,7 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
     return match;
 }
 
-int swoole_strnpos(char *haystack, char *needle, uint32_t length)
+int swoole_strnpos(const char *haystack, const char *needle, uint32_t length)
 {
     uint32_t needle_length = strlen(needle);
     uint32_t i;
