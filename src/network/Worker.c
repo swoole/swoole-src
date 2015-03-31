@@ -136,7 +136,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
             {
                 swWarn("[1]received the wrong data[%d bytes] from socket#%d", task->info.len, fd);
             }
-            return SW_OK;
+            break;
         }
 #endif
         factory->onTask(factory, task);
@@ -181,7 +181,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         if (task->info.fd < 0)
         {
             swWarn("[2]received the wrong data from socket#%d", fd);
-            return SW_OK;
+            break;
         }
 #endif
         factory->end(factory, task->info.fd);
@@ -193,7 +193,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         if (task->info.fd < 0)
         {
             swWarn("[3]received the wrong data from socket#%d", fd);
-            return SW_OK;
+            break;
         }
 #endif
         serv->onConnect(serv, task->info.fd, task->info.from_id);
@@ -377,6 +377,8 @@ int swWorker_loop(swFactory *factory, int worker_id)
         swError("[Worker] create worker_reactor failed.");
         return SW_ERR;
     }
+    
+    serv->workers[worker_id] = SW_WORKER_IDLE;
 
     int pipe_worker = serv->workers[worker_id].pipe_worker;
 
