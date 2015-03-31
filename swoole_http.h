@@ -71,6 +71,8 @@ typedef struct
     char *current_header_name;
     size_t current_header_name_len;
 
+    char *current_input_name;
+
 } swoole_http_client;
 
 int swoole_websocket_onMessage(swEventData *req);
