@@ -21,6 +21,7 @@
 
 #include "thirdparty/php_http_parser.h"
 #include "thirdparty/multipart_parser.h"
+#include "md5.h"
 
 typedef struct
 {
@@ -71,7 +72,7 @@ typedef struct
     char *current_header_name;
     size_t current_header_name_len;
 
-    char *current_input_name;
+    swString *current_input_name;
 
 } swoole_http_client;
 

@@ -55,7 +55,7 @@ swString *swString_dup2(swString *src)
     return dst;
 }
 
-swString *swString_dup(char *src_str, int length)
+swString *swString_dup(const char *src_str, int length)
 {
     swString *str = sw_malloc(sizeof(swString));
     if (str == NULL)

@@ -466,7 +466,7 @@ static sw_inline void swString_clear(swString *str)
 }
 
 swString *swString_new(size_t size);
-swString *swString_dup(char *src_str, int length);
+swString *swString_dup(const char *src_str, int length);
 swString *swString_dup2(swString *src);
 
 void swString_print(swString *str);
@@ -863,7 +863,7 @@ int swoole_system_random(int min, int max);
 long swoole_file_get_size(FILE *fp);
 swString* swoole_file_get_contents(char *filename);
 void swoole_open_remote_debug(void);
-int swoole_strnpos(char *haystack, char *needle, uint32_t length);
+int swoole_strnpos(const char *haystack, const char *needle, uint32_t length);
 char *swoole_dec2hex(int value, int base);
 
 void swoole_ioctl_set_block(int sock, int nonblock);

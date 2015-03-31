@@ -787,7 +787,7 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
     return match;
 }
 
-int swoole_strnpos(char *haystack, char *needle, uint32_t length)
+int swoole_strnpos(const char *haystack, const char *needle, uint32_t length)
 {
     uint32_t needle_length = strlen(needle);
     uint32_t i;
