@@ -599,9 +599,8 @@ void get_random_file_name(char *buf, const char *src)
     int i;
 
     Md5Initialise(&context);
-	srand(time(NULL));
     char s[20] = {0};
-    sprintf(s, "%s%d", src, rand()/10000);
+    sprintf(s, "%s%d", src, swoole_system_random(0,9999));
     Md5Update(&context, s, strlen(s));
     Md5Finalise(&context, &hash);
 
