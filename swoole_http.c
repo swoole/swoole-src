@@ -504,7 +504,6 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
             && strncasecmp(at, ZEND_STRL("multipart/form-data")) == 0)
     {
         int boundary_len = length - strlen("multipart/form-data; boundary=");
-//printf("client->mt_parser=%d\r\n\r\n", client->mt_parser);
         multipart_parser *p = multipart_parser_init(at + length - boundary_len, boundary_len, &mt_parser_settings);
         client->mt_parser = p;
         p->data = client;
@@ -588,7 +587,7 @@ static int multipart_body_on_data(multipart_parser* p, const char *at, size_t le
         swWarn("write upload file failed. Error %s[%d]", strerror(errno), errno);
         return -1;
     }
-//printf("write file:%s, ret=%d\r\n\r\n", at, n);
+
     return 0;
 }
 
@@ -612,7 +611,6 @@ void get_random_file_name(char *buf, const char *src)
 
 static int multipart_body_on_header_complete(multipart_parser* p)
 {
-//    char file_path[] = "/tmp/upload";
     char base_path[] = "/tmp/";    
     char file_path[MD5_HASH_SIZE + 1] = {0};
     sprintf(file_path, "%s", base_path);
@@ -646,64 +644,8 @@ static int multipart_body_on_data_end(multipart_parser* p)
     {
         swWarn("fclose failed. Error %s[%d]", strerror(errno), errno);
     }
-printf("fclose fp=%d\r\n\r\n", p->fp);
-    p->fp = NULL;
-    add_assoc_long(multipart_header, "error", ret);
-
-    zval *files = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("files"), 1 TSRMLS_CC);
-    add_assoc_zval(files, client->current_input_name->str, multipart_header);
-    swString_free(client->current_input_name);
-
-    return 0;
-}
-
-static int multipart_body_end(multipart_parser* p)
-{
-    swoole_http_client *client = (swoole_http_client *) p->data;
-    zval *multipart_header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("multipart_header"), 1 TSRMLS_CC);
-    if (!ZVAL_IS_NULL(multipart_header))
-    {
-        zval_ptr_dtor(&multipart_header);
-    }
-
-    zval *files = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("files"), 1 TSRMLS_CC);
-    http_merge_php_global(files, client->zrequest, HTTP_GLOBAL_FILES);
-
-    return 0;
-}
-
-static int http_request_on_body(php_http_parser *parser, const char *at, size_t length)
-{
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-
-    swoole_http_client *client = parser->data;
-    char *body = estrndup(at, length);
-
-    if (client->request.post_form_urlencoded)
-    {
-        zval *post;
-        MAKE_STD_ZVAL(post);
-        array_init(post);
-        zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("post"), post TSRMLS_CC);
-        sapi_module.treat_data(PARSE_STRING, body, post TSRMLS_CC);
-        http_merge_php_global(post, client->zrequest, HTTP_GLOBAL_POST);
-    }
-    else
-    {
-        client->request.post_content = body;
-        client->request.post_length = length;
-    }
-
-    if (client->mt_parser != NULL)
-    {
-        multipart_parser *multipart_parser = client->mt_parser;
-        size_t n = multipart_parser_execute(multipart_parser, body, length);
-printf("parse_length:%d\r\n", n);
         if (n != length)
         {
-//printf("error, fail to parse multipart body, n=%d\r\n\r\n", n);
-//          n = multipart_parser_execute(multipart_parser, body + n, length - n);
-//printf("error2, fail to parse multipart body, n=%d\r\n\r\n", n);
             swoole_php_fatal_error(E_ERROR, "fail to parse multipart body");
         }
     }
@@ -734,7 +676,6 @@ static int http_request_message_complete(php_http_parser *parser)
 
     if (client->mt_parser)
     {
-//      efree(client->mt_parser);
         multipart_parser_free(client->mt_parser);
         client->mt_parser = NULL;
     }
