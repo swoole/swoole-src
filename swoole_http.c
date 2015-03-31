@@ -504,7 +504,6 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
             && strncasecmp(at, ZEND_STRL("multipart/form-data")) == 0)
     {
         int boundary_len = length - strlen("multipart/form-data; boundary=");
-//printf("client->mt_parser=%d\r\n\r\n", client->mt_parser);
         multipart_parser *p = multipart_parser_init(at + length - boundary_len, boundary_len, &mt_parser_settings);
         client->mt_parser = p;
         p->data = client;
@@ -524,6 +523,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
         client->current_header_name_allocated = 0;
     }
     efree(header_name);
+
     return 0;
 }
 
@@ -536,6 +536,7 @@ static int http_request_on_headers_complete(php_http_parser *parser)
         client->current_header_name_allocated = 0;
     }
     client->current_header_name = NULL;
+
     return 0;
 }
 
@@ -588,7 +589,7 @@ static int multipart_body_on_data(multipart_parser* p, const char *at, size_t le
         swWarn("write upload file failed. Error %s[%d]", strerror(errno), errno);
         return -1;
     }
-//printf("write file:%s, ret=%d\r\n\r\n", at, n);
+
     return 0;
 }
 
@@ -612,7 +613,6 @@ void get_random_file_name(char *buf, const char *src)
 
 static int multipart_body_on_header_complete(multipart_parser* p)
 {
-//    char file_path[] = "/tmp/upload";
     char base_path[] = "/tmp/";    
     char file_path[MD5_HASH_SIZE + 1] = {0};
     sprintf(file_path, "%s", base_path);
@@ -646,7 +646,6 @@ static int multipart_body_on_data_end(multipart_parser* p)
     {
         swWarn("fclose failed. Error %s[%d]", strerror(errno), errno);
     }
-printf("fclose fp=%d\r\n\r\n", p->fp);
     p->fp = NULL;
     add_assoc_long(multipart_header, "error", ret);
 
@@ -698,12 +697,8 @@ static int http_request_on_body(php_http_parser *parser, const char *at, size_t 
     {
         multipart_parser *multipart_parser = client->mt_parser;
         size_t n = multipart_parser_execute(multipart_parser, body, length);
-printf("parse_length:%d\r\n", n);
         if (n != length)
         {
-//printf("error, fail to parse multipart body, n=%d\r\n\r\n", n);
-//          n = multipart_parser_execute(multipart_parser, body + n, length - n);
-//printf("error2, fail to parse multipart body, n=%d\r\n\r\n", n);
             swoole_php_fatal_error(E_ERROR, "fail to parse multipart body");
         }
     }
@@ -734,10 +729,10 @@ static int http_request_message_complete(php_http_parser *parser)
 
     if (client->mt_parser)
     {
-//      efree(client->mt_parser);
         multipart_parser_free(client->mt_parser);
         client->mt_parser = NULL;
     }
+
     return 0;
 }
 
