@@ -132,20 +132,14 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
             return SW_OK;
         }
 
-#if SW_REACTOR_SCHEDULE == 1
-		//轮询分配
-		reactor_id = (serv->reactor_round_i++) % serv->reactor_num;
-#elif SW_REACTOR_SCHEDULE == 2
-		//使用fd取模来散列
-		reactor_id = new_fd % serv->reactor_num;
-#else
-		//平均调度法
-		reactor_id = serv->reactor_next_i;
-		if (serv->reactor_num > 1 && (serv->reactor_schedule_count++) % SW_SCHEDULE_INTERVAL == 0)
+		if (serv->factory_mode == SW_MODE_SINGLE)
 		{
-			swServer_reactor_schedule(serv);
+		    reactor_id = 0;
 		}
-#endif
+		else
+		{
+		    reactor_id = new_fd % serv->reactor_num;
+		}
 
 		//add to connection_list
         swConnection *conn = swServer_connection_new(serv, new_fd, event->fd, reactor_id);
@@ -671,6 +665,15 @@ int swServer_create(swServer *serv)
 
     serv->factory.ptr = serv;
 
+#ifdef SW_REACTOR_USE_SESSION
+    serv->session_list = sw_shm_calloc(SW_SESSION_LIST_SIZE, sizeof(swSession));
+    if (serv->session_list == NULL)
+    {
+        swError("sw_shm_calloc(%ld) for session_list failed", SW_SESSION_LIST_SIZE * sizeof(swSession));
+        return SW_ERR;
+    }
+#endif
+
     //单进程单线程模式
     if (serv->factory_mode == SW_MODE_SINGLE)
     {
@@ -737,7 +740,7 @@ int swServer_free(swServer *serv)
     }
 #endif
 
-    //connection_list释放
+    //release connection_list
     if (serv->factory_mode == SW_MODE_SINGLE)
     {
         sw_free(serv->connection_list);
@@ -746,7 +749,11 @@ int swServer_free(swServer *serv)
     {
         sw_shm_free(serv->connection_list);
     }
-
+    //release session_list
+    if (serv->session_list)
+    {
+        sw_shm_free(serv->session_list);
+    }
     //close log file
     if (serv->log_file[0] != 0)
     {
@@ -814,8 +821,6 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length)
 {
 	swSendData _send;
 	swFactory *factory = &(serv->factory);
-
-#ifndef SW_WORKER_SEND_CHUNK
 	/**
 	 * More than the output buffer
 	 */
@@ -841,44 +846,6 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length)
         }
         return factory->finish(factory, &_send);
     }
-#else
-    char buffer[SW_BUFFER_SIZE];
-    int trunk_num = (length / SW_BUFFER_SIZE) + 1;
-    int send_n = 0, i, ret;
-
-    swConnection *conn = swServer_connection_get(serv, fd);
-    if (conn == NULL || conn->active == 0)
-    {
-        swWarn("Connection[%d] has been closed.", fd);
-        return SW_ERR;
-    }
-
-    for (i = 0; i < trunk_num; i++)
-    {
-        //last chunk
-        if (i == (trunk_num - 1))
-        {
-            send_n = length % SW_BUFFER_SIZE;
-            if (send_n == 0)
-                break;
-        }
-        else
-        {
-            send_n = SW_BUFFER_SIZE;
-        }
-        memcpy(buffer, data + SW_BUFFER_SIZE * i, send_n);
-        _send.info.len = send_n;
-        ret = factory->finish(factory, &_send);
-
-#ifdef SW_WORKER_SENDTO_YIELD
-        if ((i % SW_WORKER_SENDTO_YIELD) == (SW_WORKER_SENDTO_YIELD - 1))
-        {
-            swYield();
-        }
-#endif
-    }
-    return ret;
-#endif
 	return SW_OK;
 }
 
@@ -1292,15 +1259,16 @@ static swConnection* swServer_connection_new(swServer *serv, int fd, int from_fd
 #ifdef SW_REACTOR_USE_SESSION
     uint32_t session_id = 1;
     swSession *session;
+    sw_spinlock(&SwooleGS->spinlock);
     int i;
     //get session id
     for (i = 0; i < serv->max_connection; i++)
     {
-        session_id = (serv->session_round++) % SW_MAX_SOCKET_ID;
+        session_id = SwooleGS->session_round++;
         if (session_id == 0)
         {
             session_id = 1;
-            serv->session_round++;
+            SwooleGS->session_round++;
         }
         session = swServer_get_session(serv, session_id);
         //vacancy
@@ -1308,9 +1276,11 @@ static swConnection* swServer_connection_new(swServer *serv, int fd, int from_fd
         {
             session->fd = fd;
             session->id = session_id;
+            session->reactor_id = serv->factory_mode == SW_MODE_SINGLE ? SwooleWG.id : reactor_id;
             break;
         }
     }
+    sw_spinlock_release(&SwooleGS->spinlock);
     connection->session_id = session_id;
 #endif
 
