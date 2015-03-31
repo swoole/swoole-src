@@ -57,6 +57,9 @@ enum swEventType
     SW_EVENT_UNIX_STREAM     = 14,
     //pipe
     SW_EVENT_PIPE_MESSAGE    = 15,
+    //proxy
+    SW_EVENT_PROXY_START     = 16,
+    SW_EVENT_PROXY_END       = 17,
 };
 
 #define SW_HOST_MAXSIZE            128
@@ -423,7 +426,6 @@ struct _swServer
 
     swConnection *connection_list;  //连接列表
     swSession *session_list;
-    uint32_t session_round;
 
     int connection_list_capacity; //超过此容量，会自动扩容
 

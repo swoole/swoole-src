@@ -318,7 +318,8 @@ typedef unsigned char uchar;
 typedef struct
 {
     uint32_t id;
-    int fd;
+    uint32_t fd :24;
+    uint32_t reactor_id :8;
 } swSession;
 
 typedef struct
@@ -1365,6 +1366,9 @@ typedef struct
     uint8_t start;  //after swServer_start will set start=1
     time_t now;
 
+    sw_atomic_t spinlock;
+    uint32_t session_round;
+
     swProcessPool task_workers;
     swProcessPool event_workers;
 
@@ -1396,6 +1400,7 @@ typedef struct
     int request_num;
 
 	swString **buffer_input;
+	swString **buffer_output;
     swWorker *worker;
 
 } swWorkerG;

@@ -45,8 +45,8 @@ if (isset($argv[1]) and $argv[1] == 'daemon') {
 	$config['daemonize'] = false;
 }
 
-//$mode = SWOOLE_BASE;
-$mode = SWOOLE_PROCESS;
+$mode = SWOOLE_BASE;
+//$mode = SWOOLE_PROCESS;
 
 $serv = new swoole_server("0.0.0.0", 9501, $mode);
 $serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
@@ -225,6 +225,14 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     {
         $info = $serv->connection_info($fd, $from_id);
         $serv->send($fd, 'Info: '.var_export($info, true).PHP_EOL);
+    }
+    elseif ($cmd == 'proxy')
+    {
+        $serv->send(1, "hello world\n");
+    }
+    elseif ($cmd == 'sleep')
+    {
+        sleep(10);
     }
     elseif($cmd == "list")
     {
