@@ -563,7 +563,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
         zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("multipart_header"), multipart_header TSRMLS_CC);
         add_assoc_long(multipart_header, "error", -1);
         int file_length = length - strlen("form-data; name=\"") - input_name_length - strlen("\"; filename=\"") - 1;
-        add_assoc_stringl(multipart_header, "name", at + length -file_length - 1, file_length, 1);
+        add_assoc_stringl(multipart_header, "name", (char *)at + length - file_length - 1, file_length, 1);
     }
     if (strncasecmp(headername, ZEND_STRL("content-type")) == 0)
     {
@@ -613,9 +613,11 @@ void get_random_file_name(char *buf, const char *src)
 
 static int multipart_body_on_header_complete(multipart_parser* p)
 {
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
     char base_path[] = "/tmp/";    
     char file_path[MD5_HASH_SIZE + 1] = {0};
     sprintf(file_path, "%s", base_path);
+
     swoole_http_client *client = (swoole_http_client *) p->data;
     swConnection *conn = swWorker_get_connection(SwooleG.serv, client->fd);
     get_random_file_name(file_path + strlen(base_path), swConnection_get_ip(conn));
@@ -636,6 +638,7 @@ static int multipart_body_on_header_complete(multipart_parser* p)
 
 static int multipart_body_on_data_end(multipart_parser* p)
 {
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
     swoole_http_client *client = (swoole_http_client *) p->data;
     zval *multipart_header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("multipart_header"), 1 TSRMLS_CC);
     long size = swoole_file_get_size((FILE*)p->fp);
@@ -658,6 +661,7 @@ static int multipart_body_on_data_end(multipart_parser* p)
 
 static int multipart_body_end(multipart_parser* p)
 {
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
     swoole_http_client *client = (swoole_http_client *) p->data;
     zval *multipart_header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("multipart_header"), 1 TSRMLS_CC);
     if (!ZVAL_IS_NULL(multipart_header))

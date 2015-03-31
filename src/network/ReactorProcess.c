@@ -25,6 +25,7 @@ static int swReactorProcess_send2client(swFactory *, swSendData *);
 
 int swReactorProcess_create(swServer *serv)
 {
+    serv->reactor_num = serv->worker_num;
     serv->reactor_threads = sw_calloc(1, sizeof(swReactorThread));
     if (serv->reactor_threads == NULL)
     {
@@ -421,8 +422,7 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
 
                 SwooleG.main_reactor->write(SwooleG.main_reactor, worker->pipe_master, &proxy_msg, sizeof(proxy_msg.info) + proxy_msg.info.len);
             }
-
-            swWarn("proxy message, fd=%d, len=%d",worker->pipe_master, sizeof(proxy_msg.info) + proxy_msg.info.len);
+            swTrace("proxy message, fd=%d, len=%ld",worker->pipe_master, sizeof(proxy_msg.info) + proxy_msg.info.len);
         }
         else if (_send->info.type == SW_EVENT_SENDFILE)
         {
