@@ -547,7 +547,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
     swoole_http_client *client = (swoole_http_client*) p->data;
     char *headername = zend_str_tolower_dup(client->current_header_name, client->current_header_name_len);
 
-    if (strncasecmp(headername, ZEND_STRL("content-disposition") == 0))
+    if (strncasecmp(headername, ZEND_STRL("content-disposition")) == 0)
 	{
 		char input_name[] = "file1";
         char filename[] = "upload";
@@ -698,7 +698,8 @@ static int http_request_message_complete(php_http_parser *parser)
 
 	if (client->mt_parser)
 	{
-		efree(client->mt_parser);
+//		efree(client->mt_parser);
+		multipart_parser_free(client->mt_parser);
 		client->mt_parser = NULL;
 	}
     return 0;
