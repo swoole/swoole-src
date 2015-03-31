@@ -378,7 +378,7 @@ int swWorker_loop(swFactory *factory, int worker_id)
         return SW_ERR;
     }
     
-    serv->workers[worker_id] = SW_WORKER_IDLE;
+    serv->workers[worker_id].status = SW_WORKER_IDLE;
 
     int pipe_worker = serv->workers[worker_id].pipe_worker;
 
