@@ -210,7 +210,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/string.c \
         src/core/array.c \
         src/core/socket.c \
-        src/core/md5.c \
         src/memory/ShareMemory.c \
         src/memory/MemoryGlobal.c \
         src/memory/RingBuffer.c \

@@ -23,6 +23,7 @@
 #include <ext/standard/php_string.h>
 #include <ext/standard/php_math.h>
 #include <ext/date/php_date.h>
+#include <ext/standard/md5.h>
 
 #include <main/php_variables.h>
 
@@ -583,8 +584,8 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
 
 static int multipart_body_on_data(multipart_parser* p, const char *at, size_t length)
 {
-    int n = fwrite(at, length, 1, (FILE *)p->fp);
-    if (n != 1)
+    int n = fwrite(at, sizeof(char), length, (FILE *)p->fp);
+    if (n != length)
     {
         swWarn("write upload file failed. Error %s[%d]", strerror(errno), errno);
         return -1;
@@ -593,35 +594,30 @@ static int multipart_body_on_data(multipart_parser* p, const char *at, size_t le
     return 0;
 }
 
-void get_random_file_name(char *buf, const char *src)
+void get_random_file_name(char *des, const char *src)
 {
-    Md5Context context;
-    MD5_HASH hash;
-    int i;
+    unsigned char digest[16] = {0};
+    char buf[19] = {0};
+    sprintf(buf, "%s%d", src, swoole_system_random(0,9999));
 
-    Md5Initialise(&context);
-    char s[20] = {0};
-    sprintf(s, "%s%d", src, swoole_system_random(0,9999));
-    Md5Update(&context, s, strlen(s));
-    Md5Finalise(&context, &hash);
-
-    for( i=0; i<sizeof(hash); i++ )
-    {
-        sprintf(&buf[i], "%d", hash.bytes[i]);
-    }
+    PHP_MD5_CTX ctx;
+    PHP_MD5Init(&ctx);
+    PHP_MD5Update(&ctx, buf, strlen(buf));
+    PHP_MD5Final(digest, &ctx);
+    make_digest_ex(des, digest, 16);
 }
 
 static int multipart_body_on_header_complete(multipart_parser* p)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-    char base_path[] = "/tmp/";    
-    char file_path[MD5_HASH_SIZE + 1] = {0};
+    char base_path[] = "/tmp/";
+    char file_path[38] = {0};
     sprintf(file_path, "%s", base_path);
 
     swoole_http_client *client = (swoole_http_client *) p->data;
     swConnection *conn = swWorker_get_connection(SwooleG.serv, client->fd);
     get_random_file_name(file_path + strlen(base_path), swConnection_get_ip(conn));
-    FILE *fp = fopen(file_path, "w+");
+    FILE *fp = fopen(file_path, "wb+");
 
     if (fp == NULL)
     {
