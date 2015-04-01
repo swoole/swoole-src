@@ -267,23 +267,6 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
                 }
                 socket->out_buffer = buffer;
             }
-
-            socket->events |= SW_EVENT_WRITE;
-
-            if (socket->events & SW_EVENT_READ)
-            {
-                if (reactor->set(reactor, fd, socket->fdtype | socket->events) < 0)
-                {
-                    swSysError("reactor->set(%d, SW_EVENT_WRITE) failed.", fd);
-                }
-            }
-            else
-            {
-                if (reactor->add(reactor, fd, socket->fdtype | SW_EVENT_WRITE) < 0)
-                {
-                    swSysError("reactor->add(%d, SW_EVENT_WRITE) failed.", fd);
-                }
-            }
             goto append_pipe_buffer;
         }
         else if (errno == EINTR)
@@ -298,6 +281,23 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
     else
     {
         append_pipe_buffer:
+
+        socket->events |= SW_EVENT_WRITE;
+
+        if (socket->events & SW_EVENT_READ)
+        {
+            if (reactor->set(reactor, fd, socket->fdtype | socket->events) < 0)
+            {
+                swSysError("reactor->set(%d, SW_EVENT_WRITE) failed.", fd);
+            }
+        }
+        else
+        {
+            if (reactor->add(reactor, fd, socket->fdtype | SW_EVENT_WRITE) < 0)
+            {
+                swSysError("reactor->add(%d, SW_EVENT_WRITE) failed.", fd);
+            }
+        }
 
         if (buffer->length > SwooleG.socket_buffer_size)
         {

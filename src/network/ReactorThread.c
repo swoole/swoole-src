@@ -359,14 +359,6 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
             if (ret < 0 && errno == EAGAIN)
 #endif
             {
-                if (serv->connection_list[pipe_fd].from_id == SwooleTG.id)
-                {
-                    thread->reactor.set(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_READ | SW_EVENT_WRITE);
-                }
-                else
-                {
-                    thread->reactor.add(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_WRITE);
-                }
                 goto append_pipe_buffer;
             }
         }
@@ -379,6 +371,16 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
                 swYield();
                 swSocket_wait(pipe_fd, SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
             }
+
+            if (serv->connection_list[pipe_fd].from_id == SwooleTG.id)
+            {
+                thread->reactor.set(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_READ | SW_EVENT_WRITE);
+            }
+            else
+            {
+                thread->reactor.add(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_WRITE);
+            }
+
             if (swBuffer_append(buffer, data, len) < 0)
             {
                 swWarn("append to pipe_buffer failed.");
