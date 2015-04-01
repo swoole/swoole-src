@@ -77,7 +77,6 @@
 				<file role="src" name="sha1.h" />
 				<file role="src" name="base64.h" />
 				<file role="src" name="mqtt.h" />
-				<file role="src" name="md5.h" />
 			</dir>
 			<dir name="examples">
 				<dir name="async">
@@ -199,7 +198,6 @@
 					<file role="src" name="Channel.c" />
 					<file role="src" name="string.c" />
 					<file role="src" name="array.c" />
-					<file role="src" name="md5.c" />
 				</dir>
 				<dir name="memory">
 					<file role="src" name="ShareMemory.c" />
