@@ -21,7 +21,6 @@
 
 #include "thirdparty/php_http_parser.h"
 #include "thirdparty/multipart_parser.h"
-#include "md5.h"
 
 typedef struct
 {
