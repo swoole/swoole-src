@@ -555,7 +555,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
                 memcpy(&package, send_data->data, sizeof(package));
                 thread->buffer_input->free(thread->buffer_input, package.data);
 #endif
-                if (conn->closed)
+                if (conn && conn->closed)
                 {
                     swWarn("session#%d is closed by server.", send_data->info.fd);
                 }

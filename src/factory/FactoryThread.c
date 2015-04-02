@@ -119,7 +119,27 @@ static int swFactoryThread_finish(swFactory *factory, swSendData *data)
  */
 int swFactoryThread_dispatch(swFactory *factory, swDispatchData *task)
 {
+    swServer *serv = SwooleG.serv;
     swFactoryThread *object = factory->object;
+
+    if (swEventData_is_stream(task->data.info.type))
+    {
+        swConnection *conn = swServer_connection_get(serv, task->data.info.fd);
+        if (conn == NULL || conn->active == 0)
+        {
+            swWarn("dispatch[type=%d] failed, connection#%d is not active.", task->data.info.type, task->data.info.fd);
+            return SW_ERR;
+        }
+        //server active close, discard data.
+        if (conn->closed)
+        {
+            swWarn("dispatch[type=%d] failed, connection#%d is closed by server.", task->data.info.type,
+                    task->data.info.fd);
+            return SW_OK;
+        }
+        //converted fd to session_id
+        task->data.info.fd = conn->session_id;
+    }
 
     int mem_size = sizeof(swDataHead) + task->data.info.len + 1;
     void *data = sw_malloc(mem_size);
