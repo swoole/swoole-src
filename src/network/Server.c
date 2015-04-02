@@ -232,6 +232,15 @@ static int swServer_start_check(swServer *serv)
         swWarn("onReceive is null");
         return SW_ERR;
     }
+    //disable notice when use SW_DISPATCH_ROUND and SW_DISPATCH_QUEUE
+    if (serv->factory_mode == SW_MODE_PROCESS)
+    {
+        if (serv->dispatch_mode == SW_DISPATCH_ROUND || serv->dispatch_mode == SW_DISPATCH_QUEUE)
+        {
+            serv->onConnect = NULL;
+            serv->disable_notify = 1;
+        }
+    }
     //Timer
     if (SwooleG.timer.interval > 0 && serv->onTimer == NULL)
     {

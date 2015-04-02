@@ -348,6 +348,16 @@ struct _swServer
     uint32_t open_dispatch_key :1;
 
     /**
+     * Udisable notice when use SW_DISPATCH_ROUND and SW_DISPATCH_QUEUE
+     */
+    uint32_t disable_notify :1;
+
+    /**
+     * discard the timeout request
+     */
+    uint32_t discard_timeout_request :1;
+
+    /**
      * open tcp_defer_accept option
      */
     int tcp_defer_accept;
@@ -527,8 +537,22 @@ static sw_inline int swEventData_is_stream(uint8_t type)
     case SW_EVENT_PACKAGE_START:
     case SW_EVENT_PACKAGE:
     case SW_EVENT_PACKAGE_END:
+    case SW_EVENT_CONNECT:
+    case SW_EVENT_CLOSE:
         return SW_TRUE;
     default:
+        return SW_FALSE;
+    }
+}
+
+static sw_inline int swServer_package_integrity(swServer *serv)
+{
+    if (serv->open_eof_check || serv->open_length_check || serv->open_http_protocol || serv->open_mqtt_protocol)
+    {
+        return SW_TRUE;
+    }
+    else
+    {
         return SW_FALSE;
     }
 }
@@ -703,14 +727,26 @@ void swServer_worker_onStop(swServer *serv);
 int swWorker_create(swWorker *worker);
 int swWorker_onTask(swFactory *factory, swEventData *task);
 
-static sw_inline swConnection *swWorker_get_connection(swServer *serv, int fd)
+static sw_inline swConnection *swWorker_get_connection(swServer *serv, int session_id)
 {
-#ifdef SW_REACTOR_USE_SESSION
-    int real_fd = swServer_get_fd(serv, fd);
+    int real_fd = swServer_get_fd(serv, session_id);
     swConnection *conn = swServer_connection_get(serv, real_fd);
-#else
+    return conn;
+}
+
+static sw_inline swConnection *swServer_connection_verify(swServer *serv, int session_id)
+{
+    swSession *session = swServer_get_session(serv, session_id);
+    int fd = session->fd;
     swConnection *conn = swServer_connection_get(serv, fd);
-#endif
+    if (!conn || conn->active == 0)
+    {
+        return NULL;
+    }
+    if (session->id != session_id || conn->session_id != session_id)
+    {
+        return NULL;
+    }
     return conn;
 }
 

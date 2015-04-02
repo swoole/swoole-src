@@ -256,7 +256,8 @@ int swReactorThread_close(swReactor *reactor, int fd)
 */
 static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
 {
-    if (SwooleG.serv->factory_mode == SW_MODE_SINGLE)
+    swServer *serv = reactor->ptr;
+    if (serv->factory_mode == SW_MODE_SINGLE)
     {
         return swReactorProcess_onClose(reactor, event);
     }
@@ -276,6 +277,11 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
     }
     if (reactor->del(reactor, fd) == 0)
     {
+        if (serv->disable_notify)
+        {
+            conn->close_wait = 1;
+            return SW_OK;
+        }
         return SwooleG.factory->notify(SwooleG.factory, &notify_ev);
     }
     else
@@ -404,46 +410,24 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
 int swReactorThread_send(swSendData *_send)
 {
     swServer *serv = SwooleG.serv;
-    int fd;
+    uint32_t session_id = _send->info.fd;
 
-#ifdef SW_REACTOR_USE_SESSION
-    int session_id = _send->info.fd;
-    swSession *session = swServer_get_session(serv, session_id);
-    fd = session->fd;
-    swConnection *conn = swServer_connection_get(serv, fd);
-    if (!conn || conn->active == 0)
+    swConnection *conn = swServer_connection_verify(serv, session_id);
+    if (!conn)
     {
         if (_send->info.type == SW_EVENT_TCP)
         {
-            swWarn("send %d byte failed, connection#%d[session=%d] is closed.", _send->length, fd, session_id);
+            swWarn("send %d byte failed, session#%d is closed.", _send->length, session_id);
         }
         else
         {
-            swWarn("send [%d] failed, connection#%d[session=%d] is closed.", _send->info.type, fd, session_id);
+            swWarn("send [%d] failed, session#%d is closed.", _send->info.type, session_id);
         }
         return SW_ERR;
     }
-    if (session->id != session_id || conn->session_id != session_id)
-    {
-        swWarn("send[%d] failed, session#%d[socket=%d] has expired.", _send->info.type, session_id, conn->fd);
-        return SW_ERR;
-    }
-#else
-    fd = _send->info.fd;
-    swConnection *conn = swServer_connection_get(serv, fd);
-    //The connection has been closed.
-    if (conn == NULL || conn->active == 0)
-    {
-#ifdef SW_REACTOR_USE_SESSION
-        fd = session_id;
-#endif
-        swWarn("connection#%d is not active, events=%d.", fd, _send->info.type);
-        return SW_ERR;
-    }
-#endif
 
+    int fd = conn->fd;
     swReactor *reactor = &(serv->reactor_threads[conn->from_id].reactor);
-
     swTraceLog(SW_TRACE_EVENT, "send-data. fd=%d|reactor_id=%d", fd, reactor_id);
 
     if (swBuffer_empty(conn->out_buffer))
@@ -563,7 +547,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
         //server active close, discard data.
         if (swEventData_is_stream(send_data->info.type))
         {
-            conn = swServer_connection_get(serv, send_data->info.fd);
+            conn = swServer_connection_verify(serv, send_data->info.fd);
             if (conn == NULL || conn->closed)
             {
 #ifdef SW_USE_RINGBUFFER
@@ -571,7 +555,10 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
                 memcpy(&package, send_data->data, sizeof(package));
                 thread->buffer_input->free(thread->buffer_input, package.data);
 #endif
-                swWarn("connection#%d is closed by server.", send_data->info.fd);
+                if (conn->closed)
+                {
+                    swWarn("session#%d is closed by server.", send_data->info.fd);
+                }
                 swBuffer_pop_trunk(buffer, trunk);
                 continue;
             }

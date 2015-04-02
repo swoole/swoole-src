@@ -1136,6 +1136,12 @@ PHP_FUNCTION(swoole_server_set)
             serv->worker_num = SwooleG.cpu_num;
         }
     }
+    //task_worker_max
+    if (sw_zend_hash_find(vht, ZEND_STRS("discard_timeout_request"), (void **)&v) == SUCCESS)
+    {
+        convert_to_long(*v);
+        serv->discard_timeout_request = Z_BVAL_PP(v);
+    }
     //task_worker_num
     if (sw_zend_hash_find(vht, ZEND_STRS("task_worker_num"), (void **)&v) == SUCCESS)
     {
@@ -1148,7 +1154,6 @@ PHP_FUNCTION(swoole_server_set)
 	    convert_to_long(*v);
 	    SwooleG.task_worker_max = (int)Z_LVAL_PP(v);
     }
-    
     if (sw_zend_hash_find(vht, ZEND_STRS("task_ipc_mode"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);

@@ -162,8 +162,7 @@ int daemon(int nochdir, int noclose);
 #define SW_DECLINED           -5
 #define SW_ABORT              -6
 //-------------------------------------------------------------------------------
-#define SW_TRUE                1
-#define SW_FALSE               0
+
 //-------------------------------------------------------------------------------
 enum swFd_type
 {
@@ -180,6 +179,13 @@ enum swFd_type
     SW_FD_DNS_RESOLVER    = 12, //dns resolver
     SW_FD_USER            = 15, //SW_FD_USER or SW_FD_USER+n: for custom event
 };
+
+enum swBool_type
+{
+    SW_TRUE = 1,
+    SW_FALSE = 0,
+};
+
 //-------------------------------------------------------------------------------
 enum swServer_mode
 {

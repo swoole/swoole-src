@@ -773,6 +773,8 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
                     task->data.info.fd);
             return SW_OK;
         }
+        //converted fd to session_id
+        task->data.info.fd = conn->session_id;
     }
 
     return swReactorThread_send2worker((void *) &(task->data), send_len, target_worker_id);
