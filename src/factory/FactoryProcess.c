@@ -614,8 +614,8 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     swServer *serv = factory->ptr;
     int fd = resp->info.fd;
 
-    swConnection *conn = swWorker_get_connection(serv, fd);
-    if (conn == NULL || conn->active == 0)
+    swConnection *conn = swServer_connection_verify(serv, fd);
+    if (!conn)
     {
         swWarn("session#%d does not exist.", fd);
         return SW_ERR;
