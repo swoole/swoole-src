@@ -1997,6 +1997,7 @@ PHP_FUNCTION(swoole_server_sendfile)
     memcpy(buffer, filename, send_data.info.len);
     buffer[send_data.info.len] = 0;
     send_data.info.len++;
+    send_data.length = 0;
 
     send_data.data = buffer;
     SW_CHECK_RETURN(serv->factory.finish(&serv->factory, &send_data));
