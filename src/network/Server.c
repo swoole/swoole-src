@@ -93,7 +93,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
     socklen_t client_addrlen = sizeof(client_addr);
     swListenList_node *listen_host = serv->connection_list[event->fd].object;
 
-    int new_fd, ret, reactor_id = 0, i;
+    int new_fd = 0, ret, reactor_id = 0, i;
 
     //SW_ACCEPT_AGAIN
     for (i = 0; i < SW_ACCEPT_MAX_COUNT; i++)
@@ -121,6 +121,12 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
                 return SW_OK;
             }
         }
+#ifndef HAVE_ACCEPT4
+        else
+        {
+            swSetNonBlock(new_fd);
+        }
+#endif
 
         swTrace("[Master] Accept new connection. maxfd=%d|reactor_id=%d|conn=%d", swServer_get_maxfd(serv), reactor->id, new_fd);
 
@@ -156,6 +162,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 				{
 					bzero(conn, sizeof(swConnection));
 					close(new_fd);
+					return SW_OK;
 				}
 			}
 			else
@@ -205,10 +212,6 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
             close(new_fd);
             return SW_OK;
         }
-
-#ifndef HAVE_ACCEPT4
-        swSetNonBlock(new_fd);
-#endif
 
 #ifdef SW_ACCEPT_AGAIN
         continue;

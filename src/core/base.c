@@ -623,7 +623,7 @@ void swoole_fcntl_set_block(int sock, int nonblock)
 
     if (opts < 0)
     {
-        swSysError("fcntl(sock,GETFL) failed.");
+        swSysError("fcntl(%d, GETFL) failed.", sock);
     }
 
     if (nonblock)
@@ -643,7 +643,7 @@ void swoole_fcntl_set_block(int sock, int nonblock)
 
     if (ret < 0)
     {
-        swSysError("fcntl(sock,SETFL,opts) failed.");
+        swSysError("fcntl(%d, SETFL, opts) failed.", sock);
     }
 }
 
