@@ -420,7 +420,7 @@ int swWorker_send2reactor(swEventData *ev_data, size_t sendn, int fd)
     /**
      * reactor_id: The fd in which the reactor.
      */
-    int reactor_id = fd % serv->reactor_num;
+    int reactor_id = ev_data->info.from_id;
     int pipe_index = fd % serv->reactor_pipe_num;
 
     /**

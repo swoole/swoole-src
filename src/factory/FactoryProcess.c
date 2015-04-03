@@ -672,11 +672,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         ev_data.info.from_fd = SW_RESPONSE_SMALL;
     }
 
-#if SW_REACTOR_SCHEDULE == 2
-    ev_data.info.from_id = fd % serv->reactor_num;
-#else
     ev_data.info.from_id = conn->from_id;
-#endif
 
     sendn = ev_data.info.len + sizeof(resp->info);
     swTrace("[Worker] send: sendn=%d|type=%d|content=%s", sendn, resp->info.type, resp->data);
