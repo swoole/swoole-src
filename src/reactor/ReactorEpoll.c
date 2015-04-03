@@ -253,27 +253,26 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
             //read
             if (events[i].events & EPOLLIN)
             {
-                //read
                 handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
                 ret = handle(reactor, &event);
                 if (ret < 0)
                 {
-                    swWarn("[Reactor#%d] epoll [EPOLLIN] handle failed. fd=%d. Error: %s[%d]", reactor_id, event.fd, strerror(errno), errno);
+                    swSysError("EPOLLIN handle failed. fd=%d.", event.fd);
                 }
             }
             //write
-            if ((events[i].events & EPOLLOUT) && !event.socket->removed)
+            if ((events[i].events & EPOLLOUT) && event.socket->active && !event.socket->removed)
             {
                 handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
                 ret = handle(reactor, &event);
                 if (ret < 0)
                 {
-                    swWarn("[Reactor#%d] epoll [EPOLLOUT] handle failed. fd=%d. Error: %s[%d]", reactor_id, event.fd, strerror(errno), errno);
+                    swSysError("EPOLLOUT handle failed. fd=%d.", event.fd);
                 }
             }
             //error
 #ifndef NO_EPOLLRDHUP
-            if ((events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)) && !event.socket->removed)
+            if ((events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)) && event.socket->active && !event.socket->removed)
 #else
             if ((events[i].events & (EPOLLERR | EPOLLHUP)) && !event.socket->removed)
 #endif
@@ -282,7 +281,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
                 ret = handle(reactor, &event);
                 if (ret < 0)
                 {
-                    swWarn("[Reactor#%d] epoll [EPOLLERR] handle failed. fd=%d. Error: %s[%d]", reactor_id, event.fd, strerror(errno), errno);
+                    swSysError("EPOLLERR handle failed. fd=%d.", event.fd);
                 }
             }
         }

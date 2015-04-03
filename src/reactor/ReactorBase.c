@@ -208,15 +208,16 @@ static void swReactor_onFinish(swReactor *reactor)
 int swReactor_close(swReactor *reactor, int fd)
 {
     swConnection *socket = swReactor_get(reactor, fd);
-
-    if (socket->out_buffer != NULL)
+    if (socket->out_buffer)
     {
         swBuffer_free(socket->out_buffer);
+        socket->out_buffer = NULL;
     }
 
-    if (socket->in_buffer != NULL)
+    if (socket->in_buffer)
     {
         swBuffer_free(socket->in_buffer);
+        socket->in_buffer = NULL;
     }
 
 #ifdef SW_USE_OPENSSL
@@ -227,7 +228,6 @@ int swReactor_close(swReactor *reactor, int fd)
 #endif
 
     bzero(socket, sizeof(swConnection));
-
     return close(fd);
 }
 

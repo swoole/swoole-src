@@ -623,6 +623,10 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         conn->connect_notify = 0;
         return reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_READ);
     }
+    else if (serv->disable_notify && conn->close_force)
+    {
+        return swReactorThread_close(reactor, fd);
+    }
 
     swBuffer_trunk *chunk;
 
@@ -1396,8 +1400,8 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
     else if (n == 0)
     {
         close_fd:
-        swReactorThread_onClose(reactor, event);
         swHttpRequest_free(conn, request);
+        swReactorThread_onClose(reactor, event);
         return SW_OK;
     }
     else

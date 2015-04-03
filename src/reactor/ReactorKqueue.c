@@ -333,7 +333,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
                     }
                 }
                 //write
-                else if (object->events[i].filter == EVFILT_WRITE && !event.socket->removed)
+                else if (object->events[i].filter == EVFILT_WRITE && event.socket->active && !event.socket->removed)
                 {
                     handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
                     ret = handle(reactor, &event);

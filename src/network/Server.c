@@ -1180,6 +1180,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
     swDataHead notify_ev;
     swFactory *factory = &serv->factory;
     swConnection *conn;
+    swReactor *reactor;
 
     int fd;
     int serv_max_fd;
@@ -1209,12 +1210,21 @@ static void swHeartbeatThread_loop(swThreadParam *param)
                 notify_ev.fd = fd;
                 notify_ev.from_id = conn->from_id;
                 conn->close_force = 1;
-                factory->notify(&serv->factory, &notify_ev);
+
+                if (serv->disable_notify)
+                {
+                    conn->close_wait = 1;
+                    reactor = &serv->reactor_threads[conn->from_id].reactor;
+                    reactor->set(reactor, fd, SW_FD_TCP | SW_EVENT_WRITE);
+                }
+                else
+                {
+                    factory->notify(&serv->factory, &notify_ev);
+                }
             }
         }
         sleep(serv->heartbeat_check_interval);
     }
-
 	pthread_exit(0);
 }
 
