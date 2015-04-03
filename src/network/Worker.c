@@ -93,10 +93,6 @@ static sw_inline int swWorker_discard_data(swServer *serv, swEventData *task)
     int fd = task->info.fd;
     //check connection
     swConnection *conn = swServer_connection_verify(serv, task->info.fd);
-    if (conn && conn->closed)
-    {
-        goto discard_data;
-    }
     if (conn == NULL)
     {
         if (serv->disable_notify && !serv->discard_timeout_request)
@@ -104,6 +100,17 @@ static sw_inline int swWorker_discard_data(swServer *serv, swEventData *task)
             return SW_FALSE;
         }
         goto discard_data;
+    }
+    else
+    {
+        if (conn->closed)
+        {
+            goto discard_data;
+        }
+        else
+        {
+            return SW_FALSE;
+        }
     }
     discard_data:
 #ifdef SW_USE_RINGBUFFER
