@@ -111,13 +111,13 @@ int swProcessPool_start(swProcessPool *pool)
     return SW_OK;
 }
 
-static int swProcessPool_schedule(swProcessPool *pool)
+static sw_inline int swProcessPool_schedule(swProcessPool *pool)
 {
     swWorker *worker;
     int i, target_worker_id = pool->round_id;
     int run_worker_num = pool->run_worker_num;
 
-    for (i = 0; i < run_worker_num; i++)
+    for (i = 0; i < run_worker_num + 1; i++)
     {
         pool->round_id++;
         target_worker_id = pool->round_id % run_worker_num;

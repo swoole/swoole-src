@@ -241,6 +241,7 @@ static int swServer_start_check(swServer *serv)
         if (serv->dispatch_mode == SW_DISPATCH_ROUND || serv->dispatch_mode == SW_DISPATCH_QUEUE)
         {
             serv->onConnect = NULL;
+            serv->onClose = NULL;
             serv->disable_notify = 1;
         }
     }

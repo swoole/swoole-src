@@ -439,6 +439,8 @@ typedef struct _swConnection
     */
     uint8_t websocket_status;
 
+    sw_atomic_t lock;
+
 #ifdef SW_USE_OPENSSL
     SSL *ssl;
     uint32_t ssl_state;

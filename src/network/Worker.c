@@ -88,6 +88,41 @@ void swWorker_signal_handler(int signo)
     }
 }
 
+static sw_inline int swWorker_discard_data(swServer *serv, swEventData *task)
+{
+    int fd = task->info.fd;
+    //check connection
+    swConnection *conn = swServer_connection_verify(serv, task->info.fd);
+    if (conn && conn->closed)
+    {
+        goto discard_data;
+    }
+    if (conn == NULL)
+    {
+        if (serv->disable_notify && !serv->discard_timeout_request)
+        {
+            return SW_FALSE;
+        }
+        goto discard_data;
+    }
+    discard_data:
+#ifdef SW_USE_RINGBUFFER
+    if (task->info.type == SW_EVENT_PACKAGE)
+    {
+        swPackage package;
+        memcpy(&package, task->data, sizeof(package));
+        swReactorThread *thread = swServer_get_thread(SwooleG.serv, task->info.from_id);
+        thread->buffer_input->free(thread->buffer_input, package.data);
+        swWarn("[1]received the wrong data[%d bytes] from socket#%d", package.length, fd);
+    }
+    else
+#endif
+    {
+        swWarn("[1]received the wrong data[%d bytes] from socket#%d", task->info.len, fd);
+    }
+    return SW_TRUE;
+}
+
 int swWorker_onTask(swFactory *factory, swEventData *task)
 {
     swServer *serv = factory->ptr;
@@ -97,34 +132,18 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     //worker busy
     serv->workers[SwooleWG.id].status = SW_WORKER_BUSY;
 
-    int fd = task->info.fd;
-
     switch (task->info.type)
     {
+    //no buffer
     case SW_EVENT_TCP:
     //ringbuffer shm package
     case SW_EVENT_PACKAGE:
-        do_task:
-        if (serv->discard_timeout_request && swServer_connection_verify(serv, task->info.fd) == NULL)
+        //discard data
+        if (swWorker_discard_data(serv, task) == SW_TRUE)
         {
-#ifdef SW_USE_RINGBUFFER
-            if (task->info.type == SW_EVENT_PACKAGE)
-            {
-                swPackage package;
-                memcpy(&package, task->data, sizeof(package));
-                swReactorThread *thread = swServer_get_thread(SwooleG.serv, task->info.from_id);
-                thread->buffer_input->free(thread->buffer_input, package.data);
-                swWarn("[1]received the wrong data[%d bytes] from socket#%d", package.length, fd);
-            }
-            else
-#endif
-            {
-                swWarn("[1]received the wrong data[%d bytes] from socket#%d", task->info.len, fd);
-            }
             break;
         }
-
-        factory->onTask(factory, task);
+        do_task: factory->onTask(factory, task);
         if (!SwooleWG.run_always)
         {
             //only onTask increase the count
@@ -136,13 +155,20 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         }
         break;
 
+    //chunk package
     case SW_EVENT_PACKAGE_START:
     case SW_EVENT_PACKAGE_END:
+        //discard data
+        if (swWorker_discard_data(serv, task) == SW_TRUE)
+        {
+            break;
+        }
         //input buffer
         package = SwooleWG.buffer_input[task->info.from_id];
         //merge data to package buffer
         memcpy(package->str + package->length, task->data, task->info.len);
         package->length += task->info.len;
+
         //package end
         if (task->info.type == SW_EVENT_PACKAGE_END)
         {
@@ -180,6 +206,8 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         swWarn("[Worker] error event[type=%d]", (int )task->info.type);
         break;
     }
+
+
 
     //worker idle
     serv->workers[SwooleWG.id].status = SW_WORKER_IDLE;

@@ -275,13 +275,12 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
     {
         return SW_ERR;
     }
+    if (serv->disable_notify)
+    {
+        return swReactorThread_close(reactor, fd);
+    }
     if (reactor->del(reactor, fd) == 0)
     {
-        if (serv->disable_notify)
-        {
-            conn->close_wait = 1;
-            return SW_OK;
-        }
         return SwooleG.factory->notify(SwooleG.factory, &notify_ev);
     }
     else
@@ -547,6 +546,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
         //server active close, discard data.
         if (swEventData_is_stream(send_data->info.type))
         {
+            //send_data->info.fd is session_id
             conn = swServer_connection_verify(serv, send_data->info.fd);
             if (conn == NULL || conn->closed)
             {
