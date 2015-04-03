@@ -432,53 +432,36 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
         array_init(cookie);
         zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("cookie"), cookie TSRMLS_CC);
 
-        struct
-        {
-            char *k;
-            int klen;
-            char *v;
-            int vlen;
-        } kv = { 0 };
-
         char *_c = (char *) at;
-        int n = 1;
-        kv.k = _c;
 
-        while (_c < at + length)
+        int klen = 0;
+        int vlen = 0;
+        int state = 0;
+
+        int i = 0, j = 0;
+        while(_c < at + length)
         {
-            if (*_c == '=')
+            if (state ==0 && *_c == '=')
             {
-                kv.v = _c + 1;
-                kv.klen = n;
-                n = 0;
+                klen =  i - j + 1;
+                memcpy(keybuf, at + j, klen);
+                keybuf[klen] = 0;
+
+                j = i + 1;
+                state = 1;
             }
-            else if (*_c == ';')
+            else if (state == 1 && *_c == ';')
             {
-                kv.vlen = n;
-                if (kv.klen >= SW_HTTP_COOKIE_KEYLEN)
-                {
-                    kv.klen = SW_HTTP_COOKIE_KEYLEN - 1;
-                }
-                memcpy(keybuf, kv.k, kv.klen - 1);
-                keybuf[kv.klen - 1] = 0;
-                add_assoc_stringl_ex(cookie, keybuf, kv.klen, kv.v, kv.vlen, 1);
-                kv.k = _c + 2;
-                n = 0;
-            }
-            else
-            {
-                n++;
+                vlen = i - j;
+                add_assoc_stringl_ex(cookie, keybuf, klen, (char *) at + j, vlen, 1);
+                j = i + 2;
+                state = 0;
             }
             _c++;
+            i++;
         }
-        kv.vlen = n;
-        if (kv.klen >= SW_HTTP_COOKIE_KEYLEN)
-        {
-            kv.klen = SW_HTTP_COOKIE_KEYLEN - 1;
-        }
-        memcpy(keybuf, kv.k, kv.klen - 1);
-        keybuf[kv.klen - 1] = 0;
-        add_assoc_stringl_ex(cookie, keybuf, kv.klen , kv.v, kv.vlen, 1);
+        vlen = i - j;
+        add_assoc_stringl_ex(cookie, keybuf, klen, (char *) at + j, vlen, 1);
         http_merge_php_global(cookie, client->zrequest, HTTP_GLOBAL_COOKIE);
     }
     else if (strncasecmp(header_name, ZEND_STRL("upgrade")) == 0 && strncasecmp(at, ZEND_STRL("websocket")) == 0)
