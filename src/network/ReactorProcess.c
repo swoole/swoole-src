@@ -196,6 +196,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 
     SwooleWG.id = worker->id;
     SwooleWG.request_num = serv->max_request;
+    
+    SwooleTG.id = 0;
 
     swServer_worker_init(serv, worker);
 
@@ -263,7 +265,6 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     
     reactor->disable_accept = 0;
     reactor->enable_accept = swServer_enable_accept;
-
     reactor->close = swReactorThread_close;
 
     //set event handler

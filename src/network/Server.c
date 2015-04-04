@@ -1266,7 +1266,7 @@ static swConnection* swServer_connection_new(swServer *serv, int fd, int from_fd
 #endif
 
     connection->fd = fd;
-    connection->from_id = reactor_id;
+    connection->from_id = serv->factory_mode == SW_MODE_SINGLE ? SwooleWG.id : reactor_id;
     connection->from_fd = from_fd;
     connection->connect_time = SwooleGS->now;
     connection->last_time = SwooleGS->now;
@@ -1299,7 +1299,7 @@ static swConnection* swServer_connection_new(swServer *serv, int fd, int from_fd
         {
             session->fd = fd;
             session->id = session_id;
-            session->reactor_id = serv->factory_mode == SW_MODE_SINGLE ? SwooleWG.id : reactor_id;
+            session->reactor_id = connection->from_id;
             break;
         }
     }

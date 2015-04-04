@@ -70,6 +70,21 @@ int swFactory_dispatch(swFactory *factory, swDispatchData *task)
 
 int swFactory_notify(swFactory *factory, swDataHead *req)
 {
+    swServer *serv = factory->ptr;
+    swConnection *conn = swServer_connection_get(serv, req->fd);
+    if (conn == NULL || conn->active == 0)
+    {
+        swWarn("dispatch[type=%d] failed, connection#%d is not active.", req->type, req->fd);
+        return SW_ERR;
+    }
+    //server active close, discard data.
+    if (conn->closed)
+    {
+        swWarn("dispatch[type=%d] failed, connection#%d is closed by server.", req->type, req->fd);
+        return SW_OK;
+    }
+    //converted fd to session_id
+    req->fd = conn->session_id;
     return swWorker_onTask(factory, (swEventData *) req);
 }
 
@@ -112,7 +127,8 @@ int swFactory_end(swFactory *factory, int fd)
         }
         conn->closing = 0;
         conn->closed = 1;
-        return factory->finish(factory, &_send);
+        swReactor *reactor = &serv->reactor_threads[SwooleTG.id].reactor;
+        return swReactorThread_close(reactor, conn->fd);
     }
 }
 

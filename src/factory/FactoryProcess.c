@@ -38,6 +38,7 @@ static int swFactoryProcess_notify(swFactory *factory, swDataHead *event);
 static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *buf);
 static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
 static int swFactoryProcess_shutdown(swFactory *factory);
+static int swFactoryProcess_end(swFactory *factory, int fd);
 
 static void swManager_signal_handle(int sig);
 static pid_t swManager_create_user_worker(swServer *serv, swWorker* worker);
@@ -60,7 +61,7 @@ int swFactoryProcess_create(swFactory *factory, int worker_num)
     factory->start = swFactoryProcess_start;
     factory->notify = swFactoryProcess_notify;
     factory->shutdown = swFactoryProcess_shutdown;
-    factory->end = swFactory_end;
+    factory->end = swFactoryProcess_end;
     factory->onTask = NULL;
     factory->onFinish = NULL;
 
@@ -780,3 +781,45 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
     return swReactorThread_send2worker((void *) &(task->data), send_len, target_worker_id);
 }
 
+static int swFactoryProcess_end(swFactory *factory, int fd)
+{
+    swServer *serv = factory->ptr;
+    swSendData _send;
+
+    bzero(&_send, sizeof(_send));
+    _send.info.fd = fd;
+    _send.info.len = 0;
+    _send.info.type = SW_EVENT_CLOSE;
+
+    swConnection *conn = swWorker_get_connection(serv, fd);
+    if (conn == NULL || conn->active == 0)
+    {
+        //swWarn("can not close. Connection[%d] not found.", _send.info.fd);
+        return SW_ERR;
+    }
+    else if (conn->close_force)
+    {
+        goto do_close;
+    }
+    else if (conn->closing)
+    {
+        swWarn("The connection[%d] is closing.", fd);
+        return SW_ERR;
+    }
+    else if (conn->closed)
+    {
+        return SW_ERR;
+    }
+    else
+    {
+        do_close:
+        conn->closing = 1;
+        if (serv->onClose != NULL)
+        {
+            serv->onClose(serv, fd, conn->from_id);
+        }
+        conn->closing = 0;
+        conn->closed = 1;
+        return factory->finish(factory, &_send);
+    }
+}
