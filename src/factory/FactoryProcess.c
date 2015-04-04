@@ -492,24 +492,28 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
                 }
             }
 
-            //task worker
+            
             if (pid > 0)
             {
-                swWorker *exit_worker = swHashMap_find_int(SwooleGS->task_workers.map, pid);
-
-                if (exit_worker != NULL)
+                swWorker *exit_worker;
+                //task worker
+                if (SwooleGS->task_workers.map)
                 {
-                    if (exit_worker->deleted == 1)  //主动回收不重启
+                    exit_worker = swHashMap_find_int(SwooleGS->task_workers.map, pid);
+                    if (exit_worker != NULL)
                     {
-                        exit_worker->deleted = 0;
-                    }
-                    else
-                    {
-                        swProcessPool_spawn(exit_worker);
-                        goto kill_worker;
+                        if (exit_worker->deleted == 1)  //主动回收不重启
+                        {
+                            exit_worker->deleted = 0;
+                        }
+                        else
+                        {
+                            swProcessPool_spawn(exit_worker);
+                            goto kill_worker;
+                        }
                     }
                 }
-
+                //user process
                 if (serv->user_worker_map != NULL)
                 {
                     exit_worker = swHashMap_find_int(serv->user_worker_map, pid);
