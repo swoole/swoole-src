@@ -71,7 +71,7 @@ typedef struct
     char *current_header_name;
     size_t current_header_name_len;
 
-    swString *current_input_name;
+    char *current_input_name;
 
 } swoole_http_client;
 

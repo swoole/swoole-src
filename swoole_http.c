@@ -63,6 +63,17 @@ enum http_global_flag
     HTTP_GLOBAL_FILES     = 1u << 6,
 };
 
+enum upload_errno
+{
+    UPLOAD_ERR_OK = 0,
+    UPLOAD_ERR_INI_SIZE,
+    UPLOAD_ERR_FORM_SIZE,
+    UPLOAD_ERR_PARTIAL,
+    UPLOAD_ERR_NO_FILE,
+    UPLOAD_ERR_NO_TMP_DIR = 6,
+    UPLOAD_ERR_CANT_WRITE
+};
+
 enum http_callback_type
 {
     HTTP_CALLBACK_onRequest = 0,
@@ -534,25 +545,36 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
     swoole_http_client *client = (swoole_http_client*) p->data;
+    zval *files = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("files"), 1 TSRMLS_CC);
     char *headername = zend_str_tolower_dup(client->current_header_name, client->current_header_name_len);
 
     if (strncasecmp(headername, ZEND_STRL("content-disposition")) == 0)
     {
         int input_name_length = swoole_strnpos(at, "\"; filename=\"", length) - strlen("form-data; name=\"");
-        client->current_input_name = swString_dup(at + strlen("form-data; name=\""), input_name_length - 1);
+        client->current_input_name = estrndup(at + strlen("form-data; name=\""), input_name_length);
 
         zval *multipart_header;
         MAKE_STD_ZVAL(multipart_header);
         array_init(multipart_header);
-        zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("multipart_header"), multipart_header TSRMLS_CC);
-        add_assoc_long(multipart_header, "error", -1);
-        int file_length = length - strlen("form-data; name=\"") - input_name_length - strlen("\"; filename=\"") - 1;
-        add_assoc_stringl(multipart_header, "name", (char *)at + length - file_length - 1, file_length, 1);
+        add_assoc_zval(files, client->current_input_name, multipart_header);
+
+        add_assoc_string(multipart_header, "name","", 1);
+        add_assoc_string(multipart_header, "type","", 1);
+        add_assoc_string(multipart_header, "tmp_name","", 1);
+        add_assoc_long(multipart_header, "error", UPLOAD_ERR_OK);
+        add_assoc_long(multipart_header, "size", 0);
+
+        int filename_length = length - strlen("form-data; name=\"") - input_name_length - strlen("\"; filename=\"") - 1;
+        if (filename_length == 0)
+            add_assoc_long(multipart_header, "error", UPLOAD_ERR_NO_FILE);
+        else
+            add_assoc_stringl(multipart_header, "name", (char *)at + length - filename_length - 1, filename_length, 1);
     }
     if (strncasecmp(headername, ZEND_STRL("content-type")) == 0)
     {
-        zval *multipart_header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("multipart_header"), 1 TSRMLS_CC);
-        add_assoc_stringl_ex(multipart_header, headername, client->current_header_name_len + 1, (char *) at, length, 1);
+        zval **multipart_header;
+        zend_hash_find(Z_ARRVAL_P(files), client->current_input_name, strlen(client->current_input_name) + 1, (void **) &multipart_header);
+        add_assoc_stringl(*multipart_header, "type", (char *) at, length, 1);
     }
 
     if (client->current_header_name_allocated)
@@ -567,11 +589,24 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
 
 static int multipart_body_on_data(multipart_parser* p, const char *at, size_t length)
 {
-    int n = fwrite(at, sizeof(char), length, (FILE *)p->fp);
+    if (p->fp == NULL)
+    {
+        return 0;
+    }
+
+    int n = fwrite(at, sizeof(char), length, (FILE *) p->fp);
     if (n != length)
     {
+        swoole_http_client *client = (swoole_http_client*) p->data;
+        zval *files = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("files"), 1 TSRMLS_CC);
+        zval **multipart_header;
+        zend_hash_find(Z_ARRVAL_P(files), client->current_input_name, strlen(client->current_input_name) + 1, (void **) &multipart_header);
+        add_assoc_long(*multipart_header, "error", UPLOAD_ERR_CANT_WRITE);
+
+        fclose((FILE *) p->fp);
+        p->fp = NULL;
+
         swWarn("write upload file failed. Error %s[%d]", strerror(errno), errno);
-        return -1;
     }
 
     return 0;
@@ -593,24 +628,33 @@ void get_random_file_name(char *des, const char *src)
 static int multipart_body_on_header_complete(multipart_parser* p)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+    swoole_http_client *client = (swoole_http_client *) p->data;
+    zval *files = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("files"), 1 TSRMLS_CC);
+    zval **multipart_header;
+    zend_hash_find(Z_ARRVAL_P(files), client->current_input_name, strlen(client->current_input_name) + 1, (void **) &multipart_header);
+    zval **zerr;
+    zend_hash_find(Z_ARRVAL_PP(multipart_header), ZEND_STRS("error"), (void **) &zerr);
+    if (Z_LVAL_PP(zerr) != UPLOAD_ERR_OK)
+        return 0;
+
     char base_path[] = "/tmp/";
     char file_path[38] = {0};
     sprintf(file_path, "%s", base_path);
-
-    swoole_http_client *client = (swoole_http_client *) p->data;
     swConnection *conn = swWorker_get_connection(SwooleG.serv, client->fd);
     get_random_file_name(file_path + strlen(base_path), swConnection_get_ip(conn));
     FILE *fp = fopen(file_path, "wb+");
 
     if (fp == NULL)
     {
+        add_assoc_long(*multipart_header, "error", UPLOAD_ERR_NO_TMP_DIR);
         swWarn("fopen(%s) failed. Error %s[%d]", file_path, strerror(errno), errno);
-        return -1;
-    }
-    p->fp = fp;
 
-    zval *multipart_header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("multipart_header"), 1 TSRMLS_CC);
-    sw_add_assoc_string(multipart_header, "tmp_name", file_path, 1);
+        return 0;
+    }
+
+    p->fp = fp;
+    sw_add_assoc_string(*multipart_header, "tmp_name", file_path, 1);
 
     return 0;
 }
@@ -618,22 +662,22 @@ static int multipart_body_on_header_complete(multipart_parser* p)
 static int multipart_body_on_data_end(multipart_parser* p)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
     swoole_http_client *client = (swoole_http_client *) p->data;
-    zval *multipart_header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("multipart_header"), 1 TSRMLS_CC);
-    long size = swoole_file_get_size((FILE*)p->fp);
-    add_assoc_long(multipart_header, "size", size);
-
-    int ret = fclose((FILE *)p->fp);
-    if (ret == -1)
-    {
-        swWarn("fclose failed. Error %s[%d]", strerror(errno), errno);
-    }
-    p->fp = NULL;
-    add_assoc_long(multipart_header, "error", ret);
-
     zval *files = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("files"), 1 TSRMLS_CC);
-    add_assoc_zval(files, client->current_input_name->str, multipart_header);
-    swString_free(client->current_input_name);
+    zval **multipart_header;
+    zend_hash_find(Z_ARRVAL_P(files), client->current_input_name, strlen(client->current_input_name) + 1, (void **) &multipart_header);
+
+    if (p->fp != NULL)
+    {
+        long size = swoole_file_get_size((FILE*) p->fp);
+        add_assoc_long(*multipart_header, "size", size);
+
+        fclose((FILE *)p->fp);
+        p->fp = NULL;
+    }
+
+    efree(client->current_input_name);
 
     return 0;
 }
@@ -641,13 +685,8 @@ static int multipart_body_on_data_end(multipart_parser* p)
 static int multipart_body_end(multipart_parser* p)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-    swoole_http_client *client = (swoole_http_client *) p->data;
-    zval *multipart_header = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("multipart_header"), 1 TSRMLS_CC);
-    if (!ZVAL_IS_NULL(multipart_header))
-    {
-        zval_ptr_dtor(&multipart_header);
-    }
 
+    swoole_http_client *client = (swoole_http_client *) p->data;
     zval *files = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("files"), 1 TSRMLS_CC);
     http_merge_php_global(files, client->zrequest, HTTP_GLOBAL_FILES);
 
@@ -1025,9 +1064,26 @@ void swoole_http_request_free(swoole_http_client *client TSRMLS_DC)
     zval *zfiles = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("files"), 1 TSRMLS_CC);
     if (!ZVAL_IS_NULL(zfiles))
     {
+        zval **value;
+        char *key;
+        int keytype;
+        ulong idx;
+
+        for (zend_hash_internal_pointer_reset(Z_ARRVAL_P(zfiles));zend_hash_has_more_elements(Z_ARRVAL_P(zfiles)) == SUCCESS;zend_hash_move_forward(Z_ARRVAL_P(zfiles)))
+        {
+            keytype = zend_hash_get_current_key(Z_ARRVAL_P(zfiles), &key, &idx, 0);
+            if (HASH_KEY_IS_STRING != keytype)
+            {
+                continue;
+            }
+            if (zend_hash_get_current_data(Z_ARRVAL_P(zfiles), (void**)&value) == FAILURE)
+            {
+                continue;
+            }
+            zval_ptr_dtor(value);
+        }
         zval_ptr_dtor(&zfiles);
     }
-
     zval *zrequest = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("request"), 1 TSRMLS_CC);
     if (!ZVAL_IS_NULL(zrequest))
     {

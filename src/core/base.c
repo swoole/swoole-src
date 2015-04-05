@@ -360,9 +360,10 @@ void swoole_rtrim(char *str, int len)
 
 long swoole_file_get_size(FILE *fp)
 {
+    long pos = ftell(fp);
     fseek(fp, 0L, SEEK_END);
-    int size = ftell(fp);
-    fseek(fp, 0L, SEEK_SET); 
+    long size = ftell(fp);
+    fseek(fp, pos, SEEK_SET); 
     return size;
 }
 
