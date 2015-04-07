@@ -136,7 +136,7 @@ int swFactory_end(swFactory *factory, int fd)
         else
         {
             swBuffer_trunk *trunk = swBuffer_new_trunk(conn->out_buffer, SW_CHUNK_CLOSE, 0);
-            trunk->store.data.val1 = _send->info.type;
+            trunk->store.data.val1 = _send.info.type;
             return SW_OK;
         }
     }

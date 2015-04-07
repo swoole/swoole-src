@@ -123,7 +123,6 @@ void swSignal_callback(int signo)
 static sigset_t signalfd_mask;
 static int signal_fd = 0;
 
-
 void swSignalfd_init()
 {
     sigemptyset(&signalfd_mask);

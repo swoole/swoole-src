@@ -194,14 +194,17 @@ PHP_METHOD(swoole_process, signal)
 
     if (!SWOOLE_G(cli))
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "Cannot use swoole_process::signal here.");
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "cannot use swoole_process::signal here.");
         RETURN_FALSE;
     }
 
     if (SwooleGS->start)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Cannot use swoole_process::signal in swoole_server.");
-        RETURN_FALSE;
+        if (signo == SIGTERM || signo == SIGALRM)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "cannot use swoole_process::signal in swoole_server.");
+            RETURN_FALSE;
+        }
     }
 
     if (callback == NULL || ZVAL_IS_NULL(callback))
@@ -213,7 +216,7 @@ PHP_METHOD(swoole_process, signal)
     char *func_name;
     if (!zend_is_callable(callback, 0, &func_name TSRMLS_CC))
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "function '%s' is not callable", func_name);
         efree(func_name);
         RETURN_FALSE;
     }
