@@ -1705,6 +1705,8 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
                 return SW_ERR;
             }
 
+            swMutex_create(&thread->lock, 0);
+
             param->object = serv;
             param->pti = i;
 
