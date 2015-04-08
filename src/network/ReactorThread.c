@@ -372,11 +372,17 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
 
             if (serv->connection_list[pipe_fd].from_id == SwooleTG.id)
             {
-                thread->reactor.set(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_READ | SW_EVENT_WRITE);
+                if (thread->reactor.set(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_READ | SW_EVENT_WRITE) < 0)
+                {
+                    swSysError("reactor->set(%d, PIPE | READ | WRITE) failed.", pipe_fd);
+                }
             }
             else
             {
-                thread->reactor.add(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_WRITE);
+                if (thread->reactor.add(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_WRITE) < 0)
+                {
+                    swSysError("reactor->add(%d, PIPE | WRITE) failed.", pipe_fd);
+                }
             }
 
             if (swBuffer_append(buffer, data, len) < 0)
@@ -584,7 +590,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
         }
         if (ret < 0)
         {
-            swSysError("reactor->set() failed.");
+            swSysError("reactor->set(%d) failed.", ev->fd);
         }
     }
     return SW_OK;
@@ -1827,6 +1833,7 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
                  * mapping reactor_id and worker pipe
                  */
                 serv->connection_list[pipe_fd].from_id = reactor_id;
+                serv->connection_list[pipe_fd].fd = pipe_fd;
 #ifdef SW_USE_RINGBUFFER
                 thread->pipe_read_list[j] = pipe_fd;
                 j++;
