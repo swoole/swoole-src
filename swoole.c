@@ -706,6 +706,12 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef HAVE_GCC_AIO
     php_info_print_table_row(2, "Gcc AIO", "enabled");
 #endif
+#ifdef HAVE_PCRE
+    php_info_print_table_row(2, "pcre", "enabled");
+#endif
+#ifdef SW_HAVE_ZLIB
+    php_info_print_table_row(2, "zlib", "enabled");
+#endif
 
     php_info_print_table_end();
 
