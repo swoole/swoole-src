@@ -214,8 +214,6 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         break;
     }
 
-
-
     //worker idle
     serv->workers[SwooleWG.id].status = SW_WORKER_IDLE;
 
