@@ -925,10 +925,6 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         {
             zval_ptr_dtor(&retval);
         }
-        if (callback == HTTP_CALLBACK_onHandShake && !conn->closed)
-        {
-            swoole_websocket_onOpen(client);
-        }
     }
     return SW_OK;
 }
