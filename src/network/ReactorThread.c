@@ -387,6 +387,7 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
                 ret = SW_OK;
             }
         }
+        //release thread lock
         thread->lock.lock(&thread->lock);
     }
     //master/udp thread
@@ -533,6 +534,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
     swServer *serv = reactor->ptr;
     swBuffer *buffer = serv->connection_list[ev->fd].in_buffer;
 
+    //lock thread
     thread->lock.lock(&thread->lock);
 
     while (!swBuffer_empty(buffer))
@@ -564,6 +566,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
         ret = write(ev->fd, trunk->store.ptr, trunk->length);
         if (ret < 0)
         {
+            //release lock
             thread->lock.unlock(&thread->lock);
 #ifdef HAVE_KQUEUE
             return (errno == EAGAIN || errno == ENOBUFS) ? SW_OK : SW_ERR;
@@ -594,6 +597,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
         }
     }
 
+    //release lock
     thread->lock.unlock(&thread->lock);
 
     return SW_OK;
