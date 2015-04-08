@@ -300,12 +300,6 @@ static void swWebSocket_unmask(char *masks, swHttpRequest *request)
     }
 }
 
-swString *swWebSocket_handShake(char *key)
-{
-    swString *response = swString_new(1024);
-    return response;
-}
-
 //static void swWebSocket_print_frame(swWebSocket_frame *frm)
 //{
 //  int i;

@@ -357,6 +357,20 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
             if (ret < 0 && errno == EAGAIN)
 #endif
             {
+                if (serv->connection_list[pipe_fd].from_id == SwooleTG.id)
+                {
+                    if (thread->reactor.set(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_READ | SW_EVENT_WRITE) < 0)
+                    {
+                        swSysError("reactor->set(%d, PIPE | READ | WRITE) failed.", pipe_fd);
+                    }
+                }
+                else
+                {
+                    if (thread->reactor.add(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_WRITE) < 0)
+                    {
+                        swSysError("reactor->add(%d, PIPE | WRITE) failed.", pipe_fd);
+                    }
+                }
                 goto append_pipe_buffer;
             }
         }
@@ -368,21 +382,6 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
             {
                 swYield();
                 swSocket_wait(pipe_fd, SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
-            }
-
-            if (serv->connection_list[pipe_fd].from_id == SwooleTG.id)
-            {
-                if (thread->reactor.set(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_READ | SW_EVENT_WRITE) < 0)
-                {
-                    swSysError("reactor->set(%d, PIPE | READ | WRITE) failed.", pipe_fd);
-                }
-            }
-            else
-            {
-                if (thread->reactor.add(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_WRITE) < 0)
-                {
-                    swSysError("reactor->add(%d, PIPE | WRITE) failed.", pipe_fd);
-                }
             }
 
             if (swBuffer_append(buffer, data, len) < 0)
@@ -1135,8 +1134,7 @@ static int swReactorThread_onReceive_websocket(swReactor *reactor, swEvent *even
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swSysError("recv from connection[%d@%d] failed.", event->fd, reactor->id)
-            ;
+            swSysError("recv from connection#%d failed.", event->fd);
             return SW_OK;
         case SW_CLOSE:
             goto close_fd;
@@ -1177,7 +1175,6 @@ static int swReactorThread_onReceive_websocket(swReactor *reactor, swEvent *even
                 //swTrace("weboscket frame decode ret: %d, %d, %d, %d\n", tmp_package.length, tmp_package.offset, tmp_package.size, tmp_n);
                 if (tmp_package.size <= tmp_n)
                 {
-
 //                    tmp_package.str = (void *) tmp_ptr;
 //                    swoole_dump_bin(buffer.str, 's', buffer.length);
 //                    swTrace("send data %s", tmp_package.str);
