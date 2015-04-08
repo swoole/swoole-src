@@ -788,25 +788,6 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
     return match;
 }
 
-int swoole_strnpos(const char *haystack, const char *needle, uint32_t length)
-{
-    uint32_t needle_length = strlen(needle);
-    uint32_t i;
-
-    for (i = 0; i < length; i++)
-    {
-        if (i + needle_length > length)
-        {
-            return -1;
-        }
-        if (strncmp(&haystack[i], needle, needle_length) == 0)
-        {
-            return i;
-        }
-    }
-    return -1;
-}
-
 #ifndef HAVE_CLOCK_GETTIME
 #ifdef __MACH__
 int clock_gettime(clock_id_t which_clock, struct timespec *t)

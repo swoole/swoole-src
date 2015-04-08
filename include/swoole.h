@@ -435,8 +435,8 @@ typedef struct _swConnection
     long uid;
 
     /**
-    *  upgarde websocket
-    */
+     *  upgarde websocket
+     */
     uint8_t websocket_status;
 
     sw_atomic_t lock;
@@ -580,7 +580,6 @@ void swQueueMsg_set_blocking(swQueue *p, uint8_t blocking);
 void swQueueMsg_set_destory(swQueue *p, uint8_t destory);
 
 //------------------Lock--------------------------------------
-
 enum SW_LOCKS
 {
     SW_RWLOCK = 1,
@@ -612,7 +611,6 @@ typedef struct _swMutex
 } swMutex;
 
 #ifdef HAVE_RWLOCK
-//读写锁
 typedef struct _swRWLock
 {
     pthread_rwlock_t _lock;
@@ -621,7 +619,6 @@ typedef struct _swRWLock
 } swRWLock;
 #endif
 
-//自旋锁
 #ifdef HAVE_SPINLOCK
 typedef struct _swSpinLock
 {
@@ -650,20 +647,20 @@ typedef struct _swLock
 #ifdef HAVE_RWLOCK
         swRWLock rwlock;
 #endif
-        swFileLock filelock;
-        swSem sem;
-        swAtomicLock atomlock;
 #ifdef HAVE_SPINLOCK
         swSpinLock spinlock;
 #endif
+        swFileLock filelock;
+        swSem sem;
+        swAtomicLock atomlock;
     } object;
 
-	int (*lock_rd)(struct _swLock *);
-	int (*lock)(struct _swLock *);
-	int (*unlock)(struct _swLock *);
-	int (*trylock_rd)(struct _swLock *);
-	int (*trylock)(struct _swLock *);
-	int (*free)(struct _swLock *);
+    int (*lock_rd)(struct _swLock *);
+    int (*lock)(struct _swLock *);
+    int (*unlock)(struct _swLock *);
+    int (*trylock_rd)(struct _swLock *);
+    int (*trylock)(struct _swLock *);
+    int (*free)(struct _swLock *);
 } swLock;
 
 //Thread Condition
@@ -704,7 +701,6 @@ typedef struct _swMemoryPool
 	void (*free)(struct _swMemoryPool *pool, void *ptr);
 	void (*destroy)(struct _swMemoryPool *pool);
 } swMemoryPool;
-
 
 typedef struct _swFixedPool_slice
 {
@@ -861,6 +857,61 @@ static sw_inline uint32_t swoole_unpack(char type, void *data)
     }
 }
 
+static inline char* swoole_strnstr(char *haystack, char *needle, uint32_t length)
+{
+    int i;
+    uint32_t needle_length = strlen(needle);
+    assert(needle_length > 0);
+
+    for (i = 0; i < (int) (length - needle_length + 1); i++)
+    {
+        if ((haystack[0] == needle[0]) && (0 == memcmp(haystack, needle, needle_length)))
+        {
+            return (char *) haystack;
+        }
+        haystack++;
+    }
+
+    return NULL;
+}
+
+static inline int swoole_strnpos(char *haystack, char *needle, uint32_t length)
+{
+    uint32_t needle_length = strlen(needle);
+    assert(needle_length > 0);
+    uint32_t i;
+
+    for (i = 0; i < (int) (length - needle_length + 1); i++)
+    {
+        if ((haystack[0] == needle[0]) && (0 == memcmp(haystack, needle, needle_length)))
+        {
+            return i;
+        }
+        haystack++;
+    }
+
+    return -1;
+}
+
+static inline int swoole_strrnpos(char *haystack, char *needle, uint32_t length)
+{
+    uint32_t needle_length = strlen(needle);
+    assert(needle_length > 0);
+    uint32_t i;
+    haystack += (length - needle_length);
+
+    for (i = length - needle_length; i > 0; i--)
+    {
+        if ((haystack[0] == needle[0]) && (0 == memcmp(haystack, needle, needle_length)))
+        {
+            return i;
+        }
+        haystack--;
+    }
+
+    return -1;
+}
+
 void swoole_dump_bin(char *data, char type, int size);
 int swoole_type_size(char type);
 int swoole_mkdir_recursive(const char *dir);
@@ -872,7 +923,6 @@ int swoole_system_random(int min, int max);
 long swoole_file_get_size(FILE *fp);
 swString* swoole_file_get_contents(char *filename);
 void swoole_open_remote_debug(void);
-int swoole_strnpos(const char *haystack, const char *needle, uint32_t length);
 char *swoole_dec2hex(int value, int base);
 
 void swoole_ioctl_set_block(int sock, int nonblock);

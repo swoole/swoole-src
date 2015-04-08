@@ -1206,7 +1206,7 @@ PHP_FUNCTION(swoole_server_set)
     //cpu affinity
     if (sw_zend_hash_find(vht, ZEND_STRS("open_cpu_affinity"), (void **)&v) == SUCCESS)
     {
-        convert_to_long(*v);
+        convert_to_boolean(*v);
         serv->open_cpu_affinity = (uint8_t) Z_BVAL_PP(v);
     }
     //cpu affinity set
@@ -1244,8 +1244,8 @@ PHP_FUNCTION(swoole_server_set)
     //tcp_nodelay
     if (sw_zend_hash_find(vht, ZEND_STRS("open_tcp_nodelay"), (void **)&v) == SUCCESS)
     {
-        convert_to_long(*v);
-        serv->open_tcp_nodelay = (uint8_t) Z_LVAL_PP(v);
+        convert_to_boolean(*v);
+        serv->open_tcp_nodelay = (uint8_t) Z_BVAL_PP(v);
     }
     //tcp_defer_accept
     if (sw_zend_hash_find(vht, ZEND_STRS("tcp_defer_accept"), (void **)&v) == SUCCESS)
@@ -1256,13 +1256,20 @@ PHP_FUNCTION(swoole_server_set)
     //tcp_keepalive
     if (sw_zend_hash_find(vht, ZEND_STRS("open_tcp_keepalive"), (void **)&v) == SUCCESS)
     {
+        convert_to_boolean(*v);
         serv->open_tcp_keepalive = (uint8_t) Z_BVAL_PP(v);
     }
     //buffer: check eof
     if (sw_zend_hash_find(vht, ZEND_STRS("open_eof_check"), (void **)&v) == SUCCESS)
     {
-        convert_to_long(*v);
+        convert_to_boolean(*v);
         serv->open_eof_check = (uint8_t) Z_BVAL_PP(v);
+    }
+    //buffer: split package with eof
+    if (sw_zend_hash_find(vht, ZEND_STRS("open_eof_split"), (void **) &v) == SUCCESS)
+    {
+        convert_to_boolean(*v);
+        serv->open_eof_split = (uint8_t) Z_BVAL_PP(v);
     }
     //package eof
     if (sw_zend_hash_find(vht, ZEND_STRS("package_eof"), (void **) &v) == SUCCESS

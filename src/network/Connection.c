@@ -275,9 +275,9 @@ void swConnection_clear_string_buffer(swConnection *conn)
     }
 }
 
-volatile swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn)
+swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn)
 {
-    volatile swBuffer_trunk *trunk = NULL;
+    swBuffer_trunk *trunk = NULL;
     swBuffer *buffer;
 
     if (conn->in_buffer == NULL)
@@ -309,9 +309,9 @@ volatile swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn)
     return trunk;
 }
 
-volatile swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type)
+swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type)
 {
-    volatile swBuffer_trunk *trunk;
+    swBuffer_trunk *trunk;
     if (conn->out_buffer == NULL)
     {
         conn->out_buffer = swBuffer_new(SW_BUFFER_SIZE);

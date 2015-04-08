@@ -14,7 +14,7 @@ $server->on('message', function (swoole_websocket_server $_server, $frame) {
     echo "received ".strlen($frame->data)." bytes\n";
     //echo "receive from {$fd}:{$data},opcode:{$opcode},fin:{$fin}\n";
     $_server->push($frame->fd, "this is server");
-	$_server->close($frame->fd);
+//	$_server->close($frame->fd);
 });
 
 $server->on('close', function ($_server, $fd) {

@@ -177,6 +177,9 @@ function my_onConnect(swoole_server $serv, $fd, $from_id)
 
 function my_onWorkerStart($serv, $worker_id)
 {
+    swoole_process::signal(SIGUSR2, function($signo){
+        echo "SIGNAL: $signo\n";
+    });
 	processRename($serv, $worker_id);
 	//forkChildInWorker();
 //	setTimerInWorker($serv, $worker_id);

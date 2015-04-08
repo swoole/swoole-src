@@ -128,7 +128,7 @@ static int php_swoole_client_close(zval *zobject, int fd TSRMLS_DC)
 	{
 		if (zend_hash_del(&php_sw_long_connections, cli->server_str, cli->server_strlen) == SUCCESS)
 		{
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client_create_socket add to hashtable failed.");
+			php_error_docref(NULL TSRMLS_CC, E_WARNING, "delete from hashtable failed.");
 		}
 		free(cli->server_str);
 		ZVAL_LONG(ztype, 0);

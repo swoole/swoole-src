@@ -323,6 +323,11 @@ struct _swServer
     uint32_t open_eof_check :1;
 
     /**
+     * split the package use eof
+     */
+    uint32_t open_eof_split :1;
+
+    /**
      * built-in http protocol
      */
     uint32_t open_http_protocol :1;
@@ -382,24 +387,19 @@ struct _swServer
     /**
      * 来自客户端的心跳侦测包
      */
-    char heartbeat_ping[SW_HEARTBEAT_PING_LEN];
+    char heartbeat_ping[SW_HEARTBEAT_PING_LEN + 1];
     uint8_t heartbeat_ping_length;
 
     /**
      * 服务器端对心跳包的响应
      */
-    char heartbeat_pong[SW_HEARTBEAT_PING_LEN];
+    char heartbeat_pong[SW_HEARTBEAT_PING_LEN + 1];
     uint8_t heartbeat_pong_length;
 
     /* one package: eof check */
 
-    uint8_t package_eof_len; //数据缓存结束符长度
-    //int data_buffer_max_num;             //数据缓存最大个数(超过此数值的连接会被当作坏连接，将清除缓存&关闭连接)
-    //uint8_t max_trunk_num;               //每个请求最大允许创建的trunk数
-    char package_eof[SW_DATA_EOF_MAXLEN]; //数据缓存结束符
-
-    uint32_t http_max_post_size;
-
+    uint8_t package_eof_len;  //数据缓存结束符长度
+    char package_eof[SW_DATA_EOF_MAXLEN + 1];  //数据缓存结束符
 
     char package_length_type; //length field type
     uint8_t package_length_size;
