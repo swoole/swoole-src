@@ -338,7 +338,6 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
 {
     swServer *serv = SwooleG.serv;
 
-
     int ret = -1;
     swWorker *worker = &(serv->workers[target_worker_id]);
 
@@ -388,7 +387,7 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
             }
         }
         //release thread lock
-        thread->lock.lock(&thread->lock);
+        thread->lock.unlock(&thread->lock);
     }
     //master/udp thread
     else
