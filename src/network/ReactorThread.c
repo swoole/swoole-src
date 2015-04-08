@@ -337,7 +337,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
 int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
 {
     swServer *serv = SwooleG.serv;
-    swReactorThread *thread = swServer_get_thread(serv, SwooleTG.id);
+
 
     int ret = -1;
     swWorker *worker = &(serv->workers[target_worker_id]);
@@ -346,8 +346,13 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
     if (SwooleTG.type == SW_THREAD_REACTOR)
     {
         int pipe_fd = worker->pipe_master;
-        swBuffer *buffer = *(swBuffer **) swArray_fetch(thread->buffer_pipe, worker->pipe_master);
+        int thread_id = serv->connection_list[pipe_fd].from_id;
+        swReactorThread *thread = swServer_get_thread(serv, thread_id);
 
+        //lock thread
+        thread->lock.lock(&thread->lock);
+
+        swBuffer *buffer = serv->connection_list[pipe_fd].in_buffer;
         if (swBuffer_empty(buffer))
         {
             ret = write(pipe_fd, (void *) data, len);
@@ -357,19 +362,9 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
             if (ret < 0 && errno == EAGAIN)
 #endif
             {
-                if (serv->connection_list[pipe_fd].from_id == SwooleTG.id)
+                if (thread->reactor.set(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_READ | SW_EVENT_WRITE) < 0)
                 {
-                    if (thread->reactor.set(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_READ | SW_EVENT_WRITE) < 0)
-                    {
-                        swSysError("reactor->set(%d, PIPE | READ | WRITE) failed.", pipe_fd);
-                    }
-                }
-                else
-                {
-                    if (thread->reactor.add(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_WRITE) < 0)
-                    {
-                        swSysError("reactor->add(%d, PIPE | WRITE) failed.", pipe_fd);
-                    }
+                    swSysError("reactor->set(%d, PIPE | READ | WRITE) failed.", pipe_fd);
                 }
                 goto append_pipe_buffer;
             }
@@ -377,20 +372,22 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
         else
         {
             append_pipe_buffer:
-
             if (buffer->length > SwooleG.socket_buffer_size)
             {
                 swYield();
                 swSocket_wait(pipe_fd, SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
             }
-
             if (swBuffer_append(buffer, data, len) < 0)
             {
                 swWarn("append to pipe_buffer failed.");
-                return SW_ERR;
+                ret = SW_ERR;
             }
-            return SW_OK;
+            else
+            {
+                ret = SW_OK;
+            }
         }
+        thread->lock.lock(&thread->lock);
     }
     //master/udp thread
     else
@@ -529,11 +526,14 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
 {
     int ret;
     swReactorThread *thread = swServer_get_thread(SwooleG.serv, SwooleTG.id);
-    swBuffer *buffer = *(swBuffer **) swArray_fetch(thread->buffer_pipe, ev->fd);
+
     swBuffer_trunk *trunk = NULL;
     swEventData *send_data;
     swConnection *conn;
     swServer *serv = reactor->ptr;
+    swBuffer *buffer = serv->connection_list[ev->fd].in_buffer;
+
+    thread->lock.lock(&thread->lock);
 
     while (!swBuffer_empty(buffer))
     {
@@ -564,6 +564,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
         ret = write(ev->fd, trunk->store.ptr, trunk->length);
         if (ret < 0)
         {
+            thread->lock.unlock(&thread->lock);
 #ifdef HAVE_KQUEUE
             return (errno == EAGAIN || errno == ENOBUFS) ? SW_OK : SW_ERR;
 #else
@@ -592,6 +593,9 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
             swSysError("reactor->set(%d) failed.", ev->fd);
         }
     }
+
+    thread->lock.unlock(&thread->lock);
+
     return SW_OK;
 }
 
@@ -1790,13 +1794,6 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
 
     if (serv->factory_mode == SW_MODE_PROCESS)
     {
-        thread->buffer_pipe = swArray_new(serv->workers[serv->worker_num - 1].pipe_master + 1, sizeof(void*), 0);
-        if (thread->buffer_pipe == NULL)
-        {
-            swSysError("thread->buffer_pipe create failed");
-            return SW_ERR;
-        }
-
 #ifdef SW_USE_RINGBUFFER
         thread->pipe_read_list = sw_calloc(serv->reactor_pipe_num, sizeof(int));
         if (thread->pipe_read_list == NULL)
@@ -1816,11 +1813,8 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
                 swWarn("create buffer failed.");
                 break;
             }
-            if (swArray_store(thread->buffer_pipe, pipe_fd, &buffer) < 0)
-            {
-                swWarn("create buffer failed.");
-                break;
-            }
+            serv->connection_list[pipe_fd].in_buffer = buffer;
+
             //for response
             if (i % serv->reactor_num == reactor_id)
             {
@@ -1842,13 +1836,6 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     //main loop
     reactor->wait(reactor, NULL);
     //shutdown
-    for (i = 0; i < serv->worker_num; i++)
-    {
-        swWorker *worker = swServer_get_worker(serv, i);
-        swBuffer *buffer = *(swBuffer **) swArray_fetch(thread->buffer_pipe, worker->pipe_master);
-        swBuffer_free(buffer);
-    }
-    swArray_free(thread->buffer_pipe);
     reactor->free(reactor);
     pthread_exit(0);
     return SW_OK;

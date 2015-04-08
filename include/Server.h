@@ -114,7 +114,6 @@ typedef struct _swReactorThread
     swReactor reactor;
     swUdpFd *udp_addrs;
     swMemoryPool *buffer_input;
-    swArray *buffer_pipe;
 #ifdef SW_USE_RINGBUFFER
     int *pipe_read_list;
 #endif
