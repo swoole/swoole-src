@@ -469,7 +469,7 @@ void php_swoole_check_reactor()
 
         if (swIsTaskWorker())
         {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "cannot use async-io in task process.");
+            php_error_docref(NULL TSRMLS_CC, E_ERROR, "cannot use async-io in task process.");
             return;
         }
 

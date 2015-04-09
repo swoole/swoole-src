@@ -1455,6 +1455,7 @@ typedef struct
     uint32_t reactor_init :1;
     uint32_t reactor_ready :1;
     uint32_t in_client :1;
+    uint32_t shutdown :1;
 
     int request_num;
 

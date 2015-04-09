@@ -28,9 +28,6 @@ typedef struct
 
 } swManagerProcess;
 
-static int swFactoryProcess_manager_loop(swFactory *factory);
-static int swFactoryProcess_manager_start(swFactory *factory);
-
 static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti);
 
 static int swFactoryProcess_start(swFactory *factory);
@@ -40,8 +37,11 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
 static int swFactoryProcess_shutdown(swFactory *factory);
 static int swFactoryProcess_end(swFactory *factory, int fd);
 
+static int swManager_loop(swFactory *factory);
+static int swManager_start(swFactory *factory);
 static void swManager_signal_handle(int sig);
 static pid_t swManager_create_user_worker(swServer *serv, swWorker* worker);
+static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid, int status);
 
 static swManagerProcess ManagerProcess;
 
@@ -109,7 +109,7 @@ static int swFactoryProcess_start(swFactory *factory)
     serv->reactor_pipe_num = serv->worker_num / serv->reactor_num;
 
     //必须先启动manager进程组，否则会带线程fork
-    if (swFactoryProcess_manager_start(factory) < 0)
+    if (swManager_start(factory) < 0)
     {
         swWarn("swFactoryProcess_manager_start failed.");
         return SW_ERR;
@@ -120,7 +120,7 @@ static int swFactoryProcess_start(swFactory *factory)
 }
 
 //create worker child proccess
-static int swFactoryProcess_manager_start(swFactory *factory)
+static int swManager_start(swFactory *factory)
 {
     swFactoryProcess *object = factory->object;
     int i, ret;
@@ -243,7 +243,7 @@ static int swFactoryProcess_manager_start(swFactory *factory)
         SwooleG.process_type = SW_PROCESS_MANAGER;
         SwooleG.pid = getpid();
 
-        ret = swFactoryProcess_manager_loop(factory);
+        ret = swManager_loop(factory);
         exit(ret);
         break;
 
@@ -373,7 +373,7 @@ static void swManager_signal_handle(int sig)
     }
 }
 
-static int swFactoryProcess_manager_loop(swFactory *factory)
+static int swManager_loop(swFactory *factory)
 {
     int pid, new_pid;
     int i;
@@ -466,15 +466,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
                 }
                 else
                 {
-                    if (!WIFEXITED(status))
-                    {
-                        swWarn("worker#%d abnormal exit, status=%d, signal=%d", i, WEXITSTATUS(status), WTERMSIG(status));
-
-                        if (serv->onWorkerError != NULL)
-                        {
-                            serv->onWorkerError(serv, i, pid, WEXITSTATUS(status));
-                        }
-                    }
+                    swManager_check_exit_status(serv, i, pid, status);
                     pid = 0;
                     while (1)
                     {
@@ -503,6 +495,7 @@ static int swFactoryProcess_manager_loop(swFactory *factory)
                     exit_worker = swHashMap_find_int(SwooleGS->task_workers.map, pid);
                     if (exit_worker != NULL)
                     {
+                        swManager_check_exit_status(serv, exit_worker->id, pid, status);
                         if (exit_worker->deleted == 1)  //主动回收不重启
                         {
                             exit_worker->deleted = 0;
@@ -821,5 +814,18 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
         conn->closing = 0;
         conn->closed = 1;
         return factory->finish(factory, &_send);
+    }
+}
+
+static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid, int status)
+{
+    if (!WIFEXITED(status))
+    {
+        swWarn("worker#%d abnormal exit, status=%d, signal=%d", worker_id, WEXITSTATUS(status), WTERMSIG(status));
+
+        if (serv->onWorkerError != NULL)
+        {
+            serv->onWorkerError(serv, worker_id, pid, WEXITSTATUS(status));
+        }
     }
 }

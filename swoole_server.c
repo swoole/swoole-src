@@ -781,6 +781,18 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     zend_update_property(swoole_server_class_entry_ptr, zserv, ZEND_STRL("worker_id"), zworker_id TSRMLS_CC);
 
     /**
+     * Is a task worker?
+     */
+    if (worker_id >= serv->worker_num)
+    {
+        zend_update_property_bool(swoole_server_class_entry_ptr, zserv, ZEND_STRL("taskworker"), 1 TSRMLS_CC);
+    }
+    else
+    {
+        zend_update_property_bool(swoole_server_class_entry_ptr, zserv, ZEND_STRL("taskworker"), 0 TSRMLS_CC);
+    }
+
+    /**
      * Worker Process ID
      */
     zend_update_property_long(swoole_server_class_entry_ptr, zserv, ZEND_STRL("worker_pid"), getpid() TSRMLS_CC);
@@ -794,7 +806,6 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     {
         return;
     }
-
     if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onWorkerStart], &retval, 2, args,  0, NULL TSRMLS_CC) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onWorkerStart handler error");
@@ -811,6 +822,12 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
 
 static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
 {
+    if (SwooleWG.shutdown)
+    {
+        return;
+    }
+    SwooleWG.shutdown = 1;
+
     zval *zobject = (zval *) serv->ptr2;
     zval *zworker_id;
     zval **args[2];  //这里必须与下面的数字对应
