@@ -920,7 +920,7 @@ static int swReactorThread_get_package_length(swServer *serv, swConnection *conn
     //Protocol length is not legitimate, out of bounds or exceed the allocated length
     if (body_length < 1 || body_length > serv->package_max_length)
     {
-        swWarn("invalid package, connection#%d[session=%d], length=%d, size=%d.", conn->fd, conn->session_id, body_length, size);
+        swWarn("invalid package, remote_addr=%s:%d, length=%d, size=%d.", swConnection_get_ip(conn), swConnection_get_port(conn), body_length, size);
         return SW_ERR;
     }
     //total package length
@@ -1034,7 +1034,7 @@ static int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swE
                     }
                     else
                     {
-                        swWarn("no enough data, close connection#%d[session=%d].", conn->fd, conn->session_id);
+                        swWarn("no enough data, close connection{%s:%d}.", swConnection_get_ip(conn), swConnection_get_port(conn));
                         goto close_fd;
                     }
                 }
