@@ -28,8 +28,6 @@ typedef struct
 
 } swManagerProcess;
 
-static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti);
-
 static int swFactoryProcess_start(swFactory *factory);
 static int swFactoryProcess_notify(swFactory *factory, swDataHead *event);
 static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *buf);
@@ -40,7 +38,8 @@ static int swFactoryProcess_end(swFactory *factory, int fd);
 static int swManager_loop(swFactory *factory);
 static int swManager_start(swFactory *factory);
 static void swManager_signal_handle(int sig);
-static pid_t swManager_create_user_worker(swServer *serv, swWorker* worker);
+static pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker);
+static pid_t swManager_spawn_worker(swFactory *factory, int worker_id);
 static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid, int status);
 
 static swManagerProcess ManagerProcess;
@@ -200,7 +199,7 @@ static int swManager_start(swFactory *factory)
         for (i = 0; i < serv->worker_num; i++)
         {
             //close(worker_pipes[i].pipes[0]);
-            pid = swFactoryProcess_worker_spawn(factory, i);
+            pid = swManager_spawn_worker(factory, i);
             if (pid < 0)
             {
                 swError("fork() failed.");
@@ -235,7 +234,7 @@ static int swManager_start(swFactory *factory)
                 {
                     swServer_pipe_set(serv, user_worker->worker->pipe_object);
                 }
-                swManager_create_user_worker(serv, user_worker->worker);
+                swManager_spawn_user_worker(serv, user_worker->worker);
             }
         }
 
@@ -258,7 +257,7 @@ static int swManager_start(swFactory *factory)
     return SW_OK;
 }
 
-static pid_t swManager_create_user_worker(swServer *serv, swWorker* worker)
+static pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
 {
     pid_t pid = fork();
 
@@ -470,7 +469,7 @@ static int swManager_loop(swFactory *factory)
                     pid = 0;
                     while (1)
                     {
-                        new_pid = swFactoryProcess_worker_spawn(factory, i);
+                        new_pid = swManager_spawn_worker(factory, i);
                         if (new_pid < 0)
                         {
                             usleep(100000);
@@ -484,7 +483,6 @@ static int swManager_loop(swFactory *factory)
                     }
                 }
             }
-
             
             if (pid > 0)
             {
@@ -513,7 +511,7 @@ static int swManager_loop(swFactory *factory)
                     exit_worker = swHashMap_find_int(serv->user_worker_map, pid);
                     if (exit_worker != NULL)
                     {
-                        swManager_create_user_worker(serv, exit_worker);
+                        swManager_spawn_user_worker(serv, exit_worker);
                         goto kill_worker;
                     }
                 }
@@ -577,7 +575,7 @@ static int swManager_loop(swFactory *factory)
     return SW_OK;
 }
 
-static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti)
+static pid_t swManager_spawn_worker(swFactory *factory, int worker_id)
 {
     pid_t pid;
     int ret;
@@ -593,7 +591,7 @@ static int swFactoryProcess_worker_spawn(swFactory *factory, int worker_pti)
     //worker child processor
     else if (pid == 0)
     {
-        ret = swWorker_loop(factory, worker_pti);
+        ret = swWorker_loop(factory, worker_id);
         exit(ret);
     }
     //parent,add to writer

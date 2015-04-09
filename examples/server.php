@@ -27,7 +27,7 @@ $config = array(
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
 //   'task_ipc_mode'   => 2,
-   //'task_worker_num' => 1,
+   'task_worker_num' => 2,
    'user' => 'www-data',
    'group' => 'www-data',
    'chroot' => '/opt/tmp',
@@ -177,10 +177,13 @@ function my_onConnect(swoole_server $serv, $fd, $from_id)
 
 function my_onWorkerStart($serv, $worker_id)
 {
-    swoole_process::signal(SIGUSR2, function($signo){
-        echo "SIGNAL: $signo\n";
-    });
 	processRename($serv, $worker_id);
+    if (!$serv->taskworker)
+    {
+        swoole_process::signal(SIGUSR2, function($signo){
+            echo "SIGNAL: $signo\n";
+        });
+    }
 	//forkChildInWorker();
 //	setTimerInWorker($serv, $worker_id);
 }
