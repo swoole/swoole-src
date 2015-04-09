@@ -862,6 +862,17 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length)
 	return SW_OK;
 }
 
+int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length)
+{
+    swConnection *conn = swServer_connection_verify(serv, fd);
+    if (!conn)
+    {
+        swWarn("send %d byte failed, session#%d is closed.", length, fd);
+        return SW_ERR;
+    }
+    return swSocket_write_blocking(conn->fd, data, length);
+}
+
 /**
  * for udp + tcp
  */

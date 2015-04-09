@@ -39,7 +39,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.7.15-rc2"
+#define PHP_SWOOLE_VERSION  "1.7.15-rc3"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -254,6 +254,7 @@ PHP_FUNCTION(swoole_version);
 PHP_FUNCTION(swoole_cpu_num);
 PHP_FUNCTION(swoole_set_process_name);
 PHP_FUNCTION(swoole_get_local_ip);
+
 PHP_FUNCTION(swoole_server_create);
 PHP_FUNCTION(swoole_server_set);
 PHP_FUNCTION(swoole_server_start);
@@ -280,6 +281,7 @@ PHP_METHOD(swoole_server, addprocess);
 PHP_METHOD(swoole_server, stats);
 PHP_METHOD(swoole_server, bind);
 PHP_METHOD(swoole_server, sendto);
+PHP_METHOD(swoole_server, sendwait);
 
 PHP_FUNCTION(swoole_event_add);
 PHP_FUNCTION(swoole_event_set);

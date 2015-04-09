@@ -2886,6 +2886,58 @@ PHP_FUNCTION(swoole_connection_list)
     }
 }
 
+PHP_METHOD(swoole_server, sendwait)
+{
+    zval *zobject = getThis();
+    swServer *serv = NULL;
+
+    long fd;
+    zval *zdata;
+
+    if (SwooleGS->start == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz", &fd, &zdata) == FAILURE)
+    {
+        return;
+    }
+
+    char *data;
+    int length = php_swoole_get_send_data(zdata, &data TSRMLS_CC);
+
+    if (length < 0)
+    {
+        RETURN_FALSE;
+    }
+    else if (length == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "data is empty.");
+        RETURN_FALSE;
+    }
+
+    if (serv->factory_mode != SW_MODE_SINGLE || swIsTaskWorker())
+    {
+        swoole_php_fatal_error(E_WARNING, "cannot sendwait.");
+        RETURN_FALSE;
+    }
+
+    SWOOLE_GET_SERVER(zobject, serv);
+
+    //UDP
+    if (swServer_is_udp(fd))
+    {
+        swoole_php_fatal_error(E_WARNING, "cannot sendwait.");
+        RETURN_FALSE;
+    }
+    //TCP
+    else
+    {
+        SW_CHECK_RETURN(swServer_tcp_sendwait(serv, fd, data, length));
+    }
+}
 
 PHP_FUNCTION(swoole_server_shutdown)
 {

@@ -507,6 +507,7 @@ int swServer_shutdown(swServer *serv);
 
 int swServer_udp_send(swServer *serv, swSendData *resp);
 int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length);
+int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length);
 
 //UDP, UDP必然超过0x1000000
 //原因：IPv4的第4字节最小为1,而这里的conn_fd是网络字节序
