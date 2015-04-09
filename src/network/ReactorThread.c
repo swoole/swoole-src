@@ -347,9 +347,10 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
         int pipe_fd = worker->pipe_master;
         int thread_id = serv->connection_list[pipe_fd].from_id;
         swReactorThread *thread = swServer_get_thread(serv, thread_id);
+        swLock *lock = serv->connection_list[pipe_fd].object;
 
         //lock thread
-        thread->lock.lock(&thread->lock);
+        lock->lock(lock);
 
         swBuffer *buffer = serv->connection_list[pipe_fd].in_buffer;
         if (swBuffer_empty(buffer))
@@ -387,7 +388,7 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
             }
         }
         //release thread lock
-        thread->lock.unlock(&thread->lock);
+        lock->unlock(lock);
     }
     //master/udp thread
     else
@@ -525,16 +526,17 @@ int swReactorThread_send(swSendData *_send)
 static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
 {
     int ret;
-    swReactorThread *thread = swServer_get_thread(SwooleG.serv, SwooleTG.id);
+
 
     swBuffer_trunk *trunk = NULL;
     swEventData *send_data;
     swConnection *conn;
     swServer *serv = reactor->ptr;
     swBuffer *buffer = serv->connection_list[ev->fd].in_buffer;
+    swLock *lock = serv->connection_list[ev->fd].object;
 
     //lock thread
-    thread->lock.lock(&thread->lock);
+    lock->lock(lock);
 
     while (!swBuffer_empty(buffer))
     {
@@ -549,6 +551,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
             if (conn == NULL || conn->closed)
             {
 #ifdef SW_USE_RINGBUFFER
+                swReactorThread *thread = swServer_get_thread(SwooleG.serv, SwooleTG.id);
                 swPackage package;
                 memcpy(&package, send_data->data, sizeof(package));
                 thread->buffer_input->free(thread->buffer_input, package.data);
@@ -566,7 +569,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
         if (ret < 0)
         {
             //release lock
-            thread->lock.unlock(&thread->lock);
+            lock->unlock(lock);
 #ifdef HAVE_KQUEUE
             return (errno == EAGAIN || errno == ENOBUFS) ? SW_OK : SW_ERR;
 #else
@@ -597,7 +600,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
     }
 
     //release lock
-    thread->lock.unlock(&thread->lock);
+    lock->unlock(lock);
 
     return SW_OK;
 }
@@ -1704,8 +1707,6 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
                 return SW_ERR;
             }
 
-            swMutex_create(&thread->lock, 0);
-
             param->object = serv;
             param->pti = i;
 
@@ -1757,7 +1758,7 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
         }
         else
         {
-            CPU_SET(reactor_id%SW_CPU_NUM, &cpu_set);
+            CPU_SET(reactor_id % SW_CPU_NUM, &cpu_set);
         }
 
         if (0 != pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set))
@@ -1825,11 +1826,24 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
             {
                 swSetNonBlock(pipe_fd);
                 reactor->add(reactor, pipe_fd, SW_FD_PIPE);
+
                 /**
                  * mapping reactor_id and worker pipe
                  */
                 serv->connection_list[pipe_fd].from_id = reactor_id;
                 serv->connection_list[pipe_fd].fd = pipe_fd;
+                serv->connection_list[pipe_fd].object = sw_malloc(sizeof(swLock));
+
+                /**
+                 * create pipe lock
+                 */
+                if (serv->connection_list[pipe_fd].object == NULL)
+                {
+                    swWarn("create pipe mutex lock failed.");
+                    break;
+                }
+                swMutex_create(serv->connection_list[pipe_fd].object, 0);
+
 #ifdef SW_USE_RINGBUFFER
                 thread->pipe_read_list[j] = pipe_fd;
                 j++;
@@ -1837,6 +1851,8 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
             }
         }
     }
+
+    SW_START_SLEEP;
 
     //main loop
     reactor->wait(reactor, NULL);
