@@ -1287,7 +1287,7 @@ static swConnection* swServer_connection_new(swServer *serv, int fd, int from_fd
     //get session id
     for (i = 0; i < serv->max_connection; i++)
     {
-        session_id = SwooleGS->session_round++;
+        session_id = (SwooleGS->session_round++) % SW_MAX_SOCKET_ID;
         if (session_id == 0)
         {
             session_id = 1;

@@ -1194,14 +1194,15 @@ static PHP_METHOD(swoole_client, on)
 		return;
 	}
 
-	for(i=0; i<PHP_CLIENT_CALLBACK_NUM; i++)
-	{
-		if (strncasecmp(php_sw_callbacks[i] + 2, cb_name, cb_name_len) == 0)
-		{
-			zend_update_property(swoole_client_class_entry_ptr, getThis(), php_sw_callbacks[i], strlen(php_sw_callbacks[i]), zcallback TSRMLS_CC);
-			RETURN_TRUE;
-		}
-	}
+    for (i = 0; i < PHP_CLIENT_CALLBACK_NUM; i++)
+    {
+        if (strncasecmp(php_sw_callbacks[i] + 2, cb_name, cb_name_len) == 0)
+        {
+            zend_update_property(swoole_client_class_entry_ptr, getThis(), php_sw_callbacks[i], strlen(php_sw_callbacks[i]), zcallback TSRMLS_CC);
+            RETURN_TRUE;
+        }
+    }
+
 	php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client: event callback[%s] is unknow", cb_name);
 	RETURN_FALSE;
 }
@@ -1220,6 +1221,7 @@ PHP_FUNCTION(swoole_client_select)
 	{
 		return;
 	}
+
 	FD_ZERO(&rfds);
 	FD_ZERO(&wfds);
 	FD_ZERO(&efds);
