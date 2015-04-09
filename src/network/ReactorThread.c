@@ -982,8 +982,7 @@ static int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swE
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swSysError("recv from connection[%d@%d] failed.", event->fd, reactor->id)
-            ;
+            swSysError("recv from connection[%d@%d] failed.", event->fd, reactor->id);
             return SW_OK;
         case SW_CLOSE:
             goto close_fd;
@@ -993,7 +992,8 @@ static int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swE
     }
     else if (n == 0)
     {
-        close_fd: swTrace("Close Event.FD=%d|From=%d", event->fd, event->from_id);
+        close_fd:
+        swTrace("Close Event.FD=%d|From=%d", event->fd, event->from_id);
         swReactorThread_onClose(reactor, event);
         return SW_OK;
     }

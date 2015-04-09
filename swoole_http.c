@@ -1634,11 +1634,6 @@ static PHP_METHOD(swoole_http_response, end)
         {
             RETURN_FALSE;
         }
-        else if (length == 0)
-        {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "data is empty.");
-            RETURN_FALSE;
-        }
         else
         {
             http_body.length = length;
