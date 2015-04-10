@@ -454,9 +454,9 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
         {
             if (state ==0 && *_c == '=')
             {
-                klen =  i - j + 1;
-                memcpy(keybuf, at + j, klen);
-                keybuf[klen] = 0;
+                klen = i - j + 1;
+                memcpy(keybuf, at + j, klen - 1);
+                keybuf[klen - 1] = 0;
 
                 j = i + 1;
                 state = 1;
@@ -472,6 +472,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
             i++;
         }
         vlen = i - j;
+        keybuf[klen - 1] = 0;
         add_assoc_stringl_ex(cookie, keybuf, klen, (char *) at + j, vlen, 1);
         http_merge_php_global(cookie, client->zrequest, HTTP_GLOBAL_COOKIE);
     }
