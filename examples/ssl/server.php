@@ -2,7 +2,7 @@
 $serv = new swoole_server("0.0.0.0", 9501, SWOOLE_PROCESS, SWOOLE_SOCK_TCP | SWOOLE_SSL);
 $key_dir = dirname(dirname(__DIR__)).'/tests/ssl';
 
-$serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_TCP);
+//$serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_TCP);
 
 $serv->set(array(
 	'worker_num' => 4,

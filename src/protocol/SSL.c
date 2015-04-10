@@ -27,7 +27,7 @@ int swSSL_init(char *cert_file, char *key_file)
 	SSL_load_error_strings();
 	OpenSSL_add_all_algorithms();
 
-    ssl_context = SSL_CTX_new(SSLv23_method());
+    ssl_context = SSL_CTX_new(SSLv23_server_method());
     if (ssl_context == NULL)
     {
         ERR_print_errors_fp(stderr);
@@ -85,7 +85,7 @@ int swSSL_accept(swConnection *conn)
     {
         return SW_OK;
     }
-    swWarn("SSL_do_handshake() failed.");
+    swWarn("SSL_do_handshake() failed. Error: %s[%ld]", ERR_reason_error_string(err), err);
     return SW_ERR;
 }
 
