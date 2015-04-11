@@ -2,9 +2,15 @@
 
 class ReconnectClient
 {
+    /**
+     * @var swoole_client
+     */
     protected $swoole_client;
+    protected $timer;
     protected $host;
     protected $port;
+
+    public $timeout = 1000; //1秒
 
     function connect($host, $port)
     {
@@ -24,6 +30,7 @@ class ReconnectClient
         $client->on("error", [$this, 'onError']);
         $client->on("close", [$this, 'onClose']);
         $client->connect($host, $port);
+        $this->timer = swoole_timer_after($this->timeout, [$this, 'onConnectTimeout']);
         $this->swoole_client = $client;
     }
 
@@ -42,6 +49,12 @@ class ReconnectClient
     function onConnect(swoole_client $cli)
     {
         $cli->send("HELLO\n");
+    }
+
+    function onConnectTimeout()
+    {
+        echo "socket timeout\n";
+        $this->swoole_client->close();
     }
 }
 
