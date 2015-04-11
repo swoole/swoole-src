@@ -906,14 +906,17 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         args[1] = &zresponse;
 
         int callback = 0;
+
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
         {
             callback = HTTP_CALLBACK_onHandShake;
+            conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
         }
         else
         {
             callback = HTTP_CALLBACK_onRequest;
         }
+
         if (call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[callback], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
         {
             php_error_docref(NULL TSRMLS_CC, E_WARNING, "onRequest handler error");
