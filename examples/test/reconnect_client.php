@@ -48,6 +48,7 @@ class ReconnectClient
 
     function onConnect(swoole_client $cli)
     {
+        swoole_timer_clear($this->timer);
         $cli->send("HELLO\n");
     }
 
