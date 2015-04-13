@@ -27,7 +27,7 @@ int swSSL_init(char *cert_file, char *key_file)
 	SSL_load_error_strings();
 	OpenSSL_add_all_algorithms();
 
-    ssl_context = SSL_CTX_new(SSLv23_server_method());
+    ssl_context = SSL_CTX_new(SSLv23_method());
     if (ssl_context == NULL)
     {
         ERR_print_errors_fp(stderr);
