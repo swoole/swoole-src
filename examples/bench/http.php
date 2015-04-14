@@ -8,7 +8,6 @@ $http->set([
 ]);
 
 $http->on('request', function ($request, swoole_http_response $response) {
-    usleep(rand(1000, 9000));
     $response->end("<h1>Hello Swoole.</h1>");
 });
 

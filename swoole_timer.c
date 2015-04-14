@@ -120,6 +120,13 @@ static void php_swoole_onTimerInterval(swTimer *timer, swTimer_node *event)
 
     swTimer_callback *cb = event->data;
 
+    //server->addtimer
+    if (cb == NULL && SwooleG.serv)
+    {
+        SwooleG.serv->onTimer(SwooleG.serv, event->interval);
+        return;
+    }
+
     if (cb->type == SW_TIMER_TICK)
     {
         MAKE_STD_ZVAL(ztimer_id);
@@ -137,6 +144,7 @@ static void php_swoole_onTimerInterval(swTimer *timer, swTimer_node *event)
         MAKE_STD_ZVAL(ztimer_id);
         ZVAL_LONG(ztimer_id, event->interval);
     }
+
     args[0] = &ztimer_id;
 
     if (call_user_function_ex(EG(function_table), NULL, cb->callback, &retval, argc, args, 0, NULL TSRMLS_CC) == FAILURE)
@@ -155,15 +163,6 @@ void php_swoole_check_timer(int msec)
 {
     if (SwooleG.timer.fd == 0)
     {
-        if (SwooleG.serv)
-        {
-            SwooleG.timer.onTimer = swServer_onTimer;
-        }
-        else
-        {
-            SwooleG.timer.onTimer = php_swoole_onTimerInterval;
-        }
-
         if (!SwooleG.main_reactor)
         {
             swTimer_init(msec, SwooleG.use_timer_pipe);
@@ -176,6 +175,7 @@ void php_swoole_check_timer(int msec)
 
         SwooleG.timer.interval = msec;
         SwooleG.timer.onTimeout = php_swoole_onTimeout;
+        SwooleG.timer.onTimer = php_swoole_onTimerInterval;
     }
 }
 

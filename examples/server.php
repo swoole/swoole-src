@@ -240,6 +240,16 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     {
         sleep(10);
     }
+    elseif ($cmd == 'tick')
+    {
+        $serv->tick(2000, function ($id) {
+            echo "tick #$id\n";
+        });
+    }
+    elseif ($cmd == 'addtimer')
+    {
+        $serv->addtimer(3000);
+    }
     elseif($cmd == "list")
     {
         $start_fd = 0;
