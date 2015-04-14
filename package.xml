@@ -31,11 +31,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2015-03-26</date>
-    <time>19:55:51</time>
+    <date>2015-04-14</date>
+    <time>15:55:51</time>
     <version>
-        <release>1.7.14</release>
-        <api>1.7.14</api>
+        <release>1.7.15</release>
+        <api>1.7.15</api>
     </version>
     <stability>
         <release>stable</release>
@@ -43,12 +43,12 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Update websocket server onOpen callback params
-- Update websocket server onMessage callback  params
-- Added swoole_server->tick/swoole_timer_tick function
-- Fixed onReceive data merge failure 
+- Fixed swoole_client waitall parameters failures
+- Fixed swoole_table dead loop BUG
+- Disable swoole_websocket_server->send method
+- Added swoole_table->incr/decr methods
 - Added http server gzip compression supports
-- Update http server allows sending empty body
+- Added swoole_server open_eof_split configuration
     </notes>
 	<contents>
 		<dir name="/">
@@ -97,17 +97,18 @@
 					<file role="src" name="echo.php" />
 					<file role="src" name="unix_dgram.php" />
 					<file role="src" name="unix_stream.php" />
-					<file role="src" name="eof_client.php" />
-					<file role="src" name="eof_server.php" />
 					<file role="src" name="length_check_server.php" />
 					<file role="src" name="length_check_client.php" />
 					<file role="src" name="msgqueue.php" />
 				</dir>
 				<dir name="http">
-			
 					<file role="src" name="server.php" />
 					<file role="src" name="client.php" />
 				</dir>
+				<dir name="eof">
+                    <file role="src" name="server.php" />
+                    <file role="src" name="client.php" />
+                </dir>
 				<dir name="event">
 					<file role="src" name="stream.php" />
 					<file role="src" name="sockets.php" />
