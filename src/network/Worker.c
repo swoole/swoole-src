@@ -150,12 +150,10 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         {
             break;
         }
-        do_task: factory->onTask(factory, task);
-        if (!SwooleWG.run_always)
-        {
-            //only onTask increase the count
-            SwooleWG.request_num--;
-        }
+        do_task:
+        factory->onTask(factory, task);
+        SwooleWG.request_count++;
+        sw_atomic_fetch_add(&SwooleStats->request_count, 1);
         if (task->info.type == SW_EVENT_PACKAGE_END)
         {
             package->length = 0;
@@ -186,11 +184,9 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     case SW_EVENT_UDP:
     case SW_EVENT_UDP6:
     case SW_EVENT_UNIX_DGRAM:
+        SwooleWG.request_count++;
+        sw_atomic_fetch_add(&SwooleStats->request_count, 1);
         factory->onTask(factory, task);
-        if (!SwooleWG.run_always)
-        {
-            SwooleWG.request_num--;
-        }
         break;
 
     case SW_EVENT_CLOSE:
@@ -217,8 +213,8 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     //worker idle
     serv->workers[SwooleWG.id].status = SW_WORKER_IDLE;
 
-    //stop
-    if (SwooleWG.request_num < 0)
+    //maximum number of requests, process will exit.
+    if (!SwooleWG.run_always && SwooleWG.request_count > SwooleWG.max_request)
     {
         SwooleG.running = 0;
     }
@@ -360,6 +356,7 @@ int swWorker_loop(swFactory *factory, int worker_id)
 
     //worker_id
     SwooleWG.id = worker_id;
+    SwooleWG.request_count = 0;
     SwooleG.pid = getpid();
 
     //signal init
