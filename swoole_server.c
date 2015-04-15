@@ -2083,6 +2083,8 @@ PHP_METHOD(swoole_server, stats)
     add_assoc_long_ex(return_value, SW_STRL("accept_count"), SwooleStats->accept_count);
     add_assoc_long_ex(return_value, SW_STRL("close_count"), SwooleStats->close_count);
     add_assoc_long_ex(return_value, SW_STRL("tasking_num"), SwooleStats->tasking_num);
+    add_assoc_long_ex(return_value, SW_STRL("request_count"), SwooleStats->request_count);
+    add_assoc_long_ex(return_value, SW_STRL("worker_request_count"), SwooleWG.request_count);
     add_assoc_long_ex(return_value, SW_STRL("task_process_num"), SwooleGS->task_workers.run_worker_num);
 }
 
