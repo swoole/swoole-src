@@ -2647,7 +2647,7 @@ PHP_METHOD(swoole_server, bind)
 
     SWOOLE_GET_SERVER(zobject, serv);
 
-    swConnection *conn = swServer_connection_get(serv, fd);
+    swConnection *conn = swWorker_get_connection(serv, fd);
 
     //udp client
     if (conn == NULL)
