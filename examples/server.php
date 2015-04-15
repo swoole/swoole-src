@@ -240,6 +240,14 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     {
         sleep(10);
     }
+    elseif ($cmd == 'foreach')
+    {
+        foreach($serv->connections as $fd)
+        {
+            echo "conn : $fd\n";
+        }
+        return;
+    }
     elseif ($cmd == 'tick')
     {
         $serv->tick(2000, function ($id) {

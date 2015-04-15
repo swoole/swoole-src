@@ -235,6 +235,7 @@ extern zend_class_entry *swoole_lock_class_entry_ptr;
 extern zend_class_entry *swoole_process_class_entry_ptr;
 extern zend_class_entry *swoole_client_class_entry_ptr;
 extern zend_class_entry *swoole_server_class_entry_ptr;
+extern zend_class_entry *swoole_connection_iterator_class_entry_ptr;
 extern zend_class_entry *swoole_buffer_class_entry_ptr;
 extern zend_class_entry *swoole_table_class_entry_ptr;
 extern zend_class_entry *swoole_http_server_class_entry_ptr;
@@ -275,6 +276,15 @@ PHP_FUNCTION(swoole_server_shutdown);
 PHP_FUNCTION(swoole_server_heartbeat);
 PHP_FUNCTION(swoole_connection_list);
 PHP_FUNCTION(swoole_connection_info);
+
+#ifdef HAVE_PCRE
+PHP_METHOD(swoole_connection_iterator, count);
+PHP_METHOD(swoole_connection_iterator, rewind);
+PHP_METHOD(swoole_connection_iterator, next);
+PHP_METHOD(swoole_connection_iterator, current);
+PHP_METHOD(swoole_connection_iterator, key);
+PHP_METHOD(swoole_connection_iterator, valid);
+#endif
 
 PHP_METHOD(swoole_server, sendmessage);
 PHP_METHOD(swoole_server, addprocess);

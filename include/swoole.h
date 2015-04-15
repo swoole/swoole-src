@@ -1408,9 +1408,9 @@ void swTimer_node_destory(swTimer_node **root);
 //--------------------------------------------------------------
 typedef struct _swModule
 {
-	char *name;
-	void (*test)(void);
-	int (*shutdown)(struct _swModule*);
+    char *name;
+    void (*test)(void);
+    int (*shutdown)(struct _swModule*);
 
 } swModule;
 
@@ -1436,20 +1436,20 @@ typedef struct
 //Worker process global Variable
 typedef struct
 {
-	/**
-	 * Always run
-	 */
-	uint8_t run_always;
+    /**
+     * Always run
+     */
+    uint8_t run_always;
 
-	/**
-	 * Current Proccess Worker's id
-	 */
-	uint32_t id;
+    /**
+     * Current Proccess Worker's id
+     */
+    uint32_t id;
 
-	/**
-	 * pipe_worker
-	 */
-	int pipe_used;
+    /**
+     * pipe_worker
+     */
+    int pipe_used;
 
     uint32_t reactor_wait_onexit :1;
     uint32_t reactor_init :1;
@@ -1461,8 +1461,8 @@ typedef struct
 
     int max_request;
 
-	swString **buffer_input;
-	swString **buffer_output;
+    swString **buffer_input;
+    swString **buffer_output;
     swWorker *worker;
 
 } swWorkerG;
@@ -1471,9 +1471,9 @@ typedef struct
 {
     uint16_t id;
     uint8_t type;
-	uint8_t factory_lock_target;
-	int16_t factory_target_worker;
-	sw_atomic_t worker_round_i;
+    uint8_t factory_lock_target;
+    int16_t factory_target_worker;
+    sw_atomic_t worker_round_i;
 } swThreadG;
 
 typedef struct _swServer swServer;
@@ -1497,7 +1497,7 @@ typedef struct
     int process_type;
     pid_t pid;
 
-    int signal_alarm; //for timer with message queue
+    int signal_alarm;  //for timer with message queue
     int signal_fd;
     int log_fd;
     int null_fd;
@@ -1514,13 +1514,13 @@ typedef struct
      *  task worker process num
      */
     uint16_t task_worker_num;
-     /**
-      *  task worker process max
-    */
+    /**
+     *  task worker process max
+     */
     uint16_t task_worker_max;
-    
+
     uint8_t task_recycle_num;
-    
+
     char *task_tmpdir;
     uint16_t task_tmpdir_len;
     uint16_t cpu_num;

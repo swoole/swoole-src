@@ -1062,6 +1062,13 @@ PHP_FUNCTION(swoole_server_create)
         server_object = return_value;
     }
 
+#ifdef HAVE_PCRE
+    zval *connection_iterator_object;
+    MAKE_STD_ZVAL(connection_iterator_object);
+    object_init_ex(connection_iterator_object, swoole_connection_iterator_class_entry_ptr);
+    zend_update_property(swoole_server_class_entry_ptr, server_object, ZEND_STRL("connections"), connection_iterator_object TSRMLS_CC);
+#endif
+
     zval *zres;
     MAKE_STD_ZVAL(zres);
     ZEND_REGISTER_RESOURCE(zres, serv, le_swoole_server);
@@ -2970,6 +2977,65 @@ PHP_FUNCTION(swoole_server_shutdown)
         RETURN_TRUE;
     }
 }
+
+#ifdef HAVE_PCRE
+static struct
+{
+    int current_fd;
+    int max_fd;
+    uint32_t session_id;
+    int end;
+    int index;
+} server_itearator;
+
+PHP_METHOD(swoole_connection_iterator, rewind)
+{
+    bzero(&server_itearator, sizeof(server_itearator));
+    server_itearator.current_fd = swServer_get_minfd(SwooleG.serv);
+}
+
+PHP_METHOD(swoole_connection_iterator, valid)
+{
+    int fd = server_itearator.current_fd;
+    swConnection *conn;
+
+    int max_fd = swServer_get_maxfd(SwooleG.serv);
+    for (; fd <= max_fd; fd++)
+    {
+        conn = &SwooleG.serv->connection_list[fd];
+
+        if (conn->active && !conn->closed)
+        {
+            server_itearator.session_id = conn->session_id;
+            server_itearator.current_fd = fd;
+            server_itearator.index++;
+            RETURN_TRUE;
+        }
+    }
+
+    RETURN_FALSE;
+}
+
+PHP_METHOD(swoole_connection_iterator, current)
+{
+    RETURN_LONG(server_itearator.session_id);
+}
+
+PHP_METHOD(swoole_connection_iterator, next)
+{
+    server_itearator.current_fd ++;
+}
+
+PHP_METHOD(swoole_connection_iterator, key)
+{
+    RETURN_LONG(server_itearator.index);
+}
+
+PHP_METHOD(swoole_connection_iterator, count)
+{
+    RETURN_LONG(SwooleStats->connection_num);
+}
+#endif
 
 /*
  * Local variables:
