@@ -117,12 +117,6 @@ typedef zend_rsrc_list_entry zend_resource;
 #define sw_zend_hash_index_find              zend_hash_index_find
 #define SW_ZVAL_STRINGL                      ZVAL_STRINGL
 
-#define SWOOLE_GET_SERVER(zobject, serv) zval **zserv;\
-    if (zend_hash_find(Z_OBJPROP_P(zobject), ZEND_STRS("_server"), (void **) &zserv) == FAILURE){ \
-    php_error_docref(NULL TSRMLS_CC, E_WARNING, "Not have swoole server");\
-    RETURN_FALSE;}\
-    ZEND_FETCH_RESOURCE(serv, swServer *, zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
-
 #define SWOOLE_GET_WORKER(zobject, process) zval **zprocess;\
     if (zend_hash_find(Z_OBJPROP_P(zobject), ZEND_STRS("_process"), (void **) &zprocess) == FAILURE){ \
     php_error_docref(NULL TSRMLS_CC, E_WARNING, "Not have process");\

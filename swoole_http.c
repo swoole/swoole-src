@@ -969,7 +969,7 @@ static PHP_METHOD(swoole_http_server, on)
         return;
     }
 
-    SWOOLE_GET_SERVER(getThis(), serv);
+    serv = swoole_get_object(getThis());
 
     char *func_name = NULL;
     if (!zend_is_callable(callback, 0, &func_name TSRMLS_CC))
@@ -1202,7 +1202,7 @@ static PHP_METHOD(swoole_http_server, start)
         RETURN_FALSE;
     }
 
-    SWOOLE_GET_SERVER(getThis(), serv);
+    serv = swoole_get_object(getThis());
     php_swoole_register_callback(serv);
 
     if (serv->open_websocket_protocol)
