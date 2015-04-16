@@ -129,6 +129,9 @@ typedef zend_rsrc_list_entry zend_resource;
     RETURN_FALSE;}\
     ZEND_FETCH_RESOURCE(process, swWorker *, zprocess, -1, SW_RES_PROCESS_NAME, le_swoole_process);
 
+#define swoole_get_object(this)            zend_object_store_get_object(this TSRMLS_CC)
+#define swoole_set_object(this, object)    zend_object_store_set_object(this, object TSRMLS_CC)
+
 #else
 #define SW_RETURN_STRING(val, duplicate)     RETURN_STRING(val)
 #define sw_add_assoc_string(array, key, value, duplicate)   add_assoc_string(array, key, value)

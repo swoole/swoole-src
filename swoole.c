@@ -33,7 +33,7 @@ HashTable php_sw_aio_callback;
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
 
 #ifdef ZTS
-void ***sw_thread_ctx;
+void ***sw_thread_ctx = NULL;
 #endif
 
 extern sapi_module_struct sapi_module;
@@ -428,7 +428,6 @@ const zend_function_entry swoole_lock_methods[] =
 };
 
 int le_swoole_server;
-int le_swoole_client;
 int le_swoole_lock;
 int le_swoole_process;
 int le_swoole_table;
