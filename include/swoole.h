@@ -875,13 +875,12 @@ static inline char* swoole_strnstr(char *haystack, char *needle, uint32_t length
     return NULL;
 }
 
-static inline int swoole_strnpos(char *haystack, char *needle, uint32_t length)
+static inline int swoole_strnpos(char *haystack, uint32_t haystack_length, char *needle, uint32_t needle_length)
 {
-    uint32_t needle_length = strlen(needle);
     assert(needle_length > 0);
     uint32_t i;
 
-    for (i = 0; i < (int) (length - needle_length + 1); i++)
+    for (i = 0; i < (int) (haystack_length - needle_length + 1); i++)
     {
         if ((haystack[0] == needle[0]) && (0 == memcmp(haystack, needle, needle_length)))
         {

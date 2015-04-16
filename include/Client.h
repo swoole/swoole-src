@@ -32,16 +32,18 @@ typedef struct _swClient
 	int protocol;
 	int reactor_fdtype;
 
-	uint8_t async;
-	uint8_t keep;
-	uint8_t packet_mode;
+    uint32_t async :1;
+    uint32_t keep :1;
+    uint32_t packet_mode :1;
+    uint32_t open_eof_split :1;
 
-	uint8_t open_eof_check;
-	char *package_eof;
-	uint16_t package_eof_len;
+    /**
+     * one package: length check
+     */
+	uint32_t open_length_check: 1;
 
-	/* one package: length check */
-    uint8_t open_length_check;
+    char package_eof[SW_DATA_EOF_MAXLEN + 1];
+    uint8_t package_eof_len;
 
     char package_length_type;
     uint8_t package_length_size;

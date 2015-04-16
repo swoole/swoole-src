@@ -34,7 +34,8 @@ $config = array(
     //'task_ipc_mode' => 1,
     //'dispatch_mode' => 1,
     //'log_file' => '/tmp/swoole.log',
-//    'heartbeat_check_interval' => 5,
+   'heartbeat_check_interval' => 300,
+   'heartbeat_idle_time'      => 300,
     // open_cpu_affinity => 1,
     //'cpu_affinity_ignore' =>array(0,1)//如果你的网卡2个队列（或者没有多队列那么默认是cpu0来处理中断）,并且绑定了core 0和core 1,那么可以通过这个设置避免swoole的线程或者进程绑定到这2个core，防止cpu0，1被耗光而造成的丢包
 );

@@ -11,27 +11,15 @@ $serv->set(array(
 //$serv->on('connect', function ($serv, $fd) {
 //    //echo "[#" . posix_getpid() . "]\tClient:Connect.\n";
 //});
-$serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
-	echo "[#" . posix_getpid() . "] recv length=".strlen($data)."\n";
-    $req = unserialize(trim($data));
-    //echo $req['name'] . "\n";
-    //echo "content_length: " . strlen($data) . "\n";
-    $respData = '<h1>Welcome to swoole-server!</h1>';
-    $response = implode("\r\n", array(
-        'HTTP/1.1 200 OK',
-        'Cache-Control: must-revalidate,no-cache',
-        'Content-Language: zh-CN',
-        'Server: swoole-'.SWOOLE_VERSION,
-        'Content-Type: text/html',
-        'Connection: keep-alive',
-        'Content-Length: ' . strlen($respData),
-        '',
-        $respData));
-    $serv->send($fd, $response);
-    //usleep(500000);
-    //if ($serv->worker_id == 2) sleep(100);
-    //
-});
+$serv->on('receive',
+    function (swoole_server $serv, $fd, $from_id, $data)
+    {
+        echo "[#" . $serv->worker_pid . "] recv length=" . strlen($data) . "\n";
+        $req = unserialize(trim($data));
+        $respData = 'Welcome to swoole-server!';
+        $response = implode("\r\n\r\n", [$respData, $respData, $respData]);
+        $serv->send($fd, $response);
+    });
 //$serv->on('close', function ($serv, $fd) {
     //echo "[#" . posix_getpid() . "]\tClient: Close.\n";
 //});

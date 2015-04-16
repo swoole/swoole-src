@@ -362,6 +362,11 @@ struct _swServer
     uint32_t discard_timeout_request :1;
 
     /**
+     * save error packets to file system
+     */
+    uint32_t save_error_packet :1;
+
+    /**
      * open tcp_defer_accept option
      */
     int tcp_defer_accept;

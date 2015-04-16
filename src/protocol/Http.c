@@ -214,7 +214,7 @@ int swHttpRequest_get_header_length(swHttpRequest *request)
 {
     swString *buffer = request->buffer;
 
-    int n = swoole_strnpos(buffer->str, "\r\n\r\n", buffer->length);
+    int n = swoole_strnpos(buffer->str, buffer->length, "\r\n\r\n", 4);
     if (n < 0)
     {
         return SW_ERR;

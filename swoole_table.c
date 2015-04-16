@@ -64,10 +64,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_decr, 0, 0, 2)
     ZEND_ARG_INFO(0, decrby)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_count, 0, 0, 0)
-    ZEND_ARG_INFO(0, mode)
-ZEND_END_ARG_INFO()
-
 static PHP_METHOD(swoole_table, __construct);
 static PHP_METHOD(swoole_table, column);
 static PHP_METHOD(swoole_table, create);

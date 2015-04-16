@@ -14,9 +14,10 @@ $serv->on('connect', function ($serv, $fd){
 	echo "Client:Connect.\n";
 });
 
-$serv->on('receive', function ($serv, $fd, $from_id, $data) {
+$serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
     $req = unserialize(substr($data, 4));
 	echo "#{$serv->worker_id}>> received length=".strlen($data).", SerId: {$req['int1']}\n";
+	$serv->send($fd, $data);
 });
 
 $serv->on('close', function ($serv, $fd) {

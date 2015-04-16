@@ -551,7 +551,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
 
     if (strncasecmp(headername, ZEND_STRL("content-disposition")) == 0)
     {
-        int input_name_length = swoole_strnpos((char *) at, "\"; filename=\"", length) - strlen("form-data; name=\"");
+        int input_name_length = swoole_strnpos((char *) at, length, ZEND_STRL("\"; filename=\"")) - sizeof("form-data; name=\"") - 1;
         client->current_input_name = estrndup(at + strlen("form-data; name=\""), input_name_length);
 
         zval *multipart_header;

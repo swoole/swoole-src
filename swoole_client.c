@@ -35,6 +35,7 @@
 #define php_sw_client_onError       "onError"
 
 static PHP_METHOD(swoole_client, __construct);
+static PHP_METHOD(swoole_client, set);
 static PHP_METHOD(swoole_client, connect);
 static PHP_METHOD(swoole_client, recv);
 static PHP_METHOD(swoole_client, send);
@@ -54,8 +55,35 @@ static int php_swoole_client_onRead(swReactor *reactor, swEvent *event);
 static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event);
 static int php_swoole_client_onError(swReactor *reactor, swEvent *event);
 
-static int swoole_client_error_callback(zval *zobject, swEvent *event, int error TSRMLS_DC);
-static swClient* swoole_client_create_socket(zval *object, char *host, int host_len, int port);
+static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC);
+static int client_error_callback(zval *zobject, swEvent *event, int error TSRMLS_DC);
+static swClient* client_create_socket(zval *object, char *host, int host_len, int port);
+
+/**
+ * return the package total length
+ */
+static int client_get_package_length(swClient *cli, char *data, uint32_t size)
+{
+    uint16_t length_offset = cli->package_length_offset;
+    uint32_t body_length;
+    /**
+     * no have length field, wait more data
+     */
+    if (size < length_offset + cli->package_length_size)
+    {
+        return 0;
+    }
+    body_length = swoole_unpack(cli->package_length_type, data + length_offset);
+    //Length error
+    //Protocol length is not legitimate, out of bounds or exceed the allocated length
+    if (body_length < 1 || body_length > cli->package_max_length)
+    {
+        swWarn("invalid package, remote_addr=%s:%d, length=%d, size=%d.", swConnection_get_ip(cli->socket), swConnection_get_port(cli->socket), body_length, size);
+        return SW_ERR;
+    }
+    //total package length
+    return cli->package_body_offset + body_length;
+}
 
 static char *php_sw_callbacks[PHP_CLIENT_CALLBACK_NUM] =
 {
@@ -68,6 +96,7 @@ static char *php_sw_callbacks[PHP_CLIENT_CALLBACK_NUM] =
 static const zend_function_entry swoole_client_methods[] =
 {
     PHP_ME(swoole_client, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_client, set, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, connect, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, recv, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, send, NULL, ZEND_ACC_PUBLIC)
@@ -176,6 +205,10 @@ static int php_swoole_client_close(zval *zobject, int fd TSRMLS_DC)
 	}
 	else
 	{
+        if (cli->open_eof_split && cli->socket->object)
+        {
+            swString_free(cli->socket->object);
+        }
 		cli->close(cli);
 	}
 	return SW_OK;
@@ -309,8 +342,80 @@ static int php_swoole_client_onError(swReactor *reactor, swEvent *event)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client->onError[2]: getsockopt[sock=%d] failed. Error: %s[%d]", event->fd, strerror(errno), errno);
 	}
-	swoole_client_error_callback(zobject, event, error TSRMLS_CC);
+	client_error_callback(zobject, event, error TSRMLS_CC);
 	return SW_OK;
+}
+
+static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
+{
+    HashTable *vht;
+    zval **v;
+
+    vht = Z_ARRVAL_P(zset);
+
+   //buffer: check eof
+   if (sw_zend_hash_find(vht, ZEND_STRS("open_eof_split"), (void **)&v) == SUCCESS)
+   {
+       convert_to_boolean(*v);
+       cli->open_eof_split = (uint8_t) Z_BVAL_PP(v);
+   }
+   //package eof
+   if (sw_zend_hash_find(vht, ZEND_STRS("package_eof"), (void **) &v) == SUCCESS)
+   {
+       convert_to_string(*v);
+       cli->package_eof_len = Z_STRLEN_PP(v);
+       if (cli->package_eof_len > SW_DATA_EOF_MAXLEN)
+       {
+           php_error_docref(NULL TSRMLS_CC, E_ERROR, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
+           return;
+       }
+       bzero(cli->package_eof, SW_DATA_EOF_MAXLEN);
+       memcpy(cli->package_eof, Z_STRVAL_PP(v), Z_STRLEN_PP(v));
+   }
+   //open length check
+   if (sw_zend_hash_find(vht, ZEND_STRS("open_length_check"), (void **)&v) == SUCCESS)
+   {
+       convert_to_long(*v);
+       cli->open_length_check = (uint8_t) Z_LVAL_PP(v);
+   }
+   //package length size
+   if (sw_zend_hash_find(vht, ZEND_STRS("package_length_type"), (void **)&v) == SUCCESS)
+   {
+       convert_to_string(*v);
+       cli->package_length_type = Z_STRVAL_PP(v)[0];
+       cli->package_length_size = swoole_type_size(cli->package_length_type);
+
+       if (cli->package_length_size == 0)
+       {
+           php_error_docref(NULL TSRMLS_CC, E_ERROR, "unknow package_length_type, see pack(). Link: http://php.net/pack");
+           return;
+       }
+   }
+   //package length offset
+   if (sw_zend_hash_find(vht, ZEND_STRS("package_length_offset"), (void **)&v) == SUCCESS)
+   {
+       convert_to_long(*v);
+       cli->package_length_offset = (int)Z_LVAL_PP(v);
+   }
+   //package body start
+   if (sw_zend_hash_find(vht, ZEND_STRS("package_body_offset"), (void **) &v) == SUCCESS
+           || sw_zend_hash_find(vht, ZEND_STRS("package_body_start"), (void **) &v) == SUCCESS)
+   {
+       convert_to_long(*v);
+       cli->package_body_offset = (int) Z_LVAL_PP(v);
+   }
+   /**
+    * package max length
+    */
+   if (sw_zend_hash_find(vht, ZEND_STRS("package_max_length"), (void **) &v) == SUCCESS)
+   {
+       convert_to_long(*v);
+       cli->package_max_length = (int) Z_LVAL_PP(v);
+   }
+   else
+   {
+       cli->package_max_length = SW_BUFFER_INPUT_SIZE;
+   }
 }
 
 static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event)
@@ -372,7 +477,7 @@ static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event)
 		}
 		else
 		{
-			swoole_client_error_callback(zobject, event, error TSRMLS_CC);
+			client_error_callback(zobject, event, error TSRMLS_CC);
 			event->socket->removed = 1;
 		}
 	}
@@ -380,7 +485,7 @@ static int php_swoole_client_onWrite(swReactor *reactor, swEvent *event)
 	return SW_OK;
 }
 
-static int swoole_client_error_callback(zval *zobject, swEvent *event, int error TSRMLS_DC)
+static int client_error_callback(zval *zobject, swEvent *event, int error TSRMLS_DC)
 {
 	zval *zcallback;
 	zval *retval;
@@ -505,7 +610,7 @@ void php_swoole_check_reactor()
 	return;
 }
 
-static swClient* swoole_client_create_socket(zval *object, char *host, int host_len, int port)
+static swClient* client_create_socket(zval *object, char *host, int host_len, int port)
 {
     zval *ztype, *zres;
     int async = 0;
@@ -640,6 +745,17 @@ static PHP_METHOD(swoole_client, __construct)
     RETURN_TRUE;
 }
 
+static PHP_METHOD(swoole_client, set)
+{
+    zval *zset;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zset) == FAILURE)
+    {
+        return;
+    }
+    zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("setting"), zset TSRMLS_CC);
+    RETURN_TRUE;
+}
+
 static PHP_METHOD(swoole_client, connect)
 {
 	int ret, i;
@@ -663,7 +779,7 @@ static PHP_METHOD(swoole_client, connect)
         RETURN_FALSE;
     }
 
-	cli = swoole_client_create_socket(getThis(), host, host_len, port);
+	cli = client_create_socket(getThis(), host, host_len, port);
 
 	if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
 	{
@@ -688,6 +804,12 @@ static PHP_METHOD(swoole_client, connect)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client is already connected.");
         RETURN_FALSE;
+    }
+
+    zval *zset = zend_read_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
+    if (zset == NULL || ZVAL_IS_NULL(zset))
+    {
+        client_check_setting(cli, zset TSRMLS_CC);
     }
 
 	ret = cli->connect(cli, host, port, timeout, sock_flag);
@@ -946,6 +1068,7 @@ static PHP_METHOD(swoole_client, recv)
     int ret;
     char *buf;
     swClient *cli;
+    char stack_buf[SW_BUFFER_SIZE_BIG];
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|lb", &buf_len, &waitall) == FAILURE)
 	{
@@ -972,7 +1095,101 @@ static PHP_METHOD(swoole_client, recv)
 		RETURN_FALSE;
 	}
 
-    if (cli->packet_mode == 1)
+	if (cli->open_eof_split)
+	{
+	    if (cli->socket->object == NULL)
+        {
+            cli->socket->object = swString_new(SW_BUFFER_SIZE_BIG);
+        }
+
+	    swString *buffer = cli->socket->object;
+        zend_bool eof;
+        int pkglen = 0;
+
+	    while (1)
+        {
+            buf = buffer->str + buffer->length;
+            buf_len = buffer->size;
+
+            if (buf_len > SW_BUFFER_SIZE_BIG)
+            {
+                buf_len = SW_BUFFER_SIZE_BIG;
+            }
+
+            ret = cli->recv(cli, buf, buf_len, 0);
+            if (ret < 0)
+            {
+                swoole_php_error(E_WARNING, "recv() header failed. Error: %s [%d]", strerror(errno), errno);
+                RETURN_FALSE;
+            }
+            else if (ret == 0)
+            {
+                swoole_php_error(E_WARNING, "recv() header failed. Error: %s [%d]", strerror(errno), errno);
+                RETURN_FALSE;
+            }
+
+            eof = swoole_strnpos(buf, ret, cli->package_eof, cli->package_eof_len);
+
+            if (eof >= 0)
+            {
+                eof += cli->package_eof_len;
+                pkglen = buffer->offset + eof;
+                RETVAL_STRINGL(buffer->str, pkglen, 1);
+
+                if (ret > eof)
+                {
+                    buffer->length = ret - eof;
+                    memcpy(stack_buf, buffer->str + eof, buffer->length);
+                    memcpy(buffer->str, stack_buf, buffer->length);
+                }
+            }
+            else
+            {
+                buffer->length += ret;
+
+                if (buffer->length == cli->package_max_length)
+                {
+                    swoole_php_error(E_WARNING, "no package eof");
+                    RETURN_FALSE;
+                }
+                else if (buffer->length == buffer->size)
+                {
+                    int new_size = buffer->size * 2;
+                    if (new_size > cli->package_max_length)
+                    {
+                        new_size = cli->package_max_length;
+                    }
+                    if (swString_extend(buffer, new_size) < 0)
+                    {
+                        RETURN_FALSE;
+                    }
+                }
+            }
+        }
+	}
+	else if (cli->open_length_check)
+	{
+        ret = cli->recv(cli, stack_buf, cli->package_length_offset + cli->package_length_size, 1);
+        if (ret < 0)
+        {
+            swoole_php_error(E_WARNING, "recv() header failed. Error: %s [%d]", strerror(errno), errno);
+            RETURN_FALSE;
+        }
+        else
+        {
+            buf_len = client_get_package_length(cli, stack_buf, ret);
+            if (buf_len < 0)
+            {
+                RETURN_FALSE;
+            }
+        }
+
+        buf = emalloc(buf_len + 1);
+        SwooleG.error = 0;
+        //PACKET mode, must use waitall.
+        ret = cli->recv(cli, buf, buf_len, 1);
+	}
+	else if (cli->packet_mode == 1)
     {
         uint32_t len_tmp = 0;
         ret = cli->recv(cli, (char*) &len_tmp, 4, 1);
