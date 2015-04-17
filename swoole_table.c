@@ -65,6 +65,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_decr, 0, 0, 2)
 ZEND_END_ARG_INFO()
 
 static PHP_METHOD(swoole_table, __construct);
+static PHP_METHOD(swoole_table, __destruct);
 static PHP_METHOD(swoole_table, column);
 static PHP_METHOD(swoole_table, create);
 static PHP_METHOD(swoole_table, set);
@@ -87,6 +88,7 @@ static PHP_METHOD(swoole_table, valid);
 static const zend_function_entry swoole_table_methods[] =
 {
     PHP_ME(swoole_table, __construct, arginfo_swoole_table_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_table, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_table, column,      arginfo_swoole_table_column, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, create,      arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, set,         arginfo_swoole_table_set, ZEND_ACC_PUBLIC)

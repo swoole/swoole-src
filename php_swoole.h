@@ -288,6 +288,7 @@ PHP_FUNCTION(swoole_get_mysqli_sock);
 PHP_FUNCTION(swoole_client_select);
 
 PHP_METHOD(swoole_buffer, __construct);
+PHP_METHOD(swoole_buffer, __destruct);
 PHP_METHOD(swoole_buffer, append);
 PHP_METHOD(swoole_buffer, substr);
 PHP_METHOD(swoole_buffer, write);
