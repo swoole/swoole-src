@@ -69,6 +69,8 @@ typedef struct _swClient
 
 	swConnection *socket;
 
+	swString *buffer;
+
 	void (*onConnect)(struct _swClient *cli);
 	int (*onReceive)(struct _swClient *cli, swSendData *data);
 	void (*onClose)(struct _swClient *cli, int fd, int from_id);

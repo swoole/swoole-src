@@ -1,5 +1,6 @@
 <?php
 $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC); //异步非阻塞
+$client->set(array('open_eof_check' => true, 'package_eof' => "\r\n\r\n"));
 $client->_count = 0;
 $client->on("connect", function(swoole_client $cli) {
     swoole_timer_clear($cli->timer);

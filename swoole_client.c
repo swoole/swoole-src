@@ -53,6 +53,7 @@ static int client_event_loop(zval *sock_array, fd_set *fds TSRMLS_DC);
 static int client_close(zval *zobject, int fd TSRMLS_DC);
 
 static int client_onRead(swReactor *reactor, swEvent *event);
+static int client_onPackage(zval *zobject, swClient *cli TSRMLS_DC);
 static int client_onWrite(swReactor *reactor, swEvent *event);
 static int client_onError(swReactor *reactor, swEvent *event);
 
@@ -211,12 +212,144 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
 	return SW_OK;
 }
 
+static int client_onRead_check_eof(swReactor *reactor, swEvent *event)
+{
+    int n;
+    zval *zobject;
+
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+    zobject = event->socket->object;
+    swClient *cli = swoole_get_object(zobject);
+    if (!cli)
+    {
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
+        return SW_ERR;
+    }
+
+    int recv_again = SW_FALSE;
+    int eof_pos = -1;
+    int buf_size;
+
+    char stack_buf[SW_PHP_CLIENT_BUFFER_SIZE];
+    swConnection *conn = cli->socket;
+
+    if (cli->buffer == NULL)
+    {
+        cli->buffer = swString_new(SW_BUFFER_SIZE);
+        //alloc memory failed.
+        if (!cli->buffer)
+        {
+            return SW_ERR;
+        }
+    }
+    swString *buffer = cli->buffer;
+
+    recv_data: buf_size = buffer->size - buffer->length;
+    char *buf_ptr = buffer->str + buffer->length;
+
+    if (buf_size > SW_PHP_CLIENT_BUFFER_SIZE)
+    {
+        buf_size = SW_PHP_CLIENT_BUFFER_SIZE;
+    }
+
+#ifdef SW_USE_EPOLLET
+    n = swRead(event->fd, trunk->data, SW_PHP_CLIENT_BUFFER_SIZE);
+#else
+    //level trigger
+    n = swConnection_recv(conn, buf_ptr, buf_size, 0);
+#endif
+
+    swTrace("ReactorThread: recv[len=%d]", n);
+    if (n < 0)
+    {
+        switch (swConnection_error(errno))
+        {
+        case SW_ERROR:
+            swSysError("recv from connection[%d@%d] failed.", event->fd, reactor->id)
+            ;
+            return SW_OK;
+        case SW_CLOSE:
+            goto close_fd;
+        default:
+            return SW_OK;
+        }
+    }
+    else if (n == 0)
+    {
+        goto close_fd;
+    }
+    else
+    {
+        //buffer is full, may have not read data
+        if (buf_size == n)
+        {
+            recv_again = SW_TRUE;
+            uint32_t extend_size = buffer->size * 2;
+            if (extend_size > cli->package_max_length)
+            {
+                extend_size = cli->package_max_length;
+            }
+            if (swString_extend(buffer, extend_size) < 0)
+            {
+                return SW_ERR;
+            }
+        }
+
+        buffer->length += n;
+
+        //find EOF
+        find_eof: eof_pos = swoole_strnpos(buffer->str, buffer->length, cli->package_eof, cli->package_eof_len);
+
+        if (eof_pos >= 0)
+        {
+            int offset = eof_pos + cli->package_eof_len;
+
+            if (buffer->length > offset)
+            {
+                int remaining_length = buffer->length - offset;
+                //swWarn("eof_pos=%d, total_length=%d, remaining_length=%d", eof_pos, buffer->length, remaining_length);
+                memcpy(stack_buf, buffer->str + offset, remaining_length);
+                buffer->length = offset;
+
+                client_onPackage(zobject, cli TSRMLS_CC);
+
+                memcpy(buffer->str, stack_buf, remaining_length);
+                buffer->length = remaining_length;
+
+                goto find_eof;
+            }
+            else
+            {
+                client_onPackage(zobject, cli TSRMLS_CC);
+                return SW_OK;
+            }
+        }
+
+        //over max length, will discard
+        if (buffer->length == cli->package_max_length)
+        {
+            swWarn("Package is too big. package_length=%d", (int )buffer->length);
+            goto close_fd;
+        }
+        //no eof
+        if (recv_again)
+        {
+            goto recv_data;
+        }
+    }
+    close_fd:
+    return client_close(zobject, event->fd TSRMLS_CC);
+
+}
+
 static int client_onRead(swReactor *reactor, swEvent *event)
 {
 	int n;
 	zval *zobject, *zcallback = NULL;
 	zval **args[2];
 	zval *retval;
+	char *buf = NULL;
 	long buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
 
 	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -229,15 +362,16 @@ static int client_onRead(swReactor *reactor, swEvent *event)
         return SW_ERR;
     }
 
-    args[0] = &zobject;
-
     if (cli->open_eof_split)
+    {
+        return client_onRead_check_eof(reactor, event);
+    }
+    else if (cli->open_length_check)
     {
 
     }
-
     //packet mode
-    if (cli->packet_mode == 1)
+    else if (cli->packet_mode == 1)
     {
         uint32_t len_tmp = 0;
         n = recv(event->fd, &len_tmp, 4, 0);
@@ -251,7 +385,7 @@ static int client_onRead(swReactor *reactor, swEvent *event)
         }
     }
 
-    char *buf = emalloc(buf_len + 1);
+    buf = emalloc(buf_len + 1);
 
 #ifdef SW_CLIENT_RECV_AGAIN
     recv_again:
@@ -284,7 +418,10 @@ static int client_onRead(swReactor *reactor, swEvent *event)
 	else if (n == 0)
 	{
 		close_fd:
-		efree(buf);
+		if (buf)
+        {
+            efree(buf);
+        }
 		return client_close(zobject, event->fd TSRMLS_CC);
 	}
 	else
@@ -294,6 +431,7 @@ static int client_onRead(swReactor *reactor, swEvent *event)
 	    buf[n] = 0;
 		ZVAL_STRINGL(zdata, buf, n, 0);
 
+		args[0] = &zobject;
 		args[1] = &zdata;
 
 		zcallback = zend_read_property(swoole_client_class_entry_ptr, zobject, SW_STRL(php_sw_client_onReceive)-1, 0 TSRMLS_CC);
@@ -329,6 +467,40 @@ static int client_onRead(swReactor *reactor, swEvent *event)
 	return SW_OK;
 }
 
+static int client_onPackage(zval *zobject, swClient *cli TSRMLS_DC)
+{
+    zval *zcallback = NULL;
+    zval **args[2];
+    zval *retval;
+
+    zval *zdata;
+    MAKE_STD_ZVAL(zdata);
+    ZVAL_STRINGL(zdata, cli->buffer->str, cli->buffer->length, 1);
+
+    args[0] = &zobject;
+    args[1] = &zdata;
+
+    zcallback = zend_read_property(swoole_client_class_entry_ptr, zobject, SW_STRL(php_sw_client_onReceive)-1, 0 TSRMLS_CC);
+    if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client object have not receive callback.");
+        goto free_zdata;
+    }
+
+    if (call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "onReactorCallback handler error");
+        goto free_zdata;
+    }
+    if (retval != NULL)
+    {
+        zval_ptr_dtor(&retval);
+    }
+    free_zdata:
+    zval_ptr_dtor(&zdata);
+    return SW_OK;
+}
+
 static int client_onError(swReactor *reactor, swEvent *event)
 {
 	zval *zobject = event->socket->object;
@@ -354,7 +526,8 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
     vht = Z_ARRVAL_P(zset);
 
    //buffer: check eof
-   if (sw_zend_hash_find(vht, ZEND_STRS("open_eof_split"), (void **)&v) == SUCCESS)
+   if (sw_zend_hash_find(vht, ZEND_STRS("open_eof_split"), (void **)&v) == SUCCESS ||
+           sw_zend_hash_find(vht, ZEND_STRS("open_eof_check"), (void **)&v) == SUCCESS )
    {
        convert_to_boolean(*v);
        cli->open_eof_split = (uint8_t) Z_BVAL_PP(v);

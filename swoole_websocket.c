@@ -60,12 +60,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_push, 0, 0, 2)
     ZEND_ARG_INFO(0, finish)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_send, 0, 0, 2)
-    ZEND_ARG_INFO(0, fd)
-    ZEND_ARG_INFO(0, data)
-    ZEND_ARG_INFO(0, from_id)
-ZEND_END_ARG_INFO()
-
 const zend_function_entry swoole_websocket_server_methods[] =
 {
     PHP_ME(swoole_websocket_server, on,         arginfo_swoole_websocket_server_on, ZEND_ACC_PUBLIC)
