@@ -381,27 +381,11 @@ static const zend_function_entry swoole_connection_iterator_methods[] =
 };
 #endif
 
-const zend_function_entry swoole_buffer_methods[] =
-{
-    PHP_ME(swoole_buffer, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-    PHP_ME(swoole_buffer, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
-    PHP_ME(swoole_buffer, substr, NULL, ZEND_ACC_PUBLIC)
-    PHP_MALIAS(swoole_buffer, read, substr, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_buffer, write, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_buffer, append, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_buffer, expand, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_buffer, clear, NULL, ZEND_ACC_PUBLIC)
-    PHP_FE_END
-};
-
 zend_class_entry swoole_server_ce;
 zend_class_entry *swoole_server_class_entry_ptr;
 
 zend_class_entry swoole_connection_iterator_ce;
 zend_class_entry *swoole_connection_iterator_class_entry_ptr;
-
-zend_class_entry swoole_buffer_ce;
-zend_class_entry *swoole_buffer_class_entry_ptr;
 
 zend_module_entry swoole_module_entry =
 {
@@ -518,9 +502,6 @@ PHP_MINIT_FUNCTION(swoole)
     zend_class_implements(swoole_connection_iterator_class_entry_ptr TSRMLS_CC, 2, spl_ce_Iterator, spl_ce_Countable);
 #endif
 
-
-    INIT_CLASS_ENTRY(swoole_buffer_ce, "swoole_buffer", swoole_buffer_methods);
-    swoole_buffer_class_entry_ptr = zend_register_internal_class(&swoole_buffer_ce TSRMLS_CC);
 
     //swoole init
     swoole_init();

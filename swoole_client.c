@@ -602,7 +602,7 @@ void php_swoole_check_reactor()
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, (SW_FD_USER + 1) | SW_EVENT_WRITE, client_onWrite);
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, (SW_FD_USER + 1) | SW_EVENT_ERROR, client_onError);
 
-        swoole_event_init();
+        php_swoole_event_init();
 
 		SwooleWG.reactor_init = 1;
 	}

@@ -16,7 +16,37 @@
 
 #include "php_swoole.h"
 
-PHP_METHOD(swoole_buffer, __construct)
+static PHP_METHOD(swoole_buffer, __construct);
+static PHP_METHOD(swoole_buffer, __destruct);
+static PHP_METHOD(swoole_buffer, append);
+static PHP_METHOD(swoole_buffer, substr);
+static PHP_METHOD(swoole_buffer, write);
+static PHP_METHOD(swoole_buffer, expand);
+static PHP_METHOD(swoole_buffer, clear);
+
+static const zend_function_entry swoole_buffer_methods[] =
+{
+    PHP_ME(swoole_buffer, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_buffer, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
+    PHP_ME(swoole_buffer, substr, NULL, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_buffer, read, substr, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_buffer, write, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_buffer, append, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_buffer, expand, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_buffer, clear, NULL, ZEND_ACC_PUBLIC)
+    PHP_FE_END
+};
+
+zend_class_entry swoole_buffer_ce;
+zend_class_entry *swoole_buffer_class_entry_ptr;
+
+void swoole_buffer_init(int module_number TSRMLS_DC)
+{
+    INIT_CLASS_ENTRY(swoole_buffer_ce, "swoole_buffer", swoole_buffer_methods);
+    swoole_buffer_class_entry_ptr = zend_register_internal_class(&swoole_buffer_ce TSRMLS_CC);
+}
+
+static PHP_METHOD(swoole_buffer, __construct)
 {
     long size = SW_STRING_BUFFER_DEFAULT;
 
@@ -50,7 +80,7 @@ PHP_METHOD(swoole_buffer, __construct)
     zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("capacity"), size TSRMLS_CC);
 }
 
-PHP_METHOD(swoole_buffer, __destruct)
+static PHP_METHOD(swoole_buffer, __destruct)
 {
     swString *buffer = swoole_get_object(getThis());
     if (buffer)
@@ -59,7 +89,7 @@ PHP_METHOD(swoole_buffer, __destruct)
     }
 }
 
-PHP_METHOD(swoole_buffer, append)
+static PHP_METHOD(swoole_buffer, append)
 {
     swString str;
     bzero(&str, sizeof(str));
@@ -97,7 +127,7 @@ PHP_METHOD(swoole_buffer, append)
     }
 }
 
-PHP_METHOD(swoole_buffer, substr)
+static PHP_METHOD(swoole_buffer, substr)
 {
     long offset;
     long length = -1;
@@ -136,7 +166,7 @@ PHP_METHOD(swoole_buffer, substr)
     RETURN_STRINGL(buffer->str + offset, length, 1);
 }
 
-PHP_METHOD(swoole_buffer, write)
+static PHP_METHOD(swoole_buffer, write)
 {
     long offset;
     char *new_str;
@@ -161,7 +191,7 @@ PHP_METHOD(swoole_buffer, write)
     RETURN_TRUE;
 }
 
-PHP_METHOD(swoole_buffer, expand)
+static PHP_METHOD(swoole_buffer, expand)
 {
     long size = -1;
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &size) == FAILURE)
@@ -178,7 +208,7 @@ PHP_METHOD(swoole_buffer, expand)
     SW_CHECK_RETURN(swString_extend(buffer, size));
 }
 
-PHP_METHOD(swoole_buffer, clear)
+static PHP_METHOD(swoole_buffer, clear)
 {
     swString *buffer = swoole_get_object(getThis());
     buffer->length = 0;

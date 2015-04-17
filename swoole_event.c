@@ -106,7 +106,7 @@ static int php_swoole_event_onError(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
-void swoole_event_init(void)
+void php_swoole_event_init(void)
 {
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_READ, php_swoole_event_onRead);
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_WRITE, php_swoole_event_onWrite);
