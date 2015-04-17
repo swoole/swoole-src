@@ -1074,7 +1074,7 @@ PHP_FUNCTION(swoole_server_create)
     zend_update_property(swoole_server_class_entry_ptr, server_object, ZEND_STRL("connections"), connection_iterator_object TSRMLS_CC);
 #endif
 
-    swoole_set_object(getThis(), serv);
+    swoole_set_object(server_object, serv);
 }
 
 PHP_FUNCTION(swoole_server_set)
