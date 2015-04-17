@@ -32,10 +32,6 @@ HashTable php_sw_aio_callback;
 
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
 
-#ifdef ZTS
-void ***sw_thread_ctx = NULL;
-#endif
-
 extern sapi_module_struct sapi_module;
 
 // arginfo server
@@ -432,6 +428,13 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
     swoole_globals->display_errors = 1;
 }
 
+#ifdef ZTS
+__thread swoole_object_array swoole_objects;
+void ***sw_thread_ctx;
+#else
+swoole_object_array swoole_objects;
+#endif
+
 /* {{{ PHP_MINIT_FUNCTION
  */
 PHP_MINIT_FUNCTION(swoole)
@@ -634,6 +637,9 @@ PHP_RINIT_FUNCTION(swoole)
         SWOOLE_G(cli) = 1;
     }
 
+    swoole_objects.size = 65536;
+    swoole_objects.array = emalloc(sizeof(void *) * swoole_objects.size);
+
 #ifdef SW_DEBUG_REMOTE_OPEN
     swoole_open_remote_debug();
 #endif
@@ -684,7 +690,10 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
         }
     }
 
+    efree(swoole_objects.array);
+    bzero(&swoole_objects, sizeof(swoole_objects));
     SwooleWG.reactor_wait_onexit = 0;
+
     return SUCCESS;
 }
 

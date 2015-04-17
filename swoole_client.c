@@ -614,7 +614,6 @@ static swClient* client_create_socket(zval *object, char *host, int host_len, in
     zval *ztype;
     int async = 0;
     int packet_mode = 0;
-    swClient *cli;
     char conn_key[SW_LONG_CONNECTION_KEY_LEN];
     int conn_key_len = 0;
     uint64_t tmp_buf;
@@ -642,6 +641,8 @@ static swClient* client_create_socket(zval *object, char *host, int host_len, in
     {
         async = 1;
     }
+
+    swClient *cli;
 
 	bzero(conn_key, SW_LONG_CONNECTION_KEY_LEN);
 	zval *connection_id = zend_read_property(swoole_client_class_entry_ptr, object, ZEND_STRL("id"), 1 TSRMLS_CC);
@@ -698,8 +699,7 @@ static swClient* client_create_socket(zval *object, char *host, int host_len, in
     }
 
     swoole_set_object(object, cli);
-
-	zend_update_property_long(swoole_client_class_entry_ptr, object, ZEND_STRL("sock"), cli->socket->fd TSRMLS_CC);
+    zend_update_property_long(swoole_client_class_entry_ptr, object, ZEND_STRL("sock"), cli->socket->fd TSRMLS_CC);
 
     if (type & SW_FLAG_KEEP)
     {
@@ -736,20 +736,19 @@ static PHP_METHOD(swoole_client, __construct)
     {
         zend_update_property_stringl(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("id"), id, len TSRMLS_CC);
     }
-
+    swoole_set_object(getThis(), NULL);
     RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_client, __destruct)
 {
     swClient *cli = swoole_get_object(getThis());
-    if (cli->keep == 0)
+    if (cli && cli->keep == 0)
     {
         if (cli->socket->fd != 0)
         {
             cli->close(cli);
         }
-        efree(cli);
     }
 }
 
@@ -815,7 +814,7 @@ static PHP_METHOD(swoole_client, connect)
     }
 
     zval *zset = zend_read_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
-    if (zset == NULL || ZVAL_IS_NULL(zset))
+    if (zset && !ZVAL_IS_NULL(zset))
     {
         client_check_setting(cli, zset TSRMLS_CC);
     }
@@ -823,7 +822,7 @@ static PHP_METHOD(swoole_client, connect)
 	ret = cli->connect(cli, host, port, timeout, sock_flag);
 
 	//nonblock async
-	if (cli->async == 1)
+	if (cli->async)
 	{
 		if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
 		{

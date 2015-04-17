@@ -81,10 +81,20 @@ extern zend_module_entry swoole_module_entry;
 #	define PHP_SWOOLE_API
 #endif
 
+typedef struct
+{
+    void **array;
+    uint32_t size;
+} swoole_object_array;
+
 #ifdef ZTS
 #include "TSRM.h"
 extern void ***sw_thread_ctx;
+extern __thread swoole_object_array swoole_objects;
+#else
+extern swoole_object_array swoole_objects;
 #endif
+
 
 //#define SW_USE_PHP        1
 #define SW_CHECK_RETURN(s)         if(s<0){RETURN_FALSE;}else{RETURN_TRUE;}return
@@ -109,17 +119,12 @@ extern void ***sw_thread_ctx;
 #endif
 
 #if PHP_MAJOR_VERSION < 7
-
 typedef zend_rsrc_list_entry zend_resource;
 #define SW_RETURN_STRING                     RETURN_STRING
 #define sw_add_assoc_string                  add_assoc_string
 #define sw_zend_hash_find                    zend_hash_find
 #define sw_zend_hash_index_find              zend_hash_index_find
 #define SW_ZVAL_STRINGL                      ZVAL_STRINGL
-
-#define swoole_get_object(this)            zend_object_store_get_object(this TSRMLS_CC)
-#define swoole_set_object(this, object)    zend_object_store_set_object(this, object TSRMLS_CC)
-
 #else
 #define SW_RETURN_STRING(val, duplicate)     RETURN_STRING(val)
 #define sw_add_assoc_string(array, key, value, duplicate)   add_assoc_string(array, key, value)
@@ -192,6 +197,29 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 //---------------------------------------------------------
 #define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP))
 #define php_swoole_array_length(array)      (Z_ARRVAL_P(array)->nNumOfElements)
+
+static sw_inline void* swoole_get_object(zval *object)
+{
+    zend_object_handle handle = Z_OBJ_HANDLE_P(object);
+    assert(handle < swoole_objects.size);
+    return  swoole_objects.array[handle];
+}
+
+static sw_inline void swoole_set_object(zval *object, void *ptr)
+{
+    zend_object_handle handle = Z_OBJ_HANDLE_P(object);
+    if (handle >= swoole_objects.size)
+    {
+        swoole_objects.size = swoole_objects.size * 2;
+        if (swoole_objects.size > SW_MAX_SOCKET_ID)
+        {
+            swoole_objects.size = SW_MAX_SOCKET_ID;
+        }
+        assert(handle < SW_MAX_SOCKET_ID);
+        swoole_objects.array = erealloc(swoole_objects.array, swoole_objects.size);
+    }
+    swoole_objects.array[handle] = ptr;
+}
 
 #define SW_LONG_CONNECTION_KEY_LEN          64
 
