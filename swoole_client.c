@@ -736,7 +736,6 @@ static PHP_METHOD(swoole_client, __construct)
     {
         zend_update_property_stringl(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("id"), id, len TSRMLS_CC);
     }
-    swoole_set_object(getThis(), NULL);
     RETURN_TRUE;
 }
 
