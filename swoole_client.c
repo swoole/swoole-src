@@ -35,6 +35,7 @@
 #define php_sw_client_onError       "onError"
 
 static PHP_METHOD(swoole_client, __construct);
+static PHP_METHOD(swoole_client, __destruct);
 static PHP_METHOD(swoole_client, set);
 static PHP_METHOD(swoole_client, connect);
 static PHP_METHOD(swoole_client, recv);
@@ -96,6 +97,7 @@ static char *php_sw_callbacks[PHP_CLIENT_CALLBACK_NUM] =
 static const zend_function_entry swoole_client_methods[] =
 {
     PHP_ME(swoole_client, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_client, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_client, set, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, connect, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, recv, NULL, ZEND_ACC_PUBLIC)
@@ -736,6 +738,19 @@ static PHP_METHOD(swoole_client, __construct)
     }
 
     RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_client, __destruct)
+{
+    swClient *cli = swoole_get_object(getThis());
+    if (cli->keep == 0)
+    {
+        if (cli->socket->fd != 0)
+        {
+            cli->close(cli);
+        }
+        efree(cli);
+    }
 }
 
 static PHP_METHOD(swoole_client, set)

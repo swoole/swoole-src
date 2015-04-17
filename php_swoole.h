@@ -117,12 +117,6 @@ typedef zend_rsrc_list_entry zend_resource;
 #define sw_zend_hash_index_find              zend_hash_index_find
 #define SW_ZVAL_STRINGL                      ZVAL_STRINGL
 
-#define SWOOLE_GET_WORKER(zobject, process) zval **zprocess;\
-    if (zend_hash_find(Z_OBJPROP_P(zobject), ZEND_STRS("_process"), (void **) &zprocess) == FAILURE){ \
-    php_error_docref(NULL TSRMLS_CC, E_WARNING, "Not have process");\
-    RETURN_FALSE;}\
-    ZEND_FETCH_RESOURCE(process, swWorker *, zprocess, -1, SW_RES_PROCESS_NAME, le_swoole_process);
-
 #define swoole_get_object(this)            zend_object_store_get_object(this TSRMLS_CC)
 #define swoole_set_object(this, object)    zend_object_store_set_object(this, object TSRMLS_CC)
 
@@ -161,27 +155,7 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
         return SUCCESS;
     }
 }
-
-#define SWOOLE_GET_SERVER(zobject, serv) zval *zserv = zend_read_property(swoole_server_class_entry_ptr, zobject, SW_STRL("_server")-1, 0 TSRMLS_CC);\
-    if (!zserv || ZVAL_IS_NULL(zserv)){ \
-    php_error_docref(NULL TSRMLS_CC, E_WARNING, "Not have swoole_server");\
-    RETURN_FALSE;}\
-    ZEND_FETCH_RESOURCE(serv, swServer *, zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
-
-#define SWOOLE_GET_WORKER(zobject, process) zval *zprocess = zend_read_property(swoole_process_class_entry_ptr, zobject, SW_STRL("_server")-1, 0 TSRMLS_CC);\
-    if (!zprocess || ZVAL_IS_NULL(zprocess)){ \
-    php_error_docref(NULL TSRMLS_CC, E_WARNING, "Not have process");\
-    RETURN_FALSE;}\
-    ZEND_FETCH_RESOURCE(process, swWorker *, zprocess, -1, SW_RES_PROCESS_NAME, le_swoole_process);
-
 #endif
-
-#define SW_RES_SERVER_NAME          "SwooleServer"
-#define SW_RES_CLIENT_NAME          "SwooleClient"
-#define SW_RES_LOCK_NAME            "SwooleLock"
-#define SW_RES_PROCESS_NAME         "SwooleProcess"
-#define SW_RES_BUFFER_NAME          "SwooleBuffer"
-#define SW_RES_TABLE_NAME           "SwooleTable"
 
 #define PHP_CLIENT_CALLBACK_NUM             4
 //---------------------------------------------------
@@ -220,13 +194,6 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 #define php_swoole_array_length(array)      (Z_ARRVAL_P(array)->nNumOfElements)
 
 #define SW_LONG_CONNECTION_KEY_LEN          64
-
-extern int le_swoole_server;
-extern int le_swoole_client;
-extern int le_swoole_lock;
-extern int le_swoole_process;
-extern int le_swoole_buffer;
-extern int le_swoole_table;
 
 extern zend_class_entry *swoole_lock_class_entry_ptr;
 extern zend_class_entry *swoole_process_class_entry_ptr;
@@ -320,28 +287,6 @@ PHP_FUNCTION(swoole_get_mysqli_sock);
 
 PHP_FUNCTION(swoole_client_select);
 
-PHP_METHOD(swoole_lock, __construct);
-PHP_METHOD(swoole_lock, lock);
-PHP_METHOD(swoole_lock, trylock);
-PHP_METHOD(swoole_lock, lock_read);
-PHP_METHOD(swoole_lock, trylock_read);
-PHP_METHOD(swoole_lock, unlock);
-
-PHP_METHOD(swoole_process, __construct);
-PHP_METHOD(swoole_process, useQueue);
-PHP_METHOD(swoole_process, pop);
-PHP_METHOD(swoole_process, push);
-PHP_METHOD(swoole_process, kill);
-PHP_METHOD(swoole_process, signal);
-PHP_METHOD(swoole_process, wait);
-PHP_METHOD(swoole_process, daemon);
-PHP_METHOD(swoole_process, start);
-PHP_METHOD(swoole_process, write);
-PHP_METHOD(swoole_process, read);
-PHP_METHOD(swoole_process, close);
-PHP_METHOD(swoole_process, exit);
-PHP_METHOD(swoole_process, exec);
-
 PHP_METHOD(swoole_buffer, __construct);
 PHP_METHOD(swoole_buffer, append);
 PHP_METHOD(swoole_buffer, substr);
@@ -349,14 +294,13 @@ PHP_METHOD(swoole_buffer, write);
 PHP_METHOD(swoole_buffer, expand);
 PHP_METHOD(swoole_buffer, clear);
 
-void swoole_destory_lock(zend_resource *rsrc TSRMLS_DC);
-void swoole_destory_process(zend_resource *rsrc TSRMLS_DC);
-void swoole_destory_buffer(zend_resource *rsrc TSRMLS_DC);
 void swoole_destory_table(zend_resource *rsrc TSRMLS_DC);
 
 void swoole_async_init(int module_number TSRMLS_DC);
 void swoole_table_init(int module_number TSRMLS_DC);
+void swoole_lock_init(int module_number TSRMLS_DC);
 void swoole_client_init(int module_number TSRMLS_DC);
+void swoole_process_init(int module_number TSRMLS_DC);
 void swoole_http_init(int module_number TSRMLS_DC);
 void swoole_websocket_init(int module_number TSRMLS_DC);
 void swoole_event_init(void);
@@ -371,18 +315,6 @@ int php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tick TSRMLS
 zval *php_swoole_get_recv_data(swEventData *req TSRMLS_DC);
 int php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC);
 void php_swoole_onClose(swServer *, int fd, int from_id);
-
-static sw_inline swString* php_swoole_buffer_get(zval *object TSRMLS_DC)
-{
-    zval **zres;
-    swString *str = NULL;
-    if (zend_hash_find(Z_OBJPROP_P(object), SW_STRL("_buffer"), (void **) &zres) == SUCCESS)
-    {
-        ZEND_FETCH_RESOURCE_NO_RETURN(str, swString*, zres, -1, SW_RES_BUFFER_NAME, le_swoole_buffer);
-    }
-    assert(str != NULL);
-    return str;
-}
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
     long aio_thread_num;

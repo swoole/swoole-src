@@ -16,15 +16,6 @@
 
 #include "php_swoole.h"
 
-void swoole_destory_buffer(zend_resource *rsrc TSRMLS_DC)
-{
-    swString *str = (swString *) rsrc->ptr;
-    if (str)
-    {
-        swString_free(str);
-    }
-}
-
 PHP_METHOD(swoole_buffer, __construct)
 {
     long size = SW_STRING_BUFFER_DEFAULT;
@@ -55,10 +46,17 @@ PHP_METHOD(swoole_buffer, __construct)
         RETURN_FALSE;
     }
 
-    ZEND_REGISTER_RESOURCE(zres, buffer, le_swoole_buffer);
-    zend_update_property(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("_buffer"), zres TSRMLS_CC);
+    swoole_set_object(getThis(), buffer);
     zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("capacity"), size TSRMLS_CC);
-    zval_ptr_dtor(&zres);
+}
+
+PHP_METHOD(swoole_buffer, __destruct)
+{
+    swString *buffer = swoole_get_object(getThis());
+    if (buffer)
+    {
+        swString_free(buffer);
+    }
 }
 
 PHP_METHOD(swoole_buffer, append)
@@ -75,7 +73,7 @@ PHP_METHOD(swoole_buffer, append)
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "string empty.");
         RETURN_FALSE;
     }
-    swString *buffer = php_swoole_buffer_get(getThis() TSRMLS_CC);
+    swString *buffer = swoole_get_object(getThis());
 
     if ((str.length + buffer->size) > SW_STRING_BUFFER_MAXLEN)
     {
@@ -109,7 +107,7 @@ PHP_METHOD(swoole_buffer, substr)
     {
         RETURN_FALSE;
     }
-    swString *buffer = php_swoole_buffer_get(getThis() TSRMLS_CC);
+    swString *buffer = swoole_get_object(getThis());
 
     if (seek && !(offset == 0 && length < buffer->length))
     {
@@ -148,7 +146,7 @@ PHP_METHOD(swoole_buffer, write)
     {
         RETURN_FALSE;
     }
-    swString *buffer = php_swoole_buffer_get(getThis() TSRMLS_CC);
+    swString *buffer = swoole_get_object(getThis());
     if (offset < 0)
     {
         offset = buffer->length + offset;
@@ -170,7 +168,7 @@ PHP_METHOD(swoole_buffer, expand)
     {
         RETURN_FALSE;
     }
-    swString *buffer = php_swoole_buffer_get(getThis() TSRMLS_CC);
+    swString *buffer = swoole_get_object(getThis());
     if (size <= buffer->size)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "new size must more than %ld", buffer->size);
@@ -182,7 +180,7 @@ PHP_METHOD(swoole_buffer, expand)
 
 PHP_METHOD(swoole_buffer, clear)
 {
-    swString *buffer = php_swoole_buffer_get(getThis() TSRMLS_CC);
+    swString *buffer = swoole_get_object(getThis());
     buffer->length = 0;
     buffer->offset = 0;
     zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"), 0 TSRMLS_CC);

@@ -267,9 +267,6 @@ ZEND_END_ARG_INFO()
 
 //arginfo end
 
-static void swoole_destory_client(zend_resource *rsrc TSRMLS_DC);
-static void swoole_destory_server(zend_resource *rsrc TSRMLS_DC);
-
 #ifdef SW_ASYNC_MYSQL
 #include "ext/mysqlnd/mysqlnd.h"
 #include "ext/mysqli/mysqli_mysqlnd.h"
@@ -384,26 +381,6 @@ static const zend_function_entry swoole_connection_iterator_methods[] =
 };
 #endif
 
-const zend_function_entry swoole_process_methods[] =
-{
-    PHP_ME(swoole_process, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-    PHP_ME(swoole_process, wait, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_process, signal, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_process, kill, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_process, daemon, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_process, useQueue, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process, start, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process, write, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process, close, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process, read, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process, push, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process, pop, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process, exit, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process, exec, NULL, ZEND_ACC_PUBLIC)
-    PHP_FALIAS(name, swoole_set_process_name, NULL)
-    PHP_FE_END
-};
-
 const zend_function_entry swoole_buffer_methods[] =
 {
     PHP_ME(swoole_buffer, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
@@ -415,29 +392,6 @@ const zend_function_entry swoole_buffer_methods[] =
     PHP_ME(swoole_buffer, clear, NULL, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
-
-const zend_function_entry swoole_lock_methods[] =
-{
-    PHP_ME(swoole_lock, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-    PHP_ME(swoole_lock, lock, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_lock, trylock, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_lock, lock_read, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_lock, trylock_read, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_lock, unlock, NULL, ZEND_ACC_PUBLIC)
-    PHP_FE_END
-};
-
-int le_swoole_server;
-int le_swoole_lock;
-int le_swoole_process;
-int le_swoole_table;
-int le_swoole_buffer;
-
-zend_class_entry swoole_lock_ce;
-zend_class_entry *swoole_lock_class_entry_ptr;
-
-zend_class_entry swoole_process_ce;
-zend_class_entry *swoole_process_class_entry_ptr;
 
 zend_class_entry swoole_server_ce;
 zend_class_entry *swoole_server_class_entry_ptr;
@@ -500,13 +454,6 @@ PHP_MINIT_FUNCTION(swoole)
     ZEND_INIT_MODULE_GLOBALS(swoole, php_swoole_init_globals, NULL);
     REGISTER_INI_ENTRIES();
 
-    le_swoole_server = zend_register_list_destructors_ex(swoole_destory_server, NULL, SW_RES_SERVER_NAME, module_number);
-    le_swoole_client = zend_register_list_destructors_ex(swoole_destory_client, NULL, SW_RES_CLIENT_NAME, module_number);
-    le_swoole_lock = zend_register_list_destructors_ex(swoole_destory_lock, NULL, SW_RES_LOCK_NAME, module_number);
-    le_swoole_process = zend_register_list_destructors_ex(swoole_destory_process, NULL, SW_RES_PROCESS_NAME, module_number);
-    le_swoole_buffer = zend_register_list_destructors_ex(swoole_destory_buffer, NULL, SW_RES_BUFFER_NAME, module_number);
-    le_swoole_table = zend_register_list_destructors_ex(swoole_destory_table, NULL, SW_RES_TABLE_NAME, module_number);
-
     /**
      * mode type
      */
@@ -541,18 +488,7 @@ PHP_MINIT_FUNCTION(swoole)
     REGISTER_LONG_CONSTANT("SWOOLE_UDP6", SW_SOCK_UDP6, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SWOOLE_UNIX_DGRAM", SW_SOCK_UNIX_DGRAM, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SWOOLE_UNIX_STREAM", SW_SOCK_UNIX_STREAM, CONST_CS | CONST_PERSISTENT);
-    /**
-     * Lock type
-     */
-    REGISTER_LONG_CONSTANT("SWOOLE_FILELOCK", SW_FILELOCK, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("SWOOLE_MUTEX", SW_MUTEX, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("SWOOLE_SEM", SW_SEM, CONST_CS | CONST_PERSISTENT);
-#ifdef HAVE_RWLOCK
-    REGISTER_LONG_CONSTANT("SWOOLE_RWLOCK", SW_RWLOCK, CONST_CS | CONST_PERSISTENT);
-#endif
-#ifdef HAVE_SPINLOCK
-    REGISTER_LONG_CONSTANT("SWOOLE_SPINLOCK", SW_SPINLOCK, CONST_CS | CONST_PERSISTENT);
-#endif
+
     /**
      * simple api
      */
@@ -570,51 +506,6 @@ PHP_MINIT_FUNCTION(swoole)
     REGISTER_LONG_CONSTANT("SWOOLE_EVENT_READ", SW_EVENT_READ, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SWOOLE_EVENT_WRITE", SW_EVENT_WRITE, CONST_CS | CONST_PERSISTENT);
 
-    /**
-    * 31 signal constants 
-    */
-    zval **zpcntl;
-    if (zend_hash_find(&module_registry, ZEND_STRS("pcntl"), (void **) &zpcntl) == FAILURE)
-    {
-        REGISTER_LONG_CONSTANT("SIGHUP", (long) SIGHUP, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGINT", (long) SIGINT, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGQUIT", (long) SIGQUIT, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGILL", (long) SIGILL, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGTRAP", (long) SIGTRAP, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGABRT", (long) SIGABRT, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGBUS", (long) SIGBUS, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGFPE", (long) SIGFPE, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGKILL", (long) SIGKILL, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGUSR1", (long) SIGUSR1, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGSEGV", (long) SIGSEGV, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGUSR2", (long) SIGUSR2, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGPIPE", (long) SIGPIPE, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGALRM", (long) SIGALRM, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGTERM", (long) SIGTERM, CONST_CS | CONST_PERSISTENT);
-#ifdef SIGSTKFLT
-        REGISTER_LONG_CONSTANT("SIGSTKFLT", (long) SIGSTKFLT, CONST_CS | CONST_PERSISTENT);
-#endif
-        REGISTER_LONG_CONSTANT("SIGCHLD", (long) SIGCHLD, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGCONT", (long) SIGCONT, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGSTOP", (long) SIGSTOP, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGTSTP", (long) SIGTSTP, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGTTIN", (long) SIGTTIN, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGTTOU", (long) SIGTTOU, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGURG", (long) SIGURG, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGXCPU", (long) SIGXCPU, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGXFSZ", (long) SIGXFSZ, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGVTALRM", (long) SIGVTALRM, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGPROF", (long) SIGPROF, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGWINCH", (long) SIGWINCH, CONST_CS | CONST_PERSISTENT);
-        REGISTER_LONG_CONSTANT("SIGIO", (long) SIGIO, CONST_CS | CONST_PERSISTENT);
-#ifdef SIGPWR
-        REGISTER_LONG_CONSTANT("SIGPWR", (long) SIGPWR, CONST_CS | CONST_PERSISTENT);
-#endif
-#ifdef SIGSYS
-        REGISTER_LONG_CONSTANT("SIGSYS", (long) SIGSYS, CONST_CS | CONST_PERSISTENT);
-#endif
-    }
-
     REGISTER_STRINGL_CONSTANT("SWOOLE_VERSION", PHP_SWOOLE_VERSION, sizeof(PHP_SWOOLE_VERSION) - 1, CONST_CS | CONST_PERSISTENT);
 
     INIT_CLASS_ENTRY(swoole_server_ce, "swoole_server", swoole_server_methods);
@@ -626,11 +517,6 @@ PHP_MINIT_FUNCTION(swoole)
     zend_class_implements(swoole_connection_iterator_class_entry_ptr TSRMLS_CC, 2, spl_ce_Iterator, spl_ce_Countable);
 #endif
 
-    INIT_CLASS_ENTRY(swoole_lock_ce, "swoole_lock", swoole_lock_methods);
-    swoole_lock_class_entry_ptr = zend_register_internal_class(&swoole_lock_ce TSRMLS_CC);
-
-    INIT_CLASS_ENTRY(swoole_process_ce, "swoole_process", swoole_process_methods);
-    swoole_process_class_entry_ptr = zend_register_internal_class(&swoole_process_ce TSRMLS_CC);
 
     INIT_CLASS_ENTRY(swoole_buffer_ce, "swoole_buffer", swoole_buffer_methods);
     swoole_buffer_class_entry_ptr = zend_register_internal_class(&swoole_buffer_ce TSRMLS_CC);
@@ -640,7 +526,9 @@ PHP_MINIT_FUNCTION(swoole)
 
     swoole_client_init(module_number TSRMLS_CC);
     swoole_async_init(module_number TSRMLS_CC);
+    swoole_process_init(module_number TSRMLS_CC);
     swoole_table_init(module_number TSRMLS_CC);
+    swoole_lock_init(module_number TSRMLS_CC);
     swoole_http_init(module_number TSRMLS_CC);
     swoole_websocket_init(module_number TSRMLS_CC);
 
@@ -816,30 +704,6 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
 
     SwooleWG.reactor_wait_onexit = 0;
     return SUCCESS;
-}
-
-static void swoole_destory_server(zend_resource *rsrc TSRMLS_DC)
-{
-    SwooleG.running = 0;
-    swServer *serv = (swServer *) rsrc->ptr;
-    if (serv != NULL)
-    {
-        swServer_shutdown(serv);
-        //Don't free() here.
-    }
-}
-
-static void swoole_destory_client(zend_resource *rsrc TSRMLS_DC)
-{
-    swClient *cli = (swClient *) rsrc->ptr;
-    if (cli->keep == 0)
-    {
-        if (cli->socket->fd != 0)
-        {
-            cli->close(cli);
-        }
-        efree(cli);
-    }
 }
 
 PHP_FUNCTION(swoole_version)

@@ -115,7 +115,12 @@ int php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC)
             swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_buffer.");
             return SW_ERR;
         }
-        swString *str_buffer = php_swoole_buffer_get(zdata TSRMLS_CC);
+        swString *str_buffer = swoole_get_object(zdata);
+        if (!str_buffer->str)
+        {
+            swoole_php_fatal_error(E_WARNING, "swoole_buffer object is empty.");
+            return SW_ERR;
+        }
         length = str_buffer->length - str_buffer->offset;
         *str = str_buffer->str + str_buffer->offset;
     }
@@ -1727,9 +1732,7 @@ PHP_METHOD(swoole_server, addprocess)
 
     zval_add_ref(&process);
 
-    swWorker *worker = NULL;
-    SWOOLE_GET_WORKER(process, worker);
-
+    swWorker *worker = swoole_get_object(process);
     worker->ptr = process;
 
     int id = swServer_add_worker(serv, worker);
