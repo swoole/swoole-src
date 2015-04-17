@@ -956,7 +956,6 @@ static PHP_METHOD(swoole_http_server, on)
 {
     zval *callback;
     zval *event_name;
-    swServer *serv;
 
     if (SwooleGS->start > 0)
     {
@@ -968,8 +967,6 @@ static PHP_METHOD(swoole_http_server, on)
     {
         return;
     }
-
-    serv = swoole_get_object(getThis());
 
     char *func_name = NULL;
     if (!zend_is_callable(callback, 0, &func_name TSRMLS_CC))
