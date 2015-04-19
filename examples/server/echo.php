@@ -4,6 +4,7 @@ $serv->set(array(
 		//'tcp_defer_accept' => 5,
 		//'ipc_mode' => 2,
 		'worker_num' => 4,
+		'dispatch_mode' => 3,
 //		'task_worker_num' => 2,
 		//'max_request' => 1000,
 		//'daemonize' => true,
@@ -37,7 +38,12 @@ $serv->on('connect', function ($serv, $fd, $from_id){
 //});
 
 $serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
-	echo "[#".$serv->worker_pid."]\tClient[$fd]: $data\n";
+	echo "[#".$serv->worker_id."]\tClient[$fd]: $data\n";
+	if (rand(1, 4) == 1)
+	{
+		echo "sleep 2\n";
+		sleep(2);
+	}
 	//$info = $serv->connection_info($fd);
 	//$t = microtime(true);
 	//trigger_error(E_WARNING, "Test warning");

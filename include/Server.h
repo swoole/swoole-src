@@ -26,7 +26,6 @@ extern "C" {
 #endif
 
 #define SW_REACTOR_NUM             SW_CPU_NUM
-#define SW_WRITER_NUM              SW_CPU_NUM
 #define SW_PIPES_NUM               (SW_WORKER_NUM/SW_WRITER_NUM + 1) //每个写线程pipes数组大小
 #define SW_WORKER_NUM              (SW_CPU_NUM*2)
 
@@ -279,7 +278,7 @@ struct _swServer
     uint16_t reactor_next_i; //平均算法调度
     uint16_t reactor_schedule_count;
 
-    uint16_t worker_round_id;
+    sw_atomic_t worker_round_id;
 
     /**
      * run as a daemon process
@@ -662,7 +661,7 @@ static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t sche
     //polling mode
     if (serv->dispatch_mode == SW_DISPATCH_ROUND)
     {
-        target_worker_id = (serv->worker_round_id++) % serv->worker_num;
+        target_worker_id = sw_atomic_fetch_add(&serv->worker_round_id, 1) % serv->worker_num;
     }
     //Using the FD touch access to hash
     else if (serv->dispatch_mode == SW_DISPATCH_FDMOD)
@@ -710,11 +709,9 @@ static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t sche
     else
     {
         int i;
-        sw_atomic_t *round = &SwooleG.worker_round_i;
         for (i = 0; i < serv->worker_num + 1; i++)
         {
-            sw_atomic_fetch_add(round, 1);
-            target_worker_id = (*round) % serv->worker_num;
+            target_worker_id = sw_atomic_fetch_add(&serv->worker_round_id, 1) % serv->worker_num;
 
             if (serv->workers[target_worker_id].status == SW_WORKER_IDLE)
             {

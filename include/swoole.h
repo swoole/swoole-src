@@ -1544,7 +1544,6 @@ typedef struct
     swPipe *task_notify;
     swEventData *task_result;    
     
-    sw_atomic_t worker_round_i;
     pthread_t heartbeat_pidt;
 
 } swServerG;
