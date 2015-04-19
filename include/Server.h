@@ -710,7 +710,7 @@ static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t sche
     else
     {
         int i;
-        sw_atomic_t *round = &SwooleTG.worker_round_i;
+        sw_atomic_t *round = &SwooleG.worker_round_i;
         for (i = 0; i < serv->worker_num + 1; i++)
         {
             sw_atomic_fetch_add(round, 1);

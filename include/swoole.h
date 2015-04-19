@@ -1472,7 +1472,6 @@ typedef struct
     uint8_t type;
     uint8_t factory_lock_target;
     int16_t factory_target_worker;
-    sw_atomic_t worker_round_i;
 } swThreadG;
 
 typedef struct _swServer swServer;
@@ -1543,8 +1542,9 @@ typedef struct
     swReactor *main_reactor;
 
     swPipe *task_notify;
-    swEventData *task_result;
-
+    swEventData *task_result;    
+    
+    sw_atomic_t worker_round_i;
     pthread_t heartbeat_pidt;
 
 } swServerG;
