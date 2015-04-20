@@ -2175,11 +2175,13 @@ void swReactorThread_free(swServer *serv)
 
     if (serv->have_tcp_sock == 1)
     {
-        //create reactor thread
         for (i = 0; i < serv->reactor_num; i++)
         {
             thread = &(serv->reactor_threads[i]);
             pthread_cancel(thread->thread_id);
+            //release the lock
+            SwooleG.lock.unlock(&SwooleG.lock);
+            //wait thread
             if (pthread_join(thread->thread_id, NULL))
             {
                 swWarn("pthread_join() failed. Error: %s[%d]", strerror(errno), errno);
