@@ -275,11 +275,14 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     reactor->setHandle(reactor, SW_FD_CLOSE, swReactorProcess_onClose);
     //pipe
     reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_WRITE, swReactor_onWrite);
-    //proxy or pipe message
-    reactor->add(reactor, worker->pipe_worker, SW_FD_PIPE);
+
+    if (worker->pipe_worker)
+    {
+        //proxy or pipe message
+        reactor->add(reactor, worker->pipe_worker, SW_FD_PIPE);
+    }
     //close
     reactor->setHandle(reactor, SW_FD_PIPE, swReactorProcess_onPipeRead);
-
     //set protocol function point
     swReactorThread_set_protocol(serv, reactor);
 
