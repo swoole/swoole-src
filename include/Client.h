@@ -42,6 +42,8 @@ typedef struct _swClient
      */
 	uint32_t open_length_check: 1;
 
+	uint32_t wait_data :1;
+
     char package_eof[SW_DATA_EOF_MAXLEN + 1];
     uint8_t package_eof_len;
 
@@ -70,6 +72,7 @@ typedef struct _swClient
 	swConnection *socket;
 
 	swString *buffer;
+	uint32_t wait_length;
 
 	void (*onConnect)(struct _swClient *cli);
 	int (*onReceive)(struct _swClient *cli, swSendData *data);

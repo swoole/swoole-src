@@ -1,5 +1,6 @@
 <?php
 $client = new swoole_client(SWOOLE_SOCK_TCP);
+
 $client->set(array(
     'open_length_check'     => 1,
     'package_length_type'   => 'N',
@@ -8,7 +9,7 @@ $client->set(array(
     'package_max_length'    => 2000000,  //协议最大长度
 ));
 
-if(!$client->connect('127.0.0.1', 9501))
+if (!$client->connect('127.0.0.1', 9501))
 {
     exit("connect failed\n");
 }

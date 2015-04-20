@@ -84,12 +84,12 @@ function my_onStart(swoole_server $serv)
 
 function my_log($msg)
 {
-	global $serv;
-    echo "#".$serv->worker_pid."\t".$msg.PHP_EOL;
+	global $client;
+    echo "#".$client->worker_pid."\t".$msg.PHP_EOL;
 }
 
 function forkChildInWorker() {
-	global $serv;
+	global $client;
 	echo "on worker start\n";
 	$process = new swoole_process( function (swoole_process $worker) {
 // 		$serv = new swoole_server( "0.0.0.0", 9503 );
@@ -111,7 +111,7 @@ function forkChildInWorker() {
 	$pid = $process->start();
 	echo "Fork child process success. pid={$pid}\n";
 	//保存子进程对象，这里如果不保存，那对象会被销毁，管道也会被关闭
-	$serv->childprocess = $process;
+	$client->childprocess = $process;
 }
 
 function processRename($serv, $worker_id) {
