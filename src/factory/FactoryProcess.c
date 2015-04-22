@@ -545,6 +545,16 @@ static int swManager_loop(swFactory *factory)
         kill(serv->workers[i].pid, SIGTERM);
     }
 
+    //wait child process
+    for (i = 0; i < serv->worker_num; i++)
+    {
+        if (swWaitpid(serv->workers[i].pid, &status, 0) < 0)
+        {
+            swSysError("waitpid(%d) failed.", serv->workers[i].pid);
+        }
+    }
+
+    //kill and wait task process
     if (SwooleG.task_worker_num > 0)
     {
         swProcessPool_shutdown(&SwooleGS->task_workers);
@@ -552,10 +562,11 @@ static int swManager_loop(swFactory *factory)
 
     if (serv->user_worker_map)
     {
-        swWorker* user_worker= NULL;
+        swWorker* user_worker;
         uint64_t key;
 
-        do
+        //kill user process
+        while (1)
         {
             user_worker = swHashMap_each_int(serv->user_worker_map, &key);
             //hashmap empty
@@ -564,7 +575,22 @@ static int swManager_loop(swFactory *factory)
                 break;
             }
             kill(user_worker->pid, SIGTERM);
-        } while (user_worker);
+        }
+
+        //wait user process
+        while (1)
+        {
+            user_worker = swHashMap_each_int(serv->user_worker_map, &key);
+            //hashmap empty
+            if (user_worker == NULL)
+            {
+                break;
+            }
+            if (swWaitpid(serv->workers[i].pid, &status, 0) < 0)
+            {
+                swSysError("waitpid(%d) failed.", serv->workers[i].pid);
+            }
+        }
     }
 
     if (serv->onManagerStop)

@@ -2179,13 +2179,13 @@ void swReactorThread_free(swServer *serv)
         {
             thread = &(serv->reactor_threads[i]);
             pthread_cancel(thread->thread_id);
-            //release the lock
-            SwooleG.lock.unlock(&SwooleG.lock);
             //wait thread
             if (pthread_join(thread->thread_id, NULL))
             {
                 swWarn("pthread_join() failed. Error: %s[%d]", strerror(errno), errno);
             }
+            //release the lock
+            SwooleG.lock.unlock(&SwooleG.lock);
 #ifdef SW_USE_RINGBUFFER
             thread->buffer_input->destroy(thread->buffer_input);
 #endif
