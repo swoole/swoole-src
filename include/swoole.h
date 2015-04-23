@@ -349,7 +349,7 @@ typedef struct _swConnection
     /**
      * session id
      */
-    uint32_t session_id;
+    uint32_t session_id :24;
 
     /**
      * socket type, SW_SOCK_TCP or SW_SOCK_UDP
@@ -1421,11 +1421,12 @@ typedef struct
     pid_t master_pid;
     pid_t manager_pid;
 
+    uint32_t session_round :24;
     uint8_t start;  //after swServer_start will set start=1
+
     time_t now;
 
     sw_atomic_t spinlock;
-    uint32_t session_round;
 
     swProcessPool task_workers;
     swProcessPool event_workers;

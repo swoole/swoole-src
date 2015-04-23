@@ -1,4 +1,6 @@
 <?php
+require __DIR__.'/../websocket/WebSocketClient.php';
+
 //关闭错误输出
 //error_reporting(0);
 $shortopts = "c:";
@@ -133,6 +135,58 @@ function long_tcp(Swoole_Benchmark $bc)
 	$end = microtime(true);
 	$read_use = $end - $start;
 	if($read_use>$bc->max_read_time) $bc->max_read_time = $read_use;
+	return true;
+}
+
+function websocket(Swoole_Benchmark $bc)
+{
+	static $client = null;
+	static $i;
+	$start = microtime(true);
+
+	if (empty($client))
+	{
+		$client = new WebSocketClient($bc->server_config['host'], $bc->server_config['port']);
+		if (!$client->connect())
+		{
+			echo "connect failed\n";
+			return false;
+		}
+
+		$end = microtime(true);
+		$conn_use = $end - $start;
+		$bc->max_conn_time = $conn_use;
+		$i = 0;
+		$start = $end;
+	}
+	/*--------写入Sokcet-------*/
+	if (!$client->send($bc->send_data))
+	{
+		echo "send failed\n";
+		return false;
+	}
+	$end = microtime(true);
+	$write_use = $end - $start;
+	if ($write_use > $bc->max_write_time)
+	{
+		$bc->max_write_time = $write_use;
+	}
+	$start = $end;
+	/*--------读取Sokcet-------*/
+	$ret = $client->recv();
+	//var_dump($ret);
+	$i++;
+	if (empty($ret))
+	{
+		echo $bc->pid, "#$i@", " is lost\n";
+		return false;
+	}
+	$end = microtime(true);
+	$read_use = $end - $start;
+	if ($read_use > $bc->max_read_time)
+	{
+		$bc->max_read_time = $read_use;
+	}
 	return true;
 }
 

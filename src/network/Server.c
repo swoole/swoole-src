@@ -1298,11 +1298,11 @@ static swConnection* swServer_connection_new(swServer *serv, int fd, int from_fd
     //get session id
     for (i = 0; i < serv->max_connection; i++)
     {
-        session_id = (SwooleGS->session_round++) % SW_MAX_SOCKET_ID;
+        session_id = SwooleGS->session_round++;
         if (session_id == 0)
         {
             session_id = 1;
-            SwooleGS->session_round++;
+            SwooleGS->session_round = 1;
         }
         session = swServer_get_session(serv, session_id);
         //vacancy
