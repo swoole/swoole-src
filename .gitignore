@@ -1,10 +1,15 @@
+/.cproject
+/.idea
+/.project
 *.o
 *.lo
-.*
 *~
 *.so
+*.loT
 Debug/*
 modules/*
+/.deps
+/.libs/
 /core
 /examples/core
 /Debug
@@ -40,5 +45,9 @@ modules/*
 /run-tests.php
 /autom4te.cache
 /build
-
+/examples/async/data.txt
+/examples/.idea
+/examples/recv_file.jpg
 /modules
+/examples/async/test.copy
+/examples/ssl_client

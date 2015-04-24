@@ -51,12 +51,12 @@ class ProxyServer
 
     function onReceive($serv, $fd, $from_id, $data)
     {
-	$socket = new swoole_client(SWOOLE_SOCK_TCP);
+		$socket = new swoole_client(SWOOLE_SOCK_TCP);
         if($socket->connect('127.0.0.1', 80, 0.5))
         {
-		$socket->send($data);
-		$serv->send($fd, $socket->recv(8192, 0));
-	}
+			$socket->send($data);
+			$serv->send($fd, $socket->recv(8192, 0));
+		}
         unset($socket);
         $serv->close($fd);
     }

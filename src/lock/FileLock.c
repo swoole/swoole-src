@@ -8,7 +8,7 @@
   | http://www.apache.org/licenses/LICENSE-2.0.html                      |
   | If you did not receive a copy of the Apache2.0 license and are unable|
   | to obtain it through the world-wide-web, please send a note to       |
-  | license@php.net so we can mail you a copy immediately.               |
+  | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
@@ -57,13 +57,13 @@ static int swFileLock_unlock(swLock *lock)
 
 static int swFileLock_trylock_rw(swLock *lock)
 {
-	lock->object.filelock.lock_t.l_type = F_RDLCK;
+	lock->object.filelock.lock_t.l_type = F_WRLCK;
 	return fcntl(lock->object.filelock.fd, F_SETLK, &lock->object.filelock);
 }
 
 static int swFileLock_trylock_rd(swLock *lock)
 {
-	lock->object.filelock.lock_t.l_type = F_WRLCK;
+	lock->object.filelock.lock_t.l_type = F_RDLCK;
 	return fcntl(lock->object.filelock.fd, F_SETLK, &lock->object.filelock);
 }
 

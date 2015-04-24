@@ -2,8 +2,27 @@
 #include "swoole.h"
 #include "Client.h"
 
+swReactor main_reactor;
+
+void dns_callback(void *ptr)
+{
+
+}
+
 swUnitTest(client_test)
 {
+    swReactor_create(&main_reactor, 1024);
+    SwooleG.main_reactor = &main_reactor;
+
+    swDNS_request request;
+
+    request.domain = "www.baidu.com";
+    request.callback = dns_callback;
+
+    swDNSResolver_request(&request);
+
+    return main_reactor.wait(&main_reactor, NULL);
+
 	int ret;
 	swClient cli, cli2;
 	char buf[128];

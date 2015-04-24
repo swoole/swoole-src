@@ -1,0 +1,14 @@
+GET /baidu?cl=3&tn=baidutop10&fr=top1000&wd=%E7%BE%8E%E5%9F%83%E5%8D%9A%E6%8B%89%E6%82%A3%E8%80%85%E5%BA%B7%E5%A4%8D HTTP/1.1
+Host: www.baidu.com
+Connection: keep-alive
+Cache-Control: max-age=0
+Content-Length: 125
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/34.0.1847.116 Safari/537.36
+Referer: http://www.baidu.com/
+Accept-Encoding: gzip,deflate,sdch
+Accept-Language: zh-CN,zh;q=0.8,en;q=0.6,zh-TW;q=0.4,ja;q=0.2
+Cookie: BAIDUID=8FD5D177E6ED32C639A7B57ABC085EF4:FG=1; BDUSS=hlektNT3A1RWJreDVMVHJ1Qk1NdGFyUjdiekxqLXpjdURrYXdLT3V1Vkdtd2xVQVFBQUFBJCQAAAAAAAAAAAEAAABzhT8AbWF0eWh0ZgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEYO4lNGDuJTND; SFSSID=n02s0gjvudci563p68n44ek2t5; SIGNIN_UC=70a2711cf1d3d9b1a82d2f87d633bd8a01586892511; userRecommendCode=AAsRZq; BDRCVFR[feWj1Vr5u3D]=I67x6TjHwwYf0; BD_UPN=1233; BD_HOME=1; BDRCVFR[S4-dAuiWMmn]=I67x6TjHwwYf0; BD_CK_SAM=1; H_PS_PSSID=1428_7802_8234_8225_8057_8222_6505_6017_8262_7606_7799_8035_8166_7414_8129
+RA-Ver: 2.4.12
+RA-Sid: 2A784AF7-20140212-113827-085a9c-c4de6e
+

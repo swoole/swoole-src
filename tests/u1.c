@@ -106,3 +106,9 @@ swUnitTest(u1_test1)
 	}
 	return 0;
 }
+
+swUnitTest(u1_test3)
+{
+	swModule_load("./examples/cpp_module/test.so");
+	return 0;
+}

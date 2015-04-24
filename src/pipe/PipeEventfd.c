@@ -8,7 +8,7 @@
   | http://www.apache.org/licenses/LICENSE-2.0.html                      |
   | If you did not receive a copy of the Apache2.0 license and are unable|
   | to obtain it through the world-wide-web, please send a note to       |
-  | license@php.net so we can mail you a copy immediately.               |
+  | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
@@ -29,7 +29,7 @@ typedef struct _swPipeEventfd
 	int event_fd;
 } swPipeEventfd;
 
-int swPipeEventfd_create(swPipe *p, int blocking, int semaphore)
+int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout)
 {
 	int efd;
 	int flag = 0;
@@ -38,19 +38,34 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore)
 	{
 		return -1;
 	}
-	if(blocking == 0)
+
+	flag = EFD_NONBLOCK;
+
+	if (blocking == 1)
 	{
-		flag = EFD_NONBLOCK;
+		if (timeout > 0)
+		{
+			flag = 0;
+			p->timeout = -1;
+		}
+		else
+		{
+			p->timeout = timeout;
+		}
 	}
-	if(semaphore == 1)
+
+#ifdef EFD_SEMAPHORE
+	if (semaphore == 1)
 	{
 		flag |= EFD_SEMAPHORE;
 	}
+#endif
+
 	p->blocking = blocking;
 	efd = eventfd(0, flag);
 	if (efd < 0)
 	{
-		swWarn("eventfd create fail. Error: %s[%d]", strerror(errno), errno);
+		swWarn("eventfd create failed. Error: %s[%d]", strerror(errno), errno);
 		return -1;
 	}
 	else
@@ -67,11 +82,21 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore)
 
 static int swPipeEventfd_read(swPipe *p, void *data, int length)
 {
-	int ret;
-	swPipeEventfd *this = p->object;
+	int ret = -1;
+	swPipeEventfd *object = p->object;
+
+	//eventfd not support socket timeout
+	if (p->blocking == 1 && p->timeout > 0)
+	{
+		if (swSocket_wait(object->event_fd, p->timeout * 1000, SW_EVENT_READ) < 0)
+		{
+			return SW_ERR;
+		}
+	}
+
 	while (1)
 	{
-		ret = read(this->event_fd, data, sizeof(uint64_t));
+		ret = read(object->event_fd, data, sizeof(uint64_t));
 		if (ret < 0 && errno == EINTR)
 		{
 			continue;
@@ -83,26 +108,21 @@ static int swPipeEventfd_read(swPipe *p, void *data, int length)
 
 static int swPipeEventfd_write(swPipe *p, void *data, int length)
 {
-	int ret;
-	swPipeEventfd *this = p->object;
-	while (1)
-	{
-		ret = write(this->event_fd, data, sizeof(uint64_t));
-		if (ret < 0)
-		{
-			if (errno == EINTR)
-			{
-				continue;
-			}
-			else if (errno == EAGAIN)
-			{
-				usleep(1);
-				continue;
-			}
-		}
-		break;
-	}
-	return ret;
+    int ret;
+    swPipeEventfd *this = p->object;
+    while (1)
+    {
+        ret = write(this->event_fd, data, sizeof(uint64_t));
+        if (ret < 0)
+        {
+            if (errno == EINTR)
+            {
+                continue;
+            }
+        }
+        break;
+    }
+    return ret;
 }
 
 static int swPipeEventfd_getFd(swPipe *p, int isWriteFd)

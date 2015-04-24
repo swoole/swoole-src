@@ -1,6 +1,7 @@
-PROJECT(server)
+PROJECT(swoole_server)
 
-SET(SWOOLE_VERSION 1.5.5)
+SET(SWOOLE_VERSION 1.7.10)
+SET(SWOOLE_CLFLAGS pthread rt dl ssl crypt crypto)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.4)
 
 SET(CMAKE_BUILD_TYPE Debug)
@@ -15,7 +16,7 @@ SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 #message(STATUS "header=${HEAD_FILES}")
 
 #for Linux
-add_definitions(-DHAVE_EPOLL -DHAVE_EVENTFD -DHAVE_TIMERFD -DHAVE_CPU_AFFINITY)
+add_definitions(-DHAVE_EPOLL -DHAVE_ACCEPT4 -DHAVE_EVENTFD -DHAVE_TIMERFD -DHAVE_CPU_AFFINITY -DHAVE_OPENSSL -DSW_USE_OPENSSL)
 
 #for FreeBSD
 #add_definitions(-DHAVE_KQUEUE)
@@ -30,20 +31,20 @@ add_library(swoole_static STATIC ${SRC_LIST})
 set_target_properties(swoole_shared PROPERTIES OUTPUT_NAME "swoole" VERSION ${SWOOLE_VERSION})
 set_target_properties(swoole_static PROPERTIES OUTPUT_NAME "swoole" VERSION ${SWOOLE_VERSION})
 
-target_link_libraries(swoole_shared pthread rt)
-target_link_libraries(swoole_static pthread rt)
+target_link_libraries(swoole_shared ${SWOOLE_CLFLAGS})
+target_link_libraries(swoole_static ${SWOOLE_CLFLAGS})
 
 LINK_DIRECTORIES(${LIBRARY_OUTPUT_PATH})
 
 #test_server
 set(TEST_SRC_LIST examples/test_server.c)
 add_executable(test_server ${TEST_SRC_LIST};${SRC_LIST})
-target_link_libraries(test_server pthread rt)
+target_link_libraries(test_server ${SWOOLE_CLFLAGS})
 
 #unittest
 file(GLOB_RECURSE UNITTEST_SRC_LIST FOLLOW_SYMLINKS tests/*.c)
 add_executable(unittest ${UNITTEST_SRC_LIST};${SRC_LIST})
-target_link_libraries(unittest pthread rt)
+target_link_libraries(unittest ${SWOOLE_CLFLAGS})
 
 #add_dependencies(test_server swoole_static swoole_shared)
 #TARGET_LINK_LIBRARIES(test_server swoole)

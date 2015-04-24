@@ -1,16 +1,16 @@
 #include <string.h>
 #include "swoole.h"
 #include "Server.h"
-#include "uthash.h"
+#include "rbtree.h"
 #include <netinet/tcp.h>
 #include "tests.h"
 
-typedef struct _swHashTable_FdInfo
+
+typedef struct
 {
 	int fd;
 	int key;
-	UT_hash_handle hh;
-} swHashTable_FdInfo;
+} swFdInfo;
 
 swUnitTest(type_test1)
 {
@@ -21,33 +21,40 @@ swUnitTest(type_test1)
 
 swUnitTest(hashmap_test1)
 {
-	swHashMap hm = NULL;
+	swHashMap *hm = swHashMap_new(16, NULL);
 
-	swWarn("add");
-	swHashMap_add(&hm, "hello", 199);
-	swHashMap_add(&hm, "swoole22", 8877);
-	swHashMap_add(&hm, "hello2", 200);
-	swHashMap_add(&hm, "willdel", 888);
-	swHashMap_add(&hm, "hello3", 78978);
+	printf("----------------------insert to hashmap----------------------\n");
+	swHashMap_add(hm, SW_STRL("hello")-1, (void *)199, NULL);
+	swHashMap_add(hm, SW_STRL("swoole22")-1, (void *)8877, NULL);
+	swHashMap_add(hm, SW_STRL("hello2")-1, (void *)200, NULL);
+	swHashMap_add(hm, SW_STRL("willdel")-1, (void *)888, NULL);
+	swHashMap_add(hm, SW_STRL("willupadte")-1, (void *)9999, NULL);
+	swHashMap_add(hm, SW_STRL("hello3")-1, (void *)78978, NULL);
 
-	swWarn("del");
-	swHashMap_del(&hm, "willdel");
-//	int ret = swHashMap_find(&hm, "hello");
-//	printf("ret=%d\n", ret);
-//
-//	int ret2 = swHashMap_find(&hm, "hello2");
-//	printf("ret2=%d\n", ret2);
+	printf("----------------------delete node key=willdel----------------------\n");
+	swHashMap_del(hm, SW_STRL("willdel")-1);
 
-	void *tmp = NULL;
+	printf("----------------------update node key=willupadte----------------------\n");
+	swHashMap_update(hm, SW_STRL("willupadte")-1, (void *) (9999*5555));
+
+	printf("----------------------find node----------------------\n");
+	int ret = (int) swHashMap_find(hm, SW_STRL("hello")-1);
+	printf("ret=%d\n", ret);
+
+	int ret2 = (int) swHashMap_find(hm, SW_STRL("hello2")-1);
+	printf("ret2=%d\n", ret2);
+
+	printf("----------------------foreach hashmap----------------------\n");
 	char *key;
 	int data;
 
 	while(1)
 	{
-		tmp = swHashMap_foreach(&hm, &key, &data, tmp);
+	    data = (int) swHashMap_each(hm, &key);
+	    if (!data) break;
 		printf("key=%s|value=%d\n", key, data);
-		if(tmp == NULL) break;
 	}
+	swHashMap_free(hm);
 	return 0;
 }
 
@@ -73,7 +80,7 @@ swUnitTest(chan_test)
 	int ret;
 
 	char item[BUFSIZE];
-	swChannel *chan = swChannel_create(1024 * 80, 1000, SW_CHAN_NOTIFY | SW_CHAN_LOCK | SW_CHAN_SHM);
+	swChannel *chan = swChannel_new(1024 * 80, 1000, SW_CHAN_NOTIFY | SW_CHAN_LOCK | SW_CHAN_SHM);
 	if (chan == NULL)
 	{
 		err_exit("msgget");
@@ -139,23 +146,36 @@ swUnitTest(chan_test)
  */
 swUnitTest(ds_test2)
 {
-	swHashTable_FdInfo *ht = NULL;
-	swHashTable_FdInfo *pkt, *tmp;
+	swHashMap *ht = swHashMap_new(16, free);
+	swFdInfo *pkt, *tmp;
 	int i;
 
 	for (i = 0; i < 10; i++)
 	{
-		pkt = (swHashTable_FdInfo *) malloc(sizeof(swHashTable_FdInfo));
+		pkt = (swFdInfo *) malloc(sizeof(swFdInfo));
 		pkt->key = i;
 		pkt->fd = i * 34;
-		HASH_ADD_INT(ht, key, pkt);
+		swHashMap_add_int(ht, i, pkt, NULL);
 	}
-	i = 7;
-	HASH_FIND_INT(ht, &i, tmp);
+
+	tmp = swHashMap_find_int(ht, 7);
 	if (tmp != NULL)
 	{
-
 		printf("The key(%d) exists in hash. Fd = %d\n", i, tmp->fd);
 	}
+	return 0;
+}
+
+swUnitTest(rbtree_test)
+{
+	swRbtree *tree = swRbtree_new();
+	uint32_t key;
+	int i;
+	for (i = 1; i < 20000; i++)
+	{
+		key = i * 3;
+		swRbtree_insert(tree, key, (void *) (i * 8));
+	}
+	printf("find_n %d\n", (int) swRbtree_find(tree, 17532));
 	return 0;
 }
