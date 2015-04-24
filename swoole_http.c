@@ -541,6 +541,7 @@ static int multipart_body_on_header_field(multipart_parser* p, const char *at, s
     swoole_http_client *client = (swoole_http_client *) p->data;
     return http_request_on_header_field(&client->parser, at, length);
 }
+
 static int multipart_body_on_header_value(multipart_parser* p, const char *at, size_t length)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);

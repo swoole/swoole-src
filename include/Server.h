@@ -26,7 +26,6 @@ extern "C" {
 #endif
 
 #define SW_REACTOR_NUM             SW_CPU_NUM
-#define SW_PIPES_NUM               (SW_WORKER_NUM/SW_WRITER_NUM + 1) //每个写线程pipes数组大小
 #define SW_WORKER_NUM              (SW_CPU_NUM*2)
 
 #define SW_HEARTBEAT_IDLE          0   //心跳存活最大时间

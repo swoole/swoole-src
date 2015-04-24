@@ -1889,7 +1889,7 @@ PHP_FUNCTION(swoole_server_send)
 
         struct sockaddr_in addr_in;
         addr_in.sin_family = AF_INET;
-        addr_in.sin_port = htons((uint16_t) (uint16_t) (udp_info.port));
+        addr_in.sin_port = htons(udp_info.port);
         addr_in.sin_addr.s_addr = fd;
         ret = swSocket_sendto_blocking(udp_info.from_fd, data, length, 0, (struct sockaddr *) &addr_in, sizeof(addr_in));
         SW_CHECK_RETURN(ret);
