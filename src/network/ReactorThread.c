@@ -1203,7 +1203,7 @@ static int swReactorThread_onReceive_websocket(swReactor *reactor, swEvent *even
                             goto close_fd;
                             return SW_ERR;
                         }
-                        tmp_package.str[0] = FRAME_SET_FIN(1) | FRAME_SET_OPCODE(opcode);
+                        tmp_package.str[0] = FRAME_SET_FIN(1) | FRAME_SET_OPCODE(WEBSOCKET_OPCODE_PONG);
                         ret = swConnection_send(conn, tmp_package.str, tmp_package.length, 0);
                         break;
 
