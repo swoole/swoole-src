@@ -1203,8 +1203,11 @@ static int swReactorThread_onReceive_websocket(swReactor *reactor, swEvent *even
                             goto close_fd;
                             return SW_ERR;
                         }
-                        tmp_package.str[0] = FRAME_SET_FIN(1) | FRAME_SET_OPCODE(WEBSOCKET_OPCODE_PONG);
-                        ret = swConnection_send(conn, tmp_package.str, tmp_package.length, 0);
+//                        tmp_package.str[0] = FRAME_SET_FIN(1) | FRAME_SET_OPCODE(WEBSOCKET_OPCODE_PONG);
+                        swString *pongFrame = swString_new(tmp_package.length+tmp_package.offset);
+                        swWebSocket_encode(pongFrame, tmp_package.str+=2, tmp_package.length-2, WEBSOCKET_OPCODE_PONG, 1);
+                        ret = swConnection_send(conn, pongFrame->str, pongFrame->length, 0);
+                        swString_free(pongFrame);
                         break;
 
                     case WEBSOCKET_OPCODE_PONG:  //pong
@@ -1307,8 +1310,12 @@ static int swReactorThread_onReceive_websocket(swReactor *reactor, swEvent *even
                         goto close_fd;
                         return SW_ERR;
                     }
-                    tmp_package.str[0] = FRAME_SET_FIN(1) | FRAME_SET_OPCODE(opcode);
-                    swConnection_send(conn, tmp_package.str, tmp_package.length, 0);
+                    //tmp_package.str[0] = FRAME_SET_FIN(1) | FRAME_SET_OPCODE(opcode);
+                    //swConnection_send(conn, tmp_package.str, tmp_package.length, 0);
+                    swString *pongFrame = swString_new(tmp_package.length+tmp_package.offset);
+                    swWebSocket_encode(pongFrame, tmp_package.str+=2, tmp_package.length-2, WEBSOCKET_OPCODE_PONG, 1);
+                    ret = swConnection_send(conn, pongFrame->str, pongFrame->length, 0);
+                    swString_free(pongFrame);
                     break;
                 case WEBSOCKET_OPCODE_PONG:  //pong
                     if (tmp_package.str[0] == 0)
