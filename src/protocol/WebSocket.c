@@ -55,6 +55,7 @@ void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode
     }
 
     if(isMask) {
+        int i;
         for(i = 0; i < SW_WEBSOCKET_MASK_LEN; i++)
         {
             srand((int)time(0));
