@@ -59,7 +59,7 @@ void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode
         for(i = 0; i < SW_WEBSOCKET_MASK_LEN; i++)
         {
             srand((int)time(0));
-            sprintf(frame_header[pos++], "%c", rand() % 126 +1);
+            frame_header[pos++] = (rand()%26)+'a';
         }
     }
     //websocket frame header
