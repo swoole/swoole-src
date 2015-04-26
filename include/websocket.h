@@ -89,7 +89,7 @@ enum swWebsocketCode
 
 };
 
-void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode, int fin);
+void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode, int fin, int isMask);
 int swWebSocket_decode(swHttpRequest *request);
 int swWebSocket_isEof(char *data);
 int swWebSocket_decode_frame(char *data, swString * str, int n);
