@@ -676,7 +676,7 @@ static PHP_METHOD(swoole_process, exec)
 
 	if (execv(execfile, exec_args) < 0)
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "execv() failed. Error: %s[%d]", strerror(errno), errno);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "execv(%s) failed. Error: %s[%d]", execfile, strerror(errno), errno);
 		RETURN_FALSE;
 	}
 	else
