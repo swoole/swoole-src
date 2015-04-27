@@ -358,6 +358,25 @@ void swoole_rtrim(char *str, int len)
     }
 }
 
+int swoole_tmpfile(char *filename)
+{
+#ifdef HAVE_MKOSTEMP
+    int tmp_fd = mkostemp(filename, O_WRONLY);
+#else
+    int tmp_fd = mkstemp(filename);
+#endif
+
+    if (tmp_fd < 0)
+    {
+        swSysError("mkdtemp(%s) failed.", filename);
+        return SW_ERR;
+    }
+    else
+    {
+        return tmp_fd;
+    }
+}
+
 long swoole_file_get_size(FILE *fp)
 {
     long pos = ftell(fp);

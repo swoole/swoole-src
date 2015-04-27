@@ -40,6 +40,7 @@ static uint8_t http_merge_global_flag = 0;
 static uint8_t http_merge_request_flag = 0;
 
 swString *swoole_http_buffer;
+swString *swoole_http_form_data_buffer;
 #ifdef SW_HAVE_ZLIB
 swString *swoole_zlib_buffer;
 #endif
@@ -115,6 +116,8 @@ static void http_global_merge(zval *val, zval *zrequest, int type);
 static void http_global_clear(TSRMLS_D);
 static swoole_http_client* http_get_client(zval *object, int check_end TSRMLS_DC);
 static void http_build_header(swoole_http_client *client, zval *object, swString *response, int body_length TSRMLS_DC);
+static void http_parse_cookie(zval *array, const char *at, size_t length);
+static int http_trim_double_quote(zval **value, char **ptr);
 
 #ifdef SW_HAVE_ZLIB
 static int http_response_compress(swString *body, int level);
@@ -428,13 +431,69 @@ static int http_request_on_header_field(php_http_parser *parser, const char *at,
     return 0;
 }
 
+static void http_parse_cookie(zval *array, const char *at, size_t length)
+{
+    char keybuf[SW_HTTP_COOKIE_KEYLEN];
+    char *_c = (char *) at;
+
+    int klen = 0;
+    int vlen = 0;
+    int state = 0;
+
+    int i = 0, j = 0;
+    while (_c < at + length)
+    {
+        if (state == 0 && *_c == '=')
+        {
+            klen = i - j + 1;
+            memcpy(keybuf, at + j, klen - 1);
+            keybuf[klen - 1] = 0;
+
+            j = i + 1;
+            state = 1;
+        }
+        else if (state == 1 && *_c == ';')
+        {
+            vlen = i - j;
+            add_assoc_stringl_ex(array, keybuf, klen, (char *) at + j, vlen, 1);
+            j = i + 2;
+            state = 0;
+        }
+        _c++;
+        i++;
+    }
+    vlen = i - j;
+    keybuf[klen - 1] = 0;
+    add_assoc_stringl_ex(array, keybuf, klen, (char *) at + j, vlen, 1);
+}
+
+static int http_trim_double_quote(zval **value, char **ptr)
+{
+    Z_STRVAL_PP(value);
+    int len = Z_STRLEN_PP(value);
+    *ptr = Z_STRVAL_PP(value);
+
+    //ltrim('"')
+    if ((*ptr)[0] == '"')
+    {
+        (*ptr)++;
+        len--;
+    }
+    //rtrim('"')
+    if ((*ptr)[len - 1] == '"')
+    {
+        len--;
+    }
+    return len;
+}
+
 static int http_request_on_header_value(php_http_parser *parser, const char *at, size_t length)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
     swoole_http_client *client = parser->data;
     char *header_name = zend_str_tolower_dup(client->current_header_name, client->current_header_name_len);
-    char keybuf[SW_HTTP_COOKIE_KEYLEN];
+
 
     if (memcmp(header_name, ZEND_STRL("cookie")) == 0)
     {
@@ -442,38 +501,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
         MAKE_STD_ZVAL(cookie);
         array_init(cookie);
         zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("cookie"), cookie TSRMLS_CC);
-
-        char *_c = (char *) at;
-
-        int klen = 0;
-        int vlen = 0;
-        int state = 0;
-
-        int i = 0, j = 0;
-        while(_c < at + length)
-        {
-            if (state ==0 && *_c == '=')
-            {
-                klen = i - j + 1;
-                memcpy(keybuf, at + j, klen - 1);
-                keybuf[klen - 1] = 0;
-
-                j = i + 1;
-                state = 1;
-            }
-            else if (state == 1 && *_c == ';')
-            {
-                vlen = i - j;
-                add_assoc_stringl_ex(cookie, keybuf, klen, (char *) at + j, vlen, 1);
-                j = i + 2;
-                state = 0;
-            }
-            _c++;
-            i++;
-        }
-        vlen = i - j;
-        keybuf[klen - 1] = 0;
-        add_assoc_stringl_ex(cookie, keybuf, klen, (char *) at + j, vlen, 1);
+        http_parse_cookie(cookie, at, length);
         http_merge_php_global(cookie, client->zrequest, HTTP_GLOBAL_COOKIE);
     }
     else if (strncasecmp(header_name, ZEND_STRL("upgrade")) == 0 && strncasecmp(at, ZEND_STRL("websocket")) == 0)
@@ -552,26 +580,55 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
 
     if (strncasecmp(headername, ZEND_STRL("content-disposition")) == 0)
     {
-        int input_name_length = swoole_strnpos((char *) at, length, ZEND_STRL("\"; filename=\"")) - sizeof("form-data; name=\"") - 1;
-        client->current_input_name = estrndup(at + strlen("form-data; name=\""), input_name_length);
+        //not form data
+        if (swoole_strnpos((char *) at, length, ZEND_STRL("form-data;")) < 0)
+        {
+            return SW_OK;
+        }
 
-        zval *multipart_header;
-        MAKE_STD_ZVAL(multipart_header);
-        array_init(multipart_header);
-        add_assoc_zval(files, client->current_input_name, multipart_header);
+        zval *tmp_array;
+        MAKE_STD_ZVAL(tmp_array);
+        array_init(tmp_array);
+        http_parse_cookie(tmp_array, (char *) at + sizeof("form-data;"), length - sizeof("form-data;"));
 
-        add_assoc_string(multipart_header, "name","", 1);
-        add_assoc_string(multipart_header, "type","", 1);
-        add_assoc_string(multipart_header, "tmp_name","", 1);
-        add_assoc_long(multipart_header, "error", UPLOAD_ERR_OK);
-        add_assoc_long(multipart_header, "size", 0);
+        zval **form_name;
+        if (zend_hash_find(Z_ARRVAL_P(tmp_array), ZEND_STRS("name"), (void **) &form_name) == FAILURE)
+        {
+            return SW_OK;
+        }
 
-        int filename_length = length - strlen("form-data; name=\"") - input_name_length - strlen("\"; filename=\"") - 1;
-        if (filename_length == 0)
-            add_assoc_long(multipart_header, "error", UPLOAD_ERR_NO_FILE);
+        char *str;
+        int len = http_trim_double_quote(form_name, &str);
+
+        zval **filename;
+        //POST form data
+        if (zend_hash_find(Z_ARRVAL_P(tmp_array), ZEND_STRS("filename"), (void **) &filename) == FAILURE)
+        {
+            client->current_form_data_name = estrndup(str, len);
+            client->current_form_data_name_len = len;
+        }
+        //upload file
         else
-            add_assoc_stringl(multipart_header, "name", (char *)at + length - filename_length - 1, filename_length, 1);
+        {
+            client->current_input_name = estrndup(str, len);
+
+            zval *multipart_header;
+            MAKE_STD_ZVAL(multipart_header);
+            array_init(multipart_header);
+            add_assoc_zval(files, client->current_input_name, multipart_header);
+
+            add_assoc_string(multipart_header, "name", "", 1);
+            add_assoc_string(multipart_header, "type", "", 1);
+            add_assoc_string(multipart_header, "tmp_name", "", 1);
+            add_assoc_long(multipart_header, "error", UPLOAD_ERR_OK);
+            add_assoc_long(multipart_header, "size", 0);
+
+            len = http_trim_double_quote(filename, &str);
+            add_assoc_stringl(multipart_header, "name", str, len, 1);
+        }
+        zval_ptr_dtor(&tmp_array);
     }
+
     if (strncasecmp(headername, ZEND_STRL("content-type")) == 0)
     {
         zval **multipart_header;
@@ -592,6 +649,14 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
 static int multipart_body_on_data(multipart_parser* p, const char *at, size_t length)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+    swoole_http_client *client = (swoole_http_client *) p->data;
+
+    if (client->current_form_data_name)
+    {
+        swString_append_ptr(swoole_http_form_data_buffer, (char*) at, length);
+        return 0;
+    }
 
     if (p->fp == NULL)
     {
@@ -634,13 +699,26 @@ static int multipart_body_on_header_complete(multipart_parser* p)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
     swoole_http_client *client = (swoole_http_client *) p->data;
+
+    if (!client->current_input_name)
+    {
+        return 0;
+    }
+
     zval *files = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("files"), 1 TSRMLS_CC);
     zval **multipart_header;
-    zend_hash_find(Z_ARRVAL_P(files), client->current_input_name, strlen(client->current_input_name) + 1, (void **) &multipart_header);
+
+    if (zend_hash_find(Z_ARRVAL_P(files), client->current_input_name, strlen(client->current_input_name) + 1, (void **) &multipart_header) == FAILURE)
+    {
+        return 0;
+    }
+
     zval **zerr;
     zend_hash_find(Z_ARRVAL_PP(multipart_header), ZEND_STRS("error"), (void **) &zerr);
     if (Z_LVAL_PP(zerr) != UPLOAD_ERR_OK)
+    {
         return 0;
+    }
 
     char base_path[] = "/tmp/";
     char file_path[38] = {0};
@@ -666,9 +744,39 @@ static int multipart_body_on_header_complete(multipart_parser* p)
 static int multipart_body_on_data_end(multipart_parser* p)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-
     swoole_http_client *client = (swoole_http_client *) p->data;
+
+    if (client->current_form_data_name)
+    {
+        zval *zpost = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("post"), 1 TSRMLS_CC);
+        if (ZVAL_IS_NULL(zpost))
+        {
+            MAKE_STD_ZVAL(zpost);
+            array_init(zpost);
+            zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("post"), zpost TSRMLS_CC);
+        }
+
+        add_assoc_stringl_ex(zpost, client->current_form_data_name, client->current_form_data_name_len + 1,
+                swoole_http_form_data_buffer->str, swoole_http_form_data_buffer->length, 1);
+
+        efree(client->current_form_data_name);
+        client->current_form_data_name = NULL;
+        client->current_form_data_name_len = 0;
+        swString_clear(swoole_http_form_data_buffer);
+        return 0;
+    }
+
+    if (!client->current_input_name)
+    {
+        return 0;
+    }
+
     zval *files = zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("files"), 1 TSRMLS_CC);
+    if (ZVAL_IS_NULL(files))
+    {
+        return 0;
+    }
+
     zval **multipart_header;
     zend_hash_find(Z_ARRVAL_P(files), client->current_input_name, strlen(client->current_input_name) + 1, (void **) &multipart_header);
 
@@ -1231,11 +1339,18 @@ static PHP_METHOD(swoole_http_server, start)
         RETURN_FALSE;
     }
     
+    swoole_http_form_data_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
+    if (!swoole_http_form_data_buffer)
+    {
+        swoole_php_fatal_error(E_ERROR, "[2] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
+        RETURN_FALSE;
+    }
+
 #ifdef SW_HAVE_ZLIB
     swoole_zlib_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
     if (!swoole_zlib_buffer)
     {
-        swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
+        swoole_php_fatal_error(E_ERROR, "[3] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
         RETURN_FALSE;
     }
 #endif

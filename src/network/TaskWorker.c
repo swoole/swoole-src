@@ -88,19 +88,15 @@ int swTaskWorker_large_pack(swEventData *task, void *data, int data_len)
 
     memcpy(pkg.tmpfile, SwooleG.task_tmpdir, SwooleG.task_tmpdir_len);
 
-#ifdef HAVE_MKOSTEMP
-    int tpm_fd = mkostemp(pkg.tmpfile, O_WRONLY);
-#else
-    int tpm_fd = mkstemp(pkg.tmpfile);
-#endif
-
-    if (tpm_fd < 0)
+    //create temp file
+    int tmp_fd = swoole_tmpfile(pkg.tmpfile);
+    if (tmp_fd < 0)
     {
-        swWarn("mkdtemp(%s) failed. Error: %s[%d]", pkg.tmpfile, strerror(errno), errno);
         return SW_ERR;
     }
 
-    if (swoole_sync_writefile(tpm_fd, data, data_len) <= 0)
+    //write to file
+    if (swoole_sync_writefile(tmp_fd, data, data_len) <= 0)
     {
         swWarn("write to tmpfile failed.");
         return SW_ERR;
@@ -112,7 +108,7 @@ int swTaskWorker_large_pack(swEventData *task, void *data, int data_len)
 
     pkg.length = data_len;
     memcpy(task->data, &pkg, sizeof(swPackage_task));
-    close(tpm_fd);
+    close(tmp_fd);
     return SW_OK;
 }
 
