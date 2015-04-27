@@ -65,7 +65,7 @@ void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode
         }
         for(i=0; i< length; i++)
         {
-            data ^= masks[i % SW_WEBSOCKET_MASK_LEN];
+            data[i] ^= masks[i % SW_WEBSOCKET_MASK_LEN];
         }
     }
     //websocket frame header
