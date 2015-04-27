@@ -310,9 +310,8 @@ static PHP_METHOD(swoole_websocket_server, push)
     long fd = 0;
     long opcode = WEBSOCKET_OPCODE_TEXT_FRAME;
     zend_bool fin = 1;
-    zend_bool isMask = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz|lbb", &fd, &zdata, &opcode, &fin, &isMask) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz|lbb", &fd, &zdata, &opcode, &fin) == FAILURE)
     {
         return;
     }
@@ -349,6 +348,6 @@ static PHP_METHOD(swoole_websocket_server, push)
         RETURN_FALSE;
     }
     swString_clear(swoole_http_buffer);
-    swWebSocket_encode(swoole_http_buffer, data, length, opcode, (int) fin, (int) isMask);
+    swWebSocket_encode(swoole_http_buffer, data, length, opcode, (int) fin, 0);
     SW_CHECK_RETURN(swServer_tcp_send(SwooleG.serv, fd, swoole_http_buffer->str, swoole_http_buffer->length));
 }
