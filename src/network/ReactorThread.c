@@ -702,7 +702,8 @@ static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEven
     }
     swString *buffer = conn->object;
 
-    recv_data: buf_size = buffer->size - buffer->length;
+    recv_data:
+    buf_size = buffer->size - buffer->length;
     char *buf_ptr = buffer->str + buffer->length;
 
     if (buf_size > SW_BUFFER_SIZE)
@@ -723,8 +724,7 @@ static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEven
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swSysError("recv from connection[%d@%d] failed.", event->fd, reactor->id)
-            ;
+            swSysError("recv from connection#%d failed.", event->fd);
             return SW_OK;
         case SW_CLOSE:
             goto close_fd;
@@ -762,10 +762,10 @@ static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEven
         if (serv->open_eof_split)
         {
             //find EOF
-            eof_pos = swoole_strrnpos(buffer->str, serv->package_eof, buffer->length);
+            eof_pos = swoole_strnpos(buffer->str + buffer->offset, buffer->length - buffer->offset, serv->package_eof, serv->package_eof_len);
             if (eof_pos >= 0)
             {
-                int offset = eof_pos + serv->package_eof_len;
+                int offset = buffer->offset + eof_pos + serv->package_eof_len;
 
                 if (buffer->length > offset)
                 {
@@ -777,6 +777,7 @@ static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEven
                     swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, buffer);
                     memcpy(buffer->str, stack_buf, remaining_length);
                     buffer->length = remaining_length;
+                    buffer->offset = remaining_length - serv->package_eof_len;
 
                     goto recv_data;
                 }
@@ -785,11 +786,16 @@ static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEven
                     goto send_buffer;
                 }
             }
+            else
+            {
+                buffer->offset = buffer->length - serv->package_eof_len;
+            }
         }
-        else if (memcmp(buffer->str + buffer->length - 4, serv->package_eof, serv->package_eof_len) == 0)
+        else if (memcmp(buffer->str + buffer->length - serv->package_eof_len, serv->package_eof, serv->package_eof_len) == 0)
         {
-            send_buffer: swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, buffer);
-            buffer->length = 0;
+            send_buffer:
+            swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, buffer);
+            swString_clear(buffer);
             return SW_OK;
         }
 

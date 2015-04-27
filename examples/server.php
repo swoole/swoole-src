@@ -23,11 +23,11 @@ class G
 }
 
 $config = array(
-   'worker_num' => 4,
+//   'worker_num' => 4,
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
 //   'task_ipc_mode'   => 2,
-   'task_worker_num' => 2,
+//   'task_worker_num' => 2,
    'user' => 'www-data',
    'group' => 'www-data',
    'chroot' => '/opt/tmp',
@@ -46,8 +46,8 @@ if (isset($argv[1]) and $argv[1] == 'daemon') {
 	$config['daemonize'] = false;
 }
 
-//$mode = SWOOLE_BASE;
-$mode = SWOOLE_PROCESS;
+$mode = SWOOLE_BASE;
+//$mode = SWOOLE_PROCESS;
 
 $serv = new swoole_server("0.0.0.0", 9501, $mode);
 $serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
@@ -84,12 +84,12 @@ function my_onStart(swoole_server $serv)
 
 function my_log($msg)
 {
-	global $client;
-    echo "#".$client->worker_pid."\t".$msg.PHP_EOL;
+	global $serv;
+    echo "#".$serv->worker_pid."\t".$msg.PHP_EOL;
 }
 
 function forkChildInWorker() {
-	global $client;
+	global $serv;
 	echo "on worker start\n";
 	$process = new swoole_process( function (swoole_process $worker) {
 // 		$serv = new swoole_server( "0.0.0.0", 9503 );
@@ -111,7 +111,7 @@ function forkChildInWorker() {
 	$pid = $process->start();
 	echo "Fork child process success. pid={$pid}\n";
 	//保存子进程对象，这里如果不保存，那对象会被销毁，管道也会被关闭
-	$client->childprocess = $process;
+	$serv->childprocess = $process;
 }
 
 function processRename($serv, $worker_id) {

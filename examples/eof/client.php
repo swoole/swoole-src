@@ -1,4 +1,29 @@
 <?php
+/**
+ * 分段发送数据
+ *
+ * @param swoole_client $client
+ * @param string        $data
+ * @param int           $chunk_size
+ */
+function send_chunk(swoole_client $client, $data, $chunk_size = 1024)
+{
+	$len = strlen($data);
+	$chunk_num = intval($len / $chunk_size) + 1;
+	for ($i = 0; $i < $chunk_num; $i++)
+	{
+		if ($len < ($i + 1) * $chunk_size)
+		{
+			$sendn = $len - ($i * $chunk_size);
+		}
+		else
+		{
+			$sendn = $chunk_size;
+		}
+		$client->send(substr($data, $i * $chunk_size, $sendn));
+	}
+}
+
 $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC); //同步阻塞
 if(!$client->connect('127.0.0.1', 9501, 0.5, 0))
 {
@@ -13,18 +38,21 @@ $data = array(
 
 $_serialize_data = serialize($data);
 
-$_send = $_serialize_data."\r\n";
+$_send = $_serialize_data."\r\n\r\n";
 
 echo "serialize_data length=".strlen($_serialize_data)."send length=".strlen($_send)."\n";
+send_chunk($client, $_send);
 
-if(!$client->send($_send))
-{
-	die("send failed.\n");
-}
+//
+//if(!$client->send($_send))
+//{
+//	die("send failed.\n");
+//}
 
-$client->send("\r\n".substr($_serialize_data, 0, 8000));
+//$client->send("\r\n".substr($_serialize_data, 0, 8000));
 
-//echo $client->recv();
+echo $client->recv();
+exit;
 
 $client->send(substr($_serialize_data, 8000));
 
