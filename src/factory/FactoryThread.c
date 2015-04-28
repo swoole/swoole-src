@@ -19,6 +19,8 @@
 
 static int swFactoryThread_dispatch(swFactory *factory, swDispatchData *buf);
 static int swFactoryThread_finish(swFactory *factory, swSendData *data);
+static int swFactoryThread_shutdown(swFactory *factory);
+static int swFactoryThread_start(swFactory *factory);
 
 typedef struct _swWorkerThread
 {
@@ -89,7 +91,7 @@ int swFactoryThread_create(swFactory *factory, int worker_num)
     return SW_OK;
 }
 
-int swFactoryThread_start(swFactory *factory)
+static int swFactoryThread_start(swFactory *factory)
 {
     swFactoryThread *object = factory->object;
     if (swFactory_check_callback(factory) < 0)
@@ -100,7 +102,7 @@ int swFactoryThread_start(swFactory *factory)
     return SW_OK;
 }
 
-int swFactoryThread_shutdown(swFactory *factory)
+static int swFactoryThread_shutdown(swFactory *factory)
 {
     SwooleG.running = 0;
     swFactoryThread *object = factory->object;
@@ -109,9 +111,31 @@ int swFactoryThread_shutdown(swFactory *factory)
     return SW_OK;
 }
 
-static int swFactoryThread_finish(swFactory *factory, swSendData *data)
+static int swFactoryThread_finish(swFactory *factory, swSendData *_send)
 {
-    return swSocket_write_blocking(data->info.fd, data->data, data->info.len);
+    swServer *serv = SwooleG.serv;
+    uint32_t session_id = _send->info.fd;
+
+    if (_send->length == 0)
+    {
+        _send->length = _send->info.len;
+    }
+
+    swConnection *conn = swServer_connection_verify(serv, session_id);
+    if (!conn)
+    {
+        if (_send->info.type == SW_EVENT_TCP)
+        {
+            swWarn("send %d byte failed, session#%d is closed.", _send->length, session_id);
+        }
+        else
+        {
+            swWarn("send [%d] failed, session#%d is closed.", _send->info.type, session_id);
+        }
+        return SW_ERR;
+    }
+
+    return swSocket_write_blocking(conn->fd, _send->data, _send->length);
 }
 
 /**

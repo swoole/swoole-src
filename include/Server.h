@@ -199,11 +199,7 @@ int swFactory_end(swFactory *factory, int fd);
 int swFactory_check_callback(swFactory *factory);
 
 int swFactoryProcess_create(swFactory *factory, int worker_num);
-
-
 int swFactoryThread_create(swFactory *factory, int writer_num);
-int swFactoryThread_start(swFactory *factory);
-int swFactoryThread_shutdown(swFactory *factory);
 
 
 //------------------------------------Server-------------------------------------------

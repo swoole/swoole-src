@@ -1,7 +1,7 @@
 /**
 * cmake .
-* make && sudo make install
-* gcc -o test_server test_server.c -lswoole
+* make test_server
+* ./bin/test_server
 */
 #include "Server.h"
 
@@ -238,20 +238,26 @@ void my_onTimer(swServer *serv, int interval)
 
 int my_onReceive(swFactory *factory, swEventData *req)
 {
-	int ret;
-	char resp_data[SW_BUFFER_SIZE];
-	swServer *serv = factory->ptr;
+    int ret;
+    char resp_data[SW_BUFFER_SIZE];
+    swServer *serv = factory->ptr;
 
-	swSendData resp;
-	g_receive_count ++;
-	memcpy(&resp.info, &req->info, sizeof(resp.info));
+    swSendData resp;
+    g_receive_count++;
+    memcpy(&resp.info, &req->info, sizeof(resp.info));
 
-	int n = snprintf(resp_data, sizeof(resp_data), "Server:%s", req->data);
+    int n = snprintf(resp_data, SW_BUFFER_SIZE, "Server: %*s", req->info.len, req->data);
+
+    resp_data[n] = '\0';
 
     resp.data = resp_data;
     resp.info.len = n;
     resp.info.type = SW_EVENT_TCP;
-    resp.data[n] = 0;
+    resp.length = 0;
+
+    printf("send %d bytes. data=%s\n", n, resp_data);
+
+    return SW_OK;
 
     ret = factory->finish(factory, &resp);
     if (ret < 0)
@@ -268,8 +274,10 @@ int my_onReceive(swFactory *factory, swEventData *req)
     }
     else
     {
-        swConnection *conn = swServer_connection_get(serv, req->info.fd);
-        //printf("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d\n", g_receive_count, inet_ntoa(conn->addr.sin_addr), conn->addr.sin_port, rtrim(req->data, req->info.len), req->info.len);
+        swConnection *conn = swWorker_get_connection(serv, req->info.fd);
+        swoole_rtrim(req->data, req->info.len);
+        printf("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d\n", g_receive_count, swConnection_get_ip(conn),
+                swConnection_get_port(conn), req->data, req->info.len);
     }
 //	req->info.type = 99;
 //	factory->event(factory, g_controller_id, req);
