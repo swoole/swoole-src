@@ -352,6 +352,7 @@ static PHP_METHOD(swoole_table, incr)
             set_value += 1;
         }
         swTableRow_set_value(row, column, &set_value, 0);
+        RETVAL_DOUBLE(set_value);
     }
     else
     {
@@ -367,10 +368,9 @@ static PHP_METHOD(swoole_table, incr)
             set_value += 1;
         }
         swTableRow_set_value(row, column, &set_value, 0);
+        RETVAL_LONG(set_value);
     }
     sw_spinlock_release(lock);
-
-    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_table, decr)
@@ -423,6 +423,7 @@ static PHP_METHOD(swoole_table, decr)
             set_value -= 1;
         }
         swTableRow_set_value(row, column, &set_value, 0);
+        RETVAL_DOUBLE(set_value);
     }
     else
     {
@@ -438,10 +439,9 @@ static PHP_METHOD(swoole_table, decr)
             set_value -= 1;
         }
         swTableRow_set_value(row, column, &set_value, 0);
+        RETVAL_LONG(set_value);
     }
     sw_spinlock_release(lock);
-
-    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_table, get)

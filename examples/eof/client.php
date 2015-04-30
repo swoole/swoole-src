@@ -38,16 +38,16 @@ $data = array(
 
 $_serialize_data = serialize($data);
 
-$_send = $_serialize_data."\r\n\r\n";
+$_send = $_serialize_data."__doit__";
 
 echo "serialize_data length=".strlen($_serialize_data)."send length=".strlen($_send)."\n";
-send_chunk($client, $_send);
+//send_chunk($client, $_send);
 
 //
-//if(!$client->send($_send))
-//{
-//	die("send failed.\n");
-//}
+if(!$client->send($_send))
+{
+	die("send failed.\n");
+}
 
 //$client->send("\r\n".substr($_serialize_data, 0, 8000));
 

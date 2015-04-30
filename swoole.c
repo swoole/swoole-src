@@ -612,6 +612,9 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef SW_HAVE_ZLIB
     php_info_print_table_row(2, "zlib", "enabled");
 #endif
+#ifdef HAVE_MUTEX_TIMEDLOCK
+    php_info_print_table_row(2, "mutex_timedlock", "enabled");
+#endif
 
     php_info_print_table_end();
 
