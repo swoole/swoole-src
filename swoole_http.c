@@ -462,9 +462,12 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
         _c++;
         i++;
     }
-    vlen = i - j;
-    keybuf[klen - 1] = 0;
-    add_assoc_stringl_ex(array, keybuf, klen, (char *) at + j, vlen, 1);
+    if (j < length)
+    {
+        vlen = i - j;
+        keybuf[klen - 1] = 0;
+        add_assoc_stringl_ex(array, keybuf, klen, (char *) at + j, vlen, 1);
+    }
 }
 
 static int http_trim_double_quote(zval **value, char **ptr)
@@ -493,7 +496,6 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
 
     swoole_http_client *client = parser->data;
     char *header_name = zend_str_tolower_dup(client->current_header_name, client->current_header_name_len);
-
 
     if (memcmp(header_name, ZEND_STRL("cookie")) == 0)
     {
