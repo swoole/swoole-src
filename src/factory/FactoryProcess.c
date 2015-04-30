@@ -161,7 +161,6 @@ static int swManager_start(swFactory *factory)
             swWarn("[Master] create task_workers failed.");
             return SW_ERR;
         }
-        SwooleGS->task_workers.run_worker_num = SwooleG.task_worker_num;
 
         swProcessPool *pool = &SwooleGS->task_workers;
         swTaskWorker_init(pool);

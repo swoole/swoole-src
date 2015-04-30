@@ -345,6 +345,7 @@ int swProcessPool_wait(swProcessPool *pool)
     int pid, new_pid;
     int reload_worker_i = 0;
     int ret;
+    int status;
 
     swWorker *reload_workers;
     reload_workers = sw_calloc(pool->worker_num, sizeof(swWorker));
@@ -356,7 +357,7 @@ int swProcessPool_wait(swProcessPool *pool)
 
     while (SwooleG.running)
     {
-        pid = wait(NULL);
+        pid = wait(&status);
         if (pid < 0)
         {
             if (pool->reloading == 0)
@@ -383,6 +384,10 @@ int swProcessPool_wait(swProcessPool *pool)
             {
                 swWarn("[Manager]unknow worker[pid=%d]", pid);
                 continue;
+            }
+            if (!WIFEXITED(status))
+            {
+                swWarn("worker#%d abnormal exit, status=%d, signal=%d", exit_worker->id, WEXITSTATUS(status),  WTERMSIG(status));
             }
             new_pid = swProcessPool_spawn(exit_worker);
             if (new_pid < 0)

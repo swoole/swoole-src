@@ -29,6 +29,7 @@ void swTaskWorker_init(swProcessPool *pool)
     pool->onWorkerStop = swTaskWorker_onStop;
     pool->type = SW_PROCESS_TASKWORKER;
     pool->start_id = SwooleG.serv->worker_num;
+    pool->run_worker_num = SwooleG.task_worker_num;
 
     char *tmp_dir = swoole_dirname(SwooleG.task_tmpdir);
     //create tmp dir
