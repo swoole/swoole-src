@@ -759,6 +759,11 @@ static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEven
 
         buffer->length += n;
 
+        if (buffer->length < serv->package_eof_len)
+        {
+            return SW_OK;
+        }
+
         if (serv->open_eof_split)
         {
             //find EOF
