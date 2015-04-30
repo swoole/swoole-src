@@ -157,12 +157,12 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
 		{
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "delete from hashtable failed.");
 		}
-		free(cli->server_str);
+        sw_free(cli->server_str);
 		ZVAL_LONG(ztype, 0);
 	}
 	else
 	{
-		free(cli->server_str);
+	    sw_free(cli->server_str);
 	}
 
     if (cli->buffer && (cli->open_eof_split || cli->open_length_check))
@@ -247,7 +247,8 @@ static int client_onRead_check_eof(swReactor *reactor, swEvent *event)
     }
     swString *buffer = cli->buffer;
 
-    recv_data: buf_size = buffer->size - buffer->length;
+    recv_data:
+    buf_size = buffer->size - buffer->length;
     char *buf_ptr = buffer->str + buffer->length;
 
     if (buf_size > SW_PHP_CLIENT_BUFFER_SIZE)
@@ -299,8 +300,14 @@ static int client_onRead_check_eof(swReactor *reactor, swEvent *event)
 
         buffer->length += n;
 
+        if (buffer->length < cli->package_eof_len)
+        {
+            return SW_OK;
+        }
+
         //find EOF
-        find_eof: eof_pos = swoole_strnpos(buffer->str, buffer->length, cli->package_eof, cli->package_eof_len);
+        find_eof:
+        eof_pos = swoole_strnpos(buffer->str, buffer->length, cli->package_eof, cli->package_eof_len);
 
         if (eof_pos >= 0)
         {
@@ -1389,7 +1396,14 @@ static PHP_METHOD(swoole_client, recv)
                 RETURN_EMPTY_STRING();
             }
 
-            eof = swoole_strnpos(buf, ret, cli->package_eof, cli->package_eof_len);
+            buffer->length += ret;
+
+            if (buffer->length < cli->package_eof_len)
+            {
+                continue;
+            }
+
+            eof = swoole_strnpos(buffer->str, buffer->length, cli->package_eof, cli->package_eof_len);
 
             if (eof >= 0)
             {
@@ -1408,8 +1422,6 @@ static PHP_METHOD(swoole_client, recv)
             }
             else
             {
-                buffer->length += ret;
-
                 if (buffer->length == cli->package_max_length)
                 {
                     swoole_php_error(E_WARNING, "no package eof");
