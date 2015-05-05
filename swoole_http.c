@@ -497,7 +497,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
     swoole_http_client *client = parser->data;
     char *header_name = zend_str_tolower_dup(client->current_header_name, client->current_header_name_len);
 
-    if (memcmp(header_name, ZEND_STRL("cookie")) == 0)
+    if (strncasecmp(header_name, "cookie", client->current_header_name_len) == 0)
     {
         zval *cookie;
         MAKE_STD_ZVAL(cookie);
