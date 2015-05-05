@@ -472,7 +472,6 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
 
 static int http_trim_double_quote(zval **value, char **ptr)
 {
-    Z_STRVAL_PP(value);
     int len = Z_STRLEN_PP(value);
     *ptr = Z_STRVAL_PP(value);
 
