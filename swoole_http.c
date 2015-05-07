@@ -406,6 +406,7 @@ static int http_request_on_query_string(php_http_parser *parser, const char *at,
 
     //no need free, will free by treat_data
     char *query = estrndup(at, length);
+    add_assoc_stringl_ex(client->zserver, ZEND_STRS("query_string"), query, length, 1);
 
     zval *get;
     MAKE_STD_ZVAL(get);
@@ -413,6 +414,7 @@ static int http_request_on_query_string(php_http_parser *parser, const char *at,
     zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("get"), get TSRMLS_CC);
     sapi_module.treat_data(PARSE_STRING, query, get TSRMLS_CC);
 
+    //merge php global variable
     http_merge_php_global(get, client->zrequest, HTTP_GLOBAL_GET);
 
     return 0;
@@ -928,6 +930,12 @@ static int http_onReceive(swFactory *factory, swEventData *req)
      */
     http_request_new(client TSRMLS_CC);
 
+    //server info
+    MAKE_STD_ZVAL(client->zserver);
+    zval *zserver = client->zserver;
+    array_init(zserver);
+    zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("server"), zserver TSRMLS_CC);
+
     parser->data = client;
 
     php_http_parser_init(parser, PHP_HTTP_REQUEST);
@@ -953,13 +961,6 @@ static int http_onReceive(swFactory *factory, swEventData *req)
         zval **args[2];
         zval *zrequest = client->zrequest;
 
-        //server info
-        zval *zserver;
-        MAKE_STD_ZVAL(zserver);
-
-        array_init(zserver);
-        zend_update_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("server"), zserver TSRMLS_CC);
-
         char *method_name = http_get_method_name(parser->method);
 
         sw_add_assoc_string(zserver, "request_method", method_name, 1);
@@ -974,8 +975,8 @@ static int http_onReceive(swFactory *factory, swEventData *req)
             return SW_ERR;
         }
 
-        add_assoc_long(zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[conn->from_fd]));
-        add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
+        add_assoc_long(client->zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[conn->from_fd]));
+        add_assoc_long(client->zserver, "remote_port", swConnection_get_port(conn));
         sw_add_assoc_string(zserver, "remote_addr", swConnection_get_ip(conn), 1);
 
         if (client->request.version == 101)

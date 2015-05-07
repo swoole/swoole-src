@@ -64,6 +64,7 @@ typedef struct
 
     zval *zresponse;
     zval *zrequest;
+    zval *zserver;
 
     php_http_parser parser;
 	multipart_parser *mt_parser;
