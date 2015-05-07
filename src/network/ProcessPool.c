@@ -280,6 +280,8 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
         task_n = pool->max_request;
     }
 
+    printf("task_n=%d, worker_task_always=%d\n", task_n, worker_task_always);
+
     /**
      * Use from_fd save the task_worker->id
      */
@@ -323,7 +325,7 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
         }
 
         ret = pool->onTask(pool, &out.buf);
-        if (ret > 0 && !worker_task_always)
+        if (ret >= 0 && !worker_task_always)
         {
             task_n--;
         }
