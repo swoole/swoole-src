@@ -31,11 +31,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2015-04-14</date>
-    <time>15:55:51</time>
+    <date>2015-05-08</date>
+    <time>13:55:51</time>
     <version>
-        <release>1.7.15</release>
-        <api>1.7.15</api>
+        <release>1.7.16</release>
+        <api>1.7.16</api>
     </version>
     <stability>
         <release>stable</release>
@@ -43,12 +43,13 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed swoole_client waitall parameters failures
-- Fixed swoole_table dead loop BUG
-- Disable swoole_websocket_server->send method
-- Added swoole_table->incr/decr methods
-- Added http server gzip compression supports
-- Added swoole_server open_eof_split configuration
+- Fixed swoole_server->addtimer and tick timer conflict
+- Added server statistics items request_count and worker_request_count
+- Added server connections iterator, foreach traverse server can use all the connections
+- Optimize dispatch_mode = 3 model to enhance the efficiency of task assignment
+- Added multipart-form http server and upload files support
+- Added http server requests query_string
+- Fixed invalid parameter problem task_max_request
     </notes>
 	<contents>
 		<dir name="/">
