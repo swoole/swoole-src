@@ -283,20 +283,6 @@ static int client_onRead_check_eof(swReactor *reactor, swEvent *event)
     }
     else
     {
-        //buffer is full, may have not read data
-        if (buf_size == n)
-        {
-            recv_again = SW_TRUE;
-            uint32_t extend_size = buffer->size * 2;
-            if (extend_size > cli->package_max_length)
-            {
-                extend_size = cli->package_max_length;
-            }
-            if (swString_extend(buffer, extend_size) < 0)
-            {
-                return SW_ERR;
-            }
-        }
 
         buffer->length += n;
 
@@ -339,6 +325,20 @@ static int client_onRead_check_eof(swReactor *reactor, swEvent *event)
         {
             swWarn("Package is too big. package_length=%d", (int )buffer->length);
             goto close_fd;
+        }
+        //buffer is full, may have not read data
+        if (buf_size == n)
+        {
+            recv_again = SW_TRUE;
+            uint32_t extend_size = buffer->size * 2;
+            if (extend_size > cli->package_max_length)
+            {
+                extend_size = cli->package_max_length;
+            }
+            if (swString_extend(buffer, extend_size) < 0)
+            {
+                return SW_ERR;
+            }
         }
         //no eof
         if (recv_again)
