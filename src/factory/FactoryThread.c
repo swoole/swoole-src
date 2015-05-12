@@ -166,7 +166,7 @@ int swFactoryThread_dispatch(swFactory *factory, swDispatchData *task)
     }
 
     int mem_size = sizeof(swDataHead) + task->data.info.len + 1;
-    void *data = sw_malloc(mem_size);
+    char *data = sw_malloc(mem_size);
     if (data == NULL)
     {
         swWarn("malloc failed");
@@ -174,6 +174,8 @@ int swFactoryThread_dispatch(swFactory *factory, swDispatchData *task)
     }
 
     memcpy(data, &(task->data), mem_size);
+    data[sizeof(swDataHead) + task->data.info.len] = 0;
+
     if (swThreadPool_dispatch(&object->workers, (void *) data, 0) < 0)
     {
         swWarn("RingQueue is full");

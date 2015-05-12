@@ -1,8 +1,8 @@
 /**
-* cmake .
-* make test_server
-* ./bin/test_server
-*/
+ * cmake .
+ * make test_server
+ * ./bin/test_server
+ */
 #include "Server.h"
 
 int my_onReceive(swFactory *factory, swEventData *req);
@@ -148,92 +148,90 @@ static int g_receive_count = 0;
 //	}
 //	msgctl(msgid, IPC_RMID, &msqds);
 //}
-
 //void user_signal(int signo)
 //{
 //    swThreadPool_debug();
 //    exit(0);
 //}
-
 int main(int argc, char **argv)
 {
-	int ret;
-	swServer serv;
-	swServer_init(&serv); //初始化
+    int ret;
+    swServer serv;
+    swServer_init(&serv);  //初始化
 
-	//config
-	serv.backlog = 128;
-	serv.reactor_num = 4; //reactor线程数量
-	serv.worker_num = 4;      //worker进程数量
+    //config
+    serv.backlog = 128;
+    serv.reactor_num = 4;  //reactor线程数量
+    serv.worker_num = 4;  //worker进程数量
 
-	serv.factory_mode = SW_MODE_THREAD;
-	//serv.factory_mode = SW_MODE_SINGLE; //SW_MODE_PROCESS/SW_MODE_THREAD/SW_MODE_BASE/SW_MODE_SINGLE
-	serv.max_connection = 10000;
-	//serv.open_cpu_affinity = 1;
-	//serv.open_tcp_nodelay = 1;
-	//serv.daemonize = 1;
-	serv.open_eof_check = 0;
-	memcpy(serv.package_eof, SW_STRL("\r\n\r\n")-1);      //开启eof检测，启用buffer区
+    serv.factory_mode = SW_MODE_THREAD;
+    //serv.factory_mode = SW_MODE_SINGLE; //SW_MODE_PROCESS/SW_MODE_THREAD/SW_MODE_BASE/SW_MODE_SINGLE
+    serv.max_connection = 10000;
+    //serv.open_cpu_affinity = 1;
+    //serv.open_tcp_nodelay = 1;
+    //serv.daemonize = 1;
+    serv.open_eof_check = 0;
+    memcpy(serv.protocol.package_eof, SW_STRL("\r\n\r\n") - 1);  //开启eof检测，启用buffer区
 //	memcpy(serv.log_file, SW_STRL("/tmp/swoole.log")); //日志
 
-	serv.dispatch_mode = 2;
+    serv.dispatch_mode = 2;
 //	serv.open_tcp_keepalive = 1;
 
 #ifdef HAVE_OPENSSL
-	//serv.ssl_cert_file = "tests/ssl/ssl.crt";
-	//serv.ssl_key_file = "tests/ssl/ssl.key";
-	//serv.open_ssl = 1;
+    //serv.ssl_cert_file = "tests/ssl/ssl.crt";
+    //serv.ssl_key_file = "tests/ssl/ssl.key";
+    //serv.open_ssl = 1;
 #endif
 
-	serv.onStart = my_onStart;
-	serv.onShutdown = my_onShutdown;
-	serv.onConnect = my_onConnect;
-	serv.onReceive = my_onReceive;
-	serv.onClose = my_onClose;
-	serv.onTimer = my_onTimer;
-	serv.onWorkerStart = my_onWorkerStart;
-	serv.onWorkerStop = my_onWorkerStop;
+    serv.onStart = my_onStart;
+    serv.onShutdown = my_onShutdown;
+    serv.onConnect = my_onConnect;
+    serv.onReceive = my_onReceive;
+    serv.onClose = my_onClose;
+    serv.onTimer = my_onTimer;
+    serv.onWorkerStart = my_onWorkerStart;
+    serv.onWorkerStop = my_onWorkerStop;
 
 //	swSignal_add(SIGINT, user_signal);
 
-	//create Server
-	ret = swServer_create(&serv);
-	if (ret < 0)
-	{
-		swTrace("create server fail[error=%d].\n", ret);
-		exit(0);
-	}
+    //create Server
+    ret = swServer_create(&serv);
+    if (ret < 0)
+    {
+        swTrace("create server fail[error=%d].\n", ret);
+        exit(0);
+    }
 //	swServer_addListen(&serv, SW_SOCK_UDP, "0.0.0.0", 9500);
-	swServer_add_listener(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
-	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9502);
-	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 8888);
+    swServer_add_listener(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
+    //swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9502);
+    //swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 8888);
 
-	//swServer_addTimer(&serv, 2);
-	//swServer_addTimer(&serv, 4);
+    //swServer_addTimer(&serv, 2);
+    //swServer_addTimer(&serv, 4);
 
 //	g_controller_id = serv.factory.controller(&serv.factory, my_onControlEvent);
-	ret = swServer_start(&serv);
-	if (ret < 0)
-	{
-		swTrace("start server fail[error=%d].\n", ret);
-		exit(0);
-	}
-	return 0;
+    ret = swServer_start(&serv);
+    if (ret < 0)
+    {
+        swTrace("start server fail[error=%d].\n", ret);
+        exit(0);
+    }
+    return 0;
 }
 
 void my_onWorkerStart(swServer *serv, int worker_id)
 {
-	printf("WorkerStart[%d]PID=%d\n", worker_id, getpid());
+    printf("WorkerStart[%d]PID=%d\n", worker_id, getpid());
 }
 
 void my_onWorkerStop(swServer *serv, int worker_id)
 {
-	printf("WorkerStop[%d]PID=%d\n", worker_id, getpid());
+    printf("WorkerStop[%d]PID=%d\n", worker_id, getpid());
 }
 
 void my_onTimer(swServer *serv, int interval)
 {
-	printf("Timer Interval=[%d]\n", interval);
+    printf("Timer Interval=[%d]\n", interval);
 }
 
 int my_onReceive(swFactory *factory, swEventData *req)
@@ -245,6 +243,8 @@ int my_onReceive(swFactory *factory, swEventData *req)
     swSendData resp;
     g_receive_count++;
     memcpy(&resp.info, &req->info, sizeof(resp.info));
+
+    printf("recv %d bytes, data=%s\n", req->info.len, req->data);
 
     int n = snprintf(resp_data, SW_BUFFER_SIZE, "Server: %*s", req->info.len, req->data);
 
@@ -281,7 +281,7 @@ int my_onReceive(swFactory *factory, swEventData *req)
     }
 //	req->info.type = 99;
 //	factory->event(factory, g_controller_id, req);
-	return SW_OK;
+    return SW_OK;
 }
 
 void my_onStart(swServer *serv)
@@ -297,11 +297,11 @@ void my_onShutdown(swServer *serv)
 void my_onConnect(swServer *serv, int fd, int from_id)
 {
 //	ProfilerStart("/tmp/profile.prof");
-	//printf("PID=%d\tConnect fd=%d|from_id=%d\n", getpid(), fd, from_id);
+    //printf("PID=%d\tConnect fd=%d|from_id=%d\n", getpid(), fd, from_id);
 }
 
 void my_onClose(swServer *serv, int fd, int from_id)
 {
-	//printf("PID=%d\tClose fd=%d|from_id=%d\n", getpid(), fd, from_id);
+    //printf("PID=%d\tClose fd=%d|from_id=%d\n", getpid(), fd, from_id);
 //	ProfilerStop();
 }
