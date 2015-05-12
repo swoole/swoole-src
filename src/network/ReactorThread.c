@@ -1599,7 +1599,6 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
 int swReactorThread_create(swServer *serv)
 {
     int ret = 0;
-    SW_START_SLEEP;
 
     /**
      * init reactor thread pool
@@ -1688,6 +1687,10 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
         {
             return SW_ERR;
         }
+
+        //init thread barrier
+        pthread_barrier_init(&serv->barrier, NULL, serv->reactor_num + 1);
+
         //create reactor thread
         for (i = 0; i < serv->reactor_num; i++)
         {
@@ -1708,15 +1711,15 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
             }
             thread->thread_id = pidt;
         }
-    }
 
+        //wait reactor thread
+        pthread_barrier_wait(&serv->barrier);
+    }
     //timer
     if (SwooleG.timer.fd > 0)
     {
         main_reactor_ptr->add(main_reactor_ptr, SwooleG.timer.fd, SW_FD_TIMER);
     }
-    //wait poll thread
-    SW_START_SLEEP;
     return SW_OK;
 }
 
@@ -1844,8 +1847,8 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
         }
     }
 
-    SW_START_SLEEP;
-
+    //wait other thread
+    pthread_barrier_wait(&serv->barrier);
     //main loop
     reactor->wait(reactor, NULL);
     //shutdown

@@ -68,7 +68,6 @@ int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
     swServer *serv = pool->ptr;
     current_task = task;
 
-    SwooleWG.worker->status = SW_WORKER_BUSY;
     if (task->info.type == SW_EVENT_PIPE_MESSAGE)
     {
         serv->onPipeMessage(serv, task);
@@ -77,7 +76,6 @@ int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
     {
         ret = serv->onTask(serv, task);
     }
-    SwooleWG.worker->status = SW_WORKER_IDLE;
 
     return ret;
 }
@@ -128,6 +126,7 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
     swServer *serv = pool->ptr;
     SwooleWG.id = worker_id;
 
+
     SwooleG.use_timer_pipe = 0;
     SwooleG.use_timerfd = 0;
 
@@ -135,6 +134,7 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
     swWorker_onStart(serv);
 
     SwooleWG.worker = swProcessPool_get_worker(pool, worker_id);
+    SwooleWG.worker->status = SW_WORKER_IDLE;
 }
 
 void swTaskWorker_onStop(swProcessPool *pool, int worker_id)

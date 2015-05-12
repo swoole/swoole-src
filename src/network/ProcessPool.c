@@ -17,7 +17,7 @@
 #include "swoole.h"
 #include "Server.h"
 
-static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker);
+static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker);
 static void swProcessPool_free(swProcessPool *pool);
 
 /**
@@ -87,7 +87,7 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
             pool->workers[i].pipe_object = pipe;
         }
     }
-    pool->main_loop = swProcessPool_worker_start;
+    pool->main_loop = swProcessPool_worker_loop;
     return SW_OK;
 }
 
@@ -113,17 +113,13 @@ int swProcessPool_start(swProcessPool *pool)
 
 static sw_inline int swProcessPool_schedule(swProcessPool *pool)
 {
-    swWorker *worker;
-    int i, target_worker_id = pool->round_id;
+    int i, target_worker_id = 0;
     int run_worker_num = pool->run_worker_num;
 
     for (i = 0; i < run_worker_num + 1; i++)
     {
-        pool->round_id++;
-        target_worker_id = pool->round_id % run_worker_num;
-
-        worker = &pool->workers[i];
-        if (worker->status == SW_WORKER_IDLE)
+        target_worker_id = sw_atomic_fetch_add(&pool->round_id, 1) % run_worker_num;
+        if (pool->workers[target_worker_id].status == SW_WORKER_IDLE)
         {
             break;
         }
@@ -259,7 +255,7 @@ pid_t swProcessPool_spawn(swWorker *worker)
     return pid;
 }
 
-static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
+static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
 {
     struct
     {
@@ -322,7 +318,10 @@ static int swProcessPool_worker_start(swProcessPool *pool, swWorker *worker)
             continue;
         }
 
+        SwooleWG.worker->status = SW_WORKER_BUSY;
         ret = pool->onTask(pool, &out.buf);
+        SwooleWG.worker->status = SW_WORKER_IDLE;
+
         if (ret >= 0 && !worker_task_always)
         {
             task_n--;

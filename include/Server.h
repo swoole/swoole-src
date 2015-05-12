@@ -423,6 +423,8 @@ struct _swServer
     swReactorThread *reactor_threads;
     swWorker *workers;
 
+    pthread_barrier_t barrier;
+
     swConnection *connection_list;  //连接列表
     swSession *session_list;
 
@@ -698,7 +700,6 @@ static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t sche
         for (i = 0; i < serv->worker_num + 1; i++)
         {
             target_worker_id = sw_atomic_fetch_add(&serv->worker_round_id, 1) % serv->worker_num;
-
             if (serv->workers[target_worker_id].status == SW_WORKER_IDLE)
             {
                 break;

@@ -228,11 +228,12 @@ enum swDispatchMode
     SW_DISPATCH_IPMOD = 4,
     SW_DISPATCH_UIDMOD = 5,
 };
+
 enum swWorkerStatus
 {
-    SW_WORKER_DEL = 2,
     SW_WORKER_BUSY = 1,
-    SW_WORKER_IDLE = 0,
+    SW_WORKER_IDLE = 2,
+    SW_WORKER_DEL  = 3,
 };
 //-------------------------------------------------------------------------------
 

@@ -213,7 +213,7 @@ static void swFactoryThread_onStart(swThreadPool *pool, int id)
         }
         else
         {
-            CPU_SET(id%SW_CPU_NUM, &cpu_set);
+            CPU_SET(id % SW_CPU_NUM, &cpu_set);
         }
         if (0 != pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set))
         {
