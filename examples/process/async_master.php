@@ -34,6 +34,7 @@ for($i = 0; $i < $worker_num; $i++)
     });
     $process->id = $i;
     $pid = $process->start();
+    $workers[$process->pipe] = $process;
 }
 
 //将子进程的管道加入EventLoop
@@ -41,4 +42,3 @@ foreach($workers as $process)
 {
     swoole_event_add($process->pipe, 'onReceive');
 }
-
