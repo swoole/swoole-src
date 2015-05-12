@@ -16,50 +16,31 @@
  +----------------------------------------------------------------------+
  */
 
-#ifndef SW_MQTT_H_
-#define SW_MQTT_H_
-
 #include "swoole.h"
+#include "Connection.h"
 
-#define SW_MQTT_MIN_LENGTH                   2
-#define SW_MQTT_MAX_PAYLOAD_SIZE             268435455
-
-enum swMqtt_type
+/**
+ * return the package total length
+ */
+int swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t size)
 {
-    CONNECT = 0x10,
-    CONNACK = 0x20,
-    PUBLISH = 0x30,
-    PUBACK = 0x40,
-    PUBREC = 0x50,
-    PUBREL = 0x60,
-    PUBCOMP = 0x70,
-    SUBSCRIBE = 0x80,
-    SUBACK = 0x90,
-    UNSUBSCRIBE = 0xA0,
-    UNSUBACK = 0xB0,
-    PINGREQ = 0xC0,
-    PINGRESP = 0xD0,
-    DISCONNECT = 0xE0,
-};
-
-typedef struct
-{
-    uint8_t type :4;
-    uint8_t dup :1;
-    uint8_t qos :2;
-    uint8_t retain :1;
-
-    uint32_t length;
-
-    char protocol_name[8];
-
-} swMqtt_package;
-
-
-#define SETRETAIN(HDR, R)   (HDR | (R))
-#define SETQOS(HDR, Q)      (HDR | ((Q) << 1))
-#define SETDUP(HDR, D)      (HDR | ((D) << 3))
-
-int swMqtt_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t size);
-
-#endif /* SW_MQTT_H_ */
+    uint16_t length_offset = protocol->package_length_offset;
+    uint32_t body_length;
+    /**
+     * no have length field, wait more data
+     */
+    if (size < length_offset + protocol->package_length_size)
+    {
+        return 0;
+    }
+    body_length = swoole_unpack(protocol->package_length_type, data + length_offset);
+    //Length error
+    //Protocol length is not legitimate, out of bounds or exceed the allocated length
+    if (body_length < 1 || body_length > protocol->package_max_length)
+    {
+        swWarn("invalid package, remote_addr=%s:%d, length=%d, size=%d.", swConnection_get_ip(conn), swConnection_get_port(conn), body_length, size);
+        return SW_ERR;
+    }
+    //total package length
+    return protocol->package_body_offset + body_length;
+}

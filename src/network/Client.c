@@ -123,9 +123,10 @@ int swClient_create(swClient *cli, int type, int async)
         cli->send = swClient_udp_send;
     }
 
+    cli->_sock_domain = _domain;
+    cli->_sock_type = _type;
+
     cli->close = swClient_close;
-    cli->sock_domain = _domain;
-    cli->sock_type = _type;
     cli->type = type;
     cli->async = async;
 

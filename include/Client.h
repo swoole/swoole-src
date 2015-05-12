@@ -25,12 +25,12 @@
 
 typedef struct _swClient
 {
-	int id;
-	int type;
-	int sock_type;
-	int sock_domain;
-	int protocol;
-	int reactor_fdtype;
+    int id;
+    int type;
+    int _sock_type;
+    int _sock_domain;
+    int _protocol;
+    int reactor_fdtype;
 
     uint32_t async :1;
     uint32_t keep :1;
@@ -44,14 +44,7 @@ typedef struct _swClient
 
 	uint32_t wait_data :1;
 
-    char package_eof[SW_DATA_EOF_MAXLEN + 1];
-    uint8_t package_eof_len;
-
-    char package_length_type;
-    uint8_t package_length_size;
-    uint16_t package_length_offset;
-    uint16_t package_body_offset;
-    uint32_t package_max_length;
+	swProtocol protocol;
 
 	char *server_str;
 	void *ptr;

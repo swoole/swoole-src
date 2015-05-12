@@ -39,7 +39,6 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev);
 
 static int swReactorThread_send_string_buffer(swReactorThread *thread, swConnection *conn, swString *buffer);
 int swReactorThread_send_in_buffer(swReactorThread *thread, swConnection *conn);
-static int swReactorThread_get_package_length(swServer *serv, swConnection *conn, char *data, uint32_t size);
 
 #ifdef SW_USE_RINGBUFFER
 static sw_inline void swReactorThread_yield(swReactorThread *thread)
@@ -701,6 +700,7 @@ static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEven
         }
     }
     swString *buffer = conn->object;
+    swProtocol *protocol = &serv->protocol;
 
     recv_data:
     buf_size = buffer->size - buffer->length;
@@ -743,7 +743,7 @@ static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEven
         conn->last_time = SwooleGS->now;
         buffer->length += n;
 
-        if (buffer->length < serv->package_eof_len)
+        if (buffer->length < protocol->package_eof_len)
         {
             return SW_OK;
         }
@@ -751,10 +751,10 @@ static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEven
         if (serv->open_eof_split)
         {
             //find EOF
-            eof_pos = swoole_strnpos(buffer->str + buffer->offset, buffer->length - buffer->offset, serv->package_eof, serv->package_eof_len);
+            eof_pos = swoole_strnpos(buffer->str + buffer->offset, buffer->length - buffer->offset, protocol->package_eof, protocol->package_eof_len);
             if (eof_pos >= 0)
             {
-                int offset = buffer->offset + eof_pos + serv->package_eof_len;
+                int offset = buffer->offset + eof_pos + protocol->package_eof_len;
 
                 if (buffer->length > offset)
                 {
@@ -766,7 +766,7 @@ static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEven
                     swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, buffer);
                     memcpy(buffer->str, stack_buf, remaining_length);
                     buffer->length = remaining_length;
-                    buffer->offset = remaining_length - serv->package_eof_len;
+                    buffer->offset = remaining_length - serv->protocol.package_eof_len;
                 }
                 else
                 {
@@ -775,10 +775,10 @@ static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEven
             }
             else
             {
-                buffer->offset = buffer->length - serv->package_eof_len;
+                buffer->offset = buffer->length - serv->protocol.package_eof_len;
             }
         }
-        else if (memcmp(buffer->str + buffer->length - serv->package_eof_len, serv->package_eof, serv->package_eof_len) == 0)
+        else if (memcmp(buffer->str + buffer->length - serv->protocol.package_eof_len, protocol->package_eof, protocol->package_eof_len) == 0)
         {
             send_buffer:
             swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, buffer);
@@ -787,7 +787,7 @@ static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEven
         }
 
         //over max length, will discard
-        if (buffer->length == serv->package_max_length)
+        if (buffer->length == protocol->package_max_length)
         {
             swWarn("Package is too big. package_length=%d", (int )buffer->length);
             goto close_fd;
@@ -798,9 +798,9 @@ static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEven
         {
             recv_again = SW_TRUE;
             uint32_t extend_size = buffer->size * 2;
-            if (extend_size > serv->package_max_length)
+            if (extend_size > protocol->package_max_length)
             {
-                extend_size = serv->package_max_length;
+                extend_size = protocol->package_max_length;
             }
             if (swString_extend(buffer, extend_size) < 0)
             {
@@ -912,32 +912,6 @@ static int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *even
     return SW_OK;
 }
 
-/**
- * return the package total length
- */
-static int swReactorThread_get_package_length(swServer *serv, swConnection *conn, char *data, uint32_t size)
-{
-    uint16_t length_offset = serv->package_length_offset;
-    uint32_t body_length;
-    /**
-     * no have length field, wait more data
-     */
-    if (size < length_offset + serv->package_length_size)
-    {
-        return 0;
-    }
-    body_length = swoole_unpack(serv->package_length_type, data + length_offset);
-    //Length error
-    //Protocol length is not legitimate, out of bounds or exceed the allocated length
-    if (body_length < 1 || body_length > serv->package_max_length)
-    {
-        swWarn("invalid package, remote_addr=%s:%d, length=%d, size=%d.", swConnection_get_ip(conn), swConnection_get_port(conn), body_length, size);
-        return SW_ERR;
-    }
-    //total package length
-    return serv->package_body_offset + body_length;
-}
-
 void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
 {
     //udp receive
@@ -953,7 +927,7 @@ void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
     }
     else if (serv->open_length_check)
     {
-        serv->get_package_length = swReactorThread_get_package_length;
+        serv->get_package_length = swProtocol_get_package_length;
         reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_length);
     }
     else if (serv->open_http_protocol)
@@ -977,6 +951,7 @@ static int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swE
     int package_total_length;
     swServer *serv = reactor->ptr;
     swConnection *conn = swServer_connection_get(serv, event->fd);
+    swProtocol *protocol = &serv->protocol;
 
     char recv_buf[SW_BUFFER_SIZE_BIG];
     char tmp_buf[SW_BUFFER_SIZE_BIG];
@@ -1022,7 +997,7 @@ static int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swE
         {
             do_parse_package: do
             {
-                package_total_length = serv->get_package_length(serv, conn, tmp_ptr, (uint32_t) tmp_n);
+                package_total_length = serv->get_package_length(protocol, conn, tmp_ptr, (uint32_t) tmp_n);
 
                 //invalid package, close connection.
                 if (package_total_length < 0)
@@ -1397,6 +1372,7 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
 
     swHttpRequest *request;
     swString tmp_package;
+    swProtocol *protocol = &serv->protocol;
 
     //new http request
     if (conn->object == NULL)
@@ -1519,9 +1495,9 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
                     }
                 }
             }
-            else if (request->content_length > serv->package_max_length)
+            else if (request->content_length > protocol->package_max_length)
             {
-                swWarn("Package length more than the maximum size[%d], Close connection.", serv->package_max_length);
+                swWarn("Package length more than the maximum size[%d], Close connection.", protocol->package_max_length);
                 goto close_fd;
             }
 

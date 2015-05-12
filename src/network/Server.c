@@ -14,7 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
 #include "Server.h"
 #include "Http.h"
 #include "Connection.h"
@@ -412,7 +411,7 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     int buffer_input_size;
     if (serv->open_eof_check || serv->open_length_check || serv->open_http_protocol)
     {
-        buffer_input_size = serv->package_max_length;
+        buffer_input_size = serv->protocol.package_max_length;
     }
     else
     {
@@ -644,25 +643,25 @@ void swServer_init(swServer *serv)
     serv->heartbeat_check_interval = SW_HEARTBEAT_CHECK;
 
     char eof[] = SW_DATA_EOF;
-    serv->package_eof_len = sizeof(SW_DATA_EOF) - 1;
-    serv->package_length_type = 'N';
-    serv->package_length_size = 4;
-    serv->package_body_offset = 0;
+    serv->protocol.package_eof_len = sizeof(SW_DATA_EOF) - 1;
+    serv->protocol.package_length_type = 'N';
+    serv->protocol.package_length_size = 4;
+    serv->protocol.package_body_offset = 0;
 
-    serv->package_max_length = SW_BUFFER_INPUT_SIZE;
+    serv->protocol.package_max_length = SW_BUFFER_INPUT_SIZE;
 
     serv->buffer_input_size = SW_BUFFER_INPUT_SIZE;
     serv->buffer_output_size = SW_BUFFER_OUTPUT_SIZE;
 
-    memcpy(serv->package_eof, eof, serv->package_eof_len);
+    memcpy(serv->protocol.package_eof, eof, serv->protocol.package_eof_len);
 }
 
 int swServer_create(swServer *serv)
 {
     //EOF最大长度为8字节
-    if (serv->package_eof_len > sizeof(serv->package_eof))
+    if (serv->protocol.package_eof_len > sizeof(serv->protocol.package_eof))
     {
-        serv->package_eof_len = sizeof(serv->package_eof);
+        serv->protocol.package_eof_len = sizeof(serv->protocol.package_eof);
     }
 
     //初始化日志

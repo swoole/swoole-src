@@ -1306,14 +1306,14 @@ PHP_FUNCTION(swoole_server_set)
             || sw_zend_hash_find(vht, ZEND_STRS("data_eof"), (void **) &v) == SUCCESS)
     {
         convert_to_string(*v);
-        serv->package_eof_len = Z_STRLEN_PP(v);
-        if (serv->package_eof_len > SW_DATA_EOF_MAXLEN)
+        serv->protocol.package_eof_len = Z_STRLEN_PP(v);
+        if (serv->protocol.package_eof_len > SW_DATA_EOF_MAXLEN)
         {
             php_error_docref(NULL TSRMLS_CC, E_ERROR, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
             RETURN_FALSE;
         }
-        bzero(serv->package_eof, SW_DATA_EOF_MAXLEN);
-        memcpy(serv->package_eof, Z_STRVAL_PP(v), Z_STRLEN_PP(v));
+        bzero(serv->protocol.package_eof, SW_DATA_EOF_MAXLEN);
+        memcpy(serv->protocol.package_eof, Z_STRVAL_PP(v), Z_STRLEN_PP(v));
     }
     //buffer: http_protocol
     if (sw_zend_hash_find(vht, ZEND_STRS("open_http_protocol"), (void **) &v) == SUCCESS)
@@ -1445,10 +1445,10 @@ PHP_FUNCTION(swoole_server_set)
     if (sw_zend_hash_find(vht, ZEND_STRS("package_length_type"), (void **)&v) == SUCCESS)
     {
         convert_to_string(*v);
-        serv->package_length_type = Z_STRVAL_PP(v)[0];
-        serv->package_length_size = swoole_type_size(serv->package_length_type);
+        serv->protocol.package_length_type = Z_STRVAL_PP(v)[0];
+        serv->protocol.package_length_size = swoole_type_size(serv->protocol.package_length_type);
 
-        if (serv->package_length_size == 0)
+        if (serv->protocol.package_length_size == 0)
         {
             php_error_docref(NULL TSRMLS_CC, E_ERROR, "unknow package_length_type, see pack(). Link: http://php.net/pack");
             RETURN_FALSE;
@@ -1458,14 +1458,14 @@ PHP_FUNCTION(swoole_server_set)
     if (sw_zend_hash_find(vht, ZEND_STRS("package_length_offset"), (void **)&v) == SUCCESS)
     {
         convert_to_long(*v);
-        serv->package_length_offset = (int)Z_LVAL_PP(v);
+        serv->protocol.package_length_offset = (int)Z_LVAL_PP(v);
     }
     //package body start
     if (sw_zend_hash_find(vht, ZEND_STRS("package_body_offset"), (void **) &v) == SUCCESS
             || sw_zend_hash_find(vht, ZEND_STRS("package_body_start"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
-        serv->package_body_offset = (int) Z_LVAL_PP(v);
+        serv->protocol.package_body_offset = (int) Z_LVAL_PP(v);
     }
     /**
      * package max length
@@ -1473,7 +1473,7 @@ PHP_FUNCTION(swoole_server_set)
     if (sw_zend_hash_find(vht, ZEND_STRS("package_max_length"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
-        serv->package_max_length = (int) Z_LVAL_PP(v);
+        serv->protocol.package_max_length = (int) Z_LVAL_PP(v);
     }
 
     /**
@@ -1481,11 +1481,11 @@ PHP_FUNCTION(swoole_server_set)
      */
     if (serv->packet_mode == 1)
     {
-        serv->package_max_length = 64 * 1024 * 1024;
+        serv->protocol.package_max_length = 64 * 1024 * 1024;
         serv->open_length_check = 1;
-        serv->package_length_offset = 0;
-        serv->package_body_offset = 4;
-        serv->package_length_type = 'N';
+        serv->protocol.package_length_offset = 0;
+        serv->protocol.package_body_offset = 4;
+        serv->protocol.package_length_type = 'N';
         serv->open_eof_check = 0;
     }
 

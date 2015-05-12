@@ -394,16 +394,7 @@ struct _swServer
     char heartbeat_pong[SW_HEARTBEAT_PING_LEN + 1];
     uint8_t heartbeat_pong_length;
 
-    /* one package: eof check */
-
-    uint8_t package_eof_len;  //数据缓存结束符长度
-    char package_eof[SW_DATA_EOF_MAXLEN + 1];  //数据缓存结束符
-
-    char package_length_type; //length field type
-    uint8_t package_length_size;
-    uint16_t package_length_offset; //第几个字节开始表示长度
-    uint16_t package_body_offset; //第几个字节开始计算长度
-    uint32_t package_max_length;
+    swProtocol protocol;
 
     uint8_t dispatch_key_size;
     uint16_t dispatch_key_offset;
@@ -462,7 +453,7 @@ struct _swServer
     int (*onTask)(swServer *serv, swEventData *data);
     int (*onFinish)(swServer *serv, swEventData *data);
 
-    int (*get_package_length)(swServer *serv, swConnection *conn, char *data, uint32_t length);
+    int (*get_package_length)(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 };
 
 typedef struct _swSocketLocal
@@ -577,7 +568,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags);
 #define swTaskWorker_large_unpack(task, __malloc, _buf, _length)   swPackage_task _pkg;\
 	memcpy(&_pkg, task->data, sizeof(_pkg));\
 	_length = _pkg.length;\
-    if (_length > SwooleG.serv->package_max_length) {\
+    if (_length > SwooleG.serv->protocol.package_max_length) {\
         swWarn("task package is too big.");\
     }\
     _buf = __malloc(_length + 1);\

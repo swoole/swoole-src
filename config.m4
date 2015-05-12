@@ -250,6 +250,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/os/sendfile.c \
         src/os/signal.c \
         src/os/timer.c \
+        src/protocol/Base.c \
         src/protocol/SSL.c \
         src/protocol/Http.c \
         src/protocol/WebSocket.c \
