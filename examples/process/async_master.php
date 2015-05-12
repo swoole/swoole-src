@@ -20,22 +20,25 @@ function onReceive($pipe) {
     }
 }
 
+//循环创建进程
 for($i = 0; $i < $worker_num; $i++)
 {
-    $process = new swoole_process('worker');
+    $process = new swoole_process(function(swoole_process $process) {
+        $i = 1;
+        while($i++)
+        {
+            $process->write("Worker#{$process->id}: hello master\n");
+            if ($i > 5 and $process->id == 1) $process->exit();
+            sleep(1);
+        }
+    });
     $process->id = $i;
     $pid = $process->start();
-    $workers[$process->pipe] = $process;
+}
+
+//将子进程的管道加入EventLoop
+foreach($workers as $process)
+{
     swoole_event_add($process->pipe, 'onReceive');
 }
 
-function worker($process)
-{
-    $i = 1;
-    while($i++)
-    {
-        $process->write("Worker#{$process->id}: hello master\n");
-        if ($i > 5 and $process->id == 1) $process->exit();
-        sleep(1);
-    }
-}
