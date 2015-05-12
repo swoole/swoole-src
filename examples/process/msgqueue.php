@@ -4,7 +4,7 @@ $worker_num = 2;
 
 for($i = 0; $i < $worker_num; $i++)
 {
-    $process = new swoole_process('child_sync', false, false);
+    $process = new swoole_process('callback_function', false, false);
     $process->useQueue();
     $pid = $process->start();
     $workers[$pid] = $process;
@@ -23,7 +23,10 @@ function callback_function(swoole_process $worker)
     $worker->exit(0);
 }
 
-foreach($workers as $pid => $process)
+/**
+ * @var $process swoole_process
+ */
+foreach ($workers as $pid => $process)
 {
     $process->push("hello worker[$pid]\n");
 }
