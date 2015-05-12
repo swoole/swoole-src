@@ -734,7 +734,8 @@ static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEven
     }
     else if (n == 0)
     {
-        close_fd: swReactorThread_onClose(reactor, event);
+        close_fd:
+        swReactorThread_onClose(reactor, event);
         return SW_OK;
     }
     else
@@ -766,7 +767,7 @@ static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEven
                     swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, buffer);
                     memcpy(buffer->str, stack_buf, remaining_length);
                     buffer->length = remaining_length;
-                    buffer->offset = remaining_length - serv->protocol.package_eof_len;
+                    buffer->offset = remaining_length - protocol->package_eof_len;
                 }
                 else
                 {
@@ -775,10 +776,10 @@ static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEven
             }
             else
             {
-                buffer->offset = buffer->length - serv->protocol.package_eof_len;
+                buffer->offset = buffer->length - protocol->package_eof_len;
             }
         }
-        else if (memcmp(buffer->str + buffer->length - serv->protocol.package_eof_len, protocol->package_eof, protocol->package_eof_len) == 0)
+        else if (memcmp(buffer->str + buffer->length - protocol->package_eof_len, protocol->package_eof, protocol->package_eof_len) == 0)
         {
             send_buffer:
             swReactorThread_send_string_buffer(swServer_get_thread(serv, SwooleTG.id), conn, buffer);
