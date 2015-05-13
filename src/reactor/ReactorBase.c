@@ -246,12 +246,21 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
 
     if (swBuffer_empty(buffer))
     {
-        do_receive:
+        do_send:
         ret = swConnection_send(socket, buf, n, 0);
 
         if (ret > 0)
         {
-            return ret;
+            if (n == ret)
+            {
+                return ret;
+            }
+            else
+            {
+                buf += ret;
+                n -= ret;
+                goto do_buffer;
+            }
         }
 #ifdef HAVE_KQUEUE
         else if (errno == EAGAIN || errno == ENOBUFS)
@@ -259,6 +268,7 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
         else if (errno == EAGAIN)
 #endif
         {
+            do_buffer:
             if (!socket->out_buffer)
             {
                 buffer = swBuffer_new(sizeof(swEventData));
@@ -287,11 +297,11 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
                 }
             }
 
-            goto append_pipe_buffer;
+            goto append_buffer;
         }
         else if (errno == EINTR)
         {
-            goto do_receive;
+            goto do_send;
         }
         else
         {
@@ -300,7 +310,7 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
     }
     else
     {
-        append_pipe_buffer:
+        append_buffer:
 
         if (buffer->length > SwooleG.socket_buffer_size)
         {
