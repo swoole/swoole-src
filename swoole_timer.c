@@ -26,7 +26,7 @@ enum swoole_timer_type
 static void php_swoole_onTimeout(swTimer *timer, swTimer_node *event);
 static void php_swoole_onTimerInterval(swTimer *timer, swTimer_node *event);
 
-int php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tick TSRMLS_DC)
+long php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tick TSRMLS_DC)
 {
     if (ms > 86400000)
     {
@@ -274,8 +274,7 @@ PHP_FUNCTION(swoole_timer_tick)
     php_swoole_check_reactor();
     php_swoole_check_timer(after_ms);
 
-    int timer_id = php_swoole_add_timer(after_ms, callback, param, 1 TSRMLS_CC);
-
+    long timer_id = php_swoole_add_timer(after_ms, callback, param, 1 TSRMLS_CC);
     if (timer_id < 0)
     {
         RETURN_FALSE;
@@ -300,8 +299,7 @@ PHP_FUNCTION(swoole_timer_after)
     php_swoole_check_reactor();
     php_swoole_check_timer(after_ms);
 
-    int timer_id = php_swoole_add_timer(after_ms, callback, param, 0 TSRMLS_CC);
-
+    long timer_id = php_swoole_add_timer(after_ms, callback, param, 0 TSRMLS_CC);
     if (timer_id < 0)
     {
         RETURN_FALSE;

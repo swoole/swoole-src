@@ -1388,32 +1388,32 @@ typedef struct _swTimer_node
     void *data;
     uint32_t exec_msec;
     uint32_t interval;
-    uint32_t id;
+    long id;
     uint8_t remove;
 } swTimer_node;
 
 typedef struct _swTimer
 {
-	swTimer_node *root;
-	/*--------------timerfd & signal timer--------------*/
-	swHashMap *list;
-	int num;
-	int interval;
-	int use_pipe;
-	int lasttime;
-	int fd;
-    uint32_t round;
-	swPipe pipe;
-	/*-----------------for EventTimer-------------------*/
-	struct timeval basetime;
-	/*--------------------------------------------------*/
-    int (*add)(struct _swTimer *timer, int _msec, int _interval, void *data);
+    swTimer_node *root;
+    /*--------------timerfd & signal timer--------------*/
+    swHashMap *list;
+    int num;
+    int interval;
+    int use_pipe;
+    int lasttime;
+    int fd;
+    long _next_id;
+    swPipe pipe;
+    /*-----------------for EventTimer-------------------*/
+    struct timeval basetime;
+    /*--------------------------------------------------*/
+    long (*add)(struct _swTimer *timer, int _msec, int _interval, void *data);
     void* (*del)(struct _swTimer *timer, int _interval_ms, int id);
-	int (*select)(struct _swTimer *timer);
-	void (*free)(struct _swTimer *timer);
-	/*-----------------event callback-------------------*/
-	void (*onTimer)(struct _swTimer *timer, swTimer_node *event);
-	void (*onTimeout)(struct _swTimer *timer, swTimer_node *event);
+    int (*select)(struct _swTimer *timer);
+    void (*free)(struct _swTimer *timer);
+    /*-----------------event callback-------------------*/
+    void (*onTimer)(struct _swTimer *timer, swTimer_node *event);
+    void (*onTimeout)(struct _swTimer *timer, swTimer_node *event);
 } swTimer;
 
 int swTimer_init(int interval_ms, int no_pipe);

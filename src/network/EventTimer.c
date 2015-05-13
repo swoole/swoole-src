@@ -16,7 +16,7 @@
 
 #include "swoole.h"
 
-static int swEventTimer_add(swTimer *timer, int _msec, int interval, void *data);
+static long swEventTimer_add(swTimer *timer, int _msec, int interval, void *data);
 static void* swEventTimer_del(swTimer *timer, int _msec, int id);
 static int swEventTimer_select(swTimer *timer);
 static void swEventTimer_free(swTimer *timer);
@@ -61,7 +61,7 @@ static void swEventTimer_free(swTimer *timer)
     }
 }
 
-static int swEventTimer_add(swTimer *timer, int _msec, int interval, void *data)
+static long swEventTimer_add(swTimer *timer, int _msec, int interval, void *data)
 {
     swTimer_node *node = sw_malloc(sizeof(swTimer_node));
     if (!node)
@@ -87,7 +87,7 @@ static int swEventTimer_add(swTimer *timer, int _msec, int interval, void *data)
     }
 
     swTimer_node_insert(&timer->root, node);
-    node->id = timer->round++;
+    node->id = timer->_next_id++;
 
     return node->id;
 }
