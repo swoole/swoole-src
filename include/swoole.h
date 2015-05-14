@@ -1538,14 +1538,13 @@ typedef struct
      *  task worker process max
      */
     uint16_t task_worker_max;
-
     uint8_t task_recycle_num;
-
     char *task_tmpdir;
     uint16_t task_tmpdir_len;
-    uint16_t cpu_num;
-
     uint8_t task_ipc_mode;
+    uint16_t task_max_request;
+
+    uint16_t cpu_num;
 
     uint32_t pagesize;
     uint32_t max_sockets;

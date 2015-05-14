@@ -629,7 +629,6 @@ void swServer_init(swServer *serv)
     serv->max_connection = SwooleG.max_sockets;
 
     serv->max_request = 0;
-    serv->task_max_request = SW_MAX_REQUEST;
 
     serv->open_tcp_nopush = 1;
 

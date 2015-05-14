@@ -254,10 +254,6 @@ struct _swServer
      * worker process max request
      */
     uint32_t max_request;
-    /**
-     * task worker process max request
-     */
-    uint32_t task_max_request;
 
     int timeout_sec;
     int timeout_usec;

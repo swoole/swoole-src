@@ -14,7 +14,6 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
 #include "Server.h"
 
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker);
@@ -113,7 +112,7 @@ int swReactorProcess_start(swServer *serv)
             create_pipe = 0;
         }
 
-        if (swProcessPool_create(&SwooleGS->task_workers, SwooleG.task_worker_num, serv->task_max_request, key, create_pipe) < 0)
+        if (swProcessPool_create(&SwooleGS->task_workers, SwooleG.task_worker_num, SwooleG.task_max_request, key, create_pipe) < 0)
         {
             swWarn("[Master] create task_workers failed.");
             return SW_ERR;

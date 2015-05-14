@@ -160,7 +160,7 @@ static int swManager_start(swFactory *factory)
         //启动min个.此时的pool->worker_num相当于max
         int task_num = SwooleG.task_worker_max > 0 ? SwooleG.task_worker_max : SwooleG.task_worker_num;
 
-        if (swProcessPool_create(&SwooleGS->task_workers, task_num, serv->task_max_request, key, create_pipe) < 0)
+        if (swProcessPool_create(&SwooleGS->task_workers, task_num, SwooleG.task_max_request, key, create_pipe) < 0)
         {
             swWarn("[Master] create task_workers failed.");
             return SW_ERR;

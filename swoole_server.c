@@ -1184,6 +1184,12 @@ PHP_FUNCTION(swoole_server_set)
 	    convert_to_long(*v);
 	    SwooleG.task_worker_max = (int)Z_LVAL_PP(v);
     }
+    //task_max_request
+    if (sw_zend_hash_find(vht, ZEND_STRS("task_max_request"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(*v);
+        SwooleG.task_max_request = (int) Z_LVAL_PP(v);
+    }
     //task_worker ipc mode, unix socket or message queue
     if (sw_zend_hash_find(vht, ZEND_STRS("task_ipc_mode"), (void **) &v) == SUCCESS)
     {
@@ -1222,12 +1228,6 @@ PHP_FUNCTION(swoole_server_set)
     {
         convert_to_long(*v);
         serv->max_request = (int) Z_LVAL_PP(v);
-    }
-    //task_max_request
-    if (sw_zend_hash_find(vht, ZEND_STRS("task_max_request"), (void **) &v) == SUCCESS)
-    {
-        convert_to_long(*v);
-        serv->task_max_request = (int) Z_LVAL_PP(v);
     }
     //cpu affinity
     if (sw_zend_hash_find(vht, ZEND_STRS("open_cpu_affinity"), (void **)&v) == SUCCESS)
