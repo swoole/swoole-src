@@ -1184,15 +1184,11 @@ PHP_FUNCTION(swoole_server_set)
 	    convert_to_long(*v);
 	    SwooleG.task_worker_max = (int)Z_LVAL_PP(v);
     }
+    //task_worker ipc mode, unix socket or message queue
     if (sw_zend_hash_find(vht, ZEND_STRS("task_ipc_mode"), (void **) &v) == SUCCESS)
     {
         convert_to_long(*v);
         SwooleG.task_ipc_mode = (int) Z_LVAL_PP(v);
-    }
-    if (sw_zend_hash_find(vht, ZEND_STRS("task_dispatch_mode"), (void **) &v) == SUCCESS)
-    {
-        convert_to_long(*v);
-        SwooleG.task_dispatch_mode = (int) Z_LVAL_PP(v);
     }
     /**
      * Temporary file directory for task_worker

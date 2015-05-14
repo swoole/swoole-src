@@ -149,14 +149,18 @@ static int swManager_start(swFactory *factory)
     if (SwooleG.task_worker_num > 0)
     {
         key_t key = 0;
-        if (SwooleG.task_ipc_mode == SW_IPC_MSGQUEUE)
+        int create_pipe = 1;
+
+        if (SwooleG.task_ipc_mode > SW_TASK_IPC_UNIXSOCK)
         {
             key = serv->message_queue_key + 2;
+            create_pipe = 0;
         }
 
-        int task_num = SwooleG.task_worker_max > 0 ? SwooleG.task_worker_max : SwooleG.task_worker_num;
         //启动min个.此时的pool->worker_num相当于max
-        if (swProcessPool_create(&SwooleGS->task_workers, task_num, serv->task_max_request, key, 1) < 0)
+        int task_num = SwooleG.task_worker_max > 0 ? SwooleG.task_worker_max : SwooleG.task_worker_num;
+
+        if (swProcessPool_create(&SwooleGS->task_workers, task_num, serv->task_max_request, key, create_pipe) < 0)
         {
             swWarn("[Master] create task_workers failed.");
             return SW_ERR;

@@ -1546,7 +1546,6 @@ typedef struct
     uint16_t cpu_num;
 
     uint8_t task_ipc_mode;
-    uint8_t task_dispatch_mode;
 
     uint32_t pagesize;
     uint32_t max_sockets;

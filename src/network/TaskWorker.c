@@ -39,7 +39,7 @@ void swTaskWorker_init(swProcessPool *pool)
     }
     free(tmp_dir);
 
-    if (SwooleG.task_dispatch_mode == SW_DISPATCH_QUEUE || SwooleG.task_ipc_mode == 3)
+    if (SwooleG.task_ipc_mode == SW_TASK_IPC_PREEMPTIVE)
     {
         pool->dispatch_mode = SW_DISPATCH_QUEUE;
     }

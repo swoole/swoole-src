@@ -71,6 +71,13 @@ enum swIPCMode
 	SW_IPC_CHANNEL  = 3,
 };
 
+enum swTaskIPCMode
+{
+    SW_TASK_IPC_UNIXSOCK    = 1,
+    SW_TASK_IPC_MSGQUEUE    = 2,
+    SW_TASK_IPC_PREEMPTIVE  = 3,
+};
+
 enum swCloseType
 {
 	SW_CLOSE_PASSIVE = 32,

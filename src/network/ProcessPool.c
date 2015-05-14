@@ -113,6 +113,11 @@ int swProcessPool_start(swProcessPool *pool)
 
 static sw_inline int swProcessPool_schedule(swProcessPool *pool)
 {
+    if (pool->dispatch_mode == SW_DISPATCH_QUEUE)
+    {
+        return 0;
+    }
+
     int i, target_worker_id = 0;
     int run_worker_num = pool->run_worker_num;
 
@@ -281,13 +286,13 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
      */
     out.buf.info.from_fd = worker->id;
 
-    if (SwooleG.task_dispatch_mode)
+    if (pool->dispatch_mode == SW_DISPATCH_QUEUE)
     {
-        out.mtype = worker->id + 1;
+        out.mtype = 0;
     }
     else
     {
-        out.mtype = 0;
+        out.mtype = worker->id + 1;
     }
 
     while (SwooleG.running > 0 && task_n > 0)

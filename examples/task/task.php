@@ -1,8 +1,11 @@
 <?php
 $serv = new swoole_server("127.0.0.1", 9501);
+
 $serv->set(array(
     'worker_num' => 1,
     'task_worker_num' => 4,
+    'task_ipc_mode' => 3,
+    'message_queue_key' => 0x70001001,
     //'task_tmpdir' => '/data/task/',
 ));
 
@@ -31,7 +34,7 @@ $serv->on('Task', function (swoole_server $serv, $task_id, $from_id, $data) {
         sleep(100);
     }
     echo "#{$serv->worker_id}\tonTask: [PID={$serv->worker_pid}]: task_id=$task_id, data_len=".strlen($data).".".PHP_EOL;
-    //$serv->finish($data);
+    $serv->finish($data);
    // return;
 });
 
