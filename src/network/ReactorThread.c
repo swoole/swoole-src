@@ -2173,6 +2173,8 @@ void swReactorThread_free(swServer *serv)
         for (i = 0; i < serv->reactor_num; i++)
         {
             thread = &(serv->reactor_threads[i]);
+            thread->reactor.running = 0;
+            SW_START_SLEEP;
             pthread_cancel(thread->thread_id);
             //wait thread
             if (pthread_join(thread->thread_id, NULL))

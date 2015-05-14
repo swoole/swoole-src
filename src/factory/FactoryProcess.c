@@ -589,7 +589,7 @@ static int swManager_loop(swFactory *factory)
             {
                 break;
             }
-            if (swWaitpid(serv->workers[i].pid, &status, 0) < 0)
+            if (swWaitpid(user_worker->pid, &status, 0) < 0)
             {
                 swSysError("waitpid(%d) failed.", serv->workers[i].pid);
             }

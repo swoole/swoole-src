@@ -361,18 +361,20 @@ static int swServer_start_proxy(swServer *serv)
 	SwooleG.pid = getpid();
 	SwooleG.process_type = SW_PROCESS_MASTER;
 
-	main_reactor->id = serv->reactor_num; //设为一个特别的ID
+	/**
+	 * set a special id
+	 */
+	main_reactor->id = serv->reactor_num;
 	main_reactor->ptr = serv;
 	main_reactor->setHandle(main_reactor, SW_FD_LISTEN, swServer_master_onAccept);
 
-	//SW_START_SLEEP;
 	if (serv->onStart != NULL)
 	{
 		serv->onStart(serv);
 	}
 
 	struct timeval tmo;
-	tmo.tv_sec = SW_MAINREACTOR_TIMEO;
+	tmo.tv_sec = 1; //for seconds timer
 	tmo.tv_usec = 0;
 	return main_reactor->wait(main_reactor, &tmo);
 }
@@ -520,7 +522,6 @@ int swServer_start(swServer *serv)
 	SwooleGS->start = 1;
 	SwooleGS->now = SwooleStats->start_time = time(NULL);
 
-	//设置factory回调函数
 	serv->factory.onTask = serv->onReceive;
 
 	if (serv->have_udp_sock == 1 && serv->factory_mode != SW_MODE_PROCESS)
@@ -568,7 +569,6 @@ int swServer_start(swServer *serv)
 	 */
     if (SwooleG.task_worker_num > 0 && serv->worker_num > 0)
     {
-
         SwooleG.task_result = sw_shm_calloc(serv->worker_num, sizeof(swEventData));
         SwooleG.task_notify = sw_calloc(serv->worker_num, sizeof(swPipe));
         for (i = 0; i < serv->worker_num; i++)
@@ -698,15 +698,18 @@ int swServer_create(swServer *serv)
 
 int swServer_shutdown(swServer *serv)
 {
-	//stop all thread
-	SwooleG.running = 0;
-	return SW_OK;
+    //stop all thread
+    SwooleG.main_reactor->running = 0;
+    return SW_OK;
 }
 
 int swServer_free(swServer *serv)
 {
     swNotice("Server is shutdown now.");
-    //factory释放
+
+    /**
+     * shutdown workers
+     */
     if (serv->factory.shutdown != NULL)
     {
         serv->factory.shutdown(&(serv->factory));
@@ -1123,7 +1126,7 @@ static void swServer_signal_hanlder(int sig)
     switch (sig)
     {
     case SIGTERM:
-        SwooleG.running = 0;
+        SwooleG.main_reactor->running = 0;
         break;
     case SIGALRM:
         swTimer_signal_handler(SIGALRM);

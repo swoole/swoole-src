@@ -69,7 +69,7 @@ void swWorker_signal_handler(int signo)
     switch (signo)
     {
     case SIGTERM:
-        SwooleG.running = 0;
+        SwooleG.main_reactor->running = 0;
         break;
     case SIGALRM:
         swTimer_signal_handler(SIGALRM);

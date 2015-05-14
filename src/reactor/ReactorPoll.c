@@ -213,7 +213,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
         }
     }
 
-	while (SwooleG.running > 0)
+	while (reactor->running > 0)
 	{
 	    msec = reactor->timeout_msec;
 		ret = poll(object->events, reactor->event_num, msec);

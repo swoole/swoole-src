@@ -254,7 +254,7 @@ SwooleG.lock.unlock(&SwooleG.lock);\
 exit(1)
 
 #define swSysError(str,...) SwooleG.lock.lock(&SwooleG.lock);\
-snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str" Error: %s[%d].",__func__,##__VA_ARGS__,strerror(errno),errno);\
+snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s#%d: "str" Error: %s[%d].",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
 swLog_put(SW_LOG_WARN, sw_error);\
 SwooleG.lock.unlock(&SwooleG.lock)
 
@@ -1033,6 +1033,8 @@ struct swReactor_s
 
     uint32_t check_timer :1;
 
+    uint32_t running :1;
+
     /**
      * disable accept new connection
      */
@@ -1504,7 +1506,6 @@ typedef struct
     swTimer timer;
 
     uint8_t running :1;
-
     uint8_t use_timerfd :1;
     uint8_t use_signalfd :1;
 

@@ -302,7 +302,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     }
 
     struct timeval timeo;
-    timeo.tv_sec = SW_MAINREACTOR_TIMEO;
+    timeo.tv_sec = 1;
     timeo.tv_usec = 0;
     reactor->wait(reactor, &timeo);
 

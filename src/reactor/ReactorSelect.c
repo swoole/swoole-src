@@ -176,7 +176,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
         }
     }
 
-    while (SwooleG.running > 0)
+    while (reactor->running > 0)
     {
         FD_ZERO(&(object->rfds));
         FD_ZERO(&(object->wfds));
