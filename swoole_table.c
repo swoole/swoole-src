@@ -340,7 +340,7 @@ static PHP_METHOD(swoole_table, incr)
     }
     else if (column->type == SW_TABLE_FLOAT)
     {
-        double set_value;
+        double set_value = 0;
         memcpy(&set_value, row->data + column->index, sizeof(set_value));
         if (incrby)
         {
@@ -356,7 +356,7 @@ static PHP_METHOD(swoole_table, incr)
     }
     else
     {
-        uint64_t set_value;
+        uint64_t set_value = 0;
         memcpy(&set_value, row->data + column->index, column->size);
         if (incrby)
         {
@@ -411,7 +411,7 @@ static PHP_METHOD(swoole_table, decr)
     }
     else if (column->type == SW_TABLE_FLOAT)
     {
-        double set_value;
+        double set_value = 0;
         memcpy(&set_value, row->data + column->index, sizeof(set_value));
         if (decrby)
         {
@@ -427,7 +427,7 @@ static PHP_METHOD(swoole_table, decr)
     }
     else
     {
-        uint64_t set_value;
+        uint64_t set_value = 0;
         memcpy(&set_value, row->data + column->index, column->size);
         if (decrby)
         {
