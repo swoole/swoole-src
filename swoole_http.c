@@ -1187,6 +1187,11 @@ void swoole_http_request_free(swoole_http_client *client TSRMLS_DC)
             {
                 continue;
             }
+            zval **file_path;
+            if (zend_hash_find(Z_ARRVAL_PP(value), ZEND_STRS("tmp_name"), (void **)&file_path) == SUCCESS)
+            {
+                unlink(Z_STRVAL_PP(file_path));
+            }
             zval_ptr_dtor(value);
         }
         zval_ptr_dtor(&zfiles);
