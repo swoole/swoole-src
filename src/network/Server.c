@@ -943,6 +943,12 @@ int swServer_add_listener(swServer *serv, int type, char *host, int port)
         return SW_ERR;
     }
 
+    if (port < 1 || port > 65535)
+    {
+        swWarn("invalid port [%d]", port);
+        return SW_ERR;
+    }
+
     swListenList_node *ls = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenList_node));
 
     ls->type = type;
