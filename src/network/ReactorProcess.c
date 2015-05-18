@@ -96,7 +96,7 @@ int swReactorProcess_start(swServer *serv)
     if (serv->worker_num == 1 && SwooleG.task_worker_num == 0 && serv->max_request == 0)
     {
         swWorker single_worker;
-        single_worker.id = 0;
+        bzero(&single_worker, sizeof(single_worker));
         return swReactorProcess_loop(&SwooleGS->event_workers, &single_worker);
     }
 
