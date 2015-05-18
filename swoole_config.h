@@ -203,6 +203,7 @@
 #define SW_HTTP_COOKIE_KEYLEN            128
 #define SW_HTTP_RESPONSE_INIT_SIZE       65536
 #define SW_HTTP_COMPRESS_GZIP
+#define SW_HTTP_UPLOAD_TMP_FILE          "/tmp/swoole.upfile.XXXXXX"
 //#define SW_HTTP_100_CONTINUE
 
 #define SW_WEBSOCKET_SERVER_SOFTWARE     "swoole-websocket-server"

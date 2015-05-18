@@ -723,18 +723,15 @@ static int multipart_body_on_header_complete(multipart_parser* p)
         return 0;
     }
 
-    char base_path[] = "/tmp/";
-    char file_path[38] = {0};
-    sprintf(file_path, "%s", base_path);
-    swConnection *conn = swWorker_get_connection(SwooleG.serv, client->fd);
-    get_random_file_name(file_path + strlen(base_path), swConnection_get_ip(conn));
-    FILE *fp = fopen(file_path, "wb+");
+    char file_path[sizeof(SW_HTTP_UPLOAD_TMP_FILE)];
+    memcpy(file_path, SW_HTTP_UPLOAD_TMP_FILE, sizeof(SW_HTTP_UPLOAD_TMP_FILE));
+    int tmpfile = swoole_tmpfile(file_path);
+    FILE *fp = fdopen(tmpfile, "wb+");
 
-    if (fp == NULL)
+    if (fp < 0)
     {
         add_assoc_long(*multipart_header, "error", UPLOAD_ERR_NO_TMP_DIR);
         swWarn("fopen(%s) failed. Error %s[%d]", file_path, strerror(errno), errno);
-
         return 0;
     }
 
