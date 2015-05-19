@@ -407,6 +407,8 @@ struct _swServer
     uint32_t buffer_output_size;
     uint32_t buffer_input_size;
 
+    uint32_t pipe_buffer_size;
+
 #ifdef SW_USE_OPENSSL
     uint8_t open_ssl;
     char *ssl_cert_file;

@@ -1501,6 +1501,14 @@ PHP_FUNCTION(swoole_server_set)
         convert_to_long(*v);
         serv->buffer_output_size = (int) Z_LVAL_PP(v);
     }
+    /**
+     * set pipe memory buffer size
+     */
+    if (sw_zend_hash_find(vht, ZEND_STRS("pipe_buffer_size"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(*v);
+        serv->pipe_buffer_size = (int) Z_LVAL_PP(v);
+    }
     //message queue key
     if (sw_zend_hash_find(vht, ZEND_STRS("message_queue_key"), (void **) &v) == SUCCESS)
     {

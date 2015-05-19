@@ -371,7 +371,7 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
         else
         {
             append_pipe_buffer:
-            if (buffer->length > SwooleG.socket_buffer_size)
+            if (buffer->length > serv->pipe_buffer_size)
             {
                 swYield();
                 swSocket_wait(pipe_fd, SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
