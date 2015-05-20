@@ -2679,13 +2679,13 @@ PHP_METHOD(swoole_server, bind)
     }
 
     int ret = 0;
-    SwooleG.lock.lock(&SwooleG.lock);
+    SwooleGS->lock.lock(&SwooleGS->lock);
     if (conn->uid == 0)
     {
         conn->uid = uid;
         ret = 1;
     }
-    SwooleG.lock.unlock(&SwooleG.lock);
+    SwooleGS->lock.unlock(&SwooleGS->lock);
     SW_CHECK_RETURN(ret);
 }
 
