@@ -1,7 +1,7 @@
 <?php
 $serv = new swoole_server("127.0.0.1", 9501);
 $serv->set(array(
-		'open_length_check'     => 1,
+		'open_length_check'     => true,
 		'dispatch_mode'         => 1,
 		'worker_num'            => 4,
 		'package_length_type'   => 'N',
