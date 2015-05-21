@@ -415,6 +415,7 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
 
     zval *retval;
     args[0] = &object;
+    zval_add_ref(&object);
 
     if (call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
@@ -592,17 +593,16 @@ static PHP_METHOD(swoole_process, push)
 
 static PHP_METHOD(swoole_process, pop)
 {
-    long maxsize = 8192;
+    long maxsize = SW_MSGMAX;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &maxsize) == FAILURE)
     {
         RETURN_FALSE;
     }
-    if (maxsize <= 0)
+    if (maxsize <= 0 || maxsize > SW_MSGMAX)
     {
-        maxsize = 8192;
+        maxsize = SW_MSGMAX;
     }
-
     swWorker *process = swoole_get_object(getThis());
     if (!process->queue)
     {
@@ -610,29 +610,28 @@ static PHP_METHOD(swoole_process, pop)
         RETURN_FALSE;
     }
 
-    typedef struct
+    struct
     {
         long type;
-        char data[0];
-    } message_t;
+        char data[SW_MSGMAX];
+    } message;
 
-    message_t *message = emalloc(sizeof(message_t) + maxsize);
     if (process->ipc_mode == 2)
     {
-        message->type = 0;
+        message.type = 0;
     }
     else
     {
-        message->type = process->id;
+        message.type = process->id;
     }
 
-    int n = process->queue->out(process->queue, (swQueue_data *) message, maxsize);
+    int n = process->queue->out(process->queue, (swQueue_data *) &message, maxsize);
     if (n < 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "msgrcv() failed. Error: %s[%d]", strerror(errno), errno);
         RETURN_FALSE;
     }
-    RETURN_STRINGL(message->data, n, 0);
+    RETURN_STRINGL(message.data, n, 1);
 }
 
 static PHP_METHOD(swoole_process, exec)

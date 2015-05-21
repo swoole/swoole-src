@@ -119,6 +119,8 @@
 #define SW_REACTOR_USE_SESSION
 #define SW_SESSION_LIST_SIZE             (1024*1024)
 
+#define SW_MSGMAX                        8192
+
 /**
  * 最大Reactor线程数量，默认会启动CPU核数的线程数
  * 如果超过8核，默认启动8个线程
@@ -210,6 +212,5 @@
 
 #define SW_WEBSOCKET_SERVER_SOFTWARE     "swoole-websocket-server"
 #define SW_WEBSOCKET_VERSION             "13"
-
 
 #endif /* SWOOLE_CONFIG_H_ */
