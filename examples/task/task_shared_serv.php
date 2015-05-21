@@ -117,12 +117,12 @@ function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
     // $serv->finish("OK");
 }
 
-function my_onFinish(swoole_server $serv, $data)
+function my_onFinish(swoole_server $serv, $task_id, $from_worker_id, $data)
 {
-    echo "AsyncTask Finish:Connect.PID=".posix_getpid().PHP_EOL;
+    echo "AsyncTask Finish: Connect.PID=" . posix_getpid() . PHP_EOL;
 }
 
-function my_onWorkerError(swoole_server $serv, $data)
+function my_onWorkerError(swoole_server $serv, $worker_id, $worker_pid, $exit_code)
 {
     echo "worker abnormal exit. WorkerId=$worker_id|Pid=$worker_pid|ExitCode=$exit_code\n";
 }
