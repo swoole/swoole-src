@@ -1522,7 +1522,7 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
 {
     assert(client->send_header == 0);
 
-    char buf[128];
+    char buf[SW_HTTP_HEADER_MAX_SIZE];
     int n;
     char *date_str;
 
