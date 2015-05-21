@@ -228,7 +228,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
      */
     if (fd == swServer_get_maxfd(serv))
     {
-        SwooleG.lock.lock(&SwooleG.lock);
+        SwooleGS->lock.lock(&SwooleGS->lock);
         int find_max_fd = fd - 1;
         swTrace("set_maxfd=%d|close_fd=%d\n", find_max_fd, fd);
         /**
@@ -237,7 +237,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
         for (; serv->connection_list[find_max_fd].active == 0 && find_max_fd > swServer_get_minfd(serv); find_max_fd--)
             ;
         swServer_set_maxfd(serv, find_max_fd);
-        SwooleG.lock.unlock(&SwooleG.lock);
+        SwooleGS->lock.unlock(&SwooleGS->lock);
     }
 
     return swReactor_close(reactor, fd);
@@ -315,6 +315,17 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
                 _send.data = worker->send_shm;
                 _send.length = pkg_resp.length;
 
+#if 0
+                struct
+                {
+                    uint32_t worker;
+                    uint32_t index;
+                    uint32_t serid;
+                } pkg_header;
+
+                memcpy(&pkg_header, _send.data + 4, sizeof(pkg_header));
+                swWarn("fd=%d, worker=%d, index=%d, serid=%d", _send.info.fd, pkg_header.worker, pkg_header.index, pkg_header.serid);
+#endif
                 swReactorThread_send(&_send);
                 worker->lock.unlock(&worker->lock);
             }
@@ -405,13 +416,15 @@ int swReactorThread_send(swSendData *_send)
 {
     swServer *serv = SwooleG.serv;
     uint32_t session_id = _send->info.fd;
+    void *_send_data = _send->data;
+    uint32_t _send_length = _send->length;
 
     swConnection *conn = swServer_connection_verify(serv, session_id);
     if (!conn)
     {
         if (_send->info.type == SW_EVENT_TCP)
         {
-            swWarn("send %d byte failed, session#%d is closed.", _send->length, session_id);
+            swWarn("send %d byte failed, session#%d is closed.", _send_length, session_id);
         }
         else
         {
@@ -422,7 +435,6 @@ int swReactorThread_send(swSendData *_send)
 
     int fd = conn->fd;
     swReactor *reactor = &(serv->reactor_threads[conn->from_id].reactor);
-    swTraceLog(SW_TRACE_EVENT, "send-data. fd=%d|reactor_id=%d", fd, reactor_id);
 
     if (swBuffer_empty(conn->out_buffer))
     {
@@ -431,7 +443,8 @@ int swReactorThread_send(swSendData *_send)
          */
         if (_send->info.type == SW_EVENT_CLOSE)
         {
-            close_fd: reactor->close(reactor, fd);
+            close_fd:
+            reactor->close(reactor, fd);
             return SW_OK;
         }
 #ifdef SW_REACTOR_SYNC_SEND
@@ -440,15 +453,16 @@ int swReactorThread_send(swSendData *_send)
         {
             int n;
 
-            direct_send: n = swConnection_send(conn, _send->data, _send->length, 0);
-            if (n == _send->length)
+            direct_send:
+            n = swConnection_send(conn, _send_data, _send_length, 0);
+            if (n == _send_length)
             {
                 return SW_OK;
             }
             else if (n > 0)
             {
-                _send->data += n;
-                _send->length -= n;
+                _send_data += n;
+                _send_length -= n;
                 goto buffer_send;
             }
             else if (errno == EINTR)
@@ -488,7 +502,7 @@ int swReactorThread_send(swSendData *_send)
     //sendfile to client
     else if (_send->info.type == SW_EVENT_SENDFILE)
     {
-        swConnection_sendfile(conn, _send->data);
+        swConnection_sendfile(conn, _send_data);
     }
     //send data
     else
@@ -506,7 +520,7 @@ int swReactorThread_send(swSendData *_send)
             conn->overflow = 1;
         }
         //buffer enQueue
-        swBuffer_append(conn->out_buffer, _send->data, _send->length);
+        swBuffer_append(conn->out_buffer, _send_data, _send_length);
     }
 
     //listen EPOLLOUT event
@@ -2182,7 +2196,7 @@ void swReactorThread_free(swServer *serv)
                 swWarn("pthread_join() failed. Error: %s[%d]", strerror(errno), errno);
             }
             //release the lock
-            SwooleG.lock.unlock(&SwooleG.lock);
+            SwooleGS->lock.unlock(&SwooleGS->lock);
 #ifdef SW_USE_RINGBUFFER
             thread->buffer_input->destroy(thread->buffer_input);
 #endif

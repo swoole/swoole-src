@@ -1313,7 +1313,7 @@ static PHP_METHOD(swoole_client, recv)
     long buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
     zend_bool waitall = 0;
     int ret;
-    char *buf;
+    char *buf = NULL;
     char stack_buf[SW_BUFFER_SIZE_BIG];
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|lb", &buf_len, &waitall) == FAILURE)
@@ -1423,25 +1423,19 @@ static PHP_METHOD(swoole_client, recv)
 	{
         uint32_t header_len = protocol->package_length_offset + protocol->package_length_size;
         ret = cli->recv(cli, stack_buf, header_len, 1);
-        if (ret < 0)
+        if (ret <= 0)
         {
-            swoole_php_error(E_WARNING, "recv() header failed. Error: %s [%d]", strerror(errno), errno);
+            goto check_return;
+        }
+
+        buf_len = swProtocol_get_package_length(protocol, cli->socket, stack_buf, ret);
+        if (buf_len < 0)
+        {
             RETURN_FALSE;
-        }
-        else if (ret == 0)
-        {
-            RETURN_EMPTY_STRING();
-        }
-        else
-        {
-            buf_len = swProtocol_get_package_length(protocol, cli->socket, stack_buf, ret);
-            if (buf_len < 0)
-            {
-                RETURN_FALSE;
-            }
         }
 
         buf = emalloc(buf_len + 1);
+        memcpy(buf, stack_buf, header_len);
         SwooleG.error = 0;
         ret = cli->recv(cli, buf + header_len, buf_len - header_len, 1);
         if (ret > 0)
@@ -1475,6 +1469,8 @@ static PHP_METHOD(swoole_client, recv)
         SwooleG.error = 0;
         ret = cli->recv(cli, buf, buf_len, waitall);
     }
+
+	check_return:
 
 	if (ret < 0)
 	{

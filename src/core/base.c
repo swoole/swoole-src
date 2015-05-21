@@ -44,8 +44,22 @@ void swoole_init(void)
     //random seed
     srandom(time(NULL));
 
+    //init global shared memory
+    SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
+    if (SwooleG.memory_pool == NULL)
+    {
+        printf("[Master] Fatal Error: create global memory failed.");
+        exit(1);
+    }
+    SwooleGS = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerGS));
+    if (SwooleGS == NULL)
+    {
+        printf("[Master] Fatal Error: alloc memory for SwooleGS failed.");
+        exit(2);
+    }
+
     //init global lock
-    swMutex_create(&SwooleG.lock, 0);
+    swMutex_create(&SwooleGS->lock, 1);
 
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
     {
@@ -68,17 +82,7 @@ void swoole_init(void)
 #endif
 
     SwooleG.use_timer_pipe = 1;
-    //初始化全局内存
-    SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
-    if (SwooleG.memory_pool == NULL)
-    {
-        swError("[Master] Fatal Error: create global memory failed.");
-    }
-    SwooleGS = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerGS));
-    if (SwooleGS == NULL)
-    {
-        swError("[Master] Fatal Error: alloc memory for SwooleGS failed.");
-    }
+
     SwooleStats = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerStats));
     if (SwooleStats == NULL)
     {

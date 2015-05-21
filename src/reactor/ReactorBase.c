@@ -145,7 +145,7 @@ int swReactor_add(swReactor *reactor, int fd, int fdtype)
     socket->events = swReactor_events(fdtype);
     socket->removed = 0;
 
-    swTraceLog(SW_TRACE_REACTOR, "fd=%d, type=%d, events=%d", fd, socket->type, socket->events);
+    swTraceLog(SW_TRACE_REACTOR, "fd=%d, type=%d, events=%d", fd, socket->socket_type, socket->events);
 
     return SW_OK;
 }

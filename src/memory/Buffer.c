@@ -141,7 +141,7 @@ int swBuffer_append(swBuffer *buffer, void *data, uint32_t size)
     buffer->length += size;
     chunk->length = size;
 
-    memcpy(chunk->store.ptr, data, chunk->length);
+    memcpy(chunk->store.ptr, data, size);
 
     swTraceLog(SW_TRACE_BUFFER, "trunk_n=%d|size=%d|trunk_len=%d|trunk=%p", buffer->trunk_num, size,
             chunk->length, chunk);

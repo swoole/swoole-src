@@ -44,11 +44,6 @@ void swWorker_free(swWorker *worker)
     {
         sw_shm_free(worker->send_shm);
     }
-
-    if (worker->lock.free)
-    {
-        worker->lock.free(&worker->lock);
-    }
 }
 
 void swWorker_signal_init(void)
