@@ -434,7 +434,16 @@ int swReactorThread_send(swSendData *_send)
     }
 
     int fd = conn->fd;
-    swReactor *reactor = &(serv->reactor_threads[conn->from_id].reactor);
+    swReactor *reactor;
+
+    if (serv->factory_mode == SW_MODE_SINGLE)
+    {
+        reactor = &(serv->reactor_threads[0].reactor);
+    }
+    else
+    {
+        reactor = &(serv->reactor_threads[conn->from_id].reactor);
+    }
 
     if (swBuffer_empty(conn->out_buffer))
     {
@@ -812,14 +821,17 @@ static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEven
         if (buf_size == n)
         {
             recv_again = SW_TRUE;
-            uint32_t extend_size = buffer->size * 2;
-            if (extend_size > protocol->package_max_length)
+            if (buffer->size < protocol->package_max_length)
             {
-                extend_size = protocol->package_max_length;
-            }
-            if (swString_extend(buffer, extend_size) < 0)
-            {
-                return SW_ERR;
+                uint32_t extend_size = buffer->size * 2;
+                if (extend_size > protocol->package_max_length)
+                {
+                    extend_size = protocol->package_max_length;
+                }
+                if (swString_extend(buffer, extend_size) < 0)
+                {
+                    return SW_ERR;
+                }
             }
         }
 
