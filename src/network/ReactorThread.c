@@ -1702,8 +1702,10 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
             return SW_ERR;
         }
 
+#ifdef HAVE_PTHREAD_BARRIER
         //init thread barrier
         pthread_barrier_init(&serv->barrier, NULL, serv->reactor_num + 1);
+#endif
 
         //create reactor thread
         for (i = 0; i < serv->reactor_num; i++)
@@ -1725,9 +1727,12 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
             }
             thread->thread_id = pidt;
         }
-
+#ifdef HAVE_PTHREAD_BARRIER
         //wait reactor thread
         pthread_barrier_wait(&serv->barrier);
+#else
+        SW_START_SLEEP;
+#endif
     }
     //timer
     if (SwooleG.timer.fd > 0)
@@ -1862,7 +1867,11 @@ static int swReactorThread_loop_tcp(swThreadParam *param)
     }
 
     //wait other thread
+#ifdef HAVE_PTHREAD_BARRIER
     pthread_barrier_wait(&serv->barrier);
+#else
+    SW_START_SLEEP;
+#endif
     //main loop
     reactor->wait(reactor, NULL);
     //shutdown

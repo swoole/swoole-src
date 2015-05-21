@@ -428,7 +428,9 @@ struct _swServer
     swReactorThread *reactor_threads;
     swWorker *workers;
 
+#ifdef HAVE_PTHREAD_BARRIER
     pthread_barrier_t barrier;
+#endif
 
     swConnection *connection_list;  //连接列表
     swSession *session_list;
