@@ -170,9 +170,7 @@ $serv->on('finish', function ($serv, $task_id, $data) {
     echo "AsyncTask[$task_id] Finish: $data".PHP_EOL;
 });
 
-
 $serv->start();
-
 ```
 
 Swoole also supports synchronous tasks. To use synchronous tasks, just simply replace 
@@ -187,11 +185,13 @@ executed periodically (really useful for managing interval tasks).
 To demonstrate how the timer works, here is a small example:
 
 ```php
-//2000ms
+//interval 2000ms
 $serv->tick(2000, function ($timer_id) {
     echo "tick-2000ms\n";
 });
-$serv->after(3000, function ($serv) {
+
+//after 3000ms
+$serv->after(3000, function () {
     echo "after 3000ms.\n"
 });
 ```
