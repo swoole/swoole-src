@@ -124,7 +124,7 @@ $ws->on('message', function ($ws, $frame) {
     $ws->push($frame->fd, "server: {$frame->data}");
 });
 
-$ws->on('close', function ($fd) {
+$ws->on('close', function ($ws, $fd) {
     echo "client-{$fd} is closed\n";
 });
 
