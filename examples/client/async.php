@@ -35,5 +35,3 @@ $client->timer = swoole_timer_after(1000, function () use ($client) {
 });
 
 echo "connect to 127.0.0.1:9501\n";
-//for PHP5.3-
-//swoole_event_wait();

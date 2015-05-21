@@ -290,6 +290,7 @@ static int client_onRead_check_eof(swReactor *reactor, swEvent *event)
             else
             {
                 client_onPackage(zobject, cli TSRMLS_CC);
+                buffer->length = 0;
                 return SW_OK;
             }
         }
@@ -1372,7 +1373,6 @@ static PHP_METHOD(swoole_client, recv)
             }
             else if (ret == 0)
             {
-                printf("length=0, buf_len=%d\n", buf_len);
                 buffer->length = 0;
                 RETURN_EMPTY_STRING();
             }
