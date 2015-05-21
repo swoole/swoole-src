@@ -176,7 +176,7 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
 
         cli->close(cli);
         //free the callback return value
-        if (retval != NULL)
+        if (retval)
         {
             zval_ptr_dtor(&retval);
         }
@@ -258,7 +258,6 @@ static int client_onRead_check_eof(swReactor *reactor, swEvent *event)
     }
     else
     {
-
         buffer->length += n;
 
         if (buffer->length < protocol->package_eof_len)
@@ -305,14 +304,17 @@ static int client_onRead_check_eof(swReactor *reactor, swEvent *event)
         if (buf_size == n)
         {
             recv_again = SW_TRUE;
-            uint32_t extend_size = buffer->size * 2;
-            if (extend_size > protocol->package_max_length)
+            if (buffer->size < protocol->package_max_length)
             {
-                extend_size = protocol->package_max_length;
-            }
-            if (swString_extend(buffer, extend_size) < 0)
-            {
-                return SW_ERR;
+                uint32_t extend_size = buffer->size * 2;
+                if (extend_size > protocol->package_max_length)
+                {
+                    extend_size = protocol->package_max_length;
+                }
+                if (swString_extend(buffer, extend_size) < 0)
+                {
+                    return SW_ERR;
+                }
             }
         }
         //no eof
@@ -1343,19 +1345,18 @@ static PHP_METHOD(swoole_client, recv)
 
 	if (cli->open_eof_split)
 	{
-	    if (cli->socket->object == NULL)
+        if (cli->buffer == NULL)
         {
-            cli->socket->object = swString_new(SW_BUFFER_SIZE_BIG);
+            cli->buffer = swString_new(SW_BUFFER_SIZE_BIG);
         }
 
-	    swString *buffer = cli->socket->object;
-        zend_bool eof;
-        int pkglen = 0;
+        swString *buffer = cli->buffer;
+        int eof = -1;
 
 	    while (1)
         {
             buf = buffer->str + buffer->length;
-            buf_len = buffer->size;
+            buf_len = buffer->size - buffer->length;
 
             if (buf_len > SW_BUFFER_SIZE_BIG)
             {
@@ -1365,11 +1366,14 @@ static PHP_METHOD(swoole_client, recv)
             ret = cli->recv(cli, buf, buf_len, 0);
             if (ret < 0)
             {
-                swoole_php_error(E_WARNING, "recv() header failed. Error: %s [%d]", strerror(errno), errno);
+                swoole_php_error(E_WARNING, "recv() failed. Error: %s [%d]", strerror(errno), errno);
+                buffer->length = 0;
                 RETURN_FALSE;
             }
             else if (ret == 0)
             {
+                printf("length=0, buf_len=%d\n", buf_len);
+                buffer->length = 0;
                 RETURN_EMPTY_STRING();
             }
 
@@ -1381,20 +1385,21 @@ static PHP_METHOD(swoole_client, recv)
             }
 
             eof = swoole_strnpos(buffer->str, buffer->length, protocol->package_eof, protocol->package_eof_len);
-
             if (eof >= 0)
             {
                 eof += protocol->package_eof_len;
-                pkglen = buffer->offset + eof;
-                RETVAL_STRINGL(buffer->str, pkglen, 1);
+                RETVAL_STRINGL(buffer->str, eof, 1);
 
-                if (ret > eof)
+                if (buffer->length > eof)
                 {
-                    buffer->length = ret - eof;
+                    buffer->length -= eof;
                     memcpy(stack_buf, buffer->str + eof, buffer->length);
                     memcpy(buffer->str, stack_buf, buffer->length);
                 }
-
+                else
+                {
+                    buffer->length = 0;
+                }
                 return;
             }
             else
@@ -1402,22 +1407,29 @@ static PHP_METHOD(swoole_client, recv)
                 if (buffer->length == protocol->package_max_length)
                 {
                     swoole_php_error(E_WARNING, "no package eof");
+                    buffer->length = 0;
                     RETURN_FALSE;
                 }
                 else if (buffer->length == buffer->size)
                 {
-                    int new_size = buffer->size * 2;
-                    if (new_size > protocol->package_max_length)
+                    if (buffer->size < protocol->package_max_length)
                     {
-                        new_size = protocol->package_max_length;
-                    }
-                    if (swString_extend(buffer, new_size) < 0)
-                    {
-                        RETURN_FALSE;
+                        int new_size = buffer->size * 2;
+                        if (new_size > protocol->package_max_length)
+                        {
+                            new_size = protocol->package_max_length;
+                        }
+                        if (swString_extend(buffer, new_size) < 0)
+                        {
+                            buffer->length = 0;
+                            RETURN_FALSE;
+                        }
                     }
                 }
             }
         }
+	    buffer->length = 0;
+	    RETURN_FALSE;
 	}
 	else if (cli->open_length_check)
 	{
@@ -1477,7 +1489,10 @@ static PHP_METHOD(swoole_client, recv)
 		SwooleG.error = errno;
 		swoole_php_error(E_WARNING, "recv() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
 		zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
-		efree(buf);
+		if (buf)
+		{
+	        efree(buf);
+		}
 		RETURN_FALSE;
 	}
     else

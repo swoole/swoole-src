@@ -30,58 +30,55 @@ $bc->send_data .= "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.3
 $bc->read_len = 65536;
 if(!empty($opt['p'])) $bc->show_detail = true;
 
-
 function eof(Swoole_Benchmark $bc)
 {
-    static $fp = null;
+    static $client = null;
     static $i;
     $start = microtime(true);
-    if(empty($fp))
-    {
-        $fp = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
+    if (empty($client)) {
+        $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
+        $client->set(array('open_eof_check' => true, "package_eof" => "\r\n\r\n"));
         $end = microtime(true);
-        $conn_use = $end-$start;
+        $conn_use = $end - $start;
         $bc->max_conn_time = $conn_use;
         $i = 0;
         //echo "connect {$bc->server_url} \n";
-        if (!$fp->connect($bc->server_config['host'], $bc->server_config['port'], 2))
-        {
+        if (!$client->connect($bc->server_config['host'], $bc->server_config['port'], 2)) {
             error:
-            echo "Error: ".swoole_strerror($fp->errCode)."[{$fp->errCode}]\n";
-            $fp = null;
+            echo "Error: " . swoole_strerror($client->errCode) . "[{$client->errCode}]\n";
+            $client = null;
             return false;
         }
         $start = $end;
     }
     /*--------写入Sokcet-------*/
-    $data = str_repeat('A', rand(2000, 4000)."\r\n\r\n");
-    if (!$fp->send($data))
+    $data = str_repeat('A', rand(100, 200))."\r\n\r\n";
+    if (!$client->send($data))
     {
         goto error;
     }
     $end = microtime(true);
     $write_use = $end - $start;
-    if($write_use > $bc->max_write_time) $bc->max_write_time = $write_use;
+    if ($write_use > $bc->max_write_time) $bc->max_write_time = $write_use;
     $start = $end;
     /*--------读取Sokcet-------*/
-    while(true)
-    {
-        $ret = $fp->recv(65530);
-        if (empty($ret) or substr($ret, -1, 1) == "\n")
-        {
-            break;
-        }
-    }
-    //var_dump($ret);
-    $i++;
+    $i ++;
+    $ret = $client->recv();
     if (empty($ret))
     {
-        echo $bc->pid,"#$i@"," is lost\n";
+        echo $bc->pid, "#$i", " is lost\n";
         return false;
+    }
+    elseif(strlen($ret) != strlen($data))
+    {
+        echo "#$i\tlength error\n";
+        var_dump($ret);
+        echo "-----------------------------------\n";
+        var_dump($data);
     }
     $end = microtime(true);
     $read_use = $end - $start;
-    if($read_use>$bc->max_read_time) $bc->max_read_time = $read_use;
+    if ($read_use > $bc->max_read_time) $bc->max_read_time = $read_use;
     return true;
 }
 
@@ -326,7 +323,8 @@ class Swoole_Benchmark
 		unlink($this->shm_key);
 		foreach($this->child_pid as $pid)
 		{
-			unlink($this->tmp_dir.'lost_'.$pid.'.log');
+            $f = $this->tmp_dir . 'lost_' . $pid . '.log';
+            if (is_file($f)) unlink($f);
 		}
 	}
 
@@ -387,14 +385,14 @@ class Swoole_Benchmark
 		if($this->show_detail) $start = microtime(true);
 		$this->pid = posix_getpid();
 
-		for($i=0;$i<$this->process_req_num;$i++)
+        for ($i = 0; $i < $this->process_req_num; $i++)
 		{
 			$func = $this->test_func;
 			if(!$func($this)) $lost++;
 		}
 		if ($this->show_detail)
 		{
-			$log = $pid . "#\ttotal_use(s):" . substr(microtime(true) - $start, 0, 5);
+			$log = $this->pid . "#\ttotal_use(s):" . substr(microtime(true) - $start, 0, 5);
 			$log .= "\tconnect(ms):" . substr($this->max_conn_time * 1000, 0, 5);
 			$log .= "\twrite(ms):" . substr($this->max_write_time * 1000, 0, 5);
 			$log .= "\tread(ms):" . substr($this->max_read_time * 1000, 0, 5);
@@ -406,6 +404,7 @@ class Swoole_Benchmark
 		}
 		exit(0);
 	}
+
 	function report()
 	{
 		$time_start = file_get_contents($this->shm_key);
@@ -414,13 +413,17 @@ class Swoole_Benchmark
 
 		foreach ($this->child_pid as $f)
 		{
-			$_lost = file_get_contents($this->tmp_dir.'lost_'.$f.'.log');
-			$log = explode("\n",$_lost,2);
-			if(!empty($log))
-			{
-				$lost += intval($log[0]);
-				if($this->show_detail) echo $log[1],"\n";
-			}
+            $file = $this->tmp_dir.'lost_'.$f.'.log';
+            if (is_file($file))
+            {
+                $_lost = file_get_contents($file);
+                $log = explode("\n",$_lost,2);
+            }
+            if (!empty($log))
+            {
+                $lost += intval($log[0]);
+                if ($this->show_detail) echo $log[1], "\n";
+            }
 		}
 		//并发量
 		echo "concurrency:\t".$this->process_num,"\n";
