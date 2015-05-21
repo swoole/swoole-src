@@ -124,6 +124,10 @@ $ws->on('message', function ($ws, $frame) {
     $ws->push($frame->fd, "server: {$frame->data}");
 });
 
+$ws->on('close', function ($fd) {
+    echo "client-{$fd} is closed\n";
+});
+
 $ws->start();
 ```
 
@@ -183,24 +187,12 @@ executed periodically (really useful for managing interval tasks).
 To demonstrate how the timer works, here is a small example:
 
 ```php
-$serv->on('timer', function ($interval) {
-    switch($interval) {
-        case 10000: // timer1
-            // code for timer1
-        break;
-
-        case 20000: // timer2
-            // code for timer2
-        break;
-    }
+//2000ms
+$serv->tick(2000, function ($timer_id) {
+    echo "tick-2000ms\n";
 });
-$serv->on('workerStart', function ($serv) {
-    $serv->addtimer(10000);
-    $serv->addtimer(20000);
-    //Remove timer1 500 milliseconds after
-    $serv->after(500, function(){
-        $serv->deltimer(10000);
-    }); 
+$serv->after(3000, function ($serv) {
+    echo "after 3000ms.\n"
 });
 ```
 
@@ -248,9 +240,9 @@ bool swoole_async_writefile('test.log', $file_content, mixed $callback);
 bool swoole_async_read(string $filename, mixed $callback, int $trunk_size = 8192);
 bool swoole_async_write(string $filename, string $content, int $offset = -1, mixed $callback = NULL);
 void swoole_async_dns_lookup(string $domain, function($host, $ip){});
-bool swoole_timer_add($interval_ms, mixed $callback);
-bool swoole_timer_del($interval_ms);
 bool swoole_timer_after($after_n_ms, mixed $callback);
+bool swoole_timer_tick($n_ms, mixed $callback);
+bool swoole_timer_clear($n_ms, mixed $callback);
 ``` 
 
 Refer [API Reference](http://wiki.swoole.com/wiki/page/183.html) for more detail information of these functions.
