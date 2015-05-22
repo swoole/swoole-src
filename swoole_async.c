@@ -372,6 +372,11 @@ PHP_FUNCTION(swoole_async_write)
         wt_cnt = emalloc(fcnt_len);
     }
 
+	if (offset < 0){
+		open_flag |= O_APPEND;
+		offset = 0;
+	}
+
 	file_request *req = swHashMap_find(php_swoole_open_files, Z_STRVAL_P(filename), Z_STRLEN_P(filename));
 
 	if (req == NULL)
@@ -391,22 +396,7 @@ PHP_FUNCTION(swoole_async_write)
 		new_req.once = 0;
 		new_req.type = SW_AIO_WRITE;
 		new_req.content_length = fcnt_len;
-
-		if (offset < 0)
-        {
-            struct stat file_stat;
-            if (fstat(fd, &file_stat) < 0)
-            {
-                php_error_docref(NULL TSRMLS_CC, E_WARNING, "fstat() failed. Error: %s[%d]", strerror(errno), errno);
-                RETURN_FALSE;
-            }
-            offset = file_stat.st_size;
-            new_req.offset = offset + fcnt_len;
-        }
-        else
-        {
-            new_req.offset = 0;
-        }
+		new_req.offset = 0;
 
 		if (cb != NULL)
 		{
@@ -422,11 +412,6 @@ PHP_FUNCTION(swoole_async_write)
     }
     else
     {
-        if (offset < 0)
-        {
-            offset = req->offset;
-            req->offset += fcnt_len;
-        }
         fd = req->fd;
     }
 
