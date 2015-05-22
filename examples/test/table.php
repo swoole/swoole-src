@@ -4,7 +4,7 @@ class UnitTest_Table
 {
     static $workers = array();
     //并发进程数
-    static $worker_num = 4;
+    static $worker_num = 8;
     //生成10万个key
     static $key_base = 100001;
     static $key_num = 100000;
@@ -72,7 +72,7 @@ class UnitTest_Table
                 $ret = self::$table->set(
                     $key,
                     array(
-                        'index' => $index,
+                        //'index' => $index,
                         'serid' => rand(1000, 9999),
                         'data' => "hello_world_$i"
                     )

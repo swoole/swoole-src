@@ -359,8 +359,6 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
     process->pipe = process->pipe_worker;
     process->pid = getpid();
 
-    close(process->pipe_master);
-
     if (process->redirect_stdin)
     {
         if (dup2(process->pipe, STDIN_FILENO) < 0)
@@ -442,24 +440,26 @@ static PHP_METHOD(swoole_process, start)
         RETURN_FALSE;
     }
 
-	pid_t pid = fork();
+    pid_t pid = fork();
 
-	if (pid < 0)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "fork() failed. Error: %s[%d]", strerror(errno), errno);
-		RETURN_FALSE;
-	}
+    if (pid < 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "fork() failed. Error: %s[%d]", strerror(errno), errno);
+        RETURN_FALSE;
+    }
     else if (pid > 0)
-	{
-		process->pid = pid;
-		zend_update_property_long(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("pid"), process->pid TSRMLS_CC);
-		RETURN_LONG(pid);
-	}
-	else
-	{
+    {
+        process->pid = pid;
+        process->child_process = 0;
+        zend_update_property_long(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("pid"), process->pid TSRMLS_CC);
+        RETURN_LONG(pid);
+    }
+    else
+    {
+        process->child_process = 1;
         SW_CHECK_RETURN(php_swoole_process_start(process, getThis() TSRMLS_CC));
-	}
-	RETURN_TRUE;
+    }
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_process, read)

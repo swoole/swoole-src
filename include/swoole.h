@@ -1122,6 +1122,7 @@ struct _swWorker
     uint8_t ipc_mode;
 
     uint8_t deleted;
+    uint8_t child_process;
 
     /**
      * tasking num
