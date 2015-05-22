@@ -2,10 +2,10 @@
 $serv = new swoole_server("127.0.0.1", 9501);
 
 $serv->set(array(
-    'worker_num' => 2,
+    'worker_num' => 1,
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
-    'task_worker_num' => 2,
+    'task_worker_num' => 1,
     //'dispatch_mode' => 2,
     //'daemonize' => 1,
     //'heartbeat_idle_time' => 5,
@@ -42,7 +42,7 @@ function my_onConnect($serv, $fd, $from_id)
 function my_onWorkerStart($serv, $worker_id)
 {
     global $argv;
-    if($worker_id >= $serv->setting['worker_num']) {
+    if ($worker_id >= $serv->setting['worker_num']) {
         swoole_set_process_name("php {$argv[0]} task worker");
     } else {
         swoole_set_process_name("php {$argv[0]} event worker");
@@ -58,7 +58,7 @@ function my_onWorkerStop($serv, $worker_id)
 
 function my_onReceive(swoole_server $serv, $fd, $from_id, $rdata)
 {
-    $data = json_decode($rdata, true);
+    $data = unserialize($rdata);
     if (isset($data['cmd']))
     {
         switch ($data['cmd'])

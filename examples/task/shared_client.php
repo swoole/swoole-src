@@ -32,6 +32,6 @@ if (empty($sends))
 {
 	help();
 }
-$client->send(json_encode($sends));
+$client->send(serialize($sends));
 $data = $client->recv();
 echo $data . PHP_EOL;
