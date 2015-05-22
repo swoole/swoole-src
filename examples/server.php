@@ -27,7 +27,7 @@ $config = array(
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
 //   'task_ipc_mode'   => 2,
-//   'task_worker_num' => 2,
+   'task_worker_num' => 2,
    'user' => 'www-data',
    'group' => 'www-data',
    'chroot' => '/opt/tmp',
@@ -46,8 +46,8 @@ if (isset($argv[1]) and $argv[1] == 'daemon') {
 	$config['daemonize'] = false;
 }
 
-$mode = SWOOLE_BASE;
-//$mode = SWOOLE_PROCESS;
+//$mode = SWOOLE_BASE;
+$mode = SWOOLE_PROCESS;
 
 $serv = new swoole_server("0.0.0.0", 9501, $mode);
 $serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
@@ -114,10 +114,10 @@ function forkChildInWorker() {
 	$serv->childprocess = $process;
 }
 
-function processRename($serv, $worker_id) {
+function processRename(swoole_server $serv, $worker_id) {
 	
 	global $argv;
-	if($worker_id >= $serv->setting['worker_num'])
+	if ( $serv->taskworker)
 	{
 		swoole_set_process_name("php {$argv[0]}: task");
 	}
@@ -125,6 +125,12 @@ function processRename($serv, $worker_id) {
 	{
 		swoole_set_process_name("php {$argv[0]}: worker");
 	}
+
+    if ($worker_id == 0)
+    {
+        var_dump($serv->setting);
+    }
+
 	echo "WorkerStart: MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}";
 	echo "|WorkerId={$serv->worker_id}|WorkerPid={$serv->worker_pid}\n";
 }
