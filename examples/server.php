@@ -236,8 +236,8 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     }
     elseif($cmd == "info")
     {
-        $info = $serv->connection_info($fd, $from_id);
-var_dump($info["remote_ip"]);
+        $info = $serv->connection_info(strval($fd), $from_id);
+        var_dump($info["remote_ip"]);
         $serv->send($fd, 'Info: '.var_export($info, true).PHP_EOL);
     }
     elseif ($cmd == 'proxy')

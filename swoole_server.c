@@ -2754,11 +2754,19 @@ PHP_FUNCTION(swoole_connection_info)
     //ipv6 udp
     if (Z_TYPE_P(zfd) == IS_STRING)
     {
-        fd = 0;
-        ipv6_udp = 1;
+        if (is_numeric_string(Z_STRVAL_P(zfd), Z_STRLEN_P(zfd), &fd, NULL, 0))
+        {
+            ipv6_udp = 0;
+        }
+        else
+        {
+            fd = 0;
+            ipv6_udp = 1;
+        }
     }
     else
     {
+        convert_to_long(zfd);
         fd = Z_LVAL_P(zfd);
     }
 
