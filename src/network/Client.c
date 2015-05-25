@@ -184,7 +184,7 @@ static int swClient_inet_addr(swClient *cli, char *host, int port)
         }
         if (!(host_entry = gethostbyname(host)))
         {
-            swWarn("SwooleClient: Host lookup failed. Error: %s[%d] ", strerror(errno), errno);
+            swWarn("gethostbyname('%s') failed.", host);
             return SW_ERR;
         }
         if (host_entry->h_addrtype != AF_INET)
