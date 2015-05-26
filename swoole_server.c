@@ -528,7 +528,6 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     args[2] = &zfrom_id;
     args[3] = &zdata;
 
-    //TODO unserialize
     if (swTask_type(req) & SW_TASK_SERIALIZE)
     {
         php_unserialize_data_t var_hash;
@@ -558,7 +557,6 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
 
     if (call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onTask], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        sw_atomic_fetch_sub(&SwooleStats->tasking_num, 1);
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onTask handler error");
     }
 
