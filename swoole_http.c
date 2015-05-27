@@ -1362,6 +1362,9 @@ static PHP_METHOD(swoole_http_server, start)
     serv->onReceive = http_onReceive;
     serv->onClose = http_onClose;
     serv->open_http_protocol = 1;
+    serv->open_mqtt_protocol = 0;
+    serv->open_eof_check = 0;
+    serv->open_length_check = 0;
 
     serv->ptr2 = getThis();
 

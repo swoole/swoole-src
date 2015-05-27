@@ -71,6 +71,7 @@ static PHP_METHOD(swoole_table, create);
 static PHP_METHOD(swoole_table, set);
 static PHP_METHOD(swoole_table, get);
 static PHP_METHOD(swoole_table, del);
+static PHP_METHOD(swoole_table, exist);
 static PHP_METHOD(swoole_table, incr);
 static PHP_METHOD(swoole_table, decr);
 static PHP_METHOD(swoole_table, lock);
@@ -95,6 +96,7 @@ static const zend_function_entry swoole_table_methods[] =
     PHP_ME(swoole_table, get,         arginfo_swoole_table_get, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, count,       arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, del,         arginfo_swoole_table_del, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, exist,       arginfo_swoole_table_get, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, incr,        arginfo_swoole_table_incr, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, decr,        arginfo_swoole_table_decr, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, lock,        arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
@@ -460,6 +462,27 @@ static PHP_METHOD(swoole_table, get)
         RETURN_FALSE;
     }
     php_swoole_table_row2array(table, row, return_value);
+}
+
+static PHP_METHOD(swoole_table, exist)
+{
+    char *key;
+    int keylen;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &key, &keylen) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+    swTable *table = swoole_get_object(getThis());
+    swTableRow *row = swTableRow_get(table, key, keylen);
+    if (!row)
+    {
+        RETURN_FALSE;
+    }
+    else
+    {
+        RETURN_TRUE;
+    }
 }
 
 static PHP_METHOD(swoole_table, del)
