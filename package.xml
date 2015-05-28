@@ -49,7 +49,7 @@
 - Pipeline memory buffer default size is adjusted to 32M
 - Http Server Header adjust the maximum length of 128 to 8192
 - Fixed swoole_process->pop cannot use
-- Fixed taskwait error in MacOS/CygWin
+- Fixed taskwait error in MacOS and CygWin
 - Added swoole_table->exist
     </notes>
 	<contents>
@@ -104,6 +104,7 @@
 				<dir name="http">
 					<file role="src" name="server.php" />
 					<file role="src" name="client.php" />
+					<file role="src" name="curl.php" />
 				</dir>
 				<dir name="length">
                     <file role="src" name="server.php" />
@@ -140,7 +141,7 @@
 				<dir name="websocket">
 					<file role="src" name="server.php" />
 					<file role="src" name="client.php" />
-					<file role="src" name="client.php" />
+					<file role="src" name="client.html" />
 					<file role="src" name="WebSocketClient.php" />
 				</dir>
 				<dir name="ipv6">
