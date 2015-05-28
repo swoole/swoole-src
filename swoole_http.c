@@ -1206,9 +1206,11 @@ void swoole_http_request_free(swoole_http_client *client TSRMLS_DC)
     {
         zval_ptr_dtor(&zserver);
     }
-    zval_ptr_dtor(&client->zrequest);
-    client->zrequest = NULL;
-
+    if (client->zrequest)
+    {
+        zval_ptr_dtor(&client->zrequest);
+        client->zrequest = NULL;
+    }
     if (client->zresponse)
     {
         zval_ptr_dtor(&client->zresponse);
