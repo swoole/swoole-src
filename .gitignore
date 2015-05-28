@@ -1,6 +1,7 @@
 /.cproject
 /.idea
 /.project
+/examples/yield/
 *.o
 *.lo
 *~

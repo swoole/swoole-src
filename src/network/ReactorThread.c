@@ -199,6 +199,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
                     swTrace("Connection Close. free buffer=%p, request=%p\n", request->buffer, request);
                     swHttpRequest_free(conn, request);
                 }
+                sw_free(request);
             }
             conn->object = NULL;
         }
@@ -1413,7 +1414,8 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
         request = (swHttpRequest *) conn->object;
     }
 
-    recv_data: if (request->method == 0)
+    recv_data:
+    if (request->method == 0)
     {
         buf = recv_buf;
         buf_len = SW_BUFFER_SIZE;
