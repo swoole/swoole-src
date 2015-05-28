@@ -1517,6 +1517,10 @@ static PHP_METHOD(swoole_client, isConnected)
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
         RETURN_FALSE;
     }
+    if (!cli->socket)
+    {
+        RETURN_FALSE;
+    }
     RETURN_BOOL(cli->socket->active);
 }
 

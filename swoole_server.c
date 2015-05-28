@@ -1294,6 +1294,7 @@ PHP_FUNCTION(swoole_server_set)
     {
         convert_to_boolean(*v);
         serv->open_eof_split = (uint8_t) Z_BVAL_PP(v);
+        serv->open_eof_check = 1;
     }
     //package eof
     if (sw_zend_hash_find(vht, ZEND_STRS("package_eof"), (void **) &v) == SUCCESS

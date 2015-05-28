@@ -31,11 +31,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2015-05-08</date>
-    <time>13:55:51</time>
+    <date>2015-05-28</date>
+    <time>11:55:51</time>
     <version>
-        <release>1.7.16</release>
-        <api>1.7.16</api>
+        <release>1.7.17</release>
+        <api>1.7.17</api>
     </version>
     <stability>
         <release>stable</release>
@@ -43,13 +43,14 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed swoole_server->addtimer and tick timer conflict
-- Added server statistics items request_count and worker_request_count
-- Added server connections iterator, foreach traverse server can use all the connections
-- Optimize dispatch_mode = 3 model to enhance the efficiency of task assignment
-- Added multipart-form http server and upload files support
-- Added http server requests query_string
-- Fixed invalid parameter problem task_max_request
+- Fixed async swoole_client send data incomplete
+- Removed task_dispatch_mode server configuration 
+- Added pipe_buffer_size server configuration  
+- Pipeline memory buffer default size is adjusted to 32M
+- Http Server Header adjust the maximum length of 128 to 8192
+- Fixed swoole_process->pop cannot use
+- Fixed taskwait error in MacOS/CygWin
+- Added swoole_table->exist
     </notes>
 	<contents>
 		<dir name="/">
@@ -98,17 +99,21 @@
 					<file role="src" name="echo.php" />
 					<file role="src" name="unix_dgram.php" />
 					<file role="src" name="unix_stream.php" />
-					<file role="src" name="length_check_server.php" />
-					<file role="src" name="length_check_client.php" />
 					<file role="src" name="msgqueue.php" />
 				</dir>
 				<dir name="http">
 					<file role="src" name="server.php" />
 					<file role="src" name="client.php" />
 				</dir>
+				<dir name="length">
+                    <file role="src" name="server.php" />
+                    <file role="src" name="client.php" />
+                    <file role="src" name="async_client.php" />
+                </dir>
 				<dir name="eof">
                     <file role="src" name="server.php" />
                     <file role="src" name="client.php" />
+                    <file role="src" name="async_client.php" />
                 </dir>
 				<dir name="event">
 					<file role="src" name="stream.php" />
@@ -123,8 +128,8 @@
 				</dir>
 				<dir name="task">
 					<file role="src" name="task.php" />
-					<file role="src" name="task_shared_client.php" />
-					<file role="src" name="task_shared_serv.php" />
+					<file role="src" name="shared_client.php" />
+					<file role="src" name="shared_server.php" />
 				</dir>
 				<dir name="table">
 					<file role="src" name="iterator.php" />
