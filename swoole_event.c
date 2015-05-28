@@ -20,6 +20,15 @@
 #include "php_streams.h"
 #include "php_network.h"
 
+#ifdef SW_SOCKETS
+#if PHP_VERSION_ID >= 50301 && (HAVE_SOCKETS || defined(COMPILE_DL_SOCKETS))
+#include "ext/sockets/php_sockets.h"
+#define SWOOLE_SOCKETS_SUPPORT
+#else
+#error "Enable sockets support, But no sockets extension"
+#endif
+#endif
+
 typedef struct
 {
     zval *cb_read;
