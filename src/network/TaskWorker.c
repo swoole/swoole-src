@@ -214,7 +214,11 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
         while (1)
         {
             ret = task_notify_pipe->write(task_notify_pipe, &flag, sizeof(flag));
-            if (ret < 0 && errno == EAGAIN)
+#ifdef HAVE_KQUEUE
+            if (errno == EAGAIN || errno == ENOBUFS)
+#else
+            if (errno == EAGAIN)
+#endif
             {
                 if (swSocket_wait(task_notify_pipe->getFd(task_notify_pipe, 1), -1, SW_EVENT_WRITE) == 0)
                 {
