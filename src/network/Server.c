@@ -1134,7 +1134,14 @@ static void swServer_signal_hanlder(int sig)
     switch (sig)
     {
     case SIGTERM:
-        SwooleG.main_reactor->running = 0;
+        if (SwooleG.main_reactor)
+        {
+            SwooleG.main_reactor->running = 0;
+        }
+        else
+        {
+            SwooleG.running = 0;
+        }
         break;
     case SIGALRM:
         swTimer_signal_handler(SIGALRM);
