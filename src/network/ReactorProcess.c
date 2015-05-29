@@ -91,6 +91,7 @@ int swReactorProcess_start(swServer *serv)
     SwooleGS->event_workers.ptr = serv;
     SwooleGS->event_workers.main_loop = swReactorProcess_loop;
     SwooleGS->event_workers.type = SW_PROCESS_WORKER;
+    SwooleGS->event_workers.run_worker_num = serv->worker_num;
 
     //no worker
     if (serv->worker_num == 1 && SwooleG.task_worker_num == 0 && serv->max_request == 0)
