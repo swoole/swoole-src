@@ -67,7 +67,7 @@ static PHP_METHOD(swoole_buffer, __construct)
     }
 
     zval *zres;
-    MAKE_STD_ZVAL(zres);
+    SW_MAKE_STD_ZVAL(zres,0);
 
     swString *buffer = swString_new(size);
     if (buffer == NULL)
@@ -163,7 +163,7 @@ static PHP_METHOD(swoole_buffer, substr)
         zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"),
                 buffer->length - buffer->offset TSRMLS_CC);
     }
-    RETURN_STRINGL(buffer->str + offset, length, 1);
+    SW_RETURN_STRINGL(buffer->str + offset, length, 1);
 }
 
 static PHP_METHOD(swoole_buffer, write)

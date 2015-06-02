@@ -265,11 +265,11 @@ static int http_request_on_path(php_http_parser *parser, const char *at, size_t 
 
 static void http_global_clear(TSRMLS_D)
 {
-    zend_hash_del(&EG(symbol_table), "_GET", sizeof("_GET"));
-    zend_hash_del(&EG(symbol_table), "_POST", sizeof("_POST"));
-    zend_hash_del(&EG(symbol_table), "_COOKIE", sizeof("_COOKIE"));
-    zend_hash_del(&EG(symbol_table), "_REQUEST", sizeof("_REQUEST"));
-    zend_hash_del(&EG(symbol_table), "_SERVER", sizeof("_SERVER"));
+    sw_zend_hash_del(&EG(symbol_table), "_GET", sizeof("_GET"));
+    sw_zend_hash_del(&EG(symbol_table), "_POST", sizeof("_POST"));
+    sw_zend_hash_del(&EG(symbol_table), "_COOKIE", sizeof("_COOKIE"));
+    sw_zend_hash_del(&EG(symbol_table), "_REQUEST", sizeof("_REQUEST"));
+    sw_zend_hash_del(&EG(symbol_table), "_SERVER", sizeof("_SERVER"));
 }
 
 static void http_global_merge(zval *val, zval *zrequest, int type)
@@ -280,7 +280,7 @@ static void http_global_merge(zval *val, zval *zrequest, int type)
     if (type == HTTP_GLOBAL_SERVER)
     {
         zval *php_global_server;
-        MAKE_STD_ZVAL(php_global_server);
+        SW_MAKE_STD_ZVAL(php_global_server,0);
         array_init(php_global_server);
 
         char *key;
@@ -288,44 +288,30 @@ static void http_global_merge(zval *val, zval *zrequest, int type)
         int keytype;
         uint32_t keylen;
         ulong idx;
-        zval **value;
+        zval *value;
 
-        zval *server = zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("server"), 1 TSRMLS_CC);
+        zval *server = sw_zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("server"), 1 TSRMLS_CC);
         if (server || !ZVAL_IS_NULL(server))
         {
-            for (zend_hash_internal_pointer_reset(Z_ARRVAL_P(server));
-                zend_hash_has_more_elements(Z_ARRVAL_P(server)) == SUCCESS;
-                zend_hash_move_forward(Z_ARRVAL_P(server)))
-            {
-                keytype = zend_hash_get_current_key_ex(Z_ARRVAL_P(server), &key, &keylen, &idx, 0, NULL);
+            WRAPPER_ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(server), value)
+                keytype = wrapper_zend_hash_get_current_key(Z_ARRVAL_P(server), &key, &keylen, &idx);
                 if (HASH_KEY_IS_STRING != keytype)
-                {
-                    continue;
-                }
-                if (zend_hash_get_current_data(Z_ARRVAL_P(server), (void**)&value) == FAILURE)
                 {
                     continue;
                 }
                 strncpy(_php_key, key, sizeof(_php_key));
                 php_strtoupper(_php_key, keylen);
-                convert_to_string(*value);
-                add_assoc_stringl_ex(php_global_server, _php_key, keylen, Z_STRVAL_PP(value), Z_STRLEN_PP(value), 1);
-            }
+                convert_to_string(value);
+                sw_add_assoc_stringl_ex(php_global_server, _php_key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value), 1);
+            WRAPPER_ZEND_HASH_FOREACH_END();
         }
 
-        zval *header = zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("header"), 1 TSRMLS_CC);
+        zval *header = sw_zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("header"), 1 TSRMLS_CC);
         if (header || !ZVAL_IS_NULL(header))
         {
-            for (zend_hash_internal_pointer_reset(Z_ARRVAL_P(header));
-                zend_hash_has_more_elements(Z_ARRVAL_P(header)) == SUCCESS;
-                zend_hash_move_forward(Z_ARRVAL_P(header)))
-            {
-                keytype = zend_hash_get_current_key_ex(Z_ARRVAL_P(header), &key, &keylen, &idx, 0, NULL);
+            WRAPPER_ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(header), value)
+                keytype = wrapper_zend_hash_get_current_key(Z_ARRVAL_P(header), &key, &keylen, &idx);
                 if (HASH_KEY_IS_STRING != keytype)
-                {
-                    continue;
-                }
-                if (zend_hash_get_current_data(Z_ARRVAL_P(header), (void**)&value) == FAILURE)
                 {
                     continue;
                 }
@@ -340,9 +326,9 @@ static void http_global_merge(zval *val, zval *zrequest, int type)
                 }
                 keylen = snprintf(_php_key, sizeof(_php_key), "HTTP_%s", key) + 1;
                 php_strtoupper(_php_key, keylen);
-                convert_to_string(*value);
-                add_assoc_stringl_ex(php_global_server, _php_key, keylen, Z_STRVAL_PP(value), Z_STRLEN_PP(value), 1);
-            }
+                convert_to_string(value);
+                sw_add_assoc_stringl_ex(php_global_server, _php_key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value), 1);
+             WRAPPER_ZEND_HASH_FOREACH_END();
         }
         ZEND_SET_SYMBOL(&EG(symbol_table), "_SERVER", php_global_server);
         return;
@@ -367,7 +353,7 @@ static void http_global_merge(zval *val, zval *zrequest, int type)
         {
             return;
         }
-        _request = zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), 1 TSRMLS_CC);
+        _request = sw_zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), 1 TSRMLS_CC);
         if (_request && !(ZVAL_IS_NULL(_request)))
         {
             ZEND_SET_SYMBOL(&EG(symbol_table), "_REQUEST", _request);
@@ -385,14 +371,14 @@ static void http_global_merge(zval *val, zval *zrequest, int type)
 
     if (http_merge_request_flag & type)
     {
-        _request = zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), 1 TSRMLS_CC);
+        _request = sw_zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), 1 TSRMLS_CC);
         if (!_request || ZVAL_IS_NULL(_request))
         {
             _request = val;
         }
         else
         {
-            zend_hash_copy(Z_ARRVAL_P(_request), Z_ARRVAL_P(val), NULL, NULL, sizeof(zval));
+            sw_zend_hash_copy(Z_ARRVAL_P(_request), Z_ARRVAL_P(val), NULL, NULL, sizeof(zval));
         }
         zend_update_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), _request TSRMLS_CC);
     }
@@ -409,7 +395,7 @@ static int http_request_on_query_string(php_http_parser *parser, const char *at,
     add_assoc_stringl_ex(client->zserver, ZEND_STRS("query_string"), query, length, 1);
 
     zval *get;
-    MAKE_STD_ZVAL(get);
+    SW_MAKE_STD_ZVAL(get,0);
     array_init(get);
     zend_update_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("get"), get TSRMLS_CC);
     sapi_module.treat_data(PARSE_STRING, query, get TSRMLS_CC);
@@ -1388,7 +1374,7 @@ static PHP_METHOD(swoole_http_server, start)
 
 static PHP_METHOD(swoole_http_request, rawcontent)
 {
-    zval *zfd = zend_read_property(swoole_http_request_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
+    zval *zfd = sw_zend_read_property(swoole_http_request_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
     if (ZVAL_IS_NULL(zfd))
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "http client not exists.");
@@ -1405,7 +1391,7 @@ static PHP_METHOD(swoole_http_request, rawcontent)
     {
         RETURN_FALSE;
     }
-    RETVAL_STRINGL(client->request.post_content, client->request.post_length, 0);
+    SW_RETVAL_STRINGL(client->request.post_content, client->request.post_length, 0);
     client->request.post_content = NULL;
 }
 
@@ -1492,7 +1478,7 @@ static PHP_METHOD(swoole_http_response, write)
 
 static swoole_http_client *http_get_client(zval *object, int check_end TSRMLS_DC)
 {
-    zval *zfd = zend_read_property(swoole_http_response_class_entry_ptr, object, ZEND_STRL("fd"), 0 TSRMLS_CC);
+    zval *zfd = sw_zend_read_property(swoole_http_response_class_entry_ptr, object, ZEND_STRL("fd"), 0 TSRMLS_CC);
     if (ZVAL_IS_NULL(zfd))
     {
         swoole_php_fatal_error(E_WARNING, "not http client.");
@@ -1542,7 +1528,7 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
     /**
      * http header
      */
-    zval *header =  zend_read_property(swoole_http_response_class_entry_ptr, object, ZEND_STRL("header"), 1 TSRMLS_CC);
+    zval *header =  sw_zend_read_property(swoole_http_response_class_entry_ptr, object, ZEND_STRL("header"), 1 TSRMLS_CC);
 
     if (!ZVAL_IS_NULL(header))
     {
@@ -1554,16 +1540,15 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
         char *key_date = "Date";
 
         HashTable *ht = Z_ARRVAL_P(header);
-        for (zend_hash_internal_pointer_reset(ht); zend_hash_has_more_elements(ht) == 0; zend_hash_move_forward(ht))
-        {
+        zval *value = NULL;
+     WRAPPER_ZEND_HASH_FOREACH_VAL(ht, value)
             char *key;
             uint keylen;
             ulong idx;
             int type;
-            zval **value;
 
-            type = zend_hash_get_current_key_ex(ht, &key, &keylen, &idx, 0, NULL);
-            if (type == HASH_KEY_IS_LONG || zend_hash_get_current_data(ht, (void**)&value) == FAILURE)
+            type = wrapper_zend_hash_get_current_key(ht, &key, &keylen, &idx);
+            if (type == HASH_KEY_IS_LONG)
             {
                 continue;
             }
@@ -1587,9 +1572,9 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
             {
                 flag |= HTTP_RESPONSE_CONTENT_TYPE;
             }
-            n = snprintf(buf, sizeof(buf), "%*s: %*s\r\n", keylen - 1, key, Z_STRLEN_PP(value), Z_STRVAL_PP(value));
+            n = snprintf(buf, sizeof(buf), "%*s: %*s\r\n", keylen - 1, key, Z_STRLEN_P(value), Z_STRVAL_P(value));
             swString_append_ptr(response, buf, n);
-        }
+     WRAPPER_ZEND_HASH_FOREACH_END();
         if (!(flag & HTTP_RESPONSE_SERVER))
         {
             swString_append_ptr(response, ZEND_STRL("Server: "SW_HTTP_SERVER_SOFTWARE"\r\n"));
@@ -1626,7 +1611,7 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
         }
         if (!(flag & HTTP_RESPONSE_DATE))
         {
-            date_str = php_format_date(ZEND_STRL("D, d-M-Y H:i:s T"), SwooleGS->now, 0 TSRMLS_CC);
+            date_str = sw_php_format_date(ZEND_STRL("D, d-M-Y H:i:s T"), SwooleGS->now, 0 TSRMLS_CC);
             n = snprintf(buf, sizeof(buf), "Date: %s\r\n", date_str);
             swString_append_ptr(response, buf, n);
             efree(date_str);
@@ -1648,7 +1633,7 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
             swString_append_ptr(response, ZEND_STRL("Connection: close\r\n"));
         }
 
-        date_str = php_format_date(ZEND_STRL("D, d-M-Y H:i:s T"), SwooleGS->now, 0 TSRMLS_CC);
+        date_str = sw_php_format_date(ZEND_STRL("D, d-M-Y H:i:s T"), SwooleGS->now, 0 TSRMLS_CC);
         n = snprintf(buf, sizeof(buf), "Date: %s\r\n", date_str);
         efree(date_str);
         swString_append_ptr(response, buf, n);
@@ -1879,7 +1864,7 @@ static PHP_METHOD(swoole_http_response, cookie)
     if (encode && value)
     {
         int encoded_value_len;
-        encoded_value = php_url_encode(value, value_len, &encoded_value_len);
+        encoded_value = sw_php_url_encode(value, value_len, &encoded_value_len);
         len += encoded_value_len;
     }
     else if (value)
@@ -1900,7 +1885,7 @@ static PHP_METHOD(swoole_http_response, cookie)
 
     if (value && value_len == 0)
     {
-        dt = php_format_date("D, d-M-Y H:i:s T", sizeof("D, d-M-Y H:i:s T") - 1, 1, 0 TSRMLS_CC);
+        dt = sw_php_format_date("D, d-M-Y H:i:s T", sizeof("D, d-M-Y H:i:s T") - 1, 1, 0 TSRMLS_CC);
         snprintf(cookie, len + 100, "Set-Cookie: %s=deleted; expires=%s", name, dt);
         efree(dt);
     }
@@ -1911,7 +1896,7 @@ static PHP_METHOD(swoole_http_response, cookie)
         {
             const char *p;
             strlcat(cookie, "; expires=", len + 100);
-            dt = php_format_date("D, d-M-Y H:i:s T", sizeof("D, d-M-Y H:i:s T") - 1, expires, 0 TSRMLS_CC);
+            dt = sw_php_format_date("D, d-M-Y H:i:s T", sizeof("D, d-M-Y H:i:s T") - 1, expires, 0 TSRMLS_CC);
             p = zend_memrchr(dt, '-', strlen(dt));
             if (!p || *(p + 5) != ' ')
             {
@@ -1991,7 +1976,7 @@ static PHP_METHOD(swoole_http_response, rawcookie)
     if (encode && value)
     {
         int encoded_value_len;
-        encoded_value = php_url_encode(value, value_len, &encoded_value_len);
+        encoded_value = sw_php_url_encode(value, value_len, &encoded_value_len);
         len += encoded_value_len;
     }
     else if (value)
@@ -2012,7 +1997,7 @@ static PHP_METHOD(swoole_http_response, rawcookie)
 
     if (value && value_len == 0)
     {
-        dt = php_format_date("D, d-M-Y H:i:s T", sizeof("D, d-M-Y H:i:s T") - 1, 1, 0 TSRMLS_CC);
+        dt = sw_php_format_date("D, d-M-Y H:i:s T", sizeof("D, d-M-Y H:i:s T") - 1, 1, 0 TSRMLS_CC);
         snprintf(cookie, len + 100, "Set-Cookie: %s=deleted; expires=%s", name, dt);
         efree(dt);
     }
@@ -2023,7 +2008,7 @@ static PHP_METHOD(swoole_http_response, rawcookie)
         {
             const char *p;
             strlcat(cookie, "; expires=", len + 100);
-            dt = php_format_date("D, d-M-Y H:i:s T", sizeof("D, d-M-Y H:i:s T") - 1, expires, 0 TSRMLS_CC);
+            dt = sw_php_format_date("D, d-M-Y H:i:s T", sizeof("D, d-M-Y H:i:s T") - 1, expires, 0 TSRMLS_CC);
             p = zend_memrchr(dt, '-', strlen(dt));
             if (!p || *(p + 5) != ' ')
             {
@@ -2089,14 +2074,14 @@ static PHP_METHOD(swoole_http_response, header)
     {
         return;
     }
-    zval *header = zend_read_property(swoole_http_request_class_entry_ptr, getThis(), ZEND_STRL("header"), 1 TSRMLS_CC);
+    zval *header = sw_zend_read_property(swoole_http_request_class_entry_ptr, getThis(), ZEND_STRL("header"), 1 TSRMLS_CC);
     if (!header || ZVAL_IS_NULL(header))
     {
-        MAKE_STD_ZVAL(header);
+        SW_MAKE_STD_ZVAL(header,0);
         array_init(header);
         zend_update_property(swoole_http_request_class_entry_ptr, getThis(), ZEND_STRL("header"), header TSRMLS_CC);
     }
-    add_assoc_stringl_ex(header, k, klen + 1, v, vlen, 1);
+    sw_add_assoc_stringl_ex(header, k, klen + 1, v, vlen, 1);
 }
 
 static PHP_METHOD(swoole_http_response, gzip)

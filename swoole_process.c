@@ -125,7 +125,7 @@ static PHP_METHOD(swoole_process, __construct)
     }
 
     char *func_name = NULL;
-    if (!zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+    if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
     {
         php_error_docref(NULL TSRMLS_CC, E_ERROR, "function '%s' is not callable", func_name);
         efree(func_name);
@@ -234,7 +234,11 @@ static PHP_METHOD(swoole_process, useQueue)
 
     if (msgkey < 0)
     {
-        msgkey = ftok(EG(active_op_array)->filename, 0);
+#if PHP_MAJOR_VERSION == 7
+         msgkey = ftok(execute_data->func->op_array.filename->val, 0);
+#else
+       msgkey = ftok(EG(active_op_array)->filename, 0);
+#endif
     }
 
     swQueue *queue = emalloc(sizeof(swQueue));
@@ -298,7 +302,7 @@ static PHP_METHOD(swoole_process, signal)
     }
 
     char *func_name;
-    if (!zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+    if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
     {
         php_error_docref(NULL TSRMLS_CC, E_ERROR, "function '%s' is not callable", func_name);
         efree(func_name);
@@ -306,7 +310,7 @@ static PHP_METHOD(swoole_process, signal)
     }
     efree(func_name);
 
-    zval_add_ref(&callback);
+    sw_zval_add_ref(&callback);
     signal_callback[signo] = callback;
 
 #if PHP_MAJOR_VERSION >= 5 && PHP_MINOR_VERSION >= 4
@@ -338,20 +342,20 @@ static void php_swoole_onSignal(int signo)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
     zval *zsigno;
-    MAKE_STD_ZVAL(zsigno);
+    SW_MAKE_STD_ZVAL(zsigno,0);
     ZVAL_LONG(zsigno, signo);
 
     args[0] = &zsigno;
 
-    if (call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "user_signal handler error");
     }
     if (retval != NULL)
     {
-        zval_ptr_dtor(&retval);
+        sw_zval_ptr_dtor(&retval);
     }
-    zval_ptr_dtor(&zsigno);
+    sw_zval_ptr_dtor(&zsigno);
 }
 
 int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
@@ -402,7 +406,7 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
     zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("pid"), process->pid TSRMLS_CC);
     zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("pipe"), process->pipe_worker TSRMLS_CC);
 
-    zval *zcallback = zend_read_property(swoole_process_class_entry_ptr, object, ZEND_STRL("callback"), 0 TSRMLS_CC);
+    zval *zcallback = sw_zend_read_property(swoole_process_class_entry_ptr, object, ZEND_STRL("callback"), 0 TSRMLS_CC);
     zval **args[1];
 
     if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
@@ -411,11 +415,11 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
         return SW_ERR;
     }
 
-    zval *retval;
+    zval *retval = NULL;
     args[0] = &object;
-    zval_add_ref(&object);
+    sw_zval_add_ref(&object);
 
-    if (call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_ERROR, "callback function error");
         return SW_ERR;
@@ -423,7 +427,7 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
 
     if (retval)
     {
-        zval_ptr_dtor(&retval);
+        sw_zval_ptr_dtor(&retval);
     }
 
     zend_bailout();
@@ -499,7 +503,7 @@ static PHP_METHOD(swoole_process, read)
 		RETURN_FALSE;
 	}
 	buf[ret] = 0;
-	ZVAL_STRINGL(return_value, buf, ret, 0);
+	SW_ZVAL_STRINGL(return_value, buf, ret, 0);
 }
 
 static PHP_METHOD(swoole_process, write)
@@ -631,7 +635,7 @@ static PHP_METHOD(swoole_process, pop)
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "msgrcv() failed. Error: %s[%d]", strerror(errno), errno);
         RETURN_FALSE;
     }
-    RETURN_STRINGL(message.data, n, 1);
+    SW_RETURN_STRINGL(message->data, n, 1);
 }
 
 static PHP_METHOD(swoole_process, exec)
@@ -654,23 +658,29 @@ static PHP_METHOD(swoole_process, exec)
     int exec_argc = php_swoole_array_length(args);
     char **exec_args = emalloc(sizeof(char*) * exec_argc + 1);
 
-    zval **value;
-    Bucket *_p;
-    _p = Z_ARRVAL_P(args)->pListHead;
+    zval *value = NULL;
     exec_args[0] = strdup(execfile);
+    int i = 1;
+//    Bucket *_p;
+//    _p = SW_Z_ARRVAL_P(args)->pListHead;
+//	while(_p != NULL)
+//	{
+//		value = (zval **) _p->pData;
+//		convert_to_string(*value);
+//
+//		sw_zval_add_ref(value);
+//		exec_args[i] = Z_STRVAL_PP(value);
+//
+//		_p = _p->pListNext;
+//		i++;
+//	}
+     WRAPPER_ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(args), value)
+                convert_to_string(value);
 
-	int i = 1;
-	while(_p != NULL)
-	{
-		value = (zval **) _p->pData;
-		convert_to_string(*value);
-
-		zval_add_ref(value);
-		exec_args[i] = Z_STRVAL_PP(value);
-
-		_p = _p->pListNext;
-		i++;
-	}
+		sw_zval_add_ref(&value);
+		exec_args[i] = Z_STRVAL_P(value);
+                i++;
+     WRAPPER_ZEND_HASH_FOREACH_END();
 	exec_args[i] = NULL;
 
 	if (execv(execfile, exec_args) < 0)

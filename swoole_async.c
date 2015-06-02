@@ -91,7 +91,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 	}
 	else
 	{
-		if (zend_hash_find(&php_sw_aio_callback, (char *)&(event->fd), sizeof(event->fd), (void**) &file_req) != SUCCESS)
+		if (sw_zend_hash_find(&php_sw_aio_callback, (char *)&(event->fd), sizeof(event->fd), (void**) &file_req) != SUCCESS)
 		{
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async: onAsyncComplete callback not found[1]");
 			return;
@@ -128,14 +128,14 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 
     if (event->type == SW_AIO_READ)
     {
-        MAKE_STD_ZVAL(zcontent);
+        SW_MAKE_STD_ZVAL(zcontent,0);
         args[0] = &file_req->filename;
         args[1] = &zcontent;
-        ZVAL_STRINGL(zcontent, event->buf, ret, 0);
+        SW_ZVAL_STRINGL(zcontent, event->buf, ret, 0);
     }
     else if (event->type == SW_AIO_WRITE)
     {
-        MAKE_STD_ZVAL(zwriten);
+        SW_MAKE_STD_ZVAL(zwriten,0);
         args[0] = &file_req->filename;
         args[1] = &zwriten;
         ZVAL_LONG(zwriten, ret);
@@ -154,15 +154,15 @@ static void php_swoole_aio_onComplete(swAio_event *event)
     }
 	else if(event->type == SW_AIO_DNS_LOOKUP)
 	{
-		MAKE_STD_ZVAL(zcontent);
+		SW_MAKE_STD_ZVAL(zcontent,0);
 		args[0] = &dns_req->domain;
 		if (ret < 0)
 		{
-			ZVAL_STRING(zcontent, "", 0);
+			SW_ZVAL_STRING(zcontent, "", 0);
 		}
 		else
 		{
-			ZVAL_STRING(zcontent, event->buf, 0);
+			SW_ZVAL_STRING(zcontent, event->buf, 0);
 		}
 		args[1] = &zcontent;
 	}
@@ -174,7 +174,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 
     if (zcallback)
     {
-        if (call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+        if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
         {
             php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async: onAsyncComplete handler error");
             return;
@@ -188,8 +188,8 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 		if (file_req->once == 1)
 		{
 			close_file:
-			zval_ptr_dtor(&file_req->callback);
-			zval_ptr_dtor(&file_req->filename);
+			sw_zval_ptr_dtor(&file_req->callback);
+			sw_zval_ptr_dtor(&file_req->filename);
 
 			if (SwooleAIO.mode == SW_AIO_LINUX)
 			{
@@ -201,7 +201,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 			}
 			close(event->fd);
 			//remove from hashtable
-			zend_hash_del(&php_sw_aio_callback, (char *)&(event->fd), sizeof(event->fd));
+			sw_zend_hash_del(&php_sw_aio_callback, (char *)&(event->fd), sizeof(event->fd));
 		}
 		else if(file_req->type == SW_AIO_WRITE)
 		{
@@ -225,8 +225,8 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 	}
     else if (dns_req != NULL)
     {
-        zval_ptr_dtor(&dns_req->callback);
-        zval_ptr_dtor(&dns_req->domain);
+        sw_zval_ptr_dtor(&dns_req->callback);
+        sw_zval_ptr_dtor(&dns_req->domain);
 
         efree(dns_req);
         efree(event->buf);
@@ -237,11 +237,11 @@ static void php_swoole_aio_onComplete(swAio_event *event)
     }
     if (zwriten != NULL)
     {
-        zval_ptr_dtor(&zwriten);
+        sw_zval_ptr_dtor(&zwriten);
     }
     if (retval != NULL)
     {
-        zval_ptr_dtor(&retval);
+        sw_zval_ptr_dtor(&retval);
     }
     if (SwooleWG.in_client && SwooleG.main_reactor->event_num == 1 && SwooleAIO.task_num == 1)
     {
@@ -323,10 +323,10 @@ PHP_FUNCTION(swoole_async_read)
 	req.content_length = buf_size;
 	req.offset = offset;
 
-	Z_ADDREF_PP(&cb);
-	Z_ADDREF_PP(&filename);
+	sw_zval_add_ref(&cb);
+	sw_zval_add_ref(&filename);
 
-    if (zend_hash_update(&php_sw_aio_callback, (char * )&fd, sizeof(fd), &req, sizeof(file_request), NULL)
+    if (sw_zend_hash_update(&php_sw_aio_callback, (char * )&fd, sizeof(fd), &req, sizeof(file_request), NULL)
             == FAILURE)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "add to hashtable[1] failed");
@@ -410,10 +410,10 @@ PHP_FUNCTION(swoole_async_write)
 
 		if (cb != NULL)
 		{
-			Z_ADDREF_PP(&cb);
+			sw_zval_add_ref(&cb);
 		}
 
-        if (zend_hash_update(&php_sw_aio_callback, (char *)&fd, sizeof(fd), (void **) &new_req, sizeof(new_req), (void **) &req) == FAILURE)
+        if (sw_zend_hash_update(&php_sw_aio_callback, (char *)&fd, sizeof(fd), (void **) &new_req, sizeof(new_req), (void **) &req) == FAILURE)
 		{
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "add to hashtable[1] failed");
 			RETURN_FALSE;
@@ -518,10 +518,10 @@ PHP_FUNCTION(swoole_async_readfile)
     req.content_length = file_stat.st_size;
     req.offset = 0;
 
-    Z_ADDREF_PP(&cb);
-    Z_ADDREF_PP(&filename);
+    sw_zval_add_ref(&cb);
+    sw_zval_add_ref(&filename);
 
-    if (zend_hash_update(&php_sw_aio_callback, (char * )&fd, sizeof(fd), &req, sizeof(file_request), NULL) == FAILURE)
+    if (sw_zend_hash_update(&php_sw_aio_callback, (char * )&fd, sizeof(fd), &req, sizeof(file_request), NULL) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "add to hashtable failed");
         RETURN_FALSE;
@@ -589,14 +589,14 @@ PHP_FUNCTION(swoole_async_writefile)
 	req.once = 1;
 	req.content_length = fcnt_len;
 	req.offset = 0;
-	Z_ADDREF_PP(&filename);
+	sw_zval_add_ref(&filename);
 
 	if (req.callback != NULL)
 	{
-		Z_ADDREF_PP(&req.callback);
+		sw_zval_add_ref(&req.callback);
 	}
 
-	if (zend_hash_update(&php_sw_aio_callback, (char *)&fd, sizeof(fd), &req, sizeof(file_request), NULL) == FAILURE)
+	if (sw_zend_hash_update(&php_sw_aio_callback, (char *)&fd, sizeof(fd), &req, sizeof(file_request), NULL) == FAILURE)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "add to hashtable failed");
 		RETURN_FALSE;
@@ -620,13 +620,13 @@ PHP_FUNCTION(swoole_async_set)
 
     vht = Z_ARRVAL_P(zset);
 
-    if (zend_hash_find(vht, ZEND_STRS("aio_mode"), (void **)&v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("aio_mode"), (void **)&v) == SUCCESS)
     {
         convert_to_long(*v);
         SwooleAIO.mode = (uint8_t) Z_LVAL_PP(v);
     }
 
-    if (zend_hash_find(vht, ZEND_STRS("thread_num"), (void **)&v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("thread_num"), (void **)&v) == SUCCESS)
     {
         convert_to_long(*v);
         SwooleAIO.thread_num = (uint8_t) Z_LVAL_PP(v);
@@ -653,8 +653,8 @@ PHP_FUNCTION(swoole_async_dns_lookup)
 	req->callback = cb;
 	req->domain = domain;
 
-	Z_ADDREF_PP(&req->callback);
-	Z_ADDREF_PP(&req->domain);
+	sw_zval_add_ref(&req->callback);
+	sw_zval_add_ref(&req->domain);
 
 	int buf_size;
     if (Z_STRLEN_P(domain) < SW_IP_MAX_LENGTH)

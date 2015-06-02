@@ -132,7 +132,7 @@ static void php_swoole_table_row2array(swTable *table, swTableRow *row, zval *re
         if (col->type == SW_TABLE_STRING)
         {
             memcpy(&vlen, row->data + col->index, sizeof(swTable_string_length_t));
-            add_assoc_stringl_ex(return_value, col->name->str, col->name->length + 1, row->data + col->index + sizeof(swTable_string_length_t), vlen, 1);
+            sw_add_assoc_stringl_ex(return_value, col->name->str, col->name->length + 1, row->data + col->index + sizeof(swTable_string_length_t), vlen, 1);
         }
         else if (col->type == SW_TABLE_FLOAT)
         {
@@ -214,7 +214,6 @@ PHP_METHOD(swoole_table, __destruct)
         swTable_free(table);
     }
 }
-
 
 PHP_METHOD(swoole_table, column)
 {

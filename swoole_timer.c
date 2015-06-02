@@ -112,7 +112,7 @@ static void php_swoole_onTimerInterval(swTimer *timer, swTimer_node *event)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
-    zval *retval;
+    zval *retval = NULL;
     zval **args[2];
     int argc = 1;
 
@@ -129,34 +129,33 @@ static void php_swoole_onTimerInterval(swTimer *timer, swTimer_node *event)
 
     if (cb->type == SW_TIMER_TICK)
     {
-        MAKE_STD_ZVAL(ztimer_id);
+        SW_MAKE_STD_ZVAL(ztimer_id,0);
         ZVAL_LONG(ztimer_id, event->id);
 
         if (cb->data)
         {
             argc = 2;
-            zval_add_ref(&cb->data);
+            sw_zval_add_ref(&cb->data);
             args[1] = &cb->data;
         }
     }
     else
     {
-        MAKE_STD_ZVAL(ztimer_id);
+        SW_MAKE_STD_ZVAL(ztimer_id,1);
         ZVAL_LONG(ztimer_id, event->interval);
     }
-
     args[0] = &ztimer_id;
 
-    if (call_user_function_ex(EG(function_table), NULL, cb->callback, &retval, argc, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, cb->callback, &retval, argc, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_timer: onTimerCallback handler error");
         return;
     }
     if (retval != NULL)
     {
-        zval_ptr_dtor(&retval);
+        sw_zval_ptr_dtor(&retval);
     }
-    zval_ptr_dtor(&ztimer_id);
+    sw_zval_ptr_dtor(&ztimer_id);
 }
 
 void php_swoole_check_timer(int msec)
@@ -205,10 +204,10 @@ PHP_FUNCTION(swoole_timer_add)
     cb->callback = callback;
     cb->data = NULL;
     cb->type = SW_TIMER_INTERVAL;
-    zval_add_ref(&callback);
+    sw_zval_add_ref(&callback);
 
     char *func_name = NULL;
-    if (!zend_is_callable(cb->callback, 0, &func_name TSRMLS_CC))
+    if (!sw_zend_is_callable(cb->callback, 0, &func_name TSRMLS_CC))
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "Function '%s' is not callable", func_name);
         efree(func_name);
@@ -332,7 +331,7 @@ PHP_FUNCTION(swoole_timer_clear)
 
     if (callback->data)
     {
-        zval_ptr_dtor(&callback->data);
+        sw_zval_ptr_dtor(&callback->data);
     }
     efree(callback);
 
