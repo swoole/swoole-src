@@ -549,30 +549,30 @@ static int client_onPackage(zval *zobject, swClient *cli TSRMLS_DC)
     zval *retval;
 
     zval *zdata;
-    MAKE_STD_ZVAL(zdata);
-    ZVAL_STRINGL(zdata, cli->buffer->str, cli->buffer->length, 1);
+    SW_MAKE_STD_ZVAL(zdata,0);
+    SW_ZVAL_STRINGL(zdata, cli->buffer->str, cli->buffer->length, 1);
 
     args[0] = &zobject;
     args[1] = &zdata;
 
-    zcallback = zend_read_property(swoole_client_class_entry_ptr, zobject, SW_STRL(php_sw_client_onReceive)-1, 0 TSRMLS_CC);
+    zcallback = sw_zend_read_property(swoole_client_class_entry_ptr, zobject, SW_STRL(php_sw_client_onReceive)-1, 0 TSRMLS_CC);
     if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client object have not receive callback.");
         goto free_zdata;
     }
 
-    if (call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "onReactorCallback handler error");
         goto free_zdata;
     }
     if (retval != NULL)
     {
-        zval_ptr_dtor(&retval);
+        sw_zval_ptr_dtor(&retval);
     }
     free_zdata:
-    zval_ptr_dtor(&zdata);
+    sw_zval_ptr_dtor(&zdata);
     return SW_OK;
 }
 
@@ -596,7 +596,7 @@ static int client_onError(swReactor *reactor, swEvent *event)
 static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
 {
     HashTable *vht;
-    zval **v;
+    zval *v;
 
     vht = Z_ARRVAL_P(zset);
 
@@ -604,33 +604,33 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
    if (sw_zend_hash_find(vht, ZEND_STRS("open_eof_split"), (void **)&v) == SUCCESS ||
            sw_zend_hash_find(vht, ZEND_STRS("open_eof_check"), (void **)&v) == SUCCESS )
    {
-       convert_to_boolean(*v);
-       cli->open_eof_split = (uint8_t) Z_BVAL_PP(v);
+       convert_to_boolean(v);
+       cli->open_eof_split = (uint8_t) Z_BVAL_P(v);
    }
    //package eof
    if (sw_zend_hash_find(vht, ZEND_STRS("package_eof"), (void **) &v) == SUCCESS)
    {
-       convert_to_string(*v);
-       cli->protocol.package_eof_len = Z_STRLEN_PP(v);
+       convert_to_string(v);
+       cli->protocol.package_eof_len = Z_STRLEN_P(v);
        if (cli->protocol.package_eof_len > SW_DATA_EOF_MAXLEN)
        {
            php_error_docref(NULL TSRMLS_CC, E_ERROR, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
            return;
        }
        bzero(cli->protocol.package_eof, SW_DATA_EOF_MAXLEN);
-       memcpy(cli->protocol.package_eof, Z_STRVAL_PP(v), Z_STRLEN_PP(v));
+       memcpy(cli->protocol.package_eof, Z_STRVAL_P(v), Z_STRLEN_P(v));
    }
    //open length check
    if (sw_zend_hash_find(vht, ZEND_STRS("open_length_check"), (void **)&v) == SUCCESS)
    {
-       convert_to_long(*v);
-       cli->open_length_check = (uint8_t) Z_LVAL_PP(v);
+       convert_to_long(v);
+       cli->open_length_check = (uint8_t) Z_LVAL_P(v);
    }
    //package length size
    if (sw_zend_hash_find(vht, ZEND_STRS("package_length_type"), (void **)&v) == SUCCESS)
    {
-       convert_to_string(*v);
-       cli->protocol.package_length_type = Z_STRVAL_PP(v)[0];
+       convert_to_string(v);
+       cli->protocol.package_length_type = Z_STRVAL_P(v)[0];
        cli->protocol.package_length_size = swoole_type_size(cli->protocol.package_length_type);
 
        if (cli->protocol.package_length_size == 0)
@@ -642,23 +642,23 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
    //package length offset
    if (sw_zend_hash_find(vht, ZEND_STRS("package_length_offset"), (void **)&v) == SUCCESS)
    {
-       convert_to_long(*v);
-       cli->protocol.package_length_offset = (int)Z_LVAL_PP(v);
+       convert_to_long(v);
+       cli->protocol.package_length_offset = (int)Z_LVAL_P(v);
    }
    //package body start
    if (sw_zend_hash_find(vht, ZEND_STRS("package_body_offset"), (void **) &v) == SUCCESS
            || sw_zend_hash_find(vht, ZEND_STRS("package_body_start"), (void **) &v) == SUCCESS)
    {
-       convert_to_long(*v);
-       cli->protocol.package_body_offset = (int) Z_LVAL_PP(v);
+       convert_to_long(v);
+       cli->protocol.package_body_offset = (int) Z_LVAL_P(v);
    }
    /**
     * package max length
     */
    if (sw_zend_hash_find(vht, ZEND_STRS("package_max_length"), (void **) &v) == SUCCESS)
    {
-       convert_to_long(*v);
-       cli->protocol.package_max_length = (int) Z_LVAL_PP(v);
+       convert_to_long(v);
+       cli->protocol.package_max_length = (int) Z_LVAL_P(v);
    }
    else
    {
@@ -1380,7 +1380,7 @@ static PHP_METHOD(swoole_client, recv)
             if (eof >= 0)
             {
                 eof += protocol->package_eof_len;
-                RETVAL_STRINGL(buffer->str, eof, 1);
+                SW_RETVAL_STRINGL(buffer->str, eof, 1);
 
                 if (buffer->length > eof)
                 {

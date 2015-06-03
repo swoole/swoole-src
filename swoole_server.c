@@ -259,7 +259,7 @@ void php_swoole_register_callback(swServer *serv)
     }
 }
 
-static int php_swoole_task_finish(swServer *serv, zval **data TSRMLS_DC)
+static int php_swoole_task_finish(swServer *serv, zval *data TSRMLS_DC)
 {
     int flags = 0;
     smart_str serialized_data = {0};
@@ -1121,21 +1121,21 @@ PHP_FUNCTION(swoole_server_set)
     if (sw_zend_hash_find(vht, ZEND_STRS("chroot"), (void **) &v) == SUCCESS)
     {
         convert_to_string(v);
-        SwooleG.chroot = sw_strndup(Z_STRVAL_P(v), 256);
+        SwooleG.chroot = sw_strndup(v, 256);
     }
 
     //user
     if (sw_zend_hash_find(vht, ZEND_STRS("user"), (void **) &v) == SUCCESS)
     {
         convert_to_string(v);
-        SwooleG.user = strndup(Z_STRVAL_PP(v), 128);
+        SwooleG.user = sw_strndup(v, 128);
     }
 
     //group
     if (sw_zend_hash_find(vht, ZEND_STRS("group"), (void **) &v) == SUCCESS)
     {
         convert_to_string(v);
-        SwooleG.group = strndup(Z_STRVAL_PP(v), 128);
+        SwooleG.group = sw_strndup(v, 128);
     }
 
     //daemonize
@@ -1193,11 +1193,6 @@ PHP_FUNCTION(swoole_server_set)
         convert_to_long(v);
         SwooleG.task_ipc_mode = (int) Z_LVAL_P(v);
     }
-    if (sw_zend_hash_find(vht, ZEND_STRS("task_dispatch_mode"), (void **) &v) == SUCCESS)
-    {
-        convert_to_long(v);
-        SwooleG.task_dispatch_mode = (int) Z_LVAL_P(v);
-    }
     /**
      * Temporary file directory for task_worker
      */
@@ -1235,7 +1230,7 @@ PHP_FUNCTION(swoole_server_set)
     if (sw_zend_hash_find(vht, ZEND_STRS("task_max_request"), (void **) &v) == SUCCESS)
     {
         convert_to_long(v);
-        serv->task_max_request = (int) Z_LVAL_P(v);
+       SwooleG.task_max_request = (int) Z_LVAL_P(v);
     }
     //cpu affinity
     if (sw_zend_hash_find(vht, ZEND_STRS("open_cpu_affinity"), (void **) &v) == SUCCESS)
@@ -1824,31 +1819,31 @@ PHP_FUNCTION(swoole_server_start)
      */
     zend_update_property_long(swoole_server_class_entry_ptr, zobject, ZEND_STRL("master_pid"), getpid() TSRMLS_CC);
 
-    zval *zsetting = zend_read_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), 1 TSRMLS_CC);
+    zval *zsetting = sw_zend_read_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zsetting == NULL || ZVAL_IS_NULL(zsetting))
     {
-        MAKE_STD_ZVAL(zsetting);
+        SW_MAKE_STD_ZVAL(zsetting,0);
         array_init(zsetting);
         zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zsetting TSRMLS_CC);
     }
 
-    if (!zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("worker_num")))
+    if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("worker_num")))
     {
         add_assoc_long(zsetting, "worker_num", serv->worker_num);
     }
-    if (!zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("task_worker_num")))
+    if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("task_worker_num")))
     {
         add_assoc_long(zsetting, "task_worker_num", SwooleG.task_worker_num);
     }
-    if (!zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("pipe_buffer_size")))
+    if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("pipe_buffer_size")))
     {
         add_assoc_long(zsetting, "pipe_buffer_size", serv->pipe_buffer_size);
     }
-    if (!zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("buffer_output_size")))
+    if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("buffer_output_size")))
     {
         add_assoc_long(zsetting, "buffer_output_size", serv->buffer_output_size);
     }
-    if (!zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("max_connection")))
+    if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("max_connection")))
     {
         add_assoc_long(zsetting, "max_connection", serv->max_connection);
     }

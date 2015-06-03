@@ -135,3 +135,13 @@ inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v) {
 #endif
 
 }
+
+
+inline int sw_zend_hash_exists(HashTable *ht, char *k, int len) {
+    zval **tmp = NULL;
+      if(zend_hash_find(ht, k,len, (void **) &tmp) == SUCCESS){
+          return SUCCESS;
+      }else{
+          return FAILURE;
+      }
+}

@@ -70,8 +70,8 @@ void swoole_process_init(int module_number TSRMLS_DC)
     /**
      * 31 signal constants
      */
-   zval **zpcntl;
-   if (zend_hash_find(&module_registry, ZEND_STRS("pcntl"), (void **) &zpcntl) == FAILURE)
+   zval *zpcntl;
+   if (sw_zend_hash_find(&module_registry, ZEND_STRS("pcntl"), (void **) &zpcntl) == FAILURE)
    {
        REGISTER_LONG_CONSTANT("SIGHUP", (long) SIGHUP, CONST_CS | CONST_PERSISTENT);
        REGISTER_LONG_CONSTANT("SIGINT", (long) SIGINT, CONST_CS | CONST_PERSISTENT);
@@ -635,7 +635,7 @@ static PHP_METHOD(swoole_process, pop)
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "msgrcv() failed. Error: %s[%d]", strerror(errno), errno);
         RETURN_FALSE;
     }
-    SW_RETURN_STRINGL(message->data, n, 1);
+    SW_RETURN_STRINGL(message.data, n, 1);
 }
 
 static PHP_METHOD(swoole_process, exec)

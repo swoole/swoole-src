@@ -148,6 +148,7 @@ inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v);
 #define sw_zval_ptr_dtor                      zval_ptr_dtor
 #define sw_zend_hash_copy                     zend_hash_copy
 #define sw_zval_add_ref                       zval_add_ref
+#define sw_zend_hash_exists                   zend_hash_exists
 #define sw_strndup(v,l)                       strndup(Z_STRVAL_P(v),l)
 #define sw_php_format_date                    php_format_date
 #define sw_php_url_encode                     php_url_encode
@@ -235,7 +236,7 @@ php_var_unserialize(*rval, p, max, var_hash)
 
 #define SW_ALLOC_INIT_ZVAL(p,o)        SW_MAKE_STD_ZVAL(p,o)
 #define SW_ZEND_FETCH_RESOURCE_NO_RETURN(rsrc, rsrc_type, passed_id, default_id, resource_type_name, resource_type)        \
-        rsrc = (rsrc_type) zend_fetch_resource(Z_RES_P(passed_id), resource_type_name, resource_type);
+        (rsrc = (rsrc_type) zend_fetch_resource(Z_RES_P(passed_id), resource_type_name, resource_type))
 #define SW_ZEND_REGISTER_RESOURCE(return_value, result, le_result)  ZVAL_RES(return_value,zend_register_resource(result, le_result))
 
 #define SW_RETURN_STRING(val, duplicate)     RETURN_STRING(val)
@@ -260,6 +261,8 @@ inline int sw_zend_hash_update(HashTable *ht, char *k, int len ,void * val,int s
 inline int wrapper_zend_hash_get_current_key( HashTable *ht, char **key, uint *idx, ulong *num);
 
 inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v);
+
+inline int sw_zend_hash_exists(HashTable *ht, char *k, int len);
 
 #define SWOOLE_GET_SERVER(zobject, serv)zval rv; zval *zserv = zend_read_property(swoole_server_class_entry_ptr, zobject, SW_STRL("_server")-1, 0,&rv TSRMLS_CC);\
     if (!zserv || ZVAL_IS_NULL(zserv)){ \
@@ -314,14 +317,23 @@ inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v);
 
 static sw_inline void* swoole_get_object(zval *object)
 {
-    zend_object_handle handle = Z_OBJ_HANDLE_P(object);
+#if PHP_MAJOR_VERSION < 7
+zend_object_handle handle = Z_OBJ_HANDLE_P(object);
+#else
+int handle = (int)Z_OBJ_HANDLE_P(object);
+#endif
+    
     assert(handle < swoole_objects.size);
     return  swoole_objects.array[handle];
 }
 
 static sw_inline void swoole_set_object(zval *object, void *ptr)
 {
-    zend_object_handle handle = Z_OBJ_HANDLE_P(object);
+       #if PHP_MAJOR_VERSION < 7
+zend_object_handle handle = Z_OBJ_HANDLE_P(object);
+#else
+int handle = (int)Z_OBJ_HANDLE_P(object);
+#endif
     if (handle >= swoole_objects.size)
     {
         swoole_objects.size = swoole_objects.size * 2;

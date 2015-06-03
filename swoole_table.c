@@ -262,21 +262,17 @@ static PHP_METHOD(swoole_table, set)
         RETURN_FALSE;
     }
 
-    swTableColumn *col;
+       swTableColumn *col;
     zval *v;
     char *k;
-    int klen;
-    Bucket *p = Z_ARRVAL_P(array)->pListHead;
+    uint klen;
+    ulong knum;
 
     sw_atomic_t *lock = &row->lock;
     sw_spinlock(lock);
-    do
-    {
-        v = p->pDataPtr;
-        k = (char *) p->arKey;
-        klen = p->nKeyLength - 1;
-        p = p->pListNext;
 
+    WRAPPER_ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(array), v)
+        wrapper_zend_hash_get_current_key(Z_ARRVAL_P(array),&k,&klen,&knum);
         col = swTableColumn_get(table, k, klen);
         if (col == NULL)
         {
@@ -284,23 +280,24 @@ static PHP_METHOD(swoole_table, set)
         }
         else if (col->type == SW_TABLE_STRING)
         {
-            convert_to_string(v);
-            swTableRow_set_value(row, col, Z_STRVAL_P(v), Z_STRLEN_P(v));
-        }
-        else if (col->type == SW_TABLE_FLOAT)
-        {
-            convert_to_double(v);
-            swTableRow_set_value(row, col, &Z_DVAL_P(v), 0);
-        }
-        else
-        {
-            convert_to_long(v);
-            swTableRow_set_value(row, col, &Z_LVAL_P(v), 0);
-        }
-    } while (p);
-    sw_spinlock_release(lock);
-
-    RETURN_TRUE;
+            convert_to_string(v);                                                                                                                     
+            swTableRow_set_value(row, col, Z_STRVAL_P(v), Z_STRLEN_P(v));                                                                             
+        }                                                                                                                                             
+        else if (col->type == SW_TABLE_FLOAT)                                                                                                         
+        {                                                                                                                                             
+            convert_to_double(v);                                                                                                                     
+            swTableRow_set_value(row, col, &Z_DVAL_P(v), 0);                                                                                          
+        }                                                                                                                                             
+        else                                                                                                                                          
+        {                                                                                                                                             
+            convert_to_long(v);                                                                                                                       
+            swTableRow_set_value(row, col, &Z_LVAL_P(v), 0);                                                                                          
+        }                                                                                                                                             
+     WRAPPER_ZEND_HASH_FOREACH_END();                                                                                                                 
+                                                                                                                                                      
+    sw_spinlock_release(lock);                                                                                                                        
+                                                                                                                                                      
+    RETURN_TRUE;     
 }
 
 static PHP_METHOD(swoole_table, incr)
