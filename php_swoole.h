@@ -39,7 +39,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.7.17"
+#define PHP_SWOOLE_VERSION  "1.7.18-alpha"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -210,13 +210,15 @@ static sw_inline void swoole_set_object(zval *object, void *ptr)
     zend_object_handle handle = Z_OBJ_HANDLE_P(object);
     if (handle >= swoole_objects.size)
     {
-        swoole_objects.size = swoole_objects.size * 2;
+        uint32_t old_size = swoole_objects.size;
+        swoole_objects.size = old_size * 2;
         if (swoole_objects.size > SW_MAX_SOCKET_ID)
         {
             swoole_objects.size = SW_MAX_SOCKET_ID;
         }
         assert(handle < SW_MAX_SOCKET_ID);
         swoole_objects.array = erealloc(swoole_objects.array, swoole_objects.size);
+        bzero(swoole_objects.array + (old_size * sizeof(void*)), (swoole_objects.size - old_size) * sizeof(void**));
     }
     swoole_objects.array[handle] = ptr;
 }

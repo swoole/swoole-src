@@ -2465,8 +2465,8 @@ PHP_FUNCTION(swoole_server_task)
     swEventData buf;
 
     zval **data;
-	smart_str serialized_data = {0};
-	php_serialize_data_t var_hash;
+    smart_str serialized_data = { 0 };
+    php_serialize_data_t var_hash;
 
     long worker_id = -1;
 

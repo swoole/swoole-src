@@ -615,6 +615,9 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef HAVE_MUTEX_TIMEDLOCK
     php_info_print_table_row(2, "mutex_timedlock", "enabled");
 #endif
+#ifdef HAVE_PTHREAD_BARRIER
+    php_info_print_table_row(2, "pthread_barrier", "enabled");
+#endif
 
     php_info_print_table_end();
 

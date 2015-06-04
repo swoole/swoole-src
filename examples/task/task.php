@@ -4,8 +4,8 @@ $serv = new swoole_server("127.0.0.1", 9501);
 $serv->set(array(
     'worker_num' => 1,
     'task_worker_num' => 4,
-    'task_ipc_mode' => 3,
-    'message_queue_key' => 0x70001001,
+//    'task_ipc_mode' => 3,
+//    'message_queue_key' => 0x70001001,
     //'task_tmpdir' => '/data/task/',
 ));
 
@@ -17,7 +17,7 @@ $serv->on('Receive', function(swoole_server $serv, $fd, $from_id, $data) {
     //if(false)
     if (true)
     {
-        $task_id = $serv->task($data);
+        $task_id = $serv->task($data, 0);
         $serv->send($fd, "Dispath AsyncTask: id=$task_id\n");
     }
     //Sync Task
@@ -29,10 +29,6 @@ $serv->on('Receive', function(swoole_server $serv, $fd, $from_id, $data) {
     //$serv->send($fd, "OK\n");
 });
 $serv->on('Task', function (swoole_server $serv, $task_id, $from_id, $data) {
-    if ($serv->worker_id == 1)
-    {
-        sleep(100);
-    }
     echo "#{$serv->worker_id}\tonTask: [PID={$serv->worker_pid}]: task_id=$task_id, data_len=".strlen($data).".".PHP_EOL;
     $serv->finish($data);
    // return;
