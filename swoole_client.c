@@ -486,7 +486,6 @@ static int client_onRead(swReactor *reactor, swEvent *event)
                 goto free_buf;
             }
 		default:
-			swTrace("default");
 		    goto free_buf;
 		}
 	}
@@ -994,13 +993,17 @@ static PHP_METHOD(swoole_client, __construct)
 static PHP_METHOD(swoole_client, __destruct)
 {
     swClient *cli = swoole_get_object(getThis());
-    if (cli && cli->keep == 0)
+    if (cli)
     {
-        if (cli->socket->fd != 0)
+        swoole_set_object(getThis(), NULL);
+        if (!cli->keep)
         {
-            cli->close(cli);
+            if (cli->socket->fd != 0)
+            {
+                cli->close(cli);
+            }
+            efree(cli);
         }
-        efree(cli);
     }
 }
 

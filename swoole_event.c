@@ -202,6 +202,11 @@ PHP_FUNCTION(swoole_event_add)
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "unknow type.");
         RETURN_FALSE;
     }
+    else if (socket_fd == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "invalid socket fd [%d].", socket_fd);
+        RETURN_FALSE;
+    }
 
     swoole_reactor_fd *reactor_fd = emalloc(sizeof(swoole_reactor_fd));
 
