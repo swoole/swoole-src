@@ -284,7 +284,7 @@ int swoole_sync_writefile(int fd, void *data, int len)
 #define RAND_MAX   2147483647
 #endif
 
-int swoole_rand(int min, max)
+int swoole_rand(int min, int max)
 {
     static int _seed = 0;
     assert(max > min);
