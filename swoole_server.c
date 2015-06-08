@@ -2288,15 +2288,15 @@ PHP_FUNCTION(swoole_server_addtimer)
         RETURN_FALSE;
     }
 
-    if (SwooleG.serv->onTimer == NULL)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "no onTimer callback, cannot use addtimer.");
-        RETURN_FALSE;
-    }
-
     if (SwooleGS->start == 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
+
+    if (SwooleG.serv->onTimer == NULL)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "no onTimer callback, cannot use addtimer.");
         RETURN_FALSE;
     }
 
