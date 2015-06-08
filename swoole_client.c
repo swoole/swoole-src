@@ -125,10 +125,10 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
         sw_free(cli->server_str);
 		ZVAL_LONG(ztype, 0);
 	}
-	else
-	{
-	    sw_free(cli->server_str);
-	}
+    else
+    {
+        sw_free(cli->server_str);
+    }
 
     if (cli->buffer && (cli->open_eof_split || cli->open_length_check))
     {
@@ -139,31 +139,31 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
 	//async connection
 	if (cli->async)
 	{
-		//remove from reactor
-		if (SwooleG.main_reactor)
-		{
-			SwooleG.main_reactor->del(SwooleG.main_reactor, fd);
-		}
+        //remove from reactor
+        if (SwooleG.main_reactor)
+        {
+            SwooleG.main_reactor->del(SwooleG.main_reactor, fd);
+        }
 
-		zcallback = zend_read_property(swoole_client_class_entry_ptr, zobject, SW_STRL(php_sw_client_onClose)-1, 0 TSRMLS_CC);
-		if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
-		{
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client->close[3]: no close callback.");
-			return SW_ERR;
-		}
+        zcallback = zend_read_property(swoole_client_class_entry_ptr, zobject, SW_STRL(php_sw_client_onClose)-1, 0 TSRMLS_CC);
+        if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client->close[3]: no close callback.");
+            return SW_ERR;
+        }
 
-		args[0] = &zobject;
+        args[0] = &zobject;
 
-		if (call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
-		{
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client->close[4]: onClose handler error");
-			return SW_ERR;
-		}
+        if (call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client->close[4]: onClose handler error");
+            return SW_ERR;
+        }
 
-		if (SwooleG.main_reactor->event_num == 0 && SwooleWG.in_client == 1)
-		{
-			SwooleG.running = 0;
-		}
+        if (SwooleG.main_reactor->event_num == 0 && SwooleWG.in_client == 1)
+        {
+            SwooleG.main_reactor->running = 0;
+        }
 
         cli->close(cli);
         //free the callback return value
@@ -171,12 +171,12 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
         {
             zval_ptr_dtor(&retval);
         }
-	}
-	else
-	{
-		cli->close(cli);
-	}
-	return SW_OK;
+    }
+    else
+    {
+        cli->close(cli);
+    }
+    return SW_OK;
 }
 
 static int client_onRead_check_eof(swReactor *reactor, swEvent *event)

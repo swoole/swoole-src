@@ -411,7 +411,14 @@ PHP_FUNCTION(swoole_event_del)
     efree(socket->object);
     socket->active = 0;
 
-    SW_CHECK_RETURN(SwooleG.main_reactor->del(SwooleG.main_reactor, socket_fd));
+    int ret = SwooleG.main_reactor->del(SwooleG.main_reactor, socket_fd);
+
+    if (SwooleG.main_reactor->event_num == 0 && SwooleWG.in_client == 1)
+    {
+        SwooleG.main_reactor->running = 0;
+    }
+
+    SW_CHECK_RETURN(ret);
 }
 
 PHP_FUNCTION(swoole_event_exit)
