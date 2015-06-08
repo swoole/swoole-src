@@ -1526,7 +1526,7 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
             }
             else if (request->content_length > protocol->package_max_length)
             {
-                swWarn("Package length more than the maximum size[%d], Close connection.", protocol->package_max_length);
+                swWarn("content-length more than the package_max_length[%d].", protocol->package_max_length);
                 goto close_fd;
             }
 
