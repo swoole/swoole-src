@@ -297,6 +297,7 @@ int swoole_rand(int min, int max)
 
     int _rand = rand();
     _rand = min + (int) ((double) ((double) (max) - (min) + 1.0) * ((_rand) / ((RAND_MAX) + 1.0)));
+    return _rand;
 }
 
 int swoole_system_random(int min, int max)
