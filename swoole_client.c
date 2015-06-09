@@ -965,7 +965,7 @@ static PHP_METHOD(swoole_client, __construct)
     long async = 0;
     zval *ztype;
     char *id = NULL;
-    size_t len = 0;
+    zend_size_t len = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|ls", &ztype, &async, &id, &len) == FAILURE)
     {
@@ -1020,7 +1020,7 @@ static PHP_METHOD(swoole_client, connect)
 	int ret, i;
 	long port = 0, sock_flag = 0;
 	char *host = NULL;
-	size_t host_len;
+	zend_size_t host_len;
 	double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
 
 	zval *callback = NULL;
@@ -1150,7 +1150,7 @@ static PHP_METHOD(swoole_client, connect)
 static PHP_METHOD(swoole_client, send)
 {
 	char *data;
-	size_t data_len;
+	zend_size_t data_len;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &data, &data_len) == FAILURE)
 	{
@@ -1209,10 +1209,10 @@ static PHP_METHOD(swoole_client, sendto)
 {
     char* ip;
     char* ip_len;
-    size_t port;
+    zend_size_t port;
 
     char *data;
-    size_t len;
+    zend_size_t len;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sls", &ip, &ip_len, &port, &data, &len) == FAILURE)
     {
@@ -1258,7 +1258,7 @@ static PHP_METHOD(swoole_client, sendto)
 static PHP_METHOD(swoole_client, sendfile)
 {
     char *file;
-    size_t file_len;
+    zend_size_t file_len;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &file, &file_len) == FAILURE)
     {
@@ -1745,7 +1745,7 @@ static int client_event_loop(zval *sock_array, fd_set *fds TSRMLS_DC)
 	ulong num_key = 0;
 	uint key_len = 0;
 
-	if (Z_TYPE_P(sock_array) != IS_ARRAY)
+	if (SW_Z_TYPE_P(sock_array) != IS_ARRAY)
 	{
 		return 0;
 	}
@@ -1794,7 +1794,7 @@ static int client_event_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_DC
 	zend_class_entry *ce;
 
 	int num = 0;
-	if (Z_TYPE_P(sock_array) != IS_ARRAY)
+	if (SW_Z_TYPE_P(sock_array) != IS_ARRAY)
 	{
 		return 0;
 	}

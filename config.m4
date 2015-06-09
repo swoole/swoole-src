@@ -203,6 +203,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_table.c \
         swoole_http.c \
         swoole_websocket.c \
+        swoole_phpng.c \
         src/core/base.c \
         src/core/log.c \
         src/core/hashmap.c \

@@ -923,7 +923,9 @@ static int http_onReceive(swFactory *factory, swEventData *req)
 
     php_http_parser_init(parser, PHP_HTTP_REQUEST);
 
-    zval *zdata = php_swoole_get_recv_data(req TSRMLS_CC);
+    zval *zdata;
+    SW_MAKE_STD_ZVAL(zdata,0);
+    zdata= php_swoole_get_recv_data(zdata,req TSRMLS_CC);
 
     swTrace("httpRequest %d bytes:\n---------------------------------------\n%s\n", Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
 
@@ -1174,7 +1176,7 @@ void swoole_http_request_free(swoole_http_client *client TSRMLS_DC)
             {
                 unlink(Z_STRVAL_P(file_path));
             }
-           sw_zval_ptr_dtor(value);
+           sw_zval_ptr_dtor(&value);
          WRAPPER_ZEND_HASH_FOREACH_END();  
        sw_zval_ptr_dtor(&zfiles);
     }

@@ -132,9 +132,9 @@ static int swoole_convert_to_fd(zval **fd)
 #ifdef SWOOLE_SOCKETS_SUPPORT
     php_socket *php_sock;
 #endif
-    if (Z_TYPE_PP(fd) == IS_RESOURCE)
+    if (SW_Z_TYPE_PP(fd) == IS_RESOURCE)
     {
-        if (SW_ZEND_FETCH_RESOURCE_NO_RETURN(stream, php_stream *, *fd, -1, NULL, php_file_le_stream()))
+        if (SW_ZEND_FETCH_RESOURCE_NO_RETURN(stream, php_stream *, fd, -1, NULL, php_file_le_stream()))
         {
             if (php_stream_cast(stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL, (void* )&socket_fd, 1)
                     != SUCCESS || socket_fd < 0)
@@ -161,7 +161,7 @@ static int swoole_convert_to_fd(zval **fd)
 #endif
         }
     }
-    else if (Z_TYPE_PP(fd) == IS_LONG)
+    else if (SW_Z_TYPE_PP(fd) == IS_LONG)
     {
         socket_fd = Z_LVAL_PP(fd);
         if (socket_fd < 0)

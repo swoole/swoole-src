@@ -49,13 +49,11 @@ static void php_swoole_onManagerStart(swServer *serv);
 static void php_swoole_onManagerStop(swServer *serv);
 static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC);
 
-zval *php_swoole_get_recv_data(swEventData *req TSRMLS_DC)
+zval *php_swoole_get_recv_data(zval *zdata,swEventData *req TSRMLS_DC)
 {
-    zval *zdata;
     char *data_ptr = NULL;
     int data_len;
 
-    SW_MAKE_STD_ZVAL(zdata, 0);
 
 #ifdef SW_USE_RINGBUFFER
     swPackage package;
@@ -103,12 +101,12 @@ int php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC)
 {
     int length;
 
-    if (Z_TYPE_P(zdata) == IS_STRING)
+    if (SW_Z_TYPE_P(zdata) == IS_STRING)
     {
         length = Z_STRLEN_P(zdata);
         *str = Z_STRVAL_P(zdata);
     }
-    else if (Z_TYPE_P(zdata) == IS_OBJECT)
+    else if (SW_Z_TYPE_P(zdata) == IS_OBJECT)
     {
         if (!instanceof_function(Z_OBJCE_P(zdata), swoole_buffer_class_entry_ptr TSRMLS_CC))
         {
@@ -269,13 +267,13 @@ static int php_swoole_task_finish(swServer *serv, zval *data TSRMLS_DC)
     int ret;
 
     //need serialize
-    if (Z_TYPE_P(data) != IS_STRING)
+    if (SW_Z_TYPE_P(data) != IS_STRING)
     {
         //serialize
         flags |= SW_TASK_SERIALIZE;
         //TODO php serialize
         PHP_VAR_SERIALIZE_INIT(var_hash);
-        php_var_serialize(&serialized_data, data, &var_hash TSRMLS_CC);
+        sw_php_var_serialize(&serialized_data, data, &var_hash TSRMLS_CC);
         PHP_VAR_SERIALIZE_DESTROY(var_hash);
 #if PHP_MAJOR_VERSION<7
         data_str = serialized_data.c;
@@ -407,6 +405,7 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
 
     SW_MAKE_STD_ZVAL(zfd, 0);
     SW_MAKE_STD_ZVAL(zfrom_id, 1);
+    SW_MAKE_STD_ZVAL(zdata, 2);
 
     //udp ipv4
     if (req->info.type == SW_EVENT_UDP)
@@ -449,8 +448,8 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
         ZVAL_LONG(zfrom_id, (long) req->info.from_id);
         ZVAL_LONG(zfd, (long) req->info.fd);
     }
-
-    zdata = php_swoole_get_recv_data(req TSRMLS_CC);
+    
+    zdata = php_swoole_get_recv_data(zdata,req TSRMLS_CC);
 
     args[0] = &zserv;
     args[1] = &zfd;
@@ -579,7 +578,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
         sw_zval_ptr_dtor(&unserialized_zdata);
     }
 
-    if (retval != NULL && Z_TYPE_P(retval) != IS_NULL)
+    if (retval != NULL && SW_Z_TYPE_P(retval) != IS_NULL)
     {
         php_swoole_task_finish(serv, retval TSRMLS_CC);
         sw_zval_ptr_dtor(&retval);
@@ -1003,7 +1002,7 @@ void php_swoole_onClose(swServer *serv, int fd, int from_id)
 
 PHP_FUNCTION(swoole_server_create)
 {
-    int host_len = 0;
+    zend_size_t host_len = 0;
     char *serv_host;
     long sock_type = SW_SOCK_TCP;
     long serv_port;
@@ -1077,11 +1076,11 @@ PHP_FUNCTION(swoole_server_create)
 
 #ifdef HAVE_PCRE
     zval *connection_iterator_object;
-    SW_MAKE_STD_ZVAL(connection_iterator_object);
+    SW_MAKE_STD_ZVAL(connection_iterator_object,3);
     object_init_ex(connection_iterator_object, swoole_connection_iterator_class_entry_ptr);
     zend_update_property(swoole_server_class_entry_ptr, server_object, ZEND_STRL("connections"), connection_iterator_object TSRMLS_CC);
 #endif
-
+    
     swoole_set_object(server_object, serv);
 }
 
@@ -1235,7 +1234,7 @@ PHP_FUNCTION(swoole_server_set)
     //cpu affinity
     if (sw_zend_hash_find(vht, ZEND_STRS("open_cpu_affinity"), (void **) &v) == SUCCESS)
     {
-        if (Z_TYPE_P(v) == IS_TRUE)
+        if (SW_Z_TYPE_P(v) == IS_TRUE)
         {
             serv->open_cpu_affinity = 1;
         }
@@ -1288,7 +1287,7 @@ PHP_FUNCTION(swoole_server_set)
     //tcp_keepalive
     if (sw_zend_hash_find(vht, ZEND_STRS("open_tcp_keepalive"), (void **) &v) == SUCCESS)
     {
-        if (Z_TYPE_P(v) == IS_TRUE)
+        if (SW_Z_TYPE_P(v) == IS_TRUE)
         {
             serv->open_tcp_keepalive = 1;
         }
@@ -1321,7 +1320,7 @@ PHP_FUNCTION(swoole_server_set)
     //buffer: http_protocol
     if (sw_zend_hash_find(vht, ZEND_STRS("open_http_protocol"), (void **) &v) == SUCCESS)
     {
-        if (Z_TYPE_P(v) == IS_TRUE)
+        if (SW_Z_TYPE_P(v) == IS_TRUE)
         {
             serv->open_http_protocol = 1;
         }
@@ -1333,7 +1332,7 @@ PHP_FUNCTION(swoole_server_set)
     //buffer: mqtt protocol
     if (sw_zend_hash_find(vht, ZEND_STRS("open_mqtt_protocol"), (void **) &v) == SUCCESS)
     {
-        if (Z_TYPE_P(v) == IS_TRUE)
+        if (SW_Z_TYPE_P(v) == IS_TRUE)
         {
             serv->open_mqtt_protocol = 1;
         }
@@ -1563,8 +1562,8 @@ PHP_FUNCTION(swoole_server_set)
         return;
     }
 #endif
-    //sw_zval_add_ref(&zset);
-    //sw_zval_add_ref(&zobject);
+//    sw_zval_add_ref(&zset);
+//    sw_zval_add_ref(&zobject);
     zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zset TSRMLS_CC);
     RETURN_TRUE;
 }
@@ -1637,7 +1636,7 @@ PHP_FUNCTION(swoole_server_on)
 {
     zval *zobject = getThis();
     char *ha_name = NULL;
-    size_t len, i;
+    zend_size_t len, i;
     int ret = -1;
 
     zval *cb;
@@ -1702,7 +1701,7 @@ PHP_FUNCTION(swoole_server_addlisten)
     zval *zobject = getThis();
 
     char *host;
-    size_t host_len;
+    zend_size_t host_len;
     long sock_type;
     long port;
 
@@ -1903,7 +1902,7 @@ PHP_FUNCTION(swoole_server_send)
 
    swServer *serv = swoole_get_object(zobject);
 
-    if (serv->have_udp_sock && Z_TYPE_P(zfd) == IS_STRING)
+    if (serv->have_udp_sock && SW_Z_TYPE_P(zfd) == IS_STRING)
     {
         if (server_socket == -1)
         {
@@ -2422,13 +2421,13 @@ PHP_FUNCTION(swoole_server_taskwait)
     char *task_data_str;
     int task_data_len = 0;
     //need serialize
-    if (Z_TYPE_PP(data) != IS_STRING)
+    if (SW_Z_TYPE_PP(data) != IS_STRING)
     {
         //serialize
         swTask_type(&buf) |= SW_TASK_SERIALIZE;
         //TODO php serialize
         PHP_VAR_SERIALIZE_INIT(var_hash);
-        php_var_serialize(&serialized_data, *data, &var_hash TSRMLS_CC);
+        sw_php_var_serialize(&serialized_data, *data, &var_hash TSRMLS_CC);
         PHP_VAR_SERIALIZE_DESTROY(var_hash);
 #if PHP_MAJOR_VERSION<7
         task_data_str = serialized_data.c;
@@ -2550,13 +2549,13 @@ PHP_FUNCTION(swoole_server_task)
     int task_data_len = 0;
 
     //need serialize
-    if (Z_TYPE_PP(data) != IS_STRING)
+    if (SW_Z_TYPE_PP(data) != IS_STRING)
     {
         //serialize
         swTask_type(&buf) |= SW_TASK_SERIALIZE;
         //TODO php serialize
         PHP_VAR_SERIALIZE_INIT(var_hash);
-        php_var_serialize(&serialized_data, *data, &var_hash TSRMLS_CC);
+        sw_php_var_serialize(&serialized_data, *data, &var_hash TSRMLS_CC);
         PHP_VAR_SERIALIZE_DESTROY(var_hash);
 
 #if PHP_MAJOR_VERSION<7
@@ -2782,7 +2781,7 @@ PHP_FUNCTION(swoole_connection_info)
     zend_bool ipv6_udp = 0;
 
     //ipv6 udp
-    if (Z_TYPE_P(zfd) == IS_STRING)
+    if (SW_Z_TYPE_P(zfd) == IS_STRING)
     {
         if (is_numeric_string(Z_STRVAL_P(zfd), Z_STRLEN_P(zfd), &fd, NULL, 0))
         {

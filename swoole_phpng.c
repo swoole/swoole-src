@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 #include "php_swoole.h"
-
+#if PHP_MAJOR_VERSION == 7
 inline int Z_BVAL_P(zval *v) {
     if (Z_TYPE_P(v) == IS_TRUE) {
         return 1;
@@ -97,6 +97,33 @@ inline int wrapper_zend_hash_get_current_key(HashTable *ht, char **key, uint *id
     return type;
 }
 
+
+
+inline int sw_zend_hash_exists(HashTable *ht, char *k, int len) {
+     zval key;
+        ZVAL_STRING(&key, k);
+
+        zval *value = zend_hash_find(ht, Z_STR(key));
+
+        if (value == NULL) {
+            return FAILURE;
+        } else {
+            return SUCCESS;
+        }
+}
+#else
+inline int SW_Z_TYPE_P(zval *z){
+        if(Z_TYPE_P(z)==IS_BOOL){
+            if((uint8_t) Z_BVAL_P(z)==1){
+                return IS_TRUE;
+            }else{
+                 return 0;
+            }        
+        }else{
+            return Z_TYPE_P(z);
+        }
+}
+#endif
 inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v) {
     //    char _key[128];
     //    zend_string *key;
@@ -134,14 +161,4 @@ inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v) {
         }
 #endif
 
-}
-
-
-inline int sw_zend_hash_exists(HashTable *ht, char *k, int len) {
-    zval **tmp = NULL;
-      if(zend_hash_find(ht, k,len, (void **) &tmp) == SUCCESS){
-          return SUCCESS;
-      }else{
-          return FAILURE;
-      }
 }

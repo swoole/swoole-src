@@ -177,7 +177,9 @@ int swoole_websocket_onMessage(swEventData *req)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 
 	int fd = req->info.fd;
-	zval *zdata = php_swoole_get_recv_data(req TSRMLS_CC);
+        zval *zdata;
+        SW_MAKE_STD_ZVAL(zdata,0);
+	zdata = php_swoole_get_recv_data(zdata,req TSRMLS_CC);
 
     char *buf = Z_STRVAL_P(zdata);
     long finish = buf[0] ? 1 : 0;
@@ -278,7 +280,7 @@ static PHP_METHOD( swoole_websocket_server, on)
     swServer *serv = swoole_get_object(getThis());
 
     char *func_name = NULL;
-    if (!zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+    if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
     {
         php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
         efree(func_name);
@@ -290,12 +292,12 @@ static PHP_METHOD( swoole_websocket_server, on)
 
     if (strncasecmp("open", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
-        zval_add_ref(&callback);
+        sw_zval_add_ref(&callback);
         websocket_callbacks[0] = callback;
     }
     else if (strncasecmp("message", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
-        zval_add_ref(&callback);
+        sw_zval_add_ref(&callback);
         websocket_callbacks[1] = callback;
     }
     else
