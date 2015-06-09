@@ -425,8 +425,10 @@ PHP_FUNCTION(swoole_event_exit)
 {
     if (SwooleWG.in_client == 1)
     {
-        //stop reactor
-        SwooleG.running = 0;
+        if (SwooleG.main_reactor)
+        {
+            SwooleG.main_reactor->running = 0;
+        }
     }
 }
 
