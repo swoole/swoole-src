@@ -280,6 +280,26 @@ int swoole_sync_writefile(int fd, void *data, int len)
     return written;
 }
 
+#ifndef RAND_MAX
+#define RAND_MAX   2147483647
+#endif
+
+int swoole_rand(int min, int max)
+{
+    static int _seed = 0;
+    assert(max > min);
+
+    if (_seed == 0)
+    {
+        _seed = time(NULL);
+        srand(_seed);
+    }
+
+    int _rand = rand();
+    _rand = min + (int) ((double) ((double) (max) - (min) + 1.0) * ((_rand) / ((RAND_MAX) + 1.0)));
+    return _rand;
+}
+
 int swoole_system_random(int min, int max)
 {
     static int dev_random_fd = -1;
@@ -292,7 +312,10 @@ int swoole_system_random(int min, int max)
     if (dev_random_fd == -1)
     {
         dev_random_fd = open("/dev/urandom", O_RDONLY);
-        assert(dev_random_fd != -1);
+        if (dev_random_fd < 0)
+        {
+            return swoole_rand(min, max);
+        }
     }
 
     next_random_byte = (char *) &random_value;

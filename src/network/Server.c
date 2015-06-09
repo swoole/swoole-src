@@ -945,7 +945,7 @@ int swServer_add_listener(swServer *serv, int type, char *host, int port)
         return SW_ERR;
     }
 
-    if (port < 1 || port > 65535)
+    if (!(type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM) && (port < 1 || port > 65535))
     {
         swWarn("invalid port [%d]", port);
         return SW_ERR;
