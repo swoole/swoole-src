@@ -13,8 +13,10 @@
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
  */
+
 #include "php_swoole.h"
-#if PHP_MAJOR_VERSION == 7
+
+#if PHP_MAJOR_VERSION >= 7
 inline int Z_BVAL_P(zval *v) {
     if (Z_TYPE_P(v) == IS_TRUE) {
         return 1;
