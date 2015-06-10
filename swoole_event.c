@@ -47,18 +47,20 @@ static int php_swoole_event_onRead(swReactor *reactor, swEvent *event)
     zval **args[1];
     swoole_reactor_fd *fd = event->socket->object;
 
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     args[0] = &fd->socket;
 
-    if (call_user_function_ex(EG(function_table), NULL, fd->cb_read, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, fd->cb_read, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event: onRead handler error");
         return SW_ERR;
     }
     if (retval != NULL)
     {
-        zval_ptr_dtor(&retval);
+        sw_zval_ptr_dtor(&retval);
     }
     return SW_OK;
 }
@@ -69,7 +71,9 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
     zval **args[1];
     swoole_reactor_fd *fd = event->socket->object;
 
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     if (!fd->cb_write)
     {
@@ -78,7 +82,7 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
 
     args[0] = &fd->socket;
 
-    if (call_user_function_ex(EG(function_table), NULL, fd->cb_write, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, fd->cb_write, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event: onWrite handler error");
         return SW_ERR;
@@ -86,14 +90,17 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
 
     if (retval != NULL)
     {
-        zval_ptr_dtor(&retval);
+        sw_zval_ptr_dtor(&retval);
     }
     return SW_OK;
 }
 
 static int php_swoole_event_onError(swReactor *reactor, swEvent *event)
 {
+
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     int error;
     socklen_t len = sizeof(error);
@@ -102,6 +109,7 @@ static int php_swoole_event_onError(swReactor *reactor, swEvent *event)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event->onError[1]: getsockopt[sock=%d] failed. Error: %s[%d]", event->fd, strerror(errno), errno);
     }
+
     if (error != 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event->onError[1]: socket error. Error: %s [%d]", strerror(error), error);
@@ -127,14 +135,16 @@ static int swoole_convert_to_fd(zval **fd)
     php_stream *stream;
     int socket_fd;
 
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
     php_socket *php_sock;
 #endif
     if (SW_Z_TYPE_PP(fd) == IS_RESOURCE)
     {
-        if (ZEND_FETCH_RESOURCE_NO_RETURN(stream, php_stream *, fd, -1, NULL, php_file_le_stream()))
+        if (SW_ZEND_FETCH_RESOURCE_NO_RETURN(stream, php_stream *, fd, -1, NULL, php_file_le_stream()))
         {
             if (php_stream_cast(stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL, (void* )&socket_fd, 1)
                     != SUCCESS || socket_fd < 0)
@@ -214,7 +224,7 @@ PHP_FUNCTION(swoole_event_add)
     reactor_fd->cb_read = cb_read;
     reactor_fd->cb_write = cb_write;
 
-    zval_add_ref(&reactor_fd->socket);
+    sw_zval_add_ref(&reactor_fd->socket);
 
     if (cb_read!= NULL && !ZVAL_IS_NULL(cb_read))
     {
@@ -225,7 +235,7 @@ PHP_FUNCTION(swoole_event_add)
             RETURN_FALSE;
         }
         efree(func_name);
-        zval_add_ref(&reactor_fd->cb_read);
+        sw_zval_add_ref(&reactor_fd->cb_read);
     }
 
     if (cb_write!= NULL && !ZVAL_IS_NULL(cb_write))
@@ -237,7 +247,7 @@ PHP_FUNCTION(swoole_event_add)
             RETURN_FALSE;
         }
         efree(func_name);
-        zval_add_ref(&reactor_fd->cb_write);
+        sw_zval_add_ref(&reactor_fd->cb_write);
     }
 
     php_swoole_check_reactor();
@@ -343,7 +353,7 @@ PHP_FUNCTION(swoole_event_set)
         else
         {
             ev_set->cb_read = cb_read;
-            zval_add_ref(&cb_read);
+            sw_zval_add_ref(&cb_read);
             efree(func_name);
         }
     }
@@ -359,7 +369,7 @@ PHP_FUNCTION(swoole_event_set)
         else
         {
             ev_set->cb_write = cb_write;
-            zval_add_ref(&cb_write);
+            sw_zval_add_ref(&cb_write);
             efree(func_name);
         }
     }

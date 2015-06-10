@@ -1659,7 +1659,7 @@ static PHP_METHOD(swoole_client, on)
 		return;
 	}
 
-	sw_zval_add_ref(zcallback);
+	sw_zval_add_ref(&zcallback);
 
     for (i = 0; i < PHP_CLIENT_CALLBACK_NUM; i++)
     {
