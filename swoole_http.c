@@ -41,6 +41,7 @@ static uint8_t http_merge_request_flag = 0;
 
 swString *swoole_http_buffer;
 swString *swoole_http_form_data_buffer;
+
 #ifdef SW_HAVE_ZLIB
 swString *swoole_zlib_buffer;
 #endif
@@ -274,8 +275,11 @@ static void http_global_clear(TSRMLS_D)
 
 static void http_global_merge(zval *val, zval *zrequest, int type)
 {
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
     zval *_request;
+
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     if (type == HTTP_GLOBAL_SERVER)
     {
@@ -386,8 +390,9 @@ static void http_global_merge(zval *val, zval *zrequest, int type)
 
 static int http_request_on_query_string(php_http_parser *parser, const char *at, size_t length)
 {
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-
+#endif
     swoole_http_client *client = parser->data;
 
     //no need free, will free by treat_data
@@ -479,7 +484,9 @@ static int http_trim_double_quote(zval **value, char **ptr)
 
 static int http_request_on_header_value(php_http_parser *parser, const char *at, size_t length)
 {
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     swoole_http_client *client = parser->data;
     char *header_name = zend_str_tolower_dup(client->current_header_name, client->current_header_name_len);
@@ -561,7 +568,9 @@ static int multipart_body_on_header_field(multipart_parser* p, const char *at, s
 
 static int multipart_body_on_header_value(multipart_parser* p, const char *at, size_t length)
 {
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     swoole_http_client *client = (swoole_http_client*) p->data;
     zval *files =sw_zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("files"), 1 TSRMLS_CC);
@@ -637,7 +646,9 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
 
 static int multipart_body_on_data(multipart_parser* p, const char *at, size_t length)
 {
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     swoole_http_client *client = (swoole_http_client *) p->data;
 
@@ -685,7 +696,9 @@ void get_random_file_name(char *des, const char *src)
 
 static int multipart_body_on_header_complete(multipart_parser* p)
 {
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     swoole_http_client *client = (swoole_http_client *) p->data;
 
@@ -729,7 +742,9 @@ static int multipart_body_on_header_complete(multipart_parser* p)
 
 static int multipart_body_on_data_end(multipart_parser* p)
 {
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
     swoole_http_client *client = (swoole_http_client *) p->data;
 
     if (client->current_form_data_name)
@@ -782,7 +797,9 @@ static int multipart_body_on_data_end(multipart_parser* p)
 
 static int multipart_body_end(multipart_parser* p)
 {
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     swoole_http_client *client = (swoole_http_client *) p->data;
     zval *files =sw_zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("files"), 1 TSRMLS_CC);
@@ -793,7 +810,9 @@ static int multipart_body_end(multipart_parser* p)
 
 static int http_request_on_body(php_http_parser *parser, const char *at, size_t length)
 {
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     swoole_http_client *client = parser->data;
     char *body = estrndup(at, length);
@@ -870,7 +889,9 @@ static void http_onClose(swServer *serv, int fd, int from_id)
     {
         if (client->zrequest && !client->end)
         {
+#if PHP_MAJOR_VERSION < 7
             TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
             swoole_http_request_free(client TSRMLS_CC);
         }
     }
@@ -883,7 +904,9 @@ static void http_onClose(swServer *serv, int fd, int from_id)
 
 static int http_onReceive(swFactory *factory, swEventData *req)
 {
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     int fd = req->info.fd;
 
@@ -1033,15 +1056,14 @@ void swoole_http_init(int module_number TSRMLS_DC)
 {
     INIT_CLASS_ENTRY(swoole_http_server_ce, "swoole_http_server", swoole_http_server_methods);
     swoole_http_server_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_http_server_ce, swoole_server_class_entry_ptr, "swoole_server" TSRMLS_CC);
-
-    zend_declare_property_long(swoole_http_server_class_entry_ptr, ZEND_STRL("global"), 0, ZEND_ACC_PRIVATE  TSRMLS_CC);
+    zend_declare_property_long(swoole_http_server_class_entry_ptr, ZEND_STRL("global"), 0, ZEND_ACC_PRIVATE TSRMLS_CC);
 
     INIT_CLASS_ENTRY(swoole_http_response_ce, "swoole_http_response", swoole_http_response_methods);
     swoole_http_response_class_entry_ptr = zend_register_internal_class(&swoole_http_response_ce TSRMLS_CC);
 
     INIT_CLASS_ENTRY(swoole_http_request_ce, "swoole_http_request", swoole_http_request_methods);
     swoole_http_request_class_entry_ptr = zend_register_internal_class(&swoole_http_request_ce TSRMLS_CC);
-    
+
     REGISTER_LONG_CONSTANT("HTTP_GLOBAL_GET", HTTP_GLOBAL_GET, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("HTTP_GLOBAL_POST", HTTP_GLOBAL_POST, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("HTTP_GLOBAL_COOKIE", HTTP_GLOBAL_COOKIE, CONST_CS | CONST_PERSISTENT);
@@ -1093,17 +1115,17 @@ static PHP_METHOD(swoole_http_server, on)
 static int http_request_new(swoole_http_client* client TSRMLS_DC)
 {
     zval *zrequest;
-    SW_MAKE_STD_ZVAL(zrequest,0);
+    SW_MAKE_STD_ZVAL(zrequest, 0);
     object_init_ex(zrequest, swoole_http_request_class_entry_ptr);
 
     //http header
     zval *header;
-    SW_MAKE_STD_ZVAL(header,1);
+    SW_MAKE_STD_ZVAL(header, 1);
     array_init(header);
     zend_update_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("header"), header TSRMLS_CC);
 
     zval *files = NULL;
-    SW_MAKE_STD_ZVAL(files,3);
+    SW_MAKE_STD_ZVAL(files, 2);
     array_init(files);
     zend_update_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("files"), files TSRMLS_CC);
 

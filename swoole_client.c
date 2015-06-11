@@ -184,7 +184,9 @@ static int client_onRead_check_eof(swReactor *reactor, swEvent *event)
     int n;
     zval *zobject;
 
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     zobject = event->socket->object;
     swClient *cli = swoole_get_object(zobject);
@@ -324,7 +326,9 @@ static int client_onRead_check_length(swReactor *reactor, swEvent *event)
     int n;
     zval *zobject;
 
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     zobject = event->socket->object;
     swClient *cli = swoole_get_object(zobject);
@@ -427,7 +431,9 @@ static int client_onRead(swReactor *reactor, swEvent *event)
 	char *buf = NULL;
 	long buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
 
-	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
 	zobject = event->socket->object;
     swClient *cli = swoole_get_object(zobject);
@@ -580,7 +586,9 @@ static int client_onError(swReactor *reactor, swEvent *event)
 {
 	zval *zobject = event->socket->object;
 
-	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
 	int error;
 	socklen_t len = sizeof(error);
@@ -670,7 +678,9 @@ static int client_onWrite(swReactor *reactor, swEvent *event)
 {
 	zval *zobject = event->socket->object;
 
-	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     swClient *cli = swoole_get_object(zobject);
     if (!cli)
@@ -771,7 +781,9 @@ static int client_error_callback(zval *zobject, swEvent *event, int error TSRMLS
 
 void php_swoole_at_shutdown(char *function)
 {
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     zval *callback;
     SW_MAKE_STD_ZVAL(callback,0);
@@ -811,7 +823,10 @@ void php_swoole_check_reactor()
 {
 	if (SwooleWG.reactor_init == 0)
 	{
-		TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
         if (!SWOOLE_G(cli))
         {
@@ -867,7 +882,10 @@ static swClient* client_create_socket(zval *object, char *host, int host_len, in
     uint64_t tmp_buf;
     int ret;
 
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+
     ztype = sw_zend_read_property(swoole_client_class_entry_ptr, object, SW_STRL("type")-1, 0 TSRMLS_CC);
 
     if (ztype == NULL || ZVAL_IS_NULL(ztype))

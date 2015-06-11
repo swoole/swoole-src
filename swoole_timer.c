@@ -78,7 +78,9 @@ static void php_swoole_onTimeout(swTimer *timer, swTimer_node *event)
 {
     swTimer_callback *callback = event->data;
     zval *retval = NULL;
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     zval **args[1];
     int argc = 0;
@@ -110,7 +112,9 @@ static void php_swoole_onTimeout(swTimer *timer, swTimer_node *event)
 
 static void php_swoole_onTimerInterval(swTimer *timer, swTimer_node *event)
 {
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     zval *retval = NULL;
     zval **args[2];

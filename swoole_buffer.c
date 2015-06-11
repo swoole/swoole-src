@@ -66,9 +66,6 @@ static PHP_METHOD(swoole_buffer, __construct)
         RETURN_FALSE;
     }
 
-    zval *zres;
-    SW_MAKE_STD_ZVAL(zres,0);
-
     swString *buffer = swString_new(size);
     if (buffer == NULL)
     {

@@ -339,7 +339,9 @@ static void php_swoole_onSignal(int signo)
     zval **args[1];
     zval *callback = signal_callback[signo];
 
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     zval *zsigno;
     SW_MAKE_STD_ZVAL(zsigno,0);

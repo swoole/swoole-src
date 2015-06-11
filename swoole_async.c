@@ -77,7 +77,9 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 	file_request *file_req = NULL;
 	dns_request *dns_req = NULL;
 
-	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
 	if (event->type == SW_AIO_DNS_LOOKUP)
 	{

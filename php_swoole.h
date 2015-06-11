@@ -40,7 +40,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.7.17"
+#define PHP_SWOOLE_VERSION  "1.7.18-alpha"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -226,13 +226,15 @@ php_var_unserialize(*rval, p, max, var_hash)
 #define SW_MAKE_STD_ZVAL(p,o) \
     switch(o){                           \
     case 0:                              \
-       { zval sw_data0;p = &sw_data0;break;}\
-    case 1:                               \
-       { zval sw_data1;p = &sw_data1;break;}\
+       { zval sw_data0;p = &sw_data0; break;}\
+    case 1:                                \
+       { zval sw_data1;p = &sw_data1; break;}\
     case 2:                                    \
-       { zval sw_data2;p = &sw_data2;break;}\
+       { zval sw_data2;p = &sw_data2; break;}\
+    case 3:                                    \
+       { zval sw_data3;p = &sw_data3; break;}\
     default:                                \
-            break;\
+        break;\
      }
 
 #define SW_RETURN_STRINGL(z,l,t)                      \
@@ -248,7 +250,7 @@ php_var_unserialize(*rval, p, max, var_hash)
 #define SW_RETURN_STRING(val, duplicate)     RETURN_STRING(val)
 #define sw_add_assoc_string(array, key, value, duplicate)   add_assoc_string(array, key, value)
 #define sw_zend_hash_copy(target,source,pCopyConstructor,tmp,size) zend_hash_copy(target,source,pCopyConstructor)
-#define sw_zend_register_internal_class_ex(entry,ptr,str)    zend_register_internal_class(entry)
+#define sw_zend_register_internal_class_ex(entry,parent_ptr,str)    zend_register_internal_class_ex(entry,parent_ptr)
 #define sw_zend_call_method_with_2_params(obj,ptr,what,char,return,name,cb)     zend_call_method_with_2_params(*obj,ptr,what,char,*return,name,cb)
 #define SW_ZVAL_STRINGL(z, s, l, dup)         ZVAL_STRINGL(z, s, l)
 #define SW_ZVAL_STRING(z,s,dup)               ZVAL_STRING(z,s)
