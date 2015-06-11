@@ -324,7 +324,9 @@ static int php_swoole_set_callback(int key, zval *cb TSRMLS_DC)
 
 static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
 {
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     zval *zserv = (zval *) serv->ptr2;
     zval *zworker_id;
@@ -398,7 +400,9 @@ static int php_swoole_onReceive(swFactory *factory, swEventData *req)
     zval *zdata;
     zval *retval = NULL;
 
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     //UDP使用from_id作为port,fd做为ip
     php_swoole_udp_t udp_info;
@@ -490,7 +494,9 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     zval *unserialized_zdata = NULL;
     zval *retval = NULL;
 
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     SW_MAKE_STD_ZVAL(zfd, 0);
     ZVAL_LONG(zfd, (long) req->info.fd);
@@ -596,7 +602,9 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     zval *zdata;
     zval *retval = NULL;
 
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     SW_MAKE_STD_ZVAL(ztask_id, 0);
     ZVAL_LONG(ztask_id, (long) req->info.fd);
@@ -628,7 +636,9 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
 
 static void php_swoole_onStart(swServer *serv)
 {
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     zval *zserv = (zval *) serv->ptr2;
     zval **args[1];
@@ -658,7 +668,9 @@ static void php_swoole_onStart(swServer *serv)
 
 static void php_swoole_onManagerStart(swServer *serv)
 {
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     zval *zserv = (zval *) serv->ptr2;
     zval **args[1];
@@ -688,8 +700,9 @@ static void php_swoole_onManagerStart(swServer *serv)
 
 static void php_swoole_onManagerStop(swServer *serv)
 {
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-
+#endif
     zval *zserv = (zval *) serv->ptr2;
     zval **args[1];
     zval *retval = NULL;
@@ -724,7 +737,10 @@ static void php_swoole_onTimer(swServer *serv, int interval)
     args[0] = &zserv;
     args[1] = &zinterval;
     sw_zval_add_ref(&zserv);
+
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onTimer], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
@@ -749,7 +765,10 @@ static void php_swoole_onShutdown(swServer *serv)
 
     args[0] = &zserv;
     sw_zval_add_ref(&zserv);
+
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onShutdown], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
@@ -772,7 +791,9 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     zval **args[2];
     zval *retval = NULL;
 
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     SW_MAKE_STD_ZVAL(zworker_id, 0);
     ZVAL_LONG(zworker_id, worker_id);
@@ -849,7 +870,10 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
     ZVAL_LONG(zworker_id, worker_id);
 
     sw_zval_add_ref(&zobject);
+
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     args[0] = &zobject;
     args[1] = &zworker_id;
@@ -871,7 +895,9 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
 
 static void php_swoole_onUserWorkerStart(swServer *serv, swWorker *worker)
 {
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     zval *object = worker->ptr;
     int id = worker->id + serv->worker_num + SwooleG.task_worker_num;
@@ -897,7 +923,10 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
     ZVAL_LONG(zexit_code, exit_code);
 
     sw_zval_add_ref(&zobject);
+
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     args[0] = &zobject;
     args[1] = &zworker_id;
@@ -943,7 +972,10 @@ static void php_swoole_onConnect(swServer *serv, int fd, int from_id)
     args[1] = &zfd;
     args[2] = &zfrom_id;
 
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onConnect], &retval, 3, args, 0,
             NULL TSRMLS_CC) == FAILURE)
     {
@@ -970,7 +1002,9 @@ void php_swoole_onClose(swServer *serv, int fd, int from_id)
     zval **args[3];
     zval *retval = NULL;
 
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     SW_MAKE_STD_ZVAL(zfd, 0);
     ZVAL_LONG(zfd, fd);
