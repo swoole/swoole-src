@@ -17,13 +17,24 @@
 #include "php_swoole.h"
 
 #if PHP_MAJOR_VERSION >= 7
-inline int Z_BVAL_P(zval *v) {
-    if (Z_TYPE_P(v) == IS_TRUE) {
+
+inline int Z_BVAL_P(zval *v)
+{
+    if (Z_TYPE_P(v) == IS_TRUE)
+    {
         return 1;
-    } else {
+    }
+    else
+    {
         return 0;
     }
 }
+
+zval _sw_zval_data0;
+zval _sw_zval_data1;
+zval _sw_zval_data2;
+zval _sw_zval_data3;
+zval _sw_zval_data4;
 
 inline int sw_add_assoc_stringl_ex(zval *arg, const char *key, size_t key_len, char *str, size_t length, int duplicate) {
     return add_assoc_stringl_ex(arg, key, key_len, str, length);

@@ -223,19 +223,26 @@ inline char * sw_php_url_encode(char *value, size_t value_len, int* exten);
 #define sw_php_var_unserialize(rval, p, max, var_hash)\
 php_var_unserialize(*rval, p, max, var_hash)
 
-#define SW_MAKE_STD_ZVAL(p,o) \
-    switch(o){                           \
+extern zval _sw_zval_data0;
+extern zval _sw_zval_data1;
+extern zval _sw_zval_data2;
+extern zval _sw_zval_data3;
+extern zval _sw_zval_data4;
+
+#define SW_MAKE_STD_ZVAL(p,o)    switch(o){                           \
     case 0:                              \
-       { zval sw_data0;p = &sw_data0; break;}\
-    case 1:                                \
-       { zval sw_data1;p = &sw_data1; break;}\
-    case 2:                                    \
-       { zval sw_data2;p = &sw_data2; break;}\
-    case 3:                                    \
-       { zval sw_data3;p = &sw_data3; break;}\
-    default:                                \
+       { bzero(&_sw_zval_data0, sizeof(zval)); p = &_sw_zval_data0; break;}\
+    case 1:                              \
+       { bzero(&_sw_zval_data1, sizeof(zval)); p = &_sw_zval_data1; break;}\
+    case 2:                              \
+       { bzero(&_sw_zval_data2, sizeof(zval)); p = &_sw_zval_data2; break;}\
+    case 3:                              \
+       { bzero(&_sw_zval_data3, sizeof(zval)); p = &_sw_zval_data3; break;}\
+    case 4:                              \
+       { bzero(&_sw_zval_data4, sizeof(zval)); p = &_sw_zval_data4; break;}\
+    default:                             \
         break;\
-     }
+    }
 
 #define SW_RETURN_STRINGL(z,l,t)                      \
                zval key;\
