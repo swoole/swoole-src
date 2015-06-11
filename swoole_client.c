@@ -54,10 +54,10 @@ static swClient* client_create_socket(zval *object, char *host, int host_len, in
 
 static char *php_sw_callbacks[PHP_CLIENT_CALLBACK_NUM] =
 {
-	php_sw_client_onConnect,
-	php_sw_client_onReceive,
-	php_sw_client_onClose,
-	php_sw_client_onError,
+    php_sw_client_onConnect,
+    php_sw_client_onReceive,
+    php_sw_client_onClose,
+    php_sw_client_onError,
 };
 
 static const zend_function_entry swoole_client_methods[] =
@@ -99,9 +99,9 @@ void swoole_client_init(int module_number TSRMLS_DC)
  */
 static int client_close(zval *zobject, int fd TSRMLS_DC)
 {
-	zval *zcallback = NULL;
-	zval *retval = NULL;
-	zval **args[1];
+    zval *zcallback = NULL;
+    zval *retval = NULL;
+    zval **args[1];
 
     swClient *cli = swoole_get_object(zobject);
     if (!cli)
@@ -110,25 +110,25 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
         return SW_ERR;
     }
 
-	//long tcp connection, clear from php_sw_long_connections
-	zval *ztype = sw_zend_read_property(swoole_client_class_entry_ptr, zobject, SW_STRL("type")-1, 0 TSRMLS_CC);
-	if (ztype == NULL || ZVAL_IS_NULL(ztype))
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "get swoole_client->type failed.");
-	}
-	else if (Z_LVAL_P(ztype) & SW_FLAG_KEEP)
-	{
-		if (sw_zend_hash_del(&php_sw_long_connections, cli->server_str, cli->server_strlen) == SUCCESS)
-		{
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "delete from hashtable failed.");
-		}
+    //long tcp connection, clear from php_sw_long_connections
+    zval *ztype = sw_zend_read_property(swoole_client_class_entry_ptr, zobject, SW_STRL("type")-1, 0 TSRMLS_CC);
+    if (ztype == NULL || ZVAL_IS_NULL(ztype))
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "get swoole_client->type failed.");
+    }
+    else if (Z_LVAL_P(ztype) & SW_FLAG_KEEP)
+    {
+        if (sw_zend_hash_del(&php_sw_long_connections, cli->server_str, cli->server_strlen) == SUCCESS)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "delete from hashtable failed.");
+        }
         sw_free(cli->server_str);
-		ZVAL_LONG(ztype, 0);
-	}
-	else
-	{
-	    sw_free(cli->server_str);
-	}
+        ZVAL_LONG(ztype, 0);
+    }
+    else
+    {
+        sw_free(cli->server_str);
+    }
 
     if (cli->buffer && (cli->open_eof_split || cli->open_length_check))
     {
@@ -136,34 +136,34 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
         cli->buffer = NULL;
     }
 
-	//async connection
-	if (cli->async)
-	{
-		//remove from reactor
-		if (SwooleG.main_reactor)
-		{
-			SwooleG.main_reactor->del(SwooleG.main_reactor, fd);
-		}
+    //async connection
+    if (cli->async)
+    {
+        //remove from reactor
+        if (SwooleG.main_reactor)
+        {
+            SwooleG.main_reactor->del(SwooleG.main_reactor, fd);
+        }
 
-		zcallback = sw_zend_read_property(swoole_client_class_entry_ptr, zobject, SW_STRL(php_sw_client_onClose)-1, 0 TSRMLS_CC);
-		if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
-		{
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client->close[3]: no close callback.");
-			return SW_ERR;
-		}
+        zcallback = sw_zend_read_property(swoole_client_class_entry_ptr, zobject, SW_STRL(php_sw_client_onClose)-1, 0 TSRMLS_CC);
+        if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client->close[3]: no close callback.");
+            return SW_ERR;
+        }
 
-		args[0] = &zobject;
+        args[0] = &zobject;
 
-		if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
-		{
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client->close[4]: onClose handler error");
-			return SW_ERR;
-		}
+        if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC)  == FAILURE)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client->close[4]: onClose handler error");
+            return SW_ERR;
+        }
 
-		if (SwooleG.main_reactor->event_num == 0 && SwooleWG.in_client == 1)
-		{
-			SwooleG.running = 0;
-		}
+        if (SwooleG.main_reactor->event_num == 0 && SwooleWG.in_client == 1)
+        {
+            SwooleG.main_reactor->running = 0;
+        }
 
         cli->close(cli);
         //free the callback return value
@@ -171,12 +171,12 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
         {
             sw_zval_ptr_dtor(&retval);
         }
-	}
-	else
-	{
-		cli->close(cli);
-	}
-	return SW_OK;
+    }
+    else
+    {
+        cli->close(cli);
+    }
+    return SW_OK;
 }
 
 static int client_onRead_check_eof(swReactor *reactor, swEvent *event)
@@ -473,15 +473,15 @@ static int client_onRead(swReactor *reactor, swEvent *event)
 #endif
 
     n = recv(event->fd, buf, buf_len, 0);
-	if (n < 0)
-	{
-		switch (swConnection_error(errno))
-		{
-		case SW_ERROR:
-			swSysError("Read from socket[%d] failed.", event->fd);
-			goto free_buf;
-		case SW_CLOSE:
-			goto close_fd;
+    if (n < 0)
+    {
+        switch (swConnection_error(errno))
+        {
+        case SW_ERROR:
+            swSysError("Read from socket[%d] failed.", event->fd);
+            goto free_buf;
+        case SW_CLOSE:
+            goto close_fd;
         case SW_WAIT:
             if (cli->packet_mode == 1)
             {
@@ -491,11 +491,10 @@ static int client_onRead(swReactor *reactor, swEvent *event)
             {
                 goto free_buf;
             }
-		default:
-			swTrace("default");
-		    goto free_buf;
-		}
-	}
+        default:
+            goto free_buf;
+        }
+    }
 	else if (n == 0)
 	{
 		close_fd:
@@ -1012,13 +1011,17 @@ static PHP_METHOD(swoole_client, __construct)
 static PHP_METHOD(swoole_client, __destruct)
 {
     swClient *cli = swoole_get_object(getThis());
-    if (cli && cli->keep == 0)
+    if (cli)
     {
-        if (cli->socket->fd != 0)
+        swoole_set_object(getThis(), NULL);
+        if (!cli->keep)
         {
-            cli->close(cli);
+            if (cli->socket->fd != 0)
+            {
+                cli->close(cli);
+            }
+            efree(cli);
         }
-        efree(cli);
     }
 }
 

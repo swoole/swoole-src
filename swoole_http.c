@@ -1179,7 +1179,7 @@ void swoole_http_request_free(swoole_http_client *client TSRMLS_DC)
     {
         sw_zval_ptr_dtor(&zcookie);
     }
-    zval *zfiles =sw_zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("files"), 1 TSRMLS_CC);
+    zval *zfiles = sw_zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("files"), 1 TSRMLS_CC);
     if (!ZVAL_IS_NULL(zfiles))
     {
         zval *value;
@@ -1187,41 +1187,62 @@ void swoole_http_request_free(swoole_http_client *client TSRMLS_DC)
         int keytype;
         uint idx;
 
-         WRAPPER_ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(zfiles), value)            
+        WRAPPER_ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(zfiles), value)
+        {
             keytype = wrapper_zend_hash_get_current_key(Z_ARRVAL_P(zfiles), &key, &idx, 0);
+
             if (HASH_KEY_IS_STRING != keytype)
             {
                 continue;
             }
             zval *file_path;
-            if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("tmp_name"), (void **)&file_path) == SUCCESS)
+            if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("tmp_name"), (void **) &file_path) == SUCCESS)
             {
                 unlink(Z_STRVAL_P(file_path));
             }
-           sw_zval_ptr_dtor(&value);
-         WRAPPER_ZEND_HASH_FOREACH_END();  
-       sw_zval_ptr_dtor(&zfiles);
+            sw_zval_ptr_dtor(&value);
+        }
+        WRAPPER_ZEND_HASH_FOREACH_END();
+
+        sw_zval_ptr_dtor(&zfiles);
     }
-    zval *zrequest =sw_zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("request"), 1 TSRMLS_CC);
+
+    zval *zrequest = sw_zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("request"), 1 TSRMLS_CC);
     if (!ZVAL_IS_NULL(zrequest))
     {
-       sw_zval_ptr_dtor(&zrequest);
+        sw_zval_ptr_dtor(&zrequest);
     }
-    zval *zserver =sw_zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("server"), 1 TSRMLS_CC);
+    zval *zserver = sw_zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("server"), 1 TSRMLS_CC);
     if (!ZVAL_IS_NULL(zserver))
     {
-       sw_zval_ptr_dtor(&zserver);
+        sw_zval_ptr_dtor(&zserver);
     }
     if (client->zrequest)
     {
-       sw_zval_ptr_dtor(&client->zrequest);
+        sw_zval_ptr_dtor(&client->zrequest);
         client->zrequest = NULL;
     }
+
     if (client->zresponse)
     {
-       sw_zval_ptr_dtor(&client->zresponse);
+        zheader = zend_read_property(swoole_http_response_class_entry_ptr, client->zresponse, ZEND_STRL("header"),
+                1 TSRMLS_CC);
+        if (!ZVAL_IS_NULL(zheader))
+        {
+            sw_zval_ptr_dtor(&zheader);
+        }
+
+        zcookie = zend_read_property(swoole_http_response_class_entry_ptr, client->zresponse, ZEND_STRL("cookie"),
+                1 TSRMLS_CC);
+        if (!ZVAL_IS_NULL(zcookie))
+        {
+            sw_zval_ptr_dtor(&zcookie);
+        }
+
+        sw_zval_ptr_dtor(&client->zresponse);
         client->zresponse = NULL;
     }
+
     client->end = 1;
     client->send_header = 0;
     client->gzip_enable = 0;

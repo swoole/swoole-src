@@ -336,20 +336,22 @@ int handle = (int)Z_OBJ_HANDLE(*object);
 
 static sw_inline void swoole_set_object(zval *object, void *ptr)
 {
-       #if PHP_MAJOR_VERSION < 7
-zend_object_handle handle = Z_OBJ_HANDLE_P(object);
+#if PHP_MAJOR_VERSION < 7
+    zend_object_handle handle = Z_OBJ_HANDLE_P(object);
 #else
-int handle = (int)Z_OBJ_HANDLE(*object);
+    int handle = (int) Z_OBJ_HANDLE(*object);
 #endif
     if (handle >= swoole_objects.size)
     {
-        swoole_objects.size = swoole_objects.size * 2;
+        uint32_t old_size = swoole_objects.size;
+        swoole_objects.size = old_size * 2;
         if (swoole_objects.size > SW_MAX_SOCKET_ID)
         {
             swoole_objects.size = SW_MAX_SOCKET_ID;
         }
         assert(handle < SW_MAX_SOCKET_ID);
         swoole_objects.array = erealloc(swoole_objects.array, swoole_objects.size);
+        bzero(swoole_objects.array + (old_size * sizeof(void*)), (swoole_objects.size - old_size) * sizeof(void**));
     }
     swoole_objects.array[handle] = ptr;
 }

@@ -247,7 +247,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
     }
     if (SwooleWG.in_client && SwooleG.main_reactor->event_num == 1 && SwooleAIO.task_num == 1)
     {
-        SwooleG.running = 0;
+        SwooleG.main_reactor->running = 0;
     }
 }
 

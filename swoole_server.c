@@ -2308,15 +2308,15 @@ PHP_FUNCTION(swoole_server_addtimer)
         RETURN_FALSE;
     }
 
-    if (SwooleG.serv->onTimer == NULL)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "no onTimer callback, cannot use addtimer.");
-        RETURN_FALSE;
-    }
-
     if (SwooleGS->start == 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
+
+    if (SwooleG.serv->onTimer == NULL)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "no onTimer callback, cannot use addtimer.");
         RETURN_FALSE;
     }
 
@@ -2350,9 +2350,8 @@ PHP_FUNCTION(swoole_server_taskwait)
     zval *zobject = getThis();
     swEventData buf;
 
-
     zval **data;
-    smart_str serialized_data = {0};
+    smart_str serialized_data = { 0 };
     php_serialize_data_t var_hash;
 
     double timeout = SW_TASKWAIT_TIMEOUT;
