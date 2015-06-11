@@ -74,7 +74,9 @@ int swoole_websocket_isset_onMessage(void)
 
 void swoole_websocket_onOpen(swoole_http_client *client)
 {
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     int fd = client->fd;
 
@@ -131,7 +133,9 @@ static void sha1(const char *str, int _len, unsigned char *digest)
 
 static int websocket_handshake(swoole_http_client *client)
 {
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     zval *header = sw_zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("header"), 1 TSRMLS_CC);
     HashTable *ht = Z_ARRVAL_P(header);
@@ -174,12 +178,14 @@ static int websocket_handshake(swoole_http_client *client)
 
 int swoole_websocket_onMessage(swEventData *req)
 {
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
-	int fd = req->info.fd;
-        zval *zdata;
-        SW_MAKE_STD_ZVAL(zdata,0);
-	zdata = php_swoole_get_recv_data(zdata,req TSRMLS_CC);
+    int fd = req->info.fd;
+    zval *zdata;
+    SW_MAKE_STD_ZVAL(zdata, 0);
+    zdata = php_swoole_get_recv_data(zdata, req TSRMLS_CC);
 
     char *buf = Z_STRVAL_P(zdata);
     long finish = buf[0] ? 1 : 0;
@@ -227,7 +233,9 @@ int swoole_websocket_onMessage(swEventData *req)
 
 int swoole_websocket_onHandshake(swoole_http_client *client)
 {
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     int fd = client->fd;
     int ret = websocket_handshake(client);
