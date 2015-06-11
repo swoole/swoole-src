@@ -2823,7 +2823,7 @@ PHP_FUNCTION(swoole_connection_info)
         memcpy(&udp_info, &from_id, sizeof(udp_info));
         swConnection *from_sock = swServer_connection_get(serv, udp_info.from_fd);
 
-        if (from_sock != NULL && serv->listen_port_num > 1)
+        if (from_sock != NULL)
         {
             add_assoc_long(return_value, "server_fd", from_sock->fd);
             add_assoc_long(return_value, "socket_type", from_sock->socket_type);
@@ -2858,16 +2858,11 @@ PHP_FUNCTION(swoole_connection_info)
         }
 
         swConnection *from_sock = swServer_connection_get(serv, conn->from_fd);
-        if (serv->listen_port_num > 1)
-        {
-            add_assoc_long(return_value, "server_fd", conn->from_fd);
-            add_assoc_long(return_value, "socket_type", conn->socket_type);
-            add_assoc_long(return_value, "server_port", swConnection_get_port(from_sock));
-        }
-
+        add_assoc_long(return_value, "server_fd", conn->from_fd);
+        add_assoc_long(return_value, "socket_type", conn->socket_type);
+        add_assoc_long(return_value, "server_port", swConnection_get_port(from_sock));
         add_assoc_long(return_value, "remote_port", swConnection_get_port(conn));
         sw_add_assoc_string(return_value, "remote_ip", swConnection_get_ip(conn), 1);
-
         add_assoc_long(return_value, "from_id", conn->from_id);
         add_assoc_long(return_value, "connect_time", conn->connect_time);
         add_assoc_long(return_value, "last_time", conn->last_time);
