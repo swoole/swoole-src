@@ -1225,14 +1225,14 @@ void swoole_http_request_free(swoole_http_client *client TSRMLS_DC)
 
     if (client->zresponse)
     {
-        zheader = zend_read_property(swoole_http_response_class_entry_ptr, client->zresponse, ZEND_STRL("header"),
+        zheader = sw_zend_read_property(swoole_http_response_class_entry_ptr, client->zresponse, ZEND_STRL("header"),
                 1 TSRMLS_CC);
         if (!ZVAL_IS_NULL(zheader))
         {
             sw_zval_ptr_dtor(&zheader);
         }
 
-        zcookie = zend_read_property(swoole_http_response_class_entry_ptr, client->zresponse, ZEND_STRL("cookie"),
+        zcookie = sw_zend_read_property(swoole_http_response_class_entry_ptr, client->zresponse, ZEND_STRL("cookie"),
                 1 TSRMLS_CC);
         if (!ZVAL_IS_NULL(zcookie))
         {
