@@ -900,8 +900,7 @@ static void php_swoole_onUserWorkerStart(swServer *serv, swWorker *worker)
 #endif
 
     zval *object = worker->ptr;
-    int id = worker->id + serv->worker_num + SwooleG.task_worker_num;
-    zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("id"), id TSRMLS_CC);
+    zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("id"), SwooleWG.id TSRMLS_CC);
 
     php_swoole_process_start(worker, object TSRMLS_CC);
 }
