@@ -1,6 +1,6 @@
 <?php
-$server = new swoole_websocket_server("0.0.0.0", 9501);
-//$server = new swoole_websocket_server("0.0.0.0", 9501, SWOOLE_BASE);
+//$server = new swoole_websocket_server("0.0.0.0", 9501);
+$server = new swoole_websocket_server("0.0.0.0", 9501, SWOOLE_BASE);
 //$server->set(['worker_num' => 4]);
 
 function user_handshake(swoole_http_request $request, swoole_http_response $response)

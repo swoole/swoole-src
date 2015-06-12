@@ -97,7 +97,7 @@ void swoole_websocket_onOpen(swoole_http_client *client)
         zval **args[2];
         swServer *serv = SwooleG.serv;
         zval *zserv = (zval *) serv->ptr2;
-        zval *zrequest = client->zrequest;
+        zval *zrequest = client->request.zrequest;
         zval *retval = NULL;
 
 #ifdef __CYGWIN__
@@ -137,7 +137,7 @@ static int websocket_handshake(swoole_http_client *client)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    zval *header = sw_zend_read_property(swoole_http_request_class_entry_ptr, client->zrequest, ZEND_STRL("header"), 1 TSRMLS_CC);
+    zval *header = client->request.zheader;
     HashTable *ht = Z_ARRVAL_P(header);
     zval *pData;
 
@@ -192,7 +192,7 @@ int swoole_websocket_onMessage(swEventData *req)
     long opcode = buf[1] ? 1 : 0;
 
 	zval *zframe;
-    SW_MAKE_STD_ZVAL(zframe,0);
+    SW_MAKE_STD_ZVAL(zframe, 1);
     object_init_ex(zframe, swoole_websocket_frame_class_entry_ptr);
 
     zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("fd"), fd TSRMLS_CC);
@@ -295,6 +295,12 @@ static PHP_METHOD( swoole_websocket_server, on)
         RETURN_FALSE;
     }
     efree(func_name);
+
+#if PHP_MAJOR_VERSION >= 7
+    zval *callback_copy = emalloc(sizeof(zval));
+    memcpy(callback_copy, callback, sizeof(zval));
+    callback = callback_copy;
+#endif
 
     serv->open_websocket_protocol = 1;
 

@@ -1110,7 +1110,7 @@ PHP_FUNCTION(swoole_server_create)
 
 #ifdef HAVE_PCRE
     zval *connection_iterator_object;
-    SW_MAKE_STD_ZVAL(connection_iterator_object,3);
+    SW_MAKE_STD_ZVAL(connection_iterator_object, 3);
     object_init_ex(connection_iterator_object, swoole_connection_iterator_class_entry_ptr);
     zend_update_property(swoole_server_class_entry_ptr, server_object, ZEND_STRL("connections"), connection_iterator_object TSRMLS_CC);
 #endif
@@ -1855,7 +1855,7 @@ PHP_FUNCTION(swoole_server_start)
     zval *zsetting = sw_zend_read_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zsetting == NULL || ZVAL_IS_NULL(zsetting))
     {
-        SW_MAKE_STD_ZVAL(zsetting,0);
+        SW_MAKE_STD_ZVAL(zsetting, 0);
         array_init(zsetting);
         zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zsetting TSRMLS_CC);
     }

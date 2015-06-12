@@ -27,7 +27,7 @@ $config = array(
     //'open_eof_check' => true,
     //'package_eof' => "\r\n",
 //   'task_ipc_mode'   => 2,
-   'task_worker_num' => 2,
+//   'task_worker_num' => 2,
    'user' => 'www-data',
    'group' => 'www-data',
    'chroot' => '/opt/tmp',
@@ -46,8 +46,8 @@ if (isset($argv[1]) and $argv[1] == 'daemon') {
 	$config['daemonize'] = false;
 }
 
-//$mode = SWOOLE_BASE;
-$mode = SWOOLE_PROCESS;
+$mode = SWOOLE_BASE;
+//$mode = SWOOLE_PROCESS;
 
 $serv = new swoole_server("0.0.0.0", 9501, $mode);
 $serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
@@ -177,8 +177,9 @@ function my_onClose($serv, $fd, $from_id)
 function my_onConnect(swoole_server $serv, $fd, $from_id)
 {
     //throw new Exception("hello world");
-    var_dump($serv->connection_info($fd));
-    echo "Worker#{$serv->worker_pid} Client[$fd@$from_id]: Connect.\n";
+//    var_dump($serv->connection_info($fd));
+    var_dump($serv, $fd, $from_id);
+//    echo "Worker#{$serv->worker_pid} Client[$fd@$from_id]: Connect.\n";
     echo "Client: Connect --- {$fd}\n";
 }
 
