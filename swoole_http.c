@@ -661,18 +661,12 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
 
 static int multipart_body_on_data(multipart_parser* p, const char *at, size_t length)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     swoole_http_client *client = (swoole_http_client *) p->data;
-
     if (client->current_form_data_name)
     {
         swString_append_ptr(swoole_http_form_data_buffer, (char*) at, length);
         return 0;
     }
-
     if (p->fp == NULL)
     {
         return 0;
@@ -711,10 +705,6 @@ void get_random_file_name(char *des, const char *src)
 
 static int multipart_body_on_header_complete(multipart_parser* p)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     swoole_http_client *client = (swoole_http_client *) p->data;
 
     if (!client->current_input_name)
@@ -812,14 +802,9 @@ static int multipart_body_on_data_end(multipart_parser* p)
 
 static int multipart_body_end(multipart_parser* p)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     swoole_http_client *client = (swoole_http_client *) p->data;
     zval *files = client->request.zfiles;
     http_merge_php_global(files, client->request.zrequest_object, HTTP_GLOBAL_FILES);
-
     return 0;
 }
 
