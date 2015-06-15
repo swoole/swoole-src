@@ -1236,8 +1236,8 @@ static int swReactorThread_onReceive_websocket(swReactor *reactor, swEvent *even
                             swTrace("close error\n");
                             return SW_ERR;
                         }
-                        tmp_package.str[0] = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_NORMAL, 1);
-                        tmp_package.str[1] = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_NORMAL, 0);
+                        tmp_package.str[0] = 0x88;
+                        tmp_package.str[1] = 0x00;
                         tmp_package.length = 2;
                         swConnection_send(conn, tmp_package.str, 2, 0);
                         swReactorThread_onClose(reactor, event);
@@ -1342,8 +1342,8 @@ static int swReactorThread_onReceive_websocket(swReactor *reactor, swEvent *even
                         swTrace("close error\n");
                         return SW_ERR;
                     }
-                    tmp_package.str[0] = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_NORMAL, 1);
-                    tmp_package.str[1] = FRAME_SET_LENGTH(WEBSOCKET_CLOSE_NORMAL, 0);
+                    tmp_package.str[0] = 0x88;
+                    tmp_package.str[1] = 0x00;
                     tmp_package.length = 2;
                     swConnection_send(conn, tmp_package.str, 2, 0);
                     swReactorThread_onClose(reactor, event);
