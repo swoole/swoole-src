@@ -295,6 +295,7 @@ static int swServer_start_check(swServer *serv)
         swWarn("serv->max_connection is too small.");
         serv->max_connection = SwooleG.max_sockets;
     }
+    SwooleGS->session_round = 1;
 
 #ifdef SW_USE_OPENSSL
     if (serv->open_ssl)
