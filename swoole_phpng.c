@@ -161,7 +161,7 @@ inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v) {
       }
 #else
       zval key;
-        ZVAL_STRINGL(&key, k,len);
+        ZVAL_STRING(&key, k);
 
         zval *value = zend_hash_find(ht, Z_STR(key));
 

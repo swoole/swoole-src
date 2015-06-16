@@ -97,8 +97,7 @@ void swoole_websocket_onOpen(swoole_http_client *client)
         zval **args[2];
         swServer *serv = SwooleG.serv;
         zval *zserv = (zval *) serv->ptr2;
-//        zval *zrequest = client->request.zrequest;
-         zval *zrequest = client->request.zrequest_object;
+        zval *zrequest = client->request.zrequest;
         zval *retval = NULL;
 
 #ifdef __CYGWIN__
