@@ -44,7 +44,7 @@ static int client_event_loop(zval *sock_array, fd_set *fds TSRMLS_DC);
 static int client_close(zval *zobject, int fd TSRMLS_DC);
 
 static int client_onRead(swReactor *reactor, swEvent *event);
-static int client_onPackage(zval *zobject, swClient *cli TSRMLS_DC);
+static int client_onPackage(zval *zobject, char *data, uint32_t length TSRMLS_DC);
 static int client_onWrite(swReactor *reactor, swEvent *event);
 static int client_onError(swReactor *reactor, swEvent *event);
 
@@ -273,7 +273,7 @@ static int client_onRead_check_eof(swReactor *reactor, swEvent *event)
                 memcpy(stack_buf, buffer->str + offset, remaining_length);
                 buffer->length = offset;
 
-                client_onPackage(zobject, cli TSRMLS_CC);
+                client_onPackage(zobject, cli->buffer->str, cli->buffer->length TSRMLS_CC);
 
                 memcpy(buffer->str, stack_buf, remaining_length);
                 buffer->length = remaining_length;
@@ -282,7 +282,7 @@ static int client_onRead_check_eof(swReactor *reactor, swEvent *event)
             }
             else
             {
-                client_onPackage(zobject, cli TSRMLS_CC);
+                client_onPackage(zobject, cli->buffer->str, cli->buffer->length TSRMLS_CC);
                 buffer->length = 0;
                 return SW_OK;
             }
@@ -339,6 +339,7 @@ static int client_onRead_check_length(swReactor *reactor, swEvent *event)
     }
 
     swConnection *conn = cli->socket;
+    swProtocol *protocol = &cli->protocol;
 
     if (cli->buffer == NULL)
     {
@@ -351,71 +352,69 @@ static int client_onRead_check_length(swReactor *reactor, swEvent *event)
     }
 
     swString *buffer = cli->buffer;
-    uint32_t buf_size;
-    if (buffer->offset)
-    {
-        buf_size = buffer->offset - buffer->length;
-    }
-    else
-    {
-        buf_size = buffer->size - buffer->length;
-    }
-    char *buf_ptr = buffer->str + buffer->length;
+    char *recv_buf;
+    uint32_t recv_n;
 
-    n = swConnection_recv(conn, buf_ptr, buf_size, 0);
-    if (n < 0)
+    while (1)
     {
-        switch (swConnection_error(errno))
+        recv_buf = buffer->str + buffer->length;
+        if (cli->wait_data)
         {
-        case SW_ERROR:
-            swSysError("recv from connection[%d@%d] failed.", event->fd, reactor->id);
-            return SW_OK;
-        case SW_CLOSE:
-            goto close_fd;
-        default:
-            return SW_OK;
-        }
-    }
-    else if (n == 0)
-    {
-        goto close_fd;
-    }
-    else
-    {
-        buffer->length += n;
-        while (1)
-        {
-            if (cli->wait_data)
+            recv_n = buffer->offset - buffer->length;
+            n = swConnection_recv(conn, recv_buf, recv_n, 0);
+
+            error:
+            if (n < 0)
             {
-                if (buffer->length == buffer->offset)
+                switch (swConnection_error(errno))
                 {
-                    client_onPackage(zobject, cli TSRMLS_CC);
-                    swString_clear(buffer);
-                    cli->wait_data = 0;
-                }
-                return SW_OK;
-            }
-            else
-            {
-                int package_length = swProtocol_get_package_length(&cli->protocol, cli->socket, buffer->str, buffer->length);
-                if (package_length == 0)
-                {
+                case SW_ERROR:
+                    swSysError("recv from connection[%d@%d] failed.", event->fd, reactor->id);
+                    return SW_OK;
+                case SW_CLOSE:
+                    goto close_fd;
+                default:
                     return SW_OK;
                 }
-                else if (package_length < 0)
-                {
-                    goto close_fd;
-                }
-                else
-                {
-                    if (package_length > buffer->size)
-                    {
-                        swString_extend(buffer, package_length);
-                    }
-                    buffer->offset = package_length;
-                    cli->wait_data = 1;
-                }
             }
+            else if (n == 0)
+            {
+                goto close_fd;
+            }
+
+            buffer->length += n;
+            if (buffer->length == buffer->offset)
+            {
+                client_onPackage(zobject, buffer->str, buffer->length TSRMLS_CC);
+                swString_clear(buffer);
+                cli->wait_data = 0;
+            }
+        }
+        else
+        {
+            recv_n = protocol->package_length_offset + protocol->package_length_size - buffer->length;
+            n = swConnection_recv(conn, recv_buf, recv_n, 0);
+            if (n <= 0)
+            {
+                goto error;
+            }
+            buffer->length += n;
+
+            int package_length = swProtocol_get_package_length(&cli->protocol, cli->socket, buffer->str, buffer->length);
+            if (package_length == 0)
+            {
+                return SW_OK;
+            }
+            else if (package_length < 0)
+            {
+                goto close_fd;
+            }
+            if (package_length > buffer->size)
+            {
+                swString_extend(buffer, package_length);
+            }
+            buffer->offset = package_length;
+            cli->wait_data = 1;
         }
     }
     close_fd:
@@ -547,7 +546,7 @@ static int client_onRead(swReactor *reactor, swEvent *event)
 	return SW_OK;
 }
 
-static int client_onPackage(zval *zobject, swClient *cli TSRMLS_DC)
+static int client_onPackage(zval *zobject, char *data, uint32_t length TSRMLS_DC)
 {
     zval *zcallback = NULL;
     zval **args[2];
@@ -555,7 +554,7 @@ static int client_onPackage(zval *zobject, swClient *cli TSRMLS_DC)
 
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata,0);
-    SW_ZVAL_STRINGL(zdata, cli->buffer->str, cli->buffer->length, 1);
+    SW_ZVAL_STRINGL(zdata, data, length, 1);
 
     args[0] = &zobject;
     args[1] = &zdata;
