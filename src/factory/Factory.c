@@ -25,10 +25,6 @@ int swFactory_create(swFactory *factory)
     factory->shutdown = swFactory_shutdown;
     factory->end = swFactory_end;
     factory->notify = swFactory_notify;
-
-    factory->onTask = NULL;
-    factory->onFinish = NULL;
-
     return SW_OK;
 }
 
@@ -159,15 +155,3 @@ int swFactory_finish(swFactory *factory, swSendData *resp)
     }
 }
 
-int swFactory_check_callback(swFactory *factory)
-{
-    if (factory->onTask == NULL)
-    {
-        return SW_ERR;
-    }
-    if (factory->onFinish == NULL)
-    {
-        return SW_ERR;
-    }
-    return SW_OK;
-}

@@ -61,8 +61,6 @@ int swFactoryProcess_create(swFactory *factory, int worker_num)
     factory->notify = swFactoryProcess_notify;
     factory->shutdown = swFactoryProcess_shutdown;
     factory->end = swFactoryProcess_end;
-    factory->onTask = NULL;
-    factory->onFinish = NULL;
 
     return SW_OK;
 }
@@ -86,12 +84,6 @@ static int swFactoryProcess_shutdown(swFactory *factory)
 
 static int swFactoryProcess_start(swFactory *factory)
 {
-    if (swFactory_check_callback(factory) < 0)
-    {
-        swWarn("swFactory_check_callback failed");
-        return SW_ERR;
-    }
-
     int i;
     swServer *serv = factory->ptr;
     swWorker *worker;

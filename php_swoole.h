@@ -304,7 +304,7 @@ inline int sw_zend_hash_exists(HashTable *ht, char *k, int len);
 #define SW_MAX_FIND_COUNT                   100    //for swoole_server::connection_list
 #define SW_PHP_CLIENT_BUFFER_SIZE           65535
 
-#define PHP_SERVER_CALLBACK_NUM             16
+#define PHP_SERVER_CALLBACK_NUM             17
 //--------------------------------------------------------
 #define SW_SERVER_CB_onStart                0 //Server start(master)
 #define SW_SERVER_CB_onConnect              1 //accept new connection(worker)
@@ -322,6 +322,7 @@ inline int sw_zend_hash_exists(HashTable *ht, char *k, int len);
 #define SW_SERVER_CB_onManagerStart         13
 #define SW_SERVER_CB_onManagerStop          14
 #define SW_SERVER_CB_onPipeMessage          15
+#define SW_SERVER_CB_onPacket               16 //udp packet
 //---------------------------------------------------------
 #define SW_FLAG_KEEP                        (1u << 9)
 #define SW_FLAG_ASYNC                       (1u << 10)
