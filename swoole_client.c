@@ -44,7 +44,10 @@ static int client_event_loop(zval *sock_array, fd_set *fds TSRMLS_DC);
 static int client_close(zval *zobject, int fd TSRMLS_DC);
 
 static int client_onRead(swReactor *reactor, swEvent *event);
-static int client_onPackage(zval *zobject, char *data, uint32_t length TSRMLS_DC);
+static int client_onPackage(zval *zobject, char *data, uint32_t length);
+static int client_onRead_check_eof(swReactor *reactor, swEvent *event);
+static int client_onRead_check_length(swReactor *reactor, swEvent *event);
+
 static int client_onWrite(swReactor *reactor, swEvent *event);
 static int client_onError(swReactor *reactor, swEvent *event);
 
@@ -181,7 +184,6 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
 
 static int client_onRead_check_eof(swReactor *reactor, swEvent *event)
 {
-    int n;
     zval *zobject;
 
 #if PHP_MAJOR_VERSION < 7
@@ -197,10 +199,8 @@ static int client_onRead_check_eof(swReactor *reactor, swEvent *event)
     }
 
     int recv_again = SW_FALSE;
-    int eof_pos = -1;
     int buf_size;
 
-    char stack_buf[SW_PHP_CLIENT_BUFFER_SIZE];
     swConnection *conn = cli->socket;
     swProtocol *protocol = &cli->protocol;
 
@@ -224,13 +224,7 @@ static int client_onRead_check_eof(swReactor *reactor, swEvent *event)
         buf_size = SW_PHP_CLIENT_BUFFER_SIZE;
     }
 
-#ifdef SW_USE_EPOLLET
-    n = swRead(event->fd, trunk->data, SW_PHP_CLIENT_BUFFER_SIZE);
-#else
-    //level trigger
-    n = swConnection_recv(conn, buf_ptr, buf_size, 0);
-#endif
-
+    int n = swConnection_recv(conn, buf_ptr, buf_size, 0);
     swTrace("ReactorThread: recv[len=%d]", n);
     if (n < 0)
     {
@@ -258,34 +252,13 @@ static int client_onRead_check_eof(swReactor *reactor, swEvent *event)
             return SW_OK;
         }
 
-        //find EOF
-        find_eof:
-        eof_pos = swoole_strnpos(buffer->str, buffer->length, protocol->package_eof, protocol->package_eof_len);
-
-        if (eof_pos >= 0)
+        if (swProtocol_split_package_by_eof(protocol, zobject, buffer) == 0)
         {
-            int offset = eof_pos + protocol->package_eof_len;
-
-            if (buffer->length > offset)
-            {
-                int remaining_length = buffer->length - offset;
-                //swWarn("eof_pos=%d, total_length=%d, remaining_length=%d", eof_pos, buffer->length, remaining_length);
-                memcpy(stack_buf, buffer->str + offset, remaining_length);
-                buffer->length = offset;
-
-                client_onPackage(zobject, cli->buffer->str, cli->buffer->length TSRMLS_CC);
-
-                memcpy(buffer->str, stack_buf, remaining_length);
-                buffer->length = remaining_length;
-
-                goto find_eof;
-            }
-            else
-            {
-                client_onPackage(zobject, cli->buffer->str, cli->buffer->length TSRMLS_CC);
-                buffer->length = 0;
-                return SW_OK;
-            }
+            return SW_OK;
+        }
+        else
+        {
+            recv_again = SW_TRUE;
         }
 
         //over max length, will discard
@@ -295,12 +268,12 @@ static int client_onRead_check_eof(swReactor *reactor, swEvent *event)
             goto close_fd;
         }
         //buffer is full, may have not read data
-        if (buf_size == n)
+        if (buffer->length == buffer->size)
         {
             recv_again = SW_TRUE;
             if (buffer->size < protocol->package_max_length)
             {
-                uint32_t extend_size = buffer->size * 2;
+                uint32_t extend_size = swoole_size_align(buffer->size * 2, SwooleG.pagesize);
                 if (extend_size > protocol->package_max_length)
                 {
                     extend_size = protocol->package_max_length;
@@ -385,7 +358,7 @@ static int client_onRead_check_length(swReactor *reactor, swEvent *event)
             buffer->length += n;
             if (buffer->length == buffer->offset)
             {
-                client_onPackage(zobject, buffer->str, buffer->length TSRMLS_CC);
+                client_onPackage(zobject, buffer->str, buffer->length);
                 swString_clear(buffer);
                 cli->wait_data = 0;
             }
@@ -546,8 +519,10 @@ static int client_onRead(swReactor *reactor, swEvent *event)
 	return SW_OK;
 }
 
-static int client_onPackage(zval *zobject, char *data, uint32_t length TSRMLS_DC)
+static int client_onPackage(zval *zobject, char *data, uint32_t length)
 {
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+
     zval *zcallback = NULL;
     zval **args[2];
     zval *retval;
@@ -625,6 +600,7 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
        }
        bzero(cli->protocol.package_eof, SW_DATA_EOF_MAXLEN);
        memcpy(cli->protocol.package_eof, Z_STRVAL_P(v), Z_STRLEN_P(v));
+       cli->protocol.onPackage = client_onPackage;
    }
    //open length check
    if (sw_zend_hash_find(vht, ZEND_STRS("open_length_check"), (void **)&v) == SUCCESS)
