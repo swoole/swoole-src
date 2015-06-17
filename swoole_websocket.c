@@ -97,16 +97,16 @@ void swoole_websocket_onOpen(swoole_http_client *client)
         zval **args[2];
         swServer *serv = SwooleG.serv;
         zval *zserv = (zval *) serv->ptr2;
-        zval *zrequest = client->request.zrequest;
+        zval *zrequest_object = client->request.zrequest_object;
         zval *retval = NULL;
 
 #ifdef __CYGWIN__
         //TODO: memory error on cygwin.
-        sw_zval_add_ref(&zrequest);
+        sw_zval_add_ref(&zrequest_object);
 #endif
 
         args[0] = &zserv;
-        args[1] = &zrequest;
+        args[1] = &zrequest_object;
 
         if (sw_call_user_function_ex(EG(function_table), NULL, websocket_callbacks[WEBSOCKET_CALLBACK_onOpen], &retval, 2, args, 0,  NULL TSRMLS_CC) == FAILURE)
         {

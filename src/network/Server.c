@@ -42,6 +42,8 @@ static void swServer_disable_accept(swReactor *reactor);
 
 static void swHeartbeatThread_start(swServer *serv);
 static void swHeartbeatThread_loop(swThreadParam *param);
+static int swServer_send1(swServer *serv, swSendData *resp);
+static int swServer_send2(swServer *serv, swSendData *resp);
 
 static swConnection* swServer_connection_new(swServer *serv, int fd, int from_fd, int reactor_id);
 
@@ -229,10 +231,15 @@ void swServer_onTimer(swTimer *timer, swTimer_node *event)
 
 static int swServer_start_check(swServer *serv)
 {
-    if (serv->onReceive == NULL)
+    if (serv->onReceive == NULL && serv->onPacket == NULL)
     {
-        swWarn("onReceive is null");
+        swWarn("onReceive and onPacket event callback must be set.");
         return SW_ERR;
+    }
+    //UDP
+    if (!serv->onPacket)
+    {
+        serv->onPacket = serv->onReceive;
     }
     //disable notice when use SW_DISPATCH_ROUND and SW_DISPATCH_QUEUE
     if (serv->factory_mode == SW_MODE_PROCESS)
@@ -288,6 +295,7 @@ static int swServer_start_check(swServer *serv)
         swWarn("serv->max_connection is too small.");
         serv->max_connection = SwooleG.max_sockets;
     }
+    SwooleGS->session_round = 1;
 
 #ifdef SW_USE_OPENSSL
     if (serv->open_ssl)
@@ -517,21 +525,19 @@ int swServer_start(swServer *serv)
 		}
 	}
 
-	//master pid
-	SwooleGS->master_pid = getpid();
-	SwooleGS->start = 1;
-	SwooleGS->now = SwooleStats->start_time = time(NULL);
+    //master pid
+    SwooleGS->master_pid = getpid();
+    SwooleGS->start = 1;
+    SwooleGS->now = SwooleStats->start_time = time(NULL);
 
-	serv->factory.onTask = serv->onReceive;
-
-	if (serv->have_udp_sock == 1 && serv->factory_mode != SW_MODE_PROCESS)
-	{
-		serv->factory.onFinish = swServer_onFinish2;
-	}
-	else
-	{
-		serv->factory.onFinish = swServer_onFinish;
-	}
+    if (serv->have_udp_sock == 1 && serv->factory_mode != SW_MODE_PROCESS)
+    {
+        serv->send = swServer_send2;
+    }
+    else
+    {
+        serv->send = swServer_send1;
+    }
 
     serv->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
     if (serv->workers == NULL)
@@ -792,9 +798,9 @@ int swServer_free(swServer *serv)
 /**
  * only tcp
  */
-int swServer_onFinish(swFactory *factory, swSendData *resp)
+static int swServer_send1(swServer *serv, swSendData *resp)
 {
-	return swWrite(resp->info.fd, resp->data, resp->info.len);
+    return swWrite(resp->info.fd, resp->data, resp->info.len);
 }
 
 int swServer_udp_send(swServer *serv, swSendData *resp)
@@ -879,9 +885,8 @@ int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length)
 /**
  * for udp + tcp
  */
-int swServer_onFinish2(swFactory *factory, swSendData *resp)
+int swServer_send2(swServer *serv, swSendData *resp)
 {
-	swServer *serv = factory->ptr;
 	int ret;
 
 	//UDP

@@ -178,9 +178,6 @@ struct _swFactory
     int (*finish)(struct _swFactory *, swSendData *);
     int (*notify)(struct _swFactory *, swDataHead *);    //send a event notify
     int (*end)(struct _swFactory *, int fd);
-
-    int (*onTask)(struct _swFactory *, swEventData *task); //worker function.get a task,goto to work
-    int (*onFinish)(struct _swFactory *, swSendData *result); //factory worker finish.callback
 };
 
 typedef struct _swFactoryProcess
@@ -448,7 +445,8 @@ struct _swServer
     void (*onStart)(swServer *serv);
     void (*onManagerStart)(swServer *serv);
     void (*onManagerStop)(swServer *serv);
-    int (*onReceive)(swFactory *, swEventData *);
+    int (*onReceive)(swServer *, swEventData *);
+    int (*onPacket)(swServer *, swEventData *); //for datagram
     int (*onRequest)(swServer *serv, swRequest *request);
     void (*onClose)(swServer *serv, int fd, int from_id);
     void (*onConnect)(swServer *serv, int fd, int from_id);
@@ -462,6 +460,7 @@ struct _swServer
     int (*onTask)(swServer *serv, swEventData *data);
     int (*onFinish)(swServer *serv, swEventData *data);
 
+    int (*send)(swServer *, swSendData *);
     int (*get_package_length)(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 };
 

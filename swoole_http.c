@@ -93,7 +93,7 @@ zend_class_entry *swoole_http_request_class_entry_ptr;
 
 static zval* php_sw_http_server_callbacks[2];
 
-static int http_onReceive(swFactory *factory, swEventData *req);
+static int http_onReceive(swServer *serv, swEventData *req);
 static void http_onClose(swServer *serv, int fd, int from_id);
 
 static int http_request_on_path(php_http_parser *parser, const char *at, size_t length);
@@ -902,7 +902,7 @@ static void http_onClose(swServer *serv, int fd, int from_id)
     }
 }
 
-static int http_onReceive(swFactory *factory, swEventData *req)
+static int http_onReceive(swServer *serv, swEventData *req)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);

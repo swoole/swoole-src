@@ -505,7 +505,6 @@ PHP_MINIT_FUNCTION(swoole)
     zend_class_implements(swoole_connection_iterator_class_entry_ptr TSRMLS_CC, 2, spl_ce_Iterator, spl_ce_Countable);
 #endif
 
-
     //swoole init
     swoole_init();
 
