@@ -1,5 +1,5 @@
 <?php
-class TestServer
+class ReconnectServer
 {
     private $count = array();
 
@@ -38,7 +38,7 @@ $serv->set(
     ]
 );
 
-$cb = new TestServer();
+$cb = new ReconnectServer();
 $serv->on('Connect', [$cb, 'onConnect']);
 $serv->on('receive', [$cb, 'onReceive']);
 $serv->on('Close', [$cb, 'onClose']);

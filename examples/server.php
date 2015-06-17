@@ -178,7 +178,7 @@ function my_onConnect(swoole_server $serv, $fd, $from_id)
 {
     //throw new Exception("hello world");
 //    var_dump($serv->connection_info($fd));
-    var_dump($serv, $fd, $from_id);
+    //var_dump($serv, $fd, $from_id);
 //    echo "Worker#{$serv->worker_pid} Client[$fd@$from_id]: Connect.\n";
     echo "Client: Connect --- {$fd}\n";
 }

@@ -1,7 +1,7 @@
 <?php
 function send(swoole_client $cli)
 {
-    $_send = str_repeat('A', rand(100, 500)) . "\r\n\r\n";
+    $_send = str_repeat('A', rand(10000, 50000)) . "\r\n\r\n";
     $cli->send($_send);
     echo "send ".strlen($_send)." bytes\n";
 }
@@ -14,9 +14,14 @@ $client->on("connect", function(swoole_client $cli) {
 });
 
 $client->on("receive", function (swoole_client $cli, $data) {
-    echo "received ".strlen($data)." bytes\n".str_repeat('-', 60)."\n";
-    usleep(200000);
-    send($cli);
+    static $i = 0;
+    if ($i % 100 == 1)
+    {
+        echo "received " . strlen($data) . " bytes\n";
+    }
+    $i ++;
+    //usleep(200000);
+    //send($cli);
 });
 
 $client->on("error", function(swoole_client $cli){

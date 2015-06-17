@@ -1,5 +1,5 @@
 <?php
-require 'config.php';
+require __DIR__.'/TestServer.php';
 
 $client = new swoole_client(SWOOLE_SOCK_TCP);
 if (!$client->connect('127.0.0.1', 9501))
@@ -8,7 +8,7 @@ if (!$client->connect('127.0.0.1', 9501))
 }
 
 $data = '';
-for ($i = 0; $i < PKG_NUM; $i++)
+for ($i = 0; $i < TestServer::PKG_NUM; $i++)
 {
     $len = rand(10000, 20000);
 //    $len = 10240;

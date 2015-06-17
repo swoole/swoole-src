@@ -31,6 +31,13 @@ if(!$client->connect('127.0.0.1', 9501, 0.5, 0))
 	die("\n");
 }
 
+//for ($i = 0; $i < 10; $i++)
+//{
+//    $client->send("hello world\r\n\r\n");
+//    echo "send\n";
+//}
+//exit;
+
 $data = array(
 	'name' => __FILE__,
 	'content' => str_repeat('A', 8192 * rand(1, 3)),  //800K

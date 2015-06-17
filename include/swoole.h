@@ -340,8 +340,9 @@ typedef struct
     uint8_t package_length_size;
     uint16_t package_length_offset;  //第几个字节开始表示长度
     uint16_t package_body_offset;  //第几个字节开始计算长度
-
     uint32_t package_max_length;
+
+    int (*onPackage)(void *, char *, uint32_t);
 
 } swProtocol;
 
@@ -1383,6 +1384,7 @@ int swThreadPool_free(swThreadPool *pool);
 
 //--------------------------------protocol------------------------------
 int swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t size);
+int swProtocol_split_package_by_eof(swProtocol *protocol, void *object, swString *buffer);
 
 //--------------------------------timer------------------------------
 typedef struct _swTimer_node

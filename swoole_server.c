@@ -55,7 +55,6 @@ zval *php_swoole_get_recv_data(zval *zdata,swEventData *req TSRMLS_DC)
     char *data_ptr = NULL;
     int data_len;
 
-
 #ifdef SW_USE_RINGBUFFER
     swPackage package;
     if (req->info.type == SW_EVENT_PACKAGE)
