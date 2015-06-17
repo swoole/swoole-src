@@ -1560,7 +1560,7 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
     /**
      * http header
      */
-    zval *header =  sw_zend_read_property(swoole_http_response_class_entry_ptr, object, ZEND_STRL("header"), 1 TSRMLS_CC);
+    zval *header = client->response.zheader;
 
     if (!ZVAL_IS_NULL(header))
     {
@@ -1607,6 +1607,7 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
             n = snprintf(buf, sizeof(buf), "%*s: %*s\r\n", keylen - 1, key, Z_STRLEN_P(value), Z_STRVAL_P(value));
             swString_append_ptr(response, buf, n);
      WRAPPER_ZEND_HASH_FOREACH_END();
+
         if (!(flag & HTTP_RESPONSE_SERVER))
         {
             swString_append_ptr(response, ZEND_STRL("Server: "SW_HTTP_SERVER_SOFTWARE"\r\n"));
@@ -2106,14 +2107,21 @@ static PHP_METHOD(swoole_http_response, header)
     {
         return;
     }
-    zval *header = sw_zend_read_property(swoole_http_request_class_entry_ptr, getThis(), ZEND_STRL("header"), 1 TSRMLS_CC);
-    if (!header || ZVAL_IS_NULL(header))
+
+    swoole_http_client *client = http_get_client(getThis(), 1 TSRMLS_CC);
+    if (!client)
     {
-        SW_MAKE_STD_ZVAL(header,0);
-        array_init(header);
-        zend_update_property(swoole_http_request_class_entry_ptr, getThis(), ZEND_STRL("header"), header TSRMLS_CC);
+        RETURN_FALSE;
     }
-    sw_add_assoc_stringl_ex(header, k, klen + 1, v, vlen, 1);
+
+    zval *zheader;
+    if (!client->response.zheader)
+    {
+        http_alloc_zval(client, response, zheader);
+        array_init(zheader);
+        zend_update_property(swoole_http_request_class_entry_ptr, getThis(), ZEND_STRL("header"), zheader TSRMLS_CC);
+    }
+    sw_add_assoc_stringl_ex(zheader, k, klen + 1, v, vlen, 1);
 }
 
 static PHP_METHOD(swoole_http_response, gzip)
