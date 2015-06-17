@@ -1652,6 +1652,7 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
         {
             swString_append_ptr(response, ZEND_STRL("Content-Type: text/html\r\n"));
         }
+        sw_zval_ptr_dtor(&header);
     }
     else
     {
