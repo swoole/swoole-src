@@ -176,6 +176,7 @@
 				<file role="doc" name="test.jpg" />
 			</dir>
 			<file role="src" name="php_swoole.h" />
+			<file role="src" name="php7_wrapper.h" />
 			<file role="src" name="swoole_config.h" />
 			<file role="src" name="swoole.c" />
 			<file role="src" name="swoole_server.c" />
@@ -190,6 +191,7 @@
 			<file role="src" name="swoole_http.c" />
 			<file role="src" name="swoole_http.h" />
 			<file role="src" name="swoole_websocket.c" />
+			<file role="src" name="swoole_phpng.c" />
 			<dir name="thirdparty">
 				<file role="src" name="php_http_parser.c" />
 				<file role="src" name="php_http_parser.h" />
