@@ -734,7 +734,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
         //udp use remote port
         if (swEventData_is_dgram(task->data.info.type))
         {
-            if (serv->dispatch_mode == SW_DISPATCH_IPMOD)
+            if (serv->dispatch_mode == SW_DISPATCH_IPMOD || serv->dispatch_mode == SW_DISPATCH_UIDMOD)
             {
                 schedule_key = task->data.info.fd;
             }
