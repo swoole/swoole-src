@@ -948,7 +948,6 @@ void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
 
 static int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event)
 {
-    int n;
     int package_total_length;
     swServer *serv = reactor->ptr;
     swConnection *conn = swServer_connection_get(serv, event->fd);
@@ -957,13 +956,7 @@ static int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swE
     char recv_buf[SW_BUFFER_SIZE_BIG];
     char tmp_buf[SW_BUFFER_SIZE_BIG];
 
-#ifdef SW_USE_EPOLLET
-    n = swRead(event->fd, recv_buf, SW_BUFFER_SIZE_BIG);
-#else
-    //非ET模式会持续通知
-    n = swConnection_recv(conn, recv_buf, SW_BUFFER_SIZE_BIG, 0);
-#endif
-
+    int n = swConnection_recv(conn, recv_buf, SW_BUFFER_SIZE_BIG, 0);
     if (n < 0)
     {
         switch (swConnection_error(errno))
@@ -1104,20 +1097,13 @@ static int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swE
 
 static int swReactorThread_onReceive_websocket(swReactor *reactor, swEvent *event)
 {
-    int n;
     swServer *serv = reactor->ptr;
     swConnection *conn = swServer_connection_get(serv, event->fd);
 
     char recv_buf[SW_BUFFER_SIZE_BIG];
     char tmp_buf[SW_BUFFER_SIZE_BIG];
 
-#ifdef SW_USE_EPOLLET
-    n = swRead(event->fd, recv_buf, SW_BUFFER_SIZE_BIG);
-#else
-    //非ET模式会持续通知
-    n = swConnection_recv(conn, recv_buf, SW_BUFFER_SIZE_BIG, 0);
-#endif
-
+    int n = swConnection_recv(conn, recv_buf, SW_BUFFER_SIZE_BIG, 0);
     if (n < 0)
     {
         switch (swConnection_error(errno))

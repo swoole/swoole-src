@@ -36,7 +36,7 @@ int swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char
     body_length = swoole_unpack(protocol->package_length_type, data + length_offset);
     //Length error
     //Protocol length is not legitimate, out of bounds or exceed the allocated length
-    if (body_length < 1 || body_length > protocol->package_max_length)
+    if (body_length < 0 || body_length > protocol->package_max_length)
     {
         swWarn("invalid package, remote_addr=%s:%d, length=%d, size=%d.", swConnection_get_ip(conn), swConnection_get_port(conn), body_length, size);
         return SW_ERR;
