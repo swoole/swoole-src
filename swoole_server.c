@@ -1295,8 +1295,6 @@ PHP_FUNCTION(swoole_server_set)
         SwooleG.task_worker_max = (int) Z_LVAL_P(v);
     }
 
-
-
     if (sw_zend_hash_find(vht, ZEND_STRS("task_ipc_mode"), (void **) &v) == SUCCESS)
     {
         convert_to_long(v);
@@ -1339,11 +1337,12 @@ PHP_FUNCTION(swoole_server_set)
     if (sw_zend_hash_find(vht, ZEND_STRS("task_max_request"), (void **) &v) == SUCCESS)
     {
         convert_to_long(v);
-       SwooleG.task_max_request = (int) Z_LVAL_P(v);
+        SwooleG.task_max_request = (int) Z_LVAL_P(v);
     }
     //cpu affinity
     if (sw_zend_hash_find(vht, ZEND_STRS("open_cpu_affinity"), (void **) &v) == SUCCESS)
     {
+        convert_to_boolean(v);
         if (SW_Z_TYPE_P(v) == IS_TRUE)
         {
             serv->open_cpu_affinity = 1;
@@ -1397,6 +1396,7 @@ PHP_FUNCTION(swoole_server_set)
     //tcp_keepalive
     if (sw_zend_hash_find(vht, ZEND_STRS("open_tcp_keepalive"), (void **) &v) == SUCCESS)
     {
+        convert_to_boolean(v);
         if (SW_Z_TYPE_P(v) == IS_TRUE)
         {
             serv->open_tcp_keepalive = 1;
@@ -1430,6 +1430,7 @@ PHP_FUNCTION(swoole_server_set)
     //buffer: http_protocol
     if (sw_zend_hash_find(vht, ZEND_STRS("open_http_protocol"), (void **) &v) == SUCCESS)
     {
+        convert_to_boolean(v);
         if (SW_Z_TYPE_P(v) == IS_TRUE)
         {
             serv->open_http_protocol = 1;
@@ -1442,6 +1443,7 @@ PHP_FUNCTION(swoole_server_set)
     //buffer: mqtt protocol
     if (sw_zend_hash_find(vht, ZEND_STRS("open_mqtt_protocol"), (void **) &v) == SUCCESS)
     {
+        convert_to_boolean(v);
         if (SW_Z_TYPE_P(v) == IS_TRUE)
         {
             serv->open_mqtt_protocol = 1;
@@ -1562,8 +1564,8 @@ PHP_FUNCTION(swoole_server_set)
     //open length check
     if (sw_zend_hash_find(vht, ZEND_STRS("open_length_check"), (void **) &v) == SUCCESS)
     {
-        convert_to_long(v);
-        serv->open_length_check = (uint8_t) Z_LVAL_P(v);
+        convert_to_boolean(v);
+        serv->open_length_check = (uint8_t) Z_BVAL_P(v);
     }
     //package length size
     if (sw_zend_hash_find(vht, ZEND_STRS("package_length_type"), (void **)&v) == SUCCESS)

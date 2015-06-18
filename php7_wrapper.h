@@ -163,32 +163,13 @@ extern zval _sw_zval_data4;
 
 inline zval * sw_zend_read_property(zend_class_entry *class_ptr,zval *obj,char *s, int len,int what);
 inline int sw_zend_is_callable(zval *cv, int a, char **name);
-
 inline int sw_zend_hash_del(HashTable *ht, char *k, int len);
 inline int sw_zend_hash_add(HashTable *ht, char *k, int len,void *pData,int datasize,void **pDest);
-
 inline int sw_zend_hash_index_update(HashTable *ht, int key,void *pData,int datasize,void **pDest);
-
 inline int sw_zend_hash_update(HashTable *ht, char *k, int len ,void * val,int size,void *ptr);
-
 inline int wrapper_zend_hash_get_current_key( HashTable *ht, char **key, uint *idx, ulong *num);
-
 inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v);
-
 inline int sw_zend_hash_exists(HashTable *ht, char *k, int len);
-
-#define SWOOLE_GET_SERVER(zobject, serv)zval rv; zval *zserv = zend_read_property(swoole_server_class_entry_ptr, zobject, SW_STRL("_server")-1, 0,&rv TSRMLS_CC);\
-    if (!zserv || ZVAL_IS_NULL(zserv)){ \
-    php_error_docref(NULL TSRMLS_CC, E_WARNING, "Not have swoole_server");\
-    RETURN_FALSE;}\
-    serv = (swServer*) zend_fetch_resource(Z_RES_P(zserv), SW_RES_SERVER_NAME, le_swoole_server);
-
-#define SWOOLE_GET_WORKER(zobject, process)zval rv2; zval *zprocess = zend_read_property(swoole_process_class_entry_ptr, zobject, SW_STRL("_process")-1, 0 ,&rv2 TSRMLS_CC);\
-    if (!zprocess || ZVAL_IS_NULL(zprocess)){ \
-    php_error_docref(NULL TSRMLS_CC, E_WARNING, "Not have process");\
-    RETURN_FALSE;}\
-    process = (swWorker*) zend_fetch_resource(Z_RES_P(zprocess), SW_RES_PROCESS_NAME, le_swoole_process);
-
 #endif
 
 #endif /* EXT_SWOOLE_PHP7_WRAPPER_H_ */

@@ -1197,7 +1197,7 @@ static PHP_METHOD(swoole_client, send)
     }
 	else
 	{
-		RETVAL_TRUE;
+		RETURN_LONG(ret);
 	}
 }
 
