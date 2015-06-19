@@ -262,7 +262,7 @@ static PHP_METHOD(swoole_table, set)
         RETURN_FALSE;
     }
 
-       swTableColumn *col;
+    swTableColumn *col;
     zval *v;
     char *k;
     uint klen;
@@ -272,8 +272,8 @@ static PHP_METHOD(swoole_table, set)
     sw_spinlock(lock);
 
     WRAPPER_ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(array), v)
-        wrapper_zend_hash_get_current_key(Z_ARRVAL_P(array),&k,&klen,&knum);
-        col = swTableColumn_get(table, k, klen);
+        wrapper_zend_hash_get_current_key(Z_ARRVAL_P(array), &k, &klen, &knum);
+        col = swTableColumn_get(table, k, klen - 1);
         if (col == NULL)
         {
             continue;
