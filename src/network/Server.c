@@ -236,6 +236,11 @@ static int swServer_start_check(swServer *serv)
         swWarn("onReceive and onPacket event callback must be set.");
         return SW_ERR;
     }
+    if (serv->have_tcp_sock && serv->onReceive == NULL)
+    {
+        swWarn("onReceive event callback must be set.");
+        return SW_ERR;
+    }
     //UDP
     if (!serv->onPacket)
     {

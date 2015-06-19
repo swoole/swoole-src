@@ -1562,7 +1562,7 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
      */
     zval *header = client->response.zheader;
 
-    if (!ZVAL_IS_NULL(header))
+    if (header && !ZVAL_IS_NULL(header))
     {
         int flag = 0x0;
         char *key_server = "Server";
