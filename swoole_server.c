@@ -1343,14 +1343,7 @@ PHP_FUNCTION(swoole_server_set)
     if (sw_zend_hash_find(vht, ZEND_STRS("open_cpu_affinity"), (void **) &v) == SUCCESS)
     {
         convert_to_boolean(v);
-        if (SW_Z_TYPE_P(v) == IS_TRUE)
-        {
-            serv->open_cpu_affinity = 1;
-        }
-        else
-        {
-            serv->open_cpu_affinity = 0;
-        }
+        serv->open_cpu_affinity = Z_BVAL_P(v);
     }
     //cpu affinity set
     if (sw_zend_hash_find(vht, ZEND_STRS("cpu_affinity_ignore"), (void **) &v) == SUCCESS)
@@ -1385,7 +1378,7 @@ PHP_FUNCTION(swoole_server_set)
     if (sw_zend_hash_find(vht, ZEND_STRS("open_tcp_nodelay"), (void **) &v) == SUCCESS)
     {
         convert_to_boolean(v);
-        serv->open_tcp_nodelay = (uint8_t) Z_BVAL_P(v);
+        serv->open_tcp_nodelay = Z_BVAL_P(v);
     }
     //tcp_defer_accept
     if (sw_zend_hash_find(vht, ZEND_STRS("tcp_defer_accept"), (void **) &v) == SUCCESS)
@@ -1397,20 +1390,13 @@ PHP_FUNCTION(swoole_server_set)
     if (sw_zend_hash_find(vht, ZEND_STRS("open_tcp_keepalive"), (void **) &v) == SUCCESS)
     {
         convert_to_boolean(v);
-        if (SW_Z_TYPE_P(v) == IS_TRUE)
-        {
-            serv->open_tcp_keepalive = 1;
-        }
-        else
-        {
-            serv->open_tcp_keepalive = 0;
-        }
+        serv->open_tcp_keepalive = Z_BVAL_P(v);
     }
     //buffer: split package with eof
     if (sw_zend_hash_find(vht, ZEND_STRS("open_eof_split"), (void **) &v) == SUCCESS)
     {
         convert_to_boolean(v);
-        serv->open_eof_split = (uint8_t) Z_BVAL_P(v);
+        serv->open_eof_split = Z_BVAL_P(v);
         serv->open_eof_check = 1;
     }
     //package eof
@@ -1431,27 +1417,23 @@ PHP_FUNCTION(swoole_server_set)
     if (sw_zend_hash_find(vht, ZEND_STRS("open_http_protocol"), (void **) &v) == SUCCESS)
     {
         convert_to_boolean(v);
-        if (SW_Z_TYPE_P(v) == IS_TRUE)
-        {
-            serv->open_http_protocol = 1;
-        }
-        else
-        {
-            serv->open_http_protocol = 0;
-        }
+        serv->open_http_protocol = Z_BVAL_P(v);
+    }
+    //paser x-www-form-urlencoded form data
+    if (sw_zend_hash_find(vht, ZEND_STRS("http_parse_post"), (void **) &v) == SUCCESS)
+    {
+        convert_to_boolean(v);
+        serv->http_parse_post = Z_BVAL_P(v);
+    }
+    else
+    {
+        serv->http_parse_post = 1;
     }
     //buffer: mqtt protocol
     if (sw_zend_hash_find(vht, ZEND_STRS("open_mqtt_protocol"), (void **) &v) == SUCCESS)
     {
         convert_to_boolean(v);
-        if (SW_Z_TYPE_P(v) == IS_TRUE)
-        {
-            serv->open_mqtt_protocol = 1;
-        }
-        else
-        {
-            serv->open_mqtt_protocol = 0;
-        }
+        serv->open_mqtt_protocol = Z_BVAL_P(v);
     }
     //tcp_keepidle
     if (sw_zend_hash_find(vht, ZEND_STRS("tcp_keepidle"), (void **) &v) == SUCCESS)
@@ -1565,7 +1547,7 @@ PHP_FUNCTION(swoole_server_set)
     if (sw_zend_hash_find(vht, ZEND_STRS("open_length_check"), (void **) &v) == SUCCESS)
     {
         convert_to_boolean(v);
-        serv->open_length_check = (uint8_t) Z_BVAL_P(v);
+        serv->open_length_check = Z_BVAL_P(v);
     }
     //package length size
     if (sw_zend_hash_find(vht, ZEND_STRS("package_length_type"), (void **)&v) == SUCCESS)

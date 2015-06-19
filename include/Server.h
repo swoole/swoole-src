@@ -356,9 +356,9 @@ struct _swServer
     uint32_t discard_timeout_request :1;
 
     /**
-     * save error packets to file system
+     * parse x-www-form-urlencoded data
      */
-    uint32_t save_error_packet :1;
+    uint32_t http_parse_post :1;
 
     /**
      * open tcp_defer_accept option
