@@ -644,7 +644,7 @@ PHP_RINIT_FUNCTION(swoole)
     }
 
     swoole_objects.size = 65536;
-    swoole_objects.array = emalloc(sizeof(void *) * swoole_objects.size);
+    swoole_objects.array = ecalloc(swoole_objects.size, sizeof(void*));
 
 #ifdef SW_DEBUG_REMOTE_OPEN
     swoole_open_remote_debug();

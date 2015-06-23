@@ -186,7 +186,7 @@ static sw_inline void swoole_set_object(zval *object, void *ptr)
         }
         assert(handle < SW_MAX_SOCKET_ID);
         swoole_objects.array = erealloc(swoole_objects.array, sizeof(void*) * swoole_objects.size);
-        bzero(swoole_objects.array + (old_size * sizeof(void*)), (swoole_objects.size - old_size) * sizeof(void*));
+        bzero(((void *) swoole_objects.array) + (old_size * sizeof(void*)), (swoole_objects.size - old_size) * sizeof(void*));
     }
     swoole_objects.array[handle] = ptr;
 }
