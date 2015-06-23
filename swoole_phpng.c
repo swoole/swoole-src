@@ -97,39 +97,48 @@ inline int sw_zend_hash_update(HashTable *ht, char *k, int len, void * val, int 
     return zend_hash_update(ht, Z_STR(key), val) ? SUCCESS : FAILURE;
 }
 
-inline int wrapper_zend_hash_get_current_key(HashTable *ht, char **key, uint *idx, ulong *num) {
+inline int sw_zend_hash_get_current_key(HashTable *ht, char **key, uint32_t *keylen, ulong *num)
+{
     zval str_key;
-    ZVAL_STRING(&str_key, *key);
-    int type = zend_hash_get_current_key(ht, &Z_STR(str_key), (zend_ulong*) num);
-    *key = Z_STR(str_key)->val;
+    int type = zend_hash_get_current_key(ht, &Z_STR(str_key), (zend_ulong* ) num);
+    *key = Z_STRVAL(str_key);
+    *keylen = Z_STRLEN(str_key);
     return type;
 }
 
+inline int sw_zend_hash_exists(HashTable *ht, char *k, int len)
+{
+    zval key;
+    ZVAL_STRING(&key, k);
+    zval *value = zend_hash_find(ht, Z_STR(key));
 
-
-inline int sw_zend_hash_exists(HashTable *ht, char *k, int len) {
-     zval key;
-        ZVAL_STRING(&key, k);
-
-        zval *value = zend_hash_find(ht, Z_STR(key));
-
-        if (value == NULL) {
-            return FAILURE;
-        } else {
-            return SUCCESS;
-        }
+    if (value == NULL)
+    {
+        return FAILURE;
+    }
+    else
+    {
+        return SUCCESS;
+    }
 }
 #else
-inline int SW_Z_TYPE_P(zval *z){
-        if(Z_TYPE_P(z)==IS_BOOL){
-            if((uint8_t) Z_BVAL_P(z)==1){
-                return IS_TRUE;
-            }else{
-                 return 0;
-            }        
-        }else{
-            return Z_TYPE_P(z);
+inline int SW_Z_TYPE_P(zval *z)
+{
+    if(Z_TYPE_P(z)==IS_BOOL)
+    {
+        if((uint8_t) Z_BVAL_P(z)==1)
+        {
+            return IS_TRUE;
         }
+        else
+        {
+            return 0;
+        }
+    }
+    else
+    {
+        return Z_TYPE_P(z);
+    }
 }
 #endif
 inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)

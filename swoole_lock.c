@@ -59,7 +59,7 @@ PHP_METHOD(swoole_lock, __construct)
 {
 	long type = SW_MUTEX;
 	char *filelock;
-	int filelock_len = 0;
+	zend_size_t filelock_len = 0;
 	int ret;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ls", &type, &filelock, &filelock_len) == FAILURE)

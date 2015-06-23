@@ -1353,14 +1353,14 @@ PHP_FUNCTION(swoole_server_set)
         for (i = 0; i < SW_CPU_NUM; i++)
         {
             flag = 1;
-            WRAPPER_ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(v), zval_core)
+            SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(v), zval_core)
                     int core = (int) Z_LVAL_P(zval_core);
             if (i == core)
             {
                 flag = 0;
                 break;
             }
-            WRAPPER_ZEND_HASH_FOREACH_END();
+            SW_HASHTABLE_FOREACH_END();
             if (flag)
             {
                 available_cpu[available_i] = i;
@@ -1662,7 +1662,8 @@ PHP_FUNCTION(swoole_server_handler)
 {
     zval *zobject = getThis();
     char *ha_name = NULL;
-    int len, i;
+    zend_size_t len;
+    int i;
     int ret = -1;
 
     zval *cb;
@@ -2063,11 +2064,10 @@ PHP_METHOD(swoole_server, sendto)
 {
     zval *zobject = getThis();
 
+    char *ip;
     char *data;
-    int len;
+    zend_size_t len, ip_len;
 
-    char* ip;
-    char* ip_len;
     long port;
     long sock = -1;
     zend_bool ipv6 = 0;
@@ -2127,7 +2127,7 @@ PHP_METHOD(swoole_server, sendto)
 PHP_FUNCTION(swoole_server_sendfile)
 {
     zval *zobject = getThis();
-
+    zend_size_t len;
     swSendData send_data;
 
     char buffer[SW_BUFFER_SIZE];
@@ -2147,7 +2147,7 @@ PHP_FUNCTION(swoole_server_sendfile)
 
     if (zobject == NULL)
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ols", &zobject, swoole_server_class_entry_ptr, &conn_fd, &filename, &send_data.info.len) == FAILURE)
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ols", &zobject, swoole_server_class_entry_ptr, &conn_fd, &filename, &len) == FAILURE)
         {
             return;
         }
@@ -2166,7 +2166,7 @@ PHP_FUNCTION(swoole_server_sendfile)
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "invalid fd[%ld] error.", conn_fd);
         RETURN_FALSE;
     }
-
+    send_data.info.len = len;
     //file name size
     if (send_data.info.len > SW_BUFFER_SIZE - 1)
     {
@@ -2196,7 +2196,6 @@ PHP_FUNCTION(swoole_server_sendfile)
 PHP_FUNCTION(swoole_server_close)
 {
     zval *zobject = getThis();
-
     zval *zfd;
 
     if (SwooleGS->start == 0)
@@ -2706,9 +2705,8 @@ PHP_METHOD(swoole_server, sendmessage)
     zval *zobject = getThis();
     swEventData buf;
 
-
     char *msg;
-    int msglen;
+    zend_size_t msglen;
     long worker_id = -1;
 
     if (SwooleGS->start == 0)

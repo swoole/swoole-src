@@ -270,7 +270,7 @@ PHP_FUNCTION(swoole_event_write)
 {
     zval **fd;
     char *data;
-    int len;
+    zend_size_t len;
     
     if (!SwooleG.main_reactor)
     {

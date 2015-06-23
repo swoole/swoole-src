@@ -511,7 +511,7 @@ static PHP_METHOD(swoole_process, read)
 static PHP_METHOD(swoole_process, write)
 {
 	char *data = NULL;
-	int data_len = 0;
+	zend_size_t data_len = 0;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &data, &data_len) == FAILURE)
 	{
@@ -554,7 +554,7 @@ static PHP_METHOD(swoole_process, write)
 static PHP_METHOD(swoole_process, push)
 {
     char *data;
-    int length;
+    zend_size_t length;
 
     struct
     {
@@ -643,7 +643,7 @@ static PHP_METHOD(swoole_process, pop)
 static PHP_METHOD(swoole_process, exec)
 {
 	char *execfile = NULL;
-	int execfile_len = 0;
+	zend_size_t execfile_len = 0;
 	zval *args;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sa", &execfile, &execfile_len, &args) == FAILURE)
@@ -676,13 +676,13 @@ static PHP_METHOD(swoole_process, exec)
 //		_p = _p->pListNext;
 //		i++;
 //	}
-     WRAPPER_ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(args), value)
+     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(args), value)
                 convert_to_string(value);
 
 		sw_zval_add_ref(&value);
 		exec_args[i] = Z_STRVAL_P(value);
                 i++;
-     WRAPPER_ZEND_HASH_FOREACH_END();
+     SW_HASHTABLE_FOREACH_END();
 	exec_args[i] = NULL;
 
 	if (execv(execfile, exec_args) < 0)

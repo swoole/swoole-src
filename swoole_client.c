@@ -1649,7 +1649,7 @@ static PHP_METHOD(swoole_client, close)
 static PHP_METHOD(swoole_client, on)
 {
 	char *cb_name;
-	int i, cb_name_len;
+	zend_size_t cb_name_len;
 	zval *zcallback;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &cb_name, &cb_name_len, &zcallback) == FAILURE)
@@ -1659,6 +1659,7 @@ static PHP_METHOD(swoole_client, on)
 
 	sw_zval_add_ref(&zcallback);
 
+	int i;
     for (i = 0; i < PHP_CLIENT_CALLBACK_NUM; i++)
     {
         if (strncasecmp(php_sw_callbacks[i] + 2, cb_name, cb_name_len) == 0)
@@ -1743,7 +1744,7 @@ static int client_event_loop(zval *sock_array, fd_set *fds TSRMLS_DC)
 	char *key = NULL;
 	int num = 0;
 	ulong num_key = 0;
-	uint key_len = 0;
+	uint32_t key_len = 0;
 
 	if (SW_Z_TYPE_P(sock_array) != IS_ARRAY)
 	{
@@ -1751,32 +1752,33 @@ static int client_event_loop(zval *sock_array, fd_set *fds TSRMLS_DC)
 	}
 	ALLOC_HASHTABLE(new_hash);
 	zend_hash_init(new_hash, zend_hash_num_elements(Z_ARRVAL_P(sock_array)), NULL, ZVAL_PTR_DTOR, 0);
-        WRAPPER_ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(sock_array), *element)
-		ce = Z_OBJCE_P(*element);
-		zsock = sw_zend_read_property(ce, *element, SW_STRL("sock")-1, 0 TSRMLS_CC);
-		if (zsock == NULL || ZVAL_IS_NULL(zsock))
-		{
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "object is not swoole_client object.");
-			continue;
-		}
-            if ((Z_LVAL(*zsock) < FD_SETSIZE) && FD_ISSET(Z_LVAL(*zsock), fds))
-            {
-                switch (wrapper_zend_hash_get_current_key(Z_ARRVAL_P(sock_array), &key, &key_len, &num_key))
-                {
-                case HASH_KEY_IS_STRING:
-                    sw_zend_hash_add(new_hash, key, key_len, (void * )element, sizeof(zval *), (void ** )&dest_element);
-                    break;
-                case HASH_KEY_IS_LONG:
-                    sw_zend_hash_index_update(new_hash, num_key, (void * )element, sizeof(zval *), (void ** )&dest_element);
-                    break;
-                }
-                if (dest_element)
-                {
-                    sw_zval_add_ref(dest_element);
-                }
-            }
-                    num++;
-        WRAPPER_ZEND_HASH_FOREACH_END();
+
+    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(sock_array), *element)
+    ce = Z_OBJCE_P(*element);
+    zsock = sw_zend_read_property(ce, *element, SW_STRL("sock")-1, 0 TSRMLS_CC);
+    if (zsock == NULL || ZVAL_IS_NULL(zsock))
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "object is not swoole_client object.");
+        continue;
+    }
+    if ((Z_LVAL(*zsock) < FD_SETSIZE) && FD_ISSET(Z_LVAL(*zsock), fds))
+    {
+        switch (sw_zend_hash_get_current_key(Z_ARRVAL_P(sock_array), &key, &key_len, &num_key))
+        {
+        case HASH_KEY_IS_STRING:
+            sw_zend_hash_add(new_hash, key, key_len, (void * )element, sizeof(zval *), (void ** )&dest_element);
+            break;
+        case HASH_KEY_IS_LONG:
+            sw_zend_hash_index_update(new_hash, num_key, (void * )element, sizeof(zval *), (void ** )&dest_element);
+            break;
+        }
+        if (dest_element)
+        {
+            sw_zval_add_ref(dest_element);
+        }
+    }
+    num++;
+    SW_HASHTABLE_FOREACH_END();
 
 	zend_hash_destroy(Z_ARRVAL_P(sock_array));
 	efree(Z_ARRVAL_P(sock_array));
@@ -1798,7 +1800,7 @@ static int client_event_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_DC
 	{
 		return 0;
 	}
-	 WRAPPER_ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(sock_array), *element)
+	 SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(sock_array), *element)
 		ce = Z_OBJCE_P(*element);
 		zsock = sw_zend_read_property(ce, *element, SW_STRL("sock")-1, 0 TSRMLS_CC);
 		if (zsock == NULL || ZVAL_IS_NULL(zsock))
@@ -1820,6 +1822,6 @@ static int client_event_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_DC
 			*max_fd = Z_LVAL(*zsock);
 		}
 		num++;
-	WRAPPER_ZEND_HASH_FOREACH_END();
+	SW_HASHTABLE_FOREACH_END();
 	return num ? 1 : 0;
 }

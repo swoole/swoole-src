@@ -346,7 +346,7 @@ PHP_FUNCTION(swoole_async_write)
 	zval *filename;
 
 	char *fcnt;
-	int fcnt_len = 0;
+	zend_size_t fcnt_len = 0;
 	int fd;
 	off_t offset = -1;
 
@@ -538,7 +538,7 @@ PHP_FUNCTION(swoole_async_writefile)
 	zval *cb = NULL;
 	zval *filename;
 	char *fcnt;
-	int fcnt_len;
+	zend_size_t fcnt_len;
 
 #ifdef HAVE_LINUX_NATIVE_AIO
 	int open_flag =  O_CREAT | O_WRONLY | O_DIRECT;

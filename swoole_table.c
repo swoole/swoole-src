@@ -218,7 +218,7 @@ PHP_METHOD(swoole_table, __destruct)
 PHP_METHOD(swoole_table, column)
 {
     char *name;
-    int len;
+    zend_size_t len;
     long type;
     long size;
 
@@ -247,7 +247,7 @@ static PHP_METHOD(swoole_table, set)
 {
     zval *array;
     char *key;
-    int keylen;
+    zend_size_t keylen;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sa", &key, &keylen, &array) == FAILURE)
     {
@@ -265,14 +265,14 @@ static PHP_METHOD(swoole_table, set)
     swTableColumn *col;
     zval *v;
     char *k;
-    uint klen;
+    uint32_t klen;
     ulong knum;
 
     sw_atomic_t *lock = &row->lock;
     sw_spinlock(lock);
 
-    WRAPPER_ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(array), v)
-        wrapper_zend_hash_get_current_key(Z_ARRVAL_P(array), &k, &klen, &knum);
+    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(array), v)
+        sw_zend_hash_get_current_key(Z_ARRVAL_P(array), &k, &klen, &knum);
         col = swTableColumn_get(table, k, klen - 1);
         if (col == NULL)
         {
@@ -293,7 +293,7 @@ static PHP_METHOD(swoole_table, set)
             convert_to_long(v);                                                                                                                       
             swTableRow_set_value(row, col, &Z_LVAL_P(v), 0);                                                                                          
         }                                                                                                                                             
-     WRAPPER_ZEND_HASH_FOREACH_END();                                                                                                                 
+     SW_HASHTABLE_FOREACH_END();                                                                                                                 
                                                                                                                                                       
     sw_spinlock_release(lock);                                                                                                                        
                                                                                                                                                       
@@ -303,9 +303,9 @@ static PHP_METHOD(swoole_table, set)
 static PHP_METHOD(swoole_table, incr)
 {
     char *key;
-    int key_len;
+    zend_size_t key_len;
     char *col;
-    int col_len;
+    zend_size_t col_len;
     zval* incrby = NULL;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|z", &key, &key_len, &col, &col_len, &incrby) == FAILURE)
@@ -374,9 +374,9 @@ static PHP_METHOD(swoole_table, incr)
 static PHP_METHOD(swoole_table, decr)
 {
     char *key;
-    int key_len;
+    zend_size_t key_len;
     char *col;
-    int col_len;
+    zend_size_t col_len;
     zval *decrby = NULL;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|z", &key, &key_len, &col, &col_len, &decrby) == FAILURE)
@@ -445,7 +445,7 @@ static PHP_METHOD(swoole_table, decr)
 static PHP_METHOD(swoole_table, get)
 {
     char *key;
-    int keylen;
+    zend_size_t keylen;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &key, &keylen) == FAILURE)
     {
@@ -463,7 +463,7 @@ static PHP_METHOD(swoole_table, get)
 static PHP_METHOD(swoole_table, exist)
 {
     char *key;
-    int keylen;
+    zend_size_t keylen;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &key, &keylen) == FAILURE)
     {
@@ -484,7 +484,7 @@ static PHP_METHOD(swoole_table, exist)
 static PHP_METHOD(swoole_table, del)
 {
     char *key;
-    int keylen;
+    zend_size_t keylen;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &key, &keylen) == FAILURE)
     {
@@ -535,22 +535,12 @@ static PHP_METHOD(swoole_table, count)
 
 static PHP_METHOD(swoole_table, rewind)
 {
-    if (zend_parse_parameters_none() == FAILURE)
-    {
-        return;
-    }
-
     swTable *table = swoole_get_object(getThis());
     swTable_iterator_rewind(table);
 }
 
 static PHP_METHOD(swoole_table, current)
 {
-    if (zend_parse_parameters_none() == FAILURE)
-    {
-        return;
-    }
-
     swTable *table = swoole_get_object(getThis());
     swTableRow *row = swTable_iterator_current(table);
     php_swoole_table_row2array(table, row, return_value);
@@ -558,11 +548,6 @@ static PHP_METHOD(swoole_table, current)
 
 static PHP_METHOD(swoole_table, key)
 {
-    if (zend_parse_parameters_none() == FAILURE)
-    {
-        return;
-    }
-
     swTable *table = swoole_get_object(getThis());
     swTableRow *row = swTable_iterator_current(table);
     RETURN_LONG(row->crc32);
@@ -570,21 +555,12 @@ static PHP_METHOD(swoole_table, key)
 
 static PHP_METHOD(swoole_table, next)
 {
-    if (zend_parse_parameters_none() == FAILURE)
-    {
-        return;
-    }
     swTable *table = swoole_get_object(getThis());
     swTable_iterator_forward(table);
 }
 
 static PHP_METHOD(swoole_table, valid)
 {
-    if (zend_parse_parameters_none() == FAILURE)
-    {
-        return;
-    }
-
     swTable *table = swoole_get_object(getThis());
     swTableRow *row = swTable_iterator_current(table);
     RETURN_BOOL(row != NULL);

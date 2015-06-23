@@ -167,7 +167,7 @@ static PHP_METHOD(swoole_buffer, write)
 {
     long offset;
     char *new_str;
-    int length;
+    zend_size_t length;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls", &offset, &new_str, &length) == FAILURE)
     {

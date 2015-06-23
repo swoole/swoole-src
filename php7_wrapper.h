@@ -52,7 +52,7 @@ inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v);
 #define SW_RETURN_STRINGL                     RETURN_STRINGL
 #define sw_zend_register_internal_class_ex    zend_register_internal_class_ex
 #define sw_zend_call_method_with_2_params     zend_call_method_with_2_params
-#define zend_size_t                           int
+typedef int zend_size_t;
 
 #define SWOOLE_GET_SERVER(zobject, serv) zval *zserv;\
     if (sw_zend_hash_find(Z_OBJPROP_P(zobject), ZEND_STRS("_server"), (void **) &zserv) == FAILURE){ \
@@ -66,7 +66,7 @@ inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v);
     RETURN_FALSE;}\
     ZEND_FETCH_RESOURCE(process, swWorker *, &zprocess, -1, SW_RES_PROCESS_NAME, le_swoole_process);
 
-#define WRAPPER_ZEND_HASH_FOREACH_VAL(ht, entry)\
+#define SW_HASHTABLE_FOREACH_START(ht, entry)\
                 zval **tmp = NULL;\
                 for (zend_hash_internal_pointer_reset(ht);\
                      zend_hash_has_more_elements(ht) == SUCCESS; \
@@ -75,7 +75,7 @@ inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v);
             continue;\
                        }\
                        entry = *tmp;
-#define WRAPPER_ZEND_HASH_FOREACH_END() }
+#define SW_HASHTABLE_FOREACH_END() }
 #define sw_zend_read_property                  zend_read_property
 #define wrapper_zend_hash_get_current_key(a,b,c,d) zend_hash_get_current_key_ex(a,b,c,d,0,NULL)
 #define sw_php_var_serialize(a,b,c)       php_var_serialize(a,&b,c)
@@ -84,15 +84,17 @@ inline int SW_Z_TYPE_P(zval *z);
 #define SW_Z_TYPE_PP(z)        SW_Z_TYPE_P(*z)
 #else
 #define sw_php_var_serialize                php_var_serialize
-#define zend_size_t                         size_t
+typedef size_t zend_size_t;
 #define SW_RETVAL_STRINGL(s, l,dup)         RETVAL_STRINGL(s,l)
 #define ZEND_SET_SYMBOL(ht,str,arr) zend_hash_str_update(ht, str, sizeof(str)-1, arr);
 inline int Z_BVAL_P(zval *v);
 #define sw_add_assoc_stringl(__arg, __key, __str, __length, __duplicate) sw_add_assoc_stringl_ex(__arg, __key, strlen(__key)+1, __str, __length, __duplicate)
 inline int sw_add_assoc_stringl_ex(zval *arg, const char *key, size_t key_len, char *str, size_t length,int duplicate);
 #define SW_Z_ARRVAL_P(z)                          Z_ARRVAL_P(z)->ht
-#define WRAPPER_ZEND_HASH_FOREACH_VAL(ht, entry)  ZEND_HASH_FOREACH_VAL(ht, entry){
-#define WRAPPER_ZEND_HASH_FOREACH_END() }ZEND_HASH_FOREACH_END();
+
+#define SW_HASHTABLE_FOREACH_START(ht, entry)  ZEND_HASH_FOREACH_VAL(ht, entry) {
+#define SW_HASHTABLE_FOREACH_END()             } ZEND_HASH_FOREACH_END();
+
 #define Z_ARRVAL_PP(s)                             Z_ARRVAL_P(*s)
 #define SW_Z_TYPE_P                                Z_TYPE_P
 #define SW_Z_TYPE_PP(s)                            SW_Z_TYPE_P(*s)
@@ -142,13 +144,13 @@ php_var_unserialize(*rval, p, max, var_hash)
 #define SW_ZVAL_STRING(z,s,dup)               ZVAL_STRING(z,s)
 #define sw_smart_str                          smart_string
 
-inline zval * sw_zend_read_property(zend_class_entry *class_ptr,zval *obj,char *s, int len,int what);
+inline zval* sw_zend_read_property(zend_class_entry *class_ptr,zval *obj,char *s, int len,int what);
 inline int sw_zend_is_callable(zval *cv, int a, char **name);
 inline int sw_zend_hash_del(HashTable *ht, char *k, int len);
 inline int sw_zend_hash_add(HashTable *ht, char *k, int len,void *pData,int datasize,void **pDest);
 inline int sw_zend_hash_index_update(HashTable *ht, int key,void *pData,int datasize,void **pDest);
 inline int sw_zend_hash_update(HashTable *ht, char *k, int len ,void * val,int size,void *ptr);
-inline int wrapper_zend_hash_get_current_key( HashTable *ht, char **key, uint *idx, ulong *num);
+inline int sw_zend_hash_get_current_key( HashTable *ht, char **key, uint32_t *idx, ulong *num);
 inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v);
 inline int sw_zend_hash_exists(HashTable *ht, char *k, int len);
 #endif
