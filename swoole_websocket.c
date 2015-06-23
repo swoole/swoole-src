@@ -184,7 +184,7 @@ int swoole_websocket_onMessage(swEventData *req)
 
     int fd = req->info.fd;
     zval *zdata;
-    SW_MAKE_STD_ZVAL(zdata, 0);
+    SW_MAKE_STD_ZVAL(zdata);
     zdata = php_swoole_get_recv_data(zdata, req TSRMLS_CC);
 
     char *buf = Z_STRVAL_P(zdata);
@@ -192,7 +192,7 @@ int swoole_websocket_onMessage(swEventData *req)
     long opcode = buf[1] ? 1 : 0;
 
 	zval *zframe;
-    SW_MAKE_STD_ZVAL(zframe, 1);
+    SW_MAKE_STD_ZVAL(zframe);
     object_init_ex(zframe, swoole_websocket_frame_class_entry_ptr);
 
     zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("fd"), fd TSRMLS_CC);

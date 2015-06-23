@@ -479,7 +479,7 @@ static int client_onRead(swReactor *reactor, swEvent *event)
 	else
 	{
 		zval *zdata;
-		SW_MAKE_STD_ZVAL(zdata,0);
+		SW_MAKE_STD_ZVAL(zdata);
 	    buf[n] = 0;
 		SW_ZVAL_STRINGL(zdata, buf, n, 0);
 
@@ -521,14 +521,16 @@ static int client_onRead(swReactor *reactor, swEvent *event)
 
 static int client_onPackage(zval *zobject, char *data, uint32_t length)
 {
+#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     zval *zcallback = NULL;
     zval **args[2];
     zval *retval;
 
     zval *zdata;
-    SW_MAKE_STD_ZVAL(zdata,0);
+    SW_MAKE_STD_ZVAL(zdata);
     SW_ZVAL_STRINGL(zdata, data, length, 1);
 
     args[0] = &zobject;
@@ -760,7 +762,7 @@ void php_swoole_at_shutdown(char *function)
 #endif
 
     zval *callback;
-    SW_MAKE_STD_ZVAL(callback,0);
+    SW_MAKE_STD_ZVAL(callback);
     SW_ZVAL_STRING(callback, "swoole_event_wait", 1);
 
 #if PHP_MAJOR_VERSION >= 5 && PHP_MINOR_VERSION >= 4
@@ -781,7 +783,7 @@ void php_swoole_at_shutdown(char *function)
 #else
     zval *register_shutdown_function;
     zval *retval = NULL;
-    SW_MAKE_STD_ZVAL(register_shutdown_function,1);
+    SW_MAKE_STD_ZVAL(register_shutdown_function);
     SW_ZVAL_STRING(register_shutdown_function, "register_shutdown_function", 1);
     zval **args[1] = {&callback};
 

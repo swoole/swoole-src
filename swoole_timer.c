@@ -133,7 +133,7 @@ static void php_swoole_onTimerInterval(swTimer *timer, swTimer_node *event)
 
     if (cb->type == SW_TIMER_TICK)
     {
-        SW_MAKE_STD_ZVAL(ztimer_id,0);
+        SW_MAKE_STD_ZVAL(ztimer_id);
         ZVAL_LONG(ztimer_id, event->id);
 
         if (cb->data)
@@ -145,7 +145,7 @@ static void php_swoole_onTimerInterval(swTimer *timer, swTimer_node *event)
     }
     else
     {
-        SW_MAKE_STD_ZVAL(ztimer_id,1);
+        SW_MAKE_STD_ZVAL(ztimer_id);
         ZVAL_LONG(ztimer_id, event->interval);
     }
     args[0] = &ztimer_id;

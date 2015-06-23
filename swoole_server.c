@@ -50,7 +50,7 @@ static void php_swoole_onManagerStart(swServer *serv);
 static void php_swoole_onManagerStop(swServer *serv);
 static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC);
 
-zval *php_swoole_get_recv_data(zval *zdata,swEventData *req TSRMLS_DC)
+zval *php_swoole_get_recv_data(zval *zdata, swEventData *req TSRMLS_DC)
 {
     char *data_ptr = NULL;
     int data_len;
@@ -174,7 +174,7 @@ static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC)
     if (swTask_type(task_result) & SW_TASK_SERIALIZE)
     {
         PHP_VAR_UNSERIALIZE_INIT(var_hash);
-        SW_ALLOC_INIT_ZVAL(task_notify_unserialized_data, 0);
+        SW_ALLOC_INIT_ZVAL(task_notify_unserialized_data);
 
         if (sw_php_var_unserialize(&task_notify_unserialized_data, (const unsigned char **) &task_notify_data_str,
                 (const unsigned char *) (task_notify_data_str + task_notify_data_len), &var_hash TSRMLS_CC))
@@ -183,14 +183,14 @@ static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC)
         }
         else
         {
-            SW_MAKE_STD_ZVAL(task_notify_data, 0);
+            SW_MAKE_STD_ZVAL(task_notify_data);
             SW_ZVAL_STRINGL(task_notify_data, task_notify_data_str, task_notify_data_len, 1);
         }
         PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
     }
     else
     {
-        SW_MAKE_STD_ZVAL(task_notify_data, 1);
+        SW_MAKE_STD_ZVAL(task_notify_data);
         SW_ZVAL_STRINGL(task_notify_data, task_notify_data_str, task_notify_data_len, 1);
     }
     return task_notify_data;
@@ -337,8 +337,8 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
     zval *zdata;
     zval *retval = NULL;
 
-    SW_MAKE_STD_ZVAL(zworker_id, 0);
-    SW_MAKE_STD_ZVAL(zdata, 1);
+    SW_MAKE_STD_ZVAL(zworker_id);
+    SW_MAKE_STD_ZVAL(zdata);
 
     zval **args[3];
 
@@ -411,9 +411,9 @@ static int php_swoole_onReceive(swServer *serv, swEventData *req)
     //UDP使用from_id作为port,fd做为ip
     php_swoole_udp_t udp_info;
 
-    SW_MAKE_STD_ZVAL(zfd, 0);
-    SW_MAKE_STD_ZVAL(zfrom_id, 1);
-    SW_MAKE_STD_ZVAL(zdata, 2);
+    SW_MAKE_STD_ZVAL(zfd);
+    SW_MAKE_STD_ZVAL(zfrom_id);
+    SW_MAKE_STD_ZVAL(zdata);
 
     //udp ipv4
     if (req->info.type == SW_EVENT_UDP)
@@ -499,8 +499,8 @@ static int php_swoole_onPacket(swServer *serv, swEventData *req)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    SW_MAKE_STD_ZVAL(zdata, 0);
-    SW_MAKE_STD_ZVAL(zaddr, 1);
+    SW_MAKE_STD_ZVAL(zdata);
+    SW_MAKE_STD_ZVAL(zaddr);
     array_init(zaddr);
 
     add_assoc_long(zaddr, "port", (uint16_t) req->info.from_id);
@@ -575,13 +575,13 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    SW_MAKE_STD_ZVAL(zfd, 0);
+    SW_MAKE_STD_ZVAL(zfd);
     ZVAL_LONG(zfd, (long) req->info.fd);
 
-    SW_MAKE_STD_ZVAL(zfrom_id, 1);
+    SW_MAKE_STD_ZVAL(zfrom_id);
     ZVAL_LONG(zfrom_id, (long) req->info.from_id);
 
-    SW_MAKE_STD_ZVAL(zdata, 2);
+    SW_MAKE_STD_ZVAL(zdata);
 
     if (swTask_type(req) & SW_TASK_TMPFILE)
     {
@@ -621,7 +621,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
         PHP_VAR_UNSERIALIZE_INIT(var_hash);
         zdata_str = Z_STRVAL_P(zdata);
         zdata_len = Z_STRLEN_P(zdata);
-        SW_ALLOC_INIT_ZVAL(unserialized_zdata, 3);
+        SW_ALLOC_INIT_ZVAL(unserialized_zdata);
 
         if (sw_php_var_unserialize(&unserialized_zdata, (const unsigned char **) &zdata_str,
                 (const unsigned char *) (zdata_str + zdata_len), &var_hash TSRMLS_CC))
@@ -683,7 +683,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    SW_MAKE_STD_ZVAL(ztask_id, 0);
+    SW_MAKE_STD_ZVAL(ztask_id);
     ZVAL_LONG(ztask_id, (long) req->info.fd);
 
     zdata = php_swoole_get_task_result(req TSRMLS_CC);
@@ -808,7 +808,7 @@ static void php_swoole_onTimer(swServer *serv, int interval)
     zval *retval = NULL;
     zval *zinterval;
 
-    SW_MAKE_STD_ZVAL(zinterval, 0);
+    SW_MAKE_STD_ZVAL(zinterval);
     ZVAL_LONG(zinterval, interval);
 
     args[0] = &zserv;
@@ -872,7 +872,7 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    SW_MAKE_STD_ZVAL(zworker_id, 0);
+    SW_MAKE_STD_ZVAL(zworker_id);
     ZVAL_LONG(zworker_id, worker_id);
 
     args[0] = &zserv;
@@ -943,7 +943,7 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
     zval **args[2]; //这里必须与下面的数字对应
     zval *retval = NULL;
 
-    SW_MAKE_STD_ZVAL(zworker_id, 0);
+    SW_MAKE_STD_ZVAL(zworker_id);
     ZVAL_LONG(zworker_id, worker_id);
 
     sw_zval_add_ref(&zobject);
@@ -989,13 +989,13 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
     zval **args[4];
     zval *retval = NULL;
 
-    SW_MAKE_STD_ZVAL(zworker_id, 0);
+    SW_MAKE_STD_ZVAL(zworker_id);
     ZVAL_LONG(zworker_id, worker_id);
 
-    SW_MAKE_STD_ZVAL(zworker_pid, 1);
+    SW_MAKE_STD_ZVAL(zworker_pid);
     ZVAL_LONG(zworker_pid, worker_pid);
 
-    SW_MAKE_STD_ZVAL(zexit_code, 2);
+    SW_MAKE_STD_ZVAL(zexit_code);
     ZVAL_LONG(zexit_code, exit_code);
 
     sw_zval_add_ref(&zobject);
@@ -1037,10 +1037,10 @@ static void php_swoole_onConnect(swServer *serv, int fd, int from_id)
     zval **args[3];
     zval *retval = NULL;
 
-    SW_MAKE_STD_ZVAL(zfd, 0);
+    SW_MAKE_STD_ZVAL(zfd);
     ZVAL_LONG(zfd, fd);
 
-    SW_MAKE_STD_ZVAL(zfrom_id, 1);
+    SW_MAKE_STD_ZVAL(zfrom_id);
     ZVAL_LONG(zfrom_id, from_id);
 
     args[0] = &zserv;
@@ -1082,10 +1082,10 @@ void php_swoole_onClose(swServer *serv, int fd, int from_id)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    SW_MAKE_STD_ZVAL(zfd, 0);
+    SW_MAKE_STD_ZVAL(zfd);
     ZVAL_LONG(zfd, fd);
 
-    SW_MAKE_STD_ZVAL(zfrom_id, 1);
+    SW_MAKE_STD_ZVAL(zfrom_id);
     ZVAL_LONG(zfrom_id, from_id);
 
     args[0] = &zserv;
@@ -1186,7 +1186,7 @@ PHP_FUNCTION(swoole_server_create)
 
 #ifdef HAVE_PCRE
     zval *connection_iterator_object;
-    SW_MAKE_STD_ZVAL(connection_iterator_object, 3);
+    SW_MAKE_STD_ZVAL(connection_iterator_object);
     object_init_ex(connection_iterator_object, swoole_connection_iterator_class_entry_ptr);
     zend_update_property(swoole_server_class_entry_ptr, server_object, ZEND_STRL("connections"), connection_iterator_object TSRMLS_CC);
 #endif
@@ -1225,28 +1225,24 @@ PHP_FUNCTION(swoole_server_set)
     swServer *serv = swoole_get_object(zobject);
 
     vht = Z_ARRVAL_P(zset);
-
     //chroot
     if (sw_zend_hash_find(vht, ZEND_STRS("chroot"), (void **) &v) == SUCCESS)
     {
         convert_to_string(v);
         SwooleG.chroot = sw_strndup(v, 256);
     }
-
     //user
     if (sw_zend_hash_find(vht, ZEND_STRS("user"), (void **) &v) == SUCCESS)
     {
         convert_to_string(v);
         SwooleG.user = sw_strndup(v, 128);
     }
-
     //group
     if (sw_zend_hash_find(vht, ZEND_STRS("group"), (void **) &v) == SUCCESS)
     {
         convert_to_string(v);
         SwooleG.group = sw_strndup(v, 128);
     }
-
     //daemonize
     if (sw_zend_hash_find(vht, ZEND_STRS("daemonize"), (void **) &v) == SUCCESS)
     {
@@ -1916,7 +1912,7 @@ PHP_FUNCTION(swoole_server_start)
     zval *zsetting = sw_zend_read_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zsetting == NULL || ZVAL_IS_NULL(zsetting))
     {
-        SW_MAKE_STD_ZVAL(zsetting, 0);
+        SW_MAKE_STD_ZVAL(zsetting);
         array_init(zsetting);
         zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zsetting TSRMLS_CC);
     }

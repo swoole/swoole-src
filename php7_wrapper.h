@@ -30,9 +30,9 @@ inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v);
 #define SW_ZEND_FETCH_RESOURCE_NO_RETURN      ZEND_FETCH_RESOURCE_NO_RETURN
 #define SW_ZEND_FETCH_RESOURCE                ZEND_FETCH_RESOURCE
 #define SW_ZEND_REGISTER_RESOURCE             ZEND_REGISTER_RESOURCE
-#define SW_MAKE_STD_ZVAL(p,o)                 MAKE_STD_ZVAL(p)
+#define SW_MAKE_STD_ZVAL(p)                 MAKE_STD_ZVAL(p)
 #define SW_ZVAL_STRING                        ZVAL_STRING
-#define SW_ALLOC_INIT_ZVAL(p,o)               ALLOC_INIT_ZVAL(p)
+#define SW_ALLOC_INIT_ZVAL(p)               ALLOC_INIT_ZVAL(p)
 #define SW_RETVAL_STRINGL                     RETVAL_STRINGL
 #define sw_smart_str                          smart_str
 #define sw_php_var_unserialize                php_var_unserialize
@@ -106,8 +106,8 @@ inline char * sw_php_format_date(char *format, size_t format_len, time_t ts, int
 
 inline char * sw_php_url_encode(char *value, size_t value_len, int* exten);
 
-#define sw_zval_add_ref(p) Z_TRY_ADDREF_P(*p)
-#define sw_zval_ptr_dtor(p)
+#define sw_zval_add_ref(p)   Z_TRY_ADDREF_P(*p)
+#define sw_zval_ptr_dtor(p)  zval_ptr_dtor(*p)
 #define sw_call_user_function_ex(function_table, object_pp, function_name, retval_ptr_ptr, param_count, params, no_separation, ymbol_table)\
     ({zval  real_params[param_count];\
     int i=0;\
@@ -121,33 +121,14 @@ inline char * sw_php_url_encode(char *value, size_t value_len, int* exten);
 #define sw_php_var_unserialize(rval, p, max, var_hash)\
 php_var_unserialize(*rval, p, max, var_hash)
 
-extern zval _sw_zval_data0;
-extern zval _sw_zval_data1;
-extern zval _sw_zval_data2;
-extern zval _sw_zval_data3;
-extern zval _sw_zval_data4;
-
-#define SW_MAKE_STD_ZVAL(p,o)    switch(o){                           \
-    case 0:                              \
-       { bzero(&_sw_zval_data0, sizeof(zval)); p = &_sw_zval_data0; break;}\
-    case 1:                              \
-       { bzero(&_sw_zval_data1, sizeof(zval)); p = &_sw_zval_data1; break;}\
-    case 2:                              \
-       { bzero(&_sw_zval_data2, sizeof(zval)); p = &_sw_zval_data2; break;}\
-    case 3:                              \
-       { bzero(&_sw_zval_data3, sizeof(zval)); p = &_sw_zval_data3; break;}\
-    case 4:                              \
-       { bzero(&_sw_zval_data4, sizeof(zval)); p = &_sw_zval_data4; break;}\
-    default:                             \
-        break;\
-    }
+#define SW_MAKE_STD_ZVAL(p)    zval _stack_zval_##p; p = &(_stack_zval_##p)
 
 #define SW_RETURN_STRINGL(z,l,t)                      \
                zval key;\
                 ZVAL_STRING(&key, z);\
                 RETURN_STR(Z_STR(key))
 
-#define SW_ALLOC_INIT_ZVAL(p,o)        SW_MAKE_STD_ZVAL(p,o)
+#define SW_ALLOC_INIT_ZVAL(p)        SW_MAKE_STD_ZVAL(p)
 #define SW_ZEND_FETCH_RESOURCE_NO_RETURN(rsrc, rsrc_type, passed_id, default_id, resource_type_name, resource_type)        \
         (rsrc = (rsrc_type) zend_fetch_resource(Z_RES_P(*passed_id), resource_type_name, resource_type))
 #define SW_ZEND_REGISTER_RESOURCE(return_value, result, le_result)  ZVAL_RES(return_value,zend_register_resource(result, le_result))

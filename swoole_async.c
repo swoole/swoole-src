@@ -130,14 +130,14 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 
     if (event->type == SW_AIO_READ)
     {
-        SW_MAKE_STD_ZVAL(zcontent,0);
+        SW_MAKE_STD_ZVAL(zcontent);
         args[0] = &file_req->filename;
         args[1] = &zcontent;
         SW_ZVAL_STRINGL(zcontent, event->buf, ret, 0);
     }
     else if (event->type == SW_AIO_WRITE)
     {
-        SW_MAKE_STD_ZVAL(zwriten,0);
+        SW_MAKE_STD_ZVAL(zwriten);
         args[0] = &file_req->filename;
         args[1] = &zwriten;
         ZVAL_LONG(zwriten, ret);
@@ -156,7 +156,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
     }
 	else if(event->type == SW_AIO_DNS_LOOKUP)
 	{
-		SW_MAKE_STD_ZVAL(zcontent,0);
+		SW_MAKE_STD_ZVAL(zcontent);
 		args[0] = &dns_req->domain;
 		if (ret < 0)
 		{

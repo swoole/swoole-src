@@ -344,7 +344,7 @@ static void php_swoole_onSignal(int signo)
 #endif
 
     zval *zsigno;
-    SW_MAKE_STD_ZVAL(zsigno,0);
+    SW_MAKE_STD_ZVAL(zsigno);
     ZVAL_LONG(zsigno, signo);
 
     args[0] = &zsigno;

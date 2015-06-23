@@ -290,7 +290,7 @@ static void http_global_merge(zval *val, zval *zrequest, int type)
     if (type == HTTP_GLOBAL_SERVER)
     {
         zval *php_global_server;
-        SW_MAKE_STD_ZVAL(php_global_server,0);
+        SW_MAKE_STD_ZVAL(php_global_server);
         array_init(php_global_server);
 
         char *key;
@@ -600,7 +600,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
         }
 
         zval *tmp_array;
-        SW_MAKE_STD_ZVAL(tmp_array, 0);
+        SW_MAKE_STD_ZVAL(tmp_array);
         array_init(tmp_array);
         http_parse_cookie(tmp_array, (char *) at + sizeof("form-data;"), length - sizeof("form-data;"));
 
@@ -626,7 +626,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
             client->current_input_name = estrndup(str, len);
 
             zval *multipart_header;
-            SW_MAKE_STD_ZVAL(multipart_header, 0);
+            SW_MAKE_STD_ZVAL(multipart_header);
             array_init(multipart_header);
             add_assoc_zval(zfiles, client->current_input_name, multipart_header);
 
@@ -820,7 +820,7 @@ static int http_request_on_body(php_http_parser *parser, const char *at, size_t 
     if (SwooleG.serv->http_parse_post && client->request.post_form_urlencoded)
     {
         zval *post;
-        SW_MAKE_STD_ZVAL(post, 0);
+        SW_MAKE_STD_ZVAL(post);
         array_init(post);
         zend_update_property(swoole_http_request_class_entry_ptr, client->request.zrequest_object, ZEND_STRL("post"), post TSRMLS_CC);
         sapi_module.treat_data(PARSE_STRING, body, post TSRMLS_CC);
@@ -943,7 +943,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
     php_http_parser_init(parser, PHP_HTTP_REQUEST);
 
     zval *zdata;
-    SW_MAKE_STD_ZVAL(zdata, 1);
+    SW_MAKE_STD_ZVAL(zdata);
     zdata = php_swoole_get_recv_data(zdata, req TSRMLS_CC);
 
     swTrace("httpRequest %d bytes:\n---------------------------------------\n%s\n", Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));

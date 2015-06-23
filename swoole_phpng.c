@@ -30,13 +30,8 @@ inline int Z_BVAL_P(zval *v)
     }
 }
 
-zval _sw_zval_data0;
-zval _sw_zval_data1;
-zval _sw_zval_data2;
-zval _sw_zval_data3;
-zval _sw_zval_data4;
-
-inline int sw_add_assoc_stringl_ex(zval *arg, const char *key, size_t key_len, char *str, size_t length, int duplicate) {
+inline int sw_add_assoc_stringl_ex(zval *arg, const char *key, size_t key_len, char *str, size_t length, int duplicate)
+{
     return add_assoc_stringl_ex(arg, key, key_len, str, length);
 }
 
@@ -137,7 +132,8 @@ inline int SW_Z_TYPE_P(zval *z){
         }
 }
 #endif
-inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v) {
+inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
+{
     //    char _key[128];
     //    zend_string *key;
     //
@@ -152,26 +148,30 @@ inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v) {
     //    key->val[len] = 0;
 #if PHP_MAJOR_VERSION < 7
     zval **tmp = NULL;
-      if(zend_hash_find(ht, k,len, (void **) &tmp) == SUCCESS){
-          *v = *tmp;
-          return SUCCESS;
-      }else{
-          *v = NULL;
-          return FAILURE;
-      }
+    if(zend_hash_find(ht, k,len, (void **) &tmp) == SUCCESS)
+    {
+        *v = *tmp;
+        return SUCCESS;
+    }
+    else
+    {
+        *v = NULL;
+        return FAILURE;
+    }
 #else
-      zval key;
-        ZVAL_STRINGL(&key, k,len);
+    zval key;
+    ZVAL_STRINGL(&key, k, len - 1);
+    zval *value = zend_hash_find(ht, Z_STR(key));
 
-        zval *value = zend_hash_find(ht, Z_STR(key));
-
-        if (value == NULL) {
-            return FAILURE;
-        } else {
-            *v = (void *)value;
-            v = (void *)value;
-            return SUCCESS;
-        }
+    if (value == NULL)
+    {
+        return FAILURE;
+    }
+    else
+    {
+        *v = (void *) value;
+        v = (void *) value;
+        return SUCCESS;
+    }
 #endif
-
 }
