@@ -1584,13 +1584,8 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
         ulong idx = 0;
         int type;
 
-        SW_HASHTABLE_FOREACH_START(ht, value)
+        SW_HASHTABLE_FOREACH_START2(ht, key, keylen, type, value)
         {
-            type = sw_zend_hash_get_current_key(ht, &key, &keylen, &idx);
-            if (type != HASH_KEY_IS_STRING)
-            {
-                continue;
-            }
             if (!key)
             {
                 break;
@@ -1649,14 +1644,13 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
                     body_length = swoole_zlib_buffer->length;
                 }
 #endif
-                
                 n = snprintf(buf, sizeof(buf), "Content-Length: %d\r\n", body_length);
                 swString_append_ptr(response, buf, n);
             }
         }
         if (!(flag & HTTP_RESPONSE_DATE))
         {
-            date_str = sw_php_format_date(ZEND_STRL("D, d-M-Y H:i:s T"), SwooleGS->now, 0 TSRMLS_CC);
+            date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), SwooleGS->now, 0 TSRMLS_CC);
             n = snprintf(buf, sizeof(buf), "Date: %s\r\n", date_str);
             swString_append_ptr(response, buf, n);
             efree(date_str);
@@ -1678,7 +1672,7 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
             swString_append_ptr(response, ZEND_STRL("Connection: close\r\n"));
         }
 
-        date_str = sw_php_format_date(ZEND_STRL("D, d-M-Y H:i:s T"), SwooleGS->now, 0 TSRMLS_CC);
+        date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), SwooleGS->now, 0 TSRMLS_CC);
         n = snprintf(buf, sizeof(buf), "Date: %s\r\n", date_str);
         efree(date_str);
         swString_append_ptr(response, buf, n);
@@ -2127,8 +2121,8 @@ static PHP_METHOD(swoole_http_response, header)
         RETURN_FALSE;
     }
 
-    zval *zheader;
-    if (!client->response.zheader)
+    zval *zheader = client->response.zheader;
+    if (!zheader)
     {
         http_alloc_zval(client, response, zheader);
         array_init(zheader);

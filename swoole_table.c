@@ -145,18 +145,21 @@ static void php_swoole_table_row2array(swTable *table, swTableRow *row, zval *re
             {
             case SW_TABLE_INT8:
                 memcpy(&lval, row->data + col->index, 1);
+                add_assoc_long_ex(return_value, col->name->str, col->name->length + 1, (int8_t) lval);
                 break;
             case SW_TABLE_INT16:
                 memcpy(&lval, row->data + col->index, 2);
+                add_assoc_long_ex(return_value, col->name->str, col->name->length + 1, (int16_t) lval);
                 break;
             case SW_TABLE_INT32:
                 memcpy(&lval, row->data + col->index, 4);
+                add_assoc_long_ex(return_value, col->name->str, col->name->length + 1, (int32_t) lval);
                 break;
             default:
                 memcpy(&lval, row->data + col->index, 8);
+                add_assoc_long_ex(return_value, col->name->str, col->name->length + 1, lval);
                 break;
             }
-            add_assoc_long_ex(return_value, col->name->str, col->name->length + 1, lval);
         }
     }
     sw_spinlock_release(&row->lock);
@@ -266,37 +269,39 @@ static PHP_METHOD(swoole_table, set)
     zval *v;
     char *k;
     uint32_t klen;
-    ulong knum;
+    ulong idx = 0;
+    int ktype;
+    HashTable *_ht = Z_ARRVAL_P(array);
 
     sw_atomic_t *lock = &row->lock;
     sw_spinlock(lock);
 
-    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(array), v)
-        sw_zend_hash_get_current_key(Z_ARRVAL_P(array), &k, &klen, &knum);
-        col = swTableColumn_get(table, k, klen - 1);
-        if (col == NULL)
+    SW_HASHTABLE_FOREACH_START2(_ht, k, klen, ktype, v)
+    {
+        //printf("key=%s, klen=%d, ktype=%d\n", k, klen, ktype);
+        col = swTableColumn_get(table, k, klen);
+        if (k == NULL || col == NULL)
         {
             continue;
         }
         else if (col->type == SW_TABLE_STRING)
         {
-            convert_to_string(v);                                                                                                                     
-            swTableRow_set_value(row, col, Z_STRVAL_P(v), Z_STRLEN_P(v));                                                                             
-        }                                                                                                                                             
-        else if (col->type == SW_TABLE_FLOAT)                                                                                                         
-        {                                                                                                                                             
-            convert_to_double(v);                                                                                                                     
-            swTableRow_set_value(row, col, &Z_DVAL_P(v), 0);                                                                                          
-        }                                                                                                                                             
-        else                                                                                                                                          
-        {                                                                                                                                             
-            convert_to_long(v);                                                                                                                       
-            swTableRow_set_value(row, col, &Z_LVAL_P(v), 0);                                                                                          
-        }                                                                                                                                             
-     SW_HASHTABLE_FOREACH_END();                                                                                                                 
-                                                                                                                                                      
+            convert_to_string(v);
+            swTableRow_set_value(row, col, Z_STRVAL_P(v), Z_STRLEN_P(v));
+        }
+        else if (col->type == SW_TABLE_FLOAT)
+        {
+            convert_to_double(v);
+            swTableRow_set_value(row, col, &Z_DVAL_P(v), 0);
+        }
+        else
+        {
+            convert_to_long(v);
+            swTableRow_set_value(row, col, &Z_LVAL_P(v), 0);
+        }
+    }
+    SW_HASHTABLE_FOREACH_END();
     sw_spinlock_release(lock);                                                                                                                        
-                                                                                                                                                      
     RETURN_TRUE;     
 }
 

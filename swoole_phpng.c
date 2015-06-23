@@ -35,12 +35,12 @@ inline int sw_add_assoc_stringl_ex(zval *arg, const char *key, size_t key_len, c
     return add_assoc_stringl_ex(arg, key, key_len, str, length);
 }
 
-inline char * sw_php_format_date(char *format, size_t format_len, time_t ts, int localtime) {
+inline char * sw_php_format_date(char *format, size_t format_len, time_t ts, int localtime)
+{
     zend_string *time = php_format_date(format, format_len, ts, localtime);
-
-    char *return_str = (char*) emalloc(time->len);
+    char *return_str = (char*) emalloc(time->len + 1);
     memcpy(return_str, time->val, time->len);
-    zend_string_release(time);
+    return_str[time->len] = 0;
     return return_str;
 }
 
@@ -69,7 +69,8 @@ inline int sw_zend_is_callable(zval *cb, int a, char **name) {
     return ret;
 }
 
-inline int sw_zend_hash_del(HashTable *ht, char *k, int len) {
+inline int sw_zend_hash_del(HashTable *ht, char *k, int len)
+{
     zval key;
     ZVAL_STRING(&key, k);
 
@@ -77,7 +78,8 @@ inline int sw_zend_hash_del(HashTable *ht, char *k, int len) {
 
 }
 
-inline int sw_zend_hash_add(HashTable *ht, char *k, int len, void *pData, int datasize, void **pDest) {
+inline int sw_zend_hash_add(HashTable *ht, char *k, int len, void *pData, int datasize, void **pDest)
+{
     zval key;
     ZVAL_STRING(&key, k);
     zval **real_p = pData;
@@ -85,12 +87,14 @@ inline int sw_zend_hash_add(HashTable *ht, char *k, int len, void *pData, int da
     return zend_hash_add(ht, Z_STR(key), *real_p) ? SUCCESS : FAILURE;
 }
 
-inline int sw_zend_hash_index_update(HashTable *ht, int key, void *pData, int datasize, void **pDest) {
+inline int sw_zend_hash_index_update(HashTable *ht, int key, void *pData, int datasize, void **pDest)
+{
     zval **real_p = pData;
     return zend_hash_index_update(ht, key, *real_p) ? SUCCESS : FAILURE;
 }
 
-inline int sw_zend_hash_update(HashTable *ht, char *k, int len, void * val, int size, void *ptr) {
+inline int sw_zend_hash_update(HashTable *ht, char *k, int len, void * val, int size, void *ptr)
+{
     zval key;
     ZVAL_STRING(&key, k);
 
@@ -99,10 +103,11 @@ inline int sw_zend_hash_update(HashTable *ht, char *k, int len, void * val, int 
 
 inline int sw_zend_hash_get_current_key(HashTable *ht, char **key, uint32_t *keylen, ulong *num)
 {
-    zval str_key;
-    int type = zend_hash_get_current_key(ht, &Z_STR(str_key), (zend_ulong* ) num);
-    *key = Z_STRVAL(str_key);
-    *keylen = Z_STRLEN(str_key);
+    zend_string *_key_ptr;
+    int type = zend_hash_get_current_key(ht, &_key_ptr, (zend_ulong*) num);
+    *key = _key_ptr->val;
+    *keylen = _key_ptr->len;
+    printf("k=%s, klen=%d, num=%d\n", *key, *keylen, num);
     return type;
 }
 

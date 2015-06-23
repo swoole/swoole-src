@@ -30,9 +30,9 @@ inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v);
 #define SW_ZEND_FETCH_RESOURCE_NO_RETURN      ZEND_FETCH_RESOURCE_NO_RETURN
 #define SW_ZEND_FETCH_RESOURCE                ZEND_FETCH_RESOURCE
 #define SW_ZEND_REGISTER_RESOURCE             ZEND_REGISTER_RESOURCE
-#define SW_MAKE_STD_ZVAL(p)                 MAKE_STD_ZVAL(p)
+#define SW_MAKE_STD_ZVAL(p)                   MAKE_STD_ZVAL(p)
 #define SW_ZVAL_STRING                        ZVAL_STRING
-#define SW_ALLOC_INIT_ZVAL(p)               ALLOC_INIT_ZVAL(p)
+#define SW_ALLOC_INIT_ZVAL(p)                 ALLOC_INIT_ZVAL(p)
 #define SW_RETVAL_STRINGL                     RETVAL_STRINGL
 #define sw_smart_str                          smart_str
 #define sw_php_var_unserialize                php_var_unserialize
@@ -75,9 +75,22 @@ typedef int zend_size_t;
             continue;\
                        }\
                        entry = *tmp;
+
+#define SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, entry)\
+    zval **tmp = NULL;\
+    for (zend_hash_internal_pointer_reset(ht); \
+            (ktype = zend_hash_get_current_key_ex(ht, &k, &klen, &idx, 0, NULL)) != HASH_KEY_NON_EXISTENT; \
+            zend_hash_move_forward(ht)\
+        ) { \
+    if (zend_hash_get_current_data(ht, (void**)&tmp) == FAILURE) {\
+        continue;\
+    }\
+    entry = *tmp;\
+    klen --;
+
 #define SW_HASHTABLE_FOREACH_END() }
 #define sw_zend_read_property                  zend_read_property
-#define wrapper_zend_hash_get_current_key(a,b,c,d) zend_hash_get_current_key_ex(a,b,c,d,0,NULL)
+#define sw_zend_hash_get_current_key(a,b,c,d)  zend_hash_get_current_key_ex(a,b,c,d,0,NULL)
 #define sw_php_var_serialize(a,b,c)       php_var_serialize(a,&b,c)
 #define IS_TRUE    1
 inline int SW_Z_TYPE_P(zval *z);
@@ -92,8 +105,11 @@ inline int Z_BVAL_P(zval *v);
 inline int sw_add_assoc_stringl_ex(zval *arg, const char *key, size_t key_len, char *str, size_t length,int duplicate);
 #define SW_Z_ARRVAL_P(z)                          Z_ARRVAL_P(z)->ht
 
-#define SW_HASHTABLE_FOREACH_START(ht, entry)  ZEND_HASH_FOREACH_VAL(ht, entry) {
-#define SW_HASHTABLE_FOREACH_END()             } ZEND_HASH_FOREACH_END();
+#define SW_HASHTABLE_FOREACH_START(ht, _val) ZEND_HASH_FOREACH_VAL(ht, _val);  {
+#define SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, _val) zend_string *_foreach_key;\
+    ZEND_HASH_FOREACH_STR_KEY_VAL(ht, _foreach_key, _val); k = _foreach_key->val, klen=_foreach_key->len; {
+
+#define SW_HASHTABLE_FOREACH_END()                 } ZEND_HASH_FOREACH_END();
 
 #define Z_ARRVAL_PP(s)                             Z_ARRVAL_P(*s)
 #define SW_Z_TYPE_P                                Z_TYPE_P

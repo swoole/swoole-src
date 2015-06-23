@@ -1754,30 +1754,30 @@ static int client_event_loop(zval *sock_array, fd_set *fds TSRMLS_DC)
 	zend_hash_init(new_hash, zend_hash_num_elements(Z_ARRVAL_P(sock_array)), NULL, ZVAL_PTR_DTOR, 0);
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(sock_array), *element)
-    ce = Z_OBJCE_P(*element);
-    zsock = sw_zend_read_property(ce, *element, SW_STRL("sock")-1, 0 TSRMLS_CC);
-    if (zsock == NULL || ZVAL_IS_NULL(zsock))
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "object is not swoole_client object.");
-        continue;
-    }
-    if ((Z_LVAL(*zsock) < FD_SETSIZE) && FD_ISSET(Z_LVAL(*zsock), fds))
-    {
-        switch (sw_zend_hash_get_current_key(Z_ARRVAL_P(sock_array), &key, &key_len, &num_key))
+        ce = Z_OBJCE_P(*element);
+        zsock = sw_zend_read_property(ce, *element, SW_STRL("sock")-1, 0 TSRMLS_CC);
+        if (zsock == NULL || ZVAL_IS_NULL(zsock))
         {
-        case HASH_KEY_IS_STRING:
-            sw_zend_hash_add(new_hash, key, key_len, (void * )element, sizeof(zval *), (void ** )&dest_element);
-            break;
-        case HASH_KEY_IS_LONG:
-            sw_zend_hash_index_update(new_hash, num_key, (void * )element, sizeof(zval *), (void ** )&dest_element);
-            break;
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "object is not swoole_client object.");
+            continue;
         }
-        if (dest_element)
+        if ((Z_LVAL(*zsock) < FD_SETSIZE) && FD_ISSET(Z_LVAL(*zsock), fds))
         {
-            sw_zval_add_ref(dest_element);
+            switch (sw_zend_hash_get_current_key(Z_ARRVAL_P(sock_array), &key, &key_len, &num_key))
+            {
+            case HASH_KEY_IS_STRING:
+                sw_zend_hash_add(new_hash, key, key_len, (void * )element, sizeof(zval *), (void ** )&dest_element);
+                break;
+            case HASH_KEY_IS_LONG:
+                sw_zend_hash_index_update(new_hash, num_key, (void * )element, sizeof(zval *), (void ** )&dest_element);
+                break;
+            }
+            if (dest_element)
+            {
+                sw_zval_add_ref(dest_element);
+            }
         }
-    }
-    num++;
+        num ++;
     SW_HASHTABLE_FOREACH_END();
 
 	zend_hash_destroy(Z_ARRVAL_P(sock_array));
@@ -1795,12 +1795,13 @@ static int client_event_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_DC
 	zval *zsock;
 	zend_class_entry *ce;
 
-	int num = 0;
 	if (SW_Z_TYPE_P(sock_array) != IS_ARRAY)
 	{
 		return 0;
 	}
-	 SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(sock_array), *element)
+
+	int num = 0;
+	SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(sock_array), *element)
 		ce = Z_OBJCE_P(*element);
 		zsock = sw_zend_read_property(ce, *element, SW_STRL("sock")-1, 0 TSRMLS_CC);
 		if (zsock == NULL || ZVAL_IS_NULL(zsock))
@@ -1821,7 +1822,7 @@ static int client_event_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_DC
 		{
 			*max_fd = Z_LVAL(*zsock);
 		}
-		num++;
+		num ++;
 	SW_HASHTABLE_FOREACH_END();
 	return num ? 1 : 0;
 }
