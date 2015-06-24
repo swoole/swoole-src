@@ -76,6 +76,10 @@ typedef int zend_size_t;
                        }\
                        entry = *tmp;
 
+#if defined(HASH_KEY_NON_EXISTANT) && !defined(HASH_KEY_NON_EXISTENT)
+#define HASH_KEY_NON_EXISTENT HASH_KEY_NON_EXISTANT
+#endif
+
 #define SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, entry)\
     zval **tmp = NULL;\
     for (zend_hash_internal_pointer_reset(ht); \
