@@ -60,7 +60,7 @@ int swReactorProcess_start(swServer *serv)
     //listen UDP
     if (serv->have_udp_sock == 1)
     {
-        swListenList_node *listen_host;
+        swListenPort *listen_host;
         LL_FOREACH(serv->listen_list, listen_host)
         {
             //UDP
@@ -76,10 +76,20 @@ int swReactorProcess_start(swServer *serv)
     //listen TCP
     if (serv->have_tcp_sock == 1)
     {
-        //listen server socket
-        if (swServer_listen(serv, NULL) < 0)
+        swListenPort *ls;
+        LL_FOREACH(serv->listen_list, ls)
         {
-            return SW_ERR;
+#ifdef HAVE_REUSEPORT
+            if (SwooleG.reuse_port)
+            {
+                continue;
+            }
+#endif
+            //listen server socket
+            if (swServer_listen(serv, ls) < 0)
+            {
+                return SW_ERR;
+            }
         }
     }
 
@@ -230,7 +240,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         return SW_ERR;
     }
 
-    swListenList_node *ls;
+    swListenPort *ls;
     int fdtype;
 
     //listen the all tcp port
@@ -238,9 +248,16 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     {
         fdtype = (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM) ?
                         SW_FD_UDP : SW_FD_LISTEN;
+
+        if (swServer_listen(serv, ls) < 0)
+        {
+            return SW_ERR;
+        }
+
         serv->connection_list[ls->sock].fd = ls->sock;
         serv->connection_list[ls->sock].socket_type = ls->type;
         serv->connection_list[ls->sock].fdtype = fdtype;
+
         reactor->add(reactor, ls->sock, fdtype);
     }
     SwooleG.main_reactor = reactor;

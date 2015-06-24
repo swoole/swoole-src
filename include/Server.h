@@ -126,16 +126,16 @@ typedef struct _swReactorThread
     int c_udp_fd;
 } swReactorThread;
 
-typedef struct _swListenList_node
+typedef struct _swListenPort
 {
-    struct _swListenList_node *next, *prev;
+    struct _swListenPort *next, *prev;
     uint8_t type;
     uint8_t ssl;
     int port;
     int sock;
     pthread_t thread_id;
     char host[SW_HOST_MAXSIZE];
-} swListenList_node;
+} swListenPort;
 
 typedef struct _swUserWorker_node
 {
@@ -153,7 +153,6 @@ typedef struct {
 
 typedef struct
 {
-
     uint16_t num;
 } swUserWorker;
 
@@ -417,7 +416,7 @@ struct _swServer
     swReactor reactor;
     swFactory factory;
 
-    swListenList_node *listen_list;
+    swListenPort *listen_list;
 
     swUserWorker_node *user_worker_list;
     swHashMap *user_worker_map;
@@ -499,7 +498,7 @@ int swServer_add_listener(swServer *serv, int type, char *host,int port);
 int swServer_add_worker(swServer *serv, swWorker *worker);
 
 int swServer_create(swServer *serv);
-int swServer_listen(swServer *serv, swReactor *reactor);
+int swServer_listen(swServer *serv, swListenPort *ls);
 int swServer_free(swServer *serv);
 int swServer_shutdown(swServer *serv);
 

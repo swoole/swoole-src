@@ -89,6 +89,23 @@ AC_DEFUN([AC_SWOOLE_CPU_AFFINITY],
     ])
 ])
 
+AC_DEFUN([AC_SWOOLE_HAVE_REUSEPORT],
+[
+    AC_MSG_CHECKING([for socket REUSEPORT])
+    AC_TRY_COMPILE(
+    [
+		#include <sys/socket.h>
+    ], [
+        int val = 1;
+		setsockopt(0, SOL_SOCKET, SO_REUSEPORT, &val, sizeof(val));
+    ], [
+        AC_DEFINE([HAVE_REUSEPORT], 1, [have SO_REUSEPORT?])
+        AC_MSG_RESULT([yes])
+    ], [
+        AC_MSG_RESULT([no])
+    ])
+])
+
 AC_MSG_CHECKING([if compiling with clang])
 AC_COMPILE_IFELSE([
     AC_LANG_PROGRAM([], [[
@@ -140,6 +157,7 @@ if test "$PHP_SWOOLE" != "no"; then
     fi
         
     AC_SWOOLE_CPU_AFFINITY
+    AC_SWOOLE_HAVE_REUSEPORT
     
     SWOOLE_HAVE_PHP_EXT([mysqli], [
         AC_DEFINE(SW_HAVE_MYSQLI, 1, [have mysqli])

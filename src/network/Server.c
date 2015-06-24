@@ -58,7 +58,7 @@ char sw_error[SW_ERROR_MSG_SIZE];
 
 static void swServer_disable_accept(swReactor *reactor)
 {
-    swListenList_node *ls;
+    swListenPort *ls;
 
     LL_FOREACH(SwooleG.serv->listen_list, ls)
     {
@@ -73,7 +73,7 @@ static void swServer_disable_accept(swReactor *reactor)
 
 void swServer_enable_accept(swReactor *reactor)
 {
-    swListenList_node *ls;
+    swListenPort *ls;
 
     LL_FOREACH(SwooleG.serv->listen_list, ls)
     {
@@ -92,7 +92,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
     swReactor *sub_reactor;
     swSocketAddress client_addr;
     socklen_t client_addrlen = sizeof(client_addr);
-    swListenList_node *listen_host = serv->connection_list[event->fd].object;
+    swListenPort *listen_host = serv->connection_list[event->fd].object;
 
     int new_fd = 0, ret, reactor_id = 0, i;
 
@@ -961,7 +961,7 @@ int swServer_add_listener(swServer *serv, int type, char *host, int port)
         return SW_ERR;
     }
 
-    swListenList_node *ls = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenList_node));
+    swListenPort *ls = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenPort));
 
     ls->type = type;
     ls->port = port;
@@ -1021,106 +1021,94 @@ int swServer_add_listener(swServer *serv, int type, char *host, int port)
  * listen the TCP server socket
  * UDP ignore
  */
-int swServer_listen(swServer *serv, swReactor *reactor)
+int swServer_listen(swServer *serv, swListenPort *ls)
 {
     int sock = -1, sockopt;
-
-    swListenList_node *ls;
-
-    LL_FOREACH(serv->listen_list, ls)
+    //UDP
+    if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
     {
-        //UDP
-        if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
-        {
-            continue;
-        }
+        return SW_OK;
+    }
 
 #ifdef SW_USE_OPENSSL
-        if (ls->ssl)
+    if (ls->ssl)
+    {
+        if (!serv->ssl_cert_file)
         {
-            if (!serv->ssl_cert_file)
-            {
-                swWarn("need to configure [server->ssl_cert_file].");
-                return SW_ERR;
-            }
-            if (!serv->ssl_key_file)
-            {
-                swWarn("need to configure [server->ssl_key_file].");
-                return SW_ERR;
-            }
-        }
-#endif
-
-        //TCP
-        sock = swSocket_listen(ls->type, ls->host, ls->port, serv->backlog);
-        if (sock < 0)
-        {
-            LL_DELETE(serv->listen_list, ls);
+            swWarn("need to configure [server->ssl_cert_file].");
             return SW_ERR;
         }
-
-        if (reactor != NULL)
+        if (!serv->ssl_key_file)
         {
-            reactor->add(reactor, sock, SW_FD_LISTEN);
+            swWarn("need to configure [server->ssl_key_file].");
+            return SW_ERR;
         }
+    }
+#endif
+
+    //TCP
+    sock = swSocket_listen(ls->type, ls->host, ls->port, serv->backlog);
+    if (sock < 0)
+    {
+        LL_DELETE(serv->listen_list, ls);
+        return SW_ERR;
+    }
 
 #ifdef TCP_DEFER_ACCEPT
-        if (serv->tcp_defer_accept)
+    if (serv->tcp_defer_accept)
+    {
+        if (setsockopt(sock, IPPROTO_TCP, TCP_DEFER_ACCEPT, (const void*) &serv->tcp_defer_accept, sizeof(int)) < 0)
         {
-            if (setsockopt(sock, IPPROTO_TCP, TCP_DEFER_ACCEPT, (const void*) &serv->tcp_defer_accept, sizeof(int)) < 0)
-            {
-                swSysError("setsockopt(TCP_DEFER_ACCEPT) failed.");
-            }
+            swSysError("setsockopt(TCP_DEFER_ACCEPT) failed.");
         }
+    }
 #endif
 
 #ifdef TCP_FASTOPEN
-        if (serv->tcp_fastopen)
+    if (serv->tcp_fastopen)
+    {
+        if (setsockopt(sock, IPPROTO_TCP, TCP_FASTOPEN, (const void*) &serv->tcp_fastopen, sizeof(int)) < 0)
         {
-            if (setsockopt(sock, IPPROTO_TCP, TCP_FASTOPEN, (const void*) &serv->tcp_fastopen, sizeof(int)) < 0)
-            {
-                swSysError("setsockopt(TCP_FASTOPEN) failed.");
-            }
+            swSysError("setsockopt(TCP_FASTOPEN) failed.");
         }
+    }
 #endif
 
 #ifdef SO_KEEPALIVE
-        if (serv->open_tcp_keepalive == 1)
+    if (serv->open_tcp_keepalive == 1)
+    {
+        sockopt = 1;
+        if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (void *) &sockopt, sizeof(int)) < 0)
         {
-            sockopt = 1;
-            if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (void *) &sockopt, sizeof(int)) < 0)
-            {
-                swSysError("setsockopt(SO_KEEPALIVE) failed.");
-            }
+            swSysError("setsockopt(SO_KEEPALIVE) failed.");
+        }
 #ifdef TCP_KEEPIDLE
-            setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, (void*) &serv->tcp_keepidle, sizeof(int));
-            setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, (void *) &serv->tcp_keepinterval, sizeof(int));
-            setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, (void *) &serv->tcp_keepcount, sizeof(int));
+        setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, (void*) &serv->tcp_keepidle, sizeof(int));
+        setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, (void *) &serv->tcp_keepinterval, sizeof(int));
+        setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, (void *) &serv->tcp_keepcount, sizeof(int));
 #endif
-        }
-#endif
-
-        ls->sock = sock;
-        //save server socket to connection_list
-        serv->connection_list[sock].fd = sock;
-
-        //IPv4
-        if (ls->type == SW_SOCK_TCP)
-        {
-            serv->connection_list[sock].info.addr.inet_v4.sin_port = htons(ls->port);
-        }
-        //IPv6
-        else
-        {
-            serv->connection_list[sock].info.addr.inet_v6.sin6_port = htons(ls->port);
-        }
-        //socket type
-        serv->connection_list[sock].socket_type = ls->type;
-        //save listen_host object
-        serv->connection_list[sock].object = ls;
     }
+#endif
 
-    //将最后一个fd作为minfd和maxfd
+    ls->sock = sock;
+    //save server socket to connection_list
+    serv->connection_list[sock].fd = sock;
+
+    //IPv4
+    if (ls->type == SW_SOCK_TCP)
+    {
+        serv->connection_list[sock].info.addr.inet_v4.sin_port = htons(ls->port);
+    }
+    //IPv6
+    else
+    {
+        serv->connection_list[sock].info.addr.inet_v6.sin6_port = htons(ls->port);
+    }
+    //socket type
+    serv->connection_list[sock].socket_type = ls->type;
+    //save listen_host object
+    serv->connection_list[sock].object = ls;
+
     if (sock >= 0)
     {
         swServer_set_minfd(serv, sock);

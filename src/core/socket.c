@@ -253,10 +253,23 @@ int swSocket_listen(int type, char *host, int port, int backlog)
         swWarn("create socket failed. Error: %s[%d]", strerror(errno), errno);
         return SW_ERR;
     }
-    //reuse
+    //reuse address
     option = 1;
-    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int));
-
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0)
+    {
+        swSysError("setsockopt(SO_REUSEPORT) failed.");
+    }
+    //reuse port
+#ifdef HAVE_REUSEPORT
+    if (SwooleG.reuse_port)
+    {
+        if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) < 0)
+        {
+            swSysError("setsockopt(SO_REUSEPORT) failed.");
+            SwooleG.reuse_port = 0;
+        }
+    }
+#endif
     //unix socket
     if (type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM)
     {

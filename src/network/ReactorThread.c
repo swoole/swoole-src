@@ -1663,11 +1663,15 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
     //listen TCP
     if (serv->have_tcp_sock == 1)
     {
-        //listen server socket
-        ret = swServer_listen(serv, main_reactor_ptr);
-        if (ret < 0)
+        swListenPort *ls;
+        LL_FOREACH(serv->listen_list, ls)
         {
-            return SW_ERR;
+            ret = swServer_listen(serv, ls);
+            if (ret < 0)
+            {
+                return SW_ERR;
+            }
+            main_reactor_ptr->add(main_reactor_ptr, ls->sock, SW_FD_LISTEN);
         }
 
 #ifdef HAVE_PTHREAD_BARRIER
@@ -1852,7 +1856,7 @@ static int swUDPThread_start(swServer *serv)
 {
     swThreadParam *param;
     pthread_t thread_id;
-    swListenList_node *ls;
+    swListenPort *ls;
 
     void * (*thread_loop)(void *);
 
@@ -2185,7 +2189,7 @@ void swReactorThread_free(swServer *serv)
 
     if (serv->have_udp_sock == 1)
     {
-        swListenList_node *ls;
+        swListenPort *ls;
         LL_FOREACH(serv->listen_list, ls)
         {
             if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)

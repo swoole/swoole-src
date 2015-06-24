@@ -41,6 +41,16 @@ void swoole_init(void)
     SwooleG.pagesize = getpagesize();
     SwooleG.pid = getpid();
 
+    //get system uname
+    uname(&SwooleG.uname);
+
+#ifdef HAVE_REUSEPORT
+    if (swoole_version_compare(SwooleG.uname.release, "3.9.0") >= 0)
+    {
+        SwooleG.reuse_port = 1;
+    }
+#endif
+
     //random seed
     srandom(time(NULL));
 
@@ -340,6 +350,52 @@ void swoole_update_time(void)
     {
         SwooleGS->now = now;
     }
+}
+
+int swoole_version_compare(char *version1, char *version2)
+{
+    int result = 0;
+
+    while (result == 0)
+    {
+        char* tail1;
+        char* tail2;
+
+        unsigned long ver1 = strtoul(version1, &tail1, 10);
+        unsigned long ver2 = strtoul(version2, &tail2, 10);
+
+        if (ver1 < ver2)
+        {
+            result = -1;
+        }
+        else if (ver1 > ver2)
+        {
+            result = +1;
+        }
+        else
+        {
+            version1 = tail1;
+            version2 = tail2;
+            if (*version1 == '\0' && *version2 == '\0')
+            {
+                break;
+            }
+            else if (*version1 == '\0')
+            {
+                result = -1;
+            }
+            else if (*version2 == '\0')
+            {
+                result = +1;
+            }
+            else
+            {
+                version1++;
+                version2++;
+            }
+        }
+    }
+    return result;
 }
 
 uint64_t swoole_ntoh64(uint64_t n64)

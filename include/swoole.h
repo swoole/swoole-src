@@ -53,6 +53,7 @@ extern "C" {
 #include <sys/wait.h>
 #include <sys/un.h>
 #include <sys/types.h>
+#include <sys/utsname.h>
 
 #ifdef __MACH__
 #include <mach/clock.h>
@@ -285,7 +286,7 @@ enum swTraceType
     SW_TRACE_REACTOR = 8,
 };
 
-enum
+enum swReturnType
 {
 	SW_CONTINUE = 1,
 	SW_WAIT,
@@ -306,7 +307,6 @@ snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str,__func__,##__VA_ARGS__);\
 swLog_put(SW_LOG_TRACE, sw_error);\
 SwooleGS->lock.unlock(&SwooleGS->lock);}
 #endif
-
 
 #define swYield()              sched_yield() //or usleep(1)
 //#define swYield()              usleep(500000)
@@ -457,13 +457,11 @@ typedef struct _swConnection
      */
     uint8_t websocket_status;
 
-    sw_atomic_t lock;
-
 #ifdef SW_USE_OPENSSL
     SSL *ssl;
     uint32_t ssl_state;
 #endif
-
+    sw_atomic_t lock;
 } swConnection;
 
 //------------------------------String--------------------------------
@@ -943,6 +941,7 @@ int swoole_tmpfile(char *filename);
 swString* swoole_file_get_contents(char *filename);
 void swoole_open_remote_debug(void);
 char *swoole_dec2hex(int value, int base);
+int swoole_version_compare(char *version1, char *version2);
 
 void swoole_ioctl_set_block(int sock, int nonblock);
 void swoole_fcntl_set_block(int sock, int nonblock);
@@ -1513,6 +1512,7 @@ typedef struct
     uint8_t running :1;
     uint8_t use_timerfd :1;
     uint8_t use_signalfd :1;
+    uint8_t reuse_port :1;
 
     /**
      * Timer used pipe
@@ -1554,6 +1554,7 @@ typedef struct
 
     uint32_t pagesize;
     uint32_t max_sockets;
+    struct utsname uname;
 
     /**
      * Unix socket default buffer size

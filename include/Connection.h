@@ -65,7 +65,7 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
         return recv(conn->fd, __buf, __n, __flags);
     }
 #else
-	return recv(conn->fd, __buf, __n, __flags);
+    return recv(conn->fd, __buf, __n, __flags);
 #endif
 }
 
