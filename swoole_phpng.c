@@ -107,7 +107,6 @@ inline int sw_zend_hash_get_current_key(HashTable *ht, char **key, uint32_t *key
     int type = zend_hash_get_current_key(ht, &_key_ptr, (zend_ulong*) num);
     *key = _key_ptr->val;
     *keylen = _key_ptr->len;
-    printf("k=%s, klen=%d, num=%d\n", *key, *keylen, num);
     return type;
 }
 

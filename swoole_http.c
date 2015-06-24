@@ -1581,7 +1581,6 @@ static void http_build_header(swoole_http_client *client, zval *object, swString
         zval *value = NULL;
         char *key = NULL;
         uint32_t keylen = 0;
-        ulong idx = 0;
         int type;
 
         SW_HASHTABLE_FOREACH_START2(ht, key, keylen, type, value)

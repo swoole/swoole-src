@@ -111,7 +111,8 @@ inline int sw_add_assoc_stringl_ex(zval *arg, const char *key, size_t key_len, c
 
 #define SW_HASHTABLE_FOREACH_START(ht, _val) ZEND_HASH_FOREACH_VAL(ht, _val);  {
 #define SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, _val) zend_string *_foreach_key;\
-    ZEND_HASH_FOREACH_STR_KEY_VAL(ht, _foreach_key, _val); k = _foreach_key->val, klen=_foreach_key->len; {
+    ZEND_HASH_FOREACH_STR_KEY_VAL(ht, _foreach_key, _val);\
+    k = _foreach_key->val, klen=_foreach_key->len; ktype = 1; {
 
 #define SW_HASHTABLE_FOREACH_END()                 } ZEND_HASH_FOREACH_END();
 

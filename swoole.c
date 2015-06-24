@@ -726,17 +726,19 @@ PHP_FUNCTION(swoole_get_mysqli_sock)
 {
     MY_MYSQL *mysql;
     zval *mysql_link;
+    php_stream *stream;
     int sock;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &mysql_link) == FAILURE)
     {
         return;
     }
+
+#if PHP_MAJOR_VERSION > 5
+    MYSQLI_FETCH_RESOURCE_CONN(mysql, mysql_link, MYSQLI_STATUS_VALID);
+    stream = mysql->mysql->data->net->data->m.get_stream(mysql->mysql->data->net TSRMLS_CC);
+#elif PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION > 4
     MYSQLI_FETCH_RESOURCE_CONN(mysql, &mysql_link, MYSQLI_STATUS_VALID);
-
-    php_stream *stream;
-
-#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION > 4
     stream = mysql->mysql->data->net->data->m.get_stream(mysql->mysql->data->net TSRMLS_CC);
 #else
     stream = mysql->mysql->data->net->stream;

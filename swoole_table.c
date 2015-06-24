@@ -269,7 +269,6 @@ static PHP_METHOD(swoole_table, set)
     zval *v;
     char *k;
     uint32_t klen;
-    ulong idx = 0;
     int ktype;
     HashTable *_ht = Z_ARRVAL_P(array);
 

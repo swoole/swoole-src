@@ -1938,7 +1938,7 @@ static int swReactorThread_send_string_buffer(swConnection *conn, char *data, ui
     task.data.info.fd = conn->fd;
     task.data.info.from_id = conn->from_id;
 
-    swTrace("send string package, size=%ldbytes.", buffer->length);
+    swTrace("send string package, size=%ld bytes.", length);
 
 #ifdef SW_USE_RINGBUFFER
     swServer *serv = SwooleG.serv;
