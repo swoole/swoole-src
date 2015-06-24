@@ -827,7 +827,7 @@ uint64_t swoole_hash_key(char *str, int str_len);
 uint32_t swoole_common_multiple(uint32_t u, uint32_t v);
 uint32_t swoole_common_divisor(uint32_t u, uint32_t v);
 
-static sw_inline uint32_t swoole_unpack(char type, void *data)
+static sw_inline int32_t swoole_unpack(char type, void *data)
 {
     int64_t tmp;
 
@@ -1033,7 +1033,6 @@ struct swReactor_s
     uint32_t max_event_num;
 
     uint32_t check_timer :1;
-
     uint32_t running :1;
 
     /**

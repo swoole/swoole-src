@@ -88,7 +88,7 @@ static long swEventTimer_add(swTimer *timer, int _msec, int interval, void *data
 
     swTimer_node_insert(&timer->root, node);
     node->id = timer->_next_id++;
-
+    timer->num ++;
     return node->id;
 }
 
@@ -100,6 +100,7 @@ static void* swEventTimer_del(swTimer *timer, int _msec, int id)
         del->remove = 1;
         void *data = del->data;
         del->data = NULL;
+        timer->num--;
         return data;
     }
     else
@@ -159,6 +160,7 @@ static int swEventTimer_select(swTimer *timer)
             if (free_node)
             {
                 sw_free(free_node);
+                timer->num--;
             }
         }
     }

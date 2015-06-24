@@ -65,10 +65,10 @@ long php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tick TSRML
     php_swoole_check_reactor();
     php_swoole_check_timer(ms);
 
-   sw_zval_add_ref(&cb->callback);
+    sw_zval_add_ref(&cb->callback);
     if (cb->data)
     {
-       sw_zval_add_ref(&cb->data);
+        sw_zval_add_ref(&cb->data);
     }
 
     return SwooleG.timer.add(&SwooleG.timer, ms, is_tick, cb);

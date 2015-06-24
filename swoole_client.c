@@ -162,13 +162,8 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
             php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_client->close[4]: onClose handler error");
             return SW_ERR;
         }
-
-        if (SwooleG.main_reactor->event_num == 0 && SwooleWG.in_client == 1)
-        {
-            SwooleG.main_reactor->running = 0;
-        }
-
         cli->close(cli);
+
         //free the callback return value
         if (retval != NULL)
         {

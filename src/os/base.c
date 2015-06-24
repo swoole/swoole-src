@@ -17,7 +17,7 @@
 #include "swoole.h"
 #include "async.h"
 
-swAIO SwooleAIO;
+swAsyncIO SwooleAIO;
 swPipe swoole_aio_pipe;
 
 static void swAioBase_destroy();

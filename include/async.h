@@ -62,10 +62,10 @@ typedef struct
     void (*callback)(swAio_event *aio_event);
     int (*read)(int fd, void *outbuf, size_t size, off_t offset);
     int (*write)(int fd, void *inbuf, size_t size, off_t offset);
-} swAIO;
+} swAsyncIO;
 
+extern swAsyncIO SwooleAIO;
 extern swPipe swoole_aio_pipe;
-extern swAIO SwooleAIO;
 
 void swAio_callback_test(swAio_event *aio_event);
 int swAio_init(void);
