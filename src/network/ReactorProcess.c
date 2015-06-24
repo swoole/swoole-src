@@ -249,11 +249,15 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         fdtype = (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM) ?
                         SW_FD_UDP : SW_FD_LISTEN;
 
-        if (swServer_listen(serv, ls) < 0)
+#ifdef HAVE_REUSEPORT
+        if (SwooleG.reuse_port)
         {
-            return SW_ERR;
+            if (swServer_listen(serv, ls) < 0)
+            {
+                return SW_ERR;
+            }
         }
-
+#endif
         serv->connection_list[ls->sock].fd = ls->sock;
         serv->connection_list[ls->sock].socket_type = ls->type;
         serv->connection_list[ls->sock].fdtype = fdtype;
