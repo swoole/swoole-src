@@ -21,6 +21,7 @@
 typedef zend_rsrc_list_entry zend_resource;
 #define SW_RETURN_STRING                      RETURN_STRING
 #define SW_Z_ARRVAL_P                         Z_ARRVAL_P
+#define IS_TRUE                               1
 #define sw_add_assoc_string                   add_assoc_string
 inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v);
 #define sw_zend_hash_del                      zend_hash_del
