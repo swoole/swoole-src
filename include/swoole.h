@@ -276,22 +276,22 @@ write(SwooleG.debug_fd, sw_error, __debug_log_n);
 
 enum swTraceType
 {
-    SW_TRACE_SERVER = 1,
-    SW_TRACE_CLIENT = 2,
-    SW_TRACE_BUFFER = 3,
-    SW_TRACE_CONN = 4,
-    SW_TRACE_EVENT = 5,
-    SW_TRACE_WORKER = 6,
-    SW_TRACE_MEMORY = 7,
+    SW_TRACE_SERVER  = 1,
+    SW_TRACE_CLIENT  = 2,
+    SW_TRACE_BUFFER  = 3,
+    SW_TRACE_CONN    = 4,
+    SW_TRACE_EVENT   = 5,
+    SW_TRACE_WORKER  = 6,
+    SW_TRACE_MEMORY  = 7,
     SW_TRACE_REACTOR = 8,
 };
 
 enum swReturnType
 {
 	SW_CONTINUE = 1,
-	SW_WAIT,
-	SW_CLOSE,
-	SW_ERROR,
+	SW_WAIT     = 2,
+	SW_CLOSE    = 3,
+	SW_ERROR    = 4,
 };
 
 #if SW_LOG_TRACE_OPEN == 1
