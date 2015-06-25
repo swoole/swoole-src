@@ -63,8 +63,8 @@ static int php_swoole_event_onRead(swReactor *reactor, swEvent *event)
 
     if (sw_call_user_function_ex(EG(function_table), NULL, fd->cb_read, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event: onRead handler error");
-        sleep(1);
+        swoole_php_fatal_error(E_WARNING, "swoole_event: onRead handler error.");
+        SwooleG.main_reactor->del(SwooleG.main_reactor, event->fd);
         return SW_ERR;
     }
     if (retval != NULL)
@@ -94,9 +94,9 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
     if (sw_call_user_function_ex(EG(function_table), NULL, fd->cb_write, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_event: onWrite handler error");
+        SwooleG.main_reactor->del(SwooleG.main_reactor, event->fd);
         return SW_ERR;
     }
-
     if (retval != NULL)
     {
         sw_zval_ptr_dtor(&retval);
