@@ -164,7 +164,7 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
             sw_zval_ptr_dtor(&retval);
         }
     }
-    client_free(zobject, cli);
+    sw_zval_ptr_dtor(&zobject);
     return SW_OK;
 }
 
@@ -204,7 +204,6 @@ static void client_free(zval *object, swClient *cli)
             efree(cli);
         }
     }
-    sw_zval_ptr_dtor(&object);
 }
 
 static int client_onRead_check_eof(swReactor *reactor, swEvent *event)
