@@ -1253,7 +1253,8 @@ PHP_FUNCTION(swoole_server_set)
     //daemonize
     if (sw_zend_hash_find(vht, ZEND_STRS("daemonize"), (void **) &v) == SUCCESS)
     {
-        serv->daemonize = (int) Z_BVAL_P(v);
+        convert_to_boolean(v);
+        serv->daemonize = Z_BVAL_P(v);
     }
     //backlog
     if (sw_zend_hash_find(vht, ZEND_STRS("backlog"), (void **) &v) == SUCCESS)
@@ -1282,7 +1283,7 @@ PHP_FUNCTION(swoole_server_set)
     //task_worker_max
     if (sw_zend_hash_find(vht, ZEND_STRS("discard_timeout_request"), (void **) &v) == SUCCESS)
     {
-        convert_to_long(v);
+        convert_to_boolean(v);
         serv->discard_timeout_request = Z_BVAL_P(v);
     }
     //task_worker_num
