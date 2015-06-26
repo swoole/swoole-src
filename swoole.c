@@ -28,8 +28,6 @@
 #include <ext/spl/spl_iterators.h>
 #endif
 
-HashTable php_sw_aio_callback;
-
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
 
 extern sapi_module_struct sapi_module;
@@ -708,8 +706,6 @@ PHP_MINFO_FUNCTION(swoole)
 
 PHP_RINIT_FUNCTION(swoole)
 {
-    //swoole_aio
-    zend_hash_init(&php_sw_aio_callback, 16, NULL, NULL, 0);
     //running
     SwooleG.running = 1;
 
@@ -737,8 +733,6 @@ PHP_RINIT_FUNCTION(swoole)
 
 PHP_RSHUTDOWN_FUNCTION(swoole)
 {
-    zend_hash_destroy(&php_sw_aio_callback);
-
     int i;
     for (i = 0; i < PHP_SERVER_CALLBACK_NUM; i++)
     {
