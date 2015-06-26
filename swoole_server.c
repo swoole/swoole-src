@@ -2108,7 +2108,7 @@ PHP_METHOD(swoole_server, sendto)
 
     if (ipv6 == 0 && serv->udp_socket_ipv4 <= 0)
     {
-    	php_error_docref(NULL TSRMLS_CC, E_WARNING, "You must add an UDP listener to server before using sendto.");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "You must add an UDP listener to server before using sendto.");
         RETURN_FALSE;
     }
     else if (ipv6 == 1 && serv->udp_socket_ipv6 <= 0)
@@ -2599,8 +2599,8 @@ PHP_FUNCTION(swoole_server_task)
     swEventData buf;
 
     zval **data;
-	smart_str serialized_data = {0};
-	php_serialize_data_t var_hash;
+    smart_str serialized_data = {0};
+    php_serialize_data_t var_hash;
 
     long worker_id = -1;
 

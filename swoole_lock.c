@@ -57,113 +57,113 @@ void swoole_lock_init(int module_number TSRMLS_DC)
 
 PHP_METHOD(swoole_lock, __construct)
 {
-	long type = SW_MUTEX;
-	char *filelock;
-	zend_size_t filelock_len = 0;
-	int ret;
+    long type = SW_MUTEX;
+    char *filelock;
+    zend_size_t filelock_len = 0;
+    int ret;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ls", &type, &filelock, &filelock_len) == FAILURE)
-	{
-		RETURN_FALSE;
-	}
-	swLock *lock = emalloc(sizeof(swLock));
-	if (lock == NULL)
-	{
-	    php_error_docref(NULL TSRMLS_CC, E_WARNING, "alloc failed.");
-		RETURN_FALSE;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ls", &type, &filelock, &filelock_len) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+    swLock *lock = emalloc(sizeof(swLock));
+    if (lock == NULL)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "alloc failed.");
+        RETURN_FALSE;
+    }
 
-	switch(type)
-	{
+    switch(type)
+    {
 #ifdef HAVE_RWLOCK
-	case SW_RWLOCK:
-		ret = swRWLock_create(lock, 1);
-		break;
+    case SW_RWLOCK:
+        ret = swRWLock_create(lock, 1);
+        break;
 #endif
-	case SW_FILELOCK:
-		if (filelock_len <= 0)
-		{
-		    php_error_docref(NULL TSRMLS_CC, E_ERROR, "filelock require lock file name.");
-			RETURN_FALSE;
-		}
-		int fd;
-		if ((fd = open(filelock, O_RDWR | O_CREAT, 0666)) < 0)
-		{
-		    php_error_docref(NULL TSRMLS_CC, E_WARNING, "open file[%s] failed. Error: %s [%d]", filelock, strerror(errno), errno);
-			RETURN_FALSE;
-		}
-		ret = swFileLock_create(lock, fd);
-		break;
-	case SW_SEM:
-		ret = swSem_create(lock, IPC_PRIVATE);
-		break;
+    case SW_FILELOCK:
+        if (filelock_len <= 0)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_ERROR, "filelock require lock file name.");
+            RETURN_FALSE;
+        }
+        int fd;
+        if ((fd = open(filelock, O_RDWR | O_CREAT, 0666)) < 0)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "open file[%s] failed. Error: %s [%d]", filelock, strerror(errno), errno);
+            RETURN_FALSE;
+        }
+        ret = swFileLock_create(lock, fd);
+        break;
+    case SW_SEM:
+        ret = swSem_create(lock, IPC_PRIVATE);
+        break;
 #ifdef HAVE_SPINLOCK
-	case SW_SPINLOCK:
-		ret = swSpinLock_create(lock, 1);
-		break;
+    case SW_SPINLOCK:
+        ret = swSpinLock_create(lock, 1);
+        break;
 #endif
-	case SW_MUTEX:
-	default:
-		ret = swMutex_create(lock, 1);
-		break;
-	}
-	if (ret < 0)
-	{
-	    php_error_docref(NULL TSRMLS_CC, E_WARNING, "create lock failed");
-		RETURN_FALSE;
-	}
-	swoole_set_object(getThis(), lock);
-	RETURN_TRUE;
+    case SW_MUTEX:
+    default:
+        ret = swMutex_create(lock, 1);
+        break;
+    }
+    if (ret < 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "create lock failed");
+        RETURN_FALSE;
+    }
+    swoole_set_object(getThis(), lock);
+    RETURN_TRUE;
 }
 
 PHP_METHOD(swoole_lock, __destruct)
 {
-	swLock *lock = swoole_get_object(getThis());
-	lock->free(lock);
-	efree(lock);
+    swLock *lock = swoole_get_object(getThis());
+    lock->free(lock);
+    efree(lock);
 }
 
 PHP_METHOD(swoole_lock, lock)
 {
-	swLock *lock = swoole_get_object(getThis());
-	SW_LOCK_CHECK_RETURN(lock->lock(lock));
+    swLock *lock = swoole_get_object(getThis());
+    SW_LOCK_CHECK_RETURN(lock->lock(lock));
 }
 
 PHP_METHOD(swoole_lock, unlock)
 {
-	swLock *lock = swoole_get_object(getThis());
-	SW_LOCK_CHECK_RETURN(lock->unlock(lock));
+    swLock *lock = swoole_get_object(getThis());
+    SW_LOCK_CHECK_RETURN(lock->unlock(lock));
 }
 
 PHP_METHOD(swoole_lock, trylock)
 {
-	swLock *lock = swoole_get_object(getThis());
-	if (lock->trylock == NULL)
-	{
-	    php_error_docref(NULL TSRMLS_CC, E_WARNING, "lock[type=%d] can not trylock", lock->type);
-		RETURN_FALSE;
-	}
-	SW_LOCK_CHECK_RETURN(lock->trylock(lock));
+    swLock *lock = swoole_get_object(getThis());
+    if (lock->trylock == NULL)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "lock[type=%d] can not trylock", lock->type);
+        RETURN_FALSE;
+    }
+    SW_LOCK_CHECK_RETURN(lock->trylock(lock));
 }
 
 PHP_METHOD(swoole_lock, trylock_read)
 {
     swLock *lock = swoole_get_object(getThis());
     if (lock->trylock_rd == NULL)
-	{
-	    php_error_docref(NULL TSRMLS_CC, E_WARNING, "lock[type=%d] can not trylock_read", lock->type);
-		RETURN_FALSE;
-	}
-	SW_LOCK_CHECK_RETURN(lock->trylock(lock));
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "lock[type=%d] can not trylock_read", lock->type);
+        RETURN_FALSE;
+    }
+    SW_LOCK_CHECK_RETURN(lock->trylock(lock));
 }
 
 PHP_METHOD(swoole_lock, lock_read)
 {
     swLock *lock = swoole_get_object(getThis());
-	if (lock->lock_rd == NULL)
-	{
-	    php_error_docref(NULL TSRMLS_CC, E_WARNING, "lock[type=%d] can not lock_read", lock->type);
-		RETURN_FALSE;
-	}
-	SW_LOCK_CHECK_RETURN(lock->trylock(lock));
+    if (lock->lock_rd == NULL)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "lock[type=%d] can not lock_read", lock->type);
+        RETURN_FALSE;
+    }
+    SW_LOCK_CHECK_RETURN(lock->trylock(lock));
 }

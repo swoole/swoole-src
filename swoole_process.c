@@ -115,9 +115,9 @@ void swoole_process_init(int module_number TSRMLS_DC)
 
 static PHP_METHOD(swoole_process, __construct)
 {
-	zend_bool redirect_stdin_and_stdout = 0;
-	zend_bool create_pipe = 1;
-	zval *callback;
+    zend_bool redirect_stdin_and_stdout = 0;
+    zend_bool create_pipe = 1;
+    zval *callback;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|bb", &callback, &redirect_stdin_and_stdout, &create_pipe) == FAILURE)
     {
@@ -133,8 +133,8 @@ static PHP_METHOD(swoole_process, __construct)
     }
     efree(func_name);
 
-	swWorker *process = emalloc(sizeof(swWorker));
-	bzero(process, sizeof(swWorker));
+    swWorker *process = emalloc(sizeof(swWorker));
+    bzero(process, sizeof(swWorker));
 
     process->id = php_swoole_worker_round_id++;
 
@@ -166,7 +166,7 @@ static PHP_METHOD(swoole_process, __construct)
     }
 
     swoole_set_object(getThis(), process);
-	zend_update_property(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("callback"), callback TSRMLS_CC);
+    zend_update_property(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("callback"), callback TSRMLS_CC);
 }
 
 static PHP_METHOD(swoole_process, __destruct)
@@ -189,8 +189,8 @@ static PHP_METHOD(swoole_process, __destruct)
 
 static PHP_METHOD(swoole_process, wait)
 {
-	int status;
-	zend_bool blocking = 1;
+    int status;
+    zend_bool blocking = 1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b", &blocking) == FAILURE)
     {
@@ -203,7 +203,7 @@ static PHP_METHOD(swoole_process, wait)
         options |= WNOHANG;
     }
 
-	pid_t pid = swWaitpid(-1, &status, options);
+    pid_t pid = swWaitpid(-1, &status, options);
     if (pid > 0)
     {
         array_init(return_value);
@@ -214,10 +214,10 @@ static PHP_METHOD(swoole_process, wait)
             add_assoc_long(return_value, "signal", WTERMSIG(status));
         }
     }
-	else
-	{
-		RETURN_FALSE;
-	}
+    else
+    {
+        RETURN_FALSE;
+    }
 }
 
 static PHP_METHOD(swoole_process, useQueue)
@@ -253,21 +253,21 @@ static PHP_METHOD(swoole_process, useQueue)
 
 static PHP_METHOD(swoole_process, kill)
 {
-	long pid;
-	long sig = SIGTERM;
+    long pid;
+    long sig = SIGTERM;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|l", &pid, &sig) == FAILURE)
-	{
-		RETURN_FALSE;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|l", &pid, &sig) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
 
-	int ret = kill((int) pid, (int) sig);
-	if (ret < 0)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "kill(%d, %d) failed. Error: %s[%d]", (int) pid, (int) sig, strerror(errno), errno);
-		RETURN_FALSE;
-	}
-	RETURN_TRUE;
+    int ret = kill((int) pid, (int) sig);
+    if (ret < 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "kill(%d, %d) failed. Error: %s[%d]", (int) pid, (int) sig, strerror(errno), errno);
+        RETURN_FALSE;
+    }
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_process, signal)
@@ -470,66 +470,66 @@ static PHP_METHOD(swoole_process, start)
 
 static PHP_METHOD(swoole_process, read)
 {
-	long buf_size = 8192;
+    long buf_size = 8192;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &buf_size) == FAILURE)
-	{
-		RETURN_FALSE;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &buf_size) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
 
-	if (buf_size > 65536)
-	{
-		buf_size = 65536;
-	}
+    if (buf_size > 65536)
+    {
+        buf_size = 65536;
+    }
 
-	swWorker *process = swoole_get_object(getThis());
+    swWorker *process = swoole_get_object(getThis());
 
-	if (process->pipe == 0)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "have not pipe, can not use write()");
-		RETURN_FALSE;
-	}
+    if (process->pipe == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "have not pipe, can not use write()");
+        RETURN_FALSE;
+    }
 
-	char *buf = emalloc(buf_size);
-	int ret;
+    char *buf = emalloc(buf_size);
+    int ret;
 
-	do
-	{
-		ret = read(process->pipe, buf, buf_size - 1);
-	}
-	while(errno < 0 && errno == EINTR);
+    do
+    {
+        ret = read(process->pipe, buf, buf_size - 1);
+    }
+    while(errno < 0 && errno == EINTR);
 
-	if (ret < 0)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "failed. Error: %s[%d]", strerror(errno), errno);
-		RETURN_FALSE;
-	}
-	buf[ret] = 0;
-	SW_ZVAL_STRINGL(return_value, buf, ret, 0);
+    if (ret < 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "failed. Error: %s[%d]", strerror(errno), errno);
+        RETURN_FALSE;
+    }
+    buf[ret] = 0;
+    SW_ZVAL_STRINGL(return_value, buf, ret, 0);
 }
 
 static PHP_METHOD(swoole_process, write)
 {
-	char *data = NULL;
-	zend_size_t data_len = 0;
+    char *data = NULL;
+    zend_size_t data_len = 0;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &data, &data_len) == FAILURE)
-	{
-		RETURN_FALSE;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &data, &data_len) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
 
-	if (data_len < 1)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "send data empty.");
-		RETURN_FALSE;
-	}
+    if (data_len < 1)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "send data empty.");
+        RETURN_FALSE;
+    }
 
-	swWorker *process = swoole_get_object(getThis());
-	if (process->pipe == 0)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "have not pipe, can not use read()");
-		RETURN_FALSE;
-	}
+    swWorker *process = swoole_get_object(getThis());
+    if (process->pipe == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "have not pipe, can not use read()");
+        RETURN_FALSE;
+    }
 
     int ret;
 
@@ -543,12 +543,12 @@ static PHP_METHOD(swoole_process, write)
         ret = swSocket_write_blocking(process->pipe, data, data_len);
     }
 
-	if (ret < 0)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "write() failed. Error: %s[%d]", strerror(errno), errno);
-		RETURN_FALSE;
-	}
-	ZVAL_LONG(return_value, ret);
+    if (ret < 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "write() failed. Error: %s[%d]", strerror(errno), errno);
+        RETURN_FALSE;
+    }
+    ZVAL_LONG(return_value, ret);
 }
 
 static PHP_METHOD(swoole_process, push)
@@ -642,20 +642,20 @@ static PHP_METHOD(swoole_process, pop)
 
 static PHP_METHOD(swoole_process, exec)
 {
-	char *execfile = NULL;
-	zend_size_t execfile_len = 0;
-	zval *args;
+    char *execfile = NULL;
+    zend_size_t execfile_len = 0;
+    zval *args;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sa", &execfile, &execfile_len, &args) == FAILURE)
-	{
-		RETURN_FALSE;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sa", &execfile, &execfile_len, &args) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
 
-	if (execfile_len < 1)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "execfile name empty.");
-		RETURN_FALSE;
-	}
+    if (execfile_len < 1)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "execfile name empty.");
+        RETURN_FALSE;
+    }
 
     int exec_argc = php_swoole_array_length(args);
     char **exec_args = emalloc(sizeof(char*) * exec_argc + 1);
@@ -665,35 +665,35 @@ static PHP_METHOD(swoole_process, exec)
     int i = 1;
 //    Bucket *_p;
 //    _p = SW_Z_ARRVAL_P(args)->pListHead;
-//	while(_p != NULL)
-//	{
-//		value = (zval **) _p->pData;
-//		convert_to_string(*value);
+//    while(_p != NULL)
+//    {
+//        value = (zval **) _p->pData;
+//        convert_to_string(*value);
 //
-//		sw_zval_add_ref(value);
-//		exec_args[i] = Z_STRVAL_PP(value);
+//        sw_zval_add_ref(value);
+//        exec_args[i] = Z_STRVAL_PP(value);
 //
-//		_p = _p->pListNext;
-//		i++;
-//	}
+//        _p = _p->pListNext;
+//        i++;
+//    }
      SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(args), value)
                 convert_to_string(value);
 
-		sw_zval_add_ref(&value);
-		exec_args[i] = Z_STRVAL_P(value);
+        sw_zval_add_ref(&value);
+        exec_args[i] = Z_STRVAL_P(value);
                 i++;
      SW_HASHTABLE_FOREACH_END();
-	exec_args[i] = NULL;
+    exec_args[i] = NULL;
 
-	if (execv(execfile, exec_args) < 0)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "execv(%s) failed. Error: %s[%d]", execfile, strerror(errno), errno);
-		RETURN_FALSE;
-	}
-	else
-	{
-		RETURN_TRUE;
-	}
+    if (execv(execfile, exec_args) < 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "execv(%s) failed. Error: %s[%d]", execfile, strerror(errno), errno);
+        RETURN_FALSE;
+    }
+    else
+    {
+        RETURN_TRUE;
+    }
 }
 
 static PHP_METHOD(swoole_process, daemon)
@@ -710,42 +710,42 @@ static PHP_METHOD(swoole_process, daemon)
 
 static PHP_METHOD(swoole_process, exit)
 {
-	long ret_code = 0;
+    long ret_code = 0;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &ret_code) == FAILURE)
-	{
-		RETURN_FALSE;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &ret_code) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
 
-	swWorker *process = swoole_get_object(getThis());
+    swWorker *process = swoole_get_object(getThis());
 
-	if (getpid() != process->pid)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "not current process.");
-		RETURN_FALSE;
-	}
+    if (getpid() != process->pid)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "not current process.");
+        RETURN_FALSE;
+    }
 
-	if (ret_code < 0 || ret_code > 255)
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "exit ret_code range is [>0 and <255] ");
-		ret_code = 1;
-	}
+    if (ret_code < 0 || ret_code > 255)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "exit ret_code range is [>0 and <255] ");
+        ret_code = 1;
+    }
 
-	close(process->pipe);
+    close(process->pipe);
 
-	if (SwooleG.main_reactor != NULL)
-	{
-		SwooleG.running = 0;
-	}
+    if (SwooleG.main_reactor != NULL)
+    {
+        SwooleG.running = 0;
+    }
 
-	if (ret_code == 0)
-	{
-		zend_bailout();
-	}
-	else
-	{
-		exit(ret_code);
-	}
+    if (ret_code == 0)
+    {
+        zend_bailout();
+    }
+    else
+    {
+        exit(ret_code);
+    }
 }
 
 static PHP_METHOD(swoole_process, close)

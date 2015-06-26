@@ -821,13 +821,13 @@ PHP_FUNCTION(swoole_get_mysqli_sock)
 #endif
 
     if (SUCCESS != php_stream_cast(stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL, (void* )&sock, 1)
-    		&& sock >= 0)
+            && sock >= 0)
     {
-    	RETURN_FALSE;
+        RETURN_FALSE;
     }
     else
     {
-    	RETURN_LONG(sock);
+        RETURN_LONG(sock);
     }
 }
 #endif
