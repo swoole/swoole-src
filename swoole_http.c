@@ -1007,6 +1007,10 @@ static int http_onReceive(swServer *serv, swEventData *req)
         http_alloc_zval(client, response, zresponse_object);
         object_init_ex(zresponse_object, swoole_http_response_class_entry_ptr);
 
+#if PHP_MEMORY_DEBUG
+        php_vmstat.new_http_response++;
+#endif
+
         //socket fd
         zend_update_property_long(swoole_http_response_class_entry_ptr, zresponse_object, ZEND_STRL("fd"), client->fd TSRMLS_CC);
 
@@ -1120,6 +1124,10 @@ static int http_request_new(swoole_http_client* client TSRMLS_DC)
     zval *zrequest_object;
     http_alloc_zval(client, request, zrequest_object);
     object_init_ex(zrequest_object, swoole_http_request_class_entry_ptr);
+
+#if PHP_MEMORY_DEBUG
+    php_vmstat.new_http_request ++;
+#endif
 
     zval *zheader;
     http_alloc_zval(client, request, zheader);

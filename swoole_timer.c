@@ -23,6 +23,18 @@ enum swoole_timer_type
     SW_TIMER_TICK, SW_TIMER_AFTER, SW_TIMER_INTERVAL,
 };
 
+typedef struct _swTimer_callback
+{
+    zval* callback;
+    zval* data;
+#if PHP_MAJOR_VERSION >= 7
+    zval _callback;
+    zval _data;
+#endif
+    int interval;
+    int type;
+} swTimer_callback;
+
 static void php_swoole_onTimeout(swTimer *timer, swTimer_node *event);
 static void php_swoole_onTimerInterval(swTimer *timer, swTimer_node *event);
 
@@ -50,8 +62,18 @@ long php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tick TSRML
 
     swTimer_callback *cb = emalloc(sizeof(swTimer_callback));
 
+#if PHP_MAJOR_VERSION >= 7
+    cb->data = &cb->_data;
+    cb->callback = &cb->_callback;
+    memcpy(cb->callback, callback, sizeof(zval));
+    if (param)
+    {
+        memcpy(cb->data, param, sizeof(zval));
+    }
+#else
     cb->data = param;
     cb->callback = callback;
+#endif
 
     if (is_tick)
     {
@@ -205,7 +227,12 @@ PHP_FUNCTION(swoole_timer_add)
     }
 
     swTimer_callback *cb = emalloc(sizeof(swTimer_callback));
+#if PHP_MAJOR_VERSION >= 7
+    cb->callback = &cb->_callback;
+    memcpy(cb->callback, callback, sizeof(zval));
+#else
     cb->callback = callback;
+#endif
     cb->data = NULL;
     cb->type = SW_TIMER_INTERVAL;
     sw_zval_add_ref(&callback);

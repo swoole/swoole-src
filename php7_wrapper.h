@@ -23,7 +23,22 @@ typedef zend_rsrc_list_entry zend_resource;
 #define SW_Z_ARRVAL_P                         Z_ARRVAL_P
 #define IS_TRUE                               1
 #define sw_add_assoc_string                   add_assoc_string
-inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v);
+
+static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
+{
+    zval **tmp = NULL;
+    if (zend_hash_find(ht, k, len, (void **) &tmp) == SUCCESS)
+    {
+        *v = *tmp;
+        return SUCCESS;
+    }
+    else
+    {
+        *v = NULL;
+        return FAILURE;
+    }
+}
+
 #define sw_zend_hash_del                      zend_hash_del
 #define sw_zend_hash_update                   zend_hash_update
 #define sw_zend_hash_index_find               zend_hash_index_find
@@ -55,27 +70,15 @@ inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v);
 #define sw_zend_call_method_with_2_params     zend_call_method_with_2_params
 typedef int zend_size_t;
 
-#define SWOOLE_GET_SERVER(zobject, serv) zval *zserv;\
-    if (sw_zend_hash_find(Z_OBJPROP_P(zobject), ZEND_STRS("_server"), (void **) &zserv) == FAILURE){ \
-    php_error_docref(NULL TSRMLS_CC, E_WARNING, "Not have swoole server");\
-    RETURN_FALSE;}\
-    ZEND_FETCH_RESOURCE(serv, swServer *, &zserv, -1, SW_RES_SERVER_NAME, le_swoole_server);
-
-#define SWOOLE_GET_WORKER(zobject, process) zval *zprocess;\
-    if (sw_zend_hash_find(Z_OBJPROP_P(zobject), ZEND_STRS("_process"), (void **) &zprocess) == FAILURE){ \
-    php_error_docref(NULL TSRMLS_CC, E_WARNING, "Not have process");\
-    RETURN_FALSE;}\
-    ZEND_FETCH_RESOURCE(process, swWorker *, &zprocess, -1, SW_RES_PROCESS_NAME, le_swoole_process);
-
 #define SW_HASHTABLE_FOREACH_START(ht, entry)\
-                zval **tmp = NULL;\
-                for (zend_hash_internal_pointer_reset(ht);\
-                     zend_hash_has_more_elements(ht) == SUCCESS; \
-                     zend_hash_move_forward(ht)) {\
-                     if (zend_hash_get_current_data(ht, (void**)&tmp) == FAILURE) {\
+    zval **tmp = NULL;\
+    for (zend_hash_internal_pointer_reset(ht);\
+        zend_hash_has_more_elements(ht) == SUCCESS; \
+        zend_hash_move_forward(ht)) {\
+        if (zend_hash_get_current_data(ht, (void**)&tmp) == FAILURE) {\
             continue;\
-                       }\
-                       entry = *tmp;
+        }\
+        entry = *tmp;
 
 #if defined(HASH_KEY_NON_EXISTANT) && !defined(HASH_KEY_NON_EXISTENT)
 #define HASH_KEY_NON_EXISTENT HASH_KEY_NON_EXISTANT
@@ -97,11 +100,11 @@ typedef int zend_size_t;
 #define sw_zend_read_property                  zend_read_property
 #define sw_zend_hash_get_current_key(a,b,c,d)  zend_hash_get_current_key_ex(a,b,c,d,0,NULL)
 
-inline int SW_Z_TYPE_P(zval *z)
+static inline int SW_Z_TYPE_P(zval *z)
 {
-    if(Z_TYPE_P(z)==IS_BOOL)
+    if (Z_TYPE_P(z) == IS_BOOL)
     {
-        if((uint8_t) Z_BVAL_P(z)==1)
+        if ((uint8_t) Z_BVAL_P(z) == 1)
         {
             return IS_TRUE;
         }
@@ -277,19 +280,6 @@ static inline int sw_zend_hash_get_current_key( HashTable *ht, char **key, uint3
 
 static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 {
-#if PHP_MAJOR_VERSION < 7
-    zval **tmp = NULL;
-    if(zend_hash_find(ht, k,len, (void **) &tmp) == SUCCESS)
-    {
-        *v = *tmp;
-        return SUCCESS;
-    }
-    else
-    {
-        *v = NULL;
-        return FAILURE;
-    }
-#else
     zval key;
     ZVAL_STRINGL(&key, k, len - 1);
     zval *value = zend_hash_find(ht, Z_STR(key));
@@ -304,7 +294,6 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
         v = (void *) value;
         return SUCCESS;
     }
-#endif
 }
 
 static inline int sw_zend_hash_exists(HashTable *ht, char *k, int len)

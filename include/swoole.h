@@ -163,7 +163,13 @@ int daemon(int nochdir, int noclose);
 #define SW_DECLINED           -5
 #define SW_ABORT              -6
 //-------------------------------------------------------------------------------
-
+enum swReturnType
+{
+    SW_CONTINUE = 1,
+    SW_WAIT     = 2,
+    SW_CLOSE    = 3,
+    SW_ERROR    = 4,
+};
 //-------------------------------------------------------------------------------
 enum swFd_type
 {
@@ -284,14 +290,6 @@ enum swTraceType
     SW_TRACE_WORKER  = 6,
     SW_TRACE_MEMORY  = 7,
     SW_TRACE_REACTOR = 8,
-};
-
-enum swReturnType
-{
-	SW_CONTINUE = 1,
-	SW_WAIT     = 2,
-	SW_CLOSE    = 3,
-	SW_ERROR    = 4,
 };
 
 #if SW_LOG_TRACE_OPEN == 1

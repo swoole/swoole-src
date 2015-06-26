@@ -48,6 +48,7 @@ typedef struct _swClient
 
 	char *server_str;
 	void *ptr;
+    void *params;
 
 	uint8_t server_strlen;
 	double timeout;

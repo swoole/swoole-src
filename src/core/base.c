@@ -44,7 +44,7 @@ void swoole_init(void)
     //get system uname
     uname(&SwooleG.uname);
 
-#ifdef HAVE_REUSEPORT
+#if defined(HAVE_REUSEPORT) && defined(HAVE_EPOLL)
     if (swoole_version_compare(SwooleG.uname.release, "3.9.0") >= 0)
     {
         SwooleG.reuse_port = 1;

@@ -62,14 +62,6 @@ typedef struct
     uint16_t from_fd;
 } php_swoole_udp_t;
 
-typedef struct _swTimer_callback
-{
-    zval* callback;
-    zval* data;
-    int interval;
-    int type;
-} swTimer_callback;
-
 extern zend_module_entry swoole_module_entry;
 
 #define phpext_swoole_ptr &swoole_module_entry
@@ -82,10 +74,15 @@ extern zend_module_entry swoole_module_entry;
 #	define PHP_SWOOLE_API
 #endif
 
+#define SWOOLE_PROPERTY_MAX     32
+#define SWOOLE_OBJECT_MAX       1000000
+
 typedef struct
 {
     void **array;
     uint32_t size;
+    void **property[SWOOLE_PROPERTY_MAX];
+    uint32_t property_size[SWOOLE_PROPERTY_MAX];
 } swoole_object_array;
 
 #ifdef ZTS
@@ -157,39 +154,6 @@ extern swoole_object_array swoole_objects;
 //---------------------------------------------------------
 #define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP))
 #define php_swoole_array_length(array)      (Z_ARRVAL_P(array)->nNumOfElements)
-static sw_inline void* swoole_get_object(zval *object)
-{
-#if PHP_MAJOR_VERSION < 7
-zend_object_handle handle = Z_OBJ_HANDLE_P(object);
-#else
-int handle = (int)Z_OBJ_HANDLE(*object);
-#endif
-    
-    assert(handle < swoole_objects.size);
-    return  swoole_objects.array[handle];
-}
-
-static sw_inline void swoole_set_object(zval *object, void *ptr)
-{
-#if PHP_MAJOR_VERSION < 7
-    zend_object_handle handle = Z_OBJ_HANDLE_P(object);
-#else
-    int handle = (int) Z_OBJ_HANDLE(*object);
-#endif
-    if (handle >= swoole_objects.size)
-    {
-        uint32_t old_size = swoole_objects.size;
-        swoole_objects.size = old_size * 2;
-        if (swoole_objects.size > SW_MAX_SOCKET_ID)
-        {
-            swoole_objects.size = SW_MAX_SOCKET_ID;
-        }
-        assert(handle < SW_MAX_SOCKET_ID);
-        swoole_objects.array = erealloc(swoole_objects.array, sizeof(void*) * swoole_objects.size);
-        bzero(((void *) swoole_objects.array) + (old_size * sizeof(void*)), (swoole_objects.size - old_size) * sizeof(void*));
-    }
-    swoole_objects.array[handle] = ptr;
-}
 
 #define SW_LONG_CONNECTION_KEY_LEN          64
 
@@ -206,6 +170,21 @@ extern zval *php_sw_callback[PHP_SERVER_CALLBACK_NUM];
 
 extern HashTable php_sw_long_connections;
 extern HashTable php_sw_aio_callback;
+
+#define PHP_MEMORY_DEBUG  1
+
+#if PHP_MEMORY_DEBUG
+typedef struct
+{
+    int new_client;
+    int free_client;
+    int new_http_response;
+    int new_http_request;
+    int free_http_response;
+    int free_http_request;
+} php_vmstat_t;
+extern php_vmstat_t php_vmstat;
+#endif
 
 PHP_MINIT_FUNCTION(swoole);
 PHP_MSHUTDOWN_FUNCTION(swoole);
@@ -303,6 +282,34 @@ void php_swoole_event_init();
 void php_swoole_check_timer(int interval);
 void php_swoole_register_callback(swServer *serv);
 long php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tick TSRMLS_DC);
+
+static sw_inline void* swoole_get_object(zval *object)
+{
+#if PHP_MAJOR_VERSION < 7
+    zend_object_handle handle = Z_OBJ_HANDLE_P(object);
+#else
+    int handle = (int)Z_OBJ_HANDLE(*object);
+#endif
+    assert(handle < swoole_objects.size);
+    return swoole_objects.array[handle];
+}
+
+static sw_inline void* swoole_get_property(zval *object, int property_id)
+{
+#if PHP_MAJOR_VERSION < 7
+    zend_object_handle handle = Z_OBJ_HANDLE_P(object);
+#else
+    int handle = (int) Z_OBJ_HANDLE(*object);
+#endif
+    if (handle >= swoole_objects.property_size[property_id])
+    {
+        return NULL;
+    }
+    return swoole_objects.property[property_id][handle];
+}
+
+void swoole_set_object(zval *object, void *ptr);
+void swoole_set_property(zval *object, int property_id, void *ptr);
 
 zval *php_swoole_get_recv_data(zval *,swEventData *req TSRMLS_DC);
 int php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC);

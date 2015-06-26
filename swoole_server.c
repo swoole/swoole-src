@@ -205,10 +205,7 @@ void php_swoole_register_callback(swServer *serv)
     {
         serv->onStart = php_swoole_onStart;
     }
-    if (php_sw_callback[SW_SERVER_CB_onShutdown] != NULL)
-    {
-        serv->onShutdown = php_swoole_onShutdown;
-    }
+    serv->onShutdown = php_swoole_onShutdown;
     /**
      * require callback, set the master/manager/worker PID
      */
@@ -847,18 +844,28 @@ static void php_swoole_onShutdown(swServer *serv)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onShutdown], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (php_sw_callback[SW_SERVER_CB_onShutdown] != NULL)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onShutdown handler error");
+        if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onShutdown], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onShutdown handler error");
+        }
+        if (EG(exception))
+        {
+            zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+        }
+        if (retval != NULL)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
     }
-    if (EG(exception))
+#ifdef HAVE_PCRE
+    zval *connection_iterator_object = sw_zend_read_property(swoole_server_class_entry_ptr, zserv, ZEND_STRL("connections"), 0 TSRMLS_CC);
+    if (connection_iterator_object && !ZVAL_IS_NULL(connection_iterator_object))
     {
-        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+        sw_zval_ptr_dtor(&connection_iterator_object);
     }
-    if (retval != NULL)
-    {
-        sw_zval_ptr_dtor(&retval);
-    }
+#endif
 }
 
 static void php_swoole_onWorkerStart(swServer *serv, int worker_id)

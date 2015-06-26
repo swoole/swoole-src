@@ -377,6 +377,10 @@ static const zend_function_entry swoole_connection_iterator_methods[] =
 };
 #endif
 
+#if PHP_MEMORY_DEBUG
+php_vmstat_t php_vmstat;
+#endif
+
 zend_class_entry swoole_server_ce;
 zend_class_entry *swoole_server_class_entry_ptr;
 
@@ -426,6 +430,84 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
     swoole_globals->aio_thread_num = SW_AIO_THREAD_NUM_DEFAULT;
     swoole_globals->socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
     swoole_globals->display_errors = 1;
+}
+
+void swoole_set_object(zval *object, void *ptr)
+{
+#if PHP_MAJOR_VERSION < 7
+    zend_object_handle handle = Z_OBJ_HANDLE_P(object);
+#else
+    int handle = (int) Z_OBJ_HANDLE(*object);
+#endif
+    assert(handle < SWOOLE_OBJECT_MAX);
+    if (handle >= swoole_objects.size)
+    {
+        uint32_t old_size = swoole_objects.size;
+        uint32_t new_size = old_size * 2;
+
+        void *old_ptr = swoole_objects.array;
+        void *new_ptr = NULL;
+
+        if (new_size > SWOOLE_OBJECT_MAX)
+        {
+            new_size = SWOOLE_OBJECT_MAX;
+        }
+        new_ptr = erealloc(old_ptr, sizeof(void*) * new_size);
+        if (!new_ptr)
+        {
+            return;
+        }
+        bzero(new_ptr + (old_size * sizeof(void*)), (new_size - old_size) * sizeof(void*));
+        swoole_objects.array = new_ptr;
+        swoole_objects.size = new_size;
+    }
+    swoole_objects.array[handle] = ptr;
+}
+
+void swoole_set_property(zval *object, int property_id, void *ptr)
+{
+#if PHP_MAJOR_VERSION < 7
+    zend_object_handle handle = Z_OBJ_HANDLE_P(object);
+#else
+    int handle = (int) Z_OBJ_HANDLE(*object);
+#endif
+    assert(handle < SWOOLE_OBJECT_MAX);
+
+    if (handle >= swoole_objects.property_size[property_id])
+    {
+        uint32_t old_size = swoole_objects.property_size[property_id];
+        uint32_t new_size = 0;
+
+        void *old_ptr = NULL;
+        void *new_ptr = NULL;
+
+        if (old_size == 0)
+        {
+            new_size = 65536;
+            new_ptr = ecalloc(new_size, sizeof(void *));
+        }
+        else
+        {
+            new_size = old_size * 2;
+            if (new_size > SWOOLE_OBJECT_MAX)
+            {
+                new_size = SWOOLE_OBJECT_MAX;
+            }
+            old_ptr = swoole_objects.property[property_id];
+            new_ptr = erealloc(old_ptr, new_size * sizeof(void *));
+        }
+        if (new_ptr == NULL)
+        {
+            return;
+        }
+        if (old_size > 0)
+        {
+            bzero(new_ptr + old_size * sizeof(void*), (new_size - old_size) * sizeof(void*));
+        }
+        swoole_objects.property_size[property_id] = new_size;
+        swoole_objects.property[property_id] = new_ptr;
+    }
+    swoole_objects.property[property_id][handle] = ptr;
 }
 
 #ifdef ZTS
