@@ -1259,6 +1259,7 @@ PHP_FUNCTION(swoole_server_set)
     //backlog
     if (sw_zend_hash_find(vht, ZEND_STRS("backlog"), (void **) &v) == SUCCESS)
     {
+        convert_to_long(v);
         serv->backlog = (int) Z_LVAL_P(v);
     }
     //reactor thread num
@@ -1274,6 +1275,7 @@ PHP_FUNCTION(swoole_server_set)
     //worker_num
     if (sw_zend_hash_find(vht, ZEND_STRS("worker_num"), (void **) &v) == SUCCESS)
     {
+        convert_to_long(v);
         serv->worker_num = (int) Z_LVAL_P(v);
         if (serv->worker_num <= 0)
         {
@@ -1298,7 +1300,7 @@ PHP_FUNCTION(swoole_server_set)
         convert_to_long(v);
         SwooleG.task_worker_max = (int) Z_LVAL_P(v);
     }
-
+    //task ipc mode, 1,2,3
     if (sw_zend_hash_find(vht, ZEND_STRS("task_ipc_mode"), (void **) &v) == SUCCESS)
     {
         convert_to_long(v);
@@ -1354,7 +1356,7 @@ PHP_FUNCTION(swoole_server_set)
     {
         int ignore_num = zend_hash_num_elements(Z_ARRVAL_P(v));
         int available_num = SW_CPU_NUM - ignore_num;
-        int *available_cpu = (int *) sw_malloc(sizeof (int) * available_num);
+        int *available_cpu = (int *) sw_malloc(sizeof(int) * available_num);
         int flag, i, available_i = 0;
 
         zval *zval_core = NULL;
@@ -1362,12 +1364,12 @@ PHP_FUNCTION(swoole_server_set)
         {
             flag = 1;
             SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(v), zval_core)
-                    int core = (int) Z_LVAL_P(zval_core);
-            if (i == core)
-            {
-                flag = 0;
-                break;
-            }
+                int core = (int) Z_LVAL_P(zval_core);
+                if (i == core)
+                {
+                    flag = 0;
+                    break;
+                }
             SW_HASHTABLE_FOREACH_END();
             if (flag)
             {
