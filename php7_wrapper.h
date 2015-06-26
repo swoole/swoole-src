@@ -23,22 +23,7 @@ typedef zend_rsrc_list_entry zend_resource;
 #define SW_Z_ARRVAL_P                         Z_ARRVAL_P
 #define IS_TRUE                               1
 #define sw_add_assoc_string                   add_assoc_string
-
-static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
-{
-    zval **tmp = NULL;
-    if (zend_hash_find(ht, k, len, (void **) &tmp) == SUCCESS)
-    {
-        *v = *tmp;
-        return SUCCESS;
-    }
-    else
-    {
-        *v = NULL;
-        return FAILURE;
-    }
-}
-
+#define sw_zend_hash_find                     zend_hash_find
 #define sw_zend_hash_del                      zend_hash_del
 #define sw_zend_hash_update                   zend_hash_update
 #define sw_zend_hash_index_find               zend_hash_index_find

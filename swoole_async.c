@@ -93,7 +93,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 	}
 	else
 	{
-		if (sw_zend_hash_find(&php_sw_aio_callback, (char *)&(event->fd), sizeof(event->fd), (void**) &file_req) != SUCCESS)
+        if (sw_zend_hash_find(&php_sw_aio_callback, (char *) &(event->fd), sizeof(event->fd), (void**) &file_req) != SUCCESS)
 		{
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async: onAsyncComplete callback not found[1]");
 			return;
@@ -186,7 +186,6 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 	//readfile/writefile
 	if (file_req != NULL)
 	{
-		//只操作一次,完成后释放缓存区并关闭文件
 		if (file_req->once == 1)
 		{
 			close_file:

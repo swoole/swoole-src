@@ -432,7 +432,6 @@ static int swClient_udp_send(swClient *cli, char *data, int len)
     n = sendto(cli->socket->fd, data, len, 0, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
     if (n < 0 || n < len)
     {
-
         return SW_ERR;
     }
     else
