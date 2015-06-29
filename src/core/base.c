@@ -114,7 +114,7 @@ void swoole_clean(void)
         }
         if (SwooleG.main_reactor)
         {
-        	SwooleG.main_reactor->free(SwooleG.main_reactor);
+            SwooleG.main_reactor->free(SwooleG.main_reactor);
         }
         bzero(&SwooleG, sizeof(SwooleG));
     }
@@ -610,7 +610,7 @@ int swRead(int fd, void *buf, int len)
     {
         nread = recv(fd, buf + n, len - n, 0);
 
-//		swWarn("Read Len=%d|Errno=%d", nread, errno);
+//        swWarn("Read Len=%d|Errno=%d", nread, errno);
         //遇到错误
         if (nread < 0)
         {

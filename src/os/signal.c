@@ -50,26 +50,26 @@ void swSignal_none(void)
  */
 swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask)
 {
-	if (func == NULL)
-	{
-		func =  SIG_IGN;
-	}
-	struct sigaction act, oact;
-	act.sa_handler = func;
-	if (mask)
-	{
-		sigfillset(&act.sa_mask);
-	}
-	else
-	{
-		sigemptyset(&act.sa_mask);
-	}
-	act.sa_flags = 0;
-	if (sigaction(sig, &act, &oact) < 0)
-	{
-		return NULL;
-	}
-	return oact.sa_handler;
+    if (func == NULL)
+    {
+        func =  SIG_IGN;
+    }
+    struct sigaction act, oact;
+    act.sa_handler = func;
+    if (mask)
+    {
+        sigfillset(&act.sa_mask);
+    }
+    else
+    {
+        sigemptyset(&act.sa_mask);
+    }
+    act.sa_flags = 0;
+    if (sigaction(sig, &act, &oact) < 0)
+    {
+        return NULL;
+    }
+    return oact.sa_handler;
 }
 
 void swSignal_add(int signo, swSignalFunc func)

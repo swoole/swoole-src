@@ -23,7 +23,7 @@ static int swPipeBase_close(swPipe *p);
 
 typedef struct _swPipeBase
 {
-	int pipes[2];
+    int pipes[2];
 } swPipeBase;
 
 int swPipeBase_create(swPipe *p, int blocking)

@@ -22,17 +22,17 @@
  */
 swBuffer* swBuffer_new(int trunk_size)
 {
-	swBuffer *buffer = sw_malloc(sizeof(swBuffer));
-	if (buffer == NULL)
-	{
-		swWarn("malloc for buffer failed. Error: %s[%d]", strerror(errno), errno);
-		return NULL;
-	}
+    swBuffer *buffer = sw_malloc(sizeof(swBuffer));
+    if (buffer == NULL)
+    {
+        swWarn("malloc for buffer failed. Error: %s[%d]", strerror(errno), errno);
+        return NULL;
+    }
 
-	bzero(buffer, sizeof(swBuffer));
-	buffer->trunk_size = trunk_size;
+    bzero(buffer, sizeof(swBuffer));
+    buffer->trunk_size = trunk_size;
 
-	return buffer;
+    return buffer;
 }
 
 /**
@@ -40,43 +40,43 @@ swBuffer* swBuffer_new(int trunk_size)
  */
 swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint32_t size)
 {
-	swBuffer_trunk *chunk = sw_malloc(sizeof(swBuffer_trunk));
-	if (chunk == NULL)
-	{
-		swWarn("malloc for trunk failed. Error: %s[%d]", strerror(errno), errno);
-		return NULL;
-	}
+    swBuffer_trunk *chunk = sw_malloc(sizeof(swBuffer_trunk));
+    if (chunk == NULL)
+    {
+        swWarn("malloc for trunk failed. Error: %s[%d]", strerror(errno), errno);
+        return NULL;
+    }
 
-	bzero(chunk, sizeof(swBuffer_trunk));
+    bzero(chunk, sizeof(swBuffer_trunk));
 
-	//require alloc memory
-	if (type == SW_CHUNK_DATA && size > 0)
-	{
-		void *buf = sw_malloc(size);
-		if (buf == NULL)
-		{
-			swWarn("malloc(%d) for data failed. Error: %s[%d]", size, strerror(errno), errno);
-			sw_free(chunk);
-			return NULL;
-		}
-		chunk->size = size;
-		chunk->store.ptr = buf;
-	}
+    //require alloc memory
+    if (type == SW_CHUNK_DATA && size > 0)
+    {
+        void *buf = sw_malloc(size);
+        if (buf == NULL)
+        {
+            swWarn("malloc(%d) for data failed. Error: %s[%d]", size, strerror(errno), errno);
+            sw_free(chunk);
+            return NULL;
+        }
+        chunk->size = size;
+        chunk->store.ptr = buf;
+    }
 
-	chunk->type = type;
-	buffer->trunk_num ++;
+    chunk->type = type;
+    buffer->trunk_num ++;
 
-	if (buffer->head == NULL)
-	{
-		buffer->tail = buffer->head = chunk;
-	}
-	else
-	{
-		buffer->tail->next = chunk;
-		buffer->tail = chunk;
-	}
+    if (buffer->head == NULL)
+    {
+        buffer->tail = buffer->head = chunk;
+    }
+    else
+    {
+        buffer->tail->next = chunk;
+        buffer->tail = chunk;
+    }
 
-	return chunk;
+    return chunk;
 }
 
 /**

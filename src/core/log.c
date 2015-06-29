@@ -21,21 +21,21 @@
 
 int swLog_init(char *logfile)
 {
-	SwooleG.log_fd = open(logfile, O_APPEND| O_RDWR | O_CREAT, 0666);
-	if (SwooleG.log_fd < 0)
-	{
-		printf("open(%s) failed. Error: %s[%d]", logfile, strerror(errno), errno);
-		return SW_ERR;
-	}
-	return SW_OK;
+    SwooleG.log_fd = open(logfile, O_APPEND| O_RDWR | O_CREAT, 0666);
+    if (SwooleG.log_fd < 0)
+    {
+        printf("open(%s) failed. Error: %s[%d]", logfile, strerror(errno), errno);
+        return SW_ERR;
+    }
+    return SW_OK;
 }
 
 void swLog_free(void)
 {
-	if (SwooleG.log_fd > STDOUT_FILENO)
-	{
-		close(SwooleG.log_fd);
-	}
+    if (SwooleG.log_fd > STDOUT_FILENO)
+    {
+        close(SwooleG.log_fd);
+    }
 }
 
 void swLog_put(int level, char *cnt)

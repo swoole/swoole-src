@@ -90,7 +90,7 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
 
 static int swPipeUnsock_read(swPipe *p, void *data, int length)
 {
-	return read(((swPipeUnsock *) p->object)->socks[0], data, length);
+    return read(((swPipeUnsock *) p->object)->socks[0], data, length);
 }
 
 static int swPipeUnsock_write(swPipe *p, void *data, int length)

@@ -39,26 +39,26 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout)
         return -1;
     }
 
-	flag = EFD_NONBLOCK;
+    flag = EFD_NONBLOCK;
 
-	if (blocking == 1)
-	{
-		if (timeout > 0)
-		{
-			flag = 0;
-			p->timeout = -1;
-		}
-		else
-		{
-			p->timeout = timeout;
-		}
-	}
+    if (blocking == 1)
+    {
+        if (timeout > 0)
+        {
+            flag = 0;
+            p->timeout = -1;
+        }
+        else
+        {
+            p->timeout = timeout;
+        }
+    }
 
 #ifdef EFD_SEMAPHORE
-	if (semaphore == 1)
-	{
-		flag |= EFD_SEMAPHORE;
-	}
+    if (semaphore == 1)
+    {
+        flag |= EFD_SEMAPHORE;
+    }
 #endif
 
     p->blocking = blocking;
@@ -77,7 +77,7 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout)
         p->close = swPipeEventfd_close;
         object->event_fd = efd;
     }
-	return 0;
+    return 0;
 }
 
 static int swPipeEventfd_read(swPipe *p, void *data, int length)
