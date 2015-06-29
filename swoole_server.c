@@ -1282,11 +1282,18 @@ PHP_FUNCTION(swoole_server_set)
             serv->worker_num = SwooleG.cpu_num;
         }
     }
-    //task_worker_max
+    /**
+     * for dispatch_mode = 1/3
+     */
     if (sw_zend_hash_find(vht, ZEND_STRS("discard_timeout_request"), (void **) &v) == SUCCESS)
     {
         convert_to_boolean(v);
         serv->discard_timeout_request = Z_BVAL_P(v);
+    }
+    if (sw_zend_hash_find(vht, ZEND_STRS("enable_unsafe_event"), (void **) &v) == SUCCESS)
+    {
+        convert_to_boolean(v);
+        serv->enable_unsafe_event = Z_BVAL_P(v);
     }
     //task_worker_num
     if (sw_zend_hash_find(vht, ZEND_STRS("task_worker_num"), (void **) &v) == SUCCESS)

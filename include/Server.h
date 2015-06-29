@@ -359,6 +359,8 @@ struct _swServer
      */
     uint32_t http_parse_post :1;
 
+    uint32_t enable_unsafe_event :1;
+
     /**
      * open tcp_defer_accept option
      */
