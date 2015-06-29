@@ -144,6 +144,7 @@ static inline int Z_BVAL_P(zval *v)
 #define sw_add_assoc_stringl(__arg, __key, __str, __length, __duplicate) sw_add_assoc_stringl_ex(__arg, __key, strlen(__key)+1, __str, __length, __duplicate)
 static inline int sw_add_assoc_stringl_ex(zval *arg, const char *key, size_t key_len, char *str, size_t length,int duplicate)
 {
+    key_len--;
     return add_assoc_stringl_ex(arg, key, key_len, str, length);
 }
 
@@ -281,7 +282,7 @@ static inline int sw_zend_hash_get_current_key( HashTable *ht, char **key, uint3
 static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 {
     zval key;
-    ZVAL_STRINGL(&key, k, len - 1);
+    ZVAL_STRINGL(&key, k, len -1);
     zval *value = zend_hash_find(ht, Z_STR(key));
 
     if (value == NULL)
