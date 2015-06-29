@@ -98,7 +98,7 @@ long php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tick TSRML
 
 static void php_swoole_onTimeout(swTimer *timer, swTimer_node *event)
 {
-    swTimer_callback *callback = event->data;
+    swTimer_callback *cb = event->data;
     zval *retval = NULL;
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -107,28 +107,29 @@ static void php_swoole_onTimeout(swTimer *timer, swTimer_node *event)
     zval **args[1];
     int argc = 0;
 
-    if (callback->data)
+    if (cb->data)
     {
-        args[0] = &callback->data;
+        args[0] = &cb->data;
         argc = 1;
     }
-    if (sw_call_user_function_ex(EG(function_table), NULL, callback->callback, &retval, argc, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, cb->callback, &retval, argc, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_timer: onTimeout handler error");
         return;
     }
     if (retval)
     {
-       sw_zval_ptr_dtor(&retval);
+        sw_zval_ptr_dtor(&retval);
     }
-    callback = event->data;
-    if (callback)
+    cb = event->data;
+    if (cb)
     {
-        if (callback->data)
+        if (cb->data)
         {
-           sw_zval_ptr_dtor(&callback->data);
+            sw_zval_ptr_dtor(&cb->data);
         }
-        efree(callback);
+        sw_zval_ptr_dtor(&cb->callback);
+        efree(cb);
     }
 }
 
@@ -354,17 +355,19 @@ PHP_FUNCTION(swoole_timer_clear)
         return;
     }
 
-    swTimer_callback *callback = SwooleG.timer.del(&SwooleG.timer, -1, id);
-    if (!callback)
+    swTimer_callback *cb = SwooleG.timer.del(&SwooleG.timer, -1, id);
+    if (!cb)
     {
         RETURN_FALSE;
     }
-
-    if (callback->data)
+    if (cb->callback)
     {
-        sw_zval_ptr_dtor(&callback->data);
+        sw_zval_ptr_dtor(&cb->callback);
     }
-    efree(callback);
-
+    if (cb->data)
+    {
+        sw_zval_ptr_dtor(&cb->data);
+    }
+    efree(cb);
     RETURN_TRUE;
 }
