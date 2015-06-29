@@ -23,7 +23,22 @@ typedef zend_rsrc_list_entry zend_resource;
 #define SW_Z_ARRVAL_P                         Z_ARRVAL_P
 #define IS_TRUE                               1
 #define sw_add_assoc_string                   add_assoc_string
-#define sw_zend_hash_find                     zend_hash_find
+
+static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
+{
+    zval **tmp = NULL;
+    if (zend_hash_find(ht, k, len, (void **) &tmp) == SUCCESS)
+    {
+        *v = *tmp;
+        return SUCCESS;
+    }
+    else
+    {
+        *v = NULL;
+        return FAILURE;
+    }
+}
+
 #define sw_zend_hash_del                      zend_hash_del
 #define sw_zend_hash_update                   zend_hash_update
 #define sw_zend_hash_index_find               zend_hash_index_find
@@ -47,7 +62,7 @@ typedef zend_rsrc_list_entry zend_resource;
 #define sw_zend_hash_copy                     zend_hash_copy
 #define sw_zval_add_ref                       zval_add_ref
 #define sw_zend_hash_exists                   zend_hash_exists
-#define sw_strndup(v,l)                       strndup(Z_STRVAL_P(v),l)
+#define sw_strndup(v,l)                       estrndup(Z_STRVAL_P(v),l)
 #define sw_php_format_date                    php_format_date
 #define sw_php_url_encode                     php_url_encode
 #define SW_RETURN_STRINGL                     RETURN_STRINGL
