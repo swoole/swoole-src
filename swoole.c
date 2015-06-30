@@ -772,8 +772,17 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
         }
     }
 
+    for(i = 0; i< SWOOLE_PROPERTY_MAX; i ++)
+    {
+        if (swoole_objects.property[i])
+        {
+            efree(swoole_objects.property[i]);
+        }
+    }
+
     efree(swoole_objects.array);
     bzero(&swoole_objects, sizeof(swoole_objects));
+
     SwooleWG.reactor_wait_onexit = 0;
 
     return SUCCESS;

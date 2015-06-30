@@ -1115,7 +1115,7 @@ static PHP_METHOD(swoole_client, connect)
             RETURN_FALSE;
         }
 
-        if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
+        if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6 || cli->type == SW_SOCK_UNIX_STREAM)
         {
             if (!cb->onConnect)
             {
@@ -1141,9 +1141,21 @@ static PHP_METHOD(swoole_client, connect)
         zval *obj = getThis();
         sw_zval_add_ref(&obj);
 
-        if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
+        if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6 || cli->type == SW_SOCK_UNIX_STREAM)
         {
             reactor_flag = cli->reactor_fdtype | SW_EVENT_WRITE;
+            if (errno == EINPROGRESS)
+            {
+                ret = SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, reactor_flag);
+                SW_CHECK_RETURN(ret);
+            }
+            else
+            {
+                swEvent e;
+                e.fd = cli->socket->fd;
+                e.socket = cli->socket;
+                client_error_callback(getThis(), &e, errno TSRMLS_CC);
+            }
         }
         else
         {
@@ -1152,6 +1164,11 @@ static PHP_METHOD(swoole_client, connect)
             zval **args[1];
             zval *retval = NULL;
             args[0] = &obj;
+
+            if (SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, reactor_flag) < 0)
+            {
+                RETURN_FALSE;
+            }
 
             client_callback *cb = swoole_get_property(getThis(), 0);
             callback = cb->onConnect;
@@ -1169,18 +1186,6 @@ static PHP_METHOD(swoole_client, connect)
             {
                 sw_zval_ptr_dtor(&retval);
             }
-        }
-        if (errno == EINPROGRESS)
-        {
-            ret = SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, reactor_flag);
-            SW_CHECK_RETURN(ret);
-        }
-        else
-        {
-            swEvent e;
-            e.fd = cli->socket->fd;
-            e.socket = cli->socket;
-            client_error_callback(getThis(), &e, errno TSRMLS_CC);
         }
     }
     else if (ret < 0)
