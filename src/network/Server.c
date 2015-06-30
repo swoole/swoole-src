@@ -645,6 +645,7 @@ void swServer_init(swServer *serv)
     serv->max_request = 0;
 
     serv->open_tcp_nopush = 1;
+    serv->http_parse_post = 1;
 
     //tcp keepalive
     serv->tcp_keepcount = SW_TCP_KEEPCOUNT;
