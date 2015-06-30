@@ -27,6 +27,7 @@ static PHP_METHOD(swoole_process, kill);
 static PHP_METHOD(swoole_process, signal);
 static PHP_METHOD(swoole_process, wait);
 static PHP_METHOD(swoole_process, daemon);
+static PHP_METHOD(swoole_process, setaffinity);
 static PHP_METHOD(swoole_process, start);
 static PHP_METHOD(swoole_process, write);
 static PHP_METHOD(swoole_process, read);
@@ -49,6 +50,7 @@ static const zend_function_entry swoole_process_methods[] =
     PHP_ME(swoole_process, signal, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_process, kill, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_process, daemon, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_process, setaffinity, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_process, useQueue, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process, start, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process, write, NULL, ZEND_ACC_PUBLIC)
@@ -676,13 +678,13 @@ static PHP_METHOD(swoole_process, exec)
 //        _p = _p->pListNext;
 //        i++;
 //    }
-     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(args), value)
-                convert_to_string(value);
+    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(args), value)
+        convert_to_string(value);
 
         sw_zval_add_ref(&value);
         exec_args[i] = Z_STRVAL_P(value);
-                i++;
-     SW_HASHTABLE_FOREACH_END();
+        i++;
+    SW_HASHTABLE_FOREACH_END();
     exec_args[i] = NULL;
 
     if (execv(execfile, exec_args) < 0)
@@ -706,6 +708,41 @@ static PHP_METHOD(swoole_process, daemon)
         RETURN_FALSE;
     }
     RETURN_BOOL(daemon(nochdir, noclose) == 0);
+}
+
+static PHP_METHOD(swoole_process, setaffinity)
+{
+    zval *array;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &array) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+    if (Z_ARRVAL_P(array)->nNumOfElements > SW_CPU_NUM)
+    {
+        swoole_php_fatal_error(E_WARNING, "More than the number of CPU");
+        RETURN_FALSE;
+    }
+
+    zval *value = NULL;
+    cpu_set_t cpu_set;
+    CPU_ZERO(&cpu_set);
+
+    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(array), value)
+        convert_to_long(value);
+        if (Z_LVAL_P(value) >= SW_CPU_NUM)
+        {
+            swoole_php_fatal_error(E_WARNING, "invalid cpu id [%d]", Z_LVAL_P(value));
+            RETURN_FALSE;
+        }
+        CPU_SET(Z_LVAL_P(value), &cpu_set);
+    SW_HASHTABLE_FOREACH_END();
+
+    if (sched_setaffinity(getpid(), sizeof(cpu_set), &cpu_set) < 0)
+    {
+        swoole_php_sys_error(E_WARNING, "sched_setaffinity() failed.");
+        RETURN_FALSE;
+    }
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_process, exit)
