@@ -607,74 +607,94 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
 {
     HashTable *vht;
     zval *v;
+    int value = 1;
 
     vht = Z_ARRVAL_P(zset);
 
-   //buffer: check eof
-   if (sw_zend_hash_find(vht, ZEND_STRS("open_eof_split"), (void **)&v) == SUCCESS ||
-           sw_zend_hash_find(vht, ZEND_STRS("open_eof_check"), (void **)&v) == SUCCESS )
-   {
-       convert_to_boolean(v);
-       cli->open_eof_split = (uint8_t) Z_BVAL_P(v);
-   }
-   //package eof
-   if (sw_zend_hash_find(vht, ZEND_STRS("package_eof"), (void **) &v) == SUCCESS)
-   {
-       convert_to_string(v);
-       cli->protocol.package_eof_len = Z_STRLEN_P(v);
-       if (cli->protocol.package_eof_len > SW_DATA_EOF_MAXLEN)
-       {
-           swoole_php_fatal_error(E_ERROR, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
-           return;
-       }
-       bzero(cli->protocol.package_eof, SW_DATA_EOF_MAXLEN);
-       memcpy(cli->protocol.package_eof, Z_STRVAL_P(v), Z_STRLEN_P(v));
-       cli->protocol.onPackage = client_onPackage;
-   }
-   //open length check
-   if (sw_zend_hash_find(vht, ZEND_STRS("open_length_check"), (void **)&v) == SUCCESS)
-   {
-       convert_to_long(v);
-       cli->open_length_check = (uint8_t) Z_LVAL_P(v);
-   }
-   //package length size
-   if (sw_zend_hash_find(vht, ZEND_STRS("package_length_type"), (void **)&v) == SUCCESS)
-   {
-       convert_to_string(v);
-       cli->protocol.package_length_type = Z_STRVAL_P(v)[0];
-       cli->protocol.package_length_size = swoole_type_size(cli->protocol.package_length_type);
+    //buffer: check eof
+    if (sw_zend_hash_find(vht, ZEND_STRS("open_eof_split"), (void **) &v) == SUCCESS
+            || sw_zend_hash_find(vht, ZEND_STRS("open_eof_check"), (void **) &v) == SUCCESS)
+    {
+        convert_to_boolean(v);
+        cli->open_eof_split = Z_BVAL_P(v);
+    }
+    //package eof
+    if (sw_zend_hash_find(vht, ZEND_STRS("package_eof"), (void **) &v) == SUCCESS)
+    {
+        convert_to_string(v);
+        cli->protocol.package_eof_len = Z_STRLEN_P(v);
+        if (cli->protocol.package_eof_len > SW_DATA_EOF_MAXLEN)
+        {
+            swoole_php_fatal_error(E_ERROR, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
+            return;
+        }
+        bzero(cli->protocol.package_eof, SW_DATA_EOF_MAXLEN);
+        memcpy(cli->protocol.package_eof, Z_STRVAL_P(v), Z_STRLEN_P(v));
+        cli->protocol.onPackage = client_onPackage;
+    }
+    //open length check
+    if (sw_zend_hash_find(vht, ZEND_STRS("open_length_check"), (void **) &v) == SUCCESS)
+    {
+        convert_to_boolean(v);
+        cli->open_length_check = Z_BVAL_P(v);
+    }
+    //package length size
+    if (sw_zend_hash_find(vht, ZEND_STRS("package_length_type"), (void **) &v) == SUCCESS)
+    {
+        convert_to_string(v);
+        cli->protocol.package_length_type = Z_STRVAL_P(v)[0];
+        cli->protocol.package_length_size = swoole_type_size(cli->protocol.package_length_type);
 
-       if (cli->protocol.package_length_size == 0)
-       {
-           swoole_php_fatal_error(E_ERROR, "unknow package_length_type, see pack(). Link: http://php.net/pack");
-           return;
-       }
-   }
-   //package length offset
-   if (sw_zend_hash_find(vht, ZEND_STRS("package_length_offset"), (void **)&v) == SUCCESS)
-   {
-       convert_to_long(v);
-       cli->protocol.package_length_offset = (int)Z_LVAL_P(v);
-   }
-   //package body start
-   if (sw_zend_hash_find(vht, ZEND_STRS("package_body_offset"), (void **) &v) == SUCCESS
-           || sw_zend_hash_find(vht, ZEND_STRS("package_body_start"), (void **) &v) == SUCCESS)
-   {
-       convert_to_long(v);
-       cli->protocol.package_body_offset = (int) Z_LVAL_P(v);
-   }
-   /**
-    * package max length
-    */
-   if (sw_zend_hash_find(vht, ZEND_STRS("package_max_length"), (void **) &v) == SUCCESS)
-   {
-       convert_to_long(v);
-       cli->protocol.package_max_length = (int) Z_LVAL_P(v);
-   }
-   else
-   {
-       cli->protocol.package_max_length = SW_BUFFER_INPUT_SIZE;
-   }
+        if (cli->protocol.package_length_size == 0)
+        {
+            swoole_php_fatal_error(E_ERROR, "unknow package_length_type, see pack(). Link: http://php.net/pack");
+            return;
+        }
+    }
+    //package length offset
+    if (sw_zend_hash_find(vht, ZEND_STRS("package_length_offset"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(v);
+        cli->protocol.package_length_offset = (int) Z_LVAL_P(v);
+    }
+    //package body start
+    if (sw_zend_hash_find(vht, ZEND_STRS("package_body_offset"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(v);
+        cli->protocol.package_body_offset = (int) Z_LVAL_P(v);
+    }
+    /**
+     * package max length
+     */
+    if (sw_zend_hash_find(vht, ZEND_STRS("package_max_length"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(v);
+        cli->protocol.package_max_length = (int) Z_LVAL_P(v);
+    }
+    else
+    {
+        cli->protocol.package_max_length = SW_BUFFER_INPUT_SIZE;
+    }
+    /**
+     * socket send/recv buffer size
+     */
+    if (sw_zend_hash_find(vht, ZEND_STRS("socket_buffer_size"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(v);
+        value = (int) Z_LVAL_P(v);
+        swSocket_set_buffer_size(cli->socket->fd, value);
+    }
+    /**
+     * TCP_NODELAY
+     */
+    if (sw_zend_hash_find(vht, ZEND_STRS("open_tcp_nodelay"), (void **) &v) == SUCCESS)
+    {
+        value = 1;
+        if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, &value, sizeof(value)) < 0)
+        {
+            swSysError("setsockopt(%d, TCP_NODELAY) failed.", cli->socket->fd);
+        }
+    }
 }
 
 static int client_onWrite(swReactor *reactor, swEvent *event)

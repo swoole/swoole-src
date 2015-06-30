@@ -74,10 +74,8 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
         }
 
         int sbsize = SwooleG.socket_buffer_size;
-        setsockopt(object->socks[1], SOL_SOCKET, SO_SNDBUF, &sbsize, sizeof(sbsize));
-        setsockopt(object->socks[1], SOL_SOCKET, SO_RCVBUF, &sbsize, sizeof(sbsize));
-        setsockopt(object->socks[0], SOL_SOCKET, SO_SNDBUF, &sbsize, sizeof(sbsize));
-        setsockopt(object->socks[0], SOL_SOCKET, SO_RCVBUF, &sbsize, sizeof(sbsize));
+        swSocket_set_buffer_size(object->socks[0], sbsize);
+        swSocket_set_buffer_size(object->socks[1], sbsize);
 
         p->object = object;
         p->read = swPipeUnsock_read;

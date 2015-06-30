@@ -317,3 +317,18 @@ int swSocket_listen(int type, char *host, int port, int backlog)
     swSetNonBlock(sock);
     return sock;
 }
+
+int swSocket_set_buffer_size(int fd, int buffer_size)
+{
+    if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &buffer_size, sizeof(buffer_size)) < 0)
+    {
+        swSysError("setsockopt(%d, SOL_SOCKET, SO_SNDBUF, %d) failed.", fd, buffer_size);
+        return SW_ERR;
+    }
+    if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &buffer_size, sizeof(buffer_size)) < 0)
+    {
+        swSysError("setsockopt(%d, SOL_SOCKET, SO_RCVBUF, %d) failed.", fd, buffer_size);
+        return SW_ERR;
+    }
+    return SW_OK;
+}
