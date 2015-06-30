@@ -164,7 +164,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
         swTask_type(&buf) = flags;
 
         //write to file
-        if (data_len >= sizeof(buf.data))
+        if (data_len >= SW_IPC_MAX_SIZE - sizeof(buf.info))
         {
             if (swTaskWorker_large_pack(&buf, data, data_len) < 0 )
             {

@@ -143,10 +143,11 @@ static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC)
     char *task_notify_data_str;
     int task_notify_data_len = 0;
     php_unserialize_data_t var_hash;
+
     /**
      * Large result package
      */
-    if (task_result->info.type & SW_TASK_TMPFILE)
+    if (swTask_type(task_result) & SW_TASK_TMPFILE)
     {
         int data_len;
         char *data_str = NULL;
@@ -1437,10 +1438,6 @@ PHP_FUNCTION(swoole_server_set)
     {
         convert_to_boolean(v);
         serv->http_parse_post = Z_BVAL_P(v);
-    }
-    else
-    {
-        serv->http_parse_post = 1;
     }
     //buffer: mqtt protocol
     if (sw_zend_hash_find(vht, ZEND_STRS("open_mqtt_protocol"), (void **) &v) == SUCCESS)
