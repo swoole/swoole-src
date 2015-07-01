@@ -15,7 +15,6 @@
 */
 
 #include "swoole.h"
-#include "list.h"
 #include <sys/select.h>
 
 typedef struct _swFdList_node

@@ -400,6 +400,7 @@ void swTimer_node_insert(swTimer_node **root, swTimer_node *new_node)
         *root = new_node;
         return;
     }
+
     swTimer_node *tmp = *root;
     while (1)
     {

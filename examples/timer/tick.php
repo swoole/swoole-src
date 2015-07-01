@@ -1,13 +1,19 @@
 <?php
-swoole_timer_tick(2000, function($id) {
-	echo "tick-1 2000ms\n";
-    var_dump($id);
+function timeout($tm)
+{
+    echo time() . ": Timeout #$tm\n";
+}
+$timer1 = swoole_timer_tick(1000, 'timeout', 1);
+$timer2 = swoole_timer_tick(2000, 'timeout', 2);
+
+swoole_timer_tick(3000, function($id) {
+    timeout(3);
+    swoole_timer_clear($id);
+    global $timer1;
+    swoole_timer_clear($timer1);
+    swoole_timer_tick(7000, 'timeout', 7);
 });
 
-usleep(500000);
-
-swoole_timer_tick(2000, function($id, $params) {
-    echo "tick-2 2000ms\n";
-    var_dump($id, $params);
-    swoole_timer_clear($id);
-}, 2);
+$timer4 = swoole_timer_tick(4000, 'timeout', 4);
+$timer5 = swoole_timer_tick(5000, 'timeout', 5);
+$timer6 = swoole_timer_tick(6000, 'timeout', 6);

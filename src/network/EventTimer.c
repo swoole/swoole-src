@@ -23,15 +23,16 @@ static void swEventTimer_free(swTimer *timer);
 
 static sw_inline void* swEventTimer_remove(swTimer *timer, swTimer_node *delete_node)
 {
+    if (delete_node->remove)
+    {
+        return NULL;
+    }
     if (swArray_append(timer->delete_list, &delete_node) < 0)
     {
         return NULL;
     }
     delete_node->remove = 1;
-    delete_node->exec_msec = 0;
-    void *data = delete_node->data;
-    delete_node->data = NULL;
-    return data;
+    return delete_node->data;
 }
 
 static sw_inline int swEventTimer_get_relative_msec()
@@ -57,6 +58,12 @@ int swEventTimer_init()
 
     SwooleG.timer.delete_list = swArray_new(1024, sizeof(void *));
     if (SwooleG.timer.delete_list == NULL)
+    {
+        return SW_ERR;
+    }
+
+    SwooleG.timer.insert_list = swArray_new(1024, sizeof(void *));
+    if (SwooleG.timer.insert_list == NULL)
     {
         return SW_ERR;
     }
@@ -101,25 +108,39 @@ static long swEventTimer_add(swTimer *timer, int _msec, int interval, void *data
     node->exec_msec = now_msec + _msec;
     node->interval = interval ? _msec : 0;
     node->remove = 0;
+    if (interval)
+    {
+        node->restart = 1;
+    }
 
     if (SwooleG.main_reactor->timeout_msec > _msec)
     {
         SwooleG.main_reactor->timeout_msec = _msec;
     }
 
-    swTimer_node_insert(&timer->root, node);
     node->id = timer->_next_id++;
     timer->num ++;
+
+    if (timer->lock)
+    {
+        swArray_append(timer->insert_list, &node);
+    }
+    else
+    {
+        swTimer_node_insert(&timer->root, node);
+    }
+
     return node->id;
 }
 
 static void* swEventTimer_del(swTimer *timer, int _msec, long id)
 {
     swTimer_node *delete_node = swTimer_node_find(&timer->root, _msec, id);
-    if (!delete_node || delete_node->remove)
+    if (!delete_node)
     {
         return NULL;
     }
+    delete_node->restart = 0;
     return swEventTimer_remove(timer, delete_node);
 }
 
@@ -132,6 +153,12 @@ static int swEventTimer_select(swTimer *timer)
     }
 
     swTimer_node *tmp = timer->root;
+    int i;
+
+    /**
+     * cannot update the timer queue
+     */
+    timer->lock = 1;
     while (tmp)
     {
         if (tmp->exec_msec > now_msec)
@@ -150,36 +177,54 @@ static int swEventTimer_select(swTimer *timer)
             timer->onTimer(timer, tmp);
             if (!tmp->remove)
             {
+                tmp->restart = 1;
                 tmp->exec_msec += tmp->interval;
-                swTimer_node_delete(&timer->root, tmp);
-                swTimer_node_insert(&timer->root, tmp);
             }
         }
         else
         {
             timer->onTimeout(timer, tmp);
-            if (!tmp->remove)
-            {
-                swEventTimer_remove(timer, tmp);
-            }
         }
+
+        swEventTimer_remove(timer, tmp);
         tmp = tmp->next;
     }
+    timer->lock = 0;
 
     if (timer->delete_list->item_num > 0)
     {
-        int i;
         for (i = 0; i < timer->delete_list->item_num; i++)
         {
             tmp = *((swTimer_node **) swArray_fetch(timer->delete_list, i));
             if (tmp)
             {
                 swTimer_node_delete(&timer->root, tmp);
-                sw_free(tmp);
-                timer->num--;
+                if (tmp->restart)
+                {
+                    tmp->remove = 0;
+                    swTimer_node_insert(&timer->root, tmp);
+                }
+                else
+                {
+                    sw_free(tmp);
+                    timer->num--;
+                }
             }
         }
         swArray_clear(timer->delete_list);
+    }
+
+    if (timer->insert_list->item_num > 0)
+    {
+        for (i = 0; i < timer->insert_list->item_num; i++)
+        {
+            tmp = *((swTimer_node **) swArray_fetch(timer->insert_list, i));
+            if (tmp)
+            {
+                swTimer_node_insert(&timer->root, tmp);
+            }
+        }
+        swArray_clear(timer->insert_list);
     }
 
     if (timer->root == NULL)
@@ -190,5 +235,6 @@ static int swEventTimer_select(swTimer *timer)
     {
         SwooleG.main_reactor->timeout_msec = timer->root->exec_msec - now_msec;
     }
+
     return SW_OK;
 }

@@ -1392,7 +1392,8 @@ typedef struct _swTimer_node
     uint32_t exec_msec;
     uint32_t interval;
     long id;
-    uint8_t remove;
+    uint8_t remove :1;
+    uint8_t restart :1;
 } swTimer_node;
 
 typedef struct _swTimer
@@ -1405,6 +1406,7 @@ typedef struct _swTimer
     int use_pipe;
     int lasttime;
     int fd;
+    int lock;
     long _next_id;
     long _current_id;
     long _delete_id;
@@ -1413,6 +1415,7 @@ typedef struct _swTimer
     struct timeval basetime;
     /*-----------------wait delete----------------------*/
     swArray *delete_list;
+    swArray *insert_list;
     /*--------------------------------------------------*/
     long (*add)(struct _swTimer *timer, int _msec, int _interval, void *data);
     void* (*del)(struct _swTimer *timer, int _interval_ms, long id);
