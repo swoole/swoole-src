@@ -46,18 +46,18 @@ typedef struct _swArray
      */
     uint32_t item_num;
     uint32_t offset;
-    int flag;
 } swArray;
 
 #define swArray_page(array, n)      ((n) / (array)->page_size)
 #define swArray_offset(array, n)    ((n) % (array)->page_size)
 
-swArray *swArray_new(int page_size, size_t item_size, int flag);
+swArray *swArray_new(int page_size, size_t item_size);
 void swArray_free(swArray *array);
 void *swArray_fetch(swArray *array, uint32_t n);
 int swArray_store(swArray *array, uint32_t n, void *data);
 void *swArray_alloc(swArray *array, uint32_t n);
-int swArray_push(swArray *array, void *data);
+int swArray_append(swArray *array, void *data);
 int swArray_extend(swArray *array);
+void swArray_clear(swArray *array);
 
 #endif /* _SW_ARRAY_H_ */

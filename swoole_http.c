@@ -1359,7 +1359,7 @@ static PHP_METHOD(swoole_http_server, start)
         RETURN_FALSE;
     }
 
-    http_client_array = swArray_new(1024, sizeof(swoole_http_client), 0);
+    http_client_array = swArray_new(1024, sizeof(swoole_http_client));
     if (!http_client_array)
     {
         swoole_php_fatal_error(E_ERROR, "swArray_new(1024, %ld) failed.", sizeof(swoole_http_client));

@@ -1406,12 +1406,16 @@ typedef struct _swTimer
     int lasttime;
     int fd;
     long _next_id;
+    long _current_id;
+    long _delete_id;
     swPipe pipe;
     /*-----------------for EventTimer-------------------*/
     struct timeval basetime;
+    /*-----------------wait delete----------------------*/
+    swArray *delete_list;
     /*--------------------------------------------------*/
     long (*add)(struct _swTimer *timer, int _msec, int _interval, void *data);
-    void* (*del)(struct _swTimer *timer, int _interval_ms, int id);
+    void* (*del)(struct _swTimer *timer, int _interval_ms, long id);
     int (*select)(struct _swTimer *timer);
     void (*free)(struct _swTimer *timer);
     /*-----------------event callback-------------------*/
@@ -1425,9 +1429,10 @@ void swTimer_signal_handler(int sig);
 int swTimer_event_handler(swReactor *reactor, swEvent *event);
 void swTimer_node_insert(swTimer_node **root, swTimer_node *new_node);
 void swTimer_node_print(swTimer_node **root);
-swTimer_node* swTimer_node_find(swTimer_node **root, int interval_msec, int id);
+swTimer_node* swTimer_node_find(swTimer_node **root, int interval_msec, long id);
+void swTimer_node_delete(swTimer_node **root, swTimer_node *node);
+void swTimer_node_remove(swTimer_node **root, swTimer_node *node);
 void swTimer_node_destory(swTimer_node **root);
-
 //--------------------------------------------------------------
 typedef struct _swModule
 {

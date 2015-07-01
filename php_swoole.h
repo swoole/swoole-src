@@ -280,7 +280,6 @@ void php_swoole_check_reactor();
 void php_swoole_event_init();
 void php_swoole_check_timer(int interval);
 void php_swoole_register_callback(swServer *serv);
-long php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tick TSRMLS_DC);
 
 static sw_inline void* swoole_get_object(zval *object)
 {

@@ -17,9 +17,22 @@
 #include "swoole.h"
 
 static long swEventTimer_add(swTimer *timer, int _msec, int interval, void *data);
-static void* swEventTimer_del(swTimer *timer, int _msec, int id);
+static void* swEventTimer_del(swTimer *timer, int _msec, long id);
 static int swEventTimer_select(swTimer *timer);
 static void swEventTimer_free(swTimer *timer);
+
+static sw_inline void* swEventTimer_remove(swTimer *timer, swTimer_node *delete_node)
+{
+    if (swArray_append(timer->delete_list, &delete_node) < 0)
+    {
+        return NULL;
+    }
+    delete_node->remove = 1;
+    delete_node->exec_msec = 0;
+    void *data = delete_node->data;
+    delete_node->data = NULL;
+    return data;
+}
 
 static sw_inline int swEventTimer_get_relative_msec()
 {
@@ -42,6 +55,14 @@ int swEventTimer_init()
         return SW_ERR;
     }
 
+    SwooleG.timer.delete_list = swArray_new(1024, sizeof(void *));
+    if (SwooleG.timer.delete_list == NULL)
+    {
+        return SW_ERR;
+    }
+
+    SwooleG.timer._delete_id = -1;
+    SwooleG.timer._current_id = -1;
     SwooleG.timer.fd = 1;
     SwooleG.timer.add = swEventTimer_add;
     SwooleG.timer.del = swEventTimer_del;
@@ -92,21 +113,14 @@ static long swEventTimer_add(swTimer *timer, int _msec, int interval, void *data
     return node->id;
 }
 
-static void* swEventTimer_del(swTimer *timer, int _msec, int id)
+static void* swEventTimer_del(swTimer *timer, int _msec, long id)
 {
-    swTimer_node *del = swTimer_node_find(&timer->root, _msec, id);
-    if (del)
-    {
-        del->remove = 1;
-        void *data = del->data;
-        del->data = NULL;
-        timer->num--;
-        return data;
-    }
-    else
+    swTimer_node *delete_node = swTimer_node_find(&timer->root, _msec, id);
+    if (!delete_node || delete_node->remove)
     {
         return NULL;
     }
+    return swEventTimer_remove(timer, delete_node);
 }
 
 static int swEventTimer_select(swTimer *timer)
@@ -118,51 +132,54 @@ static int swEventTimer_select(swTimer *timer)
     }
 
     swTimer_node *tmp = timer->root;
-    swTimer_node *free_node = NULL;
-
     while (tmp)
     {
         if (tmp->exec_msec > now_msec)
         {
             break;
         }
-        else
+
+        if (tmp->remove)
         {
+            tmp = tmp->next;
+            continue;
+        }
+
+        if (tmp->interval > 0)
+        {
+            timer->onTimer(timer, tmp);
             if (!tmp->remove)
             {
-                if (tmp->interval > 0)
-                {
-                    timer->onTimer(timer, tmp);
-                }
-                else
-                {
-                    timer->onTimeout(timer, tmp);
-                }
-            }
-
-            timer->root = tmp->next;
-            if (timer->root)
-            {
-                timer->root->prev = NULL;
-            }
-
-            if (tmp->interval > 0 && !tmp->remove)
-            {
                 tmp->exec_msec += tmp->interval;
+                swTimer_node_delete(&timer->root, tmp);
                 swTimer_node_insert(&timer->root, tmp);
             }
-            else
+        }
+        else
+        {
+            timer->onTimeout(timer, tmp);
+            if (!tmp->remove)
             {
-                free_node = tmp;
+                swEventTimer_remove(timer, tmp);
             }
+        }
+        tmp = tmp->next;
+    }
 
-            tmp = timer->root;
-            if (free_node)
+    if (timer->delete_list->item_num > 0)
+    {
+        int i;
+        for (i = 0; i < timer->delete_list->item_num; i++)
+        {
+            tmp = *((swTimer_node **) swArray_fetch(timer->delete_list, i));
+            if (tmp)
             {
-                sw_free(free_node);
+                swTimer_node_delete(&timer->root, tmp);
+                sw_free(tmp);
                 timer->num--;
             }
         }
+        swArray_clear(timer->delete_list);
     }
 
     if (timer->root == NULL)

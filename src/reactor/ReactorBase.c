@@ -59,7 +59,7 @@ int swReactor_create(swReactor *reactor, int max_event)
     reactor->write = swReactor_write;
     reactor->close = swReactor_close;
 
-    reactor->socket_array = swArray_new(1024, sizeof(swConnection), 0);
+    reactor->socket_array = swArray_new(1024, sizeof(swConnection));
     if (!reactor->socket_array)
     {
         swWarn("create socket array failed.");
