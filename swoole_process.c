@@ -27,7 +27,9 @@ static PHP_METHOD(swoole_process, kill);
 static PHP_METHOD(swoole_process, signal);
 static PHP_METHOD(swoole_process, wait);
 static PHP_METHOD(swoole_process, daemon);
+#ifdef HAVE_CPU_AFFINITY
 static PHP_METHOD(swoole_process, setaffinity);
+#endif
 static PHP_METHOD(swoole_process, start);
 static PHP_METHOD(swoole_process, write);
 static PHP_METHOD(swoole_process, read);
@@ -50,7 +52,9 @@ static const zend_function_entry swoole_process_methods[] =
     PHP_ME(swoole_process, signal, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_process, kill, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_process, daemon, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+#ifdef HAVE_CPU_AFFINITY
     PHP_ME(swoole_process, setaffinity, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+#endif
     PHP_ME(swoole_process, useQueue, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process, start, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process, write, NULL, ZEND_ACC_PUBLIC)
@@ -211,10 +215,7 @@ static PHP_METHOD(swoole_process, wait)
         array_init(return_value);
         add_assoc_long(return_value, "code", WEXITSTATUS(status));
         add_assoc_long(return_value, "pid", pid);
-        if (WIFSIGNALED(status))
-        {
-            add_assoc_long(return_value, "signal", WTERMSIG(status));
-        }
+        add_assoc_long(return_value, "signal", WTERMSIG(status));
     }
     else
     {
@@ -710,10 +711,15 @@ static PHP_METHOD(swoole_process, daemon)
     RETURN_BOOL(daemon(nochdir, noclose) == 0);
 }
 
+#ifdef HAVE_CPU_AFFINITY
 static PHP_METHOD(swoole_process, setaffinity)
 {
     zval *array;
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &array) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+    if (Z_ARRVAL_P(array)->nNumOfElements == 0)
     {
         RETURN_FALSE;
     }
@@ -731,7 +737,7 @@ static PHP_METHOD(swoole_process, setaffinity)
         convert_to_long(value);
         if (Z_LVAL_P(value) >= SW_CPU_NUM)
         {
-            swoole_php_fatal_error(E_WARNING, "invalid cpu id [%d]", Z_LVAL_P(value));
+            swoole_php_fatal_error(E_WARNING, "invalid cpu id [%d]", (int) Z_LVAL_P(value));
             RETURN_FALSE;
         }
         CPU_SET(Z_LVAL_P(value), &cpu_set);
@@ -744,6 +750,7 @@ static PHP_METHOD(swoole_process, setaffinity)
     }
     RETURN_TRUE;
 }
+#endif
 
 static PHP_METHOD(swoole_process, exit)
 {
