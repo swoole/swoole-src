@@ -1,5 +1,13 @@
 language: php 
 
+compiler:
+  - gcc
+  - clang
+
+os:
+  - linux
+  - osx
+
 php:
   - 5.3
   - 5.4
