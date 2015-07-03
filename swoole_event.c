@@ -485,7 +485,6 @@ PHP_FUNCTION(swoole_event_wait)
             swSignalfd_setup(SwooleG.main_reactor);
         }
 #endif
-
         int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
         if (ret < 0)
         {
