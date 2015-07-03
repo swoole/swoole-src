@@ -813,12 +813,29 @@ void php_swoole_at_shutdown(char *function)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
+    
+#if PHP_MAJOR_VERSION>=7
+   php_shutdown_function_entry shutdown_function_entry;
+    shutdown_function_entry.arg_count = 1;
+    shutdown_function_entry.arguments = (zval *) safe_emalloc(sizeof(zval), 1, 0);
+    ZVAL_STRING(&shutdown_function_entry.arguments[0], "swoole_event_wait");
+
+    if (!register_user_shutdown_function("swoole_event_wait", sizeof("swoole_event_wait")-1, &shutdown_function_entry TSRMLS_CC))
+    {
+        zval_ptr_dtor(&shutdown_function_entry.arguments[0]);                               
+        efree(shutdown_function_entry.arguments);  
+        swoole_php_fatal_error(E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
+    }
+#else
+    
+    
     zval *callback;
     SW_MAKE_STD_ZVAL(callback);
     SW_ZVAL_STRING(callback, "swoole_event_wait", 1);
 
 #if PHP_MAJOR_VERSION >= 5 && PHP_MINOR_VERSION >= 4
-    php_shutdown_function_entry shutdown_function_entry;
+
+     php_shutdown_function_entry shutdown_function_entry;
 
     shutdown_function_entry.arg_count = 1;
     shutdown_function_entry.arguments = (zval **) safe_emalloc(sizeof(zval *), 1, 0);
@@ -844,6 +861,8 @@ void php_swoole_at_shutdown(char *function)
         swoole_php_fatal_error(E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
         return;
     }
+#endif
+    
 #endif
 }
 
@@ -1156,9 +1175,14 @@ static PHP_METHOD(swoole_client, connect)
 
         int reactor_flag = 0;
 
-        cli->socket->object = getThis();
-        cli->reactor_fdtype = SW_FD_USER + 1;
         zval *obj = getThis();
+#if PHP_MAJOR_VERSION >= 7
+        cli->socket->object = (zval *)emalloc(sizeof(zval));
+        ZVAL_DUP(cli->socket->object,obj);
+#else
+        cli->socket->object = obj;
+#endif        
+        cli->reactor_fdtype = SW_FD_USER + 1;
         sw_zval_add_ref(&obj);
 
         if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6 || cli->type == SW_SOCK_UNIX_STREAM)
@@ -1737,6 +1761,11 @@ static PHP_METHOD(swoole_client, on)
         swoole_set_property(getThis(), 0, cb);
     }
 
+#if PHP_MAJOR_VERSION >= 7
+    zval *tmp = emalloc(sizeof(zval));
+    ZVAL_DUP(tmp,zcallback);
+    zcallback = tmp;
+#endif
     sw_zval_add_ref(&zcallback);
 
     if (strncasecmp("connect", cb_name, cb_name_len) == 0)
