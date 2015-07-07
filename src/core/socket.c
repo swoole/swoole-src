@@ -315,7 +315,7 @@ int swSocket_listen(int type, char *host, int port, int backlog)
     ret = listen(sock, backlog);
     if (ret < 0)
     {
-        swWarn("listen(%d) failed. Error: %s[%d]", backlog, strerror(errno), errno);
+        swWarn("listen(%s:%d, %d) failed. Error: %s[%d]", host, port, backlog, strerror(errno), errno);
         return SW_ERR;
     }
     swSetNonBlock(sock);

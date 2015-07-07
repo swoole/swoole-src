@@ -250,7 +250,7 @@ void swWorker_onStart(swServer *serv)
             group = getgrnam(SwooleG.group);
             if (!group)
             {
-                swSysError("get group [%s] info failed.", SwooleG.group);
+                swWarn("get group [%s] info failed.", SwooleG.group);
             }
         }
         //get user info
@@ -259,7 +259,7 @@ void swWorker_onStart(swServer *serv)
             passwd = getpwnam(SwooleG.user);
             if (!passwd)
             {
-                swSysError("get user [%s] info failed.", SwooleG.user);
+                swWarn("get user [%s] info failed.", SwooleG.user);
             }
         }
         //chroot
