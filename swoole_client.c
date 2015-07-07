@@ -1854,7 +1854,7 @@ PHP_FUNCTION(swoole_client_select)
 
 static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC)
 {
-    zval **element = NULL;
+    zval *element = NULL;
     zval *zsock;
     zval **dest_element;
     HashTable *new_hash;
@@ -1869,12 +1869,13 @@ static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC)
     {
         return 0;
     }
+
     ALLOC_HASHTABLE(new_hash);
     zend_hash_init(new_hash, zend_hash_num_elements(Z_ARRVAL_P(sock_array)), NULL, ZVAL_PTR_DTOR, 0);
 
-    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(sock_array), *element)
-        ce = Z_OBJCE_P(*element);
-        zsock = sw_zend_read_property(ce, *element, SW_STRL("sock")-1, 0 TSRMLS_CC);
+    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(sock_array), element)
+        ce = Z_OBJCE_P(element);
+        zsock = sw_zend_read_property(ce, element, SW_STRL("sock")-1, 0 TSRMLS_CC);
         if (zsock == NULL || ZVAL_IS_NULL(zsock))
         {
             swoole_php_fatal_error(E_WARNING, "object is not swoole_client object.");
@@ -1885,10 +1886,10 @@ static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC)
             switch (sw_zend_hash_get_current_key(Z_ARRVAL_P(sock_array), &key, &key_len, &num_key))
             {
             case HASH_KEY_IS_STRING:
-                sw_zend_hash_add(new_hash, key, key_len, (void * )element, sizeof(zval *), (void ** )&dest_element);
+                sw_zend_hash_add(new_hash, key, key_len, (void * ) &element, sizeof(zval *), (void ** )&dest_element);
                 break;
             case HASH_KEY_IS_LONG:
-                sw_zend_hash_index_update(new_hash, num_key, (void * )element, sizeof(zval *), (void ** )&dest_element);
+                sw_zend_hash_index_update(new_hash, num_key, (void * ) &element, sizeof(zval *), (void ** )&dest_element);
                 break;
             }
             if (dest_element)
@@ -1910,7 +1911,7 @@ static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC)
 
 static int client_select_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_DC)
 {
-    zval **element = NULL;
+    zval *element = NULL;
     zval *zsock;
     zend_class_entry *ce;
 
@@ -1920,9 +1921,9 @@ static int client_select_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_D
     }
 
     int num = 0;
-    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(sock_array), *element)
-        ce = Z_OBJCE_P(*element);
-        zsock = sw_zend_read_property(ce, *element, SW_STRL("sock")-1, 0 TSRMLS_CC);
+    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(sock_array), element)
+        ce = Z_OBJCE_P(element);
+        zsock = sw_zend_read_property(ce, element, SW_STRL("sock")-1, 0 TSRMLS_CC);
         if (zsock == NULL || ZVAL_IS_NULL(zsock))
         {
             swoole_php_fatal_error(E_WARNING, "object is not swoole_client object.");
