@@ -504,7 +504,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
         zval *zcookie;
         http_alloc_zval(client, request, zcookie);
         array_init(zcookie);
-        zend_update_property(swoole_http_request_class_entry_ptr, client->request.zrequest_object, ZEND_STRL("zcookie"), zcookie TSRMLS_CC);
+        zend_update_property(swoole_http_request_class_entry_ptr, client->request.zrequest_object, ZEND_STRL("cookie"), zcookie TSRMLS_CC);
 
         http_parse_cookie(zcookie, at, length);
         http_merge_php_global(zcookie, client->request.zrequest_object, HTTP_GLOBAL_COOKIE);
