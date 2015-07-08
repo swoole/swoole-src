@@ -79,6 +79,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_sendwait, 0, 0, 2)
     ZEND_ARG_INFO(0, send_data)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_exist, 0, 0, 1)
+    ZEND_ARG_INFO(0, conn_fd)
+ZEND_END_ARG_INFO()
+
 //for object style
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_sendto_oo, 0, 0, 2)
     ZEND_ARG_INFO(0, ip)
@@ -333,6 +337,7 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_FALIAS(send, swoole_server_send, arginfo_swoole_server_send_oo)
     PHP_ME(swoole_server, sendto, arginfo_swoole_server_sendto_oo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, sendwait, arginfo_swoole_server_sendwait, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, exist, arginfo_swoole_server_exist, ZEND_ACC_PUBLIC)
     PHP_FALIAS(sendfile, swoole_server_sendfile, arginfo_swoole_server_sendfile_oo)
     PHP_FALIAS(close, swoole_server_close, arginfo_swoole_server_close_oo)
     PHP_FALIAS(task, swoole_server_task, arginfo_swoole_server_task_oo)

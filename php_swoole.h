@@ -232,6 +232,7 @@ PHP_METHOD(swoole_server, stats);
 PHP_METHOD(swoole_server, bind);
 PHP_METHOD(swoole_server, sendto);
 PHP_METHOD(swoole_server, sendwait);
+PHP_METHOD(swoole_server, exist);
 
 PHP_FUNCTION(swoole_event_add);
 PHP_FUNCTION(swoole_event_set);
