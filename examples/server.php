@@ -1,7 +1,25 @@
 <?php
 class G
 {
-	static $serv;
+    static $serv;
+    static $config = array(
+        //'worker_num' => 4,
+        //'open_eof_check' => true,
+        //'package_eof' => "\r\n",
+//   'task_ipc_mode'   => 2,
+        'task_worker_num' => 2,
+        'user' => 'www-data',
+        'group' => 'www-data',
+        'chroot' => '/opt/tmp',
+        //'task_ipc_mode' => 1,
+        //'dispatch_mode' => 1,
+        //'log_file' => '/tmp/swoole.log',
+        'heartbeat_check_interval' => 300,
+        'heartbeat_idle_time' => 300,
+        'open_cpu_affinity' => 1,
+        //'cpu_affinity_ignore' =>array(0,1)//如果你的网卡2个队列（或者没有多队列那么默认是cpu0来处理中断）,并且绑定了core 0和core 1,那么可以通过这个设置避免swoole的线程或者进程绑定到这2个core，防止cpu0，1被耗光而造成的丢包
+    );
+
     private static $buffers = array();
 
     /**
@@ -22,32 +40,14 @@ class G
     }
 }
 
-$config = array(
-   //'worker_num' => 4,
-    //'open_eof_check' => true,
-    //'package_eof' => "\r\n",
-//   'task_ipc_mode'   => 2,
-//   'task_worker_num' => 2,
-   'user' => 'www-data',
-   'group' => 'www-data',
-   'chroot' => '/opt/tmp',
-    //'task_ipc_mode' => 1,
-    //'dispatch_mode' => 1,
-    //'log_file' => '/tmp/swoole.log',
-   'heartbeat_check_interval' => 300,
-   'heartbeat_idle_time'      => 300,
-    // open_cpu_affinity => 1,
-    //'cpu_affinity_ignore' =>array(0,1)//如果你的网卡2个队列（或者没有多队列那么默认是cpu0来处理中断）,并且绑定了core 0和core 1,那么可以通过这个设置避免swoole的线程或者进程绑定到这2个core，防止cpu0，1被耗光而造成的丢包
-);
-
 if (isset($argv[1]) and $argv[1] == 'daemon') {
 	$config['daemonize'] = true;
 } else {
 	$config['daemonize'] = false;
 }
 
-$mode = SWOOLE_BASE;
-//$mode = SWOOLE_PROCESS;
+//$mode = SWOOLE_BASE;
+$mode = SWOOLE_PROCESS;
 
 $serv = new swoole_server("0.0.0.0", 9501, $mode);
 $serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
@@ -56,7 +56,7 @@ $serv->addlistener('::', 9504, SWOOLE_SOCK_UDP6);
 $process1 = new swoole_process("my_process1", true, false);
 $serv->addprocess($process1);
 
-$serv->set($config);
+$serv->set(G::$config);
 /**
  * 保存数据到对象属性，在任意位置均可访问
  */
@@ -283,6 +283,13 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
             var_dump($conn_list);
         }
     }
+    elseif($cmd == "list2")
+    {
+        foreach($serv->connections as $con)
+        {
+            var_dump($serv->connection_info($con));
+        }
+    }
     elseif($cmd == "stats")
     {
         $serv_stats = $serv->stats();
@@ -320,7 +327,7 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     else
     {
         $ret = $serv->send($fd, 'Swoole: '.$data, $from_id);
-        //var_dump($ret);
+        var_dump($ret);
         //$serv->close($fd);
     }
     //echo "Client:Data. fd=$fd|from_id=$from_id|data=$data";

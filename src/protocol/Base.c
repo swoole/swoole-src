@@ -114,3 +114,77 @@ int swProtocol_split_package_by_eof(swProtocol *protocol, void *object, swString
     swString_clear(buffer);
     return 0;
 }
+
+/**
+ * @return SW_ERR: close the connection
+ * @return SW_OK: continue
+ */
+int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swString *buffer)
+{
+    char *recvbuf;
+    uint32_t recvbuf_size;
+
+    do_recv: recvbuf = buffer->str + buffer->length;
+    recvbuf_size = buffer->offset > 0 ? buffer->offset - buffer->length : protocol->package_length_offset + protocol->package_length_size;
+
+    int n = swConnection_recv(conn, recvbuf, recvbuf_size, 0);
+    if (n < 0)
+    {
+        switch (swConnection_error(errno))
+        {
+        case SW_ERROR:
+            swSysError("recv from socket#%d failed.", conn->fd);
+            return SW_OK;
+        case SW_CLOSE:
+            return SW_ERR;
+        default:
+            return SW_OK;
+        }
+    }
+    else if (n == 0)
+    {
+        return SW_ERR;
+    }
+    else
+    {
+        conn->last_time = SwooleGS->now;
+        buffer->length += n;
+
+        if (conn->recv_wait)
+        {
+            if (buffer->length == buffer->offset)
+            {
+                protocol->onPackage(conn, buffer->str, buffer->length);
+                conn->recv_wait = 0;
+                swString_clear(buffer);
+            }
+            return SW_OK;
+        }
+        else
+        {
+            int package_length = protocol->get_package_length(protocol, conn, buffer->str, buffer->length);
+            //invalid package, close connection.
+            if (package_length < 0)
+            {
+                return SW_ERR;
+            }
+            //no length
+            else if (package_length == 0)
+            {
+                return SW_OK;
+            }
+            //get length success
+            else
+            {
+                if (buffer->size < package_length)
+                {
+                    swString_extend(buffer, package_length);
+                }
+                conn->recv_wait = 1;
+                buffer->offset = package_length;
+                goto do_recv;
+            }
+        }
+    }
+    return SW_OK;
+}

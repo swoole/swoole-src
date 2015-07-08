@@ -329,23 +329,6 @@ typedef struct
 
 typedef struct
 {
-    /* one package: eof check */
-
-    uint8_t package_eof_len;  //数据缓存结束符长度
-    char package_eof[SW_DATA_EOF_MAXLEN + 1];  //数据缓存结束符
-
-    char package_length_type;  //length field type
-    uint8_t package_length_size;
-    uint16_t package_length_offset;  //第几个字节开始表示长度
-    uint16_t package_body_offset;  //第几个字节开始计算长度
-    uint32_t package_max_length;
-
-    int (*onPackage)(void *, char *, uint32_t);
-
-} swProtocol;
-
-typedef struct
-{
     union
     {
         struct sockaddr_in inet_v4;
@@ -462,6 +445,22 @@ typedef struct _swConnection
     sw_atomic_t lock;
 } swConnection;
 
+typedef struct _swProtocol
+{
+    /* one package: eof check */
+
+    uint8_t package_eof_len;  //数据缓存结束符长度
+    char package_eof[SW_DATA_EOF_MAXLEN + 1];  //数据缓存结束符
+
+    char package_length_type;  //length field type
+    uint8_t package_length_size;
+    uint16_t package_length_offset;  //第几个字节开始表示长度
+    uint16_t package_body_offset;  //第几个字节开始计算长度
+    uint32_t package_max_length;
+
+    int (*onPackage)(swConnection *conn, char *data, uint32_t length);
+    int (*get_package_length)(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
+} swProtocol;
 //------------------------------String--------------------------------
 typedef struct _swString
 {
@@ -1382,6 +1381,7 @@ int swThreadPool_free(swThreadPool *pool);
 //--------------------------------protocol------------------------------
 int swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t size);
 int swProtocol_split_package_by_eof(swProtocol *protocol, void *object, swString *buffer);
+int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swString *buffer);
 
 //--------------------------------timer------------------------------
 typedef struct _swTimer_node

@@ -462,7 +462,6 @@ struct _swServer
     int (*onFinish)(swServer *serv, swEventData *data);
 
     int (*send)(swServer *, swSendData *);
-    int (*get_package_length)(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 };
 
 typedef struct _swSocketLocal

@@ -48,7 +48,7 @@ static int client_close(zval *zobject, int fd TSRMLS_DC);
 static void client_free(zval *object, swClient *cli);
 
 static int client_onRead(swReactor *reactor, swEvent *event);
-static int client_onPackage(zval *zobject, char *data, uint32_t length);
+static int client_onPackage(swConnection *conn, char *data, uint32_t length);
 static int client_onRead_check_eof(swReactor *reactor, swEvent *event);
 static int client_onRead_check_length(swReactor *reactor, swEvent *event);
 
@@ -321,14 +321,12 @@ static int client_onRead_check_eof(swReactor *reactor, swEvent *event)
 
 static int client_onRead_check_length(swReactor *reactor, swEvent *event)
 {
-    int n;
-    zval *zobject;
 
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    zobject = event->socket->object;
+    zval *zobject = event->socket->object;
     swClient *cli = swoole_get_object(zobject);
     if (!cli)
     {
@@ -349,74 +347,14 @@ static int client_onRead_check_length(swReactor *reactor, swEvent *event)
         }
     }
 
-    swString *buffer = cli->buffer;
-    char *recv_buf;
-    uint32_t recv_n;
-
-    while (1)
+    if (swProtocol_recv_check_length(protocol, conn, cli->buffer) < 0)
     {
-        recv_buf = buffer->str + buffer->length;
-        if (cli->wait_data)
-        {
-            recv_n = buffer->offset - buffer->length;
-            n = swConnection_recv(conn, recv_buf, recv_n, 0);
-
-            error:
-            if (n < 0)
-            {
-                switch (swConnection_error(errno))
-                {
-                case SW_ERROR:
-                    swSysError("recv from connection[%d@%d] failed.", event->fd, reactor->id);
-                    return SW_OK;
-                case SW_CLOSE:
-                    goto close_fd;
-                default:
-                    return SW_OK;
-                }
-            }
-            else if (n == 0)
-            {
-                goto close_fd;
-            }
-
-            buffer->length += n;
-            if (buffer->length == buffer->offset)
-            {
-                client_onPackage(zobject, buffer->str, buffer->length);
-                swString_clear(buffer);
-                cli->wait_data = 0;
-            }
-        }
-        else
-        {
-            recv_n = protocol->package_length_offset + protocol->package_length_size - buffer->length;
-            n = swConnection_recv(conn, recv_buf, recv_n, 0);
-            if (n <= 0)
-            {
-                goto error;
-            }
-            buffer->length += n;
-
-            int package_length = swProtocol_get_package_length(&cli->protocol, cli->socket, buffer->str, buffer->length);
-            if (package_length == 0)
-            {
-                return SW_OK;
-            }
-            else if (package_length < 0)
-            {
-                goto close_fd;
-            }
-            if (package_length > buffer->size)
-            {
-                swString_extend(buffer, package_length);
-            }
-            buffer->offset = package_length;
-            cli->wait_data = 1;
-        }
+        return client_close(zobject, event->fd TSRMLS_CC);
     }
-    close_fd:
-    return client_close(zobject, event->fd TSRMLS_CC);
+    else
+    {
+        return SW_OK;
+    }
 }
 
 static int client_onRead(swReactor *reactor, swEvent *event)
@@ -545,12 +483,13 @@ static int client_onRead(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
-static int client_onPackage(zval *zobject, char *data, uint32_t length)
+static int client_onPackage(swConnection *conn, char *data, uint32_t length)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
+    zval *zobject = conn->object;
     zval *zcallback = NULL;
     zval **args[2];
     zval *retval;
