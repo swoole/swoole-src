@@ -706,11 +706,9 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 
 static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *event)
 {
-    int recv_again = SW_FALSE;
-    int buf_size;
-
     swServer *serv = SwooleG.serv;
     swConnection *conn = swServer_connection_get(serv, event->fd);
+    swProtocol *protocol = &serv->protocol;
 
     if (conn->object == NULL)
     {
@@ -722,99 +720,12 @@ static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEven
         }
     }
 
-    swString *buffer = conn->object;
-    swProtocol *protocol = &serv->protocol;
-
-    recv_data:
-    buf_size = buffer->size - buffer->length;
-    char *buf_ptr = buffer->str + buffer->length;
-
-    if (buf_size > SW_BUFFER_SIZE)
+    if (swProtocol_recv_check_eof(protocol, conn, conn->object) < 0)
     {
-        buf_size = SW_BUFFER_SIZE;
-    }
-
-    int n = swConnection_recv(conn, buf_ptr, buf_size, 0);
-    //swNotice("ReactorThread: recv[len=%d]", n);
-    if (n < 0)
-    {
-        switch (swConnection_error(errno))
-        {
-        case SW_ERROR:
-            swSysError("recv from connection#%d failed.", event->fd);
-            return SW_OK;
-        case SW_CLOSE:
-            goto close_fd;
-        default:
-            return SW_OK;
-        }
-    }
-    else if (n == 0)
-    {
-        close_fd:
+        swTrace("Close Event.FD=%d|From=%d", event->fd, event->from_id);
         swReactorThread_onClose(reactor, event);
-        return SW_OK;
     }
-    else
-    {
-        //update time
-        conn->last_time = SwooleGS->now;
-        buffer->length += n;
 
-        if (buffer->length < protocol->package_eof_len)
-        {
-            return SW_OK;
-        }
-
-        if (serv->open_eof_split)
-        {
-            if (swProtocol_split_package_by_eof(protocol, conn, buffer) == 0)
-            {
-                return SW_OK;
-            }
-            else
-            {
-                recv_again = SW_TRUE;
-            }
-        }
-        else if (memcmp(buffer->str + buffer->length - protocol->package_eof_len, protocol->package_eof, protocol->package_eof_len) == 0)
-        {
-            swReactorThread_send_string_buffer(conn, buffer->str, buffer->length);
-            swString_clear(buffer);
-            return SW_OK;
-        }
-
-        //over max length, will discard
-        if (buffer->length == protocol->package_max_length)
-        {
-            swWarn("Package is too big. package_length=%d", (int )buffer->length);
-            goto close_fd;
-        }
-
-        //buffer is full, may have not read data
-        if (buffer->length == buffer->size)
-        {
-            recv_again = SW_TRUE;
-            if (buffer->size < protocol->package_max_length)
-            {
-                uint32_t extend_size = swoole_size_align(buffer->size * 2, SwooleG.pagesize);
-                if (extend_size > protocol->package_max_length)
-                {
-                    extend_size = protocol->package_max_length;
-                }
-                if (swString_extend(buffer, extend_size) < 0)
-                {
-                    return SW_ERR;
-                }
-            }
-        }
-
-        //no eof
-        if (recv_again)
-        {
-            goto recv_data;
-        }
-    }
     return SW_OK;
 }
 

@@ -35,14 +35,12 @@ typedef struct _swClient
     uint32_t async :1;
     uint32_t keep :1;
     uint32_t packet_mode :1;
-    uint32_t open_eof_split :1;
 
     /**
      * one package: length check
      */
 	uint32_t open_length_check: 1;
-
-	uint32_t wait_data :1;
+    uint32_t open_eof_check :1;
 
 	swProtocol protocol;
 

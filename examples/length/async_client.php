@@ -33,8 +33,8 @@ $client->on("receive", function (swoole_client $cli, $data) {
     $resp = unserialize(substr($data, 4));
     echo "recv length=" . strlen($data) . ", SerId={$resp['int1']}\n".str_repeat('-', 60)."\n";;
 //    sleep(1);
-    usleep(200000);
-    send($cli);
+    //usleep(200000);
+    //send($cli);
 });
 
 $client->on("error", function(swoole_client $cli){

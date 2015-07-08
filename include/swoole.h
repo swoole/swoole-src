@@ -448,7 +448,7 @@ typedef struct _swConnection
 typedef struct _swProtocol
 {
     /* one package: eof check */
-
+    uint8_t split_by_eof;
     uint8_t package_eof_len;  //数据缓存结束符长度
     char package_eof[SW_DATA_EOF_MAXLEN + 1];  //数据缓存结束符
 
@@ -1380,8 +1380,8 @@ int swThreadPool_free(swThreadPool *pool);
 
 //--------------------------------protocol------------------------------
 int swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t size);
-int swProtocol_split_package_by_eof(swProtocol *protocol, void *object, swString *buffer);
 int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swString *buffer);
+int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString *buffer);
 
 //--------------------------------timer------------------------------
 typedef struct _swTimer_node

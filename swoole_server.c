@@ -1410,7 +1410,7 @@ PHP_FUNCTION(swoole_server_set)
     if (sw_zend_hash_find(vht, ZEND_STRS("open_eof_split"), (void **) &v) == SUCCESS)
     {
         convert_to_boolean(v);
-        serv->open_eof_split = Z_BVAL_P(v);
+        serv->protocol.split_by_eof = Z_BVAL_P(v);
         serv->open_eof_check = 1;
     }
     //package eof

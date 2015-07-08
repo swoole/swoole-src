@@ -315,11 +315,6 @@ struct _swServer
     uint32_t open_eof_check :1;
 
     /**
-     * split the package use eof
-     */
-    uint32_t open_eof_split :1;
-
-    /**
      * built-in http protocol
      */
     uint32_t open_http_protocol :1;
