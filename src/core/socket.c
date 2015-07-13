@@ -254,7 +254,7 @@ int swSocket_listen(int type, char *host, int port, int backlog)
     sock = swSocket_create(type);
     if (sock < 0)
     {
-        swWarn("create socket failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("create socket failed.");
         return SW_ERR;
     }
     //reuse address
