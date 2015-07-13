@@ -179,7 +179,6 @@ static PHP_METHOD(swoole_process, __destruct)
 {
     swWorker *process = swoole_get_object(getThis());
     swPipe *_pipe = process->pipe_object;
-
     if (_pipe)
     {
         _pipe->close(_pipe);
@@ -435,6 +434,11 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
         sw_zval_ptr_dtor(&retval);
     }
 
+    if (SwooleG.main_reactor)
+    {
+        php_swoole_event_wait();
+    }
+
     zend_bailout();
     return SW_OK;
 }
@@ -450,7 +454,6 @@ static PHP_METHOD(swoole_process, start)
     }
 
     pid_t pid = fork();
-
     if (pid < 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "fork() failed. Error: %s[%d]", strerror(errno), errno);

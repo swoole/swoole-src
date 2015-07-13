@@ -627,21 +627,19 @@ void php_swoole_at_shutdown(char *function)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    
-#if PHP_MAJOR_VERSION>=7
-   php_shutdown_function_entry shutdown_function_entry;
+#if PHP_MAJOR_VERSION >=7
+    php_shutdown_function_entry shutdown_function_entry;
     shutdown_function_entry.arg_count = 1;
     shutdown_function_entry.arguments = (zval *) safe_emalloc(sizeof(zval), 1, 0);
     ZVAL_STRING(&shutdown_function_entry.arguments[0], "swoole_event_wait");
 
     if (!register_user_shutdown_function("swoole_event_wait", sizeof("swoole_event_wait")-1, &shutdown_function_entry TSRMLS_CC))
     {
-        zval_ptr_dtor(&shutdown_function_entry.arguments[0]);                               
-        efree(shutdown_function_entry.arguments);  
+        zval_ptr_dtor(&shutdown_function_entry.arguments[0]);
+        efree(shutdown_function_entry.arguments);
         swoole_php_fatal_error(E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
     }
 #else
-    
     
     zval *callback;
     SW_MAKE_STD_ZVAL(callback);
@@ -682,55 +680,55 @@ void php_swoole_at_shutdown(char *function)
 
 void php_swoole_check_reactor()
 {
-    if (SwooleWG.reactor_init == 0)
+    if (SwooleWG.reactor_init)
     {
+        return;
+    }
 
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-        if (!SWOOLE_G(cli))
-        {
-            swoole_php_fatal_error(E_ERROR, "async-io must use in cli environment.");
-            return;
-        }
+    if (!SWOOLE_G(cli))
+    {
+        swoole_php_fatal_error(E_ERROR, "async-io must use in cli environment.");
+        return;
+    }
 
-        if (swIsTaskWorker())
-        {
-            swoole_php_fatal_error(E_ERROR, "cannot use async-io in task process.");
-            return;
-        }
+    if (swIsTaskWorker())
+    {
+        swoole_php_fatal_error(E_ERROR, "cannot use async-io in task process.");
+        return;
+    }
 
+    if (SwooleG.main_reactor == NULL)
+    {
+        SwooleG.main_reactor = sw_malloc(sizeof(swReactor));
         if (SwooleG.main_reactor == NULL)
         {
-            SwooleG.main_reactor = sw_malloc(sizeof(swReactor));
-            if (SwooleG.main_reactor == NULL)
-            {
-                swoole_php_fatal_error(E_ERROR, "malloc failed.");
-                return;
-            }
-            if (swReactor_create(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS) < 0)
-            {
-                swoole_php_fatal_error(E_ERROR, "create reactor failed.");
-                return;
-            }
-            //client, swoole_event_exit will set swoole_running = 0
-            SwooleWG.in_client = 1;
-            SwooleWG.reactor_wait_onexit = 1;
-            SwooleWG.reactor_ready = 0;
-            //only client side
-            php_swoole_at_shutdown("swoole_event_wait");
+            swoole_php_fatal_error(E_ERROR, "malloc failed.");
+            return;
         }
-
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, (SW_FD_USER + 1) | SW_EVENT_READ, client_onRead);
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, (SW_FD_USER + 1) | SW_EVENT_WRITE, client_onWrite);
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, (SW_FD_USER + 1) | SW_EVENT_ERROR, client_onError);
-
-        php_swoole_event_init();
-
-        SwooleWG.reactor_init = 1;
+        if (swReactor_create(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS) < 0)
+        {
+            swoole_php_fatal_error(E_ERROR, "create reactor failed.");
+            return;
+        }
+        //client, swoole_event_exit will set swoole_running = 0
+        SwooleWG.in_client = 1;
+        SwooleWG.reactor_wait_onexit = 1;
+        SwooleWG.reactor_ready = 0;
+        //only client side
+        php_swoole_at_shutdown("swoole_event_wait");
     }
-    return;
+
+    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, (SW_FD_USER + 1) | SW_EVENT_READ, client_onRead);
+    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, (SW_FD_USER + 1) | SW_EVENT_WRITE, client_onWrite);
+    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, (SW_FD_USER + 1) | SW_EVENT_ERROR, client_onError);
+
+    php_swoole_event_init();
+
+    SwooleWG.reactor_init = 1;
 }
 
 static swClient* client_create_socket(zval *object, char *host, int host_len, int port)

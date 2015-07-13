@@ -279,6 +279,7 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC);
 
 void php_swoole_check_reactor();
 void php_swoole_event_init();
+void php_swoole_event_wait();
 void php_swoole_check_timer(int interval);
 void php_swoole_register_callback(swServer *serv);
 

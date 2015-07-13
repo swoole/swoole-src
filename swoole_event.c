@@ -31,9 +31,6 @@
 
 typedef struct
 {
-    zval *cb_read;
-    zval *cb_write;
-    zval *socket;
 #if PHP_MAJOR_VERSION >= 7
     struct
     {
@@ -42,6 +39,9 @@ typedef struct
         zval socket;
     } stack;
 #endif
+    zval *cb_read;
+    zval *cb_write;
+    zval *socket;
 } swoole_reactor_fd;
 
 static int php_swoole_event_onRead(swReactor *reactor, swEvent *event);
@@ -137,6 +137,29 @@ void php_swoole_event_init(void)
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_READ, php_swoole_event_onRead);
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_WRITE, php_swoole_event_onWrite);
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_ERROR, php_swoole_event_onError);
+}
+
+void php_swoole_event_wait()
+{
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+    if (SwooleWG.in_client == 1 && SwooleWG.reactor_ready == 0 && SwooleG.running)
+    {
+        SwooleWG.reactor_ready = 1;
+
+#ifdef HAVE_SIGNALFD
+        if (SwooleG.main_reactor->check_signalfd)
+        {
+            swSignalfd_setup(SwooleG.main_reactor);
+        }
+#endif
+        int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
+        if (ret < 0)
+        {
+            swoole_php_fatal_error(E_ERROR, "reactor wait failed. Error: %s [%d]", strerror(errno), errno);
+        }
+    }
 }
 
 static int swoole_convert_to_fd(zval *zfd)
@@ -474,22 +497,6 @@ PHP_FUNCTION(swoole_event_wait)
         swoole_php_fatal_error(E_WARNING, "reactor no ready, cannot use swoole_event_wait.");
         RETURN_FALSE;
     }
-    
-    if (SwooleWG.in_client == 1 && SwooleWG.reactor_ready == 0 && SwooleG.running)
-    {
-        SwooleWG.reactor_ready = 1;
-
-#ifdef HAVE_SIGNALFD
-        if (SwooleG.main_reactor->check_signalfd)
-        {
-            swSignalfd_setup(SwooleG.main_reactor);
-        }
-#endif
-        int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
-        if (ret < 0)
-        {
-            swoole_php_fatal_error(E_ERROR, "reactor wait failed. Error: %s [%d]", strerror(errno), errno);
-        }
-    }
+    php_swoole_event_wait();
 }
 
