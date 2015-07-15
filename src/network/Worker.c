@@ -217,12 +217,8 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     //maximum number of requests, process will exit.
     if (!SwooleWG.run_always && SwooleWG.request_count > SwooleWG.max_request)
     {
-//        SwooleG.running = 0;
-        int ret = kill(serv->workers[SwooleWG.id].pid, SIGTERM);
-        if (ret < 0)
-        {
-            swWarn("[Manager]kill fail.pid=%d. Error: %s [%d]", serv->workers[SwooleWG.id].pid, strerror(errno), errno);
-        }
+        SwooleG.running = 0;
+        SwooleG.main_reactor->running = 0;
     }
     return SW_OK;
 }
