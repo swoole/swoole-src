@@ -243,7 +243,7 @@ PHP_FUNCTION(swoole_event_add)
         swoole_php_fatal_error(E_WARNING, "unknow type.");
         RETURN_FALSE;
     }
-    else if (socket_fd == 0)
+    if (socket_fd == 0 && (event_flag & SW_EVENT_WRITE))
     {
         swoole_php_fatal_error(E_WARNING, "invalid socket fd [%d].", socket_fd);
         RETURN_FALSE;
@@ -410,6 +410,11 @@ PHP_FUNCTION(swoole_event_set)
 
     if (cb_write != NULL && !ZVAL_IS_NULL(cb_write))
     {
+        if (socket_fd == 0 && (event_flag & SW_EVENT_WRITE))
+        {
+            swoole_php_fatal_error(E_WARNING, "invalid socket fd [%d].", socket_fd);
+            RETURN_FALSE;
+        }
         if (!sw_zend_is_callable(cb_write, 0, &func_name TSRMLS_CC))
         {
             swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
