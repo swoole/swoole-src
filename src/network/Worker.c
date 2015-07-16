@@ -215,7 +215,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     serv->workers[SwooleWG.id].status = SW_WORKER_IDLE;
 
     //maximum number of requests, process will exit.
-    if (!SwooleWG.run_always && SwooleWG.request_count > SwooleWG.max_request)
+    if (!SwooleWG.run_always && SwooleWG.request_count >= SwooleWG.max_request)
     {
         SwooleG.running = 0;
         SwooleG.main_reactor->running = 0;
