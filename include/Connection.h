@@ -38,6 +38,7 @@ swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type);
 swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn);
 int swConnection_sendfile(swConnection *conn, char *filename);
 int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk);
+void swConnection_sendfile_destructor(swBuffer_trunk *chunk);
 char* swConnection_get_ip(swConnection *conn);
 int swConnection_get_port(swConnection *conn);
 

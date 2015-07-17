@@ -82,10 +82,9 @@ swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint32_t siz
 /**
  * pop the head chunk
  */
-void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk)
+void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *chunk)
 {
-    //only one trunk
-    if (trunk->next == NULL)
+    if (chunk->next == NULL)
     {
         buffer->head = NULL;
         buffer->tail = NULL;
@@ -94,16 +93,19 @@ void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk)
     }
     else
     {
-        buffer->head = trunk->next;
-        buffer->length -= trunk->length;
+        buffer->head = chunk->next;
+        buffer->length -= chunk->length;
         buffer->trunk_num--;
     }
-
-    if (trunk->type == SW_CHUNK_DATA)
+    if (chunk->type == SW_CHUNK_DATA)
     {
-        sw_free(trunk->store.ptr);
+        sw_free(chunk->store.ptr);
     }
-    sw_free(trunk);
+    if (chunk->destroy)
+    {
+        chunk->destroy(chunk);
+    }
+    sw_free(chunk);
 }
 
 /**

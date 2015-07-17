@@ -81,8 +81,6 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
     if (task->offset >= task->filesize)
     {
         swBuffer_pop_trunk(conn->out_buffer, chunk);
-        close(task->fd);
-        sw_free(task);
 
 #ifdef HAVE_TCP_NOPUSH
         if (conn->tcp_nopush)
@@ -210,6 +208,14 @@ int swConnection_get_port(swConnection *conn)
     }
 }
 
+void swConnection_sendfile_destructor(swBuffer_trunk *chunk)
+{
+    swTask_sendfile *task = chunk->store.ptr;
+    close(task->fd);
+    sw_free(task->filename);
+    sw_free(task);
+}
+
 int swConnection_sendfile(swConnection *conn, char *filename)
 {
     if (conn->out_buffer == NULL)
@@ -221,6 +227,7 @@ int swConnection_sendfile(swConnection *conn, char *filename)
         }
     }
 
+    swBuffer_trunk error_chunk;
     swTask_sendfile *task = sw_malloc(sizeof(swTask_sendfile));
     if (task == NULL)
     {
@@ -238,28 +245,29 @@ int swConnection_sendfile(swConnection *conn, char *filename)
         swSysError("open(%s) failed.", task->filename);
         return SW_ERR;
     }
+    task->fd = file_fd;
 
     struct stat file_stat;
     if (fstat(file_fd, &file_stat) < 0)
     {
-        free(task->filename);
-        free(task);
         swSysError("fstat(%s) failed.", filename);
+        error_chunk.store.ptr = task;
+        swConnection_sendfile_destructor(&error_chunk);
         return SW_ERR;
     }
-
-    swBuffer_trunk *trunk = swBuffer_new_trunk(conn->out_buffer, SW_CHUNK_SENDFILE, 0);
-    if (trunk == NULL)
-    {
-        free(task->filename);
-        free(task);
-        swWarn("get out_buffer trunk failed.");
-        return SW_ERR;
-    }
-
     task->filesize = file_stat.st_size;
-    task->fd = file_fd;
-    trunk->store.ptr = (void *) task;
+
+    swBuffer_trunk *chunk = swBuffer_new_trunk(conn->out_buffer, SW_CHUNK_SENDFILE, 0);
+    if (chunk == NULL)
+    {
+        swWarn("get out_buffer trunk failed.");
+        error_chunk.store.ptr = task;
+        swConnection_sendfile_destructor(&error_chunk);
+        return SW_ERR;
+    }
+
+    chunk->store.ptr = (void *) task;
+    chunk->destroy = swConnection_sendfile_destructor;
 
     return SW_OK;
 }

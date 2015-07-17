@@ -44,6 +44,7 @@ int swSocket_sendfile_sync(int sock, char *filename, double timeout)
     {
         if (swSocket_wait(sock, timeout_ms, SW_EVENT_WRITE) < 0)
         {
+            close(file_fd);
             return SW_ERR;
         }
         else
@@ -52,7 +53,8 @@ int swSocket_sendfile_sync(int sock, char *filename, double timeout)
             n = swoole_sendfile(sock, file_fd, &offset, sendn);
             if (n <= 0)
             {
-                swWarn("sendfile() failed. Error: %s[%d]", strerror(errno), errno);
+                close(file_fd);
+                swSysError("sendfile(%d, %s) failed.", sock, filename);
                 return SW_ERR;
             }
             else
@@ -61,6 +63,7 @@ int swSocket_sendfile_sync(int sock, char *filename, double timeout)
             }
         }
     }
+    close(file_fd);
     return SW_OK;
 }
 
