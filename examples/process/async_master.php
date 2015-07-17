@@ -8,16 +8,7 @@ function onReceive($pipe) {
     global $workers;
     $worker = $workers[$pipe];
     $data = $worker->read();
-    if ($data == false)
-    {
-        //表示子进程已关闭，回收它
-        $status = swoole_process::wait();
-        echo "Worker#{$status['pid']} exit\n";
-    }
-    else
-    {
-        echo "RECV: ".$data;
-    }
+    echo "RECV: " . $data;
 }
 
 //循环创建进程
@@ -36,6 +27,12 @@ for($i = 0; $i < $worker_num; $i++)
     $pid = $process->start();
     $workers[$process->pipe] = $process;
 }
+
+swoole_process::signal(SIGCHLD, function(){
+    //表示子进程已关闭，回收它
+    $status = swoole_process::wait();
+    echo "Worker#{$status['pid']} exit\n";
+});
 
 //将子进程的管道加入EventLoop
 foreach($workers as $process)
