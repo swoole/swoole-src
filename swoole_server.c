@@ -101,17 +101,11 @@ int php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC)
 {
     int length;
 
-    if (SW_Z_TYPE_P(zdata) == IS_STRING)
-    {
-        length = Z_STRLEN_P(zdata);
-        *str = Z_STRVAL_P(zdata);
-    }
-    else if (SW_Z_TYPE_P(zdata) == IS_OBJECT)
+    if (SW_Z_TYPE_P(zdata) == IS_OBJECT)
     {
         if (!instanceof_function(Z_OBJCE_P(zdata), swoole_buffer_class_entry_ptr TSRMLS_CC))
         {
-            swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_buffer.");
-            return SW_ERR;
+            goto convert;
         }
         swString *str_buffer = swoole_get_object(zdata);
         if (!str_buffer->str)
@@ -124,8 +118,10 @@ int php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC)
     }
     else
     {
-        swoole_php_fatal_error(E_WARNING, "only supports string or swoole_buffer type.");
-        return SW_ERR;
+        convert:
+        convert_to_string(zdata);
+        length = Z_STRLEN_P(zdata);
+        *str = Z_STRVAL_P(zdata);
     }
 
     if (length >= SwooleG.serv->buffer_output_size)
@@ -2168,7 +2164,7 @@ PHP_FUNCTION(swoole_server_sendfile)
     }
     else
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls", &conn_fd, &filename, &send_data.info.len) == FAILURE)
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls", &conn_fd, &filename, &len) == FAILURE)
         {
             return;
         }
