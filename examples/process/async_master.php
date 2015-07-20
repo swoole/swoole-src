@@ -1,6 +1,6 @@
 <?php
 $workers = [];
-$worker_num = 2;
+$worker_num = 10;
 
 //swoole_process::daemon(0, 1);
 
