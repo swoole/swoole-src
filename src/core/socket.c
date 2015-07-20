@@ -339,3 +339,24 @@ int swSocket_set_buffer_size(int fd, int buffer_size)
     }
     return SW_OK;
 }
+
+int swSocket_set_timeout(int sock, double timeout)
+{
+    int ret;
+    struct timeval timeo;
+    timeo.tv_sec = (int) timeout;
+    timeo.tv_usec = (int) ((timeout - timeo.tv_sec) * 1000 * 1000);
+    ret = setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (void *) &timeo, sizeof(timeo));
+    if (ret < 0)
+    {
+        swWarn("setsockopt(SO_SNDTIMEO) failed. Error: %s[%d]", strerror(errno), errno);
+        return SW_ERR;
+    }
+    ret = setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (void *) &timeo, sizeof(timeo));
+    if (ret < 0)
+    {
+        swWarn("setsockopt(SO_RCVTIMEO) failed. Error: %s[%d]", strerror(errno), errno);
+        return SW_ERR;
+    }
+    return SW_OK;
+}

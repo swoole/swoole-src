@@ -251,7 +251,7 @@ static int swClient_tcp_connect(swClient *cli, char *host, int port, double time
     {
         if (cli->timeout > 0)
         {
-            swSetTimeout(cli->socket->fd, timeout);
+            swSocket_set_timeout(cli->socket->fd, timeout);
         }
         swSetBlock(cli->socket->fd);
     }
@@ -385,7 +385,7 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
     cli->timeout = timeout;
     if (timeout > 0)
     {
-        swSetTimeout(cli->socket->fd, timeout);
+        swSocket_set_timeout(cli->socket->fd, timeout);
     }
 
     cli->socket->active = 1;

@@ -594,13 +594,6 @@ uint32_t swoole_common_multiple(uint32_t u, uint32_t v)
     return u * v / n_cup;
 }
 
-
-void swFloat2timeval(float timeout, long int *sec, long int *usec)
-{
-    *sec = (int) timeout;
-    *usec = (int) ((timeout * 1000 * 1000) - ((*sec) * 1000 * 1000));
-}
-
 int swRead(int fd, void *buf, int len)
 {
     int n = 0, nread;
@@ -748,60 +741,6 @@ void swoole_fcntl_set_block(int sock, int nonblock)
     {
         swSysError("fcntl(%d, SETFL, opts) failed.", sock);
     }
-}
-
-int swAccept(int server_socket, struct sockaddr_in *addr, int addr_len)
-{
-    int conn_fd;
-    bzero(addr, addr_len);
-
-    while (1)
-    {
-#ifdef SW_USE_ACCEPT4
-        conn_fd = accept4(server_socket, (struct sockaddr *) addr, (socklen_t *) &addr_len, SOCK_NONBLOCK);
-#else
-        conn_fd = accept(server_socket, (struct sockaddr *) addr, (socklen_t *) &addr_len);
-#endif
-        if (conn_fd < 0)
-        {
-            //中断
-            if (errno == EINTR)
-            {
-                continue;
-            }
-            else
-            {
-                swTrace("accept failed. Error: %s[%d]", strerror(errno), errno);
-                return SW_ERR;
-            }
-        }
-#ifndef SW_USE_ACCEPT4
-        swSetNonBlock(conn_fd);
-#endif
-        break;
-    }
-    return conn_fd;
-}
-
-int swSetTimeout(int sock, double timeout)
-{
-    int ret;
-    struct timeval timeo;
-    timeo.tv_sec = (int) timeout;
-    timeo.tv_usec = (int) ((timeout - timeo.tv_sec) * 1000 * 1000);
-    ret = setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (void *) &timeo, sizeof(timeo));
-    if (ret < 0)
-    {
-        swWarn("setsockopt(SO_SNDTIMEO) failed. Error: %s[%d]", strerror(errno), errno);
-        return SW_ERR;
-    }
-    ret = setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (void *) &timeo, sizeof(timeo));
-    if (ret < 0)
-    {
-        swWarn("setsockopt(SO_RCVTIMEO) failed. Error: %s[%d]", strerror(errno), errno);
-        return SW_ERR;
-    }
-    return SW_OK;
 }
 
 static int *swoole_kmp_borders(char *needle, size_t nlen)

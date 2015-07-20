@@ -2885,7 +2885,7 @@ PHP_FUNCTION(swoole_connection_info)
     }
     swServer *serv = swoole_get_object(zobject);
 
-    long fd;
+    long fd = 0;
     zend_bool ipv6_udp = 0;
 
     //ipv6 udp

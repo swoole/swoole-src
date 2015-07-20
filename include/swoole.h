@@ -944,10 +944,9 @@ void swoole_ioctl_set_block(int sock, int nonblock);
 void swoole_fcntl_set_block(int sock, int nonblock);
 
 //----------------------core function---------------------
-int swSetTimeout(int sock, double timeout);
+int swSocket_set_timeout(int sock, double timeout);
 int swRead(int, void *, int);
 int swWrite(int, void *, int);
-int swAccept(int server_socket, struct sockaddr_in *addr, int addr_len);
 
 #ifdef SW_USE_IOCTL
 #define swSetNonBlock(sock)   swoole_ioctl_set_block(sock, 1)
