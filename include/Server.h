@@ -768,6 +768,8 @@ int swReactorProcess_create(swServer *serv);
 int swReactorProcess_start(swServer *serv);
 int swReactorProcess_onClose(swReactor *reactor, swEvent *event);
 
+int swManager_start(swFactory *factory);
+
 #ifdef __cplusplus
 }
 #endif
