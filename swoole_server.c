@@ -2775,8 +2775,6 @@ PHP_METHOD(swoole_server, sendmessage)
 PHP_FUNCTION(swoole_server_finish)
 {
     zval *zobject = getThis();
-
-
     zval *data;
 
     if (SwooleGS->start == 0)
@@ -2787,14 +2785,14 @@ PHP_FUNCTION(swoole_server_finish)
 
     if (zobject == NULL)
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "OZ", &zobject, swoole_server_class_entry_ptr, &data) == FAILURE)
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Oz", &zobject, swoole_server_class_entry_ptr, &data) == FAILURE)
         {
             return;
         }
     }
     else
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Z", &data) == FAILURE)
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &data) == FAILURE)
         {
             return;
         }
