@@ -317,7 +317,7 @@ PHP_FUNCTION(swoole_async_read)
     }
     if (offset >= file_stat.st_size)
     {
-        swoole_php_fatal_error(E_WARNING, "offset must be less than file_size[=%ld].", file_stat.st_size);
+        swoole_php_fatal_error(E_WARNING, "offset must be less than file_size[=%lld].", file_stat.st_size);
         RETURN_FALSE;
     }
 
