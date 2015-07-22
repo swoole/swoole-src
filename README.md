@@ -4,7 +4,7 @@ Swoole
 
 Swoole is an event-based & concurrent framework for internet applications, written in C, for PHP.
 
-IRC: #swoole at freenode
+__IRC__:  <http://webchat.freenode.net/?channels=swoole&uio=d4>
 
 event-based
 ------
