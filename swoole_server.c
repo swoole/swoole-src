@@ -1840,15 +1840,18 @@ PHP_METHOD(swoole_server, addprocess)
     }
 
     zval *process = NULL;
-
-
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &process) == FAILURE)
     {
         return;
     }
 
-    swServer *serv = swoole_get_object(getThis());
+    if (ZVAL_IS_NULL(process))
+    {
+        swoole_php_fatal_error(E_WARNING, "parameter 1 cannot be empty.");
+        RETURN_FALSE;
+    }
 
+    swServer *serv = swoole_get_object(getThis());
     if (!instanceof_function(Z_OBJCE_P(process), swoole_process_class_entry_ptr TSRMLS_CC))
     {
         php_error_docref(NULL TSRMLS_CC, E_ERROR, "object is not instanceof swoole_process.");
