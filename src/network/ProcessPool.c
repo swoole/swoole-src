@@ -199,7 +199,7 @@ void swProcessPool_shutdown(swProcessPool *pool)
     for (i = 0; i < pool->run_worker_num; i++)
     {
         worker = &pool->workers[i];
-        if (kill(worker->pid, SIGTERM) < 0)
+        if (swKill(worker->pid, SIGTERM) < 0)
         {
             swSysError("kill(%d) failed.", worker->pid);
             continue;

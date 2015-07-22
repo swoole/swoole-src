@@ -16,8 +16,8 @@
 
 #include "swoole.h"
 #include "Server.h"
+
 #include <signal.h>
-#include <sys/wait.h>
 #include <sys/time.h>
 
 static int swFactoryProcess_start(swFactory *factory);
@@ -52,7 +52,7 @@ static int swFactoryProcess_shutdown(swFactory *factory)
 {
     int status;
 
-    if (kill(SwooleGS->manager_pid, SIGTERM) < 0)
+    if (swKill(SwooleGS->manager_pid, SIGTERM) < 0)
     {
         swSysError("kill(%d) failed.", SwooleGS->manager_pid);
     }

@@ -807,6 +807,7 @@ enum swProcessType
     SW_PROCESS_WORKER     = 2,
     SW_PROCESS_MANAGER    = 3,
     SW_PROCESS_TASKWORKER = 4,
+    SW_PROCESS_USERWORKER = 5,
 };
 
 #define swIsMaster()          (SwooleG.process_type==SW_PROCESS_MASTER)
@@ -986,6 +987,21 @@ static sw_inline int swWaitpid(pid_t __pid, int *__stat_loc, int __options)
         }
         break;
     } while(1);
+    return ret;
+}
+
+static sw_inline int swKill(pid_t __pid, int __sig)
+{
+    int ret;
+    do
+    {
+        ret = kill(__pid, __sig);
+        if (ret < 0 && errno == EINTR)
+        {
+            continue;
+        }
+        break;
+    } while (1);
     return ret;
 }
 
@@ -1289,6 +1305,7 @@ pid_t swProcessPool_spawn(swWorker *worker);
 int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int *worker_id);
 int swProcessPool_dispatch_blocking(swProcessPool *pool, swEventData *data, int *dst_worker_id);
 int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker);
+int swProcessPool_del_worker(swProcessPool *pool, swWorker *worker);
 
 static sw_inline swWorker* swProcessPool_get_worker(swProcessPool *pool, int worker_id)
 {
@@ -1462,6 +1479,7 @@ typedef struct
 
     swProcessPool task_workers;
     swProcessPool event_workers;
+    swProcessPool user_workers;
 
 } swServerGS;
 

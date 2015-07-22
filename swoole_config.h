@@ -30,7 +30,11 @@
 #define SW_DEBUG_SERVER_PORT       9999
 
 #define SW_SOCKET_OVERFLOW_WAIT    100
-#define SW_SOCKET_BUFFER_SIZE      (8*1024*1024)  //UDP socket的buffer区大小
+#if __MACH__
+#define SW_SOCKET_BUFFER_SIZE      (256*1024)
+#else
+#define SW_SOCKET_BUFFER_SIZE      (8*1024*1024)
+#endif
 
 #define SW_GLOBAL_MEMORY_PAGESIZE  (1024*1024*2) //全局内存的分页
 

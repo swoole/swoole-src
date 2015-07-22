@@ -17,6 +17,8 @@
 #include "swoole.h"
 #include "Server.h"
 
+#include <sys/wait.h>
+
 typedef struct
 {
     uint8_t reloading;
@@ -32,7 +34,6 @@ static pid_t swManager_spawn_worker(swFactory *factory, int worker_id);
 static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid, int status);
 
 static swManagerProcess ManagerProcess;
-
 
 //create worker child proccess
 int swManager_start(swFactory *factory)
