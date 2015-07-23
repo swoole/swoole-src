@@ -211,6 +211,7 @@ if test "$PHP_SWOOLE" != "no"; then
     
     swoole_source_file="swoole.c \
         swoole_server.c \
+        swoole_atomic.c \
         swoole_lock.c \
         swoole_client.c \
         swoole_event.c \

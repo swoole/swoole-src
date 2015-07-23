@@ -31,7 +31,7 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2015-07-23<date>
+    <date>2015-07-23</date>
     <time>11:48:51</time>
     <version>
         <release>1.7.18</release>
@@ -48,7 +48,7 @@
 - Fixed swoole_http_response->header memory leak
 - Added swoole_table signed integer support
 - Added REUSEPORT support
-- Fixed woole_client/swoole_timer memory leak
+- Fixed woole_client and swoole_timer memory leak
 - Added swoole_server->exist function
     </notes>
 	<contents>
@@ -190,7 +190,6 @@
 			<file role="src" name="swoole_http.c" />
 			<file role="src" name="swoole_http.h" />
 			<file role="src" name="swoole_websocket.c" />
-			<file role="src" name="swoole_phpng.c" />
 			<dir name="thirdparty">
 				<file role="src" name="php_http_parser.c" />
 				<file role="src" name="php_http_parser.h" />

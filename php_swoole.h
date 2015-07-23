@@ -40,7 +40,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.7.18"
+#define PHP_SWOOLE_VERSION  "1.7.19-alpha"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -269,6 +269,7 @@ void swoole_destory_table(zend_resource *rsrc TSRMLS_DC);
 void swoole_async_init(int module_number TSRMLS_DC);
 void swoole_table_init(int module_number TSRMLS_DC);
 void swoole_lock_init(int module_number TSRMLS_DC);
+void swoole_atomic_init(int module_number TSRMLS_DC);
 void swoole_client_init(int module_number TSRMLS_DC);
 void swoole_process_init(int module_number TSRMLS_DC);
 void swoole_http_init(int module_number TSRMLS_DC);
