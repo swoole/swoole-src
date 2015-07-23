@@ -875,31 +875,31 @@ PHP_FUNCTION(swoole_set_process_name)
     if (Z_STRLEN_P(name) == 0)
     {
         return;
-    }else if(Z_STRLEN_P(name)>127){
+    }
+    else if (Z_STRLEN_P(name) > 127)
+    {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "process name is too long,the max len is 127");
     }
 
-#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION > 4
-
+#if PHP_MAJOR_VERSION >= 7 || (PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION > 4)
     zval *retval;
     zval **args[1];
     args[0] = &name;
 
     zval *function;
-    MAKE_STD_ZVAL(function);
-    ZVAL_STRING(function, "cli_set_process_title", 1);
+    SW_MAKE_STD_ZVAL(function);
+    SW_ZVAL_STRING(function, "cli_set_process_title", 1);
 
-    if (call_user_function_ex(EG(function_table), NULL, function, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, function, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         return;
     }
 
-    zval_ptr_dtor(&function);
+    sw_zval_ptr_dtor(&function);
     if (retval)
     {
-        zval_ptr_dtor(&retval);
+        sw_zval_ptr_dtor(&retval);
     }
-
 #else
     bzero(sapi_module.executable_location, 127);
     memcpy(sapi_module.executable_location, Z_STRVAL_P(name), Z_STRLEN_P(name));

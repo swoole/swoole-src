@@ -1863,6 +1863,12 @@ PHP_METHOD(swoole_server, addprocess)
         serv->onUserWorkerStart = php_swoole_onUserWorkerStart;
     }
 
+#if PHP_MAJOR_VERSION >= 7
+    zval *tmp_process = emalloc(sizeof(zval));
+    memcpy(tmp_process, process, sizeof(zval));
+    process = tmp_process;
+#endif
+
     sw_zval_add_ref(&process);
 
     swWorker *worker = swoole_get_object(process);
