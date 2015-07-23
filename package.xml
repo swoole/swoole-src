@@ -31,11 +31,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2015-06-01</date>
-    <time>09:48:51</time>
+    <date>2015-07-23<date>
+    <time>11:48:51</time>
     <version>
-        <release>1.7.17</release>
-        <api>1.7.17</api>
+        <release>1.7.18</release>
+        <api>1.7.18</api>
     </version>
     <stability>
         <release>stable</release>
@@ -43,14 +43,13 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed async swoole_client send data incomplete
-- Removed task_dispatch_mode server configuration 
-- Added pipe_buffer_size server configuration  
-- Pipeline memory buffer default size is adjusted to 32M
-- Http Server Header adjust the maximum length of 128 to 8192
-- Fixed swoole_process->pop cannot use
-- Fixed taskwait error in MacOS and CygWin
-- Added swoole_table->exist
+- Added onPacket event callback function
+- Added PHP7 support
+- Fixed swoole_http_response->header memory leak
+- Added swoole_table signed integer support
+- Added REUSEPORT support
+- Fixed woole_client/swoole_timer memory leak
+- Added swoole_server->exist function
     </notes>
 	<contents>
 		<dir name="/">
@@ -255,6 +254,7 @@
 					<file role="src" name="TaskWorker.c" />
 					<file role="src" name="ThreadPool.c" />
 					<file role="src" name="Worker.c" />
+					<file role="src" name="Manager.c" />
 					<file role="src" name="EventTimer.c" />
 					<file role="src" name="DNS.c" />
 				</dir>
