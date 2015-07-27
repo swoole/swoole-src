@@ -227,7 +227,7 @@ php_var_unserialize(*rval, p, max, var_hash)
 static inline zval* sw_zend_read_property(zend_class_entry *class_ptr,zval *obj,char *s, int len,int what)
 {
     zval rv;
-    return zend_read_property(class_ptr, obj, s, len, 0, &rv TSRMLS_CC);
+    return zend_read_property(class_ptr, obj, s, len, what, &rv TSRMLS_CC);
 }
 
 static inline int sw_zend_is_callable(zval *cb, int a, char **name)
