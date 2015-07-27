@@ -91,7 +91,7 @@ PHP_METHOD(swoole_atomic, get)
     RETURN_LONG(*atomic);
 }
 
-PHP_METHOD(swoole_atomic, get)
+PHP_METHOD(swoole_atomic, set)
 {
     sw_atomic_t *atomic = swoole_get_object(getThis());
     long set_value;
