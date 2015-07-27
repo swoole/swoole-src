@@ -184,7 +184,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
                     }
                 }
                 conn->recv_wait = 1;
-                buffer->offset = package_length + buffer->length;
+                buffer->offset = package_length;
                 goto do_recv;
             }
         }
