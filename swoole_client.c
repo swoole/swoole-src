@@ -156,6 +156,10 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
             swoole_php_fatal_error(E_WARNING, "swoole_client->close[4]: onClose handler error");
             return SW_ERR;
         }
+        if (EG(exception))
+        {
+            zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+        }
         //free the callback return value
         if (retval != NULL)
         {
@@ -334,6 +338,10 @@ static int client_onRead(swReactor *reactor, swEvent *event)
             swoole_php_fatal_error(E_WARNING, "onReactorCallback handler error");
             goto free_zdata;
         }
+        if (EG(exception))
+        {
+            zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+        }
         if (retval != NULL)
         {
             sw_zval_ptr_dtor(&retval);
@@ -385,6 +393,10 @@ static int client_onPackage(swConnection *conn, char *data, uint32_t length)
     {
         swoole_php_fatal_error(E_WARNING, "onReactorCallback handler error");
         goto free_zdata;
+    }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
     if (retval != NULL)
     {
@@ -564,6 +576,10 @@ static int client_onWrite(swReactor *reactor, swEvent *event)
                 swoole_php_fatal_error(E_WARNING, "onConnect handler error");
                 return SW_ERR;
             }
+            if (EG(exception))
+            {
+                zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+            }
             if (retval)
             {
                 sw_zval_ptr_dtor(&retval);
@@ -612,6 +628,10 @@ static int client_error_callback(zval *zobject, swEvent *event, int error TSRMLS
     {
         swoole_php_fatal_error(E_WARNING, "onError handler error");
         return SW_ERR;
+    }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
     if (retval)
     {
@@ -672,6 +692,10 @@ void php_swoole_at_shutdown(char *function)
     {
         swoole_php_fatal_error(E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
         return;
+    }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
 #endif
     
@@ -1042,6 +1066,10 @@ static PHP_METHOD(swoole_client, connect)
             {
                 swoole_php_fatal_error(E_WARNING, "onConnect[udp] handler error");
                 RETURN_FALSE;
+            }
+            if (EG(exception))
+            {
+                zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
             }
             if (retval)
             {

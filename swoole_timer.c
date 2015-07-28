@@ -142,6 +142,11 @@ static void php_swoole_onTimeout(swTimer *timer, swTimer_node *event)
     }
     timer->_current_id = -1;
 
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+    }
+
     if (retval)
     {
         sw_zval_ptr_dtor(&retval);
@@ -205,6 +210,11 @@ static void php_swoole_onTimerInterval(swTimer *timer, swTimer_node *event)
         return;
     }
     timer->_current_id = -1;
+
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+    }
 
     if (retval != NULL)
     {

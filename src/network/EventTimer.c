@@ -178,7 +178,7 @@ static int swEventTimer_select(swTimer *timer)
             if (!tmp->remove)
             {
                 tmp->restart = 1;
-                tmp->exec_msec += tmp->interval;
+                tmp->exec_msec = now_msec + tmp->interval;
             }
         }
         else
