@@ -16,6 +16,11 @@
 #ifndef SWOOLE_CONFIG_H_
 #define SWOOLE_CONFIG_H_
 
+//gcc version check
+#if defined(__GNUC__) && (__GNUC__ < 3 || (__GNUC__ == 4 && __GNUC_MINOR__ < 4))
+#error "GCC 4.4 or later required."
+#endif
+
 #define SW_MAX_FDTYPE              32   //32 kinds of event
 #define SW_ERROR_MSG_SIZE          512
 #define SW_MAX_WORKER_GROUP        2
