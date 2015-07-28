@@ -38,8 +38,9 @@ By using Swoole, you can build enhanced web applications with more control, real
 
 ## Requirements
 
-* PHP 5.3+
+* PHP 5.3.10 or later
 * Linux, OS X and basic Windows support (Thanks to cygwin)
+* GCC 4.4 or later
 
 ## Installation
 
