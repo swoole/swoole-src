@@ -653,6 +653,20 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         conn->connect_notify = 0;
         return reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_READ);
     }
+    else if (conn->close_notify)
+    {
+        swDataHead close_event;
+        close_event.type = SW_EVENT_CLOSE;
+        close_event.from_id = reactor->id;
+        close_event.fd = fd;
+
+        if (serv->factory.notify(&serv->factory, &close_event) < 0)
+        {
+            swWarn("send notification [fd=%d] failed.", fd);
+        }
+        conn->close_notify = 0;
+        return SW_OK;
+    }
     else if (serv->disable_notify && conn->close_force)
     {
         return swReactorThread_close(reactor, fd);

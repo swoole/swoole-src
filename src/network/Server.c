@@ -40,7 +40,6 @@ static void swServer_signal_hanlder(int sig);
 static int swServer_start_proxy(swServer *serv);
 static void swServer_disable_accept(swReactor *reactor);
 
-static void swHeartbeatThread_start(swServer *serv);
 static void swHeartbeatThread_loop(swThreadParam *param);
 static int swServer_send1(swServer *serv, swSendData *resp);
 static int swServer_send2(swServer *serv, swSendData *resp);
@@ -1180,7 +1179,7 @@ static void swServer_signal_hanlder(int sig)
     }
 }
 
-static void swHeartbeatThread_start(swServer *serv)
+void swHeartbeatThread_start(swServer *serv)
 {
     swThreadParam *param;
     pthread_t thread_id;
@@ -1240,7 +1239,20 @@ static void swHeartbeatThread_loop(swThreadParam *param)
                 notify_ev.from_id = conn->from_id;
                 conn->close_force = 1;
 
-                if (serv->disable_notify)
+                if (serv->factory_mode != SW_MODE_PROCESS)
+                {
+                    conn->close_notify = 1;
+                    if (serv->factory_mode == SW_MODE_SINGLE)
+                    {
+                        reactor = SwooleG.main_reactor;
+                    }
+                    else
+                    {
+                        reactor = &serv->reactor_threads[conn->from_id].reactor;
+                    }
+                    reactor->set(reactor, fd, SW_FD_TCP | SW_EVENT_WRITE);
+                }
+                else if (serv->disable_notify)
                 {
                     conn->close_wait = 1;
                     reactor = &serv->reactor_threads[conn->from_id].reactor;

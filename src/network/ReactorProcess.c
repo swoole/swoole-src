@@ -18,8 +18,6 @@
 
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker);
 static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event);
-static void swReactorProcess_timer_init(swServer *serv, swReactor *reactor);
-static void swReactorProcess_onTimer(swTimer *timer, swTimer_node *event);
 static int swReactorProcess_send2client(swFactory *, swSendData *);
 
 int swReactorProcess_create(swServer *serv)
@@ -320,15 +318,13 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
      */
     if (serv->heartbeat_check_interval > 0)
     {
-        swReactorProcess_timer_init(serv, reactor);
+        swHeartbeatThread_start(serv);
     }
 
     struct timeval timeo;
     timeo.tv_sec = 1;
     timeo.tv_usec = 0;
-    reactor->wait(reactor, &timeo);
-
-    return SW_OK;
+    return reactor->wait(reactor, &timeo);
 }
 
 int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
@@ -353,50 +349,6 @@ int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
     else
     {
         return SW_ERR;
-    }
-}
-
-static void swReactorProcess_timer_init(swServer *serv, swReactor *reactor)
-{
-    SwooleG.timer.onTimer = swReactorProcess_onTimer;
-    int interval_ms = serv->heartbeat_check_interval * 1000;
-    swEventTimer_init();
-    reactor->timeout_msec = interval_ms;
-    SwooleG.timer.interval = interval_ms;
-    SwooleG.timer.add(&SwooleG.timer, interval_ms, 1, serv);
-}
-
-static void swReactorProcess_onTimer(swTimer *timer, swTimer_node *event)
-{
-    swServer *serv = SwooleG.serv;
-
-    if (event->data == serv)
-    {
-        swFactory *factory = &serv->factory;
-        swConnection *conn;
-
-        int fd;
-        int serv_max_fd;
-        int serv_min_fd;
-        int checktime;
-
-        serv_max_fd = swServer_get_maxfd(serv);
-        serv_min_fd = swServer_get_minfd(serv);
-
-        checktime = (int) time(NULL) - serv->heartbeat_idle_time;
-
-        for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
-        {
-            conn = swServer_connection_get(serv, fd);
-            if (conn != NULL && 1 == conn->active && conn->last_time < checktime)
-            {
-                factory->end(&serv->factory, fd);
-            }
-        }
-    }
-    else
-    {
-        swServer_onTimer(timer, event);
     }
 }
 

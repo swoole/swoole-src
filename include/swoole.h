@@ -370,6 +370,11 @@ typedef struct _swConnection
 
     uint32_t connect_notify :1;
 
+    /**
+     * for SWOOLE_BASE mode.
+     */
+    uint32_t close_notify :1;
+
     uint32_t recv_wait :1;
     uint32_t send_wait :1;
 

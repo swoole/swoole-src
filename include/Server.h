@@ -755,6 +755,7 @@ void swWorker_signal_handler(int signo);
 void swWorker_clean(void);
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event);
+void swHeartbeatThread_start(swServer *serv);
 
 int swReactorThread_create(swServer *serv);
 int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr);
