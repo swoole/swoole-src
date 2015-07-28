@@ -224,10 +224,10 @@ php_var_unserialize(*rval, p, max, var_hash)
 #define SW_ZVAL_STRING(z,s,dup)               ZVAL_STRING(z,s)
 #define sw_smart_str                          smart_string
 
-static inline zval* sw_zend_read_property(zend_class_entry *class_ptr,zval *obj,char *s, int len,int what)
+static inline zval* sw_zend_read_property(zend_class_entry *class_ptr, zval *obj, char *s, int len, int silent)
 {
     zval rv;
-    return zend_read_property(class_ptr, obj, s, len, what, &rv TSRMLS_CC);
+    return zend_read_property(class_ptr, obj, s, len, silent, &rv);
 }
 
 static inline int sw_zend_is_callable(zval *cb, int a, char **name)
