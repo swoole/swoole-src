@@ -461,6 +461,11 @@ int swReactorThread_send(swSendData *_send)
         //Direct send
         if (_send->info.type != SW_EVENT_SENDFILE)
         {
+            if (!conn->direct_send)
+            {
+                goto buffer_send;
+            }
+
             int n;
 
             direct_send:
@@ -529,8 +534,19 @@ int swReactorThread_send(swSendData *_send)
             swWarn("connection#%d output buffer overflow.", fd);
             conn->overflow = 1;
         }
+
+        int _length = _send_length;
+        void* _pos = _send_data;
+        int _n;
+
         //buffer enQueue
-        swBuffer_append(conn->out_buffer, _send_data, _send_length);
+        while (_length > 0)
+        {
+            _n = _length >= SW_BUFFER_SIZE_BIG ? SW_BUFFER_SIZE_BIG : _length;
+            swBuffer_append(conn->out_buffer, _pos, _n);
+            _pos += _n;
+            _length -= _n;
+        }
     }
 
     //listen EPOLLOUT event
@@ -549,7 +565,6 @@ int swReactorThread_send(swSendData *_send)
 static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
 {
     int ret;
-
 
     swBuffer_trunk *trunk = NULL;
     swEventData *send_data;
@@ -713,7 +728,6 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     if (swBuffer_empty(conn->out_buffer))
     {
         reactor->set(reactor, fd, SW_FD_TCP | SW_EVENT_READ);
-        conn->direct_send = 1;
     }
     return SW_OK;
 }
@@ -751,13 +765,7 @@ static int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *even
     swDispatchData task;
     swConnection *conn = swServer_connection_get(serv, event->fd);
 
-#ifdef SW_USE_EPOLLET
-    n = swRead(event->fd, task.data.data, SW_BUFFER_SIZE);
-#else
-    //非ET模式会持续通知
     n = swConnection_recv(conn, task.data.data, SW_BUFFER_SIZE, 0);
-#endif
-
     if (n < 0)
     {
         switch (swConnection_error(errno))
@@ -771,7 +779,6 @@ static int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *even
             return SW_OK;
         }
     }
-    //需要检测errno来区分是EAGAIN还是ECONNRESET
     else if (n == 0)
     {
         close_fd: swReactorThread_onClose(reactor, event);
@@ -779,8 +786,6 @@ static int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *even
     }
     else
     {
-        swTrace("recv: %s|fd=%d|len=%d\n", task.data.data, event->fd, n);
-        //更新最近收包时间
         conn->last_time = SwooleGS->now;
 
         //heartbeat ping package

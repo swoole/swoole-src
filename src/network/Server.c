@@ -44,7 +44,7 @@ static void swHeartbeatThread_loop(swThreadParam *param);
 static int swServer_send1(swServer *serv, swSendData *resp);
 static int swServer_send2(swServer *serv, swSendData *resp);
 
-static swConnection* swServer_connection_new(swServer *serv, int fd, int from_fd, int reactor_id);
+static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int from_fd, int reactor_id);
 
 swServerG SwooleG;
 swServerGS *SwooleGS;
@@ -148,7 +148,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         }
 
         //add to connection_list
-        swConnection *conn = swServer_connection_new(serv, new_fd, event->fd, reactor_id);
+        swConnection *conn = swServer_connection_new(serv, listen_host, new_fd, event->fd, reactor_id);
         memcpy(&conn->info.addr, &client_addr, sizeof(client_addr));
         sub_reactor = &serv->reactor_threads[reactor_id].reactor;
         conn->socket_type = listen_host->type;
@@ -1272,7 +1272,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
 /**
  * new connection
  */
-static swConnection* swServer_connection_new(swServer *serv, int fd, int from_fd, int reactor_id)
+static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int from_fd, int reactor_id)
 {
     swConnection* connection = NULL;
 
@@ -1314,7 +1314,7 @@ static swConnection* swServer_connection_new(swServer *serv, int fd, int from_fd
     connection->active = 1;
 
 #ifdef SW_REACTOR_SYNC_SEND
-    if (serv->factory_mode != SW_MODE_THREAD)
+    if (serv->factory_mode != SW_MODE_THREAD && !ls->ssl)
     {
         connection->direct_send = 1;
     }

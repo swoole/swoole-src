@@ -49,6 +49,7 @@ int swSSL_create(swConnection *conn, int flags);
 int swSSL_accept(swConnection *conn);
 void swSSL_close(swConnection *conn);
 ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n);
+ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n);
 #endif
 
 /**
@@ -59,17 +60,7 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
 #ifdef SW_USE_OPENSSL
     if (conn->ssl)
     {
-        int n = swSSL_recv(conn, __buf, __n);
-        switch (SSL_get_error(conn->ssl, n))
-        {
-        case SSL_ERROR_WANT_READ:
-        case SSL_ERROR_WANT_WRITE:
-            errno = EAGAIN;
-            return SW_ERR;
-        default:
-            return SW_ERR;
-        }
-        return n;
+        return swSSL_recv(conn, __buf, __n);
     }
     else
     {
@@ -88,17 +79,7 @@ static sw_inline int swConnection_send(swConnection *conn, void *__buf, size_t _
 #ifdef SW_USE_OPENSSL
     if (conn->ssl)
     {
-        int n = SSL_write(conn->ssl, __buf, __n);
-        switch (SSL_get_error(conn->ssl, n))
-        {
-        case SSL_ERROR_WANT_READ:
-        case SSL_ERROR_WANT_WRITE:
-            errno = EAGAIN;
-            return SW_ERR;
-        default:
-            return SW_ERR;
-        }
-        return n;
+        return swSSL_send(conn, __buf, __n);
     }
     else
     {

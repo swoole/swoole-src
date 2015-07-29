@@ -91,6 +91,7 @@ int swSSL_accept(swConnection *conn)
 
 void swSSL_close(swConnection *conn)
 {
+    SSL_shutdown(conn->ssl);
     SSL_free(conn->ssl);
 }
 
@@ -101,7 +102,43 @@ ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
         //close connection
         return 0;
     }
-    return SSL_read(conn->ssl, __buf, __n);
+
+    int n = SSL_read(conn->ssl, __buf, __n);
+    if (n < 0)
+    {
+        int _errno = SSL_get_error(conn->ssl, n);
+        switch (_errno)
+        {
+        case SSL_ERROR_WANT_READ:
+        case SSL_ERROR_WANT_WRITE:
+            errno = EAGAIN;
+            return SW_ERR;
+        case SSL_ERROR_SYSCALL:
+            return SW_ERR;
+        default:
+            swWarn("SSL_read(%d, %ld) failed, errno=%d.", conn->fd, __n, _errno);
+            return SW_ERR;
+        }
+    }
+    return n;
+}
+
+ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n)
+{
+    int n = SSL_write(conn->ssl, __buf, __n);
+    if (n < 0)
+    {
+        switch (SSL_get_error(conn->ssl, n))
+        {
+        case SSL_ERROR_WANT_READ:
+        case SSL_ERROR_WANT_WRITE:
+            errno = EAGAIN;
+            return SW_ERR;
+        default:
+            return SW_ERR;
+        }
+    }
+    return n;
 }
 
 int swSSL_create(swConnection *conn, int flags)
