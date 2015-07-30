@@ -51,6 +51,7 @@ int swReactorProcess_create(swServer *serv)
  */
 int swReactorProcess_start(swServer *serv)
 {
+    swListenPort *ls;
     if (serv->onStart != NULL)
     {
         serv->onStart(serv);
@@ -58,25 +59,26 @@ int swReactorProcess_start(swServer *serv)
     //listen UDP
     if (serv->have_udp_sock == 1)
     {
-        swListenPort *listen_host;
-        LL_FOREACH(serv->listen_list, listen_host)
+        LL_FOREACH(serv->listen_list, ls)
         {
             //UDP
-            if (listen_host->type == SW_SOCK_UDP || listen_host->type == SW_SOCK_UDP6
-                    || listen_host->type == SW_SOCK_UNIX_DGRAM)
+            if (swSocket_is_dgram(ls->type))
             {
-                serv->connection_list[listen_host->sock].info.addr.inet_v4.sin_port = htons(listen_host->port);
-                serv->connection_list[listen_host->sock].fd = listen_host->sock;
-                serv->connection_list[listen_host->sock].object = listen_host;
+                serv->connection_list[ls->sock].info.addr.inet_v4.sin_port = htons(ls->port);
+                serv->connection_list[ls->sock].fd = ls->sock;
+                serv->connection_list[ls->sock].object = ls;
             }
         }
     }
     //listen TCP
     if (serv->have_tcp_sock == 1)
     {
-        swListenPort *ls;
         LL_FOREACH(serv->listen_list, ls)
         {
+            if (swSocket_is_dgram(ls->type))
+            {
+                continue;
+            }
 #ifdef HAVE_REUSEPORT
             if (SwooleG.reuse_port)
             {
@@ -244,8 +246,16 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     //listen the all tcp port
     LL_FOREACH(serv->listen_list, ls)
     {
-        fdtype = (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM) ?
-                        SW_FD_UDP : SW_FD_LISTEN;
+        fdtype = swSocket_is_dgram(ls->type) ? SW_FD_UDP : SW_FD_LISTEN;
+
+        serv->connection_list[ls->sock].fd = ls->sock;
+        serv->connection_list[ls->sock].socket_type = ls->type;
+        serv->connection_list[ls->sock].fdtype = fdtype;
+
+        if (swSocket_is_dgram(ls->type))
+        {
+            continue;
+        }
 
 #ifdef HAVE_REUSEPORT
         if (SwooleG.reuse_port)
@@ -256,10 +266,6 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
             }
         }
 #endif
-        serv->connection_list[ls->sock].fd = ls->sock;
-        serv->connection_list[ls->sock].socket_type = ls->type;
-        serv->connection_list[ls->sock].fdtype = fdtype;
-
         reactor->add(reactor, ls->sock, fdtype);
     }
     SwooleG.main_reactor = reactor;

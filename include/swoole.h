@@ -954,6 +954,16 @@ int swSocket_set_timeout(int sock, double timeout);
 int swRead(int, void *, int);
 int swWrite(int, void *, int);
 
+static sw_inline int swSocket_is_stream(uint8_t type)
+{
+    return (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM);
+}
+
+static sw_inline int swSocket_is_dgram(uint8_t type)
+{
+    return (type == SW_SOCK_TCP || type == SW_SOCK_TCP6 || type == SW_SOCK_UNIX_STREAM);
+}
+
 #ifdef SW_USE_IOCTL
 #define swSetNonBlock(sock)   swoole_ioctl_set_block(sock, 1)
 #define swSetBlock(sock)      swoole_ioctl_set_block(sock, 0)

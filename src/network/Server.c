@@ -1022,16 +1022,10 @@ int swServer_add_listener(swServer *serv, int type, char *host, int port)
 
 /**
  * listen the TCP server socket
- * UDP ignore
  */
 int swServer_listen(swServer *serv, swListenPort *ls)
 {
     int sock = -1, sockopt;
-    //UDP
-    if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
-    {
-        return SW_OK;
-    }
 
 #ifdef SW_USE_OPENSSL
     if (ls->ssl)

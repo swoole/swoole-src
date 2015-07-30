@@ -1474,6 +1474,10 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
         swListenPort *ls;
         LL_FOREACH(serv->listen_list, ls)
         {
+            if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
+            {
+                continue;
+            }
             ret = swServer_listen(serv, ls);
             if (ret < 0)
             {
