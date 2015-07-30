@@ -253,7 +253,7 @@ Refer [API Reference](http://wiki.swoole.com/wiki/page/183.html) for more detail
 
 ### Client
 
-Swoole also provides a Client component to build tcp/dup clients in both asynchronous and synchronous ways.
+Swoole also provides a Client component to build tcp/udp clients in both asynchronous and synchronous ways.
 Swoole uses the `swoole_client` class to expose all its functionalities.
 
 synchronous blocking:
