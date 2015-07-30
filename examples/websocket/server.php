@@ -1,7 +1,8 @@
 <?php
-//$server = new swoole_websocket_server("0.0.0.0", 9501);
-$server = new swoole_websocket_server("0.0.0.0", 9501, SWOOLE_BASE);
-//$server->set(['worker_num' => 4]);
+$server = new swoole_websocket_server("0.0.0.0", 9501);
+//$server = new swoole_websocket_server("0.0.0.0", 9501, SWOOLE_BASE);
+$server->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
+$server->set(['worker_num' => 4]);
 
 function user_handshake(swoole_http_request $request, swoole_http_response $response)
 {
@@ -58,6 +59,11 @@ $server->on('message', function (swoole_websocket_server $_server, $frame) {
 
 $server->on('close', function ($_server, $fd) {
     echo "client {$fd} closed\n";
+});
+
+$server->on('packet', function ($_server, $data, $client) {
+    echo "#".posix_getpid()."\tPacket {$data}\n";
+    var_dump($client);
 });
 
 $server->on('request', function (swoole_http_request $request, swoole_http_response $response) {

@@ -248,6 +248,8 @@ static PHP_METHOD(swoole_process, useQueue)
     {
         RETURN_FALSE;
     }
+    swQueueMsg_set_destory(queue, 0);
+
     process->queue = queue;
     process->ipc_mode = mode;
     RETURN_TRUE;
