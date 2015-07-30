@@ -975,30 +975,13 @@ int swServer_add_listener(swServer *serv, int type, char *host, int port)
     strncpy(ls->host, host, SW_HOST_MAXSIZE);
     LL_APPEND(serv->listen_list, ls);
 
-    //UDP需要提前创建好
-    if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM)
+    if (swSocket_is_dgram(ls->type))
     {
-        int sock = swSocket_listen(type, ls->host, port, serv->backlog);
-        if (sock < 0)
-        {
-            return SW_ERR;
-        }
-
-        int bufsize = SwooleG.socket_buffer_size;
-        setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize));
-        setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize));
-
-        ls->sock = sock;
-        ls->type = type;
         serv->have_udp_sock = 1;
-
-        if (type == SW_SOCK_UDP)
+        //need to pre-listen
+        if (serv->factory_mode != SW_MODE_SINGLE)
         {
-            serv->udp_socket_ipv4 = sock;
-        }
-        else if (type == SW_SOCK_UDP6)
-        {
-            serv->udp_socket_ipv6 = sock;
+            swServer_listen(serv, ls);
         }
     }
     else
@@ -1026,6 +1009,30 @@ int swServer_add_listener(swServer *serv, int type, char *host, int port)
 int swServer_listen(swServer *serv, swListenPort *ls)
 {
     int sock = -1, sockopt;
+
+    if (swSocket_is_dgram(ls->type))
+    {
+        int sock = swSocket_listen(ls->type, ls->host, ls->port, serv->backlog);
+        if (sock < 0)
+        {
+            return SW_ERR;
+        }
+
+        int bufsize = SwooleG.socket_buffer_size;
+        setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize));
+        setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize));
+        ls->sock = sock;
+
+        if (ls->type == SW_SOCK_UDP)
+        {
+            serv->udp_socket_ipv4 = sock;
+        }
+        else if (ls->type == SW_SOCK_UDP6)
+        {
+            serv->udp_socket_ipv6 = sock;
+        }
+        return SW_OK;
+    }
 
 #ifdef SW_USE_OPENSSL
     if (ls->ssl)

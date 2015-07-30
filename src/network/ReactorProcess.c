@@ -70,6 +70,7 @@ int swReactorProcess_start(swServer *serv)
             }
         }
     }
+
     //listen TCP
     if (serv->have_tcp_sock == 1)
     {
@@ -252,13 +253,16 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         serv->connection_list[ls->sock].socket_type = ls->type;
         serv->connection_list[ls->sock].fdtype = fdtype;
 
-        if (swSocket_is_dgram(ls->type))
+        if (fdtype == SW_FD_UDP)
         {
-            continue;
+            if (swServer_listen(serv, ls) < 0)
+            {
+                continue;
+            }
         }
 
 #ifdef HAVE_REUSEPORT
-        if (SwooleG.reuse_port)
+        if (fdtype == SW_FD_LISTEN && SwooleG.reuse_port)
         {
             if (swServer_listen(serv, ls) < 0)
             {
