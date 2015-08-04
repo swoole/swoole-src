@@ -34,7 +34,7 @@ Traditional PHP applications almost always run behind Apache/Nginx, without much
 4. Implementing realtime applications such as chatting server requires 3rd party languages, nodejs for example.
 
 This why Swoole appeared. Swoole extends the use cases of PHP, and brings all these possibilities to the PHP world. 
-By using Swoole, you can build enhanced web applications with more control, realtime chatting servers, etc more easily.
+By using Swoole, you can build enhanced web applications with more control, real-time chatting servers, etc more easily.
 
 ## Requirements
 
