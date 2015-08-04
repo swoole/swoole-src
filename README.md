@@ -14,7 +14,7 @@ The network layer in Swoole is event-based and takes full advantage of the under
 concurrent
 ------
 
-In the request processing part, Swoole uses a multi-process model. Every process works as a worker. All business logic is executed in workers, synchronously.
+On the request processing part, Swoole uses a multi-process model. Every process works as a worker. All business logic is executed in workers, synchronously.
 
 With the synchronous logic execution, you can easily write large and robust applications and take advantage of almost all libraries available to the PHP community.
 
