@@ -233,7 +233,7 @@ The `$flag` is a mask to indicate what type of events we should get notified, ca
 
 ### Async IO
 
-Swoole's Async IO provide the ability to read/write file and lookup dns records asynchronously. The following 
+Swoole's Async IO provides the ability to read/write files and lookup dns records asynchronously. The following
 are signatures for these functions:
 
 
