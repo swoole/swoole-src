@@ -28,7 +28,7 @@ Unlike traditional apache/php-fpm stuff, the memory allocated in Swoole will not
 
 Traditional PHP applications almost always run behind Apache/Nginx, without much control of the request. This brings several limitations:
 
-1. All memory is free'd after request. All PHP code needs be re-compiled on every request. Even with opcache enabled, all opcode still needs to be re-executed.
+1. All memory will be freed after request. All PHP code needs be re-compiled on every request. Even with opcache enabled, all opcode still needs to be re-executed.
 2. It is almost impossible to implement long connections and connections pooling techniques.
 3. Implementing asynchronous tasks requires 3rd party queue servers, such as rabbitmq and beanstalkd.
 4. Implementing realtime applications such as chatting server requires 3rd party languages, nodejs for example.
