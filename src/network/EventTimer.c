@@ -181,7 +181,7 @@ static int swEventTimer_select(swTimer *timer)
                 int _now_msec = swEventTimer_get_relative_msec();
                 if (_now_msec > 0)
                 {
-                    tmp->exec_msec = now_msec + tmp->interval;
+                    tmp->exec_msec = _now_msec + tmp->interval;
                 }
                 else
                 {

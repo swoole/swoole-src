@@ -228,6 +228,8 @@ struct _swServer
 
     uint8_t factory_mode;
 
+    uint8_t dgram_port_num;
+
     /**
      * swoole packet mode
      */

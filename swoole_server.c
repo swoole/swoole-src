@@ -404,56 +404,63 @@ static int php_swoole_onReceive(swServer *serv, swEventData *req)
 
     //UDP使用from_id作为port,fd做为ip
     php_swoole_udp_t udp_info;
+    swDgramPacket *packet;
 
     SW_MAKE_STD_ZVAL(zfd);
     SW_MAKE_STD_ZVAL(zfrom_id);
     SW_MAKE_STD_ZVAL(zdata);
 
-    //udp ipv4
-    if (req->info.type == SW_EVENT_UDP)
+    //dgram
+    if (swEventData_is_dgram(req->info.type))
     {
-        udp_info.from_fd = req->info.from_fd;
-        udp_info.port = req->info.from_id;
-        memcpy(&udp_server_socket, &udp_info, sizeof(udp_server_socket));
-        factory->last_from_id = udp_server_socket;
-        swTrace("SendTo: from_id=%d|from_fd=%d", (uint16_t) req->info.from_id, req->info.from_fd);
+        swString *buffer = SwooleWG.buffer_input[req->info.from_id];
+        packet = (swDgramPacket*) buffer->str;
 
-        ZVAL_LONG(zfrom_id, (long ) udp_server_socket);
-        ZVAL_LONG(zfd, (long ) req->info.fd);
-    }
-    //udp ipv6
-    else if (req->info.type == SW_EVENT_UDP6)
-    {
-        udp_info.from_fd = req->info.from_fd;
-        udp_info.port = req->info.from_id;
-        memcpy(&dgram_server_socket, &udp_info, sizeof(udp_server_socket));
-        factory->last_from_id = dgram_server_socket;
+        //udp ipv4
+        if (req->info.type == SW_EVENT_UDP)
+        {
+            udp_info.from_fd = req->info.from_fd;
+            udp_info.port = packet->port;
+            memcpy(&udp_server_socket, &udp_info, sizeof(udp_server_socket));
+            factory->last_from_id = udp_server_socket;
+            swTrace("SendTo: from_id=%d|from_fd=%d", (uint16_t) req->info.from_id, req->info.from_fd);
 
-        swTrace("SendTo: from_id=%d|from_fd=%d", (uint16_t) req->info.from_id, req->info.from_fd);
+            SW_ZVAL_STRINGL(zdata, packet->data, packet->length, 1);
+            ZVAL_LONG(zfrom_id, (long ) udp_server_socket);
+            ZVAL_LONG(zfd, (long ) packet->addr.v4.s_addr);
+        }
+        //udp ipv6
+        else if (req->info.type == SW_EVENT_UDP6)
+        {
+            udp_info.from_fd = req->info.from_fd;
+            udp_info.port = packet->port;
+            memcpy(&dgram_server_socket, &udp_info, sizeof(udp_server_socket));
+            factory->last_from_id = dgram_server_socket;
 
-        uint16_t ipv6_addr_offset = req->info.fd;
-        ZVAL_LONG(zfrom_id, (long ) dgram_server_socket);
-        req->info.len = ipv6_addr_offset;
-        char tmp[INET6_ADDRSTRLEN];
-        inet_ntop(AF_INET6, req->data + ipv6_addr_offset, tmp, sizeof(tmp));
-        SW_ZVAL_STRING(zfd, tmp, 1);
+            swTrace("SendTo: from_id=%d|from_fd=%d", (uint16_t) req->info.from_id, req->info.from_fd);
+
+            ZVAL_LONG(zfrom_id, (long ) dgram_server_socket);
+            char tmp[INET6_ADDRSTRLEN];
+            inet_ntop(AF_INET6, &packet->addr.v6, tmp, sizeof(tmp));
+            SW_ZVAL_STRING(zfd, tmp, 1);
+            SW_ZVAL_STRINGL(zdata, packet->data, packet->length, 1);
+        }
+        //unix dgram
+        else
+        {
+            SW_ZVAL_STRINGL(zfd, packet->data, packet->addr.un.path_length, 1);
+            SW_ZVAL_STRINGL(zdata, packet->data + packet->addr.un.path_length, packet->length - packet->addr.un.path_length, 1);
+            ZVAL_LONG(zfrom_id, (long ) req->info.from_fd);
+            dgram_server_socket = req->info.from_fd;
+        }
     }
-    //unix dgram
-    else if (req->info.type == SW_EVENT_UNIX_DGRAM)
-    {
-        uint16_t sun_path_offset = req->info.fd;
-        SW_ZVAL_STRING(zfd, req->data + sun_path_offset, 1);
-        req->info.len -= (Z_STRLEN_P(zfd) + 1);
-        ZVAL_LONG(zfrom_id, (long ) req->info.from_fd);
-        dgram_server_socket = req->info.from_fd;
-    }
+    //stream
     else
     {
         ZVAL_LONG(zfrom_id, (long ) req->info.from_id);
         ZVAL_LONG(zfd, (long ) req->info.fd);
+        zdata = php_swoole_get_recv_data(zdata, req TSRMLS_CC);
     }
-
-    zdata = php_swoole_get_recv_data(zdata, req TSRMLS_CC);
 
     args[0] = &zserv;
     args[1] = &zfd;
@@ -488,6 +495,7 @@ static int php_swoole_onPacket(swServer *serv, swEventData *req)
     zval *zdata;
     zval *zaddr;
     zval *retval = NULL;
+    swDgramPacket *packet;
 
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -497,38 +505,37 @@ static int php_swoole_onPacket(swServer *serv, swEventData *req)
     SW_MAKE_STD_ZVAL(zaddr);
     array_init(zaddr);
 
-    add_assoc_long(zaddr, "port", (uint16_t) req->info.from_id);
+    swString *buffer = SwooleWG.buffer_input[req->info.from_id];
+    packet = (swDgramPacket*) buffer->str;
+
     add_assoc_long(zaddr, "server_socket", req->info.from_fd);
 
     //udp ipv4
     if (req->info.type == SW_EVENT_UDP)
     {
         struct in_addr sin_addr;
-        sin_addr.s_addr = req->info.fd;
+        sin_addr.s_addr = packet->addr.v4.s_addr;
         char *address = inet_ntoa(sin_addr);
         sw_add_assoc_string(zaddr, "address", address, 1);
+        add_assoc_long(zaddr, "port", packet->port);
+        SW_ZVAL_STRINGL(zdata, packet->data, packet->length, 1);
     }
     //udp ipv6
     else if (req->info.type == SW_EVENT_UDP6)
     {
         char tmp[INET6_ADDRSTRLEN];
-        uint16_t ipv6_addr_offset = req->info.fd;
-        inet_ntop(AF_INET6, req->data + ipv6_addr_offset, tmp, sizeof(tmp));
-        req->info.len = ipv6_addr_offset;
+        inet_ntop(AF_INET6, &packet->addr.v6, tmp, sizeof(tmp));
         sw_add_assoc_string(zaddr, "address", tmp, 1);
+        add_assoc_long(zaddr, "port", packet->port);
+        SW_ZVAL_STRINGL(zdata, packet->data, packet->length, 1);
     }
     //unix dgram
     else if (req->info.type == SW_EVENT_UNIX_DGRAM)
     {
-        struct sockaddr_un un_address;
-        uint16_t sun_path_offset = req->info.fd;
-        int len = strlen(req->data + sun_path_offset);
-        memcpy(&un_address.sun_path, req->data + sun_path_offset, len);
-        sw_add_assoc_string(zaddr, "address", un_address.sun_path, 1);
-        req->info.len -= (len + 1);
+        sw_add_assoc_stringl(zaddr, "address", packet->data, packet->addr.un.path_length, 1);
+        SW_ZVAL_STRINGL(zdata, packet->data + packet->addr.un.path_length, packet->length - packet->addr.un.path_length, 1);
+        dgram_server_socket = req->info.from_fd;
     }
-
-    zdata = php_swoole_get_recv_data(zdata, req TSRMLS_CC);
 
     args[0] = &zserv;
     args[1] = &zdata;

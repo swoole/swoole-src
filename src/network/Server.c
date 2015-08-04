@@ -416,7 +416,7 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     }
 #endif
 
-    SwooleWG.buffer_input = sw_malloc(sizeof(swString*) * serv->reactor_num);
+    SwooleWG.buffer_input = sw_malloc(sizeof(swString*) * (serv->reactor_num + serv->dgram_port_num));
     if (SwooleWG.buffer_input == NULL)
     {
         swError("malloc for SwooleWG.buffer_input failed.");
@@ -435,7 +435,7 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
         buffer_input_size = SW_BUFFER_SIZE_BIG;
     }
 
-    for (i = 0; i < serv->reactor_num; i++)
+    for (i = 0; i < serv->reactor_num + serv->dgram_port_num; i++)
     {
         SwooleWG.buffer_input[i] = swString_new(buffer_input_size);
         if (SwooleWG.buffer_input[i] == NULL)
@@ -978,6 +978,7 @@ int swServer_add_listener(swServer *serv, int type, char *host, int port)
     if (swSocket_is_dgram(ls->type))
     {
         serv->have_udp_sock = 1;
+        serv->dgram_port_num++;
         //need to pre-listen
         if (serv->factory_mode != SW_MODE_SINGLE)
         {

@@ -136,6 +136,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
 {
     swServer *serv = factory->ptr;
     swString *package = NULL;
+    swDgramPacket *header;
 
     factory->last_from_id = task->info.from_id;
     //worker busy
@@ -185,9 +186,23 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     case SW_EVENT_UDP:
     case SW_EVENT_UDP6:
     case SW_EVENT_UNIX_DGRAM:
-        SwooleWG.request_count++;
-        sw_atomic_fetch_add(&SwooleStats->request_count, 1);
-        serv->onPacket(serv, task);
+        package = SwooleWG.buffer_input[task->info.from_id];
+        swString_append_ptr(package, task->data, task->info.len);
+
+        if (package->offset == 0)
+        {
+            header = (swDgramPacket *) package->str;
+            package->offset = header->length;
+        }
+
+        //one packet
+        if (package->offset == package->length - sizeof(swDgramPacket))
+        {
+            SwooleWG.request_count++;
+            sw_atomic_fetch_add(&SwooleStats->request_count, 1);
+            serv->onPacket(serv, task);
+            swString_clear(package);
+        }
         break;
 
     case SW_EVENT_CLOSE:

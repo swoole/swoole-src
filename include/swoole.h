@@ -530,6 +530,22 @@ typedef struct _swEventData
     char data[SW_BUFFER_SIZE];
 } swEventData;
 
+typedef struct _swDgramPacket
+{
+    union
+    {
+        struct in6_addr v6;
+        struct in_addr v4;
+        struct
+        {
+            uint16_t path_length;
+        } un;
+    } addr;
+    uint16_t port;
+    uint32_t length;
+    char data[0];
+} swDgramPacket;
+
 typedef struct _swSendData
 {
     swDataHead info;

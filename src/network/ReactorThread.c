@@ -21,11 +21,8 @@
 #include "mqtt.h"
 
 static int swUDPThread_start(swServer *serv);
-
-static int swReactorThread_loop_udp(swThreadParam *param);
-static int swReactorThread_loop_tcp(swThreadParam *param);
-static int swReactorThread_loop_unix_dgram(swThreadParam *param);
-
+static int swReactorThread_loop_dgram(swThreadParam *param);
+static int swReactorThread_loop_stream(swThreadParam *param);
 static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onClose(swReactor *reactor, swEvent *event);
 static int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event);
@@ -94,58 +91,115 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
     swConnection *server_sock = &serv->connection_list[fd];
     swDispatchData task;
     swSocketAddress info;
+    swDgramPacket pkt;
+    swFactory *factory = &serv->factory;
 
     info.len = sizeof(info.addr);
     bzero(&task.data.info, sizeof(task.data.info));
     task.data.info.from_fd = fd;
+    task.data.info.from_id = SwooleTG.id;
 
     int socket_type = server_sock->socket_type;
-    int buffer_size;
-
-    //IPv4
-    if (socket_type == SW_SOCK_UDP)
+    switch(socket_type)
     {
-        task.data.info.type = SW_EVENT_UDP;
-        buffer_size = SW_IPC_MAX_SIZE - sizeof(struct _swDataHead);
-    }
-    //IPv6
-    else
-    {
+    case SW_SOCK_UDP6:
         task.data.info.type = SW_EVENT_UDP6;
-        buffer_size = SW_IPC_MAX_SIZE - sizeof(struct _swDataHead) - sizeof(info.addr.inet_v6.sin6_addr);
+        break;
+    case SW_SOCK_UNIX_DGRAM:
+        task.data.info.type = SW_EVENT_UNIX_DGRAM;
+        break;
+    case SW_SOCK_UDP:
+    default:
+        task.data.info.type = SW_EVENT_UDP;
+        break;
     }
 
-    ret = recvfrom(fd, task.data.data, buffer_size, 0, (struct sockaddr *) &info.addr, &info.len);
+    char packet[SW_BUFFER_SIZE_UDP];
+    ret = recvfrom(fd, packet, SW_BUFFER_SIZE_UDP, 0, (struct sockaddr *) &info.addr, &info.len);
+
     if (ret > 0)
     {
-        //IPv4, swDataHead + data
+        pkt.length = ret;
+
+        //IPv4
         if (socket_type == SW_SOCK_UDP)
         {
-            //UDP的from_id是PORT，FD是IP
-            task.data.info.from_id = ntohs(info.addr.inet_v4.sin_port);
-            task.data.info.fd = info.addr.inet_v4.sin_addr.s_addr;
-            task.data.info.len = ret;
+            pkt.port = ntohs(info.addr.inet_v4.sin_port);
+            pkt.addr.v4.s_addr = info.addr.inet_v4.sin_addr.s_addr;
         }
-        //IPv6, swDataHead + data + sin6_addr
+        //IPv6
+        else if (socket_type == SW_SOCK_UDP6)
+        {
+            pkt.port = ntohs(info.addr.inet_v6.sin6_port);
+            memcpy(&pkt.addr.v6, &info.addr.inet_v6.sin6_addr, sizeof(info.addr.inet_v6.sin6_addr));
+        }
+        //Unix Dgram
         else
         {
-            task.data.info.from_id = ntohs(info.addr.inet_v6.sin6_port);
-            //fd record the offset
-            task.data.info.fd = ret;
-            memcpy(task.data.data + ret, &info.addr.inet_v6.sin6_addr, sizeof(info.addr.inet_v6.sin6_addr));
-            task.data.info.len = ret + sizeof(info.addr.inet_v6.sin6_addr);
+            pkt.addr.un.path_length = strlen(info.addr.un.sun_path) + 1;
+            pkt.length += pkt.addr.un.path_length;
         }
 
         task.target_worker_id = -1;
+        uint32_t header_size = sizeof(pkt);
 
-        swTrace("recvfrom udp socket. fd=%d|data=%*s", fd, ret, task.data.data);
-        ret = serv->factory.dispatch(&serv->factory, &task);
-        if (ret < 0)
+        //dgram header
+        memcpy(task.data.data, &pkt, sizeof(pkt));
+        //unix dgram
+        if (socket_type == SW_SOCK_UNIX_DGRAM )
         {
-            swWarn("factory->dispatch[udp packet] failed");
+            header_size += pkt.addr.un.path_length;
+            memcpy(task.data.data + sizeof(pkt), info.addr.un.sun_path, pkt.addr.un.path_length);
         }
-    }
+        //dgram body
+        if (pkt.length > SW_BUFFER_SIZE - sizeof(pkt))
+        {
+            task.data.info.len = SW_BUFFER_SIZE;
+        }
+        else
+        {
+            task.data.info.len = pkt.length + sizeof(pkt);
+        }
+        //dispatch packet header
+        memcpy(task.data.data + header_size, packet, task.data.info.len - header_size);
 
+        uint32_t send_n = pkt.length + header_size;
+        uint32_t offset = 0;
+
+        if (factory->dispatch(factory, &task) < 0)
+        {
+            return SW_ERR;
+        }
+
+        send_n -= task.data.info.len;
+        if (send_n == 0)
+        {
+            return ret;
+        }
+
+        /**
+         * lock target
+         */
+        SwooleTG.factory_lock_target = 1;
+        offset = SW_BUFFER_SIZE;
+        while (send_n > 0)
+        {
+            task.data.info.len = send_n > SW_BUFFER_SIZE ? SW_BUFFER_SIZE : send_n;
+            memcpy(task.data.data, packet + offset, task.data.info.len);
+            send_n -= task.data.info.len;
+            offset += task.data.info.len;
+
+            if (factory->dispatch(factory, &task) < 0)
+            {
+                break;
+            }
+        }
+        /**
+         * unlock
+         */
+        SwooleTG.factory_target_worker = -1;
+        SwooleTG.factory_lock_target = 0;
+    }
     return ret;
 }
 
@@ -1505,7 +1559,7 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
             param->object = serv;
             param->pti = i;
 
-            if (pthread_create(&pidt, NULL, (void * (*)(void *)) swReactorThread_loop_tcp, (void *) param) < 0)
+            if (pthread_create(&pidt, NULL, (void * (*)(void *)) swReactorThread_loop_stream, (void *) param) < 0)
             {
                 swError("pthread_create[tcp_reactor] failed. Error: %s[%d]", strerror(errno), errno);
             }
@@ -1529,7 +1583,7 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
 /**
  * ReactorThread main Loop
  */
-static int swReactorThread_loop_tcp(swThreadParam *param)
+static int swReactorThread_loop_stream(swThreadParam *param)
 {
     swServer *serv = SwooleG.serv;
     int ret;
@@ -1669,13 +1723,12 @@ static int swUDPThread_start(swServer *serv)
     swThreadParam *param;
     pthread_t thread_id;
     swListenPort *ls;
-
-    void * (*thread_loop)(void *);
+    int index = serv->reactor_num;
 
     LL_FOREACH(serv->listen_list, ls)
     {
         param = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
-        //UDP
+
         if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
         {
             if (ls->type == SW_SOCK_UDP)
@@ -1691,19 +1744,10 @@ static int swUDPThread_start(swServer *serv)
             serv->connection_list[ls->sock].socket_type = ls->type;
             serv->connection_list[ls->sock].object = ls;
 
-            param->object = serv;
-            param->pti = ls->sock;
+            param->object = ls;
+            param->pti = index++;
 
-            if (ls->type == SW_SOCK_UNIX_DGRAM)
-            {
-                thread_loop = (void * (*)(void *)) swReactorThread_loop_unix_dgram;
-            }
-            else
-            {
-                thread_loop = (void * (*)(void *)) swReactorThread_loop_udp;
-            }
-
-            if (pthread_create(&thread_id, NULL, thread_loop, (void *) param) < 0)
+            if (pthread_create(&thread_id, NULL, (void * (*)(void *)) swReactorThread_loop_dgram, (void *) param) < 0)
             {
                 swWarn("pthread_create[udp_listener] fail");
                 return SW_ERR;
@@ -1717,15 +1761,16 @@ static int swUDPThread_start(swServer *serv)
 /**
  * udp listener thread
  */
-static int swReactorThread_loop_udp(swThreadParam *param)
+static int swReactorThread_loop_dgram(swThreadParam *param)
 {
     swEvent event;
+    swListenPort *ls = param->object;
 
-    int fd = param->pti;
+    int fd = ls->sock;
 
     SwooleTG.factory_lock_target = 0;
     SwooleTG.factory_target_worker = -1;
-    SwooleTG.id = fd;
+    SwooleTG.id = param->pti;
     SwooleTG.type = SW_THREAD_UDP;
 
     swSignal_none();
@@ -1912,62 +1957,6 @@ int swReactorThread_send_in_buffer(swReactorThread *thread, swConnection *conn)
     return SW_OK;
 }
 #endif
-
-/**
- * unix socket dgram thread
- */
-static int swReactorThread_loop_unix_dgram(swThreadParam *param)
-{
-    int n;
-    swServer *serv = param->object;
-    swDispatchData task;
-    struct sockaddr_un addr_un;
-    socklen_t addrlen = sizeof(struct sockaddr_un);
-    int sock = param->pti;
-
-    uint16_t sun_path_offset;
-    uint8_t sun_path_len;
-
-    SwooleTG.factory_lock_target = 0;
-    SwooleTG.factory_target_worker = -1;
-    SwooleTG.id = param->pti;
-    SwooleTG.type = SW_THREAD_UNIX_DGRAM;
-
-    swSignal_none();
-
-    //blocking
-    swSetBlock(sock);
-
-    bzero(&task.data.info, sizeof(task.data.info));
-    task.data.info.from_fd = sock;
-    task.data.info.type = SW_EVENT_UNIX_DGRAM;
-    int buffer_size = SW_IPC_MAX_SIZE - sizeof(struct _swDataHead) - sizeof(addr_un.sun_path);
-
-    while (SwooleG.running == 1)
-    {
-        n = recvfrom(sock, task.data.data, buffer_size, 0, (struct sockaddr *) &addr_un, &addrlen);
-        if (n > 0)
-        {
-            //unix dgram, swDataHead + data + sun_path
-            sun_path_len = strlen(addr_un.sun_path) + 1;
-            sun_path_offset = n;
-            task.data.info.fd = sun_path_offset;
-            task.data.info.len = n + sun_path_len;
-            task.target_worker_id = -1;
-            memcpy(task.data.data + n, addr_un.sun_path, sun_path_len);
-            swTrace("recvfrom udp socket.fd=%d|data=%s", sock, task.data.data);
-
-            n = serv->factory.dispatch(&serv->factory, &task);
-            if (n < 0)
-            {
-                swWarn("factory->dispatch[udp packet] fail\n");
-            }
-        }
-    }
-    pthread_exit(0);
-    return 0;
-}
-
 void swReactorThread_free(swServer *serv)
 {
     int i;
