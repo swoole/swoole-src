@@ -14,7 +14,7 @@ The network layer in Swoole is event-based and takes full advantage of the under
 concurrent
 ------
 
-In the request processing part, Swoole uses a multi-process model. Every process works as a worker. All business logic is executed in workers, synchronously.
+On the request processing part, Swoole uses a multi-process model. Every process works as a worker. All business logic is executed in workers, synchronously.
 
 With the synchronous logic execution, you can easily write large and robust applications and take advantage of almost all libraries available to the PHP community.
 
@@ -233,7 +233,7 @@ The `$flag` is a mask to indicate what type of events we should get notified, ca
 
 ### Async IO
 
-Swoole's Async IO provide the ability to read/write file and lookup dns records asynchronously. The following 
+Swoole's Async IO provides the ability to read/write files and lookup dns records asynchronously. The following
 are signatures for these functions:
 
 
