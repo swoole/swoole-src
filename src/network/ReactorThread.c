@@ -126,18 +126,21 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
         {
             pkt.port = ntohs(info.addr.inet_v4.sin_port);
             pkt.addr.v4.s_addr = info.addr.inet_v4.sin_addr.s_addr;
+            task.data.info.fd = pkt.addr.v4.s_addr;
         }
         //IPv6
         else if (socket_type == SW_SOCK_UDP6)
         {
             pkt.port = ntohs(info.addr.inet_v6.sin6_port);
             memcpy(&pkt.addr.v6, &info.addr.inet_v6.sin6_addr, sizeof(info.addr.inet_v6.sin6_addr));
+            memcpy(&task.data.info.fd, &info.addr.inet_v6.sin6_addr, sizeof(task.data.info.fd));
         }
         //Unix Dgram
         else
         {
             pkt.addr.un.path_length = strlen(info.addr.un.sun_path) + 1;
             pkt.length += pkt.addr.un.path_length;
+            memcpy(&task.data.info.fd, info.addr.un.sun_path + pkt.addr.un.path_length - 6, sizeof(task.data.info.fd));
         }
 
         task.target_worker_id = -1;

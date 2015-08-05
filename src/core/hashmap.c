@@ -277,7 +277,7 @@ void swHashMap_update_int(swHashMap* hmap, uint64_t key, void *data)
 int swHashMap_del(swHashMap* hmap, char *key, uint16_t key_len)
 {
     swHashMap_node *root = hmap->root;
-    swHashMap_node *node = swHashMap_node_find(root, key, key_len);;
+    swHashMap_node *node = swHashMap_node_find(root, key, key_len);
     if (node == NULL)
     {
         return SW_ERR;
