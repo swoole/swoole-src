@@ -386,7 +386,14 @@ int swProcessPool_wait(swProcessPool *pool)
             swWorker *exit_worker = swHashMap_find_int(pool->map, pid);
             if (exit_worker == NULL)
             {
-                swWarn("[Manager]unknow worker[pid=%d]", pid);
+                if (pool->onWorkerNotFound)
+                {
+                    pool->onWorkerNotFound(pool, pid);
+                }
+                else
+                {
+                    swWarn("[Manager]unknow worker[pid=%d]", pid);
+                }
                 continue;
             }
             if (!WIFEXITED(status))

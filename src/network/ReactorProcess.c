@@ -105,7 +105,7 @@ int swReactorProcess_start(swServer *serv)
     SwooleGS->event_workers.run_worker_num = serv->worker_num;
 
     //no worker
-    if (serv->worker_num == 1 && SwooleG.task_worker_num == 0 && serv->max_request == 0)
+    if (serv->worker_num == 1 && SwooleG.task_worker_num == 0 && serv->max_request == 0 && serv->user_worker_list == NULL)
     {
         swWorker single_worker;
         bzero(&single_worker, sizeof(single_worker));
@@ -139,6 +139,27 @@ int swReactorProcess_start(swServer *serv)
             swProcessPool_add_worker(&SwooleGS->event_workers, &SwooleGS->task_workers.workers[i]);
         }
     }
+
+    /**
+     * create user worker process
+     */
+    if (serv->user_worker_list)
+    {
+        swUserWorker_node *user_worker;
+        LL_FOREACH(serv->user_worker_list, user_worker)
+        {
+            /**
+             * store the pipe object
+             */
+            if (user_worker->worker->pipe_object)
+            {
+                swServer_pipe_set(serv, user_worker->worker->pipe_object);
+            }
+            swManager_spawn_user_worker(serv, user_worker->worker);
+        }
+        SwooleGS->event_workers.onWorkerNotFound = swManager_wait_user_worker;
+    }
+
     /**
      * BASE模式，管理进程就是主进程
      */
@@ -152,7 +173,6 @@ int swReactorProcess_start(swServer *serv)
 
     swProcessPool_start(&SwooleGS->event_workers);
     swProcessPool_wait(&SwooleGS->event_workers);
-
     swProcessPool_shutdown(&SwooleGS->event_workers);
 
     return SW_OK;

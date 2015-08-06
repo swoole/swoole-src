@@ -29,7 +29,6 @@ typedef struct
 
 static int swManager_loop(swFactory *factory);
 static void swManager_signal_handle(int sig);
-static pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker);
 static pid_t swManager_spawn_worker(swFactory *factory, int worker_id);
 static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid, int status);
 
@@ -319,19 +318,13 @@ static int swManager_loop(swFactory *factory)
                         else
                         {
                             swProcessPool_spawn(exit_worker);
-                            goto kill_worker;
                         }
                     }
                 }
                 //user process
                 if (serv->user_worker_map != NULL)
                 {
-                    exit_worker = swHashMap_find_int(serv->user_worker_map, pid);
-                    if (exit_worker != NULL)
-                    {
-                        swManager_spawn_user_worker(serv, exit_worker);
-                        goto kill_worker;
-                    }
+                    swManager_wait_user_worker(&SwooleGS->event_workers, pid);
                 }
             }
         }
@@ -532,7 +525,21 @@ static void swManager_signal_handle(int sig)
     }
 }
 
-static pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
+int swManager_wait_user_worker(swProcessPool *pool, pid_t pid)
+{
+    swServer *serv = SwooleG.serv;
+    swWorker *exit_worker = swHashMap_find_int(serv->user_worker_map, pid);
+    if (exit_worker != NULL)
+    {
+        return swManager_spawn_user_worker(serv, exit_worker);
+    }
+    else
+    {
+        return SW_ERR;
+    }
+}
+
+pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
 {
     pid_t pid = fork();
 
