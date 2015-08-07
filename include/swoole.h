@@ -184,6 +184,7 @@ enum swFd_type
     SW_FD_AIO             = 9, //linux native aio
     SW_FD_SIGNAL          = 11, //signalfd
     SW_FD_DNS_RESOLVER    = 12, //dns resolver
+    SW_FD_INOTIFY         = 13, //server socket
     SW_FD_USER            = 15, //SW_FD_USER or SW_FD_USER+n: for custom event
 };
 
@@ -561,9 +562,10 @@ typedef void * (*swThreadStartFunc)(void *);
 typedef int (*swHandle)(swEventData *buf);
 typedef void (*swSignalFunc)(int);
 typedef void* (*swCallback)(void *);
-typedef struct swReactor_s swReactor;
-typedef int (*swReactor_handle)(swReactor *reactor, swEvent *event);
+typedef struct _swReactor swReactor;
 
+typedef int (*swReactor_handle)(swReactor *reactor, swEvent *event);
+typedef void (*swReactor_callback)(swReactor *reactor);
 //------------------Pipe--------------------
 typedef struct _swPipe
 {
@@ -1064,7 +1066,13 @@ int swSignalfd_onSignal(swReactor *reactor, swEvent *event);
 #endif
 void swSignal_none(void);
 
-struct swReactor_s
+typedef struct _swReactor_finish_callback
+{
+    struct _swReactor_finish_callback *next, *prev;
+    swReactor_callback callback;
+} swReactor_finish_callback;
+
+struct _swReactor
 {
     void *object;
     void *ptr;  //reserve
@@ -1121,7 +1129,11 @@ struct swReactor_s
     int (*del)(swReactor *, int fd);
     int (*wait)(swReactor *, struct timeval *);
     void (*free)(swReactor *);
+
     int (*setHandle)(swReactor *, int fdtype, swReactor_handle);
+    void (*atLoopEnd)(swReactor *, swReactor_callback);
+
+    swReactor_finish_callback *finish_callback;
 
     void (*onTimeout)(swReactor *);
     void (*onFinish)(swReactor *);

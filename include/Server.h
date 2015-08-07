@@ -380,6 +380,9 @@ struct _swServer
     
     uint8_t listen_port_num;
 
+    char *watch_path;
+    time_t reload_time;
+
     /**
      * 来自客户端的心跳侦测包
      */
@@ -559,6 +562,7 @@ int swServer_get_manager_pid(swServer *serv);
 int swServer_worker_init(swServer *serv, swWorker *worker);
 void swServer_onTimer(swTimer *timer, swTimer_node *event);
 void swServer_enable_accept(swReactor *reactor);
+int swServer_watch_file(swServer *serv, swReactor *reactor);
 
 void swTaskWorker_init(swProcessPool *pool);
 int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);

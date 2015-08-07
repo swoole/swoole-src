@@ -18,6 +18,9 @@
 #include "Http.h"
 #include "Connection.h"
 
+#include <dirent.h>
+#include <sys/inotify.h>
+
 #if SW_REACTOR_SCHEDULE == 3
 static sw_inline void swServer_reactor_schedule(swServer *serv)
 {
@@ -40,6 +43,10 @@ static void swServer_signal_hanlder(int sig);
 static int swServer_start_proxy(swServer *serv);
 static void swServer_disable_accept(swReactor *reactor);
 
+static int swServer_master_onFileChange(swReactor *reactor, swEvent *event);
+static int swServer_master_add_watch(int ifd, char *dirname);
+static void swServer_master_check_reload_time();
+
 static void swHeartbeatThread_loop(swThreadParam *param);
 static int swServer_send1(swServer *serv, swSendData *resp);
 static int swServer_send2(swServer *serv, swSendData *resp);
@@ -52,6 +59,7 @@ swWorkerG SwooleWG;
 swServerStats *SwooleStats;
 __thread swThreadG SwooleTG;
 
+static swHashMap *watch_file_map = NULL;
 int16_t sw_errno;
 char sw_error[SW_ERROR_MSG_SIZE];
 
@@ -83,6 +91,147 @@ void swServer_enable_accept(swReactor *reactor)
         }
         reactor->add(reactor, ls->sock, SW_FD_LISTEN);
     }
+}
+
+int swServer_watch_file(swServer *serv, swReactor *reactor)
+{
+#ifdef HAVE_INOTIFY_INIT1
+    int ifd = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
+#else
+    int ifd = inotify_init();
+#endif
+    if (ifd < 0)
+    {
+        swSysError("inotify_init() failed.");
+        return SW_ERR;
+    }
+#ifndef HAVE_INOTIFY_INIT1
+    swSetNonBlock(ifd);
+#endif
+    if (ifd < 0)
+    {
+        return SW_ERR;
+    }
+    if (swServer_master_add_watch(ifd, serv->watch_path) < 0)
+    {
+        return SW_ERR;
+    }
+
+    reactor->setHandle(reactor, SW_FD_INOTIFY, swServer_master_onFileChange);
+    reactor->atLoopEnd(reactor, swServer_master_check_reload_time);
+
+    return reactor->add(reactor, ifd, SW_FD_INOTIFY | SW_EVENT_READ);
+}
+
+static void swServer_master_check_reload_time()
+{
+    swServer *serv = SwooleG.serv;
+    if (serv->reload_time > 0 && SwooleGS->now > serv->reload_time)
+    {
+        swKill(SwooleGS->manager_pid, SIGUSR1);
+        serv->reload_time = 0;
+    }
+}
+
+static int swServer_master_add_watch(int ifd, char *dirname)
+{
+    char subdir[512];
+    struct dirent *child_dir;
+
+    DIR *odir = opendir(dirname);
+    if (odir == NULL)
+    {
+        swSysError("opendir(%s) failed.", dirname);
+        return SW_ERR;
+    }
+
+    int mask = IN_MODIFY | IN_MOVED_FROM | IN_CREATE | IN_DELETE | IN_ISDIR;
+
+    int watch_fd = inotify_add_watch(ifd, dirname, mask);
+    if (watch_fd < 0)
+    {
+        swSysError("inotify_add_watch(%s) failed.", dirname);
+        return SW_ERR;
+    }
+
+    if (watch_file_map == NULL)
+    {
+        watch_file_map = swHashMap_new(16, NULL);
+    }
+    swHashMap_add_int(watch_file_map, watch_fd, strdup(dirname), NULL);
+
+    errno = 0;
+    while ((child_dir = readdir(odir)) != NULL)
+    {
+        if (strcmp(child_dir->d_name, ".") == 0 || strcmp(child_dir->d_name, "..") == 0)
+        {
+            continue;
+        }
+        if (child_dir->d_type == DT_DIR)
+        {
+            sprintf(subdir, "%s/%s", dirname, child_dir->d_name);
+            swServer_master_add_watch(ifd, subdir);
+        }
+    }
+
+    if (errno != 0)
+    {
+        swSysError("readdir(%s) failed.", dirname);
+    }
+
+    closedir(odir);
+    return watch_fd;
+}
+
+/**
+ * Application file is changed.
+ */
+static int swServer_master_onFileChange(swReactor *reactor, swEvent *event)
+{
+    swServer *serv = SwooleG.serv;
+    char name[1024];
+    struct inotify_event *ievent;
+    char buf[sizeof(struct inotify_event) * 128];
+    int n, i;
+    int ifd = event->fd;
+
+    while (1)
+    {
+        n = read(ifd, buf, sizeof(buf));
+        if (n <= 0)
+        {
+            break;
+        }
+
+        for (i = 0; i < n; i += sizeof(struct inotify_event) + ievent->len)
+        {
+            ievent = (struct inotify_event*) &buf[i];
+            if (ievent->mask & IN_ISDIR)
+            {
+                if (ievent->mask & IN_CREATE)
+                {
+                    char *parent_dir_name = swHashMap_find_int(watch_file_map, ievent->wd);
+                    snprintf(name, sizeof(name), "%s/%s", parent_dir_name, ievent->name);
+                    swServer_master_add_watch(ifd, name);
+                }
+                else
+                {
+                    inotify_rm_watch(ifd, ievent->wd);
+                }
+            }
+            else
+            {
+                if (ievent->len > (sizeof(SW_RELOAD_FILE_EXTNAME) - 1)
+                        && strcasecmp(ievent->name + strlen(ievent->name) - (sizeof(SW_RELOAD_FILE_EXTNAME) - 1),
+                        SW_RELOAD_FILE_EXTNAME) == 0)
+                {
+                    serv->reload_time = SwooleGS->now + SW_RELOAD_AFTER_SECONDS_N;
+                    swNotice("Program files is changed, Server will reload after %d seconds.", SW_RELOAD_AFTER_SECONDS_N);
+                }
+            }
+        }
+    }
+    return SW_OK;
 }
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event)
@@ -382,6 +531,14 @@ static int swServer_start_proxy(swServer *serv)
     main_reactor->id = serv->reactor_num;
     main_reactor->ptr = serv;
     main_reactor->setHandle(main_reactor, SW_FD_LISTEN, swServer_master_onAccept);
+
+    /**
+     * inotify, watch the application file update.
+     */
+    if (serv->watch_path)
+    {
+        swServer_watch_file(serv, main_reactor);
+    }
 
     if (serv->onStart != NULL)
     {

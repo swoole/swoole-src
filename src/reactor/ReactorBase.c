@@ -21,6 +21,7 @@
 static void swReactor_onTimeout_and_Finish(swReactor *reactor);
 static void swReactor_onTimeout(swReactor *reactor);
 static void swReactor_onFinish(swReactor *reactor);
+static void swReactor_atLoopEnd(swReactor *reactor, swReactor_callback callback);
 
 int swReactor_create(swReactor *reactor, int max_event)
 {
@@ -53,6 +54,8 @@ int swReactor_create(swReactor *reactor, int max_event)
     reactor->running = 1;
 
     reactor->setHandle = swReactor_setHandle;
+    reactor->atLoopEnd = swReactor_atLoopEnd;
+
     reactor->onFinish = swReactor_onFinish;
     reactor->onTimeout = swReactor_onTimeout;
 
@@ -111,6 +114,17 @@ int swReactor_setHandle(swReactor *reactor, int _fdtype, swReactor_handle handle
     }
 
     return SW_OK;
+}
+
+static void swReactor_atLoopEnd(swReactor *reactor, swReactor_callback callback)
+{
+    swReactor_finish_callback *cb = sw_malloc(sizeof(swReactor_finish_callback));
+    if (!cb)
+    {
+        return;
+    }
+    cb->callback = callback;
+    LL_APPEND(reactor->finish_callback, cb);
 }
 
 swConnection* swReactor_get(swReactor *reactor, int fd)
@@ -178,6 +192,11 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     if (SwooleG.serv && swIsMaster())
     {
         swoole_update_time();
+    }
+    swReactor_finish_callback *cb;
+    LL_FOREACH(reactor->finish_callback, cb)
+    {
+        cb->callback(reactor);
     }
 }
 

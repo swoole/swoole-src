@@ -159,6 +159,9 @@
 #define SW_RINGBUFFER_WARNING            100
 //#define SW_RINGBUFFER_DEBUG
 
+#define SW_RELOAD_AFTER_SECONDS_N        10
+#define SW_RELOAD_FILE_EXTNAME           ".php"
+
 /**
  * ringbuffer memory pool size
  */

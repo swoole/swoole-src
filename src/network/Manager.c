@@ -245,6 +245,7 @@ static int swManager_loop(swFactory *factory)
             }
             else if (ManagerProcess.reload_event_worker == 1)
             {
+                swNotice("Server is reloading now.");
                 memcpy(reload_workers, serv->workers, sizeof(swWorker) * serv->worker_num);
                 reload_worker_num = serv->worker_num;
                 if (SwooleG.task_worker_num > 0)
@@ -259,6 +260,7 @@ static int swManager_loop(swFactory *factory)
             }
             else if (ManagerProcess.reload_task_worker == 1)
             {
+                swNotice("Server is reloading now.");
                 if (SwooleG.task_worker_num == 0)
                 {
                     swWarn("cannot reload workers, because server no have task workers.");
