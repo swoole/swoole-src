@@ -325,11 +325,12 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
     {
         return SW_ERR;
     }
-    if (serv->disable_notify)
+    else if (serv->disable_notify)
     {
-        return swReactorThread_close(reactor, fd);
+        conn->close_after_request = 1;
+        return SW_OK;
     }
-    if (reactor->del(reactor, fd) == 0)
+    else if (reactor->del(reactor, fd) == 0)
     {
         return SwooleG.factory->notify(SwooleG.factory, &notify_ev);
     }
