@@ -18,8 +18,10 @@
 #include "Http.h"
 #include "Connection.h"
 
+#ifdef HAVE_INOTIFY
 #include <dirent.h>
 #include <sys/inotify.h>
+#endif
 
 #if SW_REACTOR_SCHEDULE == 3
 static sw_inline void swServer_reactor_schedule(swServer *serv)
@@ -43,9 +45,11 @@ static void swServer_signal_hanlder(int sig);
 static int swServer_start_proxy(swServer *serv);
 static void swServer_disable_accept(swReactor *reactor);
 
+#ifdef HAVE_INOTIFY
 static int swServer_master_onFileChange(swReactor *reactor, swEvent *event);
 static int swServer_master_add_watch(int ifd, char *dirname);
 static void swServer_master_check_reload_time();
+#endif
 
 static void swHeartbeatThread_loop(swThreadParam *param);
 static int swServer_send1(swServer *serv, swSendData *resp);
@@ -93,6 +97,7 @@ void swServer_enable_accept(swReactor *reactor)
     }
 }
 
+#ifdef HAVE_INOTIFY
 int swServer_watch_file(swServer *serv, swReactor *reactor)
 {
 #ifdef HAVE_INOTIFY_INIT1
@@ -233,6 +238,7 @@ static int swServer_master_onFileChange(swReactor *reactor, swEvent *event)
     }
     return SW_OK;
 }
+#endif
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 {
@@ -532,6 +538,7 @@ static int swServer_start_proxy(swServer *serv)
     main_reactor->ptr = serv;
     main_reactor->setHandle(main_reactor, SW_FD_LISTEN, swServer_master_onAccept);
 
+#ifdef HAVE_INOTIFY
     /**
      * inotify, watch the application file update.
      */
@@ -539,6 +546,7 @@ static int swServer_start_proxy(swServer *serv)
     {
         swServer_watch_file(serv, main_reactor);
     }
+#endif
 
     if (serv->onStart != NULL)
     {

@@ -562,7 +562,10 @@ int swServer_get_manager_pid(swServer *serv);
 int swServer_worker_init(swServer *serv, swWorker *worker);
 void swServer_onTimer(swTimer *timer, swTimer_node *event);
 void swServer_enable_accept(swReactor *reactor);
+
+#ifdef HAVE_INOTIFY
 int swServer_watch_file(swServer *serv, swReactor *reactor);
+#endif
 
 void swTaskWorker_init(swProcessPool *pool);
 int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);
