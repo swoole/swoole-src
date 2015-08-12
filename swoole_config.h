@@ -35,6 +35,7 @@
 #define SW_DEBUG_SERVER_PORT       9999
 
 #define SW_SOCKET_OVERFLOW_WAIT    100
+#define SW_SOCKET_MAX_DEFAULT      65536
 #if __MACH__
 #define SW_SOCKET_BUFFER_SIZE      (256*1024)
 #else

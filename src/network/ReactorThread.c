@@ -140,6 +140,7 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
         {
             pkt.addr.un.path_length = strlen(info.addr.un.sun_path) + 1;
             pkt.length += pkt.addr.un.path_length;
+            pkt.port = 0;
             memcpy(&task.data.info.fd, info.addr.un.sun_path + pkt.addr.un.path_length - 6, sizeof(task.data.info.fd));
         }
 
@@ -323,14 +324,11 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
     swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
     if (conn == NULL || conn->active == 0)
     {
-        swWarn("connection#%d is closed.", event->fd);
-        reactor->del(reactor, event->fd);
-        close(event->fd);
         return SW_ERR;
     }
     else if (serv->disable_notify)
     {
-        conn->close_after_request = 1;
+        swReactorThread_close(reactor, fd);
         return SW_OK;
     }
     else if (reactor->del(reactor, fd) == 0)
