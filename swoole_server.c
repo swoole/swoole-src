@@ -662,9 +662,12 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
         sw_zval_ptr_dtor(&unserialized_zdata);
     }
 
-    if (retval != NULL && SW_Z_TYPE_P(retval) != IS_NULL)
+    if (retval)
     {
-        php_swoole_task_finish(serv, retval TSRMLS_CC);
+        if (SW_Z_TYPE_P(retval) != IS_NULL)
+        {
+            php_swoole_task_finish(serv, retval TSRMLS_CC);
+        }
         sw_zval_ptr_dtor(&retval);
     }
     sw_atomic_fetch_sub(&SwooleStats->tasking_num, 1);
