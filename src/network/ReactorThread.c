@@ -323,6 +323,9 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
     swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
     if (conn == NULL || conn->active == 0)
     {
+        swWarn("connection#%d is closed.", event->fd);
+        reactor->del(reactor, event->fd);
+        close(event->fd);
         return SW_ERR;
     }
     else if (serv->disable_notify)

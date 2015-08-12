@@ -1,8 +1,8 @@
 <?php
-$serv = new swoole_server("127.0.0.1", 9501);
+$serv = new swoole_server("127.0.0.1", 9501,SWOOLE_BASE);
 
 $serv->set(array(
-    'worker_num' => 1,
+    //'worker_num' => 1,
     'task_worker_num' => 1,
 //    'task_ipc_mode' => 3,
 //    'message_queue_key' => 0x70001001,

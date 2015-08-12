@@ -1,7 +1,8 @@
 <?php
 $serv = new swoole_server("0.0.0.0", 9502);
 $serv->set(array(
-'max_conn' => 1024,
+//'max_conn' => 1024,
+'task_worker_num' => 4,
 ));
 $serv->on('workerstart', function($server, $id) {
      global $argv;

@@ -3,11 +3,11 @@ class G
 {
     static $serv;
     static $config = array(
-        //'worker_num' => 4,
+        'worker_num' => 1,
         //'open_eof_check' => true,
         //'package_eof' => "\r\n",
 //   'task_ipc_mode'   => 2,
-        'task_worker_num' => 2,
+        'task_worker_num' => 1,
         'user' => 'www-data',
         'group' => 'www-data',
         'chroot' => '/opt/tmp',
@@ -17,6 +17,7 @@ class G
         'heartbeat_check_interval' => 300,
         'heartbeat_idle_time' => 300,
         'open_cpu_affinity' => 1,
+        'watch_path' => __DIR__."/php/",
         //'cpu_affinity_ignore' =>array(0,1)//如果你的网卡2个队列（或者没有多队列那么默认是cpu0来处理中断）,并且绑定了core 0和core 1,那么可以通过这个设置避免swoole的线程或者进程绑定到这2个core，防止cpu0，1被耗光而造成的丢包
     );
 
@@ -85,7 +86,7 @@ function my_onStart(swoole_server $serv)
 function my_log($msg)
 {
 	global $serv;
-    echo "#".$serv->worker_pid."\t".$msg.PHP_EOL;
+    echo "#".$serv->worker_pid."\t".date('H:i:s')."\t".$msg.PHP_EOL;
 }
 
 function forkChildInWorker() {
@@ -125,14 +126,11 @@ function processRename(swoole_server $serv, $worker_id) {
 	{
 		swoole_set_process_name("php {$argv[0]}: worker");
 	}
-
     if ($worker_id == 0)
     {
         var_dump($serv->setting);
     }
-
-	echo "WorkerStart: MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}";
-	echo "|WorkerId={$serv->worker_id}|WorkerPid={$serv->worker_pid}\n";
+	my_log("WorkerStart: MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}|WorkerId={$serv->worker_id}|WorkerPid={$serv->worker_pid}");
 }
 
 function setTimerInWorker(swoole_server $serv, $worker_id) {

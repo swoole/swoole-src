@@ -1,11 +1,12 @@
 <?php
 //$serv = new swoole_server("0.0.0.0", 9502, SWOOLE_BASE, SWOOLE_SOCK_UDP);
 $serv = new swoole_server("0.0.0.0", 9502, SWOOLE_PROCESS, SWOOLE_SOCK_UDP);
-//$serv->set(array(
+$serv->set(array(
+	'dispatch_mode' => 1,
 //    'worker_num' => 1,    //worker process num
 //    //'log_file' => '/tmp/swoole.log',
 //    //'daemonize' => true,
-//));
+));
 
 function my_onStart($serv)
 {
