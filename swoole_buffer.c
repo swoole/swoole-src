@@ -210,8 +210,7 @@ static PHP_METHOD(swoole_buffer, read)
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "no enough data.");
         RETURN_FALSE;
     }
-
-    RETURN_STRINGL(buffer->str + offset, length, 1);
+    SW_RETURN_STRINGL(buffer->str + offset, length, 1);
 }
 
 static PHP_METHOD(swoole_buffer, expand)
