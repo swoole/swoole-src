@@ -30,7 +30,6 @@ static const zend_function_entry swoole_buffer_methods[] =
     PHP_ME(swoole_buffer, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
     PHP_ME(swoole_buffer, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_buffer, substr, NULL, ZEND_ACC_PUBLIC)
-    PHP_MALIAS(swoole_buffer, read, substr, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_buffer, write, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_buffer, read, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_buffer, append, NULL, ZEND_ACC_PUBLIC)
