@@ -1244,19 +1244,19 @@ PHP_FUNCTION(swoole_server_set)
     if (sw_zend_hash_find(vht, ZEND_STRS("chroot"), (void **) &v) == SUCCESS)
     {
         convert_to_string(v);
-        SwooleG.chroot = sw_strndup(v, 256);
+        SwooleG.chroot = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
     //user
     if (sw_zend_hash_find(vht, ZEND_STRS("user"), (void **) &v) == SUCCESS)
     {
         convert_to_string(v);
-        SwooleG.user = sw_strndup(v, 128);
+        SwooleG.user = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
     //group
     if (sw_zend_hash_find(vht, ZEND_STRS("group"), (void **) &v) == SUCCESS)
     {
         convert_to_string(v);
-        SwooleG.group = sw_strndup(v, 128);
+        SwooleG.group = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
     //daemonize
     if (sw_zend_hash_find(vht, ZEND_STRS("daemonize"), (void **) &v) == SUCCESS)
