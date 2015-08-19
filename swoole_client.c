@@ -1552,7 +1552,7 @@ static PHP_METHOD(swoole_client, close)
     int ret = 1;
     zend_bool force = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "b", &force) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b", &force) == FAILURE)
     {
         return;
     }
