@@ -1550,6 +1550,12 @@ static PHP_METHOD(swoole_client, close)
 {
     zval *ztype;
     int ret = 1;
+    zend_bool force = 0;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "b", &force) == FAILURE)
+    {
+        return;
+    }
 
     swClient *cli = swoole_get_object(getThis());
     if (!cli)
@@ -1573,7 +1579,7 @@ static PHP_METHOD(swoole_client, close)
 
     //Connection error, or short tcp connection.
     //No keep connection
-    if (!(Z_LVAL_P(ztype) & SW_FLAG_KEEP) || swConnection_error(SwooleG.error) == SW_CLOSE)
+    if (force || !(Z_LVAL_P(ztype) & SW_FLAG_KEEP) || swConnection_error(SwooleG.error) == SW_CLOSE)
     {
         if (cli->async == 1 && SwooleG.main_reactor != NULL)
         {

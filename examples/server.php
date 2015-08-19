@@ -72,7 +72,10 @@ function my_process1($process)
 	global $argv;
 	var_dump($process);
 	swoole_set_process_name("php {$argv[0]}: my_process1");
-	sleep(1000);
+    swoole_timer_tick(2000, function($id) {
+        global $serv;
+        $serv->sendMessage("hello", 1);
+    });
 }
 
 function my_onStart(swoole_server $serv)
@@ -406,6 +409,10 @@ function broadcast(swoole_server $serv, $fd = 0, $data = "hello")
         }
     }
 }
+
+$serv->on('PipeMessage', function($serv, $src_worker_id, $msg) {
+    var_dump($src_worker_id, $msg);
+});
 
 $serv->on('Start', 'my_onStart');
 $serv->on('Connect', 'my_onConnect');
