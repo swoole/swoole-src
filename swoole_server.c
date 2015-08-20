@@ -1892,7 +1892,6 @@ PHP_METHOD(swoole_server, addprocess)
     worker->ptr = process;
 
     int id = swServer_add_worker(serv, worker);
-
     if (id < 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swServer_add_worker failed.");

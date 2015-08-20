@@ -46,6 +46,7 @@ static int swServer_start_proxy(swServer *serv);
 static void swServer_disable_accept(swReactor *reactor);
 
 #ifdef HAVE_INOTIFY
+static swHashMap *watch_file_map = NULL;
 static int swServer_master_onFileChange(swReactor *reactor, swEvent *event);
 static int swServer_master_add_watch(int ifd, char *dirname);
 static void swServer_master_check_reload_time();
@@ -63,7 +64,6 @@ swWorkerG SwooleWG;
 swServerStats *SwooleStats;
 __thread swThreadG SwooleTG;
 
-static swHashMap *watch_file_map = NULL;
 int16_t sw_errno;
 char sw_error[SW_ERROR_MSG_SIZE];
 
@@ -1102,7 +1102,8 @@ int swServer_add_worker(swServer *serv, swWorker *worker)
         return SW_ERR;
     }
 
-    worker->id = user_worker_list_i++;
+    worker->id = serv->worker_num + SwooleG.task_worker_num + user_worker_list_i;
+    user_worker_list_i++;
     user_worker->worker = worker;
 
     LL_APPEND(serv->user_worker_list, user_worker);
