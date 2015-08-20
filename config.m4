@@ -1,4 +1,3 @@
-dnl $Id$
 dnl config.m4 for extension swoole
 
 dnl  +----------------------------------------------------------------------+
@@ -14,15 +13,6 @@ dnl  | license@swoole.com so we can mail you a copy immediately.            |
 dnl  +----------------------------------------------------------------------+
 dnl  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
 dnl  +----------------------------------------------------------------------+
-
-
-dnl Comments in this file start with the string 'dnl'.
-dnl Remove where necessary. This file will not work
-dnl without editing.
-
-dnl If your extension references something external, use with:
-
-dnl Otherwise use enable:
 
 PHP_ARG_ENABLE(swoole-debug, whether to enable swoole debug,
 [  --enable-swoole-debug   Enable swoole debug], no, no)
@@ -278,12 +268,10 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/Http.c \
         src/protocol/WebSocket.c \
         src/protocol/Mqtt.c \
-        src/protocol/Base64.c"
-        
-    if test "$enable_swoole" != "yes"; then
-        swoole_source_file="$swoole_source_file thirdparty/php_http_parser.c"
-        swoole_source_file="$swoole_source_file thirdparty/multipart_parser.c"
-    fi
+        src/protocol/Base64.c"        
+
+    swoole_source_file="$swoole_source_file thirdparty/php_http_parser.c"
+    swoole_source_file="$swoole_source_file thirdparty/multipart_parser.c"
 
     PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared)
     
