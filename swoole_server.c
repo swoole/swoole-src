@@ -866,13 +866,6 @@ static void php_swoole_onShutdown(swServer *serv)
             sw_zval_ptr_dtor(&retval);
         }
     }
-#ifdef HAVE_PCRE
-    zval *connection_iterator_object = sw_zend_read_property(swoole_server_class_entry_ptr, zserv, ZEND_STRL("connections"), 0 TSRMLS_CC);
-    if (connection_iterator_object && !ZVAL_IS_NULL(connection_iterator_object))
-    {
-        sw_zval_ptr_dtor(&connection_iterator_object);
-    }
-#endif
 }
 
 static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
