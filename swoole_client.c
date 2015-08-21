@@ -1585,9 +1585,10 @@ static PHP_METHOD(swoole_client, close)
         {
             ret = client_close(getThis(), cli->socket->fd TSRMLS_CC);
         }
-        else if (cli->socket->fd != 0)
+        else
         {
-            ret = cli->close(cli);
+            client_free(getThis(), cli);
+            ret = 1;
         }
     }
     SW_CHECK_RETURN(ret);
