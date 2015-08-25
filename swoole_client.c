@@ -587,6 +587,7 @@ static int client_onWrite(swReactor *reactor, swEvent *event)
         }
         else
         {
+            SwooleG.main_reactor->del(SwooleG.main_reactor, event->fd);
             client_error_callback(zobject, event, error TSRMLS_CC);
             event->socket->removed = 1;
         }
@@ -606,7 +607,7 @@ static int client_error_callback(zval *zobject, swEvent *event, int error TSRMLS
         swClient *cli = swoole_get_object(zobject);
         if (cli)
         {
-            swoole_php_sys_error(E_WARNING, "connect to server [%s] failed.", cli->server_str);
+            swoole_php_error(E_WARNING, "connect to server [%s] failed. Error: %s [%d].", cli->server_str, strerror(error), error);
         }
     }
     if (event->socket->active)
@@ -897,7 +898,8 @@ static PHP_METHOD(swoole_client, __construct)
     {
         zend_update_property_null(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("id") TSRMLS_CC);
     }
-
+    //init
+    swoole_set_object(getThis(), NULL);
     RETURN_TRUE;
 }
 
@@ -947,6 +949,13 @@ static PHP_METHOD(swoole_client, connect)
     if (host_len <= 0)
     {
         swoole_php_fatal_error(E_WARNING, "The host is empty.");
+        RETURN_FALSE;
+    }
+
+    cli = swoole_get_object(getThis());
+    if (cli)
+    {
+        swoole_php_fatal_error(E_WARNING, "Operation now in progress.");
         RETURN_FALSE;
     }
 
