@@ -74,7 +74,7 @@ static const zend_function_entry swoole_client_methods[] =
     PHP_FE_END
 };
 
-HashTable php_sw_long_connections;
+static swHashMap *php_sw_long_connections;
 
 zend_class_entry swoole_client_ce;
 zend_class_entry *swoole_client_class_entry_ptr;
@@ -87,7 +87,7 @@ void swoole_client_init(int module_number TSRMLS_DC)
     zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
 
-    zend_hash_init(&php_sw_long_connections, 16, NULL, ZVAL_PTR_DTOR, 1);
+    php_sw_long_connections = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
 }
 
 /**
@@ -114,11 +114,12 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
     }
     else if (Z_LVAL_P(ztype) & SW_FLAG_KEEP)
     {
-        if (sw_zend_hash_del(&php_sw_long_connections, cli->server_str, cli->server_strlen) == SUCCESS)
+        if (swHashMap_del(php_sw_long_connections, cli->server_str, cli->server_strlen))
         {
             swoole_php_fatal_error(E_WARNING, "delete from hashtable failed.");
         }
         sw_free(cli->server_str);
+        pefree(cli, 1);
         ZVAL_LONG(ztype, 0);
     }
     else
@@ -805,12 +806,11 @@ static swClient* client_create_socket(zval *object, char *host, int host_len, in
     //keep the tcp connection
     if (type & SW_FLAG_KEEP)
     {
-        swClient *find;
-
-        if (sw_zend_hash_find(&php_sw_long_connections, conn_key, conn_key_len, (void **) &find) == FAILURE)
+        swClient *find = swHashMap_find(php_sw_long_connections, conn_key, conn_key_len);
+        if (find == NULL)
         {
             cli = (swClient*) pemalloc(sizeof(swClient), 1);
-            if (sw_zend_hash_update(&php_sw_long_connections, conn_key, conn_key_len, (void*)cli, sizeof(cli), NULL) == FAILURE)
+            if (swHashMap_add(php_sw_long_connections, conn_key, conn_key_len, cli, NULL) == FAILURE)
             {
                 swoole_php_fatal_error(E_WARNING, "swoole_client_create_socket add to hashtable failed.");
             }

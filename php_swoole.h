@@ -168,8 +168,6 @@ extern zend_class_entry *swoole_http_server_class_entry_ptr;
 
 extern zval *php_sw_callback[PHP_SERVER_CALLBACK_NUM];
 
-extern HashTable php_sw_long_connections;
-
 #define PHP_MEMORY_DEBUG  0
 
 #if PHP_MEMORY_DEBUG
