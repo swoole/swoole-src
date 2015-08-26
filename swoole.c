@@ -607,6 +607,11 @@ PHP_MINIT_FUNCTION(swoole)
     {
         SwooleG.socket_buffer_size = SWOOLE_G(socket_buffer_size);
     }
+
+#ifdef __MACH__
+    SwooleG.socket_buffer_size = 256 * 1024;
+#endif
+
     if (SWOOLE_G(aio_thread_num) > 0)
     {
         if (SWOOLE_G(aio_thread_num) > SW_AIO_THREAD_NUM_MAX)
