@@ -259,9 +259,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
     {
         sw_zval_ptr_dtor(&dns_req->callback);
         sw_zval_ptr_dtor(&dns_req->domain);
-
         efree(dns_req);
-        efree(event->buf);
     }
     if (zcontent != NULL)
     {

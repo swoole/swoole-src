@@ -587,9 +587,7 @@ static int client_onWrite(swReactor *reactor, swEvent *event)
         }
         else
         {
-            SwooleG.main_reactor->del(SwooleG.main_reactor, event->fd);
             client_error_callback(zobject, event, error TSRMLS_CC);
-            event->socket->removed = 1;
         }
     }
 
@@ -610,10 +608,8 @@ static int client_error_callback(zval *zobject, swEvent *event, int error TSRMLS
             swoole_php_error(E_WARNING, "connect to server [%s] failed. Error: %s [%d].", cli->server_str, strerror(error), error);
         }
     }
-    if (event->socket->active)
-    {
-        SwooleG.main_reactor->del(SwooleG.main_reactor, event->fd);
-    }
+
+    SwooleG.main_reactor->del(SwooleG.main_reactor, event->fd);
 
     client_callback *cb = swoole_get_property(zobject, 0);
     zcallback = cb->onError;
