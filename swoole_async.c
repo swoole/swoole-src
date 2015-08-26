@@ -427,6 +427,8 @@ PHP_FUNCTION(swoole_async_write)
         req->type = SW_AIO_WRITE;
         req->content_length = fcnt_len;
 
+        sw_zval_add_ref(&filename);
+
         if (offset < 0)
         {
             struct stat file_stat;
