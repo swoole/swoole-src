@@ -956,6 +956,10 @@ static PHP_METHOD(swoole_client, connect)
     }
 
     cli = client_create_socket(getThis(), host, host_len, port);
+    if (cli == NULL)
+    {
+        RETURN_FALSE;
+    }
 
     if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
     {

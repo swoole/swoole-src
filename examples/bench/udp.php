@@ -22,7 +22,15 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 	$serv->send($fd, 'Swoole: ' . $data, $from_id);
 }
 
+
+function my_onPacket(swoole_server $serv, $data, $addr)
+{
+//    var_dump($addr);
+    $serv->sendto($addr['address'], $addr['port'], 'Swoole: ' . $data);
+}
+
 $serv->on('Start', 'my_onStart');
-$serv->on('Receive', 'my_onReceive');
+//$serv->on('Receive', 'my_onReceive');
+$serv->on('Packet', 'my_onPacket');
 $serv->start();
 
