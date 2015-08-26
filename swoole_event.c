@@ -500,6 +500,7 @@ PHP_FUNCTION(swoole_event_exit)
         {
             SwooleG.main_reactor->running = 0;
         }
+        SwooleG.running = 0;
     }
 }
 

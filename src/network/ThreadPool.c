@@ -135,10 +135,6 @@ int swThreadPool_free(swThreadPool *pool)
     pthread_mutex_destroy(&(pool->mutex));
     pthread_cond_destroy(&(pool->cond));
 
-    //这里比较奇怪,params指针已经被释放掉了
-    sw_free(pool->params);
-    sw_free(pool->threads);
-
     return 0;
 }
 

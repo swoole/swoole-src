@@ -138,7 +138,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
         }
         else if (file_req->once == 1 && ret < file_req->content_length)
         {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async: ret_length[%d] < req->length[%d].", (int) ret,
+            swoole_php_fatal_error(E_WARNING, "swoole_async: ret_length[%d] < req->length[%d].", (int) ret,
                     file_req->content_length);
         }
         else if (event->type == SW_AIO_READ)
@@ -156,7 +156,8 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 #else
         zcontent = &_zcontent;
 #endif
-        SW_ZVAL_STRINGL(zcontent, event->buf, ret, 0);
+        memset(event->buf + ret, 0, 1);
+        SW_ZVAL_STRINGL(zcontent, event->buf, ret, 1);
     }
     else if (event->type == SW_AIO_WRITE)
     {
@@ -191,11 +192,11 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 #endif
         if (ret < 0)
         {
-            SW_ZVAL_STRING(zcontent, "", 0);
+            SW_ZVAL_STRING(zcontent, "", 1);
         }
         else
         {
-            SW_ZVAL_STRING(zcontent, event->buf, 0);
+            SW_ZVAL_STRING(zcontent, event->buf, 1);
         }
         args[1] = &zcontent;
     }
@@ -518,7 +519,7 @@ PHP_FUNCTION(swoole_async_readfile)
     if (SwooleAIO.mode == SW_AIO_LINUX)
     {
         buf_len = file_stat.st_size + (sysconf(_SC_PAGESIZE) - (file_stat.st_size % sysconf(_SC_PAGESIZE)));
-        if (posix_memalign((void **) &fcnt, sysconf(_SC_PAGESIZE), buf_len))
+        if (posix_memalign((void **) &fcnt, sysconf(_SC_PAGESIZE), buf_len + 1))
         {
             php_error_docref(NULL TSRMLS_CC, E_WARNING, "posix_memalign failed. Error: %s[%d]", strerror(errno), errno);
             RETURN_FALSE;
@@ -527,7 +528,7 @@ PHP_FUNCTION(swoole_async_readfile)
     else
     {
         buf_len = file_stat.st_size;
-        fcnt = emalloc(buf_len);
+        fcnt = emalloc(buf_len + 1);
         if (fcnt == NULL)
         {
             php_error_docref(NULL TSRMLS_CC, E_WARNING, "malloc failed. Error: %s[%d]", strerror(errno), errno);
