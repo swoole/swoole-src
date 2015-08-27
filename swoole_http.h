@@ -35,6 +35,8 @@ typedef struct
     char *post_content;
     uint32_t post_length;
 
+    zval *zdata;
+
     zval *zrequest_object;
 
     zval *zserver;

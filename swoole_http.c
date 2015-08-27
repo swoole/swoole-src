@@ -834,8 +834,8 @@ static int http_request_on_body(php_http_parser *parser, const char *at, size_t 
     else
     {
         client->request.post_content = body;
-        client->request.post_length = length;
     }
+    client->request.post_length = length;
 
     if (client->mt_parser != NULL)
     {
@@ -954,11 +954,11 @@ static int http_onReceive(swServer *serv, swEventData *req)
     swTrace("httpRequest %d bytes:\n---------------------------------------\n%s\n", Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
 
     long n = php_http_parser_execute(parser, &http_parser_settings, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
-    sw_zval_ptr_dtor(&zdata);
-
     if (n < 0)
     {
+        sw_zval_ptr_dtor(&zdata);
         swWarn("php_http_parser_execute failed.");
+
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
         {
             return SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
@@ -969,6 +969,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
         zval *retval;
         zval **args[2];
         zval *zreques_object = client->request.zrequest_object;
+        client->request.zdata = zdata;
 
         char *method_name = http_get_method_name(parser->method);
 
@@ -980,6 +981,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
         swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
         if (!conn)
         {
+            sw_zval_ptr_dtor(&zdata);
             swWarn("connection[%d] is closed.", fd);
             return SW_ERR;
         }
@@ -1248,6 +1250,11 @@ void swoole_http_request_free(swoole_http_client *client TSRMLS_DC)
         sw_zval_ptr_dtor(&client->response.zresponse_object);
         client->response.zresponse_object = NULL;
     }
+    //request data
+    if (req->zdata)
+    {
+        sw_zval_ptr_dtor(&req->zdata);
+    }
 
     client->end = 1;
     client->send_header = 0;
@@ -1434,17 +1441,18 @@ static PHP_METHOD(swoole_http_request, rawcontent)
         RETURN_FALSE;
     }
 
-    if (!client->request.post_content)
+    if (client->request.post_content)
+    {
+        SW_RETVAL_STRINGL(client->request.post_content, client->request.post_length, 1);
+    }
+    else if (client->request.post_length > 0)
+    {
+        SW_RETVAL_STRINGL(Z_STRVAL_P(client->request.zdata) + Z_STRLEN_P(client->request.zdata) - client->request.post_length, client->request.post_length, 1);
+    }
+    else
     {
         RETURN_FALSE;
     }
-
-#if PHP_MAJOR_VERSION >= 7
-    SW_RETVAL_STRINGL(client->request.post_content, client->request.post_length, 1);
-#else
-    SW_RETVAL_STRINGL(client->request.post_content, client->request.post_length, 0);
-    client->request.post_content = NULL;
-#endif
 }
 
 static PHP_METHOD(swoole_http_response, write)
