@@ -820,27 +820,25 @@ static int http_request_on_body(php_http_parser *parser, const char *at, size_t 
 #endif
 
     swoole_http_client *client = parser->data;
-    char *body = estrndup(at, length);
+    char *body;
+
+    client->request.post_length = length;
 
     if (SwooleG.serv->http_parse_post && client->request.post_form_urlencoded)
     {
         zval *post;
         SW_MAKE_STD_ZVAL(post);
         array_init(post);
+
+        body = estrndup(at, length);
         zend_update_property(swoole_http_request_class_entry_ptr, client->request.zrequest_object, ZEND_STRL("post"), post TSRMLS_CC);
         sapi_module.treat_data(PARSE_STRING, body, post TSRMLS_CC);
         http_merge_php_global(post, client->request.zrequest_object, HTTP_GLOBAL_POST);
     }
-    else
-    {
-        client->request.post_content = body;
-    }
-    client->request.post_length = length;
-
-    if (client->mt_parser != NULL)
+    else if (client->mt_parser != NULL)
     {
         multipart_parser *multipart_parser = client->mt_parser;
-        size_t n = multipart_parser_execute(multipart_parser, body, length);
+        size_t n = multipart_parser_execute(multipart_parser, at, length);
         if (n != length)
         {
             swoole_php_fatal_error(E_ERROR, "fail to parse multipart body");
