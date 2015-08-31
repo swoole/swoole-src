@@ -344,6 +344,7 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_FALIAS(taskwait, swoole_server_taskwait, arginfo_swoole_server_taskwait_oo)
     PHP_FALIAS(finish, swoole_server_finish, arginfo_swoole_server_finish_oo)
     PHP_FALIAS(addlistener, swoole_server_addlisten, arginfo_swoole_server_addlisten_oo)
+    PHP_FALIAS(listen, swoole_server_addlisten, arginfo_swoole_server_addlisten_oo)
     PHP_FALIAS(reload, swoole_server_reload, arginfo_swoole_server_reload_oo)
     PHP_FALIAS(shutdown, swoole_server_shutdown, arginfo_swoole_void)
     PHP_FALIAS(hbcheck, swoole_server_heartbeat, arginfo_swoole_server_heartbeat_oo)

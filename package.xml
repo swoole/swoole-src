@@ -31,11 +31,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2015-07-23</date>
-    <time>11:48:51</time>
+    <date>2015-08-31</date>
+    <time>17:48:51</time>
     <version>
-        <release>1.7.18</release>
-        <api>1.7.18</api>
+        <release>1.7.19</release>
+        <api>1.7.19</api>
     </version>
     <stability>
         <release>stable</release>
@@ -43,13 +43,13 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Added onPacket event callback function
-- Added PHP7 support
-- Fixed swoole_http_response->header memory leak
-- Added swoole_table signed integer support
-- Added REUSEPORT support
-- Fixed woole_client and swoole_timer memory leak
-- Added swoole_server->exist function
+- Added swoole_atomic module, support for atomic integer operations
+- Fixed timer in the system can not recover after the resumption of the operation
+- Fixed ssl_server cannot send more than 30K large packages in a slow network
+- Added supports for UDP/UDP6/UNIX_DGRAM big packages(64K)
+- Fixed addtimer/tick timer can't be used in BASE mode
+- Added addProcess in SWOOLE_BASE mode
+- Fixed SWOOLE_KEEP core dump
     </notes>
 	<contents>
 		<dir name="/">
