@@ -96,8 +96,6 @@
 				</dir>
 				<dir name="server">
 					<file role="src" name="echo.php" />
-					<file role="src" name="unix_dgram.php" />
-					<file role="src" name="unix_stream.php" />
 					<file role="src" name="msgqueue.php" />
 				</dir>
 				<dir name="http">
@@ -118,6 +116,11 @@
 				<dir name="event">
 					<file role="src" name="stream.php" />
 					<file role="src" name="sockets.php" />
+				</dir>
+				<dir name="unix">
+					<file role="src" name="dgram_server.php" />
+					<file role="src" name="stream_client.php" />
+					<file role="src" name="dgram_client.php" />
 				</dir>
 				<dir name="process">
 					<file role="src" name="worker.php" />
@@ -190,6 +193,7 @@
 			<file role="src" name="swoole_http.c" />
 			<file role="src" name="swoole_http.h" />
 			<file role="src" name="swoole_websocket.c" />
+			<file role="src" name="swoole_atomic.c" />
 			<dir name="thirdparty">
 				<file role="src" name="php_http_parser.c" />
 				<file role="src" name="php_http_parser.h" />
