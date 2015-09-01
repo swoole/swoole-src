@@ -224,7 +224,7 @@ static PHP_METHOD(swoole_process, wait)
 
 static PHP_METHOD(swoole_process, useQueue)
 {
-    long msgkey = -1;
+    long msgkey = 0;
     long mode = 2;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ll", &msgkey, &mode) == FAILURE)
@@ -234,12 +234,12 @@ static PHP_METHOD(swoole_process, useQueue)
 
     swWorker *process = swoole_get_object(getThis());
 
-    if (msgkey < 0)
+    if (msgkey <= 0)
     {
 #if PHP_MAJOR_VERSION == 7
-         msgkey = ftok(execute_data->func->op_array.filename->val, 0);
+        msgkey = ftok(execute_data->func->op_array.filename->val, 0);
 #else
-       msgkey = ftok(EG(active_op_array)->filename, 0);
+        msgkey = ftok(EG(active_op_array)->filename, 0);
 #endif
     }
 
