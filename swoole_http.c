@@ -526,7 +526,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
         zval *header = client->request.zheader;
         sw_add_assoc_stringl_ex(header, header_name, client->current_header_name_len + 1, (char *) at, length, 1);
     }
-    else if ((parser->method == PHP_HTTP_POST || parser->method == PHP_HTTP_PUT || parser->method == PHP_HTTP_PATCH)
+    else if ((parser->method == PHP_HTTP_POST || parser->method == PHP_HTTP_PUT || parser->method == PHP_HTTP_DELETE || parser->method == PHP_HTTP_PATCH)
             && memcmp(header_name, ZEND_STRL("content-type")) == 0
             && strncasecmp(at, ZEND_STRL("application/x-www-form-urlencoded")) == 0)
     {
