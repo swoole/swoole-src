@@ -176,7 +176,6 @@ int swHttpRequest_have_content_length(swHttpRequest *request)
 
     char *pe = buf + len;
     char *p;
-    char state = 0;
 
     for (p = buf; p < pe; p++)
     {
