@@ -1301,10 +1301,22 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
 
         swTrace("request->method=%d", request->method);
 
-        //GET HEAD DELETE OPTIONS
-        if (request->method == HTTP_GET || request->method == HTTP_HEAD || request->method == HTTP_OPTIONS
-                || request->method == HTTP_DELETE)
+        //DELETE
+        if (request->method == HTTP_DELETE)
         {
+            if (request->content_length == 0 && swHttpRequest_have_content_length(request) == SW_FALSE)
+            {
+                goto http_no_entity;
+            }
+            else
+            {
+                goto http_entity;
+            }
+        }
+        //GET HEAD OPTIONS
+        else if (request->method == HTTP_GET || request->method == HTTP_HEAD || request->method == HTTP_OPTIONS)
+        {
+            http_no_entity:
             if (memcmp(buffer->str + buffer->length - 4, "\r\n\r\n", 4) == 0)
             {
                 swReactorThread_send_string_buffer(conn, buffer->str, buffer->length);
@@ -1327,9 +1339,10 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
                 goto recv_data;
             }
         }
-        //POST PUT
+        //POST PUT HTTP_PATCH
         else if (request->method == HTTP_POST || request->method == HTTP_PUT || request->method == HTTP_PATCH)
         {
+            http_entity:
             if (request->content_length == 0)
             {
                 if (swHttpRequest_get_content_length(request) < 0)

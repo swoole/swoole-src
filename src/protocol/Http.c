@@ -168,6 +168,33 @@ int swHttpRequest_get_content_length(swHttpRequest *request)
     return SW_ERR;
 }
 
+int swHttpRequest_have_content_length(swHttpRequest *request)
+{
+    swString *buffer = request->buffer;
+    char *buf = buffer->str + buffer->offset;
+    int len = buffer->length - buffer->offset;
+
+    char *pe = buf + len;
+    char *p;
+    char state = 0;
+
+    for (p = buf; p < pe; p++)
+    {
+        if (*p == '\r' && *(p + 1) == '\n')
+        {
+            if (strncasecmp(p + 2, SW_STRL("Content-Length") - 1) == 0)
+            {
+                return SW_TRUE;
+            }
+            else
+            {
+                p++;
+            }
+        }
+    }
+    return SW_FALSE;
+}
+
 #ifdef SW_HTTP_100_CONTINUE
 int swHttpRequest_has_expect_header(swHttpRequest *request)
 {
