@@ -930,7 +930,7 @@ int swServer_free(swServer *serv)
 #ifdef SW_USE_OPENSSL
     if (serv->open_ssl)
     {
-        swSSL_free();
+        swSSL_free(serv->ssl_context);
         free(serv->ssl_cert_file);
         free(serv->ssl_key_file);
     }

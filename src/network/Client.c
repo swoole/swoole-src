@@ -246,6 +246,14 @@ static int swClient_close(swClient *cli)
     int fd = cli->socket->fd;
     int ret;
 
+#ifdef SW_USE_OPENSSL
+    if (cli->open_ssl)
+    {
+        swSSL_close(cli->socket);
+        swSSL_free(cli->ssl_context);
+    }
+#endif
+
     if (cli->async)
     {
         ret = swReactor_close(SwooleG.main_reactor, fd);
