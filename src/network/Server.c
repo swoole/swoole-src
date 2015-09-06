@@ -313,7 +313,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         {
             if (listen_host->ssl)
             {
-                if (swSSL_create(conn, 0) < 0)
+                if (swSSL_create(conn, serv->ssl_context, 0) < 0)
                 {
                     bzero(conn, sizeof(swConnection));
                     close(new_fd);
@@ -648,7 +648,8 @@ int swServer_start(swServer *serv)
 #ifdef SW_USE_OPENSSL
     if (serv->open_ssl)
     {
-        if (swSSL_init(serv->ssl_cert_file, serv->ssl_key_file) < 0)
+        serv->ssl_context = swSSL_get_server_context(serv->ssl_cert_file, serv->ssl_key_file);
+        if (serv->ssl_context == NULL)
         {
             return SW_ERR;
         }

@@ -40,7 +40,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.7.19"
+#define PHP_SWOOLE_VERSION  "1.7.20-alpha"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -148,11 +148,11 @@ extern swoole_object_array swoole_objects;
 #define SW_SERVER_CB_onPipeMessage          15
 #define SW_SERVER_CB_onPacket               16 //udp packet
 //---------------------------------------------------------
-#define SW_FLAG_KEEP                        (1u << 9)
+#define SW_FLAG_KEEP                        (1u << 12)
 #define SW_FLAG_ASYNC                       (1u << 10)
 #define SW_FLAG_SYNC                        (1u << 11)
 //---------------------------------------------------------
-#define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP))
+#define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL))
 #define php_swoole_array_length(array)      (Z_ARRVAL_P(array)->nNumOfElements)
 
 #define SW_LONG_CONNECTION_KEY_LEN          64

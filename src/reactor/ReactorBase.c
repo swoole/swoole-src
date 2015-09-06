@@ -275,6 +275,11 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
 
     if (swBuffer_empty(buffer))
     {
+        if (socket->ssl_send)
+        {
+            goto do_buffer;
+        }
+
         do_send:
         ret = swConnection_send(socket, buf, n, 0);
 

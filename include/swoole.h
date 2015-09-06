@@ -380,6 +380,7 @@ typedef struct _swConnection
     uint32_t send_wait :1;
 
     uint32_t direct_send :1;
+    uint32_t ssl_send :1;
 
     uint32_t close_wait :1;
     uint32_t closed :1;

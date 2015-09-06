@@ -133,6 +133,37 @@ int swClient_create(swClient *cli, int type, int async)
     return SW_OK;
 }
 
+#ifdef SW_USE_OPENSSL
+int swClient_enable_ssl_encrypt(swClient *cli)
+{
+    cli->ssl_context = swSSL_get_client_context();
+    if (cli->ssl_context == NULL)
+    {
+        return SW_ERR;
+    }
+    cli->open_ssl = 1;
+    cli->socket->ssl_send = 1;
+    return SW_OK;
+}
+
+int swClient_ssl_handshake(swClient *cli)
+{
+    if (!cli->socket->ssl)
+    {
+        if (swSSL_create(cli->socket, cli->ssl_context, SW_SSL_CLIENT) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+    if (swSSL_connect(cli->socket) < 0)
+    {
+        return SW_ERR;
+    }
+    return SW_OK;
+}
+
+#endif
+
 static int swClient_inet_addr(swClient *cli, char *host, int port)
 {
     struct hostent *host_entry;
@@ -255,7 +286,6 @@ static int swClient_tcp_connect(swClient *cli, char *host, int port, double time
         }
         swSetBlock(cli->socket->fd);
     }
-
     while (1)
     {
         ret = connect(cli->socket->fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
@@ -268,10 +298,21 @@ static int swClient_tcp_connect(swClient *cli, char *host, int port, double time
         }
         break;
     }
+
     if (ret >= 0)
     {
         cli->socket->active = 1;
+#ifdef SW_USE_OPENSSL
+        if (cli->open_ssl)
+        {
+            if (swClient_ssl_handshake(cli) < 0)
+            {
+                return SW_ERR;
+            }
+        }
+#endif
     }
+
     return ret;
 }
 
@@ -297,15 +338,13 @@ static int swClient_tcp_send_sync(swClient *cli, char *data, int length)
 
     while (written < length)
     {
-        n = send(cli->socket->fd, data, length - written, 0);
+        n = swConnection_send(cli->socket, data, length - written, 0);
         if (n < 0)
         {
-            //中断
             if (errno == EINTR)
             {
                 continue;
             }
-            //让出
             else if (errno == EAGAIN)
             {
                 swYield();
@@ -357,12 +396,12 @@ static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, int len, int w
     }
 #endif
 
-    ret = recv(cli->socket->fd, data, len, flag);
+    ret = swConnection_recv(cli->socket, data, len, flag);
     if (ret < 0)
     {
         if (errno == EINTR)
         {
-            ret = recv(cli->socket->fd, data, len, flag);
+            ret = swConnection_recv(cli->socket, data, len, flag);
         }
         else
         {

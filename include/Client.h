@@ -66,6 +66,13 @@ typedef struct _swClient
 	swString *buffer;
 	uint32_t wait_length;
 
+#ifdef SW_USE_OPENSSL
+    uint8_t open_ssl;
+    char *ssl_cert_file;
+    char *ssl_key_file;
+    SSL_CTX *ssl_context;
+#endif
+
 	void (*onConnect)(struct _swClient *cli);
 	int (*onReceive)(struct _swClient *cli, swSendData *data);
 	void (*onClose)(struct _swClient *cli, int fd, int from_id);
@@ -79,6 +86,10 @@ typedef struct _swClient
 } swClient;
 
 int swClient_create(swClient *cli, int type, int async);
+#ifdef SW_USE_OPENSSL
+int swClient_enable_ssl_encrypt(swClient *cli);
+int swClient_ssl_handshake(swClient *cli);
+#endif
 
 typedef struct
 {

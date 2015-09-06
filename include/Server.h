@@ -411,6 +411,7 @@ struct _swServer
     uint8_t open_ssl;
     char *ssl_cert_file;
     char *ssl_key_file;
+    SSL_CTX *ssl_context;
 #endif
 
     void *ptr2;

@@ -43,13 +43,24 @@ char* swConnection_get_ip(swConnection *conn);
 int swConnection_get_port(swConnection *conn);
 
 #ifdef SW_USE_OPENSSL
-int swSSL_init(char *cert_file, char *key_file);
+void swSSL_init(void);
+SSL_CTX* swSSL_get_server_context(char *cert_file, char *key_file);
+SSL_CTX* swSSL_get_client_context(void);
 void swSSL_free();
-int swSSL_create(swConnection *conn, int flags);
+int swSSL_create(swConnection *conn, SSL_CTX* ssl_context, int flags);
 int swSSL_accept(swConnection *conn);
+int swSSL_connect(swConnection *conn);
 void swSSL_close(swConnection *conn);
 ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n);
 ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n);
+
+enum swSSLState
+{
+    SW_SSL_STATE_HANDSHAKE    = 0,
+    SW_SSL_STATE_READY        = 1,
+    SW_SSL_STATE_WAIT_STREAM  = 2,
+};
+
 #endif
 
 /**

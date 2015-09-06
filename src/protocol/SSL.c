@@ -19,19 +19,28 @@
 
 #ifdef SW_USE_OPENSSL
 
-static SSL_CTX *ssl_context = NULL;
+static int openssl_init = 0;
 
-int swSSL_init(char *cert_file, char *key_file)
+void swSSL_init(void)
 {
     SSL_library_init();
     SSL_load_error_strings();
     OpenSSL_add_all_algorithms();
+    openssl_init = 1;
+}
 
-    ssl_context = SSL_CTX_new(SSLv23_method());
+SSL_CTX* swSSL_get_server_context(char *cert_file, char *key_file)
+{
+    if (!openssl_init)
+    {
+        swSSL_init();
+    }
+
+    SSL_CTX *ssl_context = SSL_CTX_new(SSLv23_server_method());
     if (ssl_context == NULL)
     {
         ERR_print_errors_fp(stderr);
-        return SW_ERR;
+        return NULL;
     }
 
     SSL_CTX_set_options(ssl_context, SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG);
@@ -43,7 +52,7 @@ int swSSL_init(char *cert_file, char *key_file)
     if (SSL_CTX_use_certificate_file(ssl_context, cert_file, SSL_FILETYPE_PEM) <= 0)
     {
         ERR_print_errors_fp(stderr);
-        return SW_ERR;
+        return NULL;
     }
     /*
      * set the private key from KeyFile (may be the same as CertFile)
@@ -51,7 +60,7 @@ int swSSL_init(char *cert_file, char *key_file)
     if (SSL_CTX_use_PrivateKey_file(ssl_context, key_file, SSL_FILETYPE_PEM) <= 0)
     {
         ERR_print_errors_fp(stderr);
-        return SW_ERR;
+        return NULL;
     }
     /*
      * verify private key
@@ -59,9 +68,26 @@ int swSSL_init(char *cert_file, char *key_file)
     if (!SSL_CTX_check_private_key(ssl_context))
     {
         swWarn("Private key does not match the public certificate");
-        return SW_ERR;
+        return NULL;
     }
-    return SW_OK;
+    return ssl_context;
+}
+
+SSL_CTX* swSSL_get_client_context(void)
+{
+    if (!openssl_init)
+    {
+        swSSL_init();
+    }
+
+    SSL_CTX *context = SSL_CTX_new(SSLv23_client_method());
+    if (context == NULL)
+    {
+        ERR_print_errors_fp(stderr);
+        return NULL;
+    }
+
+    return context;
 }
 
 int swSSL_accept(swConnection *conn)
@@ -69,7 +95,7 @@ int swSSL_accept(swConnection *conn)
     int n = SSL_do_handshake(conn->ssl);
     if (n == 1)
     {
-        conn->ssl_state = 1;
+        conn->ssl_state = SW_SSL_STATE_READY;
         if (conn->ssl->s3)
         {
             conn->ssl->s3->flags |= SSL3_FLAGS_NO_RENEGOTIATE_CIPHERS;
@@ -85,7 +111,28 @@ int swSSL_accept(swConnection *conn)
     {
         return SW_OK;
     }
-    swWarn("SSL_do_handshake() failed.");
+    swWarn("swSSL_accept() failed. Error: %s[%ld]", ERR_reason_error_string(err), err);
+    return SW_ERR;
+}
+
+int swSSL_connect(swConnection *conn)
+{
+    int n = SSL_connect(conn->ssl);
+    if (n == 1)
+    {
+        conn->ssl_state = 1;
+        return SW_OK;
+    }
+    long err = SSL_get_error(conn->ssl, n);
+    if (err == SSL_ERROR_WANT_READ)
+    {
+        return SW_OK;
+    }
+    else if (err == SSL_ERROR_WANT_WRITE)
+    {
+        return SW_OK;
+    }
+    swWarn("SSL_connect() failed. Error: %s[%ld]", ERR_reason_error_string(err), err);
     return SW_ERR;
 }
 
@@ -141,7 +188,7 @@ ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n)
     return n;
 }
 
-int swSSL_create(swConnection *conn, int flags)
+int swSSL_create(swConnection *conn, SSL_CTX* ssl_context, int flags)
 {
     SSL *ssl = SSL_new(ssl_context);
     if (ssl == NULL)
@@ -168,7 +215,7 @@ int swSSL_create(swConnection *conn, int flags)
     return SW_OK;
 }
 
-void swSSL_free()
+void swSSL_free(SSL_CTX* ssl_context)
 {
     if (ssl_context)
     {
