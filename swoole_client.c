@@ -579,12 +579,13 @@ static int client_onWrite(swReactor *reactor, swEvent *event)
             SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, (SW_FD_USER + 1) | SW_EVENT_READ);
             //connected
             cli->socket->active = 1;
+
 #ifdef SW_USE_OPENSSL
             if (cli->open_ssl)
             {
                 if (swClient_ssl_handshake(cli) < 0)
                 {
-                    goto connect_fail;
+                    return client_error_callback(zobject, event, error TSRMLS_CC);
                 }
                 cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
                 return SW_OK;
@@ -594,8 +595,7 @@ static int client_onWrite(swReactor *reactor, swEvent *event)
         }
         else
         {
-            connect_fail:
-            client_error_callback(zobject, event, error TSRMLS_CC);
+            return client_error_callback(zobject, event, error TSRMLS_CC);
         }
     }
     return SW_OK;
@@ -874,6 +874,7 @@ static swClient* client_create_socket(zval *object, char *host, int host_len, in
             return NULL;
         }
 
+#ifdef SW_USE_OPENSSL
         //ssl/tls
         if (type & SW_SOCK_SSL)
         {
@@ -882,6 +883,7 @@ static swClient* client_create_socket(zval *object, char *host, int host_len, in
                 return NULL;
             }
         }
+#endif
 
         //don't forget free it
         cli->server_str = strdup(conn_key);
