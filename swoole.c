@@ -456,7 +456,7 @@ void swoole_set_object(zval *object, void *ptr)
         {
             new_size = SWOOLE_OBJECT_MAX;
         }
-        new_ptr = erealloc(old_ptr, sizeof(void*) * new_size);
+        new_ptr = realloc(old_ptr, sizeof(void*) * new_size);
         if (!new_ptr)
         {
             return;
@@ -488,7 +488,7 @@ void swoole_set_property(zval *object, int property_id, void *ptr)
         if (old_size == 0)
         {
             new_size = 65536;
-            new_ptr = ecalloc(new_size, sizeof(void *));
+            new_ptr = calloc(new_size, sizeof(void *));
         }
         else
         {
@@ -498,7 +498,7 @@ void swoole_set_property(zval *object, int property_id, void *ptr)
                 new_size = SWOOLE_OBJECT_MAX;
             }
             old_ptr = swoole_objects.property[property_id];
-            new_ptr = erealloc(old_ptr, new_size * sizeof(void *));
+            new_ptr = realloc(old_ptr, new_size * sizeof(void *));
         }
         if (new_ptr == NULL)
         {
@@ -621,6 +621,15 @@ PHP_MINIT_FUNCTION(swoole)
         }
         SwooleAIO.thread_num = SWOOLE_G(aio_thread_num);
     }
+
+    if (strcasecmp("cli", sapi_module.name) == 0)
+    {
+        SWOOLE_G(cli) = 1;
+    }
+
+    swoole_objects.size = 65536;
+    swoole_objects.array = calloc(swoole_objects.size, sizeof(void*));
+
     return SUCCESS;
 }
 /* }}} */
@@ -637,6 +646,17 @@ PHP_MSHUTDOWN_FUNCTION(swoole)
     {
         sw_free(SwooleG.serv);
     }
+
+    int i;
+    for (i = 0; i < SWOOLE_PROPERTY_MAX; i++)
+    {
+        if (swoole_objects.property[i])
+        {
+            free(swoole_objects.property[i]);
+        }
+    }
+    free(swoole_objects.array);
+
     swoole_clean();
     return SUCCESS;
 }
@@ -728,14 +748,6 @@ PHP_RINIT_FUNCTION(swoole)
     }
 #endif
 
-    if (strcasecmp("cli", sapi_module.name) == 0)
-    {
-        SWOOLE_G(cli) = 1;
-    }
-
-    swoole_objects.size = 65536;
-    swoole_objects.array = ecalloc(swoole_objects.size, sizeof(void*));
-
 #ifdef SW_DEBUG_REMOTE_OPEN
     swoole_open_remote_debug();
 #endif
@@ -783,17 +795,6 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
             swWarn("worker process is terminated by exit()/die().");
         }
     }
-
-    for(i = 0; i< SWOOLE_PROPERTY_MAX; i ++)
-    {
-        if (swoole_objects.property[i])
-        {
-            efree(swoole_objects.property[i]);
-        }
-    }
-
-    efree(swoole_objects.array);
-    bzero(&swoole_objects, sizeof(swoole_objects));
 
     SwooleWG.reactor_wait_onexit = 0;
 
