@@ -1681,19 +1681,20 @@ static int swReactorThread_loop_stream(swThreadParam *param)
 
         for (i = 0; i < serv->worker_num; i++)
         {
-            pipe_fd = serv->workers[i].pipe_master;
-            //for request
-            swBuffer *buffer = swBuffer_new(sizeof(swEventData));
-            if (!buffer)
-            {
-                swWarn("create buffer failed.");
-                break;
-            }
-            serv->connection_list[pipe_fd].in_buffer = buffer;
-
-            //for response
             if (i % serv->reactor_num == reactor_id)
             {
+                pipe_fd = serv->workers[i].pipe_master;
+
+                //for request
+                swBuffer *buffer = swBuffer_new(sizeof(swEventData));
+                if (!buffer)
+                {
+                    swWarn("create buffer failed.");
+                    break;
+                }
+                serv->connection_list[pipe_fd].in_buffer = buffer;
+
+                //for response
                 swSetNonBlock(pipe_fd);
                 reactor->add(reactor, pipe_fd, SW_FD_PIPE);
 
