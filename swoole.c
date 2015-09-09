@@ -875,7 +875,9 @@ PHP_FUNCTION(swoole_errno)
 PHP_FUNCTION(swoole_set_process_name)
 {
     zval *name;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &name) == FAILURE)
+    long size = 128;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|l", &name, &size) == FAILURE)
     {
         return;
     }
@@ -902,17 +904,15 @@ PHP_FUNCTION(swoole_set_process_name)
     {
         return;
     }
-
     sw_zval_ptr_dtor(&function);
     if (retval)
     {
         sw_zval_ptr_dtor(&retval);
     }
 #else
-    bzero(sapi_module.executable_location, 127);
+    bzero(sapi_module.executable_location, size);
     memcpy(sapi_module.executable_location, Z_STRVAL_P(name), Z_STRLEN_P(name));
 #endif
-
 }
 
 PHP_FUNCTION(swoole_get_local_ip)
