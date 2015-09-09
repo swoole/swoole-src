@@ -970,7 +970,6 @@ void swoole_fcntl_set_block(int sock, int nonblock);
 
 //----------------------core function---------------------
 int swSocket_set_timeout(int sock, double timeout);
-int swRead(int, void *, int);
 int swWrite(int, void *, int);
 
 static sw_inline int swSocket_is_dgram(uint8_t type)

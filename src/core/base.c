@@ -594,65 +594,6 @@ uint32_t swoole_common_multiple(uint32_t u, uint32_t v)
     return u * v / n_cup;
 }
 
-int swRead(int fd, void *buf, int len)
-{
-    int n = 0, nread;
-    sw_errno = 0;
-
-    while (1)
-    {
-        nread = recv(fd, buf + n, len - n, 0);
-
-//        swWarn("Read Len=%d|Errno=%d", nread, errno);
-        //遇到错误
-        if (nread < 0)
-        {
-            //中断
-            if (errno == EINTR)
-            {
-                continue;
-            }
-            //出错了
-            else
-            {
-                if (errno == EAGAIN && n > 0)
-                {
-                    break;
-                }
-                else
-                {
-                    sw_errno = -1; //异常
-                    return SW_ERR;
-                }
-            }
-        }
-        //连接已关闭
-        //需要检测errno来区分是EAGAIN还是ECONNRESET
-        else if (nread == 0)
-        {
-            //这里直接break,保证读到的数据被处理
-            break;
-        }
-        else
-        {
-            n += nread;
-            //内存读满了，还可能有数据
-            if (n == len)
-            {
-                sw_errno = EAGAIN;
-                break;
-            }
-            //已读完 n < len
-            else
-            {
-                break;
-            }
-        }
-
-    }
-    return n;
-}
-
 /**
  * for GDB
  */
