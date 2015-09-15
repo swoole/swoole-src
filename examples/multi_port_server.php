@@ -5,10 +5,10 @@ $serv->addlistener('127.0.0.1', 9502, SWOOLE_SOCK_UDP);
 $serv->on('connect', function ($serv, $fd) {
     echo "Client:Connect.\n";
 });
-$serv->on('receive', function ($serv, $fd, $from_id, $data) {
+$serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
     $info = $serv->connection_info($fd, $from_id);
     //来自9502的内网管理端口
-    if($info['from_port'] == 9502) {
+    if($info['server_port'] == 9502) {
 		$serv->send($fd, "welcome admin\n");
 		$start_fd = 0;
         while(true)
