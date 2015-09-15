@@ -65,7 +65,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_decr, 0, 0, 2)
 ZEND_END_ARG_INFO()
 
 static PHP_METHOD(swoole_table, __construct);
-static PHP_METHOD(swoole_table, __destruct);
 static PHP_METHOD(swoole_table, column);
 static PHP_METHOD(swoole_table, create);
 static PHP_METHOD(swoole_table, set);
@@ -89,7 +88,6 @@ static PHP_METHOD(swoole_table, valid);
 static const zend_function_entry swoole_table_methods[] =
 {
     PHP_ME(swoole_table, __construct, arginfo_swoole_table_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-    PHP_ME(swoole_table, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_table, column,      arginfo_swoole_table_column, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, create,      arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, set,         arginfo_swoole_table_set, ZEND_ACC_PUBLIC)
@@ -177,14 +175,6 @@ void swoole_table_init(int module_number TSRMLS_DC)
     zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("TYPE_INT")-1, SW_TABLE_INT TSRMLS_CC);
     zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("TYPE_STRING")-1, SW_TABLE_STRING TSRMLS_CC);
     zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("TYPE_FLOAT")-1, SW_TABLE_FLOAT TSRMLS_CC);
-
-    zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("FIND_GT")-1, SW_TABLE_FIND_GT TSRMLS_CC);
-    zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("FIND_LT")-1, SW_TABLE_FIND_LT TSRMLS_CC);
-    zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("FIND_EQ")-1, SW_TABLE_FIND_EQ TSRMLS_CC);
-    zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("FIND_NEQ")-1, SW_TABLE_FIND_NEQ TSRMLS_CC);
-    zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("FIND_LEFTLIKE")-1, SW_TABLE_FIND_LEFTLIKE TSRMLS_CC);
-    zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("FIND_RIGHTLIKE")-1, SW_TABLE_FIND_RIGHTLIKE TSRMLS_CC);
-    zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("FIND_LIKE")-1, SW_TABLE_FIND_LIKE TSRMLS_CC);
 }
 
 void swoole_table_column_free(swTableColumn *col)
@@ -207,15 +197,6 @@ PHP_METHOD(swoole_table, __construct)
 
     swTable *table = swTable_new(table_size);
     swoole_set_object(getThis(), table);
-}
-
-PHP_METHOD(swoole_table, __destruct)
-{
-    swTable *table = swoole_get_object(getThis());
-    if (table)
-    {
-        swTable_free(table);
-    }
 }
 
 PHP_METHOD(swoole_table, column)
