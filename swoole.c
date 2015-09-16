@@ -891,6 +891,11 @@ PHP_FUNCTION(swoole_set_process_name)
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "process name is too long,the max len is 127");
     }
 
+    if (size > SwooleG.pagesize)
+    {
+        size = SwooleG.pagesize;
+    }
+
 #if PHP_MAJOR_VERSION >= 7 || (PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION > 4)
     zval *retval;
     zval **args[1];
