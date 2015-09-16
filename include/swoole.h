@@ -169,6 +169,7 @@ enum swReturnType
     SW_WAIT     = 2,
     SW_CLOSE    = 3,
     SW_ERROR    = 4,
+    SW_READY    = 5,
 };
 //-------------------------------------------------------------------------------
 enum swFd_type
@@ -394,6 +395,9 @@ typedef struct _swConnection
     uint32_t tcp_nodelay :1;
 
     uint32_t http_buffered :1;
+
+    uint32_t ssl_want_read :1;
+    uint32_t ssl_want_write :1;
 
     /**
      * ReactorThread id

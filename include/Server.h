@@ -754,6 +754,19 @@ static sw_inline swConnection *swServer_connection_verify(swServer *serv, int se
     return conn;
 }
 
+static sw_inline void swServer_connection_ready(swServer *serv, int fd, int reactor_id)
+{
+    swDataHead connect_event;
+    connect_event.type = SW_EVENT_CONNECT;
+    connect_event.from_id = reactor_id;
+    connect_event.fd = fd;
+
+    if (serv->factory.notify(&serv->factory, &connect_event) < 0)
+    {
+        swWarn("send notification [fd=%d] failed.", fd);
+    }
+}
+
 void swWorker_free(swWorker *worker);
 void swWorker_signal_init(void);
 void swWorker_onStart(swServer *serv);

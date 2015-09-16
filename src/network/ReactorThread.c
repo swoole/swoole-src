@@ -79,6 +79,30 @@ static sw_inline void* swReactorThread_alloc(swReactorThread *thread, uint32_t s
 
 #endif
 
+#ifdef SW_USE_OPENSSL
+static sw_inline int swReactorThread_check_ssl_state(swConnection *conn)
+{
+    if (conn->ssl_state == 0)
+    {
+        int ret = swSSL_accept(conn);
+        if (ret == SW_READY)
+        {
+            swServer_connection_ready(SwooleG.serv, conn->fd, conn->from_id);
+            return SW_OK;
+        }
+        else if (ret == SW_WAIT)
+        {
+            return SW_OK;
+        }
+        else
+        {
+            return SW_ERR;
+        }
+    }
+    return SW_OK;
+}
+#endif
+
 /**
  * for udp
  */
@@ -797,6 +821,13 @@ static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEven
     swConnection *conn = swServer_connection_get(serv, event->fd);
     swProtocol *protocol = &serv->protocol;
 
+#ifdef SW_USE_OPENSSL
+    if (swReactorThread_check_ssl_state(conn) < 0)
+    {
+        return swReactorThread_onClose(reactor, event);
+    }
+#endif
+
     if (conn->object == NULL)
     {
         conn->object = swString_new(SW_BUFFER_SIZE);
@@ -809,7 +840,6 @@ static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEven
 
     if (swProtocol_recv_check_eof(protocol, conn, conn->object) < 0)
     {
-        swTrace("Close Event.FD=%d|From=%d", event->fd, event->from_id);
         swReactorThread_onClose(reactor, event);
     }
 
@@ -823,6 +853,13 @@ static int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *even
     swFactory *factory = &(serv->factory);
     swDispatchData task;
     swConnection *conn = swServer_connection_get(serv, event->fd);
+
+#ifdef SW_USE_OPENSSL
+    if (swReactorThread_check_ssl_state(conn) < 0)
+    {
+        goto close_fd;
+    }
+#endif
 
     n = swConnection_recv(conn, task.data.data, SW_BUFFER_SIZE, 0);
     if (n < 0)
@@ -942,6 +979,13 @@ static int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swE
     swServer *serv = reactor->ptr;
     swConnection *conn = swServer_connection_get(serv, event->fd);
     swProtocol *protocol = &serv->protocol;
+
+#ifdef SW_USE_OPENSSL
+    if (swReactorThread_check_ssl_state(conn) < 0)
+    {
+        return swReactorThread_onClose(reactor, event);
+    }
+#endif
 
     if (conn->object == NULL)
     {
@@ -1198,6 +1242,13 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
 {
     swServer *serv = reactor->ptr;
     swConnection *conn = event->socket;
+
+#ifdef SW_USE_OPENSSL
+    if (swReactorThread_check_ssl_state(conn) < 0)
+    {
+        goto close_fd;
+    }
+#endif
 
     if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE)
     {
@@ -1539,6 +1590,10 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
             return SW_ERR;
         }
     }
+
+#ifdef HAVE_REUSEPORT
+    SwooleG.reuse_port = 0;
+#endif
 
     //listen TCP
     if (serv->have_tcp_sock == 1)

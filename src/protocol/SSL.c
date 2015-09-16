@@ -100,19 +100,19 @@ int swSSL_accept(swConnection *conn)
         {
             conn->ssl->s3->flags |= SSL3_FLAGS_NO_RENEGOTIATE_CIPHERS;
         }
-        return SW_OK;
+        return SW_READY;
     }
     long err = SSL_get_error(conn->ssl, n);
     if (err == SSL_ERROR_WANT_READ)
     {
-        return SW_OK;
+        return SW_WAIT;
     }
     else if (err == SSL_ERROR_WANT_WRITE)
     {
-        return SW_OK;
+        return SW_WAIT;
     }
     swWarn("swSSL_accept() failed. Error: %s[%ld]", ERR_reason_error_string(err), err);
-    return SW_ERR;
+    return SW_ERROR;
 }
 
 int swSSL_connect(swConnection *conn)
@@ -144,12 +144,6 @@ void swSSL_close(swConnection *conn)
 
 ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
 {
-    if (conn->ssl_state == 0 && swSSL_accept(conn) < 0)
-    {
-        //close connection
-        return 0;
-    }
-
     int n = SSL_read(conn->ssl, __buf, __n);
     if (n < 0)
     {
@@ -157,11 +151,19 @@ ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
         switch (_errno)
         {
         case SSL_ERROR_WANT_READ:
-        case SSL_ERROR_WANT_WRITE:
+            conn->ssl_want_read = 1;
             errno = EAGAIN;
             return SW_ERR;
+            break;
+
+        case SSL_ERROR_WANT_WRITE:
+            conn->ssl_want_write = 1;
+            errno = EAGAIN;
+            return SW_ERR;
+
         case SSL_ERROR_SYSCALL:
             return SW_ERR;
+
         default:
             swWarn("SSL_read(%d, %ld) failed, errno=%d.", conn->fd, __n, _errno);
             return SW_ERR;
@@ -178,9 +180,16 @@ ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n)
         switch (SSL_get_error(conn->ssl, n))
         {
         case SSL_ERROR_WANT_READ:
-        case SSL_ERROR_WANT_WRITE:
+            conn->ssl_want_read = 1;
             errno = EAGAIN;
             return SW_ERR;
+            break;
+
+        case SSL_ERROR_WANT_WRITE:
+            conn->ssl_want_write = 1;
+            errno = EAGAIN;
+            return SW_ERR;
+
         default:
             return SW_ERR;
         }

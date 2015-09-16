@@ -309,21 +309,18 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         conn->socket_type = listen_host->type;
 
 #ifdef SW_USE_OPENSSL
-        if (serv->open_ssl)
+        if (listen_host->ssl)
         {
-            if (listen_host->ssl)
+            if (swSSL_create(conn, serv->ssl_context, 0) < 0)
             {
-                if (swSSL_create(conn, serv->ssl_context, 0) < 0)
-                {
-                    bzero(conn, sizeof(swConnection));
-                    close(new_fd);
-                    return SW_OK;
-                }
+                bzero(conn, sizeof(swConnection));
+                close(new_fd);
+                return SW_OK;
             }
-            else
-            {
-                conn->ssl = NULL;
-            }
+        }
+        else
+        {
+            conn->ssl = NULL;
         }
 #endif
         /*
@@ -332,7 +329,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         if (serv->factory_mode == SW_MODE_PROCESS)
         {
             int events;
-            if (serv->onConnect)
+            if (serv->onConnect && !listen_host->ssl)
             {
                 conn->connect_notify = 1;
                 events = SW_EVENT_WRITE;
@@ -346,18 +343,9 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         else
         {
             ret = sub_reactor->add(sub_reactor, new_fd, SW_FD_TCP | SW_EVENT_READ);
-            
-            if (ret >= 0 && serv->onConnect)
+            if (ret >= 0 && serv->onConnect && !listen_host->ssl)
             {
-                swDataHead connect_event;
-                connect_event.type = SW_EVENT_CONNECT;
-                connect_event.from_id = reactor->id;
-                connect_event.fd = new_fd;
-
-                if (serv->factory.notify(&serv->factory, &connect_event) < 0)
-                {
-                    swWarn("send notification [fd=%d] failed.", new_fd);
-                }
+                swServer_connection_ready(serv, new_fd, reactor->id);
             }
         }
 

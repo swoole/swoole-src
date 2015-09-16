@@ -126,8 +126,8 @@ int swConnection_buffer_send(swConnection *conn)
         swBuffer_pop_trunk(buffer, trunk);
         return SW_OK;
     }
+
     ret = swConnection_send(conn, trunk->store.ptr + trunk->offset, sendn, 0);
-    //printf("BufferOut: reactor=%d|sendn=%d|ret=%d|trunk->offset=%d|trunk_len=%d\n", reactor->id, sendn, ret, trunk->offset, trunk->length);
     if (ret < 0)
     {
         switch (swConnection_error(errno))
