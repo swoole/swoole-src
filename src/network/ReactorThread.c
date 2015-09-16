@@ -87,7 +87,10 @@ static sw_inline int swReactorThread_check_ssl_state(swConnection *conn)
         int ret = swSSL_accept(conn);
         if (ret == SW_READY)
         {
-            swServer_connection_ready(SwooleG.serv, conn->fd, conn->from_id);
+            if (SwooleG.serv->onConnect)
+            {
+                swServer_connection_ready(SwooleG.serv, conn->fd, conn->from_id);
+            }
             return SW_OK;
         }
         else if (ret == SW_WAIT)
