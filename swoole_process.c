@@ -268,7 +268,10 @@ static PHP_METHOD(swoole_process, kill)
     int ret = kill((int) pid, (int) sig);
     if (ret < 0)
     {
-        swoole_php_error(E_WARNING, "kill(%d, %d) failed. Error: %s[%d]", (int) pid, (int) sig, strerror(errno), errno);
+        if (!(sig == 0 && errno == ESRCH))
+        {
+            swoole_php_error(E_WARNING, "kill(%d, %d) failed. Error: %s[%d]", (int) pid, (int) sig, strerror(errno), errno);
+        }
         RETURN_FALSE;
     }
     RETURN_TRUE;
