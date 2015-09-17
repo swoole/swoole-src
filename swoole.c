@@ -353,6 +353,9 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_FALIAS(on, swoole_server_on, arginfo_swoole_server_on_oo)
     PHP_FALIAS(connection_info, swoole_connection_info, arginfo_swoole_connection_info_oo)
     PHP_FALIAS(connection_list, swoole_connection_list, arginfo_swoole_connection_list_oo)
+    //psr-0 style
+    PHP_FALIAS(getClientInfo, swoole_connection_info, arginfo_swoole_connection_info_oo)
+    PHP_FALIAS(getClientList, swoole_connection_list, arginfo_swoole_connection_list_oo)
     //timer
     PHP_FALIAS(addtimer, swoole_server_addtimer, arginfo_swoole_server_addtimer_oo)
     PHP_FALIAS(deltimer, swoole_timer_del, arginfo_swoole_timer_del)
