@@ -1038,6 +1038,12 @@ static int http_onReceive(swServer *serv, swEventData *req)
         else
         {
             callback = HTTP_CALLBACK_onRequest;
+            //no have onRequest callback
+            if (php_sw_http_server_callbacks[callback] == NULL)
+            {
+                swoole_websocket_onReuqest(client);
+                return SW_OK;
+            }
         }
 
         if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[callback], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)

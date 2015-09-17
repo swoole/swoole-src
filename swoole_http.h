@@ -114,6 +114,7 @@ typedef struct
 int swoole_websocket_onMessage(swEventData *req);
 int swoole_websocket_onHandshake(swoole_http_client *client);
 void swoole_websocket_onOpen(swoole_http_client *client);
+void swoole_websocket_onReuqest(swoole_http_client *client);
 int swoole_websocket_isset_onMessage(void);
 void swoole_http_request_free(swoole_http_client *client TSRMLS_DC);
 

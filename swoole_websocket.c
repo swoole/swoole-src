@@ -123,6 +123,25 @@ void swoole_websocket_onOpen(swoole_http_client *client)
     }
 }
 
+/**
+ * default onRequest callback
+ */
+void swoole_websocket_onReuqest(swoole_http_client *client)
+{
+    char *content = "<html><body><h2>HTTP ERROR 400</h2><hr><i>Powered by "SW_HTTP_SERVER_SOFTWARE" ("PHP_SWOOLE_VERSION")</i></body></html>";
+    char *bad_request = "HTTP/1.1 400 Bad Request\r\n"\
+            "Content-Type: text/html; charset=UTF-8\r\n"\
+            "Cache-Control: must-revalidate,no-cache,no-store\r\n"\
+            "Content-Length: %d\r\n"\
+            "Server: "SW_HTTP_SERVER_SOFTWARE"\r\n\r\n%s";
+
+    char buf[512];
+
+    int n = sprintf(buf, bad_request, strlen(content), content);
+    swServer_tcp_send(SwooleG.serv, client->fd, buf, n);
+    SwooleG.serv->factory.end(&SwooleG.serv->factory, client->fd);
+}
+
 static void sha1(const char *str, int _len, unsigned char *digest)
 {
     PHP_SHA1_CTX context;
