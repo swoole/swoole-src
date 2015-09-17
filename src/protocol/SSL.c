@@ -21,6 +21,53 @@
 
 static int openssl_init = 0;
 
+static const SSL_METHOD *swSSL_get_method(int method);
+
+static const SSL_METHOD *swSSL_get_method(int method)
+{
+    switch (method)
+    {
+    case SW_SSLv3_METHOD:
+        return SSLv3_method();
+    case SW_SSLv3_SERVER_METHOD:
+        return SSLv3_server_method();
+    case SW_SSLv3_CLIENT_METHOD:
+        return SSLv3_client_method();
+    case SW_SSLv23_SERVER_METHOD:
+        return SSLv23_server_method();
+    case SW_SSLv23_CLIENT_METHOD:
+        return SSLv23_client_method();
+    case SW_TLSv1_METHOD:
+        return TLSv1_method();
+    case SW_TLSv1_SERVER_METHOD:
+        return TLSv1_server_method();
+    case SW_TLSv1_CLIENT_METHOD:
+        return TLSv1_client_method();
+    case SW_TLSv1_1_METHOD:
+        return TLSv1_1_method();
+    case SW_TLSv1_1_SERVER_METHOD:
+        return TLSv1_1_server_method();
+    case SW_TLSv1_1_CLIENT_METHOD:
+        return TLSv1_1_client_method();
+    case SW_TLSv1_2_METHOD:
+        return TLSv1_2_method();
+    case SW_TLSv1_2_SERVER_METHOD:
+        return TLSv1_2_server_method();
+    case SW_TLSv1_2_CLIENT_METHOD:
+        return TLSv1_2_client_method();
+    case SW_DTLSv1_METHOD:
+        return DTLSv1_method();
+    case SW_DTLSv1_SERVER_METHOD:
+        return DTLSv1_server_method();
+    case SW_DTLSv1_CLIENT_METHOD:
+        return DTLSv1_client_method();
+    case SW_SSLv23_METHOD:
+    default:
+        return SSLv23_method();
+    }
+    return SSLv23_method();
+}
+
 void swSSL_init(void)
 {
     SSL_library_init();
@@ -29,14 +76,14 @@ void swSSL_init(void)
     openssl_init = 1;
 }
 
-SSL_CTX* swSSL_get_server_context(char *cert_file, char *key_file)
+SSL_CTX* swSSL_get_server_context(char *cert_file, char *key_file, int method)
 {
     if (!openssl_init)
     {
         swSSL_init();
     }
 
-    SSL_CTX *ssl_context = SSL_CTX_new(SSLv23_server_method());
+    SSL_CTX *ssl_context = SSL_CTX_new(swSSL_get_method(method));
     if (ssl_context == NULL)
     {
         ERR_print_errors_fp(stderr);
@@ -73,14 +120,14 @@ SSL_CTX* swSSL_get_server_context(char *cert_file, char *key_file)
     return ssl_context;
 }
 
-SSL_CTX* swSSL_get_client_context(void)
+SSL_CTX* swSSL_get_client_context(int method)
 {
     if (!openssl_init)
     {
         swSSL_init();
     }
 
-    SSL_CTX *context = SSL_CTX_new(SSLv23_client_method());
+    SSL_CTX *context = SSL_CTX_new(swSSL_get_method(method));
     if (context == NULL)
     {
         ERR_print_errors_fp(stderr);
@@ -110,6 +157,10 @@ int swSSL_accept(swConnection *conn)
     else if (err == SSL_ERROR_WANT_WRITE)
     {
         return SW_WAIT;
+    }
+    else if (err == SSL_ERROR_SSL)
+    {
+        return SW_ERROR;
     }
     swWarn("swSSL_accept() failed. Error: %s[%ld]", ERR_reason_error_string(err), err);
     return SW_ERROR;

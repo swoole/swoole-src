@@ -1426,8 +1426,7 @@ PHP_FUNCTION(swoole_server_set)
         serv->open_eof_check = 1;
     }
     //package eof
-    if (sw_zend_hash_find(vht, ZEND_STRS("package_eof"), (void **) &v) == SUCCESS
-            || sw_zend_hash_find(vht, ZEND_STRS("data_eof"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("package_eof"), (void **) &v) == SUCCESS)
     {
         convert_to_string(v);
         serv->protocol.package_eof_len = Z_STRLEN_P(v);
@@ -1671,6 +1670,11 @@ PHP_FUNCTION(swoole_server_set)
             php_error_docref(NULL TSRMLS_CC, E_ERROR, "ssl key file[%s] not found.", serv->ssl_key_file);
             return;
         }
+    }
+    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_method"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(v);
+        serv->ssl_method = (int) Z_LVAL_P(v);
     }
     if (serv->open_ssl && !serv->ssl_key_file)
     {

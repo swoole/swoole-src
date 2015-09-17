@@ -119,7 +119,10 @@ void swHttpRequest_free(swConnection *conn, swHttpRequest *request)
         swString_free(request->buffer);
         conn->http_buffered = 0;
     }
-    bzero(request, sizeof(swHttpRequest));
+    if (request)
+    {
+        bzero(request, sizeof(swHttpRequest));
+    }
 }
 
 /**

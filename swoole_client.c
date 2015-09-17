@@ -541,6 +541,13 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
             swSysError("setsockopt(%d, TCP_NODELAY) failed.", cli->socket->fd);
         }
     }
+#ifdef SW_USE_OPENSSL
+    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_method"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(v);
+        cli->ssl_method = (int) Z_LVAL_P(v);
+    }
+#endif
 }
 
 static int client_onWrite(swReactor *reactor, swEvent *event)

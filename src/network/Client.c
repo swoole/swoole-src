@@ -136,7 +136,7 @@ int swClient_create(swClient *cli, int type, int async)
 #ifdef SW_USE_OPENSSL
 int swClient_enable_ssl_encrypt(swClient *cli)
 {
-    cli->ssl_context = swSSL_get_client_context();
+    cli->ssl_context = swSSL_get_client_context(cli->ssl_method);
     if (cli->ssl_context == NULL)
     {
         return SW_ERR;

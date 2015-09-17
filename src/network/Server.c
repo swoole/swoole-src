@@ -636,7 +636,7 @@ int swServer_start(swServer *serv)
 #ifdef SW_USE_OPENSSL
     if (serv->open_ssl)
     {
-        serv->ssl_context = swSSL_get_server_context(serv->ssl_cert_file, serv->ssl_key_file);
+        serv->ssl_context = swSSL_get_server_context(serv->ssl_cert_file, serv->ssl_key_file, serv->ssl_method);
         if (serv->ssl_context == NULL)
         {
             return SW_ERR;
