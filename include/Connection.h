@@ -93,7 +93,30 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
 #ifdef SW_USE_OPENSSL
     if (conn->ssl)
     {
-        return swSSL_recv(conn, __buf, __n);
+        int ret = 0;
+        int written = 0;
+
+        while(written < __n)
+        {
+            ret = swSSL_recv(conn, __buf + written, __n - written);
+            if (__flags & MSG_WAITALL)
+            {
+                if (ret <= 0)
+                {
+                    return ret;
+                }
+                else
+                {
+                    written += ret;
+                }
+            }
+            else
+            {
+                return ret;
+            }
+        }
+
+        return written;
     }
     else
     {

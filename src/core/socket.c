@@ -239,6 +239,7 @@ int swSocket_create(int type)
         _type = SOCK_STREAM;
         break;
     default:
+        swError("unknow socket type [%d]", type);
         return SW_ERR;
     }
     return socket(_domain, _type, 0);
