@@ -247,9 +247,12 @@ static int swClient_close(swClient *cli)
     int ret;
 
 #ifdef SW_USE_OPENSSL
-    if (cli->open_ssl)
+    if (cli->open_ssl && cli->ssl_context)
     {
-        swSSL_close(cli->socket);
+        if (cli->socket->ssl)
+        {
+            swSSL_close(cli->socket);
+        }
         swSSL_free(cli->ssl_context);
     }
 #endif

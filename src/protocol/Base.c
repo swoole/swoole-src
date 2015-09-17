@@ -154,6 +154,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
         {
             if (buffer->length == buffer->offset)
             {
+                do_package:
                 protocol->onPackage(conn, buffer->str, buffer->length);
                 conn->recv_wait = 0;
                 swString_clear(buffer);
@@ -185,7 +186,14 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
                 }
                 conn->recv_wait = 1;
                 buffer->offset = package_length;
-                goto do_recv;
+                if (buffer->length == package_length)
+                {
+                    goto do_package;
+                }
+                else
+                {
+                    goto do_recv;
+                }
             }
         }
     }
