@@ -82,7 +82,7 @@ static sw_inline void* swReactorThread_alloc(swReactorThread *thread, uint32_t s
 #ifdef SW_USE_OPENSSL
 static sw_inline int swReactorThread_check_ssl_state(swConnection *conn)
 {
-    if (conn->ssl_state == 0)
+    if (conn->ssl_state == 0 && conn->ssl)
     {
         int ret = swSSL_accept(conn);
         if (ret == SW_READY)
