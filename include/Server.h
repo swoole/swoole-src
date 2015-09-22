@@ -752,6 +752,13 @@ static sw_inline swConnection *swServer_connection_verify(swServer *serv, int se
     {
         return NULL;
     }
+#ifdef SW_USE_OPENSSL
+    if (conn->ssl && conn->ssl_state != SW_SSL_STATE_READY)
+    {
+        swWarn("SSL not ready");
+        return NULL;
+    }
+#endif
     return conn;
 }
 

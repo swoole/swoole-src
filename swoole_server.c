@@ -3234,6 +3234,12 @@ PHP_METHOD(swoole_connection_iterator, valid)
 
         if (conn->active && !conn->closed)
         {
+#ifdef SW_USE_OPENSSL
+            if (conn->ssl && conn->ssl_state != SW_SSL_STATE_READY)
+            {
+                continue;
+            }
+#endif
             server_itearator.session_id = conn->session_id;
             server_itearator.current_fd = fd;
             server_itearator.index++;
