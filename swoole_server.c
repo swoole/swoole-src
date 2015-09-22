@@ -2201,9 +2201,20 @@ PHP_FUNCTION(swoole_server_sendfile)
     //check fd
     if (conn_fd <= 0 || conn_fd > SW_MAX_SOCKET_ID)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "invalid fd[%ld] error.", conn_fd);
+        swoole_php_error(E_WARNING, "invalid fd[%ld] error.", conn_fd);
         RETURN_FALSE;
     }
+
+
+    swServer *serv = swoole_get_object(zobject);
+
+    swConnection *conn = swServer_connection_verify(serv, (int) conn_fd);
+    if (conn && conn->ssl)
+    {
+        swoole_php_error(E_WARNING, "SSL client#%d cannot use sendfile().", (int) conn_fd);
+        RETURN_FALSE;
+    }
+
     send_data.info.len = len;
     //file name size
     if (send_data.info.len > SW_BUFFER_SIZE - 1)
@@ -2218,7 +2229,6 @@ PHP_FUNCTION(swoole_server_sendfile)
         RETURN_FALSE;
     }
 
-    swServer *serv = swoole_get_object(zobject);
 
     send_data.info.fd = (int) conn_fd;
     send_data.info.type = SW_EVENT_SENDFILE;
