@@ -2205,15 +2205,16 @@ PHP_FUNCTION(swoole_server_sendfile)
         RETURN_FALSE;
     }
 
-
     swServer *serv = swoole_get_object(zobject);
 
+#ifdef SW_USE_OPENSSL
     swConnection *conn = swServer_connection_verify(serv, (int) conn_fd);
     if (conn && conn->ssl)
     {
         swoole_php_error(E_WARNING, "SSL client#%d cannot use sendfile().", (int) conn_fd);
         RETURN_FALSE;
     }
+#endif
 
     send_data.info.len = len;
     //file name size
