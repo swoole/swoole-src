@@ -163,6 +163,11 @@ int swSSL_accept(swConnection *conn)
         swWarn("bad SSL client[%s:%d] .", swConnection_get_ip(conn), swConnection_get_port(conn));
         return SW_ERROR;
     }
+    else if (err == SSL_ERROR_SYSCALL)
+    {
+        swSysError("SSL error syscall.");
+        return SW_ERROR;
+    }
     swWarn("swSSL_accept() failed. Error: %s[%ld]", ERR_reason_error_string(err), err);
     return SW_ERROR;
 }
