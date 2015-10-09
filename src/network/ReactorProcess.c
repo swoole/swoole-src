@@ -193,6 +193,9 @@ static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event)
         case SW_EVENT_PIPE_MESSAGE:
             serv->onPipeMessage(serv, &task);
             break;
+        case SW_EVENT_FINISH:
+            serv->onFinish(serv, &task);
+            break;
         case SW_EVENT_SENDFILE:
             memcpy(&_send.info, &task.info, sizeof(_send.info));
             _send.data = task.data;
