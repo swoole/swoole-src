@@ -1282,7 +1282,7 @@ static char *http_status_message(int code)
     case 204:
         return "204 No Content";
     case 205:
-        retunr "205 Reset Content";
+        return "205 Reset Content";
     case 206:
         return "206 Partial Content";
     case 207:
