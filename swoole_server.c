@@ -133,6 +133,29 @@ int php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC)
     return length;
 }
 
+static sw_inline int php_swoole_check_task_param(int dst_worker_id TSRMLS_DC)
+{
+    if (SwooleG.task_worker_num < 1)
+    {
+        swoole_php_fatal_error(E_WARNING, "Task method cannot use, Please set task_worker_num.");
+        return SW_ERR;
+    }
+
+    if (dst_worker_id >= SwooleG.task_worker_num)
+    {
+        swoole_php_fatal_error(E_WARNING, "worker_id must be less than serv->task_worker_num.");
+        return SW_ERR;
+    }
+
+    if (!swIsWorker())
+    {
+        swoole_php_fatal_error(E_WARNING, "The method can only be used in the worker process.");
+        return SW_ERR;
+    }
+
+    return SW_OK;
+}
+
 static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC)
 {
     zval *task_notify_data, *task_notify_unserialized_data;
@@ -2504,7 +2527,7 @@ PHP_FUNCTION(swoole_server_taskwait)
     php_serialize_data_t var_hash;
 
     double timeout = SW_TASKWAIT_TIMEOUT;
-    long worker_id = -1;
+    long dst_worker_id = -1;
 
     if (SwooleGS->start == 0)
     {
@@ -2512,44 +2535,23 @@ PHP_FUNCTION(swoole_server_taskwait)
         RETURN_FALSE;
     }
 
-    if (swIsMaster())
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "cannot use task in master process.");
-        RETURN_FALSE;
-    }
-
     if (zobject == NULL)
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Oz|dl", &zobject, swoole_server_class_entry_ptr, &data, &timeout, &worker_id) == FAILURE)
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Oz|dl", &zobject, swoole_server_class_entry_ptr, &data, &timeout, &dst_worker_id) == FAILURE)
         {
             return;
         }
     }
     else
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|dl", &data, &timeout, &worker_id) == FAILURE)
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|dl", &data, &timeout, &dst_worker_id) == FAILURE)
         {
             return;
         }
     }
 
-    swServer *serv = swoole_get_object(zobject);
-
-    if (SwooleG.task_worker_num < 1)
+    if (php_swoole_check_task_param(dst_worker_id TSRMLS_CC) < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "cannot use task. Please set task_worker_num.");
-        RETURN_FALSE;
-    }
-
-    if (worker_id >= SwooleG.task_worker_num)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "worker_id must be less than serv->task_worker_num");
-        RETURN_FALSE;
-    }
-
-    if (SwooleWG.id >= serv->worker_num)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "cannot dispatch task in task worker.");
         RETURN_FALSE;
     }
 
@@ -2612,11 +2614,11 @@ PHP_FUNCTION(swoole_server_taskwait)
     //clear history task
     while (read(efd, &notify, sizeof(notify)) > 0);
 
-    if (swProcessPool_dispatch_blocking(&SwooleGS->task_workers, &buf, (int*) &worker_id) >= 0)
+    if (swProcessPool_dispatch_blocking(&SwooleGS->task_workers, &buf, (int*) &dst_worker_id) >= 0)
     {
         task_notify_pipe->timeout = timeout;
         int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
-        swWorker *worker = swProcessPool_get_worker(&SwooleGS->task_workers, worker_id);
+        swWorker *worker = swProcessPool_get_worker(&SwooleGS->task_workers, dst_worker_id);
         sw_atomic_fetch_sub(&worker->tasking_num, 1);
 
         if (ret > 0)
@@ -2641,7 +2643,7 @@ PHP_FUNCTION(swoole_server_task)
     smart_str serialized_data = {0};
     php_serialize_data_t var_hash;
 
-    long worker_id = -1;
+    long dst_worker_id = -1;
 
     if (SwooleGS->start == 0)
     {
@@ -2651,34 +2653,21 @@ PHP_FUNCTION(swoole_server_task)
 
     if (zobject == NULL)
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Oz|l", &zobject, swoole_server_class_entry_ptr, &data, &worker_id) == FAILURE)
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Oz|l", &zobject, swoole_server_class_entry_ptr, &data, &dst_worker_id) == FAILURE)
         {
             return;
         }
     }
     else
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|l", &data, &worker_id) == FAILURE)
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|l", &data, &dst_worker_id) == FAILURE)
         {
             return;
         }
     }
 
-    if (SwooleG.task_worker_num < 1)
+    if (php_swoole_check_task_param(dst_worker_id TSRMLS_CC) < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Task method cannot use, Please set task_worker_num.");
-        RETURN_FALSE;
-    }
-
-    if (worker_id >= SwooleG.task_worker_num)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "worker_id must be less than serv->task_worker_num.");
-        RETURN_FALSE;
-    }
-
-    if (!swIsWorker())
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "The method can only be used in the worker process.");
         RETURN_FALSE;
     }
 
@@ -2736,7 +2725,7 @@ PHP_FUNCTION(swoole_server_task)
 
     smart_str_free(&serialized_data);
 
-    if (swProcessPool_dispatch(&SwooleGS->task_workers, &buf, (int*) &worker_id) >= 0)
+    if (swProcessPool_dispatch(&SwooleGS->task_workers, &buf, (int*) &dst_worker_id) >= 0)
     {
         sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
         RETURN_LONG(buf.info.fd);
