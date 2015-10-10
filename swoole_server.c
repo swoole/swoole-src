@@ -2664,11 +2664,9 @@ PHP_FUNCTION(swoole_server_task)
         }
     }
 
-    swServer *serv = swoole_get_object(zobject);
-
     if (SwooleG.task_worker_num < 1)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "task can not use. Please set task_worker_num.");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Task method cannot use, Please set task_worker_num.");
         RETURN_FALSE;
     }
 
@@ -2678,9 +2676,9 @@ PHP_FUNCTION(swoole_server_task)
         RETURN_FALSE;
     }
 
-    if (SwooleWG.id >= serv->worker_num)
+    if (!swIsWorker())
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "cannot dispatch task in task worker.");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "The method can only be used in the worker process.");
         RETURN_FALSE;
     }
 
