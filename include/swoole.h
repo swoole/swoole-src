@@ -394,8 +394,6 @@ typedef struct _swConnection
     uint32_t tcp_nopush :1;
     uint32_t tcp_nodelay :1;
 
-    uint32_t http_buffered :1;
-
     uint32_t ssl_want_read :1;
     uint32_t ssl_want_write :1;
 

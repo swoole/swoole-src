@@ -1271,10 +1271,8 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
     int n = 0;
     char *buf;
     int buf_len;
-    char recv_buf[SW_BUFFER_SIZE];
 
     swHttpRequest *request;
-    swString tmp_package;
     swProtocol *protocol = &serv->protocol;
 
     //new http request
@@ -1289,17 +1287,22 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
         request = (swHttpRequest *) conn->object;
     }
 
+    if (!request->buffer)
+    {
+        request->buffer = swString_new(SW_HTTP_HEADER_MAX_SIZE);
+        //alloc memory failed.
+        if (!request->buffer)
+        {
+            swReactorThread_onClose(reactor, event);
+            return SW_ERR;
+        }
+    }
+
+    swString *buffer = request->buffer;
+
     recv_data:
-    if (request->method == 0)
-    {
-        buf = recv_buf;
-        buf_len = SW_BUFFER_SIZE;
-    }
-    else
-    {
-        buf = request->buffer->str + request->buffer->length;
-        buf_len = request->buffer->size - request->buffer->length;
-    }
+    buf = buffer->str + buffer->length;
+    buf_len = buffer->size - buffer->length;
 
     n = swConnection_recv(conn, buf, buf_len, 0);
     if (n < 0)
@@ -1325,25 +1328,16 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
     else
     {
         conn->last_time = SwooleGS->now;
-
-        swTrace("receive %d bytes: %*s\n", n, n, buf);
-
-        if (request->method == 0)
-        {
-            bzero(&tmp_package, sizeof(tmp_package));
-            tmp_package.str = recv_buf;
-            tmp_package.size = SW_BUFFER_SIZE;
-            request->buffer = &tmp_package;
-        }
-
-        swString *buffer = request->buffer;
         buffer->length += n;
 
         if (request->method == 0 && swHttpRequest_get_protocol(request) < 0)
         {
-            swWarn("get protocol failed.");
-            request->buffer = NULL;
+            if (request->buffer->length < SW_HTTP_HEADER_MAX_SIZE)
+            {
+                return SW_OK;
+            }
 
+            swWarn("get protocol failed.");
 #ifdef SW_HTTP_BAD_REQUEST
             if (swConnection_send(conn, SW_STRL(SW_HTTP_BAD_REQUEST) - 1, 0) < 0)
             {
@@ -1384,12 +1378,6 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
             //wait more data
             else
             {
-                wait_more_data: if (!conn->http_buffered)
-                {
-                    swTrace("wait more data. content_length=%d, header_length=%d", request->content_length, request->header_length);
-                    request->buffer = swString_dup2(buffer);
-                    conn->http_buffered = 1;
-                }
                 goto recv_data;
             }
         }
@@ -1408,40 +1396,39 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
                     }
                     else
                     {
-                        goto wait_more_data;
+                        goto recv_data;
                     }
                 }
-            }
-            else if (request->content_length > protocol->package_max_length)
-            {
-                swWarn("content-length more than the package_max_length[%d].", protocol->package_max_length);
-                goto close_fd;
+                else if (request->content_length > protocol->package_max_length)
+                {
+                    swWarn("content-length more than the package_max_length[%d].", protocol->package_max_length);
+                    goto close_fd;
+                }
             }
 
+            uint32_t request_size = 0;
             //http header is not the end
             if (request->header_length == 0)
             {
-                if (!conn->http_buffered)
+                if (buffer->size == buffer->length)
                 {
-                    request->buffer = swString_dup2(buffer);
-                    conn->http_buffered = 1;
-                    return SW_OK;
+                    swWarn("http header is too long.");
+                    goto close_fd;
                 }
-                else
+                if (swHttpRequest_get_header_length(request) < 0)
                 {
-                    if (buffer->size == buffer->length)
-                    {
-                        swWarn("http header is too long.");
-                        goto close_fd;
-                    }
-                    if (swHttpRequest_get_header_length(request) < 0)
-                    {
-                        return SW_OK;
-                    }
+                    goto recv_data;
+                }
+                request_size = request->content_length + request->header_length;
+                if (request_size > buffer->size && swString_extend(buffer, request_size) < 0)
+                {
+                    goto close_fd;
                 }
             }
-
-            uint32_t request_size = request->content_length + request->header_length;
+            else
+            {
+                request_size = request->content_length + request->header_length;
+            }
 
             //discard the redundant data
             if (buffer->length > request_size)
@@ -1488,19 +1475,7 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
                             request->content_length, buffer->length, request->header_length);
                 }
 #endif
-                if (conn->http_buffered)
-                {
-                    if (request->content_length > buffer->size && swString_extend(buffer, request->content_length) < 0)
-                    {
-                        swWarn("malloc failed.");
-                        return SW_OK;
-                    }
-                }
-                else
-                {
-                    buffer->size = request_size;
-                }
-                goto wait_more_data;
+                goto recv_data;
             }
         }
         else
