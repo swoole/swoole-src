@@ -767,7 +767,7 @@ static int multipart_body_on_data_end(multipart_parser* p)
             zend_update_property(swoole_http_request_class_entry_ptr, client->request.zrequest_object, ZEND_STRL("post"), zpost TSRMLS_CC);
         }
 
-       sw_add_assoc_stringl_ex(zpost, client->current_form_data_name, client->current_form_data_name_len + 1,
+        sw_add_assoc_stringl_ex(zpost, client->current_form_data_name, client->current_form_data_name_len + 1,
                 swoole_http_form_data_buffer->str, swoole_http_form_data_buffer->length, 1);
 
         efree(client->current_form_data_name);
@@ -826,14 +826,14 @@ static int http_request_on_body(php_http_parser *parser, const char *at, size_t 
 
     if (SwooleG.serv->http_parse_post && client->request.post_form_urlencoded)
     {
-        zval *post;
-        SW_MAKE_STD_ZVAL(post);
-        array_init(post);
+        zval *zpost;
+        http_alloc_zval(client, request, zpost);
+        array_init(zpost);
 
         body = estrndup(at, length);
-        zend_update_property(swoole_http_request_class_entry_ptr, client->request.zrequest_object, ZEND_STRL("post"), post TSRMLS_CC);
-        sapi_module.treat_data(PARSE_STRING, body, post TSRMLS_CC);
-        http_merge_php_global(post, client->request.zrequest_object, HTTP_GLOBAL_POST);
+        zend_update_property(swoole_http_request_class_entry_ptr, client->request.zrequest_object, ZEND_STRL("post"), zpost TSRMLS_CC);
+        sapi_module.treat_data(PARSE_STRING, body, zpost TSRMLS_CC);
+        http_merge_php_global(zpost, client->request.zrequest_object, HTTP_GLOBAL_POST);
     }
     else if (client->mt_parser != NULL)
     {
@@ -1195,6 +1195,11 @@ void swoole_http_request_free(swoole_http_client *client TSRMLS_DC)
     {
         sw_zval_ptr_dtor(&req->zcookie);
     }
+    //request data
+    if (req->zdata)
+    {
+        sw_zval_ptr_dtor(&req->zdata);
+    }
     //upload files
     if (req->zfiles)
     {
@@ -1213,11 +1218,11 @@ void swoole_http_request_free(swoole_http_client *client TSRMLS_DC)
                 continue;
             }
             zval *file_path;
-            if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("tmp_name"), (void **) &file_path)
-                    == SUCCESS)
+            if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("tmp_name"), (void **) &file_path) == SUCCESS)
             {
                 unlink(Z_STRVAL_P(file_path));
-            } sw_zval_ptr_dtor(&value);
+            }
+            sw_zval_ptr_dtor(&value);
         }
         SW_HASHTABLE_FOREACH_END();
 
@@ -1253,11 +1258,6 @@ void swoole_http_request_free(swoole_http_client *client TSRMLS_DC)
         }
         sw_zval_ptr_dtor(&client->response.zresponse_object);
         client->response.zresponse_object = NULL;
-    }
-    //request data
-    if (req->zdata)
-    {
-        sw_zval_ptr_dtor(&req->zdata);
     }
 
     client->end = 1;
