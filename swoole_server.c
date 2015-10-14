@@ -1286,12 +1286,6 @@ PHP_FUNCTION(swoole_server_set)
         convert_to_long(v);
         serv->backlog = (int) Z_LVAL_P(v);
     }
-    //watch_path
-    if (sw_zend_hash_find(vht, ZEND_STRS("watch_path"), (void **) &v) == SUCCESS)
-    {
-        convert_to_string(v);
-        serv->watch_path = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
-    }
     //reactor thread num
     if (sw_zend_hash_find(vht, ZEND_STRS("reactor_num"), (void **) &v) == SUCCESS)
     {

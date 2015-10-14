@@ -380,7 +380,6 @@ struct _swServer
     
     uint8_t listen_port_num;
 
-    char *watch_path;
     time_t reload_time;
 
     /**

@@ -18,7 +18,6 @@ class G
         'heartbeat_check_interval' => 30,
         'heartbeat_idle_time' => 30,
         'open_cpu_affinity' => 1,
-        //'watch_path' => __DIR__."/php/", //只有PHP5.6支持的语法
         //'cpu_affinity_ignore' =>array(0,1)//如果你的网卡2个队列（或者没有多队列那么默认是cpu0来处理中断）,并且绑定了core 0和core 1,那么可以通过这个设置避免swoole的线程或者进程绑定到这2个core，防止cpu0，1被耗光而造成的丢包
     );
 
@@ -48,15 +47,15 @@ if (isset($argv[1]) and $argv[1] == 'daemon') {
 	$config['daemonize'] = false;
 }
 
-//$mode = SWOOLE_BASE;
-$mode = SWOOLE_PROCESS;
+$mode = SWOOLE_BASE;
+//$mode = SWOOLE_PROCESS;
 
 $serv = new swoole_server("0.0.0.0", 9501, $mode);
 $serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
 $serv->addlistener('::', 9503, SWOOLE_SOCK_TCP6);
 $serv->addlistener('::', 9504, SWOOLE_SOCK_UDP6);
-$process1 = new swoole_process("my_process1", true, false);
-$serv->addprocess($process1);
+//$process1 = new swoole_process("my_process1", true, false);
+//$serv->addprocess($process1);
 
 $serv->set(G::$config);
 /**
@@ -73,10 +72,10 @@ function my_process1($process)
 	global $argv;
 	var_dump($process);
 	swoole_set_process_name("php {$argv[0]}: my_process1");
-    swoole_timer_tick(2000, function($id) {
-        global $serv;
-        $serv->sendMessage("hello", 1);
-    });
+//    swoole_timer_tick(2000, function($id) {
+//        global $serv;
+//        $serv->sendMessage("hello", 1);
+//    });
 }
 
 function my_onStart(swoole_server $serv)
@@ -141,7 +140,7 @@ function setTimerInWorker(swoole_server $serv, $worker_id) {
 	
 	if ($worker_id == 0) {
 		echo "Start: ".microtime(true)."\n";
-		$serv->addtimer(3000);
+		//$serv->addtimer(3000);
 //		$serv->addtimer(7000);
 		//var_dump($serv->gettimer());
 	}
@@ -153,6 +152,15 @@ function setTimerInWorker(swoole_server $serv, $worker_id) {
 //		global $serv;
 //		$serv->deltimer(3000);
 //	});
+}
+
+function onWorkerStart(swoole_server $serv, $worker_id)
+{
+    if (!$serv->taskworker) {
+        $serv->tick(1000, function ($id) {
+            var_dump($id);
+        });
+    }
 }
 
 function my_onShutdown($serv)
@@ -192,6 +200,10 @@ function my_onWorkerStart($serv, $worker_id)
     {
         swoole_process::signal(SIGUSR2, function($signo){
             echo "SIGNAL: $signo\n";
+        });
+
+        swoole_timer_tick(2000, function($id) {
+            var_dump($id);
         });
     }
 	//forkChildInWorker();
@@ -414,6 +426,9 @@ function broadcast(swoole_server $serv, $fd = 0, $data = "hello")
 $serv->on('PipeMessage', function($serv, $src_worker_id, $msg) {
     var_dump($src_worker_id, $msg);
 });
+
+
+swoole_timer_tick(2000, function($id) {var_dump($id);});
 
 $serv->on('Start', 'my_onStart');
 $serv->on('Connect', 'my_onConnect');
