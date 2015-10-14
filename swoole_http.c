@@ -435,7 +435,7 @@ static int http_request_on_header_field(php_http_parser *parser, const char *at,
 static void http_parse_cookie(zval *array, const char *at, size_t length)
 {
     char keybuf[SW_HTTP_COOKIE_KEYLEN];
-    char *value;
+    char valbuf[SW_HTTP_COOKIE_VALLEN];
     char *_c = (char *) at;
 
     int klen = 0;
@@ -457,9 +457,9 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
         else if (state == 1 && *_c == ';')
         {
             vlen = i - j;
-            value = estrndup((char * ) at + j, vlen);
-            vlen = php_url_decode(value, vlen);
-            sw_add_assoc_stringl_ex(array, keybuf, klen, value, vlen, 1);
+            strncpy(valbuf, (char * ) at + j, SW_HTTP_COOKIE_VALLEN);
+            vlen = php_url_decode(valbuf, vlen);
+            sw_add_assoc_stringl_ex(array, keybuf, klen, valbuf, vlen, 1);
             j = i + 2;
             state = 0;
         }
@@ -470,9 +470,9 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
     {
         vlen = i - j;
         keybuf[klen - 1] = 0;
-        value = estrndup((char * ) at + j, vlen);
-        vlen = php_url_decode(value, vlen);
-        sw_add_assoc_stringl_ex(array, keybuf, klen, value, vlen, 1);
+        strncpy(valbuf, (char * ) at + j, SW_HTTP_COOKIE_VALLEN);
+        vlen = php_url_decode(valbuf, vlen);
+        sw_add_assoc_stringl_ex(array, keybuf, klen, valbuf, vlen, 1);
     }
 }
 
