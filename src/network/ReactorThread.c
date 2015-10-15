@@ -1762,7 +1762,8 @@ static int swReactorThread_loop_stream(swThreadParam *param)
     SW_START_SLEEP;
 #endif
     //main loop
-    reactor->wait(reactor, NULL);
+    struct timeval timeout = {3,0};
+    reactor->wait(reactor, &timeout);
     //shutdown
     reactor->free(reactor);
     pthread_exit(0);
