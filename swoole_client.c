@@ -546,6 +546,7 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
     {
         convert_to_long(v);
         cli->ssl_method = (int) Z_LVAL_P(v);
+        cli->open_ssl = 1;
     }
     if (sw_zend_hash_find(vht, ZEND_STRS("ssl_cert_file"), (void **) &v) == SUCCESS)
     {
@@ -567,6 +568,11 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
             swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", cli->ssl_key_file);
             return;
         }
+    }
+    if (cli->ssl_cert_file && !cli->ssl_key_file)
+    {
+        swoole_php_fatal_error(E_ERROR, "ssl require key file.");
+        return;
     }
 #endif
 }
@@ -902,17 +908,6 @@ static swClient* client_create_socket(zval *object, char *host, int host_len, in
             return NULL;
         }
 
-#ifdef SW_USE_OPENSSL
-        //ssl/tls
-        if (type & SW_SOCK_SSL)
-        {
-            if (swClient_enable_ssl_encrypt(cli) < 0)
-            {
-                return NULL;
-            }
-        }
-#endif
-
         //don't forget free it
         cli->server_str = strdup(conn_key);
         cli->server_strlen = conn_key_len;
@@ -925,6 +920,14 @@ static swClient* client_create_socket(zval *object, char *host, int host_len, in
     {
         cli->keep = 1;
     }
+
+#ifdef SW_USE_OPENSSL
+    if (type & SW_SOCK_SSL)
+    {
+        cli->open_ssl = 1;
+    }
+#endif
+
     if (packet_mode == 1)
     {
         cli->packet_mode = 1;
@@ -1065,6 +1068,15 @@ static PHP_METHOD(swoole_client, connect)
     {
         client_check_setting(cli, zset TSRMLS_CC);
     }
+
+#ifdef SW_USE_OPENSSL
+    //ssl/tls
+    if (cli->open_ssl && swClient_enable_ssl_encrypt(cli) < 0)
+    {
+        swoole_php_fatal_error(E_ERROR, "no receive callback.");
+        RETURN_FALSE;
+    }
+#endif
 
     ret = cli->connect(cli, host, port, timeout, sock_flag);
 
