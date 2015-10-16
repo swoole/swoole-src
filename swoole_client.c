@@ -547,6 +547,27 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         convert_to_long(v);
         cli->ssl_method = (int) Z_LVAL_P(v);
     }
+    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_cert_file"), (void **) &v) == SUCCESS)
+    {
+        convert_to_string(v);
+        cli->ssl_cert_file = strdup(Z_STRVAL_P(v));
+        if (access(cli->ssl_cert_file, R_OK) < 0)
+        {
+            swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", cli->ssl_cert_file);
+            return;
+        }
+        cli->open_ssl = 1;
+    }
+    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_key_file"), (void **) &v) == SUCCESS)
+    {
+        convert_to_string(v);
+        cli->ssl_key_file = strdup(Z_STRVAL_P(v));
+        if (access(cli->ssl_key_file, R_OK) < 0)
+        {
+            swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", cli->ssl_key_file);
+            return;
+        }
+    }
 #endif
 }
 

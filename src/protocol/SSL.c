@@ -76,7 +76,7 @@ void swSSL_init(void)
     openssl_init = 1;
 }
 
-SSL_CTX* swSSL_get_server_context(char *cert_file, char *key_file, int method)
+SSL_CTX* swSSL_get_context(int method, char *cert_file, char *key_file)
 {
     if (!openssl_init)
     {
@@ -93,48 +93,35 @@ SSL_CTX* swSSL_get_server_context(char *cert_file, char *key_file, int method)
     SSL_CTX_set_options(ssl_context, SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG);
     SSL_CTX_set_options(ssl_context, SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER);
 
-    /*
-     * set the local certificate from CertFile
-     */
-    if (SSL_CTX_use_certificate_file(ssl_context, cert_file, SSL_FILETYPE_PEM) <= 0)
+    if (cert_file)
     {
-        ERR_print_errors_fp(stderr);
-        return NULL;
+        /*
+         * set the local certificate from CertFile
+         */
+        if (SSL_CTX_use_certificate_file(ssl_context, cert_file, SSL_FILETYPE_PEM) <= 0)
+        {
+            ERR_print_errors_fp(stderr);
+            return NULL;
+        }
+        /*
+         * set the private key from KeyFile (may be the same as CertFile)
+         */
+        if (SSL_CTX_use_PrivateKey_file(ssl_context, key_file, SSL_FILETYPE_PEM) <= 0)
+        {
+            ERR_print_errors_fp(stderr);
+            return NULL;
+        }
+        /*
+         * verify private key
+         */
+        if (!SSL_CTX_check_private_key(ssl_context))
+        {
+            swWarn("Private key does not match the public certificate");
+            return NULL;
+        }
     }
-    /*
-     * set the private key from KeyFile (may be the same as CertFile)
-     */
-    if (SSL_CTX_use_PrivateKey_file(ssl_context, key_file, SSL_FILETYPE_PEM) <= 0)
-    {
-        ERR_print_errors_fp(stderr);
-        return NULL;
-    }
-    /*
-     * verify private key
-     */
-    if (!SSL_CTX_check_private_key(ssl_context))
-    {
-        swWarn("Private key does not match the public certificate");
-        return NULL;
-    }
+
     return ssl_context;
-}
-
-SSL_CTX* swSSL_get_client_context(int method)
-{
-    if (!openssl_init)
-    {
-        swSSL_init();
-    }
-
-    SSL_CTX *context = SSL_CTX_new(swSSL_get_method(method));
-    if (context == NULL)
-    {
-        ERR_print_errors_fp(stderr);
-        return NULL;
-    }
-
-    return context;
 }
 
 int swSSL_accept(swConnection *conn)
