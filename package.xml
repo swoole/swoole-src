@@ -31,11 +31,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2015-08-31</date>
-    <time>17:48:51</time>
+    <date>2015-10-21</date>
+    <time>13:48:51</time>
     <version>
-        <release>1.7.19</release>
-        <api>1.7.19</api>
+        <release>1.7.20</release>
+        <api>1.7.20</api>
     </version>
     <stability>
         <release>stable</release>
@@ -43,13 +43,14 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Added swoole_atomic module, support for atomic integer operations
-- Fixed timer in the system can not recover after the resumption of the operation
-- Fixed ssl_server cannot send more than 30K large packages in a slow network
-- Added supports for UDP/UDP6/UNIX_DGRAM big packages(64K)
-- Fixed addtimer/tick timer can't be used in BASE mode
-- Added addProcess in SWOOLE_BASE mode
-- Fixed SWOOLE_KEEP core dump
+- Added swoole_http_server HTTP DELETE entity supports
+- Added swoole_client support for SSL/TLS tunnel encryption
+- Optimized RINIT/RSHUTDOWN
+- Fixed the problem of coredump when swoole_websocket_server is not set up onRequest
+- Added swoole_server->getClientInfo/getClientList alias
+- Fixed swoole_server->finish cannot use in BASE mode
+- Added swoole_client ssl certificate supports
+- Fixed swoole_http_server memory leak
     </notes>
 	<contents>
 		<dir name="/">

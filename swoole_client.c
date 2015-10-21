@@ -550,7 +550,7 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
     }
     if (sw_zend_hash_find(vht, ZEND_STRS("ssl_compress"), (void **) &v) == SUCCESS)
     {
-        convert_to_bool(v);
+        convert_to_boolean(v);
         cli->ssl_disable_compress = !Z_BVAL_P(v);
     }
     if (sw_zend_hash_find(vht, ZEND_STRS("ssl_cert_file"), (void **) &v) == SUCCESS)
