@@ -67,7 +67,9 @@ typedef struct _swClient
 	uint32_t wait_length;
 
 #ifdef SW_USE_OPENSSL
-    uint8_t open_ssl;
+    uint8_t open_ssl :1;
+    uint8_t ssl_disable_compress :1;
+    uint8_t ssl_verify :1;
     char *ssl_cert_file;
     char *ssl_key_file;
     SSL_CTX *ssl_context;
