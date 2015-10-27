@@ -322,7 +322,7 @@ static int client_onRead(swReactor *reactor, swEvent *event)
             {
                 goto free_buf;
             }
-        default:check_return:
+        default:
             goto free_buf;
         }
     }
