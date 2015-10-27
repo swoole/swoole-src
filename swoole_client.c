@@ -322,7 +322,7 @@ static int client_onRead(swReactor *reactor, swEvent *event)
             {
                 goto free_buf;
             }
-        default:
+        default:check_return:
             goto free_buf;
         }
     }
@@ -1530,6 +1530,7 @@ static PHP_METHOD(swoole_client, recv)
     {
         if (ret == 0)
         {
+            efree(buf);
             RETURN_EMPTY_STRING();
         }
         else
