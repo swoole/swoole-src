@@ -1472,9 +1472,16 @@ static PHP_METHOD(swoole_client, recv)
         }
 
         buf_len = swProtocol_get_package_length(protocol, cli->socket, stack_buf, ret);
+
+        //error package
         if (buf_len < 0)
         {
             RETURN_FALSE;
+        }
+        //empty package
+        else if (buf_len == header_len)
+        {
+            RETURN_EMPTY_STRING();
         }
 
         buf = emalloc(buf_len + 1);
