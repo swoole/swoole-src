@@ -1530,6 +1530,7 @@ static PHP_METHOD(swoole_client, recv)
     {
         if (ret == 0)
         {
+            efree(buf);
             RETURN_EMPTY_STRING();
         }
         else
