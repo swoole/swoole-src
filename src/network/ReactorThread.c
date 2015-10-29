@@ -1407,6 +1407,7 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
             }
 
             uint32_t request_size = 0;
+
             //http header is not the end
             if (request->header_length == 0)
             {
@@ -1420,14 +1421,15 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
                     goto recv_data;
                 }
                 request_size = request->content_length + request->header_length;
-                if (request_size > buffer->size && swString_extend(buffer, request_size) < 0)
-                {
-                    goto close_fd;
-                }
             }
             else
             {
                 request_size = request->content_length + request->header_length;
+            }
+
+            if (request_size > buffer->size && swString_extend(buffer, request_size) < 0)
+            {
+                goto close_fd;
             }
 
             //discard the redundant data
