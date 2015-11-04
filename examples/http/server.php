@@ -2,6 +2,7 @@
 $key_dir = dirname(dirname(__DIR__)) . '/tests/ssl';
 $http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE);
 //$http = new swoole_http_server("0.0.0.0", 9501);
+//$http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
 //https
 //$http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
 //$http->setGlobal(HTTP_GLOBAL_ALL, HTTP_GLOBAL_GET|HTTP_GLOBAL_POST|HTTP_GLOBAL_COOKIE);
@@ -9,15 +10,15 @@ $http->set([
 //    'daemonize' => 1,
 //    'open_cpu_affinity' => 1,
 //    'task_worker_num' => 1,
-    //'worker_num' => 2,
+    'worker_num' => 1,
     'dispatch_mode' => 1,
 //    'open_tcp_nodelay' => true,
     //'task_worker_num' => 1,
     //'user' => 'www-data',
     //'group' => 'www-data',
 //'daemonize' => true,
-    //'ssl_cert_file' => $key_dir.'/ssl.crt',
-    //'ssl_key_file' => $key_dir.'/ssl.key',
+//    'ssl_cert_file' => $key_dir.'/ssl.crt',
+//    'ssl_key_file' => $key_dir.'/ssl.key',
 ]);
 
 function chunk(swoole_http_request $request, swoole_http_response $response)
@@ -43,13 +44,25 @@ function no_chunk(swoole_http_request $request, swoole_http_response $response)
 //	{
 //		$response->end("<h1>Exceptiom</h1><div>".$e->getMessage()."</div>");
 //	}
+    var_dump($request->server['request_uri'], substr($request->server['request_uri'], -4, 4));
 
-//    var_dump($request);
-    //var_dump($request->files);
+    if (substr($request->server['request_uri'], -4, 4) == '.jpg')
+    {
+        $response->header('Content-Type', 'image/jpeg');
+        $response->sendfile(__DIR__.$request->server['request_uri']);
+    }
+    else
+    {
+        //    var_dump($request->files);
 //    var_dump($request->post);
 //    var_dump($request->cookie);
-    var_dump($request->rawContent());
-    $response->end("<h1>Hello Swoole.</h1>");
+//    var_dump($request->rawContent());
+//    if ($request->server['request_method'] == 'POST')
+//    {
+//        var_dump($request->post);
+//    }
+        $response->end("<h1>Hello Swoole.</h1>");
+    }
     return;
     //var_dump($request);
 //    var_dump($_GET);

@@ -139,6 +139,7 @@ static PHP_METHOD(swoole_http_request, rawcontent);
 
 static PHP_METHOD(swoole_http_response, write);
 static PHP_METHOD(swoole_http_response, end);
+static PHP_METHOD(swoole_http_response, sendfile);
 static PHP_METHOD(swoole_http_response, cookie);
 static PHP_METHOD(swoole_http_response, rawcookie);
 static PHP_METHOD(swoole_http_response, header);
@@ -259,6 +260,7 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_ME(swoole_http_response, header, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, write, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, end, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, sendfile, NULL, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -1929,6 +1931,84 @@ static PHP_METHOD(swoole_http_response, end)
 
     swoole_http_request_free(client TSRMLS_CC);
 
+    if (!client->keepalive)
+    {
+        SwooleG.serv->factory.end(&SwooleG.serv->factory, client->fd);
+    }
+    if (http_merge_global_flag > 0)
+    {
+        http_global_clear(TSRMLS_C);
+    }
+    RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_http_response, sendfile)
+{
+    char *filename;
+    int filename_length;
+    int ret;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &filename, &filename_length) == FAILURE)
+    {
+        return;
+    }
+
+    if (filename_length <= 0)
+    {
+        swoole_php_error(E_WARNING, "file name is empty.");
+        RETURN_FALSE;
+    }
+
+    swoole_http_client *client = http_get_client(getThis(), 1 TSRMLS_CC);
+    if (!client)
+    {
+        RETURN_FALSE;
+    }
+
+    if (client->chunk)
+    {
+        swoole_php_error(E_WARNING, "cannot use HTTP-Chunk.");
+        RETURN_FALSE;
+    }
+
+    int file_fd = open(filename, O_RDONLY);
+    if (file_fd < 0)
+    {
+        swoole_php_sys_error(E_WARNING, "open(%s) failed.", filename);
+        RETURN_FALSE;
+    }
+
+    struct stat file_stat;
+    if (fstat(file_fd, &file_stat) < 0)
+    {
+        swoole_php_sys_error(E_WARNING, "fstat(%s) failed.", filename);
+        RETURN_FALSE;
+    }
+
+    if (file_stat.st_size <= 0)
+    {
+        swoole_php_error(E_WARNING, "file is empty.");
+        RETURN_FALSE;
+    }
+
+    swString_clear(swoole_http_buffer);
+    http_build_header(client, getThis(), swoole_http_buffer, file_stat.st_size TSRMLS_CC);
+
+    ret = swServer_tcp_send(SwooleG.serv, client->fd, swoole_http_buffer->str, swoole_http_buffer->length);
+    if (ret < 0)
+    {
+        client->send_header = 0;
+        RETURN_FALSE;
+    }
+
+    ret = swServer_tcp_sendfile(SwooleG.serv, client->fd, filename, filename_length);
+    if (ret < 0)
+    {
+        client->send_header = 0;
+        RETURN_FALSE;
+    }
+
+    swoole_http_request_free(client TSRMLS_CC);
     if (!client->keepalive)
     {
         SwooleG.serv->factory.end(&SwooleG.serv->factory, client->fd);

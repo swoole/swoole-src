@@ -2183,11 +2183,9 @@ PHP_FUNCTION(swoole_server_sendfile)
 {
     zval *zobject = getThis();
     zend_size_t len;
-    swSendData send_data;
 
-    char buffer[SW_BUFFER_SIZE];
     char *filename;
-    long conn_fd;
+    long fd;
 
     if (SwooleGS->start == 0)
     {
@@ -2202,61 +2200,28 @@ PHP_FUNCTION(swoole_server_sendfile)
 
     if (zobject == NULL)
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ols", &zobject, swoole_server_class_entry_ptr, &conn_fd, &filename, &len) == FAILURE)
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ols", &zobject, swoole_server_class_entry_ptr, &fd, &filename, &len) == FAILURE)
         {
             return;
         }
     }
     else
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls", &conn_fd, &filename, &len) == FAILURE)
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls", &fd, &filename, &len) == FAILURE)
         {
             return;
         }
     }
 
     //check fd
-    if (conn_fd <= 0 || conn_fd > SW_MAX_SOCKET_ID)
+    if (fd <= 0 || fd > SW_MAX_SOCKET_ID)
     {
-        swoole_php_error(E_WARNING, "invalid fd[%ld] error.", conn_fd);
+        swoole_php_error(E_WARNING, "invalid fd[%ld] error.", fd);
         RETURN_FALSE;
     }
 
     swServer *serv = swoole_get_object(zobject);
-
-#ifdef SW_USE_OPENSSL
-    swConnection *conn = swServer_connection_verify(serv, (int) conn_fd);
-    if (conn && conn->ssl)
-    {
-        swoole_php_error(E_WARNING, "SSL client#%d cannot use sendfile().", (int) conn_fd);
-        RETURN_FALSE;
-    }
-#endif
-
-    send_data.info.len = len;
-    //file name size
-    if (send_data.info.len > SW_BUFFER_SIZE - 1)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "sendfile name too long. [MAX_LENGTH=%d]", (int) SW_BUFFER_SIZE - 1);
-        RETURN_FALSE;
-    }
-    //check file exists
-    if (access(filename, R_OK) < 0)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "file[%s] not found.", filename);
-        RETURN_FALSE;
-    }
-
-
-    send_data.info.fd = (int) conn_fd;
-    send_data.info.type = SW_EVENT_SENDFILE;
-    memcpy(buffer, filename, send_data.info.len);
-    buffer[send_data.info.len] = 0;
-    send_data.info.len++;
-    send_data.length = 0;
-
-    send_data.data = buffer;
-    SW_CHECK_RETURN(serv->factory.finish(&serv->factory, &send_data));
+    SW_CHECK_RETURN(swServer_tcp_sendfile(serv, (int) fd, filename, len));
 }
 
 PHP_FUNCTION(swoole_server_close)
