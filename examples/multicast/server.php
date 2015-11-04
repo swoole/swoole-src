@@ -1,7 +1,7 @@
 <?php
 $server = new swoole_server('0.0.0.0', 9905, SWOOLE_PROCESS, SWOOLE_SOCK_UDP);
 $server->set(['worker_num' => 1]);
-$socket = $server->getSocket(9905);
+$socket = $server->getSocket();
 
 $ret = socket_set_option(
     $socket,

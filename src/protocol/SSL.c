@@ -182,7 +182,6 @@ int swSSL_connect(swConnection *conn)
 
 void swSSL_close(swConnection *conn)
 {
-    SSL_shutdown(conn->ssl);
     SSL_free(conn->ssl);
 }
 

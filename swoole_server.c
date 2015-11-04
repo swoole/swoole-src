@@ -2841,8 +2841,8 @@ PHP_METHOD(swoole_server, bind)
 #ifdef SWOOLE_SOCKETS_SUPPORT
 PHP_METHOD(swoole_server, getSocket)
 {
-    long port;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &port) == FAILURE)
+    long port = 0;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &port) == FAILURE)
     {
         return;
     }

@@ -1166,7 +1166,7 @@ int swServer_get_socket(swServer *serv, int port)
     swListenPort *ls;
     LL_FOREACH(serv->listen_list, ls)
     {
-        if (ls->port == port)
+        if (ls->port == port || port == 0)
         {
             return ls->sock;
         }
