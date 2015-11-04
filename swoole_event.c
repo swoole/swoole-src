@@ -222,10 +222,9 @@ php_socket* swoole_convert_to_socket(int sock)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
     php_socket *socket_object = emalloc(sizeof *socket_object);
+    bzero(socket_object, sizeof(php_socket));
     socket_object->bsd_socket = sock;
-    socket_object->error = 0;
     socket_object->blocking = 1;
-    socket_object->zstream = NULL;
 
     struct sockaddr_storage addr;
     socklen_t addr_len = sizeof(addr);
