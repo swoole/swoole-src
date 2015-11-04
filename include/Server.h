@@ -561,6 +561,7 @@ swPipe * swServer_pipe_get(swServer *serv, int pipe_fd);
 void swServer_pipe_set(swServer *serv, swPipe *p);
 
 int swServer_get_manager_pid(swServer *serv);
+int swServer_get_socket(swServer *serv, int port);
 int swServer_worker_init(swServer *serv, swWorker *worker);
 void swServer_onTimer(swTimer *timer, swTimer_node *event);
 void swServer_enable_accept(swReactor *reactor);

@@ -1865,7 +1865,7 @@ PHP_FUNCTION(swoole_server_addlisten)
         }
     }
     swServer *serv = swoole_get_object(zobject);
-    SW_CHECK_RETURN(swServer_add_listener(serv, (int)sock_type, host, (int)port));
+    SW_CHECK_RETURN(swServer_add_listener(serv, (int )sock_type, host, (int )port));
 }
 
 PHP_METHOD(swoole_server, addprocess)
@@ -2837,6 +2837,29 @@ PHP_METHOD(swoole_server, bind)
     SwooleGS->lock.unlock(&SwooleGS->lock);
     SW_CHECK_RETURN(ret);
 }
+
+#ifdef SWOOLE_SOCKETS_SUPPORT
+PHP_METHOD(swoole_server, getSocket)
+{
+    long port;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &port) == FAILURE)
+    {
+        return;
+    }
+
+    zval *zobject = getThis();
+    swServer *serv = swoole_get_object(zobject);
+
+    int sock = swServer_get_socket(serv, port);
+    php_socket *socket_object = swoole_convert_to_socket(sock);
+
+    if (!socket_object)
+    {
+        RETURN_FALSE;
+    }
+    SW_ZEND_REGISTER_RESOURCE(return_value, (void *) socket_object, php_sockets_le_socket());
+}
+#endif
 
 PHP_FUNCTION(swoole_connection_info)
 {

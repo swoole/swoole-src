@@ -15,8 +15,6 @@
 */
 
 #include "php_swoole.h"
-#include "php_streams.h"
-#include "php_network.h"
 
 #include "ext/standard/basic_functions.h"
 
@@ -41,6 +39,10 @@ static PHP_METHOD(swoole_client, getsockname);
 static PHP_METHOD(swoole_client, getpeername);
 static PHP_METHOD(swoole_client, close);
 static PHP_METHOD(swoole_client, on);
+
+#ifdef SWOOLE_SOCKETS_SUPPORT
+static PHP_METHOD(swoole_client, getSocket);
+#endif
 
 static int client_select_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_DC);
 static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC);
@@ -72,6 +74,9 @@ static const zend_function_entry swoole_client_methods[] =
     PHP_ME(swoole_client, getpeername, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, close, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, on, NULL, ZEND_ACC_PUBLIC)
+#ifdef SWOOLE_SOCKETS_SUPPORT
+    PHP_ME(swoole_client, getSocket, NULL, ZEND_ACC_PUBLIC)
+#endif
     PHP_FE_END
 };
 
@@ -1609,6 +1614,24 @@ static PHP_METHOD(swoole_client, getsockname)
         sw_add_assoc_string(return_value, "host", inet_ntoa(cli->socket->info.addr.inet_v4.sin_addr), 1);
     }
 }
+
+#ifdef SWOOLE_SOCKETS_SUPPORT
+static PHP_METHOD(swoole_client, getSocket)
+{
+    swClient *cli = swoole_get_object(getThis());
+    if (!cli || !cli->socket)
+    {
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
+        RETURN_FALSE;
+    }
+    php_socket *socket_object = swoole_convert_to_socket(cli->socket->fd);
+    if (!socket_object)
+    {
+        RETURN_FALSE;
+    }
+    SW_ZEND_REGISTER_RESOURCE(return_value, (void *) socket_object, php_sockets_le_socket());
+}
+#endif
 
 static PHP_METHOD(swoole_client, getpeername)
 {

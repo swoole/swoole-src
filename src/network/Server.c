@@ -1161,6 +1161,19 @@ int swServer_get_manager_pid(swServer *serv)
     return SwooleGS->manager_pid;
 }
 
+int swServer_get_socket(swServer *serv, int port)
+{
+    swListenPort *ls;
+    LL_FOREACH(serv->listen_list, ls)
+    {
+        if (ls->port == port)
+        {
+            return ls->sock;
+        }
+    }
+    return SW_ERR;
+}
+
 static void swServer_signal_hanlder(int sig)
 {
     int status;
