@@ -187,6 +187,7 @@ void swSSL_close(swConnection *conn)
 
     SSL_shutdown(conn->ssl);
     SSL_free(conn->ssl);
+    conn->ssl = NULL;
 }
 
 ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
@@ -271,7 +272,7 @@ int swSSL_create(swConnection *conn, SSL_CTX* ssl_context, int flags)
     return SW_OK;
 }
 
-void swSSL_free(SSL_CTX* ssl_context)
+void swSSL_free_context(SSL_CTX* ssl_context)
 {
     if (ssl_context)
     {

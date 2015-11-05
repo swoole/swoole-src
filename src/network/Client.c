@@ -252,7 +252,7 @@ static int swClient_close(swClient *cli)
         {
             swSSL_close(cli->socket);
         }
-        swSSL_free(cli->ssl_context);
+        swSSL_free_context(cli->ssl_context);
         if (cli->ssl_cert_file)
         {
             free(cli->ssl_cert_file);

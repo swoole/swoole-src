@@ -257,6 +257,13 @@ int swReactorThread_close(swReactor *reactor, int fd)
 
     swTrace("Close Event.fd=%d|from=%d", fd, reactor->id);
 
+#ifdef SW_USE_OPENSSL
+    if (conn->ssl)
+    {
+        swSSL_close(conn);
+    }
+#endif
+
     //clear output buffer
     if (serv->open_eof_check || serv->open_length_check)
     {
