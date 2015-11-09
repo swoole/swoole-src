@@ -1270,6 +1270,7 @@ enum SW_EVENTS
 	SW_EVENT_READ = 1u << 9,
 	SW_EVENT_WRITE = 1u << 10,
 	SW_EVENT_ERROR = 1u << 11,
+    SW_EVENT_NONE = 1u << 12,
 };
 
 static sw_inline int swReactor_error(swReactor *reactor)

@@ -34,6 +34,8 @@ static PHP_METHOD(swoole_client, recv);
 static PHP_METHOD(swoole_client, send);
 static PHP_METHOD(swoole_client, sendfile);
 static PHP_METHOD(swoole_client, sendto);
+static PHP_METHOD(swoole_client, sleep);
+static PHP_METHOD(swoole_client, wakeup);
 static PHP_METHOD(swoole_client, isConnected);
 static PHP_METHOD(swoole_client, getsockname);
 static PHP_METHOD(swoole_client, getpeername);
@@ -69,6 +71,8 @@ static const zend_function_entry swoole_client_methods[] =
     PHP_ME(swoole_client, send, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, sendfile, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, sendto, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, sleep, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, wakeup, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, isConnected, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, getsockname, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, getpeername, NULL, ZEND_ACC_PUBLIC)
@@ -1128,8 +1132,8 @@ static PHP_METHOD(swoole_client, connect)
 #else
         cli->socket->object = obj;
 #endif        
-        cli->reactor_fdtype = SW_FD_USER + 1;
         sw_zval_add_ref(&obj);
+        cli->reactor_fdtype = SW_FD_USER + 1;
 
         if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6 || cli->type == SW_SOCK_UNIX_STREAM)
         {
@@ -1772,6 +1776,60 @@ static PHP_METHOD(swoole_client, on)
         RETURN_FALSE;
     }
     RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_client, sleep)
+{
+    swClient *cli = swoole_get_object(getThis());
+    if (!cli)
+    {
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
+        RETURN_FALSE;
+    }
+
+    if (cli->socket->active == 0)
+    {
+        swoole_php_error(E_WARNING, "server is not connected.");
+        RETURN_FALSE;
+    }
+
+    int ret;
+    if (cli->socket->events & SW_EVENT_WRITE)
+    {
+        ret = SwooleG.main_reactor->set(SwooleG.main_reactor, cli->socket->fd, cli->socket->fdtype | SW_EVENT_WRITE);
+    }
+    else
+    {
+        ret = SwooleG.main_reactor->del(SwooleG.main_reactor, cli->socket->fd);
+    }
+    SW_CHECK_RETURN(ret);
+}
+
+static PHP_METHOD(swoole_client, wakeup)
+{
+    swClient *cli = swoole_get_object(getThis());
+    if (!cli)
+    {
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
+        RETURN_FALSE;
+    }
+
+    if (cli->socket->active == 0)
+    {
+        swoole_php_error(E_WARNING, "server is not connected.");
+        RETURN_FALSE;
+    }
+
+    int ret;
+    if (cli->socket->events & SW_EVENT_WRITE)
+    {
+        ret = SwooleG.main_reactor->set(SwooleG.main_reactor, cli->socket->fd, cli->socket->fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
+    }
+    else
+    {
+        ret = SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, cli->socket->fdtype | SW_EVENT_READ);
+    }
+    SW_CHECK_RETURN(ret);
 }
 
 PHP_FUNCTION(swoole_client_select)
