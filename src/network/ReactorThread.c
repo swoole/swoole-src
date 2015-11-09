@@ -197,6 +197,11 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
         uint32_t send_n = pkt.length + header_size;
         uint32_t offset = 0;
 
+        /**
+         * lock target
+         */
+        SwooleTG.factory_lock_target = 1;
+
         if (factory->dispatch(factory, &task) < 0)
         {
             return SW_ERR;
@@ -205,13 +210,14 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
         send_n -= task.data.info.len;
         if (send_n == 0)
         {
+            /**
+             * unlock
+             */
+            SwooleTG.factory_target_worker = -1;
+            SwooleTG.factory_lock_target = 0;
             return ret;
         }
 
-        /**
-         * lock target
-         */
-        SwooleTG.factory_lock_target = 1;
         offset = SW_BUFFER_SIZE;
         while (send_n > 0)
         {
