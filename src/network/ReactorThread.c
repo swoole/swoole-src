@@ -695,7 +695,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
 #endif
                 if (conn && conn->closed)
                 {
-                    swWarn("session#%d is closed by server.", send_data->info.fd);
+                    swRuntimeError(SW_ERROR_SESSION_CLOSED_BY_SERVER, "Session#%d is closed by server.", send_data->info.fd);
                 }
                 swBuffer_pop_trunk(buffer, trunk);
                 continue;

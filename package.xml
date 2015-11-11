@@ -79,6 +79,7 @@
 				<file role="src" name="sha1.h" />
 				<file role="src" name="base64.h" />
 				<file role="src" name="mqtt.h" />
+				<file role="src" name="error.h" />
 			</dir>
 			<dir name="examples">
 				<dir name="async">
