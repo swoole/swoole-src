@@ -50,6 +50,40 @@ static void php_swoole_aio_onComplete(swAio_event *event);
 static swHashMap *php_swoole_open_files;
 static swHashMap *php_swoole_aio_request;
 
+static sw_inline void swoole_aio_free(void *ptr)
+{
+    if (SwooleAIO.mode == SW_AIO_LINUX)
+    {
+        free(ptr);
+    }
+    else
+    {
+        efree(ptr);
+    }
+}
+
+static sw_inline void* swoole_aio_malloc(size_t __size)
+{
+    void *memory;
+
+    if (SwooleAIO.mode == SW_AIO_LINUX)
+    {
+        int buf_len = __size + (sysconf(_SC_PAGESIZE) - (__size % sysconf(_SC_PAGESIZE)));
+        if (posix_memalign((void **) &memory, sysconf(_SC_PAGESIZE), buf_len) != 0)
+        {
+            return NULL;
+        }
+        else
+        {
+            return memory;
+        }
+    }
+    else
+    {
+        return emalloc(__size);
+    }
+}
+
 void swoole_async_init(int module_number TSRMLS_DC)
 {
     bzero(&SwooleAIO, sizeof(SwooleAIO));
@@ -172,14 +206,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 
         if (file_req->once != 1)
         {
-            if (SwooleAIO.mode == SW_AIO_LINUX)
-            {
-                free(event->buf);
-            }
-            else
-            {
-                efree(event->buf);
-            }
+            swoole_aio_free(event->buf);
         }
     }
     else if(event->type == SW_AIO_DNS_LOOKUP)
@@ -224,14 +251,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
             sw_zval_ptr_dtor(&file_req->callback);
             sw_zval_ptr_dtor(&file_req->filename);
 
-            if (SwooleAIO.mode == SW_AIO_LINUX)
-            {
-                free(event->buf);
-            }
-            else
-            {
-                efree(event->buf);
-            }
+            swoole_aio_free(event->buf);
             close(event->fd);
             swHashMap_del_int(php_swoole_aio_request, event->fd);
             efree(file_req);
@@ -261,6 +281,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
         sw_zval_ptr_dtor(&dns_req->callback);
         sw_zval_ptr_dtor(&dns_req->domain);
         efree(dns_req);
+        efree(event->buf);
     }
     if (zcontent != NULL)
     {
@@ -320,24 +341,11 @@ PHP_FUNCTION(swoole_async_read)
         RETURN_FALSE;
     }
 
-    void *fcnt;
-    if (SwooleAIO.mode == SW_AIO_LINUX)
+    void *fcnt = swoole_aio_malloc(buf_size);
+    if (fcnt == NULL)
     {
-        int buf_len = buf_size + (sysconf(_SC_PAGESIZE) - (buf_size % sysconf(_SC_PAGESIZE)));
-        if (posix_memalign((void **) &fcnt, sysconf(_SC_PAGESIZE), buf_len))
-        {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "posix_memalign failed. Error: %s[%d]", strerror(errno), errno);
-            RETURN_FALSE;
-        }
-    }
-    else
-    {
-        fcnt = emalloc(buf_size);
-        if (fcnt == NULL)
-        {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "malloc failed. Error: %s[%d]", strerror(errno), errno);
-            RETURN_FALSE;
-        }
+        swoole_php_sys_error(E_WARNING, "malloc failed.");
+        RETURN_FALSE;
     }
 
     file_request *req = emalloc(sizeof(file_request));
@@ -716,7 +724,6 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     php_swoole_check_aio();
     SW_CHECK_RETURN(swAio_dns_lookup(req, buf, buf_size));
 #else
-
     swDNS_request *request = emalloc(sizeof(swDNS_request));
     request->callback = php_swoole_aio_onDNSResponse;
     request->object = req;
