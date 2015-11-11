@@ -1285,7 +1285,7 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
     char *buf;
     int buf_len;
 
-    swHttpRequest *request;
+    swHttpRequest *request = NULL;
     swProtocol *protocol = &serv->protocol;
 
     //new http request

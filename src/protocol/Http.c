@@ -113,12 +113,12 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
 
 void swHttpRequest_free(swConnection *conn, swHttpRequest *request)
 {
-    if (request->buffer)
-    {
-        swString_free(request->buffer);
-    }
     if (request)
     {
+        if (request->buffer)
+        {
+            swString_free(request->buffer);
+        }
         bzero(request, sizeof(swHttpRequest));
     }
 }
