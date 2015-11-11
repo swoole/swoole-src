@@ -124,6 +124,7 @@ int daemon(int nochdir, int noclose);
 #include "list.h"
 #include "RingQueue.h"
 #include "array.h"
+#include "errno.h"
 
 #define SW_TIMEO_SEC           0
 #define SW_TIMEO_USEC          3000000
@@ -1266,11 +1267,10 @@ struct _swProcessPool
 //----------------------------------------Reactor---------------------------------------
 enum SW_EVENTS
 {
-	SW_EVENT_DEAULT = 256,
-	SW_EVENT_READ = 1u << 9,
-	SW_EVENT_WRITE = 1u << 10,
-	SW_EVENT_ERROR = 1u << 11,
-    SW_EVENT_NONE = 1u << 12,
+    SW_EVENT_DEAULT = 256,
+    SW_EVENT_READ = 1u << 9,
+    SW_EVENT_WRITE = 1u << 10,
+    SW_EVENT_ERROR = 1u << 11,
 };
 
 static sw_inline int swReactor_error(swReactor *reactor)

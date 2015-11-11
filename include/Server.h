@@ -457,7 +457,7 @@ struct _swServer
     void (*onPipeMessage)(swServer *, swEventData *);
     void (*onWorkerStart)(swServer *serv, int worker_id);
     void (*onWorkerStop)(swServer *serv, int worker_id);
-    void (*onWorkerError)(swServer *serv, int worker_id, pid_t worker_pid, int exit_code); //Only process mode
+    void (*onWorkerError)(swServer *serv, int worker_id, pid_t worker_pid, int exit_code, int signo);
     void (*onUserWorkerStart)(swServer *serv, swWorker *worker);
     int (*onTask)(swServer *serv, swEventData *data);
     int (*onFinish)(swServer *serv, swEventData *data);

@@ -1012,11 +1012,11 @@ static void php_swoole_onUserWorkerStart(swServer *serv, swWorker *worker)
     php_swoole_process_start(worker, object TSRMLS_CC);
 }
 
-static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker_pid, int exit_code)
+static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker_pid, int exit_code, int signo)
 {
     zval *zobject = (zval *) serv->ptr2;
-    zval *zworker_id, *zworker_pid, *zexit_code;
-    zval **args[4];
+    zval *zworker_id, *zworker_pid, *zexit_code, *zsigno;
+    zval **args[5];
     zval *retval = NULL;
 
     SW_MAKE_STD_ZVAL(zworker_id);
@@ -1028,6 +1028,9 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
     SW_MAKE_STD_ZVAL(zexit_code);
     ZVAL_LONG(zexit_code, exit_code);
 
+    SW_MAKE_STD_ZVAL(zsigno);
+    ZVAL_LONG(zsigno, signo);
+
     sw_zval_add_ref(&zobject);
 
 #if PHP_MAJOR_VERSION < 7
@@ -1038,8 +1041,9 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
     args[1] = &zworker_id;
     args[2] = &zworker_pid;
     args[3] = &zexit_code;
+    args[4] = &zsigno;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onWorkerError], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onWorkerError], &retval, 5, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onWorkerError handler error");
     }
@@ -1052,6 +1056,7 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
     sw_zval_ptr_dtor(&zworker_id);
     sw_zval_ptr_dtor(&zworker_pid);
     sw_zval_ptr_dtor(&zexit_code);
+    sw_zval_ptr_dtor(&zsigno);
 
     if (retval != NULL)
     {
