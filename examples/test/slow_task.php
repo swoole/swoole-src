@@ -8,8 +8,13 @@ $serv->on('connect', function (swoole_server $serv, $fd){
     $data = str_repeat("A", 8000);
     for ($i = 0; $i < $serv->count; $i++) {
         //$serv->send($fd, $data);
-        $serv->task($data);
+        $ret = $serv->task($data);
+        if ($ret === false) {
+            echo "dispatch task#{$i} failed\n";
+            break;
+        }
     }
+    echo "dispatch {$serv->count} tasks finish.\n";
 });
 
 $serv->on('receive', function ($serv, $fd, $from_id, $data) {

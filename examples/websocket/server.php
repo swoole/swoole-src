@@ -1,8 +1,10 @@
 <?php
-$server = new swoole_websocket_server("0.0.0.0", 9501);
-//$server = new swoole_websocket_server("0.0.0.0", 9501, SWOOLE_BASE);
-$server->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
-$server->set(['worker_num' => 4]);
+//$server = new swoole_websocket_server("0.0.0.0", 9501);
+$server = new swoole_websocket_server("0.0.0.0", 9501, SWOOLE_BASE);
+//$server->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
+$server->set(['worker_num' => 4,
+    'task_worker_num' => 4,
+]);
 
 function user_handshake(swoole_http_request $request, swoole_http_response $response)
 {
@@ -52,13 +54,34 @@ $server->on('open', function (swoole_websocket_server $_server, swoole_http_requ
 $server->on('message', function (swoole_websocket_server $_server, $frame) {
     var_dump($frame);
     echo "received ".strlen($frame->data)." bytes\n";
-    //echo "receive from {$fd}:{$data},opcode:{$opcode},fin:{$fin}\n";
-    $_server->push($frame->fd, "this is server");
-//	$_server->close($frame->fd);
+    if ($frame->data == "close")
+    {
+        $_server->close($frame->fd);
+    }
+    elseif($frame->data == "task")
+    {
+        $_server->task(['go' => 'die']);
+    }
+    else
+    {
+        echo "receive from {$frame->fd}:{$frame->data}, opcode:{$frame->opcode}, finish:{$frame->finish}\n";
+        $_server->push($frame->fd, "this is server");
+    }
 });
 
 $server->on('close', function ($_server, $fd) {
     echo "client {$fd} closed\n";
+});
+
+$server->on('task', function ($_server, $worker_id, $task_id, $data)
+{
+    var_dump($worker_id, $task_id, $data);
+    return "hello world\n";
+});
+
+$server->on('finish', function ($_server, $task_id, $result)
+{
+    var_dump($task_id, $result);
 });
 
 $server->on('packet', function ($_server, $data, $client) {
