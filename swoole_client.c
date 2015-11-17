@@ -1741,6 +1741,17 @@ static PHP_METHOD(swoole_client, on)
         return;
     }
 
+#ifdef PHP_SWOOLE_CHECK_CALLBACK
+    char *func_name = NULL;
+    if (!sw_zend_is_callable(zcallback, 0, &func_name TSRMLS_CC))
+    {
+        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        efree(func_name);
+        return;
+    }
+    efree(func_name);
+#endif
+
     client_callback *cb = swoole_get_property(getThis(), 0);
     if (!cb)
     {
@@ -1758,22 +1769,18 @@ static PHP_METHOD(swoole_client, on)
 
     if (strncasecmp("connect", cb_name, cb_name_len) == 0)
     {
-       if(cb->onConnect)sw_zval_ptr_dtor(&cb->onConnect);
         cb->onConnect = zcallback;
     }
     else if (strncasecmp("receive", cb_name, cb_name_len) == 0)
     {
-        if(cb->onReceive)sw_zval_ptr_dtor(&cb->onReceive);
         cb->onReceive = zcallback;
     }
     else if (strncasecmp("close", cb_name, cb_name_len) == 0)
     {
-        if(cb->onClose)sw_zval_ptr_dtor(&cb->onClose);
         cb->onClose = zcallback;
     }
     else if (strncasecmp("error", cb_name, cb_name_len) == 0)
     {
-        if(cb->onError)sw_zval_ptr_dtor(&cb->onError);
         cb->onError = zcallback;
     }
     else
