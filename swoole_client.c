@@ -183,39 +183,18 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
 
 static void client_free(zval *object, swClient *cli)
 {
-    if (cli)
+    if (!cli)
     {
-        swoole_set_object(object, NULL);
-        client_callback *cb = swoole_get_property(object, 0);
-        if (cb)
+        return;
+    }
+    swoole_set_object(object, NULL);
+    if (!cli->keep)
+    {
+        if (cli->socket->fd != 0)
         {
-            if (cb->onConnect)
-            {
-                sw_zval_ptr_dtor(&cb->onConnect);
-            }
-            if (cb->onReceive)
-            {
-                sw_zval_ptr_dtor(&cb->onReceive);
-            }
-            if (cb->onError)
-            {
-                sw_zval_ptr_dtor(&cb->onError);
-            }
-            if (cb->onClose)
-            {
-                sw_zval_ptr_dtor(&cb->onClose);
-            }
-            efree(cb);
-            swoole_set_property(object, 0, NULL);
+            cli->close(cli);
         }
-        if (!cli->keep)
-        {
-            if (cli->socket->fd != 0)
-            {
-                cli->close(cli);
-            }
-            efree(cli);
-        }
+        efree(cli);
     }
 }
 
@@ -997,6 +976,30 @@ static PHP_METHOD(swoole_client, __destruct)
     {
         client_free(getThis(), cli);
     }
+
+    client_callback *cb = swoole_get_property(getThis(), 0);
+    if (cb)
+    {
+        if (cb->onConnect)
+        {
+            sw_zval_ptr_dtor(&cb->onConnect);
+        }
+        if (cb->onReceive)
+        {
+            sw_zval_ptr_dtor(&cb->onReceive);
+        }
+        if (cb->onError)
+        {
+            sw_zval_ptr_dtor(&cb->onError);
+        }
+        if (cb->onClose)
+        {
+            sw_zval_ptr_dtor(&cb->onClose);
+        }
+        efree(cb);
+        swoole_set_property(getThis(), 0, NULL);
+    }
+
 #if PHP_MEMORY_DEBUG
     php_vmstat.free_client++;
     if (php_vmstat.free_client % 10000 == 0)
@@ -1721,7 +1724,6 @@ static PHP_METHOD(swoole_client, close)
         }
         else
         {
-            client_free(getThis(), cli);
             ret = 1;
         }
     }
