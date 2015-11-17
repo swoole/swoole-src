@@ -1758,18 +1758,22 @@ static PHP_METHOD(swoole_client, on)
 
     if (strncasecmp("connect", cb_name, cb_name_len) == 0)
     {
+       if(cb->onConnect)sw_zval_ptr_dtor(&cb->onConnect);
         cb->onConnect = zcallback;
     }
     else if (strncasecmp("receive", cb_name, cb_name_len) == 0)
     {
+        if(cb->onReceive)sw_zval_ptr_dtor(&cb->onReceive);
         cb->onReceive = zcallback;
     }
     else if (strncasecmp("close", cb_name, cb_name_len) == 0)
     {
+        if(cb->onClose)sw_zval_ptr_dtor(&cb->onClose);
         cb->onClose = zcallback;
     }
     else if (strncasecmp("error", cb_name, cb_name_len) == 0)
     {
+        if(cb->onError)sw_zval_ptr_dtor(&cb->onError);
         cb->onError = zcallback;
     }
     else
