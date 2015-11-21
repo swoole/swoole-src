@@ -1698,7 +1698,9 @@ static PHP_METHOD(swoole_client, close)
         RETURN_FALSE;
     }
 
-    if (!cli->socket->active)
+    //if (!cli->socket->active)
+    //由于asyc模式的connect没有超时模式，需要使用timer来释放cli，此时active=0，导致内存泄露，因此此处不检测active，只检测socket。特别要注意的是，timer释放cli的时候，务必不能使用引用模式！ fang 2015年11月21日18:30:29
+    if(!cli->socket)
     {
         swoole_php_error(E_WARNING, "not connected to the server");
         RETURN_FALSE;
