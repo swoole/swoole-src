@@ -307,6 +307,7 @@ static PHP_METHOD(swoole_process, signal)
         callback = signal_callback[signo];
         if (callback)
         {
+            sw_zval_ptr_dtor(&callback);
             swSignal_add(signo, NULL);
             RETURN_TRUE;
         }
@@ -327,6 +328,10 @@ static PHP_METHOD(swoole_process, signal)
     efree(func_name);
 
     sw_zval_add_ref(&callback);
+    if (signal_callback[signo])
+    {
+        sw_zval_ptr_dtor(&callback);
+    }
     signal_callback[signo] = callback;
 
 #if PHP_MAJOR_VERSION >= 7 || (PHP_MAJOR_VERSION >= 5 && PHP_MINOR_VERSION >= 4)
