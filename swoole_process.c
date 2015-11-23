@@ -320,7 +320,7 @@ static PHP_METHOD(swoole_process, signal)
     sw_zval_add_ref(&callback);
     signal_callback[signo] = callback;
 
-#if PHP_MAJOR_VERSION >= 5 && PHP_MINOR_VERSION >= 4
+#if PHP_MAJOR_VERSION >= 7 || (PHP_MAJOR_VERSION >= 5 && PHP_MINOR_VERSION >= 4)
     SwooleG.use_signalfd = 1;
 #else
     SwooleG.use_signalfd = 0;
