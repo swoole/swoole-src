@@ -304,14 +304,23 @@ static PHP_METHOD(swoole_process, signal)
 
     if (callback == NULL || ZVAL_IS_NULL(callback))
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "no callback.");
-        RETURN_FALSE;
+        callback = signal_callback[signo];
+        if (callback)
+        {
+            swSignal_add(signo, NULL);
+            RETURN_TRUE;
+        }
+        else
+        {
+            swoole_php_error(E_WARNING, "no callback.");
+            RETURN_FALSE;
+        }
     }
 
     char *func_name;
     if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "function '%s' is not callable", func_name);
+        swoole_php_error(E_WARNING, "function '%s' is not callable", func_name);
         efree(func_name);
         RETURN_FALSE;
     }
