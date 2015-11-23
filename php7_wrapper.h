@@ -126,7 +126,6 @@ inline int SW_Z_TYPE_P(zval *z);
 #else
 #define sw_php_var_serialize                php_var_serialize
 typedef size_t zend_size_t;
-#define SW_RETVAL_STRINGL(s, l,dup)         RETVAL_STRINGL(s,l)
 #define ZEND_SET_SYMBOL(ht,str,arr) zend_hash_str_update(ht, str, sizeof(str)-1, arr);
 
 static inline int Z_BVAL_P(zval *v)
@@ -203,14 +202,11 @@ static inline char * sw_php_url_encode(char *value, size_t value_len, int* exten
 #define sw_php_var_unserialize(rval, p, max, var_hash)\
 php_var_unserialize(*rval, p, max, var_hash)
 
-#define SW_MAKE_STD_ZVAL(p)    zval _stack_zval_##p; p = &(_stack_zval_##p)
+#define SW_MAKE_STD_ZVAL(p)             zval _stack_zval_##p; p = &(_stack_zval_##p)
+#define SW_RETURN_STRINGL(s, l, dup)    RETURN_STRINGL(s, l)
+#define SW_RETVAL_STRINGL(s, l, dup)    RETVAL_STRINGL(s, l); if (dup == 0) efree(s)
+#define SW_ALLOC_INIT_ZVAL(p)           SW_MAKE_STD_ZVAL(p);
 
-#define SW_RETURN_STRINGL(z,l,t)                      \
-               zval key;\
-                ZVAL_STRING(&key, z);\
-                RETURN_STR(Z_STR(key))
-
-#define SW_ALLOC_INIT_ZVAL(p)        SW_MAKE_STD_ZVAL(p)
 #define SW_ZEND_FETCH_RESOURCE_NO_RETURN(rsrc, rsrc_type, passed_id, default_id, resource_type_name, resource_type)        \
         (rsrc = (rsrc_type) zend_fetch_resource(Z_RES_P(*passed_id), resource_type_name, resource_type))
 #define SW_ZEND_REGISTER_RESOURCE(return_value, result, le_result)  ZVAL_RES(return_value,zend_register_resource(result, le_result))

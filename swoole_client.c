@@ -1555,7 +1555,7 @@ static PHP_METHOD(swoole_client, recv)
         else
         {
             buf[ret] = 0;
-            SW_RETURN_STRINGL(buf, ret, 0);
+            SW_RETVAL_STRINGL(buf, ret, 0);
         }
     }
 }
