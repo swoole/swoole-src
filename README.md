@@ -6,6 +6,8 @@ Swoole is an event-based & concurrent framework for internet applications, writt
 
 __Document__: <https://cdn.rawgit.com/tchiotludo/swoole-ide-helper/dd73ce0dd949870daebbf3e8fee64361858422a1/docs/index.html>
 
+__IDE Helper__: <https://github.com/tchiotludo/swoole-ide-helper>
+
 __中文文档__: <http://wiki.swoole.com/>
 
 __IRC__:  <http://webchat.freenode.net/?channels=swoole&uio=d4>
