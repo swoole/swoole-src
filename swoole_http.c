@@ -24,6 +24,7 @@
 #include <ext/standard/php_math.h>
 #include <ext/date/php_date.h>
 #include <ext/standard/md5.h>
+#include <main/rfc1867.h>
 
 #include <main/php_variables.h>
 
@@ -811,7 +812,24 @@ static int multipart_body_end(multipart_parser* p)
 {
     swoole_http_client *client = (swoole_http_client *) p->data;
     zval *files = client->request.zfiles;
+    zval *value;
+
     http_merge_php_global(files, client->request.zrequest_object, HTTP_GLOBAL_FILES);
+
+    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(client->request.zfiles), value)
+    {
+
+        zval *file_path;
+        zend_string *tmp_name;
+        if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("tmp_name"), (void **) &file_path) == SUCCESS)
+        {
+            tmp_name = zval_get_string(file_path);
+            zend_hash_add_ptr(SG(rfc1867_uploaded_files), tmp_name, tmp_name);
+
+        }
+    }
+    SW_HASHTABLE_FOREACH_END();
+
     return 0;
 }
 
@@ -1229,6 +1247,8 @@ void swoole_http_request_free(swoole_http_client *client TSRMLS_DC)
         SW_HASHTABLE_FOREACH_END();
 
         sw_zval_ptr_dtor(&zfiles);
+
+        destroy_uploaded_files_hash();
     }
     //request server info
     if (req->zserver)
