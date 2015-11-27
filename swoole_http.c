@@ -810,6 +810,10 @@ static int multipart_body_on_data_end(multipart_parser* p)
 
 static int multipart_body_end(multipart_parser* p)
 {
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+
     swoole_http_client *client = (swoole_http_client *) p->data;
     zval *files = client->request.zfiles;
     zval *value;
@@ -818,14 +822,16 @@ static int multipart_body_end(multipart_parser* p)
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(client->request.zfiles), value)
     {
-
         zval *file_path;
-        zend_string *tmp_name;
         if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("tmp_name"), (void **) &file_path) == SUCCESS)
         {
-            tmp_name = zval_get_string(file_path);
+#if PHP_MAJOR_VERSION >= 7
+            zend_string *tmp_name = zval_get_string(file_path);
             zend_hash_add_ptr(SG(rfc1867_uploaded_files), tmp_name, tmp_name);
-
+#else
+            char *temp_filename = Z_STRVAL_P(file_path);
+            sw_zend_hash_add(SG(rfc1867_uploaded_files), temp_filename, Z_STRLEN_P(file_path) + 1, &temp_filename, sizeof(char *), NULL);
+#endif
         }
     }
     SW_HASHTABLE_FOREACH_END();
@@ -1232,7 +1238,6 @@ void swoole_http_request_free(swoole_http_client *client TSRMLS_DC)
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(zfiles), value)
         {
             keytype = sw_zend_hash_get_current_key(Z_ARRVAL_P(zfiles), &key, &keylen, 0);
-
             if (HASH_KEY_IS_STRING != keytype)
             {
                 continue;
@@ -1241,14 +1246,13 @@ void swoole_http_request_free(swoole_http_client *client TSRMLS_DC)
             if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("tmp_name"), (void **) &file_path) == SUCCESS)
             {
                 unlink(Z_STRVAL_P(file_path));
+                sw_zend_hash_del(SG(rfc1867_uploaded_files), Z_STRVAL_P(file_path), Z_STRLEN_P(file_path) + 1);
             }
             sw_zval_ptr_dtor(&value);
         }
         SW_HASHTABLE_FOREACH_END();
 
         sw_zval_ptr_dtor(&zfiles);
-
-        destroy_uploaded_files_hash();
     }
     //request server info
     if (req->zserver)
@@ -1487,6 +1491,10 @@ static PHP_METHOD(swoole_http_server, start)
     serv->open_length_check = 0;
 
     serv->ptr2 = getThis();
+
+    //for is_uploaded_file and move_uploaded_file
+    ALLOC_HASHTABLE(SG(rfc1867_uploaded_files));
+    zend_hash_init(SG(rfc1867_uploaded_files), 8, NULL, NULL, 0);
 
     ret = swServer_create(serv);
     if (ret < 0)
