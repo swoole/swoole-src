@@ -285,12 +285,10 @@ static int client_onRead(swReactor *reactor, swEvent *event)
         }
     }
 
-    buf = emalloc(buf_len + 1);
-
 #ifdef SW_CLIENT_RECV_AGAIN
     recv_again:
 #endif
-
+    buf = emalloc(buf_len + 1);
     n = swConnection_recv(event->socket, buf, buf_len, 0);
     if (n < 0)
     {
@@ -355,14 +353,16 @@ static int client_onRead(swReactor *reactor, swEvent *event)
             sw_zval_ptr_dtor(&retval);
         }
 
+        //TODO with PHP7 need to optimize.
+        free_zdata:
+        sw_zval_ptr_dtor(&zdata);
+
 #ifdef SW_CLIENT_RECV_AGAIN
         if (n == SW_CLIENT_BUFFER_SIZE)
         {
             goto recv_again;
         }
 #endif
-        free_zdata:
-        sw_zval_ptr_dtor(&zdata);
         return SW_OK;
     }
 
