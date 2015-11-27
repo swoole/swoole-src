@@ -207,6 +207,11 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
         }
         else
         {
+            if (!host_entry->h_addr_list[0] || host_entry->h_length > sizeof(addr))
+            {
+                ret = -1;
+                break;
+            }
             memcpy(&addr, host_entry->h_addr_list[0], host_entry->h_length);
             ip_addr = inet_ntoa(addr);
             bzero(event->buf, event->nbytes);

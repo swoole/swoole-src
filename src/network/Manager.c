@@ -184,7 +184,7 @@ static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid
 
         if (serv->onWorkerError != NULL)
         {
-            serv->onWorkerError(serv, worker_id, pid, WEXITSTATUS(status));
+            serv->onWorkerError(serv, worker_id, pid, WEXITSTATUS(status), WTERMSIG(status));
         }
     }
 }

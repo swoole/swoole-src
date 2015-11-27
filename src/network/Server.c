@@ -753,7 +753,7 @@ int swServer_free(swServer *serv)
 #ifdef SW_USE_OPENSSL
     if (serv->open_ssl)
     {
-        swSSL_free(serv->ssl_context);
+        swSSL_free_context(serv->ssl_context);
         free(serv->ssl_cert_file);
         free(serv->ssl_key_file);
     }
@@ -866,6 +866,46 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length)
         return factory->finish(factory, &_send);
     }
     return SW_OK;
+}
+
+int swServer_tcp_sendfile(swServer *serv, int fd, char *filename, uint32_t len)
+{
+#ifdef SW_USE_OPENSSL
+    swConnection *conn = swServer_connection_verify(serv, fd);
+    if (conn && conn->ssl)
+    {
+        swWarn("SSL client#%d cannot use sendfile().", fd);
+        return SW_ERR;
+    }
+#endif
+
+    swSendData send_data;
+    send_data.info.len = len;
+    char buffer[SW_BUFFER_SIZE];
+
+    //file name size
+    if (send_data.info.len > SW_BUFFER_SIZE - 1)
+    {
+        swWarn("sendfile name too long. [MAX_LENGTH=%d]", (int) SW_BUFFER_SIZE - 1);
+        return SW_ERR;
+    }
+
+    //check file exists
+    if (access(filename, R_OK) < 0)
+    {
+        swWarn("file[%s] not found.", filename);
+        return SW_ERR;
+    }
+
+    send_data.info.fd = fd;
+    send_data.info.type = SW_EVENT_SENDFILE;
+    memcpy(buffer, filename, send_data.info.len);
+    buffer[send_data.info.len] = 0;
+    send_data.info.len++;
+    send_data.length = 0;
+    send_data.data = buffer;
+
+    return serv->factory.finish(&serv->factory, &send_data);
 }
 
 int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length)
@@ -1119,6 +1159,19 @@ int swServer_get_manager_pid(swServer *serv)
         return SW_ERR;
     }
     return SwooleGS->manager_pid;
+}
+
+int swServer_get_socket(swServer *serv, int port)
+{
+    swListenPort *ls;
+    LL_FOREACH(serv->listen_list, ls)
+    {
+        if (ls->port == port || port == 0)
+        {
+            return ls->sock;
+        }
+    }
+    return SW_ERR;
 }
 
 static void swServer_signal_hanlder(int sig)

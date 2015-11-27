@@ -124,6 +124,7 @@ int daemon(int nochdir, int noclose);
 #include "list.h"
 #include "RingQueue.h"
 #include "array.h"
+#include "error.h"
 
 #define SW_TIMEO_SEC           0
 #define SW_TIMEO_USEC          3000000
@@ -264,6 +265,11 @@ exit(1)
 
 #define swSysError(str,...) SwooleGS->lock.lock(&SwooleGS->lock);\
 snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s#%d: "str" Error: %s[%d].",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
+swLog_put(SW_LOG_WARN, sw_error);\
+SwooleGS->lock.unlock(&SwooleGS->lock)
+
+#define swRuntimeError(error,str,...)        SwooleGS->lock.lock(&SwooleGS->lock);\
+snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s (ERROR %d): "str,__func__,error,##__VA_ARGS__);\
 swLog_put(SW_LOG_WARN, sw_error);\
 SwooleGS->lock.unlock(&SwooleGS->lock)
 
@@ -1266,10 +1272,10 @@ struct _swProcessPool
 //----------------------------------------Reactor---------------------------------------
 enum SW_EVENTS
 {
-	SW_EVENT_DEAULT = 256,
-	SW_EVENT_READ = 1u << 9,
-	SW_EVENT_WRITE = 1u << 10,
-	SW_EVENT_ERROR = 1u << 11,
+    SW_EVENT_DEAULT = 256,
+    SW_EVENT_READ = 1u << 9,
+    SW_EVENT_WRITE = 1u << 10,
+    SW_EVENT_ERROR = 1u << 11,
 };
 
 static sw_inline int swReactor_error(swReactor *reactor)

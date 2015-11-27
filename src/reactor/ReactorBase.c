@@ -249,13 +249,6 @@ int swReactor_close(swReactor *reactor, int fd)
         socket->in_buffer = NULL;
     }
 
-#ifdef SW_USE_OPENSSL
-    if (socket->ssl)
-    {
-        swSSL_close(socket);
-    }
-#endif
-
     bzero(socket, sizeof(swConnection));
     return close(fd);
 }

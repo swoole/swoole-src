@@ -457,7 +457,7 @@ struct _swServer
     void (*onPipeMessage)(swServer *, swEventData *);
     void (*onWorkerStart)(swServer *serv, int worker_id);
     void (*onWorkerStop)(swServer *serv, int worker_id);
-    void (*onWorkerError)(swServer *serv, int worker_id, pid_t worker_pid, int exit_code); //Only process mode
+    void (*onWorkerError)(swServer *serv, int worker_id, pid_t worker_pid, int exit_code, int signo);
     void (*onUserWorkerStart)(swServer *serv, swWorker *worker);
     int (*onTask)(swServer *serv, swEventData *data);
     int (*onFinish)(swServer *serv, swEventData *data);
@@ -507,6 +507,7 @@ int swServer_shutdown(swServer *serv);
 int swServer_udp_send(swServer *serv, swSendData *resp);
 int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length);
 int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length);
+int swServer_tcp_sendfile(swServer *serv, int fd, char *filename, uint32_t len);
 
 //UDP, UDP必然超过0x1000000
 //原因：IPv4的第4字节最小为1,而这里的conn_fd是网络字节序
@@ -560,6 +561,7 @@ swPipe * swServer_pipe_get(swServer *serv, int pipe_fd);
 void swServer_pipe_set(swServer *serv, swPipe *p);
 
 int swServer_get_manager_pid(swServer *serv);
+int swServer_get_socket(swServer *serv, int port);
 int swServer_worker_init(swServer *serv, swWorker *worker);
 void swServer_onTimer(swTimer *timer, swTimer_node *event);
 void swServer_enable_accept(swReactor *reactor);

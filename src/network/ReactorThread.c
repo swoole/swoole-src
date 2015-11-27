@@ -197,6 +197,11 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
         uint32_t send_n = pkt.length + header_size;
         uint32_t offset = 0;
 
+        /**
+         * lock target
+         */
+        SwooleTG.factory_lock_target = 1;
+
         if (factory->dispatch(factory, &task) < 0)
         {
             return SW_ERR;
@@ -205,13 +210,14 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
         send_n -= task.data.info.len;
         if (send_n == 0)
         {
+            /**
+             * unlock
+             */
+            SwooleTG.factory_target_worker = -1;
+            SwooleTG.factory_lock_target = 0;
             return ret;
         }
 
-        /**
-         * lock target
-         */
-        SwooleTG.factory_lock_target = 1;
         offset = SW_BUFFER_SIZE;
         while (send_n > 0)
         {
@@ -257,6 +263,13 @@ int swReactorThread_close(swReactor *reactor, int fd)
 
     swTrace("Close Event.fd=%d|from=%d", fd, reactor->id);
 
+#ifdef SW_USE_OPENSSL
+    if (conn->ssl)
+    {
+        swSSL_close(conn);
+    }
+#endif
+
     //clear output buffer
     if (serv->open_eof_check || serv->open_length_check)
     {
@@ -282,11 +295,9 @@ int swReactorThread_close(swReactor *reactor, int fd)
                 if (request->buffer)
                 {
                     swTrace("Connection Close. free buffer=%p, request=%p\n", request->buffer, request);
-                    swHttpRequest_free(conn, request);
+                    swHttpRequest_free(conn);
                 }
-                sw_free(request);
             }
-            conn->object = NULL;
         }
     }
 
@@ -682,7 +693,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
 #endif
                 if (conn && conn->closed)
                 {
-                    swWarn("session#%d is closed by server.", send_data->info.fd);
+                    swRuntimeError(SW_ERROR_SESSION_CLOSED_BY_SERVER, "Session#%d is closed by server.", send_data->info.fd);
                 }
                 swBuffer_pop_trunk(buffer, trunk);
                 continue;
@@ -1259,9 +1270,7 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
         {
             if (conn->object != NULL)
             {
-                swHttpRequest *request = (swHttpRequest *) conn->object;
-                swHttpRequest_free(conn, request);
-                conn->object = NULL;
+                swHttpRequest_free(conn);
             }
             conn->websocket_status = WEBSOCKET_STATUS_FRAME;
         }
@@ -1272,7 +1281,7 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
     char *buf;
     int buf_len;
 
-    swHttpRequest *request;
+    swHttpRequest *request = NULL;
     swProtocol *protocol = &serv->protocol;
 
     //new http request
@@ -1321,7 +1330,7 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
     else if (n == 0)
     {
         close_fd:
-        swHttpRequest_free(conn, request);
+        swHttpRequest_free(conn);
         swReactorThread_onClose(reactor, event);
         return SW_OK;
     }
@@ -1368,7 +1377,7 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
             if (memcmp(buffer->str + buffer->length - 4, "\r\n\r\n", 4) == 0)
             {
                 swReactorThread_send_string_buffer(conn, buffer->str, buffer->length);
-                swHttpRequest_free(conn, request);
+                swHttpRequest_free(conn);
             }
             else if (buffer->size == buffer->length)
             {
@@ -1441,7 +1450,7 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
             if (buffer->length == request_size)
             {
                 swReactorThread_send_string_buffer(conn, buffer->str, buffer->length);
-                swHttpRequest_free(conn, request);
+                swHttpRequest_free(conn);
             }
             else
             {

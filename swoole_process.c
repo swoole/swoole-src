@@ -304,23 +304,37 @@ static PHP_METHOD(swoole_process, signal)
 
     if (callback == NULL || ZVAL_IS_NULL(callback))
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "no callback.");
-        RETURN_FALSE;
+        callback = signal_callback[signo];
+        if (callback)
+        {
+            sw_zval_ptr_dtor(&callback);
+            swSignal_add(signo, NULL);
+            RETURN_TRUE;
+        }
+        else
+        {
+            swoole_php_error(E_WARNING, "no callback.");
+            RETURN_FALSE;
+        }
     }
 
     char *func_name;
     if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "function '%s' is not callable", func_name);
+        swoole_php_error(E_WARNING, "function '%s' is not callable", func_name);
         efree(func_name);
         RETURN_FALSE;
     }
     efree(func_name);
 
     sw_zval_add_ref(&callback);
+    if (signal_callback[signo])
+    {
+        sw_zval_ptr_dtor(&callback);
+    }
     signal_callback[signo] = callback;
 
-#if PHP_MAJOR_VERSION >= 5 && PHP_MINOR_VERSION >= 4
+#if PHP_MAJOR_VERSION >= 7 || (PHP_MAJOR_VERSION >= 5 && PHP_MINOR_VERSION >= 4)
     SwooleG.use_signalfd = 1;
 #else
     SwooleG.use_signalfd = 0;
