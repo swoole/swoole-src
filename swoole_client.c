@@ -786,6 +786,8 @@ void php_swoole_check_reactor()
 
     if (SwooleG.main_reactor == NULL)
     {
+        swTraceLog(SW_TRACE_PHP, "init reactor");
+
         SwooleG.main_reactor = sw_malloc(sizeof(swReactor));
         if (SwooleG.main_reactor == NULL)
         {

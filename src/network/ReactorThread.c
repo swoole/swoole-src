@@ -980,6 +980,7 @@ void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
     else if (serv->open_mqtt_protocol)
     {
         serv->protocol.get_package_length = swMqtt_get_package_length;
+        serv->protocol.onPackage = swReactorThread_send_string_buffer;
         reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_length);
     }
     else

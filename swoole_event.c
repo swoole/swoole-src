@@ -514,10 +514,16 @@ PHP_FUNCTION(swoole_event_del)
     }
 
     swConnection *socket = swReactor_get(SwooleG.main_reactor, socket_fd);
-    efree(socket->object);
+    if (socket->object)
+    {
+        efree(socket->object);
+    }
     socket->active = 0;
-
-    int ret = SwooleG.main_reactor->del(SwooleG.main_reactor, socket_fd);
+    int ret = 0;
+    if (socket->fd)
+    {
+        ret = SwooleG.main_reactor->del(SwooleG.main_reactor, socket_fd);
+    }
     SW_CHECK_RETURN(ret);
 }
 
@@ -537,9 +543,7 @@ PHP_FUNCTION(swoole_event_wait)
 {
     if (!SwooleG.main_reactor)
     {
-        swoole_php_fatal_error(E_WARNING, "reactor no ready, cannot use swoole_event_wait.");
-        RETURN_FALSE;
+        return;
     }
     php_swoole_event_wait();
 }
-

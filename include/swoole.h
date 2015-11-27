@@ -298,6 +298,7 @@ enum swTraceType
     SW_TRACE_WORKER  = 6,
     SW_TRACE_MEMORY  = 7,
     SW_TRACE_REACTOR = 8,
+    SW_TRACE_PHP     = 9,
 };
 
 #if SW_LOG_TRACE_OPEN == 1
