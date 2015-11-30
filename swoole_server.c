@@ -447,7 +447,6 @@ static int php_swoole_onReceive(swServer *serv, swEventData *req)
             memcpy(&udp_server_socket, &udp_info, sizeof(udp_server_socket));
             factory->last_from_id = udp_server_socket;
             swTrace("SendTo: from_id=%d|from_fd=%d", (uint16_t) req->info.from_id, req->info.from_fd);
-
             SW_ZVAL_STRINGL(zdata, packet->data, packet->length, 1);
             ZVAL_LONG(zfrom_id, (long ) udp_server_socket);
             ZVAL_LONG(zfd, (long ) packet->addr.v4.s_addr);
