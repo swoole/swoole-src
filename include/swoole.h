@@ -858,10 +858,18 @@ uint64_t swoole_hash_key(char *str, int str_len);
 uint32_t swoole_common_multiple(uint32_t u, uint32_t v);
 uint32_t swoole_common_divisor(uint32_t u, uint32_t v);
 
+static sw_inline uint16_t swoole_swap_endian16(uint16_t x)
+{
+    return (((x & 0xff) << 8) | ((x & 0xff00) >> 8));
+}
+
+static sw_inline uint32_t swoole_swap_endian32(uint32_t x)
+{
+    return (((x & 0xff) << 24) | ((x & 0xff00) << 8) | ((x & 0xff0000) >> 8) | ((x & 0xff000000) >> 24));
+}
+
 static sw_inline int32_t swoole_unpack(char type, void *data)
 {
-    int64_t tmp;
-
     switch(type)
     {
     /*-------------------------16bit-----------------------------*/
@@ -880,14 +888,13 @@ static sw_inline int32_t swoole_unpack(char type, void *data)
      */
     case 'n':
         return ntohs(*((uint16_t *) data));
+    /**
+     * unsigned short (always 32 bit, little endian byte order)
+     */
+    case 'v':
+        return swoole_swap_endian16(ntohs(*((uint16_t *) data)));
 
     /*-------------------------32bit-----------------------------*/
-    /**
-     * unsigned long (always 32 bit, big endian byte order)
-     */
-    case 'N':
-        tmp = *((uint32_t *) data);
-        return ntohl(tmp);
     /**
      * unsigned long (always 32 bit, machine byte order)
      */
@@ -898,6 +905,16 @@ static sw_inline int32_t swoole_unpack(char type, void *data)
      */
     case 'l':
         return *((int *) data);
+    /**
+     * unsigned long (always 32 bit, big endian byte order)
+     */
+    case 'N':
+        return ntohl(*((uint32_t *) data));
+    /**
+     * unsigned short (always 32 bit, little endian byte order)
+     */
+    case 'V':
+        return swoole_swap_endian32(ntohl(*((uint32_t *) data)));
 
     default:
         return *((uint32_t *) data);

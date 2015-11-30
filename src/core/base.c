@@ -227,10 +227,12 @@ int swoole_type_size(char type)
     case 's':
     case 'S':
     case 'n':
+    case 'v':
         return 2;
     case 'l':
     case 'L':
     case 'N':
+    case 'V':
         return 4;
     default:
         return 0;
