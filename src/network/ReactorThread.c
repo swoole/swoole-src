@@ -218,7 +218,7 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
             return ret;
         }
 
-        offset = SW_BUFFER_SIZE;
+        offset = SW_BUFFER_SIZE - header_size;
         while (send_n > 0)
         {
             task.data.info.len = send_n > SW_BUFFER_SIZE ? SW_BUFFER_SIZE : send_n;

@@ -72,6 +72,10 @@ static long php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tic
     {
         memcpy(cb->data, param, sizeof(zval));
     }
+    else
+    {
+        cb->data = NULL;
+    }
 #else
     cb->data = param;
     cb->callback = callback;
