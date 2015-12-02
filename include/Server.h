@@ -740,6 +740,19 @@ static sw_inline swConnection *swWorker_get_connection(swServer *serv, int sessi
     return conn;
 }
 
+static sw_inline swString *swWorker_get_buffer(swServer *serv, int worker_id)
+{
+    //input buffer
+    if (serv->factory_mode != SW_MODE_PROCESS)
+    {
+        return SwooleWG.buffer_input[0];
+    }
+    else
+    {
+        return SwooleWG.buffer_input[worker_id];
+    }
+}
+
 static sw_inline swConnection *swServer_connection_verify(swServer *serv, int session_id)
 {
     swSession *session = swServer_get_session(serv, session_id);

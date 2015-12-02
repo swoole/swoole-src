@@ -239,7 +239,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 
     swServer_worker_init(serv, worker);
 
-    SwooleWG.buffer_output = sw_malloc(sizeof(swString*) * serv->reactor_num);
+    SwooleWG.buffer_output = sw_malloc(sizeof(swString*) * serv->worker_num);
     if (SwooleWG.buffer_output == NULL)
     {
         swError("malloc for SwooleWG.buffer_output failed.");
@@ -247,7 +247,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     }
 
     int i;
-    for (i = 0; i < serv->reactor_num; i++)
+    for (i = 0; i < serv->worker_num; i++)
     {
         SwooleWG.buffer_output[i] = swString_new(SW_BUFFER_SIZE_BIG);
         if (SwooleWG.buffer_output[i] == NULL)

@@ -67,8 +67,9 @@ zval *php_swoole_get_recv_data(zval *zdata, swEventData *req TSRMLS_DC)
 #else
     if (req->info.type == SW_EVENT_PACKAGE_END)
     {
-        data_ptr = SwooleWG.buffer_input[req->info.from_id]->str;
-        data_len = SwooleWG.buffer_input[req->info.from_id]->length;
+        swString *worker_buffer = swWorker_get_buffer(SwooleG.serv, req->info.from_id);
+        data_ptr = worker_buffer->str;
+        data_len = worker_buffer->length;
     }
 #endif
     else
@@ -436,7 +437,7 @@ static int php_swoole_onReceive(swServer *serv, swEventData *req)
     //dgram
     if (swEventData_is_dgram(req->info.type))
     {
-        swString *buffer = SwooleWG.buffer_input[req->info.from_id];
+        swString *buffer = swWorker_get_buffer(serv, req->info.from_id);
         packet = (swDgramPacket*) buffer->str;
 
         //udp ipv4
@@ -527,7 +528,7 @@ static int php_swoole_onPacket(swServer *serv, swEventData *req)
     SW_MAKE_STD_ZVAL(zaddr);
     array_init(zaddr);
 
-    swString *buffer = SwooleWG.buffer_input[req->info.from_id];
+    swString *buffer = swWorker_get_buffer(serv, req->info.from_id);
     packet = (swDgramPacket*) buffer->str;
 
     add_assoc_long(zaddr, "server_socket", req->info.from_fd);

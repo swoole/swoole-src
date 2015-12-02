@@ -173,8 +173,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         {
             break;
         }
-        //input buffer
-        package = SwooleWG.buffer_input[task->info.from_id];
+        package = swWorker_get_buffer(serv, task->info.from_id);
         //merge data to package buffer
         memcpy(package->str + package->length, task->data, task->info.len);
         package->length += task->info.len;
@@ -189,7 +188,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     case SW_EVENT_UDP:
     case SW_EVENT_UDP6:
     case SW_EVENT_UNIX_DGRAM:
-        package = SwooleWG.buffer_input[task->info.from_id];
+        package = swWorker_get_buffer(serv, task->info.from_id);
         swString_append_ptr(package, task->data, task->info.len);
 
         if (package->offset == 0)

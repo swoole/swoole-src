@@ -404,13 +404,6 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     }
 #endif
 
-    SwooleWG.buffer_input = sw_malloc(sizeof(swString*) * (serv->reactor_num + serv->dgram_port_num));
-    if (SwooleWG.buffer_input == NULL)
-    {
-        swError("malloc for SwooleWG.buffer_input failed.");
-        return SW_ERR;
-    }
-
 #ifndef SW_USE_RINGBUFFER
     int i;
     int buffer_input_size;
@@ -423,7 +416,24 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
         buffer_input_size = SW_BUFFER_SIZE_BIG;
     }
 
-    for (i = 0; i < serv->reactor_num + serv->dgram_port_num; i++)
+    int buffer_num;
+    if (serv->factory_mode != SW_MODE_PROCESS)
+    {
+        buffer_num = 1;
+    }
+    else
+    {
+        buffer_num = serv->reactor_num + serv->dgram_port_num;
+    }
+
+    SwooleWG.buffer_input = sw_malloc(sizeof(swString*) * buffer_num);
+    if (SwooleWG.buffer_input == NULL)
+    {
+        swError("malloc for SwooleWG.buffer_input failed.");
+        return SW_ERR;
+    }
+
+    for (i = 0; i < buffer_num; i++)
     {
         SwooleWG.buffer_input[i] = swString_new(buffer_input_size);
         if (SwooleWG.buffer_input[i] == NULL)
@@ -432,6 +442,7 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
             return SW_ERR;
         }
     }
+
 #endif
 
     if (serv->max_request < 1)

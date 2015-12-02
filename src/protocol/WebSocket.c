@@ -54,16 +54,17 @@ void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode
         frame_header[pos++] = FRAME_SET_LENGTH(length, 0);
     }
 
-    if(isMask) {
+    if (isMask)
+    {
         int i;
         char masks[SW_WEBSOCKET_MASK_LEN];
-        for(i = 0; i < SW_WEBSOCKET_MASK_LEN; i++)
+        for (i = 0; i < SW_WEBSOCKET_MASK_LEN; i++)
         {
-            srand((int)time(0));
-            masks[i] = (rand()%26)+'a';
+            srand((int) time(0));
+            masks[i] = (rand() % 26) + 'a';
             frame_header[pos++] = masks[i];
         }
-        for(i=0; i< length; i++)
+        for (i = 0; i < length; i++)
         {
             data[i] ^= masks[i % SW_WEBSOCKET_MASK_LEN];
         }
