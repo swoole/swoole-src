@@ -153,6 +153,7 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
         }
 
         cli->socket->active = 0;
+        cli->socket->closing = 1;
         client_callback *cb = swoole_get_property(zobject, 0);
         zcallback = cb->onClose;
         if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
@@ -1703,7 +1704,7 @@ static PHP_METHOD(swoole_client, close)
         RETURN_FALSE;
     }
 
-    if (!cli->socket->active)
+    if (!cli->socket->active && cli->socket->closing)
     {
         swoole_php_error(E_WARNING, "not connected to the server");
         RETURN_FALSE;
