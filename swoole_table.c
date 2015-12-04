@@ -204,9 +204,9 @@ PHP_METHOD(swoole_table, column)
     char *name;
     zend_size_t len;
     long type;
-    long size;
+    long size = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|ll", &name, &len, &type, &size) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl|l", &name, &len, &type, &size) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -214,6 +214,11 @@ PHP_METHOD(swoole_table, column)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "string length must be more than 0.");
         RETURN_FALSE;
+    }
+    //default int32
+    if (type == SW_TABLE_INT && size < 1)
+    {
+        size = 4;
     }
     swTable *table = swoole_get_object(getThis());
     swTableColumn_add(table, name, len, type, size);

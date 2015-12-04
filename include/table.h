@@ -99,11 +99,12 @@ typedef struct
 enum swoole_table_type
 {
     SW_TABLE_INT = 1,
-
     SW_TABLE_INT8,
     SW_TABLE_INT16,
     SW_TABLE_INT32,
+#ifdef __x86_64__
     SW_TABLE_INT64,
+#endif
     SW_TABLE_FLOAT,
     SW_TABLE_STRING,
 };

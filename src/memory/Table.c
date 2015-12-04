@@ -127,24 +127,29 @@ int swTableColumn_add(swTable *table, char *name, int len, int type, int size)
             col->size = 2;
             col->type = SW_TABLE_INT16;
             break;
-        case 4:
-            col->size = 4;
-            col->type = SW_TABLE_INT32;
-            break;
-        default:
+#ifdef __x86_64__
+        case 8:
             col->size = 8;
             col->type = SW_TABLE_INT64;
+            break;
+#endif
+        default:
+            col->size = 4;
+            col->type = SW_TABLE_INT32;
             break;
         }
         break;
     case SW_TABLE_FLOAT:
-        col->size = 8;
+        col->size = sizeof(double);
         col->type = SW_TABLE_FLOAT;
         break;
-    default:
+    case SW_TABLE_STRING:
         col->size = size + sizeof(swTable_string_length_t);
         col->type = SW_TABLE_STRING;
         break;
+    default:
+        swWarn("unkown column type.");
+        return SW_ERR;
     }
     col->index = table->item_size;
     table->item_size += col->size;
