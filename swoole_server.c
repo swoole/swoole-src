@@ -606,6 +606,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     ZVAL_LONG(zfrom_id, (long) req->info.from_id);
 
     SW_MAKE_STD_ZVAL(zdata);
+    SW_MAKE_STD_ZVAL(unserialized_zdata);
 
     if (swTask_type(req) & SW_TASK_TMPFILE)
     {
@@ -637,7 +638,6 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     args[2] = &zfrom_id;
     args[3] = &zdata;
 
-    //TODO unserialize
     if (swTask_type(req) & SW_TASK_SERIALIZE)
     {
         php_unserialize_data_t var_hash;
@@ -645,10 +645,9 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
         PHP_VAR_UNSERIALIZE_INIT(var_hash);
         zdata_str = Z_STRVAL_P(zdata);
         zdata_len = Z_STRLEN_P(zdata);
-        SW_ALLOC_INIT_ZVAL(unserialized_zdata);
 
-        if (sw_php_var_unserialize(&unserialized_zdata, (const unsigned char **) &zdata_str,
-                (const unsigned char *) (zdata_str + zdata_len), &var_hash TSRMLS_CC))
+        if (sw_php_var_unserialize(&unserialized_zdata, (const uchar ** ) &zdata_str,
+                (const uchar * ) (zdata_str + zdata_len), &var_hash TSRMLS_CC))
         {
             args[3] = &unserialized_zdata;
         }
