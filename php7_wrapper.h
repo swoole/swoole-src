@@ -126,7 +126,7 @@ inline int SW_Z_TYPE_P(zval *z);
 #else
 #define sw_php_var_serialize                php_var_serialize
 typedef size_t zend_size_t;
-#define ZEND_SET_SYMBOL(ht,str,arr) zend_hash_str_update(ht, str, sizeof(str)-1, arr);
+#define ZEND_SET_SYMBOL(ht,str,arr)         zval_add_ref(arr); zend_hash_str_update(ht, str, sizeof(str)-1, arr);
 
 static inline int Z_BVAL_P(zval *v)
 {
@@ -141,7 +141,7 @@ static inline int Z_BVAL_P(zval *v)
 }
 
 #define sw_add_assoc_stringl(__arg, __key, __str, __length, __duplicate) sw_add_assoc_stringl_ex(__arg, __key, strlen(__key)+1, __str, __length, __duplicate)
-static inline int sw_add_assoc_stringl_ex(zval *arg, const char *key, size_t key_len, char *str, size_t length,int duplicate)
+static inline int sw_add_assoc_stringl_ex(zval *arg, const char *key, size_t key_len, char *str, size_t length, int duplicate)
 {
     key_len--;
     return add_assoc_stringl_ex(arg, key, key_len, str, length);
@@ -266,7 +266,7 @@ static inline int sw_zend_hash_update(HashTable *ht, char *k, int len ,void * va
     return zend_hash_update(ht, Z_STR(key), val) ? SUCCESS : FAILURE;
 }
 
-static inline int sw_zend_hash_get_current_key( HashTable *ht, char **key, uint32_t *keylen, ulong *num)
+static inline int sw_zend_hash_get_current_key(HashTable *ht, char **key, uint32_t *keylen, ulong *num)
 {
     zend_string *_key_ptr;
     int type = zend_hash_get_current_key(ht, &_key_ptr, (zend_ulong*) num);

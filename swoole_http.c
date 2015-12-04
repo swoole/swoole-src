@@ -300,30 +300,23 @@ static void http_global_merge(zval *val, zval *zrequest, int type)
         char _php_key[128];
         int keytype;
         uint32_t keylen;
-        ulong idx;
         zval *value;
 
-        zval *server = sw_zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("server"), 1 TSRMLS_CC);
-        if (server || !ZVAL_IS_NULL(server))
-        {
-            SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(server), value)
-                keytype = sw_zend_hash_get_current_key(Z_ARRVAL_P(server), &key, &keylen, &idx);
-                if (HASH_KEY_IS_STRING != keytype)
-                {
-                    continue;
-                }
-                strncpy(_php_key, key, sizeof(_php_key));
-                php_strtoupper(_php_key, keylen);
-                convert_to_string(value);
-                sw_add_assoc_stringl_ex(php_global_server, _php_key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value), 1);
-            SW_HASHTABLE_FOREACH_END();
-        }
+        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(val), key, keylen, keytype, value)
+            if (HASH_KEY_IS_STRING != keytype)
+            {
+                continue;
+            }
+            strncpy(_php_key, key, sizeof(_php_key));
+            php_strtoupper(_php_key, keylen);
+            convert_to_string(value);
+            sw_add_assoc_stringl_ex(php_global_server, _php_key, keylen + 1, Z_STRVAL_P(value), Z_STRLEN_P(value), 1);
+        SW_HASHTABLE_FOREACH_END();
 
         zval *header = sw_zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("header"), 1 TSRMLS_CC);
         if (header || !ZVAL_IS_NULL(header))
         {
-            SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(header), value)
-                keytype = sw_zend_hash_get_current_key(Z_ARRVAL_P(header), &key, &keylen, &idx);
+            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(header), key, keylen, keytype, value)
                 if (HASH_KEY_IS_STRING != keytype)
                 {
                     continue;
@@ -337,10 +330,10 @@ static void http_global_merge(zval *val, zval *zrequest, int type)
                         key[i] = '_';
                     }
                 }
-                keylen = snprintf(_php_key, sizeof(_php_key), "HTTP_%s", key) + 1;
+                keylen = snprintf(_php_key, sizeof(_php_key), "HTTP_%s", key);
                 php_strtoupper(_php_key, keylen);
                 convert_to_string(value);
-                sw_add_assoc_stringl_ex(php_global_server, _php_key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value), 1);
+                sw_add_assoc_stringl_ex(php_global_server, _php_key, keylen + 1, Z_STRVAL_P(value), Z_STRLEN_P(value), 1);
              SW_HASHTABLE_FOREACH_END();
         }
         ZEND_SET_SYMBOL(&EG(symbol_table), "_SERVER", php_global_server);
@@ -1025,7 +1018,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
 
         sw_add_assoc_string(zserver, "server_software", SW_HTTP_SERVER_SOFTWARE, 1);
 
-        http_merge_php_global(NULL, zreques_object, HTTP_GLOBAL_SERVER);
+        http_merge_php_global(zserver, zreques_object, HTTP_GLOBAL_SERVER);
         http_merge_php_global(NULL, zreques_object, HTTP_GLOBAL_REQUEST);
 
         //websocket handshake
@@ -1235,9 +1228,8 @@ void swoole_http_request_free(swoole_http_client *client TSRMLS_DC)
         int keytype;
         uint32_t keylen;
 
-        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(zfiles), value)
+        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zfiles), key, keylen, keytype, value)
         {
-            keytype = sw_zend_hash_get_current_key(Z_ARRVAL_P(zfiles), &key, &keylen, 0);
             if (HASH_KEY_IS_STRING != keytype)
             {
                 continue;
