@@ -638,6 +638,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     args[3] = &zdata;
 
     //TODO unserialize
+    SW_ALLOC_INIT_ZVAL(unserialized_zdata);
     if (swTask_type(req) & SW_TASK_SERIALIZE)
     {
         php_unserialize_data_t var_hash;
@@ -645,7 +646,6 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
         PHP_VAR_UNSERIALIZE_INIT(var_hash);
         zdata_str = Z_STRVAL_P(zdata);
         zdata_len = Z_STRLEN_P(zdata);
-        SW_ALLOC_INIT_ZVAL(unserialized_zdata);
 
         if (sw_php_var_unserialize(&unserialized_zdata, (const unsigned char **) &zdata_str,
                 (const unsigned char *) (zdata_str + zdata_len), &var_hash TSRMLS_CC))
@@ -1226,7 +1226,7 @@ PHP_FUNCTION(swoole_server_create)
     zend_update_property(swoole_server_class_entry_ptr, server_object, ZEND_STRL("connections"), connection_iterator_object TSRMLS_CC);
     sw_zval_ptr_dtor(&connection_iterator_object);
 #endif
-    
+
     swoole_set_object(server_object, serv);
 }
 
@@ -1391,7 +1391,7 @@ PHP_FUNCTION(swoole_server_set)
     if (sw_zend_hash_find(vht, ZEND_STRS("cpu_affinity_ignore"), (void **) &v) == SUCCESS)
     {
         int ignore_num = zend_hash_num_elements(Z_ARRVAL_P(v));
-        if (ignore_num >= SW_CPU_NUM) 
+        if (ignore_num >= SW_CPU_NUM)
         {
             php_error_docref(NULL TSRMLS_CC, E_ERROR, "cpu_affinity_ignore num must be less than cpu num (%d)", SW_CPU_NUM);
             RETURN_FALSE;
