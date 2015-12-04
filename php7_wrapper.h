@@ -180,10 +180,10 @@ static inline char * sw_php_url_encode(char *value, size_t value_len, int* exten
     zend_string *str = php_url_encode(value, value_len);
     *exten = str->len;
 
-    char *return_str = (char*) emalloc(str->len);
+    char *return_str = (char*) emalloc(str->len + 1);
     memcpy(return_str, str->val, str->len);
     zend_string_release(str);
-
+    return_str[str->len] = 0;
     return return_str;
 }
 
