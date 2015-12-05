@@ -606,7 +606,6 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     ZVAL_LONG(zfrom_id, (long) req->info.from_id);
 
     SW_MAKE_STD_ZVAL(zdata);
-    SW_MAKE_STD_ZVAL(unserialized_zdata);
 
     if (swTask_type(req) & SW_TASK_TMPFILE)
     {
@@ -641,6 +640,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     if (swTask_type(req) & SW_TASK_SERIALIZE)
     {
         php_unserialize_data_t var_hash;
+        SW_MAKE_STD_ZVAL(unserialized_zdata);
 
         PHP_VAR_UNSERIALIZE_INIT(var_hash);
         zdata_str = Z_STRVAL_P(zdata);
