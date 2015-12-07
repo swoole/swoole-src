@@ -85,7 +85,6 @@ int swManager_start(swFactory *factory)
         swProcessPool *pool = &SwooleGS->task_workers;
         swTaskWorker_init(pool);
 
-        int i;
         swWorker *worker;
         for (i = 0; i < task_num; i++)
         {
@@ -98,6 +97,22 @@ int swManager_start(swFactory *factory)
             {
                 swServer_pipe_set(SwooleG.serv, worker->pipe_object);
             }
+        }
+    }
+
+    //User Worker Process
+    if (serv->user_worker_num > 0)
+    {
+        serv->user_workers = sw_calloc(serv->user_worker_num, sizeof(swWorker *));
+        swUserWorker_node *user_worker;
+        i = 0;
+        LL_FOREACH(serv->user_worker_list, user_worker)
+        {
+            if (swWorker_create(user_worker->worker) < 0)
+            {
+                return SW_ERR;
+            }
+            serv->user_workers[i++] = user_worker->worker;
         }
     }
 

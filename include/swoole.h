@@ -1549,7 +1549,6 @@ typedef struct
 
     swProcessPool task_workers;
     swProcessPool event_workers;
-    swProcessPool user_workers;
 
 } swServerGS;
 

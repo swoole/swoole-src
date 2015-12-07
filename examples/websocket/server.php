@@ -1,6 +1,6 @@
 <?php
-//$server = new swoole_websocket_server("0.0.0.0", 9501);
-$server = new swoole_websocket_server("0.0.0.0", 9501, SWOOLE_BASE);
+$server = new swoole_websocket_server("0.0.0.0", 9501);
+//$server = new swoole_websocket_server("0.0.0.0", 9501, SWOOLE_BASE);
 //$server->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
 $server->set(['worker_num' => 4,
     'task_worker_num' => 4,
@@ -43,16 +43,14 @@ function user_handshake(swoole_http_request $request, swoole_http_response $resp
     return true;
 }
 
-$server->on('handshake', 'user_handshake');
-
+//$server->on('handshake', 'user_handshake');
 $server->on('open', function (swoole_websocket_server $_server, swoole_http_request $request) {
     echo "server#{$_server->worker_pid}: handshake success with fd#{$request->fd}\n";
-	
 //    var_dump($request);
 });
 
 $server->on('message', function (swoole_websocket_server $_server, $frame) {
-    var_dump($frame);
+    //var_dump($frame);
     echo "received ".strlen($frame->data)." bytes\n";
     if ($frame->data == "close")
     {
@@ -64,8 +62,13 @@ $server->on('message', function (swoole_websocket_server $_server, $frame) {
     }
     else
     {
-        echo "receive from {$frame->fd}:{$frame->data}, opcode:{$frame->opcode}, finish:{$frame->finish}\n";
-        $_server->push($frame->fd, "this is server");
+        //echo "receive from {$frame->fd}:{$frame->data}, opcode:{$frame->opcode}, finish:{$frame->finish}\n";
+        for ($i = 0; $i < 100; $i++)
+        {
+            $_send = str_repeat('B', rand(1000, 80000));
+            $_server->push($frame->fd, $_send);
+            echo "#$i\tserver sent " . strlen($_send) . " byte \n";
+        }
     }
 });
 

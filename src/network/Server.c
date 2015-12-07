@@ -967,8 +967,6 @@ void swServer_signal_init(void)
     swServer_set_minfd(SwooleG.serv, SwooleG.signal_fd);
 }
 
-static int user_worker_list_i = 0;
-
 int swServer_add_worker(swServer *serv, swWorker *worker)
 {
     swUserWorker_node *user_worker = sw_malloc(sizeof(swUserWorker_node));
@@ -977,12 +975,12 @@ int swServer_add_worker(swServer *serv, swWorker *worker)
         return SW_ERR;
     }
 
-    worker->id = serv->worker_num + SwooleG.task_worker_num + user_worker_list_i;
-    user_worker_list_i++;
+    worker->id = serv->worker_num + SwooleG.task_worker_num + serv->user_worker_num;
+    serv->user_worker_num++;
+
     user_worker->worker = worker;
 
     LL_APPEND(serv->user_worker_list, user_worker);
-
     if (!serv->user_worker_map)
     {
         serv->user_worker_map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);

@@ -220,7 +220,6 @@ struct _swServer
      * worker process num
      */
     uint16_t worker_num;
-
     /**
      * The number of pipe per reactor maintenance
      */
@@ -421,8 +420,10 @@ struct _swServer
 
     swListenPort *listen_list;
 
+    uint16_t user_worker_num;
     swUserWorker_node *user_worker_list;
     swHashMap *user_worker_map;
+    swWorker **user_workers;
 
     swReactorThread *reactor_threads;
     swWorker *workers;
@@ -639,20 +640,29 @@ static sw_inline int swServer_get_fd(swServer *serv, uint32_t session_id)
 
 static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_id)
 {
-    int task_num = SwooleG.task_worker_max > 0 ? SwooleG.task_worker_max : SwooleG.task_worker_num;
-    if (worker_id > serv->worker_num + task_num)
-    {
-        swWarn("worker_id is exceed serv->worker_num + SwooleG.task_worker_num");
-        return NULL;
-    }
-    else if (worker_id >= serv->worker_num)
-    {
-        return &(SwooleGS->task_workers.workers[worker_id - serv->worker_num]);
-    }
-    else
+    //Event Worker
+    if (worker_id < serv->worker_num)
     {
         return &(SwooleGS->event_workers.workers[worker_id]);
     }
+
+    //Task Worker
+    uint16_t task_worker_max = (SwooleG.task_worker_max > 0 ? SwooleG.task_worker_max : SwooleG.task_worker_num) + serv->worker_num;
+    if (worker_id < task_worker_max)
+    {
+        return &(SwooleGS->task_workers.workers[worker_id - serv->worker_num]);
+    }
+
+    //User Worker
+    uint16_t user_worker_max = task_worker_max + serv->user_worker_num;
+    if (worker_id < user_worker_max)
+    {
+        return serv->user_workers[worker_id - task_worker_max];
+    }
+
+    //Unkown worker_id
+    swWarn("worker#%d is not exist.", worker_id);
+    return NULL;
 }
 
 static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t schedule_key)
