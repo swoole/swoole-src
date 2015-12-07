@@ -650,7 +650,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
         zdata_len = Z_STRLEN_P(zdata);
 
 #if PHP_MAJOR_VERSION < 7
-        unserialized_zdata = MAKE_STD_ZVAL(unserialized_zdata);
+        MAKE_STD_ZVAL(unserialized_zdata);
 #else
         unserialized_zdata = &stack_unserialized_zdata;
         bzero(unserialized_zdata, sizeof(zval));
