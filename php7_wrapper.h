@@ -199,9 +199,7 @@ static inline char * sw_php_url_encode(char *value, size_t value_len, int* exten
     *retval_ptr_ptr = &phpng_retval;\
     call_user_function_ex(function_table,NULL,function_name,&phpng_retval,param_count,real_params,no_separation,NULL);})
 
-#define sw_php_var_unserialize(rval, p, max, var_hash)\
-php_var_unserialize(*rval, p, max, var_hash)
-
+#define sw_php_var_unserialize(rval, p, max, var_hash)  php_var_unserialize(*rval, p, max, var_hash)
 #define SW_MAKE_STD_ZVAL(p)             zval _stack_zval_##p; p = &(_stack_zval_##p)
 #define SW_RETURN_STRINGL(s, l, dup)    RETURN_STRINGL(s, l)
 #define SW_RETVAL_STRINGL(s, l, dup)    RETVAL_STRINGL(s, l); if (dup == 0) efree(s)

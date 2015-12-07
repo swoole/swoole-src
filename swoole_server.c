@@ -159,9 +159,9 @@ static sw_inline int php_swoole_check_task_param(int dst_worker_id TSRMLS_DC)
 
 static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC)
 {
-    zval *task_notify_data, *task_notify_unserialized_data;
-    char *task_notify_data_str;
-    int task_notify_data_len = 0;
+    zval *result_data, *result_unserialized_data;
+    char *result_data_str;
+    int result_data_len = 0;
     php_unserialize_data_t var_hash;
 
     /**
@@ -183,38 +183,38 @@ static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC)
             }
             return NULL;
         }
-        task_notify_data_str = data_str;
-        task_notify_data_len = data_len;
+        result_data_str = data_str;
+        result_data_len = data_len;
     }
     else
     {
-        task_notify_data_str = task_result->data;
-        task_notify_data_len = task_result->info.len;
+        result_data_str = task_result->data;
+        result_data_len = task_result->info.len;
     }
 
     if (swTask_type(task_result) & SW_TASK_SERIALIZE)
     {
         PHP_VAR_UNSERIALIZE_INIT(var_hash);
-        SW_ALLOC_INIT_ZVAL(task_notify_unserialized_data);
+        SW_ALLOC_INIT_ZVAL(result_unserialized_data);
 
-        if (sw_php_var_unserialize(&task_notify_unserialized_data, (const unsigned char **) &task_notify_data_str,
-                (const unsigned char *) (task_notify_data_str + task_notify_data_len), &var_hash TSRMLS_CC))
+        if (sw_php_var_unserialize(&result_unserialized_data, (const unsigned char **) &result_data_str,
+                (const unsigned char *) (result_data_str + result_data_len), &var_hash TSRMLS_CC))
         {
-            task_notify_data = task_notify_unserialized_data;
+            result_data = result_unserialized_data;
         }
         else
         {
-            SW_MAKE_STD_ZVAL(task_notify_data);
-            SW_ZVAL_STRINGL(task_notify_data, task_notify_data_str, task_notify_data_len, 1);
+            SW_MAKE_STD_ZVAL(result_data);
+            SW_ZVAL_STRINGL(result_data, result_data_str, result_data_len, 1);
         }
         PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
     }
     else
     {
-        SW_MAKE_STD_ZVAL(task_notify_data);
-        SW_ZVAL_STRINGL(task_notify_data, task_notify_data_str, task_notify_data_len, 1);
+        SW_MAKE_STD_ZVAL(result_data);
+        SW_ZVAL_STRINGL(result_data, result_data_str, result_data_len, 1);
     }
-    return task_notify_data;
+    return result_data;
 }
 
 void php_swoole_register_callback(swServer *serv)
@@ -606,7 +606,6 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     ZVAL_LONG(zfrom_id, (long) req->info.from_id);
 
     SW_MAKE_STD_ZVAL(zdata);
-    SW_MAKE_STD_ZVAL(unserialized_zdata);
 
     if (swTask_type(req) & SW_TASK_TMPFILE)
     {
@@ -638,6 +637,10 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     args[2] = &zfrom_id;
     args[3] = &zdata;
 
+#if PHP_MAJOR_VERSION >= 7
+    zval stack_unserialized_zdata;
+#endif
+
     if (swTask_type(req) & SW_TASK_SERIALIZE)
     {
         php_unserialize_data_t var_hash;
@@ -645,6 +648,13 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
         PHP_VAR_UNSERIALIZE_INIT(var_hash);
         zdata_str = Z_STRVAL_P(zdata);
         zdata_len = Z_STRLEN_P(zdata);
+
+#if PHP_MAJOR_VERSION < 7
+        unserialized_zdata = MAKE_STD_ZVAL(unserialized_zdata);
+#else
+        unserialized_zdata = &stack_unserialized_zdata;
+        bzero(unserialized_zdata, sizeof(zval));
+#endif
 
         if (sw_php_var_unserialize(&unserialized_zdata, (const uchar ** ) &zdata_str,
                 (const uchar * ) (zdata_str + zdata_len), &var_hash TSRMLS_CC))
@@ -661,8 +671,6 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     {
         args[3] = &zdata;
     }
-
-    // php_printf("task: fd=%d|len=%d|from_id=%d|data=%s\r\n", req->info.fd, req->info.len, req->info.from_id, req->data);
 
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onTask], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
