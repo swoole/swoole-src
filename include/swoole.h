@@ -269,8 +269,8 @@ swLog_put(SW_LOG_WARN, sw_error);\
 SwooleGS->lock.unlock(&SwooleGS->lock)
 
 #define swRuntimeError(error,str,...)        SwooleGS->lock.lock(&SwooleGS->lock);\
-snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s (ERROR %d): "str,__func__,error,##__VA_ARGS__);\
-swLog_put(SW_LOG_WARN, sw_error);\
+snprintf(sw_error,SW_ERROR_MSG_SIZE,"(ERROR %d): "str,error,##__VA_ARGS__);\
+swLog_put(SW_LOG_ERROR, sw_error);\
 SwooleGS->lock.unlock(&SwooleGS->lock)
 
 #ifdef SW_DEBUG_REMOTE_OPEN

@@ -248,6 +248,8 @@ static int swManager_loop(swFactory *factory)
         alarm(1);
     }
 
+    SwooleG.main_reactor = NULL;
+
     while (SwooleG.running > 0)
     {
         pid = wait(&status);

@@ -685,6 +685,12 @@ int swServer_create(swServer *serv)
         swLog_init(serv->log_file);
     }
 
+    if (SwooleG.main_reactor)
+    {
+        swRuntimeError(SW_ERROR_SERVER_MUST_CREATED_BEFORE_CLIENT, "The swoole_server must create before client");
+        return SW_ERR;
+    }
+
     //保存指针到全局变量中去
     //TODO 未来全部使用此方式访问swServer/swFactory对象
     SwooleG.serv = serv;
