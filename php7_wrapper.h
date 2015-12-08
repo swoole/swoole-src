@@ -22,7 +22,6 @@ typedef zend_rsrc_list_entry zend_resource;
 #define SW_RETURN_STRING                      RETURN_STRING
 #define SW_Z_ARRVAL_P                         Z_ARRVAL_P
 #define IS_TRUE                               1
-#define sw_add_assoc_string                   add_assoc_string
 
 static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 {
@@ -56,8 +55,14 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 #define sw_zend_hash_add                      zend_hash_add
 #define sw_zend_hash_index_update             zend_hash_index_update
 #define sw_call_user_function_ex              call_user_function_ex
+
+//----------------------------------Array API------------------------------------
+#define sw_add_assoc_string                   add_assoc_string
 #define sw_add_assoc_stringl_ex               add_assoc_stringl_ex
 #define sw_add_assoc_stringl                  add_assoc_stringl
+#define sw_add_assoc_double_ex                add_assoc_double_ex
+#define sw_add_assoc_long_ex                  add_assoc_long_ex
+
 #define sw_zval_ptr_dtor                      zval_ptr_dtor
 #define sw_zend_hash_copy                     zend_hash_copy
 #define sw_zval_add_ref                       zval_add_ref
@@ -128,7 +133,7 @@ inline int SW_Z_TYPE_P(zval *z);
 typedef size_t zend_size_t;
 #define ZEND_SET_SYMBOL(ht,str,arr)         zval_add_ref(arr); zend_hash_str_update(ht, str, sizeof(str)-1, arr);
 
-static inline int Z_BVAL_P(zval *v)
+static sw_inline int Z_BVAL_P(zval *v)
 {
     if (Z_TYPE_P(v) == IS_TRUE)
     {
@@ -140,12 +145,13 @@ static inline int Z_BVAL_P(zval *v)
     }
 }
 
-#define sw_add_assoc_stringl(__arg, __key, __str, __length, __duplicate) sw_add_assoc_stringl_ex(__arg, __key, strlen(__key)+1, __str, __length, __duplicate)
-static inline int sw_add_assoc_stringl_ex(zval *arg, const char *key, size_t key_len, char *str, size_t length, int duplicate)
+#define sw_add_assoc_stringl(__arg, __key, __str, __length, __duplicate)   add_assoc_stringl_ex(__arg, __key, strlen(__key), __str, __length)
+static sw_inline int sw_add_assoc_stringl_ex(zval *arg, const char *key, size_t key_len, char *str, size_t length, int __duplicate)
 {
-    key_len--;
-    return add_assoc_stringl_ex(arg, key, key_len, str, length);
+    return add_assoc_stringl_ex(arg, key, key_len - 1, str, length);
 }
+#define sw_add_assoc_double_ex(arg, key, key_len, d)     add_assoc_double_ex(arg, key, key_len - 1, d)
+#define sw_add_assoc_long_ex(arg, key, key_len, d)       add_assoc_long_ex(arg, key, key_len - 1, d)
 
 #define SW_Z_ARRVAL_P(z)                          Z_ARRVAL_P(z)->ht
 
