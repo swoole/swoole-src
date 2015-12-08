@@ -703,14 +703,9 @@ static PHP_METHOD(swoole_process, exec)
         exec_args[i] = Z_STRVAL_P(value);
         i++;
     SW_HASHTABLE_FOREACH_END();
-
     exec_args[i] = NULL;
 
-    int ret = execv(execfile, exec_args);
-    free(exec_args[0]);
-    efree(exec_args);
-
-    if (ret < 0)
+    if (execv(execfile, exec_args) < 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "execv(%s) failed. Error: %s[%d]", execfile, strerror(errno), errno);
         RETURN_FALSE;
