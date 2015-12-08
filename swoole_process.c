@@ -153,6 +153,7 @@ static PHP_METHOD(swoole_process, __construct)
     {
         process->redirect_stdin = 1;
         process->redirect_stdout = 1;
+        process->redirect_stderr = 1;
         create_pipe = 1;
     }
 
@@ -402,6 +403,14 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
         }
     }
 
+    if (process->redirect_stderr)
+    {
+        if (dup2(process->pipe, STDERR_FILENO) < 0)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "dup2() failed. Error: %s[%d]", strerror(errno), errno);
+        }
+    }
+
     /**
      * Close EventLoop
      */
@@ -409,10 +418,12 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
     {
         SwooleG.main_reactor->free(SwooleG.main_reactor);
         SwooleG.main_reactor = NULL;
-        bzero(&SwooleWG, sizeof(SwooleWG));
-        SwooleG.pid = process->pid;
         swTraceLog(SW_TRACE_PHP, "destroy reactor");
     }
+
+    bzero(&SwooleWG, sizeof(SwooleWG));
+    SwooleG.pid = process->pid;
+    SwooleG.process_type = 0;
 
     if (SwooleG.timer.fd)
     {
@@ -689,19 +700,7 @@ static PHP_METHOD(swoole_process, exec)
     zval *value = NULL;
     exec_args[0] = strdup(execfile);
     int i = 1;
-//    Bucket *_p;
-//    _p = SW_Z_ARRVAL_P(args)->pListHead;
-//    while(_p != NULL)
-//    {
-//        value = (zval **) _p->pData;
-//        convert_to_string(*value);
-//
-//        sw_zval_add_ref(value);
-//        exec_args[i] = Z_STRVAL_PP(value);
-//
-//        _p = _p->pListNext;
-//        i++;
-//    }
+
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(args), value)
         convert_to_string(value);
 

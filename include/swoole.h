@@ -1197,6 +1197,16 @@ struct _swWorker
 	uint8_t redirect_stdout;
 
 	/**
+     * redirect stdin to pipe_worker
+     */
+    uint8_t redirect_stdin;
+
+    /**
+     * redirect stderr to pipe_worker
+     */
+    uint8_t redirect_stderr;
+
+	/**
 	 * worker status, IDLE or BUSY
 	 */
     uint8_t status;
@@ -1211,10 +1221,7 @@ struct _swWorker
      */
     sw_atomic_t tasking_num;
 
-	/**
-	 * redirect stdin to pipe_worker
-	 */
-	uint8_t redirect_stdin;
+
 
 	/**
 	 * worker id
