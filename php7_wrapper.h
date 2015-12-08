@@ -172,6 +172,7 @@ static inline char* sw_php_format_date(char *format, size_t format_len, time_t t
     char *return_str = (char*) emalloc(time->len + 1);
     memcpy(return_str, time->val, time->len);
     return_str[time->len] = 0;
+    zend_string_release(time);
     return return_str;
 }
 
