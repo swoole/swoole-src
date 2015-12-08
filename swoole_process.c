@@ -527,18 +527,14 @@ static PHP_METHOD(swoole_process, read)
         RETURN_FALSE;
     }
 
-    char *buf = emalloc(buf_size);
-    int ret;
-
-    do
-    {
-        ret = read(process->pipe, buf, buf_size - 1);
-    }
-    while(errno < 0 && errno == EINTR);
-
+    char *buf = emalloc(buf_size + 1);
+    int ret = read(process->pipe, buf, buf_size);;
     if (ret < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "failed. Error: %s[%d]", strerror(errno), errno);
+        if (errno != EINTR)
+        {
+            swoole_php_error(E_WARNING, "failed. Error: %s[%d]", strerror(errno), errno);
+        }
         RETURN_FALSE;
     }
     buf[ret] = 0;
@@ -695,7 +691,7 @@ static PHP_METHOD(swoole_process, exec)
     }
 
     int exec_argc = php_swoole_array_length(args);
-    char **exec_args = emalloc(sizeof(char*) * exec_argc + 1);
+    char **exec_args = emalloc(sizeof(char*) * (exec_argc + 2));
 
     zval *value = NULL;
     exec_args[0] = strdup(execfile);
@@ -703,14 +699,18 @@ static PHP_METHOD(swoole_process, exec)
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(args), value)
         convert_to_string(value);
-
         sw_zval_add_ref(&value);
         exec_args[i] = Z_STRVAL_P(value);
         i++;
     SW_HASHTABLE_FOREACH_END();
+
     exec_args[i] = NULL;
 
-    if (execv(execfile, exec_args) < 0)
+    int ret = execv(execfile, exec_args);
+    free(exec_args[0]);
+    efree(exec_args);
+
+    if (ret < 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "execv(%s) failed. Error: %s[%d]", execfile, strerror(errno), errno);
         RETURN_FALSE;

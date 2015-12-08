@@ -1542,17 +1542,14 @@ static PHP_METHOD(swoole_client, recv)
         SwooleG.error = errno;
         swoole_php_error(E_WARNING, "recv() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
         zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
-        if (buf)
-        {
-            efree(buf);
-        }
+        swoole_efree(buf);
         RETURN_FALSE;
     }
     else
     {
         if (ret == 0)
         {
-            efree(buf);
+            swoole_efree(buf);
             RETURN_EMPTY_STRING();
         }
         else

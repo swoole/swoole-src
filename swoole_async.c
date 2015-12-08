@@ -652,27 +652,32 @@ PHP_FUNCTION(swoole_async_writefile)
 
 PHP_FUNCTION(swoole_async_set)
 {
-    zval *zset;
+    zval *zset = NULL;
     HashTable *vht;
-    zval **v;
+    zval *v;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &zset) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zset) == FAILURE)
     {
         return;
     }
 
     vht = Z_ARRVAL_P(zset);
-
     if (sw_zend_hash_find(vht, ZEND_STRS("aio_mode"), (void **)&v) == SUCCESS)
     {
-        convert_to_long(*v);
-        SwooleAIO.mode = (uint8_t) Z_LVAL_PP(v);
+        convert_to_long(v);
+        SwooleAIO.mode = (uint8_t) Z_LVAL_P(v);
     }
 
     if (sw_zend_hash_find(vht, ZEND_STRS("thread_num"), (void **)&v) == SUCCESS)
     {
-        convert_to_long(*v);
-        SwooleAIO.thread_num = (uint8_t) Z_LVAL_PP(v);
+        convert_to_long(v);
+        SwooleAIO.thread_num = (uint8_t) Z_LVAL_P(v);
+    }
+
+    if (sw_zend_hash_find(vht, ZEND_STRS("enable_signalfd"), (void **) &v) == SUCCESS)
+    {
+        convert_to_boolean(v);
+        SwooleG.use_signalfd = Z_BVAL_P(v);
     }
 }
 
