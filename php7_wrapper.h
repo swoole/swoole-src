@@ -145,13 +145,17 @@ static sw_inline int Z_BVAL_P(zval *v)
     }
 }
 
+//----------------------------------Array API------------------------------------
 #define sw_add_assoc_stringl(__arg, __key, __str, __length, __duplicate)   add_assoc_stringl_ex(__arg, __key, strlen(__key), __str, __length)
 static sw_inline int sw_add_assoc_stringl_ex(zval *arg, const char *key, size_t key_len, char *str, size_t length, int __duplicate)
 {
     return add_assoc_stringl_ex(arg, key, key_len - 1, str, length);
 }
 #define sw_add_assoc_double_ex(arg, key, key_len, d)     add_assoc_double_ex(arg, key, key_len - 1, d)
-#define sw_add_assoc_long_ex(arg, key, key_len, d)       add_assoc_long_ex(arg, key, key_len - 1, d)
+static sw_inline int sw_add_assoc_long_ex(zval *arg, const char *key, size_t key_len, long value)
+{
+    return add_assoc_long_ex(arg, key, key_len - 1, value);
+}
 
 #define SW_Z_ARRVAL_P(z)                          Z_ARRVAL_P(z)->ht
 
