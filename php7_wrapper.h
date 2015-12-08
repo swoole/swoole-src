@@ -203,7 +203,7 @@ static inline char * sw_php_url_encode(char *value, size_t value_len, int* exten
 #define SW_MAKE_STD_ZVAL(p)             zval _stack_zval_##p; p = &(_stack_zval_##p)
 #define SW_RETURN_STRINGL(s, l, dup)    RETURN_STRINGL(s, l)
 #define SW_RETVAL_STRINGL(s, l, dup)    RETVAL_STRINGL(s, l); if (dup == 0) efree(s)
-#define SW_ALLOC_INIT_ZVAL(p)           SW_MAKE_STD_ZVAL(p);
+#define SW_ALLOC_INIT_ZVAL(p)           p = emalloc(sizeof(zval)); bzero(p, sizeof(zval))
 
 #define SW_ZEND_FETCH_RESOURCE_NO_RETURN(rsrc, rsrc_type, passed_id, default_id, resource_type_name, resource_type)        \
         (rsrc = (rsrc_type) zend_fetch_resource(Z_RES_P(*passed_id), resource_type_name, resource_type))

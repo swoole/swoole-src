@@ -211,7 +211,7 @@ static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC)
     }
     else
     {
-        SW_MAKE_STD_ZVAL(result_data);
+        SW_ALLOC_INIT_ZVAL(result_data);
         SW_ZVAL_STRINGL(result_data, result_data_str, result_data_len, 1);
     }
     return result_data;
