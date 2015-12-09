@@ -4,7 +4,7 @@ Swoole
 
 Swoole is an event-based & concurrent framework for internet applications, written in C, for PHP.
 
-__Document__: <https://cdn.rawgit.com/tchiotludo/swoole-ide-helper/dd73ce0dd949870daebbf3e8fee64361858422a1/docs/index.html>
+__Document__: <https://rawgit.com/tchiotludo/swoole-ide-helper/english/docs/index.html>
 
 __IDE Helper__: <https://github.com/tchiotludo/swoole-ide-helper>
 
