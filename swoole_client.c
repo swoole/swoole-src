@@ -890,6 +890,12 @@ static swClient* client_create_socket(zval *object, char *host, int host_len, in
                 cli->close(cli);
                 goto create_socket;
             }
+            //clear history data
+            if (ret > 0)
+            {
+                char buf[65536];
+                swSocket_clean(cli->socket->fd, buf, sizeof(buf));
+            }
         }
     }
     else
