@@ -1026,7 +1026,7 @@ uint64_t swoole_ntoh64(uint64_t n64);
 int swSocket_listen(int type, char *host, int port, int backlog);
 int swSocket_create(int type);
 int swSocket_wait(int fd, int timeout_ms, int events);
-void swSocket_clean(int fd, void *buf, int len);
+void swSocket_clean(int fd);
 int swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
 int swSocket_set_buffer_size(int fd, int buffer_size);
 int swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);

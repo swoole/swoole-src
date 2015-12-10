@@ -70,10 +70,10 @@ int swSocket_sendfile_sync(int sock, char *filename, double timeout)
 /**
  * clear socket buffer.
  */
-void swSocket_clean(int fd, void *buf, int len)
+void swSocket_clean(int fd)
 {
-    while (recv(fd, buf, len, MSG_DONTWAIT) > 0)
-        ;
+    char buf[65536];
+    while (recv(fd, buf, sizeof(buf), MSG_DONTWAIT) > 0);
 }
 
 /**
