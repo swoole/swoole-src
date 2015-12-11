@@ -1369,6 +1369,12 @@ PHP_FUNCTION(swoole_server_set)
         SwooleG.task_tmpdir = strndup(SW_TASK_TMP_FILE, sizeof (SW_TASK_TMP_FILE));
         SwooleG.task_tmpdir_len = sizeof (SW_TASK_TMP_FILE);
     }
+    //task_max_request
+    if (sw_zend_hash_find(vht, ZEND_STRS("task_max_request"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(v);
+        SwooleG.task_max_request = (int) Z_LVAL_P(v);
+    }
     //max_connection
     if (sw_zend_hash_find(vht, ZEND_STRS("max_connection"), (void **) &v) == SUCCESS ||
             sw_zend_hash_find(vht, ZEND_STRS("max_conn"), (void **) &v) == SUCCESS)
@@ -1381,12 +1387,6 @@ PHP_FUNCTION(swoole_server_set)
     {
         convert_to_long(v);
         serv->max_request = (int) Z_LVAL_P(v);
-    }
-    //task_max_request
-    if (sw_zend_hash_find(vht, ZEND_STRS("task_max_request"), (void **) &v) == SUCCESS)
-    {
-        convert_to_long(v);
-        SwooleG.task_max_request = (int) Z_LVAL_P(v);
     }
     //cpu affinity
     if (sw_zend_hash_find(vht, ZEND_STRS("open_cpu_affinity"), (void **) &v) == SUCCESS)

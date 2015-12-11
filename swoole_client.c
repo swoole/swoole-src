@@ -98,6 +98,12 @@ void swoole_client_init(int module_number TSRMLS_DC)
     zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
 
     php_sw_long_connections = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
+
+    zend_declare_class_constant_long(swoole_table_class_entry_ptr, ZEND_STRL("MSG_OOB"), MSG_OOB TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_table_class_entry_ptr, ZEND_STRL("MSG_PEEK"), MSG_PEEK TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_table_class_entry_ptr, ZEND_STRL("MSG_DONTWAIT"), MSG_DONTWAIT TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_table_class_entry_ptr, ZEND_STRL("MSG_WAITALL"), MSG_WAITALL TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_table_class_entry_ptr, ZEND_STRL("MSG_WAITFORONE"), MSG_WAITFORONE TSRMLS_CC);
 }
 
 /**
@@ -1365,14 +1371,20 @@ static PHP_METHOD(swoole_client, sendfile)
 static PHP_METHOD(swoole_client, recv)
 {
     long buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
-    zend_bool waitall = 0;
+    long flags = 0;
     int ret;
     char *buf = NULL;
     char stack_buf[SW_BUFFER_SIZE_BIG];
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|lb", &buf_len, &waitall) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ll", &buf_len, &flags) == FAILURE)
     {
         return;
+    }
+
+    //waitall
+    if (flags == 1)
+    {
+        flags = MSG_WAITALL;
     }
 
     swClient *cli = swoole_get_object(getThis());
@@ -1382,7 +1394,7 @@ static PHP_METHOD(swoole_client, recv)
         RETURN_FALSE;
     }
 
-    if (!waitall && buf_len > SW_PHP_CLIENT_BUFFER_SIZE)
+    if ((flags & MSG_WAITALL) && buf_len > SW_PHP_CLIENT_BUFFER_SIZE)
     {
         buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
     }
@@ -1516,7 +1528,7 @@ static PHP_METHOD(swoole_client, recv)
     else if (cli->packet_mode == 1)
     {
         uint32_t len_tmp = 0;
-        ret = cli->recv(cli, (char*) &len_tmp, 4, 1);
+        ret = cli->recv(cli, (char*) &len_tmp, 4, MSG_WAITALL);
         if (ret < 0)
         {
             swoole_php_error(E_WARNING, "recv() header failed. Error: %s [%d]", strerror(errno), errno);
@@ -1531,13 +1543,13 @@ static PHP_METHOD(swoole_client, recv)
         buf = emalloc(buf_len + 1);
         SwooleG.error = 0;
         //PACKET mode, must use waitall.
-        ret = cli->recv(cli, buf, buf_len, 1);
+        ret = cli->recv(cli, buf, buf_len, MSG_WAITALL);
     }
     else
     {
         buf = emalloc(buf_len + 1);
         SwooleG.error = 0;
-        ret = cli->recv(cli, buf, buf_len, waitall);
+        ret = cli->recv(cli, buf, buf_len, flags);
     }
 
     check_return:
