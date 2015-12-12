@@ -1642,7 +1642,6 @@ typedef struct
     /**
      *  task worker process max
      */
-    uint16_t task_worker_max;
     uint8_t task_recycle_num;
     char *task_tmpdir;
     uint16_t task_tmpdir_len;

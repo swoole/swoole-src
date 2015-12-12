@@ -1337,12 +1337,6 @@ PHP_FUNCTION(swoole_server_set)
         convert_to_long(v);
         SwooleG.task_worker_num = (int) Z_LVAL_P(v);
     }
-    //task_worker_max
-    if (sw_zend_hash_find(vht, ZEND_STRS("task_worker_max"), (void **) &v) == SUCCESS)
-    {
-        convert_to_long(v);
-        SwooleG.task_worker_max = (int) Z_LVAL_P(v);
-    }
     //task ipc mode, 1,2,3
     if (sw_zend_hash_find(vht, ZEND_STRS("task_ipc_mode"), (void **) &v) == SUCCESS)
     {

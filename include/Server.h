@@ -647,7 +647,7 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
     }
 
     //Task Worker
-    uint16_t task_worker_max = (SwooleG.task_worker_max > 0 ? SwooleG.task_worker_max : SwooleG.task_worker_num) + serv->worker_num;
+    uint16_t task_worker_max = SwooleG.task_worker_num + serv->worker_num;
     if (worker_id < task_worker_max)
     {
         return &(SwooleGS->task_workers.workers[worker_id - serv->worker_num]);
