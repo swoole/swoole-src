@@ -35,7 +35,7 @@ static sw_inline void* swEventTimer_remove(swTimer *timer, swTimer_node *delete_
     return delete_node->data;
 }
 
-static sw_inline int swEventTimer_get_relative_msec()
+static sw_inline int64_t swEventTimer_get_relative_msec()
 {
     struct timeval now;
     if (gettimeofday(&now, NULL) < 0)
@@ -43,8 +43,8 @@ static sw_inline int swEventTimer_get_relative_msec()
         swSysError("gettimeofday() failed.");
         return SW_ERR;
     }
-    int msec1 = (now.tv_sec - SwooleG.timer.basetime.tv_sec) * 1000;
-    int msec2 = (now.tv_usec - SwooleG.timer.basetime.tv_usec) / 1000;
+    int64_t msec1 = (now.tv_sec - SwooleG.timer.basetime.tv_sec) * 1000;
+    int64_t msec2 = (now.tv_usec - SwooleG.timer.basetime.tv_usec) / 1000;
     return msec1 + msec2;
 }
 
@@ -98,7 +98,7 @@ static long swEventTimer_add(swTimer *timer, int _msec, int interval, void *data
         return SW_ERR;
     }
 
-    int now_msec = swEventTimer_get_relative_msec();
+    int64_t now_msec = swEventTimer_get_relative_msec();
     if (now_msec < 0)
     {
         return SW_ERR;
@@ -146,7 +146,7 @@ static void* swEventTimer_del(swTimer *timer, int _msec, long id)
 
 static int swEventTimer_select(swTimer *timer)
 {
-    int now_msec = swEventTimer_get_relative_msec();
+    int64_t now_msec = swEventTimer_get_relative_msec();
     if (now_msec < 0)
     {
         return SW_ERR;
@@ -178,7 +178,7 @@ static int swEventTimer_select(swTimer *timer)
             if (!tmp->remove)
             {
                 tmp->restart = 1;
-                int _now_msec = swEventTimer_get_relative_msec();
+                int64_t _now_msec = swEventTimer_get_relative_msec();
                 if (_now_msec > 0)
                 {
                     tmp->exec_msec = _now_msec + tmp->interval;

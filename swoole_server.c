@@ -293,7 +293,6 @@ static int php_swoole_task_finish(swServer *serv, zval *data TSRMLS_DC)
     {
         //serialize
         flags |= SW_TASK_SERIALIZE;
-        //TODO php serialize
         PHP_VAR_SERIALIZE_INIT(var_hash);
         sw_php_var_serialize(&serialized_data, data, &var_hash TSRMLS_CC);
         PHP_VAR_SERIALIZE_DESTROY(var_hash);

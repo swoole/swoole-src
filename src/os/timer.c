@@ -499,7 +499,7 @@ void swTimer_node_print(swTimer_node **root)
     swTimer_node *tmp = *root;
     while (tmp)
     {
-        printf("TimerNode: when=%d, interval=%d\n", tmp->exec_msec, tmp->interval);
+        printf("TimerNode: when=%ld, interval=%d\n", tmp->exec_msec, tmp->interval);
         tmp = tmp->next;
     }
 }

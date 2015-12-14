@@ -1482,7 +1482,7 @@ typedef struct _swTimer_node
     struct _swTimer_node *next, *prev;
     struct timeval lasttime;
     void *data;
-    uint32_t exec_msec;
+    int64_t exec_msec;
     uint32_t interval;
     long id;
     uint8_t remove :1;
