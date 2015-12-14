@@ -1680,28 +1680,44 @@ PHP_FUNCTION(swoole_server_set)
     if (sw_zend_hash_find(vht, ZEND_STRS("ssl_cert_file"), (void **) &v) == SUCCESS)
     {
         convert_to_string(v);
-        serv->ssl_cert_file = strdup(Z_STRVAL_P(v));
-        if (access(serv->ssl_cert_file, R_OK) < 0)
+        if (access(Z_STRVAL_P(v), R_OK) < 0)
         {
-            php_error_docref(NULL TSRMLS_CC, E_ERROR, "ssl cert file[%s] not found.", serv->ssl_cert_file);
+            swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", Z_STRVAL_P(v));
             return;
         }
+        serv->ssl_cert_file = strdup(Z_STRVAL_P(v));
         serv->open_ssl = 1;
     }
     if (sw_zend_hash_find(vht, ZEND_STRS("ssl_key_file"), (void **) &v) == SUCCESS)
     {
         convert_to_string(v);
-        serv->ssl_key_file = strdup(Z_STRVAL_P(v));
-        if (access(serv->ssl_key_file, R_OK) < 0)
+        if (access(Z_STRVAL_P(v), R_OK) < 0)
         {
-            php_error_docref(NULL TSRMLS_CC, E_ERROR, "ssl key file[%s] not found.", serv->ssl_key_file);
+            swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", Z_STRVAL_P(v));
             return;
         }
+        serv->ssl_key_file = strdup(Z_STRVAL_P(v));
     }
     if (sw_zend_hash_find(vht, ZEND_STRS("ssl_method"), (void **) &v) == SUCCESS)
     {
         convert_to_long(v);
         serv->ssl_method = (int) Z_LVAL_P(v);
+    }
+    //verify client cert
+    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_client_cert_file"), (void **) &v) == SUCCESS)
+    {
+        convert_to_string(v);
+        if (access(Z_STRVAL_P(v), R_OK) < 0)
+        {
+            swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", serv->ssl_cert_file);
+            return;
+        }
+        serv->ssl_client_cert_file = strdup(Z_STRVAL_P(v));
+    }
+    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_verify_depth"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(v);
+        serv->ssl_verify_depth = (int) Z_LVAL_P(v);
     }
     if (serv->open_ssl && !serv->ssl_key_file)
     {

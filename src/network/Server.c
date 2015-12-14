@@ -487,6 +487,10 @@ int swServer_start(swServer *serv)
         {
             return SW_ERR;
         }
+        if (serv->ssl_client_cert_file && swSSL_set_client_certificate(serv->ssl_context, serv->ssl_client_cert_file, serv->ssl_verify_depth) == SW_ERR)
+        {
+            return SW_ERR;
+        }
     }
 #endif
 

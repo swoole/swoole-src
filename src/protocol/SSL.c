@@ -22,6 +22,7 @@
 static int openssl_init = 0;
 
 static const SSL_METHOD *swSSL_get_method(int method);
+static int swSSL_verify_callback(int ok, X509_STORE_CTX *x509_store);
 
 static const SSL_METHOD *swSSL_get_method(int method)
 {
@@ -122,6 +123,69 @@ SSL_CTX* swSSL_get_context(int method, char *cert_file, char *key_file)
     }
 
     return ssl_context;
+}
+
+
+static int swSSL_verify_callback(int ok, X509_STORE_CTX *x509_store)
+{
+#if 0
+    char *subject, *issuer;
+    int err, depth;
+    X509 *cert;
+    X509_NAME *sname, *iname;
+
+    X509_STORE_CTX_get_ex_data(x509_store, SSL_get_ex_data_X509_STORE_CTX_idx());
+    cert = X509_STORE_CTX_get_current_cert(x509_store);
+    err = X509_STORE_CTX_get_error(x509_store);
+    depth = X509_STORE_CTX_get_error_depth(x509_store);
+
+    sname = X509_get_subject_name(cert);
+    subject = sname ? X509_NAME_oneline(sname, NULL, 0) : "(none)";
+
+    iname = X509_get_issuer_name(cert);
+    issuer = iname ? X509_NAME_oneline(iname, NULL, 0) : "(none)";
+
+    swWarn("verify:%d, error:%d, depth:%d, subject:\"%s\", issuer:\"%s\"", ok, err, depth, subject, issuer);
+
+    if (sname)
+    {
+        OPENSSL_free(subject);
+    }
+
+    if (iname)
+    {
+        OPENSSL_free(issuer);
+    }
+#endif
+
+    return 1;
+}
+
+int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth)
+{
+    STACK_OF(X509_NAME) *list;
+
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, swSSL_verify_callback);
+    SSL_CTX_set_verify_depth(ctx, depth);
+
+    if (SSL_CTX_load_verify_locations(ctx, cert_file, NULL) == 0)
+    {
+        swWarn("SSL_CTX_load_verify_locations(\"%s\") failed.", cert_file);
+        return SW_ERR;
+    }
+
+    ERR_clear_error();
+    list = SSL_load_client_CA_file(cert_file);
+    if (list == NULL)
+    {
+        swWarn("SSL_load_client_CA_file(\"%s\") failed.", cert_file);
+        return SW_ERR;
+    }
+
+    ERR_clear_error();
+    SSL_CTX_set_client_CA_list(ctx, list);
+
+    return SW_OK;
 }
 
 int swSSL_accept(swConnection *conn)
