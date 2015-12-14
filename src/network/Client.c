@@ -19,13 +19,15 @@
 
 static int swClient_inet_addr(swClient *cli, char *host, int port);
 static int swClient_tcp_connect(swClient *cli, char *host, int port, double _timeout, int udp_connect);
-static int swClient_tcp_send_sync(swClient *cli, char *data, int length);
-static int swClient_tcp_send_async(swClient *cli, char *data, int length);
+
+static int swClient_tcp_send_sync(swClient *cli, char *data, int length, int flags);
+static int swClient_tcp_send_async(swClient *cli, char *data, int length, int flags);
+static int swClient_udp_send(swClient *cli, char *data, int length, int flags);
+
 static int swClient_tcp_sendfile_sync(swClient *cli, char *filename);
 static int swClient_tcp_sendfile_async(swClient *cli, char *filename);
 static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, int len, int flags);
 static int swClient_udp_connect(swClient *cli, char *host, int port, double _timeout, int udp_connect);
-static int swClient_udp_send(swClient *cli, char *data, int length);
 static int swClient_udp_recv(swClient *cli, char *data, int len, int waitall);
 static int swClient_close(swClient *cli);
 static swHashMap *swoole_dns_cache = NULL;
@@ -332,7 +334,7 @@ static int swClient_tcp_connect(swClient *cli, char *host, int port, double time
     return ret;
 }
 
-static int swClient_tcp_send_async(swClient *cli, char *data, int length)
+static int swClient_tcp_send_async(swClient *cli, char *data, int length, int flags)
 {
     if (SwooleG.main_reactor->write(SwooleG.main_reactor, cli->socket->fd, data, length) < 0)
     {
@@ -344,7 +346,7 @@ static int swClient_tcp_send_async(swClient *cli, char *data, int length)
     }
 }
 
-static int swClient_tcp_send_sync(swClient *cli, char *data, int length)
+static int swClient_tcp_send_sync(swClient *cli, char *data, int length, int flags)
 {
     int written = 0;
     int n;
@@ -354,7 +356,7 @@ static int swClient_tcp_send_sync(swClient *cli, char *data, int length)
 
     while (written < length)
     {
-        n = swConnection_send(cli->socket, data, length - written, 0);
+        n = swConnection_send(cli->socket, data, length - written, flags);
         if (n < 0)
         {
             if (errno == EINTR)
@@ -473,7 +475,7 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
     }
 }
 
-static int swClient_udp_send(swClient *cli, char *data, int len)
+static int swClient_udp_send(swClient *cli, char *data, int len, int flags)
 {
     int n;
     n = sendto(cli->socket->fd, data, len, 0, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);

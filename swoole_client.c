@@ -103,7 +103,6 @@ void swoole_client_init(int module_number TSRMLS_DC)
     zend_declare_class_constant_long(swoole_table_class_entry_ptr, ZEND_STRL("MSG_PEEK"), MSG_PEEK TSRMLS_CC);
     zend_declare_class_constant_long(swoole_table_class_entry_ptr, ZEND_STRL("MSG_DONTWAIT"), MSG_DONTWAIT TSRMLS_CC);
     zend_declare_class_constant_long(swoole_table_class_entry_ptr, ZEND_STRL("MSG_WAITALL"), MSG_WAITALL TSRMLS_CC);
-    zend_declare_class_constant_long(swoole_table_class_entry_ptr, ZEND_STRL("MSG_WAITFORONE"), MSG_WAITFORONE TSRMLS_CC);
 }
 
 /**
@@ -1216,8 +1215,9 @@ static PHP_METHOD(swoole_client, send)
 {
     char *data;
     zend_size_t data_len;
+    long flags = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &data, &data_len) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &data, &data_len, &flags) == FAILURE)
     {
         return;
     }
@@ -1248,14 +1248,14 @@ static PHP_METHOD(swoole_client, send)
     if (cli->packet_mode == 1)
     {
         uint32_t len_tmp = htonl(data_len);
-        ret = cli->send(cli, (char *) &len_tmp, 4);
+        ret = cli->send(cli, (char *) &len_tmp, 4, flags);
         if (ret < 0)
         {
             goto send_error;
         }
     }
 
-    ret = cli->send(cli, data, data_len);
+    ret = cli->send(cli, data, data_len, flags);
     if (ret < 0)
     {
         send_error:
