@@ -1497,7 +1497,7 @@ static PHP_METHOD(swoole_client, recv)
     else if (cli->open_length_check)
     {
         uint32_t header_len = protocol->package_length_offset + protocol->package_length_size;
-        ret = cli->recv(cli, stack_buf, header_len, 1);
+        ret = cli->recv(cli, stack_buf, header_len, MSG_WAITALL);
         if (ret <= 0)
         {
             goto check_return;
@@ -1519,7 +1519,7 @@ static PHP_METHOD(swoole_client, recv)
         buf = emalloc(buf_len + 1);
         memcpy(buf, stack_buf, header_len);
         SwooleG.error = 0;
-        ret = cli->recv(cli, buf + header_len, buf_len - header_len, 1);
+        ret = cli->recv(cli, buf + header_len, buf_len - header_len, MSG_WAITALL);
         if (ret > 0)
         {
             ret += header_len;
