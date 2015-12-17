@@ -137,6 +137,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     swServer *serv = factory->ptr;
     swString *package = NULL;
     swDgramPacket *header;
+    swConnection *conn;
 
     factory->last_from_id = task->info.from_id;
     //worker busy
@@ -208,10 +209,27 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         break;
 
     case SW_EVENT_CLOSE:
+#ifdef SW_USE_OPENSSL
+        conn = swServer_connection_verify(serv, task->info.fd);
+        if (conn->ssl_client_cert.length)
+        {
+            free(conn->ssl_client_cert.str);
+            bzero(&conn->ssl_client_cert, sizeof(conn->ssl_client_cert.str));
+        }
+#endif
         factory->end(factory, task->info.fd);
         break;
 
     case SW_EVENT_CONNECT:
+#ifdef SW_USE_OPENSSL
+        //SSL client certificate
+        if (task->info.len > 0)
+        {
+            conn = swServer_connection_verify(serv, task->info.fd);
+            conn->ssl_client_cert.str = strndup(task->data, task->info.len);
+            conn->ssl_client_cert.size = conn->ssl_client_cert.length = task->info.len;
+        }
+#endif
         serv->onConnect(serv, task->info.fd, task->info.from_id);
         break;
 

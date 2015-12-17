@@ -336,6 +336,14 @@ typedef struct
     uint32_t reactor_id :8;
 } swSession;
 
+typedef struct _swString
+{
+    size_t length;
+    size_t size;
+    off_t offset;
+    char *str;
+} swString;
+
 typedef struct
 {
     union
@@ -457,6 +465,7 @@ typedef struct _swConnection
 #ifdef SW_USE_OPENSSL
     SSL *ssl;
     uint32_t ssl_state;
+    swString ssl_client_cert;
 #endif
     sw_atomic_t lock;
 } swConnection;
@@ -478,14 +487,6 @@ typedef struct _swProtocol
     int (*get_package_length)(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 } swProtocol;
 //------------------------------String--------------------------------
-typedef struct _swString
-{
-    size_t length;
-    size_t size;
-    off_t offset;
-    char *str;
-} swString;
-
 #define swoole_tolower(c)      (u_char) ((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
 #define swoole_toupper(c)      (u_char) ((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
 

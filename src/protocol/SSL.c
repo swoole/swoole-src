@@ -125,7 +125,6 @@ SSL_CTX* swSSL_get_context(int method, char *cert_file, char *key_file)
     return ssl_context;
 }
 
-
 static int swSSL_verify_callback(int ok, X509_STORE_CTX *x509_store)
 {
 #if 0
@@ -133,25 +132,19 @@ static int swSSL_verify_callback(int ok, X509_STORE_CTX *x509_store)
     int err, depth;
     X509 *cert;
     X509_NAME *sname, *iname;
-
     X509_STORE_CTX_get_ex_data(x509_store, SSL_get_ex_data_X509_STORE_CTX_idx());
     cert = X509_STORE_CTX_get_current_cert(x509_store);
     err = X509_STORE_CTX_get_error(x509_store);
     depth = X509_STORE_CTX_get_error_depth(x509_store);
-
     sname = X509_get_subject_name(cert);
     subject = sname ? X509_NAME_oneline(sname, NULL, 0) : "(none)";
-
     iname = X509_get_issuer_name(cert);
     issuer = iname ? X509_NAME_oneline(iname, NULL, 0) : "(none)";
-
     swWarn("verify:%d, error:%d, depth:%d, subject:\"%s\", issuer:\"%s\"", ok, err, depth, subject, issuer);
-
     if (sname)
     {
         OPENSSL_free(subject);
     }
-
     if (iname)
     {
         OPENSSL_free(issuer);
@@ -186,6 +179,54 @@ int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth)
     SSL_CTX_set_client_CA_list(ctx, list);
 
     return SW_OK;
+}
+
+int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length)
+{
+    size_t len;
+    BIO *bio;
+    X509 *cert;
+
+    cert = SSL_get_peer_certificate(ssl);
+    if (cert == NULL)
+    {
+        return SW_ERR;
+    }
+
+    bio = BIO_new(BIO_s_mem());
+    if (bio == NULL)
+    {
+        swWarn("BIO_new() failed.");
+        X509_free(cert);
+        return SW_ERR;
+    }
+
+    if (PEM_write_bio_X509(bio, cert) == 0)
+    {
+        swWarn("PEM_write_bio_X509() failed.");
+        goto failed;
+    }
+
+    len = BIO_pending(bio);
+    if (len < 0 && len > length)
+    {
+        swWarn("certificate length[%ld] is too big.", len);
+        goto failed;
+    }
+
+    int n = BIO_read(bio, buffer, len);
+
+    BIO_free(bio);
+    X509_free(cert);
+
+    return n;
+
+failed:
+
+    BIO_free(bio);
+    X509_free(cert);
+
+    return SW_ERR;
 }
 
 int swSSL_accept(swConnection *conn)

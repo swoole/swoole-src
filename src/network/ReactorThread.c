@@ -89,8 +89,37 @@ static sw_inline int swReactorThread_check_ssl_state(swConnection *conn)
         int ret = swSSL_accept(conn);
         if (ret == SW_READY)
         {
-            if (SwooleG.serv->onConnect)
+            if (!SwooleG.serv->onConnect)
             {
+                return SW_OK;
+            }
+
+            if (SwooleG.serv->ssl_client_cert_file)
+            {
+                swDispatchData task;
+                ret = swSSL_get_client_certificate(conn->ssl, task.data.data, sizeof(task.data.data));
+                if (ret < 0)
+                {
+                    goto no_client_cert;
+                }
+                else
+                {
+
+                    swFactory *factory = &SwooleG.serv->factory;
+                    task.target_worker_id = -1;
+                    task.data.info.fd = conn->fd;
+                    task.data.info.type = SW_EVENT_CONNECT;
+                    task.data.info.from_id = conn->from_id;
+                    task.data.info.len = ret;
+                    if (factory->dispatch(factory, &task) < 0)
+                    {
+                        return SW_OK;
+                    }
+                }
+            }
+            else
+            {
+                no_client_cert:
                 swServer_connection_ready(SwooleG.serv, conn->fd, conn->from_id);
             }
             return SW_OK;
@@ -756,14 +785,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     //notify worker process
     else if (conn->connect_notify)
     {
-        swDataHead connect_event;
-        connect_event.type = SW_EVENT_CONNECT;
-        connect_event.from_id = reactor->id;
-        connect_event.fd = fd;
-        if (serv->factory.notify(&serv->factory, &connect_event) < 0)
-        {
-            swWarn("send notification [fd=%d] failed.", fd);
-        }
+        swServer_connection_ready(serv, fd, reactor->id);
         conn->connect_notify = 0;
         return reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_READ);
     }
