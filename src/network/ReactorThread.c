@@ -89,11 +89,6 @@ static sw_inline int swReactorThread_check_ssl_state(swConnection *conn)
         int ret = swSSL_accept(conn);
         if (ret == SW_READY)
         {
-            if (!SwooleG.serv->onConnect)
-            {
-                return SW_OK;
-            }
-
             if (SwooleG.serv->ssl_client_cert_file)
             {
                 swDispatchData task;
@@ -104,7 +99,6 @@ static sw_inline int swReactorThread_check_ssl_state(swConnection *conn)
                 }
                 else
                 {
-
                     swFactory *factory = &SwooleG.serv->factory;
                     task.target_worker_id = -1;
                     task.data.info.fd = conn->fd;
@@ -117,9 +111,9 @@ static sw_inline int swReactorThread_check_ssl_state(swConnection *conn)
                     }
                 }
             }
-            else
+            no_client_cert:
+            if (SwooleG.serv->onConnect)
             {
-                no_client_cert:
                 swServer_connection_ready(SwooleG.serv, conn->fd, conn->from_id);
             }
             return SW_OK;

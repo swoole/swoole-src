@@ -211,7 +211,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     case SW_EVENT_CLOSE:
 #ifdef SW_USE_OPENSSL
         conn = swServer_connection_verify(serv, task->info.fd);
-        if (conn->ssl_client_cert.length)
+        if (conn && conn->ssl_client_cert.length)
         {
             free(conn->ssl_client_cert.str);
             bzero(&conn->ssl_client_cert, sizeof(conn->ssl_client_cert.str));
@@ -230,7 +230,10 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
             conn->ssl_client_cert.size = conn->ssl_client_cert.length = task->info.len;
         }
 #endif
-        serv->onConnect(serv, task->info.fd, task->info.from_id);
+        if (serv->onConnect)
+        {
+            serv->onConnect(serv, task->info.fd, task->info.from_id);
+        }
         break;
 
     case SW_EVENT_FINISH:

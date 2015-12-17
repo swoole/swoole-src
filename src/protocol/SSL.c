@@ -136,11 +136,14 @@ static int swSSL_verify_callback(int ok, X509_STORE_CTX *x509_store)
     cert = X509_STORE_CTX_get_current_cert(x509_store);
     err = X509_STORE_CTX_get_error(x509_store);
     depth = X509_STORE_CTX_get_error_depth(x509_store);
+
     sname = X509_get_subject_name(cert);
     subject = sname ? X509_NAME_oneline(sname, NULL, 0) : "(none)";
+
     iname = X509_get_issuer_name(cert);
     issuer = iname ? X509_NAME_oneline(iname, NULL, 0) : "(none)";
     swWarn("verify:%d, error:%d, depth:%d, subject:\"%s\", issuer:\"%s\"", ok, err, depth, subject, issuer);
+
     if (sname)
     {
         OPENSSL_free(subject);
