@@ -1613,6 +1613,7 @@ typedef struct
     uint8_t use_timerfd :1;
     uint8_t use_signalfd :1;
     uint8_t reuse_port :1;
+    uint8_t socket_dontwait :1;
 
     /**
      * Timer used pipe

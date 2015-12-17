@@ -679,6 +679,18 @@ PHP_FUNCTION(swoole_async_set)
         convert_to_boolean(v);
         SwooleG.use_signalfd = Z_BVAL_P(v);
     }
+
+    if (sw_zend_hash_find(vht, ZEND_STRS("socket_buffer_size"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(v);
+        SwooleG.socket_buffer_size = Z_LVAL_P(v);
+    }
+
+    if (sw_zend_hash_find(vht, ZEND_STRS("socket_dontwait"), (void **) &v) == SUCCESS)
+    {
+        convert_to_boolean(v);
+        SwooleG.socket_dontwait = Z_BVAL_P(v);
+    }
 }
 
 PHP_FUNCTION(swoole_async_dns_lookup)
