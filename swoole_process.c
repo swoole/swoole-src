@@ -122,10 +122,10 @@ void swoole_process_init(int module_number TSRMLS_DC)
 static PHP_METHOD(swoole_process, __construct)
 {
     zend_bool redirect_stdin_and_stdout = 0;
-    zend_bool create_pipe = 1;
+    long create_pipe = 1;
     zval *callback;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|bb", &callback, &redirect_stdin_and_stdout, &create_pipe) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|bl", &callback, &redirect_stdin_and_stdout, &create_pipe) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -157,10 +157,11 @@ static PHP_METHOD(swoole_process, __construct)
         create_pipe = 1;
     }
 
-    if (create_pipe)
+    if (create_pipe > 0)
     {
         swPipe *_pipe = emalloc(sizeof(swWorker));
-        if (swPipeUnsock_create(_pipe, 1, SOCK_STREAM) < 0)
+        int socket_type = create_pipe == 1 ? SOCK_STREAM : SOCK_DGRAM;
+        if (swPipeUnsock_create(_pipe, 1, socket_type) < 0)
         {
             RETURN_FALSE;
         }
