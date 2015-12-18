@@ -188,7 +188,6 @@
 #define SW_TCP_KEEPIDLE                  3600 //1 hour
 #define SW_TCP_KEEPINTERVAL              60
 
-//#define SW_USE_EPOLLET
 #define SW_USE_EVENTFD                   //是否使用eventfd来做消息通知，需要Linux 2.6.22以上版本才会支持
 
 #define SW_TASK_TMP_FILE                 "/tmp/swoole.task.XXXXXX"

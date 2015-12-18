@@ -949,21 +949,11 @@ static int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *even
 #endif
         //dispatch to worker process
         ret = factory->dispatch(factory, &task);
-
 #ifdef SW_USE_RINGBUFFER
         if (ret < 0)
         {
             swMemoryPool *pool = serv->reactor_threads[SwooleTG.id].buffer_input;
             pool->free(pool, package.data);
-        }
-#endif
-
-#ifdef SW_USE_EPOLLET
-        //缓存区还有数据没读完，继续读，EPOLL的ET模式
-        if (sw_errno == EAGAIN)
-        {
-            swWarn("sw_errno == EAGAIN");
-            ret = swReactorThread_onReceive_no_buffer(reactor, event);
         }
 #endif
         return ret;
