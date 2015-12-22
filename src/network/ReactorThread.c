@@ -149,7 +149,6 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
     info.len = sizeof(info.addr);
     bzero(&task.data.info, sizeof(task.data.info));
     task.data.info.from_fd = fd;
-    task.data.info.from_id = SwooleTG.id;
 
     int socket_type = server_sock->socket_type;
     switch(socket_type)
@@ -197,6 +196,7 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
         }
 
         task.target_worker_id = -1;
+        task.data.info.from_id = pkt.port;
         uint32_t header_size = sizeof(pkt);
 
         //dgram header
