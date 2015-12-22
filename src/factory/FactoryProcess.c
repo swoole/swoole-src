@@ -122,23 +122,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
 
     if (task->target_worker_id < 0)
     {
-        //udp use remote port
-        if (swEventData_is_dgram(task->data.info.type))
-        {
-            if (serv->dispatch_mode == SW_DISPATCH_IPMOD || serv->dispatch_mode == SW_DISPATCH_UIDMOD)
-            {
-                schedule_key = task->data.info.fd;
-            }
-            else
-            {
-                schedule_key = task->data.info.from_id;
-            }
-        }
-        else
-        {
-            schedule_key = task->data.info.fd;
-        }
-
+        schedule_key = task->data.info.fd;
 #ifndef SW_USE_RINGBUFFER
         if (SwooleTG.factory_lock_target)
         {
