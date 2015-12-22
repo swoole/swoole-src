@@ -423,7 +423,7 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     }
     else
     {
-        buffer_num = serv->reactor_num + serv->dgram_port_num;
+        buffer_num = serv->worker_num + serv->dgram_port_num;
     }
 
     SwooleWG.buffer_input = sw_malloc(sizeof(swString*) * buffer_num);
