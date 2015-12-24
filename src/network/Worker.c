@@ -137,7 +137,10 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     swServer *serv = factory->ptr;
     swString *package = NULL;
     swDgramPacket *header;
+
+#ifdef SW_USE_OPENSSL
     swConnection *conn;
+#endif
 
     factory->last_from_id = task->info.from_id;
     //worker busy

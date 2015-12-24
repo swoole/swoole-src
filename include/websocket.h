@@ -41,7 +41,7 @@ enum swWebsocketStatus
 {
     WEBSOCKET_STATUS_CONNECTION = 1,
     WEBSOCKET_STATUS_HANDSHAKE = 2,
-    WEBSOCKET_STATUS_FRAME = 3,
+    WEBSOCKET_STATUS_ACTIVE = 3,
 };
 
 typedef struct

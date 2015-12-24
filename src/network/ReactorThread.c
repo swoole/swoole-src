@@ -1281,7 +1281,7 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
             {
                 swHttpRequest_free(conn);
             }
-            conn->websocket_status = WEBSOCKET_STATUS_FRAME;
+            conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
         }
         return swReactorThread_onReceive_websocket(reactor, event);
     }

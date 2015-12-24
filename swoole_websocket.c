@@ -47,6 +47,7 @@ static zval* websocket_callbacks[2];
 
 static PHP_METHOD(swoole_websocket_server, on);
 static PHP_METHOD(swoole_websocket_server, push);
+static PHP_METHOD(swoole_websocket_server, exist);
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_on, 0, 0, 2)
     ZEND_ARG_INFO(0, event_name)
@@ -64,6 +65,7 @@ const zend_function_entry swoole_websocket_server_methods[] =
 {
     PHP_ME(swoole_websocket_server, on,         arginfo_swoole_websocket_server_on, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_websocket_server, push,       arginfo_swoole_websocket_server_push, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_websocket_server, exist,      arginfo_swoole_server_exist, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -289,7 +291,8 @@ void swoole_websocket_init(int module_number TSRMLS_DC)
 
     REGISTER_LONG_CONSTANT("WEBSOCKET_STATUS_CONNECTION", WEBSOCKET_STATUS_CONNECTION, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("WEBSOCKET_STATUS_HANDSHAKE", WEBSOCKET_STATUS_HANDSHAKE, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("WEBSOCKET_STATUS_FRAME", WEBSOCKET_STATUS_FRAME, CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("WEBSOCKET_STATUS_FRAME", WEBSOCKET_STATUS_ACTIVE, CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("WEBSOCKET_STATUS_ACTIVE", WEBSOCKET_STATUS_ACTIVE, CONST_CS | CONST_PERSISTENT);
 }
 
 static PHP_METHOD( swoole_websocket_server, on)
@@ -390,4 +393,39 @@ static PHP_METHOD(swoole_websocket_server, push)
     swString_clear(swoole_http_buffer);
     swWebSocket_encode(swoole_http_buffer, data, length, opcode, (int) fin, 0);
     SW_CHECK_RETURN(swServer_tcp_send(SwooleG.serv, fd, swoole_http_buffer->str, swoole_http_buffer->length));
+}
+
+static PHP_METHOD(swoole_websocket_server, exist)
+{
+    zval *zobject = getThis();
+    long fd;
+
+    if (SwooleGS->start == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &fd) == FAILURE)
+    {
+        return;
+    }
+
+    swServer *serv = swoole_get_object(zobject);
+    swConnection *conn = swWorker_get_connection(serv, fd);
+    if (!conn)
+    {
+        RETURN_FALSE;
+    }
+    //connection is closed
+    if (conn->active == 0 || conn->closed)
+    {
+        RETURN_FALSE;
+    }
+    //have not handshake
+    if (conn->websocket_status < WEBSOCKET_STATUS_ACTIVE)
+    {
+        RETURN_FALSE;
+    }
+    RETURN_TRUE;
 }
