@@ -265,12 +265,6 @@ ZEND_END_ARG_INFO()
 
 //arginfo end
 
-#ifdef SW_ASYNC_MYSQL
-#include "ext/mysqlnd/mysqlnd.h"
-#include "ext/mysqli/mysqli_mysqlnd.h"
-#include "ext/mysqli/php_mysqli_structs.h"
-#endif
-
 #include "zend_exceptions.h"
 
 const zend_function_entry swoole_functions[] =
@@ -326,6 +320,8 @@ const zend_function_entry swoole_functions[] =
     /*------async mysql-----*/
 #ifdef SW_ASYNC_MYSQL
     PHP_FE(swoole_get_mysqli_sock, NULL)
+    PHP_FE(swoole_mysql_query, NULL)
+    PHP_FE(swoole_mysql_get_result, NULL)
 #endif
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
@@ -631,6 +627,7 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_http_init(module_number TSRMLS_CC);
     swoole_buffer_init(module_number TSRMLS_CC);
     swoole_websocket_init(module_number TSRMLS_CC);
+    swoole_mysql_init(module_number TSRMLS_CC);
 
     if (SWOOLE_G(socket_buffer_size) > 0)
     {
@@ -846,41 +843,6 @@ PHP_FUNCTION(swoole_cpu_num)
     }
     RETURN_LONG(cpu_num);
 }
-
-#ifdef SW_ASYNC_MYSQL
-PHP_FUNCTION(swoole_get_mysqli_sock)
-{
-    MY_MYSQL *mysql;
-    zval *mysql_link;
-    php_stream *stream;
-    int sock;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &mysql_link) == FAILURE)
-    {
-        return;
-    }
-
-#if PHP_MAJOR_VERSION > 5
-    MYSQLI_FETCH_RESOURCE_CONN(mysql, mysql_link, MYSQLI_STATUS_VALID);
-    stream = mysql->mysql->data->net->data->m.get_stream(mysql->mysql->data->net TSRMLS_CC);
-#elif PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION > 4
-    MYSQLI_FETCH_RESOURCE_CONN(mysql, &mysql_link, MYSQLI_STATUS_VALID);
-    stream = mysql->mysql->data->net->data->m.get_stream(mysql->mysql->data->net TSRMLS_CC);
-#else
-    MYSQLI_FETCH_RESOURCE_CONN(mysql, &mysql_link, MYSQLI_STATUS_VALID);
-    stream = mysql->mysql->data->net->stream;
-#endif
-
-    if (SUCCESS != php_stream_cast(stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL, (void* )&sock, 1) && sock >= 0)
-    {
-        RETURN_FALSE;
-    }
-    else
-    {
-        RETURN_LONG(sock);
-    }
-}
-#endif
 
 PHP_FUNCTION(swoole_strerror)
 {

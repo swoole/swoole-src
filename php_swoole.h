@@ -43,7 +43,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.7.22-beta"
+#define PHP_SWOOLE_VERSION  "1.7.22-rc1"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -275,6 +275,8 @@ PHP_FUNCTION(swoole_errno);
 
 #ifdef SW_ASYNC_MYSQL
 PHP_FUNCTION(swoole_get_mysqli_sock);
+PHP_FUNCTION(swoole_mysql_query);
+PHP_FUNCTION(swoole_mysql_get_result);
 #endif
 
 PHP_FUNCTION(swoole_client_select);
@@ -290,6 +292,7 @@ void swoole_process_init(int module_number TSRMLS_DC);
 void swoole_http_init(int module_number TSRMLS_DC);
 void swoole_websocket_init(int module_number TSRMLS_DC);
 void swoole_buffer_init(int module_number TSRMLS_DC);
+void swoole_mysql_init(int module_number TSRMLS_DC);
 
 int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC);
 
