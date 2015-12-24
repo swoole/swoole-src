@@ -61,11 +61,15 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_push, 0, 0, 2)
     ZEND_ARG_INFO(0, finish)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_exist, 0, 0, 1)
+    ZEND_ARG_INFO(0, fd)
+ZEND_END_ARG_INFO()
+
 const zend_function_entry swoole_websocket_server_methods[] =
 {
     PHP_ME(swoole_websocket_server, on,         arginfo_swoole_websocket_server_on, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_websocket_server, push,       arginfo_swoole_websocket_server_push, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_websocket_server, exist,      arginfo_swoole_server_exist, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_websocket_server, exist,      arginfo_swoole_websocket_server_exist, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
