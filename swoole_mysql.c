@@ -28,44 +28,45 @@
 
 enum mysql_command
 {
-  SW_MYSQL_COM_SLEEP = 0,
-  SW_MYSQL_COM_QUIT,
-  SW_MYSQL_SW_MYSQL_COM_INIT_DB,
-  SW_MYSQL_COM_QUERY = 3,
-  SW_MYSQL_COM_FIELD_LIST,
-  SW_MYSQL_COM_CREATE_DB,
-  SW_MYSQL_COM_DROP_DB,
-  SW_MYSQL_COM_REFRESH,
-  SW_MYSQL_COM_SHUTDOWN,
-  SW_MYSQL_COM_STATISTICS,
-  SW_MYSQL_COM_PROCESS_INFO,
-  SW_MYSQL_COM_CONNECT,
-  SW_MYSQL_COM_PROCESS_KILL,
-  SW_MYSQL_COM_DEBUG,
-  SW_MYSQL_COM_PING,
-  SW_MYSQL_COM_TIME,
-  SW_MYSQL_COM_DELAYED_INSERT,
-  SW_MYSQL_COM_CHANGE_USER,
-  SW_MYSQL_COM_BINLOG_DUMP,
-  SW_MYSQL_COM_TABLE_DUMP,
-  SW_MYSQL_COM_CONNECT_OUT,
-  SW_MYSQL_COM_REGISTER_SLAVE,
-  SW_MYSQL_COM_STMT_PREPARE,
-  SW_MYSQL_COM_STMT_EXECUTE,
-  SW_MYSQL_COM_STMT_SEND_LONG_DATA,
-  SW_MYSQL_COM_STMT_CLOSE,
-  SW_MYSQL_COM_STMT_RESET,
-  SW_MYSQL_COM_SET_OPTION,
-  SW_MYSQL_COM_STMT_FETCH,
-  SW_MYSQL_COM_DAEMON,
-  SW_MYSQL_COM_END
+    SW_MYSQL_COM_SLEEP = 0,
+    SW_MYSQL_COM_QUIT,
+    SW_MYSQL_SW_MYSQL_COM_INIT_DB,
+    SW_MYSQL_COM_QUERY = 3,
+    SW_MYSQL_COM_FIELD_LIST,
+    SW_MYSQL_COM_CREATE_DB,
+    SW_MYSQL_COM_DROP_DB,
+    SW_MYSQL_COM_REFRESH,
+    SW_MYSQL_COM_SHUTDOWN,
+    SW_MYSQL_COM_STATISTICS,
+    SW_MYSQL_COM_PROCESS_INFO,
+    SW_MYSQL_COM_CONNECT,
+    SW_MYSQL_COM_PROCESS_KILL,
+    SW_MYSQL_COM_DEBUG,
+    SW_MYSQL_COM_PING,
+    SW_MYSQL_COM_TIME,
+    SW_MYSQL_COM_DELAYED_INSERT,
+    SW_MYSQL_COM_CHANGE_USER,
+    SW_MYSQL_COM_BINLOG_DUMP,
+    SW_MYSQL_COM_TABLE_DUMP,
+    SW_MYSQL_COM_CONNECT_OUT,
+    SW_MYSQL_COM_REGISTER_SLAVE,
+    SW_MYSQL_COM_STMT_PREPARE,
+    SW_MYSQL_COM_STMT_EXECUTE,
+    SW_MYSQL_COM_STMT_SEND_LONG_DATA,
+    SW_MYSQL_COM_STMT_CLOSE,
+    SW_MYSQL_COM_STMT_RESET,
+    SW_MYSQL_COM_SET_OPTION,
+    SW_MYSQL_COM_STMT_FETCH,
+    SW_MYSQL_COM_DAEMON,
+    SW_MYSQL_COM_END
 };
 
 enum mysql_read_state
 {
-    SW_MYSQL_RDST_READ_LEN,
-    SW_MYSQL_RDST_READ_DATA,
-    SW_MYSQL_RDST_DECODE_DATA
+    SW_MYSQL_STATE_READ_START,
+    SW_MYSQL_RDST_READ_FIELD,
+    SW_MYSQL_RDST_READ_ROW,
+    SW_MYSQL_STATE_READ_END,
 };
 
 enum mysql_error_code
@@ -170,26 +171,27 @@ typedef union
 
 typedef struct
 {
-    uint8_t read_state;
-    uint8_t opcode;
     swString *buffer;
-    zval *result_array;
-    mysql_field *columns;
-    uint16_t num_column;
-    uint32_t num_row;
 
-    int packet_number;
-    uint32_t packet_length;
-    char *error_str;
-
-    uint32_t error_code;
-    uint32_t warnings;
-
-    int status;
-    int eof;
-
-    int affected_rows;
-    int insert_id;
+    struct
+    {
+        mysql_field *columns;
+        uint16_t num_column;
+        uint32_t num_row;
+        uint8_t state;
+        uint8_t wait_recv;
+        uint8_t response_type;
+        uint32_t packet_length :24;
+        uint32_t packet_number :8;
+        uint32_t error_code;
+        uint32_t warnings;
+        uint16_t status_code;
+        char status_msg[6];
+        char *server_msg;
+        int affected_rows;
+        int insert_id;
+        zval *result_array;
+    } response;
 
 } mysql_client;
 
@@ -207,19 +209,17 @@ typedef struct
                   (((uint32_t) ((uint32_t) (A)[1])) << 8) +\
                   (((uint32_t) ((uint32_t) (A)[2])) << 16))
 
+static int mysql_request(swString *sql, swString *buffer);
+static void mysql_client_info(mysql_client *client);
+static void mysql_column_info(mysql_field *field);
+static int mysql_decode_field(char *buf, int len, mysql_field *col);
+static int mysql_decode_row(mysql_client *client, char *buf, int packet_len);
+
 static sw_inline void mysql_pack_length(int length, char *buf)
 {
     buf[2] = length >> 16;
     buf[1] = length >> 8;
     buf[0] = length;
-}
-
-static sw_inline int mysql_unpack_length(char *buf)
-{
-    uint32_t a = (uchar) buf[0];
-    uint32_t b = ((uchar) buf[1]) << 8;
-    uint32_t c = ((uchar) buf[2]) << 16;
-    return a + b + c;
 }
 
 static sw_inline int mysql_lcb_ll(char *m, ulong_t *r, char *nul, int len)
@@ -268,7 +268,7 @@ static sw_inline int mysql_lcb_ll(char *m, ulong_t *r, char *nul, int len)
     }
 }
 
-static sw_inline int mysql_lcb(char *m, ulong_t *r, char *nul, int len)
+static sw_inline int mysql_length_coded_binary(char *m, ulong_t *r, char *nul, int len)
 {
     ulong_t val = 0;
     int retcode = mysql_lcb_ll(m, &val, nul, len);
@@ -298,80 +298,8 @@ static sw_inline void mysql_get_socket(zval *mysql_link, zval *return_value, int
     }
 }
 
-static swString *mysql_request_buffer = NULL;
 
-static int mysql_decode(mysql_client *client);
-static int mysql_request(swString *sql, swString *buffer);
-static void mysql_client_info(mysql_client *client);
-static void mysql_column_info(mysql_field *field);
-static int mysql_decode_field(char *buf, int len, mysql_field *col);
-static int mysql_decode_row(mysql_client *client, char *buf, int packet_len);
-
-void swoole_mysql_init(int module_number TSRMLS_DC)
-{
-    mysql_request_buffer = swString_new(65536);
-}
-
-static int mysql_request(swString *sql, swString *buffer)
-{
-    bzero(buffer->str, 5);
-    //length
-    mysql_pack_length(sql->length + 1, buffer->str);
-    //command
-    buffer->str[4] = SW_MYSQL_COM_QUERY;
-    buffer->length = 5;
-    return swString_append(buffer, sql);
-}
-
-static int mysql_response(mysql_client *client)
-{
-    swString *buffer = client->buffer;
-    //zval *result_array = client->result_array;
-
-    int finish = 0;
-    char *p = buffer->str + buffer->offset;
-    uchar read_state = client->read_state;
-
-    while(buffer->offset < buffer->length)
-    {
-        if (read_state == SW_MYSQL_RDST_READ_LEN)
-        {
-            if (buffer->length - buffer->offset < 4)
-            {
-                goto final;
-            }
-            client->packet_length = mysql_unpack_length(p);
-            client->packet_number = p[3];
-            read_state = SW_MYSQL_RDST_READ_DATA;
-            buffer->offset += 4;
-        }
-
-        if (read_state == SW_MYSQL_RDST_READ_DATA)
-        {
-            if (buffer->length - buffer->offset < client->packet_length)
-            {
-                goto final;
-            }
-            if (mysql_decode(client) == 0)
-            {
-                read_state = SW_MYSQL_RDST_READ_LEN;
-                buffer->offset += client->packet_length;
-                finish = 1;
-                break;
-            }
-            else
-            {
-                goto final;
-            }
-        }
-    }
-
-    final:
-    client->status = read_state;
-    return finish;
-}
-
-static int mysql_decode_field(char *buf, int len, mysql_field *col)
+static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
 {
     int i;
     unsigned long size;
@@ -383,7 +311,7 @@ static int mysql_decode_field(char *buf, int len, mysql_field *col)
 
     i = 0;
 
-    tmp_len = mysql_lcb(&buf[i], &size, &nul, len - i);
+    tmp_len = mysql_length_coded_binary(&buf[i], &size, &nul, len - i);
     if (tmp_len == -1)
     {
         return -SW_MYSQL_ERR_BAD_LCB;
@@ -401,7 +329,7 @@ static int mysql_decode_field(char *buf, int len, mysql_field *col)
     i += size;
 
     /* n (Length Coded String)    db */
-    tmp_len = mysql_lcb(&buf[i], &size, &nul, len - i);
+    tmp_len = mysql_length_coded_binary(&buf[i], &size, &nul, len - i);
     if (tmp_len == -1)
     {
         return -SW_MYSQL_ERR_BAD_LCB;
@@ -419,7 +347,7 @@ static int mysql_decode_field(char *buf, int len, mysql_field *col)
     i += size;
 
     /* n (Length Coded String)    table */
-    tmp_len = mysql_lcb(&buf[i], &size, &nul, len - i);
+    tmp_len = mysql_length_coded_binary(&buf[i], &size, &nul, len - i);
     if (tmp_len == -1)
     {
         return -SW_MYSQL_ERR_BAD_LCB;
@@ -437,7 +365,7 @@ static int mysql_decode_field(char *buf, int len, mysql_field *col)
     i += size;
 
     /* n (Length Coded String)    org_table */
-    tmp_len = mysql_lcb(&buf[i], &size, &nul, len - i);
+    tmp_len = mysql_length_coded_binary(&buf[i], &size, &nul, len - i);
     if (tmp_len == -1)
     {
         return -SW_MYSQL_ERR_BAD_LCB;
@@ -455,7 +383,7 @@ static int mysql_decode_field(char *buf, int len, mysql_field *col)
     i += size;
 
     /* n (Length Coded String)    name */
-    tmp_len = mysql_lcb(&buf[i], &size, &nul, len - i);
+    tmp_len = mysql_length_coded_binary(&buf[i], &size, &nul, len - i);
     if (tmp_len == -1)
     {
         return -SW_MYSQL_ERR_BAD_LCB;
@@ -473,7 +401,7 @@ static int mysql_decode_field(char *buf, int len, mysql_field *col)
     i += size;
 
     /* n (Length Coded String)    org_name */
-    tmp_len = mysql_lcb(&buf[i], &size, &nul, len - i);
+    tmp_len = mysql_length_coded_binary(&buf[i], &size, &nul, len - i);
     if (tmp_len == -1)
     {
         return -SW_MYSQL_ERR_BAD_LCB;
@@ -523,7 +451,7 @@ static int mysql_decode_field(char *buf, int len, mysql_field *col)
     /* default - a priori facultatif */
     if (len - i > 0)
     {
-        tmp_len = mysql_lcb(&buf[i], &size, &nul, len - i);
+        tmp_len = mysql_length_coded_binary(&buf[i], &size, &nul, len - i);
         if (tmp_len == -1)
         {
             return -SW_MYSQL_ERR_BAD_LCB;
@@ -550,7 +478,7 @@ static int mysql_decode_field(char *buf, int len, mysql_field *col)
     return wh - buf;
 }
 
-static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
+static sw_inline int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
 {
     int read_n = 0, i;
     int tmp_len;
@@ -565,14 +493,14 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
     char mem;
 #endif
 
-    zval * result_array = client->result_array;
+    zval * result_array = client->response.result_array;
     zval *row_array;
     SW_ALLOC_INIT_ZVAL(row_array);
     array_init(row_array);
 
-    for (i = 0; i < client->num_column; i++)
+    for (i = 0; i < client->response.num_column; i++)
     {
-        tmp_len = mysql_lcb(&buf[read_n], &len, &nul, packet_len - read_n);
+        tmp_len = mysql_length_coded_binary(&buf[read_n], &len, &nul, packet_len - read_n);
         if (tmp_len == -1)
         {
             return -SW_MYSQL_ERR_BAD_LCB;
@@ -589,11 +517,11 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
             continue;
         }
 
-        int type = client->columns[i].type;
+        int type = client->response.columns[i].type;
         switch (type)
         {
         case MYSQL_TYPE_NULL:
-            add_assoc_null(row_array, client->columns[i].name);
+            add_assoc_null(row_array, client->response.columns[i].name);
             break;
         /* String */
         case MYSQL_TYPE_TINY_BLOB:
@@ -613,7 +541,7 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
         case MYSQL_TYPE_TIMESTAMP:
         case MYSQL_TYPE_DATETIME:
         case MYSQL_TYPE_DATE:
-            sw_add_assoc_stringl(row_array, client->columns[i].name, buf + read_n, len, 1);
+            sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
             break;
         /* Integer */
         case MYSQL_TYPE_TINY:
@@ -628,9 +556,9 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
             {
                 return -SW_MYSQL_ERR_CONVLONG;
             }
-            add_assoc_long(row_array, client->columns[i].name, row.sint);
+            add_assoc_long(row_array, client->response.columns[i].name, row.sint);
 #else
-            sw_add_assoc_stringl(row_array, client->columns[i].name, buf + read_n, len, 1);
+            sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
 #endif
             break;
         case MYSQL_TYPE_LONGLONG:
@@ -642,9 +570,9 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
             {
                 return -SW_MYSQL_ERR_CONVLONG;
             }
-            add_assoc_long(row_array, client->columns[i].name, row.sbigint);
+            add_assoc_long(row_array, client->response.columns[i].name, row.sbigint);
 #else
-            sw_add_assoc_stringl(row_array, client->columns[i].name, buf + read_n, len, 1);
+            sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
 #endif
             break;
 
@@ -657,9 +585,9 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
             {
                 return -SW_MYSQL_ERR_CONVFLOAT;
             }
-            add_assoc_double(row_array, client->columns[i].name, row.mfloat);
+            add_assoc_double(row_array, client->response.columns[i].name, row.mfloat);
 #else
-            sw_add_assoc_stringl(row_array, client->columns[i].name, buf + read_n, len, 1);
+            sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
 #endif
             break;
 
@@ -672,9 +600,9 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
             {
                 return -SW_MYSQL_ERR_CONVDOUBLE;
             }
-            add_assoc_double(row_array, client->columns[i].name, row.mdouble);
+            add_assoc_double(row_array, client->response.columns[i].name, row.mdouble);
 #else
-            sw_add_assoc_stringl(row_array, client->columns[i].name, buf + read_n, len, 1);
+            sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
 #endif
             break;
         }
@@ -685,163 +613,293 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
     return read_n;
 }
 
-static int mysql_decode(mysql_client *client)
+static sw_inline int mysql_read_eof(mysql_client *client, char *buffer, int n_buf)
+{
+    //EOF, length (3byte) + id(1byte) + 0xFE + warning(2byte) + status(2byte)
+    if (n_buf < 9)
+    {
+        client->response.wait_recv = 1;
+        return SW_ERR;
+    }
+
+    client->response.packet_length = mysql_uint3korr(buffer);
+    client->response.packet_number = buffer[3];
+
+    //not EOF packet
+    uint8_t eof = buffer[4];
+    if (eof != 0xfe)
+    {
+        return SW_ERR;
+    }
+
+    client->response.warnings = mysql_uint2korr(buffer + 5);
+    client->response.status_code = mysql_uint2korr(buffer + 7);
+
+    return SW_OK;
+}
+
+static sw_inline int mysql_read_columns(mysql_client *client)
 {
     int i;
     char *buffer = client->buffer->str + client->buffer->offset;
     uint32_t n_buf = client->buffer->length - client->buffer->offset;
-    uint32_t n_read = 1;
-    int pkg_length;
-    int pkg_id;
-
     int ret;
-    char nul;
 
-    client->opcode = buffer[0];
-
-    /* error */
-    if (client->opcode == 255)
+    for (i = client->response.packet_number - 1; i < client->response.num_column; i++)
     {
-        if (client->packet_length > 3)
+        client->response.packet_length = mysql_uint3korr(buffer);
+        client->response.packet_number = buffer[3];
+        buffer += 4;
+        n_buf -= 4;
+
+        //no enough data
+        if (n_buf < client->response.packet_length)
         {
-            for (i = 3; i < 3 + 5; i++)
-            {
-                buffer[i] = buffer[i + 1];
-            }
-            buffer[8] = ' ';
-            client->error_str = &buffer[3];
-            buffer[client->packet_length] = '\0';
-            client->error_code = SW_MYSQL_ERR_MYSQL_ERROR;
+            wait_recv: client->buffer->offset += buffer - (client->buffer->str + client->buffer->offset);
+            client->response.wait_recv = 1;
+            return SW_ERR;
+        }
+
+        ret = mysql_decode_field(buffer, client->response.packet_length, &client->response.columns[i]);
+        if (ret > 0)
+        {
+            buffer += client->response.packet_length;
+            n_buf -= client->response.packet_length;
         }
         else
         {
-            client->error_code = SW_MYSQL_ERR_UNKNOWN_ERROR;
+            break;
         }
-        return SW_ERR;
     }
-    else if (client->opcode == 254)
+
+    if (mysql_read_eof(client, buffer, n_buf) < 0)
     {
-        client->warnings = mysql_uint2korr(buffer + 1);
-        client->status = mysql_uint2korr(buffer + 3);
-        client->eof = 1;
-        return SW_ERR;
+        goto wait_recv;
     }
-    /* success */
-    else if (client->opcode == 0)
+
+    buffer += 9;
+    n_buf -= 9;
+
+    zval *result_array = client->response.result_array;
+    if (!result_array)
     {
-        buffer++;
-
-        /* affected rows */
-        ret = mysql_lcb(buffer, (ulong_t *) &client->affected_rows, &nul, n_buf);
-        n_buf -= ret;
-        buffer += ret;
-        n_read += ret;
-
-        /* insert id */
-        ret = mysql_lcb(buffer, (ulong_t *) &client->insert_id, &nul, n_buf);
-        n_buf -= ret;
-        buffer += ret;
-        n_read += ret;
-
-        /* server status */
-        client->status = mysql_uint2korr(buffer);
-        buffer += 2;
-        n_read += 2;
-
-        /* server warnings */
-        client->warnings = mysql_uint2korr(buffer);
-        client->buffer->offset += n_read;
-
-        return SW_OK;
+        SW_ALLOC_INIT_ZVAL(result_array);
+        array_init(result_array);
+        client->response.result_array = result_array;
     }
-    /* select query */
-    else
+    client->buffer->offset += buffer - (client->buffer->str + client->buffer->offset);
+
+    return SW_OK;
+}
+
+static sw_inline int mysql_read_rows(mysql_client *client)
+{
+    char *buffer = client->buffer->str + client->buffer->offset;
+    uint32_t n_buf = client->buffer->length - client->buffer->offset;
+    int ret;
+
+    //RecordSet parse
+    while (n_buf > 0)
     {
-        int n_cols = buffer[0];
-        buffer ++;
-        n_buf --;
-
-        client->num_column = n_cols;
-        client->columns = ecalloc(n_cols, sizeof(mysql_field));
-
-        for (i = 0; i < n_cols; i++)
+        if (n_buf < 4)
         {
-            pkg_length = mysql_uint3korr(buffer);
-            pkg_id = buffer[3];
-            buffer += 4;
-            n_buf -= 4;
-
-            ret = mysql_decode_field(buffer, pkg_length, &client->columns[i]);
-            if (ret > 0)
-            {
-                buffer += pkg_length;
-                n_buf -= pkg_length;
-            }
-            else
-            {
-                break;
-            }
+            client->response.wait_recv = 1;
+            return SW_ERR;
+        }
+        else if (n_buf == 9 && mysql_read_eof(client, buffer, n_buf) == 0)
+        {
+            return SW_OK;
         }
 
-        //EOF, length (3byte) + id(1byte) + 0xFE + warning(2byte) + status(2byte)
-        buffer += 9;
-        n_buf -= 9;
-
-        zval *result_array = client->result_array;
-        if (!result_array)
-        {
-            SW_ALLOC_INIT_ZVAL(result_array);
-            array_init(result_array);
-            client->result_array = result_array;
-        }
-
-        //RecordSet parse
-        while (n_buf > 0)
-        {
-            pkg_length = mysql_uint3korr(buffer);
-            pkg_id = buffer[3];
-            buffer += 4;
-            n_buf -= 4;
-            //EOF
-            if (buffer[0] == 0xFE)
-            {
-                break;
-            }
-            //decode
-            ret = mysql_decode_row(client, buffer, pkg_length);
-            if (ret < 0)
-            {
-                break;
-            }
-            //next row
-            client->num_row ++;
-            buffer += pkg_length;
-            n_buf -= pkg_length;
-        }
-
+        client->response.packet_length = mysql_uint3korr(buffer);
+        client->response.packet_number = buffer[3];
         buffer += 4;
-        return SW_OK;
+        n_buf -= 4;
+
+        //no enough data
+        if (n_buf < client->response.packet_length)
+        {
+            client->response.wait_recv = 1;
+            return SW_ERR;
+        }
+
+        //decode
+        ret = mysql_decode_row(client, buffer, client->response.packet_length);
+        if (ret < 0)
+        {
+            break;
+        }
+
+        //next row
+        client->response.num_row++;
+        buffer += client->response.packet_length;
+        n_buf -= client->response.packet_length;
+        client->buffer->offset += client->response.packet_length + 4;
     }
 
     return SW_ERR;
 }
 
+static swString *mysql_request_buffer = NULL;
+
+void swoole_mysql_init(int module_number TSRMLS_DC)
+{
+    mysql_request_buffer = swString_new(65536);
+}
+
+static int mysql_request(swString *sql, swString *buffer)
+{
+    bzero(buffer->str, 5);
+    //length
+    mysql_pack_length(sql->length + 1, buffer->str);
+    //command
+    buffer->str[4] = SW_MYSQL_COM_QUERY;
+    buffer->length = 5;
+    return swString_append(buffer, sql);
+}
+
+static int mysql_response(mysql_client *client)
+{
+    swString *buffer = client->buffer;
+
+    char *p = buffer->str + buffer->offset;
+    int ret;
+    char nul;
+    int n_buf = buffer->length - buffer->offset;
+    char flag;
+
+    while (n_buf > 0)
+    {
+        switch (client->response.state)
+        {
+        case SW_MYSQL_STATE_READ_START:
+            if (buffer->length - buffer->offset < 5)
+            {
+                client->response.wait_recv = 1;
+                return SW_ERR;
+            }
+            client->response.packet_length = mysql_uint3korr(p);
+            client->response.packet_number = p[3];
+            client->response.response_type = p[4];
+            p += 5;
+            n_buf -= 5;
+
+            /* error */
+            if (client->response.response_type == 0xFF)
+            {
+                if (n_buf < 8)
+                {
+                    client->response.wait_recv = 1;
+                    return SW_ERR;
+                }
+                client->response.error_code = mysql_uint2korr(p);
+                flag = *(p + 2);
+                memcpy(client->response.status_msg, p + 3, 5);
+                client->response.server_msg = p + 8;
+                client->response.state = SW_MYSQL_STATE_READ_END;
+                return SW_OK;
+            }
+            /* eof */
+            else if (client->response.response_type == 254)
+            {
+                if (n_buf < 4)
+                {
+                    client->response.wait_recv = 1;
+                    return SW_ERR;
+                }
+                client->response.warnings = mysql_uint2korr(p);
+                client->response.status_code = mysql_uint2korr(p + 2);
+                client->response.state = SW_MYSQL_STATE_READ_END;
+                return SW_ERR;
+            }
+            /* ok */
+            else if (client->response.response_type == 0)
+            {
+                if (n_buf < 8)
+                {
+                    client->response.wait_recv = 1;
+                    return SW_ERR;
+                }
+
+                /* affected rows */
+                ret = mysql_length_coded_binary(p, (ulong_t *) &client->response.affected_rows, &nul, n_buf);
+                n_buf -= ret;
+                p += ret;
+
+                /* insert id */
+                ret = mysql_length_coded_binary(p, (ulong_t *) &client->response.insert_id, &nul, n_buf);
+                n_buf -= ret;
+                p += ret;
+
+                /* server status */
+                client->response.status_code = mysql_uint2korr(p);
+                n_buf -= 2;
+                p += 2;
+
+                /* server warnings */
+                client->response.warnings = mysql_uint2korr(p);
+
+                client->response.state = SW_MYSQL_STATE_READ_END;
+                return SW_OK;
+            }
+            /* result set */
+            else
+            {
+                client->buffer->offset += 5;
+                client->response.num_column = client->response.response_type;
+                client->response.columns = ecalloc(client->response.num_column, sizeof(mysql_field));
+                client->response.state = SW_MYSQL_RDST_READ_FIELD;
+                break;
+            }
+
+        case SW_MYSQL_RDST_READ_FIELD:
+            if (mysql_read_columns(client) < 0)
+            {
+                return SW_ERR;
+            }
+            else
+            {
+                SW_ALLOC_INIT_ZVAL(client->response.result_array);
+                array_init(client->response.result_array);
+                client->response.state = SW_MYSQL_RDST_READ_ROW;
+                break;
+            }
+
+        case SW_MYSQL_RDST_READ_ROW:
+            if (mysql_read_rows(client) < 0)
+            {
+                return SW_ERR;
+            }
+            else
+            {
+                client->response.state = SW_MYSQL_STATE_READ_END;
+                return SW_OK;
+            }
+
+        default:
+            return SW_ERR;
+        }
+    }
+
+    return SW_OK;
+}
+
 static void mysql_client_info(mysql_client *client)
 {
-    printf("\n"SW_START_LINE"\nmysql_client\nbuffer->offset=%ld\nbuffer->length=%d\nstatus=%d\n"
+    printf("\n"SW_START_LINE"\nmysql_client\nbuffer->offset=%ld\nbuffer->length=%ld\nstatus=%d\n"
             "packet_length=%d\npacket_number=%d\n"
             "insert_id=%d\naffected_rows=%d\n"
-            "warnings=%d\n"SW_END_LINE, client->buffer->offset, client->buffer->length, client->status,
-            client->packet_length, client->packet_number,
-            client->insert_id, client->affected_rows,
-            client->warnings);
+            "warnings=%d\n"SW_END_LINE, client->buffer->offset, client->buffer->length, client->response.status_code,
+            client->response.packet_length, client->response.packet_number,
+            client->response.insert_id, client->response.affected_rows,
+            client->response.warnings);
     int i;
 
-    if (client->num_column)
+    if (client->response.num_column)
     {
-        for (i = 0; i < client->num_column; i++)
+        for (i = 0; i < client->response.num_column; i++)
         {
-            mysql_column_info(&client->columns[i]);
+            mysql_column_info(&client->response.columns[i]);
         }
     }
 }
@@ -867,9 +925,10 @@ PHP_FUNCTION(swoole_get_mysqli_sock)
         return;
     }
 
-    int sock;
+    int sock = -1;
     mysql_get_socket(mysql_link, return_value, &sock TSRMLS_CC);
-    if (sock < 0)
+
+    if (sock <= 0)
     {
         RETURN_FALSE;
     }
@@ -901,7 +960,7 @@ PHP_FUNCTION(swoole_mysql_query)
     int sock;
     mysql_get_socket(mysql_link, return_value, &sock TSRMLS_CC);
 
-    if (sock < 0)
+    if (sock <= 0)
     {
         RETURN_FALSE;
     }
@@ -955,43 +1014,52 @@ PHP_FUNCTION(swoole_mysql_get_result)
                 continue;
             }
 #ifdef HAVE_KQUEUE
-            else if(errno == EAGAIN || error == ENOBUFS)
+            else if (errno == EAGAIN || error == ENOBUFS)
 #endif
-            else if(errno == EAGAIN)
+            else if (errno == EAGAIN)
             {
-                if (mysql_response(client) < 0)
-                {
-                    RETURN_FALSE;
-                }
-                else
-                {
-                    if (client->opcode == 0)
-                    {
-                        zend_class_entry* class_entry = zend_get_class_entry(mysql_link TSRMLS_CC);
-                        zend_update_property_long(class_entry, mysql_link, ZEND_STRL("_affected_rows"), client->affected_rows TSRMLS_CC);
-                        zend_update_property_long(class_entry, mysql_link, ZEND_STRL("_insert_id"), client->insert_id TSRMLS_CC);
-                        RETURN_TRUE;
-                    }
-                    else
-                    {
-                        RETURN_ZVAL(client->result_array, 0, 0);
-                    }
-                }
+                goto parse_response;
             }
         }
         else if (ret == 0)
         {
 
         }
-        //recv again
         else
         {
             buffer->length += ret;
+            //recv again
             if (buffer->length == buffer->size)
             {
                 if (swString_extend(buffer, buffer->size * 2) < 0)
                 {
                     RETURN_FALSE;
+                }
+                continue;
+            }
+            else
+            {
+                parse_response:
+                if (mysql_response(client) < 0)
+                {
+                    RETURN_FALSE;
+                }
+                else
+                {
+                    if (client->response.response_type == 0)
+                    {
+                        zend_class_entry* class_entry = zend_get_class_entry(mysql_link TSRMLS_CC);
+                        zend_update_property_long(class_entry, mysql_link, ZEND_STRL("_affected_rows"), client->response.affected_rows TSRMLS_CC);
+                        zend_update_property_long(class_entry, mysql_link, ZEND_STRL("_insert_id"), client->response.insert_id TSRMLS_CC);
+                        RETURN_TRUE;
+                    }
+                    else
+                    {
+                        RETURN_ZVAL(client->response.result_array, 0, 0);
+                        swString_clear(client->buffer);
+                        efree(client->response.columns);
+                        bzero(&client->response, sizeof(client->response));
+                    }
                 }
             }
         }
