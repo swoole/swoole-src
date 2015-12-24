@@ -169,9 +169,12 @@
                     <file role="src" name="interval.php" />
                     <file role="src" name="tick.php" />
                 </dir>
+                <dir name="mysql">
+                    <file role="src" name="async_mysql2.php" />
+                    <file role="src" name="real_async.php" />
+                </dir>
 				<file role="src" name="server.php" />
 				<file role="src" name="mysql_proxy_server.php" />
-				<file role="src" name="async_mysql2.php" />
 				<file role="src" name="proxy.php" />
 				<file role="src" name="proxy_sync.php" />
 				<file role="src" name="timer.php" />
@@ -196,6 +199,7 @@
 			<file role="src" name="swoole_http.h" />
 			<file role="src" name="swoole_websocket.c" />
 			<file role="src" name="swoole_atomic.c" />
+			<file role="src" name="swoole_mysql.c" />
 			<dir name="thirdparty">
 				<file role="src" name="php_http_parser.c" />
 				<file role="src" name="php_http_parser.h" />
