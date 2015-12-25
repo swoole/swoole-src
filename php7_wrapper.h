@@ -228,6 +228,7 @@ static inline char * sw_php_url_encode(char *value, size_t value_len, int* exten
 #define SW_ZVAL_STRINGL(z, s, l, dup)         ZVAL_STRINGL(z, s, l)
 #define SW_ZVAL_STRING(z,s,dup)               ZVAL_STRING(z,s)
 #define sw_smart_str                          smart_string
+#define zend_get_class_entry                  Z_OBJCE_P
 
 static inline zval* sw_zend_read_property(zend_class_entry *class_ptr, zval *obj, char *s, int len, int silent)
 {

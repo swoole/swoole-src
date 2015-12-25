@@ -984,16 +984,15 @@ PHP_FUNCTION(swoole_mysql_query)
         {
             SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_SWOOLE_MYSQL | SW_EVENT_READ, swoole_mysql_onRead);
         }
-
-        if (SwooleG.main_reactor->add(SwooleG.main_reactor, sock, SW_FD_SWOOLE_MYSQL | SW_EVENT_READ) < 0)
-        {
-            swoole_php_fatal_error(E_WARNING, "swoole_event_add failed.");
-            RETURN_FALSE;
-        }
-
         swConnection *socket = swReactor_get(SwooleG.main_reactor, sock);
         socket->active = 1;
+#if PHP_MAJOR_VERSION >= 7
+        zval *new_zval = emalloc(sizeof(zval));
+        ZVAL_COPY(new_zval, mysql_link);
+        socket->object = new_zval;
+#else
         socket->object = mysql_link;
+#endif
     }
     else if (client->state != SW_MYSQL_STATE_QUERY)
     {
@@ -1015,7 +1014,12 @@ PHP_FUNCTION(swoole_mysql_query)
     {
         RETURN_FALSE;
     }
-
+    //add to eventloop
+    if (SwooleG.main_reactor->add(SwooleG.main_reactor, sock, SW_FD_SWOOLE_MYSQL | SW_EVENT_READ) < 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "swoole_event_add failed.");
+        RETURN_FALSE;
+    }
     //send query
     if (SwooleG.main_reactor->write(SwooleG.main_reactor, sock, mysql_request_buffer->str, mysql_request_buffer->length) < 0)
     {
@@ -1054,9 +1058,6 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             {
                 continue;
             }
-#ifdef HAVE_KQUEUE
-            else if (errno == EAGAIN || error == ENOBUFS)
-#endif
             else
             {
                 switch (swConnection_error(errno))
@@ -1120,7 +1121,10 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
                 return SW_OK;
             }
 
-            zend_class_entry* class_entry = zend_get_class_entry(mysql_link TSRMLS_CC);
+            //remove from eventloop
+            reactor->del(reactor, event->fd);
+
+            zend_class_entry *class_entry = zend_get_class_entry(mysql_link TSRMLS_CC);
             zend_update_property_long(class_entry, mysql_link, ZEND_STRL("_affected_rows"), client->response.affected_rows TSRMLS_CC);
             zend_update_property_long(class_entry, mysql_link, ZEND_STRL("_insert_id"), client->response.insert_id TSRMLS_CC);
             client->state = SW_MYSQL_STATE_QUERY;
@@ -1130,14 +1134,14 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             //OK
             if (client->response.response_type == 0)
             {
-                SW_MAKE_STD_ZVAL(result);
+                SW_ALLOC_INIT_ZVAL(result);
                 ZVAL_BOOL(result, 1);
                 args[1] = &result;
             }
             //ERROR
             else if (client->response.response_type == 255)
             {
-                SW_MAKE_STD_ZVAL(result);
+                SW_ALLOC_INIT_ZVAL(result);
                 ZVAL_BOOL(result, 0);
                 args[1] = &result;
 
