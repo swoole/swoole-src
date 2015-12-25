@@ -25,6 +25,7 @@
 #include "ext/mysqli/php_mysqli_structs.h"
 
 //#define SW_MYSQL_STRICT_TYPE
+//#define SW_MYSQL_DEBUG
 
 enum mysql_command
 {
@@ -214,8 +215,10 @@ typedef struct
                   (((uint32_t) ((uint32_t) (A)[2])) << 16))
 
 static int mysql_request(swString *sql, swString *buffer);
+#ifdef SW_MYSQL_DEBUG
 static void mysql_client_info(mysql_client *client);
 static void mysql_column_info(mysql_field *field);
+#endif
 static int mysql_decode_field(char *buf, int len, mysql_field *col);
 static int mysql_decode_row(mysql_client *client, char *buf, int packet_len);
 static int swoole_mysql_onRead(swReactor *reactor, swEvent *event);
@@ -424,7 +427,9 @@ static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
 
     /* check len */
     if (i + 13 > len)
+    {
         return -SW_MYSQL_ERR_LEN_OVER_BUFFER;
+    }
 
     /* (filler) */
     i += 1;
@@ -888,6 +893,8 @@ static int mysql_response(mysql_client *client)
     return SW_OK;
 }
 
+#ifdef SW_MYSQL_DEBUG
+
 static void mysql_client_info(mysql_client *client)
 {
     printf("\n"SW_START_LINE"\nmysql_client\nbuffer->offset=%ld\nbuffer->length=%ld\nstatus=%d\n"
@@ -920,6 +927,8 @@ static void mysql_column_info(mysql_field *field)
             field->length, field->type
            );
 }
+
+#endif
 
 PHP_FUNCTION(swoole_get_mysqli_sock)
 {
@@ -987,13 +996,10 @@ PHP_FUNCTION(swoole_mysql_query)
         socket->active = 1;
         socket->object = mysql_link;
     }
-    else
+    else if (client->state != SW_MYSQL_STATE_QUERY)
     {
-        if (client->state != SW_MYSQL_STATE_QUERY)
-        {
-            swoole_php_fatal_error(E_WARNING, "mysql client is waiting response, cannot send new sql query.");
-            RETURN_FALSE;
-        }
+        swoole_php_fatal_error(E_WARNING, "mysql client is waiting response, cannot send new sql query.");
+        RETURN_FALSE;
     }
 
 #if PHP_MAJOR_VERSION < 7
@@ -1052,38 +1058,48 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
 #ifdef HAVE_KQUEUE
             else if (errno == EAGAIN || error == ENOBUFS)
 #endif
-            else if (errno == EAGAIN)
+            else
             {
-                goto parse_response;
+                switch (swConnection_error(errno))
+                {
+                case SW_ERROR:
+                    swSysError("Read from socket[%d] failed.", event->fd);
+                    return SW_ERR;
+                case SW_CLOSE:
+                    goto close_fd;
+                case SW_WAIT:
+                    goto parse_response;
+                default:
+                    return SW_ERR;
+                }
             }
         }
         else if (ret == 0)
         {
+            close_fd:
             if (client->state == SW_MYSQL_STATE_READ_END)
             {
                 goto parse_response;
             }
-            else
+
+            zval *result;
+            SW_MAKE_STD_ZVAL(result);
+            ZVAL_BOOL(result, 0);
+
+            args[0] = &mysql_link;
+            args[1] = &result;
+
+            if (sw_call_user_function_ex(EG(function_table), NULL, client->callback, &retval, 2, args, 0, NULL TSRMLS_CC) != SUCCESS)
             {
-                zval *result;
-                SW_MAKE_STD_ZVAL(result);
-                ZVAL_BOOL(result, 0);
-
-                args[0] = &mysql_link;
-                args[1] = &result;
-
-                if (sw_call_user_function_ex(EG(function_table), NULL, client->callback, &retval, 2, args, 0, NULL TSRMLS_CC) != SUCCESS)
-                {
-                    swoole_php_fatal_error(E_WARNING, "swoole_async_mysql callback handler error.");
-                    reactor->del(SwooleG.main_reactor, event->fd);
-                }
-                if (retval != NULL)
-                {
-                    sw_zval_ptr_dtor(&retval);
-                }
-                sw_zval_ptr_dtor(&result);
-                return SW_OK;
+                swoole_php_fatal_error(E_WARNING, "swoole_async_mysql callback handler error.");
+                reactor->del(SwooleG.main_reactor, event->fd);
             }
+            if (retval != NULL)
+            {
+                sw_zval_ptr_dtor(&retval);
+            }
+            sw_zval_ptr_dtor(&result);
+            return SW_OK;
         }
         else
         {
@@ -1098,58 +1114,54 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
                 }
                 continue;
             }
+
+            parse_response:
+            if (mysql_response(client) < 0)
+            {
+                return SW_OK;
+            }
+
+            zend_class_entry* class_entry = zend_get_class_entry(mysql_link TSRMLS_CC);
+            zend_update_property_long(class_entry, mysql_link, ZEND_STRL("_affected_rows"), client->response.affected_rows TSRMLS_CC);
+            zend_update_property_long(class_entry, mysql_link, ZEND_STRL("_insert_id"), client->response.insert_id TSRMLS_CC);
+            client->state = SW_MYSQL_STATE_QUERY;
+
+            args[0] = &mysql_link;
+            if (client->response.response_type == 0)
+            {
+                SW_MAKE_STD_ZVAL(result);
+                ZVAL_BOOL(result, 1);
+                args[1] = &result;
+            }
             else
             {
-                parse_response:
-                if (mysql_response(client) < 0)
-                {
-                    return SW_OK;
-                }
-                else
-                {
-                    zend_class_entry* class_entry = zend_get_class_entry(mysql_link TSRMLS_CC);
-                    zend_update_property_long(class_entry, mysql_link, ZEND_STRL("_affected_rows"), client->response.affected_rows TSRMLS_CC);
-                    zend_update_property_long(class_entry, mysql_link, ZEND_STRL("_insert_id"), client->response.insert_id TSRMLS_CC);
-                    client->state = SW_MYSQL_STATE_QUERY;
-
-                    args[0] = &mysql_link;
-                    if (client->response.response_type == 0)
-                    {
-                        SW_MAKE_STD_ZVAL(result);
-                        ZVAL_BOOL(result, 1);
-                        args[1] = &result;
-                    }
-                    else
-                    {
-                        args[1] = &client->response.result_array;
-                    }
-
-                    if (sw_call_user_function_ex(EG(function_table), NULL, client->callback, &retval, 2, args, 0, NULL TSRMLS_CC) != SUCCESS)
-                    {
-                        swoole_php_fatal_error(E_WARNING, "swoole_async_mysql callback handler error.");
-                        reactor->del(SwooleG.main_reactor, event->fd);
-                    }
-
-                    /* free memory */
-                    if (retval)
-                    {
-                        sw_zval_ptr_dtor(&retval);
-                    }
-                    if (result)
-                    {
-                        sw_zval_ptr_dtor(&result);
-                    }
-                    if (client->response.result_array)
-                    {
-                        sw_zval_ptr_dtor(&client->response.result_array);
-                    }
-
-                    swString_clear(client->buffer);
-                    efree(client->response.columns);
-                    bzero(&client->response, sizeof(client->response));
-                    return SW_OK;
-                }
+                args[1] = &client->response.result_array;
             }
+
+            if (sw_call_user_function_ex(EG(function_table), NULL, client->callback, &retval, 2, args, 0, NULL TSRMLS_CC) != SUCCESS)
+            {
+                swoole_php_fatal_error(E_WARNING, "swoole_async_mysql callback handler error.");
+                reactor->del(SwooleG.main_reactor, event->fd);
+            }
+
+            /* free memory */
+            if (retval)
+            {
+                sw_zval_ptr_dtor(&retval);
+            }
+            if (result)
+            {
+                sw_zval_ptr_dtor(&result);
+            }
+            if (client->response.result_array)
+            {
+                sw_zval_ptr_dtor(&client->response.result_array);
+            }
+
+            swString_clear(client->buffer);
+            efree(client->response.columns);
+            bzero(&client->response, sizeof(client->response));
+            return SW_OK;
         }
     }
     return SW_OK;
