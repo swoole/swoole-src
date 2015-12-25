@@ -152,9 +152,11 @@ static sw_inline void swTableRow_set_value(swTableRow *row, swTableColumn * col,
     case SW_TABLE_INT32:
         memcpy(row->data + col->index, value, 4);
         break;
+#ifdef __x86_64__
     case SW_TABLE_INT64:
         memcpy(row->data + col->index, value, 8);
         break;
+#endif
     case SW_TABLE_FLOAT:
         memcpy(row->data + col->index, value, sizeof(double));
         break;
