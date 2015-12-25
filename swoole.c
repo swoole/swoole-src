@@ -263,6 +263,16 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_del, 0, 0, 1)
     ZEND_ARG_INFO(0, interval)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_query, 0, 0, 3)
+    ZEND_ARG_INFO(0, db_link)
+    ZEND_ARG_INFO(0, sql)
+    ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_get_mysqli_sock, 0, 0, 1)
+    ZEND_ARG_INFO(0, db_link)
+ZEND_END_ARG_INFO()
+
 //arginfo end
 
 #include "zend_exceptions.h"
@@ -319,9 +329,8 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_errno, NULL)
     /*------async mysql-----*/
 #ifdef SW_ASYNC_MYSQL
-    PHP_FE(swoole_get_mysqli_sock, NULL)
-    PHP_FE(swoole_mysql_query, NULL)
-    PHP_FE(swoole_mysql_get_result, NULL)
+    PHP_FE(swoole_mysql_query, arginfo_swoole_mysql_query)
+    PHP_FE(swoole_get_mysqli_sock, arginfo_swoole_get_mysqli_sock)
 #endif
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };

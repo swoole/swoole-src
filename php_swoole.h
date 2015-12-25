@@ -165,6 +165,12 @@ extern swoole_object_array swoole_objects;
 #define SW_FLAG_ASYNC                       (1u << 10)
 #define SW_FLAG_SYNC                        (1u << 11)
 //---------------------------------------------------------
+enum php_swoole_fd_type
+{
+    SW_FD_SWOOLE_CLIENT = SW_FD_USER + 1,
+    SW_FD_SWOOLE_MYSQL,
+};
+
 #define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL))
 #define php_swoole_array_length(array)      (Z_ARRVAL_P(array)->nNumOfElements)
 
@@ -277,7 +283,6 @@ PHP_FUNCTION(swoole_errno);
 #ifdef SW_ASYNC_MYSQL
 PHP_FUNCTION(swoole_get_mysqli_sock);
 PHP_FUNCTION(swoole_mysql_query);
-PHP_FUNCTION(swoole_mysql_get_result);
 #endif
 
 PHP_FUNCTION(swoole_client_select);
