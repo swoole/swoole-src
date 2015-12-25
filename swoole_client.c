@@ -49,7 +49,6 @@ static PHP_METHOD(swoole_client, getSocket);
 static int client_select_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_DC);
 static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC);
 static int client_close(zval *zobject, int fd TSRMLS_DC);
-static void client_free(zval *object, swClient *cli);
 
 static int client_onRead(swReactor *reactor, swEvent *event);
 static int client_onPackage(swConnection *conn, char *data, uint32_t length);
@@ -159,6 +158,7 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
 
         cli->socket->active = 0;
         cli->socket->closed = 1;
+
         client_callback *cb = swoole_get_property(zobject, 0);
         zcallback = cb->onClose;
         if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
@@ -183,17 +183,7 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
             sw_zval_ptr_dtor(&retval);
         }
     }
-    sw_zval_ptr_dtor(&zobject);
-    return SW_OK;
-}
 
-static void client_free(zval *object, swClient *cli)
-{
-    if (!cli)
-    {
-        return;
-    }
-    swoole_set_object(object, NULL);
     if (!cli->keep)
     {
         if (cli->socket->fd != 0)
@@ -201,7 +191,10 @@ static void client_free(zval *object, swClient *cli)
             cli->close(cli);
         }
         efree(cli);
+        swoole_set_object(zobject, NULL);
     }
+
+    return SW_OK;
 }
 
 static int client_onRead(swReactor *reactor, swEvent *event)
@@ -985,11 +978,12 @@ static PHP_METHOD(swoole_client, __construct)
 static PHP_METHOD(swoole_client, __destruct)
 {
     swClient *cli = swoole_get_object(getThis());
-    if (cli)
+    if (cli && cli->socket)
     {
-        client_free(getThis(), cli);
+        client_close(getThis(), cli->socket->fd TSRMLS_CC);
     }
 
+    //free memory
     client_callback *cb = swoole_get_property(getThis(), 0);
     if (cb)
     {
