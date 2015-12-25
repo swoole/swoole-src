@@ -994,11 +994,6 @@ PHP_FUNCTION(swoole_mysql_query)
             swoole_php_fatal_error(E_WARNING, "mysql client is waiting response, cannot send new sql query.");
             RETURN_FALSE;
         }
-        //free the old callback
-        if (client->callback != NULL)
-        {
-            sw_zval_ptr_dtor(&client->callback);
-        }
     }
 
 #if PHP_MAJOR_VERSION < 7
@@ -1009,8 +1004,8 @@ PHP_FUNCTION(swoole_mysql_query)
 #endif
 
     sw_zval_add_ref(&client->callback);
-
     swString_clear(mysql_request_buffer);
+
     if (mysql_request(&sql, mysql_request_buffer) < 0)
     {
         RETURN_FALSE;
@@ -1042,8 +1037,8 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
     int ret;
 
     zval **args[2];
-    zval *retval;
-    zval *result;
+    zval *retval = NULL;
+    zval *result = NULL;
 
     while(1)
     {
@@ -1115,9 +1110,9 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
                     zend_class_entry* class_entry = zend_get_class_entry(mysql_link TSRMLS_CC);
                     zend_update_property_long(class_entry, mysql_link, ZEND_STRL("_affected_rows"), client->response.affected_rows TSRMLS_CC);
                     zend_update_property_long(class_entry, mysql_link, ZEND_STRL("_insert_id"), client->response.insert_id TSRMLS_CC);
+                    client->state = SW_MYSQL_STATE_QUERY;
 
                     args[0] = &mysql_link;
-
                     if (client->response.response_type == 0)
                     {
                         SW_MAKE_STD_ZVAL(result);
@@ -1135,22 +1130,20 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
                         reactor->del(SwooleG.main_reactor, event->fd);
                     }
 
+                    /* free memory */
                     if (retval)
                     {
                         sw_zval_ptr_dtor(&retval);
                     }
-
                     if (result)
                     {
                         sw_zval_ptr_dtor(&result);
                     }
-
                     if (client->response.result_array)
                     {
                         sw_zval_ptr_dtor(&client->response.result_array);
                     }
 
-                    client->state = SW_MYSQL_STATE_QUERY;
                     swString_clear(client->buffer);
                     efree(client->response.columns);
                     bzero(&client->response, sizeof(client->response));
