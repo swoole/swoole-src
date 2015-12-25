@@ -13,11 +13,14 @@ $db->connect('10.10.2.205', 'root', '', 'msg_push', 3500);
 $sql = "SELECT id,device_token,os from ec_push_token where 1 and app_key='QueryViolations' and os=2 and version >='5.0.0' and id > 0 limit 10000";
 $s = microtime(true);
 
-swoole_mysql_query($db, $sql, function($mysqli, $r) {
+swoole_mysql_query($db, $sql, function($db, $r) {
     global $s;
     echo "count=".count($r).", time=".(microtime(true) - $s), "\n";
     //var_dump($r);
-    exit(0);
+    swoole_mysql_query($db, "show tables", function($db, $r) {
+        var_dump($r);
+        exit(0);
+    });
 });
 //
 //$db->query($sql, MYSQLI_ASYNC);

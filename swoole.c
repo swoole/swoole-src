@@ -263,6 +263,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_del, 0, 0, 1)
     ZEND_ARG_INFO(0, interval)
 ZEND_END_ARG_INFO()
 
+#ifdef SW_ASYNC_MYSQL
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_query, 0, 0, 3)
     ZEND_ARG_INFO(0, db_link)
     ZEND_ARG_INFO(0, sql)
@@ -272,6 +273,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_get_mysqli_sock, 0, 0, 1)
     ZEND_ARG_INFO(0, db_link)
 ZEND_END_ARG_INFO()
+#endif
 
 //arginfo end
 
@@ -637,7 +639,10 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_http_init(module_number TSRMLS_CC);
     swoole_buffer_init(module_number TSRMLS_CC);
     swoole_websocket_init(module_number TSRMLS_CC);
+
+#ifdef SW_ASYNC_MYSQL
     swoole_mysql_init(module_number TSRMLS_CC);
+#endif
 
     if (SWOOLE_G(socket_buffer_size) > 0)
     {
