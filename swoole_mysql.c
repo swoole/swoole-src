@@ -789,18 +789,22 @@ static int mysql_response(mysql_client *client)
             }
             client->response.packet_length = mysql_uint3korr(p);
             client->response.packet_number = p[3];
-            client->response.response_type = p[4];
-            p += 5;
-            n_buf -= 5;
+            p += 4;
+            n_buf -= 4;
+
+            if (n_buf < client->response.packet_length)
+            {
+                client->response.wait_recv = 1;
+                return SW_ERR;
+            }
+
+            client->response.response_type = p[0];
+            p ++;
+            n_buf --;
 
             /* error */
             if (client->response.response_type == 0xFF)
             {
-                if (n_buf < 8)
-                {
-                    client->response.wait_recv = 1;
-                    return SW_ERR;
-                }
                 client->response.error_code = mysql_uint2korr(p);
                 /* status flag 1byte (#), skip.. */
                 memcpy(client->response.status_msg, p + 3, 5);
@@ -811,11 +815,6 @@ static int mysql_response(mysql_client *client)
             /* eof */
             else if (client->response.response_type == 254)
             {
-                if (n_buf < 4)
-                {
-                    client->response.wait_recv = 1;
-                    return SW_ERR;
-                }
                 client->response.warnings = mysql_uint2korr(p);
                 client->response.status_code = mysql_uint2korr(p + 2);
                 client->state = SW_MYSQL_STATE_READ_END;
@@ -824,12 +823,6 @@ static int mysql_response(mysql_client *client)
             /* ok */
             else if (client->response.response_type == 0)
             {
-                if (n_buf < 8)
-                {
-                    client->response.wait_recv = 1;
-                    return SW_ERR;
-                }
-
                 /* affected rows */
                 ret = mysql_length_coded_binary(p, (ulong_t *) &client->response.affected_rows, &nul, n_buf);
                 n_buf -= ret;
@@ -963,7 +956,13 @@ PHP_FUNCTION(swoole_mysql_query)
         return;
     }
 
-    int sock;
+    if (sql.length <= 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "Query is empty.");
+        RETURN_FALSE;
+    }
+
+    int sock = -1;
     mysql_get_socket(mysql_link, return_value, &sock TSRMLS_CC);
     if (sock <= 0)
     {
@@ -1127,12 +1126,25 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             client->state = SW_MYSQL_STATE_QUERY;
 
             args[0] = &mysql_link;
+
+            //OK
             if (client->response.response_type == 0)
             {
                 SW_MAKE_STD_ZVAL(result);
                 ZVAL_BOOL(result, 1);
                 args[1] = &result;
             }
+            //ERROR
+            else if (client->response.response_type == 255)
+            {
+                SW_MAKE_STD_ZVAL(result);
+                ZVAL_BOOL(result, 0);
+                args[1] = &result;
+
+                zend_update_property_string(class_entry, mysql_link, ZEND_STRL("_error"), client->response.server_msg TSRMLS_CC);
+                zend_update_property_long(class_entry, mysql_link, ZEND_STRL("_errno"), client->response.error_code TSRMLS_CC);
+            }
+            //ResultSet
             else
             {
                 args[1] = &client->response.result_array;
@@ -1157,9 +1169,11 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             {
                 sw_zval_ptr_dtor(&client->response.result_array);
             }
-
             swString_clear(client->buffer);
-            efree(client->response.columns);
+            if (client->response.columns)
+            {
+                efree(client->response.columns);
+            }
             bzero(&client->response, sizeof(client->response));
             return SW_OK;
         }
