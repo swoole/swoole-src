@@ -19,9 +19,9 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 
-int swQueueMsg_in(swQueue *p, swQueue_data *in, int data_length);
-int swQueueMsg_out(swQueue *p, swQueue_data *out, int buffer_length);
-void swQueueMsg_free(swQueue *p);
+static int swQueueMsg_in(swQueue *p, swQueue_data *in, int data_length);
+static int swQueueMsg_out(swQueue *p, swQueue_data *out, int buffer_length);
+static void swQueueMsg_free(swQueue *p);
 
 typedef struct _swQueueMsg
 {
@@ -31,7 +31,7 @@ typedef struct _swQueueMsg
     long type;
 } swQueueMsg;
 
-void swQueueMsg_free(swQueue *p)
+static void swQueueMsg_free(swQueue *p)
 {
     swQueueMsg *object = p->object;
     if (object->delete)
@@ -89,7 +89,7 @@ int swQueueMsg_create(swQueue *p, int blocking, key_t msg_key, long type)
     return 0;
 }
 
-int swQueueMsg_out(swQueue *p, swQueue_data *data, int length)
+static int swQueueMsg_out(swQueue *p, swQueue_data *data, int length)
 {
     swQueueMsg *object = p->object;
 
@@ -99,7 +99,7 @@ int swQueueMsg_out(swQueue *p, swQueue_data *data, int length)
     return msgrcv(object->msg_id, data, length, type, flag);
 }
 
-int swQueueMsg_in(swQueue *p, swQueue_data *in, int length)
+static int swQueueMsg_in(swQueue *p, swQueue_data *in, int length)
 {
     int ret;
     swQueueMsg *object = p->object;

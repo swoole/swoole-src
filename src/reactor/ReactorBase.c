@@ -347,7 +347,7 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
             }
             else
             {
-                swWarn("pipe buffer overflow, reactor will block.");
+                swWarn("socket[fd=%d, type=%d] output buffer overflow, reactor will block.", fd, socket->fdtype);
                 swYield();
                 swSocket_wait(fd, SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
             }

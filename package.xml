@@ -31,11 +31,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2015-12-01</date>
-    <time>12:48:51</time>
+    <date>2015-12-28</date>
+    <time>19:48:51</time>
     <version>
-        <release>1.7.21</release>
-        <api>1.7.21</api>
+		<release>1.7.22</release>
+		<api>1.7.22</api>
     </version>
     <stability>
         <release>stable</release>
@@ -200,6 +200,7 @@
 			<file role="src" name="swoole_websocket.c" />
 			<file role="src" name="swoole_atomic.c" />
 			<file role="src" name="swoole_mysql.c" />
+			<file role="src" name="swoole_http_client.c" />
 			<dir name="thirdparty">
 				<file role="src" name="php_http_parser.c" />
 				<file role="src" name="php_http_parser.h" />
