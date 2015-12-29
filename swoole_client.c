@@ -121,12 +121,7 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
     }
 
     //long tcp connection, clear from php_sw_long_connections
-    zval *ztype = sw_zend_read_property(swoole_client_class_entry_ptr, zobject, SW_STRL("type")-1, 0 TSRMLS_CC);
-    if (ztype == NULL || ZVAL_IS_NULL(ztype))
-    {
-        swoole_php_fatal_error(E_WARNING, "get swoole_client->type failed.");
-    }
-    else if (Z_LVAL_P(ztype) & SW_FLAG_KEEP)
+    if (!cli->keep)
     {
         if (swHashMap_del(php_sw_long_connections, cli->server_str, cli->server_strlen))
         {
@@ -134,7 +129,6 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
         }
         sw_free(cli->server_str);
         pefree(cli, 1);
-        ZVAL_LONG(ztype, 0);
     }
     else
     {
@@ -1046,13 +1040,6 @@ static PHP_METHOD(swoole_client, connect)
     if (host_len <= 0)
     {
         swoole_php_fatal_error(E_WARNING, "The host is empty.");
-        RETURN_FALSE;
-    }
-
-    cli = swoole_get_object(getThis());
-    if (cli)
-    {
-        swoole_php_fatal_error(E_WARNING, "Operation now in progress.");
         RETURN_FALSE;
     }
 
