@@ -217,6 +217,7 @@
 					<file role="src" name="Channel.c" />
 					<file role="src" name="string.c" />
 					<file role="src" name="array.c" />
+					<file role="src" name="list.c" />
 				</dir>
 				<dir name="memory">
 					<file role="src" name="ShareMemory.c" />
@@ -244,9 +245,6 @@
 					<file role="src" name="PipeEventfd.c" />
 					<file role="src" name="PipeUnsock.c" />
 				</dir>
-				<dir name="queue">
-					<file role="src" name="Msg.c" />
-				</dir>
 				<dir name="lock">
 					<file role="src" name="Semaphore.c" />
 					<file role="src" name="Mutex.c" />
@@ -272,6 +270,7 @@
 					<file role="src" name="base.c" />
 					<file role="src" name="gcc_aio.c" />
 					<file role="src" name="linux_aio.c" />
+					<file role="src" name="msg_queue.c" />
 					<file role="src" name="sendfile.c" />
 					<file role="src" name="signal.c" />
 					<file role="src" name="timer.c" />

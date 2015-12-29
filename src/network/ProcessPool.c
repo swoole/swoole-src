@@ -49,7 +49,7 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
         return SW_ERR;
     }
 
-    pool->queue = sw_malloc(sizeof(swQueue));
+    pool->queue = sw_malloc(sizeof(swMsgQueue));
     if (pool->queue == NULL)
     {
         swSysError("malloc[2] failed.");
@@ -59,7 +59,7 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
     int i;
     if (pool->use_msgqueue)
     {
-        if (swQueueMsg_create(pool->queue, 1, pool->msgqueue_key, 1) < 0)
+        if (swMsgQueue_create(pool->queue, 1, pool->msgqueue_key, 1) < 0)
         {
             return SW_ERR;
         }
@@ -299,7 +299,7 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
     {
         if (pool->use_msgqueue)
         {
-            n = pool->queue->out(pool->queue, (swQueue_data *) &out, sizeof(out.buf));
+            n = swMsgQueue_pop(pool->queue, (swQueue_data *) &out, sizeof(out.buf));
             if (n < 0 && errno != EINTR)
             {
                 swSysError("[Worker#%d] msgrcv() failed.", worker->id);

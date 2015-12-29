@@ -61,7 +61,7 @@ swUnitTest(http_test1);
 swUnitTest(http_test2);
 
 swUnitTest(heap_test1);
-
+swUnitTest(linkedlist_test);
 swUnitTest(rbtree_test);
 void p_str(void *str);
 

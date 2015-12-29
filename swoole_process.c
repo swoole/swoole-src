@@ -188,7 +188,7 @@ static PHP_METHOD(swoole_process, __destruct)
     }
     if (process->queue)
     {
-        process->queue->free(process->queue);
+        swMsgQueue_free(process->queue);
         efree(process->queue);
     }
     efree(process);
@@ -245,13 +245,12 @@ static PHP_METHOD(swoole_process, useQueue)
 #endif
     }
 
-    swQueue *queue = emalloc(sizeof(swQueue));
-    if (swQueueMsg_create(queue, 1, msgkey, 0) < 0)
+    swMsgQueue *queue = emalloc(sizeof(swMsgQueue));
+    if (swMsgQueue_create(queue, 1, msgkey, 0) < 0)
     {
         RETURN_FALSE;
     }
-    swQueueMsg_set_destory(queue, 0);
-
+    queue->delete = 0;
     process->queue = queue;
     process->ipc_mode = mode;
     RETURN_TRUE;
@@ -623,7 +622,7 @@ static PHP_METHOD(swoole_process, push)
     message.type = process->id;
     memcpy(message.data, data, length);
 
-    if (process->queue->in(process->queue, (swQueue_data *)&message, length) < 0)
+    if (swMsgQueue_push(process->queue, (swQueue_data *)&message, length) < 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "msgsnd() failed. Error: %s[%d]", strerror(errno), errno);
         RETURN_FALSE;
@@ -665,7 +664,7 @@ static PHP_METHOD(swoole_process, pop)
         message.type = process->id;
     }
 
-    int n = process->queue->out(process->queue, (swQueue_data *) &message, maxsize);
+    int n = swMsgQueue_pop(process->queue, (swQueue_data *) &message, maxsize);
     if (n < 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "msgrcv() failed. Error: %s[%d]", strerror(errno), errno);

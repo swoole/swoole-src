@@ -19,58 +19,32 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 
-static int swQueueMsg_in(swQueue *p, swQueue_data *in, int data_length);
-static int swQueueMsg_out(swQueue *p, swQueue_data *out, int buffer_length);
-static void swQueueMsg_free(swQueue *p);
+void swMsgQueue_free(swMsgQueue *q)
+{
+    if (q->delete)
+    {
+        msgctl(q->msg_id, IPC_RMID, 0);
+    }
+    sw_free(q);
+}
 
-typedef struct _swQueueMsg
+void swMsgQueue_set_blocking(swMsgQueue *q, uint8_t blocking)
+{
+    q->ipc_wait = blocking ? 0 : IPC_NOWAIT;
+}
+
+int swMsgQueue_create(swMsgQueue *q, int blocking, key_t msg_key, long type)
 {
     int msg_id;
-    int ipc_wait;
-    uint8_t delete;
-    long type;
-} swQueueMsg;
-
-static void swQueueMsg_free(swQueue *p)
-{
-    swQueueMsg *object = p->object;
-    if (object->delete)
-    {
-        msgctl(object->msg_id, IPC_RMID, 0);
-    }
-    sw_free(object);
-}
-
-void swQueueMsg_set_blocking(swQueue *p, uint8_t blocking)
-{
-    swQueueMsg *object = p->object;
-    object->ipc_wait = blocking ? 0 : IPC_NOWAIT;
-}
-
-void swQueueMsg_set_destory(swQueue *p, uint8_t destory)
-{
-    swQueueMsg *object = p->object;
-    object->delete = destory;
-}
-
-int swQueueMsg_create(swQueue *p, int blocking, key_t msg_key, long type)
-{
-    int msg_id;
-    swQueueMsg *object = sw_malloc(sizeof(swQueueMsg));
-    if (object == NULL)
-    {
-        swWarn("malloc failed. Error: %s[%d]", strerror(errno), errno);
-        return -1;
-    }
     if (blocking == 0)
     {
-        object->ipc_wait = IPC_NOWAIT;
+        q->ipc_wait = IPC_NOWAIT;
     }
     else
     {
-        object->ipc_wait = 0;
+        q->ipc_wait = 0;
     }
-    p->blocking = blocking;
+    q->blocking = blocking;
     msg_id = msgget(msg_key, IPC_CREAT | O_EXCL | 0666);
     if (msg_id < 0)
     {
@@ -79,34 +53,27 @@ int swQueueMsg_create(swQueue *p, int blocking, key_t msg_key, long type)
     }
     else
     {
-        object->msg_id = msg_id;
-        object->type = type;
-        p->object = object;
-        p->in = swQueueMsg_in;
-        p->out = swQueueMsg_out;
-        p->free = swQueueMsg_free;
+        q->msg_id = msg_id;
+        q->type = type;
     }
     return 0;
 }
 
-static int swQueueMsg_out(swQueue *p, swQueue_data *data, int length)
+int swMsgQueue_pop(swMsgQueue *q, swQueue_data *data, int length)
 {
-    swQueueMsg *object = p->object;
-
-    int flag = object->ipc_wait;
+    int flag = q->ipc_wait;
     long type = data->mtype;
 
-    return msgrcv(object->msg_id, data, length, type, flag);
+    return msgrcv(q->msg_id, data, length, type, flag);
 }
 
-static int swQueueMsg_in(swQueue *p, swQueue_data *in, int length)
+int swMsgQueue_push(swMsgQueue *q, swQueue_data *in, int length)
 {
     int ret;
-    swQueueMsg *object = p->object;
 
     while (1)
     {
-        ret = msgsnd(object->msg_id, in, length, object->ipc_wait);
+        ret = msgsnd(q->msg_id, in, length, q->ipc_wait);
 
         if (ret < 0)
         {

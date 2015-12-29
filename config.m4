@@ -224,6 +224,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/string.c \
         src/core/array.c \
         src/core/socket.c \
+        src/core/list.c \
         src/memory/ShareMemory.c \
         src/memory/MemoryGlobal.c \
         src/memory/RingBuffer.c \
@@ -242,7 +243,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/pipe/PipeBase.c \
         src/pipe/PipeEventfd.c \
         src/pipe/PipeUnsock.c \
-        src/queue/Msg.c \
         src/lock/Semaphore.c \
         src/lock/Mutex.c \
         src/lock/RWLock.c \
@@ -262,6 +262,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/os/base.c \
         src/os/linux_aio.c \
         src/os/gcc_aio.c \
+        src/os/msg_queue.c \
         src/os/sendfile.c \
         src/os/signal.c \
         src/os/timer.c \

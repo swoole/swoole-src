@@ -116,10 +116,13 @@ static void swFixedPool_init(swFixedPool *object)
         object->head = slice;
         cur += (sizeof(swFixedPool_slice) + object->slice_size);
 
-        if (cur < max) {
+        if (cur < max)
+        {
             slice->pre = (swFixedPool_slice *) cur;
-        } else {
-            slice->pre = NULL; // we must ensure the previous element of the head be NULL
+        }
+        else
+        {
+            slice->pre = NULL;
             break;
         }
 

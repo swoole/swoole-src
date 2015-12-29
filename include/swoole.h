@@ -345,6 +345,22 @@ typedef struct _swString
     char *str;
 } swString;
 
+typedef struct _swLinkedList_node
+{
+    struct _swLinkedList_node *prev;
+    struct _swLinkedList_node *next;
+    void *data;
+} swLinkedList_node;
+
+typedef struct
+{
+    uint32_t num;
+    swLinkedList_node *head;
+    swLinkedList_node *tail;
+} swLinkedList;
+
+typedef void (*swDestructor)(void *data);
+
 typedef struct
 {
     union
@@ -612,20 +628,19 @@ typedef struct _swQueue_Data
     char mdata[sizeof(swEventData)]; /* text of the message */
 } swQueue_data;
 
-typedef struct _swQueue
+typedef struct _swMsgQueue
 {
-    void *object;
     int blocking;
-    int (*in)(struct _swQueue *, swQueue_data *in, int data_length);
-    int (*out)(struct _swQueue *, swQueue_data *out, int buffer_length);
-    void (*free)(struct _swQueue *);
-    int (*notify)(struct _swQueue *);
-    int (*wait)(struct _swQueue *);
-} swQueue;
+    int msg_id;
+    int ipc_wait;
+    uint8_t delete;
+    long type;
+} swMsgQueue;
 
-int swQueueMsg_create(swQueue *p, int wait, key_t msg_key, long type);
-void swQueueMsg_set_blocking(swQueue *p, uint8_t blocking);
-void swQueueMsg_set_destory(swQueue *p, uint8_t destory);
+int swMsgQueue_create(swMsgQueue *q, int wait, key_t msg_key, long type);
+int swMsgQueue_push(swMsgQueue *p, swQueue_data *in, int data_length);
+int swMsgQueue_pop(swMsgQueue *p, swQueue_data *out, int buffer_length);
+void swMsgQueue_free(swMsgQueue *p);
 
 //------------------Lock--------------------------------------
 enum SW_LOCKS
@@ -1191,7 +1206,7 @@ struct _swWorker
 
 	swMemoryPool *pool_output;
 
-	swQueue *queue;
+	swMsgQueue *queue;
 
 	/**
 	 * redirect stdout to pipe_master
@@ -1222,8 +1237,6 @@ struct _swWorker
      * tasking num
      */
     sw_atomic_t tasking_num;
-
-
 
 	/**
 	 * worker id
@@ -1290,7 +1303,7 @@ struct _swProcessPool
     swPipe *pipes;
     swHashMap *map;
     swReactor *reactor;
-    swQueue *queue;
+    swMsgQueue *queue;
 
     void *ptr;
     void *ptr2;
@@ -1423,6 +1436,12 @@ int swChannel_wait(swChannel *object);
 int swChannel_notify(swChannel *object);
 void swChannel_free(swChannel *object);
 
+swLinkedList* swLinkedList_new(void);
+int swLinkedList_append(swLinkedList *ll, void *data);
+int swLinkedList_prepend(swLinkedList *ll, void *data);
+void* swLinkedList_pop(swLinkedList *ll);
+void* swLinkedList_shift(swLinkedList *ll);
+void swLinkedList_free(swLinkedList *ll, swDestructor dtor);
 /*----------------------------Thread Pool-------------------------------*/
 enum swThread_type
 {
