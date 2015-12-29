@@ -210,15 +210,15 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
             memcpy(result->data, data, data_len);
             result->info.len = data_len;
         }
-
+        int test_errno;
         while (1)
         {
             ret = task_notify_pipe->write(task_notify_pipe, &flag, sizeof(flag));
+            test_errno = errno == EAGAIN;
 #ifdef HAVE_KQUEUE
-            if (errno == EAGAIN || errno == ENOBUFS)
-#else
-            if (errno == EAGAIN)
+            test_errno = test_errno || errno == ENOBUFS;
 #endif
+            if (test_errno)
             {
                 if (swSocket_wait(task_notify_pipe->getFd(task_notify_pipe, 1), -1, SW_EVENT_WRITE) == 0)
                 {
