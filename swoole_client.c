@@ -1887,10 +1887,8 @@ PHP_FUNCTION(swoole_client_select)
     timeo.tv_usec = (int) ((timeout - timeo.tv_sec) * 1000 * 1000);
 
     retval = select(max_fd + 1, &rfds, &wfds, &efds, &timeo);
-
     if (retval == -1)
     {
-        zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errno TSRMLS_CC);
         swoole_php_fatal_error(E_WARNING, "unable to select. Error: %s [%d]", strerror(errno), errno);
         RETURN_FALSE;
     }
