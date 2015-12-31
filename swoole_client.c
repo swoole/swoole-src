@@ -972,7 +972,7 @@ static PHP_METHOD(swoole_client, __construct)
 static PHP_METHOD(swoole_client, __destruct)
 {
     swClient *cli = swoole_get_object(getThis());
-    if (cli && cli->socket)
+    if (cli && !cli->keep)
     {
         client_close(getThis(), cli->socket->fd TSRMLS_CC);
     }
