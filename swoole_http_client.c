@@ -18,6 +18,8 @@
 #include "thirdparty/php_http_parser.h"
 #include "ext/standard/basic_functions.h"
 
+#ifdef SW_HTTP_CLIENT_ENABLE
+
 #define SW_FD_HTTP_CLIENT (SW_FD_USER+1)
 
 typedef struct
@@ -43,6 +45,8 @@ typedef struct
     char *tmp_header_field_name;
     zend_size_t tmp_header_field_name_len;
     
+    char *body;
+
     php_http_parser parser;
     
     int phase;  //0 wait 1 ready 2 busy
@@ -698,15 +702,13 @@ static PHP_METHOD(swoole_http_client, __construct)
         return;
     }
     
-    if(host_len <= 0)
+    if (host_len <= 0)
     {
         swoole_php_fatal_error(E_ERROR, "host is empty.");
         RETURN_FALSE;
     }
 
-    zend_update_property_stringl(
-        swoole_http_client_class_entry_ptr,
-        getThis(), ZEND_STRL("host"), host, host_len TSRMLS_CC);
+    zend_update_property_stringl(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("host"), host, host_len TSRMLS_CC);
     
     zend_update_property_long(
         swoole_http_client_class_entry_ptr,
@@ -1017,8 +1019,8 @@ static int http_client_parser_on_body(php_http_parser *parser, const char *at, s
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    http_client* http = (http_client*)parser->data;
-    zval* zobject = (zval*)http->cli->socket->object;
+    http_client* http = (http_client*) parser->data;
+    zval* zobject = (zval*) http->cli->socket->object;
     
     zval *body = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("body"), 0 TSRMLS_CC);
     zval *tmp;
@@ -1035,6 +1037,7 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
+
     http_client* http = (http_client*)parser->data;
     zval* zobject = (zval*)http->cli->socket->object;
 
@@ -1043,7 +1046,6 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
         //reset http phase for reuse
         http->phase = 1;
     }
-
 
     zval *retval;
     zval *zcallback;
@@ -1072,3 +1074,5 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
 
     return 0;
 }
+
+#endif

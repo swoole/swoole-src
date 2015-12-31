@@ -211,6 +211,8 @@
 
 #define SW_DNS_LOOKUP_USE_THREAD
 
+//#define SW_HTTP_CLIENT_ENABLE
+
 #define SW_HTTP_SERVER_SOFTWARE          "swoole-http-server"
 #define SW_HTTP_BAD_REQUEST              "<h1>400 Bad Request</h1>\r\n"
 #define SW_HTTP_PARAM_MAX_NUM            128
