@@ -1024,7 +1024,11 @@ static int http_client_parser_on_body(php_http_parser *parser, const char *at, s
     zval *tmp;
     SW_MAKE_STD_ZVAL(tmp);
     SW_ZVAL_STRINGL(tmp, at, length, 1);
+#if PHP_MAJOR_VERSION < 7
     add_string_to_string(body, body, tmp);
+#else
+    concat_function(body, body, tmp);
+#endif
     sw_zval_ptr_dtor(&tmp);
 
     return 0;
