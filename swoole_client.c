@@ -121,7 +121,7 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
     }
 
     //long tcp connection, clear from php_sw_long_connections
-    if (!cli->keep)
+    if (cli->keep)
     {
         if (swHashMap_del(php_sw_long_connections, cli->server_str, cli->server_strlen))
         {
