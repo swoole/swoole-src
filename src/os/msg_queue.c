@@ -25,7 +25,6 @@ void swMsgQueue_free(swMsgQueue *q)
     {
         msgctl(q->msg_id, IPC_RMID, 0);
     }
-    sw_free(q);
 }
 
 void swMsgQueue_set_blocking(swMsgQueue *q, uint8_t blocking)
