@@ -17,15 +17,12 @@
 #include "php_swoole.h"
 #include "thirdparty/php_http_parser.h"
 #include "ext/standard/basic_functions.h"
+#include "ext/standard/php_http.h"
 
 #define SW_FD_HTTP_CLIENT (SW_FD_USER+1)
 
 typedef struct
 {
-    zval *onFinish;
-    zval *onClose;
-    zval *onError;
-    
     zval* gc_list[128];
     uint gc_idx;
 } http_client_callback;
@@ -54,6 +51,13 @@ static int http_client_parser_on_header_field(php_http_parser *parser, const cha
 static int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length);
 static int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length);
 static int http_client_parser_on_message_complete(php_http_parser *parser);
+static sw_inline void http_client_swString_append_headers(swString* swStr, char* key, zend_size_t key_len, char* data, zend_size_t data_len)
+{
+    swString_append_ptr(swStr, key, key_len);
+    swString_append_ptr(swStr, ZEND_STRL(": "));
+    swString_append_ptr(swStr, data, data_len);
+    swString_append_ptr(swStr, ZEND_STRL("\r\n"));
+}
 
 static const php_http_parser_settings http_parser_settings =
 {
@@ -73,6 +77,8 @@ static const php_http_parser_settings http_parser_settings =
 static PHP_METHOD(swoole_http_client, __construct);
 static PHP_METHOD(swoole_http_client, __destruct);
 static PHP_METHOD(swoole_http_client, set);
+static PHP_METHOD(swoole_http_client, setHeaders);
+static PHP_METHOD(swoole_http_client, setData);
 static PHP_METHOD(swoole_http_client, execute);
 static PHP_METHOD(swoole_http_client, isConnected);
 static PHP_METHOD(swoole_http_client, close);
@@ -128,6 +134,8 @@ static const zend_function_entry swoole_http_client_methods[] =
     PHP_ME(swoole_http_client, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
     PHP_ME(swoole_http_client, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_http_client, set, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client, setHeaders, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client, setData, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client, execute, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client, isConnected, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client, close, NULL, ZEND_ACC_PUBLIC)
@@ -472,28 +480,87 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
     http->phase = 2;
      //clear errno
     SwooleG.error = 0;
+
+    swString* req_buff = swString_new(512);
+    swString* header_buff = swString_new(512);
+    swString* post_buff = swString_new(512);
+
+    http_client_swString_append_headers(header_buff, ZEND_STRL("Host"), http->host, http->host_len);
+
+    zval* zdata = sw_zend_read_property(
+            swoole_http_client_class_entry_ptr,
+            zobject, ZEND_STRL("set_data"), 1 TSRMLS_CC);
+    if(zdata && Z_TYPE_P(zdata) != IS_NULL)
+    {
+        char post_len_str[64];
+        swString_append_ptr(req_buff, ZEND_STRL("POST "));
+
+        convert_to_string(zdata);
+        swString_append_ptr(post_buff, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
+        sprintf(post_len_str, "%d", Z_STRLEN_P(zdata));
+
+        http_client_swString_append_headers(header_buff, ZEND_STRL("Content-Type"), ZEND_STRL("application/x-www-form-urlencoded"));
+        http_client_swString_append_headers(header_buff, ZEND_STRL("Content-Length"), post_len_str, strlen(post_len_str));
+    }
+    else
+    {
+        swString_append_ptr(req_buff, ZEND_STRL("GET "));
+    }
+    zend_update_property_null(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("set_data") TSRMLS_CC);
+
+    swString_append_ptr(req_buff, http->uri, http->uri_len);
+    swString_append_ptr(req_buff, ZEND_STRL(" HTTP/1.1\r\n"));
+
+    zval* zheaders = sw_zend_read_property(
+            swoole_http_client_class_entry_ptr,
+            zobject, ZEND_STRL("set_headers"), 1 TSRMLS_CC);
+    char *key;
+    uint32_t keylen;
+    int keytype;
+    zval *value;
+    if(zheaders && Z_TYPE_P(zheaders) == IS_ARRAY)
+    {
+        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zheaders), key, keylen, keytype, value)
+            if (HASH_KEY_IS_STRING != keytype)
+            {
+                continue;
+            }
+            convert_to_string(value);
+            http_client_swString_append_headers(header_buff, key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
+        SW_HASHTABLE_FOREACH_END();
+    }
+    zend_update_property_null(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("set_headers") TSRMLS_CC);
+
+    if(http->keep_alive)
+    {
+        http_client_swString_append_headers(header_buff, ZEND_STRL("Connection"), ZEND_STRL("keep-alive"));
+    }
+    else
+    {
+        http_client_swString_append_headers(header_buff, ZEND_STRL("Connection"), ZEND_STRL("closed"));
+    }
+
+    swString_append(req_buff, header_buff);
+    swString_append_ptr(req_buff, ZEND_STRL("\r\n"));
+    swString_append(req_buff, post_buff);
+
     int ret;
-    
-    char *data;
-    zend_size_t data_len;
     int flags = MSG_DONTWAIT;  //http://www.cnblogs.com/blankqdb/archive/2012/08/30/2663859.html
     
-    char *keep_alive_str[2] = {"\r\nConnection:closed", "\r\nConnection:keep-alive"};
-    
-    data = (char*)emalloc(4096*sizeof(char));
-    snprintf(data, 1023, "GET %s HTTP/1.1\r\nHost:%s\r\nUser-Agent:swoole_http_client1.0%s\r\n\r\n", 
-        http->uri, http->host, keep_alive_str[http->keep_alive]);
-    data_len = strlen(data);
 
-    ret = http->cli->send(http->cli, data, data_len, flags);
+    ret = http->cli->send(http->cli, req_buff->str, req_buff->length, flags);
     if (ret < 0)
     {
         SwooleG.error = errno;
-        swoole_php_sys_error(E_WARNING, "send(%d) %d bytes failed.", http->cli->socket->fd, data_len);
+        swoole_php_sys_error(E_WARNING, "send(%d) %d bytes failed.", http->cli->socket->fd, (int)req_buff->length);
         zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
     }
     
-    efree(data);
+    //printf("\n%s\n", req_buff->str);
+
+    swString_free(req_buff);
+    swString_free(header_buff);
+    swString_free(post_buff);
     
     return ret;
 }
@@ -779,6 +846,28 @@ static PHP_METHOD(swoole_http_client, set)
         return;
     }
     zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("setting"), zset TSRMLS_CC);
+    RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_http_client, setHeaders)
+{
+    zval *zset;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zset) == FAILURE)
+    {
+        return;
+    }
+    zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("set_headers"), zset TSRMLS_CC);
+    RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_http_client, setData)
+{
+    zval *zset;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zset) == FAILURE)
+    {
+        return;
+    }
+    zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("set_data"), zset TSRMLS_CC);
     RETURN_TRUE;
 }
 
