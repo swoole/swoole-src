@@ -26,6 +26,9 @@ PHP_ARG_ENABLE(ringbuffer, enable ringbuffer shared memory pool support,
 PHP_ARG_ENABLE(async_mysql, enable async_mysql support,
 [  --enable-async-mysql    Do you have mysqli and mysqlnd?], no, no)
 
+PHP_ARG_ENABLE(async_redis, enable async_redis support,
+[  --enable-async-redis    Do you have hiredis?], no, no)
+
 PHP_ARG_ENABLE(openssl, enable openssl support,
 [  --enable-openssl        Use openssl?], no, no)
 
@@ -177,6 +180,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(pthread, pthread_barrier_init, AC_DEFINE(HAVE_PTHREAD_BARRIER, 1, [have pthread_barrier_init]))
     AC_CHECK_LIB(ssl, SSL_library_init, AC_DEFINE(HAVE_OPENSSL, 1, [have openssl]))
     AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
+    AC_CHECK_LIB(hiredis, redisConnect, AC_DEFINE(HAVE_HIREDIS, 1, [have hiredis]))
     
     AC_CHECK_LIB(z, gzgets, [
         AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
@@ -200,6 +204,11 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_ADD_LIBRARY(crypt, 1, SWOOLE_SHARED_LIBADD)
         PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
     fi
+
+    if test "$PHP_ASYNC_REDIS" = "yes"; then
+        AC_DEFINE(SW_USE_REDIS, 1, [enable async-redis support])
+        PHP_ADD_LIBRARY(hiredis, 1, SWOOLE_SHARED_LIBADD)
+    fi
     
     swoole_source_file="swoole.c \
         swoole_server.c \
@@ -216,6 +225,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_http.c \
         swoole_websocket.c \
         swoole_mysql.c \
+        swoole_redis.c \
         src/core/base.c \
         src/core/log.c \
         src/core/hashmap.c \

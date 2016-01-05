@@ -169,6 +169,7 @@ enum php_swoole_fd_type
 {
     SW_FD_SWOOLE_CLIENT = SW_FD_USER + 1,
     SW_FD_SWOOLE_MYSQL,
+    SW_FD_SWOOLE_REDIS,
 };
 
 #define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL))
@@ -296,6 +297,9 @@ void swoole_atomic_init(int module_number TSRMLS_DC);
 void swoole_client_init(int module_number TSRMLS_DC);
 #ifdef SW_HTTP_CLIENT_ENABLE
 void swoole_http_client_init(int module_number TSRMLS_DC);
+#endif
+#ifdef SW_USE_REDIS
+void swoole_redis_init(int module_number TSRMLS_DC);
 #endif
 void swoole_process_init(int module_number TSRMLS_DC);
 void swoole_http_init(int module_number TSRMLS_DC);
