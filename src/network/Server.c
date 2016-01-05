@@ -1415,3 +1415,44 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     return connection;
 }
 
+void swServer_set_callback(swServer *serv, int type, void *callback)
+{
+    switch(type)
+    {
+    case SW_SERVER_CALLBACK_onConnect:
+        serv->onConnect = callback;
+        break;
+    case SW_SERVER_CALLBACK_onReceive:
+        serv->onReceive = callback;
+        break;
+    case SW_SERVER_CALLBACK_onClose:
+        serv->onClose = callback;
+        break;
+    default:
+        swError("unkown callback type.");
+        break;
+    }
+}
+
+static int (*onReceive_callback)(swServer *, char *, int, int, int);
+
+static int swServer_scalar_onreceive_callback(swServer *serv, swEventData *req)
+{
+    return onReceive_callback(serv, req->data, req->info.len, req->info.fd, req->info.from_id);
+}
+
+void swServer_set_callback_onReceive(swServer *serv, int (*callback)(swServer *, char *, int, int, int))
+{
+    onReceive_callback = callback;
+    serv->onReceive = swServer_scalar_onreceive_callback;
+}
+
+void swServer_set_callback_onConnect(swServer *serv, void (*callback)(swServer *, int, int))
+{
+    serv->onConnect = callback;
+}
+
+void swServer_set_callback_onClose(swServer *serv, void (*callback)(swServer *, int, int))
+{
+    serv->onClose = callback;
+}
