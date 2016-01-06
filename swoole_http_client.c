@@ -57,7 +57,7 @@ static int http_client_parser_on_message_complete(php_http_parser *parser);
 static sw_inline void http_client_swString_append_headers(swString* swStr, char* key, zend_size_t key_len, char* data, zend_size_t data_len)
 {
     swString_append_ptr(swStr, key, key_len);
-    swString_append_ptr(swStr, ZEND_STRL(":"));
+    swString_append_ptr(swStr, ZEND_STRL(": "));
     swString_append_ptr(swStr, data, data_len);
     swString_append_ptr(swStr, ZEND_STRL("\r\n"));
 }
@@ -266,16 +266,6 @@ static void http_client_free(zval *object, http_client *http)
     if (http->cli)
     {
 
-        // if(http->cli->server_str)
-        // {
-        //     sw_free(http->cli->server_str);
-        // }
-        // if (http->cli->buffer)
-        // {
-        //     swString_free(http->cli->buffer);
-        //     http->cli->buffer = NULL;
-        // }
-
 #if PHP_MAJOR_VERSION >= 7
         //for php7 object was allocated sizeof(zval) when execute
         if (http->cli->socket->object)
@@ -295,6 +285,7 @@ static void http_client_free(zval *object, http_client *http)
 
         //printf("free http->cli\n");
         efree(http->cli);
+        efree(http->uri);
     }
     //printf("free http\n");
     efree(http);
@@ -543,14 +534,6 @@ static http_client* http_client_create(zval *object TSRMLS_DC)
 
 static PHP_METHOD(swoole_http_client, __construct)
 {
-#if PHP_MEMORY_DEBUG
-    php_vmstat.new_http_client++;
-#endif
-
-#if PHP_MAJOR_VERSION >= 7
-    swoole_php_fatal_error(E_WARNING, "swoole_http_client is not supported on php7+");
-#endif
-
     char *host;
     zend_size_t host_len;
     long port = 80;
@@ -668,7 +651,6 @@ static PHP_METHOD(swoole_http_client, setData)
 static PHP_METHOD(swoole_http_client, execute)
 {
     int ret;
-    long sock_flag = 0;
     http_client *http = NULL;
     char *uri = NULL;
     zend_size_t uri_len = 0;

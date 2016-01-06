@@ -186,7 +186,7 @@ int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth)
 
 int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length)
 {
-    size_t len;
+    long len;
     BIO *bio;
     X509 *cert;
 
