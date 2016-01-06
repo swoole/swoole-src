@@ -643,9 +643,9 @@ static void php_http_client_swoole_check_reactor()
         return;
     }
 
-    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, (SW_FD_USER + 1) | SW_EVENT_READ, http_client_onRead);
-    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, (SW_FD_USER + 1) | SW_EVENT_WRITE, http_client_onWrite);
-    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, (SW_FD_USER + 1) | SW_EVENT_ERROR, http_client_onError);
+    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_HTTPCLIENT | SW_EVENT_READ, http_client_onRead);
+    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_HTTPCLIENT | SW_EVENT_WRITE, http_client_onWrite);
+    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_HTTPCLIENT | SW_EVENT_ERROR, http_client_onError);
 
     php_swoole_event_init();
 
