@@ -119,8 +119,8 @@ static PHP_METHOD(swoole_redis, connect)
     php_swoole_check_reactor();
     if (!isset_event_callback)
     {
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_SWOOLE_REDIS | SW_EVENT_READ, swoole_redis_onRead);
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_SWOOLE_REDIS | SW_EVENT_WRITE, swoole_redis_onWrite);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_REDIS | SW_EVENT_READ, swoole_redis_onRead);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_REDIS | SW_EVENT_WRITE, swoole_redis_onWrite);
         isset_event_callback = 1;
     }
 
@@ -147,7 +147,7 @@ static PHP_METHOD(swoole_redis, connect)
     zend_update_property_string(swoole_redis_class_entry_ptr, getThis(), ZEND_STRL("host"), host TSRMLS_CC);
     zend_update_property_long(swoole_redis_class_entry_ptr, getThis(), ZEND_STRL("port"), port TSRMLS_CC);
 
-    if (SwooleG.main_reactor->add(SwooleG.main_reactor, redis->context->c.fd, SW_FD_SWOOLE_REDIS | SW_EVENT_WRITE) < 0)
+    if (SwooleG.main_reactor->add(SwooleG.main_reactor, redis->context->c.fd, PHP_SWOOLE_FD_REDIS | SW_EVENT_WRITE) < 0)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_event_add failed. Erorr: %s[%d].", redis->context->errstr, redis->context->err);
         RETURN_FALSE;
@@ -352,42 +352,25 @@ void swoole_redis_onClose(const redisAsyncContext *c, int status)
 static void swoole_redis_event_AddRead(void *privdata)
 {
     swRedisClient *redis = (swRedisClient*) privdata;
-    swConnection *conn = swReactor_get(SwooleG.main_reactor, redis->context->c.fd);
-    if (!(conn->events & SW_EVENT_READ))
-    {
-        SwooleG.main_reactor->set(SwooleG.main_reactor, redis->context->c.fd, conn->fdtype | conn->events | SW_EVENT_READ);
-    }
+    swReactor_add_event(SwooleG.main_reactor, redis->context->c.fd, SW_EVENT_READ);
 }
 
 static void swoole_redis_event_DelRead(void *privdata)
 {
     swRedisClient *redis = (swRedisClient*) privdata;
-    swConnection *conn = swReactor_get(SwooleG.main_reactor, redis->context->c.fd);
-    if (conn->events & SW_EVENT_READ)
-    {
-        SwooleG.main_reactor->set(SwooleG.main_reactor, redis->context->c.fd, conn->fdtype | (conn->events & (~SW_EVENT_READ)));
-    }
+    swReactor_del_event(SwooleG.main_reactor, redis->context->c.fd, SW_EVENT_READ);
 }
 
 static void swoole_redis_event_AddWrite(void *privdata)
 {
     swRedisClient *redis = (swRedisClient*) privdata;
-    swConnection *conn = swReactor_get(SwooleG.main_reactor, redis->context->c.fd);
-
-    if (!(conn->events & SW_EVENT_WRITE))
-    {
-        SwooleG.main_reactor->set(SwooleG.main_reactor, redis->context->c.fd, conn->fdtype | conn->events | SW_EVENT_WRITE);
-    }
+    swReactor_add_event(SwooleG.main_reactor, redis->context->c.fd, SW_EVENT_WRITE);
 }
 
 static void swoole_redis_event_DelWrite(void *privdata)
 {
     swRedisClient *redis = (swRedisClient*) privdata;
-    swConnection *conn = swReactor_get(SwooleG.main_reactor, redis->context->c.fd);
-    if (conn->events & SW_EVENT_WRITE)
-    {
-        SwooleG.main_reactor->set(SwooleG.main_reactor, redis->context->c.fd, conn->fdtype | (conn->events & (~SW_EVENT_WRITE)));
-    }
+    swReactor_del_event(SwooleG.main_reactor, redis->context->c.fd, SW_EVENT_WRITE);
 }
 
 static void swoole_redis_event_Cleanup(void *privdata)

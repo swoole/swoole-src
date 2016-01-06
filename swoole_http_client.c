@@ -20,8 +20,6 @@
 
 #ifdef SW_ASYNC_HTTPCLIENT
 
-#define SW_FD_HTTP_CLIENT (SW_FD_USER+1)
-
 typedef struct
 {
     zval *onFinish;
@@ -433,7 +431,7 @@ static int http_client_onWrite(swReactor *reactor, swEvent *event)
         if (error == 0)
         {
             //listen read event
-            SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, SW_FD_HTTP_CLIENT | SW_EVENT_READ);
+            SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, PHP_SWOOLE_FD_HTTPCLIENT | SW_EVENT_READ);
             //connected
             http->cli->socket->active = 1;
 
@@ -877,7 +875,7 @@ static PHP_METHOD(swoole_http_client, execute)
     sw_zval_add_ref(&obj);
 #endif
 
-    http->cli->reactor_fdtype = SW_FD_HTTP_CLIENT;
+    http->cli->reactor_fdtype = PHP_SWOOLE_FD_HTTPCLIENT;
 
     reactor_flag = http->cli->reactor_fdtype | SW_EVENT_WRITE;
     if (errno == EINPROGRESS)

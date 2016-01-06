@@ -167,11 +167,12 @@ extern swoole_object_array swoole_objects;
 //---------------------------------------------------------
 enum php_swoole_fd_type
 {
-    SW_FD_SWOOLE_CLIENT = SW_FD_USER + 1,
-    SW_FD_SWOOLE_MYSQL,
-    SW_FD_SWOOLE_REDIS,
+    PHP_SWOOLE_FD_CLIENT = SW_FD_USER + 1,
+    PHP_SWOOLE_FD_MYSQL,
+    PHP_SWOOLE_FD_REDIS,
+    PHP_SWOOLE_FD_HTTPCLIENT,
 };
-
+//---------------------------------------------------------
 #define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL))
 #define php_swoole_array_length(array)      (Z_ARRVAL_P(array)->nNumOfElements)
 

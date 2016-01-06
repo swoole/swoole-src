@@ -982,7 +982,7 @@ PHP_FUNCTION(swoole_mysql_query)
 
         if (!isset_event_callback)
         {
-            SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_SWOOLE_MYSQL | SW_EVENT_READ, swoole_mysql_onRead);
+            SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL | SW_EVENT_READ, swoole_mysql_onRead);
         }
         swConnection *socket = swReactor_get(SwooleG.main_reactor, sock);
         socket->active = 1;
@@ -1015,7 +1015,7 @@ PHP_FUNCTION(swoole_mysql_query)
         RETURN_FALSE;
     }
     //add to eventloop
-    if (SwooleG.main_reactor->add(SwooleG.main_reactor, sock, SW_FD_SWOOLE_MYSQL | SW_EVENT_READ) < 0)
+    if (SwooleG.main_reactor->add(SwooleG.main_reactor, sock, PHP_SWOOLE_FD_MYSQL | SW_EVENT_READ) < 0)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_event_add failed.");
         RETURN_FALSE;

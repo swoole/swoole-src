@@ -1310,7 +1310,7 @@ struct _swProcessPool
 };
 
 //----------------------------------------Reactor---------------------------------------
-enum SW_EVENTS
+enum swEvent_type
 {
     SW_EVENT_DEAULT = 256,
     SW_EVENT_READ = 1u << 9,
@@ -1381,6 +1381,26 @@ int swReactor_close(swReactor *reactor, int fd);
 int swReactor_write(swReactor *reactor, int fd, void *buf, int n);
 int swReactor_wait_write_buffer(swReactor *reactor, int fd);
 void swReactor_set(swReactor *reactor, int fd, int fdtype);
+
+static sw_inline int swReactor_add_event(swReactor *reactor, int fd, enum swEvent_type event_type)
+{
+    swConnection *conn = swReactor_get(reactor, fd);
+    if (!(conn->events & event_type))
+    {
+        return reactor->set(reactor, fd, conn->fdtype | conn->events | event_type);
+    }
+    return SW_OK;
+}
+
+static sw_inline int swReactor_del_event(swReactor *reactor, int fd, enum swEvent_type event_type)
+{
+    swConnection *conn = swReactor_get(reactor, fd);
+    if (conn->events & event_type)
+    {
+        return reactor->set(reactor, fd, conn->fdtype | (conn->events & (~event_type)));
+    }
+    return SW_OK;
+}
 
 swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype);
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);
