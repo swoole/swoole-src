@@ -72,7 +72,7 @@ int swSocket_sendfile_sync(int sock, char *filename, double timeout)
  */
 void swSocket_clean(int fd)
 {
-    char buf[65536];
+    char buf[2048];
     while (recv(fd, buf, sizeof(buf), MSG_DONTWAIT) > 0);
 }
 

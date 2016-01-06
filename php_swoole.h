@@ -43,7 +43,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.7.22"
+#define PHP_SWOOLE_VERSION  "1.8.0"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -167,7 +167,7 @@ extern swoole_object_array swoole_objects;
 //---------------------------------------------------------
 enum php_swoole_fd_type
 {
-    PHP_SWOOLE_FD_CLIENT = SW_FD_USER + 1,
+    PHP_SWOOLE_FD_CLIENT = SW_FD_CLIENT,
     PHP_SWOOLE_FD_MYSQL,
     PHP_SWOOLE_FD_REDIS,
     PHP_SWOOLE_FD_HTTPCLIENT,

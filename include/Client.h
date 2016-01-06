@@ -34,6 +34,7 @@ typedef struct _swClient
 
     uint32_t async :1;
     uint32_t keep :1;
+    uint32_t closed :1;
     uint32_t packet_mode :1;
 
     /**
@@ -62,9 +63,11 @@ typedef struct _swClient
 	swSocketAddress remote_addr;
 
 	swConnection *socket;
+	void *object;
 
 	swString *buffer;
 	uint32_t wait_length;
+    uint32_t buffer_input_size;
 
 #ifdef SW_USE_OPENSSL
     uint8_t open_ssl :1;
@@ -77,8 +80,9 @@ typedef struct _swClient
 #endif
 
 	void (*onConnect)(struct _swClient *cli);
-	int (*onReceive)(struct _swClient *cli, swSendData *data);
-	void (*onClose)(struct _swClient *cli, int fd, int from_id);
+    void (*onError)(struct _swClient *cli);
+    void (*onReceive)(struct _swClient *cli, char *data, uint32_t length);
+	void (*onClose)(struct _swClient *cli);
 
 	int (*connect)(struct _swClient *cli, char *host, int port, double _timeout, int sock_flag);
 	int (*send)(struct _swClient *cli, char *data, int length, int flags);

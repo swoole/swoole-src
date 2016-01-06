@@ -194,12 +194,13 @@
 			<file role="src" name="swoole_process.c" />
 			<file role="src" name="swoole_table.c" />
 			<file role="src" name="swoole_buffer.c" />
-			<file role="src" name="swoole_http.c" />
+			<file role="src" name="swoole_http_server.c" />
+			<file role="src" name="swoole_http_client.c" />
 			<file role="src" name="swoole_http.h" />
-			<file role="src" name="swoole_websocket.c" />
+			<file role="src" name="swoole_websocket_server.c" />
 			<file role="src" name="swoole_atomic.c" />
 			<file role="src" name="swoole_mysql.c" />
-			<file role="src" name="swoole_http_client.c" />
+			<file role="src" name="swoole_redis.c" />
 			<dir name="thirdparty">
 				<file role="src" name="php_http_parser.c" />
 				<file role="src" name="php_http_parser.h" />

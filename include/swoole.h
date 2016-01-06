@@ -189,6 +189,7 @@ enum swFd_type
     SW_FD_DNS_RESOLVER    = 12, //dns resolver
     SW_FD_INOTIFY         = 13, //server socket
     SW_FD_USER            = 15, //SW_FD_USER or SW_FD_USER+n: for custom event
+    SW_FD_CLIENT          = 16, //swClient
 };
 
 enum swBool_type
@@ -197,6 +198,13 @@ enum swBool_type
     SW_FALSE = 0,
 };
 
+enum swEvent_type
+{
+    SW_EVENT_DEAULT = 256,
+    SW_EVENT_READ = 1u << 9,
+    SW_EVENT_WRITE = 1u << 10,
+    SW_EVENT_ERROR = 1u << 11,
+};
 //-------------------------------------------------------------------------------
 enum swServer_mode
 {
@@ -220,7 +228,7 @@ enum swSocket_type
 
 #define SW_SOCK_SSL            (1u << 9)
 //-------------------------------------------------------------------------------
-enum swLogLevel
+enum swLog_level
 {
     SW_LOG_DEBUG = 0,
     SW_LOG_TRACE,
@@ -231,7 +239,7 @@ enum swLogLevel
 
 };
 //-------------------------------------------------------------------------------
-enum swDispatchMode
+enum swFactory_dispatch_mode
 {
     SW_DISPATCH_ROUND = 1,
     SW_DISPATCH_FDMOD = 2,
@@ -240,7 +248,7 @@ enum swDispatchMode
     SW_DISPATCH_UIDMOD = 5,
 };
 
-enum swWorkerStatus
+enum swWorker_status
 {
     SW_WORKER_BUSY = 1,
     SW_WORKER_IDLE = 2,
@@ -1310,14 +1318,6 @@ struct _swProcessPool
 };
 
 //----------------------------------------Reactor---------------------------------------
-enum swEvent_type
-{
-    SW_EVENT_DEAULT = 256,
-    SW_EVENT_READ = 1u << 9,
-    SW_EVENT_WRITE = 1u << 10,
-    SW_EVENT_ERROR = 1u << 11,
-};
-
 static sw_inline int swReactor_error(swReactor *reactor)
 {
     switch (errno)
