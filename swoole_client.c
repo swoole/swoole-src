@@ -26,6 +26,14 @@ typedef struct
     zval *onError;
 } client_callback;
 
+enum client_callback_type
+{
+    SW_CLIENT_CALLBACK_onConnect = 1,
+    SW_CLIENT_CALLBACK_onReceive,
+    SW_CLIENT_CALLBACK_onError,
+    SW_CLIENT_CALLBACK_onClose,
+};
+
 static PHP_METHOD(swoole_client, __construct);
 static PHP_METHOD(swoole_client, __destruct);
 static PHP_METHOD(swoole_client, set);
@@ -54,6 +62,61 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length);
 static int client_onPackage(swConnection *conn, char *data, uint32_t length);
 static void client_onClose(swClient *cli);
 static void client_onError(swClient *cli);
+
+static sw_inline void client_execute_callback(swClient *cli, enum client_callback_type type)
+{
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+
+
+    zval *callback = NULL;
+    zval *retval = NULL;
+    zval **args[1];
+    zval *zobject = cli->object;
+
+    client_callback *cb = swoole_get_property(zobject, 0);
+    char *callback_name;
+
+    switch(type)
+    {
+    case SW_CLIENT_CALLBACK_onConnect:
+        callback = cb->onConnect;
+        callback_name = "onConnect";
+        break;
+    case SW_CLIENT_CALLBACK_onError:
+        callback = cb->onError;
+        callback_name = "onError";
+        break;
+    case SW_CLIENT_CALLBACK_onClose:
+        callback = cb->onClose;
+        callback_name = "onClose";
+        break;
+    default:
+        return;
+    }
+
+    if (callback == NULL || ZVAL_IS_NULL(callback))
+    {
+        swoole_php_fatal_error(E_WARNING, "object have not %s callback.", callback_name);
+        return;
+    }
+
+    args[0] = &zobject;
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    {
+        swoole_php_fatal_error(E_WARNING, "%s handler error.", callback_name);
+        return;
+    }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+    }
+    if (retval)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+}
 
 static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC);
 static swClient* client_create_socket(zval *object, char *host, int host_len, int port);
@@ -153,106 +216,17 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
 
 static void client_onConnect(swClient *cli)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-    zval *callback = NULL;
-    zval *retval = NULL;
-    zval **args[1];
-    zval *zobject = cli->object;
-
-    client_callback *cb = swoole_get_property(zobject, 0);
-    callback = cb->onConnect;
-    if (callback == NULL || ZVAL_IS_NULL(callback))
-    {
-        swoole_php_fatal_error(E_WARNING, "object have not connect callback.");
-        return;
-    }
-
-    args[0] = &zobject;
-    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
-    {
-        swoole_php_fatal_error(E_WARNING, "onConnect handler error");
-        return;
-    }
-    if (EG(exception))
-    {
-        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
-    }
-    if (retval)
-    {
-        sw_zval_ptr_dtor(&retval);
-    }
+    client_execute_callback(cli, SW_CLIENT_CALLBACK_onConnect);
 }
 
 static void client_onClose(swClient *cli)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-    zval *callback = NULL;
-    zval *retval = NULL;
-    zval **args[1];
-    zval *zobject = cli->object;
-
-    client_callback *cb = swoole_get_property(zobject, 0);
-    callback = cb->onClose;
-
-    if (callback == NULL || ZVAL_IS_NULL(callback))
-    {
-        swoole_php_fatal_error(E_WARNING, "object have not onClose callback.");
-        return;
-    }
-
-    args[0] = &zobject;
-    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
-    {
-        swoole_php_fatal_error(E_WARNING, "onClose handler error");
-        return;
-    }
-    if (EG(exception))
-    {
-        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
-    }
-    if (retval)
-    {
-        sw_zval_ptr_dtor(&retval);
-    }
+    client_execute_callback(cli, SW_CLIENT_CALLBACK_onClose);
 }
 
 static void client_onError(swClient *cli)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-    zval *callback = NULL;
-    zval *retval = NULL;
-    zval **args[1];
-    zval *zobject = cli->object;
-
-    client_callback *cb = swoole_get_property(zobject, 0);
-    callback = cb->onError;
-
-    if (callback == NULL || ZVAL_IS_NULL(callback))
-    {
-        swoole_php_fatal_error(E_WARNING, "object have not onClose callback.");
-        return;
-    }
-
-    args[0] = &zobject;
-    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
-    {
-        swoole_php_fatal_error(E_WARNING, "onClose handler error");
-        return;
-    }
-    if (EG(exception))
-    {
-        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
-    }
-    if (retval)
-    {
-        sw_zval_ptr_dtor(&retval);
-    }
+    client_execute_callback(cli, SW_CLIENT_CALLBACK_onError);
 }
 
 static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
