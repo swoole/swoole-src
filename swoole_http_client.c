@@ -57,7 +57,7 @@ static int http_client_parser_on_message_complete(php_http_parser *parser);
 static sw_inline void http_client_swString_append_headers(swString* swStr, char* key, zend_size_t key_len, char* data, zend_size_t data_len)
 {
     swString_append_ptr(swStr, key, key_len);
-    swString_append_ptr(swStr, ZEND_STRL(": "));
+    swString_append_ptr(swStr, ZEND_STRL(":"));
     swString_append_ptr(swStr, data, data_len);
     swString_append_ptr(swStr, ZEND_STRL("\r\n"));
 }
@@ -913,6 +913,11 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
     if (retval != NULL)
     {
         sw_zval_ptr_dtor(&retval);
+    }
+
+    if(http->keep_alive == 0)
+    {
+        http_client_close(zobject, http->cli->socket->fd TSRMLS_CC);
     }
 
     return 0;
