@@ -76,6 +76,7 @@ int daemon(int nochdir, int noclose);
 /*----------------------------------------------------------------------------*/
 #ifndef ulong
 #define ulong unsigned long
+typedef unsigned long ulong_t;
 #endif
 
 #if defined(__GNUC__)
@@ -336,6 +337,30 @@ typedef struct
     uint32_t reactor_id :8;
 } swSession;
 
+typedef struct _swString
+{
+    size_t length;
+    size_t size;
+    off_t offset;
+    char *str;
+} swString;
+
+typedef struct _swLinkedList_node
+{
+    struct _swLinkedList_node *prev;
+    struct _swLinkedList_node *next;
+    void *data;
+} swLinkedList_node;
+
+typedef struct
+{
+    uint32_t num;
+    swLinkedList_node *head;
+    swLinkedList_node *tail;
+} swLinkedList;
+
+typedef void (*swDestructor)(void *data);
+
 typedef struct
 {
     union
@@ -457,6 +482,7 @@ typedef struct _swConnection
 #ifdef SW_USE_OPENSSL
     SSL *ssl;
     uint32_t ssl_state;
+    swString ssl_client_cert;
 #endif
     sw_atomic_t lock;
 } swConnection;
@@ -478,14 +504,6 @@ typedef struct _swProtocol
     int (*get_package_length)(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 } swProtocol;
 //------------------------------String--------------------------------
-typedef struct _swString
-{
-    size_t length;
-    size_t size;
-    off_t offset;
-    char *str;
-} swString;
-
 #define swoole_tolower(c)      (u_char) ((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
 #define swoole_toupper(c)      (u_char) ((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
 
@@ -610,20 +628,19 @@ typedef struct _swQueue_Data
     char mdata[sizeof(swEventData)]; /* text of the message */
 } swQueue_data;
 
-typedef struct _swQueue
+typedef struct _swMsgQueue
 {
-    void *object;
     int blocking;
-    int (*in)(struct _swQueue *, swQueue_data *in, int data_length);
-    int (*out)(struct _swQueue *, swQueue_data *out, int buffer_length);
-    void (*free)(struct _swQueue *);
-    int (*notify)(struct _swQueue *);
-    int (*wait)(struct _swQueue *);
-} swQueue;
+    int msg_id;
+    int ipc_wait;
+    uint8_t delete;
+    long type;
+} swMsgQueue;
 
-int swQueueMsg_create(swQueue *p, int wait, key_t msg_key, long type);
-void swQueueMsg_set_blocking(swQueue *p, uint8_t blocking);
-void swQueueMsg_set_destory(swQueue *p, uint8_t destory);
+int swMsgQueue_create(swMsgQueue *q, int wait, key_t msg_key, long type);
+int swMsgQueue_push(swMsgQueue *p, swQueue_data *in, int data_length);
+int swMsgQueue_pop(swMsgQueue *p, swQueue_data *out, int buffer_length);
+void swMsgQueue_free(swMsgQueue *p);
 
 //------------------Lock--------------------------------------
 enum SW_LOCKS
@@ -1189,7 +1206,7 @@ struct _swWorker
 
 	swMemoryPool *pool_output;
 
-	swQueue *queue;
+	swMsgQueue *queue;
 
 	/**
 	 * redirect stdout to pipe_master
@@ -1220,8 +1237,6 @@ struct _swWorker
      * tasking num
      */
     sw_atomic_t tasking_num;
-
-
 
 	/**
 	 * worker id
@@ -1288,14 +1303,14 @@ struct _swProcessPool
     swPipe *pipes;
     swHashMap *map;
     swReactor *reactor;
-    swQueue *queue;
+    swMsgQueue *queue;
 
     void *ptr;
     void *ptr2;
 };
 
 //----------------------------------------Reactor---------------------------------------
-enum SW_EVENTS
+enum swEvent_type
 {
     SW_EVENT_DEAULT = 256,
     SW_EVENT_READ = 1u << 9,
@@ -1367,6 +1382,26 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n);
 int swReactor_wait_write_buffer(swReactor *reactor, int fd);
 void swReactor_set(swReactor *reactor, int fd, int fdtype);
 
+static sw_inline int swReactor_add_event(swReactor *reactor, int fd, enum swEvent_type event_type)
+{
+    swConnection *conn = swReactor_get(reactor, fd);
+    if (!(conn->events & event_type))
+    {
+        return reactor->set(reactor, fd, conn->fdtype | conn->events | event_type);
+    }
+    return SW_OK;
+}
+
+static sw_inline int swReactor_del_event(swReactor *reactor, int fd, enum swEvent_type event_type)
+{
+    swConnection *conn = swReactor_get(reactor, fd);
+    if (conn->events & event_type)
+    {
+        return reactor->set(reactor, fd, conn->fdtype | (conn->events & (~event_type)));
+    }
+    return SW_OK;
+}
+
 swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype);
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);
 int swReactorPoll_create(swReactor *reactor, int max_event_num);
@@ -1421,6 +1456,12 @@ int swChannel_wait(swChannel *object);
 int swChannel_notify(swChannel *object);
 void swChannel_free(swChannel *object);
 
+swLinkedList* swLinkedList_new(void);
+int swLinkedList_append(swLinkedList *ll, void *data);
+int swLinkedList_prepend(swLinkedList *ll, void *data);
+void* swLinkedList_pop(swLinkedList *ll);
+void* swLinkedList_shift(swLinkedList *ll);
+void swLinkedList_free(swLinkedList *ll, swDestructor dtor);
 /*----------------------------Thread Pool-------------------------------*/
 enum swThread_type
 {
@@ -1612,6 +1653,7 @@ typedef struct
     uint8_t use_timerfd :1;
     uint8_t use_signalfd :1;
     uint8_t reuse_port :1;
+    uint8_t socket_dontwait :1;
 
     /**
      * Timer used pipe

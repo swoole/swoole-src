@@ -49,7 +49,6 @@ static PHP_METHOD(swoole_client, getSocket);
 static int client_select_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_DC);
 static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC);
 static int client_close(zval *zobject, int fd TSRMLS_DC);
-static void client_free(zval *object, swClient *cli);
 
 static int client_onRead(swReactor *reactor, swEvent *event);
 static int client_onPackage(swConnection *conn, char *data, uint32_t length);
@@ -122,12 +121,7 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
     }
 
     //long tcp connection, clear from php_sw_long_connections
-    zval *ztype = sw_zend_read_property(swoole_client_class_entry_ptr, zobject, SW_STRL("type")-1, 0 TSRMLS_CC);
-    if (ztype == NULL || ZVAL_IS_NULL(ztype))
-    {
-        swoole_php_fatal_error(E_WARNING, "get swoole_client->type failed.");
-    }
-    else if (Z_LVAL_P(ztype) & SW_FLAG_KEEP)
+    if (cli->keep)
     {
         if (swHashMap_del(php_sw_long_connections, cli->server_str, cli->server_strlen))
         {
@@ -135,7 +129,6 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
         }
         sw_free(cli->server_str);
         pefree(cli, 1);
-        ZVAL_LONG(ztype, 0);
     }
     else
     {
@@ -159,6 +152,7 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
 
         cli->socket->active = 0;
         cli->socket->closed = 1;
+
         client_callback *cb = swoole_get_property(zobject, 0);
         zcallback = cb->onClose;
         if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
@@ -183,17 +177,7 @@ static int client_close(zval *zobject, int fd TSRMLS_DC)
             sw_zval_ptr_dtor(&retval);
         }
     }
-    sw_zval_ptr_dtor(&zobject);
-    return SW_OK;
-}
 
-static void client_free(zval *object, swClient *cli)
-{
-    if (!cli)
-    {
-        return;
-    }
-    swoole_set_object(object, NULL);
     if (!cli->keep)
     {
         if (cli->socket->fd != 0)
@@ -201,7 +185,10 @@ static void client_free(zval *object, swClient *cli)
             cli->close(cli);
         }
         efree(cli);
+        swoole_set_object(zobject, NULL);
     }
+
+    return SW_OK;
 }
 
 static int client_onRead(swReactor *reactor, swEvent *event)
@@ -985,11 +972,12 @@ static PHP_METHOD(swoole_client, __construct)
 static PHP_METHOD(swoole_client, __destruct)
 {
     swClient *cli = swoole_get_object(getThis());
-    if (cli)
+    if (cli && !cli->keep)
     {
-        client_free(getThis(), cli);
+        client_close(getThis(), cli->socket->fd TSRMLS_CC);
     }
 
+    //free memory
     client_callback *cb = swoole_get_property(getThis(), 0);
     if (cb)
     {
@@ -1052,13 +1040,6 @@ static PHP_METHOD(swoole_client, connect)
     if (host_len <= 0)
     {
         swoole_php_fatal_error(E_WARNING, "The host is empty.");
-        RETURN_FALSE;
-    }
-
-    cli = swoole_get_object(getThis());
-    if (cli)
-    {
-        swoole_php_fatal_error(E_WARNING, "Operation now in progress.");
         RETURN_FALSE;
     }
 
@@ -1497,7 +1478,7 @@ static PHP_METHOD(swoole_client, recv)
     else if (cli->open_length_check)
     {
         uint32_t header_len = protocol->package_length_offset + protocol->package_length_size;
-        ret = cli->recv(cli, stack_buf, header_len, 1);
+        ret = cli->recv(cli, stack_buf, header_len, MSG_WAITALL);
         if (ret <= 0)
         {
             goto check_return;
@@ -1519,7 +1500,7 @@ static PHP_METHOD(swoole_client, recv)
         buf = emalloc(buf_len + 1);
         memcpy(buf, stack_buf, header_len);
         SwooleG.error = 0;
-        ret = cli->recv(cli, buf + header_len, buf_len - header_len, 1);
+        ret = cli->recv(cli, buf + header_len, buf_len - header_len, MSG_WAITALL);
         if (ret > 0)
         {
             ret += header_len;
@@ -1906,10 +1887,8 @@ PHP_FUNCTION(swoole_client_select)
     timeo.tv_usec = (int) ((timeout - timeo.tv_sec) * 1000 * 1000);
 
     retval = select(max_fd + 1, &rfds, &wfds, &efds, &timeo);
-
     if (retval == -1)
     {
-        zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errno TSRMLS_CC);
         swoole_php_fatal_error(E_WARNING, "unable to select. Error: %s [%d]", strerror(errno), errno);
         RETURN_FALSE;
     }

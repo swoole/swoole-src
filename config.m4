@@ -26,6 +26,12 @@ PHP_ARG_ENABLE(ringbuffer, enable ringbuffer shared memory pool support,
 PHP_ARG_ENABLE(async_mysql, enable async_mysql support,
 [  --enable-async-mysql    Do you have mysqli and mysqlnd?], no, no)
 
+PHP_ARG_ENABLE(async_redis, enable async_redis support,
+[  --enable-async-redis    Do you have hiredis?], no, no)
+
+PHP_ARG_ENABLE(async_httpclient, enable async_httpclient support,
+[  --enable-async-httpclient  Enable async httpclient support?], no, no)
+
 PHP_ARG_ENABLE(openssl, enable openssl support,
 [  --enable-openssl        Use openssl?], no, no)
 
@@ -145,6 +151,10 @@ if test "$PHP_SWOOLE" != "no"; then
 	if test "$PHP_ASYNC_MYSQL" = "yes"; then
 		AC_DEFINE(SW_ASYNC_MYSQL, 1, [enable async_mysql support])
     fi
+
+	if test "$PHP_ASYNC_HTTPCLIENT" = "yes"; then
+		AC_DEFINE(SW_ASYNC_HTTPCLIENT, 1, [enable async_httpclient support])
+    fi
         
     AC_SWOOLE_CPU_AFFINITY
     AC_SWOOLE_HAVE_REUSEPORT
@@ -177,6 +187,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(pthread, pthread_barrier_init, AC_DEFINE(HAVE_PTHREAD_BARRIER, 1, [have pthread_barrier_init]))
     AC_CHECK_LIB(ssl, SSL_library_init, AC_DEFINE(HAVE_OPENSSL, 1, [have openssl]))
     AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
+    AC_CHECK_LIB(hiredis, redisConnect, AC_DEFINE(HAVE_HIREDIS, 1, [have hiredis]))
     
     AC_CHECK_LIB(z, gzgets, [
         AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
@@ -200,21 +211,28 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_ADD_LIBRARY(crypt, 1, SWOOLE_SHARED_LIBADD)
         PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
     fi
+
+    if test "$PHP_ASYNC_REDIS" = "yes"; then
+        AC_DEFINE(SW_USE_REDIS, 1, [enable async-redis support])
+        PHP_ADD_LIBRARY(hiredis, 1, SWOOLE_SHARED_LIBADD)
+    fi
     
     swoole_source_file="swoole.c \
         swoole_server.c \
         swoole_atomic.c \
         swoole_lock.c \
         swoole_client.c \
-        swoole_http_client.c \
         swoole_event.c \
         swoole_timer.c \
         swoole_async.c \
         swoole_process.c \
         swoole_buffer.c \
         swoole_table.c \
-        swoole_http.c \
-        swoole_websocket.c \
+        swoole_http_server.c \
+        swoole_websocket_server.c \
+        swoole_http_client.c \
+        swoole_mysql.c \
+        swoole_redis.c \
         src/core/base.c \
         src/core/log.c \
         src/core/hashmap.c \
@@ -223,6 +241,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/string.c \
         src/core/array.c \
         src/core/socket.c \
+        src/core/list.c \
         src/memory/ShareMemory.c \
         src/memory/MemoryGlobal.c \
         src/memory/RingBuffer.c \
@@ -241,7 +260,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/pipe/PipeBase.c \
         src/pipe/PipeEventfd.c \
         src/pipe/PipeUnsock.c \
-        src/queue/Msg.c \
         src/lock/Semaphore.c \
         src/lock/Mutex.c \
         src/lock/RWLock.c \
@@ -261,6 +279,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/os/base.c \
         src/os/linux_aio.c \
         src/os/gcc_aio.c \
+        src/os/msg_queue.c \
         src/os/sendfile.c \
         src/os/signal.c \
         src/os/timer.c \

@@ -44,10 +44,6 @@ static void swReactorEpoll_free(swReactor *reactor);
 static sw_inline int swReactorEpoll_event_set(int fdtype)
 {
     uint32_t flag = 0;
-#ifdef SW_USE_EPOLLET
-    flag = EPOLLET;
-#endif
-
     if (swReactor_event_read(fdtype))
     {
         flag |= EPOLLIN;

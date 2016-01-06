@@ -52,3 +52,8 @@ modules/*
 /modules
 /examples/async/test.copy
 /examples/ssl_client
+/examples/ssl/ca.crt
+/examples/ssl/client.key
+/examples/ssl/client.pfx
+/examples/ssl/corpssl.crt
+/examples/ssl/corpssl.key

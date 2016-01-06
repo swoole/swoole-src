@@ -43,7 +43,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.7.22-alpha"
+#define PHP_SWOOLE_VERSION  "1.7.22"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -165,6 +165,14 @@ extern swoole_object_array swoole_objects;
 #define SW_FLAG_ASYNC                       (1u << 10)
 #define SW_FLAG_SYNC                        (1u << 11)
 //---------------------------------------------------------
+enum php_swoole_fd_type
+{
+    PHP_SWOOLE_FD_CLIENT = SW_FD_USER + 1,
+    PHP_SWOOLE_FD_MYSQL,
+    PHP_SWOOLE_FD_REDIS,
+    PHP_SWOOLE_FD_HTTPCLIENT,
+};
+//---------------------------------------------------------
 #define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL))
 #define php_swoole_array_length(array)      (Z_ARRVAL_P(array)->nNumOfElements)
 
@@ -276,6 +284,7 @@ PHP_FUNCTION(swoole_errno);
 
 #ifdef SW_ASYNC_MYSQL
 PHP_FUNCTION(swoole_get_mysqli_sock);
+PHP_FUNCTION(swoole_mysql_query);
 #endif
 
 PHP_FUNCTION(swoole_client_select);
@@ -287,11 +296,17 @@ void swoole_table_init(int module_number TSRMLS_DC);
 void swoole_lock_init(int module_number TSRMLS_DC);
 void swoole_atomic_init(int module_number TSRMLS_DC);
 void swoole_client_init(int module_number TSRMLS_DC);
+#ifdef SW_ASYNC_HTTPCLIENT
 void swoole_http_client_init(int module_number TSRMLS_DC);
+#endif
+#ifdef SW_USE_REDIS
+void swoole_redis_init(int module_number TSRMLS_DC);
+#endif
 void swoole_process_init(int module_number TSRMLS_DC);
 void swoole_http_init(int module_number TSRMLS_DC);
 void swoole_websocket_init(int module_number TSRMLS_DC);
 void swoole_buffer_init(int module_number TSRMLS_DC);
+void swoole_mysql_init(int module_number TSRMLS_DC);
 
 int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC);
 

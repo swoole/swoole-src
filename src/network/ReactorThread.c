@@ -89,6 +89,29 @@ static sw_inline int swReactorThread_check_ssl_state(swConnection *conn)
         int ret = swSSL_accept(conn);
         if (ret == SW_READY)
         {
+            if (SwooleG.serv->ssl_client_cert_file)
+            {
+                swDispatchData task;
+                ret = swSSL_get_client_certificate(conn->ssl, task.data.data, sizeof(task.data.data));
+                if (ret < 0)
+                {
+                    goto no_client_cert;
+                }
+                else
+                {
+                    swFactory *factory = &SwooleG.serv->factory;
+                    task.target_worker_id = -1;
+                    task.data.info.fd = conn->fd;
+                    task.data.info.type = SW_EVENT_CONNECT;
+                    task.data.info.from_id = conn->from_id;
+                    task.data.info.len = ret;
+                    if (factory->dispatch(factory, &task) < 0)
+                    {
+                        return SW_OK;
+                    }
+                }
+            }
+            no_client_cert:
             if (SwooleG.serv->onConnect)
             {
                 swServer_connection_ready(SwooleG.serv, conn->fd, conn->from_id);
@@ -756,14 +779,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     //notify worker process
     else if (conn->connect_notify)
     {
-        swDataHead connect_event;
-        connect_event.type = SW_EVENT_CONNECT;
-        connect_event.from_id = reactor->id;
-        connect_event.fd = fd;
-        if (serv->factory.notify(&serv->factory, &connect_event) < 0)
-        {
-            swWarn("send notification [fd=%d] failed.", fd);
-        }
+        swServer_connection_ready(serv, fd, reactor->id);
         conn->connect_notify = 0;
         return reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_READ);
     }
@@ -933,21 +949,11 @@ static int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *even
 #endif
         //dispatch to worker process
         ret = factory->dispatch(factory, &task);
-
 #ifdef SW_USE_RINGBUFFER
         if (ret < 0)
         {
             swMemoryPool *pool = serv->reactor_threads[SwooleTG.id].buffer_input;
             pool->free(pool, package.data);
-        }
-#endif
-
-#ifdef SW_USE_EPOLLET
-        //缓存区还有数据没读完，继续读，EPOLL的ET模式
-        if (sw_errno == EAGAIN)
-        {
-            swWarn("sw_errno == EAGAIN");
-            ret = swReactorThread_onReceive_no_buffer(reactor, event);
         }
 #endif
         return ret;
@@ -1275,7 +1281,7 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
             {
                 swHttpRequest_free(conn);
             }
-            conn->websocket_status = WEBSOCKET_STATUS_FRAME;
+            conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
         }
         return swReactorThread_onReceive_websocket(reactor, event);
     }

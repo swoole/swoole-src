@@ -206,6 +206,12 @@ int swFactoryThread_create(swFactory *factory, int writer_num);
 
 
 //------------------------------------Server-------------------------------------------
+enum swServer_callback_type
+{
+    SW_SERVER_CALLBACK_onConnect = 1,
+    SW_SERVER_CALLBACK_onReceive,
+    SW_SERVER_CALLBACK_onClose,
+};
 struct _swServer
 {
     /**
@@ -453,8 +459,8 @@ struct _swServer
     int (*onReceive)(swServer *, swEventData *);
     int (*onPacket)(swServer *, swEventData *); //for datagram
     int (*onRequest)(swServer *serv, swRequest *request);
-    void (*onClose)(swServer *serv, int fd, int from_id);
-    void (*onConnect)(swServer *serv, int fd, int from_id);
+    void (*onClose)(swServer *serv, int fd, int reactor_id);
+    void (*onConnect)(swServer *serv, int fd, int reactor_id);
     void (*onShutdown)(swServer *serv);
     void (*onTimer)(swServer *serv, int interval);
     void (*onPipeMessage)(swServer *, swEventData *);
@@ -741,6 +747,11 @@ static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t sche
 
 void swServer_worker_onStart(swServer *serv);
 void swServer_worker_onStop(swServer *serv);
+
+void swServer_set_callback(swServer *serv, int type, void *callback);
+void swServer_set_callback_onReceive(swServer *serv, int (*callback)(swServer *, char *, int, int, int));
+void swServer_set_callback_onConnect(swServer *serv, void (*callback)(swServer *, int, int));
+void swServer_set_callback_onClose(swServer *serv, void (*callback)(swServer *, int, int));
 
 int swWorker_create(swWorker *worker);
 int swWorker_onTask(swFactory *factory, swEventData *task);

@@ -76,6 +76,7 @@ static PHP_METHOD(swoole_table, decr);
 static PHP_METHOD(swoole_table, lock);
 static PHP_METHOD(swoole_table, unlock);
 static PHP_METHOD(swoole_table, count);
+static PHP_METHOD(swoole_table, destroy);
 
 #ifdef HAVE_PCRE
 static PHP_METHOD(swoole_table, rewind);
@@ -90,6 +91,7 @@ static const zend_function_entry swoole_table_methods[] =
     PHP_ME(swoole_table, __construct, arginfo_swoole_table_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
     PHP_ME(swoole_table, column,      arginfo_swoole_table_column, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, create,      arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, destroy,     arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, set,         arginfo_swoole_table_set, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, get,         arginfo_swoole_table_get, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, count,       arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
@@ -232,6 +234,13 @@ static PHP_METHOD(swoole_table, create)
     RETURN_TRUE;
 }
 
+static PHP_METHOD(swoole_table, destroy)
+{
+    swTable *table = swoole_get_object(getThis());
+    swTable_free(table);
+    RETURN_TRUE;
+}
+
 static PHP_METHOD(swoole_table, set)
 {
     zval *array;
@@ -286,8 +295,8 @@ static PHP_METHOD(swoole_table, set)
         }
     }
     SW_HASHTABLE_FOREACH_END();
-    sw_spinlock_release(lock);                                                                                                                        
-    RETURN_TRUE;     
+    sw_spinlock_release(lock);
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_table, incr)

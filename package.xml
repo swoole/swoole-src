@@ -31,11 +31,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2015-12-01</date>
-    <time>12:48:51</time>
+    <date>2015-12-31</date>
+    <time>14:48:51</time>
     <version>
-        <release>1.7.21</release>
-        <api>1.7.21</api>
+		<release>1.7.22</release>
+		<api>1.7.22</api>
     </version>
     <stability>
         <release>stable</release>
@@ -43,14 +43,13 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed memory leak swoole_client synchronous mode occurs when the server closes
-- Fixed POST/Upload problem can not handle more than 8K
-- Added swoole_http_response->sendfile method for sending large files
-- Fixed swoole_client core dump when enable SSL/TLS encrypted
-- Added swoole_server->getSocket/swoole_client->getSocket
-- Fixed UDP large package in question Worker process occurs dispatch_mode = 1/3 deadlock
-- Added swoole_client->sleep/wakeup method for suspend/resume data reception event
-- Fixed UDP large package data is abnormal
+- Fixed memory leak in PHP7
+- Fixed core dump in PHP7
+- Added swoole_mysql_query
+- Fixed swoole_table->del damage the memory
+- Added swoole_websocket_server->exist
+- Added swoole_server ssl_client_cert_file settings
+- Fixed timer exec_time overflow cause stop
     </notes>
 	<contents>
 		<dir name="/">
@@ -169,9 +168,12 @@
                     <file role="src" name="interval.php" />
                     <file role="src" name="tick.php" />
                 </dir>
+                <dir name="mysql">
+                    <file role="src" name="async_mysql2.php" />
+                    <file role="src" name="real_async.php" />
+                </dir>
 				<file role="src" name="server.php" />
 				<file role="src" name="mysql_proxy_server.php" />
-				<file role="src" name="async_mysql2.php" />
 				<file role="src" name="proxy.php" />
 				<file role="src" name="proxy_sync.php" />
 				<file role="src" name="timer.php" />
@@ -196,6 +198,8 @@
 			<file role="src" name="swoole_http.h" />
 			<file role="src" name="swoole_websocket.c" />
 			<file role="src" name="swoole_atomic.c" />
+			<file role="src" name="swoole_mysql.c" />
+			<file role="src" name="swoole_http_client.c" />
 			<dir name="thirdparty">
 				<file role="src" name="php_http_parser.c" />
 				<file role="src" name="php_http_parser.h" />
@@ -212,6 +216,7 @@
 					<file role="src" name="Channel.c" />
 					<file role="src" name="string.c" />
 					<file role="src" name="array.c" />
+					<file role="src" name="list.c" />
 				</dir>
 				<dir name="memory">
 					<file role="src" name="ShareMemory.c" />
@@ -239,9 +244,6 @@
 					<file role="src" name="PipeEventfd.c" />
 					<file role="src" name="PipeUnsock.c" />
 				</dir>
-				<dir name="queue">
-					<file role="src" name="Msg.c" />
-				</dir>
 				<dir name="lock">
 					<file role="src" name="Semaphore.c" />
 					<file role="src" name="Mutex.c" />
@@ -267,6 +269,7 @@
 					<file role="src" name="base.c" />
 					<file role="src" name="gcc_aio.c" />
 					<file role="src" name="linux_aio.c" />
+					<file role="src" name="msg_queue.c" />
 					<file role="src" name="sendfile.c" />
 					<file role="src" name="signal.c" />
 					<file role="src" name="timer.c" />

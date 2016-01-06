@@ -19,7 +19,7 @@
 #include "ext/standard/basic_functions.h"
 #include "ext/standard/php_http.h"
 
-#define SW_FD_HTTP_CLIENT (SW_FD_USER+1)
+#ifdef SW_ASYNC_HTTPCLIENT
 
 typedef struct
 {
@@ -40,6 +40,8 @@ typedef struct
     char *tmp_header_field_name;
     zend_size_t tmp_header_field_name_len;
     
+    char *body;
+
     php_http_parser parser;
     
     int phase;  //0 wait 1 ready 2 busy
@@ -154,7 +156,6 @@ void swoole_http_client_init(int module_number TSRMLS_DC)
 
     zend_declare_property_long(swoole_http_client_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_http_client_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-
 }
 
 /**
@@ -438,7 +439,7 @@ static int http_client_onWrite(swReactor *reactor, swEvent *event)
         if (error == 0)
         {
             //listen read event
-            SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, SW_FD_HTTP_CLIENT | SW_EVENT_READ);
+            SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, PHP_SWOOLE_FD_HTTPCLIENT | SW_EVENT_READ);
             //connected
             http->cli->socket->active = 1;
 
@@ -765,15 +766,13 @@ static PHP_METHOD(swoole_http_client, __construct)
         return;
     }
     
-    if(host_len <= 0)
+    if (host_len <= 0)
     {
         swoole_php_fatal_error(E_ERROR, "host is empty.");
         RETURN_FALSE;
     }
 
-    zend_update_property_stringl(
-        swoole_http_client_class_entry_ptr,
-        getThis(), ZEND_STRL("host"), host, host_len TSRMLS_CC);
+    zend_update_property_stringl(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("host"), host, host_len TSRMLS_CC);
     
     zend_update_property_long(
         swoole_http_client_class_entry_ptr,
@@ -965,7 +964,7 @@ static PHP_METHOD(swoole_http_client, execute)
     sw_zval_add_ref(&obj);
 #endif
 
-    http->cli->reactor_fdtype = SW_FD_HTTP_CLIENT;
+    http->cli->reactor_fdtype = PHP_SWOOLE_FD_HTTPCLIENT;
 
     reactor_flag = http->cli->reactor_fdtype | SW_EVENT_WRITE;
     if (errno == EINPROGRESS)
@@ -1106,14 +1105,18 @@ static int http_client_parser_on_body(php_http_parser *parser, const char *at, s
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    http_client* http = (http_client*)parser->data;
-    zval* zobject = (zval*)http->cli->socket->object;
+    http_client* http = (http_client*) parser->data;
+    zval* zobject = (zval*) http->cli->socket->object;
     
     zval *body = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("body"), 0 TSRMLS_CC);
     zval *tmp;
     SW_MAKE_STD_ZVAL(tmp);
     SW_ZVAL_STRINGL(tmp, at, length, 1);
+#if PHP_MAJOR_VERSION < 7
     add_string_to_string(body, body, tmp);
+#else
+    concat_function(body, body, tmp);
+#endif
     sw_zval_ptr_dtor(&tmp);
 
     return 0;
@@ -1124,6 +1127,7 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
+
     http_client* http = (http_client*)parser->data;
     zval* zobject = (zval*)http->cli->socket->object;
 
@@ -1132,7 +1136,6 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
         //reset http phase for reuse
         http->phase = 1;
     }
-
 
     zval *retval;
     zval *zcallback;
@@ -1161,3 +1164,5 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
 
     return 0;
 }
+
+#endif

@@ -303,7 +303,7 @@ int swDNSResolver_request(swDNS_request *request)
         cli->close(cli);
         return SW_ERR;
     }
-    if (cli->send(cli, (char *) packet, steps) < 0)
+    if (cli->send(cli, (char *) packet, steps, 0) < 0)
     {
         cli->close(cli);
         return SW_ERR;

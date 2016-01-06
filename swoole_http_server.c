@@ -939,7 +939,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
         return SW_ERR;
     }
 
-    if (conn->websocket_status == WEBSOCKET_STATUS_FRAME)  //websocket callback
+    if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)  //websocket callback
     {
         return swoole_websocket_onMessage(req);
     }

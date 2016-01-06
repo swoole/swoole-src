@@ -179,3 +179,54 @@ swUnitTest(rbtree_test)
 	printf("find_n %d\n", (int) swRbtree_find(tree, 17532));
 	return 0;
 }
+
+
+swUnitTest(linkedlist_test)
+{
+    swLinkedList *ll = swLinkedList_new();
+    uint32_t key;
+    int i, j, n;
+#define Q_N   2000
+    int data[Q_N];
+    int *value;
+
+    for (i = 1; i < Q_N; i++)
+    {
+        data[i] = i;
+        swLinkedList_append(ll, &data[i]);
+
+        if (i % 200 == 150 && ll->num > 150)
+        {
+            n = rand() % 150 + 10;
+            printf("count=%d, pop n=%d\n", ll->num,  n);
+            for (j = 0; j < n; j++)
+            {
+                value = swLinkedList_shift(ll);
+                if (value)
+                {
+                    printf("value=%d\n", *value);
+                }
+                else
+                {
+                    printf("NULL\n");
+                }
+            }
+        }
+    }
+
+    printf("\n-----------------------------------\nnum=%d, pop all\n-----------------------------------\n", ll->num);
+
+    for (j = ll->num; j > 0 ; j--)
+    {
+        value = swLinkedList_shift(ll);
+        if (value)
+        {
+            printf("value=%d\n", *value);
+        }
+        else
+        {
+            printf("NULL\n");
+        }
+    }
+    return 0;
+}

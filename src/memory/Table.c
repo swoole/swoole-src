@@ -474,6 +474,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
         {
             tmp = tmp->next;
             row->next = tmp->next;
+            row->crc32 = tmp->crc32;
 
             if (table->iterator->skip_count > table->compress_threshold)
             {
@@ -482,7 +483,6 @@ int swTableRow_del(swTable *table, char *key, int keylen)
 
             memcpy(row->data, tmp->data, table->item_size);
         }
-
         if (prev)
         {
             prev->next = tmp->next;

@@ -48,11 +48,13 @@ SSL_CTX* swSSL_get_context(int method, char *cert_file, char *key_file);
 void swSSL_free_context(SSL_CTX* ssl_context);
 int swSSL_create(swConnection *conn, SSL_CTX* ssl_context, int flags);
 int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth);
+int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length);
 int swSSL_accept(swConnection *conn);
 int swSSL_connect(swConnection *conn);
 void swSSL_close(swConnection *conn);
 ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n);
 ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n);
+
 
 enum swSSLState
 {

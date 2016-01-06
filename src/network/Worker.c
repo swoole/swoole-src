@@ -138,6 +138,10 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     swString *package = NULL;
     swDgramPacket *header;
 
+#ifdef SW_USE_OPENSSL
+    swConnection *conn;
+#endif
+
     factory->last_from_id = task->info.from_id;
     //worker busy
     serv->workers[SwooleWG.id].status = SW_WORKER_BUSY;
@@ -208,11 +212,31 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         break;
 
     case SW_EVENT_CLOSE:
+#ifdef SW_USE_OPENSSL
+        conn = swServer_connection_verify(serv, task->info.fd);
+        if (conn && conn->ssl_client_cert.length)
+        {
+            free(conn->ssl_client_cert.str);
+            bzero(&conn->ssl_client_cert, sizeof(conn->ssl_client_cert.str));
+        }
+#endif
         factory->end(factory, task->info.fd);
         break;
 
     case SW_EVENT_CONNECT:
-        serv->onConnect(serv, task->info.fd, task->info.from_id);
+#ifdef SW_USE_OPENSSL
+        //SSL client certificate
+        if (task->info.len > 0)
+        {
+            conn = swServer_connection_verify(serv, task->info.fd);
+            conn->ssl_client_cert.str = strndup(task->data, task->info.len);
+            conn->ssl_client_cert.size = conn->ssl_client_cert.length = task->info.len;
+        }
+#endif
+        if (serv->onConnect)
+        {
+            serv->onConnect(serv, task->info.fd, task->info.from_id);
+        }
         break;
 
     case SW_EVENT_FINISH:
@@ -519,7 +543,7 @@ int swWorker_send2worker(swWorker *dst_worker, void *buf, int n, int flag)
         msg.mtype = dst_worker->id + 1;
         memcpy(&msg.buf, buf, n);
 
-        return dst_worker->pool->queue->in(dst_worker->pool->queue, (swQueue_data *) &msg, n);
+        return swMsgQueue_push(dst_worker->pool->queue, (swQueue_data *) &msg, n);
     }
 
     if ((flag & SW_PIPE_NONBLOCK) && SwooleG.main_reactor)

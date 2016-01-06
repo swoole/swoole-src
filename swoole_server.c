@@ -2560,7 +2560,6 @@ PHP_FUNCTION(swoole_server_taskwait)
     {
         //serialize
         swTask_type(&buf) |= SW_TASK_SERIALIZE;
-        //TODO php serialize
         PHP_VAR_SERIALIZE_INIT(var_hash);
         sw_php_var_serialize(&serialized_data, data, &var_hash TSRMLS_CC);
         PHP_VAR_SERIALIZE_DESTROY(var_hash);
@@ -2997,6 +2996,13 @@ PHP_FUNCTION(swoole_connection_info)
         {
             add_assoc_long(return_value, "websocket_status", conn->websocket_status);
         }
+
+#ifdef SW_USE_OPENSSL
+        if (conn->ssl_client_cert.length > 0)
+        {
+            sw_add_assoc_stringl(return_value, "ssl_client_cert", conn->ssl_client_cert.str, conn->ssl_client_cert.length - 1, 1);
+        }
+#endif
 
         swConnection *from_sock = swServer_connection_get(serv, conn->from_fd);
         add_assoc_long(return_value, "server_fd", conn->from_fd);
