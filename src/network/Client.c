@@ -718,47 +718,52 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
     {
         return swReactor_onWrite(SwooleG.main_reactor, event);
     }
-    else
-    {
-        int error;
-        socklen_t len = sizeof(error);
 
-        if (getsockopt (event->fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0)
-        {
-            swWarn("getsockopt(%d) failed. Error: %s[%d]", event->fd, strerror(errno), errno);
-            return SW_ERR;
-        }
-        //success
-        if (error == 0)
-        {
-            //listen read event
-            SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, (SW_FD_USER + 1) | SW_EVENT_READ);
-            //connected
-            cli->socket->active = 1;
+    int error;
+    socklen_t len = sizeof(error);
+    if (getsockopt (event->fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0)
+    {
+        swWarn("getsockopt(%d) failed. Error: %s[%d]", event->fd, strerror(errno), errno);
+        return SW_ERR;
+    }
+
+    //success
+    if (error == 0)
+    {
+        //listen read event
+        SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, (SW_FD_USER + 1) | SW_EVENT_READ);
+        //connected
+        cli->socket->active = 1;
 
 #ifdef SW_USE_OPENSSL
-            if (cli->open_ssl)
+        if (cli->open_ssl)
+        {
+            if (swClient_ssl_handshake(cli) < 0)
             {
-                if (swClient_ssl_handshake(cli) < 0)
-                {
-                    goto connect_fail;
-                }
-                else
-                {
-                    cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
-                }
-                return SW_OK;
+                goto connect_fail;
             }
+            else
+            {
+                cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
+            }
+            return SW_OK;
+        }
 #endif
+        if (cli->onConnect)
+        {
             cli->onConnect(cli);
         }
-        else
-        {
-            connect_fail:
-            cli->onError(cli);
-            cli->close(cli);
-        }
     }
+    else
+    {
+        connect_fail:
+        if (cli->onError)
+        {
+            cli->onError(cli);
+        }
+        cli->close(cli);
+    }
+
     return SW_OK;
 }
 

@@ -99,7 +99,7 @@ static void http_client_set_cb(zval *zobject, char *cb_name, int cb_name_len, zv
 static zval* http_client_get_cb(zval *zobject, char *cb_name, int cb_name_len TSRMLS_DC)
 {
     return sw_zend_read_property(
-        swoole_http_client_class_entry_ptr, 
+        swoole_http_client_class_entry_ptr,
         zobject, cb_name, cb_name_len, 1 TSRMLS_CC);
 }
 
@@ -119,10 +119,9 @@ static void http_client_set_cb(zval *zobject, char *cb_name, int cb_name_len, zv
     {
         swoole_php_fatal_error(E_ERROR, "Too many callbacks");
     }
-    
+
     hcc->gc_list[hcc->gc_idx++] = zcb;
 }
-
 
 static const zend_function_entry swoole_http_client_methods[] =
 {
@@ -180,7 +179,7 @@ static void http_client_onClose(swClient *cli)
     zcallback = http_client_get_cb(zobject, ZEND_STRL("close") TSRMLS_CC);
     if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
     {
-        swoole_php_fatal_error(E_ERROR, "swoole_client->close[3]: no close callback.");
+        return;
     }
     args[0] = &zobject;
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC)  == FAILURE)
@@ -740,10 +739,12 @@ static PHP_METHOD(swoole_http_client, execute)
 
     cli->object = getThis();
     cli->reactor_fdtype = PHP_SWOOLE_FD_CLIENT;
+    cli->onReceive = http_client_onReceive;
     cli->onConnect = http_client_onConnect;
+
     cli->onClose = http_client_onClose;
     cli->onError = http_client_onError;
-    cli->onReceive = http_client_onReceive;
+
     ret = cli->connect(cli, http->host, http->port, http->timeout, 0);
     SW_CHECK_RETURN(ret);
 }
@@ -802,11 +803,9 @@ static PHP_METHOD(swoole_http_client, on)
     {
         return;
     }
-    
-    if(strncasecmp("finish", cb_name, cb_name_len) == 0
-            || strncasecmp("error", cb_name, cb_name_len) == 0
-            || strncasecmp("close", cb_name, cb_name_len) == 0
-    )
+
+    if (strncasecmp("finish", cb_name, cb_name_len) == 0 || strncasecmp("error", cb_name, cb_name_len) == 0
+            || strncasecmp("close", cb_name, cb_name_len) == 0)
     {
         http_client_set_cb(getThis(), cb_name, cb_name_len, zcallback TSRMLS_CC);
     }
@@ -915,9 +914,9 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
         sw_zval_ptr_dtor(&retval);
     }
 
-    if(http->keep_alive == 0)
+    if (http->keep_alive == 0)
     {
-        http_client_close(zobject, http->cli->socket->fd TSRMLS_CC);
+        http->cli->close(http->cli);
     }
 
     return 0;

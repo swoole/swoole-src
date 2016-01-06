@@ -1141,7 +1141,8 @@ static PHP_METHOD(swoole_http_server, on)
     }
     else
     {
-        sw_zend_call_method_with_2_params(&getThis(), swoole_server_class_entry_ptr, NULL, "on", &return_value, event_name, callback);
+        zval *obj = getThis();
+        sw_zend_call_method_with_2_params(&obj, swoole_server_class_entry_ptr, NULL, "on", &return_value, event_name, callback);
     }
 }
 
