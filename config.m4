@@ -222,15 +222,15 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_atomic.c \
         swoole_lock.c \
         swoole_client.c \
-        swoole_http_client.c \
         swoole_event.c \
         swoole_timer.c \
         swoole_async.c \
         swoole_process.c \
         swoole_buffer.c \
         swoole_table.c \
-        swoole_http.c \
-        swoole_websocket.c \
+        swoole_http_server.c \
+        swoole_websocket_server.c \
+        swoole_http_client.c \
         swoole_mysql.c \
         swoole_redis.c \
         src/core/base.c \
