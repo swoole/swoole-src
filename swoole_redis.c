@@ -42,6 +42,8 @@ enum swoole_redis_state
 static PHP_METHOD(swoole_redis, connect);
 static PHP_METHOD(swoole_redis, close);
 static PHP_METHOD(swoole_redis, execute);
+static PHP_METHOD(swoole_redis, get);
+static PHP_METHOD(swoole_redis, set);
 static PHP_METHOD(swoole_redis, __destruct);
 
 static void swoole_redis_onConnect(const redisAsyncContext *c, int status);
@@ -55,6 +57,7 @@ static void swoole_redis_event_AddWrite(void *privdata);
 static void swoole_redis_event_DelRead(void *privdata);
 static void swoole_redis_event_DelWrite(void *privdata);
 static void swoole_redis_event_Cleanup(void *privdata);
+static int swoole_redis_send_command(zval *object, zval *callback, char *command, ...);
 
 static zend_class_entry swoole_redis_ce;
 zend_class_entry *swoole_redis_class_entry_ptr;
@@ -64,6 +67,8 @@ static const zend_function_entry swoole_redis_methods[] =
 {
     PHP_ME(swoole_redis, connect, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis, execute, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis, get, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis, set, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis, close, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_FE_END
@@ -77,15 +82,32 @@ void swoole_redis_init(int module_number TSRMLS_DC)
 
 static PHP_METHOD(swoole_redis, connect)
 {
-    char *host = "127.0.0.1";
+    char *host;
     int host_len;
-    long port = 6379;
+    long port;
     zval *callback;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "slz", &host, &host_len, &port, &callback) == FAILURE)
     {
         RETURN_FALSE;
     }
+
+    if (host_len <= 0)
+    {
+        swoole_php_error(E_WARNING, "host is empty.");
+        RETURN_FALSE;
+    }
+
+    if (port <= 1 || port > 65535)
+    {
+        swoole_php_error(E_WARNING, "port is invalid.");
+        RETURN_FALSE;
+    }
+
+    swRedisClient *redis = emalloc(sizeof(swRedisClient));
+    bzero(redis, sizeof(swRedisClient));
+    redis->object = getThis();
+    swoole_set_object(getThis(), redis);
 
     redisAsyncContext *context = redisAsyncConnect(host, (int) port);
     if (context->err)
@@ -105,9 +127,6 @@ static PHP_METHOD(swoole_redis, connect)
     redisAsyncSetConnectCallback(context, swoole_redis_onConnect);
     redisAsyncSetDisconnectCallback(context, swoole_redis_onClose);
 
-    swRedisClient *redis = emalloc(sizeof(swRedisClient));
-    bzero(redis, sizeof(swRedisClient));
-
 #if PHP_MAJOR_VERSION < 7
     redis->connect_callback = callback;
 #else
@@ -118,16 +137,12 @@ static PHP_METHOD(swoole_redis, connect)
     sw_zval_add_ref(&redis->connect_callback);
 
     redis->context = context;
-    redis->object = getThis();
-
     context->ev.addRead = swoole_redis_event_AddRead;
     context->ev.delRead = swoole_redis_event_DelRead;
     context->ev.addWrite = swoole_redis_event_AddWrite;
     context->ev.delWrite = swoole_redis_event_DelWrite;
     context->ev.cleanup = swoole_redis_event_Cleanup;
     context->ev.data = redis;
-
-    swoole_set_object(getThis(), redis);
 
     zend_update_property_string(swoole_redis_class_entry_ptr, getThis(), ZEND_STRL("host"), host TSRMLS_CC);
     zend_update_property_long(swoole_redis_class_entry_ptr, getThis(), ZEND_STRL("port"), port TSRMLS_CC);
@@ -151,6 +166,10 @@ static PHP_METHOD(swoole_redis, close)
 static PHP_METHOD(swoole_redis, __destruct)
 {
     swRedisClient *redis = swoole_get_object(getThis());
+    if (!redis)
+    {
+        return;
+    }
     if (redis->state != SWOOLE_REDIS_STATE_CLOSED)
     {
         redisAsyncDisconnect(redis->context);
@@ -158,33 +177,23 @@ static PHP_METHOD(swoole_redis, __destruct)
     efree(redis);
 }
 
-static PHP_METHOD(swoole_redis, execute)
+static int swoole_redis_send_command(zval *object, zval *callback, char *format, ...)
 {
-    zval *callback;
-    char *command;
-    int command_len;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &command, &command_len, &callback) == FAILURE)
-    {
-        return;
-    }
-
-    swRedisClient *redis = swoole_get_object(getThis());
-
-    switch(redis->state)
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+    swRedisClient *redis = swoole_get_object(object);
+    switch (redis->state)
     {
     case SWOOLE_REDIS_STATE_CONNECT:
         swoole_php_error(E_WARNING, "redis client is not connected.");
-        RETVAL_FALSE;
-        return;
+        return SW_ERR;
     case SWOOLE_REDIS_STATE_WAIT:
         swoole_php_error(E_WARNING, "redis client is waiting for response.");
-        RETVAL_FALSE;
-        return;
+        return SW_ERR;
     case SWOOLE_REDIS_STATE_CLOSED:
         swoole_php_error(E_WARNING, "redis client connection is closed.");
-        RETVAL_FALSE;
-        return;
+        return SW_ERR;
     default:
         break;
     }
@@ -197,13 +206,60 @@ static PHP_METHOD(swoole_redis, execute)
 #endif
 
     sw_zval_add_ref(&redis->result_callback);
-    if (redisAsyncCommand(redis->context, swoole_redis_onResult, NULL, command, command_len) < 0)
+
+    va_list ap;
+    va_start(ap, format);
+    int ret = redisvAsyncCommand(redis->context, swoole_redis_onResult, NULL, format, ap);
+    va_end(ap);
+
+    if (ret < 0)
     {
         swoole_php_error(E_WARNING, "redisAsyncCommandArgv() failed.");
-        RETURN_FALSE;
+        return SW_ERR;
     }
     redis->state = SWOOLE_REDIS_STATE_WAIT;
-    RETURN_TRUE;
+    return SW_OK;
+}
+
+static PHP_METHOD(swoole_redis, execute)
+{
+    zval *callback;
+    char *command;
+    int command_len;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &command, &command_len, &callback) == FAILURE)
+    {
+        return;
+    }
+    SW_CHECK_RETURN(swoole_redis_send_command(getThis(), callback, command, command_len));
+}
+
+static PHP_METHOD(swoole_redis, get)
+{
+    zval *callback;
+    char *key;
+    int key_len;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &key, &key_len, &callback) == FAILURE)
+    {
+        return;
+    }
+    SW_CHECK_RETURN(swoole_redis_send_command(getThis(), callback, "GET %s", key));
+}
+
+static PHP_METHOD(swoole_redis, set)
+{
+    zval *callback;
+    char *key;
+    int key_len;
+    char *value;
+    int value_len;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ssz", &key, &key_len, &value, &value_len, &callback) == FAILURE)
+    {
+        return;
+    }
+    SW_CHECK_RETURN(swoole_redis_send_command(getThis(), callback, "SET %s %b", key, value, value_len));
 }
 
 static void swoole_redis_onResult(redisAsyncContext *c, void *r, void *privdata)
