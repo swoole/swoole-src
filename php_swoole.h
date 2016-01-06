@@ -315,6 +315,7 @@ void php_swoole_event_init();
 void php_swoole_event_wait();
 void php_swoole_check_timer(int interval);
 void php_swoole_register_callback(swServer *serv);
+swClient* php_swoole_client_create_socket(zval *object, char *host, int host_len, int port);
 
 static sw_inline void* swoole_get_object(zval *object)
 {

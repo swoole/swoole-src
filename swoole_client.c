@@ -119,7 +119,6 @@ static sw_inline void client_execute_callback(swClient *cli, enum client_callbac
 }
 
 static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC);
-static swClient* client_create_socket(zval *object, char *host, int host_len, int port);
 
 static const zend_function_entry swoole_client_methods[] =
 {
@@ -485,7 +484,7 @@ void php_swoole_check_reactor()
     SwooleWG.reactor_init = 1;
 }
 
-static swClient* client_create_socket(zval *object, char *host, int host_len, int port)
+swClient* php_swoole_client_create_socket(zval *object, char *host, int host_len, int port)
 {
     zval *ztype;
     int async = 0;
@@ -572,7 +571,7 @@ static swClient* client_create_socket(zval *object, char *host, int host_len, in
         create_socket:
         if (swClient_create(cli, php_swoole_socktype(type), async) < 0)
         {
-            swoole_php_fatal_error(E_WARNING, "create failed. Error: %s [%d]", strerror(errno), errno);
+            swoole_php_fatal_error(E_WARNING, "swClient_create() failed. Error: %s [%d]", strerror(errno), errno);
             zend_update_property_long(swoole_client_class_entry_ptr, object, ZEND_STRL("errCode"), errno TSRMLS_CC);
             return NULL;
         }
@@ -582,7 +581,6 @@ static swClient* client_create_socket(zval *object, char *host, int host_len, in
         cli->server_strlen = conn_key_len;
     }
 
-    swoole_set_object(object, cli);
     zend_update_property_long(swoole_client_class_entry_ptr, object, ZEND_STRL("sock"), cli->socket->fd TSRMLS_CC);
 
     if (type & SW_FLAG_KEEP)
@@ -741,11 +739,13 @@ static PHP_METHOD(swoole_client, connect)
         RETURN_FALSE;
     }
 
-    swClient *cli = client_create_socket(getThis(), host, host_len, port);
+    swClient *cli = php_swoole_client_create_socket(getThis(), host, host_len, port);
     if (cli == NULL)
     {
         RETURN_FALSE;
     }
+
+    swoole_set_object(getThis(), cli);
 
     if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
     {
