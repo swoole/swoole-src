@@ -18,7 +18,7 @@
 #include "thirdparty/php_http_parser.h"
 #include "ext/standard/basic_functions.h"
 
-#ifdef SW_HTTP_CLIENT_ENABLE
+#ifdef SW_ASYNC_HTTPCLIENT
 
 #define SW_FD_HTTP_CLIENT (SW_FD_USER+1)
 
@@ -150,7 +150,6 @@ void swoole_http_client_init(int module_number TSRMLS_DC)
 
     zend_declare_property_long(swoole_http_client_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_http_client_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-
 }
 
 /**

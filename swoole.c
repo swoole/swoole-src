@@ -630,7 +630,7 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_init();
 
     swoole_client_init(module_number TSRMLS_CC);
-#ifdef SW_HTTP_CLIENT_ENABLE
+#ifdef SW_ASYNC_HTTPCLIENT
     swoole_http_client_init(module_number TSRMLS_CC);
 #endif
 #ifdef SW_USE_REDIS

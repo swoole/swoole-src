@@ -83,7 +83,7 @@ void swoole_redis_init(int module_number TSRMLS_DC)
 static PHP_METHOD(swoole_redis, connect)
 {
     char *host;
-    int host_len;
+    zend_size_t host_len;
     long port;
     zval *callback;
 
@@ -225,7 +225,7 @@ static PHP_METHOD(swoole_redis, execute)
 {
     zval *callback;
     char *command;
-    int command_len;
+    zend_size_t command_len;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &command, &command_len, &callback) == FAILURE)
     {
@@ -238,7 +238,7 @@ static PHP_METHOD(swoole_redis, get)
 {
     zval *callback;
     char *key;
-    int key_len;
+    zend_size_t key_len;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &key, &key_len, &callback) == FAILURE)
     {
@@ -253,7 +253,7 @@ static PHP_METHOD(swoole_redis, set)
     char *key;
     int key_len;
     char *value;
-    int value_len;
+    zend_size_t value_len;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ssz", &key, &key_len, &value, &value_len, &callback) == FAILURE)
     {

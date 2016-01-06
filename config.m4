@@ -29,6 +29,9 @@ PHP_ARG_ENABLE(async_mysql, enable async_mysql support,
 PHP_ARG_ENABLE(async_redis, enable async_redis support,
 [  --enable-async-redis    Do you have hiredis?], no, no)
 
+PHP_ARG_ENABLE(async_httpclient, enable async_httpclient support,
+[  --enable-async-httpclient  Enable async httpclient support?], no, no)
+
 PHP_ARG_ENABLE(openssl, enable openssl support,
 [  --enable-openssl        Use openssl?], no, no)
 
@@ -147,6 +150,10 @@ if test "$PHP_SWOOLE" != "no"; then
 
 	if test "$PHP_ASYNC_MYSQL" = "yes"; then
 		AC_DEFINE(SW_ASYNC_MYSQL, 1, [enable async_mysql support])
+    fi
+
+	if test "$PHP_ASYNC_HTTPCLIENT" = "yes"; then
+		AC_DEFINE(SW_ASYNC_HTTPCLIENT, 1, [enable async_httpclient support])
     fi
         
     AC_SWOOLE_CPU_AFFINITY
