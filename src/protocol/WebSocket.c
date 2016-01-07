@@ -18,8 +18,36 @@
 #include "websocket.h"
 #include <sys/time.h>
 
+/*  The following is websocket data frame:
+ +-+-+-+-+-------+-+-------------+-------------------------------+
+ 0                   1                   2                   3   |
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 |
+ +-+-+-+-+-------+-+-------------+-------------------------------+
+ |F|R|R|R| opcode|M| Payload len |    Extended payload length    |
+ |I|S|S|S|  (4)  |A|     (7)     |             (16/64)           |
+ |N|V|V|V|       |S|             |   (if payload len==126/127)   |
+ | |1|2|3|       |K|             |                               |
+ +-+-+-+-+-------+-+-------------+ - - - - - - - - - - - - - - - +
+ |     Extended payload length continued, if payload len == 127  |
+ + - - - - - - - - - - - - - - - +-------------------------------+
+ |                               |Masking-key, if MASK set to 1  |
+ +-------------------------------+-------------------------------+
+ | Masking-key (continued)       |          Payload Data         |
+ +-------------------------------- - - - - - - - - - - - - - - - +
+ :                     Payload Data continued ...                :
+ + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
+ |                     Payload Data continued ...                |
+ +---------------------------------------------------------------+
+ */
+
 int swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, char *buf, uint32_t length)
 {
+    //need more data
+    if (length < SW_WEBSOCKET_HEADER_LEN)
+    {
+        return 0;
+    }
+
     char mask = (buf[1] >> 7) & 0x1;
     //0-125
     uint64_t payload_length = buf[1] & 0x7f;
@@ -38,16 +66,12 @@ int swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, cha
         payload_length = swoole_ntoh64(*((uint64_t *) buf));
         header_length += 8;
     }
-
     if (mask)
     {
         header_length += SW_WEBSOCKET_MASK_LEN;
     }
-
     return header_length + payload_length;
 }
-
-//static void swWebSocket_print_frame(swWebSocket_frame *frm);
 
 void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode, int fin, int isMask)
 {
@@ -100,27 +124,6 @@ void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode
     swString_append_ptr(buffer, data, length);
 }
 
-/*  The following is websocket data frame:
- +-+-+-+-+-------+-+-------------+-------------------------------+
- 0                   1                   2                   3   |
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 |
- +-+-+-+-+-------+-+-------------+-------------------------------+
- |F|R|R|R| opcode|M| Payload len |    Extended payload length    |
- |I|S|S|S|  (4)  |A|     (7)     |             (16/64)           |
- |N|V|V|V|       |S|             |   (if payload len==126/127)   |
- | |1|2|3|       |K|             |                               |
- +-+-+-+-+-------+-+-------------+ - - - - - - - - - - - - - - - +
- |     Extended payload length continued, if payload len == 127  |
- + - - - - - - - - - - - - - - - +-------------------------------+
- |                               |Masking-key, if MASK set to 1  |
- +-------------------------------+-------------------------------+
- | Masking-key (continued)       |          Payload Data         |
- +-------------------------------- - - - - - - - - - - - - - - - +
- :                     Payload Data continued ...                :
- + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
- |                     Payload Data continued ...                |
- +---------------------------------------------------------------+
- */
 void swWebSocket_decode(swWebSocket_frame *frame, swString *data)
 {
     memcpy(frame, data->str, SW_WEBSOCKET_HEADER_LEN);
@@ -162,15 +165,12 @@ void swWebSocket_decode(swWebSocket_frame *frame, swString *data)
 
 void swWebSocket_print_frame(swWebSocket_frame *frm)
 {
-    int i;
     printf("FIN: %x, RSV1: %d, RSV2: %d, RSV3: %d, opcode: %d, MASK: %d, length: %ld\n", frm->header.FIN,
             frm->header.RSV1, frm->header.RSV2, frm->header.RSV3, frm->header.OPCODE, frm->header.MASK,
             frm->payload_length);
 
     if (frm->payload_length)
     {
-        printf("payload: %s = %d\n", frm->payload, strlen(frm->payload));
+        printf("payload: %s\n", frm->payload);
     }
 }
-
-
