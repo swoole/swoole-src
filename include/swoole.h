@@ -1046,7 +1046,36 @@ void swoole_clean(void);
 void swoole_update_time(void);
 double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
-uint64_t swoole_ntoh64(uint64_t n64);
+
+static sw_inline uint64_t swoole_hton64(uint64_t host)
+{
+    uint64_t ret = 0;
+    uint32_t high, low;
+
+    low = host & 0xFFFFFFFF;
+    high = (host >> 32) & 0xFFFFFFFF;
+    low = htonl(low);
+    high = htonl(high);
+    ret = low;
+    ret <<= 32;
+    ret |= high;
+    return ret;
+}
+
+static sw_inline uint64_t swoole_ntoh64(uint64_t host)
+{
+    uint64_t ret = 0;
+    uint32_t high, low;
+
+    low = host & 0xFFFFFFFF;
+    high = (host >> 32) & 0xFFFFFFFF;
+    low = ntohl(low);
+    high = ntohl(high);
+    ret = low;
+    ret <<= 32;
+    ret |= high;
+    return ret;
+}
 
 int swSocket_listen(int type, char *host, int port, int backlog);
 int swSocket_create(int type);

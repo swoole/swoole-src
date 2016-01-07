@@ -400,21 +400,6 @@ int swoole_version_compare(char *version1, char *version2)
     return result;
 }
 
-uint64_t swoole_ntoh64(uint64_t n64)
-{
-    uint32_t tmp;
-    uint32_t n32[2];
-    uint64_t *h64 = (uint64_t*) n32;
-    memcpy(h64, &n64, sizeof(n64));
-    *h64 = n64;
-
-    tmp = n32[0];
-    n32[0] = ntohl(n32[1]);
-    n32[1] = ntohl(tmp);
-
-    return *h64;
-}
-
 double swoole_microtime(void)
 {
     struct timeval t;
