@@ -916,16 +916,6 @@ static int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *even
     {
         conn->last_time = SwooleGS->now;
 
-        //heartbeat ping package
-        if (serv->heartbeat_ping_length == n)
-        {
-            if (serv->heartbeat_pong_length > 0)
-            {
-                send(event->fd, serv->heartbeat_pong, serv->heartbeat_pong_length, 0);
-            }
-            return SW_OK;
-        }
-
         task.data.info.fd = event->fd;
         task.data.info.from_id = event->from_id;
         task.data.info.len = n;
