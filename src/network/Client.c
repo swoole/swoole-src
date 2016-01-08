@@ -756,7 +756,9 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
     }
     else
     {
+#ifdef SW_USE_OPENSSL
         connect_fail:
+#endif
         if (cli->onError)
         {
             cli->onError(cli);

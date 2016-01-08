@@ -645,7 +645,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
 
     if (strncasecmp(headername, ZEND_STRL("content-type")) == 0)
     {
-        zval *multipart_header;
+        zval *multipart_header = NULL;
         sw_zend_hash_find(Z_ARRVAL_P(zfiles), client->current_input_name, strlen(client->current_input_name) + 1, (void **) &multipart_header);
         sw_add_assoc_stringl(multipart_header, "type", (char * ) at, length, 1);
     }
@@ -678,7 +678,7 @@ static int multipart_body_on_data(multipart_parser* p, const char *at, size_t le
     {
         swoole_http_client *client = (swoole_http_client*) p->data;
         zval *files = client->request.zfiles;
-        zval *multipart_header;
+        zval *multipart_header = NULL;
         sw_zend_hash_find(Z_ARRVAL_P(files), client->current_input_name, strlen(client->current_input_name) + 1, (void **) &multipart_header);
         add_assoc_long(multipart_header, "error", HTTP_UPLOAD_ERR_CANT_WRITE);
 
@@ -721,7 +721,7 @@ static int multipart_body_on_header_complete(multipart_parser* p)
         return 0;
     }
 
-    zval *zerr;
+    zval *zerr = NULL;
     sw_zend_hash_find(Z_ARRVAL_P(multipart_header), ZEND_STRS("error"), (void **) &zerr);
     if (Z_LVAL_P(zerr) != HTTP_UPLOAD_ERR_OK)
     {
@@ -784,7 +784,7 @@ static int multipart_body_on_data_end(multipart_parser* p)
         return 0;
     }
 
-    zval *multipart_header;
+    zval *multipart_header = NULL;
     sw_zend_hash_find(Z_ARRVAL_P(files), client->current_input_name, strlen(client->current_input_name) + 1, (void **) &multipart_header);
 
     if (p->fp != NULL)
