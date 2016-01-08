@@ -342,11 +342,6 @@ struct _swServer
     uint32_t open_mqtt_protocol :1;
 
     /**
-     * Use data key as factory->dispatch() param.
-     */
-    uint32_t open_dispatch_key :1;
-
-    /**
      * Udisable notice when use SW_DISPATCH_ROUND and SW_DISPATCH_QUEUE
      */
     uint32_t disable_notify :1;
@@ -384,26 +379,9 @@ struct _swServer
     int cpu_affinity_available_num;
     
     uint8_t listen_port_num;
-
     time_t reload_time;
 
-    /**
-     * 来自客户端的心跳侦测包
-     */
-    char heartbeat_ping[SW_HEARTBEAT_PING_LEN + 1];
-    uint8_t heartbeat_ping_length;
-
-    /**
-     * 服务器端对心跳包的响应
-     */
-    char heartbeat_pong[SW_HEARTBEAT_PING_LEN + 1];
-    uint8_t heartbeat_pong_length;
-
     swProtocol protocol;
-
-    uint8_t dispatch_key_size;
-    uint16_t dispatch_key_offset;
-    uint16_t dispatch_key_type;
 
     /* buffer output/input setting*/
     uint32_t buffer_output_size;

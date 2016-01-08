@@ -1507,33 +1507,6 @@ PHP_FUNCTION(swoole_server_set)
         convert_to_long(v);
         serv->dispatch_mode = (int) Z_LVAL_P(v);
     }
-
-    //open_dispatch_key
-    if (sw_zend_hash_find(vht, ZEND_STRS("open_dispatch_key"), (void **) &v) == SUCCESS)
-    {
-        convert_to_long(v);
-        serv->open_dispatch_key = (int) Z_LVAL_P(v);
-    }
-
-    if (sw_zend_hash_find(vht, ZEND_STRS("dispatch_key_type"), (void **) &v) == SUCCESS)
-    {
-        convert_to_string(v);
-        serv->dispatch_key_type = Z_STRVAL_P(v)[0];
-        serv->dispatch_key_size = swoole_type_size(serv->dispatch_key_type);
-
-        if (serv->dispatch_key_size == 0)
-        {
-            php_error_docref(NULL TSRMLS_CC, E_ERROR, "unknow dispatch_key_type, see pack(). Link: http://php.net/pack");
-            RETURN_FALSE;
-        }
-    }
-
-    if (sw_zend_hash_find(vht, ZEND_STRS("dispatch_key_offset"), (void **) &v) == SUCCESS)
-    {
-        convert_to_long(v);
-        serv->dispatch_key_offset = (uint16_t) Z_LVAL_P(v);
-    }
-
     //log_file
     if (sw_zend_hash_find(vht, ZEND_STRS("log_file"), (void **) &v) == SUCCESS)
     {
@@ -1566,30 +1539,6 @@ PHP_FUNCTION(swoole_server_set)
     else if (serv->heartbeat_check_interval > 0)
     {
         serv->heartbeat_idle_time = serv->heartbeat_check_interval * 2;
-    }
-    //heartbeat_ping
-    if (sw_zend_hash_find(vht, ZEND_STRS("heartbeat_ping"), (void **) &v) == SUCCESS)
-    {
-        convert_to_string(v);
-        serv->heartbeat_ping_length = Z_STRLEN_P(v);
-        if (serv->heartbeat_ping_length > SW_HEARTBEAT_PING_LEN)
-        {
-            php_error_docref(NULL TSRMLS_CC, E_ERROR, "heartbeat ping package too long");
-            RETURN_FALSE;
-        }
-        memcpy(serv->heartbeat_ping, Z_STRVAL_P(v), Z_STRLEN_P(v));
-    }
-    //heartbeat_pong
-    if (sw_zend_hash_find(vht, ZEND_STRS("heartbeat_pong"), (void **) &v) == SUCCESS)
-    {
-        convert_to_string(v);
-        serv->heartbeat_pong_length = Z_STRLEN_P(v);
-        if (serv->heartbeat_pong_length > SW_HEARTBEAT_PONG_LEN)
-        {
-            php_error_docref(NULL TSRMLS_CC, E_ERROR, "heartbeat pong package too long");
-            RETURN_FALSE;
-        }
-        memcpy(serv->heartbeat_pong, Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
     //open length check
     if (sw_zend_hash_find(vht, ZEND_STRS("open_length_check"), (void **) &v) == SUCCESS)
