@@ -180,6 +180,18 @@ swUnitTest(rbtree_test)
 	return 0;
 }
 
+static void linkedlist_pop(swLinkedList *ll, int i)
+{
+    swLinkedList_node *node = swLinkedList_pop_node(ll);
+    if (node)
+    {
+        printf("#%d\tpriority=%ld, value=%d\n", i, node->priority, *(int *) (node->data));
+    }
+    else
+    {
+        printf("#%d\tNULL\n", i);
+    }
+}
 
 swUnitTest(linkedlist_test)
 {
@@ -193,40 +205,25 @@ swUnitTest(linkedlist_test)
     for (i = 1; i < Q_N; i++)
     {
         data[i] = i;
-        swLinkedList_append(ll, &data[i]);
+        swLinkedList_insert(ll, rand() % 10000, & data[i]);
 
         if (i % 200 == 150 && ll->num > 150)
         {
             n = rand() % 150 + 10;
             printf("count=%d, pop n=%d\n", ll->num,  n);
+
             for (j = 0; j < n; j++)
             {
-                value = swLinkedList_shift(ll);
-                if (value)
-                {
-                    printf("value=%d\n", *value);
-                }
-                else
-                {
-                    printf("NULL\n");
-                }
+                linkedlist_pop(ll, j);
             }
         }
     }
 
     printf("\n-----------------------------------\nnum=%d, pop all\n-----------------------------------\n", ll->num);
 
-    for (j = ll->num; j > 0 ; j--)
+    for (j = ll->num; j > 0; j--)
     {
-        value = swLinkedList_shift(ll);
-        if (value)
-        {
-            printf("value=%d\n", *value);
-        }
-        else
-        {
-            printf("NULL\n");
-        }
+        linkedlist_pop(ll, j);
     }
     return 0;
 }

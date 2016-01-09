@@ -16,6 +16,18 @@
 
 #include "swoole.h"
 
+static sw_inline int swLinkedList_compare(uint8_t sort_type, uint64_t a, uint64_t b)
+{
+    if (sort_type == 1)
+    {
+        return a > b;
+    }
+    else
+    {
+        return a < b;
+    }
+}
+
 swLinkedList* swLinkedList_new(void)
 {
     swLinkedList *q = sw_malloc(sizeof(swLinkedList));
@@ -38,7 +50,7 @@ int swLinkedList_append(swLinkedList *ll, void *data)
     }
     node->data = data;
     node->next = NULL;
-    ll->num ++;
+    ll->num++;
     if (ll->tail)
     {
         ll->tail->next = node;
@@ -84,6 +96,75 @@ int swLinkedList_prepend(swLinkedList *ll, void *data)
 
 void* swLinkedList_pop(swLinkedList *ll)
 {
+    swLinkedList_node *node = swLinkedList_pop_node(ll);
+    if (node == NULL)
+    {
+        return NULL;
+    }
+    void *data = node->data;
+    sw_free(node);
+    return data;
+}
+
+int swLinkedList_insert(swLinkedList *ll, ulong_t priority, void *data)
+{
+    swLinkedList_node *node = sw_malloc(sizeof(swLinkedList_node));
+    if (node == NULL)
+    {
+        swWarn("malloc(%ld) failed.", sizeof(swLinkedList_node));
+        return SW_ERR;
+    }
+
+    node->data = data;
+    node->priority = priority;
+    ll->num++;
+
+    if (ll->head)
+    {
+        swLinkedList_node *tmp = ll->head;
+        while (tmp)
+        {
+            if (swLinkedList_compare(ll->sort_type, tmp->priority, priority))
+            {
+                node->next = tmp;
+                node->prev = tmp->prev;
+                if (tmp->prev)
+                {
+                    tmp->prev->next = node;
+                }
+                else
+                {
+                    ll->head = node;
+                }
+                tmp->prev = node;
+                return SW_OK;
+            }
+            else
+            {
+                tmp = tmp->next;
+            }
+        }
+
+        //Add to the end of the list
+        ll->tail->next = node;
+        node->prev = ll->tail;
+        node->next = NULL;
+        ll->tail = node;
+
+        return SW_OK;
+    }
+    else
+    {
+        node->next = NULL;
+        node->prev = NULL;
+        ll->head = node;
+        ll->tail = node;
+    }
+    return SW_OK;
+}
+
+swLinkedList_node* swLinkedList_pop_node(swLinkedList *ll)
+{
     if (ll->tail == NULL)
     {
         return NULL;
@@ -103,10 +184,36 @@ void* swLinkedList_pop(swLinkedList *ll)
         prev->next = NULL;
         ll->tail = prev;
     }
-    sw_free(node);
-    ll->num --;
-    return data;
+    ll->num--;
+    return node;
 }
+
+/**
+ * 移除一个节点
+ */
+void swLinkedList_remove_node(swLinkedList *ll, swLinkedList_node *node)
+{
+    swLinkedList_node *prev = node->prev;
+    swLinkedList_node *next = node->next;
+
+    if (node == ll->head)
+    {
+        ll->head = next;
+        next->prev = NULL;
+    }
+    else if (node == ll->tail)
+    {
+        ll->tail = prev;
+        prev->next = NULL;
+    }
+    else
+    {
+        //将next/prev连接起来
+        next->prev = prev;
+        prev->next = next;
+    }
+}
+
 
 void* swLinkedList_shift(swLinkedList *ll)
 {
