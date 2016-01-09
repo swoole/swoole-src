@@ -1766,7 +1766,7 @@ PHP_FUNCTION(swoole_server_on)
     }
     if (ret < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "Unknown event types[%s]", ha_name);
+        swoole_php_error(E_WARNING, "Unknown event types[%s]", ha_name);
     }
     SW_CHECK_RETURN(ret);
 }

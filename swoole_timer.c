@@ -42,9 +42,6 @@ static int php_swoole_del_timer(swTimer_node *tnode TSRMLS_DC);
 
 static long php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tick TSRMLS_DC)
 {
-    php_swoole_check_reactor();
-    php_swoole_check_timer(ms);
-
     if (ms > 86400000)
     {
         swoole_php_fatal_error(E_WARNING, "The given parameters is too big.");
@@ -60,6 +57,12 @@ static long php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tic
     }
     efree(func_name);
 
+    if (SwooleGS->start && !swIsTaskWorker())
+    {
+        php_swoole_check_reactor();
+    }
+
+    php_swoole_check_timer(ms);
     swTimer_callback *cb = emalloc(sizeof(swTimer_callback));
 
 #if PHP_MAJOR_VERSION >= 7

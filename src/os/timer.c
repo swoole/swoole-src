@@ -183,8 +183,15 @@ void swSystemTimer_free(swTimer *timer)
     }
 }
 
+static long current_interval = 0;
+
 static int swSystemTimer_set(swTimer *timer, long new_interval)
 {
+    if (new_interval == current_interval)
+    {
+        return SW_OK;
+    }
+    current_interval = new_interval;
     if (SwooleG.use_timerfd)
     {
         return swSystemTimer_timerfd_set(timer, new_interval);
