@@ -45,7 +45,7 @@ swUnitTest(heap_test1)
         ns = malloc(sizeof(node_t));
         ns->val = i;
         ns->pri = pri;
-        swHeap_insert(pq, pri, ns);
+        swHeap_push(pq, pri, ns);
     }
 
     //n = swHeap_peek(pq);
