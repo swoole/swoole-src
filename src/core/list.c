@@ -16,9 +16,9 @@
 
 #include "swoole.h"
 
-static sw_inline int swLinkedList_compare(uint8_t sort_type, uint64_t a, uint64_t b)
+static sw_inline int swLinkedList_compare(uint8_t type, uint64_t a, uint64_t b)
 {
-    if (sort_type == 1)
+    if (type == 1)
     {
         return a > b;
     }
@@ -28,7 +28,7 @@ static sw_inline int swLinkedList_compare(uint8_t sort_type, uint64_t a, uint64_
     }
 }
 
-swLinkedList* swLinkedList_new(void)
+swLinkedList* swLinkedList_new(uint8_t type, swDestructor dtor)
 {
     swLinkedList *q = sw_malloc(sizeof(swLinkedList));
     if (q == NULL)
@@ -37,6 +37,8 @@ swLinkedList* swLinkedList_new(void)
         return NULL;
     }
     bzero(q, sizeof(swLinkedList));
+    q->type = type;
+    q->dtor = dtor;
     return q;
 }
 
@@ -106,13 +108,13 @@ void* swLinkedList_pop(swLinkedList *ll)
     return data;
 }
 
-int swLinkedList_insert(swLinkedList *ll, ulong_t priority, void *data)
+swLinkedList_node* swLinkedList_insert(swLinkedList *ll, ulong_t priority, void *data)
 {
     swLinkedList_node *node = sw_malloc(sizeof(swLinkedList_node));
     if (node == NULL)
     {
         swWarn("malloc(%ld) failed.", sizeof(swLinkedList_node));
-        return SW_ERR;
+        return NULL;
     }
 
     node->data = data;
@@ -124,7 +126,7 @@ int swLinkedList_insert(swLinkedList *ll, ulong_t priority, void *data)
         swLinkedList_node *tmp = ll->head;
         while (tmp)
         {
-            if (swLinkedList_compare(ll->sort_type, tmp->priority, priority))
+            if (swLinkedList_compare(ll->type, tmp->priority, priority))
             {
                 node->next = tmp;
                 node->prev = tmp->prev;
@@ -137,7 +139,7 @@ int swLinkedList_insert(swLinkedList *ll, ulong_t priority, void *data)
                     ll->head = node;
                 }
                 tmp->prev = node;
-                return SW_OK;
+                return node;
             }
             else
             {
@@ -150,8 +152,6 @@ int swLinkedList_insert(swLinkedList *ll, ulong_t priority, void *data)
         node->prev = ll->tail;
         node->next = NULL;
         ll->tail = node;
-
-        return SW_OK;
     }
     else
     {
@@ -160,7 +160,7 @@ int swLinkedList_insert(swLinkedList *ll, ulong_t priority, void *data)
         ll->head = node;
         ll->tail = node;
     }
-    return SW_OK;
+    return node;
 }
 
 swLinkedList_node* swLinkedList_pop_node(swLinkedList *ll)
@@ -171,8 +171,6 @@ swLinkedList_node* swLinkedList_pop_node(swLinkedList *ll)
     }
 
     swLinkedList_node *node = ll->tail;
-    void *data = node->data;
-
     if (node == ll->head)
     {
         ll->head = NULL;
@@ -188,38 +186,60 @@ swLinkedList_node* swLinkedList_pop_node(swLinkedList *ll)
     return node;
 }
 
-/**
- * 移除一个节点
- */
-void swLinkedList_remove_node(swLinkedList *ll, swLinkedList_node *node)
+void swLinkedList_remove_node(swLinkedList *ll, swLinkedList_node *remove_node)
 {
-    swLinkedList_node *prev = node->prev;
-    swLinkedList_node *next = node->next;
+    swLinkedList_node *prev = remove_node->prev;
+    swLinkedList_node *next = remove_node->next;
 
-    if (node == ll->head)
+    if (remove_node == ll->head)
     {
         ll->head = next;
-        next->prev = NULL;
+        if (next == NULL)
+        {
+            ll->tail = NULL;
+        }
+        else
+        {
+            next->prev = NULL;
+        }
     }
-    else if (node == ll->tail)
+    else if (remove_node == ll->tail)
     {
         ll->tail = prev;
-        prev->next = NULL;
+        if (prev == NULL)
+        {
+            ll->head = NULL;
+        }
+        else
+        {
+            prev->next = NULL;
+        }
     }
     else
     {
-        //将next/prev连接起来
         next->prev = prev;
         prev->next = next;
     }
+    ll->num--;
+    sw_free(remove_node);
 }
-
 
 void* swLinkedList_shift(swLinkedList *ll)
 {
-    swLinkedList_node *node = ll->head;
+    if (ll->head == NULL)
+    {
+        return NULL;
+    }
+    swLinkedList_node *node = swLinkedList_shift_node(ll);
     void *data = node->data;
+    sw_free(node);
+    return data;
+}
 
+
+swLinkedList_node* swLinkedList_shift_node(swLinkedList *ll)
+{
+    swLinkedList_node *node = ll->head;
     if (node == ll->tail)
     {
         ll->head = NULL;
@@ -231,12 +251,11 @@ void* swLinkedList_shift(swLinkedList *ll)
         next->prev = NULL;
         ll->head = next;
     }
-    sw_free(node);
-    ll->num --;
-    return data;
+    ll->num--;
+    return node;
 }
 
-void swLinkedList_free(swLinkedList *ll, swDestructor dtor)
+void swLinkedList_free(swLinkedList *ll)
 {
     swLinkedList_node *node = ll->head;
     swLinkedList_node *tmp;
@@ -244,9 +263,9 @@ void swLinkedList_free(swLinkedList *ll, swDestructor dtor)
     do
     {
         tmp = node->next;
-        if (dtor)
+        if (ll->dtor)
         {
-            dtor(node->data);
+            ll->dtor(node->data);
         }
         sw_free(node);
         node = tmp;

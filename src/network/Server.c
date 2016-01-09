@@ -210,12 +210,6 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
-void swServer_onTimer(swTimer *timer, swTimer_node *event)
-{
-    swServer *serv = SwooleG.serv;
-    serv->onTimer(serv, event->interval);
-}
-
 static int swServer_start_check(swServer *serv)
 {
     if (serv->onReceive == NULL && serv->onPacket == NULL)
@@ -245,12 +239,6 @@ static int swServer_start_check(swServer *serv)
                 serv->disable_notify = 1;
             }
         }
-    }
-    //Timer
-    if (SwooleG.timer.interval > 0 && serv->onTimer == NULL)
-    {
-        swWarn("onTimer is null");
-        return SW_ERR;
     }
     //AsyncTask
     if (SwooleG.task_worker_num > 0)
@@ -971,7 +959,7 @@ void swServer_signal_init(void)
     swSignal_add(SIGUSR1, swServer_signal_hanlder);
     swSignal_add(SIGUSR2, swServer_signal_hanlder);
     swSignal_add(SIGTERM, swServer_signal_hanlder);
-    swSignal_add(SIGALRM, swTimer_signal_handler);
+    swSignal_add(SIGALRM, swSystemTimer_signal_handler);
     //for test
     swSignal_add(SIGVTALRM, swServer_signal_hanlder);
     swServer_set_minfd(SwooleG.serv, SwooleG.signal_fd);
@@ -1209,7 +1197,7 @@ static void swServer_signal_hanlder(int sig)
         }
         break;
     case SIGALRM:
-        swTimer_signal_handler(SIGALRM);
+        swSystemTimer_signal_handler(SIGALRM);
         break;
     case SIGCHLD:
         if (waitpid(SwooleGS->manager_pid, &status, WNOHANG) >= 0 && SwooleG.running > 0)

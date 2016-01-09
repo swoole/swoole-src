@@ -542,7 +542,7 @@ swClient* php_swoole_client_create_socket(zval *object, char *host, int host_len
         if (find == NULL)
         {
             cli = (swClient*) pemalloc(sizeof(swClient), 1);
-            if (swHashMap_add(php_sw_long_connections, conn_key, conn_key_len, cli, NULL) == FAILURE)
+            if (swHashMap_add(php_sw_long_connections, conn_key, conn_key_len, cli) == FAILURE)
             {
                 swoole_php_fatal_error(E_WARNING, "swoole_client_create_socket add to hashtable failed.");
             }

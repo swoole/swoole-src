@@ -427,7 +427,7 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
 
     if (SwooleG.timer.fd)
     {
-        SwooleG.timer.free(&SwooleG.timer);
+        swTimer_free(&SwooleG.timer);
         bzero(&SwooleG.timer, sizeof(SwooleG.timer));
     }
 

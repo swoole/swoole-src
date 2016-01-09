@@ -187,7 +187,7 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     //check timer
     if (reactor->check_timer)
     {
-        SwooleG.timer.select(&SwooleG.timer);
+        swTimer_select(&SwooleG.timer);
     }
     if (SwooleG.serv && swIsMaster())
     {

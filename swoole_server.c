@@ -39,7 +39,6 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req);
 static void php_swoole_onStart(swServer *);
 static void php_swoole_onShutdown(swServer *);
 static void php_swoole_onConnect(swServer *, int fd, int from_id);
-static void php_swoole_onTimer(swServer *serv, int interval);
 static void php_swoole_onWorkerStart(swServer *, int worker_id);
 static void php_swoole_onWorkerStop(swServer *, int worker_id);
 static void php_swoole_onUserWorkerStart(swServer *serv, swWorker *worker);
@@ -261,10 +260,6 @@ void php_swoole_register_callback(swServer *serv)
         serv->onPipeMessage = php_swoole_onPipeMessage;
     }
     //-------------------------------------------------------------
-    if (php_sw_callback[SW_SERVER_CB_onTimer] != NULL)
-    {
-        serv->onTimer = php_swoole_onTimer;
-    }
     if (php_sw_callback[SW_SERVER_CB_onClose] != NULL)
     {
         serv->onClose = php_swoole_onClose;
@@ -828,39 +823,6 @@ static void php_swoole_onManagerStop(swServer *serv)
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-    if (retval != NULL)
-    {
-        sw_zval_ptr_dtor(&retval);
-    }
-}
-
-static void php_swoole_onTimer(swServer *serv, int interval)
-{
-    zval *zserv = (zval *) serv->ptr2;
-    zval **args[2];
-    zval *retval = NULL;
-    zval *zinterval;
-
-    SW_MAKE_STD_ZVAL(zinterval);
-    ZVAL_LONG(zinterval, interval);
-
-    args[0] = &zserv;
-    args[1] = &zinterval;
-    sw_zval_add_ref(&zserv);
-
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onTimer], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onTimer handler error");
-    }
-    if (EG(exception))
-    {
-        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
-    }
-    sw_zval_ptr_dtor(&zinterval);
     if (retval != NULL)
     {
         sw_zval_ptr_dtor(&retval);
@@ -1781,7 +1743,6 @@ PHP_FUNCTION(swoole_server_on)
         "receive",
         "close",
         "shutdown",
-        "timer",
         "workerStart",
         "workerStop",
         "masterConnect",
@@ -2355,100 +2316,6 @@ PHP_FUNCTION(swoole_server_heartbeat)
 #endif
         }
     }
-}
-
-PHP_FUNCTION(swoole_server_gettimer)
-{
-    zval *zobject = getThis();
-
-    long interval;
-
-    if (SwooleGS->start == 0)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
-        RETURN_FALSE;
-    }
-
-    if (zobject == NULL)
-    {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O", &zobject, swoole_server_class_entry_ptr, &interval) == FAILURE)
-        {
-            return;
-        }
-    }
-
-    if (SwooleG.timer.list == NULL)
-    {
-        RETURN_FALSE;
-    }
-
-    swTimer_node *timer_node;
-    uint64_t key;
-    array_init(return_value);
-
-    do
-    {
-        timer_node = swHashMap_each_int(SwooleG.timer.list, &key);
-        if (timer_node == NULL)
-        {
-            break;
-        }
-        if (timer_node->interval == 0)
-        {
-            continue;
-        }
-        add_next_index_long(return_value, key);
-
-    } while(timer_node);
-}
-
-PHP_FUNCTION(swoole_server_addtimer)
-{
-    zval *zobject = getThis();
-
-    long interval;
-
-    if (swIsMaster())
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "master process cannot use timer.");
-        RETURN_FALSE;
-    }
-
-    if (SwooleGS->start == 0)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
-        RETURN_FALSE;
-    }
-
-    if (SwooleG.serv->onTimer == NULL)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "no onTimer callback, cannot use addtimer.");
-        RETURN_FALSE;
-    }
-
-    if (php_sw_callback[SW_SERVER_CB_onTimer] == NULL)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "onTimer is null, Can not use timer.");
-        RETURN_FALSE;
-    }
-
-    if (zobject == NULL)
-    {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ol", &zobject, swoole_server_class_entry_ptr, &interval) == FAILURE)
-        {
-            return;
-        }
-    }
-    else
-    {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &interval) == FAILURE)
-        {
-            return;
-        }
-    }
-
-    php_swoole_check_timer(interval);
-    SW_CHECK_RETURN(SwooleG.timer.add(&SwooleG.timer, (int )interval, 1, NULL));
 }
 
 PHP_FUNCTION(swoole_server_taskwait)

@@ -54,7 +54,7 @@ void swWorker_signal_init(void)
     swSignal_add(SIGUSR2, NULL);
     //swSignal_add(SIGINT, swWorker_signal_handler);
     swSignal_add(SIGTERM, swWorker_signal_handler);
-    swSignal_add(SIGALRM, swTimer_signal_handler);
+    swSignal_add(SIGALRM, swSystemTimer_signal_handler);
     //for test
     swSignal_add(SIGVTALRM, swWorker_signal_handler);
 }
@@ -74,7 +74,7 @@ void swWorker_signal_handler(int signo)
         }
         break;
     case SIGALRM:
-        swTimer_signal_handler(SIGALRM);
+        swSystemTimer_signal_handler(SIGALRM);
         break;
     /**
      * for test

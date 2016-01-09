@@ -146,15 +146,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_addlisten_oo, 0, 0, 3)
     ZEND_ARG_INFO(0, sock_type)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_addtimer, 0, 0, 2)
-    ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
-    ZEND_ARG_INFO(0, interval)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_addtimer_oo, 0, 0, 1)
-    ZEND_ARG_INFO(0, interval)
-ZEND_END_ARG_INFO()
-
 //function style
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_task, 0, 0, 2)
     ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
@@ -253,16 +244,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_del, 0, 0, 1)
     ZEND_ARG_INFO(0, fd)
 ZEND_END_ARG_INFO()
 
-//arginfo timer
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_add, 0, 0, 2)
-    ZEND_ARG_INFO(0, interval)
-    ZEND_ARG_INFO(0, cb)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_del, 0, 0, 1)
-    ZEND_ARG_INFO(0, interval)
-ZEND_END_ARG_INFO()
-
 #ifdef SW_ASYNC_MYSQL
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_query, 0, 0, 3)
     ZEND_ARG_INFO(0, db_link)
@@ -293,8 +274,6 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_server_handler, arginfo_swoole_server_handler)
     PHP_FE(swoole_server_on, arginfo_swoole_server_on)
     PHP_FE(swoole_server_addlisten, arginfo_swoole_server_addlisten)
-    PHP_FE(swoole_server_addtimer, arginfo_swoole_server_addtimer)
-    PHP_FE(swoole_server_gettimer, NULL)
     PHP_FE(swoole_server_task, arginfo_swoole_server_task)
     PHP_FE(swoole_server_taskwait, arginfo_swoole_server_taskwait)
     PHP_FE(swoole_server_finish, arginfo_swoole_server_finish)
@@ -311,8 +290,6 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_event_wait, arginfo_swoole_void)
     PHP_FE(swoole_event_write, arginfo_swoole_event_write)
     /*------swoole_timer-----*/
-    PHP_FE(swoole_timer_add, arginfo_swoole_timer_add)
-    PHP_FE(swoole_timer_del, arginfo_swoole_timer_del)
     PHP_FE(swoole_timer_after, NULL)
     PHP_FE(swoole_timer_tick, NULL)
     PHP_FE(swoole_timer_clear, NULL)

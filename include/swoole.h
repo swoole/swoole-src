@@ -338,6 +338,8 @@ typedef unsigned char uchar;
 #include <openssl/ssl.h>
 #endif
 
+typedef void (*swDestructor)(void *data);
+
 typedef struct
 {
     uint32_t id;
@@ -357,17 +359,18 @@ typedef struct _swLinkedList_node
 {
     struct _swLinkedList_node *prev;
     struct _swLinkedList_node *next;
+    ulong_t priority;
     void *data;
 } swLinkedList_node;
 
 typedef struct
 {
     uint32_t num;
+    uint8_t type;
     swLinkedList_node *head;
     swLinkedList_node *tail;
+    swDestructor dtor;
 } swLinkedList;
-
-typedef void (*swDestructor)(void *data);
 
 typedef struct
 {
@@ -1485,12 +1488,16 @@ int swChannel_wait(swChannel *object);
 int swChannel_notify(swChannel *object);
 void swChannel_free(swChannel *object);
 
-swLinkedList* swLinkedList_new(void);
+swLinkedList* swLinkedList_new(uint8_t type, swDestructor dtor);
 int swLinkedList_append(swLinkedList *ll, void *data);
 int swLinkedList_prepend(swLinkedList *ll, void *data);
+swLinkedList_node* swLinkedList_insert(swLinkedList *ll, ulong_t priority, void *data);
 void* swLinkedList_pop(swLinkedList *ll);
+swLinkedList_node* swLinkedList_pop_node(swLinkedList *ll);
+swLinkedList_node* swLinkedList_shift_node(swLinkedList *ll);
+void swLinkedList_remove_node(swLinkedList *ll, swLinkedList_node *node);
 void* swLinkedList_shift(swLinkedList *ll);
-void swLinkedList_free(swLinkedList *ll, swDestructor dtor);
+void swLinkedList_free(swLinkedList *ll);
 /*----------------------------Thread Pool-------------------------------*/
 enum swThread_type
 {
@@ -1549,56 +1556,48 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString
 //--------------------------------timer------------------------------
 typedef struct _swTimer_node
 {
-    struct _swTimer_node *next, *prev;
     struct timeval lasttime;
+    swLinkedList_node *lnode;
     void *data;
     int64_t exec_msec;
     uint32_t interval;
     long id;
     uint8_t remove :1;
-    uint8_t restart :1;
 } swTimer_node;
 
 typedef struct _swTimer
 {
-    swTimer_node *root;
     /*--------------timerfd & signal timer--------------*/
-    swHashMap *list;
+    swLinkedList *queue;
+    swHashMap *map;
     int num;
-    int interval;
     int use_pipe;
     int lasttime;
     int fd;
-    int lock;
     long _next_id;
     long _current_id;
-    long _delete_id;
+    long _next_msec;
     swPipe pipe;
     /*-----------------for EventTimer-------------------*/
     struct timeval basetime;
-    /*-----------------wait delete----------------------*/
-    swArray *delete_list;
-    swArray *insert_list;
     /*--------------------------------------------------*/
-    long (*add)(struct _swTimer *timer, int _msec, int _interval, void *data);
-    void* (*del)(struct _swTimer *timer, int _interval_ms, long id);
-    int (*select)(struct _swTimer *timer);
-    void (*free)(struct _swTimer *timer);
+    int (*set)(struct _swTimer *timer, long exec_msec);
     /*-----------------event callback-------------------*/
-    void (*onTimer)(struct _swTimer *timer, swTimer_node *event);
-    void (*onTimeout)(struct _swTimer *timer, swTimer_node *event);
+    void (*onAfter)(struct _swTimer *timer, swTimer_node *event);
+    void (*onTick)(struct _swTimer *timer, swTimer_node *event);
 } swTimer;
 
-int swTimer_init(int interval_ms, int no_pipe);
-int swEventTimer_init();
-void swTimer_signal_handler(int sig);
-int swTimer_event_handler(swReactor *reactor, swEvent *event);
-void swTimer_node_insert(swTimer_node **root, swTimer_node *new_node);
-void swTimer_node_print(swTimer_node **root);
-swTimer_node* swTimer_node_find(swTimer_node **root, int interval_msec, long id);
-void swTimer_node_delete(swTimer_node **root, swTimer_node *node);
-void swTimer_node_remove(swTimer_node **root, swTimer_node *node);
-void swTimer_node_destory(swTimer_node **root);
+int swTimer_init(long msec);
+swTimer_node* swTimer_get(swTimer *timer, long id);
+long swTimer_add(swTimer *timer, int _msec, int interval, void *data);
+swTimer_node* swTimer_get(swTimer *timer, long id);
+void swTimer_del(swTimer *timer, swTimer_node *node);
+void swTimer_free(swTimer *timer);
+int swTimer_select(swTimer *timer);
+
+int swSystemTimer_init(int msec, int use_pipe);
+void swSystemTimer_signal_handler(int sig);
+int swSystemTimer_event_handler(swReactor *reactor, swEvent *event);
 //--------------------------------------------------------------
 typedef struct _swModule
 {

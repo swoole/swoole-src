@@ -440,7 +440,6 @@ struct _swServer
     void (*onClose)(swServer *serv, int fd, int reactor_id);
     void (*onConnect)(swServer *serv, int fd, int reactor_id);
     void (*onShutdown)(swServer *serv);
-    void (*onTimer)(swServer *serv, int interval);
     void (*onPipeMessage)(swServer *, swEventData *);
     void (*onWorkerStart)(swServer *serv, int worker_id);
     void (*onWorkerStop)(swServer *serv, int worker_id);
@@ -550,7 +549,6 @@ void swServer_pipe_set(swServer *serv, swPipe *p);
 int swServer_get_manager_pid(swServer *serv);
 int swServer_get_socket(swServer *serv, int port);
 int swServer_worker_init(swServer *serv, swWorker *worker);
-void swServer_onTimer(swTimer *timer, swTimer_node *event);
 void swServer_enable_accept(swReactor *reactor);
 
 #ifdef HAVE_INOTIFY

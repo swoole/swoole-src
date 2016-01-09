@@ -141,25 +141,27 @@ extern swoole_object_array swoole_objects;
 #define SW_MAX_FIND_COUNT                   100    //for swoole_server::connection_list
 #define SW_PHP_CLIENT_BUFFER_SIZE           65535
 
-#define PHP_SERVER_CALLBACK_NUM             17
 //--------------------------------------------------------
-#define SW_SERVER_CB_onStart                0 //Server start(master)
-#define SW_SERVER_CB_onConnect              1 //accept new connection(worker)
-#define SW_SERVER_CB_onReceive              2 //receive data(worker)
-#define SW_SERVER_CB_onClose                3 //close tcp connection(worker)
-#define SW_SERVER_CB_onShutdown             4 //Server sthudown(master)
-#define SW_SERVER_CB_onTimer                5 //timer call(master)
-#define SW_SERVER_CB_onWorkerStart          6 //Worker start(worker)
-#define SW_SERVER_CB_onWorkerStop           7 //Worker shutdown(worker)
-#define SW_SERVER_CB_onMasterConnect        8 //accept new connection(master)
-#define SW_SERVER_CB_onMasterClose          9 //close tcp connection(master)
-#define SW_SERVER_CB_onTask                 10 //new task(task_worker)
-#define SW_SERVER_CB_onFinish               11 //async task finish(worker)
-#define SW_SERVER_CB_onWorkerError          12 //worker exception(manager)
-#define SW_SERVER_CB_onManagerStart         13
-#define SW_SERVER_CB_onManagerStop          14
-#define SW_SERVER_CB_onPipeMessage          15
-#define SW_SERVER_CB_onPacket               16 //udp packet
+enum php_swoole_server_callback_type
+{
+    SW_SERVER_CB_onStart = 0,      //Server start(master)
+    SW_SERVER_CB_onConnect,        //accept new connection(worker)
+    SW_SERVER_CB_onReceive,        //receive data(worker)
+    SW_SERVER_CB_onClose,          //close tcp connection(worker)
+    SW_SERVER_CB_onShutdown,       //Server sthudown(master)
+    SW_SERVER_CB_onWorkerStart,    //Worker start(worker)
+    SW_SERVER_CB_onWorkerStop,     //Worker shutdown(worker)
+    SW_SERVER_CB_onMasterConnect,  //accept new connection(master)
+    SW_SERVER_CB_onMasterClose,    //close tcp connection(master)
+    SW_SERVER_CB_onTask,           //new task(task_worker)
+    SW_SERVER_CB_onFinish,         //async task finish(worker)
+    SW_SERVER_CB_onWorkerError,    //worker exception(manager)
+    SW_SERVER_CB_onManagerStart,
+    SW_SERVER_CB_onManagerStop,
+    SW_SERVER_CB_onPipeMessage,
+    SW_SERVER_CB_onPacket,         //udp packet
+};
+#define PHP_SERVER_CALLBACK_NUM             (SW_SERVER_CB_onPacket+1)
 //---------------------------------------------------------
 #define SW_FLAG_KEEP                        (1u << 12)
 #define SW_FLAG_ASYNC                       (1u << 10)
@@ -226,8 +228,6 @@ PHP_FUNCTION(swoole_server_close);
 PHP_FUNCTION(swoole_server_on);
 PHP_FUNCTION(swoole_server_handler);
 PHP_FUNCTION(swoole_server_addlisten);
-PHP_FUNCTION(swoole_server_addtimer);
-PHP_FUNCTION(swoole_server_gettimer);
 PHP_FUNCTION(swoole_server_task);
 PHP_FUNCTION(swoole_server_taskwait);
 PHP_FUNCTION(swoole_server_finish);
@@ -273,8 +273,6 @@ PHP_FUNCTION(swoole_async_writefile);
 PHP_FUNCTION(swoole_async_dns_lookup);
 PHP_FUNCTION(swoole_async_set);
 
-PHP_FUNCTION(swoole_timer_add);
-PHP_FUNCTION(swoole_timer_del);
 PHP_FUNCTION(swoole_timer_after);
 PHP_FUNCTION(swoole_timer_tick);
 PHP_FUNCTION(swoole_timer_clear);
