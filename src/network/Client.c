@@ -253,7 +253,7 @@ static int swClient_inet_addr(swClient *cli, char *host, int port)
             memcpy(cache->addr, host_entry->h_addr_list[0], host_entry->h_length);
             cache->length = host_entry->h_length;
         }
-        swHashMap_add(swoole_dns_cache, host, strlen(host), cache, NULL);
+        swHashMap_add(swoole_dns_cache, host, strlen(host), cache);
     }
     memcpy(s_addr, cache->addr, cache->length);
     return SW_OK;

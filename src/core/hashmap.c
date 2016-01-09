@@ -23,7 +23,6 @@ typedef struct swHashMap_node
     uint64_t key_int;
     char *key_str;
     void *data;
-    swHashMap_dtor dtor;
     UT_hash_handle hh;
 } swHashMap_node;
 
@@ -31,11 +30,7 @@ static int swHashMap_node_delete(swHashMap_node *root, swHashMap_node *del_node)
 
 static sw_inline void swHashMap_node_dtor(swHashMap *hmap, swHashMap_node *node)
 {
-    if (node->dtor)
-    {
-        node->dtor(node->data);
-    }
-    else if (hmap->dtor)
+    if (hmap->dtor)
     {
         hmap->dtor(node->data);
     }
@@ -142,7 +137,7 @@ swHashMap* swHashMap_new(uint32_t bucket_num, swHashMap_dtor dtor)
     return hmap;
 }
 
-int swHashMap_add(swHashMap* hmap, char *key, uint16_t key_len, void *data, swHashMap_dtor dtor)
+int swHashMap_add(swHashMap* hmap, char *key, uint16_t key_len, void *data)
 {
     swHashMap_node *node = (swHashMap_node*) sw_malloc(sizeof(swHashMap_node));
     if (node == NULL)
@@ -155,11 +150,10 @@ int swHashMap_add(swHashMap* hmap, char *key, uint16_t key_len, void *data, swHa
     node->key_str = strndup(key, key_len);
     node->key_int = key_len;
     node->data = data;
-    node->dtor = dtor;
     return swHashMap_node_add(root, node);
 }
 
-void swHashMap_add_int(swHashMap *hmap, uint64_t key, void *data, swHashMap_dtor dtor)
+void swHashMap_add_int(swHashMap *hmap, uint64_t key, void *data)
 {
     swHashMap_node *node = (swHashMap_node*) sw_malloc(sizeof(swHashMap_node));
     swHashMap_node *root = hmap->root;
@@ -171,7 +165,6 @@ void swHashMap_add_int(swHashMap *hmap, uint64_t key, void *data, swHashMap_dtor
     node->key_int = key;
     node->data = data;
     node->key_str = NULL;
-    node->dtor = dtor;
     HASH_ADD_INT(root, key_int, node);
 }
 

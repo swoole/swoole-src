@@ -29,8 +29,8 @@ typedef struct
 swHashMap* swHashMap_new(uint32_t bucket_num, swHashMap_dtor dtor);
 void swHashMap_free(swHashMap *hmap);
 
-int swHashMap_add(swHashMap *hmap, char *key, uint16_t key_len, void *data, swHashMap_dtor dtor);
-void swHashMap_add_int(swHashMap *hmap, uint64_t key, void *data, swHashMap_dtor dtor);
+int swHashMap_add(swHashMap *hmap, char *key, uint16_t key_len, void *data);
+void swHashMap_add_int(swHashMap *hmap, uint64_t key, void *data);
 void* swHashMap_find(swHashMap *hmap, char *key, uint16_t key_len);
 void* swHashMap_find_int(swHashMap *hmap, uint64_t key);
 void swHashMap_update_int(swHashMap *hmap, uint64_t key, void *data);

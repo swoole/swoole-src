@@ -368,7 +368,7 @@ PHP_FUNCTION(swoole_async_read)
     sw_zval_add_ref(&cb);
     sw_zval_add_ref(&filename);
 
-    swHashMap_add_int(php_swoole_aio_request, fd, req, NULL);
+    swHashMap_add_int(php_swoole_aio_request, fd, req);
     php_swoole_check_aio();
     SW_CHECK_RETURN(SwooleAIO.read(fd, fcnt, buf_size, 0));
     RETURN_TRUE;
@@ -458,8 +458,8 @@ PHP_FUNCTION(swoole_async_write)
             sw_zval_add_ref(&cb);
         }
 
-        swHashMap_add_int(php_swoole_aio_request, fd, req, NULL);
-        swHashMap_add(php_swoole_open_files, Z_STRVAL_P(filename), Z_STRLEN_P(filename), req, NULL);
+        swHashMap_add_int(php_swoole_aio_request, fd, req);
+        swHashMap_add(php_swoole_open_files, Z_STRVAL_P(filename), Z_STRLEN_P(filename), req);
     }
     else
     {
@@ -566,7 +566,7 @@ PHP_FUNCTION(swoole_async_readfile)
     sw_zval_add_ref(&cb);
     sw_zval_add_ref(&filename);
 
-    swHashMap_add_int(php_swoole_aio_request, fd, req, NULL);
+    swHashMap_add_int(php_swoole_aio_request, fd, req);
 
     php_swoole_check_aio();
     SW_CHECK_RETURN(SwooleAIO.read(fd, fcnt, buf_len, 0));
@@ -643,7 +643,7 @@ PHP_FUNCTION(swoole_async_writefile)
         sw_zval_add_ref(&req->callback);
     }
 
-    swHashMap_add_int(php_swoole_aio_request, fd, req, NULL);
+    swHashMap_add_int(php_swoole_aio_request, fd, req);
     memcpy(wt_cnt, fcnt, fcnt_len);
 
     php_swoole_check_aio();

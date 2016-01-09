@@ -254,7 +254,7 @@ pid_t swProcessPool_spawn(swWorker *worker)
         worker->deleted = 0;
         worker->pid = pid;
         //insert new process
-        swHashMap_add_int(pool->map, pid, worker, NULL);
+        swHashMap_add_int(pool->map, pid, worker);
         break;
     }
     return pid;
@@ -318,7 +318,7 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
         {
             if (errno == EINTR && SwooleG.signal_alarm)
             {
-                SwooleG.timer.select(&SwooleG.timer);
+                swTimer_select(&SwooleG.timer);
             }
             continue;
         }
@@ -340,7 +340,7 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
  */
 int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker)
 {
-    swHashMap_add_int(pool->map, worker->pid, worker, NULL);
+    swHashMap_add_int(pool->map, worker->pid, worker);
     return SW_OK;
 }
 
