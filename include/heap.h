@@ -24,16 +24,15 @@ enum swHeap_type
 
 typedef struct swHeap_node
 {
-    uint32_t priority;
+    uint64_t priority;
     uint32_t position;
     void *data;
 } swHeap_node;
 
 typedef struct _swHeap
 {
+    uint32_t num;
     uint32_t size;
-    uint32_t avail;
-    uint32_t step;
     uint8_t type;
     swHeap_node **nodes;
 } swHeap;
@@ -41,9 +40,9 @@ typedef struct _swHeap
 swHeap *swHeap_new(size_t n, uint8_t type);
 void swHeap_free(swHeap *q);
 uint32_t swHeap_size(swHeap *q);
-void* swHeap_insert(swHeap *q, uint32_t priority, void *data);
-void swHeap_change_priority(swHeap *q, uint32_t new_pri, void* ptr);
+void* swHeap_push(swHeap *q, uint64_t priority, void *data);
 void *swHeap_pop(swHeap *q);
+void swHeap_change_priority(swHeap *q, uint64_t new_priority, void* ptr);
 int swHeap_remove(swHeap *heap, void* ptr);
 void *swHeap_peek(swHeap *q);
 int swHeap_is_valid(swHeap *q);
