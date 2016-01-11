@@ -37,7 +37,6 @@ swHeap *swHeap_new(size_t n, uint8_t type)
         sw_free(heap);
         return NULL;
     }
-
     heap->num = 1;
     heap->size = (n + 1);
     heap->type = type;

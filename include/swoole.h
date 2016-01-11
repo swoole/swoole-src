@@ -1491,12 +1491,9 @@ void swChannel_free(swChannel *object);
 
 swLinkedList* swLinkedList_new(uint8_t type, swDestructor dtor);
 int swLinkedList_append(swLinkedList *ll, void *data);
+void swLinkedList_remove_node(swLinkedList *ll, swLinkedList_node *remove_node);
 int swLinkedList_prepend(swLinkedList *ll, void *data);
-swLinkedList_node* swLinkedList_insert(swLinkedList *ll, ulong_t priority, void *data);
 void* swLinkedList_pop(swLinkedList *ll);
-swLinkedList_node* swLinkedList_pop_node(swLinkedList *ll);
-swLinkedList_node* swLinkedList_shift_node(swLinkedList *ll);
-void swLinkedList_remove_node(swLinkedList *ll, swLinkedList_node *node);
 void* swLinkedList_shift(swLinkedList *ll);
 void swLinkedList_free(swLinkedList *ll);
 /*----------------------------Thread Pool-------------------------------*/

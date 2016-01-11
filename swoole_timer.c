@@ -116,7 +116,6 @@ static int php_swoole_del_timer(swTimer_node *tnode TSRMLS_DC)
 {
     if (swHashMap_del_int(timer_map, tnode->id) < 0)
     {
-        swoole_php_error("timer#%id not found.", tnode->id);
         return SW_ERR;
     }
     tnode->id = -1;
