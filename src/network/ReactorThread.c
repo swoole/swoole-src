@@ -34,7 +34,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onPackage(swReactor *reactor, swEvent *event);
 static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev);
 
-static int swReactorThread_dispatch_string_buffer(swConnection *conn, char *data, uint32_t length);
+static int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length);
 #if 0
 static int swReactorThread_dispatch_array_buffer(swReactorThread *thread, swConnection *conn);
 #endif
@@ -962,13 +962,13 @@ void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
     //will free after onFinish
     if (serv->open_eof_check)
     {
-        serv->protocol.onPackage = swReactorThread_dispatch_string_buffer;
+        serv->protocol.onPackage = swReactorThread_dispatch;
         reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_eof);
     }
     else if (serv->open_length_check)
     {
         serv->protocol.get_package_length = swProtocol_get_package_length;
-        serv->protocol.onPackage = swReactorThread_dispatch_string_buffer;
+        serv->protocol.onPackage = swReactorThread_dispatch;
         reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_length);
     }
     else if (serv->open_http_protocol)
@@ -983,7 +983,7 @@ void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
     else if (serv->open_mqtt_protocol)
     {
         serv->protocol.get_package_length = swMqtt_get_package_length;
-        serv->protocol.onPackage = swReactorThread_dispatch_string_buffer;
+        serv->protocol.onPackage = swReactorThread_dispatch;
         reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_length);
     }
     else
@@ -1014,10 +1014,10 @@ static int swReactorThread_websocket_onPackage(swConnection *conn, char *data, u
     case WEBSOCKET_OPCODE_CONTINUATION_FRAME:
     case WEBSOCKET_OPCODE_TEXT_FRAME:
     case WEBSOCKET_OPCODE_BINARY_FRAME:
-        offset = length - ws.payload_length;
+        offset = length - ws.payload_length - 2;
         data[offset] = ws.header.FIN;
         data[offset + 1] = ws.header.OPCODE;
-        swReactorThread_dispatch_string_buffer(conn, data + offset, length - offset);
+        swReactorThread_dispatch(conn, data + offset, length - offset);
         break;
 
     case WEBSOCKET_OPCODE_PING:
@@ -1205,7 +1205,7 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
             http_no_entity:
             if (memcmp(buffer->str + buffer->length - 4, "\r\n\r\n", 4) == 0)
             {
-                swReactorThread_dispatch_string_buffer(conn, buffer->str, buffer->length);
+                swReactorThread_dispatch(conn, buffer->str, buffer->length);
                 swHttpRequest_free(conn);
             }
             else if (buffer->size == buffer->length)
@@ -1278,7 +1278,7 @@ static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *e
 
             if (buffer->length == request_size)
             {
-                swReactorThread_dispatch_string_buffer(conn, buffer->str, buffer->length);
+                swReactorThread_dispatch(conn, buffer->str, buffer->length);
                 swHttpRequest_free(conn);
             }
             else
@@ -1674,7 +1674,7 @@ static int swReactorThread_loop_dgram(swThreadParam *param)
     return 0;
 }
 
-static int swReactorThread_dispatch_string_buffer(swConnection *conn, char *data, uint32_t length)
+static int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
 {
     swFactory *factory = SwooleG.factory;
     swDispatchData task;
