@@ -549,7 +549,7 @@ static PHP_METHOD(swoole_table, key)
 {
     swTable *table = swoole_get_object(getThis());
     swTableRow *row = swTable_iterator_current(table);
-    RETURN_STRING(row->key);
+    SW_RETURN_STRING(row->key, 1);
 }
 
 static PHP_METHOD(swoole_table, next)
