@@ -211,3 +211,12 @@ void *swHeap_peek(swHeap *heap)
     }
     return node->data;
 }
+
+void swHeap_print(swHeap *heap)
+{
+    int i;
+    for(i = 1; i < heap->num; i++)
+    {
+        printf("#%d\tpriority=%ld, data=%p\n", i, heap->nodes[i]->priority, heap->nodes[i]->data);
+    }
+}

@@ -38,17 +38,22 @@ typedef struct _swHeap
 } swHeap;
 
 swHeap *swHeap_new(size_t n, uint8_t type);
-void swHeap_free(swHeap *q);
-uint32_t swHeap_size(swHeap *q);
+void swHeap_free(swHeap *heap);
+uint32_t swHeap_size(swHeap *heap);
 swHeap_node* swHeap_push(swHeap *heap, uint64_t priority, void *data);
-void *swHeap_pop(swHeap *q);
-void swHeap_change_priority(swHeap *q, uint64_t new_priority, void* ptr);
+void *swHeap_pop(swHeap *heap);
+void swHeap_change_priority(swHeap *heap, uint64_t new_priority, void* ptr);
 int swHeap_remove(swHeap *heap, swHeap_node *node);
-void *swHeap_peek(swHeap *q);
+void *swHeap_peek(swHeap *heap);
+void swHeap_print(swHeap *heap);
 
-static inline swHeap_node *swHeap_top(swHeap *q)
+static inline swHeap_node *swHeap_top(swHeap *heap)
 {
-    return q->nodes[1];
+    if (heap->num == 1)
+    {
+        return NULL;
+    }
+    return heap->nodes[1];
 }
 
 #endif /* SW_MINHEAP_H_ */

@@ -102,6 +102,7 @@ static long php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tic
     swTimer_node *tnode = swTimer_add(&SwooleG.timer, ms, is_tick, cb);
     if (tnode == NULL)
     {
+        swoole_php_fatal_error(E_WARNING, "addtimer failed.");
         return SW_ERR;
     }
     else
@@ -292,7 +293,7 @@ PHP_FUNCTION(swoole_timer_clear)
         return;
     }
 
-    swTimer_node *tnode = swTimer_get(&SwooleG.timer, id);
+    swTimer_node *tnode = swHashMap_find_int(timer_map, id);
     if (tnode == NULL)
     {
         swoole_php_error(E_WARNING, "timer#%ld is not found.", id);
@@ -302,7 +303,6 @@ PHP_FUNCTION(swoole_timer_clear)
     //current timer, cannot remove here.
     if (tnode->id == SwooleG.timer._current_id)
     {
-        tnode->remove = 1;
         RETURN_TRUE;
     }
 

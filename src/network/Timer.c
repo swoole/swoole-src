@@ -125,7 +125,6 @@ swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data)
         sw_free(tnode);
         return NULL;
     }
-
     return tnode;
 }
 
@@ -179,7 +178,7 @@ int swTimer_select(swTimer *timer)
         swHeap_pop(timer->heap);
     }
 
-    if (tnode)
+    if (!tnode)
     {
         timer->set(timer, -1);
     }
