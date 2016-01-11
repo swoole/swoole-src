@@ -221,7 +221,7 @@ int swoole_websocket_onMessage(swEventData *req)
     object_init_ex(zframe, swoole_websocket_frame_class_entry_ptr);
 
     zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("fd"), fd TSRMLS_CC);
-    zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("finish"), finish TSRMLS_CC);
+    zend_update_property_bool(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("finish"), finish TSRMLS_CC);
     zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("opcode"), opcode TSRMLS_CC);
     zend_update_property_stringl(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("data"), buf + 2, (Z_STRLEN_P(zdata) - 2) TSRMLS_CC);
 

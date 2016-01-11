@@ -302,6 +302,7 @@ PHP_FUNCTION(swoole_timer_clear)
     //current timer, cannot remove here.
     if (tnode->id == SwooleG.timer._current_id)
     {
+        tnode->remove = 1;
         RETURN_TRUE;
     }
 

@@ -189,6 +189,7 @@ extern zend_class_entry *swoole_connection_iterator_class_entry_ptr;
 extern zend_class_entry *swoole_buffer_class_entry_ptr;
 extern zend_class_entry *swoole_table_class_entry_ptr;
 extern zend_class_entry *swoole_http_server_class_entry_ptr;
+extern zend_class_entry *swoole_websocket_frame_class_entry_ptr;
 
 extern zval *php_sw_callback[PHP_SERVER_CALLBACK_NUM];
 
