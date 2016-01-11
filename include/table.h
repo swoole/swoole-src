@@ -26,12 +26,6 @@
 typedef struct _swTableRow
 {
     sw_atomic_t lock;
-
-    /**
-     * string crc32
-     */
-    uint32_t crc32;
-
     /**
      * 1:used, 0:empty
      */
@@ -46,7 +40,10 @@ typedef struct _swTableRow
      * next slot
      */
     struct _swTableRow *next;
-
+    /**
+     * Hash Key
+     */
+    char key[SW_TABLE_KEY_SIZE];
     char data[0];
 } swTableRow;
 

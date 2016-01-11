@@ -160,6 +160,8 @@ int swTableColumn_add(swTable *table, char *name, int len, int type, int size)
 int swTable_create(swTable *table)
 {
     uint32_t row_num = table->size * (1 + SW_TABLE_CONFLICT_PROPORTION);
+
+    //header + data
     uint32_t row_memory_size = sizeof(swTableRow) + table->item_size;
 
     /**
@@ -240,15 +242,18 @@ static sw_inline swTableRow* swTable_hash(swTable *table, char *key, int keylen)
 swTableRow* swTableRow_get(swTable *table, char *key, int keylen)
 {
     swTableRow *row = swTable_hash(table, key, keylen);
-    uint32_t crc32 = swoole_crc32(key, keylen);
-    sw_atomic_t *lock = &row->lock;
+    if (keylen > SW_TABLE_KEY_SIZE)
+    {
+        keylen = SW_TABLE_KEY_SIZE;
+    }
 
+    sw_atomic_t *lock = &row->lock;
     swTrace("row=%p, crc32=%u, key=%s\n", row, crc32, key);
 
     sw_spinlock(lock);
     for (;;)
     {
-        if (row->crc32 == crc32)
+        if (strncmp(row->key, key, keylen) == 0)
         {
             if (!row->active)
             {
@@ -347,15 +352,18 @@ void swTable_iterator_forward(swTable *table)
 swTableRow* swTableRow_set(swTable *table, char *key, int keylen)
 {
     swTableRow *row = swTable_hash(table, key, keylen);
-    uint32_t crc32 = swoole_crc32(key, keylen);
     sw_atomic_t *lock = &row->lock;
+    if (keylen > SW_TABLE_KEY_SIZE)
+    {
+        keylen = SW_TABLE_KEY_SIZE;
+    }
 
     sw_spinlock(lock);
     if (row->active)
     {
         for (;;)
         {
-            if (row->crc32 == crc32)
+            if (strncmp(row->key, key, keylen) == 0)
             {
                 break;
             }
@@ -406,10 +414,9 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen)
         sw_atomic_fetch_add(&table->list_n, 1);
     }
 
-    row->crc32 = crc32;
+    memcpy(row->key, key, keylen);
     row->active = 1;
 
-    swTrace("row=%p, crc32=%u, key=%s\n", row, crc32, key);
     sw_spinlock_release(lock);
 
     return row;
@@ -431,7 +438,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
 
     if (row->next == NULL)
     {
-        if (row->crc32 == crc32)
+        if (strncmp(row->key, key, keylen) == 0)
         {
             table->rows_list[row->list_index] = NULL;
             if (table->iterator->skip_count > table->compress_threshold)
@@ -453,7 +460,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
 
         while (tmp)
         {
-            if (tmp->crc32 == crc32)
+            if ((strncmp(tmp->key, key, keylen) == 0))
             {
                 break;
             }
@@ -474,7 +481,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
         {
             tmp = tmp->next;
             row->next = tmp->next;
-            row->crc32 = tmp->crc32;
+            memcpy(row->key, tmp->key, strlen(tmp->key));
 
             if (table->iterator->skip_count > table->compress_threshold)
             {
