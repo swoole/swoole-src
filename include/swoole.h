@@ -123,6 +123,7 @@ typedef unsigned long ulong_t;
 #include "atomic.h"
 #include "hashmap.h"
 #include "list.h"
+#include "heap.h"
 #include "RingQueue.h"
 #include "array.h"
 #include "error.h"
@@ -1556,8 +1557,7 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString
 //--------------------------------timer------------------------------
 typedef struct _swTimer_node
 {
-    struct timeval lasttime;
-    swLinkedList_node *lnode;
+    swHeap_node *heap_node;
     void *data;
     int64_t exec_msec;
     uint32_t interval;
@@ -1568,8 +1568,7 @@ typedef struct _swTimer_node
 typedef struct _swTimer
 {
     /*--------------timerfd & signal timer--------------*/
-    swLinkedList *queue;
-    swHashMap *map;
+    swHeap *heap;
     int num;
     int use_pipe;
     int lasttime;
@@ -1588,8 +1587,7 @@ typedef struct _swTimer
 } swTimer;
 
 int swTimer_init(long msec);
-swTimer_node* swTimer_get(swTimer *timer, long id);
-long swTimer_add(swTimer *timer, int _msec, int interval, void *data);
+swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data);
 swTimer_node* swTimer_get(swTimer *timer, long id);
 void swTimer_del(swTimer *timer, swTimer_node *node);
 void swTimer_free(swTimer *timer);

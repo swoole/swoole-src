@@ -40,11 +40,15 @@ typedef struct _swHeap
 swHeap *swHeap_new(size_t n, uint8_t type);
 void swHeap_free(swHeap *q);
 uint32_t swHeap_size(swHeap *q);
-void* swHeap_push(swHeap *q, uint64_t priority, void *data);
+swHeap_node* swHeap_push(swHeap *heap, uint64_t priority, void *data);
 void *swHeap_pop(swHeap *q);
 void swHeap_change_priority(swHeap *q, uint64_t new_priority, void* ptr);
-int swHeap_remove(swHeap *heap, void* ptr);
+int swHeap_remove(swHeap *heap, swHeap_node *node);
 void *swHeap_peek(swHeap *q);
-int swHeap_is_valid(swHeap *q);
+
+static inline swHeap_node *swHeap_top(swHeap *q)
+{
+    return q->nodes[1];
+}
 
 #endif /* SW_MINHEAP_H_ */

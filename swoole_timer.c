@@ -35,6 +35,8 @@ typedef struct _swTimer_callback
     int type;
 } swTimer_callback;
 
+static swHashMap *timer_map;
+
 static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode);
 static void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode);
 static long php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tick TSRMLS_DC);
@@ -97,11 +99,26 @@ static long php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tic
         sw_zval_add_ref(&cb->data);
     }
 
-    return swTimer_add(&SwooleG.timer, ms, is_tick, cb);
+    swTimer_node *tnode = swTimer_add(&SwooleG.timer, ms, is_tick, cb);
+    if (tnode == NULL)
+    {
+        return SW_ERR;
+    }
+    else
+    {
+        swHashMap_add_int(timer_map, tnode->id, tnode);
+        return tnode->id;
+    }
 }
 
 static int php_swoole_del_timer(swTimer_node *tnode TSRMLS_DC)
 {
+    if (swHashMap_del_int(timer_map, tnode->id) < 0)
+    {
+        swoole_php_error("timer#%id not found.", tnode->id);
+        return SW_ERR;
+    }
+    tnode->id = -1;
     swTimer_callback *cb = tnode->data;
     if (!cb)
     {
@@ -212,6 +229,8 @@ void php_swoole_check_timer(int msec)
         swTimer_init(msec);
         SwooleG.timer.onAfter = php_swoole_onTimeout;
         SwooleG.timer.onTick = php_swoole_onInterval;
+
+        timer_map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
     }
 }
 

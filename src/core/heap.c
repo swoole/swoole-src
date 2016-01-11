@@ -118,7 +118,7 @@ static void swHeap_percolate_down(swHeap *heap, uint32_t i)
     moving_node->position = i;
 }
 
-void* swHeap_push(swHeap *heap, uint64_t priority, void *data)
+swHeap_node* swHeap_push(swHeap *heap, uint64_t priority, void *data)
 {
     void *tmp;
     uint32_t i;
@@ -165,9 +165,8 @@ void swHeap_change_priority(swHeap *heap, uint64_t new_priority, void* ptr)
     }
 }
 
-int swHeap_remove(swHeap *heap, void* ptr)
+int swHeap_remove(swHeap *heap, swHeap_node *node)
 {
-    swHeap_node *node = ptr;
     uint32_t pos = node->position;
     heap->nodes[pos] = heap->nodes[--heap->num];
 
