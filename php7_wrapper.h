@@ -269,7 +269,7 @@ static inline int sw_zend_hash_index_update(HashTable *ht, int key,void *pData,i
     return zend_hash_index_update(ht, key, *real_p) ? SUCCESS : FAILURE;
 }
 
-static inline int sw_zend_hash_update(HashTable *ht, char *k, int len ,void * val,int size,void *ptr)
+static inline int sw_zend_hash_update(HashTable *ht, char *k, int len, void *val, int size, void *ptr)
 {
     zval key;
     ZVAL_STRING(&key, k);

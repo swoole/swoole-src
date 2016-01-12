@@ -228,5 +228,6 @@
 
 #define SW_WEBSOCKET_SERVER_SOFTWARE     "swoole-websocket-server"
 #define SW_WEBSOCKET_VERSION             "13"
+#define SW_WEBSOCKET_KEY_LENGTH          16
 
 #endif /* SWOOLE_CONFIG_H_ */
