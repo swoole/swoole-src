@@ -201,11 +201,11 @@ typedef struct
 } mysql_client;
 
 #define mysql_uint2korr(A) (uint16_t) (((uint16_t) ((zend_uchar) (A)[0]))+((uint16_t) ((zend_uchar) (A)[1]) << 8))
-#define mysql_uint8korr(A)    ((ulong)(((uint32_t) ((uchar) (A)[0])) +\
+#define mysql_uint8korr(A)    ((ulong_t)(((uint32_t) ((uchar) (A)[0])) +\
                     (((uint32_t) ((uchar) (A)[1])) << 8) +\
                     (((uint32_t) ((uchar) (A)[2])) << 16) +\
                     (((uint32_t) ((uchar) (A)[3])) << 24)) +\
-                    (((ulong) (((uint32_t) ((uchar) (A)[4])) +\
+                    (((ulong_t) (((uint32_t) ((uchar) (A)[4])) +\
                     (((uint32_t) ((uchar) (A)[5])) << 8) +\
                     (((uint32_t) ((uchar) (A)[6])) << 16) +\
                     (((uint32_t) ((uchar) (A)[7])) << 24))) <<\

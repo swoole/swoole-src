@@ -1562,7 +1562,7 @@ static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC)
 
     char *key = NULL;
     int num = 0;
-    ulong num_key = 0;
+    ulong_t num_key = 0;
     uint32_t key_len = 0;
 
     if (SW_Z_TYPE_P(sock_array) != IS_ARRAY)

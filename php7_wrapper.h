@@ -91,7 +91,7 @@ typedef int zend_size_t;
 #endif
 
 #define SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, entry)\
-    zval **tmp = NULL; ulong idx;\
+    zval **tmp = NULL; ulong_t idx;\
     for (zend_hash_internal_pointer_reset(ht); \
             (ktype = zend_hash_get_current_key_ex(ht, &k, &klen, &idx, 0, NULL)) != HASH_KEY_NON_EXISTENT; \
             zend_hash_move_forward(ht)\

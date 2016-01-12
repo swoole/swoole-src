@@ -76,8 +76,8 @@ int daemon(int nochdir, int noclose);
 /*----------------------------------------------------------------------------*/
 #ifndef ulong
 #define ulong unsigned long
-typedef unsigned long ulong_t;
 #endif
+typedef unsigned long ulong_t;
 
 #if defined(__GNUC__)
 #if __GNUC__ >= 3
