@@ -1195,6 +1195,11 @@ PHP_FUNCTION(swoole_server_create)
     sw_zval_ptr_dtor(&connection_iterator_object);
 #endif
     
+    zend_update_property_stringl(swoole_server_class_entry_ptr, server_object, ZEND_STRL("host"), serv_host, host_len TSRMLS_CC);
+    zend_update_property_long(swoole_server_class_entry_ptr, server_object, ZEND_STRL("port"), serv_port TSRMLS_CC);
+    zend_update_property_long(swoole_server_class_entry_ptr, server_object, ZEND_STRL("mode"), serv->factory_mode TSRMLS_CC);
+    zend_update_property_long(swoole_server_class_entry_ptr, server_object, ZEND_STRL("type"), sock_type TSRMLS_CC);
+
     swoole_set_object(server_object, serv);
 }
 
