@@ -328,6 +328,12 @@ static PHP_METHOD(swoole_process, signal)
     }
     efree(func_name);
 
+#if PHP_MAJOR_VERSION >= 7
+    zval *tmp = emalloc(sizeof(zval));
+    memcpy(tmp, callback, sizeof(zval));
+    callback = tmp;
+#endif
+
     sw_zval_add_ref(&callback);
     if (signal_callback[signo])
     {
