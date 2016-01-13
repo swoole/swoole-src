@@ -156,7 +156,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 #ifdef SW_USE_OPENSSL
         if (listen_host->ssl)
         {
-            if (swSSL_create(conn, serv->ssl_context, 0) < 0)
+            if (swSSL_create(conn, listen_host->ssl_context, 0) < 0)
             {
                 bzero(conn, sizeof(swConnection));
                 close(new_fd);
@@ -279,17 +279,6 @@ static int swServer_start_check(swServer *serv)
         serv->max_connection = SwooleG.max_sockets;
     }
     SwooleGS->session_round = 1;
-
-#ifdef SW_USE_OPENSSL
-    if (serv->open_ssl)
-    {
-        if (serv->ssl_cert_file == NULL || serv->ssl_key_file == NULL)
-        {
-            swWarn("SSL error, require ssl_cert_file and ssl_key_file.");
-            return SW_ERR;
-        }
-    }
-#endif
     return SW_OK;
 }
 
@@ -395,9 +384,9 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
 #ifndef SW_USE_RINGBUFFER
     int i;
     int buffer_input_size;
-    if (serv->open_eof_check || serv->open_length_check || serv->open_http_protocol)
+    if (serv->listen_list->open_eof_check || serv->listen_list->open_length_check || serv->listen_list->open_http_protocol)
     {
-        buffer_input_size = serv->protocol.package_max_length;
+        buffer_input_size = serv->listen_list->protocol.package_max_length;
     }
     else
     {
@@ -466,21 +455,6 @@ int swServer_start(swServer *serv)
         char *path_ptr = getcwd(path_buf, 128);
         serv->message_queue_key = ftok(path_ptr, 1);
     }
-
-#ifdef SW_USE_OPENSSL
-    if (serv->open_ssl)
-    {
-        serv->ssl_context = swSSL_get_context(serv->ssl_method, serv->ssl_cert_file, serv->ssl_key_file);
-        if (serv->ssl_context == NULL)
-        {
-            return SW_ERR;
-        }
-        if (serv->ssl_client_cert_file && swSSL_set_client_certificate(serv->ssl_context, serv->ssl_client_cert_file, serv->ssl_verify_depth) == SW_ERR)
-        {
-            return SW_ERR;
-        }
-    }
-#endif
 
     //run as daemon
     if (serv->daemonize > 0)
@@ -619,7 +593,6 @@ void swServer_init(swServer *serv)
     swoole_init();
     bzero(serv, sizeof(swServer));
 
-    serv->backlog = SW_BACKLOG;
     serv->factory_mode = SW_MODE_BASE;
 
     serv->reactor_num = SW_REACTOR_NUM > SW_REACTOR_MAX_THREAD ? SW_REACTOR_MAX_THREAD : SW_REACTOR_NUM;
@@ -632,45 +605,22 @@ void swServer_init(swServer *serv)
 
     serv->worker_num = SW_CPU_NUM;
     serv->max_connection = SwooleG.max_sockets;
-
     serv->max_request = 0;
 
-    serv->open_tcp_nopush = 1;
     serv->http_parse_post = 1;
-
-    //tcp keepalive
-    serv->tcp_keepcount = SW_TCP_KEEPCOUNT;
-    serv->tcp_keepinterval = SW_TCP_KEEPINTERVAL;
-    serv->tcp_keepidle = SW_TCP_KEEPIDLE;
 
     //heartbeat check
     serv->heartbeat_idle_time = SW_HEARTBEAT_IDLE;
     serv->heartbeat_check_interval = SW_HEARTBEAT_CHECK;
 
-    char eof[] = SW_DATA_EOF;
-    serv->protocol.package_eof_len = sizeof(SW_DATA_EOF) - 1;
-    serv->protocol.package_length_type = 'N';
-    serv->protocol.package_length_size = 4;
-    serv->protocol.package_body_offset = 0;
-
-    serv->protocol.package_max_length = SW_BUFFER_INPUT_SIZE;
-
     serv->buffer_input_size = SW_BUFFER_INPUT_SIZE;
     serv->buffer_output_size = SW_BUFFER_OUTPUT_SIZE;
 
     serv->pipe_buffer_size = SW_PIPE_BUFFER_SIZE;
-
-    memcpy(serv->protocol.package_eof, eof, serv->protocol.package_eof_len);
 }
 
 int swServer_create(swServer *serv)
 {
-    //EOF最大长度为8字节
-    if (serv->protocol.package_eof_len > sizeof(serv->protocol.package_eof))
-    {
-        serv->protocol.package_eof_len = sizeof(serv->protocol.package_eof);
-    }
-
     //初始化日志
     if (serv->log_file[0] != 0)
     {
@@ -753,20 +703,17 @@ int swServer_free(swServer *serv)
         swReactorThread_free(serv);
     }
 
+    swListenPort *port;
+    LL_FOREACH(serv->listen_list, port)
+    {
+        swPort_free(port);
+    }
+
     //reactor free
     if (serv->reactor.free != NULL)
     {
         serv->reactor.free(&(serv->reactor));
     }
-
-#ifdef SW_USE_OPENSSL
-    if (serv->open_ssl)
-    {
-        swSSL_free_context(serv->ssl_context);
-        free(serv->ssl_cert_file);
-        free(serv->ssl_key_file);
-    }
-#endif
 
     //release connection_list
     if (serv->factory_mode == SW_MODE_SINGLE)
@@ -1003,13 +950,12 @@ int swServer_add_listener(swServer *serv, int type, char *host, int port)
 
     swListenPort *ls = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenPort));
 
+    swPort_init(ls);
     ls->type = type;
     ls->port = port;
-    ls->sock = 0;
-    ls->ssl = 0;
-
     bzero(ls->host, SW_HOST_MAXSIZE);
     strncpy(ls->host, host, SW_HOST_MAXSIZE);
+
     LL_APPEND(serv->listen_list, ls);
 
     if (swSocket_is_dgram(ls->type))
@@ -1046,91 +992,25 @@ int swServer_add_listener(swServer *serv, int type, char *host, int port)
  */
 int swServer_listen(swServer *serv, swListenPort *ls)
 {
-    int sock = -1, sockopt;
-
-    if (swSocket_is_dgram(ls->type))
-    {
-        int sock = swSocket_listen(ls->type, ls->host, ls->port, serv->backlog);
-        if (sock < 0)
-        {
-            return SW_ERR;
-        }
-
-        int bufsize = SwooleG.socket_buffer_size;
-        setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize));
-        setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize));
-        ls->sock = sock;
-
-        if (ls->type == SW_SOCK_UDP)
-        {
-            serv->udp_socket_ipv4 = sock;
-        }
-        else if (ls->type == SW_SOCK_UDP6)
-        {
-            serv->udp_socket_ipv6 = sock;
-        }
-        return SW_OK;
-    }
-
-#ifdef SW_USE_OPENSSL
-    if (ls->ssl)
-    {
-        if (!serv->ssl_cert_file)
-        {
-            swWarn("need to configure [server->ssl_cert_file].");
-            return SW_ERR;
-        }
-        if (!serv->ssl_key_file)
-        {
-            swWarn("need to configure [server->ssl_key_file].");
-            return SW_ERR;
-        }
-    }
-#endif
-
-    //TCP
-    sock = swSocket_listen(ls->type, ls->host, ls->port, serv->backlog);
+    int sock = swPort_listen(ls);
     if (sock < 0)
     {
         LL_DELETE(serv->listen_list, ls);
         return SW_ERR;
     }
 
-#ifdef TCP_DEFER_ACCEPT
-    if (serv->tcp_defer_accept)
+    if (swSocket_is_dgram(ls->type))
     {
-        if (setsockopt(sock, IPPROTO_TCP, TCP_DEFER_ACCEPT, (const void*) &serv->tcp_defer_accept, sizeof(int)) < 0)
+        if (ls->type == SW_SOCK_UDP)
         {
-            swSysError("setsockopt(TCP_DEFER_ACCEPT) failed.");
+            SwooleG.serv->udp_socket_ipv4 = sock;
         }
-    }
-#endif
-
-#ifdef TCP_FASTOPEN
-    if (serv->tcp_fastopen)
-    {
-        if (setsockopt(sock, IPPROTO_TCP, TCP_FASTOPEN, (const void*) &serv->tcp_fastopen, sizeof(int)) < 0)
+        else if (ls->type == SW_SOCK_UDP6)
         {
-            swSysError("setsockopt(TCP_FASTOPEN) failed.");
+            SwooleG.serv->udp_socket_ipv6 = sock;
         }
+        return SW_OK;
     }
-#endif
-
-#ifdef SO_KEEPALIVE
-    if (serv->open_tcp_keepalive == 1)
-    {
-        sockopt = 1;
-        if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (void *) &sockopt, sizeof(int)) < 0)
-        {
-            swSysError("setsockopt(SO_KEEPALIVE) failed.");
-        }
-#ifdef TCP_KEEPIDLE
-        setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, (void*) &serv->tcp_keepidle, sizeof(int));
-        setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, (void *) &serv->tcp_keepinterval, sizeof(int));
-        setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, (void *) &serv->tcp_keepcount, sizeof(int));
-#endif
-    }
-#endif
 
     ls->sock = sock;
     //save server socket to connection_list
@@ -1340,7 +1220,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     bzero(connection, sizeof(swConnection));
 
     //TCP Nodelay
-    if (serv->open_tcp_nodelay)
+    if (ls->open_tcp_nodelay)
     {
         int sockopt = 1;
         if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &sockopt, sizeof(sockopt)) < 0)
@@ -1352,7 +1232,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
 
 #ifdef HAVE_TCP_NOPUSH
     //TCP NOPUSH
-    if (serv->open_tcp_nopush)
+    if (ls->open_tcp_nopush)
     {
         connection->tcp_nopush = 1;
     }

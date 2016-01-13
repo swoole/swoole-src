@@ -569,9 +569,9 @@ static inline char* sw_http_build_query(zval *data, zend_size_t *length TSRMLS_D
     {
         return SW_ERR;
     }
-    smart_str_0(formstr);
-    *length = formstr.s.len;
-    return formstr.s.val;
+    smart_str_0(&formstr);
+    *length = formstr.s->len;
+    return formstr.s->val;
 }
 #endif
 
@@ -1184,7 +1184,15 @@ static PHP_METHOD(swoole_http_client, upgrade)
     sw_add_assoc_string(hcc->request_header, "Upgrade", "websocket", 1);
 
     int encoded_value_len = 0;
+
+#if PHP_MAJOR_VERSION < 7
     uchar *encoded_value = php_base64_encode((const unsigned char *)buf, SW_WEBSOCKET_KEY_LENGTH + 1, &encoded_value_len);
+#else
+    zend_string *str = php_base64_encode((const unsigned char *)buf, SW_WEBSOCKET_KEY_LENGTH + 1);
+    uchar *encoded_value = str->val;
+    encoded_value_len = str->len;
+#endif
+
     sw_add_assoc_stringl(hcc->request_header, "Sec-WebSocket-Key", (char*)encoded_value, encoded_value_len, 1);
 
     ret = http_client_execute(getThis(), uri, uri_len, finish_cb TSRMLS_CC);

@@ -129,12 +129,82 @@ typedef struct _swReactorThread
 typedef struct _swListenPort
 {
     struct _swListenPort *next, *prev;
+
+    /**
+     * tcp socket listen backlog
+     */
+    uint16_t backlog;
+    /**
+     * open tcp_defer_accept option
+     */
+    int tcp_defer_accept;
+    /**
+     * TCP_FASTOPEN
+     */
+    int tcp_fastopen;
+    /**
+     * TCP KeepAlive
+     */
+    int tcp_keepidle;
+    int tcp_keepinterval;
+    int tcp_keepcount;
+
     uint8_t type;
     uint8_t ssl;
     int port;
     int sock;
     pthread_t thread_id;
     char host[SW_HOST_MAXSIZE];
+
+    /**
+     * check data eof
+     */
+    uint32_t open_eof_check :1;
+    /**
+     * built-in http protocol
+     */
+    uint32_t open_http_protocol :1;
+    /**
+     * built-in websocket protocol
+     */
+    uint32_t open_websocket_protocol :1;
+    /**
+     *  one package: length check
+     */
+    uint32_t open_length_check :1;
+    /**
+     * for mqtt protocol
+     */
+    uint32_t open_mqtt_protocol :1;
+    /**
+     * open tcp nodelay option
+     */
+    uint32_t open_tcp_nodelay :1;
+    /**
+     * open tcp nopush option(for sendfile)
+     */
+    uint32_t open_tcp_nopush :1;
+    /**
+     * open tcp keepalive
+     */
+    uint32_t open_tcp_keepalive :1;
+    /**
+     * open tcp keepalive
+     */
+    uint32_t open_ssl_encrypt :1;
+
+#ifdef SW_USE_OPENSSL
+    char *ssl_cert_file;
+    char *ssl_key_file;
+    SSL_CTX *ssl_context;
+    uint8_t ssl_method;
+    char *ssl_client_cert_file;
+    uint8_t ssl_verify_depth;
+#endif
+
+    swProtocol protocol;
+
+    int (*onRead)(swReactor *reactor, struct _swListenPort *port, swEvent *event);
 } swListenPort;
 
 typedef struct _swUserWorker_node
@@ -214,10 +284,6 @@ enum swServer_callback_type
 };
 struct _swServer
 {
-    /**
-     * tcp socket listen backlog
-     */
-    uint16_t backlog;
     /**
      * reactor thread/process num
      */
@@ -301,45 +367,6 @@ struct _swServer
      */
     uint32_t open_cpu_affinity :1;
 
-    /**
-     * open tcp nodelay option
-     */
-    uint32_t open_tcp_nodelay :1;
-
-    /**
-     * open tcp nopush option(for sendfile)
-     */
-    uint32_t open_tcp_nopush :1;
-
-    /**
-     * open tcp keepalive
-     */
-    uint32_t open_tcp_keepalive :1;
-
-    /**
-     * check data eof
-     */
-    uint32_t open_eof_check :1;
-
-    /**
-     * built-in http protocol
-     */
-    uint32_t open_http_protocol :1;
-
-    /**
-     * built-in websocket protocol
-     */
-    uint32_t open_websocket_protocol :1;
-
-    /**
-     *  one package: length check
-     */
-    uint32_t open_length_check :1;
-
-    /**
-     * for mqtt protocol
-     */
-    uint32_t open_mqtt_protocol :1;
 
     /**
      * Udisable notice when use SW_DISPATCH_ROUND and SW_DISPATCH_QUEUE
@@ -358,19 +385,6 @@ struct _swServer
 
     uint32_t enable_unsafe_event :1;
 
-    /**
-     * open tcp_defer_accept option
-     */
-    int tcp_defer_accept;
-    /**
-     * TCP_FASTOPEN
-     */
-    int tcp_fastopen;
-
-    int tcp_keepidle;
-    int tcp_keepinterval;
-    int tcp_keepcount;
-
     /* heartbeat check time*/
     uint16_t heartbeat_idle_time; //心跳存活时间
     uint16_t heartbeat_check_interval; //心跳定时侦测时间, 必需小于heartbeat_idle_time
@@ -381,23 +395,11 @@ struct _swServer
     uint8_t listen_port_num;
     time_t reload_time;
 
-    swProtocol protocol;
-
     /* buffer output/input setting*/
     uint32_t buffer_output_size;
     uint32_t buffer_input_size;
 
     uint32_t pipe_buffer_size;
-
-#ifdef SW_USE_OPENSSL
-    uint8_t open_ssl;
-    char *ssl_cert_file;
-    char *ssl_key_file;
-    SSL_CTX *ssl_context;
-    uint8_t ssl_method;
-    char *ssl_client_cert_file;
-    uint8_t ssl_verify_depth;
-#endif
 
     void *ptr2;
 
@@ -434,17 +436,16 @@ struct _swServer
     void (*onStart)(swServer *serv);
     void (*onManagerStart)(swServer *serv);
     void (*onManagerStop)(swServer *serv);
-    int (*onReceive)(swServer *, swEventData *);
-    int (*onPacket)(swServer *, swEventData *); //for datagram
-    int (*onRequest)(swServer *serv, swRequest *request);
-    void (*onClose)(swServer *serv, int fd, int reactor_id);
-    void (*onConnect)(swServer *serv, int fd, int reactor_id);
     void (*onShutdown)(swServer *serv);
     void (*onPipeMessage)(swServer *, swEventData *);
     void (*onWorkerStart)(swServer *serv, int worker_id);
     void (*onWorkerStop)(swServer *serv, int worker_id);
     void (*onWorkerError)(swServer *serv, int worker_id, pid_t worker_pid, int exit_code, int signo);
     void (*onUserWorkerStart)(swServer *serv, swWorker *worker);
+    int (*onReceive)(swServer *, swEventData *);
+    int (*onPacket)(swServer *, swEventData *); //for datagram
+    void (*onClose)(swServer *serv, int fd, int reactor_id);
+    void (*onConnect)(swServer *serv, int fd, int reactor_id);
     int (*onTask)(swServer *serv, swEventData *data);
     int (*onFinish)(swServer *serv, swEventData *data);
 
@@ -490,6 +491,12 @@ int swServer_listen(swServer *serv, swListenPort *ls);
 int swServer_free(swServer *serv);
 int swServer_shutdown(swServer *serv);
 
+static sw_inline swListenPort* swServer_get_port(swServer *serv, int fd)
+{
+    int server_fd = serv->connection_list[fd].from_fd;
+    return serv->connection_list[server_fd].object;
+}
+
 int swServer_udp_send(swServer *serv, swSendData *resp);
 int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length);
 int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length);
@@ -531,18 +538,6 @@ static sw_inline int swEventData_is_stream(uint8_t type)
     }
 }
 
-static sw_inline int swServer_package_integrity(swServer *serv)
-{
-    if (serv->open_eof_check || serv->open_length_check || serv->open_http_protocol || serv->open_mqtt_protocol)
-    {
-        return SW_TRUE;
-    }
-    else
-    {
-        return SW_FALSE;
-    }
-}
-
 swPipe * swServer_pipe_get(swServer *serv, int pipe_fd);
 void swServer_pipe_set(swServer *serv, swPipe *p);
 
@@ -568,7 +563,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags);
 #define swTaskWorker_large_unpack(task, __malloc, _buf, _length)   swPackage_task _pkg;\
 	memcpy(&_pkg, task->data, sizeof(_pkg));\
 	_length = _pkg.length;\
-    if (_length > SwooleG.serv->protocol.package_max_length) {\
+    if (_length > SwooleG.serv->listen_list->protocol.package_max_length) {\
         swWarn("task package is too big.");\
     }\
     _buf = __malloc(_length + 1);\
@@ -788,6 +783,11 @@ static sw_inline void swServer_connection_ready(swServer *serv, int fd, int reac
     }
 }
 
+void swPort_init(swListenPort *port);
+void swPort_free(swListenPort *port);
+void swPort_set_protocol(swListenPort *ls);
+int swPort_listen(swListenPort *ls);
+
 void swWorker_free(swWorker *worker);
 void swWorker_signal_init(void);
 void swWorker_onStart(swServer *serv);
@@ -806,6 +806,8 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr);
 void swReactorThread_set_protocol(swServer *serv, swReactor *reactor);
 void swReactorThread_free(swServer *serv);
 int swReactorThread_close(swReactor *reactor, int fd);
+int swReactorThread_onClose(swReactor *reactor, swEvent *event);
+int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length);
 int swReactorThread_send(swSendData *_send);
 int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id);
 

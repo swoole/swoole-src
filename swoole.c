@@ -38,7 +38,7 @@ extern sapi_module_struct sapi_module;
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_create, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server__construct, 0, 0, 2)
     ZEND_ARG_INFO(0, serv_host)
     ZEND_ARG_INFO(0, serv_port)
     ZEND_ARG_INFO(0, serv_mode)
@@ -111,36 +111,12 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_close_oo, 0, 0, 1)
     ZEND_ARG_INFO(0, fd)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_handler, 0, 0, 3)
-    ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
-    ZEND_ARG_INFO(0, ha_name)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_on, 0, 0, 2)
+    ZEND_ARG_INFO(0, name)
     ZEND_ARG_INFO(0, cb)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_handler_oo, 0, 0, 2)
-    ZEND_ARG_INFO(0, ha_name)
-    ZEND_ARG_INFO(0, cb)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_on, 0, 0, 3)
-    ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
-    ZEND_ARG_INFO(0, ha_name)
-    ZEND_ARG_INFO(0, cb)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_on_oo, 0, 0, 2)
-    ZEND_ARG_INFO(0, ha_name)
-    ZEND_ARG_INFO(0, cb)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_addlisten, 0, 0, 4)
-    ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
-    ZEND_ARG_INFO(0, host)
-    ZEND_ARG_INFO(0, port)
-    ZEND_ARG_INFO(0, sock_type)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_addlisten_oo, 0, 0, 3)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_listen, 0, 0, 3)
     ZEND_ARG_INFO(0, host)
     ZEND_ARG_INFO(0, port)
     ZEND_ARG_INFO(0, sock_type)
@@ -265,15 +241,11 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_version, NULL)
     PHP_FE(swoole_cpu_num, NULL)
     /*------swoole_server-----*/
-    PHP_FE(swoole_server_create, arginfo_swoole_server_create)
     PHP_FE(swoole_server_set, arginfo_swoole_server_set)
     PHP_FE(swoole_server_start, arginfo_swoole_server_start)
     PHP_FE(swoole_server_send, arginfo_swoole_server_send)
     PHP_FE(swoole_server_sendfile, arginfo_swoole_server_sendfile)
     PHP_FE(swoole_server_close, arginfo_swoole_server_close)
-    PHP_FE(swoole_server_handler, arginfo_swoole_server_handler)
-    PHP_FE(swoole_server_on, arginfo_swoole_server_on)
-    PHP_FE(swoole_server_addlisten, arginfo_swoole_server_addlisten)
     PHP_FE(swoole_server_task, arginfo_swoole_server_task)
     PHP_FE(swoole_server_taskwait, arginfo_swoole_server_taskwait)
     PHP_FE(swoole_server_finish, arginfo_swoole_server_finish)
@@ -315,7 +287,9 @@ const zend_function_entry swoole_functions[] =
 };
 
 static zend_function_entry swoole_server_methods[] = {
-    PHP_FALIAS(__construct, swoole_server_create, arginfo_swoole_server_create)
+    PHP_ME(swoole_server, __construct, arginfo_swoole_server__construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_server, listen, arginfo_swoole_server_listen, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, on, arginfo_swoole_server_on, ZEND_ACC_PUBLIC)
     PHP_FALIAS(set, swoole_server_set, arginfo_swoole_server_set_oo)
     PHP_FALIAS(start, swoole_server_start, arginfo_swoole_void)
     PHP_FALIAS(send, swoole_server_send, arginfo_swoole_server_send_oo)
@@ -327,14 +301,10 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_FALIAS(task, swoole_server_task, arginfo_swoole_server_task_oo)
     PHP_FALIAS(taskwait, swoole_server_taskwait, arginfo_swoole_server_taskwait_oo)
     PHP_FALIAS(finish, swoole_server_finish, arginfo_swoole_server_finish_oo)
-    PHP_FALIAS(addlistener, swoole_server_addlisten, arginfo_swoole_server_addlisten_oo)
-    PHP_FALIAS(listen, swoole_server_addlisten, arginfo_swoole_server_addlisten_oo)
     PHP_FALIAS(reload, swoole_server_reload, arginfo_swoole_server_reload_oo)
     PHP_FALIAS(shutdown, swoole_server_shutdown, arginfo_swoole_void)
     PHP_FALIAS(hbcheck, swoole_server_heartbeat, arginfo_swoole_server_heartbeat_oo)
     PHP_FALIAS(heartbeat, swoole_server_heartbeat, arginfo_swoole_server_heartbeat_oo)
-    PHP_FALIAS(handler, swoole_server_handler, arginfo_swoole_server_handler_oo)
-    PHP_FALIAS(on, swoole_server_on, arginfo_swoole_server_on_oo)
     PHP_FALIAS(connection_info, swoole_connection_info, arginfo_swoole_connection_info_oo)
     PHP_FALIAS(connection_list, swoole_connection_list, arginfo_swoole_connection_list_oo)
     //psr-0 style
@@ -602,7 +572,7 @@ PHP_MINIT_FUNCTION(swoole)
 
     //swoole init
     swoole_init();
-
+    swoole_server_port_init(module_number TSRMLS_CC);
     swoole_client_init(module_number TSRMLS_CC);
 #ifdef SW_ASYNC_HTTPCLIENT
     swoole_http_client_init(module_number TSRMLS_CC);
@@ -615,7 +585,7 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_table_init(module_number TSRMLS_CC);
     swoole_lock_init(module_number TSRMLS_CC);
     swoole_atomic_init(module_number TSRMLS_CC);
-    swoole_http_init(module_number TSRMLS_CC);
+    swoole_http_server_init(module_number TSRMLS_CC);
     swoole_buffer_init(module_number TSRMLS_CC);
     swoole_websocket_init(module_number TSRMLS_CC);
 

@@ -50,6 +50,12 @@ static long php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tic
         return SW_ERR;
     }
 
+    if (ms <= 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "Timer must be greater than 0");
+        return SW_ERR;
+    }
+
     char *func_name = NULL;
     if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
     {

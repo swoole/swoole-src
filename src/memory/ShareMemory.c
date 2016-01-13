@@ -167,10 +167,11 @@ void *swShareMemory_sysv_create(swShareMemory *object, int size, int key)
 
 int swShareMemory_sysv_free(swShareMemory *object, int rm)
 {
+    int shmid = object->shmid;
     int ret = shmdt(object->mem);
     if (rm == 1)
     {
-        shmctl(object->shmid, IPC_RMID, NULL);
+        shmctl(shmid, IPC_RMID, NULL);
     }
     return ret;
 }

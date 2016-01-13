@@ -332,7 +332,7 @@ static PHP_METHOD( swoole_websocket_server, on)
     callback = callback_copy;
 #endif
 
-    serv->open_websocket_protocol = 1;
+    serv->listen_list->open_websocket_protocol = 1;
 
     if (strncasecmp("open", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
