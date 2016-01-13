@@ -21,6 +21,7 @@
 static PHP_METHOD(swoole_process, __construct);
 static PHP_METHOD(swoole_process, __destruct);
 static PHP_METHOD(swoole_process, useQueue);
+static PHP_METHOD(swoole_process, freeQueue);
 static PHP_METHOD(swoole_process, pop);
 static PHP_METHOD(swoole_process, push);
 static PHP_METHOD(swoole_process, kill);
@@ -56,6 +57,7 @@ static const zend_function_entry swoole_process_methods[] =
     PHP_ME(swoole_process, setaffinity, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 #endif
     PHP_ME(swoole_process, useQueue, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process, freeQueue, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process, start, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process, write, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process, close, NULL, ZEND_ACC_PUBLIC)
@@ -254,6 +256,31 @@ static PHP_METHOD(swoole_process, useQueue)
     process->queue = queue;
     process->ipc_mode = mode;
     RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_process, freeQueue)
+{
+    long msgkey = 0;
+    long mode = 2;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ll", &msgkey, &mode) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+
+    swWorker *process = swoole_get_object(getThis());
+    if (process->queue)
+    {
+        process->queue->delete = 1;
+        swMsgQueue_free(process->queue);
+        efree(process->queue);
+        process->queue = NULL;
+        RETURN_TRUE;
+    }
+    else
+    {
+        RETURN_FALSE;
+    }
 }
 
 static PHP_METHOD(swoole_process, kill)
