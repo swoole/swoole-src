@@ -1691,7 +1691,8 @@ PHP_METHOD(swoole_server, addtimer)
     {
         return;
     }
-    sw_zend_call_method_with_2_params(&getThis(), swoole_server_class_entry_ptr, NULL, "tick", &return_value, ms, php_sw_callback[SW_SERVER_CB_onTimer]);
+    zval *obj = getThis();
+    sw_zend_call_method_with_2_params(&obj, swoole_server_class_entry_ptr, NULL, "tick", &return_value, ms, php_sw_callback[SW_SERVER_CB_onTimer]);
 }
 
 PHP_FUNCTION(swoole_server_start)
