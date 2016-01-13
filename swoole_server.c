@@ -1526,8 +1526,9 @@ PHP_FUNCTION(swoole_server_set)
         serv->message_queue_key = (int) Z_LVAL_P(v);
     }
 
+    zval *retval;
     zval *obj = server_port_list.array[0];
-    zend_call_method_with_1_params(obj, swoole_server_port_class_entry_ptr, NULL, "set", return_value, zset);
+    sw_zend_call_method_with_1_params(&obj, swoole_server_port_class_entry_ptr, NULL, "set", &retval, zset);
 
 //    sw_zval_add_ref(&zset);
 //    sw_zval_add_ref(&zobject);
@@ -1587,7 +1588,8 @@ PHP_METHOD(swoole_server, on)
     if (i < SW_SERVER_CB_onStart)
     {
         zval *obj = server_port_list.array[0];
-        sw_zend_call_method_with_2_params(&obj, swoole_server_port_class_entry_ptr, NULL, "on", &return_value, name, cb);
+        zval *retval;
+        sw_zend_call_method_with_2_params(&obj, swoole_server_port_class_entry_ptr, NULL, "on", &retval, name, cb);
     }
     else
     {
