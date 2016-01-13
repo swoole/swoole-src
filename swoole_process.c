@@ -260,14 +260,6 @@ static PHP_METHOD(swoole_process, useQueue)
 
 static PHP_METHOD(swoole_process, freeQueue)
 {
-    long msgkey = 0;
-    long mode = 2;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ll", &msgkey, &mode) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-
     swWorker *process = swoole_get_object(getThis());
     if (process->queue)
     {
