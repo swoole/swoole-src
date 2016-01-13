@@ -1936,6 +1936,7 @@ PHP_FUNCTION(swoole_server_start)
         php_error_docref(NULL TSRMLS_CC, E_ERROR, "start server failed. Error: %s", sw_error);
         RETURN_LONG(ret);
     }
+    REGISTER_LONG_CONSTANT("RUNNING_SWOOLE_SERVER", 1, CONST_CS);
     RETURN_TRUE;
 }
 
