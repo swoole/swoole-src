@@ -226,8 +226,8 @@ static inline char * sw_php_url_encode(char *value, size_t value_len, int* exten
 #define sw_add_assoc_string(array, key, value, duplicate)   add_assoc_string(array, key, value)
 #define sw_zend_hash_copy(target,source,pCopyConstructor,tmp,size) zend_hash_copy(target,source,pCopyConstructor)
 #define sw_zend_register_internal_class_ex(entry,parent_ptr,str)    zend_register_internal_class_ex(entry,parent_ptr)
-#define sw_zend_call_method_with_1_params(obj,ptr,what,char,retval,v1)          zend_call_method_with_1_params(*obj,ptr,what,char,*retval,v1)
-#define sw_zend_call_method_with_2_params(obj,ptr,what,char,retval,name,cb)     zend_call_method_with_2_params(*obj,ptr,what,char,*retval,name,cb)
+#define sw_zend_call_method_with_1_params(obj, ptr, what, method, retval, v1)          zend_call_method_with_1_params(*obj,ptr,what,method,*retval,v1)
+#define sw_zend_call_method_with_2_params(obj, ptr, what, method, retval, name, cb)     zend_call_method_with_2_params(*obj,ptr,what,method,*retval,name,cb)
 #define SW_ZVAL_STRINGL(z, s, l, dup)         ZVAL_STRINGL(z, s, l)
 #define SW_ZVAL_STRING(z,s,dup)               ZVAL_STRING(z,s)
 #define sw_smart_str                          smart_string

@@ -132,15 +132,17 @@ extern swoole_object_array swoole_objects;
 #include "php7_wrapper.h"
 
 #define PHP_CLIENT_CALLBACK_NUM             4
-//---------------------------------------------------
-#define SW_CLIENT_CB_onConnect              0
-#define SW_CLIENT_CB_onReceive              1
-#define SW_CLIENT_CB_onClose                2
-#define SW_CLIENT_CB_onError                3
-
+//--------------------------------------------------------
 #define SW_MAX_FIND_COUNT                   100    //for swoole_server::connection_list
 #define SW_PHP_CLIENT_BUFFER_SIZE           65535
-
+//--------------------------------------------------------
+enum php_swoole_client_callback_type
+{
+    SW_CLIENT_CB_onConnect,
+    SW_CLIENT_CB_onReceive,
+    SW_CLIENT_CB_onClose,
+    SW_CLIENT_CB_onError,
+};
 //--------------------------------------------------------
 enum php_swoole_server_callback_type
 {
@@ -158,6 +160,7 @@ enum php_swoole_server_callback_type
     SW_SERVER_CB_onShutdown,       //Server sthudown(master)
     SW_SERVER_CB_onWorkerStart,    //Worker start(worker)
     SW_SERVER_CB_onWorkerStop,     //Worker shutdown(worker)
+    SW_SERVER_CB_onTimer,
     SW_SERVER_CB_onTask,           //new task(task_worker)
     SW_SERVER_CB_onFinish,         //async task finish(worker)
     SW_SERVER_CB_onWorkerError,    //worker exception(manager)
@@ -259,6 +262,7 @@ PHP_METHOD(swoole_connection_iterator, valid);
 PHP_METHOD(swoole_server, __construct);
 PHP_METHOD(swoole_server, listen);
 PHP_METHOD(swoole_server, on);
+PHP_METHOD(swoole_server, addtimer);
 PHP_METHOD(swoole_server, sendmessage);
 PHP_METHOD(swoole_server, addprocess);
 PHP_METHOD(swoole_server, stats);

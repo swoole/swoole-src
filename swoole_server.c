@@ -169,10 +169,10 @@ static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int fd, in
 {
     swListenPort *port = swServer_get_port(serv, fd);
     swoole_port_callbacks *callbacks = port->ptr;
-    zval *callback = callbacks->array[SW_SERVER_CB_onClose];
+    zval *callback = callbacks->array[event_type];
     if (!callback)
     {
-        callback = php_sw_callback[SW_SERVER_CB_onClose];
+        callback = php_sw_callback[event_type];
     }
     if (!callback)
     {
@@ -1561,6 +1561,7 @@ PHP_METHOD(swoole_server, on)
         "shutdown",
         "workerStart",
         "workerStop",
+        "timer",
         "task",
         "finish",
         "workerError",
@@ -1676,6 +1677,21 @@ PHP_METHOD(swoole_server, addprocess)
     }
     zend_update_property_long(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("id"), id TSRMLS_CC);
     RETURN_LONG(id);
+}
+
+PHP_METHOD(swoole_server, addtimer)
+{
+    if (php_sw_callback[SW_SERVER_CB_onTimer] == NULL)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "onTimer is null, Can not use timer.");
+        RETURN_FALSE;
+    }
+    zval *ms = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &ms) == FAILURE)
+    {
+        return;
+    }
+    sw_zend_call_method_with_2_params(&getThis(), swoole_server_class_entry_ptr, NULL, "tick", &return_value, ms, php_sw_callback[SW_SERVER_CB_onTimer]);
 }
 
 PHP_FUNCTION(swoole_server_start)
