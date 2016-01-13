@@ -55,13 +55,13 @@ int swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, cha
     buf += SW_WEBSOCKET_HEADER_LEN;
 
     //uint16_t, 2byte
-    if (length == 0x7e)
+    if (payload_length == 0x7e)
     {
         payload_length = ntohs(*((uint16_t *) buf));
         header_length += 2;
     }
     //uint64_t, 8byte
-    else if (length > 0x7e)
+    else if (payload_length > 0x7e)
     {
         payload_length = swoole_ntoh64(*((uint64_t *) buf));
         header_length += 8;

@@ -37,7 +37,6 @@ swHeap *swHeap_new(size_t n, uint8_t type)
         sw_free(heap);
         return NULL;
     }
-
     heap->num = 1;
     heap->size = (n + 1);
     heap->type = type;
@@ -118,7 +117,7 @@ static void swHeap_percolate_down(swHeap *heap, uint32_t i)
     moving_node->position = i;
 }
 
-void* swHeap_push(swHeap *heap, uint64_t priority, void *data)
+swHeap_node* swHeap_push(swHeap *heap, uint64_t priority, void *data)
 {
     void *tmp;
     uint32_t i;
@@ -165,9 +164,8 @@ void swHeap_change_priority(swHeap *heap, uint64_t new_priority, void* ptr)
     }
 }
 
-int swHeap_remove(swHeap *heap, void* ptr)
+int swHeap_remove(swHeap *heap, swHeap_node *node)
 {
-    swHeap_node *node = ptr;
     uint32_t pos = node->position;
     heap->nodes[pos] = heap->nodes[--heap->num];
 
@@ -211,4 +209,13 @@ void *swHeap_peek(swHeap *heap)
         return NULL;
     }
     return node->data;
+}
+
+void swHeap_print(swHeap *heap)
+{
+    int i;
+    for(i = 1; i < heap->num; i++)
+    {
+        printf("#%d\tpriority=%ld, data=%p\n", i, heap->nodes[i]->priority, heap->nodes[i]->data);
+    }
 }

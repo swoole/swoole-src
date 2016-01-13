@@ -46,21 +46,15 @@ int swTimer_init(long msec)
         return SW_ERR;
     }
 
-    SwooleG.timer.queue = swLinkedList_new(1, NULL);
-    if (!SwooleG.timer.queue)
-    {
-        return SW_ERR;
-    }
-
-    SwooleG.timer.map = swHashMap_new(1024, NULL);
-    if (!SwooleG.timer.map)
-    {
-        return SW_ERR;
-    }
-
     SwooleG.timer._current_id = -1;
     SwooleG.timer._next_msec = msec;
     SwooleG.timer._next_id = 1;
+
+    SwooleG.timer.heap = swHeap_new(1024, SW_MIN_HEAP);
+    if (!SwooleG.timer.heap)
+    {
+        return SW_ERR;
+    }
 
     if (swIsTaskWorker())
     {
@@ -76,13 +70,9 @@ int swTimer_init(long msec)
 
 void swTimer_free(swTimer *timer)
 {
-    if (timer->queue)
+    if (timer->heap)
     {
-        swLinkedList_free(timer->queue);
-    }
-    if (timer->map)
-    {
-        swHashMap_free(timer->map);
+        swHeap_free(timer->heap);
     }
 }
 
@@ -101,19 +91,19 @@ static int swReactorTimer_set(swTimer *timer, long exec_msec)
     return SW_OK;
 }
 
-long swTimer_add(swTimer *timer, int _msec, int interval, void *data)
+swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data)
 {
     swTimer_node *tnode = sw_malloc(sizeof(swTimer_node));
     if (!tnode)
     {
         swSysError("malloc(%ld) failed.", sizeof(swTimer_node));
-        return SW_ERR;
+        return NULL;
     }
 
     int64_t now_msec = swTimer_get_relative_msec();
     if (now_msec < 0)
     {
-        return SW_ERR;
+        return NULL;
     }
 
     tnode->data = data;
@@ -129,90 +119,72 @@ long swTimer_add(swTimer *timer, int _msec, int interval, void *data)
     tnode->id = timer->_next_id++;
     timer->num++;
 
-    swLinkedList_node *lnode = swLinkedList_insert(timer->queue, tnode->exec_msec, tnode);
-    if (!lnode)
+    tnode->heap_node = swHeap_push(timer->heap, tnode->exec_msec, tnode);
+    if (tnode->heap_node == NULL)
     {
         sw_free(tnode);
-        return SW_ERR;
+        return NULL;
     }
-    tnode->lnode = lnode;
-    swHashMap_add_int(timer->map, tnode->id, tnode);
-    return tnode->id;
+    return tnode;
 }
 
-swTimer_node* swTimer_get(swTimer *timer, long id)
+void swTimer_del(swTimer *timer, swTimer_node *tnode)
 {
-    return swHashMap_find_int(timer->map, id);
-}
-
-void swTimer_del(swTimer *timer, swTimer_node *node)
-{
-    swHashMap_del_int(timer->map, node->id);
-    swLinkedList_remove_node(timer->queue, node->lnode);
-    sw_free(node);
+    swHeap_remove(timer->heap, tnode->heap_node);
 }
 
 int swTimer_select(swTimer *timer)
 {
-    int64_t now_msec = swTimer_get_relative_msec();
+    int now_msec = swTimer_get_relative_msec();
     if (now_msec < 0)
     {
         return SW_ERR;
     }
 
-    swLinkedList_node *tmp;
-    swTimer_node *node;
+    swTimer_node *tnode = NULL;
+    swHeap_node *tmp;
 
-    while (1)
+    while ((tmp = swHeap_top(timer->heap)))
     {
-        tmp = timer->queue->head;
-        if (!tmp)
+        tnode = tmp->data;
+        if (tnode->exec_msec > now_msec)
         {
             break;
         }
-        node = tmp->data;
-        if (node->exec_msec > now_msec)
-        {
-            break;
-        }
-
-        //remove from list
-        swLinkedList_remove_node(timer->queue, tmp);
-
         //tick timer
-        if (node->interval > 0)
+        if (tnode->interval > 0)
         {
-            timer->onTick(timer, node);
-            if (!node->remove)
+            timer->onTick(timer, tnode);
+            if (!tnode->remove)
             {
                 int64_t _now_msec = swTimer_get_relative_msec();
                 if (_now_msec > 0)
                 {
-                    node->exec_msec = _now_msec + node->interval;
+                    tnode->exec_msec = _now_msec + tnode->interval;
                 }
                 else
                 {
-                    node->exec_msec = now_msec + node->interval;
+                    tnode->exec_msec = now_msec + tnode->interval;
                 }
-                swLinkedList_insert(timer->queue, node->exec_msec, node);
+                swHeap_change_priority(timer->heap, tnode->exec_msec, tmp);
+                continue;
             }
         }
         //after timer
         else
         {
-            timer->onAfter(timer, node);
+            timer->onAfter(timer, tnode);
         }
+        swHeap_pop(timer->heap);
     }
 
-    long next_msec;
-    if (timer->queue->head == NULL)
+    if (!tnode)
     {
-        next_msec = -1;
+        timer->set(timer, -1);
     }
     else
     {
-        swTimer_node *node = timer->queue->head->data;
-        next_msec = node->exec_msec - now_msec;
+        timer->set(timer, tnode->exec_msec - now_msec);
     }
-    return timer->set(timer, next_msec);
+    return SW_OK;
 }

@@ -280,7 +280,7 @@ int swHashMap_del(swHashMap* hmap, char *key, uint16_t key_len)
     return SW_OK;
 }
 
-void swHashMap_del_int(swHashMap *hmap, uint64_t key)
+int swHashMap_del_int(swHashMap *hmap, uint64_t key)
 {
     swHashMap_node *ret = NULL;
     swHashMap_node *root = hmap->root;
@@ -288,10 +288,11 @@ void swHashMap_del_int(swHashMap *hmap, uint64_t key)
     HASH_FIND_INT(root, &key, ret);
     if (ret == NULL)
     {
-        return;
+        return SW_ERR;
     }
     HASH_DEL(root, ret);
     swHashMap_node_free(hmap, ret);
+    return SW_OK;
 }
 
 void* swHashMap_each(swHashMap* hmap, char **key)

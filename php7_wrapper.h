@@ -73,6 +73,7 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 #define sw_php_url_encode                     php_url_encode
 #define SW_RETURN_STRINGL                     RETURN_STRINGL
 #define sw_zend_register_internal_class_ex    zend_register_internal_class_ex
+#define sw_zend_call_method_with_1_params     zend_call_method_with_1_params
 #define sw_zend_call_method_with_2_params     zend_call_method_with_2_params
 typedef int zend_size_t;
 
@@ -91,7 +92,7 @@ typedef int zend_size_t;
 #endif
 
 #define SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, entry)\
-    zval **tmp = NULL; ulong idx;\
+    zval **tmp = NULL; ulong_t idx;\
     for (zend_hash_internal_pointer_reset(ht); \
             (ktype = zend_hash_get_current_key_ex(ht, &k, &klen, &idx, 0, NULL)) != HASH_KEY_NON_EXISTENT; \
             zend_hash_move_forward(ht)\
@@ -213,9 +214,9 @@ static inline char * sw_php_url_encode(char *value, size_t value_len, int* exten
 
 #define sw_php_var_unserialize(rval, p, max, var_hash)  php_var_unserialize(*rval, p, max, var_hash)
 #define SW_MAKE_STD_ZVAL(p)             zval _stack_zval_##p; p = &(_stack_zval_##p)
+#define SW_ALLOC_INIT_ZVAL(p)           p = emalloc(sizeof(zval)); bzero(p, sizeof(zval))
 #define SW_RETURN_STRINGL(s, l, dup)    RETURN_STRINGL(s, l)
 #define SW_RETVAL_STRINGL(s, l, dup)    RETVAL_STRINGL(s, l); if (dup == 0) efree(s)
-#define SW_ALLOC_INIT_ZVAL(p)           p = emalloc(sizeof(zval)); bzero(p, sizeof(zval))
 
 #define SW_ZEND_FETCH_RESOURCE_NO_RETURN(rsrc, rsrc_type, passed_id, default_id, resource_type_name, resource_type)        \
         (rsrc = (rsrc_type) zend_fetch_resource(Z_RES_P(*passed_id), resource_type_name, resource_type))
@@ -225,7 +226,8 @@ static inline char * sw_php_url_encode(char *value, size_t value_len, int* exten
 #define sw_add_assoc_string(array, key, value, duplicate)   add_assoc_string(array, key, value)
 #define sw_zend_hash_copy(target,source,pCopyConstructor,tmp,size) zend_hash_copy(target,source,pCopyConstructor)
 #define sw_zend_register_internal_class_ex(entry,parent_ptr,str)    zend_register_internal_class_ex(entry,parent_ptr)
-#define sw_zend_call_method_with_2_params(obj,ptr,what,char,return,name,cb)     zend_call_method_with_2_params(*obj,ptr,what,char,*return,name,cb)
+#define sw_zend_call_method_with_1_params(obj, ptr, what, method, retval, v1)          zend_call_method_with_1_params(*obj,ptr,what,method,*retval,v1)
+#define sw_zend_call_method_with_2_params(obj, ptr, what, method, retval, name, cb)     zend_call_method_with_2_params(*obj,ptr,what,method,*retval,name,cb)
 #define SW_ZVAL_STRINGL(z, s, l, dup)         ZVAL_STRINGL(z, s, l)
 #define SW_ZVAL_STRING(z,s,dup)               ZVAL_STRING(z,s)
 #define sw_smart_str                          smart_string
@@ -269,7 +271,7 @@ static inline int sw_zend_hash_index_update(HashTable *ht, int key,void *pData,i
     return zend_hash_index_update(ht, key, *real_p) ? SUCCESS : FAILURE;
 }
 
-static inline int sw_zend_hash_update(HashTable *ht, char *k, int len ,void * val,int size,void *ptr)
+static inline int sw_zend_hash_update(HashTable *ht, char *k, int len, void *val, int size, void *ptr)
 {
     zval key;
     ZVAL_STRING(&key, k);

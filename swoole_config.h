@@ -197,6 +197,7 @@
 
 #define SW_TABLE_CONFLICT_PROPORTION     0.2 //20%
 #define SW_TABLE_COMPRESS_PROPORTION     0.5 //50% skip, will compress the row list
+#define SW_TABLE_KEY_SIZE                64
 //#define SW_TABLE_USE_PHP_HASH
 //#define SW_TABLE_DEBUG
 
@@ -227,5 +228,6 @@
 
 #define SW_WEBSOCKET_SERVER_SOFTWARE     "swoole-websocket-server"
 #define SW_WEBSOCKET_VERSION             "13"
+#define SW_WEBSOCKET_KEY_LENGTH          16
 
 #endif /* SWOOLE_CONFIG_H_ */

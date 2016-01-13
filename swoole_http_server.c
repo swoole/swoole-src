@@ -1081,7 +1081,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
     return SW_OK;
 }
 
-void swoole_http_init(int module_number TSRMLS_DC)
+void swoole_http_server_init(int module_number TSRMLS_DC)
 {
     INIT_CLASS_ENTRY(swoole_http_server_ce, "swoole_http_server", swoole_http_server_methods);
     swoole_http_server_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_http_server_ce, swoole_server_class_entry_ptr, "swoole_server" TSRMLS_CC);
@@ -1431,7 +1431,7 @@ static PHP_METHOD(swoole_http_server, start)
     serv = swoole_get_object(getThis());
     php_swoole_register_callback(serv);
 
-    if (serv->open_websocket_protocol)
+    if (serv->listen_list->open_websocket_protocol)
     {
         if (!swoole_websocket_isset_onMessage())
         {
@@ -1477,10 +1477,10 @@ static PHP_METHOD(swoole_http_server, start)
 
     serv->onReceive = http_onReceive;
     serv->onClose = http_onClose;
-    serv->open_http_protocol = 1;
-    serv->open_mqtt_protocol = 0;
-    serv->open_eof_check = 0;
-    serv->open_length_check = 0;
+    serv->listen_list->open_http_protocol = 1;
+    serv->listen_list->open_mqtt_protocol = 0;
+    serv->listen_list->open_eof_check = 0;
+    serv->listen_list->open_length_check = 0;
 
     serv->ptr2 = getThis();
 

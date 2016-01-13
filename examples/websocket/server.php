@@ -50,7 +50,7 @@ $server->on('open', function (swoole_websocket_server $_server, swoole_http_requ
 });
 
 $server->on('message', function (swoole_websocket_server $_server, $frame) {
-    //var_dump($frame);
+    var_dump($frame->data);
     echo "received ".strlen($frame->data)." bytes\n";
     if ($frame->data == "close")
     {
@@ -69,6 +69,16 @@ $server->on('message', function (swoole_websocket_server $_server, $frame) {
             $_server->push($frame->fd, $_send);
            // echo "#$i\tserver sent " . strlen($_send) . " byte \n";
         }
+        $fd = $frame->fd;
+        $_server->tick(2000, function($id) use ($fd, $_server) {
+            $_send = str_repeat('B', rand(100, 5000));
+            $ret = $_server->push($fd, $_send);
+            if (!$ret)
+            {
+                var_dump($id);
+                var_dump($_server->clearTimer($id));
+            }
+        });
     }
 });
 

@@ -26,12 +26,6 @@
 typedef struct _swTableRow
 {
     sw_atomic_t lock;
-
-    /**
-     * string crc32
-     */
-    uint32_t crc32;
-
     /**
      * 1:used, 0:empty
      */
@@ -46,7 +40,10 @@ typedef struct _swTableRow
      * next slot
      */
     struct _swTableRow *next;
-
+    /**
+     * Hash Key
+     */
+    char key[SW_TABLE_KEY_SIZE];
     char data[0];
 } swTableRow;
 
@@ -124,8 +121,8 @@ swTable* swTable_new(uint32_t rows_size);
 int swTable_create(swTable *table);
 void swTable_free(swTable *table);
 int swTableColumn_add(swTable *table, char *name, int len, int type, int size);
-swTableRow* swTableRow_set(swTable *table, char *key, int keylen);
-swTableRow* swTableRow_get(swTable *table, char *key, int keylen);
+swTableRow* swTableRow_set(swTable *table, char *key, int keylen, sw_atomic_t **rowlock);
+swTableRow* swTableRow_get(swTable *table, char *key, int keylen, sw_atomic_t **rowlock);
 
 void swTable_iterator_rewind(swTable *table);
 swTableRow* swTable_iterator_current(swTable *table);

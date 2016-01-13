@@ -76,8 +76,8 @@ int daemon(int nochdir, int noclose);
 /*----------------------------------------------------------------------------*/
 #ifndef ulong
 #define ulong unsigned long
-typedef unsigned long ulong_t;
 #endif
+typedef unsigned long ulong_t;
 
 #if defined(__GNUC__)
 #if __GNUC__ >= 3
@@ -123,6 +123,7 @@ typedef unsigned long ulong_t;
 #include "atomic.h"
 #include "hashmap.h"
 #include "list.h"
+#include "heap.h"
 #include "RingQueue.h"
 #include "array.h"
 #include "error.h"
@@ -1490,12 +1491,9 @@ void swChannel_free(swChannel *object);
 
 swLinkedList* swLinkedList_new(uint8_t type, swDestructor dtor);
 int swLinkedList_append(swLinkedList *ll, void *data);
+void swLinkedList_remove_node(swLinkedList *ll, swLinkedList_node *remove_node);
 int swLinkedList_prepend(swLinkedList *ll, void *data);
-swLinkedList_node* swLinkedList_insert(swLinkedList *ll, ulong_t priority, void *data);
 void* swLinkedList_pop(swLinkedList *ll);
-swLinkedList_node* swLinkedList_pop_node(swLinkedList *ll);
-swLinkedList_node* swLinkedList_shift_node(swLinkedList *ll);
-void swLinkedList_remove_node(swLinkedList *ll, swLinkedList_node *node);
 void* swLinkedList_shift(swLinkedList *ll);
 void swLinkedList_free(swLinkedList *ll);
 /*----------------------------Thread Pool-------------------------------*/
@@ -1556,8 +1554,7 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString
 //--------------------------------timer------------------------------
 typedef struct _swTimer_node
 {
-    struct timeval lasttime;
-    swLinkedList_node *lnode;
+    swHeap_node *heap_node;
     void *data;
     int64_t exec_msec;
     uint32_t interval;
@@ -1568,8 +1565,7 @@ typedef struct _swTimer_node
 typedef struct _swTimer
 {
     /*--------------timerfd & signal timer--------------*/
-    swLinkedList *queue;
-    swHashMap *map;
+    swHeap *heap;
     int num;
     int use_pipe;
     int lasttime;
@@ -1588,8 +1584,7 @@ typedef struct _swTimer
 } swTimer;
 
 int swTimer_init(long msec);
-swTimer_node* swTimer_get(swTimer *timer, long id);
-long swTimer_add(swTimer *timer, int _msec, int interval, void *data);
+swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data);
 swTimer_node* swTimer_get(swTimer *timer, long id);
 void swTimer_del(swTimer *timer, swTimer_node *node);
 void swTimer_free(swTimer *timer);

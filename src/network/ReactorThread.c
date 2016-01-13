@@ -16,25 +16,18 @@
 
 #include "swoole.h"
 #include "Server.h"
-#include "Http.h"
 #include "websocket.h"
-#include "mqtt.h"
 
 static int swUDPThread_start(swServer *serv);
 static int swReactorThread_loop_dgram(swThreadParam *param);
 static int swReactorThread_loop_stream(swThreadParam *param);
 static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev);
-static int swReactorThread_onClose(swReactor *reactor, swEvent *event);
-static int swReactorThread_websocket_onPackage(swConnection *conn, char *data, uint32_t length);
-static int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event);
-static int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event);
-static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *event);
-static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event);
 static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev);
-static int swReactorThread_onPackage(swReactor *reactor, swEvent *event);
-static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev);
 
-static int swReactorThread_dispatch_string_buffer(swConnection *conn, char *data, uint32_t length);
+static int swReactorThread_onRead(swReactor *reactor, swEvent *ev);
+static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev);
+static int swReactorThread_onPackage(swReactor *reactor, swEvent *event);
+
 #if 0
 static int swReactorThread_dispatch_array_buffer(swReactorThread *thread, swConnection *conn);
 #endif
@@ -79,56 +72,6 @@ static sw_inline void* swReactorThread_alloc(swReactorThread *thread, uint32_t s
     return ptr;
 }
 
-#endif
-
-#ifdef SW_USE_OPENSSL
-static sw_inline int swReactorThread_check_ssl_state(swConnection *conn)
-{
-    if (conn->ssl_state == 0 && conn->ssl)
-    {
-        int ret = swSSL_accept(conn);
-        if (ret == SW_READY)
-        {
-            if (SwooleG.serv->ssl_client_cert_file)
-            {
-                swDispatchData task;
-                ret = swSSL_get_client_certificate(conn->ssl, task.data.data, sizeof(task.data.data));
-                if (ret < 0)
-                {
-                    goto no_client_cert;
-                }
-                else
-                {
-                    swFactory *factory = &SwooleG.serv->factory;
-                    task.target_worker_id = -1;
-                    task.data.info.fd = conn->fd;
-                    task.data.info.type = SW_EVENT_CONNECT;
-                    task.data.info.from_id = conn->from_id;
-                    task.data.info.len = ret;
-                    if (factory->dispatch(factory, &task) < 0)
-                    {
-                        return SW_OK;
-                    }
-                }
-            }
-            no_client_cert:
-            if (SwooleG.serv->onConnect)
-            {
-                swServer_connection_ready(SwooleG.serv, conn->fd, conn->from_id);
-            }
-            return SW_OK;
-        }
-        else if (ret == SW_WAIT)
-        {
-            return SW_OK;
-        }
-        else
-        {
-            return SW_ERR;
-        }
-    }
-    return SW_OK;
-}
 #endif
 
 /**
@@ -295,8 +238,10 @@ int swReactorThread_close(swReactor *reactor, int fd)
     }
 #endif
 
+    swListenPort *port = swServer_get_port(serv, fd);
+
     //clear output buffer
-    if (serv->open_eof_check || serv->open_length_check)
+    if (port->open_eof_check || port->open_length_check)
     {
         if (conn->object)
         {
@@ -304,7 +249,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
             conn->object = NULL;
         }
     }
-    else if (serv->open_http_protocol)
+    else if (port->open_http_protocol)
     {
         if (conn->object)
         {
@@ -368,7 +313,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
 /**
  * close the connection
  */
-static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
+int swReactorThread_onClose(swReactor *reactor, swEvent *event)
 {
     swServer *serv = reactor->ptr;
     if (serv->factory_mode == SW_MODE_SINGLE)
@@ -765,6 +710,34 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
     return SW_OK;
 }
 
+void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
+{
+    //UDP Packet
+    reactor->setHandle(reactor, SW_FD_UDP, swReactorThread_onPackage);
+    //Write
+    reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_WRITE, swReactorThread_onWrite);
+    //Read
+    reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_READ, swReactorThread_onRead);
+
+    swListenPort *ls;
+    //listen the all tcp port
+    LL_FOREACH(serv->listen_list, ls)
+    {
+        if (swSocket_is_dgram(ls->type))
+        {
+            continue;
+        }
+        swPort_set_protocol(ls);
+    }
+}
+
+static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
+{
+    swServer *serv = reactor->ptr;
+    swListenPort *port = swServer_get_port(serv, event->fd);
+    return port->onRead(reactor, port, event);
+}
+
 static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 {
     int ret;
@@ -843,486 +816,6 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     if (swBuffer_empty(conn->out_buffer))
     {
         reactor->set(reactor, fd, SW_FD_TCP | SW_EVENT_READ);
-    }
-    return SW_OK;
-}
-
-static int swReactorThread_onReceive_buffer_check_eof(swReactor *reactor, swEvent *event)
-{
-    swServer *serv = SwooleG.serv;
-    swConnection *conn = swServer_connection_get(serv, event->fd);
-    swProtocol *protocol = &serv->protocol;
-
-#ifdef SW_USE_OPENSSL
-    if (swReactorThread_check_ssl_state(conn) < 0)
-    {
-        return swReactorThread_onClose(reactor, event);
-    }
-#endif
-
-    if (conn->object == NULL)
-    {
-        conn->object = swString_new(SW_BUFFER_SIZE);
-        //alloc memory failed.
-        if (!conn->object)
-        {
-            return SW_ERR;
-        }
-    }
-
-    if (swProtocol_recv_check_eof(protocol, conn, conn->object) < 0)
-    {
-        swReactorThread_onClose(reactor, event);
-    }
-
-    return SW_OK;
-}
-
-static int swReactorThread_onReceive_no_buffer(swReactor *reactor, swEvent *event)
-{
-    int ret, n;
-    swServer *serv = reactor->ptr;
-    swFactory *factory = &(serv->factory);
-    swDispatchData task;
-    swConnection *conn = swServer_connection_get(serv, event->fd);
-
-#ifdef SW_USE_OPENSSL
-    if (swReactorThread_check_ssl_state(conn) < 0)
-    {
-        goto close_fd;
-    }
-#endif
-
-    n = swConnection_recv(conn, task.data.data, SW_BUFFER_SIZE, 0);
-    if (n < 0)
-    {
-        switch (swConnection_error(errno))
-        {
-        case SW_ERROR:
-            swSysError("recv from connection#%d failed.", event->fd);
-            return SW_OK;
-        case SW_CLOSE:
-            goto close_fd;
-        default:
-            return SW_OK;
-        }
-    }
-    else if (n == 0)
-    {
-        close_fd: swReactorThread_onClose(reactor, event);
-        return SW_OK;
-    }
-    else
-    {
-        conn->last_time = SwooleGS->now;
-
-        task.data.info.fd = event->fd;
-        task.data.info.from_id = event->from_id;
-        task.data.info.len = n;
-        task.data.info.type = SW_EVENT_TCP;
-        task.target_worker_id = -1;
-
-#ifdef SW_USE_RINGBUFFER
-        swPackage package;
-        if (serv->factory_mode == SW_MODE_PROCESS)
-        {
-            uint16_t target_worker_id = swServer_worker_schedule(serv, conn->fd);
-            package.length = task.data.info.len;
-            package.data = swReactorThread_alloc(&serv->reactor_threads[SwooleTG.id], package.length);
-            task.data.info.type = SW_EVENT_PACKAGE;
-
-            memcpy(package.data, task.data.data, task.data.info.len);
-            task.data.info.len = sizeof(package);
-            task.target_worker_id = target_worker_id;
-            memcpy(task.data.data, &package, sizeof(package));
-        }
-#endif
-        //dispatch to worker process
-        ret = factory->dispatch(factory, &task);
-#ifdef SW_USE_RINGBUFFER
-        if (ret < 0)
-        {
-            swMemoryPool *pool = serv->reactor_threads[SwooleTG.id].buffer_input;
-            pool->free(pool, package.data);
-        }
-#endif
-        return ret;
-    }
-    return SW_OK;
-}
-
-void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
-{
-    //udp receive
-    reactor->setHandle(reactor, SW_FD_UDP, swReactorThread_onPackage);
-    //write
-    reactor->setHandle(reactor, SW_FD_TCP | SW_EVENT_WRITE, swReactorThread_onWrite);
-
-    //Thread mode must copy the data.
-    //will free after onFinish
-    if (serv->open_eof_check)
-    {
-        serv->protocol.onPackage = swReactorThread_dispatch_string_buffer;
-        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_eof);
-    }
-    else if (serv->open_length_check)
-    {
-        serv->protocol.get_package_length = swProtocol_get_package_length;
-        serv->protocol.onPackage = swReactorThread_dispatch_string_buffer;
-        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_length);
-    }
-    else if (serv->open_http_protocol)
-    {
-        if (serv->open_websocket_protocol)
-        {
-            serv->protocol.get_package_length = swWebSocket_get_package_length;
-            serv->protocol.onPackage = swReactorThread_websocket_onPackage;
-        }
-        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_http_request);
-    }
-    else if (serv->open_mqtt_protocol)
-    {
-        serv->protocol.get_package_length = swMqtt_get_package_length;
-        serv->protocol.onPackage = swReactorThread_dispatch_string_buffer;
-        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_buffer_check_length);
-    }
-    else
-    {
-        reactor->setHandle(reactor, SW_FD_TCP, swReactorThread_onReceive_no_buffer);
-    }
-}
-
-static int swReactorThread_websocket_onPackage(swConnection *conn, char *data, uint32_t length)
-{
-    swString frame;
-    bzero(&frame, sizeof(frame));
-    frame.str = data;
-    frame.length = length;
-
-    swString send_frame;
-    bzero(&send_frame, sizeof(send_frame));
-    char buf[32];
-    send_frame.str = buf;
-    send_frame.size = sizeof(buf);
-
-    swWebSocket_frame ws;
-    swWebSocket_decode(&ws, &frame);
-
-    size_t offset;
-    switch (ws.header.OPCODE)
-    {
-    case WEBSOCKET_OPCODE_CONTINUATION_FRAME:
-    case WEBSOCKET_OPCODE_TEXT_FRAME:
-    case WEBSOCKET_OPCODE_BINARY_FRAME:
-        offset = length - ws.payload_length;
-        data[offset] = ws.header.FIN;
-        data[offset + 1] = ws.header.OPCODE;
-        swReactorThread_dispatch_string_buffer(conn, data + offset, length - offset);
-        break;
-
-    case WEBSOCKET_OPCODE_PING:
-        if (length == 2)
-        {
-            return SW_ERR;
-        }
-        swWebSocket_encode(&send_frame, data += 2, length - 2, WEBSOCKET_OPCODE_PONG, 1, 0);
-        swConnection_send(conn, send_frame.str, send_frame.length, 0);
-        break;
-
-    case WEBSOCKET_OPCODE_PONG:
-        return SW_ERR;
-
-    case WEBSOCKET_OPCODE_CONNECTION_CLOSE:
-        if (0x7d < (length - 2))
-        {
-            return SW_ERR;
-        }
-        send_frame.str[0] = 0x88;
-        send_frame.str[1] = 0x00;
-        send_frame.length = 2;
-        swConnection_send(conn, send_frame.str, 2, 0);
-        return SW_ERR;
-    }
-    return SW_OK;
-}
-
-static int swReactorThread_onReceive_buffer_check_length(swReactor *reactor, swEvent *event)
-{
-    swServer *serv = reactor->ptr;
-    swConnection *conn = swServer_connection_get(serv, event->fd);
-    swProtocol *protocol = &serv->protocol;
-
-#ifdef SW_USE_OPENSSL
-    if (swReactorThread_check_ssl_state(conn) < 0)
-    {
-        return swReactorThread_onClose(reactor, event);
-    }
-#endif
-
-    if (conn->object == NULL)
-    {
-        conn->object = swString_new(SW_BUFFER_SIZE_BIG);
-        //alloc memory failed.
-        if (!conn->object)
-        {
-            return SW_ERR;
-        }
-    }
-
-    if (swProtocol_recv_check_length(protocol, conn, conn->object) < 0)
-    {
-        swTrace("Close Event.FD=%d|From=%d", event->fd, event->from_id);
-        swReactorThread_onClose(reactor, event);
-    }
-
-    return SW_OK;
-}
-
-/**
- * For Http Protocol
- */
-static int swReactorThread_onReceive_http_request(swReactor *reactor, swEvent *event)
-{
-    swServer *serv = reactor->ptr;
-    swConnection *conn = event->socket;
-
-#ifdef SW_USE_OPENSSL
-    if (swReactorThread_check_ssl_state(conn) < 0)
-    {
-        goto close_fd;
-    }
-#endif
-
-    if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE)
-    {
-        if (conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE)
-        {
-            if (conn->object != NULL)
-            {
-                swHttpRequest_free(conn);
-            }
-            conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
-        }
-        return swReactorThread_onReceive_buffer_check_length(reactor, event);
-    }
-
-    int n = 0;
-    char *buf;
-    int buf_len;
-
-    swHttpRequest *request = NULL;
-    swProtocol *protocol = &serv->protocol;
-
-    //new http request
-    if (conn->object == NULL)
-    {
-        request = sw_malloc(sizeof(swHttpRequest));
-        bzero(request, sizeof(swHttpRequest));
-        conn->object = request;
-    }
-    else
-    {
-        request = (swHttpRequest *) conn->object;
-    }
-
-    if (!request->buffer)
-    {
-        request->buffer = swString_new(SW_HTTP_HEADER_MAX_SIZE);
-        //alloc memory failed.
-        if (!request->buffer)
-        {
-            swReactorThread_onClose(reactor, event);
-            return SW_ERR;
-        }
-    }
-
-    swString *buffer = request->buffer;
-
-    recv_data:
-    buf = buffer->str + buffer->length;
-    buf_len = buffer->size - buffer->length;
-
-    n = swConnection_recv(conn, buf, buf_len, 0);
-    if (n < 0)
-    {
-        switch (swConnection_error(errno))
-        {
-        case SW_ERROR:
-            swSysError("recv from connection#%d failed.", event->fd);
-            return SW_OK;
-        case SW_CLOSE:
-            goto close_fd;
-        default:
-            return SW_OK;
-        }
-    }
-    else if (n == 0)
-    {
-        close_fd:
-        swHttpRequest_free(conn);
-        swReactorThread_onClose(reactor, event);
-        return SW_OK;
-    }
-    else
-    {
-        conn->last_time = SwooleGS->now;
-        buffer->length += n;
-
-        if (request->method == 0 && swHttpRequest_get_protocol(request) < 0)
-        {
-            if (request->buffer->length < SW_HTTP_HEADER_MAX_SIZE)
-            {
-                return SW_OK;
-            }
-
-            swWarn("get protocol failed.");
-#ifdef SW_HTTP_BAD_REQUEST
-            if (swConnection_send(conn, SW_STRL(SW_HTTP_BAD_REQUEST) - 1, 0) < 0)
-            {
-                swSysError("send() failed.");
-            }
-#endif
-            goto close_fd;
-        }
-
-        swTrace("request->method=%d", request->method);
-
-        //DELETE
-        if (request->method == HTTP_DELETE)
-        {
-            if (request->content_length == 0 && swHttpRequest_have_content_length(request) == SW_FALSE)
-            {
-                goto http_no_entity;
-            }
-            else
-            {
-                goto http_entity;
-            }
-        }
-        //GET HEAD OPTIONS
-        else if (request->method == HTTP_GET || request->method == HTTP_HEAD || request->method == HTTP_OPTIONS)
-        {
-            http_no_entity:
-            if (memcmp(buffer->str + buffer->length - 4, "\r\n\r\n", 4) == 0)
-            {
-                swReactorThread_dispatch_string_buffer(conn, buffer->str, buffer->length);
-                swHttpRequest_free(conn);
-            }
-            else if (buffer->size == buffer->length)
-            {
-                swWarn("http header is too long.");
-                goto close_fd;
-            }
-            //wait more data
-            else
-            {
-                goto recv_data;
-            }
-        }
-        //POST PUT HTTP_PATCH
-        else if (request->method == HTTP_POST || request->method == HTTP_PUT || request->method == HTTP_PATCH)
-        {
-            http_entity:
-            if (request->content_length == 0)
-            {
-                if (swHttpRequest_get_content_length(request) < 0)
-                {
-                    if (buffer->size == buffer->length)
-                    {
-                        swWarn("http header is too long.");
-                        goto close_fd;
-                    }
-                    else
-                    {
-                        goto recv_data;
-                    }
-                }
-                else if (request->content_length > protocol->package_max_length)
-                {
-                    swWarn("content-length more than the package_max_length[%d].", protocol->package_max_length);
-                    goto close_fd;
-                }
-            }
-
-            uint32_t request_size = 0;
-
-            //http header is not the end
-            if (request->header_length == 0)
-            {
-                if (buffer->size == buffer->length)
-                {
-                    swWarn("http header is too long.");
-                    goto close_fd;
-                }
-                if (swHttpRequest_get_header_length(request) < 0)
-                {
-                    goto recv_data;
-                }
-                request_size = request->content_length + request->header_length;
-            }
-            else
-            {
-                request_size = request->content_length + request->header_length;
-            }
-
-            if (request_size > buffer->size && swString_extend(buffer, request_size) < 0)
-            {
-                goto close_fd;
-            }
-
-            //discard the redundant data
-            if (buffer->length > request_size)
-            {
-                buffer->length = request_size;
-            }
-
-            if (buffer->length == request_size)
-            {
-                swReactorThread_dispatch_string_buffer(conn, buffer->str, buffer->length);
-                swHttpRequest_free(conn);
-            }
-            else
-            {
-#ifdef SW_HTTP_100_CONTINUE
-                //Expect: 100-continue
-                if (swHttpRequest_has_expect_header(request))
-                {
-                    swSendData _send;
-                    _send.data = "HTTP/1.1 100 Continue\r\n\r\n";
-                    _send.length = strlen(_send.data);
-
-                    int send_times = 0;
-                    direct_send:
-                    n = swConnection_send(conn, _send.data, _send.length, 0);
-                    if (n < _send.length)
-                    {
-                        _send.data += n;
-                        _send.length -= n;
-                        send_times++;
-                        if (send_times < 10)
-                        {
-                            goto direct_send;
-                        }
-                        else
-                        {
-                            swWarn("send http header failed");
-                        }
-                    }
-                }
-                else
-                {
-                    swTrace("PostWait: request->content_length=%d, buffer->length=%zd, request->header_length=%d\n",
-                            request->content_length, buffer->length, request->header_length);
-                }
-#endif
-                goto recv_data;
-            }
-        }
-        else
-        {
-            swWarn("method no support");
-            goto close_fd;
-        }
     }
     return SW_OK;
 }
@@ -1674,7 +1167,7 @@ static int swReactorThread_loop_dgram(swThreadParam *param)
     return 0;
 }
 
-static int swReactorThread_dispatch_string_buffer(swConnection *conn, char *data, uint32_t length)
+int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
 {
     swFactory *factory = SwooleG.factory;
     swDispatchData task;
