@@ -203,7 +203,7 @@ typedef struct _swListenPort
 #endif
 
     swProtocol protocol;
-
+    void *ptr;
     int (*onRead)(swReactor *reactor, struct _swListenPort *port, swEvent *event);
 } swListenPort;
 
@@ -483,7 +483,7 @@ int swServer_onFinish2(swFactory *factory, swSendData *resp);
 void swServer_init(swServer *serv);
 void swServer_signal_init(void);
 int swServer_start(swServer *serv);
-int swServer_add_listener(swServer *serv, int type, char *host,int port);
+swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port);
 int swServer_add_worker(swServer *serv, swWorker *worker);
 
 int swServer_create(swServer *serv);

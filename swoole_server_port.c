@@ -269,6 +269,12 @@ static PHP_METHOD(swoole_server_port, on)
 
     swoole_port_callbacks *callbacks = swoole_get_property(getThis(), 0);
 
+    swListenPort *port = swoole_get_object(getThis());
+    if (!port->ptr)
+    {
+        port->ptr = callbacks;
+    }
+
     char *callback[PHP_SERVER_PORT_CALLBACK_NUM] = {
         "connect",
         "receive",
@@ -281,6 +287,14 @@ static PHP_METHOD(swoole_server_port, on)
         if (strncasecmp(callback[i], ha_name, len) == 0)
         {
             ret = php_swoole_set_callback(callbacks->array, i, cb TSRMLS_CC);
+            if (i == SW_SERVER_CB_onConnect && SwooleG.serv->onConnect == NULL)
+            {
+                SwooleG.serv->onConnect = php_swoole_onConnect;
+            }
+            else if (i == SW_SERVER_CB_onClose && SwooleG.serv->onClose == NULL)
+            {
+                SwooleG.serv->onClose = php_swoole_onClose;
+            }
             break;
         }
     }

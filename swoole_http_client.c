@@ -567,7 +567,7 @@ static inline char* sw_http_build_query(zval *data, zend_size_t *length TSRMLS_D
     }
     if (!formstr.s)
     {
-        return SW_ERR;
+        return NULL;
     }
     smart_str_0(&formstr);
     *length = formstr.s->len;
@@ -1189,7 +1189,7 @@ static PHP_METHOD(swoole_http_client, upgrade)
     uchar *encoded_value = php_base64_encode((const unsigned char *)buf, SW_WEBSOCKET_KEY_LENGTH + 1, &encoded_value_len);
 #else
     zend_string *str = php_base64_encode((const unsigned char *)buf, SW_WEBSOCKET_KEY_LENGTH + 1);
-    uchar *encoded_value = str->val;
+    char *encoded_value = str->val;
     encoded_value_len = str->len;
 #endif
 
@@ -1218,7 +1218,7 @@ static PHP_METHOD(swoole_http_client, push)
         RETURN_FALSE;
     }
 
-    if (length < 0)
+    if (length == 0)
     {
         swoole_php_fatal_error(E_WARNING, "data is empty.");
         RETURN_FALSE;

@@ -617,6 +617,8 @@ void swServer_init(swServer *serv)
     serv->buffer_output_size = SW_BUFFER_OUTPUT_SIZE;
 
     serv->pipe_buffer_size = SW_PIPE_BUFFER_SIZE;
+
+    SwooleG.serv = serv;
 }
 
 int swServer_create(swServer *serv)
@@ -633,9 +635,6 @@ int swServer_create(swServer *serv)
         return SW_ERR;
     }
 
-    //保存指针到全局变量中去
-    //TODO 未来全部使用此方式访问swServer/swFactory对象
-    SwooleG.serv = serv;
     SwooleG.factory = &serv->factory;
 
     serv->factory.ptr = serv;
@@ -934,18 +933,18 @@ int swServer_add_worker(swServer *serv, swWorker *worker)
     return worker->id;
 }
 
-int swServer_add_listener(swServer *serv, int type, char *host, int port)
+swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
 {
     if (serv->listen_port_num >= SW_MAX_LISTEN_PORT)
     {
         swWarn("allows up to %d ports to listen", SW_MAX_LISTEN_PORT);
-        return SW_ERR;
+        return NULL;
     }
 
     if (!(type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM) && (port < 1 || port > 65535))
     {
         swWarn("invalid port [%d]", port);
-        return SW_ERR;
+        return NULL;
     }
 
     swListenPort *ls = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenPort));
@@ -979,12 +978,12 @@ int swServer_add_listener(swServer *serv, int type, char *host, int port)
         if (type != SW_SOCK_UNIX_STREAM && port <= 0)
         {
             swError("listen port must greater than 0.");
-            return SW_ERR;
+            return NULL;
         }
         serv->have_tcp_sock = 1;
     }
     serv->listen_port_num++;
-    return SW_OK;
+    return ls;
 }
 
 /**

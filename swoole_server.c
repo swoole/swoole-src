@@ -29,7 +29,12 @@ static int php_swoole_task_id;
 static int udp_server_socket;
 static int dgram_server_socket;
 
-static zval *server_port_list[SW_MAX_LISTEN_PORT];
+static struct
+{
+    zval *array[SW_MAX_LISTEN_PORT];
+    zval *zports;
+    uint8_t num;
+} server_port_list;
 
 zval *php_sw_callback[PHP_SERVER_CALLBACK_NUM];
 
@@ -40,7 +45,6 @@ static void php_swoole_onShutdown(swServer *);
 
 static int php_swoole_onReceive(swServer *, swEventData *);
 static int php_swoole_onPacket(swServer *, swEventData *);
-static void php_swoole_onConnect(swServer *, int fd, int from_id);
 
 static void php_swoole_onWorkerStart(swServer *, int worker_id);
 static void php_swoole_onWorkerStop(swServer *, int worker_id);
@@ -50,6 +54,8 @@ static int php_swoole_onFinish(swServer *, swEventData *task);
 static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker_pid, int exit_code, int signo);
 static void php_swoole_onManagerStart(swServer *serv);
 static void php_swoole_onManagerStop(swServer *serv);
+
+static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC);
 static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC);
 
 zval *php_swoole_get_recv_data(zval *zdata, swEventData *req TSRMLS_DC)
@@ -159,6 +165,22 @@ static sw_inline int php_swoole_check_task_param(int dst_worker_id TSRMLS_DC)
     return SW_OK;
 }
 
+static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int fd, int event_type)
+{
+    swListenPort *port = swServer_get_port(serv, fd);
+    swoole_port_callbacks *callbacks = port->ptr;
+    zval *callback = callbacks->array[SW_SERVER_CB_onClose];
+    if (!callback)
+    {
+        callback = php_sw_callback[SW_SERVER_CB_onClose];
+    }
+    if (!callback)
+    {
+        return NULL;
+    }
+    return callback;
+}
+
 static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC)
 {
     zval *result_data, *result_unserialized_data;
@@ -219,6 +241,27 @@ static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC)
     return result_data;
 }
 
+static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC)
+{
+    zval *port_object;
+    SW_ALLOC_INIT_ZVAL(port_object);
+    object_init_ex(port_object, swoole_server_port_class_entry_ptr);
+    server_port_list.array[server_port_list.num++] = port_object;
+
+    swoole_port_callbacks *spc = emalloc(sizeof(swoole_port_callbacks));
+    bzero(spc, sizeof(swoole_port_callbacks));
+    swoole_set_property(port_object, 0, spc);
+    swoole_set_object(port_object, port);
+
+    zend_update_property_string(swoole_server_port_class_entry_ptr, port_object, ZEND_STRL("host"), port->host TSRMLS_CC);
+    zend_update_property_long(swoole_server_port_class_entry_ptr, port_object, ZEND_STRL("port"), port->port TSRMLS_CC);
+    zend_update_property_long(swoole_server_port_class_entry_ptr, port_object, ZEND_STRL("type"), port->type TSRMLS_CC);
+
+    add_next_index_zval(server_port_list.zports, port_object);
+
+    return port_object;
+}
+
 void php_swoole_register_callback(swServer *serv)
 {
     /*
@@ -263,14 +306,6 @@ void php_swoole_register_callback(swServer *serv)
         serv->onPipeMessage = php_swoole_onPipeMessage;
     }
     //-------------------------------------------------------------
-    if (php_sw_callback[SW_SERVER_CB_onClose] != NULL)
-    {
-        serv->onClose = php_swoole_onClose;
-    }
-    if (php_sw_callback[SW_SERVER_CB_onConnect] != NULL)
-    {
-        serv->onConnect = php_swoole_onConnect;
-    }
     if (serv->have_udp_sock)
     {
         serv->onPacket = php_swoole_onPacket;
@@ -418,6 +453,8 @@ static int php_swoole_onReceive(swServer *serv, swEventData *req)
     zval *zdata;
     zval *retval = NULL;
 
+    zval *callback;
+
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
@@ -472,6 +509,14 @@ static int php_swoole_onReceive(swServer *serv, swEventData *req)
             ZVAL_LONG(zfrom_id, (long ) req->info.from_fd);
             dgram_server_socket = req->info.from_fd;
         }
+
+        swListenPort *port = serv->connection_list[req->info.from_fd].object;
+        swoole_port_callbacks *callbacks = port->ptr;
+        callback = callbacks->array[SW_SERVER_CB_onReceive];
+        if (!callback)
+        {
+            callback = php_sw_callback[SW_SERVER_CB_onReceive];
+        }
     }
     //stream
     else
@@ -479,6 +524,7 @@ static int php_swoole_onReceive(swServer *serv, swEventData *req)
         ZVAL_LONG(zfrom_id, (long ) req->info.from_id);
         ZVAL_LONG(zfd, (long ) req->info.fd);
         zdata = php_swoole_get_recv_data(zdata, req TSRMLS_CC);
+        callback = php_swoole_server_get_callback(serv, req->info.fd, SW_SERVER_CB_onReceive);
     }
 
     args[0] = &zserv;
@@ -486,9 +532,7 @@ static int php_swoole_onReceive(swServer *serv, swEventData *req)
     args[2] = &zfrom_id;
     args[3] = &zdata;
 
-    //printf("req: fd=%d|len=%d|from_id=%d|data=%s\n", req->fd, req->len, req->from_id, req->data);
-
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onReceive], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onReceive handler error");
     }
@@ -529,6 +573,14 @@ static int php_swoole_onPacket(swServer *serv, swEventData *req)
 
     add_assoc_long(zaddr, "server_socket", req->info.from_fd);
 
+    swListenPort *port = serv->connection_list[req->info.from_fd].object;
+    swoole_port_callbacks *callbacks = port->ptr;
+    zval *callback = callbacks->array[SW_SERVER_CB_onPacket];
+    if (!callback)
+    {
+        callback = php_sw_callback[SW_SERVER_CB_onPacket];
+    }
+
     //udp ipv4
     if (req->info.type == SW_EVENT_UDP)
     {
@@ -560,7 +612,7 @@ static int php_swoole_onPacket(swServer *serv, swEventData *req)
     args[1] = &zdata;
     args[2] = &zaddr;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onPacket], &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onPacket handler error");
     }
@@ -1034,7 +1086,7 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
     }
 }
 
-static void php_swoole_onConnect(swServer *serv, int fd, int from_id)
+void php_swoole_onConnect(swServer *serv, int fd, int from_id)
 {
     zval *zserv = (zval *) serv->ptr2;
     zval *zfd;
@@ -1057,10 +1109,15 @@ static void php_swoole_onConnect(swServer *serv, int fd, int from_id)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onConnect], &retval, 3, args, 0,
-            NULL TSRMLS_CC) == FAILURE)
+    zval *callback = php_swoole_server_get_callback(serv, fd, SW_SERVER_CB_onConnect);
+    if (!callback)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_server: onConnect handler error");
+        return;
+    }
+
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
+    {
+        swoole_php_error(E_WARNING, "swoole_server: onConnect handler error");
     }
     if (EG(exception))
     {
@@ -1098,7 +1155,13 @@ void php_swoole_onClose(swServer *serv, int fd, int from_id)
     args[1] = &zfd;
     args[2] = &zfrom_id;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onClose], &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
+    zval *callback = php_swoole_server_get_callback(serv, fd, SW_SERVER_CB_onClose);
+    if (!callback)
+    {
+        return;
+    }
+
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "onClose handler error");
     }
@@ -1176,9 +1239,10 @@ PHP_METHOD(swoole_server, __construct)
     swTrace("Create swoole_server host=%s, port=%d, mode=%d, type=%d", serv_host, (int) serv_port, serv->factory_mode, (int) sock_type);
     bzero(php_sw_callback, sizeof (zval*) * PHP_SERVER_CALLBACK_NUM);
 
-    if (swServer_add_listener(serv, sock_type, serv_host, serv_port) < 0)
+    swListenPort *port = swServer_add_port(serv, sock_type, serv_host, serv_port);
+    if (!port)
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "add listener failed.");
+        swoole_php_fatal_error(E_ERROR, "add listener failed.");
         return;
     }
 
@@ -1196,17 +1260,15 @@ PHP_METHOD(swoole_server, __construct)
     zend_update_property_long(swoole_server_class_entry_ptr, server_object, ZEND_STRL("port"), serv_port TSRMLS_CC);
     zend_update_property_long(swoole_server_class_entry_ptr, server_object, ZEND_STRL("mode"), serv->factory_mode TSRMLS_CC);
     zend_update_property_long(swoole_server_class_entry_ptr, server_object, ZEND_STRL("type"), sock_type TSRMLS_CC);
-
-    zval *default_port_object;
-    SW_ALLOC_INIT_ZVAL(default_port_object);
-    object_init_ex(default_port_object, swoole_server_port_class_entry_ptr);
-    server_port_list[0] = default_port_object;
-
-    swoole_port_callbacks *spc = emalloc(sizeof(swoole_port_callbacks));
-    bzero(spc, sizeof(swoole_port_callbacks));
-    swoole_set_property(default_port_object, 0, spc);
-
     swoole_set_object(server_object, serv);
+
+    zval *ports;
+    SW_ALLOC_INIT_ZVAL(ports);
+    array_init(ports);
+    zend_update_property(swoole_server_class_entry_ptr, server_object, ZEND_STRL("ports"), ports TSRMLS_CC);
+    server_port_list.zports = ports;
+
+    php_swoole_server_add_port(port TSRMLS_CC);
 }
 
 PHP_FUNCTION(swoole_server_set)
@@ -1464,8 +1526,8 @@ PHP_FUNCTION(swoole_server_set)
         serv->message_queue_key = (int) Z_LVAL_P(v);
     }
 
-    zval *obj = server_port_list[0];
-    zend_call_method_with_1_params(obj, swoole_server_port_class_entry_ptr, NULL, "set", &return_value, zset);
+    zval *obj = server_port_list.array[0];
+    zend_call_method_with_1_params(obj, swoole_server_port_class_entry_ptr, NULL, "set", return_value, zset);
 
 //    sw_zval_add_ref(&zset);
 //    sw_zval_add_ref(&zobject);
@@ -1524,7 +1586,7 @@ PHP_METHOD(swoole_server, on)
 
     if (i < SW_SERVER_CB_onStart)
     {
-        zval *obj = server_port_list[0];
+        zval *obj = server_port_list.array[0];
         sw_zend_call_method_with_2_params(&obj, swoole_server_port_class_entry_ptr, NULL, "on", &return_value, name, cb);
     }
     else
@@ -1535,8 +1597,6 @@ PHP_METHOD(swoole_server, on)
 
 PHP_METHOD(swoole_server, listen)
 {
-    zval *zobject = getThis();
-
     char *host;
     zend_size_t host_len;
     long sock_type;
@@ -1548,22 +1608,19 @@ PHP_METHOD(swoole_server, listen)
         RETURN_FALSE;
     }
 
-    if (zobject == NULL)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sll", &host, &host_len, &port, &sock_type) == FAILURE)
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Osll", &zobject, swoole_server_class_entry_ptr, &host, &host_len, &port, &sock_type) == FAILURE)
-        {
-            return;
-        }
+        return;
     }
-    else
+
+    swServer *serv = swoole_get_object(getThis());
+    swListenPort *ls = swServer_add_port(serv, (int) sock_type, host, (int) port);
+    if (!port)
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sll", &host, &host_len, &port, &sock_type) == FAILURE)
-        {
-            return;
-        }
+        RETURN_FALSE;
     }
-    swServer *serv = swoole_get_object(zobject);
-    SW_CHECK_RETURN(swServer_add_listener(serv, (int )sock_type, host, (int )port));
+    zval *port_object = php_swoole_server_add_port(ls TSRMLS_CC);
+    RETURN_ZVAL(port_object, 0, NULL);
 }
 
 PHP_METHOD(swoole_server, addprocess)
