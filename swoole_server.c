@@ -167,7 +167,6 @@ static sw_inline int php_swoole_check_task_param(int dst_worker_id TSRMLS_DC)
 static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type)
 {
     swListenPort *port =  serv->connection_list[server_fd].object;
-    printf("port=%d, event_type=%d, server_fd=%d\n", port->port, event_type, server_fd);
     swoole_port_callbacks *callbacks = port->ptr;
     zval *callback = callbacks->array[event_type];
     if (!callback)

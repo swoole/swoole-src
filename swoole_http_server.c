@@ -906,7 +906,7 @@ static void http_onClose(swServer *serv, swDataHead *info)
         return;
     }
     //other server port
-    if (conn->from_fd != info->from_fd)
+    if (serv->listen_list->sock != info->from_fd)
     {
         return php_swoole_onClose(serv, info);
     }
@@ -940,7 +940,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
         return SW_ERR;
     }
     //other server port
-    if (conn->from_fd != req->info.fd)
+    if (serv->listen_list->sock != req->info.from_fd)
     {
         return php_swoole_onReceive(serv, req);
     }
