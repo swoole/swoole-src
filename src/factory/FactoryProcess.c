@@ -167,6 +167,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
         }
         //converted fd to session_id
         task->data.info.fd = conn->session_id;
+        task->data.info.from_fd = conn->from_fd;
     }
 
     return swReactorThread_send2worker((void *) &(task->data), send_len, target_worker_id);
@@ -255,6 +256,7 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
 {
     swServer *serv = factory->ptr;
     swSendData _send;
+    swDataHead info;
 
     bzero(&_send, sizeof(_send));
     _send.info.fd = fd;
@@ -286,7 +288,10 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
         conn->closing = 1;
         if (serv->onClose != NULL)
         {
-            serv->onClose(serv, fd, conn->from_id);
+            info.fd = fd;
+            info.from_id =  conn->from_id;
+            info.from_fd =  conn->from_fd;
+            serv->onClose(serv, &info);
         }
         conn->closing = 0;
         conn->closed = 1;

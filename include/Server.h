@@ -442,10 +442,16 @@ struct _swServer
     void (*onWorkerStop)(swServer *serv, int worker_id);
     void (*onWorkerError)(swServer *serv, int worker_id, pid_t worker_pid, int exit_code, int signo);
     void (*onUserWorkerStart)(swServer *serv, swWorker *worker);
+    /**
+     * Client
+     */
     int (*onReceive)(swServer *, swEventData *);
-    int (*onPacket)(swServer *, swEventData *); //for datagram
-    void (*onClose)(swServer *serv, int fd, int reactor_id);
-    void (*onConnect)(swServer *serv, int fd, int reactor_id);
+    int (*onPacket)(swServer *, swEventData *);
+    void (*onClose)(swServer *serv, swDataHead *);
+    void (*onConnect)(swServer *serv, swDataHead *);
+    /**
+     * Task Worker
+     */
     int (*onTask)(swServer *serv, swEventData *data);
     int (*onFinish)(swServer *serv, swEventData *data);
 

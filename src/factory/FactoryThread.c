@@ -156,6 +156,7 @@ int swFactoryThread_dispatch(swFactory *factory, swDispatchData *task)
         }
         //converted fd to session_id
         task->data.info.fd = conn->session_id;
+        task->data.info.from_fd = conn->from_fd;
     }
 
     int mem_size = sizeof(swDataHead) + task->data.info.len + 1;

@@ -95,7 +95,7 @@ zend_class_entry *swoole_http_request_class_entry_ptr;
 static zval* php_sw_http_server_callbacks[2];
 
 static int http_onReceive(swServer *serv, swEventData *req);
-static void http_onClose(swServer *serv, int fd, int from_id);
+static void http_onClose(swServer *serv, swDataHead *info);
 
 static int http_request_on_path(php_http_parser *parser, const char *at, size_t length);
 static int http_request_on_query_string(php_http_parser *parser, const char *at, size_t length);
@@ -897,13 +897,18 @@ static int http_request_message_complete(php_http_parser *parser)
     return 0;
 }
 
-static void http_onClose(swServer *serv, int fd, int from_id)
+static void http_onClose(swServer *serv, swDataHead *info)
 {
-    swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
+    swConnection *conn = swWorker_get_connection(SwooleG.serv, info->fd);
     if (!conn)
     {
-        swWarn("connection[%d] is closed.", fd);
+        swWarn("connection[%d] is closed.", info->fd);
         return;
+    }
+    //other server port
+    if (conn->from_fd != info->from_fd)
+    {
+        return php_swoole_onClose(serv, info);
     }
 
     swoole_http_client *client = swArray_fetch(http_client_array, conn->fd);
@@ -920,16 +925,12 @@ static void http_onClose(swServer *serv, int fd, int from_id)
 
     if (php_sw_callback[SW_SERVER_CB_onClose] != NULL)
     {
-        php_swoole_onClose(serv, fd, from_id);
+        php_swoole_onClose(serv, info);
     }
 }
 
 static int http_onReceive(swServer *serv, swEventData *req)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     int fd = req->info.fd;
 
     swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
@@ -938,12 +939,16 @@ static int http_onReceive(swServer *serv, swEventData *req)
         swWarn("connection[%d] is closed.", fd);
         return SW_ERR;
     }
-
+    //other server port
+    if (conn->from_fd != req->info.fd)
+    {
+        return php_swoole_onReceive(serv, req);
+    }
+    //websocket client
     if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)  //websocket callback
     {
         return swoole_websocket_onMessage(req);
     }
-
     swoole_http_client *client = swArray_alloc(http_client_array, conn->fd);
     if (!client)
     {
@@ -963,6 +968,10 @@ static int http_onReceive(swServer *serv, swEventData *req)
     parser->data = client;
 
     php_http_parser_init(parser, PHP_HTTP_REQUEST);
+
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);

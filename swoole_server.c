@@ -43,7 +43,6 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req);
 static void php_swoole_onStart(swServer *);
 static void php_swoole_onShutdown(swServer *);
 
-static int php_swoole_onReceive(swServer *, swEventData *);
 static int php_swoole_onPacket(swServer *, swEventData *);
 
 static void php_swoole_onWorkerStart(swServer *, int worker_id);
@@ -165,9 +164,10 @@ static sw_inline int php_swoole_check_task_param(int dst_worker_id TSRMLS_DC)
     return SW_OK;
 }
 
-static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int fd, int event_type)
+static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type)
 {
-    swListenPort *port = swServer_get_port(serv, fd);
+    swListenPort *port =  serv->connection_list[server_fd].object;
+    printf("port=%d, event_type=%d, server_fd=%d\n", port->port, event_type, server_fd);
     swoole_port_callbacks *callbacks = port->ptr;
     zval *callback = callbacks->array[event_type];
     if (!callback)
@@ -442,7 +442,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
     }
 }
 
-static int php_swoole_onReceive(swServer *serv, swEventData *req)
+int php_swoole_onReceive(swServer *serv, swEventData *req)
 {
     swFactory *factory = &serv->factory;
     zval *zserv = (zval *) serv->ptr2;
@@ -509,14 +509,6 @@ static int php_swoole_onReceive(swServer *serv, swEventData *req)
             ZVAL_LONG(zfrom_id, (long ) req->info.from_fd);
             dgram_server_socket = req->info.from_fd;
         }
-
-        swListenPort *port = serv->connection_list[req->info.from_fd].object;
-        swoole_port_callbacks *callbacks = port->ptr;
-        callback = callbacks->array[SW_SERVER_CB_onReceive];
-        if (!callback)
-        {
-            callback = php_sw_callback[SW_SERVER_CB_onReceive];
-        }
     }
     //stream
     else
@@ -524,8 +516,9 @@ static int php_swoole_onReceive(swServer *serv, swEventData *req)
         ZVAL_LONG(zfrom_id, (long ) req->info.from_id);
         ZVAL_LONG(zfd, (long ) req->info.fd);
         zdata = php_swoole_get_recv_data(zdata, req TSRMLS_CC);
-        callback = php_swoole_server_get_callback(serv, req->info.fd, SW_SERVER_CB_onReceive);
     }
+
+    callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
 
     args[0] = &zserv;
     args[1] = &zfd;
@@ -1086,7 +1079,7 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
     }
 }
 
-void php_swoole_onConnect(swServer *serv, int fd, int from_id)
+void php_swoole_onConnect(swServer *serv, swDataHead *info)
 {
     zval *zserv = (zval *) serv->ptr2;
     zval *zfd;
@@ -1095,10 +1088,10 @@ void php_swoole_onConnect(swServer *serv, int fd, int from_id)
     zval *retval = NULL;
 
     SW_MAKE_STD_ZVAL(zfd);
-    ZVAL_LONG(zfd, fd);
+    ZVAL_LONG(zfd, info->fd);
 
     SW_MAKE_STD_ZVAL(zfrom_id);
-    ZVAL_LONG(zfrom_id, from_id);
+    ZVAL_LONG(zfrom_id, info->from_id);
 
     args[0] = &zserv;
     sw_zval_add_ref(&zserv);
@@ -1109,7 +1102,7 @@ void php_swoole_onConnect(swServer *serv, int fd, int from_id)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    zval *callback = php_swoole_server_get_callback(serv, fd, SW_SERVER_CB_onConnect);
+    zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onConnect);
     if (!callback)
     {
         return;
@@ -1132,7 +1125,7 @@ void php_swoole_onConnect(swServer *serv, int fd, int from_id)
     }
 }
 
-void php_swoole_onClose(swServer *serv, int fd, int from_id)
+void php_swoole_onClose(swServer *serv, swDataHead *info)
 {
     zval *zserv = (zval *) serv->ptr2;
     zval *zfd;
@@ -1145,17 +1138,17 @@ void php_swoole_onClose(swServer *serv, int fd, int from_id)
 #endif
 
     SW_MAKE_STD_ZVAL(zfd);
-    ZVAL_LONG(zfd, fd);
+    ZVAL_LONG(zfd, info->fd);
 
     SW_MAKE_STD_ZVAL(zfrom_id);
-    ZVAL_LONG(zfrom_id, from_id);
+    ZVAL_LONG(zfrom_id, info->from_id);
 
     args[0] = &zserv;
     sw_zval_add_ref(&zserv);
     args[1] = &zfd;
     args[2] = &zfrom_id;
 
-    zval *callback = php_swoole_server_get_callback(serv, fd, SW_SERVER_CB_onClose);
+    zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onClose);
     if (!callback)
     {
         return;

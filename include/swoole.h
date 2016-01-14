@@ -554,7 +554,7 @@ typedef struct _swDataHead
     uint16_t len;  //长度
     int16_t from_id;  //Reactor Id
     uint8_t type;  //类型
-    uint8_t from_fd;  //从哪个ServerFD引发的
+    uint8_t from_fd;
 } swDataHead;
 
 typedef struct _swEvent
