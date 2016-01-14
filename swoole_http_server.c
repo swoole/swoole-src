@@ -958,6 +958,10 @@ static int http_onReceive(swServer *serv, swEventData *req)
 
     php_http_parser *parser = &client->parser;
 
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+
     /**
      * create request and response object
      */
@@ -968,10 +972,6 @@ static int http_onReceive(swServer *serv, swEventData *req)
     parser->data = client;
 
     php_http_parser_init(parser, PHP_HTTP_REQUEST);
-
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
 
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
