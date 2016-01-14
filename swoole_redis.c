@@ -251,7 +251,7 @@ static PHP_METHOD(swoole_redis, set)
 {
     zval *callback;
     char *key;
-    int key_len;
+    zend_size_t key_len;
     char *value;
     zend_size_t value_len;
 

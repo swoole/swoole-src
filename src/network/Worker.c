@@ -235,7 +235,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
 #endif
         if (serv->onConnect)
         {
-            serv->onConnect(serv, task);
+            serv->onConnect(serv, &task->info);
         }
         break;
 
