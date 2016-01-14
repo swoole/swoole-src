@@ -73,7 +73,6 @@ By using Swoole, you can build enhanced web applications with more control, real
 Swoole includes components for different purposes: Server, Task Worker, Timer, Event and Async IO. With these components,
 Swoole allows you to build many features.
 
-
 ### Server
 
 This is the most important part in Swoole. It provides necessary infrastructure to build server applications. 
@@ -139,6 +138,50 @@ $ws->on('close', function ($ws, $fd) {
 });
 
 $ws->start();
+```
+
+### Real async-mysql client
+```php
+$db = new mysqli;
+$db->connect('127.0.0.1', 'root', 'root', 'test');
+swoole_mysql_query($db, "show tables", function(mysqli $db, $r) {
+    var_dump($db->_affected_rows, $db->_insert_id, $r);
+});
+```
+
+### Real async-redis client
+```php
+$client = new swoole_redis;
+$client->connect('127.0.0.1', 6379, function (swoole_redis $client, $result) {
+    echo "connect\n";
+    var_dump($result);
+    $client->set('key', 'swoole', function (swoole_redis $client, $result) {
+        var_dump($result);
+        $client->get('key', function (swoole_redis $client, $result) {
+            var_dump($result);
+            $client->close();
+        });
+    });
+});
+```
+
+### Multi-port and mixed protocol
+
+```php
+$serv = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
+
+$port2 = $serv->listen("0.0.0.0", 9502, SWOOLE_SOCK_TCP);
+$port2->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
+    var_dump($data);
+    $serv->send($fd, $data);    
+});
+
+$serv->on('request', function($req, $resp) {
+    $resp->end("<h1>Hello World</h1>");
+});
+
+
+$serv->start();
 ```
 
 ### Task Worker
