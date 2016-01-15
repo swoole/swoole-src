@@ -66,7 +66,8 @@ PHP_METHOD(swoole_lock, __construct)
     {
         RETURN_FALSE;
     }
-    swLock *lock = emalloc(sizeof(swLock));
+
+    swLock *lock = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swLock));
     if (lock == NULL)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "alloc failed.");
@@ -119,8 +120,11 @@ PHP_METHOD(swoole_lock, __construct)
 PHP_METHOD(swoole_lock, __destruct)
 {
     swLock *lock = swoole_get_object(getThis());
-    lock->free(lock);
-    efree(lock);
+    if (lock)
+    {
+        lock->free(lock);
+        swoole_set_object(getThis(), NULL);
+    }
 }
 
 PHP_METHOD(swoole_lock, lock)
