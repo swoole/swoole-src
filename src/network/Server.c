@@ -1301,25 +1301,39 @@ void swServer_set_callback(swServer *serv, int type, void *callback)
     }
 }
 
+static void (*onConnect_callback)(swServer *, int, int);
 static int (*onReceive_callback)(swServer *, char *, int, int, int);
+static void (*onClose_callback)(swServer *, int, int);
 
-static int swServer_scalar_onreceive_callback(swServer *serv, swEventData *req)
+static void swServer_scalar_onConnect_callback(swServer *serv, swDataHead *info)
+{
+    onConnect_callback(serv, info->fd, info->from_id);
+}
+
+static int swServer_scalar_onReceive_callback(swServer *serv, swEventData *req)
 {
     return onReceive_callback(serv, req->data, req->info.len, req->info.fd, req->info.from_id);
+}
+
+static void swServer_scalar_onClose_callback(swServer *serv, swDataHead *info)
+{
+    onClose_callback(serv, info->fd, info->from_id);
+}
+
+void swServer_set_callback_onConnect(swServer *serv, void (*callback)(swServer *, int, int))
+{
+    onConnect_callback = callback;
+    serv->onConnect = swServer_scalar_onConnect_callback;
 }
 
 void swServer_set_callback_onReceive(swServer *serv, int (*callback)(swServer *, char *, int, int, int))
 {
     onReceive_callback = callback;
-    serv->onReceive = swServer_scalar_onreceive_callback;
-}
-
-void swServer_set_callback_onConnect(swServer *serv, void (*callback)(swServer *, int, int))
-{
-    serv->onConnect = callback;
+    serv->onReceive = swServer_scalar_onReceive_callback;
 }
 
 void swServer_set_callback_onClose(swServer *serv, void (*callback)(swServer *, int, int))
 {
-    serv->onClose = callback;
+    onClose_callback = callback;
+    serv->onClose = swServer_scalar_onClose_callback;
 }

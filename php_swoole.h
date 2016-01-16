@@ -368,8 +368,9 @@ php_socket *swoole_convert_to_socket(int sock);
 
 zval *php_swoole_get_recv_data(zval *,swEventData *req TSRMLS_DC);
 int php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC);
-void php_swoole_onConnect(swServer *, int fd, int from_id);
-void php_swoole_onClose(swServer *, int fd, int from_id);
+void php_swoole_onConnect(swServer *serv, swDataHead *);
+int php_swoole_onReceive(swServer *serv, swEventData *req);
+void php_swoole_onClose(swServer *, swDataHead *);
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
     long aio_thread_num;

@@ -60,34 +60,37 @@ int swFactory_dispatch(swFactory *factory, swDispatchData *task)
         }
         //converted fd to session_id
         task->data.info.fd = conn->session_id;
+        task->data.info.from_fd = conn->from_fd;
     }
     return swWorker_onTask(factory, &task->data);
 }
 
-int swFactory_notify(swFactory *factory, swDataHead *req)
+int swFactory_notify(swFactory *factory, swDataHead *info)
 {
     swServer *serv = factory->ptr;
-    swConnection *conn = swServer_connection_get(serv, req->fd);
+    swConnection *conn = swServer_connection_get(serv, info->fd);
     if (conn == NULL || conn->active == 0)
     {
-        swWarn("dispatch[type=%d] failed, connection#%d is not active.", req->type, req->fd);
+        swWarn("dispatch[type=%d] failed, connection#%d is not active.", info->type, info->fd);
         return SW_ERR;
     }
     //server active close, discard data.
     if (conn->closed)
     {
-        swWarn("dispatch[type=%d] failed, connection#%d is closed by server.", req->type, req->fd);
+        swWarn("dispatch[type=%d] failed, connection#%d is closed by server.", info->type, info->fd);
         return SW_OK;
     }
     //converted fd to session_id
-    req->fd = conn->session_id;
-    return swWorker_onTask(factory, (swEventData *) req);
+    info->fd = conn->session_id;
+    info->from_fd = conn->from_fd;
+    return swWorker_onTask(factory, (swEventData *) info);
 }
 
 int swFactory_end(swFactory *factory, int fd)
 {
     swServer *serv = factory->ptr;
     swSendData _send;
+    swDataHead info;
 
     bzero(&_send, sizeof(_send));
     _send.info.fd = fd;
@@ -119,7 +122,10 @@ int swFactory_end(swFactory *factory, int fd)
         conn->closing = 1;
         if (serv->onClose != NULL)
         {
-            serv->onClose(serv, fd, conn->from_id);
+            info.fd = fd;
+            info.from_id =  conn->from_id;
+            info.from_fd =  conn->from_fd;
+            serv->onClose(serv, &info);
         }
         conn->closing = 0;
         conn->closed = 1;

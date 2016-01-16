@@ -50,13 +50,13 @@ static PHP_METHOD(swoole_server_port, set)
     zval *zset = NULL;
     HashTable *vht;
     zval *v;
-    vht = Z_ARRVAL_P(zset);
 
     if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "z", &zset) == FAILURE)
     {
         return;
     }
 
+    vht = Z_ARRVAL_P(zset);
     swListenPort *port = swoole_get_object(getThis());
     if (port == NULL)
     {
