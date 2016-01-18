@@ -1671,22 +1671,6 @@ PHP_METHOD(swoole_server, addprocess)
     RETURN_LONG(id);
 }
 
-PHP_METHOD(swoole_server, addtimer)
-{
-    if (php_sw_callback[SW_SERVER_CB_onTimer] == NULL)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "onTimer is null, Can not use timer.");
-        RETURN_FALSE;
-    }
-    zval *ms = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &ms) == FAILURE)
-    {
-        return;
-    }
-    zval *obj = getThis();
-    sw_zend_call_method_with_2_params(&obj, swoole_server_class_entry_ptr, NULL, "tick", &return_value, ms, php_sw_callback[SW_SERVER_CB_onTimer]);
-}
-
 PHP_FUNCTION(swoole_server_start)
 {
     zval *zobject = getThis();

@@ -43,7 +43,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.8.0-beta"
+#define PHP_SWOOLE_VERSION  "1.8.0-rc1"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -262,7 +262,6 @@ PHP_METHOD(swoole_connection_iterator, valid);
 PHP_METHOD(swoole_server, __construct);
 PHP_METHOD(swoole_server, listen);
 PHP_METHOD(swoole_server, on);
-PHP_METHOD(swoole_server, addtimer);
 PHP_METHOD(swoole_server, sendmessage);
 PHP_METHOD(swoole_server, addprocess);
 PHP_METHOD(swoole_server, stats);
