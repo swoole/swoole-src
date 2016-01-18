@@ -28,7 +28,7 @@ With the synchronous logic execution, you can easily write large and robust appl
 in-memory
 ------
 
-Unlike traditional apache/php-fpm stuff, the memory allocated in Swoole will not be free'd after a request, which can improve preformance a lot.
+Unlike traditional apache/php-fpm stuff, the memory allocated in Swoole will not be free'd after a request, which can improve performance a lot.
 
 
 ## Why Swoole?
