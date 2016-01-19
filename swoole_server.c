@@ -1263,7 +1263,7 @@ PHP_METHOD(swoole_server, __construct)
     php_swoole_server_add_port(port TSRMLS_CC);
 }
 
-PHP_FUNCTION(swoole_server_set)
+PHP_METHOD(swoole_server, set)
 {
     zval *zset = NULL;
     zval *zobject = getThis();
@@ -1277,20 +1277,11 @@ PHP_FUNCTION(swoole_server_set)
         RETURN_FALSE;
     }
 
-    if (zobject == NULL)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zset) == FAILURE)
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Oz", &zobject, swoole_server_class_entry_ptr, &zset) == FAILURE)
-        {
-            return;
-        }
+        return;
     }
-    else
-    {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zset) == FAILURE)
-        {
-            return;
-        }
-    }
+
     swServer *serv = swoole_get_object(zobject);
 
     vht = Z_ARRVAL_P(zset);
@@ -1671,7 +1662,7 @@ PHP_METHOD(swoole_server, addprocess)
     RETURN_LONG(id);
 }
 
-PHP_FUNCTION(swoole_server_start)
+PHP_METHOD(swoole_server, start)
 {
     zval *zobject = getThis();
 
@@ -1681,14 +1672,6 @@ PHP_FUNCTION(swoole_server_start)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is running. Unable to execute swoole_server::start.");
         RETURN_FALSE;
-    }
-
-    if (zobject == NULL)
-    {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O", &zobject, swoole_server_class_entry_ptr) == FAILURE)
-        {
-            return;
-        }
     }
 
     swServer *serv = swoole_get_object(zobject);
@@ -1753,7 +1736,7 @@ PHP_FUNCTION(swoole_server_start)
     RETURN_TRUE;
 }
 
-PHP_FUNCTION(swoole_server_send)
+PHP_METHOD(swoole_server, send)
 {
     zval *zobject = getThis();
 
@@ -1769,19 +1752,9 @@ PHP_FUNCTION(swoole_server_send)
         RETURN_FALSE;
     }
 
-    if (zobject == NULL)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zz|l", &zfd, &zdata, &server_socket) == FAILURE)
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ozz|l", &zobject, swoole_server_class_entry_ptr, &zfd, &zdata, &server_socket) == FAILURE)
-        {
-            return;
-        }
-    }
-    else
-    {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zz|l", &zfd, &zdata, &server_socket) == FAILURE)
-        {
-            return;
-        }
+        return;
     }
 
     char *data;
@@ -1929,7 +1902,7 @@ PHP_METHOD(swoole_server, sendto)
     SW_CHECK_RETURN(ret);
 }
 
-PHP_FUNCTION(swoole_server_sendfile)
+PHP_METHOD(swoole_server, sendfile)
 {
     zval *zobject = getThis();
     zend_size_t len;
@@ -1948,19 +1921,9 @@ PHP_FUNCTION(swoole_server_sendfile)
     RETURN_FALSE;;
 #endif
 
-    if (zobject == NULL)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls", &fd, &filename, &len) == FAILURE)
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ols", &zobject, swoole_server_class_entry_ptr, &fd, &filename, &len) == FAILURE)
-        {
-            return;
-        }
-    }
-    else
-    {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls", &fd, &filename, &len) == FAILURE)
-        {
-            return;
-        }
+        return;
     }
 
     //check fd
@@ -1974,7 +1937,7 @@ PHP_FUNCTION(swoole_server_sendfile)
     SW_CHECK_RETURN(swServer_tcp_sendfile(serv, (int) fd, filename, len));
 }
 
-PHP_FUNCTION(swoole_server_close)
+PHP_METHOD(swoole_server, close)
 {
     zval *zobject = getThis();
     zval *zfd;
@@ -1991,20 +1954,11 @@ PHP_FUNCTION(swoole_server_close)
         RETURN_FALSE;
     }
 
-    if (zobject == NULL)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zfd) == FAILURE)
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Oz", &zobject, swoole_server_class_entry_ptr, &zfd) == FAILURE)
-        {
-            return;
-        }
+        return;
     }
-    else
-    {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zfd) == FAILURE)
-        {
-            return;
-        }
-    }
+
     convert_to_long(zfd);
     swServer *serv = swoole_get_object(zobject);
     SW_CHECK_RETURN(serv->factory.end(&serv->factory, Z_LVAL_P(zfd)));
@@ -2029,10 +1983,8 @@ PHP_METHOD(swoole_server, stats)
     sw_add_assoc_long_ex(return_value, ZEND_STRS("task_process_num"), SwooleGS->task_workers.run_worker_num);
 }
 
-PHP_FUNCTION(swoole_server_reload)
+PHP_METHOD(swoole_server, reload)
 {
-    zval *zobject = getThis();
-
     zend_bool only_reload_taskworker = 0;
 
     if (SwooleGS->start == 0)
@@ -2041,20 +1993,9 @@ PHP_FUNCTION(swoole_server_reload)
         RETURN_FALSE;
     }
 
-    if (zobject == NULL)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b", &only_reload_taskworker) == FAILURE)
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O|b", &zobject, swoole_server_class_entry_ptr,
-                &only_reload_taskworker) == FAILURE)
-        {
-            return;
-        }
-    }
-    else
-    {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b", &only_reload_taskworker) == FAILURE)
-        {
-            return;
-        }
+        return;
     }
 
     int sig = only_reload_taskworker ? SIGUSR2 : SIGUSR1;
@@ -2066,7 +2007,7 @@ PHP_FUNCTION(swoole_server_reload)
     RETURN_TRUE;
 }
 
-PHP_FUNCTION(swoole_server_heartbeat)
+PHP_METHOD(swoole_server, heartbeat)
 {
     zval *zobject = getThis();
 
@@ -2078,20 +2019,11 @@ PHP_FUNCTION(swoole_server_heartbeat)
         RETURN_FALSE;
     }
 
-    if (zobject == NULL)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b", &close_connection) == FAILURE)
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O|b", &zobject, swoole_server_class_entry_ptr, &close_connection) == FAILURE)
-        {
-            return;
-        }
+        return;
     }
-    else
-    {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b", &close_connection) == FAILURE)
-        {
-            return;
-        }
-    }
+
     swServer *serv = swoole_get_object(zobject);
 
     if (serv->heartbeat_idle_time < 1)
@@ -2132,9 +2064,8 @@ PHP_FUNCTION(swoole_server_heartbeat)
     }
 }
 
-PHP_FUNCTION(swoole_server_taskwait)
+PHP_METHOD(swoole_server, taskwait)
 {
-    zval *zobject = getThis();
     swEventData buf;
 
     zval *data;
@@ -2150,19 +2081,9 @@ PHP_FUNCTION(swoole_server_taskwait)
         RETURN_FALSE;
     }
 
-    if (zobject == NULL)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|dl", &data, &timeout, &dst_worker_id) == FAILURE)
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Oz|dl", &zobject, swoole_server_class_entry_ptr, &data, &timeout, &dst_worker_id) == FAILURE)
-        {
-            return;
-        }
-    }
-    else
-    {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|dl", &data, &timeout, &dst_worker_id) == FAILURE)
-        {
-            return;
-        }
+        return;
     }
 
     if (php_swoole_check_task_param(dst_worker_id TSRMLS_CC) < 0)
@@ -2248,9 +2169,8 @@ PHP_FUNCTION(swoole_server_taskwait)
     RETURN_FALSE;
 }
 
-PHP_FUNCTION(swoole_server_task)
+PHP_METHOD(swoole_server, task)
 {
-    zval *zobject = getThis();
     swEventData buf;
 
     zval *data;
@@ -2265,19 +2185,9 @@ PHP_FUNCTION(swoole_server_task)
         RETURN_FALSE;
     }
 
-    if (zobject == NULL)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|l", &data, &dst_worker_id) == FAILURE)
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Oz|l", &zobject, swoole_server_class_entry_ptr, &data, &dst_worker_id) == FAILURE)
-        {
-            return;
-        }
-    }
-    else
-    {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|l", &data, &dst_worker_id) == FAILURE)
-        {
-            return;
-        }
+        return;
     }
 
     if (php_swoole_check_task_param(dst_worker_id TSRMLS_CC) < 0)
@@ -2412,7 +2322,7 @@ PHP_METHOD(swoole_server, sendmessage)
     SW_CHECK_RETURN(swWorker_send2worker(to_worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER | SW_PIPE_NONBLOCK));
 }
 
-PHP_FUNCTION(swoole_server_finish)
+PHP_METHOD(swoole_server, finish)
 {
     zval *zobject = getThis();
     zval *data;
@@ -2423,20 +2333,11 @@ PHP_FUNCTION(swoole_server_finish)
         RETURN_FALSE;
     }
 
-    if (zobject == NULL)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &data) == FAILURE)
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Oz", &zobject, swoole_server_class_entry_ptr, &data) == FAILURE)
-        {
-            return;
-        }
+        return;
     }
-    else
-    {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &data) == FAILURE)
-        {
-            return;
-        }
-    }
+
     swServer *serv = swoole_get_object(zobject);
     SW_CHECK_RETURN(php_swoole_task_finish(serv, data TSRMLS_CC));
 }
@@ -2516,7 +2417,7 @@ PHP_METHOD(swoole_server, getSocket)
 }
 #endif
 
-PHP_FUNCTION(swoole_connection_info)
+PHP_METHOD(swoole_server, connection_info)
 {
     zval *zobject = getThis();
 
@@ -2530,20 +2431,11 @@ PHP_FUNCTION(swoole_connection_info)
         RETURN_FALSE;
     }
 
-    if (zobject == NULL)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|lb", &zfd, &from_id, &noCheckConnection) == FAILURE)
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Oz|lb", &zobject, swoole_server_class_entry_ptr, &zfd, &from_id, &noCheckConnection) == FAILURE)
-        {
-            return;
-        }
+        return;
     }
-    else
-    {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|lb", &zfd, &from_id, &noCheckConnection) == FAILURE)
-        {
-            return;
-        }
-    }
+
     swServer *serv = swoole_get_object(zobject);
 
     long fd = 0;
@@ -2647,7 +2539,7 @@ PHP_FUNCTION(swoole_connection_info)
     }
 }
 
-PHP_FUNCTION(swoole_connection_list)
+PHP_METHOD(swoole_server, connection_list)
 {
     zval *zobject = getThis();
 
@@ -2660,20 +2552,11 @@ PHP_FUNCTION(swoole_connection_list)
         RETURN_FALSE;
     }
 
-    if (zobject == NULL)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ll", &start_fd, &find_count) == FAILURE)
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O|ll", &zobject, swoole_server_class_entry_ptr, &start_fd, &find_count) == FAILURE)
-        {
-            return;
-        }
+        return;
     }
-    else
-    {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ll", &start_fd, &find_count) == FAILURE)
-        {
-            return;
-        }
-    }
+
     swServer *serv = swoole_get_object(zobject);
 
     //超过最大查找数量
@@ -2821,26 +2704,17 @@ PHP_METHOD(swoole_server, exist)
     }
 }
 
-PHP_FUNCTION(swoole_server_shutdown)
+PHP_METHOD(swoole_server, shutdown)
 {
-    zval *zobject = getThis();
-
     if (SwooleGS->start == 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is not running.");
         RETURN_FALSE;
     }
 
-    if (zobject == NULL)
-    {
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O", &zobject, swoole_server_class_entry_ptr) == FAILURE)
-        {
-            return;
-        }
-    }
     if (kill(SwooleGS->master_pid, SIGTERM) < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "shutdown failed. kill -SIGTERM master_pid[%d] fail. Error: %s[%d]", SwooleGS->master_pid, strerror(errno), errno);
+        swoole_php_sys_error(E_WARNING, "shutdown failed. kill(%d, SIGTERM) failed.", SwooleGS->master_pid);
         RETURN_FALSE;
     }
     else

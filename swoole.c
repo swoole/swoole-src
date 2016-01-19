@@ -45,26 +45,8 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server__construct, 0, 0, 2)
     ZEND_ARG_INFO(0, sock_type)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_set, 0, 0, 2)
-    ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
-    ZEND_ARG_INFO(0, zset)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_set_oo, 0, 0, 1)
     ZEND_ARG_INFO(0, zset)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_start, 0, 0, 1)
-       ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
-ZEND_END_ARG_INFO()
-
-//for object style
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_send, 0, 0, 3)
-    ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
-    ZEND_ARG_INFO(0, conn_fd)
-    ZEND_ARG_INFO(0, send_data)
-    ZEND_ARG_INFO(0, from_id)
 ZEND_END_ARG_INFO()
 
 //for object style
@@ -90,21 +72,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_sendto_oo, 0, 0, 2)
     ZEND_ARG_INFO(0, send_data)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_sendfile, 0, 0, 3)
-    ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
-    ZEND_ARG_INFO(0, conn_fd)
-    ZEND_ARG_INFO(0, filename)
-ZEND_END_ARG_INFO()
-
 //for object style
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_sendfile_oo, 0, 0, 2)
     ZEND_ARG_INFO(0, conn_fd)
     ZEND_ARG_INFO(0, filename)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_close, 0, 0, 2)
-    ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
-    ZEND_ARG_INFO(0, fd)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_close_oo, 0, 0, 1)
@@ -122,24 +93,9 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_listen, 0, 0, 3)
     ZEND_ARG_INFO(0, sock_type)
 ZEND_END_ARG_INFO()
 
-//function style
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_task, 0, 0, 2)
-    ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
-    ZEND_ARG_INFO(0, data)
-    ZEND_ARG_INFO(0, worker_id)
-ZEND_END_ARG_INFO()
-
 //object style
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_task_oo, 0, 0, 2)
     ZEND_ARG_INFO(0, data)
-    ZEND_ARG_INFO(0, worker_id)
-ZEND_END_ARG_INFO()
-
-//function style
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_taskwait, 0, 0, 2)
-    ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
-    ZEND_ARG_INFO(0, data)
-    ZEND_ARG_INFO(0, timeout)
     ZEND_ARG_INFO(0, worker_id)
 ZEND_END_ARG_INFO()
 
@@ -149,29 +105,11 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_taskwait_oo, 0, 0, 1)
     ZEND_ARG_INFO(0, worker_id)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_finish, 0, 0, 2)
-    ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
-    ZEND_ARG_INFO(0, data)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_finish_oo, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_reload, 0, 0, 1)
-    ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_reload_oo, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_shutdown, 0, 0, 1)
-    ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_heartbeat, 0, 0, 2)
-    ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
-    ZEND_ARG_INFO(0, from_id)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_heartbeat_oo, 0, 0, 1)
@@ -183,21 +121,9 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_bind, 0, 0, 2)
     ZEND_ARG_INFO(0, uid)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_connection_info, 0, 0, 2)
-    ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
-    ZEND_ARG_INFO(0, fd)
-    ZEND_ARG_INFO(0, from_id)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_connection_info_oo, 0, 0, 2)
     ZEND_ARG_INFO(0, fd)
     ZEND_ARG_INFO(0, from_id)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_connection_list, 0, 0, 3)
-    ZEND_ARG_OBJ_INFO(0, zobject, swoole_server, 0)
-    ZEND_ARG_INFO(0, start_fd)
-    ZEND_ARG_INFO(0, find_count)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_connection_list_oo, 0, 0, 2)
@@ -240,20 +166,6 @@ const zend_function_entry swoole_functions[] =
 {
     PHP_FE(swoole_version, NULL)
     PHP_FE(swoole_cpu_num, NULL)
-    /*------swoole_server-----*/
-    PHP_FE(swoole_server_set, arginfo_swoole_server_set)
-    PHP_FE(swoole_server_start, arginfo_swoole_server_start)
-    PHP_FE(swoole_server_send, arginfo_swoole_server_send)
-    PHP_FE(swoole_server_sendfile, arginfo_swoole_server_sendfile)
-    PHP_FE(swoole_server_close, arginfo_swoole_server_close)
-    PHP_FE(swoole_server_task, arginfo_swoole_server_task)
-    PHP_FE(swoole_server_taskwait, arginfo_swoole_server_taskwait)
-    PHP_FE(swoole_server_finish, arginfo_swoole_server_finish)
-    PHP_FE(swoole_server_reload, arginfo_swoole_server_reload)
-    PHP_FE(swoole_server_shutdown, arginfo_swoole_server_shutdown)
-    PHP_FE(swoole_server_heartbeat, arginfo_swoole_server_heartbeat)
-    PHP_FE(swoole_connection_info, arginfo_swoole_connection_info)
-    PHP_FE(swoole_connection_list, arginfo_swoole_connection_list)
     /*------swoole_event-----*/
     PHP_FE(swoole_event_add, arginfo_swoole_event_add)
     PHP_FE(swoole_event_set, NULL)
@@ -291,26 +203,25 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, listen, arginfo_swoole_server_listen, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_server, addlistener, listen, arginfo_swoole_server_listen, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, on, arginfo_swoole_server_on, ZEND_ACC_PUBLIC)
-    PHP_FALIAS(set, swoole_server_set, arginfo_swoole_server_set_oo)
-    PHP_FALIAS(start, swoole_server_start, arginfo_swoole_void)
-    PHP_FALIAS(send, swoole_server_send, arginfo_swoole_server_send_oo)
+    PHP_ME(swoole_server, set, arginfo_swoole_server_set_oo, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, start, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, send, arginfo_swoole_server_send_oo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, sendto, arginfo_swoole_server_sendto_oo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, sendwait, arginfo_swoole_server_sendwait, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, exist, arginfo_swoole_server_exist, ZEND_ACC_PUBLIC)
-    PHP_FALIAS(sendfile, swoole_server_sendfile, arginfo_swoole_server_sendfile_oo)
-    PHP_FALIAS(close, swoole_server_close, arginfo_swoole_server_close_oo)
-    PHP_FALIAS(task, swoole_server_task, arginfo_swoole_server_task_oo)
-    PHP_FALIAS(taskwait, swoole_server_taskwait, arginfo_swoole_server_taskwait_oo)
-    PHP_FALIAS(finish, swoole_server_finish, arginfo_swoole_server_finish_oo)
-    PHP_FALIAS(reload, swoole_server_reload, arginfo_swoole_server_reload_oo)
-    PHP_FALIAS(shutdown, swoole_server_shutdown, arginfo_swoole_void)
-    PHP_FALIAS(hbcheck, swoole_server_heartbeat, arginfo_swoole_server_heartbeat_oo)
-    PHP_FALIAS(heartbeat, swoole_server_heartbeat, arginfo_swoole_server_heartbeat_oo)
-    PHP_FALIAS(connection_info, swoole_connection_info, arginfo_swoole_connection_info_oo)
-    PHP_FALIAS(connection_list, swoole_connection_list, arginfo_swoole_connection_list_oo)
+    PHP_ME(swoole_server, sendfile, arginfo_swoole_server_sendfile_oo, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, close, arginfo_swoole_server_close_oo, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, task, arginfo_swoole_server_task_oo, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, taskwait, arginfo_swoole_server_taskwait_oo, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, finish, arginfo_swoole_server_finish_oo, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, reload, arginfo_swoole_server_reload_oo, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, shutdown, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, heartbeat, arginfo_swoole_server_heartbeat_oo, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, connection_info, arginfo_swoole_connection_info_oo, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, connection_list, arginfo_swoole_connection_list_oo, ZEND_ACC_PUBLIC)
     //psr-0 style
-    PHP_FALIAS(getClientInfo, swoole_connection_info, arginfo_swoole_connection_info_oo)
-    PHP_FALIAS(getClientList, swoole_connection_list, arginfo_swoole_connection_list_oo)
+    PHP_MALIAS(swoole_server, getClientInfo, connection_info, arginfo_swoole_connection_info_oo, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_server, getClientList, connection_list, arginfo_swoole_connection_list_oo, ZEND_ACC_PUBLIC)
     //timer
     PHP_FALIAS(after, swoole_timer_after, NULL)
     PHP_FALIAS(tick, swoole_timer_tick, NULL)
