@@ -20,6 +20,8 @@
 #include <hiredis/hiredis.h>
 #include <hiredis/async.h>
 
+#define SW_REDIS_COMMAND_BUFFER_SIZE   64
+
 typedef struct
 {
     redisAsyncContext *context;
@@ -232,8 +234,25 @@ static PHP_METHOD(swoole_redis, __call)
     redis->state = SWOOLE_REDIS_STATE_WAIT;
 
     int argc = zend_hash_num_elements(Z_ARRVAL_P(params));
-    size_t *argvlen = emalloc(sizeof(size_t) * argc);
-    const char **argv = emalloc(sizeof(char*) * argc);
+
+    size_t stack_argvlen[SW_REDIS_COMMAND_BUFFER_SIZE];
+    char *stack_argv[SW_REDIS_COMMAND_BUFFER_SIZE];
+
+    size_t *argvlen;
+    char **argv;
+    zend_bool free_mm = 0;
+
+    if (argc > SW_REDIS_COMMAND_BUFFER_SIZE)
+    {
+        argvlen = emalloc(sizeof(size_t) * argc);
+        argv = emalloc(sizeof(char*) * argc);
+        free_mm = 1;
+    }
+    else
+    {
+        argvlen = stack_argvlen;
+        argv = stack_argv;
+    }
 
     argv[0] = estrndup(command, command_len);
     argvlen[0] = command_len;
@@ -255,7 +274,7 @@ static PHP_METHOD(swoole_redis, __call)
         i++;
     SW_HASHTABLE_FOREACH_END();
 
-    if (redisAsyncCommandArgv(redis->context, swoole_redis_onResult, NULL, argc, argv, (const size_t *) argvlen) < 0)
+    if (redisAsyncCommandArgv(redis->context, swoole_redis_onResult, NULL, argc, (const char **) argv, (const size_t *) argvlen) < 0)
     {
         swoole_php_error(E_WARNING, "redisAsyncCommandArgv() failed.");
         RETURN_FALSE;
@@ -264,6 +283,12 @@ static PHP_METHOD(swoole_redis, __call)
     for (i = 0; i < argc; i++)
     {
         efree((void* )argv[i]);
+    }
+
+    if (free_mm)
+    {
+        efree(argvlen);
+        efree(argv);
     }
 
     redis->state = SWOOLE_REDIS_STATE_WAIT;
@@ -288,9 +313,15 @@ static void swoole_redis_parse_result(swRedisClient *redis, zval* return_value, 
         break;
 
     case REDIS_REPLY_STATUS:
-        ZVAL_NULL(return_value);
-        zend_update_property_long(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("errCode"), redis->context->err TSRMLS_CC);
-        zend_update_property_string(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), redis->context->errstr TSRMLS_CC);
+        if (redis->context->err == 0)
+        {
+            ZVAL_TRUE(return_value);
+        }
+        else
+        {
+            zend_update_property_long(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("errCode"), redis->context->err TSRMLS_CC);
+            zend_update_property_string(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), redis->context->errstr TSRMLS_CC);
+        }
         break;
 
     case REDIS_REPLY_STRING:
@@ -337,8 +368,9 @@ static void swoole_redis_onResult(redisAsyncContext *c, void *r, void *privdata)
     zval **args[2];
     args[0] = &redis->object;
     args[1] = &result;
+    zval *callback = redis->result_callback;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, redis->result_callback, &retval, 2, args, 0, NULL TSRMLS_CC) != SUCCESS)
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 2, args, 0, NULL TSRMLS_CC) != SUCCESS)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_async_mysql callback handler error.");
     }
@@ -347,6 +379,7 @@ static void swoole_redis_onResult(redisAsyncContext *c, void *r, void *privdata)
         sw_zval_ptr_dtor(&retval);
     }
     sw_zval_ptr_dtor(&result);
+    sw_zval_ptr_dtor(&callback);
 }
 
 void swoole_redis_onConnect(const redisAsyncContext *c, int status)
