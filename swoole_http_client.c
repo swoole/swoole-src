@@ -537,7 +537,12 @@ static void http_client_onConnect(swClient *cli)
 static inline char* sw_http_build_query(zval *data, zend_size_t *length TSRMLS_DC)
 {
     smart_str formstr = {0};
+
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION == 3
+    if (php_url_encode_hash_ex(HASH_OF(data), &formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL TSRMLS_CC) == FAILURE)
+#else
     if (php_url_encode_hash_ex(HASH_OF(data), &formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738 TSRMLS_CC) == FAILURE)
+#endif
     {
         if (formstr.c)
         {
