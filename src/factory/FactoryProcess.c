@@ -275,7 +275,7 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
     }
     else if (conn->closing)
     {
-        swWarn("The connection[%d] is closing.", fd);
+        swRuntimeError(SW_ERROR_SERVER_WORKER_CLOSING, "The connection[%d] is closing.", fd);
         return SW_ERR;
     }
     else if (conn->closed)

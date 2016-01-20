@@ -432,6 +432,7 @@ typedef struct _swConnection
     uint32_t closed :1;
     uint32_t closing :1;
     uint32_t close_force :1;
+    uint32_t close_reset :1;
 
     uint32_t removed :1;
     uint32_t overflow :1;

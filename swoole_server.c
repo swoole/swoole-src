@@ -1941,6 +1941,7 @@ PHP_METHOD(swoole_server, close)
 {
     zval *zobject = getThis();
     zval *zfd;
+    zend_bool *reset = SW_FALSE;
 
     if (SwooleGS->start == 0)
     {
@@ -1954,13 +1955,25 @@ PHP_METHOD(swoole_server, close)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zfd) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|b", &zfd, &reset) == FAILURE)
     {
         return;
     }
 
-    convert_to_long(zfd);
     swServer *serv = swoole_get_object(zobject);
+    convert_to_long(zfd);
+
+    //Reset send buffer, Immediately close the connection.
+    if (reset)
+    {
+        swConnection *conn = swServer_connection_verify(serv, Z_LVAL_P(zfd));
+        if (!conn)
+        {
+            RETURN_FALSE;
+        }
+        conn->close_reset = 1;
+    }
+
     SW_CHECK_RETURN(serv->factory.end(&serv->factory, Z_LVAL_P(zfd)));
 }
 

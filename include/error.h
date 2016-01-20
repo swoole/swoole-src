@@ -19,7 +19,14 @@
 
 enum swErrorCode
 {
+    /**
+     * reactor thread
+     */
     SW_ERROR_SERVER_MUST_CREATED_BEFORE_CLIENT   = 9001,
+    /**
+     * server event worker
+     */
+    SW_ERROR_SERVER_WORKER_CLOSING               = 8001,
     SW_ERROR_SESSION_CLOSED_BY_SERVER            = 1001,
     SW_ERROR_SESSION_CLOSED_BY_CLIENT            = 1002,
     SW_ERROR_OUTPUT_BUFFER_OVERFLOW              = 1003,

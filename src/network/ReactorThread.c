@@ -512,6 +512,14 @@ int swReactorThread_send(swSendData *_send)
         reactor = &(serv->reactor_threads[conn->from_id].reactor);
     }
 
+    /**
+     * Reset send buffer, Immediately close the connection.
+     */
+    if (_send->info.type == SW_EVENT_CLOSE && conn->close_reset)
+    {
+        goto close_fd;
+    }
+
     if (swBuffer_empty(conn->out_buffer))
     {
         /**
