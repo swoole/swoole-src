@@ -71,7 +71,6 @@ static sw_inline void* swReactorThread_alloc(swReactorThread *thread, uint32_t s
     //debug("%p\n", ptr);
     return ptr;
 }
-
 #endif
 
 /**
