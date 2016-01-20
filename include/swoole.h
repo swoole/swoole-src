@@ -1060,19 +1060,20 @@ static sw_inline uint64_t swoole_hton64(uint64_t host)
     high = (host >> 32) & 0xFFFFFFFF;
     low = htonl(low);
     high = htonl(high);
+
     ret = low;
     ret <<= 32;
     ret |= high;
     return ret;
 }
 
-static sw_inline uint64_t swoole_ntoh64(uint64_t host)
+static sw_inline uint64_t swoole_ntoh64(uint64_t net)
 {
     uint64_t ret = 0;
     uint32_t high, low;
 
-    low = host & 0xFFFFFFFF;
-    high = (host >> 32) & 0xFFFFFFFF;
+    low = net & 0xFFFFFFFF;
+    high = (net >> 32) & 0xFFFFFFFF;
     low = ntohl(low);
     high = ntohl(high);
     ret = low;
