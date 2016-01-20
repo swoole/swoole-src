@@ -284,6 +284,7 @@ PHP_FUNCTION(swoole_event_del);
 PHP_FUNCTION(swoole_event_write);
 PHP_FUNCTION(swoole_event_wait);
 PHP_FUNCTION(swoole_event_exit);
+PHP_FUNCTION(swoole_event_defer);
 //---------------------------------------------------------
 //                  swoole_async
 //---------------------------------------------------------

@@ -604,7 +604,7 @@ typedef void* (*swCallback)(void *);
 typedef struct _swReactor swReactor;
 
 typedef int (*swReactor_handle)(swReactor *reactor, swEvent *event);
-typedef void (*swReactor_callback)(swReactor *reactor);
+typedef void (*swReactor_callback)(swReactor *reactor, void *data);
 //------------------Pipe--------------------
 typedef struct _swPipe
 {
@@ -1150,11 +1150,12 @@ int swSignalfd_onSignal(swReactor *reactor, swEvent *event);
 #endif
 void swSignal_none(void);
 
-typedef struct _swReactor_finish_callback
+typedef struct _swReactor_defer_callback
 {
-    struct _swReactor_finish_callback *next, *prev;
+    struct _swReactor_defer_callback *next, *prev;
     swReactor_callback callback;
-} swReactor_finish_callback;
+    void *data;
+} swReactor_defer_callback;
 
 struct _swReactor
 {
@@ -1215,9 +1216,7 @@ struct _swReactor
     void (*free)(swReactor *);
 
     int (*setHandle)(swReactor *, int fdtype, swReactor_handle);
-    void (*atLoopEnd)(swReactor *, swReactor_callback);
-
-    swReactor_finish_callback *finish_callback;
+    swReactor_defer_callback *defer_callback_list;
 
     void (*onTimeout)(swReactor *);
     void (*onFinish)(swReactor *);
@@ -1226,6 +1225,7 @@ struct _swReactor
 
     int (*write)(swReactor *, int __fd, void *__buf, int __n);
     int (*close)(swReactor *, int __fd);
+    int (*defer)(swReactor *, swReactor_callback, void *data);
 };
 
 typedef struct _swWorker swWorker;

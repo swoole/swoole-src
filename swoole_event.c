@@ -33,6 +33,14 @@ typedef struct
     zval *socket;
 } swoole_reactor_fd;
 
+typedef struct
+{
+#if PHP_MAJOR_VERSION >= 7
+    zval _callback;
+#endif
+    zval *callback;
+} defer_callback;
+
 static int php_swoole_event_onRead(swReactor *reactor, swEvent *event);
 static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event);
 static int php_swoole_event_onError(swReactor *reactor, swEvent *event);
@@ -99,6 +107,32 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
         sw_zval_ptr_dtor(&retval);
     }
     return SW_OK;
+}
+
+static void php_swoole_event_onDefer(swReactor *reactor, void *_cb)
+{
+    defer_callback *defer = _cb;
+
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+
+    zval *retval;
+    if (sw_call_user_function_ex(EG(function_table), NULL, defer->callback, &retval, 0, NULL, 0, NULL TSRMLS_CC) == FAILURE)
+    {
+        swoole_php_fatal_error(E_WARNING, "swoole_event: defer handler error");
+        return;
+    }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+    }
+    if (retval != NULL)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+    sw_zval_ptr_dtor(&defer->callback);
+    efree(defer);
 }
 
 static int php_swoole_event_onError(swReactor *reactor, swEvent *event)
@@ -380,6 +414,50 @@ PHP_FUNCTION(swoole_event_write)
     }
 
     if (SwooleG.main_reactor->write(SwooleG.main_reactor, socket_fd, data, len) < 0)
+    {
+        RETURN_FALSE;
+    }
+    else
+    {
+        RETURN_TRUE;
+    }
+}
+
+PHP_FUNCTION(swoole_event_defer)
+{
+    zval *callback;
+    if (!SwooleG.main_reactor)
+    {
+        swoole_php_fatal_error(E_WARNING, "reactor no ready, cannot swoole_event_write.");
+        RETURN_FALSE;
+    }
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &callback) == FAILURE)
+    {
+        return;
+    }
+
+    char *func_name;
+    if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+    {
+        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        efree(func_name);
+        RETURN_FALSE;
+    }
+    efree(func_name);
+
+    defer_callback *defer = emalloc(sizeof(defer_callback));
+
+#if PHP_MAJOR_VERSION >= 7
+    defer->callback = &defer->callback;
+    memcpy(defer->callback, callback, sizeof(zval));
+#else
+    defer->callback = callback;
+#endif
+
+    sw_zval_add_ref(&callback);
+
+    if (SwooleG.main_reactor->defer(SwooleG.main_reactor, php_swoole_event_onDefer, defer) < 0)
     {
         RETURN_FALSE;
     }
