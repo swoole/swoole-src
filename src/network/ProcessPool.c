@@ -297,6 +297,9 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
 
     while (SwooleG.running > 0 && task_n > 0)
     {
+        /**
+         * fetch task
+         */
         if (pool->use_msgqueue)
         {
             n = swMsgQueue_pop(pool->queue, (swQueue_data *) &out, sizeof(out.buf));
@@ -314,6 +317,9 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
             }
         }
 
+        /**
+         * timer
+         */
         if (n < 0)
         {
             if (errno == EINTR && SwooleG.signal_alarm)
@@ -323,6 +329,9 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
             continue;
         }
 
+        /**
+         * do task
+         */
         SwooleWG.worker->status = SW_WORKER_BUSY;
         ret = pool->onTask(pool, &out.buf);
         SwooleWG.worker->status = SW_WORKER_IDLE;
@@ -450,3 +459,4 @@ static void swProcessPool_free(swProcessPool *pool)
         swHashMap_free(pool->map);
     }
 }
+

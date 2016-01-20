@@ -340,6 +340,7 @@ typedef unsigned char uchar;
 #endif
 
 typedef void (*swDestructor)(void *data);
+typedef void (*swCallback)(void *data);
 
 typedef struct
 {
@@ -600,11 +601,9 @@ typedef struct _swSendData
 typedef void * (*swThreadStartFunc)(void *);
 typedef int (*swHandle)(swEventData *buf);
 typedef void (*swSignalFunc)(int);
-typedef void* (*swCallback)(void *);
 typedef struct _swReactor swReactor;
 
 typedef int (*swReactor_handle)(swReactor *reactor, swEvent *event);
-typedef void (*swReactor_callback)(swReactor *reactor, void *data);
 //------------------Pipe--------------------
 typedef struct _swPipe
 {
@@ -1150,12 +1149,12 @@ int swSignalfd_onSignal(swReactor *reactor, swEvent *event);
 #endif
 void swSignal_none(void);
 
-typedef struct _swReactor_defer_callback
+typedef struct _swDefer_callback
 {
-    struct _swReactor_defer_callback *next, *prev;
-    swReactor_callback callback;
+    struct _swDefer_callback *next, *prev;
+    swCallback callback;
     void *data;
-} swReactor_defer_callback;
+} swDefer_callback;
 
 struct _swReactor
 {
@@ -1216,16 +1215,16 @@ struct _swReactor
     void (*free)(swReactor *);
 
     int (*setHandle)(swReactor *, int fdtype, swReactor_handle);
-    swReactor_defer_callback *defer_callback_list;
+    swDefer_callback *defer_callback_list;
 
     void (*onTimeout)(swReactor *);
     void (*onFinish)(swReactor *);
 
     void (*enable_accept)(swReactor *);
 
-    int (*write)(swReactor *, int __fd, void *__buf, int __n);
-    int (*close)(swReactor *, int __fd);
-    int (*defer)(swReactor *, swReactor_callback, void *data);
+    int (*write)(swReactor *, int, void *, int);
+    int (*close)(swReactor *, int);
+    int (*defer)(swReactor *, swCallback, void *);
 };
 
 typedef struct _swWorker swWorker;

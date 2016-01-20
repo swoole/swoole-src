@@ -21,7 +21,7 @@
 static void swReactor_onTimeout_and_Finish(swReactor *reactor);
 static void swReactor_onTimeout(swReactor *reactor);
 static void swReactor_onFinish(swReactor *reactor);
-static int swReactor_defer(swReactor *reactor, swReactor_callback callback, void *data);
+static int swReactor_defer(swReactor *reactor, swCallback callback, void *data);
 
 int swReactor_create(swReactor *reactor, int max_event)
 {
@@ -116,12 +116,12 @@ int swReactor_setHandle(swReactor *reactor, int _fdtype, swReactor_handle handle
     return SW_OK;
 }
 
-static int swReactor_defer(swReactor *reactor, swReactor_callback callback, void *data)
+static int swReactor_defer(swReactor *reactor, swCallback callback, void *data)
 {
-    swReactor_defer_callback *cb = sw_malloc(sizeof(swReactor_defer_callback));
+    swDefer_callback *cb = sw_malloc(sizeof(swDefer_callback));
     if (!cb)
     {
-        swWarn("malloc(%ld) failed.", sizeof(swReactor_defer_callback));
+        swWarn("malloc(%ld) failed.", sizeof(swDefer_callback));
         return SW_ERR;
     }
     cb->callback = callback;
@@ -230,10 +230,10 @@ static void swReactor_onFinish(swReactor *reactor)
         reactor->singal_no = 0;
     }
     //defer callback
-    swReactor_defer_callback *cb, *tmp;
+    swDefer_callback *cb, *tmp;
     LL_FOREACH(reactor->defer_callback_list, cb)
     {
-        cb->callback(reactor, cb->data);
+        cb->callback(cb->data);
     }
     LL_FOREACH_SAFE(reactor->defer_callback_list, cb, tmp)
     {
