@@ -444,6 +444,11 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
         if (state == 0 && *_c == '=')
         {
             klen = i - j + 1;
+            if (klen >= SW_HTTP_COOKIE_KEYLEN)
+            {
+                swWarn("cookie key is too large.");
+                return;
+            }
             memcpy(keybuf, at + j, klen - 1);
             keybuf[klen - 1] = 0;
 
@@ -502,13 +507,20 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
 
     if (strncasecmp(header_name, "cookie", client->current_header_name_len) == 0)
     {
-        zval *zcookie;
-        http_alloc_zval(client, request, zcookie);
-        array_init(zcookie);
-        zend_update_property(swoole_http_request_class_entry_ptr, client->request.zrequest_object, ZEND_STRL("cookie"), zcookie TSRMLS_CC);
+        if (length >= SW_HTTP_COOKIE_VALLEN)
+        {
+            swWarn("cookie is too large.");
+        }
+        else
+        {
+            zval *zcookie;
+            http_alloc_zval(client, request, zcookie);
+            array_init(zcookie);
+            zend_update_property(swoole_http_request_class_entry_ptr, client->request.zrequest_object, ZEND_STRL("cookie"), zcookie TSRMLS_CC);
 
-        http_parse_cookie(zcookie, at, length);
-        http_merge_php_global(zcookie, client->request.zrequest_object, HTTP_GLOBAL_COOKIE);
+            http_parse_cookie(zcookie, at, length);
+            http_merge_php_global(zcookie, client->request.zrequest_object, HTTP_GLOBAL_COOKIE);
+        }
     }
     else if (strncasecmp(header_name, ZEND_STRL("upgrade")) == 0 && strncasecmp(at, ZEND_STRL("websocket")) == 0)
     {
