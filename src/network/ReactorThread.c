@@ -834,8 +834,7 @@ int swReactorThread_create(swServer *serv)
     /**
      * init reactor thread pool
      */
-    serv->reactor_threads = SwooleG.memory_pool->alloc(SwooleG.memory_pool,
-            (serv->reactor_num * sizeof(swReactorThread)));
+    serv->reactor_threads = SwooleG.memory_pool->alloc(SwooleG.memory_pool, (serv->reactor_num * sizeof(swReactorThread)));
     if (serv->reactor_threads == NULL)
     {
         swError("calloc[reactor_threads] fail.alloc_size=%d", (int )(serv->reactor_num * sizeof(swReactorThread)));

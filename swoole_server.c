@@ -1233,6 +1233,15 @@ PHP_METHOD(swoole_server, __construct)
         serv->max_request = 0;
     }
 
+    /**
+     * create swoole server
+     */
+    if (swServer_create(serv) < 0)
+    {
+        swoole_php_fatal_error(E_ERROR, "create server failed. Error: %s", sw_error);
+        RETURN_FALSE;
+    }
+
     swTrace("Create swoole_server host=%s, port=%d, mode=%d, type=%d", serv_host, (int) serv_port, serv->factory_mode, (int) sock_type);
     bzero(php_sw_callback, sizeof (zval*) * PHP_SERVER_CALLBACK_NUM);
 
@@ -1690,13 +1699,6 @@ PHP_METHOD(swoole_server, start)
     //-------------------------------------------------------------
     serv->onReceive = php_swoole_onReceive;
     serv->ptr2 = zobject;
-
-    ret = swServer_create(serv);
-    if (ret < 0)
-    {
-        swoole_php_fatal_error(E_ERROR, "create server failed. Error: %s", sw_error);
-        RETURN_LONG(ret);
-    }
 
     /**
      * Master Process ID
