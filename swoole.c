@@ -546,6 +546,8 @@ PHP_MINIT_FUNCTION(swoole)
     INIT_CLASS_ENTRY(swoole_server_ce, "swoole_server", swoole_server_methods);
     swoole_server_class_entry_ptr = zend_register_internal_class(&swoole_server_ce TSRMLS_CC);
 
+    //zend_register_class_alias("Swoole\\Server", swoole_server_class_entry_ptr);
+
 #ifdef HAVE_PCRE
     INIT_CLASS_ENTRY(swoole_connection_iterator_ce, "swoole_connection_iterator", swoole_connection_iterator_methods);
     swoole_connection_iterator_class_entry_ptr = zend_register_internal_class(&swoole_connection_iterator_ce TSRMLS_CC);

@@ -280,6 +280,16 @@ void php_swoole_register_callback(swServer *serv)
     {
         serv->onWorkerStop = php_swoole_onWorkerStop;
     }
+    /**
+     * UDP Packet
+     */
+    if (php_sw_callback[SW_SERVER_CB_onPacket] != NULL)
+    {
+        serv->onPacket = php_swoole_onPacket;
+    }
+    /**
+     * Task Worker
+     */
     if (php_sw_callback[SW_SERVER_CB_onTask] != NULL)
     {
         serv->onTask = php_swoole_onTask;
@@ -303,11 +313,6 @@ void php_swoole_register_callback(swServer *serv)
     if (php_sw_callback[SW_SERVER_CB_onPipeMessage] != NULL)
     {
         serv->onPipeMessage = php_swoole_onPipeMessage;
-    }
-    //-------------------------------------------------------------
-    if (serv->have_udp_sock)
-    {
-        serv->onPacket = php_swoole_onPacket;
     }
 }
 
@@ -1941,7 +1946,7 @@ PHP_METHOD(swoole_server, close)
 {
     zval *zobject = getThis();
     zval *zfd;
-    zend_bool *reset = SW_FALSE;
+    zend_bool reset = SW_FALSE;
 
     if (SwooleGS->start == 0)
     {

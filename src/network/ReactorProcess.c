@@ -56,20 +56,6 @@ int swReactorProcess_start(swServer *serv)
     {
         serv->onStart(serv);
     }
-    //listen UDP
-    if (serv->have_udp_sock == 1)
-    {
-        LL_FOREACH(serv->listen_list, ls)
-        {
-            //UDP
-            if (swSocket_is_dgram(ls->type))
-            {
-                serv->connection_list[ls->sock].info.addr.inet_v4.sin_port = htons(ls->port);
-                serv->connection_list[ls->sock].fd = ls->sock;
-                serv->connection_list[ls->sock].object = ls;
-            }
-        }
-    }
 
     //listen TCP
     if (serv->have_tcp_sock == 1)
@@ -271,6 +257,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     LL_FOREACH(serv->listen_list, ls)
     {
         fdtype = swSocket_is_dgram(ls->type) ? SW_FD_UDP : SW_FD_LISTEN;
+        serv->connection_list[ls->sock].fdtype = fdtype;
+
         if (fdtype == SW_FD_UDP)
         {
             if (swServer_listen(serv, ls) < 0)
@@ -278,10 +266,6 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
                 continue;
             }
         }
-
-        serv->connection_list[ls->sock].fd = ls->sock;
-        serv->connection_list[ls->sock].socket_type = ls->type;
-        serv->connection_list[ls->sock].fdtype = fdtype;
 
 #ifdef HAVE_REUSEPORT
         if (fdtype == SW_FD_LISTEN && SwooleG.reuse_port)
