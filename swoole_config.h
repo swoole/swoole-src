@@ -29,6 +29,7 @@
 #define SW_MAX_FILE_CONTENT        (64*1024*1024) //for swoole_file_get_contents
 #define SW_MAX_LISTEN_PORT         128  //allows up to 128 ports to listen
 
+//#define SW_USE_MALLOC_TRIM
 #define SW_USE_EVENT_TIMER
 //#define SW_USE_RINGBUFFER
 

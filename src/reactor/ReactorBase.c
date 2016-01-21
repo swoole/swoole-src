@@ -208,6 +208,9 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
             reactor->running = 0;
         }
     }
+#ifdef SW_USE_MALLOC_TRIM
+    malloc_trim();
+#endif
 }
 
 static void swReactor_onTimeout(swReactor *reactor)

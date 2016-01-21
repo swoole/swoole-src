@@ -578,7 +578,7 @@ swClient* php_swoole_client_create_socket(zval *object, char *host, int host_len
         }
 
         //don't forget free it
-        cli->server_str = strdup(conn_key);
+        cli->server_str = estrdup(conn_key);
         cli->server_strlen = conn_key_len;
     }
 
@@ -659,12 +659,12 @@ static PHP_METHOD(swoole_client, __destruct)
                 {
                     swoole_php_fatal_error(E_WARNING, "delete from hashtable failed.");
                 }
-                sw_free(cli->server_str);
+                efree(cli->server_str);
                 pefree(cli, 1);
             }
             else
             {
-                sw_free(cli->server_str);
+                efree(cli->server_str);
                 efree(cli);
             }
         }
