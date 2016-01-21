@@ -440,16 +440,8 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
             {
                 zval **args[2];
                 zval *retval;
-                swWebSocket_frame frame;
-                swWebSocket_decode(&frame, buffer);
 
-                zval *zframe;
-                SW_MAKE_STD_ZVAL(zframe);
-                object_init_ex(zframe, swoole_websocket_frame_class_entry_ptr);
-
-                zend_update_property_bool(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("finish"), frame.header.FIN TSRMLS_CC);
-                zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("opcode"), frame.header.OPCODE TSRMLS_CC);
-                zend_update_property_stringl(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("data"), frame.payload,  frame.payload_length TSRMLS_CC);
+                zval *zframe = php_swoole_websocket_unpack(buffer TSRMLS_CC);
 
                 args[0] = &zobject;
                 args[1] = &zframe;

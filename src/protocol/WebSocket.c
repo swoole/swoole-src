@@ -73,25 +73,25 @@ int swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, cha
     return header_length + payload_length;
 }
 
-void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode, int fin, int isMask)
+void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode, int finish, int mask)
 {
     int pos = 0;
     char frame_header[16];
 
-    frame_header[pos++] = FRAME_SET_FIN(fin) | FRAME_SET_OPCODE(opcode);
+    frame_header[pos++] = FRAME_SET_FIN(finish) | FRAME_SET_OPCODE(opcode);
     if (length < 126)
     {
-        frame_header[pos++] = FRAME_SET_MASK(isMask) | FRAME_SET_LENGTH(length, 0);
+        frame_header[pos++] = FRAME_SET_MASK(mask) | FRAME_SET_LENGTH(length, 0);
     }
     else
     {
         if (length < 65536)
         {
-            frame_header[pos++] = FRAME_SET_MASK(isMask) | 126;
+            frame_header[pos++] = FRAME_SET_MASK(mask) | 126;
         }
         else
         {
-            frame_header[pos++] = FRAME_SET_MASK(isMask) | 127;
+            frame_header[pos++] = FRAME_SET_MASK(mask) | 127;
             frame_header[pos++] = FRAME_SET_LENGTH(length, 7);
             frame_header[pos++] = FRAME_SET_LENGTH(length, 6);
             frame_header[pos++] = FRAME_SET_LENGTH(length, 5);
@@ -103,7 +103,7 @@ void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode
         frame_header[pos++] = FRAME_SET_LENGTH(length, 0);
     }
 
-    if (isMask)
+    if (mask)
     {
         int i;
         char masks[SW_WEBSOCKET_MASK_LEN];
