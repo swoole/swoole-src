@@ -104,15 +104,18 @@ function long_tcp(Swoole_Benchmark $bc)
 		}
 		$start = $end;
 	}
-	/*--------写入Sokcet-------*/
-	if(!$fp->send($bc->send_data))
-	{
-		goto error;
-	}
-	$end = microtime(true);
-	$write_use = $end - $start;
-	if($write_use > $bc->max_write_time) $bc->max_write_time = $write_use;
-	$start = $end;
+    /*--------写入Sokcet-------*/
+    if (!$fp->send($bc->send_data))
+    {
+        goto error;
+    }
+    $end = microtime(true);
+    $write_use = $end - $start;
+    if ($write_use > $bc->max_write_time)
+    {
+        $bc->max_write_time = $write_use;
+    }
+    $start = $end;
 	/*--------读取Sokcet-------*/
 	while(true)
 	{
@@ -122,17 +125,20 @@ function long_tcp(Swoole_Benchmark $bc)
 			break;
 		}
 	}
-	//var_dump($ret);
-	$i++;
-	if (empty($ret))
-	{
-		echo $bc->pid,"#$i@"," is lost\n";
-		return false;
-	}
-	$end = microtime(true);
-	$read_use = $end - $start;
-	if($read_use>$bc->max_read_time) $bc->max_read_time = $read_use;
-	return true;
+    //var_dump($ret);
+    $i++;
+    if (empty($ret))
+    {
+        echo $bc->pid, "#$i@", " is lost\n";
+        return false;
+    }
+    $end = microtime(true);
+    $read_use = $end - $start;
+    if ($read_use > $bc->max_read_time)
+    {
+        $bc->max_read_time = $read_use;
+    }
+    return true;
 }
 
 function websocket(Swoole_Benchmark $bc)
@@ -260,7 +266,7 @@ function short_tcp($bc)
 	if(!$fp->connect($bc->server_config['host'], $bc->server_config['port'], 1))
 	{
 		error:
-		echo "Error: {$fp->errMsg}[{$fp->errCode}]\n";
+		echo "Error: ".socket_strerror($fp->errCode)."[{$fp->errCode}]\n";
 		return false;
 	}
 	else
@@ -274,7 +280,6 @@ function short_tcp($bc)
 		if(!empty($ret)) return true;
 		else return false;
 	}
-	usleep(100);
 }
 //请求数量最好是进程数的倍数
 $bc->process_req_num = intval($bc->request_num/$bc->process_num);

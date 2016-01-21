@@ -1,9 +1,9 @@
 <?php
-//$serv = new swoole_server("0.0.0.0", 9502, SWOOLE_BASE, SWOOLE_SOCK_UDP);
-$serv = new swoole_server("0.0.0.0", 9502, SWOOLE_PROCESS, SWOOLE_SOCK_UDP);
+$serv = new swoole_server("0.0.0.0", 9502, SWOOLE_BASE, SWOOLE_SOCK_UDP);
+//$serv = new swoole_server("0.0.0.0", 9502, SWOOLE_PROCESS, SWOOLE_SOCK_UDP);
 $serv->set(array(
-	'dispatch_mode' => 1,
-//    'worker_num' => 1,    //worker process num
+    'dispatch_mode' => 1,
+    'worker_num' => 4,    //worker process num
 //    //'log_file' => '/tmp/swoole.log',
 //    //'daemonize' => true,
 ));
@@ -22,7 +22,6 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 	$serv->send($fd, 'Swoole: ' . $data, $from_id);
 }
 
-
 function my_onPacket(swoole_server $serv, $data, $addr)
 {
 //    var_dump($addr);
@@ -30,7 +29,7 @@ function my_onPacket(swoole_server $serv, $data, $addr)
 }
 
 $serv->on('Start', 'my_onStart');
-//$serv->on('Receive', 'my_onReceive');
-$serv->on('Packet', 'my_onPacket');
+$serv->on('Receive', 'my_onReceive');
+//$serv->on('Packet', 'my_onPacket');
 $serv->start();
 
