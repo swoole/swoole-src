@@ -37,8 +37,6 @@ void swTaskWorker_init(swProcessPool *pool)
     {
         swWarn("create task tmp dir failed.");
     }
-    free(tmp_dir);
-
     if (SwooleG.task_ipc_mode == SW_TASK_IPC_PREEMPTIVE)
     {
         pool->dispatch_mode = SW_DISPATCH_QUEUE;

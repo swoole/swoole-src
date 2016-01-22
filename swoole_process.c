@@ -555,7 +555,7 @@ static PHP_METHOD(swoole_process, read)
 
     if (process->pipe == 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "have not pipe, can not use write()");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "have not pipe, can not use read()");
         RETURN_FALSE;
     }
 
