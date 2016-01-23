@@ -788,11 +788,19 @@ static int multipart_body_on_data_end(multipart_parser* p)
 				array_init(array_value);
 				
 				add_assoc_zval(zpost, name, array_value);
+#if PHP_MAJOR_VERSION < 7
+				add_next_index_string(array_value, swoole_http_form_data_buffer->str,1);
+#else
 				add_next_index_string(array_value, swoole_http_form_data_buffer->str);
+#endif
 			}
 			else
 			{
+#if PHP_MAJOR_VERSION < 7
+				add_next_index_string(array_value, swoole_http_form_data_buffer->str,1);
+#else
 				add_next_index_string(array_value, swoole_http_form_data_buffer->str);
+#endif
 			}
 		}
 		else
