@@ -775,9 +775,32 @@ static int multipart_body_on_data_end(multipart_parser* p)
             zend_update_property(swoole_http_request_class_entry_ptr, client->request.zrequest_object, ZEND_STRL("post"), zpost TSRMLS_CC);
         }
 
-        sw_add_assoc_stringl_ex(zpost, client->current_form_data_name, client->current_form_data_name_len + 1,
-                swoole_http_form_data_buffer->str, swoole_http_form_data_buffer->length, 1);
+		char *name = client->current_form_data_name;
+		int len = client->current_form_data_name_len;
 
+		if ((name[len-1] == ']') && (name[len-2] == '['))
+		{
+				zval *array_value;
+
+				if (sw_zend_hash_find(Z_ARRVAL_P(zpost), name, len + 1, (void **) &array_value) == FAILURE)
+				{
+						SW_MAKE_STD_ZVAL(array_value);
+						array_init(array_value);
+
+						add_assoc_zval(zpost, name, array_value);
+						add_next_index_string(array_value, swoole_http_form_data_buffer->str);
+				}
+				else
+				{
+						add_next_index_string(array_value, swoole_http_form_data_buffer->str);
+				}
+		}
+		else
+		{
+				sw_add_assoc_stringl_ex(zpost, client->current_form_data_name, client->current_form_data_name_len + 1,
+						swoole_http_form_data_buffer->str, swoole_http_form_data_buffer->length, 1);
+		}
+		
         efree(client->current_form_data_name);
         client->current_form_data_name = NULL;
         client->current_form_data_name_len = 0;
