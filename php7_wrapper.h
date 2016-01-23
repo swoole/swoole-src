@@ -47,8 +47,8 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 #define SW_ZEND_FETCH_RESOURCE                ZEND_FETCH_RESOURCE
 #define SW_ZEND_REGISTER_RESOURCE             ZEND_REGISTER_RESOURCE
 #define SW_MAKE_STD_ZVAL(p)                   MAKE_STD_ZVAL(p)
-#define SW_ZVAL_STRING                        ZVAL_STRING
 #define SW_ALLOC_INIT_ZVAL(p)                 ALLOC_INIT_ZVAL(p)
+#define SW_ZVAL_STRING                        ZVAL_STRING
 #define SW_RETVAL_STRINGL                     RETVAL_STRINGL
 #define sw_smart_str                          smart_str
 #define sw_php_var_unserialize                php_var_unserialize
@@ -188,7 +188,7 @@ static inline char* sw_php_format_date(char *format, size_t format_len, time_t t
     return return_str;
 }
 
-static inline char * sw_php_url_encode(char *value, size_t value_len, int* exten)
+static sw_inline char* sw_php_url_encode(char *value, size_t value_len, int* exten)
 {
     zend_string *str = php_url_encode(value, value_len);
     *exten = str->len;
@@ -202,15 +202,22 @@ static inline char * sw_php_url_encode(char *value, size_t value_len, int* exten
 
 #define sw_zval_add_ref(p)   Z_TRY_ADDREF_P(*p)
 #define sw_zval_ptr_dtor(p)  zval_ptr_dtor(*p)
-#define sw_call_user_function_ex(function_table, object_pp, function_name, retval_ptr_ptr, param_count, params, no_separation, ymbol_table)\
-    ({zval  real_params[param_count];\
-    int i=0;\
-    for(;i<param_count;i++){\
-       real_params[i] = **params[i];\
-    }\
-    zval phpng_retval;\
-    *retval_ptr_ptr = &phpng_retval;\
-    call_user_function_ex(function_table,NULL,function_name,&phpng_retval,param_count,real_params,no_separation,NULL);})
+
+#define SW_PHP_MAX_PARAMS_NUM     20
+
+static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval** object_pp, zval *function_name, zval **retval_ptr_ptr, uint32_t param_count, zval ***params, int no_separation, HashTable* ymbol_table)
+{
+    zval real_params[SW_PHP_MAX_PARAMS_NUM];
+    int i = 0;
+    for (; i < param_count; i++)
+    {
+        real_params[i] = **params[i];
+    }
+    zval phpng_retval;
+    *retval_ptr_ptr = &phpng_retval;
+    zval *object_p = (object_pp == NULL) ? NULL : *object_pp;
+    return call_user_function_ex(function_table, object_p, function_name, &phpng_retval, param_count, real_params, no_separation, NULL);
+}
 
 #define sw_php_var_unserialize(rval, p, max, var_hash)  php_var_unserialize(*rval, p, max, var_hash)
 #define SW_MAKE_STD_ZVAL(p)             zval _stack_zval_##p; p = &(_stack_zval_##p)
@@ -226,7 +233,7 @@ static inline char * sw_php_url_encode(char *value, size_t value_len, int* exten
 #define sw_add_assoc_string(array, key, value, duplicate)   add_assoc_string(array, key, value)
 #define sw_zend_hash_copy(target,source,pCopyConstructor,tmp,size) zend_hash_copy(target,source,pCopyConstructor)
 #define sw_zend_register_internal_class_ex(entry,parent_ptr,str)    zend_register_internal_class_ex(entry,parent_ptr)
-#define sw_zend_call_method_with_1_params(obj, ptr, what, method, retval, v1)          zend_call_method_with_1_params(*obj,ptr,what,method,*retval,v1)
+#define sw_zend_call_method_with_1_params(obj, ptr, what, method, retval, v1)           zend_call_method_with_1_params(*obj,ptr,what,method,*retval,v1)
 #define sw_zend_call_method_with_2_params(obj, ptr, what, method, retval, name, cb)     zend_call_method_with_2_params(*obj,ptr,what,method,*retval,name,cb)
 #define SW_ZVAL_STRINGL(z, s, l, dup)         ZVAL_STRINGL(z, s, l)
 #define SW_ZVAL_STRING(z,s,dup)               ZVAL_STRING(z,s)

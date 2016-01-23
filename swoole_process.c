@@ -127,6 +127,13 @@ static PHP_METHOD(swoole_process, __construct)
     long create_pipe = 1;
     zval *callback;
 
+    //only cli env
+    if (strcasecmp("cli", sapi_module.name) != 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_process must run at php_cli environment.");
+        RETURN_FALSE;
+    }
+
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|bl", &callback, &redirect_stdin_and_stdout, &create_pipe) == FAILURE)
     {
         RETURN_FALSE;
@@ -548,7 +555,7 @@ static PHP_METHOD(swoole_process, read)
 
     if (process->pipe == 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "have not pipe, can not use write()");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "have not pipe, can not use read()");
         RETURN_FALSE;
     }
 

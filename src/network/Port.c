@@ -290,9 +290,8 @@ void swPort_set_protocol(swListenPort *ls)
 
 static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *event)
 {
-    int ret, n;
+    int ret = 0, n;
     swServer *serv = reactor->ptr;
-    swFactory *factory = &(serv->factory);
     swDispatchData task;
     swConnection *conn = swServer_connection_get(serv, event->fd);
 
@@ -333,27 +332,14 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
         task.target_worker_id = -1;
 
 #ifdef SW_USE_RINGBUFFER
-        swPackage package;
         if (serv->factory_mode == SW_MODE_PROCESS)
         {
-            uint16_t target_worker_id = swServer_worker_schedule(serv, conn->fd);
-            package.length = task.data.info.len;
-            package.data = swReactorThread_alloc(&serv->reactor_threads[SwooleTG.id], package.length);
-            task.data.info.type = SW_EVENT_PACKAGE;
-
-            memcpy(package.data, task.data.data, task.data.info.len);
-            task.data.info.len = sizeof(package);
-            task.target_worker_id = target_worker_id;
-            memcpy(task.data.data, &package, sizeof(package));
+            ret = swReactorThread_dispatch(conn, task.data.data, task.data.info.len);
         }
-#endif
-        //dispatch to worker process
-        ret = factory->dispatch(factory, &task);
-#ifdef SW_USE_RINGBUFFER
-        if (ret < 0)
+        else
+#else
         {
-            swMemoryPool *pool = serv->reactor_threads[SwooleTG.id].buffer_input;
-            pool->free(pool, package.data);
+            ret = serv->factory.dispatch(&serv->factory, &task);
         }
 #endif
         return ret;

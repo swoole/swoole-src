@@ -29,6 +29,7 @@
 #define SW_MAX_FILE_CONTENT        (64*1024*1024) //for swoole_file_get_contents
 #define SW_MAX_LISTEN_PORT         128  //allows up to 128 ports to listen
 
+//#define SW_USE_MALLOC_TRIM
 #define SW_USE_EVENT_TIMER
 //#define SW_USE_RINGBUFFER
 
@@ -218,7 +219,7 @@
 #define SW_HTTP_BAD_REQUEST              "<h1>400 Bad Request</h1>\r\n"
 #define SW_HTTP_PARAM_MAX_NUM            128
 #define SW_HTTP_COOKIE_KEYLEN            128
-#define SW_HTTP_COOKIE_VALLEN            2048
+#define SW_HTTP_COOKIE_VALLEN            4096
 #define SW_HTTP_RESPONSE_INIT_SIZE       65536
 #define SW_HTTP_HEADER_MAX_SIZE          8192
 #define SW_HTTP_COMPRESS_GZIP

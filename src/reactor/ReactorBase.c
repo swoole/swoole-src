@@ -21,7 +21,7 @@
 static void swReactor_onTimeout_and_Finish(swReactor *reactor);
 static void swReactor_onTimeout(swReactor *reactor);
 static void swReactor_onFinish(swReactor *reactor);
-static void swReactor_atLoopEnd(swReactor *reactor, swReactor_callback callback);
+static int swReactor_defer(swReactor *reactor, swCallback callback, void *data);
 
 int swReactor_create(swReactor *reactor, int max_event)
 {
@@ -54,12 +54,12 @@ int swReactor_create(swReactor *reactor, int max_event)
     reactor->running = 1;
 
     reactor->setHandle = swReactor_setHandle;
-    reactor->atLoopEnd = swReactor_atLoopEnd;
 
     reactor->onFinish = swReactor_onFinish;
     reactor->onTimeout = swReactor_onTimeout;
 
     reactor->write = swReactor_write;
+    reactor->defer = swReactor_defer;
     reactor->close = swReactor_close;
 
     reactor->socket_array = swArray_new(1024, sizeof(swConnection));
@@ -116,15 +116,18 @@ int swReactor_setHandle(swReactor *reactor, int _fdtype, swReactor_handle handle
     return SW_OK;
 }
 
-static void swReactor_atLoopEnd(swReactor *reactor, swReactor_callback callback)
+static int swReactor_defer(swReactor *reactor, swCallback callback, void *data)
 {
-    swReactor_finish_callback *cb = sw_malloc(sizeof(swReactor_finish_callback));
+    swDefer_callback *cb = sw_malloc(sizeof(swDefer_callback));
     if (!cb)
     {
-        return;
+        swWarn("malloc(%ld) failed.", sizeof(swDefer_callback));
+        return SW_ERR;
     }
     cb->callback = callback;
-    LL_APPEND(reactor->finish_callback, cb);
+    cb->data = data;
+    LL_APPEND(reactor->defer_callback_list, cb);
+    return SW_OK;
 }
 
 swConnection* swReactor_get(swReactor *reactor, int fd)
@@ -193,11 +196,6 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     {
         swoole_update_time();
     }
-    swReactor_finish_callback *cb;
-    LL_FOREACH(reactor->finish_callback, cb)
-    {
-        cb->callback(reactor);
-    }
     //client exit
     if (SwooleG.serv == NULL && SwooleG.timer.num <= 0)
     {
@@ -210,6 +208,9 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
             reactor->running = 0;
         }
     }
+#ifdef SW_USE_MALLOC_TRIM
+    malloc_trim();
+#endif
 }
 
 static void swReactor_onTimeout(swReactor *reactor)
@@ -231,6 +232,17 @@ static void swReactor_onFinish(swReactor *reactor)
         swSignal_callback(reactor->singal_no);
         reactor->singal_no = 0;
     }
+    //defer callback
+    swDefer_callback *cb, *tmp;
+    LL_FOREACH(reactor->defer_callback_list, cb)
+    {
+        cb->callback(cb->data);
+    }
+    LL_FOREACH_SAFE(reactor->defer_callback_list, cb, tmp)
+    {
+        sw_free(cb);
+    }
+    reactor->defer_callback_list = NULL;
     swReactor_onTimeout_and_Finish(reactor);
 }
 

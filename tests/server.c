@@ -39,12 +39,19 @@ swUnitTest(server_test)
 	//strncpy(argv[0], "SwooleServer", 127);
 
 	//config
-
 	serv.reactor_num = 2;
 	serv.worker_num = 4;
 	serv.factory_mode = 3;
 	serv.open_cpu_affinity = 1;
 	serv.daemonize = 1;
+
+    //create Server
+    ret = swServer_create(&serv);
+    if (ret < 0)
+    {
+        swTrace("create server fail[error=%d].\n", ret);
+        exit(0);
+    }
 
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9500);
     swListenPort *port = swServer_add_port(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
@@ -61,13 +68,6 @@ swUnitTest(server_test)
 	serv.onReceive = my_onReceive;
 	serv.onClose = my_onClose;
 
-	//create Server
-	ret = swServer_create(&serv);
-	if (ret < 0)
-	{
-		swTrace("create server fail[error=%d].\n", ret);
-		exit(0);
-	}
 	ret = swServer_start(&serv);
 	if (ret < 0)
 	{

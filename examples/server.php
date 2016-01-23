@@ -55,23 +55,23 @@ if (isset($argv[1]) and $argv[1] == 'daemon') {
 $mode = SWOOLE_BASE;
 //$mode = SWOOLE_PROCESS;
 
-$serv = new swoole_server("0.0.0.0", 9501, $mode);
+$serv = new swoole_server("0.0.0.0", 9501, $mode, SWOOLE_SOCK_TCP);
 //$serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
 //$serv->addlistener('::', 9503, SWOOLE_SOCK_TCP6);
 //$serv->addlistener('::', 9504, SWOOLE_SOCK_UDP6);
-$process1 = new swoole_process(function ($worker) use ($serv) {
-    global $argv;
-    swoole_set_process_name("php {$argv[0]}: my_process1");
-    swoole_timer_tick(2000, function ($interval) use ($worker, $serv) {
-        echo "#{$worker->pid} child process timer $interval\n"; // 如果worker中没有定时器，则会输出 process timer xxx
-//        foreach ($serv->connections as $conn)
-//        {
-//            $serv->send($conn, "heartbeat\n");
-//        }
-    });
-}, false);
+//$process1 = new swoole_process(function ($worker) use ($serv) {
+//    global $argv;
+//    swoole_set_process_name("php {$argv[0]}: my_process1");
+//    swoole_timer_tick(2000, function ($interval) use ($worker, $serv) {
+//        echo "#{$worker->pid} child process timer $interval\n"; // 如果worker中没有定时器，则会输出 process timer xxx
+////        foreach ($serv->connections as $conn)
+////        {
+////            $serv->send($conn, "heartbeat\n");
+////        }
+//    });
+//}, false);
 
-$serv->addprocess($process1);
+//$serv->addprocess($process1);
 $serv->set(G::$config);
 /**
  * 保存数据到对象属性，在任意位置均可访问
@@ -311,7 +311,7 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     elseif($cmd == "stats")
     {
         $serv_stats = $serv->stats();
-        $serv->send($fd, 'Stats: '.var_export($serv_stats, true).PHP_EOL);
+        $serv->send($fd, 'Stats: '.var_export($serv_stats, true)."\ncount=".count($serv->connections).PHP_EOL);
     }
     elseif($cmd == "broadcast")
     {
@@ -341,6 +341,16 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
         $buffer = G::getBuffer($fd);
         $buffer->append("hello\n");
         $serv->send($fd, $buffer);
+    }
+    elseif($cmd == 'defer')
+    {
+        $serv->defer(function() use ($fd, $serv) {
+            $serv->close($fd);
+            $serv->defer(function(){
+                echo "deferd\n";
+            });
+        });
+        $serv->send($fd, 'Swoole: '.$data, $from_id);
     }
     else
     {

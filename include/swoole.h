@@ -340,6 +340,7 @@ typedef unsigned char uchar;
 #endif
 
 typedef void (*swDestructor)(void *data);
+typedef void (*swCallback)(void *data);
 
 typedef struct
 {
@@ -431,6 +432,7 @@ typedef struct _swConnection
     uint32_t closed :1;
     uint32_t closing :1;
     uint32_t close_force :1;
+    uint32_t close_reset :1;
 
     uint32_t removed :1;
     uint32_t overflow :1;
@@ -600,11 +602,9 @@ typedef struct _swSendData
 typedef void * (*swThreadStartFunc)(void *);
 typedef int (*swHandle)(swEventData *buf);
 typedef void (*swSignalFunc)(int);
-typedef void* (*swCallback)(void *);
 typedef struct _swReactor swReactor;
 
 typedef int (*swReactor_handle)(swReactor *reactor, swEvent *event);
-typedef void (*swReactor_callback)(swReactor *reactor);
 //------------------Pipe--------------------
 typedef struct _swPipe
 {
@@ -1060,19 +1060,20 @@ static sw_inline uint64_t swoole_hton64(uint64_t host)
     high = (host >> 32) & 0xFFFFFFFF;
     low = htonl(low);
     high = htonl(high);
+
     ret = low;
     ret <<= 32;
     ret |= high;
     return ret;
 }
 
-static sw_inline uint64_t swoole_ntoh64(uint64_t host)
+static sw_inline uint64_t swoole_ntoh64(uint64_t net)
 {
     uint64_t ret = 0;
     uint32_t high, low;
 
-    low = host & 0xFFFFFFFF;
-    high = (host >> 32) & 0xFFFFFFFF;
+    low = net & 0xFFFFFFFF;
+    high = (net >> 32) & 0xFFFFFFFF;
     low = ntohl(low);
     high = ntohl(high);
     ret = low;
@@ -1149,11 +1150,12 @@ int swSignalfd_onSignal(swReactor *reactor, swEvent *event);
 #endif
 void swSignal_none(void);
 
-typedef struct _swReactor_finish_callback
+typedef struct _swDefer_callback
 {
-    struct _swReactor_finish_callback *next, *prev;
-    swReactor_callback callback;
-} swReactor_finish_callback;
+    struct _swDefer_callback *next, *prev;
+    swCallback callback;
+    void *data;
+} swDefer_callback;
 
 struct _swReactor
 {
@@ -1214,17 +1216,16 @@ struct _swReactor
     void (*free)(swReactor *);
 
     int (*setHandle)(swReactor *, int fdtype, swReactor_handle);
-    void (*atLoopEnd)(swReactor *, swReactor_callback);
-
-    swReactor_finish_callback *finish_callback;
+    swDefer_callback *defer_callback_list;
 
     void (*onTimeout)(swReactor *);
     void (*onFinish)(swReactor *);
 
     void (*enable_accept)(swReactor *);
 
-    int (*write)(swReactor *, int __fd, void *__buf, int __n);
-    int (*close)(swReactor *, int __fd);
+    int (*write)(swReactor *, int, void *, int);
+    int (*close)(swReactor *, int);
+    int (*defer)(swReactor *, swCallback, void *);
 };
 
 typedef struct _swWorker swWorker;

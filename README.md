@@ -2,7 +2,7 @@ Swoole
 ======
 [![Build Status](https://api.travis-ci.org/swoole/swoole-src.svg)](https://travis-ci.org/swoole/swoole-src)
 
-Swoole is an event-based & concurrent framework for internet applications, written in C, for PHP.
+Swoole is an event-driven asynchronous & concurrent networking communication framework with high performance written only in C for PHP.
 
 __Document__: <https://rawgit.com/tchiotludo/swoole-ide-helper/english/docs/index.html>
 
@@ -28,7 +28,7 @@ With the synchronous logic execution, you can easily write large and robust appl
 in-memory
 ------
 
-Unlike traditional apache/php-fpm stuff, the memory allocated in Swoole will not be free'd after a request, which can improve preformance a lot.
+Unlike traditional apache/php-fpm stuff, the memory allocated in Swoole will not be free'd after a request, which can improve performance a lot.
 
 
 ## Why Swoole?

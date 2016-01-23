@@ -751,4 +751,3 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     php_swoole_try_run_reactor();
 #endif
 }
-

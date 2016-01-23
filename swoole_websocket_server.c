@@ -48,6 +48,8 @@ static zval* websocket_callbacks[2];
 static PHP_METHOD(swoole_websocket_server, on);
 static PHP_METHOD(swoole_websocket_server, push);
 static PHP_METHOD(swoole_websocket_server, exist);
+static PHP_METHOD(swoole_websocket_server, pack);
+static PHP_METHOD(swoole_websocket_server, unpack);
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_on, 0, 0, 2)
     ZEND_ARG_INFO(0, event_name)
@@ -61,6 +63,17 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_push, 0, 0, 2)
     ZEND_ARG_INFO(0, finish)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_pack, 0, 0, 1)
+    ZEND_ARG_INFO(0, data)
+    ZEND_ARG_INFO(0, opcode)
+    ZEND_ARG_INFO(0, finish)
+    ZEND_ARG_INFO(0, mask)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_unpack, 0, 0, 1)
+    ZEND_ARG_INFO(0, data)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_exist, 0, 0, 1)
     ZEND_ARG_INFO(0, fd)
 ZEND_END_ARG_INFO()
@@ -70,6 +83,8 @@ const zend_function_entry swoole_websocket_server_methods[] =
     PHP_ME(swoole_websocket_server, on,         arginfo_swoole_websocket_server_on, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_websocket_server, push,       arginfo_swoole_websocket_server_push, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_websocket_server, exist,      arginfo_swoole_websocket_server_exist, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_websocket_server, pack,       arginfo_swoole_websocket_server_pack, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_websocket_server, unpack,     arginfo_swoole_websocket_server_unpack, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
@@ -299,6 +314,22 @@ void swoole_websocket_init(int module_number TSRMLS_DC)
     REGISTER_LONG_CONSTANT("WEBSOCKET_STATUS_ACTIVE", WEBSOCKET_STATUS_ACTIVE, CONST_CS | CONST_PERSISTENT);
 }
 
+zval* php_swoole_websocket_unpack(swString *data TSRMLS_DC)
+{
+    swWebSocket_frame frame;
+    swWebSocket_decode(&frame, data);
+
+    zval *zframe;
+    SW_MAKE_STD_ZVAL(zframe);
+    object_init_ex(zframe, swoole_websocket_frame_class_entry_ptr);
+
+    zend_update_property_bool(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("finish"), frame.header.FIN TSRMLS_CC);
+    zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("opcode"), frame.header.OPCODE TSRMLS_CC);
+    zend_update_property_stringl(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("data"), frame.payload,  frame.payload_length TSRMLS_CC);
+
+    return zframe;
+}
+
 static PHP_METHOD( swoole_websocket_server, on)
 {
     zval *callback;
@@ -397,6 +428,59 @@ static PHP_METHOD(swoole_websocket_server, push)
     swString_clear(swoole_http_buffer);
     swWebSocket_encode(swoole_http_buffer, data, length, opcode, (int) fin, 0);
     SW_CHECK_RETURN(swServer_tcp_send(SwooleG.serv, fd, swoole_http_buffer->str, swoole_http_buffer->length));
+}
+
+static PHP_METHOD(swoole_websocket_server, pack)
+{
+    char *data;
+    zend_size_t length;
+    long opcode = WEBSOCKET_OPCODE_TEXT_FRAME;
+    zend_bool finish = 1;
+    zend_bool mask = 0;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|lbb", &data, &length, &opcode, &finish, &mask) == FAILURE)
+    {
+        return;
+    }
+
+    if (opcode > WEBSOCKET_OPCODE_PONG)
+    {
+        swoole_php_fatal_error(E_WARNING, "opcode max 10");
+        RETURN_FALSE;
+    }
+
+    if (length <= 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "data is empty.");
+    }
+
+    if (swoole_http_buffer == NULL)
+    {
+        swoole_http_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
+        if (!swoole_http_buffer)
+        {
+            swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
+            RETURN_FALSE;
+        }
+    }
+
+    swString_clear(swoole_http_buffer);
+    swWebSocket_encode(swoole_http_buffer, data, length, opcode, (int) finish, mask);
+    SW_RETURN_STRINGL(swoole_http_buffer->str, swoole_http_buffer->length, 1);
+}
+
+static PHP_METHOD(swoole_websocket_server, unpack)
+{
+    swString buffer;
+    bzero(&buffer, sizeof(buffer));
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &buffer.str, &buffer.length) == FAILURE)
+    {
+        return;
+    }
+
+    zval *zframe = php_swoole_websocket_unpack(&buffer TSRMLS_CC);
+    RETURN_ZVAL(zframe, 1, 0);
 }
 
 static PHP_METHOD(swoole_websocket_server, exist)

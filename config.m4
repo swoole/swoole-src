@@ -35,6 +35,12 @@ PHP_ARG_ENABLE(async_httpclient, enable async_httpclient support,
 PHP_ARG_ENABLE(openssl, enable openssl support,
 [  --enable-openssl        Use openssl?], no, no)
 
+PHP_ARG_ENABLE(jemalloc, enable jemalloc support,
+[  --enable-jemalloc        Use jemalloc?], no, no)
+
+PHP_ARG_ENABLE(tcmalloc, enable tcmalloc support,
+[  --enable-tcmalloc        Use tcmalloc?], no, no)
+
 PHP_ARG_WITH(swoole, swoole support,
 [  --with-swoole           With swoole support])
 
@@ -175,7 +181,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(c, timerfd_create, AC_DEFINE(HAVE_TIMERFD, 1, [have timerfd]))
     AC_CHECK_LIB(c, eventfd, AC_DEFINE(HAVE_EVENTFD, 1, [have eventfd]))
     AC_CHECK_LIB(c, epoll_create, AC_DEFINE(HAVE_EPOLL, 1, [have epoll]))
-	  AC_CHECK_LIB(c, sendfile,PGSQL_INCLUDE AC_DEFINE(HAVE_SENDFILE, 1, [have sendfile]))
+	AC_CHECK_LIB(c, sendfile,PGSQL_INCLUDE AC_DEFINE(HAVE_SENDFILE, 1, [have sendfile]))
     AC_CHECK_LIB(c, kqueue, AC_DEFINE(HAVE_KQUEUE, 1, [have kqueue]))
     AC_CHECK_LIB(c, daemon, AC_DEFINE(HAVE_DAEMON, 1, [have daemon]))
     AC_CHECK_LIB(c, mkostemp, AC_DEFINE(HAVE_MKOSTEMP, 1, [have mkostemp]))
@@ -183,7 +189,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(c, inotify_init1, AC_DEFINE(HAVE_INOTIFY_INIT1, 1, [have inotify_init1]))
     AC_CHECK_LIB(pthread, pthread_rwlock_init, AC_DEFINE(HAVE_RWLOCK, 1, [have pthread_rwlock_init]))
     AC_CHECK_LIB(pthread, pthread_spin_lock, AC_DEFINE(HAVE_SPINLOCK, 1, [have pthread_spin_lock]))
-	  AC_CHECK_LIB(pthread, pthread_mutex_timedlock, AC_DEFINE(HAVE_MUTEX_TIMEDLOCK, 1, [have pthread_mutex_timedlock]))
+	AC_CHECK_LIB(pthread, pthread_mutex_timedlock, AC_DEFINE(HAVE_MUTEX_TIMEDLOCK, 1, [have pthread_mutex_timedlock]))
     AC_CHECK_LIB(pthread, pthread_barrier_init, AC_DEFINE(HAVE_PTHREAD_BARRIER, 1, [have pthread_barrier_init]))
     AC_CHECK_LIB(ssl, SSL_library_init, AC_DEFINE(HAVE_OPENSSL, 1, [have openssl]))
     AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
@@ -215,6 +221,12 @@ if test "$PHP_SWOOLE" != "no"; then
     if test "$PHP_ASYNC_REDIS" = "yes"; then
         AC_DEFINE(SW_USE_REDIS, 1, [enable async-redis support])
         PHP_ADD_LIBRARY(hiredis, 1, SWOOLE_SHARED_LIBADD)
+    fi
+    
+    if test "$PHP_JEMALLOC" = "yes"; then
+        PHP_ADD_LIBRARY(jemalloc, 1, SWOOLE_SHARED_LIBADD)
+    elif test "$PHP_TCMALLOC" = "yes"; then
+    	PHP_ADD_LIBRARY(tcmalloc, 1, SWOOLE_SHARED_LIBADD)
     fi
 
     swoole_source_file="swoole.c \

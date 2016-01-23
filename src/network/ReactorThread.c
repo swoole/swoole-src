@@ -71,7 +71,6 @@ static sw_inline void* swReactorThread_alloc(swReactorThread *thread, uint32_t s
     //debug("%p\n", ptr);
     return ptr;
 }
-
 #endif
 
 /**
@@ -513,6 +512,14 @@ int swReactorThread_send(swSendData *_send)
         reactor = &(serv->reactor_threads[conn->from_id].reactor);
     }
 
+    /**
+     * Reset send buffer, Immediately close the connection.
+     */
+    if (_send->info.type == SW_EVENT_CLOSE && conn->close_reset)
+    {
+        goto close_fd;
+    }
+
     if (swBuffer_empty(conn->out_buffer))
     {
         /**
@@ -827,8 +834,7 @@ int swReactorThread_create(swServer *serv)
     /**
      * init reactor thread pool
      */
-    serv->reactor_threads = SwooleG.memory_pool->alloc(SwooleG.memory_pool,
-            (serv->reactor_num * sizeof(swReactorThread)));
+    serv->reactor_threads = SwooleG.memory_pool->alloc(SwooleG.memory_pool, (serv->reactor_num * sizeof(swReactorThread)));
     if (serv->reactor_threads == NULL)
     {
         swError("calloc[reactor_threads] fail.alloc_size=%d", (int )(serv->reactor_num * sizeof(swReactorThread)));

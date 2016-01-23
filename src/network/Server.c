@@ -998,37 +998,40 @@ int swServer_listen(swServer *serv, swListenPort *ls)
         return SW_ERR;
     }
 
+    ls->sock = sock;
+    //save server socket to connection_list
+    serv->connection_list[sock].fd = sock;
+    //socket type
+    serv->connection_list[sock].socket_type = ls->type;
+    //save listen_host object
+    serv->connection_list[sock].object = ls;
+
     if (swSocket_is_dgram(ls->type))
     {
         if (ls->type == SW_SOCK_UDP)
         {
             SwooleG.serv->udp_socket_ipv4 = sock;
+            serv->connection_list[sock].info.addr.inet_v4.sin_port = htons(ls->port);
         }
         else if (ls->type == SW_SOCK_UDP6)
         {
             SwooleG.serv->udp_socket_ipv6 = sock;
+            serv->connection_list[sock].info.addr.inet_v6.sin6_port = htons(ls->port);
         }
-        return SW_OK;
     }
-
-    ls->sock = sock;
-    //save server socket to connection_list
-    serv->connection_list[sock].fd = sock;
-
-    //IPv4
-    if (ls->type == SW_SOCK_TCP)
-    {
-        serv->connection_list[sock].info.addr.inet_v4.sin_port = htons(ls->port);
-    }
-    //IPv6
     else
     {
-        serv->connection_list[sock].info.addr.inet_v6.sin6_port = htons(ls->port);
+        //IPv4
+        if (ls->type == SW_SOCK_TCP)
+        {
+            serv->connection_list[sock].info.addr.inet_v4.sin_port = htons(ls->port);
+        }
+        //IPv6
+        else if (ls->type == SW_SOCK_TCP6)
+        {
+            serv->connection_list[sock].info.addr.inet_v6.sin6_port = htons(ls->port);
+        }
     }
-    //socket type
-    serv->connection_list[sock].socket_type = ls->type;
-    //save listen_host object
-    serv->connection_list[sock].object = ls;
 
     if (sock >= 0)
     {

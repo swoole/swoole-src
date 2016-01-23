@@ -440,16 +440,8 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
             {
                 zval **args[2];
                 zval *retval;
-                swWebSocket_frame frame;
-                swWebSocket_decode(&frame, buffer);
 
-                zval *zframe;
-                SW_MAKE_STD_ZVAL(zframe);
-                object_init_ex(zframe, swoole_websocket_frame_class_entry_ptr);
-
-                zend_update_property_bool(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("finish"), frame.header.FIN TSRMLS_CC);
-                zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("opcode"), frame.header.OPCODE TSRMLS_CC);
-                zend_update_property_stringl(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("data"), frame.payload,  frame.payload_length TSRMLS_CC);
+                zval *zframe = php_swoole_websocket_unpack(buffer TSRMLS_CC);
 
                 args[0] = &zobject;
                 args[1] = &zframe;
@@ -537,7 +529,12 @@ static void http_client_onConnect(swClient *cli)
 static inline char* sw_http_build_query(zval *data, zend_size_t *length TSRMLS_DC)
 {
     smart_str formstr = {0};
+
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION == 3
+    if (php_url_encode_hash_ex(HASH_OF(data), &formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL TSRMLS_CC) == FAILURE)
+#else
     if (php_url_encode_hash_ex(HASH_OF(data), &formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738 TSRMLS_CC) == FAILURE)
+#endif
     {
         if (formstr.c)
         {
