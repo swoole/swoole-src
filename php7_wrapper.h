@@ -297,10 +297,7 @@ static inline int sw_zend_hash_get_current_key(HashTable *ht, char **key, uint32
 
 static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 {
-    zval key;
-    ZVAL_STRINGL(&key, k, len -1);
-    zval *value = zend_hash_find(ht, Z_STR(key));
-
+    zval *value = zend_hash_str_find(ht, k, len);
     if (value == NULL)
     {
         return FAILURE;
@@ -308,7 +305,6 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
     else
     {
         *v = (void *) value;
-        v = (void *) value;
         return SUCCESS;
     }
 }
