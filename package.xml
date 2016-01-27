@@ -31,11 +31,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2015-12-31</date>
-    <time>14:48:51</time>
+    <date>2016-01-27</date>
+    <time>16:48:51</time>
     <version>
-		<release>1.7.22</release>
-		<api>1.7.22</api>
+		<release>1.8.0</release>
+		<api>1.8.0</api>
     </version>
     <stability>
         <release>stable</release>
@@ -43,13 +43,18 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed memory leak in PHP7
-- Fixed core dump in PHP7
-- Added swoole_mysql_query
-- Fixed swoole_table->del damage the memory
-- Added swoole_websocket_server->exist
-- Added swoole_server ssl_client_cert_file settings
-- Fixed timer exec_time overflow cause stop
+- Fixed swoole_process::signal core dump on PHP7
+- Refactor after/tick timer
+- Refactor swoole_websocket_server
+- Added async redis client
+- Added async http/websocket client
+- Added swoole_client->reuse property
+- Added swoole_server->defer/swoole_event_defer
+- Added support for multi-port hybrid protocol
+- Remove swoole_server->addtimer/swoole_timer_add/swoole_timer_del
+- Remove swoole_server->onTimer event callback
+- Remove swoole_server->handler
+- Update lish.h to version-1.9.9
     </notes>
 	<contents>
 		<dir name="/">
@@ -72,6 +77,7 @@
 				<file role="src" name="array.h" />
 				<file role="src" name="async.h" />
 				<file role="src" name="hash.h" />
+				<file role="src" name="heap.h" />
 				<file role="src" name="table.h" />
 				<file role="src" name="Http.h" />
 				<file role="src" name="websocket.h" />
@@ -79,6 +85,113 @@
 				<file role="src" name="base64.h" />
 				<file role="src" name="mqtt.h" />
 				<file role="src" name="error.h" />
+			</dir>
+			<file role="src" name="php_swoole.h" />
+			<file role="src" name="php7_wrapper.h" />
+			<file role="src" name="swoole_config.h" />
+			<file role="src" name="swoole.c" />
+			<file role="src" name="swoole_server.c" />
+			<file role="src" name="swoole_server_port.c" />
+			<file role="src" name="swoole_lock.c" />
+			<file role="src" name="swoole_client.c" />
+            <file role="src" name="swoole_event.c" />
+            <file role="src" name="swoole_timer.c" />
+			<file role="src" name="swoole_async.c" />
+			<file role="src" name="swoole_process.c" />
+			<file role="src" name="swoole_table.c" />
+			<file role="src" name="swoole_buffer.c" />
+			<file role="src" name="swoole_http_server.c" />
+			<file role="src" name="swoole_http_client.c" />
+			<file role="src" name="swoole_http.h" />
+			<file role="src" name="swoole_websocket_server.c" />
+			<file role="src" name="swoole_atomic.c" />
+			<file role="src" name="swoole_mysql.c" />
+			<file role="src" name="swoole_redis.c" />
+			<dir name="thirdparty">
+				<file role="src" name="php_http_parser.c" />
+				<file role="src" name="php_http_parser.h" />
+				<file role="src" name="multipart_parser.c" />
+				<file role="src" name="multipart_parser.h" />
+			</dir>
+			<dir name="src">
+				<dir name="core">
+					<file role="src" name="base.c" />
+					<file role="src" name="socket.c" />
+					<file role="src" name="log.c" />
+					<file role="src" name="hashmap.c" />
+					<file role="src" name="RingQueue.c" />
+					<file role="src" name="Channel.c" />
+					<file role="src" name="string.c" />
+					<file role="src" name="array.c" />
+					<file role="src" name="list.c" />
+					<file role="src" name="heap.c" />
+				</dir>
+				<dir name="memory">
+					<file role="src" name="ShareMemory.c" />
+					<file role="src" name="MemoryGlobal.c" />
+					<file role="src" name="FixedPool.c" />
+					<file role="src" name="RingBuffer.c" />
+					<file role="src" name="Table.c" />
+					<file role="src" name="Malloc.c" />
+                    <file role="src" name="Buffer.c" />
+				</dir>
+				<dir name="factory">
+					<file role="src" name="Factory.c" />
+					<file role="src" name="FactoryThread.c" />
+					<file role="src" name="FactoryProcess.c" />
+				</dir>
+				<dir name="reactor">
+					<file role="src" name="ReactorBase.c" />
+					<file role="src" name="ReactorSelect.c" />
+					<file role="src" name="ReactorPoll.c" />
+					<file role="src" name="ReactorEpoll.c" />
+					<file role="src" name="ReactorKqueue.c" />
+				</dir>
+				<dir name="pipe">
+					<file role="src" name="PipeBase.c" />
+					<file role="src" name="PipeEventfd.c" />
+					<file role="src" name="PipeUnsock.c" />
+				</dir>
+				<dir name="lock">
+					<file role="src" name="Semaphore.c" />
+					<file role="src" name="Mutex.c" />
+					<file role="src" name="RWLock.c" />
+					<file role="src" name="SpinLock.c" />
+					<file role="src" name="FileLock.c" />
+				</dir>
+				<dir name="network">
+					<file role="src" name="Client.c" />
+					<file role="src" name="Connection.c" />
+					<file role="src" name="ProcessPool.c" />
+					<file role="src" name="ReactorProcess.c" />
+					<file role="src" name="ReactorThread.c" />
+					<file role="src" name="Server.c" />
+					<file role="src" name="TaskWorker.c" />
+					<file role="src" name="ThreadPool.c" />
+					<file role="src" name="Worker.c" />
+					<file role="src" name="Manager.c" />
+					<file role="src" name="Timer.c" />
+					<file role="src" name="DNS.c" />
+					<file role="src" name="Port.c" />
+				</dir>
+				<dir name="os">
+					<file role="src" name="base.c" />
+					<file role="src" name="gcc_aio.c" />
+					<file role="src" name="linux_aio.c" />
+					<file role="src" name="msg_queue.c" />
+					<file role="src" name="sendfile.c" />
+					<file role="src" name="signal.c" />
+					<file role="src" name="timer.c" />
+				</dir>
+				<dir name="protocol">
+				    <file role="src" name="Base.c" />
+					<file role="src" name="SSL.c" />
+					<file role="src" name="Http.c" />
+					<file role="src" name="WebSocket.c" />
+					<file role="src" name="Sha1.c" />
+					<file role="src" name="Base64.c" />
+					<file role="src" name="Mqtt.c" />
+				</dir>
 			</dir>
 			<dir name="examples">
 				<dir name="async">
@@ -165,12 +278,14 @@
 				</dir>
 				<dir name="timer">
                     <file role="src" name="after.php" />
-                    <file role="src" name="interval.php" />
                     <file role="src" name="tick.php" />
                 </dir>
                 <dir name="mysql">
                     <file role="src" name="async_mysql2.php" />
                     <file role="src" name="real_async.php" />
+                </dir>
+                <dir name="redis">
+                    <file role="src" name="client.php" />
                 </dir>
 				<file role="src" name="server.php" />
 				<file role="src" name="mysql_proxy_server.php" />
@@ -180,110 +295,6 @@
 				<file role="src" name="sendfile_server.php" />
 				<file role="src" name="recv_file.php" />
 				<file role="doc" name="test.jpg" />
-			</dir>
-			<file role="src" name="php_swoole.h" />
-			<file role="src" name="php7_wrapper.h" />
-			<file role="src" name="swoole_config.h" />
-			<file role="src" name="swoole.c" />
-			<file role="src" name="swoole_server.c" />
-			<file role="src" name="swoole_lock.c" />
-			<file role="src" name="swoole_client.c" />
-            <file role="src" name="swoole_event.c" />
-            <file role="src" name="swoole_timer.c" />
-			<file role="src" name="swoole_async.c" />
-			<file role="src" name="swoole_process.c" />
-			<file role="src" name="swoole_table.c" />
-			<file role="src" name="swoole_buffer.c" />
-			<file role="src" name="swoole_http_server.c" />
-			<file role="src" name="swoole_http_client.c" />
-			<file role="src" name="swoole_http.h" />
-			<file role="src" name="swoole_websocket_server.c" />
-			<file role="src" name="swoole_atomic.c" />
-			<file role="src" name="swoole_mysql.c" />
-			<file role="src" name="swoole_redis.c" />
-			<dir name="thirdparty">
-				<file role="src" name="php_http_parser.c" />
-				<file role="src" name="php_http_parser.h" />
-				<file role="src" name="multipart_parser.c" />
-				<file role="src" name="multipart_parser.h" />
-			</dir>
-			<dir name="src">
-				<dir name="core">
-					<file role="src" name="base.c" />
-					<file role="src" name="socket.c" />
-					<file role="src" name="log.c" />
-					<file role="src" name="hashmap.c" />
-					<file role="src" name="RingQueue.c" />
-					<file role="src" name="Channel.c" />
-					<file role="src" name="string.c" />
-					<file role="src" name="array.c" />
-					<file role="src" name="list.c" />
-				</dir>
-				<dir name="memory">
-					<file role="src" name="ShareMemory.c" />
-					<file role="src" name="MemoryGlobal.c" />
-					<file role="src" name="FixedPool.c" />
-					<file role="src" name="RingBuffer.c" />
-					<file role="src" name="Table.c" />
-					<file role="src" name="Malloc.c" />
-                    <file role="src" name="Buffer.c" />
-				</dir>
-				<dir name="factory">
-					<file role="src" name="Factory.c" />
-					<file role="src" name="FactoryThread.c" />
-					<file role="src" name="FactoryProcess.c" />
-				</dir>
-				<dir name="reactor">
-					<file role="src" name="ReactorBase.c" />
-					<file role="src" name="ReactorSelect.c" />
-					<file role="src" name="ReactorPoll.c" />
-					<file role="src" name="ReactorEpoll.c" />
-					<file role="src" name="ReactorKqueue.c" />
-				</dir>
-				<dir name="pipe">
-					<file role="src" name="PipeBase.c" />
-					<file role="src" name="PipeEventfd.c" />
-					<file role="src" name="PipeUnsock.c" />
-				</dir>
-				<dir name="lock">
-					<file role="src" name="Semaphore.c" />
-					<file role="src" name="Mutex.c" />
-					<file role="src" name="RWLock.c" />
-					<file role="src" name="SpinLock.c" />
-					<file role="src" name="FileLock.c" />
-				</dir>
-				<dir name="network">
-					<file role="src" name="Client.c" />
-					<file role="src" name="Connection.c" />
-					<file role="src" name="ProcessPool.c" />
-					<file role="src" name="ReactorProcess.c" />
-					<file role="src" name="ReactorThread.c" />
-					<file role="src" name="Server.c" />
-					<file role="src" name="TaskWorker.c" />
-					<file role="src" name="ThreadPool.c" />
-					<file role="src" name="Worker.c" />
-					<file role="src" name="Manager.c" />
-					<file role="src" name="EventTimer.c" />
-					<file role="src" name="DNS.c" />
-				</dir>
-				<dir name="os">
-					<file role="src" name="base.c" />
-					<file role="src" name="gcc_aio.c" />
-					<file role="src" name="linux_aio.c" />
-					<file role="src" name="msg_queue.c" />
-					<file role="src" name="sendfile.c" />
-					<file role="src" name="signal.c" />
-					<file role="src" name="timer.c" />
-				</dir>
-				<dir name="protocol">
-				    <file role="src" name="Base.c" />
-					<file role="src" name="SSL.c" />
-					<file role="src" name="Http.c" />
-					<file role="src" name="WebSocket.c" />
-					<file role="src" name="Sha1.c" />
-					<file role="src" name="Base64.c" />
-					<file role="src" name="Mqtt.c" />
-				</dir>
 			</dir>
 		</dir>
 	</contents>

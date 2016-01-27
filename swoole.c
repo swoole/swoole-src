@@ -683,8 +683,19 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef HAVE_RWLOCK
     php_info_print_table_row(2, "rwlock", "enabled");
 #endif
+
 #ifdef SW_ASYNC_MYSQL
     php_info_print_table_row(2, "async mysql", "enabled");
+#ifdef SW_HAVE_MYSQLND
+    php_info_print_table_row(2, "mysqlnd", "enabled");
+#endif
+#endif
+
+#ifdef SW_USE_REDIS
+    php_info_print_table_row(2, "async redis client", "enabled");
+#endif
+#ifdef SW_ASYNC_HTTPCLIENT
+    php_info_print_table_row(2, "async http/websocket client", "enabled");
 #endif
 #ifdef SW_SOCKETS
     php_info_print_table_row(2, "sockets", "enabled");
