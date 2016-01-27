@@ -331,6 +331,14 @@ static const zend_function_entry swoole_connection_iterator_methods[] =
 };
 #endif
 
+static const zend_function_entry swoole_timer_methods[] =
+{
+    PHP_FALIAS(tick,  swoole_timer_tick, arginfo_swoole_timer_after)
+    PHP_FALIAS(after, swoole_timer_after, arginfo_swoole_timer_tick)
+    PHP_FALIAS(clear, swoole_timer_clear, arginfo_swoole_timer_clear)
+    PHP_FE_END
+};
+
 #if PHP_MEMORY_DEBUG
 php_vmstat_t php_vmstat;
 #endif
@@ -340,6 +348,9 @@ zend_class_entry *swoole_server_class_entry_ptr;
 
 zend_class_entry swoole_connection_iterator_ce;
 zend_class_entry *swoole_connection_iterator_class_entry_ptr;
+
+zend_class_entry swoole_timer_ce;
+zend_class_entry *swoole_timer_class_entry_ptr;
 
 zend_module_entry swoole_module_entry =
 {
@@ -557,7 +568,12 @@ PHP_MINIT_FUNCTION(swoole)
     INIT_CLASS_ENTRY(swoole_server_ce, "swoole_server", swoole_server_methods);
     swoole_server_class_entry_ptr = zend_register_internal_class(&swoole_server_ce TSRMLS_CC);
 
-    //zend_register_class_alias("Swoole\\Server", swoole_server_class_entry_ptr);
+    zend_register_class_alias("Swoole\\Server", swoole_server_class_entry_ptr);
+
+    INIT_CLASS_ENTRY(swoole_timer_ce, "swoole_timer", swoole_timer_methods);
+    swoole_timer_class_entry_ptr = zend_register_internal_class(&swoole_timer_ce TSRMLS_CC);
+
+    zend_register_class_alias("Swoole\\Timer", swoole_timer_class_entry_ptr);
 
 #ifdef HAVE_PCRE
     INIT_CLASS_ENTRY(swoole_connection_iterator_ce, "swoole_connection_iterator", swoole_connection_iterator_methods);

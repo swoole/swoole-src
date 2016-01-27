@@ -153,6 +153,8 @@ void swoole_client_init(int module_number TSRMLS_DC)
     INIT_CLASS_ENTRY(swoole_client_ce, "swoole_client", swoole_client_methods);
     swoole_client_class_entry_ptr = zend_register_internal_class(&swoole_client_ce TSRMLS_CC);
 
+    zend_register_class_alias("Swoole\\Client", swoole_client_class_entry_ptr);
+
     zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_bool(swoole_client_class_entry_ptr, SW_STRL("reuse")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);

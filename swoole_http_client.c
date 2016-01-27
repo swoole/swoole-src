@@ -262,6 +262,7 @@ void swoole_http_client_init(int module_number TSRMLS_DC)
 {
     INIT_CLASS_ENTRY(swoole_http_client_ce, "swoole_http_client", swoole_http_client_methods);
     swoole_http_client_class_entry_ptr = zend_register_internal_class(&swoole_http_client_ce TSRMLS_CC);
+    zend_register_class_alias("Swoole\\Http\\Client", swoole_http_client_class_entry_ptr);
 
     zend_declare_property_long(swoole_http_client_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_http_client_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);

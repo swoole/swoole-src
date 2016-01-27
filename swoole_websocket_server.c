@@ -301,6 +301,7 @@ void swoole_websocket_init(int module_number TSRMLS_DC)
 {
     INIT_CLASS_ENTRY(swoole_websocket_server_ce, "swoole_websocket_server", swoole_websocket_server_methods);
     swoole_websocket_server_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_websocket_server_ce, swoole_http_server_class_entry_ptr, "swoole_http_server" TSRMLS_CC);
+    zend_register_class_alias("Swoole\\WebSocket\\Server", swoole_websocket_server_class_entry_ptr);
 
     INIT_CLASS_ENTRY(swoole_websocket_frame_ce, "swoole_websocket_frame", NULL);
     swoole_websocket_frame_class_entry_ptr = zend_register_internal_class(&swoole_websocket_frame_ce TSRMLS_CC);

@@ -74,6 +74,7 @@ void swoole_process_init(int module_number TSRMLS_DC)
 {
     INIT_CLASS_ENTRY(swoole_process_ce, "swoole_process", swoole_process_methods);
     swoole_process_class_entry_ptr = zend_register_internal_class(&swoole_process_ce TSRMLS_CC);
+    zend_register_class_alias("Swoole\\Process", swoole_process_class_entry_ptr);
 
     /**
      * 31 signal constants
