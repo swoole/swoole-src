@@ -422,10 +422,13 @@ PHP_FUNCTION(swoole_async_write)
         file_request *req = emalloc(sizeof(file_request));
         req->fd = fd;
 #if PHP_MAJOR_VERSION >= 7
-        req->callback = &req->_callback;
         req->filename = &req->_filename;
-        memcpy(req->callback, cb, sizeof(zval));
         memcpy(req->filename, filename, sizeof(zval));
+        if (cb)
+        {
+            req->callback = &req->_callback;
+            memcpy(req->callback, cb, sizeof(zval));
+        }
 #else
         req->filename = filename;
         req->callback = cb;
@@ -623,10 +626,13 @@ PHP_FUNCTION(swoole_async_writefile)
 
     req->fd = fd;
 #if PHP_MAJOR_VERSION >= 7
-    req->callback = &req->_callback;
     req->filename = &req->_filename;
-    memcpy(req->callback, cb, sizeof(zval));
     memcpy(req->filename, filename, sizeof(zval));
+    if (cb)
+    {
+        req->callback = &req->_callback;
+        memcpy(req->callback, cb, sizeof(zval));
+    }
 #else
     req->filename = filename;
     req->callback = cb;

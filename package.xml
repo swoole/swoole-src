@@ -51,6 +51,7 @@
 - Added swoole_client->reuse property
 - Added swoole_server->defer/swoole_event_defer
 - Added support for multi-port hybrid protocol
+- Added configure option for tcmalloc and jemalloc
 - Remove swoole_server->addtimer/swoole_timer_add/swoole_timer_del
 - Remove swoole_server->onTimer event callback
 - Remove swoole_server->handler
