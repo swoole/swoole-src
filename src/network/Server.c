@@ -1167,8 +1167,13 @@ static void swHeartbeatThread_loop(swThreadParam *param)
             swTrace("check fd=%d", fd);
             conn = swServer_connection_get(serv, fd);
 
-            if (conn != NULL && 1 == conn->active && conn->last_time < checktime)
+            if (conn != NULL && 1 == conn->active )
             {
+                if (conn->protect || conn->last_time > checktime)
+                {
+                    continue;
+                }
+
                 notify_ev.fd = fd;
                 notify_ev.from_id = conn->from_id;
                 conn->close_force = 1;

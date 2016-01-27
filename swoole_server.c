@@ -2724,6 +2724,41 @@ PHP_METHOD(swoole_server, exist)
     }
 }
 
+PHP_METHOD(swoole_server, protect)
+{
+    long fd;
+    zend_bool value = 1;
+
+    if (SwooleGS->start == 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|b", &fd, &value) == FAILURE)
+    {
+        return;
+    }
+
+    swServer *serv = swoole_get_object(getThis());
+
+    swConnection *conn = swWorker_get_connection(serv, fd);
+    if (!conn)
+    {
+        RETURN_FALSE;
+    }
+    //connection is closed
+    if (conn->active == 0 || conn->closed)
+    {
+        RETURN_FALSE;
+    }
+    else
+    {
+        conn->protect = value;
+        RETURN_TRUE;
+    }
+}
+
 PHP_METHOD(swoole_server, shutdown)
 {
     if (SwooleGS->start == 0)

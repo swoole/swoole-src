@@ -65,6 +65,11 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_exist, 0, 0, 1)
     ZEND_ARG_INFO(0, conn_fd)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_protect, 0, 0, 1)
+    ZEND_ARG_INFO(0, conn_fd)
+    ZEND_ARG_INFO(0, is_protected)
+ZEND_END_ARG_INFO()
+
 //for object style
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_sendto_oo, 0, 0, 2)
     ZEND_ARG_INFO(0, ip)
@@ -221,9 +226,12 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_query, 0, 0, 3)
     ZEND_ARG_INFO(0, callback)
 ZEND_END_ARG_INFO()
 
+#ifdef SW_HAVE_MYSQLND
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_get_mysqli_sock, 0, 0, 1)
     ZEND_ARG_INFO(0, db_link)
 ZEND_END_ARG_INFO()
+#endif
+
 #endif
 
 //arginfo end
@@ -262,7 +270,9 @@ const zend_function_entry swoole_functions[] =
     /*------async mysql-----*/
 #ifdef SW_ASYNC_MYSQL
     PHP_FE(swoole_mysql_query, arginfo_swoole_mysql_query)
+#ifdef SW_HAVE_MYSQLND
     PHP_FE(swoole_get_mysqli_sock, arginfo_swoole_get_mysqli_sock)
+#endif
 #endif
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
@@ -278,6 +288,7 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, sendto, arginfo_swoole_server_sendto_oo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, sendwait, arginfo_swoole_server_sendwait, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, exist, arginfo_swoole_server_exist, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, protect, arginfo_swoole_server_protect, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, sendfile, arginfo_swoole_server_sendfile_oo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, close, arginfo_swoole_server_close_oo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, task, arginfo_swoole_server_task_oo, ZEND_ACC_PUBLIC)

@@ -43,7 +43,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.8.0-rc2"
+#define PHP_SWOOLE_VERSION  "1.8.0"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -107,9 +107,8 @@ extern swoole_object_array swoole_objects;
 #define swoole_efree(p)  if (p) efree(p)
 
 #ifdef SW_ASYNC_MYSQL
-#if defined(SW_HAVE_MYSQLI) && defined(SW_HAVE_MYSQLND)
-#else
-#error "Enable async_mysql support, But no mysqli or mysqlnd."
+#ifndef SW_HAVE_MYSQLI
+#error "Enable async_mysql support, But no mysqli."
 #undef SW_ASYNC_MYSQL
 #endif
 #endif
@@ -252,6 +251,7 @@ PHP_METHOD(swoole_server, bind);
 PHP_METHOD(swoole_server, sendto);
 PHP_METHOD(swoole_server, sendwait);
 PHP_METHOD(swoole_server, exist);
+PHP_METHOD(swoole_server, protect);
 PHP_METHOD(swoole_server, close);
 PHP_METHOD(swoole_server, task);
 PHP_METHOD(swoole_server, taskwait);
@@ -308,7 +308,9 @@ PHP_FUNCTION(swoole_errno);
 //                  swoole_mysql
 //---------------------------------------------------------
 #ifdef SW_ASYNC_MYSQL
+#ifdef SW_HAVE_MYSQLND
 PHP_FUNCTION(swoole_get_mysqli_sock);
+#endif
 PHP_FUNCTION(swoole_mysql_query);
 #endif
 

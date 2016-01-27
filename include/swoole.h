@@ -428,6 +428,11 @@ typedef struct _swConnection
     uint32_t direct_send :1;
     uint32_t ssl_send :1;
 
+    /**
+     * protected connection, cannot be closed by heartbeat thread.
+     */
+    uint32_t protect :1;
+
     uint32_t close_wait :1;
     uint32_t closed :1;
     uint32_t closing :1;
