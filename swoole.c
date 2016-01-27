@@ -333,9 +333,9 @@ static const zend_function_entry swoole_connection_iterator_methods[] =
 
 static const zend_function_entry swoole_timer_methods[] =
 {
-    PHP_FALIAS(tick,  swoole_timer_tick, arginfo_swoole_timer_after)
-    PHP_FALIAS(after, swoole_timer_after, arginfo_swoole_timer_tick)
-    PHP_FALIAS(clear, swoole_timer_clear, arginfo_swoole_timer_clear)
+    ZEND_FENTRY(tick, ZEND_FN(swoole_timer_tick), arginfo_swoole_timer_after, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(after, ZEND_FN(swoole_timer_after), arginfo_swoole_timer_tick, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(clear, ZEND_FN(swoole_timer_clear), arginfo_swoole_timer_clear, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
