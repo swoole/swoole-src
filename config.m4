@@ -203,20 +203,27 @@ if test "$PHP_SWOOLE" != "no"; then
     if test `uname` = "Darwin" ; then
         AC_CHECK_LIB(c, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
         AC_CHECK_LIB(c, aio_read, AC_DEFINE(HAVE_GCC_AIO, 1, [have gcc aio]))
+     
+        if test "$PHP_OPENSSL" = "yes"; then
+	        AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])
+	        PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
+	        PHP_ADD_LIBRARY(mcrypt, 1, SWOOLE_SHARED_LIBADD)
+	        PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
+	    fi
     else
         AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
         AC_CHECK_LIB(rt, aio_read, AC_DEFINE(HAVE_GCC_AIO, 1, [have gcc aio]))
         PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
+
+	    if test "$PHP_OPENSSL" = "yes"; then
+	        AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])
+	        PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
+	        PHP_ADD_LIBRARY(crypt, 1, SWOOLE_SHARED_LIBADD)
+	        PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
+	    fi
     fi
 
     PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
-
-    if test "$PHP_OPENSSL" = "yes"; then
-        AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])
-        PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
-        PHP_ADD_LIBRARY(crypt, 1, SWOOLE_SHARED_LIBADD)
-        PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
-    fi
 
     if test "$PHP_ASYNC_REDIS" = "yes"; then
         AC_DEFINE(SW_USE_REDIS, 1, [enable async-redis support])
