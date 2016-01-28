@@ -43,9 +43,8 @@ zend_class_entry *swoole_buffer_class_entry_ptr;
 
 void swoole_buffer_init(int module_number TSRMLS_DC)
 {
-    INIT_CLASS_ENTRY(swoole_buffer_ce, "swoole_buffer", swoole_buffer_methods);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_buffer_ce, "swoole_buffer", "Swoole\\Buffer", swoole_buffer_methods);
     swoole_buffer_class_entry_ptr = zend_register_internal_class(&swoole_buffer_ce TSRMLS_CC);
-    zend_register_class_alias("Swoole\\Buffer", swoole_buffer_class_entry_ptr);
 }
 
 static PHP_METHOD(swoole_buffer, __construct)

@@ -39,9 +39,8 @@ static const zend_function_entry swoole_atomic_methods[] =
 
 void swoole_atomic_init(int module_number TSRMLS_DC)
 {
-    INIT_CLASS_ENTRY(swoole_atomic_ce, "swoole_atomic", swoole_atomic_methods);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_atomic_ce, "swoole_atomic", "Swoole\\Atomic", swoole_atomic_methods);
     swoole_atomic_class_entry_ptr = zend_register_internal_class(&swoole_atomic_ce TSRMLS_CC);
-    zend_register_class_alias("Swoole\\Atomic", swoole_atomic_class_entry_ptr);
 }
 
 PHP_METHOD(swoole_atomic, __construct)

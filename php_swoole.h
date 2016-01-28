@@ -389,6 +389,7 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     long aio_thread_num;
     zend_bool display_errors;
     zend_bool cli;
+    zend_bool use_namespace;
     key_t message_queue_key;
     uint32_t socket_buffer_size;
 ZEND_END_MODULE_GLOBALS(swoole)
@@ -400,5 +401,13 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 #else
 #define SWOOLE_G(v) (swoole_globals.v)
 #endif
+
+
+#define SWOOLE_INIT_CLASS_ENTRY(ce, name, name_ns, methods) \
+    if (SWOOLE_G(use_namespace)) { \
+        INIT_CLASS_ENTRY(ce, name_ns, methods); \
+    } else { \
+        INIT_CLASS_ENTRY(ce, name, methods); \
+    }
 
 #endif	/* PHP_SWOOLE_H */

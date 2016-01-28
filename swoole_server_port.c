@@ -33,7 +33,7 @@ const zend_function_entry swoole_server_port_methods[] =
 
 void swoole_server_port_init(int module_number TSRMLS_DC)
 {
-    INIT_CLASS_ENTRY(swoole_server_port_ce, "swoole_server_port", swoole_server_port_methods);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_server_port_ce, "swoole_server_port", "Swoole\\Server\\Port", swoole_server_port_methods);
     swoole_server_port_class_entry_ptr = zend_register_internal_class(&swoole_server_port_ce TSRMLS_CC);
 }
 

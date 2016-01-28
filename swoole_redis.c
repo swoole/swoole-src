@@ -81,10 +81,8 @@ static const zend_function_entry swoole_redis_methods[] =
 
 void swoole_redis_init(int module_number TSRMLS_DC)
 {
-    INIT_CLASS_ENTRY(swoole_redis_ce, "swoole_redis", swoole_redis_methods);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_redis_ce, "swoole_redis", "Swoole\\Redis", swoole_redis_methods);
     swoole_redis_class_entry_ptr = zend_register_internal_class(&swoole_redis_ce TSRMLS_CC);
-
-    zend_register_class_alias("Swoole\\Redis", swoole_redis_class_entry_ptr);
 }
 
 static PHP_METHOD(swoole_redis, connect)

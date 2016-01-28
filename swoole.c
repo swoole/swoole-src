@@ -382,6 +382,10 @@ ZEND_GET_MODULE(swoole)
 PHP_INI_BEGIN()
 STD_PHP_INI_ENTRY("swoole.aio_thread_num", "2", PHP_INI_ALL, OnUpdateLong, aio_thread_num, zend_swoole_globals, swoole_globals)
 STD_PHP_INI_ENTRY("swoole.display_errors", "On", PHP_INI_ALL, OnUpdateBool, display_errors, zend_swoole_globals, swoole_globals)
+/**
+ * namespace class style
+ */
+STD_PHP_INI_ENTRY("swoole.use_namespace", "Off", PHP_INI_ALL, OnUpdateBool, use_namespace, zend_swoole_globals, swoole_globals)
 STD_PHP_INI_ENTRY("swoole.message_queue_key", "0", PHP_INI_ALL, OnUpdateString, message_queue_key, zend_swoole_globals, swoole_globals)
 /**
  * Unix socket buffer size
@@ -395,6 +399,7 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
     swoole_globals->aio_thread_num = SW_AIO_THREAD_NUM_DEFAULT;
     swoole_globals->socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
     swoole_globals->display_errors = 1;
+    swoole_globals->use_namespace = 0;
 }
 
 void swoole_set_object(zval *object, void *ptr)
@@ -565,18 +570,14 @@ PHP_MINIT_FUNCTION(swoole)
 
     REGISTER_STRINGL_CONSTANT("SWOOLE_VERSION", PHP_SWOOLE_VERSION, sizeof(PHP_SWOOLE_VERSION) - 1, CONST_CS | CONST_PERSISTENT);
 
-    INIT_CLASS_ENTRY(swoole_server_ce, "swoole_server", swoole_server_methods);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_server_ce, "swoole_server", "Swoole\\Server", swoole_server_methods);
     swoole_server_class_entry_ptr = zend_register_internal_class(&swoole_server_ce TSRMLS_CC);
 
-    zend_register_class_alias("Swoole\\Server", swoole_server_class_entry_ptr);
-
-    INIT_CLASS_ENTRY(swoole_timer_ce, "swoole_timer", swoole_timer_methods);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_timer_ce, "swoole_timer", "Swoole\\Timer", swoole_timer_methods);
     swoole_timer_class_entry_ptr = zend_register_internal_class(&swoole_timer_ce TSRMLS_CC);
 
-    zend_register_class_alias("Swoole\\Timer", swoole_timer_class_entry_ptr);
-
 #ifdef HAVE_PCRE
-    INIT_CLASS_ENTRY(swoole_connection_iterator_ce, "swoole_connection_iterator", swoole_connection_iterator_methods);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_connection_iterator_ce, "swoole_connection_iterator", "Swoole\\ConnectionIterator",  swoole_connection_iterator_methods);
     swoole_connection_iterator_class_entry_ptr = zend_register_internal_class(&swoole_connection_iterator_ce TSRMLS_CC);
     zend_class_implements(swoole_connection_iterator_class_entry_ptr TSRMLS_CC, 2, spl_ce_Iterator, spl_ce_Countable);
 #endif
