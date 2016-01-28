@@ -226,11 +226,9 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_query, 0, 0, 3)
     ZEND_ARG_INFO(0, callback)
 ZEND_END_ARG_INFO()
 
-#ifdef SW_HAVE_MYSQLND
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_get_mysqli_sock, 0, 0, 1)
     ZEND_ARG_INFO(0, db_link)
 ZEND_END_ARG_INFO()
-#endif
 
 #endif
 
@@ -270,9 +268,7 @@ const zend_function_entry swoole_functions[] =
     /*------async mysql-----*/
 #ifdef SW_ASYNC_MYSQL
     PHP_FE(swoole_mysql_query, arginfo_swoole_mysql_query)
-#ifdef SW_HAVE_MYSQLND
     PHP_FE(swoole_get_mysqli_sock, arginfo_swoole_get_mysqli_sock)
-#endif
 #endif
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
@@ -385,7 +381,7 @@ STD_PHP_INI_ENTRY("swoole.display_errors", "On", PHP_INI_ALL, OnUpdateBool, disp
 /**
  * namespace class style
  */
-STD_PHP_INI_ENTRY("swoole.use_namespace", "Off", PHP_INI_ALL, OnUpdateBool, use_namespace, zend_swoole_globals, swoole_globals)
+STD_PHP_INI_ENTRY("swoole.use_namespace", "Off", PHP_INI_SYSTEM, OnUpdateBool, use_namespace, zend_swoole_globals, swoole_globals)
 STD_PHP_INI_ENTRY("swoole.message_queue_key", "0", PHP_INI_ALL, OnUpdateString, message_queue_key, zend_swoole_globals, swoole_globals)
 /**
  * Unix socket buffer size
@@ -700,14 +696,9 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef HAVE_RWLOCK
     php_info_print_table_row(2, "rwlock", "enabled");
 #endif
-
 #ifdef SW_ASYNC_MYSQL
-    php_info_print_table_row(2, "async mysql", "enabled");
-#ifdef SW_HAVE_MYSQLND
-    php_info_print_table_row(2, "mysqlnd", "enabled");
+    php_info_print_table_row(2, "async mysql client", "enabled");
 #endif
-#endif
-
 #ifdef SW_USE_REDIS
     php_info_print_table_row(2, "async redis client", "enabled");
 #endif
@@ -727,7 +718,7 @@ PHP_MINFO_FUNCTION(swoole)
     php_info_print_table_row(2, "Linux Native AIO", "enabled");
 #endif
 #ifdef HAVE_GCC_AIO
-    php_info_print_table_row(2, "Gcc AIO", "enabled");
+    php_info_print_table_row(2, "GCC AIO", "enabled");
 #endif
 #ifdef HAVE_PCRE
     php_info_print_table_row(2, "pcre", "enabled");

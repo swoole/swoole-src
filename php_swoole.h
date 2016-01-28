@@ -106,9 +106,10 @@ extern swoole_object_array swoole_objects;
 #define swoole_php_sys_error(level, fmt_str, ...)  if (SWOOLE_G(display_errors)) php_error_docref(NULL TSRMLS_CC, level, fmt_str" Error: %s[%d].", ##__VA_ARGS__, strerror(errno), errno)
 #define swoole_efree(p)  if (p) efree(p)
 
-#ifdef SW_ASYNC_MYSQL
-#ifndef SW_HAVE_MYSQLI
-#error "Enable async_mysql support, But no mysqli."
+#if defined(SW_ASYNC_MYSQL)
+#if defined(SW_HAVE_MYSQLI) && defined(SW_HAVE_MYSQLND)
+#else
+#error "Enable async_mysql support, But no mysqli or mysqlnd."
 #undef SW_ASYNC_MYSQL
 #endif
 #endif
@@ -308,9 +309,7 @@ PHP_FUNCTION(swoole_errno);
 //                  swoole_mysql
 //---------------------------------------------------------
 #ifdef SW_ASYNC_MYSQL
-#ifdef SW_HAVE_MYSQLND
 PHP_FUNCTION(swoole_get_mysqli_sock);
-#endif
 PHP_FUNCTION(swoole_mysql_query);
 #endif
 

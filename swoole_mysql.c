@@ -20,11 +20,8 @@
 
 #ifdef SW_ASYNC_MYSQL
 
-#ifdef SW_HAVE_MYSQLND
 #include "ext/mysqlnd/mysqlnd.h"
 #include "ext/mysqli/mysqli_mysqlnd.h"
-#endif
-
 #include "ext/mysqli/php_mysqli_structs.h"
 
 //#define SW_MYSQL_STRICT_TYPE
@@ -926,7 +923,6 @@ static void mysql_column_info(mysql_field *field)
 
 #endif
 
-#ifdef SW_HAVE_MYSQLND
 PHP_FUNCTION(swoole_get_mysqli_sock)
 {
     zval *mysql_link;
@@ -947,7 +943,6 @@ PHP_FUNCTION(swoole_get_mysqli_sock)
         RETURN_LONG(sock);
     }
 }
-#endif
 
 PHP_FUNCTION(swoole_mysql_query)
 {
