@@ -63,6 +63,7 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 #define sw_add_assoc_stringl                  add_assoc_stringl
 #define sw_add_assoc_double_ex                add_assoc_double_ex
 #define sw_add_assoc_long_ex                  add_assoc_long_ex
+#define sw_add_next_index_stringl             add_next_index_stringl
 
 #define sw_zval_ptr_dtor                      zval_ptr_dtor
 #define sw_zend_hash_copy                     zend_hash_copy
@@ -153,7 +154,10 @@ static sw_inline int sw_add_assoc_stringl_ex(zval *arg, const char *key, size_t 
 {
     return add_assoc_stringl_ex(arg, key, key_len - 1, str, length);
 }
+
 #define sw_add_assoc_double_ex(arg, key, key_len, d)     add_assoc_double_ex(arg, key, key_len - 1, d)
+#define sw_add_next_index_stringl(arr, str, len, dup)    add_next_index_stringl(arr, str, len)
+
 static sw_inline int sw_add_assoc_long_ex(zval *arg, const char *key, size_t key_len, long value)
 {
     return add_assoc_long_ex(arg, key, key_len - 1, value);
