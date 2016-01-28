@@ -1150,10 +1150,13 @@ void swFloat2timeval(float timeout, long int *sec, long int *usec);
 swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask);
 void swSignal_add(int signo, swSignalFunc func);
 void swSignal_callback(int signo);
-#ifdef HAVE_SIGNALFD
-int swSignalfd_onSignal(swReactor *reactor, swEvent *event);
-#endif
+void swSignal_clear(void);
 void swSignal_none(void);
+
+#ifdef HAVE_SIGNALFD
+void swSignalfd_init();
+int swSignalfd_setup(swReactor *reactor);
+#endif
 
 typedef struct _swDefer_callback
 {
@@ -1763,13 +1766,6 @@ extern swServerStats *SwooleStats;
 
 //-----------------------------------------------
 //OS Feature
-#ifdef HAVE_SIGNALFD
-void swSignalfd_init();
-void swSignalfd_add(int signo, __sighandler_t callback);
-int swSignalfd_setup(swReactor *reactor);
-void swSignalfd_clear();
-#endif
-
 #if defined(HAVE_KQUEUE) || !defined(HAVE_SENDFILE)
 int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
 #else

@@ -795,7 +795,6 @@ void swPort_set_protocol(swListenPort *ls);
 int swPort_listen(swListenPort *ls);
 
 void swWorker_free(swWorker *worker);
-void swWorker_signal_init(void);
 void swWorker_onStart(swServer *serv);
 void swWorker_onStop(swServer *serv);
 int swWorker_loop(swFactory *factory, int worker_pti);

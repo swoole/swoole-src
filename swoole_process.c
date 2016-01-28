@@ -464,12 +464,7 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
         bzero(&SwooleG.timer, sizeof(SwooleG.timer));
     }
 
-#ifdef HAVE_SIGNALFD
-    if (SwooleG.use_signalfd)
-    {
-        swSignalfd_clear();
-    }
-#endif
+    swSignal_clear();
 
     zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("pid"), process->pid TSRMLS_CC);
     zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("pipe"), process->pipe_worker TSRMLS_CC);

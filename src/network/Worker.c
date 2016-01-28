@@ -21,6 +21,7 @@
 #include <grp.h>
 
 static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event);
+static void swWorker_signal_init(void);
 
 int swWorker_create(swWorker *worker)
 {
@@ -46,7 +47,7 @@ void swWorker_free(swWorker *worker)
     }
 }
 
-void swWorker_signal_init(void)
+static void swWorker_signal_init(void)
 {
     swSignal_add(SIGHUP, NULL);
     swSignal_add(SIGPIPE, NULL);
