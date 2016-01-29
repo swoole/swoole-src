@@ -177,7 +177,10 @@ static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server
     {
         return php_sw_callback[event_type];
     }
-    return NULL;
+    else
+    {
+        return callback;
+    }
 }
 
 static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC)

@@ -51,7 +51,6 @@ static PHP_METHOD(swoole_server_port, __destruct)
     efree(property);
     swoole_set_property(getThis(), 0, NULL);
     swoole_set_object(getThis(), NULL);
-    printf("__destruct\n");
 }
 
 static PHP_METHOD(swoole_server_port, set)
