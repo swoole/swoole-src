@@ -498,6 +498,12 @@ int swServer_start(swServer *serv)
         }
     }
 
+    //init loggger
+    if (serv->log_file[0] != 0)
+    {
+        swLog_init(serv->log_file);
+    }
+
     //master pid
     SwooleGS->master_pid = getpid();
     SwooleGS->start = 1;
@@ -623,12 +629,6 @@ void swServer_init(swServer *serv)
 
 int swServer_create(swServer *serv)
 {
-    //初始化日志
-    if (serv->log_file[0] != 0)
-    {
-        swLog_init(serv->log_file);
-    }
-
     if (SwooleG.main_reactor)
     {
         swRuntimeError(SW_ERROR_SERVER_MUST_CREATED_BEFORE_CLIENT, "The swoole_server must create before client");
