@@ -174,8 +174,9 @@ enum php_swoole_server_callback_type
 
 typedef struct
 {
-    zval *array[PHP_SERVER_PORT_CALLBACK_NUM];
-} swoole_port_callbacks;
+    zval *callbacks[PHP_SERVER_PORT_CALLBACK_NUM];
+    zval *setting;
+} swoole_server_port_property;
 //---------------------------------------------------------
 #define SW_FLAG_KEEP                        (1u << 12)
 #define SW_FLAG_ASYNC                       (1u << 10)

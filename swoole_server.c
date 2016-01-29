@@ -31,7 +31,7 @@ static int dgram_server_socket;
 
 static struct
 {
-    zval *array[SW_MAX_LISTEN_PORT];
+    zval *zobjects[SW_MAX_LISTEN_PORT];
     zval *zports;
     uint8_t num;
 } server_port_list;
@@ -166,18 +166,18 @@ static sw_inline int php_swoole_check_task_param(int dst_worker_id TSRMLS_DC)
 
 static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type)
 {
-    swListenPort *port =  serv->connection_list[server_fd].object;
-    swoole_port_callbacks *callbacks = port->ptr;
-    zval *callback = callbacks->array[event_type];
+    swListenPort *port = serv->connection_list[server_fd].object;
+    swoole_server_port_property *property = port->ptr;
+    if (!property)
+    {
+        return php_sw_callback[event_type];
+    }
+    zval *callback = property->callbacks[event_type];
     if (!callback)
     {
-        callback = php_sw_callback[event_type];
+        return php_sw_callback[event_type];
     }
-    if (!callback)
-    {
-        return NULL;
-    }
-    return callback;
+    return NULL;
 }
 
 static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC)
@@ -245,11 +245,11 @@ static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC)
     zval *port_object;
     SW_ALLOC_INIT_ZVAL(port_object);
     object_init_ex(port_object, swoole_server_port_class_entry_ptr);
-    server_port_list.array[server_port_list.num++] = port_object;
+    server_port_list.zobjects[server_port_list.num++] = port_object;
 
-    swoole_port_callbacks *spc = emalloc(sizeof(swoole_port_callbacks));
-    bzero(spc, sizeof(swoole_port_callbacks));
-    swoole_set_property(port_object, 0, spc);
+    swoole_server_port_property *property = emalloc(sizeof(swoole_server_port_property));
+    bzero(property, sizeof(swoole_server_port_property));
+    swoole_set_property(port_object, 0, property);
     swoole_set_object(port_object, port);
 
     zend_update_property_string(swoole_server_port_class_entry_ptr, port_object, ZEND_STRL("host"), port->host TSRMLS_CC);
@@ -571,8 +571,8 @@ static int php_swoole_onPacket(swServer *serv, swEventData *req)
     add_assoc_long(zaddr, "server_socket", req->info.from_fd);
 
     swListenPort *port = serv->connection_list[req->info.from_fd].object;
-    swoole_port_callbacks *callbacks = port->ptr;
-    zval *callback = callbacks->array[SW_SERVER_CB_onPacket];
+    swoole_server_port_property *callbacks = port->ptr;
+    zval *callback = callbacks->callbacks[SW_SERVER_CB_onPacket];
     if (!callback)
     {
         callback = php_sw_callback[SW_SERVER_CB_onPacket];
@@ -1524,12 +1524,15 @@ PHP_METHOD(swoole_server, set)
     }
 
     zval *retval = NULL;
-    zval *obj = server_port_list.array[0];
-    sw_zend_call_method_with_1_params(&obj, swoole_server_port_class_entry_ptr, NULL, "set", &retval, zset);
+    zval *port_object = server_port_list.zobjects[0];
 
-//    sw_zval_add_ref(&zset);
-//    sw_zval_add_ref(&zobject);
+    sw_zval_add_ref(&port_object);
+    sw_zval_add_ref(&zset);
+    sw_zval_add_ref(&zobject);
+
+    sw_zend_call_method_with_1_params(&port_object, swoole_server_port_class_entry_ptr, NULL, "set", &retval, zset);
     zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zset TSRMLS_CC);
+
     RETURN_TRUE;
 }
 
@@ -1585,9 +1588,10 @@ PHP_METHOD(swoole_server, on)
 
     if (i < SW_SERVER_CB_onStart)
     {
-        zval *obj = server_port_list.array[0];
+        zval *port_object = server_port_list.zobjects[0];
         zval *retval = NULL;
-        sw_zend_call_method_with_2_params(&obj, swoole_server_port_class_entry_ptr, NULL, "on", &retval, name, cb);
+        sw_zval_add_ref(&port_object);
+        sw_zend_call_method_with_2_params(&port_object, swoole_server_port_class_entry_ptr, NULL, "on", &retval, name, cb);
     }
     else
     {
@@ -1620,7 +1624,8 @@ PHP_METHOD(swoole_server, listen)
         RETURN_FALSE;
     }
     zval *port_object = php_swoole_server_add_port(ls TSRMLS_CC);
-    RETURN_ZVAL(port_object, 0, NULL);
+
+    RETURN_ZVAL(port_object, 1, NULL);
 }
 
 PHP_METHOD(swoole_server, addprocess)
@@ -1679,7 +1684,6 @@ PHP_METHOD(swoole_server, addprocess)
 PHP_METHOD(swoole_server, start)
 {
     zval *zobject = getThis();
-
     int ret;
 
     if (SwooleGS->start > 0)
@@ -1732,6 +1736,22 @@ PHP_METHOD(swoole_server, start)
     if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("max_connection")))
     {
         add_assoc_long(zsetting, "max_connection", serv->max_connection);
+    }
+
+    int i;
+    zval *retval = NULL;
+    zval *port_object;
+
+    for (i = 1; i < server_port_list.num; i++)
+    {
+        port_object = server_port_list.zobjects[i];
+        sw_zval_add_ref(&zsetting);
+        sw_zval_add_ref(&port_object);
+        sw_zend_call_method_with_1_params(&port_object, swoole_server_port_class_entry_ptr, NULL, "set", &retval, zsetting);
+        if (retval != NULL)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
     }
 
     ret = swServer_start(serv);

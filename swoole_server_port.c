@@ -19,12 +19,14 @@
 zend_class_entry swoole_server_port_ce;
 zend_class_entry *swoole_server_port_class_entry_ptr;
 
+static PHP_METHOD(swoole_server_port, __construct);
 static PHP_METHOD(swoole_server_port, __destruct);
 static PHP_METHOD(swoole_server_port, on);
 static PHP_METHOD(swoole_server_port, set);
 
 const zend_function_entry swoole_server_port_methods[] =
 {
+    PHP_ME(swoole_server_port, __construct,     NULL, ZEND_ACC_PRIVATE | ZEND_ACC_CTOR)
     PHP_ME(swoole_server_port, __destruct,      NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_server_port, set,             NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server_port, on,              NULL, ZEND_ACC_PUBLIC)
@@ -37,12 +39,19 @@ void swoole_server_port_init(int module_number TSRMLS_DC)
     swoole_server_port_class_entry_ptr = zend_register_internal_class(&swoole_server_port_ce TSRMLS_CC);
 }
 
+static PHP_METHOD(swoole_server_port, __construct)
+{
+    swoole_php_fatal_error(E_ERROR, "Please use the swoole_server->listen method.");
+    return;
+}
+
 static PHP_METHOD(swoole_server_port, __destruct)
 {
-    swoole_port_callbacks *callbacks = swoole_get_property(getThis(), 0);
-    efree(callbacks);
+    swoole_server_port_property *property = swoole_get_property(getThis(), 0);
+    efree(property);
     swoole_set_property(getThis(), 0, NULL);
     swoole_set_object(getThis(), NULL);
+    printf("__destruct\n");
 }
 
 static PHP_METHOD(swoole_server_port, set)
@@ -58,11 +67,15 @@ static PHP_METHOD(swoole_server_port, set)
 
     vht = Z_ARRVAL_P(zset);
     swListenPort *port = swoole_get_object(getThis());
-    if (port == NULL)
+    swoole_server_port_property *property = swoole_get_property(getThis(), 0);
+
+    if (port == NULL || property == NULL)
     {
         swoole_php_fatal_error(E_ERROR, "Please use the swoole_server->listen method.");
         return;
     }
+
+    property->setting = zset;
 
     //backlog
     if (sw_zend_hash_find(vht, ZEND_STRS("backlog"), (void **) &v) == SUCCESS)
@@ -108,7 +121,7 @@ static PHP_METHOD(swoole_server_port, set)
        port->protocol.package_eof_len = Z_STRLEN_P(v);
        if (port->protocol.package_eof_len > SW_DATA_EOF_MAXLEN)
        {
-           php_error_docref(NULL TSRMLS_CC, E_ERROR, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
+           swoole_php_fatal_error(E_ERROR, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
            RETURN_FALSE;
        }
        bzero(port->protocol.package_eof, SW_DATA_EOF_MAXLEN);
@@ -159,7 +172,7 @@ static PHP_METHOD(swoole_server_port, set)
 
        if (port->protocol.package_length_size == 0)
        {
-           php_error_docref(NULL TSRMLS_CC, E_ERROR, "unknow package_length_type, see pack(). Link: http://php.net/pack");
+           swoole_php_fatal_error(E_ERROR, "unknow package_length_type, see pack(). Link: http://php.net/pack");
            RETURN_FALSE;
        }
    }
@@ -242,7 +255,7 @@ static PHP_METHOD(swoole_server_port, set)
     }
     if (port->open_ssl_encrypt && !port->ssl_key_file)
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "ssl require key file.");
+        swoole_php_fatal_error(E_ERROR, "ssl require key file.");
         return;
     }
 #endif
@@ -258,7 +271,7 @@ static PHP_METHOD(swoole_server_port, on)
 
     if (SwooleGS->start > 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is running. Unable to set event callback now.");
+        swoole_php_fatal_error(E_WARNING, "Server is running. Unable to set event callback now.");
         RETURN_FALSE;
     }
 
@@ -267,12 +280,12 @@ static PHP_METHOD(swoole_server_port, on)
         return;
     }
 
-    swoole_port_callbacks *callbacks = swoole_get_property(getThis(), 0);
+    swoole_server_port_property *property = swoole_get_property(getThis(), 0);
 
     swListenPort *port = swoole_get_object(getThis());
     if (!port->ptr)
     {
-        port->ptr = callbacks;
+        port->ptr = property;
     }
 
     char *callback[PHP_SERVER_PORT_CALLBACK_NUM] = {
@@ -286,7 +299,7 @@ static PHP_METHOD(swoole_server_port, on)
     {
         if (strncasecmp(callback[i], ha_name, len) == 0)
         {
-            ret = php_swoole_set_callback(callbacks->array, i, cb TSRMLS_CC);
+            ret = php_swoole_set_callback(property->callbacks, i, cb TSRMLS_CC);
             if (i == SW_SERVER_CB_onConnect && SwooleG.serv->onConnect == NULL)
             {
                 SwooleG.serv->onConnect = php_swoole_onConnect;
