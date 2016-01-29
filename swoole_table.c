@@ -212,7 +212,7 @@ PHP_METHOD(swoole_table, column)
     }
     if (type == SW_TABLE_STRING && size < 1)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "string length must be more than 0.");
+        swoole_php_fatal_error(E_WARNING, "string length must be more than 0.");
         RETURN_FALSE;
     }
     //default int32
@@ -228,7 +228,11 @@ PHP_METHOD(swoole_table, column)
 static PHP_METHOD(swoole_table, create)
 {
     swTable *table = swoole_get_object(getThis());
-    swTable_create(table);
+    if (swTable_create(table) < 0)
+    {
+        swoole_php_fatal_error(E_ERROR, "Unable to allocate memory.");
+        RETURN_FALSE;
+    }
     RETURN_TRUE;
 }
 
@@ -314,7 +318,7 @@ static PHP_METHOD(swoole_table, incr)
     if (!row)
     {
         sw_spinlock_release(_lock);
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to allocate memory.");
+        swoole_php_fatal_error(E_WARNING, "Unable to allocate memory.");
         RETURN_FALSE;
     }
 
@@ -386,7 +390,7 @@ static PHP_METHOD(swoole_table, decr)
     if (!row)
     {
         sw_spinlock_release(_lock);
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to allocate memory.");
+        swoole_php_fatal_error(E_WARNING, "Unable to allocate memory.");
         RETURN_FALSE;
     }
 
