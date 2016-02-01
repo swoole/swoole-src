@@ -837,10 +837,7 @@ static PHP_METHOD(swoole_http_client, __construct)
     swoole_set_property(getThis(), 0, hcc);
     hcc->request_header = headers;
 
-    zval *ztype;
-    SW_MAKE_STD_ZVAL(ztype);
-    Z_LVAL_P(ztype) = SW_SOCK_TCP | SW_FLAG_ASYNC;
-    zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("type"), ztype TSRMLS_CC);
+    zend_update_property_long(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("type"), SW_SOCK_TCP | SW_FLAG_ASYNC TSRMLS_CC);
     
     RETURN_TRUE;
 }
