@@ -69,7 +69,6 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 #define sw_zend_hash_copy                     zend_hash_copy
 #define sw_zval_add_ref                       zval_add_ref
 #define sw_zend_hash_exists                   zend_hash_exists
-#define sw_strndup(v,l)                       estrndup(Z_STRVAL_P(v),l)
 #define sw_php_format_date                    php_format_date
 #define sw_php_url_encode                     php_url_encode
 #define SW_RETURN_STRINGL                     RETURN_STRINGL
@@ -178,9 +177,6 @@ static sw_inline int sw_add_assoc_long_ex(zval *arg, const char *key, size_t key
 #define Z_STRVAL_PP(s)                             Z_STRVAL_P(*s)
 #define Z_STRLEN_PP(s)                             Z_STRLEN_P(*s)
 #define Z_LVAL_PP(v)                               Z_LVAL_P(*v)
-#define sw_strndup(s,l)                            \
-        ({zend_string *str = zend_string_copy(Z_STR_P(s));\
-        str->val;})
 
 static inline char* sw_php_format_date(char *format, size_t format_len, time_t ts, int localtime)
 {
@@ -254,7 +250,7 @@ static inline int sw_zend_is_callable(zval *cb, int a, char **name)
 {
     zend_string *key;
     int ret = zend_is_callable(cb, a, &key);
-    char * tmp = (char *)emalloc(key->len);
+    char *tmp = (char *)emalloc(key->len);
     memcpy(tmp, key->val, key->len);
     *name = tmp;
     return ret;
@@ -262,21 +258,16 @@ static inline int sw_zend_is_callable(zval *cb, int a, char **name)
 
 static inline int sw_zend_hash_del(HashTable *ht, char *k, int len)
 {
-    zval key;
-    ZVAL_STRING(&key, k);
-    return zend_hash_del(ht, Z_STR(key));
+    return zend_hash_str_del(ht, k, len - 1);
 }
 
-static inline int sw_zend_hash_add(HashTable *ht, char *k, int len,void *pData,int datasize,void **pDest)
+static inline int sw_zend_hash_add(HashTable *ht, char *k, int len, void *pData, int datasize, void **pDest)
 {
-    zval key;
-    ZVAL_STRING(&key, k);
     zval **real_p = pData;
-
-    return zend_hash_add(ht, Z_STR(key), *real_p) ? SUCCESS : FAILURE;
+    return zend_hash_str_add(ht, k, len - 1, *real_p) ? SUCCESS : FAILURE;
 }
 
-static inline int sw_zend_hash_index_update(HashTable *ht, int key,void *pData,int datasize,void **pDest)
+static inline int sw_zend_hash_index_update(HashTable *ht, int key, void *pData, int datasize, void **pDest)
 {
     zval **real_p = pData;
     return zend_hash_index_update(ht, key, *real_p) ? SUCCESS : FAILURE;
@@ -284,10 +275,7 @@ static inline int sw_zend_hash_index_update(HashTable *ht, int key,void *pData,i
 
 static inline int sw_zend_hash_update(HashTable *ht, char *k, int len, void *val, int size, void *ptr)
 {
-    zval key;
-    ZVAL_STRING(&key, k);
-
-    return zend_hash_update(ht, Z_STR(key), val) ? SUCCESS : FAILURE;
+    return zend_hash_str_update(ht, k, len -1, val) ? SUCCESS : FAILURE;
 }
 
 static inline int sw_zend_hash_get_current_key(HashTable *ht, char **key, uint32_t *keylen, ulong *num)
@@ -315,10 +303,7 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 
 static inline int sw_zend_hash_exists(HashTable *ht, char *k, int len)
 {
-    zval key;
-    ZVAL_STRING(&key, k);
-    zval *value = zend_hash_find(ht, Z_STR(key));
-
+    zval *value = zend_hash_str_find(ht, k, len - 1);
     if (value == NULL)
     {
         return FAILURE;

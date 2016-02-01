@@ -880,6 +880,7 @@ static int http_request_on_body(php_http_parser *parser, const char *at, size_t 
 
         body = estrndup(at, length);
         zend_update_property(swoole_http_request_class_entry_ptr, client->request.zrequest_object, ZEND_STRL("post"), zpost TSRMLS_CC);
+
         sapi_module.treat_data(PARSE_STRING, body, zpost TSRMLS_CC);
         http_merge_php_global(zpost, client->request.zrequest_object, HTTP_GLOBAL_POST);
     }
@@ -1283,8 +1284,7 @@ void swoole_http_request_free(swoole_http_client *client TSRMLS_DC)
             sw_zval_ptr_dtor(&value);
         }
         SW_HASHTABLE_FOREACH_END();
-
-        sw_zval_ptr_dtor(&zfiles);
+        //sw_zval_ptr_dtor(&zfiles);
     }
     //request server info
     if (req->zserver)
@@ -1302,6 +1302,7 @@ void swoole_http_request_free(swoole_http_client *client TSRMLS_DC)
         sw_zval_ptr_dtor(&client->request.zrequest_object);
         client->request.zrequest_object = NULL;
     }
+    //swoole_http_response object
     if (client->response.zresponse_object)
     {
         if (client->response.zcookie)
@@ -1317,7 +1318,6 @@ void swoole_http_request_free(swoole_http_client *client TSRMLS_DC)
         sw_zval_ptr_dtor(&client->response.zresponse_object);
         client->response.zresponse_object = NULL;
     }
-
     client->end = 1;
     client->send_header = 0;
     client->gzip_enable = 0;
