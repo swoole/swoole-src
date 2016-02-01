@@ -89,6 +89,7 @@ typedef struct
         zval zpost;
         zval zfiles;
         zval zcookie;
+        zval zdata;
     } request_stack;
     struct
     {

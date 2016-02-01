@@ -1005,7 +1005,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
     php_http_parser_init(parser, PHP_HTTP_REQUEST);
 
     zval *zdata;
-    SW_MAKE_STD_ZVAL(zdata);
+    http_alloc_zval(client, request, zdata);
     zdata = php_swoole_get_recv_data(zdata, req TSRMLS_CC);
 
     swTrace("httpRequest %d bytes:\n---------------------------------------\n%s\n", Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
@@ -1026,7 +1026,6 @@ static int http_onReceive(swServer *serv, swEventData *req)
         zval *retval;
         zval **args[2];
         zval *zreques_object = client->request.zrequest_object;
-        client->request.zdata = zdata;
 
         char *method_name = http_get_method_name(parser->method);
 
