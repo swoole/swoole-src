@@ -456,7 +456,11 @@ int swServer_start(swServer *serv)
         char *path_ptr = getcwd(path_buf, 128);
         serv->message_queue_key = ftok(path_ptr, 1);
     }
-
+    //init loggger
+    if (serv->log_file[0] != 0)
+    {
+        swLog_init(serv->log_file);
+    }
     //run as daemon
     if (serv->daemonize > 0)
     {
@@ -497,12 +501,6 @@ int swServer_start(swServer *serv)
         {
             return SW_ERR;
         }
-    }
-
-    //init loggger
-    if (serv->log_file[0] != 0)
-    {
-        swLog_init(serv->log_file);
     }
 
     //master pid
