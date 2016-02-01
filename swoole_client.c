@@ -821,17 +821,20 @@ static PHP_METHOD(swoole_client, connect)
                 swoole_php_fatal_error(E_ERROR, "no close callback.");
                 RETURN_FALSE;
             }
+            cli->reactor_fdtype = PHP_SWOOLE_FD_STREAM_CLIENT;
         }
         else
         {
-            if (!cb->onConnect)
+            if (cb->onConnect)
             {
                 cli->onConnect = client_onConnect;
             }
-            if (!cb->onClose)
+            if (cb->onClose)
             {
                 cli->onClose = client_onClose;
             }
+            cli->onReceive = client_onReceive;
+            cli->reactor_fdtype = PHP_SWOOLE_FD_DGRAM_CLIENT;
         }
 
         zval *obj = getThis();
@@ -842,7 +845,6 @@ static PHP_METHOD(swoole_client, connect)
         cli->object = obj;
 #endif
         sw_zval_add_ref(&obj);
-        cli->reactor_fdtype = PHP_SWOOLE_FD_CLIENT;
     }
 
     //nonblock async

@@ -190,7 +190,8 @@ enum swFd_type
     SW_FD_DNS_RESOLVER    = 12, //dns resolver
     SW_FD_INOTIFY         = 13, //server socket
     SW_FD_USER            = 15, //SW_FD_USER or SW_FD_USER+n: for custom event
-    SW_FD_CLIENT          = 16, //swClient
+    SW_FD_STREAM_CLIENT   = 16, //swClient stream
+    SW_FD_DGRAM_CLIENT    = 17, //swClient dgram
 };
 
 enum swBool_type

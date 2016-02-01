@@ -184,7 +184,8 @@ typedef struct
 //---------------------------------------------------------
 enum php_swoole_fd_type
 {
-    PHP_SWOOLE_FD_CLIENT = SW_FD_CLIENT,
+    PHP_SWOOLE_FD_STREAM_CLIENT = SW_FD_STREAM_CLIENT,
+    PHP_SWOOLE_FD_DGRAM_CLIENT = SW_FD_DGRAM_CLIENT,
     PHP_SWOOLE_FD_MYSQL,
     PHP_SWOOLE_FD_REDIS,
     PHP_SWOOLE_FD_HTTPCLIENT,

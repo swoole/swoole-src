@@ -32,8 +32,9 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double _tim
 static int swClient_udp_recv(swClient *cli, char *data, int len, int waitall);
 static int swClient_close(swClient *cli);
 
+static int swClient_onDgramRead(swReactor *reactor, swEvent *event);
+static int swClient_onStreamRead(swReactor *reactor, swEvent *event);
 static int swClient_onWrite(swReactor *reactor, swEvent *event);
-static int swClient_onRead(swReactor *reactor, swEvent *event);
 static int swClient_onError(swReactor *reactor, swEvent *event);
 
 static swHashMap *swoole_dns_cache = NULL;
@@ -110,6 +111,19 @@ int swClient_create(swClient *cli, int type, int async)
     cli->socket->fd = sockfd;
     cli->socket->object = cli;
 
+    if (async)
+    {
+        swSetNonBlock(cli->socket->fd);
+        if (isset_event_handle == 0)
+        {
+            SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_STREAM_CLIENT | SW_EVENT_READ, swClient_onStreamRead);
+            SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_DGRAM_CLIENT | SW_EVENT_READ, swClient_onDgramRead);
+            SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE, swClient_onWrite);
+            SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_STREAM_CLIENT | SW_EVENT_ERROR, swClient_onError);
+            isset_event_handle = 1;
+        }
+    }
+
     if (swSocket_is_stream(type))
     {
         cli->recv = swClient_tcp_recv_no_buffer;
@@ -118,15 +132,6 @@ int swClient_create(swClient *cli, int type, int async)
             cli->connect = swClient_tcp_connect_async;
             cli->send = swClient_tcp_send_async;
             cli->sendfile = swClient_tcp_sendfile_async;
-            swSetNonBlock(cli->socket->fd);
-
-            if (isset_event_handle == 0)
-            {
-                SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_CLIENT | SW_EVENT_READ, swClient_onRead);
-                SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_CLIENT | SW_EVENT_WRITE, swClient_onWrite);
-                SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_CLIENT | SW_EVENT_ERROR, swClient_onError);
-                isset_event_handle = 1;
-            }
         }
         else
         {
@@ -535,7 +540,7 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
     }
     else if (udp_connect != 1)
     {
-        return SW_OK;
+        goto connect_ok;
     }
 
     int bufsize = SwooleG.socket_buffer_size;
@@ -545,6 +550,7 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
     if (connect(cli->socket->fd, (struct sockaddr *) (&cli->server_addr), cli->server_addr.len) == 0)
     {
         swSocket_clean(cli->socket->fd);
+        connect_ok:
         if (cli->async && cli->onConnect)
         {
             if (SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, cli->reactor_fdtype | SW_EVENT_READ) < 0)
@@ -606,7 +612,7 @@ static int swClient_onError(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
-static int swClient_onRead(swReactor *reactor, swEvent *event)
+static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
 {
     int n;
     swClient *cli = event->socket->object;
@@ -707,6 +713,23 @@ static int swClient_onRead(swReactor *reactor, swEvent *event)
         }
 #endif
         return SW_OK;
+    }
+    return SW_OK;
+}
+
+static int swClient_onDgramRead(swReactor *reactor, swEvent *event)
+{
+    swClient *cli = event->socket->object;
+    char buffer[SW_BUFFER_SIZE_UDP];
+
+    int n = swClient_udp_recv(cli, buffer, sizeof(buffer), 0);
+    if (n < 0)
+    {
+        return SW_ERR;
+    }
+    else
+    {
+        cli->onReceive(cli, buffer, n);
     }
     return SW_OK;
 }

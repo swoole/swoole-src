@@ -248,7 +248,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
     }
 
     cli->object = zobject;
-    cli->reactor_fdtype = PHP_SWOOLE_FD_CLIENT;
+    cli->reactor_fdtype = PHP_SWOOLE_FD_STREAM_CLIENT;
     cli->onReceive = http_client_onReceive;
     cli->onConnect = http_client_onConnect;
     cli->onClose = http_client_onClose;
