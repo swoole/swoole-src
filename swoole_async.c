@@ -370,7 +370,7 @@ PHP_FUNCTION(swoole_async_read)
 
     swHashMap_add_int(php_swoole_aio_request, fd, req);
     php_swoole_check_aio();
-    SW_CHECK_RETURN(SwooleAIO.read(fd, fcnt, buf_size, 0));
+    SW_CHECK_RETURN(SwooleAIO.read(fd, fcnt, buf_size, offset));
     RETURN_TRUE;
 }
 

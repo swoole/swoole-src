@@ -207,7 +207,7 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
         //client exit
         if (SwooleG.timer.num <= 0)
         {
-            if (reactor->event_num == 1 && SwooleAIO.task_num == 1)
+            if (SwooleAIO.init && reactor->event_num == 1 && SwooleAIO.task_num == 0)
             {
                 reactor->running = 0;
             }
