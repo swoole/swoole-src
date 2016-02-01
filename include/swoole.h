@@ -1671,6 +1671,7 @@ typedef struct
 {
     uint16_t id;
     uint8_t type;
+    uint8_t update_time;
     uint8_t factory_lock_target;
     int16_t factory_target_worker;
 } swThreadG;

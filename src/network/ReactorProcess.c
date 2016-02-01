@@ -222,6 +222,10 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     SwooleWG.request_count = 0;
     
     SwooleTG.id = 0;
+    if (worker->id == 0)
+    {
+        SwooleTG.update_time = 1;
+    }
 
     swServer_worker_init(serv, worker);
 

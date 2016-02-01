@@ -1284,7 +1284,9 @@ void swoole_http_request_free(swoole_http_client *client TSRMLS_DC)
             sw_zval_ptr_dtor(&value);
         }
         SW_HASHTABLE_FOREACH_END();
-        //sw_zval_ptr_dtor(&zfiles);
+#if PHP_MAJOR_VERSION < 7
+        sw_zval_ptr_dtor(&zfiles);
+#endif
     }
     //request server info
     if (req->zserver)

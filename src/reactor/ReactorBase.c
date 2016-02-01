@@ -192,20 +192,29 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     {
         swTimer_select(&SwooleG.timer);
     }
-    if (SwooleG.serv && swIsMaster())
+
+    //swoole_server
+    if (SwooleG.serv)
     {
-        swoole_update_time();
-    }
-    //client exit
-    if (SwooleG.serv == NULL && SwooleG.timer.num <= 0)
-    {
-        if (reactor->event_num == 1 && SwooleAIO.task_num == 1)
+        if (SwooleTG.update_time)
         {
-            reactor->running = 0;
+            swoole_update_time();
         }
-        else if (reactor->event_num == 0)
+    }
+    //not swoole_server
+    else
+    {
+        //client exit
+        if (SwooleG.timer.num <= 0)
         {
-            reactor->running = 0;
+            if (reactor->event_num == 1 && SwooleAIO.task_num == 1)
+            {
+                reactor->running = 0;
+            }
+            else if (reactor->event_num == 0)
+            {
+                reactor->running = 0;
+            }
         }
     }
 #ifdef SW_USE_MALLOC_TRIM

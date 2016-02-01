@@ -336,6 +336,7 @@ static int swServer_start_proxy(swServer *serv)
     SwooleTG.factory_target_worker = -1;
     SwooleTG.factory_lock_target = 0;
     SwooleTG.id = 0;
+    SwooleTG.update_time = 1;
 
     SwooleG.main_reactor = main_reactor;
     SwooleG.pid = getpid();
