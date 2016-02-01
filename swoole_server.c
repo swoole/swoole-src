@@ -264,6 +264,59 @@ static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC)
     return port_object;
 }
 
+void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
+{
+    /**
+     * Master Process ID
+     */
+    zend_update_property_long(swoole_server_class_entry_ptr, zobject, ZEND_STRL("master_pid"), getpid() TSRMLS_CC);
+
+    zval *zsetting = sw_zend_read_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), 1 TSRMLS_CC);
+    if (zsetting == NULL || ZVAL_IS_NULL(zsetting))
+    {
+        SW_MAKE_STD_ZVAL(zsetting);
+        array_init(zsetting);
+        zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zsetting TSRMLS_CC);
+    }
+
+    if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("worker_num")))
+    {
+        add_assoc_long(zsetting, "worker_num", serv->worker_num);
+    }
+    if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("task_worker_num")))
+    {
+        add_assoc_long(zsetting, "task_worker_num", SwooleG.task_worker_num);
+    }
+    if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("pipe_buffer_size")))
+    {
+        add_assoc_long(zsetting, "pipe_buffer_size", serv->pipe_buffer_size);
+    }
+    if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("buffer_output_size")))
+    {
+        add_assoc_long(zsetting, "buffer_output_size", serv->buffer_output_size);
+    }
+    if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("max_connection")))
+    {
+        add_assoc_long(zsetting, "max_connection", serv->max_connection);
+    }
+
+    int i;
+    zval *retval = NULL;
+    zval *port_object;
+
+    for (i = 1; i < server_port_list.num; i++)
+    {
+        port_object = server_port_list.zobjects[i];
+        sw_zval_add_ref(&zsetting);
+        sw_zval_add_ref(&port_object);
+        sw_zend_call_method_with_1_params(&port_object, swoole_server_port_class_entry_ptr, NULL, "set", &retval, zsetting);
+        if (retval != NULL)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
+    }
+}
+
 void php_swoole_register_callback(swServer *serv)
 {
     /*
@@ -1707,55 +1760,7 @@ PHP_METHOD(swoole_server, start)
     serv->onReceive = php_swoole_onReceive;
     serv->ptr2 = zobject;
 
-    /**
-     * Master Process ID
-     */
-    zend_update_property_long(swoole_server_class_entry_ptr, zobject, ZEND_STRL("master_pid"), getpid() TSRMLS_CC);
-
-    zval *zsetting = sw_zend_read_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), 1 TSRMLS_CC);
-    if (zsetting == NULL || ZVAL_IS_NULL(zsetting))
-    {
-        SW_MAKE_STD_ZVAL(zsetting);
-        array_init(zsetting);
-        zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zsetting TSRMLS_CC);
-    }
-
-    if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("worker_num")))
-    {
-        add_assoc_long(zsetting, "worker_num", serv->worker_num);
-    }
-    if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("task_worker_num")))
-    {
-        add_assoc_long(zsetting, "task_worker_num", SwooleG.task_worker_num);
-    }
-    if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("pipe_buffer_size")))
-    {
-        add_assoc_long(zsetting, "pipe_buffer_size", serv->pipe_buffer_size);
-    }
-    if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("buffer_output_size")))
-    {
-        add_assoc_long(zsetting, "buffer_output_size", serv->buffer_output_size);
-    }
-    if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("max_connection")))
-    {
-        add_assoc_long(zsetting, "max_connection", serv->max_connection);
-    }
-
-    int i;
-    zval *retval = NULL;
-    zval *port_object;
-
-    for (i = 1; i < server_port_list.num; i++)
-    {
-        port_object = server_port_list.zobjects[i];
-        sw_zval_add_ref(&zsetting);
-        sw_zval_add_ref(&port_object);
-        sw_zend_call_method_with_1_params(&port_object, swoole_server_port_class_entry_ptr, NULL, "set", &retval, zsetting);
-        if (retval != NULL)
-        {
-            sw_zval_ptr_dtor(&retval);
-        }
-    }
+    php_swoole_server_before_start(serv, zobject TSRMLS_CC);
 
     ret = swServer_start(serv);
     if (ret < 0)

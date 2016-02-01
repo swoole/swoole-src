@@ -107,9 +107,7 @@ void swoole_websocket_onOpen(swoole_http_client *client)
         swWarn("connection[%d] is closed.", fd);
         return;
     }
-    conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
-
-    swTrace("\n\n\n\nconn ws status:%d, fd=%d\n\n\n", conn->websocket_status, fd);
+    conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
 
     if (websocket_callbacks[WEBSOCKET_CALLBACK_onOpen])
     {

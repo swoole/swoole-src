@@ -968,8 +968,9 @@ static int http_onReceive(swServer *serv, swEventData *req)
         swWarn("connection[%d] is closed.", fd);
         return SW_ERR;
     }
+    swListenPort *port = serv->connection_list[req->info.from_fd].object;
     //other server port
-    if (serv->listen_list->sock != req->info.from_fd)
+    if (!port->open_http_protocol)
     {
         return php_swoole_onReceive(serv, req);
     }
@@ -1516,6 +1517,25 @@ static PHP_METHOD(swoole_http_server, start)
 
     serv->onReceive = http_onReceive;
     serv->onClose = http_onClose;
+
+    zval *zsetting = sw_zend_read_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
+    if (zsetting == NULL || ZVAL_IS_NULL(zsetting))
+    {
+        SW_MAKE_STD_ZVAL(zsetting);
+        array_init(zsetting);
+        zend_update_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting"), zsetting TSRMLS_CC);
+    }
+
+    add_assoc_bool(zsetting, "open_http_protocol", 1);
+    add_assoc_bool(zsetting, "open_mqtt_protocol", 0);
+    add_assoc_bool(zsetting, "open_eof_check", 0);
+    add_assoc_bool(zsetting, "open_length_check", 0);
+
+    if (serv->listen_list->open_websocket_protocol)
+    {
+        add_assoc_bool(zsetting, "open_websocket_protocol", 1);
+    }
+
     serv->listen_list->open_http_protocol = 1;
     serv->listen_list->open_mqtt_protocol = 0;
     serv->listen_list->open_eof_check = 0;
@@ -1527,13 +1547,8 @@ static PHP_METHOD(swoole_http_server, start)
     ALLOC_HASHTABLE(SG(rfc1867_uploaded_files));
     zend_hash_init(SG(rfc1867_uploaded_files), 8, NULL, NULL, 0);
 
-    ret = swServer_create(serv);
-    if (ret < 0)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "create server failed. Error: %s", sw_error);
-        RETURN_LONG(ret);
-    }
-    zend_update_property_long(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("master_pid"), getpid() TSRMLS_CC);
+    php_swoole_server_before_start(serv, getThis() TSRMLS_CC);
+
     ret = swServer_start(serv);
     if (ret < 0)
     {
