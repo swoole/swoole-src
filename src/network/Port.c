@@ -666,4 +666,12 @@ void swPort_free(swListenPort *port)
         free(port->ssl_key_file);
     }
 #endif
+
+    close(port->sock);
+
+    //remove unix socket file
+    if (port->type == SW_SOCK_UNIX_STREAM || port->type == SW_SOCK_UNIX_DGRAM)
+    {
+        unlink(port->host);
+    }
 }

@@ -517,13 +517,14 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
         return SW_ERR;
     }
 
+    cli->socket->active = 1;
     cli->timeout = timeout;
+    int bufsize = SwooleG.socket_buffer_size;
+
     if (timeout > 0)
     {
         swSocket_set_timeout(cli->socket->fd, timeout);
     }
-
-    cli->socket->active = 1;
 
     if (cli->type == SW_SOCK_UNIX_DGRAM)
     {
@@ -543,14 +544,14 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
         goto connect_ok;
     }
 
-    int bufsize = SwooleG.socket_buffer_size;
-    setsockopt(cli->socket->fd, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize));
-    setsockopt(cli->socket->fd, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize));
-
     if (connect(cli->socket->fd, (struct sockaddr *) (&cli->server_addr), cli->server_addr.len) == 0)
     {
         swSocket_clean(cli->socket->fd);
         connect_ok:
+
+        setsockopt(cli->socket->fd, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize));
+        setsockopt(cli->socket->fd, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize));
+
         if (cli->async && cli->onConnect)
         {
             if (SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, cli->reactor_fdtype | SW_EVENT_READ) < 0)
