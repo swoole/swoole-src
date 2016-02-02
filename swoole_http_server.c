@@ -41,11 +41,8 @@ static uint8_t http_merge_global_flag = 0;
 static uint8_t http_merge_request_flag = 0;
 
 swString *swoole_http_buffer;
-swString *swoole_http_form_data_buffer;
-
-#ifdef SW_HAVE_ZLIB
 swString *swoole_zlib_buffer;
-#endif
+swString *swoole_http_form_data_buffer;
 
 enum http_response_flag
 {

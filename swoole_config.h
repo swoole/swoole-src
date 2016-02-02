@@ -227,6 +227,8 @@
 #define SW_HTTP_DATE_FORMAT              "D, d M Y H:i:s T"
 //#define SW_HTTP_100_CONTINUE
 
+#define SW_HTTP_CLIENT_USERAGENT         "swoole-http-client"
+
 #define SW_WEBSOCKET_SERVER_SOFTWARE     "swoole-websocket-server"
 #define SW_WEBSOCKET_VERSION             "13"
 #define SW_WEBSOCKET_KEY_LENGTH          16
