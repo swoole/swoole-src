@@ -24,56 +24,6 @@ static int swPort_onRead_check_length(swReactor *reactor, swListenPort *lp, swEv
 static int swPort_onRead_check_eof(swReactor *reactor, swListenPort *lp, swEvent *event);
 static int swPort_onRead_http(swReactor *reactor, swListenPort *lp, swEvent *event);
 
-#ifdef SW_USE_OPENSSL
-static sw_inline int swPort_check_ssl_state(swListenPort *port, swConnection *conn)
-{
-    if (conn->ssl_state == 0 && conn->ssl)
-    {
-        int ret = swSSL_accept(conn);
-        if (ret == SW_READY)
-        {
-            if (port->ssl_client_cert_file)
-            {
-                swDispatchData task;
-                ret = swSSL_get_client_certificate(conn->ssl, task.data.data, sizeof(task.data.data));
-                if (ret < 0)
-                {
-                    goto no_client_cert;
-                }
-                else
-                {
-                    swFactory *factory = &SwooleG.serv->factory;
-                    task.target_worker_id = -1;
-                    task.data.info.fd = conn->fd;
-                    task.data.info.type = SW_EVENT_CONNECT;
-                    task.data.info.from_id = conn->from_id;
-                    task.data.info.len = ret;
-                    if (factory->dispatch(factory, &task) < 0)
-                    {
-                        return SW_OK;
-                    }
-                }
-            }
-            no_client_cert:
-            if (SwooleG.serv->onConnect)
-            {
-                swServer_connection_ready(SwooleG.serv, conn->fd, conn->from_id);
-            }
-            return SW_OK;
-        }
-        else if (ret == SW_WAIT)
-        {
-            return SW_OK;
-        }
-        else
-        {
-            return SW_ERR;
-        }
-    }
-    return SW_OK;
-}
-#endif
-
 void swPort_init(swListenPort *port)
 {
     port->sock = 0;
@@ -293,14 +243,7 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
     int ret = 0, n;
     swServer *serv = reactor->ptr;
     swDispatchData task;
-    swConnection *conn = swServer_connection_get(serv, event->fd);
-
-#ifdef SW_USE_OPENSSL
-    if (swPort_check_ssl_state(port, conn) < 0)
-    {
-        goto close_fd;
-    }
-#endif
+    swConnection *conn =  event->socket;
 
     n = swConnection_recv(conn, task.data.data, SW_BUFFER_SIZE, 0);
     if (n < 0)
@@ -350,16 +293,8 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
 
 static int swPort_onRead_check_length(swReactor *reactor, swListenPort *port, swEvent *event)
 {
-    swServer *serv = reactor->ptr;
-    swConnection *conn = swServer_connection_get(serv, event->fd);
+    swConnection *conn = event->socket;
     swProtocol *protocol = &port->protocol;
-
-#ifdef SW_USE_OPENSSL
-    if (swPort_check_ssl_state(port, conn) < 0)
-    {
-        return swReactorThread_onClose(reactor, event);
-    }
-#endif
 
     if (conn->object == NULL)
     {
@@ -386,14 +321,6 @@ static int swPort_onRead_check_length(swReactor *reactor, swListenPort *port, sw
 static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *event)
 {
     swConnection *conn = event->socket;
-
-#ifdef SW_USE_OPENSSL
-    if (swPort_check_ssl_state(port, conn) < 0)
-    {
-        goto close_fd;
-    }
-#endif
-
     if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE)
     {
         if (conn->object != NULL)
@@ -627,16 +554,8 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
 
 static int swPort_onRead_check_eof(swReactor *reactor, swListenPort *port, swEvent *event)
 {
-    swServer *serv = SwooleG.serv;
-    swConnection *conn = swServer_connection_get(serv, event->fd);
+    swConnection *conn = event->socket;
     swProtocol *protocol = &port->protocol;
-
-#ifdef SW_USE_OPENSSL
-    if (swPort_check_ssl_state(port, conn) < 0)
-    {
-        return swReactorThread_onClose(reactor, event);
-    }
-#endif
 
     if (conn->object == NULL)
     {

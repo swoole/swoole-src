@@ -73,6 +73,56 @@ static sw_inline void* swReactorThread_alloc(swReactorThread *thread, uint32_t s
 }
 #endif
 
+#ifdef SW_USE_OPENSSL
+static sw_inline int swReactorThread_verify_ssl_state(swListenPort *port, swConnection *conn)
+{
+    if (conn->ssl_state == 0 && conn->ssl)
+    {
+        int ret = swSSL_accept(conn);
+        if (ret == SW_READY)
+        {
+            if (port->ssl_client_cert_file)
+            {
+                swDispatchData task;
+                ret = swSSL_get_client_certificate(conn->ssl, task.data.data, sizeof(task.data.data));
+                if (ret < 0)
+                {
+                    goto no_client_cert;
+                }
+                else
+                {
+                    swFactory *factory = &SwooleG.serv->factory;
+                    task.target_worker_id = -1;
+                    task.data.info.fd = conn->fd;
+                    task.data.info.type = SW_EVENT_CONNECT;
+                    task.data.info.from_id = conn->from_id;
+                    task.data.info.len = ret;
+                    if (factory->dispatch(factory, &task) < 0)
+                    {
+                        return SW_OK;
+                    }
+                }
+            }
+            no_client_cert:
+            if (SwooleG.serv->onConnect)
+            {
+                swServer_connection_ready(SwooleG.serv, conn->fd, conn->from_id);
+            }
+            return SW_OK;
+        }
+        else if (ret == SW_WAIT)
+        {
+            return SW_OK;
+        }
+        else
+        {
+            return SW_ERR;
+        }
+    }
+    return SW_OK;
+}
+#endif
+
 /**
  * for udp
  */
@@ -742,6 +792,14 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
 {
     swServer *serv = reactor->ptr;
     swListenPort *port = swServer_get_port(serv, event->fd);
+
+#ifdef SW_USE_OPENSSL
+    if (swReactorThread_verify_ssl_state(port, event->socket) < 0)
+    {
+        return swReactorThread_close(reactor, event->fd);
+    }
+#endif
+
     return port->onRead(reactor, port, event);
 }
 
