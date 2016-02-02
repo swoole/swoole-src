@@ -691,6 +691,8 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     zval *zfrom_id;
     zval *zdata;
 
+    sw_atomic_fetch_sub(&SwooleStats->tasking_num, 1);
+
     char *zdata_str;
     int zdata_len;
     zval *unserialized_zdata = NULL;
@@ -780,7 +782,6 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
 
     if (EG(exception))
     {
-        sw_atomic_fetch_sub(&SwooleStats->tasking_num, 1);
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
 
@@ -801,7 +802,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
         }
         sw_zval_ptr_dtor(&retval);
     }
-    sw_atomic_fetch_sub(&SwooleStats->tasking_num, 1);
+
     return SW_OK;
 }
 
