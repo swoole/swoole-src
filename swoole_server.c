@@ -2211,7 +2211,7 @@ PHP_METHOD(swoole_server, taskwait)
         }
         else
         {
-            swoole_php_fatal_error(E_WARNING, "taskwait failed. Error: %s[%d]", strerror(errno), errno);
+            swWarn("taskwait failed. Error: %s[%d]", strerror(errno), errno);
         }
     }
     RETURN_FALSE;
