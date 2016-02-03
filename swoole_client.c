@@ -697,6 +697,14 @@ static PHP_METHOD(swoole_client, __destruct)
         {
             sw_zval_ptr_dtor(&cb->onClose);
         }
+
+#if PHP_MAJOR_VERSION >= 7
+        swoole_efree(cb->onConnect);
+        swoole_efree(cb->onReceive);
+        swoole_efree(cb->onError);
+        swoole_efree(cb->onClose);
+#endif
+
         efree(cb);
         swoole_set_property(getThis(), 0, NULL);
     }
