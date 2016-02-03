@@ -289,7 +289,7 @@ static int swClient_close(swClient *cli)
 #endif
 
     //clear buffer
-    if (cli->buffer && (cli->open_eof_check || cli->open_length_check))
+    if (cli->buffer)
     {
         swString_free(cli->buffer);
         cli->buffer = NULL;
@@ -299,12 +299,13 @@ static int swClient_close(swClient *cli)
     {
         //remove from reactor
         SwooleG.main_reactor->del(SwooleG.main_reactor, fd);
-        ret = swReactor_close(SwooleG.main_reactor, fd);
+        cli->socket->closed = 1;
         //onClose callback
         if (cli->onClose)
         {
             cli->onClose(cli);
         }
+        ret = swReactor_close(SwooleG.main_reactor, fd);
     }
     else
     {

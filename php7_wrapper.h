@@ -33,8 +33,7 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
     }
     else
     {
-        void *_v = *v;
-        _v = NULL;
+        *v = NULL;
         return FAILURE;
     }
 }

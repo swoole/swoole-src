@@ -257,7 +257,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
             event.socket = swReactor_get(reactor, event.fd);
 
             //read
-            if (events[i].events & EPOLLIN)
+            if ((events[i].events & EPOLLIN) && !event.socket->removed)
             {
                 handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
                 ret = handle(reactor, &event);
@@ -267,7 +267,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
                 }
             }
             //write
-            if ((events[i].events & EPOLLOUT) && event.socket->fd && !event.socket->removed)
+            if ((events[i].events & EPOLLOUT) && !event.socket->removed)
             {
                 handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
                 ret = handle(reactor, &event);
@@ -278,7 +278,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
             }
             //error
 #ifndef NO_EPOLLRDHUP
-            if ((events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)) && event.socket->fd && !event.socket->removed)
+            if ((events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)) && !event.socket->removed)
 #else
             if ((events[i].events & (EPOLLERR | EPOLLHUP)) && !event.socket->removed)
 #endif

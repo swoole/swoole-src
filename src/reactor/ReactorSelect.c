@@ -238,7 +238,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
                 event.socket = swReactor_get(reactor, event.fd);
 
                 //read
-                if (SW_FD_ISSET(ev->fd, &(object->rfds)))
+                if (SW_FD_ISSET(ev->fd, &(object->rfds)) && !event.socket->removed)
                 {
                     handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
                     ret = handle(reactor, &event);
@@ -249,7 +249,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
                     }
                 }
                 //write
-                if (SW_FD_ISSET(ev->fd, &(object->wfds)) && event.socket->fd && !event.socket->removed)
+                if (SW_FD_ISSET(ev->fd, &(object->wfds)) && !event.socket->removed)
                 {
                     handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
                     ret = handle(reactor, &event);
@@ -260,7 +260,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
                     }
                 }
                 //error
-                if (SW_FD_ISSET(ev->fd, &(object->efds)) && event.socket->fd && !event.socket->removed)
+                if (SW_FD_ISSET(ev->fd, &(object->efds)) && !event.socket->removed)
                 {
                     handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, event.type);
                     ret = handle(reactor, &event);

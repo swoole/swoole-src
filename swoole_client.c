@@ -62,6 +62,7 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length);
 static int client_onPackage(swConnection *conn, char *data, uint32_t length);
 static void client_onClose(swClient *cli);
 static void client_onError(swClient *cli);
+static void client_free(zval *object, swClient *cli TSRMLS_DC);
 
 static sw_inline void client_execute_callback(swClient *cli, enum client_callback_type type)
 {
@@ -485,6 +486,27 @@ void php_swoole_check_reactor()
     SwooleWG.reactor_init = 1;
 }
 
+static void client_free(zval *object, swClient *cli TSRMLS_DC)
+{
+    //long tcp connection, delete from php_sw_long_connections
+    if (cli->keep)
+    {
+        if (swHashMap_del(php_sw_long_connections, cli->server_str, cli->server_strlen))
+        {
+            swoole_php_fatal_error(E_WARNING, "delete from hashtable failed.");
+        }
+        efree(cli->server_str);
+        pefree(cli, 1);
+    }
+    else
+    {
+        efree(cli->server_str);
+        efree(cli);
+    }
+    //unset object
+    swoole_set_object(object, NULL);
+}
+
 swClient* php_swoole_client_create_socket(zval *object, char *host, int host_len, int port)
 {
     zval *ztype;
@@ -647,36 +669,13 @@ static PHP_METHOD(swoole_client, __construct)
 static PHP_METHOD(swoole_client, __destruct)
 {
     swClient *cli = swoole_get_object(getThis());
-    if (cli)
-    {
-        //connection is closed, release swClient memoty
-        if (cli->closed)
-        {
-            //long tcp connection, delete from php_sw_long_connections
-            if (cli->keep)
-            {
-                if (swHashMap_del(php_sw_long_connections, cli->server_str, cli->server_strlen))
-                {
-                    swoole_php_fatal_error(E_WARNING, "delete from hashtable failed.");
-                }
-                efree(cli->server_str);
-                pefree(cli, 1);
-            }
-            else
-            {
-                efree(cli->server_str);
-                efree(cli);
-            }
-        }
-        //no keep connection
-        else if (!cli->keep)
-        {
-            cli->close(cli);
-        }
-    }
 
-    //unset object
-    swoole_set_object(getThis(), NULL);
+    //no keep connection
+    if (cli && !cli->keep)
+    {
+        cli->close(cli);
+        client_free(getThis(), cli TSRMLS_CC);
+    }
 
     //free memory
     client_callback *cb = swoole_get_property(getThis(), 0);
@@ -1377,7 +1376,9 @@ static PHP_METHOD(swoole_client, close)
     if (force || !cli->keep || swConnection_error(SwooleG.error) == SW_CLOSE)
     {
         ret = cli->close(cli);
+        client_free(getThis(), cli TSRMLS_CC);
     }
+    sw_zval_ptr_dtor(&getThis());
     SW_CHECK_RETURN(ret);
 }
 

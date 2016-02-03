@@ -275,7 +275,7 @@ SwooleGS->lock.unlock(&SwooleGS->lock);\
 exit(1)
 
 #define swSysError(str,...) SwooleGS->lock.lock(&SwooleGS->lock);\
-snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s#%d: "str" Error: %s[%d].",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
+snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): "str" Error: %s[%d].",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
 swLog_put(SW_LOG_WARN, sw_error);\
 SwooleGS->lock.unlock(&SwooleGS->lock)
 
