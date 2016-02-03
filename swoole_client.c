@@ -1378,7 +1378,8 @@ static PHP_METHOD(swoole_client, close)
         ret = cli->close(cli);
         client_free(getThis(), cli TSRMLS_CC);
     }
-    sw_zval_ptr_dtor(&getThis());
+    zval *obj = getThis();
+    sw_zval_ptr_dtor(&obj);
     SW_CHECK_RETURN(ret);
 }
 
