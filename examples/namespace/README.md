@@ -1,4 +1,13 @@
-<?php
+Enable Namespace Class
+---------
+modify your `php.ini` file.
+
+```shell
+swoole.use_namespace = on
+```
+
+
+```php
 use Swoole\Http\Server;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
@@ -12,3 +21,4 @@ $serv->on('Request', function(Request $req, Response $resp) {
 
 $serv->start();
 
+```

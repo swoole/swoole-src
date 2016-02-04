@@ -7,11 +7,15 @@ $timer1 = swoole_timer_tick(1000, 'timeout', 1);
 $timer2 = swoole_timer_tick(2000, 'timeout', 2);
 
 swoole_timer_tick(3000, function($id) {
-    timeout(3);
-    swoole_timer_clear($id);
-    global $timer1;
-    swoole_timer_clear($timer1);
-    swoole_timer_tick(7000, 'timeout', 7);
+    timeout($id);
+    //swoole_timer_clear($id);
+    static $remove = true;
+    if ($remove) {
+        global $timer1;
+        swoole_timer_clear($timer1);
+        swoole_timer_tick(7000, 'timeout', 7);
+        $remove = false;
+    }
 });
 
 $timer4 = swoole_timer_tick(4000, 'timeout', 4);
