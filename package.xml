@@ -5,19 +5,22 @@
 	xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0 http://pear.php.net/dtd/tasks-1.0.xsd http://pear.php.net/dtd/package-2.0 http://pear.php.net/dtd/package-2.0.xsd">
 	<name>swoole</name>
 	<channel>pecl.php.net</channel>
-	<summary>Asynchronous and concurrent and distributed networking	framework for PHP.</summary>
-	<description>Asynchronous and concurrent and distributed networking framework for PHP.
+	<summary>Event-driven asynchronous and concurrent networking engine with high performance for PHP.</summary>
+	<description>Event-driven asynchronous and concurrent networking engine with high performance for PHP.
 - event-driven
 - full asynchronous non-blocking
 - multi-thread reactor
 - multi-process worker
+- multi-protocol
 - millisecond timer
-- async MySQL
+- async mysql client
+- async http/websocket client
+- async redis client
 - async task
 - async read/write file system
 - async dns lookup
 - support IPv4/IPv6/UnixSocket/TCP/UDP
-- SSL/TLS encrypted transmission
+- support SSL/TLS encrypted transmission
 	</description>
 	<lead>
 		<name>Tianfeng Han</name>
@@ -31,11 +34,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2016-01-27</date>
-    <time>16:48:51</time>
+    <date>2016-02-04</date>
+    <time>11:48:51</time>
     <version>
-		<release>1.8.0</release>
-		<api>1.8.0</api>
+		<release>1.8.1</release>
+		<api>1.8.1</api>
     </version>
     <stability>
         <release>stable</release>
@@ -43,19 +46,15 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed swoole_process::signal core dump on PHP7
-- Refactor after/tick timer
-- Refactor swoole_websocket_server
-- Added async redis client
-- Added async http/websocket client
+- Added psr-4 style namespace classes alias
+- Added swoole_server->protect methods used to protect the connection will not close by heartbeat thread
+- Added swoole_websocker_server::pack and swoole_websocker_server::unpack static method
+- Added redis subscribe and publish messages supports
+- Added swoole_http_client for gzip content compression support
 - Added swoole_client->reuse property
-- Added swoole_server->defer/swoole_event_defer
-- Added support for multi-port hybrid protocol
-- Added configure option for tcmalloc and jemalloc
-- Remove swoole_server->addtimer/swoole_timer_add/swoole_timer_del
-- Remove swoole_server->onTimer event callback
-- Remove swoole_server->handler
-- Update lish.h to version-1.9.9
+- Fixed async client incidental core dump 
+- Fixed async client memory leak
+- Fixed compile failed with enable-openssl on MacOS
     </notes>
 	<contents>
 		<dir name="/">
