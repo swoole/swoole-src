@@ -40,12 +40,19 @@ function user_handshake(swoole_http_request $request, swoole_http_response $resp
     }
     $response->status(101);
     $response->end();
+    global $server;
+    $fd = $request->fd;
+    $server->defer(function () use ($fd, $server)
+    {
+        $server->push($fd, "hello, welcome\n");
+    });
     return true;
 }
 
-//$server->on('handshake', 'user_handshake');
+$server->on('handshake', 'user_handshake');
 $server->on('open', function (swoole_websocket_server $_server, swoole_http_request $request) {
     echo "server#{$_server->worker_pid}: handshake success with fd#{$request->fd}\n";
+    var_dump($_server->exist($request->fd), $_server->getClientInfo($request->fd));
 //    var_dump($request);
 });
 

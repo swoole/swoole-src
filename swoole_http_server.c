@@ -1109,6 +1109,15 @@ static int http_onReceive(swServer *serv, swEventData *req)
         {
             zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
         }
+        //websocket user handshake
+        if (conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE)
+        {
+            //handshake success
+            if (retval && Z_BVAL_P(retval))
+            {
+                conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
+            }
+        }
         if (retval)
         {
             sw_zval_ptr_dtor(&retval);

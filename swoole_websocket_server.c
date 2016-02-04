@@ -111,8 +111,6 @@ void swoole_websocket_onOpen(swoole_http_client *client)
 
     if (websocket_callbacks[WEBSOCKET_CALLBACK_onOpen])
     {
-        swTrace("\n\n\n\nhandshake success\n\n\n");
-
         zval **args[2];
         swServer *serv = SwooleG.serv;
         zval *zserv = (zval *) serv->ptr2;
