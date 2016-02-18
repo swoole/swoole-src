@@ -626,13 +626,7 @@ static int php_swoole_onPacket(swServer *serv, swEventData *req)
 
     add_assoc_long(zaddr, "server_socket", req->info.from_fd);
 
-    swListenPort *port = serv->connection_list[req->info.from_fd].object;
-    swoole_server_port_property *callbacks = port->ptr;
-    zval *callback = callbacks->callbacks[SW_SERVER_CB_onPacket];
-    if (!callback)
-    {
-        callback = php_sw_callback[SW_SERVER_CB_onPacket];
-    }
+    zval *callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
 
     //udp ipv4
     if (req->info.type == SW_EVENT_UDP)
