@@ -258,6 +258,7 @@ static PHP_METHOD(swoole_server_port, set)
         return;
     }
 #endif
+    zend_update_property(swoole_server_port_class_entry_ptr, getThis(), ZEND_STRL("setting"), zset TSRMLS_CC);
 }
 
 static PHP_METHOD(swoole_server_port, on)
