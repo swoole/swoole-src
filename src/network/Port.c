@@ -16,6 +16,7 @@
 
 #include "Server.h"
 #include "Http.h"
+#include "http2.h"
 #include "websocket.h"
 #include "mqtt.h"
 
@@ -78,6 +79,10 @@ int swPort_listen(swListenPort *ls)
             return SW_ERR;
         }
         if (ls->ssl_client_cert_file && swSSL_set_client_certificate(ls->ssl_context, ls->ssl_client_cert_file, ls->ssl_verify_depth) == SW_ERR)
+        {
+            return SW_ERR;
+        }
+        if (swSSL_server_init(ls->ssl_context))
         {
             return SW_ERR;
         }
@@ -224,6 +229,13 @@ void swPort_set_protocol(swListenPort *ls)
             ls->protocol.get_package_length = swWebSocket_get_package_length;
             ls->protocol.onPackage = swPort_websocket_onPackage;
         }
+#ifdef SW_USE_HTTP2
+        else if (ls->open_http2_protocol)
+        {
+            ls->protocol.get_package_length = swHttp2_get_frame_length;
+            ls->protocol.onPackage = swReactorThread_dispatch;
+        }
+#endif
         ls->onRead = swPort_onRead_http;
     }
     else if (ls->open_mqtt_protocol)
@@ -321,6 +333,7 @@ static int swPort_onRead_check_length(swReactor *reactor, swListenPort *port, sw
 static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *event)
 {
     swConnection *conn = event->socket;
+
     if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE)
     {
         if (conn->object != NULL)
@@ -330,6 +343,18 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
         }
         return swPort_onRead_check_length(reactor, port, event);
     }
+
+#ifdef SW_USE_HTTP2
+    if (conn->http2_stream)
+    {
+        if (conn->object != NULL)
+        {
+            swHttpRequest_free(conn);
+            conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
+        }
+        return swPort_onRead_check_length(reactor, port, event);
+    }
+#endif
 
     int n = 0;
     char *buf;

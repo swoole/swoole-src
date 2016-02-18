@@ -165,6 +165,10 @@ typedef struct _swListenPort
      */
     uint32_t open_http_protocol :1;
     /**
+     * built-in http2.0 protocol
+     */
+    uint32_t open_http2_protocol :1;
+    /**
      * built-in websocket protocol
      */
     uint32_t open_websocket_protocol :1;
@@ -356,18 +360,14 @@ struct _swServer
      * have udp listen socket
      */
     uint32_t have_udp_sock :1;
-
     /**
      * have tcp listen socket
      */
     uint32_t have_tcp_sock :1;
-
     /**
      * oepn cpu affinity setting
      */
     uint32_t open_cpu_affinity :1;
-
-
     /**
      * Udisable notice when use SW_DISPATCH_ROUND and SW_DISPATCH_QUEUE
      */

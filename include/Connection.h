@@ -44,6 +44,7 @@ int swConnection_get_port(swConnection *conn);
 
 #ifdef SW_USE_OPENSSL
 void swSSL_init(void);
+int swSSL_server_init(SSL_CTX* ssl_context);
 SSL_CTX* swSSL_get_context(int method, char *cert_file, char *key_file);
 void swSSL_free_context(SSL_CTX* ssl_context);
 int swSSL_create(swConnection *conn, SSL_CTX* ssl_context, int flags);

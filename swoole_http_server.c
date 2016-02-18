@@ -24,8 +24,8 @@
 #include <ext/standard/php_math.h>
 #include <ext/date/php_date.h>
 #include <ext/standard/md5.h>
-#include <main/rfc1867.h>
 
+#include <main/rfc1867.h>
 #include <main/php_variables.h>
 
 #include "websocket.h"
@@ -78,6 +78,8 @@ enum http_callback_type
 {
     HTTP_CALLBACK_onRequest = 0,
     HTTP_CALLBACK_onHandShake = 1,
+    //http2.0 frame
+    HTTP_CALLBACK_onFrame = 2,
 };
 
 zend_class_entry swoole_http_server_ce;
@@ -1185,6 +1187,12 @@ static PHP_METHOD(swoole_http_server, on)
     {
         php_sw_http_server_callbacks[1] = callback;
     }
+#ifdef SW_USE_HTTP2
+    else if (strncasecmp("frame", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
+    {
+        php_sw_http_server_callbacks[2] = callback;
+    }
+#endif
     else
     {
         zval *obj = getThis();

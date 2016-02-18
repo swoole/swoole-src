@@ -35,6 +35,9 @@ PHP_ARG_ENABLE(async_httpclient, enable async_httpclient support,
 PHP_ARG_ENABLE(openssl, enable openssl support,
 [  --enable-openssl        Use openssl?], no, no)
 
+PHP_ARG_ENABLE(http2, enable http2.0 support,
+[  --enable-http2        Use http2.0?], no, no)
+
 PHP_ARG_ENABLE(jemalloc, enable jemalloc support,
 [  --enable-jemalloc        Use jemalloc?], no, no)
 
@@ -156,6 +159,10 @@ if test "$PHP_SWOOLE" != "no"; then
 
 	if test "$PHP_ASYNC_MYSQL" = "yes"; then
 		AC_DEFINE(SW_ASYNC_MYSQL, 1, [enable async_mysql support])
+    fi
+
+	if test "$PHP_HTTP2" = "yes"; then
+		AC_DEFINE(SW_USE_HTTP2, 1, [enable http2.0 support])
     fi
 
 	if test "$PHP_ASYNC_HTTPCLIENT" = "yes"; then
@@ -308,6 +315,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/Base.c \
         src/protocol/SSL.c \
         src/protocol/Http.c \
+        src/protocol/Http2.c \
         src/protocol/WebSocket.c \
         src/protocol/Mqtt.c \
         src/protocol/Base64.c"

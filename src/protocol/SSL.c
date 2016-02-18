@@ -23,6 +23,9 @@ static int openssl_init = 0;
 
 static const SSL_METHOD *swSSL_get_method(int method);
 static int swSSL_verify_callback(int ok, X509_STORE_CTX *x509_store);
+static RSA* swSSL_rsa512_key_callback(SSL *ssl, int is_export, int key_length);
+static int swSSL_set_dhparam(SSL_CTX* ssl_context);
+static int swSSL_set_ecdh_curve(SSL_CTX* ssl_context);
 
 static const SSL_METHOD *swSSL_get_method(int method)
 {
@@ -77,6 +80,25 @@ void swSSL_init(void)
     openssl_init = 1;
 }
 
+int swSSL_server_init(SSL_CTX* ssl_context)
+{
+    SSL_CTX_set_read_ahead(ssl_context, 1);
+
+    if (SSL_CTX_set_cipher_list(ssl_context, SW_SSL_CIPHER_LIST) == 0)
+    {
+        swWarn("SSL_CTX_set_cipher_list(\"%s\") failed", SW_SSL_CIPHER_LIST);
+        return SW_ERR;
+    }
+
+    SSL_CTX_set_options(ssl_context, SSL_OP_CIPHER_SERVER_PREFERENCE);
+
+    SSL_CTX_set_tmp_rsa_callback(ssl_context, swSSL_rsa512_key_callback);
+    swSSL_set_dhparam(ssl_context);
+    swSSL_set_ecdh_curve(ssl_context);
+
+    return SW_OK;
+}
+
 SSL_CTX* swSSL_get_context(int method, char *cert_file, char *key_file)
 {
     if (!openssl_init)
@@ -93,6 +115,12 @@ SSL_CTX* swSSL_get_context(int method, char *cert_file, char *key_file)
 
     SSL_CTX_set_options(ssl_context, SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG);
     SSL_CTX_set_options(ssl_context, SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER);
+    SSL_CTX_set_options(ssl_context, SSL_OP_MSIE_SSLV2_RSA_PADDING);
+    SSL_CTX_set_options(ssl_context, SSL_OP_SSLEAY_080_CLIENT_DH_BUG);
+    SSL_CTX_set_options(ssl_context, SSL_OP_TLS_D5_BUG);
+    SSL_CTX_set_options(ssl_context, SSL_OP_TLS_BLOCK_PADDING_BUG);
+    SSL_CTX_set_options(ssl_context, SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS);
+    SSL_CTX_set_options(ssl_context, SSL_OP_SINGLE_DH_USE);
 
     if (cert_file)
     {
@@ -386,6 +414,90 @@ void swSSL_free_context(SSL_CTX* ssl_context)
     {
         SSL_CTX_free(ssl_context);
     }
+}
+
+static RSA* swSSL_rsa512_key_callback(SSL *ssl, int is_export, int key_length)
+{
+    static RSA *key;
+    if (key_length == 512)
+    {
+        if (key == NULL)
+        {
+            key = RSA_generate_key(512, RSA_F4, NULL, NULL);
+        }
+    }
+    return key;
+}
+
+static int swSSL_set_dhparam(SSL_CTX* ssl_context)
+{
+    DH *dh;
+    static unsigned char dh1024_p[] =
+    {
+        0xBB, 0xBC, 0x2D, 0xCA, 0xD8, 0x46, 0x74, 0x90, 0x7C, 0x43, 0xFC, 0xF5, 0x80, 0xE9, 0xCF, 0xDB, 0xD9, 0x58, 0xA3,
+        0xF5, 0x68, 0xB4, 0x2D, 0x4B, 0x08, 0xEE, 0xD4, 0xEB, 0x0F, 0xB3, 0x50, 0x4C, 0x6C, 0x03, 0x02, 0x76, 0xE7,
+        0x10, 0x80, 0x0C, 0x5C, 0xCB, 0xBA, 0xA8, 0x92, 0x26, 0x14, 0xC5, 0xBE, 0xEC, 0xA5, 0x65, 0xA5, 0xFD, 0xF1,
+        0xD2, 0x87, 0xA2, 0xBC, 0x04, 0x9B, 0xE6, 0x77, 0x80, 0x60, 0xE9, 0x1A, 0x92, 0xA7, 0x57, 0xE3, 0x04, 0x8F,
+        0x68, 0xB0, 0x76, 0xF7, 0xD3, 0x6C, 0xC8, 0xF2, 0x9B, 0xA5, 0xDF, 0x81, 0xDC, 0x2C, 0xA7, 0x25, 0xEC, 0xE6,
+        0x62, 0x70, 0xCC, 0x9A, 0x50, 0x35, 0xD8, 0xCE, 0xCE, 0xEF, 0x9E, 0xA0, 0x27, 0x4A, 0x63, 0xAB, 0x1E, 0x58,
+        0xFA, 0xFD, 0x49, 0x88, 0xD0, 0xF6, 0x5D, 0x14, 0x67, 0x57, 0xDA, 0x07, 0x1D, 0xF0, 0x45, 0xCF, 0xE1, 0x6B,
+        0x9B
+    };
+
+    static unsigned char dh1024_g[] = { 0x02 };
+    dh = DH_new();
+    if (dh == NULL)
+    {
+        swWarn( "DH_new() failed");
+        return SW_ERR;
+    }
+
+    dh->p = BN_bin2bn(dh1024_p, sizeof(dh1024_p), NULL);
+    dh->g = BN_bin2bn(dh1024_g, sizeof(dh1024_g), NULL);
+
+    if (dh->p == NULL || dh->g == NULL)
+    {
+        DH_free(dh);
+    }
+    SSL_CTX_set_tmp_dh(ssl_context, dh);
+    DH_free(dh);
+    return SW_OK;
+}
+
+static int swSSL_set_ecdh_curve(SSL_CTX* ssl_context)
+{
+#if OPENSSL_VERSION_NUMBER >= 0x0090800fL
+#ifndef OPENSSL_NO_ECDH
+
+    EC_KEY *ecdh;
+    /*
+     * Elliptic-Curve Diffie-Hellman parameters are either "named curves"
+     * from RFC 4492 section 5.1.1, or explicitly described curves over
+     * binary fields. OpenSSL only supports the "named curves", which provide
+     * maximum interoperability.
+     */
+    int nid = OBJ_sn2nid(SW_SSL_ECDH_CURVE);
+    if (nid == 0)
+    {
+        swWarn("Unknown curve name \"%s\"", SW_SSL_ECDH_CURVE);
+        return SW_ERR;
+    }
+
+    ecdh = EC_KEY_new_by_curve_name(nid);
+    if (ecdh == NULL)
+    {
+        swWarn("Unable to create curve \"%s\"", SW_SSL_ECDH_CURVE);
+        return SW_ERR;
+    }
+
+    SSL_CTX_set_options(ssl_context, SSL_OP_SINGLE_ECDH_USE);
+    SSL_CTX_set_tmp_ecdh(ssl_context, ecdh);
+
+    EC_KEY_free(ecdh);
+#endif
+#endif
+
+    return SW_OK;
 }
 
 #endif

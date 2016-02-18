@@ -202,7 +202,9 @@
 //#define SW_TABLE_USE_PHP_HASH
 //#define SW_TABLE_DEBUG
 
-#define SW_SSL_BUFSIZE  16384
+#define SW_SSL_BUFFER_SIZE               16384
+#define SW_SSL_CIPHER_LIST               "EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH"
+#define SW_SSL_ECDH_CURVE                "secp384r1"
 
 #define SW_SPINLOCK_LOOP_N               1024
 
