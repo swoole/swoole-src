@@ -57,3 +57,5 @@ modules/*
 /examples/ssl/client.pfx
 /examples/ssl/corpssl.crt
 /examples/ssl/corpssl.key
+/tests/hpack/main
+/tests/hpack/data.txt

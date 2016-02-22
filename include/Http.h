@@ -36,6 +36,8 @@ enum swHttpMethod
     HTTP_REPORT, HTTP_MKACTIVITY, HTTP_CHECKOUT, HTTP_MERGE,
     /* upnp */
     HTTP_MSEARCH, HTTP_NOTIFY, HTTP_SUBSCRIBE, HTTP_UNSUBSCRIBE,
+    /* Http2 */
+    HTTP_PRI,
 };
 
 enum swHttpVersion

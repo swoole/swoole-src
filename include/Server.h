@@ -201,6 +201,7 @@ typedef struct _swListenPort
     char *ssl_cert_file;
     char *ssl_key_file;
     SSL_CTX *ssl_context;
+    swSSL_config ssl_config;
     uint8_t ssl_method;
     char *ssl_client_cert_file;
     uint8_t ssl_verify_depth;
@@ -306,11 +307,6 @@ struct _swServer
     uint8_t dgram_port_num;
 
     /**
-     * swoole packet mode
-     */
-    int packet_mode;
-
-    /**
      * package dispatch mode
      */
     uint8_t dispatch_mode; //分配模式，1平均分配，2按FD取摸固定分配，3,使用抢占式队列(IPC消息队列)分配
@@ -334,7 +330,8 @@ struct _swServer
     int sock_client_buffer_size; //client的socket缓存区设置
     int sock_server_buffer_size; //server的socket缓存区设置
 
-    char log_file[SW_LOG_FILENAME]; //日志文件
+    int log_level;
+    char log_file[SW_LOG_FILENAME];
 
     int signal_fd;
     int event_fd;
@@ -355,7 +352,6 @@ struct _swServer
      * run as a daemon process
      */
     uint32_t daemonize :1;
-
     /**
      * have udp listen socket
      */
@@ -372,18 +368,20 @@ struct _swServer
      * Udisable notice when use SW_DISPATCH_ROUND and SW_DISPATCH_QUEUE
      */
     uint32_t disable_notify :1;
-
     /**
      * discard the timeout request
      */
     uint32_t discard_timeout_request :1;
-
     /**
      * parse x-www-form-urlencoded data
      */
     uint32_t http_parse_post :1;
 
     uint32_t enable_unsafe_event :1;
+    /**
+     * packet mode
+     */
+    uint32_t packet_mode :1;
 
     /* heartbeat check time*/
     uint16_t heartbeat_idle_time; //心跳存活时间

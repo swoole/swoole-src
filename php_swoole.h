@@ -109,14 +109,18 @@ extern swoole_object_array swoole_objects;
 #if defined(SW_ASYNC_MYSQL)
 #if defined(SW_HAVE_MYSQLI) && defined(SW_HAVE_MYSQLND)
 #else
-#error "Enable async_mysql support, But no mysqli or mysqlnd."
+#error "Enable async_mysql support, require mysqli and mysqlnd."
 #undef SW_ASYNC_MYSQL
 #endif
 #endif
 
 #ifdef SW_USE_OPENSSL
 #ifndef HAVE_OPENSSL
-#error "Enable openssl support, But no openssl library."
+#error "Enable openssl support, require openssl library."
+#endif
+#else
+#ifdef SW_USE_HTTP2
+#error "Enable http2 support, require --enable-openssl."
 #endif
 #endif
 
@@ -125,7 +129,16 @@ extern swoole_object_array swoole_objects;
 #include "ext/sockets/php_sockets.h"
 #define SWOOLE_SOCKETS_SUPPORT
 #else
-#error "Enable sockets support, But no sockets extension"
+#error "Enable sockets support, require sockets extension."
+#endif
+#endif
+
+#ifdef SW_USE_HTTP2
+#if !defined(HAVE_NGHTTP2)
+#error "Enable http2 support, require nghttp2 library."
+#endif
+#if !defined(HAVE_OPENSSL)
+#error "Enable http2 support, require openssl library."
 #endif
 #endif
 

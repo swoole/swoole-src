@@ -43,20 +43,6 @@ char* swConnection_get_ip(swConnection *conn);
 int swConnection_get_port(swConnection *conn);
 
 #ifdef SW_USE_OPENSSL
-void swSSL_init(void);
-int swSSL_server_init(SSL_CTX* ssl_context);
-SSL_CTX* swSSL_get_context(int method, char *cert_file, char *key_file);
-void swSSL_free_context(SSL_CTX* ssl_context);
-int swSSL_create(swConnection *conn, SSL_CTX* ssl_context, int flags);
-int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth);
-int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length);
-int swSSL_accept(swConnection *conn);
-int swSSL_connect(swConnection *conn);
-void swSSL_close(swConnection *conn);
-ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n);
-ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n);
-
-
 enum swSSLState
 {
     SW_SSL_STATE_HANDSHAKE    = 0,
@@ -86,6 +72,30 @@ enum swSSLMethod
     SW_DTLSv1_CLIENT_METHOD,
 };
 
+typedef struct
+{
+    uint32_t http :1;
+    uint32_t prefer_server_ciphers :1;
+    uint32_t session_tickets :1;
+    uint32_t stapling :1;
+    uint32_t stapling_verify :1;
+    char *ciphers;
+    char *ecdh_curve;
+    char *session_cache;
+} swSSL_config;
+
+void swSSL_init(void);
+int swSSL_server_config(SSL_CTX* ssl_context, swSSL_config *cfg);
+SSL_CTX* swSSL_get_context(int method, char *cert_file, char *key_file);
+void swSSL_free_context(SSL_CTX* ssl_context);
+int swSSL_create(swConnection *conn, SSL_CTX* ssl_context, int flags);
+int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth);
+int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length);
+int swSSL_accept(swConnection *conn);
+int swSSL_connect(swConnection *conn);
+void swSSL_close(swConnection *conn);
+ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n);
+ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n);
 #endif
 
 /**

@@ -973,6 +973,14 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
             type = type & (~SW_SOCK_SSL);
             ls->type = type;
             ls->ssl = 1;
+#ifdef SW_USE_OPENSSL
+            ls->ssl_config.prefer_server_ciphers = 1;
+            ls->ssl_config.session_tickets = 0;
+            ls->ssl_config.stapling = 1;
+            ls->ssl_config.stapling_verify = 1;
+            ls->ssl_config.ciphers = SW_SSL_CIPHER_LIST;
+            ls->ssl_config.ecdh_curve = SW_SSL_ECDH_CURVE;
+#endif
         }
         if (type != SW_SOCK_UNIX_STREAM && port <= 0)
         {

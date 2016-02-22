@@ -82,7 +82,11 @@ int swPort_listen(swListenPort *ls)
         {
             return SW_ERR;
         }
-        if (swSSL_server_init(ls->ssl_context))
+        if (ls->open_http_protocol)
+        {
+            ls->ssl_config.http = 1;
+        }
+        if (swSSL_server_config(ls->ssl_context, &ls->ssl_config))
         {
             return SW_ERR;
         }
@@ -233,6 +237,7 @@ void swPort_set_protocol(swListenPort *ls)
         else if (ls->open_http2_protocol)
         {
             ls->protocol.get_package_length = swHttp2_get_frame_length;
+            ls->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
             ls->protocol.onPackage = swReactorThread_dispatch;
         }
 #endif
@@ -347,11 +352,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
 #ifdef SW_USE_HTTP2
     if (conn->http2_stream)
     {
-        if (conn->object != NULL)
-        {
-            swHttpRequest_free(conn);
-            conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
-        }
+        http2_stream:
         return swPort_onRead_check_length(reactor, port, event);
     }
 #endif
@@ -434,8 +435,6 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
 #endif
             goto close_fd;
         }
-
-        swTrace("request->method=%d", request->method);
 
         //DELETE
         if (request->method == HTTP_DELETE)
@@ -568,6 +567,21 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                 goto recv_data;
             }
         }
+#ifdef SW_USE_HTTP2
+        else if (request->method == HTTP_PRI)
+        {
+            conn->http2_stream = 1;
+            swHttp2_send_setting_frame(protocol, conn);
+            if (n == sizeof(SW_HTTP2_PRI_STRING) - 1)
+            {
+                swHttpRequest_free(conn);
+                return SW_OK;
+            }
+            swHttp2_parse_frame(protocol, conn, buf + (sizeof(SW_HTTP2_PRI_STRING) - 1), n - (sizeof(SW_HTTP2_PRI_STRING) - 1));
+            swHttpRequest_free(conn);
+            return SW_OK;
+        }
+#endif
         else
         {
             swWarn("method no support");

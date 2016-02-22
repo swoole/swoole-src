@@ -201,13 +201,14 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(ssl, SSL_library_init, AC_DEFINE(HAVE_OPENSSL, 1, [have openssl]))
     AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
     AC_CHECK_LIB(hiredis, redisConnect, AC_DEFINE(HAVE_HIREDIS, 1, [have hiredis]))
+    AC_CHECK_LIB(nghttp2, nghttp2_hd_inflate_new, AC_DEFINE(HAVE_NGHTTP2, 1, [have nghttp2]))
 
     AC_CHECK_LIB(z, gzgets, [
         AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
         PHP_ADD_LIBRARY(z, 1, SWOOLE_SHARED_LIBADD)
     ])
 
-    if test `uname` = "Darwin" ; then
+    if test `uname` = "Darwin"; then
         AC_CHECK_LIB(c, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
         AC_CHECK_LIB(c, aio_read, AC_DEFINE(HAVE_GCC_AIO, 1, [have gcc aio]))
      
@@ -235,6 +236,10 @@ if test "$PHP_SWOOLE" != "no"; then
     if test "$PHP_ASYNC_REDIS" = "yes"; then
         AC_DEFINE(SW_USE_REDIS, 1, [enable async-redis support])
         PHP_ADD_LIBRARY(hiredis, 1, SWOOLE_SHARED_LIBADD)
+    fi
+
+	if test "$PHP_HTTP2" = "yes"; then
+		PHP_ADD_LIBRARY(nghttp2, 1, SWOOLE_SHARED_LIBADD)
     fi
     
     if test "$PHP_JEMALLOC" = "yes"; then

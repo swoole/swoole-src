@@ -75,6 +75,8 @@ typedef struct
     uint32_t current_header_name_allocated :1;
     uint32_t content_sender_initialized :1;
 
+    uint32_t http2 :1;
+
     http_request request;
     http_response response;
 

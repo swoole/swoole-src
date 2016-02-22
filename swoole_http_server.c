@@ -36,6 +36,11 @@
 #include <zlib.h>
 #endif
 
+#ifdef SW_USE_HTTP2
+#include "http2.h"
+#include <nghttp2/nghttp2.h>
+#endif
+
 static swArray *http_client_array;
 static uint8_t http_merge_global_flag = 0;
 static uint8_t http_merge_request_flag = 0;
@@ -91,7 +96,7 @@ zend_class_entry *swoole_http_response_class_entry_ptr;
 zend_class_entry swoole_http_request_ce;
 zend_class_entry *swoole_http_request_class_entry_ptr;
 
-static zval* php_sw_http_server_callbacks[2];
+static zval* php_sw_http_server_callbacks[3];
 
 static int http_onReceive(swServer *serv, swEventData *req);
 static void http_onClose(swServer *serv, swDataHead *info);
@@ -958,6 +963,164 @@ static void http_onClose(swServer *serv, swDataHead *info)
     }
 }
 
+static int http2_parse_header(swoole_http_client *client, char *in, size_t inlen)
+{
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+
+    nghttp2_hd_inflater *inflater;
+    int ret = nghttp2_hd_inflate_new(&inflater);
+    if (ret != 0)
+    {
+        swoole_php_error(E_WARNING, "nghttp2_hd_inflate_init failed with error code %zd, , Error: %s", ret, nghttp2_strerror(ret));
+        return SW_ERR;
+    }
+
+    int pad_length = in[0];
+    int stream_deps = *(int *) (in + 1);
+    uint8_t weight = in[5];
+
+    in += 6;
+    inlen -= 6;
+
+    printf("pad_length=%d, stream_deps=%d, weight=%d\n", pad_length, stream_deps, weight);
+
+    zval *zheader = client->request.zheader;
+    zval *zserver = client->request.zserver;
+
+    ssize_t rv;
+    for (;;)
+    {
+        nghttp2_nv nv;
+        int inflate_flags = 0;
+        size_t proclen;
+
+        rv = nghttp2_hd_inflate_hd(inflater, &nv, &inflate_flags, in, inlen, 1);
+
+        if (rv < 0)
+        {
+            swoole_php_error(E_WARNING, "inflate failed with error code %zd, Error: %s", rv, nghttp2_strerror(rv));
+            return -1;
+        }
+
+        proclen = (size_t) rv;
+
+        in += proclen;
+        inlen -= proclen;
+
+        //swTrace("nv.name=%s, nv.namelen=%d, nv.value=%s, nv.valuelen=%d\n", nv.name, nv.namelen, nv.value, nv.valuelen);
+
+        if (inflate_flags & NGHTTP2_HD_INFLATE_EMIT)
+        {
+            if (nv.name[0] == ':')
+            {
+                sw_add_assoc_stringl_ex(zserver, nv.name + 1, nv.namelen, nv.value, nv.valuelen, 1);
+            }
+            else
+            {
+                sw_add_assoc_stringl_ex(zheader, nv.name, nv.namelen + 1, nv.value, nv.valuelen, 1);
+            }
+        }
+
+        if (inflate_flags & NGHTTP2_HD_INFLATE_FINAL)
+        {
+            nghttp2_hd_inflate_end_headers(inflater);
+            break;
+        }
+
+        if ((inflate_flags & NGHTTP2_HD_INFLATE_EMIT) == 0 && inlen == 0)
+        {
+            break;
+        }
+    }
+    return SW_OK;
+}
+
+/**
+ * Http2
+ */
+static int http_onFrame(swoole_http_client *client, swEventData *req)
+{
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+
+    int fd = req->info.fd;
+    zval *zdata;
+    SW_MAKE_STD_ZVAL(zdata);
+    zdata = php_swoole_get_recv_data(zdata, req TSRMLS_CC);
+    char *buf = Z_STRVAL_P(zdata);
+
+    int type = buf[3];
+    int flags = buf[4];
+    int stream_id = *(int *) (buf + 5);
+    uint32_t length = swHttp2_get_length(buf);
+
+    swWarn("http2 frame: type=%d, flags=%d, stream_id=%d, length=%d", type, flags, stream_id, length);
+
+    if (type == SW_HTTP2_TYPE_HEADERS)
+    {
+        http2_parse_header(client, buf + SW_HTTP2_FRAME_HEADER_SIZE, length - SW_HTTP2_FRAME_HEADER_SIZE);
+
+        zval *retval;
+        zval **args[2];
+        zval *zreques_object = client->request.zrequest_object;
+        zval *zserver = client->request.zserver;
+
+        sw_add_assoc_long_ex(zserver, ZEND_STRS("request_time"), SwooleGS->now);
+
+        swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
+        if (!conn)
+        {
+            sw_zval_ptr_dtor(&zdata);
+            swWarn("connection[%d] is closed.", fd);
+            return SW_ERR;
+        }
+
+        add_assoc_long(client->request.zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[conn->from_fd]));
+        add_assoc_long(client->request.zserver, "remote_port", swConnection_get_port(conn));
+        sw_add_assoc_string(zserver, "remote_addr", swConnection_get_ip(conn), 1);
+
+        sw_add_assoc_string(zserver, "server_protocol", "HTTP/2", 1);
+        sw_add_assoc_string(zserver, "server_software", SW_HTTP_SERVER_SOFTWARE, 1);
+
+        http_merge_php_global(zserver, zreques_object, HTTP_GLOBAL_SERVER);
+        http_merge_php_global(NULL, zreques_object, HTTP_GLOBAL_REQUEST);
+
+        zval *zresponse_object;
+        http_alloc_zval(client, response, zresponse_object);
+        object_init_ex(zresponse_object, swoole_http_response_class_entry_ptr);
+
+        //socket fd
+        zend_update_property_long(swoole_http_response_class_entry_ptr, zresponse_object, ZEND_STRL("fd"), client->fd TSRMLS_CC);
+
+#ifdef __CYGWIN__
+        //TODO: memory error on cygwin.
+        zval_add_ref(&zreques_object);
+        zval_add_ref(&zresponse_object);
+#endif
+
+        args[0] = &zreques_object;
+        args[1] = &zresponse_object;
+
+        if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[HTTP_CALLBACK_onRequest], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "onRequest handler error");
+        }
+        if (EG(exception))
+        {
+            zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+        }
+        if (retval)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
+    }
+
+    return SW_OK;
+}
+
 static int http_onReceive(swServer *serv, swEventData *req)
 {
     int fd = req->info.fd;
@@ -975,10 +1138,11 @@ static int http_onReceive(swServer *serv, swEventData *req)
         return php_swoole_onReceive(serv, req);
     }
     //websocket client
-    if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)  //websocket callback
+    if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)
     {
         return swoole_websocket_onMessage(req);
     }
+
     swoole_http_client *client = swArray_alloc(http_client_array, conn->fd);
     if (!client)
     {
@@ -996,6 +1160,14 @@ static int http_onReceive(swServer *serv, swEventData *req)
      * create request and response object
      */
     http_request_new(client TSRMLS_CC);
+
+#ifdef SW_USE_HTTP2
+    if (conn->http2_stream)
+    {
+        client->http2 = 1;
+        return http_onFrame(client, req);
+    }
+#endif
 
     zval *zserver = client->request.zserver;
 

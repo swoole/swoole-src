@@ -26,6 +26,7 @@ static int swSSL_verify_callback(int ok, X509_STORE_CTX *x509_store);
 static RSA* swSSL_rsa512_key_callback(SSL *ssl, int is_export, int key_length);
 static int swSSL_set_dhparam(SSL_CTX* ssl_context);
 static int swSSL_set_ecdh_curve(SSL_CTX* ssl_context);
+static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, void *arg);
 
 static const SSL_METHOD *swSSL_get_method(int method)
 {
@@ -80,22 +81,34 @@ void swSSL_init(void)
     openssl_init = 1;
 }
 
-int swSSL_server_init(SSL_CTX* ssl_context)
+int swSSL_server_config(SSL_CTX* ssl_context, swSSL_config *cfg)
 {
     SSL_CTX_set_read_ahead(ssl_context, 1);
 
-    if (SSL_CTX_set_cipher_list(ssl_context, SW_SSL_CIPHER_LIST) == 0)
+#ifdef TLSEXT_TYPE_next_proto_neg
+    SSL_CTX_set_next_protos_advertised_cb(ssl_context, swSSL_npn_advertised, NULL);
+#endif
+
+    if (SSL_CTX_set_cipher_list(ssl_context, cfg->ciphers) == 0)
     {
         swWarn("SSL_CTX_set_cipher_list(\"%s\") failed", SW_SSL_CIPHER_LIST);
         return SW_ERR;
     }
-
-    SSL_CTX_set_options(ssl_context, SSL_OP_CIPHER_SERVER_PREFERENCE);
+    if (cfg->prefer_server_ciphers)
+    {
+        SSL_CTX_set_options(ssl_context, SSL_OP_CIPHER_SERVER_PREFERENCE);
+    }
 
     SSL_CTX_set_tmp_rsa_callback(ssl_context, swSSL_rsa512_key_callback);
     swSSL_set_dhparam(ssl_context);
     swSSL_set_ecdh_curve(ssl_context);
 
+    if (cfg->http)
+    {
+        SSL_CTX_set_session_id_context(ssl_context, (const unsigned char *) "HTTP", strlen("HTTP"));
+        SSL_CTX_set_session_cache_mode(ssl_context, SSL_SESS_CACHE_SERVER);
+        SSL_CTX_sess_set_cache_size(ssl_context, 1);
+    }
     return SW_OK;
 }
 
@@ -499,5 +512,19 @@ static int swSSL_set_ecdh_curve(SSL_CTX* ssl_context)
 
     return SW_OK;
 }
+
+#ifdef TLSEXT_TYPE_next_proto_neg
+static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, void *arg)
+{
+#ifdef SW_USE_HTTP2
+    *out = (uchar *) SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE;
+    *outlen = sizeof(SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE) - 1;
+#else
+    *out = (uchar *) SW_SSL_NPN_ADVERTISE;
+    *outlen = sizeof(SW_SSL_NPN_ADVERTISE) - 1;
+#endif
+    return SSL_TLSEXT_ERR_OK;
+}
+#endif
 
 #endif

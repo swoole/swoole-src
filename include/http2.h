@@ -22,6 +22,8 @@ extern "C"
 {
 #endif
 
+#define SW_HTTP2_PRI_STRING  "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
+
 enum swHttp2ErrorCode
 {
     SW_HTTP2_ERROR_NO_ERROR = 0,
@@ -53,12 +55,21 @@ enum swHttp2FrameType
     SW_HTTP2_TYPE_CONTINUATION = 9,
 };
 
+#define SW_HTTP2_FRAME_HEADER_SIZE            9
+#define SW_HTTP2_RST_STREAM_SIZE              4
+#define SW_HTTP2_PRIORITY_SIZE                5
+#define SW_HTTP2_PING_SIZE                    8
+#define SW_HTTP2_GOAWAY_SIZE                  8
+#define SW_HTTP2_WINDOW_UPDATE_SIZE           4
+#define SW_HTTP2_STREAM_ID_SIZE               4
+#define SW_HTTP2_SETTINGS_PARAM_SIZE          6
+
 /**
-0                   1                   2                   3
-  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- | R |     Length (14)           |   Type (8)    |   Flags (8)   |
- +-+-+-----------+---------------+-------------------------------+
+ +-----------------------------------------------+
+ |                 Length (24)                   |
+ +---------------+---------------+---------------+
+ |   Type (8)    |   Flags (8)   |
+ +-+-------------+---------------+-------------------------------+
  |R|                 Stream Identifier (31)                      |
  +=+=============================================================+
  |                   Frame Payload (0...)                      ...
@@ -66,16 +77,21 @@ enum swHttp2FrameType
  */
 typedef struct
 {
-    uint32_t rsv1 :2;
-    uint32_t length :14;
+    uint32_t length :24;
     uint32_t type :8;
-    uint32_t flags :4;
-    uint32_t rsv2 :1;
+    uint32_t flags :8;
+    uint32_t rsv1 :1;
     uint32_t identifier :31;
     char data[0];
 } swHttp2_frame;
 
+static sw_inline uint32_t swHttp2_get_length(char *buf)
+{
+    return (uint8_t) (buf[0] << 16) + (uint8_t) (buf[1] << 8) + (uint8_t) buf[2];
+}
+
 int swHttp2_get_frame_length(swProtocol *protocol, swConnection *conn, char *buf, uint32_t length);
+int swHttp2_send_setting_frame(swProtocol *protocol, swConnection *conn);
 
 #ifdef __cplusplus
 }
