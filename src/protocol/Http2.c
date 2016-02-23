@@ -18,15 +18,6 @@
 #include "Connection.h"
 #include "http2.h"
 
-int swHttp2_get_frame_length(swProtocol *protocol, swConnection *conn, char *buf, uint32_t length)
-{
-    if (length < SW_HTTP2_FRAME_HEADER_SIZE)
-    {
-        return 0;
-    }
-    return swHttp2_get_length(buf) + SW_HTTP2_FRAME_HEADER_SIZE;
-}
-
 int swHttp2_parse_frame(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
 {
     int wait_body = 0;
@@ -76,4 +67,38 @@ int swHttp2_send_setting_frame(swProtocol *protocol, swConnection *conn)
     setting_frame[3] = SW_HTTP2_TYPE_SETTINGS;
     return swConnection_send(conn, setting_frame, SW_HTTP2_FRAME_HEADER_SIZE, 0);
 }
+
+/**
+ +-----------------------------------------------+
+ |                 Length (24)                   |
+ +---------------+---------------+---------------+
+ |   Type (8)    |   Flags (8)   |
+ +-+-------------+---------------+-------------------------------+
+ |R|                 Stream Identifier (31)                      |
+ +=+=============================================================+
+ |                   Frame Payload (0...)                      ...
+ +---------------------------------------------------------------+
+ */
+int swHttp2_get_frame_length(swProtocol *protocol, swConnection *conn, char *buf, uint32_t length)
+{
+    if (length < SW_HTTP2_FRAME_HEADER_SIZE)
+    {
+        return 0;
+    }
+    return swHttp2_get_length(buf) + SW_HTTP2_FRAME_HEADER_SIZE;
+}
+
+/**
+ +---------------+
+ |Pad Length? (8)|
+ +-+-------------+-----------------------------------------------+
+ |E|                 Stream Dependency? (31)                     |
+ +-+-------------+-----------------------------------------------+
+ |  Weight? (8)  |
+ +-+-------------+-----------------------------------------------+
+ |                   Header Block Fragment (*)                 ...
+ +---------------------------------------------------------------+
+ |                           Padding (*)                       ...
+ +---------------------------------------------------------------+
+ */
 

@@ -155,6 +155,25 @@ void swoole_dump_bin(char *data, char type, int size)
     printf("\n");
 }
 
+void swoole_dump_hex(uchar *data, int outlen)
+{
+    int i;
+
+    for (i = 0; i < outlen; ++i)
+    {
+        if ((i & 0x0fu) == 0)
+        {
+            printf("%08zX: ", i);
+        }
+        printf("%02X ", data[i]);
+        if (((i + 1) & 0x0fu) == 0)
+        {
+            printf("\n");
+        }
+    }
+    printf("\n");
+}
+
 /**
  * Recursive directory creation
  */
@@ -734,6 +753,36 @@ static char *swoole_kmp_search(char *haystack, size_t haylen, char *needle, uint
         }
     }
     return NULL;
+}
+
+int swoole_itoa(char *buf, long value)
+{
+    long i = 0, j;
+    long sign_mask;
+    unsigned long nn;
+
+    sign_mask = value >> sizeof(long) * 8 - 1;
+    nn = (value + sign_mask) ^ sign_mask;
+    do
+    {
+        buf[i++] = nn % 10 + '0';
+    } while (nn /= 10);
+
+    buf[i] = '-';
+    i += sign_mask & 1;
+    buf[i] = '\0';
+
+    int s_len = i;
+    char swap;
+
+    for (i = 0, j = s_len - 1; i < j; ++i, --j)
+    {
+        swap = buf[i];
+        buf[i] = buf[j];
+        buf[j] = swap;
+    }
+    buf[s_len] = 0;
+    return s_len;
 }
 
 char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)

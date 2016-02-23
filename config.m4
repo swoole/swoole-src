@@ -261,6 +261,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_buffer.c \
         swoole_table.c \
         swoole_http_server.c \
+     	swoole_http_v2_server.c \
         swoole_websocket_server.c \
         swoole_http_client.c \
         swoole_mysql.c \

@@ -99,6 +99,25 @@ int swString_append(swString *str, swString *append_str)
     return SW_OK;
 }
 
+int swString_append_int(swString *str, int value)
+{
+    char buf[16];
+    int s_len = swoole_itoa(buf, value);
+
+    int new_size = str->length + s_len;
+    if (new_size > str->size)
+    {
+        if (swString_extend(str, swoole_size_align(new_size * 2, sysconf(_SC_PAGESIZE))) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+
+    memcpy(str->str + str->length, buf, s_len);
+    str->length += s_len;
+    return SW_OK;
+}
+
 int swString_append_ptr(swString *str, char *append_str, int length)
 {
     int new_size = str->length + length;

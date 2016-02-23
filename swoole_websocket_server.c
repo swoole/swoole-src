@@ -114,7 +114,7 @@ void swoole_websocket_onOpen(swoole_http_client *client)
         zval **args[2];
         swServer *serv = SwooleG.serv;
         zval *zserv = (zval *) serv->ptr2;
-        zval *zrequest_object = client->request.zrequest_object;
+        zval *zrequest_object = client->context.request.zrequest_object;
         zval *retval = NULL;
 
 #ifdef __CYGWIN__
@@ -173,7 +173,7 @@ static int websocket_handshake(swoole_http_client *client)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    zval *header = client->request.zheader;
+    zval *header = client->context.request.zheader;
     HashTable *ht = Z_ARRVAL_P(header);
     zval *pData;
 
@@ -285,9 +285,9 @@ int swoole_websocket_onHandshake(swoole_http_client *client)
     }
 
     //free client data
-    if (!client->end)
+    if (!client->context.end)
     {
-        swoole_http_request_free(client TSRMLS_CC);
+        swoole_http_context_free(&client->context TSRMLS_CC);
     }
 
     return SW_OK;
