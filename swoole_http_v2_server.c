@@ -34,7 +34,6 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
     assert(ctx->send_header == 0);
 
     char buf[SW_HTTP_HEADER_MAX_SIZE];
-    int n;
     char *date_str;
     char intbuf[2][16];
 
@@ -209,9 +208,9 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    uchar header_buffer[8192];
+    char header_buffer[8192];
 
-    int n = http2_build_header(ctx, header_buffer, body->length TSRMLS_CC);
+    int n = http2_build_header(ctx, (uchar *) header_buffer, body->length TSRMLS_CC);
     swString_clear(swoole_http_buffer);
 
     /**
@@ -268,8 +267,8 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
 
     if (flags & SW_HTTP2_FLAG_PRIORITY)
     {
-        int stream_deps = ntohl(*(int *) (in));
-        uint8_t weight = in[4];
+        //int stream_deps = ntohl(*(int *) (in));
+        //uint8_t weight = in[4];
         in += 5;
         inlen -= 5;
     }

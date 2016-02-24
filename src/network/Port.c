@@ -352,7 +352,6 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
 #ifdef SW_USE_HTTP2
     if (conn->http2_stream)
     {
-        http2_stream:
         return swPort_onRead_check_length(reactor, port, event);
     }
 #endif
