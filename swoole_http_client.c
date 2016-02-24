@@ -1121,12 +1121,8 @@ static int http_response_uncompress(char *body, int length)
 
 static int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     http_client* http = (http_client*) parser->data;
-    if (swString_append_ptr(http->body, (char *)at, length) < 0)
+    if (swString_append_ptr(http->body, (char *) at, length) < 0)
     {
         return -1;
     }

@@ -191,10 +191,9 @@ int swManager_start(swFactory *factory)
 
 static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid, int status)
 {
-    if (!WIFEXITED(status))
+    if (status != 0)
     {
         swWarn("worker#%d abnormal exit, status=%d, signal=%d", worker_id, WEXITSTATUS(status), WTERMSIG(status));
-
         if (serv->onWorkerError != NULL)
         {
             serv->onWorkerError(serv, worker_id, pid, WEXITSTATUS(status), WTERMSIG(status));
