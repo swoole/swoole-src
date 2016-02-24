@@ -26,7 +26,14 @@ static int swSSL_verify_callback(int ok, X509_STORE_CTX *x509_store);
 static RSA* swSSL_rsa512_key_callback(SSL *ssl, int is_export, int key_length);
 static int swSSL_set_dhparam(SSL_CTX* ssl_context);
 static int swSSL_set_ecdh_curve(SSL_CTX* ssl_context);
+
+#ifdef TLSEXT_TYPE_next_proto_neg
 static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, void *arg);
+#endif
+
+#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
+static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen,  const uchar *in, uint32_t inlen, void *arg);
+#endif
 
 static const SSL_METHOD *swSSL_get_method(int method)
 {
@@ -85,6 +92,10 @@ int swSSL_server_config(SSL_CTX* ssl_context, swSSL_config *cfg)
 {
     SSL_CTX_set_read_ahead(ssl_context, 1);
 
+#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
+    SSL_CTX_set_alpn_select_cb(ssl_context, swSSL_alpn_advertised, NULL);
+#endif
+
 #ifdef TLSEXT_TYPE_next_proto_neg
     SSL_CTX_set_next_protos_advertised_cb(ssl_context, swSSL_npn_advertised, NULL);
 #endif
@@ -99,7 +110,10 @@ int swSSL_server_config(SSL_CTX* ssl_context, swSSL_config *cfg)
         SSL_CTX_set_options(ssl_context, SSL_OP_CIPHER_SERVER_PREFERENCE);
     }
 
+#ifndef LIBRESSL_VERSION_NUMBER
     SSL_CTX_set_tmp_rsa_callback(ssl_context, swSSL_rsa512_key_callback);
+#endif
+
     swSSL_set_dhparam(ssl_context);
     swSSL_set_ecdh_curve(ssl_context);
 
@@ -279,10 +293,14 @@ int swSSL_accept(swConnection *conn)
     if (n == 1)
     {
         conn->ssl_state = SW_SSL_STATE_READY;
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#ifdef SSL3_FLAGS_NO_RENEGOTIATE_CIPHERS
         if (conn->ssl->s3)
         {
             conn->ssl->s3->flags |= SSL3_FLAGS_NO_RENEGOTIATE_CIPHERS;
         }
+#endif
+#endif
         return SW_READY;
     }
     long err = SSL_get_error(conn->ssl, n);
@@ -512,6 +530,28 @@ static int swSSL_set_ecdh_curve(SSL_CTX* ssl_context)
 
     return SW_OK;
 }
+
+#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
+static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg)
+{
+    unsigned int srvlen;
+    unsigned char *srv;
+
+#ifdef SW_USE_HTTP2
+    srv = (unsigned char *) SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE;
+    srvlen = sizeof(SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE) - 1;
+#else
+    srv = (unsigned char *) SW_SSL_NPN_ADVERTISE;
+    srvlen = sizeof(SW_SSL_NPN_ADVERTISE) - 1;
+#endif
+
+    if (SSL_select_next_proto((unsigned char **) out, outlen, srv, srvlen, in, inlen) != OPENSSL_NPN_NEGOTIATED)
+    {
+        return SSL_TLSEXT_ERR_NOACK;
+    }
+    return SSL_TLSEXT_ERR_OK;
+}
+#endif
 
 #ifdef TLSEXT_TYPE_next_proto_neg
 static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, void *arg)
