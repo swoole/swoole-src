@@ -99,7 +99,7 @@ typedef struct
 #if PHP_MAJOR_VERSION >= 7
     struct
     {
-        zval zobject;
+        zval zrequest_object;
         zval zrequest;
         zval zserver;
         zval zheader;
@@ -111,7 +111,7 @@ typedef struct
     } request_stack;
     struct
     {
-        zval zobject;
+        zval zresponse_object;
         zval zheader;
         zval zcookie;
     } response_stack;
