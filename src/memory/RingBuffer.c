@@ -99,7 +99,6 @@ static void swRingBuffer_collect(swRingBuffer *object)
 
             object->collect_offset += n_size;
 
-            //Short circuit principle ----》
             if (object->collect_offset + sizeof(swRingBuffer_item) >object->size || object->collect_offset >= object->size)
             {
                 object->collect_offset = 0;
