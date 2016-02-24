@@ -318,7 +318,6 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
         rv = nghttp2_hd_inflate_hd(inflater, &nv, &inflate_flags, (uchar *) in, inlen, 1);
         if (rv < 0)
         {
-            swoole_dump_hex(in, inlen);
             swoole_php_error(E_WARNING, "inflate failed, Error: %s[%zd].", nghttp2_strerror(rv), rv);
             return -1;
         }
@@ -328,7 +327,7 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
         in += proclen;
         inlen -= proclen;
 
-        //swTrace("nv.name=%s, nv.namelen=%d, nv.value=%s, nv.valuelen=%d\n", nv.name, nv.namelen, nv.value, nv.valuelen);
+        swTrace("Header: %s[%d]: %s[%d]", nv.name, nv.namelen, nv.value, nv.valuelen);
 
         if (inflate_flags & NGHTTP2_HD_INFLATE_EMIT)
         {
@@ -390,7 +389,7 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
     int stream_id = ntohl((*(int *) (buf + 5)) & 0x7fffffff);
     uint32_t length = swHttp2_get_length(buf);
 
-    swWarn("[%s] flags=%d, stream_id=%d, length=%d", swHttp2_get_type(type), flags, stream_id, length);
+    swWarn("[%s]\tflags=%d, stream_id=%d, length=%d", swHttp2_get_type(type), flags, stream_id, length);
 
     if (type == SW_HTTP2_TYPE_HEADERS)
     {

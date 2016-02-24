@@ -1027,7 +1027,7 @@ PHP_FUNCTION(swoole_mysql_query)
     }
     else
     {
-        sw_zval_add_ref(mysql_link);
+        sw_zval_add_ref(&mysql_link);
         client->state = SW_MYSQL_STATE_READ_START;
         RETURN_TRUE;
     }

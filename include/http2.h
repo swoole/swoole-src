@@ -99,7 +99,7 @@ typedef struct
 
 static sw_inline uint32_t swHttp2_get_length(char *buf)
 {
-    return (uint8_t) (buf[0] << 16) + (uint8_t) (buf[1] << 8) + (uint8_t) buf[2];
+    return (((uint8_t) buf[0]) << 16) + (((uint8_t) buf[1]) << 8) + (uint8_t) buf[2];
 }
 
 int swHttp2_get_frame_length(swProtocol *protocol, swConnection *conn, char *buf, uint32_t length);
