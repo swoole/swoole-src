@@ -130,7 +130,7 @@ static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size)
 
     if (object->status == 0)
     {
-        if (object->alloc_offset + alloc_size >= object->size)
+        if (object->alloc_offset + alloc_size >= (object->size - sizeof(swRingBuffer_item)))
         {
             uint32_t skip_n = object->size - object->alloc_offset;
 
