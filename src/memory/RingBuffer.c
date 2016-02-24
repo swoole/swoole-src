@@ -99,7 +99,8 @@ static void swRingBuffer_collect(swRingBuffer *object)
 
             object->collect_offset += n_size;
 
-            if (object->collect_offset >= object->size)
+            //Short circuit principle ----》
+            if (object->collect_offset + sizeof(swRingBuffer_item) >object->size || object->collect_offset >= object->size)
             {
                 object->collect_offset = 0;
                 object->status = 0;
@@ -133,17 +134,15 @@ static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size)
         if (object->alloc_offset + alloc_size >= object->size)
         {
             uint32_t skip_n = object->size - object->alloc_offset;
-
-            item = object->memory + object->alloc_offset;
-            item->lock = 0;
-            item->length = skip_n - sizeof(swRingBuffer_item);
-
-            sw_atomic_t *free_count = &object->free_count;
-            sw_atomic_fetch_add(free_count, 1);
-
+            if (skip_n>=sizeof(swRingBuffer_item)) {
+                item = object->memory + object->alloc_offset;
+                item->lock = 0;
+                item->length = skip_n - sizeof(swRingBuffer_item);
+                sw_atomic_t *free_count = &object->free_count;
+                sw_atomic_fetch_add(free_count, 1);
+            };
             object->alloc_offset = 0;
             object->status = 1;
-
             capacity = object->collect_offset - object->alloc_offset;
         }
         else
