@@ -18,6 +18,7 @@
 
 static PHP_METHOD(swoole_buffer, __construct);
 static PHP_METHOD(swoole_buffer, __destruct);
+static PHP_METHOD(swoole_buffer, __toString);
 static PHP_METHOD(swoole_buffer, append);
 static PHP_METHOD(swoole_buffer, substr);
 static PHP_METHOD(swoole_buffer, read);
@@ -29,6 +30,7 @@ static const zend_function_entry swoole_buffer_methods[] =
 {
     PHP_ME(swoole_buffer, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
     PHP_ME(swoole_buffer, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
+    PHP_ME(swoole_buffer, __toString, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_buffer, substr, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_buffer, write, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_buffer, read, NULL, ZEND_ACC_PUBLIC)
@@ -162,6 +164,12 @@ static PHP_METHOD(swoole_buffer, substr)
                 buffer->length - buffer->offset TSRMLS_CC);
     }
     SW_RETURN_STRINGL(buffer->str + offset, length, 1);
+}
+
+static PHP_METHOD(swoole_buffer, __toString)
+{
+    swString *buffer = swoole_get_object(getThis());
+    SW_RETURN_STRINGL(buffer->str + buffer->offset, buffer->length - buffer->offset, 1);
 }
 
 static PHP_METHOD(swoole_buffer, write)
