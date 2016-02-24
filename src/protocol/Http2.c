@@ -88,17 +88,31 @@ int swHttp2_get_frame_length(swProtocol *protocol, swConnection *conn, char *buf
     return swHttp2_get_length(buf) + SW_HTTP2_FRAME_HEADER_SIZE;
 }
 
-/**
- +---------------+
- |Pad Length? (8)|
- +-+-------------+-----------------------------------------------+
- |E|                 Stream Dependency? (31)                     |
- +-+-------------+-----------------------------------------------+
- |  Weight? (8)  |
- +-+-------------+-----------------------------------------------+
- |                   Header Block Fragment (*)                 ...
- +---------------------------------------------------------------+
- |                           Padding (*)                       ...
- +---------------------------------------------------------------+
- */
-
+char* swHttp2_get_type(int type)
+{
+    switch(type)
+    {
+    case SW_HTTP2_TYPE_DATA:
+        return "DATA";
+    case SW_HTTP2_TYPE_HEADERS:
+        return "HEADERS";
+    case SW_HTTP2_TYPE_PRIORITY:
+        return "PRIORITY";
+    case SW_HTTP2_TYPE_RST_STREAM:
+        return "RST_STREAM";
+    case SW_HTTP2_TYPE_SETTINGS:
+        return "SETTINGS";
+    case SW_HTTP2_TYPE_PUSH_PROMISE:
+        return "PUSH_PROMISE";
+    case SW_HTTP2_TYPE_PING:
+        return "PING";
+    case SW_HTTP2_TYPE_GOAWAY:
+        return "GOAWAY";
+    case SW_HTTP2_TYPE_WINDOW_UPDATE:
+        return "WINDOW_UPDATE";
+    case SW_HTTP2_TYPE_CONTINUATION:
+        return "CONTINUATION";
+    default:
+        return "UNKOWN";
+    }
+}

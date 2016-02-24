@@ -20,6 +20,7 @@
 #ifdef SW_USE_HTTP2
 #include "http2.h"
 #include <nghttp2/nghttp2.h>
+#include <main/php_variables.h>
 
 static sw_inline void http2_add_header(nghttp2_nv *headers, char *k, int kl, char *v, int vl)
 {
@@ -27,6 +28,37 @@ static sw_inline void http2_add_header(nghttp2_nv *headers, char *k, int kl, cha
     headers->namelen = kl;
     headers->value = (uchar*) v;
     headers->valuelen = vl;
+}
+
+static void http2_onRequest(http_context *ctx TSRMLS_DC)
+{
+    zval *retval;
+    zval **args[2];
+
+    zval *zrequest_object = ctx->request.zrequest_object;
+    zval *zresponse_object = ctx->response.zresponse_object;
+
+    args[0] = &zrequest_object;
+    args[1] = &zresponse_object;
+
+#ifdef __CYGWIN__
+    //TODO: memory error on cygwin.
+    zval_add_ref(&zrequest_object);
+    zval_add_ref(&zresponse_object);
+#endif
+
+    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[HTTP_CALLBACK_onRequest], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "onRequest handler error");
+    }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+    }
+    if (retval)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
 }
 
 static int http2_build_header(http_context *ctx, uchar *buffer, int body_length TSRMLS_DC)
@@ -259,7 +291,7 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
         int ret = nghttp2_hd_inflate_new(&inflater);
         if (ret != 0)
         {
-            swoole_php_error(E_WARNING, "nghttp2_hd_inflate_init failed with error code %zd, , Error: %s", ret, nghttp2_strerror(ret));
+            swoole_php_error(E_WARNING, "nghttp2_hd_inflate_init() failed, Error: %s[%zd].", nghttp2_strerror(ret), ret);
             return SW_ERR;
         }
         client->inflater = inflater;
@@ -286,7 +318,8 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
         rv = nghttp2_hd_inflate_hd(inflater, &nv, &inflate_flags, (uchar *) in, inlen, 1);
         if (rv < 0)
         {
-            swoole_php_error(E_WARNING, "inflate failed with error code %zd, Error: %s", rv, nghttp2_strerror(rv));
+            swoole_dump_hex(in, inlen);
+            swoole_php_error(E_WARNING, "inflate failed, Error: %s[%zd].", nghttp2_strerror(rv), rv);
             return -1;
         }
 
@@ -305,6 +338,11 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
             }
             else
             {
+                if (memcmp(nv.name, ZEND_STRL("content-type")) == 0
+                        && strncasecmp((char *) nv.value, ZEND_STRL("application/x-www-form-urlencoded")) == 0)
+                {
+                    ctx->request.post_form_urlencoded = 1;
+                }
                 sw_add_assoc_stringl_ex(zheader, (char *) nv.name, nv.namelen + 1, (char *) nv.value, nv.valuelen, 1);
             }
         }
@@ -339,7 +377,10 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
 #endif
 
     int fd = req->info.fd;
+
+    http_context *ctx;
     zval *zdata;
+
     SW_MAKE_STD_ZVAL(zdata);
     zdata = php_swoole_get_recv_data(zdata, req TSRMLS_CC);
     char *buf = Z_STRVAL_P(zdata);
@@ -349,11 +390,11 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
     int stream_id = ntohl((*(int *) (buf + 5)) & 0x7fffffff);
     uint32_t length = swHttp2_get_length(buf);
 
-    swWarn("http2 frame: type=%d, flags=%d, stream_id=%d, length=%d", type, flags, stream_id, length);
+    swWarn("[%s] flags=%d, stream_id=%d, length=%d", swHttp2_get_type(type), flags, stream_id, length);
 
     if (type == SW_HTTP2_TYPE_HEADERS)
     {
-        http_context *ctx = swoole_http_context_new(client TSRMLS_CC);
+        ctx = swoole_http_context_new(client TSRMLS_CC);
         if (!ctx)
         {
             return SW_ERR;
@@ -364,13 +405,6 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
 
         http2_parse_header(client, ctx, flags, buf + SW_HTTP2_FRAME_HEADER_SIZE, length);
 
-        zval *retval;
-        zval **args[2];
-
-        zval *zrequest_object = ctx->request.zrequest_object;
-        zval *zresponse_object = ctx->response.zresponse_object;
-        zval *zserver = ctx->request.zserver;
-
         swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
         if (!conn)
         {
@@ -379,6 +413,7 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
             return SW_ERR;
         }
 
+        zval *zserver = ctx->request.zserver;
         sw_add_assoc_long_ex(zserver, ZEND_STRS("request_time"), SwooleGS->now);
         add_assoc_long(zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[conn->from_fd]));
         add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
@@ -386,32 +421,57 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
         sw_add_assoc_string(zserver, "server_protocol", "HTTP/2", 1);
         sw_add_assoc_string(zserver, "server_software", SW_HTTP_SERVER_SOFTWARE, 1);
 
-#ifdef __CYGWIN__
-        //TODO: memory error on cygwin.
-        zval_add_ref(&zobject);
-        zval_add_ref(&zobject);
-#endif
-
-        args[0] = &zrequest_object;
-        args[1] = &zresponse_object;
-
-        if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[HTTP_CALLBACK_onRequest], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+        if (flags & SW_HTTP2_FLAG_END_STREAM)
         {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "onRequest handler error");
+            http2_onRequest(ctx TSRMLS_CC);
         }
-        if (EG(exception))
+        else
         {
-            zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
-        }
-        if (retval)
-        {
-            sw_zval_ptr_dtor(&retval);
+            if (!client->streams)
+            {
+                client->streams = swHashMap_new(128, NULL);
+            }
+            swHashMap_add_int(client->streams, stream_id, ctx);
         }
     }
     else if (type == SW_HTTP2_TYPE_DATA)
     {
-        swoole_dump_hex(buf, 9 + 6);
+        ctx = swHashMap_find_int(client->streams, stream_id);
+
+        swString *buffer = ctx->buffer;
+        if (!buffer)
+        {
+            buffer = swString_new(SW_HTTP2_DATA_BUFFSER_SIZE);
+            ctx->buffer = buffer;
+        }
+        swString_append_ptr(buffer, buf + SW_HTTP2_FRAME_HEADER_SIZE, length);
+
+        if (flags & SW_HTTP2_FLAG_END_STREAM)
+        {
+            if (SwooleG.serv->http_parse_post && ctx->request.post_form_urlencoded)
+            {
+                zval *zpost;
+                http_alloc_zval(ctx, request, zpost);
+                array_init(zpost);
+                ctx->request.post_content = estrndup(buffer->str, buffer->length);
+                zend_update_property(swoole_http_request_class_entry_ptr, ctx->request.zrequest_object, ZEND_STRL("post"), zpost TSRMLS_CC);
+                sapi_module.treat_data(PARSE_STRING, ctx->request.post_content, zpost TSRMLS_CC);
+            }
+            http2_onRequest(ctx TSRMLS_CC);
+        }
     }
+    else if (type == SW_HTTP2_TYPE_PING)
+    {
+        char ping_frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE];
+        swHttp2_set_frame_header(ping_frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_ACK, stream_id);
+        memcpy(ping_frame + SW_HTTP2_FRAME_HEADER_SIZE, buf + SW_HTTP2_FRAME_HEADER_SIZE, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
+        swServer_tcp_send(SwooleG.serv, fd, swoole_http_buffer->str, swoole_http_buffer->length);
+    }
+    else if (type == SW_HTTP2_TYPE_WINDOW_UPDATE)
+    {
+        client->window_size = *(int *) (buf + SW_HTTP2_FRAME_HEADER_SIZE);
+    }
+
     return SW_OK;
 }
 #endif

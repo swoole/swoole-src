@@ -155,10 +155,9 @@ void swoole_dump_bin(char *data, char type, int size)
     printf("\n");
 }
 
-void swoole_dump_hex(uchar *data, int outlen)
+void swoole_dump_hex(char *data, int outlen)
 {
-    int i;
-
+    long i;
     for (i = 0; i < outlen; ++i)
     {
         if ((i & 0x0fu) == 0)
@@ -761,7 +760,7 @@ int swoole_itoa(char *buf, long value)
     long sign_mask;
     unsigned long nn;
 
-    sign_mask = value >> sizeof(long) * 8 - 1;
+    sign_mask = value >> (sizeof(long) * 8 - 1);
     nn = (value + sign_mask) ^ sign_mask;
     do
     {

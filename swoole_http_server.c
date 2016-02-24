@@ -79,7 +79,7 @@ zend_class_entry *swoole_http_response_class_entry_ptr;
 zend_class_entry swoole_http_request_ce;
 zend_class_entry *swoole_http_request_class_entry_ptr;
 
-zval* php_sw_http_server_callbacks[2];
+zval* php_sw_http_server_callbacks[HTTP_SERVER_CALLBACK_NUM];
 
 static int http_onReceive(swServer *serv, swEventData *req);
 static void http_onClose(swServer *serv, swDataHead *info);
@@ -108,12 +108,6 @@ static int http_trim_double_quote(zval **value, char **ptr);
 
 #ifdef SW_HAVE_ZLIB
 static int http_response_compress(swString *body, int level);
-#endif
-
-#if PHP_MAJOR_VERSION >= 7
-#define http_alloc_zval(ctx,object,val)   val = &(ctx)->object##_stack.val; (ctx)->object.val = val
-#else
-#define http_alloc_zval(ctx,object,val)   MAKE_STD_ZVAL(val); (ctx)->object.val = val
 #endif
 
 #define http_merge_php_global(v,r,t)  if (http_merge_global_flag > 0) http_global_merge(v,r,t)
@@ -506,6 +500,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
             http_parse_cookie(zcookie, at, length);
             http_merge_php_global(zcookie, client->context.request.zrequest_object, HTTP_GLOBAL_COOKIE);
         }
+        goto free_memory;
     }
     else if (strncasecmp(header_name, ZEND_STRL("upgrade")) == 0 && strncasecmp(at, ZEND_STRL("websocket")) == 0)
     {
@@ -516,16 +511,12 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
             return SW_ERR;
         }
         conn->websocket_status = WEBSOCKET_STATUS_CONNECTION;
-        zval *header = client->context.request.zheader;
-        sw_add_assoc_stringl_ex(header, header_name, client->current_header_name_len + 1, (char *) at, length, 1);
     }
     else if ((parser->method == PHP_HTTP_POST || parser->method == PHP_HTTP_PUT || parser->method == PHP_HTTP_DELETE || parser->method == PHP_HTTP_PATCH)
             && memcmp(header_name, ZEND_STRL("content-type")) == 0
             && strncasecmp(at, ZEND_STRL("application/x-www-form-urlencoded")) == 0)
     {
         client->context.request.post_form_urlencoded = 1;
-        zval *header = client->context.request.zheader;
-        sw_add_assoc_stringl_ex(header, header_name, client->current_header_name_len + 1, (char *) at, length, 1);
     }
     else if (parser->method == PHP_HTTP_POST && memcmp(header_name, ZEND_STRL("content-type")) == 0
             && strncasecmp(at, ZEND_STRL("multipart/form-data")) == 0)
@@ -534,15 +525,12 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
         multipart_parser *p = multipart_parser_init(at + length - boundary_len, boundary_len, &mt_parser_settings);
         client->mt_parser = p;
         p->data = client;
-        zval *header = client->context.request.zheader;
-        sw_add_assoc_stringl_ex(header, header_name, client->current_header_name_len + 1, (char *) at, length, 1);
-    }
-    else
-    {
-        zval *header = client->context.request.zheader;
-        sw_add_assoc_stringl_ex(header, header_name, client->current_header_name_len + 1, (char *) at, length, 1);
     }
 
+    zval *header = client->context.request.zheader;
+    sw_add_assoc_stringl_ex(header, header_name, client->current_header_name_len + 1, (char *) at, length, 1);
+
+    free_memory:
     if (client->current_header_name_allocated)
     {
         efree(client->current_header_name);
@@ -749,15 +737,16 @@ static int multipart_body_on_data_end(multipart_parser* p)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
     swoole_http_client *client = (swoole_http_client *) p->data;
+    http_context *ctx = &client->context;
 
     if (client->current_form_data_name)
     {
-        zval *zpost =sw_zend_read_property(swoole_http_request_class_entry_ptr, client->context.request.zrequest_object, ZEND_STRL("post"), 1 TSRMLS_CC);
+        zval *zpost = sw_zend_read_property(swoole_http_request_class_entry_ptr, ctx->request.zrequest_object, ZEND_STRL("post"), 1 TSRMLS_CC);
         if (ZVAL_IS_NULL(zpost))
         {
             http_alloc_zval(&client->context, request, zpost);
             array_init(zpost);
-            zend_update_property(swoole_http_request_class_entry_ptr, client->context.request.zrequest_object, ZEND_STRL("post"), zpost TSRMLS_CC);
+            zend_update_property(swoole_http_request_class_entry_ptr, ctx->request.zrequest_object, ZEND_STRL("post"), zpost TSRMLS_CC);
         }
 
 		char *name = client->current_form_data_name;
@@ -861,7 +850,7 @@ static int http_request_on_body(php_http_parser *parser, const char *at, size_t 
     if (SwooleG.serv->http_parse_post && ctx->request.post_form_urlencoded)
     {
         zval *zpost;
-        http_alloc_zval(&client->context, request, zpost);
+        http_alloc_zval(ctx, request, zpost);
         array_init(zpost);
 
         body = estrndup(at, length);

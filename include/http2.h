@@ -58,7 +58,7 @@ enum swHttp2FrameType
 enum swHttp2FrameFlag
 {
     SW_HTTP2_FLAG_NONE = 0x00,
-    SW_HTTP2_FLAG_ACK_FLAG = 0x01,
+    SW_HTTP2_FLAG_ACK = 0x01,
     SW_HTTP2_FLAG_END_STREAM = 0x01,
     SW_HTTP2_FLAG_END_HEADERS = 0x04,
     SW_HTTP2_FLAG_PADDED = 0x08,
@@ -66,6 +66,8 @@ enum swHttp2FrameFlag
 };
 
 #define SW_HTTP2_FRAME_HEADER_SIZE            9
+#define SW_HTTP2_FRAME_PING_PAYLOAD_SIZE      64
+
 #define SW_HTTP2_RST_STREAM_SIZE              4
 #define SW_HTTP2_PRIORITY_SIZE                5
 #define SW_HTTP2_PING_SIZE                    8
@@ -103,6 +105,7 @@ static sw_inline uint32_t swHttp2_get_length(char *buf)
 int swHttp2_get_frame_length(swProtocol *protocol, swConnection *conn, char *buf, uint32_t length);
 int swHttp2_send_setting_frame(swProtocol *protocol, swConnection *conn);
 int swHttp2_parse_frame(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
+char* swHttp2_get_type(int type);
 
 /**
  +-----------------------------------------------+

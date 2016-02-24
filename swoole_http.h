@@ -26,6 +26,8 @@
 #include <nghttp2/nghttp2.h>
 #endif
 
+#define HTTP_SERVER_CALLBACK_NUM   3
+
 enum http_callback_type
 {
     HTTP_CALLBACK_onRequest = 0,
@@ -93,6 +95,10 @@ typedef struct
     uint8_t priority;
     uint32_t stream_id;
 
+#ifdef SW_USE_HTTP2
+    swString *buffer;
+#endif
+
     http_request request;
     http_response response;
 
@@ -132,6 +138,7 @@ typedef struct _swoole_http_client
     swHashMap *streams;
     nghttp2_hd_inflater *deflater;
     nghttp2_hd_inflater *inflater;
+    uint32_t window_size;
 #endif
 
     http_context context;
@@ -162,11 +169,20 @@ int swoole_websocket_isset_onMessage(void);
  */
 http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC);
 void swoole_http_context_free(http_context *ctx TSRMLS_DC);
+
+#if PHP_MAJOR_VERSION >= 7
+#define http_alloc_zval(ctx,object,val)   val = &(ctx)->object##_stack.val; (ctx)->object.val = val
+#else
+#define http_alloc_zval(ctx,object,val)   MAKE_STD_ZVAL(val); (ctx)->object.val = val
+#endif
+
+#ifdef SW_USE_HTTP2
 /**
  * Http v2
  */
 int swoole_http2_onFrame(swoole_http_client *client, swEventData *req);
 int swoole_http2_do_response(http_context *ctx, swString *body);
+#endif
 
 extern zend_class_entry swoole_http_server_ce;
 extern zend_class_entry *swoole_http_server_class_entry_ptr;
@@ -180,6 +196,6 @@ extern zend_class_entry *swoole_http_request_class_entry_ptr;
 extern swString *swoole_http_buffer;
 extern swString *swoole_zlib_buffer;
 
-extern zval* php_sw_http_server_callbacks[2];
+extern zval* php_sw_http_server_callbacks[HTTP_SERVER_CALLBACK_NUM];
 
 #endif /* SWOOLE_HTTP_H_ */

@@ -1014,7 +1014,7 @@ static inline int swoole_strrnpos(char *haystack, char *needle, uint32_t length)
 
 int swoole_itoa(char *buf, long value);
 void swoole_dump_bin(char *data, char type, int size);
-void swoole_dump_hex(uchar *data, int outlen);
+void swoole_dump_hex(char *data, int outlen);
 int swoole_type_size(char type);
 int swoole_mkdir_recursive(const char *dir);
 char* swoole_dirname(char *file);
