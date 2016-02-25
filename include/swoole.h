@@ -449,6 +449,7 @@ typedef struct _swConnection
     uint32_t ssl_want_read :1;
     uint32_t ssl_want_write :1;
 
+    uint32_t http_upgrade :1;
     uint32_t http2_stream :1;
 
     /**

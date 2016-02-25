@@ -344,10 +344,11 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
 
     if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE)
     {
-        if (conn->object != NULL)
+        if (conn->http_upgrade == 0)
         {
             swHttpRequest_free(conn);
             conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
+            conn->http_upgrade = 1;
         }
         return swPort_onRead_check_length(reactor, port, event);
     }
