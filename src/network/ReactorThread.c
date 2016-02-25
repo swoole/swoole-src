@@ -799,7 +799,7 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
         return swReactorThread_close(reactor, event->fd);
     }
 #endif
-
+    event->socket->last_time = SwooleGS->now;
     return port->onRead(reactor, port, event);
 }
 

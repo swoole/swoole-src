@@ -232,6 +232,7 @@ void swPort_set_protocol(swListenPort *ls)
         {
             ls->protocol.get_package_length = swWebSocket_get_package_length;
             ls->protocol.onPackage = swPort_websocket_onPackage;
+            ls->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN + sizeof(uint64_t);
         }
 #ifdef SW_USE_HTTP2
         else if (ls->open_http2_protocol)
@@ -283,8 +284,6 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
     }
     else
     {
-        conn->last_time = SwooleGS->now;
-
         task.data.info.fd = event->fd;
         task.data.info.from_id = event->from_id;
         task.data.info.len = n;
@@ -415,7 +414,6 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
     }
     else
     {
-        conn->last_time = SwooleGS->now;
         buffer->length += n;
 
         if (request->method == 0 && swHttpRequest_get_protocol(request) < 0)
