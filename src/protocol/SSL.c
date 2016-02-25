@@ -55,18 +55,22 @@ static const SSL_METHOD *swSSL_get_method(int method)
         return TLSv1_server_method();
     case SW_TLSv1_CLIENT_METHOD:
         return TLSv1_client_method();
+#ifdef TLS1_1_VERSION
     case SW_TLSv1_1_METHOD:
         return TLSv1_1_method();
     case SW_TLSv1_1_SERVER_METHOD:
         return TLSv1_1_server_method();
     case SW_TLSv1_1_CLIENT_METHOD:
         return TLSv1_1_client_method();
+#endif
+#ifdef TLS1_2_VERSION
     case SW_TLSv1_2_METHOD:
         return TLSv1_2_method();
     case SW_TLSv1_2_SERVER_METHOD:
         return TLSv1_2_server_method();
     case SW_TLSv1_2_CLIENT_METHOD:
         return TLSv1_2_client_method();
+#endif
     case SW_DTLSv1_METHOD:
         return DTLSv1_method();
     case SW_DTLSv1_SERVER_METHOD:
@@ -90,6 +94,9 @@ void swSSL_init(void)
 
 int swSSL_server_config(SSL_CTX* ssl_context, swSSL_config *cfg)
 {
+#ifndef TLS1_2_VERSION
+    return SW_OK;
+#endif
     SSL_CTX_set_read_ahead(ssl_context, 1);
 
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
