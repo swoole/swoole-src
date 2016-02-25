@@ -1203,6 +1203,7 @@ http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC)
 
     //socket fd
     zend_update_property_long(swoole_http_response_class_entry_ptr, zresponse_object, ZEND_STRL("fd"), client->fd TSRMLS_CC);
+    zend_update_property_long(swoole_http_request_class_entry_ptr, zrequest_object, ZEND_STRL("fd"), client->fd TSRMLS_CC);
 
 #if PHP_MEMORY_DEBUG
     php_vmstat.new_http_request ++;
@@ -1217,8 +1218,6 @@ http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC)
     http_alloc_zval(ctx, request, zserver);
     array_init(zserver);
     zend_update_property(swoole_http_request_class_entry_ptr, zrequest_object, ZEND_STRL("server"), zserver TSRMLS_CC);
-
-    zend_update_property_long(swoole_http_request_class_entry_ptr, zrequest_object, ZEND_STRL("fd"), ctx->fd TSRMLS_CC);
 
     ctx->end = 0;
     ctx->fd = client->fd;
