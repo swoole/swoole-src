@@ -190,13 +190,14 @@ static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC)
     int result_data_len = 0;
     php_unserialize_data_t var_hash;
 
+    int data_len;
+    char *data_str = NULL;
+
     /**
      * Large result package
      */
     if (swTask_type(task_result) & SW_TASK_TMPFILE)
     {
-        int data_len;
-        char *data_str = NULL;
         swTaskWorker_large_unpack(task_result, emalloc, data_str, data_len);
         /**
          * unpack failed
@@ -239,6 +240,10 @@ static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC)
     {
         SW_ALLOC_INIT_ZVAL(result_data);
         SW_ZVAL_STRINGL(result_data, result_data_str, result_data_len, 1);
+    }
+    if (data_str)
+    {
+        efree(data_str);
     }
     return result_data;
 }
