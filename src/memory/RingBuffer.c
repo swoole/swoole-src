@@ -133,13 +133,14 @@ static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size)
         if (object->alloc_offset + alloc_size >= (object->size - sizeof(swRingBuffer_item)))
         {
             uint32_t skip_n = object->size - object->alloc_offset;
-            if (skip_n >= sizeof(swRingBuffer_item)) {
+            if (skip_n >= sizeof(swRingBuffer_item))
+            {
                 item = object->memory + object->alloc_offset;
                 item->lock = 0;
                 item->length = skip_n - sizeof(swRingBuffer_item);
                 sw_atomic_t *free_count = &object->free_count;
                 sw_atomic_fetch_add(free_count, 1);
-            };
+            }
             object->alloc_offset = 0;
             object->status = 1;
             capacity = object->collect_offset - object->alloc_offset;

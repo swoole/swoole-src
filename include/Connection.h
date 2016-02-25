@@ -75,6 +75,7 @@ enum swSSLMethod
 typedef struct
 {
     uint32_t http :1;
+    uint32_t http_v2 :1;
     uint32_t prefer_server_ciphers :1;
     uint32_t session_tickets :1;
     uint32_t stapling :1;

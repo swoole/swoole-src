@@ -86,6 +86,10 @@ int swPort_listen(swListenPort *ls)
         {
             ls->ssl_config.http = 1;
         }
+        if (ls->open_http2_protocol)
+        {
+            ls->ssl_config.http_v2 = 1;
+        }
         if (swSSL_server_config(ls->ssl_context, &ls->ssl_config))
         {
             return SW_ERR;

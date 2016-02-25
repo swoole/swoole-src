@@ -270,21 +270,21 @@ static PHP_METHOD(swoole_server_port, set)
         convert_to_boolean(v);
         port->ssl_config.prefer_server_ciphers = Z_BVAL_P(v);
     }
-    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_session_tickets"), (void **) &v) == SUCCESS)
-    {
-        convert_to_boolean(v);
-        port->ssl_config.session_tickets = Z_BVAL_P(v);
-    }
-    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_stapling"), (void **) &v) == SUCCESS)
-    {
-        convert_to_boolean(v);
-        port->ssl_config.stapling = Z_BVAL_P(v);
-    }
-    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_stapling_verify"), (void **) &v) == SUCCESS)
-    {
-        convert_to_boolean(v);
-        port->ssl_config.stapling_verify = Z_BVAL_P(v);
-    }
+//    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_session_tickets"), (void **) &v) == SUCCESS)
+//    {
+//        convert_to_boolean(v);
+//        port->ssl_config.session_tickets = Z_BVAL_P(v);
+//    }
+//    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_stapling"), (void **) &v) == SUCCESS)
+//    {
+//        convert_to_boolean(v);
+//        port->ssl_config.stapling = Z_BVAL_P(v);
+//    }
+//    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_stapling_verify"), (void **) &v) == SUCCESS)
+//    {
+//        convert_to_boolean(v);
+//        port->ssl_config.stapling_verify = Z_BVAL_P(v);
+//    }
     if (sw_zend_hash_find(vht, ZEND_STRS("ssl_ciphers"), (void **) &v) == SUCCESS)
     {
         convert_to_string(v);
@@ -295,11 +295,11 @@ static PHP_METHOD(swoole_server_port, set)
         convert_to_string(v);
         port->ssl_config.ecdh_curve = strdup(Z_STRVAL_P(v));
     }
-    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_session_cache"), (void **) &v) == SUCCESS)
-    {
-        convert_to_string(v);
-        port->ssl_config.session_cache = strdup(Z_STRVAL_P(v));
-    }
+//    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_session_cache"), (void **) &v) == SUCCESS)
+//    {
+//        convert_to_string(v);
+//        port->ssl_config.session_cache = strdup(Z_STRVAL_P(v));
+//    }
 #endif
     zend_update_property(swoole_server_port_class_entry_ptr, getThis(), ZEND_STRL("setting"), zset TSRMLS_CC);
 }
