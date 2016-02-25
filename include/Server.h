@@ -60,10 +60,6 @@ enum swEventType
     SW_EVENT_PROXY_END       = 17,
 };
 
-#define SW_HOST_MAXSIZE            128
-#define SW_MAX_TMP_PKG             1000
-#define SW_LOG_FILENAME            128
-
 enum swIPCMode
 {
 	SW_IPC_UNSOCK   = 1,
@@ -329,9 +325,6 @@ struct _swServer
 
     int sock_client_buffer_size; //client的socket缓存区设置
     int sock_server_buffer_size; //server的socket缓存区设置
-
-    int log_level;
-    char log_file[SW_LOG_FILENAME];
 
     int signal_fd;
     int event_fd;
@@ -767,7 +760,7 @@ static sw_inline swConnection *swServer_connection_verify(swServer *serv, int se
 #ifdef SW_USE_OPENSSL
     if (conn->ssl && conn->ssl_state != SW_SSL_STATE_READY)
     {
-        swWarn("SSL not ready");
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SSL_NOT_READY, "SSL not ready");
         return NULL;
     }
 #endif

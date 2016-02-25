@@ -1414,12 +1414,13 @@ PHP_METHOD(swoole_server, set)
     if (sw_zend_hash_find(vht, ZEND_STRS("log_file"), (void **) &v) == SUCCESS)
     {
         convert_to_string(v);
-        if (Z_STRLEN_P(v) > SW_LOG_FILENAME)
-        {
-            swoole_php_fatal_error(E_ERROR, "log_file name to long");
-            RETURN_FALSE;
-        }
-        memcpy(serv->log_file, Z_STRVAL_P(v), Z_STRLEN_P(v));
+        SwooleG.log_file = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+    }
+    //log_level
+    if (sw_zend_hash_find(vht, ZEND_STRS("log_level"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(v);
+        SwooleG.log_level = (int) Z_LVAL_P(v);
     }
     /**
      * for dispatch_mode = 1/3

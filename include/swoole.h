@@ -236,7 +236,7 @@ enum swLog_level
     SW_LOG_TRACE,
     SW_LOG_INFO,
     SW_LOG_NOTICE,
-    SW_LOG_WARN,
+    SW_LOG_WARNING,
     SW_LOG_ERROR,
 
 };
@@ -260,7 +260,7 @@ enum swWorker_status
 
 #define swWarn(str,...)        SwooleGS->lock.lock(&SwooleGS->lock);\
 snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str,__func__,##__VA_ARGS__);\
-swLog_put(SW_LOG_WARN, sw_error);\
+swLog_put(SW_LOG_WARNING, sw_error);\
 SwooleGS->lock.unlock(&SwooleGS->lock)
 
 #define swNotice(str,...)        SwooleGS->lock.lock(&SwooleGS->lock);\
@@ -276,13 +276,14 @@ exit(1)
 
 #define swSysError(str,...) SwooleGS->lock.lock(&SwooleGS->lock);\
 snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): "str" Error: %s[%d].",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
-swLog_put(SW_LOG_WARN, sw_error);\
-SwooleGS->lock.unlock(&SwooleGS->lock)
-
-#define swRuntimeError(error,str,...)        SwooleGS->lock.lock(&SwooleGS->lock);\
-snprintf(sw_error,SW_ERROR_MSG_SIZE,"(ERROR %d): "str,error,##__VA_ARGS__);\
 swLog_put(SW_LOG_ERROR, sw_error);\
 SwooleGS->lock.unlock(&SwooleGS->lock)
+
+#define swoole_error_log(level, errno, str, ...)      if (level >= SwooleG.log_level){\
+    snprintf(sw_error, SW_ERROR_MSG_SIZE, "(ERROR %d): "str,errno,##__VA_ARGS__);\
+    SwooleGS->lock.lock(&SwooleGS->lock);\
+    swLog_put( SW_LOG_ERROR, sw_error);\
+    SwooleGS->lock.unlock(&SwooleGS->lock);}
 
 #ifdef SW_DEBUG_REMOTE_OPEN
 #define swDebug(str,...) int __debug_log_n = snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);\
@@ -1715,6 +1716,9 @@ typedef struct
     char *chroot;
     char *user;
     char *group;
+
+    uint8_t log_level;
+    char *log_file;
 
     /**
      *  task worker process num
