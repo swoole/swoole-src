@@ -536,9 +536,9 @@ static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, con
 {
     unsigned int srvlen;
     unsigned char *srv;
-    swSSL_config *cfg = arg;
 
 #ifdef SW_USE_HTTP2
+    swSSL_config *cfg = arg;
     if (cfg->http_v2)
     {
         srv = (unsigned char *) SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE;
@@ -561,8 +561,8 @@ static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, con
 #ifdef TLSEXT_TYPE_next_proto_neg
 static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, void *arg)
 {
-    swSSL_config *cfg = arg;
 #ifdef SW_USE_HTTP2
+    swSSL_config *cfg = arg;
     if (cfg->http_v2)
     {
         *out = (uchar *) SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE;
