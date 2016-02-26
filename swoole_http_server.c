@@ -1060,7 +1060,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
 
 #ifdef __CYGWIN__
         //TODO: memory error on cygwin.
-        zval_add_ref(&zreques_object);
+        zval_add_ref(&zrequest_object);
         zval_add_ref(&zresponse_object);
 #endif
         
