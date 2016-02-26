@@ -117,7 +117,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
                     swServer_disable_accept(reactor);
                     reactor->disable_accept = 1;
                 }
-                swWarn("accept() failed. Error: %s[%d]", strerror(errno), errno);
+                swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "accept() failed. Error: %s[%d]", strerror(errno), errno);
                 return SW_OK;
             }
         }

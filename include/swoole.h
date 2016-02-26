@@ -279,11 +279,11 @@ snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): "str" Error: %s[%d].",__func__,__L
 swLog_put(SW_LOG_ERROR, sw_error);\
 SwooleGS->lock.unlock(&SwooleGS->lock)
 
-#define swoole_error_log(level, errno, str, ...)      if (level >= SwooleG.log_level){\
-    snprintf(sw_error, SW_ERROR_MSG_SIZE, "(ERROR %d): "str,errno,##__VA_ARGS__);\
+#define swoole_error_log(level, errno, str, ...)      do{if (level >= SwooleG.log_level){\
+    snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s (ERROR %d): "str,__func__,errno,##__VA_ARGS__);\
     SwooleGS->lock.lock(&SwooleGS->lock);\
     swLog_put( SW_LOG_ERROR, sw_error);\
-    SwooleGS->lock.unlock(&SwooleGS->lock);}
+    SwooleGS->lock.unlock(&SwooleGS->lock);}}while(0)
 
 #ifdef SW_DEBUG_REMOTE_OPEN
 #define swDebug(str,...) int __debug_log_n = snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);\
