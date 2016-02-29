@@ -566,6 +566,9 @@ static PHP_METHOD(swoole_process, read)
     }
     buf[ret] = 0;
     SW_ZVAL_STRINGL(return_value, buf, ret, 0);
+#if PHP_MAJOR_VERSION >= 7
+    efree(buf);
+#endif
 }
 
 static PHP_METHOD(swoole_process, write)
