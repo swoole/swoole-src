@@ -671,7 +671,7 @@ static PHP_METHOD(swoole_client, __destruct)
     swClient *cli = swoole_get_object(getThis());
 
     //no keep connection
-    if (cli && !cli->keep)
+    if (cli && !cli->socket->closed && !cli->keep)
     {
         cli->close(cli);
         client_free(getThis(), cli TSRMLS_CC);

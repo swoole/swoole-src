@@ -124,8 +124,7 @@ static PHP_METHOD(swoole_server_port, set)
         if (port->protocol.package_eof_len > SW_DATA_EOF_MAXLEN)
         {
             swoole_php_fatal_error(E_ERROR, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
-            RETURN_FALSE
-            ;
+            RETURN_FALSE;
         }
         bzero(port->protocol.package_eof, SW_DATA_EOF_MAXLEN);
         memcpy(port->protocol.package_eof, Z_STRVAL_P(v), Z_STRLEN_P(v));
