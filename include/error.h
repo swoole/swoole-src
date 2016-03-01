@@ -19,17 +19,24 @@
 
 enum swErrorCode
 {
+    SW_ERROR_MALLOC_FAIL                         = 501,
+    SW_ERROR_SYSTEM_CALL_FAIL                    = 502,
     /**
-     * reactor thread
+     * master process
      */
     SW_ERROR_SERVER_MUST_CREATED_BEFORE_CLIENT   = 9001,
+    SW_ERROR_SERVER_TOO_MANY_SOCKET              = 9002,
     /**
-     * server event worker
+     * connection error
      */
-    SW_ERROR_SERVER_WORKER_CLOSING               = 8001,
     SW_ERROR_SESSION_CLOSED_BY_SERVER            = 1001,
-    SW_ERROR_SESSION_CLOSED_BY_CLIENT            = 1002,
-    SW_ERROR_OUTPUT_BUFFER_OVERFLOW              = 1003,
+    SW_ERROR_SESSION_CLOSED_BY_CLIENT,
+    SW_ERROR_SESSION_CLOSING,
+    SW_ERROR_SESSION_CLOSED,
+    SW_ERROR_SESSION_NO_EXIST,
+    SW_ERROR_OUTPUT_BUFFER_OVERFLOW,
+    SW_ERROR_SSL_NOT_READY,
+    SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA,
 };
 
 #endif /* SW_ERRNO_H_ */

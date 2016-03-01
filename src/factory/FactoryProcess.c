@@ -185,18 +185,18 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     swConnection *conn = swServer_connection_verify(serv, fd);
     if (!conn)
     {
-        swWarn("session#%d does not exist.", fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NO_EXIST, "session#%d does not exist.", fd);
         return SW_ERR;
     }
     else if ((conn->closed || conn->removed) && resp->info.type != SW_EVENT_CLOSE)
     {
         int _len = resp->length > 0 ? resp->length : resp->info.len;
-        swWarn("send %d byte failed, because session#%d is closed.", _len, fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "send %d byte failed, because session#%d is closed.", _len, fd);
         return SW_ERR;
     }
     else if (conn->overflow)
     {
-        swWarn("send failed, session#%d output buffer has been overflowed.", fd);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "send failed, session#%d output buffer has been overflowed.", fd);
         return SW_ERR;
     }
 
@@ -275,7 +275,7 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
     }
     else if (conn->closing)
     {
-        swRuntimeError(SW_ERROR_SERVER_WORKER_CLOSING, "The connection[%d] is closing.", fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSING, "The connection[%d] is closing.", fd);
         return SW_ERR;
     }
     else if (conn->closed)

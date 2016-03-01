@@ -117,7 +117,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
                     swServer_disable_accept(reactor);
                     reactor->disable_accept = 1;
                 }
-                swWarn("accept() failed. Error: %s[%d]", strerror(errno), errno);
+                swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "accept() failed. Error: %s[%d]", strerror(errno), errno);
                 return SW_OK;
             }
         }
@@ -133,7 +133,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         //too many connection
         if (new_fd >= serv->max_connection)
         {
-            swWarn("Too many connections [now: %d].", new_fd);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_TOO_MANY_SOCKET, "Too many connections [now: %d].", new_fd);
             close(new_fd);
             return SW_OK;
         }
@@ -457,9 +457,9 @@ int swServer_start(swServer *serv)
         serv->message_queue_key = ftok(path_ptr, 1);
     }
     //init loggger
-    if (serv->log_file[0] != 0)
+    if (SwooleG.log_file)
     {
-        swLog_init(serv->log_file);
+        swLog_init(SwooleG.log_file);
     }
     //run as daemon
     if (serv->daemonize > 0)
@@ -471,7 +471,7 @@ int swServer_start(swServer *serv)
         {
             if (dup2(SwooleG.log_fd, STDOUT_FILENO) < 0)
             {
-                swWarn("dup2() failed. Error: %s[%d]", strerror(errno), errno);
+                swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "dup2() failed. Error: %s[%d]", strerror(errno), errno);
             }
         }
         /**
@@ -484,16 +484,16 @@ int swServer_start(swServer *serv)
             {
                 if (dup2(SwooleG.null_fd, STDOUT_FILENO) < 0)
                 {
-                    swWarn("dup2(STDOUT_FILENO) failed. Error: %s[%d]", strerror(errno), errno);
+                    swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "dup2(STDOUT_FILENO) failed. Error: %s[%d]", strerror(errno), errno);
                 }
                 if (dup2(SwooleG.null_fd, STDERR_FILENO) < 0)
                 {
-                    swWarn("dup2(STDERR_FILENO) failed. Error: %s[%d]", strerror(errno), errno);
+                    swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "dup2(STDERR_FILENO) failed. Error: %s[%d]", strerror(errno), errno);
                 }
             }
             else
             {
-                swWarn("open(/dev/null) failed. Error: %s[%d]", strerror(errno), errno);
+                swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "open(/dev/null) failed. Error: %s[%d]", strerror(errno), errno);
             }
         }
 
@@ -520,7 +520,7 @@ int swServer_start(swServer *serv)
     serv->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
     if (serv->workers == NULL)
     {
-        swWarn("[Master] malloc[object->workers] failed");
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "gmalloc[object->workers] failed");
         return SW_ERR;
     }
 
@@ -630,7 +630,7 @@ int swServer_create(swServer *serv)
 {
     if (SwooleG.main_reactor)
     {
-        swRuntimeError(SW_ERROR_SERVER_MUST_CREATED_BEFORE_CLIENT, "The swoole_server must create before client");
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_MUST_CREATED_BEFORE_CLIENT, "The swoole_server must create before client");
         return SW_ERR;
     }
 
@@ -728,7 +728,7 @@ int swServer_free(swServer *serv)
         sw_shm_free(serv->session_list);
     }
     //close log file
-    if (serv->log_file[0] != 0)
+    if (SwooleG.log_file != 0)
     {
         swLog_free();
     }
@@ -799,7 +799,7 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length)
      */
     if (length >= serv->buffer_output_size)
     {
-        swWarn("More than the output buffer size[%d], please use the sendfile.", serv->buffer_output_size);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "More than the output buffer size[%d], please use the sendfile.", serv->buffer_output_size);
         return SW_ERR;
     }
     else

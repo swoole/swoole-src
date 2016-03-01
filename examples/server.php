@@ -4,8 +4,8 @@ class G
     static $index = 0;
     static $serv;
     static $config = array(
-        'reactor_num'              => 1,     // 线程数. 一般设置为CPU核数的1-4倍
-        'worker_num'               => 1,    // 工作进程数量. 设置为CPU的1-4倍最合理
+        //'reactor_num'              => 1,     // 线程数. 一般设置为CPU核数的1-4倍
+        //'worker_num'               => 1,    // 工作进程数量. 设置为CPU的1-4倍最合理
         'max_request'              => 0,     // 防止 PHP 内存溢出, 一个工作进程处理 X 次任务后自动重启 (注: 0,不自动重启)
         'max_conn'                 => 10000, // 最大连接数
         'task_worker_num'          => 1,     // 任务工作进程数量
@@ -52,26 +52,38 @@ if (isset($argv[1]) and $argv[1] == 'daemon') {
 	$config['daemonize'] = false;
 }
 
-$mode = SWOOLE_BASE;
-//$mode = SWOOLE_PROCESS;
+//$mode = SWOOLE_BASE;
+$mode = SWOOLE_PROCESS;
 
 $serv = new swoole_server("0.0.0.0", 9501, $mode, SWOOLE_SOCK_TCP);
-//$serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
-//$serv->addlistener('::', 9503, SWOOLE_SOCK_TCP6);
-//$serv->addlistener('::', 9504, SWOOLE_SOCK_UDP6);
-//$process1 = new swoole_process(function ($worker) use ($serv) {
-//    global $argv;
-//    swoole_set_process_name("php {$argv[0]}: my_process1");
+$serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
+$serv->addlistener('::', 9503, SWOOLE_SOCK_TCP6);
+$serv->addlistener('::', 9504, SWOOLE_SOCK_UDP6);
+$process1 = new swoole_process(function ($worker) use ($serv) {
+    global $argv;
+    swoole_set_process_name("php {$argv[0]}: my_process1");
+    sleep(1000);
 //    swoole_timer_tick(2000, function ($interval) use ($worker, $serv) {
 //        echo "#{$worker->pid} child process timer $interval\n"; // 如果worker中没有定时器，则会输出 process timer xxx
-////        foreach ($serv->connections as $conn)
-////        {
-////            $serv->send($conn, "heartbeat\n");
-////        }
+//        foreach ($serv->connections as $conn)
+//        {
+//            $serv->send($conn, "heartbeat\n");
+//        }
 //    });
-//}, false);
+}, false);
 
-//$serv->addprocess($process1);
+$serv->addprocess($process1);
+
+$process2 = new swoole_process(function ($worker) use ($serv) {
+    global $argv;
+    swoole_set_process_name("php {$argv[0]}: my_process2");
+    swoole_timer_tick(2000, function ($interval) use ($worker, $serv) {
+        echo "#{$worker->pid} child process timer $interval\n"; // 如果worker中没有定时器，则会输出 process timer xxx
+    });
+}, false);
+
+$serv->addprocess($process2);
+
 $serv->set(G::$config);
 /**
  * 保存数据到对象属性，在任意位置均可访问
@@ -93,7 +105,7 @@ function my_onStart(swoole_server $serv)
 function my_log($msg)
 {
 	global $serv;
-    echo "#".$serv->worker_pid."\t".date('H:i:s')."\t".$msg.PHP_EOL;
+    echo "#".$serv->worker_pid."\t[".date('H:i:s')."]\t".$msg.PHP_EOL;
 }
 
 function forkChildInWorker() {
@@ -193,22 +205,21 @@ function my_onWorkerStart(swoole_server $serv, $worker_id)
         swoole_process::signal(SIGUSR2, function($signo){
             echo "SIGNAL: $signo\n";
         });
-
 //        swoole_timer_tick(2000, function($id) {
 //            var_dump($id);
 //        });
     }
     else
     {
-        $serv->tick(1000, function ($id) use ($serv) {
-            if (G::$index > 10) {
-                $serv->after(2500, 'timer_show', 2);
-                G::$index = 0;
-            } else {
-                G::$index++;
-            }
-            timer_show($id);
-        });
+//        $serv->tick(1000, function ($id) use ($serv) {
+//            if (G::$index > 10) {
+//                $serv->after(2500, 'timer_show', 2);
+//                G::$index = 0;
+//            } else {
+//                G::$index++;
+//            }
+//            timer_show($id);
+//        });
     }
 	//forkChildInWorker();
 //	setTimerInWorker($serv, $worker_id);
@@ -336,6 +347,10 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     {
         $serv->shutdown();
     }
+    elseif($cmd == "fatalerror")
+    {
+        require __DIR__.'/php/error.php';
+    }
     elseif($cmd == 'sendbuffer')
     {
         $buffer = G::getBuffer($fd);
@@ -408,9 +423,9 @@ function my_onFinish(swoole_server $serv, $task_id, $data)
     echo "AsyncTask Finish: result={$data}. PID=".$serv->worker_pid.PHP_EOL;
 }
 
-function my_onWorkerError(swoole_server $serv, $worker_id, $worker_pid, $exit_code)
+function my_onWorkerError(swoole_server $serv, $worker_id, $worker_pid, $exit_code, $signo)
 {
-    echo "worker abnormal exit. WorkerId=$worker_id|Pid=$worker_pid|ExitCode=$exit_code\n";
+    echo "worker abnormal exit. WorkerId=$worker_id|Pid=$worker_pid|ExitCode=$exit_code|Signal=$signo\n";
 }
 
 function broadcast(swoole_server $serv, $fd = 0, $data = "hello")

@@ -123,12 +123,12 @@ static sw_inline int swWorker_discard_data(swServer *serv, swEventData *task)
         memcpy(&package, task->data, sizeof(package));
         swReactorThread *thread = swServer_get_thread(SwooleG.serv, task->info.from_id);
         thread->buffer_input->free(thread->buffer_input, package.data);
-        swWarn("[1]received the wrong data[%d bytes] from socket#%d", package.length, fd);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA, "[1]received the wrong data[%d bytes] from socket#%d", package.length, fd);
     }
     else
 #endif
     {
-        swWarn("[1]received the wrong data[%d bytes] from socket#%d", task->info.len, fd);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA, "[1]received the wrong data[%d bytes] from socket#%d", task->info.len, fd);
     }
     return SW_TRUE;
 }

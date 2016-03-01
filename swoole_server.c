@@ -190,13 +190,14 @@ static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC)
     int result_data_len = 0;
     php_unserialize_data_t var_hash;
 
+    int data_len;
+    char *data_str = NULL;
+
     /**
      * Large result package
      */
     if (swTask_type(task_result) & SW_TASK_TMPFILE)
     {
-        int data_len;
-        char *data_str = NULL;
         swTaskWorker_large_unpack(task_result, emalloc, data_str, data_len);
         /**
          * unpack failed
@@ -239,6 +240,10 @@ static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC)
     {
         SW_ALLOC_INIT_ZVAL(result_data);
         SW_ZVAL_STRINGL(result_data, result_data_str, result_data_len, 1);
+    }
+    if (data_str)
+    {
+        efree(data_str);
     }
     return result_data;
 }
@@ -1409,12 +1414,13 @@ PHP_METHOD(swoole_server, set)
     if (sw_zend_hash_find(vht, ZEND_STRS("log_file"), (void **) &v) == SUCCESS)
     {
         convert_to_string(v);
-        if (Z_STRLEN_P(v) > SW_LOG_FILENAME)
-        {
-            swoole_php_fatal_error(E_ERROR, "log_file name to long");
-            RETURN_FALSE;
-        }
-        memcpy(serv->log_file, Z_STRVAL_P(v), Z_STRLEN_P(v));
+        SwooleG.log_file = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+    }
+    //log_level
+    if (sw_zend_hash_find(vht, ZEND_STRS("log_level"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(v);
+        SwooleG.log_level = (int) Z_LVAL_P(v);
     }
     /**
      * for dispatch_mode = 1/3
@@ -2804,6 +2810,17 @@ PHP_METHOD(swoole_server, shutdown)
     {
         RETURN_TRUE;
     }
+}
+
+PHP_METHOD(swoole_server, stop)
+{
+    if (SwooleGS->start == 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
+    SwooleG.main_reactor->running = 0;
+    SwooleG.running = 0;
 }
 
 #ifdef HAVE_PCRE

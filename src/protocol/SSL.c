@@ -55,18 +55,22 @@ static const SSL_METHOD *swSSL_get_method(int method)
         return TLSv1_server_method();
     case SW_TLSv1_CLIENT_METHOD:
         return TLSv1_client_method();
+#ifdef TLS1_1_VERSION
     case SW_TLSv1_1_METHOD:
         return TLSv1_1_method();
     case SW_TLSv1_1_SERVER_METHOD:
         return TLSv1_1_server_method();
     case SW_TLSv1_1_CLIENT_METHOD:
         return TLSv1_1_client_method();
+#endif
+#ifdef TLS1_2_VERSION
     case SW_TLSv1_2_METHOD:
         return TLSv1_2_method();
     case SW_TLSv1_2_SERVER_METHOD:
         return TLSv1_2_server_method();
     case SW_TLSv1_2_CLIENT_METHOD:
         return TLSv1_2_client_method();
+#endif
     case SW_DTLSv1_METHOD:
         return DTLSv1_method();
     case SW_DTLSv1_SERVER_METHOD:
@@ -90,14 +94,17 @@ void swSSL_init(void)
 
 int swSSL_server_config(SSL_CTX* ssl_context, swSSL_config *cfg)
 {
+#ifndef TLS1_2_VERSION
+    return SW_OK;
+#endif
     SSL_CTX_set_read_ahead(ssl_context, 1);
 
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
-    SSL_CTX_set_alpn_select_cb(ssl_context, swSSL_alpn_advertised, NULL);
+    SSL_CTX_set_alpn_select_cb(ssl_context, swSSL_alpn_advertised, cfg);
 #endif
 
 #ifdef TLSEXT_TYPE_next_proto_neg
-    SSL_CTX_set_next_protos_advertised_cb(ssl_context, swSSL_npn_advertised, NULL);
+    SSL_CTX_set_next_protos_advertised_cb(ssl_context, swSSL_npn_advertised, cfg);
 #endif
 
     if (SSL_CTX_set_cipher_list(ssl_context, cfg->ciphers) == 0)
@@ -538,13 +545,18 @@ static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, con
     unsigned char *srv;
 
 #ifdef SW_USE_HTTP2
-    srv = (unsigned char *) SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE;
-    srvlen = sizeof(SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE) - 1;
-#else
-    srv = (unsigned char *) SW_SSL_NPN_ADVERTISE;
-    srvlen = sizeof(SW_SSL_NPN_ADVERTISE) - 1;
+    swSSL_config *cfg = arg;
+    if (cfg->http_v2)
+    {
+        srv = (unsigned char *) SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE;
+        srvlen = sizeof(SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE) - 1;
+    }
+    else
 #endif
-
+    {
+        srv = (unsigned char *) SW_SSL_NPN_ADVERTISE;
+        srvlen = sizeof(SW_SSL_NPN_ADVERTISE) - 1;
+    }
     if (SSL_select_next_proto((unsigned char **) out, outlen, srv, srvlen, in, inlen) != OPENSSL_NPN_NEGOTIATED)
     {
         return SSL_TLSEXT_ERR_NOACK;
@@ -557,12 +569,18 @@ static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, con
 static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, void *arg)
 {
 #ifdef SW_USE_HTTP2
-    *out = (uchar *) SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE;
-    *outlen = sizeof(SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE) - 1;
-#else
-    *out = (uchar *) SW_SSL_NPN_ADVERTISE;
-    *outlen = sizeof(SW_SSL_NPN_ADVERTISE) - 1;
+    swSSL_config *cfg = arg;
+    if (cfg->http_v2)
+    {
+        *out = (uchar *) SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE;
+        *outlen = sizeof(SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE) - 1;
+    }
+    else
 #endif
+    {
+        *out = (uchar *) SW_SSL_NPN_ADVERTISE;
+        *outlen = sizeof(SW_SSL_NPN_ADVERTISE) - 1;
+    }
     return SSL_TLSEXT_ERR_OK;
 }
 #endif

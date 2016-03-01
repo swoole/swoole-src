@@ -147,7 +147,6 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
     }
     else
     {
-        conn->last_time = SwooleGS->now;
         buffer->length += n;
 
         if (conn->recv_wait)
@@ -179,6 +178,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
             {
                 if (buffer->size < package_length)
                 {
+
                     if (swString_extend(buffer, package_length) < 0)
                     {
                         return SW_ERR;
@@ -238,7 +238,6 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString
     }
     else
     {
-        conn->last_time = SwooleGS->now;
         buffer->length += n;
 
         if (buffer->length < protocol->package_eof_len)

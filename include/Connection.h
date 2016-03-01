@@ -61,12 +61,16 @@ enum swSSLMethod
     SW_TLSv1_METHOD,
     SW_TLSv1_SERVER_METHOD,
     SW_TLSv1_CLIENT_METHOD,
+#ifdef TLS1_1_VERSION
     SW_TLSv1_1_METHOD,
     SW_TLSv1_1_SERVER_METHOD,
     SW_TLSv1_1_CLIENT_METHOD,
+#endif
+#ifdef TLS1_2_VERSION
     SW_TLSv1_2_METHOD,
     SW_TLSv1_2_SERVER_METHOD,
     SW_TLSv1_2_CLIENT_METHOD,
+#endif
     SW_DTLSv1_METHOD,
     SW_DTLSv1_SERVER_METHOD,
     SW_DTLSv1_CLIENT_METHOD,
@@ -75,6 +79,7 @@ enum swSSLMethod
 typedef struct
 {
     uint32_t http :1;
+    uint32_t http_v2 :1;
     uint32_t prefer_server_ciphers :1;
     uint32_t session_tickets :1;
     uint32_t stapling :1;

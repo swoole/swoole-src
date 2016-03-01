@@ -558,6 +558,7 @@ static PHP_METHOD(swoole_process, read)
     int ret = read(process->pipe, buf, buf_size);;
     if (ret < 0)
     {
+        efree(buf); 
         if (errno != EINTR)
         {
             swoole_php_error(E_WARNING, "failed. Error: %s[%d]", strerror(errno), errno);
@@ -566,6 +567,9 @@ static PHP_METHOD(swoole_process, read)
     }
     buf[ret] = 0;
     SW_ZVAL_STRINGL(return_value, buf, ret, 0);
+#if PHP_MAJOR_VERSION >= 7
+    efree(buf);
+#endif
 }
 
 static PHP_METHOD(swoole_process, write)

@@ -317,14 +317,32 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     reactor->setHandle(reactor, SW_FD_CLOSE, swReactorProcess_onClose);
     //pipe
     reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_WRITE, swReactor_onWrite);
+    reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_READ, swReactorProcess_onPipeRead);
 
     if (worker->pipe_worker)
     {
-        //proxy or pipe message
+        swSetNonBlock(worker->pipe_worker);
+        swSetNonBlock(worker->pipe_master);
         reactor->add(reactor, worker->pipe_worker, SW_FD_PIPE);
+        reactor->add(reactor, worker->pipe_master, SW_FD_PIPE);
     }
-    //close
-    reactor->setHandle(reactor, SW_FD_PIPE, swReactorProcess_onPipeRead);
+
+    //task workers
+    if (SwooleG.task_worker_num > 0)
+    {
+        swPipe *p;
+        swConnection *psock;
+        int pfd ;
+        for (i = 0; i < SwooleGS->task_workers.worker_num; i++)
+        {
+            p = SwooleGS->task_workers.workers[i].pipe_object;
+            pfd =  p->getFd(p, 1);
+            psock = swReactor_get(reactor, pfd);
+            psock->fdtype = SW_FD_PIPE;
+            swSetNonBlock(pfd);
+        }
+    }
+
     //set protocol function point
     swReactorThread_set_protocol(serv, reactor);
 

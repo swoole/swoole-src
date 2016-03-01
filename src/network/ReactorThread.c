@@ -541,11 +541,11 @@ int swReactorThread_send(swSendData *_send)
     {
         if (_send->info.type == SW_EVENT_TCP)
         {
-            swWarn("send %d byte failed, session#%d is closed.", _send_length, session_id);
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NO_EXIST, "send %d byte failed, session#%d does not exist.", _send_length, session_id);
         }
         else
         {
-            swWarn("send [%d] failed, session#%d is closed.", _send->info.type, session_id);
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NO_EXIST, "send event$[%d] failed, session#%d does not exist.", _send->info.type, session_id);
         }
         return SW_ERR;
     }
@@ -655,7 +655,7 @@ int swReactorThread_send(swSendData *_send)
         //connection output buffer overflow
         if (conn->out_buffer->length >= serv->buffer_output_size)
         {
-            swWarn("connection#%d output buffer overflow.", fd);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "connection#%d output buffer overflow.", fd);
             conn->overflow = 1;
         }
 
@@ -720,7 +720,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
 #endif
                 if (conn && conn->closed)
                 {
-                    swRuntimeError(SW_ERROR_SESSION_CLOSED_BY_SERVER, "Session#%d is closed by server.", send_data->info.fd);
+                    swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_SERVER, "Session#%d is closed by server.", send_data->info.fd);
                 }
                 swBuffer_pop_trunk(buffer, trunk);
                 continue;
@@ -799,7 +799,7 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
         return swReactorThread_close(reactor, event->fd);
     }
 #endif
-
+    event->socket->last_time = SwooleGS->now;
     return port->onRead(reactor, port, event);
 }
 

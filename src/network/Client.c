@@ -301,7 +301,7 @@ static int swClient_close(swClient *cli)
         SwooleG.main_reactor->del(SwooleG.main_reactor, fd);
         cli->socket->closed = 1;
         //onClose callback
-        if (cli->onClose)
+        if (cli->socket->active && cli->onClose)
         {
             cli->onClose(cli);
         }

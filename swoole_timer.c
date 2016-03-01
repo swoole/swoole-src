@@ -44,12 +44,16 @@ static int php_swoole_del_timer(swTimer_node *tnode TSRMLS_DC);
 
 static long php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tick TSRMLS_DC)
 {
+    if (SwooleG.serv && swIsMaster())
+    {
+        swoole_php_fatal_error(E_WARNING, "cannot use timer in master process.");
+        return SW_ERR;
+    }
     if (ms > 86400000)
     {
         swoole_php_fatal_error(E_WARNING, "The given parameters is too big.");
         return SW_ERR;
     }
-
     if (ms <= 0)
     {
         swoole_php_fatal_error(E_WARNING, "Timer must be greater than 0");
