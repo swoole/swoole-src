@@ -292,6 +292,7 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, finish, arginfo_swoole_server_finish_oo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, reload, arginfo_swoole_server_reload_oo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, shutdown, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, stop, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, heartbeat, arginfo_swoole_server_heartbeat_oo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, connection_info, arginfo_swoole_connection_info_oo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, connection_list, arginfo_swoole_connection_list_oo, ZEND_ACC_PUBLIC)

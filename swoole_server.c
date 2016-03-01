@@ -2812,6 +2812,17 @@ PHP_METHOD(swoole_server, shutdown)
     }
 }
 
+PHP_METHOD(swoole_server, stop)
+{
+    if (SwooleGS->start == 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
+    SwooleG.main_reactor->running = 0;
+    SwooleG.running = 0;
+}
+
 #ifdef HAVE_PCRE
 static struct
 {
