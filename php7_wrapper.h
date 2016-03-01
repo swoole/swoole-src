@@ -279,7 +279,7 @@ static inline int sw_zend_hash_update(HashTable *ht, char *k, int len, void *val
 
 static inline int sw_zend_hash_get_current_key(HashTable *ht, char **key, uint32_t *keylen, ulong *num)
 {
-    zend_string *_key_ptr;
+    zend_string *_key_ptr = NULL;
     int type = zend_hash_get_current_key(ht, &_key_ptr, (zend_ulong*) num);
     *key = _key_ptr->val;
     *keylen = _key_ptr->len;
