@@ -101,6 +101,7 @@ static int multipart_body_end(multipart_parser* p);
 
 static void http_global_merge(zval *val, zval *zrequest, int type);
 static void http_global_clear(TSRMLS_D);
+static void http_global_init(TSRMLS_D);
 static http_context* http_get_context(zval *object, int check_end TSRMLS_DC);
 static void http_build_header(http_context *, zval *object, swString *response, int body_length TSRMLS_DC);
 static void http_parse_cookie(zval *array, const char *at, size_t length);
@@ -259,6 +260,48 @@ static void http_global_clear(TSRMLS_D)
     sw_zend_hash_del(&EG(symbol_table), "_COOKIE", sizeof("_COOKIE"));
     sw_zend_hash_del(&EG(symbol_table), "_REQUEST", sizeof("_REQUEST"));
     sw_zend_hash_del(&EG(symbol_table), "_SERVER", sizeof("_SERVER"));
+    sw_zend_hash_del(&EG(symbol_table), "_FILES", sizeof("_FILES"));
+}
+
+static void http_global_init(TSRMLS_D)
+{
+    zval *val = NULL, *array = NULL;
+    if (sw_zend_hash_find(&EG(symbol_table), "_GET", sizeof("_GET"), (void **) &val) == FAILURE)
+    {
+        SW_ALLOC_INIT_ZVAL(array);
+        array_init(array);
+        ZEND_SET_SYMBOL(&EG(symbol_table), "_GET", array);
+    }
+    if (sw_zend_hash_find(&EG(symbol_table), "_POST", sizeof("_POST"), (void **) &val) == FAILURE)
+    {
+        SW_ALLOC_INIT_ZVAL(array);
+        array_init(array);
+        ZEND_SET_SYMBOL(&EG(symbol_table), "_POST", array);
+    }
+    if (sw_zend_hash_find(&EG(symbol_table), "_COOKIE", sizeof("_COOKIE"), (void **) &val) == FAILURE)
+    {
+        SW_ALLOC_INIT_ZVAL(array);
+        array_init(array);
+        ZEND_SET_SYMBOL(&EG(symbol_table), "_COOKIE", array);
+    }
+    if (sw_zend_hash_find(&EG(symbol_table), "_REQUEST", sizeof("_REQUEST"), (void **) &val) == FAILURE)
+    {
+        SW_ALLOC_INIT_ZVAL(array);
+        array_init(array);
+        ZEND_SET_SYMBOL(&EG(symbol_table), "_REQUEST", array);
+    }
+    if (sw_zend_hash_find(&EG(symbol_table), "_SERVER", sizeof("_SERVER"), (void **) &val) == FAILURE)
+    {
+        SW_ALLOC_INIT_ZVAL(array);
+        array_init(array);
+        ZEND_SET_SYMBOL(&EG(symbol_table), "_SERVER", array);
+    }
+    if (sw_zend_hash_find(&EG(symbol_table), "_FILES", sizeof("_FILES"), (void **) &val) == FAILURE)
+    {
+        SW_ALLOC_INIT_ZVAL(array);
+        array_init(array);
+        ZEND_SET_SYMBOL(&EG(symbol_table), "_FILES", array);
+    }
 }
 
 static void http_global_merge(zval *val, zval *zrequest, int type)
@@ -1013,6 +1056,11 @@ static int http_onReceive(swServer *serv, swEventData *req)
 
         zval *zrequest_object = ctx->request.zrequest_object;
         zval *zresponse_object = ctx->response.zresponse_object;
+
+        if (http_merge_global_flag > 0)
+        {
+            http_global_init(TSRMLS_C);
+        }
 
         ctx->keepalive = php_http_should_keep_alive(parser);
         char *method_name = http_get_method_name(parser->method);
