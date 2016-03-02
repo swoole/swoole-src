@@ -8,12 +8,13 @@
 	<summary>Event-driven asynchronous and concurrent networking engine with high performance for PHP.</summary>
 	<description>Event-driven asynchronous and concurrent networking engine with high performance for PHP.
 - event-driven
-- full asynchronous non-blocking
+- asynchronous non-blocking
 - multi-thread reactor
 - multi-process worker
 - multi-protocol
 - millisecond timer
 - async mysql client
+- built-in http/websocket/http2 server
 - async http/websocket client
 - async redis client
 - async task
@@ -34,11 +35,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2016-02-04</date>
+    <date>2016-03-02</date>
     <time>11:48:51</time>
     <version>
-		<release>1.8.1</release>
-		<api>1.8.1</api>
+		<release>1.8.2</release>
+		<api>1.8.2</api>
     </version>
     <stability>
         <release>stable</release>
@@ -46,15 +47,14 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Added psr-4 style namespace classes alias
-- Added swoole_server->protect methods used to protect the connection will not close by heartbeat thread
-- Added swoole_websocker_server::pack and swoole_websocker_server::unpack static method
-- Added redis subscribe and publish messages supports
-- Added swoole_http_client for gzip content compression support
-- Added swoole_client->reuse property
-- Fixed async client incidental core dump 
-- Fixed async client memory leak
-- Fixed compile failed with enable-openssl on MacOS
+- Added http2 supports for swoole_http_server
+- Added swoole_server->stop method used to stop the worker process
+- Added log_level option for swoole_server settings
+- Fixed swoole_websocket_server receives data over the issue 64K crashes
+- Added multi-port monitor is not set callback function causes the program to crash
+- Enhance the SSL/TLS encrypted safety level, now used by default TLS1.2/ECDHA_RSA encryption algorithm
+- Fixed onFinish event callbacks memory leak problem
+- Fixed the problem task finish can not be used under BASE mode
     </notes>
 	<contents>
 		<dir name="/">
@@ -79,7 +79,8 @@
 				<file role="src" name="hash.h" />
 				<file role="src" name="heap.h" />
 				<file role="src" name="table.h" />
-				<file role="src" name="Http.h" />
+				<file role="src" name="http.h" />
+				<file role="src" name="http2.h" />
 				<file role="src" name="websocket.h" />
 				<file role="src" name="sha1.h" />
 				<file role="src" name="base64.h" />
@@ -188,6 +189,7 @@
 				    <file role="src" name="Base.c" />
 					<file role="src" name="SSL.c" />
 					<file role="src" name="Http.c" />
+					<file role="src" name="Http2.c" />
 					<file role="src" name="WebSocket.c" />
 					<file role="src" name="Sha1.c" />
 					<file role="src" name="Base64.c" />

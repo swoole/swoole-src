@@ -14,7 +14,7 @@
  +----------------------------------------------------------------------+
  */
 #include "swoole.h"
-#include "Http.h"
+#include "http.h"
 #include "http2.h"
 
 #include <assert.h>

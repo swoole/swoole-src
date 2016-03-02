@@ -15,7 +15,7 @@
 */
 
 #include "Server.h"
-#include "Http.h"
+#include "http.h"
 #include "Connection.h"
 
 #if SW_REACTOR_SCHEDULE == 3
