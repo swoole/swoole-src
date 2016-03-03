@@ -256,8 +256,8 @@ PHP_METHOD(swoole_server, __construct);
 PHP_METHOD(swoole_server, set);
 PHP_METHOD(swoole_server, on);
 PHP_METHOD(swoole_server, listen);
-PHP_METHOD(swoole_server, sendmessage);
-PHP_METHOD(swoole_server, addprocess);
+PHP_METHOD(swoole_server, sendMessage);
+PHP_METHOD(swoole_server, addProcess);
 PHP_METHOD(swoole_server, start);
 PHP_METHOD(swoole_server, stop);
 PHP_METHOD(swoole_server, send);
@@ -274,6 +274,7 @@ PHP_METHOD(swoole_server, taskwait);
 PHP_METHOD(swoole_server, finish);
 PHP_METHOD(swoole_server, reload);
 PHP_METHOD(swoole_server, shutdown);
+PHP_METHOD(swoole_server, getLastError);
 PHP_METHOD(swoole_server, stop);
 PHP_METHOD(swoole_server, heartbeat);
 

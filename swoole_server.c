@@ -1690,7 +1690,7 @@ PHP_METHOD(swoole_server, listen)
     RETURN_ZVAL(port_object, 1, NULL);
 }
 
-PHP_METHOD(swoole_server, addprocess)
+PHP_METHOD(swoole_server, addProcess)
 {
     if (SwooleGS->start > 0)
     {
@@ -2314,7 +2314,7 @@ PHP_METHOD(swoole_server, task)
     }
 }
 
-PHP_METHOD(swoole_server, sendmessage)
+PHP_METHOD(swoole_server, sendMessage)
 {
     zval *zobject = getThis();
     swEventData buf;
@@ -2821,6 +2821,11 @@ PHP_METHOD(swoole_server, stop)
     }
     SwooleG.main_reactor->running = 0;
     SwooleG.running = 0;
+}
+
+PHP_METHOD(swoole_server, getLastError)
+{
+    RETURN_LONG(SwooleG.error);
 }
 
 #ifdef HAVE_PCRE
