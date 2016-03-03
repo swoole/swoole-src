@@ -124,17 +124,17 @@ void swoole_process_init(int module_number TSRMLS_DC)
 static PHP_METHOD(swoole_process, __construct)
 {
     zend_bool redirect_stdin_and_stdout = 0;
-    long create_pipe = 1;
+    long pipe_type = 2;
     zval *callback;
 
     //only cli env
-    if (strcasecmp("cli", sapi_module.name) != 0)
+    if (!SWOOLE_G(cli))
     {
         php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_process must run at php_cli environment.");
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|bl", &callback, &redirect_stdin_and_stdout, &create_pipe) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|bl", &callback, &redirect_stdin_and_stdout, &pipe_type) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -163,17 +163,18 @@ static PHP_METHOD(swoole_process, __construct)
         process->redirect_stdin = 1;
         process->redirect_stdout = 1;
         process->redirect_stderr = 1;
-        create_pipe = 1;
+        pipe_type = 2;
     }
 
-    if (create_pipe > 0)
+    if (pipe_type > 0)
     {
         swPipe *_pipe = emalloc(sizeof(swWorker));
-        int socket_type = create_pipe == 1 ? SOCK_STREAM : SOCK_DGRAM;
+        int socket_type = pipe_type == 1 ? SOCK_STREAM : SOCK_DGRAM;
         if (swPipeUnsock_create(_pipe, 1, socket_type) < 0)
         {
             RETURN_FALSE;
         }
+
         process->pipe_object = _pipe;
         process->pipe_master = _pipe->getFd(_pipe, SW_PIPE_MASTER);
         process->pipe_worker = _pipe->getFd(_pipe, SW_PIPE_WORKER);
