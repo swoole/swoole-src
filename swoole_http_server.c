@@ -92,6 +92,8 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
 static int http_request_on_headers_complete(php_http_parser *parser);
 static int http_request_message_complete(php_http_parser *parser);
 
+static void http_parse_cookie(zval *array, const char *at, size_t length);
+
 static int multipart_body_on_header_field(multipart_parser* p, const char *at, size_t length);
 static int multipart_body_on_header_value(multipart_parser* p, const char *at, size_t length);
 static int multipart_body_on_data(multipart_parser* p, const char *at, size_t length);
@@ -104,8 +106,8 @@ static void http_global_clear(TSRMLS_D);
 static void http_global_init(TSRMLS_D);
 static http_context* http_get_context(zval *object, int check_end TSRMLS_DC);
 static void http_build_header(http_context *, zval *object, swString *response, int body_length TSRMLS_DC);
-static void http_parse_cookie(zval *array, const char *at, size_t length);
 static int http_trim_double_quote(zval **value, char **ptr);
+
 
 static inline void http_header_key_format(char *key, int length)
 {
@@ -1311,11 +1313,6 @@ void swoole_http_context_free(http_context *ctx TSRMLS_DC)
     {
         efree(req->post_content);
     }
-    http_response *resp = &ctx->response;
-    if (resp->cookie)
-    {
-        swString_free(resp->cookie);
-    }
     /**
      * Free request object
      */
@@ -1382,26 +1379,30 @@ void swoole_http_context_free(http_context *ctx TSRMLS_DC)
         sw_zval_ptr_dtor(&req->zrequest);
     }
     //swoole_http_request object
-    if (ctx->request.zrequest_object)
+    if (req->zrequest_object)
     {
-        sw_zval_ptr_dtor(&ctx->request.zrequest_object);
-        ctx->request.zrequest_object = NULL;
+        sw_zval_ptr_dtor(&req->zrequest_object);
+        req->zrequest_object = NULL;
     }
+
     //swoole_http_response object
-    if (ctx->response.zresponse_object)
+    http_response *resp = &ctx->response;
+    if (resp->zresponse_object)
     {
-        if (ctx->response.zcookie)
-        {
-            sw_zval_ptr_dtor(&ctx->response.zcookie);
-            ctx->response.zcookie = NULL;
-        }
-        if (ctx->response.zheader)
-        {
-            sw_zval_ptr_dtor(&ctx->response.zheader);
-            ctx->response.zheader = NULL;
-        }
-        sw_zval_ptr_dtor(&ctx->response.zresponse_object);
-        ctx->response.zresponse_object = NULL;
+        sw_zval_ptr_dtor(&resp->zresponse_object);
+        resp->zresponse_object = NULL;
+    }
+    //set-cookies
+    if (resp->zcookie)
+    {
+        sw_zval_ptr_dtor(&resp->zcookie);
+        resp->zcookie = NULL;
+    }
+    //http headers
+    if (ctx->response.zheader)
+    {
+        sw_zval_ptr_dtor(&resp->zheader);
+        resp->zheader = NULL;
     }
     ctx->end = 1;
     ctx->send_header = 0;
@@ -1918,9 +1919,20 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
         swString_append_ptr(response, SW_STRL("Transfer-Encoding: chunked\r\n") - 1);
     }
     //http cookies
-    if (ctx->response.cookie)
+    if (ctx->response.zcookie)
     {
-        swString_append(response, ctx->response.cookie);
+        zval *value;
+        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ctx->response.zcookie), value)
+        {
+            if (Z_TYPE_P(value) != IS_STRING)
+            {
+                continue;
+            }
+            swString_append_ptr(response, SW_STRL("Set-Cookie: ") - 1);
+            swString_append_ptr(response, Z_STRVAL_P(value), Z_STRLEN_P(value));
+            swString_append_ptr(response, SW_STRL("\r\n") - 1);
+        }
+        SW_HASHTABLE_FOREACH_END();
     }
     //http compress
     if (ctx->gzip_enable)
@@ -2187,19 +2199,22 @@ static PHP_METHOD(swoole_http_response, cookie)
         RETURN_FALSE;
     }
 
+    zval *zcookie = ctx->response.zcookie;
+    if (!zcookie)
+    {
+        http_alloc_zval(ctx, response, zcookie);
+        array_init(zcookie);
+        zend_update_property(swoole_http_response_class_entry_ptr, getThis(), ZEND_STRL("cookie"), zcookie TSRMLS_CC);
+    }
+
     char *cookie, *encoded_value = NULL;
-    int len = sizeof("Set-Cookie: ");
+    int len = 0;
     char *dt;
 
     if (name && strpbrk(name, "=,; \t\r\n\013\014") != NULL)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Cookie names cannot contain any of the following '=,; \\t\\r\\n\\013\\014'");
+        swoole_php_error(E_WARNING, "Cookie names cannot contain any of the following '=,; \\t\\r\\n\\013\\014'");
         RETURN_FALSE;
-    }
-
-    if (!ctx->response.cookie)
-    {
-        ctx->response.cookie = swString_new(1024);
     }
 
     len += name_len;
@@ -2228,12 +2243,12 @@ static PHP_METHOD(swoole_http_response, cookie)
     if (value && value_len == 0)
     {
         dt = sw_php_format_date("D, d-M-Y H:i:s T", sizeof("D, d-M-Y H:i:s T") - 1, 1, 0 TSRMLS_CC);
-        snprintf(cookie, len + 100, "Set-Cookie: %s=deleted; expires=%s", name, dt);
+        snprintf(cookie, len + 100, "%s=deleted; expires=%s", name, dt);
         efree(dt);
     }
     else
     {
-        snprintf(cookie, len + 100, "Set-Cookie: %s=%s", name, value ? encoded_value : "");
+        snprintf(cookie, len + 100, "%s=%s", name, value ? encoded_value : "");
         if (expires > 0)
         {
             const char *p;
@@ -2245,7 +2260,7 @@ static PHP_METHOD(swoole_http_response, cookie)
                 efree(dt);
                 efree(cookie);
                 efree(encoded_value);
-                php_error_docref(NULL TSRMLS_CC, E_WARNING, "Expiry date cannot have a year greater than 9999");
+                swoole_php_error(E_WARNING, "Expiry date cannot have a year greater than 9999");
                 RETURN_FALSE;
             }
             strlcat(cookie, dt, len + 100);
@@ -2274,9 +2289,10 @@ static PHP_METHOD(swoole_http_response, cookie)
     {
         strlcat(cookie, "; httponly", len + 100);
     }
-    swString_append_ptr(ctx->response.cookie, cookie, strlen(cookie));
-    swString_append_ptr(ctx->response.cookie, ZEND_STRL("\r\n"));
+    sw_add_next_index_stringl(zcookie, cookie, strlen(cookie), 0);
+#if PHP_MAJOR_VERSION >= 7
     efree(cookie);
+#endif
 }
 
 static PHP_METHOD(swoole_http_response, rawcookie)
@@ -2299,19 +2315,22 @@ static PHP_METHOD(swoole_http_response, rawcookie)
         RETURN_FALSE;
     }
 
+    zval *zcookie = client->response.zcookie;
+    if (!zcookie)
+    {
+        http_alloc_zval(client, response, zcookie);
+        array_init(zcookie);
+        zend_update_property(swoole_http_response_class_entry_ptr, getThis(), ZEND_STRL("cookie"), zcookie TSRMLS_CC);
+    }
+
     char *cookie, *encoded_value = NULL;
-    int len = sizeof("Set-Cookie: ");
+    int len = 0;
     char *dt;
 
     if (name && strpbrk(name, "=,; \t\r\n\013\014") != NULL)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Cookie names cannot contain any of the following '=,; \\t\\r\\n\\013\\014'");
+        swoole_php_error(E_WARNING, "Cookie names cannot contain any of the following '=,; \\t\\r\\n\\013\\014'");
         RETURN_FALSE;
-    }
-
-    if (!client->response.cookie)
-    {
-        client->response.cookie = swString_new(1024);
     }
 
     len += name_len;
@@ -2340,12 +2359,12 @@ static PHP_METHOD(swoole_http_response, rawcookie)
     if (value && value_len == 0)
     {
         dt = sw_php_format_date("D, d-M-Y H:i:s T", sizeof("D, d-M-Y H:i:s T") - 1, 1, 0 TSRMLS_CC);
-        snprintf(cookie, len + 100, "Set-Cookie: %s=deleted; expires=%s", name, dt);
+        snprintf(cookie, len + 100, "%s=deleted; expires=%s", name, dt);
         efree(dt);
     }
     else
     {
-        snprintf(cookie, len + 100, "Set-Cookie: %s=%s", name, value ? encoded_value : "");
+        snprintf(cookie, len + 100, "%s=%s", name, value ? encoded_value : "");
         if (expires > 0)
         {
             const char *p;
@@ -2357,7 +2376,7 @@ static PHP_METHOD(swoole_http_response, rawcookie)
                 efree(dt);
                 efree(cookie);
                 efree(encoded_value);
-                php_error_docref(NULL TSRMLS_CC, E_WARNING, "Expiry date cannot have a year greater than 9999");
+                swoole_php_error(E_WARNING, "Expiry date cannot have a year greater than 9999");
                 RETURN_FALSE;
             }
             strlcat(cookie, dt, len + 100);
@@ -2386,9 +2405,10 @@ static PHP_METHOD(swoole_http_response, rawcookie)
     {
         strlcat(cookie, "; httponly", len + 100);
     }
-    swString_append_ptr(client->response.cookie, cookie, strlen(cookie));
-    swString_append_ptr(client->response.cookie, ZEND_STRL("\r\n"));
+    sw_add_next_index_stringl(zcookie, cookie, strlen(cookie), 0);
+#if PHP_MAJOR_VERSION >= 7
     efree(cookie);
+#endif
 }
 
 static PHP_METHOD(swoole_http_response, status)

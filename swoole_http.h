@@ -74,7 +74,6 @@ typedef struct
     enum php_http_method method;
     int version;
     int status;
-    swString *cookie;
     zval *zresponse_object;
     zval *zheader;
     zval *zcookie;

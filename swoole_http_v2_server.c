@@ -168,7 +168,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
         http2_add_header(&nv[index++], ZEND_STRL("content-type"), ZEND_STRL("text/html"));
 
         date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), SwooleGS->now, 0 TSRMLS_CC);
-        //http2_add_header(&nv[index++], ZEND_STRL("date"), date_str, strlen(date_str));
+        http2_add_header(&nv[index++], ZEND_STRL("date"), date_str, strlen(date_str));
 
         if (ctx->request.method == PHP_HTTP_OPTIONS)
         {
@@ -186,11 +186,20 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
             http2_add_header(&nv[index++], ZEND_STRL("content-length"), buf, ret);
         }
     }
-    //TODO: http2 cookies
-//    if (client->response.cookie)
-//    {
-//        swString_append(response, client->response.cookie);
-//    }
+    //http cookies
+    if (ctx->response.zcookie)
+    {
+        zval *value;
+        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ctx->response.zcookie), value)
+        {
+            if (Z_TYPE_P(value) != IS_STRING)
+            {
+                continue;
+            }
+            http2_add_header(&nv[index++], ZEND_STRL("set-cookie"), Z_STRVAL_P(value), Z_STRLEN_P(value));
+        }
+        SW_HASHTABLE_FOREACH_END();
+    }
     //http compress
     if (ctx->gzip_enable)
     {
@@ -342,6 +351,25 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
                 {
                     ctx->request.post_form_urlencoded = 1;
                 }
+                else if (memcmp(nv.name, ZEND_STRL("cookie")) == 0)
+                {
+                    zval *zcookie = ctx->request.zcookie;
+                    if (!zcookie)
+                    {
+                        http_alloc_zval(ctx, request, zcookie);
+                        array_init(zcookie);
+                        zend_update_property(swoole_http_request_class_entry_ptr, ctx->request.zrequest_object, ZEND_STRL("cookie"), zcookie TSRMLS_CC);
+                    }
+
+                    char keybuf[SW_HTTP_COOKIE_KEYLEN];
+                    char *v_str = strchr((char *) nv.value, '=') + 1;
+                    int k_len = v_str - (char *) nv.value - 1;
+                    int v_len = nv.valuelen - k_len - 1;
+                    memcpy(keybuf, nv.value, k_len);
+                    keybuf[k_len] = 0;
+                    sw_add_assoc_stringl_ex(zcookie, keybuf, k_len + 1, v_str, v_len, 1);
+                    continue;
+                }
                 sw_add_assoc_stringl_ex(zheader, (char *) nv.name, nv.namelen + 1, (char *) nv.value, nv.valuelen, 1);
             }
         }
@@ -389,7 +417,7 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
     int stream_id = ntohl((*(int *) (buf + 5)) & 0x7fffffff);
     uint32_t length = swHttp2_get_length(buf);
 
-    swWarn("[%s]\tflags=%d, stream_id=%d, length=%d", swHttp2_get_type(type), flags, stream_id, length);
+    //swWarn("[%s]\tflags=%d, stream_id=%d, length=%d", swHttp2_get_type(type), flags, stream_id, length);
 
     if (type == SW_HTTP2_TYPE_HEADERS)
     {

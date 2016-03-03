@@ -35,6 +35,7 @@ extern "C" {
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <ctype.h>
 #include <signal.h>
 #include <assert.h>
 #include <time.h>

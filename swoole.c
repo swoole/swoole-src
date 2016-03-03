@@ -717,6 +717,9 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef SW_USE_OPENSSL
     php_info_print_table_row(2, "openssl", "enabled");
 #endif
+#ifdef SW_USE_HTTP2
+    php_info_print_table_row(2, "http2", "enabled");
+#endif
 #ifdef SW_USE_RINGBUFFER
     php_info_print_table_row(2, "ringbuffer", "enabled");
 #endif
