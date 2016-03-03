@@ -107,6 +107,33 @@ static void http_build_header(http_context *, zval *object, swString *response, 
 static void http_parse_cookie(zval *array, const char *at, size_t length);
 static int http_trim_double_quote(zval **value, char **ptr);
 
+static inline void http_header_key_format(char *key, int length)
+{
+    int i, state = 0;
+    for (i = 0; i < length; i++)
+    {
+        if (state == 0)
+        {
+            if (key[i] >= 97 && key[i] <= 122)
+            {
+                key[i] -= 32;
+            }
+            state = 1;
+        }
+        else if (key[i] == '-')
+        {
+            state = 0;
+        }
+        else
+        {
+            if (key[i] >= 65 && key[i] <= 90)
+            {
+                key[i] += 32;
+            }
+        }
+    }
+}
+
 #ifdef SW_HAVE_ZLIB
 static int http_response_compress(swString *body, int level);
 #endif
@@ -2404,6 +2431,8 @@ static PHP_METHOD(swoole_http_response, header)
         array_init(zheader);
         zend_update_property(swoole_http_response_class_entry_ptr, getThis(), ZEND_STRL("header"), zheader TSRMLS_CC);
     }
+    //The first letter is converted to uppercase
+    http_header_key_format(k, klen);
     sw_add_assoc_stringl_ex(zheader, k, klen + 1, v, vlen, 1);
 }
 
