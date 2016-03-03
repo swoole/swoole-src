@@ -792,8 +792,8 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
             case E_CORE_ERROR:
             case E_USER_ERROR:
             case E_COMPILE_ERROR:
-                swWarn("Fatal error: %s in %s on line %d.", PG(last_error_message),
-                        PG(last_error_file)?PG(last_error_file):"-", PG(last_error_lineno));
+                swoole_error_log(SW_LOG_ERROR, SW_ERROR_PHP_FATAL_ERROR, "Fatal error: %s in %s on line %d.",
+                        PG(last_error_message), PG(last_error_file)?PG(last_error_file):"-", PG(last_error_lineno));
                 break;
             default:
                 break;
@@ -801,7 +801,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
         }
         else
         {
-            swWarn("worker process is terminated by exit()/die().");
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_TERMINATED, "worker process is terminated by exit()/die().");
         }
     }
 

@@ -185,7 +185,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     swConnection *conn = swServer_connection_verify(serv, fd);
     if (!conn)
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NO_EXIST, "session#%d does not exist.", fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session#%d does not exist.", fd);
         return SW_ERR;
     }
     else if ((conn->closed || conn->removed) && resp->info.type != SW_EVENT_CLOSE)

@@ -1310,7 +1310,7 @@ PHP_METHOD(swoole_server, __construct)
     swListenPort *port = swServer_add_port(serv, sock_type, serv_host, serv_port);
     if (!port)
     {
-        swoole_php_fatal_error(E_ERROR, "add listener failed.");
+        swoole_php_fatal_error(E_ERROR, "listen server port failed.");
         return;
     }
 
@@ -1970,7 +1970,7 @@ PHP_METHOD(swoole_server, sendfile)
     //check fd
     if (fd <= 0 || fd > SW_MAX_SOCKET_ID)
     {
-        swoole_php_error(E_WARNING, "invalid fd[%ld] error.", fd);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%ld].", fd);
         RETURN_FALSE;
     }
 

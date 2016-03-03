@@ -828,7 +828,7 @@ int swServer_tcp_sendfile(swServer *serv, int fd, char *filename, uint32_t len)
     swConnection *conn = swServer_connection_verify(serv, fd);
     if (conn && conn->ssl)
     {
-        swWarn("SSL client#%d cannot use sendfile().", fd);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SSL_CANNOT_USE_SENFILE, "SSL session#%d cannot use sendfile().", fd);
         return SW_ERR;
     }
 #endif
@@ -840,14 +840,15 @@ int swServer_tcp_sendfile(swServer *serv, int fd, char *filename, uint32_t len)
     //file name size
     if (send_data.info.len > SW_BUFFER_SIZE - 1)
     {
-        swWarn("sendfile name too long. [MAX_LENGTH=%d]", (int) SW_BUFFER_SIZE - 1);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_NAME_TOO_LONG, "sendfile name too long. [MAX_LENGTH=%d]",
+                (int) SW_BUFFER_SIZE - 1);
         return SW_ERR;
     }
 
     //check file exists
     if (access(filename, R_OK) < 0)
     {
-        swWarn("file[%s] not found.", filename);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_FILE_NOT_EXIST, "file[%s] not found.", filename);
         return SW_ERR;
     }
 
@@ -867,7 +868,7 @@ int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length)
     swConnection *conn = swServer_connection_verify(serv, fd);
     if (!conn)
     {
-        swWarn("send %d byte failed, session#%d is closed.", length, fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "send %d byte failed, because session#%d is closed.", length, fd);
         return SW_ERR;
     }
     return swSocket_write_blocking(conn->fd, data, length);
@@ -936,18 +937,16 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
 {
     if (serv->listen_port_num >= SW_MAX_LISTEN_PORT)
     {
-        swWarn("allows up to %d ports to listen", SW_MAX_LISTEN_PORT);
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT, "allows up to %d ports to listen", SW_MAX_LISTEN_PORT);
         return NULL;
     }
-
     if (!(type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM) && (port < 1 || port > 65535))
     {
-        swWarn("invalid port [%d]", port);
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_LISTEN_PORT, "invalid port [%d]", port);
         return NULL;
     }
 
     swListenPort *ls = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenPort));
-
     swPort_init(ls);
     ls->type = type;
     ls->port = port;
@@ -981,11 +980,6 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
             ls->ssl_config.ciphers = SW_SSL_CIPHER_LIST;
             ls->ssl_config.ecdh_curve = SW_SSL_ECDH_CURVE;
 #endif
-        }
-        if (type != SW_SOCK_UNIX_STREAM && port <= 0)
-        {
-            swError("listen port must greater than 0.");
-            return NULL;
         }
         serv->have_tcp_sock = 1;
     }

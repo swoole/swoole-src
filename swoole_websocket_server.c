@@ -104,7 +104,7 @@ void swoole_websocket_onOpen(swoole_http_client *client)
     swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
     if (!conn)
     {
-        swWarn("connection[%d] is closed.", fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%d] is closed.", fd);
         return;
     }
     conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;

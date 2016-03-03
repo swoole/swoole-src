@@ -541,11 +541,11 @@ int swReactorThread_send(swSendData *_send)
     {
         if (_send->info.type == SW_EVENT_TCP)
         {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NO_EXIST, "send %d byte failed, session#%d does not exist.", _send_length, session_id);
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "send %d byte failed, session#%d does not exist.", _send_length, session_id);
         }
         else
         {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NO_EXIST, "send event$[%d] failed, session#%d does not exist.", _send->info.type, session_id);
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "send event$[%d] failed, session#%d does not exist.", _send->info.type, session_id);
         }
         return SW_ERR;
     }

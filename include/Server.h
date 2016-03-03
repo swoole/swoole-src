@@ -561,7 +561,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags);
 	memcpy(&_pkg, task->data, sizeof(_pkg));\
 	_length = _pkg.length;\
     if (_length > SwooleG.serv->listen_list->protocol.package_max_length) {\
-        swWarn("task package is too big.");\
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_TASK_PACKAGE_TOO_BIG, "task package[length=%d] is too big.", _length);\
     }\
     _buf = __malloc(_length + 1);\
     _buf[_length] = 0;\
