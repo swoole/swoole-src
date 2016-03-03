@@ -2418,21 +2418,28 @@ static PHP_METHOD(swoole_http_response, header)
         return;
     }
 
-    http_context *client = http_get_context(getThis(), 0 TSRMLS_CC);
-    if (!client)
+    http_context *ctx = http_get_context(getThis(), 0 TSRMLS_CC);
+    if (!ctx)
     {
         RETURN_FALSE;
     }
 
-    zval *zheader = client->response.zheader;
+    zval *zheader = ctx->response.zheader;
     if (!zheader)
     {
-        http_alloc_zval(client, response, zheader);
+        http_alloc_zval(ctx, response, zheader);
         array_init(zheader);
         zend_update_property(swoole_http_response_class_entry_ptr, getThis(), ZEND_STRL("header"), zheader TSRMLS_CC);
     }
-    //The first letter is converted to uppercase
-    http_header_key_format(k, klen);
+
+    if (ctx->http2)
+    {
+        swoole_strtolower(k, klen);
+    }
+    else
+    {
+        http_header_key_format(k, klen);
+    }
     sw_add_assoc_stringl_ex(zheader, k, klen + 1, v, vlen, 1);
 }
 

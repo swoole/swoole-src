@@ -1015,6 +1015,20 @@ static inline int swoole_strrnpos(char *haystack, char *needle, uint32_t length)
     return -1;
 }
 
+static inline void swoole_strtolower(char *str, int length)
+{
+    char *c, *e;
+
+    c = str;
+    e = c + length;
+
+    while (c < e)
+    {
+        *c = tolower(*c);
+        c++;
+    }
+}
+
 int swoole_itoa(char *buf, long value);
 void swoole_dump_bin(char *data, char type, int size);
 void swoole_dump_hex(char *data, int outlen);
