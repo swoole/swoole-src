@@ -225,7 +225,7 @@ int swoole_websocket_onMessage(swEventData *req)
 
     char *buf = Z_STRVAL_P(zdata);
     long finish = buf[0] ? 1 : 0;
-    long opcode = buf[1] ? 1 : 0;
+    long opcode = buf[1];
 
     zval *zframe;
     SW_MAKE_STD_ZVAL(zframe);
