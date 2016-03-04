@@ -66,7 +66,7 @@ enum swHttp2FrameFlag
 };
 
 #define SW_HTTP2_FRAME_HEADER_SIZE            9
-#define SW_HTTP2_FRAME_PING_PAYLOAD_SIZE      64
+#define SW_HTTP2_FRAME_PING_PAYLOAD_SIZE      8
 
 #define SW_HTTP2_RST_STREAM_SIZE              4
 #define SW_HTTP2_PRIORITY_SIZE                5
