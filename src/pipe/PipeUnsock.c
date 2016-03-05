@@ -8,7 +8,7 @@
   | http://www.apache.org/licenses/LICENSE-2.0.html                      |
   | If you did not receive a copy of the Apache2.0 license and are unable|
   | to obtain it through the world-wide-web, please send a note to       |
-  | license@php.net so we can mail you a copy immediately.               |
+  | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
@@ -74,10 +74,8 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
         }
 
         int sbsize = SwooleG.socket_buffer_size;
-        setsockopt(object->socks[1], SOL_SOCKET, SO_SNDBUF, &sbsize, sizeof(sbsize));
-        setsockopt(object->socks[1], SOL_SOCKET, SO_RCVBUF, &sbsize, sizeof(sbsize));
-        setsockopt(object->socks[0], SOL_SOCKET, SO_SNDBUF, &sbsize, sizeof(sbsize));
-        setsockopt(object->socks[0], SOL_SOCKET, SO_RCVBUF, &sbsize, sizeof(sbsize));
+        swSocket_set_buffer_size(object->socks[0], sbsize);
+        swSocket_set_buffer_size(object->socks[1], sbsize);
 
         p->object = object;
         p->read = swPipeUnsock_read;
@@ -90,7 +88,7 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
 
 static int swPipeUnsock_read(swPipe *p, void *data, int length)
 {
-	return read(((swPipeUnsock *) p->object)->socks[0], data, length);
+    return read(((swPipeUnsock *) p->object)->socks[0], data, length);
 }
 
 static int swPipeUnsock_write(swPipe *p, void *data, int length)

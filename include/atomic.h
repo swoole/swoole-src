@@ -19,8 +19,10 @@ typedef atomic_uint32_t  sw_atomic_t;
 
 #ifdef __arm__
 #define sw_atomic_cpu_pause()             __asm__ __volatile__ ("NOP");
-#else
+#elif defined(__x86_64__)
 #define sw_atomic_cpu_pause()             __asm__ __volatile__ ("pause")
+#else
+#define sw_atomic_cpu_pause()
 #endif
 
 #define sw_spinlock_release(lock)         __sync_lock_release(lock)

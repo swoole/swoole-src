@@ -1,3 +1,19 @@
+/*
+  +----------------------------------------------------------------------+
+  | Swoole                                                               |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 2.0 of the Apache license,    |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+  | If you did not receive a copy of the Apache2.0 license and are unable|
+  | to obtain it through the world-wide-web, please send a note to       |
+  | license@swoole.com so we can mail you a copy immediately.            |
+  +----------------------------------------------------------------------+
+  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  +----------------------------------------------------------------------+
+*/
+
 #include "swoole.h"
 
 typedef struct
@@ -83,7 +99,7 @@ static void swRingBuffer_collect(swRingBuffer *object)
 
             object->collect_offset += n_size;
 
-            if (object->collect_offset >= object->size)
+            if (object->collect_offset + sizeof(swRingBuffer_item) >object->size || object->collect_offset >= object->size)
             {
                 object->collect_offset = 0;
                 object->status = 0;
@@ -114,20 +130,19 @@ static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size)
 
     if (object->status == 0)
     {
-        if (object->alloc_offset + alloc_size >= object->size)
+        if (object->alloc_offset + alloc_size >= (object->size - sizeof(swRingBuffer_item)))
         {
             uint32_t skip_n = object->size - object->alloc_offset;
-
-            item = object->memory + object->alloc_offset;
-            item->lock = 0;
-            item->length = skip_n - sizeof(swRingBuffer_item);
-
-            sw_atomic_t *free_count = &object->free_count;
-            sw_atomic_fetch_add(free_count, 1);
-
+            if (skip_n >= sizeof(swRingBuffer_item))
+            {
+                item = object->memory + object->alloc_offset;
+                item->lock = 0;
+                item->length = skip_n - sizeof(swRingBuffer_item);
+                sw_atomic_t *free_count = &object->free_count;
+                sw_atomic_fetch_add(free_count, 1);
+            }
             object->alloc_offset = 0;
             object->status = 1;
-
             capacity = object->collect_offset - object->alloc_offset;
         }
         else

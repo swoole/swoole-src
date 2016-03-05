@@ -34,18 +34,73 @@ int swConnection_buffer_send(swConnection *conn);
 
 swString* swConnection_get_string_buffer(swConnection *conn);
 void swConnection_clear_string_buffer(swConnection *conn);
-volatile swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type);
-volatile swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn);
+swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type);
+swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn);
 int swConnection_sendfile(swConnection *conn, char *filename);
 int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk);
+void swConnection_sendfile_destructor(swBuffer_trunk *chunk);
+char* swConnection_get_ip(swConnection *conn);
+int swConnection_get_port(swConnection *conn);
 
 #ifdef SW_USE_OPENSSL
-int swSSL_init(char *cert_file, char *key_file);
-void swSSL_free();
-int swSSL_create(swConnection *conn, int flags);
+enum swSSLState
+{
+    SW_SSL_STATE_HANDSHAKE    = 0,
+    SW_SSL_STATE_READY        = 1,
+    SW_SSL_STATE_WAIT_STREAM  = 2,
+};
+
+enum swSSLMethod
+{
+    SW_SSLv23_METHOD = 0,
+    SW_SSLv3_METHOD,
+    SW_SSLv3_SERVER_METHOD,
+    SW_SSLv3_CLIENT_METHOD,
+    SW_SSLv23_SERVER_METHOD,
+    SW_SSLv23_CLIENT_METHOD,
+    SW_TLSv1_METHOD,
+    SW_TLSv1_SERVER_METHOD,
+    SW_TLSv1_CLIENT_METHOD,
+#ifdef TLS1_1_VERSION
+    SW_TLSv1_1_METHOD,
+    SW_TLSv1_1_SERVER_METHOD,
+    SW_TLSv1_1_CLIENT_METHOD,
+#endif
+#ifdef TLS1_2_VERSION
+    SW_TLSv1_2_METHOD,
+    SW_TLSv1_2_SERVER_METHOD,
+    SW_TLSv1_2_CLIENT_METHOD,
+#endif
+    SW_DTLSv1_METHOD,
+    SW_DTLSv1_SERVER_METHOD,
+    SW_DTLSv1_CLIENT_METHOD,
+};
+
+typedef struct
+{
+    uint32_t http :1;
+    uint32_t http_v2 :1;
+    uint32_t prefer_server_ciphers :1;
+    uint32_t session_tickets :1;
+    uint32_t stapling :1;
+    uint32_t stapling_verify :1;
+    char *ciphers;
+    char *ecdh_curve;
+    char *session_cache;
+} swSSL_config;
+
+void swSSL_init(void);
+int swSSL_server_config(SSL_CTX* ssl_context, swSSL_config *cfg);
+SSL_CTX* swSSL_get_context(int method, char *cert_file, char *key_file);
+void swSSL_free_context(SSL_CTX* ssl_context);
+int swSSL_create(swConnection *conn, SSL_CTX* ssl_context, int flags);
+int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth);
+int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length);
 int swSSL_accept(swConnection *conn);
+int swSSL_connect(swConnection *conn);
 void swSSL_close(swConnection *conn);
 ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n);
+ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n);
 #endif
 
 /**
@@ -56,14 +111,37 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
 #ifdef SW_USE_OPENSSL
     if (conn->ssl)
     {
-        return swSSL_recv(conn, __buf, __n);
+        int ret = 0;
+        int written = 0;
+
+        while(written < __n)
+        {
+            ret = swSSL_recv(conn, __buf + written, __n - written);
+            if (__flags & MSG_WAITALL)
+            {
+                if (ret <= 0)
+                {
+                    return ret;
+                }
+                else
+                {
+                    written += ret;
+                }
+            }
+            else
+            {
+                return ret;
+            }
+        }
+
+        return written;
     }
     else
     {
         return recv(conn->fd, __buf, __n, __flags);
     }
 #else
-	return recv(conn->fd, __buf, __n, __flags);
+    return recv(conn->fd, __buf, __n, __flags);
 #endif
 }
 
@@ -73,16 +151,16 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
 static sw_inline int swConnection_send(swConnection *conn, void *__buf, size_t __n, int __flags)
 {
 #ifdef SW_USE_OPENSSL
-	if (conn->ssl)
-	{
-		return SSL_write(conn->ssl, __buf, __n);
-	}
-	else
-	{
-		return send(conn->fd, __buf, __n, __flags);
-	}
+    if (conn->ssl)
+    {
+        return swSSL_send(conn, __buf, __n);
+    }
+    else
+    {
+        return send(conn->fd, __buf, __n, __flags);
+    }
 #else
-	return send(conn->fd, __buf, __n, __flags);
+    return send(conn->fd, __buf, __n, __flags);
 #endif
 }
 
@@ -101,6 +179,9 @@ static sw_inline int swConnection_error(int err)
 	case EHOSTUNREACH:
 		return SW_CLOSE;
 	case EAGAIN:
+#ifdef HAVE_KQUEUE
+	case ENOBUFS:
+#endif
 	case 0:
 		return SW_WAIT;
 	default:

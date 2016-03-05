@@ -14,8 +14,12 @@ swUnitTest(client_test)
     swReactor_create(&main_reactor, 1024);
     SwooleG.main_reactor = &main_reactor;
 
-    uchar domain[64] = "www.baidu.com";
-    swDNSResolver_request(domain, dns_callback);
+    swDNS_request request;
+
+    request.domain = "www.baidu.com";
+    request.callback = dns_callback;
+
+    swDNSResolver_request(&request);
 
     return main_reactor.wait(&main_reactor, NULL);
 
@@ -37,7 +41,7 @@ swUnitTest(client_test)
 		return -1;
 	}
 
-	ret = cli.send(&cli, SW_STRL("TCP: hello world"));
+	ret = cli.send(&cli, SW_STRL("TCP: hello world"), 0);
 	if (ret < 0)
 	{
 		printf("send fail.\n");
@@ -66,7 +70,7 @@ swUnitTest(client_test)
 		printf("connect fail.\n");
 		return -1;
 	}
-	ret = cli2.send(&cli2, SW_STRL("UDP: hello world"));
+	ret = cli2.send(&cli2, SW_STRL("UDP: hello world"), 0);
 	if (ret < 0)
 	{
 		printf("send fail.\n");

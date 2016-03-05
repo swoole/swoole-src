@@ -8,7 +8,7 @@
   | http://www.apache.org/licenses/LICENSE-2.0.html                      |
   | If you did not receive a copy of the Apache2.0 license and are unable|
   | to obtain it through the world-wide-web, please send a note to       |
-  | license@php.net so we can mail you a copy immediately.               |
+  | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
@@ -22,17 +22,17 @@
  */
 swBuffer* swBuffer_new(int trunk_size)
 {
-	swBuffer *buffer = sw_malloc(sizeof(swBuffer));
-	if (buffer == NULL)
-	{
-		swWarn("malloc for buffer failed. Error: %s[%d]", strerror(errno), errno);
-		return NULL;
-	}
+    swBuffer *buffer = sw_malloc(sizeof(swBuffer));
+    if (buffer == NULL)
+    {
+        swWarn("malloc for buffer failed. Error: %s[%d]", strerror(errno), errno);
+        return NULL;
+    }
 
-	bzero(buffer, sizeof(swBuffer));
-	buffer->trunk_size = trunk_size;
+    bzero(buffer, sizeof(swBuffer));
+    buffer->trunk_size = trunk_size;
 
-	return buffer;
+    return buffer;
 }
 
 /**
@@ -40,52 +40,51 @@ swBuffer* swBuffer_new(int trunk_size)
  */
 swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint32_t size)
 {
-	swBuffer_trunk *trunk = sw_malloc(sizeof(swBuffer_trunk));
-	if (trunk == NULL)
-	{
-		swWarn("malloc for trunk failed. Error: %s[%d]", strerror(errno), errno);
-		return NULL;
-	}
+    swBuffer_trunk *chunk = sw_malloc(sizeof(swBuffer_trunk));
+    if (chunk == NULL)
+    {
+        swWarn("malloc for trunk failed. Error: %s[%d]", strerror(errno), errno);
+        return NULL;
+    }
 
-	bzero(trunk, sizeof(swBuffer_trunk));
+    bzero(chunk, sizeof(swBuffer_trunk));
 
-	//require alloc memory
-	if (type == SW_CHUNK_DATA && size > 0)
-	{
-		void *buf = sw_malloc(size);
-		if (buf == NULL)
-		{
-			swWarn("malloc(%d) for data failed. Error: %s[%d]", size, strerror(errno), errno);
-			sw_free(trunk);
-			return NULL;
-		}
-		trunk->size = size;
-		trunk->store.ptr = buf;
-	}
+    //require alloc memory
+    if (type == SW_CHUNK_DATA && size > 0)
+    {
+        void *buf = sw_malloc(size);
+        if (buf == NULL)
+        {
+            swWarn("malloc(%d) for data failed. Error: %s[%d]", size, strerror(errno), errno);
+            sw_free(chunk);
+            return NULL;
+        }
+        chunk->size = size;
+        chunk->store.ptr = buf;
+    }
 
-	trunk->type = type;
-	buffer->trunk_num ++;
+    chunk->type = type;
+    buffer->trunk_num ++;
 
-	if (buffer->head == NULL)
-	{
-		buffer->tail = buffer->head = trunk;
-	}
-	else
-	{
-		buffer->tail->next = trunk;
-		buffer->tail = trunk;
-	}
+    if (buffer->head == NULL)
+    {
+        buffer->tail = buffer->head = chunk;
+    }
+    else
+    {
+        buffer->tail->next = chunk;
+        buffer->tail = chunk;
+    }
 
-	return trunk;
+    return chunk;
 }
 
 /**
  * pop the head chunk
  */
-void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk)
+void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *chunk)
 {
-    //only one trunk
-    if (trunk->next == NULL)
+    if (chunk->next == NULL)
     {
         buffer->head = NULL;
         buffer->tail = NULL;
@@ -94,16 +93,19 @@ void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk)
     }
     else
     {
-        buffer->head = trunk->next;
-        buffer->length -= trunk->length;
+        buffer->head = chunk->next;
+        buffer->length -= chunk->length;
         buffer->trunk_num--;
     }
-
-    if (trunk->type == SW_CHUNK_DATA)
+    if (chunk->type == SW_CHUNK_DATA)
     {
-        sw_free(trunk->store.ptr);
+        sw_free(chunk->store.ptr);
     }
-    sw_free(trunk);
+    if (chunk->destroy)
+    {
+        chunk->destroy(chunk);
+    }
+    sw_free(chunk);
 }
 
 /**
@@ -111,16 +113,16 @@ void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk)
  */
 int swBuffer_free(swBuffer *buffer)
 {
-    volatile swBuffer_trunk *trunk = buffer->head;
+    volatile swBuffer_trunk *chunk = buffer->head;
     void * *will_free_trunk;  //free the point
-    while (trunk != NULL)
+    while (chunk != NULL)
     {
-        if (trunk->type == SW_CHUNK_DATA)
+        if (chunk->type == SW_CHUNK_DATA)
         {
-            sw_free(trunk->store.ptr);
+            sw_free(chunk->store.ptr);
         }
-        will_free_trunk = (void *) trunk;
-        trunk = trunk->next;
+        will_free_trunk = (void *) chunk;
+        chunk = chunk->next;
         sw_free(will_free_trunk);
     }
     sw_free(buffer);
@@ -132,19 +134,19 @@ int swBuffer_free(swBuffer *buffer)
  */
 int swBuffer_append(swBuffer *buffer, void *data, uint32_t size)
 {
-    swBuffer_trunk *trunk = swBuffer_new_trunk(buffer, SW_CHUNK_DATA, size);
-    if (trunk == NULL)
+    swBuffer_trunk *chunk = swBuffer_new_trunk(buffer, SW_CHUNK_DATA, size);
+    if (chunk == NULL)
     {
         return SW_ERR;
     }
 
     buffer->length += size;
-    trunk->length = size;
+    chunk->length = size;
 
-    memcpy(trunk->store.ptr, data, trunk->length);
+    memcpy(chunk->store.ptr, data, size);
 
     swTraceLog(SW_TRACE_BUFFER, "trunk_n=%d|size=%d|trunk_len=%d|trunk=%p", buffer->trunk_num, size,
-            trunk->length, trunk);
+            chunk->length, chunk);
 
     return SW_OK;
 }

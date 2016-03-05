@@ -1,6 +1,7 @@
 /.cproject
 /.idea
 /.project
+/examples/yield/
 *.o
 *.lo
 *~
@@ -51,3 +52,11 @@ modules/*
 /modules
 /examples/async/test.copy
 /examples/ssl_client
+/examples/ssl/ca.crt
+/examples/ssl/client.key
+/examples/ssl/client.pfx
+/examples/ssl/corpssl.crt
+/examples/ssl/corpssl.key
+/examples/ext
+/tests/hpack/main
+/tests/hpack/data.txt

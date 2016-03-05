@@ -32,7 +32,7 @@ swModule* swModule_init(void)
 	swModule *module = (swModule *) sw_malloc(sizeof(swModule));
 	if (module == NULL)
 	{
-		swWarn("malloc failed.");
+	    swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "malloc failed.");
 		return NULL;
 	}
 	string name = "test";

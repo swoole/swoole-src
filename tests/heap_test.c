@@ -8,7 +8,7 @@
  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
  | If you did not receive a copy of the Apache2.0 license and are unable|
  | to obtain it through the world-wide-web, please send a note to       |
- | license@php.net so we can mail you a copy immediately.               |
+ | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
  +----------------------------------------------------------------------+
@@ -45,7 +45,7 @@ swUnitTest(heap_test1)
         ns = malloc(sizeof(node_t));
         ns->val = i;
         ns->pri = pri;
-        swHeap_insert(pq, pri, ns);
+        swHeap_push(pq, pri, ns);
     }
 
     //n = swHeap_peek(pq);

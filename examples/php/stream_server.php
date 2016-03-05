@@ -1,6 +1,6 @@
 <?php
 
-$socket = stream_socket_server("tcp://172.16.51.114:8000", $errno, $errstr);
+$socket = stream_socket_server("tcp://0.0.0.0:8000", $errno, $errstr);
 if (!$socket) {
   echo "$errstr ($errno)<br />\n";
 } else {

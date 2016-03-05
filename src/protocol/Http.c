@@ -8,13 +8,14 @@
  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
  | If you did not receive a copy of the Apache2.0 license and are unable|
  | to obtain it through the world-wide-web, please send a note to       |
- | license@php.net so we can mail you a copy immediately.               |
+ | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
  +----------------------------------------------------------------------+
  */
 #include "swoole.h"
-#include "Http.h"
+#include "http.h"
+#include "http2.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -70,6 +71,22 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
         request->offset = 8;
         buf += 8;
     }
+#ifdef SW_USE_HTTP2
+    //HTTP2 Connection Preface
+    else if (memcmp(buf, "PRI", 3) == 0)
+    {
+        request->method = HTTP_PRI;
+        if (memcmp(buf, SW_HTTP2_PRI_STRING, sizeof(SW_HTTP2_PRI_STRING) - 1) == 0)
+        {
+            request->buffer->offset = sizeof(SW_HTTP2_PRI_STRING) - 1;
+            return SW_OK;
+        }
+        else
+        {
+            return SW_ERR;
+        }
+    }
+#endif
     else
     {
         return SW_ERR;
@@ -111,14 +128,19 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
     return SW_OK;
 }
 
-void swHttpRequest_free(swHttpRequest *request, int free_buffer)
+void swHttpRequest_free(swConnection *conn)
 {
-    if (free_buffer && request->buffer)
+    swHttpRequest *request = conn->object;
+    if (request)
     {
-        swTrace("RequestShutdown. free buffer=%p, request=%p\n", request->buffer, request);
-        swString_free(request->buffer);
+        if (request->buffer)
+        {
+            swString_free(request->buffer);
+        }
+        bzero(request, sizeof(swHttpRequest));
+        sw_free(request);
+        conn->object = NULL;
     }
-    bzero(request, sizeof(swHttpRequest));
 }
 
 /**
@@ -163,9 +185,74 @@ int swHttpRequest_get_content_length(swHttpRequest *request)
             }
         }
     }
-    buffer->offset = p - buffer->str;
+
     return SW_ERR;
 }
+
+int swHttpRequest_have_content_length(swHttpRequest *request)
+{
+    swString *buffer = request->buffer;
+    char *buf = buffer->str + buffer->offset;
+    int len = buffer->length - buffer->offset;
+
+    char *pe = buf + len;
+    char *p;
+
+    for (p = buf; p < pe; p++)
+    {
+        if (*p == '\r' && *(p + 1) == '\n')
+        {
+            if (strncasecmp(p + 2, SW_STRL("Content-Length") - 1) == 0)
+            {
+                return SW_TRUE;
+            }
+            else
+            {
+                p++;
+            }
+        }
+    }
+    return SW_FALSE;
+}
+
+#ifdef SW_HTTP_100_CONTINUE
+int swHttpRequest_has_expect_header(swHttpRequest *request)
+{
+    swString *buffer = request->buffer;
+    //char *buf = buffer->str + buffer->offset;
+    char *buf = buffer->str;
+    //int len = buffer->length - buffer->offset;
+    int len = buffer->length;
+
+    char *pe = buf + len;
+    char *p;
+
+    for (p = buf; p < pe; p++)
+    {
+
+        if (*p == '\r' && *(p + 1) == '\n')
+        {
+            if (strncasecmp(p + 2, SW_STRL("Expect") - 1) == 0)
+            {
+                p += sizeof("Expect: ") + 1;
+                if (strncasecmp(p, SW_STRL("100-continue") - 1) == 0)
+                {
+                    return 1;
+                }
+                else
+                {
+                    return 0;
+                }
+            }
+            else
+            {
+                p++;
+            }
+        }
+    }
+    return 0;
+}
+#endif
 
 /**
  * POST get header-length
@@ -174,7 +261,7 @@ int swHttpRequest_get_header_length(swHttpRequest *request)
 {
     swString *buffer = request->buffer;
 
-    int n = swoole_strnpos(buffer->str, "\r\n\r\n", buffer->length);
+    int n = swoole_strnpos(buffer->str, buffer->length, "\r\n\r\n", 4);
     if (n < 0)
     {
         return SW_ERR;

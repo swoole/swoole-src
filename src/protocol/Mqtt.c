@@ -58,7 +58,7 @@ static sw_inline int swMqtt_get_length(char *data, uint32_t size, int *count)
 //    offset += count + 1;
 //}
 
-int swMqtt_get_package_length(swServer *serv, swConnection *conn, char *data, uint32_t size)
+int swMqtt_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t size)
 {
     if (size < SW_MQTT_MIN_LENGTH)
     {

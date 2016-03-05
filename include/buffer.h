@@ -31,30 +31,31 @@ enum swBufferChunk
 
 typedef struct _swBuffer_trunk
 {
-	uint32_t type;
-	uint32_t length;
-	uint32_t offset;
-	union
-	{
-		void *ptr;
-		struct
-		{
-			uint32_t val1;
-			uint32_t val2;
-		} data;
-	} store;
-	uint32_t size;
-	struct _swBuffer_trunk *next;
+    uint32_t type;
+    uint32_t length;
+    uint32_t offset;
+    union
+    {
+        void *ptr;
+        struct
+        {
+            uint32_t val1;
+            uint32_t val2;
+        } data;
+    } store;
+    uint32_t size;
+    void (*destroy)(struct _swBuffer_trunk *chunk);
+    struct _swBuffer_trunk *next;
 } swBuffer_trunk;
 
 typedef struct _swBuffer
 {
-	int fd;
-	uint8_t trunk_num; //trunk数量
-	uint16_t trunk_size;
-	uint32_t length;
-	swBuffer_trunk *head;
-	swBuffer_trunk *tail;
+    int fd;
+    uint8_t trunk_num; //trunk数量
+    uint16_t trunk_size;
+    uint32_t length;
+    swBuffer_trunk *head;
+    swBuffer_trunk *tail;
 } swBuffer;
 
 #define swBuffer_get_trunk(buffer)   (buffer->head)

@@ -8,7 +8,7 @@
   | http://www.apache.org/licenses/LICENSE-2.0.html                      |
   | If you did not receive a copy of the Apache2.0 license and are unable|
   | to obtain it through the world-wide-web, please send a note to       |
-  | license@php.net so we can mail you a copy immediately.               |
+  | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
@@ -47,23 +47,23 @@ int swSem_create(swLock *lock, key_t key)
 
 static int swSem_unlock(swLock *lock)
 {
-	struct sembuf sem;
-	sem.sem_flg = SEM_UNDO;
-	sem.sem_num = 0;
-	sem.sem_op = 1;
-	return semop(lock->object.sem.semid, &sem, 1);
+    struct sembuf sem;
+    sem.sem_flg = SEM_UNDO;
+    sem.sem_num = 0;
+    sem.sem_op = 1;
+    return semop(lock->object.sem.semid, &sem, 1);
 }
 
 static int swSem_lock(swLock *lock)
 {
-	struct sembuf sem;
-	sem.sem_flg = SEM_UNDO;
-	sem.sem_num = 0;
-	sem.sem_op = -1;
-	return semop(lock->object.sem.semid, &sem, 1);
+    struct sembuf sem;
+    sem.sem_flg = SEM_UNDO;
+    sem.sem_num = 0;
+    sem.sem_op = -1;
+    return semop(lock->object.sem.semid, &sem, 1);
 }
 
 static int swSem_free(swLock *lock)
 {
-	return semctl(lock->object.sem.semid, 0, IPC_RMID);
+    return semctl(lock->object.sem.semid, 0, IPC_RMID);
 }

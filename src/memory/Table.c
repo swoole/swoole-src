@@ -8,7 +8,7 @@
   | http://www.apache.org/licenses/LICENSE-2.0.html                      |
   | If you did not receive a copy of the Apache2.0 license and are unable|
   | to obtain it through the world-wide-web, please send a note to       |
-  | license@php.net so we can mail you a copy immediately.               |
+  | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
@@ -127,34 +127,41 @@ int swTableColumn_add(swTable *table, char *name, int len, int type, int size)
             col->size = 2;
             col->type = SW_TABLE_INT16;
             break;
-        case 4:
-            col->size = 4;
-            col->type = SW_TABLE_INT32;
-            break;
-        default:
+#ifdef __x86_64__
+        case 8:
             col->size = 8;
             col->type = SW_TABLE_INT64;
+            break;
+#endif
+        default:
+            col->size = 4;
+            col->type = SW_TABLE_INT32;
             break;
         }
         break;
     case SW_TABLE_FLOAT:
-        col->size = 8;
+        col->size = sizeof(double);
         col->type = SW_TABLE_FLOAT;
         break;
-    default:
-        col->size = size + sizeof(uint16_t);
+    case SW_TABLE_STRING:
+        col->size = size + sizeof(swTable_string_length_t);
         col->type = SW_TABLE_STRING;
         break;
+    default:
+        swWarn("unkown column type.");
+        return SW_ERR;
     }
     col->index = table->item_size;
     table->item_size += col->size;
     table->column_num ++;
-    return swHashMap_add(table->columns, name, len, col, NULL);
+    return swHashMap_add(table->columns, name, len, col);
 }
 
 int swTable_create(swTable *table)
 {
     uint32_t row_num = table->size * (1 + SW_TABLE_CONFLICT_PROPORTION);
+
+    //header + data
     uint32_t row_memory_size = sizeof(swTableRow) + table->item_size;
 
     /**
@@ -232,39 +239,6 @@ static sw_inline swTableRow* swTable_hash(swTable *table, char *key, int keylen)
     return table->rows[index];
 }
 
-swTableRow* swTableRow_get(swTable *table, char *key, int keylen)
-{
-    swTableRow *row = swTable_hash(table, key, keylen);
-    uint32_t crc32 = swoole_crc32(key, keylen);
-    sw_atomic_t *lock = &row->lock;
-
-    swTrace("row=%p, crc32=%u, key=%s\n", row, crc32, key);
-
-    sw_spinlock(lock);
-    for (;;)
-    {
-        if (row->crc32 == crc32)
-        {
-            if (!row->active)
-            {
-                row = NULL;
-            }
-            break;
-        }
-        else if (row->next == NULL)
-        {
-            row = NULL;
-            break;
-        }
-        else
-        {
-            row = row->next;
-        }
-    }
-    sw_spinlock_release(lock);
-    return row;
-}
-
 void swTable_iterator_rewind(swTable *table)
 {
     bzero(table->iterator, sizeof(swTable_iterator));
@@ -339,18 +313,59 @@ void swTable_iterator_forward(swTable *table)
     }
 }
 
-swTableRow* swTableRow_set(swTable *table, char *key, int keylen)
+swTableRow* swTableRow_get(swTable *table, char *key, int keylen, sw_atomic_t **rowlock)
 {
-    swTableRow *row = swTable_hash(table, key, keylen);
-    uint32_t crc32 = swoole_crc32(key, keylen);
-    sw_atomic_t *lock = &row->lock;
+    if (keylen > SW_TABLE_KEY_SIZE)
+    {
+        keylen = SW_TABLE_KEY_SIZE;
+    }
 
+    swTableRow *row = swTable_hash(table, key, keylen);
+    sw_atomic_t *lock = &row->lock;
     sw_spinlock(lock);
+    *rowlock = lock;
+
+    for (;;)
+    {
+        if (strncmp(row->key, key, keylen) == 0)
+        {
+            if (!row->active)
+            {
+                row = NULL;
+            }
+            break;
+        }
+        else if (row->next == NULL)
+        {
+            row = NULL;
+            break;
+        }
+        else
+        {
+            row = row->next;
+        }
+    }
+
+    return row;
+}
+
+swTableRow* swTableRow_set(swTable *table, char *key, int keylen, sw_atomic_t **rowlock)
+{
+    if (keylen > SW_TABLE_KEY_SIZE)
+    {
+        keylen = SW_TABLE_KEY_SIZE;
+    }
+
+    swTableRow *row = swTable_hash(table, key, keylen);
+    sw_atomic_t *lock = &row->lock;
+    sw_spinlock(lock);
+    *rowlock = lock;
+
     if (row->active)
     {
         for (;;)
         {
-            if (row->crc32 == crc32)
+            if (strncmp(row->key, key, keylen) == 0)
             {
                 break;
             }
@@ -366,7 +381,6 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen)
 
                 if (!new_row)
                 {
-                    sw_spinlock_release(lock);
                     return NULL;
                 }
                 //add row_num
@@ -401,21 +415,20 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen)
         sw_atomic_fetch_add(&table->list_n, 1);
     }
 
-    row->crc32 = crc32;
+    memcpy(row->key, key, keylen);
     row->active = 1;
-
-    swTrace("row=%p, crc32=%u, key=%s\n", row, crc32, key);
-    sw_spinlock_release(lock);
-
     return row;
 }
 
 int swTableRow_del(swTable *table, char *key, int keylen)
 {
-    swTableRow *row = swTable_hash(table, key, keylen);
-    uint32_t crc32 = swoole_crc32(key, keylen);
-    sw_atomic_t *lock = &row->lock;
+    if (keylen > SW_TABLE_KEY_SIZE)
+    {
+        keylen = SW_TABLE_KEY_SIZE;
+    }
 
+    swTableRow *row = swTable_hash(table, key, keylen);
+    sw_atomic_t *lock = &row->lock;
     //no exists
     if (!row->active)
     {
@@ -423,10 +436,9 @@ int swTableRow_del(swTable *table, char *key, int keylen)
     }
 
     sw_spinlock(lock);
-
     if (row->next == NULL)
     {
-        if (row->crc32 == crc32)
+        if (strncmp(row->key, key, keylen) == 0)
         {
             table->rows_list[row->list_index] = NULL;
             if (table->iterator->skip_count > table->compress_threshold)
@@ -448,7 +460,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
 
         while (tmp)
         {
-            if (tmp->crc32 == crc32)
+            if ((strncmp(tmp->key, key, keylen) == 0))
             {
                 break;
             }
@@ -469,6 +481,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
         {
             tmp = tmp->next;
             row->next = tmp->next;
+            memcpy(row->key, tmp->key, strlen(tmp->key));
 
             if (table->iterator->skip_count > table->compress_threshold)
             {
@@ -477,7 +490,6 @@ int swTableRow_del(swTable *table, char *key, int keylen)
 
             memcpy(row->data, tmp->data, table->item_size);
         }
-
         if (prev)
         {
             prev->next = tmp->next;

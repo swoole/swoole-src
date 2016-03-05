@@ -8,7 +8,7 @@
  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
  | If you did not receive a copy of the Apache2.0 license and are unable|
  | to obtain it through the world-wide-web, please send a note to       |
- | license@php.net so we can mail you a copy immediately.               |
+ | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
  +----------------------------------------------------------------------+
@@ -29,13 +29,11 @@
 
 typedef struct swReactorEpoll_s swReactorEpoll;
 
-#pragma pack(4)
 typedef struct _swFd
 {
     uint32_t fd;
     uint32_t fdtype;
 } swFd;
-#pragma pack()
 
 static int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype);
 static int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype);
@@ -46,10 +44,6 @@ static void swReactorEpoll_free(swReactor *reactor);
 static sw_inline int swReactorEpoll_event_set(int fdtype)
 {
     uint32_t flag = 0;
-#ifdef SW_USE_EPOLLET
-    flag = EPOLLET;
-#endif
-
     if (swReactor_event_read(fdtype))
     {
         flag |= EPOLLIN;
@@ -109,7 +103,7 @@ int swReactorEpoll_create(swReactor *reactor, int max_event_num)
     return SW_OK;
 }
 
-void swReactorEpoll_free(swReactor *reactor)
+static void swReactorEpoll_free(swReactor *reactor)
 {
     swReactorEpoll *object = reactor->object;
     close(object->epfd);
@@ -117,7 +111,7 @@ void swReactorEpoll_free(swReactor *reactor)
     sw_free(object);
 }
 
-int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
+static int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
 {
     if (swReactor_add(reactor, fd, fdtype) < 0)
     {
@@ -134,6 +128,11 @@ int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
     fd_.fdtype = swReactor_fdtype(fdtype);
     e.events = swReactorEpoll_event_set(fdtype);
 
+    if (e.events & EPOLLOUT)
+    {
+        assert(fd > 2);
+    }
+
     memcpy(&(e.data.u64), &fd_, sizeof(fd_));
     ret = epoll_ctl(object->epfd, EPOLL_CTL_ADD, fd, &e);
     if (ret < 0)
@@ -146,7 +145,7 @@ int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
     return SW_OK;
 }
 
-int swReactorEpoll_del(swReactor *reactor, int fd)
+static int swReactorEpoll_del(swReactor *reactor, int fd)
 {
     swReactorEpoll *object = reactor->object;
     int ret;
@@ -172,7 +171,7 @@ int swReactorEpoll_del(swReactor *reactor, int fd)
     return SW_OK;
 }
 
-int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype)
+static int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype)
 {
     swReactorEpoll *object = reactor->object;
     swFd fd_;
@@ -181,6 +180,11 @@ int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype)
 
     bzero(&e, sizeof(struct epoll_event));
     e.events = swReactorEpoll_event_set(fdtype);
+
+    if (e.events & EPOLLOUT)
+    {
+        assert(fd > 2);
+    }
 
     fd_.fd = fd;
     fd_.fdtype = swReactor_fdtype(fdtype);
@@ -192,10 +196,12 @@ int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype)
         swSysError("reactor#%d->set(fd=%d|type=%d|events=%d) failed.", reactor->id, fd, fd_.fdtype, e.events);
         return SW_ERR;
     }
+    //execute parent method
+    swReactor_set(reactor, fd, fdtype);
     return SW_OK;
 }
 
-int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
+static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 {
     swEvent event;
     swReactorEpoll *object = reactor->object;
@@ -219,7 +225,7 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
         }
     }
 
-    while (SwooleG.running > 0)
+    while (reactor->running > 0)
     {
         msec = reactor->timeout_msec;
         n = epoll_wait(epoll_fd, events, max_event_num, msec);
@@ -251,14 +257,13 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
             event.socket = swReactor_get(reactor, event.fd);
 
             //read
-            if (events[i].events & EPOLLIN)
+            if ((events[i].events & EPOLLIN) && !event.socket->removed)
             {
-                //read
                 handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
                 ret = handle(reactor, &event);
                 if (ret < 0)
                 {
-                    swWarn("[Reactor#%d] epoll [EPOLLIN] handle failed. fd=%d. Error: %s[%d]", reactor_id, event.fd, strerror(errno), errno);
+                    swSysError("EPOLLIN handle failed. fd=%d.", event.fd);
                 }
             }
             //write
@@ -268,7 +273,7 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
                 ret = handle(reactor, &event);
                 if (ret < 0)
                 {
-                    swWarn("[Reactor#%d] epoll [EPOLLOUT] handle failed. fd=%d. Error: %s[%d]", reactor_id, event.fd, strerror(errno), errno);
+                    swSysError("EPOLLOUT handle failed. fd=%d.", event.fd);
                 }
             }
             //error
@@ -282,7 +287,7 @@ int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
                 ret = handle(reactor, &event);
                 if (ret < 0)
                 {
-                    swWarn("[Reactor#%d] epoll [EPOLLERR] handle failed. fd=%d. Error: %s[%d]", reactor_id, event.fd, strerror(errno), errno);
+                    swSysError("EPOLLERR handle failed. fd=%d.", event.fd);
                 }
             }
         }

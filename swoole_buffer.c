@@ -8,7 +8,7 @@
   | http://www.apache.org/licenses/LICENSE-2.0.html                      |
   | If you did not receive a copy of the Apache2.0 license and are unable|
   | to obtain it through the world-wide-web, please send a note to       |
-  | license@php.net so we can mail you a copy immediately.               |
+  | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
@@ -16,28 +16,40 @@
 
 #include "php_swoole.h"
 
-static sw_inline swString* php_swoole_buffer_get(zval *object TSRMLS_DC)
+static PHP_METHOD(swoole_buffer, __construct);
+static PHP_METHOD(swoole_buffer, __destruct);
+static PHP_METHOD(swoole_buffer, __toString);
+static PHP_METHOD(swoole_buffer, append);
+static PHP_METHOD(swoole_buffer, substr);
+static PHP_METHOD(swoole_buffer, read);
+static PHP_METHOD(swoole_buffer, write);
+static PHP_METHOD(swoole_buffer, expand);
+static PHP_METHOD(swoole_buffer, clear);
+
+static const zend_function_entry swoole_buffer_methods[] =
 {
-    zval **zres;
-    swString *str = NULL;
-    if (zend_hash_find(Z_OBJPROP_P(object), SW_STRL("_buffer"), (void **) &zres) == SUCCESS)
-    {
-        ZEND_FETCH_RESOURCE_NO_RETURN(str, swString*, zres, -1, SW_RES_BUFFER_NAME, le_swoole_buffer);
-    }
-    assert(str != NULL);
-    return str;
+    PHP_ME(swoole_buffer, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_buffer, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
+    PHP_ME(swoole_buffer, __toString, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_buffer, substr, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_buffer, write, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_buffer, read, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_buffer, append, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_buffer, expand, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_buffer, clear, NULL, ZEND_ACC_PUBLIC)
+    PHP_FE_END
+};
+
+zend_class_entry swoole_buffer_ce;
+zend_class_entry *swoole_buffer_class_entry_ptr;
+
+void swoole_buffer_init(int module_number TSRMLS_DC)
+{
+    SWOOLE_INIT_CLASS_ENTRY(swoole_buffer_ce, "swoole_buffer", "Swoole\\Buffer", swoole_buffer_methods);
+    swoole_buffer_class_entry_ptr = zend_register_internal_class(&swoole_buffer_ce TSRMLS_CC);
 }
 
-void swoole_destory_buffer(zend_resource *rsrc TSRMLS_DC)
-{
-    swString *str = (swString *) rsrc->ptr;
-    if (str)
-    {
-        swString_free(str);
-    }
-}
-
-PHP_METHOD(swoole_buffer, __construct)
+static PHP_METHOD(swoole_buffer, __construct)
 {
     long size = SW_STRING_BUFFER_DEFAULT;
 
@@ -57,9 +69,6 @@ PHP_METHOD(swoole_buffer, __construct)
         RETURN_FALSE;
     }
 
-    zval *zres;
-    MAKE_STD_ZVAL(zres);
-
     swString *buffer = swString_new(size);
     if (buffer == NULL)
     {
@@ -67,13 +76,20 @@ PHP_METHOD(swoole_buffer, __construct)
         RETURN_FALSE;
     }
 
-    ZEND_REGISTER_RESOURCE(zres, buffer, le_swoole_buffer);
-    zend_update_property(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("_buffer"), zres TSRMLS_CC);
+    swoole_set_object(getThis(), buffer);
     zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("capacity"), size TSRMLS_CC);
-    zval_ptr_dtor(&zres);
 }
 
-PHP_METHOD(swoole_buffer, append)
+static PHP_METHOD(swoole_buffer, __destruct)
+{
+    swString *buffer = swoole_get_object(getThis());
+    if (buffer)
+    {
+        swString_free(buffer);
+    }
+}
+
+static PHP_METHOD(swoole_buffer, append)
 {
     swString str;
     bzero(&str, sizeof(str));
@@ -87,7 +103,7 @@ PHP_METHOD(swoole_buffer, append)
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "string empty.");
         RETURN_FALSE;
     }
-    swString *buffer = php_swoole_buffer_get(getThis() TSRMLS_CC);
+    swString *buffer = swoole_get_object(getThis());
 
     if ((str.length + buffer->size) > SW_STRING_BUFFER_MAXLEN)
     {
@@ -111,7 +127,7 @@ PHP_METHOD(swoole_buffer, append)
     }
 }
 
-PHP_METHOD(swoole_buffer, substr)
+static PHP_METHOD(swoole_buffer, substr)
 {
     long offset;
     long length = -1;
@@ -121,7 +137,7 @@ PHP_METHOD(swoole_buffer, substr)
     {
         RETURN_FALSE;
     }
-    swString *buffer = php_swoole_buffer_get(getThis() TSRMLS_CC);
+    swString *buffer = swoole_get_object(getThis());
 
     if (seek && !(offset == 0 && length < buffer->length))
     {
@@ -147,20 +163,26 @@ PHP_METHOD(swoole_buffer, substr)
         zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"),
                 buffer->length - buffer->offset TSRMLS_CC);
     }
-    RETURN_STRINGL(buffer->str + offset, length, 1);
+    SW_RETURN_STRINGL(buffer->str + offset, length, 1);
 }
 
-PHP_METHOD(swoole_buffer, write)
+static PHP_METHOD(swoole_buffer, __toString)
+{
+    swString *buffer = swoole_get_object(getThis());
+    SW_RETURN_STRINGL(buffer->str + buffer->offset, buffer->length - buffer->offset, 1);
+}
+
+static PHP_METHOD(swoole_buffer, write)
 {
     long offset;
     char *new_str;
-    int length;
+    zend_size_t length;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls", &offset, &new_str, &length) == FAILURE)
     {
         RETURN_FALSE;
     }
-    swString *buffer = php_swoole_buffer_get(getThis() TSRMLS_CC);
+    swString *buffer = swoole_get_object(getThis());
     if (offset < 0)
     {
         offset = buffer->length + offset;
@@ -175,14 +197,37 @@ PHP_METHOD(swoole_buffer, write)
     RETURN_TRUE;
 }
 
-PHP_METHOD(swoole_buffer, expand)
+static PHP_METHOD(swoole_buffer, read)
+{
+    long offset;
+    long length;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ll", &offset, &length) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+    swString *buffer = swoole_get_object(getThis());
+    if (offset < 0)
+    {
+        offset = buffer->length + offset;
+    }
+    offset += buffer->offset;
+    if (length > buffer->size - offset)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "no enough data.");
+        RETURN_FALSE;
+    }
+    SW_RETURN_STRINGL(buffer->str + offset, length, 1);
+}
+
+static PHP_METHOD(swoole_buffer, expand)
 {
     long size = -1;
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &size) == FAILURE)
     {
         RETURN_FALSE;
     }
-    swString *buffer = php_swoole_buffer_get(getThis() TSRMLS_CC);
+    swString *buffer = swoole_get_object(getThis());
     if (size <= buffer->size)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "new size must more than %ld", buffer->size);
@@ -192,9 +237,9 @@ PHP_METHOD(swoole_buffer, expand)
     SW_CHECK_RETURN(swString_extend(buffer, size));
 }
 
-PHP_METHOD(swoole_buffer, clear)
+static PHP_METHOD(swoole_buffer, clear)
 {
-    swString *buffer = php_swoole_buffer_get(getThis() TSRMLS_CC);
+    swString *buffer = swoole_get_object(getThis());
     buffer->length = 0;
     buffer->offset = 0;
     zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"), 0 TSRMLS_CC);

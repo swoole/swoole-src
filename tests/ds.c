@@ -24,12 +24,12 @@ swUnitTest(hashmap_test1)
 	swHashMap *hm = swHashMap_new(16, NULL);
 
 	printf("----------------------insert to hashmap----------------------\n");
-	swHashMap_add(hm, SW_STRL("hello")-1, (void *)199, NULL);
-	swHashMap_add(hm, SW_STRL("swoole22")-1, (void *)8877, NULL);
-	swHashMap_add(hm, SW_STRL("hello2")-1, (void *)200, NULL);
-	swHashMap_add(hm, SW_STRL("willdel")-1, (void *)888, NULL);
-	swHashMap_add(hm, SW_STRL("willupadte")-1, (void *)9999, NULL);
-	swHashMap_add(hm, SW_STRL("hello3")-1, (void *)78978, NULL);
+	swHashMap_add(hm, SW_STRL("hello")-1, (void *)199);
+	swHashMap_add(hm, SW_STRL("swoole22")-1, (void *)8877);
+	swHashMap_add(hm, SW_STRL("hello2")-1, (void *)200);
+	swHashMap_add(hm, SW_STRL("willdel")-1, (void *)888);
+	swHashMap_add(hm, SW_STRL("willupadte")-1, (void *)9999);
+	swHashMap_add(hm, SW_STRL("hello3")-1, (void *)78978);
 
 	printf("----------------------delete node key=willdel----------------------\n");
 	swHashMap_del(hm, SW_STRL("willdel")-1);
@@ -155,7 +155,7 @@ swUnitTest(ds_test2)
 		pkt = (swFdInfo *) malloc(sizeof(swFdInfo));
 		pkt->key = i;
 		pkt->fd = i * 34;
-		swHashMap_add_int(ht, i, pkt, NULL);
+		swHashMap_add_int(ht, i, pkt);
 	}
 
 	tmp = swHashMap_find_int(ht, 7);
@@ -178,4 +178,52 @@ swUnitTest(rbtree_test)
 	}
 	printf("find_n %d\n", (int) swRbtree_find(tree, 17532));
 	return 0;
+}
+
+static void linkedlist_pop(swLinkedList *ll, int i)
+{
+    swLinkedList_node *node = swLinkedList_pop_node(ll);
+    if (node)
+    {
+        printf("#%d\tpriority=%ld, value=%d\n", i, node->priority, *(int *) (node->data));
+    }
+    else
+    {
+        printf("#%d\tNULL\n", i);
+    }
+}
+
+swUnitTest(linkedlist_test)
+{
+    swLinkedList *ll = swLinkedList_new(1, NULL);
+    uint32_t key;
+    int i, j, n;
+#define Q_N   2000
+    int data[Q_N];
+    int *value;
+
+    for (i = 1; i < Q_N; i++)
+    {
+        data[i] = i;
+        swLinkedList_insert(ll, rand() % 10000, & data[i]);
+
+        if (i % 200 == 150 && ll->num > 150)
+        {
+            n = rand() % 150 + 10;
+            printf("count=%d, pop n=%d\n", ll->num,  n);
+
+            for (j = 0; j < n; j++)
+            {
+                linkedlist_pop(ll, j);
+            }
+        }
+    }
+
+    printf("\n-----------------------------------\nnum=%d, pop all\n-----------------------------------\n", ll->num);
+
+    for (j = ll->num; j > 0; j--)
+    {
+        linkedlist_pop(ll, j);
+    }
+    return 0;
 }

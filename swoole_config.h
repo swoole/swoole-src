@@ -8,7 +8,7 @@
   | http://www.apache.org/licenses/LICENSE-2.0.html                      |
   | If you did not receive a copy of the Apache2.0 license and are unable|
   | to obtain it through the world-wide-web, please send a note to       |
-  | license@php.net so we can mail you a copy immediately.               |
+  | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
@@ -16,19 +16,30 @@
 #ifndef SWOOLE_CONFIG_H_
 #define SWOOLE_CONFIG_H_
 
+#ifndef __clang__
+//gcc version check
+#if defined(__GNUC__) && (__GNUC__ < 3 || (__GNUC__ == 4 && __GNUC_MINOR__ < 4))
+#error "GCC 4.4 or later required."
+#endif
+#endif
+
 #define SW_MAX_FDTYPE              32   //32 kinds of event
 #define SW_ERROR_MSG_SIZE          512
 #define SW_MAX_WORKER_GROUP        2
 #define SW_MAX_FILE_CONTENT        (64*1024*1024) //for swoole_file_get_contents
+#define SW_MAX_LISTEN_PORT         128  //allows up to 128 ports to listen
 
+//#define SW_USE_MALLOC_TRIM
 #define SW_USE_EVENT_TIMER
+//#define SW_USE_RINGBUFFER
 
 //#define SW_DEBUG_REMOTE_OPEN
 #define SW_DEBUG_SERVER_HOST       "127.0.0.1"
 #define SW_DEBUG_SERVER_PORT       9999
 
 #define SW_SOCKET_OVERFLOW_WAIT    100
-#define SW_SOCKET_BUFFER_SIZE      (8*1024*1024)  //UDP socket的buffer区大小
+#define SW_SOCKET_MAX_DEFAULT      65536
+#define SW_SOCKET_BUFFER_SIZE      (8*1024*1024)
 
 #define SW_GLOBAL_MEMORY_PAGESIZE  (1024*1024*2) //全局内存的分页
 
@@ -38,12 +49,14 @@
 
 //#define SW_CONNECTION_LIST_EXPAND  (4096*2)  //动态扩容的数量
 
+#define SW_HOST_MAXSIZE            128
+
 //#define SW_DEBUG                 //debug
 #define SW_LOG_NO_SRCINFO          //no source info
 #define SW_LOG_TRACE_OPEN          0
 //#define SW_BUFFER_SIZE           65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_CLIENT_BUFFER_SIZE      65535
-#define SW_CLIENT_RECV_AGAIN
+//#define SW_CLIENT_RECV_AGAIN
 #define SW_CLIENT_DEFAULT_TIMEOUT  0.5
 #define SW_CLIENT_MAX_PORT         65535
 //#define SW_CLIENT_SOCKET_WAIT
@@ -63,6 +76,7 @@
 //!!!End.-------------------------------------------------------------------
 
 #define SW_BUFFER_SIZE_BIG         65536
+#define SW_BUFFER_SIZE_UDP         65536
 #define SW_SENDFILE_TRUNK          65536
 
 #define SW_SENDFILE_MAXLEN         4194304
@@ -76,7 +90,6 @@
 #define SW_HEARTBEAT_PING_LEN      8
 #define SW_HEARTBEAT_PONG_LEN      8
 
-#define SW_MAINREACTOR_TIMEO       1    //main reactor
 #define SW_MAINREACTOR_USE_UNSOCK  1    //主线程使用unsock
 #define SW_REACTOR_WRITER_TIMEO    3    //writer线程的reactor
 #define SW_TASKWAIT_TIMEOUT        0.5
@@ -102,7 +115,7 @@
 #define SW_WORKER_READ_COUNT       10
 #define SW_WORKER_WAIT_PIPE
 #define SW_WORKER_WAIT_TIMEOUT     1000
-#define SW_WORKER_RECV_AGAIN
+//#define SW_WORKER_RECV_AGAIN
 
 #define SW_WORKER_USE_SIGNALFD
 
@@ -116,6 +129,9 @@
 #define SW_REACTOR_MINEVENTS             128
 #define SW_REACTOR_MAXEVENTS             4096
 #define SW_REACTOR_USE_SESSION
+#define SW_SESSION_LIST_SIZE             (1024*1024)
+
+#define SW_MSGMAX                        8192
 
 /**
  * 最大Reactor线程数量，默认会启动CPU核数的线程数
@@ -139,19 +155,21 @@
 #define SW_RINGQUEUE_LEN                 1024           //RingQueue队列长度
 #define SW_RINGQUEUE_MEMSIZE             (1024*1024*4)  //内存区大小,默认分配4M的内存
 
-
 //#define SW_USE_RINGQUEUE_TS            1     //使用线程安全版本的RingQueue
 #define SW_RINGBUFFER_COLLECT_N          100   //collect max_count
 #define SW_RINGBUFFER_FREE_N_MAX         4     //when free_n > MAX, execute collect
 #define SW_RINGBUFFER_WARNING            100
 //#define SW_RINGBUFFER_DEBUG
 
+#define SW_RELOAD_AFTER_SECONDS_N        10
+#define SW_RELOAD_FILE_EXTNAME           ".php"
+
 /**
  * ringbuffer memory pool size
  */
-#define SW_REACTOR_RINGBUFFER_SIZE       (1024*1024*4)
 #define SW_BUFFER_OUTPUT_SIZE            (1024*1024*2)
 #define SW_BUFFER_INPUT_SIZE             (1024*1024*2)
+#define SW_PIPE_BUFFER_SIZE              (1024*1024*32)
 
 #define SW_MEMORY_POOL_SLAB_PAGE         10     //内存池的页数
 
@@ -173,7 +191,6 @@
 #define SW_TCP_KEEPIDLE                  3600 //1 hour
 #define SW_TCP_KEEPINTERVAL              60
 
-//#define SW_USE_EPOLLET
 #define SW_USE_EVENTFD                   //是否使用eventfd来做消息通知，需要Linux 2.6.22以上版本才会支持
 
 #define SW_TASK_TMP_FILE                 "/tmp/swoole.task.XXXXXX"
@@ -183,10 +200,15 @@
 
 #define SW_TABLE_CONFLICT_PROPORTION     0.2 //20%
 #define SW_TABLE_COMPRESS_PROPORTION     0.5 //50% skip, will compress the row list
+#define SW_TABLE_KEY_SIZE                64
 //#define SW_TABLE_USE_PHP_HASH
 //#define SW_TABLE_DEBUG
 
-#define SW_SSL_BUFSIZE  16384
+#define SW_SSL_BUFFER_SIZE               16384
+#define SW_SSL_CIPHER_LIST               "EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH"
+#define SW_SSL_ECDH_CURVE                "secp384r1"
+#define SW_SSL_NPN_ADVERTISE             "\x08http/1.1"
+#define SW_SSL_HTTP2_NPN_ADVERTISE       "\x02h2"
 
 #define SW_SPINLOCK_LOOP_N               1024
 
@@ -197,9 +219,25 @@
 
 #define SW_DNS_LOOKUP_USE_THREAD
 
+//#define SW_HTTP_CLIENT_ENABLE
+
 #define SW_HTTP_SERVER_SOFTWARE          "swoole-http-server"
 #define SW_HTTP_BAD_REQUEST              "<h1>400 Bad Request</h1>\r\n"
 #define SW_HTTP_PARAM_MAX_NUM            128
 #define SW_HTTP_COOKIE_KEYLEN            128
+#define SW_HTTP_COOKIE_VALLEN            4096
+#define SW_HTTP_RESPONSE_INIT_SIZE       65536
+#define SW_HTTP_HEADER_MAX_SIZE          8192
+#define SW_HTTP_COMPRESS_GZIP
+#define SW_HTTP_UPLOAD_TMP_FILE          "/tmp/swoole.upfile.XXXXXX"
+#define SW_HTTP_DATE_FORMAT              "D, d M Y H:i:s T"
+//#define SW_HTTP_100_CONTINUE
+#define SW_HTTP2_DATA_BUFFSER_SIZE       8192
+
+#define SW_HTTP_CLIENT_USERAGENT         "swoole-http-client"
+
+#define SW_WEBSOCKET_SERVER_SOFTWARE     "swoole-websocket-server"
+#define SW_WEBSOCKET_VERSION             "13"
+#define SW_WEBSOCKET_KEY_LENGTH          16
 
 #endif /* SWOOLE_CONFIG_H_ */

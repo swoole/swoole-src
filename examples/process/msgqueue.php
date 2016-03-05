@@ -4,7 +4,7 @@ $worker_num = 2;
 
 for($i = 0; $i < $worker_num; $i++)
 {
-    $process = new swoole_process('child_sync', false, false);
+    $process = new swoole_process('callback_function', false, false);
     $process->useQueue();
     $pid = $process->start();
     $workers[$pid] = $process;
@@ -15,17 +15,25 @@ function callback_function(swoole_process $worker)
 {
     //echo "Worker: start. PID=".$worker->pid."\n";
     //recv data from master
-    $recv = $worker->pop();
-
-    echo "From Master: $recv\n";
+    while(true)
+    {
+        $recv = $worker->pop();
+        echo "From Master: $recv\n";
+    }
 
     sleep(2);
     $worker->exit(0);
 }
 
-foreach($workers as $pid => $process)
+while(true)
 {
+    /**
+     * @var $process swoole_process
+     */
+    $pid = array_rand($workers);
+    $process = $workers[$pid];
     $process->push("hello worker[$pid]\n");
+    sleep(1);
 }
 
 for($i = 0; $i < $worker_num; $i++)

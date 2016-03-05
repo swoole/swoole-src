@@ -8,7 +8,7 @@
   | http://www.apache.org/licenses/LICENSE-2.0.html                      |
   | If you did not receive a copy of the Apache2.0 license and are unable|
   | to obtain it through the world-wide-web, please send a note to       |
-  | license@php.net so we can mail you a copy immediately.               |
+  | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
@@ -21,31 +21,31 @@
 
 int swModule_load(char *so_file)
 {
-	swModule* (*init_func)(void);
-	void *handle = dlopen(so_file, RTLD_LAZY);
+    swModule* (*init_func)(void);
+    void *handle = dlopen(so_file, RTLD_LAZY);
 
-	if (!handle)
-	{
-		swWarn("dlopen() failed. Error: %s", dlerror());
-		return SW_ERR;
-	}
+    if (!handle)
+    {
+        swWarn("dlopen() failed. Error: %s", dlerror());
+        return SW_ERR;
+    }
 
-	init_func = (swModule* (*)(void)) dlsym(handle, SW_MODULE_INIT_FUNC);
+    init_func = (swModule* (*)(void)) dlsym(handle, SW_MODULE_INIT_FUNC);
 
-	char *error = dlerror();
-	if (error != NULL)
-	{
-		swWarn("dlsym() failed. Error: %s", error);
-		return SW_ERR;
-	}
+    char *error = dlerror();
+    if (error != NULL)
+    {
+        swWarn("dlsym() failed. Error: %s", error);
+        return SW_ERR;
+    }
 
-	swModule *module = (*init_func)();
-	if (module == NULL)
-	{
-		swWarn("module init failed.");
-		return SW_ERR;
-	}
-	printf("module_name=%s\n", module->name);
-	module->test();
-	return SW_OK;
+    swModule *module = (*init_func)();
+    if (module == NULL)
+    {
+        swWarn("module init failed.");
+        return SW_ERR;
+    }
+    printf("module_name=%s\n", module->name);
+    module->test();
+    return SW_OK;
 }

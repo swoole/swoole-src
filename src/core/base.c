@@ -8,7 +8,7 @@
  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
  | If you did not receive a copy of the Apache2.0 license and are unable|
  | to obtain it through the world-wide-web, please send a note to       |
- | license@php.net so we can mail you a copy immediately.               |
+ | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
  +----------------------------------------------------------------------+
@@ -41,11 +41,35 @@ void swoole_init(void)
     SwooleG.pagesize = getpagesize();
     SwooleG.pid = getpid();
 
+    //get system uname
+    uname(&SwooleG.uname);
+
+#if defined(HAVE_REUSEPORT) && defined(HAVE_EPOLL)
+    if (swoole_version_compare(SwooleG.uname.release, "3.9.0") >= 0)
+    {
+        SwooleG.reuse_port = 1;
+    }
+#endif
+
     //random seed
     srandom(time(NULL));
 
+    //init global shared memory
+    SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
+    if (SwooleG.memory_pool == NULL)
+    {
+        printf("[Master] Fatal Error: create global memory failed.");
+        exit(1);
+    }
+    SwooleGS = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerGS));
+    if (SwooleGS == NULL)
+    {
+        printf("[Master] Fatal Error: alloc memory for SwooleGS failed.");
+        exit(2);
+    }
+
     //init global lock
-    swMutex_create(&SwooleG.lock, 0);
+    swMutex_create(&SwooleGS->lock, 1);
 
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
     {
@@ -68,19 +92,9 @@ void swoole_init(void)
 #endif
 
     SwooleG.use_timer_pipe = 1;
-    //初始化全局内存
-    SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
-    if (SwooleG.memory_pool == NULL)
-    {
-        swError("[Master] Fatal Error: create global memory failed.");
-    }
-    SwooleGS = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerGS));
-    if (SwooleGS == NULL)
-    {
-        swError("[Master] Fatal Error: alloc memory for SwooleGS failed.");
-    }
+
     SwooleStats = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerStats));
-    if (SwooleGS == NULL)
+    if (SwooleStats == NULL)
     {
         swError("[Master] Fatal Error: alloc memory for SwooleStats failed.");
     }
@@ -89,18 +103,18 @@ void swoole_init(void)
 
 void swoole_clean(void)
 {
-    //释放全局内存
+    //free the global memory
     if (SwooleG.memory_pool != NULL)
     {
         SwooleG.memory_pool->destroy(SwooleG.memory_pool);
         SwooleG.memory_pool = NULL;
         if (SwooleG.timer.fd > 0)
         {
-            SwooleG.timer.free(&SwooleG.timer);
+            swTimer_free(&SwooleG.timer);
         }
         if (SwooleG.main_reactor)
         {
-        	SwooleG.main_reactor->free(SwooleG.main_reactor);
+            SwooleG.main_reactor->free(SwooleG.main_reactor);
         }
         bzero(&SwooleG, sizeof(SwooleG));
     }
@@ -137,6 +151,24 @@ void swoole_dump_bin(char *data, char type, int size)
     for (i = 0; i < n; i++)
     {
         printf("%d,", swoole_unpack(type, data + type_size * i));
+    }
+    printf("\n");
+}
+
+void swoole_dump_hex(char *data, int outlen)
+{
+    long i;
+    for (i = 0; i < outlen; ++i)
+    {
+        if ((i & 0x0fu) == 0)
+        {
+            printf("%08zX: ", i);
+        }
+        printf("%02X ", data[i]);
+        if (((i + 1) & 0x0fu) == 0)
+        {
+            printf("\n");
+        }
     }
     printf("\n");
 }
@@ -213,14 +245,41 @@ int swoole_type_size(char type)
     case 's':
     case 'S':
     case 'n':
+    case 'v':
         return 2;
     case 'l':
     case 'L':
     case 'N':
+    case 'V':
         return 4;
     default:
         return 0;
     }
+}
+
+char* swoole_dec2hex(int value, int base)
+{
+    assert(base > 1 && base < 37);
+
+    static char digits[] = "0123456789abcdefghijklmnopqrstuvwxyz";
+    char buf[(sizeof(unsigned long) << 3) + 1];
+    char *ptr, *end;
+
+    if (base < 2 || base > 36)
+    {
+        return NULL;
+    }
+
+    end = ptr = buf + sizeof(buf) - 1;
+    *ptr = '\0';
+
+    do
+    {
+        *--ptr = digits[value % base];
+        value /= base;
+    } while (ptr > buf && value);
+
+    return strndup(ptr, end - ptr);
 }
 
 int swoole_sync_writefile(int fd, void *data, int len)
@@ -251,6 +310,26 @@ int swoole_sync_writefile(int fd, void *data, int len)
     return written;
 }
 
+#ifndef RAND_MAX
+#define RAND_MAX   2147483647
+#endif
+
+int swoole_rand(int min, int max)
+{
+    static int _seed = 0;
+    assert(max > min);
+
+    if (_seed == 0)
+    {
+        _seed = time(NULL);
+        srand(_seed);
+    }
+
+    int _rand = rand();
+    _rand = min + (int) ((double) ((double) (max) - (min) + 1.0) * ((_rand) / ((RAND_MAX) + 1.0)));
+    return _rand;
+}
+
 int swoole_system_random(int min, int max)
 {
     static int dev_random_fd = -1;
@@ -263,7 +342,10 @@ int swoole_system_random(int min, int max)
     if (dev_random_fd == -1)
     {
         dev_random_fd = open("/dev/urandom", O_RDONLY);
-        assert(dev_random_fd != -1);
+        if (dev_random_fd < 0)
+        {
+            return swoole_rand(min, max);
+        }
     }
 
     next_random_byte = (char *) &random_value;
@@ -290,11 +372,57 @@ void swoole_update_time(void)
     }
 }
 
+int swoole_version_compare(char *version1, char *version2)
+{
+    int result = 0;
+
+    while (result == 0)
+    {
+        char* tail1;
+        char* tail2;
+
+        unsigned long ver1 = strtoul(version1, &tail1, 10);
+        unsigned long ver2 = strtoul(version2, &tail2, 10);
+
+        if (ver1 < ver2)
+        {
+            result = -1;
+        }
+        else if (ver1 > ver2)
+        {
+            result = +1;
+        }
+        else
+        {
+            version1 = tail1;
+            version2 = tail2;
+            if (*version1 == '\0' && *version2 == '\0')
+            {
+                break;
+            }
+            else if (*version1 == '\0')
+            {
+                result = -1;
+            }
+            else if (*version2 == '\0')
+            {
+                result = +1;
+            }
+            else
+            {
+                version1++;
+                version2++;
+            }
+        }
+    }
+    return result;
+}
+
 double swoole_microtime(void)
 {
     struct timeval t;
     gettimeofday(&t, NULL);
-    return (double) t.tv_sec + ((double) (t.tv_usec / 1000000));
+    return (double) t.tv_sec + ((double) t.tv_usec / 1000000);
 }
 
 void swoole_rtrim(char *str, int len)
@@ -316,6 +444,34 @@ void swoole_rtrim(char *str, int len)
             break;
         }
     }
+}
+
+int swoole_tmpfile(char *filename)
+{
+#ifdef HAVE_MKOSTEMP
+    int tmp_fd = mkostemp(filename, O_WRONLY);
+#else
+    int tmp_fd = mkstemp(filename);
+#endif
+
+    if (tmp_fd < 0)
+    {
+        swSysError("mkdtemp(%s) failed.", filename);
+        return SW_ERR;
+    }
+    else
+    {
+        return tmp_fd;
+    }
+}
+
+long swoole_file_get_size(FILE *fp)
+{
+    long pos = ftell(fp);
+    fseek(fp, 0L, SEEK_END);
+    long size = ftell(fp);
+    fseek(fp, pos, SEEK_SET); 
+    return size;
 }
 
 swString* swoole_file_get_contents(char *filename)
@@ -443,72 +599,6 @@ uint32_t swoole_common_multiple(uint32_t u, uint32_t v)
     return u * v / n_cup;
 }
 
-
-void swFloat2timeval(float timeout, long int *sec, long int *usec)
-{
-    *sec = (int) timeout;
-    *usec = (int) ((timeout * 1000 * 1000) - ((*sec) * 1000 * 1000));
-}
-
-int swRead(int fd, void *buf, int len)
-{
-    int n = 0, nread;
-    sw_errno = 0;
-
-    while (1)
-    {
-        nread = recv(fd, buf + n, len - n, 0);
-
-//		swWarn("Read Len=%d|Errno=%d", nread, errno);
-        //遇到错误
-        if (nread < 0)
-        {
-            //中断
-            if (errno == EINTR)
-            {
-                continue;
-            }
-            //出错了
-            else
-            {
-                if (errno == EAGAIN && n > 0)
-                {
-                    break;
-                }
-                else
-                {
-                    sw_errno = -1; //异常
-                    return SW_ERR;
-                }
-            }
-        }
-        //连接已关闭
-        //需要检测errno来区分是EAGAIN还是ECONNRESET
-        else if (nread == 0)
-        {
-            //这里直接break,保证读到的数据被处理
-            break;
-        }
-        else
-        {
-            n += nread;
-            //内存读满了，还可能有数据
-            if (n == len)
-            {
-                sw_errno = EAGAIN;
-                break;
-            }
-            //已读完 n < len
-            else
-            {
-                break;
-            }
-        }
-
-    }
-    return n;
-}
-
 /**
  * for GDB
  */
@@ -575,7 +665,7 @@ void swoole_fcntl_set_block(int sock, int nonblock)
 
     if (opts < 0)
     {
-        swSysError("fcntl(sock,GETFL) failed.");
+        swSysError("fcntl(%d, GETFL) failed.", sock);
     }
 
     if (nonblock)
@@ -595,62 +685,8 @@ void swoole_fcntl_set_block(int sock, int nonblock)
 
     if (ret < 0)
     {
-        swSysError("fcntl(sock,SETFL,opts) failed.");
+        swSysError("fcntl(%d, SETFL, opts) failed.", sock);
     }
-}
-
-int swAccept(int server_socket, struct sockaddr_in *addr, int addr_len)
-{
-    int conn_fd;
-    bzero(addr, addr_len);
-
-    while (1)
-    {
-#ifdef SW_USE_ACCEPT4
-        conn_fd = accept4(server_socket, (struct sockaddr *) addr, (socklen_t *) &addr_len, SOCK_NONBLOCK);
-#else
-        conn_fd = accept(server_socket, (struct sockaddr *) addr, (socklen_t *) &addr_len);
-#endif
-        if (conn_fd < 0)
-        {
-            //中断
-            if (errno == EINTR)
-            {
-                continue;
-            }
-            else
-            {
-                swTrace("accept failed. Error: %s[%d]", strerror(errno), errno);
-                return SW_ERR;
-            }
-        }
-#ifndef SW_USE_ACCEPT4
-        swSetNonBlock(conn_fd);
-#endif
-        break;
-    }
-    return conn_fd;
-}
-
-int swSetTimeout(int sock, double timeout)
-{
-    int ret;
-    struct timeval timeo;
-    timeo.tv_sec = (int) timeout;
-    timeo.tv_usec = (int) ((timeout - timeo.tv_sec) * 1000 * 1000);
-    ret = setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (void *) &timeo, sizeof(timeo));
-    if (ret < 0)
-    {
-        swWarn("setsockopt(SO_SNDTIMEO) failed. Error: %s[%d]", strerror(errno), errno);
-        return SW_ERR;
-    }
-    ret = setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (void *) &timeo, sizeof(timeo));
-    if (ret < 0)
-    {
-        swWarn("setsockopt(SO_RCVTIMEO) failed. Error: %s[%d]", strerror(errno), errno);
-        return SW_ERR;
-    }
-    return SW_OK;
 }
 
 static int *swoole_kmp_borders(char *needle, size_t nlen)
@@ -718,6 +754,36 @@ static char *swoole_kmp_search(char *haystack, size_t haylen, char *needle, uint
     return NULL;
 }
 
+int swoole_itoa(char *buf, long value)
+{
+    long i = 0, j;
+    long sign_mask;
+    unsigned long nn;
+
+    sign_mask = value >> (sizeof(long) * 8 - 1);
+    nn = (value + sign_mask) ^ sign_mask;
+    do
+    {
+        buf[i++] = nn % 10 + '0';
+    } while (nn /= 10);
+
+    buf[i] = '-';
+    i += sign_mask & 1;
+    buf[i] = '\0';
+
+    int s_len = i;
+    char swap;
+
+    for (i = 0, j = s_len - 1; i < j; ++i, --j)
+    {
+        swap = buf[i];
+        buf[i] = buf[j];
+        buf[j] = swap;
+    }
+    buf[s_len] = 0;
+    return s_len;
+}
+
 char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
 {
     if (!haystack || !needle)
@@ -737,25 +803,6 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
     char *match = swoole_kmp_search(haystack, length, needle, nlen, borders);
     free(borders);
     return match;
-}
-
-int swoole_strnpos(char *haystack, char *needle, uint32_t length)
-{
-    uint32_t needle_length = strlen(needle);
-    uint32_t i;
-
-    for (i = 0; i < length; i++)
-    {
-        if (i + needle_length > length)
-        {
-            return -1;
-        }
-        if (strncmp(&haystack[i], needle, needle_length) == 0)
-        {
-            return i;
-        }
-    }
-    return -1;
 }
 
 #ifndef HAVE_CLOCK_GETTIME
