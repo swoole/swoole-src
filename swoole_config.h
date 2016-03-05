@@ -46,10 +46,9 @@
 #define SW_MAX_THREAD_NCPU         4 // n * cpu_num
 #define SW_MAX_WORKER_NCPU         1000 // n * cpu_num
 #define SW_MAX_REQUEST             5000          //最大请求包数
+#define SW_MAX_RELOAD_WAIT         10           //最大reload等待次数
 
 //#define SW_CONNECTION_LIST_EXPAND  (4096*2)  //动态扩容的数量
-
-#define SW_HOST_MAXSIZE            128
 
 //#define SW_DEBUG                 //debug
 #define SW_LOG_NO_SRCINFO          //no source info
@@ -204,11 +203,7 @@
 //#define SW_TABLE_USE_PHP_HASH
 //#define SW_TABLE_DEBUG
 
-#define SW_SSL_BUFFER_SIZE               16384
-#define SW_SSL_CIPHER_LIST               "EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH"
-#define SW_SSL_ECDH_CURVE                "secp384r1"
-#define SW_SSL_NPN_ADVERTISE             "\x08http/1.1"
-#define SW_SSL_HTTP2_NPN_ADVERTISE       "\x02h2"
+#define SW_SSL_BUFSIZE  16384
 
 #define SW_SPINLOCK_LOOP_N               1024
 
@@ -232,9 +227,6 @@
 #define SW_HTTP_UPLOAD_TMP_FILE          "/tmp/swoole.upfile.XXXXXX"
 #define SW_HTTP_DATE_FORMAT              "D, d M Y H:i:s T"
 //#define SW_HTTP_100_CONTINUE
-#define SW_HTTP2_DATA_BUFFSER_SIZE       8192
-
-#define SW_HTTP_CLIENT_USERAGENT         "swoole-http-client"
 
 #define SW_WEBSOCKET_SERVER_SOFTWARE     "swoole-websocket-server"
 #define SW_WEBSOCKET_VERSION             "13"
