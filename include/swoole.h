@@ -35,7 +35,6 @@ extern "C" {
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
-#include <ctype.h>
 #include <signal.h>
 #include <assert.h>
 #include <time.h>
@@ -191,8 +190,9 @@ enum swFd_type
     SW_FD_DNS_RESOLVER    = 12, //dns resolver
     SW_FD_INOTIFY         = 13, //server socket
     SW_FD_USER            = 15, //SW_FD_USER or SW_FD_USER+n: for custom event
-    SW_FD_STREAM_CLIENT   = 16, //swClient stream
-    SW_FD_DGRAM_CLIENT    = 17, //swClient dgram
+//    SW_FD_CLIENT          = 16, //swClient
+    SW_FD_STREAM_CLIENT   = 16, // swClient stream
+    SW_FD_DGRAM_CLIENT    = 17, // swClient dgram
 };
 
 enum swBool_type
@@ -237,7 +237,7 @@ enum swLog_level
     SW_LOG_TRACE,
     SW_LOG_INFO,
     SW_LOG_NOTICE,
-    SW_LOG_WARNING,
+    SW_LOG_WARN,
     SW_LOG_ERROR,
 
 };
@@ -261,7 +261,7 @@ enum swWorker_status
 
 #define swWarn(str,...)        SwooleGS->lock.lock(&SwooleGS->lock);\
 snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str,__func__,##__VA_ARGS__);\
-swLog_put(SW_LOG_WARNING, sw_error);\
+swLog_put(SW_LOG_WARN, sw_error);\
 SwooleGS->lock.unlock(&SwooleGS->lock)
 
 #define swNotice(str,...)        SwooleGS->lock.lock(&SwooleGS->lock);\
@@ -276,16 +276,14 @@ SwooleGS->lock.unlock(&SwooleGS->lock);\
 exit(1)
 
 #define swSysError(str,...) SwooleGS->lock.lock(&SwooleGS->lock);\
-snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): "str" Error: %s[%d].",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
-swLog_put(SW_LOG_ERROR, sw_error);\
+snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s#%d: "str" Error: %s[%d].",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
+swLog_put(SW_LOG_WARN, sw_error);\
 SwooleGS->lock.unlock(&SwooleGS->lock)
 
-#define swoole_error_log(level, errno, str, ...)      do{SwooleG.error=errno;\
-    if (level >= SwooleG.log_level){\
-    snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s (ERROR %d): "str,__func__,errno,##__VA_ARGS__);\
-    SwooleGS->lock.lock(&SwooleGS->lock);\
-    swLog_put( SW_LOG_ERROR, sw_error);\
-    SwooleGS->lock.unlock(&SwooleGS->lock);}}while(0)
+#define swRuntimeError(error,str,...)        SwooleGS->lock.lock(&SwooleGS->lock);\
+snprintf(sw_error,SW_ERROR_MSG_SIZE,"(ERROR %d): "str,error,##__VA_ARGS__);\
+swLog_put(SW_LOG_ERROR, sw_error);\
+SwooleGS->lock.unlock(&SwooleGS->lock)
 
 #ifdef SW_DEBUG_REMOTE_OPEN
 #define swDebug(str,...) int __debug_log_n = snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);\
@@ -309,11 +307,10 @@ enum swTraceType
     SW_TRACE_BUFFER  = 3,
     SW_TRACE_CONN    = 4,
     SW_TRACE_EVENT   = 5,
-    SW_TRACE_WORKER,
-    SW_TRACE_MEMORY,
-    SW_TRACE_REACTOR,
-    SW_TRACE_PHP,
-    SW_TRACE_HTTP2,
+    SW_TRACE_WORKER  = 6,
+    SW_TRACE_MEMORY  = 7,
+    SW_TRACE_REACTOR = 8,
+    SW_TRACE_PHP     = 9,
 };
 
 #if SW_LOG_TRACE_OPEN == 1
@@ -433,11 +430,6 @@ typedef struct _swConnection
     uint32_t direct_send :1;
     uint32_t ssl_send :1;
 
-    /**
-     * protected connection, cannot be closed by heartbeat thread.
-     */
-    uint32_t protect :1;
-
     uint32_t close_wait :1;
     uint32_t closed :1;
     uint32_t closing :1;
@@ -452,9 +444,6 @@ typedef struct _swConnection
 
     uint32_t ssl_want_read :1;
     uint32_t ssl_want_write :1;
-
-    uint32_t http_upgrade :1;
-    uint32_t http2_stream :1;
 
     /**
      * ReactorThread id
@@ -1017,23 +1006,7 @@ static inline int swoole_strrnpos(char *haystack, char *needle, uint32_t length)
     return -1;
 }
 
-static inline void swoole_strtolower(char *str, int length)
-{
-    char *c, *e;
-
-    c = str;
-    e = c + length;
-
-    while (c < e)
-    {
-        *c = tolower(*c);
-        c++;
-    }
-}
-
-int swoole_itoa(char *buf, long value);
 void swoole_dump_bin(char *data, char type, int size);
-void swoole_dump_hex(char *data, int outlen);
 int swoole_type_size(char type);
 int swoole_mkdir_recursive(const char *dir);
 char* swoole_dirname(char *file);
@@ -1174,13 +1147,10 @@ void swFloat2timeval(float timeout, long int *sec, long int *usec);
 swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask);
 void swSignal_add(int signo, swSignalFunc func);
 void swSignal_callback(int signo);
-void swSignal_clear(void);
-void swSignal_none(void);
-
 #ifdef HAVE_SIGNALFD
-void swSignalfd_init();
-int swSignalfd_setup(swReactor *reactor);
+int swSignalfd_onSignal(swReactor *reactor, swEvent *event);
 #endif
+void swSignal_none(void);
 
 typedef struct _swDefer_callback
 {
@@ -1270,7 +1240,6 @@ struct _swWorker
 	 * worker process
 	 */
 	pid_t pid;
-
 	/**
 	 * worker thread
 	 */
@@ -1678,7 +1647,9 @@ typedef struct
     uint32_t reactor_init :1;
     uint32_t reactor_ready :1;
     uint32_t in_client :1;
+    uint32_t reload;
     uint32_t shutdown :1;
+    uint32_t reload_count;   //reload计数
 
     uint32_t request_count;
 
@@ -1694,7 +1665,6 @@ typedef struct
 {
     uint16_t id;
     uint8_t type;
-    uint8_t update_time;
     uint8_t factory_lock_target;
     int16_t factory_target_worker;
 } swThreadG;
@@ -1734,9 +1704,6 @@ typedef struct
     char *user;
     char *group;
 
-    uint8_t log_level;
-    char *log_file;
-
     /**
      *  task worker process num
      */
@@ -1769,7 +1736,7 @@ typedef struct
 
     swPipe *task_notify;
     swEventData *task_result;    
-    
+  
     pthread_t heartbeat_pidt;
 
 } swServerG;
@@ -1794,6 +1761,13 @@ extern swServerStats *SwooleStats;
 
 //-----------------------------------------------
 //OS Feature
+#ifdef HAVE_SIGNALFD
+void swSignalfd_init();
+void swSignalfd_add(int signo, __sighandler_t callback);
+int swSignalfd_setup(swReactor *reactor);
+void swSignalfd_clear();
+#endif
+
 #if defined(HAVE_KQUEUE) || !defined(HAVE_SENDFILE)
 int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
 #else

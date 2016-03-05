@@ -21,7 +21,6 @@
 #include <grp.h>
 
 static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event);
-static void swWorker_signal_init(void);
 
 int swWorker_create(swWorker *worker)
 {
@@ -47,11 +46,11 @@ void swWorker_free(swWorker *worker)
     }
 }
 
-static void swWorker_signal_init(void)
+void swWorker_signal_init(void)
 {
     swSignal_add(SIGHUP, NULL);
     swSignal_add(SIGPIPE, NULL);
-    swSignal_add(SIGUSR1, NULL);
+    swSignal_add(SIGUSR1, swWorker_signal_handler);
     swSignal_add(SIGUSR2, NULL);
     //swSignal_add(SIGINT, swWorker_signal_handler);
     swSignal_add(SIGTERM, swWorker_signal_handler);
@@ -84,6 +83,36 @@ void swWorker_signal_handler(int signo)
         swWarn("SIGVTALRM coming");
         break;
     case SIGUSR1:
+        if (SwooleG.main_reactor)
+        {
+            swWorker *worker = SwooleWG.worker;
+            swWarn(" the worker %d get the signo", worker->pid);
+            SwooleWG.reload = 1;
+            SwooleWG.reload_count = 0;
+
+            //删掉read管道
+            swConnection *socket = swReactor_get(SwooleG.main_reactor, worker->pipe_worker);
+            if (socket->events & SW_EVENT_WRITE)
+            {
+                socket->events &= (~SW_EVENT_READ);
+                if (SwooleG.main_reactor->set(SwooleG.main_reactor, worker->pipe_worker, socket->fdtype | socket->events) < 0)
+                {
+                    swSysError("reactor->set(%d, SW_EVENT_READ) failed.", worker->pipe_worker);
+                }
+            }
+            else
+            {
+                if (SwooleG.main_reactor->del(SwooleG.main_reactor, worker->pipe_worker) < 0)
+                {
+                    swSysError("reactor->del(%d) failed.", worker->pipe_worker);
+                }
+            }
+        }
+        else
+        {
+            SwooleG.running = 0;
+        }
+        break;    
     case SIGUSR2:
         break;
     default:
@@ -123,12 +152,12 @@ static sw_inline int swWorker_discard_data(swServer *serv, swEventData *task)
         memcpy(&package, task->data, sizeof(package));
         swReactorThread *thread = swServer_get_thread(SwooleG.serv, task->info.from_id);
         thread->buffer_input->free(thread->buffer_input, package.data);
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA, "[1]received the wrong data[%d bytes] from socket#%d", package.length, fd);
+        swWarn("[1]received the wrong data[%d bytes] from socket#%d", package.length, fd);
     }
     else
 #endif
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA, "[1]received the wrong data[%d bytes] from socket#%d", task->info.len, fd);
+        swWarn("[1]received the wrong data[%d bytes] from socket#%d", task->info.len, fd);
     }
     return SW_TRUE;
 }
@@ -430,6 +459,7 @@ int swWorker_loop(swFactory *factory, int worker_id)
 
     swSetNonBlock(pipe_worker);
     SwooleG.main_reactor->ptr = serv;
+    //这里的add函数是epoll的add函数
     SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_worker, SW_FD_PIPE | SW_EVENT_READ);
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE, swWorker_onPipeReceive);
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE | SW_FD_WRITE, swReactor_onWrite);
