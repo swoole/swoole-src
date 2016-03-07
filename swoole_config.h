@@ -54,7 +54,7 @@
 
 //#define SW_DEBUG                 //debug
 #define SW_LOG_NO_SRCINFO          //no source info
-#define SW_LOG_TRACE_OPEN          0
+#define SW_LOG_TRACE_OPEN          10
 //#define SW_BUFFER_SIZE           65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_CLIENT_BUFFER_SIZE      65535
 //#define SW_CLIENT_RECV_AGAIN
@@ -234,6 +234,9 @@
 #define SW_HTTP_DATE_FORMAT              "D, d M Y H:i:s T"
 //#define SW_HTTP_100_CONTINUE
 #define SW_HTTP2_DATA_BUFFSER_SIZE       8192
+#define SW_HTTP2_MAX_CONCURRENT_STREAMS  128
+#define SW_HTTP2_MAX_FRAME_SIZE          ((1 << 24) - 1)
+#define SW_HTTP2_MAX_WINDOW              ((1 << 31) - 1)
 
 #define SW_HTTP_CLIENT_USERAGENT         "swoole-http-client"
 

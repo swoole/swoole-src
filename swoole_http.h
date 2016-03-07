@@ -95,11 +95,10 @@ typedef struct
     uint32_t current_header_name_allocated :1;
     uint32_t content_sender_initialized :1;
 
-    uint8_t priority;
-    uint32_t stream_id;
-
 #ifdef SW_USE_HTTP2
     swString *buffer;
+    uint8_t priority;
+    uint32_t stream_id;
 #endif
 
     http_request request;
@@ -128,6 +127,7 @@ typedef struct
 
     php_http_parser parser;
     multipart_parser *mt_parser;
+    struct _swoole_http_client *client;
 
     char *current_header_name;
     size_t current_header_name_len;
@@ -167,7 +167,7 @@ int swoole_websocket_isset_onMessage(void);
  */
 http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC);
 void swoole_http_context_free(http_context *ctx TSRMLS_DC);
-int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int boundary_len);
+int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int boundary_len TSRMLS_DC);
 
 #if PHP_MAJOR_VERSION >= 7
 #define http_alloc_zval(ctx,object,val)   val = &(ctx)->object##_stack.val; (ctx)->object.val = val
