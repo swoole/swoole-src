@@ -996,13 +996,12 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
         swError("alloc failed");
         return NULL;
     }
+
     swPort_init(ls);
     ls->type = type;
     ls->port = port;
     bzero(ls->host, SW_HOST_MAXSIZE);
     strncpy(ls->host, host, SW_HOST_MAXSIZE);
-
-    LL_APPEND(serv->listen_list, ls);
 
     if (swSocket_is_dgram(ls->type))
     {
@@ -1011,7 +1010,10 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
         //need to pre-listen
         if (serv->factory_mode != SW_MODE_SINGLE)
         {
-            swServer_listen(serv, ls);
+            if (swServer_listen(serv, ls) < 0)
+            {
+                return NULL;
+            }
         }
     }
     else
@@ -1032,6 +1034,7 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
         }
         serv->have_tcp_sock = 1;
     }
+    LL_APPEND(serv->listen_list, ls);
     serv->listen_port_num++;
     return ls;
 }
@@ -1044,7 +1047,6 @@ int swServer_listen(swServer *serv, swListenPort *ls)
     int sock = swPort_listen(ls);
     if (sock < 0)
     {
-        LL_DELETE(serv->listen_list, ls);
         return SW_ERR;
     }
     ls->sock = sock;
