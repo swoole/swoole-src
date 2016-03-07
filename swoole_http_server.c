@@ -1421,10 +1421,12 @@ void swoole_http_context_free(http_context *ctx TSRMLS_DC)
         sw_zval_ptr_dtor(&resp->zheader);
         resp->zheader = NULL;
     }
+#ifdef SW_USE_HTTP2
     if (ctx->buffer)
     {
         swString_free(ctx->buffer);
     }
+#endif
     ctx->end = 1;
     ctx->send_header = 0;
     ctx->gzip_enable = 0;
@@ -1681,10 +1683,12 @@ static PHP_METHOD(swoole_http_request, rawcontent)
     {
         SW_RETVAL_STRINGL(Z_STRVAL_P(ctx->request.zdata) + Z_STRLEN_P(ctx->request.zdata) - ctx->request.post_length, ctx->request.post_length, 1);
     }
+#ifdef SW_USE_HTTP2
     else if (ctx->http2 && ctx->buffer)
     {
         SW_RETVAL_STRINGL(ctx->buffer->str, ctx->buffer->length, 1);
     }
+#endif
     else
     {
         RETURN_FALSE;

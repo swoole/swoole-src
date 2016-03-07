@@ -95,11 +95,10 @@ typedef struct
     uint32_t current_header_name_allocated :1;
     uint32_t content_sender_initialized :1;
 
-    uint8_t priority;
-    uint32_t stream_id;
-
 #ifdef SW_USE_HTTP2
     swString *buffer;
+    uint8_t priority;
+    uint32_t stream_id;
 #endif
 
     http_request request;
