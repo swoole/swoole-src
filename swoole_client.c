@@ -64,6 +64,43 @@ static void client_onClose(swClient *cli);
 static void client_onError(swClient *cli);
 static void client_free(zval *object, swClient *cli TSRMLS_DC);
 
+static sw_inline void client_free_callback(zval *object)
+{
+    //free memory
+    client_callback *cb = swoole_get_property(object, 0);
+    if (!cb)
+    {
+        return;
+    }
+
+    if (cb->onConnect)
+    {
+        sw_zval_ptr_dtor(&cb->onConnect);
+    }
+    if (cb->onReceive)
+    {
+        sw_zval_ptr_dtor(&cb->onReceive);
+    }
+    if (cb->onError)
+    {
+        sw_zval_ptr_dtor(&cb->onError);
+    }
+    if (cb->onClose)
+    {
+        sw_zval_ptr_dtor(&cb->onClose);
+    }
+
+#if PHP_MAJOR_VERSION >= 7
+    swoole_efree(cb->onConnect);
+    swoole_efree(cb->onReceive);
+    swoole_efree(cb->onError);
+    swoole_efree(cb->onClose);
+#endif
+
+    efree(cb);
+    swoole_set_property(object, 0, NULL);
+}
+
 static sw_inline void client_execute_callback(swClient *cli, enum client_callback_type type)
 {
 #if PHP_MAJOR_VERSION < 7
@@ -223,11 +260,13 @@ static void client_onConnect(swClient *cli)
 static void client_onClose(swClient *cli)
 {
     client_execute_callback(cli, SW_CLIENT_CALLBACK_onClose);
+    client_free_callback(cli->object);
 }
 
 static void client_onError(swClient *cli)
 {
     client_execute_callback(cli, SW_CLIENT_CALLBACK_onError);
+    client_free_callback(cli->object);
 }
 
 static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
@@ -677,37 +716,7 @@ static PHP_METHOD(swoole_client, __destruct)
         client_free(getThis(), cli TSRMLS_CC);
     }
 
-    //free memory
-    client_callback *cb = swoole_get_property(getThis(), 0);
-    if (cb)
-    {
-        if (cb->onConnect)
-        {
-            sw_zval_ptr_dtor(&cb->onConnect);
-        }
-        if (cb->onReceive)
-        {
-            sw_zval_ptr_dtor(&cb->onReceive);
-        }
-        if (cb->onError)
-        {
-            sw_zval_ptr_dtor(&cb->onError);
-        }
-        if (cb->onClose)
-        {
-            sw_zval_ptr_dtor(&cb->onClose);
-        }
-
-#if PHP_MAJOR_VERSION >= 7
-        swoole_efree(cb->onConnect);
-        swoole_efree(cb->onReceive);
-        swoole_efree(cb->onError);
-        swoole_efree(cb->onClose);
-#endif
-
-        efree(cb);
-        swoole_set_property(getThis(), 0, NULL);
-    }
+    client_free_callback(getThis());
 
 #if PHP_MEMORY_DEBUG
     php_vmstat.free_client++;
