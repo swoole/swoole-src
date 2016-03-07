@@ -710,10 +710,19 @@ static PHP_METHOD(swoole_client, __destruct)
     swClient *cli = swoole_get_object(getThis());
 
     //no keep connection
-    if (cli && !cli->socket->closed && !cli->keep)
+    if (cli)
     {
-        cli->close(cli);
-        client_free(getThis(), cli TSRMLS_CC);
+		zval *zobject = cli->object;
+		if (zobject)
+		{
+			sw_zval_ptr_dtor(&zobject);
+		}
+
+		if (!cli->socket->closed && !cli->keep)
+		{
+			cli->close(cli);
+			client_free(getThis(), cli TSRMLS_CC);
+		}
     }
 
     client_free_callback(getThis());
