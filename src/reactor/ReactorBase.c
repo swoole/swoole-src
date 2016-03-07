@@ -192,29 +192,34 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     {
         swTimer_select(&SwooleG.timer);
     }
-
-    //swoole_server
-    if (SwooleG.serv)
+    if (SwooleG.serv && swIsMaster())
     {
-        if (SwooleTG.update_time)
+        swoole_update_time();
+    }
+    //client exit
+
+    swWorker *worker = SwooleWG.worker;
+    if(worker != NULL){
+
+        if (SwooleWG.reload == 1)
         {
-            swoole_update_time();
+            SwooleWG.reload_count ++;
+
+            if(reactor->event_num <= 2 || SwooleWG.reload_count >= SW_MAX_RELOAD_WAIT){
+                reactor->running = 0;
+            }
         }
     }
-    //not swoole_server
-    else
+
+    if (SwooleG.serv == NULL && SwooleG.timer.num <= 0)
     {
-        //client exit
-        if (SwooleG.timer.num <= 0)
+        if (reactor->event_num == 1 && SwooleAIO.task_num == 1)
         {
-            if (SwooleAIO.init && reactor->event_num == 1 && SwooleAIO.task_num == 0)
-            {
-                reactor->running = 0;
-            }
-            else if (reactor->event_num == 0)
-            {
-                reactor->running = 0;
-            }
+            reactor->running = 0;
+        }
+        else if (reactor->event_num == 0)
+        {
+            reactor->running = 0;
         }
     }
 #ifdef SW_USE_MALLOC_TRIM
@@ -271,8 +276,6 @@ int swReactor_close(swReactor *reactor, int fd)
     }
 
     bzero(socket, sizeof(swConnection));
-    socket->removed = 1;
-
     return close(fd);
 }
 

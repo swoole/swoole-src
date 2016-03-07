@@ -46,6 +46,7 @@
 #define SW_MAX_THREAD_NCPU         4 // n * cpu_num
 #define SW_MAX_WORKER_NCPU         1000 // n * cpu_num
 #define SW_MAX_REQUEST             5000          //最大请求包数
+#define SW_MAX_RELOAD_WAIT         10           //最大reload等待次数
 
 //#define SW_CONNECTION_LIST_EXPAND  (4096*2)  //动态扩容的数量
 
