@@ -477,7 +477,7 @@ static int http_request_on_header_field(php_http_parser *parser, const char *at,
     return 0;
 }
 
-int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int boundary_len)
+int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int boundary_len TSRMLS_DC)
 {
     multipart_parser *mt_parser = multipart_parser_init(boundary_str, boundary_len, &mt_parser_settings);
     if (!mt_parser)
@@ -608,7 +608,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
             else if (memcmp(header_name, ZEND_STRL("content-type")) == 0 && strncasecmp(at, ZEND_STRL("multipart/form-data")) == 0)
             {
                 int boundary_len = length - strlen("multipart/form-data; boundary=");
-                swoole_http_parse_form_data(ctx, at + length - boundary_len, boundary_len);
+                swoole_http_parse_form_data(ctx, at + length - boundary_len, boundary_len TSRMLS_CC);
             }
         }
     }
@@ -1269,6 +1269,11 @@ http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC)
     if (client->http2)
     {
         ctx = emalloc(sizeof(http_context));
+        if (!ctx)
+        {
+            swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "emalloc(%ld) failed.", sizeof(http_context));
+            return NULL;
+        }
     }
     else
     {
@@ -1306,12 +1311,16 @@ http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC)
     zend_update_property(swoole_http_request_class_entry_ptr, zrequest_object, ZEND_STRL("server"), zserver TSRMLS_CC);
 
     ctx->fd = client->fd;
+    ctx->client = client;
 
     return ctx;
 }
 
 void swoole_http_context_free(http_context *ctx TSRMLS_DC)
 {
+    swoole_set_object(ctx->request.zrequest_object, NULL);
+    swoole_set_object(ctx->response.zresponse_object, NULL);
+
     http_request *req = &ctx->request;
     if (req->path)
     {
@@ -1411,6 +1420,10 @@ void swoole_http_context_free(http_context *ctx TSRMLS_DC)
     {
         sw_zval_ptr_dtor(&resp->zheader);
         resp->zheader = NULL;
+    }
+    if (ctx->buffer)
+    {
+        swString_free(ctx->buffer);
     }
     ctx->end = 1;
     ctx->send_header = 0;

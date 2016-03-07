@@ -284,6 +284,12 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
     }
     swoole_http_context_free(ctx TSRMLS_CC);
 
+    if (ctx->client->streams)
+    {
+        swHashMap_del_int(ctx->client->streams, ctx->stream_id);
+    }
+    efree(ctx);
+
     return SW_OK;
 }
 
@@ -336,7 +342,7 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
         in += proclen;
         inlen -= proclen;
 
-        swTraceLog(SW_TRACE_HTTP2, "Header: %s[%d]: %s[%d]", nv.name, nv.namelen, nv.value, nv.valuelen);
+        //swTraceLog(SW_TRACE_HTTP2, "Header: %s[%d]: %s[%d]", nv.name, nv.namelen, nv.value, nv.valuelen);
 
         if (inflate_flags & NGHTTP2_HD_INFLATE_EMIT)
         {
@@ -355,7 +361,7 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
                     else if (strncasecmp((char *) nv.value, ZEND_STRL("multipart/form-data")) == 0)
                     {
                         int boundary_len = nv.valuelen - strlen("multipart/form-data; boundary=");
-                        swoole_http_parse_form_data(ctx, (char*) nv.value + nv.valuelen - boundary_len, boundary_len);
+                        swoole_http_parse_form_data(ctx, (char*) nv.value + nv.valuelen - boundary_len, boundary_len TSRMLS_CC);
                         ctx->parser.data = ctx;
                     }
                 }
@@ -414,15 +420,16 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
     int fd = req->info.fd;
 
     http_context *ctx;
-    zval *zdata;
 
+    zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
     zdata = php_swoole_get_recv_data(zdata, req TSRMLS_CC);
+
     char *buf = Z_STRVAL_P(zdata);
 
     int type = buf[3];
     int flags = buf[4];
-    int stream_id = ntohl((*(int *) (buf + 5)) & 0x7fffffff);
+    int stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
     uint32_t length = swHttp2_get_length(buf);
 
     swTraceLog(SW_TRACE_HTTP2, "[%s]\tflags=%d, stream_id=%d, length=%d", swHttp2_get_type(type), flags, stream_id, length);
@@ -432,6 +439,8 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
         ctx = swoole_http_context_new(client TSRMLS_CC);
         if (!ctx)
         {
+            sw_zval_ptr_dtor(&zdata);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NO_HEADER, "http2 error stream.");
             return SW_ERR;
         }
 
@@ -464,7 +473,7 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
         {
             if (!client->streams)
             {
-                client->streams = swHashMap_new(128, NULL);
+                client->streams = swHashMap_new(SW_HTTP2_MAX_CONCURRENT_STREAMS, NULL);
             }
             swHashMap_add_int(client->streams, stream_id, ctx);
         }
@@ -472,6 +481,12 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
     else if (type == SW_HTTP2_TYPE_DATA)
     {
         ctx = swHashMap_find_int(client->streams, stream_id);
+        if (!ctx)
+        {
+            sw_zval_ptr_dtor(&zdata);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NO_HEADER, "http2 error stream.");
+            return SW_ERR;
+        }
 
         swString *buffer = ctx->buffer;
         if (!buffer)
@@ -501,7 +516,6 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
                     swoole_php_fatal_error(E_WARNING, "parse multipart body failed.");
                 }
             }
-
             http2_onRequest(ctx TSRMLS_CC);
         }
     }
@@ -516,7 +530,7 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
     {
         client->window_size = *(int *) (buf + SW_HTTP2_FRAME_HEADER_SIZE);
     }
-
+    sw_zval_ptr_dtor(&zdata);
     return SW_OK;
 }
 #endif
