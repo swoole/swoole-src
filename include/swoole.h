@@ -309,10 +309,11 @@ enum swTraceType
     SW_TRACE_BUFFER  = 3,
     SW_TRACE_CONN    = 4,
     SW_TRACE_EVENT   = 5,
-    SW_TRACE_WORKER  = 6,
-    SW_TRACE_MEMORY  = 7,
-    SW_TRACE_REACTOR = 8,
-    SW_TRACE_PHP     = 9,
+    SW_TRACE_WORKER,
+    SW_TRACE_MEMORY,
+    SW_TRACE_REACTOR,
+    SW_TRACE_PHP,
+    SW_TRACE_HTTP2,
 };
 
 #if SW_LOG_TRACE_OPEN == 1
@@ -1678,6 +1679,8 @@ typedef struct
     uint32_t reactor_ready :1;
     uint32_t in_client :1;
     uint32_t shutdown :1;
+    uint32_t reload;
+    uint32_t reload_count;   //reload计数
 
     uint32_t request_count;
 
