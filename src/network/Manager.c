@@ -59,7 +59,7 @@ int swManager_start(swFactory *factory)
         serv->workers[i].pipe_master = object->pipes[i].getFd(&object->pipes[i], SW_PIPE_MASTER);
         serv->workers[i].pipe_worker = object->pipes[i].getFd(&object->pipes[i], SW_PIPE_WORKER);
         serv->workers[i].pipe_object = &object->pipes[i];
-        swServer_pipe_set(serv, serv->workers[i].pipe_object);
+        swServer_store_pipe_fd(serv, serv->workers[i].pipe_object);
     }
 
     if (SwooleG.task_worker_num > 0)
@@ -93,7 +93,7 @@ int swManager_start(swFactory *factory)
             }
             if (SwooleG.task_ipc_mode == SW_IPC_UNSOCK)
             {
-                swServer_pipe_set(SwooleG.serv, worker->pipe_object);
+                swServer_store_pipe_fd(SwooleG.serv, worker->pipe_object);
             }
         }
     }
@@ -164,7 +164,7 @@ int swManager_start(swFactory *factory)
                  */
                 if (user_worker->worker->pipe_object)
                 {
-                    swServer_pipe_set(serv, user_worker->worker->pipe_object);
+                    swServer_store_pipe_fd(serv, user_worker->worker->pipe_object);
                 }
                 swManager_spawn_user_worker(serv, user_worker->worker);
             }

@@ -80,6 +80,8 @@ int swReactorProcess_start(swServer *serv)
         }
     }
 
+    swServer_store_listen_socket(serv);
+
     if (swProcessPool_create(&SwooleGS->event_workers, serv->worker_num, serv->max_request, 0, 1) < 0)
     {
         return SW_ERR;
@@ -139,7 +141,7 @@ int swReactorProcess_start(swServer *serv)
              */
             if (user_worker->worker->pipe_object)
             {
-                swServer_pipe_set(serv, user_worker->worker->pipe_object);
+                swServer_store_pipe_fd(serv, user_worker->worker->pipe_object);
             }
             swManager_spawn_user_worker(serv, user_worker->worker);
         }

@@ -360,6 +360,54 @@ static int swServer_start_proxy(swServer *serv)
     return main_reactor->wait(main_reactor, &tmo);
 }
 
+void swServer_store_listen_socket(swServer *serv)
+{
+    swListenPort *ls;
+    int sockfd;
+    LL_FOREACH(serv->listen_list, ls)
+    {
+        sockfd = ls->sock;
+        //save server socket to connection_list
+        serv->connection_list[sockfd].fd = sockfd;
+        //socket type
+        serv->connection_list[sockfd].socket_type = ls->type;
+        //save listen_host object
+        serv->connection_list[sockfd].object = ls;
+
+        if (swSocket_is_dgram(ls->type))
+        {
+            if (ls->type == SW_SOCK_UDP)
+            {
+                SwooleG.serv->udp_socket_ipv4 = sockfd;
+                serv->connection_list[sockfd].info.addr.inet_v4.sin_port = htons(ls->port);
+            }
+            else if (ls->type == SW_SOCK_UDP6)
+            {
+                SwooleG.serv->udp_socket_ipv6 = sockfd;
+                serv->connection_list[sockfd].info.addr.inet_v6.sin6_port = htons(ls->port);
+            }
+        }
+        else
+        {
+            //IPv4
+            if (ls->type == SW_SOCK_TCP)
+            {
+                serv->connection_list[sockfd].info.addr.inet_v4.sin_port = htons(ls->port);
+            }
+            //IPv6
+            else if (ls->type == SW_SOCK_TCP6)
+            {
+                serv->connection_list[sockfd].info.addr.inet_v6.sin6_port = htons(ls->port);
+            }
+        }
+        if (sockfd >= 0)
+        {
+            swServer_set_minfd(serv, sockfd);
+            swServer_set_maxfd(serv, sockfd);
+        }
+    }
+}
+
 int swServer_worker_init(swServer *serv, swWorker *worker)
 {
 #ifdef HAVE_CPU_AFFINITY
@@ -448,51 +496,6 @@ int swServer_start(swServer *serv)
     if (ret < 0)
     {
         return SW_ERR;
-    }
-
-    swListenPort *ls;
-    int sockfd;
-    LL_FOREACH(serv->listen_list, ls)
-    {
-        sockfd = ls->sock;
-        //save server socket to connection_list
-        serv->connection_list[sockfd].fd = sockfd;
-        //socket type
-        serv->connection_list[sockfd].socket_type = ls->type;
-        //save listen_host object
-        serv->connection_list[sockfd].object = ls;
-
-        if (swSocket_is_dgram(ls->type))
-        {
-            if (ls->type == SW_SOCK_UDP)
-            {
-                SwooleG.serv->udp_socket_ipv4 = sockfd;
-                serv->connection_list[sockfd].info.addr.inet_v4.sin_port = htons(ls->port);
-            }
-            else if (ls->type == SW_SOCK_UDP6)
-            {
-                SwooleG.serv->udp_socket_ipv6 = sockfd;
-                serv->connection_list[sockfd].info.addr.inet_v6.sin6_port = htons(ls->port);
-            }
-        }
-        else
-        {
-            //IPv4
-            if (ls->type == SW_SOCK_TCP)
-            {
-                serv->connection_list[sockfd].info.addr.inet_v4.sin_port = htons(ls->port);
-            }
-            //IPv6
-            else if (ls->type == SW_SOCK_TCP6)
-            {
-                serv->connection_list[sockfd].info.addr.inet_v6.sin6_port = htons(ls->port);
-            }
-        }
-        if (sockfd >= 0)
-        {
-            swServer_set_minfd(serv, sockfd);
-            swServer_set_maxfd(serv, sockfd);
-        }
     }
 
     if (serv->message_queue_key == 0)
@@ -816,7 +819,7 @@ int swServer_udp_send(swServer *serv, swSendData *resp)
     return ret;
 }
 
-void swServer_pipe_set(swServer *serv, swPipe *p)
+void swServer_store_pipe_fd(swServer *serv, swPipe *p)
 {
     int master_fd = p->getFd(p, SW_PIPE_MASTER);
 
@@ -829,7 +832,7 @@ void swServer_pipe_set(swServer *serv, swPipe *p)
     }
 }
 
-swPipe * swServer_pipe_get(swServer *serv, int pipe_fd)
+swPipe * swServer_get_pipe_object(swServer *serv, int pipe_fd)
 {
     return (swPipe *) serv->connection_list[pipe_fd].object;
 }

@@ -535,8 +535,9 @@ static sw_inline int swEventData_is_stream(uint8_t type)
     }
 }
 
-swPipe * swServer_pipe_get(swServer *serv, int pipe_fd);
-void swServer_pipe_set(swServer *serv, swPipe *p);
+swPipe * swServer_get_pipe_object(swServer *serv, int pipe_fd);
+void swServer_store_pipe_fd(swServer *serv, swPipe *p);
+void swServer_store_listen_socket(swServer *serv);
 
 int swServer_get_manager_pid(swServer *serv);
 int swServer_get_socket(swServer *serv, int port);
