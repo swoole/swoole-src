@@ -191,10 +191,9 @@ int swManager_start(swFactory *factory)
 
 static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid, int status)
 {
-    if (!WIFEXITED(status))
+    if (status != 0)
     {
         swWarn("worker#%d abnormal exit, status=%d, signal=%d", worker_id, WEXITSTATUS(status), WTERMSIG(status));
-
         if (serv->onWorkerError != NULL)
         {
             serv->onWorkerError(serv, worker_id, pid, WEXITSTATUS(status), WTERMSIG(status));
@@ -202,18 +201,21 @@ static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid
     }
 }
 
-static int swManager_loop(swFactory *factory){
-
+static int swManager_loop(swFactory *factory)
+{
     int pid, new_pid;
     int i;
-    int reload_worker_i = 0;
     int reload_worker_num;
     int ret;
     int status;
 
     //hashMap 存储oid_pid ->new_pid的映射
-    swHashMap *pidMap;
-    pidMap = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
+    swHashMap *pidMap = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
+    if (pidMap == NULL)
+    {
+        swError("swHashMap_new failed");
+        return SW_ERR;
+    }
 
     SwooleG.use_signalfd = 0;
     SwooleG.use_timerfd = 0;
@@ -301,7 +303,7 @@ static int swManager_loop(swFactory *factory){
                     swManager_check_exit_status(serv, i, pid, status);
 
                     //pid ->new pid
-                    new_pid = swHashMap_find_int(pidMap, pid);
+                    new_pid = (pid_t) swHashMap_find_int(pidMap, pid);
                     swWarn(" now the worker pid is %d", new_pid);
                     serv->workers[i].pid = new_pid;
                 }
@@ -351,11 +353,11 @@ static int swManager_loop(swFactory *factory){
                     }
                     else
                     {
-                        swHashMap_add_int(pidMap, reload_workers[i].pid, new_pid);
+                        swHashMap_add_int(pidMap, reload_workers[i].pid, (void*) new_pid);
                         swWarn(" add pidMap new_pid is %d old pid is %d", new_pid, reload_workers[i].pid);
                         break;
                     }
-                } 
+                }
 
                 swWarn(" kill the reload workers %d", reload_workers[i].pid);
                 ret = kill(reload_workers[i].pid, SIGUSR1);
