@@ -170,7 +170,7 @@ static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
         return;
     }
     timer->_current_id = -1;
-
+    timer->num--;
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
