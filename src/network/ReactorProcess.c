@@ -332,14 +332,18 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     {
         swPipe *p;
         swConnection *psock;
-        int pfd ;
-        for (i = 0; i < SwooleGS->task_workers.worker_num; i++)
+        int pfd;
+
+        if (SwooleG.task_ipc_mode == SW_IPC_UNSOCK)
         {
-            p = SwooleGS->task_workers.workers[i].pipe_object;
-            pfd =  p->getFd(p, 1);
-            psock = swReactor_get(reactor, pfd);
-            psock->fdtype = SW_FD_PIPE;
-            swSetNonBlock(pfd);
+            for (i = 0; i < SwooleGS->task_workers.worker_num; i++)
+            {
+                p = SwooleGS->task_workers.workers[i].pipe_object;
+                pfd = p->getFd(p, 1);
+                psock = swReactor_get(reactor, pfd);
+                psock->fdtype = SW_FD_PIPE;
+                swSetNonBlock(pfd);
+            }
         }
     }
 

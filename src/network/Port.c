@@ -76,10 +76,12 @@ int swPort_listen(swListenPort *ls)
         ls->ssl_context = swSSL_get_context(ls->ssl_method, ls->ssl_cert_file, ls->ssl_key_file);
         if (ls->ssl_context == NULL)
         {
+            swWarn("swSSL_get_context() error.");
             return SW_ERR;
         }
         if (ls->ssl_client_cert_file && swSSL_set_client_certificate(ls->ssl_context, ls->ssl_client_cert_file, ls->ssl_verify_depth) == SW_ERR)
         {
+            swWarn("swSSL_set_client_certificate() error.");
             return SW_ERR;
         }
         if (ls->open_http_protocol)
@@ -92,6 +94,7 @@ int swPort_listen(swListenPort *ls)
         }
         if (swSSL_server_config(ls->ssl_context, &ls->ssl_config))
         {
+            swWarn("swSSL_server_config() error.");
             return SW_ERR;
         }
     }

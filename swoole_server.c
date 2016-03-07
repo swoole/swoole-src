@@ -272,6 +272,17 @@ static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC)
 void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
 {
     /**
+     * create swoole server
+     */
+    if (swServer_create(serv) < 0)
+    {
+        swoole_php_fatal_error(E_ERROR, "create server failed. Error: %s", sw_error);
+        return;
+    }
+
+    swTrace("Create swoole_server host=%s, port=%d, mode=%d, type=%d", serv_host, (int) serv_port, serv->factory_mode, (int) sock_type);
+
+    /**
      * Master Process ID
      */
     zend_update_property_long(swoole_server_class_entry_ptr, zobject, ZEND_STRL("master_pid"), getpid() TSRMLS_CC);
@@ -1295,16 +1306,6 @@ PHP_METHOD(swoole_server, __construct)
         serv->max_request = 0;
     }
 
-    /**
-     * create swoole server
-     */
-    if (swServer_create(serv) < 0)
-    {
-        swoole_php_fatal_error(E_ERROR, "create server failed. Error: %s", sw_error);
-        RETURN_FALSE;
-    }
-
-    swTrace("Create swoole_server host=%s, port=%d, mode=%d, type=%d", serv_host, (int) serv_port, serv->factory_mode, (int) sock_type);
     bzero(php_sw_callback, sizeof (zval*) * PHP_SERVER_CALLBACK_NUM);
 
     swListenPort *port = swServer_add_port(serv, sock_type, serv_host, serv_port);
@@ -1322,7 +1323,7 @@ PHP_METHOD(swoole_server, __construct)
     object_init_ex(connection_iterator_object, swoole_connection_iterator_class_entry_ptr);
     zend_update_property(swoole_server_class_entry_ptr, server_object, ZEND_STRL("connections"), connection_iterator_object TSRMLS_CC);
 #endif
-    
+
     zend_update_property_stringl(swoole_server_class_entry_ptr, server_object, ZEND_STRL("host"), serv_host, host_len TSRMLS_CC);
     zend_update_property_long(swoole_server_class_entry_ptr, server_object, ZEND_STRL("port"), serv_port TSRMLS_CC);
     zend_update_property_long(swoole_server_class_entry_ptr, server_object, ZEND_STRL("mode"), serv->factory_mode TSRMLS_CC);

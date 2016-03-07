@@ -888,7 +888,6 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 int swReactorThread_create(swServer *serv)
 {
     int ret = 0;
-
     /**
      * init reactor thread pool
      */
@@ -1402,6 +1401,7 @@ int swReactorThread_dispatch_array_buffer(swReactorThread *thread, swConnection 
     return SW_OK;
 }
 #endif
+
 void swReactorThread_free(swServer *serv)
 {
     int i;
