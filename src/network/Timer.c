@@ -179,6 +179,7 @@ int swTimer_select(swTimer *timer)
         {
             timer->onAfter(timer, tnode);
         }
+        timer->num --;
         swHeap_pop(timer->heap);
     }
 
