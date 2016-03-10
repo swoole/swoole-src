@@ -35,7 +35,6 @@ static int swClient_close(swClient *cli);
 static int swClient_onDgramRead(swReactor *reactor, swEvent *event);
 static int swClient_onStreamRead(swReactor *reactor, swEvent *event);
 static int swClient_onWrite(swReactor *reactor, swEvent *event);
-static int swClient_onError(swReactor *reactor, swEvent *event);
 
 static swHashMap *swoole_dns_cache = NULL;
 static int isset_event_handle = 0;
@@ -600,17 +599,6 @@ static int swClient_udp_recv(swClient *cli, char *data, int length, int flags)
         }
     }
     return ret;
-}
-
-static int swClient_onError(swReactor *reactor, swEvent *event)
-{
-    swClient *cli = event->socket->object;
-    if (cli->onError)
-    {
-        cli->onError(cli);
-    }
-    cli->close(cli);
-    return SW_OK;
 }
 
 static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
