@@ -276,6 +276,7 @@ int swReactor_close(swReactor *reactor, int fd)
     }
 
     bzero(socket, sizeof(swConnection));
+    socket->removed = 1;
     return close(fd);
 }
 
