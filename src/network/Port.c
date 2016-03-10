@@ -50,14 +50,14 @@ void swPort_init(swListenPort *port)
 
 int swPort_listen(swListenPort *ls)
 {
+    int sock = swSocket_listen(ls->type, ls->host, ls->port, ls->backlog);
+    if (sock < 0)
+    {
+        return SW_ERR;
+    }
+
     if (swSocket_is_dgram(ls->type))
     {
-        int sock = swSocket_listen(ls->type, ls->host, ls->port, ls->backlog);
-        if (sock < 0)
-        {
-            return SW_ERR;
-        }
-
         int bufsize = SwooleG.socket_buffer_size;
         setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize));
         setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize));
@@ -113,13 +113,6 @@ int swPort_listen(swListenPort *ls)
         }
     }
 #endif
-
-    //TCP
-    int sock = swSocket_listen(ls->type, ls->host, ls->port, ls->backlog);
-    if (sock < 0)
-    {
-        return SW_ERR;
-    }
 
 #ifdef TCP_DEFER_ACCEPT
     if (ls->tcp_defer_accept)

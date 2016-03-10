@@ -260,13 +260,15 @@ static void client_onConnect(swClient *cli)
 static void client_onClose(swClient *cli)
 {
     client_execute_callback(cli, SW_CLIENT_CALLBACK_onClose);
-    client_free_callback(cli->object);
+    zval *zobject = cli->object;
+    sw_zval_ptr_dtor(&zobject);
 }
 
 static void client_onError(swClient *cli)
 {
     client_execute_callback(cli, SW_CLIENT_CALLBACK_onError);
-    client_free_callback(cli->object);
+    zval *zobject = cli->object;
+    sw_zval_ptr_dtor(&zobject);
 }
 
 static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)

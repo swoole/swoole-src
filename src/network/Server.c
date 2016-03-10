@@ -832,6 +832,18 @@ void swServer_store_pipe_fd(swServer *serv, swPipe *p)
     }
 }
 
+void swServer_close_listen_port(swServer *serv)
+{
+    swListenPort *ls;
+    LL_FOREACH(serv->listen_list, ls)
+    {
+        if (swSocket_is_stream(ls->type))
+        {
+            close(ls->sock);
+        }
+    }
+}
+
 swPipe * swServer_get_pipe_object(swServer *serv, int pipe_fd)
 {
     return (swPipe *) serv->connection_list[pipe_fd].object;
@@ -1010,14 +1022,6 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
     {
         serv->have_udp_sock = 1;
         serv->dgram_port_num++;
-        //need to pre-listen
-        if (serv->factory_mode != SW_MODE_SINGLE)
-        {
-            if (swServer_listen(serv, ls) < 0)
-            {
-                return NULL;
-            }
-        }
     }
     else
     {
@@ -1037,6 +1041,15 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
         }
         serv->have_tcp_sock = 1;
     }
+
+    if (serv->factory_mode != SW_MODE_SINGLE)
+    {
+        if (swServer_listen(serv, ls) < 0)
+        {
+            return NULL;
+        }
+    }
+
     LL_APPEND(serv->listen_list, ls);
     serv->listen_port_num++;
     return ls;

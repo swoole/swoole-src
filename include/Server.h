@@ -375,6 +375,10 @@ struct _swServer
      * packet mode
      */
     uint32_t packet_mode :1;
+    /**
+     * run as a daemon process
+     */
+    uint32_t reload_async :1;
 
     /* heartbeat check time*/
     uint16_t heartbeat_idle_time; //心跳存活时间
@@ -542,6 +546,7 @@ void swServer_store_listen_socket(swServer *serv);
 int swServer_get_manager_pid(swServer *serv);
 int swServer_get_socket(swServer *serv, int port);
 int swServer_worker_init(swServer *serv, swWorker *worker);
+void swServer_close_listen_port(swServer *serv);
 void swServer_enable_accept(swReactor *reactor);
 
 #ifdef HAVE_INOTIFY

@@ -953,7 +953,7 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
     swReactorThread *thread;
     pthread_t pidt;
 
-    int i, ret;
+    int i;
 
     //listen UDP
     if (serv->have_udp_sock == 1)
@@ -978,11 +978,6 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
             if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
             {
                 continue;
-            }
-            ret = swServer_listen(serv, ls);
-            if (ret < 0)
-            {
-                return SW_ERR;
             }
             main_reactor_ptr->add(main_reactor_ptr, ls->sock, SW_FD_LISTEN);
         }
