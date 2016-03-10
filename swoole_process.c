@@ -457,6 +457,7 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
     bzero(&SwooleWG, sizeof(SwooleWG));
     SwooleG.pid = process->pid;
     SwooleG.process_type = 0;
+    SwooleWG.id = process->id;
 
     if (SwooleG.timer.fd)
     {
