@@ -224,8 +224,8 @@ static PHP_METHOD(swoole_process, wait)
     if (pid > 0)
     {
         array_init(return_value);
-        add_assoc_long(return_value, "code", WEXITSTATUS(status));
         add_assoc_long(return_value, "pid", pid);
+        add_assoc_long(return_value, "code", WEXITSTATUS(status));
         add_assoc_long(return_value, "signal", WTERMSIG(status));
     }
     else

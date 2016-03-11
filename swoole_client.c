@@ -758,7 +758,17 @@ static PHP_METHOD(swoole_client, connect)
         RETURN_FALSE;
     }
 
-    swClient *cli = php_swoole_client_create_socket(getThis(), host, host_len, port);
+    swClient *cli = swoole_get_object(getThis());
+    if (cli && !cli->keep)
+    {
+        if (!cli->socket->closed)
+        {
+            cli->close(cli);
+        }
+        client_free(getThis(), cli TSRMLS_CC);
+    }
+
+    cli = php_swoole_client_create_socket(getThis(), host, host_len, port);
     if (cli == NULL)
     {
         RETURN_FALSE;
@@ -1411,6 +1421,14 @@ static PHP_METHOD(swoole_client, on)
         return;
     }
 
+    client_callback *cb = swoole_get_property(getThis(), 0);
+    if (!cb)
+    {
+        cb = emalloc(sizeof(client_callback));
+        bzero(cb, sizeof(client_callback));
+        swoole_set_property(getThis(), 0, cb);
+    }
+
 #ifdef PHP_SWOOLE_CHECK_CALLBACK
     char *func_name = NULL;
     if (!sw_zend_is_callable(zcallback, 0, &func_name TSRMLS_CC))
@@ -1422,14 +1440,6 @@ static PHP_METHOD(swoole_client, on)
     efree(func_name);
 #endif
 
-    client_callback *cb = swoole_get_property(getThis(), 0);
-    if (!cb)
-    {
-        cb = emalloc(sizeof(client_callback));
-        bzero(cb, sizeof(client_callback));
-        swoole_set_property(getThis(), 0, cb);
-    }
-
 #if PHP_MAJOR_VERSION >= 7
     zval *tmp = emalloc(sizeof(zval));
     ZVAL_DUP(tmp,zcallback);
@@ -1439,18 +1449,34 @@ static PHP_METHOD(swoole_client, on)
 
     if (strncasecmp("connect", cb_name, cb_name_len) == 0)
     {
+        if (cb->onConnect)
+        {
+            sw_zval_ptr_dtor(&cb->onConnect);
+        }
         cb->onConnect = zcallback;
     }
     else if (strncasecmp("receive", cb_name, cb_name_len) == 0)
     {
+        if (cb->onReceive)
+        {
+            sw_zval_ptr_dtor(&cb->onReceive);
+        }
         cb->onReceive = zcallback;
     }
     else if (strncasecmp("close", cb_name, cb_name_len) == 0)
     {
+        if (cb->onClose)
+        {
+            sw_zval_ptr_dtor(&cb->onClose);
+        }
         cb->onClose = zcallback;
     }
     else if (strncasecmp("error", cb_name, cb_name_len) == 0)
     {
+        if (cb->onError)
+        {
+            sw_zval_ptr_dtor(&cb->onError);
+        }
         cb->onError = zcallback;
     }
     else
