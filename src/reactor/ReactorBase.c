@@ -192,25 +192,26 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     {
         swTimer_select(&SwooleG.timer);
     }
-    if (SwooleG.serv && swIsMaster())
+    //server master
+    if (SwooleG.serv && SwooleTG.update_time)
     {
         swoole_update_time();
     }
-    //client exit
-
+    //server worker
     swWorker *worker = SwooleWG.worker;
-    if(worker != NULL){
-
+    if (worker != NULL)
+    {
         if (SwooleWG.reload == 1)
         {
-            SwooleWG.reload_count ++;
+            SwooleWG.reload_count++;
 
-            if(reactor->event_num <= 2 || SwooleWG.reload_count >= SW_MAX_RELOAD_WAIT){
+            if (reactor->event_num <= 2 || SwooleWG.reload_count >= SW_MAX_RELOAD_WAIT)
+            {
                 reactor->running = 0;
             }
         }
     }
-
+    //client
     if (SwooleG.serv == NULL && SwooleG.timer.num <= 0)
     {
         if (reactor->event_num == 1 && SwooleAIO.task_num == 1)
