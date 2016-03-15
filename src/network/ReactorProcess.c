@@ -80,8 +80,6 @@ int swReactorProcess_start(swServer *serv)
         }
     }
 
-    swServer_store_listen_socket(serv);
-
     if (swProcessPool_create(&SwooleGS->event_workers, serv->worker_num, serv->max_request, 0, 1) < 0)
     {
         return SW_ERR;
@@ -263,8 +261,6 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     LL_FOREACH(serv->listen_list, ls)
     {
         fdtype = swSocket_is_dgram(ls->type) ? SW_FD_UDP : SW_FD_LISTEN;
-        serv->connection_list[ls->sock].fdtype = fdtype;
-
         if (fdtype == SW_FD_UDP)
         {
             if (swServer_listen(serv, ls) < 0)
@@ -320,6 +316,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     //pipe
     reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_WRITE, swReactor_onWrite);
     reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_READ, swReactorProcess_onPipeRead);
+
+    swServer_store_listen_socket(serv);
 
     if (worker->pipe_worker)
     {
