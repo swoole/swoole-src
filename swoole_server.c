@@ -1890,7 +1890,7 @@ PHP_METHOD(swoole_server, sendto)
     zend_size_t len, ip_len;
 
     long port;
-    long sock = -1;
+    long server_socket = -1;
     zend_bool ipv6 = 0;
 
     if (SwooleGS->start == 0)
@@ -1899,7 +1899,7 @@ PHP_METHOD(swoole_server, sendto)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sls|l", &ip, &ip_len, &port, &data, &len, &sock) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sls|l", &ip, &ip_len, &port, &data, &len, &server_socket) == FAILURE)
     {
         return;
     }
@@ -1928,19 +1928,19 @@ PHP_METHOD(swoole_server, sendto)
         RETURN_FALSE;
     }
 
-    if (sock < 0)
+    if (server_socket < 0)
     {
-        sock = ipv6 ?  serv->udp_socket_ipv6 : serv->udp_socket_ipv4;
+        server_socket = ipv6 ?  serv->udp_socket_ipv6 : serv->udp_socket_ipv4;
     }
 
     int ret;
     if (ipv6)
     {
-        ret = swSocket_udp_sendto6(sock, ip, port, data, len);
+        ret = swSocket_udp_sendto6(server_socket, ip, port, data, len);
     }
     else
     {
-        ret = swSocket_udp_sendto(sock, ip, port, data, len);
+        ret = swSocket_udp_sendto(server_socket, ip, port, data, len);
     }
     SW_CHECK_RETURN(ret);
 }
