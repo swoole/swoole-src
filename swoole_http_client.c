@@ -137,7 +137,6 @@ static PHP_METHOD(swoole_http_client, __construct);
 static PHP_METHOD(swoole_http_client, __destruct);
 static PHP_METHOD(swoole_http_client, set);
 static PHP_METHOD(swoole_http_client, setHeaders);
-static PHP_METHOD(swoole_http_client, setData);
 static PHP_METHOD(swoole_http_client, execute);
 static PHP_METHOD(swoole_http_client, push);
 static PHP_METHOD(swoole_http_client, isConnected);
@@ -153,7 +152,6 @@ static const zend_function_entry swoole_http_client_methods[] =
     PHP_ME(swoole_http_client, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_http_client, set, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client, setHeaders, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client, setData, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client, execute, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client, push, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client, get, NULL, ZEND_ACC_PUBLIC)
@@ -691,7 +689,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
 
     if (sw_zend_hash_find(Z_ARRVAL_P(send_header), ZEND_STRS("Host"), (void **) &value) == FAILURE)
     {
-        http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), ZEND_STRL("keep-alive"));
+        http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), http->host, http->host_len);
     }
 
 #ifdef SW_HAVE_ZLIB
@@ -729,9 +727,6 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
     {
         swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
     }
-
-    zend_update_property_null(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("set_data") TSRMLS_CC);
-    zend_update_property_null(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("set_headers") TSRMLS_CC);
 
     int ret = http->cli->send(http->cli, http_client_buffer->str, http_client_buffer->length, 0);
     if (ret < 0)
@@ -842,8 +837,9 @@ static PHP_METHOD(swoole_http_client, __construct)
     char *host;
     zend_size_t host_len;
     long port = 80;
+    zend_bool ssl = SW_FALSE;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &host, &host_len, &port) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|lb", &host, &host_len, &port, &ssl) == FAILURE)
     {
         return;
     }
@@ -875,7 +871,13 @@ static PHP_METHOD(swoole_http_client, __construct)
     swoole_set_property(getThis(), 0, hcc);
     hcc->request_header = headers;
 
-    zend_update_property_long(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("type"), SW_SOCK_TCP | SW_FLAG_ASYNC TSRMLS_CC);
+    int flags = SW_SOCK_TCP | SW_FLAG_ASYNC;
+    if (ssl)
+    {
+        flags |= SW_SOCK_SSL;
+    }
+
+    zend_update_property_long(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("type"), flags TSRMLS_CC);
     
     RETURN_TRUE;
 }
@@ -927,23 +929,14 @@ static PHP_METHOD(swoole_http_client, set)
 
 static PHP_METHOD(swoole_http_client, setHeaders)
 {
-    zval *zset;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zset) == FAILURE)
+    zval *headers;
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "z", &headers) == FAILURE)
     {
         return;
     }
-    zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("set_headers"), zset TSRMLS_CC);
-    RETURN_TRUE;
-}
-
-static PHP_METHOD(swoole_http_client, setData)
-{
-    zval *zset;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zset) == FAILURE)
-    {
-        return;
-    }
-    zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("set_data"), zset TSRMLS_CC);
+    zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"), headers TSRMLS_CC);
+    http_client_callback *hcc = swoole_get_property(getThis(), 0);
+    hcc->request_header = headers;
     RETURN_TRUE;
 }
 

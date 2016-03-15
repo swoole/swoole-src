@@ -338,7 +338,7 @@ int swSSL_connect(swConnection *conn)
     int n = SSL_connect(conn->ssl);
     if (n == 1)
     {
-        conn->ssl_state = 1;
+        conn->ssl_state = SW_SSL_STATE_READY;
         return SW_OK;
     }
     long err = SSL_get_error(conn->ssl, n);

@@ -362,6 +362,10 @@ static int swClient_tcp_connect_sync(swClient *cli, char *host, int port, double
 #ifdef SW_USE_OPENSSL
         if (cli->open_ssl)
         {
+            if (swClient_enable_ssl_encrypt(cli) < 0)
+            {
+                return SW_ERR;
+            }
             if (swClient_ssl_handshake(cli) < 0)
             {
                 return SW_ERR;
@@ -615,13 +619,14 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
         {
             return cli->close(cli);
         }
-        if (cli->socket->ssl_state == SW_SSL_STATE_READY)
-        {
-            return cli->close(cli);
-        }
-        else
+        if (cli->socket->ssl_state != SW_SSL_STATE_READY)
         {
             return SW_OK;
+        }
+        //ssl handshake sucess
+        else if (cli->onConnect)
+        {
+            cli->onConnect(cli);
         }
     }
 #endif
@@ -728,6 +733,23 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
     swClient *cli = event->socket->object;
     if (cli->socket->active)
     {
+#ifdef SW_USE_OPENSSL
+        if (cli->open_ssl && cli->socket->ssl_state == SW_SSL_STATE_WAIT_STREAM)
+        {
+            if (swClient_ssl_handshake(cli) < 0)
+            {
+                goto connect_fail;
+            }
+            else if (cli->socket->ssl_state == SW_SSL_STATE_READY)
+            {
+                goto connect_success;
+            }
+            else
+            {
+                return SW_OK;
+            }
+        }
+#endif
         return swReactor_onWrite(SwooleG.main_reactor, event);
     }
 
@@ -750,6 +772,10 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
 #ifdef SW_USE_OPENSSL
         if (cli->open_ssl)
         {
+            if (swClient_enable_ssl_encrypt(cli) < 0)
+            {
+                goto connect_fail;
+            }
             if (swClient_ssl_handshake(cli) < 0)
             {
                 goto connect_fail;
@@ -760,6 +786,7 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
             }
             return SW_OK;
         }
+        connect_success:
 #endif
         if (cli->onConnect)
         {

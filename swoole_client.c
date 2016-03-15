@@ -808,15 +808,6 @@ static PHP_METHOD(swoole_client, connect)
         client_check_setting(cli, zset TSRMLS_CC);
     }
 
-#ifdef SW_USE_OPENSSL
-    //ssl/tls
-    if (cli->open_ssl && swClient_enable_ssl_encrypt(cli) < 0)
-    {
-        swoole_php_fatal_error(E_ERROR, "no receive callback.");
-        RETURN_FALSE;
-    }
-#endif
-
     //nonblock async
     if (cli->async)
     {
