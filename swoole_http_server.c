@@ -22,6 +22,7 @@
 #include <ext/standard/php_var.h>
 #include <ext/standard/php_string.h>
 #include <ext/standard/php_math.h>
+#include <ext/standard/php_array.h>
 #include <ext/date/php_date.h>
 #include <ext/standard/md5.h>
 
@@ -98,7 +99,7 @@ static int multipart_body_on_header_complete(multipart_parser* p);
 static int multipart_body_on_data_end(multipart_parser* p);
 static int multipart_body_end(multipart_parser* p);
 
-static void http_global_merge(zval *val, zval *zrequest, int type);
+static void http_global_merge(zval *val, zval *zrequest_object, int type);
 static void http_global_clear(TSRMLS_D);
 static void http_global_init(TSRMLS_D);
 static http_context* http_get_context(zval *object, int check_end TSRMLS_DC);
@@ -331,9 +332,9 @@ static void http_global_init(TSRMLS_D)
     }
 }
 
-static void http_global_merge(zval *val, zval *zrequest, int type)
+static void http_global_merge(zval *val, zval *zrequest_object, int type)
 {
-    zval *_request;
+    zval *zrequest;
 
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -362,7 +363,7 @@ static void http_global_merge(zval *val, zval *zrequest, int type)
             sw_add_assoc_stringl_ex(php_global_server, _php_key, keylen + 1, Z_STRVAL_P(value), Z_STRLEN_P(value), 1);
         SW_HASHTABLE_FOREACH_END();
 
-        zval *header = sw_zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("header"), 1 TSRMLS_CC);
+        zval *header = sw_zend_read_property(swoole_http_request_class_entry_ptr, zrequest_object, ZEND_STRL("header"), 1 TSRMLS_CC);
         if (header || !ZVAL_IS_NULL(header))
         {
             SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(header), key, keylen, keytype, value)
@@ -408,10 +409,10 @@ static void http_global_merge(zval *val, zval *zrequest, int type)
         {
             return;
         }
-        _request = sw_zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), 1 TSRMLS_CC);
-        if (_request && !(ZVAL_IS_NULL(_request)))
+        zrequest = sw_zend_read_property(swoole_http_request_class_entry_ptr, zrequest_object, ZEND_STRL("request"), 1 TSRMLS_CC);
+        if (zrequest && !(ZVAL_IS_NULL(zrequest)))
         {
-            ZEND_SET_SYMBOL(&EG(symbol_table), "_REQUEST", _request);
+            ZEND_SET_SYMBOL(&EG(symbol_table), "_REQUEST", zrequest);
         }
         return;
 
@@ -426,16 +427,19 @@ static void http_global_merge(zval *val, zval *zrequest, int type)
 
     if (http_merge_request_flag & type)
     {
-        _request = sw_zend_read_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), 1 TSRMLS_CC);
-        if (!_request || ZVAL_IS_NULL(_request))
+        zrequest = sw_zend_read_property(swoole_http_request_class_entry_ptr, zrequest_object, ZEND_STRL("request"), 1 TSRMLS_CC);
+        if (!zrequest || ZVAL_IS_NULL(zrequest))
         {
-            _request = val;
+            http_context *ctx = http_get_context(zrequest_object, 0 TSRMLS_CC);
+            if (!ctx)
+            {
+                return;
+            }
+            http_alloc_zval(ctx, request, zrequest);
+            array_init(zrequest);
+            zend_update_property(swoole_http_request_class_entry_ptr, ctx->request.zrequest_object, ZEND_STRL("request"), zrequest TSRMLS_CC);
         }
-        else
-        {
-            sw_zend_hash_copy(Z_ARRVAL_P(_request), Z_ARRVAL_P(val), NULL, NULL, sizeof(zval));
-        }
-        zend_update_property(swoole_http_request_class_entry_ptr, zrequest, ZEND_STRL("request"), _request TSRMLS_CC);
+        php_array_merge(Z_ARRVAL_P(zrequest), Z_ARRVAL_P(val), 1 TSRMLS_CC);
     }
 }
 
@@ -1568,7 +1572,6 @@ static PHP_METHOD(swoole_http_server, setglobal)
 
 static PHP_METHOD(swoole_http_server, start)
 {
-    swServer *serv;
     int ret;
 
     if (SwooleGS->start > 0)
@@ -1577,7 +1580,7 @@ static PHP_METHOD(swoole_http_server, start)
         RETURN_FALSE;
     }
 
-    serv = swoole_get_object(getThis());
+    swServer *serv = swoole_get_object(getThis());
     php_swoole_register_callback(serv);
 
     if (serv->listen_list->open_websocket_protocol)

@@ -955,6 +955,8 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
 
     int i;
 
+    swServer_store_listen_socket(serv);
+
     //listen UDP
     if (serv->have_udp_sock == 1)
     {
@@ -981,8 +983,6 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
             }
             main_reactor_ptr->add(main_reactor_ptr, ls->sock, SW_FD_LISTEN);
         }
-
-        swServer_store_listen_socket(serv);
 
 #ifdef HAVE_PTHREAD_BARRIER
         //init thread barrier
