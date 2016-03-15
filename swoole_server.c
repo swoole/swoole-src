@@ -319,16 +319,16 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
     int i;
     zval *retval = NULL;
     zval *port_object;
+    zval *port_setting;
 
     for (i = 1; i < server_port_list.num; i++)
     {
         port_object = server_port_list.zobjects[i];
-
-        zval *zsetting = sw_zend_read_property(swoole_server_port_class_entry_ptr, zobject, ZEND_STRL("setting"), 1 TSRMLS_CC);
+        port_setting = sw_zend_read_property(swoole_server_port_class_entry_ptr, port_object, ZEND_STRL("setting"), 1 TSRMLS_CC);
         //use swoole_server->setting
-        if (zsetting == NULL || ZVAL_IS_NULL(zsetting))
+        if (port_setting == NULL || ZVAL_IS_NULL(port_setting))
         {
-            sw_zval_add_ref(&zsetting);
+            sw_zval_add_ref(&port_setting);
             sw_zval_add_ref(&port_object);
             sw_zend_call_method_with_1_params(&port_object, swoole_server_port_class_entry_ptr, NULL, "set", &retval, zsetting);
             if (retval != NULL)
