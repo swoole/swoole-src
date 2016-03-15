@@ -36,6 +36,11 @@ static int swClient_onDgramRead(swReactor *reactor, swEvent *event);
 static int swClient_onStreamRead(swReactor *reactor, swEvent *event);
 static int swClient_onWrite(swReactor *reactor, swEvent *event);
 
+#ifdef SW_USE_OPENSSL
+static int swClient_enable_ssl_encrypt(swClient *cli);
+static int swClient_ssl_handshake(swClient *cli);
+#endif
+
 static swHashMap *swoole_dns_cache = NULL;
 static int isset_event_handle = 0;
 
@@ -167,7 +172,7 @@ int swClient_enable_ssl_encrypt(swClient *cli)
     return SW_OK;
 }
 
-int swClient_ssl_handshake(swClient *cli)
+static int swClient_ssl_handshake(swClient *cli)
 {
     if (!cli->socket->ssl)
     {
@@ -182,7 +187,6 @@ int swClient_ssl_handshake(swClient *cli)
     }
     return SW_OK;
 }
-
 #endif
 
 static int swClient_inet_addr(swClient *cli, char *host, int port)

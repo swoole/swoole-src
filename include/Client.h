@@ -93,10 +93,6 @@ typedef struct _swClient
 } swClient;
 
 int swClient_create(swClient *cli, int type, int async);
-#ifdef SW_USE_OPENSSL
-int swClient_enable_ssl_encrypt(swClient *cli);
-int swClient_ssl_handshake(swClient *cli);
-#endif
 
 typedef struct
 {

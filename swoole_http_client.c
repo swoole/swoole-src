@@ -137,6 +137,7 @@ static PHP_METHOD(swoole_http_client, __construct);
 static PHP_METHOD(swoole_http_client, __destruct);
 static PHP_METHOD(swoole_http_client, set);
 static PHP_METHOD(swoole_http_client, setHeaders);
+static PHP_METHOD(swoole_http_client, setData);
 static PHP_METHOD(swoole_http_client, execute);
 static PHP_METHOD(swoole_http_client, push);
 static PHP_METHOD(swoole_http_client, isConnected);
@@ -152,6 +153,7 @@ static const zend_function_entry swoole_http_client_methods[] =
     PHP_ME(swoole_http_client, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_http_client, set, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client, setHeaders, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client, setData, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client, execute, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client, push, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client, get, NULL, ZEND_ACC_PUBLIC)
@@ -937,6 +939,19 @@ static PHP_METHOD(swoole_http_client, setHeaders)
     zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"), headers TSRMLS_CC);
     http_client_callback *hcc = swoole_get_property(getThis(), 0);
     hcc->request_header = headers;
+    RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_http_client, setData)
+{
+    zval *data;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &data) == FAILURE)
+    {
+        return;
+    }
+    zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), data TSRMLS_CC);
+    http_client_callback *hcc = swoole_get_property(getThis(), 0);
+    hcc->request_body = data;
     RETURN_TRUE;
 }
 
