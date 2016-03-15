@@ -439,7 +439,7 @@ static void http_global_merge(zval *val, zval *zrequest_object, int type)
             array_init(zrequest);
             zend_update_property(swoole_http_request_class_entry_ptr, ctx->request.zrequest_object, ZEND_STRL("request"), zrequest TSRMLS_CC);
         }
-        php_array_merge(Z_ARRVAL_P(zrequest), Z_ARRVAL_P(val), 1 TSRMLS_CC);
+        sw_php_array_merge(Z_ARRVAL_P(zrequest), Z_ARRVAL_P(val));
     }
 }
 

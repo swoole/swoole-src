@@ -70,7 +70,7 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 #define sw_zend_hash_exists                   zend_hash_exists
 #define sw_php_format_date                    php_format_date
 #define sw_php_url_encode                     php_url_encode
-#define sw_php_array_merge                    php_array_merge
+#define sw_php_array_merge(dest,src)          php_array_merge(dest,src,1 TSRMLS_CC)
 #define SW_RETURN_STRINGL                     RETURN_STRINGL
 #define sw_zend_register_internal_class_ex    zend_register_internal_class_ex
 #define sw_zend_call_method_with_1_params     zend_call_method_with_1_params
@@ -232,11 +232,7 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval** 
 #define SW_RETURN_STRING(val, duplicate)     RETURN_STRING(val)
 #define sw_add_assoc_string(array, key, value, duplicate)   add_assoc_string(array, key, value)
 #define sw_zend_hash_copy(target,source,pCopyConstructor,tmp,size) zend_hash_copy(target,source,pCopyConstructor)
-#ifdef ZTS
-#define sw_php_array_merge(dest,src,recursive,tsrm)                      php_array_merge(dest,src)
-#else
-#define sw_php_array_merge(dest,src,recursive)                           php_array_merge(dest,src)
-#endif
+#define sw_php_array_merge                                          php_array_merge
 #define sw_zend_register_internal_class_ex(entry,parent_ptr,str)    zend_register_internal_class_ex(entry,parent_ptr)
 #define sw_zend_call_method_with_1_params(obj, ptr, what, method, retval, v1)           zend_call_method_with_1_params(*obj,ptr,what,method,*retval,v1)
 #define sw_zend_call_method_with_2_params(obj, ptr, what, method, retval, name, cb)     zend_call_method_with_2_params(*obj,ptr,what,method,*retval,name,cb)
