@@ -2126,7 +2126,7 @@ static PHP_METHOD(swoole_http_response, end)
 static PHP_METHOD(swoole_http_response, sendfile)
 {
     char *filename;
-    int filename_length;
+    zend_size_t filename_length;
     int ret;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &filename, &filename_length) == FAILURE)

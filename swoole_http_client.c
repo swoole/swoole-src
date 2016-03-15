@@ -1144,7 +1144,7 @@ static int http_client_parser_on_header_value(php_http_parser *parser, const cha
 
         memcpy(keybuf, at, l_key);
         keybuf[l_key] = '\0';
-        sw_add_assoc_stringl_ex(cookies, keybuf, l_key + 1, at + l_key + 1, l_cookie - l_key - 1, 1);
+        sw_add_assoc_stringl_ex(cookies, keybuf, l_key + 1, (char*) at + l_key + 1, l_cookie - l_key - 1, 1);
     }
 #ifdef SW_HAVE_ZLIB
     else if (strcasecmp(header_name, "Content-Encoding") == 0 && strncasecmp(at, "gzip", length) == 0)
