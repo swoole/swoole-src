@@ -1134,7 +1134,7 @@ static int http_client_parser_on_header_value(php_http_parser *parser, const cha
         int l_key = strchr(at, '=') - at;
         char keybuf[SW_HTTP_COOKIE_KEYLEN];
 
-        zval *cookies = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("cookies"), 0 TSRMLS_CC);
+        zval *cookies = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("cookies"), 1 TSRMLS_CC);
         if (!cookies || ZVAL_IS_NULL(cookies))
         {
             SW_ALLOC_INIT_ZVAL(cookies);
