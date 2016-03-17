@@ -48,21 +48,16 @@ void swPort_init(swListenPort *port)
     memcpy(port->protocol.package_eof, eof, port->protocol.package_eof_len);
 }
 
-int swPort_listen(swListenPort *ls)
+int swPort_set_option(swListenPort *ls)
 {
-    int sock = swSocket_listen(ls->type, ls->host, ls->port, ls->backlog);
-    if (sock < 0)
-    {
-        return SW_ERR;
-    }
+    int sock = ls->sock;
 
     if (swSocket_is_dgram(ls->type))
     {
         int bufsize = SwooleG.socket_buffer_size;
         setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize));
         setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize));
-        ls->sock = sock;
-        return sock;
+        return SW_OK;
     }
 
 #ifdef SW_USE_OPENSSL
@@ -103,12 +98,12 @@ int swPort_listen(swListenPort *ls)
     {
         if (!ls->ssl_cert_file)
         {
-            swWarn("need to configure [server->ssl_cert_file].");
+            swWarn("need to set [ssl_cert_file] option.");
             return SW_ERR;
         }
         if (!ls->ssl_key_file)
         {
-            swWarn("need to configure [server->ssl_key_file].");
+            swWarn("need to set [ssl_key_file] option.");
             return SW_ERR;
         }
     }
@@ -150,7 +145,7 @@ int swPort_listen(swListenPort *ls)
 #endif
     }
 #endif
-    return sock;
+    return SW_OK;
 }
 
 static int swPort_websocket_onPackage(swConnection *conn, char *data, uint32_t length)

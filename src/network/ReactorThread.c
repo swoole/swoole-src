@@ -952,7 +952,6 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
     swThreadParam *param;
     swReactorThread *thread;
     pthread_t pidt;
-
     int i;
 
     swServer_store_listen_socket(serv);

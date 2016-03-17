@@ -611,13 +611,18 @@ int swServer_start(swServer *serv)
             }
         }
     }
-
+    //set listen socket options
+    swListenPort *ls;
+    LL_FOREACH(serv->listen_list, ls)
+    {
+        swPort_set_option(ls);
+    }
     //factory start
     if (factory->start(factory) < 0)
     {
         return SW_ERR;
     }
-    //Signal Init
+    //signal Init
     swServer_signal_init();
 
     if (serv->factory_mode == SW_MODE_SINGLE)
@@ -1042,31 +1047,17 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
         serv->have_tcp_sock = 1;
     }
 
-    if (serv->factory_mode != SW_MODE_SINGLE)
+    //create listen socket
+    int sock = swSocket_listen(ls->type, ls->host, ls->port, ls->backlog);
+    if (sock < 0)
     {
-        if (swServer_listen(serv, ls) < 0)
-        {
-            return NULL;
-        }
+        return NULL;
     }
+    ls->sock = sock;
 
     LL_APPEND(serv->listen_list, ls);
     serv->listen_port_num++;
     return ls;
-}
-
-/**
- * listen the TCP server socket
- */
-int swServer_listen(swServer *serv, swListenPort *ls)
-{
-    int sock = swPort_listen(ls);
-    if (sock < 0)
-    {
-        return SW_ERR;
-    }
-    ls->sock = sock;
-    return SW_OK;
 }
 
 int swServer_get_manager_pid(swServer *serv)

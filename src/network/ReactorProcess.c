@@ -73,7 +73,7 @@ int swReactorProcess_start(swServer *serv)
             }
 #endif
             //listen server socket
-            if (swServer_listen(serv, ls) < 0)
+            if (swPort_set_option(ls) < 0)
             {
                 return SW_ERR;
             }
@@ -263,7 +263,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         fdtype = swSocket_is_dgram(ls->type) ? SW_FD_UDP : SW_FD_LISTEN;
         if (fdtype == SW_FD_UDP)
         {
-            if (swServer_listen(serv, ls) < 0)
+            if (swPort_set_option(ls) < 0)
             {
                 continue;
             }
@@ -272,7 +272,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 #ifdef HAVE_REUSEPORT
         if (fdtype == SW_FD_LISTEN && SwooleG.reuse_port)
         {
-            if (swServer_listen(serv, ls) < 0)
+            if (swPort_set_option(ls) < 0)
             {
                 return SW_ERR;
             }

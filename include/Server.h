@@ -488,7 +488,6 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port);
 int swServer_add_worker(swServer *serv, swWorker *worker);
 
 int swServer_create(swServer *serv);
-int swServer_listen(swServer *serv, swListenPort *ls);
 int swServer_free(swServer *serv);
 int swServer_shutdown(swServer *serv);
 
@@ -789,7 +788,7 @@ static sw_inline void swServer_connection_ready(swServer *serv, int fd, int reac
 void swPort_init(swListenPort *port);
 void swPort_free(swListenPort *port);
 void swPort_set_protocol(swListenPort *ls);
-int swPort_listen(swListenPort *ls);
+int swPort_set_option(swListenPort *ls);
 
 void swWorker_free(swWorker *worker);
 void swWorker_onStart(swServer *serv);

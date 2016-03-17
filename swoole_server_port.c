@@ -94,12 +94,6 @@ static PHP_METHOD(swoole_server_port, set)
         convert_to_long(v);
         port->tcp_defer_accept = (uint8_t) Z_LVAL_P(v);
     }
-    //port reuse
-    if (sw_zend_hash_find(vht, ZEND_STRS("enable_port_reuse"), (void **) &v) == SUCCESS)
-    {
-        convert_to_boolean(v);
-        SwooleG.reuse_port = Z_BVAL_P(v);
-    }
     //tcp_keepalive
     if (sw_zend_hash_find(vht, ZEND_STRS("open_tcp_keepalive"), (void **) &v) == SUCCESS)
     {
