@@ -66,7 +66,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
     assert(ctx->send_header == 0);
 
     char buf[SW_HTTP_HEADER_MAX_SIZE];
-    char *date_str;
+    char *date_str = NULL;
     char intbuf[2][16];
 
     int ret;
@@ -237,7 +237,11 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
         return SW_ERR;
     }
 
-    efree(date_str);
+    if (date_str)
+    {
+        efree(date_str);
+    }
+
     nghttp2_hd_deflate_del(deflater);
 
     return rv;

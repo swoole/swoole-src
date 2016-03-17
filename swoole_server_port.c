@@ -205,6 +205,7 @@ static PHP_METHOD(swoole_server_port, set)
         port->protocol.package_length_type = 'N';
         port->open_eof_check = 0;
     }
+
 #ifdef SW_USE_HTTP2
     //http2 protocol
     if (sw_zend_hash_find(vht, ZEND_STRS("open_http2_protocol"), (void **) &v) == SUCCESS)
@@ -215,89 +216,93 @@ static PHP_METHOD(swoole_server_port, set)
 #endif
 
 #ifdef SW_USE_OPENSSL
-    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_cert_file"), (void **) &v) == SUCCESS)
+    if (port->ssl)
     {
-        convert_to_string(v);
-        if (access(Z_STRVAL_P(v), R_OK) < 0)
+        if (sw_zend_hash_find(vht, ZEND_STRS("ssl_cert_file"), (void **) &v) == SUCCESS)
         {
-            swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", Z_STRVAL_P(v));
+            convert_to_string(v);
+            if (access(Z_STRVAL_P(v), R_OK) < 0)
+            {
+                swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", Z_STRVAL_P(v));
+                return;
+            }
+            port->ssl_cert_file = strdup(Z_STRVAL_P(v));
+            port->open_ssl_encrypt = 1;
+        }
+        if (sw_zend_hash_find(vht, ZEND_STRS("ssl_key_file"), (void **) &v) == SUCCESS)
+        {
+            convert_to_string(v);
+            if (access(Z_STRVAL_P(v), R_OK) < 0)
+            {
+                swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", Z_STRVAL_P(v));
+                return;
+            }
+            port->ssl_key_file = strdup(Z_STRVAL_P(v));
+        }
+        if (sw_zend_hash_find(vht, ZEND_STRS("ssl_method"), (void **) &v) == SUCCESS)
+        {
+            convert_to_long(v);
+            port->ssl_method = (int) Z_LVAL_P(v);
+        }
+        //verify client cert
+        if (sw_zend_hash_find(vht, ZEND_STRS("ssl_client_cert_file"), (void **) &v) == SUCCESS)
+        {
+            convert_to_string(v);
+            if (access(Z_STRVAL_P(v), R_OK) < 0)
+            {
+                swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", port->ssl_cert_file);
+                return;
+            }
+            port->ssl_client_cert_file = strdup(Z_STRVAL_P(v));
+        }
+        if (sw_zend_hash_find(vht, ZEND_STRS("ssl_verify_depth"), (void **) &v) == SUCCESS)
+        {
+            convert_to_long(v);
+            port->ssl_verify_depth = (int) Z_LVAL_P(v);
+        }
+        if (port->open_ssl_encrypt && !port->ssl_key_file)
+        {
+            swoole_php_fatal_error(E_ERROR, "ssl require key file.");
             return;
         }
-        port->ssl_cert_file = strdup(Z_STRVAL_P(v));
-        port->open_ssl_encrypt = 1;
-    }
-    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_key_file"), (void **) &v) == SUCCESS)
-    {
-        convert_to_string(v);
-        if (access(Z_STRVAL_P(v), R_OK) < 0)
+        if (sw_zend_hash_find(vht, ZEND_STRS("ssl_prefer_server_ciphers"), (void **) &v) == SUCCESS)
         {
-            swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", Z_STRVAL_P(v));
-            return;
+            convert_to_boolean(v);
+            port->ssl_config.prefer_server_ciphers = Z_BVAL_P(v);
         }
-        port->ssl_key_file = strdup(Z_STRVAL_P(v));
-    }
-    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_method"), (void **) &v) == SUCCESS)
-    {
-        convert_to_long(v);
-        port->ssl_method = (int) Z_LVAL_P(v);
-    }
-    //verify client cert
-    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_client_cert_file"), (void **) &v) == SUCCESS)
-    {
-        convert_to_string(v);
-        if (access(Z_STRVAL_P(v), R_OK) < 0)
+        //    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_session_tickets"), (void **) &v) == SUCCESS)
+        //    {
+        //        convert_to_boolean(v);
+        //        port->ssl_config.session_tickets = Z_BVAL_P(v);
+        //    }
+        //    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_stapling"), (void **) &v) == SUCCESS)
+        //    {
+        //        convert_to_boolean(v);
+        //        port->ssl_config.stapling = Z_BVAL_P(v);
+        //    }
+        //    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_stapling_verify"), (void **) &v) == SUCCESS)
+        //    {
+        //        convert_to_boolean(v);
+        //        port->ssl_config.stapling_verify = Z_BVAL_P(v);
+        //    }
+        if (sw_zend_hash_find(vht, ZEND_STRS("ssl_ciphers"), (void **) &v) == SUCCESS)
         {
-            swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", port->ssl_cert_file);
-            return;
+            convert_to_string(v);
+            port->ssl_config.ciphers = strdup(Z_STRVAL_P(v));
         }
-        port->ssl_client_cert_file = strdup(Z_STRVAL_P(v));
+        if (sw_zend_hash_find(vht, ZEND_STRS("ssl_ecdh_curve"), (void **) &v) == SUCCESS)
+        {
+            convert_to_string(v);
+            port->ssl_config.ecdh_curve = strdup(Z_STRVAL_P(v));
+        }
+        //    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_session_cache"), (void **) &v) == SUCCESS)
+        //    {
+        //        convert_to_string(v);
+        //        port->ssl_config.session_cache = strdup(Z_STRVAL_P(v));
+        //    }
     }
-    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_verify_depth"), (void **) &v) == SUCCESS)
-    {
-        convert_to_long(v);
-        port->ssl_verify_depth = (int) Z_LVAL_P(v);
-    }
-    if (port->open_ssl_encrypt && !port->ssl_key_file)
-    {
-        swoole_php_fatal_error(E_ERROR, "ssl require key file.");
-        return;
-    }
-    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_prefer_server_ciphers"), (void **) &v) == SUCCESS)
-    {
-        convert_to_boolean(v);
-        port->ssl_config.prefer_server_ciphers = Z_BVAL_P(v);
-    }
-//    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_session_tickets"), (void **) &v) == SUCCESS)
-//    {
-//        convert_to_boolean(v);
-//        port->ssl_config.session_tickets = Z_BVAL_P(v);
-//    }
-//    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_stapling"), (void **) &v) == SUCCESS)
-//    {
-//        convert_to_boolean(v);
-//        port->ssl_config.stapling = Z_BVAL_P(v);
-//    }
-//    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_stapling_verify"), (void **) &v) == SUCCESS)
-//    {
-//        convert_to_boolean(v);
-//        port->ssl_config.stapling_verify = Z_BVAL_P(v);
-//    }
-    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_ciphers"), (void **) &v) == SUCCESS)
-    {
-        convert_to_string(v);
-        port->ssl_config.ciphers = strdup(Z_STRVAL_P(v));
-    }
-    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_ecdh_curve"), (void **) &v) == SUCCESS)
-    {
-        convert_to_string(v);
-        port->ssl_config.ecdh_curve = strdup(Z_STRVAL_P(v));
-    }
-//    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_session_cache"), (void **) &v) == SUCCESS)
-//    {
-//        convert_to_string(v);
-//        port->ssl_config.session_cache = strdup(Z_STRVAL_P(v));
-//    }
 #endif
+
     zend_update_property(swoole_server_port_class_entry_ptr, getThis(), ZEND_STRL("setting"), zset TSRMLS_CC);
 }
 
