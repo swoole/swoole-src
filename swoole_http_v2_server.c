@@ -348,7 +348,43 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
         {
             if (nv.name[0] == ':')
             {
-                sw_add_assoc_stringl_ex(zserver, (char *) nv.name, nv.namelen + 1, (char *) nv.value, nv.valuelen, 1);
+                if (strncasecmp((char *) nv.name + 1, ZEND_STRL("method")) == 0)
+                {
+                    sw_add_assoc_stringl_ex(zserver, ZEND_STRS("request_method"), (char *) nv.value, nv.valuelen, 1);
+                }
+                else if (strncasecmp((char *) nv.name + 1, ZEND_STRL("path")) == 0)
+                {
+                    char pathbuf[SW_HTTP_HEADER_MAX_SIZE];
+                    char *v_str = strchr((char *) nv.value, '?');
+                    if (v_str)
+                    {
+                        v_str++;
+                        int k_len = v_str - (char *) nv.value - 1;
+                        int v_len = nv.valuelen - k_len - 1;
+                        memcpy(pathbuf, nv.value, k_len);
+                        pathbuf[k_len] = 0;
+                        sw_add_assoc_stringl_ex(zserver, ZEND_STRS("query_string"), v_str, v_len, 1);
+                        sw_add_assoc_stringl_ex(zserver, ZEND_STRS("request_uri"), pathbuf, k_len, 1);
+
+                        zval *zget;
+                        http_alloc_zval(ctx, request, zget);
+                        array_init(zget);
+                        zend_update_property(swoole_http_request_class_entry_ptr, ctx->request.zrequest_object, ZEND_STRL("get"), zget TSRMLS_CC);
+
+                        //no need free, will free by treat_data
+                        char *query = estrndup(v_str, v_len);
+                        //parse url params
+                        sapi_module.treat_data(PARSE_STRING, query, zget TSRMLS_CC);
+                    }
+                    else
+                    {
+                        sw_add_assoc_stringl_ex(zserver, ZEND_STRS("request_uri"), (char *) nv.value, nv.valuelen, 1);
+                    }
+                }
+                else if (strncasecmp((char *) nv.name + 1, ZEND_STRL("authority")) == 0)
+                {
+                    sw_add_assoc_stringl_ex(zheader, ZEND_STRS("host"), (char * ) nv.value, nv.valuelen, 1);
+                }
             }
             else
             {
