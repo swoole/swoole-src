@@ -565,7 +565,6 @@ static void http_client_onConnect(swClient *cli)
     http_client_send_http_request(zobject TSRMLS_CC);
 }
 
-
 #if PHP_MAJOR_VERSION < 7
 static inline char* sw_http_build_query(zval *data, zend_size_t *length TSRMLS_DC)
 {
@@ -674,6 +673,30 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
 
     if (send_header && Z_TYPE_P(send_header) == IS_ARRAY)
     {
+        if (sw_zend_hash_find(Z_ARRVAL_P(send_header), ZEND_STRS("Connection"), (void **) &value) == FAILURE)
+        {
+            if (http->keep_alive)
+            {
+                http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Connection"), ZEND_STRL("keep-alive"));
+            }
+            else
+            {
+                http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Connection"), ZEND_STRL("closed"));
+            }
+        }
+
+        if (sw_zend_hash_find(Z_ARRVAL_P(send_header), ZEND_STRS("Host"), (void **) &value) == FAILURE)
+        {
+            http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), http->host, http->host_len);
+        }
+
+    #ifdef SW_HAVE_ZLIB
+        if (sw_zend_hash_find(Z_ARRVAL_P(send_header), ZEND_STRS("Accept-Encoding"), (void **) &value) == FAILURE)
+        {
+            http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Accept-Encoding"), ZEND_STRL("gzip"));
+        }
+    #endif
+
         SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(send_header), key, keylen, keytype, value)
             if (HASH_KEY_IS_STRING != keytype)
             {
@@ -683,30 +706,6 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
             http_client_swString_append_headers(http_client_buffer, key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
         SW_HASHTABLE_FOREACH_END();
     }
-
-    if (sw_zend_hash_find(Z_ARRVAL_P(send_header), ZEND_STRS("Connection"), (void **) &value) == FAILURE)
-    {
-        if (http->keep_alive)
-        {
-            http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Connection"), ZEND_STRL("keep-alive"));
-        }
-        else
-        {
-            http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Connection"), ZEND_STRL("closed"));
-        }
-    }
-
-    if (sw_zend_hash_find(Z_ARRVAL_P(send_header), ZEND_STRS("Host"), (void **) &value) == FAILURE)
-    {
-        http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), http->host, http->host_len);
-    }
-
-#ifdef SW_HAVE_ZLIB
-    if (sw_zend_hash_find(Z_ARRVAL_P(send_header), ZEND_STRS("Accept-Encoding"), (void **) &value) == FAILURE)
-    {
-        http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Accept-Encoding"), ZEND_STRL("gzip"));
-    }
-#endif
 
     if (hcc->cookies && Z_TYPE_P(hcc->cookies) == IS_ARRAY)
     {
@@ -906,7 +905,7 @@ static PHP_METHOD(swoole_http_client, __construct)
     swoole_set_object(getThis(), NULL);
 
     zval *headers;
-    SW_ALLOC_INIT_ZVAL(headers);
+    SW_MAKE_STD_ZVAL(headers);
     array_init(headers);
     zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("headers"), headers TSRMLS_CC);
 
@@ -914,7 +913,6 @@ static PHP_METHOD(swoole_http_client, __construct)
     hcc = (http_client_callback*) emalloc(sizeof(http_client_callback));
     bzero(hcc, sizeof(http_client_callback));
     swoole_set_property(getThis(), 0, hcc);
-    hcc->request_header = headers;
 
     int flags = SW_SOCK_TCP | SW_FLAG_ASYNC;
     if (ssl)
@@ -934,15 +932,6 @@ static PHP_METHOD(swoole_http_client, __destruct)
     http_client_set_cb(getThis(), ZEND_STRL("error"), NULL TSRMLS_CC);
 
     http_client_callback *hcc = swoole_get_property(getThis(), 0);
-
-    if (hcc->request_header)
-    {
-        sw_zval_ptr_dtor(&hcc->request_header);
-    }
-    if (hcc->request_body)
-    {
-        sw_zval_ptr_dtor(&hcc->request_body);
-    }
 
     int i;
     for (i = 0; i < hcc->gc_idx; i++)
@@ -980,7 +969,13 @@ static PHP_METHOD(swoole_http_client, setHeaders)
     }
     zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"), headers TSRMLS_CC);
     http_client_callback *hcc = swoole_get_property(getThis(), 0);
+
+#if PHP_MAJOR_VERSION < 7
     hcc->request_header = headers;
+#else
+    hcc->request_header = sw_zend_read_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"), 1 TSRMLS_CC);
+#endif
+
     RETURN_TRUE;
 }
 
@@ -993,7 +988,13 @@ static PHP_METHOD(swoole_http_client, setCookies)
     }
     zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("cookies"), cookies TSRMLS_CC);
     http_client_callback *hcc = swoole_get_property(getThis(), 0);
+
+#if PHP_MAJOR_VERSION < 7
     hcc->cookies = cookies;
+#else
+    hcc->cookies = sw_zend_read_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("cookies"), 1 TSRMLS_CC);
+#endif
+
     RETURN_TRUE;
 }
 
@@ -1006,7 +1007,13 @@ static PHP_METHOD(swoole_http_client, setData)
     }
     zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), data TSRMLS_CC);
     http_client_callback *hcc = swoole_get_property(getThis(), 0);
+
+#if PHP_MAJOR_VERSION < 7
     hcc->request_body = data;
+#else
+    hcc->request_body = sw_zend_read_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), 1 TSRMLS_CC);
+#endif
+
     RETURN_TRUE;
 }
 
