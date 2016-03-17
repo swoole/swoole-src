@@ -1178,7 +1178,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
 
         if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[callback], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
         {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "onRequest handler error");
+            swoole_php_error(E_WARNING, "onRequest handler error");
         }
         if (EG(exception))
         {
@@ -1227,7 +1227,7 @@ static PHP_METHOD(swoole_http_server, on)
 
     if (SwooleGS->start > 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is running. Unable to set event callback now.");
+        swoole_php_error(E_WARNING, "Server is running. Unable to set event callback now.");
         RETURN_FALSE;
     }
 
@@ -1239,7 +1239,7 @@ static PHP_METHOD(swoole_http_server, on)
     char *func_name = NULL;
     if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
+        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
         efree(func_name);
         RETURN_FALSE;
     }
@@ -1576,7 +1576,7 @@ static PHP_METHOD(swoole_http_server, start)
 
     if (SwooleGS->start > 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Server is running. Unable to execute swoole_server::start.");
+        swoole_php_error(E_WARNING, "Server is running. Unable to execute swoole_server::start.");
         RETURN_FALSE;
     }
 
@@ -1588,6 +1588,11 @@ static PHP_METHOD(swoole_http_server, start)
         if (!swoole_websocket_isset_onMessage())
         {
             swoole_php_fatal_error(E_ERROR, "require onMessage callback");
+            RETURN_FALSE;
+        }
+        if (serv->listen_list->open_http2_protocol == 1)
+        {
+            swoole_php_fatal_error(E_ERROR, "cannot use http2 protocol in websocket server");
             RETURN_FALSE;
         }
     }
@@ -1657,7 +1662,7 @@ static PHP_METHOD(swoole_http_server, start)
     ret = swServer_start(serv);
     if (ret < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "start server failed. Error: %s", sw_error);
+        swoole_php_fatal_error(E_ERROR, "start server failed. Error: %s", sw_error);
         RETURN_LONG(ret);
     }
     RETURN_TRUE;
@@ -1668,7 +1673,7 @@ static PHP_METHOD(swoole_http_request, rawcontent)
     zval *zfd = sw_zend_read_property(swoole_http_request_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
     if (ZVAL_IS_NULL(zfd))
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "http client not exists.");
+        swoole_php_error(E_WARNING, "http client not exists.");
         RETURN_FALSE;
     }
 
@@ -1734,7 +1739,7 @@ static PHP_METHOD(swoole_http_response, write)
     }
     else if (length == 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "data is empty.");
+       swoole_php_error(E_WARNING, "data is empty.");
         RETURN_FALSE;
     }
     else
