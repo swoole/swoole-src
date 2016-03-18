@@ -73,10 +73,10 @@ typedef struct
     swString *buffer;
     swString *body;
 
-    int state: 8;  //0 wait 1 ready 2 busy
-    int keep_alive :1;  //0 no 1 keep
-    int upgrade :1;
-    int gzip: 1;
+    uint8_t state;       //0 wait 1 ready 2 busy
+    uint8_t keep_alive;  //0 no 1 keep
+    uint8_t upgrade;
+    uint8_t gzip;
 
 } http_client;
 
@@ -690,12 +690,12 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), http->host, http->host_len);
         }
 
-    #ifdef SW_HAVE_ZLIB
+#ifdef SW_HAVE_ZLIB
         if (sw_zend_hash_find(Z_ARRVAL_P(send_header), ZEND_STRS("Accept-Encoding"), (void **) &value) == FAILURE)
         {
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Accept-Encoding"), ZEND_STRL("gzip"));
         }
-    #endif
+#endif
 
         SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(send_header), key, keylen, keytype, value)
             if (HASH_KEY_IS_STRING != keytype)
@@ -705,6 +705,16 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
             convert_to_string(value);
             http_client_swString_append_headers(http_client_buffer, key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
         SW_HASHTABLE_FOREACH_END();
+    }
+    else
+    {
+        http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Connection"), ZEND_STRL("keep-alive"));
+        http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Keep-Alive"), ZEND_STRL("300"));
+        http->keep_alive = 1;
+        http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), http->host, http->host_len);
+#ifdef SW_HAVE_ZLIB
+        http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Accept-Encoding"), ZEND_STRL("gzip"));
+#endif
     }
 
     if (hcc->cookies && Z_TYPE_P(hcc->cookies) == IS_ARRAY)
@@ -741,27 +751,30 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
 
     if (post_data)
     {
-        char post_len_str[16];
+        char content_length_str[32];
+        int n;
+
         if (Z_TYPE_P(post_data) == IS_ARRAY)
         {
+            zend_size_t len;
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Content-Type"), ZEND_STRL("application/x-www-form-urlencoded"));
-            zend_size_t length;
-            char *formstr = sw_http_build_query(post_data, &length TSRMLS_CC);
+            char *formstr = sw_http_build_query(post_data, &len TSRMLS_CC);
             if (formstr == NULL)
             {
                 swoole_php_error(E_WARNING, "http_build_query failed.");
                 return SW_ERR;
             }
-            swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
-            swString_append_ptr(http_client_buffer, formstr, length);
+            n = snprintf(content_length_str, sizeof(content_length_str), "Content-Length: %d\r\n\r\n", len);
+            swString_append_ptr(http_client_buffer, content_length_str, n);
+            swString_append_ptr(http_client_buffer, formstr, len);
         }
         else
         {
-            snprintf(post_len_str, sizeof(post_len_str), "%d", Z_STRLEN_P(post_data));
-            http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Content-Length"), post_len_str, strlen(post_len_str));
-            swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
+            n = snprintf(content_length_str, sizeof(content_length_str), "Content-Length: %d\r\n\r\n", Z_STRLEN_P(post_data));
+            swString_append_ptr(http_client_buffer, content_length_str, n);
             swString_append_ptr(http_client_buffer, Z_STRVAL_P(post_data), Z_STRLEN_P(post_data));
         }
+
         zend_update_property_null(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestBody") TSRMLS_CC);
         hcc->request_body = NULL;
     }
@@ -1117,7 +1130,6 @@ static int http_client_parser_on_header_field(php_http_parser *parser, const cha
     return 0;
 }
 
-
 static int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length)
 {
 #if PHP_MAJOR_VERSION < 7
@@ -1257,7 +1269,7 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
     {
         if (http_response_uncompress(http->body->str, http->body->length) == SW_ERR)
         {
-            swWarn("error");
+            swWarn("http_response_uncompress failed.");
             return 0;
         }
         zend_update_property_stringl(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("body"), swoole_zlib_buffer->str, swoole_zlib_buffer->length TSRMLS_CC);
