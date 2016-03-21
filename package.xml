@@ -35,11 +35,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2016-03-02</date>
-    <time>11:48:51</time>
+    <date>2016-03-21</date>
+    <time>15:48:51</time>
     <version>
-		<release>1.8.2</release>
-		<api>1.8.2</api>
+		<release>1.8.3</release>
+		<api>1.8.3</api>
     </version>
     <stability>
         <release>stable</release>
@@ -47,14 +47,15 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Added http2 supports for swoole_http_server
-- Added swoole_server->stop method used to stop the worker process
-- Added log_level option for swoole_server settings
-- Fixed swoole_websocket_server receives data over the issue 64K crashes
-- Added multi-port monitor is not set callback function causes the program to crash
-- Enhance the SSL/TLS encrypted safety level, now used by default TLS1.2/ECDHA_RSA encryption algorithm
-- Fixed onFinish event callbacks memory leak problem
-- Fixed the problem task finish can not be used under BASE mode
+- Added swoole_server->getLastError method for getting the last error code
+- Added form-data supports for Http2 protocol
+- Added COOKIE support for Http2 protocol
+- Added SSL/TLS encryption support for http client
+- Fixed issue #527
+- Fixed issue #553
+- Fixed crash when the number of CPU cores than is set reactor_num
+- Fixed swoole_client callback function memory leak
+- Added support for asynchronous full reload of server security
     </notes>
 	<contents>
 		<dir name="/">

@@ -709,7 +709,6 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
     else
     {
         http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Connection"), ZEND_STRL("keep-alive"));
-        http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Keep-Alive"), ZEND_STRL("300"));
         http->keep_alive = 1;
         http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), http->host, http->host_len);
 #ifdef SW_HAVE_ZLIB
