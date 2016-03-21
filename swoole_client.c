@@ -1407,6 +1407,12 @@ static PHP_METHOD(swoole_client, on)
     zend_size_t cb_name_len;
     zval *zcallback;
 
+    if (!SWOOLE_G(cli))
+    {
+        swoole_php_fatal_error(E_ERROR, "async-io must use in cli environment.");
+        return;
+    }
+
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &cb_name, &cb_name_len, &zcallback) == FAILURE)
     {
         return;
