@@ -1407,14 +1407,21 @@ static PHP_METHOD(swoole_client, on)
     zend_size_t cb_name_len;
     zval *zcallback;
 
-    if (!SWOOLE_G(cli))
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &cb_name, &cb_name_len, &zcallback) == FAILURE)
     {
-        swoole_php_fatal_error(E_ERROR, "async-io must use in cli environment.");
         return;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &cb_name, &cb_name_len, &zcallback) == FAILURE)
+    zval *ztype = sw_zend_read_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("type")-1, 0 TSRMLS_CC);
+    if (ztype == NULL || ZVAL_IS_NULL(ztype))
     {
+        swoole_php_fatal_error(E_ERROR, "get swoole_client->type failed.");
+        return;
+    }
+
+    if (!(Z_LVAL_P(ztype) & SW_FLAG_ASYNC))
+    {
+        swoole_php_fatal_error(E_ERROR, "sync-client cannot set event callback.");
         return;
     }
 
