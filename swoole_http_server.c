@@ -48,6 +48,7 @@ static uint8_t http_merge_request_flag = 0;
 
 swString *swoole_http_buffer;
 swString *swoole_zlib_buffer;
+swString *swoole_http_form_data_buffer;
 
 enum http_global_flag
 {
@@ -740,7 +741,7 @@ static int multipart_body_on_data(multipart_parser* p, const char *at, size_t le
     http_context *ctx = p->data;
     if (ctx->current_form_data_name)
     {
-        swString_append_ptr(swoole_http_buffer, (char*) at, length);
+        swString_append_ptr(swoole_http_form_data_buffer, (char*) at, length);
         return 0;
     }
     if (p->fp == NULL)
@@ -849,18 +850,18 @@ static int multipart_body_on_data_end(multipart_parser* p)
 				array_init(array_value);
 				add_assoc_zval(zpost, name, array_value);
 			}
-            sw_add_next_index_stringl(array_value, swoole_http_buffer->str, swoole_http_buffer->length, 1);
+            sw_add_next_index_stringl(array_value, swoole_http_form_data_buffer->str, swoole_http_form_data_buffer->length, 1);
 		}
 		else
 		{
             sw_add_assoc_stringl_ex(zpost, ctx->current_form_data_name, ctx->current_form_data_name_len + 1,
-                    swoole_http_buffer->str, swoole_http_buffer->length, 1);
+                    swoole_http_form_data_buffer->str, swoole_http_form_data_buffer->length, 1);
 		}
 
         efree(ctx->current_form_data_name);
         ctx->current_form_data_name = NULL;
         ctx->current_form_data_name_len = 0;
-        swString_clear(swoole_http_buffer);
+        swString_clear(swoole_http_form_data_buffer);
         return 0;
     }
 
@@ -1613,6 +1614,13 @@ static PHP_METHOD(swoole_http_server, start)
     if (!swoole_http_buffer)
     {
         swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
+        RETURN_FALSE;
+    }
+
+    swoole_http_form_data_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
+    if (!swoole_http_form_data_buffer)
+    {
+        swoole_php_fatal_error(E_ERROR, "[2] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
         RETURN_FALSE;
     }
 
