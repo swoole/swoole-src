@@ -383,6 +383,11 @@ static PHP_METHOD(swoole_redis, __call)
     {
         redis->state = SWOOLE_REDIS_STATE_WAIT_RESULT;
 
+        if (redis->result_callback)
+        {
+            sw_zval_ptr_dtor(&redis->result_callback);
+        }
+
 #if PHP_MAJOR_VERSION < 7
         zval *callback;
         zval **cb_tmp;
