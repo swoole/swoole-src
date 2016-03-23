@@ -998,6 +998,11 @@ PHP_FUNCTION(swoole_mysql_query)
         RETURN_FALSE;
     }
 
+    if (client->callback)
+    {
+        sw_zval_ptr_dtor(&client->callback);
+    }
+
 #if PHP_MAJOR_VERSION < 7
     client->callback = callback;
 #else
@@ -1090,7 +1095,7 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
 
             if (sw_call_user_function_ex(EG(function_table), NULL, client->callback, &retval, 2, args, 0, NULL TSRMLS_CC) != SUCCESS)
             {
-                swoole_php_fatal_error(E_WARNING, "swoole_async_mysql callback handler error.");
+                swoole_php_fatal_error(E_WARNING, "swoole_async_mysql callback[1] handler error.");
                 reactor->del(SwooleG.main_reactor, event->fd);
             }
             if (retval != NULL)
@@ -1155,7 +1160,7 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
 
             if (sw_call_user_function_ex(EG(function_table), NULL, client->callback, &retval, 2, args, 0, NULL TSRMLS_CC) != SUCCESS)
             {
-                swoole_php_fatal_error(E_WARNING, "swoole_async_mysql callback handler error.");
+                swoole_php_fatal_error(E_WARNING, "swoole_async_mysql callback[2] handler error.");
                 reactor->del(SwooleG.main_reactor, event->fd);
             }
 
@@ -1168,7 +1173,6 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             {
                 sw_zval_ptr_dtor(&result);
             }
-
             swString_clear(client->buffer);
             if (client->response.columns)
             {
