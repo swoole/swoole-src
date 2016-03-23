@@ -502,7 +502,7 @@ static sw_inline int mysql_decode_row(mysql_client *client, char *buf, int packe
     char mem;
 #endif
 
-    zval * result_array = client->response.result_array;
+    zval *result_array = client->response.result_array;
     zval *row_array;
     SW_ALLOC_INIT_ZVAL(row_array);
     array_init(row_array);
@@ -861,8 +861,6 @@ static int mysql_response(mysql_client *client)
             }
             else
             {
-                SW_ALLOC_INIT_ZVAL(client->response.result_array);
-                array_init(client->response.result_array);
                 client->state = SW_MYSQL_STATE_READ_ROW;
                 break;
             }
@@ -1137,14 +1135,12 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             {
                 SW_ALLOC_INIT_ZVAL(result);
                 ZVAL_BOOL(result, 1);
-                args[1] = &result;
             }
             //ERROR
             else if (client->response.response_type == 255)
             {
                 SW_ALLOC_INIT_ZVAL(result);
                 ZVAL_BOOL(result, 0);
-                args[1] = &result;
 
                 zend_update_property_string(class_entry, mysql_link, ZEND_STRL("_error"), client->response.server_msg TSRMLS_CC);
                 zend_update_property_long(class_entry, mysql_link, ZEND_STRL("_errno"), client->response.error_code TSRMLS_CC);
@@ -1152,8 +1148,10 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             //ResultSet
             else
             {
-                args[1] = &client->response.result_array;
+                result = client->response.result_array;
             }
+
+            args[1] = &result;
 
             if (sw_call_user_function_ex(EG(function_table), NULL, client->callback, &retval, 2, args, 0, NULL TSRMLS_CC) != SUCCESS)
             {
@@ -1170,10 +1168,7 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             {
                 sw_zval_ptr_dtor(&result);
             }
-            if (client->response.result_array)
-            {
-                sw_zval_ptr_dtor(&client->response.result_array);
-            }
+
             swString_clear(client->buffer);
             if (client->response.columns)
             {

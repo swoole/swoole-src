@@ -806,8 +806,8 @@ static int multipart_body_on_header_complete(multipart_parser* p)
     char file_path[sizeof(SW_HTTP_UPLOAD_TMP_FILE)];
     memcpy(file_path, SW_HTTP_UPLOAD_TMP_FILE, sizeof(SW_HTTP_UPLOAD_TMP_FILE));
     int tmpfile = swoole_tmpfile(file_path);
-    FILE *fp = fdopen(tmpfile, "wb+");
 
+    FILE *fp = fdopen(tmpfile, "wb+");
     if (fp < 0)
     {
         add_assoc_long(multipart_header, "error", HTTP_UPLOAD_ERR_NO_TMP_DIR);
