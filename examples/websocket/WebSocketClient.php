@@ -131,19 +131,22 @@ class WebSocketClient
      */
     private function parseData($response)
     {
-        if (!$this->connected && isset($response['Sec-Websocket-Accept']))
-        {
-            if (base64_encode(pack('H*', sha1($this->key . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11')))
-                === $response['Sec-Websocket-Accept']
-            )
-            {
-                $this->connected = true;
-            }
-            else
-            {
-                throw new \Exception("error response key.");
-            }
-        }
+        if (!$this->connected)
+		{
+			$response = $this->parseIncomingRaw($response);
+			if (isset($response['Sec-Websocket-Accept'])
+				&& base64_encode(pack('H*', sha1($this->key . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'))) === $response['Sec-Websocket-Accept']
+			)
+			{
+				$this->connected = true;
+				return true;
+			}
+			else
+			{
+				throw new \Exception("error response key.");
+			}
+		}
+
         return swoole_websocket_server::unpack($response);
     }
 
