@@ -255,6 +255,7 @@ static inline int sw_zend_is_callable(zval *cb, int a, char **name)
     char *tmp = (char *)emalloc(key->len);
     memcpy(tmp, key->val, key->len);
     *name = tmp;
+    zend_string_free(key);
     return ret;
 }
 
