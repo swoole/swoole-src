@@ -1046,7 +1046,7 @@ static PHP_METHOD(swoole_http_client, setMethod)
 static PHP_METHOD(swoole_http_client, isConnected)
 {
     http_client *http = swoole_get_object(getThis());
-    if (!http->cli)
+    if (!http || !http->cli)
     {
         RETURN_FALSE;
     }
