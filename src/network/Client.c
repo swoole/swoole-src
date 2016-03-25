@@ -735,6 +735,7 @@ static int swClient_onDgramRead(swReactor *reactor, swEvent *event)
 static int swClient_onWrite(swReactor *reactor, swEvent *event)
 {
     swClient *cli = event->socket->object;
+
     if (cli->socket->active)
     {
 #ifdef SW_USE_OPENSSL
@@ -802,11 +803,11 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
 #ifdef SW_USE_OPENSSL
         connect_fail:
 #endif
+        cli->close(cli);
         if (cli->onError)
         {
             cli->onError(cli);
         }
-        cli->close(cli);
     }
 
     return SW_OK;
