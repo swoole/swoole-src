@@ -7,27 +7,23 @@ class ProxyServer
      * @var swoole_server
      */
     protected $serv;
+    protected $index = 0;
+
+    protected $backendServer = array('host' => '127.0.0.1', 'port' => '9501');
 
     function run()
     {
-        $serv = new swoole_server("127.0.0.1", 9509);
+        $serv = new swoole_server("127.0.0.1", 9509, SWOOLE_BASE);
         $serv->set(array(
-            'timeout' => 1, //select and epoll_wait timeout.
-            'poll_thread_num' => 1, //reactor thread num
-            'worker_num' => 1, //reactor thread num
+            'worker_num' => 8, //worker process num
             'backlog' => 128, //listen backlog
-            'max_conn' => 10000,
-            'dispatch_mode' => 2,
             //'open_tcp_keepalive' => 1,
             //'log_file' => '/tmp/swoole.log', //swoole error log
         ));
         $serv->on('WorkerStart', array($this, 'onStart'));
-        $serv->on('Connect', array($this, 'onConnect'));
         $serv->on('Receive', array($this, 'onReceive'));
         $serv->on('Close', array($this, 'onClose'));
         $serv->on('WorkerStop', array($this, 'onShutdown'));
-        //swoole_server_addtimer($serv, 2);
-        #swoole_server_addtimer($serv, 10);
         $serv->start();
     }
 
@@ -44,67 +40,72 @@ class ProxyServer
 
     function onClose($serv, $fd, $from_id)
     {
-        //backend
-        if (isset($this->clients[$fd])) {
-            /**
-             * @var swoole_client
-             */
-            $backend_client = $this->clients[$fd]['socket'];
-            unset($this->clients[$fd]);
-            $backend_client->close();
-            unset($this->backends[$backend_client->sock]);
-            echo "client close\n";
-        }
-    }
-
-    function onConnect($serv, $fd, $from_id)
-    {
-        $socket = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
-        echo microtime() . ": Client[$fd] backend-sock[{$socket->sock}]: Connect.\n";
-       
-        $socket->on('connect', function (swoole_client $socket) {
-            echo "connect to backend server success\n";
-        });
-        $socket->on('error', function (swoole_client $socket) {
-            echo "connect to backend server fail\n";
-            $this->serv->send($this->backends[$socket->sock]['client_fd'], "backend server not connected. please try reconnect.");
-            $this->serv->close($this->backends[$socket->sock]['client_fd']);
-            $socket->close();
-        });
-
-        $socket->on('close', function (swoole_client $socket) {
-            echo "backend connection close\n";
-        });
-
-        $socket->on('receive', function (swoole_client $socket, $data) {
-            //PHP-5.4以下版本可能不支持此写法，匿名函数不能调用$this
-            //可以修改为类静态变量
-            $this->serv->send($this->backends[$socket->sock]['client_fd'], $data);
-        });
-        
-        if ($socket->connect('127.0.0.1', 80, 0.2))
+        //清理掉后端连接
+        if (isset($this->clients[$fd]))
         {
-			$this->backends[$socket->sock] = array(
-				'client_fd' => $fd,
-				'socket' => $socket,
-			);
-			$this->clients[$fd] = array(
-				'socket' => $socket,
-			);
-		}
+            $backend_socket = $this->clients[$fd];
+            unset($this->clients[$fd]);
+            $backend_socket->close();
+            unset($this->backends[$backend_socket->sock]);
+        }
+        echo "client[$fd] close\n";
     }
 
     function onReceive($serv, $fd, $from_id, $data)
     {
-        if (!isset($this->clients[$fd])) {
-            $this->serv->send($fd, "backend server not connected. please try reconnect.");
-            $this->serv->close($fd);
-        } else {
-            echo microtime() . ": client receive\n";
-            $backend_socket = $this->clients[$fd]['socket'];
-            $backend_socket->send($data);
-            echo microtime() . ": send to backend\n";
-            echo str_repeat('-', 100) . "\n";
+        //尚未建立连接
+        if (!isset($this->clients[$fd]))
+        {
+            //连接到后台服务器
+            $socket = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
+
+            $socket->on('connect', function (swoole_client $socket) use ($data)
+            {
+                $socket->send($data);
+            });
+
+            $socket->on('error', function (swoole_client $socket) use ($fd)
+            {
+                echo "ERROR: connect to backend server failed\n";
+                $this->serv->send($fd, "backend server not connected. please try reconnect.");
+                $this->serv->close($fd);
+            });
+
+            $socket->on('close', function (swoole_client $socket) use ($fd)
+            {
+                echo "INFO: backend connection close\n";
+                unset($this->backends[$socket->sock]);
+                unset($this->clients[$fd]);
+                $this->serv->close($fd);
+            });
+
+            $socket->on('receive', function (swoole_client $socket, $_data) use ($fd)
+            {
+                //PHP-5.4以下版本可能不支持此写法，匿名函数不能调用$this
+                //可以修改为类静态变量
+                $this->serv->send($fd, $_data);
+            });
+
+            if ($socket->connect($this->backendServer['host'], $this->backendServer['port']))
+            {
+                $this->backends[$socket->sock] = $fd;
+                $this->clients[$fd] = $socket;
+            }
+            else
+            {
+                echo "ERROR: cannot connect to backend server.\n";
+                $this->serv->send($fd, "backend server not connected. please try reconnect.");
+                $this->serv->close($fd);
+            }
+        }
+        //已经有连接，可以直接发送数据
+        else
+        {
+            /**
+             * @var $socket swoole_client
+             */
+            $socket = $this->clients[$fd];
+            $socket->send($data);
         }
     }
 }
