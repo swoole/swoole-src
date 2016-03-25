@@ -134,8 +134,8 @@ class WebSocketClient
         if (!$this->connected)
 		{
 			$response = $this->parseIncomingRaw($response);
-			if (isset($response['Sec-WebSocket-Accept'])
-				&& base64_encode(pack('H*', sha1($this->key . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'))) === $response['Sec-WebSocket-Accept']
+			if (isset($response['Sec-Websocket-Accept'])
+				&& base64_encode(pack('H*', sha1($this->key . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'))) === $response['Sec-Websocket-Accept']
 			)
 			{
 				$this->connected = true;
