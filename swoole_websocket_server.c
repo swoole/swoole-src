@@ -476,7 +476,7 @@ static PHP_METHOD(swoole_websocket_server, unpack)
     }
 
     zval *zframe = php_swoole_websocket_unpack(&buffer TSRMLS_CC);
-    RETURN_ZVAL(zframe, 0, 0);
+    RETURN_ZVAL(zframe, 1, 1);
 }
 
 static PHP_METHOD(swoole_websocket_server, exist)
