@@ -54,10 +54,6 @@ int swPort_set_option(swListenPort *ls)
 
     //reuse address
     int option = 1;
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0)
-    {
-        swSysError("setsockopt(SO_REUSEPORT) failed.");
-    }
     //reuse port
 #ifdef HAVE_REUSEPORT
     if (SwooleG.reuse_port)

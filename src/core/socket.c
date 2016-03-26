@@ -260,6 +260,11 @@ int swSocket_bind(int type, char *host, int port)
         swSysError("create socket failed.");
         return SW_ERR;
     }
+    int option = 1;
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0)
+    {
+        swSysError("setsockopt(%d, SO_REUSEADDR) failed.", sock);
+    }
     //unix socket
     if (type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM)
     {
