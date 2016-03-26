@@ -62,7 +62,6 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length);
 static int client_onPackage(swConnection *conn, char *data, uint32_t length);
 static void client_onClose(swClient *cli);
 static void client_onError(swClient *cli);
-static void client_free(zval *object, swClient *cli TSRMLS_DC);
 
 static sw_inline void client_free_callback(zval *object)
 {
@@ -527,7 +526,7 @@ void php_swoole_check_reactor()
     SwooleWG.reactor_init = 1;
 }
 
-static void client_free(zval *object, swClient *cli TSRMLS_DC)
+void php_swoole_client_free(zval *object, swClient *cli TSRMLS_DC)
 {
     //long tcp connection, delete from php_sw_long_connections
     if (cli->keep)
@@ -548,7 +547,7 @@ static void client_free(zval *object, swClient *cli TSRMLS_DC)
     swoole_set_object(object, NULL);
 }
 
-swClient* php_swoole_client_create_socket(zval *object, char *host, int host_len, int port)
+swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port)
 {
     zval *ztype;
     int async = 0;
@@ -715,7 +714,7 @@ static PHP_METHOD(swoole_client, __destruct)
     if (cli && !cli->socket->closed && !cli->keep)
     {
         cli->close(cli);
-        client_free(getThis(), cli TSRMLS_CC);
+        php_swoole_client_free(getThis(), cli TSRMLS_CC);
     }
 
     client_free_callback(getThis());
@@ -765,10 +764,10 @@ static PHP_METHOD(swoole_client, connect)
         {
             cli->close(cli);
         }
-        client_free(getThis(), cli TSRMLS_CC);
+        php_swoole_client_free(getThis(), cli TSRMLS_CC);
     }
 
-    cli = php_swoole_client_create_socket(getThis(), host, host_len, port);
+    cli = php_swoole_client_new(getThis(), host, host_len, port);
     if (cli == NULL)
     {
         RETURN_FALSE;
@@ -1396,7 +1395,7 @@ static PHP_METHOD(swoole_client, close)
     if (force || !cli->keep || swConnection_error(SwooleG.error) == SW_CLOSE)
     {
         ret = cli->close(cli);
-        client_free(getThis(), cli TSRMLS_CC);
+        php_swoole_client_free(getThis(), cli TSRMLS_CC);
     }
     SW_CHECK_RETURN(ret);
 }
