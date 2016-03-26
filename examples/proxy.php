@@ -9,7 +9,7 @@ class ProxyServer
     protected $serv;
     protected $index = 0;
 
-    protected $backendServer = array('host' => '127.0.0.1', 'port' => '9501');
+    protected $backendServer = array('host' => '127.0.0.1', 'port' => '80');
 
     function run()
     {

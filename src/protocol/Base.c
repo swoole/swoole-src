@@ -122,6 +122,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, void 
 int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swString *buffer)
 {
     char *recvbuf;
+    int ret;
     uint32_t recvbuf_size;
 
     do_recv: recvbuf = buffer->str + buffer->length;
@@ -153,12 +154,15 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
         {
             if (buffer->length == buffer->offset)
             {
-                do_package:
-                protocol->onPackage(conn, buffer->str, buffer->length);
+                do_package: ret = protocol->onPackage(conn, buffer->str, buffer->length);
                 conn->recv_wait = 0;
                 swString_clear(buffer);
+                return ret;
             }
-            return SW_OK;
+            else
+            {
+                return SW_OK;
+            }
         }
         else
         {
