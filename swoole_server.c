@@ -2828,8 +2828,32 @@ PHP_METHOD(swoole_server, stop)
         swoole_php_fatal_error(E_WARNING, "Server is not running.");
         RETURN_FALSE;
     }
-    SwooleG.main_reactor->running = 0;
-    SwooleG.running = 0;
+
+    long worker_id = SwooleWG.id;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &worker_id) == FAILURE)
+    {
+        return;
+    }
+
+    if (worker_id == SwooleWG.id)
+    {
+        SwooleG.main_reactor->running = 0;
+        SwooleG.running = 0;
+    }
+    else
+    {
+        swWorker *worker = swServer_get_worker(SwooleG.serv, worker_id);
+        if (worker == NULL)
+        {
+            RETURN_FALSE;
+        }
+        else if (kill(worker->pid, SIGTERM) < 0)
+        {
+            swoole_php_sys_error(E_WARNING, "kill(%d, SIGTERM) failed.", worker->pid);
+            RETURN_FALSE;
+        }
+    }
+    RETURN_TRUE;
 }
 
 PHP_METHOD(swoole_server, getLastError)
