@@ -378,7 +378,6 @@ void swServer_store_listen_socket(swServer *serv)
         {
             if (ls->type == SW_SOCK_UDP)
             {
-                SwooleG.serv->udp_socket_ipv4 = sockfd;
                 serv->connection_list[sockfd].info.addr.inet_v4.sin_port = htons(ls->port);
             }
             else if (ls->type == SW_SOCK_UDP6)
@@ -1023,10 +1022,26 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
     bzero(ls->host, SW_HOST_MAXSIZE);
     strncpy(ls->host, host, SW_HOST_MAXSIZE);
 
+    //create listen socket
+    int sock = swSocket_bind(ls->type, ls->host, ls->port);
+    if (sock < 0)
+    {
+        return NULL;
+    }
+    ls->sock = sock;
+
     if (swSocket_is_dgram(ls->type))
     {
         serv->have_udp_sock = 1;
         serv->dgram_port_num++;
+        if (ls->type == SW_SOCK_UDP)
+        {
+            serv->udp_socket_ipv4 = sock;
+        }
+        else if (ls->type == SW_SOCK_UDP6)
+        {
+            serv->udp_socket_ipv6 = sock;
+        }
     }
     else
     {
@@ -1046,14 +1061,6 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
         }
         serv->have_tcp_sock = 1;
     }
-
-    //create listen socket
-    int sock = swSocket_listen(ls->type, ls->host, ls->port, ls->backlog);
-    if (sock < 0)
-    {
-        return NULL;
-    }
-    ls->sock = sock;
 
     LL_APPEND(serv->listen_list, ls);
     serv->listen_port_num++;

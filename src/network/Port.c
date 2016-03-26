@@ -52,6 +52,24 @@ int swPort_set_option(swListenPort *ls)
 {
     int sock = ls->sock;
 
+    //reuse address
+    int option = 1;
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0)
+    {
+        swSysError("setsockopt(SO_REUSEPORT) failed.");
+    }
+    //reuse port
+#ifdef HAVE_REUSEPORT
+    if (SwooleG.reuse_port)
+    {
+        if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) < 0)
+        {
+            swSysError("setsockopt(SO_REUSEPORT) failed.");
+            SwooleG.reuse_port = 0;
+        }
+    }
+#endif
+
     if (swSocket_is_dgram(ls->type))
     {
         int bufsize = SwooleG.socket_buffer_size;
@@ -109,6 +127,13 @@ int swPort_set_option(swListenPort *ls)
     }
 #endif
 
+    //listen stream socket
+    if (listen(sock, ls->backlog) < 0)
+    {
+        swWarn("listen(%s:%d, %d) failed. Error: %s[%d]", ls->host, ls->port, ls->backlog, strerror(errno), errno);
+        return SW_ERR;
+    }
+
 #ifdef TCP_DEFER_ACCEPT
     if (ls->tcp_defer_accept)
     {
@@ -130,11 +155,10 @@ int swPort_set_option(swListenPort *ls)
 #endif
 
 #ifdef SO_KEEPALIVE
-    int sockopt;
     if (ls->open_tcp_keepalive == 1)
     {
-        sockopt = 1;
-        if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (void *) &sockopt, sizeof(int)) < 0)
+        option = 1;
+        if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (void *) &option, sizeof(option)) < 0)
         {
             swSysError("setsockopt(SO_KEEPALIVE) failed.");
         }

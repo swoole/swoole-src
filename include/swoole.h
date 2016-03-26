@@ -1111,7 +1111,7 @@ static sw_inline uint64_t swoole_ntoh64(uint64_t net)
     return ret;
 }
 
-int swSocket_listen(int type, char *host, int port, int backlog);
+int swSocket_bind(int type, char *host, int port);
 int swSocket_create(int type);
 int swSocket_wait(int fd, int timeout_ms, int events);
 void swSocket_clean(int fd);

@@ -245,10 +245,9 @@ int swSocket_create(int type)
     return socket(_domain, _type, 0);
 }
 
-int swSocket_listen(int type, char *host, int port, int backlog)
+int swSocket_bind(int type, char *host, int port)
 {
     int sock;
-    int option;
     int ret;
 
     struct sockaddr_in addr_in4;
@@ -261,23 +260,6 @@ int swSocket_listen(int type, char *host, int port, int backlog)
         swSysError("create socket failed.");
         return SW_ERR;
     }
-    //reuse address
-    option = 1;
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0)
-    {
-        swSysError("setsockopt(SO_REUSEPORT) failed.");
-    }
-    //reuse port
-#ifdef HAVE_REUSEPORT
-    if (SwooleG.reuse_port)
-    {
-        if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) < 0)
-        {
-            swSysError("setsockopt(SO_REUSEPORT) failed.");
-            SwooleG.reuse_port = 0;
-        }
-    }
-#endif
     //unix socket
     if (type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM)
     {
@@ -314,13 +296,6 @@ int swSocket_listen(int type, char *host, int port, int backlog)
     if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM)
     {
         return sock;
-    }
-    //listen stream socket
-    ret = listen(sock, backlog);
-    if (ret < 0)
-    {
-        swWarn("listen(%s:%d, %d) failed. Error: %s[%d]", host, port, backlog, strerror(errno), errno);
-        return SW_ERR;
     }
     swSetNonBlock(sock);
     return sock;
