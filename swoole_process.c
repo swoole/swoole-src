@@ -248,7 +248,11 @@ static PHP_METHOD(swoole_process, useQueue)
 
     if (msgkey <= 0)
     {
+#if PHP_MAJOR_VERSION >= 7
         msgkey = ftok(zend_get_executed_filename(), 0);
+#else
+        msgkey = ftok(zend_get_executed_filename(TSRMLS_C), 0);
+#endif
     }
 
     swMsgQueue *queue = emalloc(sizeof(swMsgQueue));
