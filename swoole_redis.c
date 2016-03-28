@@ -175,10 +175,18 @@ static PHP_METHOD(swoole_redis, on)
 
     if (strncasecmp("close", name, len) == 0)
     {
+        if (redis->close_callback)
+        {
+            sw_zval_ptr_dtor(&redis->close_callback);
+        }
         redis->close_callback = cb;
     }
     else if (strncasecmp("message", name, len) == 0)
     {
+        if (redis->message_callback)
+        {
+            sw_zval_ptr_dtor(&redis->message_callback);
+        }
         redis->message_callback = cb;
         redis->subscribe = 1;
     }
@@ -382,11 +390,6 @@ static PHP_METHOD(swoole_redis, __call)
     else
     {
         redis->state = SWOOLE_REDIS_STATE_WAIT_RESULT;
-
-        if (redis->result_callback)
-        {
-            sw_zval_ptr_dtor(&redis->result_callback);
-        }
 
 #if PHP_MAJOR_VERSION < 7
         zval *callback;
@@ -593,6 +596,7 @@ void swoole_redis_onConnect(const redisAsyncContext *c, int status)
         sw_zval_ptr_dtor(&retval);
     }
     sw_zval_ptr_dtor(&result);
+    sw_zval_ptr_dtor(&redis->connect_callback);
 }
 
 void swoole_redis_onClose(const redisAsyncContext *c, int status)
