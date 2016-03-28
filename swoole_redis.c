@@ -288,6 +288,10 @@ static PHP_METHOD(swoole_redis, __destruct)
     {
         redisAsyncDisconnect(redis->context);
     }
+    if (redis->message_callback)
+    {
+        sw_zval_ptr_dtor(&redis->message_callback);
+    }
     efree(redis);
 }
 
