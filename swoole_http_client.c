@@ -54,6 +54,7 @@ typedef struct
     zval *request_header;
     zval *request_body;
     char *request_method;
+    int callback_index;
 
 } http_client_property;
 
@@ -185,9 +186,9 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
     if (http)
     {
         //http not ready
-        if (http->state != HTTP_CLIENT_STATE_READY || http->cli->socket->active != 1 || http->keep_alive != 1)
+        if (http->state != HTTP_CLIENT_STATE_READY)
         {
-            swTrace("fd=%d, state=%d, active=%d, keep_alive=%d", http->cli->socket->fd, http->state, http->cli->socket->active, http->keep_alive);
+            //swWarn("fd=%d, state=%d, active=%d, keep_alive=%d", http->cli->socket->fd, http->state, http->cli->socket->active, http->keep_alive);
             swoole_php_fatal_error(E_ERROR, "Operation now in progress phase %d.", http->state);
 
             swEvent e;
@@ -195,6 +196,11 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
             e.socket = http->cli->socket;
             http_client_error_callback(zobject, &e, errno TSRMLS_CC);
 
+            return SW_ERR;
+        }
+        else if (!http->cli->socket->active)
+        {
+            swoole_php_fatal_error(E_ERROR, "connection is closed.");
             return SW_ERR;
         }
     }
@@ -236,8 +242,11 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
     }
 
     http_client_property *hcc = swoole_get_property(zobject, 0);
-    zend_update_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("onResponse"), callback TSRMLS_CC);
-    hcc->onResponse = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("onResponse"), 0 TSRMLS_CC);
+
+    char name[32];
+    int l_name = snprintf(name, sizeof(name), "response_callback_%d", hcc->callback_index++);
+    zend_update_property(swoole_http_client_class_entry_ptr, zobject, name, l_name, callback TSRMLS_CC);
+    hcc->onResponse = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, name, l_name, 0 TSRMLS_CC);
 
     //if connection exists
     if (http->cli)
@@ -737,6 +746,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
             n = snprintf(content_length_str, sizeof(content_length_str), "Content-Length: %d\r\n\r\n", len);
             swString_append_ptr(http_client_buffer, content_length_str, n);
             swString_append_ptr(http_client_buffer, formstr, len);
+            efree(formstr);
         }
         else
         {
