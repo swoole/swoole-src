@@ -34,7 +34,7 @@ typedef struct _swClient
 
     uint32_t async :1;
     uint32_t keep :1;
-    uint32_t closed :1;
+    uint32_t released :1;
     uint32_t packet_mode :1;
 
     /**

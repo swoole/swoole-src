@@ -93,7 +93,6 @@ static void http_client_onConnect(swClient *cli);
 static void http_client_onClose(swClient *cli);
 static void http_client_onError(swClient *cli);
 
-static void http_client_free(zval *object, http_client *http TSRMLS_DC);
 static int http_client_error_callback(zval *zobject, swEvent *event, int error TSRMLS_DC);
 static int http_client_send_http_request(zval *zobject TSRMLS_DC);
 static http_client* http_client_create(zval *object TSRMLS_DC);
@@ -352,7 +351,17 @@ static void http_client_onClose(swClient *cli)
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-    sw_zval_ptr_dtor(&zobject);
+    if (!cli->released)
+    {
+        sw_zval_ptr_dtor(&zobject);
+    }
+    else
+    {
+#if PHP_MAJOR_VERSION < 7
+        TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+        php_swoole_client_free(zobject, cli TSRMLS_CC);
+    }
 }
 
 /**
@@ -401,33 +410,6 @@ static void http_client_onError(swClient *cli)
         sw_zval_ptr_dtor(&retval);
     }
     sw_zval_ptr_dtor(&zobject);
-}
-
-static void http_client_free(zval *object, http_client *http TSRMLS_DC)
-{
-    swClient *cli = http->cli;
-    if (cli)
-    {
-#if PHP_MAJOR_VERSION >= 7
-        //for php7 object was allocated sizeof(zval) when execute
-        if (cli->socket->object)
-        {
-            efree(cli->socket->object);
-        }
-#endif
-        cli->socket->object = NULL;
-        //no keep connection
-        if (cli && !cli->socket->closed && !cli->keep)
-        {
-            cli->close(cli);
-            php_swoole_client_free(object, cli TSRMLS_CC);
-        }
-    }
-    if (http->uri)
-    {
-        efree(http->uri);
-    }
-    efree(http);
 }
 
 static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
@@ -925,7 +907,35 @@ static PHP_METHOD(swoole_http_client, __destruct)
     http_client *http = swoole_get_object(getThis());
     if (http)
     {
-        http_client_free(getThis(), http TSRMLS_CC);
+        swClient *cli = http->cli;
+        if (cli)
+        {
+            cli->released = 1;
+            if (cli->socket->closed)
+            {
+                php_swoole_client_free(getThis(), cli TSRMLS_CC);
+            }
+            else
+            {
+                if (!cli->keep)
+                {
+                    cli->close(cli);
+                }
+            }
+        }
+        if (http->uri)
+        {
+            efree(http->uri);
+        }
+        if (http->body)
+        {
+            swString_free(http->body);
+        }
+        if (http->buffer)
+        {
+            swString_free(http->buffer);
+        }
+        efree(http);
     }
 
     http_client_property *hcc = swoole_get_property(getThis(), 0);
@@ -1051,7 +1061,6 @@ static PHP_METHOD(swoole_http_client, close)
         swoole_php_error(E_WARNING, "client socket is closed.");
         RETURN_FALSE;
     }
-
     if (http->cli->async == 1 && SwooleG.main_reactor != NULL)
     {
         ret = http->cli->close(http->cli);

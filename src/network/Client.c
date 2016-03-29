@@ -297,6 +297,11 @@ static int swClient_close(swClient *cli)
         cli->buffer = NULL;
     }
 
+    if (cli->type == SW_SOCK_UNIX_DGRAM)
+    {
+        unlink(cli->socket->info.addr.un.sun_path);
+    }
+
     if (cli->async)
     {
         //remove from reactor
@@ -314,14 +319,6 @@ static int swClient_close(swClient *cli)
         bzero(cli->socket, sizeof(swConnection));
         ret = close(fd);
     }
-
-    cli->closed = 1;
-
-    if (cli->type == SW_SOCK_UNIX_DGRAM)
-    {
-        unlink(cli->socket->info.addr.un.sun_path);
-    }
-
     return ret;
 }
 

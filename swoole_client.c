@@ -260,7 +260,17 @@ static void client_onClose(swClient *cli)
 {
     client_execute_callback(cli, SW_CLIENT_CALLBACK_onClose);
     zval *zobject = cli->object;
-    sw_zval_ptr_dtor(&zobject);
+    if (!cli->released)
+    {
+        sw_zval_ptr_dtor(&zobject);
+    }
+    else
+    {
+#if PHP_MAJOR_VERSION < 7
+        TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+        php_swoole_client_free(zobject, cli TSRMLS_CC);
+    }
 }
 
 static void client_onError(swClient *cli)
@@ -709,14 +719,23 @@ static PHP_METHOD(swoole_client, __construct)
 static PHP_METHOD(swoole_client, __destruct)
 {
     swClient *cli = swoole_get_object(getThis());
-
     //no keep connection
-    if (cli && !cli->socket->closed && !cli->keep)
+    if (cli)
     {
-        cli->close(cli);
-        php_swoole_client_free(getThis(), cli TSRMLS_CC);
+        cli->released = 1;
+        if (cli->socket->closed)
+        {
+            php_swoole_client_free(getThis(), cli TSRMLS_CC);
+        }
+        else
+        {
+            if (!cli->keep)
+            {
+                cli->close(cli);
+            }
+        }
     }
-
+    //free callback function
     client_free_callback(getThis());
 
 #if PHP_MEMORY_DEBUG
@@ -1395,7 +1414,6 @@ static PHP_METHOD(swoole_client, close)
     if (force || !cli->keep || swConnection_error(SwooleG.error) == SW_CLOSE)
     {
         ret = cli->close(cli);
-        php_swoole_client_free(getThis(), cli TSRMLS_CC);
     }
     SW_CHECK_RETURN(ret);
 }
