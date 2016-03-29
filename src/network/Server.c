@@ -632,13 +632,10 @@ int swServer_start(swServer *serv)
     {
         ret = swServer_start_proxy(serv);
     }
-
     if (ret < 0)
     {
         SwooleGS->start = 0;
     }
-
-    swServer_free(serv);
     return SW_OK;
 }
 
@@ -718,8 +715,6 @@ int swServer_shutdown(swServer *serv)
 
 int swServer_free(swServer *serv)
 {
-    swNotice("Server is shutdown now.");
-
     /**
      * shutdown workers
      */
@@ -727,7 +722,6 @@ int swServer_free(swServer *serv)
     {
         serv->factory.shutdown(&(serv->factory));
     }
-
     /**
      * Shutdown heartbeat thread
      */
@@ -1103,6 +1097,7 @@ static void swServer_signal_hanlder(int sig)
         {
             SwooleG.running = 0;
         }
+        swNotice("Server is shutdown now.");
         break;
     case SIGALRM:
         swSystemTimer_signal_handler(SIGALRM);

@@ -239,7 +239,6 @@ extern php_vmstat_t php_vmstat;
 #endif
 
 PHP_MINIT_FUNCTION(swoole);
-PHP_MSHUTDOWN_FUNCTION(swoole);
 PHP_RINIT_FUNCTION(swoole);
 PHP_RSHUTDOWN_FUNCTION(swoole);
 PHP_MINFO_FUNCTION(swoole);

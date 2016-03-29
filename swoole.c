@@ -362,8 +362,8 @@ zend_module_entry swoole_module_entry =
     "swoole",
     swoole_functions,
     PHP_MINIT(swoole),
-    PHP_MSHUTDOWN(swoole),
-    PHP_RINIT(swoole), //RINIT
+    NULL,
+    PHP_RINIT(swoole),     //RINIT
     PHP_RSHUTDOWN(swoole), //RSHUTDOWN
     PHP_MINFO(swoole),
     PHP_SWOOLE_VERSION,
@@ -636,35 +636,6 @@ PHP_MINIT_FUNCTION(swoole)
     return SUCCESS;
 }
 /* }}} */
-
-/* {{{ PHP_MSHUTDOWN_FUNCTION
- */
-PHP_MSHUTDOWN_FUNCTION(swoole)
-{
-    if (SwooleWG.in_client && SwooleG.main_reactor)
-    {
-        sw_free(SwooleG.main_reactor);
-    }
-    if (SwooleG.serv)
-    {
-        sw_free(SwooleG.serv);
-    }
-
-    int i;
-    for (i = 0; i < SWOOLE_PROPERTY_MAX; i++)
-    {
-        if (swoole_objects.property[i])
-        {
-            free(swoole_objects.property[i]);
-        }
-    }
-    free(swoole_objects.array);
-
-    swoole_clean();
-    return SUCCESS;
-}
-/* }}} */
-
 
 /* {{{ PHP_MINFO_FUNCTION
  */
