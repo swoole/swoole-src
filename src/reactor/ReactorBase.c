@@ -287,8 +287,6 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
     swConnection *socket = swReactor_get(reactor, fd);
     swBuffer *buffer = socket->out_buffer;
 
-    assert(fd > 2);
-
     if (socket->fd == 0)
     {
         socket->fd = fd;
