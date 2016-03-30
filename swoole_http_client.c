@@ -283,7 +283,6 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
     return cli->connect(cli, http->host, http->port, http->timeout, 0);
 }
 
-
 void swoole_http_client_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_http_client_ce, "swoole_http_client", "Swoole\\Http\\Client", swoole_http_client_methods);
@@ -1057,7 +1056,8 @@ static PHP_METHOD(swoole_http_client, close)
         swoole_php_error(E_WARNING, "client socket is closed.");
         RETURN_FALSE;
     }
-    sw_zval_ptr_dtor(&getThis());
+    zval *zobject = getThis();
+    sw_zval_ptr_dtor(&zobject);
     RETURN_TRUE;
 }
 

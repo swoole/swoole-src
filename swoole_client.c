@@ -1411,7 +1411,8 @@ static PHP_METHOD(swoole_client, close)
     }
     if (cli->async)
     {
-        sw_zval_ptr_dtor(&getThis());
+        zval *zobject = getThis();
+        sw_zval_ptr_dtor(&zobject);
         RETURN_TRUE;
     }
     //Connection error, or short tcp connection.
