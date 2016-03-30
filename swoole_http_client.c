@@ -1041,31 +1041,24 @@ static PHP_METHOD(swoole_http_client, isConnected)
 
 static PHP_METHOD(swoole_http_client, close)
 {
-    int ret = 1;
-
     http_client *http = swoole_get_object(getThis());
     if (!http->cli)
     {
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_http_client.");
         RETURN_FALSE;
     }
-
     if (!http->cli->socket)
     {
         swoole_php_error(E_WARNING, "not connected to the server");
         RETURN_FALSE;
     }
-
     if (http->cli->socket->closed)
     {
         swoole_php_error(E_WARNING, "client socket is closed.");
         RETURN_FALSE;
     }
-    if (http->cli->async == 1 && SwooleG.main_reactor != NULL)
-    {
-        ret = http->cli->close(http->cli);
-    }
-    SW_CHECK_RETURN(ret);
+    sw_zval_ptr_dtor(&getThis());
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_http_client, on)

@@ -1409,6 +1409,11 @@ static PHP_METHOD(swoole_client, close)
         swoole_php_error(E_WARNING, "client socket is closed.");
         RETURN_FALSE;
     }
+    if (cli->async)
+    {
+        sw_zval_ptr_dtor(&getThis());
+        RETURN_TRUE;
+    }
     //Connection error, or short tcp connection.
     //No keep connection
     if (force || !cli->keep || swConnection_error(SwooleG.error) == SW_CLOSE)
