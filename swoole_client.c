@@ -775,7 +775,6 @@ static PHP_METHOD(swoole_client, connect)
         if (!cli->socket->closed)
         {
             cli->close(cli);
-            swClient_free(cli);
         }
         php_swoole_client_free(getThis(), cli TSRMLS_CC);
     }

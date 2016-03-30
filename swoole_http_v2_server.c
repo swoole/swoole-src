@@ -310,7 +310,7 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
         int ret = nghttp2_hd_inflate_new(&inflater);
         if (ret != 0)
         {
-            swoole_php_error(E_WARNING, "nghttp2_hd_inflate_init() failed, Error: %s[%zd].", nghttp2_strerror(ret), ret);
+            swoole_php_error(E_WARNING, "nghttp2_hd_inflate_init() failed, Error: %s[%d].", nghttp2_strerror(ret), ret);
             return SW_ERR;
         }
         client->inflater = inflater;
