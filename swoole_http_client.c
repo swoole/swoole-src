@@ -1000,13 +1000,7 @@ static PHP_METHOD(swoole_http_client, setData)
     }
     zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), data TSRMLS_CC);
     http_client_property *hcc = swoole_get_property(getThis(), 0);
-
-#if PHP_MAJOR_VERSION < 7
-    hcc->request_body = data;
-#else
     hcc->request_body = sw_zend_read_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), 1 TSRMLS_CC);
-#endif
-
     RETURN_TRUE;
 }
 
@@ -1135,9 +1129,10 @@ static int http_client_parser_on_header_value(php_http_parser *parser, const cha
         zval *cookies = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("cookies"), 1 TSRMLS_CC);
         if (!cookies || ZVAL_IS_NULL(cookies))
         {
-            SW_ALLOC_INIT_ZVAL(cookies);
+            SW_MAKE_STD_ZVAL(cookies);
             array_init(cookies);
             zend_update_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("cookies"), cookies TSRMLS_CC);
+            sw_zval_ptr_dtor(&cookies);
         }
 
         memcpy(keybuf, at, l_key);
@@ -1346,9 +1341,9 @@ static PHP_METHOD(swoole_http_client, post)
     }
 
     http_client_property *hcc = swoole_get_property(getThis(), 0);
-    hcc->request_body = post_data;
+    zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), post_data TSRMLS_CC);
+    hcc->request_body = sw_zend_read_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), 1 TSRMLS_CC);
     hcc->request_method = "POST";
-    sw_zval_add_ref(&post_data);
     ret = http_client_execute(getThis(), uri, uri_len, callback TSRMLS_CC);
     SW_CHECK_RETURN(ret);
 }
