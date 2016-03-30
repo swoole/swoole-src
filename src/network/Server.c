@@ -636,6 +636,7 @@ int swServer_start(swServer *serv)
     {
         SwooleGS->start = 0;
     }
+    swServer_free(serv);
     return SW_OK;
 }
 
@@ -751,26 +752,10 @@ int swServer_free(swServer *serv)
     {
         swPort_free(port);
     }
-
     //reactor free
     if (serv->reactor.free != NULL)
     {
         serv->reactor.free(&(serv->reactor));
-    }
-
-    //release connection_list
-    if (serv->factory_mode == SW_MODE_SINGLE)
-    {
-        sw_free(serv->connection_list);
-    }
-    else
-    {
-        sw_shm_free(serv->connection_list);
-    }
-    //release session_list
-    if (serv->session_list)
-    {
-        sw_shm_free(serv->session_list);
     }
     //close log file
     if (SwooleG.log_file != 0)
@@ -781,12 +766,10 @@ int swServer_free(swServer *serv)
     {
         close(SwooleG.null_fd);
     }
-
     if (SwooleGS->start > 0 && serv->onShutdown != NULL)
     {
         serv->onShutdown(serv);
     }
-
     swoole_clean();
     return SW_OK;
 }
