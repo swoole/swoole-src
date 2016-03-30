@@ -20,6 +20,7 @@
 #include <sys/stat.h>
 #include <sys/resource.h>
 #include <sys/ioctl.h>
+#include <execinfo.h>
 
 void swoole_init(void)
 {
@@ -803,6 +804,19 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
     char *match = swoole_kmp_search(haystack, length, needle, nlen, borders);
     free(borders);
     return match;
+}
+
+void swoole_print_trace(void)
+{
+    int size = 16;
+    void* array[16];
+    int stack_num = backtrace(array, size);
+    char** stacktrace = backtrace_symbols(array, stack_num);
+    for (int i = 0; i < stack_num; ++i)
+    {
+        printf("%s\n", stacktrace[i]);
+    }
+    free(stacktrace);
 }
 
 #ifndef HAVE_CLOCK_GETTIME
