@@ -354,13 +354,6 @@ static void http_client_onClose(swClient *cli)
     {
         sw_zval_ptr_dtor(&zobject);
     }
-    else
-    {
-#if PHP_MAJOR_VERSION < 7
-        TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-        php_swoole_client_free(zobject, cli TSRMLS_CC);
-    }
 }
 
 /**
@@ -914,13 +907,12 @@ static PHP_METHOD(swoole_http_client, __destruct)
             {
                 php_swoole_client_free(getThis(), cli TSRMLS_CC);
             }
-            else
+            else if(!cli->keep)
             {
-                if (!cli->keep)
-                {
-                    cli->close(cli);
-                }
+                cli->close(cli);
+                php_swoole_client_free(getThis(), cli TSRMLS_CC);
             }
+            http->cli = NULL;
         }
         if (http->uri)
         {
@@ -1035,24 +1027,28 @@ static PHP_METHOD(swoole_http_client, isConnected)
 static PHP_METHOD(swoole_http_client, close)
 {
     http_client *http = swoole_get_object(getThis());
-    if (!http->cli)
+    swClient *cli = http->cli;
+    if (!cli)
     {
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_http_client.");
         RETURN_FALSE;
     }
-    if (!http->cli->socket)
+    if (!cli->socket)
     {
         swoole_php_error(E_WARNING, "not connected to the server");
         RETURN_FALSE;
     }
-    if (http->cli->socket->closed)
+    if (cli->socket->closed)
     {
         swoole_php_error(E_WARNING, "client socket is closed.");
         RETURN_FALSE;
     }
-    zval *zobject = getThis();
-    sw_zval_ptr_dtor(&zobject);
-    RETURN_TRUE;
+    int ret = SW_OK;
+    if (!cli->keep || swConnection_error(SwooleG.error) == SW_CLOSE)
+    {
+        ret = cli->close(cli);
+    }
+    SW_CHECK_RETURN(ret);
 }
 
 static PHP_METHOD(swoole_http_client, on)
@@ -1285,7 +1281,6 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
     {
         http->cli->close(http->cli);
     }
-
     return 0;
 }
 

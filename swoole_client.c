@@ -264,13 +264,6 @@ static void client_onClose(swClient *cli)
     {
         sw_zval_ptr_dtor(&zobject);
     }
-    else
-    {
-#if PHP_MAJOR_VERSION < 7
-        TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-        php_swoole_client_free(zobject, cli TSRMLS_CC);
-    }
 }
 
 static void client_onError(swClient *cli)
@@ -546,11 +539,13 @@ void php_swoole_client_free(zval *object, swClient *cli TSRMLS_DC)
             swoole_php_fatal_error(E_WARNING, "delete from hashtable failed.");
         }
         efree(cli->server_str);
+        swClient_free(cli);
         pefree(cli, 1);
     }
     else
     {
         efree(cli->server_str);
+        swClient_free(cli);
         efree(cli);
     }
     //unset object
@@ -727,12 +722,10 @@ static PHP_METHOD(swoole_client, __destruct)
         {
             php_swoole_client_free(getThis(), cli TSRMLS_CC);
         }
-        else
+        else if (!cli->keep)
         {
-            if (!cli->keep)
-            {
-                cli->close(cli);
-            }
+            cli->close(cli);
+            php_swoole_client_free(getThis(), cli TSRMLS_CC);
         }
     }
     //free callback function
@@ -782,6 +775,7 @@ static PHP_METHOD(swoole_client, connect)
         if (!cli->socket->closed)
         {
             cli->close(cli);
+            swClient_free(cli);
         }
         php_swoole_client_free(getThis(), cli TSRMLS_CC);
     }
@@ -1408,12 +1402,6 @@ static PHP_METHOD(swoole_client, close)
     {
         swoole_php_error(E_WARNING, "client socket is closed.");
         RETURN_FALSE;
-    }
-    if (cli->async)
-    {
-        zval *zobject = getThis();
-        sw_zval_ptr_dtor(&zobject);
-        RETURN_TRUE;
     }
     //Connection error, or short tcp connection.
     //No keep connection

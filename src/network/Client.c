@@ -266,11 +266,35 @@ static int swClient_inet_addr(swClient *cli, char *host, int port)
     return SW_OK;
 }
 
+void swClient_free(swClient *cli)
+{
+    assert(cli->socket->fd != 0);
+    //remove from reactor
+    if (!cli->socket->closed)
+    {
+        cli->close(cli);
+    }
+    if (cli->socket->out_buffer)
+    {
+        swBuffer_free(cli->socket->out_buffer);
+        cli->socket->out_buffer = NULL;
+    }
+    if (cli->socket->in_buffer)
+    {
+        swBuffer_free(cli->socket->in_buffer);
+        cli->socket->in_buffer = NULL;
+    }
+    bzero(cli->socket, sizeof(swConnection));
+    if (cli->async)
+    {
+        cli->socket->removed = 1;
+    }
+}
+
 static int swClient_close(swClient *cli)
 {
     int fd = cli->socket->fd;
-    int ret;
-
+    assert(fd != 0);
 #ifdef SW_USE_OPENSSL
     if (cli->open_ssl && cli->ssl_context)
     {
@@ -289,37 +313,35 @@ static int swClient_close(swClient *cli)
         }
     }
 #endif
-
     //clear buffer
     if (cli->buffer)
     {
         swString_free(cli->buffer);
         cli->buffer = NULL;
     }
-
     if (cli->type == SW_SOCK_UNIX_DGRAM)
     {
         unlink(cli->socket->info.addr.un.sun_path);
     }
-
+    if (cli->socket->closed)
+    {
+        return SW_OK;
+    }
+    cli->socket->closed = 1;
     if (cli->async)
     {
         //remove from reactor
-        SwooleG.main_reactor->del(SwooleG.main_reactor, fd);
-        cli->socket->closed = 1;
+        if (!cli->socket->removed)
+        {
+            SwooleG.main_reactor->del(SwooleG.main_reactor, fd);
+        }
         //onClose callback
         if (cli->socket->active && cli->onClose)
         {
             cli->onClose(cli);
         }
-        ret = swReactor_close(SwooleG.main_reactor, fd);
     }
-    else
-    {
-        bzero(cli->socket, sizeof(swConnection));
-        ret = close(fd);
-    }
-    return ret;
+    return close(fd);
 }
 
 static int swClient_tcp_connect_sync(swClient *cli, char *host, int port, double timeout, int nonblock)

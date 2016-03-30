@@ -93,6 +93,7 @@ typedef struct _swClient
 } swClient;
 
 int swClient_create(swClient *cli, int type, int async);
+void swClient_free(swClient *cli);
 
 typedef struct
 {
