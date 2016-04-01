@@ -290,6 +290,11 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
         socket->fd = fd;
     }
 
+    if (socket->buffer_size == 0)
+    {
+        socket->buffer_size = SwooleG.socket_buffer_size;
+    }
+
     if (swBuffer_empty(buffer))
     {
         if (socket->ssl_send)
@@ -363,7 +368,7 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
     {
         append_buffer:
 
-        if (buffer->length > SwooleG.socket_buffer_size)
+        if (buffer->length > socket->buffer_size)
         {
             if (SwooleG.socket_dontwait)
             {

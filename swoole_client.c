@@ -360,10 +360,10 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
     /**
      * socket send/recv buffer size
      */
-    if (sw_zend_hash_find(vht, ZEND_STRS("buffer_input_size"), (void **) &v) == SUCCESS)
+    if (sw_zend_hash_find(vht, ZEND_STRS("buffer_size"), (void **) &v) == SUCCESS)
     {
         convert_to_long(v);
-        cli->buffer_input_size = (int) Z_LVAL_P(v);
+        cli->socket->buffer_size = cli->buffer_input_size = (int) Z_LVAL_P(v);
     }
     /**
      * TCP_NODELAY

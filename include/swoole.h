@@ -502,6 +502,11 @@ typedef struct _swConnection
     long uid;
 
     /**
+     * memory buffer size;
+     */
+    int buffer_size;
+
+    /**
      *  upgarde websocket
      */
     uint8_t websocket_status;

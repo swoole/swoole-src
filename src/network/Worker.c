@@ -459,10 +459,23 @@ int swWorker_loop(swFactory *factory, int worker_id)
 
     swSetNonBlock(pipe_worker);
     SwooleG.main_reactor->ptr = serv;
-    //这里的add函数是epoll的add函数
     SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_worker, SW_FD_PIPE | SW_EVENT_READ);
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE, swWorker_onPipeReceive);
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE | SW_FD_WRITE, swReactor_onWrite);
+
+    /**
+     * set pipe buffer size
+     */
+    int i;
+    swConnection *pipe_socket;
+    for (i = 0; i < serv->worker_num + SwooleG.task_worker_num; i++)
+    {
+        worker = swServer_get_worker(serv, i);
+        pipe_socket = swReactor_get(SwooleG.main_reactor, worker->pipe_master);
+        pipe_socket->buffer_size = serv->pipe_buffer_size;
+        pipe_socket = swReactor_get(SwooleG.main_reactor, worker->pipe_worker);
+        pipe_socket->buffer_size = serv->pipe_buffer_size;
+    }
 
     swWorker_onStart(serv);
 

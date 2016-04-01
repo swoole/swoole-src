@@ -479,7 +479,7 @@ static int swClient_tcp_send_sync(swClient *cli, char *data, int length, int fla
             }
             else if (errno == EAGAIN)
             {
-                swYield();
+                swSocket_wait(cli->socket->fd, 1000, SW_EVENT_WRITE);
                 continue;
             }
             else
