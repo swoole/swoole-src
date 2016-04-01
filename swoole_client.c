@@ -356,14 +356,7 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         convert_to_long(v);
         value = (int) Z_LVAL_P(v);
         swSocket_set_buffer_size(cli->socket->fd, value);
-    }
-    /**
-     * socket send/recv buffer size
-     */
-    if (sw_zend_hash_find(vht, ZEND_STRS("buffer_size"), (void **) &v) == SUCCESS)
-    {
-        convert_to_long(v);
-        cli->socket->buffer_size = cli->buffer_input_size = (int) Z_LVAL_P(v);
+        cli->socket->buffer_size = cli->buffer_input_size = value;
     }
     /**
      * TCP_NODELAY
