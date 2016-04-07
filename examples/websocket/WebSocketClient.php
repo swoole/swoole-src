@@ -3,6 +3,7 @@
 class WebSocketClient
 {
     const VERSION = '0.1.4';
+
     const TOKEN_LENGHT = 16;
     const TYPE_ID_WELCOME = 0;
     const TYPE_ID_PREFIX = 1;
@@ -13,6 +14,27 @@ class WebSocketClient
     const TYPE_ID_UNSUBSCRIBE = 6;
     const TYPE_ID_PUBLISH = 7;
     const TYPE_ID_EVENT = 8;
+
+    const OPCODE_CONTINUATION_FRAME = 0x0;
+    const OPCODE_TEXT_FRAME         = 0x1;
+    const OPCODE_BINARY_FRAME       = 0x2;
+    const OPCODE_CONNECTION_CLOSE   = 0x8;
+    const OPCODE_PING               = 0x9;
+    const OPCODE_PONG               = 0xa;
+
+    const CLOSE_NORMAL              = 1000;
+    const CLOSE_GOING_AWAY          = 1001;
+    const CLOSE_PROTOCOL_ERROR      = 1002;
+    const CLOSE_DATA_ERROR          = 1003;
+    const CLOSE_STATUS_ERROR        = 1005;
+    const CLOSE_ABNORMAL            = 1006;
+    const CLOSE_MESSAGE_ERROR       = 1007;
+    const CLOSE_POLICY_ERROR        = 1008;
+    const CLOSE_MESSAGE_TOO_BIG     = 1009;
+    const CLOSE_EXTENSION_MISSING   = 1010;
+    const CLOSE_SERVER_ERROR        = 1011;
+    const CLOSE_TLS                 = 1015;
+
     private $key;
     private $host;
     private $port;
@@ -78,6 +100,12 @@ class WebSocketClient
     {
         $this->connected = false;
         $this->socket->close();
+    }
+
+    public function close($code = self::CLOSE_NORMAL, $reason = '')
+    {
+        $data = pack('n', $code) . $reason;
+        return $this->socket->send(swoole_websocket_server::pack($data, self::OPCODE_CONNECTION_CLOSE, true));
     }
 
     public function recv()

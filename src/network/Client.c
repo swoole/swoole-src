@@ -777,16 +777,15 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
         return swReactor_onWrite(SwooleG.main_reactor, event);
     }
 
-    int error;
-    socklen_t len = sizeof(error);
-    if (getsockopt (event->fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0)
+    socklen_t len = sizeof(SwooleG.error);
+    if (getsockopt (event->fd, SOL_SOCKET, SO_ERROR, &SwooleG.error, &len) < 0)
     {
         swWarn("getsockopt(%d) failed. Error: %s[%d]", event->fd, strerror(errno), errno);
         return SW_ERR;
     }
 
     //success
-    if (error == 0)
+    if (SwooleG.error == 0)
     {
         //listen read event
         SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, (SW_FD_USER + 1) | SW_EVENT_READ);
