@@ -1283,6 +1283,7 @@ PHP_METHOD(swoole_server, __construct)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl|ll", &serv_host, &host_len, &serv_port, &serv_mode_tmp, &sock_type) == FAILURE)
     {
+        swoole_php_fatal_error(E_ERROR, "invalid parameters.");
         return;
     }
 
