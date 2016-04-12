@@ -1114,6 +1114,10 @@ static int http_onReceive(swServer *serv, swEventData *req)
         sw_add_assoc_stringl(zserver, "path_info", ctx->request.path, ctx->request.path_len, 1);
         sw_add_assoc_long_ex(zserver, ZEND_STRS("request_time"), SwooleGS->now);
 
+        // Add REQUEST_TIME_FLOAT
+        double now_float = swoole_microtime();
+        sw_add_assoc_double_ex(zserver, ZEND_STRS("request_time_float"), now_float);
+
         swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
         if (!conn)
         {

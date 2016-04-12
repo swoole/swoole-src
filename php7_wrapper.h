@@ -154,12 +154,16 @@ static sw_inline int sw_add_assoc_stringl_ex(zval *arg, const char *key, size_t 
     return add_assoc_stringl_ex(arg, key, key_len - 1, str, length);
 }
 
-#define sw_add_assoc_double_ex(arg, key, key_len, d)     add_assoc_double_ex(arg, key, key_len - 1, d)
 #define sw_add_next_index_stringl(arr, str, len, dup)    add_next_index_stringl(arr, str, len)
 
 static sw_inline int sw_add_assoc_long_ex(zval *arg, const char *key, size_t key_len, long value)
 {
     return add_assoc_long_ex(arg, key, key_len - 1, value);
+}
+
+static sw_inline int sw_add_assoc_double_ex(zval *arg, const char *key, size_t key_len, double value)
+{
+    return add_assoc_double_ex(arg, key, key_len - 1, value);
 }
 
 #define SW_Z_ARRVAL_P(z)                          Z_ARRVAL_P(z)->ht

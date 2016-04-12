@@ -499,6 +499,11 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
 
         zval *zserver = ctx->request.zserver;
         sw_add_assoc_long_ex(zserver, ZEND_STRS("request_time"), SwooleGS->now);
+
+        // Add REQUEST_TIME_FLOAT
+        double now_float = swoole_microtime();
+        sw_add_assoc_double_ex(zserver, ZEND_STRS("request_time_float"), now_float);
+
         add_assoc_long(zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[conn->from_fd]));
         add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
         sw_add_assoc_string(zserver, "remote_addr", swConnection_get_ip(conn), 1);
