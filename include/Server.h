@@ -369,7 +369,9 @@ struct _swServer
      * parse x-www-form-urlencoded data
      */
     uint32_t http_parse_post :1;
-
+    /**
+     * enable onConnect/onClose event when use dispatch_mode=1/3
+     */
     uint32_t enable_unsafe_event :1;
     /**
      * packet mode
