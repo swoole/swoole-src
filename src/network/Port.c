@@ -100,10 +100,11 @@ int swPort_set_option(swListenPort *ls)
         if (ls->open_http2_protocol)
         {
             ls->ssl_config.http_v2 = 1;
+            swSSL_server_http_advise(ls->ssl_context, &ls->ssl_config);
         }
-        if (swSSL_server_config(ls->ssl_context, &ls->ssl_config))
+        if (swSSL_server_set_cipher(ls->ssl_context, &ls->ssl_config) < 0)
         {
-            swWarn("swSSL_server_config() error.");
+            swWarn("swSSL_server_set_cipher() error.");
             return SW_ERR;
         }
     }
