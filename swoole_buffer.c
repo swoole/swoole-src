@@ -164,9 +164,12 @@ static PHP_METHOD(swoole_buffer, substr)
 			zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"),
 					buffer->length - buffer->offset TSRMLS_CC);
     	} else {
+    		SW_RETVAL_STRINGL(buffer->str + offset, length, 1);
+    		buffer->length -= length;
     		zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"),
-    							buffer->length - length TSRMLS_CC);
-    		memcpy(buffer->str, buffer->str + length, buffer->length - length);
+    							buffer->length TSRMLS_CC);
+    		memcpy(buffer->str, buffer->str + length, buffer->length);
+    		return;
     	}
     }
     SW_RETURN_STRINGL(buffer->str + offset, length, 1);
