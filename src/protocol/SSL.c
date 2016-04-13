@@ -121,7 +121,7 @@ int swSSL_server_set_cipher(SSL_CTX* ssl_context, swSSL_config *cfg)
     {
         if (SSL_CTX_set_cipher_list(ssl_context, cfg->ciphers) == 0)
         {
-            swWarn("SSL_CTX_set_cipher_list(\"%s\") failed", SW_SSL_CIPHER_LIST);
+            swWarn("SSL_CTX_set_cipher_list(\"%s\") failed", cfg->ciphers);
             return SW_ERR;
         }
         if (cfg->prefer_server_ciphers)
