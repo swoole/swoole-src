@@ -35,11 +35,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2016-03-21</date>
-    <time>15:48:51</time>
+    <date>2016-04-13</date>
+    <time>16:48:51</time>
     <version>
-		<release>1.8.3</release>
-		<api>1.8.3</api>
+		<release>1.8.4</release>
+		<api>1.8.4</api>
     </version>
     <stability>
         <release>stable</release>
@@ -47,15 +47,13 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Added swoole_server->getLastError method for getting the last error code
-- Added form-data supports for Http2 protocol
-- Added COOKIE support for Http2 protocol
-- Added SSL/TLS encryption support for http client
-- Fixed issue #527
-- Fixed issue #553
-- Fixed crash when the number of CPU cores than is set reactor_num
-- Fixed swoole_client callback function memory leak
-- Added support for asynchronous full reload of server security
+- Fixed Swoole\Redis callback function memory leak bugs
+- Fixed swoole_mysql_queue function memory leak bugs
+- Fixed Swoole\Http\Client memory leak bugs
+- Fixed issue #585
+- Fixed issue #590
+- Added unixsock support for async client  
+- Added high-precision time for Swoole\Http\Request
     </notes>
 	<contents>
 		<dir name="/">
@@ -235,7 +233,7 @@
 					<file role="src" name="stream.php" />
 					<file role="src" name="sockets.php" />
 				</dir>
-				<dir name="unix">
+				<dir name="unixsock">
 					<file role="src" name="dgram_server.php" />
 					<file role="src" name="stream_client.php" />
 					<file role="src" name="dgram_client.php" />
@@ -293,7 +291,6 @@
                 </dir>
 				<file role="src" name="server.php" />
 				<file role="src" name="mysql_proxy_server.php" />
-				<file role="src" name="proxy.php" />
 				<file role="src" name="proxy_sync.php" />
 				<file role="src" name="timer.php" />
 				<file role="src" name="sendfile_server.php" />
