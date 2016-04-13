@@ -133,7 +133,7 @@ static PHP_METHOD(swoole_buffer, substr)
     long length = -1;
     long seek = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|lb", &offset, &length, &seek) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|ll", &offset, &length, &seek) == FAILURE)
     {
         RETURN_FALSE;
     }
