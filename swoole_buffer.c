@@ -131,7 +131,7 @@ static PHP_METHOD(swoole_buffer, substr)
 {
     long offset;
     long length = -1;
-    zend_bool seek = 0;
+    long seek = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|lb", &offset, &length, &seek) == FAILURE)
     {
@@ -159,9 +159,15 @@ static PHP_METHOD(swoole_buffer, substr)
     }
     if (seek)
     {
-        buffer->offset += length;
-        zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"),
-                buffer->length - buffer->offset TSRMLS_CC);
+        if (1 == seek) {
+			buffer->offset += length;
+			zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"),
+					buffer->length - buffer->offset TSRMLS_CC);
+    	} else {
+    		zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"),
+    							buffer->length - length TSRMLS_CC);
+    		memcpy(buffer->str, buffer->str + length, buffer->length - length);
+    	}
     }
     SW_RETURN_STRINGL(buffer->str + offset, length, 1);
 }
