@@ -139,7 +139,7 @@ static PHP_METHOD(swoole_buffer, substr)
     }
     swString *buffer = swoole_get_object(getThis());
 
-    if (seek && !(offset == 0 && length < buffer->length))
+    if (seek && !(offset == 0 && length <= buffer->length))
     {
         seek = 0;
     }
