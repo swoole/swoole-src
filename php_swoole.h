@@ -339,6 +339,7 @@ void swoole_table_init(int module_number TSRMLS_DC);
 void swoole_lock_init(int module_number TSRMLS_DC);
 void swoole_atomic_init(int module_number TSRMLS_DC);
 void swoole_client_init(int module_number TSRMLS_DC);
+void swoole_client_coro_init(int module_number TSRMLS_DC);
 #ifdef SW_ASYNC_HTTPCLIENT
 void swoole_http_client_init(int module_number TSRMLS_DC);
 #endif
