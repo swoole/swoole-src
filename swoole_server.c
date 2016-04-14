@@ -132,8 +132,6 @@ zend_execute_data *create_new_coroutine(zend_op_array *op_array, zval **argv, in
   execute_data->function_state.function = (zend_function *) op_array;
   execute_data->function_state.arguments = NULL;
 
-  *EG(current_execute_data_ptr) = execute_data;
-
   EG(active_op_array) = op_array;
   /*
    * push dummy arguments to protect the stack (maybe push 0??)
