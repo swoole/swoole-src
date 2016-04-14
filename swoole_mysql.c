@@ -200,19 +200,25 @@ typedef struct
 
 } mysql_client;
 
-#define mysql_uint2korr(A) (uint16_t) (((uint16_t) ((zend_uchar) (A)[0]))+((uint16_t) ((zend_uchar) (A)[1]) << 8))
-#define mysql_uint8korr(A)    ((ulong_t)(((uint32_t) ((uchar) (A)[0])) +\
-                    (((uint32_t) ((uchar) (A)[1])) << 8) +\
-                    (((uint32_t) ((uchar) (A)[2])) << 16) +\
-                    (((uint32_t) ((uchar) (A)[3])) << 24)) +\
-                    (((ulong_t) (((uint32_t) ((uchar) (A)[4])) +\
-                    (((uint32_t) ((uchar) (A)[5])) << 8) +\
-                    (((uint32_t) ((uchar) (A)[6])) << 16) +\
-                    (((uint32_t) ((uchar) (A)[7])) << 24))) <<\
-                    32))
-#define mysql_uint3korr(A)    (uint32_t) (((uint32_t) ((uchar) (A)[0])) +\
-                  (((uint32_t) ((uint32_t) (A)[1])) << 8) +\
-                  (((uint32_t) ((uint32_t) (A)[2])) << 16))
+#define mysql_uint2korr(A)  (uint16_t) (((uint16_t) ((zend_uchar) (A)[0])) +\
+                               ((uint16_t) ((zend_uchar) (A)[1]) << 8))
+#define mysql_uint3korr(A)  (uint32_t) (((uint32_t) ((zend_uchar) (A)[0])) +\
+                               (((uint32_t) ((zend_uchar) (A)[1])) << 8) +\
+                               (((uint32_t) ((zend_uchar) (A)[2])) << 16))
+#define mysql_uint4korr(A)  (uint32_t) (((uint32_t) ((zend_uchar) (A)[0])) +\
+                               (((uint32_t) ((zend_uchar) (A)[1])) << 8) +\
+                               (((uint32_t) ((zend_uchar) (A)[2])) << 16) +\
+                               (((uint32_t) ((zend_uchar) (A)[3])) << 24))
+
+#define mysql_uint8korr(A)    ((uint64_t)(((uint32_t) ((zend_uchar) (A)[0])) +\
+                                    (((uint32_t) ((zend_uchar) (A)[1])) << 8) +\
+                                    (((uint32_t) ((zend_uchar) (A)[2])) << 16) +\
+                                    (((uint32_t) ((zend_uchar) (A)[3])) << 24)) +\
+                                    (((uint64_t) (((uint32_t) ((zend_uchar) (A)[4])) +\
+                                    (((uint32_t) ((zend_uchar) (A)[5])) << 8) +\
+                                    (((uint32_t) ((zend_uchar) (A)[6])) << 16) +\
+                                    (((uint32_t) ((zend_uchar) (A)[7])) << 24))) << 32))
+
 
 static int mysql_request(swString *sql, swString *buffer);
 #ifdef SW_MYSQL_DEBUG
@@ -252,7 +258,7 @@ static sw_inline int mysql_lcb_ll(char *m, ulong_t *r, char *nul, int len)
         return 3;
 
     case 253: /* fd : 3 octets */
-        if (len < 4)
+        if (len < 5)
         {
             return -1;
         }
@@ -1001,11 +1007,6 @@ PHP_FUNCTION(swoole_mysql_query)
         RETURN_FALSE;
     }
 
-    if (client->callback)
-    {
-        sw_zval_ptr_dtor(&client->callback);
-    }
-
 #if PHP_MAJOR_VERSION < 7
     client->callback = callback;
 #else
@@ -1059,6 +1060,8 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
     int ret;
 
     zval **args[2];
+
+    zval *callback = NULL;
     zval *retval = NULL;
     zval *result = NULL;
 
@@ -1108,6 +1111,7 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
                 SW_ALLOC_INIT_ZVAL(result);
                 ZVAL_BOOL(result, 0);
 
+                callback = client->callback;
                 if (sw_call_user_function_ex(EG(function_table), NULL, client->callback, &retval, 2, args, 0, NULL TSRMLS_CC) != SUCCESS)
                 {
                     swoole_php_fatal_error(E_WARNING, "swoole_async_mysql callback[2] handler error.");
@@ -1120,10 +1124,11 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
                 {
                     sw_zval_ptr_dtor(&result);
                 }
-                sw_zval_ptr_dtor(&client->callback);
+                sw_zval_ptr_dtor(&callback);
                 client->callback = NULL;
                 client->state = SW_MYSQL_STATE_QUERY;
             }
+
             return SW_OK;
         }
         else
@@ -1178,8 +1183,8 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             }
 
             args[1] = &result;
-
-            if (sw_call_user_function_ex(EG(function_table), NULL, client->callback, &retval, 2, args, 0, NULL TSRMLS_CC) != SUCCESS)
+            callback = client->callback;
+            if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 2, args, 0, NULL TSRMLS_CC) != SUCCESS)
             {
                 swoole_php_fatal_error(E_WARNING, "swoole_async_mysql callback[2] handler error.");
                 reactor->del(SwooleG.main_reactor, event->fd);
@@ -1194,9 +1199,8 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             {
                 sw_zval_ptr_dtor(&result);
             }
-            //free callback objectc
-            //sw_zval_ptr_dtor(&client->callback);
-            //client->callback = NULL;
+            //free callback object
+            sw_zval_ptr_dtor(&callback);
             //clear buffer
             swString_clear(client->buffer);
             if (client->response.columns)
