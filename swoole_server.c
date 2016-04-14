@@ -58,7 +58,7 @@ static void php_swoole_onManagerStop(swServer *serv);
 static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC);
 static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC);
 
-static zend_execute_data *create_new_coroutine(zend_op_array *op_array, zval **argv, int argc)
+zend_execute_data *create_new_coroutine(zend_op_array *op_array, zval **argv, int argc)
 {
   zend_execute_data *execute_data;
   size_t execute_data_size = ZEND_MM_ALIGNED_SIZE(sizeof(zend_execute_data));
@@ -523,8 +523,8 @@ int php_swoole_set_callback(zval **array, int key, zval *cb TSRMLS_DC)
 {
 #ifdef PHP_SWOOLE_CHECK_CALLBACK
     char *func_name = NULL;
-	zend_fcall_info_cache func_cache;
-    if (!zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, &func_cache, NULL TSRMLS_CC))
+	zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
+    if (!zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
     {
         php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
         efree(func_name);
@@ -535,7 +535,6 @@ int php_swoole_set_callback(zval **array, int key, zval *cb TSRMLS_DC)
 
     //sw_zval_add_ref(&cb);
     array[key] = emalloc(sizeof (zval));
-    php_sw_callback_cache[key] = emalloc(sizeof (zend_fcall_info_cache));
     if (array[key] == NULL)
     {
         return SW_ERR;
@@ -544,7 +543,7 @@ int php_swoole_set_callback(zval **array, int key, zval *cb TSRMLS_DC)
     *(array[key]) = *cb;
     zval_copy_ctor(array[key]);
 
-    *(php_sw_callback_cache[key]) = func_cache;
+    php_sw_callback_cache[key] = func_cache;
 
     return SW_OK;
 }
