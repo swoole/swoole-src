@@ -193,8 +193,8 @@ typedef struct
         uint16_t status_code;
         char status_msg[6];
         char *server_msg;
-        int affected_rows;
-        int insert_id;
+        ulong_t affected_rows;
+        ulong_t insert_id;
         zval *result_array;
     } response;
 
