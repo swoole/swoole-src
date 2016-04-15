@@ -178,7 +178,7 @@ static int swPort_websocket_onPackage(swConnection *conn, char *data, uint32_t l
 
     swString send_frame;
     bzero(&send_frame, sizeof(send_frame));
-    char buf[32];
+    char buf[128];
     send_frame.str = buf;
     send_frame.size = sizeof(buf);
 

@@ -304,8 +304,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
         {
             if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE)
             {
-                swString *str = (swString *) conn->object;
-                swString_free(str);
+                swString_free(conn->object);
                 conn->websocket_status = 0;
             }
             else
