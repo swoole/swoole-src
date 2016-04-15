@@ -695,6 +695,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     args[2] = zfrom_id;
     args[3] = zdata;
 
+	EG(active_symbol_table) = NULL;
     zend_execute_data *execute_data = create_new_coroutine(&php_sw_callback_cache[SW_SERVER_CB_onReceive]->function_handler->op_array, args, 4);
     zend_execute_ex(execute_data TSRMLS_CC);
     if (EG(exception))

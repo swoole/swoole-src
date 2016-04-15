@@ -1180,6 +1180,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
         }
 
 
+	EG(active_symbol_table) = NULL;
         zend_execute_data *execute_data = create_new_coroutine(&php_sw_http_callback_cache[callback]->function_handler->op_array, args, 2);
         zend_execute_ex(execute_data TSRMLS_CC);
         //if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[callback], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
