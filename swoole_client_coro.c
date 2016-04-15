@@ -30,6 +30,7 @@ typedef struct
 typedef struct
 {
     zval **current_return_value_ptr_ptr;
+    zval *current_return_value_ptr;
     zend_execute_data *current_execute_data;
     zend_op **current_opline_ptr;
     zend_op *current_opline;
@@ -206,11 +207,12 @@ static swHashMap *php_sw_long_connections;
 zend_class_entry swoole_client_coro_ce;
 zend_class_entry *swoole_client_coro_class_entry_ptr;
 
-static php_context *coro_save(zval* this, zval **return_value_ptr)
+static php_context *coro_save(zval* this, zval *return_value, zval **return_value_ptr)
 {
     php_context *sw_current_context = emalloc(sizeof(php_context));
     //SWCC(current_return_value_ptr_ptr) = EG(return_value_ptr_ptr);
     SWCC(current_return_value_ptr_ptr) = return_value_ptr;
+    SWCC(current_return_value_ptr) = return_value;
     SWCC(current_execute_data) = EG(current_execute_data);
     SWCC(current_opline_ptr) = EG(opline_ptr);
     SWCC(current_opline) = *(EG(opline_ptr));
@@ -227,7 +229,8 @@ static php_context *coro_save(zval* this, zval **return_value_ptr)
 static void coro_switch(php_context *sw_current_context, zval *retval)
 {
     EG(return_value_ptr_ptr) = SWCC(current_return_value_ptr_ptr);
-    *EG(return_value_ptr_ptr) = retval;
+    *(sw_current_context->current_return_value_ptr) = *retval;
+    zval_copy_ctor(sw_current_context->current_return_value_ptr);
     EG(current_execute_data) = SWCC(current_execute_data);
     EG(opline_ptr) = SWCC(current_opline_ptr);
     EG(active_op_array) = SWCC(current_active_op_array)  ;
@@ -956,7 +959,7 @@ static PHP_METHOD(swoole_client_coro, send_and_receive)
     }
     else
     {
-        php_context *current = coro_save(getThis(), return_value_ptr);
+        php_context *current = coro_save(getThis(), return_value, return_value_ptr);
         longjmp(swReactorCheckPoint, 1);
     }
 }
@@ -1120,7 +1123,7 @@ static PHP_METHOD(swoole_client_coro, sendfile)
 static PHP_METHOD(swoole_client_coro, recv)
 {
     /* support params in future */
-    php_context *current = coro_save(getThis(), return_value_ptr);
+    php_context *current = coro_save(getThis(), return_value, return_value_ptr);
     longjmp(swReactorCheckPoint, 1);
 }
 
