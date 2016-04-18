@@ -123,12 +123,26 @@ static PHP_METHOD(swoole_server_port, set)
         bzero(port->protocol.package_eof, SW_DATA_EOF_MAXLEN);
         memcpy(port->protocol.package_eof, Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
-    //buffer: http_protocol
+    //http_protocol
     if (sw_zend_hash_find(vht, ZEND_STRS("open_http_protocol"), (void **) &v) == SUCCESS)
     {
         convert_to_boolean(v);
         port->open_http_protocol = Z_BVAL_P(v);
     }
+    //websocket protocol
+    if (sw_zend_hash_find(vht, ZEND_STRS("open_websocket_protocol"), (void **) &v) == SUCCESS)
+    {
+        convert_to_boolean(v);
+        port->open_websocket_protocol = Z_BVAL_P(v);
+    }
+#ifdef SW_USE_HTTP2
+    //http2 protocol
+    if (sw_zend_hash_find(vht, ZEND_STRS("open_http2_protocol"), (void **) &v) == SUCCESS)
+    {
+        convert_to_boolean(v);
+        port->open_http2_protocol = Z_BVAL_P(v);
+    }
+#endif
     //buffer: mqtt protocol
     if (sw_zend_hash_find(vht, ZEND_STRS("open_mqtt_protocol"), (void **) &v) == SUCCESS)
     {
@@ -205,15 +219,6 @@ static PHP_METHOD(swoole_server_port, set)
         port->protocol.package_length_type = 'N';
         port->open_eof_check = 0;
     }
-
-#ifdef SW_USE_HTTP2
-    //http2 protocol
-    if (sw_zend_hash_find(vht, ZEND_STRS("open_http2_protocol"), (void **) &v) == SUCCESS)
-    {
-        convert_to_boolean(v);
-        port->open_http2_protocol = Z_BVAL_P(v);
-    }
-#endif
 
 #ifdef SW_USE_OPENSSL
     if (port->ssl)
