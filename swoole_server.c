@@ -1641,7 +1641,7 @@ PHP_METHOD(swoole_server, on)
             l_property_name = Z_STRLEN_P(name) + 2;
             property_name[l_property_name] = '\0';
             zend_update_property(swoole_server_class_entry_ptr, getThis(), property_name, l_property_name, cb TSRMLS_CC);
-            php_sw_callback[i] = sw_zend_read_property(swoole_http_client_class_entry_ptr, getThis(), property_name, l_property_name, 0 TSRMLS_CC);
+            php_sw_callback[i] = sw_zend_read_property(swoole_server_class_entry_ptr, getThis(), property_name, l_property_name, 0 TSRMLS_CC);
             break;
         }
     }
