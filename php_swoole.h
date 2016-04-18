@@ -173,7 +173,6 @@ enum php_swoole_server_callback_type
     SW_SERVER_CB_onShutdown,       //Server sthudown(master)
     SW_SERVER_CB_onWorkerStart,    //Worker start(worker)
     SW_SERVER_CB_onWorkerStop,     //Worker shutdown(worker)
-    SW_SERVER_CB_onTimer,
     SW_SERVER_CB_onTask,           //new task(task_worker)
     SW_SERVER_CB_onFinish,         //async task finish(worker)
     SW_SERVER_CB_onWorkerError,    //worker exception(manager)
@@ -358,7 +357,6 @@ void php_swoole_event_init();
 void php_swoole_event_wait();
 void php_swoole_check_timer(int interval);
 void php_swoole_register_callback(swServer *serv);
-int php_swoole_set_callback(zval **array, int key, zval *cb TSRMLS_DC);
 void php_swoole_client_free(zval *object, swClient *cli TSRMLS_DC);
 swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port);
 zval* php_swoole_websocket_unpack(swString *data TSRMLS_DC);

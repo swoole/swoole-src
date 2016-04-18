@@ -431,32 +431,6 @@ static int php_swoole_task_finish(swServer *serv, zval *data TSRMLS_DC)
     return ret;
 }
 
-int php_swoole_set_callback(zval **array, int key, zval *cb TSRMLS_DC)
-{
-#ifdef PHP_SWOOLE_CHECK_CALLBACK
-    char *func_name = NULL;
-    if (!sw_zend_is_callable(cb, 0, &func_name TSRMLS_CC))
-    {
-        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
-        efree(func_name);
-        return SW_ERR;
-    }
-    efree(func_name);
-#endif
-
-    //sw_zval_add_ref(&cb);
-    array[key] = emalloc(sizeof (zval));
-    if (array[key] == NULL)
-    {
-        return SW_ERR;
-    }
-
-    *(array[key]) = *cb;
-    zval_copy_ctor(array[key]);
-
-    return SW_OK;
-}
-
 static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
 {
 #if PHP_MAJOR_VERSION < 7
@@ -1624,35 +1598,55 @@ PHP_METHOD(swoole_server, on)
         return;
     }
 
+#ifdef PHP_SWOOLE_CHECK_CALLBACK
+    char *func_name = NULL;
+    if (!sw_zend_is_callable(cb, 0, &func_name TSRMLS_CC))
+    {
+        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        efree(func_name);
+        return;
+    }
+    efree(func_name);
+#endif
+
+    convert_to_string(name);
+
     char *callback[PHP_SERVER_CALLBACK_NUM] = {
-        "connect",
-        "receive",
-        "close",
-        "packet",
-        "start",
-        "shutdown",
-        "workerStart",
-        "workerStop",
-        "timer",
-        "task",
-        "finish",
-        "workerError",
-        "managerStart",
-        "managerStop",
-        "pipeMessage",
+        "Connect",
+        "Receive",
+        "Close",
+        "Packet",
+        "Start",
+        "Shutdown",
+        "WorkerStart",
+        "WorkerStop",
+        "Task",
+        "Finish",
+        "WorkerError",
+        "ManagerStart",
+        "ManagerStop",
+        "PipeMessage",
     };
 
-    int ret = 0, i;
+    int i;
+    char property_name[128];
+    int l_property_name = 0;
+    memcpy(property_name, ZEND_STRL("on"));
+
     for (i = 0; i < PHP_SERVER_CALLBACK_NUM; i++)
     {
         if (strncasecmp(callback[i], Z_STRVAL_P(name), Z_STRLEN_P(name)) == 0)
         {
-            ret = php_swoole_set_callback(php_sw_callback, i, cb TSRMLS_CC);
+            memcpy(property_name + 2, callback[i], Z_STRLEN_P(name));
+            l_property_name = Z_STRLEN_P(name) + 2;
+            property_name[l_property_name] = '\0';
+            zend_update_property(swoole_server_class_entry_ptr, getThis(), property_name, l_property_name, cb TSRMLS_CC);
+            php_sw_callback[i] = sw_zend_read_property(swoole_http_client_class_entry_ptr, getThis(), property_name, l_property_name, 0 TSRMLS_CC);
             break;
         }
     }
 
-    if (ret < 0)
+    if (l_property_name == 0)
     {
         swoole_php_error(E_WARNING, "Unknown event types[%s]", Z_STRVAL_P(name));
         RETURN_FALSE;
@@ -1667,7 +1661,7 @@ PHP_METHOD(swoole_server, on)
     }
     else
     {
-        SW_CHECK_RETURN(ret);
+        RETURN_TRUE;
     }
 }
 

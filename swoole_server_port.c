@@ -308,10 +308,8 @@ static PHP_METHOD(swoole_server_port, set)
 
 static PHP_METHOD(swoole_server_port, on)
 {
-    char *ha_name = NULL;
+    char *name = NULL;
     zend_size_t len, i;
-    int ret = -1;
-
     zval *cb;
 
     if (SwooleGS->start > 0)
@@ -320,10 +318,21 @@ static PHP_METHOD(swoole_server_port, on)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "sz", &ha_name, &len, &cb) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "sz", &name, &len, &cb) == FAILURE)
     {
         return;
     }
+
+#ifdef PHP_SWOOLE_CHECK_CALLBACK
+    char *func_name = NULL;
+    if (!sw_zend_is_callable(cb, 0, &func_name TSRMLS_CC))
+    {
+        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        efree(func_name);
+        return;
+    }
+    efree(func_name);
+#endif
 
     swoole_server_port_property *property = swoole_get_property(getThis(), 0);
 
@@ -334,17 +343,26 @@ static PHP_METHOD(swoole_server_port, on)
     }
 
     char *callback[PHP_SERVER_PORT_CALLBACK_NUM] = {
-        "connect",
-        "receive",
-        "close",
-        "packet",
+        "Connect",
+        "Receive",
+        "Close",
+        "Packet",
     };
+
+    char property_name[128];
+    int l_property_name = 0;
+    memcpy(property_name, ZEND_STRL("on"));
 
     for (i = 0; i < PHP_SERVER_PORT_CALLBACK_NUM; i++)
     {
-        if (strncasecmp(callback[i], ha_name, len) == 0)
+        if (strncasecmp(callback[i], name, len) == 0)
         {
-            ret = php_swoole_set_callback(property->callbacks, i, cb TSRMLS_CC);
+            memcpy(property_name + 2, callback[i], len);
+            l_property_name = len + 2;
+            property_name[l_property_name] = '\0';
+            zend_update_property(swoole_server_port_class_entry_ptr, getThis(), property_name, l_property_name, cb TSRMLS_CC);
+            property->callbacks[i] = sw_zend_read_property(swoole_server_port_class_entry_ptr, getThis(), property_name, l_property_name, 0 TSRMLS_CC);
+
             if (i == SW_SERVER_CB_onConnect && SwooleG.serv->onConnect == NULL)
             {
                 SwooleG.serv->onConnect = php_swoole_onConnect;
@@ -356,9 +374,11 @@ static PHP_METHOD(swoole_server_port, on)
             break;
         }
     }
-    if (ret < 0)
+
+    if (l_property_name == 0)
     {
-        swoole_php_error(E_WARNING, "Unknown event types[%s]", ha_name);
+        swoole_php_error(E_WARNING, "Unknown event types[%s]", name);
+        RETURN_FALSE;
     }
-    SW_CHECK_RETURN(ret);
+    RETURN_TRUE;
 }
