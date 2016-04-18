@@ -306,15 +306,12 @@ int swReactorThread_close(swReactor *reactor, int fd)
             {
                 swString_free(conn->object);
                 conn->websocket_status = 0;
+                conn->object = NULL;
             }
             else
             {
                 swHttpRequest *request = (swHttpRequest *) conn->object;
-                if (request->buffer)
-                {
-                    swTrace("Connection Close. free buffer=%p, request=%p\n", request->buffer, request);
-                    swHttpRequest_free(conn);
-                }
+                swHttpRequest_free(conn);
             }
         }
     }
