@@ -275,6 +275,9 @@ int swReactorThread_close(swReactor *reactor, int fd)
         return SW_ERR;
     }
 
+    assert(fd % serv->reactor_num == reactor->id);
+    assert(fd % serv->reactor_num == SwooleTG.id);
+
     sw_atomic_fetch_add(&SwooleStats->close_count, 1);
     sw_atomic_fetch_sub(&SwooleStats->connection_num, 1);
 
@@ -803,6 +806,9 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     int ret;
     swServer *serv = SwooleG.serv;
     int fd = ev->fd;
+
+    assert(fd % serv->reactor_num == reactor->id);
+    assert(fd % serv->reactor_num == SwooleTG.id);
 
     swConnection *conn = swServer_connection_get(serv, fd);
     if (conn->active == 0)
