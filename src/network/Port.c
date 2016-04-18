@@ -198,7 +198,7 @@ static int swPort_websocket_onPackage(swConnection *conn, char *data, uint32_t l
         break;
 
     case WEBSOCKET_OPCODE_PING:
-        if (length == 2)
+        if (length == 2 || length >= (sizeof(buf) - 2))
         {
             return SW_ERR;
         }

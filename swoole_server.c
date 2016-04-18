@@ -1691,12 +1691,12 @@ PHP_METHOD(swoole_server, listen)
 
     swServer *serv = swoole_get_object(getThis());
     swListenPort *ls = swServer_add_port(serv, (int) sock_type, host, (int) port);
-    if (!port)
+    if (!ls)
     {
         RETURN_FALSE;
     }
-    zval *port_object = php_swoole_server_add_port(ls TSRMLS_CC);
 
+    zval *port_object = php_swoole_server_add_port(ls TSRMLS_CC);
     RETURN_ZVAL(port_object, 1, NULL);
 }
 
