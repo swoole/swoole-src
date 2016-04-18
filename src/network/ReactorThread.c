@@ -310,7 +310,6 @@ int swReactorThread_close(swReactor *reactor, int fd)
             }
             else
             {
-                swHttpRequest *request = (swHttpRequest *) conn->object;
                 swHttpRequest_free(conn);
             }
         }
