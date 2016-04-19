@@ -130,11 +130,41 @@ static int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
 
     memcpy(&(e.data.u64), &fd_, sizeof(fd_));
     ret = epoll_ctl(object->epfd, EPOLL_CTL_ADD, fd, &e);
-    if (ret < 0)
-    {
-        swSysError("add events[fd=%d#%d, type=%d, events=%d] failed.", fd, reactor->id, fd_.fdtype, e.events);
-        return SW_ERR;
-    }
+  
+	if (ret != 0)
+	{
+		switch (errno)
+		{
+		case EBADF:
+		case EINVAL:
+		case ENOMEM:
+		case EPERM:
+			swSysError("add events[fd=%d#%d, type=%d, events=%d, errno=%d] failed.", fd, reactor->id, fd_.fdtype, e.events,errno);
+			return SW_ERR;
+		case EEXIST:
+			swSysError("op was EPOLL_CTL_ADD, and the supplied file descriptor fd is already in epfd.");
+            if (op == EPOLL_CTL_ADD)
+            {
+                ret = epoll_ctl(object->epfd, EPOLL_CTL_MOD, fd, &e);
+                if (ret != 0)
+                {
+                    swSysError("add events fd:%d retry EPOLL_CTL_MOD failed", fd);
+                }
+            }  
+		case ENOENT:
+            if (op == EPOLL_CTL_MOD)
+            {
+                ret = epoll_ctl(object->epfd, EPOLL_CTL_ADD, fd, &e);
+                if (ret != 0)
+                {
+                    swSysError("[CEPoll::__setupEPoll] fd:%d retry EPOLL_CTL_ADD failed", fd);
+                } 
+            } 
+		default:
+			return SW_ERR;
+		}
+	}
+	
     swTraceLog(SW_TRACE_EVENT, "add event[reactor_id=%d|fd=%d]", reactor->id, fd);
     reactor->event_num++;
     return SW_OK;
