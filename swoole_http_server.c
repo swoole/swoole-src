@@ -1017,7 +1017,7 @@ static void http_onClose(swServer *serv, swDataHead *info)
         }
     }
 
-    if (php_sw_callback[SW_SERVER_CB_onClose] != NULL)
+    if (php_sw_server_callbacks[SW_SERVER_CB_onClose] != NULL)
     {
         php_swoole_onClose(serv, info);
     }

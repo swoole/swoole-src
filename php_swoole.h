@@ -220,7 +220,7 @@ extern zend_class_entry *swoole_http_server_class_entry_ptr;
 extern zend_class_entry *swoole_websocket_frame_class_entry_ptr;
 extern zend_class_entry *swoole_server_port_class_entry_ptr;
 
-extern zval *php_sw_callback[PHP_SERVER_CALLBACK_NUM];
+extern zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
 
 #define PHP_MEMORY_DEBUG  0
 

@@ -740,16 +740,6 @@ PHP_RINIT_FUNCTION(swoole)
 
 PHP_RSHUTDOWN_FUNCTION(swoole)
 {
-    int i;
-    for (i = 0; i < PHP_SERVER_CALLBACK_NUM; i++)
-    {
-        if (php_sw_callback[i] != NULL)
-        {
-            zval_dtor(php_sw_callback[i]);
-            efree(php_sw_callback[i]);
-        }
-    }
-
     //clear pipe buffer
     if (swIsWorker())
     {

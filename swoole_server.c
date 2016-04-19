@@ -36,7 +36,7 @@ static struct
     uint8_t num;
 } server_port_list;
 
-zval *php_sw_callback[PHP_SERVER_CALLBACK_NUM];
+zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
 
 static int php_swoole_task_finish(swServer *serv, zval *data TSRMLS_DC);
 static void php_swoole_onPipeMessage(swServer *serv, swEventData *req);
@@ -170,12 +170,12 @@ static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server
     swoole_server_port_property *property = port->ptr;
     if (!property)
     {
-        return php_sw_callback[event_type];
+        return php_sw_server_callbacks[event_type];
     }
     zval *callback = property->callbacks[event_type];
     if (!callback)
     {
-        return php_sw_callback[event_type];
+        return php_sw_server_callbacks[event_type];
     }
     else
     {
@@ -344,7 +344,7 @@ void php_swoole_register_callback(swServer *serv)
     /*
      * optional callback
      */
-    if (php_sw_callback[SW_SERVER_CB_onStart] != NULL)
+    if (php_sw_server_callbacks[SW_SERVER_CB_onStart] != NULL)
     {
         serv->onStart = php_swoole_onStart;
     }
@@ -354,41 +354,41 @@ void php_swoole_register_callback(swServer *serv)
      */
     serv->onWorkerStart = php_swoole_onWorkerStart;
 
-    if (php_sw_callback[SW_SERVER_CB_onWorkerStop] != NULL)
+    if (php_sw_server_callbacks[SW_SERVER_CB_onWorkerStop] != NULL)
     {
         serv->onWorkerStop = php_swoole_onWorkerStop;
     }
     /**
      * UDP Packet
      */
-    if (php_sw_callback[SW_SERVER_CB_onPacket] != NULL)
+    if (php_sw_server_callbacks[SW_SERVER_CB_onPacket] != NULL)
     {
         serv->onPacket = php_swoole_onPacket;
     }
     /**
      * Task Worker
      */
-    if (php_sw_callback[SW_SERVER_CB_onTask] != NULL)
+    if (php_sw_server_callbacks[SW_SERVER_CB_onTask] != NULL)
     {
         serv->onTask = php_swoole_onTask;
     }
-    if (php_sw_callback[SW_SERVER_CB_onFinish] != NULL)
+    if (php_sw_server_callbacks[SW_SERVER_CB_onFinish] != NULL)
     {
         serv->onFinish = php_swoole_onFinish;
     }
-    if (php_sw_callback[SW_SERVER_CB_onWorkerError] != NULL)
+    if (php_sw_server_callbacks[SW_SERVER_CB_onWorkerError] != NULL)
     {
         serv->onWorkerError = php_swoole_onWorkerError;
     }
-    if (php_sw_callback[SW_SERVER_CB_onManagerStart] != NULL)
+    if (php_sw_server_callbacks[SW_SERVER_CB_onManagerStart] != NULL)
     {
         serv->onManagerStart = php_swoole_onManagerStart;
     }
-    if (php_sw_callback[SW_SERVER_CB_onManagerStop] != NULL)
+    if (php_sw_server_callbacks[SW_SERVER_CB_onManagerStop] != NULL)
     {
         serv->onManagerStop = php_swoole_onManagerStop;
     }
-    if (php_sw_callback[SW_SERVER_CB_onPipeMessage] != NULL)
+    if (php_sw_server_callbacks[SW_SERVER_CB_onPipeMessage] != NULL)
     {
         serv->onPipeMessage = php_swoole_onPipeMessage;
     }
@@ -479,7 +479,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
 
     swTrace("PipeMessage: fd=%d|len=%d|from_id=%d|data=%s\n", req->info.fd, req->info.len, req->info.from_id, req->data);
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onPipeMessage], &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onPipeMessage], &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_server: onPipeMessage handler error");
     }
@@ -765,7 +765,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
         args[3] = &zdata;
     }
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onTask], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onTask], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_server: onTask handler error");
     }
@@ -820,7 +820,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
 
     //swTraceLog(60, "req: fd=%d|len=%d|from_id=%d|data=%s\n", req->info.fd, req->info.len, req->info.from_id, req->data);
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onFinish], &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onFinish], &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_server: onFinish handler error");
     }
@@ -855,7 +855,7 @@ static void php_swoole_onStart(swServer *serv)
     args[0] = &zserv;
     sw_zval_add_ref(&zserv);
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onStart], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onStart], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_server: onStart handler error");
     }
@@ -887,7 +887,7 @@ static void php_swoole_onManagerStart(swServer *serv)
     args[0] = &zserv;
     sw_zval_add_ref(&zserv);
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onManagerStart], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onManagerStart], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_server: onManagerStart handler error");
     }
@@ -913,7 +913,7 @@ static void php_swoole_onManagerStop(swServer *serv)
     args[0] = &zserv;
     sw_zval_add_ref(&zserv);
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onManagerStop], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onManagerStop], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_server: onManagerStop handler error");
     }
@@ -940,9 +940,9 @@ static void php_swoole_onShutdown(swServer *serv)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    if (php_sw_callback[SW_SERVER_CB_onShutdown] != NULL)
+    if (php_sw_server_callbacks[SW_SERVER_CB_onShutdown] != NULL)
     {
-        if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onShutdown], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+        if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onShutdown], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
         {
             swoole_php_fatal_error(E_WARNING, "swoole_server: onShutdown handler error");
         }
@@ -1007,12 +1007,12 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     /**
      * Have not set the event callback
      */
-    if (php_sw_callback[SW_SERVER_CB_onWorkerStart] == NULL)
+    if (php_sw_server_callbacks[SW_SERVER_CB_onWorkerStart] == NULL)
     {
         return;
     }
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onWorkerStart], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onWorkerStart], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_server: onWorkerStart handler error");
     }
@@ -1050,7 +1050,7 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
 
     args[0] = &zobject;
     args[1] = &zworker_id;
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onWorkerStop], &retval, 2, args, 0,
+    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onWorkerStop], &retval, 2, args, 0,
             NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_server: onWorkerStop handler error");
@@ -1110,7 +1110,7 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
     args[3] = &zexit_code;
     args[4] = &zsigno;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_callback[SW_SERVER_CB_onWorkerError], &retval, 5, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onWorkerError], &retval, 5, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_server: onWorkerError handler error");
     }
@@ -1282,7 +1282,7 @@ PHP_METHOD(swoole_server, __construct)
         serv->max_request = 0;
     }
 
-    bzero(php_sw_callback, sizeof (zval*) * PHP_SERVER_CALLBACK_NUM);
+    bzero(php_sw_server_callbacks, sizeof (zval*) * PHP_SERVER_CALLBACK_NUM);
 
     swListenPort *port = swServer_add_port(serv, sock_type, serv_host, serv_port);
     if (!port)
@@ -1641,7 +1641,7 @@ PHP_METHOD(swoole_server, on)
             l_property_name = Z_STRLEN_P(name) + 2;
             property_name[l_property_name] = '\0';
             zend_update_property(swoole_server_class_entry_ptr, getThis(), property_name, l_property_name, cb TSRMLS_CC);
-            php_sw_callback[i] = sw_zend_read_property(swoole_server_class_entry_ptr, getThis(), property_name, l_property_name, 0 TSRMLS_CC);
+            php_sw_server_callbacks[i] = sw_zend_read_property(swoole_server_class_entry_ptr, getThis(), property_name, l_property_name, 0 TSRMLS_CC);
             break;
         }
     }
@@ -1761,7 +1761,7 @@ PHP_METHOD(swoole_server, start)
     swServer *serv = swoole_get_object(zobject);
     php_swoole_register_callback(serv);
 
-    if (php_sw_callback[SW_SERVER_CB_onReceive] == NULL && php_sw_callback[SW_SERVER_CB_onPacket] == NULL)
+    if (php_sw_server_callbacks[SW_SERVER_CB_onReceive] == NULL && php_sw_server_callbacks[SW_SERVER_CB_onPacket] == NULL)
     {
         swoole_php_fatal_error(E_ERROR, "require onReceive/onPacket callback");
         RETURN_FALSE;
