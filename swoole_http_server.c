@@ -1535,6 +1535,8 @@ static char *http_status_message(int code)
         return "500 Internal Server Error";
     case 501:
         return "501 Method Not Implemented";
+    case 502:
+        return "502 Bad Gateway";
     case 503:
         return "503 Service Unavailable";
     case 505:
