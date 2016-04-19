@@ -1251,19 +1251,15 @@ static PHP_METHOD(swoole_http_server, on)
     efree(func_name);
     sw_zval_add_ref(&callback);
 
-#if PHP_MAJOR_VERSION >= 7
-    zval *callback_copy = emalloc(sizeof(zval));
-    memcpy(callback_copy, callback, sizeof(zval));
-    callback = callback_copy;
-#endif
-
     if (strncasecmp("request", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
-        php_sw_http_server_callbacks[0] = callback;
+        zend_update_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onRequest"), callback TSRMLS_CC);
+        php_sw_http_server_callbacks[0] = sw_zend_read_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onRequest"), 0 TSRMLS_CC);
     }
     else if (strncasecmp("handshake", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
-        php_sw_http_server_callbacks[1] = callback;
+        zend_update_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onHandshake"), callback TSRMLS_CC);
+        php_sw_http_server_callbacks[1] = sw_zend_read_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onHandshake"), 0 TSRMLS_CC);
     }
     else
     {

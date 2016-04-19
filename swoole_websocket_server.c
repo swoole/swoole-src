@@ -326,7 +326,7 @@ zval* php_swoole_websocket_unpack(swString *data TSRMLS_DC)
     return zframe;
 }
 
-static PHP_METHOD( swoole_websocket_server, on)
+static PHP_METHOD(swoole_websocket_server, on)
 {
     zval *callback;
     zval *event_name;
@@ -353,23 +353,17 @@ static PHP_METHOD( swoole_websocket_server, on)
     }
     efree(func_name);
 
-#if PHP_MAJOR_VERSION >= 7
-    zval *callback_copy = emalloc(sizeof(zval));
-    memcpy(callback_copy, callback, sizeof(zval));
-    callback = callback_copy;
-#endif
-
     serv->listen_list->open_websocket_protocol = 1;
 
     if (strncasecmp("open", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
-        sw_zval_add_ref(&callback);
-        websocket_callbacks[0] = callback;
+        zend_update_property(swoole_websocket_server_class_entry_ptr, getThis(), ZEND_STRL("onOpen"), callback TSRMLS_CC);
+        websocket_callbacks[0] = sw_zend_read_property(swoole_websocket_server_class_entry_ptr, getThis(), ZEND_STRL("onOpen"), 0 TSRMLS_CC);
     }
     else if (strncasecmp("message", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
-        sw_zval_add_ref(&callback);
-        websocket_callbacks[1] = callback;
+        zend_update_property(swoole_websocket_server_class_entry_ptr, getThis(), ZEND_STRL("onMessage"), callback TSRMLS_CC);
+        websocket_callbacks[1] = sw_zend_read_property(swoole_websocket_server_class_entry_ptr, getThis(), ZEND_STRL("onMessage"), 0 TSRMLS_CC);
     }
     else
     {
