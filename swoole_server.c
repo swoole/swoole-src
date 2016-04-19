@@ -17,6 +17,7 @@
 #include "php_swoole.h"
 
 #include "Connection.h"
+#include "swoole_coroutine.h"
 
 #include "ext/standard/php_var.h"
 #if PHP_MAJOR_VERSION < 7
@@ -57,91 +58,6 @@ static void php_swoole_onManagerStop(swServer *serv);
 
 static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC);
 static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC);
-
-zend_execute_data *create_new_coroutine(zend_op_array *op_array, zval **argv, int argc)
-{
-  zend_execute_data *execute_data;
-  size_t execute_data_size = ZEND_MM_ALIGNED_SIZE(sizeof(zend_execute_data));
-  size_t CVs_size = ZEND_MM_ALIGNED_SIZE(sizeof(zval **) * op_array->last_var * (EG(active_symbol_table) ? 1 : 2));
-  size_t Ts_size = ZEND_MM_ALIGNED_SIZE(sizeof(temp_variable)) * op_array->T;
-  size_t call_slots_size = ZEND_MM_ALIGNED_SIZE(sizeof(call_slot)) * op_array->nested_calls;
-  size_t stack_size = ZEND_MM_ALIGNED_SIZE(sizeof(zval*)) * op_array->used_stack;
-  size_t total_size = execute_data_size + Ts_size + CVs_size + call_slots_size + stack_size;
-
-  //from generator
-  size_t args_size = ZEND_MM_ALIGNED_SIZE(sizeof(zval*)) * (argc + 1);
-
-  total_size += execute_data_size + args_size;
-
-  EG(argument_stack) = zend_vm_stack_new_page((total_size + (sizeof(void*) - 1)) / sizeof(void*));
-  EG(argument_stack)->prev = NULL;
-  execute_data = (zend_execute_data*)((char*)ZEND_VM_STACK_ELEMETS(EG(argument_stack)) + args_size + Ts_size + execute_data_size);
-
-  /* copy prev_execute_data */
-  execute_data->prev_execute_data = (zend_execute_data*)((char*)ZEND_VM_STACK_ELEMETS(EG(argument_stack)) + args_size);
-  memset(execute_data->prev_execute_data, 0, sizeof(zend_execute_data));
-  execute_data->prev_execute_data->function_state.function = (zend_function*)op_array;
-  execute_data->prev_execute_data->function_state.arguments = (void**)((char*)ZEND_VM_STACK_ELEMETS(EG(argument_stack)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval*)) * argc);
-
-  /* copy arguments */
-  *execute_data->prev_execute_data->function_state.arguments = (void*)(zend_uintptr_t)argc;
-  if (argc > 0) {
-    zval **arg_dst = (zval**)zend_vm_stack_get_arg_ex(execute_data->prev_execute_data, 1);
-    int i;
-    for (i = 0; i < argc; i++) {
-      arg_dst[i] = argv[i];
-      Z_ADDREF_P(arg_dst[i]);
-    }
-  }
-  memset(EX_CV_NUM(execute_data, 0), 0, sizeof(zval **) * op_array->last_var);
-  execute_data->call_slots = (call_slot*)((char *)execute_data + execute_data_size + CVs_size);
-  execute_data->op_array = op_array;
-
-  EG(argument_stack)->top = zend_vm_stack_frame_base(execute_data);
-
-  execute_data->object = NULL;
-  execute_data->current_this = NULL;
-  execute_data->old_error_reporting = NULL;
-  execute_data->symbol_table = EG(active_symbol_table);
-  execute_data->call = NULL;
-  execute_data->nested = 0;
-
-  if (!op_array->run_time_cache && op_array->last_cache_slot) {
-    op_array->run_time_cache = ecalloc(op_array->last_cache_slot, sizeof(void*));
-  }
-
-  /**
-   * comment this temporarily. Consequently, we cannot create a coroutine to run a method of object
-   */
-  //if (op_array->this_var != -1 && EG(This)) {
-  //  printf("this pointer");
-  //  Z_ADDREF_P(EG(This)); /* For $this pointer */
-  //  if (!EG(active_symbol_table)) {
-  //    EX_CV(op_array->this_var) = (zval **) EX_CV_NUM(execute_data, op_array->last_var + op_array->this_var);
-  //    *EX_CV(op_array->this_var) = EG(This);
-  //  } else {
-  //    if (zend_hash_add(EG(active_symbol_table), "this", sizeof("this"), &EG(This), sizeof(zval *), (void **) EX_CV_NUM(execute_data, op_array->this_var))==FAILURE) {
-  //      Z_DELREF_P(EG(This));
-  //    }
-  //  }
-  //}
-
-  execute_data->opline = op_array->opcodes;
-  EG(opline_ptr) = &((*execute_data).opline);
-
-  execute_data->function_state.function = (zend_function *) op_array;
-  execute_data->function_state.arguments = NULL;
-
-  EG(active_op_array) = op_array;
-  /*
-   * push dummy arguments to protect the stack (maybe push 0??)
-   */
-  //zend_vm_stack_push((void *)0);
-
-  EG(current_execute_data) = execute_data;
-  EG(This) = 0;
-  return execute_data;
-}
 
 zval *php_swoole_get_recv_data(zval *zdata, swEventData *req TSRMLS_DC)
 {
@@ -687,7 +603,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
         zdata = php_swoole_get_recv_data(zdata, req TSRMLS_CC);
     }
 
-	/* we don't support multi port temporarily */
+    /* we don't support multi port temporarily */
     //callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
 
     args[0] = zserv;
@@ -695,13 +611,14 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     args[2] = zfrom_id;
     args[3] = zdata;
 
-    zend_execute_data *execute_data = create_new_coroutine(&php_sw_callback_cache[SW_SERVER_CB_onReceive]->function_handler->op_array, args, 4);
+    zend_execute_data *execute_data = coro_create(&php_sw_callback_cache[SW_SERVER_CB_onReceive]->function_handler->op_array, args, 4);
     zend_execute_ex(execute_data TSRMLS_CC);
+    coro_close();
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-	/* I'm not sure about how to handle this....so comment */
+    /* I'm not sure about how to handle this....so comment */
     //sw_zval_ptr_dtor(&zfd);
     //sw_zval_ptr_dtor(&zfrom_id);
     //sw_zval_ptr_dtor(&zdata);

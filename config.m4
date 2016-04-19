@@ -255,6 +255,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_lock.c \
         swoole_client.c \
         swoole_client_coro.c \
+        swoole_coroutine.c \
         swoole_event.c \
         swoole_timer.c \
         swoole_async.c \

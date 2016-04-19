@@ -15,6 +15,7 @@
 */
 
 #include "php_swoole.h"
+#include "swoole_coroutine.h"
 
 #include "ext/standard/basic_functions.h"
 #include <setjmp.h>
@@ -26,22 +27,6 @@ typedef struct
     zval *onClose;
     zval *onError;
 } client_callback;
-
-typedef struct
-{
-    zval **current_return_value_ptr_ptr;
-    zval *current_return_value_ptr;
-    zend_execute_data *current_execute_data;
-    zend_op **current_opline_ptr;
-    zend_op *current_opline;
-    zend_execute_data *prev_execute_data;
-    zend_op_array *current_active_op_array;
-    HashTable *current_active_symbol_table;
-    zval *current_this;
-    zend_class_entry *current_scope;
-    zend_class_entry *current_called_scope;
-    zend_vm_stack current_vm_stack;
-} php_context;
 
 enum client_callback_type
 {
@@ -84,40 +69,16 @@ static void client_coro_onError(swClient *cli);
 
 extern jmp_buf swReactorCheckPoint;
 
-static sw_inline void client_free_callback(zval *object)
+static sw_inline void client_free_php_context(zval *object)
 {
     //free memory
-    client_callback *cb = swoole_get_property(object, 0);
-    if (!cb)
+    php_context *context= swoole_get_property(object, 0);
+    if (!context)
     {
         return;
     }
 
-    if (cb->onConnect)
-    {
-        sw_zval_ptr_dtor(&cb->onConnect);
-    }
-    if (cb->onReceive)
-    {
-        sw_zval_ptr_dtor(&cb->onReceive);
-    }
-    if (cb->onError)
-    {
-        sw_zval_ptr_dtor(&cb->onError);
-    }
-    if (cb->onClose)
-    {
-        sw_zval_ptr_dtor(&cb->onClose);
-    }
-
-#if PHP_MAJOR_VERSION >= 7
-    swoole_efree(cb->onConnect);
-    swoole_efree(cb->onReceive);
-    swoole_efree(cb->onError);
-    swoole_efree(cb->onClose);
-#endif
-
-    efree(cb);
+    efree(context);
     swoole_set_property(object, 0, NULL);
 }
 
@@ -207,40 +168,6 @@ static swHashMap *php_sw_long_connections;
 zend_class_entry swoole_client_coro_ce;
 zend_class_entry *swoole_client_coro_class_entry_ptr;
 
-static php_context *coro_save(zval* this, zval *return_value, zval **return_value_ptr)
-{
-    php_context *sw_current_context = emalloc(sizeof(php_context));
-    //SWCC(current_return_value_ptr_ptr) = EG(return_value_ptr_ptr);
-    SWCC(current_return_value_ptr_ptr) = return_value_ptr;
-    SWCC(current_return_value_ptr) = return_value;
-    SWCC(current_execute_data) = EG(current_execute_data);
-    SWCC(current_opline_ptr) = EG(opline_ptr);
-    SWCC(current_opline) = *(EG(opline_ptr));
-    SWCC(current_active_op_array) = EG(active_op_array);
-    SWCC(current_active_symbol_table) = EG(active_symbol_table);
-    SWCC(current_this) = EG(This);
-    SWCC(current_scope) = EG(scope);
-    SWCC(current_called_scope) = EG(called_scope);
-    SWCC(current_vm_stack) = EG(argument_stack);
-    swoole_set_property(this, 0, sw_current_context);
-    return sw_current_context;
-}
-
-static void coro_switch(php_context *sw_current_context, zval *retval)
-{
-    EG(return_value_ptr_ptr) = SWCC(current_return_value_ptr_ptr);
-    *(sw_current_context->current_return_value_ptr) = *retval;
-    zval_copy_ctor(sw_current_context->current_return_value_ptr);
-    EG(current_execute_data) = SWCC(current_execute_data);
-    EG(opline_ptr) = SWCC(current_opline_ptr);
-    EG(active_op_array) = SWCC(current_active_op_array)  ;
-    EG(active_symbol_table) = SWCC(current_active_symbol_table);
-    EG(This) = SWCC(current_this);
-    EG(scope) = SWCC(current_scope);
-    EG(called_scope) = SWCC(current_called_scope);
-    EG(argument_stack) = SWCC(current_vm_stack);
-}
-
 void swoole_client_coro_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_client_coro_ce, "swoole_client_coro", "Swoole\\Client", swoole_client_coro_methods);
@@ -284,18 +211,20 @@ static void client_coro_onReceive(swClient *cli, char *data, uint32_t length)
 
     /*if next cr*/
     php_context *sw_current_context = swoole_get_property(zobject, 0);
-    sw_current_context->current_execute_data->opline++;
+    coro_resume(sw_current_context, zdata);
+//    sw_current_context->current_execute_data->opline++;
     //*EG(current_execute_data_ptr) = SWCC(current_execute_data);
 
     //yield to next coroutine
-    coro_switch(sw_current_context, zdata);
+ //   coro_switch(sw_current_context, zdata);
 
-    efree(sw_current_context);
     //clear stack and start executor
-    sw_current_context->current_execute_data->call--;
-    zend_vm_stack_clear_multiple(1 TSRMLS_CC);
-    zend_execute_ex(sw_current_context->current_execute_data TSRMLS_CC);
+  //  sw_current_context->current_execute_data->call--;
+  //  zend_vm_stack_clear_multiple(1 TSRMLS_CC);
+  //  zend_execute_ex(sw_current_context->current_execute_data TSRMLS_CC);
 
+  //  efree(sw_current_context);
+    coro_close();
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
@@ -771,7 +700,7 @@ static PHP_METHOD(swoole_client_coro, __destruct)
         }
     }
     //free callback function
-    client_free_callback(getThis());
+    client_free_php_context(getThis());
 
 #if PHP_MEMORY_DEBUG
     php_vmstat.free_client++;
@@ -959,7 +888,8 @@ static PHP_METHOD(swoole_client_coro, send_and_receive)
     }
     else
     {
-        php_context *current = coro_save(getThis(), return_value, return_value_ptr);
+        php_context *current = coro_save(return_value, return_value_ptr);
+        swoole_set_property(getThis(), 0, current);
         longjmp(swReactorCheckPoint, 1);
     }
 }
@@ -1123,7 +1053,8 @@ static PHP_METHOD(swoole_client_coro, sendfile)
 static PHP_METHOD(swoole_client_coro, recv)
 {
     /* support params in future */
-    php_context *current = coro_save(getThis(), return_value, return_value_ptr);
+    php_context *current = coro_save(return_value, return_value_ptr);
+    swoole_set_property(getThis(), 0, current);
     longjmp(swReactorCheckPoint, 1);
 }
 

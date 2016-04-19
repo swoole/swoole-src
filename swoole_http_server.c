@@ -16,6 +16,7 @@
 
 #include "php_swoole.h"
 #include "swoole_http.h"
+#include "swoole_coroutine.h"
 
 #include <ext/standard/url.h>
 #include <ext/standard/sha1.h>
@@ -1180,12 +1181,13 @@ static int http_onReceive(swServer *serv, swEventData *req)
         }
 
 
-        zend_execute_data *execute_data = create_new_coroutine(&php_sw_http_callback_cache[callback]->function_handler->op_array, args, 2);
+        zend_execute_data *execute_data = coro_create(&php_sw_http_callback_cache[callback]->function_handler->op_array, args, 2);
         zend_execute_ex(execute_data TSRMLS_CC);
         //if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[callback], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
         //{
         //    swoole_php_error(E_WARNING, "onRequest handler error");
         //}
+        coro_close();
         if (EG(exception))
         {
             zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
