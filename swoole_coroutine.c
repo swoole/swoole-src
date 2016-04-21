@@ -62,7 +62,6 @@ zend_execute_data *coro_create(zend_op_array *op_array, zval **argv, int argc)
     memset(execute_data->prev_execute_data, 0, sizeof(zend_execute_data));
     execute_data->prev_execute_data->function_state.function = (zend_function*)op_array;
     execute_data->prev_execute_data->function_state.arguments = (void**)((char*)ZEND_VM_STACK_ELEMETS(EG(argument_stack)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval*)) * argc);
-    execute_data->prev_execute_data->prev_execute_data = execute_data;
 
     /* copy arguments */
     *execute_data->prev_execute_data->function_state.arguments = (void*)(zend_uintptr_t)argc;
@@ -126,22 +125,7 @@ zend_execute_data *coro_create(zend_op_array *op_array, zval **argv, int argc)
 
 void coro_close()
 {
-    zend_execute_data *execute_data = EG(current_execute_data)->prev_execute_data;
-    if (!execute_data->symbol_table) {
-        zval ***start = (zval ***)((char *)(execute_data) + ZEND_MM_ALIGNED_SIZE(sizeof(zend_execute_data)));
-        zval ***end = start + execute_data->op_array->last_var;
-        while (start != end)
-        {
-            if (*start)
-            {
-                zval_ptr_dtor(*start);
-            }
-            ++start;
-        }
-    }
-
-    zend_execute_data *prev_execute_data = execute_data->prev_execute_data;
-    void **arguments = prev_execute_data->function_state.arguments;
+    void **arguments = EG(current_execute_data)->function_state.arguments;
     if (arguments)
     {
         int arg_count = (int)(*arguments);
