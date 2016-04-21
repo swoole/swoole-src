@@ -429,7 +429,6 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     }
 #endif
 
-#ifndef SW_USE_RINGBUFFER
     int i;
     int buffer_input_size;
     if (serv->listen_list->open_eof_check || serv->listen_list->open_length_check || serv->listen_list->open_http_protocol)
@@ -467,8 +466,6 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
             return SW_ERR;
         }
     }
-
-#endif
 
     if (serv->max_request < 1)
     {
