@@ -1631,7 +1631,7 @@ PHP_METHOD(swoole_server, on)
     int i;
     char property_name[128];
     int l_property_name = 0;
-    memcpy(property_name, ZEND_STRL("on"));
+    memcpy(property_name, "on", 2);
 
     for (i = 0; i < PHP_SERVER_CALLBACK_NUM; i++)
     {
