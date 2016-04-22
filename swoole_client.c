@@ -691,12 +691,11 @@ static PHP_METHOD(swoole_client, __construct)
 
     if ((Z_LVAL_P(ztype) & SW_FLAG_ASYNC))
     {
+        if ((Z_LVAL_P(ztype) & SW_FLAG_KEEP) && SWOOLE_G(cli))
+        {
+            swoole_php_fatal_error(E_ERROR, "The 'SWOOLE_KEEP' flag can only be used in the php-fpm or apache environment.");
+        }
         php_swoole_check_reactor();
-    }
-
-    if ((Z_LVAL_P(ztype) & SW_FLAG_KEEP) && SWOOLE_G(cli))
-    {
-        swoole_php_fatal_error(E_ERROR, "The 'SWOOLE_KEEP' flag can only be used in the php-fpm or apache environment.");
     }
 
     zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("type"), ztype TSRMLS_CC);
