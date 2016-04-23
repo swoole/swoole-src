@@ -17,7 +17,9 @@
 #include "php_swoole.h"
 
 #include "Connection.h"
-
+#ifdef SW_COROUTINE
+#include "swoole_coroutine.h"
+#endif
 #include "ext/standard/php_var.h"
 #if PHP_MAJOR_VERSION < 7
 #include "ext/standard/php_smart_str.h"
@@ -37,6 +39,10 @@ static struct
 } server_port_list;
 
 zval *php_sw_callback[PHP_SERVER_CALLBACK_NUM];
+
+#ifdef SW_COROUTINE
+zend_fcall_info_cache *php_sw_callback_cache[PHP_SERVER_CALLBACK_NUM];
+#endif
 
 static int php_swoole_task_finish(swServer *serv, zval *data TSRMLS_DC);
 static void php_swoole_onPipeMessage(swServer *serv, swEventData *req);
@@ -435,9 +441,10 @@ int php_swoole_set_callback(zval **array, int key, zval *cb TSRMLS_DC)
 {
 #ifdef PHP_SWOOLE_CHECK_CALLBACK
     char *func_name = NULL;
-    if (!sw_zend_is_callable(cb, 0, &func_name TSRMLS_CC))
+	zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
+    if (!zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
     {
-        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
         efree(func_name);
         return SW_ERR;
     }
@@ -453,6 +460,11 @@ int php_swoole_set_callback(zval **array, int key, zval *cb TSRMLS_DC)
 
     *(array[key]) = *cb;
     zval_copy_ctor(array[key]);
+
+
+#ifdef SW_COROUTINE
+    php_sw_callback_cache[key] = func_cache;
+#endif
 
     return SW_OK;
 }
@@ -528,14 +540,12 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
 {
     swFactory *factory = &serv->factory;
     zval *zserv = (zval *) serv->ptr2;
-    zval **args[4];
+    zval *args[4];
 
     zval *zfd;
     zval *zfrom_id;
     zval *zdata;
     zval *retval = NULL;
-
-    zval *callback;
 
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -600,24 +610,25 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
         zdata = php_swoole_get_recv_data(zdata, req TSRMLS_CC);
     }
 
-    callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
+    /* we don't support multi port temporarily */
+    //callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
 
-    args[0] = &zserv;
-    args[1] = &zfd;
-    args[2] = &zfrom_id;
-    args[3] = &zdata;
+    args[0] = zserv;
+    args[1] = zfd;
+    args[2] = zfrom_id;
+    args[3] = zdata;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
-    {
-        swoole_php_fatal_error(E_WARNING, "swoole_server: onReceive handler error");
-    }
+    zend_execute_data *execute_data = coro_create(&php_sw_callback_cache[SW_SERVER_CB_onReceive]->function_handler->op_array, args, 4);
+    zend_execute_ex(execute_data TSRMLS_CC);
+    coro_close();
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-    sw_zval_ptr_dtor(&zfd);
-    sw_zval_ptr_dtor(&zfrom_id);
-    sw_zval_ptr_dtor(&zdata);
+    /* I'm not sure about how to handle this....so comment */
+    //sw_zval_ptr_dtor(&zfd);
+    //sw_zval_ptr_dtor(&zfrom_id);
+    //sw_zval_ptr_dtor(&zdata);
     if (retval != NULL)
     {
         sw_zval_ptr_dtor(&retval);
