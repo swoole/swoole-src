@@ -16,7 +16,6 @@
 
 #include "php_swoole.h"
 #include "swoole_http.h"
-#include "swoole_coroutine.h"
 
 #include <ext/standard/url.h>
 #include <ext/standard/sha1.h>
@@ -82,9 +81,7 @@ zend_class_entry swoole_http_request_ce;
 zend_class_entry *swoole_http_request_class_entry_ptr;
 
 zval* php_sw_http_server_callbacks[HTTP_SERVER_CALLBACK_NUM];
-zend_fcall_info_cache *php_sw_http_callback_cache[HTTP_SERVER_CALLBACK_NUM];
 
-extern zend_execute_data *create_new_coroutine(zend_op_array *op_array, zval **argv, int argc);
 static int http_onReceive(swServer *serv, swEventData *req);
 static void http_onClose(swServer *serv, swDataHead *info);
 
@@ -1099,7 +1096,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
     else
     {
         zval *retval;
-        zval *args[2];
+        zval **args[2];
 
         zval *zrequest_object = ctx->request.zrequest_object;
         zval *zresponse_object = ctx->response.zresponse_object;
@@ -1159,8 +1156,8 @@ static int http_onReceive(swServer *serv, swEventData *req)
         zval_add_ref(&zresponse_object);
 #endif
         
-        args[0] = zrequest_object;
-        args[1] = zresponse_object;
+        args[0] = &zrequest_object;
+        args[1] = &zresponse_object;
 
         int callback = 0;
 
@@ -1180,14 +1177,10 @@ static int http_onReceive(swServer *serv, swEventData *req)
             }
         }
 
-
-        zend_execute_data *execute_data = coro_create(&php_sw_http_callback_cache[callback]->function_handler->op_array, args, 2);
-        zend_execute_ex(execute_data TSRMLS_CC);
-        //if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[callback], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
-        //{
-        //    swoole_php_error(E_WARNING, "onRequest handler error");
-        //}
-        coro_close();
+        if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[callback], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+        {
+            swoole_php_error(E_WARNING, "onRequest handler error");
+        }
         if (EG(exception))
         {
             zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
@@ -1245,8 +1238,7 @@ static PHP_METHOD(swoole_http_server, on)
     }
 
     char *func_name = NULL;
-    zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
-    if (!zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
+    if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
     {
         swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
         efree(func_name);
@@ -1264,12 +1256,10 @@ static PHP_METHOD(swoole_http_server, on)
     if (strncasecmp("request", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
         php_sw_http_server_callbacks[0] = callback;
-        php_sw_http_callback_cache[0] = func_cache;
     }
     else if (strncasecmp("handshake", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
         php_sw_http_server_callbacks[1] = callback;
-        php_sw_http_callback_cache[1] = func_cache;
     }
     else
     {
