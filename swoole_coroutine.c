@@ -163,6 +163,10 @@ php_context *coro_save(zval *return_value, zval **return_value_ptr)
 void coro_resume(php_context *sw_current_context, zval *retval)
 {
     sw_current_context->current_execute_data->opline++;
+    if (SWCC(current_this))
+    {
+        zval_ptr_dtor(&SWCC(current_this));
+    }
     EG(return_value_ptr_ptr) = SWCC(current_return_value_ptr_ptr);
     *(sw_current_context->current_return_value_ptr) = *retval;
     zval_copy_ctor(sw_current_context->current_return_value_ptr);
@@ -170,12 +174,19 @@ void coro_resume(php_context *sw_current_context, zval *retval)
     EG(opline_ptr) = SWCC(current_opline_ptr);
     EG(active_op_array) = SWCC(current_active_op_array)  ;
     EG(active_symbol_table) = SWCC(current_active_symbol_table);
-    EG(This) = SWCC(current_this);
-    EG(scope) = SWCC(current_scope);
-    EG(called_scope) = SWCC(current_called_scope);
+    //EG(This) = SWCC(current_this);
+    //EG(scope) = SWCC(current_scope);
+    //EG(called_scope) = SWCC(current_called_scope);
+    EG(This) = EG(current_execute_data)->current_this;
+    EG(scope) = EG(current_execute_data)->current_scope;
+    EG(called_scope) = EG(current_execute_data)->current_called_scope;
     EG(argument_stack) = SWCC(current_vm_stack);
 
     sw_current_context->current_execute_data->call--;
     zend_vm_stack_clear_multiple(1 TSRMLS_CC);
     zend_execute_ex(sw_current_context->current_execute_data TSRMLS_CC);
+}
+
+void coro_yield()
+{
 }
