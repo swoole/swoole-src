@@ -691,6 +691,10 @@ static PHP_METHOD(swoole_client, __construct)
 
     if ((Z_LVAL_P(ztype) & SW_FLAG_ASYNC))
     {
+        if ((Z_LVAL_P(ztype) & SW_FLAG_KEEP) && SWOOLE_G(cli))
+        {
+            swoole_php_fatal_error(E_ERROR, "The 'SWOOLE_KEEP' flag can only be used in the php-fpm or apache environment.");
+        }
         php_swoole_check_reactor();
     }
 
@@ -877,7 +881,7 @@ static PHP_METHOD(swoole_client, connect)
     //nonblock async
     if (cli->connect(cli, host, port, timeout, sock_flag) < 0)
     {
-        swoole_php_error(E_WARNING, "connect to server[%s:%d] failed. Error: %s [%d]", host, (int)port, strerror(errno), errno);
+        swoole_php_sys_error(E_WARNING, "connect to server[%s:%d] failed.", host, (int )port);
         zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errno TSRMLS_CC);
         RETURN_FALSE;
     }

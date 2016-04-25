@@ -356,7 +356,7 @@ static PHP_METHOD(swoole_server_port, on)
 
     char property_name[128];
     int l_property_name = 0;
-    memcpy(property_name, ZEND_STRL("on"));
+    memcpy(property_name, "on", 2);
 
     for (i = 0; i < PHP_SERVER_PORT_CALLBACK_NUM; i++)
     {

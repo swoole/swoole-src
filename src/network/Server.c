@@ -429,7 +429,6 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     }
 #endif
 
-#ifndef SW_USE_RINGBUFFER
     int i;
     int buffer_input_size;
     if (serv->listen_list->open_eof_check || serv->listen_list->open_length_check || serv->listen_list->open_http_protocol)
@@ -467,8 +466,6 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
             return SW_ERR;
         }
     }
-
-#endif
 
     if (serv->max_request < 1)
     {
@@ -610,6 +607,21 @@ int swServer_start(swServer *serv)
             }
         }
     }
+
+    /**
+     * user worker process
+     */
+    if (serv->user_worker_list)
+    {
+        swUserWorker_node *user_worker;
+        i = 0;
+        LL_FOREACH(serv->user_worker_list, user_worker)
+        {
+            user_worker->worker->id = serv->worker_num + SwooleG.task_worker_num + i;
+            i++;
+        }
+    }
+
     //set listen socket options
     swListenPort *ls;
     LL_FOREACH(serv->listen_list, ls)
@@ -959,9 +971,7 @@ int swServer_add_worker(swServer *serv, swWorker *worker)
         return SW_ERR;
     }
 
-    worker->id = serv->worker_num + SwooleG.task_worker_num + serv->user_worker_num;
     serv->user_worker_num++;
-
     user_worker->worker = worker;
 
     LL_APPEND(serv->user_worker_list, user_worker);

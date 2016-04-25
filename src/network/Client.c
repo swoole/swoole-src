@@ -338,8 +338,13 @@ static int swClient_close(swClient *cli)
         //onClose callback
         if (cli->socket->active && cli->onClose)
         {
+            cli->socket->active = 0;
             cli->onClose(cli);
         }
+    }
+    else
+    {
+        cli->socket->active = 0;
     }
     return close(fd);
 }

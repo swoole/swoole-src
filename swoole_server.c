@@ -1073,7 +1073,6 @@ static void php_swoole_onUserWorkerStart(swServer *serv, swWorker *worker)
 #endif
 
     zval *object = worker->ptr;
-    worker->id = SwooleWG.id;
     zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("id"), SwooleWG.id TSRMLS_CC);
 
     php_swoole_process_start(worker, object TSRMLS_CC);
@@ -1631,7 +1630,7 @@ PHP_METHOD(swoole_server, on)
     int i;
     char property_name[128];
     int l_property_name = 0;
-    memcpy(property_name, ZEND_STRL("on"));
+    memcpy(property_name, "on", 2);
 
     for (i = 0; i < PHP_SERVER_CALLBACK_NUM; i++)
     {

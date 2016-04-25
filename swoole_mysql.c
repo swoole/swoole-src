@@ -1036,6 +1036,7 @@ PHP_FUNCTION(swoole_mysql_query)
             zend_class_entry *class_entry = zend_get_class_entry(mysql_link TSRMLS_CC);
             zend_update_property_bool(class_entry, mysql_link, ZEND_STRL("_connected"), 0 TSRMLS_CC);
             zend_update_property_bool(class_entry, mysql_link, ZEND_STRL("_errno"), 2006 TSRMLS_CC);
+            swoole_set_object(mysql_link, NULL);
         }
         RETURN_FALSE;
     }
