@@ -21,6 +21,8 @@
 #define php_context _php_context
 #define SWCC(x) sw_current_context->x
 
+extern jmp_buf swReactorCheckPoint;
+
 typedef struct
 {
     zval **current_return_value_ptr_ptr;
@@ -128,7 +130,7 @@ void coro_close()
     void **arguments = EG(current_execute_data)->function_state.arguments;
     if (arguments)
     {
-        int arg_count = (int)(*arguments);
+        int arg_count = (int)(zend_uintptr_t)(*arguments);
         zval **arg_start = (zval **)(arguments - arg_count);
         int i;
         for (i = 0; i < arg_count; ++i)
@@ -187,6 +189,7 @@ void coro_resume(php_context *sw_current_context, zval *retval)
     zend_execute_ex(sw_current_context->current_execute_data TSRMLS_CC);
 }
 
-void coro_yield()
+sw_inline void coro_yield()
 {
+    longjmp(swReactorCheckPoint, 1);
 }

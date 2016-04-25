@@ -1055,7 +1055,7 @@ static PHP_METHOD(swoole_client_coro, recv)
     /* support params in future */
     php_context *current = coro_save(return_value, return_value_ptr);
     swoole_set_property(getThis(), 0, current);
-    longjmp(swReactorCheckPoint, 1);
+    coro_yield();
 }
 
 static PHP_METHOD(swoole_client_coro, isConnected)
