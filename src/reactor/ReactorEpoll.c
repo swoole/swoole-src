@@ -151,7 +151,7 @@ static int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
 				return SW_ERR;
 			} 
 		case ENOENT:
-			swSysError(Info, "op was EPOLL_CTL_MOD or EPOLL_CTL_DEL, and fd is not in epfd. fd:%d,op:%d", fd, op); 
+			swSysError("op was EPOLL_CTL_MOD or EPOLL_CTL_DEL, and fd is not in epfd. fd:%d,op:%d", fd); 
 			return SW_ERR; 
 		}
 	}
@@ -223,7 +223,7 @@ static int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype)
 			swSysError("op was EPOLL_CTL_ADD, and the supplied file descriptor fd is already in epfd."); 
 			return SW_ERR;
 		case ENOENT:
-			swSysError(Info, "op was EPOLL_CTL_MOD or EPOLL_CTL_DEL, and fd is not in epfd. fd:%d,op:%d", fd, op); 
+			swSysError( "op was EPOLL_CTL_MOD or EPOLL_CTL_DEL, and fd is not in epfd. fd:%d", fd); 
 			ret = epoll_ctl(object->epfd, EPOLL_CTL_ADD, fd, &e);
 			if (ret != 0)
 			{
