@@ -19,6 +19,10 @@
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker);
 static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event);
 static int swReactorProcess_send2client(swFactory *, swSendData *);
+static void swReactorProcess_onTimeout(swReactor *reactor);
+
+static uint32_t heartbeat_check_lasttime = 0;
+static void (*swReactor_onTimeout_old)(swReactor *reactor);
 
 int swReactorProcess_create(swServer *serv)
 {
@@ -360,7 +364,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
      */
     if (serv->heartbeat_check_interval > 0)
     {
-        swHeartbeatThread_start(serv);
+        swReactor_onTimeout_old = reactor->onTimeout;
+        reactor->onTimeout = swReactorProcess_onTimeout;
     }
 
     struct timeval timeo;
@@ -463,5 +468,48 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
     else
     {
         return swFactory_finish(factory, _send);
+    }
+}
+
+static void swReactorProcess_onTimeout(swReactor *reactor)
+{
+    swServer *serv = reactor->ptr;
+    swEvent notify_ev;
+    swConnection *conn;
+
+    swReactor_onTimeout_old(reactor);
+
+    if (SwooleGS->now < heartbeat_check_lasttime + 10)
+    {
+        return;
+    }
+
+    int fd;
+    int serv_max_fd;
+    int serv_min_fd;
+    int checktime;
+
+    bzero(&notify_ev, sizeof(notify_ev));
+    notify_ev.type = SW_EVENT_CLOSE;
+
+    serv_max_fd = swServer_get_maxfd(serv);
+    serv_min_fd = swServer_get_minfd(serv);
+
+    checktime = SwooleGS->now - serv->heartbeat_idle_time;
+
+    for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
+    {
+        conn = swServer_connection_get(serv, fd);
+
+        if (conn != NULL && conn->active == 1 && conn->fdtype == SW_FD_TCP)
+        {
+            if (conn->protect || conn->last_time > checktime)
+            {
+                continue;
+            }
+            notify_ev.fd = fd;
+            notify_ev.from_id = conn->from_id;
+            swReactorProcess_onClose(reactor, &notify_ev);
+        }
     }
 }

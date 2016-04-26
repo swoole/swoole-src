@@ -40,7 +40,9 @@ static void swServer_signal_hanlder(int sig);
 static int swServer_start_proxy(swServer *serv);
 static void swServer_disable_accept(swReactor *reactor);
 
+static void swHeartbeatThread_start(swServer *serv);
 static void swHeartbeatThread_loop(swThreadParam *param);
+
 static int swServer_send1(swServer *serv, swSendData *resp);
 static int swServer_send2(swServer *serv, swSendData *resp);
 
@@ -1127,7 +1129,7 @@ static void swServer_signal_hanlder(int sig)
     }
 }
 
-void swHeartbeatThread_start(swServer *serv)
+static void swHeartbeatThread_start(swServer *serv)
 {
     swThreadParam *param;
     pthread_t thread_id;
@@ -1181,7 +1183,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
             swTrace("check fd=%d", fd);
             conn = swServer_connection_get(serv, fd);
 
-            if (conn != NULL && 1 == conn->active && conn->fdtype == SW_FD_TCP)
+            if (conn != NULL && conn->active == 1 && conn->fdtype == SW_FD_TCP)
             {
                 if (conn->protect || conn->last_time > checktime)
                 {

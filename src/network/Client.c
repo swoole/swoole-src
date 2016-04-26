@@ -289,6 +289,10 @@ void swClient_free(swClient *cli)
     {
         cli->socket->removed = 1;
     }
+    else
+    {
+        sw_free(cli->socket);
+    }
 }
 
 static int swClient_close(swClient *cli)

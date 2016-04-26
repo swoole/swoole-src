@@ -372,6 +372,9 @@ int swReactorThread_onClose(swReactor *reactor, swEvent *event)
     swDataHead notify_ev;
     bzero(&notify_ev, sizeof(notify_ev));
 
+    assert(fd % serv->reactor_num == reactor->id);
+    assert(fd % serv->reactor_num == SwooleTG.id);
+
     notify_ev.from_id = reactor->id;
     notify_ev.fd = fd;
     notify_ev.type = SW_EVENT_CLOSE;

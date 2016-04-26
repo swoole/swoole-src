@@ -480,6 +480,7 @@ typedef struct
 	int worker_id;
 } swPackage_response;
 
+int swServer_master_onAccept(swReactor *reactor, swEvent *event);
 int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
 
@@ -800,9 +801,6 @@ int swWorker_send2reactor(swEventData *ev_data, size_t sendn, int fd);
 int swWorker_send2worker(swWorker *dst_worker, void *buf, int n, int flag);
 void swWorker_signal_handler(int signo);
 void swWorker_clean(void);
-
-int swServer_master_onAccept(swReactor *reactor, swEvent *event);
-void swHeartbeatThread_start(swServer *serv);
 
 int swReactorThread_create(swServer *serv);
 int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr);
