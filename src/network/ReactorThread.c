@@ -275,8 +275,11 @@ int swReactorThread_close(swReactor *reactor, int fd)
         return SW_ERR;
     }
 
-    assert(fd % serv->reactor_num == reactor->id);
-    assert(fd % serv->reactor_num == SwooleTG.id);
+    if (serv->factory_mode == SW_MODE_PROCESS)
+    {
+        assert(fd % serv->reactor_num == reactor->id);
+        assert(fd % serv->reactor_num == SwooleTG.id);
+    }
 
     sw_atomic_fetch_add(&SwooleStats->close_count, 1);
     sw_atomic_fetch_sub(&SwooleStats->connection_num, 1);
