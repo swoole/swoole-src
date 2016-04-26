@@ -2037,7 +2037,17 @@ PHP_METHOD(swoole_server, stats)
     sw_add_assoc_long_ex(return_value, ZEND_STRS("tasking_num"), SwooleStats->tasking_num);
     sw_add_assoc_long_ex(return_value, ZEND_STRS("request_count"), SwooleStats->request_count);
     sw_add_assoc_long_ex(return_value, ZEND_STRS("worker_request_count"), SwooleWG.request_count);
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("task_process_num"), SwooleGS->task_workers.run_worker_num);
+
+    if (SwooleG.task_ipc_mode > SW_IPC_UNSOCK)
+    {
+        int queue_num = -1;
+        int queue_bytes = -1;
+        if (swMsgQueue_stat(SwooleGS->task_workers.queue, &queue_num, &queue_bytes) == 0)
+        {
+            sw_add_assoc_long_ex(return_value, ZEND_STRS("task_queue_num"), queue_num);
+            sw_add_assoc_long_ex(return_value, ZEND_STRS("task_queue_bytes"), queue_bytes);
+        }
+    }
 }
 
 PHP_METHOD(swoole_server, reload)
