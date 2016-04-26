@@ -23,6 +23,8 @@
 
 extern jmp_buf swReactorCheckPoint;
 
+static int coro_num;
+
 typedef struct
 {
     zval **current_return_value_ptr_ptr;
@@ -122,6 +124,8 @@ zend_execute_data *coro_create(zend_op_array *op_array, zval **argv, int argc)
 
     EG(current_execute_data) = execute_data;
     EG(This) = 0;
+    ++coro_num;
+    swTrace("create the %d coro with stack %d\n", coro_num, total_size);
     return execute_data;
 }
 
@@ -139,8 +143,9 @@ void coro_close()
         }
     }
 
-
     efree(EG(argument_stack));
+    --coro_num;
+    swTrace("closing coro and %d remained", coro_num);
 }
 
 php_context *coro_save(zval *return_value, zval **return_value_ptr)
