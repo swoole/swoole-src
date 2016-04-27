@@ -18,6 +18,9 @@
 
 #include "Connection.h"
 
+#ifdef SW_COROUTINE
+#include "swoole_coroutine.h"
+#endif
 #include "ext/standard/php_var.h"
 #if PHP_MAJOR_VERSION < 7
 #include "ext/standard/php_smart_str.h"
@@ -37,6 +40,9 @@ static struct
 } server_port_list;
 
 zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
+#ifdef SW_COROUTINE
+zend_fcall_info_cache *php_sw_callback_cache[PHP_SERVER_CALLBACK_NUM];
+#endif
 
 static int php_swoole_task_finish(swServer *serv, zval *data TSRMLS_DC);
 static void php_swoole_onPipeMessage(swServer *serv, swEventData *req);
@@ -502,7 +508,11 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
 {
     swFactory *factory = &serv->factory;
     zval *zserv = (zval *) serv->ptr2;
+#ifdef SW_COROUTINE
+    zval *args[4];
+#else
     zval **args[4];
+#endif
 
     zval *zfd;
     zval *zfrom_id;
@@ -574,6 +584,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
         zdata = php_swoole_get_recv_data(zdata, req TSRMLS_CC);
     }
 
+#ifndef SW_COROUTINE
     callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
 
     args[0] = &zserv;
@@ -585,6 +596,18 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_server: onReceive handler error");
     }
+#else
+    args[0] = zserv;
+    args[1] = zfd;
+    args[2] = zfrom_id;
+    args[3] = zdata;
+
+    int ret = coro_create(&php_sw_callback_cache[SW_SERVER_CB_onReceive]->function_handler->op_array, args, 4);
+    if (ret != 0)
+    {
+        return SW_OK;
+    }
+#endif
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
@@ -1599,7 +1622,12 @@ PHP_METHOD(swoole_server, on)
 
 #ifdef PHP_SWOOLE_CHECK_CALLBACK
     char *func_name = NULL;
+#ifdef SW_COROUTINE
+    zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
+    if (!zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
+#else
     if (!sw_zend_is_callable(cb, 0, &func_name TSRMLS_CC))
+#endif
     {
         swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
         efree(func_name);
@@ -1641,6 +1669,9 @@ PHP_METHOD(swoole_server, on)
             property_name[l_property_name] = '\0';
             zend_update_property(swoole_server_class_entry_ptr, getThis(), property_name, l_property_name, cb TSRMLS_CC);
             php_sw_server_callbacks[i] = sw_zend_read_property(swoole_server_class_entry_ptr, getThis(), property_name, l_property_name, 0 TSRMLS_CC);
+#ifdef SW_COROUTINE
+            php_sw_callback_cache[i] = func_cache;
+#endif
             break;
         }
     }
