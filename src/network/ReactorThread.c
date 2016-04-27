@@ -275,6 +275,9 @@ int swReactorThread_close(swReactor *reactor, int fd)
         return SW_ERR;
     }
 
+    assert(fd % serv->reactor_num == reactor->id);
+    assert(fd % serv->reactor_num == SwooleTG.id);
+
     sw_atomic_fetch_add(&SwooleStats->close_count, 1);
     sw_atomic_fetch_sub(&SwooleStats->connection_num, 1);
 
@@ -302,20 +305,15 @@ int swReactorThread_close(swReactor *reactor, int fd)
     {
         if (conn->object)
         {
-            if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE)
+            if (conn->http_upgrade)
             {
-                swString *str = (swString *) conn->object;
-                swString_free(str);
+                swString_free(conn->object);
                 conn->websocket_status = 0;
+                conn->object = NULL;
             }
             else
             {
-                swHttpRequest *request = (swHttpRequest *) conn->object;
-                if (request->buffer)
-                {
-                    swTrace("Connection Close. free buffer=%p, request=%p\n", request->buffer, request);
-                    swHttpRequest_free(conn);
-                }
+                swHttpRequest_free(conn);
             }
         }
     }
@@ -373,6 +371,9 @@ int swReactorThread_onClose(swReactor *reactor, swEvent *event)
     int fd = event->fd;
     swDataHead notify_ev;
     bzero(&notify_ev, sizeof(notify_ev));
+
+    assert(fd % serv->reactor_num == reactor->id);
+    assert(fd % serv->reactor_num == SwooleTG.id);
 
     notify_ev.from_id = reactor->id;
     notify_ev.fd = fd;
@@ -808,6 +809,9 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     int ret;
     swServer *serv = SwooleG.serv;
     int fd = ev->fd;
+
+    assert(fd % serv->reactor_num == reactor->id);
+    assert(fd % serv->reactor_num == SwooleTG.id);
 
     swConnection *conn = swServer_connection_get(serv, fd);
     if (conn->active == 0)

@@ -62,14 +62,18 @@ $serv->listen('::', 9504, SWOOLE_SOCK_UDP6);
 $process1 = new swoole_process(function ($worker) use ($serv) {
     global $argv;
     swoole_set_process_name("php {$argv[0]}: my_process1");
-    sleep(1000);
-//    swoole_timer_tick(2000, function ($interval) use ($worker, $serv) {
-//        echo "#{$worker->pid} child process timer $interval\n"; // 如果worker中没有定时器，则会输出 process timer xxx
-//        foreach ($serv->connections as $conn)
-//        {
-//            $serv->send($conn, "heartbeat\n");
-//        }
-//    });
+    swoole_timer_tick(2000, function ($interval) use ($worker, $serv) {
+        echo "#{$worker->pid} child process timer $interval\n"; // 如果worker中没有定时器，则会输出 process timer xxx
+        foreach ($serv->connections as $conn)
+        {
+            $serv->send($conn, "heartbeat\n");
+        }
+    });
+    swoole_timer_tick(5000, function () use ($serv)
+    {
+        $serv->sendMessage("hello event worker", 0);
+        $serv->sendMessage("hello task worker", 4);
+    });
 }, false);
 
 $serv->addprocess($process1);
@@ -205,12 +209,15 @@ function my_onWorkerStart(swoole_server $serv, $worker_id)
         swoole_process::signal(SIGUSR2, function($signo){
             echo "SIGNAL: $signo\n";
         });
+        $serv->defer(function(){
+           echo "defer call\n";
+        });
     }
     else
     {
-        swoole_timer_after(2000, function() {
-            echo "after 2 secends.\n";
-        });
+//        swoole_timer_after(2000, function() {
+//            echo "after 2 secends.\n";
+//        });
 //        $serv->tick(1000, function ($id) use ($serv) {
 //            if (G::$index > 10) {
 //                $serv->after(2500, 'timer_show', 2);
@@ -458,7 +465,12 @@ function broadcast(swoole_server $serv, $fd = 0, $data = "hello")
 }
 
 $serv->on('PipeMessage', function($serv, $src_worker_id, $msg) {
-    var_dump($src_worker_id, $msg);
+    my_log("PipeMessage: Src={$src_worker_id},Msg=".trim($msg));
+    if ($serv->taskworker)
+    {
+        $serv->sendMessage("hello user process",
+            $src_worker_id);
+    }
 });
 
 $serv->on('Start', 'my_onStart');

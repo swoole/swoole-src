@@ -268,8 +268,12 @@ static void client_onClose(swClient *cli)
 
 static void client_onError(swClient *cli)
 {
-    client_execute_callback(cli, SW_CLIENT_CALLBACK_onError);
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
     zval *zobject = cli->object;
+    zend_update_property_long(swoole_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
+    client_execute_callback(cli, SW_CLIENT_CALLBACK_onError);
     sw_zval_ptr_dtor(&zobject);
 }
 
@@ -687,6 +691,10 @@ static PHP_METHOD(swoole_client, __construct)
 
     if ((Z_LVAL_P(ztype) & SW_FLAG_ASYNC))
     {
+        if ((Z_LVAL_P(ztype) & SW_FLAG_KEEP) && SWOOLE_G(cli))
+        {
+            swoole_php_fatal_error(E_ERROR, "The 'SWOOLE_KEEP' flag can only be used in the php-fpm or apache environment.");
+        }
         php_swoole_check_reactor();
     }
 
@@ -873,7 +881,7 @@ static PHP_METHOD(swoole_client, connect)
     //nonblock async
     if (cli->connect(cli, host, port, timeout, sock_flag) < 0)
     {
-        swoole_php_error(E_WARNING, "connect to server[%s:%d] failed. Error: %s [%d]", host, (int)port, strerror(errno), errno);
+        swoole_php_sys_error(E_WARNING, "connect to server[%s:%d] failed.", host, (int )port);
         zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errno TSRMLS_CC);
         RETURN_FALSE;
     }

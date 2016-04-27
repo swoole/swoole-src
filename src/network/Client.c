@@ -289,6 +289,10 @@ void swClient_free(swClient *cli)
     {
         cli->socket->removed = 1;
     }
+    else
+    {
+        sw_free(cli->socket);
+    }
 }
 
 static int swClient_close(swClient *cli)
@@ -338,8 +342,13 @@ static int swClient_close(swClient *cli)
         //onClose callback
         if (cli->socket->active && cli->onClose)
         {
+            cli->socket->active = 0;
             cli->onClose(cli);
         }
+    }
+    else
+    {
+        cli->socket->active = 0;
     }
     return close(fd);
 }
@@ -421,6 +430,31 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
     if (swClient_inet_addr(cli, host, port) < 0)
     {
         return SW_ERR;
+    }
+
+    if (cli->type == SW_SOCK_UNIX_STREAM)
+    {
+        while (1)
+        {
+            ret = connect(cli->socket->fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
+            if (ret < 0)
+            {
+                if (errno == EINTR)
+                {
+                    continue;
+                }
+            }
+            break;
+        }
+        if (ret == 0)
+        {
+            SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE);
+        }
+        else
+        {
+            SwooleG.error = errno;
+        }
+        return ret;
     }
 
     while (1)
@@ -777,19 +811,18 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
         return swReactor_onWrite(SwooleG.main_reactor, event);
     }
 
-    int error;
-    socklen_t len = sizeof(error);
-    if (getsockopt (event->fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0)
+    socklen_t len = sizeof(SwooleG.error);
+    if (getsockopt (event->fd, SOL_SOCKET, SO_ERROR, &SwooleG.error, &len) < 0)
     {
         swWarn("getsockopt(%d) failed. Error: %s[%d]", event->fd, strerror(errno), errno);
         return SW_ERR;
     }
 
     //success
-    if (error == 0)
+    if (SwooleG.error == 0)
     {
         //listen read event
-        SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, (SW_FD_USER + 1) | SW_EVENT_READ);
+        SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, SW_FD_STREAM_CLIENT | SW_EVENT_READ);
         //connected
         cli->socket->active = 1;
 

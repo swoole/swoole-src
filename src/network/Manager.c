@@ -747,7 +747,6 @@ pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
     //child
     else if (pid == 0)
     {
-        SwooleWG.id = serv->worker_num + SwooleG.task_worker_num + worker->id;
         serv->onUserWorkerStart(serv, worker);
         exit(0);
     }

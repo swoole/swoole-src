@@ -130,7 +130,7 @@ static PHP_METHOD(swoole_process, __construct)
     //only cli env
     if (!SWOOLE_G(cli))
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "swoole_process must run at php_cli environment.");
+        swoole_php_fatal_error(E_ERROR, "swoole_process must run at php_cli environment.");
         RETURN_FALSE;
     }
 
@@ -142,7 +142,7 @@ static PHP_METHOD(swoole_process, __construct)
     char *func_name = NULL;
     if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "function '%s' is not callable", func_name);
+        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         efree(func_name);
         RETURN_FALSE;
     }
@@ -317,7 +317,7 @@ static PHP_METHOD(swoole_process, signal)
 
     if (!SWOOLE_G(cli))
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "cannot use swoole_process::signal here.");
+        swoole_php_fatal_error(E_ERROR, "cannot use swoole_process::signal here.");
         RETURN_FALSE;
     }
 
@@ -325,7 +325,7 @@ static PHP_METHOD(swoole_process, signal)
     {
         if (signo == SIGTERM || signo == SIGALRM)
         {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "cannot use swoole_process::signal in swoole_server.");
+            swoole_php_fatal_error(E_WARNING, "cannot use swoole_process::signal in swoole_server.");
             RETURN_FALSE;
         }
     }
@@ -406,7 +406,7 @@ static void php_swoole_onSignal(int signo)
 
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "user_signal handler error");
+        swoole_php_fatal_error(E_WARNING, "user_signal handler error");
     }
     if (retval != NULL)
     {
@@ -424,7 +424,7 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
     {
         if (dup2(process->pipe, STDIN_FILENO) < 0)
         {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "dup2() failed. Error: %s[%d]", strerror(errno), errno);
+            swoole_php_fatal_error(E_WARNING, "dup2() failed. Error: %s[%d]", strerror(errno), errno);
         }
     }
 
@@ -432,7 +432,7 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
     {
         if (dup2(process->pipe, STDOUT_FILENO) < 0)
         {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "dup2() failed. Error: %s[%d]", strerror(errno), errno);
+            swoole_php_fatal_error(E_WARNING, "dup2() failed. Error: %s[%d]", strerror(errno), errno);
         }
     }
 
@@ -440,7 +440,7 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
     {
         if (dup2(process->pipe, STDERR_FILENO) < 0)
         {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "dup2() failed. Error: %s[%d]", strerror(errno), errno);
+            swoole_php_fatal_error(E_WARNING, "dup2() failed. Error: %s[%d]", strerror(errno), errno);
         }
     }
 
@@ -475,7 +475,7 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
 
     if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "no callback.");
+        swoole_php_fatal_error(E_ERROR, "no callback.");
         return SW_ERR;
     }
 
@@ -485,7 +485,7 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
 
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "callback function error");
+        swoole_php_fatal_error(E_ERROR, "callback function error");
         return SW_ERR;
     }
 
@@ -509,14 +509,14 @@ static PHP_METHOD(swoole_process, start)
 
     if (process->pid > 0 && kill(process->pid, 0) == 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "process is already started.");
+        swoole_php_fatal_error(E_WARNING, "process is already started.");
         RETURN_FALSE;
     }
 
     pid_t pid = fork();
     if (pid < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "fork() failed. Error: %s[%d]", strerror(errno), errno);
+        swoole_php_fatal_error(E_WARNING, "fork() failed. Error: %s[%d]", strerror(errno), errno);
         RETURN_FALSE;
     }
     else if (pid > 0)
@@ -552,7 +552,7 @@ static PHP_METHOD(swoole_process, read)
 
     if (process->pipe == 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "have not pipe, can not use read()");
+        swoole_php_fatal_error(E_WARNING, "have not pipe, can not use read()");
         RETURN_FALSE;
     }
 
@@ -586,14 +586,14 @@ static PHP_METHOD(swoole_process, write)
 
     if (data_len < 1)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "send data empty.");
+        swoole_php_fatal_error(E_WARNING, "send data empty.");
         RETURN_FALSE;
     }
 
     swWorker *process = swoole_get_object(getThis());
     if (process->pipe == 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "have not pipe, can not use read()");
+        swoole_php_fatal_error(E_WARNING, "have not pipe, can not use read()");
         RETURN_FALSE;
     }
 
@@ -611,7 +611,7 @@ static PHP_METHOD(swoole_process, write)
 
     if (ret < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "write() failed. Error: %s[%d]", strerror(errno), errno);
+        swoole_php_fatal_error(E_WARNING, "write() failed. Error: %s[%d]", strerror(errno), errno);
         RETURN_FALSE;
     }
     ZVAL_LONG(return_value, ret);
@@ -635,12 +635,12 @@ static PHP_METHOD(swoole_process, push)
 
     if (length <= 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "data empty.");
+        swoole_php_fatal_error(E_WARNING, "data empty.");
         RETURN_FALSE;
     }
     else if (length >= sizeof(message.data))
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "data too big.");
+        swoole_php_fatal_error(E_WARNING, "data too big.");
         RETURN_FALSE;
     }
 
@@ -648,7 +648,7 @@ static PHP_METHOD(swoole_process, push)
 
     if (!process->queue)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "have not msgqueue, can not use push()");
+        swoole_php_fatal_error(E_WARNING, "have not msgqueue, can not use push()");
         RETURN_FALSE;
     }
 
@@ -657,7 +657,7 @@ static PHP_METHOD(swoole_process, push)
 
     if (swMsgQueue_push(process->queue, (swQueue_data *)&message, length) < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "msgsnd() failed. Error: %s[%d]", strerror(errno), errno);
+        swoole_php_fatal_error(E_WARNING, "msgsnd() failed. Error: %s[%d]", strerror(errno), errno);
         RETURN_FALSE;
     }
     RETURN_TRUE;
@@ -678,7 +678,7 @@ static PHP_METHOD(swoole_process, pop)
     swWorker *process = swoole_get_object(getThis());
     if (!process->queue)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "have not msgqueue, can not use push()");
+        swoole_php_fatal_error(E_WARNING, "have not msgqueue, can not use push()");
         RETURN_FALSE;
     }
 
@@ -700,7 +700,7 @@ static PHP_METHOD(swoole_process, pop)
     int n = swMsgQueue_pop(process->queue, (swQueue_data *) &message, maxsize);
     if (n < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "msgrcv() failed. Error: %s[%d]", strerror(errno), errno);
+        swoole_php_fatal_error(E_WARNING, "msgrcv() failed. Error: %s[%d]", strerror(errno), errno);
         RETURN_FALSE;
     }
     SW_RETURN_STRINGL(message.data, n, 1);
@@ -719,7 +719,7 @@ static PHP_METHOD(swoole_process, exec)
 
     if (execfile_len < 1)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "execfile name empty.");
+        swoole_php_fatal_error(E_WARNING, "execfile name empty.");
         RETURN_FALSE;
     }
 
@@ -740,7 +740,7 @@ static PHP_METHOD(swoole_process, exec)
 
     if (execv(execfile, exec_args) < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "execv(%s) failed. Error: %s[%d]", execfile, strerror(errno), errno);
+        swoole_php_fatal_error(E_WARNING, "execv(%s) failed. Error: %s[%d]", execfile, strerror(errno), errno);
         RETURN_FALSE;
     }
     else
@@ -815,13 +815,13 @@ static PHP_METHOD(swoole_process, exit)
 
     if (getpid() != process->pid)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "not current process.");
+        swoole_php_fatal_error(E_WARNING, "not current process.");
         RETURN_FALSE;
     }
 
     if (ret_code < 0 || ret_code > 255)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "exit ret_code range is [>0 and <255] ");
+        swoole_php_fatal_error(E_WARNING, "exit ret_code range is [>0 and <255] ");
         ret_code = 1;
     }
 
@@ -848,14 +848,14 @@ static PHP_METHOD(swoole_process, close)
 
     if (process->pipe == 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "have not pipe, can not use close()");
+        swoole_php_fatal_error(E_WARNING, "have not pipe, can not use close()");
         RETURN_FALSE;
     }
 
     int ret = process->pipe_object->close(process->pipe_object);
     if (ret < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "close() failed. Error: %s[%d]", strerror(errno), errno);
+        swoole_php_fatal_error(E_WARNING, "close() failed. Error: %s[%d]", strerror(errno), errno);
         RETURN_FALSE;
     }
     else

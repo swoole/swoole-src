@@ -182,7 +182,6 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
             {
                 if (buffer->size < package_length)
                 {
-
                     if (swString_extend(buffer, package_length) < 0)
                     {
                         return SW_ERR;

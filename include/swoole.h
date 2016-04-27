@@ -1053,7 +1053,9 @@ swString* swoole_file_get_contents(char *filename);
 void swoole_open_remote_debug(void);
 char *swoole_dec2hex(int value, int base);
 int swoole_version_compare(char *version1, char *version2);
+#ifdef HAVE_EXECINFO
 void swoole_print_trace(void);
+#endif
 void swoole_ioctl_set_block(int sock, int nonblock);
 void swoole_fcntl_set_block(int sock, int nonblock);
 

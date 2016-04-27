@@ -248,7 +248,10 @@ static void php_swoole_aio_onComplete(swAio_event *event)
         if (file_req->once == 1)
         {
             close_file:
-            sw_zval_ptr_dtor(&file_req->callback);
+            if (file_req->callback)
+            {
+                sw_zval_ptr_dtor(&file_req->callback);
+            }
             sw_zval_ptr_dtor(&file_req->filename);
 
             swoole_aio_free(event->buf);

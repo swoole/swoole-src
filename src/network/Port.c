@@ -100,10 +100,11 @@ int swPort_set_option(swListenPort *ls)
         if (ls->open_http2_protocol)
         {
             ls->ssl_config.http_v2 = 1;
+            swSSL_server_http_advise(ls->ssl_context, &ls->ssl_config);
         }
-        if (swSSL_server_config(ls->ssl_context, &ls->ssl_config))
+        if (swSSL_server_set_cipher(ls->ssl_context, &ls->ssl_config) < 0)
         {
-            swWarn("swSSL_server_config() error.");
+            swWarn("swSSL_server_set_cipher() error.");
             return SW_ERR;
         }
     }
@@ -177,7 +178,7 @@ static int swPort_websocket_onPackage(swConnection *conn, char *data, uint32_t l
 
     swString send_frame;
     bzero(&send_frame, sizeof(send_frame));
-    char buf[32];
+    char buf[128];
     send_frame.str = buf;
     send_frame.size = sizeof(buf);
 
@@ -197,7 +198,7 @@ static int swPort_websocket_onPackage(swConnection *conn, char *data, uint32_t l
         break;
 
     case WEBSOCKET_OPCODE_PING:
-        if (length == 2)
+        if (length == 2 || length >= (sizeof(buf) - 2))
         {
             return SW_ERR;
         }

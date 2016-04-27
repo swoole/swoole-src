@@ -235,8 +235,8 @@
 //#define SW_HTTP_100_CONTINUE
 #define SW_HTTP2_DATA_BUFFSER_SIZE       8192
 #define SW_HTTP2_MAX_CONCURRENT_STREAMS  128
-#define SW_HTTP2_MAX_FRAME_SIZE          ((1 << 24) - 1)
-#define SW_HTTP2_MAX_WINDOW              ((1 << 31) - 1)
+#define SW_HTTP2_MAX_FRAME_SIZE          ((1u << 24) - 1)
+#define SW_HTTP2_MAX_WINDOW              ((1u << 31) - 1)
 
 #define SW_HTTP_CLIENT_USERAGENT         "swoole-http-client"
 

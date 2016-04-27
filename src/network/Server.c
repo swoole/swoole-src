@@ -40,7 +40,9 @@ static void swServer_signal_hanlder(int sig);
 static int swServer_start_proxy(swServer *serv);
 static void swServer_disable_accept(swReactor *reactor);
 
+static void swHeartbeatThread_start(swServer *serv);
 static void swHeartbeatThread_loop(swThreadParam *param);
+
 static int swServer_send1(swServer *serv, swSendData *resp);
 static int swServer_send2(swServer *serv, swSendData *resp);
 
@@ -429,7 +431,6 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     }
 #endif
 
-#ifndef SW_USE_RINGBUFFER
     int i;
     int buffer_input_size;
     if (serv->listen_list->open_eof_check || serv->listen_list->open_length_check || serv->listen_list->open_http_protocol)
@@ -467,8 +468,6 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
             return SW_ERR;
         }
     }
-
-#endif
 
     if (serv->max_request < 1)
     {
@@ -610,6 +609,21 @@ int swServer_start(swServer *serv)
             }
         }
     }
+
+    /**
+     * user worker process
+     */
+    if (serv->user_worker_list)
+    {
+        swUserWorker_node *user_worker;
+        i = 0;
+        LL_FOREACH(serv->user_worker_list, user_worker)
+        {
+            user_worker->worker->id = serv->worker_num + SwooleG.task_worker_num + i;
+            i++;
+        }
+    }
+
     //set listen socket options
     swListenPort *ls;
     LL_FOREACH(serv->listen_list, ls)
@@ -959,9 +973,7 @@ int swServer_add_worker(swServer *serv, swWorker *worker)
         return SW_ERR;
     }
 
-    worker->id = serv->worker_num + SwooleG.task_worker_num + serv->user_worker_num;
     serv->user_worker_num++;
-
     user_worker->worker = worker;
 
     LL_APPEND(serv->user_worker_list, user_worker);
@@ -1117,7 +1129,7 @@ static void swServer_signal_hanlder(int sig)
     }
 }
 
-void swHeartbeatThread_start(swServer *serv)
+static void swHeartbeatThread_start(swServer *serv)
 {
     swThreadParam *param;
     pthread_t thread_id;
@@ -1171,7 +1183,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
             swTrace("check fd=%d", fd);
             conn = swServer_connection_get(serv, fd);
 
-            if (conn != NULL && 1 == conn->active && conn->fdtype == SW_FD_TCP)
+            if (conn != NULL && conn->active == 1 && conn->fdtype == SW_FD_TCP)
             {
                 if (conn->protect || conn->last_time > checktime)
                 {

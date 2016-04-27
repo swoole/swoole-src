@@ -214,7 +214,7 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     //client
     if (SwooleG.serv == NULL && SwooleG.timer.num <= 0)
     {
-        if (reactor->event_num == 1 && SwooleAIO.task_num == 1)
+        if (SwooleAIO.init && reactor->event_num == 1 && SwooleAIO.task_num == 0)
         {
             reactor->running = 0;
         }
@@ -267,12 +267,10 @@ int swReactor_close(swReactor *reactor, int fd)
     if (socket->out_buffer)
     {
         swBuffer_free(socket->out_buffer);
-        socket->out_buffer = NULL;
     }
     if (socket->in_buffer)
     {
         swBuffer_free(socket->in_buffer);
-        socket->in_buffer = NULL;
     }
     bzero(socket, sizeof(swConnection));
     socket->removed = 1;

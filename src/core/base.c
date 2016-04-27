@@ -20,7 +20,10 @@
 #include <sys/stat.h>
 #include <sys/resource.h>
 #include <sys/ioctl.h>
+
+#ifdef HAVE_EXECINFO
 #include <execinfo.h>
+#endif
 
 void swoole_init(void)
 {
@@ -806,6 +809,7 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
     return match;
 }
 
+#ifdef HAVE_EXECINFO
 void swoole_print_trace(void)
 {
     int size = 16;
@@ -820,6 +824,7 @@ void swoole_print_trace(void)
     }
     free(stacktrace);
 }
+#endif
 
 #ifndef HAVE_CLOCK_GETTIME
 #ifdef __MACH__

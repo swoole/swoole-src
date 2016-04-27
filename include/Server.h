@@ -369,7 +369,9 @@ struct _swServer
      * parse x-www-form-urlencoded data
      */
     uint32_t http_parse_post :1;
-
+    /**
+     * enable onConnect/onClose event when use dispatch_mode=1/3
+     */
     uint32_t enable_unsafe_event :1;
     /**
      * packet mode
@@ -478,6 +480,7 @@ typedef struct
 	int worker_id;
 } swPackage_response;
 
+int swServer_master_onAccept(swReactor *reactor, swEvent *event);
 int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
 
@@ -798,9 +801,6 @@ int swWorker_send2reactor(swEventData *ev_data, size_t sendn, int fd);
 int swWorker_send2worker(swWorker *dst_worker, void *buf, int n, int flag);
 void swWorker_signal_handler(int signo);
 void swWorker_clean(void);
-
-int swServer_master_onAccept(swReactor *reactor, swEvent *event);
-void swHeartbeatThread_start(swServer *serv);
 
 int swReactorThread_create(swServer *serv);
 int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr);

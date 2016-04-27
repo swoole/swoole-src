@@ -1023,7 +1023,7 @@ static void http_onClose(swServer *serv, swDataHead *info)
         }
     }
 
-    if (php_sw_callback[SW_SERVER_CB_onClose] != NULL)
+    if (php_sw_server_callbacks[SW_SERVER_CB_onClose] != NULL)
     {
         php_swoole_onClose(serv, info);
     }
@@ -1123,6 +1123,10 @@ static int http_onReceive(swServer *serv, swEventData *req)
         sw_add_assoc_stringl(zserver, "request_uri", ctx->request.path, ctx->request.path_len, 1);
         sw_add_assoc_stringl(zserver, "path_info", ctx->request.path, ctx->request.path_len, 1);
         sw_add_assoc_long_ex(zserver, ZEND_STRS("request_time"), SwooleGS->now);
+
+        // Add REQUEST_TIME_FLOAT
+        double now_float = swoole_microtime();
+        sw_add_assoc_double_ex(zserver, ZEND_STRS("request_time_float"), now_float);
 
         swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
         if (!conn)
@@ -1272,14 +1276,9 @@ static PHP_METHOD(swoole_http_server, on)
     efree(func_name);
     sw_zval_add_ref(&callback);
 
-#if PHP_MAJOR_VERSION >= 7
-    zval *callback_copy = emalloc(sizeof(zval));
-    memcpy(callback_copy, callback, sizeof(zval));
-    callback = callback_copy;
-#endif
-
     if (strncasecmp("request", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
+        zend_update_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onRequest"), callback TSRMLS_CC);
         php_sw_http_server_callbacks[0] = callback;
 #ifdef SW_COROUTINE
         php_sw_http_callback_cache[0] = func_cache;
@@ -1287,6 +1286,7 @@ static PHP_METHOD(swoole_http_server, on)
     }
     else if (strncasecmp("handshake", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
+        zend_update_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onHandshake"), callback TSRMLS_CC);
         php_sw_http_server_callbacks[1] = callback;
 #ifdef SW_COROUTINE
         php_sw_http_callback_cache[1] = func_cache;
@@ -1566,6 +1566,8 @@ static char *http_status_message(int code)
         return "500 Internal Server Error";
     case 501:
         return "501 Method Not Implemented";
+    case 502:
+        return "502 Bad Gateway";
     case 503:
         return "503 Service Unavailable";
     case 505:
