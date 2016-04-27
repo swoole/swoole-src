@@ -16,6 +16,7 @@
 
 #include "swoole.h"
 
+#include <setjmp.h>
 #ifdef HAVE_EPOLL
 #include <sys/epoll.h>
 #ifndef EPOLLRDHUP
@@ -34,6 +35,9 @@ typedef struct _swFd
     uint32_t fd;
     uint32_t fdtype;
 } swFd;
+
+
+jmp_buf swReactorCheckPoint;
 
 static int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype);
 static int swReactorEpoll_set(swReactor *reactor, int fd, int fdtype);
@@ -251,42 +255,44 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
             event.type = events[i].data.u64 >> 32;
             event.socket = swReactor_get(reactor, event.fd);
 
-            //read
-            if ((events[i].events & EPOLLIN) && !event.socket->removed)
-            {
-                handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
-                ret = handle(reactor, &event);
-                if (ret < 0)
+            if (!setjmp(swReactorCheckPoint)) {
+                //read
+                if ((events[i].events & EPOLLIN) && !event.socket->removed)
                 {
-                    swSysError("EPOLLIN handle failed. fd=%d.", event.fd);
+                    handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
+                    ret = handle(reactor, &event);
+                    if (ret < 0)
+                    {
+                        swSysError("EPOLLIN handle failed. fd=%d.", event.fd);
+                    }
                 }
-            }
-            //write
-            if ((events[i].events & EPOLLOUT) && !event.socket->removed)
-            {
-                handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
-                ret = handle(reactor, &event);
-                if (ret < 0)
+                //write
+                if ((events[i].events & EPOLLOUT) && !event.socket->removed)
                 {
-                    swSysError("EPOLLOUT handle failed. fd=%d.", event.fd);
+                    handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
+                    ret = handle(reactor, &event);
+                    if (ret < 0)
+                    {
+                        swSysError("EPOLLOUT handle failed. fd=%d.", event.fd);
+                    }
                 }
-            }
 #if 0
-            //error
+                //error
 #ifndef NO_EPOLLRDHUP
-            if ((events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)) && !event.socket->removed)
+                if ((events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)) && !event.socket->removed)
 #else
-            if ((events[i].events & (EPOLLERR | EPOLLHUP)) && !event.socket->removed)
+                if ((events[i].events & (EPOLLERR | EPOLLHUP)) && !event.socket->removed)
 #endif
-            {
-                handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, event.type);
-                ret = handle(reactor, &event);
-                if (ret < 0)
                 {
-                    swSysError("EPOLLERR handle failed. fd=%d.", event.fd);
+                    handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, event.type);
+                    ret = handle(reactor, &event);
+                    if (ret < 0)
+                    {
+                        swSysError("EPOLLERR handle failed. fd=%d.", event.fd);
+                    }
                 }
-            }
 #endif
+            }
         }
 
         if (reactor->onFinish != NULL)
