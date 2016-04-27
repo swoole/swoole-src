@@ -251,7 +251,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
     hcc->onResponse = callback;
 #else
     hcc->onResponse = &hcc->_onResponse;
-    memcpy(client->callback, callback, sizeof(zval));
+    memcpy(hcc->onResponse, callback, sizeof(zval));
 #endif
 
     sw_zval_add_ref(&hcc->onResponse);
