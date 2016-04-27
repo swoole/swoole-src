@@ -50,6 +50,10 @@ typedef struct
     zval *onMessage;
     zval *onResponse;
 
+#if PHP_MAJOR_VERSION >= 7
+    zval _onResponse;
+#endif
+
     zval *cookies;
     zval *request_header;
     zval *request_body;
@@ -242,10 +246,15 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
 
     http_client_property *hcc = swoole_get_property(zobject, 0);
 
-    char name[32];
-    int l_name = snprintf(name, sizeof(name), "response_callback_%d", hcc->callback_index++);
-    zend_update_property(swoole_http_client_class_entry_ptr, zobject, name, l_name, callback TSRMLS_CC);
-    hcc->onResponse = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, name, l_name, 0 TSRMLS_CC);
+
+#if PHP_MAJOR_VERSION < 7
+    hcc->onResponse = callback;
+#else
+    hcc->onResponse = &hcc->_onResponse;
+    memcpy(client->callback, callback, sizeof(zval));
+#endif
+
+    sw_zval_add_ref(&hcc->onResponse);
 
     //if connection exists
     if (http->cli)
@@ -1260,10 +1269,11 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-    if (retval != NULL)
+    if (retval)
     {
         sw_zval_ptr_dtor(&retval);
     }
+    sw_zval_ptr_dtor(&zcallback);
     /**
      * TODO: Sec-WebSocket-Accept check
      */

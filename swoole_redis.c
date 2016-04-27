@@ -588,10 +588,11 @@ void swoole_redis_onConnect(const redisAsyncContext *c, int status)
     }
 
     zval **args[2];
+    zval *callback = redis->connect_callback;
     args[0] = &redis->object;
     args[1] = &result;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, redis->connect_callback, &retval, 2, args, 0, NULL TSRMLS_CC) != SUCCESS)
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 2, args, 0, NULL TSRMLS_CC) != SUCCESS)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_async_mysql callback handler error.");
     }
@@ -600,7 +601,7 @@ void swoole_redis_onConnect(const redisAsyncContext *c, int status)
         sw_zval_ptr_dtor(&retval);
     }
     sw_zval_ptr_dtor(&result);
-    sw_zval_ptr_dtor(&redis->connect_callback);
+    sw_zval_ptr_dtor(&callback);
 }
 
 void swoole_redis_onClose(const redisAsyncContext *c, int status)
