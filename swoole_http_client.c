@@ -192,7 +192,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
         if (http->state != HTTP_CLIENT_STATE_READY)
         {
             //swWarn("fd=%d, state=%d, active=%d, keep_alive=%d", http->cli->socket->fd, http->state, http->cli->socket->active, http->keep_alive);
-            swoole_php_fatal_error(E_ERROR, "Operation now in progress phase %d.", http->state);
+            swoole_php_fatal_error(E_WARNING, "Operation now in progress phase %d.", http->state);
 
             swEvent e;
             e.fd = http->cli->socket->fd;
@@ -203,7 +203,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
         }
         else if (!http->cli->socket->active)
         {
-            swoole_php_fatal_error(E_ERROR, "connection is closed.");
+            swoole_php_fatal_error(E_WARNING, "connection is closed.");
             return SW_ERR;
         }
     }
@@ -336,15 +336,19 @@ static void http_client_onClose(swClient *cli)
     }
 
     http_client_property *hcc = swoole_get_property(zobject, 0);
+    if (!hcc)
+    {
+        return;
+    }
     zcallback = hcc->onClose;
     if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
     {
         return;
     }
     args[0] = &zobject;
-    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC)  == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        swoole_php_fatal_error(E_ERROR, "swoole_client->close[1]: onClose handler error");
+        swoole_php_fatal_error(E_WARNING, "swoole_http_client->close[1]: onClose handler error");
     }
     if (EG(exception))
     {
@@ -391,6 +395,11 @@ static void http_client_onError(swClient *cli)
     }
 
     http_client_property *hcc = swoole_get_property(zobject, 0);
+    if (!hcc)
+    {
+        return;
+    }
+
     zval *zcallback = hcc->onError;
     if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
     {
