@@ -41,7 +41,7 @@ int coro_create(zend_op_array *op_array, zval **argv, int argc);
 
 void coro_close();
 php_context *coro_save(zval *return_value, zval **return_value_ptr);
-void coro_resume(php_context *sw_current_context, zval *retval);
+int coro_resume(php_context *sw_current_context, zval *retval);
 void coro_yield();
 
 #endif

@@ -157,7 +157,7 @@ php_context *coro_save(zval *return_value, zval **return_value_ptr)
     return sw_current_context;
 }
 
-void coro_resume(php_context *sw_current_context, zval *retval)
+int coro_resume(php_context *sw_current_context, zval *retval)
 {
     sw_current_context->current_execute_data->opline++;
     if (SWCC(current_this))
@@ -185,7 +185,9 @@ void coro_resume(php_context *sw_current_context, zval *retval)
     if (!setjmp(swReactorCheckPoint)) {
         zend_execute_ex(sw_current_context->current_execute_data TSRMLS_CC);
         coro_close();
+        return 0;
     }
+    return 1;
 }
 
 sw_inline void coro_yield()

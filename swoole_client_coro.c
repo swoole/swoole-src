@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Xinyu Zhu  <xyzhu1120@gmail.com>                        |
   +----------------------------------------------------------------------+
 */
 
@@ -43,7 +43,6 @@ static PHP_METHOD(swoole_client_coro, set);
 static PHP_METHOD(swoole_client_coro, connect);
 static PHP_METHOD(swoole_client_coro, recv);
 static PHP_METHOD(swoole_client_coro, send);
-static PHP_METHOD(swoole_client_coro, send_and_receive);
 static PHP_METHOD(swoole_client_coro, sendfile);
 static PHP_METHOD(swoole_client_coro, sendto);
 static PHP_METHOD(swoole_client_coro, sleep);
@@ -147,7 +146,6 @@ static const zend_function_entry swoole_client_coro_methods[] =
     PHP_ME(swoole_client_coro, connect, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_coro, recv, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_coro, send, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client_coro, send_and_receive, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_coro, sendfile, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_coro, sendto, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_coro, sleep, NULL, ZEND_ACC_PUBLIC)
@@ -808,76 +806,6 @@ static PHP_METHOD(swoole_client_coro, connect)
     RETURN_TRUE;
 }
 
-
-
-static PHP_METHOD(swoole_client_coro, send_and_receive)
-{
-    int ret;
-    long port = 0, sock_flag = 0;
-    char *host = NULL, *data= NULL;
-    zend_size_t host_len, data_len;
-    double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
-    swClient *cli = NULL;
-    swEvent event;
-    swReactor_handle handle;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ssl|l", &data, &data_len, &host, &host_len, &port, &timeout)) {
-      return;
-    }
-
-    if (host_len <= 0)
-    {
-      swoole_php_fatal_error(E_WARNING, "The host is empty.");
-      RETURN_FALSE;
-    }
-
-    cli = swoole_get_object(getThis());
-    if (cli)
-    {
-      swoole_php_fatal_error(E_WARNING, "Operation now in progress.");
-      RETURN_FALSE;
-    }
-
-    cli = php_swoole_client_coro_new(getThis(), host, host_len, port);
-    if (cli == NULL)
-    {
-      RETURN_FALSE;
-    }
-
-    cli->onConnect = client_coro_onConnect;
-    cli->onClose = client_coro_onClose;
-    cli->onReceive = client_coro_onReceive;
-    cli->reactor_fdtype = PHP_SWOOLE_FD_DGRAM_CLIENT;
-
-    zval *obj = getThis();
-#if PHP_MAJOR_VERSION >= 7
-    cli->object = (zval *) emalloc(sizeof(zval));
-    ZVAL_DUP(cli->object, obj);
-#else
-    cli->object = obj;
-#endif
-    sw_zval_add_ref(&obj);
-
-    ret = cli->connect(cli, host, port, timeout, sock_flag);
-
-    long flags = 0;
-    ret = cli->send(cli, data, data_len, flags);
-
-    if (ret < 0)
-    {
-        send_error:
-        SwooleG.error = errno;
-        swoole_php_sys_error(E_WARNING, "send(%d) %d bytes failed.", cli->socket->fd, data_len);
-        zend_update_property_long(swoole_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
-        RETVAL_FALSE;
-    }
-    else
-    {
-        php_context *current = coro_save(return_value, return_value_ptr);
-        swoole_set_property(getThis(), 0, current);
-        longjmp(swReactorCheckPoint, 1);
-    }
-}
 static PHP_METHOD(swoole_client_coro, send)
 {
     char *data;
