@@ -283,6 +283,8 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
     cli->object = zobject;
 #endif
 
+    sw_zval_add_ref(&zobject);
+
     cli->reactor_fdtype = PHP_SWOOLE_FD_STREAM_CLIENT;
     cli->onReceive = http_client_onReceive;
     cli->onConnect = http_client_onConnect;
@@ -330,7 +332,7 @@ static void http_client_onClose(swClient *cli)
     zval *zobject = cli->object;
 
     http_client *http = swoole_get_object(zobject);
-    if (!http || !http->cli)
+    if (!http)
     {
         return;
     }
@@ -345,6 +347,7 @@ static void http_client_onClose(swClient *cli)
     {
         return;
     }
+
     args[0] = &zobject;
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
