@@ -324,7 +324,7 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
 
         if (cli->protocol.package_length_size == 0)
         {
-            swoole_php_fatal_error(E_ERROR, "unknow package_length_type, see pack(). Link: http://php.net/pack");
+            swoole_php_fatal_error(E_ERROR, "Unknown package_length_type name '%c', see pack(). Link: http://php.net/pack", cli->protocol.package_length_type);
             return;
         }
     }
@@ -696,6 +696,12 @@ static PHP_METHOD(swoole_client, __construct)
             swoole_php_fatal_error(E_ERROR, "The 'SWOOLE_KEEP' flag can only be used in the php-fpm or apache environment.");
         }
         php_swoole_check_reactor();
+    }
+
+    int client_type = php_swoole_socktype(Z_LVAL_P(ztype));
+    if (client_type < SW_SOCK_TCP || client_type > SW_SOCK_UNIX_STREAM)
+    {
+        swoole_php_fatal_error(E_ERROR, "Unknown client type '%d'.", client_type);
     }
 
     zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("type"), ztype TSRMLS_CC);
@@ -1496,7 +1502,7 @@ static PHP_METHOD(swoole_client, on)
     }
     else
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_client: event callback[%s] is unknow", cb_name);
+        swoole_php_fatal_error(E_WARNING, "Unknown event callback type name '%s'.", cb_name);
         RETURN_FALSE;
     }
     RETURN_TRUE;
