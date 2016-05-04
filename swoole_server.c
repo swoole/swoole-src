@@ -602,7 +602,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     args[2] = zfrom_id;
     args[3] = zdata;
 
-    int ret = coro_create(&php_sw_callback_cache[SW_SERVER_CB_onReceive]->function_handler->op_array, args, 4, retval);
+    int ret = coro_create(php_sw_callback_cache[SW_SERVER_CB_onReceive], args, 4, retval);
     if (ret != 0)
     {
         return SW_OK;

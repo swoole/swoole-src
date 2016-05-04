@@ -20,14 +20,17 @@
 #include <setjmp.h>
 
 #define SWCC(x) sw_current_context->x
+#define SW_EX_CV_NUM(ex, n) (((zval ***)(((char *)(ex)) + ZEND_MM_ALIGNED_SIZE(sizeof(zend_execute_data)))) + n)
+#define SW_EX_CV(var) (*SW_EX_CV_NUM(execute_data, var))
 
 jmp_buf swReactorCheckPoint;
 
 static int coro_num;
 
-int coro_create(zend_op_array *op_array, zval **argv, int argc, zval *retval)
+int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval)
 {
     TSRMLS_FETCH();
+    zend_op_array *op_array = (zend_op_array *)fci_cache->function_handler;
     zend_execute_data *execute_data;
     EG(active_symbol_table) = NULL;
     size_t execute_data_size = ZEND_MM_ALIGNED_SIZE(sizeof(zend_execute_data));
@@ -82,19 +85,38 @@ int coro_create(zend_op_array *op_array, zval **argv, int argc, zval *retval)
     /**
      * comment this temporarily. Consequently, we cannot create a coroutine to run a method of object
      */
-    EG(This) = 0;
-    //if (op_array->this_var != -1 && EG(This)) {
-    ////  printf("this pointer");
-    //    Z_ADDREF_P(EG(This)); /* For $this pointer */
-    //    if (!EG(active_symbol_table)) {
-    //        EX_CV(op_array->this_var) = (zval **) EX_CV_NUM(execute_data, op_array->last_var + op_array->this_var);
-    //        *EX_CV(op_array->this_var) = EG(This);
-    //    } else {
-    //        if (zend_hash_add(EG(active_symbol_table), "this", sizeof("this"), &EG(This), sizeof(zval *), (void **) EX_CV_NUM(execute_data, op_array->this_var))==FAILURE) {
-    //            Z_DELREF_P(EG(This));
-    //        }
-    //    }
-    //}
+    if (fci_cache->object_ptr)
+    {
+        EG(This) = fci_cache->object_ptr;
+        if (!PZVAL_IS_REF(EG(This)))
+        {
+            Z_ADDREF_P(EG(This));
+        } else {
+            zval *this_ptr;
+            ALLOC_ZVAL(this_ptr);
+            *this_ptr = *EG(This);
+            INIT_PZVAL(this_ptr);
+            zval_copy_ctor(this_ptr);
+            EG(This) = this_ptr;
+        }
+    }
+    else
+    {
+        EG(This) = NULL;
+    }
+
+    if (op_array->this_var != -1 && EG(This)) {
+    //  printf("this pointer");
+        Z_ADDREF_P(EG(This)); /* For $this pointer */
+        if (!EG(active_symbol_table)) {
+            SW_EX_CV(op_array->this_var) = (zval **) SW_EX_CV_NUM(execute_data, op_array->last_var + op_array->this_var);
+            *SW_EX_CV(op_array->this_var) = EG(This);
+        } else {
+            if (zend_hash_add(EG(active_symbol_table), "this", sizeof("this"), &EG(This), sizeof(zval *), (void **) EX_CV_NUM(execute_data, op_array->this_var))==FAILURE) {
+                Z_DELREF_P(EG(This));
+            }
+        }
+    }
 
     execute_data->opline = op_array->opcodes;
     EG(opline_ptr) = &((*execute_data).opline);
@@ -111,6 +133,8 @@ int coro_create(zend_op_array *op_array, zval **argv, int argc, zval *retval)
     EG(current_execute_data) = execute_data;
     EG(return_value_ptr_ptr) = &retval;
     EG(This) = 0;
+    EG(scope) = fci_cache->calling_scope;
+    EG(called_scope) = fci_cache->called_scope;
     ++coro_num;
 
     if (!setjmp(swReactorCheckPoint)) {

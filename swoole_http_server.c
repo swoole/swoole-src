@@ -1202,7 +1202,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
             swoole_php_error(E_WARNING, "onRequest handler error");
         }
 #else
-        int ret = coro_create(&php_sw_http_callback_cache[callback]->function_handler->op_array, args, 2, retval);
+        int ret = coro_create(php_sw_http_callback_cache[callback], args, 2, retval);
         if (ret != 0)
         {
             return SW_OK;

@@ -29,7 +29,6 @@ typedef struct
     zend_execute_data *current_execute_data;
     zend_op **current_opline_ptr;
     zend_op *current_opline;
-    zend_execute_data *prev_execute_data;
     zend_op_array *current_active_op_array;
     HashTable *current_active_symbol_table;
     zval *current_this;
@@ -38,7 +37,7 @@ typedef struct
     zend_vm_stack current_vm_stack;
 } _php_context;
 
-int coro_create(zend_op_array *op_array, zval **argv, int argc, zval *retval);
+int coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval *retval);
 void coro_close();
 php_context *coro_save(zval *return_value, zval **return_value_ptr, php_context *sw_php_context);
 int coro_resume(php_context *sw_current_context, zval *retval);
