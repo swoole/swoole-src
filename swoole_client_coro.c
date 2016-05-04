@@ -39,7 +39,6 @@ enum client_callback_type
 #define SWCC(x) sw_current_context->x
 static PHP_METHOD(swoole_client_coro, __construct);
 static PHP_METHOD(swoole_client_coro, __destruct);
-static PHP_METHOD(swoole_client_coro, set);
 static PHP_METHOD(swoole_client_coro, connect);
 static PHP_METHOD(swoole_client_coro, recv);
 static PHP_METHOD(swoole_client_coro, send);
@@ -142,7 +141,6 @@ static const zend_function_entry swoole_client_coro_methods[] =
 {
     PHP_ME(swoole_client_coro, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
     PHP_ME(swoole_client_coro, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
-    PHP_ME(swoole_client_coro, set, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_coro, connect, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_coro, recv, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_coro, send, NULL, ZEND_ACC_PUBLIC)
@@ -206,8 +204,11 @@ static void client_coro_onReceive(swClient *cli, char *data, uint32_t length)
 
     /*if next cr*/
     php_context *sw_current_context = swoole_get_property(zobject, 0);
-    coro_resume(sw_current_context, zdata);
-
+    int ret = coro_resume(sw_current_context, zdata);
+    if (ret > 0)
+    {
+        return;
+    }
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
@@ -506,7 +507,10 @@ void php_swoole_client_coro_free(zval *object, swClient *cli TSRMLS_DC)
     else
     {
         efree(cli->server_str);
-        swClient_free(cli);
+        if (!cli->socket->removed)
+        {
+            swClient_free(cli);
+        }
         efree(cli);
     }
     //unset object
@@ -692,17 +696,6 @@ static PHP_METHOD(swoole_client_coro, __destruct)
         printf("php_vmstat.free_client=%d\n", php_vmstat.free_client);
     }
 #endif
-}
-
-static PHP_METHOD(swoole_client_coro, set)
-{
-    zval *zset;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zset) == FAILURE)
-    {
-        return;
-    }
-    zend_update_property(swoole_client_coro_class_entry_ptr, getThis(), ZEND_STRL("setting"), zset TSRMLS_CC);
-    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_client_coro, connect)
@@ -966,8 +959,13 @@ static PHP_METHOD(swoole_client_coro, sendfile)
 static PHP_METHOD(swoole_client_coro, recv)
 {
     /* support params in future */
-    php_context *current = coro_save(return_value, return_value_ptr);
-    swoole_set_property(getThis(), 0, current);
+    php_context *context = swoole_get_property(getThis(), 0);
+    if (!context)
+    {
+        context = emalloc(sizeof(php_context));
+        swoole_set_property(getThis(), 0, context);
+    }
+    coro_save(return_value, return_value_ptr, context);
     coro_yield();
 }
 

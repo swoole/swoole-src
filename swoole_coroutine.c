@@ -25,8 +25,9 @@ jmp_buf swReactorCheckPoint;
 
 static int coro_num;
 
-int coro_create(zend_op_array *op_array, zval **argv, int argc)
+int coro_create(zend_op_array *op_array, zval **argv, int argc, zval *retval)
 {
+    TSRMLS_FETCH();
     zend_execute_data *execute_data;
     EG(active_symbol_table) = NULL;
     size_t execute_data_size = ZEND_MM_ALIGNED_SIZE(sizeof(zend_execute_data));
@@ -70,7 +71,7 @@ int coro_create(zend_op_array *op_array, zval **argv, int argc)
     execute_data->object = NULL;
     execute_data->current_this = NULL;
     execute_data->old_error_reporting = NULL;
-    execute_data->symbol_table = EG(active_symbol_table);
+    execute_data->symbol_table = NULL;
     execute_data->call = NULL;
     execute_data->nested = 0;
 
@@ -81,17 +82,18 @@ int coro_create(zend_op_array *op_array, zval **argv, int argc)
     /**
      * comment this temporarily. Consequently, we cannot create a coroutine to run a method of object
      */
+    EG(This) = 0;
     //if (op_array->this_var != -1 && EG(This)) {
-    //  printf("this pointer");
-    //  Z_ADDREF_P(EG(This)); /* For $this pointer */
-    //  if (!EG(active_symbol_table)) {
-    //    EX_CV(op_array->this_var) = (zval **) EX_CV_NUM(execute_data, op_array->last_var + op_array->this_var);
-    //    *EX_CV(op_array->this_var) = EG(This);
-    //  } else {
-    //    if (zend_hash_add(EG(active_symbol_table), "this", sizeof("this"), &EG(This), sizeof(zval *), (void **) EX_CV_NUM(execute_data, op_array->this_var))==FAILURE) {
-    //      Z_DELREF_P(EG(This));
+    ////  printf("this pointer");
+    //    Z_ADDREF_P(EG(This)); /* For $this pointer */
+    //    if (!EG(active_symbol_table)) {
+    //        EX_CV(op_array->this_var) = (zval **) EX_CV_NUM(execute_data, op_array->last_var + op_array->this_var);
+    //        *EX_CV(op_array->this_var) = EG(This);
+    //    } else {
+    //        if (zend_hash_add(EG(active_symbol_table), "this", sizeof("this"), &EG(This), sizeof(zval *), (void **) EX_CV_NUM(execute_data, op_array->this_var))==FAILURE) {
+    //            Z_DELREF_P(EG(This));
+    //        }
     //    }
-    //  }
     //}
 
     execute_data->opline = op_array->opcodes;
@@ -107,19 +109,20 @@ int coro_create(zend_op_array *op_array, zval **argv, int argc)
     //zend_vm_stack_push((void *)0);
 
     EG(current_execute_data) = execute_data;
+    EG(return_value_ptr_ptr) = &retval;
     EG(This) = 0;
     ++coro_num;
 
     if (!setjmp(swReactorCheckPoint)) {
         zend_execute_ex(execute_data TSRMLS_CC);
         coro_close();
-        swTrace("create the %d coro with stack %d\n", coro_num, total_size);
+        swTrace("create the %d coro with stack %zu\n", coro_num, total_size);
         return 0;
     }
     return 1;
 }
 
-void coro_close()
+sw_inline void coro_close()
 {
     void **arguments = EG(current_execute_data)->function_state.arguments;
     if (arguments)
@@ -138,12 +141,12 @@ void coro_close()
     swTrace("closing coro and %d remained", coro_num);
 }
 
-php_context *coro_save(zval *return_value, zval **return_value_ptr)
+sw_inline php_context *coro_save(zval *return_value, zval **return_value_ptr, php_context *sw_current_context)
 {
-    php_context *sw_current_context = emalloc(sizeof(php_context));
-    //SWCC(current_return_value_ptr_ptr) = EG(return_value_ptr_ptr);
-    SWCC(current_return_value_ptr_ptr) = return_value_ptr;
-    SWCC(current_return_value_ptr) = return_value;
+    TSRMLS_FETCH();
+    SWCC(current_coro_return_value_ptr_ptr) = return_value_ptr;
+    SWCC(current_coro_return_value_ptr) = return_value;
+    SWCC(current_eg_return_value_ptr_ptr) = EG(return_value_ptr_ptr);
     SWCC(current_execute_data) = EG(current_execute_data);
     SWCC(current_opline_ptr) = EG(opline_ptr);
     SWCC(current_opline) = *(EG(opline_ptr));
@@ -153,20 +156,20 @@ php_context *coro_save(zval *return_value, zval **return_value_ptr)
     SWCC(current_scope) = EG(scope);
     SWCC(current_called_scope) = EG(called_scope);
     SWCC(current_vm_stack) = EG(argument_stack);
-    //swoole_set_property(this, 0, sw_current_context);
     return sw_current_context;
 }
 
 int coro_resume(php_context *sw_current_context, zval *retval)
 {
+    TSRMLS_FETCH();
     sw_current_context->current_execute_data->opline++;
     if (SWCC(current_this))
     {
         zval_ptr_dtor(&SWCC(current_this));
     }
-    EG(return_value_ptr_ptr) = SWCC(current_return_value_ptr_ptr);
-    *(sw_current_context->current_return_value_ptr) = *retval;
-    zval_copy_ctor(sw_current_context->current_return_value_ptr);
+    EG(return_value_ptr_ptr) = SWCC(current_eg_return_value_ptr_ptr);
+    *(sw_current_context->current_coro_return_value_ptr) = *retval;
+    zval_copy_ctor(sw_current_context->current_coro_return_value_ptr);
     EG(current_execute_data) = SWCC(current_execute_data);
     EG(opline_ptr) = SWCC(current_opline_ptr);
     EG(active_op_array) = SWCC(current_active_op_array)  ;

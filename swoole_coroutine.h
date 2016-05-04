@@ -23,8 +23,9 @@
 
 typedef struct
 {
-    zval **current_return_value_ptr_ptr;
-    zval *current_return_value_ptr;
+    zval **current_coro_return_value_ptr_ptr;
+    zval *current_coro_return_value_ptr;
+    zval **current_eg_return_value_ptr_ptr;
     zend_execute_data *current_execute_data;
     zend_op **current_opline_ptr;
     zend_op *current_opline;
@@ -37,11 +38,9 @@ typedef struct
     zend_vm_stack current_vm_stack;
 } _php_context;
 
-int coro_create(zend_op_array *op_array, zval **argv, int argc);
-
+int coro_create(zend_op_array *op_array, zval **argv, int argc, zval *retval);
 void coro_close();
-php_context *coro_save(zval *return_value, zval **return_value_ptr);
+php_context *coro_save(zval *return_value, zval **return_value_ptr, php_context *sw_php_context);
 int coro_resume(php_context *sw_current_context, zval *retval);
 void coro_yield();
-
 #endif
