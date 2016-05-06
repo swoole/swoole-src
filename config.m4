@@ -50,6 +50,9 @@ PHP_ARG_WITH(swoole, swoole support,
 PHP_ARG_ENABLE(swoole, swoole support,
 [  --enable-swoole         Enable swoole support], [enable_swoole="yes"])
 
+PHP_ARG_ENABLE(coroutine, whether to enable coroutine,
+[  --enable-coroutine   Enable coroutine], no, no)
+
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
     haveext=$[PHP_]translit($1,a-z_-,A-Z__)
@@ -139,6 +142,10 @@ if test "$PHP_SWOOLE" != "no"; then
 
     if test "$PHP_SWOOLE_DEBUG" != "no"; then
         AC_DEFINE(SW_DEBUG, 1, [do we enable swoole debug])
+    fi
+
+    if test "$PHP_COROUTINE" != "no"; then
+        AC_DEFINE(SW_COROUTINE, 1, [enable ability of coroutine])
     fi
 
     if test "$PHP_MYSQLI" = "yes"; then
@@ -255,6 +262,8 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_atomic.c \
         swoole_lock.c \
         swoole_client.c \
+        swoole_client_coro.c \
+        swoole_coroutine.c \
         swoole_event.c \
         swoole_timer.c \
         swoole_async.c \
