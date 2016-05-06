@@ -497,9 +497,6 @@ int swServer_shutdown(swServer *serv);
 
 static sw_inline swString *swServer_get_buffer(swServer *serv, int fd)
 {
-    assert(fd < serv->max_connection);
-    assert(fd % serv->reactor_num == SwooleTG.id);
-
     swString *buffer = serv->object_list[fd];
     if (buffer == NULL)
     {
@@ -516,9 +513,6 @@ static sw_inline swString *swServer_get_buffer(swServer *serv, int fd)
 
 static sw_inline void swServer_free_buffer(swServer *serv, int fd)
 {
-    assert(fd < serv->max_connection);
-    assert(fd % serv->reactor_num == SwooleTG.id);
-
     swString *buffer = serv->object_list[fd];
     if (buffer)
     {
