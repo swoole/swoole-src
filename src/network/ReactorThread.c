@@ -300,7 +300,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
     {
         if (conn->object)
         {
-            swString_free(conn->object);
+            swServer_free_buffer(serv, fd);
             conn->object = NULL;
         }
     }
@@ -310,7 +310,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
         {
             if (conn->http_upgrade)
             {
-                swString_free(conn->object);
+                swServer_free_buffer(serv, fd);
                 conn->websocket_status = 0;
                 conn->object = NULL;
             }

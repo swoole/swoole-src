@@ -638,6 +638,13 @@ int swServer_start(swServer *serv)
     //signal Init
     swServer_signal_init();
 
+    serv->object_list = sw_malloc(sizeof(swObject) * serv->max_connection);
+    if (serv->object_list == NULL)
+    {
+        swSysError("malloc[1](%d) failed.", (int )(serv->reactor_num * sizeof(swObject)));
+        return SW_ERR;
+    }
+
     if (serv->factory_mode == SW_MODE_SINGLE)
     {
         ret = swReactorProcess_start(serv);
@@ -931,7 +938,7 @@ int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length)
 /**
  * for udp + tcp
  */
-int swServer_send2(swServer *serv, swSendData *resp)
+static int swServer_send2(swServer *serv, swSendData *resp)
 {
     int ret;
 

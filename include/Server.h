@@ -495,6 +495,38 @@ int swServer_create(swServer *serv);
 int swServer_free(swServer *serv);
 int swServer_shutdown(swServer *serv);
 
+static sw_inline swString *swServer_get_buffer(swServer *serv, int fd)
+{
+    assert(fd < serv->max_connection);
+    assert(fd % serv->reactor_num == SwooleTG.id);
+
+    swString *buffer = serv->object_list[fd];
+    if (buffer == NULL)
+    {
+        buffer = swString_new(SW_BUFFER_SIZE);
+        //alloc memory failed.
+        if (!buffer)
+        {
+            return NULL;
+        }
+        serv->object_list[fd] = buffer;
+    }
+    return buffer;
+}
+
+static sw_inline void swServer_free_buffer(swServer *serv, int fd)
+{
+    assert(fd < serv->max_connection);
+    assert(fd % serv->reactor_num == SwooleTG.id);
+
+    swString *buffer = serv->object_list[fd];
+    if (buffer)
+    {
+        swString_free(buffer);
+        serv->object_list[fd] = NULL;
+    }
+}
+
 static sw_inline swListenPort* swServer_get_port(swServer *serv, int fd)
 {
     int server_fd = serv->connection_list[fd].from_fd;
