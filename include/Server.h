@@ -417,11 +417,8 @@ struct _swServer
     pthread_barrier_t barrier;
 #endif
 
-    swConnection *connection_list;  //连接列表
+    swConnection *connection_list;
     swSession *session_list;
-    swObject *object_list;
-
-    int connection_list_capacity; //超过此容量，会自动扩容
 
     /**
      * message queue key
@@ -497,7 +494,7 @@ int swServer_shutdown(swServer *serv);
 
 static sw_inline swString *swServer_get_buffer(swServer *serv, int fd)
 {
-    swString *buffer = serv->object_list[fd];
+    swString *buffer = serv->connection_list[fd].object;
     if (buffer == NULL)
     {
         buffer = swString_new(SW_BUFFER_SIZE);
@@ -506,18 +503,18 @@ static sw_inline swString *swServer_get_buffer(swServer *serv, int fd)
         {
             return NULL;
         }
-        serv->object_list[fd] = buffer;
+        serv->connection_list[fd].object = buffer;
     }
     return buffer;
 }
 
 static sw_inline void swServer_free_buffer(swServer *serv, int fd)
 {
-    swString *buffer = serv->object_list[fd];
+    swString *buffer = serv->connection_list[fd].object;
     if (buffer)
     {
         swString_free(buffer);
-        serv->object_list[fd] = NULL;
+        serv->connection_list[fd].object = NULL;
     }
 }
 
