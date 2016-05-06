@@ -1199,11 +1199,13 @@ static void swHeartbeatThread_loop(swThreadParam *param)
 
                 notify_ev.fd = fd;
                 notify_ev.from_id = conn->from_id;
+
                 conn->close_force = 1;
+                conn->close_notify = 1;
+                conn->close_wait = 1;
 
                 if (serv->factory_mode != SW_MODE_PROCESS)
                 {
-                    conn->close_notify = 1;
                     if (serv->factory_mode == SW_MODE_SINGLE)
                     {
                         reactor = SwooleG.main_reactor;
@@ -1212,18 +1214,13 @@ static void swHeartbeatThread_loop(swThreadParam *param)
                     {
                         reactor = &serv->reactor_threads[conn->from_id].reactor;
                     }
-                    reactor->set(reactor, fd, SW_FD_TCP | SW_EVENT_WRITE);
-                }
-                else if (serv->disable_notify)
-                {
-                    conn->close_wait = 1;
-                    reactor = &serv->reactor_threads[conn->from_id].reactor;
-                    reactor->set(reactor, fd, SW_FD_TCP | SW_EVENT_WRITE);
                 }
                 else
                 {
-                    factory->notify(&serv->factory, &notify_ev);
+                    reactor = &serv->reactor_threads[conn->from_id].reactor;
                 }
+                //notify to reactor thread
+                reactor->set(reactor, fd, SW_FD_TCP | SW_EVENT_WRITE);
             }
         }
         sleep(serv->heartbeat_check_interval);

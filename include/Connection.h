@@ -167,8 +167,11 @@ static sw_inline int swConnection_send(swConnection *conn, void *__buf, size_t _
 
 static sw_inline int swConnection_error(int err)
 {
-	switch (err)
-	{
+    switch (err)
+    {
+    case EFAULT:
+        abort();
+        return SW_ERROR;
 	case ECONNRESET:
 	case EPIPE:
 	case ENOTCONN:
