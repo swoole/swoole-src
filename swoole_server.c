@@ -2219,10 +2219,8 @@ PHP_METHOD(swoole_server, taskwait)
     if (swProcessPool_dispatch_blocking(&SwooleGS->task_workers, &buf, (int*) &dst_worker_id) >= 0)
     {
         task_notify_pipe->timeout = timeout;
+        sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
         int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
-        swWorker *worker = swProcessPool_get_worker(&SwooleGS->task_workers, dst_worker_id);
-        sw_atomic_fetch_sub(&worker->tasking_num, 1);
-
         if (ret > 0)
         {
             zval *task_notify_data = php_swoole_get_task_result(task_result TSRMLS_CC);
