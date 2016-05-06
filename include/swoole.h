@@ -362,6 +362,8 @@ typedef struct _swString
     char *str;
 } swString;
 
+typedef void* swObject;
+
 typedef struct _swLinkedList_node
 {
     struct _swLinkedList_node *prev;
@@ -389,6 +391,7 @@ typedef struct
     } addr;
     socklen_t len;
 } swSocketAddress;
+
 
 typedef struct _swConnection
 {

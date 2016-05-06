@@ -419,6 +419,7 @@ struct _swServer
 
     swConnection *connection_list;  //连接列表
     swSession *session_list;
+    swObject *object_list;
 
     int connection_list_capacity; //超过此容量，会自动扩容
 
