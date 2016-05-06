@@ -1156,7 +1156,6 @@ static void swHeartbeatThread_loop(swThreadParam *param)
 
     swServer *serv = param->object;
     swDataHead notify_ev;
-    swFactory *factory = &serv->factory;
     swConnection *conn;
     swReactor *reactor;
 
