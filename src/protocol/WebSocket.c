@@ -60,7 +60,7 @@ int swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, cha
     //uint16_t, 2byte
     if (payload_length == 0x7e)
     {
-        if (swConnection_recv(conn, buf + SW_WEBSOCKET_HEADER_LEN, sizeof(uint16_t), 0) < 0)
+        if (swConnection_recv(conn, buf, sizeof(uint16_t), 0) < 0)
         {
             swWarn("recv(%d, 2) extended payload length failed.", conn->fd);
             return SW_ERR;
@@ -68,11 +68,12 @@ int swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, cha
         payload_length = ntohs(*((uint16_t *) buf));
         header_length += sizeof(uint16_t);
         buffer->length += sizeof(uint16_t);
+        buf += sizeof(uint16_t);
     }
     //uint64_t, 8byte
     else if (payload_length > 0x7e)
     {
-        if (swConnection_recv(conn, buf + SW_WEBSOCKET_HEADER_LEN, sizeof(uint64_t), 0) < 0)
+        if (swConnection_recv(conn, buf, sizeof(uint64_t), 0) < 0)
         {
             swWarn("recv(%d, 8) extended payload length failed.", conn->fd);
             return SW_ERR;
@@ -80,10 +81,11 @@ int swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, cha
         payload_length = swoole_ntoh64(*((uint64_t *) buf));
         header_length += sizeof(uint64_t);
         buffer->length += sizeof(uint64_t);
+        buf += sizeof(uint64_t);
     }
     if (mask)
     {
-        if (swConnection_recv(conn, buf + header_length, SW_WEBSOCKET_MASK_LEN, 0) < 0)
+        if (swConnection_recv(conn, buf, SW_WEBSOCKET_MASK_LEN, 0) < 0)
         {
             swWarn("recv(%d, %d) masking-key failed.", conn->fd, SW_WEBSOCKET_MASK_LEN);
             return SW_ERR;
