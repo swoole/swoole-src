@@ -367,6 +367,7 @@ static PHP_METHOD(swoole_server_port, on)
             property_name[l_property_name] = '\0';
             zend_update_property(swoole_server_port_class_entry_ptr, getThis(), property_name, l_property_name, cb TSRMLS_CC);
             property->callbacks[i] = sw_zend_read_property(swoole_server_port_class_entry_ptr, getThis(), property_name, l_property_name, 0 TSRMLS_CC);
+            sw_copy_to_stack(property->callbacks[i], property->_callbacks[i]);
 
             if (i == SW_SERVER_CB_onConnect && SwooleG.serv->onConnect == NULL)
             {

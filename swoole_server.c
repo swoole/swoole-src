@@ -38,6 +38,10 @@ static struct
 
 zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
 
+#if PHP_MAJOR_VERSION >= 7
+zval _php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
+#endif
+
 static int php_swoole_task_finish(swServer *serv, zval *data TSRMLS_DC);
 static void php_swoole_onPipeMessage(swServer *serv, swEventData *req);
 static void php_swoole_onStart(swServer *);
@@ -1641,6 +1645,7 @@ PHP_METHOD(swoole_server, on)
             property_name[l_property_name] = '\0';
             zend_update_property(swoole_server_class_entry_ptr, getThis(), property_name, l_property_name, cb TSRMLS_CC);
             php_sw_server_callbacks[i] = sw_zend_read_property(swoole_server_class_entry_ptr, getThis(), property_name, l_property_name, 0 TSRMLS_CC);
+            sw_copy_to_stack(php_sw_server_callbacks[i], _php_sw_server_callbacks[i]);
             break;
         }
     }

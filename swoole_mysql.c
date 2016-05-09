@@ -1007,12 +1007,8 @@ PHP_FUNCTION(swoole_mysql_query)
         RETURN_FALSE;
     }
 
-#if PHP_MAJOR_VERSION < 7
     client->callback = callback;
-#else
-    client->callback = &client->_callback;
-    memcpy(client->callback, callback, sizeof(zval));
-#endif
+    sw_copy_to_stack(client->callback, client->_callback);
 
     sw_zval_add_ref(&client->callback);
     swString_clear(mysql_request_buffer);

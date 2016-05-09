@@ -82,6 +82,10 @@ zend_class_entry *swoole_http_request_class_entry_ptr;
 
 zval* php_sw_http_server_callbacks[HTTP_SERVER_CALLBACK_NUM];
 
+#if PHP_MAJOR_VERSION >= 7
+zval _php_sw_http_server_callbacks[HTTP_SERVER_CALLBACK_NUM];
+#endif
+
 static int http_onReceive(swServer *serv, swEventData *req);
 static void http_onClose(swServer *serv, swDataHead *info);
 
@@ -1249,17 +1253,18 @@ static PHP_METHOD(swoole_http_server, on)
         RETURN_FALSE;
     }
     efree(func_name);
-    sw_zval_add_ref(&callback);
 
     if (strncasecmp("request", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
         zend_update_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onRequest"), callback TSRMLS_CC);
         php_sw_http_server_callbacks[0] = sw_zend_read_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onRequest"), 0 TSRMLS_CC);
+        sw_copy_to_stack(php_sw_http_server_callbacks[0], _php_sw_http_server_callbacks[0]);
     }
     else if (strncasecmp("handshake", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
         zend_update_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onHandshake"), callback TSRMLS_CC);
         php_sw_http_server_callbacks[1] = sw_zend_read_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onHandshake"), 0 TSRMLS_CC);
+        sw_copy_to_stack(php_sw_http_server_callbacks[1], _php_sw_http_server_callbacks[1]);
     }
     else
     {

@@ -33,10 +33,14 @@ typedef struct
     zval *connect_callback;
     zval *close_callback;
     zval *message_callback;
+
 #if PHP_MAJOR_VERSION >= 7
     zval _result_callback;
     zval _connect_callback;
+    zval _close_callback;
+    zval _message_callback;
 #endif
+
     zval *object;
     zval _object;
 } swRedisClient;
@@ -165,29 +169,18 @@ static PHP_METHOD(swoole_redis, on)
         RETURN_FALSE;
     }
 
-#if PHP_MAJOR_VERSION >= 7
-    zval *_tmp = emalloc(sizeof(zval));
-    memcpy(_tmp, cb, sizeof(zval));
-    cb = _tmp;
-#endif
-
-    sw_zval_add_ref(&cb);
-
     if (strncasecmp("close", name, len) == 0)
     {
-        if (redis->close_callback)
-        {
-            sw_zval_ptr_dtor(&redis->close_callback);
-        }
-        redis->close_callback = cb;
+        zend_update_property(swoole_redis_class_entry_ptr, getThis(), ZEND_STRL("onClose"), cb TSRMLS_CC);
+        redis->close_callback = sw_zend_read_property(swoole_redis_class_entry_ptr,  getThis(), ZEND_STRL("onClose"), 0 TSRMLS_CC);
+        sw_copy_to_stack(redis->close_callback, redis->_close_callback);
     }
     else if (strncasecmp("message", name, len) == 0)
     {
-        if (redis->message_callback)
-        {
-            sw_zval_ptr_dtor(&redis->message_callback);
-        }
-        redis->message_callback = cb;
+        zend_update_property(swoole_redis_class_entry_ptr, getThis(), ZEND_STRL("onMessage"), cb TSRMLS_CC);
+        redis->message_callback = sw_zend_read_property(swoole_redis_class_entry_ptr,  getThis(), ZEND_STRL("onMessage"), 0 TSRMLS_CC);
+        sw_copy_to_stack(redis->message_callback, redis->_message_callback);
+
         redis->subscribe = 1;
     }
     else
@@ -241,14 +234,9 @@ static PHP_METHOD(swoole_redis, connect)
     redisAsyncSetConnectCallback(context, swoole_redis_onConnect);
     redisAsyncSetDisconnectCallback(context, swoole_redis_onClose);
 
-#if PHP_MAJOR_VERSION < 7
-    redis->connect_callback = callback;
-#else
-    redis->connect_callback = &redis->_connect_callback;
-    memcpy(redis->connect_callback, callback, sizeof(zval));
-#endif
-
-    sw_zval_add_ref(&redis->connect_callback);
+    zend_update_property(swoole_redis_class_entry_ptr, getThis(), ZEND_STRL("onConnect"), callback TSRMLS_CC);
+    redis->connect_callback = sw_zend_read_property(swoole_redis_class_entry_ptr, getThis(), ZEND_STRL("onConnect"), 0 TSRMLS_CC);
+    sw_copy_to_stack(redis->connect_callback, redis->_connect_callback);
 
     redis->context = context;
     context->ev.addRead = swoole_redis_event_AddRead;

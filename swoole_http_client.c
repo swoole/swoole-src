@@ -52,6 +52,9 @@ typedef struct
 
 #if PHP_MAJOR_VERSION >= 7
     zval _onResponse;
+    zval _onError;
+    zval _onClose;
+    zval _onMessage;
 #endif
 
     zval *cookies;
@@ -245,14 +248,8 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
     }
 
     http_client_property *hcc = swoole_get_property(zobject, 0);
-
-
-#if PHP_MAJOR_VERSION < 7
     hcc->onResponse = callback;
-#else
-    hcc->onResponse = &hcc->_onResponse;
-    memcpy(hcc->onResponse, callback, sizeof(zval));
-#endif
+    sw_copy_to_stack(hcc->onResponse, hcc->_onResponse);
 
     sw_zval_add_ref(&hcc->onResponse);
 
@@ -1088,16 +1085,19 @@ static PHP_METHOD(swoole_http_client, on)
     {
         zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("onError"), zcallback TSRMLS_CC);
         hcc->onError = sw_zend_read_property(swoole_http_client_class_entry_ptr,  getThis(), ZEND_STRL("onError"), 0 TSRMLS_CC);
+        sw_copy_to_stack(hcc->onError, hcc->_onError);
     }
     else if (strncasecmp("close", cb_name, cb_name_len) == 0)
     {
         zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("onClose"), zcallback TSRMLS_CC);
-        hcc->onClose = sw_zend_read_property(swoole_http_client_class_entry_ptr,  getThis(), ZEND_STRL("onClose"), 0 TSRMLS_CC);
+        hcc->onError = sw_zend_read_property(swoole_http_client_class_entry_ptr,  getThis(), ZEND_STRL("onClose"), 0 TSRMLS_CC);
+        sw_copy_to_stack(hcc->onError, hcc->_onError);
     }
     else if (strncasecmp("message", cb_name, cb_name_len) == 0)
     {
         zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("onMessage"), zcallback TSRMLS_CC);
         hcc->onMessage = sw_zend_read_property(swoole_http_client_class_entry_ptr,  getThis(), ZEND_STRL("onMessage"), 0 TSRMLS_CC);
+        sw_copy_to_stack(hcc->onMessage, hcc->_onMessage);
     }
     else
     {
