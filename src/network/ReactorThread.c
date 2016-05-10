@@ -296,7 +296,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
     swListenPort *port = swServer_get_port(serv, fd);
 
     //clear output buffer
-    if (port->open_eof_check || port->open_length_check)
+    if (port->open_eof_check || port->open_length_check || port->open_mqtt_protocol)
     {
         if (conn->object)
         {
@@ -1451,4 +1451,3 @@ void swReactorThread_free(swServer *serv)
         }
     }
 }
-
