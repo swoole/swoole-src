@@ -1091,7 +1091,7 @@ static PHP_METHOD(swoole_http_client, on)
     {
         zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("onClose"), zcallback TSRMLS_CC);
         hcc->onClose = sw_zend_read_property(swoole_http_client_class_entry_ptr,  getThis(), ZEND_STRL("onClose"), 0 TSRMLS_CC);
-        sw_copy_to_stack(hcc->onClose, hcc->onClose);
+        sw_copy_to_stack(hcc->onClose, hcc->_onClose);
     }
     else if (strncasecmp("message", cb_name, cb_name_len) == 0)
     {
