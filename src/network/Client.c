@@ -335,7 +335,7 @@ static int swClient_close(swClient *cli)
     if (cli->async)
     {
         //remove from reactor
-        if (!cli->socket->removed)
+        if (!cli->socket->removed && SwooleG.main_reactor)
         {
             SwooleG.main_reactor->del(SwooleG.main_reactor, fd);
         }
