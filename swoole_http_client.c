@@ -206,7 +206,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
         }
         else if (!http->cli->socket->active)
         {
-            swoole_php_fatal_error(E_WARNING, "connection is closed.");
+            swoole_php_fatal_error(E_WARNING, "connection#%d is closed.", http->cli->socket->fd);
             return SW_ERR;
         }
     }
@@ -1090,8 +1090,8 @@ static PHP_METHOD(swoole_http_client, on)
     else if (strncasecmp("close", cb_name, cb_name_len) == 0)
     {
         zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("onClose"), zcallback TSRMLS_CC);
-        hcc->onError = sw_zend_read_property(swoole_http_client_class_entry_ptr,  getThis(), ZEND_STRL("onClose"), 0 TSRMLS_CC);
-        sw_copy_to_stack(hcc->onError, hcc->_onError);
+        hcc->onClose = sw_zend_read_property(swoole_http_client_class_entry_ptr,  getThis(), ZEND_STRL("onClose"), 0 TSRMLS_CC);
+        sw_copy_to_stack(hcc->onClose, hcc->onClose);
     }
     else if (strncasecmp("message", cb_name, cb_name_len) == 0)
     {
