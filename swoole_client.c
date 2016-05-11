@@ -283,6 +283,9 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
     zval *v;
     int value = 1;
 
+    char *bind_address = NULL;
+    int bind_port = 0;
+
     vht = Z_ARRVAL_P(zset);
 
     //buffer: check eof
@@ -361,6 +364,26 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         value = (int) Z_LVAL_P(v);
         swSocket_set_buffer_size(cli->socket->fd, value);
         cli->socket->buffer_size = cli->buffer_input_size = value;
+    }
+    /**
+     * bind address
+     */
+    if (sw_zend_hash_find(vht, ZEND_STRS("bind_address"), (void **) &v) == SUCCESS)
+    {
+        convert_to_string(v);
+        bind_address = Z_STRVAL_P(v);
+    }
+    /**
+     * bind port
+     */
+    if (sw_zend_hash_find(vht, ZEND_STRS("bind_port"), (void **) &v) == SUCCESS)
+    {
+        convert_to_long(v);
+        bind_port = (int) Z_LVAL_P(v);
+    }
+    if (bind_address)
+    {
+        swSocket_bind(cli->socket->fd, cli->type, bind_address, bind_port);
     }
     /**
      * TCP_NODELAY

@@ -1011,12 +1011,24 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
     bzero(ls->host, SW_HOST_MAXSIZE);
     strncpy(ls->host, host, SW_HOST_MAXSIZE);
 
-    //create listen socket
-    int sock = swSocket_bind(ls->type, ls->host, ls->port);
+    //create server socket
+    int sock = swSocket_create(type);
     if (sock < 0)
+    {
+        swSysError("create socket failed.");
+        return NULL;
+    }
+    //bind address and port
+    if (swSocket_bind(sock, ls->type, ls->host, ls->port) < 0)
     {
         return NULL;
     }
+    //stream socket, set nonblock
+    if (swSocket_is_stream(ls->type))
+    {
+        swSetNonBlock(sock);
+    }
+
     ls->sock = sock;
 
     if (swSocket_is_dgram(ls->type))
