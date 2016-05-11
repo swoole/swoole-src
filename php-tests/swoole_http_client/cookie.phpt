@@ -38,7 +38,7 @@ DOC;
 	
 	swoole_php_fork($code);
 }
-
+sleep(1);	//wait the release of port 9501
 start_swoole_http_server();
 sleep(1);
 echo file_get_contents("http://127.0.0.1:9501/");
