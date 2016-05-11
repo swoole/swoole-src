@@ -271,7 +271,6 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
                     swSysError("EPOLLOUT handle failed. fd=%d.", event.fd);
                 }
             }
-#if 0
             //error
 #ifndef NO_EPOLLRDHUP
             if ((events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)) && !event.socket->removed)
@@ -286,7 +285,6 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
                     swSysError("EPOLLERR handle failed. fd=%d.", event.fd);
                 }
             }
-#endif
         }
 
         if (reactor->onFinish != NULL)
