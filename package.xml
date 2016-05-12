@@ -35,11 +35,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2016-04-13</date>
+    <date>2016-05-12</date>
     <time>16:48:51</time>
     <version>
-		<release>1.8.4</release>
-		<api>1.8.4</api>
+		<release>1.8.5</release>
+		<api>1.8.5</api>
     </version>
     <stability>
         <release>stable</release>
@@ -47,13 +47,11 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed Swoole\Redis callback function memory leak bugs
-- Fixed swoole_mysql_queue function memory leak bugs
-- Fixed Swoole\Http\Client memory leak bugs
-- Fixed issue #585
-- Fixed issue #590
-- Added unixsock support for async client  
-- Added high-precision time for Swoole\Http\Request
+- Fixed swoole_mysql_query insert_id error
+- Fixed swoole_websocket_server crash when receiving less than 4 bytes of data
+- Added bigint ID support for swoole_mysql_query
+- Fixed sync Swoole\Client memory leaks
+- Fixed Swoole\Http\Client crash when the connection is closed
     </notes>
 	<contents>
 		<dir name="/">
@@ -292,7 +290,6 @@
 				<file role="src" name="server.php" />
 				<file role="src" name="mysql_proxy_server.php" />
 				<file role="src" name="proxy_sync.php" />
-				<file role="src" name="timer.php" />
 				<file role="src" name="sendfile_server.php" />
 				<file role="src" name="recv_file.php" />
 				<file role="doc" name="test.jpg" />
