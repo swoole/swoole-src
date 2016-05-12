@@ -389,11 +389,6 @@ static void http_client_onError(swClient *cli)
         return;
     }
 
-    if (http->cli->socket->closed)
-    {
-        return;
-    }
-
     http_client_property *hcc = swoole_get_property(zobject, 0);
     if (!hcc)
     {
