@@ -1,38 +1,30 @@
 <?php
-$client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC); //同步阻塞
+$client = new swoole_client(SWOOLE_SOCK_TCP);
+$count = 0;
+//$client->set(array('open_eof_check' => true, 'package_eof' => "\r\n\r\n"));
+
+//$client = new swoole_client(SWOOLE_SOCK_UNIX_DGRAM, SWOOLE_SOCK_SYNC); //同步阻塞
+//if (!$client->connect(dirname(__DIR__).'/server/svr.sock', 0, -1, 1))
+
+do_connect:
 if (!$client->connect('127.0.0.1', 9501, -1))
 {
-	exit("connect failed. Error: {$client->errCode}\n");
+    exit("connect failed. Error: {$client->errCode}\n");
 }
-for($i=0; $i < 100; $i ++)
-{
-	//if ($client->sendfile(__DIR__.'/test.txt') === false)
-	if ($client->send(str_repeat("A", 8000)) === false)
-	{
-		echo "send failed. Error: {$client->errCode}\n";
-		break;
-	}
-	usleep(20000);
-}
-sleep(10000);
-//if ($client->sendfile(__DIR__.'/test.txt') === false)
-if ($client->send(str_repeat("A", 600)) === false)
-{
-	echo "send failed. Error: {$client->errCode}\n";
-	break;
-}
-$data = $client->recv(7000);
-if ($data === false)
-{
-	echo "recv failed. Error: {$client->errCode}\n";
-	break;
-}
-var_dump($client->isConnected());
-//var_dump($data);
 
-//$data = $client->recv(7000);
+var_dump($client->getsockname());
+$client->send("hello world\r\n\r\n");
 
-var_dump($data);
+//for($i=0; $i < 3; $i ++)
+{
+    echo $client->recv();
+    sleep(1);
+}
+
 $client->close();
-var_dump($client->isConnected());
+$count++;
+if ($count < 20)
+{
+    goto do_connect;
+}
 

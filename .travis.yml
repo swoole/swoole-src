@@ -1,12 +1,21 @@
 language: php 
 
+compiler:
+  - gcc
+  - clang
+
+os:
+  - linux
+#  - osx
+
 php:
   - 5.3
   - 5.4
   - 5.5
+  - 7.0
 
 notifications:
-  email: false
+  email: team@swoole.com
    
 env:
   - REPORT_EXIT_STATUS=1 NO_INTERACTION=1

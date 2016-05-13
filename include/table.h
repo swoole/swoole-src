@@ -8,7 +8,7 @@
   | http://www.apache.org/licenses/LICENSE-2.0.html                      |
   | If you did not receive a copy of the Apache2.0 license and are unable|
   | to obtain it through the world-wide-web, please send a note to       |
-  | license@php.net so we can mail you a copy immediately.               |
+  | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
@@ -26,34 +26,33 @@
 typedef struct _swTableRow
 {
     sw_atomic_t lock;
-
-    /**
-     * string crc32
-     */
-    uint32_t crc32;
-
     /**
      * 1:used, 0:empty
      */
     uint8_t active;
 
     /**
+     * iterator
+     */
+    uint32_t list_index;
+
+    /**
      * next slot
      */
     struct _swTableRow *next;
-
-#ifdef SW_TABLE_USE_LINKED_LIST
-    struct _swTableRow *list_prev;
-    struct _swTableRow *list_next;
-#endif
-
+    /**
+     * Hash Key
+     */
+    char key[SW_TABLE_KEY_SIZE];
     char data[0];
 } swTableRow;
 
 typedef struct
 {
-    int absolute_index;
-    int collision_index;
+    uint32_t absolute_index;
+    uint32_t collision_index;
+    uint32_t skip_count;
+
     swTableRow *tmp_row;
 } swTable_iterator;
 
@@ -63,6 +62,7 @@ typedef struct
     uint16_t column_num;
     swLock lock;
     uint32_t size;
+    uint32_t mask;
     uint32_t item_size;
 
     /**
@@ -73,8 +73,13 @@ typedef struct
     swTableRow **rows;
     swMemoryPool *pool;
 
-    swTableRow *head;
-    swTableRow *tail;
+    /**
+     * for iterator
+     */
+    swTableRow **rows_list;
+    sw_atomic_t list_n;
+    uint32_t compress_threshold;
+
     swTable_iterator *iterator;
 
     void *memory;
@@ -83,7 +88,7 @@ typedef struct
 typedef struct
 {
    uint8_t type;
-   uint16_t size;
+   uint32_t size;
    swString* name;
    uint16_t index;
 } swTableColumn;
@@ -91,11 +96,12 @@ typedef struct
 enum swoole_table_type
 {
     SW_TABLE_INT = 1,
-
     SW_TABLE_INT8,
     SW_TABLE_INT16,
     SW_TABLE_INT32,
+#ifdef __x86_64__
     SW_TABLE_INT64,
+#endif
     SW_TABLE_FLOAT,
     SW_TABLE_STRING,
 };
@@ -115,8 +121,8 @@ swTable* swTable_new(uint32_t rows_size);
 int swTable_create(swTable *table);
 void swTable_free(swTable *table);
 int swTableColumn_add(swTable *table, char *name, int len, int type, int size);
-swTableRow* swTableRow_set(swTable *table, char *key, int keylen);
-swTableRow* swTableRow_get(swTable *table, char *key, int keylen);
+swTableRow* swTableRow_set(swTable *table, char *key, int keylen, sw_atomic_t **rowlock);
+swTableRow* swTableRow_get(swTable *table, char *key, int keylen, sw_atomic_t **rowlock);
 
 void swTable_iterator_rewind(swTable *table);
 swTableRow* swTable_iterator_current(swTable *table);
@@ -128,33 +134,37 @@ static sw_inline swTableColumn* swTableColumn_get(swTable *table, char *column_k
     return swHashMap_find(table->columns, column_key, keylen);
 }
 
+typedef uint32_t swTable_string_length_t;
+
 static sw_inline void swTableRow_set_value(swTableRow *row, swTableColumn * col, void *value, int vlen)
 {
     switch(col->type)
     {
     case SW_TABLE_INT8:
-        *((int8_t *)row->data + col->index) = *(int8_t*) value;
+        memcpy(row->data + col->index, value, 1);
         break;
     case SW_TABLE_INT16:
-        *((int16_t *)row->data + col->index) = *(int16_t*) value;
+        memcpy(row->data + col->index, value, 2);
         break;
     case SW_TABLE_INT32:
-        *((int32_t *)row->data + col->index) = *(int32_t*) value;
+        memcpy(row->data + col->index, value, 4);
         break;
+#ifdef __x86_64__
     case SW_TABLE_INT64:
-        *((int64_t *)row->data + col->index) = *(int64_t*) value;
+        memcpy(row->data + col->index, value, 8);
         break;
+#endif
     case SW_TABLE_FLOAT:
         memcpy(row->data + col->index, value, sizeof(double));
         break;
     default:
-        if (vlen > (col->size - sizeof(uint16_t)))
+        if (vlen > (col->size - sizeof(swTable_string_length_t)))
         {
             swWarn("string is too long.");
-            vlen = col->size - sizeof(uint16_t);
+            vlen = col->size - sizeof(swTable_string_length_t);
         }
-        *(uint16_t *)(row->data + col->index) = vlen;
-        memcpy(row->data + col->index + sizeof(uint16_t), value, vlen);
+        memcpy(row->data + col->index, &vlen, sizeof(swTable_string_length_t));
+        memcpy(row->data + col->index + sizeof(swTable_string_length_t), value, vlen);
         break;
     }
 }

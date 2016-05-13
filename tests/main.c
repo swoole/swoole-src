@@ -32,14 +32,18 @@ int main(int argc, char **argv)
 	swUnitTest_steup(aio_test2, 1, "thread pool aio test");
 
 	swUnitTest_steup(rbtree_test, 1, "rbtree data struct test");
+	swUnitTest_steup(linkedlist_test, 1, "linkedlist data struct test");
 	//swUnitTest_steup(pool_thread, 1);
 
 	swUnitTest_steup(type_test1, 1, "type test");
 
-	swUnitTest_steup(ws_test1, 1, "websocket decode test");
+	//swUnitTest_steup(ws_test1, 1, "websocket decode test");
 
-	swUnitTest_steup(http_test1, 1, "http get test");
-	swUnitTest_steup(http_test2, 1, "http post test");
+	//swUnitTest_steup(http_test1, 1, "http get test");
+	//swUnitTest_steup(http_test2, 1, "http post test");
+
+
+	swUnitTest_steup(heap_test1, 1, "heap test");
 
 	swUnitTest_steup(ringbuffer_test1, 1, "ringbuffer test");
 	return swUnitTest_run(&test);

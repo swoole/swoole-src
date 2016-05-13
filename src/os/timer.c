@@ -8,7 +8,7 @@
   | http://www.apache.org/licenses/LICENSE-2.0.html                      |
   | If you did not receive a copy of the Apache2.0 license and are unable|
   | to obtain it through the world-wide-web, please send a note to       |
-  | license@php.net so we can mail you a copy immediately.               |
+  | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
@@ -21,247 +21,220 @@
 #include <sys/timerfd.h>
 #endif
 
-static int swTimer_signal_set(swTimer *timer, int interval);
-static int swTimer_timerfd_set(swTimer *timer, int interval);
+static int swSystemTimer_signal_set(swTimer *timer, long interval);
+static int swSystemTimer_timerfd_set(swTimer *timer, long interval);
+static int swSystemTimer_set(swTimer *timer, long new_interval);
 
 /**
  * create timer
  */
-int swTimer_create(swTimer *timer, int interval, int use_pipe)
+int swSystemTimer_init(int interval, int use_pipe)
 {
-	timer->interval = interval;
-	timer->lasttime = interval;
+    swTimer *timer = &SwooleG.timer;
+    timer->lasttime = interval;
 
 #ifndef HAVE_TIMERFD
-	SwooleG.use_timerfd = 0;
+    SwooleG.use_timerfd = 0;
 #endif
 
-	timer->list = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
-	if (!timer->list)
-	{
-	    return SW_ERR;
-	}
+    if (SwooleG.use_timerfd)
+    {
+        if (swSystemTimer_timerfd_set(timer, interval) < 0)
+        {
+            return SW_ERR;
+        }
+        timer->use_pipe = 0;
+    }
+    else
+    {
+        if (use_pipe)
+        {
+            if (swPipeNotify_auto(&timer->pipe, 0, 0) < 0)
+            {
+                return SW_ERR;
+            }
+            timer->fd = timer->pipe.getFd(&timer->pipe, 0);
+            timer->use_pipe = 1;
+        }
+        else
+        {
+            timer->fd = 1;
+            timer->use_pipe = 0;
+        }
 
-	if (SwooleG.use_timerfd)
-	{
-		if (swTimer_timerfd_set(timer, interval) < 0)
-		{
-			return SW_ERR;
-		}
-		timer->use_pipe = 0;
-	}
-	else
-	{
-		if (use_pipe)
-		{
-			if (swPipeNotify_auto(&timer->pipe, 0, 0) < 0)
-			{
-				return SW_ERR;
-			}
-			timer->fd = timer->pipe.getFd(&timer->pipe, 0);
-			timer->use_pipe = 1;
-		}
-		else
-		{
-			timer->fd = 1;
-			timer->use_pipe = 0;
-		}
+        if (swSystemTimer_signal_set(timer, interval) < 0)
+        {
+            return SW_ERR;
+        }
+        swSignal_add(SIGALRM, swSystemTimer_signal_handler);
+    }
 
-		if (swTimer_signal_set(timer, interval) < 0)
-		{
-			return SW_ERR;
-		}
-	}
-	return SW_OK;
+    if (timer->fd > 1)
+    {
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_TIMER, swSystemTimer_event_handler);
+        SwooleG.main_reactor->add(SwooleG.main_reactor, SwooleG.timer.fd, SW_FD_TIMER);
+    }
+    timer->set = swSystemTimer_set;
+    return SW_OK;
 }
 
 /**
  * timerfd
  */
-static int swTimer_timerfd_set(swTimer *timer, int interval)
+static int swSystemTimer_timerfd_set(swTimer *timer, long interval)
 {
 #ifdef HAVE_TIMERFD
-	struct timeval now;
-	int sec = interval / 1000;
-	int msec = (((float) interval / 1000) - sec) * 1000;
+    struct timeval now;
+    int sec = interval / 1000;
+    int msec = (((float) interval / 1000) - sec) * 1000;
 
-	if (gettimeofday(&now, NULL) < 0)
-	{
-		swWarn("gettimeofday failed");
-		return SW_ERR;
-	}
+    if (gettimeofday(&now, NULL) < 0)
+    {
+        swWarn("gettimeofday() failed. Error: %s[%d]", strerror(errno), errno);
+        return SW_ERR;
+    }
 
-	struct itimerspec timer_set;
-	bzero(&timer_set, sizeof(timer_set));
+    struct itimerspec timer_set;
+    bzero(&timer_set, sizeof(timer_set));
 
-	if (timer->fd == 0)
-	{
-		timer->fd = timerfd_create(CLOCK_REALTIME, TFD_NONBLOCK | TFD_CLOEXEC);
-		if (timer->fd < 0)
-		{
-			swWarn("create timerfd failed. Error: %s[%d]", strerror(errno), errno);
-			return SW_ERR;
-		}
-	}
+    if (interval < 0)
+    {
+        if (timer->fd == 0)
+        {
+            return SW_OK;
+        }
+    }
+    else
+    {
+        timer_set.it_interval.tv_sec = sec;
+        timer_set.it_interval.tv_nsec = msec * 1000 * 1000;
 
-    timer_set.it_interval.tv_sec = sec;
-    timer_set.it_interval.tv_nsec = msec * 1000 * 1000;
+        timer_set.it_value.tv_sec = now.tv_sec + sec;
+        timer_set.it_value.tv_nsec = (now.tv_usec * 1000) + timer_set.it_interval.tv_nsec;
 
-	timer_set.it_value.tv_sec = now.tv_sec + sec;
-	timer_set.it_value.tv_nsec = now.tv_usec + timer_set.it_interval.tv_nsec;
+        if (timer_set.it_value.tv_nsec > 1e9)
+        {
+            timer_set.it_value.tv_nsec = timer_set.it_value.tv_nsec - 1e9;
+            timer_set.it_value.tv_sec += 1;
+        }
 
-	if (timerfd_settime(timer->fd, TFD_TIMER_ABSTIME, &timer_set, NULL) == -1)
-	{
-		swWarn("set timer failed. Error: %s[%d]", strerror(errno), errno);
-		return SW_ERR;
-	}
-	return SW_OK;
+        if (timer->fd == 0)
+        {
+            timer->fd = timerfd_create(CLOCK_REALTIME, TFD_NONBLOCK | TFD_CLOEXEC);
+            if (timer->fd < 0)
+            {
+                swWarn("timerfd_create() failed. Error: %s[%d]", strerror(errno), errno);
+                return SW_ERR;
+            }
+        }
+    }
+
+    if (timerfd_settime(timer->fd, TFD_TIMER_ABSTIME, &timer_set, NULL) == -1)
+    {
+        swWarn("timerfd_settime() failed. Error: %s[%d]", strerror(errno), errno);
+        return SW_ERR;
+    }
+    return SW_OK;
 #else
-	swWarn("kernel not support timerfd.");
-	return SW_ERR;
+    swWarn("kernel not support timerfd.");
+    return SW_ERR;
 #endif
 }
 
 /**
  * setitimer
  */
-static int swTimer_signal_set(swTimer *timer, int interval)
+static int swSystemTimer_signal_set(swTimer *timer, long interval)
 {
-	struct itimerval timer_set;
-	int sec = interval / 1000;
-	int msec = (((float) interval / 1000) - sec) * 1000;
+    struct itimerval timer_set;
+    int sec = interval / 1000;
+    int msec = (((float) interval / 1000) - sec) * 1000;
 
-	memset(&timer_set, 0, sizeof(timer_set));
-	timer_set.it_value.tv_sec = sec;
-	timer_set.it_value.tv_usec = msec * 1000;
-	timer_set.it_interval.tv_sec = sec;
-	timer_set.it_interval.tv_usec = msec * 1000;
-
-	if (setitimer(ITIMER_REAL, &timer_set, NULL) < 0)
-	{
-		swWarn("set timer failed. Error: %s[%d]", strerror(errno), errno);
-		return SW_ERR;
-	}
-	return SW_OK;
-}
-
-void swTimer_del(swTimer *timer, int ms)
-{
-	swHashMap_del_int(timer->list, ms);
-}
-
-int swTimer_free(swTimer *timer)
-{
-	swHashMap_free(timer->list);
-	if (timer->use_pipe)
-	{
-		return timer->pipe.close(&timer->pipe);
-	}
-	else
-	{
-		return close(timer->fd);
-	}
-}
-
-int swTimer_add(swTimer *timer, int ms)
-{
-    swTimer_node *node = sw_malloc(sizeof(swTimer_node));
-    if (node == NULL)
+    struct timeval now;
+    if (gettimeofday(&now, NULL) < 0)
     {
-        swWarn("malloc failed.");
+        swWarn("gettimeofday() failed. Error: %s[%d]", strerror(errno), errno);
         return SW_ERR;
     }
+    bzero(&timer_set, sizeof(timer_set));
 
-    bzero(node, sizeof(swTimer_node));
-    node->lasttime = 0;
-    node->interval = ms;
-
-    if (ms < timer->interval)
+    if (interval > 0)
     {
-        int new_interval = swoole_common_divisor(ms, timer->interval);
-        timer->interval = new_interval;
-        if (SwooleG.use_timerfd)
+        timer_set.it_interval.tv_sec = sec;
+        timer_set.it_interval.tv_usec = msec * 1000;
+
+        timer_set.it_value.tv_sec = sec;
+        timer_set.it_value.tv_usec = timer_set.it_interval.tv_usec;
+
+        if (timer_set.it_value.tv_usec > 1e6)
         {
-            swTimer_timerfd_set(timer, new_interval);
-        }
-        else
-        {
-            swTimer_signal_set(timer, new_interval);
+            timer_set.it_value.tv_usec = timer_set.it_value.tv_usec - 1e6;
+            timer_set.it_value.tv_sec += 1;
         }
     }
-    swHashMap_add_int(timer->list, ms, node, NULL);
-    timer->num++;
+
+    if (setitimer(ITIMER_REAL, &timer_set, NULL) < 0)
+    {
+        swWarn("setitimer() failed. Error: %s[%d]", strerror(errno), errno);
+        return SW_ERR;
+    }
     return SW_OK;
 }
 
-int swTimer_select(swTimer *timer)
+void swSystemTimer_free(swTimer *timer)
 {
-	uint64_t key;
-	swTimer_node *timer_node;
-
-	int64_t now_ms = swTimer_get_ms();
-	if (now_ms < 0)
-	{
-		return SW_ERR;
-	}
-
-	if (timer->onTimer == NULL)
-	{
-		swWarn("timer->onTimer is NULL");
-		return SW_ERR;
-	}
-
-	do
-	{
-	    //swWarn("timer foreach start\n----------------------------------------------");
-	    timer_node = swHashMap_each_int(timer->list, &key);
-
-	    //hashmap empty
-		if (timer_node == NULL)
-		{
-			break;
-		}
-		//swWarn("Timer=%ld|lasttime=%ld|now=%ld", key, timer_node->lasttime, now_ms);
-		if (timer_node->lasttime < now_ms - timer_node->interval)
-		{
-			timer_node->lasttime += timer_node->interval;
-			timer->onTimer(timer, timer_node->interval);
-		}
-	} while(timer_node);
-	return SW_OK;
+    if (timer->use_pipe)
+    {
+        timer->pipe.close(&timer->pipe);
+    }
+    else if (timer->fd > 2)
+    {
+        if (close(timer->fd) < 0)
+        {
+            swSysError("close(%d) failed.", timer->fd);
+        }
+    }
 }
 
-int swTimer_event_handler(swReactor *reactor, swEvent *event)
-{
-	uint64_t exp;
-	swTimer *timer = &SwooleG.timer;
+static long current_interval = 0;
 
-	if (read(timer->fd, &exp, sizeof(uint64_t)) < 0)
-	{
-		return SW_ERR;
-	}
-	SwooleG.signal_alarm = 0;
-	return swTimer_select(timer);
+static int swSystemTimer_set(swTimer *timer, long new_interval)
+{
+    if (new_interval == current_interval)
+    {
+        return SW_OK;
+    }
+    current_interval = new_interval;
+    if (SwooleG.use_timerfd)
+    {
+        return swSystemTimer_timerfd_set(timer, new_interval);
+    }
+    else
+    {
+        return swSystemTimer_signal_set(timer, new_interval);
+    }
 }
 
-void swTimer_signal_handler(int sig)
+int swSystemTimer_event_handler(swReactor *reactor, swEvent *event)
 {
-	SwooleG.signal_alarm = 1;
-	uint64_t flag = 1;
+    uint64_t exp;
+    swTimer *timer = &SwooleG.timer;
 
-	if (SwooleG.timer.use_pipe)
-	{
-		SwooleG.timer.pipe.write(&SwooleG.timer.pipe, &flag, sizeof(flag));
-	}
+    if (read(timer->fd, &exp, sizeof(uint64_t)) < 0)
+    {
+        return SW_ERR;
+    }
+    SwooleG.signal_alarm = 0;
+    return swTimer_select(timer);
 }
 
-int64_t swTimer_get_ms()
+void swSystemTimer_signal_handler(int sig)
 {
-	struct timeval now;
-	if (gettimeofday(&now, NULL) < 0)
-	{
-		swWarn("gettimeofday fail.Error: %s[%d]", strerror(errno), errno);
-		return SW_ERR;
-	}
-	return (now.tv_sec * 1000) + (now.tv_usec / 1000);
+    SwooleG.signal_alarm = 1;
+    uint64_t flag = 1;
+
+    if (SwooleG.timer.use_pipe)
+    {
+        SwooleG.timer.pipe.write(&SwooleG.timer.pipe, &flag, sizeof(flag));
+    }
 }

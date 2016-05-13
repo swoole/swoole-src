@@ -1,8 +1,17 @@
 /*
- * async.h
- *
- *  Created on: 2014-3-21
- *      Author: htf
+ +----------------------------------------------------------------------+
+ | Swoole                                                               |
+ +----------------------------------------------------------------------+
+ | This source file is subject to version 2.0 of the Apache license,    |
+ | that is bundled with this package in the file LICENSE, and is        |
+ | available through the world-wide-web at the following url:           |
+ | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+ | If you did not receive a copy of the Apache2.0 license and are unable|
+ | to obtain it through the world-wide-web, please send a note to       |
+ | license@swoole.com so we can mail you a copy immediately.            |
+ +----------------------------------------------------------------------+
+ | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ +----------------------------------------------------------------------+
  */
 
 #ifndef _SW_ASYNC_H_
@@ -49,16 +58,14 @@ typedef struct
     uint8_t thread_num;
     uint32_t task_num;
 
-    swReactor *reactor;
-
     void (*destroy)(void);
     void (*callback)(swAio_event *aio_event);
     int (*read)(int fd, void *outbuf, size_t size, off_t offset);
     int (*write)(int fd, void *inbuf, size_t size, off_t offset);
-} swAIO;
+} swAsyncIO;
 
+extern swAsyncIO SwooleAIO;
 extern swPipe swoole_aio_pipe;
-extern swAIO SwooleAIO;
 
 void swAio_callback_test(swAio_event *aio_event);
 int swAio_init(void);

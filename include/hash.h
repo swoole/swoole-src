@@ -164,7 +164,7 @@ static inline uint32_t swoole_hash_austin(char *key, unsigned int keylen)
  */
 static inline uint64_t swoole_hash_php(char *key, uint32_t len)
 {
-    register ulong hash = 5381;
+    register ulong_t hash = 5381;
     /* variant with the hash unrolled eight times */
     for (; len >= 8; len -= 8)
     {

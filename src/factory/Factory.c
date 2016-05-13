@@ -8,7 +8,7 @@
  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
  | If you did not receive a copy of the Apache2.0 license and are unable|
  | to obtain it through the world-wide-web, please send a note to       |
- | license@php.net so we can mail you a copy immediately.               |
+ | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
  +----------------------------------------------------------------------+
@@ -25,10 +25,6 @@ int swFactory_create(swFactory *factory)
     factory->shutdown = swFactory_shutdown;
     factory->end = swFactory_end;
     factory->notify = swFactory_notify;
-
-    factory->onTask = NULL;
-    factory->onFinish = NULL;
-
     return SW_OK;
 }
 
@@ -44,86 +40,124 @@ int swFactory_shutdown(swFactory *factory)
 
 int swFactory_dispatch(swFactory *factory, swDispatchData *task)
 {
-    swTrace("New Task:%s\n", task->data);
+    swServer *serv = SwooleG.serv;
     factory->last_from_id = task->data.info.from_id;
-    return factory->onTask(factory, &(task->data));
+
+    if (swEventData_is_stream(task->data.info.type))
+    {
+        swConnection *conn = swServer_connection_get(serv, task->data.info.fd);
+        if (conn == NULL || conn->active == 0)
+        {
+            swWarn("dispatch[type=%d] failed, connection#%d is not active.", task->data.info.type, task->data.info.fd);
+            return SW_ERR;
+        }
+        //server active close, discard data.
+        if (conn->closed)
+        {
+            swWarn("dispatch[type=%d] failed, connection#%d is closed by server.", task->data.info.type,
+                    task->data.info.fd);
+            return SW_OK;
+        }
+        //converted fd to session_id
+        task->data.info.fd = conn->session_id;
+        task->data.info.from_fd = conn->from_fd;
+    }
+    return swWorker_onTask(factory, &task->data);
 }
 
-int swFactory_notify(swFactory *factory, swDataHead *req)
+int swFactory_notify(swFactory *factory, swDataHead *info)
 {
     swServer *serv = factory->ptr;
-    switch (req->type)
+    swConnection *conn = swServer_connection_get(serv, info->fd);
+    if (conn == NULL || conn->active == 0)
     {
-    case SW_EVENT_CLOSE:
-        serv->onClose(serv, req->fd, req->from_id);
-        break;
-    case SW_EVENT_CONNECT:
-        serv->onConnect(serv, req->fd, req->from_id);
-        break;
-    default:
-        swWarn("Error event[type=%d]", (int)req->type);
-        break;
+        swWarn("dispatch[type=%d] failed, connection#%d is not active.", info->type, info->fd);
+        return SW_ERR;
     }
-    return SW_OK;
+    //server active close, discard data.
+    if (conn->closed)
+    {
+        swWarn("dispatch[type=%d] failed, connection#%d is closed by server.", info->type, info->fd);
+        return SW_OK;
+    }
+    //converted fd to session_id
+    info->fd = conn->session_id;
+    info->from_fd = conn->from_fd;
+    return swWorker_onTask(factory, (swEventData *) info);
 }
 
-int swFactory_end(swFactory *factory, swDataHead *event)
+int swFactory_end(swFactory *factory, int fd)
 {
     swServer *serv = factory->ptr;
-    if (serv->onClose != NULL)
+    swSendData _send;
+    swDataHead info;
+
+    bzero(&_send, sizeof(_send));
+    _send.info.fd = fd;
+    _send.info.len = 0;
+    _send.info.type = SW_EVENT_CLOSE;
+
+    swConnection *conn = swWorker_get_connection(serv, fd);
+    if (conn == NULL || conn->active == 0)
     {
-        serv->onClose(serv, event->fd, event->from_id);
+        //swWarn("can not close. Connection[%d] not found.", _send.info.fd);
+        return SW_ERR;
     }
-    return swServer_connection_close(serv, event->fd, 0);
+    else if (conn->close_force)
+    {
+        goto do_close;
+    }
+    else if (conn->closing)
+    {
+        swWarn("The connection[%d] is closing.", fd);
+        return SW_ERR;
+    }
+    else if (conn->closed)
+    {
+        return SW_ERR;
+    }
+    else
+    {
+        do_close:
+        conn->closing = 1;
+        if (serv->onClose != NULL)
+        {
+            info.fd = fd;
+            info.from_id =  conn->from_id;
+            info.from_fd =  conn->from_fd;
+            serv->onClose(serv, &info);
+        }
+        conn->closing = 0;
+        conn->closed = 1;
+
+        if (swBuffer_empty(conn->out_buffer))
+        {
+            swReactor *reactor = &serv->reactor_threads[SwooleTG.id].reactor;
+            return swReactorThread_close(reactor, conn->fd);
+        }
+        else
+        {
+            swBuffer_trunk *trunk = swBuffer_new_trunk(conn->out_buffer, SW_CHUNK_CLOSE, 0);
+            trunk->store.data.val1 = _send.info.type;
+            return SW_OK;
+        }
+    }
 }
 
 int swFactory_finish(swFactory *factory, swSendData *resp)
 {
-    int ret = 0;
-    swServer *serv = SwooleG.serv;
-
-    //unix dgram
-    if (resp->info.type == SW_EVENT_UNIX_DGRAM)
+    if (resp->length == 0)
     {
-        socklen_t len;
-        struct sockaddr_un addr_un;
-        int from_sock = resp->info.from_fd;
-
-        addr_un.sun_family = AF_UNIX;
-        memcpy(addr_un.sun_path, resp->sun_path, resp->sun_path_len);
-        len = sizeof(addr_un);
-        ret = swSendto(from_sock, resp->data, resp->info.len, 0, (struct sockaddr *) &addr_un, len);
-        goto finish;
+        resp->length = resp->info.len;
     }
-    //UDP pacakge
-    else if (resp->info.type == SW_EVENT_UDP || resp->info.type == SW_EVENT_UDP6)
+    if (swReactorThread_send(resp) < 0)
     {
-        ret = swServer_udp_send(serv, resp);
-        goto finish;
+        swSysError("sendto to connection#%d failed.", resp->info.fd);
+        return SW_ERR;
     }
     else
     {
-        resp->length = resp->info.len;
-        ret = swReactorThread_send(resp);
+        return SW_OK;
     }
-
-    finish:
-    if (ret < 0)
-    {
-        swWarn("sendto to reactor failed. Error: %s [%d]", strerror(errno), errno);
-    }
-    return ret;
 }
 
-int swFactory_check_callback(swFactory *factory)
-{
-    if (factory->onTask == NULL)
-    {
-        return SW_ERR;
-    }
-    if (factory->onFinish == NULL)
-    {
-        return SW_ERR;
-    }
-    return SW_OK;
-}

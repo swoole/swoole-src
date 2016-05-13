@@ -8,7 +8,7 @@
  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
  | If you did not receive a copy of the Apache2.0 license and are unable|
  | to obtain it through the world-wide-web, please send a note to       |
- | license@php.net so we can mail you a copy immediately.               |
+ | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
  +----------------------------------------------------------------------+
@@ -16,6 +16,8 @@
 
 #include "swoole.h"
 #include "async.h"
+
+#ifdef HAVE_GCC_AIO
 
 #include <aio.h>
 
@@ -48,8 +50,8 @@ int swAioGcc_init(int max_aio_events)
     swAioGcc_pipe_read = swoole_aio_pipe.getFd(&swoole_aio_pipe, 0);
     swAioGcc_pipe_write = swoole_aio_pipe.getFd(&swoole_aio_pipe, 1);
 
-    SwooleAIO.reactor->setHandle(SwooleAIO.reactor, SW_FD_AIO, swAioGcc_onFinish);
-    SwooleAIO.reactor->add(SwooleAIO.reactor, swAioGcc_pipe_read, SW_FD_AIO);
+    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_AIO, swAioGcc_onFinish);
+    SwooleG.main_reactor->add(SwooleG.main_reactor, swAioGcc_pipe_read, SW_FD_AIO);
 
     SwooleAIO.callback = swAio_callback_test;
     SwooleAIO.read = swAioGcc_aio_read;
@@ -191,3 +193,5 @@ static void swAioGcc_destroy(void)
 {
     swoole_aio_pipe.close(&swoole_aio_pipe);
 }
+
+#endif

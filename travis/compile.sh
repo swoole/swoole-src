@@ -1,3 +1,3 @@
 #!/bin/sh
-phpize && ./configure && make clean && make
+phpize && ./configure --enable-async-httpclient && make clean && make
 

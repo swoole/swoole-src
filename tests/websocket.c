@@ -8,12 +8,12 @@
   | http://www.apache.org/licenses/LICENSE-2.0.html                      |
   | If you did not receive a copy of the Apache2.0 license and are unable|
   | to obtain it through the world-wide-web, please send a note to       |
-  | license@php.net so we can mail you a copy immediately.               |
+  | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
 */
-
+#if 0
 #include "swoole.h"
 #include "tests.h"
 #include "websocket.h"
@@ -25,7 +25,8 @@ swUnitTest(ws_test1)
 	int len = swoole_sync_readfile(fd, buf, 65536) ;
 	if (len > 0)
 	{
-		swWebSocket_decode(buf, len);
+		swWebSocket_decode(buf);
 	}
 	return 0;
 }
+#endif

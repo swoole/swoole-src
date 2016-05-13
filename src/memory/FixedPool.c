@@ -1,3 +1,19 @@
+/*
+  +----------------------------------------------------------------------+
+  | Swoole                                                               |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 2.0 of the Apache license,    |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+  | If you did not receive a copy of the Apache2.0 license and are unable|
+  | to obtain it through the world-wide-web, please send a note to       |
+  | license@swoole.com so we can mail you a copy immediately.            |
+  +----------------------------------------------------------------------+
+  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  +----------------------------------------------------------------------+
+*/
+
 #include "swoole.h"
 
 static void swFixedPool_init(swFixedPool *object);
@@ -99,8 +115,18 @@ static void swFixedPool_init(swFixedPool *object)
 
         object->head = slice;
         cur += (sizeof(swFixedPool_slice) + object->slice_size);
-        slice->pre = (swFixedPool_slice *) cur;
-    } while (cur < max);
+
+        if (cur < max)
+        {
+            slice->pre = (swFixedPool_slice *) cur;
+        }
+        else
+        {
+            slice->pre = NULL;
+            break;
+        }
+
+    } while (1);
 }
 
 static void* swFixedPool_alloc(swMemoryPool *pool, uint32_t size)
@@ -113,6 +139,7 @@ static void* swFixedPool_alloc(swMemoryPool *pool, uint32_t size)
     if (slice->lock == 0)
     {
         slice->lock = 1;
+        object->slice_use ++;
         /**
          * move next slice to head (idle list)
          */
@@ -143,6 +170,12 @@ static void swFixedPool_free(swMemoryPool *pool, void *ptr)
     assert(ptr > object->memory && ptr < object->memory + object->size);
 
     slice = ptr - sizeof(swFixedPool_slice);
+
+    if (slice->lock)
+    {
+        object->slice_use--;
+    }
+
     slice->lock = 0;
 
     //list head, AB
@@ -154,6 +187,7 @@ static void swFixedPool_free(swMemoryPool *pool, void *ptr)
     if (slice->next == NULL)
     {
         slice->pre->next = NULL;
+        object->tail = slice->pre;
     }
     //middle BCD
     else
@@ -161,6 +195,7 @@ static void swFixedPool_free(swMemoryPool *pool, void *ptr)
         slice->pre->next = slice->next;
         slice->next->pre = slice->pre;
     }
+
     slice->pre = NULL;
     slice->next = object->head;
     object->head->pre = slice;
