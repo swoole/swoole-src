@@ -434,31 +434,6 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
         return SW_ERR;
     }
 
-    if (cli->type == SW_SOCK_UNIX_STREAM)
-    {
-        while (1)
-        {
-            ret = connect(cli->socket->fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
-            if (ret < 0)
-            {
-                if (errno == EINTR)
-                {
-                    continue;
-                }
-            }
-            break;
-        }
-        if (ret == 0)
-        {
-            SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE);
-        }
-        else
-        {
-            SwooleG.error = errno;
-        }
-        return ret;
-    }
-
     while (1)
     {
         ret = connect(cli->socket->fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
@@ -468,11 +443,12 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
             {
                 continue;
             }
+            SwooleG.error = errno;
         }
         break;
     }
 
-    if (ret < 0 &&  errno == EINPROGRESS)
+    if ((ret < 0 && errno == EINPROGRESS) || ret == 0)
     {
         if (SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, cli->reactor_fdtype | SW_EVENT_WRITE) < 0)
         {
