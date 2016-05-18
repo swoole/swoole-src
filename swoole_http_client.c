@@ -839,15 +839,17 @@ static http_client* http_client_create(zval *object TSRMLS_DC)
         /**
          * timeout
          */
-        if (sw_zend_hash_find(vht, ZEND_STRS("timeout"), (void **) &ztmp) == SUCCESS)
+        if (php_swoole_array_get_value(vht, "timeout", ztmp))
         {
+            convert_to_double(ztmp);
             http->timeout = (double) Z_DVAL_P(ztmp);
         }
         /**
          * keep_alive
          */
-        if (sw_zend_hash_find(vht, ZEND_STRS("keep_alive"), (void **) &ztmp) == SUCCESS)
+        if (php_swoole_array_get_value(vht, "keep_alive", ztmp))
         {
+            convert_to_boolean(ztmp);
             http->keep_alive = (int) Z_LVAL_P(ztmp);
         }
     }

@@ -289,15 +289,14 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
     vht = Z_ARRVAL_P(zset);
 
     //buffer: check eof
-    if (sw_zend_hash_find(vht, ZEND_STRS("open_eof_split"), (void **) &v) == SUCCESS
-            || sw_zend_hash_find(vht, ZEND_STRS("open_eof_check"), (void **) &v) == SUCCESS)
+    if (php_swoole_array_get_value(vht, "open_eof_split", v) || php_swoole_array_get_value(vht, "open_eof_check", v))
     {
         convert_to_boolean(v);
         cli->open_eof_check = Z_BVAL_P(v);
         cli->protocol.split_by_eof = 1;
     }
     //package eof
-    if (sw_zend_hash_find(vht, ZEND_STRS("package_eof"), (void **) &v) == SUCCESS)
+    if (php_swoole_array_get_value(vht, "package_eof", v))
     {
         convert_to_string(v);
         cli->protocol.package_eof_len = Z_STRLEN_P(v);
@@ -311,7 +310,7 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         cli->protocol.onPackage = client_onPackage;
     }
     //open length check
-    if (sw_zend_hash_find(vht, ZEND_STRS("open_length_check"), (void **) &v) == SUCCESS)
+    if (php_swoole_array_get_value(vht, "open_length_check", v))
     {
         convert_to_boolean(v);
         cli->open_length_check = Z_BVAL_P(v);
@@ -319,7 +318,7 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         cli->protocol.onPackage = client_onPackage;
     }
     //package length size
-    if (sw_zend_hash_find(vht, ZEND_STRS("package_length_type"), (void **) &v) == SUCCESS)
+    if (php_swoole_array_get_value(vht, "package_length_type", v))
     {
         convert_to_string(v);
         cli->protocol.package_length_type = Z_STRVAL_P(v)[0];
@@ -332,13 +331,13 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         }
     }
     //package length offset
-    if (sw_zend_hash_find(vht, ZEND_STRS("package_length_offset"), (void **) &v) == SUCCESS)
+    if (php_swoole_array_get_value(vht, "package_length_offset", v))
     {
         convert_to_long(v);
         cli->protocol.package_length_offset = (int) Z_LVAL_P(v);
     }
     //package body start
-    if (sw_zend_hash_find(vht, ZEND_STRS("package_body_offset"), (void **) &v) == SUCCESS)
+    if (php_swoole_array_get_value(vht, "package_body_offset", v))
     {
         convert_to_long(v);
         cli->protocol.package_body_offset = (int) Z_LVAL_P(v);
@@ -346,7 +345,7 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
     /**
      * package max length
      */
-    if (sw_zend_hash_find(vht, ZEND_STRS("package_max_length"), (void **) &v) == SUCCESS)
+    if (php_swoole_array_get_value(vht, "package_max_length", v))
     {
         convert_to_long(v);
         cli->protocol.package_max_length = (int) Z_LVAL_P(v);
@@ -358,7 +357,7 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
     /**
      * socket send/recv buffer size
      */
-    if (sw_zend_hash_find(vht, ZEND_STRS("socket_buffer_size"), (void **) &v) == SUCCESS)
+    if (php_swoole_array_get_value(vht, "socket_buffer_size", v))
     {
         convert_to_long(v);
         value = (int) Z_LVAL_P(v);
@@ -368,7 +367,7 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
     /**
      * bind address
      */
-    if (sw_zend_hash_find(vht, ZEND_STRS("bind_address"), (void **) &v) == SUCCESS)
+    if (php_swoole_array_get_value(vht, "bind_address", v))
     {
         convert_to_string(v);
         bind_address = Z_STRVAL_P(v);
@@ -376,7 +375,7 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
     /**
      * bind port
      */
-    if (sw_zend_hash_find(vht, ZEND_STRS("bind_port"), (void **) &v) == SUCCESS)
+    if (php_swoole_array_get_value(vht, "bind_port", v))
     {
         convert_to_long(v);
         bind_port = (int) Z_LVAL_P(v);
@@ -388,7 +387,7 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
     /**
      * TCP_NODELAY
      */
-    if (sw_zend_hash_find(vht, ZEND_STRS("open_tcp_nodelay"), (void **) &v) == SUCCESS)
+    if (php_swoole_array_get_value(vht, "open_tcp_nodelay", v))
     {
         value = 1;
         if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, &value, sizeof(value)) < 0)
@@ -397,18 +396,18 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         }
     }
 #ifdef SW_USE_OPENSSL
-    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_method"), (void **) &v) == SUCCESS)
+    if (php_swoole_array_get_value(vht, "ssl_method", v))
     {
         convert_to_long(v);
         cli->ssl_method = (int) Z_LVAL_P(v);
         cli->open_ssl = 1;
     }
-    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_compress"), (void **) &v) == SUCCESS)
+    if (php_swoole_array_get_value(vht, "ssl_compress", v))
     {
         convert_to_boolean(v);
         cli->ssl_disable_compress = !Z_BVAL_P(v);
     }
-    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_cert_file"), (void **) &v) == SUCCESS)
+    if (php_swoole_array_get_value(vht, "ssl_cert_file", v))
     {
         convert_to_string(v);
         cli->ssl_cert_file = strdup(Z_STRVAL_P(v));
@@ -419,7 +418,7 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         }
         cli->open_ssl = 1;
     }
-    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_key_file"), (void **) &v) == SUCCESS)
+    if (php_swoole_array_get_value(vht, "ssl_key_file", v))
     {
         convert_to_string(v);
         cli->ssl_key_file = strdup(Z_STRVAL_P(v));
