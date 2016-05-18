@@ -19,6 +19,10 @@
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker);
 static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event);
 static int swReactorProcess_send2client(swFactory *, swSendData *);
+static void swReactorProcess_onTimeout(swReactor *reactor);
+
+static uint32_t heartbeat_check_lasttime = 0;
+static void (*swReactor_onTimeout_old)(swReactor *reactor);
 
 int swReactorProcess_create(swServer *serv)
 {
@@ -73,7 +77,7 @@ int swReactorProcess_start(swServer *serv)
             }
 #endif
             //listen server socket
-            if (swServer_listen(serv, ls) < 0)
+            if (swPort_set_option(ls) < 0)
             {
                 return SW_ERR;
             }
@@ -139,7 +143,7 @@ int swReactorProcess_start(swServer *serv)
              */
             if (user_worker->worker->pipe_object)
             {
-                swServer_pipe_set(serv, user_worker->worker->pipe_object);
+                swServer_store_pipe_fd(serv, user_worker->worker->pipe_object);
             }
             swManager_spawn_user_worker(serv, user_worker->worker);
         }
@@ -261,11 +265,9 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     LL_FOREACH(serv->listen_list, ls)
     {
         fdtype = swSocket_is_dgram(ls->type) ? SW_FD_UDP : SW_FD_LISTEN;
-        serv->connection_list[ls->sock].fdtype = fdtype;
-
         if (fdtype == SW_FD_UDP)
         {
-            if (swServer_listen(serv, ls) < 0)
+            if (swPort_set_option(ls) < 0)
             {
                 continue;
             }
@@ -274,7 +276,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 #ifdef HAVE_REUSEPORT
         if (fdtype == SW_FD_LISTEN && SwooleG.reuse_port)
         {
-            if (swServer_listen(serv, ls) < 0)
+            if (swPort_set_option(ls) < 0)
             {
                 return SW_ERR;
             }
@@ -319,6 +321,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_WRITE, swReactor_onWrite);
     reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_READ, swReactorProcess_onPipeRead);
 
+    swServer_store_listen_socket(serv);
+
     if (worker->pipe_worker)
     {
         swSetNonBlock(worker->pipe_worker);
@@ -332,14 +336,18 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     {
         swPipe *p;
         swConnection *psock;
-        int pfd ;
-        for (i = 0; i < SwooleGS->task_workers.worker_num; i++)
+        int pfd;
+
+        if (SwooleG.task_ipc_mode == SW_IPC_UNSOCK)
         {
-            p = SwooleGS->task_workers.workers[i].pipe_object;
-            pfd =  p->getFd(p, 1);
-            psock = swReactor_get(reactor, pfd);
-            psock->fdtype = SW_FD_PIPE;
-            swSetNonBlock(pfd);
+            for (i = 0; i < SwooleGS->task_workers.worker_num; i++)
+            {
+                p = SwooleGS->task_workers.workers[i].pipe_object;
+                pfd = p->getFd(p, 1);
+                psock = swReactor_get(reactor, pfd);
+                psock->fdtype = SW_FD_PIPE;
+                swSetNonBlock(pfd);
+            }
         }
     }
 
@@ -356,7 +364,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
      */
     if (serv->heartbeat_check_interval > 0)
     {
-        swHeartbeatThread_start(serv);
+        swReactor_onTimeout_old = reactor->onTimeout;
+        reactor->onTimeout = swReactorProcess_onTimeout;
     }
 
     struct timeval timeo;
@@ -459,5 +468,48 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
     else
     {
         return swFactory_finish(factory, _send);
+    }
+}
+
+static void swReactorProcess_onTimeout(swReactor *reactor)
+{
+    swServer *serv = reactor->ptr;
+    swEvent notify_ev;
+    swConnection *conn;
+
+    swReactor_onTimeout_old(reactor);
+
+    if (SwooleGS->now < heartbeat_check_lasttime + 10)
+    {
+        return;
+    }
+
+    int fd;
+    int serv_max_fd;
+    int serv_min_fd;
+    int checktime;
+
+    bzero(&notify_ev, sizeof(notify_ev));
+    notify_ev.type = SW_EVENT_CLOSE;
+
+    serv_max_fd = swServer_get_maxfd(serv);
+    serv_min_fd = swServer_get_minfd(serv);
+
+    checktime = SwooleGS->now - serv->heartbeat_idle_time;
+
+    for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
+    {
+        conn = swServer_connection_get(serv, fd);
+
+        if (conn != NULL && conn->active == 1 && conn->fdtype == SW_FD_TCP)
+        {
+            if (conn->protect || conn->last_time > checktime)
+            {
+                continue;
+            }
+            notify_ev.fd = fd;
+            notify_ev.from_id = conn->from_id;
+            swReactorProcess_onClose(reactor, &notify_ev);
+        }
     }
 }

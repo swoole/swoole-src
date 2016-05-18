@@ -309,10 +309,11 @@ enum swTraceType
     SW_TRACE_BUFFER  = 3,
     SW_TRACE_CONN    = 4,
     SW_TRACE_EVENT   = 5,
-    SW_TRACE_WORKER  = 6,
-    SW_TRACE_MEMORY  = 7,
-    SW_TRACE_REACTOR = 8,
-    SW_TRACE_PHP     = 9,
+    SW_TRACE_WORKER,
+    SW_TRACE_MEMORY,
+    SW_TRACE_REACTOR,
+    SW_TRACE_PHP,
+    SW_TRACE_HTTP2,
 };
 
 #if SW_LOG_TRACE_OPEN == 1
@@ -361,6 +362,8 @@ typedef struct _swString
     char *str;
 } swString;
 
+typedef void* swObject;
+
 typedef struct _swLinkedList_node
 {
     struct _swLinkedList_node *prev;
@@ -388,6 +391,7 @@ typedef struct
     } addr;
     socklen_t len;
 } swSocketAddress;
+
 
 typedef struct _swConnection
 {
@@ -499,6 +503,11 @@ typedef struct _swConnection
      * bind uid
      */
     long uid;
+
+    /**
+     * memory buffer size;
+     */
+    int buffer_size;
 
     /**
      *  upgarde websocket
@@ -664,6 +673,7 @@ typedef struct _swMsgQueue
 int swMsgQueue_create(swMsgQueue *q, int wait, key_t msg_key, long type);
 int swMsgQueue_push(swMsgQueue *p, swQueue_data *in, int data_length);
 int swMsgQueue_pop(swMsgQueue *p, swQueue_data *out, int buffer_length);
+int swMsgQueue_stat(swMsgQueue *q, int *queue_num, int *queue_bytes);
 void swMsgQueue_free(swMsgQueue *p);
 
 //------------------Lock--------------------------------------
@@ -1047,7 +1057,9 @@ swString* swoole_file_get_contents(char *filename);
 void swoole_open_remote_debug(void);
 char *swoole_dec2hex(int value, int base);
 int swoole_version_compare(char *version1, char *version2);
-
+#ifdef HAVE_EXECINFO
+void swoole_print_trace(void);
+#endif
 void swoole_ioctl_set_block(int sock, int nonblock);
 void swoole_fcntl_set_block(int sock, int nonblock);
 
@@ -1110,8 +1122,8 @@ static sw_inline uint64_t swoole_ntoh64(uint64_t net)
     return ret;
 }
 
-int swSocket_listen(int type, char *host, int port, int backlog);
 int swSocket_create(int type);
+int swSocket_bind(int sock, int type, char *host, int port);
 int swSocket_wait(int fd, int timeout_ms, int events);
 void swSocket_clean(int fd);
 int swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
@@ -1678,6 +1690,8 @@ typedef struct
     uint32_t reactor_ready :1;
     uint32_t in_client :1;
     uint32_t shutdown :1;
+    uint32_t reload;
+    uint32_t reload_count;   //reload计数
 
     uint32_t request_count;
 

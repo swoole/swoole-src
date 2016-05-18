@@ -21,6 +21,10 @@
 #include <sys/resource.h>
 #include <sys/ioctl.h>
 
+#ifdef HAVE_EXECINFO
+#include <execinfo.h>
+#endif
+
 void swoole_init(void)
 {
     struct rlimit rlmt;
@@ -804,6 +808,23 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
     free(borders);
     return match;
 }
+
+#ifdef HAVE_EXECINFO
+void swoole_print_trace(void)
+{
+    int size = 16;
+    void* array[16];
+    int stack_num = backtrace(array, size);
+    char** stacktrace = backtrace_symbols(array, stack_num);
+    int i;
+
+    for (i = 0; i < stack_num; ++i)
+    {
+        printf("%s\n", stacktrace[i]);
+    }
+    free(stacktrace);
+}
+#endif
 
 #ifndef HAVE_CLOCK_GETTIME
 #ifdef __MACH__

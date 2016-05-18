@@ -97,3 +97,19 @@ int swMsgQueue_push(swMsgQueue *q, swQueue_data *in, int length)
     }
     return 0;
 }
+
+int swMsgQueue_stat(swMsgQueue *q, int *queue_num, int *queue_bytes)
+{
+    struct msqid_ds stat;
+
+    if (msgctl(q->msg_id, IPC_STAT, &stat) == 0)
+    {
+        *queue_num = stat.msg_qnum;
+        *queue_bytes = stat.msg_qbytes;
+        return 0;
+    }
+    else
+    {
+        return -1;
+    }
+}

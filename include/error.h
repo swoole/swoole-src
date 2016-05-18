@@ -27,14 +27,7 @@ enum swErrorCode
     SW_ERROR_PHP_FATAL_ERROR,
     SW_ERROR_NAME_TOO_LONG,
     SW_ERROR_FILE_NOT_EXIST,
-    /**
-     * server global error
-     */
-    SW_ERROR_SERVER_MUST_CREATED_BEFORE_CLIENT = 9001,
-    SW_ERROR_SERVER_TOO_MANY_SOCKET,
-    SW_ERROR_SERVER_WORKER_TERMINATED,
-    SW_ERROR_SERVER_INVALID_LISTEN_PORT,
-    SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT,
+
     /**
      * connection error
      */
@@ -52,6 +45,23 @@ enum swErrorCode
      * task error
      */
     SW_ERROR_TASK_PACKAGE_TOO_BIG = 2001,
+
+    /**
+     * http2 protocol error
+     */
+    SW_ERROR_HTTP2_STREAM_ID_TOO_BIG = 3001,
+    SW_ERROR_HTTP2_STREAM_NO_HEADER,
+
+    /**
+     * server global error
+     */
+    SW_ERROR_SERVER_MUST_CREATED_BEFORE_CLIENT = 9001,
+    SW_ERROR_SERVER_TOO_MANY_SOCKET,
+    SW_ERROR_SERVER_WORKER_TERMINATED,
+    SW_ERROR_SERVER_INVALID_LISTEN_PORT,
+    SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT,
+
+
 };
 
 #endif /* SW_ERRNO_H_ */

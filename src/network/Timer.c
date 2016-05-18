@@ -135,7 +135,7 @@ void swTimer_del(swTimer *timer, swTimer_node *tnode)
 
 int swTimer_select(swTimer *timer)
 {
-    int now_msec = swTimer_get_relative_msec();
+    int64_t now_msec = swTimer_get_relative_msec();
     if (now_msec < 0)
     {
         return SW_ERR;
@@ -179,6 +179,7 @@ int swTimer_select(swTimer *timer)
         {
             timer->onAfter(timer, tnode);
         }
+        timer->num --;
         swHeap_pop(timer->heap);
     }
 

@@ -35,11 +35,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2016-03-02</date>
-    <time>11:48:51</time>
+    <date>2016-05-12</date>
+    <time>16:48:51</time>
     <version>
-		<release>1.8.2</release>
-		<api>1.8.2</api>
+		<release>1.8.5</release>
+		<api>1.8.5</api>
     </version>
     <stability>
         <release>stable</release>
@@ -47,14 +47,11 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Added http2 supports for swoole_http_server
-- Added swoole_server->stop method used to stop the worker process
-- Added log_level option for swoole_server settings
-- Fixed swoole_websocket_server receives data over the issue 64K crashes
-- Added multi-port monitor is not set callback function causes the program to crash
-- Enhance the SSL/TLS encrypted safety level, now used by default TLS1.2/ECDHA_RSA encryption algorithm
-- Fixed onFinish event callbacks memory leak problem
-- Fixed the problem task finish can not be used under BASE mode
+- Fixed swoole_mysql_query insert_id error
+- Fixed swoole_websocket_server crash when receiving less than 4 bytes of data
+- Added bigint ID support for swoole_mysql_query
+- Fixed sync Swoole\Client memory leaks
+- Fixed Swoole\Http\Client crash when the connection is closed
     </notes>
 	<contents>
 		<dir name="/">
@@ -234,7 +231,7 @@
 					<file role="src" name="stream.php" />
 					<file role="src" name="sockets.php" />
 				</dir>
-				<dir name="unix">
+				<dir name="unixsock">
 					<file role="src" name="dgram_server.php" />
 					<file role="src" name="stream_client.php" />
 					<file role="src" name="dgram_client.php" />
@@ -292,9 +289,7 @@
                 </dir>
 				<file role="src" name="server.php" />
 				<file role="src" name="mysql_proxy_server.php" />
-				<file role="src" name="proxy.php" />
 				<file role="src" name="proxy_sync.php" />
-				<file role="src" name="timer.php" />
 				<file role="src" name="sendfile_server.php" />
 				<file role="src" name="recv_file.php" />
 				<file role="doc" name="test.jpg" />

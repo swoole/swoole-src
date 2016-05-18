@@ -203,14 +203,23 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
     case SW_AIO_DNS_LOOKUP:
         if (!(host_entry = gethostbyname(event->buf)))
         {
-            event->error = errno;
+            event->error = h_errno;
+            switch (h_errno)
+            {
+            case HOST_NOT_FOUND:
+                bzero(event->buf, event->nbytes);
+                ret = 0;
+                break;
+            default:
+                ret = -1;
+                break;
+            }
         }
         else
         {
             if (!host_entry->h_addr_list[0] || host_entry->h_length > sizeof(addr))
             {
                 ret = -1;
-                break;
             }
             memcpy(&addr, host_entry->h_addr_list[0], host_entry->h_length);
             ip_addr = inet_ntoa(addr);

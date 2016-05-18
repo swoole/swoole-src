@@ -147,12 +147,12 @@ static void php_swoole_aio_onComplete(swAio_event *event)
         file_req = swHashMap_find_int(php_swoole_aio_request, event->fd);
         if (!file_req)
         {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async: onAsyncComplete callback not found[1]");
+            swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete callback not found[1]");
             return;
         }
         if (file_req->callback == NULL && file_req->type == SW_AIO_READ)
         {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async: onAsyncComplete callback not found[2]");
+            swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete callback not found[2]");
             return;
         }
         zcallback = file_req->callback;
@@ -161,7 +161,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
     ret = event->ret;
     if (ret < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async: Aio Error: %s[%d]", strerror(event->error), event->error);
+        swoole_php_fatal_error(E_WARNING, "swoole_async: Aio Error: %s[%d]", strerror(event->error), event->error);
     }
     else if (file_req != NULL)
     {
@@ -172,8 +172,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
         }
         else if (file_req->once == 1 && ret < file_req->content_length)
         {
-            swoole_php_fatal_error(E_WARNING, "swoole_async: ret_length[%d] < req->length[%d].", (int) ret,
-                    file_req->content_length);
+            swoole_php_fatal_error(E_WARNING, "swoole_async: ret_length[%d] < req->length[%d].", (int ) ret, file_req->content_length);
         }
         else if (event->type == SW_AIO_READ)
         {
@@ -229,7 +228,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
     }
     else
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async: onAsyncComplete unknow event type");
+        swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete unknow event type");
         return;
     }
 
@@ -237,7 +236,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
     {
         if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
         {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async: onAsyncComplete handler error");
+            swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete handler error");
             return;
         }
     }
@@ -248,7 +247,10 @@ static void php_swoole_aio_onComplete(swAio_event *event)
         if (file_req->once == 1)
         {
             close_file:
-            sw_zval_ptr_dtor(&file_req->callback);
+            if (file_req->callback)
+            {
+                sw_zval_ptr_dtor(&file_req->callback);
+            }
             sw_zval_ptr_dtor(&file_req->filename);
 
             swoole_aio_free(event->buf);
@@ -272,7 +274,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
             }
             else if (SwooleAIO.read(event->fd, event->buf, event->nbytes, file_req->offset) < 0)
             {
-                php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async: continue to read failed. Error: %s[%d]", strerror(event->error), event->error);
+                swoole_php_fatal_error(E_WARNING, "swoole_async: continue to read failed. Error: %s[%d]", strerror(event->error), event->error);
             }
         }
     }
@@ -397,7 +399,7 @@ PHP_FUNCTION(swoole_async_write)
     {
         if (posix_memalign((void **) &wt_cnt, sysconf(_SC_PAGESIZE), fcnt_len))
         {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "posix_memalign failed. Error: %s[%d]", strerror(errno), errno);
+            swoole_php_fatal_error(E_WARNING, "posix_memalign failed. Error: %s[%d]", strerror(errno), errno);
             RETURN_FALSE;
         }
         open_flag |= O_DIRECT;
@@ -415,7 +417,7 @@ PHP_FUNCTION(swoole_async_write)
         fd = open(Z_STRVAL_P(filename), open_flag, 0644);
         if (fd < 0)
         {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "open file failed. Error: %s[%d]", strerror(errno), errno);
+            swoole_php_fatal_error(E_WARNING, "open file failed. Error: %s[%d]", strerror(errno), errno);
             RETURN_FALSE;
         }
 
@@ -445,7 +447,7 @@ PHP_FUNCTION(swoole_async_write)
             struct stat file_stat;
             if (fstat(fd, &file_stat) < 0)
             {
-                php_error_docref(NULL TSRMLS_CC, E_WARNING, "fstat() failed. Error: %s[%d]", strerror(errno), errno);
+                swoole_php_fatal_error(E_WARNING, "fstat() failed. Error: %s[%d]", strerror(errno), errno);
                 RETURN_FALSE;
             }
             offset = file_stat.st_size;
@@ -505,23 +507,23 @@ PHP_FUNCTION(swoole_async_readfile)
     int fd = open(Z_STRVAL_P(filename), open_flag, 0644);
     if (fd < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "open file[%s] failed. Error: %s[%d]", Z_STRVAL_P(filename), strerror(errno), errno);
+        swoole_php_fatal_error(E_WARNING, "open file[%s] failed. Error: %s[%d]", Z_STRVAL_P(filename), strerror(errno), errno);
         RETURN_FALSE;
     }
     struct stat file_stat;
     if (fstat(fd, &file_stat) < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "fstat failed. Error: %s[%d]", strerror(errno), errno);
+        swoole_php_fatal_error(E_WARNING, "fstat failed. Error: %s[%d]", strerror(errno), errno);
         RETURN_FALSE;
     }
     if (file_stat.st_size <= 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "file is empty.");
+        swoole_php_fatal_error(E_WARNING, "file is empty.");
         RETURN_FALSE;
     }
     if (file_stat.st_size > SW_AIO_MAX_FILESIZE)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING,    "file_size[size=%ld|max_size=%d] is too big. Please use swoole_async_read.",
+        swoole_php_fatal_error(E_WARNING, "file_size[size=%ld|max_size=%d] is too big. Please use swoole_async_read.",
                 (long int) file_stat.st_size, SW_AIO_MAX_FILESIZE);
         RETURN_FALSE;
     }
@@ -534,7 +536,7 @@ PHP_FUNCTION(swoole_async_readfile)
         buf_len = file_stat.st_size + (sysconf(_SC_PAGESIZE) - (file_stat.st_size % sysconf(_SC_PAGESIZE)));
         if (posix_memalign((void **) &fcnt, sysconf(_SC_PAGESIZE), buf_len + 1))
         {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "posix_memalign failed. Error: %s[%d]", strerror(errno), errno);
+            swoole_php_fatal_error(E_WARNING, "posix_memalign failed. Error: %s[%d]", strerror(errno), errno);
             RETURN_FALSE;
         }
     }
@@ -544,7 +546,7 @@ PHP_FUNCTION(swoole_async_readfile)
         fcnt = emalloc(buf_len + 1);
         if (fcnt == NULL)
         {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "malloc failed. Error: %s[%d]", strerror(errno), errno);
+            swoole_php_fatal_error(E_WARNING, "malloc failed. Error: %s[%d]", strerror(errno), errno);
             RETURN_FALSE;
         }
     }
@@ -594,12 +596,12 @@ PHP_FUNCTION(swoole_async_writefile)
     }
     if (fcnt_len <= 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "file is empty.");
+        swoole_php_fatal_error(E_WARNING, "file is empty.");
         RETURN_FALSE;
     }
     if (fcnt_len > SW_AIO_MAX_FILESIZE)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING,    "file_size[size=%d|max_size=%d] is too big. Please use swoole_async_read.",
+        swoole_php_fatal_error(E_WARNING, "file_size[size=%d|max_size=%d] is too big. Please use swoole_async_read.",
                 fcnt_len, SW_AIO_MAX_FILESIZE);
         RETURN_FALSE;
     }
@@ -607,7 +609,7 @@ PHP_FUNCTION(swoole_async_writefile)
     int fd = open(Z_STRVAL_P(filename), open_flag, 0644);
     if (fd < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "open file failed. Error: %s[%d]", strerror(errno), errno);
+        swoole_php_fatal_error(E_WARNING, "open file failed. Error: %s[%d]", strerror(errno), errno);
         RETURN_FALSE;
     }
     char *wt_cnt;
@@ -615,7 +617,7 @@ PHP_FUNCTION(swoole_async_writefile)
     fcnt_len = fcnt_len + (sysconf(_SC_PAGESIZE) - (fcnt_len % sysconf(_SC_PAGESIZE)));
     if (posix_memalign((void **)&wt_cnt, sysconf(_SC_PAGESIZE), fcnt_len))
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "posix_memalign failed. Error: %s[%d]", strerror(errno), errno);
+        swoole_php_fatal_error(E_WARNING, "posix_memalign failed. Error: %s[%d]", strerror(errno), errno);
         RETURN_FALSE;
     }
 #else
@@ -711,7 +713,7 @@ PHP_FUNCTION(swoole_async_dns_lookup)
 
     if (Z_STRLEN_P(domain) == 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "domain name empty.");
+        swoole_php_fatal_error(E_WARNING, "domain name empty.");
         RETURN_FALSE;
     }
 
