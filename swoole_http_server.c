@@ -1027,10 +1027,6 @@ static void http_onClose(swServer *serv, swDataHead *info)
     }
 }
 
-#ifdef SW_USE_HTTP2
-
-#endif
-
 static int http_onReceive(swServer *serv, swEventData *req)
 {
     int fd = req->info.fd;
