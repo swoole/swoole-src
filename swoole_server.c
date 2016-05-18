@@ -2552,9 +2552,9 @@ PHP_METHOD(swoole_server, connection_info)
 
         php_swoole_udp_t udp_info;
         memcpy(&udp_info, &from_id, sizeof(udp_info));
+        //server socket
         swConnection *from_sock = swServer_connection_get(serv, udp_info.from_fd);
-
-        if (from_sock != NULL)
+        if (from_sock)
         {
             add_assoc_long(return_value, "server_fd", from_sock->fd);
             add_assoc_long(return_value, "socket_type", from_sock->socket_type);
@@ -2595,11 +2595,14 @@ PHP_METHOD(swoole_server, connection_info)
             sw_add_assoc_stringl(return_value, "ssl_client_cert", conn->ssl_client_cert.str, conn->ssl_client_cert.length - 1, 1);
         }
 #endif
-
+        //server socket
         swConnection *from_sock = swServer_connection_get(serv, conn->from_fd);
+        if (from_sock)
+        {
+            add_assoc_long(return_value, "server_port", swConnection_get_port(from_sock));
+        }
         add_assoc_long(return_value, "server_fd", conn->from_fd);
         add_assoc_long(return_value, "socket_type", conn->socket_type);
-        add_assoc_long(return_value, "server_port", swConnection_get_port(from_sock));
         add_assoc_long(return_value, "remote_port", swConnection_get_port(conn));
         sw_add_assoc_string(return_value, "remote_ip", swConnection_get_ip(conn), 1);
         add_assoc_long(return_value, "from_id", conn->from_id);

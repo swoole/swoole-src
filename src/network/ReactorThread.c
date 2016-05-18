@@ -293,28 +293,13 @@ int swReactorThread_close(swReactor *reactor, int fd)
     }
 #endif
 
-    swListenPort *port = swServer_get_port(serv, fd);
+    //free the receive memory buffer
+    swServer_free_buffer(serv, fd);
 
-    //clear output buffer
-    if (port->open_eof_check || port->open_length_check || port->open_mqtt_protocol)
+    swListenPort *port = swServer_get_port(serv, fd);
+    if (port->open_http_protocol && conn->object)
     {
-        if (conn->object)
-        {
-            swServer_free_buffer(serv, fd);
-            conn->object = NULL;
-        }
-    }
-    else if (port->open_http_protocol && conn->object)
-    {
-        if (conn->http_upgrade)
-        {
-            swServer_free_buffer(serv, fd);
-            conn->websocket_status = 0;
-        }
-        else
-        {
-            swHttpRequest_free(conn);
-        }
+        swHttpRequest_free(conn);
     }
 
 #if 0

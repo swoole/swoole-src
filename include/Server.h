@@ -494,7 +494,7 @@ int swServer_shutdown(swServer *serv);
 
 static sw_inline swString *swServer_get_buffer(swServer *serv, int fd)
 {
-    swString *buffer = serv->connection_list[fd].object;
+    swString *buffer = serv->connection_list[fd].recv_buffer;
     if (buffer == NULL)
     {
         buffer = swString_new(SW_BUFFER_SIZE);
@@ -503,18 +503,18 @@ static sw_inline swString *swServer_get_buffer(swServer *serv, int fd)
         {
             return NULL;
         }
-        serv->connection_list[fd].object = buffer;
+        serv->connection_list[fd].recv_buffer = buffer;
     }
     return buffer;
 }
 
 static sw_inline void swServer_free_buffer(swServer *serv, int fd)
 {
-    swString *buffer = serv->connection_list[fd].object;
+    swString *buffer = serv->connection_list[fd].recv_buffer;
     if (buffer)
     {
         swString_free(buffer);
-        serv->connection_list[fd].object = NULL;
+        serv->connection_list[fd].recv_buffer = NULL;
     }
 }
 

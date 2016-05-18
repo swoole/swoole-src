@@ -490,6 +490,11 @@ typedef struct _swConnection
     struct _swBuffer *out_buffer;
 
     /**
+     * for receive data buffer
+     */
+    swString *recv_buffer;
+
+    /**
      * connect time(seconds)
      */
     time_t connect_time;

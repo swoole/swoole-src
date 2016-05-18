@@ -50,7 +50,7 @@ int swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, cha
     }
 
     char mask = (buf[1] >> 7) & 0x1;
-    swString *buffer = conn->object;
+    swString *buffer = conn->recv_buffer;
 
     //0-125
     uint64_t payload_length = buf[1] & 0x7f;
