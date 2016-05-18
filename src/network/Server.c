@@ -1192,7 +1192,6 @@ static void swHeartbeatThread_loop(swThreadParam *param)
 
         checktime = (int) time(NULL) - serv->heartbeat_idle_time;
 
-        //遍历到最大fd
         for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
         {
             swTrace("check fd=%d", fd);
