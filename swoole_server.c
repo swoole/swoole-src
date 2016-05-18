@@ -849,6 +849,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     }
     if (swTask_type(req) & SW_TASK_CALLBACK)
     {
+        swHashMap_del_int(task_callbacks, req->info.fd);
         sw_zval_ptr_dtor(&callback);
     }
     return SW_OK;
