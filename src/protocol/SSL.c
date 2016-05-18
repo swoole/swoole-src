@@ -92,13 +92,8 @@ void swSSL_init(void)
     openssl_init = 1;
 }
 
-int swSSL_server_config(SSL_CTX* ssl_context, swSSL_config *cfg)
+void swSSL_server_http_advise(SSL_CTX* ssl_context, swSSL_config *cfg)
 {
-#ifndef TLS1_2_VERSION
-    return SW_OK;
-#endif
-    SSL_CTX_set_read_ahead(ssl_context, 1);
-
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
     SSL_CTX_set_alpn_select_cb(ssl_context, swSSL_alpn_advertised, cfg);
 #endif
@@ -107,28 +102,42 @@ int swSSL_server_config(SSL_CTX* ssl_context, swSSL_config *cfg)
     SSL_CTX_set_next_protos_advertised_cb(ssl_context, swSSL_npn_advertised, cfg);
 #endif
 
-    if (SSL_CTX_set_cipher_list(ssl_context, cfg->ciphers) == 0)
+    if (cfg->http)
     {
-        swWarn("SSL_CTX_set_cipher_list(\"%s\") failed", SW_SSL_CIPHER_LIST);
-        return SW_ERR;
+        SSL_CTX_set_session_id_context(ssl_context, (const unsigned char *) "HTTP", strlen("HTTP"));
+        SSL_CTX_set_session_cache_mode(ssl_context, SSL_SESS_CACHE_SERVER);
+        SSL_CTX_sess_set_cache_size(ssl_context, 1);
     }
-    if (cfg->prefer_server_ciphers)
+}
+
+int swSSL_server_set_cipher(SSL_CTX* ssl_context, swSSL_config *cfg)
+{
+#ifndef TLS1_2_VERSION
+    return SW_OK;
+#endif
+    SSL_CTX_set_read_ahead(ssl_context, 1);
+
+    if (strlen(cfg->ciphers) > 0)
     {
-        SSL_CTX_set_options(ssl_context, SSL_OP_CIPHER_SERVER_PREFERENCE);
+        if (SSL_CTX_set_cipher_list(ssl_context, cfg->ciphers) == 0)
+        {
+            swWarn("SSL_CTX_set_cipher_list(\"%s\") failed", cfg->ciphers);
+            return SW_ERR;
+        }
+        if (cfg->prefer_server_ciphers)
+        {
+            SSL_CTX_set_options(ssl_context, SSL_OP_CIPHER_SERVER_PREFERENCE);
+        }
     }
 
 #ifndef LIBRESSL_VERSION_NUMBER
     SSL_CTX_set_tmp_rsa_callback(ssl_context, swSSL_rsa512_key_callback);
 #endif
 
-    swSSL_set_dhparam(ssl_context);
-    swSSL_set_ecdh_curve(ssl_context);
-
-    if (cfg->http)
+    if (strlen(cfg->ecdh_curve) > 0)
     {
-        SSL_CTX_set_session_id_context(ssl_context, (const unsigned char *) "HTTP", strlen("HTTP"));
-        SSL_CTX_set_session_cache_mode(ssl_context, SSL_SESS_CACHE_SERVER);
-        SSL_CTX_sess_set_cache_size(ssl_context, 1);
+        swSSL_set_dhparam(ssl_context);
+        swSSL_set_ecdh_curve(ssl_context);
     }
     return SW_OK;
 }
@@ -338,7 +347,7 @@ int swSSL_connect(swConnection *conn)
     int n = SSL_connect(conn->ssl);
     if (n == 1)
     {
-        conn->ssl_state = 1;
+        conn->ssl_state = SW_SSL_STATE_READY;
         return SW_OK;
     }
     long err = SSL_get_error(conn->ssl, n);

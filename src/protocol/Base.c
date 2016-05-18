@@ -36,7 +36,7 @@ int swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char
     body_length = swoole_unpack(protocol->package_length_type, data + length_offset);
     //Length error
     //Protocol length is not legitimate, out of bounds or exceed the allocated length
-    if (body_length < 0 || body_length > protocol->package_max_length)
+    if (body_length < 0)
     {
         swWarn("invalid package, remote_addr=%s:%d, length=%d, size=%d.", swConnection_get_ip(conn), swConnection_get_port(conn), body_length, size);
         return SW_ERR;
@@ -122,6 +122,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, void 
 int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swString *buffer)
 {
     char *recvbuf;
+    int ret;
     uint32_t recvbuf_size;
 
     do_recv: recvbuf = buffer->str + buffer->length;
@@ -133,7 +134,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swSysError("recv from socket#%d failed.", conn->fd);
+            swSysError("recv(%d, %p, %d) failed.", conn->fd, recvbuf, recvbuf_size);
             return SW_OK;
         case SW_CLOSE:
             return SW_ERR;
@@ -153,12 +154,15 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
         {
             if (buffer->length == buffer->offset)
             {
-                do_package:
-                protocol->onPackage(conn, buffer->str, buffer->length);
+                do_package: ret = protocol->onPackage(conn, buffer->str, buffer->length);
                 conn->recv_wait = 0;
                 swString_clear(buffer);
+                return ret;
             }
-            return SW_OK;
+            else
+            {
+                return SW_OK;
+            }
         }
         else
         {
@@ -173,12 +177,16 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
             {
                 return SW_OK;
             }
+            else if (package_length > protocol->package_max_length)
+            {
+                swWarn("package is too big, remote_addr=%s:%d, length=%d.", swConnection_get_ip(conn), swConnection_get_port(conn), package_length);
+                return SW_ERR;
+            }
             //get length success
             else
             {
                 if (buffer->size < package_length)
                 {
-
                     if (swString_extend(buffer, package_length) < 0)
                     {
                         return SW_ERR;

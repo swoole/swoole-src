@@ -4,12 +4,12 @@ class G
     static $index = 0;
     static $serv;
     static $config = array(
-        //'reactor_num'              => 1,     // 线程数. 一般设置为CPU核数的1-4倍
-        //'worker_num'               => 1,    // 工作进程数量. 设置为CPU的1-4倍最合理
+        //'reactor_num'              => 16,     // 线程数. 一般设置为CPU核数的1-4倍
+        //'worker_num'               => 16,    // 工作进程数量. 设置为CPU的1-4倍最合理
         'max_request'              => 0,     // 防止 PHP 内存溢出, 一个工作进程处理 X 次任务后自动重启 (注: 0,不自动重启)
         'max_conn'                 => 10000, // 最大连接数
         'task_worker_num'          => 1,     // 任务工作进程数量
-        'task_ipc_mode'            => 2,     // 设置 Task 进程与 Worker 进程之间通信的方式。
+        //'task_ipc_mode'            => 2,     // 设置 Task 进程与 Worker 进程之间通信的方式。
         'task_max_request'         => 0,     // 防止 PHP 内存溢出
         'task_tmpdir'              => '/tmp',
         //'message_queue_key'        => ftok(SYS_ROOT . 'queue.msg', 1),
@@ -56,20 +56,24 @@ if (isset($argv[1]) and $argv[1] == 'daemon') {
 $mode = SWOOLE_PROCESS;
 
 $serv = new swoole_server("0.0.0.0", 9501, $mode, SWOOLE_SOCK_TCP);
-$serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
-$serv->addlistener('::', 9503, SWOOLE_SOCK_TCP6);
-$serv->addlistener('::', 9504, SWOOLE_SOCK_UDP6);
+$serv->listen('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
+$serv->listen('::', 9503, SWOOLE_SOCK_TCP6);
+$serv->listen('::', 9504, SWOOLE_SOCK_UDP6);
 $process1 = new swoole_process(function ($worker) use ($serv) {
     global $argv;
     swoole_set_process_name("php {$argv[0]}: my_process1");
-    sleep(1000);
-//    swoole_timer_tick(2000, function ($interval) use ($worker, $serv) {
-//        echo "#{$worker->pid} child process timer $interval\n"; // 如果worker中没有定时器，则会输出 process timer xxx
-//        foreach ($serv->connections as $conn)
-//        {
-//            $serv->send($conn, "heartbeat\n");
-//        }
-//    });
+    swoole_timer_tick(2000, function ($interval) use ($worker, $serv) {
+        echo "#{$worker->pid} child process timer $interval\n"; // 如果worker中没有定时器，则会输出 process timer xxx
+        foreach ($serv->connections as $conn)
+        {
+            $serv->send($conn, "heartbeat\n");
+        }
+    });
+    swoole_timer_tick(5000, function () use ($serv)
+    {
+        $serv->sendMessage("hello event worker", 0);
+        $serv->sendMessage("hello task worker", 4);
+    });
 }, false);
 
 $serv->addprocess($process1);
@@ -82,7 +86,7 @@ $process2 = new swoole_process(function ($worker) use ($serv) {
     });
 }, false);
 
-$serv->addprocess($process2);
+//$serv->addprocess($process2);
 
 $serv->set(G::$config);
 /**
@@ -205,12 +209,15 @@ function my_onWorkerStart(swoole_server $serv, $worker_id)
         swoole_process::signal(SIGUSR2, function($signo){
             echo "SIGNAL: $signo\n";
         });
-//        swoole_timer_tick(2000, function($id) {
-//            var_dump($id);
-//        });
+        $serv->defer(function(){
+           echo "defer call\n";
+        });
     }
     else
     {
+//        swoole_timer_after(2000, function() {
+//            echo "after 2 secends.\n";
+//        });
 //        $serv->tick(1000, function ($id) use ($serv) {
 //            if (G::$index > 10) {
 //                $serv->after(2500, 'timer_show', 2);
@@ -228,6 +235,12 @@ function my_onWorkerStart(swoole_server $serv, $worker_id)
 function my_onWorkerStop($serv, $worker_id)
 {
     echo "WorkerStop[$worker_id]|pid=".$serv->worker_pid.".\n";
+}
+
+function my_onPacket($serv, $data, $clientInfo)
+{
+    $serv->sendto($clientInfo['address'], $clientInfo['port'], "Server " . $data);
+    var_dump($clientInfo);
 }
 
 function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
@@ -452,12 +465,18 @@ function broadcast(swoole_server $serv, $fd = 0, $data = "hello")
 }
 
 $serv->on('PipeMessage', function($serv, $src_worker_id, $msg) {
-    var_dump($src_worker_id, $msg);
+    my_log("PipeMessage: Src={$src_worker_id},Msg=".trim($msg));
+    if ($serv->taskworker)
+    {
+        $serv->sendMessage("hello user process",
+            $src_worker_id);
+    }
 });
 
 $serv->on('Start', 'my_onStart');
 $serv->on('Connect', 'my_onConnect');
 $serv->on('Receive', 'my_onReceive');
+$serv->on('Packet', 'my_onPacket');
 $serv->on('Close', 'my_onClose');
 $serv->on('Shutdown', 'my_onShutdown');
 $serv->on('WorkerStart', 'my_onWorkerStart');

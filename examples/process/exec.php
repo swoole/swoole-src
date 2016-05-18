@@ -4,7 +4,7 @@ $pid = $process->start();
 
 function callback_function(swoole_process $worker)
 {
-    $worker->exec('/usr/local/bin/php', array(__DIR__.'/test.php'));
+    $worker->exec('/usr/local/bin/php', array(__DIR__.'/stdin_stdout.php'));
 }
 
 echo "From Worker: ".$process->read();

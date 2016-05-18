@@ -90,7 +90,8 @@ typedef struct
 } swSSL_config;
 
 void swSSL_init(void);
-int swSSL_server_config(SSL_CTX* ssl_context, swSSL_config *cfg);
+int swSSL_server_set_cipher(SSL_CTX* ssl_context, swSSL_config *cfg);
+void swSSL_server_http_advise(SSL_CTX* ssl_context, swSSL_config *cfg);
 SSL_CTX* swSSL_get_context(int method, char *cert_file, char *key_file);
 void swSSL_free_context(SSL_CTX* ssl_context);
 int swSSL_create(swConnection *conn, SSL_CTX* ssl_context, int flags);
@@ -166,8 +167,11 @@ static sw_inline int swConnection_send(swConnection *conn, void *__buf, size_t _
 
 static sw_inline int swConnection_error(int err)
 {
-	switch (err)
-	{
+    switch (err)
+    {
+    case EFAULT:
+        abort();
+        return SW_ERROR;
 	case ECONNRESET:
 	case EPIPE:
 	case ENOTCONN:

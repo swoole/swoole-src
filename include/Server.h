@@ -369,12 +369,18 @@ struct _swServer
      * parse x-www-form-urlencoded data
      */
     uint32_t http_parse_post :1;
-
+    /**
+     * enable onConnect/onClose event when use dispatch_mode=1/3
+     */
     uint32_t enable_unsafe_event :1;
     /**
      * packet mode
      */
     uint32_t packet_mode :1;
+    /**
+     * run as a daemon process
+     */
+    uint32_t reload_async :1;
 
     /* heartbeat check time*/
     uint16_t heartbeat_idle_time; //心跳存活时间
@@ -411,10 +417,8 @@ struct _swServer
     pthread_barrier_t barrier;
 #endif
 
-    swConnection *connection_list;  //连接列表
+    swConnection *connection_list;
     swSession *session_list;
-
-    int connection_list_capacity; //超过此容量，会自动扩容
 
     /**
      * message queue key
@@ -474,6 +478,7 @@ typedef struct
 	int worker_id;
 } swPackage_response;
 
+int swServer_master_onAccept(swReactor *reactor, swEvent *event);
 int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
 
@@ -484,9 +489,34 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port);
 int swServer_add_worker(swServer *serv, swWorker *worker);
 
 int swServer_create(swServer *serv);
-int swServer_listen(swServer *serv, swListenPort *ls);
 int swServer_free(swServer *serv);
 int swServer_shutdown(swServer *serv);
+
+static sw_inline swString *swServer_get_buffer(swServer *serv, int fd)
+{
+    swString *buffer = serv->connection_list[fd].object;
+    if (buffer == NULL)
+    {
+        buffer = swString_new(SW_BUFFER_SIZE);
+        //alloc memory failed.
+        if (!buffer)
+        {
+            return NULL;
+        }
+        serv->connection_list[fd].object = buffer;
+    }
+    return buffer;
+}
+
+static sw_inline void swServer_free_buffer(swServer *serv, int fd)
+{
+    swString *buffer = serv->connection_list[fd].object;
+    if (buffer)
+    {
+        swString_free(buffer);
+        serv->connection_list[fd].object = NULL;
+    }
+}
 
 static sw_inline swListenPort* swServer_get_port(swServer *serv, int fd)
 {
@@ -535,12 +565,14 @@ static sw_inline int swEventData_is_stream(uint8_t type)
     }
 }
 
-swPipe * swServer_pipe_get(swServer *serv, int pipe_fd);
-void swServer_pipe_set(swServer *serv, swPipe *p);
+swPipe * swServer_get_pipe_object(swServer *serv, int pipe_fd);
+void swServer_store_pipe_fd(swServer *serv, swPipe *p);
+void swServer_store_listen_socket(swServer *serv);
 
 int swServer_get_manager_pid(swServer *serv);
 int swServer_get_socket(swServer *serv, int port);
 int swServer_worker_init(swServer *serv, swWorker *worker);
+void swServer_close_listen_port(swServer *serv);
 void swServer_enable_accept(swReactor *reactor);
 
 #ifdef HAVE_INOTIFY
@@ -783,7 +815,7 @@ static sw_inline void swServer_connection_ready(swServer *serv, int fd, int reac
 void swPort_init(swListenPort *port);
 void swPort_free(swListenPort *port);
 void swPort_set_protocol(swListenPort *ls);
-int swPort_listen(swListenPort *ls);
+int swPort_set_option(swListenPort *ls);
 
 void swWorker_free(swWorker *worker);
 void swWorker_onStart(swServer *serv);
@@ -793,9 +825,6 @@ int swWorker_send2reactor(swEventData *ev_data, size_t sendn, int fd);
 int swWorker_send2worker(swWorker *dst_worker, void *buf, int n, int flag);
 void swWorker_signal_handler(int signo);
 void swWorker_clean(void);
-
-int swServer_master_onAccept(swReactor *reactor, swEvent *event);
-void swHeartbeatThread_start(swServer *serv);
 
 int swReactorThread_create(swServer *serv);
 int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr);

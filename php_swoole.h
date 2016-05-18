@@ -43,7 +43,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.8.3-alpha"
+#define PHP_SWOOLE_VERSION  "1.8.6-alpha"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -173,7 +173,6 @@ enum php_swoole_server_callback_type
     SW_SERVER_CB_onShutdown,       //Server sthudown(master)
     SW_SERVER_CB_onWorkerStart,    //Worker start(worker)
     SW_SERVER_CB_onWorkerStop,     //Worker shutdown(worker)
-    SW_SERVER_CB_onTimer,
     SW_SERVER_CB_onTask,           //new task(task_worker)
     SW_SERVER_CB_onFinish,         //async task finish(worker)
     SW_SERVER_CB_onWorkerError,    //worker exception(manager)
@@ -188,6 +187,9 @@ enum php_swoole_server_callback_type
 typedef struct
 {
     zval *callbacks[PHP_SERVER_PORT_CALLBACK_NUM];
+#if PHP_MAJOR_VERSION >= 7
+    zval _callbacks[PHP_SERVER_PORT_CALLBACK_NUM];
+#endif
     zval *setting;
 } swoole_server_port_property;
 //---------------------------------------------------------
@@ -221,7 +223,7 @@ extern zend_class_entry *swoole_http_server_class_entry_ptr;
 extern zend_class_entry *swoole_websocket_frame_class_entry_ptr;
 extern zend_class_entry *swoole_server_port_class_entry_ptr;
 
-extern zval *php_sw_callback[PHP_SERVER_CALLBACK_NUM];
+extern zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
 
 #define PHP_MEMORY_DEBUG  0
 
@@ -239,7 +241,6 @@ extern php_vmstat_t php_vmstat;
 #endif
 
 PHP_MINIT_FUNCTION(swoole);
-PHP_MSHUTDOWN_FUNCTION(swoole);
 PHP_RINIT_FUNCTION(swoole);
 PHP_RSHUTDOWN_FUNCTION(swoole);
 PHP_MINFO_FUNCTION(swoole);
@@ -359,8 +360,8 @@ void php_swoole_event_init();
 void php_swoole_event_wait();
 void php_swoole_check_timer(int interval);
 void php_swoole_register_callback(swServer *serv);
-int php_swoole_set_callback(zval **array, int key, zval *cb TSRMLS_DC);
-swClient* php_swoole_client_create_socket(zval *object, char *host, int host_len, int port);
+void php_swoole_client_free(zval *object, swClient *cli TSRMLS_DC);
+swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port);
 zval* php_swoole_websocket_unpack(swString *data TSRMLS_DC);
 
 static sw_inline void* swoole_get_object(zval *object)
@@ -401,6 +402,8 @@ int php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC);
 void php_swoole_onConnect(swServer *serv, swDataHead *);
 int php_swoole_onReceive(swServer *serv, swEventData *req);
 void php_swoole_onClose(swServer *, swDataHead *);
+
+#define php_swoole_array_get_value(ht, str, v)     (sw_zend_hash_find(vht, str, sizeof(str), (void **) &v) == SUCCESS && !ZVAL_IS_NULL(v))
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
     long aio_thread_num;

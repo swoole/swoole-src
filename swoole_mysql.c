@@ -193,26 +193,32 @@ typedef struct
         uint16_t status_code;
         char status_msg[6];
         char *server_msg;
-        int affected_rows;
-        int insert_id;
+        ulong_t affected_rows;
+        ulong_t insert_id;
         zval *result_array;
     } response;
 
 } mysql_client;
 
-#define mysql_uint2korr(A) (uint16_t) (((uint16_t) ((zend_uchar) (A)[0]))+((uint16_t) ((zend_uchar) (A)[1]) << 8))
-#define mysql_uint8korr(A)    ((ulong_t)(((uint32_t) ((uchar) (A)[0])) +\
-                    (((uint32_t) ((uchar) (A)[1])) << 8) +\
-                    (((uint32_t) ((uchar) (A)[2])) << 16) +\
-                    (((uint32_t) ((uchar) (A)[3])) << 24)) +\
-                    (((ulong_t) (((uint32_t) ((uchar) (A)[4])) +\
-                    (((uint32_t) ((uchar) (A)[5])) << 8) +\
-                    (((uint32_t) ((uchar) (A)[6])) << 16) +\
-                    (((uint32_t) ((uchar) (A)[7])) << 24))) <<\
-                    32))
-#define mysql_uint3korr(A)    (uint32_t) (((uint32_t) ((uchar) (A)[0])) +\
-                  (((uint32_t) ((uint32_t) (A)[1])) << 8) +\
-                  (((uint32_t) ((uint32_t) (A)[2])) << 16))
+#define mysql_uint2korr(A)  (uint16_t) (((uint16_t) ((zend_uchar) (A)[0])) +\
+                               ((uint16_t) ((zend_uchar) (A)[1]) << 8))
+#define mysql_uint3korr(A)  (uint32_t) (((uint32_t) ((zend_uchar) (A)[0])) +\
+                               (((uint32_t) ((zend_uchar) (A)[1])) << 8) +\
+                               (((uint32_t) ((zend_uchar) (A)[2])) << 16))
+#define mysql_uint4korr(A)  (uint32_t) (((uint32_t) ((zend_uchar) (A)[0])) +\
+                               (((uint32_t) ((zend_uchar) (A)[1])) << 8) +\
+                               (((uint32_t) ((zend_uchar) (A)[2])) << 16) +\
+                               (((uint32_t) ((zend_uchar) (A)[3])) << 24))
+
+#define mysql_uint8korr(A)    ((uint64_t)(((uint32_t) ((zend_uchar) (A)[0])) +\
+                                    (((uint32_t) ((zend_uchar) (A)[1])) << 8) +\
+                                    (((uint32_t) ((zend_uchar) (A)[2])) << 16) +\
+                                    (((uint32_t) ((zend_uchar) (A)[3])) << 24)) +\
+                                    (((uint64_t) (((uint32_t) ((zend_uchar) (A)[4])) +\
+                                    (((uint32_t) ((zend_uchar) (A)[5])) << 8) +\
+                                    (((uint32_t) ((zend_uchar) (A)[6])) << 16) +\
+                                    (((uint32_t) ((zend_uchar) (A)[7])) << 24))) << 32))
+
 
 static int mysql_request(swString *sql, swString *buffer);
 #ifdef SW_MYSQL_DEBUG
@@ -252,7 +258,7 @@ static sw_inline int mysql_lcb_ll(char *m, ulong_t *r, char *nul, int len)
         return 3;
 
     case 253: /* fd : 3 octets */
-        if (len < 4)
+        if (len < 5)
         {
             return -1;
         }
@@ -288,6 +294,12 @@ static sw_inline void mysql_get_socket(zval *mysql_link, zval *return_value, int
 {
     MY_MYSQL *mysql;
     php_stream *stream;
+    *sock = -1;
+
+    if (Z_TYPE_P(mysql_link) != IS_OBJECT || strcasecmp(Z_OBJCE_P(mysql_link)->name, "mysqli") != 0)
+    {
+        return;
+    }
 
 #if PHP_MAJOR_VERSION > 5
     MYSQLI_FETCH_RESOURCE_CONN(mysql, mysql_link, MYSQLI_STATUS_VALID);
@@ -301,7 +313,6 @@ static sw_inline void mysql_get_socket(zval *mysql_link, zval *return_value, int
 #endif
     if (php_stream_cast(stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL, (void* )sock, 1) != SUCCESS || *sock <= 2)
     {
-        *sock = -1;
         return;
     }
 }
@@ -502,7 +513,7 @@ static sw_inline int mysql_decode_row(mysql_client *client, char *buf, int packe
     char mem;
 #endif
 
-    zval * result_array = client->response.result_array;
+    zval *result_array = client->response.result_array;
     zval *row_array;
     SW_ALLOC_INIT_ZVAL(row_array);
     array_init(row_array);
@@ -861,8 +872,6 @@ static int mysql_response(mysql_client *client)
             }
             else
             {
-                SW_ALLOC_INIT_ZVAL(client->response.result_array);
-                array_init(client->response.result_array);
                 client->state = SW_MYSQL_STATE_READ_ROW;
                 break;
             }
@@ -980,6 +989,9 @@ PHP_FUNCTION(swoole_mysql_query)
         php_swoole_check_reactor();
         swSetNonBlock(sock);
 
+        zend_class_entry *class_entry = zend_get_class_entry(mysql_link TSRMLS_CC);
+        zend_update_property_bool(class_entry, mysql_link, ZEND_STRL("_connected"), 1 TSRMLS_CC);
+
         if (!isset_event_callback)
         {
             SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL | SW_EVENT_READ, swoole_mysql_onRead);
@@ -1000,12 +1012,8 @@ PHP_FUNCTION(swoole_mysql_query)
         RETURN_FALSE;
     }
 
-#if PHP_MAJOR_VERSION < 7
     client->callback = callback;
-#else
-    client->callback = &client->_callback;
-    memcpy(client->callback, callback, sizeof(zval));
-#endif
+    sw_copy_to_stack(client->callback, client->_callback);
 
     sw_zval_add_ref(&client->callback);
     swString_clear(mysql_request_buffer);
@@ -1023,11 +1031,18 @@ PHP_FUNCTION(swoole_mysql_query)
     //send query
     if (SwooleG.main_reactor->write(SwooleG.main_reactor, sock, mysql_request_buffer->str, mysql_request_buffer->length) < 0)
     {
+        //connection is closed
+        if (swConnection_error(errno) == SW_CLOSE)
+        {
+            zend_class_entry *class_entry = zend_get_class_entry(mysql_link TSRMLS_CC);
+            zend_update_property_bool(class_entry, mysql_link, ZEND_STRL("_connected"), 0 TSRMLS_CC);
+            zend_update_property_bool(class_entry, mysql_link, ZEND_STRL("_errno"), 2006 TSRMLS_CC);
+            swoole_set_object(mysql_link, NULL);
+        }
         RETURN_FALSE;
     }
     else
     {
-        sw_zval_add_ref(&mysql_link);
         client->state = SW_MYSQL_STATE_READ_START;
         RETURN_TRUE;
     }
@@ -1047,6 +1062,8 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
     int ret;
 
     zval **args[2];
+
+    zval *callback = NULL;
     zval *retval = NULL;
     zval *result = NULL;
 
@@ -1083,23 +1100,37 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
                 goto parse_response;
             }
 
-            zval *result;
-            SW_MAKE_STD_ZVAL(result);
-            ZVAL_BOOL(result, 0);
+            swoole_set_object(mysql_link, NULL);
+            reactor->del(reactor, event->fd);
+            zend_class_entry *class_entry = zend_get_class_entry(mysql_link TSRMLS_CC);
+            zend_update_property_bool(class_entry, mysql_link, ZEND_STRL("_connected"), 0 TSRMLS_CC);
 
-            args[0] = &mysql_link;
-            args[1] = &result;
+            if (client->callback)
+            {
+                args[0] = &mysql_link;
+                args[1] = &result;
 
-            if (sw_call_user_function_ex(EG(function_table), NULL, client->callback, &retval, 2, args, 0, NULL TSRMLS_CC) != SUCCESS)
-            {
-                swoole_php_fatal_error(E_WARNING, "swoole_async_mysql callback handler error.");
-                reactor->del(SwooleG.main_reactor, event->fd);
+                SW_ALLOC_INIT_ZVAL(result);
+                ZVAL_BOOL(result, 0);
+
+                callback = client->callback;
+                if (sw_call_user_function_ex(EG(function_table), NULL, client->callback, &retval, 2, args, 0, NULL TSRMLS_CC) != SUCCESS)
+                {
+                    swoole_php_fatal_error(E_WARNING, "swoole_async_mysql callback[2] handler error.");
+                }
+                if (retval)
+                {
+                    sw_zval_ptr_dtor(&retval);
+                }
+                if (result)
+                {
+                    sw_zval_ptr_dtor(&result);
+                }
+                sw_zval_ptr_dtor(&callback);
+                client->callback = NULL;
+                client->state = SW_MYSQL_STATE_QUERY;
             }
-            if (retval != NULL)
-            {
-                sw_zval_ptr_dtor(&retval);
-            }
-            sw_zval_ptr_dtor(&result);
+
             return SW_OK;
         }
         else
@@ -1137,14 +1168,12 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             {
                 SW_ALLOC_INIT_ZVAL(result);
                 ZVAL_BOOL(result, 1);
-                args[1] = &result;
             }
             //ERROR
             else if (client->response.response_type == 255)
             {
                 SW_ALLOC_INIT_ZVAL(result);
                 ZVAL_BOOL(result, 0);
-                args[1] = &result;
 
                 zend_update_property_string(class_entry, mysql_link, ZEND_STRL("_error"), client->response.server_msg TSRMLS_CC);
                 zend_update_property_long(class_entry, mysql_link, ZEND_STRL("_errno"), client->response.error_code TSRMLS_CC);
@@ -1152,12 +1181,14 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             //ResultSet
             else
             {
-                args[1] = &client->response.result_array;
+                result = client->response.result_array;
             }
 
-            if (sw_call_user_function_ex(EG(function_table), NULL, client->callback, &retval, 2, args, 0, NULL TSRMLS_CC) != SUCCESS)
+            args[1] = &result;
+            callback = client->callback;
+            if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 2, args, 0, NULL TSRMLS_CC) != SUCCESS)
             {
-                swoole_php_fatal_error(E_WARNING, "swoole_async_mysql callback handler error.");
+                swoole_php_fatal_error(E_WARNING, "swoole_async_mysql callback[2] handler error.");
                 reactor->del(SwooleG.main_reactor, event->fd);
             }
 
@@ -1170,10 +1201,9 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             {
                 sw_zval_ptr_dtor(&result);
             }
-            if (client->response.result_array)
-            {
-                sw_zval_ptr_dtor(&client->response.result_array);
-            }
+            //free callback object
+            sw_zval_ptr_dtor(&callback);
+            //clear buffer
             swString_clear(client->buffer);
             if (client->response.columns)
             {

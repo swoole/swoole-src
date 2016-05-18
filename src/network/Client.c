@@ -37,6 +37,11 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event);
 static int swClient_onWrite(swReactor *reactor, swEvent *event);
 static int swClient_onError(swReactor *reactor, swEvent *event);
 
+#ifdef SW_USE_OPENSSL
+static int swClient_enable_ssl_encrypt(swClient *cli);
+static int swClient_ssl_handshake(swClient *cli);
+#endif
+
 static swHashMap *swoole_dns_cache = NULL;
 static int isset_event_handle = 0;
 
@@ -169,7 +174,7 @@ int swClient_enable_ssl_encrypt(swClient *cli)
     return SW_OK;
 }
 
-int swClient_ssl_handshake(swClient *cli)
+static int swClient_ssl_handshake(swClient *cli)
 {
     if (!cli->socket->ssl)
     {
@@ -184,7 +189,6 @@ int swClient_ssl_handshake(swClient *cli)
     }
     return SW_OK;
 }
-
 #endif
 
 static int swClient_inet_addr(swClient *cli, char *host, int port)
@@ -264,11 +268,39 @@ static int swClient_inet_addr(swClient *cli, char *host, int port)
     return SW_OK;
 }
 
+void swClient_free(swClient *cli)
+{
+    assert(cli->socket->fd != 0);
+    //remove from reactor
+    if (!cli->socket->closed)
+    {
+        cli->close(cli);
+    }
+    if (cli->socket->out_buffer)
+    {
+        swBuffer_free(cli->socket->out_buffer);
+        cli->socket->out_buffer = NULL;
+    }
+    if (cli->socket->in_buffer)
+    {
+        swBuffer_free(cli->socket->in_buffer);
+        cli->socket->in_buffer = NULL;
+    }
+    bzero(cli->socket, sizeof(swConnection));
+    if (cli->async)
+    {
+        cli->socket->removed = 1;
+    }
+    else
+    {
+        sw_free(cli->socket);
+    }
+}
+
 static int swClient_close(swClient *cli)
 {
     int fd = cli->socket->fd;
-    int ret;
-
+    assert(fd != 0);
 #ifdef SW_USE_OPENSSL
     if (cli->open_ssl && cli->ssl_context)
     {
@@ -287,40 +319,40 @@ static int swClient_close(swClient *cli)
         }
     }
 #endif
-
     //clear buffer
     if (cli->buffer)
     {
         swString_free(cli->buffer);
         cli->buffer = NULL;
     }
-
-    if (cli->async)
-    {
-        //remove from reactor
-        SwooleG.main_reactor->del(SwooleG.main_reactor, fd);
-        cli->socket->closed = 1;
-        //onClose callback
-        if (cli->socket->active && cli->onClose)
-        {
-            cli->onClose(cli);
-        }
-        ret = swReactor_close(SwooleG.main_reactor, fd);
-    }
-    else
-    {
-        bzero(cli->socket, sizeof(swConnection));
-        ret = close(fd);
-    }
-
-    cli->closed = 1;
-
     if (cli->type == SW_SOCK_UNIX_DGRAM)
     {
         unlink(cli->socket->info.addr.un.sun_path);
     }
-
-    return ret;
+    if (cli->socket->closed)
+    {
+        return SW_OK;
+    }
+    cli->socket->closed = 1;
+    if (cli->async)
+    {
+        //remove from reactor
+        if (!cli->socket->removed && SwooleG.main_reactor)
+        {
+            SwooleG.main_reactor->del(SwooleG.main_reactor, fd);
+        }
+        //onClose callback
+        if (cli->socket->active && cli->onClose)
+        {
+            cli->socket->active = 0;
+            cli->onClose(cli);
+        }
+    }
+    else
+    {
+        cli->socket->active = 0;
+    }
+    return close(fd);
 }
 
 static int swClient_tcp_connect_sync(swClient *cli, char *host, int port, double timeout, int nonblock)
@@ -364,6 +396,10 @@ static int swClient_tcp_connect_sync(swClient *cli, char *host, int port, double
 #ifdef SW_USE_OPENSSL
         if (cli->open_ssl)
         {
+            if (swClient_enable_ssl_encrypt(cli) < 0)
+            {
+                return SW_ERR;
+            }
             if (swClient_ssl_handshake(cli) < 0)
             {
                 return SW_ERR;
@@ -396,6 +432,31 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
     if (swClient_inet_addr(cli, host, port) < 0)
     {
         return SW_ERR;
+    }
+
+    if (cli->type == SW_SOCK_UNIX_STREAM)
+    {
+        while (1)
+        {
+            ret = connect(cli->socket->fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
+            if (ret < 0)
+            {
+                if (errno == EINTR)
+                {
+                    continue;
+                }
+            }
+            break;
+        }
+        if (ret == 0)
+        {
+            SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE);
+        }
+        else
+        {
+            SwooleG.error = errno;
+        }
+        return ret;
     }
 
     while (1)
@@ -454,7 +515,7 @@ static int swClient_tcp_send_sync(swClient *cli, char *data, int length, int fla
             }
             else if (errno == EAGAIN)
             {
-                swYield();
+                swSocket_wait(cli->socket->fd, 1000, SW_EVENT_WRITE);
                 continue;
             }
             else
@@ -603,17 +664,6 @@ static int swClient_udp_recv(swClient *cli, char *data, int length, int flags)
     return ret;
 }
 
-static int swClient_onError(swReactor *reactor, swEvent *event)
-{
-    swClient *cli = event->socket->object;
-    if (cli->onError)
-    {
-        cli->onError(cli);
-    }
-    cli->close(cli);
-    return SW_OK;
-}
-
 static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
 {
     int n;
@@ -628,13 +678,14 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
         {
             return cli->close(cli);
         }
-        if (cli->socket->ssl_state == SW_SSL_STATE_READY)
-        {
-            return cli->close(cli);
-        }
-        else
+        if (cli->socket->ssl_state != SW_SSL_STATE_READY)
         {
             return SW_OK;
+        }
+        //ssl handshake sucess
+        else if (cli->onConnect)
+        {
+            cli->onConnect(cli);
         }
     }
 #endif
@@ -736,33 +787,65 @@ static int swClient_onDgramRead(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
+static int swClient_onError(swReactor *reactor, swEvent *event)
+{
+    swClient *cli = event->socket->object;
+    int ret = cli->close(cli);
+    if (!cli->socket->active && cli->onError)
+    {
+        cli->onError(cli);
+    }
+    return ret;
+}
+
 static int swClient_onWrite(swReactor *reactor, swEvent *event)
 {
     swClient *cli = event->socket->object;
+
     if (cli->socket->active)
     {
+#ifdef SW_USE_OPENSSL
+        if (cli->open_ssl && cli->socket->ssl_state == SW_SSL_STATE_WAIT_STREAM)
+        {
+            if (swClient_ssl_handshake(cli) < 0)
+            {
+                goto connect_fail;
+            }
+            else if (cli->socket->ssl_state == SW_SSL_STATE_READY)
+            {
+                goto connect_success;
+            }
+            else
+            {
+                return SW_OK;
+            }
+        }
+#endif
         return swReactor_onWrite(SwooleG.main_reactor, event);
     }
 
-    int error;
-    socklen_t len = sizeof(error);
-    if (getsockopt (event->fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0)
+    socklen_t len = sizeof(SwooleG.error);
+    if (getsockopt(event->fd, SOL_SOCKET, SO_ERROR, &SwooleG.error, &len) < 0)
     {
         swWarn("getsockopt(%d) failed. Error: %s[%d]", event->fd, strerror(errno), errno);
         return SW_ERR;
     }
 
     //success
-    if (error == 0)
+    if (SwooleG.error == 0)
     {
         //listen read event
-        SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, (SW_FD_USER + 1) | SW_EVENT_READ);
+        SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, SW_FD_STREAM_CLIENT | SW_EVENT_READ);
         //connected
         cli->socket->active = 1;
 
 #ifdef SW_USE_OPENSSL
         if (cli->open_ssl)
         {
+            if (swClient_enable_ssl_encrypt(cli) < 0)
+            {
+                goto connect_fail;
+            }
             if (swClient_ssl_handshake(cli) < 0)
             {
                 goto connect_fail;
@@ -773,6 +856,7 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
             }
             return SW_OK;
         }
+        connect_success:
 #endif
         if (cli->onConnect)
         {
@@ -784,11 +868,11 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
 #ifdef SW_USE_OPENSSL
         connect_fail:
 #endif
+        cli->close(cli);
         if (cli->onError)
         {
             cli->onError(cli);
         }
-        cli->close(cli);
     }
 
     return SW_OK;
