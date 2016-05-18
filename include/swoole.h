@@ -556,6 +556,12 @@ static sw_inline void swString_clear(swString *str)
     str->offset = 0;
 }
 
+static sw_inline void swString_free(swString *str)
+{
+    sw_free(str->str);
+    sw_free(str);
+}
+
 swString *swString_new(size_t size);
 swString *swString_dup(const char *src_str, int length);
 swString *swString_dup2(swString *src);
