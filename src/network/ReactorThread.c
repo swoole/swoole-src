@@ -450,6 +450,8 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
 {
     swServer *serv = SwooleG.serv;
 
+    assert(target_worker_id < serv->worker_num);
+
     int ret = -1;
     swWorker *worker = &(serv->workers[target_worker_id]);
 
