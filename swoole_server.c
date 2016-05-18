@@ -37,6 +37,7 @@ static struct
 } server_port_list;
 
 zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
+static swHashMap *task_callbacks;
 
 #if PHP_MAJOR_VERSION >= 7
 zval _php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
@@ -822,9 +823,17 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     args[1] = &ztask_id;
     args[2] = &zdata;
 
-    //swTraceLog(60, "req: fd=%d|len=%d|from_id=%d|data=%s\n", req->info.fd, req->info.len, req->info.from_id, req->data);
+    zval *callback;
+    if (swTask_type(req) & SW_TASK_CALLBACK)
+    {
+        callback = swHashMap_find_int(task_callbacks, req->info.fd);
+    }
+    else
+    {
+        callback = php_sw_server_callbacks[SW_SERVER_CB_onFinish];
+    }
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onFinish], &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_server: onFinish handler error");
     }
@@ -837,6 +846,10 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     if (retval != NULL)
     {
         sw_zval_ptr_dtor(&retval);
+    }
+    if (swTask_type(req) & SW_TASK_CALLBACK)
+    {
+        sw_zval_ptr_dtor(&callback);
     }
     return SW_OK;
 }
@@ -1427,6 +1440,7 @@ PHP_METHOD(swoole_server, set)
     {
         convert_to_long(v);
         SwooleG.task_worker_num = (int) Z_LVAL_P(v);
+        task_callbacks = swHashMap_new(1024, NULL);
     }
     //task ipc mode, 1,2,3
     if (php_swoole_array_get_value(vht, "task_ipc_mode", v))
@@ -2243,6 +2257,7 @@ PHP_METHOD(swoole_server, task)
     swEventData buf;
 
     zval *data;
+    zval *callback = NULL;
     smart_str serialized_data = {0};
     php_serialize_data_t var_hash;
 
@@ -2254,7 +2269,7 @@ PHP_METHOD(swoole_server, task)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|l", &data, &dst_worker_id) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|lz", &data, &dst_worker_id, &callback) == FAILURE)
     {
         return;
     }
@@ -2281,7 +2296,6 @@ PHP_METHOD(swoole_server, task)
     {
         //serialize
         swTask_type(&buf) |= SW_TASK_SERIALIZE;
-        //TODO php serialize
         PHP_VAR_SERIALIZE_INIT(var_hash);
         sw_php_var_serialize(&serialized_data, data, &var_hash TSRMLS_CC);
         PHP_VAR_SERIALIZE_DESTROY(var_hash);
@@ -2314,6 +2328,23 @@ PHP_METHOD(swoole_server, task)
     {
         memcpy(buf.data, task_data_str, task_data_len);
         buf.info.len = task_data_len;
+    }
+
+    if (callback && !ZVAL_IS_NULL(callback))
+    {
+#ifdef PHP_SWOOLE_CHECK_CALLBACK
+        char *func_name = NULL;
+        if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+        {
+            swoole_php_fatal_error(E_WARNING, "Function '%s' is not callable", func_name);
+            efree(func_name);
+            return;
+        }
+        efree(func_name);
+#endif
+        swTask_type(&buf) |= SW_TASK_CALLBACK;
+        sw_zval_add_ref(&callback);
+        swHashMap_add_int(task_callbacks, buf.info.fd, callback);
     }
 
     smart_str_free(&serialized_data);
