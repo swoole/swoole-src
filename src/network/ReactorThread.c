@@ -304,19 +304,16 @@ int swReactorThread_close(swReactor *reactor, int fd)
             conn->object = NULL;
         }
     }
-    else if (port->open_http_protocol)
+    else if (port->open_http_protocol && conn->object)
     {
-        if (conn->object)
+        if (conn->http_upgrade)
         {
-            if (conn->http_upgrade)
-            {
-                swServer_free_buffer(serv, fd);
-                conn->websocket_status = 0;
-            }
-            else
-            {
-                swHttpRequest_free(conn);
-            }
+            swServer_free_buffer(serv, fd);
+            conn->websocket_status = 0;
+        }
+        else
+        {
+            swHttpRequest_free(conn);
         }
     }
 
