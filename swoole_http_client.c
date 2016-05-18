@@ -1042,6 +1042,10 @@ static PHP_METHOD(swoole_http_client, isConnected)
 static PHP_METHOD(swoole_http_client, close)
 {
     http_client *http = swoole_get_object(getThis());
+    if (http->body) {
+        swString_clear(http->body);
+        http->body = NULL;
+    }
     swClient *cli = http->cli;
     if (!cli)
     {
