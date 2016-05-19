@@ -2057,7 +2057,7 @@ PHP_METHOD(swoole_server, stats)
     sw_add_assoc_long_ex(return_value, ZEND_STRS("request_count"), SwooleStats->request_count);
     sw_add_assoc_long_ex(return_value, ZEND_STRS("worker_request_count"), SwooleWG.request_count);
 
-    if (SwooleG.task_ipc_mode > SW_IPC_UNSOCK)
+    if (SwooleG.task_ipc_mode > SW_IPC_UNSOCK && SwooleGS->task_workers.queue)
     {
         int queue_num = -1;
         int queue_bytes = -1;
