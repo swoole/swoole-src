@@ -91,7 +91,7 @@ static void swoole_redis_event_DelWrite(void *privdata);
 static void swoole_redis_event_Cleanup(void *privdata);
 
 static zend_class_entry swoole_redis_ce;
-zend_class_entry *swoole_redis_class_entry_ptr;
+static zend_class_entry *swoole_redis_class_entry_ptr;
 static int isset_event_callback = 0;
 
 static const zend_function_entry swoole_redis_methods[] =
