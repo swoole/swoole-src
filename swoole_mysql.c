@@ -58,7 +58,7 @@ void swoole_mysql_init(int module_number TSRMLS_DC)
     swoole_mysql_class_entry_ptr = zend_register_internal_class(&swoole_mysql_ce TSRMLS_CC);
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_exception_ce, "swoole_mysql_exception", "Swoole\\MySQL\Exception", NULL);
-    swoole_mysql_exception_class_entry = zend_register_internal_class(&swoole_mysql_exception_ce TSRMLS_CC);
+    swoole_mysql_exception_class_entry = zend_register_internal_class_ex(&swoole_mysql_exception_ce, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
 }
 
 static PHP_METHOD(swoole_mysql, __construct)
@@ -299,7 +299,7 @@ PHP_FUNCTION(swoole_get_mysqli_sock)
     }
 }
 
-PHP_METHOD(swoole_mysql, query)
+static PHP_METHOD(swoole_mysql, query)
 {
     zval *callback;
     swString sql;
