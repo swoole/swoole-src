@@ -244,4 +244,6 @@
 #define SW_WEBSOCKET_VERSION             "13"
 #define SW_WEBSOCKET_KEY_LENGTH          16
 
+#define SW_MYSQL_QUERY_INIT_SIZE         8192
+
 #endif /* SWOOLE_CONFIG_H_ */

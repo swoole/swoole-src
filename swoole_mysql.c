@@ -65,7 +65,7 @@ static PHP_METHOD(swoole_mysql, __construct)
 {
     if (!mysql_request_buffer)
     {
-        mysql_request_buffer = swString_new(65536);
+        mysql_request_buffer = swString_new(SW_MYSQL_QUERY_INIT_SIZE);
         if (!mysql_request_buffer)
         {
             swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
