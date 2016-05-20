@@ -146,7 +146,6 @@ static PHP_METHOD(swoole_redis, __construct)
     redis->object = &redis->_object;
     memcpy(redis->object, getThis(), sizeof(zval));
 #endif
-    sw_zval_add_ref(&redis->object);
 
     swoole_set_object(getThis(), redis);
 }
@@ -254,6 +253,8 @@ static PHP_METHOD(swoole_redis, connect)
         swoole_php_fatal_error(E_WARNING, "swoole_event_add failed. Erorr: %s[%d].", redis->context->errstr, redis->context->err);
         RETURN_FALSE;
     }
+
+    sw_zval_add_ref(&redis->object);
 
     swConnection *conn = swReactor_get(SwooleG.main_reactor, redis->context->c.fd);
     conn->object = redis;
@@ -596,6 +597,7 @@ void swoole_redis_onClose(const redisAsyncContext *c, int status)
 {
     swRedisClient *redis = c->ev.data;
     redis->state = SWOOLE_REDIS_STATE_CLOSED;
+    sw_zval_ptr_dtor(&redis->object);
 }
 
 static void swoole_redis_event_AddRead(void *privdata)
