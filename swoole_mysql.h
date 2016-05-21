@@ -297,7 +297,8 @@ static sw_inline void mysql_get_socket(zval *mysql_link, zval *return_value, int
     php_stream *stream;
     *sock = -1;
 
-    if (Z_TYPE_P(mysql_link) != IS_OBJECT || strcasecmp(Z_OBJCE_P(mysql_link)->name, "mysqli") != 0)
+    const char* mysql_link_name = ZSTR_VAL(Z_OBJCE_P(mysql_link)->name);
+    if (Z_TYPE_P(mysql_link) != IS_OBJECT || strcasecmp(mysql_link_name, "mysqli") != 0)
     {
         return;
     }
