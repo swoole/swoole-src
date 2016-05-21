@@ -638,9 +638,9 @@ static void swoole_redis_event_Cleanup(void *privdata)
         zval **args[1];
         args[0] = &redis->object;
 
-        if (sw_call_user_function_ex(EG(function_table), NULL, redis->connect_callback, &retval, 1, args, 0, NULL TSRMLS_CC) != SUCCESS)
+        if (sw_call_user_function_ex(EG(function_table), NULL, redis->close_callback, &retval, 1, args, 0, NULL TSRMLS_CC) != SUCCESS)
         {
-            swoole_php_fatal_error(E_WARNING, "swoole_async_mysql callback handler error.");
+            swoole_php_fatal_error(E_WARNING, "swoole_async_redis callback handler error.");
         }
         if (retval != NULL)
         {
