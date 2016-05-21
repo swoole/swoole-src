@@ -91,7 +91,13 @@ static PHP_METHOD(swoole_mysql, __construct)
     bzero(client, sizeof(mysql_client));
     client->buffer = swString_new(SW_BUFFER_SIZE_BIG);
     client->fd = sock;
+
+#if PHP_MAJOR_VERSION < 7
     client->object = getThis();
+#else
+    client->object = &client->_object;
+    memcpy(client->object, getThis(), sizeof(zval));
+#endif
 
     zend_update_property_bool(swoole_mysql_class_entry_ptr, getThis(), ZEND_STRL("connected"), 1 TSRMLS_CC);
     zend_update_property(swoole_mysql_class_entry_ptr, getThis(), ZEND_STRL("mysqli"), mysql_link TSRMLS_CC);
@@ -112,6 +118,8 @@ static PHP_METHOD(swoole_mysql, __construct)
     swConnection *socket = swReactor_get(SwooleG.main_reactor, sock);
     socket->active = 1;
     socket->object = client;
+
+    sw_zval_add_ref(&client->object);
 }
 
 static int mysql_request(swString *sql, swString *buffer)
@@ -383,12 +391,13 @@ static PHP_METHOD(swoole_mysql, close)
     zval *retval = NULL;
 
     zend_class_entry *class_entry = zend_get_class_entry(mysqli TSRMLS_CC);
-    zend_call_method_with_0_params(&mysqli, class_entry, NULL, "close", &retval);
+    zend_call_method_with_0_params(mysqli, class_entry, NULL, "close", retval);
 
     if (retval)
     {
         sw_zval_ptr_dtor(&retval);
     }
+    sw_zval_ptr_dtor(&client->object);
 }
 
 static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)

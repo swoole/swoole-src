@@ -184,6 +184,7 @@ typedef struct
     int fd;
 
 #if PHP_MAJOR_VERSION >= 7
+    zval _object;
     zval _callback;
     zval _mysqli;
 #endif
