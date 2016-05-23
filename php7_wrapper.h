@@ -74,8 +74,11 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 #define sw_php_array_merge(dest,src)          php_array_merge(dest,src,1 TSRMLS_CC)
 #define SW_RETURN_STRINGL                     RETURN_STRINGL
 #define sw_zend_register_internal_class_ex    zend_register_internal_class_ex
+
+#define sw_zend_call_method_with_0_params     zend_call_method_with_0_params
 #define sw_zend_call_method_with_1_params     zend_call_method_with_1_params
 #define sw_zend_call_method_with_2_params     zend_call_method_with_2_params
+
 typedef int zend_size_t;
 
 #define SW_HASHTABLE_FOREACH_START(ht, entry)\
@@ -240,8 +243,11 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval** 
 #define sw_zend_hash_copy(target,source,pCopyConstructor,tmp,size) zend_hash_copy(target,source,pCopyConstructor)
 #define sw_php_array_merge                                          php_array_merge
 #define sw_zend_register_internal_class_ex(entry,parent_ptr,str)    zend_register_internal_class_ex(entry,parent_ptr)
+
+#define sw_zend_call_method_with_0_params(obj, ptr, what, method, retval)               zend_call_method_with_0_params(*obj,ptr,what,method,*retval)
 #define sw_zend_call_method_with_1_params(obj, ptr, what, method, retval, v1)           zend_call_method_with_1_params(*obj,ptr,what,method,*retval,v1)
 #define sw_zend_call_method_with_2_params(obj, ptr, what, method, retval, name, cb)     zend_call_method_with_2_params(*obj,ptr,what,method,*retval,name,cb)
+
 #define SW_ZVAL_STRINGL(z, s, l, dup)         ZVAL_STRINGL(z, s, l)
 #define SW_ZVAL_STRING(z,s,dup)               ZVAL_STRING(z,s)
 #define sw_smart_str                          smart_string

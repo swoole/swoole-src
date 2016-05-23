@@ -57,8 +57,8 @@ void swoole_mysql_init(int module_number TSRMLS_DC)
     SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_ce, "swoole_mysql", "Swoole\\MySQL", swoole_mysql_methods);
     swoole_mysql_class_entry_ptr = zend_register_internal_class(&swoole_mysql_ce TSRMLS_CC);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_exception_ce, "swoole_mysql_exception", "Swoole\\MySQL\Exception", NULL);
-    swoole_mysql_exception_class_entry = zend_register_internal_class_ex(&swoole_mysql_exception_ce, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_exception_ce, "swoole_mysql_exception", "Swoole\\MySQL\\Exception", NULL);
+    swoole_mysql_exception_class_entry = sw_zend_register_internal_class_ex(&swoole_mysql_exception_ce, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
 }
 
 static PHP_METHOD(swoole_mysql, __construct)
@@ -92,6 +92,7 @@ static PHP_METHOD(swoole_mysql, __construct)
     client->buffer = swString_new(SW_BUFFER_SIZE_BIG);
     client->fd = sock;
     client->object = getThis();
+    sw_copy_to_stack(client->object, client->_object);
 
     zend_update_property_bool(swoole_mysql_class_entry_ptr, getThis(), ZEND_STRL("connected"), 1 TSRMLS_CC);
     zend_update_property(swoole_mysql_class_entry_ptr, getThis(), ZEND_STRL("mysqli"), mysql_link TSRMLS_CC);
@@ -333,6 +334,7 @@ static PHP_METHOD(swoole_mysql, query)
     sw_copy_to_stack(client->callback, client->_callback);
 
     sw_zval_add_ref(&client->callback);
+    sw_zval_add_ref(&client->object);
     swString_clear(mysql_request_buffer);
 
     if (mysql_request(&sql, mysql_request_buffer) < 0)
@@ -383,7 +385,7 @@ static PHP_METHOD(swoole_mysql, close)
     zval *retval = NULL;
 
     zend_class_entry *class_entry = zend_get_class_entry(mysqli TSRMLS_CC);
-    zend_call_method_with_0_params(&mysqli, class_entry, NULL, "close", &retval);
+    sw_zend_call_method_with_0_params(&mysqli, class_entry, NULL, "close", &retval);
 
     if (retval)
     {
@@ -548,6 +550,10 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             if (client->response.columns)
             {
                 efree(client->response.columns);
+            }
+            if (client->object)
+            {
+                sw_zval_ptr_dtor(&client->object);
             }
             bzero(&client->response, sizeof(client->response));
             return SW_OK;
