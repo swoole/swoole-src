@@ -252,9 +252,9 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval** 
 #define SW_ZVAL_STRING(z,s,dup)               ZVAL_STRING(z,s)
 #define sw_smart_str                          smart_string
 #define zend_get_class_entry                  Z_OBJCE_P
-#define sw_copy_to_stack(a, b)                zval *__tmp = a;\
+#define sw_copy_to_stack(a, b)                {zval *__tmp = a;\
     a = &b;\
-    memcpy(a, __tmp, sizeof(zval))
+    memcpy(a, __tmp, sizeof(zval));}
 
 static inline zval* sw_zend_read_property(zend_class_entry *class_ptr, zval *obj, char *s, int len, int silent)
 {

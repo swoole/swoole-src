@@ -555,6 +555,12 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             {
                 sw_zval_ptr_dtor(&client->object);
             }
+#if PHP_MAJOR_VERSION > 5
+            if (client->response.result_array)
+            {
+                efree(client->response.result_array);
+            }
+#endif
             bzero(&client->response, sizeof(client->response));
             return SW_OK;
         }

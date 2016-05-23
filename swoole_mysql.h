@@ -298,7 +298,11 @@ static sw_inline void mysql_get_socket(zval *mysql_link, zval *return_value, int
     php_stream *stream;
     *sock = -1;
 
+#if PHP_MAJOR_VERSION < 7
     if (Z_TYPE_P(mysql_link) != IS_OBJECT || strcasecmp(Z_OBJCE_P(mysql_link)->name, "mysqli") != 0)
+#else
+    if (Z_TYPE_P(mysql_link) != IS_OBJECT || strcasecmp(Z_OBJCE_P(mysql_link)->name->val, "mysqli") != 0)
+#endif
     {
         return;
     }
@@ -516,7 +520,7 @@ static sw_inline int mysql_decode_row(mysql_client *client, char *buf, int packe
 #endif
 
     zval *result_array = client->response.result_array;
-    zval *row_array;
+    zval *row_array = NULL;
     SW_ALLOC_INIT_ZVAL(row_array);
     array_init(row_array);
 
@@ -632,6 +636,14 @@ static sw_inline int mysql_decode_row(mysql_client *client, char *buf, int packe
     }
 
     add_next_index_zval(result_array, row_array);
+
+#if PHP_MAJOR_VERSION > 5
+    if (row_array)
+    {
+        efree(row_array);
+    }
+#endif
+
     return read_n;
 }
 
