@@ -282,16 +282,6 @@ static PHP_METHOD(swoole_redis, __destruct)
     {
         redisAsyncDisconnect(redis->context);
     }
-#if PHP_MAJOR_VERSION < 7
-    if (redis->close_callback)
-    {
-        sw_zval_ptr_dtor(&redis->close_callback);
-    }
-    if (redis->message_callback)
-    {
-        sw_zval_ptr_dtor(&redis->message_callback);
-    }
-#endif
     efree(redis);
 }
 
