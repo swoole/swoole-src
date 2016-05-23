@@ -25,6 +25,7 @@ static PHP_METHOD(swoole_mysql, __construct);
 static PHP_METHOD(swoole_mysql, __destruct);
 static PHP_METHOD(swoole_mysql, query);
 static PHP_METHOD(swoole_mysql, close);
+static PHP_METHOD(swoole_mysql, on);
 
 static zend_class_entry swoole_mysql_ce;
 static zend_class_entry *swoole_mysql_class_entry_ptr;
@@ -38,6 +39,7 @@ static const zend_function_entry swoole_mysql_methods[] =
     PHP_ME(swoole_mysql, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_mysql, query, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql, close, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql, on, NULL, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -49,6 +51,7 @@ static void mysql_column_info(mysql_field *field);
 #endif
 
 static int swoole_mysql_onRead(swReactor *reactor, swEvent *event);
+static int swoole_mysql_onError(swReactor *reactor, swEvent *event);
 static swString *mysql_request_buffer = NULL;
 static int isset_event_callback = 0;
 
@@ -108,6 +111,7 @@ static PHP_METHOD(swoole_mysql, __construct)
     if (!isset_event_callback)
     {
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL | SW_EVENT_READ, swoole_mysql_onRead);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL | SW_EVENT_ERROR, swoole_mysql_onError);
     }
 
     swConnection *socket = swReactor_get(SwooleG.main_reactor, sock);
@@ -355,7 +359,6 @@ static PHP_METHOD(swoole_mysql, query)
         {
             zend_update_property_bool(swoole_mysql_class_entry_ptr, getThis(), ZEND_STRL("connected"), 0 TSRMLS_CC);
             zend_update_property_bool(swoole_mysql_class_entry_ptr, getThis(), ZEND_STRL("errno"), 2006 TSRMLS_CC);
-            swoole_set_object(getThis(), NULL);
         }
         RETURN_FALSE;
     }
@@ -374,6 +377,15 @@ static PHP_METHOD(swoole_mysql, __destruct)
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
         RETURN_FALSE;
     }
+//    if (client->state != SW_MYSQL_STATE_CLOSED)
+//    {
+//        zval *retval;
+//        sw_zend_call_method_with_0_params(&getThis(), swoole_mysql_class_entry_ptr, NULL, "close", &retval);
+//        if (retval)
+//        {
+//            sw_zval_ptr_dtor(&retval);
+//        }
+//    }
     efree(client);
     swoole_set_object(getThis(), NULL);
 }
@@ -384,13 +396,84 @@ static PHP_METHOD(swoole_mysql, close)
     zval *mysqli = client->mysqli;
     zval *retval = NULL;
 
+    client->state = SW_MYSQL_STATE_CLOSED;
+    zend_update_property_bool(swoole_mysql_class_entry_ptr, getThis(), ZEND_STRL("connected"), 0 TSRMLS_CC);
+    if (client->state == SW_MYSQL_STATE_QUERY)
+    {
+        SwooleG.main_reactor->del(SwooleG.main_reactor, client->fd);
+    }
+
     zend_class_entry *class_entry = zend_get_class_entry(mysqli TSRMLS_CC);
     sw_zend_call_method_with_0_params(&mysqli, class_entry, NULL, "close", &retval);
-
     if (retval)
     {
         sw_zval_ptr_dtor(&retval);
     }
+
+    zval **args[1];
+    if (client->onClose)
+    {
+        args[0] = &getThis();
+        if (sw_call_user_function_ex(EG(function_table), NULL, client->onClose, &retval, 1, args, 0, NULL TSRMLS_CC) != SUCCESS)
+        {
+            swoole_php_fatal_error(E_WARNING, "swoole_mysql onClose callback error.");
+        }
+        if (retval)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
+    }
+}
+
+static PHP_METHOD(swoole_mysql, on)
+{
+    char *name;
+    zend_size_t len;
+    zval *cb;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "sz", &name, &len, &cb) == FAILURE)
+    {
+        return;
+    }
+
+    mysql_client *client = swoole_get_object(getThis());
+    if (!client)
+    {
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
+        RETURN_FALSE;
+    }
+
+    if (strncasecmp("close", name, len) == 0)
+    {
+        zend_update_property(swoole_mysql_class_entry_ptr, getThis(), ZEND_STRL("onClose"), cb TSRMLS_CC);
+        client->onClose = sw_zend_read_property(swoole_mysql_class_entry_ptr, getThis(), ZEND_STRL("onClose"), 0 TSRMLS_CC);
+        sw_copy_to_stack(client->onClose, client->_onClose);
+    }
+    else
+    {
+        swoole_php_error(E_WARNING, "Unknown event type[%s]", name);
+        RETURN_FALSE;
+    }
+    RETURN_TRUE;
+}
+
+static int swoole_mysql_onError(swReactor *reactor, swEvent *event)
+{
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+
+    zval *retval = NULL;
+    mysql_client *client = event->socket->object;
+    zval *zobject = client->object;
+
+    sw_zend_call_method_with_0_params(&zobject, swoole_mysql_class_entry_ptr, NULL, "close", &retval);
+    if (retval)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+
+    return SW_OK;
 }
 
 static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
@@ -445,8 +528,11 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
                 goto parse_response;
             }
 
-            reactor->del(reactor, event->fd);
-            zend_update_property_bool(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("connected"), 0 TSRMLS_CC);
+            sw_zend_call_method_with_0_params(&zobject, swoole_mysql_class_entry_ptr, NULL, "close", &retval);
+            if (retval)
+            {
+                sw_zval_ptr_dtor(&retval);
+            }
 
             if (client->callback)
             {
@@ -457,13 +543,9 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
                 ZVAL_BOOL(result, 0);
 
                 callback = client->callback;
-                if (sw_call_user_function_ex(EG(function_table), NULL, client->callback, &retval, 2, args, 0, NULL TSRMLS_CC) != SUCCESS)
+                if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 2, args, 0, NULL TSRMLS_CC) != SUCCESS)
                 {
                     swoole_php_fatal_error(E_WARNING, "swoole_async_mysql callback[2] handler error.");
-                }
-                if (retval)
-                {
-                    sw_zval_ptr_dtor(&retval);
                 }
                 if (result)
                 {
@@ -472,6 +554,10 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
                 sw_zval_ptr_dtor(&callback);
                 client->callback = NULL;
                 client->state = SW_MYSQL_STATE_QUERY;
+                if (retval)
+                {
+                    sw_zval_ptr_dtor(&retval);
+                }
             }
 
             return SW_OK;

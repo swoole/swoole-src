@@ -72,6 +72,7 @@ enum mysql_read_state
     SW_MYSQL_STATE_READ_FIELD,
     SW_MYSQL_STATE_READ_ROW,
     SW_MYSQL_STATE_READ_END,
+    SW_MYSQL_STATE_CLOSED,
 };
 
 enum mysql_error_code
@@ -181,12 +182,14 @@ typedef struct
     zval *object;
     zval *callback;
     zval *mysqli;
+    zval *onClose;
     int fd;
 
 #if PHP_MAJOR_VERSION >= 7
     zval _object;
     zval _callback;
     zval _mysqli;
+    zval _onClose;
 #endif
     struct
     {
