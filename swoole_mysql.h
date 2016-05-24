@@ -19,12 +19,6 @@
 #ifndef SWOOLE_MYSQL_H_
 #define SWOOLE_MYSQL_H_
 
-#ifdef SW_ASYNC_MYSQL
-
-#include "ext/mysqlnd/mysqlnd.h"
-#include "ext/mysqli/mysqli_mysqlnd.h"
-#include "ext/mysqli/php_mysqli_structs.h"
-
 //#define SW_MYSQL_STRICT_TYPE
 //#define SW_MYSQL_DEBUG
 
@@ -62,8 +56,6 @@ enum mysql_command
     SW_MYSQL_COM_DAEMON,
     SW_MYSQL_COM_END
 };
-
-
 
 enum mysql_read_state
 {
@@ -135,6 +127,51 @@ enum mysql_field_types
     SW_MYSQL_TYPE_GEOMETRY = 255
 };
 
+#define SW_MYSQL_CLIENT_CONNECT_WITH_DB          8
+#define SW_MYSQL_CLIENT_PROTOCOL_41              512
+#define SW_MYSQL_CLIENT_PLUGIN_AUTH              (1UL << 19)
+#define SW_MYSQL_CLIENT_CONNECT_ATTRS            (1UL << 20)
+#define SW_MYSQL_CLIENT_SECURE_CONNECTION        32768
+
+typedef struct
+{
+    int packet_length;
+    int packet_number;
+    char protocol_version;
+    char *server_version;
+    int connection_id;
+    char auth_plugin_data[21];
+    uint8_t l_auth_plugin_data;
+    char filler;
+    int capability_flags;
+    char character_set;
+    int16_t status_flags;
+    char reserved[10];
+    char *auth_plugin_name;
+    uint8_t l_auth_plugin_name;
+} mysql_handshake_request;
+
+typedef struct
+{
+    char *host;
+    char *user;
+    char *password;
+    char *database;
+
+    zend_size_t host_len;
+    zend_size_t user_len;
+    zend_size_t password_len;
+    zend_size_t database_len;
+
+    long port;
+
+    int capability_flags;
+    int max_packet_size;
+    char character_set;
+    int packet_length;
+    char buf[512];
+} mysql_connector;
+
 typedef struct
 {
     char *name; /* Name of column */
@@ -144,18 +181,18 @@ typedef struct
     char *db; /* Database for table */
     char *catalog; /* Catalog for table */
     char *def; /* Default value (set by mysql_list_fields) */
-    unsigned long length; /* Width of column (create length) */
-    unsigned long max_length; /* Max width for selected set */
-    unsigned int name_length;
-    unsigned int org_name_length;
-    unsigned int table_length;
-    unsigned int org_table_length;
-    unsigned int db_length;
-    unsigned int catalog_length;
-    unsigned int def_length;
-    unsigned int flags; /* Div flags */
-    unsigned int decimals; /* Number of decimals in field */
-    unsigned int charsetnr; /* Character set */
+    ulong_t length; /* Width of column (create length) */
+    ulong_t max_length; /* Max width for selected set */
+    uint32_t name_length;
+    uint32_t org_name_length;
+    uint32_t table_length;
+    uint32_t org_table_length;
+    uint32_t db_length;
+    uint32_t catalog_length;
+    uint32_t def_length;
+    uint32_t flags; /* Div flags */
+    uint32_t decimals; /* Number of decimals in field */
+    uint32_t charsetnr; /* Character set */
     enum mysql_field_types type; /* Type of field. See mysql_com.h for types */
     void *extension;
 } mysql_field;
@@ -163,12 +200,12 @@ typedef struct
 typedef union
 {
     signed char stiny;
-    unsigned char utiny;
-    unsigned char mbool;
+    uchar utiny;
+    uchar mbool;
     short ssmall;
     unsigned short small;
     int sint;
-    unsigned int uint;
+    uint32_t uint;
     long long sbigint;
     unsigned long long ubigint;
     float mfloat;
@@ -179,16 +216,15 @@ typedef struct
 {
     uint8_t state;
     swString *buffer;
+    swClient *cli;
     zval *object;
     zval *callback;
-    zval *mysqli;
     zval *onClose;
     int fd;
 
 #if PHP_MAJOR_VERSION >= 7
     zval _object;
     zval _callback;
-    zval _mysqli;
     zval _onClose;
 #endif
     struct
@@ -231,9 +267,6 @@ typedef struct
                                     (((uint32_t) ((zend_uchar) (A)[6])) << 16) +\
                                     (((uint32_t) ((zend_uchar) (A)[7])) << 24))) << 32))
 
-#endif
-
-
 static sw_inline void mysql_pack_length(int length, char *buf)
 {
     buf[2] = length >> 16;
@@ -245,7 +278,7 @@ static sw_inline int mysql_lcb_ll(char *m, ulong_t *r, char *nul, int len)
 {
     if (len < 1)
         return -1;
-    switch ((unsigned char) m[0])
+    switch ((uchar) m[0])
     {
 
     case 251: /* fb : 1 octet */
@@ -281,7 +314,7 @@ static sw_inline int mysql_lcb_ll(char *m, ulong_t *r, char *nul, int len)
         return 9;
 
     default:
-        *r = (unsigned char) m[0];
+        *r = (uchar) m[0];
         *nul = 0;
         return 1;
     }
@@ -295,41 +328,10 @@ static sw_inline int mysql_length_coded_binary(char *m, ulong_t *r, char *nul, i
     return retcode;
 }
 
-static sw_inline void mysql_get_socket(zval *mysql_link, zval *return_value, int *sock TSRMLS_DC)
-{
-    MY_MYSQL *mysql;
-    php_stream *stream;
-    *sock = -1;
-
-#if PHP_MAJOR_VERSION < 7
-    if (Z_TYPE_P(mysql_link) != IS_OBJECT || strcasecmp(Z_OBJCE_P(mysql_link)->name, "mysqli") != 0)
-#else
-    if (Z_TYPE_P(mysql_link) != IS_OBJECT || strcasecmp(Z_OBJCE_P(mysql_link)->name->val, "mysqli") != 0)
-#endif
-    {
-        return;
-    }
-
-#if PHP_MAJOR_VERSION > 5
-    MYSQLI_FETCH_RESOURCE_CONN(mysql, mysql_link, MYSQLI_STATUS_VALID);
-    stream = mysql->mysql->data->net->data->m.get_stream(mysql->mysql->data->net TSRMLS_CC);
-#elif PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION > 4
-    MYSQLI_FETCH_RESOURCE_CONN(mysql, &mysql_link, MYSQLI_STATUS_VALID);
-    stream = mysql->mysql->data->net->data->m.get_stream(mysql->mysql->data->net TSRMLS_CC);
-#else
-    MYSQLI_FETCH_RESOURCE_CONN(mysql, &mysql_link, MYSQLI_STATUS_VALID);
-    stream = mysql->mysql->data->net->stream;
-#endif
-    if (php_stream_cast(stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL, (void* )sock, 1) != SUCCESS || *sock <= 2)
-    {
-        return;
-    }
-}
-
 static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
 {
     int i;
-    unsigned long size;
+    ulong_t size;
     char nul;
     char *wh;
     int tmp_len;
@@ -455,19 +457,19 @@ static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
     i += 1;
 
     /* charset */
-    col->charsetnr = uint2korr(&buf[i]);
+    col->charsetnr = mysql_uint2korr(&buf[i]);
     i += 2;
 
     /* length */
-    col->length = uint4korr(&buf[i]);
+    col->length = mysql_uint4korr(&buf[i]);
     i += 4;
 
     /* type */
-    col->type = (unsigned char) buf[i];
+    col->type = (uchar) buf[i];
     i += 1;
 
     /* flags */
-    col->flags = uint3korr(&buf[i]);
+    col->flags = mysql_uint3korr(&buf[i]);
     i += 2;
 
     /* decimals */
@@ -511,7 +513,7 @@ static sw_inline int mysql_decode_row(mysql_client *client, char *buf, int packe
 {
     int read_n = 0, i;
     int tmp_len;
-    unsigned long len;
+    ulong_t len;
     char nul;
 
 #ifdef SW_MYSQL_STRICT_TYPE
@@ -549,34 +551,34 @@ static sw_inline int mysql_decode_row(mysql_client *client, char *buf, int packe
         int type = client->response.columns[i].type;
         switch (type)
         {
-        case MYSQL_TYPE_NULL:
+        case SW_MYSQL_TYPE_NULL:
             add_assoc_null(row_array, client->response.columns[i].name);
             break;
         /* String */
-        case MYSQL_TYPE_TINY_BLOB:
-        case MYSQL_TYPE_MEDIUM_BLOB:
-        case MYSQL_TYPE_LONG_BLOB:
-        case MYSQL_TYPE_BLOB:
-        case MYSQL_TYPE_DECIMAL:
-        case MYSQL_TYPE_NEWDECIMAL:
-        case MYSQL_TYPE_BIT:
-        case MYSQL_TYPE_STRING:
-        case MYSQL_TYPE_VAR_STRING:
-        case MYSQL_TYPE_VARCHAR:
-        case MYSQL_TYPE_NEWDATE:
+        case SW_MYSQL_TYPE_TINY_BLOB:
+        case SW_MYSQL_TYPE_MEDIUM_BLOB:
+        case SW_MYSQL_TYPE_LONG_BLOB:
+        case SW_MYSQL_TYPE_BLOB:
+        case SW_MYSQL_TYPE_DECIMAL:
+        case SW_MYSQL_TYPE_NEWDECIMAL:
+        case SW_MYSQL_TYPE_BIT:
+        case SW_MYSQL_TYPE_STRING:
+        case SW_MYSQL_TYPE_VAR_STRING:
+        case SW_MYSQL_TYPE_VARCHAR:
+        case SW_MYSQL_TYPE_NEWDATE:
         /* Date Time */
-        case MYSQL_TYPE_TIME:
-        case MYSQL_TYPE_YEAR:
-        case MYSQL_TYPE_TIMESTAMP:
-        case MYSQL_TYPE_DATETIME:
-        case MYSQL_TYPE_DATE:
+        case SW_MYSQL_TYPE_TIME:
+        case SW_MYSQL_TYPE_YEAR:
+        case SW_MYSQL_TYPE_TIMESTAMP:
+        case SW_MYSQL_TYPE_DATETIME:
+        case SW_MYSQL_TYPE_DATE:
             sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
             break;
         /* Integer */
-        case MYSQL_TYPE_TINY:
-        case MYSQL_TYPE_SHORT:
-        case MYSQL_TYPE_INT24:
-        case MYSQL_TYPE_LONG:
+        case SW_MYSQL_TYPE_TINY:
+        case SW_MYSQL_TYPE_SHORT:
+        case SW_MYSQL_TYPE_INT24:
+        case SW_MYSQL_TYPE_LONG:
 #ifdef SW_MYSQL_STRICT_TYPE
             memcpy(value_buffer, buf + read_n, len);
             value_buffer[len] = 0;
@@ -590,7 +592,7 @@ static sw_inline int mysql_decode_row(mysql_client *client, char *buf, int packe
             sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
 #endif
             break;
-        case MYSQL_TYPE_LONGLONG:
+        case SW_MYSQL_TYPE_LONGLONG:
 #ifdef SW_MYSQL_STRICT_TYPE
             memcpy(value_buffer, buf + read_n, len);
             value_buffer[len] = 0;
@@ -605,7 +607,7 @@ static sw_inline int mysql_decode_row(mysql_client *client, char *buf, int packe
 #endif
             break;
 
-        case MYSQL_TYPE_FLOAT:
+        case SW_MYSQL_TYPE_FLOAT:
 #ifdef SW_MYSQL_STRICT_TYPE
             memcpy(value_buffer, buf + read_n, len);
             value_buffer[len] = 0;
@@ -620,7 +622,7 @@ static sw_inline int mysql_decode_row(mysql_client *client, char *buf, int packe
 #endif
             break;
 
-        case MYSQL_TYPE_DOUBLE:
+        case SW_MYSQL_TYPE_DOUBLE:
 #ifdef SW_MYSQL_STRICT_TYPE
             memcpy(value_buffer, buf + read_n, len);
             value_buffer[len] = 0;

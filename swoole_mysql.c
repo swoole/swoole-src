@@ -17,8 +17,6 @@
  */
 
 #include "php_swoole.h"
-
-#ifdef SW_ASYNC_MYSQL
 #include "swoole_mysql.h"
 
 static PHP_METHOD(swoole_mysql, __construct);
@@ -44,6 +42,7 @@ static const zend_function_entry swoole_mysql_methods[] =
 };
 
 static int mysql_request(swString *sql, swString *buffer);
+static int mysql_handshake(mysql_connector *connector, char *buf, int len);
 
 #ifdef SW_MYSQL_DEBUG
 static void mysql_client_info(mysql_client *client);
@@ -76,37 +75,84 @@ static PHP_METHOD(swoole_mysql, __construct)
         }
     }
 
-    zval *mysql_link;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &mysql_link) == FAILURE)
+    char *unixsocket = NULL;
+    zend_size_t unixsocket_len = 0;
+
+    mysql_connector connector;
+    connector.port = SW_MYSQL_DEFAULT_PORT;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "ssss|ls", &connector.host, &connector.host_len,
+            &connector.user, &connector.user_len, &connector.password, &connector.password_len, &connector.database,
+            &connector.database_len, &connector.port, &unixsocket, &unixsocket_len) == FAILURE)
     {
         RETURN_FALSE;
     }
 
-    int sock = -1;
-    mysql_get_socket(mysql_link, return_value, &sock TSRMLS_CC);
-    if (sock <= 0)
+    swClient *cli = emalloc(sizeof(swClient));
+    int type = SW_SOCK_TCP;
+    if (unixsocket)
     {
-        zend_throw_exception(swoole_mysql_exception_class_entry, "get mysqli socket failed.", 0 TSRMLS_CC);
+        type = SW_SOCK_UNIX_STREAM;
+        connector.host = unixsocket;
+        connector.host_len = unixsocket_len;
+    }
+    if (swClient_create(cli, type, 0) < 0)
+    {
+        zend_throw_exception(swoole_mysql_exception_class_entry, "swClient_create failed.", 1 TSRMLS_CC);
+        RETURN_FALSE;
+    }
+    if (cli->connect(cli, connector.host, connector.port, SW_MYSQL_CONNECT_TIMEOUT, 0) < 0)
+    {
+        zend_throw_exception(swoole_mysql_exception_class_entry, "connect to mysql server[%s:%d] failed.", 2 TSRMLS_CC);
+        RETURN_FALSE;
+    }
+    int tcp_nodelay = 1;
+    if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &tcp_nodelay, sizeof(int)) == -1)
+    {
+        swoole_php_sys_error(E_WARNING, "setsockopt(%d, IPPROTO_TCP, TCP_NODELAY) failed.", cli->socket->fd);
+    }
+
+    char buf[2048];
+
+    int n = cli->recv(cli, buf, sizeof(buf), 0);
+    if (n < 0)
+    {
+        zend_throw_exception(swoole_mysql_exception_class_entry, "recvfrom mysql server failed.", 3 TSRMLS_CC);
+        RETURN_FALSE;
+    }
+
+    if (mysql_handshake(&connector, buf, n) == SW_ERR)
+    {
+        zend_throw_exception(swoole_mysql_exception_class_entry, "handshake with mysql server failed.", 4 TSRMLS_CC);
+        RETURN_FALSE;
+    }
+
+    if (cli->send(cli, connector.buf, connector.packet_length + 4, 0) < 0)
+    {
+        zend_throw_exception(swoole_mysql_exception_class_entry, "sendto mysql server failed.", 5 TSRMLS_CC);
+        RETURN_FALSE;
+    }
+
+    if (cli->recv(cli, buf, sizeof(buf), 0) < 0)
+    {
+        zend_throw_exception(swoole_mysql_exception_class_entry, "recvfrom mysql server failed.", 6 TSRMLS_CC);
         RETURN_FALSE;
     }
 
     mysql_client *client = emalloc(sizeof(mysql_client));
     bzero(client, sizeof(mysql_client));
     client->buffer = swString_new(SW_BUFFER_SIZE_BIG);
-    client->fd = sock;
+    client->fd = cli->socket->fd;
     client->object = getThis();
+    client->cli = cli;
     sw_copy_to_stack(client->object, client->_object);
 
     zend_update_property_bool(swoole_mysql_class_entry_ptr, getThis(), ZEND_STRL("connected"), 1 TSRMLS_CC);
-    zend_update_property(swoole_mysql_class_entry_ptr, getThis(), ZEND_STRL("mysqli"), mysql_link TSRMLS_CC);
-
-    client->mysqli = sw_zend_read_property(swoole_mysql_class_entry_ptr, getThis(), ZEND_STRL("mysqli"), 0 TSRMLS_CC);
-    sw_copy_to_stack(client->mysqli, client->_mysqli);
 
     swoole_set_object(getThis(), client);
 
     php_swoole_check_reactor();
-    swSetNonBlock(sock);
+    swSetNonBlock(cli->socket->fd);
 
     if (!isset_event_callback)
     {
@@ -114,7 +160,7 @@ static PHP_METHOD(swoole_mysql, __construct)
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL | SW_EVENT_ERROR, swoole_mysql_onError);
     }
 
-    swConnection *socket = swReactor_get(SwooleG.main_reactor, sock);
+    swConnection *socket = swReactor_get(SwooleG.main_reactor, cli->socket->fd);
     socket->active = 1;
     socket->object = client;
 }
@@ -128,6 +174,142 @@ static int mysql_request(swString *sql, swString *buffer)
     buffer->str[4] = SW_MYSQL_COM_QUERY;
     buffer->length = 5;
     return swString_append(buffer, sql);
+}
+
+static int mysql_handshake(mysql_connector *connector, char *buf, int len)
+{
+    char *tmp = buf;
+    /**
+     * handshake request
+     */
+    mysql_handshake_request request;
+    bzero(&request, sizeof(request));
+
+    request.packet_length = mysql_uint3korr(tmp);
+    request.packet_number = tmp[3];
+    tmp += 4;
+
+    request.protocol_version = *tmp;
+    tmp += 1;
+
+    request.server_version = tmp;
+    tmp += (strlen(request.server_version) + 1);
+
+    request.connection_id = *((int *) tmp);
+    tmp += 4;
+
+    memcpy(request.auth_plugin_data, tmp, 8);
+    tmp += 8;
+
+    request.filler = *tmp;
+    tmp += 1;
+
+    memcpy(((char *) (&request.capability_flags)) + 2, tmp, 2);
+    tmp += 2;
+
+    if (tmp - tmp < len)
+    {
+        request.character_set = *tmp;
+        tmp += 1;
+
+        memcpy(&request.status_flags, tmp, 2);
+        tmp += 2;
+
+        memcpy(&request.capability_flags, tmp, 2);
+        tmp += 2;
+
+        request.l_auth_plugin_data = *tmp;
+        tmp += 1;
+
+        memcpy(&request.reserved, tmp, sizeof(request.reserved));
+        tmp += sizeof(request.reserved);
+
+        if (request.capability_flags & SW_MYSQL_CLIENT_SECURE_CONNECTION)
+        {
+            int len = MAX(13, request.l_auth_plugin_data - 8);
+            memcpy(request.auth_plugin_data + 8, tmp, len);
+            tmp += len;
+        }
+
+        if (request.capability_flags & SW_MYSQL_CLIENT_PLUGIN_AUTH)
+        {
+            request.auth_plugin_name = tmp;
+            request.l_auth_plugin_name = strlen(tmp);
+        }
+    }
+
+    int value;
+    tmp = connector->buf + 4;
+
+    //capability flags, CLIENT_PROTOCOL_41 always set
+    value = SW_MYSQL_CLIENT_PROTOCOL_41 | SW_MYSQL_CLIENT_SECURE_CONNECTION | SW_MYSQL_CLIENT_CONNECT_WITH_DB | SW_MYSQL_CLIENT_PLUGIN_AUTH;
+    memcpy(tmp, &value, sizeof(value));
+    tmp += 4;
+
+    //max-packet size
+    value = 300;
+    memcpy(tmp, &value, sizeof(value));
+    tmp += 4;
+
+    //character set
+    *tmp = 10;
+    tmp += 1;
+
+    //string[23]     reserved (all [0])
+    tmp += 23;
+
+    //string[NUL]    username
+    memcpy(tmp, connector->user, connector->user_len);
+    tmp[connector->user_len] = '\0';
+    tmp += (connector->user_len + 1);
+
+    //auth-response
+    char hash_0[20];
+    bzero(hash_0, sizeof(hash_0));
+    php_swoole_sha1(connector->password, connector->password_len, (uchar *) hash_0);
+
+    char hash_1[20];
+    bzero(hash_1, sizeof(hash_1));
+    php_swoole_sha1(hash_0, sizeof(hash_0), (uchar *) hash_1);
+
+    char str[40];
+    memcpy(str, request.auth_plugin_data, 20);
+    memcpy(str + 20, hash_1, 20);
+
+    char hash_2[20];
+    php_swoole_sha1(str, sizeof(str), (uchar *) hash_2);
+
+    char hash_3[20];
+
+    int *a = (int *) hash_2;
+    int *b = (int *) hash_0;
+    int *c = (int *) hash_3;
+
+    int i;
+    for (i = 0; i < 5; i++)
+    {
+        c[i] = a[i] ^ b[i];
+    }
+
+    *tmp = 20;
+    memcpy(tmp + 1, hash_3, 20);
+    tmp += 21;
+
+    //string[NUL]    database
+    memcpy(tmp, connector->database, connector->database_len);
+    tmp[connector->user_len] = '\0';
+    tmp += (connector->user_len + 1);
+
+    //string[NUL]    auth plugin name
+    memcpy(tmp, request.auth_plugin_name, request.l_auth_plugin_name);
+    tmp[request.l_auth_plugin_name] = '\0';
+    tmp += (request.l_auth_plugin_name + 1);
+
+    connector->packet_length = tmp - connector->buf - 4;
+    mysql_pack_length(connector->packet_length, connector->buf);
+    connector->buf[3] = 1;
+
+    return SW_OK;
 }
 
 static int mysql_response(mysql_client *client)
@@ -283,27 +465,6 @@ static void mysql_column_info(mysql_field *field)
 
 #endif
 
-PHP_FUNCTION(swoole_get_mysqli_sock)
-{
-    zval *mysql_link;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &mysql_link) == FAILURE)
-    {
-        return;
-    }
-
-    int sock = -1;
-    mysql_get_socket(mysql_link, return_value, &sock TSRMLS_CC);
-
-    if (sock <= 0)
-    {
-        RETURN_FALSE;
-    }
-    else
-    {
-        RETURN_LONG(sock);
-    }
-}
-
 static PHP_METHOD(swoole_mysql, query)
 {
     zval *callback;
@@ -393,23 +554,30 @@ static PHP_METHOD(swoole_mysql, __destruct)
 static PHP_METHOD(swoole_mysql, close)
 {
     mysql_client *client = swoole_get_object(getThis());
-    zval *mysqli = client->mysqli;
-    zval *retval = NULL;
+    if (!client)
+    {
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
+        RETURN_FALSE;
+    }
 
-    client->state = SW_MYSQL_STATE_CLOSED;
+    if (!client->cli)
+    {
+        swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
+        RETURN_FALSE;
+    }
+
     zend_update_property_bool(swoole_mysql_class_entry_ptr, getThis(), ZEND_STRL("connected"), 0 TSRMLS_CC);
-    if (client->state == SW_MYSQL_STATE_QUERY)
+    if (client->state != SW_MYSQL_STATE_QUERY)
     {
         SwooleG.main_reactor->del(SwooleG.main_reactor, client->fd);
     }
 
-    zend_class_entry *class_entry = zend_get_class_entry(mysqli TSRMLS_CC);
-    sw_zend_call_method_with_0_params(&mysqli, class_entry, NULL, "close", &retval);
-    if (retval)
-    {
-        sw_zval_ptr_dtor(&retval);
-    }
+    client->cli->close(client->cli);
+    swClient_free(client->cli);
+    efree(client->cli);
+    client->cli = NULL;
 
+    zval *retval = NULL;
     zval **args[1];
     if (client->onClose)
     {
@@ -652,6 +820,63 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
         }
     }
     return SW_OK;
+}
+
+#ifdef SW_ASYNC_MYSQL
+#include "ext/mysqlnd/mysqlnd.h"
+#include "ext/mysqli/mysqli_mysqlnd.h"
+#include "ext/mysqli/php_mysqli_structs.h"
+
+static sw_inline void mysql_get_socket(zval *mysql_link, zval *return_value, int *sock TSRMLS_DC)
+{
+    MY_MYSQL *mysql;
+    php_stream *stream;
+    *sock = -1;
+
+#if PHP_MAJOR_VERSION < 7
+    if (Z_TYPE_P(mysql_link) != IS_OBJECT || strcasecmp(Z_OBJCE_P(mysql_link)->name, "mysqli") != 0)
+#else
+    if (Z_TYPE_P(mysql_link) != IS_OBJECT || strcasecmp(Z_OBJCE_P(mysql_link)->name->val, "mysqli") != 0)
+#endif
+    {
+        return;
+    }
+
+#if PHP_MAJOR_VERSION > 5
+    MYSQLI_FETCH_RESOURCE_CONN(mysql, mysql_link, MYSQLI_STATUS_VALID);
+    stream = mysql->mysql->data->net->data->m.get_stream(mysql->mysql->data->net TSRMLS_CC);
+#elif PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION > 4
+    MYSQLI_FETCH_RESOURCE_CONN(mysql, &mysql_link, MYSQLI_STATUS_VALID);
+    stream = mysql->mysql->data->net->data->m.get_stream(mysql->mysql->data->net TSRMLS_CC);
+#else
+    MYSQLI_FETCH_RESOURCE_CONN(mysql, &mysql_link, MYSQLI_STATUS_VALID);
+    stream = mysql->mysql->data->net->stream;
+#endif
+    if (php_stream_cast(stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL, (void* )sock, 1) != SUCCESS || *sock <= 2)
+    {
+        return;
+    }
+}
+
+PHP_FUNCTION(swoole_get_mysqli_sock)
+{
+    zval *mysql_link;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &mysql_link) == FAILURE)
+    {
+        return;
+    }
+
+    int sock = -1;
+    mysql_get_socket(mysql_link, return_value, &sock TSRMLS_CC);
+
+    if (sock <= 0)
+    {
+        RETURN_FALSE;
+    }
+    else
+    {
+        RETURN_LONG(sock);
+    }
 }
 
 #endif

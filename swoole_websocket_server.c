@@ -36,7 +36,6 @@ zend_class_entry swoole_websocket_frame_ce;
 zend_class_entry *swoole_websocket_frame_class_entry_ptr;
 
 static int websocket_handshake(swoole_http_client *client);
-static void sha1(const char *str, int _len, unsigned char *digest);
 static zval* websocket_callbacks[2];
 
 #if PHP_MAJOR_VERSION >= 7
@@ -157,7 +156,7 @@ void swoole_websocket_onReuqest(swoole_http_client *client)
     SwooleG.serv->factory.end(&SwooleG.serv->factory, client->fd);
 }
 
-static void sha1(const char *str, int _len, unsigned char *digest)
+void php_swoole_sha1(const char *str, int _len, unsigned char *digest)
 {
     PHP_SHA1_CTX context;
     PHP_SHA1Init(&context);
@@ -192,7 +191,7 @@ static int websocket_handshake(swoole_http_client *client)
 
     char sha1_str[20];
     bzero(sha1_str, sizeof(sha1_str));
-    sha1(sec_websocket_accept, Z_STRLEN_P(pData) + sizeof(SW_WEBSOCKET_GUID) - 1, (unsigned char *) sha1_str);
+    php_swoole_sha1(sec_websocket_accept, Z_STRLEN_P(pData) + sizeof(SW_WEBSOCKET_GUID) - 1, (unsigned char *) sha1_str);
 
     char encoded_str[50];
     bzero(encoded_str, sizeof(encoded_str));
