@@ -118,22 +118,6 @@ $http->on('request', function ($request, $response) {
 $http->start();
 ```
 
-### Http Client
-
-```php
-$cli = new swoole_http_client('127.0.0.1', 80);
-
-$cli->setHeaders(['User-Agent' => "swoole"]);
-$cli->post('/dump.php', array("test" => '9999999'), function (swoole_http_client $cli)
-{
-    echo "#{$cli->sock}\tPOST response Length: " . strlen($cli->body) . "\n";
-    $cli->get('/index.php', function (swoole_http_client $cli)
-    {
-        echo "#{$cli->sock}\tGET response Length: " . strlen($cli->body) . "\n";
-    });
-});
-```
-
 ### WebSocket Server
 
 ```php
@@ -185,6 +169,39 @@ $client->connect('127.0.0.1', 6379, function (swoole_redis $client, $result) {
     });
 });
 ```
+
+
+### Async http Client
+
+```php
+$cli = new swoole_http_client('127.0.0.1', 80);
+
+$cli->setHeaders(['User-Agent' => "swoole"]);
+$cli->post('/dump.php', array("test" => '9999999'), function (swoole_http_client $cli)
+{
+    echo "#{$cli->sock}\tPOST response Length: " . strlen($cli->body) . "\n";
+    $cli->get('/index.php', function (swoole_http_client $cli)
+    {
+        echo "#{$cli->sock}\tGET response Length: " . strlen($cli->body) . "\n";
+    });
+});
+```
+
+### Async WebSocket Client
+
+```php
+$cli = new swoole_http_client('127.0.0.1', 9501);
+
+$cli->on('message', function ($_cli, $frame) {
+    var_dump($frame);
+});
+
+$cli->upgrade('/', function ($cli) {
+    echo $cli->body;
+    $cli->push("hello world");
+});
+```
+
 
 ### Multi-port and mixed protocol
 
