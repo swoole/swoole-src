@@ -533,49 +533,46 @@ static void http_client_onConnect(swClient *cli)
 }
 
 #if PHP_MAJOR_VERSION < 7
-static inline char* sw_http_build_query(zval *data, zend_size_t *length TSRMLS_DC)
+static inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_str *formstr TSRMLS_DC)
 {
-    smart_str formstr = {0};
-
 #if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION == 3
-    if (php_url_encode_hash_ex(HASH_OF(data), &formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL TSRMLS_CC) == FAILURE)
+    if (php_url_encode_hash_ex(HASH_OF(data), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL TSRMLS_CC) == FAILURE)
 #else
-    if (php_url_encode_hash_ex(HASH_OF(data), &formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738 TSRMLS_CC) == FAILURE)
+    if (php_url_encode_hash_ex(HASH_OF(data), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738 TSRMLS_CC) == FAILURE)
 #endif
     {
-        if (formstr.c)
+        if (formstr->c)
         {
-            smart_str_free(&formstr);
+            smart_str_free(formstr);
         }
         return NULL;
     }
-    if (!formstr.c)
+    if (!formstr->c)
     {
         return NULL;
     }
-    smart_str_0(&formstr);
-    *length = formstr.len;
-    return formstr.c;
+    smart_str_0(formstr);
+    *length = formstr->len;
+    return formstr->c;
 }
 #else
-static inline char* sw_http_build_query(zval *data, zend_size_t *length TSRMLS_DC)
+static inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_str *formstr TSRMLS_DC)
 {
-    smart_str formstr = {0};;
-    if (php_url_encode_hash_ex(HASH_OF(data), &formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738) == FAILURE)
+    if (php_url_encode_hash_ex(HASH_OF(data), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738) == FAILURE)
     {
-        if (formstr.s)
+        if (formstr->s)
         {
-            smart_str_free(&formstr);
+            smart_str_free(formstr);
         }
         return NULL;
     }
-    if (!formstr.s)
+    if (!formstr->s)
     {
         return NULL;
     }
-    smart_str_0(&formstr);
-    *length = formstr.s->len;
-    return formstr.s->val;
+    smart_str_0(formstr);
+    *length = formstr->s->len;
+    return formstr->s->val;
 }
 #endif
 
@@ -724,7 +721,8 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
         {
             zend_size_t len;
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Content-Type"), ZEND_STRL("application/x-www-form-urlencoded"));
-            char *formstr = sw_http_build_query(post_data, &len TSRMLS_CC);
+            smart_str formstr_s = { 0 };
+            char *formstr = sw_http_build_query(post_data, &len, &formstr_s TSRMLS_CC);
             if (formstr == NULL)
             {
                 swoole_php_error(E_WARNING, "http_build_query failed.");
@@ -733,7 +731,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
             n = snprintf(content_length_str, sizeof(content_length_str), "Content-Length: %d\r\n\r\n", len);
             swString_append_ptr(http_client_buffer, content_length_str, n);
             swString_append_ptr(http_client_buffer, formstr, len);
-            efree(formstr);
+            smart_str_free(&formstr_s);
         }
         else
         {
