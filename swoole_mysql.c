@@ -489,6 +489,12 @@ static PHP_METHOD(swoole_mysql, query)
         RETURN_FALSE;
     }
 
+    if (!client->cli)
+    {
+        swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
+        RETURN_FALSE;
+    }
+
     if (client->state != SW_MYSQL_STATE_QUERY)
     {
         swoole_php_fatal_error(E_WARNING, "mysql client is waiting response, cannot send new sql query.");
@@ -579,9 +585,10 @@ static PHP_METHOD(swoole_mysql, close)
 
     zval *retval = NULL;
     zval **args[1];
+    zval *object = getThis();
     if (client->onClose)
     {
-        args[0] = &getThis();
+        args[0] = &object;
         if (sw_call_user_function_ex(EG(function_table), NULL, client->onClose, &retval, 1, args, 0, NULL TSRMLS_CC) != SUCCESS)
         {
             swoole_php_fatal_error(E_WARNING, "swoole_mysql onClose callback error.");
