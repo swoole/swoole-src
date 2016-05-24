@@ -118,6 +118,22 @@ $http->on('request', function ($request, $response) {
 $http->start();
 ```
 
+### Http Client
+
+```php
+$cli = new swoole_http_client('127.0.0.1', 80);
+
+$cli->setHeaders(['User-Agent' => "swoole"]);
+$cli->post('/dump.php', array("test" => '9999999'), function (swoole_http_client $cli)
+{
+    echo "#{$cli->sock}\tPOST response Length: " . strlen($cli->body) . "\n";
+    $cli->get('/index.php', function (swoole_http_client $cli)
+    {
+        echo "#{$cli->sock}\tGET response Length: " . strlen($cli->body) . "\n";
+    });
+});
+```
+
 ### WebSocket Server
 
 ```php
@@ -142,10 +158,15 @@ $ws->start();
 
 ### Real async-mysql client
 ```php
-$db = new mysqli;
-$db->connect('127.0.0.1', 'root', 'root', 'test');
-swoole_mysql_query($db, "show tables", function(mysqli $db, $r) {
-    var_dump($db->_affected_rows, $db->_insert_id, $r);
+$db = new swoole_mysql('127.0.0.1', 'root', 'root', 'test');
+
+$db->on("close", function($o){
+    echo "mysql connection is closed\n";
+});
+
+$db->query("select now() as now_t", function($db, $result_rows){
+    var_dump($result_rows);
+    $db->close();
 });
 ```
 

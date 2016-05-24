@@ -803,6 +803,9 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             if (result)
             {
                 sw_zval_ptr_dtor(&result);
+#if PHP_MAJOR_VERSION > 5
+                efree(result);
+#endif
             }
             //free callback object
             sw_zval_ptr_dtor(&callback);
