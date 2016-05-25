@@ -177,7 +177,6 @@ int swHeap_remove(swHeap *heap, swHeap_node *node)
     {
         swHeap_percolate_down(heap, pos);
     }
-    sw_free(node);
     return SW_OK;
 }
 
