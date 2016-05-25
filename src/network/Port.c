@@ -248,7 +248,7 @@ void swPort_set_protocol(swListenPort *ls)
         {
             ls->protocol.get_package_length = swWebSocket_get_package_length;
             ls->protocol.onPackage = swPort_websocket_onPackage;
-            ls->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN;
+            ls->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
         }
 #ifdef SW_USE_HTTP2
         else if (ls->open_http2_protocol)

@@ -121,22 +121,25 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, void 
  */
 int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swString *buffer)
 {
-    char *recvbuf;
     int ret;
     uint32_t recvbuf_size;
 
-    do_recv: recvbuf = buffer->str + buffer->length;
-    recvbuf_size = buffer->offset > 0 ? buffer->offset - buffer->length : protocol->package_length_offset + protocol->package_length_size;
+    if (conn->recv_wait)
+    {
+        do_recv: ret = swConnection_recv(conn, buffer->str, buffer->offset, 0);
+    }
+    else
+    {
+        recvbuf_size = protocol->package_length_offset + protocol->package_length_size;
+        ret = swConnection_recv(conn, buffer->str, recvbuf_size, MSG_PEEK);
+    }
 
-    assert(recvbuf_size < buffer->size - buffer->length);
-
-    int n = swConnection_recv(conn, recvbuf, recvbuf_size, 0);
-    if (n < 0)
+    if (ret < 0)
     {
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swSysError("recv(%d, %p, %d) failed.", conn->fd, recvbuf, recvbuf_size);
+            swSysError("recv(%d, %d) failed.", conn->fd, recvbuf_size);
             return SW_OK;
         case SW_CLOSE:
             return SW_ERR;
@@ -144,19 +147,18 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
             return SW_OK;
         }
     }
-    else if (n == 0)
+    else if (ret == 0)
     {
         return SW_ERR;
     }
     else
     {
-        buffer->length += n;
-
         if (conn->recv_wait)
         {
+            buffer->length += ret;
             if (buffer->length == buffer->offset)
             {
-                do_package: ret = protocol->onPackage(conn, buffer->str, buffer->length);
+                ret = protocol->onPackage(conn, buffer->str, buffer->length);
                 conn->recv_wait = 0;
                 swString_clear(buffer);
                 return ret;
@@ -168,7 +170,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
         }
         else
         {
-            int package_length = protocol->get_package_length(protocol, conn, buffer->str, buffer->length);
+            int package_length = protocol->get_package_length(protocol, conn, buffer->str, ret);
             //invalid package, close connection.
             if (package_length < 0)
             {
@@ -196,14 +198,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
                 }
                 conn->recv_wait = 1;
                 buffer->offset = package_length;
-                if (buffer->length == package_length)
-                {
-                    goto do_package;
-                }
-                else
-                {
-                    goto do_recv;
-                }
+                goto do_recv;
             }
         }
     }
