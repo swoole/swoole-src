@@ -264,12 +264,11 @@ static inline zval* sw_zend_read_property(zend_class_entry *class_ptr, zval *obj
 
 static inline int sw_zend_is_callable(zval *cb, int a, char **name)
 {
-    zend_string *key;
+    zend_string *key = NULL;
     int ret = zend_is_callable(cb, a, &key);
     char *tmp = (char *)emalloc(key->len);
     memcpy(tmp, key->val, key->len);
     *name = tmp;
-    zend_string_free(key);
     return ret;
 }
 
