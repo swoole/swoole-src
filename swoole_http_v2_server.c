@@ -404,7 +404,7 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
                         if (boundary_len <= 0)
                         {
                             swWarn("invalid multipart/form-data body.", ctx->fd);
-                            return SW_ERR;
+                            return 0;
                         }
                         swoole_http_parse_form_data(ctx, (char*) nv.value + nv.valuelen - boundary_len, boundary_len TSRMLS_CC);
                         ctx->parser.data = ctx;
