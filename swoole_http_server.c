@@ -617,6 +617,11 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
             else if (memcmp(header_name, ZEND_STRL("content-type")) == 0 && strncasecmp(at, ZEND_STRL("multipart/form-data")) == 0)
             {
                 int boundary_len = length - strlen("multipart/form-data; boundary=");
+                if (boundary_len <= 0)
+                {
+                    swWarn("invalid multipart/form-data body.", ctx->fd);
+                    return SW_ERR;
+                }
                 swoole_http_parse_form_data(ctx, at + length - boundary_len, boundary_len TSRMLS_CC);
             }
         }
