@@ -1297,6 +1297,7 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
     else if (http->keep_alive == 0)
     {
         http->cli->close(http->cli);
+        sw_zval_ptr_dtor(&zobject);
     }
     return 0;
 }
