@@ -378,13 +378,12 @@ static void http_client_onClose(swClient *cli)
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
-
-    http_client_execute_callback(cli, SW_HTTP_CLIENT_CALLBACK_onClose);
     zval *zobject = cli->object;
     if (!cli->released)
     {
         http_client_free(zobject TSRMLS_CC);
     }
+    http_client_execute_callback(cli, SW_HTTP_CLIENT_CALLBACK_onClose);
     sw_zval_ptr_dtor(&zobject);
 }
 
@@ -396,11 +395,10 @@ static void http_client_onError(swClient *cli)
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
-
-    http_client_execute_callback(cli, SW_HTTP_CLIENT_CALLBACK_onError);
     zval *zobject = cli->object;
     zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
     http_client_free(zobject TSRMLS_CC);
+    http_client_execute_callback(cli, SW_HTTP_CLIENT_CALLBACK_onError);
     sw_zval_ptr_dtor(&zobject);
 }
 
@@ -1164,7 +1162,7 @@ static int http_response_uncompress(char *body, int length)
     z_stream stream;
     memset(&stream, 0, sizeof(stream));
 
-    if (Z_OK != inflateInit2(&stream, MAX_WBITS+16))
+    if (Z_OK != inflateInit2(&stream, MAX_WBITS + 16))
     {
         swWarn("inflateInit2() failed.");
         return SW_ERR;

@@ -260,12 +260,12 @@ static void client_onClose(swClient *cli)
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
-    client_execute_callback(cli, SW_CLIENT_CALLBACK_onClose);
     zval *zobject = cli->object;
     if (!cli->released)
     {
         php_swoole_client_free(zobject, cli TSRMLS_CC);
     }
+    client_execute_callback(cli, SW_CLIENT_CALLBACK_onClose);
     sw_zval_ptr_dtor(&zobject);
 }
 
@@ -276,8 +276,8 @@ static void client_onError(swClient *cli)
 #endif
     zval *zobject = cli->object;
     zend_update_property_long(swoole_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
-    client_execute_callback(cli, SW_CLIENT_CALLBACK_onError);
     php_swoole_client_free(zobject, cli TSRMLS_CC);
+    client_execute_callback(cli, SW_CLIENT_CALLBACK_onError);
     sw_zval_ptr_dtor(&zobject);
 }
 
