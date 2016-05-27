@@ -100,7 +100,7 @@ static sw_inline void client_free_callback(zval *object)
     swoole_set_property(object, 0, NULL);
 }
 
-static sw_inline void client_execute_callback(swClient *cli, enum client_callback_type type)
+static sw_inline void client_execute_callback(zval *zobject, enum client_callback_type type)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -109,7 +109,6 @@ static sw_inline void client_execute_callback(swClient *cli, enum client_callbac
     zval *callback = NULL;
     zval *retval = NULL;
     zval **args[1];
-    zval *zobject = cli->object;
 
     client_callback *cb = swoole_get_property(zobject, 0);
     char *callback_name;
@@ -252,7 +251,8 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
 
 static void client_onConnect(swClient *cli)
 {
-    client_execute_callback(cli, SW_CLIENT_CALLBACK_onConnect);
+    zval *zobject = cli->object;
+    client_execute_callback(zobject, SW_CLIENT_CALLBACK_onConnect);
 }
 
 static void client_onClose(swClient *cli)
@@ -265,7 +265,7 @@ static void client_onClose(swClient *cli)
     {
         php_swoole_client_free(zobject, cli TSRMLS_CC);
     }
-    client_execute_callback(cli, SW_CLIENT_CALLBACK_onClose);
+    client_execute_callback(zobject, SW_CLIENT_CALLBACK_onClose);
     sw_zval_ptr_dtor(&zobject);
 }
 
@@ -277,7 +277,7 @@ static void client_onError(swClient *cli)
     zval *zobject = cli->object;
     zend_update_property_long(swoole_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
     php_swoole_client_free(zobject, cli TSRMLS_CC);
-    client_execute_callback(cli, SW_CLIENT_CALLBACK_onError);
+    client_execute_callback(zobject, SW_CLIENT_CALLBACK_onError);
     sw_zval_ptr_dtor(&zobject);
 }
 
