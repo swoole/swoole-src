@@ -580,12 +580,7 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_init();
     swoole_server_port_init(module_number TSRMLS_CC);
     swoole_client_init(module_number TSRMLS_CC);
-#ifdef SW_ASYNC_HTTPCLIENT
     swoole_http_client_init(module_number TSRMLS_CC);
-#endif
-#ifdef SW_USE_REDIS
-    swoole_redis_init(module_number TSRMLS_CC);
-#endif
     swoole_async_init(module_number TSRMLS_CC);
     swoole_process_init(module_number TSRMLS_CC);
     swoole_table_init(module_number TSRMLS_CC);
@@ -595,6 +590,10 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_buffer_init(module_number TSRMLS_CC);
     swoole_websocket_init(module_number TSRMLS_CC);
     swoole_mysql_init(module_number TSRMLS_CC);
+
+#ifdef SW_USE_REDIS
+    swoole_redis_init(module_number TSRMLS_CC);
+#endif
 
     if (SWOOLE_G(socket_buffer_size) > 0)
     {
@@ -668,9 +667,7 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef SW_USE_REDIS
     php_info_print_table_row(2, "async redis client", "enabled");
 #endif
-#ifdef SW_ASYNC_HTTPCLIENT
     php_info_print_table_row(2, "async http/websocket client", "enabled");
-#endif
 #ifdef SW_SOCKETS
     php_info_print_table_row(2, "sockets", "enabled");
 #endif

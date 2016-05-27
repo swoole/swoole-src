@@ -225,21 +225,6 @@ extern zend_class_entry *swoole_server_port_class_entry_ptr;
 
 extern zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
 
-#define PHP_MEMORY_DEBUG  0
-
-#if PHP_MEMORY_DEBUG
-typedef struct
-{
-    int new_client;
-    int free_client;
-    int new_http_response;
-    int new_http_request;
-    int free_http_response;
-    int free_http_request;
-} php_vmstat_t;
-extern php_vmstat_t php_vmstat;
-#endif
-
 PHP_MINIT_FUNCTION(swoole);
 PHP_RINIT_FUNCTION(swoole);
 PHP_RSHUTDOWN_FUNCTION(swoole);
@@ -341,9 +326,7 @@ void swoole_table_init(int module_number TSRMLS_DC);
 void swoole_lock_init(int module_number TSRMLS_DC);
 void swoole_atomic_init(int module_number TSRMLS_DC);
 void swoole_client_init(int module_number TSRMLS_DC);
-#ifdef SW_ASYNC_HTTPCLIENT
 void swoole_http_client_init(int module_number TSRMLS_DC);
-#endif
 #ifdef SW_USE_REDIS
 void swoole_redis_init(int module_number TSRMLS_DC);
 #endif

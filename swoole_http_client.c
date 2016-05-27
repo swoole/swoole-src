@@ -16,23 +16,23 @@
 */
 
 #include "php_swoole.h"
+#include "websocket.h"
 #include "thirdparty/php_http_parser.h"
 
 #include "ext/standard/basic_functions.h"
 #include "ext/standard/php_http.h"
 #include "ext/standard/base64.h"
 
-#include "websocket.h"
-
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>
 #endif
 
-#ifdef SW_ASYNC_HTTPCLIENT
-
-extern swString *swoole_zlib_buffer;
-
-static swString *http_client_buffer;
+enum http_client_callback_type
+{
+    SW_HTTP_CLIENT_CALLBACK_onConnect = 1,
+    SW_HTTP_CLIENT_CALLBACK_onError,
+    SW_HTTP_CLIENT_CALLBACK_onClose,
+};
 
 enum http_client_state
 {
@@ -94,6 +94,9 @@ typedef struct
 
 } http_client;
 
+extern swString *swoole_zlib_buffer;
+static swString *http_client_buffer;
+
 static int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length);
 static int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length);
 static int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length);
@@ -107,6 +110,7 @@ static void http_client_onError(swClient *cli);
 static int http_client_error_callback(zval *zobject, swEvent *event, int error TSRMLS_DC);
 static int http_client_send_http_request(zval *zobject TSRMLS_DC);
 static http_client* http_client_create(zval *object TSRMLS_DC);
+static void http_client_free(zval *object TSRMLS_DC);
 static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zval *callback TSRMLS_DC);
 
 static sw_inline void http_client_swString_append_headers(swString* swStr, char* key, zend_size_t key_len, char* data, zend_size_t data_len)
@@ -312,16 +316,13 @@ void swoole_http_client_init(int module_number TSRMLS_DC)
 #endif
 }
 
-/**
- * @zobject: swoole_http_client object
- */
-static void http_client_onClose(swClient *cli)
+static sw_inline void http_client_execute_callback(swClient *cli, enum http_client_callback_type type)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    zval *zcallback = NULL;
+    zval *callback = NULL;
     zval *retval = NULL;
     zval **args[1];
     zval *zobject = cli->object;
@@ -337,14 +338,24 @@ static void http_client_onClose(swClient *cli)
     {
         return;
     }
-    zcallback = hcc->onClose;
-    if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
+
+    char *callback_name;
+    switch(type)
     {
+    case SW_HTTP_CLIENT_CALLBACK_onError:
+        callback = hcc->onError;
+        callback_name = "onError";
+        break;
+    case SW_HTTP_CLIENT_CALLBACK_onClose:
+        callback = hcc->onClose;
+        callback_name = "onClose";
+        break;
+    default:
         return;
     }
 
     args[0] = &zobject;
-    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_http_client->close[1]: onClose handler error");
     }
@@ -357,14 +368,24 @@ static void http_client_onClose(swClient *cli)
     {
         sw_zval_ptr_dtor(&retval);
     }
-    if (EG(exception))
-    {
-        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
-    }
+}
+
+/**
+ * @zobject: swoole_http_client object
+ */
+static void http_client_onClose(swClient *cli)
+{
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+
+    http_client_execute_callback(cli, SW_HTTP_CLIENT_CALLBACK_onClose);
+    zval *zobject = cli->object;
     if (!cli->released)
     {
-        sw_zval_ptr_dtor(&zobject);
+        http_client_free(zobject TSRMLS_CC);
     }
+    sw_zval_ptr_dtor(&zobject);
 }
 
 /**
@@ -376,42 +397,10 @@ static void http_client_onError(swClient *cli)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    zval *retval = NULL;
-    zval **args[1];
+    http_client_execute_callback(cli, SW_HTTP_CLIENT_CALLBACK_onError);
     zval *zobject = cli->object;
-
-    http_client *http = swoole_get_object(zobject);
-    if (!http || !http->cli)
-    {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_http_client.");
-        return;
-    }
-
-    http_client_property *hcc = swoole_get_property(zobject, 0);
-    if (!hcc)
-    {
-        return;
-    }
-
-    zval *zcallback = hcc->onError;
-    if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
-    {
-        swoole_php_fatal_error(E_ERROR, "swoole_client->onError[1]: no error callback.");
-    }
-    args[0] = &zobject;
-    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC)  == FAILURE)
-    {
-        swoole_php_fatal_error(E_ERROR, "swoole_client->onError[2]: call_user_function failed.");
-    }
-    if (EG(exception))
-    {
-        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
-    }
-    //free the callback return value
-    if (retval != NULL)
-    {
-        sw_zval_ptr_dtor(&retval);
-    }
+    zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
+    http_client_free(zobject TSRMLS_CC);
     sw_zval_ptr_dtor(&zobject);
 }
 
@@ -798,10 +787,38 @@ static int http_client_error_callback(zval *zobject, swEvent *event, int error T
     {
         sw_zval_ptr_dtor(&retval);
     }
-    
-    //printf("sw_zval_ptr_dtor(&zobject) on error;\n");
     sw_zval_ptr_dtor(&zobject);
     return SW_OK;
+}
+
+static void http_client_free(zval *object TSRMLS_DC)
+{
+    http_client *http = swoole_get_object(object);
+    if (!http)
+    {
+        return;
+    }
+
+    if (http->uri)
+    {
+        efree(http->uri);
+    }
+    if (http->body)
+    {
+        swString_free(http->body);
+    }
+    if (http->buffer)
+    {
+        swString_free(http->buffer);
+    }
+
+    swClient *cli = http->cli;
+    if (cli)
+    {
+        php_swoole_client_free(object, cli TSRMLS_CC);
+        http->cli = NULL;
+    }
+    efree(http);
 }
 
 static http_client* http_client_create(zval *object TSRMLS_DC)
@@ -911,36 +928,16 @@ static PHP_METHOD(swoole_http_client, __destruct)
     http_client *http = swoole_get_object(getThis());
     if (http)
     {
-        swClient *cli = http->cli;
-        if (cli)
+        zval *zobject = getThis();
+        zval *retval;
+        sw_zend_call_method_with_0_params(&zobject, swoole_http_client_class_entry_ptr, NULL, "close", &retval);
+        if (retval)
         {
-            cli->released = 1;
-            if (cli->socket->closed)
-            {
-                php_swoole_client_free(getThis(), cli TSRMLS_CC);
-            }
-            else if(!cli->keep)
-            {
-                cli->close(cli);
-                php_swoole_client_free(getThis(), cli TSRMLS_CC);
-            }
-            http->cli = NULL;
+            sw_zval_ptr_dtor(&retval);
         }
-        if (http->uri)
-        {
-            efree(http->uri);
-        }
-        if (http->body)
-        {
-            swString_free(http->body);
-        }
-        if (http->buffer)
-        {
-            swString_free(http->buffer);
-        }
-        efree(http);
     }
-
+    //unset object
+    swoole_set_object(getThis(), NULL);
     http_client_property *hcc = swoole_get_property(getThis(), 0);
     efree(hcc);
     swoole_set_property(getThis(), 0, NULL);
@@ -1050,7 +1047,9 @@ static PHP_METHOD(swoole_http_client, close)
     int ret = SW_OK;
     if (!cli->keep || swConnection_error(SwooleG.error) == SW_CLOSE)
     {
+        cli->released = 1;
         ret = cli->close(cli);
+        http_client_free(getThis() TSRMLS_CC);
     }
     SW_CHECK_RETURN(ret);
 }
@@ -1447,5 +1446,3 @@ static PHP_METHOD(swoole_http_client, push)
     swWebSocket_encode(http_client_buffer, data, length, opcode, (int) fin, 0);
     SW_CHECK_RETURN(http->cli->send(http->cli, http_client_buffer->str, http_client_buffer->length, 0));
 }
-
-#endif
