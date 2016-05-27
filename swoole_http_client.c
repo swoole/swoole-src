@@ -316,7 +316,7 @@ void swoole_http_client_init(int module_number TSRMLS_DC)
 #endif
 }
 
-static sw_inline void http_client_execute_callback(swClient *cli, enum http_client_callback_type type)
+static sw_inline void http_client_execute_callback(zval *zobject, enum http_client_callback_type type)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -325,13 +325,6 @@ static sw_inline void http_client_execute_callback(swClient *cli, enum http_clie
     zval *callback = NULL;
     zval *retval = NULL;
     zval **args[1];
-    zval *zobject = cli->object;
-
-    http_client *http = swoole_get_object(zobject);
-    if (!http)
-    {
-        return;
-    }
 
     http_client_property *hcc = swoole_get_property(zobject, 0);
     if (!hcc)
@@ -383,7 +376,7 @@ static void http_client_onClose(swClient *cli)
     {
         http_client_free(zobject TSRMLS_CC);
     }
-    http_client_execute_callback(cli, SW_HTTP_CLIENT_CALLBACK_onClose);
+    http_client_execute_callback(zobject, SW_HTTP_CLIENT_CALLBACK_onClose);
     sw_zval_ptr_dtor(&zobject);
 }
 
@@ -398,7 +391,7 @@ static void http_client_onError(swClient *cli)
     zval *zobject = cli->object;
     zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
     http_client_free(zobject TSRMLS_CC);
-    http_client_execute_callback(cli, SW_HTTP_CLIENT_CALLBACK_onError);
+    http_client_execute_callback(zobject, SW_HTTP_CLIENT_CALLBACK_onError);
     sw_zval_ptr_dtor(&zobject);
 }
 
@@ -1294,8 +1287,12 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
     }
     else if (http->keep_alive == 0)
     {
-        http->cli->close(http->cli);
-        sw_zval_ptr_dtor(&zobject);
+        zval *retval;
+        sw_zend_call_method_with_0_params(&zobject, swoole_http_client_class_entry_ptr, NULL, "close", &retval);
+        if (retval)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
     }
     return 0;
 }
