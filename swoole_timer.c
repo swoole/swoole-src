@@ -323,12 +323,6 @@ PHP_FUNCTION(swoole_timer_clear)
     else
     {
         swTimer_del(&SwooleG.timer, tnode);
-        if (tnode->heap_node)
-        {
-            sw_free(tnode->heap_node);
-        }
-        sw_free(tnode);
-         
         RETURN_TRUE;
     }
 }

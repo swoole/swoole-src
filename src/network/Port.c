@@ -470,7 +470,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             }
             else if (buffer->size == buffer->length)
             {
-                swWarn("http header is too long.");
+                swWarn("[0]http header is too long.");
                 goto close_fd;
             }
             //wait more data
@@ -489,7 +489,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                 {
                     if (buffer->size == buffer->length)
                     {
-                        swWarn("[0]http header is too long.");
+                        swWarn("[1]http header is too long.");
                         goto close_fd;
                     }
                     else
@@ -511,7 +511,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             {
                 if (buffer->size == buffer->length)
                 {
-                    swWarn("[1]http header is too long.");
+                    swWarn("[2]http header is too long.");
                     goto close_fd;
                 }
                 if (swHttpRequest_get_header_length(request) < 0)
