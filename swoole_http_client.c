@@ -927,8 +927,6 @@ static PHP_METHOD(swoole_http_client, __destruct)
             sw_zval_ptr_dtor(&retval);
         }
     }
-    //unset object
-    swoole_set_object(getThis(), NULL);
     http_client_property *hcc = swoole_get_property(getThis(), 0);
     efree(hcc);
     swoole_set_property(getThis(), 0, NULL);
@@ -1041,6 +1039,11 @@ static PHP_METHOD(swoole_http_client, close)
         cli->released = 1;
         ret = cli->close(cli);
         http_client_free(getThis() TSRMLS_CC);
+    }
+    else
+    {
+        //unset object
+        swoole_set_object(getThis(), NULL);
     }
     SW_CHECK_RETURN(ret);
 }
