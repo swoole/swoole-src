@@ -27,13 +27,6 @@
 #include <zlib.h>
 #endif
 
-enum http_client_callback_type
-{
-    SW_HTTP_CLIENT_CALLBACK_onConnect = 1,
-    SW_HTTP_CLIENT_CALLBACK_onError,
-    SW_HTTP_CLIENT_CALLBACK_onClose,
-};
-
 enum http_client_state
 {
     HTTP_CLIENT_STATE_WAIT,
@@ -45,6 +38,7 @@ enum http_client_state
 
 typedef struct
 {
+    zval *onConnect;
     zval *onError;
     zval *onClose;
     zval *onMessage;
@@ -316,7 +310,7 @@ void swoole_http_client_init(int module_number TSRMLS_DC)
 #endif
 }
 
-static sw_inline void http_client_execute_callback(zval *zobject, enum http_client_callback_type type)
+static sw_inline void http_client_execute_callback(zval *zobject, enum php_swoole_client_callback_type type)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -335,11 +329,15 @@ static sw_inline void http_client_execute_callback(zval *zobject, enum http_clie
     char *callback_name;
     switch(type)
     {
-    case SW_HTTP_CLIENT_CALLBACK_onError:
+    case SW_CLIENT_CB_onConnect:
+        callback = hcc->onConnect;
+        callback_name = "onConnect";
+        break;
+    case SW_CLIENT_CB_onError:
         callback = hcc->onError;
         callback_name = "onError";
         break;
-    case SW_HTTP_CLIENT_CALLBACK_onClose:
+    case SW_CLIENT_CB_onClose:
         callback = hcc->onClose;
         callback_name = "onClose";
         break;
@@ -376,8 +374,7 @@ static void http_client_onClose(swClient *cli)
     {
         http_client_free(zobject TSRMLS_CC);
     }
-    http_client_execute_callback(zobject, SW_HTTP_CLIENT_CALLBACK_onClose);
-    sw_zval_ptr_dtor(&zobject);
+    http_client_execute_callback(zobject, SW_CLIENT_CB_onClose);
 }
 
 /**
@@ -391,8 +388,7 @@ static void http_client_onError(swClient *cli)
     zval *zobject = cli->object;
     zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
     http_client_free(zobject TSRMLS_CC);
-    http_client_execute_callback(zobject, SW_HTTP_CLIENT_CALLBACK_onError);
-    sw_zval_ptr_dtor(&zobject);
+    http_client_execute_callback(zobject, SW_CLIENT_CB_onError);
 }
 
 static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
@@ -506,6 +502,7 @@ static void http_client_onConnect(swClient *cli)
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_http_client.");
         return;
     }
+    http_client_execute_callback(zobject, SW_CLIENT_CB_onConnect);
     //send http request on write
     http_client_send_http_request(zobject TSRMLS_CC);
 }
@@ -1066,6 +1063,12 @@ static PHP_METHOD(swoole_http_client, on)
         hcc->onError = sw_zend_read_property(swoole_http_client_class_entry_ptr,  getThis(), ZEND_STRL("onError"), 0 TSRMLS_CC);
         sw_copy_to_stack(hcc->onError, hcc->_onError);
     }
+    else if (strncasecmp("connect", cb_name, cb_name_len) == 0)
+    {
+        zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("onConnect"), zcallback TSRMLS_CC);
+        hcc->onConnect = sw_zend_read_property(swoole_http_client_class_entry_ptr,  getThis(), ZEND_STRL("onConnect"), 0 TSRMLS_CC);
+        sw_copy_to_stack(hcc->onConnect, hcc->_onConnect);
+    }
     else if (strncasecmp("close", cb_name, cb_name_len) == 0)
     {
         zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("onClose"), zcallback TSRMLS_CC);
@@ -1290,7 +1293,6 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
     }
     else if (http->keep_alive == 0)
     {
-        zval *retval;
         sw_zend_call_method_with_0_params(&zobject, swoole_http_client_class_entry_ptr, NULL, "close", &retval);
         if (retval)
         {

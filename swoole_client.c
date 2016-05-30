@@ -35,14 +35,6 @@ typedef struct
 
 } client_callback;
 
-enum client_callback_type
-{
-    SW_CLIENT_CALLBACK_onConnect = 1,
-    SW_CLIENT_CALLBACK_onReceive,
-    SW_CLIENT_CALLBACK_onError,
-    SW_CLIENT_CALLBACK_onClose,
-};
-
 static PHP_METHOD(swoole_client, __construct);
 static PHP_METHOD(swoole_client, __destruct);
 static PHP_METHOD(swoole_client, set);
@@ -100,7 +92,7 @@ static sw_inline void client_free_callback(zval *object)
     swoole_set_property(object, 0, NULL);
 }
 
-static sw_inline void client_execute_callback(zval *zobject, enum client_callback_type type)
+static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_client_callback_type type)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -115,15 +107,15 @@ static sw_inline void client_execute_callback(zval *zobject, enum client_callbac
 
     switch(type)
     {
-    case SW_CLIENT_CALLBACK_onConnect:
+    case SW_CLIENT_CB_onConnect:
         callback = cb->onConnect;
         callback_name = "onConnect";
         break;
-    case SW_CLIENT_CALLBACK_onError:
+    case SW_CLIENT_CB_onError:
         callback = cb->onError;
         callback_name = "onError";
         break;
-    case SW_CLIENT_CALLBACK_onClose:
+    case SW_CLIENT_CB_onClose:
         callback = cb->onClose;
         callback_name = "onClose";
         break;
@@ -252,7 +244,7 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
 static void client_onConnect(swClient *cli)
 {
     zval *zobject = cli->object;
-    client_execute_callback(zobject, SW_CLIENT_CALLBACK_onConnect);
+    client_execute_callback(zobject, SW_CLIENT_CB_onConnect);
 }
 
 static void client_onClose(swClient *cli)
@@ -265,8 +257,7 @@ static void client_onClose(swClient *cli)
     {
         php_swoole_client_free(zobject, cli TSRMLS_CC);
     }
-    client_execute_callback(zobject, SW_CLIENT_CALLBACK_onClose);
-    sw_zval_ptr_dtor(&zobject);
+    client_execute_callback(zobject, SW_CLIENT_CB_onClose);
 }
 
 static void client_onError(swClient *cli)
@@ -277,8 +268,7 @@ static void client_onError(swClient *cli)
     zval *zobject = cli->object;
     zend_update_property_long(swoole_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
     php_swoole_client_free(zobject, cli TSRMLS_CC);
-    client_execute_callback(zobject, SW_CLIENT_CALLBACK_onError);
-    sw_zval_ptr_dtor(&zobject);
+    client_execute_callback(zobject, SW_CLIENT_CB_onError);
 }
 
 static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
@@ -571,6 +561,7 @@ void php_swoole_client_free(zval *object, swClient *cli TSRMLS_DC)
         swClient_free(cli);
         efree(cli);
     }
+    Z_DELREF_P(object);
     //unset object
     swoole_set_object(object, NULL);
 }
