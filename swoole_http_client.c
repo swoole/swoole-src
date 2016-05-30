@@ -50,6 +50,7 @@ typedef struct
     zval _request_header;
     zval _cookies;
     zval _onResponse;
+    zval _onConnect;
     zval _onError;
     zval _onClose;
     zval _onMessage;
