@@ -1155,12 +1155,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
             return swoole_websocket_onHandshake(client);
         }
 
-#if PHP_MEMORY_DEBUG
-        php_vmstat.new_http_response++;
-#endif
-
 #ifdef __CYGWIN__
-        //TODO: memory error on cygwin.
         zval_add_ref(&zrequest_object);
         zval_add_ref(&zresponse_object);
 #endif
@@ -1650,6 +1645,7 @@ static PHP_METHOD(swoole_http_server, start)
         SW_MAKE_STD_ZVAL(zsetting);
         array_init(zsetting);
         zend_update_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting"), zsetting TSRMLS_CC);
+        sw_zval_ptr_dtor(&zsetting);
     }
 
     add_assoc_bool(zsetting, "open_http_protocol", 1);

@@ -542,7 +542,7 @@ void php_swoole_check_reactor()
     SwooleWG.reactor_init = 1;
 }
 
-void php_swoole_client_free(zval *object, swClient *cli TSRMLS_DC)
+void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
 {
     //long tcp connection, delete from php_sw_long_connections
     if (cli->keep)
@@ -561,9 +561,9 @@ void php_swoole_client_free(zval *object, swClient *cli TSRMLS_DC)
         swClient_free(cli);
         efree(cli);
     }
-    Z_DELREF_P(object);
+    sw_zval_ptr_dtor(&zobject);
     //unset object
-    swoole_set_object(object, NULL);
+    swoole_set_object(zobject, NULL);
 }
 
 swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port)

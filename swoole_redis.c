@@ -141,12 +141,8 @@ static PHP_METHOD(swoole_redis, __construct)
     swRedisClient *redis = emalloc(sizeof(swRedisClient));
     bzero(redis, sizeof(swRedisClient));
 
-#if PHP_MAJOR_VERSION < 7
     redis->object = getThis();
-#else
-    redis->object = &redis->_object;
-    memcpy(redis->object, getThis(), sizeof(zval));
-#endif
+    sw_copy_to_stack( redis->object, redis->_object);
 
     swoole_set_object(getThis(), redis);
 }
@@ -297,6 +293,12 @@ static PHP_METHOD(swoole_redis, __call)
     }
 
     swRedisClient *redis = swoole_get_object(getThis());
+    if (!redis)
+    {
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_redis.");
+        RETURN_FALSE;
+    }
+
     switch (redis->state)
     {
     case SWOOLE_REDIS_STATE_CONNECT:
@@ -546,13 +548,10 @@ static void swoole_redis_onResult(redisAsyncContext *c, void *r, void *privdata)
         sw_zval_ptr_dtor(&retval);
     }
     sw_zval_ptr_dtor(&result);
-
-#if PHP_MAJOR_VERSION < 7
     if (redis->state == SWOOLE_REDIS_STATE_READY)
     {
         sw_zval_ptr_dtor(&callback);
     }
-#endif
 }
 
 void swoole_redis_onConnect(const redisAsyncContext *c, int status)
@@ -618,6 +617,7 @@ void swoole_redis_onClose(const redisAsyncContext *c, int status)
             sw_zval_ptr_dtor(&retval);
         }
     }
+    swoole_set_object(redis->object, redis);
     sw_zval_ptr_dtor(&redis->object);
 }
 
@@ -688,7 +688,10 @@ static void swoole_redis_event_Cleanup(void *privdata)
 {
     swRedisClient *redis = (swRedisClient*) privdata;
     redis->state = SWOOLE_REDIS_STATE_CLOSED;
-    SwooleG.main_reactor->del(SwooleG.main_reactor, redis->context->c.fd);
+    if (SwooleG.main_reactor)
+    {
+        SwooleG.main_reactor->del(SwooleG.main_reactor, redis->context->c.fd);
+    }
 }
 
 static int swoole_redis_onRead(swReactor *reactor, swEvent *event)
