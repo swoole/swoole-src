@@ -346,6 +346,11 @@ static sw_inline void http_client_execute_callback(zval *zobject, enum php_swool
         return;
     }
 
+    if (!callback || ZVAL_IS_NULL(callback))
+    {
+        return;
+    }
+
     args[0] = &zobject;
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
