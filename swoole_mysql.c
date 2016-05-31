@@ -45,6 +45,7 @@ static const zend_function_entry swoole_mysql_methods[] =
 
 static int mysql_request(swString *sql, swString *buffer);
 static int mysql_handshake(mysql_connector *connector, char *buf, int len);
+static int mysql_get_result(mysql_connector *connector, char *buf, int len);
 
 #ifdef SW_MYSQL_DEBUG
 static void mysql_client_info(mysql_client *client);
@@ -76,6 +77,30 @@ static int mysql_request(swString *sql, swString *buffer)
     return swString_append(buffer, sql);
 }
 
+static int mysql_get_result(mysql_connector *connector, char *buf, int len)
+{
+    char *tmp = buf;
+    int packet_length = mysql_uint3korr(tmp);
+    int packet_number = tmp[3];
+    tmp += 4;
+
+    uint8_t opcode = *tmp;
+    tmp += 1;
+
+    //ERROR Packet
+    if (opcode == 0xff)
+    {
+        connector->error_code = *(uint16_t *) tmp;
+        connector->error_msg = tmp + 2;
+        connector->error_length = packet_length - 3;
+        return SW_ERR;
+    }
+    else
+    {
+        return SW_OK;
+    }
+}
+
 static int mysql_handshake(mysql_connector *connector, char *buf, int len)
 {
     char *tmp = buf;
@@ -98,7 +123,6 @@ static int mysql_handshake(mysql_connector *connector, char *buf, int len)
         connector->error_code = *(uint16_t *) tmp;
         connector->error_msg = tmp + 2;
         connector->error_length = request.packet_length - 3;
-        printf("error\n");
         return SW_ERR;
     }
 
@@ -510,6 +534,7 @@ static PHP_METHOD(swoole_mysql, connect)
 
     if (mysql_handshake(&connector, buf, n) == SW_ERR)
     {
+        connect_fail:
         zend_update_property_long(swoole_mysql_class_entry_ptr, getThis(), ZEND_STRL("errno"), connector.error_code TSRMLS_CC);
         zend_update_property_stringl(swoole_mysql_class_entry_ptr, getThis(), ZEND_STRL("error"), connector.error_msg, connector.error_length TSRMLS_CC);
         RETURN_FALSE;
@@ -525,6 +550,11 @@ static PHP_METHOD(swoole_mysql, connect)
     {
         zend_throw_exception(swoole_mysql_exception_class_entry, "recvfrom mysql server failed.", 6 TSRMLS_CC);
         RETURN_FALSE;
+    }
+
+    if (mysql_get_result(&connector, buf, n) == SW_ERR)
+    {
+        goto connect_fail;
     }
 
     mysql_client *client = swoole_get_object(getThis());
