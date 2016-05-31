@@ -248,7 +248,7 @@ void swPort_set_protocol(swListenPort *ls)
         {
             ls->protocol.get_package_length = swWebSocket_get_package_length;
             ls->protocol.onPackage = swPort_websocket_onPackage;
-            ls->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN + sizeof(uint64_t);
+            ls->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
         }
 #ifdef SW_USE_HTTP2
         else if (ls->open_http2_protocol)
@@ -325,20 +325,17 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
 
 static int swPort_onRead_check_length(swReactor *reactor, swListenPort *port, swEvent *event)
 {
+    swServer *serv = reactor->ptr;
     swConnection *conn = event->socket;
     swProtocol *protocol = &port->protocol;
 
-    if (conn->object == NULL)
+    swString *buffer = swServer_get_buffer(serv, event->fd);
+    if (!buffer)
     {
-        conn->object = swString_new(SW_BUFFER_SIZE_BIG);
-        //alloc memory failed.
-        if (!conn->object)
-        {
-            return SW_ERR;
-        }
+        return SW_ERR;
     }
 
-    if (swProtocol_recv_check_length(protocol, conn, conn->object) < 0)
+    if (swProtocol_recv_check_length(protocol, conn, buffer) < 0)
     {
         swTrace("Close Event.FD=%d|From=%d", event->fd, event->from_id);
         swReactorThread_onClose(reactor, event);
@@ -473,7 +470,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             }
             else if (buffer->size == buffer->length)
             {
-                swWarn("http header is too long.");
+                swWarn("[0]http header is too long.");
                 goto close_fd;
             }
             //wait more data
@@ -492,7 +489,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                 {
                     if (buffer->size == buffer->length)
                     {
-                        swWarn("http header is too long.");
+                        swWarn("[1]http header is too long.");
                         goto close_fd;
                     }
                     else
@@ -514,7 +511,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             {
                 if (buffer->size == buffer->length)
                 {
-                    swWarn("http header is too long.");
+                    swWarn("[2]http header is too long.");
                     goto close_fd;
                 }
                 if (swHttpRequest_get_header_length(request) < 0)
@@ -609,15 +606,12 @@ static int swPort_onRead_check_eof(swReactor *reactor, swListenPort *port, swEve
 {
     swConnection *conn = event->socket;
     swProtocol *protocol = &port->protocol;
+    swServer *serv = reactor->ptr;
 
-    if (conn->object == NULL)
+    swString *buffer = swServer_get_buffer(serv, event->fd);
+    if (!buffer)
     {
-        conn->object = swString_new(SW_BUFFER_SIZE);
-        //alloc memory failed.
-        if (!conn->object)
-        {
-            return SW_ERR;
-        }
+        return SW_ERR;
     }
 
     if (swProtocol_recv_check_eof(protocol, conn, conn->object) < 0)

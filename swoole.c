@@ -220,16 +220,9 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_strerror, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 #ifdef SW_ASYNC_MYSQL
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_query, 0, 0, 3)
-    ZEND_ARG_INFO(0, db_link)
-    ZEND_ARG_INFO(0, sql)
-    ZEND_ARG_INFO(0, callback)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_get_mysqli_sock, 0, 0, 1)
     ZEND_ARG_INFO(0, db_link)
 ZEND_END_ARG_INFO()
-
 #endif
 
 //arginfo end
@@ -267,7 +260,6 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_errno, arginfo_swoole_void)
     /*------async mysql-----*/
 #ifdef SW_ASYNC_MYSQL
-    PHP_FE(swoole_mysql_query, arginfo_swoole_mysql_query)
     PHP_FE(swoole_get_mysqli_sock, arginfo_swoole_get_mysqli_sock)
 #endif
     PHP_FE_END /* Must be the last line in swoole_functions[] */
@@ -588,12 +580,7 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_init();
     swoole_server_port_init(module_number TSRMLS_CC);
     swoole_client_init(module_number TSRMLS_CC);
-#ifdef SW_ASYNC_HTTPCLIENT
     swoole_http_client_init(module_number TSRMLS_CC);
-#endif
-#ifdef SW_USE_REDIS
-    swoole_redis_init(module_number TSRMLS_CC);
-#endif
     swoole_async_init(module_number TSRMLS_CC);
     swoole_process_init(module_number TSRMLS_CC);
     swoole_table_init(module_number TSRMLS_CC);
@@ -602,9 +589,10 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_http_server_init(module_number TSRMLS_CC);
     swoole_buffer_init(module_number TSRMLS_CC);
     swoole_websocket_init(module_number TSRMLS_CC);
-
-#ifdef SW_ASYNC_MYSQL
     swoole_mysql_init(module_number TSRMLS_CC);
+
+#ifdef SW_USE_REDIS
+    swoole_redis_init(module_number TSRMLS_CC);
 #endif
 
     if (SWOOLE_G(socket_buffer_size) > 0)
@@ -679,9 +667,7 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef SW_USE_REDIS
     php_info_print_table_row(2, "async redis client", "enabled");
 #endif
-#ifdef SW_ASYNC_HTTPCLIENT
     php_info_print_table_row(2, "async http/websocket client", "enabled");
-#endif
 #ifdef SW_SOCKETS
     php_info_print_table_row(2, "sockets", "enabled");
 #endif

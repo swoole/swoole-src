@@ -82,6 +82,10 @@ zend_class_entry *swoole_http_request_class_entry_ptr;
 
 zval* php_sw_http_server_callbacks[HTTP_SERVER_CALLBACK_NUM];
 
+#if PHP_MAJOR_VERSION >= 7
+zval _php_sw_http_server_callbacks[HTTP_SERVER_CALLBACK_NUM];
+#endif
+
 static int http_onReceive(swServer *serv, swEventData *req);
 static void http_onClose(swServer *serv, swDataHead *info);
 
@@ -613,6 +617,11 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
             else if (memcmp(header_name, ZEND_STRL("content-type")) == 0 && strncasecmp(at, ZEND_STRL("multipart/form-data")) == 0)
             {
                 int boundary_len = length - strlen("multipart/form-data; boundary=");
+                if (boundary_len <= 0)
+                {
+                    swWarn("invalid multipart/form-data body.", ctx->fd);
+                    return 0;
+                }
                 swoole_http_parse_form_data(ctx, at + length - boundary_len, boundary_len TSRMLS_CC);
             }
         }
@@ -1023,10 +1032,6 @@ static void http_onClose(swServer *serv, swDataHead *info)
     }
 }
 
-#ifdef SW_USE_HTTP2
-
-#endif
-
 static int http_onReceive(swServer *serv, swEventData *req)
 {
     int fd = req->info.fd;
@@ -1150,12 +1155,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
             return swoole_websocket_onHandshake(client);
         }
 
-#if PHP_MEMORY_DEBUG
-        php_vmstat.new_http_response++;
-#endif
-
 #ifdef __CYGWIN__
-        //TODO: memory error on cygwin.
         zval_add_ref(&zrequest_object);
         zval_add_ref(&zresponse_object);
 #endif
@@ -1249,17 +1249,18 @@ static PHP_METHOD(swoole_http_server, on)
         RETURN_FALSE;
     }
     efree(func_name);
-    sw_zval_add_ref(&callback);
 
     if (strncasecmp("request", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
         zend_update_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onRequest"), callback TSRMLS_CC);
         php_sw_http_server_callbacks[0] = sw_zend_read_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onRequest"), 0 TSRMLS_CC);
+        sw_copy_to_stack(php_sw_http_server_callbacks[0], _php_sw_http_server_callbacks[0]);
     }
     else if (strncasecmp("handshake", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
         zend_update_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onHandshake"), callback TSRMLS_CC);
         php_sw_http_server_callbacks[1] = sw_zend_read_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onHandshake"), 0 TSRMLS_CC);
+        sw_copy_to_stack(php_sw_http_server_callbacks[1], _php_sw_http_server_callbacks[1]);
     }
     else
     {
@@ -1644,6 +1645,7 @@ static PHP_METHOD(swoole_http_server, start)
         SW_MAKE_STD_ZVAL(zsetting);
         array_init(zsetting);
         zend_update_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting"), zsetting TSRMLS_CC);
+        sw_zval_ptr_dtor(&zsetting);
     }
 
     add_assoc_bool(zsetting, "open_http_protocol", 1);

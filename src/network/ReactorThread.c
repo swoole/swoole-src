@@ -275,8 +275,11 @@ int swReactorThread_close(swReactor *reactor, int fd)
         return SW_ERR;
     }
 
-    assert(fd % serv->reactor_num == reactor->id);
-    assert(fd % serv->reactor_num == SwooleTG.id);
+    if (serv->factory_mode == SW_MODE_PROCESS)
+    {
+        assert(fd % serv->reactor_num == reactor->id);
+        assert(fd % serv->reactor_num == SwooleTG.id);
+    }
 
     sw_atomic_fetch_add(&SwooleStats->close_count, 1);
     sw_atomic_fetch_sub(&SwooleStats->connection_num, 1);
@@ -290,32 +293,13 @@ int swReactorThread_close(swReactor *reactor, int fd)
     }
 #endif
 
-    swListenPort *port = swServer_get_port(serv, fd);
+    //free the receive memory buffer
+    swServer_free_buffer(serv, fd);
 
-    //clear output buffer
-    if (port->open_eof_check || port->open_length_check)
+    swListenPort *port = swServer_get_port(serv, fd);
+    if (port->open_http_protocol && conn->object)
     {
-        if (conn->object)
-        {
-            swString_free(conn->object);
-            conn->object = NULL;
-        }
-    }
-    else if (port->open_http_protocol)
-    {
-        if (conn->object)
-        {
-            if (conn->http_upgrade)
-            {
-                swString_free(conn->object);
-                conn->websocket_status = 0;
-                conn->object = NULL;
-            }
-            else
-            {
-                swHttpRequest_free(conn);
-            }
-        }
+        swHttpRequest_free(conn);
     }
 
 #if 0
@@ -465,6 +449,8 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
 int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
 {
     swServer *serv = SwooleG.serv;
+
+    assert(target_worker_id < serv->worker_num);
 
     int ret = -1;
     swWorker *worker = &(serv->workers[target_worker_id]);
@@ -1449,4 +1435,3 @@ void swReactorThread_free(swServer *serv)
         }
     }
 }
-

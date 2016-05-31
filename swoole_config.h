@@ -244,4 +244,8 @@
 #define SW_WEBSOCKET_VERSION             "13"
 #define SW_WEBSOCKET_KEY_LENGTH          16
 
+#define SW_MYSQL_QUERY_INIT_SIZE         8192
+#define SW_MYSQL_DEFAULT_PORT            3306
+#define SW_MYSQL_CONNECT_TIMEOUT         1.0
+
 #endif /* SWOOLE_CONFIG_H_ */

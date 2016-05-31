@@ -16,6 +16,7 @@
 
 #include "swoole.h"
 #include "websocket.h"
+#include "Connection.h"
 #include <sys/time.h>
 
 /*  The following is websocket data frame:
@@ -57,19 +58,34 @@ int swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, cha
     //uint16_t, 2byte
     if (payload_length == 0x7e)
     {
+        if (length < 4)
+        {
+            return 0;
+        }
         payload_length = ntohs(*((uint16_t *) buf));
-        header_length += 2;
+        header_length += sizeof(uint16_t);
+        buf += sizeof(uint16_t);
     }
     //uint64_t, 8byte
     else if (payload_length > 0x7e)
     {
+        if (length < 10)
+        {
+            return 0;
+        }
         payload_length = swoole_ntoh64(*((uint64_t *) buf));
-        header_length += 8;
+        header_length += sizeof(uint64_t);
+        buf += sizeof(uint64_t);
     }
     if (mask)
     {
+        if (length < header_length + 4)
+        {
+            return 0;
+        }
         header_length += SW_WEBSOCKET_MASK_LEN;
     }
+    swTrace("header_length=%d, payload_length=%d", header_length, payload_length);
     return header_length + payload_length;
 }
 

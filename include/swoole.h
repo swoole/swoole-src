@@ -362,6 +362,8 @@ typedef struct _swString
     char *str;
 } swString;
 
+typedef void* swObject;
+
 typedef struct _swLinkedList_node
 {
     struct _swLinkedList_node *prev;
@@ -389,6 +391,7 @@ typedef struct
     } addr;
     socklen_t len;
 } swSocketAddress;
+
 
 typedef struct _swConnection
 {
@@ -487,6 +490,11 @@ typedef struct _swConnection
     struct _swBuffer *out_buffer;
 
     /**
+     * for receive data buffer
+     */
+    swString *recv_buffer;
+
+    /**
      * connect time(seconds)
      */
     time_t connect_time;
@@ -551,6 +559,12 @@ static sw_inline void swString_clear(swString *str)
 {
     str->length = 0;
     str->offset = 0;
+}
+
+static sw_inline void swString_free(swString *str)
+{
+    sw_free(str->str);
+    sw_free(str);
 }
 
 swString *swString_new(size_t size);
@@ -670,6 +684,7 @@ typedef struct _swMsgQueue
 int swMsgQueue_create(swMsgQueue *q, int wait, key_t msg_key, long type);
 int swMsgQueue_push(swMsgQueue *p, swQueue_data *in, int data_length);
 int swMsgQueue_pop(swMsgQueue *p, swQueue_data *out, int buffer_length);
+int swMsgQueue_stat(swMsgQueue *q, int *queue_num, int *queue_bytes);
 void swMsgQueue_free(swMsgQueue *p);
 
 //------------------Lock--------------------------------------
@@ -1118,8 +1133,8 @@ static sw_inline uint64_t swoole_ntoh64(uint64_t net)
     return ret;
 }
 
-int swSocket_bind(int type, char *host, int port);
 int swSocket_create(int type);
+int swSocket_bind(int sock, int type, char *host, int port);
 int swSocket_wait(int fd, int timeout_ms, int events);
 void swSocket_clean(int fd);
 int swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);

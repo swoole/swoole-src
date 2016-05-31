@@ -44,6 +44,12 @@ enum swWebsocketStatus
     WEBSOCKET_STATUS_ACTIVE = 3,
 };
 
+enum websocket_callback
+{
+    WEBSOCKET_CALLBACK_onOpen = 0,
+    WEBSOCKET_CALLBACK_onMessage,
+};
+
 typedef struct
 {
     /**

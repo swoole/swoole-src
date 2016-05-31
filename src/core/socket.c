@@ -239,27 +239,21 @@ int swSocket_create(int type)
         _type = SOCK_STREAM;
         break;
     default:
-        swError("unknow socket type [%d]", type);
+        swWarn("unknown socket type [%d]", type);
         return SW_ERR;
     }
     return socket(_domain, _type, 0);
 }
 
-int swSocket_bind(int type, char *host, int port)
+int swSocket_bind(int sock, int type, char *host, int port)
 {
-    int sock;
     int ret;
 
     struct sockaddr_in addr_in4;
     struct sockaddr_in6 addr_in6;
     struct sockaddr_un addr_un;
 
-    sock = swSocket_create(type);
-    if (sock < 0)
-    {
-        swSysError("create socket failed.");
-        return SW_ERR;
-    }
+    //SO_REUSEADDR option
     int option = 1;
     if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0)
     {
@@ -298,12 +292,7 @@ int swSocket_bind(int type, char *host, int port)
         swWarn("bind(%s:%d) failed. Error: %s [%d]", host, port, strerror(errno), errno);
         return SW_ERR;
     }
-    if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM)
-    {
-        return sock;
-    }
-    swSetNonBlock(sock);
-    return sock;
+    return ret;
 }
 
 int swSocket_set_buffer_size(int fd, int buffer_size)
