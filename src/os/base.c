@@ -200,7 +200,6 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
         ret = pread(event->fd, event->buf, event->nbytes, event->offset);
         break;
     case SW_AIO_DNS_LOOKUP:
-
         ret = swoole_gethostbyname(AF_INET, event->buf, (char *) &addr);
         if (ret < 0)
         {

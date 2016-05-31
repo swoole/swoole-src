@@ -717,8 +717,35 @@ PHP_FUNCTION(swoole_async_dns_lookup)
         RETURN_FALSE;
     }
 
-    dns_request *req = emalloc(sizeof(dns_request));
+    struct in_addr addr;
+    //hit the dns lookup cache
+    if (swoole_gethostbyname(AF_INET | SW_DNS_LOOKUP_CACHE_ONLY | SW_DNS_LOOKUP_RANDOM, Z_STRVAL_P(domain), (char *) &addr) == SW_OK)
+    {
+        zval **args[2];
+        zval *zcontent;
+        zval *retval;
 
+        char *ip_addr = inet_ntoa(addr);
+        SW_MAKE_STD_ZVAL(zcontent);
+        SW_ZVAL_STRING(zcontent, ip_addr, 1);
+
+        args[0] = &domain;
+        args[1] = &zcontent;
+        if (sw_call_user_function_ex(EG(function_table), NULL, cb, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+        {
+            swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete handler error");
+            return;
+        }
+        if (retval)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
+        sw_zval_ptr_dtor(&cb);
+        sw_zval_ptr_dtor(&zcontent);
+        return;
+    }
+
+    dns_request *req = emalloc(sizeof(dns_request));
 #if PHP_MAJOR_VERSION >= 7
     req->callback = &req->_callback;
     req->domain = &req->_domain;

@@ -704,6 +704,12 @@ enum SW_LOCKS
 #define SW_ATOMLOCK SW_ATOMLOCK
 };
 
+enum swDNSLookup_cache_type
+{
+    SW_DNS_LOOKUP_CACHE_ONLY =  (1u << 10),
+    SW_DNS_LOOKUP_RANDOM  = (1u << 11),
+};
+
 //文件锁
 typedef struct _swFileLock
 {

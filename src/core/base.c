@@ -27,9 +27,13 @@
 
 typedef struct
 {
-    int length;
-    char addr[0];
-
+    int number;
+    int addr_length;
+    union
+    {
+        struct in_addr v4;
+        struct in6_addr v6;
+    } addr[SW_DNS_LOOKUP_CACHE_SIZE];
 } swDNS_cache;
 
 static swHashMap *swoole_dns_cache_v4 = NULL;
@@ -819,61 +823,98 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
     return match;
 }
 
-int swoole_gethostbyname(int type, char *name, char *addr)
+/**
+ * DNS lookup
+ */
+int swoole_gethostbyname(int flags, char *name, char *addr)
 {
     SwooleGS->lock.lock(&SwooleGS->lock);
-    swHashMap *dns_cache;
-    if (type == AF_INET)
+    swHashMap *cache_table;
+
+    int __af = flags & (~SW_DNS_LOOKUP_CACHE_ONLY) & (~SW_DNS_LOOKUP_RANDOM);
+    if (__af == AF_INET)
     {
         if (!swoole_dns_cache_v4)
         {
             swoole_dns_cache_v4 = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
         }
-        dns_cache = swoole_dns_cache_v4;
+        cache_table = swoole_dns_cache_v4;
     }
-    else if (type == AF_INET6)
+    else if (__af == AF_INET6)
     {
         if (!swoole_dns_cache_v6)
         {
             swoole_dns_cache_v6 = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
         }
-        dns_cache = swoole_dns_cache_v6;
+        cache_table = swoole_dns_cache_v6;
     }
     else
     {
-        swWarn("unknown socket domain family.");
+        SwooleGS->lock.unlock(&SwooleGS->lock);
         return SW_ERR;
     }
 
-    struct hostent *host_entry;
+
     int name_length = strlen(name);
-    swDNS_cache *cache = swHashMap_find(dns_cache, name, name_length);
+    int index = 0;
+    swDNS_cache *cache = swHashMap_find(cache_table, name, name_length);
+    if (cache == NULL && (flags & SW_DNS_LOOKUP_CACHE_ONLY))
+    {
+        SwooleGS->lock.unlock(&SwooleGS->lock);
+        return SW_ERR;
+    }
+
     if (cache == NULL)
     {
-        if (!(host_entry = gethostbyname2(name, type)))
+        struct hostent *host_entry;
+        if (!(host_entry = gethostbyname2(name, __af)))
         {
             SwooleGS->lock.unlock(&SwooleGS->lock);
-            swWarn("gethostbyname('%s') failed.", name);
             return SW_ERR;
         }
-        cache = sw_malloc(sizeof(int) + host_entry->h_length);
+
+        cache = sw_malloc(sizeof(swDNS_cache));
         if (cache == NULL)
         {
             SwooleGS->lock.unlock(&SwooleGS->lock);
-            swWarn("malloc() failed.");
             memcpy(addr, host_entry->h_addr_list[0], host_entry->h_length);
             return SW_OK;
         }
-        else
-        {
-            memcpy(cache->addr, host_entry->h_addr_list[0], host_entry->h_length);
-            cache->length = host_entry->h_length;
-        }
-        swHashMap_add(dns_cache, name, name_length, cache);
-    }
 
+        bzero(cache, sizeof(swDNS_cache));
+        int i = 0;
+        for (i = 0; i < SW_DNS_LOOKUP_CACHE_SIZE; i++)
+        {
+            if (host_entry->h_addr_list[i] == NULL)
+            {
+                break;
+            }
+            if (__af == AF_INET)
+            {
+                memcpy(&cache->addr[i].v4, host_entry->h_addr_list[i], host_entry->h_length);
+            }
+            else
+            {
+                memcpy(&cache->addr[i].v6, host_entry->h_addr_list[i], host_entry->h_length);
+            }
+        }
+        cache->number = i;
+        cache->addr_length = host_entry->h_length;
+        swHashMap_add(cache_table, name, name_length, cache);
+    }
     SwooleGS->lock.unlock(&SwooleGS->lock);
-    memcpy(addr, cache->addr, cache->length);
+    if (flags & SW_DNS_LOOKUP_RANDOM)
+    {
+        index = rand() % cache->number;
+    }
+    if (__af == AF_INET)
+    {
+        memcpy(addr, &cache->addr[index].v4, cache->addr_length);
+    }
+    else
+    {
+        memcpy(addr, &cache->addr[index].v6, cache->addr_length);
+    }
     return SW_OK;
 }
 
