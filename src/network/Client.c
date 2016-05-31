@@ -42,15 +42,7 @@ static int swClient_enable_ssl_encrypt(swClient *cli);
 static int swClient_ssl_handshake(swClient *cli);
 #endif
 
-static swHashMap *swoole_dns_cache = NULL;
 static int isset_event_handle = 0;
-
-typedef struct
-{
-    int length;
-    char addr[0];
-
-} swDNS_cache;
 
 int swClient_create(swClient *cli, int type, int async)
 {
@@ -193,9 +185,7 @@ static int swClient_ssl_handshake(swClient *cli)
 
 static int swClient_inet_addr(swClient *cli, char *host, int port)
 {
-    struct hostent *host_entry;
     void *s_addr = NULL;
-
     if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_UDP)
     {
         cli->server_addr.addr.inet_v4.sin_family = AF_INET;
@@ -227,44 +217,14 @@ static int swClient_inet_addr(swClient *cli, char *host, int port)
         cli->server_addr.len = sizeof(cli->server_addr.addr.un);
         return SW_OK;
     }
-
-    if (!swoole_dns_cache)
+    if (cli->async)
     {
-        swoole_dns_cache = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
+        swWarn("DNS lookup will block the process. Please use swoole_async_dns_lookup.");
     }
-
-    swDNS_cache *cache = swHashMap_find(swoole_dns_cache, host, strlen(host));
-    if (cache == NULL)
+    if (swoole_gethostbyname(cli->_sock_domain, host, s_addr) < 0)
     {
-        if (cli->async)
-        {
-            swWarn("DNS lookup will block the process. Please use swoole_async_dns_lookup.");
-        }
-        if (!(host_entry = gethostbyname(host)))
-        {
-            swWarn("gethostbyname('%s') failed.", host);
-            return SW_ERR;
-        }
-        if (host_entry->h_addrtype != AF_INET)
-        {
-            swWarn("Host lookup failed: Non AF_INET domain returned on AF_INET socket.");
-            return 0;
-        }
-        cache = sw_malloc(sizeof(int) + host_entry->h_length);
-        if (cache == NULL)
-        {
-            swWarn("malloc() failed.");
-            memcpy(s_addr, host_entry->h_addr_list[0], host_entry->h_length);
-            return SW_OK;
-        }
-        else
-        {
-            memcpy(cache->addr, host_entry->h_addr_list[0], host_entry->h_length);
-            cache->length = host_entry->h_length;
-        }
-        swHashMap_add(swoole_dns_cache, host, strlen(host), cache);
+        return SW_ERR;
     }
-    memcpy(s_addr, cache->addr, cache->length);
     return SW_OK;
 }
 

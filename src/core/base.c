@@ -25,6 +25,16 @@
 #include <execinfo.h>
 #endif
 
+typedef struct
+{
+    int length;
+    char addr[0];
+
+} swDNS_cache;
+
+static swHashMap *swoole_dns_cache_v4 = NULL;
+static swHashMap *swoole_dns_cache_v6 = NULL;
+
 void swoole_init(void)
 {
     struct rlimit rlmt;
@@ -807,6 +817,64 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
     char *match = swoole_kmp_search(haystack, length, needle, nlen, borders);
     free(borders);
     return match;
+}
+
+int swoole_gethostbyname(int type, char *name, char *addr)
+{
+    SwooleGS->lock.lock(&SwooleGS->lock);
+    swHashMap *dns_cache;
+    if (type == AF_INET)
+    {
+        if (!swoole_dns_cache_v4)
+        {
+            swoole_dns_cache_v4 = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
+        }
+        dns_cache = swoole_dns_cache_v4;
+    }
+    else if (type == AF_INET6)
+    {
+        if (!swoole_dns_cache_v6)
+        {
+            swoole_dns_cache_v6 = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
+        }
+        dns_cache = swoole_dns_cache_v6;
+    }
+    else
+    {
+        swWarn("unknown socket domain family.");
+        return SW_ERR;
+    }
+
+    struct hostent *host_entry;
+    int name_length = strlen(name);
+    swDNS_cache *cache = swHashMap_find(dns_cache, name, name_length);
+    if (cache == NULL)
+    {
+        if (!(host_entry = gethostbyname2(name, type)))
+        {
+            SwooleGS->lock.unlock(&SwooleGS->lock);
+            swWarn("gethostbyname('%s') failed.", name);
+            return SW_ERR;
+        }
+        cache = sw_malloc(sizeof(int) + host_entry->h_length);
+        if (cache == NULL)
+        {
+            SwooleGS->lock.unlock(&SwooleGS->lock);
+            swWarn("malloc() failed.");
+            memcpy(addr, host_entry->h_addr_list[0], host_entry->h_length);
+            return SW_OK;
+        }
+        else
+        {
+            memcpy(cache->addr, host_entry->h_addr_list[0], host_entry->h_length);
+            cache->length = host_entry->h_length;
+        }
+        swHashMap_add(dns_cache, name, name_length, cache);
+    }
+
+    SwooleGS->lock.unlock(&SwooleGS->lock);
+    memcpy(addr, cache->addr, cache->length);
+    return SW_OK;
 }
 
 #ifdef HAVE_EXECINFO

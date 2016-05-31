@@ -1073,7 +1073,7 @@ void swoole_print_trace(void);
 #endif
 void swoole_ioctl_set_block(int sock, int nonblock);
 void swoole_fcntl_set_block(int sock, int nonblock);
-
+int swoole_gethostbyname(int type, char *name, char *addr);
 //----------------------core function---------------------
 int swSocket_set_timeout(int sock, double timeout);
 int swWrite(int, void *, int);
