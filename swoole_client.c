@@ -544,6 +544,10 @@ void php_swoole_check_reactor()
 
 void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
 {
+    if (cli->async)
+    {
+        sw_zval_ptr_dtor(&zobject);
+    }
     //long tcp connection, delete from php_sw_long_connections
     if (cli->keep)
     {
@@ -561,7 +565,6 @@ void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
         swClient_free(cli);
         efree(cli);
     }
-    sw_zval_ptr_dtor(&zobject);
     //unset object
     swoole_set_object(zobject, NULL);
 }
