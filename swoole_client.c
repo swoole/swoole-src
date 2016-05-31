@@ -767,13 +767,6 @@ static PHP_METHOD(swoole_client, connect)
     zend_size_t host_len;
     double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
 
-    client_callback *cb = swoole_get_property(getThis(), 0);
-    if (!cb)
-    {
-        swoole_php_fatal_error(E_ERROR, "event callback function is not set.");
-        RETURN_FALSE;
-    }
-
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|ldl", &host, &host_len, &port, &timeout, &sock_flag) == FAILURE)
     {
         return;
