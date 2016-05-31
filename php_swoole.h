@@ -387,7 +387,7 @@ void php_swoole_onConnect(swServer *serv, swDataHead *);
 int php_swoole_onReceive(swServer *serv, swEventData *req);
 void php_swoole_onClose(swServer *, swDataHead *);
 
-#define php_swoole_array_get_value(ht, str, v)     (sw_zend_hash_find(vht, str, sizeof(str), (void **) &v) == SUCCESS && !ZVAL_IS_NULL(v))
+#define php_swoole_array_get_value(ht, str, v)     (sw_zend_hash_find(ht, str, sizeof(str), (void **) &v) == SUCCESS && !ZVAL_IS_NULL(v))
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
     long aio_thread_num;
