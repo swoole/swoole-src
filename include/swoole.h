@@ -1741,6 +1741,8 @@ typedef struct
     uint8_t use_signalfd :1;
     uint8_t reuse_port :1;
     uint8_t socket_dontwait :1;
+    uint8_t disable_dns_cache :1;
+    uint8_t dns_lookup_random: 1;
 
     /**
      * Timer used pipe

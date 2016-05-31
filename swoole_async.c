@@ -670,34 +670,40 @@ PHP_FUNCTION(swoole_async_set)
     }
 
     vht = Z_ARRVAL_P(zset);
-    if (sw_zend_hash_find(vht, ZEND_STRS("aio_mode"), (void **)&v) == SUCCESS)
+    if (php_swoole_array_get_value(vht, "aio_mode", v))
     {
         convert_to_long(v);
         SwooleAIO.mode = (uint8_t) Z_LVAL_P(v);
     }
-
-    if (sw_zend_hash_find(vht, ZEND_STRS("thread_num"), (void **)&v) == SUCCESS)
+    if (php_swoole_array_get_value(vht, "thread_num", v))
     {
         convert_to_long(v);
         SwooleAIO.thread_num = (uint8_t) Z_LVAL_P(v);
     }
-
-    if (sw_zend_hash_find(vht, ZEND_STRS("enable_signalfd"), (void **) &v) == SUCCESS)
+    if (php_swoole_array_get_value(vht, "enable_signalfd", v))
     {
         convert_to_boolean(v);
         SwooleG.use_signalfd = Z_BVAL_P(v);
     }
-
-    if (sw_zend_hash_find(vht, ZEND_STRS("socket_buffer_size"), (void **) &v) == SUCCESS)
+    if (php_swoole_array_get_value(vht, "socket_buffer_size", v))
     {
         convert_to_long(v);
         SwooleG.socket_buffer_size = Z_LVAL_P(v);
     }
-
-    if (sw_zend_hash_find(vht, ZEND_STRS("socket_dontwait"), (void **) &v) == SUCCESS)
+    if (php_swoole_array_get_value(vht, "socket_dontwait", v))
     {
         convert_to_boolean(v);
         SwooleG.socket_dontwait = Z_BVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "disable_dns_cache", v))
+    {
+        convert_to_boolean(v);
+        SwooleG.disable_dns_cache = Z_BVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "dns_lookup_random", v))
+    {
+        convert_to_boolean(v);
+        SwooleG.dns_lookup_random = Z_BVAL_P(v);
     }
 }
 
@@ -718,31 +724,39 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     }
 
     struct in_addr addr;
-    //hit the dns lookup cache
-    if (swoole_gethostbyname(AF_INET | SW_DNS_LOOKUP_CACHE_ONLY | SW_DNS_LOOKUP_RANDOM, Z_STRVAL_P(domain), (char *) &addr) == SW_OK)
+    if (!SwooleG.disable_dns_cache)
     {
-        zval **args[2];
-        zval *zcontent;
-        zval *retval;
-
-        char *ip_addr = inet_ntoa(addr);
-        SW_MAKE_STD_ZVAL(zcontent);
-        SW_ZVAL_STRING(zcontent, ip_addr, 1);
-
-        args[0] = &domain;
-        args[1] = &zcontent;
-        if (sw_call_user_function_ex(EG(function_table), NULL, cb, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+        int flags = AF_INET | SW_DNS_LOOKUP_CACHE_ONLY;
+        if (SwooleG.dns_lookup_random)
         {
-            swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete handler error");
+            flags |= SW_DNS_LOOKUP_RANDOM;
+        }
+        //hit the dns lookup cache
+        if (swoole_gethostbyname(flags, Z_STRVAL_P(domain), (char *) &addr) == SW_OK)
+        {
+            zval **args[2];
+            zval *zcontent;
+            zval *retval;
+
+            char *ip_addr = inet_ntoa(addr);
+            SW_MAKE_STD_ZVAL(zcontent);
+            SW_ZVAL_STRING(zcontent, ip_addr, 1);
+
+            args[0] = &domain;
+            args[1] = &zcontent;
+            if (sw_call_user_function_ex(EG(function_table), NULL, cb, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+            {
+                swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete handler error");
+                return;
+            }
+            if (retval)
+            {
+                sw_zval_ptr_dtor(&retval);
+            }
+            sw_zval_ptr_dtor(&cb);
+            sw_zval_ptr_dtor(&zcontent);
             return;
         }
-        if (retval)
-        {
-            sw_zval_ptr_dtor(&retval);
-        }
-        sw_zval_ptr_dtor(&cb);
-        sw_zval_ptr_dtor(&zcontent);
-        return;
     }
 
     dns_request *req = emalloc(sizeof(dns_request));
