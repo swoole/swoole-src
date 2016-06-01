@@ -270,6 +270,15 @@ void swPort_set_protocol(swListenPort *ls)
     {
         ls->onRead = swPort_onRead_raw;
     }
+    //length protocol
+    if (ls->protocol.get_package_length)
+    {
+        ls->protocol.swap = swString_new(SW_BUFFER_SIZE_BIG);
+        if (ls->protocol.swap == NULL)
+        {
+            swError("alloc swap memory failed.");
+        }
+    }
 }
 
 static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *event)
@@ -639,5 +648,10 @@ void swPort_free(swListenPort *port)
     if (port->type == SW_SOCK_UNIX_STREAM || port->type == SW_SOCK_UNIX_DGRAM)
     {
         unlink(port->host);
+    }
+    //free swap memory
+    if (port->protocol.swap)
+    {
+        swString_free(port->protocol.swap);
     }
 }
