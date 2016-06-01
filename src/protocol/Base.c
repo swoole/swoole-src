@@ -126,7 +126,8 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
 
     if (conn->recv_wait)
     {
-        do_recv: ret = swConnection_recv(conn, buffer->str + buffer->length, buffer->offset - buffer->length, 0);
+        do_recv: recvbuf_size = buffer->offset - buffer->length;
+        ret = swConnection_recv(conn, buffer->str + buffer->length, recvbuf_size, 0);
     }
     else
     {
