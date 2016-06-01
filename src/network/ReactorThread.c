@@ -1398,6 +1398,10 @@ void swReactorThread_free(swServer *serv)
         return;
     }
 
+#ifdef __MACH__
+    exit(0);
+#endif
+
     if (serv->have_tcp_sock == 1)
     {
         for (i = 0; i < serv->reactor_num; i++)
@@ -1405,9 +1409,12 @@ void swReactorThread_free(swServer *serv)
             thread = &(serv->reactor_threads[i]);
             thread->reactor.running = 0;
             SW_START_SLEEP;
-            pthread_cancel(thread->thread_id);
+			if (pthread_cancel(thread->thread_id) != 0)
+			{
+				swSysError("pthread_cancel(%d) failed.", (int) thread->thread_id);
+			}
             //wait thread
-            if (pthread_join(thread->thread_id, NULL))
+            if (pthread_join(thread->thread_id, NULL) != 0)
             {
                 swWarn("pthread_join() failed. Error: %s[%d]", strerror(errno), errno);
             }
@@ -1426,7 +1433,10 @@ void swReactorThread_free(swServer *serv)
         {
             if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
             {
-                pthread_cancel(ls->thread_id);
+    			if (pthread_cancel(ls->thread_id) < 0)
+    			{
+    				swSysError("pthread_cancel(%d) failed.", (int) ls->thread_id);
+    			}
                 if (pthread_join(ls->thread_id, NULL))
                 {
                     swWarn("pthread_join() failed. Error: %s[%d]", strerror(errno), errno);
