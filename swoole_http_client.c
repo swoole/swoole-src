@@ -354,7 +354,7 @@ static sw_inline void http_client_execute_callback(zval *zobject, enum php_swool
     args[0] = &zobject;
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_http_client->close[1]: onClose handler error");
+        swoole_php_fatal_error(E_WARNING, "swoole_http_client->%s handler error.", callback_name);
     }
     if (EG(exception))
     {
@@ -1162,6 +1162,7 @@ static int http_client_parser_on_header_value(php_http_parser *parser, const cha
     return 0;
 }
 
+#ifdef SW_HAVE_ZLIB
 static int http_response_uncompress(char *body, int length)
 {
     z_stream stream;
@@ -1218,6 +1219,7 @@ static int http_response_uncompress(char *body, int length)
     }
     return SW_ERR;
 }
+#endif
 
 static int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length)
 {
@@ -1250,7 +1252,8 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
 
     zval **args[1];
     args[0] = &zobject;
-    
+
+#ifdef SW_HAVE_ZLIB
     if (http->gzip)
     {
         if (http_response_uncompress(http->body->str, http->body->length) == SW_ERR)
@@ -1261,6 +1264,7 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
         zend_update_property_stringl(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("body"), swoole_zlib_buffer->str, swoole_zlib_buffer->length TSRMLS_CC);
     }
     else
+#endif
     {
         zend_update_property_stringl(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("body"), http->body->str, http->body->length TSRMLS_CC);
     }
