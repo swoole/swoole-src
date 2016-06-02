@@ -2596,7 +2596,7 @@ PHP_METHOD(swoole_server, connection_info)
         return;
     }
 
-    swConnection *conn = swWorker_get_connection(serv, fd);
+    swConnection *conn = swServer_connection_verify(serv, fd);
     if (!conn)
     {
         RETURN_FALSE;
@@ -2616,7 +2616,7 @@ PHP_METHOD(swoole_server, connection_info)
         }
 
         swListenPort *port = swServer_get_port(serv, conn->fd);
-        if (port->open_websocket_protocol)
+        if (port && port->open_websocket_protocol)
         {
             add_assoc_long(return_value, "websocket_status", conn->websocket_status);
         }
