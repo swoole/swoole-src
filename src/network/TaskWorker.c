@@ -41,6 +41,10 @@ void swTaskWorker_init(swProcessPool *pool)
     {
         pool->dispatch_mode = SW_DISPATCH_QUEUE;
     }
+    if (tmp_dir)
+    {
+        sw_strdup_free(tmp_dir);
+    }
 }
 
 /**

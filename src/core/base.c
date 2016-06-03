@@ -283,11 +283,6 @@ char* swoole_dec2hex(int value, int base)
     char buf[(sizeof(unsigned long) << 3) + 1];
     char *ptr, *end;
 
-    if (base < 2 || base > 36)
-    {
-        return NULL;
-    }
-
     end = ptr = buf + sizeof(buf) - 1;
     *ptr = '\0';
 

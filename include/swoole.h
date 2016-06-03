@@ -156,6 +156,12 @@ typedef unsigned long ulong_t;
 #define sw_calloc              calloc
 #define sw_realloc             realloc
 
+#if defined(SW_USE_JEMALLOC) || defined(SW_USE_TCMALLOC)
+#define sw_strdup_free(str)
+#else
+#define sw_strdup_free(str)     free(str)
+#endif
+
 #define METHOD_DEF(class,name,...)  class##_##name(class *object, ##__VA_ARGS__)
 #define METHOD(class,name,...)      class##_##name(object, ##__VA_ARGS__)
 //-------------------------------------------------------------------------------

@@ -1744,7 +1744,7 @@ static PHP_METHOD(swoole_http_response, write)
     }
 
     int ret = swServer_tcp_send(SwooleG.serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
-    free(hex_string);
+    sw_strdup_free(hex_string);
     SW_CHECK_RETURN(ret);
 }
 
