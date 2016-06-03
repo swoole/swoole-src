@@ -452,12 +452,7 @@ static void http_global_merge(zval *val, zval *zrequest_object, int type)
             {
                 return;
             }
-
-            array_init(zrequest);
-            zend_update_property(swoole_http_request_class_entry_ptr, zrequest_object, ZEND_STRL("request"), zrequest TSRMLS_CC);
-            ctx->request.zheader = sw_zend_read_property(swoole_http_request_class_entry_ptr, zrequest_object, ZEND_STRL("request"), 0 TSRMLS_CC);
-            sw_copy_to_stack(ctx->request.zrequest, ctx->request._zrequest);
-            sw_zval_ptr_dtor(&zrequest);
+            http_server_array_init(request, request);
         }
         sw_php_array_merge(Z_ARRVAL_P(zrequest), Z_ARRVAL_P(val));
     }
@@ -1247,6 +1242,7 @@ static PHP_METHOD(swoole_http_server, on)
         return;
     }
 
+#ifdef PHP_SWOOLE_CHECK_CALLBACK
     char *func_name = NULL;
     if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
     {
@@ -1255,6 +1251,7 @@ static PHP_METHOD(swoole_http_server, on)
         RETURN_FALSE;
     }
     efree(func_name);
+#endif
 
     if (strncasecmp("request", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
