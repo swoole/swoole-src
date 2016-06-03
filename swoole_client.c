@@ -258,6 +258,7 @@ static void client_onClose(swClient *cli)
         php_swoole_client_free(zobject, cli TSRMLS_CC);
     }
     client_execute_callback(zobject, SW_CLIENT_CB_onClose);
+    sw_zval_ptr_dtor(&zobject);
 }
 
 static void client_onError(swClient *cli)
@@ -267,8 +268,12 @@ static void client_onError(swClient *cli)
 #endif
     zval *zobject = cli->object;
     zend_update_property_long(swoole_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
-    php_swoole_client_free(zobject, cli TSRMLS_CC);
+    if (!cli->released)
+    {
+        php_swoole_client_free(zobject, cli TSRMLS_CC);
+    }
     client_execute_callback(zobject, SW_CLIENT_CB_onError);
+    sw_zval_ptr_dtor(&zobject);
 }
 
 static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
@@ -544,10 +549,6 @@ void php_swoole_check_reactor()
 
 void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
 {
-    if (cli->async)
-    {
-        sw_zval_ptr_dtor(&zobject);
-    }
     //long tcp connection, delete from php_sw_long_connections
     if (cli->keep)
     {

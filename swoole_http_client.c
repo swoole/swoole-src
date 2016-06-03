@@ -381,6 +381,7 @@ static void http_client_onClose(swClient *cli)
         http_client_free(zobject TSRMLS_CC);
     }
     http_client_execute_callback(zobject, SW_CLIENT_CB_onClose);
+    sw_zval_ptr_dtor(&zobject);
 }
 
 /**
@@ -393,8 +394,12 @@ static void http_client_onError(swClient *cli)
 #endif
     zval *zobject = cli->object;
     zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
-    http_client_free(zobject TSRMLS_CC);
+    if (!cli->released)
+    {
+        http_client_free(zobject TSRMLS_CC);
+    }
     http_client_execute_callback(zobject, SW_CLIENT_CB_onError);
+    sw_zval_ptr_dtor(&zobject);
 }
 
 static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
