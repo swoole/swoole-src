@@ -111,13 +111,8 @@ void swoole_websocket_onOpen(swoole_http_client *client)
         zval **args[2];
         swServer *serv = SwooleG.serv;
         zval *zserv = (zval *) serv->ptr2;
-        zval *zrequest_object = client->context.request.zrequest_object;
+        zval *zrequest_object = client->context.request.zobject;
         zval *retval = NULL;
-
-#ifdef __CYGWIN__
-        //TODO: memory error on cygwin.
-        sw_zval_add_ref(&zrequest_object);
-#endif
 
         args[0] = &zserv;
         args[1] = &zrequest_object;
