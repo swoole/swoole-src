@@ -64,34 +64,6 @@ static int client_onPackage(swConnection *conn, char *data, uint32_t length);
 static void client_onClose(swClient *cli);
 static void client_onError(swClient *cli);
 
-static sw_inline void client_free_callback(zval *object)
-{
-    //free memory
-    client_callback *cb = swoole_get_property(object, 0);
-    if (!cb)
-    {
-        return;
-    }
-    if (cb->onConnect)
-    {
-        sw_zval_ptr_dtor(&cb->onConnect);
-    }
-    if (cb->onReceive)
-    {
-        sw_zval_ptr_dtor(&cb->onReceive);
-    }
-    if (cb->onError)
-    {
-        sw_zval_ptr_dtor(&cb->onError);
-    }
-    if (cb->onClose)
-    {
-        sw_zval_ptr_dtor(&cb->onClose);
-    }
-    efree(cb);
-    swoole_set_property(object, 0, NULL);
-}
-
 static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_client_callback_type type)
 {
 #if PHP_MAJOR_VERSION < 7
@@ -273,7 +245,7 @@ static void client_onError(swClient *cli)
         php_swoole_client_free(zobject, cli TSRMLS_CC);
     }
     client_execute_callback(zobject, SW_CLIENT_CB_onError);
-    sw_zval_ptr_dtor(&zobject);
+    //sw_zval_ptr_dtor(&zobject);
 }
 
 static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
@@ -749,8 +721,10 @@ static PHP_METHOD(swoole_client, __destruct)
             sw_zval_ptr_dtor(&retval);
         }
     }
-    //free callback function
-    client_free_callback(getThis());
+    //free memory
+    client_callback *cb = swoole_get_property(getThis(), 0);
+    efree(cb);
+    swoole_set_property(getThis(), 0, NULL);
 }
 
 static PHP_METHOD(swoole_client, set)
@@ -880,10 +854,10 @@ static PHP_METHOD(swoole_client, connect)
             cli->reactor_fdtype = PHP_SWOOLE_FD_DGRAM_CLIENT;
         }
 
-        zval *obj = getThis();
-        cli->object = obj;
+        zval *zobject = getThis();
+        cli->object = zobject;
         sw_copy_to_stack(cli->object, cb->_object);
-        sw_zval_add_ref(&obj);
+        sw_zval_add_ref(&zobject);
     }
 
     //nonblock async
