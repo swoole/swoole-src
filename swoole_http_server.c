@@ -1374,12 +1374,8 @@ void swoole_http_context_free(http_context *ctx TSRMLS_DC)
                 unlink(Z_STRVAL_P(file_path));
                 sw_zend_hash_del(SG(rfc1867_uploaded_files), Z_STRVAL_P(file_path), Z_STRLEN_P(file_path) + 1);
             }
-            sw_zval_ptr_dtor(&value);
         }
         SW_HASHTABLE_FOREACH_END();
-#if PHP_MAJOR_VERSION < 7
-        sw_zval_ptr_dtor(&zfiles);
-#endif
     }
 #ifdef SW_USE_HTTP2
     if (ctx->buffer)
