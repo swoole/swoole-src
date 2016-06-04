@@ -2437,10 +2437,10 @@ static PHP_METHOD(swoole_http_response, header)
     }
 
     zval *zheader = ctx->response.zheader;
-    zval *zrequest_object = ctx->request.zobject;
+    zval *zresponse_object = ctx->response.zobject;
     if (!zheader)
     {
-        http_server_array_init(header, request);
+        http_server_array_init(header, response);
     }
 
     if (ctx->http2)
