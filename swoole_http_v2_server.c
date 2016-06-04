@@ -35,17 +35,11 @@ static void http2_onRequest(http_context *ctx TSRMLS_DC)
     zval *retval;
     zval **args[2];
 
-    zval *zrequest_object = ctx->request.zrequest_object;
-    zval *zresponse_object = ctx->response.zresponse_object;
+    zval *zrequest_object = ctx->request.zobject;
+    zval *zresponse_object = ctx->response.zobject;
 
     args[0] = &zrequest_object;
     args[1] = &zresponse_object;
-
-#ifdef __CYGWIN__
-    //TODO: memory error on cygwin.
-    zval_add_ref(&zrequest_object);
-    zval_add_ref(&zresponse_object);
-#endif
 
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[HTTP_CALLBACK_onRequest], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
@@ -59,6 +53,8 @@ static void http2_onRequest(http_context *ctx TSRMLS_DC)
     {
         sw_zval_ptr_dtor(&retval);
     }
+    sw_zval_ptr_dtor(&zrequest_object);
+    sw_zval_ptr_dtor(&zresponse_object);
 }
 
 static int http2_build_header(http_context *ctx, uchar *buffer, int body_length TSRMLS_DC)
