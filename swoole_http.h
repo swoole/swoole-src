@@ -163,6 +163,13 @@ http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC);
 void swoole_http_context_free(http_context *ctx TSRMLS_DC);
 int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int boundary_len TSRMLS_DC);
 
+#define swoole_http_server_array_init(name, class)    SW_MAKE_STD_ZVAL(z##name);\
+array_init(z##name);\
+zend_update_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), z##name TSRMLS_CC);\
+ctx->class.z##name = sw_zend_read_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), 0 TSRMLS_CC);\
+sw_copy_to_stack(ctx->class.z##name, ctx->request._z##name);\
+sw_zval_ptr_dtor(&z##name);
+
 #ifdef SW_USE_HTTP2
 /**
  * Http v2

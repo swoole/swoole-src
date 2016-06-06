@@ -367,9 +367,8 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
                         sw_add_assoc_stringl_ex(zserver, ZEND_STRS("request_uri"), pathbuf, k_len, 1);
 
                         zval *zget;
-                        http_alloc_zval(ctx, request, zget);
-                        array_init(zget);
-                        zend_update_property(swoole_http_request_class_entry_ptr, ctx->request.zrequest_object, ZEND_STRL("get"), zget TSRMLS_CC);
+                        zval *zrequest_object = ctx->request.zobject;
+                        swoole_http_server_array_init(get, request);
 
                         //no need free, will free by treat_data
                         char *query = estrndup(v_str, v_len);
@@ -409,11 +408,10 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
                 else if (memcmp(nv.name, ZEND_STRL("cookie")) == 0)
                 {
                     zval *zcookie = ctx->request.zcookie;
+                    zval *zrequest_object = ctx->request.zobject;
                     if (!zcookie)
                     {
-                        http_alloc_zval(ctx, request, zcookie);
-                        array_init(zcookie);
-                        zend_update_property(swoole_http_request_class_entry_ptr, ctx->request.zrequest_object, ZEND_STRL("cookie"), zcookie TSRMLS_CC);
+                        swoole_http_server_array_init(cookie, request);
                     }
 
                     char keybuf[SW_HTTP_COOKIE_KEYLEN];
@@ -547,10 +545,9 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
             if (SwooleG.serv->http_parse_post && ctx->request.post_form_urlencoded)
             {
                 zval *zpost;
-                http_alloc_zval(ctx, request, zpost);
-                array_init(zpost);
+                zval *zrequest_object = ctx->request.zobject;
+                swoole_http_server_array_init(post, request);
                 ctx->request.post_content = estrndup(buffer->str, buffer->length);
-                zend_update_property(swoole_http_request_class_entry_ptr, ctx->request.zrequest_object, ZEND_STRL("post"), zpost TSRMLS_CC);
                 sapi_module.treat_data(PARSE_STRING, ctx->request.post_content, zpost TSRMLS_CC);
             }
             else if (ctx->mt_parser != NULL)

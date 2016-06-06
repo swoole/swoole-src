@@ -86,13 +86,6 @@ zval* php_sw_http_server_callbacks[HTTP_SERVER_CALLBACK_NUM];
 zval _php_sw_http_server_callbacks[HTTP_SERVER_CALLBACK_NUM];
 #endif
 
-#define http_server_array_init(name, class)    SW_MAKE_STD_ZVAL(z##name);\
-array_init(z##name);\
-zend_update_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), z##name TSRMLS_CC);\
-ctx->class.z##name = sw_zend_read_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), 0 TSRMLS_CC);\
-sw_copy_to_stack(ctx->class.z##name, ctx->request._z##name);\
-sw_zval_ptr_dtor(&z##name);
-
 static int http_onReceive(swServer *serv, swEventData *req);
 static void http_onClose(swServer *serv, swDataHead *info);
 
@@ -452,7 +445,7 @@ static void http_global_merge(zval *val, zval *zrequest_object, int type)
             {
                 return;
             }
-            http_server_array_init(request, request);
+            swoole_http_server_array_init(request, request);
         }
         sw_php_array_merge(Z_ARRVAL_P(zrequest), Z_ARRVAL_P(val));
     }
@@ -471,7 +464,7 @@ static int http_request_on_query_string(php_http_parser *parser, const char *at,
 
     zval *zrequest_object = ctx->request.zobject;
     zval *zget;
-    http_server_array_init(get, request);
+    swoole_http_server_array_init(get, request);
 
     //parse url params
     sapi_module.treat_data(PARSE_STRING, query, zget TSRMLS_CC);
@@ -597,7 +590,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
         }
         else
         {
-            http_server_array_init(cookie, request);
+            swoole_http_server_array_init(cookie, request);
             http_merge_php_global(zcookie, zrequest_object, HTTP_GLOBAL_COOKIE);
         }
         goto free_memory;
@@ -677,7 +670,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
     zval *zfiles = ctx->request.zfiles;
     if (!zfiles)
     {
-        http_server_array_init(files, request);
+        swoole_http_server_array_init(files, request);
     }
 
     char *headername = zend_str_tolower_dup(ctx->current_header_name, ctx->current_header_name_len);
@@ -848,7 +841,7 @@ static int multipart_body_on_data_end(multipart_parser* p)
         zval *zpost = sw_zend_read_property(swoole_http_request_class_entry_ptr, zrequest_object, ZEND_STRL("post"), 1 TSRMLS_CC);
         if (ZVAL_IS_NULL(zpost))
         {
-            http_server_array_init(post, request);
+            swoole_http_server_array_init(post, request);
         }
 
 		char *name = ctx->current_form_data_name;
@@ -952,7 +945,7 @@ static int http_request_on_body(php_http_parser *parser, const char *at, size_t 
     if (SwooleG.serv->http_parse_post && ctx->request.post_form_urlencoded)
     {
         zval *zpost;
-        http_server_array_init(post, request);
+        swoole_http_server_array_init(post, request);
         body = estrndup(at, length);
 
         sapi_module.treat_data(PARSE_STRING, body, zpost TSRMLS_CC);
@@ -1320,10 +1313,10 @@ http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC)
 #endif
 
     zval *zheader;
-    http_server_array_init(header, request);
+    swoole_http_server_array_init(header, request);
 
     zval *zserver;
-    http_server_array_init(server, request);
+    swoole_http_server_array_init(server, request);
 
     ctx->fd = client->fd;
     ctx->client = client;
@@ -2197,7 +2190,7 @@ static PHP_METHOD(swoole_http_response, cookie)
     zval *zresponse_object = ctx->response.zobject;
     if (!zcookie)
     {
-        http_server_array_init(cookie, response);
+        swoole_http_server_array_init(cookie, response);
     }
 
     char *cookie, *encoded_value = NULL;
@@ -2312,7 +2305,7 @@ static PHP_METHOD(swoole_http_response, rawcookie)
     zval *zresponse_object = ctx->response.zobject;
     if (!zcookie)
     {
-        http_server_array_init(cookie, response);
+        swoole_http_server_array_init(cookie, response);
     }
 
     char *cookie, *encoded_value = NULL;
@@ -2440,7 +2433,7 @@ static PHP_METHOD(swoole_http_response, header)
     zval *zresponse_object = ctx->response.zobject;
     if (!zheader)
     {
-        http_server_array_init(header, response);
+        swoole_http_server_array_init(header, response);
     }
 
     if (ctx->http2)
