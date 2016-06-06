@@ -64,34 +64,6 @@ static int client_onPackage(swConnection *conn, char *data, uint32_t length);
 static void client_onClose(swClient *cli);
 static void client_onError(swClient *cli);
 
-static sw_inline void client_free_callback(zval *object)
-{
-    //free memory
-    client_callback *cb = swoole_get_property(object, 0);
-    if (!cb)
-    {
-        return;
-    }
-    if (cb->onConnect)
-    {
-        sw_zval_ptr_dtor(&cb->onConnect);
-    }
-    if (cb->onReceive)
-    {
-        sw_zval_ptr_dtor(&cb->onReceive);
-    }
-    if (cb->onError)
-    {
-        sw_zval_ptr_dtor(&cb->onError);
-    }
-    if (cb->onClose)
-    {
-        sw_zval_ptr_dtor(&cb->onClose);
-    }
-    efree(cb);
-    swoole_set_property(object, 0, NULL);
-}
-
 static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_client_callback_type type)
 {
 #if PHP_MAJOR_VERSION < 7
@@ -258,6 +230,7 @@ static void client_onClose(swClient *cli)
         php_swoole_client_free(zobject, cli TSRMLS_CC);
     }
     client_execute_callback(zobject, SW_CLIENT_CB_onClose);
+    sw_zval_ptr_dtor(&zobject);
 }
 
 static void client_onError(swClient *cli)
@@ -267,8 +240,12 @@ static void client_onError(swClient *cli)
 #endif
     zval *zobject = cli->object;
     zend_update_property_long(swoole_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
-    php_swoole_client_free(zobject, cli TSRMLS_CC);
+    if (!cli->released)
+    {
+        php_swoole_client_free(zobject, cli TSRMLS_CC);
+    }
     client_execute_callback(zobject, SW_CLIENT_CB_onError);
+    //sw_zval_ptr_dtor(&zobject);
 }
 
 static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
@@ -561,7 +538,6 @@ void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
         swClient_free(cli);
         efree(cli);
     }
-    sw_zval_ptr_dtor(&zobject);
     //unset object
     swoole_set_object(zobject, NULL);
 }
@@ -570,7 +546,6 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
 {
     zval *ztype;
     int async = 0;
-    int packet_mode = 0;
     char conn_key[SW_LONG_CONNECTION_KEY_LEN];
     int conn_key_len = 0;
     uint64_t tmp_buf;
@@ -588,13 +563,7 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
         return NULL;
     }
 
-    long type_tmp = Z_LVAL_P(ztype);
-    packet_mode = type_tmp & SW_MODE_PACKET;
-    packet_mode >>= 4;
-    long type = type_tmp & (~SW_MODE_PACKET);
-
-    //debug
-    //swTrace("type:%d,type_tmp:%d\r\n",type,type_tmp);
+    long type = Z_LVAL_P(ztype);
 
     //new flag, swoole-1.6.12+
     if (type & SW_FLAG_ASYNC)
@@ -603,7 +572,6 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
     }
 
     swClient *cli;
-
     bzero(conn_key, SW_LONG_CONNECTION_KEY_LEN);
     zval *connection_id = sw_zend_read_property(swoole_client_class_entry_ptr, object, ZEND_STRL("id"), 1 TSRMLS_CC);
 
@@ -677,10 +645,6 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
     }
 #endif
 
-    if (packet_mode == 1)
-    {
-        cli->packet_mode = 1;
-    }
     return cli;
 }
 
@@ -745,8 +709,10 @@ static PHP_METHOD(swoole_client, __destruct)
             sw_zval_ptr_dtor(&retval);
         }
     }
-    //free callback function
-    client_free_callback(getThis());
+    //free memory
+    client_callback *cb = swoole_get_property(getThis(), 0);
+    efree(cb);
+    swoole_set_property(getThis(), 0, NULL);
 }
 
 static PHP_METHOD(swoole_client, set)
@@ -766,13 +732,6 @@ static PHP_METHOD(swoole_client, connect)
     char *host = NULL;
     zend_size_t host_len;
     double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
-
-    client_callback *cb = swoole_get_property(getThis(), 0);
-    if (!cb)
-    {
-        swoole_php_fatal_error(E_ERROR, "event callback function is not set.");
-        RETURN_FALSE;
-    }
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|ldl", &host, &host_len, &port, &timeout, &sock_flag) == FAILURE)
     {
@@ -883,10 +842,10 @@ static PHP_METHOD(swoole_client, connect)
             cli->reactor_fdtype = PHP_SWOOLE_FD_DGRAM_CLIENT;
         }
 
-        zval *obj = getThis();
-        cli->object = obj;
+        zval *zobject = getThis();
+        cli->object = zobject;
         sw_copy_to_stack(cli->object, cb->_object);
-        sw_zval_add_ref(&obj);
+        sw_zval_add_ref(&zobject);
     }
 
     //nonblock async
@@ -931,22 +890,9 @@ static PHP_METHOD(swoole_client, send)
 
     //clear errno
     SwooleG.error = 0;
-    int ret;
-
-    if (cli->packet_mode == 1)
-    {
-        uint32_t len_tmp = htonl(data_len);
-        ret = cli->send(cli, (char *) &len_tmp, 4, flags);
-        if (ret < 0)
-        {
-            goto send_error;
-        }
-    }
-
-    ret = cli->send(cli, data, data_len, flags);
+    int ret = cli->send(cli, data, data_len, flags);
     if (ret < 0)
     {
-        send_error:
         SwooleG.error = errno;
         swoole_php_sys_error(E_WARNING, "send(%d) %d bytes failed.", cli->socket->fd, data_len);
         zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
@@ -1212,26 +1158,6 @@ static PHP_METHOD(swoole_client, recv)
         {
             ret += header_len;
         }
-    }
-    else if (cli->packet_mode == 1)
-    {
-        uint32_t len_tmp = 0;
-        ret = cli->recv(cli, (char*) &len_tmp, 4, MSG_WAITALL);
-        if (ret < 0)
-        {
-            swoole_php_error(E_WARNING, "recv() header failed. Error: %s [%d]", strerror(errno), errno);
-            RETURN_FALSE;
-        }
-        else
-        {
-            len_tmp = ntohl(len_tmp);
-            buf_len = len_tmp;
-        }
-
-        buf = emalloc(buf_len + 1);
-        SwooleG.error = 0;
-        //PACKET mode, must use waitall.
-        ret = cli->recv(cli, buf, buf_len, MSG_WAITALL);
     }
     else
     {

@@ -238,8 +238,10 @@ if test "$PHP_SWOOLE" != "no"; then
     
     if test "$PHP_JEMALLOC" = "yes"; then
         PHP_ADD_LIBRARY(jemalloc, 1, SWOOLE_SHARED_LIBADD)
+        AC_DEFINE(SW_USE_JEMALLOC, 1, [use jemalloc])
     elif test "$PHP_TCMALLOC" = "yes"; then
     	PHP_ADD_LIBRARY(tcmalloc, 1, SWOOLE_SHARED_LIBADD)
+        AC_DEFINE(SW_USE_TCMALLOC, 1, [use tcmalloc])
     fi
 
     swoole_source_file="swoole.c \

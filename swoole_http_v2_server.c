@@ -35,17 +35,11 @@ static void http2_onRequest(http_context *ctx TSRMLS_DC)
     zval *retval;
     zval **args[2];
 
-    zval *zrequest_object = ctx->request.zrequest_object;
-    zval *zresponse_object = ctx->response.zresponse_object;
+    zval *zrequest_object = ctx->request.zobject;
+    zval *zresponse_object = ctx->response.zobject;
 
     args[0] = &zrequest_object;
     args[1] = &zresponse_object;
-
-#ifdef __CYGWIN__
-    //TODO: memory error on cygwin.
-    zval_add_ref(&zrequest_object);
-    zval_add_ref(&zresponse_object);
-#endif
 
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[HTTP_CALLBACK_onRequest], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
@@ -59,6 +53,8 @@ static void http2_onRequest(http_context *ctx TSRMLS_DC)
     {
         sw_zval_ptr_dtor(&retval);
     }
+    sw_zval_ptr_dtor(&zrequest_object);
+    sw_zval_ptr_dtor(&zresponse_object);
 }
 
 static int http2_build_header(http_context *ctx, uchar *buffer, int body_length TSRMLS_DC)
@@ -371,9 +367,8 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
                         sw_add_assoc_stringl_ex(zserver, ZEND_STRS("request_uri"), pathbuf, k_len, 1);
 
                         zval *zget;
-                        http_alloc_zval(ctx, request, zget);
-                        array_init(zget);
-                        zend_update_property(swoole_http_request_class_entry_ptr, ctx->request.zrequest_object, ZEND_STRL("get"), zget TSRMLS_CC);
+                        zval *zrequest_object = ctx->request.zobject;
+                        swoole_http_server_array_init(get, request);
 
                         //no need free, will free by treat_data
                         char *query = estrndup(v_str, v_len);
@@ -413,11 +408,10 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
                 else if (memcmp(nv.name, ZEND_STRL("cookie")) == 0)
                 {
                     zval *zcookie = ctx->request.zcookie;
+                    zval *zrequest_object = ctx->request.zobject;
                     if (!zcookie)
                     {
-                        http_alloc_zval(ctx, request, zcookie);
-                        array_init(zcookie);
-                        zend_update_property(swoole_http_request_class_entry_ptr, ctx->request.zrequest_object, ZEND_STRL("cookie"), zcookie TSRMLS_CC);
+                        swoole_http_server_array_init(cookie, request);
                     }
 
                     char keybuf[SW_HTTP_COOKIE_KEYLEN];
@@ -468,7 +462,7 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
 
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
-    zdata = php_swoole_get_recv_data(zdata, req TSRMLS_CC);
+    php_swoole_get_recv_data(zdata, req, 0 TSRMLS_CC);
 
     char *buf = Z_STRVAL_P(zdata);
 
@@ -551,10 +545,9 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
             if (SwooleG.serv->http_parse_post && ctx->request.post_form_urlencoded)
             {
                 zval *zpost;
-                http_alloc_zval(ctx, request, zpost);
-                array_init(zpost);
+                zval *zrequest_object = ctx->request.zobject;
+                swoole_http_server_array_init(post, request);
                 ctx->request.post_content = estrndup(buffer->str, buffer->length);
-                zend_update_property(swoole_http_request_class_entry_ptr, ctx->request.zrequest_object, ZEND_STRL("post"), zpost TSRMLS_CC);
                 sapi_module.treat_data(PARSE_STRING, ctx->request.post_content, zpost TSRMLS_CC);
             }
             else if (ctx->mt_parser != NULL)

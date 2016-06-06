@@ -156,6 +156,12 @@ typedef unsigned long ulong_t;
 #define sw_calloc              calloc
 #define sw_realloc             realloc
 
+#if defined(SW_USE_JEMALLOC) || defined(SW_USE_TCMALLOC)
+#define sw_strdup_free(str)
+#else
+#define sw_strdup_free(str)     free(str)
+#endif
+
 #define METHOD_DEF(class,name,...)  class##_##name(class *object, ##__VA_ARGS__)
 #define METHOD(class,name,...)      class##_##name(object, ##__VA_ARGS__)
 //-------------------------------------------------------------------------------
@@ -216,8 +222,6 @@ enum swServer_mode
     SW_MODE_PROCESS       =  3,
     SW_MODE_SINGLE        =  4,
 };
-
-#define SW_MODE_PACKET		0x10 
 //-------------------------------------------------------------------------------
 enum swSocket_type
 {
@@ -540,6 +544,8 @@ typedef struct _swProtocol
     uint16_t package_body_offset;  //第几个字节开始计算长度
     uint32_t package_max_length;
 
+    swString *swap;
+
     int (*onPackage)(swConnection *conn, char *data, uint32_t length);
     int (*get_package_length)(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 } swProtocol;
@@ -702,6 +708,12 @@ enum SW_LOCKS
 #define SW_SPINLOCK SW_SPINLOCK
     SW_ATOMLOCK = 6,
 #define SW_ATOMLOCK SW_ATOMLOCK
+};
+
+enum swDNSLookup_cache_type
+{
+    SW_DNS_LOOKUP_CACHE_ONLY =  (1u << 10),
+    SW_DNS_LOOKUP_RANDOM  = (1u << 11),
 };
 
 //文件锁
@@ -1073,7 +1085,7 @@ void swoole_print_trace(void);
 #endif
 void swoole_ioctl_set_block(int sock, int nonblock);
 void swoole_fcntl_set_block(int sock, int nonblock);
-
+int swoole_gethostbyname(int type, char *name, char *addr);
 //----------------------core function---------------------
 int swSocket_set_timeout(int sock, double timeout);
 int swWrite(int, void *, int);
@@ -1735,6 +1747,8 @@ typedef struct
     uint8_t use_signalfd :1;
     uint8_t reuse_port :1;
     uint8_t socket_dontwait :1;
+    uint8_t disable_dns_cache :1;
+    uint8_t dns_lookup_random: 1;
 
     /**
      * Timer used pipe

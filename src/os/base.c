@@ -185,10 +185,9 @@ int swAioBase_init(int max_aio_events)
 static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
 {
     swAio_event *event = task;
-    struct hostent *host_entry;
     struct in_addr addr;
-    char *ip_addr;
 
+    char *ip_addr;
     int ret = -1;
 
     start_switch:
@@ -201,7 +200,8 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
         ret = pread(event->fd, event->buf, event->nbytes, event->offset);
         break;
     case SW_AIO_DNS_LOOKUP:
-        if (!(host_entry = gethostbyname(event->buf)))
+        ret = swoole_gethostbyname(AF_INET, event->buf, (char *) &addr);
+        if (ret < 0)
         {
             event->error = h_errno;
             switch (h_errno)
@@ -217,11 +217,6 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
         }
         else
         {
-            if (!host_entry->h_addr_list[0] || host_entry->h_length > sizeof(addr))
-            {
-                ret = -1;
-            }
-            memcpy(&addr, host_entry->h_addr_list[0], host_entry->h_length);
             ip_addr = inet_ntoa(addr);
             bzero(event->buf, event->nbytes);
             memcpy(event->buf, ip_addr, strnlen(ip_addr, SW_IP_MAX_LENGTH) + 1);

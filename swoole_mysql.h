@@ -137,7 +137,7 @@ typedef struct
 {
     int packet_length;
     int packet_number;
-    char protocol_version;
+    uint8_t protocol_version;
     char *server_version;
     int connection_id;
     char auth_plugin_data[21];
@@ -164,12 +164,17 @@ typedef struct
     zend_size_t database_len;
 
     long port;
+    double timeout;
 
     int capability_flags;
     int max_packet_size;
     char character_set;
     int packet_length;
     char buf[512];
+
+    uint16_t error_code;
+    char *error_msg;
+    uint16_t error_length;
 } mysql_connector;
 
 typedef struct
