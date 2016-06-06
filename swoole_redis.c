@@ -262,7 +262,7 @@ static PHP_METHOD(swoole_redis, connect)
 static PHP_METHOD(swoole_redis, close)
 {
     swRedisClient *redis = swoole_get_object(getThis());
-    if (redis->state != SWOOLE_REDIS_STATE_CLOSED)
+    if (redis && redis->state != SWOOLE_REDIS_STATE_CLOSED)
     {
         redisAsyncDisconnect(redis->context);
     }
@@ -620,7 +620,10 @@ void swoole_redis_onClose(const redisAsyncContext *c, int status)
     }
     redis->context = NULL;
     swoole_set_object(redis->object, NULL);
-    sw_zval_ptr_dtor(&redis->object);
+    if (Z_REFCOUNT_P(redis->object) > 1)
+    {
+        sw_zval_ptr_dtor(&redis->object);
+    }
 }
 
 static int swoole_redis_onError(swReactor *reactor, swEvent *event)

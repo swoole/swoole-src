@@ -130,6 +130,8 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 #else
     zval _zcontent;
     zval _zwriten;
+    bzero(&zcontent, sizeof(zval));
+    bzero(&_zwriten, sizeof(zval));
 #endif
 
     if (event->type == SW_AIO_DNS_LOOKUP)
@@ -137,7 +139,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
         dns_req = (dns_request *) event->req;
         if (dns_req->callback == NULL)
         {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_async: onAsyncComplete callback not found[0]");
+            swoole_php_error(E_WARNING, "swoole_async: onAsyncComplete callback not found[0]");
             return;
         }
         zcallback = dns_req->callback;
@@ -760,17 +762,12 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     }
 
     dns_request *req = emalloc(sizeof(dns_request));
-#if PHP_MAJOR_VERSION >= 7
-    req->callback = &req->_callback;
-    req->domain = &req->_domain;
-    memcpy(req->callback, cb, sizeof(zval));
-    memcpy(req->domain, domain, sizeof(zval));
-#else
     req->callback = cb;
-    req->domain = domain;
-#endif
-
+    sw_copy_to_stack(req->callback, req->_callback);
     sw_zval_add_ref(&req->callback);
+
+    req->domain = domain;
+    sw_copy_to_stack(req->domain, req->_domain);
     sw_zval_add_ref(&req->domain);
 
     int buf_size;
