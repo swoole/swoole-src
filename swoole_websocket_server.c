@@ -211,11 +211,11 @@ int swoole_websocket_onMessage(swEventData *req)
 #endif
 
     int fd = req->info.fd;
+
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
-    zdata = php_swoole_get_recv_data(zdata, req TSRMLS_CC);
+    char *buf = php_swoole_get_recv_data(zdata, req, 2 TSRMLS_CC);
 
-    char *buf = Z_STRVAL_P(zdata);
     long finish = buf[0] ? 1 : 0;
     long opcode = buf[1];
 
@@ -226,15 +226,7 @@ int swoole_websocket_onMessage(swEventData *req)
     zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("fd"), fd TSRMLS_CC);
     zend_update_property_bool(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("finish"), finish TSRMLS_CC);
     zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("opcode"), opcode TSRMLS_CC);
-
-    if (Z_STRLEN_P(zdata) == 2)
-    {
-        zend_update_property_stringl(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("data"), "", 0 TSRMLS_CC);
-    }
-    else
-    {
-        zend_update_property_stringl(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("data"), buf + 2, (Z_STRLEN_P(zdata) - 2) TSRMLS_CC);
-    }
+    zend_update_property(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("data"), zdata TSRMLS_CC);
 
     swServer *serv = SwooleG.serv;
     zval *zserv = (zval *) serv->ptr2;
@@ -244,26 +236,20 @@ int swoole_websocket_onMessage(swEventData *req)
     args[1] = &zframe;
 
     zval *retval = NULL;
-
-    if (sw_call_user_function_ex(EG(function_table), NULL, websocket_callbacks[WEBSOCKET_CALLBACK_onMessage], &retval, 2,
-            args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, websocket_callbacks[WEBSOCKET_CALLBACK_onMessage], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "onMessage handler error");
     }
-
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-
     if (retval)
     {
         sw_zval_ptr_dtor(&retval);
     }
-
     sw_zval_ptr_dtor(&zdata);
     sw_zval_ptr_dtor(&zframe);
-
     return SW_OK;
 }
 

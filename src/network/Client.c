@@ -649,24 +649,6 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
             return SW_OK;
         }
     }
-    //packet mode
-    else if (cli->packet_mode == 1)
-    {
-        uint32_t len_tmp = 0;
-        n = swConnection_recv(event->socket, &len_tmp, 4, 0);
-        if (n <= 0)
-        {
-            return cli->close(cli);
-        }
-        else
-        {
-            buf_size = ntohl(len_tmp);
-            if (buf_size > cli->buffer->size)
-            {
-                swString_extend(cli->buffer, buf_size);
-            }
-        }
-    }
 
 #ifdef SW_CLIENT_RECV_AGAIN
     recv_again:

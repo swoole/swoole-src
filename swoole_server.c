@@ -62,7 +62,7 @@ static void php_swoole_onManagerStop(swServer *serv);
 static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC);
 static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC);
 
-zval *php_swoole_get_recv_data(zval *zdata, swEventData *req TSRMLS_DC)
+char* php_swoole_get_recv_data(zval *zdata, swEventData *req, uint32_t offset TSRMLS_DC)
 {
     char *data_ptr = NULL;
     int data_len;
@@ -90,14 +90,13 @@ zval *php_swoole_get_recv_data(zval *zdata, swEventData *req TSRMLS_DC)
         data_len = req->info.len;
     }
 
-    //add by andy
-    if (SwooleG.serv->packet_mode == 1)
+    if (offset >= data_len)
     {
-        SW_ZVAL_STRINGL(zdata, data_ptr + 4, data_len - 4, 1);
+        SW_ZVAL_STRING(zdata, "", 1);
     }
     else
     {
-        SW_ZVAL_STRINGL(zdata, data_ptr, data_len, 1);
+        SW_ZVAL_STRINGL(zdata, data_ptr + offset, data_len - offset, 1);
     }
 
 #ifdef SW_USE_RINGBUFFER
@@ -107,7 +106,7 @@ zval *php_swoole_get_recv_data(zval *zdata, swEventData *req TSRMLS_DC)
         thread->buffer_input->free(thread->buffer_input, data_ptr);
     }
 #endif
-    return zdata;
+    return data_ptr;
 }
 
 int php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC)
@@ -576,7 +575,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     {
         ZVAL_LONG(zfrom_id, (long ) req->info.from_id);
         ZVAL_LONG(zfd, (long ) req->info.fd);
-        zdata = php_swoole_get_recv_data(zdata, req TSRMLS_CC);
+        php_swoole_get_recv_data(zdata, req, 0 TSRMLS_CC);
     }
 
     callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
@@ -1247,7 +1246,6 @@ PHP_METHOD(swoole_server, __construct)
     long sock_type = SW_SOCK_TCP;
     long serv_port;
     long serv_mode = SW_MODE_PROCESS;
-    long serv_mode_tmp = serv_mode;
     long packet_mode = 0;
 
     //only cli env
@@ -1272,15 +1270,11 @@ PHP_METHOD(swoole_server, __construct)
     swServer *serv = sw_malloc(sizeof (swServer));
     swServer_init(serv);
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl|ll", &serv_host, &host_len, &serv_port, &serv_mode_tmp, &sock_type) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl|ll", &serv_host, &host_len, &serv_port, &serv_mode, &sock_type) == FAILURE)
     {
         swoole_php_fatal_error(E_ERROR, "invalid parameters.");
         return;
     }
-
-    serv_mode = serv_mode_tmp & 0x0f;
-    packet_mode = (serv_mode_tmp & 0xf0) >> 4;
-    serv->packet_mode = packet_mode;
 
 #ifdef __CYGWIN__
     serv->factory_mode = SW_MODE_SINGLE;
@@ -1891,11 +1885,6 @@ PHP_METHOD(swoole_server, send)
         {
             swoole_php_error(E_WARNING, "cannot send to client in task worker with SWOOLE_BASE mode.");
             RETURN_FALSE;
-        }
-        if (serv->packet_mode == 1)
-        {
-            uint32_t len_tmp= htonl(length);
-            swServer_tcp_send(serv, fd, &len_tmp, 4);
         }
         SW_CHECK_RETURN(swServer_tcp_send(serv, fd, data, length));
     }

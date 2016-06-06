@@ -375,10 +375,6 @@ struct _swServer
      */
     uint32_t enable_unsafe_event :1;
     /**
-     * packet mode
-     */
-    uint32_t packet_mode :1;
-    /**
      * run as a daemon process
      */
     uint32_t reload_async :1;

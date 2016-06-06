@@ -1012,7 +1012,7 @@ static void http_onClose(swServer *serv, swDataHead *info)
     if (client)
     {
         http_context *ctx = &client->context;
-        if (ctx->request.zobject && !ctx->end)
+        if (ctx->response.zobject && !ctx->end)
         {
 #if PHP_MAJOR_VERSION < 7
             TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -1080,7 +1080,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
     SW_MAKE_STD_ZVAL(zdata);
     ctx->request.zdata = zdata;
     sw_copy_to_stack(ctx->request.zdata, ctx->request._zdata);
-    zdata = php_swoole_get_recv_data(zdata, req TSRMLS_CC);
+    php_swoole_get_recv_data(zdata, req, 0 TSRMLS_CC);
 
     swTrace("httpRequest %d bytes:\n---------------------------------------\n%s\n", Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
 
@@ -1190,6 +1190,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
                 conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
             }
         }
+        sw_zval_ptr_dtor(&zdata);
         sw_zval_ptr_dtor(&zrequest_object);
         sw_zval_ptr_dtor(&zresponse_object);
         if (retval)
@@ -1326,47 +1327,8 @@ http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC)
 
 void swoole_http_context_free(http_context *ctx TSRMLS_DC)
 {
-    swoole_set_object(ctx->request.zobject, NULL);
     swoole_set_object(ctx->response.zobject, NULL);
 
-    http_request *req = &ctx->request;
-    if (req->path)
-    {
-        efree(req->path);
-    }
-    if (req->post_content)
-    {
-        efree(req->post_content);
-    }
-    //request data
-    if (req->zdata)
-    {
-        sw_zval_ptr_dtor(&req->zdata);
-    }
-    //upload files
-    if (req->zfiles)
-    {
-        zval *zfiles = req->zfiles;
-        zval *value;
-        char *key;
-        int keytype;
-        uint32_t keylen;
-
-        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zfiles), key, keylen, keytype, value)
-        {
-            if (HASH_KEY_IS_STRING != keytype)
-            {
-                continue;
-            }
-            zval *file_path;
-            if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("tmp_name"), (void **) &file_path) == SUCCESS)
-            {
-                unlink(Z_STRVAL_P(file_path));
-                sw_zend_hash_del(SG(rfc1867_uploaded_files), Z_STRVAL_P(file_path), Z_STRLEN_P(file_path) + 1);
-            }
-        }
-        SW_HASHTABLE_FOREACH_END();
-    }
 #ifdef SW_USE_HTTP2
     if (ctx->buffer)
     {
@@ -1376,6 +1338,11 @@ void swoole_http_context_free(http_context *ctx TSRMLS_DC)
     ctx->end = 1;
     ctx->send_header = 0;
     ctx->gzip_enable = 0;
+
+    if (!ctx->request.zobject)
+    {
+        return;
+    }
 }
 
 static char *http_status_message(int code)
@@ -1657,6 +1624,45 @@ static PHP_METHOD(swoole_http_request, rawcontent)
 
 static PHP_METHOD(swoole_http_request, __destruct)
 {
+    http_context *context = swoole_get_object(getThis());
+    if (context)
+    {
+        return;
+    }
+
+    http_request *req = &context->request;
+    if (req->path)
+    {
+        efree(req->path);
+    }
+    if (req->post_content)
+    {
+        efree(req->post_content);
+    }
+    //upload files
+    if (req->zfiles)
+    {
+        zval *zfiles = req->zfiles;
+        zval *value;
+        char *key;
+        int keytype;
+        uint32_t keylen;
+
+        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zfiles), key, keylen, keytype, value)
+        {
+            if (HASH_KEY_IS_STRING != keytype)
+            {
+                continue;
+            }
+            zval *file_path;
+            if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("tmp_name"), (void **) &file_path) == SUCCESS)
+            {
+                unlink(Z_STRVAL_P(file_path));
+                sw_zend_hash_del(SG(rfc1867_uploaded_files), Z_STRVAL_P(file_path), Z_STRLEN_P(file_path) + 1);
+            }
+        }
+        SW_HASHTABLE_FOREACH_END();
+    }
     swoole_set_object(getThis(), NULL);
 }
 

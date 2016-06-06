@@ -206,18 +206,6 @@ static PHP_METHOD(swoole_server_port, set)
         convert_to_long(v);
         port->protocol.package_max_length = (int) Z_LVAL_P(v);
     }
-    /**
-     * swoole_packet_mode
-     */
-    if (SwooleG.serv->packet_mode == 1)
-    {
-        port->protocol.package_max_length = 64 * 1024 * 1024;
-        port->open_length_check = 1;
-        port->protocol.package_length_offset = 0;
-        port->protocol.package_body_offset = 4;
-        port->protocol.package_length_type = 'N';
-        port->open_eof_check = 0;
-    }
 
 #ifdef SW_USE_OPENSSL
     if (port->ssl)

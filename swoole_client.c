@@ -546,7 +546,6 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
 {
     zval *ztype;
     int async = 0;
-    int packet_mode = 0;
     char conn_key[SW_LONG_CONNECTION_KEY_LEN];
     int conn_key_len = 0;
     uint64_t tmp_buf;
@@ -564,13 +563,7 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
         return NULL;
     }
 
-    long type_tmp = Z_LVAL_P(ztype);
-    packet_mode = type_tmp & SW_MODE_PACKET;
-    packet_mode >>= 4;
-    long type = type_tmp & (~SW_MODE_PACKET);
-
-    //debug
-    //swTrace("type:%d,type_tmp:%d\r\n",type,type_tmp);
+    long type = Z_LVAL_P(ztype);
 
     //new flag, swoole-1.6.12+
     if (type & SW_FLAG_ASYNC)
@@ -579,7 +572,6 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
     }
 
     swClient *cli;
-
     bzero(conn_key, SW_LONG_CONNECTION_KEY_LEN);
     zval *connection_id = sw_zend_read_property(swoole_client_class_entry_ptr, object, ZEND_STRL("id"), 1 TSRMLS_CC);
 
@@ -653,10 +645,6 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
     }
 #endif
 
-    if (packet_mode == 1)
-    {
-        cli->packet_mode = 1;
-    }
     return cli;
 }
 
@@ -902,22 +890,9 @@ static PHP_METHOD(swoole_client, send)
 
     //clear errno
     SwooleG.error = 0;
-    int ret;
-
-    if (cli->packet_mode == 1)
-    {
-        uint32_t len_tmp = htonl(data_len);
-        ret = cli->send(cli, (char *) &len_tmp, 4, flags);
-        if (ret < 0)
-        {
-            goto send_error;
-        }
-    }
-
-    ret = cli->send(cli, data, data_len, flags);
+    int ret = cli->send(cli, data, data_len, flags);
     if (ret < 0)
     {
-        send_error:
         SwooleG.error = errno;
         swoole_php_sys_error(E_WARNING, "send(%d) %d bytes failed.", cli->socket->fd, data_len);
         zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
@@ -1183,26 +1158,6 @@ static PHP_METHOD(swoole_client, recv)
         {
             ret += header_len;
         }
-    }
-    else if (cli->packet_mode == 1)
-    {
-        uint32_t len_tmp = 0;
-        ret = cli->recv(cli, (char*) &len_tmp, 4, MSG_WAITALL);
-        if (ret < 0)
-        {
-            swoole_php_error(E_WARNING, "recv() header failed. Error: %s [%d]", strerror(errno), errno);
-            RETURN_FALSE;
-        }
-        else
-        {
-            len_tmp = ntohl(len_tmp);
-            buf_len = len_tmp;
-        }
-
-        buf = emalloc(buf_len + 1);
-        SwooleG.error = 0;
-        //PACKET mode, must use waitall.
-        ret = cli->recv(cli, buf, buf_len, MSG_WAITALL);
     }
     else
     {
