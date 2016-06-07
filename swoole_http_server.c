@@ -1338,11 +1338,6 @@ void swoole_http_context_free(http_context *ctx TSRMLS_DC)
     ctx->end = 1;
     ctx->send_header = 0;
     ctx->gzip_enable = 0;
-
-    if (!ctx->request.zobject)
-    {
-        return;
-    }
 }
 
 static char *http_status_message(int code)
@@ -1625,7 +1620,7 @@ static PHP_METHOD(swoole_http_request, rawcontent)
 static PHP_METHOD(swoole_http_request, __destruct)
 {
     http_context *context = swoole_get_object(getThis());
-    if (context)
+    if (!context)
     {
         return;
     }

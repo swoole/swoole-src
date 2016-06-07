@@ -658,7 +658,7 @@ static int swoole_redis_onError(swReactor *reactor, swEvent *event)
 static void swoole_redis_event_AddRead(void *privdata)
 {
     swRedisClient *redis = (swRedisClient*) privdata;
-    if (redis->context)
+    if (redis->context && SwooleG.main_reactor)
     {
         swReactor_add_event(SwooleG.main_reactor, redis->context->c.fd, SW_EVENT_READ);
     }
@@ -667,7 +667,7 @@ static void swoole_redis_event_AddRead(void *privdata)
 static void swoole_redis_event_DelRead(void *privdata)
 {
     swRedisClient *redis = (swRedisClient*) privdata;
-    if (redis->context)
+    if (redis->context && SwooleG.main_reactor)
     {
         swReactor_del_event(SwooleG.main_reactor, redis->context->c.fd, SW_EVENT_READ);
     }
@@ -676,7 +676,7 @@ static void swoole_redis_event_DelRead(void *privdata)
 static void swoole_redis_event_AddWrite(void *privdata)
 {
     swRedisClient *redis = (swRedisClient*) privdata;
-    if (redis->context)
+    if (redis->context && SwooleG.main_reactor)
     {
         swReactor_add_event(SwooleG.main_reactor, redis->context->c.fd, SW_EVENT_WRITE);
     }
@@ -685,7 +685,7 @@ static void swoole_redis_event_AddWrite(void *privdata)
 static void swoole_redis_event_DelWrite(void *privdata)
 {
     swRedisClient *redis = (swRedisClient*) privdata;
-    if (redis->context)
+    if (redis->context && SwooleG.main_reactor)
     {
         swReactor_del_event(SwooleG.main_reactor, redis->context->c.fd, SW_EVENT_WRITE);
     }
@@ -695,7 +695,7 @@ static void swoole_redis_event_Cleanup(void *privdata)
 {
     swRedisClient *redis = (swRedisClient*) privdata;
     redis->state = SWOOLE_REDIS_STATE_CLOSED;
-    if (redis->context)
+    if (redis->context && SwooleG.main_reactor)
     {
         SwooleG.main_reactor->del(SwooleG.main_reactor, redis->context->c.fd);
     }
@@ -704,14 +704,20 @@ static void swoole_redis_event_Cleanup(void *privdata)
 static int swoole_redis_onRead(swReactor *reactor, swEvent *event)
 {
     swRedisClient *redis = event->socket->object;
-    redisAsyncHandleRead(redis->context);
+    if (redis->context && SwooleG.main_reactor)
+    {
+        redisAsyncHandleRead(redis->context);
+    }
     return SW_OK;
 }
 
 static int swoole_redis_onWrite(swReactor *reactor, swEvent *event)
 {
     swRedisClient *redis = event->socket->object;
-    redisAsyncHandleWrite(redis->context);
+    if (redis->context && SwooleG.main_reactor)
+    {
+        redisAsyncHandleWrite(redis->context);
+    }
     return SW_OK;
 }
 
