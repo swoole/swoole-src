@@ -1246,7 +1246,6 @@ PHP_METHOD(swoole_server, __construct)
     long sock_type = SW_SOCK_TCP;
     long serv_port;
     long serv_mode = SW_MODE_PROCESS;
-    long packet_mode = 0;
 
     //only cli env
     if (strcasecmp("cli", sapi_module.name) != 0)
