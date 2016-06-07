@@ -410,6 +410,7 @@ static PHP_METHOD(swoole_redis, __call)
 #endif
 
         sw_zval_add_ref(&redis->result_callback);
+        sw_zval_add_ref(&redis->object);
 
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(params), value)
             convert_to_string(value);
@@ -552,6 +553,7 @@ static void swoole_redis_onResult(redisAsyncContext *c, void *r, void *privdata)
     if (redis->state == SWOOLE_REDIS_STATE_READY)
     {
         sw_zval_ptr_dtor(&callback);
+        sw_zval_ptr_dtor(&redis->object);
     }
 }
 
@@ -591,8 +593,7 @@ void swoole_redis_onConnect(const redisAsyncContext *c, int status)
         sw_zval_ptr_dtor(&retval);
     }
     sw_zval_ptr_dtor(&result);
-    sw_zval_ptr_dtor(&callback);
-
+    sw_zval_add_ref(&redis->object);
     redis->connect_callback = NULL;
 }
 
