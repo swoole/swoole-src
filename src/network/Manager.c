@@ -126,6 +126,14 @@ int swManager_start(swFactory *factory)
             return SW_OK;
         }
         swServer_close_listen_port(serv);
+
+        /**
+         * create task worker process
+         */
+        if (SwooleG.task_worker_num > 0)
+        {
+            swProcessPool_start(&SwooleGS->task_workers);
+        }
         /**
          * create worker process
          */
@@ -143,15 +151,6 @@ int swManager_start(swFactory *factory)
                 serv->workers[i].pid = pid;
             }
         }
-
-        /**
-         * create task worker process
-         */
-        if (SwooleG.task_worker_num > 0)
-        {
-            swProcessPool_start(&SwooleGS->task_workers);
-        }
-
         /**
          * create user worker process
          */
