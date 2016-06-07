@@ -601,12 +601,13 @@ void swoole_redis_onClose(const redisAsyncContext *c, int status)
     swRedisClient *redis = c->ev.data;
     redis->state = SWOOLE_REDIS_STATE_CLOSED;
 
-    zval *zcallback = sw_zend_read_property(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("onClose"), 0 TSRMLS_CC);
-    if (!ZVAL_IS_NULL(zcallback))
-    {
 #if PHP_MAJOR_VERSION < 7
         TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
+
+    zval *zcallback = sw_zend_read_property(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("onClose"), 1 TSRMLS_CC);
+    if (zcallback && !ZVAL_IS_NULL(zcallback))
+    {
         zval *retval;
         zval **args[1];
         args[0] = &redis->object;
@@ -625,14 +626,14 @@ void swoole_redis_onClose(const redisAsyncContext *c, int status)
 
 static int swoole_redis_onError(swReactor *reactor, swEvent *event)
 {
+#if PHP_MAJOR_VERSION < 7
+        TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
     swRedisClient *redis = event->socket->object;
     zval *zcallback = sw_zend_read_property(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("onConnect"), 0 TSRMLS_CC);
 
     if (!ZVAL_IS_NULL(zcallback))
     {
-#if PHP_MAJOR_VERSION < 7
-        TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
         const redisAsyncContext *c = redis->context;
         zval *result;
         SW_MAKE_STD_ZVAL(result);
