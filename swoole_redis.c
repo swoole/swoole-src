@@ -28,17 +28,18 @@ typedef struct
     redisAsyncContext *context;
     uint8_t state;
     uint8_t subscribe;
+    uint8_t connecting;
 
+    zval *object;
     zval *result_callback;
     zval *message_callback;
 
 #if PHP_MAJOR_VERSION >= 7
     zval _result_callback;
     zval _message_callback;
+    zval _object;
 #endif
 
-    zval *object;
-    zval _object;
 } swRedisClient;
 
 enum swoole_redis_state
@@ -245,6 +246,7 @@ static PHP_METHOD(swoole_redis, connect)
         RETURN_FALSE;
     }
 
+    redis->connecting = 1;
     sw_zval_add_ref(&redis->object);
 
     swConnection *conn = swReactor_get(SwooleG.main_reactor, redis->context->c.fd);
@@ -254,10 +256,19 @@ static PHP_METHOD(swoole_redis, connect)
 static PHP_METHOD(swoole_redis, close)
 {
     swRedisClient *redis = swoole_get_object(getThis());
-    if (redis && redis->context && redis->state != SWOOLE_REDIS_STATE_CLOSED)
+    if (redis && redis->context)
     {
-        redisAsyncDisconnect(redis->context);
+        if (redis->connecting)
+        {
+            swoole_php_fatal_error(E_WARNING, "redis client is connecting, cannot close.");
+            RETURN_FALSE;
+        }
+        else if (redis->state != SWOOLE_REDIS_STATE_CLOSED)
+        {
+            redisAsyncDisconnect(redis->context);
+        }
     }
+
 }
 
 static PHP_METHOD(swoole_redis, __destruct)
@@ -553,6 +564,7 @@ void swoole_redis_onConnect(const redisAsyncContext *c, int status)
 
     zval *result, *retval;
     SW_MAKE_STD_ZVAL(result);
+
     if (status != REDIS_OK)
     {
         ZVAL_BOOL(result, 0);
@@ -581,6 +593,7 @@ void swoole_redis_onConnect(const redisAsyncContext *c, int status)
         sw_zval_ptr_dtor(&retval);
     }
     sw_zval_ptr_dtor(&result);
+    redis->connecting = 0;
 }
 
 void swoole_redis_onClose(const redisAsyncContext *c, int status)
@@ -588,7 +601,7 @@ void swoole_redis_onClose(const redisAsyncContext *c, int status)
     swRedisClient *redis = c->ev.data;
     redis->state = SWOOLE_REDIS_STATE_CLOSED;
 
-    zval *zcallback = sw_zend_read_property(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("onConnect"), 0 TSRMLS_CC);
+    zval *zcallback = sw_zend_read_property(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("onClose"), 0 TSRMLS_CC);
     if (!ZVAL_IS_NULL(zcallback))
     {
 #if PHP_MAJOR_VERSION < 7
