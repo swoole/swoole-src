@@ -155,12 +155,12 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
                 remaining_length = buffer->length - buffer->offset;
                 if (remaining_length > 0)
                 {
-                    if (protocol->swap->size < remaining_length && swString_extend(buffer, remaining_length) < 0)
+                    if (SwooleG.swap->size < remaining_length && swString_extend(buffer, remaining_length) < 0)
                     {
                         return SW_ERR;
                     }
-                    memcpy(protocol->swap->str, buffer->str + buffer->offset, remaining_length);
-                    memcpy(buffer->str, protocol->swap->str, remaining_length);
+                    memcpy(SwooleG.swap->str, buffer->str + buffer->offset, remaining_length);
+                    memcpy(buffer->str, SwooleG.swap->str, remaining_length);
                     buffer->offset = 0;
                     buffer->length = remaining_length;
                     goto do_get_length;
