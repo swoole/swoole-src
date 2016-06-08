@@ -15,8 +15,10 @@
  */
 
 #include "swoole.h"
+#include "Server.h"
 #include "websocket.h"
 #include "Connection.h"
+
 #include <sys/time.h>
 
 /*  The following is websocket data frame:
