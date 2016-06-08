@@ -121,7 +121,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, void 
  */
 int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swString *buffer)
 {
-    int package_length, remaining_length;
+    int package_length;
     uint32_t recv_size;
 
     do_recv:
@@ -140,7 +140,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swSysError("recv(%d, %ld) failed.", conn->fd, buffer->size - buffer->length);
+            swSysError("recv(%d, %d) failed.", conn->fd, recv_size);
             return SW_OK;
         case SW_CLOSE:
             return SW_ERR;
@@ -163,7 +163,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
                 do_dispatch: ret = protocol->onPackage(conn, buffer->str, buffer->offset);
                 conn->recv_wait = 0;
 
-                remaining_length = buffer->length - buffer->offset;
+                int remaining_length = buffer->length - buffer->offset;
                 if (remaining_length > 0)
                 {
                     if (SwooleG.swap->size < remaining_length && swString_extend(buffer, remaining_length) < 0)

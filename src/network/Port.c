@@ -219,6 +219,10 @@ static int swPort_websocket_onPackage(swConnection *conn, char *data, uint32_t l
         send_frame.length = 2;
         swConnection_send(conn, send_frame.str, 2, 0);
         return SW_ERR;
+
+    default:
+        swWarn("unknown opcode [%d].", ws.header.OPCODE);
+        break;
     }
     return SW_OK;
 }
