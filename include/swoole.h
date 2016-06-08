@@ -637,7 +637,7 @@ typedef struct _swSendData
 
 typedef void * (*swThreadStartFunc)(void *);
 typedef int (*swHandle)(swEventData *buf);
-typedef void (*swSignalFunc)(int);
+typedef void (*swSignalHander)(int);
 typedef struct _swReactor swReactor;
 
 typedef int (*swReactor_handle)(swReactor *reactor, swEvent *event);
@@ -1202,9 +1202,8 @@ static sw_inline int swSocket_tcp_nopush(int sock, int nopush)
 #define swSocket_tcp_nopush(sock, nopush)
 #endif
 
-void swFloat2timeval(float timeout, long int *sec, long int *usec);
-swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask);
-void swSignal_add(int signo, swSignalFunc func);
+swSignalHander swSignal_set(int sig, swSignalHander func, int restart, int mask);
+void swSignal_add(int signo, swSignalHander func);
 void swSignal_callback(int signo);
 void swSignal_clear(void);
 void swSignal_none(void);

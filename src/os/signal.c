@@ -18,7 +18,7 @@
 
 #ifdef HAVE_SIGNALFD
 #include <sys/signalfd.h>
-static void swSignalfd_set(int signo, __sighandler_t callback);
+static void swSignalfd_set(int signo, swSignalHander callback);
 static void swSignalfd_clear();
 static int swSignalfd_onSignal(swReactor *reactor, swEvent *event);
 
@@ -30,7 +30,7 @@ static int signal_fd = 0;
 
 typedef struct
 {
-    swSignalFunc callback;
+    swSignalHander callback;
     uint16_t signo;
     uint16_t active;
 } swSignal;
@@ -56,7 +56,7 @@ void swSignal_none(void)
 /**
  * setup signal
  */
-swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask)
+swSignalHander swSignal_set(int sig, swSignalHander func, int restart, int mask)
 {
     if (func == NULL)
     {
@@ -80,7 +80,7 @@ swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask)
     return oact.sa_handler;
 }
 
-void swSignal_add(int signo, swSignalFunc func)
+void swSignal_add(int signo, swSignalHander func)
 {
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd)
@@ -116,7 +116,7 @@ void swSignal_callback(int signo)
         swWarn("signal[%d] numberis invalid.", signo);
         return;
     }
-    swSignalFunc callback = signals[signo].callback;
+    swSignalHander callback = signals[signo].callback;
     if (!callback)
     {
         swWarn("signal[%d] callback is null.", signo);
@@ -142,7 +142,7 @@ void swSignalfd_init()
     bzero(&signals, sizeof(signals));
 }
 
-static void swSignalfd_set(int signo, __sighandler_t callback)
+static void swSignalfd_set(int signo, swSignalHander callback)
 {
     if (callback == NULL)
     {
