@@ -711,8 +711,11 @@ static PHP_METHOD(swoole_client, __destruct)
     }
     //free memory
     client_callback *cb = swoole_get_property(getThis(), 0);
-    efree(cb);
-    swoole_set_property(getThis(), 0, NULL);
+    if (cb)
+    {
+        efree(cb);
+        swoole_set_property(getThis(), 0, NULL);
+    }
 }
 
 static PHP_METHOD(swoole_client, set)
