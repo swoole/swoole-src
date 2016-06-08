@@ -544,8 +544,6 @@ typedef struct _swProtocol
     uint16_t package_body_offset;  //第几个字节开始计算长度
     uint32_t package_max_length;
 
-    swString *swap;
-
     int (*onPackage)(swConnection *conn, char *data, uint32_t length);
     int (*get_package_length)(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 } swProtocol;
@@ -1806,7 +1804,12 @@ typedef struct
     swReactor *main_reactor;
 
     swPipe *task_notify;
-    swEventData *task_result;    
+    swEventData *task_result;
+
+    /**
+     * memory exchange
+     */
+    swString *swap;
     
     pthread_t heartbeat_pidt;
 

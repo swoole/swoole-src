@@ -79,6 +79,13 @@ void swoole_init(void)
         printf("[Master] Fatal Error: create global memory failed.");
         exit(1);
     }
+    //memory swap
+    SwooleG.swap = swString_new(SW_BUFFER_SIZE_BIG);
+    if (SwooleG.swap  == NULL)
+    {
+        printf("[Master] Fatal Error: create swap memory failed.");
+        exit(1);
+    }
     SwooleGS = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerGS));
     if (SwooleGS == NULL)
     {
@@ -134,6 +141,7 @@ void swoole_clean(void)
         {
             SwooleG.main_reactor->free(SwooleG.main_reactor);
         }
+        swString_free(SwooleG.swap);
         bzero(&SwooleG, sizeof(SwooleG));
     }
 }

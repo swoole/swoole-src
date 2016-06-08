@@ -57,6 +57,13 @@ enum mysql_command
     SW_MYSQL_COM_END
 };
 
+enum mysql_handshake_state
+{
+    SW_MYSQL_HANDSHAKE_WAIT_REQUEST,
+    SW_MYSQL_HANDSHAKE_WAIT_RESULT,
+    SW_MYSQL_HANDSHAKE_COMPLETED,
+};
+
 enum mysql_read_state
 {
     SW_MYSQL_STATE_QUERY,
@@ -220,12 +227,15 @@ typedef union
 typedef struct
 {
     uint8_t state;
+    uint8_t handshake;
     swString *buffer;
     swClient *cli;
     zval *object;
     zval *callback;
     zval *onClose;
     int fd;
+
+    mysql_connector connector;
 
 #if PHP_MAJOR_VERSION >= 7
     zval _object;

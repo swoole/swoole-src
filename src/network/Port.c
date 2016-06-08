@@ -219,6 +219,10 @@ static int swPort_websocket_onPackage(swConnection *conn, char *data, uint32_t l
         send_frame.length = 2;
         swConnection_send(conn, send_frame.str, 2, 0);
         return SW_ERR;
+
+    default:
+        swWarn("unknown opcode [%d].", ws.header.OPCODE);
+        break;
     }
     return SW_OK;
 }
@@ -269,15 +273,6 @@ void swPort_set_protocol(swListenPort *ls)
     else
     {
         ls->onRead = swPort_onRead_raw;
-    }
-    //length protocol
-    if (ls->protocol.get_package_length)
-    {
-        ls->protocol.swap = swString_new(SW_BUFFER_SIZE_BIG);
-        if (ls->protocol.swap == NULL)
-        {
-            swError("alloc swap memory failed.");
-        }
     }
 }
 
@@ -648,10 +643,5 @@ void swPort_free(swListenPort *port)
     if (port->type == SW_SOCK_UNIX_STREAM || port->type == SW_SOCK_UNIX_DGRAM)
     {
         unlink(port->host);
-    }
-    //free swap memory
-    if (port->protocol.swap)
-    {
-        swString_free(port->protocol.swap);
     }
 }
