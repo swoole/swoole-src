@@ -23,9 +23,6 @@ PHP_ARG_ENABLE(sockets, enable sockets support,
 PHP_ARG_ENABLE(ringbuffer, enable ringbuffer shared memory pool support,
 [  --enable-ringbuffer     Use ringbuffer memory pool?], no, no)
 
-PHP_ARG_ENABLE(async_mysql, enable async_mysql support,
-[  --enable-async-mysql    Do you have mysqli and mysqlnd?], no, no)
-
 PHP_ARG_ENABLE(async_redis, enable async_redis support,
 [  --enable-async-redis    Do you have hiredis?], no, no)
 
@@ -138,14 +135,6 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_DEBUG, 1, [do we enable swoole debug])
     fi
 
-    if test "$PHP_MYSQLI" = "yes"; then
-		AC_DEFINE(HAVE_MYSQLI, 1, [have mysqli extension])
-    fi
-
-    if test "$PHP_MYSQLND" = "yes"; then
-		AC_DEFINE(HAVE_MYSQLND, 1, [have mysqlnd extension])
-    fi
-
     if test "$PHP_SOCKETS" = "yes"; then
 		AC_DEFINE(SW_SOCKETS, 1, [enable sockets support])
     fi
@@ -154,24 +143,12 @@ if test "$PHP_SWOOLE" != "no"; then
 		AC_DEFINE(SW_USE_RINGBUFFER, 1, [enable ringbuffer support])
     fi
 
-	if test "$PHP_ASYNC_MYSQL" = "yes"; then
-		AC_DEFINE(SW_ASYNC_MYSQL, 1, [enable async_mysql support])
-    fi
-
 	if test "$PHP_HTTP2" = "yes"; then
 		AC_DEFINE(SW_USE_HTTP2, 1, [enable http2.0 support])
     fi
 
     AC_SWOOLE_CPU_AFFINITY
     AC_SWOOLE_HAVE_REUSEPORT
-
-    SWOOLE_HAVE_PHP_EXT([mysqli], [
-        AC_DEFINE(SW_HAVE_MYSQLI, 1, [have mysqli])
-    ])
-
-    SWOOLE_HAVE_PHP_EXT([mysqlnd], [
-        AC_DEFINE(SW_HAVE_MYSQLND, 1, [have mysqlnd])
-    ])
 
     CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
