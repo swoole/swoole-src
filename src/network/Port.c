@@ -169,63 +169,6 @@ int swPort_set_option(swListenPort *ls)
     return SW_OK;
 }
 
-static int swPort_websocket_onPackage(swConnection *conn, char *data, uint32_t length)
-{
-    swString frame;
-    bzero(&frame, sizeof(frame));
-    frame.str = data;
-    frame.length = length;
-
-    swString send_frame;
-    bzero(&send_frame, sizeof(send_frame));
-    char buf[128];
-    send_frame.str = buf;
-    send_frame.size = sizeof(buf);
-
-    swWebSocket_frame ws;
-    swWebSocket_decode(&ws, &frame);
-
-    size_t offset;
-    switch (ws.header.OPCODE)
-    {
-    case WEBSOCKET_OPCODE_CONTINUATION_FRAME:
-    case WEBSOCKET_OPCODE_TEXT_FRAME:
-    case WEBSOCKET_OPCODE_BINARY_FRAME:
-        offset = length - ws.payload_length - 2;
-        data[offset] = ws.header.FIN;
-        data[offset + 1] = ws.header.OPCODE;
-        swReactorThread_dispatch(conn, data + offset, length - offset);
-        break;
-
-    case WEBSOCKET_OPCODE_PING:
-        if (length == 2 || length >= (sizeof(buf) - 2))
-        {
-            return SW_ERR;
-        }
-        swWebSocket_encode(&send_frame, data += 2, length - 2, WEBSOCKET_OPCODE_PONG, 1, 0);
-        swConnection_send(conn, send_frame.str, send_frame.length, 0);
-        break;
-
-    case WEBSOCKET_OPCODE_PONG:
-        return SW_ERR;
-
-    case WEBSOCKET_OPCODE_CONNECTION_CLOSE:
-        if (0x7d < (length - 2))
-        {
-            return SW_ERR;
-        }
-        send_frame.str[0] = 0x88;
-        send_frame.str[1] = 0x00;
-        send_frame.length = 2;
-        swConnection_send(conn, send_frame.str, 2, 0);
-        return SW_ERR;
-
-    default:
-        swWarn("unknown opcode [%d].", ws.header.OPCODE);
-        break;
-    }
-    return SW_OK;
-}
 
 void swPort_set_protocol(swListenPort *ls)
 {
@@ -251,7 +194,7 @@ void swPort_set_protocol(swListenPort *ls)
         if (ls->open_websocket_protocol)
         {
             ls->protocol.get_package_length = swWebSocket_get_package_length;
-            ls->protocol.onPackage = swPort_websocket_onPackage;
+            ls->protocol.onPackage = swWebSocket_dispatch_frame;
             ls->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
         }
 #ifdef SW_USE_HTTP2
