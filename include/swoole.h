@@ -1806,11 +1806,6 @@ typedef struct
     swPipe *task_notify;
     swEventData *task_result;
 
-    /**
-     * memory exchange
-     */
-    swString *swap;
-    
     pthread_t heartbeat_pidt;
 
 } swServerG;
