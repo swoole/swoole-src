@@ -122,7 +122,19 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, void 
 int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swString *buffer)
 {
     int package_length, remaining_length;
-    int ret = swConnection_recv(conn, buffer->str + buffer->length, buffer->size - buffer->length, 0);
+    uint32_t recv_size;
+
+    do_recv:
+    if (buffer->offset > 0)
+    {
+        recv_size = buffer->offset - buffer->length;
+    }
+    else
+    {
+        recv_size = protocol->package_length_offset + protocol->package_length_size;
+    }
+
+    int ret = swConnection_recv(conn, buffer->str + buffer->length, recv_size, 0);
     if (ret < 0)
     {
         switch (swConnection_error(errno))
@@ -146,10 +158,9 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
 
         if (conn->recv_wait)
         {
-            do_get_body:
             if (buffer->length >= buffer->offset)
             {
-                ret = protocol->onPackage(conn, buffer->str, buffer->offset);
+                do_dispatch: ret = protocol->onPackage(conn, buffer->str, buffer->offset);
                 conn->recv_wait = 0;
 
                 remaining_length = buffer->length - buffer->offset;
@@ -168,13 +179,9 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
                 else
                 {
                     swString_clear(buffer);
-                    return ret;
                 }
             }
-            else
-            {
-                return SW_OK;
-            }
+            return SW_OK;
         }
         else
         {
@@ -206,7 +213,15 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
                 }
                 conn->recv_wait = 1;
                 buffer->offset = package_length;
-                goto do_get_body;
+
+                if (buffer->length >= package_length)
+                {
+                    goto do_dispatch;
+                }
+                else
+                {
+                    goto do_recv;
+                }
             }
         }
     }
