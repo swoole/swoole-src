@@ -231,7 +231,7 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
         break;
 
     case WEBSOCKET_OPCODE_PONG:
-        return SW_ERR;
+        break;
 
     case WEBSOCKET_OPCODE_CONNECTION_CLOSE:
         if (0x7d < (length - 2))
