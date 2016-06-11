@@ -561,7 +561,7 @@ static int swPort_onRead_check_eof(swReactor *reactor, swListenPort *port, swEve
         return SW_ERR;
     }
 
-    if (swProtocol_recv_check_eof(protocol, conn, conn->object) < 0)
+    if (swProtocol_recv_check_eof(protocol, conn, buffer) < 0)
     {
         swReactorThread_onClose(reactor, event);
     }
