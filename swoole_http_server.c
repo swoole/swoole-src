@@ -601,18 +601,20 @@ static int multipart_body_on_data(multipart_parser* p, const char *at, size_t le
     return 0;
 }
 
-void get_random_file_name(char *des, const char *src)
+#if 0
+static void get_random_file_name(char *des, const char *src)
 {
     unsigned char digest[16] = {0};
     char buf[19] = {0};
-    sprintf(buf, "%s%d", src, swoole_system_random(0,9999));
+    int n = sprintf(buf, "%s%d", src, swoole_system_random(0, 9999));
 
     PHP_MD5_CTX ctx;
     PHP_MD5Init(&ctx);
-    PHP_MD5Update(&ctx, buf, strlen(buf));
+    PHP_MD5Update(&ctx, buf, n);
     PHP_MD5Final(digest, &ctx);
     make_digest_ex(des, digest, 16);
 }
+#endif
 
 static int multipart_body_on_header_complete(multipart_parser* p)
 {
