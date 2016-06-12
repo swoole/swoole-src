@@ -49,7 +49,7 @@ int swClient_create(swClient *cli, int type, int async)
     int _domain;
     int _type;
 
-    bzero(cli, sizeof(*cli));
+    bzero(cli, sizeof(swClient));
     switch (type)
     {
     case SW_SOCK_TCP:
