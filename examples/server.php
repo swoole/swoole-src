@@ -189,7 +189,7 @@ function my_onClose(swoole_server $serv, $fd, $from_id)
     {
         $buffer->clear();
     }
-    var_dump($serv->getClientInfo($fd));
+    //var_dump($serv->getClientInfo($fd));
 }
 
 function my_onConnect(swoole_server $serv, $fd, $from_id)
@@ -258,8 +258,13 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     }
     elseif($cmd == "task")
     {
-        $task_id = $serv->task("task-".$fd);
+        $task_id = $serv->task("task ".$fd);
         echo "Dispath AsyncTask: id=$task_id\n";
+    }
+    elseif ($cmd == "taskclose")
+    {
+        $serv->task("close " . $fd);
+        echo "close the connection in taskworker\n";
     }
     elseif($cmd == "taskwait")
     {
@@ -421,11 +426,18 @@ function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
     }
     else
     {
+        $cmd = explode(' ', $data);
+        if ($cmd[0] == 'send')
+        {
+            $serv->send($cmd[1], "hello world in taskworker.");
+        }
+        elseif ($cmd[0] == 'close')
+        {
+            $serv->close($cmd[1]);
+        }
 //        $serv->sendto('127.0.0.1', 9999, "hello world");
         //swoole_timer_after(1000, "test");
 //        var_dump($data);
-        $fd = str_replace('task-', '', $data);
-        $serv->send($fd, "hello world in taskworker.");
 //        $serv->send($fd, str_repeat('A', 8192 * 2));
 //        $serv->send($fd, str_repeat('B', 8192 * 2));
 //        $serv->send($fd, str_repeat('C', 8192 * 2));
