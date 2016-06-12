@@ -260,7 +260,7 @@ static PHP_METHOD(swoole_process, useQueue)
     {
         RETURN_FALSE;
     }
-    queue->delete = 0;
+    queue->remove = 0;
     process->queue = queue;
     process->ipc_mode = mode;
     RETURN_TRUE;
@@ -271,7 +271,7 @@ static PHP_METHOD(swoole_process, freeQueue)
     swWorker *process = swoole_get_object(getThis());
     if (process->queue)
     {
-        process->queue->delete = 1;
+        process->queue->remove = 1;
         swMsgQueue_free(process->queue);
         efree(process->queue);
         process->queue = NULL;

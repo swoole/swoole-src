@@ -681,7 +681,7 @@ typedef struct _swMsgQueue
     int blocking;
     int msg_id;
     int ipc_wait;
-    uint8_t delete;
+    uint8_t remove;
     long type;
 } swMsgQueue;
 

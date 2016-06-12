@@ -21,7 +21,7 @@
 
 void swMsgQueue_free(swMsgQueue *q)
 {
-    if (q->delete)
+    if (q->remove)
     {
         msgctl(q->msg_id, IPC_RMID, 0);
     }
@@ -73,7 +73,6 @@ int swMsgQueue_push(swMsgQueue *q, swQueue_data *in, int length)
     while (1)
     {
         ret = msgsnd(q->msg_id, in, length, q->ipc_wait);
-
         if (ret < 0)
         {
             if (errno == EINTR)
