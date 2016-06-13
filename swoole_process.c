@@ -266,6 +266,7 @@ static PHP_METHOD(swoole_process, useQueue)
     process->queue = queue;
     process->ipc_mode = mode;
     zend_update_property_long(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("msgQueueId"), queue->msg_id TSRMLS_CC);
+    zend_update_property_long(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("msgQueueKey"), msgkey TSRMLS_CC);
     RETURN_TRUE;
 }
 
