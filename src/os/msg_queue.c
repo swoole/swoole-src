@@ -100,11 +100,10 @@ int swMsgQueue_push(swMsgQueue *q, swQueue_data *in, int length)
 int swMsgQueue_stat(swMsgQueue *q, int *queue_num, int *queue_bytes)
 {
     struct msqid_ds stat;
-
     if (msgctl(q->msg_id, IPC_STAT, &stat) == 0)
     {
         *queue_num = stat.msg_qnum;
-        *queue_bytes = stat.msg_qbytes;
+        *queue_bytes = stat.__msg_cbytes;
         return 0;
     }
     else

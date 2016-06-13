@@ -21,6 +21,7 @@
 static PHP_METHOD(swoole_process, __construct);
 static PHP_METHOD(swoole_process, __destruct);
 static PHP_METHOD(swoole_process, useQueue);
+static PHP_METHOD(swoole_process, statQueue);
 static PHP_METHOD(swoole_process, freeQueue);
 static PHP_METHOD(swoole_process, pop);
 static PHP_METHOD(swoole_process, push);
@@ -57,6 +58,7 @@ static const zend_function_entry swoole_process_methods[] =
     PHP_ME(swoole_process, setaffinity, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 #endif
     PHP_ME(swoole_process, useQueue, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process, statQueue, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process, freeQueue, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process, start, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process, write, NULL, ZEND_ACC_PUBLIC)
@@ -263,7 +265,31 @@ static PHP_METHOD(swoole_process, useQueue)
     queue->remove = 0;
     process->queue = queue;
     process->ipc_mode = mode;
+    zend_update_property_long(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("msgQueueId"), queue->msg_id TSRMLS_CC);
     RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_process, statQueue)
+{
+    swWorker *process = swoole_get_object(getThis());
+    if (!process->queue)
+    {
+        swoole_php_fatal_error(E_WARNING, "have not msgqueue, can not use push()");
+        RETURN_FALSE;
+    }
+
+    int queue_num = -1;
+    int queue_bytes = -1;
+    if (swMsgQueue_stat(process->queue, &queue_num, &queue_bytes) == 0)
+    {
+        array_init(return_value);
+        sw_add_assoc_long_ex(return_value, ZEND_STRS("queue_num"), queue_num);
+        sw_add_assoc_long_ex(return_value, ZEND_STRS("queue_bytes"), queue_bytes);
+    }
+    else
+    {
+        RETURN_FALSE;
+    }
 }
 
 static PHP_METHOD(swoole_process, freeQueue)
