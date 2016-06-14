@@ -248,6 +248,7 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_async_dns_lookup, arginfo_swoole_async_dns_lookup)
     /*------other-----*/
     PHP_FE(swoole_client_select, arginfo_swoole_client_select)
+    PHP_FALIAS(swoole_select, swoole_client_select, arginfo_swoole_client_select)
     PHP_FE(swoole_set_process_name, arginfo_swoole_set_process_name)
     PHP_FE(swoole_get_local_ip, arginfo_swoole_void)
     PHP_FE(swoole_strerror, arginfo_swoole_strerror)
