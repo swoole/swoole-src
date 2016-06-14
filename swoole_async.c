@@ -208,6 +208,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
         if (file_req->once != 1)
         {
             swoole_aio_free(event->buf);
+            event->buf = NULL;
         }
     }
     else if(event->type == SW_AIO_DNS_LOOKUP)
@@ -255,7 +256,9 @@ static void php_swoole_aio_onComplete(swAio_event *event)
             }
             sw_zval_ptr_dtor(&file_req->filename);
 
-            swoole_aio_free(event->buf);
+            if (NULL != event->buf) {
+                swoole_aio_free(event->buf);
+            }
             close(event->fd);
             swHashMap_del_int(php_swoole_aio_request, event->fd);
             efree(file_req);
@@ -603,7 +606,7 @@ PHP_FUNCTION(swoole_async_writefile)
     }
     if (fcnt_len > SW_AIO_MAX_FILESIZE)
     {
-        swoole_php_fatal_error(E_WARNING, "file_size[size=%d|max_size=%d] is too big. Please use swoole_async_read.",
+        swoole_php_fatal_error(E_WARNING, "file_size[size=%d|max_size=%d] is too big. Please use swoole_async_write.",
                 fcnt_len, SW_AIO_MAX_FILESIZE);
         RETURN_FALSE;
     }
