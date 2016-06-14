@@ -910,13 +910,13 @@ static PHP_METHOD(swoole_client, send)
 static PHP_METHOD(swoole_client, sendto)
 {
     char* ip;
-    char* ip_len;
+    zend_size_t ip_len;
     zend_size_t port;
 
     char *data;
     zend_size_t len;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sls", &ip, &ip_len, &port, &data, &len) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|ls|", &ip, &ip_len, &port, &data, &len) == FAILURE)
     {
         return;
     }
@@ -930,14 +930,13 @@ static PHP_METHOD(swoole_client, sendto)
     swClient *cli = swoole_get_object(getThis());
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
-        RETURN_FALSE;
-    }
-
-    if (cli->socket->active == 0)
-    {
-        swoole_php_error(E_WARNING, "server is not connected.");
-        RETURN_FALSE;
+        cli = php_swoole_client_new(getThis(), ip, ip_len, port);
+        if (cli == NULL)
+        {
+            swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
+            RETURN_FALSE;
+        }
+        swoole_set_object(getThis(), cli);
     }
 
     int ret;
