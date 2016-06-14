@@ -1546,11 +1546,34 @@ PHP_FUNCTION(swoole_client_select)
     RETURN_LONG(retval);
 }
 
+static sw_inline int client_select_get_socket(zval *element TSRMLS_DC)
+{
+    zval *zsock = NULL;
+    if (Z_TYPE_P(element) != IS_OBJECT)
+    {
+        swoole_php_fatal_error(E_WARNING, "invalid parameters.");
+        return -1;
+    }
+    if (instanceof_function(Z_OBJCE_P(element), swoole_client_class_entry_ptr TSRMLS_CC))
+    {
+        zsock = sw_zend_read_property(Z_OBJCE_P(element), element, SW_STRL("sock")-1, 0 TSRMLS_CC);
+    }
+    else if (instanceof_function(Z_OBJCE_P(element), swoole_process_class_entry_ptr TSRMLS_CC))
+    {
+        zsock = sw_zend_read_property(Z_OBJCE_P(element), element, SW_STRL("pipe")-1, 0 TSRMLS_CC);
+    }
+    if (zsock == NULL || ZVAL_IS_NULL(zsock))
+    {
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client or swoole_process.");
+        return -1;
+    }
+    return Z_LVAL_P(zsock);
+}
+
 static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC)
 {
     zval *element = NULL;
-    zval *zsock;
-    zend_class_entry *ce;
+    int sock;
 
     ulong_t num = 0;
     if (SW_Z_TYPE_P(sock_array) != IS_ARRAY)
@@ -1568,19 +1591,12 @@ static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC)
     zend_hash_init(new_hash, zend_hash_num_elements(Z_ARRVAL_P(sock_array)), NULL, ZVAL_PTR_DTOR, 0);
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(sock_array), element)
-        if (Z_TYPE_P(element) != IS_OBJECT)
+        sock = client_select_get_socket(element TSRMLS_CC);
+        if (sock < 0)
         {
-            swoole_php_fatal_error(E_WARNING, "object is not swoole_client object[1].");
             continue;
         }
-        ce = Z_OBJCE_P(element);
-        zsock = sw_zend_read_property(ce, element, SW_STRL("sock")-1, 0 TSRMLS_CC);
-        if (zsock == NULL || ZVAL_IS_NULL(zsock))
-        {
-            swoole_php_fatal_error(E_WARNING, "object is not swoole_client object[2].");
-            continue;
-        }
-        if ((Z_LVAL(*zsock) < FD_SETSIZE) && FD_ISSET(Z_LVAL(*zsock), fds))
+        if ((sock < FD_SETSIZE) && FD_ISSET(sock, fds))
         {
             switch (sw_zend_hash_get_current_key(Z_ARRVAL_P(sock_array), &key, &key_len, &num))
             {
@@ -1611,22 +1627,15 @@ static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC)
     zend_string *key;
     zval *dest_element;
 
+
     ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(sock_array), num_key, key, element)
     {
-        if (Z_TYPE_P(element) != IS_OBJECT)
+        sock = client_select_get_socket(element TSRMLS_CC);
+        if (sock < 0)
         {
-            swoole_php_fatal_error(E_WARNING, "object is not swoole_client object[1].");
             continue;
         }
-        ce = Z_OBJCE_P(element);
-        zsock = sw_zend_read_property(ce, element, SW_STRL("sock")-1, 0 TSRMLS_CC);
-        if (zsock == NULL || ZVAL_IS_NULL(zsock))
-        {
-            swoole_php_fatal_error(E_WARNING, "object is not swoole_client object[2].");
-            continue;
-        }
-
-        if ((Z_LVAL(*zsock) < FD_SETSIZE) && FD_ISSET(Z_LVAL(*zsock), fds))
+        if ((sock < FD_SETSIZE) && FD_ISSET(sock, fds))
         {
             if (key)
             {
@@ -1653,42 +1662,35 @@ static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC)
 static int client_select_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_DC)
 {
     zval *element = NULL;
-    zval *zsock;
-    zend_class_entry *ce;
-
     if (SW_Z_TYPE_P(sock_array) != IS_ARRAY)
     {
         return 0;
     }
 
+    int sock;
     int num = 0;
+
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(sock_array), element)
-        if (Z_TYPE_P(element) != IS_OBJECT)
+        sock = client_select_get_socket(element TSRMLS_CC);
+        if (sock < 0)
         {
-            swoole_php_fatal_error(E_WARNING, "object is not swoole_client object[1].");
             continue;
         }
-        ce = Z_OBJCE_P(element);
-        zsock = sw_zend_read_property(ce, element, SW_STRL("sock")-1, 0 TSRMLS_CC);
-        if (zsock == NULL || ZVAL_IS_NULL(zsock))
+        if (sock < FD_SETSIZE)
         {
-            swoole_php_fatal_error(E_WARNING, "object is not swoole_client object[2].");
-            continue;
-        }
-        if (Z_LVAL(*zsock) < FD_SETSIZE)
-        {
-            FD_SET(Z_LVAL(*zsock), fds);
+            FD_SET(sock, fds);
         }
         else
         {
-            swoole_php_fatal_error(E_WARNING, "socket[%ld] > FD_SETSIZE[%d].", Z_LVAL(*zsock), FD_SETSIZE);
+            swoole_php_fatal_error(E_WARNING, "socket[%d] > FD_SETSIZE[%d].", sock, FD_SETSIZE);
             continue;
         }
-        if (Z_LVAL(*zsock) > *max_fd)
+        if (sock > *max_fd)
         {
-            *max_fd = Z_LVAL(*zsock);
+            *max_fd = sock;
         }
         num ++;
     SW_HASHTABLE_FOREACH_END();
+
     return num ? 1 : 0;
 }
