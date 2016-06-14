@@ -741,7 +741,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
         }
         else
         {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_TERMINATED, "worker process is terminated by exit()/die().");
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SERVER_WORKER_TERMINATED, "worker process is terminated by exit()/die().");
         }
     }
 
