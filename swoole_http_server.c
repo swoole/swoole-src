@@ -769,7 +769,6 @@ static int http_request_on_body(php_http_parser *parser, const char *at, size_t 
     char *body;
 
     ctx->request.post_length = length;
-
     if (SwooleG.serv->http_parse_post && ctx->request.post_form_urlencoded)
     {
         zval *zpost;
@@ -1009,7 +1008,6 @@ static int http_onReceive(swServer *serv, swEventData *req)
                 conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
             }
         }
-        sw_zval_ptr_dtor(&zdata);
         sw_zval_ptr_dtor(&zrequest_object);
         sw_zval_ptr_dtor(&zresponse_object);
         if (retval)
@@ -1461,6 +1459,7 @@ static PHP_METHOD(swoole_http_request, __destruct)
         }
         SW_HASHTABLE_FOREACH_END();
     }
+    sw_zval_ptr_dtor(&req->zdata);
     swoole_set_object(getThis(), NULL);
 }
 

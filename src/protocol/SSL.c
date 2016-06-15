@@ -175,7 +175,6 @@ SSL_CTX* swSSL_get_context(int method, char *cert_file, char *key_file)
             ERR_print_errors_fp(stderr);
             return NULL;
         }
-
         /*
          * if the crt file have many certificate entry ,means certificate chain
          * we need call this function
@@ -185,7 +184,6 @@ SSL_CTX* swSSL_get_context(int method, char *cert_file, char *key_file)
             ERR_print_errors_fp(stderr);
             return NULL;
         }
-
         /*
          * set the private key from KeyFile (may be the same as CertFile)
          */
