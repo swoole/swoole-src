@@ -911,12 +911,11 @@ static PHP_METHOD(swoole_client, sendto)
 {
     char* ip;
     zend_size_t ip_len;
-    zend_size_t port;
-
+    long port;
     char *data;
     zend_size_t len;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|ls|", &ip, &ip_len, &port, &data, &len) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sls", &ip, &ip_len, &port, &data, &len) == FAILURE)
     {
         return;
     }
@@ -933,9 +932,9 @@ static PHP_METHOD(swoole_client, sendto)
         cli = php_swoole_client_new(getThis(), ip, ip_len, port);
         if (cli == NULL)
         {
-            swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
             RETURN_FALSE;
         }
+        cli->socket->active = 1;
         swoole_set_object(getThis(), cli);
     }
 
