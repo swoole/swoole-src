@@ -32,54 +32,54 @@ static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, v
 #endif
 
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
-static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen,  const uchar *in, uint32_t inlen, void *arg);
+static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg);
 #endif
 
 static const SSL_METHOD *swSSL_get_method(int method)
 {
     switch (method)
     {
-    case SW_SSLv3_METHOD:
-        return SSLv3_method();
-    case SW_SSLv3_SERVER_METHOD:
-        return SSLv3_server_method();
-    case SW_SSLv3_CLIENT_METHOD:
-        return SSLv3_client_method();
-    case SW_SSLv23_SERVER_METHOD:
-        return SSLv23_server_method();
-    case SW_SSLv23_CLIENT_METHOD:
-        return SSLv23_client_method();
-    case SW_TLSv1_METHOD:
-        return TLSv1_method();
-    case SW_TLSv1_SERVER_METHOD:
-        return TLSv1_server_method();
-    case SW_TLSv1_CLIENT_METHOD:
-        return TLSv1_client_method();
+        case SW_SSLv3_METHOD:
+            return SSLv3_method();
+        case SW_SSLv3_SERVER_METHOD:
+            return SSLv3_server_method();
+        case SW_SSLv3_CLIENT_METHOD:
+            return SSLv3_client_method();
+        case SW_SSLv23_SERVER_METHOD:
+            return SSLv23_server_method();
+        case SW_SSLv23_CLIENT_METHOD:
+            return SSLv23_client_method();
+        case SW_TLSv1_METHOD:
+            return TLSv1_method();
+        case SW_TLSv1_SERVER_METHOD:
+            return TLSv1_server_method();
+        case SW_TLSv1_CLIENT_METHOD:
+            return TLSv1_client_method();
 #ifdef TLS1_1_VERSION
-    case SW_TLSv1_1_METHOD:
-        return TLSv1_1_method();
-    case SW_TLSv1_1_SERVER_METHOD:
-        return TLSv1_1_server_method();
-    case SW_TLSv1_1_CLIENT_METHOD:
-        return TLSv1_1_client_method();
+        case SW_TLSv1_1_METHOD:
+            return TLSv1_1_method();
+        case SW_TLSv1_1_SERVER_METHOD:
+            return TLSv1_1_server_method();
+        case SW_TLSv1_1_CLIENT_METHOD:
+            return TLSv1_1_client_method();
 #endif
 #ifdef TLS1_2_VERSION
-    case SW_TLSv1_2_METHOD:
-        return TLSv1_2_method();
-    case SW_TLSv1_2_SERVER_METHOD:
-        return TLSv1_2_server_method();
-    case SW_TLSv1_2_CLIENT_METHOD:
-        return TLSv1_2_client_method();
+        case SW_TLSv1_2_METHOD:
+            return TLSv1_2_method();
+        case SW_TLSv1_2_SERVER_METHOD:
+            return TLSv1_2_server_method();
+        case SW_TLSv1_2_CLIENT_METHOD:
+            return TLSv1_2_client_method();
 #endif
-    case SW_DTLSv1_METHOD:
-        return DTLSv1_method();
-    case SW_DTLSv1_SERVER_METHOD:
-        return DTLSv1_server_method();
-    case SW_DTLSv1_CLIENT_METHOD:
-        return DTLSv1_client_method();
-    case SW_SSLv23_METHOD:
-    default:
-        return SSLv23_method();
+        case SW_DTLSv1_METHOD:
+            return DTLSv1_method();
+        case SW_DTLSv1_SERVER_METHOD:
+            return DTLSv1_server_method();
+        case SW_DTLSv1_CLIENT_METHOD:
+            return DTLSv1_client_method();
+        case SW_SSLv23_METHOD:
+        default:
+            return SSLv23_method();
     }
     return SSLv23_method();
 }
@@ -175,6 +175,17 @@ SSL_CTX* swSSL_get_context(int method, char *cert_file, char *key_file)
             ERR_print_errors_fp(stderr);
             return NULL;
         }
+
+        /*
+         * if the crt file have many certificate entry ,means certificate chain
+         * we need call this function
+         */
+        if (SSL_CTX_use_certificate_chain_file(ssl_context,cert_file) <= 0)
+        {
+            ERR_print_errors_fp(stderr);
+            return NULL;
+        }
+
         /*
          * set the private key from KeyFile (may be the same as CertFile)
          */
@@ -333,7 +344,7 @@ int swSSL_accept(swConnection *conn)
         swWarn("bad SSL client[%s:%d].", swConnection_get_ip(conn), swConnection_get_port(conn));
         return SW_ERROR;
     }
-    //EOF was observed
+        //EOF was observed
     else if (err == SSL_ERROR_SYSCALL && n == 0)
     {
         return SW_ERROR;
@@ -381,23 +392,23 @@ ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
         int _errno = SSL_get_error(conn->ssl, n);
         switch (_errno)
         {
-        case SSL_ERROR_WANT_READ:
-            conn->ssl_want_read = 1;
-            errno = EAGAIN;
-            return SW_ERR;
-            break;
+            case SSL_ERROR_WANT_READ:
+                conn->ssl_want_read = 1;
+                errno = EAGAIN;
+                return SW_ERR;
+                break;
 
-        case SSL_ERROR_WANT_WRITE:
-            conn->ssl_want_write = 1;
-            errno = EAGAIN;
-            return SW_ERR;
+            case SSL_ERROR_WANT_WRITE:
+                conn->ssl_want_write = 1;
+                errno = EAGAIN;
+                return SW_ERR;
 
-        case SSL_ERROR_SYSCALL:
-            return SW_ERR;
+            case SSL_ERROR_SYSCALL:
+                return SW_ERR;
 
-        default:
-            swWarn("SSL_read(%d, %ld) failed, errno=%d.", conn->fd, __n, _errno);
-            return SW_ERR;
+            default:
+                swWarn("SSL_read(%d, %ld) failed, errno=%d.", conn->fd, __n, _errno);
+                return SW_ERR;
         }
     }
     return n;
@@ -410,19 +421,19 @@ ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n)
     {
         switch (SSL_get_error(conn->ssl, n))
         {
-        case SSL_ERROR_WANT_READ:
-            conn->ssl_want_read = 1;
-            errno = EAGAIN;
-            return SW_ERR;
-            break;
+            case SSL_ERROR_WANT_READ:
+                conn->ssl_want_read = 1;
+                errno = EAGAIN;
+                return SW_ERR;
+                break;
 
-        case SSL_ERROR_WANT_WRITE:
-            conn->ssl_want_write = 1;
-            errno = EAGAIN;
-            return SW_ERR;
+            case SSL_ERROR_WANT_WRITE:
+                conn->ssl_want_write = 1;
+                errno = EAGAIN;
+                return SW_ERR;
 
-        default:
-            return SW_ERR;
+            default:
+                return SW_ERR;
         }
     }
     return n;
@@ -479,8 +490,7 @@ static RSA* swSSL_rsa512_key_callback(SSL *ssl, int is_export, int key_length)
 static int swSSL_set_dhparam(SSL_CTX* ssl_context)
 {
     DH *dh;
-    static unsigned char dh1024_p[] =
-    {
+    static unsigned char dh1024_p[] ={
         0xBB, 0xBC, 0x2D, 0xCA, 0xD8, 0x46, 0x74, 0x90, 0x7C, 0x43, 0xFC, 0xF5, 0x80, 0xE9, 0xCF, 0xDB, 0xD9, 0x58, 0xA3,
         0xF5, 0x68, 0xB4, 0x2D, 0x4B, 0x08, 0xEE, 0xD4, 0xEB, 0x0F, 0xB3, 0x50, 0x4C, 0x6C, 0x03, 0x02, 0x76, 0xE7,
         0x10, 0x80, 0x0C, 0x5C, 0xCB, 0xBA, 0xA8, 0x92, 0x26, 0x14, 0xC5, 0xBE, 0xEC, 0xA5, 0x65, 0xA5, 0xFD, 0xF1,
@@ -491,16 +501,16 @@ static int swSSL_set_dhparam(SSL_CTX* ssl_context)
         0x9B
     };
 
-    static unsigned char dh1024_g[] = { 0x02 };
+    static unsigned char dh1024_g[] = {0x02};
     dh = DH_new();
     if (dh == NULL)
     {
-        swWarn( "DH_new() failed");
+        swWarn("DH_new() failed");
         return SW_ERR;
     }
 
-    dh->p = BN_bin2bn(dh1024_p, sizeof(dh1024_p), NULL);
-    dh->g = BN_bin2bn(dh1024_g, sizeof(dh1024_g), NULL);
+    dh->p = BN_bin2bn(dh1024_p, sizeof (dh1024_p), NULL);
+    dh->g = BN_bin2bn(dh1024_g, sizeof (dh1024_g), NULL);
 
     if (dh->p == NULL || dh->g == NULL)
     {
@@ -548,6 +558,7 @@ static int swSSL_set_ecdh_curve(SSL_CTX* ssl_context)
 }
 
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
+
 static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg)
 {
     unsigned int srvlen;
@@ -558,13 +569,13 @@ static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, con
     if (cfg->http_v2)
     {
         srv = (unsigned char *) SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE;
-        srvlen = sizeof(SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE) - 1;
+        srvlen = sizeof (SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE) - 1;
     }
     else
 #endif
     {
         srv = (unsigned char *) SW_SSL_NPN_ADVERTISE;
-        srvlen = sizeof(SW_SSL_NPN_ADVERTISE) - 1;
+        srvlen = sizeof (SW_SSL_NPN_ADVERTISE) - 1;
     }
     if (SSL_select_next_proto((unsigned char **) out, outlen, srv, srvlen, in, inlen) != OPENSSL_NPN_NEGOTIATED)
     {
@@ -575,6 +586,7 @@ static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, con
 #endif
 
 #ifdef TLSEXT_TYPE_next_proto_neg
+
 static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, void *arg)
 {
 #ifdef SW_USE_HTTP2
@@ -582,13 +594,13 @@ static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, v
     if (cfg->http_v2)
     {
         *out = (uchar *) SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE;
-        *outlen = sizeof(SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE) - 1;
+        *outlen = sizeof (SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE) - 1;
     }
     else
 #endif
     {
         *out = (uchar *) SW_SSL_NPN_ADVERTISE;
-        *outlen = sizeof(SW_SSL_NPN_ADVERTISE) - 1;
+        *outlen = sizeof (SW_SSL_NPN_ADVERTISE) - 1;
     }
     return SSL_TLSEXT_ERR_OK;
 }
