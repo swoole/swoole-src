@@ -133,6 +133,7 @@ void swSignal_clear(void)
         swSignalfd_clear();
     }
 #endif
+    bzero(&signals, sizeof(signals));
 }
 
 #ifdef HAVE_SIGNALFD
@@ -144,17 +145,14 @@ void swSignalfd_init()
 
 static void swSignalfd_set(int signo, swSignalHander callback)
 {
-    if (callback == NULL)
+    if (callback == NULL && signals[signo].active)
     {
-        if (signals[signo].active)
-        {
-            sigdelset(&signalfd_mask, signo);
-            bzero(&signals[signo], sizeof(swSignal));
+        sigdelset(&signalfd_mask, signo);
+        bzero(&signals[signo], sizeof(swSignal));
 
-            if (signal_fd > 0)
-            {
-                sigprocmask(SIG_BLOCK, &signalfd_mask, NULL);
-            }
+        if (signal_fd > 0)
+        {
+            sigprocmask(SIG_BLOCK, &signalfd_mask, NULL);
         }
     }
     else
@@ -195,16 +193,14 @@ int swSignalfd_setup(swReactor *reactor)
 
 static void swSignalfd_clear()
 {
-    if (sigprocmask(SIG_UNBLOCK, &signalfd_mask, NULL) < 0)
-    {
-        swSysError("sigprocmask(SIG_UNBLOCK) failed.");
-    }
-    bzero(&signals, sizeof(signals));
-    bzero(&signalfd_mask, sizeof(signalfd_mask));
-
     if (signal_fd)
     {
+        if (sigprocmask(SIG_UNBLOCK, &signalfd_mask, NULL) < 0)
+        {
+            swSysError("sigprocmask(SIG_UNBLOCK) failed.");
+        }
         close(signal_fd);
+        bzero(&signalfd_mask, sizeof(signalfd_mask));
     }
     signal_fd = 0;
 }
