@@ -419,6 +419,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
         else
         {
             swoole_http_server_array_init(cookie, request);
+            http_parse_cookie(zcookie, at, length);
         }
         goto free_memory;
     }
