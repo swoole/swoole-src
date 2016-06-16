@@ -180,9 +180,7 @@ if test "$PHP_SWOOLE" != "no"; then
     ])
 
     if test `uname` = "Darwin"; then
-        AC_CHECK_LIB(c, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
-        AC_CHECK_LIB(c, aio_read, AC_DEFINE(HAVE_GCC_AIO, 1, [have gcc aio]))
-     
+        AC_CHECK_LIB(c, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))     
         if test "$PHP_OPENSSL" = "yes"; then
             AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])
             PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
@@ -191,7 +189,6 @@ if test "$PHP_SWOOLE" != "no"; then
         fi
     else
         AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
-        AC_CHECK_LIB(rt, aio_read, AC_DEFINE(HAVE_GCC_AIO, 1, [have gcc aio]))
         PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
 
         if test "$PHP_OPENSSL" = "yes"; then
@@ -286,7 +283,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/Port.c \
         src/os/base.c \
         src/os/linux_aio.c \
-        src/os/gcc_aio.c \
         src/os/msg_queue.c \
         src/os/sendfile.c \
         src/os/signal.c \
