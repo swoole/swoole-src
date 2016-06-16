@@ -745,6 +745,11 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
         }
     }
 
+    if (SwooleAIO.init)
+    {
+        swAio_free();
+    }
+
     SwooleWG.reactor_wait_onexit = 0;
 
     return SUCCESS;
