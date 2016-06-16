@@ -138,7 +138,7 @@ int php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC)
 
     if (length >= SwooleG.serv->buffer_output_size)
     {
-        swoole_php_fatal_error(E_WARNING, "send data max_size is %d.", SwooleG.serv->buffer_output_size);
+        swoole_php_fatal_error(E_WARNING, "send %d byte data fail, max_size is %d.", length, SwooleG.serv->buffer_output_size);
         return SW_ERR;
     }
 
