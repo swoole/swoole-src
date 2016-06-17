@@ -307,6 +307,7 @@ static int swClient_close(swClient *cli)
             cli->socket->active = 0;
             cli->onClose(cli);
         }
+        cli->socket->removed = 1;
     }
     else
     {
@@ -708,12 +709,15 @@ static int swClient_onDgramRead(swReactor *reactor, swEvent *event)
 static int swClient_onError(swReactor *reactor, swEvent *event)
 {
     swClient *cli = event->socket->object;
-    int ret = cli->close(cli);
-    if (!cli->socket->active && cli->onError)
+    if (cli->socket->active)
+    {
+        return cli->close(cli);
+    }
+    else if (cli->onError)
     {
         cli->onError(cli);
     }
-    return ret;
+    return SW_OK;
 }
 
 static int swClient_onWrite(swReactor *reactor, swEvent *event)
