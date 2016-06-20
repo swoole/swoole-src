@@ -513,10 +513,10 @@ static PHP_METHOD(swoole_mysql, connect)
     swClient *cli = emalloc(sizeof(swClient));
     int type = SW_SOCK_TCP;
 
-    if (strncasecmp(connector->host, ZEND_STRL("unix://")) == 0)
+    if (strncasecmp(connector->host, ZEND_STRL("unix:/")) == 0)
     {
-        connector->host = connector->host + 6;
-        connector->host_len = connector->host_len - 6;
+        connector->host = connector->host + 5;
+        connector->host_len = connector->host_len - 5;
         type = SW_SOCK_UNIX_STREAM;
     }
     else if (strchr(connector->host, ':'))
