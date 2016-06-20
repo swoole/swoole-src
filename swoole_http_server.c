@@ -905,8 +905,8 @@ static int http_onReceive(swServer *serv, swEventData *req)
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
     ctx->request.zdata = zdata;
-    sw_copy_to_stack(ctx->request.zdata, ctx->request._zdata);
     php_swoole_get_recv_data(zdata, req, 0 TSRMLS_CC);
+    sw_copy_to_stack(ctx->request.zdata, ctx->request._zdata);
 
     swTrace("httpRequest %d bytes:\n---------------------------------------\n%s\n", Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
 
