@@ -68,6 +68,7 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 #define sw_zval_ptr_dtor                      zval_ptr_dtor
 #define sw_zend_hash_copy                     zend_hash_copy
 #define sw_zval_add_ref                       zval_add_ref
+#define sw_zval_dup(val)                      (val)
 #define sw_zend_hash_exists                   zend_hash_exists
 #define sw_php_format_date                    php_format_date
 #define sw_php_url_encode                     php_url_encode
@@ -255,6 +256,14 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval** 
 #define sw_copy_to_stack(a, b)                {zval *__tmp = a;\
     a = &b;\
     memcpy(a, __tmp, sizeof(zval));}
+
+static inline zval* sw_zval_dup(zval *val)
+{
+    zval *dup;
+    SW_ALLOC_INIT_ZVAL(dup);
+    memcpy(dup, val, sizeof(zval));
+    return dup;
+}
 
 static inline zval* sw_zend_read_property(zend_class_entry *class_ptr, zval *obj, char *s, int len, int silent)
 {

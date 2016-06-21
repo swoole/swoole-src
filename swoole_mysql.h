@@ -239,7 +239,6 @@ typedef struct
 
 #if PHP_MAJOR_VERSION >= 7
     zval _object;
-    zval _callback;
     zval _onClose;
 #endif
     struct
