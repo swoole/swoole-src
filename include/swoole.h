@@ -585,13 +585,13 @@ int swString_extend(swString *str, size_t new_size);
 #define swString_length(s) (s->length)
 #define swString_ptr(s) (s->str)
 //------------------------------Base--------------------------------
-
 typedef struct _swDataHead
 {
     int fd;
     uint16_t len;
     int16_t from_id;
     uint8_t type;
+    uint8_t flags;
     uint16_t from_fd;
 } swDataHead;
 
