@@ -513,10 +513,10 @@ static PHP_METHOD(swoole_mysql, connect)
     swClient *cli = emalloc(sizeof(swClient));
     int type = SW_SOCK_TCP;
 
-    if (strncasecmp(connector->host, ZEND_STRL("unix://")) == 0)
+    if (strncasecmp(connector->host, ZEND_STRL("unix:/")) == 0)
     {
-        connector->host = connector->host + 6;
-        connector->host_len = connector->host_len - 6;
+        connector->host = connector->host + 5;
+        connector->host_len = connector->host_len - 5;
         type = SW_SOCK_UNIX_STREAM;
     }
     else if (strchr(connector->host, ':'))
@@ -561,6 +561,7 @@ static PHP_METHOD(swoole_mysql, connect)
 
     zend_update_property(swoole_mysql_class_entry_ptr, getThis(), ZEND_STRL("onConnect"), callback TSRMLS_CC);
     zend_update_property(swoole_mysql_class_entry_ptr, getThis(), ZEND_STRL("serverInfo"), server_info TSRMLS_CC);
+    zend_update_property_long(swoole_mysql_class_entry_ptr, getThis(), ZEND_STRL("sock"), cli->socket->fd TSRMLS_CC);
 
     client->buffer = swString_new(SW_BUFFER_SIZE_BIG);
     client->fd = cli->socket->fd;
@@ -569,8 +570,9 @@ static PHP_METHOD(swoole_mysql, connect)
     sw_copy_to_stack(client->object, client->_object);
     sw_zval_add_ref(&client->object);
 
-    swConnection *socket = swReactor_get(SwooleG.main_reactor, cli->socket->fd);
-    socket->object = client;
+    swConnection *_socket = swReactor_get(SwooleG.main_reactor, cli->socket->fd);
+    _socket->object = client;
+    _socket->active = 0;
 }
 
 static PHP_METHOD(swoole_mysql, query)
@@ -661,6 +663,11 @@ static PHP_METHOD(swoole_mysql, __destruct)
             sw_zval_ptr_dtor(&retval);
         }
     }
+    //release buffer memory
+    if (client->buffer)
+    {
+        swString_free(client->buffer);
+    }
     efree(client);
     swoole_set_object(getThis(), NULL);
 }
@@ -686,7 +693,12 @@ static PHP_METHOD(swoole_mysql, close)
         SwooleG.main_reactor->del(SwooleG.main_reactor, client->fd);
     }
 
+    swConnection *socket = swReactor_get(SwooleG.main_reactor, client->fd);
+    socket->object = NULL;
+
+    //close the connection
     client->cli->close(client->cli);
+    //release client object memory
     swClient_free(client->cli);
     efree(client->cli);
     client->cli = NULL;
@@ -994,6 +1006,9 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
                 if (result)
                 {
                     sw_zval_ptr_dtor(&result);
+#if PHP_MAJOR_VERSION > 5
+                    efree(result);
+#endif
                 }
                 sw_zval_ptr_dtor(&callback);
                 client->callback = NULL;
@@ -1002,9 +1017,6 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
                 {
                     sw_zval_ptr_dtor(&retval);
                 }
-#if PHP_MAJOR_VERSION > 5
-                efree(result);
-#endif
             }
 
             return SW_OK;
@@ -1066,7 +1078,6 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
                 swoole_php_fatal_error(E_WARNING, "swoole_async_mysql callback[2] handler error.");
                 reactor->del(SwooleG.main_reactor, event->fd);
             }
-
             /* free memory */
             if (retval)
             {
@@ -1081,19 +1092,13 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             }
             //free callback object
             sw_zval_ptr_dtor(&callback);
-            //clear buffer
-            swString_clear(client->buffer);
-            if (client->response.columns)
+            swConnection *_socket = swReactor_get(SwooleG.main_reactor, event->fd);
+            if (_socket->object)
             {
-                efree(client->response.columns);
+                //clear buffer
+                swString_clear(client->buffer);
+                bzero(&client->response, sizeof(client->response));
             }
-#if PHP_MAJOR_VERSION > 5
-            if (client->response.result_array)
-            {
-                efree(client->response.result_array);
-            }
-#endif
-            bzero(&client->response, sizeof(client->response));
             return SW_OK;
         }
     }

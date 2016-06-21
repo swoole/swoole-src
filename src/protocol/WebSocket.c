@@ -15,8 +15,10 @@
  */
 
 #include "swoole.h"
+#include "Server.h"
 #include "websocket.h"
 #include "Connection.h"
+
 #include <sys/time.h>
 
 /*  The following is websocket data frame:
@@ -179,14 +181,72 @@ void swWebSocket_decode(swWebSocket_frame *frame, swString *data)
     frame->payload = data->str + header_length;
 }
 
-void swWebSocket_print_frame(swWebSocket_frame *frm)
+void swWebSocket_print_frame(swWebSocket_frame *frame)
 {
-    printf("FIN: %x, RSV1: %d, RSV2: %d, RSV3: %d, opcode: %d, MASK: %d, length: %ld\n", frm->header.FIN,
-            frm->header.RSV1, frm->header.RSV2, frm->header.RSV3, frm->header.OPCODE, frm->header.MASK,
-            frm->payload_length);
+    printf("FIN: %x, RSV1: %d, RSV2: %d, RSV3: %d, opcode: %d, MASK: %d, length: %ld\n", frame->header.FIN,
+            frame->header.RSV1, frame->header.RSV2, frame->header.RSV3, frame->header.OPCODE, frame->header.MASK,
+            frame->payload_length);
 
-    if (frm->payload_length)
+    if (frame->payload_length)
     {
-        printf("payload: %s\n", frm->payload);
+        printf("payload: %s\n", frame->payload);
     }
+}
+
+int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
+{
+    swString frame;
+    bzero(&frame, sizeof(frame));
+    frame.str = data;
+    frame.length = length;
+
+    swString send_frame;
+    bzero(&send_frame, sizeof(send_frame));
+    char buf[128];
+    send_frame.str = buf;
+    send_frame.size = sizeof(buf);
+
+    swWebSocket_frame ws;
+    swWebSocket_decode(&ws, &frame);
+
+    size_t offset;
+    switch (ws.header.OPCODE)
+    {
+    case WEBSOCKET_OPCODE_CONTINUATION_FRAME:
+    case WEBSOCKET_OPCODE_TEXT_FRAME:
+    case WEBSOCKET_OPCODE_BINARY_FRAME:
+        offset = length - ws.payload_length - 2;
+        data[offset] = ws.header.FIN;
+        data[offset + 1] = ws.header.OPCODE;
+        swReactorThread_dispatch(conn, data + offset, length - offset);
+        break;
+
+    case WEBSOCKET_OPCODE_PING:
+        if (length == 2 || length >= (sizeof(buf) - 2))
+        {
+            return SW_ERR;
+        }
+        swWebSocket_encode(&send_frame, data += 2, length - 2, WEBSOCKET_OPCODE_PONG, 1, 0);
+        swConnection_send(conn, send_frame.str, send_frame.length, 0);
+        break;
+
+    case WEBSOCKET_OPCODE_PONG:
+        break;
+
+    case WEBSOCKET_OPCODE_CONNECTION_CLOSE:
+        if (0x7d < (length - 2))
+        {
+            return SW_ERR;
+        }
+        send_frame.str[0] = 0x88;
+        send_frame.str[1] = 0x00;
+        send_frame.length = 2;
+        swConnection_send(conn, send_frame.str, 2, 0);
+        return SW_ERR;
+
+    default:
+        swWarn("unknown opcode [%d].", ws.header.OPCODE);
+        break;
+    }
+    return SW_OK;
 }

@@ -123,6 +123,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
 {
     int package_length;
     uint32_t recv_size;
+    char swap[SW_BUFFER_SIZE];
 
     do_recv:
     if (buffer->offset > 0)
@@ -160,18 +161,16 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
         {
             if (buffer->length >= buffer->offset)
             {
-                do_dispatch: ret = protocol->onPackage(conn, buffer->str, buffer->offset);
+                do_dispatch:
+                ret = protocol->onPackage(conn, buffer->str, buffer->offset);
                 conn->recv_wait = 0;
 
                 int remaining_length = buffer->length - buffer->offset;
                 if (remaining_length > 0)
                 {
-                    if (SwooleG.swap->size < remaining_length && swString_extend(buffer, remaining_length) < 0)
-                    {
-                        return SW_ERR;
-                    }
-                    memcpy(SwooleG.swap->str, buffer->str + buffer->offset, remaining_length);
-                    memcpy(buffer->str, SwooleG.swap->str, remaining_length);
+                    assert(remaining_length < sizeof(swap));
+                    memcpy(swap, buffer->str + buffer->offset, remaining_length);
+                    memcpy(buffer->str, swap, remaining_length);
                     buffer->offset = 0;
                     buffer->length = remaining_length;
                     goto do_get_length;
@@ -179,9 +178,13 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
                 else
                 {
                     swString_clear(buffer);
+                    return ret;
                 }
             }
-            return SW_OK;
+            else
+            {
+                return SW_OK;
+            }
         }
         else
         {

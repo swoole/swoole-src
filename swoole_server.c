@@ -138,7 +138,7 @@ int php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC)
 
     if (length >= SwooleG.serv->buffer_output_size)
     {
-        swoole_php_fatal_error(E_WARNING, "send data max_size is %d.", SwooleG.serv->buffer_output_size);
+        swoole_php_fatal_error(E_WARNING, "send %d byte data fail, max_size is %d.", length, SwooleG.serv->buffer_output_size);
         return SW_ERR;
     }
 
@@ -1991,8 +1991,8 @@ PHP_METHOD(swoole_server, sendfile)
 PHP_METHOD(swoole_server, close)
 {
     zval *zobject = getThis();
-    zval *zfd;
     zend_bool reset = SW_FALSE;
+    long fd;
 
     if (SwooleGS->start == 0)
     {
@@ -2006,26 +2006,39 @@ PHP_METHOD(swoole_server, close)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|b", &zfd, &reset) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|b", &fd, &reset) == FAILURE)
     {
         return;
     }
 
     swServer *serv = swoole_get_object(zobject);
-    convert_to_long(zfd);
+    swConnection *conn = swServer_connection_verify(serv, fd);
+    if (!conn)
+    {
+        RETURN_FALSE;
+    }
 
     //Reset send buffer, Immediately close the connection.
     if (reset)
     {
-        swConnection *conn = swServer_connection_verify(serv, Z_LVAL_P(zfd));
-        if (!conn)
-        {
-            RETURN_FALSE;
-        }
         conn->close_reset = 1;
     }
 
-    SW_CHECK_RETURN(serv->factory.end(&serv->factory, Z_LVAL_P(zfd)));
+    int ret;
+    if (!swIsWorker())
+    {
+        swWorker *worker = swServer_get_worker(serv, conn->fd % serv->worker_num);
+        swDataHead ev;
+        ev.type = SW_EVENT_CLOSE;
+        ev.fd = fd;
+        ev.from_id = conn->from_id;
+        ret = swWorker_send2worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
+    }
+    else
+    {
+        ret = serv->factory.end(&serv->factory, fd);
+    }
+    SW_CHECK_RETURN(ret);
 }
 
 PHP_METHOD(swoole_server, stats)

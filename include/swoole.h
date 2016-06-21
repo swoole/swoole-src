@@ -585,14 +585,14 @@ int swString_extend(swString *str, size_t new_size);
 #define swString_length(s) (s->length)
 #define swString_ptr(s) (s->str)
 //------------------------------Base--------------------------------
-
 typedef struct _swDataHead
 {
-    int fd;  //文件描述符
-    uint16_t len;  //长度
-    int16_t from_id;  //Reactor Id
-    uint8_t type;  //类型
-    uint8_t from_fd;
+    int fd;
+    uint16_t len;
+    int16_t from_id;
+    uint8_t type;
+    uint8_t flags;
+    uint16_t from_fd;
 } swDataHead;
 
 typedef struct _swEvent
@@ -637,7 +637,7 @@ typedef struct _swSendData
 
 typedef void * (*swThreadStartFunc)(void *);
 typedef int (*swHandle)(swEventData *buf);
-typedef void (*swSignalFunc)(int);
+typedef void (*swSignalHander)(int);
 typedef struct _swReactor swReactor;
 
 typedef int (*swReactor_handle)(swReactor *reactor, swEvent *event);
@@ -681,7 +681,7 @@ typedef struct _swMsgQueue
     int blocking;
     int msg_id;
     int ipc_wait;
-    uint8_t delete;
+    uint8_t remove;
     long type;
 } swMsgQueue;
 
@@ -1202,9 +1202,8 @@ static sw_inline int swSocket_tcp_nopush(int sock, int nopush)
 #define swSocket_tcp_nopush(sock, nopush)
 #endif
 
-void swFloat2timeval(float timeout, long int *sec, long int *usec);
-swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask);
-void swSignal_add(int signo, swSignalFunc func);
+swSignalHander swSignal_set(int sig, swSignalHander func, int restart, int mask);
+void swSignal_add(int signo, swSignalHander func);
 void swSignal_callback(int signo);
 void swSignal_clear(void);
 void swSignal_none(void);
@@ -1806,11 +1805,6 @@ typedef struct
     swPipe *task_notify;
     swEventData *task_result;
 
-    /**
-     * memory exchange
-     */
-    swString *swap;
-    
     pthread_t heartbeat_pidt;
 
 } swServerG;

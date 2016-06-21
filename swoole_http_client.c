@@ -1340,6 +1340,16 @@ static PHP_METHOD(swoole_http_client, upgrade)
     }
 
     http_client_property *hcc = swoole_get_property(getThis(), 0);
+    zval *request_header;
+    if (!hcc->request_header)
+    {
+        SW_MAKE_STD_ZVAL(request_header);
+        array_init(request_header);
+        zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"), request_header TSRMLS_CC);
+        hcc->request_header = sw_zend_read_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"), 1 TSRMLS_CC);
+        sw_copy_to_stack(hcc->request_header, hcc->_request_header);
+        sw_zval_ptr_dtor(&request_header);
+    }
 
     char buf[SW_WEBSOCKET_KEY_LENGTH + 1];
     http_client_create_token(SW_WEBSOCKET_KEY_LENGTH, buf);
@@ -1351,13 +1361,14 @@ static PHP_METHOD(swoole_http_client, upgrade)
 
 #if PHP_MAJOR_VERSION < 7
     uchar *encoded_value = php_base64_encode((const unsigned char *)buf, SW_WEBSOCKET_KEY_LENGTH + 1, &encoded_value_len);
+    add_assoc_stringl(hcc->request_header, "Sec-WebSocket-Key", (char*)encoded_value, encoded_value_len, 0);
 #else
     zend_string *str = php_base64_encode((const unsigned char *)buf, SW_WEBSOCKET_KEY_LENGTH + 1);
     char *encoded_value = str->val;
     encoded_value_len = str->len;
+    add_assoc_stringl(hcc->request_header, "Sec-WebSocket-Key", (char*)encoded_value, encoded_value_len);
+    zend_string_free(str);
 #endif
-
-    sw_add_assoc_stringl(hcc->request_header, "Sec-WebSocket-Key", (char*)encoded_value, encoded_value_len, 1);
 
     ret = http_client_execute(getThis(), uri, uri_len, finish_cb TSRMLS_CC);
     SW_CHECK_RETURN(ret);

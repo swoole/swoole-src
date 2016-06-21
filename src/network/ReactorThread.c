@@ -796,8 +796,11 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     swServer *serv = SwooleG.serv;
     int fd = ev->fd;
 
-    assert(fd % serv->reactor_num == reactor->id);
-    assert(fd % serv->reactor_num == SwooleTG.id);
+    if (serv->factory_mode == SW_MODE_PROCESS)
+    {
+        assert(fd % serv->reactor_num == reactor->id);
+        assert(fd % serv->reactor_num == SwooleTG.id);
+    }
 
     swConnection *conn = swServer_connection_get(serv, fd);
     if (conn->active == 0)

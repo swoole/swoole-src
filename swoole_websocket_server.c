@@ -302,7 +302,7 @@ zval* php_swoole_websocket_unpack(swString *data TSRMLS_DC)
     swWebSocket_decode(&frame, data);
 
     zval *zframe;
-    SW_MAKE_STD_ZVAL(zframe);
+    SW_ALLOC_INIT_ZVAL(zframe);
     object_init_ex(zframe, swoole_websocket_frame_class_entry_ptr);
 
     zend_update_property_bool(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("finish"), frame.header.FIN TSRMLS_CC);

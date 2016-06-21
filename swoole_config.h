@@ -27,7 +27,7 @@
 #define SW_ERROR_MSG_SIZE          512
 #define SW_MAX_WORKER_GROUP        2
 #define SW_MAX_FILE_CONTENT        (64*1024*1024) //for swoole_file_get_contents
-#define SW_MAX_LISTEN_PORT         128  //allows up to 128 ports to listen
+#define SW_MAX_LISTEN_PORT         60000
 
 //#define SW_USE_MALLOC_TRIM
 #define SW_USE_EVENT_TIMER
@@ -122,12 +122,9 @@
 
 //#define SW_WORKER_SEND_CHUNK
 
-#define SW_MAINREACTOR_USE_POLL         //main thread to use select or poll
-
 #define SW_REACTOR_TIMEO_SEC             3
 #define SW_REACTOR_TIMEO_USEC            0
 #define SW_REACTOR_SCHEDULE              2
-#define SW_REACTOR_MINEVENTS             128
 #define SW_REACTOR_MAXEVENTS             4096
 #define SW_REACTOR_USE_SESSION
 #define SW_SESSION_LIST_SIZE             (1024*1024)

@@ -760,8 +760,13 @@ static sw_inline int mysql_read_rows(mysql_client *client)
             client->response.wait_recv = 1;
             return SW_ERR;
         }
+        //RecordSet end
         else if (n_buf == 9 && mysql_read_eof(client, buffer, n_buf) == 0)
         {
+            if (client->response.columns)
+            {
+                efree(client->response.columns);
+            }
             return SW_OK;
         }
 

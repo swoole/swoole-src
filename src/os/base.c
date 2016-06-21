@@ -52,19 +52,25 @@ int swAio_init(void)
         ret = swAioLinux_init(SW_AIO_EVENT_NUM);
         break;
 #endif
-
-#ifdef HAVE_GCC_AIO
-    case SW_AIO_GCC:
-        ret = swAioGcc_init(SW_AIO_EVENT_NUM);
-        break;
-#endif
-
     default:
         ret = swAioBase_init(SW_AIO_EVENT_NUM);
         break;
     }
     SwooleAIO.init = 1;
     return ret;
+}
+
+void swAio_free(void)
+{
+    if (!SwooleAIO.init)
+    {
+        return;
+    }
+
+    if (SwooleAIO.mode == SW_AIO_BASE)
+    {
+        swAioBase_destroy(&swAioBase_thread_pool);
+    }
 }
 
 /**
@@ -281,6 +287,7 @@ static int swAioBase_write(int fd, void *inbuf, size_t size, off_t offset)
     aio_ev->type = SW_AIO_WRITE;
     aio_ev->nbytes = size;
     aio_ev->offset = offset;
+    aio_ev->task_id = SwooleAIO.current_id++;
 
     if (swThreadPool_dispatch(&swAioBase_thread_pool, aio_ev, sizeof(aio_ev)) < 0)
     {
@@ -289,7 +296,7 @@ static int swAioBase_write(int fd, void *inbuf, size_t size, off_t offset)
     else
     {
         SwooleAIO.task_num++;
-        return SW_OK;
+        return aio_ev->task_id;
     }
 }
 
@@ -307,6 +314,7 @@ int swAio_dns_lookup(void *hostname, void *ip_addr, size_t size)
     aio_ev->req = hostname;
     aio_ev->type = SW_AIO_DNS_LOOKUP;
     aio_ev->nbytes = size;
+    aio_ev->task_id = SwooleAIO.current_id++;
 
     if (swThreadPool_dispatch(&swAioBase_thread_pool, aio_ev, sizeof(aio_ev)) < 0)
     {
@@ -315,7 +323,7 @@ int swAio_dns_lookup(void *hostname, void *ip_addr, size_t size)
     else
     {
         SwooleAIO.task_num++;
-        return SW_OK;
+        return aio_ev->task_id;
     }
 }
 
@@ -334,6 +342,7 @@ static int swAioBase_read(int fd, void *inbuf, size_t size, off_t offset)
     aio_ev->type = SW_AIO_READ;
     aio_ev->nbytes = size;
     aio_ev->offset = offset;
+    aio_ev->task_id = SwooleAIO.current_id++;
 
     if (swThreadPool_dispatch(&swAioBase_thread_pool, aio_ev, sizeof(aio_ev)) < 0)
     {
@@ -342,7 +351,7 @@ static int swAioBase_read(int fd, void *inbuf, size_t size, off_t offset)
     else
     {
         SwooleAIO.task_num++;
-        return SW_OK;
+        return aio_ev->task_id;
     }
 }
 

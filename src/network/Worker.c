@@ -48,6 +48,7 @@ void swWorker_free(swWorker *worker)
 
 void swWorker_signal_init(void)
 {
+    swSignal_clear();
     swSignal_add(SIGHUP, NULL);
     swSignal_add(SIGPIPE, NULL);
     swSignal_add(SIGUSR1, swWorker_signal_handler);
@@ -428,6 +429,12 @@ int swWorker_loop(swFactory *factory, int worker_id)
 
 #ifndef SW_WORKER_USE_SIGNALFD
     SwooleG.use_signalfd = 0;
+#elif defined(HAVE_SIGNALFD)
+    SwooleG.use_signalfd = 1;
+#endif
+    //timerfd
+#ifdef HAVE_TIMERFD
+    SwooleG.use_timerfd = 1;
 #endif
 
     //worker_id
