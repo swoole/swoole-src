@@ -307,7 +307,6 @@ static int swClient_close(swClient *cli)
             cli->socket->active = 0;
             cli->onClose(cli);
         }
-        cli->socket->removed = 1;
     }
     else
     {

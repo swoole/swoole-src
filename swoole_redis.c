@@ -35,7 +35,6 @@ typedef struct
     zval *message_callback;
 
 #if PHP_MAJOR_VERSION >= 7
-    zval _result_callback;
     zval _message_callback;
     zval _object;
 #endif
@@ -397,7 +396,6 @@ static PHP_METHOD(swoole_redis, __call)
             RETURN_FALSE;
         }
         callback = *cb_tmp;
-        redis->result_callback = callback;
 #else
         zval *callback = zend_hash_index_find(Z_ARRVAL_P(params), zend_hash_num_elements(Z_ARRVAL_P(params)) - 1);
         if (callback == NULL)
@@ -405,11 +403,10 @@ static PHP_METHOD(swoole_redis, __call)
             swoole_php_error(E_WARNING, "index out of array.");
             RETURN_FALSE;
         }
-        redis->result_callback = &redis->_result_callback;
-        memcpy(redis->result_callback, callback, sizeof(zval));
 #endif
 
-        sw_zval_add_ref(&redis->result_callback);
+        sw_zval_add_ref(&callback);
+        redis->result_callback = sw_zval_dup(callback);
 
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(params), value)
             convert_to_string(value);

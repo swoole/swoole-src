@@ -611,10 +611,9 @@ static PHP_METHOD(swoole_mysql, query)
         RETURN_FALSE;
     }
 
-    client->callback = callback;
-    sw_copy_to_stack(client->callback, client->_callback);
+    sw_zval_add_ref(&callback);
+    client->callback = sw_zval_dup(callback);
 
-    sw_zval_add_ref(&client->callback);
     swString_clear(mysql_request_buffer);
 
     if (mysql_request(&sql, mysql_request_buffer) < 0)

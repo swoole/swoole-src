@@ -49,7 +49,6 @@ typedef struct
     zval _request_body;
     zval _request_header;
     zval _cookies;
-    zval _onResponse;
     zval _onConnect;
     zval _onError;
     zval _onClose;
@@ -244,9 +243,8 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
     }
 
     http_client_property *hcc = swoole_get_property(zobject, 0);
-    hcc->onResponse = callback;
-    sw_copy_to_stack(hcc->onResponse, hcc->_onResponse);
-    sw_zval_add_ref(&hcc->onResponse);
+    sw_zval_add_ref(&callback);
+    hcc->onResponse = sw_zval_dup(callback);
 
     //if connection exists
     if (http->cli)
