@@ -214,10 +214,12 @@ int swoole_websocket_onMessage(swEventData *req)
 
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
-    char *buf = php_swoole_get_recv_data(zdata, req, 2 TSRMLS_CC);
 
-    long finish = buf[0] ? 1 : 0;
-    long opcode = buf[1];
+    char frame_header[2];
+    php_swoole_get_recv_data(zdata, req, frame_header, 2);
+
+    long finish = frame_header[0] ? 1 : 0;
+    long opcode = frame_header[1];
 
     zval *zframe;
     SW_MAKE_STD_ZVAL(zframe);
