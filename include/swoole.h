@@ -588,11 +588,11 @@ int swString_extend(swString *str, size_t new_size);
 
 typedef struct _swDataHead
 {
-    int fd;  //文件描述符
-    uint16_t len;  //长度
-    int16_t from_id;  //Reactor Id
-    uint8_t type;  //类型
-    uint8_t from_fd;
+    int fd;
+    uint16_t len;
+    int16_t from_id;
+    uint8_t type;
+    uint16_t from_fd;
 } swDataHead;
 
 typedef struct _swEvent

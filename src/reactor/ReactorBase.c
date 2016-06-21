@@ -28,28 +28,15 @@ int swReactor_create(swReactor *reactor, int max_event)
     int ret;
     bzero(reactor, sizeof(swReactor));
 
-    //event less than SW_REACTOR_MINEVENTS, use poll/select
-    if (max_event <= SW_REACTOR_MINEVENTS)
-    {
-#ifdef SW_MAINREACTOR_USE_POLL
-        ret = swReactorPoll_create(reactor, SW_REACTOR_MINEVENTS);
-#else
-        ret = swReactorSelect_create(reactor);
-#endif
-    }
-    //use epoll or kqueue
-    else
-    {
 #ifdef HAVE_EPOLL
-        ret = swReactorEpoll_create(reactor, max_event);
+    ret = swReactorEpoll_create(reactor, max_event);
 #elif defined(HAVE_KQUEUE)
-        ret = swReactorKqueue_create(reactor, max_event);
+    ret = swReactorKqueue_create(reactor, max_event);
 #elif defined(SW_MAINREACTOR_USE_POLL)
-        ret = swReactorPoll_create(reactor, max_event);
+    ret = swReactorPoll_create(reactor, max_event);
 #else
-        ret = swReactorSelect_create(reactor);
+    ret = swReactorSelect_create(reactor);
 #endif
-    }
 
     reactor->running = 1;
 

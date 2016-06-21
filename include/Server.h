@@ -386,7 +386,7 @@ struct _swServer
     int *cpu_affinity_available;
     int cpu_affinity_available_num;
     
-    uint8_t listen_port_num;
+    uint16_t listen_port_num;
     time_t reload_time;
 
     /* buffer output/input setting*/
