@@ -712,9 +712,9 @@ static int swClient_onError(swReactor *reactor, swEvent *event)
     {
         return cli->close(cli);
     }
-    else if (cli->onError)
+    else
     {
-        cli->onError(cli);
+        swClient_onWrite(reactor, event);
     }
     return SW_OK;
 }
