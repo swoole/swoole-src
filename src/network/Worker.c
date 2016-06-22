@@ -48,6 +48,7 @@ void swWorker_free(swWorker *worker)
 
 void swWorker_signal_init(void)
 {
+    swSignal_clear();
     swSignal_add(SIGHUP, NULL);
     swSignal_add(SIGPIPE, NULL);
     swSignal_add(SIGUSR1, swWorker_signal_handler);
@@ -152,12 +153,12 @@ static sw_inline int swWorker_discard_data(swServer *serv, swEventData *task)
         memcpy(&package, task->data, sizeof(package));
         swReactorThread *thread = swServer_get_thread(SwooleG.serv, task->info.from_id);
         thread->buffer_input->free(thread->buffer_input, package.data);
-        swWarn("[1]received the wrong data[%d bytes] from socket#%d", package.length, fd);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA, "[1]received the wrong data[%d bytes] from socket#%d", package.length, fd);
     }
     else
 #endif
     {
-        swWarn("[1]received the wrong data[%d bytes] from socket#%d", task->info.len, fd);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA, "[1]received the wrong data[%d bytes] from socket#%d", task->info.len, fd);
     }
     return SW_TRUE;
 }
@@ -428,6 +429,12 @@ int swWorker_loop(swFactory *factory, int worker_id)
 
 #ifndef SW_WORKER_USE_SIGNALFD
     SwooleG.use_signalfd = 0;
+#elif defined(HAVE_SIGNALFD)
+    SwooleG.use_signalfd = 1;
+#endif
+    //timerfd
+#ifdef HAVE_TIMERFD
+    SwooleG.use_timerfd = 1;
 #endif
 
     //worker_id
@@ -459,10 +466,23 @@ int swWorker_loop(swFactory *factory, int worker_id)
 
     swSetNonBlock(pipe_worker);
     SwooleG.main_reactor->ptr = serv;
-    //这里的add函数是epoll的add函数
     SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_worker, SW_FD_PIPE | SW_EVENT_READ);
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE, swWorker_onPipeReceive);
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE | SW_FD_WRITE, swReactor_onWrite);
+
+    /**
+     * set pipe buffer size
+     */
+    int i;
+    swConnection *pipe_socket;
+    for (i = 0; i < serv->worker_num + SwooleG.task_worker_num; i++)
+    {
+        worker = swServer_get_worker(serv, i);
+        pipe_socket = swReactor_get(SwooleG.main_reactor, worker->pipe_master);
+        pipe_socket->buffer_size = serv->pipe_buffer_size;
+        pipe_socket = swReactor_get(SwooleG.main_reactor, worker->pipe_worker);
+        pipe_socket->buffer_size = serv->pipe_buffer_size;
+    }
 
     swWorker_onStart(serv);
 

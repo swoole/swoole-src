@@ -32,7 +32,7 @@ static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, v
 #endif
 
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
-static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen,  const uchar *in, uint32_t inlen, void *arg);
+static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg);
 #endif
 
 static const SSL_METHOD *swSSL_get_method(int method)
@@ -92,13 +92,8 @@ void swSSL_init(void)
     openssl_init = 1;
 }
 
-int swSSL_server_config(SSL_CTX* ssl_context, swSSL_config *cfg)
+void swSSL_server_http_advise(SSL_CTX* ssl_context, swSSL_config *cfg)
 {
-#ifndef TLS1_2_VERSION
-    return SW_OK;
-#endif
-    SSL_CTX_set_read_ahead(ssl_context, 1);
-
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
     SSL_CTX_set_alpn_select_cb(ssl_context, swSSL_alpn_advertised, cfg);
 #endif
@@ -107,28 +102,42 @@ int swSSL_server_config(SSL_CTX* ssl_context, swSSL_config *cfg)
     SSL_CTX_set_next_protos_advertised_cb(ssl_context, swSSL_npn_advertised, cfg);
 #endif
 
-    if (SSL_CTX_set_cipher_list(ssl_context, cfg->ciphers) == 0)
+    if (cfg->http)
     {
-        swWarn("SSL_CTX_set_cipher_list(\"%s\") failed", SW_SSL_CIPHER_LIST);
-        return SW_ERR;
+        SSL_CTX_set_session_id_context(ssl_context, (const unsigned char *) "HTTP", strlen("HTTP"));
+        SSL_CTX_set_session_cache_mode(ssl_context, SSL_SESS_CACHE_SERVER);
+        SSL_CTX_sess_set_cache_size(ssl_context, 1);
     }
-    if (cfg->prefer_server_ciphers)
+}
+
+int swSSL_server_set_cipher(SSL_CTX* ssl_context, swSSL_config *cfg)
+{
+#ifndef TLS1_2_VERSION
+    return SW_OK;
+#endif
+    SSL_CTX_set_read_ahead(ssl_context, 1);
+
+    if (strlen(cfg->ciphers) > 0)
     {
-        SSL_CTX_set_options(ssl_context, SSL_OP_CIPHER_SERVER_PREFERENCE);
+        if (SSL_CTX_set_cipher_list(ssl_context, cfg->ciphers) == 0)
+        {
+            swWarn("SSL_CTX_set_cipher_list(\"%s\") failed", cfg->ciphers);
+            return SW_ERR;
+        }
+        if (cfg->prefer_server_ciphers)
+        {
+            SSL_CTX_set_options(ssl_context, SSL_OP_CIPHER_SERVER_PREFERENCE);
+        }
     }
 
 #ifndef LIBRESSL_VERSION_NUMBER
     SSL_CTX_set_tmp_rsa_callback(ssl_context, swSSL_rsa512_key_callback);
 #endif
 
-    swSSL_set_dhparam(ssl_context);
-    swSSL_set_ecdh_curve(ssl_context);
-
-    if (cfg->http)
+    if (strlen(cfg->ecdh_curve) > 0)
     {
-        SSL_CTX_set_session_id_context(ssl_context, (const unsigned char *) "HTTP", strlen("HTTP"));
-        SSL_CTX_set_session_cache_mode(ssl_context, SSL_SESS_CACHE_SERVER);
-        SSL_CTX_sess_set_cache_size(ssl_context, 1);
+        swSSL_set_dhparam(ssl_context);
+        swSSL_set_ecdh_curve(ssl_context);
     }
     return SW_OK;
 }
@@ -162,6 +171,15 @@ SSL_CTX* swSSL_get_context(int method, char *cert_file, char *key_file)
          * set the local certificate from CertFile
          */
         if (SSL_CTX_use_certificate_file(ssl_context, cert_file, SSL_FILETYPE_PEM) <= 0)
+        {
+            ERR_print_errors_fp(stderr);
+            return NULL;
+        }
+        /*
+         * if the crt file have many certificate entry ,means certificate chain
+         * we need call this function
+         */
+        if (SSL_CTX_use_certificate_chain_file(ssl_context, cert_file) <= 0)
         {
             ERR_print_errors_fp(stderr);
             return NULL;
@@ -286,7 +304,7 @@ int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length)
 
     return n;
 
-failed:
+    failed:
 
     BIO_free(bio);
     X509_free(cert);
@@ -338,7 +356,7 @@ int swSSL_connect(swConnection *conn)
     int n = SSL_connect(conn->ssl);
     if (n == 1)
     {
-        conn->ssl_state = 1;
+        conn->ssl_state = SW_SSL_STATE_READY;
         return SW_OK;
     }
     long err = SSL_get_error(conn->ssl, n);
@@ -387,7 +405,8 @@ ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
             return SW_ERR;
 
         default:
-            swWarn("SSL_read(%d, %ld) failed, errno=%d.", conn->fd, __n, _errno);
+            swWarn("SSL_read(%d, %ld) failed, errno=%d.", conn->fd, __n, _errno)
+            ;
             return SW_ERR;
         }
     }
@@ -471,22 +490,21 @@ static int swSSL_set_dhparam(SSL_CTX* ssl_context)
 {
     DH *dh;
     static unsigned char dh1024_p[] =
-    {
-        0xBB, 0xBC, 0x2D, 0xCA, 0xD8, 0x46, 0x74, 0x90, 0x7C, 0x43, 0xFC, 0xF5, 0x80, 0xE9, 0xCF, 0xDB, 0xD9, 0x58, 0xA3,
-        0xF5, 0x68, 0xB4, 0x2D, 0x4B, 0x08, 0xEE, 0xD4, 0xEB, 0x0F, 0xB3, 0x50, 0x4C, 0x6C, 0x03, 0x02, 0x76, 0xE7,
-        0x10, 0x80, 0x0C, 0x5C, 0xCB, 0xBA, 0xA8, 0x92, 0x26, 0x14, 0xC5, 0xBE, 0xEC, 0xA5, 0x65, 0xA5, 0xFD, 0xF1,
-        0xD2, 0x87, 0xA2, 0xBC, 0x04, 0x9B, 0xE6, 0x77, 0x80, 0x60, 0xE9, 0x1A, 0x92, 0xA7, 0x57, 0xE3, 0x04, 0x8F,
-        0x68, 0xB0, 0x76, 0xF7, 0xD3, 0x6C, 0xC8, 0xF2, 0x9B, 0xA5, 0xDF, 0x81, 0xDC, 0x2C, 0xA7, 0x25, 0xEC, 0xE6,
-        0x62, 0x70, 0xCC, 0x9A, 0x50, 0x35, 0xD8, 0xCE, 0xCE, 0xEF, 0x9E, 0xA0, 0x27, 0x4A, 0x63, 0xAB, 0x1E, 0x58,
-        0xFA, 0xFD, 0x49, 0x88, 0xD0, 0xF6, 0x5D, 0x14, 0x67, 0x57, 0xDA, 0x07, 0x1D, 0xF0, 0x45, 0xCF, 0xE1, 0x6B,
-        0x9B
-    };
+    { 0xBB, 0xBC, 0x2D, 0xCA, 0xD8, 0x46, 0x74, 0x90, 0x7C, 0x43, 0xFC, 0xF5, 0x80, 0xE9, 0xCF, 0xDB, 0xD9, 0x58, 0xA3,
+            0xF5, 0x68, 0xB4, 0x2D, 0x4B, 0x08, 0xEE, 0xD4, 0xEB, 0x0F, 0xB3, 0x50, 0x4C, 0x6C, 0x03, 0x02, 0x76, 0xE7,
+            0x10, 0x80, 0x0C, 0x5C, 0xCB, 0xBA, 0xA8, 0x92, 0x26, 0x14, 0xC5, 0xBE, 0xEC, 0xA5, 0x65, 0xA5, 0xFD, 0xF1,
+            0xD2, 0x87, 0xA2, 0xBC, 0x04, 0x9B, 0xE6, 0x77, 0x80, 0x60, 0xE9, 0x1A, 0x92, 0xA7, 0x57, 0xE3, 0x04, 0x8F,
+            0x68, 0xB0, 0x76, 0xF7, 0xD3, 0x6C, 0xC8, 0xF2, 0x9B, 0xA5, 0xDF, 0x81, 0xDC, 0x2C, 0xA7, 0x25, 0xEC, 0xE6,
+            0x62, 0x70, 0xCC, 0x9A, 0x50, 0x35, 0xD8, 0xCE, 0xCE, 0xEF, 0x9E, 0xA0, 0x27, 0x4A, 0x63, 0xAB, 0x1E, 0x58,
+            0xFA, 0xFD, 0x49, 0x88, 0xD0, 0xF6, 0x5D, 0x14, 0x67, 0x57, 0xDA, 0x07, 0x1D, 0xF0, 0x45, 0xCF, 0xE1, 0x6B,
+            0x9B };
 
-    static unsigned char dh1024_g[] = { 0x02 };
+    static unsigned char dh1024_g[] =
+    { 0x02 };
     dh = DH_new();
     if (dh == NULL)
     {
-        swWarn( "DH_new() failed");
+        swWarn("DH_new() failed");
         return SW_ERR;
     }
 
@@ -539,6 +557,7 @@ static int swSSL_set_ecdh_curve(SSL_CTX* ssl_context)
 }
 
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
+
 static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg)
 {
     unsigned int srvlen;
@@ -549,13 +568,13 @@ static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, con
     if (cfg->http_v2)
     {
         srv = (unsigned char *) SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE;
-        srvlen = sizeof(SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE) - 1;
+        srvlen = sizeof (SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE) - 1;
     }
     else
 #endif
     {
         srv = (unsigned char *) SW_SSL_NPN_ADVERTISE;
-        srvlen = sizeof(SW_SSL_NPN_ADVERTISE) - 1;
+        srvlen = sizeof (SW_SSL_NPN_ADVERTISE) - 1;
     }
     if (SSL_select_next_proto((unsigned char **) out, outlen, srv, srvlen, in, inlen) != OPENSSL_NPN_NEGOTIATED)
     {
@@ -566,6 +585,7 @@ static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, con
 #endif
 
 #ifdef TLSEXT_TYPE_next_proto_neg
+
 static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, void *arg)
 {
 #ifdef SW_USE_HTTP2
@@ -573,7 +593,7 @@ static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, v
     if (cfg->http_v2)
     {
         *out = (uchar *) SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE;
-        *outlen = sizeof(SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE) - 1;
+        *outlen = sizeof (SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE) - 1;
     }
     else
 #endif

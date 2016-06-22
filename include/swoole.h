@@ -156,6 +156,12 @@ typedef unsigned long ulong_t;
 #define sw_calloc              calloc
 #define sw_realloc             realloc
 
+#if defined(SW_USE_JEMALLOC) || defined(SW_USE_TCMALLOC)
+#define sw_strdup_free(str)
+#else
+#define sw_strdup_free(str)     free(str)
+#endif
+
 #define METHOD_DEF(class,name,...)  class##_##name(class *object, ##__VA_ARGS__)
 #define METHOD(class,name,...)      class##_##name(object, ##__VA_ARGS__)
 //-------------------------------------------------------------------------------
@@ -216,8 +222,6 @@ enum swServer_mode
     SW_MODE_PROCESS       =  3,
     SW_MODE_SINGLE        =  4,
 };
-
-#define SW_MODE_PACKET		0x10 
 //-------------------------------------------------------------------------------
 enum swSocket_type
 {
@@ -362,6 +366,8 @@ typedef struct _swString
     char *str;
 } swString;
 
+typedef void* swObject;
+
 typedef struct _swLinkedList_node
 {
     struct _swLinkedList_node *prev;
@@ -389,6 +395,7 @@ typedef struct
     } addr;
     socklen_t len;
 } swSocketAddress;
+
 
 typedef struct _swConnection
 {
@@ -487,6 +494,11 @@ typedef struct _swConnection
     struct _swBuffer *out_buffer;
 
     /**
+     * for receive data buffer
+     */
+    swString *recv_buffer;
+
+    /**
      * connect time(seconds)
      */
     time_t connect_time;
@@ -500,6 +512,11 @@ typedef struct _swConnection
      * bind uid
      */
     long uid;
+
+    /**
+     * memory buffer size;
+     */
+    int buffer_size;
 
     /**
      *  upgarde websocket
@@ -548,6 +565,12 @@ static sw_inline void swString_clear(swString *str)
     str->offset = 0;
 }
 
+static sw_inline void swString_free(swString *str)
+{
+    sw_free(str->str);
+    sw_free(str);
+}
+
 swString *swString_new(size_t size);
 swString *swString_dup(const char *src_str, int length);
 swString *swString_dup2(swString *src);
@@ -562,14 +585,14 @@ int swString_extend(swString *str, size_t new_size);
 #define swString_length(s) (s->length)
 #define swString_ptr(s) (s->str)
 //------------------------------Base--------------------------------
-
 typedef struct _swDataHead
 {
-    int fd;  //文件描述符
-    uint16_t len;  //长度
-    int16_t from_id;  //Reactor Id
-    uint8_t type;  //类型
-    uint8_t from_fd;
+    int fd;
+    uint16_t len;
+    int16_t from_id;
+    uint8_t type;
+    uint8_t flags;
+    uint16_t from_fd;
 } swDataHead;
 
 typedef struct _swEvent
@@ -614,7 +637,7 @@ typedef struct _swSendData
 
 typedef void * (*swThreadStartFunc)(void *);
 typedef int (*swHandle)(swEventData *buf);
-typedef void (*swSignalFunc)(int);
+typedef void (*swSignalHander)(int);
 typedef struct _swReactor swReactor;
 
 typedef int (*swReactor_handle)(swReactor *reactor, swEvent *event);
@@ -658,13 +681,14 @@ typedef struct _swMsgQueue
     int blocking;
     int msg_id;
     int ipc_wait;
-    uint8_t delete;
+    uint8_t remove;
     long type;
 } swMsgQueue;
 
 int swMsgQueue_create(swMsgQueue *q, int wait, key_t msg_key, long type);
 int swMsgQueue_push(swMsgQueue *p, swQueue_data *in, int data_length);
 int swMsgQueue_pop(swMsgQueue *p, swQueue_data *out, int buffer_length);
+int swMsgQueue_stat(swMsgQueue *q, int *queue_num, int *queue_bytes);
 void swMsgQueue_free(swMsgQueue *p);
 
 //------------------Lock--------------------------------------
@@ -682,6 +706,12 @@ enum SW_LOCKS
 #define SW_SPINLOCK SW_SPINLOCK
     SW_ATOMLOCK = 6,
 #define SW_ATOMLOCK SW_ATOMLOCK
+};
+
+enum swDNSLookup_cache_type
+{
+    SW_DNS_LOOKUP_CACHE_ONLY =  (1u << 10),
+    SW_DNS_LOOKUP_RANDOM  = (1u << 11),
 };
 
 //文件锁
@@ -1048,10 +1078,12 @@ swString* swoole_file_get_contents(char *filename);
 void swoole_open_remote_debug(void);
 char *swoole_dec2hex(int value, int base);
 int swoole_version_compare(char *version1, char *version2);
-
+#ifdef HAVE_EXECINFO
+void swoole_print_trace(void);
+#endif
 void swoole_ioctl_set_block(int sock, int nonblock);
 void swoole_fcntl_set_block(int sock, int nonblock);
-
+int swoole_gethostbyname(int type, char *name, char *addr);
 //----------------------core function---------------------
 int swSocket_set_timeout(int sock, double timeout);
 int swWrite(int, void *, int);
@@ -1111,8 +1143,8 @@ static sw_inline uint64_t swoole_ntoh64(uint64_t net)
     return ret;
 }
 
-int swSocket_listen(int type, char *host, int port, int backlog);
 int swSocket_create(int type);
+int swSocket_bind(int sock, int type, char *host, int port);
 int swSocket_wait(int fd, int timeout_ms, int events);
 void swSocket_clean(int fd);
 int swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
@@ -1170,9 +1202,8 @@ static sw_inline int swSocket_tcp_nopush(int sock, int nopush)
 #define swSocket_tcp_nopush(sock, nopush)
 #endif
 
-void swFloat2timeval(float timeout, long int *sec, long int *usec);
-swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask);
-void swSignal_add(int signo, swSignalFunc func);
+swSignalHander swSignal_set(int sig, swSignalHander func, int restart, int mask);
+void swSignal_add(int signo, swSignalHander func);
 void swSignal_callback(int signo);
 void swSignal_clear(void);
 void swSignal_none(void);
@@ -1713,6 +1744,8 @@ typedef struct
     uint8_t use_signalfd :1;
     uint8_t reuse_port :1;
     uint8_t socket_dontwait :1;
+    uint8_t disable_dns_cache :1;
+    uint8_t dns_lookup_random: 1;
 
     /**
      * Timer used pipe
@@ -1770,8 +1803,8 @@ typedef struct
     swReactor *main_reactor;
 
     swPipe *task_notify;
-    swEventData *task_result;    
-    
+    swEventData *task_result;
+
     pthread_t heartbeat_pidt;
 
 } swServerG;

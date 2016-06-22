@@ -128,11 +128,6 @@ static int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
     fd_.fdtype = swReactor_fdtype(fdtype);
     e.events = swReactorEpoll_event_set(fdtype);
 
-    if (e.events & EPOLLOUT)
-    {
-        assert(fd > 2);
-    }
-
     memcpy(&(e.data.u64), &fd_, sizeof(fd_));
     ret = epoll_ctl(object->epfd, EPOLL_CTL_ADD, fd, &e);
     if (ret < 0)

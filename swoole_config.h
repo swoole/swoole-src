@@ -27,7 +27,7 @@
 #define SW_ERROR_MSG_SIZE          512
 #define SW_MAX_WORKER_GROUP        2
 #define SW_MAX_FILE_CONTENT        (64*1024*1024) //for swoole_file_get_contents
-#define SW_MAX_LISTEN_PORT         128  //allows up to 128 ports to listen
+#define SW_MAX_LISTEN_PORT         60000
 
 //#define SW_USE_MALLOC_TRIM
 #define SW_USE_EVENT_TIMER
@@ -54,7 +54,7 @@
 
 //#define SW_DEBUG                 //debug
 #define SW_LOG_NO_SRCINFO          //no source info
-#define SW_LOG_TRACE_OPEN          10
+#define SW_LOG_TRACE_OPEN          0
 //#define SW_BUFFER_SIZE           65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_CLIENT_BUFFER_SIZE      65535
 //#define SW_CLIENT_RECV_AGAIN
@@ -122,12 +122,9 @@
 
 //#define SW_WORKER_SEND_CHUNK
 
-#define SW_MAINREACTOR_USE_POLL         //main thread to use select or poll
-
 #define SW_REACTOR_TIMEO_SEC             3
 #define SW_REACTOR_TIMEO_USEC            0
 #define SW_REACTOR_SCHEDULE              2
-#define SW_REACTOR_MINEVENTS             128
 #define SW_REACTOR_MAXEVENTS             4096
 #define SW_REACTOR_USE_SESSION
 #define SW_SESSION_LIST_SIZE             (1024*1024)
@@ -219,6 +216,7 @@
 #define SW_SIGNO_MAX                     128
 
 #define SW_DNS_LOOKUP_USE_THREAD
+#define SW_DNS_LOOKUP_CACHE_SIZE         4
 
 //#define SW_HTTP_CLIENT_ENABLE
 
@@ -235,13 +233,17 @@
 //#define SW_HTTP_100_CONTINUE
 #define SW_HTTP2_DATA_BUFFSER_SIZE       8192
 #define SW_HTTP2_MAX_CONCURRENT_STREAMS  128
-#define SW_HTTP2_MAX_FRAME_SIZE          ((1 << 24) - 1)
-#define SW_HTTP2_MAX_WINDOW              ((1 << 31) - 1)
+#define SW_HTTP2_MAX_FRAME_SIZE          ((1u << 24) - 1)
+#define SW_HTTP2_MAX_WINDOW              ((1u << 31) - 1)
 
 #define SW_HTTP_CLIENT_USERAGENT         "swoole-http-client"
 
 #define SW_WEBSOCKET_SERVER_SOFTWARE     "swoole-websocket-server"
 #define SW_WEBSOCKET_VERSION             "13"
 #define SW_WEBSOCKET_KEY_LENGTH          16
+
+#define SW_MYSQL_QUERY_INIT_SIZE         8192
+#define SW_MYSQL_DEFAULT_PORT            3306
+#define SW_MYSQL_CONNECT_TIMEOUT         1.0
 
 #endif /* SWOOLE_CONFIG_H_ */

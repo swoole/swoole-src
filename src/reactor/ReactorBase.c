@@ -28,28 +28,15 @@ int swReactor_create(swReactor *reactor, int max_event)
     int ret;
     bzero(reactor, sizeof(swReactor));
 
-    //event less than SW_REACTOR_MINEVENTS, use poll/select
-    if (max_event <= SW_REACTOR_MINEVENTS)
-    {
-#ifdef SW_MAINREACTOR_USE_POLL
-        ret = swReactorPoll_create(reactor, SW_REACTOR_MINEVENTS);
-#else
-        ret = swReactorSelect_create(reactor);
-#endif
-    }
-    //use epoll or kqueue
-    else
-    {
 #ifdef HAVE_EPOLL
-        ret = swReactorEpoll_create(reactor, max_event);
+    ret = swReactorEpoll_create(reactor, max_event);
 #elif defined(HAVE_KQUEUE)
-        ret = swReactorKqueue_create(reactor, max_event);
+    ret = swReactorKqueue_create(reactor, max_event);
 #elif defined(SW_MAINREACTOR_USE_POLL)
-        ret = swReactorPoll_create(reactor, max_event);
+    ret = swReactorPoll_create(reactor, max_event);
 #else
-        ret = swReactorSelect_create(reactor);
+    ret = swReactorSelect_create(reactor);
 #endif
-    }
 
     reactor->running = 1;
 
@@ -192,28 +179,29 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     {
         swTimer_select(&SwooleG.timer);
     }
-    if (SwooleG.serv && swIsMaster())
+    //server master
+    if (SwooleG.serv && SwooleTG.update_time)
     {
         swoole_update_time();
     }
-    //client exit
-
+    //server worker
     swWorker *worker = SwooleWG.worker;
-    if(worker != NULL){
-
+    if (worker != NULL)
+    {
         if (SwooleWG.reload == 1)
         {
-            SwooleWG.reload_count ++;
+            SwooleWG.reload_count++;
 
-            if(reactor->event_num <= 2 || SwooleWG.reload_count >= SW_MAX_RELOAD_WAIT){
+            if (reactor->event_num <= 2 || SwooleWG.reload_count >= SW_MAX_RELOAD_WAIT)
+            {
                 reactor->running = 0;
             }
         }
     }
-
+    //client
     if (SwooleG.serv == NULL && SwooleG.timer.num <= 0)
     {
-        if (reactor->event_num == 1 && SwooleAIO.task_num == 1)
+        if (SwooleAIO.init && reactor->event_num == 1 && SwooleAIO.task_num == 0)
         {
             reactor->running = 0;
         }
@@ -266,16 +254,13 @@ int swReactor_close(swReactor *reactor, int fd)
     if (socket->out_buffer)
     {
         swBuffer_free(socket->out_buffer);
-        socket->out_buffer = NULL;
     }
-
     if (socket->in_buffer)
     {
         swBuffer_free(socket->in_buffer);
-        socket->in_buffer = NULL;
     }
-
     bzero(socket, sizeof(swConnection));
+    socket->removed = 1;
     return close(fd);
 }
 
@@ -285,11 +270,14 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
     swConnection *socket = swReactor_get(reactor, fd);
     swBuffer *buffer = socket->out_buffer;
 
-    assert(fd > 2);
-
     if (socket->fd == 0)
     {
         socket->fd = fd;
+    }
+
+    if (socket->buffer_size == 0)
+    {
+        socket->buffer_size = SwooleG.socket_buffer_size;
     }
 
     if (swBuffer_empty(buffer))
@@ -365,7 +353,7 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
     {
         append_buffer:
 
-        if (buffer->length > SwooleG.socket_buffer_size)
+        if (buffer->length > socket->buffer_size)
         {
             if (SwooleG.socket_dontwait)
             {

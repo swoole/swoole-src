@@ -275,6 +275,12 @@ int swReactorThread_close(swReactor *reactor, int fd)
         return SW_ERR;
     }
 
+    if (serv->factory_mode == SW_MODE_PROCESS)
+    {
+        assert(fd % serv->reactor_num == reactor->id);
+        assert(fd % serv->reactor_num == SwooleTG.id);
+    }
+
     sw_atomic_fetch_add(&SwooleStats->close_count, 1);
     sw_atomic_fetch_sub(&SwooleStats->connection_num, 1);
 
@@ -287,37 +293,13 @@ int swReactorThread_close(swReactor *reactor, int fd)
     }
 #endif
 
-    swListenPort *port = swServer_get_port(serv, fd);
+    //free the receive memory buffer
+    swServer_free_buffer(serv, fd);
 
-    //clear output buffer
-    if (port->open_eof_check || port->open_length_check)
+    swListenPort *port = swServer_get_port(serv, fd);
+    if (port->open_http_protocol && conn->object)
     {
-        if (conn->object)
-        {
-            swString_free(conn->object);
-            conn->object = NULL;
-        }
-    }
-    else if (port->open_http_protocol)
-    {
-        if (conn->object)
-        {
-            if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE)
-            {
-                swString *str = (swString *) conn->object;
-                swString_free(str);
-                conn->websocket_status = 0;
-            }
-            else
-            {
-                swHttpRequest *request = (swHttpRequest *) conn->object;
-                if (request->buffer)
-                {
-                    swTrace("Connection Close. free buffer=%p, request=%p\n", request->buffer, request);
-                    swHttpRequest_free(conn);
-                }
-            }
-        }
+        swHttpRequest_free(conn);
     }
 
 #if 0
@@ -373,6 +355,9 @@ int swReactorThread_onClose(swReactor *reactor, swEvent *event)
     int fd = event->fd;
     swDataHead notify_ev;
     bzero(&notify_ev, sizeof(notify_ev));
+
+    assert(fd % serv->reactor_num == reactor->id);
+    assert(fd % serv->reactor_num == SwooleTG.id);
 
     notify_ev.from_id = reactor->id;
     notify_ev.fd = fd;
@@ -464,6 +449,8 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
 int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
 {
     swServer *serv = SwooleG.serv;
+
+    assert(target_worker_id < serv->worker_num);
 
     int ret = -1;
     swWorker *worker = &(serv->workers[target_worker_id]);
@@ -809,6 +796,12 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     swServer *serv = SwooleG.serv;
     int fd = ev->fd;
 
+    if (serv->factory_mode == SW_MODE_PROCESS)
+    {
+        assert(fd % serv->reactor_num == reactor->id);
+        assert(fd % serv->reactor_num == SwooleTG.id);
+    }
+
     swConnection *conn = swServer_connection_get(serv, fd);
     if (conn->active == 0)
     {
@@ -888,7 +881,6 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 int swReactorThread_create(swServer *serv)
 {
     int ret = 0;
-
     /**
      * init reactor thread pool
      */
@@ -953,8 +945,9 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
     swThreadParam *param;
     swReactorThread *thread;
     pthread_t pidt;
+    int i;
 
-    int i, ret;
+    swServer_store_listen_socket(serv);
 
     //listen UDP
     if (serv->have_udp_sock == 1)
@@ -979,11 +972,6 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
             if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
             {
                 continue;
-            }
-            ret = swServer_listen(serv, ls);
-            if (ret < 0)
-            {
-                return SW_ERR;
             }
             main_reactor_ptr->add(main_reactor_ptr, ls->sock, SW_FD_LISTEN);
         }
@@ -1402,6 +1390,7 @@ int swReactorThread_dispatch_array_buffer(swReactorThread *thread, swConnection 
     return SW_OK;
 }
 #endif
+
 void swReactorThread_free(swServer *serv)
 {
     int i;
@@ -1412,6 +1401,10 @@ void swReactorThread_free(swServer *serv)
         return;
     }
 
+#ifdef __MACH__
+    exit(0);
+#endif
+
     if (serv->have_tcp_sock == 1)
     {
         for (i = 0; i < serv->reactor_num; i++)
@@ -1419,9 +1412,12 @@ void swReactorThread_free(swServer *serv)
             thread = &(serv->reactor_threads[i]);
             thread->reactor.running = 0;
             SW_START_SLEEP;
-            pthread_cancel(thread->thread_id);
+            if (pthread_cancel(thread->thread_id) != 0)
+            {
+                swSysError("pthread_cancel(%d) failed.", (int ) thread->thread_id);
+            }
             //wait thread
-            if (pthread_join(thread->thread_id, NULL))
+            if (pthread_join(thread->thread_id, NULL) != 0)
             {
                 swWarn("pthread_join() failed. Error: %s[%d]", strerror(errno), errno);
             }
@@ -1440,7 +1436,10 @@ void swReactorThread_free(swServer *serv)
         {
             if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
             {
-                pthread_cancel(ls->thread_id);
+    			if (pthread_cancel(ls->thread_id) < 0)
+    			{
+    				swSysError("pthread_cancel(%d) failed.", (int) ls->thread_id);
+    			}
                 if (pthread_join(ls->thread_id, NULL))
                 {
                     swWarn("pthread_join() failed. Error: %s[%d]", strerror(errno), errno);
@@ -1449,4 +1448,3 @@ void swReactorThread_free(swServer *serv)
         }
     }
 }
-

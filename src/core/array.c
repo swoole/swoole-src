@@ -88,7 +88,6 @@ void *swArray_fetch(swArray *array, uint32_t n)
     int page = swArray_page(array, n);
     if (page >= array->page_num)
     {
-        swWarn("fetch index[%d] out of array", n);
         return NULL;
     }
     return array->pages[page] + (swArray_offset(array, n) * array->item_size);
