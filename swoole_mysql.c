@@ -850,6 +850,9 @@ static int swoole_mysql_onWrite(swReactor *reactor, swEvent *event)
     }
     else
     {
+        client->connector.error_code = SwooleG.error;
+        client->connector.error_msg = strerror(SwooleG.error);
+        client->connector.error_length = strlen(client->connector.error_msg);
         swoole_mysql_onConnect(client TSRMLS_CC);
     }
     return SW_OK;
