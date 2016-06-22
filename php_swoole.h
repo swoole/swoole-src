@@ -304,6 +304,7 @@ PHP_FUNCTION(swoole_async_set);
 //---------------------------------------------------------
 PHP_FUNCTION(swoole_timer_after);
 PHP_FUNCTION(swoole_timer_tick);
+PHP_FUNCTION(swoole_timer_exists);
 PHP_FUNCTION(swoole_timer_clear);
 
 PHP_FUNCTION(swoole_strerror);
