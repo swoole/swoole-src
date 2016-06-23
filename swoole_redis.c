@@ -431,6 +431,11 @@ static PHP_METHOD(swoole_redis, __call)
         efree((void* )argv[i]);
     }
 
+    if (redis->state == SWOOLE_REDIS_STATE_SUBSCRIBE)
+    {
+        efree(argv[argc]);
+    }
+
     if (free_mm)
     {
         efree(argvlen);
