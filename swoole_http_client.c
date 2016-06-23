@@ -1338,6 +1338,12 @@ static PHP_METHOD(swoole_http_client, upgrade)
     }
 
     http_client_property *hcc = swoole_get_property(getThis(), 0);
+    if (!hcc->onMessage)
+    {
+        swoole_php_fatal_error(E_WARNING, "cannot use the upgrade method, must first register the onMessage event callback.");
+        return;
+    }
+
     zval *request_header;
     if (!hcc->request_header)
     {
