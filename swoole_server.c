@@ -239,7 +239,7 @@ static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC)
         }
         else
         {
-            SW_MAKE_STD_ZVAL(result_data);
+            SW_ALLOC_INIT_ZVAL(result_data);
             SW_ZVAL_STRINGL(result_data, result_data_str, result_data_len, 1);
         }
         PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
@@ -846,6 +846,9 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     }
     sw_zval_ptr_dtor(&ztask_id);
     sw_zval_ptr_dtor(&zdata);
+#if PHP_MAJOR_VERSION >= 7
+    efree(zdata);
+#endif
     if (retval != NULL)
     {
         sw_zval_ptr_dtor(&retval);
