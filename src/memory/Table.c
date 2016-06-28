@@ -416,7 +416,10 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen, sw_atomic_t **
             swTable_compress_list(table);
         }
 
+        table->lock.lock(&table->lock);
         table->rows_list[table->list_n] = row;
+        table->lock.unlock(&table->lock);
+
         row->list_index = table->list_n;
         sw_atomic_fetch_add(&table->list_n, 1);
     }
@@ -446,7 +449,10 @@ int swTableRow_del(swTable *table, char *key, int keylen)
     {
         if (strncmp(row->key, key, keylen) == 0)
         {
+            table->lock.lock(&table->lock);
             table->rows_list[row->list_index] = NULL;
+            table->lock.unlock(&table->lock);
+
             if (table->iterator->skip_count > table->compress_threshold)
             {
                 swTable_compress_list(table);
