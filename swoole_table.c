@@ -541,7 +541,6 @@ static PHP_METHOD(swoole_table, count)
 }
 
 #ifdef HAVE_PCRE
-
 static PHP_METHOD(swoole_table, rewind)
 {
     swTable *table = swoole_get_object(getThis());
@@ -574,5 +573,4 @@ static PHP_METHOD(swoole_table, valid)
     swTableRow *row = swTable_iterator_current(table);
     RETURN_BOOL(row != NULL);
 }
-
 #endif

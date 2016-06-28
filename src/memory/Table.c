@@ -244,13 +244,21 @@ void swTable_iterator_rewind(swTable *table)
     bzero(table->iterator, sizeof(swTable_iterator));
 }
 
+static sw_inline swTableRow* swTable_iterator_get(swTable *table, uint32_t index)
+{
+    table->lock.lock(&table->lock);
+    swTableRow * row = table->rows_list[index];
+    table->lock.unlock(&table->lock);
+    return row;
+}
+
 swTableRow* swTable_iterator_current(swTable *table)
 {
     swTableRow *row = NULL;
 
     for (; table->iterator->absolute_index < table->list_n; table->iterator->absolute_index++)
     {
-        row = table->rows_list[table->iterator->absolute_index];
+        row = swTable_iterator_get(table, table->iterator->absolute_index);
         if (row == NULL)
         {
             table->iterator->skip_count++;
@@ -261,7 +269,6 @@ swTableRow* swTable_iterator_current(swTable *table)
             break;
         }
     }
-
     if (table->iterator->collision_index == 0)
     {
         return row;
@@ -278,8 +285,7 @@ void swTable_iterator_forward(swTable *table)
 {
     for ( ; table->iterator->absolute_index < table->list_n; table->iterator->absolute_index++)
     {
-        swTableRow *row = table->rows_list[table->iterator->absolute_index];
-
+        swTableRow *row = swTable_iterator_get(table, table->iterator->absolute_index);
         if (row == NULL)
         {
             continue;
