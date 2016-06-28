@@ -293,7 +293,7 @@ static int swServer_start_proxy(swServer *serv)
     int ret;
     swReactor *main_reactor = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swReactor));
 
-    ret = swReactor_create(main_reactor, SW_REACTOR_MINEVENTS);
+    ret = swReactor_create(main_reactor, SW_REACTOR_MAXEVENTS);
     if (ret < 0)
     {
         swWarn("Reactor create failed");
@@ -409,6 +409,49 @@ void swServer_store_listen_socket(swServer *serv)
     }
 }
 
+swString** swServer_create_worker_buffer(swServer *serv)
+{
+    int i;
+    int buffer_input_size;
+    if (serv->listen_list->open_eof_check || serv->listen_list->open_length_check || serv->listen_list->open_http_protocol)
+    {
+        buffer_input_size = serv->listen_list->protocol.package_max_length;
+    }
+    else
+    {
+        buffer_input_size = SW_BUFFER_SIZE_BIG;
+    }
+
+    int buffer_num;
+    if (serv->factory_mode == SW_MODE_SINGLE || serv->factory_mode == SW_MODE_BASE)
+    {
+        buffer_num = 1;
+    }
+    else
+    {
+        buffer_num = serv->reactor_num + serv->dgram_port_num;
+    }
+
+    swString **buffers = sw_malloc(sizeof(swString*) * buffer_num);
+    if (buffers == NULL)
+    {
+        swError("malloc for worker buffer_input failed.");
+        return NULL;
+    }
+
+    for (i = 0; i < buffer_num; i++)
+    {
+        buffers[i] = swString_new(buffer_input_size);
+        if (buffers[i] == NULL)
+        {
+            swError("worker buffer_input init failed.");
+            return NULL;
+        }
+    }
+
+    return buffers;
+}
+
 int swServer_worker_init(swServer *serv, swWorker *worker)
 {
 #ifdef HAVE_CPU_AFFINITY
@@ -431,42 +474,10 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     }
 #endif
 
-    int i;
-    int buffer_input_size;
-    if (serv->listen_list->open_eof_check || serv->listen_list->open_length_check || serv->listen_list->open_http_protocol)
+    SwooleWG.buffer_input = swServer_create_worker_buffer(serv);
+    if (!SwooleWG.buffer_input)
     {
-        buffer_input_size = serv->listen_list->protocol.package_max_length;
-    }
-    else
-    {
-        buffer_input_size = SW_BUFFER_SIZE_BIG;
-    }
-
-    int buffer_num;
-    if (serv->factory_mode != SW_MODE_PROCESS)
-    {
-        buffer_num = 1;
-    }
-    else
-    {
-        buffer_num = serv->reactor_num + serv->dgram_port_num;
-    }
-
-    SwooleWG.buffer_input = sw_malloc(sizeof(swString*) * buffer_num);
-    if (SwooleWG.buffer_input == NULL)
-    {
-        swError("malloc for SwooleWG.buffer_input failed.");
         return SW_ERR;
-    }
-
-    for (i = 0; i < buffer_num; i++)
-    {
-        SwooleWG.buffer_input[i] = swString_new(buffer_input_size);
-        if (SwooleWG.buffer_input[i] == NULL)
-        {
-            swError("buffer_input init failed.");
-            return SW_ERR;
-        }
     }
 
     if (serv->max_request < 1)
@@ -742,10 +753,16 @@ int swServer_free(swServer *serv)
      */
     if (SwooleG.heartbeat_pidt)
     {
-        pthread_cancel(SwooleG.heartbeat_pidt);
-        pthread_join(SwooleG.heartbeat_pidt, NULL);
+        if (pthread_cancel(SwooleG.heartbeat_pidt) < 0)
+        {
+            swSysError("pthread_cancel(%d) failed.", (int ) SwooleG.heartbeat_pidt);
+        }
+        //wait thread
+        if (pthread_join(SwooleG.heartbeat_pidt, NULL) < 0)
+        {
+            swSysError("pthread_join(%d) failed.", (int ) SwooleG.heartbeat_pidt);
+        }
     }
-
     if (serv->factory_mode == SW_MODE_SINGLE)
     {
         if (SwooleG.task_worker_num > 0)
@@ -1192,7 +1209,6 @@ static void swHeartbeatThread_loop(swThreadParam *param)
 
         checktime = (int) time(NULL) - serv->heartbeat_idle_time;
 
-        //遍历到最大fd
         for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
         {
             swTrace("check fd=%d", fd);

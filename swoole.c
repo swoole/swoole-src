@@ -166,6 +166,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_after, 0, 0, 2)
     ZEND_ARG_INFO(0, param)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_exists, 0, 0, 1)
+    ZEND_ARG_INFO(0, timer_id)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_clear, 0, 0, 1)
     ZEND_ARG_INFO(0, timer_id)
 ZEND_END_ARG_INFO()
@@ -219,19 +223,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_strerror, 0, 0, 1)
     ZEND_ARG_INFO(0, errno)
 ZEND_END_ARG_INFO()
 
-#ifdef SW_ASYNC_MYSQL
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_query, 0, 0, 3)
-    ZEND_ARG_INFO(0, db_link)
-    ZEND_ARG_INFO(0, sql)
-    ZEND_ARG_INFO(0, callback)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_get_mysqli_sock, 0, 0, 1)
-    ZEND_ARG_INFO(0, db_link)
-ZEND_END_ARG_INFO()
-
-#endif
-
 //arginfo end
 
 #include "zend_exceptions.h"
@@ -251,6 +242,7 @@ const zend_function_entry swoole_functions[] =
     /*------swoole_timer-----*/
     PHP_FE(swoole_timer_after, arginfo_swoole_timer_after)
     PHP_FE(swoole_timer_tick, arginfo_swoole_timer_tick)
+    PHP_FE(swoole_timer_exists, arginfo_swoole_timer_exists)
     PHP_FE(swoole_timer_clear, arginfo_swoole_timer_clear)
     /*------swoole_async_io------*/
     PHP_FE(swoole_async_set, arginfo_swoole_async_set)
@@ -261,15 +253,11 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_async_dns_lookup, arginfo_swoole_async_dns_lookup)
     /*------other-----*/
     PHP_FE(swoole_client_select, arginfo_swoole_client_select)
+    PHP_FALIAS(swoole_select, swoole_client_select, arginfo_swoole_client_select)
     PHP_FE(swoole_set_process_name, arginfo_swoole_set_process_name)
     PHP_FE(swoole_get_local_ip, arginfo_swoole_void)
     PHP_FE(swoole_strerror, arginfo_swoole_strerror)
     PHP_FE(swoole_errno, arginfo_swoole_void)
-    /*------async mysql-----*/
-#ifdef SW_ASYNC_MYSQL
-    PHP_FE(swoole_mysql_query, arginfo_swoole_mysql_query)
-    PHP_FE(swoole_get_mysqli_sock, arginfo_swoole_get_mysqli_sock)
-#endif
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 
@@ -333,6 +321,7 @@ static const zend_function_entry swoole_timer_methods[] =
 {
     ZEND_FENTRY(tick, ZEND_FN(swoole_timer_tick), arginfo_swoole_timer_after, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(after, ZEND_FN(swoole_timer_after), arginfo_swoole_timer_tick, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(exists, ZEND_FN(swoole_timer_exists), arginfo_swoole_timer_exists, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(clear, ZEND_FN(swoole_timer_clear), arginfo_swoole_timer_clear, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
@@ -498,7 +487,6 @@ PHP_MINIT_FUNCTION(swoole)
     REGISTER_LONG_CONSTANT("SWOOLE_BASE", SW_MODE_SINGLE, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SWOOLE_THREAD", SW_MODE_THREAD, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SWOOLE_PROCESS", SW_MODE_PROCESS, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("SWOOLE_PACKET", SW_MODE_PACKET, CONST_CS | CONST_PERSISTENT);
 
     /**
      * ipc mode
@@ -588,12 +576,7 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_init();
     swoole_server_port_init(module_number TSRMLS_CC);
     swoole_client_init(module_number TSRMLS_CC);
-#ifdef SW_ASYNC_HTTPCLIENT
     swoole_http_client_init(module_number TSRMLS_CC);
-#endif
-#ifdef SW_USE_REDIS
-    swoole_redis_init(module_number TSRMLS_CC);
-#endif
     swoole_async_init(module_number TSRMLS_CC);
     swoole_process_init(module_number TSRMLS_CC);
     swoole_table_init(module_number TSRMLS_CC);
@@ -602,9 +585,10 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_http_server_init(module_number TSRMLS_CC);
     swoole_buffer_init(module_number TSRMLS_CC);
     swoole_websocket_init(module_number TSRMLS_CC);
-
-#ifdef SW_ASYNC_MYSQL
     swoole_mysql_init(module_number TSRMLS_CC);
+
+#ifdef SW_USE_REDIS
+    swoole_redis_init(module_number TSRMLS_CC);
 #endif
 
     if (SWOOLE_G(socket_buffer_size) > 0)
@@ -679,9 +663,7 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef SW_USE_REDIS
     php_info_print_table_row(2, "async redis client", "enabled");
 #endif
-#ifdef SW_ASYNC_HTTPCLIENT
     php_info_print_table_row(2, "async http/websocket client", "enabled");
-#endif
 #ifdef SW_SOCKETS
     php_info_print_table_row(2, "sockets", "enabled");
 #endif
@@ -765,8 +747,13 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
         }
         else
         {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_TERMINATED, "worker process is terminated by exit()/die().");
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SERVER_WORKER_TERMINATED, "worker process is terminated by exit()/die().");
         }
+    }
+
+    if (SwooleAIO.init)
+    {
+        swAio_free();
     }
 
     SwooleWG.reactor_wait_onexit = 0;

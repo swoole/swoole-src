@@ -36,7 +36,6 @@ zend_class_entry swoole_websocket_frame_ce;
 zend_class_entry *swoole_websocket_frame_class_entry_ptr;
 
 static int websocket_handshake(swoole_http_client *client);
-static void sha1(const char *str, int _len, unsigned char *digest);
 static zval* websocket_callbacks[2];
 
 #if PHP_MAJOR_VERSION >= 7
@@ -112,13 +111,8 @@ void swoole_websocket_onOpen(swoole_http_client *client)
         zval **args[2];
         swServer *serv = SwooleG.serv;
         zval *zserv = (zval *) serv->ptr2;
-        zval *zrequest_object = client->context.request.zrequest_object;
+        zval *zrequest_object = client->context.request.zobject;
         zval *retval = NULL;
-
-#ifdef __CYGWIN__
-        //TODO: memory error on cygwin.
-        sw_zval_add_ref(&zrequest_object);
-#endif
 
         args[0] = &zserv;
         args[1] = &zrequest_object;
@@ -157,7 +151,7 @@ void swoole_websocket_onReuqest(swoole_http_client *client)
     SwooleG.serv->factory.end(&SwooleG.serv->factory, client->fd);
 }
 
-static void sha1(const char *str, int _len, unsigned char *digest)
+void php_swoole_sha1(const char *str, int _len, unsigned char *digest)
 {
     PHP_SHA1_CTX context;
     PHP_SHA1Init(&context);
@@ -192,7 +186,7 @@ static int websocket_handshake(swoole_http_client *client)
 
     char sha1_str[20];
     bzero(sha1_str, sizeof(sha1_str));
-    sha1(sec_websocket_accept, Z_STRLEN_P(pData) + sizeof(SW_WEBSOCKET_GUID) - 1, (unsigned char *) sha1_str);
+    php_swoole_sha1(sec_websocket_accept, Z_STRLEN_P(pData) + sizeof(SW_WEBSOCKET_GUID) - 1, (unsigned char *) sha1_str);
 
     char encoded_str[50];
     bzero(encoded_str, sizeof(encoded_str));
@@ -217,13 +211,15 @@ int swoole_websocket_onMessage(swEventData *req)
 #endif
 
     int fd = req->info.fd;
+
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
-    zdata = php_swoole_get_recv_data(zdata, req TSRMLS_CC);
 
-    char *buf = Z_STRVAL_P(zdata);
-    long finish = buf[0] ? 1 : 0;
-    long opcode = buf[1];
+    char frame_header[2];
+    php_swoole_get_recv_data(zdata, req, frame_header, 2);
+
+    long finish = frame_header[0] ? 1 : 0;
+    long opcode = frame_header[1];
 
     zval *zframe;
     SW_MAKE_STD_ZVAL(zframe);
@@ -232,15 +228,7 @@ int swoole_websocket_onMessage(swEventData *req)
     zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("fd"), fd TSRMLS_CC);
     zend_update_property_bool(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("finish"), finish TSRMLS_CC);
     zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("opcode"), opcode TSRMLS_CC);
-
-    if (Z_STRLEN_P(zdata) == 2)
-    {
-        zend_update_property_stringl(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("data"), "", 0 TSRMLS_CC);
-    }
-    else
-    {
-        zend_update_property_stringl(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("data"), buf + 2, (Z_STRLEN_P(zdata) - 2) TSRMLS_CC);
-    }
+    zend_update_property(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("data"), zdata TSRMLS_CC);
 
     swServer *serv = SwooleG.serv;
     zval *zserv = (zval *) serv->ptr2;
@@ -250,26 +238,20 @@ int swoole_websocket_onMessage(swEventData *req)
     args[1] = &zframe;
 
     zval *retval = NULL;
-
-    if (sw_call_user_function_ex(EG(function_table), NULL, websocket_callbacks[WEBSOCKET_CALLBACK_onMessage], &retval, 2,
-            args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, websocket_callbacks[WEBSOCKET_CALLBACK_onMessage], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "onMessage handler error");
     }
-
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-
     if (retval)
     {
         sw_zval_ptr_dtor(&retval);
     }
-
     sw_zval_ptr_dtor(&zdata);
     sw_zval_ptr_dtor(&zframe);
-
     return SW_OK;
 }
 
@@ -322,7 +304,7 @@ zval* php_swoole_websocket_unpack(swString *data TSRMLS_DC)
     swWebSocket_decode(&frame, data);
 
     zval *zframe;
-    SW_MAKE_STD_ZVAL(zframe);
+    SW_ALLOC_INIT_ZVAL(zframe);
     object_init_ex(zframe, swoole_websocket_frame_class_entry_ptr);
 
     zend_update_property_bool(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("finish"), frame.header.FIN TSRMLS_CC);

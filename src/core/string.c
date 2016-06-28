@@ -78,12 +78,6 @@ swString *swString_dup(const char *src_str, int length)
     return str;
 }
 
-void swString_free(swString *str)
-{
-    sw_free(str->str);
-    sw_free(str);
-}
-
 int swString_append(swString *str, swString *append_str)
 {
     int new_size = str->length + append_str->length;

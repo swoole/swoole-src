@@ -57,9 +57,7 @@ typedef struct
     uint32_t post_length;
 
     zval *zdata;
-
-    zval *zrequest_object;
-
+    zval *zobject;
     zval *zserver;
     zval *zheader;
     zval *zget;
@@ -67,6 +65,17 @@ typedef struct
     zval *zcookie;
     zval *zrequest;
     zval *zfiles;
+#if PHP_MAJOR_VERSION >= 7
+    zval _zdata;
+    zval _zobject;
+    zval _zrequest;
+    zval _zserver;
+    zval _zheader;
+    zval _zget;
+    zval _zpost;
+    zval _zfiles;
+    zval _zcookie;
+#endif
 } http_request;
 
 typedef struct
@@ -74,9 +83,15 @@ typedef struct
     enum php_http_method method;
     int version;
     int status;
-    zval *zresponse_object;
+    zval *zobject;
     zval *zheader;
     zval *zcookie;
+
+#if PHP_MAJOR_VERSION >= 7
+    zval _zobject;
+    zval _zheader;
+    zval _zcookie;
+#endif
 } http_response;
 
 typedef struct
@@ -103,27 +118,6 @@ typedef struct
 
     http_request request;
     http_response response;
-
-#if PHP_MAJOR_VERSION >= 7
-    struct
-    {
-        zval zrequest_object;
-        zval zrequest;
-        zval zserver;
-        zval zheader;
-        zval zget;
-        zval zpost;
-        zval zfiles;
-        zval zcookie;
-        zval zdata;
-    } request_stack;
-    struct
-    {
-        zval zresponse_object;
-        zval zheader;
-        zval zcookie;
-    } response_stack;
-#endif
 
     php_http_parser parser;
     multipart_parser *mt_parser;
@@ -169,11 +163,12 @@ http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC);
 void swoole_http_context_free(http_context *ctx TSRMLS_DC);
 int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int boundary_len TSRMLS_DC);
 
-#if PHP_MAJOR_VERSION >= 7
-#define http_alloc_zval(ctx,object,val)   val = &(ctx)->object##_stack.val; (ctx)->object.val = val
-#else
-#define http_alloc_zval(ctx,object,val)   MAKE_STD_ZVAL(val); (ctx)->object.val = val
-#endif
+#define swoole_http_server_array_init(name, class)    SW_MAKE_STD_ZVAL(z##name);\
+array_init(z##name);\
+zend_update_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), z##name TSRMLS_CC);\
+ctx->class.z##name = sw_zend_read_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), 0 TSRMLS_CC);\
+sw_copy_to_stack(ctx->class.z##name, ctx->request._z##name);\
+sw_zval_ptr_dtor(&z##name);
 
 #ifdef SW_USE_HTTP2
 /**

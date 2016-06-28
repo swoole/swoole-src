@@ -2,7 +2,7 @@
 #include "swoole.h"
 #include "Client.h"
 
-swReactor main_reactor;
+static swReactor main_reactor;
 
 void dns_callback(void *ptr)
 {

@@ -101,6 +101,7 @@ enum swTaskType
     SW_TASK_TMPFILE    = 1,  //tmp file
     SW_TASK_SERIALIZE  = 2,  //php serialize
     SW_TASK_NONBLOCK   = 4,  //task
+    SW_TASK_CALLBACK   = 8,  //callback
 };
 
 typedef struct _swUdpFd
@@ -374,10 +375,6 @@ struct _swServer
      */
     uint32_t enable_unsafe_event :1;
     /**
-     * packet mode
-     */
-    uint32_t packet_mode :1;
-    /**
      * run as a daemon process
      */
     uint32_t reload_async :1;
@@ -389,7 +386,7 @@ struct _swServer
     int *cpu_affinity_available;
     int cpu_affinity_available_num;
     
-    uint8_t listen_port_num;
+    uint16_t listen_port_num;
     time_t reload_time;
 
     /* buffer output/input setting*/
@@ -494,7 +491,7 @@ int swServer_shutdown(swServer *serv);
 
 static sw_inline swString *swServer_get_buffer(swServer *serv, int fd)
 {
-    swString *buffer = serv->connection_list[fd].object;
+    swString *buffer = serv->connection_list[fd].recv_buffer;
     if (buffer == NULL)
     {
         buffer = swString_new(SW_BUFFER_SIZE);
@@ -503,18 +500,18 @@ static sw_inline swString *swServer_get_buffer(swServer *serv, int fd)
         {
             return NULL;
         }
-        serv->connection_list[fd].object = buffer;
+        serv->connection_list[fd].recv_buffer = buffer;
     }
     return buffer;
 }
 
 static sw_inline void swServer_free_buffer(swServer *serv, int fd)
 {
-    swString *buffer = serv->connection_list[fd].object;
+    swString *buffer = serv->connection_list[fd].recv_buffer;
     if (buffer)
     {
         swString_free(buffer);
-        serv->connection_list[fd].object = NULL;
+        serv->connection_list[fd].recv_buffer = NULL;
     }
 }
 
@@ -572,6 +569,7 @@ void swServer_store_listen_socket(swServer *serv);
 int swServer_get_manager_pid(swServer *serv);
 int swServer_get_socket(swServer *serv, int port);
 int swServer_worker_init(swServer *serv, swWorker *worker);
+swString** swServer_create_worker_buffer(swServer *serv);
 void swServer_close_listen_port(swServer *serv);
 void swServer_enable_accept(swReactor *reactor);
 
@@ -765,10 +763,13 @@ static sw_inline swConnection *swWorker_get_connection(swServer *serv, int sessi
 
 static sw_inline swString *swWorker_get_buffer(swServer *serv, int worker_id)
 {
-    //input buffer
-    if (serv->factory_mode != SW_MODE_PROCESS)
+    if (serv->factory_mode == SW_MODE_SINGLE || serv->factory_mode == SW_MODE_BASE)
     {
         return SwooleWG.buffer_input[0];
+    }
+    else if (serv->factory_mode == SW_MODE_THREAD)
+    {
+        return SwooleTG.buffer_input[worker_id];
     }
     else
     {
