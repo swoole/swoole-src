@@ -1283,15 +1283,15 @@ PHP_METHOD(swoole_server, __construct)
     }
 
 #ifdef __CYGWIN__
-    serv->factory_mode = SW_MODE_SINGLE;
-#else
+    serv_mode = SW_MODE_SINGLE;
+#elif !defined(SW_USE_THREAD)
     if (serv_mode == SW_MODE_THREAD || serv_mode == SW_MODE_BASE)
     {
         serv_mode = SW_MODE_SINGLE;
         swoole_php_fatal_error(E_WARNING, "PHP can not running at multi-threading. Reset mode to SWOOLE_MODE_BASE");
     }
-    serv->factory_mode = serv_mode;
 #endif
+    serv->factory_mode = serv_mode;
 
     if (serv->factory_mode == SW_MODE_SINGLE)
     {
