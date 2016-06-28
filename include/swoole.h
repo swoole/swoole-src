@@ -1730,6 +1730,7 @@ typedef struct
     uint8_t update_time;
     uint8_t factory_lock_target;
     int16_t factory_target_worker;
+    swString **buffer_input;
 } swThreadG;
 
 typedef struct _swServer swServer;

@@ -195,6 +195,12 @@ static void swFactoryThread_onStart(swThreadPool *pool, int id)
     SwooleTG.id = serv->reactor_num + id;
     SwooleTG.type = SW_THREAD_WORKER;
 
+    SwooleTG.buffer_input = swServer_create_worker_buffer(serv);
+    if (!SwooleTG.buffer_input)
+    {
+        return;
+    }
+
     //cpu affinity setting
 #ifdef HAVE_CPU_AFFINITY
     if (serv->open_cpu_affinity)
