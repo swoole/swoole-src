@@ -262,8 +262,8 @@ static void php_swoole_aio_onComplete(swAio_event *event)
         }
     }
 
-    //readfile/writefile
-    if (file_req != NULL)
+    //file io
+    if (file_req)
     {
         if (file_req->once == 1)
         {
@@ -302,22 +302,22 @@ static void php_swoole_aio_onComplete(swAio_event *event)
             }
         }
     }
-    else if (dns_req != NULL)
+    else if (dns_req)
     {
         sw_zval_ptr_dtor(&dns_req->callback);
         sw_zval_ptr_dtor(&dns_req->domain);
         efree(dns_req);
         efree(event->buf);
     }
-    if (zcontent != NULL)
+    if (zcontent)
     {
         sw_zval_ptr_dtor(&zcontent);
     }
-    if (zwriten != NULL)
+    if (zwriten)
     {
         sw_zval_ptr_dtor(&zwriten);
     }
-    if (retval != NULL)
+    if (retval)
     {
         sw_zval_ptr_dtor(&retval);
     }
@@ -734,6 +734,7 @@ PHP_FUNCTION(swoole_async_dns_lookup)
         if (swoole_gethostbyname(flags, Z_STRVAL_P(domain), (char *) &addr) == SW_OK)
         {
             zval **args[2];
+            zval *zdomain;
             zval *zcontent;
             zval *retval;
 
@@ -741,7 +742,10 @@ PHP_FUNCTION(swoole_async_dns_lookup)
             SW_MAKE_STD_ZVAL(zcontent);
             SW_ZVAL_STRING(zcontent, ip_addr, 1);
 
-            args[0] = &domain;
+            SW_MAKE_STD_ZVAL(zdomain);
+            SW_ZVAL_STRINGL(zdomain, Z_STRVAL_P(domain), Z_STRLEN_P(domain), 1);
+
+            args[0] = &zdomain;
             args[1] = &zcontent;
             if (sw_call_user_function_ex(EG(function_table), NULL, cb, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
             {
@@ -752,7 +756,7 @@ PHP_FUNCTION(swoole_async_dns_lookup)
             {
                 sw_zval_ptr_dtor(&retval);
             }
-            sw_zval_ptr_dtor(&cb);
+            sw_zval_ptr_dtor(&zdomain);
             sw_zval_ptr_dtor(&zcontent);
             return;
         }
