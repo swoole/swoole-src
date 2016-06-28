@@ -7,6 +7,10 @@ $serv->set(array(
     //'log_file' => '/tmp/swoole.log'
 ));
 
+$serv->on('start', function($serv){
+   chmod($serv->host, 0777);
+});
+
 $serv->on('Connect', function($serv, $fd, $reactorId) {
    echo "Connect, client={$fd}\n";
 });

@@ -42,22 +42,14 @@ static int swClient_enable_ssl_encrypt(swClient *cli);
 static int swClient_ssl_handshake(swClient *cli);
 #endif
 
-static swHashMap *swoole_dns_cache = NULL;
 static int isset_event_handle = 0;
-
-typedef struct
-{
-    int length;
-    char addr[0];
-
-} swDNS_cache;
 
 int swClient_create(swClient *cli, int type, int async)
 {
     int _domain;
     int _type;
 
-    bzero(cli, sizeof(*cli));
+    bzero(cli, sizeof(swClient));
     switch (type)
     {
     case SW_SOCK_TCP:
@@ -193,9 +185,7 @@ static int swClient_ssl_handshake(swClient *cli)
 
 static int swClient_inet_addr(swClient *cli, char *host, int port)
 {
-    struct hostent *host_entry;
     void *s_addr = NULL;
-
     if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_UDP)
     {
         cli->server_addr.addr.inet_v4.sin_family = AF_INET;
@@ -227,44 +217,14 @@ static int swClient_inet_addr(swClient *cli, char *host, int port)
         cli->server_addr.len = sizeof(cli->server_addr.addr.un);
         return SW_OK;
     }
-
-    if (!swoole_dns_cache)
+    if (cli->async)
     {
-        swoole_dns_cache = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
+        swWarn("DNS lookup will block the process. Please use swoole_async_dns_lookup.");
     }
-
-    swDNS_cache *cache = swHashMap_find(swoole_dns_cache, host, strlen(host));
-    if (cache == NULL)
+    if (swoole_gethostbyname(cli->_sock_domain, host, s_addr) < 0)
     {
-        if (cli->async)
-        {
-            swWarn("DNS lookup will block the process. Please use swoole_async_dns_lookup.");
-        }
-        if (!(host_entry = gethostbyname(host)))
-        {
-            swWarn("gethostbyname('%s') failed.", host);
-            return SW_ERR;
-        }
-        if (host_entry->h_addrtype != AF_INET)
-        {
-            swWarn("Host lookup failed: Non AF_INET domain returned on AF_INET socket.");
-            return 0;
-        }
-        cache = sw_malloc(sizeof(int) + host_entry->h_length);
-        if (cache == NULL)
-        {
-            swWarn("malloc() failed.");
-            memcpy(s_addr, host_entry->h_addr_list[0], host_entry->h_length);
-            return SW_OK;
-        }
-        else
-        {
-            memcpy(cache->addr, host_entry->h_addr_list[0], host_entry->h_length);
-            cache->length = host_entry->h_length;
-        }
-        swHashMap_add(swoole_dns_cache, host, strlen(host), cache);
+        return SW_ERR;
     }
-    memcpy(s_addr, cache->addr, cache->length);
     return SW_OK;
 }
 
@@ -434,31 +394,6 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
         return SW_ERR;
     }
 
-    if (cli->type == SW_SOCK_UNIX_STREAM)
-    {
-        while (1)
-        {
-            ret = connect(cli->socket->fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
-            if (ret < 0)
-            {
-                if (errno == EINTR)
-                {
-                    continue;
-                }
-            }
-            break;
-        }
-        if (ret == 0)
-        {
-            SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE);
-        }
-        else
-        {
-            SwooleG.error = errno;
-        }
-        return ret;
-    }
-
     while (1)
     {
         ret = connect(cli->socket->fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
@@ -468,11 +403,12 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
             {
                 continue;
             }
+            SwooleG.error = errno;
         }
         break;
     }
 
-    if (ret < 0 &&  errno == EINPROGRESS)
+    if ((ret < 0 && errno == EINPROGRESS) || ret == 0)
     {
         if (SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, cli->reactor_fdtype | SW_EVENT_WRITE) < 0)
         {
@@ -713,24 +649,6 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
             return SW_OK;
         }
     }
-    //packet mode
-    else if (cli->packet_mode == 1)
-    {
-        uint32_t len_tmp = 0;
-        n = swConnection_recv(event->socket, &len_tmp, 4, 0);
-        if (n <= 0)
-        {
-            return cli->close(cli);
-        }
-        else
-        {
-            buf_size = ntohl(len_tmp);
-            if (buf_size > cli->buffer->size)
-            {
-                swString_extend(cli->buffer, buf_size);
-            }
-        }
-    }
 
 #ifdef SW_CLIENT_RECV_AGAIN
     recv_again:
@@ -790,12 +708,15 @@ static int swClient_onDgramRead(swReactor *reactor, swEvent *event)
 static int swClient_onError(swReactor *reactor, swEvent *event)
 {
     swClient *cli = event->socket->object;
-    int ret = cli->close(cli);
-    if (!cli->socket->active && cli->onError)
+    if (cli->socket->active)
     {
-        cli->onError(cli);
+        return cli->close(cli);
     }
-    return ret;
+    else
+    {
+        swClient_onWrite(reactor, event);
+    }
+    return SW_OK;
 }
 
 static int swClient_onWrite(swReactor *reactor, swEvent *event)

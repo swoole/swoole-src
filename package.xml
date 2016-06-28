@@ -35,11 +35,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2016-05-12</date>
+    <date>2016-06-16</date>
     <time>16:48:51</time>
     <version>
-		<release>1.8.5</release>
-		<api>1.8.5</api>
+		<release>1.8.6</release>
+		<api>1.8.6</api>
     </version>
     <stability>
         <release>stable</release>
@@ -47,11 +47,14 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed swoole_mysql_query insert_id error
-- Fixed swoole_websocket_server crash when receiving less than 4 bytes of data
-- Added bigint ID support for swoole_mysql_query
-- Fixed sync Swoole\Client memory leaks
-- Fixed Swoole\Http\Client crash when the connection is closed
+- Added `swoole_mysql` real async mysql client
+- Fixed swoole_client/swoole_http_client/swoole_redis memory leak and crash bug on PHP7
+- Remove gcc_aio.c
+- Remove swoole_mysqli_get_socket and swoole_mysql_query
+- Remove swoole_http_server->setGlobal
+- Added swoole_async_dns_lookup result cache
+- Optimize websocket server performance
+- Added swoole_server->task complete callback parameter
     </notes>
 	<contents>
 		<dir name="/">
@@ -105,6 +108,7 @@
 			<file role="src" name="swoole_websocket_server.c" />
 			<file role="src" name="swoole_atomic.c" />
 			<file role="src" name="swoole_mysql.c" />
+			<file role="src" name="swoole_mysql.h" />
 			<file role="src" name="swoole_redis.c" />
 			<dir name="thirdparty">
 				<file role="src" name="php_http_parser.c" />
@@ -175,7 +179,6 @@
 				</dir>
 				<dir name="os">
 					<file role="src" name="base.c" />
-					<file role="src" name="gcc_aio.c" />
 					<file role="src" name="linux_aio.c" />
 					<file role="src" name="msg_queue.c" />
 					<file role="src" name="sendfile.c" />

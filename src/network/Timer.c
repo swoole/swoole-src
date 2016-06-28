@@ -131,6 +131,11 @@ swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data)
 void swTimer_del(swTimer *timer, swTimer_node *tnode)
 {
     swHeap_remove(timer->heap, tnode->heap_node);
+    if (tnode->heap_node)
+    {
+        sw_free(tnode->heap_node);
+    }
+    sw_free(tnode);
 }
 
 int swTimer_select(swTimer *timer)
@@ -181,6 +186,7 @@ int swTimer_select(swTimer *timer)
         }
         timer->num --;
         swHeap_pop(timer->heap);
+        sw_free(tnode);
     }
 
     if (!tnode)

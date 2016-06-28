@@ -108,6 +108,7 @@ static int swAioLinux_onFinish(swReactor *reactor, swEvent *event)
                 aio_ev.nbytes = aio_ev.ret;
                 aio_ev.offset = aiocb->aio_offset;
                 aio_ev.buf = (void *) aiocb->aio_buf;
+                aio_ev.task_id = aiocb->aio_reqprio;
                 SwooleAIO.callback(&aio_ev);
             }
             i += n;
@@ -137,13 +138,14 @@ static int swAioLinux_read(int fd, void *outbuf, size_t size, off_t offset)
     iocbp.aio_nbytes = size;
     iocbp.aio_flags = IOCB_FLAG_RESFD;
     iocbp.aio_resfd = swoole_aio_eventfd;
+    iocbp.aio_reqprio = SwooleAIO.current_id++;
     //iocbp.aio_data = (__u64) aio_callback;
     iocbps[0] = &iocbp;
 
     if (io_submit(swoole_aio_context, 1, iocbps) == 1)
     {
         SwooleAIO.task_num++;
-        return SW_OK;
+        return iocbp.aio_reqprio;
     }
     swWarn("io_submit failed. Error: %s[%d]", strerror(errno), errno);
     return SW_ERR;
@@ -167,13 +169,14 @@ static int swAioLinux_write(int fd, void *inbuf, size_t size, off_t offset)
     iocbp->aio_nbytes = size;
     iocbp->aio_flags = IOCB_FLAG_RESFD;
     iocbp->aio_resfd = swoole_aio_eventfd;
+    iocbp->aio_reqprio = SwooleAIO.current_id++;
     //iocbp->aio_data = (__u64) aio_callback;
     iocbps[0] = iocbp;
 
     if (io_submit(swoole_aio_context, 1, iocbps) == 1)
     {
         SwooleAIO.task_num++;
-        return SW_OK;
+        return iocbp->aio_reqprio;
     }
     swWarn("io_submit failed. Error: %s[%d]", strerror(errno), errno);
     return SW_ERR;

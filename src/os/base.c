@@ -52,19 +52,25 @@ int swAio_init(void)
         ret = swAioLinux_init(SW_AIO_EVENT_NUM);
         break;
 #endif
-
-#ifdef HAVE_GCC_AIO
-    case SW_AIO_GCC:
-        ret = swAioGcc_init(SW_AIO_EVENT_NUM);
-        break;
-#endif
-
     default:
         ret = swAioBase_init(SW_AIO_EVENT_NUM);
         break;
     }
     SwooleAIO.init = 1;
     return ret;
+}
+
+void swAio_free(void)
+{
+    if (!SwooleAIO.init)
+    {
+        return;
+    }
+
+    if (SwooleAIO.mode == SW_AIO_BASE)
+    {
+        swAioBase_destroy(&swAioBase_thread_pool);
+    }
 }
 
 /**
@@ -185,10 +191,9 @@ int swAioBase_init(int max_aio_events)
 static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
 {
     swAio_event *event = task;
-    struct hostent *host_entry;
     struct in_addr addr;
-    char *ip_addr;
 
+    char *ip_addr;
     int ret = -1;
 
     start_switch:
@@ -201,7 +206,8 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
         ret = pread(event->fd, event->buf, event->nbytes, event->offset);
         break;
     case SW_AIO_DNS_LOOKUP:
-        if (!(host_entry = gethostbyname(event->buf)))
+        ret = swoole_gethostbyname(AF_INET, event->buf, (char *) &addr);
+        if (ret < 0)
         {
             event->error = h_errno;
             switch (h_errno)
@@ -217,11 +223,6 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
         }
         else
         {
-            if (!host_entry->h_addr_list[0] || host_entry->h_length > sizeof(addr))
-            {
-                ret = -1;
-            }
-            memcpy(&addr, host_entry->h_addr_list[0], host_entry->h_length);
             ip_addr = inet_ntoa(addr);
             bzero(event->buf, event->nbytes);
             memcpy(event->buf, ip_addr, strnlen(ip_addr, SW_IP_MAX_LENGTH) + 1);
@@ -286,6 +287,7 @@ static int swAioBase_write(int fd, void *inbuf, size_t size, off_t offset)
     aio_ev->type = SW_AIO_WRITE;
     aio_ev->nbytes = size;
     aio_ev->offset = offset;
+    aio_ev->task_id = SwooleAIO.current_id++;
 
     if (swThreadPool_dispatch(&swAioBase_thread_pool, aio_ev, sizeof(aio_ev)) < 0)
     {
@@ -294,7 +296,7 @@ static int swAioBase_write(int fd, void *inbuf, size_t size, off_t offset)
     else
     {
         SwooleAIO.task_num++;
-        return SW_OK;
+        return aio_ev->task_id;
     }
 }
 
@@ -312,6 +314,7 @@ int swAio_dns_lookup(void *hostname, void *ip_addr, size_t size)
     aio_ev->req = hostname;
     aio_ev->type = SW_AIO_DNS_LOOKUP;
     aio_ev->nbytes = size;
+    aio_ev->task_id = SwooleAIO.current_id++;
 
     if (swThreadPool_dispatch(&swAioBase_thread_pool, aio_ev, sizeof(aio_ev)) < 0)
     {
@@ -320,7 +323,7 @@ int swAio_dns_lookup(void *hostname, void *ip_addr, size_t size)
     else
     {
         SwooleAIO.task_num++;
-        return SW_OK;
+        return aio_ev->task_id;
     }
 }
 
@@ -339,6 +342,7 @@ static int swAioBase_read(int fd, void *inbuf, size_t size, off_t offset)
     aio_ev->type = SW_AIO_READ;
     aio_ev->nbytes = size;
     aio_ev->offset = offset;
+    aio_ev->task_id = SwooleAIO.current_id++;
 
     if (swThreadPool_dispatch(&swAioBase_thread_pool, aio_ev, sizeof(aio_ev)) < 0)
     {
@@ -347,7 +351,7 @@ static int swAioBase_read(int fd, void *inbuf, size_t size, off_t offset)
     else
     {
         SwooleAIO.task_num++;
-        return SW_OK;
+        return aio_ev->task_id;
     }
 }
 
