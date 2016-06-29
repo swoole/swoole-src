@@ -1760,7 +1760,7 @@ static int http_response_compress(swString *body, int level)
 #endif
 
     int status;
-    if (Z_OK == deflateInit2(&zstream, -1, Z_DEFLATED, encoding, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY))
+    if (Z_OK == deflateInit2(&zstream, level, Z_DEFLATED, encoding, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY))
     {
         zstream.next_in = (Bytef *) body->str;
         zstream.next_out = (Bytef *) swoole_zlib_buffer->str;
@@ -2249,7 +2249,7 @@ static PHP_METHOD(swoole_http_response, gzip)
     RETURN_FALSE;
 #endif
     
-    long level = 1;
+    long level = Z_DEFAULT_COMPRESSION;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &level) == FAILURE)
     {
@@ -2271,6 +2271,10 @@ static PHP_METHOD(swoole_http_response, gzip)
     if (level > 9)
     {
         level = 9;
+    }
+    if (level < 0)
+    {
+        level = 0;
     }
 
     context->gzip_enable = 1;
