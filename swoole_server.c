@@ -290,11 +290,6 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
 
     swTrace("Create swoole_server host=%s, port=%d, mode=%d, type=%d", serv->listen_list->host, (int) serv->listen_list->port, serv->factory_mode, (int) serv->listen_list->type);
 
-    /**
-     * Master Process ID
-     */
-    zend_update_property_long(swoole_server_class_entry_ptr, zobject, ZEND_STRL("master_pid"), getpid() TSRMLS_CC);
-
     zval *zsetting = sw_zend_read_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zsetting == NULL || ZVAL_IS_NULL(zsetting))
     {
@@ -998,6 +993,11 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     args[0] = &zserv;
     sw_zval_add_ref(&zserv);
     args[1] = &zworker_id;
+
+    /**
+     * Manager Process ID
+     */
+    zend_update_property_long(swoole_server_class_entry_ptr, zserv, ZEND_STRL("master_pid"), SwooleGS->master_pid TSRMLS_CC);
 
     /**
      * Manager Process ID
