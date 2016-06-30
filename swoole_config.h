@@ -47,7 +47,10 @@
 #define SW_MAX_WORKER_NCPU         1000 // n * cpu_num
 #define SW_MAX_REQUEST             5000          //最大请求包数
 #define SW_MAX_RELOAD_WAIT         10           //最大reload等待次数
+#define SW_MAX_SCHEDULER_WAIT      10           //最大协程调度超时等待次数
 
+#define SW_CORO_SCHEDUER_TIMEOUT   100           //协程强制超时回调的单位时间 100ms
+#define SW_TIMER_TYPE_CORO         1             //定时器特殊类型，支持协程超时切换
 //#define SW_CONNECTION_LIST_EXPAND  (4096*2)  //动态扩容的数量
 
 #define SW_HOST_MAXSIZE            128

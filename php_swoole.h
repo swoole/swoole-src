@@ -222,6 +222,7 @@ extern zend_class_entry *swoole_table_class_entry_ptr;
 extern zend_class_entry *swoole_http_server_class_entry_ptr;
 extern zend_class_entry *swoole_websocket_frame_class_entry_ptr;
 extern zend_class_entry *swoole_server_port_class_entry_ptr;
+extern zend_class_entry *swoole_client_multi_class_entry_ptr;
 
 extern zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
 
@@ -326,7 +327,21 @@ void swoole_table_init(int module_number TSRMLS_DC);
 void swoole_lock_init(int module_number TSRMLS_DC);
 void swoole_atomic_init(int module_number TSRMLS_DC);
 void swoole_client_init(int module_number TSRMLS_DC);
+#ifdef SW_COROUTINE
+void swoole_client_coro_init(int module_number TSRMLS_CC);
+void swoole_multi_init(int module_number TSRMLS_CC);
+void swoole_client_multi_init(int module_number TSRMLS_CC);
+#ifdef SW_USE_REDIS
+void swoole_redis_coro_init(int module_number TSRMLS_CC);
+#endif
+#ifdef SW_ASYNC_MYSQL
+void swoole_mysql_coro_init(int module_number TSRMLS_CC);
+#endif
+void swoole_http_client_coro_init(int module_number TSRMLS_DC);
+#endif
+#ifdef SW_ASYNC_HTTPCLIENT
 void swoole_http_client_init(int module_number TSRMLS_DC);
+#endif
 #ifdef SW_USE_REDIS
 void swoole_redis_init(int module_number TSRMLS_DC);
 #endif
