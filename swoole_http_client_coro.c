@@ -33,8 +33,6 @@
 #include <zlib.h>
 #endif
 
-#ifdef SW_ASYNC_HTTPCLIENT
-
 extern swString *swoole_zlib_buffer;
 
 static swString *http_client_buffer;
@@ -1258,4 +1256,3 @@ static PHP_METHOD(swoole_http_client_coro, post)
     coro_save(return_value, return_value_ptr, context);
     coro_yield();
 }
-#endif
