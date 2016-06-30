@@ -138,8 +138,6 @@ int php_swoole_clear_timer_coro(long id TSRMLS_DC)
     else
     {
         swTimer_del(&SwooleG.timer, tnode);
-        sw_free(tnode->heap_node);
-        sw_free(tnode);
         return SW_OK;
     }
 }

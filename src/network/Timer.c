@@ -187,7 +187,6 @@ int swTimer_select(swTimer *timer)
         }
         timer->num --;
         swHeap_pop(timer->heap);
-        sw_free(tnode);
     }
 
     if (!tnode)
