@@ -490,6 +490,16 @@ static PHP_METHOD(swoole_websocket_server, exist)
     {
         RETURN_FALSE;
     }
+    swConnection *server_sock = swServer_connection_get(serv, conn->from_fd);
+    if (server_sock)
+    {
+        swListenPort *port = server_sock->object;
+        //not websocket port
+        if (port && !port->open_websocket_protocol)
+        {
+            RETURN_TRUE;
+        }
+    }
     //have not handshake
     if (conn->websocket_status < WEBSOCKET_STATUS_ACTIVE)
     {

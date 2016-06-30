@@ -1152,9 +1152,11 @@ void swoole_http_context_free(http_context *ctx TSRMLS_DC)
         swString_free(ctx->buffer);
     }
 #endif
+
     ctx->end = 1;
     ctx->send_header = 0;
     ctx->gzip_enable = 0;
+    ctx->response.zobject = NULL;
 }
 
 static char *http_status_message(int code)
