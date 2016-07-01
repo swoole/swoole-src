@@ -114,6 +114,7 @@ swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data)
     if (timer->_next_msec > _msec)
     {
         timer->set(timer, _msec);
+        timer->_next_msec = _msec;
     }
 
     tnode->id = timer->_next_id++;
@@ -131,11 +132,16 @@ swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data)
 void swTimer_del(swTimer *timer, swTimer_node *tnode)
 {
     swHeap_remove(timer->heap, tnode->heap_node);
+    if (tnode->heap_node)
+    {
+        sw_free(tnode->heap_node);
+    }
+    sw_free(tnode);
 }
 
 int swTimer_select(swTimer *timer)
 {
-    int now_msec = swTimer_get_relative_msec();
+    int64_t now_msec = swTimer_get_relative_msec();
     if (now_msec < 0)
     {
         return SW_ERR;
@@ -179,7 +185,9 @@ int swTimer_select(swTimer *timer)
         {
             timer->onAfter(timer, tnode);
         }
+        timer->num --;
         swHeap_pop(timer->heap);
+        sw_free(tnode);
     }
 
     if (!tnode)

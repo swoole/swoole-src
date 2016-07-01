@@ -44,12 +44,16 @@ static int php_swoole_del_timer(swTimer_node *tnode TSRMLS_DC);
 
 static long php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tick TSRMLS_DC)
 {
+    if (SwooleG.serv && swIsMaster())
+    {
+        swoole_php_fatal_error(E_WARNING, "cannot use timer in master process.");
+        return SW_ERR;
+    }
     if (ms > 86400000)
     {
         swoole_php_fatal_error(E_WARNING, "The given parameters is too big.");
         return SW_ERR;
     }
-
     if (ms <= 0)
     {
         swoole_php_fatal_error(E_WARNING, "Timer must be greater than 0");
@@ -320,5 +324,30 @@ PHP_FUNCTION(swoole_timer_clear)
     {
         swTimer_del(&SwooleG.timer, tnode);
         RETURN_TRUE;
+    }
+}
+
+PHP_FUNCTION(swoole_timer_exists)
+{
+    if (!SwooleG.timer.set)
+    {
+        swoole_php_error(E_WARNING, "no timer");
+        RETURN_FALSE;
+    }
+
+    long id;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &id) == FAILURE)
+    {
+        return;
+    }
+
+    swTimer_node *tnode = swHashMap_find_int(timer_map, id);
+    if (tnode == NULL)
+    {
+       RETURN_FALSE;
+    }
+    else
+    {
+       RETURN_TRUE
     }
 }

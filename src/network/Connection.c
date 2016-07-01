@@ -212,7 +212,7 @@ void swConnection_sendfile_destructor(swBuffer_trunk *chunk)
 {
     swTask_sendfile *task = chunk->store.ptr;
     close(task->fd);
-    sw_free(task->filename);
+    sw_strdup_free(task->filename);
     sw_free(task);
 }
 
@@ -240,7 +240,7 @@ int swConnection_sendfile(swConnection *conn, char *filename)
     int file_fd = open(filename, O_RDONLY);
     if (file_fd < 0)
     {
-        free(task->filename);
+        sw_strdup_free(task->filename);
         free(task);
         swSysError("open(%s) failed.", task->filename);
         return SW_ERR;

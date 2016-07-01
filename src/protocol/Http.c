@@ -14,7 +14,7 @@
  +----------------------------------------------------------------------+
  */
 #include "swoole.h"
-#include "Http.h"
+#include "http.h"
 #include "http2.h"
 
 #include <assert.h>
@@ -131,16 +131,17 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
 void swHttpRequest_free(swConnection *conn)
 {
     swHttpRequest *request = conn->object;
-    if (request)
+    if (!request)
     {
-        if (request->buffer)
-        {
-            swString_free(request->buffer);
-        }
-        bzero(request, sizeof(swHttpRequest));
-        sw_free(request);
-        conn->object = NULL;
+        return;
     }
+    if (request->buffer)
+    {
+        swString_free(request->buffer);
+    }
+    bzero(request, sizeof(swHttpRequest));
+    sw_free(request);
+    conn->object = NULL;
 }
 
 /**

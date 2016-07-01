@@ -21,6 +21,24 @@
 #include <sys/resource.h>
 #include <sys/ioctl.h>
 
+#ifdef HAVE_EXECINFO
+#include <execinfo.h>
+#endif
+
+typedef struct
+{
+    int number;
+    int addr_length;
+    union
+    {
+        struct in_addr v4;
+        struct in6_addr v6;
+    } addr[SW_DNS_LOOKUP_CACHE_SIZE];
+} swDNS_cache;
+
+static swHashMap *swoole_dns_cache_v4 = NULL;
+static swHashMap *swoole_dns_cache_v6 = NULL;
+
 void swoole_init(void)
 {
     struct rlimit rlmt;
@@ -264,11 +282,6 @@ char* swoole_dec2hex(int value, int base)
     static char digits[] = "0123456789abcdefghijklmnopqrstuvwxyz";
     char buf[(sizeof(unsigned long) << 3) + 1];
     char *ptr, *end;
-
-    if (base < 2 || base > 36)
-    {
-        return NULL;
-    }
 
     end = ptr = buf + sizeof(buf) - 1;
     *ptr = '\0';
@@ -804,6 +817,118 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
     free(borders);
     return match;
 }
+
+/**
+ * DNS lookup
+ */
+int swoole_gethostbyname(int flags, char *name, char *addr)
+{
+    SwooleGS->lock.lock(&SwooleGS->lock);
+    swHashMap *cache_table;
+
+    int __af = flags & (~SW_DNS_LOOKUP_CACHE_ONLY) & (~SW_DNS_LOOKUP_RANDOM);
+    if (__af == AF_INET)
+    {
+        if (!swoole_dns_cache_v4)
+        {
+            swoole_dns_cache_v4 = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
+        }
+        cache_table = swoole_dns_cache_v4;
+    }
+    else if (__af == AF_INET6)
+    {
+        if (!swoole_dns_cache_v6)
+        {
+            swoole_dns_cache_v6 = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
+        }
+        cache_table = swoole_dns_cache_v6;
+    }
+    else
+    {
+        SwooleGS->lock.unlock(&SwooleGS->lock);
+        return SW_ERR;
+    }
+
+
+    int name_length = strlen(name);
+    int index = 0;
+    swDNS_cache *cache = swHashMap_find(cache_table, name, name_length);
+    if (cache == NULL && (flags & SW_DNS_LOOKUP_CACHE_ONLY))
+    {
+        SwooleGS->lock.unlock(&SwooleGS->lock);
+        return SW_ERR;
+    }
+
+    if (cache == NULL)
+    {
+        struct hostent *host_entry;
+        if (!(host_entry = gethostbyname2(name, __af)))
+        {
+            SwooleGS->lock.unlock(&SwooleGS->lock);
+            return SW_ERR;
+        }
+
+        cache = sw_malloc(sizeof(swDNS_cache));
+        if (cache == NULL)
+        {
+            SwooleGS->lock.unlock(&SwooleGS->lock);
+            memcpy(addr, host_entry->h_addr_list[0], host_entry->h_length);
+            return SW_OK;
+        }
+
+        bzero(cache, sizeof(swDNS_cache));
+        int i = 0;
+        for (i = 0; i < SW_DNS_LOOKUP_CACHE_SIZE; i++)
+        {
+            if (host_entry->h_addr_list[i] == NULL)
+            {
+                break;
+            }
+            if (__af == AF_INET)
+            {
+                memcpy(&cache->addr[i].v4, host_entry->h_addr_list[i], host_entry->h_length);
+            }
+            else
+            {
+                memcpy(&cache->addr[i].v6, host_entry->h_addr_list[i], host_entry->h_length);
+            }
+        }
+        cache->number = i;
+        cache->addr_length = host_entry->h_length;
+        swHashMap_add(cache_table, name, name_length, cache);
+    }
+    SwooleGS->lock.unlock(&SwooleGS->lock);
+    if (flags & SW_DNS_LOOKUP_RANDOM)
+    {
+        index = rand() % cache->number;
+    }
+    if (__af == AF_INET)
+    {
+        memcpy(addr, &cache->addr[index].v4, cache->addr_length);
+    }
+    else
+    {
+        memcpy(addr, &cache->addr[index].v6, cache->addr_length);
+    }
+    return SW_OK;
+}
+
+#ifdef HAVE_EXECINFO
+void swoole_print_trace(void)
+{
+    int size = 16;
+    void* array[16];
+    int stack_num = backtrace(array, size);
+    char** stacktrace = backtrace_symbols(array, stack_num);
+    int i;
+
+    for (i = 0; i < stack_num; ++i)
+    {
+        printf("%s\n", stacktrace[i]);
+    }
+    free(stacktrace);
+}
+#endif
 
 #ifndef HAVE_CLOCK_GETTIME
 #ifdef __MACH__

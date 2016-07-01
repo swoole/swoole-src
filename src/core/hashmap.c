@@ -295,6 +295,39 @@ int swHashMap_del_int(swHashMap *hmap, uint64_t key)
     return SW_OK;
 }
 
+int swHashMap_move(swHashMap *hmap, char *old_key, uint16_t old_key_len, char *new_key, uint16_t new_key_len)
+{
+    swHashMap_node *root = hmap->root;
+    swHashMap_node *node = swHashMap_node_find(root, old_key, old_key_len);
+    if (node == NULL)
+    {
+        return SW_ERR;
+    }
+    swHashMap_node_delete(root, node);
+    sw_strdup_free(node->key_str);
+    node->key_str = strndup(new_key, new_key_len);
+    node->key_int = new_key_len;
+    return swHashMap_node_add(root, node);
+}
+
+int swHashMap_move_int(swHashMap *hmap, uint64_t old_key, uint64_t new_key)
+{
+    swHashMap_node *ret = NULL;
+    swHashMap_node *root = hmap->root;
+
+    HASH_FIND_INT(root, &old_key, ret);
+    if (ret == NULL)
+    {
+        return SW_ERR;
+    }
+    HASH_DEL(root, ret);
+
+    ret->key_int = new_key;
+    HASH_ADD_INT(root, key_int, ret);
+
+    return SW_OK;
+}
+
 void* swHashMap_each(swHashMap* hmap, char **key)
 {
     swHashMap_node *node = swHashMap_node_each(hmap);

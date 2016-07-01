@@ -55,6 +55,7 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 #define sw_zend_hash_add                      zend_hash_add
 #define sw_zend_hash_index_update             zend_hash_index_update
 #define sw_call_user_function_ex              call_user_function_ex
+#define sw_copy_to_stack(a, b)
 
 //----------------------------------Array API------------------------------------
 #define sw_add_assoc_string                   add_assoc_string
@@ -67,13 +68,18 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 #define sw_zval_ptr_dtor                      zval_ptr_dtor
 #define sw_zend_hash_copy                     zend_hash_copy
 #define sw_zval_add_ref                       zval_add_ref
+#define sw_zval_dup(val)                      (val)
 #define sw_zend_hash_exists                   zend_hash_exists
 #define sw_php_format_date                    php_format_date
 #define sw_php_url_encode                     php_url_encode
+#define sw_php_array_merge(dest,src)          php_array_merge(dest,src,1 TSRMLS_CC)
 #define SW_RETURN_STRINGL                     RETURN_STRINGL
 #define sw_zend_register_internal_class_ex    zend_register_internal_class_ex
+
+#define sw_zend_call_method_with_0_params     zend_call_method_with_0_params
 #define sw_zend_call_method_with_1_params     zend_call_method_with_1_params
 #define sw_zend_call_method_with_2_params     zend_call_method_with_2_params
+
 typedef int zend_size_t;
 
 #define SW_HASHTABLE_FOREACH_START(ht, entry)\
@@ -153,7 +159,6 @@ static sw_inline int sw_add_assoc_stringl_ex(zval *arg, const char *key, size_t 
     return add_assoc_stringl_ex(arg, key, key_len - 1, str, length);
 }
 
-#define sw_add_assoc_double_ex(arg, key, key_len, d)     add_assoc_double_ex(arg, key, key_len - 1, d)
 #define sw_add_next_index_stringl(arr, str, len, dup)    add_next_index_stringl(arr, str, len)
 
 static sw_inline int sw_add_assoc_long_ex(zval *arg, const char *key, size_t key_len, long value)
@@ -161,12 +166,18 @@ static sw_inline int sw_add_assoc_long_ex(zval *arg, const char *key, size_t key
     return add_assoc_long_ex(arg, key, key_len - 1, value);
 }
 
+static sw_inline int sw_add_assoc_double_ex(zval *arg, const char *key, size_t key_len, double value)
+{
+    return add_assoc_double_ex(arg, key, key_len - 1, value);
+}
+
 #define SW_Z_ARRVAL_P(z)                          Z_ARRVAL_P(z)->ht
 
 #define SW_HASHTABLE_FOREACH_START(ht, _val) ZEND_HASH_FOREACH_VAL(ht, _val);  {
 #define SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, _val) zend_string *_foreach_key;\
     ZEND_HASH_FOREACH_STR_KEY_VAL(ht, _foreach_key, _val);\
-    k = _foreach_key->val, klen=_foreach_key->len; ktype = 1; {
+    if (!_foreach_key) {k = NULL; klen = 0; ktype = 0;}\
+    else {k = _foreach_key->val, klen=_foreach_key->len; ktype = 1;} {
 
 #define SW_HASHTABLE_FOREACH_END()                 } ZEND_HASH_FOREACH_END();
 
@@ -231,13 +242,28 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval** 
 #define SW_RETURN_STRING(val, duplicate)     RETURN_STRING(val)
 #define sw_add_assoc_string(array, key, value, duplicate)   add_assoc_string(array, key, value)
 #define sw_zend_hash_copy(target,source,pCopyConstructor,tmp,size) zend_hash_copy(target,source,pCopyConstructor)
+#define sw_php_array_merge                                          php_array_merge
 #define sw_zend_register_internal_class_ex(entry,parent_ptr,str)    zend_register_internal_class_ex(entry,parent_ptr)
+
+#define sw_zend_call_method_with_0_params(obj, ptr, what, method, retval)               zend_call_method_with_0_params(*obj,ptr,what,method,*retval)
 #define sw_zend_call_method_with_1_params(obj, ptr, what, method, retval, v1)           zend_call_method_with_1_params(*obj,ptr,what,method,*retval,v1)
 #define sw_zend_call_method_with_2_params(obj, ptr, what, method, retval, name, cb)     zend_call_method_with_2_params(*obj,ptr,what,method,*retval,name,cb)
+
 #define SW_ZVAL_STRINGL(z, s, l, dup)         ZVAL_STRINGL(z, s, l)
 #define SW_ZVAL_STRING(z,s,dup)               ZVAL_STRING(z,s)
 #define sw_smart_str                          smart_string
 #define zend_get_class_entry                  Z_OBJCE_P
+#define sw_copy_to_stack(a, b)                {zval *__tmp = a;\
+    a = &b;\
+    memcpy(a, __tmp, sizeof(zval));}
+
+static inline zval* sw_zval_dup(zval *val)
+{
+    zval *dup;
+    SW_ALLOC_INIT_ZVAL(dup);
+    memcpy(dup, val, sizeof(zval));
+    return dup;
+}
 
 static inline zval* sw_zend_read_property(zend_class_entry *class_ptr, zval *obj, char *s, int len, int silent)
 {
@@ -247,10 +273,11 @@ static inline zval* sw_zend_read_property(zend_class_entry *class_ptr, zval *obj
 
 static inline int sw_zend_is_callable(zval *cb, int a, char **name)
 {
-    zend_string *key;
+    zend_string *key = NULL;
     int ret = zend_is_callable(cb, a, &key);
     char *tmp = (char *)emalloc(key->len);
     memcpy(tmp, key->val, key->len);
+    zend_string_release(key);
     *name = tmp;
     return ret;
 }
@@ -275,15 +302,6 @@ static inline int sw_zend_hash_index_update(HashTable *ht, int key, void *pData,
 static inline int sw_zend_hash_update(HashTable *ht, char *k, int len, void *val, int size, void *ptr)
 {
     return zend_hash_str_update(ht, k, len -1, val) ? SUCCESS : FAILURE;
-}
-
-static inline int sw_zend_hash_get_current_key(HashTable *ht, char **key, uint32_t *keylen, ulong *num)
-{
-    zend_string *_key_ptr;
-    int type = zend_hash_get_current_key(ht, &_key_ptr, (zend_ulong*) num);
-    *key = _key_ptr->val;
-    *keylen = _key_ptr->len;
-    return type;
 }
 
 static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)

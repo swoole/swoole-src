@@ -186,6 +186,10 @@ int swProcessPool_dispatch_blocking(swProcessPool *pool, swEventData *data, int 
     {
         swWarn("send %d bytes to worker#%d failed.", sendn, *dst_worker_id);
     }
+    else
+    {
+        sw_atomic_fetch_add(&worker->tasking_num, 1);
+    }
 
     return ret;
 }

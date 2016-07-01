@@ -41,6 +41,10 @@ void swTaskWorker_init(swProcessPool *pool)
     {
         pool->dispatch_mode = SW_DISPATCH_QUEUE;
     }
+    if (tmp_dir)
+    {
+        sw_strdup_free(tmp_dir);
+    }
 }
 
 /**
@@ -162,6 +166,11 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
     {
         buf.info.type = SW_EVENT_FINISH;
         buf.info.fd = current_task->info.fd;
+        //callback function
+        if (swTask_type(current_task) & SW_TASK_CALLBACK)
+        {
+            flags |= SW_TASK_CALLBACK;
+        }
         swTask_type(&buf) = flags;
 
         //write to file

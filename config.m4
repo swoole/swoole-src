@@ -23,20 +23,17 @@ PHP_ARG_ENABLE(sockets, enable sockets support,
 PHP_ARG_ENABLE(ringbuffer, enable ringbuffer shared memory pool support,
 [  --enable-ringbuffer     Use ringbuffer memory pool?], no, no)
 
-PHP_ARG_ENABLE(async_mysql, enable async_mysql support,
-[  --enable-async-mysql    Do you have mysqli and mysqlnd?], no, no)
-
 PHP_ARG_ENABLE(async_redis, enable async_redis support,
 [  --enable-async-redis    Do you have hiredis?], no, no)
-
-PHP_ARG_ENABLE(async_httpclient, enable async_httpclient support,
-[  --enable-async-httpclient  Enable async httpclient support?], no, no)
 
 PHP_ARG_ENABLE(openssl, enable openssl support,
 [  --enable-openssl        Use openssl?], no, no)
 
 PHP_ARG_ENABLE(http2, enable http2.0 support,
 [  --enable-http2        Use http2.0?], no, no)
+
+PHP_ARG_ENABLE(thread, enable thread support,
+[  --enable-thread       Use thread?], no, no)
 
 PHP_ARG_ENABLE(jemalloc, enable jemalloc support,
 [  --enable-jemalloc        Use jemalloc?], no, no)
@@ -141,14 +138,6 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_DEBUG, 1, [do we enable swoole debug])
     fi
 
-    if test "$PHP_MYSQLI" = "yes"; then
-		AC_DEFINE(HAVE_MYSQLI, 1, [have mysqli extension])
-    fi
-
-    if test "$PHP_MYSQLND" = "yes"; then
-		AC_DEFINE(HAVE_MYSQLND, 1, [have mysqlnd extension])
-    fi
-
     if test "$PHP_SOCKETS" = "yes"; then
 		AC_DEFINE(SW_SOCKETS, 1, [enable sockets support])
     fi
@@ -157,28 +146,16 @@ if test "$PHP_SWOOLE" != "no"; then
 		AC_DEFINE(SW_USE_RINGBUFFER, 1, [enable ringbuffer support])
     fi
 
-	if test "$PHP_ASYNC_MYSQL" = "yes"; then
-		AC_DEFINE(SW_ASYNC_MYSQL, 1, [enable async_mysql support])
-    fi
-
 	if test "$PHP_HTTP2" = "yes"; then
 		AC_DEFINE(SW_USE_HTTP2, 1, [enable http2.0 support])
     fi
 
-	if test "$PHP_ASYNC_HTTPCLIENT" = "yes"; then
-		AC_DEFINE(SW_ASYNC_HTTPCLIENT, 1, [enable async_httpclient support])
+    if test "$PHP_THREAD" = "yes"; then
+		AC_DEFINE(SW_USE_THREAD, 1, [enable thread support])
     fi
 
     AC_SWOOLE_CPU_AFFINITY
     AC_SWOOLE_HAVE_REUSEPORT
-
-    SWOOLE_HAVE_PHP_EXT([mysqli], [
-        AC_DEFINE(SW_HAVE_MYSQLI, 1, [have mysqli])
-    ])
-
-    SWOOLE_HAVE_PHP_EXT([mysqlnd], [
-        AC_DEFINE(SW_HAVE_MYSQLND, 1, [have mysqlnd])
-    ])
 
     CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
@@ -190,6 +167,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(c, epoll_create, AC_DEFINE(HAVE_EPOLL, 1, [have epoll]))
 	AC_CHECK_LIB(c, sendfile,PGSQL_INCLUDE AC_DEFINE(HAVE_SENDFILE, 1, [have sendfile]))
     AC_CHECK_LIB(c, kqueue, AC_DEFINE(HAVE_KQUEUE, 1, [have kqueue]))
+    AC_CHECK_LIB(c, backtrace, AC_DEFINE(HAVE_EXECINFO, 1, [have execinfo]))
     AC_CHECK_LIB(c, daemon, AC_DEFINE(HAVE_DAEMON, 1, [have daemon]))
     AC_CHECK_LIB(c, mkostemp, AC_DEFINE(HAVE_MKOSTEMP, 1, [have mkostemp]))
     AC_CHECK_LIB(c, inotify_init, AC_DEFINE(HAVE_INOTIFY, 1, [have inotify]))
@@ -209,9 +187,7 @@ if test "$PHP_SWOOLE" != "no"; then
     ])
 
     if test `uname` = "Darwin"; then
-        AC_CHECK_LIB(c, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
-        AC_CHECK_LIB(c, aio_read, AC_DEFINE(HAVE_GCC_AIO, 1, [have gcc aio]))
-     
+        AC_CHECK_LIB(c, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))     
         if test "$PHP_OPENSSL" = "yes"; then
             AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])
             PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
@@ -220,7 +196,6 @@ if test "$PHP_SWOOLE" != "no"; then
         fi
     else
         AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
-        AC_CHECK_LIB(rt, aio_read, AC_DEFINE(HAVE_GCC_AIO, 1, [have gcc aio]))
         PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
 
         if test "$PHP_OPENSSL" = "yes"; then
@@ -244,8 +219,10 @@ if test "$PHP_SWOOLE" != "no"; then
     
     if test "$PHP_JEMALLOC" = "yes"; then
         PHP_ADD_LIBRARY(jemalloc, 1, SWOOLE_SHARED_LIBADD)
+        AC_DEFINE(SW_USE_JEMALLOC, 1, [use jemalloc])
     elif test "$PHP_TCMALLOC" = "yes"; then
     	PHP_ADD_LIBRARY(tcmalloc, 1, SWOOLE_SHARED_LIBADD)
+        AC_DEFINE(SW_USE_TCMALLOC, 1, [use tcmalloc])
     fi
 
     swoole_source_file="swoole.c \
@@ -313,7 +290,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/Port.c \
         src/os/base.c \
         src/os/linux_aio.c \
-        src/os/gcc_aio.c \
         src/os/msg_queue.c \
         src/os/sendfile.c \
         src/os/signal.c \

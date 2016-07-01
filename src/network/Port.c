@@ -15,7 +15,7 @@
 */
 
 #include "Server.h"
-#include "Http.h"
+#include "http.h"
 #include "http2.h"
 #include "websocket.h"
 #include "mqtt.h"
@@ -48,21 +48,30 @@ void swPort_init(swListenPort *port)
     memcpy(port->protocol.package_eof, eof, port->protocol.package_eof_len);
 }
 
-int swPort_listen(swListenPort *ls)
+int swPort_set_option(swListenPort *ls)
 {
+    int sock = ls->sock;
+
+    //reuse address
+    int option = 1;
+    //reuse port
+#ifdef HAVE_REUSEPORT
+    if (SwooleG.reuse_port)
+    {
+        if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) < 0)
+        {
+            swSysError("setsockopt(SO_REUSEPORT) failed.");
+            SwooleG.reuse_port = 0;
+        }
+    }
+#endif
+
     if (swSocket_is_dgram(ls->type))
     {
-        int sock = swSocket_listen(ls->type, ls->host, ls->port, ls->backlog);
-        if (sock < 0)
-        {
-            return SW_ERR;
-        }
-
         int bufsize = SwooleG.socket_buffer_size;
         setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize));
         setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize));
-        ls->sock = sock;
-        return sock;
+        return SW_OK;
     }
 
 #ifdef SW_USE_OPENSSL
@@ -76,10 +85,12 @@ int swPort_listen(swListenPort *ls)
         ls->ssl_context = swSSL_get_context(ls->ssl_method, ls->ssl_cert_file, ls->ssl_key_file);
         if (ls->ssl_context == NULL)
         {
+            swWarn("swSSL_get_context() error.");
             return SW_ERR;
         }
         if (ls->ssl_client_cert_file && swSSL_set_client_certificate(ls->ssl_context, ls->ssl_client_cert_file, ls->ssl_verify_depth) == SW_ERR)
         {
+            swWarn("swSSL_set_client_certificate() error.");
             return SW_ERR;
         }
         if (ls->open_http_protocol)
@@ -89,9 +100,11 @@ int swPort_listen(swListenPort *ls)
         if (ls->open_http2_protocol)
         {
             ls->ssl_config.http_v2 = 1;
+            swSSL_server_http_advise(ls->ssl_context, &ls->ssl_config);
         }
-        if (swSSL_server_config(ls->ssl_context, &ls->ssl_config))
+        if (swSSL_server_set_cipher(ls->ssl_context, &ls->ssl_config) < 0)
         {
+            swWarn("swSSL_server_set_cipher() error.");
             return SW_ERR;
         }
     }
@@ -100,21 +113,21 @@ int swPort_listen(swListenPort *ls)
     {
         if (!ls->ssl_cert_file)
         {
-            swWarn("need to configure [server->ssl_cert_file].");
+            swWarn("need to set [ssl_cert_file] option.");
             return SW_ERR;
         }
         if (!ls->ssl_key_file)
         {
-            swWarn("need to configure [server->ssl_key_file].");
+            swWarn("need to set [ssl_key_file] option.");
             return SW_ERR;
         }
     }
 #endif
 
-    //TCP
-    int sock = swSocket_listen(ls->type, ls->host, ls->port, ls->backlog);
-    if (sock < 0)
+    //listen stream socket
+    if (listen(sock, ls->backlog) < 0)
     {
+        swWarn("listen(%s:%d, %d) failed. Error: %s[%d]", ls->host, ls->port, ls->backlog, strerror(errno), errno);
         return SW_ERR;
     }
 
@@ -139,11 +152,10 @@ int swPort_listen(swListenPort *ls)
 #endif
 
 #ifdef SO_KEEPALIVE
-    int sockopt;
     if (ls->open_tcp_keepalive == 1)
     {
-        sockopt = 1;
-        if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (void *) &sockopt, sizeof(int)) < 0)
+        option = 1;
+        if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (void *) &option, sizeof(option)) < 0)
         {
             swSysError("setsockopt(SO_KEEPALIVE) failed.");
         }
@@ -154,62 +166,9 @@ int swPort_listen(swListenPort *ls)
 #endif
     }
 #endif
-    return sock;
-}
-
-static int swPort_websocket_onPackage(swConnection *conn, char *data, uint32_t length)
-{
-    swString frame;
-    bzero(&frame, sizeof(frame));
-    frame.str = data;
-    frame.length = length;
-
-    swString send_frame;
-    bzero(&send_frame, sizeof(send_frame));
-    char buf[32];
-    send_frame.str = buf;
-    send_frame.size = sizeof(buf);
-
-    swWebSocket_frame ws;
-    swWebSocket_decode(&ws, &frame);
-
-    size_t offset;
-    switch (ws.header.OPCODE)
-    {
-    case WEBSOCKET_OPCODE_CONTINUATION_FRAME:
-    case WEBSOCKET_OPCODE_TEXT_FRAME:
-    case WEBSOCKET_OPCODE_BINARY_FRAME:
-        offset = length - ws.payload_length - 2;
-        data[offset] = ws.header.FIN;
-        data[offset + 1] = ws.header.OPCODE;
-        swReactorThread_dispatch(conn, data + offset, length - offset);
-        break;
-
-    case WEBSOCKET_OPCODE_PING:
-        if (length == 2)
-        {
-            return SW_ERR;
-        }
-        swWebSocket_encode(&send_frame, data += 2, length - 2, WEBSOCKET_OPCODE_PONG, 1, 0);
-        swConnection_send(conn, send_frame.str, send_frame.length, 0);
-        break;
-
-    case WEBSOCKET_OPCODE_PONG:
-        return SW_ERR;
-
-    case WEBSOCKET_OPCODE_CONNECTION_CLOSE:
-        if (0x7d < (length - 2))
-        {
-            return SW_ERR;
-        }
-        send_frame.str[0] = 0x88;
-        send_frame.str[1] = 0x00;
-        send_frame.length = 2;
-        swConnection_send(conn, send_frame.str, 2, 0);
-        return SW_ERR;
-    }
     return SW_OK;
 }
+
 
 void swPort_set_protocol(swListenPort *ls)
 {
@@ -235,8 +194,8 @@ void swPort_set_protocol(swListenPort *ls)
         if (ls->open_websocket_protocol)
         {
             ls->protocol.get_package_length = swWebSocket_get_package_length;
-            ls->protocol.onPackage = swPort_websocket_onPackage;
-            ls->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN + sizeof(uint64_t);
+            ls->protocol.onPackage = swWebSocket_dispatch_frame;
+            ls->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
         }
 #ifdef SW_USE_HTTP2
         else if (ls->open_http2_protocol)
@@ -313,20 +272,17 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
 
 static int swPort_onRead_check_length(swReactor *reactor, swListenPort *port, swEvent *event)
 {
+    swServer *serv = reactor->ptr;
     swConnection *conn = event->socket;
     swProtocol *protocol = &port->protocol;
 
-    if (conn->object == NULL)
+    swString *buffer = swServer_get_buffer(serv, event->fd);
+    if (!buffer)
     {
-        conn->object = swString_new(SW_BUFFER_SIZE_BIG);
-        //alloc memory failed.
-        if (!conn->object)
-        {
-            return SW_ERR;
-        }
+        return SW_ERR;
     }
 
-    if (swProtocol_recv_check_length(protocol, conn, conn->object) < 0)
+    if (swProtocol_recv_check_length(protocol, conn, buffer) < 0)
     {
         swTrace("Close Event.FD=%d|From=%d", event->fd, event->from_id);
         swReactorThread_onClose(reactor, event);
@@ -461,7 +417,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             }
             else if (buffer->size == buffer->length)
             {
-                swWarn("http header is too long.");
+                swWarn("[0]http header is too long.");
                 goto close_fd;
             }
             //wait more data
@@ -480,7 +436,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                 {
                     if (buffer->size == buffer->length)
                     {
-                        swWarn("http header is too long.");
+                        swWarn("[1]http header is too long.");
                         goto close_fd;
                     }
                     else
@@ -502,7 +458,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             {
                 if (buffer->size == buffer->length)
                 {
-                    swWarn("http header is too long.");
+                    swWarn("[2]http header is too long.");
                     goto close_fd;
                 }
                 if (swHttpRequest_get_header_length(request) < 0)
@@ -597,18 +553,15 @@ static int swPort_onRead_check_eof(swReactor *reactor, swListenPort *port, swEve
 {
     swConnection *conn = event->socket;
     swProtocol *protocol = &port->protocol;
+    swServer *serv = reactor->ptr;
 
-    if (conn->object == NULL)
+    swString *buffer = swServer_get_buffer(serv, event->fd);
+    if (!buffer)
     {
-        conn->object = swString_new(SW_BUFFER_SIZE);
-        //alloc memory failed.
-        if (!conn->object)
-        {
-            return SW_ERR;
-        }
+        return SW_ERR;
     }
 
-    if (swProtocol_recv_check_eof(protocol, conn, conn->object) < 0)
+    if (swProtocol_recv_check_eof(protocol, conn, buffer) < 0)
     {
         swReactorThread_onClose(reactor, event);
     }

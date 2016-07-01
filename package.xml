@@ -8,12 +8,13 @@
 	<summary>Event-driven asynchronous and concurrent networking engine with high performance for PHP.</summary>
 	<description>Event-driven asynchronous and concurrent networking engine with high performance for PHP.
 - event-driven
-- full asynchronous non-blocking
+- asynchronous non-blocking
 - multi-thread reactor
 - multi-process worker
 - multi-protocol
 - millisecond timer
 - async mysql client
+- built-in http/websocket/http2 server
 - async http/websocket client
 - async redis client
 - async task
@@ -34,11 +35,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2016-02-04</date>
-    <time>11:48:51</time>
+    <date>2016-06-16</date>
+    <time>16:48:51</time>
     <version>
-		<release>1.8.1</release>
-		<api>1.8.1</api>
+		<release>1.8.6</release>
+		<api>1.8.6</api>
     </version>
     <stability>
         <release>stable</release>
@@ -46,15 +47,14 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Added psr-4 style namespace classes alias
-- Added swoole_server->protect methods used to protect the connection will not close by heartbeat thread
-- Added swoole_websocker_server::pack and swoole_websocker_server::unpack static method
-- Added redis subscribe and publish messages supports
-- Added swoole_http_client for gzip content compression support
-- Added swoole_client->reuse property
-- Fixed async client incidental core dump 
-- Fixed async client memory leak
-- Fixed compile failed with enable-openssl on MacOS
+- Added `swoole_mysql` real async mysql client
+- Fixed swoole_client/swoole_http_client/swoole_redis memory leak and crash bug on PHP7
+- Remove gcc_aio.c
+- Remove swoole_mysqli_get_socket and swoole_mysql_query
+- Remove swoole_http_server->setGlobal
+- Added swoole_async_dns_lookup result cache
+- Optimize websocket server performance
+- Added swoole_server->task complete callback parameter
     </notes>
 	<contents>
 		<dir name="/">
@@ -79,7 +79,8 @@
 				<file role="src" name="hash.h" />
 				<file role="src" name="heap.h" />
 				<file role="src" name="table.h" />
-				<file role="src" name="Http.h" />
+				<file role="src" name="http.h" />
+				<file role="src" name="http2.h" />
 				<file role="src" name="websocket.h" />
 				<file role="src" name="sha1.h" />
 				<file role="src" name="base64.h" />
@@ -107,6 +108,7 @@
 			<file role="src" name="swoole_websocket_server.c" />
 			<file role="src" name="swoole_atomic.c" />
 			<file role="src" name="swoole_mysql.c" />
+			<file role="src" name="swoole_mysql.h" />
 			<file role="src" name="swoole_redis.c" />
 			<dir name="thirdparty">
 				<file role="src" name="php_http_parser.c" />
@@ -177,7 +179,6 @@
 				</dir>
 				<dir name="os">
 					<file role="src" name="base.c" />
-					<file role="src" name="gcc_aio.c" />
 					<file role="src" name="linux_aio.c" />
 					<file role="src" name="msg_queue.c" />
 					<file role="src" name="sendfile.c" />
@@ -188,6 +189,7 @@
 				    <file role="src" name="Base.c" />
 					<file role="src" name="SSL.c" />
 					<file role="src" name="Http.c" />
+					<file role="src" name="Http2.c" />
 					<file role="src" name="WebSocket.c" />
 					<file role="src" name="Sha1.c" />
 					<file role="src" name="Base64.c" />
@@ -232,7 +234,7 @@
 					<file role="src" name="stream.php" />
 					<file role="src" name="sockets.php" />
 				</dir>
-				<dir name="unix">
+				<dir name="unixsock">
 					<file role="src" name="dgram_server.php" />
 					<file role="src" name="stream_client.php" />
 					<file role="src" name="dgram_client.php" />
@@ -290,9 +292,7 @@
                 </dir>
 				<file role="src" name="server.php" />
 				<file role="src" name="mysql_proxy_server.php" />
-				<file role="src" name="proxy.php" />
 				<file role="src" name="proxy_sync.php" />
-				<file role="src" name="timer.php" />
 				<file role="src" name="sendfile_server.php" />
 				<file role="src" name="recv_file.php" />
 				<file role="doc" name="test.jpg" />

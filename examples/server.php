@@ -4,12 +4,12 @@ class G
     static $index = 0;
     static $serv;
     static $config = array(
-        //'reactor_num'              => 1,     // 线程数. 一般设置为CPU核数的1-4倍
-        //'worker_num'               => 1,    // 工作进程数量. 设置为CPU的1-4倍最合理
+        //'reactor_num'              => 16,     // 线程数. 一般设置为CPU核数的1-4倍
+        'worker_num'               => 1,    // 工作进程数量. 设置为CPU的1-4倍最合理
         'max_request'              => 0,     // 防止 PHP 内存溢出, 一个工作进程处理 X 次任务后自动重启 (注: 0,不自动重启)
         'max_conn'                 => 10000, // 最大连接数
         'task_worker_num'          => 1,     // 任务工作进程数量
-        'task_ipc_mode'            => 2,     // 设置 Task 进程与 Worker 进程之间通信的方式。
+//        'task_ipc_mode'            => 2,     // 设置 Task 进程与 Worker 进程之间通信的方式。
         'task_max_request'         => 0,     // 防止 PHP 内存溢出
         'task_tmpdir'              => '/tmp',
         //'message_queue_key'        => ftok(SYS_ROOT . 'queue.msg', 1),
@@ -17,8 +17,8 @@ class G
         //'daemonize'                => 1,     // 设置守护进程模式
         'backlog'                  => 128,
         //'log_file'                 => '/data/logs/swoole.log',
-        'heartbeat_check_interval' => 60,    // 心跳检测间隔时长(秒)
-        'heartbeat_idle_time'      => 120,   // 连接最大允许空闲的时间
+        'heartbeat_check_interval' => 10,    // 心跳检测间隔时长(秒)
+        'heartbeat_idle_time'      => 20,   // 连接最大允许空闲的时间
         //'open_eof_check'           => 1,
         //'open_eof_split'           => 1,
         //'package_eof'              => "\r\r\n",
@@ -56,23 +56,27 @@ if (isset($argv[1]) and $argv[1] == 'daemon') {
 $mode = SWOOLE_PROCESS;
 
 $serv = new swoole_server("0.0.0.0", 9501, $mode, SWOOLE_SOCK_TCP);
-$serv->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
-$serv->addlistener('::', 9503, SWOOLE_SOCK_TCP6);
-$serv->addlistener('::', 9504, SWOOLE_SOCK_UDP6);
+$serv->listen('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
+$serv->listen('::', 9503, SWOOLE_SOCK_TCP6);
+$serv->listen('::', 9504, SWOOLE_SOCK_UDP6);
 $process1 = new swoole_process(function ($worker) use ($serv) {
     global $argv;
     swoole_set_process_name("php {$argv[0]}: my_process1");
-    sleep(1000);
-//    swoole_timer_tick(2000, function ($interval) use ($worker, $serv) {
-//        echo "#{$worker->pid} child process timer $interval\n"; // 如果worker中没有定时器，则会输出 process timer xxx
-//        foreach ($serv->connections as $conn)
-//        {
-//            $serv->send($conn, "heartbeat\n");
-//        }
-//    });
+    swoole_timer_tick(2000, function ($interval) use ($worker, $serv) {
+        echo "#{$worker->pid} child process timer $interval\n"; // 如果worker中没有定时器，则会输出 process timer xxx
+        foreach ($serv->connections as $conn)
+        {
+            $serv->send($conn, "heartbeat\n");
+        }
+    });
+    swoole_timer_tick(5000, function () use ($serv)
+    {
+        $serv->sendMessage("hello event worker", 0);
+        $serv->sendMessage("hello task worker", 4);
+    });
 }, false);
 
-$serv->addprocess($process1);
+//$serv->addprocess($process1);
 
 $process2 = new swoole_process(function ($worker) use ($serv) {
     global $argv;
@@ -82,7 +86,7 @@ $process2 = new swoole_process(function ($worker) use ($serv) {
     });
 }, false);
 
-$serv->addprocess($process2);
+//$serv->addprocess($process2);
 
 $serv->set(G::$config);
 /**
@@ -98,13 +102,17 @@ function my_onStart(swoole_server $serv)
 {
     global $argv;
     swoole_set_process_name("php {$argv[0]}: master");
-    echo "MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}\n";
-    echo "Server: start.Swoole version is [".SWOOLE_VERSION."]\n";
+    my_log("Server: start.Swoole version is [".SWOOLE_VERSION."]");
+    my_log("MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}");
 }
 
 function my_log($msg)
 {
 	global $serv;
+    if (empty($serv->worker_pid))
+    {
+        $serv->worker_pid = posix_getpid();
+    }
     echo "#".$serv->worker_pid."\t[".date('H:i:s')."]\t".$msg.PHP_EOL;
 }
 
@@ -173,7 +181,7 @@ function my_onShutdown($serv)
     echo "Server: onShutdown\n";
 }
 
-function my_onClose($serv, $fd, $from_id)
+function my_onClose(swoole_server $serv, $fd, $from_id)
 {
     my_log("Client[$fd@$from_id]: fd=$fd is closed");
     $buffer = G::getBuffer($fd);
@@ -181,6 +189,7 @@ function my_onClose($serv, $fd, $from_id)
     {
         $buffer->clear();
     }
+    //var_dump($serv->getClientInfo($fd));
 }
 
 function my_onConnect(swoole_server $serv, $fd, $from_id)
@@ -205,12 +214,15 @@ function my_onWorkerStart(swoole_server $serv, $worker_id)
         swoole_process::signal(SIGUSR2, function($signo){
             echo "SIGNAL: $signo\n";
         });
-//        swoole_timer_tick(2000, function($id) {
-//            var_dump($id);
-//        });
+        $serv->defer(function(){
+           echo "defer call\n";
+        });
     }
     else
     {
+//        swoole_timer_after(2000, function() {
+//            echo "after 2 secends.\n";
+//        });
 //        $serv->tick(1000, function ($id) use ($serv) {
 //            if (G::$index > 10) {
 //                $serv->after(2500, 'timer_show', 2);
@@ -230,6 +242,12 @@ function my_onWorkerStop($serv, $worker_id)
     echo "WorkerStop[$worker_id]|pid=".$serv->worker_pid.".\n";
 }
 
+function my_onPacket($serv, $data, $clientInfo)
+{
+    $serv->sendto($clientInfo['address'], $clientInfo['port'], "Server " . $data);
+    var_dump($clientInfo);
+}
+
 function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 {
     my_log("Worker#{$serv->worker_pid} Client[$fd@$from_id]: received: $data");
@@ -240,8 +258,13 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     }
     elseif($cmd == "task")
     {
-        $task_id = $serv->task("task-".$fd);
+        $task_id = $serv->task("task ".$fd);
         echo "Dispath AsyncTask: id=$task_id\n";
+    }
+    elseif ($cmd == "taskclose")
+    {
+        $serv->task("close " . $fd);
+        echo "close the connection in taskworker\n";
     }
     elseif($cmd == "taskwait")
     {
@@ -254,6 +277,14 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     elseif ($cmd == "hellotask")
     {
         $serv->task("hellotask");
+    }
+    elseif ($cmd == "taskcallback")
+    {
+        $serv->task("taskcallback", -1, function (swoole_server $serv, $task_id, $data)
+        {
+            echo "Task Callback: ";
+            var_dump($task_id, $data);
+        });
     }
     elseif ($cmd == "sendto")
     {
@@ -389,13 +420,24 @@ function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
         $serv->send($fd, "hello world");
         return array("task" => 'wait');
     }
+    elseif ($data == 'taskcallback')
+    {
+        return array("task" => 'callback');
+    }
     else
     {
+        $cmd = explode(' ', $data);
+        if ($cmd[0] == 'send')
+        {
+            $serv->send($cmd[1], "hello world in taskworker.");
+        }
+        elseif ($cmd[0] == 'close')
+        {
+            $serv->close($cmd[1]);
+        }
 //        $serv->sendto('127.0.0.1', 9999, "hello world");
         //swoole_timer_after(1000, "test");
 //        var_dump($data);
-        $fd = str_replace('task-', '', $data);
-        $serv->send($fd, "hello world in taskworker.");
 //        $serv->send($fd, str_repeat('A', 8192 * 2));
 //        $serv->send($fd, str_repeat('B', 8192 * 2));
 //        $serv->send($fd, str_repeat('C', 8192 * 2));
@@ -452,12 +494,18 @@ function broadcast(swoole_server $serv, $fd = 0, $data = "hello")
 }
 
 $serv->on('PipeMessage', function($serv, $src_worker_id, $msg) {
-    var_dump($src_worker_id, $msg);
+    my_log("PipeMessage: Src={$src_worker_id},Msg=".trim($msg));
+    if ($serv->taskworker)
+    {
+        $serv->sendMessage("hello user process",
+            $src_worker_id);
+    }
 });
 
 $serv->on('Start', 'my_onStart');
 $serv->on('Connect', 'my_onConnect');
 $serv->on('Receive', 'my_onReceive');
+$serv->on('Packet', 'my_onPacket');
 $serv->on('Close', 'my_onClose');
 $serv->on('Shutdown', 'my_onShutdown');
 $serv->on('WorkerStart', 'my_onWorkerStart');

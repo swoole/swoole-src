@@ -27,7 +27,7 @@
 #define SW_ERROR_MSG_SIZE          512
 #define SW_MAX_WORKER_GROUP        2
 #define SW_MAX_FILE_CONTENT        (64*1024*1024) //for swoole_file_get_contents
-#define SW_MAX_LISTEN_PORT         128  //allows up to 128 ports to listen
+#define SW_MAX_LISTEN_PORT         60000
 
 //#define SW_USE_MALLOC_TRIM
 #define SW_USE_EVENT_TIMER
@@ -46,6 +46,7 @@
 #define SW_MAX_THREAD_NCPU         4 // n * cpu_num
 #define SW_MAX_WORKER_NCPU         1000 // n * cpu_num
 #define SW_MAX_REQUEST             5000          //最大请求包数
+#define SW_MAX_RELOAD_WAIT         10           //最大reload等待次数
 
 //#define SW_CONNECTION_LIST_EXPAND  (4096*2)  //动态扩容的数量
 
@@ -121,12 +122,9 @@
 
 //#define SW_WORKER_SEND_CHUNK
 
-#define SW_MAINREACTOR_USE_POLL         //main thread to use select or poll
-
 #define SW_REACTOR_TIMEO_SEC             3
 #define SW_REACTOR_TIMEO_USEC            0
 #define SW_REACTOR_SCHEDULE              2
-#define SW_REACTOR_MINEVENTS             128
 #define SW_REACTOR_MAXEVENTS             4096
 #define SW_REACTOR_USE_SESSION
 #define SW_SESSION_LIST_SIZE             (1024*1024)
@@ -218,6 +216,7 @@
 #define SW_SIGNO_MAX                     128
 
 #define SW_DNS_LOOKUP_USE_THREAD
+#define SW_DNS_LOOKUP_CACHE_SIZE         4
 
 //#define SW_HTTP_CLIENT_ENABLE
 
@@ -233,11 +232,18 @@
 #define SW_HTTP_DATE_FORMAT              "D, d M Y H:i:s T"
 //#define SW_HTTP_100_CONTINUE
 #define SW_HTTP2_DATA_BUFFSER_SIZE       8192
+#define SW_HTTP2_MAX_CONCURRENT_STREAMS  128
+#define SW_HTTP2_MAX_FRAME_SIZE          ((1u << 24) - 1)
+#define SW_HTTP2_MAX_WINDOW              ((1u << 31) - 1)
 
 #define SW_HTTP_CLIENT_USERAGENT         "swoole-http-client"
 
 #define SW_WEBSOCKET_SERVER_SOFTWARE     "swoole-websocket-server"
 #define SW_WEBSOCKET_VERSION             "13"
 #define SW_WEBSOCKET_KEY_LENGTH          16
+
+#define SW_MYSQL_QUERY_INIT_SIZE         8192
+#define SW_MYSQL_DEFAULT_PORT            3306
+#define SW_MYSQL_CONNECT_TIMEOUT         1.0
 
 #endif /* SWOOLE_CONFIG_H_ */
