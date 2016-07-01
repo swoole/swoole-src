@@ -605,7 +605,11 @@ static int swManager_loop_sync(swFactory *factory)
         swTrace("[Manager]kill worker processor");
         kill(serv->workers[i].pid, SIGTERM);
     }
-
+    //kill and wait task process
+    if (SwooleG.task_worker_num > 0)
+    {
+        swProcessPool_shutdown(&SwooleGS->task_workers);
+    }
     //wait child process
     for (i = 0; i < serv->worker_num; i++)
     {
@@ -614,13 +618,7 @@ static int swManager_loop_sync(swFactory *factory)
             swSysError("waitpid(%d) failed.", serv->workers[i].pid);
         }
     }
-
-    //kill and wait task process
-    if (SwooleG.task_worker_num > 0)
-    {
-        swProcessPool_shutdown(&SwooleGS->task_workers);
-    }
-
+    //kill all user process
     if (serv->user_worker_map)
     {
         swWorker* user_worker;

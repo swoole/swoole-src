@@ -200,6 +200,7 @@ void swProcessPool_shutdown(swProcessPool *pool)
     swWorker *worker;
     SwooleG.running = 0;
 
+    //concurrent kill
     for (i = 0; i < pool->run_worker_num; i++)
     {
         worker = &pool->workers[i];
@@ -208,6 +209,10 @@ void swProcessPool_shutdown(swProcessPool *pool)
             swSysError("kill(%d) failed.", worker->pid);
             continue;
         }
+    }
+    for (i = 0; i < pool->run_worker_num; i++)
+    {
+        worker = &pool->workers[i];
         if (swWaitpid(worker->pid, &status, 0) < 0)
         {
             swSysError("waitpid(%d) failed.", worker->pid);
