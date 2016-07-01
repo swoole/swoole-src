@@ -35,11 +35,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2016-06-16</date>
-    <time>16:48:51</time>
+    <date>2016-07-01</date>
+    <time>17:48:51</time>
     <version>
-		<release>1.8.6</release>
-		<api>1.8.6</api>
+		<release>1.8.7</release>
+		<api>1.8.7</api>
     </version>
     <stability>
         <release>stable</release>
@@ -47,14 +47,15 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Added `swoole_mysql` real async mysql client
-- Fixed swoole_client/swoole_http_client/swoole_redis memory leak and crash bug on PHP7
-- Remove gcc_aio.c
-- Remove swoole_mysqli_get_socket and swoole_mysql_query
-- Remove swoole_http_server->setGlobal
-- Added swoole_async_dns_lookup result cache
-- Optimize websocket server performance
-- Added swoole_server->task complete callback parameter
+- Fixed Swoole\Http\Server on PHP7 crash (zdata release request data memory problems)
+- Fixed Swoole\Http\Client crash when no have header setting
+- Fixed Swoole\MySQL parse unixsocket type host address fail
+- Fixed Swoole\Http\Client crash below the Linux-2.6.18 version of the kernel
+- Fixed Swoole\MySQL nested callback crash problem on PHP7
+- Update Swoole\Server maximum listening port number to 60,000
+- Update Swoole\Server main thread use epoll or kqueue
+- Fixed swoole_async_dns_lookup crash when hit cache
+- Added Swoole\Timer::exists
     </notes>
 	<contents>
 		<dir name="/">
@@ -284,7 +285,6 @@
                     <file role="src" name="tick.php" />
                 </dir>
                 <dir name="mysql">
-                    <file role="src" name="async_mysql2.php" />
                     <file role="src" name="real_async.php" />
                 </dir>
                 <dir name="redis">
