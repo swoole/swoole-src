@@ -474,6 +474,11 @@ typedef struct _swConnection
     uint16_t from_fd;
 
     /**
+     * close error code
+     */
+    uint16_t close_errno;
+
+    /**
      * socket address
      */
     swSocketAddress info;

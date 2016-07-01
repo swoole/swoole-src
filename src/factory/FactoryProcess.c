@@ -295,6 +295,7 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
         }
         conn->closing = 0;
         conn->closed = 1;
+        conn->close_errno = 0;
         return factory->finish(factory, &_send);
     }
 }

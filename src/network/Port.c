@@ -235,6 +235,7 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
             swSysError("recv from connection#%d failed.", event->fd);
             return SW_OK;
         case SW_CLOSE:
+            conn->close_errno = errno;
             goto close_fd;
         default:
             return SW_OK;
@@ -361,6 +362,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             swSysError("recv from connection#%d failed.", event->fd);
             return SW_OK;
         case SW_CLOSE:
+            conn->close_errno = errno;
             goto close_fd;
         default:
             return SW_OK;
