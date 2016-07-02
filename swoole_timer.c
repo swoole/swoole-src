@@ -46,7 +46,7 @@ static swHashMap *timer_map;
 static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode);
 static void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode);
 #ifdef SW_COROUTINE
-long php_swoole_add_timer_coro(long ms, int cli_fd, void* param TSRMLS_DC);
+long php_swoole_add_timer_coro(int ms, int cli_fd, void* param TSRMLS_DC);
 int php_swoole_del_timer_coro(swTimer_node *tnode TSRMLS_DC);
 int php_swoole_clear_timer_coro(long id TSRMLS_DC);
 #endif
@@ -54,7 +54,7 @@ static long php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tic
 static int php_swoole_del_timer(swTimer_node *tnode TSRMLS_DC);
 
 #ifdef SW_COROUTINE
-long php_swoole_add_timer_coro(long ms, int cli_fd, void* param TSRMLS_DC) //void *
+long php_swoole_add_timer_coro(int ms, int cli_fd, void* param TSRMLS_DC) //void *
 {
     if (SwooleG.serv && swIsMaster())
     {

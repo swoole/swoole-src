@@ -334,14 +334,10 @@ void swoole_client_multi_init(int module_number TSRMLS_CC);
 #ifdef SW_USE_REDIS
 void swoole_redis_coro_init(int module_number TSRMLS_CC);
 #endif
-#ifdef SW_ASYNC_MYSQL
 void swoole_mysql_coro_init(int module_number TSRMLS_CC);
-#endif
 void swoole_http_client_coro_init(int module_number TSRMLS_DC);
 #endif
-#ifdef SW_ASYNC_HTTPCLIENT
 void swoole_http_client_init(int module_number TSRMLS_DC);
-#endif
 #ifdef SW_USE_REDIS
 void swoole_redis_init(int module_number TSRMLS_DC);
 #endif

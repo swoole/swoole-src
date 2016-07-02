@@ -362,7 +362,7 @@ static void http_client_coro_onError(swClient *cli)
     zval *zobject = cli->object;
     php_context *sw_current_context = swoole_get_property(zobject, 1);
     zend_update_property_long(swoole_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
-    if (cli->timeout_id)
+    if (cli->timeout_id > 0)
     {
         php_swoole_clear_timer_coro(cli->timeout_id TSRMLS_DC);
         cli->timeout_id=0;
@@ -406,7 +406,7 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
         return;
     }
     //timeout
-    if (cli->timeout_id)
+    if (cli->timeout_id > 0)
     {
         php_swoole_clear_timer_coro(cli->timeout_id TSRMLS_DC);
         cli->timeout_id=0;
@@ -682,7 +682,7 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
         swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
     }
 
-    swTrace("[%d]: %s\n", http_client_buffer->length, http_client_buffer->str);
+    swTrace("[%ld]: %s\n", http_client_buffer->length, http_client_buffer->str);
 
     int ret = http->cli->send(http->cli, http_client_buffer->str, http_client_buffer->length, 0);
     if (ret < 0)
@@ -943,7 +943,7 @@ static PHP_METHOD(swoole_http_client_coro, close)
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_http_client.");
         RETURN_FALSE;
     }
-    if (cli->timeout_id)
+    if (cli->timeout_id > 0)
     {
         php_swoole_clear_timer_coro(cli->timeout_id TSRMLS_DC);
         cli->timeout_id=0;

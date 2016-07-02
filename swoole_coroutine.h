@@ -70,6 +70,6 @@ void coro_yield();
 void coro_handle_timeout();
 int swoole_multi_resume(zval *swoole_multi, zval *response);
 int swoole_multi_is_multi_mode(zval *swoole_multi);
-long php_swoole_add_timer_coro(long ms, int cli_fd, void* param TSRMLS_DC);
-int php_swoole_del_timer_coro(long id TSRMLS_DC);
+long php_swoole_add_timer_coro(int ms, int cli_fd, void* param TSRMLS_DC);
+int php_swoole_clear_timer_coro(long id TSRMLS_DC);
 #endif

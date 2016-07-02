@@ -62,7 +62,7 @@ static int isset_event_callback = 0;
 
 void swoole_mysql_coro_init(int module_number TSRMLS_DC)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_coro_ce, "swoole_mysql_coro", "Swoole\\MySQL", swoole_mysql_coro_methods);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_coro_ce, "swoole_mysql_coro", "Swoole\\Coroutine\\MySQL", swoole_mysql_coro_methods);
 	swoole_mysql_coro_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_mysql_coro_ce, swoole_client_multi_class_entry_ptr, "swoole_client_multi" TSRMLS_CC);
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_coro_exception_ce, "swoole_mysql_coro_exception", "Swoole\\MySQL\\Exception", NULL);
@@ -603,9 +603,9 @@ static PHP_METHOD(swoole_mysql_coro, query)
 {
     swString sql;
     bzero(&sql, sizeof(sql));
-    long timeout = 0;
+    double timeout = 0.0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &sql.str, &sql.length, &timeout) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|d", &sql.str, &sql.length, &timeout) == FAILURE)
     {
         return;
     }
@@ -662,15 +662,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
     {
         client->state = SW_MYSQL_STATE_READ_START;
 		php_context *context = swoole_get_property(getThis(), 0);
-		if (timeout > 0)
-		{
-			client->cli->timeout_id = php_swoole_add_timer_coro(timeout, client->fd, (void *)context);
-			if (client->cli->timeout_id == SW_ERR)
-			{
-				swoole_php_fatal_error(E_WARNING, "add timeout node error");
-				RETURN_FALSE;
-			}
-		}
+		client->cli->timeout_id = php_swoole_add_timer_coro((int)(timeout*1000), client->fd, (void *)context);
 		if (swoole_multi_is_multi_mode(getThis()) == CORO_MULTI)
 		{
 			RETURN_TRUE;
@@ -735,6 +727,12 @@ static PHP_METHOD(swoole_mysql_coro, close)
 	socket->object = NULL;
 	socket->active = 0;
 
+    if (client->cli->timeout_id > 0)
+    {
+        php_swoole_clear_timer_coro(client->cli->timeout_id TSRMLS_CC);
+		client->cli->timeout_id = 0;
+    }
+
     client->cli->close(client->cli);
     swClient_free(client->cli);
 	sw_free(client->cli->socket);
@@ -753,11 +751,6 @@ static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event)
     zval *retval = NULL, *result;
     mysql_client *client = event->socket->object;
     zval *zobject = client->object;
-
-    if (client->cli->timeout_id)
-    {
-        php_swoole_clear_timer_coro(client->cli->timeout_id TSRMLS_CC);
-    }
 
     sw_zend_call_method_with_0_params(&zobject, swoole_mysql_coro_class_entry_ptr, NULL, "close", &retval);
     if (retval)
@@ -831,7 +824,8 @@ static void swoole_mysql_coro_onConnect(mysql_client *client TSRMLS_DC)
 }
 
 
-static void swoole_mysql_coro_onTimeout(php_context *ctx){
+static void swoole_mysql_coro_onTimeout(php_context *ctx)
+{
     zval *result;
     zval *retval;
 
@@ -843,6 +837,7 @@ static void swoole_mysql_coro_onTimeout(php_context *ctx){
 
 	//timeout close conncttion
     mysql_client *client = swoole_get_object(zobject);
+	client->cli->timeout_id = 0;
 	client->state = SW_MYSQL_STATE_QUERY;
     sw_zend_call_method_with_0_params(&zobject, swoole_mysql_coro_class_entry_ptr, NULL, "close", &retval);
     if (retval)
@@ -986,9 +981,10 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
     {
         return swoole_mysql_coro_onHandShake(client TSRMLS_CC);
     }
-	if (client->cli->timeout_id)
+	if (client->cli->timeout_id > 0)
 	{
 		php_swoole_clear_timer_coro(client->cli->timeout_id TSRMLS_CC);
+		client->cli->timeout_id = 0;
 	}
 
     int sock = event->fd;

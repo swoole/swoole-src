@@ -162,9 +162,10 @@ static void client_coro_onReceive(swClient *cli, char *data, uint32_t length)
 
     zval * zdata;
 
-    if (cli->timeout_id)
+    if (cli->timeout_id > 0)
     {
         php_swoole_clear_timer_coro(cli->timeout_id TSRMLS_CC);
+		cli->timeout_id = 0;
     }
 
     swoole_client_coro_property *sw_current_context = swoole_get_property(zobject, 0);
@@ -246,6 +247,15 @@ static void client_coro_onError(swClient *cli)
         return;
     }
 
+	if (cli->timeout_id > 0)
+	{
+		php_swoole_clear_timer_coro(cli->timeout_id TSRMLS_CC);
+		cli->timeout_id = 0;
+	}
+
+	//close connection
+	php_swoole_client_coro_free(zobject, cli TSRMLS_CC);
+
     SW_MAKE_STD_ZVAL(zdata);
     ZVAL_BOOL(zdata, 0);
 	if (swoole_multi_resume(zobject, zdata) == CORO_MULTI)
@@ -271,18 +281,13 @@ static void client_coro_onTimeout(php_context *ctx)
 {
     zval *zdata;
     zval *retval;
-//    swoole_client_coro_property *property = (swoole_client_coro_property *)ctx;
 
     zval *zobject = (zval *)ctx->coro_params;
     zend_update_property_long(swoole_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), 110 TSRMLS_CC);
 
 	//timeout close connection
     swClient *cli = swoole_get_object(zobject);
-	if (!cli->keep)
-	{
-		cli->close(cli);
-		php_swoole_client_coro_free(zobject, cli TSRMLS_CC);
-	}
+	php_swoole_client_coro_free(zobject, cli TSRMLS_CC);
 
     SW_MAKE_STD_ZVAL(zdata);
     ZVAL_BOOL(zdata, 0);
@@ -620,6 +625,11 @@ static PHP_METHOD(swoole_client_coro, __destruct)
     if (cli)
     {
         cli->released = 1;
+		if (cli->timeout_id > 0)
+		{
+			php_swoole_clear_timer_coro(cli->timeout_id TSRMLS_CC);
+			cli->timeout_id = 0;
+		}
 
         if (cli->socket->closed)
         {
@@ -953,7 +963,7 @@ static PHP_METHOD(swoole_client_coro, recv)
     property->context.coro_params = getThis();
     property->context.coro_params_cnt = 1;
 
-    cli->timeout_id = php_swoole_add_timer_coro(cli->timeout*1000, cli->socket->fd, (void *)&property->context);
+    cli->timeout_id = php_swoole_add_timer_coro((int)(cli->timeout*1000), cli->socket->fd, (void *)&property->context);
     property->status = CLIENT_IOWAIT;
 	if (swoole_multi_is_multi_mode(getThis()) == CORO_MULTI)
 	{
@@ -1111,6 +1121,12 @@ static PHP_METHOD(swoole_client_coro, close)
     {
         swoole_php_error(E_WARNING, "client socket is closed.");
         RETURN_FALSE;
+    }
+
+    if (cli->timeout_id > 0)
+    {
+        php_swoole_clear_timer_coro(cli->timeout_id TSRMLS_CC);
+		cli->timeout_id = 0;
     }
     //Connection error, or short tcp connection.
     //No keep connection

@@ -232,7 +232,6 @@ typedef struct
     swClient *cli;
     zval *object;
     int fd;
-	long timeout_id;
 
     mysql_connector connector;
 
