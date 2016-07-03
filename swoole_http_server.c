@@ -1014,6 +1014,8 @@ static int http_onReceive(swServer *serv, swEventData *req)
         int ret = coro_create(php_sw_http_callback_cache[callback], args, 2, &retval);
         if (ret != 0)
         {
+            sw_zval_ptr_dtor(&zrequest_object);
+            sw_zval_ptr_dtor(&zresponse_object);
             if (ret == CORO_LIMIT)
             {
                 SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
