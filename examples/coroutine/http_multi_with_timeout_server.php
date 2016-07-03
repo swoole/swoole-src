@@ -30,7 +30,7 @@ class Server
         $ret = $udp_cli->connect("127.0.0.1", 8888);
 		$multi->add(['udp' => $udp_cli, 'tcp' => $cli, 'ttttttt' => $swoole_mysql, 'test' => $redis, 'test2' => $redis2, 'test3' => $redis3]);
         $ret = $cli->send("hello world in object");
-		$cli->recv(1000);
+		$cli->recv();
 		var_dump($ret);
         $ret = $udp_cli->send("hello world in object");
 		var_dump($ret);

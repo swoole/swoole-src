@@ -63,10 +63,10 @@ class TestHttpServer {
 		$multi->add(['AAAA' => $udp_cli, 'BBBB' => $tcp_cli]);
 
 		$ret = $udp_cli ->send('test for the coro');
-		$ret = $udp_cli ->recv(100);
+		$ret = $udp_cli ->recv();
   		
 		$ret = $tcp_cli ->send('test for the coro');
-		$ret = $tcp_cli ->recv(100);
+		$ret = $tcp_cli ->recv();
 
 		$ret = $multi->recv();		
 		$tcp_cli ->close();

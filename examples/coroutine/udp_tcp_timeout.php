@@ -58,7 +58,7 @@ class TestHttpServer {
 
 		$ret = $udp_cli ->connect('127.0.0.1', 9906);
 		$ret = $udp_cli ->send('test for the coro');
-		$ret = $udp_cli ->recv(100);
+		$ret = $udp_cli ->recv();
 		$udp_cli->close();
 
 		if ($ret) {
@@ -69,7 +69,7 @@ class TestHttpServer {
 		}
   		$ret = $tcp_cli ->connect("127.0.0.1", 9805);
 		$ret = $tcp_cli ->send('test for the coro');
-		$ret = $tcp_cli ->recv(100);
+		$ret = $tcp_cli ->recv();
 		$tcp_cli->close();
 
 		if ($ret) {
