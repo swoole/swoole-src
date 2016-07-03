@@ -798,7 +798,6 @@ static PHP_METHOD(swoole_client_coro, send)
     int ret = cli->send(cli, data, data_len, flags);
     if (ret < 0)
     {
-send_error:
         SwooleG.error = errno;
         swoole_php_sys_error(E_WARNING, "send(%d) %d bytes failed.", cli->socket->fd, data_len);
         zend_update_property_long(swoole_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode") - 1, SwooleG.error
