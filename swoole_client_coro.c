@@ -917,13 +917,7 @@ static PHP_METHOD(swoole_client_coro, sendfile)
 
 static PHP_METHOD(swoole_client_coro, recv)
 {
-    long timeout = (SW_CLIENT_DEFAULT_TIMEOUT * 1000);
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &timeout) ==
-            FAILURE)
-    {
-        return;
-    }
+   
     swClient *cli = swoole_get_object(getThis());
     if (!cli)
     {
@@ -960,7 +954,7 @@ static PHP_METHOD(swoole_client_coro, recv)
     property->context.coro_params = getThis();
     property->context.coro_params_cnt = 1;
 
-    cli->timeout_id = php_swoole_add_timer_coro(timeout, cli->socket->fd, (void *)&property->context);
+    cli->timeout_id = php_swoole_add_timer_coro(cli->timeout*1000, cli->socket->fd, (void *)&property->context);
     property->status = CLIENT_IOWAIT;
 	if (swoole_multi_is_multi_mode(getThis()) == CORO_MULTI)
 	{
