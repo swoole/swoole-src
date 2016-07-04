@@ -109,7 +109,7 @@ class Server
             error_log(__LINE__.'  ' . var_export($ret, true).PHP_EOL, 3, '/tmp/markyuan.log');
             $ret = $tcp_cli ->send('test for the coro');
             error_log(__LINE__.'  ' . var_export($ret, true).PHP_EOL, 3, '/tmp/markyuan.log');
-            $ret = $tcp_cli ->recv();
+            $ret = $tcp_cli ->recv(100);
             error_log(__LINE__.'  ' . var_export($ret, true).PHP_EOL, 3, '/tmp/markyuan.log');
             $ret=$tcp_cli->close();
             error_log(__LINE__.'  ' . var_export($ret, true).PHP_EOL, 3, '/tmp/markyuan.log');
