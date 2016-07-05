@@ -151,7 +151,9 @@ static PHP_METHOD(swoole_http_response, sendfile);
 static PHP_METHOD(swoole_http_response, cookie);
 static PHP_METHOD(swoole_http_response, rawcookie);
 static PHP_METHOD(swoole_http_response, header);
+#ifdef SW_HAVE_ZLIB
 static PHP_METHOD(swoole_http_response, gzip);
+#endif
 static PHP_METHOD(swoole_http_response, status);
 static PHP_METHOD(swoole_http_response, __destruct);
 
@@ -265,7 +267,9 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_ME(swoole_http_response, cookie, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, rawcookie, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, status, NULL, ZEND_ACC_PUBLIC)
+#ifdef SW_HAVE_ZLIB
     PHP_ME(swoole_http_response, gzip, NULL, ZEND_ACC_PUBLIC)
+#endif
     PHP_ME(swoole_http_response, header, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, write, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, end, NULL, ZEND_ACC_PUBLIC)
@@ -2244,15 +2248,10 @@ static PHP_METHOD(swoole_http_response, header)
     sw_add_assoc_stringl_ex(zheader, k, klen + 1, v, vlen, 1);
 }
 
+#ifdef SW_HAVE_ZLIB
 static PHP_METHOD(swoole_http_response, gzip)
 {
-#ifndef SW_HAVE_ZLIB
-    swoole_php_error(E_WARNING, "zlib library is not installed, cannot use gzip.");
-    RETURN_FALSE;
-#endif
-    
     long level = Z_DEFAULT_COMPRESSION;
-
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &level) == FAILURE)
     {
         return;
@@ -2282,6 +2281,7 @@ static PHP_METHOD(swoole_http_response, gzip)
     context->gzip_enable = 1;
     context->gzip_level = level;
 }
+#endif
 
 static PHP_METHOD(swoole_http_response, __destruct)
 {
