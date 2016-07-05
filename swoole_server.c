@@ -2019,7 +2019,7 @@ PHP_METHOD(swoole_server, close)
     }
 
     swServer *serv = swoole_get_object(zobject);
-    swConnection *conn = swServer_connection_verify(serv, fd);
+    swConnection *conn = swServer_connection_verify_no_ssl(serv, fd);
     if (!conn)
     {
         RETURN_FALSE;
