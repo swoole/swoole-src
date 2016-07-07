@@ -107,6 +107,7 @@ swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data)
     }
 
     tnode->data = data;
+    tnode->type = 0; 
     tnode->exec_msec = now_msec + _msec;
     tnode->interval = interval ? _msec : 0;
     tnode->remove = 0;
@@ -186,7 +187,6 @@ int swTimer_select(swTimer *timer)
         }
         timer->num --;
         swHeap_pop(timer->heap);
-        sw_free(tnode);
     }
 
     if (!tnode)

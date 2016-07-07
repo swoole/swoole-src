@@ -44,6 +44,9 @@ PHP_ARG_WITH(swoole, swoole support,
 PHP_ARG_ENABLE(swoole, swoole support,
 [  --enable-swoole         Enable swoole support], [enable_swoole="yes"])
 
+PHP_ARG_ENABLE(coroutine, whether to enable coroutine,
+[  --enable-coroutine   Enable coroutine], no, no)
+
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
     haveext=$[PHP_]translit($1,a-z_-,A-Z__)
@@ -135,6 +138,9 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_DEBUG, 1, [do we enable swoole debug])
     fi
 
+    if test "$PHP_COROUTINE" != "no"; then
+        AC_DEFINE(SW_COROUTINE, 1, [enable ability of coroutine])
+    fi
     if test "$PHP_SOCKETS" = "yes"; then
 		AC_DEFINE(SW_SOCKETS, 1, [enable sockets support])
     fi
@@ -224,6 +230,8 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_atomic.c \
         swoole_lock.c \
         swoole_client.c \
+        swoole_client_coro.c \
+        swoole_coroutine.c \
         swoole_event.c \
         swoole_timer.c \
         swoole_async.c \
@@ -234,8 +242,13 @@ if test "$PHP_SWOOLE" != "no"; then
      	swoole_http_v2_server.c \
         swoole_websocket_server.c \
         swoole_http_client.c \
+        swoole_http_client_coro.c \
         swoole_mysql.c \
+        swoole_mysql_coro.c \
         swoole_redis.c \
+        swoole_redis_coro.c \
+        swoole_multi.c \
+        swoole_client_multi.c \
         src/core/base.c \
         src/core/log.c \
         src/core/hashmap.c \
