@@ -207,6 +207,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
     }
     else
     {
+        php_swoole_check_reactor();
         http = http_client_create(zobject TSRMLS_CC);
     }
 
@@ -842,8 +843,6 @@ static PHP_METHOD(swoole_http_client, __construct)
     zend_update_property_long(swoole_http_client_class_entry_ptr,
     getThis(), ZEND_STRL("port"), port TSRMLS_CC);
 
-    php_swoole_check_reactor();
-
     //init
     swoole_set_object(getThis(), NULL);
 
@@ -972,6 +971,10 @@ static PHP_METHOD(swoole_http_client, isConnected)
 static PHP_METHOD(swoole_http_client, close)
 {
     http_client *http = swoole_get_object(getThis());
+    if (!http)
+    {
+        RETURN_FALSE;
+    }
     swClient *cli = http->cli;
     if (!cli)
     {
