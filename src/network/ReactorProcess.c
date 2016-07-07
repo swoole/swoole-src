@@ -102,6 +102,17 @@ int swReactorProcess_start(swServer *serv)
         return swReactorProcess_loop(&SwooleGS->event_workers, &single_worker);
     }
 
+    swWorker *worker;
+    int i;
+    for (i = 0; i < serv->worker_num; i++)
+    {
+        worker = &SwooleGS->event_workers.workers[i];
+        if (swWorker_create(worker) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+
     //task workers
     if (SwooleG.task_worker_num > 0)
     {
