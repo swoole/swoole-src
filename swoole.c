@@ -326,6 +326,17 @@ static const zend_function_entry swoole_timer_methods[] =
     PHP_FE_END
 };
 
+static const zend_function_entry swoole_event_methods[] =
+{
+    ZEND_FENTRY(add, ZEND_FN(swoole_event_add), arginfo_swoole_event_add, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(del, ZEND_FN(swoole_event_del), arginfo_swoole_event_del, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(set, ZEND_FN(swoole_event_set), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(exit, ZEND_FN(swoole_event_exit), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(write, ZEND_FN(swoole_event_write), arginfo_swoole_event_write, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(wait, ZEND_FN(swoole_event_wait), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_FE_END
+};
+
 #if PHP_MEMORY_DEBUG
 php_vmstat_t php_vmstat;
 #endif
@@ -338,6 +349,9 @@ zend_class_entry *swoole_connection_iterator_class_entry_ptr;
 
 zend_class_entry swoole_timer_ce;
 zend_class_entry *swoole_timer_class_entry_ptr;
+
+zend_class_entry swoole_event_ce;
+zend_class_entry *swoole_event_class_entry_ptr;
 
 zend_module_entry swoole_module_entry =
 {
@@ -565,6 +579,9 @@ PHP_MINIT_FUNCTION(swoole)
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_timer_ce, "swoole_timer", "Swoole\\Timer", swoole_timer_methods);
     swoole_timer_class_entry_ptr = zend_register_internal_class(&swoole_timer_ce TSRMLS_CC);
+
+    SWOOLE_INIT_CLASS_ENTRY(swoole_event_ce, "swoole_event", "Swoole\\Event", swoole_event_methods);
+    swoole_event_class_entry_ptr = zend_register_internal_class(&swoole_event_ce TSRMLS_CC);
 
 #ifdef HAVE_PCRE
     SWOOLE_INIT_CLASS_ENTRY(swoole_connection_iterator_ce, "swoole_connection_iterator", "Swoole\\ConnectionIterator",  swoole_connection_iterator_methods);
