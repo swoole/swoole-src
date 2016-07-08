@@ -33,6 +33,9 @@ void swoole_multi_init(int module_number TSRMLS_DC)
 
 void swoole_multi_recv(zval *swoole_multi, zval *response, long obj_handle)
 {
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 	zval *result_array = zend_read_property(swoole_multi_class_entry_ptr, swoole_multi, SW_STRL("result_array")-1, 0 TSRMLS_CC);
 	if (SW_Z_TYPE_P(result_array) == IS_NULL)
 	{
@@ -89,6 +92,9 @@ void swoole_multi_recv(zval *swoole_multi, zval *response, long obj_handle)
 
 int swoole_multi_is_multi_mode(zval *cli_obj)
 {
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 	zval *swoole_multi = zend_read_property(swoole_client_multi_class_entry_ptr, cli_obj, SW_STRL("swoole_multi")-1, 0 TSRMLS_CC);
 	if (SW_Z_TYPE_P(swoole_multi) != IS_NULL)
 	{
@@ -100,6 +106,9 @@ int swoole_multi_is_multi_mode(zval *cli_obj)
 
 int swoole_multi_resume(zval *cli_obj, zval *response)
 {
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
 	zval *swoole_multi = zend_read_property(swoole_client_multi_class_entry_ptr, cli_obj, SW_STRL("swoole_multi")-1, 0 TSRMLS_CC);
 	if (SW_Z_TYPE_P(swoole_multi) != IS_NULL)
 	{

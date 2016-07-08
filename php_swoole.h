@@ -328,13 +328,13 @@ void swoole_lock_init(int module_number TSRMLS_DC);
 void swoole_atomic_init(int module_number TSRMLS_DC);
 void swoole_client_init(int module_number TSRMLS_DC);
 #ifdef SW_COROUTINE
-void swoole_client_coro_init(int module_number TSRMLS_CC);
-void swoole_multi_init(int module_number TSRMLS_CC);
-void swoole_client_multi_init(int module_number TSRMLS_CC);
+void swoole_client_coro_init(int module_number TSRMLS_DC);
+void swoole_multi_init(int module_number TSRMLS_DC);
+void swoole_client_multi_init(int module_number TSRMLS_DC);
 #ifdef SW_USE_REDIS
-void swoole_redis_coro_init(int module_number TSRMLS_CC);
+void swoole_redis_coro_init(int module_number TSRMLS_DC);
 #endif
-void swoole_mysql_coro_init(int module_number TSRMLS_CC);
+void swoole_mysql_coro_init(int module_number TSRMLS_DC);
 void swoole_http_client_coro_init(int module_number TSRMLS_DC);
 #endif
 void swoole_http_client_init(int module_number TSRMLS_DC);

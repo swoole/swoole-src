@@ -61,9 +61,9 @@ typedef struct
 
 coro_global COROG;
 
-int coro_init();
+int coro_init(TSRMLS_D);
 int coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval **retval);
-void coro_close();
+void coro_close(TSRMLS_D);
 php_context *coro_save(zval *return_value, zval **return_value_ptr, php_context *sw_php_context);
 int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retval);
 void coro_yield();

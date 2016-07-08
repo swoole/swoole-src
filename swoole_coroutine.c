@@ -25,7 +25,7 @@
 
 jmp_buf swReactorCheckPoint;
 
-int coro_init()
+int coro_init(TSRMLS_D)
 {
     COROG.origin_vm_stack = EG(argument_stack);
     COROG.origin_ex = EG(current_execute_data);
@@ -157,7 +157,7 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
     if (!setjmp(swReactorCheckPoint))
     {
         zend_execute_ex(execute_data TSRMLS_CC);
-        coro_close();
+        coro_close(TSRMLS_C);
         if (EG(return_value_ptr_ptr) != NULL)
         {
             *retval = *EG(return_value_ptr_ptr);
@@ -173,7 +173,7 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
     return coro_status;
 }
 
-sw_inline void coro_close()
+sw_inline void coro_close(TSRMLS_D)
 {
     void **arguments = EG(current_execute_data)->function_state.arguments;
     if (arguments)
@@ -270,7 +270,7 @@ int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retva
     {
         //coro exit
         zend_execute_ex(sw_current_context->current_execute_data TSRMLS_CC);
-        coro_close();
+        coro_close(TSRMLS_C);
         if (EG(return_value_ptr_ptr) != NULL)
         {
             *coro_retval = *EG(return_value_ptr_ptr);

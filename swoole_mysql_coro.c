@@ -662,7 +662,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
     {
         client->state = SW_MYSQL_STATE_READ_START;
 		php_context *context = swoole_get_property(getThis(), 0);
-		client->cli->timeout_id = php_swoole_add_timer_coro((int)(timeout*1000), client->fd, (void *)context);
+		client->cli->timeout_id = php_swoole_add_timer_coro((int)(timeout*1000), client->fd, (void *)context TSRMLS_CC);
 		if (swoole_multi_is_multi_mode(getThis()) == CORO_MULTI)
 		{
 			RETURN_TRUE;
@@ -826,6 +826,9 @@ static void swoole_mysql_coro_onConnect(mysql_client *client TSRMLS_DC)
 
 static void swoole_mysql_coro_onTimeout(php_context *ctx)
 {
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
     zval *result;
     zval *retval;
 

@@ -235,6 +235,9 @@ static void client_coro_onClose(swClient *cli)
 
 static void client_coro_onError(swClient *cli)
 {
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
     zval * zdata;
     zval * retval;
     zval * zobject = cli->object;
@@ -279,6 +282,9 @@ static void client_coro_onError(swClient *cli)
 
 static void client_coro_onTimeout(php_context *ctx)
 {
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
     zval *zdata;
     zval *retval;
 
@@ -926,7 +932,6 @@ static PHP_METHOD(swoole_client_coro, sendfile)
 
 static PHP_METHOD(swoole_client_coro, recv)
 {
-   
     swClient *cli = swoole_get_object(getThis());
     if (!cli)
     {
@@ -963,7 +968,7 @@ static PHP_METHOD(swoole_client_coro, recv)
     property->context.coro_params = getThis();
     property->context.coro_params_cnt = 1;
 
-    cli->timeout_id = php_swoole_add_timer_coro((int)(cli->timeout*1000), cli->socket->fd, (void *)&property->context);
+    cli->timeout_id = php_swoole_add_timer_coro((int) (cli->timeout * 1000), cli->socket->fd, (void *) &property->context TSRMLS_CC);
     property->status = CLIENT_IOWAIT;
 	if (swoole_multi_is_multi_mode(getThis()) == CORO_MULTI)
 	{
