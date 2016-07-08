@@ -16,6 +16,8 @@
 
 #include "php_swoole.h"
 #include "zend_API.h"
+
+#ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 #include <setjmp.h>
 
@@ -321,3 +323,5 @@ sw_inline void coro_handle_timeout()
     }
     return;
 }
+#endif
+

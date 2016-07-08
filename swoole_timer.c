@@ -272,7 +272,8 @@ static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    if (tnode ->type > 0)
+#ifdef SW_COROUTINE
+    if (tnode->type > 0)
     {
         swTimer_coro_callback *scc = tnode->data;
         if (SwooleWG.coro_timeout_list == NULL)
@@ -305,6 +306,7 @@ static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
         sw_free(tnode);
     }
     else
+#endif
     {
         swTimer_callback *cb = tnode->data;
         zval *retval = NULL;
