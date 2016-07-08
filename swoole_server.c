@@ -1649,7 +1649,7 @@ PHP_METHOD(swoole_server, on)
     char *func_name = NULL;
 #ifdef SW_COROUTINE
     zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
-    if (!zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
+    if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
 #else
     if (!sw_zend_is_callable(cb, 0, &func_name TSRMLS_CC))
 #endif
