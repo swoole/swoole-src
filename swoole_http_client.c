@@ -49,7 +49,6 @@ typedef struct
     zval _request_body;
     zval _request_header;
     zval _cookies;
-    zval _onResponse;
     zval _onConnect;
     zval _onError;
     zval _onClose;
@@ -208,6 +207,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
     }
     else
     {
+        php_swoole_check_reactor();
         http = http_client_create(zobject TSRMLS_CC);
     }
 
@@ -244,9 +244,8 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
     }
 
     http_client_property *hcc = swoole_get_property(zobject, 0);
-    hcc->onResponse = callback;
-    sw_copy_to_stack(hcc->onResponse, hcc->_onResponse);
-    sw_zval_add_ref(&hcc->onResponse);
+    sw_zval_add_ref(&callback);
+    hcc->onResponse = sw_zval_dup(callback);
 
     //if connection exists
     if (http->cli)
@@ -844,8 +843,6 @@ static PHP_METHOD(swoole_http_client, __construct)
     zend_update_property_long(swoole_http_client_class_entry_ptr,
     getThis(), ZEND_STRL("port"), port TSRMLS_CC);
 
-    php_swoole_check_reactor();
-
     //init
     swoole_set_object(getThis(), NULL);
 
@@ -974,6 +971,10 @@ static PHP_METHOD(swoole_http_client, isConnected)
 static PHP_METHOD(swoole_http_client, close)
 {
     http_client *http = swoole_get_object(getThis());
+    if (!http)
+    {
+        RETURN_FALSE;
+    }
     swClient *cli = http->cli;
     if (!cli)
     {
@@ -1340,6 +1341,12 @@ static PHP_METHOD(swoole_http_client, upgrade)
     }
 
     http_client_property *hcc = swoole_get_property(getThis(), 0);
+    if (!hcc->onMessage)
+    {
+        swoole_php_fatal_error(E_WARNING, "cannot use the upgrade method, must first register the onMessage event callback.");
+        return;
+    }
+
     zval *request_header;
     if (!hcc->request_header)
     {

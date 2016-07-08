@@ -43,7 +43,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.8.7-alpha"
+#define PHP_SWOOLE_VERSION  "1.8.8-alpha"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -305,6 +305,7 @@ PHP_FUNCTION(swoole_async_set);
 //---------------------------------------------------------
 PHP_FUNCTION(swoole_timer_after);
 PHP_FUNCTION(swoole_timer_tick);
+PHP_FUNCTION(swoole_timer_exists);
 PHP_FUNCTION(swoole_timer_clear);
 
 PHP_FUNCTION(swoole_strerror);
@@ -392,7 +393,7 @@ php_socket *swoole_convert_to_socket(int sock);
 #endif
 
 void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC);
-char* php_swoole_get_recv_data(zval *,swEventData *req, uint32_t offset TSRMLS_DC);
+void php_swoole_get_recv_data(zval *zdata, swEventData *req, char *header, uint32_t header_length);
 int php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC);
 void php_swoole_onConnect(swServer *serv, swDataHead *);
 int php_swoole_onReceive(swServer *serv, swEventData *req);

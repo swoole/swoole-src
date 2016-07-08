@@ -523,7 +523,15 @@ int swReactorThread_send(swSendData *_send)
     void *_send_data = _send->data;
     uint32_t _send_length = _send->length;
 
-    swConnection *conn = swServer_connection_verify(serv, session_id);
+    swConnection *conn;
+    if (_send->info.type != SW_EVENT_CLOSE)
+    {
+        conn = swServer_connection_verify(serv, session_id);
+    }
+    else
+    {
+        conn = swServer_connection_verify_no_ssl(serv, session_id);
+    }
     if (!conn)
     {
         if (_send->info.type == SW_EVENT_TCP)

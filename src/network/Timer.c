@@ -115,6 +115,7 @@ swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data)
     if (timer->_next_msec > _msec)
     {
         timer->set(timer, _msec);
+        timer->_next_msec = _msec;
     }
 
     tnode->id = timer->_next_id++;

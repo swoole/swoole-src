@@ -68,7 +68,7 @@ static void php_swoole_onManagerStop(swServer *serv);
 static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC);
 static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC);
 
-char* php_swoole_get_recv_data(zval *zdata, swEventData *req, uint32_t offset TSRMLS_DC)
+void php_swoole_get_recv_data(zval *zdata, swEventData *req, char *header, uint32_t header_length)
 {
     char *data_ptr = NULL;
     int data_len;
@@ -96,13 +96,18 @@ char* php_swoole_get_recv_data(zval *zdata, swEventData *req, uint32_t offset TS
         data_len = req->info.len;
     }
 
-    if (offset >= data_len)
+    if (header_length >= data_len)
     {
         SW_ZVAL_STRING(zdata, "", 1);
     }
     else
     {
-        SW_ZVAL_STRINGL(zdata, data_ptr + offset, data_len - offset, 1);
+        SW_ZVAL_STRINGL(zdata, data_ptr + header_length, data_len - header_length, 1);
+    }
+
+    if (header_length > 0)
+    {
+        memcpy(header, data_ptr, header_length);
     }
 
 #ifdef SW_USE_RINGBUFFER
@@ -112,7 +117,6 @@ char* php_swoole_get_recv_data(zval *zdata, swEventData *req, uint32_t offset TS
         thread->buffer_input->free(thread->buffer_input, data_ptr);
     }
 #endif
-    return data_ptr;
 }
 
 int php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC)
@@ -241,7 +245,7 @@ static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC)
         }
         else
         {
-            SW_MAKE_STD_ZVAL(result_data);
+            SW_ALLOC_INIT_ZVAL(result_data);
             SW_ZVAL_STRINGL(result_data, result_data_str, result_data_len, 1);
         }
         PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
@@ -589,7 +593,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     {
         ZVAL_LONG(zfrom_id, (long ) req->info.from_id);
         ZVAL_LONG(zfd, (long ) req->info.fd);
-        php_swoole_get_recv_data(zdata, req, 0 TSRMLS_CC);
+        php_swoole_get_recv_data(zdata, req, NULL, 0);
     }
 
 #ifndef SW_COROUTINE
@@ -869,6 +873,9 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     }
     sw_zval_ptr_dtor(&ztask_id);
     sw_zval_ptr_dtor(&zdata);
+#if PHP_MAJOR_VERSION >= 7
+    efree(zdata);
+#endif
     if (retval != NULL)
     {
         sw_zval_ptr_dtor(&retval);
@@ -1018,6 +1025,11 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     args[0] = &zserv;
     sw_zval_add_ref(&zserv);
     args[1] = &zworker_id;
+
+    /**
+     * Manager Process ID
+     */
+    zend_update_property_long(swoole_server_class_entry_ptr, zserv, ZEND_STRL("master_pid"), SwooleGS->master_pid TSRMLS_CC);
 
     /**
      * Manager Process ID
@@ -1303,15 +1315,15 @@ PHP_METHOD(swoole_server, __construct)
     }
 
 #ifdef __CYGWIN__
-    serv->factory_mode = SW_MODE_SINGLE;
-#else
+    serv_mode = SW_MODE_SINGLE;
+#elif !defined(SW_USE_THREAD)
     if (serv_mode == SW_MODE_THREAD || serv_mode == SW_MODE_BASE)
     {
         serv_mode = SW_MODE_SINGLE;
         swoole_php_fatal_error(E_WARNING, "PHP can not running at multi-threading. Reset mode to SWOOLE_MODE_BASE");
     }
-    serv->factory_mode = serv_mode;
 #endif
+    serv->factory_mode = serv_mode;
 
     if (serv->factory_mode == SW_MODE_SINGLE)
     {
@@ -2048,7 +2060,7 @@ PHP_METHOD(swoole_server, close)
     }
 
     swServer *serv = swoole_get_object(zobject);
-    swConnection *conn = swServer_connection_verify(serv, fd);
+    swConnection *conn = swServer_connection_verify_no_ssl(serv, fd);
     if (!conn)
     {
         RETURN_FALSE;
@@ -2274,8 +2286,8 @@ PHP_METHOD(swoole_server, taskwait)
 
     if (swProcessPool_dispatch_blocking(&SwooleGS->task_workers, &buf, (int*) &dst_worker_id) >= 0)
     {
-        task_notify_pipe->timeout = timeout;
         sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
+        task_notify_pipe->timeout = timeout;
         int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
         if (ret > 0)
         {
@@ -2677,6 +2689,7 @@ PHP_METHOD(swoole_server, connection_info)
         add_assoc_long(return_value, "from_id", conn->from_id);
         add_assoc_long(return_value, "connect_time", conn->connect_time);
         add_assoc_long(return_value, "last_time", conn->last_time);
+        add_assoc_long(return_value, "close_errno", conn->close_errno);
     }
 }
 

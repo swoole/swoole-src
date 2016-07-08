@@ -156,7 +156,9 @@ static PHP_METHOD(swoole_http_response, sendfile);
 static PHP_METHOD(swoole_http_response, cookie);
 static PHP_METHOD(swoole_http_response, rawcookie);
 static PHP_METHOD(swoole_http_response, header);
+#ifdef SW_HAVE_ZLIB
 static PHP_METHOD(swoole_http_response, gzip);
+#endif
 static PHP_METHOD(swoole_http_response, status);
 static PHP_METHOD(swoole_http_response, __destruct);
 
@@ -270,7 +272,9 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_ME(swoole_http_response, cookie, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, rawcookie, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, status, NULL, ZEND_ACC_PUBLIC)
+#ifdef SW_HAVE_ZLIB
     PHP_ME(swoole_http_response, gzip, NULL, ZEND_ACC_PUBLIC)
+#endif
     PHP_ME(swoole_http_response, header, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, write, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, end, NULL, ZEND_ACC_PUBLIC)
@@ -910,7 +914,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
     ctx->request.zdata = zdata;
-    php_swoole_get_recv_data(zdata, req, 0 TSRMLS_CC);
+    php_swoole_get_recv_data(zdata, req, NULL, 0);
     sw_copy_to_stack(ctx->request.zdata, ctx->request._zdata);
 
     swTrace("httpRequest %d bytes:\n---------------------------------------\n%s\n", Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
@@ -1191,9 +1195,11 @@ void swoole_http_context_free(http_context *ctx TSRMLS_DC)
         swString_free(ctx->buffer);
     }
 #endif
+
     ctx->end = 1;
     ctx->send_header = 0;
     ctx->gzip_enable = 0;
+    ctx->response.zobject = NULL;
 }
 
 static char *http_status_message(int code)
@@ -1799,7 +1805,7 @@ static int http_response_compress(swString *body, int level)
 #endif
 
     int status;
-    if (Z_OK == deflateInit2(&zstream, -1, Z_DEFLATED, encoding, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY))
+    if (Z_OK == deflateInit2(&zstream, level, Z_DEFLATED, encoding, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY))
     {
         zstream.next_in = (Bytef *) body->str;
         zstream.next_out = (Bytef *) swoole_zlib_buffer->str;
@@ -2281,15 +2287,10 @@ static PHP_METHOD(swoole_http_response, header)
     sw_add_assoc_stringl_ex(zheader, k, klen + 1, v, vlen, 1);
 }
 
+#ifdef SW_HAVE_ZLIB
 static PHP_METHOD(swoole_http_response, gzip)
 {
-#ifndef SW_HAVE_ZLIB
-    swoole_php_error(E_WARNING, "zlib library is not installed, cannot use gzip.");
-    RETURN_FALSE;
-#endif
-    
-    long level = 1;
-
+    long level = Z_DEFAULT_COMPRESSION;
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &level) == FAILURE)
     {
         return;
@@ -2311,10 +2312,15 @@ static PHP_METHOD(swoole_http_response, gzip)
     {
         level = 9;
     }
+    if (level < 0)
+    {
+        level = 0;
+    }
 
     context->gzip_enable = 1;
     context->gzip_level = level;
 }
+#endif
 
 static PHP_METHOD(swoole_http_response, __destruct)
 {

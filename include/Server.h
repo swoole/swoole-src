@@ -569,6 +569,7 @@ void swServer_store_listen_socket(swServer *serv);
 int swServer_get_manager_pid(swServer *serv);
 int swServer_get_socket(swServer *serv, int port);
 int swServer_worker_init(swServer *serv, swWorker *worker);
+swString** swServer_create_worker_buffer(swServer *serv);
 void swServer_close_listen_port(swServer *serv);
 void swServer_enable_accept(swReactor *reactor);
 
@@ -762,10 +763,13 @@ static sw_inline swConnection *swWorker_get_connection(swServer *serv, int sessi
 
 static sw_inline swString *swWorker_get_buffer(swServer *serv, int worker_id)
 {
-    //input buffer
-    if (serv->factory_mode != SW_MODE_PROCESS)
+    if (serv->factory_mode == SW_MODE_SINGLE || serv->factory_mode == SW_MODE_BASE)
     {
         return SwooleWG.buffer_input[0];
+    }
+    else if (serv->factory_mode == SW_MODE_THREAD)
+    {
+        return SwooleTG.buffer_input[worker_id];
     }
     else
     {
@@ -773,7 +777,7 @@ static sw_inline swString *swWorker_get_buffer(swServer *serv, int worker_id)
     }
 }
 
-static sw_inline swConnection *swServer_connection_verify(swServer *serv, int session_id)
+static sw_inline swConnection *swServer_connection_verify_no_ssl(swServer *serv, int session_id)
 {
     swSession *session = swServer_get_session(serv, session_id);
     int fd = session->fd;
@@ -786,7 +790,17 @@ static sw_inline swConnection *swServer_connection_verify(swServer *serv, int se
     {
         return NULL;
     }
+    return conn;
+}
+
+static sw_inline swConnection *swServer_connection_verify(swServer *serv, int session_id)
+{
+    swConnection *conn = swServer_connection_verify_no_ssl(serv, session_id);
 #ifdef SW_USE_OPENSSL
+    if (!conn)
+    {
+        return NULL;
+    }
     if (conn->ssl && conn->ssl_state != SW_SSL_STATE_READY)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SSL_NOT_READY, "SSL not ready");

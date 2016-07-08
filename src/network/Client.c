@@ -308,7 +308,6 @@ static int swClient_close(swClient *cli)
             cli->socket->active = 0;
             cli->onClose(cli);
         }
-        cli->socket->removed = 1;
     }
     else
     {
@@ -714,9 +713,9 @@ static int swClient_onError(swReactor *reactor, swEvent *event)
     {
         return cli->close(cli);
     }
-    else if (cli->onError)
+    else
     {
-        cli->onError(cli);
+        swClient_onWrite(reactor, event);
     }
     return SW_OK;
 }

@@ -214,10 +214,12 @@ int swoole_websocket_onMessage(swEventData *req)
 
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
-    char *buf = php_swoole_get_recv_data(zdata, req, 2 TSRMLS_CC);
 
-    long finish = buf[0] ? 1 : 0;
-    long opcode = buf[1];
+    char frame_header[2];
+    php_swoole_get_recv_data(zdata, req, frame_header, 2);
+
+    long finish = frame_header[0] ? 1 : 0;
+    long opcode = frame_header[1];
 
     zval *zframe;
     SW_MAKE_STD_ZVAL(zframe);
@@ -487,6 +489,16 @@ static PHP_METHOD(swoole_websocket_server, exist)
     if (conn->active == 0 || conn->closed)
     {
         RETURN_FALSE;
+    }
+    swConnection *server_sock = swServer_connection_get(serv, conn->from_fd);
+    if (server_sock)
+    {
+        swListenPort *port = server_sock->object;
+        //not websocket port
+        if (port && !port->open_websocket_protocol)
+        {
+            RETURN_TRUE;
+        }
     }
     //have not handshake
     if (conn->websocket_status < WEBSOCKET_STATUS_ACTIVE)

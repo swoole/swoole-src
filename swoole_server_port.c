@@ -24,12 +24,19 @@ static PHP_METHOD(swoole_server_port, __destruct);
 static PHP_METHOD(swoole_server_port, on);
 static PHP_METHOD(swoole_server_port, set);
 
+#ifdef SWOOLE_SOCKETS_SUPPORT
+static PHP_METHOD(swoole_server_port, getSocket);
+#endif
+
 const zend_function_entry swoole_server_port_methods[] =
 {
     PHP_ME(swoole_server_port, __construct,     NULL, ZEND_ACC_PRIVATE | ZEND_ACC_CTOR)
     PHP_ME(swoole_server_port, __destruct,      NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_server_port, set,             NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server_port, on,              NULL, ZEND_ACC_PUBLIC)
+#ifdef SWOOLE_SOCKETS_SUPPORT
+    PHP_ME(swoole_server_port, getSocket,       NULL, ZEND_ACC_PUBLIC)
+#endif
     PHP_FE_END
 };
 
@@ -375,3 +382,16 @@ static PHP_METHOD(swoole_server_port, on)
     }
     RETURN_TRUE;
 }
+
+#ifdef SWOOLE_SOCKETS_SUPPORT
+static PHP_METHOD(swoole_server_port, getSocket)
+{
+    swListenPort *port = swoole_get_object(getThis());
+    php_socket *socket_object = swoole_convert_to_socket(port->sock);
+    if (!socket_object)
+    {
+        RETURN_FALSE;
+    }
+    SW_ZEND_REGISTER_RESOURCE(return_value, (void *) socket_object, php_sockets_le_socket());
+}
+#endif

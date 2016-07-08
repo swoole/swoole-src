@@ -481,3 +481,28 @@ PHP_FUNCTION(swoole_timer_clear)
         RETURN_TRUE;
     }
 }
+
+PHP_FUNCTION(swoole_timer_exists)
+{
+    if (!SwooleG.timer.set)
+    {
+        swoole_php_error(E_WARNING, "no timer");
+        RETURN_FALSE;
+    }
+
+    long id;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &id) == FAILURE)
+    {
+        return;
+    }
+
+    swTimer_node *tnode = swHashMap_find_int(timer_map, id);
+    if (tnode == NULL)
+    {
+       RETURN_FALSE;
+    }
+    else
+    {
+       RETURN_TRUE
+    }
+}

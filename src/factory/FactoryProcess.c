@@ -182,7 +182,15 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     swServer *serv = factory->ptr;
     int fd = resp->info.fd;
 
-    swConnection *conn = swServer_connection_verify(serv, fd);
+    swConnection *conn;
+    if (resp->info.type != SW_EVENT_CLOSE)
+    {
+        conn = swServer_connection_verify(serv, fd);
+    }
+    else
+    {
+        conn = swServer_connection_verify_no_ssl(serv, fd);
+    }
     if (!conn)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session#%d does not exist.", fd);
@@ -295,6 +303,7 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
         }
         conn->closing = 0;
         conn->closed = 1;
+        conn->close_errno = 0;
         return factory->finish(factory, &_send);
     }
 }

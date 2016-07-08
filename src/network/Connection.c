@@ -136,6 +136,7 @@ int swConnection_buffer_send(swConnection *conn)
             swWarn("send to fd[%d] failed. Error: %s[%d]", conn->fd, strerror(errno), errno);
             break;
         case SW_CLOSE:
+            conn->close_errno = errno;
             conn->close_wait = 1;
             return SW_ERR;
         case SW_WAIT:

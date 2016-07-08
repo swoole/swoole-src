@@ -409,6 +409,49 @@ void swServer_store_listen_socket(swServer *serv)
     }
 }
 
+swString** swServer_create_worker_buffer(swServer *serv)
+{
+    int i;
+    int buffer_input_size;
+    if (serv->listen_list->open_eof_check || serv->listen_list->open_length_check || serv->listen_list->open_http_protocol)
+    {
+        buffer_input_size = serv->listen_list->protocol.package_max_length;
+    }
+    else
+    {
+        buffer_input_size = SW_BUFFER_SIZE_BIG;
+    }
+
+    int buffer_num;
+    if (serv->factory_mode == SW_MODE_SINGLE || serv->factory_mode == SW_MODE_BASE)
+    {
+        buffer_num = 1;
+    }
+    else
+    {
+        buffer_num = serv->reactor_num + serv->dgram_port_num;
+    }
+
+    swString **buffers = sw_malloc(sizeof(swString*) * buffer_num);
+    if (buffers == NULL)
+    {
+        swError("malloc for worker buffer_input failed.");
+        return NULL;
+    }
+
+    for (i = 0; i < buffer_num; i++)
+    {
+        buffers[i] = swString_new(buffer_input_size);
+        if (buffers[i] == NULL)
+        {
+            swError("worker buffer_input init failed.");
+            return NULL;
+        }
+    }
+
+    return buffers;
+}
+
 int swServer_worker_init(swServer *serv, swWorker *worker)
 {
 #ifdef HAVE_CPU_AFFINITY
@@ -431,42 +474,10 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     }
 #endif
 
-    int i;
-    int buffer_input_size;
-    if (serv->listen_list->open_eof_check || serv->listen_list->open_length_check || serv->listen_list->open_http_protocol)
+    SwooleWG.buffer_input = swServer_create_worker_buffer(serv);
+    if (!SwooleWG.buffer_input)
     {
-        buffer_input_size = serv->listen_list->protocol.package_max_length;
-    }
-    else
-    {
-        buffer_input_size = SW_BUFFER_SIZE_BIG;
-    }
-
-    int buffer_num;
-    if (serv->factory_mode != SW_MODE_PROCESS)
-    {
-        buffer_num = 1;
-    }
-    else
-    {
-        buffer_num = serv->reactor_num + serv->dgram_port_num;
-    }
-
-    SwooleWG.buffer_input = sw_malloc(sizeof(swString*) * buffer_num);
-    if (SwooleWG.buffer_input == NULL)
-    {
-        swError("malloc for SwooleWG.buffer_input failed.");
         return SW_ERR;
-    }
-
-    for (i = 0; i < buffer_num; i++)
-    {
-        SwooleWG.buffer_input[i] = swString_new(buffer_input_size);
-        if (SwooleWG.buffer_input[i] == NULL)
-        {
-            swError("buffer_input init failed.");
-            return SW_ERR;
-        }
     }
 
     if (serv->max_request < 1)
