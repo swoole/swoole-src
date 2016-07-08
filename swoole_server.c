@@ -297,7 +297,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
     swTrace("Create swoole_server host=%s, port=%d, mode=%d, type=%d", serv->listen_list->host, (int) serv->listen_list->port, serv->factory_mode, (int) serv->listen_list->type);
 
 #ifdef SW_COROUTINE
-    coro_init();
+    coro_init(TSRMLS_C);
 #endif
 
     /**
@@ -531,8 +531,6 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     zval *zdata;
     zval *retval = NULL;
 
-    zval *callback;
-
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
@@ -597,7 +595,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     }
 
 #ifndef SW_COROUTINE
-    callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
+    zval *callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
 
     args[0] = &zserv;
     args[1] = &zfd;
