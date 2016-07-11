@@ -294,7 +294,7 @@ static int mysql_response(mysql_client *client)
             n_buf --;
 
             /* error */
-            if (client->response.response_type == 0xFF)
+            if (client->response.response_type == 0xff)
             {
                 client->response.error_code = mysql_uint2korr(p);
                 /* status flag 1byte (#), skip.. */
@@ -304,12 +304,12 @@ static int mysql_response(mysql_client *client)
                 return SW_OK;
             }
             /* eof */
-            else if (client->response.response_type == 254)
+            else if (client->response.response_type == 0xfe)
             {
                 client->response.warnings = mysql_uint2korr(p);
                 client->response.status_code = mysql_uint2korr(p + 2);
                 client->state = SW_MYSQL_STATE_READ_END;
-                return SW_ERR;
+                return SW_OK;
             }
             /* ok */
             else if (client->response.response_type == 0)
@@ -338,8 +338,13 @@ static int mysql_response(mysql_client *client)
             /* result set */
             else
             {
-                client->buffer->offset += 5;
-                client->response.num_column = client->response.response_type;
+                //Protocol::LengthEncodedInteger
+                ret = mysql_length_coded_binary(p - 1, (ulong_t *) &client->response.num_column, &nul, n_buf + 1);
+                if (ret < 0)
+                {
+                    return SW_ERR;
+                }
+                client->buffer->offset += (4 + ret);
                 client->response.columns = ecalloc(client->response.num_column, sizeof(mysql_field));
                 client->state = SW_MYSQL_STATE_READ_FIELD;
                 break;
@@ -573,6 +578,8 @@ static PHP_METHOD(swoole_mysql, connect)
     swConnection *_socket = swReactor_get(SwooleG.main_reactor, cli->socket->fd);
     _socket->object = client;
     _socket->active = 0;
+
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_mysql, query)
@@ -650,6 +657,7 @@ static PHP_METHOD(swoole_mysql, __destruct)
     {
         zval *retval;
         zval *zobject = getThis();
+        client->cli->destroyed = 1;
         sw_zend_call_method_with_0_params(&zobject, swoole_mysql_class_entry_ptr, NULL, "close", &retval);
         if (retval)
         {
@@ -686,6 +694,8 @@ static PHP_METHOD(swoole_mysql, close)
     swConnection *socket = swReactor_get(SwooleG.main_reactor, client->fd);
     socket->object = NULL;
 
+    zend_bool is_destroyed = client->cli->destroyed;
+
     //close the connection
     client->cli->close(client->cli);
     //release client object memory
@@ -708,7 +718,10 @@ static PHP_METHOD(swoole_mysql, close)
             sw_zval_ptr_dtor(&retval);
         }
     }
-    sw_zval_ptr_dtor(&object);
+    if (!is_destroyed)
+    {
+        sw_zval_ptr_dtor(&object);
+    }
 }
 
 static PHP_METHOD(swoole_mysql, on)
@@ -1061,3 +1074,4 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
     }
     return SW_OK;
 }
+
