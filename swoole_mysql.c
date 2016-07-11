@@ -573,6 +573,8 @@ static PHP_METHOD(swoole_mysql, connect)
     swConnection *_socket = swReactor_get(SwooleG.main_reactor, cli->socket->fd);
     _socket->object = client;
     _socket->active = 0;
+
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_mysql, query)
@@ -650,6 +652,7 @@ static PHP_METHOD(swoole_mysql, __destruct)
     {
         zval *retval;
         zval *zobject = getThis();
+        client->cli->destroyed = 1;
         sw_zend_call_method_with_0_params(&zobject, swoole_mysql_class_entry_ptr, NULL, "close", &retval);
         if (retval)
         {
@@ -686,6 +689,8 @@ static PHP_METHOD(swoole_mysql, close)
     swConnection *socket = swReactor_get(SwooleG.main_reactor, client->fd);
     socket->object = NULL;
 
+    zend_bool is_destroyed = client->cli->destroyed;
+
     //close the connection
     client->cli->close(client->cli);
     //release client object memory
@@ -708,7 +713,10 @@ static PHP_METHOD(swoole_mysql, close)
             sw_zval_ptr_dtor(&retval);
         }
     }
-    sw_zval_ptr_dtor(&object);
+    if (!is_destroyed)
+    {
+        sw_zval_ptr_dtor(&object);
+    }
 }
 
 static PHP_METHOD(swoole_mysql, on)
