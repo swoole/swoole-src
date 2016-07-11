@@ -294,7 +294,7 @@ static int mysql_response(mysql_client *client)
             n_buf --;
 
             /* error */
-            if (client->response.response_type == 0xFF)
+            if (client->response.response_type == 0xff)
             {
                 client->response.error_code = mysql_uint2korr(p);
                 /* status flag 1byte (#), skip.. */
@@ -304,12 +304,12 @@ static int mysql_response(mysql_client *client)
                 return SW_OK;
             }
             /* eof */
-            else if (client->response.response_type == 254)
+            else if (client->response.response_type == 0xfe)
             {
                 client->response.warnings = mysql_uint2korr(p);
                 client->response.status_code = mysql_uint2korr(p + 2);
                 client->state = SW_MYSQL_STATE_READ_END;
-                return SW_ERR;
+                return SW_OK;
             }
             /* ok */
             else if (client->response.response_type == 0)
@@ -338,8 +338,13 @@ static int mysql_response(mysql_client *client)
             /* result set */
             else
             {
-                client->buffer->offset += 5;
-                client->response.num_column = client->response.response_type;
+                //Protocol::LengthEncodedInteger
+                ret = mysql_length_coded_binary(p - 1, (ulong_t *) &client->response.num_column, &nul, n_buf + 1);
+                if (ret < 0)
+                {
+                    return SW_ERR;
+                }
+                client->buffer->offset += (4 + ret);
                 client->response.columns = ecalloc(client->response.num_column, sizeof(mysql_field));
                 client->state = SW_MYSQL_STATE_READ_FIELD;
                 break;
@@ -1069,3 +1074,4 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
     }
     return SW_OK;
 }
+
