@@ -702,7 +702,7 @@ static PHP_METHOD(swoole_client, __destruct)
     if (cli)
     {
         zval *zobject = getThis();
-        zval *retval;
+        zval *retval = NULL;
         sw_zend_call_method_with_0_params(&zobject, swoole_client_class_entry_ptr, NULL, "close", &retval);
         if (retval)
         {
