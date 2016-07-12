@@ -62,6 +62,64 @@ static void php_swoole_onManagerStop(swServer *serv);
 static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC);
 static zval* php_swoole_get_task_result(swEventData *task_result TSRMLS_DC);
 
+static sw_inline int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
+{
+    smart_str serialized_data = { 0 };
+    php_serialize_data_t var_hash;
+
+    task->info.type = SW_EVENT_TASK;
+    //field fd save task_id
+    task->info.fd = php_swoole_task_id++;
+    //field from_id save the worker_id
+    task->info.from_id = SwooleWG.id;
+    swTask_type(task) = 0;
+
+    //clear result buffer
+    swEventData *task_result = &(SwooleG.task_result[SwooleWG.id]);
+    bzero(task_result, sizeof(SwooleG.task_result[SwooleWG.id]));
+
+    char *task_data_str;
+    int task_data_len = 0;
+    //need serialize
+    if (SW_Z_TYPE_P(data) != IS_STRING)
+    {
+        //serialize
+        swTask_type(task) |= SW_TASK_SERIALIZE;
+        PHP_VAR_SERIALIZE_INIT(var_hash);
+        sw_php_var_serialize(&serialized_data, data, &var_hash TSRMLS_CC);
+        PHP_VAR_SERIALIZE_DESTROY(var_hash);
+#if PHP_MAJOR_VERSION<7
+        task_data_str = serialized_data.c;
+        task_data_len = serialized_data.len;
+#else
+        task_data_str = serialized_data.s->val;
+        task_data_len = serialized_data.s->len;
+#endif
+    }
+    else
+    {
+        task_data_str = Z_STRVAL_P(data);
+        task_data_len = Z_STRLEN_P(data);
+    }
+
+    if (task_data_len >= SW_IPC_MAX_SIZE - sizeof(task->info))
+    {
+        if (swTaskWorker_large_pack(task, task_data_str, task_data_len) < 0)
+        {
+            smart_str_free(&serialized_data);
+            swoole_php_fatal_error(E_WARNING, "large task pack failed()");
+            return SW_ERR;
+        }
+    }
+    else
+    {
+        memcpy(task->data, task_data_str, task_data_len);
+        task->info.len = task_data_len;
+    }
+    smart_str_free(&serialized_data);
+    return task->info.fd;
+}
+
 void php_swoole_get_recv_data(zval *zdata, swEventData *req, char *header, uint32_t header_length)
 {
     char *data_ptr = NULL;
@@ -2161,10 +2219,7 @@ PHP_METHOD(swoole_server, heartbeat)
 PHP_METHOD(swoole_server, taskwait)
 {
     swEventData buf;
-
     zval *data;
-    smart_str serialized_data = { 0 };
-    php_serialize_data_t var_hash;
 
     double timeout = SW_TASKWAIT_TIMEOUT;
     long dst_worker_id = -1;
@@ -2185,61 +2240,13 @@ PHP_METHOD(swoole_server, taskwait)
         RETURN_FALSE;
     }
 
-    buf.info.type = SW_EVENT_TASK;
-    //field fd save task_id
-    buf.info.fd = php_swoole_task_id++;
-    //field from_id save the worker_id
-    buf.info.from_id = SwooleWG.id;
-    swTask_type(&buf) = 0;
-
-    //clear result buffer
-    swEventData *task_result = &(SwooleG.task_result[SwooleWG.id]);
-    bzero(task_result, sizeof(SwooleG.task_result[SwooleWG.id]));
+    php_swoole_task_pack(&buf, data TSRMLS_CC);
 
     uint64_t notify;
-
-    char *task_data_str;
-    int task_data_len = 0;
-    //need serialize
-    if (SW_Z_TYPE_P(data) != IS_STRING)
-    {
-        //serialize
-        swTask_type(&buf) |= SW_TASK_SERIALIZE;
-        PHP_VAR_SERIALIZE_INIT(var_hash);
-        sw_php_var_serialize(&serialized_data, data, &var_hash TSRMLS_CC);
-        PHP_VAR_SERIALIZE_DESTROY(var_hash);
-#if PHP_MAJOR_VERSION<7
-        task_data_str = serialized_data.c;
-        task_data_len = serialized_data.len;
-#else
-        task_data_str = serialized_data.s->val;
-        task_data_len = serialized_data.s->len;
-#endif
-    }
-    else
-    {
-        task_data_str = Z_STRVAL_P(data);
-        task_data_len = Z_STRLEN_P(data);
-    }
-
-    if (task_data_len >= SW_IPC_MAX_SIZE - sizeof(buf.info))
-    {
-        if (swTaskWorker_large_pack(&buf, task_data_str, task_data_len) < 0)
-        {
-            smart_str_free(&serialized_data);
-            swoole_php_fatal_error(E_WARNING, "large task pack failed()");
-            RETURN_FALSE;
-        }
-    }
-    else
-    {
-        memcpy(buf.data, task_data_str, task_data_len);
-        buf.info.len = task_data_len;
-    }
-    smart_str_free(&serialized_data);
-
+    swEventData *task_result = &(SwooleG.task_result[SwooleWG.id]);
     swPipe *task_notify_pipe = &SwooleG.task_notify[SwooleWG.id];
     int efd = task_notify_pipe->getFd(task_notify_pipe, 0);
+
     //clear history task
     while (read(efd, &notify, sizeof(notify)) > 0);
 
@@ -2261,14 +2268,128 @@ PHP_METHOD(swoole_server, taskwait)
     RETURN_FALSE;
 }
 
+PHP_METHOD(swoole_server, taskwait2)
+{
+    swEventData buf;
+    zval *tasks;
+    zval *task;
+    double timeout = SW_TASKWAIT_TIMEOUT;
+
+    if (SwooleGS->start == 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "server is not running.");
+        RETURN_FALSE;
+    }
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|d", &tasks, &timeout) == FAILURE)
+    {
+        return;
+    }
+
+    swServer *serv = swoole_get_object(getThis());
+    array_init(return_value);
+
+    int dst_worker_id;
+    int task_id;
+    int i = 0;
+    int n_task = Z_ARRVAL_P(tasks)->nNumOfElements;
+
+    int list_of_id[1024];
+
+    uint64_t notify;
+    swEventData *task_result = &(SwooleG.task_result[SwooleWG.id]);
+    swPipe *task_notify_pipe = &SwooleG.task_notify[SwooleWG.id];
+    swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
+
+    //clear history task
+    int efd = task_notify_pipe->getFd(task_notify_pipe, 0);
+    while (read(efd, &notify, sizeof(notify)) > 0);
+
+    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(tasks), task)
+        task_id = php_swoole_task_pack(&buf, task TSRMLS_CC);
+        if (task_id < 0)
+        {
+            swoole_php_fatal_error(E_WARNING, "task pack failed.");
+            goto fail;
+        }
+        swTask_type(&buf) |= SW_TASK_WAITALL;
+        dst_worker_id = -1;
+        if (swProcessPool_dispatch_blocking(&SwooleGS->task_workers, &buf, (int*) &dst_worker_id) >= 0)
+        {
+            sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
+            list_of_id[i] = task_id;
+        }
+        else
+        {
+            swoole_php_fatal_error(E_WARNING, "taskwait failed. Error: %s[%d]", strerror(errno), errno);
+            fail:
+            add_index_bool(return_value, i, 0);
+            n_task --;
+        }
+        i++;
+    SW_HASHTABLE_FOREACH_END();
+
+    char tmpfile[sizeof(SW_TASK_TMP_FILE)] = SW_TASK_TMP_FILE;
+    int tmpfile_fd = swoole_tmpfile(tmpfile);
+    int *finish_count = (int *) task_result->data;
+
+    worker->lock.lock(&worker->lock);
+    *finish_count = 0;
+    memcpy(task_result->data + 4, tmpfile, sizeof(tmpfile));
+    worker->lock.unlock(&worker->lock);
+
+    while (n_task > 0)
+    {
+        task_notify_pipe->timeout = timeout;
+        int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
+        if (ret > 0)
+        {
+            if (*finish_count == n_task)
+            {
+                break;
+            }
+        }
+        else
+        {
+            swoole_php_fatal_error(E_WARNING, "taskwait failed. Error: %s[%d]", strerror(errno), errno);
+        }
+    }
+    close(tmpfile_fd);
+
+    swString *content = swoole_file_get_contents(tmpfile);
+    if (content == NULL)
+    {
+        return;
+    }
+
+    swEventData *result;
+    int result_length;
+    zval *zdata;
+    int j;
+
+    for (i = 0; i < n_task; i++)
+    {
+        result = content->str + content->offset;
+        task_id = result->info.fd;
+        zdata = php_swoole_get_task_result(result TSRMLS_CC);
+        for (j = 0; j < n_task; j++)
+        {
+            if (list_of_id[j] == task_id)
+            {
+                break;
+            }
+        }
+        add_index_zval(return_value, j, zdata);
+        content->offset += sizeof(swDataHead) + result->info.len;
+    }
+    unlink(tmpfile);
+}
+
 PHP_METHOD(swoole_server, task)
 {
     swEventData buf;
-
     zval *data;
     zval *callback = NULL;
-    smart_str serialized_data = {0};
-    php_serialize_data_t var_hash;
 
     long dst_worker_id = -1;
 
@@ -2288,55 +2409,9 @@ PHP_METHOD(swoole_server, task)
         RETURN_FALSE;
     }
 
-    buf.info.type = SW_EVENT_TASK;
-    //task_id
-    buf.info.fd = php_swoole_task_id++;
-    //source worker_id
-    buf.info.from_id = SwooleWG.id;
-    swTask_type(&buf) = 0;
-
-    swTask_type(&buf) |= SW_TASK_NONBLOCK;
-
-    char *task_data_str = NULL;
-    int task_data_len = 0;
-
-    //need serialize
-    if (SW_Z_TYPE_P(data) != IS_STRING)
+    if (php_swoole_task_pack(&buf, data TSRMLS_CC) < 0)
     {
-        //serialize
-        swTask_type(&buf) |= SW_TASK_SERIALIZE;
-        PHP_VAR_SERIALIZE_INIT(var_hash);
-        sw_php_var_serialize(&serialized_data, data, &var_hash TSRMLS_CC);
-        PHP_VAR_SERIALIZE_DESTROY(var_hash);
-
-#if PHP_MAJOR_VERSION<7
-        task_data_str = serialized_data.c;
-        task_data_len = serialized_data.len;
-#else
-        task_data_str = serialized_data.s->val;
-        task_data_len = serialized_data.s->len;
-#endif
-    }
-    else
-    {
-        task_data_str = Z_STRVAL_P(data);
-        task_data_len = Z_STRLEN_P(data);
-    }
-
-    //write to file
-    if (task_data_len >= SW_IPC_MAX_SIZE - sizeof(buf.info))
-    {
-        if (swTaskWorker_large_pack(&buf, task_data_str, task_data_len) < 0)
-        {
-            smart_str_free(&serialized_data);
-            swoole_php_fatal_error(E_WARNING, "large task pack failed()");
-            RETURN_FALSE;
-        }
-    }
-    else
-    {
-        memcpy(buf.data, task_data_str, task_data_len);
-        buf.info.len = task_data_len;
+        RETURN_FALSE;
     }
 
     if (callback && !ZVAL_IS_NULL(callback))
@@ -2356,8 +2431,7 @@ PHP_METHOD(swoole_server, task)
         swHashMap_add_int(task_callbacks, buf.info.fd, callback);
     }
 
-    smart_str_free(&serialized_data);
-
+    swTask_type(&buf) |= SW_TASK_NONBLOCK;
     if (swProcessPool_dispatch(&SwooleGS->task_workers, &buf, (int*) &dst_worker_id) >= 0)
     {
         sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);

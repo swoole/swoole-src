@@ -102,6 +102,7 @@ enum swTaskType
     SW_TASK_SERIALIZE  = 2,  //php serialize
     SW_TASK_NONBLOCK   = 4,  //task
     SW_TASK_CALLBACK   = 8,  //callback
+    SW_TASK_WAITALL    = 16, //for taskWaitAll
 };
 
 typedef struct _swUdpFd

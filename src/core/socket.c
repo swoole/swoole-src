@@ -141,7 +141,7 @@ int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events)
 
     while (1)
     {
-        int ret = poll(&event_list, n_fd, timeout_ms);
+        int ret = poll(event_list, n_fd, timeout_ms);
         if (ret == 0)
         {
             return SW_ERR;

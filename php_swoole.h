@@ -257,6 +257,7 @@ PHP_METHOD(swoole_server, protect);
 PHP_METHOD(swoole_server, close);
 PHP_METHOD(swoole_server, task);
 PHP_METHOD(swoole_server, taskwait);
+PHP_METHOD(swoole_server, taskwait2);
 PHP_METHOD(swoole_server, finish);
 PHP_METHOD(swoole_server, reload);
 PHP_METHOD(swoole_server, shutdown);
