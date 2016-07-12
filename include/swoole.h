@@ -1151,6 +1151,7 @@ static sw_inline uint64_t swoole_ntoh64(uint64_t net)
 int swSocket_create(int type);
 int swSocket_bind(int sock, int type, char *host, int port);
 int swSocket_wait(int fd, int timeout_ms, int events);
+int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events);
 void swSocket_clean(int fd);
 int swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
 int swSocket_set_buffer_size(int fd, int buffer_size);
@@ -1667,8 +1668,9 @@ typedef struct _swModule
 {
     char *name;
     void (*test)(void);
+    int (*beforeDispatch)(struct _swModule*, swServer *, swEventData *data);
+    int (*beforeReceive)(struct _swModule*, swServer *, swEventData *data);
     int (*shutdown)(struct _swModule*);
-
 } swModule;
 
 int swModule_load(char *so_file);
