@@ -11,7 +11,7 @@ $serv->on('Receive', function(swoole_server $serv, $fd, $from_id, $data) {
     $tasks[] = mt_rand(1000, 9999);
     //等待所有Task结果返回，超时为10s
     var_dump($tasks);
-    $results = $serv->taskWaitAll($tasks, 10.0);
+    $results = $serv->taskwait2($tasks, 10.0);
     var_dump($results);
 });
 

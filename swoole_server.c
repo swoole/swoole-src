@@ -2363,13 +2363,12 @@ PHP_METHOD(swoole_server, taskwait2)
     }
 
     swEventData *result;
-    int result_length;
     zval *zdata;
     int j;
 
     for (i = 0; i < n_task; i++)
     {
-        result = content->str + content->offset;
+        result = (swEventData *) (content->str + content->offset);
         task_id = result->info.fd;
         zdata = php_swoole_get_task_result(result TSRMLS_CC);
         for (j = 0; j < n_task; j++)
