@@ -2268,7 +2268,7 @@ PHP_METHOD(swoole_server, taskwait)
     RETURN_FALSE;
 }
 
-PHP_METHOD(swoole_server, taskwait2)
+PHP_METHOD(swoole_server, taskWaitMulti)
 {
     swEventData buf;
     zval *tasks;
