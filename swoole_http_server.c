@@ -2289,7 +2289,7 @@ static PHP_METHOD(swoole_http_response, __destruct)
     if (context && !context->end)
     {
         zval *zobject = getThis();
-        zval *retval;
+        zval *retval = NULL;
         sw_zend_call_method_with_0_params(&zobject, swoole_http_response_class_entry_ptr, NULL, "end", &retval);
         if (retval)
         {

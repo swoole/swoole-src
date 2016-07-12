@@ -874,7 +874,7 @@ static PHP_METHOD(swoole_http_client, __destruct)
     if (http)
     {
         zval *zobject = getThis();
-        zval *retval;
+        zval *retval = NULL;
         sw_zend_call_method_with_0_params(&zobject, swoole_http_client_class_entry_ptr, NULL, "close", &retval);
         if (retval)
         {
@@ -1201,7 +1201,7 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
         http->state = HTTP_CLIENT_STATE_READY;
     }
 
-    zval *retval;
+    zval *retval = NULL;
     http_client_property *hcc = swoole_get_property(zobject, 0);
     zval *zcallback = hcc->onResponse;
 
