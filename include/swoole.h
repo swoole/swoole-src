@@ -614,6 +614,21 @@ typedef struct _swEventData
     char data[SW_BUFFER_SIZE];
 } swEventData;
 
+typedef struct _swVal
+{
+    uint32_t type :8;
+    uint32_t length :24;
+    char value[0];
+} swVal;
+
+enum swVal_type
+{
+    SW_VAL_SRTING = 1,
+    SW_VAL_INT,
+    SW_VAL_FLOAT,
+    SW_VAL_BOOL,
+};
+
 typedef struct _swDgramPacket
 {
     union
@@ -1664,17 +1679,6 @@ int swSystemTimer_init(int msec, int use_pipe);
 void swSystemTimer_signal_handler(int sig);
 int swSystemTimer_event_handler(swReactor *reactor, swEvent *event);
 //--------------------------------------------------------------
-typedef struct _swModule
-{
-    char *name;
-    void (*test)(void);
-    int (*beforeDispatch)(struct _swModule*, swServer *, swEventData *data);
-    int (*beforeReceive)(struct _swModule*, swServer *, swEventData *data);
-    int (*shutdown)(struct _swModule*);
-} swModule;
-
-int swModule_load(char *so_file);
-
 //Share Memory
 typedef struct
 {
