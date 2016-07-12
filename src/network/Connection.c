@@ -18,7 +18,6 @@
 
 #include "swoole.h"
 #include "Server.h"
-#include "Connection.h"
 
 #include <sys/stat.h>
 

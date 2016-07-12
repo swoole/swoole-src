@@ -113,6 +113,52 @@ int swSocket_wait(int fd, int timeout_ms, int events)
     return SW_OK;
 }
 
+/**
+ * Wait some sockets can read or write.
+ */
+int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events)
+{
+    assert(n_fd < 65535);
+
+    struct pollfd *event_list = sw_calloc(n_fd, sizeof(struct pollfd));
+    int i;
+
+    int _events = 0;
+    if (events & SW_EVENT_READ)
+    {
+        _events |= POLLIN;
+    }
+    if (events & SW_EVENT_WRITE)
+    {
+        _events |= POLLOUT;
+    }
+
+    for (i = 0; i < n_fd; i++)
+    {
+        event_list[i].fd = list_of_fd[i];
+        event_list[i].events = _events;
+    }
+
+    while (1)
+    {
+        int ret = poll(event_list, n_fd, timeout_ms);
+        if (ret == 0)
+        {
+            return SW_ERR;
+        }
+        else if (ret < 0 && errno != EINTR)
+        {
+            swWarn("poll() failed. Error: %s[%d]", strerror(errno), errno);
+            return SW_ERR;
+        }
+        else
+        {
+            return ret;
+        }
+    }
+    return SW_OK;
+}
+
 int swSocket_write_blocking(int __fd, void *__data, int __len)
 {
     int n = 0;
