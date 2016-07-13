@@ -186,6 +186,9 @@ static swVal* swoole_call_php_func(const char *name, int length)
     int i;
     zval **args[SW_PHP_FUNCTION_MAX_ARG];
     zval *zval_array[SW_PHP_FUNCTION_MAX_ARG];
+#if PHP_MAJOR_VERSION >= 7
+    zval _zval_array[SW_PHP_FUNCTION_MAX_ARG];
+#endif
     zval *arg;
 
     uint32_t offset = 0;
@@ -194,7 +197,11 @@ static swVal* swoole_call_php_func(const char *name, int length)
 
     for (i = 0; i < SwooleG.call_php_func_argc; i++)
     {
+#if PHP_MAJOR_VERSION >= 7
+        zval_array[i] = &_zval_array[i];
+#else
         SW_ALLOC_INIT_ZVAL(zval_array[i]);
+#endif
         arg = zval_array[i];
         val = params + offset;
         if (swVal_to_zval(val, arg) < 0)
@@ -221,7 +228,15 @@ static swVal* swoole_call_php_func(const char *name, int length)
     }
     //clear input buffer
     swArgs_clear();
+    for (i = 0; i < SwooleG.call_php_func_argc; i++)
+    {
+        sw_zval_ptr_dtor(&zval_array[i]);
+    }
     //return value
+    if (!retval)
+    {
+        return NULL;
+    }
     swVal *val_c = NULL;
     switch(Z_TYPE_P(retval))
     {
@@ -258,5 +273,6 @@ static swVal* swoole_call_php_func(const char *name, int length)
         swWarn("unknown type.");
         break;
     }
+    sw_zval_ptr_dtor(&retval);
     return val_c;
 }

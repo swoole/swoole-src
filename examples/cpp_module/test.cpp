@@ -39,8 +39,7 @@ int swModule_init(swModule *module)
     swParam_double(1234.56);
     swParam_string(s.c_str(), s.length());
 
-    string method = "cppMethod";
-    swModule_register_function(module, method.c_str(), method.length(), cppMethod);
+    swModule_register_function(module, (char *) "cppMethod", cppMethod);
 
     swVal* a = SwooleG.call_php_func(php_func.c_str(), php_func.length());
 
