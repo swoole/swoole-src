@@ -63,7 +63,7 @@ swModule* swModule_load(char *so_file)
     return module;
 }
 
-int swModule_register_function(swModule *module, const char *name, int name_length, swModule_function func)
+int swModule_register_function(swModule *module, const char *name, swModule_function func)
 {
-    return swHashMap_add(module->functions, (char *) name, name_length, (void *) func);
+    return swHashMap_add(module->functions, (char *) name, strlen(name), (void *) func);
 }

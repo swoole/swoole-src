@@ -37,7 +37,7 @@ typedef struct _swModule
 typedef swVal* (*swModule_function)(swModule *, swString *, int);
 
 swModule* swModule_load(char *so_file);
-int swModule_register_function(swModule *module, const char *name, int name_length, swModule_function func);
+int swModule_register_function(swModule *module, const char *name, swModule_function func);
 
 static sw_inline void swArgs_clear(void)
 {
