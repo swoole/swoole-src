@@ -147,9 +147,18 @@ static PHP_METHOD(swoole_module, __call)
         case IS_DOUBLE:
             swParam_double(Z_DVAL_P(value));
             break;
+#if PHP_MAJOR_VERSION < 7
         case IS_BOOL:
             swParam_bool(Z_BVAL_P(value));
             break;
+#else
+        case IS_TRUE:
+            swParam_bool(1);
+            break;
+        case IS_FALSE:
+            swParam_bool(0);
+            break;
+#endif
         default:
             swWarn("unknown type.");
             RETURN_FALSE;
@@ -216,10 +225,21 @@ static swVal* swoole_call_php_func(const char *name, int length)
     swVal *val_c = NULL;
     switch(Z_TYPE_P(retval))
     {
+#if PHP_MAJOR_VERSION < 7
     case IS_BOOL:
         val_c = sw_malloc(sizeof(swVal) + 1);
         swVal_bool(val_c, Z_BVAL_P(retval));
         break;
+#else
+    case IS_TRUE:
+        val_c = sw_malloc(sizeof(swVal) + 1);
+        swVal_bool(val_c, 1);
+        break;
+    case IS_FALSE:
+        val_c = sw_malloc(sizeof(swVal) + 1);
+        swVal_bool(val_c, 0);
+        break;
+#endif
     case IS_STRING:
         val_c = sw_malloc(sizeof(swVal) + Z_STRLEN_P(retval) + 1);
         swVal_string(val_c, Z_STRVAL_P(retval) , Z_STRLEN_P(retval));

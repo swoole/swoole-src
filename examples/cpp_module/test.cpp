@@ -21,9 +21,9 @@ using namespace std;
 
 extern "C"
 {
-	#include "swoole.h"
+    #include "swoole.h"
     #include "module.h"
-	int swModule_init(swModule *);
+    int swModule_init(swModule *);
 }
 
 swVal* cppMethod(swModule *module, swString *args, int argc);
@@ -44,7 +44,7 @@ int swModule_init(swModule *module)
 
     swVal* a = SwooleG.call_php_func(php_func.c_str(), php_func.length());
 
-	return SW_OK;
+    return SW_OK;
 }
 
 /**
@@ -53,15 +53,15 @@ int swModule_init(swModule *module)
  */
 swVal* cppMethod(swModule *module, swString *args, int argc)
 {
-	cout << "hello world" << endl;
+    cout << "hello world" << endl;
 
-	int l_a, l_d;
-	char *a = swParam_parse_string(args, &l_a);
-	long b =  swParam_parse_long(args);
-	double c = swParam_parse_double(args);
-	char *d = swParam_parse_string(args, &l_d);
+    int l_a, l_d;
+    char *a = swParam_parse_string(args, &l_a);
+    long b = swParam_parse_long(args);
+    double c = swParam_parse_double(args);
+    char *d = swParam_parse_string(args, &l_d);
 
-	char buf[256];
-	int len = snprintf(buf, sizeof(buf), "a[%d]=%s, b=%ld, c=%f, d[%d]=%s\n", l_a, a, b, c, l_d, d);
-	return swReturnValue_string(buf, len);
+    char buf[256];
+    int len = snprintf(buf, sizeof(buf), "a[%d]=%s, b=%ld, c=%f, d[%d]=%s\n", l_a, a, b, c, l_d, d);
+    return swReturnValue_string(buf, len);
 }
