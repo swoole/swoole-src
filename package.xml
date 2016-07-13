@@ -87,6 +87,7 @@
 				<file role="src" name="base64.h" />
 				<file role="src" name="mqtt.h" />
 				<file role="src" name="error.h" />
+				<file role="src" name="module.h" />
 			</dir>
 			<file role="src" name="php_swoole.h" />
 			<file role="src" name="php7_wrapper.h" />
@@ -111,6 +112,7 @@
 			<file role="src" name="swoole_mysql.c" />
 			<file role="src" name="swoole_mysql.h" />
 			<file role="src" name="swoole_redis.c" />
+			<file role="src" name="swoole_module.c" />
 			<dir name="thirdparty">
 				<file role="src" name="php_http_parser.c" />
 				<file role="src" name="php_http_parser.h" />
@@ -185,6 +187,7 @@
 					<file role="src" name="sendfile.c" />
 					<file role="src" name="signal.c" />
 					<file role="src" name="timer.c" />
+					<file role="src" name="dl.c" />
 				</dir>
 				<dir name="protocol">
 				    <file role="src" name="Base.c" />
