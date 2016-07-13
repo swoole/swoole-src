@@ -1,18 +1,18 @@
 /*
-  +----------------------------------------------------------------------+
-  | Swoole                                                               |
-  +----------------------------------------------------------------------+
-  | This source file is subject to version 2.0 of the Apache license,    |
-  | that is bundled with this package in the file LICENSE, and is        |
-  | available through the world-wide-web at the following url:           |
-  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
-  | If you did not receive a copy of the Apache2.0 license and are unable|
-  | to obtain it through the world-wide-web, please send a note to       |
-  | license@php.net so we can mail you a copy immediately.               |
-  +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
-  +----------------------------------------------------------------------+
-*/
+ +----------------------------------------------------------------------+
+ | Swoole                                                               |
+ +----------------------------------------------------------------------+
+ | This source file is subject to version 2.0 of the Apache license,    |
+ | that is bundled with this package in the file LICENSE, and is        |
+ | available through the world-wide-web at the following url:           |
+ | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+ | If you did not receive a copy of the Apache2.0 license and are unable|
+ | to obtain it through the world-wide-web, please send a note to       |
+ | license@php.net so we can mail you a copy immediately.               |
+ +----------------------------------------------------------------------+
+ | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ +----------------------------------------------------------------------+
+ */
 #ifndef SW_MODULE_H_
 #define SW_MODULE_H_
 
@@ -21,7 +21,8 @@
 #include "Client.h"
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 typedef struct _swModule
@@ -34,116 +35,10 @@ typedef struct _swModule
     int (*shutdown)(struct _swModule*);
 } swModule;
 
-typedef swVal* (*swModule_function)(swModule *, swString *, int);
+typedef swVal* (*swModule_function)(swModule *, int);
 
 swModule* swModule_load(char *so_file);
 int swModule_register_function(swModule *module, const char *name, swModule_function func);
-
-static sw_inline void swArgs_clear(void)
-{
-    swString_clear(SwooleG.call_php_func_args);
-    SwooleG.call_php_func_args->length = 0;
-    SwooleG.call_php_func_argc = 0;
-}
-
-static sw_inline void swParam_long(long lval)
-{
-    if (SwooleG.call_php_func_args->size < sizeof(swVal) + sizeof(long))
-    {
-        swString_extend(SwooleG.call_php_func_args, SwooleG.call_php_func_args->size * 2);
-    }
-    swVal *val = (swVal *)(SwooleG.call_php_func_args->str + SwooleG.call_php_func_args->length);
-    val->type = SW_VAL_LONG;
-    val->length = sizeof(long);
-    memcpy(val->value, &lval, sizeof(long));
-    SwooleG.call_php_func_args->length += (sizeof(swVal) + val->length);
-    SwooleG.call_php_func_argc++;
-}
-
-static sw_inline void swParam_bool(uint8_t bval)
-{
-    if (SwooleG.call_php_func_args->size < sizeof(swVal) + sizeof(uint8_t))
-    {
-        swString_extend(SwooleG.call_php_func_args, SwooleG.call_php_func_args->size * 2);
-    }
-    swVal *val = (swVal *)(SwooleG.call_php_func_args->str + SwooleG.call_php_func_args->length);
-    val->type = SW_VAL_BOOL;
-    val->length = sizeof(uint8_t);
-    *((uint8_t *) val->value) = bval;
-    SwooleG.call_php_func_args->length += (sizeof(swVal) + val->length);
-    SwooleG.call_php_func_argc++;
-}
-
-static sw_inline void swParam_double(double fval)
-{
-    if (SwooleG.call_php_func_args->size < sizeof(swVal) + sizeof(double))
-    {
-        swString_extend(SwooleG.call_php_func_args, SwooleG.call_php_func_args->size * 2);
-    }
-    swVal *val = (swVal *)(SwooleG.call_php_func_args->str + SwooleG.call_php_func_args->length);
-    val->type = SW_VAL_DOUBLE;
-    val->length = sizeof(double);
-    memcpy(val->value, &fval, sizeof(long));
-    SwooleG.call_php_func_args->length += (sizeof(swVal) + val->length);
-    SwooleG.call_php_func_argc++;
-}
-
-static sw_inline void swParam_string(const char *str, int length)
-{
-    if (SwooleG.call_php_func_args->size < sizeof(swVal) + length)
-    {
-        swString_extend(SwooleG.call_php_func_args, SwooleG.call_php_func_args->size + (sizeof(swVal) + length));
-    }
-    swVal *val = (swVal *) (SwooleG.call_php_func_args->str + SwooleG.call_php_func_args->length);
-    val->type = SW_VAL_STRING;
-    val->length = length;
-    memcpy(val->value, str, length);
-    SwooleG.call_php_func_args->length += (sizeof(swVal) + val->length);
-    SwooleG.call_php_func_argc++;
-}
-
-static sw_inline long swParam_parse_long(swString *args)
-{
-    assert(args->length >= args->offset);
-    long lval;
-    swVal *v = (swVal*) (args->str + args->offset);
-    assert(v->type == SW_VAL_LONG);
-    memcpy(&lval, v->value, sizeof(long));
-    args->offset += (sizeof(swVal) + sizeof(long));
-    return lval;
-}
-
-static sw_inline uint8_t swParam_parse_bool(swString *args)
-{
-    assert(args->length >= args->offset);
-    uint8_t bval;
-    swVal *v = (swVal*) (args->str + args->offset);
-    assert(v->type == SW_VAL_LONG);
-    bval = *(uint8_t *) v->value;
-    args->offset += (sizeof(swVal) + sizeof(uint8_t));
-    return bval;
-}
-
-static sw_inline double swParam_parse_double(swString *args)
-{
-    assert(args->length >= args->offset);
-    double dval;
-    swVal *v = (swVal*) (args->str + args->offset);
-    assert(v->type == SW_VAL_DOUBLE);
-    memcpy(&dval, v->value, sizeof(double));
-    args->offset += (sizeof(swVal) + sizeof(double));
-    return dval;
-}
-
-static sw_inline char* swParam_parse_string(swString *args, int *length)
-{
-    assert(args->length >= args->offset);
-    swVal *v = (swVal*) (args->str + args->offset);
-    assert(v->type == SW_VAL_STRING);
-    args->offset += (sizeof(swVal) + v->length);
-    *length = v->length;
-    return v->value;
-}
 
 static sw_inline void swVal_bool(swVal *val, uint8_t bval)
 {
@@ -166,7 +61,7 @@ static sw_inline void swVal_double(swVal *val, double dval)
     memcpy(val->value, &dval, sizeof(double));
 }
 
-static sw_inline void swVal_string(swVal *val, char *str, int length)
+static sw_inline void swVal_string(swVal *val, const char *str, int length)
 {
     val->type = SW_VAL_STRING;
     val->length = length;
@@ -174,48 +69,197 @@ static sw_inline void swVal_string(swVal *val, char *str, int length)
     val->value[length] = '\0';
 }
 
+static sw_inline void swArgs_clear(void)
+{
+    swString_clear(SwooleG.module_input_buffer);
+    SwooleG.module_input_buffer->length = 0;
+}
+
+static sw_inline void swArgs_push_long(long lval)
+{
+    swString *buffer = SwooleG.module_input_buffer;
+    if (buffer->size < sizeof(swVal) + sizeof(long))
+    {
+        swString_extend(buffer, buffer->size * 2);
+    }
+    swVal *val = (swVal *) (buffer->str + buffer->length);
+    val->type = SW_VAL_LONG;
+    val->length = sizeof(long);
+    memcpy(val->value, &lval, sizeof(long));
+    buffer->length += (sizeof(swVal) + val->length);
+    SwooleG.call_php_func_argc++;
+}
+
+static sw_inline void swArgs_push_bool(uint8_t bval)
+{
+    swString *buffer = SwooleG.module_input_buffer;
+    if (buffer->size < sizeof(swVal) + sizeof(uint8_t))
+    {
+        swString_extend(buffer, buffer->size * 2);
+    }
+    swVal *val = (swVal *) (buffer->str + buffer->length);
+    val->type = SW_VAL_BOOL;
+    val->length = sizeof(uint8_t);
+    *((uint8_t *) val->value) = bval;
+    buffer->length += (sizeof(swVal) + val->length);
+    SwooleG.call_php_func_argc++;
+}
+
+static sw_inline void swArgs_push_double(double fval)
+{
+    swString *buffer = SwooleG.module_input_buffer;
+    if (buffer->size < sizeof(swVal) + sizeof(double))
+    {
+        swString_extend(buffer, buffer->size * 2);
+    }
+    swVal *val = (swVal *) (buffer->str + buffer->length);
+    val->type = SW_VAL_DOUBLE;
+    val->length = sizeof(double);
+    memcpy(val->value, &fval, sizeof(long));
+    buffer->length += (sizeof(swVal) + val->length);
+    SwooleG.call_php_func_argc++;
+}
+
+static sw_inline void swArgs_push_string(const char *str, int length)
+{
+    swString *buffer = SwooleG.module_input_buffer;
+    int size = sizeof(swVal) + length + 1;
+    if (buffer->size < size)
+    {
+        swString_extend(buffer, size);
+    }
+    swVal *val = (swVal *) (buffer->str + buffer->length);
+    swVal_string(val, str, length);
+    buffer->length += size;
+    SwooleG.call_php_func_argc++;
+}
+
+static sw_inline long swArgs_pop_long()
+{
+    swString *buffer = SwooleG.module_input_buffer;
+    assert(buffer->length >= buffer->offset);
+    long lval;
+    swVal *v = (swVal*) (buffer->str + buffer->offset);
+    assert(v->type == SW_VAL_LONG);
+    memcpy(&lval, v->value, sizeof(long));
+    buffer->offset += (sizeof(swVal) + sizeof(long));
+    return lval;
+}
+
+static sw_inline uint8_t swArgs_pop_bool()
+{
+    swString *buffer = SwooleG.module_input_buffer;
+    assert(buffer->length >= buffer->offset);
+    uint8_t bval;
+    swVal *v = (swVal*) (buffer->str + buffer->offset);
+    assert(v->type == SW_VAL_LONG);
+    bval = *(uint8_t *) v->value;
+    buffer->offset += (sizeof(swVal) + sizeof(uint8_t));
+    return bval;
+}
+
+static sw_inline double swArgs_pop_double()
+{
+    swString *buffer = SwooleG.module_input_buffer;
+    assert(buffer->length >= buffer->offset);
+    double dval;
+    swVal *v = (swVal*) (buffer->str + buffer->offset);
+    assert(v->type == SW_VAL_DOUBLE);
+    memcpy(&dval, v->value, sizeof(double));
+    buffer->offset += (sizeof(swVal) + sizeof(double));
+    return dval;
+}
+
+static sw_inline char* swArgs_pop_string(int *length)
+{
+    swString *buffer = SwooleG.module_input_buffer;
+    assert(buffer->length >= buffer->offset);
+    swVal *v = (swVal*) (buffer->str + buffer->offset);
+    assert(v->type == SW_VAL_STRING);
+    buffer->offset += (sizeof(swVal) + v->length + 1);
+    *length = v->length;
+    return v->value;
+}
+
 static sw_inline swVal* swReturnValue_long(long lval)
 {
-    if (SwooleG.module_return_value->size < sizeof(swVal) + sizeof(long))
+    swString *buffer = SwooleG.module_output_buffer;
+    if (buffer->size < sizeof(swVal) + sizeof(long))
     {
-        swString_extend(SwooleG.module_return_value, SwooleG.module_return_value->size * 2);
+        swString_extend(buffer, buffer->size * 2);
     }
-    swVal *val = (swVal *) SwooleG.module_return_value->str;
+    swVal *val = (swVal *) buffer->str;
     swVal_long(val, lval);
     return val;
 }
 
 static sw_inline swVal* swReturnValue_bool(uint8_t bval)
 {
-    if (SwooleG.module_return_value->size < sizeof(swVal) + sizeof(uint8_t))
+    swString *buffer = SwooleG.module_output_buffer;
+    if (buffer->size < sizeof(swVal) + sizeof(uint8_t))
     {
-        swString_extend(SwooleG.module_return_value, SwooleG.module_return_value->size * 2);
+        swString_extend(buffer, buffer->size * 2);
     }
-    swVal *val = (swVal *) SwooleG.module_return_value->str;
+    swVal *val = (swVal *) buffer->str;
     swVal_bool(val, bval);
     return val;
 }
 
 static sw_inline swVal* swReturnValue_double(double dval)
 {
-    if (SwooleG.module_return_value->size < sizeof(swVal) + sizeof(double))
+    swString *buffer = SwooleG.module_output_buffer;
+    if (buffer->size < sizeof(swVal) + sizeof(double))
     {
-        swString_extend(SwooleG.module_return_value, SwooleG.module_return_value->size * 2);
+        swString_extend(buffer, buffer->size * 2);
     }
-    swVal *val = (swVal *) SwooleG.module_return_value->str;
+    swVal *val = (swVal *) buffer->str;
     swVal_double(val, dval);
     return val;
 }
 
 static sw_inline swVal* swReturnValue_string(char *str, int len)
 {
-    if (SwooleG.module_return_value->size < (sizeof(swVal) + len + 1))
+    swString *buffer = SwooleG.module_output_buffer;
+    if (buffer->size < (sizeof(swVal) + len + 1))
     {
-        swString_extend(SwooleG.module_return_value, SwooleG.module_return_value->size * 2);
+        swString_extend(buffer, sizeof(swVal) + len + 1);
     }
-    swVal *val = (swVal *) SwooleG.module_return_value->str;
+    swVal *val = (swVal *) buffer->str;
     swVal_string(val, str, len);
     return val;
+}
+
+static sw_inline long swReturnValue_get_long(long lval)
+{
+    swString *buffer = SwooleG.module_output_buffer;
+    swVal *val = (swVal *) buffer->str;
+    assert(val->type == SW_VAL_LONG);
+    return *(long *) val->value;
+}
+
+static sw_inline uint8_t swReturnValue_get_bool(uint8_t bval)
+{
+    swString *buffer = SwooleG.module_output_buffer;
+    swVal *val = (swVal *) buffer->str;
+    assert(val->type == SW_VAL_BOOL);
+    return *(uint8_t *) val->value;
+}
+
+static sw_inline double swReturnValue_get_double(double dval)
+{
+    swString *buffer = SwooleG.module_output_buffer;
+    swVal *val = (swVal *) buffer->str;
+    assert(val->type == SW_VAL_DOUBLE);
+    return *(double *) val->value;
+}
+
+static sw_inline char* swReturnValue_get_string(int *len)
+{
+    swString *buffer = SwooleG.module_output_buffer;
+    swVal *val = (swVal *) buffer->str;
+    assert(val->type == SW_VAL_STRING);
+    *len = val->length;
+    return val->value;
 }
 
 #ifdef __cplusplus

@@ -799,7 +799,7 @@ PHP_FUNCTION(swoole_cpu_num)
 {
     long cpu_num = 1;
     cpu_num = sysconf(_SC_NPROCESSORS_CONF);
-    if(cpu_num < 1)
+    if (cpu_num < 1)
     {
         cpu_num = 1;
     }
@@ -808,7 +808,7 @@ PHP_FUNCTION(swoole_cpu_num)
 
 PHP_FUNCTION(swoole_strerror)
 {
-    int swoole_errno = 0;
+    long swoole_errno = 0;
     char error_msg[256] = {0};
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &swoole_errno) == FAILURE)
