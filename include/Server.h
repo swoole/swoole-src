@@ -519,7 +519,7 @@ static sw_inline void swServer_free_buffer(swServer *serv, int fd)
 static sw_inline swListenPort* swServer_get_port(swServer *serv, int fd)
 {
     int server_fd = serv->connection_list[fd].from_fd;
-    return serv->connection_list[server_fd].object;
+    return (swListenPort*) serv->connection_list[server_fd].object;
 }
 
 int swServer_udp_send(swServer *serv, swSendData *resp);

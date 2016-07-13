@@ -15,6 +15,7 @@
 */
 #include "php_swoole.h"
 #include "zend_variables.h"
+#include "module.h"
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -261,6 +262,7 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_get_local_ip, arginfo_swoole_void)
     PHP_FE(swoole_strerror, arginfo_swoole_strerror)
     PHP_FE(swoole_errno, arginfo_swoole_void)
+    PHP_FE(swoole_load_module, NULL)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 
@@ -618,6 +620,7 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_buffer_init(module_number TSRMLS_CC);
     swoole_websocket_init(module_number TSRMLS_CC);
     swoole_mysql_init(module_number TSRMLS_CC);
+    swoole_module_init(module_number TSRMLS_CC);
 
 #ifdef SW_USE_REDIS
     swoole_redis_init(module_number TSRMLS_CC);
@@ -651,6 +654,8 @@ PHP_MINIT_FUNCTION(swoole)
 
     return SUCCESS;
 }
+
+
 /* }}} */
 
 /* {{{ PHP_MINFO_FUNCTION

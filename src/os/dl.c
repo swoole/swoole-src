@@ -15,37 +15,55 @@
 */
 
 #include "swoole.h"
+#include "module.h"
 #include <dlfcn.h>
 
 #define SW_MODULE_INIT_FUNC    "swModule_init"
 
-int swModule_load(char *so_file)
+swModule* swModule_load(char *so_file)
 {
-    swModule* (*init_func)(void);
+    int (*init_func)(swModule*);
     void *handle = dlopen(so_file, RTLD_LAZY);
 
     if (!handle)
     {
         swWarn("dlopen() failed. Error: %s", dlerror());
-        return SW_ERR;
+        return NULL;
     }
-
-    init_func = (swModule* (*)(void)) dlsym(handle, SW_MODULE_INIT_FUNC);
-
+    //malloc
+    swModule *module = (swModule *) sw_malloc(sizeof(swModule));
+    if (module == NULL)
+    {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "malloc failed.");
+        return NULL;
+    }
+    //get init function
+    init_func = (int (*)(swModule*)) dlsym(handle, SW_MODULE_INIT_FUNC);
     char *error = dlerror();
     if (error != NULL)
     {
         swWarn("dlsym() failed. Error: %s", error);
-        return SW_ERR;
+        sw_free(module);
+        return NULL;
     }
-
-    swModule *module = (*init_func)();
-    if (module == NULL)
+    module->file = strdup(so_file);
+    //create function hashmap
+    module->functions = swHashMap_new(64, NULL);
+    if (module->functions == NULL)
     {
-        swWarn("module init failed.");
-        return SW_ERR;
+        sw_free(module);
+        return NULL;
     }
-    printf("module_name=%s\n", module->name);
-    module->test();
-    return SW_OK;
+    //init module
+    if ((*init_func)(module) < 0)
+    {
+        sw_free(module);
+        return NULL;
+    }
+    return module;
+}
+
+int swModule_register_function(swModule *module, const char *name, swModule_function func)
+{
+    return swHashMap_add(module->functions, (char *) name, strlen(name), (void *) func);
 }

@@ -61,3 +61,5 @@ modules/*
 /examples/ext
 /tests/hpack/main
 /tests/hpack/data.txt
+/examples/cpp_module/.cproject
+/examples/cpp_module/.project
