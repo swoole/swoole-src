@@ -42,6 +42,7 @@ int swModule_register_function(swModule *module, const char *name, swModule_func
 static sw_inline void swArgs_clear(void)
 {
     swString_clear(SwooleG.call_php_func_args);
+    SwooleG.call_php_func_args->length = 0;
     SwooleG.call_php_func_argc = 0;
 }
 

@@ -16,13 +16,13 @@
 
 #include <string>
 #include <iostream>
+#include "swoole.h"
+#include "module.h"
 
 using namespace std;
 
 extern "C"
 {
-    #include "swoole.h"
-    #include "module.h"
     int swModule_init(swModule *);
 }
 
@@ -42,7 +42,7 @@ int swModule_init(swModule *module)
     swModule_register_function(module, (char *) "cppMethod", cppMethod);
 
     swVal* a = SwooleG.call_php_func(php_func.c_str(), php_func.length());
-
+    sw_free(a);
     return SW_OK;
 }
 
@@ -52,8 +52,6 @@ int swModule_init(swModule *module)
  */
 swVal* cppMethod(swModule *module, swString *args, int argc)
 {
-    cout << "hello world" << endl;
-
     int l_a, l_d;
     char *a = swParam_parse_string(args, &l_a);
     long b = swParam_parse_long(args);
