@@ -647,7 +647,6 @@ static void mysql_column_info(mysql_field *field)
 
 #endif
 
-
 static PHP_METHOD(swoole_mysql, __construct)
 {
     if (!mysql_request_buffer)

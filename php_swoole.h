@@ -290,6 +290,7 @@ PHP_FUNCTION(swoole_event_write);
 PHP_FUNCTION(swoole_event_wait);
 PHP_FUNCTION(swoole_event_exit);
 PHP_FUNCTION(swoole_event_defer);
+PHP_FUNCTION(swoole_client_select);
 //---------------------------------------------------------
 //                  swoole_async
 //---------------------------------------------------------
@@ -307,18 +308,12 @@ PHP_FUNCTION(swoole_timer_after);
 PHP_FUNCTION(swoole_timer_tick);
 PHP_FUNCTION(swoole_timer_exists);
 PHP_FUNCTION(swoole_timer_clear);
-
+//---------------------------------------------------------
+//                  other
+//---------------------------------------------------------
+PHP_FUNCTION(swoole_load_module);
 PHP_FUNCTION(swoole_strerror);
 PHP_FUNCTION(swoole_errno);
-//---------------------------------------------------------
-//                  swoole_mysql
-//---------------------------------------------------------
-#ifdef SW_ASYNC_MYSQL
-PHP_FUNCTION(swoole_get_mysqli_sock);
-PHP_FUNCTION(swoole_mysql_query);
-#endif
-
-PHP_FUNCTION(swoole_client_select);
 
 void swoole_destory_table(zend_resource *rsrc TSRMLS_DC);
 
@@ -337,6 +332,7 @@ void swoole_http_server_init(int module_number TSRMLS_DC);
 void swoole_websocket_init(int module_number TSRMLS_DC);
 void swoole_buffer_init(int module_number TSRMLS_DC);
 void swoole_mysql_init(int module_number TSRMLS_DC);
+void swoole_module_init(int module_number TSRMLS_DC);
 
 int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC);
 

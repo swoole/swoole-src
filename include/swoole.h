@@ -623,9 +623,9 @@ typedef struct _swVal
 
 enum swVal_type
 {
-    SW_VAL_SRTING = 1,
-    SW_VAL_INT,
-    SW_VAL_FLOAT,
+    SW_VAL_STRING = 1,
+    SW_VAL_LONG,
+    SW_VAL_DOUBLE,
     SW_VAL_BOOL,
 };
 
@@ -1818,6 +1818,11 @@ typedef struct
     swEventData *task_result;
 
     pthread_t heartbeat_pidt;
+
+    swString *call_php_func_args;
+    int call_php_func_argc;
+    swVal* (*call_php_func)(const char *name, int length);
+    swString *module_return_value;
 
 } swServerG;
 

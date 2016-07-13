@@ -243,6 +243,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_http_client.c \
         swoole_mysql.c \
         swoole_redis.c \
+        swoole_module.c \
         src/core/base.c \
         src/core/log.c \
         src/core/hashmap.c \
@@ -289,6 +290,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/Timer.c \
         src/network/Port.c \
         src/os/base.c \
+        src/os/dl.c \
         src/os/linux_aio.c \
         src/os/msg_queue.c \
         src/os/sendfile.c \
