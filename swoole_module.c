@@ -134,6 +134,7 @@ static PHP_METHOD(swoole_module, __call)
         return;
     }
 
+    swArgs_clear();
     zval *value;
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(params), value)
         switch(SW_Z_TYPE_P(value))
@@ -175,6 +176,7 @@ static PHP_METHOD(swoole_module, __call)
     {
         RETURN_NULL();
     }
+    swString_free(args);
 }
 
 static swVal* swoole_call_php_func(const char *name, int length)
