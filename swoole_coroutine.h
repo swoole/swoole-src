@@ -24,9 +24,7 @@
 #define CORO_END 0
 #define CORO_YIELD 1
 #define CORO_LIMIT 2
-#define CORO_MULTI 3
-#define CORO_RESUME 4
-#define CORO_SAVE 5
+#define CORO_SAVE 3
 
 typedef struct _php_context php_context;
 
@@ -68,8 +66,6 @@ php_context *coro_save(zval *return_value, zval **return_value_ptr, php_context 
 int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retval);
 void coro_yield();
 void coro_handle_timeout();
-int swoole_multi_resume(zval *swoole_multi, zval *response);
-int swoole_multi_is_multi_mode(zval *swoole_multi);
 long php_swoole_add_timer_coro(int ms, int cli_fd, void* param TSRMLS_DC);
 int php_swoole_clear_timer_coro(long id TSRMLS_DC);
 #endif

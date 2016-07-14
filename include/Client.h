@@ -27,7 +27,7 @@ typedef struct _swClient
 {
     int id;
     int type;
-    long timeout_id; //timeout node id
+	long timeout_id; //timeout node id
     int _sock_type;
     int _sock_domain;
     int _protocol;
@@ -36,6 +36,7 @@ typedef struct _swClient
     uint32_t async :1;
     uint32_t keep :1;
     uint32_t released :1;
+    uint32_t destroyed :1;
 
     /**
      * one package: length check

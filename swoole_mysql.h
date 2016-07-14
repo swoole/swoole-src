@@ -134,6 +134,15 @@ enum mysql_field_types
     SW_MYSQL_TYPE_GEOMETRY = 255
 };
 
+#ifdef SW_COROUTINE
+typedef enum
+{
+	SW_MYSQL_CORO_STATUS_READY,
+	SW_MYSQL_CORO_STATUS_WAIT,
+	SW_MYSQL_CORO_STATUS_DONE
+} mysql_io_status;
+#endif
+
 #define SW_MYSQL_CLIENT_CONNECT_WITH_DB          8
 #define SW_MYSQL_CLIENT_PROTOCOL_41              512
 #define SW_MYSQL_CLIENT_PLUGIN_AUTH              (1UL << 19)
@@ -226,6 +235,12 @@ typedef union
 
 typedef struct
 {
+#ifdef SW_COROUTINE
+	zend_bool defer;
+	zend_bool _defer;
+	mysql_io_status iowait;
+	zval *result;
+#endif
     uint8_t state;
     uint8_t handshake;
     swString *buffer;
@@ -239,13 +254,13 @@ typedef struct
 
 #if PHP_MAJOR_VERSION >= 7
     zval _object;
-    zval _callback;
     zval _onClose;
 #endif
     struct
     {
         mysql_field *columns;
         uint16_t num_column;
+        uint16_t index_column;
         uint32_t num_row;
         uint8_t wait_recv;
         uint8_t response_type;
@@ -292,7 +307,9 @@ static sw_inline void mysql_pack_length(int length, char *buf)
 static sw_inline int mysql_lcb_ll(char *m, ulong_t *r, char *nul, int len)
 {
     if (len < 1)
+    {
         return -1;
+    }
     switch ((uchar) m[0])
     {
 
@@ -558,6 +575,8 @@ static sw_inline int mysql_decode_row(mysql_client *client, char *buf, int packe
             return -SW_MYSQL_ERR_LEN_OVER_BUFFER;
         }
 
+        swTrace("n=%d, fname=%s, name_length=%d\n", i, client->response.columns[i].name, client->response.columns[i].name_length);
+
         if (nul == 1)
         {
             continue;
@@ -694,31 +713,30 @@ static sw_inline int mysql_read_eof(mysql_client *client, char *buffer, int n_bu
 
 static sw_inline int mysql_read_columns(mysql_client *client)
 {
-    int i;
     char *buffer = client->buffer->str + client->buffer->offset;
     uint32_t n_buf = client->buffer->length - client->buffer->offset;
     int ret;
 
-    for (i = client->response.packet_number - 1; i < client->response.num_column; i++)
+    for (; client->response.index_column < client->response.num_column; client->response.index_column++)
     {
         client->response.packet_length = mysql_uint3korr(buffer);
+
+        //no enough data
+        if (n_buf - 4 < client->response.packet_length)
+        {
+            return SW_ERR;
+        }
+
         client->response.packet_number = buffer[3];
         buffer += 4;
         n_buf -= 4;
 
-        //no enough data
-        if (n_buf < client->response.packet_length)
-        {
-            wait_recv: client->buffer->offset += buffer - (client->buffer->str + client->buffer->offset);
-            client->response.wait_recv = 1;
-            return SW_ERR;
-        }
-
-        ret = mysql_decode_field(buffer, client->response.packet_length, &client->response.columns[i]);
+        ret = mysql_decode_field(buffer, client->response.packet_length, &client->response.columns[client->response.index_column]);
         if (ret > 0)
         {
             buffer += client->response.packet_length;
             n_buf -= client->response.packet_length;
+            client->buffer->offset += (client->response.packet_length + 4);
         }
         else
         {
@@ -728,7 +746,7 @@ static sw_inline int mysql_read_columns(mysql_client *client)
 
     if (mysql_read_eof(client, buffer, n_buf) < 0)
     {
-        goto wait_recv;
+        return SW_ERR;
     }
 
     buffer += 9;

@@ -300,24 +300,21 @@ sw_inline void coro_handle_timeout()
         return;
     }
 
-    php_context *cxt = (php_context *)swLinkedList_pop(timeout_list);
-    if (cxt != NULL)
-    {
-        //TODO user define
-        if (SwooleG.main_reactor->timeout_msec <= 0 && timeout_list->num > 0)
-        {
-            SwooleG.main_reactor->timeout_msec = SW_CORO_SCHEDUER_TIMEOUT;
-        }
-        cxt->onTimeout(cxt);
-    }
-    else
-    {
+	php_context *cxt = (php_context *)swLinkedList_pop(timeout_list);
+	while(cxt != NULL) {
+		//TODO user define
+		if (SwooleG.main_reactor->timeout_msec <= 0 && timeout_list->num > 0)
+		{
+			SwooleG.main_reactor->timeout_msec = SW_CORO_SCHEDUER_TIMEOUT;
+		}
+		cxt->onTimeout(cxt);
+		cxt = (php_context *)swLinkedList_pop(timeout_list);
+	}
+	//if the timeout node is null then no need the timeout function loop
+	if (SwooleG.timer.num == 0)
+	{
+		SwooleG.main_reactor->timeout_msec = -1;
+	}
 
-        //if the timeout node is null then no need the timeout function loop
-        if (SwooleG.timer.num == 0)
-        {
-            SwooleG.main_reactor->timeout_msec = -1;
-        }
-    }
     return;
 }

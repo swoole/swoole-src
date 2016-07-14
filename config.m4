@@ -247,8 +247,6 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_mysql_coro.c \
         swoole_redis.c \
         swoole_redis_coro.c \
-        swoole_multi.c \
-        swoole_client_multi.c \
         src/core/base.c \
         src/core/log.c \
         src/core/hashmap.c \
