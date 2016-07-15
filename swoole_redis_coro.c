@@ -55,10 +55,16 @@ static int isset_event_callback = 0;
 #define IS_NX_XX_ARG(a) (IS_NX_ARG(a) || IS_XX_ARG(a))
 #define SW_REDIS_COMMAND_CHECK \
     swRedisClient *redis = swoole_get_object(getThis()); \
-	if (redis->iowait != SW_REDIS_CORO_STATUS_READY) \
+	if (redis->iowait == SW_REDIS_CORO_STATUS_WAIT) \
 	{ \
         zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC); \
         zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "redis client is waiting for response." TSRMLS_CC); \
+        RETURN_FALSE; \
+	} \
+	if (redis->iowait == SW_REDIS_CORO_STATUS_DONE) \
+	{ \
+        zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC); \
+        zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "redis client is waiting for calling recv." TSRMLS_CC); \
         RETURN_FALSE; \
 	} \
     switch (redis->state) \
@@ -83,11 +89,17 @@ static int isset_event_callback = 0;
     }
 #define SW_REDIS_COMMAND_CHECK_WITH_FREE_Z_ARGS \
     swRedisClient *redis = swoole_get_object(getThis()); \
-	if (redis->iowait != SW_REDIS_CORO_STATUS_READY) \
+	if (redis->iowait == SW_REDIS_CORO_STATUS_WAIT) \
 	{ \
         zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC); \
         zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "redis client is waiting for response." TSRMLS_CC); \
 		efree(z_args); \
+        RETURN_FALSE; \
+	} \
+	if (redis->iowait == SW_REDIS_CORO_STATUS_DONE) \
+	{ \
+        zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC); \
+        zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "redis client is waiting for calling recv." TSRMLS_CC); \
         RETURN_FALSE; \
 	} \
     switch (redis->state) \
@@ -174,7 +186,7 @@ static int isset_event_callback = 0;
         efree((void* )argv[i]); \
     }
 
-typedef enum {SW_REDIS_CORO_STATUS_READY, SW_REDIS_CORO_STATUS_WAIT, SW_REDIS_CORO_STATUS_DONE} swoole_redis_coro_io_status;
+typedef enum {SW_REDIS_CORO_STATUS_CLOSED, SW_REDIS_CORO_STATUS_READY, SW_REDIS_CORO_STATUS_WAIT, SW_REDIS_CORO_STATUS_DONE} swoole_redis_coro_io_status;
 
 typedef enum
 {
@@ -1036,6 +1048,7 @@ static PHP_METHOD(swoole_redis_coro, close)
 		return;
 	}
 	redis->state = SWOOLE_REDIS_CORO_STATE_CLOSING;
+	redis->iowait = SW_REDIS_CORO_STATUS_CLOSED;
     redisAsyncDisconnect(redis->context);
 }
 
@@ -2959,10 +2972,15 @@ static PHP_METHOD(swoole_redis_coro, pSubscribe)
 		context = emalloc(sizeof(php_context));
 		swoole_set_property(getThis(), 0, context);
 	}
-	if (redis->iowait != SW_REDIS_CORO_STATUS_READY)
+	if (redis->iowait == SW_REDIS_CORO_STATUS_WAIT)
 	{
         zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC);
         zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "redis client is waiting for response." TSRMLS_CC);
+	}
+	if (redis->iowait == SW_REDIS_CORO_STATUS_DONE)
+	{
+        zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC);
+        zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "redis client is waiting for calling recv." TSRMLS_CC);
 	}
     switch (redis->state)
     {
@@ -3031,10 +3049,15 @@ static PHP_METHOD(swoole_redis_coro, subscribe)
 		context = emalloc(sizeof(php_context));
 		swoole_set_property(getThis(), 0, context);
 	}
-	if (redis->iowait != SW_REDIS_CORO_STATUS_READY)
+	if (redis->iowait == SW_REDIS_CORO_STATUS_WAIT)
 	{
         zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC);
         zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "redis client is waiting for response." TSRMLS_CC);
+	}
+	if (redis->iowait == SW_REDIS_CORO_STATUS_DONE)
+	{
+        zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC);
+        zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "redis client is waiting for calling recv." TSRMLS_CC);
 	}
     switch (redis->state)
     {
@@ -3356,6 +3379,7 @@ void swoole_redis_coro_onConnect(const redisAsyncContext *c, int status)
     {
         ZVAL_BOOL(result, 1);
         redis->state = SWOOLE_REDIS_CORO_STATE_READY;
+		redis->iowait = SW_REDIS_CORO_STATUS_READY;
     }
 	redis->result = result;
 	SwooleG.main_reactor->defer(SwooleG.main_reactor, swoole_redis_coro_resume, redis);

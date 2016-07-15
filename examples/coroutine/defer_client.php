@@ -15,6 +15,8 @@ $server->on('Request', function ($request, $response) {
 	}
 	$redis->defer(true);
 	$redis->get('key');
+	$res = $redis->get('key');//get false
+	var_dump($res);
 
 	var_dump($redis->defer());//get true
 	var_dump($redis->defer(false));//get false
@@ -49,7 +51,11 @@ $server->on('Request', function ($request, $response) {
 	var_dump($res);
 
 	$udp_res = $udp->recv();
+	$res = $mysql->query('select sleep(1)', 2);//get false
+	var_dump($res);
 	$mysql_res = $mysql->recv();
+	$res = $redis->get('key');//get false
+	var_dump($res);
 	$redis_res = $redis->recv();
 
 	var_dump($udp_res, $mysql_res, $redis_res);

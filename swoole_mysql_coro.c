@@ -656,6 +656,12 @@ static PHP_METHOD(swoole_mysql_coro, query)
         RETURN_FALSE;
     }
 
+	if (client->iowait == SW_MYSQL_CORO_STATUS_DONE)
+	{
+        swoole_php_fatal_error(E_WARNING, "mysql client is waiting for calling recv, cannot send new sql query.");
+        RETURN_FALSE;
+	}
+
     swString_clear(mysql_request_buffer);
 
     if (mysql_request(&sql, mysql_request_buffer) < 0)
@@ -799,6 +805,12 @@ static PHP_METHOD(swoole_mysql_coro, close)
         RETURN_FALSE;
     }
 
+	if (client->response.columns)
+	{
+		efree(client->response.columns);
+		client->response.columns = NULL;
+	}
+
     zend_update_property_bool(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("connected"), 0 TSRMLS_CC);
     if (client->state != SW_MYSQL_STATE_QUERY)
     {
@@ -820,6 +832,7 @@ static PHP_METHOD(swoole_mysql_coro, close)
     efree(client->cli);
     client->cli = NULL;
 	client->state = SW_MYSQL_STATE_CLOSED;
+	client->iowait = SW_MYSQL_CORO_STATUS_CLOSED;
 
 	RETURN_TRUE;
 }
@@ -835,6 +848,7 @@ static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event)
 	if (client->response.columns)
 	{
 		efree(client->response.columns);
+		client->response.columns = NULL;
 	}
     zval *zobject = client->object;
 
@@ -897,6 +911,7 @@ static void swoole_mysql_coro_onConnect(mysql_client *client TSRMLS_DC)
     else
     {
 		client->state = SW_MYSQL_STATE_QUERY;
+		client->iowait = SW_MYSQL_CORO_STATUS_READY;
         zend_update_property_bool(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 1 TSRMLS_CC);
         ZVAL_BOOL(result, 1);
     }
@@ -930,6 +945,7 @@ static void swoole_mysql_coro_onTimeout(php_context *ctx)
 	if (client->response.columns)
 	{
 		efree(client->response.columns);
+		client->response.columns = NULL;
 	}
 	client->cli->timeout_id = 0;
 	client->state = SW_MYSQL_STATE_QUERY;
