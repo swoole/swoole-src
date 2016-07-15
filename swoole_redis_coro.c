@@ -3163,11 +3163,11 @@ static PHP_METHOD(swoole_redis_coro, exec)
 		}
 		efree(argv[0]);
 	}
+	redis->iowait = SW_REDIS_CORO_STATUS_WAIT;
 	if (redis->defer)
 	{
 		RETURN_TRUE;
 	}
-	redis->iowait = SW_REDIS_CORO_STATUS_WAIT;
 	php_context *context = swoole_get_property(getThis(), 0);
 	if (!context)
 	{
