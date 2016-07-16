@@ -248,5 +248,6 @@
 #define SW_MYSQL_QUERY_INIT_SIZE         8192
 #define SW_MYSQL_DEFAULT_PORT            3306
 #define SW_MYSQL_CONNECT_TIMEOUT         1.0
+#define SW_MYSQL_DEFAULT_CHARSET         33
 
 #endif /* SWOOLE_CONFIG_H_ */

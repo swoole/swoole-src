@@ -32,6 +32,221 @@ static zend_class_entry *swoole_mysql_class_entry_ptr;
 static zend_class_entry swoole_mysql_exception_ce;
 static zend_class_entry *swoole_mysql_exception_class_entry;
 
+#define UTF8_MB4 "utf8mb4"
+#define UTF8_MB3 "utf8"
+
+typedef struct _mysql_charset
+{
+    unsigned int    nr;
+    const char      *name;
+    const char      *collation;
+} mysql_charset;
+
+static const mysql_charset swoole_mysql_charsets[] =
+{
+    { 1, "big5", "big5_chinese_ci" },
+    { 3, "dec8", "dec8_swedish_ci" },
+    { 4, "cp850", "cp850_general_ci" },
+    { 6, "hp8", "hp8_english_ci" },
+    { 7, "koi8r", "koi8r_general_ci" },
+    { 8, "latin1", "latin1_swedish_ci" },
+    { 5, "latin1", "latin1_german1_ci" },
+    { 9, "latin2", "latin2_general_ci" },
+    { 2, "latin2", "latin2_czech_cs" },
+    { 10, "swe7", "swe7_swedish_ci" },
+    { 11, "ascii", "ascii_general_ci" },
+    { 12, "ujis", "ujis_japanese_ci" },
+    { 13, "sjis", "sjis_japanese_ci" },
+    { 16, "hebrew", "hebrew_general_ci" },
+    { 17, "filename", "filename" },
+    { 18, "tis620", "tis620_thai_ci" },
+    { 19, "euckr", "euckr_korean_ci" },
+    { 21, "latin2", "latin2_hungarian_ci" },
+    { 27, "latin2", "latin2_croatian_ci" },
+    { 22, "koi8u", "koi8u_general_ci" },
+    { 24, "gb2312", "gb2312_chinese_ci" },
+    { 25, "greek", "greek_general_ci" },
+    { 26, "cp1250", "cp1250_general_ci" },
+    { 28, "gbk", "gbk_chinese_ci" },
+    { 30, "latin5", "latin5_turkish_ci" },
+    { 31, "latin1", "latin1_german2_ci" },
+    { 15, "latin1", "latin1_danish_ci" },
+    { 32, "armscii8", "armscii8_general_ci" },
+    { 33, UTF8_MB3, UTF8_MB3"_general_ci" },
+    { 35, "ucs2", "ucs2_general_ci" },
+    { 36, "cp866", "cp866_general_ci" },
+    { 37, "keybcs2", "keybcs2_general_ci" },
+    { 38, "macce", "macce_general_ci" },
+    { 39, "macroman", "macroman_general_ci" },
+    { 40, "cp852", "cp852_general_ci" },
+    { 41, "latin7", "latin7_general_ci" },
+    { 20, "latin7", "latin7_estonian_cs" },
+    { 57, "cp1256", "cp1256_general_ci" },
+    { 59, "cp1257", "cp1257_general_ci" },
+    { 63, "binary", "binary" },
+    { 97, "eucjpms", "eucjpms_japanese_ci" },
+    { 29, "cp1257", "cp1257_lithuanian_ci" },
+    { 31, "latin1", "latin1_german2_ci" },
+    { 34, "cp1250", "cp1250_czech_cs" },
+    { 42, "latin7", "latin7_general_cs" },
+    { 43, "macce", "macce_bin" },
+    { 44, "cp1250", "cp1250_croatian_ci" },
+    { 45, UTF8_MB4, UTF8_MB4"_general_ci" },
+    { 46, UTF8_MB4, UTF8_MB4"_bin" },
+    { 47, "latin1", "latin1_bin" },
+    { 48, "latin1", "latin1_general_ci" },
+    { 49, "latin1", "latin1_general_cs" },
+    { 51, "cp1251", "cp1251_general_ci" },
+    { 14, "cp1251", "cp1251_bulgarian_ci" },
+    { 23, "cp1251", "cp1251_ukrainian_ci" },
+    { 50, "cp1251", "cp1251_bin" },
+    { 52, "cp1251", "cp1251_general_cs" },
+    { 53, "macroman", "macroman_bin" },
+    { 54, "utf16", "utf16_general_ci" },
+    { 55, "utf16", "utf16_bin" },
+    { 56, "utf16le", "utf16le_general_ci" },
+    { 58, "cp1257", "cp1257_bin" },
+    { 60, "utf32", "utf32_general_ci" },
+    { 61, "utf32", "utf32_bin" },
+    { 62, "utf16le", "utf16le_bin" },
+    { 64, "armscii8", "armscii8_bin" },
+    { 65, "ascii", "ascii_bin" },
+    { 66, "cp1250", "cp1250_bin" },
+    { 67, "cp1256", "cp1256_bin" },
+    { 68, "cp866", "cp866_bin" },
+    { 69, "dec8", "dec8_bin" },
+    { 70, "greek", "greek_bin" },
+    { 71, "hebrew", "hebrew_bin" },
+    { 72, "hp8", "hp8_bin" },
+    { 73, "keybcs2", "keybcs2_bin" },
+    { 74, "koi8r", "koi8r_bin" },
+    { 75, "koi8u", "koi8u_bin" },
+    { 77, "latin2", "latin2_bin" },
+    { 78, "latin5", "latin5_bin" },
+    { 79, "latin7", "latin7_bin" },
+    { 80, "cp850", "cp850_bin" },
+    { 81, "cp852", "cp852_bin" },
+    { 82, "swe7", "swe7_bin" },
+    { 83, UTF8_MB3, UTF8_MB3"_bin" },
+    { 84, "big5", "big5_bin" },
+    { 85, "euckr", "euckr_bin" },
+    { 86, "gb2312", "gb2312_bin" },
+    { 87, "gbk", "gbk_bin" },
+    { 88, "sjis", "sjis_bin" },
+    { 89, "tis620", "tis620_bin" },
+    { 90, "ucs2", "ucs2_bin" },
+    { 91, "ujis", "ujis_bin" },
+    { 92, "geostd8", "geostd8_general_ci" },
+    { 93, "geostd8", "geostd8_bin" },
+    { 94, "latin1", "latin1_spanish_ci" },
+    { 95, "cp932", "cp932_japanese_ci" },
+    { 96, "cp932", "cp932_bin" },
+    { 97, "eucjpms", "eucjpms_japanese_ci" },
+    { 98, "eucjpms", "eucjpms_bin" },
+    { 99, "cp1250", "cp1250_polish_ci" },
+    { 128, "ucs2", "ucs2_unicode_ci" },
+    { 129, "ucs2", "ucs2_icelandic_ci" },
+    { 130, "ucs2", "ucs2_latvian_ci" },
+    { 131, "ucs2", "ucs2_romanian_ci" },
+    { 132, "ucs2", "ucs2_slovenian_ci" },
+    { 133, "ucs2", "ucs2_polish_ci" },
+    { 134, "ucs2", "ucs2_estonian_ci" },
+    { 135, "ucs2", "ucs2_spanish_ci" },
+    { 136, "ucs2", "ucs2_swedish_ci" },
+    { 137, "ucs2", "ucs2_turkish_ci" },
+    { 138, "ucs2", "ucs2_czech_ci" },
+    { 139, "ucs2", "ucs2_danish_ci" },
+    { 140, "ucs2", "ucs2_lithuanian_ci" },
+    { 141, "ucs2", "ucs2_slovak_ci" },
+    { 142, "ucs2", "ucs2_spanish2_ci" },
+    { 143, "ucs2", "ucs2_roman_ci" },
+    { 144, "ucs2", "ucs2_persian_ci" },
+    { 145, "ucs2", "ucs2_esperanto_ci" },
+    { 146, "ucs2", "ucs2_hungarian_ci" },
+    { 147, "ucs2", "ucs2_sinhala_ci" },
+    { 148, "ucs2", "ucs2_german2_ci" },
+    { 149, "ucs2", "ucs2_croatian_ci" },
+    { 150, "ucs2", "ucs2_unicode_520_ci" },
+    { 151, "ucs2", "ucs2_vietnamese_ci" },
+    { 160, "utf32", "utf32_unicode_ci" },
+    { 161, "utf32", "utf32_icelandic_ci" },
+    { 162, "utf32", "utf32_latvian_ci" },
+    { 163, "utf32", "utf32_romanian_ci" },
+    { 164, "utf32", "utf32_slovenian_ci" },
+    { 165, "utf32", "utf32_polish_ci" },
+    { 166, "utf32", "utf32_estonian_ci" },
+    { 167, "utf32", "utf32_spanish_ci" },
+    { 168, "utf32", "utf32_swedish_ci" },
+    { 169, "utf32", "utf32_turkish_ci" },
+    { 170, "utf32", "utf32_czech_ci" },
+    { 171, "utf32", "utf32_danish_ci" },
+    { 172, "utf32", "utf32_lithuanian_ci" },
+    { 173, "utf32", "utf32_slovak_ci" },
+    { 174, "utf32", "utf32_spanish2_ci" },
+    { 175, "utf32", "utf32_roman_ci" },
+    { 176, "utf32", "utf32_persian_ci" },
+    { 177, "utf32", "utf32_esperanto_ci" },
+    { 178, "utf32", "utf32_hungarian_ci" },
+    { 179, "utf32", "utf32_sinhala_ci" },
+    { 180, "utf32", "utf32_german2_ci" },
+    { 181, "utf32", "utf32_croatian_ci" },
+    { 182, "utf32", "utf32_unicode_520_ci" },
+    { 183, "utf32", "utf32_vietnamese_ci" },
+    { 192, UTF8_MB3, UTF8_MB3"_unicode_ci" },
+    { 193, UTF8_MB3, UTF8_MB3"_icelandic_ci" },
+    { 194, UTF8_MB3, UTF8_MB3"_latvian_ci" },
+    { 195, UTF8_MB3, UTF8_MB3"_romanian_ci" },
+    { 196, UTF8_MB3, UTF8_MB3"_slovenian_ci" },
+    { 197, UTF8_MB3, UTF8_MB3"_polish_ci" },
+    { 198, UTF8_MB3, UTF8_MB3"_estonian_ci" },
+    { 199, UTF8_MB3, UTF8_MB3"_spanish_ci" },
+    { 200, UTF8_MB3, UTF8_MB3"_swedish_ci" },
+    { 201, UTF8_MB3, UTF8_MB3"_turkish_ci" },
+    { 202, UTF8_MB3, UTF8_MB3"_czech_ci" },
+    { 203, UTF8_MB3, UTF8_MB3"_danish_ci" },
+    { 204, UTF8_MB3, UTF8_MB3"_lithuanian_ci" },
+    { 205, UTF8_MB3, UTF8_MB3"_slovak_ci" },
+    { 206, UTF8_MB3, UTF8_MB3"_spanish2_ci" },
+    { 207, UTF8_MB3, UTF8_MB3"_roman_ci" },
+    { 208, UTF8_MB3, UTF8_MB3"_persian_ci" },
+    { 209, UTF8_MB3, UTF8_MB3"_esperanto_ci" },
+    { 210, UTF8_MB3, UTF8_MB3"_hungarian_ci" },
+    { 211, UTF8_MB3, UTF8_MB3"_sinhala_ci" },
+    { 212, UTF8_MB3, UTF8_MB3"_german2_ci" },
+    { 213, UTF8_MB3, UTF8_MB3"_croatian_ci" },
+    { 214, UTF8_MB3, UTF8_MB3"_unicode_520_ci" },
+    { 215, UTF8_MB3, UTF8_MB3"_vietnamese_ci" },
+
+    { 224, UTF8_MB4, UTF8_MB4"_unicode_ci" },
+    { 225, UTF8_MB4, UTF8_MB4"_icelandic_ci" },
+    { 226, UTF8_MB4, UTF8_MB4"_latvian_ci" },
+    { 227, UTF8_MB4, UTF8_MB4"_romanian_ci" },
+    { 228, UTF8_MB4, UTF8_MB4"_slovenian_ci" },
+    { 229, UTF8_MB4, UTF8_MB4"_polish_ci" },
+    { 230, UTF8_MB4, UTF8_MB4"_estonian_ci" },
+    { 231, UTF8_MB4, UTF8_MB4"_spanish_ci" },
+    { 232, UTF8_MB4, UTF8_MB4"_swedish_ci" },
+    { 233, UTF8_MB4, UTF8_MB4"_turkish_ci" },
+    { 234, UTF8_MB4, UTF8_MB4"_czech_ci" },
+    { 235, UTF8_MB4, UTF8_MB4"_danish_ci" },
+    { 236, UTF8_MB4, UTF8_MB4"_lithuanian_ci" },
+    { 237, UTF8_MB4, UTF8_MB4"_slovak_ci" },
+    { 238, UTF8_MB4, UTF8_MB4"_spanish2_ci" },
+    { 239, UTF8_MB4, UTF8_MB4"_roman_ci" },
+    { 240, UTF8_MB4, UTF8_MB4"_persian_ci" },
+    { 241, UTF8_MB4, UTF8_MB4"_esperanto_ci" },
+    { 242, UTF8_MB4, UTF8_MB4"_hungarian_ci" },
+    { 243, UTF8_MB4, UTF8_MB4"_sinhala_ci" },
+    { 244, UTF8_MB4, UTF8_MB4"_german2_ci" },
+    { 245, UTF8_MB4, UTF8_MB4"_croatian_ci" },
+    { 246, UTF8_MB4, UTF8_MB4"_unicode_520_ci" },
+    { 247, UTF8_MB4, UTF8_MB4"_vietnamese_ci" },
+    { 248, "gb18030", "gb18030_chinese_ci" },
+    { 249, "gb18030", "gb18030_bin" },
+    { 254, UTF8_MB3, UTF8_MB3"_general_cs" },
+    { 0, NULL, NULL},
+};
+
 static const zend_function_entry swoole_mysql_methods[] =
 {
     PHP_ME(swoole_mysql, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
@@ -46,6 +261,7 @@ static const zend_function_entry swoole_mysql_methods[] =
 static int mysql_request(swString *sql, swString *buffer);
 static int mysql_handshake(mysql_connector *connector, char *buf, int len);
 static int mysql_get_result(mysql_connector *connector, char *buf, int len);
+static int mysql_get_charset(char *name);
 
 #ifdef SW_MYSQL_DEBUG
 static void mysql_client_info(mysql_client *client);
@@ -78,6 +294,20 @@ static int mysql_request(swString *sql, swString *buffer)
     buffer->str[4] = SW_MYSQL_COM_QUERY;
     buffer->length = 5;
     return swString_append(buffer, sql);
+}
+
+static int mysql_get_charset(char *name)
+{
+    const mysql_charset *c = swoole_mysql_charsets;
+    while (c[0].nr != 0)
+    {
+        if (!strcasecmp(c->name, name))
+        {
+            return c->nr;
+        }
+        ++c;
+    }
+    return -1;
 }
 
 static int mysql_get_result(mysql_connector *connector, char *buf, int len)
@@ -199,7 +429,7 @@ static int mysql_handshake(mysql_connector *connector, char *buf, int len)
     tmp += 4;
 
     //character set
-    *tmp = 10;
+    *tmp = connector->character_set;
     tmp += 1;
 
     //string[23]     reserved (all [0])
@@ -417,7 +647,6 @@ static void mysql_column_info(mysql_field *field)
 
 #endif
 
-
 static PHP_METHOD(swoole_mysql, __construct)
 {
     if (!mysql_request_buffer)
@@ -439,6 +668,7 @@ static PHP_METHOD(swoole_mysql, connect)
 {
     zval *server_info;
     zval *callback;
+    char buf[2048];
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "az", &server_info, &callback) == FAILURE)
     {
@@ -513,8 +743,22 @@ static PHP_METHOD(swoole_mysql, connect)
     {
         connector->timeout = SW_MYSQL_CONNECT_TIMEOUT;
     }
+    if (php_swoole_array_get_value(_ht, "charset", value))
+    {
+        convert_to_string(value);
+        connector->character_set = mysql_get_charset(Z_STRVAL_P(value));
+        if (connector->character_set < 0)
+        {
+            snprintf(buf, sizeof(buf), "unknown charset [%s].", Z_STRVAL_P(value));
+            zend_throw_exception(swoole_mysql_exception_class_entry, buf, 11 TSRMLS_CC);
+            RETURN_FALSE;
+        }
+    }
+    else
+    {
+        connector->character_set = SW_MYSQL_DEFAULT_CHARSET;
+    }
 
-    char buf[2048];
     swClient *cli = emalloc(sizeof(swClient));
     int type = SW_SOCK_TCP;
 
@@ -655,7 +899,7 @@ static PHP_METHOD(swoole_mysql, __destruct)
     }
     else if (client->state != SW_MYSQL_STATE_CLOSED && client->cli)
     {
-        zval *retval;
+        zval *retval = NULL;
         zval *zobject = getThis();
         client->cli->destroyed = 1;
         sw_zend_call_method_with_0_params(&zobject, swoole_mysql_class_entry_ptr, NULL, "close", &retval);
