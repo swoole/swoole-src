@@ -134,6 +134,16 @@ enum mysql_field_types
     SW_MYSQL_TYPE_GEOMETRY = 255
 };
 
+#ifdef SW_COROUTINE
+typedef enum
+{
+	SW_MYSQL_CORO_STATUS_CLOSED,
+	SW_MYSQL_CORO_STATUS_READY,
+	SW_MYSQL_CORO_STATUS_WAIT,
+	SW_MYSQL_CORO_STATUS_DONE
+} mysql_io_status;
+#endif
+
 #define SW_MYSQL_CLIENT_CONNECT_WITH_DB          8
 #define SW_MYSQL_CLIENT_PROTOCOL_41              512
 #define SW_MYSQL_CLIENT_PLUGIN_AUTH              (1UL << 19)
@@ -226,6 +236,12 @@ typedef union
 
 typedef struct
 {
+#ifdef SW_COROUTINE
+	zend_bool defer;
+	zend_bool _defer;
+	mysql_io_status iowait;
+	zval *result;
+#endif
     uint8_t state;
     uint8_t handshake;
     swString *buffer;
