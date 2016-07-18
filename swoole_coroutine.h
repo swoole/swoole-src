@@ -20,6 +20,7 @@
 #define SWOOLE_COROUTINE_H_
 
 #define coro_global _coro_global
+#define DEFAULT_MAX_CORO_NUM 3000
 
 #define CORO_END 0
 #define CORO_YIELD 1

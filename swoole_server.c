@@ -1486,6 +1486,17 @@ PHP_METHOD(swoole_server, set)
             serv->worker_num = SwooleG.cpu_num;
         }
     }
+#ifdef SW_COROUTINE
+	if (php_swoole_array_get_value(vht, "max_coro_num", v))
+	{
+		convert_to_long(v);
+		COROG.max_coro_num = (int) Z_LVAL_P(v);
+		if (COROG.max_coro_num <= 0)
+		{
+			COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
+		}
+	}
+#endif
     //dispatch_mode
     if (php_swoole_array_get_value(vht, "dispatch_mode", v))
     {
