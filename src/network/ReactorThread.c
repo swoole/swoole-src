@@ -648,7 +648,7 @@ int swReactorThread_send(swSendData *_send)
             return SW_ERR;
         }
         //connection output buffer overflow
-        if (conn->out_buffer->length >= serv->buffer_output_size)
+        if (conn->out_buffer->length >= conn->buffer_size)
         {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "connection#%d output buffer overflow.", fd);
             conn->overflow = 1;
