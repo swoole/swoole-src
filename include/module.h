@@ -71,13 +71,13 @@ static sw_inline void swVal_string(swVal *val, const char *str, int length)
 
 static sw_inline void swArgs_clear(void)
 {
-    swString_clear(SwooleG.module_input_buffer);
-    SwooleG.module_input_buffer->length = 0;
+    swString_clear(SwooleG.module_stack);
+    SwooleG.module_stack->length = 0;
 }
 
 static sw_inline void swArgs_push_long(long lval)
 {
-    swString *buffer = SwooleG.module_input_buffer;
+    swString *buffer = SwooleG.module_stack;
     if (buffer->size < sizeof(swVal) + sizeof(long))
     {
         swString_extend(buffer, buffer->size * 2);
@@ -92,7 +92,7 @@ static sw_inline void swArgs_push_long(long lval)
 
 static sw_inline void swArgs_push_bool(uint8_t bval)
 {
-    swString *buffer = SwooleG.module_input_buffer;
+    swString *buffer = SwooleG.module_stack;
     if (buffer->size < sizeof(swVal) + sizeof(uint8_t))
     {
         swString_extend(buffer, buffer->size * 2);
@@ -107,7 +107,7 @@ static sw_inline void swArgs_push_bool(uint8_t bval)
 
 static sw_inline void swArgs_push_double(double fval)
 {
-    swString *buffer = SwooleG.module_input_buffer;
+    swString *buffer = SwooleG.module_stack;
     if (buffer->size < sizeof(swVal) + sizeof(double))
     {
         swString_extend(buffer, buffer->size * 2);
@@ -122,7 +122,7 @@ static sw_inline void swArgs_push_double(double fval)
 
 static sw_inline void swArgs_push_string(const char *str, int length)
 {
-    swString *buffer = SwooleG.module_input_buffer;
+    swString *buffer = SwooleG.module_stack;
     int size = sizeof(swVal) + length + 1;
     if (buffer->size < size)
     {
@@ -136,7 +136,7 @@ static sw_inline void swArgs_push_string(const char *str, int length)
 
 static sw_inline long swArgs_pop_long()
 {
-    swString *buffer = SwooleG.module_input_buffer;
+    swString *buffer = SwooleG.module_stack;
     assert(buffer->length >= buffer->offset);
     long lval;
     swVal *v = (swVal*) (buffer->str + buffer->offset);
@@ -148,7 +148,7 @@ static sw_inline long swArgs_pop_long()
 
 static sw_inline uint8_t swArgs_pop_bool()
 {
-    swString *buffer = SwooleG.module_input_buffer;
+    swString *buffer = SwooleG.module_stack;
     assert(buffer->length >= buffer->offset);
     uint8_t bval;
     swVal *v = (swVal*) (buffer->str + buffer->offset);
@@ -160,7 +160,7 @@ static sw_inline uint8_t swArgs_pop_bool()
 
 static sw_inline double swArgs_pop_double()
 {
-    swString *buffer = SwooleG.module_input_buffer;
+    swString *buffer = SwooleG.module_stack;
     assert(buffer->length >= buffer->offset);
     double dval;
     swVal *v = (swVal*) (buffer->str + buffer->offset);
@@ -172,7 +172,7 @@ static sw_inline double swArgs_pop_double()
 
 static sw_inline char* swArgs_pop_string(int *length)
 {
-    swString *buffer = SwooleG.module_input_buffer;
+    swString *buffer = SwooleG.module_stack;
     assert(buffer->length >= buffer->offset);
     swVal *v = (swVal*) (buffer->str + buffer->offset);
     assert(v->type == SW_VAL_STRING);
@@ -183,7 +183,7 @@ static sw_inline char* swArgs_pop_string(int *length)
 
 static sw_inline swVal* swReturnValue_long(long lval)
 {
-    swString *buffer = SwooleG.module_output_buffer;
+    swString *buffer = SwooleG.module_stack;
     if (buffer->size < sizeof(swVal) + sizeof(long))
     {
         swString_extend(buffer, buffer->size * 2);
@@ -195,7 +195,7 @@ static sw_inline swVal* swReturnValue_long(long lval)
 
 static sw_inline swVal* swReturnValue_bool(uint8_t bval)
 {
-    swString *buffer = SwooleG.module_output_buffer;
+    swString *buffer = SwooleG.module_stack;
     if (buffer->size < sizeof(swVal) + sizeof(uint8_t))
     {
         swString_extend(buffer, buffer->size * 2);
@@ -207,7 +207,7 @@ static sw_inline swVal* swReturnValue_bool(uint8_t bval)
 
 static sw_inline swVal* swReturnValue_double(double dval)
 {
-    swString *buffer = SwooleG.module_output_buffer;
+    swString *buffer = SwooleG.module_stack;
     if (buffer->size < sizeof(swVal) + sizeof(double))
     {
         swString_extend(buffer, buffer->size * 2);
@@ -219,7 +219,7 @@ static sw_inline swVal* swReturnValue_double(double dval)
 
 static sw_inline swVal* swReturnValue_string(char *str, int len)
 {
-    swString *buffer = SwooleG.module_output_buffer;
+    swString *buffer = SwooleG.module_stack;
     if (buffer->size < (sizeof(swVal) + len + 1))
     {
         swString_extend(buffer, sizeof(swVal) + len + 1);
@@ -231,7 +231,7 @@ static sw_inline swVal* swReturnValue_string(char *str, int len)
 
 static sw_inline long swReturnValue_get_long(long lval)
 {
-    swString *buffer = SwooleG.module_output_buffer;
+    swString *buffer = SwooleG.module_stack;
     swVal *val = (swVal *) buffer->str;
     assert(val->type == SW_VAL_LONG);
     return *(long *) val->value;
@@ -239,7 +239,7 @@ static sw_inline long swReturnValue_get_long(long lval)
 
 static sw_inline uint8_t swReturnValue_get_bool(uint8_t bval)
 {
-    swString *buffer = SwooleG.module_output_buffer;
+    swString *buffer = SwooleG.module_stack;
     swVal *val = (swVal *) buffer->str;
     assert(val->type == SW_VAL_BOOL);
     return *(uint8_t *) val->value;
@@ -247,7 +247,7 @@ static sw_inline uint8_t swReturnValue_get_bool(uint8_t bval)
 
 static sw_inline double swReturnValue_get_double(double dval)
 {
-    swString *buffer = SwooleG.module_output_buffer;
+    swString *buffer = SwooleG.module_stack;
     swVal *val = (swVal *) buffer->str;
     assert(val->type == SW_VAL_DOUBLE);
     return *(double *) val->value;
@@ -255,7 +255,7 @@ static sw_inline double swReturnValue_get_double(double dval)
 
 static sw_inline char* swReturnValue_get_string(int *len)
 {
-    swString *buffer = SwooleG.module_output_buffer;
+    swString *buffer = SwooleG.module_stack;
     swVal *val = (swVal *) buffer->str;
     assert(val->type == SW_VAL_STRING);
     *len = val->length;

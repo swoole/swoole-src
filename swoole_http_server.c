@@ -90,7 +90,6 @@ zval _php_sw_http_server_callbacks[HTTP_SERVER_CALLBACK_NUM];
 #endif
 
 static int http_onReceive(swServer *serv, swEventData *req);
-static void http_onClose(swServer *serv, swDataHead *info);
 
 static int http_request_on_path(php_http_parser *parser, const char *at, size_t length);
 static int http_request_on_query_string(php_http_parser *parser, const char *at, size_t length);
@@ -592,12 +591,10 @@ static int multipart_body_on_data(multipart_parser* p, const char *at, size_t le
     {
         return 0;
     }
-
     int n = fwrite(at, sizeof(char), length, (FILE *) p->fp);
     if (n != length)
     {
-        swoole_http_client *client = (swoole_http_client*) p->data;
-        zval *files = client->context.request.zfiles;
+        zval *files = ctx->request.zfiles;
         zval *multipart_header = NULL;
         sw_zend_hash_find(Z_ARRVAL_P(files), ctx->current_input_name, strlen(ctx->current_input_name) + 1, (void **) &multipart_header);
         add_assoc_long(multipart_header, "error", HTTP_UPLOAD_ERR_CANT_WRITE);
@@ -607,7 +604,6 @@ static int multipart_body_on_data(multipart_parser* p, const char *at, size_t le
 
         swWarn("write upload file failed. Error %s[%d]", strerror(errno), errno);
     }
-
     return 0;
 }
 
@@ -829,39 +825,6 @@ static int http_request_message_complete(php_http_parser *parser)
     return 0;
 }
 
-static void http_onClose(swServer *serv, swDataHead *info)
-{
-    swConnection *conn = swWorker_get_connection(SwooleG.serv, info->fd);
-    if (!conn)
-    {
-        swWarn("connection[%d] is closed.", info->fd);
-        return;
-    }
-    //other server port
-    if (serv->listen_list->sock != info->from_fd)
-    {
-        return php_swoole_onClose(serv, info);
-    }
-
-    swoole_http_client *client = swArray_fetch(http_client_array, conn->fd);
-    if (client)
-    {
-        http_context *ctx = &client->context;
-        if (ctx->response.zobject && !ctx->end)
-        {
-#if PHP_MAJOR_VERSION < 7
-            TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-            swoole_http_context_free(ctx TSRMLS_CC);
-        }
-    }
-
-    if (php_sw_server_callbacks[SW_SERVER_CB_onClose] != NULL)
-    {
-        php_swoole_onClose(serv, info);
-    }
-}
-
 static int http_onReceive(swServer *serv, swEventData *req)
 {
     int fd = req->info.fd;
@@ -884,7 +847,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
         return swoole_websocket_onMessage(req);
     }
 
-    swoole_http_client *client = swArray_alloc(http_client_array, conn->fd);
+    swoole_http_client *client = swArray_fetch(http_client_array, conn->fd);
     if (!client)
     {
         return SW_OK;
@@ -903,8 +866,8 @@ static int http_onReceive(swServer *serv, swEventData *req)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    php_http_parser *parser = &client->context.parser;
     http_context *ctx = swoole_http_context_new(client TSRMLS_CC);
+    php_http_parser *parser = &ctx->parser;
     zval *zserver = ctx->request.zserver;
 
     parser->data = ctx;
@@ -923,6 +886,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
     if (n < 0)
     {
         sw_zval_ptr_dtor(&zdata);
+        efree(client);
         swWarn("php_http_parser_execute failed.");
 
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
@@ -980,7 +944,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
         //websocket handshake
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION && php_sw_http_server_callbacks[HTTP_CALLBACK_onHandShake] == NULL)
         {
-            return swoole_websocket_onHandshake(client);
+            return swoole_websocket_onHandshake(ctx);
         }
         
 #ifndef SW_COROUTINE
@@ -1004,7 +968,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
             //no have onRequest callback
             if (php_sw_http_server_callbacks[callback] == NULL)
             {
-                swoole_websocket_onReuqest(client);
+                swoole_websocket_onReuqest(ctx);
                 return SW_OK;
             }
         }
@@ -1128,21 +1092,12 @@ static PHP_METHOD(swoole_http_server, on)
 
 http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC)
 {
-    http_context *ctx;
-    if (client->http2)
+    http_context *ctx = emalloc(sizeof(http_context));
+    if (!ctx)
     {
-        ctx = emalloc(sizeof(http_context));
-        if (!ctx)
-        {
-            swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "emalloc(%ld) failed.", sizeof(http_context));
-            return NULL;
-        }
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "emalloc(%ld) failed.", sizeof(http_context));
+        return NULL;
     }
-    else
-    {
-        ctx = &client->context;
-    }
-
     bzero(ctx, sizeof(http_context));
 
     zval *zrequest_object;
@@ -1190,16 +1145,26 @@ void swoole_http_context_free(http_context *ctx TSRMLS_DC)
     swoole_set_object(ctx->response.zobject, NULL);
 
 #ifdef SW_USE_HTTP2
-    if (ctx->buffer)
+    if (ctx->request->post_buffer)
     {
-        swString_free(ctx->buffer);
+        swString_free(ctx->request->post_buffer);
     }
 #endif
 
-    ctx->end = 1;
-    ctx->send_header = 0;
-    ctx->gzip_enable = 0;
-    ctx->response.zobject = NULL;
+    http_request *req = &ctx->request;
+    if (req->path)
+    {
+        efree(req->path);
+    }
+    if (req->post_content)
+    {
+        efree(req->post_content);
+    }
+    if (req->zdata)
+    {
+        sw_zval_ptr_dtor(&req->zdata);
+    }
+    efree(ctx);
 }
 
 static char *http_status_message(int code)
@@ -1385,7 +1350,6 @@ static PHP_METHOD(swoole_http_server, start)
 #endif
 
     serv->onReceive = http_onReceive;
-    serv->onClose = http_onClose;
 
     zval *zsetting = sw_zend_read_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zsetting == NULL || ZVAL_IS_NULL(zsetting))
@@ -1443,18 +1407,19 @@ static PHP_METHOD(swoole_http_request, rawcontent)
         RETURN_FALSE;
     }
 
-    if (ctx->request.post_content)
+    http_request *req = &ctx->request;
+    if (req->post_content)
     {
-        SW_RETVAL_STRINGL(ctx->request.post_content, ctx->request.post_length, 1);
+        SW_RETVAL_STRINGL(req->post_content, req->post_length, 1);
     }
-    else if (ctx->request.post_length > 0)
+    else if (req->post_length > 0)
     {
-        SW_RETVAL_STRINGL(Z_STRVAL_P(ctx->request.zdata) + Z_STRLEN_P(ctx->request.zdata) - ctx->request.post_length, ctx->request.post_length, 1);
+        SW_RETVAL_STRINGL(Z_STRVAL_P(req->zdata) + Z_STRLEN_P(req->zdata) - req->post_length, req->post_length, 1);
     }
 #ifdef SW_USE_HTTP2
-    else if (ctx->http2 && ctx->buffer)
+    else if (req->post_buffer)
     {
-        SW_RETVAL_STRINGL(ctx->buffer->str, ctx->buffer->length, 1);
+        SW_RETVAL_STRINGL(req->post_buffer->str, req->post_buffer->length, 1);
     }
 #endif
     else
@@ -1465,25 +1430,10 @@ static PHP_METHOD(swoole_http_request, rawcontent)
 
 static PHP_METHOD(swoole_http_request, __destruct)
 {
-    http_context *context = swoole_get_object(getThis());
-    if (!context)
-    {
-        return;
-    }
-
-    http_request *req = &context->request;
-    if (req->path)
-    {
-        efree(req->path);
-    }
-    if (req->post_content)
-    {
-        efree(req->post_content);
-    }
+    zval *zfiles = sw_zend_read_property(swoole_http_request_class_entry_ptr, getThis(), ZEND_STRL("files"), 1 TSRMLS_CC);
     //upload files
-    if (req->zfiles)
+    if (zfiles && !ZVAL_IS_NULL(zfiles))
     {
-        zval *zfiles = req->zfiles;
         zval *value;
         char *key;
         int keytype;
@@ -1504,7 +1454,6 @@ static PHP_METHOD(swoole_http_request, __destruct)
         }
         SW_HASHTABLE_FOREACH_END();
     }
-    sw_zval_ptr_dtor(&req->zdata);
     swoole_set_object(getThis(), NULL);
 }
 
@@ -1594,12 +1543,12 @@ static http_context* http_get_context(zval *object, int check_end TSRMLS_DC)
     http_context *ctx = swoole_get_object(object);
     if (!ctx)
     {
-        swoole_php_fatal_error(E_WARNING, "http client is not exist.");
+        swoole_php_fatal_error(E_WARNING, "Http request is end.");
         return NULL;
     }
     if (check_end && ctx->end)
     {
-        swoole_php_fatal_error(E_WARNING, "http client is response end.");
+        swoole_php_fatal_error(E_WARNING, "Http request is end.");
         return NULL;
     }
     return ctx;
@@ -2325,7 +2274,7 @@ static PHP_METHOD(swoole_http_response, gzip)
 static PHP_METHOD(swoole_http_response, __destruct)
 {
     http_context *context = swoole_get_object(getThis());
-    if (context && !context->end)
+    if (context)
     {
         zval *zobject = getThis();
         zval *retval = NULL;

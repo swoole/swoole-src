@@ -382,7 +382,14 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     struct timeval timeo;
     timeo.tv_sec = 1;
     timeo.tv_usec = 0;
-    return reactor->wait(reactor, &timeo);
+    reactor->wait(reactor, &timeo);
+
+    if (serv->onWorkerStop)
+    {
+        serv->onWorkerStop(serv, worker->id);
+    }
+
+    return SW_OK;
 }
 
 int swReactorProcess_onClose(swReactor *reactor, swEvent *event)

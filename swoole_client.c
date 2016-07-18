@@ -748,13 +748,10 @@ static PHP_METHOD(swoole_client, connect)
     }
 
     swClient *cli = swoole_get_object(getThis());
-    if (cli && !cli->keep)
+    if (cli)
     {
-        if (!cli->socket->closed)
-        {
-            cli->close(cli);
-        }
-        php_swoole_client_free(getThis(), cli TSRMLS_CC);
+        swoole_php_fatal_error(E_WARNING, "The client is already connected server.");
+        RETURN_FALSE;
     }
 
     cli = php_swoole_client_new(getThis(), host, host_len, port);
