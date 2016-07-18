@@ -42,6 +42,8 @@
 #include <nghttp2/nghttp2.h>
 #endif
 
+static swArray *http_client_array;
+
 swString *swoole_http_buffer;
 swString *swoole_zlib_buffer;
 swString *swoole_http_form_data_buffer;
@@ -840,7 +842,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
         return swoole_websocket_onMessage(req);
     }
 
-    swoole_http_client *client = emalloc(sizeof(swoole_http_client));
+    swoole_http_client *client = swArray_fetch(http_client_array, conn->fd);
     if (!client)
     {
         return SW_OK;
@@ -1059,7 +1061,6 @@ http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC)
     }
     bzero(ctx, sizeof(http_context));
 
-    http_request *req = &ctx->request;
     zval *zrequest_object;
 #if PHP_MAJOR_VERSION >= 7
     zrequest_object = &ctx->request._zobject;
@@ -1068,7 +1069,7 @@ http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC)
 #endif
     ctx->request.zobject = zrequest_object;
     object_init_ex(zrequest_object, swoole_http_request_class_entry_ptr);
-    swoole_set_object(zrequest_object, req);
+    swoole_set_object(zrequest_object, ctx);
 
     zval *zresponse_object;
 #if PHP_MAJOR_VERSION >= 7
@@ -1111,10 +1112,20 @@ void swoole_http_context_free(http_context *ctx TSRMLS_DC)
     }
 #endif
 
-    ctx->end = 1;
-    ctx->send_header = 0;
-    ctx->gzip_enable = 0;
-    ctx->response.zobject = NULL;
+    http_request *req = &ctx->request;
+    if (req->path)
+    {
+        efree(req->path);
+    }
+    if (req->post_content)
+    {
+        efree(req->post_content);
+    }
+    if (req->zdata)
+    {
+        sw_zval_ptr_dtor(&req->zdata);
+    }
+    efree(ctx);
 }
 
 static char *http_status_message(int code)
@@ -1269,6 +1280,13 @@ static PHP_METHOD(swoole_http_server, start)
         RETURN_FALSE;
     }
 
+    http_client_array = swArray_new(1024, sizeof(swoole_http_client));
+    if (!http_client_array)
+    {
+        swoole_php_fatal_error(E_ERROR, "swArray_new(1024, %ld) failed.", sizeof(swoole_http_client));
+        RETURN_FALSE;
+    }
+
     swoole_http_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
     if (!swoole_http_buffer)
     {
@@ -1344,12 +1362,13 @@ static PHP_METHOD(swoole_http_request, rawcontent)
         RETURN_FALSE;
     }
 
-    http_request *req = swoole_get_object(getThis());
-    if (!req)
+    http_context *ctx = http_get_context(getThis(), 0 TSRMLS_CC);
+    if (!ctx)
     {
         RETURN_FALSE;
     }
 
+    http_request *req = &ctx->request;
     if (req->post_content)
     {
         SW_RETVAL_STRINGL(req->post_content, req->post_length, 1);
@@ -1485,12 +1504,12 @@ static http_context* http_get_context(zval *object, int check_end TSRMLS_DC)
     http_context *ctx = swoole_get_object(object);
     if (!ctx)
     {
-        swoole_php_fatal_error(E_WARNING, "http client is not exist.");
+        swoole_php_fatal_error(E_WARNING, "Http request is end.");
         return NULL;
     }
     if (check_end && ctx->end)
     {
-        swoole_php_fatal_error(E_WARNING, "http client is response end.");
+        swoole_php_fatal_error(E_WARNING, "Http request is end.");
         return NULL;
     }
     return ctx;
@@ -2218,25 +2237,12 @@ static PHP_METHOD(swoole_http_response, __destruct)
     http_context *context = swoole_get_object(getThis());
     if (context)
     {
-        if (!context->end)
+        zval *zobject = getThis();
+        zval *retval = NULL;
+        sw_zend_call_method_with_0_params(&zobject, swoole_http_response_class_entry_ptr, NULL, "end", &retval);
+        if (retval)
         {
-            zval *zobject = getThis();
-            zval *retval = NULL;
-            sw_zend_call_method_with_0_params(&zobject, swoole_http_response_class_entry_ptr, NULL, "end", &retval);
-            if (retval)
-            {
-                sw_zval_ptr_dtor(&retval);
-            }
+            sw_zval_ptr_dtor(&retval);
         }
-        http_request *req = &context->request;
-        if (req->path)
-        {
-            efree(req->path);
-        }
-        if (req->post_content)
-        {
-            efree(req->post_content);
-        }
-        efree(context);
     }
 }
