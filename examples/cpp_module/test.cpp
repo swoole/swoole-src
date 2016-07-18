@@ -26,7 +26,7 @@ extern "C"
     int swModule_init(swModule *);
 }
 
-swVal* cppMethod(swModule *module, swString *args, int argc);
+swVal* cppMethod(swModule *module, int argc);
 
 int swModule_init(swModule *module)
 {
@@ -35,14 +35,22 @@ int swModule_init(swModule *module)
     string s = "123456789";
     string php_func = "test";
 
-    swParam_long(1234);
-    swParam_double(1234.56);
-    swParam_string(s.c_str(), s.length());
+    swArgs_push_long(1234);
+    swArgs_push_double(1234.56);
+    swArgs_push_string(s.c_str(), s.length());
 
     swModule_register_function(module, (char *) "cppMethod", cppMethod);
 
-    swVal* a = SwooleG.call_php_func(php_func.c_str(), php_func.length());
-    sw_free(a);
+    int ret = SwooleG.call_php_func(php_func.c_str());
+    if (ret < 0)
+    {
+        cout << "call php function failed." << endl;
+    }
+    else if (ret > 0)
+    {
+        int length;
+        cout << "return value type=" << ret << ", value=" <<  swReturnValue_get_string(&length) << endl;
+    }
     return SW_OK;
 }
 
@@ -50,15 +58,17 @@ int swModule_init(swModule *module)
  * $module = swoole_load_module(__DIR__.'/test.so');
  * $module->cppMethod("abc", 1234, 459.55, "hello");
  */
-swVal* cppMethod(swModule *module, swString *args, int argc)
+swVal* cppMethod(swModule *module, int argc)
 {
     int l_a, l_d;
-    char *a = swParam_parse_string(args, &l_a);
-    long b = swParam_parse_long(args);
-    double c = swParam_parse_double(args);
-    char *d = swParam_parse_string(args, &l_d);
+    char *a = swArgs_pop_string(&l_a);
+    long b = swArgs_pop_long();
+    double c = swArgs_pop_double();
+    char *d = swArgs_pop_string(&l_d);
 
-    char buf[256];
-    int len = snprintf(buf, sizeof(buf), "a[%d]=%s, b=%ld, c=%f, d[%d]=%s\n", l_a, a, b, c, l_d, d);
-    return swReturnValue_string(buf, len);
+    return swReturnValue_long(1234);
+
+    //char buf[256];
+    //int len = snprintf(buf, sizeof(buf), "a[%d]=%s, b=%ld, c=%f, d[%d]=%s\n", l_a, a, b, c, l_d, d);
+    //return swReturnValue_string(buf, len);
 }

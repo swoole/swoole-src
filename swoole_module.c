@@ -27,7 +27,7 @@ ZEND_END_ARG_INFO()
 static zend_class_entry swoole_module_ce;
 static zend_class_entry *swoole_module_class_entry_ptr;
 
-static swVal* swoole_call_php_func(const char *name, int length);
+static int swoole_call_php_func(const char *name);
 static PHP_METHOD(swoole_module, __call);
 
 static const zend_function_entry swoole_module_methods[] =
@@ -76,13 +76,8 @@ void swoole_module_init(int module_number TSRMLS_DC)
     swoole_module_class_entry_ptr = zend_register_internal_class(&swoole_module_ce TSRMLS_CC);
 
     SwooleG.call_php_func = swoole_call_php_func;
-    SwooleG.call_php_func_args = swString_new(8192);
-    if (SwooleG.call_php_func_args == NULL)
-    {
-        swoole_php_fatal_error(E_ERROR, "swString_new(8192) failed.");
-    }
-    SwooleG.module_return_value = swString_new(8192);
-    if (SwooleG.module_return_value == NULL)
+    SwooleG.module_stack = swString_new(8192);
+    if (SwooleG.module_stack == NULL)
     {
         swoole_php_fatal_error(E_ERROR, "swString_new(8192) failed.");
     }
@@ -140,24 +135,24 @@ static PHP_METHOD(swoole_module, __call)
         switch(SW_Z_TYPE_P(value))
         {
         case IS_STRING:
-            swParam_string(Z_STRVAL_P(value), Z_STRLEN_P(value));
+            swArgs_push_string(Z_STRVAL_P(value), Z_STRLEN_P(value));
             break;
         case IS_LONG:
-            swParam_long(Z_LVAL_P(value));
+            swArgs_push_long(Z_LVAL_P(value));
             break;
         case IS_DOUBLE:
-            swParam_double(Z_DVAL_P(value));
+            swArgs_push_double(Z_DVAL_P(value));
             break;
 #if PHP_MAJOR_VERSION < 7
         case IS_BOOL:
-            swParam_bool(Z_BVAL_P(value));
+            swArgs_push_bool(Z_BVAL_P(value));
             break;
 #else
         case IS_TRUE:
-            swParam_bool(1);
+            swArgs_push_bool(1);
             break;
         case IS_FALSE:
-            swParam_bool(0);
+            swArgs_push_bool(0);
             break;
 #endif
         default:
@@ -166,20 +161,14 @@ static PHP_METHOD(swoole_module, __call)
         }
     SW_HASHTABLE_FOREACH_END();
 
-    swString *args = swString_dup2(SwooleG.call_php_func_args);
-    if (args == NULL)
-    {
-        return;
-    }
-    swVal *retval = func(module, args, Z_ARRVAL_P(params)->nNumOfElements);
+    swVal *retval = func(module, Z_ARRVAL_P(params)->nNumOfElements);
     if (swVal_to_zval(retval, return_value) < 0)
     {
         RETURN_NULL();
     }
-    swString_free(args);
 }
 
-static swVal* swoole_call_php_func(const char *name, int length)
+static int swoole_call_php_func(const char *name)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -191,13 +180,14 @@ static swVal* swoole_call_php_func(const char *name, int length)
 #if PHP_MAJOR_VERSION >= 7
     zval _zval_array[SW_PHP_FUNCTION_MAX_ARG];
 #endif
-    zval *arg;
 
+    zval *arg;
+    int argc = SwooleG.call_php_func_argc;
     uint32_t offset = 0;
     swVal *val;
-    void *params = SwooleG.call_php_func_args->str;
+    void *params = SwooleG.module_stack->str;
 
-    for (i = 0; i < SwooleG.call_php_func_argc; i++)
+    for (i = 0; i < argc; i++)
     {
 #if PHP_MAJOR_VERSION >= 7
         zval_array[i] = &_zval_array[i];
@@ -205,13 +195,17 @@ static swVal* swoole_call_php_func(const char *name, int length)
         SW_ALLOC_INIT_ZVAL(zval_array[i]);
 #endif
         arg = zval_array[i];
-        val = params + offset;
+        val = (swVal *) (params + offset);
         if (swVal_to_zval(val, arg) < 0)
         {
-            return NULL;
+            return SW_ERR;
         }
         args[i] = &zval_array[i];
         offset += sizeof(swVal) + val->length;
+        if (val->type == SW_VAL_STRING)
+        {
+            offset += 1;
+        }
     }
 
     zval *func_name;
@@ -219,10 +213,10 @@ static swVal* swoole_call_php_func(const char *name, int length)
     SW_MAKE_STD_ZVAL(func_name);
     SW_ZVAL_STRING(func_name, name, 1);
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, func_name, &retval, SwooleG.call_php_func_argc, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, func_name, &retval, argc, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_server: onPipeMessage handler error");
-        return NULL;
+        return SW_ERR;
     }
     if (EG(exception))
     {
@@ -230,51 +224,47 @@ static swVal* swoole_call_php_func(const char *name, int length)
     }
     //clear input buffer
     swArgs_clear();
-    for (i = 0; i < SwooleG.call_php_func_argc; i++)
+    for (i = 0; i < argc; i++)
     {
         sw_zval_ptr_dtor(&zval_array[i]);
     }
     //return value
     if (!retval)
     {
-        return NULL;
+        return 0;
     }
-    swVal *val_c = NULL;
+
+    swString *buffer = SwooleG.module_stack;
     switch(Z_TYPE_P(retval))
     {
 #if PHP_MAJOR_VERSION < 7
     case IS_BOOL:
-        val_c = sw_malloc(sizeof(swVal) + 1);
-        swVal_bool(val_c, Z_BVAL_P(retval));
+        swReturnValue_bool(Z_BVAL_P(retval));
         break;
 #else
     case IS_TRUE:
-        val_c = sw_malloc(sizeof(swVal) + 1);
-        swVal_bool(val_c, 1);
+        swReturnValue_bool(1);
         break;
     case IS_FALSE:
-        val_c = sw_malloc(sizeof(swVal) + 1);
-        swVal_bool(val_c, 0);
+        swReturnValue_bool(0);
         break;
 #endif
     case IS_STRING:
-        val_c = sw_malloc(sizeof(swVal) + Z_STRLEN_P(retval) + 1);
-        swVal_string(val_c, Z_STRVAL_P(retval) , Z_STRLEN_P(retval));
+        swReturnValue_string(Z_STRVAL_P(retval) , Z_STRLEN_P(retval));
         break;
     case IS_LONG:
-        val_c = sw_malloc(sizeof(swVal) + sizeof(long));
-        swVal_long(val_c, Z_LVAL_P(retval));
+        swReturnValue_long(Z_LVAL_P(retval));
         break;
     case IS_DOUBLE:
-        val_c = sw_malloc(sizeof(swVal) + sizeof(double));
-        swVal_double(val_c, Z_DVAL_P(retval));
+        swReturnValue_double(Z_DVAL_P(retval));
         break;
     case IS_NULL:
-        return NULL;
+        return 0;
     default:
         swWarn("unknown type.");
         break;
     }
     sw_zval_ptr_dtor(&retval);
-    return val_c;
+    swVal *php_retval = (swVal *) buffer->str;
+    return php_retval->type;
 }
