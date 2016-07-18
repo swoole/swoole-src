@@ -26,6 +26,10 @@
 #include <ext/spl/spl_iterators.h>
 #endif
 
+#ifdef SW_COROUTINE
+#include "swoole_coroutine.h"
+#endif
+
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
 
 extern sapi_module_struct sapi_module;

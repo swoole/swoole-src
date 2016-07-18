@@ -75,4 +75,10 @@ int swoole_multi_is_multi_mode(zval *swoole_multi);
 long php_swoole_add_timer_coro(int ms, int cli_fd, void* param TSRMLS_DC);
 int php_swoole_clear_timer_coro(long id TSRMLS_DC);
 
+void swoole_multi_init(int module_number TSRMLS_DC);
+void swoole_client_multi_init(int module_number TSRMLS_DC);
+void swoole_client_coro_init(int module_number TSRMLS_DC);
+void swoole_mysql_coro_init(int module_number TSRMLS_DC);
+void swoole_http_client_coro_init(int module_number TSRMLS_DC);
+
 #endif

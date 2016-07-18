@@ -311,8 +311,6 @@ static void http_client_coro_onTimeout(php_context *ctx)
 
 }
 
-
-
 void swoole_http_client_coro_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_http_client_coro_ce, "swoole_http_client_coro", "Swoole\\Coroutine\\Http\\Client", swoole_http_client_coro_methods);
