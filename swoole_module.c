@@ -76,13 +76,8 @@ void swoole_module_init(int module_number TSRMLS_DC)
     swoole_module_class_entry_ptr = zend_register_internal_class(&swoole_module_ce TSRMLS_CC);
 
     SwooleG.call_php_func = swoole_call_php_func;
-    SwooleG.module_input_buffer = swString_new(8192);
-    if (SwooleG.module_input_buffer == NULL)
-    {
-        swoole_php_fatal_error(E_ERROR, "swString_new(8192) failed.");
-    }
-    SwooleG.module_output_buffer = swString_new(8192);
-    if (SwooleG.module_output_buffer == NULL)
+    SwooleG.module_stack = swString_new(8192);
+    if (SwooleG.module_stack == NULL)
     {
         swoole_php_fatal_error(E_ERROR, "swString_new(8192) failed.");
     }
@@ -190,7 +185,7 @@ static int swoole_call_php_func(const char *name)
     int argc = SwooleG.call_php_func_argc;
     uint32_t offset = 0;
     swVal *val;
-    void *params = SwooleG.module_input_buffer->str;
+    void *params = SwooleG.module_stack->str;
 
     for (i = 0; i < argc; i++)
     {
@@ -200,13 +195,17 @@ static int swoole_call_php_func(const char *name)
         SW_ALLOC_INIT_ZVAL(zval_array[i]);
 #endif
         arg = zval_array[i];
-        val = params + offset;
+        val = (swVal *) (params + offset);
         if (swVal_to_zval(val, arg) < 0)
         {
             return SW_ERR;
         }
         args[i] = &zval_array[i];
         offset += sizeof(swVal) + val->length;
+        if (val->type == SW_VAL_STRING)
+        {
+            offset += 1;
+        }
     }
 
     zval *func_name;
@@ -235,7 +234,7 @@ static int swoole_call_php_func(const char *name)
         return 0;
     }
 
-    swString *buffer = SwooleG.module_output_buffer;
+    swString *buffer = SwooleG.module_stack;
     switch(Z_TYPE_P(retval))
     {
 #if PHP_MAJOR_VERSION < 7

@@ -1819,8 +1819,7 @@ typedef struct
 
     pthread_t heartbeat_pidt;
 
-    swString *module_input_buffer;
-    swString *module_output_buffer;
+    swString *module_stack;
     int call_php_func_argc;
     int (*call_php_func)(const char *name);
 
