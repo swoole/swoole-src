@@ -295,10 +295,12 @@ static void http_client_coro_onTimeout(php_context *ctx)
           zend_update_property_long(swoole_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), 110 TSRMLS_CC);
           http_client_free(zobject TSRMLS_CC);
           swoole_set_object(zobject, NULL);
+		  /*
           if (swoole_multi_resume(zobject, zdata) == CORO_MULTI)
           {
              return;
           }
+		  */
           int ret = coro_resume(ctx, zdata, &retval);
           if (ret > 0) {
               goto free_zdata;
@@ -315,8 +317,6 @@ void swoole_http_client_coro_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_http_client_coro_ce, "swoole_http_client_coro", "Swoole\\Coroutine\\Http\\Client", swoole_http_client_coro_methods);
     swoole_http_client_coro_class_entry_ptr = zend_register_internal_class(&swoole_http_client_coro_ce TSRMLS_CC);
-
-    swoole_http_client_coro_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_http_client_coro_ce, swoole_client_multi_class_entry_ptr, "swoole_client_multi" TSRMLS_CC);
 
     zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
@@ -373,10 +373,12 @@ static void http_client_coro_onError(swClient *cli)
     }
     swoole_set_object(zobject, NULL);
 
+	/*
     if (swoole_multi_resume(zobject, zdata) == CORO_MULTI)
     {
         return;
     }
+	*/
 
     int ret = coro_resume(sw_current_context, zdata, &retval);
     if (ret > 0)
@@ -426,10 +428,12 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
         }
         ZVAL_BOOL(zdata, 0); //return false
     }
+	/*
     if (swoole_multi_resume(zobject, zdata) == CORO_MULTI)
     {
         return;
     }
+	*/
 
     /*if next cr*/
     php_context *sw_current_context = swoole_get_property(zobject, 1);
@@ -1180,10 +1184,12 @@ static PHP_METHOD(swoole_http_client_coro, execute)
     context->coro_params = getThis();
     context->coro_params_cnt = 1;
     http->cli->timeout_id = php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, (void *)context TSRMLS_CC);
+	/*
     if (swoole_multi_is_multi_mode(getThis()) == CORO_MULTI)
     {
         RETURN_TRUE;
     }
+	*/
     coro_save(return_value, return_value_ptr, context);
     coro_yield();
 }
@@ -1218,10 +1224,12 @@ static PHP_METHOD(swoole_http_client_coro, get)
     context->coro_params = getThis();
     context->coro_params_cnt = 1;
     http->cli->timeout_id = php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, (void *)context TSRMLS_CC);
+	/*
     if (swoole_multi_is_multi_mode(getThis()) == CORO_MULTI)
     {
         RETURN_TRUE;
     }
+	*/
     coro_save(return_value, return_value_ptr, context);
     coro_yield();
 }
@@ -1255,10 +1263,12 @@ static PHP_METHOD(swoole_http_client_coro, post)
         SW_CHECK_RETURN(ret);
     }
       //if multi  no timeout
+	  /*
     if (swoole_multi_is_multi_mode(getThis()) == CORO_MULTI)
     {
         RETURN_TRUE;
     }
+	*/
     http_client *http = swoole_get_object(getThis());
     php_context *context = swoole_get_property(getThis(), 1);
     if (!context)
@@ -1270,10 +1280,12 @@ static PHP_METHOD(swoole_http_client_coro, post)
     context->coro_params = getThis();
     context->coro_params_cnt = 1;
     http->cli->timeout_id = php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, (void *)context TSRMLS_CC);
+	/*
     if (swoole_multi_is_multi_mode(getThis()) == CORO_MULTI)
     {
         RETURN_TRUE;
     }
+	*/
     coro_save(return_value, return_value_ptr, context);
     coro_yield();
 }

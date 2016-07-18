@@ -20,12 +20,14 @@
 
 #ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
-#include "swoole_mysql_coro.h"
+#include "swoole_mysql.h"
 
 static PHP_METHOD(swoole_mysql_coro, __construct);
 static PHP_METHOD(swoole_mysql_coro, __destruct);
 static PHP_METHOD(swoole_mysql_coro, connect);
 static PHP_METHOD(swoole_mysql_coro, query);
+static PHP_METHOD(swoole_mysql_coro, recv);
+static PHP_METHOD(swoole_mysql_coro, defer);
 static PHP_METHOD(swoole_mysql_coro, close);
 
 static zend_class_entry swoole_mysql_coro_ce;
@@ -34,12 +36,229 @@ static zend_class_entry *swoole_mysql_coro_class_entry_ptr;
 static zend_class_entry swoole_mysql_coro_exception_ce;
 static zend_class_entry *swoole_mysql_coro_exception_class_entry;
 
+#define UTF8_MB4 "utf8mb4"
+#define UTF8_MB3 "utf8"
+
+typedef struct _mysql_charset
+{
+    unsigned int    nr;
+    const char      *name;
+    const char      *collation;
+} mysql_charset;
+
+static const mysql_charset swoole_mysql_charsets[] =
+{
+    { 1, "big5", "big5_chinese_ci" },
+    { 3, "dec8", "dec8_swedish_ci" },
+    { 4, "cp850", "cp850_general_ci" },
+    { 6, "hp8", "hp8_english_ci" },
+    { 7, "koi8r", "koi8r_general_ci" },
+    { 8, "latin1", "latin1_swedish_ci" },
+    { 5, "latin1", "latin1_german1_ci" },
+    { 9, "latin2", "latin2_general_ci" },
+    { 2, "latin2", "latin2_czech_cs" },
+    { 10, "swe7", "swe7_swedish_ci" },
+    { 11, "ascii", "ascii_general_ci" },
+    { 12, "ujis", "ujis_japanese_ci" },
+    { 13, "sjis", "sjis_japanese_ci" },
+    { 16, "hebrew", "hebrew_general_ci" },
+    { 17, "filename", "filename" },
+    { 18, "tis620", "tis620_thai_ci" },
+    { 19, "euckr", "euckr_korean_ci" },
+    { 21, "latin2", "latin2_hungarian_ci" },
+    { 27, "latin2", "latin2_croatian_ci" },
+    { 22, "koi8u", "koi8u_general_ci" },
+    { 24, "gb2312", "gb2312_chinese_ci" },
+    { 25, "greek", "greek_general_ci" },
+    { 26, "cp1250", "cp1250_general_ci" },
+    { 28, "gbk", "gbk_chinese_ci" },
+    { 30, "latin5", "latin5_turkish_ci" },
+    { 31, "latin1", "latin1_german2_ci" },
+    { 15, "latin1", "latin1_danish_ci" },
+    { 32, "armscii8", "armscii8_general_ci" },
+    { 33, UTF8_MB3, UTF8_MB3"_general_ci" },
+    { 35, "ucs2", "ucs2_general_ci" },
+    { 36, "cp866", "cp866_general_ci" },
+    { 37, "keybcs2", "keybcs2_general_ci" },
+    { 38, "macce", "macce_general_ci" },
+    { 39, "macroman", "macroman_general_ci" },
+    { 40, "cp852", "cp852_general_ci" },
+    { 41, "latin7", "latin7_general_ci" },
+    { 20, "latin7", "latin7_estonian_cs" },
+    { 57, "cp1256", "cp1256_general_ci" },
+    { 59, "cp1257", "cp1257_general_ci" },
+    { 63, "binary", "binary" },
+    { 97, "eucjpms", "eucjpms_japanese_ci" },
+    { 29, "cp1257", "cp1257_lithuanian_ci" },
+    { 31, "latin1", "latin1_german2_ci" },
+    { 34, "cp1250", "cp1250_czech_cs" },
+    { 42, "latin7", "latin7_general_cs" },
+    { 43, "macce", "macce_bin" },
+    { 44, "cp1250", "cp1250_croatian_ci" },
+    { 45, UTF8_MB4, UTF8_MB4"_general_ci" },
+    { 46, UTF8_MB4, UTF8_MB4"_bin" },
+    { 47, "latin1", "latin1_bin" },
+    { 48, "latin1", "latin1_general_ci" },
+    { 49, "latin1", "latin1_general_cs" },
+    { 51, "cp1251", "cp1251_general_ci" },
+    { 14, "cp1251", "cp1251_bulgarian_ci" },
+    { 23, "cp1251", "cp1251_ukrainian_ci" },
+    { 50, "cp1251", "cp1251_bin" },
+    { 52, "cp1251", "cp1251_general_cs" },
+    { 53, "macroman", "macroman_bin" },
+    { 54, "utf16", "utf16_general_ci" },
+    { 55, "utf16", "utf16_bin" },
+    { 56, "utf16le", "utf16le_general_ci" },
+    { 58, "cp1257", "cp1257_bin" },
+    { 60, "utf32", "utf32_general_ci" },
+    { 61, "utf32", "utf32_bin" },
+    { 62, "utf16le", "utf16le_bin" },
+    { 64, "armscii8", "armscii8_bin" },
+    { 65, "ascii", "ascii_bin" },
+    { 66, "cp1250", "cp1250_bin" },
+    { 67, "cp1256", "cp1256_bin" },
+    { 68, "cp866", "cp866_bin" },
+    { 69, "dec8", "dec8_bin" },
+    { 70, "greek", "greek_bin" },
+    { 71, "hebrew", "hebrew_bin" },
+    { 72, "hp8", "hp8_bin" },
+    { 73, "keybcs2", "keybcs2_bin" },
+    { 74, "koi8r", "koi8r_bin" },
+    { 75, "koi8u", "koi8u_bin" },
+    { 77, "latin2", "latin2_bin" },
+    { 78, "latin5", "latin5_bin" },
+    { 79, "latin7", "latin7_bin" },
+    { 80, "cp850", "cp850_bin" },
+    { 81, "cp852", "cp852_bin" },
+    { 82, "swe7", "swe7_bin" },
+    { 83, UTF8_MB3, UTF8_MB3"_bin" },
+    { 84, "big5", "big5_bin" },
+    { 85, "euckr", "euckr_bin" },
+    { 86, "gb2312", "gb2312_bin" },
+    { 87, "gbk", "gbk_bin" },
+    { 88, "sjis", "sjis_bin" },
+    { 89, "tis620", "tis620_bin" },
+    { 90, "ucs2", "ucs2_bin" },
+    { 91, "ujis", "ujis_bin" },
+    { 92, "geostd8", "geostd8_general_ci" },
+    { 93, "geostd8", "geostd8_bin" },
+    { 94, "latin1", "latin1_spanish_ci" },
+    { 95, "cp932", "cp932_japanese_ci" },
+    { 96, "cp932", "cp932_bin" },
+    { 97, "eucjpms", "eucjpms_japanese_ci" },
+    { 98, "eucjpms", "eucjpms_bin" },
+    { 99, "cp1250", "cp1250_polish_ci" },
+    { 128, "ucs2", "ucs2_unicode_ci" },
+    { 129, "ucs2", "ucs2_icelandic_ci" },
+    { 130, "ucs2", "ucs2_latvian_ci" },
+    { 131, "ucs2", "ucs2_romanian_ci" },
+    { 132, "ucs2", "ucs2_slovenian_ci" },
+    { 133, "ucs2", "ucs2_polish_ci" },
+    { 134, "ucs2", "ucs2_estonian_ci" },
+    { 135, "ucs2", "ucs2_spanish_ci" },
+    { 136, "ucs2", "ucs2_swedish_ci" },
+    { 137, "ucs2", "ucs2_turkish_ci" },
+    { 138, "ucs2", "ucs2_czech_ci" },
+    { 139, "ucs2", "ucs2_danish_ci" },
+    { 140, "ucs2", "ucs2_lithuanian_ci" },
+    { 141, "ucs2", "ucs2_slovak_ci" },
+    { 142, "ucs2", "ucs2_spanish2_ci" },
+    { 143, "ucs2", "ucs2_roman_ci" },
+    { 144, "ucs2", "ucs2_persian_ci" },
+    { 145, "ucs2", "ucs2_esperanto_ci" },
+    { 146, "ucs2", "ucs2_hungarian_ci" },
+    { 147, "ucs2", "ucs2_sinhala_ci" },
+    { 148, "ucs2", "ucs2_german2_ci" },
+    { 149, "ucs2", "ucs2_croatian_ci" },
+    { 150, "ucs2", "ucs2_unicode_520_ci" },
+    { 151, "ucs2", "ucs2_vietnamese_ci" },
+    { 160, "utf32", "utf32_unicode_ci" },
+    { 161, "utf32", "utf32_icelandic_ci" },
+    { 162, "utf32", "utf32_latvian_ci" },
+    { 163, "utf32", "utf32_romanian_ci" },
+    { 164, "utf32", "utf32_slovenian_ci" },
+    { 165, "utf32", "utf32_polish_ci" },
+    { 166, "utf32", "utf32_estonian_ci" },
+    { 167, "utf32", "utf32_spanish_ci" },
+    { 168, "utf32", "utf32_swedish_ci" },
+    { 169, "utf32", "utf32_turkish_ci" },
+    { 170, "utf32", "utf32_czech_ci" },
+    { 171, "utf32", "utf32_danish_ci" },
+    { 172, "utf32", "utf32_lithuanian_ci" },
+    { 173, "utf32", "utf32_slovak_ci" },
+    { 174, "utf32", "utf32_spanish2_ci" },
+    { 175, "utf32", "utf32_roman_ci" },
+    { 176, "utf32", "utf32_persian_ci" },
+    { 177, "utf32", "utf32_esperanto_ci" },
+    { 178, "utf32", "utf32_hungarian_ci" },
+    { 179, "utf32", "utf32_sinhala_ci" },
+    { 180, "utf32", "utf32_german2_ci" },
+    { 181, "utf32", "utf32_croatian_ci" },
+    { 182, "utf32", "utf32_unicode_520_ci" },
+    { 183, "utf32", "utf32_vietnamese_ci" },
+    { 192, UTF8_MB3, UTF8_MB3"_unicode_ci" },
+    { 193, UTF8_MB3, UTF8_MB3"_icelandic_ci" },
+    { 194, UTF8_MB3, UTF8_MB3"_latvian_ci" },
+    { 195, UTF8_MB3, UTF8_MB3"_romanian_ci" },
+    { 196, UTF8_MB3, UTF8_MB3"_slovenian_ci" },
+    { 197, UTF8_MB3, UTF8_MB3"_polish_ci" },
+    { 198, UTF8_MB3, UTF8_MB3"_estonian_ci" },
+    { 199, UTF8_MB3, UTF8_MB3"_spanish_ci" },
+    { 200, UTF8_MB3, UTF8_MB3"_swedish_ci" },
+    { 201, UTF8_MB3, UTF8_MB3"_turkish_ci" },
+    { 202, UTF8_MB3, UTF8_MB3"_czech_ci" },
+    { 203, UTF8_MB3, UTF8_MB3"_danish_ci" },
+    { 204, UTF8_MB3, UTF8_MB3"_lithuanian_ci" },
+    { 205, UTF8_MB3, UTF8_MB3"_slovak_ci" },
+    { 206, UTF8_MB3, UTF8_MB3"_spanish2_ci" },
+    { 207, UTF8_MB3, UTF8_MB3"_roman_ci" },
+    { 208, UTF8_MB3, UTF8_MB3"_persian_ci" },
+    { 209, UTF8_MB3, UTF8_MB3"_esperanto_ci" },
+    { 210, UTF8_MB3, UTF8_MB3"_hungarian_ci" },
+    { 211, UTF8_MB3, UTF8_MB3"_sinhala_ci" },
+    { 212, UTF8_MB3, UTF8_MB3"_german2_ci" },
+    { 213, UTF8_MB3, UTF8_MB3"_croatian_ci" },
+    { 214, UTF8_MB3, UTF8_MB3"_unicode_520_ci" },
+    { 215, UTF8_MB3, UTF8_MB3"_vietnamese_ci" },
+
+    { 224, UTF8_MB4, UTF8_MB4"_unicode_ci" },
+    { 225, UTF8_MB4, UTF8_MB4"_icelandic_ci" },
+    { 226, UTF8_MB4, UTF8_MB4"_latvian_ci" },
+    { 227, UTF8_MB4, UTF8_MB4"_romanian_ci" },
+    { 228, UTF8_MB4, UTF8_MB4"_slovenian_ci" },
+    { 229, UTF8_MB4, UTF8_MB4"_polish_ci" },
+    { 230, UTF8_MB4, UTF8_MB4"_estonian_ci" },
+    { 231, UTF8_MB4, UTF8_MB4"_spanish_ci" },
+    { 232, UTF8_MB4, UTF8_MB4"_swedish_ci" },
+    { 233, UTF8_MB4, UTF8_MB4"_turkish_ci" },
+    { 234, UTF8_MB4, UTF8_MB4"_czech_ci" },
+    { 235, UTF8_MB4, UTF8_MB4"_danish_ci" },
+    { 236, UTF8_MB4, UTF8_MB4"_lithuanian_ci" },
+    { 237, UTF8_MB4, UTF8_MB4"_slovak_ci" },
+    { 238, UTF8_MB4, UTF8_MB4"_spanish2_ci" },
+    { 239, UTF8_MB4, UTF8_MB4"_roman_ci" },
+    { 240, UTF8_MB4, UTF8_MB4"_persian_ci" },
+    { 241, UTF8_MB4, UTF8_MB4"_esperanto_ci" },
+    { 242, UTF8_MB4, UTF8_MB4"_hungarian_ci" },
+    { 243, UTF8_MB4, UTF8_MB4"_sinhala_ci" },
+    { 244, UTF8_MB4, UTF8_MB4"_german2_ci" },
+    { 245, UTF8_MB4, UTF8_MB4"_croatian_ci" },
+    { 246, UTF8_MB4, UTF8_MB4"_unicode_520_ci" },
+    { 247, UTF8_MB4, UTF8_MB4"_vietnamese_ci" },
+    { 248, "gb18030", "gb18030_chinese_ci" },
+    { 249, "gb18030", "gb18030_bin" },
+    { 254, UTF8_MB3, UTF8_MB3"_general_cs" },
+    { 0, NULL, NULL},
+};
+
 static const zend_function_entry swoole_mysql_coro_methods[] =
 {
     PHP_ME(swoole_mysql_coro, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
     PHP_ME(swoole_mysql_coro, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_mysql_coro, connect, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql_coro, query, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql_coro, recv, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql_coro, defer, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql_coro, close, NULL, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -47,6 +266,7 @@ static const zend_function_entry swoole_mysql_coro_methods[] =
 static int mysql_request(swString *sql, swString *buffer);
 static int mysql_handshake(mysql_connector *connector, char *buf, int len);
 static int mysql_get_result(mysql_connector *connector, char *buf, int len);
+static int mysql_get_charset(char *name);
 
 #ifdef SW_MYSQL_DEBUG
 static void mysql_client_info(mysql_client *client);
@@ -65,7 +285,7 @@ static int isset_event_callback = 0;
 void swoole_mysql_coro_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_coro_ce, "swoole_mysql_coro", "Swoole\\Coroutine\\MySQL", swoole_mysql_coro_methods);
-	swoole_mysql_coro_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_mysql_coro_ce, swoole_client_multi_class_entry_ptr, "swoole_client_multi" TSRMLS_CC);
+    swoole_mysql_coro_class_entry_ptr = zend_register_internal_class(&swoole_mysql_coro_ce TSRMLS_CC);
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_coro_exception_ce, "swoole_mysql_coro_exception", "Swoole\\MySQL\\Exception", NULL);
     swoole_mysql_coro_exception_class_entry = sw_zend_register_internal_class_ex(&swoole_mysql_coro_exception_ce, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
@@ -90,6 +310,20 @@ static int mysql_request(swString *sql, swString *buffer)
     buffer->str[4] = SW_MYSQL_COM_QUERY;
     buffer->length = 5;
     return swString_append(buffer, sql);
+}
+
+static int mysql_get_charset(char *name)
+{
+    const mysql_charset *c = swoole_mysql_charsets;
+    while (c[0].nr != 0)
+    {
+        if (!strcasecmp(c->name, name))
+        {
+            return c->nr;
+        }
+        ++c;
+    }
+    return -1;
 }
 
 static int mysql_get_result(mysql_connector *connector, char *buf, int len)
@@ -211,7 +445,7 @@ static int mysql_handshake(mysql_connector *connector, char *buf, int len)
     tmp += 4;
 
     //character set
-    *tmp = 10;
+    *tmp = connector->character_set;
     tmp += 1;
 
     //string[23]     reserved (all [0])
@@ -306,7 +540,7 @@ static int mysql_response(mysql_client *client)
             n_buf --;
 
             /* error */
-            if (client->response.response_type == 0xFF)
+            if (client->response.response_type == 0xff)
             {
                 client->response.error_code = mysql_uint2korr(p);
                 /* status flag 1byte (#), skip.. */
@@ -316,12 +550,12 @@ static int mysql_response(mysql_client *client)
                 return SW_OK;
             }
             /* eof */
-            else if (client->response.response_type == 254)
+            else if (client->response.response_type == 0xfe)
             {
                 client->response.warnings = mysql_uint2korr(p);
                 client->response.status_code = mysql_uint2korr(p + 2);
                 client->state = SW_MYSQL_STATE_READ_END;
-                return SW_ERR;
+                return SW_OK;
             }
             /* ok */
             else if (client->response.response_type == 0)
@@ -350,8 +584,13 @@ static int mysql_response(mysql_client *client)
             /* result set */
             else
             {
-                client->buffer->offset += 5;
-                client->response.num_column = client->response.response_type;
+                //Protocol::LengthEncodedInteger
+                ret = mysql_length_coded_binary(p - 1, (ulong_t *) &client->response.num_column, &nul, n_buf + 1);
+                if (ret < 0)
+                {
+                    return SW_ERR;
+                }
+                client->buffer->offset += (4 + ret);
                 client->response.columns = ecalloc(client->response.num_column, sizeof(mysql_field));
                 client->state = SW_MYSQL_STATE_READ_FIELD;
                 break;
@@ -445,6 +684,7 @@ static PHP_METHOD(swoole_mysql_coro, __construct)
 static PHP_METHOD(swoole_mysql_coro, connect)
 {
     zval *server_info;
+    char buf[2048];
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &server_info) == FAILURE)
     {
@@ -455,6 +695,18 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     zval *value;
 
     mysql_client *client = swoole_get_object(getThis());
+
+    if (client->cli)
+    {
+		//This is reconnect, close previous connection
+        zval *retval;
+        sw_zend_call_method_with_0_params(&getThis(), swoole_mysql_coro_class_entry_ptr, NULL, "close", &retval);
+        if (retval)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
+    }
+
     mysql_connector *connector = &client->connector;
 
     if (php_swoole_array_get_value(_ht, "host", value))
@@ -519,8 +771,22 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     {
         connector->timeout = SW_MYSQL_CONNECT_TIMEOUT;
     }
+    if (php_swoole_array_get_value(_ht, "charset", value))
+    {
+        convert_to_string(value);
+        connector->character_set = mysql_get_charset(Z_STRVAL_P(value));
+        if (connector->character_set < 0)
+        {
+            snprintf(buf, sizeof(buf), "unknown charset [%s].", Z_STRVAL_P(value));
+            zend_throw_exception(swoole_mysql_coro_exception_class_entry, buf, 11 TSRMLS_CC);
+            RETURN_FALSE;
+        }
+    }
+    else
+    {
+        connector->character_set = SW_MYSQL_DEFAULT_CHARSET;
+    }
 
-    char buf[2048];
     swClient *cli = emalloc(sizeof(swClient));
     int type = SW_SOCK_TCP;
 
@@ -637,6 +903,12 @@ static PHP_METHOD(swoole_mysql_coro, query)
         RETURN_FALSE;
     }
 
+	if (client->iowait == SW_MYSQL_CORO_STATUS_DONE)
+	{
+        swoole_php_fatal_error(E_WARNING, "mysql client is waiting for calling recv, cannot send new sql query.");
+        RETURN_FALSE;
+	}
+
     swString_clear(mysql_request_buffer);
 
     if (mysql_request(&sql, mysql_request_buffer) < 0)
@@ -664,14 +936,74 @@ static PHP_METHOD(swoole_mysql_coro, query)
     {
         client->state = SW_MYSQL_STATE_READ_START;
 		php_context *context = swoole_get_property(getThis(), 0);
-		client->cli->timeout_id = php_swoole_add_timer_coro((int)(timeout*1000), client->fd, (void *)context TSRMLS_CC);
-		if (swoole_multi_is_multi_mode(getThis()) == CORO_MULTI)
+		client->cli->timeout_id = php_swoole_add_timer_coro((int)(timeout*1000), client->fd, (void *)context);
+		if (client->defer)
 		{
+			client->iowait = SW_MYSQL_CORO_STATUS_WAIT;
 			RETURN_TRUE;
 		}
 		coro_save(return_value, return_value_ptr, context);
 		coro_yield();
     }
+}
+
+static PHP_METHOD(swoole_mysql_coro, defer)
+{
+	zend_bool defer = 1;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b", &defer) == FAILURE)
+    {
+        return;
+    }
+
+    mysql_client *client = swoole_get_object(getThis());
+	if (client->defer && client->iowait == SW_MYSQL_CORO_STATUS_WAIT && !defer)
+	{
+		RETURN_FALSE;
+	}
+
+	client->defer = defer;
+
+	RETURN_TRUE
+}
+
+static PHP_METHOD(swoole_mysql_coro, recv)
+{
+    mysql_client *client = swoole_get_object(getThis());
+    if (!client)
+    {
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql_coro.");
+        RETURN_FALSE;
+    }
+
+    if (!client->cli)
+    {
+        swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
+        RETURN_FALSE;
+    }
+
+	if (!client->defer)
+	{
+		RETURN_FALSE;
+	}
+
+	if (client->iowait == SW_MYSQL_CORO_STATUS_DONE)
+	{
+		client->iowait = SW_MYSQL_CORO_STATUS_READY;
+		zval *result = client->result;
+		client->result = NULL;
+		RETURN_ZVAL(result, 0, 1);
+	}
+
+	if (client->iowait != SW_MYSQL_CORO_STATUS_WAIT)
+	{
+		RETURN_FALSE;
+	}
+
+	client->_defer = 1;
+	php_context *context = swoole_get_property(getThis(), 0);
+	coro_save(return_value, return_value_ptr, context);
+	coro_yield();
 }
 
 static PHP_METHOD(swoole_mysql_coro, __destruct)
@@ -720,6 +1052,12 @@ static PHP_METHOD(swoole_mysql_coro, close)
         RETURN_FALSE;
     }
 
+	if (client->response.columns)
+	{
+		efree(client->response.columns);
+		client->response.columns = NULL;
+	}
+
     zend_update_property_bool(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("connected"), 0 TSRMLS_CC);
     if (client->state != SW_MYSQL_STATE_QUERY)
     {
@@ -740,6 +1078,8 @@ static PHP_METHOD(swoole_mysql_coro, close)
 	sw_free(client->cli->socket);
     efree(client->cli);
     client->cli = NULL;
+	client->state = SW_MYSQL_STATE_CLOSED;
+	client->iowait = SW_MYSQL_CORO_STATUS_CLOSED;
 
 	RETURN_TRUE;
 }
@@ -764,11 +1104,14 @@ static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event)
 	zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_error"), "EPOLLERR/EPOLLHUP/EPOLLRDHUP happen!" TSRMLS_CC);
 	zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_errno"), 104 TSRMLS_CC);
     ZVAL_BOOL(result, 0);
-	if (swoole_multi_resume(zobject, result) == CORO_MULTI)
+	if (client->defer && !client->_defer)
 	{
-		result = NULL;
+		client->iowait = SW_MYSQL_CORO_STATUS_DONE;
+		client->result = result;
 		return SW_OK;
 	}
+	client->_defer = 0;
+	client->iowait = SW_MYSQL_CORO_STATUS_READY;
 	php_context *sw_current_context = swoole_get_property(zobject, 0);
 	int ret = coro_resume(sw_current_context, result, &retval);
     sw_zval_ptr_dtor(&result);
@@ -809,6 +1152,8 @@ static void swoole_mysql_coro_onConnect(mysql_client *client TSRMLS_DC)
     }
     else
     {
+		client->state = SW_MYSQL_STATE_QUERY;
+		client->iowait = SW_MYSQL_CORO_STATUS_READY;
         zend_update_property_bool(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 1 TSRMLS_CC);
         ZVAL_BOOL(result, 1);
     }
@@ -850,11 +1195,14 @@ static void swoole_mysql_coro_onTimeout(php_context *ctx)
         sw_zval_ptr_dtor(&retval);
     }
 
-	if (swoole_multi_resume(zobject, result) == CORO_MULTI)
+	if (client->defer && !client->_defer)
 	{
-		result = NULL;
+		client->iowait = SW_MYSQL_CORO_STATUS_DONE;
+		client->result = result;
 		return;
 	}
+	client->_defer = 0;
+	client->iowait = SW_MYSQL_CORO_STATUS_READY;
 
     int ret = coro_resume(ctx, result, &retval);
 
@@ -1044,11 +1392,14 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
 
 			SW_ALLOC_INIT_ZVAL(result);
 			ZVAL_BOOL(result, 0);
-			if (swoole_multi_resume(zobject, result) == CORO_MULTI)
+			if (client->defer && !client->_defer)
 			{
-				result = NULL;
+				client->iowait = SW_MYSQL_CORO_STATUS_DONE;
+				client->result = result;
 				return SW_OK;
 			}
+			client->_defer = 0;
+			client->iowait = SW_MYSQL_CORO_STATUS_READY;
 			php_context *sw_current_context = swoole_get_property(zobject, 0);
 			ret = coro_resume(sw_current_context, result, &retval);
 			sw_zval_ptr_dtor(&result);
@@ -1112,16 +1463,15 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             }
 
 			swString_clear(client->buffer);
-			if (client->response.columns)
-			{
-				efree(client->response.columns);
-			}
 			bzero(&client->response, sizeof(client->response));
-			if (swoole_multi_resume(zobject, result) == CORO_MULTI)
+			if (client->defer && !client->_defer)
 			{
-				result = NULL;
+				client->iowait = SW_MYSQL_CORO_STATUS_DONE;
+				client->result = result;
 				return SW_OK;
 			}
+			client->_defer = 0;
+			client->iowait = SW_MYSQL_CORO_STATUS_READY;
 			php_context *sw_current_context = swoole_get_property(zobject, 0);
 			ret = coro_resume(sw_current_context, result, &retval);
 			sw_zval_ptr_dtor(&result);
