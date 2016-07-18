@@ -43,6 +43,8 @@ void swPort_init(swListenPort *port)
     port->protocol.package_body_offset = 0;
     port->protocol.package_max_length = SW_BUFFER_INPUT_SIZE;
 
+    port->socket_buffer_size = SwooleG.socket_buffer_size;
+
     char eof[] = SW_DATA_EOF;
     port->protocol.package_eof_len = sizeof(SW_DATA_EOF) - 1;
     memcpy(port->protocol.package_eof, eof, port->protocol.package_eof_len);
@@ -68,9 +70,8 @@ int swPort_set_option(swListenPort *ls)
 
     if (swSocket_is_dgram(ls->type))
     {
-        int bufsize = SwooleG.socket_buffer_size;
-        setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize));
-        setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize));
+        setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &ls->socket_buffer_size, sizeof(int));
+        setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &ls->socket_buffer_size, sizeof(int));
         return SW_OK;
     }
 

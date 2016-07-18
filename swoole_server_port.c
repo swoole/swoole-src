@@ -89,6 +89,11 @@ static PHP_METHOD(swoole_server_port, set)
         convert_to_long(v);
         port->backlog = (int) Z_LVAL_P(v);
     }
+    if (php_swoole_array_get_value(vht, "socket_buffer_size", v))
+    {
+        convert_to_long(v);
+        port->socket_buffer_size = (int) Z_LVAL_P(v);
+    }
     //tcp_nodelay
     if (php_swoole_array_get_value(vht, "open_tcp_nodelay", v))
     {
