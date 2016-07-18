@@ -780,6 +780,9 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
             return SW_OK;
         }
         SW_ZVAL_STRINGL(zdata, buf, data_len, 0);
+#if PHP_MAJOR_VERSION >= 7
+        efree(buf);
+#endif
     }
     else
     {
@@ -910,6 +913,9 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     {
         swHashMap_del_int(task_callbacks, req->info.fd);
         sw_zval_ptr_dtor(&callback);
+#if PHP_MAJOR_VERSION >= 7
+        efree(callback);
+#endif
     }
     return SW_OK;
 }
@@ -1146,6 +1152,10 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
     {
         sw_zval_ptr_dtor(&retval);
     }
+
+#if 1
+    shutdown_memory_manager(0, 1 TSRMLS_CC);
+#endif
 }
 
 static void php_swoole_onUserWorkerStart(swServer *serv, swWorker *worker)
@@ -2427,7 +2437,7 @@ PHP_METHOD(swoole_server, task)
 #endif
         swTask_type(&buf) |= SW_TASK_CALLBACK;
         sw_zval_add_ref(&callback);
-        swHashMap_add_int(task_callbacks, buf.info.fd, callback);
+        swHashMap_add_int(task_callbacks, buf.info.fd, sw_zval_dup(callback));
     }
 
     swTask_type(&buf) |= SW_TASK_NONBLOCK;
