@@ -222,7 +222,6 @@ extern zend_class_entry *swoole_table_class_entry_ptr;
 extern zend_class_entry *swoole_http_server_class_entry_ptr;
 extern zend_class_entry *swoole_websocket_frame_class_entry_ptr;
 extern zend_class_entry *swoole_server_port_class_entry_ptr;
-extern zend_class_entry *swoole_client_multi_class_entry_ptr;
 
 extern zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
 
@@ -326,8 +325,6 @@ void swoole_atomic_init(int module_number TSRMLS_DC);
 void swoole_client_init(int module_number TSRMLS_DC);
 #ifdef SW_COROUTINE
 void swoole_client_coro_init(int module_number TSRMLS_DC);
-void swoole_multi_init(int module_number TSRMLS_DC);
-void swoole_client_multi_init(int module_number TSRMLS_DC);
 #ifdef SW_USE_REDIS
 void swoole_redis_coro_init(int module_number TSRMLS_DC);
 #endif
