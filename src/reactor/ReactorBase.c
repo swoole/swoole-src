@@ -200,19 +200,7 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     }
 #ifdef SW_COROUTINE
     //coro timeout
-    if (SwooleWG.scheduler_count >0)
-    {
-        SwooleWG.scheduler_count --;
-        
-        if (SwooleG.main_reactor->timeout_msec <= 0)
-        {
-            SwooleG.main_reactor->timeout_msec = SW_CORO_SCHEDUER_TIMEOUT;
-        }
-    }
-    else
-    {
-        coro_handle_timeout();
-    }
+    coro_handle_timeout();
 #endif
     //client
     if (SwooleG.serv == NULL && SwooleG.timer.num <= 0)
