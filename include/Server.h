@@ -147,6 +147,8 @@ typedef struct _swListenPort
     int tcp_keepinterval;
     int tcp_keepcount;
 
+    int socket_buffer_size;
+
     uint8_t type;
     uint8_t ssl;
     int port;

@@ -1295,6 +1295,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     connection->connect_time = SwooleGS->now;
     connection->last_time = SwooleGS->now;
     connection->active = 1;
+    connection->buffer_size = ls->socket_buffer_size;
 
 #ifdef SW_REACTOR_SYNC_SEND
     if (serv->factory_mode != SW_MODE_THREAD && !ls->ssl)
