@@ -1103,7 +1103,8 @@ http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC)
 
 void swoole_http_context_free(http_context *ctx TSRMLS_DC)
 {
-    swoole_set_object(ctx->response.zobject, NULL);
+    //如果连接已经关闭，没有必要再设置了
+    //swoole_set_object(ctx->response.zobject, NULL);
 
 #ifdef SW_USE_HTTP2
     if (ctx->request->post_buffer)
