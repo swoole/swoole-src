@@ -16,8 +16,10 @@
  +----------------------------------------------------------------------+
  */
 
-#ifndef SWOOLE_COROUTINE_H_
-#define SWOOLE_COROUTINE_H_
+#ifndef _PHP_SWOOLE_COROUTINE_H_
+#define _PHP_SWOOLE_COROUTINE_H_
+
+#include "coroutine.h"
 
 #define coro_global _coro_global
 
@@ -58,6 +60,8 @@ typedef struct
     zend_execute_data *origin_ex;
 } _coro_global;
 
+extern zend_class_entry *swoole_client_coro_class_entry_ptr;
+extern zend_class_entry *swoole_client_multi_class_entry_ptr;
 
 coro_global COROG;
 
@@ -66,10 +70,9 @@ int coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval **r
 void coro_close(TSRMLS_D);
 php_context *coro_save(zval *return_value, zval **return_value_ptr, php_context *sw_php_context);
 int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retval);
-void coro_yield();
-void coro_handle_timeout();
 int swoole_multi_resume(zval *swoole_multi, zval *response);
 int swoole_multi_is_multi_mode(zval *swoole_multi);
 long php_swoole_add_timer_coro(int ms, int cli_fd, void* param TSRMLS_DC);
 int php_swoole_clear_timer_coro(long id TSRMLS_DC);
+
 #endif

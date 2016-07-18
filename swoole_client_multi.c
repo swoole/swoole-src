@@ -1,9 +1,11 @@
 #include "php_swoole.h"
+
+#ifdef SW_COROUTINE
+#include "swoole_coroutine.h"
 #include "ext/standard/basic_functions.h"
 
 zend_class_entry swoole_client_multi_ce;
 zend_class_entry *swoole_client_multi_class_entry_ptr;
-extern zend_class_entry *swoole_multi_class_entry_ptr;
 
 void swoole_client_multi_init(int module_number TSRMLS_DC)
 {
@@ -12,3 +14,4 @@ void swoole_client_multi_init(int module_number TSRMLS_DC)
 
     zend_declare_property_null(swoole_client_multi_class_entry_ptr, SW_STRL("swoole_multi")-1, ZEND_ACC_PROTECTED TSRMLS_CC);
 }
+#endif
