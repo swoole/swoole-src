@@ -16,6 +16,8 @@
 */
 
 #include "php_swoole.h"
+
+#ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 
 #include "ext/standard/basic_functions.h"
@@ -1142,3 +1144,4 @@ static PHP_METHOD(swoole_client_coro, close)
     }
     SW_CHECK_RETURN(ret);
 }
+#endif

@@ -1644,6 +1644,7 @@ typedef struct _swTimer_node
     int64_t exec_msec;
     uint32_t interval;
     long id;
+    int type;                 //0 normal node 1 node for client_coro
     uint8_t remove :1;
 } swTimer_node;
 

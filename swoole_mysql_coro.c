@@ -17,6 +17,8 @@
  */
 
 #include "php_swoole.h"
+
+#ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 #include "swoole_mysql_coro.h"
 
@@ -1133,3 +1135,5 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
     }
     return SW_OK;
 }
+
+#endif

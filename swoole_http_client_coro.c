@@ -20,6 +20,8 @@
 #include "php_swoole.h"
 #include "thirdparty/php_http_parser.h"
 
+#ifdef SW_COROUTINE
+
 #include "swoole_coroutine.h"
 #include <setjmp.h>
 
@@ -1277,3 +1279,5 @@ static PHP_METHOD(swoole_http_client_coro, post)
     coro_save(return_value, return_value_ptr, context);
     coro_yield();
 }
+
+#endif
