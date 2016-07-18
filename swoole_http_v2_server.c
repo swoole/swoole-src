@@ -282,14 +282,12 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
         ctx->send_header = 0;
         return SW_ERR;
     }
+    swoole_http_client *client = ctx->client;
     swoole_http_context_free(ctx TSRMLS_CC);
-
-    if (ctx->client->streams)
+    if (client->streams)
     {
-        swHashMap_del_int(ctx->client->streams, ctx->stream_id);
+        swHashMap_del_int(client->streams, ctx->stream_id);
     }
-    efree(ctx);
-
     return SW_OK;
 }
 
@@ -532,11 +530,11 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
             return SW_ERR;
         }
 
-        swString *buffer = ctx->buffer;
+        swString *buffer = ctx->request->post_buffer;
         if (!buffer)
         {
             buffer = swString_new(SW_HTTP2_DATA_BUFFSER_SIZE);
-            ctx->buffer = buffer;
+            ctx->request->post_buffer = buffer;
         }
         swString_append_ptr(buffer, buf + SW_HTTP2_FRAME_HEADER_SIZE, length);
 

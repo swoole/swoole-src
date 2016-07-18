@@ -53,6 +53,7 @@ typedef struct
     uint32_t ext_len;
     uint8_t post_form_urlencoded;
 
+    swString *post_buffer;
     char *post_content;
     uint32_t post_length;
 
@@ -111,7 +112,6 @@ typedef struct
     uint32_t content_sender_initialized :1;
 
 #ifdef SW_USE_HTTP2
-    swString *buffer;
     uint8_t priority;
     uint32_t stream_id;
 #endif
@@ -144,17 +144,15 @@ typedef struct _swoole_http_client
     uint32_t window_size;
 #endif
 
-    http_context context;
-
 } swoole_http_client;
 
 /**
  * WebSocket
  */
-int swoole_websocket_onMessage(swEventData *req);
-int swoole_websocket_onHandshake(swoole_http_client *client);
-void swoole_websocket_onOpen(swoole_http_client *client);
-void swoole_websocket_onReuqest(swoole_http_client *client);
+int swoole_websocket_onMessage(swEventData *);
+int swoole_websocket_onHandshake(http_context *);
+void swoole_websocket_onOpen(http_context *);
+void swoole_websocket_onReuqest(http_context *);
 int swoole_websocket_isset_onMessage(void);
 /**
  * Http Context
