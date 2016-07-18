@@ -873,7 +873,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         }
     }
 
-    if (conn->overflow && conn->out_buffer->length < SwooleG.socket_buffer_size)
+    if (conn->overflow && conn->out_buffer->length < conn->buffer_size)
     {
         conn->overflow = 0;
     }
