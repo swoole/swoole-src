@@ -1148,10 +1148,6 @@ void swoole_http_context_free(http_context *ctx TSRMLS_DC)
     {
         efree(req->path);
     }
-//    if (req->post_content)
-//    {
-//        efree(req->post_content);
-//    }
     if (req->zdata)
     {
         sw_zval_ptr_dtor(&req->zdata);
@@ -1406,11 +1402,7 @@ static PHP_METHOD(swoole_http_request, rawcontent)
     }
 
     http_request *req = &ctx->request;
-    if (req->post_content)
-    {
-        SW_RETVAL_STRINGL(req->post_content, req->post_length, 1);
-    }
-    else if (req->post_length > 0)
+    if (req->post_length > 0)
     {
         SW_RETVAL_STRINGL(Z_STRVAL_P(req->zdata) + Z_STRLEN_P(req->zdata) - req->post_length, req->post_length, 1);
     }
