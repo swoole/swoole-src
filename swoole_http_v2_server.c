@@ -530,11 +530,11 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
             return SW_ERR;
         }
 
-        swString *buffer = ctx->request->post_buffer;
+        swString *buffer = ctx->request.post_buffer;
         if (!buffer)
         {
             buffer = swString_new(SW_HTTP2_DATA_BUFFSER_SIZE);
-            ctx->request->post_buffer = buffer;
+            ctx->request.post_buffer = buffer;
         }
         swString_append_ptr(buffer, buf + SW_HTTP2_FRAME_HEADER_SIZE, length);
 
