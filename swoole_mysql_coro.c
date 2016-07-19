@@ -20,7 +20,7 @@
 
 #ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
-#include "swoole_mysql_coro.h"
+#include "swoole_mysql.h"
 
 static PHP_METHOD(swoole_mysql_coro, __construct);
 static PHP_METHOD(swoole_mysql_coro, __destruct);
