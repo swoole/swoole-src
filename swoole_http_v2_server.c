@@ -545,8 +545,8 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
                 zval *zpost;
                 zval *zrequest_object = ctx->request.zobject;
                 swoole_http_server_array_init(post, request);
-                ctx->request.post_content = estrndup(buffer->str, buffer->length);
-                sapi_module.treat_data(PARSE_STRING, ctx->request.post_content, zpost TSRMLS_CC);
+                char *post_content = estrndup(buffer->str, buffer->length);
+                sapi_module.treat_data(PARSE_STRING, post_content, zpost TSRMLS_CC);
             }
             else if (ctx->mt_parser != NULL)
             {
