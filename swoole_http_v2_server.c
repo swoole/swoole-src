@@ -530,11 +530,11 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
             return SW_ERR;
         }
 
-        swString *buffer = ctx->request->post_buffer;
+        swString *buffer = ctx->request.post_buffer;
         if (!buffer)
         {
             buffer = swString_new(SW_HTTP2_DATA_BUFFSER_SIZE);
-            ctx->request->post_buffer = buffer;
+            ctx->request.post_buffer = buffer;
         }
         swString_append_ptr(buffer, buf + SW_HTTP2_FRAME_HEADER_SIZE, length);
 
@@ -545,8 +545,8 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
                 zval *zpost;
                 zval *zrequest_object = ctx->request.zobject;
                 swoole_http_server_array_init(post, request);
-                ctx->request.post_content = estrndup(buffer->str, buffer->length);
-                sapi_module.treat_data(PARSE_STRING, ctx->request.post_content, zpost TSRMLS_CC);
+                char *post_content = estrndup(buffer->str, buffer->length);
+                sapi_module.treat_data(PARSE_STRING, post_content, zpost TSRMLS_CC);
             }
             else if (ctx->mt_parser != NULL)
             {
