@@ -179,7 +179,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
                 else
                 {
                     swString_clear(buffer);
-                    return ret;
+                    goto do_recv;
                 }
             }
             else
