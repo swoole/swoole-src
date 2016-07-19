@@ -1104,27 +1104,25 @@ http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC)
 void swoole_http_context_free(http_context *ctx TSRMLS_DC)
 {
     swoole_set_object(ctx->response.zobject, NULL);
-
-#ifdef SW_USE_HTTP2
-    if (ctx->request->post_buffer)
-    {
-        swString_free(ctx->request->post_buffer);
-    }
-#endif
-
     http_request *req = &ctx->request;
     if (req->path)
     {
         efree(req->path);
     }
-    if (req->post_content)
-    {
-        efree(req->post_content);
-    }
+//    if (req->post_content)
+//    {
+//        efree(req->post_content);
+//    }
     if (req->zdata)
     {
         sw_zval_ptr_dtor(&req->zdata);
     }
+#ifdef SW_USE_HTTP2
+    if (req->post_buffer)
+    {
+        swString_free(req->post_buffer);
+    }
+#endif
     efree(ctx);
 }
 
