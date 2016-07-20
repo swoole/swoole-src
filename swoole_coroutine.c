@@ -32,7 +32,7 @@ int coro_init(TSRMLS_D)
     COROG.origin_vm_stack = EG(argument_stack);
     COROG.origin_ex = EG(current_execute_data);
     COROG.coro_num = 0;
-    COROG.max_coro_num = 3000;
+    COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
     return 0;
 }
 
@@ -171,7 +171,7 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
     {
         coro_status = CORO_YIELD;
     }
-    coro_handle_timeout();
+
     return coro_status;
 }
 
@@ -284,7 +284,7 @@ int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retva
         //coro yield
         coro_status = CORO_YIELD;
     }
-    coro_handle_timeout();
+
     return coro_status;
 }
 
@@ -295,32 +295,28 @@ sw_inline void coro_yield()
 
 sw_inline void coro_handle_timeout()
 {
-    SwooleWG.scheduler_count = SW_MAX_SCHEDULER_WAIT;
     swLinkedList *timeout_list = SwooleWG.coro_timeout_list;
     if (timeout_list == NULL || timeout_list->num == 0)
     {
         return;
     }
 
-    php_context *cxt = (php_context *)swLinkedList_pop(timeout_list);
-    if (cxt != NULL)
-    {
-        //TODO user define
-        if (SwooleG.main_reactor->timeout_msec <= 0 && timeout_list->num > 0)
-        {
-            SwooleG.main_reactor->timeout_msec = SW_CORO_SCHEDUER_TIMEOUT;
-        }
-        cxt->onTimeout(cxt);
-    }
-    else
-    {
+	php_context *cxt = (php_context *)swLinkedList_pop(timeout_list);
+	while(cxt != NULL) {
+		//TODO user define
+		if (SwooleG.main_reactor->timeout_msec <= 0 && timeout_list->num > 0)
+		{
+			SwooleG.main_reactor->timeout_msec = SW_CORO_SCHEDUER_TIMEOUT;
+		}
+		cxt->onTimeout(cxt);
+		cxt = (php_context *)swLinkedList_pop(timeout_list);
+	}
+	//if the timeout node is null then no need the timeout function loop
+	if (SwooleG.timer.num == 0)
+	{
+		SwooleG.main_reactor->timeout_msec = -1;
+	}
 
-        //if the timeout node is null then no need the timeout function loop
-        if (SwooleG.timer.num == 0)
-        {
-            SwooleG.main_reactor->timeout_msec = -1;
-        }
-    }
     return;
 }
 #endif
