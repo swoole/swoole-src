@@ -76,8 +76,7 @@ static void php_swoole_client_coro_free(zval *object, swClient *cli TSRMLS_DC);
 typedef struct
 {
     php_context context;
-    int status;
-    swString *buffer;
+    uint8_t status;
 } swoole_client_coro_property;
 
 static sw_inline void client_free_php_context(zval *object)
@@ -88,11 +87,13 @@ static sw_inline void client_free_php_context(zval *object)
     {
         return;
     }
-    if (property->buffer)
-    {
-        swString_free(property->buffer);
-    }
     efree(property);
+    swString *buffer = swoole_get_property(object, 1);
+    if (!buffer)
+    {
+        return;
+    }
+    efree(buffer);
     swoole_set_property(object, 0, NULL);
 }
 
@@ -173,11 +174,13 @@ static void client_coro_onReceive(swClient *cli, char *data, uint32_t length)
     swoole_client_coro_property *sw_current_context = swoole_get_property(zobject, 0);
     if (sw_current_context->status != CLIENT_IOWAIT)
     {
-        if (sw_current_context->buffer == NULL)
+        swString *buffer = swoole_get_property(zobject, 1);
+        if (buffer == NULL)
         {
-            sw_current_context->buffer = swString_new(length);
+            buffer = swString_new(length);
+            swoole_set_property(zobject, 1, buffer);
         }
-        swString_append_ptr(sw_current_context->buffer, data, length);
+        swString_append_ptr(buffer, data, length);
         sw_current_context->status = CLIENT_READY;
         return;
     }
@@ -605,8 +608,8 @@ static PHP_METHOD(swoole_client_coro, __construct)
     swoole_set_object(getThis(), NULL);
     swoole_client_coro_property *property = (swoole_client_coro_property *)emalloc(sizeof(swoole_client_coro_property));
     property->status = CLIENT_RUNING;
-    property->buffer = NULL;
     swoole_set_property(getThis(), 0, property);
+    swoole_set_property(getThis(), 1, NULL);
     RETURN_TRUE;
 }
 
@@ -758,7 +761,6 @@ static PHP_METHOD(swoole_client_coro, connect)
         }
         property->context.onTimeout = client_coro_onTimeout;
         property->context.coro_params = getThis();
-        property->context.coro_params_cnt = 1;
 
         coro_save(return_value, return_value_ptr, &property->context);
         property->status = CLIENT_IOWAIT;
@@ -923,10 +925,11 @@ static PHP_METHOD(swoole_client_coro, recv)
     swoole_client_coro_property *property = swoole_get_property(getThis(), 0);
     if (property != NULL && property->status == CLIENT_READY)
     {
-        size_t size = property->buffer->length;
-        property->buffer->length = 0;
+        swString *buffer = swoole_get_property(getThis(), 1);
+        size_t size = buffer->length;
+        buffer->length = 0;
         property->status = CLIENT_RUNING;
-        SW_RETURN_STRINGL(property->buffer->str, size, 1);
+        SW_RETURN_STRINGL(buffer->str, size, 1);
     }
 
     if (property != NULL && property->status == CLIENT_ERROR)
@@ -948,7 +951,6 @@ static PHP_METHOD(swoole_client_coro, recv)
     //cli->timeout = timeout;
     property->context.onTimeout = client_coro_onTimeout;
     property->context.coro_params = getThis();
-    property->context.coro_params_cnt = 1;
 
     cli->timeout_id = php_swoole_add_timer_coro((int) (cli->timeout * 1000), cli->socket->fd, (void *) &property->context TSRMLS_CC);
     property->status = CLIENT_IOWAIT;

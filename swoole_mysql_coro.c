@@ -862,7 +862,6 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
 	context->onTimeout = swoole_mysql_coro_onTimeout;
 	context->coro_params = getThis();
-	context->coro_params_cnt = 1;
 	coro_save(return_value, return_value_ptr, context);
 	coro_yield();
 }

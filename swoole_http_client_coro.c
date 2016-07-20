@@ -1182,7 +1182,6 @@ static PHP_METHOD(swoole_http_client_coro, execute)
     http_client *http = swoole_get_object(getThis());
     context->onTimeout = http_client_coro_onTimeout;
     context->coro_params = getThis();
-    context->coro_params_cnt = 1;
     http->cli->timeout_id = php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, (void *)context TSRMLS_CC);
 	/*
     if (swoole_multi_is_multi_mode(getThis()) == CORO_MULTI)
@@ -1222,7 +1221,6 @@ static PHP_METHOD(swoole_http_client_coro, get)
     }
     context->onTimeout = http_client_coro_onTimeout;
     context->coro_params = getThis();
-    context->coro_params_cnt = 1;
     http->cli->timeout_id = php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, (void *)context TSRMLS_CC);
 	/*
     if (swoole_multi_is_multi_mode(getThis()) == CORO_MULTI)
@@ -1278,7 +1276,6 @@ static PHP_METHOD(swoole_http_client_coro, post)
     }
     context->onTimeout = http_client_coro_onTimeout;
     context->coro_params = getThis();
-    context->coro_params_cnt = 1;
     http->cli->timeout_id = php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, (void *)context TSRMLS_CC);
 	/*
     if (swoole_multi_is_multi_mode(getThis()) == CORO_MULTI)
