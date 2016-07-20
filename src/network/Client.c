@@ -151,6 +151,11 @@ int swClient_create(swClient *cli, int type, int async)
     cli->type = type;
     cli->async = async;
 
+    cli->protocol.package_length_type = 'N';
+    cli->protocol.package_length_size = 4;
+    cli->protocol.package_body_offset = 0;
+    cli->protocol.package_max_length = SW_BUFFER_INPUT_SIZE;
+
     return SW_OK;
 }
 
