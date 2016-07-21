@@ -107,10 +107,7 @@ typedef struct
     zend_size_t tmp_header_field_name_len;
 
     php_http_parser parser;
-
-    swString *buffer;
     swString *body;
-
     uint8_t state;       //0 wait 1 ready 2 busy
     uint8_t keep_alive;  //0 no 1 keep
     uint8_t upgrade;
@@ -239,6 +236,7 @@ static int http_client_coro_execute(zval *zobject, char *uri, zend_size_t uri_le
     }
     else
     {
+        php_swoole_check_reactor();
         http = http_client_coro_create(zobject TSRMLS_CC);
     }
 
@@ -774,7 +772,7 @@ static http_client* http_client_coro_create(zval *object TSRMLS_DC)
     http->port = Z_LVAL_P(ztmp);
 
     http->timeout = SW_CLIENT_DEFAULT_TIMEOUT;
-    http->keep_alive = 0;
+    http->keep_alive = 1;
 
     zval *zset = sw_zend_read_property(swoole_http_client_class_entry_ptr, object, ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zset && !ZVAL_IS_NULL(zset))
@@ -798,6 +796,12 @@ static http_client* http_client_coro_create(zval *object TSRMLS_DC)
         }
     }
 
+    if (php_swoole_array_get_value(vht, "package_max_length", ztmp))
+        {
+            convert_to_long(ztmp);
+            http->cli->protocol.package_max_length = Z_LVAL_P(ztmp);
+    }
+    
     http->state = HTTP_CLIENT_STATE_READY;
 
     return http;
@@ -824,8 +828,6 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
     zend_update_property_stringl(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("host"), host, host_len TSRMLS_CC);
 
     zend_update_property_long(swoole_http_client_coro_class_entry_ptr,getThis(), ZEND_STRL("port"), port TSRMLS_CC);
-
-    php_swoole_check_reactor();
 
     //init
     swoole_set_object(getThis(), NULL);
@@ -873,10 +875,7 @@ static void http_client_free(zval *object TSRMLS_DC)
     {
         swString_free(http->body);
     }
-    if (http->buffer)
-    {
-        swString_free(http->buffer);
-    }
+
 
     swClient *cli = http->cli;
     if (cli)
@@ -1050,7 +1049,8 @@ static PHP_METHOD(swoole_http_client_coro, close)
 {
     http_client *http = swoole_get_object(getThis());
     if(!http){
-        RETURN_TRUE;
+        
+        RETURN_FALSE;
     }
 
     swClient *cli = http->cli;
