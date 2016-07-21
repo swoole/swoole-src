@@ -283,11 +283,11 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
         return SW_ERR;
     }
     swoole_http_client *client = ctx->client;
-    swoole_http_context_free(ctx TSRMLS_CC);
     if (client->streams)
     {
         swHashMap_del_int(client->streams, ctx->stream_id);
     }
+    swoole_http_context_free(ctx TSRMLS_CC);
     return SW_OK;
 }
 
