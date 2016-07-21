@@ -48,6 +48,9 @@ static int swVal_to_zval(swVal *val, zval *zv)
     }
     switch(val->type)
     {
+    case SW_VAL_NULL:
+        ZVAL_NULL(zv);
+        break;
     case SW_VAL_BOOL:
         memcpy(&_bool_val, val->value, sizeof(_bool_val));
         ZVAL_BOOL(zv, _bool_val);

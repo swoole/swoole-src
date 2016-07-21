@@ -1822,13 +1822,11 @@ static PHP_METHOD(swoole_http_response, end)
             RETURN_FALSE;
         }
     }
-
-    swoole_http_context_free(ctx TSRMLS_CC);
     if (!ctx->keepalive)
     {
         SwooleG.serv->factory.end(&SwooleG.serv->factory, ctx->fd);
     }
-
+    swoole_http_context_free(ctx TSRMLS_CC);
     RETURN_TRUE;
 }
 
@@ -1897,12 +1895,11 @@ static PHP_METHOD(swoole_http_response, sendfile)
         ctx->send_header = 0;
         RETURN_FALSE;
     }
-
-    swoole_http_context_free(ctx TSRMLS_CC);
     if (!ctx->keepalive)
     {
         SwooleG.serv->factory.end(&SwooleG.serv->factory, ctx->fd);
     }
+    swoole_http_context_free(ctx TSRMLS_CC);
     RETURN_TRUE;
 }
 
