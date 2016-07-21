@@ -20,8 +20,6 @@
 #include "php_swoole.h"
 #include "thirdparty/php_http_parser.h"
 
-#ifdef SW_COROUTINE
-
 #include "swoole_coroutine.h"
 #include <setjmp.h>
 
@@ -49,6 +47,16 @@ enum http_client_state
     HTTP_CLIENT_STATE_UPGRADE,
 };
 
+enum http_client_defer_state
+{
+    HTTP_CLIENT_STATE_DEFER_INIT,
+    HTTP_CLIENT_STATE_DEFER_SEND,
+    HTTP_CLIENT_STATE_DEFER_WAIT,
+    HTTP_CLIENT_STATE_DEFER_DONE,
+};
+
+
+
 typedef struct
 {
     zval *onError;
@@ -74,6 +82,14 @@ typedef struct
     zval *request_body;
     char *request_method;
     int callback_index;
+    
+    
+    uint8_t defer;//0 normal 1 wait for receive
+    uint8_t defer_status;//
+    uint8_t defer_chunk_status;// 0 1
+    uint8_t defer_result;//0
+    
+
 
 } http_client_property;
 
@@ -91,14 +107,12 @@ typedef struct
     zend_size_t tmp_header_field_name_len;
 
     php_http_parser parser;
-
-    swString *buffer;
     swString *body;
-
     uint8_t state;       //0 wait 1 ready 2 busy
     uint8_t keep_alive;  //0 no 1 keep
     uint8_t upgrade;
     uint8_t gzip;
+
 
 } http_client;
 
@@ -169,6 +183,10 @@ static PHP_METHOD(swoole_http_client_coro, isConnected);
 static PHP_METHOD(swoole_http_client_coro, close);
 static PHP_METHOD(swoole_http_client_coro, get);
 static PHP_METHOD(swoole_http_client_coro, post);
+static PHP_METHOD(swoole_http_client_coro, defer);
+static PHP_METHOD(swoole_http_client_coro, recv);
+
+
 
 static const zend_function_entry swoole_http_client_coro_methods[] =
 {
@@ -184,6 +202,9 @@ static const zend_function_entry swoole_http_client_coro_methods[] =
     PHP_ME(swoole_http_client_coro, post, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, isConnected, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, close, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, defer, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, recv, NULL, ZEND_ACC_PUBLIC)
+
     PHP_FE_END
 };
 
@@ -215,6 +236,7 @@ static int http_client_coro_execute(zval *zobject, char *uri, zend_size_t uri_le
     }
     else
     {
+        php_swoole_check_reactor();
         http = http_client_coro_create(zobject TSRMLS_CC);
     }
 
@@ -286,32 +308,37 @@ static void http_client_coro_onTimeout(php_context *ctx)
 #if PHP_MAJOR_VERSION < 7
           TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
-          zval * zdata;
-          zval * retval;
-          SW_MAKE_STD_ZVAL(zdata);
-          ZVAL_BOOL(zdata, 0); //return false
-          zval *zobject = (zval *)ctx->coro_params;
-          //define time out RETURN ERROR  110
-          zend_update_property_long(swoole_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), 110 TSRMLS_CC);
-          http_client_free(zobject TSRMLS_CC);
-          swoole_set_object(zobject, NULL);
-		  /*
-          if (swoole_multi_resume(zobject, zdata) == CORO_MULTI)
-          {
-             return;
-          }
-		  */
-          int ret = coro_resume(ctx, zdata, &retval);
-          if (ret > 0) {
-              goto free_zdata;
-          }
-          if (retval != NULL) {
-              sw_zval_ptr_dtor(&retval);
-          }
-          free_zdata:
-          sw_zval_ptr_dtor(&zdata);
+    zval * zdata;
+    zval * retval;
+    SW_MAKE_STD_ZVAL(zdata);
+    ZVAL_BOOL(zdata, 0); //return false
+    zval *zobject = (zval *)ctx->coro_params;
+    //define time out RETURN ERROR  110
+    zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), 110 TSRMLS_CC);
 
+    http_client_free(zobject TSRMLS_CC);
+    swoole_set_object(zobject, NULL);
+
+    http_client_property *hcc = swoole_get_property(zobject, 0);
+    if(hcc->defer && hcc->defer_status!=HTTP_CLIENT_STATE_DEFER_WAIT){
+        hcc->defer_status=HTTP_CLIENT_STATE_DEFER_DONE;
+        hcc->defer_result=0;
+        goto free_zdata;
+    }
+    
+    hcc->defer_status=HTTP_CLIENT_STATE_DEFER_INIT;
+    int ret = coro_resume(ctx, zdata, &retval);
+    if (ret > 0) {
+        goto free_zdata;
+    }
+    if (retval != NULL) {
+        sw_zval_ptr_dtor(&retval);
+    }
+    free_zdata:
+    sw_zval_ptr_dtor(&zdata);
 }
+
+
 
 void swoole_http_client_coro_init(int module_number TSRMLS_DC)
 {
@@ -320,6 +347,7 @@ void swoole_http_client_coro_init(int module_number TSRMLS_DC)
 
     zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, SW_STRL("defer")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
 
     http_client_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
     if (!http_client_buffer)
@@ -361,25 +389,27 @@ static void http_client_coro_onError(swClient *cli)
 
     zval *zobject = cli->object;
     php_context *sw_current_context = swoole_get_property(zobject, 1);
-    zend_update_property_long(swoole_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
+    zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
     if (cli->timeout_id > 0)
     {
         php_swoole_clear_timer_coro(cli->timeout_id TSRMLS_CC);
         cli->timeout_id=0;
     }
+    
     if (!cli->released)
     {
         http_client_free(zobject TSRMLS_CC);
     }
     swoole_set_object(zobject, NULL);
 
-	/*
-    if (swoole_multi_resume(zobject, zdata) == CORO_MULTI)
-    {
-        return;
+    http_client_property *hcc = swoole_get_property(zobject, 0);
+    if(hcc->defer && hcc->defer_status!=HTTP_CLIENT_STATE_DEFER_WAIT){
+        hcc->defer_status=HTTP_CLIENT_STATE_DEFER_DONE;
+        hcc->defer_result=0;
+        goto free_zdata;
     }
-	*/
-
+    
+    hcc->defer_status=HTTP_CLIENT_STATE_DEFER_INIT;
     int ret = coro_resume(sw_current_context, zdata, &retval);
     if (ret > 0)
     {
@@ -414,29 +444,48 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
         cli->timeout_id=0;
     }
 
+    
     long parsed_n = php_http_parser_execute(&http->parser, &http_parser_settings, data, length);
+    
+    http_client_property *hcc = swoole_get_property(zobject, 0);
     zval * zdata;
-    SW_MAKE_STD_ZVAL(zdata);
-    ZVAL_BOOL(zdata, 1); //return true
+
     if (parsed_n < 0)
     {
-        zval *retval;
+        //错误情况 标志位 done defer 保存
         sw_zend_call_method_with_0_params(&zobject, swoole_http_client_coro_class_entry_ptr, NULL, "close", &retval);
         if (retval)
         {
             sw_zval_ptr_dtor(&retval);
         }
         ZVAL_BOOL(zdata, 0); //return false
+        if(hcc->defer && hcc->defer_status!=HTTP_CLIENT_STATE_DEFER_WAIT){ //not recv yet  sava data
+            hcc->defer_status=HTTP_CLIENT_STATE_DEFER_DONE;
+            hcc->defer_result=0;
+            goto free_zdata; //wait for recv
+        }
+        goto begin_resume;
     }
-	/*
-    if (swoole_multi_resume(zobject, zdata) == CORO_MULTI)
-    {
+    
+    if(!hcc->defer_chunk_status){ //not recv all wait for next
         return;
     }
-	*/
-
+    
+    SW_MAKE_STD_ZVAL(zdata);
+    ZVAL_BOOL(zdata, 1); //return false
+    if(hcc->defer && hcc->defer_status!=HTTP_CLIENT_STATE_DEFER_WAIT){ //not recv yet  sava data
+        hcc->defer_status=HTTP_CLIENT_STATE_DEFER_DONE;
+        hcc->defer_result=1;
+        goto free_zdata;
+    }
+    
+    begin_resume:
+    {
+    //if should resume
     /*if next cr*/
     php_context *sw_current_context = swoole_get_property(zobject, 1);
+    hcc->defer_status=HTTP_CLIENT_STATE_DEFER_INIT;
+    hcc->defer_chunk_status=0;
     int ret = coro_resume(sw_current_context, zdata, &retval);
     if (ret > 0)
     {
@@ -445,6 +494,7 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
     if (retval != NULL)
     {
         sw_zval_ptr_dtor(&retval);
+    }
     }
     free_zdata:
     sw_zval_ptr_dtor(&zdata);
@@ -716,12 +766,13 @@ static http_client* http_client_coro_create(zval *object TSRMLS_DC)
     http->host = Z_STRVAL_P(ztmp);
     http->host_len = Z_STRLEN_P(ztmp);
 
+    
     ztmp = sw_zend_read_property(swoole_http_client_class_entry_ptr, object, ZEND_STRL("port"), 0 TSRMLS_CC);
     convert_to_long(ztmp);
     http->port = Z_LVAL_P(ztmp);
 
     http->timeout = SW_CLIENT_DEFAULT_TIMEOUT;
-    http->keep_alive = 0;
+    http->keep_alive = 1;
 
     zval *zset = sw_zend_read_property(swoole_http_client_class_entry_ptr, object, ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zset && !ZVAL_IS_NULL(zset))
@@ -745,6 +796,12 @@ static http_client* http_client_coro_create(zval *object TSRMLS_DC)
         }
     }
 
+    if (php_swoole_array_get_value(vht, "package_max_length", ztmp))
+        {
+            convert_to_long(ztmp);
+            http->cli->protocol.package_max_length = Z_LVAL_P(ztmp);
+    }
+    
     http->state = HTTP_CLIENT_STATE_READY;
 
     return http;
@@ -772,8 +829,6 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
 
     zend_update_property_long(swoole_http_client_coro_class_entry_ptr,getThis(), ZEND_STRL("port"), port TSRMLS_CC);
 
-    php_swoole_check_reactor();
-
     //init
     swoole_set_object(getThis(), NULL);
 
@@ -786,6 +841,8 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
     http_client_property *hcc;
     hcc = (http_client_property*) emalloc(sizeof(http_client_property));
     bzero(hcc, sizeof(http_client_property));
+    hcc->defer_status=HTTP_CLIENT_STATE_DEFER_INIT;
+    hcc->defer_chunk_status=0;
     swoole_set_property(getThis(), 0, hcc);
 
     int flags = SW_SOCK_TCP | SW_FLAG_ASYNC;
@@ -818,10 +875,7 @@ static void http_client_free(zval *object TSRMLS_DC)
     {
         swString_free(http->body);
     }
-    if (http->buffer)
-    {
-        swString_free(http->buffer);
-    }
+
 
     swClient *cli = http->cli;
     if (cli)
@@ -893,6 +947,63 @@ static PHP_METHOD(swoole_http_client_coro, setCookies)
     RETURN_TRUE;
 }
 
+
+static PHP_METHOD(swoole_http_client_coro, defer)
+{
+    
+    http_client_property *hcc = swoole_get_property(getThis(), 0);
+    //
+    if (hcc->defer_status!=HTTP_CLIENT_STATE_DEFER_INIT) {
+        RETURN_FALSE;
+    }
+    //no keep alive
+    zend_bool defer = 1;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b", &defer) == FAILURE)
+    {
+        return;
+    }
+    hcc->defer = defer;
+    zend_update_property_bool(swoole_http_client_coro_class_entry_ptr, getThis(), SW_STRL("defer") - 1, defer TSRMLS_CC);
+    RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_http_client_coro, recv)
+{
+
+    //todo
+    http_client_property *hcc = swoole_get_property(getThis(), 0);
+    
+    if(!hcc->defer){ //no defer
+        swoole_php_fatal_error(E_WARNING, "you should not use recv without defer ");
+        RETURN_FALSE;
+    }
+    
+    
+    switch (hcc->defer_status) {
+        case HTTP_CLIENT_STATE_DEFER_DONE:
+          //  ZVAL_BOOL(return_value, hcc->defer_result);
+            if(hcc->defer_result){
+                RETURN_TRUE;
+            };
+            RETURN_FALSE;
+            break;
+        case HTTP_CLIENT_STATE_DEFER_SEND:
+            hcc->defer_status=HTTP_CLIENT_STATE_DEFER_WAIT;
+            //not ready
+            php_context *context = swoole_get_property(getThis(), 1);
+            coro_save(return_value, return_value_ptr, context);
+            coro_yield();
+            break;
+        case HTTP_CLIENT_STATE_DEFER_INIT:
+            //not ready
+            swoole_php_fatal_error(E_WARNING, "you should post or get or execute before recv  ");
+            RETURN_FALSE;
+            break;
+        default:
+            break;
+    }
+}
+
 static PHP_METHOD(swoole_http_client_coro, setData)
 {
     zval *data;
@@ -938,7 +1049,8 @@ static PHP_METHOD(swoole_http_client_coro, close)
 {
     http_client *http = swoole_get_object(getThis());
     if(!http){
-        RETURN_TRUE;
+        
+        RETURN_FALSE;
     }
 
     swClient *cli = http->cli;
@@ -1153,10 +1265,13 @@ static int http_client_coro_parser_on_message_complete(php_http_parser *parser)
         {
             sw_zval_ptr_dtor(&retval);
         }
+        
      }
-
+    
+    http_client_property *hcc = swoole_get_property(zobject, 0);
+    hcc->defer_chunk_status = 1;//recv done
     return 0;
-}
+    }
 
 
 static PHP_METHOD(swoole_http_client_coro, execute)
@@ -1167,6 +1282,14 @@ static PHP_METHOD(swoole_http_client_coro, execute)
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &uri, &uri_len) == FAILURE)
     {
         return;
+    }
+    http_client_property *hcc = swoole_get_property(getThis(), 0);
+    if (hcc->defer)
+    {
+        if (hcc->defer_status!=HTTP_CLIENT_STATE_DEFER_INIT) {
+            RETURN_FALSE;
+        }
+        hcc->defer_status=HTTP_CLIENT_STATE_DEFER_SEND;
     }
     ret = http_client_coro_execute(getThis(), uri, uri_len TSRMLS_CC);
     if(ret==SW_ERR){
@@ -1183,12 +1306,9 @@ static PHP_METHOD(swoole_http_client_coro, execute)
     context->onTimeout = http_client_coro_onTimeout;
     context->coro_params = getThis();
     http->cli->timeout_id = php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, (void *)context TSRMLS_CC);
-	/*
-    if (swoole_multi_is_multi_mode(getThis()) == CORO_MULTI)
-    {
+    if (hcc->defer) {
         RETURN_TRUE;
     }
-	*/
     coro_save(return_value, return_value_ptr, context);
     coro_yield();
 }
@@ -1205,6 +1325,13 @@ static PHP_METHOD(swoole_http_client_coro, get)
 
     http_client_property *hcc = swoole_get_property(getThis(), 0);
     hcc->request_method = "GET";
+    if (hcc->defer)
+    {
+        if (hcc->defer_status!=HTTP_CLIENT_STATE_DEFER_INIT) {
+            RETURN_FALSE;
+        }
+        hcc->defer_status=HTTP_CLIENT_STATE_DEFER_SEND;
+    }
     ret = http_client_coro_execute(getThis(), uri, uri_len TSRMLS_CC);
     if (ret==SW_ERR)
     {
@@ -1222,12 +1349,10 @@ static PHP_METHOD(swoole_http_client_coro, get)
     context->onTimeout = http_client_coro_onTimeout;
     context->coro_params = getThis();
     http->cli->timeout_id = php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, (void *)context TSRMLS_CC);
-	/*
-    if (swoole_multi_is_multi_mode(getThis()) == CORO_MULTI)
-    {
+    if (hcc->defer) {
         RETURN_TRUE;
     }
-	*/
+    
     coro_save(return_value, return_value_ptr, context);
     coro_yield();
 }
@@ -1255,18 +1380,19 @@ static PHP_METHOD(swoole_http_client_coro, post)
     hcc->request_body = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), 1 TSRMLS_CC);
     sw_copy_to_stack(hcc->request_body, hcc->_request_body);
     hcc->request_method = "POST";
+    if (hcc->defer)
+    {
+        if (hcc->defer_status!=HTTP_CLIENT_STATE_DEFER_INIT) {
+            RETURN_FALSE;
+        }
+        hcc->defer_status=HTTP_CLIENT_STATE_DEFER_SEND;
+    }
     ret = http_client_coro_execute(getThis(), uri, uri_len TSRMLS_CC);
     if (ret==SW_ERR)
     {
         SW_CHECK_RETURN(ret);
     }
-      //if multi  no timeout
-	  /*
-    if (swoole_multi_is_multi_mode(getThis()) == CORO_MULTI)
-    {
-        RETURN_TRUE;
-    }
-	*/
+
     http_client *http = swoole_get_object(getThis());
     php_context *context = swoole_get_property(getThis(), 1);
     if (!context)
@@ -1277,14 +1403,9 @@ static PHP_METHOD(swoole_http_client_coro, post)
     context->onTimeout = http_client_coro_onTimeout;
     context->coro_params = getThis();
     http->cli->timeout_id = php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, (void *)context TSRMLS_CC);
-	/*
-    if (swoole_multi_is_multi_mode(getThis()) == CORO_MULTI)
-    {
+    if (hcc->defer) {
         RETURN_TRUE;
     }
-	*/
     coro_save(return_value, return_value_ptr, context);
     coro_yield();
 }
-
-#endif

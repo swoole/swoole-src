@@ -38,6 +38,7 @@ class Server
     }
 
     private static function http(){
+        error_log(__LINE__.'---------- begin --- http --------------'.PHP_EOL,3,'/tmp/markyuan');
         for($i=0;$i<2;$i++){
             $cli = new Swoole\Coroutine\Http\Client('0.0.0.0', 9599);
             $cli->set([ 'timeout' => 1]);
@@ -47,15 +48,22 @@ class Server
                 'Accept' => 'text/html,application/xhtml+xml,application/xml',
                 'Accept-Encoding' => 'gzip',
             ]);
+            error_log(__LINE__.var_export($cli,true).PHP_EOL,3,'/tmp/markyuan');
             $ret = ($cli->get('/cn/token?appid=1FxxxxS9V'.$i.$i.$i.$i.$i));
+            error_log(__LINE__.var_export($ret,true).PHP_EOL,3,'/tmp/markyuan');
+            error_log(__LINE__.var_export($cli,true).PHP_EOL,3,'/tmp/markyuan');
             $cli->close();
         }
+        error_log(__LINE__.'---------- end --- http --------------'.PHP_EOL,3,'/tmp/markyuan');
+
     }
 
     private static function multihttp(){
-        $multi = new Swoole\Coroutine\Multi();
+        
+        error_log(__LINE__.'---------- begin --- multi --------------'.PHP_EOL,3,'/tmp/markyuan');
+        
         $cliAA= new Swoole\Coroutine\Http\Client('0.0.0.0', 9599);
-        $cliAA->set([ 'timeout' => 1]);//
+        $cliAA->set(['timeout' => 1]);
         $cliAA->setHeaders([
             'Host' => "api.mp.qq.com",
             "User-Agent" => 'Chrome/49.0.2587.3',
@@ -66,14 +74,33 @@ class Server
             'Host' => "api.mp.qq.com",
             "User-Agent" => 'Chrome/49.0.2587.3',
         ]);
-        $multi->add(['AAAA' => $cliAA, 'BBBB' => $cliBB]);
+        error_log(__LINE__.var_export($cliAA,true).PHP_EOL,3,'/tmp/markyuan');
+        error_log(__LINE__.var_export($cliBB,true).PHP_EOL,3,'/tmp/markyuan');
+        $retAA=$cliAA->defer(1);
+        $retBB=$cliBB->defer(1);
+        error_log(__LINE__.var_export($retAA,true).PHP_EOL,3,'/tmp/markyuan');
+        error_log(__LINE__.var_export($retBB,true).PHP_EOL,3,'/tmp/markyuan');
+        error_log(__LINE__.var_export($cliAA,true).PHP_EOL,3,'/tmp/markyuan');
+        error_log(__LINE__.var_export($cliBB,true).PHP_EOL,3,'/tmp/markyuan');
         $retAA = ($cliAA->get('/cn/token?appid=AAA'));
         $retBB = ($cliBB->get('/cn/token?appid=BBB'));
-        $ret = $multi->recv();
-        $cliAA->close();
-        $cliBB->close();
+        error_log(__LINE__.var_export($retAA,true).PHP_EOL,3,'/tmp/markyuan');
+        error_log(__LINE__.var_export($retBB,true).PHP_EOL,3,'/tmp/markyuan');
+        error_log(__LINE__.var_export($cliAA,true).PHP_EOL,3,'/tmp/markyuan');
+        error_log(__LINE__.var_export($cliBB,true).PHP_EOL,3,'/tmp/markyuan');
+        $retAA=$cliAA->recv();
+        $retBB=$cliBB->recv();
+        error_log(__LINE__.var_export($retAA,true).PHP_EOL,3,'/tmp/markyuan');
+        error_log(__LINE__.var_export($retBB,true).PHP_EOL,3,'/tmp/markyuan');
+        error_log(__LINE__.var_export($cliAA,true).PHP_EOL,3,'/tmp/markyuan');
+        error_log(__LINE__.var_export($cliBB,true).PHP_EOL,3,'/tmp/markyuan');
+        $retAA=$cliAA->close();
+        $retBB=$cliBB->close();
+        error_log(__LINE__.'---------- end --- multi --------------'.PHP_EOL,3,'/tmp/markyuan');
     }
 
+    
+    
     private static function tcp(){
         for($i=0;$i<2;$i++){
             $tcp_cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
@@ -85,15 +112,14 @@ class Server
     }
 
  private static function tcpmulti(){
-        $multi = new Swoole\Coroutine\Multi();
         $cliAA = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
         $cliBB = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
-        $multi->add(['AAAA' => $cliAA, 'BBBB' => $cliBB]);
         $retAA = $cliAA ->connect("10.213.144.140", 9805);
         $retBB = $cliBB ->connect("10.213.144.140", 9805);       
         $retAA = $cliAA ->send('test for the coro');
         $retBB = $cliBB ->send('test for the coro');
-        $ret = $multi->recv();
+        $retAA = $cliAA->recv();
+        $retBB = $cliBB->recv();
         $cliAA->close();
         $cliBB->close();
     }
@@ -103,8 +129,8 @@ class Server
         self::multihttp();
         self::http();
         self::https();
-        self::tcp();
-        self::tcpmulti();
+       // self::tcp();
+        //self::tcpmulti();
         $response->end('xxxx');
     }
 
