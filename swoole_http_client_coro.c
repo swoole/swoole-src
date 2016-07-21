@@ -323,7 +323,7 @@ static void http_client_coro_onTimeout(php_context *ctx)
     http_client_property *hcc = swoole_get_property(zobject, 0);
     if(hcc->defer && hcc->defer_status!=HTTP_CLIENT_STATE_DEFER_WAIT){
         hcc->defer_status=HTTP_CLIENT_STATE_DEFER_DONE;
-        hcc->defer_result=(int) Z_LVAL_P(zdata);
+        hcc->defer_result=0;
         goto free_zdata;
     }
     
@@ -406,10 +406,9 @@ static void http_client_coro_onError(swClient *cli)
     http_client_property *hcc = swoole_get_property(zobject, 0);
     if(hcc->defer && hcc->defer_status!=HTTP_CLIENT_STATE_DEFER_WAIT){
         hcc->defer_status=HTTP_CLIENT_STATE_DEFER_DONE;
-        hcc->defer_result=(int) Z_LVAL_P(zdata);
+        hcc->defer_result=0;
         goto free_zdata;
     }
-    
     
     hcc->defer_status=HTTP_CLIENT_STATE_DEFER_INIT;
     int ret = coro_resume(sw_current_context, zdata, &retval);
@@ -448,44 +447,39 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
 
     
     long parsed_n = php_http_parser_execute(&http->parser, &http_parser_settings, data, length);
-    zval * zdata;
-    SW_MAKE_STD_ZVAL(zdata);
-    ZVAL_BOOL(zdata, 1); //return true
-    
-    http_client_property *hcc = swoole_get_property(zobject, 0);
+
     if (parsed_n < 0)
     {
+        
+        http_client_property *hcc = swoole_get_property(zobject, 0);
+        if(hcc->defer && hcc->defer_status!=HTTP_CLIENT_STATE_DEFER_WAIT){ //not recv yet  sava data
+            hcc->defer_status=HTTP_CLIENT_STATE_DEFER_DONE;
+            hcc->defer_result=0;
+            goto free_zdata; //wait for recv
+        }
         //todo  notice client already close
-        zval *retval;
+        zval * zdata;
+        SW_MAKE_STD_ZVAL(zdata);
         sw_zend_call_method_with_0_params(&zobject, swoole_http_client_coro_class_entry_ptr, NULL, "close", &retval);
         if (retval)
         {
             sw_zval_ptr_dtor(&retval);
         }
         ZVAL_BOOL(zdata, 0); //return false
+        hcc->defer_status=HTTP_CLIENT_STATE_DEFER_INIT;
+        php_context *sw_current_context = swoole_get_property(zobject, 1);
+        int ret = coro_resume(sw_current_context, zdata, &retval);
+        if (ret > 0)
+        {
+            goto free_zdata;
+        }
+        if (retval != NULL)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
+        free_zdata:
+        sw_zval_ptr_dtor(&zdata);
     }
-    
-    if(hcc->defer && hcc->defer_status!=HTTP_CLIENT_STATE_DEFER_WAIT){
-        hcc->defer_status=HTTP_CLIENT_STATE_DEFER_DONE;
-        hcc->defer_result=(int) Z_LVAL_P(zdata);
-        goto free_zdata;
-    }
-    
-    //if should resume
-    /*if next cr*/
-    hcc->defer_status=HTTP_CLIENT_STATE_DEFER_INIT;
-    php_context *sw_current_context = swoole_get_property(zobject, 1);
-    int ret = coro_resume(sw_current_context, zdata, &retval);
-    if (ret > 0)
-    {
-        goto free_zdata;
-    }
-    if (retval != NULL)
-    {
-        sw_zval_ptr_dtor(&retval);
-    }
-    free_zdata:
-    sw_zval_ptr_dtor(&zdata);
 }
 
 
@@ -870,8 +864,6 @@ static void http_client_free(zval *object TSRMLS_DC)
         http->cli = NULL;
     }
     efree(http);
-    //FREE
-    http_client_property *hcc = swoole_get_property(object, 0);
 }
 
 
@@ -969,9 +961,12 @@ static PHP_METHOD(swoole_http_client_coro, recv)
     
     switch (hcc->defer_status) {
         case HTTP_CLIENT_STATE_DEFER_DONE:
-            RETURN_TRUE;
+          //  ZVAL_BOOL(return_value, hcc->defer_result);
+            if(hcc->defer_result){
+                RETURN_TRUE;
+            };
+            RETURN_FALSE;
             break;
-        case HTTP_CLIENT_STATE_DEFER_WAIT:
         case HTTP_CLIENT_STATE_DEFER_SEND:
             hcc->defer_status=HTTP_CLIENT_STATE_DEFER_WAIT;
             //not ready
@@ -1241,6 +1236,9 @@ static int http_client_coro_parser_on_message_complete(php_http_parser *parser)
 
     zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("statusCode"), http->parser.status_code TSRMLS_CC);
 
+    
+    
+
     if (http->keep_alive == 0)
     {
         zval *retval;
@@ -1249,10 +1247,35 @@ static int http_client_coro_parser_on_message_complete(php_http_parser *parser)
         {
             sw_zval_ptr_dtor(&retval);
         }
+        
      }
+    zval * zdata;
+    zval *retval;
+    SW_MAKE_STD_ZVAL(zdata);
+    ZVAL_BOOL(zdata, 1); //return false
     http_client_property *hcc = swoole_get_property(zobject, 0);
-    hcc->defer_status=HTTP_CLIENT_STATE_DEFER_DONE;
-
+    if(hcc->defer && hcc->defer_status!=HTTP_CLIENT_STATE_DEFER_WAIT){ //not recv yet  sava data
+        hcc->defer_status=HTTP_CLIENT_STATE_DEFER_DONE;
+        hcc->defer_result=1;
+        goto free_zdata;
+    }
+    
+    //if should resume
+    /*if next cr*/
+    php_context *sw_current_context = swoole_get_property(zobject, 1);
+    
+    hcc->defer_status=HTTP_CLIENT_STATE_DEFER_INIT;
+    int ret = coro_resume(sw_current_context, zdata, &retval);
+    if (ret > 0)
+    {
+        goto free_zdata;
+    }
+    if (retval != NULL)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+    free_zdata:
+    sw_zval_ptr_dtor(&zdata);
     return 0;
 }
 
