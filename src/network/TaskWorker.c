@@ -127,6 +127,7 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
 {
     swServer *serv = pool->ptr;
     SwooleWG.id = worker_id;
+    SwooleG.pid = getpid();
 
     SwooleG.use_timer_pipe = 0;
     SwooleG.use_timerfd = 0;
@@ -205,12 +206,12 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
 
         if (swTask_type(current_task) & SW_TASK_WAITALL)
         {
-            int *finish_count = (int*) result->data;
-            char *tmpfile = result->data + 4;
-            int fd = open(tmpfile, O_APPEND | O_WRONLY);
+            sw_atomic_t *finish_count = (sw_atomic_t*) result->data;
+            char *_tmpfile = result->data + 4;
+            int fd = open(_tmpfile, O_APPEND | O_WRONLY);
             if (fd < 0)
             {
-                swSysError("open(%s) failed.", tmpfile);
+                swSysError("open(%s) failed.", _tmpfile);
                 (*finish_count) ++;
             }
             else
@@ -232,7 +233,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
                     buf.info.len = data_len;
                     memcpy(buf.data, data, data_len);
                 }
-                (*finish_count) ++;
+                sw_atomic_fetch_add(finish_count, 1);
                 //write to tmpfile
                 if (write(fd, &buf, sizeof(buf.info) + buf.info.len) < 0)
                 {
