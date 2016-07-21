@@ -156,6 +156,7 @@ int swFactoryThread_dispatch(swFactory *factory, swDispatchData *task)
         }
         //converted fd to session_id
         task->data.info.fd = conn->session_id;
+        task->data.info.from_fd = conn->from_fd;
     }
 
     int mem_size = sizeof(swDataHead) + task->data.info.len + 1;
@@ -193,6 +194,12 @@ static void swFactoryThread_onStart(swThreadPool *pool, int id)
 
     SwooleTG.id = serv->reactor_num + id;
     SwooleTG.type = SW_THREAD_WORKER;
+
+    SwooleTG.buffer_input = swServer_create_worker_buffer(serv);
+    if (!SwooleTG.buffer_input)
+    {
+        return;
+    }
 
     //cpu affinity setting
 #ifdef HAVE_CPU_AFFINITY

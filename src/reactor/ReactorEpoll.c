@@ -44,10 +44,6 @@ static void swReactorEpoll_free(swReactor *reactor);
 static sw_inline int swReactorEpoll_event_set(int fdtype)
 {
     uint32_t flag = 0;
-#ifdef SW_USE_EPOLLET
-    flag = EPOLLET;
-#endif
-
     if (swReactor_event_read(fdtype))
     {
         flag |= EPOLLIN;
@@ -131,11 +127,6 @@ static int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
     fd_.fd = fd;
     fd_.fdtype = swReactor_fdtype(fdtype);
     e.events = swReactorEpoll_event_set(fdtype);
-
-    if (e.events & EPOLLOUT)
-    {
-        assert(fd > 2);
-    }
 
     memcpy(&(e.data.u64), &fd_, sizeof(fd_));
     ret = epoll_ctl(object->epfd, EPOLL_CTL_ADD, fd, &e);
@@ -261,7 +252,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
             event.socket = swReactor_get(reactor, event.fd);
 
             //read
-            if (events[i].events & EPOLLIN)
+            if ((events[i].events & EPOLLIN) && !event.socket->removed)
             {
                 handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
                 ret = handle(reactor, &event);
@@ -271,7 +262,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
                 }
             }
             //write
-            if ((events[i].events & EPOLLOUT) && event.socket->fd && !event.socket->removed)
+            if ((events[i].events & EPOLLOUT) && !event.socket->removed)
             {
                 handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
                 ret = handle(reactor, &event);
@@ -282,7 +273,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
             }
             //error
 #ifndef NO_EPOLLRDHUP
-            if ((events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)) && event.socket->fd && !event.socket->removed)
+            if ((events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)) && !event.socket->removed)
 #else
             if ((events[i].events & (EPOLLERR | EPOLLHUP)) && !event.socket->removed)
 #endif

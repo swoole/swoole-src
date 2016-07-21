@@ -32,6 +32,7 @@ int main(int argc, char **argv)
 	swUnitTest_steup(aio_test2, 1, "thread pool aio test");
 
 	swUnitTest_steup(rbtree_test, 1, "rbtree data struct test");
+	swUnitTest_steup(linkedlist_test, 1, "linkedlist data struct test");
 	//swUnitTest_steup(pool_thread, 1);
 
 	swUnitTest_steup(type_test1, 1, "type test");

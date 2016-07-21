@@ -1,8 +1,10 @@
 <?php
-$server = new swoole_websocket_server("0.0.0.0", 9501);
-//$server = new swoole_websocket_server("0.0.0.0", 9501, SWOOLE_BASE);
-$server->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
-$server->set(['worker_num' => 4]);
+//$server = new swoole_websocket_server("0.0.0.0", 9501);
+$server = new swoole_websocket_server("0.0.0.0", 9501, SWOOLE_BASE);
+//$server->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
+//$server->set(['worker_num' => 4,
+//    'task_worker_num' => 4,
+//]);
 
 function user_handshake(swoole_http_request $request, swoole_http_response $response)
 {
@@ -38,27 +40,68 @@ function user_handshake(swoole_http_request $request, swoole_http_response $resp
     }
     $response->status(101);
     $response->end();
+    global $server;
+    $fd = $request->fd;
+    $server->defer(function () use ($fd, $server)
+    {
+        $server->push($fd, "hello, welcome\n");
+    });
     return true;
 }
 
 $server->on('handshake', 'user_handshake');
-
 $server->on('open', function (swoole_websocket_server $_server, swoole_http_request $request) {
     echo "server#{$_server->worker_pid}: handshake success with fd#{$request->fd}\n";
-	
+    var_dump($_server->exist($request->fd), $_server->getClientInfo($request->fd));
 //    var_dump($request);
 });
 
 $server->on('message', function (swoole_websocket_server $_server, $frame) {
-    var_dump($frame);
+    var_dump($frame->data);
     echo "received ".strlen($frame->data)." bytes\n";
-    //echo "receive from {$fd}:{$data},opcode:{$opcode},fin:{$fin}\n";
-    $_server->push($frame->fd, "this is server");
-//	$_server->close($frame->fd);
+    if ($frame->data == "close")
+    {
+        $_server->close($frame->fd);
+    }
+    elseif($frame->data == "task")
+    {
+        $_server->task(['go' => 'die']);
+    }
+    else
+    {
+        //echo "receive from {$frame->fd}:{$frame->data}, opcode:{$frame->opcode}, finish:{$frame->finish}\n";
+       // for ($i = 0; $i < 100; $i++)
+        {
+            $_send = str_repeat('B', rand(100, 800));
+            $_server->push($frame->fd, $_send);
+           // echo "#$i\tserver sent " . strlen($_send) . " byte \n";
+        }
+        $fd = $frame->fd;
+        $_server->tick(2000, function($id) use ($fd, $_server) {
+            $_send = str_repeat('B', rand(100, 5000));
+            $ret = $_server->push($fd, $_send);
+            if (!$ret)
+            {
+                var_dump($id);
+                var_dump($_server->clearTimer($id));
+            }
+        });
+    }
 });
 
 $server->on('close', function ($_server, $fd) {
     echo "client {$fd} closed\n";
+});
+
+$server->on('task', function ($_server, $worker_id, $task_id, $data)
+{
+    var_dump($worker_id, $task_id, $data);
+    return "hello world\n";
+});
+
+$server->on('finish', function ($_server, $task_id, $result)
+{
+    var_dump($task_id, $result);
 });
 
 $server->on('packet', function ($_server, $data, $client) {

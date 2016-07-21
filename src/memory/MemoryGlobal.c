@@ -48,7 +48,7 @@ swMemoryPool* swMemoryGlobal_new(int pagesize, char shared)
         return NULL;
     }
     //分配内存需要加锁
-    if(swMutex_create(&gm.lock, 1) < 0)
+    if (swMutex_create(&gm.lock, 1) < 0)
     {
         return NULL;
     }
@@ -104,7 +104,7 @@ static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size)
     if (gm->offset + size > gm->size)
     {
         //没有足够的内存,再次申请
-        swTrace("swMemoryGlobal_alloc new page: size=%d|offset=%d|alloc=%d", gm->size, gm->offset, size);
+        swWarn("swMemoryGlobal_alloc new page: size=%d|offset=%d|alloc=%d", gm->size, gm->offset, size);
         void *page = swMemoryGlobal_new_page(gm);
         if (page == NULL)
         {

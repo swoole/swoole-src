@@ -22,7 +22,7 @@ extern "C"
 {
 #endif
 
-#include "Http.h"
+#include "http.h"
 
 #define SW_WEBSOCKET_GUID "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 #define SW_WEBSOCKET_HEADER_LEN  2
@@ -41,7 +41,13 @@ enum swWebsocketStatus
 {
     WEBSOCKET_STATUS_CONNECTION = 1,
     WEBSOCKET_STATUS_HANDSHAKE = 2,
-    WEBSOCKET_STATUS_FRAME = 3,
+    WEBSOCKET_STATUS_ACTIVE = 3,
+};
+
+enum websocket_callback
+{
+    WEBSOCKET_CALLBACK_onOpen = 0,
+    WEBSOCKET_CALLBACK_onMessage,
 };
 
 typedef struct
@@ -51,16 +57,17 @@ typedef struct
      */
     struct
     {
-        unsigned char OPCODE :4;
-        unsigned char RSV3 :1;
-        unsigned char RSV2 :1;
-        unsigned char RSV1 :1;
-        unsigned char FIN :1;
-        unsigned char LENGTH :7;
-        unsigned char MASK :1;
+        uchar OPCODE :4;
+        uchar RSV3 :1;
+        uchar RSV2 :1;
+        uchar RSV1 :1;
+        uchar FIN :1;
+        uchar LENGTH :7;
+        uchar MASK :1;
     } header;
-    char mask[SW_WEBSOCKET_MASK_LEN];
-    size_t length;
+    char mask_key[SW_WEBSOCKET_MASK_LEN];
+    uint16_t header_length;
+    size_t payload_length;
     char *payload;
 } swWebSocket_frame;
 
@@ -86,13 +93,13 @@ enum swWebsocketCode
     WEBSOCKET_CLOSE_SERVER_ERROR = 1011,
     WEBSOCKET_CLOSE_TLS = 1015,
     WEBSOCKET_VERSION = 13,
-
 };
 
-void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode, int fin, int isMask);
-int swWebSocket_decode(swHttpRequest *request);
-int swWebSocket_isEof(char *data);
-int swWebSocket_decode_frame(char *data, swString * str, int n);
+int swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
+void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode, int finish, int mask);
+void swWebSocket_decode(swWebSocket_frame *frame, swString *data);
+void swWebSocket_print_frame(swWebSocket_frame *frame);
+int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length);
 
 #ifdef __cplusplus
 }

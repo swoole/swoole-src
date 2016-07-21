@@ -14,7 +14,8 @@
  +----------------------------------------------------------------------+
  */
 #include "swoole.h"
-#include "Http.h"
+#include "http.h"
+#include "http2.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -70,6 +71,22 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
         request->offset = 8;
         buf += 8;
     }
+#ifdef SW_USE_HTTP2
+    //HTTP2 Connection Preface
+    else if (memcmp(buf, "PRI", 3) == 0)
+    {
+        request->method = HTTP_PRI;
+        if (memcmp(buf, SW_HTTP2_PRI_STRING, sizeof(SW_HTTP2_PRI_STRING) - 1) == 0)
+        {
+            request->buffer->offset = sizeof(SW_HTTP2_PRI_STRING) - 1;
+            return SW_OK;
+        }
+        else
+        {
+            return SW_ERR;
+        }
+    }
+#endif
     else
     {
         return SW_ERR;
@@ -111,18 +128,20 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
     return SW_OK;
 }
 
-void swHttpRequest_free(swConnection *conn, swHttpRequest *request)
+void swHttpRequest_free(swConnection *conn)
 {
-    if (conn->http_buffered && request->buffer)
+    swHttpRequest *request = conn->object;
+    if (!request)
     {
-        swTrace("RequestShutdown. free buffer=%p, request=%p\n", request->buffer, request);
+        return;
+    }
+    if (request->buffer)
+    {
         swString_free(request->buffer);
-        conn->http_buffered = 0;
     }
-    if (request)
-    {
-        bzero(request, sizeof(swHttpRequest));
-    }
+    bzero(request, sizeof(swHttpRequest));
+    sw_free(request);
+    conn->object = NULL;
 }
 
 /**

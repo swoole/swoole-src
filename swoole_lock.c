@@ -41,7 +41,7 @@ static const zend_function_entry swoole_lock_methods[] =
 
 void swoole_lock_init(int module_number TSRMLS_DC)
 {
-    INIT_CLASS_ENTRY(swoole_lock_ce, "swoole_lock", swoole_lock_methods);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_lock_ce, "swoole_lock", "Swoole\\Lock", swoole_lock_methods);
     swoole_lock_class_entry_ptr = zend_register_internal_class(&swoole_lock_ce TSRMLS_CC);
 
     REGISTER_LONG_CONSTANT("SWOOLE_FILELOCK", SW_FILELOCK, CONST_CS | CONST_PERSISTENT);
@@ -66,7 +66,8 @@ PHP_METHOD(swoole_lock, __construct)
     {
         RETURN_FALSE;
     }
-    swLock *lock = emalloc(sizeof(swLock));
+
+    swLock *lock = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swLock));
     if (lock == NULL)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "alloc failed.");
@@ -119,8 +120,11 @@ PHP_METHOD(swoole_lock, __construct)
 PHP_METHOD(swoole_lock, __destruct)
 {
     swLock *lock = swoole_get_object(getThis());
-    lock->free(lock);
-    efree(lock);
+    if (lock)
+    {
+        lock->free(lock);
+        swoole_set_object(getThis(), NULL);
+    }
 }
 
 PHP_METHOD(swoole_lock, lock)

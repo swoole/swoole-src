@@ -3,7 +3,7 @@ $opt = getopt("c:n:k:");
 print_r($opt);
 if (empty($opt['c']) || empty($opt['n']))
 {
-    echo "examples:  php websocket_client.php -c 100 -n 10000" . PHP_EOL;
+    echo "examples:  php client.php -c 100 -n 10000" . PHP_EOL;
     return;
 }
 $clients = $opt['c'];

@@ -27,8 +27,9 @@
 #define SW_ERROR_MSG_SIZE          512
 #define SW_MAX_WORKER_GROUP        2
 #define SW_MAX_FILE_CONTENT        (64*1024*1024) //for swoole_file_get_contents
-#define SW_MAX_LISTEN_PORT         128  //allows up to 128 ports to listen
+#define SW_MAX_LISTEN_PORT         60000
 
+//#define SW_USE_MALLOC_TRIM
 #define SW_USE_EVENT_TIMER
 //#define SW_USE_RINGBUFFER
 
@@ -45,15 +46,18 @@
 #define SW_MAX_THREAD_NCPU         4 // n * cpu_num
 #define SW_MAX_WORKER_NCPU         1000 // n * cpu_num
 #define SW_MAX_REQUEST             5000          //最大请求包数
+#define SW_MAX_RELOAD_WAIT         10           //最大reload等待次数
 
 //#define SW_CONNECTION_LIST_EXPAND  (4096*2)  //动态扩容的数量
+
+#define SW_HOST_MAXSIZE            128
 
 //#define SW_DEBUG                 //debug
 #define SW_LOG_NO_SRCINFO          //no source info
 #define SW_LOG_TRACE_OPEN          0
 //#define SW_BUFFER_SIZE           65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_CLIENT_BUFFER_SIZE      65535
-#define SW_CLIENT_RECV_AGAIN
+//#define SW_CLIENT_RECV_AGAIN
 #define SW_CLIENT_DEFAULT_TIMEOUT  0.5
 #define SW_CLIENT_MAX_PORT         65535
 //#define SW_CLIENT_SOCKET_WAIT
@@ -118,12 +122,9 @@
 
 //#define SW_WORKER_SEND_CHUNK
 
-#define SW_MAINREACTOR_USE_POLL         //main thread to use select or poll
-
 #define SW_REACTOR_TIMEO_SEC             3
 #define SW_REACTOR_TIMEO_USEC            0
 #define SW_REACTOR_SCHEDULE              2
-#define SW_REACTOR_MINEVENTS             128
 #define SW_REACTOR_MAXEVENTS             4096
 #define SW_REACTOR_USE_SESSION
 #define SW_SESSION_LIST_SIZE             (1024*1024)
@@ -188,7 +189,6 @@
 #define SW_TCP_KEEPIDLE                  3600 //1 hour
 #define SW_TCP_KEEPINTERVAL              60
 
-//#define SW_USE_EPOLLET
 #define SW_USE_EVENTFD                   //是否使用eventfd来做消息通知，需要Linux 2.6.22以上版本才会支持
 
 #define SW_TASK_TMP_FILE                 "/tmp/swoole.task.XXXXXX"
@@ -198,10 +198,15 @@
 
 #define SW_TABLE_CONFLICT_PROPORTION     0.2 //20%
 #define SW_TABLE_COMPRESS_PROPORTION     0.5 //50% skip, will compress the row list
+#define SW_TABLE_KEY_SIZE                64
 //#define SW_TABLE_USE_PHP_HASH
 //#define SW_TABLE_DEBUG
 
-#define SW_SSL_BUFSIZE  16384
+#define SW_SSL_BUFFER_SIZE               16384
+#define SW_SSL_CIPHER_LIST               "EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH"
+#define SW_SSL_ECDH_CURVE                "secp384r1"
+#define SW_SSL_NPN_ADVERTISE             "\x08http/1.1"
+#define SW_SSL_HTTP2_NPN_ADVERTISE       "\x02h2"
 
 #define SW_SPINLOCK_LOOP_N               1024
 
@@ -211,20 +216,37 @@
 #define SW_SIGNO_MAX                     128
 
 #define SW_DNS_LOOKUP_USE_THREAD
+#define SW_DNS_LOOKUP_CACHE_SIZE         4
+
+//#define SW_HTTP_CLIENT_ENABLE
 
 #define SW_HTTP_SERVER_SOFTWARE          "swoole-http-server"
 #define SW_HTTP_BAD_REQUEST              "<h1>400 Bad Request</h1>\r\n"
 #define SW_HTTP_PARAM_MAX_NUM            128
 #define SW_HTTP_COOKIE_KEYLEN            128
-#define SW_HTTP_COOKIE_VALLEN            2048
+#define SW_HTTP_COOKIE_VALLEN            4096
 #define SW_HTTP_RESPONSE_INIT_SIZE       65536
 #define SW_HTTP_HEADER_MAX_SIZE          8192
 #define SW_HTTP_COMPRESS_GZIP
 #define SW_HTTP_UPLOAD_TMP_FILE          "/tmp/swoole.upfile.XXXXXX"
 #define SW_HTTP_DATE_FORMAT              "D, d M Y H:i:s T"
 //#define SW_HTTP_100_CONTINUE
+#define SW_HTTP2_DATA_BUFFSER_SIZE       8192
+#define SW_HTTP2_MAX_CONCURRENT_STREAMS  128
+#define SW_HTTP2_MAX_FRAME_SIZE          ((1u << 24) - 1)
+#define SW_HTTP2_MAX_WINDOW              ((1u << 31) - 1)
+
+#define SW_HTTP_CLIENT_USERAGENT         "swoole-http-client"
 
 #define SW_WEBSOCKET_SERVER_SOFTWARE     "swoole-websocket-server"
 #define SW_WEBSOCKET_VERSION             "13"
+#define SW_WEBSOCKET_KEY_LENGTH          16
+
+#define SW_MYSQL_QUERY_INIT_SIZE         8192
+#define SW_MYSQL_DEFAULT_PORT            3306
+#define SW_MYSQL_CONNECT_TIMEOUT         1.0
+#define SW_MYSQL_DEFAULT_CHARSET         33  //0x21, utf8_general_ci
+
+#define SW_PHP_FUNCTION_MAX_ARG          16
 
 #endif /* SWOOLE_CONFIG_H_ */

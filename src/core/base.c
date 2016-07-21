@@ -21,6 +21,24 @@
 #include <sys/resource.h>
 #include <sys/ioctl.h>
 
+#ifdef HAVE_EXECINFO
+#include <execinfo.h>
+#endif
+
+typedef struct
+{
+    int number;
+    int addr_length;
+    union
+    {
+        struct in_addr v4;
+        struct in6_addr v6;
+    } addr[SW_DNS_LOOKUP_CACHE_SIZE];
+} swDNS_cache;
+
+static swHashMap *swoole_dns_cache_v4 = NULL;
+static swHashMap *swoole_dns_cache_v6 = NULL;
+
 void swoole_init(void)
 {
     struct rlimit rlmt;
@@ -110,7 +128,7 @@ void swoole_clean(void)
         SwooleG.memory_pool = NULL;
         if (SwooleG.timer.fd > 0)
         {
-            SwooleG.timer.free(&SwooleG.timer);
+            swTimer_free(&SwooleG.timer);
         }
         if (SwooleG.main_reactor)
         {
@@ -151,6 +169,24 @@ void swoole_dump_bin(char *data, char type, int size)
     for (i = 0; i < n; i++)
     {
         printf("%d,", swoole_unpack(type, data + type_size * i));
+    }
+    printf("\n");
+}
+
+void swoole_dump_hex(char *data, int outlen)
+{
+    long i;
+    for (i = 0; i < outlen; ++i)
+    {
+        if ((i & 0x0fu) == 0)
+        {
+            printf("%08zX: ", i);
+        }
+        printf("%02X ", data[i]);
+        if (((i + 1) & 0x0fu) == 0)
+        {
+            printf("\n");
+        }
     }
     printf("\n");
 }
@@ -227,10 +263,12 @@ int swoole_type_size(char type)
     case 's':
     case 'S':
     case 'n':
+    case 'v':
         return 2;
     case 'l':
     case 'L':
     case 'N':
+    case 'V':
         return 4;
     default:
         return 0;
@@ -244,11 +282,6 @@ char* swoole_dec2hex(int value, int base)
     static char digits[] = "0123456789abcdefghijklmnopqrstuvwxyz";
     char buf[(sizeof(unsigned long) << 3) + 1];
     char *ptr, *end;
-
-    if (base < 2 || base > 36)
-    {
-        return NULL;
-    }
 
     end = ptr = buf + sizeof(buf) - 1;
     *ptr = '\0';
@@ -396,21 +429,6 @@ int swoole_version_compare(char *version1, char *version2)
         }
     }
     return result;
-}
-
-uint64_t swoole_ntoh64(uint64_t n64)
-{
-    uint32_t tmp;
-    uint32_t n32[2];
-    uint64_t *h64 = (uint64_t*) n32;
-    memcpy(h64, &n64, sizeof(n64));
-    *h64 = n64;
-
-    tmp = n32[0];
-    n32[0] = ntohl(n32[1]);
-    n32[1] = ntohl(tmp);
-
-    return *h64;
 }
 
 double swoole_microtime(void)
@@ -749,6 +767,36 @@ static char *swoole_kmp_search(char *haystack, size_t haylen, char *needle, uint
     return NULL;
 }
 
+int swoole_itoa(char *buf, long value)
+{
+    long i = 0, j;
+    long sign_mask;
+    unsigned long nn;
+
+    sign_mask = value >> (sizeof(long) * 8 - 1);
+    nn = (value + sign_mask) ^ sign_mask;
+    do
+    {
+        buf[i++] = nn % 10 + '0';
+    } while (nn /= 10);
+
+    buf[i] = '-';
+    i += sign_mask & 1;
+    buf[i] = '\0';
+
+    int s_len = i;
+    char swap;
+
+    for (i = 0, j = s_len - 1; i < j; ++i, --j)
+    {
+        swap = buf[i];
+        buf[i] = buf[j];
+        buf[j] = swap;
+    }
+    buf[s_len] = 0;
+    return s_len;
+}
+
 char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
 {
     if (!haystack || !needle)
@@ -769,6 +817,118 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
     free(borders);
     return match;
 }
+
+/**
+ * DNS lookup
+ */
+int swoole_gethostbyname(int flags, char *name, char *addr)
+{
+    SwooleGS->lock.lock(&SwooleGS->lock);
+    swHashMap *cache_table;
+
+    int __af = flags & (~SW_DNS_LOOKUP_CACHE_ONLY) & (~SW_DNS_LOOKUP_RANDOM);
+    if (__af == AF_INET)
+    {
+        if (!swoole_dns_cache_v4)
+        {
+            swoole_dns_cache_v4 = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
+        }
+        cache_table = swoole_dns_cache_v4;
+    }
+    else if (__af == AF_INET6)
+    {
+        if (!swoole_dns_cache_v6)
+        {
+            swoole_dns_cache_v6 = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
+        }
+        cache_table = swoole_dns_cache_v6;
+    }
+    else
+    {
+        SwooleGS->lock.unlock(&SwooleGS->lock);
+        return SW_ERR;
+    }
+
+
+    int name_length = strlen(name);
+    int index = 0;
+    swDNS_cache *cache = swHashMap_find(cache_table, name, name_length);
+    if (cache == NULL && (flags & SW_DNS_LOOKUP_CACHE_ONLY))
+    {
+        SwooleGS->lock.unlock(&SwooleGS->lock);
+        return SW_ERR;
+    }
+
+    if (cache == NULL)
+    {
+        struct hostent *host_entry;
+        if (!(host_entry = gethostbyname2(name, __af)))
+        {
+            SwooleGS->lock.unlock(&SwooleGS->lock);
+            return SW_ERR;
+        }
+
+        cache = sw_malloc(sizeof(swDNS_cache));
+        if (cache == NULL)
+        {
+            SwooleGS->lock.unlock(&SwooleGS->lock);
+            memcpy(addr, host_entry->h_addr_list[0], host_entry->h_length);
+            return SW_OK;
+        }
+
+        bzero(cache, sizeof(swDNS_cache));
+        int i = 0;
+        for (i = 0; i < SW_DNS_LOOKUP_CACHE_SIZE; i++)
+        {
+            if (host_entry->h_addr_list[i] == NULL)
+            {
+                break;
+            }
+            if (__af == AF_INET)
+            {
+                memcpy(&cache->addr[i].v4, host_entry->h_addr_list[i], host_entry->h_length);
+            }
+            else
+            {
+                memcpy(&cache->addr[i].v6, host_entry->h_addr_list[i], host_entry->h_length);
+            }
+        }
+        cache->number = i;
+        cache->addr_length = host_entry->h_length;
+        swHashMap_add(cache_table, name, name_length, cache);
+    }
+    SwooleGS->lock.unlock(&SwooleGS->lock);
+    if (flags & SW_DNS_LOOKUP_RANDOM)
+    {
+        index = rand() % cache->number;
+    }
+    if (__af == AF_INET)
+    {
+        memcpy(addr, &cache->addr[index].v4, cache->addr_length);
+    }
+    else
+    {
+        memcpy(addr, &cache->addr[index].v6, cache->addr_length);
+    }
+    return SW_OK;
+}
+
+#ifdef HAVE_EXECINFO
+void swoole_print_trace(void)
+{
+    int size = 16;
+    void* array[16];
+    int stack_num = backtrace(array, size);
+    char** stacktrace = backtrace_symbols(array, stack_num);
+    int i;
+
+    for (i = 0; i < stack_num; ++i)
+    {
+        printf("%s\n", stacktrace[i]);
+    }
+    free(stacktrace);
+}
+#endif
 
 #ifndef HAVE_CLOCK_GETTIME
 #ifdef __MACH__

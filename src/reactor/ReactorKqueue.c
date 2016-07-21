@@ -323,7 +323,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
                 event.socket = swReactor_get(reactor, event.fd);
 
                 //read
-                if (object->events[i].filter == EVFILT_READ)
+                if (object->events[i].filter == EVFILT_READ && !event.socket->removed)
                 {
                     handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
                     ret = handle(reactor, &event);
@@ -333,7 +333,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
                     }
                 }
                 //write
-                else if (object->events[i].filter == EVFILT_WRITE && event.socket->fd && !event.socket->removed)
+                else if (object->events[i].filter == EVFILT_WRITE && !event.socket->removed)
                 {
                     handle = swReactor_getHandle(reactor, SW_EVENT_WRITE, event.type);
                     ret = handle(reactor, &event);

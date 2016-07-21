@@ -3,6 +3,7 @@
 class WebSocketClient
 {
     const VERSION = '0.1.4';
+
     const TOKEN_LENGHT = 16;
     const TYPE_ID_WELCOME = 0;
     const TYPE_ID_PREFIX = 1;
@@ -13,6 +14,27 @@ class WebSocketClient
     const TYPE_ID_UNSUBSCRIBE = 6;
     const TYPE_ID_PUBLISH = 7;
     const TYPE_ID_EVENT = 8;
+
+    const OPCODE_CONTINUATION_FRAME = 0x0;
+    const OPCODE_TEXT_FRAME         = 0x1;
+    const OPCODE_BINARY_FRAME       = 0x2;
+    const OPCODE_CONNECTION_CLOSE   = 0x8;
+    const OPCODE_PING               = 0x9;
+    const OPCODE_PONG               = 0xa;
+
+    const CLOSE_NORMAL              = 1000;
+    const CLOSE_GOING_AWAY          = 1001;
+    const CLOSE_PROTOCOL_ERROR      = 1002;
+    const CLOSE_DATA_ERROR          = 1003;
+    const CLOSE_STATUS_ERROR        = 1005;
+    const CLOSE_ABNORMAL            = 1006;
+    const CLOSE_MESSAGE_ERROR       = 1007;
+    const CLOSE_POLICY_ERROR        = 1008;
+    const CLOSE_MESSAGE_TOO_BIG     = 1009;
+    const CLOSE_EXTENSION_MISSING   = 1010;
+    const CLOSE_SERVER_ERROR        = 1011;
+    const CLOSE_TLS                 = 1015;
+
     private $key;
     private $host;
     private $port;
@@ -80,6 +102,12 @@ class WebSocketClient
         $this->socket->close();
     }
 
+    public function close($code = self::CLOSE_NORMAL, $reason = '')
+    {
+        $data = pack('n', $code) . $reason;
+        return $this->socket->send(swoole_websocket_server::pack($data, self::OPCODE_CONNECTION_CLOSE, true));
+    }
+
     public function recv()
     {
         $data = $this->socket->recv();
@@ -102,13 +130,26 @@ class WebSocketClient
     }
 
     /**
-     * @param        $data
+     * @param  string      $data
      * @param string $type
      * @param bool   $masked
+     * @return bool
      */
-    public function send($data, $type = 'text', $masked = true)
+    public function send($data, $type = 'text', $masked = false)
     {
-        return $this->socket->send($this->hybi10Encode($data, $type, $masked));
+        switch($type)
+        {
+            case 'text':
+                $_type = WEBSOCKET_OPCODE_TEXT;
+                break;
+            case 'binary':
+            case 'bin':
+                $_type = WEBSOCKET_OPCODE_BINARY;
+                break;
+            default:
+                return false;
+        }
+        return $this->socket->send(swoole_websocket_server::pack($data, $_type, true, $masked));
     }
 
     /**
@@ -118,20 +159,23 @@ class WebSocketClient
      */
     private function parseData($response)
     {
-        if (!$this->connected && isset($response['Sec-Websocket-Accept']))
-        {
-            if (base64_encode(pack('H*', sha1($this->key . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11')))
-                === $response['Sec-Websocket-Accept']
-            )
-            {
-                $this->connected = true;
-            }
-            else
-            {
-                throw new \Exception("error response key.");
-            }
-        }
-        return $this->hybi10Decode($response);
+        if (!$this->connected)
+		{
+			$response = $this->parseIncomingRaw($response);
+			if (isset($response['Sec-Websocket-Accept'])
+				&& base64_encode(pack('H*', sha1($this->key . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'))) === $response['Sec-Websocket-Accept']
+			)
+			{
+				$this->connected = true;
+				return true;
+			}
+			else
+			{
+				throw new \Exception("error response key.");
+			}
+		}
+
+        return swoole_websocket_server::unpack($response);
     }
 
     /**
@@ -247,145 +291,4 @@ class WebSocketClient
         } while (strlen($token) < $length);
         return $token;
     }
-
-    /**
-     * @param        $payload
-     * @param string $type
-     * @param bool   $masked
-     *
-     * @return bool|string
-     */
-    private function hybi10Encode($payload, $type = 'text', $masked = true)
-    {
-        $frameHead = array();
-        $frame = '';
-        $payloadLength = strlen($payload);
-        switch ($type)
-        {
-            case 'text':
-                // first byte indicates FIN, Text-Frame (10000001):
-                $frameHead[0] = 129;
-                break;
-            case 'close':
-                // first byte indicates FIN, Close Frame(10001000):
-                $frameHead[0] = 136;
-                break;
-            case 'ping':
-                // first byte indicates FIN, Ping frame (10001001):
-                $frameHead[0] = 137;
-                break;
-            case 'pong':
-                // first byte indicates FIN, Pong frame (10001010):
-                $frameHead[0] = 138;
-                break;
-        }
-        // set mask and payload length (using 1, 3 or 9 bytes)
-        if ($payloadLength > 65535)
-        {
-            $payloadLengthBin = str_split(sprintf('%064b', $payloadLength), 8);
-            $frameHead[1] = ($masked === true) ? 255 : 127;
-            for ($i = 0; $i < 8; $i++)
-            {
-                $frameHead[$i + 2] = bindec($payloadLengthBin[$i]);
-            }
-            // most significant bit MUST be 0 (close connection if frame too big)
-            if ($frameHead[2] > 127)
-            {
-                $this->close(1004);
-                return false;
-            }
-        }
-        elseif ($payloadLength > 125)
-        {
-            $payloadLengthBin = str_split(sprintf('%016b', $payloadLength), 8);
-            $frameHead[1] = ($masked === true) ? 254 : 126;
-            $frameHead[2] = bindec($payloadLengthBin[0]);
-            $frameHead[3] = bindec($payloadLengthBin[1]);
-        }
-        else
-        {
-            $frameHead[1] = ($masked === true) ? $payloadLength + 128 : $payloadLength;
-        }
-        // convert frame-head to string:
-        foreach (array_keys($frameHead) as $i)
-        {
-            $frameHead[$i] = chr($frameHead[$i]);
-        }
-        if ($masked === true)
-        {
-            // generate a random mask:
-            $mask = array();
-            for ($i = 0; $i < 4; $i++)
-            {
-                $mask[$i] = chr(rand(0, 255));
-            }
-            $frameHead = array_merge($frameHead, $mask);
-        }
-        $frame = implode('', $frameHead);
-        // append payload to frame:
-        for ($i = 0; $i < $payloadLength; $i++)
-        {
-            $frame .= ($masked === true) ? $payload[$i] ^ $mask[$i % 4] : $payload[$i];
-        }
-        return $frame;
-    }
-
-    /**
-     * @param $data
-     *
-     * @return null|string
-     */
-    private function hybi10Decode($data)
-    {
-        if (empty($data))
-        {
-            return null;
-        }
-        $bytes = $data;
-        $dataLength = '';
-        $mask = '';
-        $coded_data = '';
-        $decodedData = '';
-        $secondByte = sprintf('%08b', ord($bytes[1]));
-        $masked = ($secondByte[0] == '1') ? true : false;
-        $dataLength = ($masked === true) ? ord($bytes[1]) & 127 : ord($bytes[1]);
-        if ($masked === true)
-        {
-            if ($dataLength === 126)
-            {
-                $mask = substr($bytes, 4, 4);
-                $coded_data = substr($bytes, 8);
-            }
-            elseif ($dataLength === 127)
-            {
-                $mask = substr($bytes, 10, 4);
-                $coded_data = substr($bytes, 14);
-            }
-            else
-            {
-                $mask = substr($bytes, 2, 4);
-                $coded_data = substr($bytes, 6);
-            }
-            for ($i = 0; $i < strlen($coded_data); $i++)
-            {
-                $decodedData .= $coded_data[$i] ^ $mask[$i % 4];
-            }
-        }
-        else
-        {
-            if ($dataLength === 126)
-            {
-                $decodedData = substr($bytes, 4);
-            }
-            elseif ($dataLength === 127)
-            {
-                $decodedData = substr($bytes, 10);
-            }
-            else
-            {
-                $decodedData = substr($bytes, 2);
-            }
-        }
-        return $decodedData;
-    }
-} 
+}

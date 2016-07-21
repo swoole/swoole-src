@@ -17,17 +17,6 @@
  */
 
 #include "php_swoole.h"
-#include "php_streams.h"
-#include "php_network.h"
-
-#ifdef SW_SOCKETS
-#if PHP_VERSION_ID >= 50301 && (HAVE_SOCKETS || defined(COMPILE_DL_SOCKETS))
-#include "ext/sockets/php_sockets.h"
-#define SWOOLE_SOCKETS_SUPPORT
-#else
-#error "Enable sockets support, But no sockets extension"
-#endif
-#endif
 
 typedef struct
 {
@@ -42,18 +31,28 @@ typedef struct
     zval *cb_read;
     zval *cb_write;
     zval *socket;
-} swoole_reactor_fd;
+} php_reactor_fd;
+
+typedef struct
+{
+#if PHP_MAJOR_VERSION >= 7
+    zval _callback;
+#endif
+    zval *callback;
+} php_defer_callback;
 
 static int php_swoole_event_onRead(swReactor *reactor, swEvent *event);
 static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event);
 static int php_swoole_event_onError(swReactor *reactor, swEvent *event);
+static void php_swoole_event_onDefer(void *_cb);
+
 static int swoole_convert_to_fd(zval *zfd);
 
 static int php_swoole_event_onRead(swReactor *reactor, swEvent *event)
 {
     zval *retval;
     zval **args[1];
-    swoole_reactor_fd *fd = event->socket->object;
+    php_reactor_fd *fd = event->socket->object;
 
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -82,7 +81,7 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
 {
     zval *retval;
     zval **args[1];
-    swoole_reactor_fd *fd = event->socket->object;
+    php_reactor_fd *fd = event->socket->object;
 
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -138,6 +137,32 @@ static int php_swoole_event_onError(swReactor *reactor, swEvent *event)
     SwooleG.main_reactor->del(SwooleG.main_reactor, event->fd);
 
     return SW_OK;
+}
+
+static void php_swoole_event_onDefer(void *_cb)
+{
+    php_defer_callback *defer = _cb;
+
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+
+    zval *retval;
+    if (sw_call_user_function_ex(EG(function_table), NULL, defer->callback, &retval, 0, NULL, 0, NULL TSRMLS_CC) == FAILURE)
+    {
+        swoole_php_fatal_error(E_WARNING, "swoole_event: defer handler error");
+        return;
+    }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+    }
+    if (retval != NULL)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+    sw_zval_ptr_dtor(&defer->callback);
+    efree(defer);
 }
 
 void php_swoole_event_init(void)
@@ -226,6 +251,46 @@ static int swoole_convert_to_fd(zval *zfd)
     return socket_fd;
 }
 
+#ifdef SWOOLE_SOCKETS_SUPPORT
+php_socket* swoole_convert_to_socket(int sock)
+{
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+    php_socket *socket_object = emalloc(sizeof *socket_object);
+    bzero(socket_object, sizeof(php_socket));
+    socket_object->bsd_socket = sock;
+    socket_object->blocking = 1;
+
+    struct sockaddr_storage addr;
+    socklen_t addr_len = sizeof(addr);
+
+    if (getsockname(sock, (struct sockaddr*) &addr, &addr_len) == 0)
+    {
+        socket_object->type = addr.ss_family;
+    }
+    else
+    {
+        swoole_php_sys_error(E_WARNING, "unable to obtain socket family");
+        error:
+        efree(socket_object);
+        return NULL;
+    }
+
+    int t = fcntl(sock, F_GETFL);
+    if (t == -1)
+    {
+        swoole_php_sys_error(E_WARNING, "unable to obtain blocking state");
+        goto error;
+    }
+    else
+    {
+        socket_object->blocking = !(t & O_NONBLOCK);
+    }
+    return socket_object;
+}
+#endif
+
 PHP_FUNCTION(swoole_event_add)
 {
     zval *cb_read = NULL;
@@ -257,7 +322,7 @@ PHP_FUNCTION(swoole_event_add)
         RETURN_FALSE;
     }
 
-    swoole_reactor_fd *reactor_fd = emalloc(sizeof(swoole_reactor_fd));
+    php_reactor_fd *reactor_fd = emalloc(sizeof(php_reactor_fd));
 
 #if PHP_MAJOR_VERSION < 7
     reactor_fd->cb_read = cb_read;
@@ -394,7 +459,7 @@ PHP_FUNCTION(swoole_event_set)
         efree(func_name);
         RETURN_FALSE;
     }
-    swoole_reactor_fd *ev_set = socket->object;
+    php_reactor_fd *ev_set = socket->object;
 
     if (cb_read != NULL && !ZVAL_IS_NULL(cb_read))
     {
@@ -485,11 +550,52 @@ PHP_FUNCTION(swoole_event_del)
     }
 
     swConnection *socket = swReactor_get(SwooleG.main_reactor, socket_fd);
-    efree(socket->object);
+    if (socket->object)
+    {
+        efree(socket->object);
+    }
     socket->active = 0;
-
-    int ret = SwooleG.main_reactor->del(SwooleG.main_reactor, socket_fd);
+    int ret = 0;
+    if (socket->fd)
+    {
+        ret = SwooleG.main_reactor->del(SwooleG.main_reactor, socket_fd);
+    }
     SW_CHECK_RETURN(ret);
+}
+
+PHP_FUNCTION(swoole_event_defer)
+{
+    if (!SwooleG.main_reactor)
+    {
+        swoole_php_fatal_error(E_WARNING, "reactor no ready, cannot swoole_event_defer.");
+        RETURN_FALSE;
+    }
+
+    zval *callback;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &callback) == FAILURE)
+    {
+        return;
+    }
+
+    char *func_name;
+    if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+    {
+        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        efree(func_name);
+        RETURN_FALSE;
+    }
+    efree(func_name);
+
+    php_defer_callback *defer = emalloc(sizeof(php_defer_callback));
+
+#if PHP_MAJOR_VERSION >= 7
+    defer->callback = &defer->_callback;
+    memcpy(defer->callback, callback, sizeof(zval));
+#else
+    defer->callback = callback;
+#endif
+    sw_zval_add_ref(&callback);
+    SW_CHECK_RETURN(SwooleG.main_reactor->defer(SwooleG.main_reactor, php_swoole_event_onDefer, defer));
 }
 
 PHP_FUNCTION(swoole_event_exit)
@@ -508,9 +614,7 @@ PHP_FUNCTION(swoole_event_wait)
 {
     if (!SwooleG.main_reactor)
     {
-        swoole_php_fatal_error(E_WARNING, "reactor no ready, cannot use swoole_event_wait.");
-        RETURN_FALSE;
+        return;
     }
     php_swoole_event_wait();
 }
-

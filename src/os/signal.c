@@ -18,11 +18,19 @@
 
 #ifdef HAVE_SIGNALFD
 #include <sys/signalfd.h>
+static void swSignalfd_set(int signo, swSignalHander callback);
+static void swSignalfd_clear();
+static int swSignalfd_onSignal(swReactor *reactor, swEvent *event);
+
+#define SW_SIGNAL_INIT_NUM    8
+
+static sigset_t signalfd_mask;
+static int signal_fd = 0;
 #endif
 
 typedef struct
 {
-    swSignalFunc callback;
+    swSignalHander callback;
     uint16_t signo;
     uint16_t active;
 } swSignal;
@@ -48,7 +56,7 @@ void swSignal_none(void)
 /**
  * setup signal
  */
-swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask)
+swSignalHander swSignal_set(int sig, swSignalHander func, int restart, int mask)
 {
     if (func == NULL)
     {
@@ -72,12 +80,12 @@ swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask)
     return oact.sa_handler;
 }
 
-void swSignal_add(int signo, swSignalFunc func)
+void swSignal_add(int signo, swSignalHander func)
 {
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd)
     {
-        swSignalfd_add(signo, func);
+        swSignalfd_set(signo, func);
     }
     else
 #endif
@@ -108,7 +116,7 @@ void swSignal_callback(int signo)
         swWarn("signal[%d] numberis invalid.", signo);
         return;
     }
-    swSignalFunc callback = signals[signo].callback;
+    swSignalHander callback = signals[signo].callback;
     if (!callback)
     {
         swWarn("signal[%d] callback is null.", signo);
@@ -117,24 +125,43 @@ void swSignal_callback(int signo)
     callback(signo);
 }
 
+void swSignal_clear(void)
+{
 #ifdef HAVE_SIGNALFD
-#define SW_SIGNAL_INIT_NUM    8
+    if (SwooleG.use_signalfd)
+    {
+        swSignalfd_clear();
+    }
+#endif
+    bzero(&signals, sizeof(signals));
+}
 
-static sigset_t signalfd_mask;
-static int signal_fd = 0;
-
+#ifdef HAVE_SIGNALFD
 void swSignalfd_init()
 {
     sigemptyset(&signalfd_mask);
     bzero(&signals, sizeof(signals));
 }
 
-void swSignalfd_add(int signo, __sighandler_t callback)
+static void swSignalfd_set(int signo, swSignalHander callback)
 {
-    sigaddset(&signalfd_mask, signo);
-    signals[signo].callback = callback;
-    signals[signo].signo = signo;
-    signals[signo].active = 1;
+    if (callback == NULL && signals[signo].active)
+    {
+        sigdelset(&signalfd_mask, signo);
+        bzero(&signals[signo], sizeof(swSignal));
+
+        if (signal_fd > 0)
+        {
+            sigprocmask(SIG_BLOCK, &signalfd_mask, NULL);
+        }
+    }
+    else
+    {
+        sigaddset(&signalfd_mask, signo);
+        signals[signo].callback = callback;
+        signals[signo].signo = signo;
+        signals[signo].active = 1;
+    }
 }
 
 int swSignalfd_setup(swReactor *reactor)
@@ -164,23 +191,21 @@ int swSignalfd_setup(swReactor *reactor)
     }
 }
 
-void swSignalfd_clear()
+static void swSignalfd_clear()
 {
-    if (sigprocmask(SIG_UNBLOCK, &signalfd_mask, NULL) < 0)
-    {
-        swSysError("sigprocmask(SIG_UNBLOCK) failed.");
-    }
-    bzero(&signals, sizeof(signals));
-    bzero(&signalfd_mask, sizeof(signalfd_mask));
-
     if (signal_fd)
     {
+        if (sigprocmask(SIG_UNBLOCK, &signalfd_mask, NULL) < 0)
+        {
+            swSysError("sigprocmask(SIG_UNBLOCK) failed.");
+        }
         close(signal_fd);
+        bzero(&signalfd_mask, sizeof(signalfd_mask));
     }
     signal_fd = 0;
 }
 
-int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
+static int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
 {
     int n;
     struct signalfd_siginfo siginfo;
@@ -191,9 +216,16 @@ int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
         return SW_ERR;
     }
 
-    if (signals[siginfo.ssi_signo].active && signals[siginfo.ssi_signo].callback)
+    if (signals[siginfo.ssi_signo].active)
     {
-        signals[siginfo.ssi_signo].callback(siginfo.ssi_signo);
+        if (signals[siginfo.ssi_signo].callback)
+        {
+            signals[siginfo.ssi_signo].callback(siginfo.ssi_signo);
+        }
+        else
+        {
+            swWarn("signal[%d] callback is null.", siginfo.ssi_signo);
+        }
     }
 
     return SW_OK;

@@ -52,3 +52,14 @@ modules/*
 /modules
 /examples/async/test.copy
 /examples/ssl_client
+/examples/ssl/ca.crt
+/examples/ssl/client.key
+/examples/ssl/client.pfx
+/examples/ssl/client
+/examples/ssl/corpssl.crt
+/examples/ssl/corpssl.key
+/examples/ext
+/tests/hpack/main
+/tests/hpack/data.txt
+/examples/cpp_module/.cproject
+/examples/cpp_module/.project

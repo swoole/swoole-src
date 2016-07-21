@@ -45,7 +45,6 @@ int main(int argc, char **argv)
 	swServer_init(&serv); //初始化
 
 	//config
-	serv.backlog = 128;
 	serv.reactor_num = 2; //reactor线程数量
 	serv.worker_num = 4;      //worker进程数量
 
@@ -65,19 +64,16 @@ int main(int argc, char **argv)
 	}
 
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9500);
-	swServer_add_listener(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
+	swListenPort *port = swServer_add_port(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9502);
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 8888);
-
-	//swServer_addTimer(&serv, 2);
-	//swServer_addTimer(&serv, 4);
+	port->backlog = 128;
 
 	serv.onStart = my_onStart;
 	serv.onShutdown = my_onShutdown;
 	serv.onConnect = my_onConnect;
 	serv.onReceive = my_onReceive;
 	serv.onClose = my_onClose;
-	serv.onTimer = my_onTimer;
 	serv.onWorkerStart = my_onWorkerStart;
 	serv.onWorkerStop = my_onWorkerStop;
 

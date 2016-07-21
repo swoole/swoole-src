@@ -18,7 +18,6 @@
 
 #include "swoole.h"
 #include "Server.h"
-#include "Connection.h"
 
 #include <sys/stat.h>
 
@@ -136,6 +135,7 @@ int swConnection_buffer_send(swConnection *conn)
             swWarn("send to fd[%d] failed. Error: %s[%d]", conn->fd, strerror(errno), errno);
             break;
         case SW_CLOSE:
+            conn->close_errno = errno;
             conn->close_wait = 1;
             return SW_ERR;
         case SW_WAIT:
@@ -212,7 +212,7 @@ void swConnection_sendfile_destructor(swBuffer_trunk *chunk)
 {
     swTask_sendfile *task = chunk->store.ptr;
     close(task->fd);
-    sw_free(task->filename);
+    sw_strdup_free(task->filename);
     sw_free(task);
 }
 
@@ -240,7 +240,7 @@ int swConnection_sendfile(swConnection *conn, char *filename)
     int file_fd = open(filename, O_RDONLY);
     if (file_fd < 0)
     {
-        free(task->filename);
+        sw_strdup_free(task->filename);
         free(task);
         swSysError("open(%s) failed.", task->filename);
         return SW_ERR;

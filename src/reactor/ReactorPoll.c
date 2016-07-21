@@ -244,7 +244,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
 
                 swTrace("Event: fd=%d|from_id=%d|type=%d", event.fd, reactor->id, object->fds[i].fdtype);
                 //in
-                if (object->events[i].revents & POLLIN)
+                if ((object->events[i].revents & POLLIN) && !event.socket->removed)
                 {
                     handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
                     ret = handle(reactor, &event);

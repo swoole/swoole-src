@@ -70,10 +70,10 @@ int swSocket_sendfile_sync(int sock, char *filename, double timeout)
 /**
  * clear socket buffer.
  */
-void swSocket_clean(int fd, void *buf, int len)
+void swSocket_clean(int fd)
 {
-    while (recv(fd, buf, len, MSG_DONTWAIT) > 0)
-        ;
+    char buf[2048];
+    while (recv(fd, buf, sizeof(buf), MSG_DONTWAIT) > 0);
 }
 
 /**
@@ -108,6 +108,52 @@ int swSocket_wait(int fd, int timeout_ms, int events)
         else
         {
             return SW_OK;
+        }
+    }
+    return SW_OK;
+}
+
+/**
+ * Wait some sockets can read or write.
+ */
+int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events)
+{
+    assert(n_fd < 65535);
+
+    struct pollfd *event_list = sw_calloc(n_fd, sizeof(struct pollfd));
+    int i;
+
+    int _events = 0;
+    if (events & SW_EVENT_READ)
+    {
+        _events |= POLLIN;
+    }
+    if (events & SW_EVENT_WRITE)
+    {
+        _events |= POLLOUT;
+    }
+
+    for (i = 0; i < n_fd; i++)
+    {
+        event_list[i].fd = list_of_fd[i];
+        event_list[i].events = _events;
+    }
+
+    while (1)
+    {
+        int ret = poll(event_list, n_fd, timeout_ms);
+        if (ret == 0)
+        {
+            return SW_ERR;
+        }
+        else if (ret < 0 && errno != EINTR)
+        {
+            swWarn("poll() failed. Error: %s[%d]", strerror(errno), errno);
+            return SW_ERR;
+        }
+        else
+        {
+            return ret;
         }
     }
     return SW_OK;
@@ -239,45 +285,26 @@ int swSocket_create(int type)
         _type = SOCK_STREAM;
         break;
     default:
-        swError("unknow socket type [%d]", type);
+        swWarn("unknown socket type [%d]", type);
         return SW_ERR;
     }
     return socket(_domain, _type, 0);
 }
 
-int swSocket_listen(int type, char *host, int port, int backlog)
+int swSocket_bind(int sock, int type, char *host, int port)
 {
-    int sock;
-    int option;
     int ret;
 
     struct sockaddr_in addr_in4;
     struct sockaddr_in6 addr_in6;
     struct sockaddr_un addr_un;
 
-    sock = swSocket_create(type);
-    if (sock < 0)
-    {
-        swSysError("create socket failed.");
-        return SW_ERR;
-    }
-    //reuse address
-    option = 1;
+    //SO_REUSEADDR option
+    int option = 1;
     if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0)
     {
-        swSysError("setsockopt(SO_REUSEPORT) failed.");
+        swSysError("setsockopt(%d, SO_REUSEADDR) failed.", sock);
     }
-    //reuse port
-#ifdef HAVE_REUSEPORT
-    if (SwooleG.reuse_port)
-    {
-        if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) < 0)
-        {
-            swSysError("setsockopt(SO_REUSEPORT) failed.");
-            SwooleG.reuse_port = 0;
-        }
-    }
-#endif
     //unix socket
     if (type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM)
     {
@@ -311,19 +338,7 @@ int swSocket_listen(int type, char *host, int port, int backlog)
         swWarn("bind(%s:%d) failed. Error: %s [%d]", host, port, strerror(errno), errno);
         return SW_ERR;
     }
-    if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM)
-    {
-        return sock;
-    }
-    //listen stream socket
-    ret = listen(sock, backlog);
-    if (ret < 0)
-    {
-        swWarn("listen(%s:%d, %d) failed. Error: %s[%d]", host, port, backlog, strerror(errno), errno);
-        return SW_ERR;
-    }
-    swSetNonBlock(sock);
-    return sock;
+    return ret;
 }
 
 int swSocket_set_buffer_size(int fd, int buffer_size)

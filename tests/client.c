@@ -2,7 +2,7 @@
 #include "swoole.h"
 #include "Client.h"
 
-swReactor main_reactor;
+static swReactor main_reactor;
 
 void dns_callback(void *ptr)
 {
@@ -41,7 +41,7 @@ swUnitTest(client_test)
 		return -1;
 	}
 
-	ret = cli.send(&cli, SW_STRL("TCP: hello world"));
+	ret = cli.send(&cli, SW_STRL("TCP: hello world"), 0);
 	if (ret < 0)
 	{
 		printf("send fail.\n");
@@ -70,7 +70,7 @@ swUnitTest(client_test)
 		printf("connect fail.\n");
 		return -1;
 	}
-	ret = cli2.send(&cli2, SW_STRL("UDP: hello world"));
+	ret = cli2.send(&cli2, SW_STRL("UDP: hello world"), 0);
 	if (ret < 0)
 	{
 		printf("send fail.\n");

@@ -2,9 +2,16 @@ Swoole
 ======
 [![Build Status](https://api.travis-ci.org/swoole/swoole-src.svg)](https://travis-ci.org/swoole/swoole-src)
 
-Swoole is an event-based & concurrent framework for internet applications, written in C, for PHP.
+Swoole is an event-driven asynchronous & concurrent networking communication framework with high performance written only in C for PHP.
+
+__Document__: <https://rawgit.com/tchiotludo/swoole-ide-helper/english/docs/index.html>
+
+__IDE Helper__: <https://github.com/tchiotludo/swoole-ide-helper>
+
+__中文文档__: <http://wiki.swoole.com/>
 
 __IRC__:  <http://webchat.freenode.net/?channels=swoole&uio=d4>
+
 
 event-based
 ------
@@ -21,7 +28,7 @@ With the synchronous logic execution, you can easily write large and robust appl
 in-memory
 ------
 
-Unlike traditional apache/php-fpm stuff, the memory allocated in Swoole will not be free'd after a request, which can improve preformance a lot.
+Unlike traditional apache/php-fpm stuff, the memory allocated in Swoole will not be free'd after a request, which can improve performance a lot.
 
 
 ## Why Swoole?
@@ -65,7 +72,6 @@ By using Swoole, you can build enhanced web applications with more control, real
 
 Swoole includes components for different purposes: Server, Task Worker, Timer, Event and Async IO. With these components,
 Swoole allows you to build many features.
-
 
 ### Server
 
@@ -132,6 +138,88 @@ $ws->on('close', function ($ws, $fd) {
 });
 
 $ws->start();
+```
+
+### Real async-mysql client
+```php
+$db = new swoole_mysql('127.0.0.1', 'root', 'root', 'test');
+
+$db->on("close", function($o){
+    echo "mysql connection is closed\n";
+});
+
+$db->query("select now() as now_t", function($db, $result_rows){
+    var_dump($result_rows);
+    $db->close();
+});
+```
+
+### Real async-redis client
+```php
+$client = new swoole_redis;
+$client->connect('127.0.0.1', 6379, function (swoole_redis $client, $result) {
+    echo "connect\n";
+    var_dump($result);
+    $client->set('key', 'swoole', function (swoole_redis $client, $result) {
+        var_dump($result);
+        $client->get('key', function (swoole_redis $client, $result) {
+            var_dump($result);
+            $client->close();
+        });
+    });
+});
+```
+
+
+### Async http Client
+
+```php
+$cli = new swoole_http_client('127.0.0.1', 80);
+
+$cli->setHeaders(['User-Agent' => "swoole"]);
+$cli->post('/dump.php', array("test" => '9999999'), function (swoole_http_client $cli)
+{
+    echo "#{$cli->sock}\tPOST response Length: " . strlen($cli->body) . "\n";
+    $cli->get('/index.php', function (swoole_http_client $cli)
+    {
+        echo "#{$cli->sock}\tGET response Length: " . strlen($cli->body) . "\n";
+    });
+});
+```
+
+### Async WebSocket Client
+
+```php
+$cli = new swoole_http_client('127.0.0.1', 9501);
+
+$cli->on('message', function ($_cli, $frame) {
+    var_dump($frame);
+});
+
+$cli->upgrade('/', function ($cli) {
+    echo $cli->body;
+    $cli->push("hello world");
+});
+```
+
+
+### Multi-port and mixed protocol
+
+```php
+$serv = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
+
+$port2 = $serv->listen("0.0.0.0", 9502, SWOOLE_SOCK_TCP);
+$port2->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
+    var_dump($data);
+    $serv->send($fd, $data);    
+});
+
+$serv->on('request', function($req, $resp) {
+    $resp->end("<h1>Hello World</h1>");
+});
+
+
+$serv->start();
 ```
 
 ### Task Worker
@@ -319,7 +407,7 @@ Refer [API Reference](http://wiki.swoole.com/wiki/page/3.html) for more detail i
 ## API Reference
 
 * [中文](http://wiki.swoole.com/) 
-* [English](https://github.com/matyhtf/swoole_doc/blob/master/docs/en/index.md) (will be ready soon)
+* [English](https://cdn.rawgit.com/tchiotludo/swoole-ide-helper/dd73ce0dd949870daebbf3e8fee64361858422a1/docs/index.html)
 
 ## Related Projects
 

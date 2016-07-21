@@ -122,23 +122,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
 
     if (task->target_worker_id < 0)
     {
-        //udp use remote port
-        if (swEventData_is_dgram(task->data.info.type))
-        {
-            if (serv->dispatch_mode == SW_DISPATCH_IPMOD || serv->dispatch_mode == SW_DISPATCH_UIDMOD)
-            {
-                schedule_key = task->data.info.fd;
-            }
-            else
-            {
-                schedule_key = task->data.info.from_id;
-            }
-        }
-        else
-        {
-            schedule_key = task->data.info.fd;
-        }
-
+        schedule_key = task->data.info.fd;
 #ifndef SW_USE_RINGBUFFER
         if (SwooleTG.factory_lock_target)
         {
@@ -183,6 +167,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
         }
         //converted fd to session_id
         task->data.info.fd = conn->session_id;
+        task->data.info.from_fd = conn->from_fd;
     }
 
     return swReactorThread_send2worker((void *) &(task->data), send_len, target_worker_id);
@@ -197,21 +182,29 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     swServer *serv = factory->ptr;
     int fd = resp->info.fd;
 
-    swConnection *conn = swServer_connection_verify(serv, fd);
+    swConnection *conn;
+    if (resp->info.type != SW_EVENT_CLOSE)
+    {
+        conn = swServer_connection_verify(serv, fd);
+    }
+    else
+    {
+        conn = swServer_connection_verify_no_ssl(serv, fd);
+    }
     if (!conn)
     {
-        swWarn("session#%d does not exist.", fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session#%d does not exist.", fd);
         return SW_ERR;
     }
     else if ((conn->closed || conn->removed) && resp->info.type != SW_EVENT_CLOSE)
     {
         int _len = resp->length > 0 ? resp->length : resp->info.len;
-        swWarn("send %d byte failed, because session#%d is closed.", _len, fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "send %d byte failed, because session#%d is closed.", _len, fd);
         return SW_ERR;
     }
     else if (conn->overflow)
     {
-        swWarn("send failed, session#%d output buffer has been overflowed.", fd);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "send failed, session#%d output buffer has been overflowed.", fd);
         return SW_ERR;
     }
 
@@ -271,6 +264,7 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
 {
     swServer *serv = factory->ptr;
     swSendData _send;
+    swDataHead info;
 
     bzero(&_send, sizeof(_send));
     _send.info.fd = fd;
@@ -289,7 +283,7 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
     }
     else if (conn->closing)
     {
-        swWarn("The connection[%d] is closing.", fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSING, "The connection[%d] is closing.", fd);
         return SW_ERR;
     }
     else if (conn->closed)
@@ -302,10 +296,14 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
         conn->closing = 1;
         if (serv->onClose != NULL)
         {
-            serv->onClose(serv, fd, conn->from_id);
+            info.fd = fd;
+            info.from_id =  conn->from_id;
+            info.from_fd =  conn->from_fd;
+            serv->onClose(serv, &info);
         }
         conn->closing = 0;
         conn->closed = 1;
+        conn->close_errno = 0;
         return factory->finish(factory, &_send);
     }
 }
