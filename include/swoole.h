@@ -623,6 +623,7 @@ typedef struct _swVal
 
 enum swVal_type
 {
+    SW_VAL_NULL   = 0,
     SW_VAL_STRING = 1,
     SW_VAL_LONG,
     SW_VAL_DOUBLE,

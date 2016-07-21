@@ -80,10 +80,6 @@ static sw_inline int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_D
     task->info.from_id = SwooleWG.id;
     swTask_type(task) = 0;
 
-    //clear result buffer
-    swEventData *task_result = &(SwooleG.task_result[SwooleWG.id]);
-    bzero(task_result, sizeof(SwooleG.task_result[SwooleWG.id]));
-
     char *task_data_str;
     int task_data_len = 0;
     //need serialize
@@ -2304,6 +2300,7 @@ PHP_METHOD(swoole_server, taskwait)
 
     uint64_t notify;
     swEventData *task_result = &(SwooleG.task_result[SwooleWG.id]);
+    bzero(task_result, sizeof(swEventData));
     swPipe *task_notify_pipe = &SwooleG.task_notify[SwooleWG.id];
     int efd = task_notify_pipe->getFd(task_notify_pipe, 0);
 
@@ -2358,8 +2355,24 @@ PHP_METHOD(swoole_server, taskWaitMulti)
 
     uint64_t notify;
     swEventData *task_result = &(SwooleG.task_result[SwooleWG.id]);
+    bzero(task_result, sizeof(swEventData));
     swPipe *task_notify_pipe = &SwooleG.task_notify[SwooleWG.id];
     swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
+
+    char _tmpfile[sizeof(SW_TASK_TMP_FILE)] = SW_TASK_TMP_FILE;
+    int _tmpfile_fd = swoole_tmpfile(_tmpfile);
+    if (_tmpfile_fd < 0)
+    {
+        swoole_php_sys_error(E_WARNING, "mktemp(%s) failed.", SW_TASK_TMP_FILE);
+        RETURN_FALSE;
+    }
+    close(_tmpfile_fd);
+    int *finish_count = (int *) task_result->data;
+
+    worker->lock.lock(&worker->lock);
+    *finish_count = 0;
+    memcpy(task_result->data + 4, _tmpfile, sizeof(_tmpfile));
+    worker->lock.unlock(&worker->lock);
 
     //clear history task
     int efd = task_notify_pipe->getFd(task_notify_pipe, 0);
@@ -2389,15 +2402,6 @@ PHP_METHOD(swoole_server, taskWaitMulti)
         i++;
     SW_HASHTABLE_FOREACH_END();
 
-    char tmpfile[sizeof(SW_TASK_TMP_FILE)] = SW_TASK_TMP_FILE;
-    int tmpfile_fd = swoole_tmpfile(tmpfile);
-    int *finish_count = (int *) task_result->data;
-
-    worker->lock.lock(&worker->lock);
-    *finish_count = 0;
-    memcpy(task_result->data + 4, tmpfile, sizeof(tmpfile));
-    worker->lock.unlock(&worker->lock);
-
     while (n_task > 0)
     {
         task_notify_pipe->timeout = timeout;
@@ -2412,11 +2416,12 @@ PHP_METHOD(swoole_server, taskWaitMulti)
         else
         {
             swoole_php_fatal_error(E_WARNING, "taskwait failed. Error: %s[%d]", strerror(errno), errno);
+            unlink(_tmpfile);
+            RETURN_FALSE;
         }
     }
-    close(tmpfile_fd);
 
-    swString *content = swoole_file_get_contents(tmpfile);
+    swString *content = swoole_file_get_contents(_tmpfile);
     if (content == NULL)
     {
         return;
@@ -2441,7 +2446,7 @@ PHP_METHOD(swoole_server, taskWaitMulti)
         add_index_zval(return_value, j, zdata);
         content->offset += sizeof(swDataHead) + result->info.len;
     }
-    unlink(tmpfile);
+    unlink(_tmpfile);
 }
 
 PHP_METHOD(swoole_server, task)
