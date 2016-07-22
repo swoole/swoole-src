@@ -648,7 +648,8 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     args[2] = zfrom_id;
     args[3] = zdata;
 
-    int ret = coro_create(php_sw_server_caches[SW_SERVER_CB_onReceive], args, 4, &retval);
+    zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
+    int ret = coro_create(cache, args, 4, &retval);
     if (ret != 0)
     {
         return SW_OK;
