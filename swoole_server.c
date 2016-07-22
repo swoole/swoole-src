@@ -1992,11 +1992,6 @@ PHP_METHOD(swoole_server, send)
     //TCP
     else
     {
-        if (serv->factory_mode == SW_MODE_SINGLE && swIsTaskWorker())
-        {
-            swoole_php_error(E_WARNING, "cannot send to client in task worker with SWOOLE_BASE mode.");
-            RETURN_FALSE;
-        }
         SW_CHECK_RETURN(swServer_tcp_send(serv, fd, data, length));
     }
 }
@@ -2078,11 +2073,6 @@ PHP_METHOD(swoole_server, sendfile)
         swoole_php_fatal_error(E_WARNING, "Server is not running.");
         RETURN_FALSE;
     }
-
-#ifdef __CYGWIN__
-    swoole_php_fatal_error(E_WARNING, "cannot use swoole_server->sendfile() in cygwin.");
-    RETURN_FALSE;;
-#endif
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls", &fd, &filename, &len) == FAILURE)
     {

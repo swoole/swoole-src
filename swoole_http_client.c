@@ -772,6 +772,8 @@ static http_client* http_client_create(zval *object TSRMLS_DC)
     //Client settings
     php_swoole_client_check_setting(http->cli, zset TSRMLS_CC);
 
+    http->cli->open_eof_check = 0;
+    http->cli->open_length_check = 0;
     http->state = HTTP_CLIENT_STATE_READY;
 
     return http;
