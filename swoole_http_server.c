@@ -81,14 +81,6 @@ zend_class_entry *swoole_http_response_class_entry_ptr;
 zend_class_entry swoole_http_request_ce;
 zend_class_entry *swoole_http_request_class_entry_ptr;
 
-zval* php_sw_http_server_callbacks[HTTP_SERVER_CALLBACK_NUM];
-#ifdef SW_COROUTINE
-zend_fcall_info_cache *php_sw_http_callback_cache[HTTP_SERVER_CALLBACK_NUM];
-#endif
-#if PHP_MAJOR_VERSION >= 7
-zval _php_sw_http_server_callbacks[HTTP_SERVER_CALLBACK_NUM];
-#endif
-
 static int http_onReceive(swServer *serv, swEventData *req);
 
 static int http_request_on_path(php_http_parser *parser, const char *at, size_t length);
@@ -941,8 +933,9 @@ static int http_onReceive(swServer *serv, swEventData *req)
 
         sw_add_assoc_string(zserver, "server_software", SW_HTTP_SERVER_SOFTWARE, 1);
 
+        zval *zcallback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onHandShake);
         //websocket handshake
-        if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION && php_sw_http_server_callbacks[HTTP_CALLBACK_onHandShake] == NULL)
+        if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION && zcallback == NULL)
         {
             return swoole_websocket_onHandshake(ctx);
         }
@@ -955,26 +948,27 @@ static int http_onReceive(swServer *serv, swEventData *req)
         args[1] = zresponse_object;
 #endif
 
-        int callback = 0;
-
+        int callback_type = 0;
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
         {
-            callback = HTTP_CALLBACK_onHandShake;
+            callback_type = SW_SERVER_CB_onHandShake;
             conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
         }
         else
         {
-            callback = HTTP_CALLBACK_onRequest;
+            callback_type = SW_SERVER_CB_onRequest;
+            zcallback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onRequest);
             //no have onRequest callback
-            if (php_sw_http_server_callbacks[callback] == NULL)
+            if (zcallback == NULL)
             {
                 swoole_websocket_onReuqest(ctx);
                 return SW_OK;
             }
         }
 
+        zcallback = php_swoole_server_get_callback(serv, req->info.from_fd, callback_type);
 #ifndef SW_COROUTINE
-        if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[callback], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+        if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
         {
             swoole_php_error(E_WARNING, "onRequest handler error");
         }
@@ -1071,7 +1065,7 @@ static PHP_METHOD(swoole_http_server, on)
         php_sw_http_server_callbacks[0] = sw_zend_read_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onRequest"), 0 TSRMLS_CC);
         sw_copy_to_stack(php_sw_http_server_callbacks[0], _php_sw_http_server_callbacks[0]);
 #ifdef SW_COROUTINE
-        php_sw_http_callback_cache[0] = func_cache;
+        php_sw_server_callback_cache[0] = func_cache;
 #endif
     }
     else if (strncasecmp("handshake", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
@@ -1080,7 +1074,7 @@ static PHP_METHOD(swoole_http_server, on)
         php_sw_http_server_callbacks[1] = sw_zend_read_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onHandshake"), 0 TSRMLS_CC);
         sw_copy_to_stack(php_sw_http_server_callbacks[1], _php_sw_http_server_callbacks[1]);
 #ifdef SW_COROUTINE
-        php_sw_http_callback_cache[1] = func_cache;
+        php_sw_server_callback_cache[0] = func_cache;
 #endif
     }
     else
