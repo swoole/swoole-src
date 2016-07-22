@@ -188,6 +188,9 @@ enum php_swoole_server_callback_type
 typedef struct
 {
     zval *callbacks[PHP_SERVER_CALLBACK_NUM];
+#ifdef SW_COROUTINE
+    zend_fcall_info_cache *caches[PHP_SERVER_CALLBACK_NUM];
+#endif
 #if PHP_MAJOR_VERSION >= 7
     zval _callbacks[PHP_SERVER_CALLBACK_NUM];
 #endif

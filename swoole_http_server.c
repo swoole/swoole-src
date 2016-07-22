@@ -966,14 +966,15 @@ static int http_onReceive(swServer *serv, swEventData *req)
             }
         }
 
-        zcallback = php_swoole_server_get_callback(serv, req->info.from_fd, callback_type);
 #ifndef SW_COROUTINE
+        zcallback = php_swoole_server_get_callback(serv, req->info.from_fd, callback_type);
         if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
         {
             swoole_php_error(E_WARNING, "onRequest handler error");
         }
 #else
-        int ret = coro_create(php_sw_http_callback_cache[callback], args, 2, &retval);
+        zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, callback_type);
+        int ret = coro_create(cache, args, 2, &retval);
         if (ret != 0)
         {
             sw_zval_ptr_dtor(&zrequest_object);
@@ -1062,19 +1063,19 @@ static PHP_METHOD(swoole_http_server, on)
     if (strncasecmp("request", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
         zend_update_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onRequest"), callback TSRMLS_CC);
-        php_sw_http_server_callbacks[0] = sw_zend_read_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onRequest"), 0 TSRMLS_CC);
-        sw_copy_to_stack(php_sw_http_server_callbacks[0], _php_sw_http_server_callbacks[0]);
+        php_sw_server_callbacks[SW_SERVER_CB_onRequest] = sw_zend_read_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onRequest"), 0 TSRMLS_CC);
+        sw_copy_to_stack(php_sw_server_callbacks[SW_SERVER_CB_onRequest], _php_sw_server_callbacks[SW_SERVER_CB_onRequest]);
 #ifdef SW_COROUTINE
-        php_sw_server_callback_cache[0] = func_cache;
+        php_sw_server_caches[SW_SERVER_CB_onRequest] = func_cache;
 #endif
     }
     else if (strncasecmp("handshake", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
         zend_update_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onHandshake"), callback TSRMLS_CC);
-        php_sw_http_server_callbacks[1] = sw_zend_read_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onHandshake"), 0 TSRMLS_CC);
-        sw_copy_to_stack(php_sw_http_server_callbacks[1], _php_sw_http_server_callbacks[1]);
+        php_sw_server_callbacks[SW_SERVER_CB_onHandShake] = sw_zend_read_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onHandshake"), 0 TSRMLS_CC);
+        sw_copy_to_stack(php_sw_server_callbacks[SW_SERVER_CB_onHandShake], _php_sw_server_callbacks[SW_SERVER_CB_onHandShake]);
 #ifdef SW_COROUTINE
-        php_sw_server_callback_cache[0] = func_cache;
+        php_sw_server_caches[SW_SERVER_CB_onHandShake] = func_cache;
 #endif
     }
     else
@@ -1290,7 +1291,7 @@ static PHP_METHOD(swoole_http_server, start)
 
     if (serv->listen_list->open_websocket_protocol)
     {
-        if (!swoole_websocket_isset_onMessage())
+        if (php_sw_server_callbacks[SW_SERVER_CB_onMessage] == NULL)
         {
             swoole_php_fatal_error(E_ERROR, "require onMessage callback");
             RETURN_FALSE;
@@ -1301,7 +1302,7 @@ static PHP_METHOD(swoole_http_server, start)
             RETURN_FALSE;
         }
     }
-    else if (php_sw_http_server_callbacks[0] == NULL)
+    else if (php_sw_server_callbacks[SW_SERVER_CB_onRequest] == NULL)
     {
         swoole_php_fatal_error(E_ERROR, "require onRequest callback");
         RETURN_FALSE;

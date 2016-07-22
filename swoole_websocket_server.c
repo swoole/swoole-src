@@ -16,6 +16,9 @@
 
 #include "php_swoole.h"
 #include "swoole_http.h"
+#ifdef SW_COROUTINE
+#include "swoole_coroutine.h"
+#endif
 
 #include <ext/standard/url.h>
 #include <ext/standard/sha1.h>
@@ -324,14 +327,21 @@ static PHP_METHOD(swoole_websocket_server, on)
 
     swServer *serv = swoole_get_object(getThis());
 
+#ifdef PHP_SWOOLE_CHECK_CALLBACK
     char *func_name = NULL;
+#ifndef SW_COROUTINE
     if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+#else
+    zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
+    if (!zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
+#endif
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
+        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
         efree(func_name);
         RETURN_FALSE;
     }
     efree(func_name);
+#endif
 
     serv->listen_list->open_websocket_protocol = 1;
 
@@ -340,12 +350,18 @@ static PHP_METHOD(swoole_websocket_server, on)
         zend_update_property(swoole_websocket_server_class_entry_ptr, getThis(), ZEND_STRL("onOpen"), callback TSRMLS_CC);
         php_sw_server_callbacks[SW_SERVER_CB_onOpen] = sw_zend_read_property(swoole_websocket_server_class_entry_ptr, getThis(), ZEND_STRL("onOpen"), 0 TSRMLS_CC);
         sw_copy_to_stack(php_sw_server_callbacks[SW_SERVER_CB_onOpen], _php_sw_server_callbacks[SW_SERVER_CB_onOpen]);
+#ifdef SW_COROUTINE
+        php_sw_server_caches[SW_SERVER_CB_onOpen] = func_cache;
+#endif
     }
     else if (strncasecmp("message", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
         zend_update_property(swoole_websocket_server_class_entry_ptr, getThis(), ZEND_STRL("onMessage"), callback TSRMLS_CC);
         php_sw_server_callbacks[SW_SERVER_CB_onMessage] = sw_zend_read_property(swoole_websocket_server_class_entry_ptr, getThis(), ZEND_STRL("onMessage"), 0 TSRMLS_CC);
         sw_copy_to_stack(php_sw_server_callbacks[SW_SERVER_CB_onMessage], _php_sw_server_callbacks[SW_SERVER_CB_onMessage]);
+#ifdef SW_COROUTINE
+        php_sw_server_caches[SW_SERVER_CB_onMessage] = func_cache;
+#endif
     }
     else
     {

@@ -41,8 +41,9 @@ static struct
 
 zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
 #ifdef SW_COROUTINE
-zend_fcall_info_cache *php_sw_callback_cache[PHP_SERVER_CALLBACK_NUM];
+zend_fcall_info_cache *php_sw_server_caches[PHP_SERVER_CALLBACK_NUM];
 #endif
+
 static swHashMap *task_callbacks;
 
 #if PHP_MAJOR_VERSION >= 7
@@ -647,7 +648,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     args[2] = zfrom_id;
     args[3] = zdata;
 
-    int ret = coro_create(php_sw_callback_cache[SW_SERVER_CB_onReceive], args, 4, &retval);
+    int ret = coro_create(php_sw_server_caches[SW_SERVER_CB_onReceive], args, 4, &retval);
     if (ret != 0)
     {
         return SW_OK;
@@ -1761,7 +1762,7 @@ PHP_METHOD(swoole_server, on)
             sw_copy_to_stack(php_sw_server_callbacks[i], _php_sw_server_callbacks[i]);
 
 #ifdef SW_COROUTINE
-            php_sw_callback_cache[i] = func_cache;
+            php_sw_server_caches[i] = func_cache;
 #endif
             break;
         }

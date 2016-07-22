@@ -15,8 +15,9 @@
 */
 
 #include "php_swoole.h"
-#include "swoole_coroutine.h"
 
+#ifdef SW_COROUTINE
+#include "swoole_coroutine.h"
 #ifdef SW_USE_REDIS
 #include <hiredis/hiredis.h>
 #include <hiredis/async.h>
@@ -3435,4 +3436,5 @@ static int swoole_redis_coro_onWrite(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
+#endif
 #endif
