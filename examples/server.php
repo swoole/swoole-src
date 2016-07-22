@@ -23,6 +23,8 @@ class G
         //'open_eof_split'           => 1,
         //'package_eof'              => "\r\r\n",
         //'open_cpu_affinity'        => 1,
+        'socket_buffer_size'         => 1024 * 1024 * 128,
+        'buffer_output_size'         => 1024 * 1024 * 2,
         //'cpu_affinity_ignore' =>array(0,1)//如果你的网卡2个队列（或者没有多队列那么默认是cpu0来处理中断）,并且绑定了core 0和core 1,那么可以通过这个设置避免swoole的线程或者进程绑定到这2个core，防止cpu0，1被耗光而造成的丢包
     );
 
@@ -52,8 +54,8 @@ if (isset($argv[1]) and $argv[1] == 'daemon') {
 	$config['daemonize'] = false;
 }
 
-//$mode = SWOOLE_BASE;
-$mode = SWOOLE_PROCESS;
+$mode = SWOOLE_BASE;
+//$mode = SWOOLE_PROCESS;
 
 $serv = new swoole_server("0.0.0.0", 9501, $mode, SWOOLE_SOCK_TCP);
 $serv->listen('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
@@ -266,6 +268,10 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
         $serv->task("close " . $fd);
         echo "close the connection in taskworker\n";
     }
+    elseif ($cmd == "tasksend")
+    {
+        $serv->task("send " . $fd);
+    }
     elseif($cmd == "taskwait")
     {
         $result = $serv->taskwait("taskwait");
@@ -429,7 +435,7 @@ function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
         $cmd = explode(' ', $data);
         if ($cmd[0] == 'send')
         {
-            $serv->send($cmd[1], "hello world in taskworker.");
+            $serv->send($cmd[1], str_repeat('A', 10000)."\n");
         }
         elseif ($cmd[0] == 'close')
         {
