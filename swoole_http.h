@@ -26,14 +26,6 @@
 #include <nghttp2/nghttp2.h>
 #endif
 
-#define HTTP_SERVER_CALLBACK_NUM   3
-
-enum http_callback_type
-{
-    HTTP_CALLBACK_onRequest = 0,
-    HTTP_CALLBACK_onHandShake = 1,
-};
-
 enum http_response_flag
 {
     HTTP_RESPONSE_SERVER           = 1u << 1,
@@ -152,7 +144,7 @@ int swoole_websocket_onMessage(swEventData *);
 int swoole_websocket_onHandshake(http_context *);
 void swoole_websocket_onOpen(http_context *);
 void swoole_websocket_onReuqest(http_context *);
-int swoole_websocket_isset_onMessage(void);
+
 /**
  * Http Context
  */
@@ -186,7 +178,5 @@ extern zend_class_entry *swoole_http_request_class_entry_ptr;
 
 extern swString *swoole_http_buffer;
 extern swString *swoole_zlib_buffer;
-
-extern zval* php_sw_http_server_callbacks[HTTP_SERVER_CALLBACK_NUM];
 
 #endif /* SWOOLE_HTTP_H_ */
