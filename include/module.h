@@ -75,6 +75,20 @@ static sw_inline void swArgs_clear(void)
     SwooleG.module_stack->length = 0;
 }
 
+static sw_inline void swArgs_push_null(void)
+{
+    swString *buffer = SwooleG.module_stack;
+    if (buffer->size < sizeof(swVal))
+    {
+        swString_extend(buffer, buffer->size * 2);
+    }
+    swVal *val = (swVal *) (buffer->str + buffer->length);
+    val->type = SW_VAL_NULL;
+    val->length = 0;
+    buffer->length += sizeof(swVal);
+    SwooleG.call_php_func_argc++;
+}
+
 static sw_inline void swArgs_push_long(long lval)
 {
     swString *buffer = SwooleG.module_stack;
@@ -144,6 +158,14 @@ static sw_inline long swArgs_pop_long()
     memcpy(&lval, v->value, sizeof(long));
     buffer->offset += (sizeof(swVal) + sizeof(long));
     return lval;
+}
+
+static sw_inline void swArgs_pop_null(void)
+{
+    swString *buffer = SwooleG.module_stack;
+    assert(buffer->length >= buffer->offset);
+    swVal *v = (swVal*) (buffer->str + buffer->offset);
+    assert(v->type == SW_VAL_NULL);
 }
 
 static sw_inline uint8_t swArgs_pop_bool()

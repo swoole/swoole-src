@@ -13,6 +13,7 @@
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ |         Xinyu    Zhu  <xyzhu1120@gmail.com>                          |
  +----------------------------------------------------------------------+
  */
 
@@ -36,7 +37,6 @@ struct _php_context
     zval **current_coro_return_value_ptr_ptr;
     zval *current_coro_return_value_ptr;
     void *coro_params;
-    int coro_params_cnt;
     void (*onTimeout)(struct _php_context *cxt);
     zval **current_eg_return_value_ptr_ptr;
     zend_execute_data *current_execute_data;
