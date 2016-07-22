@@ -117,8 +117,6 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
     }
 }
 
-static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC);
-
 static const zend_function_entry swoole_client_methods[] =
 {
     PHP_ME(swoole_client, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
@@ -248,7 +246,7 @@ static void client_onError(swClient *cli)
     sw_zval_ptr_dtor(&zobject);
 }
 
-static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
+void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
 {
     HashTable *vht;
     zval *v;
@@ -791,7 +789,7 @@ static PHP_METHOD(swoole_client, connect)
     zval *zset = sw_zend_read_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zset && !ZVAL_IS_NULL(zset))
     {
-        client_check_setting(cli, zset TSRMLS_CC);
+        php_swoole_client_check_setting(cli, zset TSRMLS_CC);
     }
 
     //nonblock async

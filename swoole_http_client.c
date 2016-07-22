@@ -747,6 +747,7 @@ static http_client* http_client_create(zval *object TSRMLS_DC)
     http->timeout = SW_CLIENT_DEFAULT_TIMEOUT;
     http->keep_alive = 1;
 
+    //HttpClient settings
     zval *zset = sw_zend_read_property(swoole_http_client_class_entry_ptr, object, ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zset && !ZVAL_IS_NULL(zset))
     {
@@ -767,12 +768,9 @@ static http_client* http_client_create(zval *object TSRMLS_DC)
             convert_to_boolean(ztmp);
             http->keep_alive = (int) Z_LVAL_P(ztmp);
         }
-        if (php_swoole_array_get_value(vht, "package_max_length", ztmp))
-        {
-            convert_to_long(ztmp);
-            http->cli->protocol.package_max_length = Z_LVAL_P(ztmp);
-        }
     }
+    //Client settings
+    php_swoole_client_check_setting(http->cli, zset TSRMLS_CC);
 
     http->state = HTTP_CLIENT_STATE_READY;
 
