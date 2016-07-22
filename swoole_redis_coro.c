@@ -1041,15 +1041,17 @@ static PHP_METHOD(swoole_redis_coro, close)
     swRedisClient *redis = swoole_get_object(getThis());
 	if (redis->state == SWOOLE_REDIS_CORO_STATE_CONNECT)
 	{
-		return;
+        RETURN_TRUE;
 	}
 	if (redis->state == SWOOLE_REDIS_CORO_STATE_CLOSED)
 	{
-		return;
+		RETURN_TRUE;
 	}
 	redis->state = SWOOLE_REDIS_CORO_STATE_CLOSING;
 	redis->iowait = SW_REDIS_CORO_STATUS_CLOSED;
     redisAsyncDisconnect(redis->context);
+
+	RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_redis_coro, __destruct)
@@ -1065,7 +1067,7 @@ static PHP_METHOD(swoole_redis_coro, __destruct)
     {
         return;
     }
-	if (redis->state != SWOOLE_REDIS_CORO_STATE_CLOSED)
+	if (redis->state != SWOOLE_REDIS_CORO_STATE_CONNECT && redis->state != SWOOLE_REDIS_CORO_STATE_CLOSED)
 	{
         zval *retval;
         sw_zend_call_method_with_0_params(&getThis(), swoole_redis_coro_class_entry_ptr, NULL, "close", &retval);
