@@ -366,7 +366,7 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
             sw_add_assoc_stringl_ex(array, keybuf, klen, valbuf, vlen, 1);
             j = i + 1;
             state = 0;
-			inparse = 0;
+            inparse = 0;
         }
         else if (isspace(*_c))
         {
