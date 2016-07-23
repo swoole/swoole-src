@@ -31,6 +31,11 @@ $server->on('Request', function ($request, $response) {
 	$res = $redis_tmp->set('key_tmp', 'HaHa');//get true
 	var_dump($res);
 
+
+	$http_client= new Swoole\Coroutine\Http\Client('km.oa.com', 80);
+	$http_client->defer();
+	$http_client->get('/');
+
 	$mysql = new Swoole\Coroutine\MySQL();
 	$res = $mysql->connect(['host' => '192.168.244.128', 'user' => 'mha_manager', 'password' => 'mhapass', 'database' => 'tt']);
 	if ($res == false) {
@@ -53,12 +58,20 @@ $server->on('Request', function ($request, $response) {
 	$udp_res = $udp->recv();
 	$res = $mysql->query('select sleep(1)', 2);//get false
 	var_dump($res);
+	$res = $mysql->defer(false);
+	var_dump($res);//get false
+	$res = $mysql->defer();
+	var_dump($res);//get true
 	$mysql_res = $mysql->recv();
 	$res = $redis->get('key');//get false
 	var_dump($res);
 	$redis_res = $redis->recv();
+	$res = $http_client->get('/');
+	var_dump($res);//get false
+	$res = $http_client->recv();
+	var_dump($res);//get true
 
-	var_dump($udp_res, $mysql_res, $redis_res);
+	var_dump($udp_res, $mysql_res, $redis_res, $http_client);
 	$response->end('Test End');
 });
 $server->start();

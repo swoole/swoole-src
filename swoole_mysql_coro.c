@@ -956,9 +956,9 @@ static PHP_METHOD(swoole_mysql_coro, defer)
     }
 
     mysql_client *client = swoole_get_object(getThis());
-	if (client->defer && client->iowait == SW_MYSQL_CORO_STATUS_WAIT && !defer)
+	if (client->iowait > SW_MYSQL_CORO_STATUS_READY)
 	{
-		RETURN_FALSE;
+		RETURN_BOOL(defer);
 	}
 
 	client->defer = defer;
@@ -969,20 +969,10 @@ static PHP_METHOD(swoole_mysql_coro, defer)
 static PHP_METHOD(swoole_mysql_coro, recv)
 {
     mysql_client *client = swoole_get_object(getThis());
-    if (!client)
-    {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql_coro.");
-        RETURN_FALSE;
-    }
-
-    if (!client->cli)
-    {
-        swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
-        RETURN_FALSE;
-    }
 
 	if (!client->defer)
 	{
+        swoole_php_fatal_error(E_WARNING, "you should not use recv without defer ");
 		RETURN_FALSE;
 	}
 
