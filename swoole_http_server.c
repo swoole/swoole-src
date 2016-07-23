@@ -338,8 +338,8 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
     int vlen = 0;
     int state = 0;
 	
-	//Occur first no space char, set inparse = 1; at the end of each cookie(occur ;), set inparse = 0
-	int inparse = 0;
+    //Occur first no space char, set inparse = 1; at the end of each cookie(occur ;), set inparse = 0
+    int inparse = 0;
 
     int i = 0, j = 0;
     while (_c < at + length)
