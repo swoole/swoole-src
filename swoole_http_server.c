@@ -337,6 +337,9 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
     int klen = 0;
     int vlen = 0;
     int state = 0;
+	
+	//Occur first no space char, set inparse = 1; at the end of each cookie(occur ;), set inparse = 0
+	int inparse = 0;
 
     int i = 0, j = 0;
     while (_c < at + length)
@@ -361,9 +364,22 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
             strncpy(valbuf, (char * ) at + j, SW_HTTP_COOKIE_VALLEN);
             vlen = php_url_decode(valbuf, vlen);
             sw_add_assoc_stringl_ex(array, keybuf, klen, valbuf, vlen, 1);
-            j = i + 2;
+            j = i + 1;
             state = 0;
-        }
+			inparse = 0;
+        } 
+		else if (isspace(*_c)) 
+		{
+			if (!inparse)
+			{
+				//Remove leading spaces from cookie names, Keep spaces in the middle of names or values
+				++j;
+			}
+		}
+		else
+		{
+			inparse = 1;
+		}
         _c++;
         i++;
     }
