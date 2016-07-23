@@ -367,19 +367,19 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
             j = i + 1;
             state = 0;
 			inparse = 0;
-        } 
-		else if (isspace(*_c)) 
-		{
-			if (!inparse)
-			{
-				//Remove leading spaces from cookie names, Keep spaces in the middle of names or values
-				++j;
-			}
-		}
-		else
-		{
-			inparse = 1;
-		}
+        }
+        else if (isspace(*_c))
+        {
+            if (!inparse)
+            {
+                //Remove leading spaces from cookie names 
+                ++j;
+            }
+        }
+        else
+        {
+            inparse = 1;
+        }
         _c++;
         i++;
     }
