@@ -37,11 +37,6 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event);
 static int swClient_onWrite(swReactor *reactor, swEvent *event);
 static int swClient_onError(swReactor *reactor, swEvent *event);
 
-#ifdef SW_USE_OPENSSL
-static int swClient_enable_ssl_encrypt(swClient *cli);
-static int swClient_ssl_handshake(swClient *cli);
-#endif
-
 static int isset_event_handle = 0;
 
 int swClient_create(swClient *cli, int type, int async)
@@ -172,7 +167,7 @@ int swClient_enable_ssl_encrypt(swClient *cli)
     return SW_OK;
 }
 
-static int swClient_ssl_handshake(swClient *cli)
+int swClient_ssl_handshake(swClient *cli)
 {
     if (!cli->socket->ssl)
     {
@@ -760,6 +755,10 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
             }
             else
             {
+                if (cli->socket->ssl_want_read)
+                {
+                    SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, SW_FD_STREAM_CLIENT | SW_EVENT_READ);
+                }
                 return SW_OK;
             }
         }
