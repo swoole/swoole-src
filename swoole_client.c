@@ -53,6 +53,8 @@ static PHP_METHOD(swoole_client, sleep);
 static PHP_METHOD(swoole_client, wakeup);
 #ifdef SW_USE_OPENSSL
 static PHP_METHOD(swoole_client, enableSSL);
+static PHP_METHOD(swoole_client, getPeerCert);
+static PHP_METHOD(swoole_client, verifyPeerCert);
 #endif
 static PHP_METHOD(swoole_client, isConnected);
 static PHP_METHOD(swoole_client, getsockname);
@@ -148,6 +150,8 @@ static const zend_function_entry swoole_client_methods[] =
     PHP_MALIAS(swoole_client, resume, wakeup, NULL, ZEND_ACC_PUBLIC)
 #ifdef SW_USE_OPENSSL
     PHP_ME(swoole_client, enableSSL, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, getPeerCert, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, verifyPeerCert, NULL, ZEND_ACC_PUBLIC)
 #endif
     PHP_ME(swoole_client, isConnected, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, getsockname, NULL, ZEND_ACC_PUBLIC)
@@ -1524,7 +1528,7 @@ static PHP_METHOD(swoole_client, enableSSL)
         swoole_php_fatal_error(E_WARNING, "cannot use enableSSL.");
         RETURN_FALSE;
     }
-    if (cli->open_ssl)
+    if (cli->socket->ssl)
     {
         swoole_php_fatal_error(E_WARNING, "SSL has been enabled.");
         RETURN_FALSE;
@@ -1575,6 +1579,49 @@ static PHP_METHOD(swoole_client, enableSSL)
     }
 
     RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_client, getPeerCert)
+{
+    swClient *cli = swoole_get_object(getThis());
+    if (!cli)
+    {
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
+        RETURN_FALSE;
+    }
+    if (!cli->socket->ssl)
+    {
+        swoole_php_fatal_error(E_WARNING, "SSL no ready.");
+        RETURN_FALSE;
+    }
+    char buf[8192];
+    int n = swSSL_get_client_certificate(cli->socket->ssl, buf, sizeof(buf));
+    if (n < 0)
+    {
+        RETURN_FALSE;
+    }
+    SW_RETURN_STRINGL(buf, n, 1);
+}
+
+static PHP_METHOD(swoole_client, verifyPeerCert)
+{
+    swClient *cli = swoole_get_object(getThis());
+    if (!cli)
+    {
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
+        RETURN_FALSE;
+    }
+    if (!cli->socket->ssl)
+    {
+        swoole_php_fatal_error(E_WARNING, "SSL no ready.");
+        RETURN_FALSE;
+    }
+    zend_bool allow_self_signed = 0;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b", &allow_self_signed) == FAILURE)
+    {
+        return;
+    }
+    SW_CHECK_RETURN(swSSL_verify(cli->socket, allow_self_signed));
 }
 #endif
 

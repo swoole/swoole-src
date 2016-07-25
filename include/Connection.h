@@ -97,6 +97,7 @@ void swSSL_free_context(SSL_CTX* ssl_context);
 int swSSL_create(swConnection *conn, SSL_CTX* ssl_context, int flags);
 int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth);
 int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length);
+int swSSL_verify(swConnection *conn, int allow_self_signed);
 int swSSL_accept(swConnection *conn);
 int swSSL_connect(swConnection *conn);
 void swSSL_close(swConnection *conn);
