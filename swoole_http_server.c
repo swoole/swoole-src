@@ -1391,7 +1391,7 @@ static PHP_METHOD(swoole_http_request, __destruct)
 {
     zval *zfiles = sw_zend_read_property(swoole_http_request_class_entry_ptr, getThis(), ZEND_STRL("files"), 1 TSRMLS_CC);
     //upload files
-    if (zfiles && !ZVAL_IS_NULL(zfiles))
+    if (zfiles && Z_TYPE_P(zfiles) == IS_ARRAY)
     {
         zval *value;
         char *key;
