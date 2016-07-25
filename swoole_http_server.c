@@ -979,7 +979,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
             swoole_php_error(E_WARNING, "onRequest handler error");
         }
 #else
-        int ret = coro_create(php_sw_http_callback_cache[callback], args, 2, &retval);
+        int ret = coro_create(php_sw_http_callback_cache[callback], args, 2, &retval, NULL);
         if (ret != 0)
         {
             sw_zval_ptr_dtor(&zrequest_object);
