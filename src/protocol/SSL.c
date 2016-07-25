@@ -264,6 +264,30 @@ int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth)
     return SW_OK;
 }
 
+int swSSL_verify(swConnection *conn, int allow_self_signed)
+{
+    int err = SSL_get_verify_result(conn->ssl);
+    switch (err)
+    {
+    case X509_V_OK:
+        return SW_OK;
+    case X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:
+        if (allow_self_signed)
+        {
+            return SW_OK;
+        }
+        else
+        {
+            return SW_ERR;
+        }
+    default:
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SSL_VEFIRY_FAILED, "Could not verify peer: code:%d %s", err, X509_verify_cert_error_string(err));
+        return SW_ERR;
+    }
+
+    return SW_ERR;
+}
+
 int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length)
 {
     long len;

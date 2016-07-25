@@ -336,8 +336,8 @@ PHP_FUNCTION(swoole_event_add)
             RETURN_FALSE;
         }
         efree(func_name);
-        sw_zval_add_ref(&reactor_fd->cb_read);
         reactor_fd->cb_read = cb_read;
+        sw_zval_add_ref(&cb_read);
         sw_copy_to_stack(reactor_fd->cb_read, reactor_fd->stack.cb_read);
     }
 
@@ -351,8 +351,8 @@ PHP_FUNCTION(swoole_event_add)
         }
         efree(func_name);
         reactor_fd->cb_write = cb_write;
+        sw_zval_add_ref(&cb_write);
         sw_copy_to_stack(reactor_fd->cb_write, reactor_fd->stack.cb_write);
-        sw_zval_add_ref(&reactor_fd->cb_write);
     }
 
     php_swoole_check_reactor();
@@ -447,6 +447,7 @@ PHP_FUNCTION(swoole_event_set)
     }
 
     php_reactor_fd *ev_set = socket->object;
+
     if (cb_read != NULL && !ZVAL_IS_NULL(cb_read))
     {
         if (!sw_zend_is_callable(cb_read, 0, &func_name TSRMLS_CC))
@@ -462,8 +463,8 @@ PHP_FUNCTION(swoole_event_set)
                 sw_zval_ptr_dtor(&ev_set->cb_read);
             }
             ev_set->cb_read = cb_read;
+            sw_zval_add_ref(&cb_read);
             sw_copy_to_stack(ev_set->cb_read, ev_set->stack.cb_read);
-            sw_zval_add_ref(&ev_set->cb_read);
             efree(func_name);
         }
     }
@@ -488,8 +489,8 @@ PHP_FUNCTION(swoole_event_set)
                 sw_zval_ptr_dtor(&ev_set->cb_write);
             }
             ev_set->cb_write = cb_write;
+            sw_zval_add_ref(&cb_write);
             sw_copy_to_stack(ev_set->cb_write, ev_set->stack.cb_write);
-            sw_zval_add_ref(&ev_set->cb_write);
             efree(func_name);
         }
     }
