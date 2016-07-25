@@ -405,8 +405,7 @@ ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
             return SW_ERR;
 
         default:
-            swWarn("SSL_read(%d, %ld) failed, errno=%d.", conn->fd, __n, _errno)
-            ;
+            swWarn("SSL_read(%d, %ld) failed, errno=%d.", conn->fd, __n, _errno);
             return SW_ERR;
         }
     }

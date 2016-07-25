@@ -493,13 +493,29 @@ static int swClient_tcp_sendfile_async(swClient *cli, char *filename)
 
 static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, int len, int flag)
 {
-#ifdef SW_CLIENT_SOCKET_WAIT
-    if (cli->socket->socket_wait)
+#ifdef SW_USE_OPENSSL
+    int ret, timeout_ms;
+    while (1)
     {
-        swSocket_wait(cli->socket->fd, cli->timeout_ms, SW_EVENT_READ);
+        ret = swConnection_recv(cli->socket, data, len, flag);
+        if (ret < 0 && errno == EAGAIN)
+        {
+            timeout_ms = (int) (cli->timeout * 1000);
+            if (cli->socket->ssl_want_read && swSocket_wait(cli->socket->fd, timeout_ms, SW_EVENT_READ) == SW_OK)
+            {
+                continue;
+            }
+            else if (cli->socket->ssl_want_write && swSocket_wait(cli->socket->fd, timeout_ms, SW_EVENT_WRITE) == SW_OK)
+            {
+                continue;
+            }
+        }
+        break;
     }
-#endif
+#else
     int ret = swConnection_recv(cli->socket, data, len, flag);
+#endif
+
     if (ret < 0)
     {
         if (errno == EINTR)
