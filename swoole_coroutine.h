@@ -61,8 +61,28 @@ typedef struct
 
 extern zend_class_entry *swoole_client_coro_class_entry_ptr;
 extern zend_class_entry *swoole_client_multi_class_entry_ptr;
+extern zend_fcall_info_cache *php_sw_server_caches[PHP_SERVER_CALLBACK_NUM];
 
 coro_global COROG;
+
+static sw_inline zend_fcall_info_cache* php_swoole_server_get_cache(swServer *serv, int server_fd, int event_type)
+{
+    swListenPort *port = serv->connection_list[server_fd].object;
+    swoole_server_port_property *property = port->ptr;
+    if (!property)
+    {
+        return php_sw_server_caches[event_type];
+    }
+    zend_fcall_info_cache* cache = property->caches[event_type];
+    if (!cache)
+    {
+        return php_sw_server_caches[event_type];
+    }
+    else
+    {
+        return cache;
+    }
+}
 
 int coro_init(TSRMLS_D);
 int coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval **retval);

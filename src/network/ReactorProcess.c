@@ -19,6 +19,7 @@
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker);
 static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event);
 static int swReactorProcess_send2client(swFactory *, swSendData *);
+static int swReactorProcess_send2worker(int, void *, int);
 static void swReactorProcess_onTimeout(swReactor *reactor);
 
 static uint32_t heartbeat_check_lasttime = 0;
@@ -244,7 +245,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 
     swServer_worker_init(serv, worker);
 
-    SwooleWG.buffer_output = sw_malloc(sizeof(swString*) * serv->worker_num);
+    int n_buffer = serv->worker_num + SwooleG.task_worker_num;
+    SwooleWG.buffer_output = sw_malloc(sizeof(swString*) * n_buffer);
     if (SwooleWG.buffer_output == NULL)
     {
         swError("malloc for SwooleWG.buffer_output failed.");
@@ -252,7 +254,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     }
 
     int i;
-    for (i = 0; i < serv->worker_num; i++)
+    for (i = 0; i < n_buffer; i++)
     {
         SwooleWG.buffer_output[i] = swString_new(SW_BUFFER_SIZE_BIG);
         if (SwooleWG.buffer_output[i] == NULL)
@@ -417,6 +419,18 @@ int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
     }
 }
 
+static int swReactorProcess_send2worker(int pipe_fd, void *data, int length)
+{
+    if (swIsTaskWorker())
+    {
+        return swSocket_write_blocking(pipe_fd, data, length);
+    }
+    else
+    {
+        return SwooleG.main_reactor->write(SwooleG.main_reactor, pipe_fd, data, length);
+    }
+}
+
 static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
 {
     swServer *serv = SwooleG.serv;
@@ -431,7 +445,7 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
     //proxy
     if (session->reactor_id != SwooleWG.id)
     {
-        swWarn("session->reactor_id=%d, SwooleWG.id=%d", session->reactor_id, SwooleWG.id);
+        swTrace("session->reactor_id=%d, SwooleWG.id=%d", session->reactor_id, SwooleWG.id);
         swWorker *worker = swProcessPool_get_worker(&SwooleGS->event_workers, session->reactor_id);
         swEventData proxy_msg;
 
@@ -460,13 +474,10 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
                     proxy_msg.info.type = SW_EVENT_PROXY_END;
                     proxy_msg.info.len = send_n;
                 }
-
                 memcpy(proxy_msg.data, _send->data + offset, proxy_msg.info.len);
-
                 send_n -= proxy_msg.info.len;
                 offset += proxy_msg.info.len;
-
-                SwooleG.main_reactor->write(SwooleG.main_reactor, worker->pipe_master, &proxy_msg, sizeof(proxy_msg.info) + proxy_msg.info.len);
+                swReactorProcess_send2worker(worker->pipe_master, &proxy_msg, sizeof(proxy_msg.info) + proxy_msg.info.len);
             }
             swTrace("proxy message, fd=%d, len=%ld",worker->pipe_master, sizeof(proxy_msg.info) + proxy_msg.info.len);
         }
@@ -474,7 +485,7 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
         {
             memcpy(&proxy_msg.info, &_send->info, sizeof(proxy_msg.info));
             memcpy(proxy_msg.data, _send->data, _send->length);
-            return SwooleG.main_reactor->write(SwooleG.main_reactor, worker->pipe_master, &proxy_msg, sizeof(proxy_msg.info) + proxy_msg.info.len);
+            return swReactorProcess_send2worker(worker->pipe_master, &proxy_msg, sizeof(proxy_msg.info) + proxy_msg.info.len);
         }
         else
         {
