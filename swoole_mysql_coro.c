@@ -935,7 +935,10 @@ static PHP_METHOD(swoole_mysql_coro, query)
     {
         client->state = SW_MYSQL_STATE_READ_START;
 		php_context *context = swoole_get_property(getThis(), 0);
-		client->cli->timeout_id = php_swoole_add_timer_coro((int)(timeout*1000), client->fd, (void *)context);
+		if ((int)timeout > 0)
+		{
+			client->cli->timeout_id = php_swoole_add_timer_coro((int)(timeout*1000), client->fd, (void *)context);
+		}
 		if (client->defer)
 		{
 			client->iowait = SW_MYSQL_CORO_STATUS_WAIT;

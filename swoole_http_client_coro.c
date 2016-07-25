@@ -1083,7 +1083,6 @@ static PHP_METHOD(swoole_http_client_coro, close)
     }
     if (cli->socket->closed)
     {
-		swTrace("-------------------------------------------->");
         http_client_free(getThis() TSRMLS_CC);
         RETURN_FALSE;
     }
