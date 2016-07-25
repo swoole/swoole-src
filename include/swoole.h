@@ -396,7 +396,6 @@ typedef struct
     socklen_t len;
 } swSocketAddress;
 
-
 typedef struct _swConnection
 {
     /**
