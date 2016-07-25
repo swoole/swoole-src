@@ -354,18 +354,27 @@ int swSSL_accept(swConnection *conn)
 int swSSL_connect(swConnection *conn)
 {
     int n = SSL_connect(conn->ssl);
+    long err = SSL_get_error(conn->ssl, n);
     if (n == 1)
     {
         conn->ssl_state = SW_SSL_STATE_READY;
+        conn->ssl_want_read = 0;
+        conn->ssl_want_write = 0;
         return SW_OK;
     }
-    long err = SSL_get_error(conn->ssl, n);
+    //long err = SSL_get_error(conn->ssl, n);
     if (err == SSL_ERROR_WANT_READ)
     {
+        conn->ssl_want_read = 1;
+        conn->ssl_want_write = 0;
+        conn->ssl_state = SW_SSL_STATE_WAIT_STREAM;
         return SW_OK;
     }
     else if (err == SSL_ERROR_WANT_WRITE)
     {
+        conn->ssl_want_read = 0;
+        conn->ssl_want_write = 1;
+        conn->ssl_state = SW_SSL_STATE_WAIT_STREAM;
         return SW_OK;
     }
     swWarn("SSL_connect() failed. Error: %s[%ld]", ERR_reason_error_string(err), err);

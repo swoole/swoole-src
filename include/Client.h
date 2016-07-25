@@ -73,6 +73,7 @@ typedef struct _swClient
     uint8_t open_ssl :1;
     uint8_t ssl_disable_compress :1;
     uint8_t ssl_verify :1;
+    uint8_t ssl_wait_handshake :1;
     char *ssl_cert_file;
     char *ssl_key_file;
     SSL_CTX *ssl_context;
@@ -93,6 +94,10 @@ typedef struct _swClient
 } swClient;
 
 int swClient_create(swClient *cli, int type, int async);
+#ifdef SW_USE_OPENSSL
+int swClient_enable_ssl_encrypt(swClient *cli);
+int swClient_ssl_handshake(swClient *cli);
+#endif
 void swClient_free(swClient *cli);
 
 typedef struct

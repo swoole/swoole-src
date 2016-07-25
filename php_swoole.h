@@ -155,6 +155,9 @@ enum php_swoole_client_callback_type
     SW_CLIENT_CB_onReceive,
     SW_CLIENT_CB_onClose,
     SW_CLIENT_CB_onError,
+#ifdef SW_USE_OPENSSL
+    SW_CLIENT_CB_onSSLReady,
+#endif
 };
 //--------------------------------------------------------
 enum php_swoole_server_callback_type
