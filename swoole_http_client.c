@@ -261,6 +261,32 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
     }
     http->cli = cli;
 
+    zval *ztmp;
+    HashTable *vht;
+    zval *zset = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("setting"), 1 TSRMLS_CC);
+    if (zset && !ZVAL_IS_NULL(zset))
+    {
+        vht = Z_ARRVAL_P(zset);
+        /**
+         * timeout
+         */
+        if (php_swoole_array_get_value(vht, "timeout", ztmp))
+        {
+            convert_to_double(ztmp);
+            http->timeout = (double) Z_DVAL_P(ztmp);
+        }
+        /**
+         * keep_alive
+         */
+        if (php_swoole_array_get_value(vht, "keep_alive", ztmp))
+        {
+            convert_to_boolean(ztmp);
+            http->keep_alive = (int) Z_LVAL_P(ztmp);
+        }
+        //client settings
+        php_swoole_client_check_setting(http->cli, zset TSRMLS_CC);
+    }
+
     if (cli->socket->active == 1)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_http_client is already connected.");
@@ -271,6 +297,8 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
     sw_copy_to_stack(cli->object, hcc->_object);
     sw_zval_add_ref(&zobject);
 
+    cli->open_eof_check = 0;
+    cli->open_length_check = 0;
     cli->reactor_fdtype = PHP_SWOOLE_FD_STREAM_CLIENT;
     cli->onReceive = http_client_onReceive;
     cli->onConnect = http_client_onConnect;
@@ -746,6 +774,7 @@ static http_client* http_client_create(zval *object TSRMLS_DC)
 
     http->timeout = SW_CLIENT_DEFAULT_TIMEOUT;
     http->keep_alive = 1;
+    http->state = HTTP_CLIENT_STATE_READY;
 
     //HttpClient settings
     zval *zset = sw_zend_read_property(swoole_http_client_class_entry_ptr, object, ZEND_STRL("setting"), 1 TSRMLS_CC);
@@ -768,14 +797,7 @@ static http_client* http_client_create(zval *object TSRMLS_DC)
             convert_to_boolean(ztmp);
             http->keep_alive = (int) Z_LVAL_P(ztmp);
         }
-        //client settings
-        php_swoole_client_check_setting(http->cli, zset TSRMLS_CC);
     }
-
-    http->cli->open_eof_check = 0;
-    http->cli->open_length_check = 0;
-    http->state = HTTP_CLIENT_STATE_READY;
-
     return http;
 }
 
