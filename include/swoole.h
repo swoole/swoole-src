@@ -253,6 +253,7 @@ enum swFactory_dispatch_mode
     SW_DISPATCH_QUEUE = 3,
     SW_DISPATCH_IPMOD = 4,
     SW_DISPATCH_UIDMOD = 5,
+    SW_DISPATCH_CONNSIDMOD = 6,
 };
 
 enum swWorker_status
