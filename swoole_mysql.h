@@ -564,6 +564,7 @@ static sw_inline int mysql_decode_row(mysql_client *client, char *buf, int packe
 
         if (nul == 1)
         {
+            add_assoc_null(row_array, client->response.columns[i].name);
             continue;
         }
 
