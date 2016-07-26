@@ -265,6 +265,7 @@ PHP_METHOD(swoole_server, sendwait);
 PHP_METHOD(swoole_server, exist);
 PHP_METHOD(swoole_server, protect);
 PHP_METHOD(swoole_server, close);
+PHP_METHOD(swoole_server, confirm);
 PHP_METHOD(swoole_server, task);
 PHP_METHOD(swoole_server, taskwait);
 PHP_METHOD(swoole_server, taskWaitMulti);
