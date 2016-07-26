@@ -2175,16 +2175,28 @@ static PHP_METHOD(swoole_http_response, header)
     {
         swoole_http_server_array_init(header, response);
     }
-
+    if (klen > SW_HTTP_HEADER_KEY_SIZE - 1)
+    {
+        swoole_php_error(E_WARNING, "header key is too long.");
+        RETURN_FALSE;
+    }
+    if (vlen > SW_HTTP_HEADER_VALUE_SIZE)
+    {
+        swoole_php_error(E_WARNING, "header key is too long.");
+        RETURN_FALSE;
+    }
+    char key_buf[SW_HTTP_HEADER_KEY_SIZE];
+    memcpy(key_buf, k, klen);
+    key_buf[klen] = '\0';
     if (ctx->http2)
     {
-        swoole_strtolower(k, klen);
+        swoole_strtolower(key_buf, klen);
     }
     else
     {
-        http_header_key_format(k, klen);
+        http_header_key_format(key_buf, klen);
     }
-    sw_add_assoc_stringl_ex(zheader, k, klen + 1, v, vlen, 1);
+    sw_add_assoc_stringl_ex(zheader, key_buf, klen + 1, v, vlen, 1);
 }
 
 #ifdef SW_HAVE_ZLIB
