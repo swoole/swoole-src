@@ -505,6 +505,9 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
             return;
         }
         SW_ZVAL_STRINGL(zdata, buf, data_len, 0);
+#if PHP_MAJOR_VERSION >= 7
+        efree(buf);
+#endif
     }
     else
     {
