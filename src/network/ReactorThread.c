@@ -74,8 +74,9 @@ static sw_inline void* swReactorThread_alloc(swReactorThread *thread, uint32_t s
 #endif
 
 #ifdef SW_USE_OPENSSL
-static sw_inline int swReactorThread_verify_ssl_state(swListenPort *port, swConnection *conn)
+static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swListenPort *port, swConnection *conn)
 {
+    swServer *serv = reactor->ptr;
     if (conn->ssl_state == 0 && conn->ssl)
     {
         int ret = swSSL_accept(conn);
@@ -97,16 +98,20 @@ static sw_inline int swReactorThread_verify_ssl_state(swListenPort *port, swConn
                     task.data.info.type = SW_EVENT_CONNECT;
                     task.data.info.from_id = conn->from_id;
                     task.data.info.len = ret;
-                    if (factory->dispatch(factory, &task) < 0)
-                    {
-                        return SW_OK;
-                    }
+                    factory->dispatch(factory, &task);
+                    goto delay_receive;
                 }
             }
             no_client_cert:
             if (SwooleG.serv->onConnect)
             {
                 swServer_connection_ready(SwooleG.serv, conn->fd, conn->from_id);
+            }
+            delay_receive:
+            if (serv->enable_delay_receive)
+            {
+                conn->listen_wait = 1;
+                return reactor->del(reactor, conn->fd);
             }
             return SW_OK;
         }
@@ -564,6 +569,12 @@ int swReactorThread_send(swSendData *_send)
     {
         goto close_fd;
     }
+    else if (_send->info.type == SW_EVENT_CONFIRM)
+    {
+        reactor->add(reactor, conn->fd, conn->fdtype | SW_EVENT_READ);
+        conn->listen_wait = 0;
+        return SW_OK;
+    }
 
     if (swBuffer_empty(conn->out_buffer))
     {
@@ -787,9 +798,8 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
 {
     swServer *serv = reactor->ptr;
     swListenPort *port = swServer_get_port(serv, event->fd);
-
 #ifdef SW_USE_OPENSSL
-    if (swReactorThread_verify_ssl_state(port, event->socket) < 0)
+    if (swReactorThread_verify_ssl_state(reactor, port, event->socket) < 0)
     {
         return swReactorThread_close(reactor, event->fd);
     }
@@ -820,7 +830,15 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     {
         swServer_connection_ready(serv, fd, reactor->id);
         conn->connect_notify = 0;
-        return reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_READ);
+        if (serv->enable_delay_receive)
+        {
+            conn->listen_wait = 1;
+            return reactor->del(reactor, fd);
+        }
+        else
+        {
+            return reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_READ);
+        }
     }
     else if (conn->close_notify)
     {

@@ -1484,6 +1484,12 @@ PHP_METHOD(swoole_server, set)
         convert_to_boolean(v);
         SwooleG.reuse_port = Z_BVAL_P(v);
     }
+    //delay receive
+    if (php_swoole_array_get_value(vht, "enable_delay_receive", v))
+    {
+        convert_to_boolean(v);
+        serv->enable_delay_receive = Z_BVAL_P(v);
+    }
     //task_worker_num
     if (php_swoole_array_get_value(vht, "task_worker_num", v))
     {
@@ -2092,6 +2098,32 @@ PHP_METHOD(swoole_server, close)
         ret = serv->factory.end(&serv->factory, fd);
     }
     SW_CHECK_RETURN(ret);
+}
+
+PHP_METHOD(swoole_server, confirm)
+{
+    zval *zobject = getThis();
+    long fd;
+
+    if (SwooleGS->start == 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "Server is not running.");
+        RETURN_FALSE;
+    }
+
+    if (swIsMaster())
+    {
+        swoole_php_fatal_error(E_WARNING, "Cannot confirm connection in master process.");
+        RETURN_FALSE;
+    }
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &fd) == FAILURE)
+    {
+        return;
+    }
+
+    swServer *serv = swoole_get_object(zobject);
+    SW_CHECK_RETURN(swServer_confirm(serv, fd));
 }
 
 PHP_METHOD(swoole_server, stats)

@@ -58,6 +58,7 @@ enum swEventType
     //proxy
     SW_EVENT_PROXY_START     = 16,
     SW_EVENT_PROXY_END       = 17,
+    SW_EVENT_CONFIRM         = 18,
 };
 
 enum swIPCMode
@@ -378,6 +379,10 @@ struct _swServer
      */
     uint32_t enable_unsafe_event :1;
     /**
+     * waiting for worekr onConnect callback function to return
+     */
+    uint32_t enable_delay_receive :1;
+    /**
      * run as a daemon process
      */
     uint32_t reload_async :1;
@@ -528,6 +533,7 @@ int swServer_udp_send(swServer *serv, swSendData *resp);
 int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length);
 int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length);
 int swServer_tcp_sendfile(swServer *serv, int fd, char *filename, uint32_t len);
+int swServer_confirm(swServer *serv, int fd);
 
 //UDP, UDP必然超过0x1000000
 //原因：IPv4的第4字节最小为1,而这里的conn_fd是网络字节序
