@@ -339,12 +339,12 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
 
     int klen = 0;
     int vlen = 0;
-    int state = 0;
-
+    int state = -1;
+	
     int i = 0, j = 0;
     while (_c < at + length)
     {
-        if (state == 0 && *_c == '=')
+        if (state <= 0 && *_c == '=')
         {
             klen = i - j + 1;
             if (klen >= SW_HTTP_COOKIE_KEYLEN)
@@ -364,8 +364,20 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
             strncpy(valbuf, (char * ) at + j, SW_HTTP_COOKIE_VALLEN);
             vlen = php_url_decode(valbuf, vlen);
             sw_add_assoc_stringl_ex(array, keybuf, klen, valbuf, vlen, 1);
-            j = i + 2;
-            state = 0;
+            j = i + 1;
+            state = -1;
+        }
+        else if (state < 0)
+        {
+            if (isspace(*_c))
+            {
+                //Remove leading spaces from cookie names 
+                ++j;
+            } 
+            else
+            {
+                state = 0;
+            }
         }
         _c++;
         i++;
@@ -1021,11 +1033,6 @@ void swoole_http_server_init(int module_number TSRMLS_DC)
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_http_request_ce, "swoole_http_request", "Swoole\\Http\\Request", swoole_http_request_methods);
     swoole_http_request_class_entry_ptr = zend_register_internal_class(&swoole_http_request_ce TSRMLS_CC);
-
-    REGISTER_LONG_CONSTANT("HTTP_GLOBAL_GET", HTTP_GLOBAL_GET, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("HTTP_GLOBAL_POST", HTTP_GLOBAL_POST, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("HTTP_GLOBAL_COOKIE", HTTP_GLOBAL_COOKIE, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("HTTP_GLOBAL_ALL", HTTP_GLOBAL_GET| HTTP_GLOBAL_POST| HTTP_GLOBAL_COOKIE | HTTP_GLOBAL_REQUEST |HTTP_GLOBAL_SERVER | HTTP_GLOBAL_FILES, CONST_CS | CONST_PERSISTENT);
 }
 
 static PHP_METHOD(swoole_http_server, on)
@@ -1417,7 +1424,7 @@ static PHP_METHOD(swoole_http_request, __destruct)
 {
     zval *zfiles = sw_zend_read_property(swoole_http_request_class_entry_ptr, getThis(), ZEND_STRL("files"), 1 TSRMLS_CC);
     //upload files
-    if (zfiles && !ZVAL_IS_NULL(zfiles))
+    if (zfiles && Z_TYPE_P(zfiles) == IS_ARRAY)
     {
         zval *value;
         char *key;
@@ -2206,16 +2213,28 @@ static PHP_METHOD(swoole_http_response, header)
     {
         swoole_http_server_array_init(header, response);
     }
-
+    if (klen > SW_HTTP_HEADER_KEY_SIZE - 1)
+    {
+        swoole_php_error(E_WARNING, "header key is too long.");
+        RETURN_FALSE;
+    }
+    if (vlen > SW_HTTP_HEADER_VALUE_SIZE)
+    {
+        swoole_php_error(E_WARNING, "header key is too long.");
+        RETURN_FALSE;
+    }
+    char key_buf[SW_HTTP_HEADER_KEY_SIZE];
+    memcpy(key_buf, k, klen);
+    key_buf[klen] = '\0';
     if (ctx->http2)
     {
-        swoole_strtolower(k, klen);
+        swoole_strtolower(key_buf, klen);
     }
     else
     {
-        http_header_key_format(k, klen);
+        http_header_key_format(key_buf, klen);
     }
-    sw_add_assoc_stringl_ex(zheader, k, klen + 1, v, vlen, 1);
+    sw_add_assoc_stringl_ex(zheader, key_buf, klen + 1, v, vlen, 1);
 }
 
 #ifdef SW_HAVE_ZLIB
