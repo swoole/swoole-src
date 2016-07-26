@@ -1645,6 +1645,7 @@ typedef struct _swTimer_node
     int64_t exec_msec;
     uint32_t interval;
     long id;
+    int type;                 //0 normal node 1 node for client_coro
     uint8_t remove :1;
 } swTimer_node;
 
@@ -1724,10 +1725,14 @@ typedef struct
     uint32_t shutdown :1;
     uint32_t reload;
     uint32_t reload_count;   //reload计数
-
     uint32_t request_count;
 
     int max_request;
+
+#ifdef SW_COROUTINE
+    swLinkedList *coro_timeout_list;
+    uint32_t scheduler_count;
+#endif
 
     swString **buffer_input;
     swString **buffer_output;
