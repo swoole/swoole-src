@@ -768,9 +768,9 @@ static http_client* http_client_create(zval *object TSRMLS_DC)
             convert_to_boolean(ztmp);
             http->keep_alive = (int) Z_LVAL_P(ztmp);
         }
+        //client settings
+        php_swoole_client_check_setting(http->cli, zset TSRMLS_CC);
     }
-    //Client settings
-    php_swoole_client_check_setting(http->cli, zset TSRMLS_CC);
 
     http->cli->open_eof_check = 0;
     http->cli->open_length_check = 0;
