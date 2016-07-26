@@ -182,7 +182,13 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
 
 sw_inline void coro_close(TSRMLS_D)
 {
+    if (COROG.current_coro->post_callback)
+    {
+        COROG.current_coro->post_callback(COROG.current_coro->post_callback_params);
+    }
+
     void **arguments = EG(current_execute_data)->function_state.arguments;
+
     if (arguments)
     {
         int arg_count = (int)(zend_uintptr_t)(*arguments);
@@ -209,10 +215,6 @@ sw_inline void coro_close(TSRMLS_D)
         EG(active_symbol_table) = NULL;
     }
 
-    if (COROG.current_coro->post_callback)
-    {
-        COROG.current_coro->post_callback();
-    }
     efree(EG(argument_stack));
     EG(argument_stack) = COROG.origin_vm_stack;
     EG(current_execute_data) = COROG.origin_ex;
@@ -239,6 +241,7 @@ sw_inline php_context *coro_save(zval *return_value, zval **return_value_ptr, ph
     SWCC(current_scope) = EG(scope);
     SWCC(current_called_scope) = EG(called_scope);
     SWCC(current_vm_stack) = EG(argument_stack);
+    SWCC(current_task) = COROG.current_coro;
 
     return sw_current_context;
 }
@@ -278,7 +281,7 @@ int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retva
 
     sw_current_context->current_execute_data->call--;
     zend_vm_stack_clear_multiple(1 TSRMLS_CC);
-    COROG.current_coro = (coro_task *)ZEND_VM_STACK_ELEMETS(EG(argument_stack));
+    COROG.current_coro = SWCC(current_task);
 
     int coro_status;
     if (!setjmp(swReactorCheckPoint))

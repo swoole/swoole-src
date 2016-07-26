@@ -50,6 +50,7 @@ struct _php_context
     zend_class_entry *current_called_scope;
     zend_vm_stack current_vm_stack;
     void *parent;
+    coro_task *current_task;
 };
 
 typedef struct
