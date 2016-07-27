@@ -27,7 +27,8 @@ static PHP_METHOD(swoole_mysql_coro, __destruct);
 static PHP_METHOD(swoole_mysql_coro, connect);
 static PHP_METHOD(swoole_mysql_coro, query);
 static PHP_METHOD(swoole_mysql_coro, recv);
-static PHP_METHOD(swoole_mysql_coro, defer);
+static PHP_METHOD(swoole_mysql_coro, setDefer);
+static PHP_METHOD(swoole_mysql_coro, getDefer);
 static PHP_METHOD(swoole_mysql_coro, close);
 
 static zend_class_entry swoole_mysql_coro_ce;
@@ -258,7 +259,8 @@ static const zend_function_entry swoole_mysql_coro_methods[] =
     PHP_ME(swoole_mysql_coro, connect, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql_coro, query, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql_coro, recv, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_mysql_coro, defer, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql_coro, setDefer, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql_coro, getDefer, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql_coro, close, NULL, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -949,7 +951,14 @@ static PHP_METHOD(swoole_mysql_coro, query)
     }
 }
 
-static PHP_METHOD(swoole_mysql_coro, defer)
+static PHP_METHOD(swoole_mysql_coro, getDefer)
+{
+    mysql_client *client = swoole_get_object(getThis());
+
+	RETURN_BOOL(client->defer);
+}
+
+static PHP_METHOD(swoole_mysql_coro, setDefer)
 {
 	zend_bool defer = 1;
 

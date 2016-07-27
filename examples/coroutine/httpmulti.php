@@ -76,8 +76,8 @@ class Server
         ]);
         error_log(__LINE__.var_export($cliAA,true).PHP_EOL,3,'/tmp/markyuan');
         error_log(__LINE__.var_export($cliBB,true).PHP_EOL,3,'/tmp/markyuan');
-        $retAA=$cliAA->defer(1);
-        $retBB=$cliBB->defer(1);
+        $retAA=$cliAA->setDefer(1);
+        $retBB=$cliBB->setDefer(1);
         error_log(__LINE__.var_export($retAA,true).PHP_EOL,3,'/tmp/markyuan');
         error_log(__LINE__.var_export($retBB,true).PHP_EOL,3,'/tmp/markyuan');
         error_log(__LINE__.var_export($cliAA,true).PHP_EOL,3,'/tmp/markyuan');

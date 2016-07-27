@@ -48,13 +48,13 @@ enum http_client_state
     HTTP_CLIENT_STATE_UPGRADE,
 };
 
-enum http_client_defer_state
+typedef enum
 {
     HTTP_CLIENT_STATE_DEFER_INIT,
     HTTP_CLIENT_STATE_DEFER_SEND,
     HTTP_CLIENT_STATE_DEFER_WAIT,
     HTTP_CLIENT_STATE_DEFER_DONE,
-};
+} http_client_defer_state;
 
 
 
@@ -84,14 +84,10 @@ typedef struct
     char *request_method;
     int callback_index;
     
-    
-    uint8_t defer;//0 normal 1 wait for receive
-    uint8_t defer_status;//
-    uint8_t defer_chunk_status;// 0 1
-    uint8_t defer_result;//0
-    
-    
-    
+    zend_bool defer;//0 normal 1 wait for receive
+    zend_bool defer_result;//0
+    zend_bool defer_chunk_status;// 0 1
+    http_client_defer_state defer_status;
 } http_client_property;
 
 typedef struct
@@ -186,7 +182,8 @@ static PHP_METHOD(swoole_http_client_coro, isConnected);
 static PHP_METHOD(swoole_http_client_coro, close);
 static PHP_METHOD(swoole_http_client_coro, get);
 static PHP_METHOD(swoole_http_client_coro, post);
-static PHP_METHOD(swoole_http_client_coro, defer);
+static PHP_METHOD(swoole_http_client_coro, setDefer);
+static PHP_METHOD(swoole_http_client_coro, getDefer);
 static PHP_METHOD(swoole_http_client_coro, recv);
 
 
@@ -205,7 +202,8 @@ static const zend_function_entry swoole_http_client_coro_methods[] =
     PHP_ME(swoole_http_client_coro, post, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, isConnected, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, close, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, defer, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, setDefer, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, getDefer, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, recv, NULL, ZEND_ACC_PUBLIC)
     
     PHP_FE_END
@@ -352,7 +350,6 @@ void swoole_http_client_coro_init(int module_number TSRMLS_DC)
     
     zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, SW_STRL("defer")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     
     http_client_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
     if (!http_client_buffer)
@@ -955,8 +952,14 @@ static PHP_METHOD(swoole_http_client_coro, setCookies)
     RETURN_TRUE;
 }
 
+static PHP_METHOD(swoole_http_client_coro, getDefer)
+{
+    http_client_property *hcc = swoole_get_property(getThis(), 0);
 
-static PHP_METHOD(swoole_http_client_coro, defer)
+	RETURN_BOOL(hcc->defer);
+}
+
+static PHP_METHOD(swoole_http_client_coro, setDefer)
 {
     zend_bool defer = 1;
     http_client_property *hcc = swoole_get_property(getThis(), 0);
@@ -972,7 +975,6 @@ static PHP_METHOD(swoole_http_client_coro, defer)
     }
 
     hcc->defer = defer;
-    zend_update_property_bool(swoole_http_client_coro_class_entry_ptr, getThis(), SW_STRL("defer") - 1, defer TSRMLS_CC);
 
     RETURN_TRUE;
 }
@@ -993,12 +995,8 @@ static PHP_METHOD(swoole_http_client_coro, recv)
     switch (hcc->defer_status)
 	{
         case HTTP_CLIENT_STATE_DEFER_DONE:
-            //  ZVAL_BOOL(return_value, hcc->defer_result);
-            if (hcc->defer_result)
-			{
-                RETURN_TRUE;
-            };
-            RETURN_FALSE;
+            hcc->defer_status = HTTP_CLIENT_STATE_DEFER_INIT;
+			RETURN_BOOL(hcc->defer_result);
             break;
         case HTTP_CLIENT_STATE_DEFER_SEND:
             hcc->defer_status = HTTP_CLIENT_STATE_DEFER_WAIT;

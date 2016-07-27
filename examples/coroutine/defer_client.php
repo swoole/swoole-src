@@ -13,13 +13,13 @@ $server->on('Request', function ($request, $response) {
 		$response->end("Redis connect fail!");
 		return;
 	}
-	$redis->defer(true);
+	$redis->setDefer(true);
 	$redis->get('key');
 	$res = $redis->get('key');//get false
 	var_dump($res);
 
-	var_dump($redis->defer());//get true
-	var_dump($redis->defer(false));//get false
+	var_dump($redis->setDefer());//get true
+	var_dump($redis->setDefer(false));//get false
 
 	//穿插其他client也能正常工作
 	$redis_tmp = new Swoole\Coroutine\Redis();
@@ -33,7 +33,7 @@ $server->on('Request', function ($request, $response) {
 
 
 	$http_client= new Swoole\Coroutine\Http\Client('km.oa.com', 80);
-	$http_client->defer();
+	$http_client->setDefer();
 	$http_client->get('/');
 
 	$mysql = new Swoole\Coroutine\MySQL();
@@ -42,7 +42,7 @@ $server->on('Request', function ($request, $response) {
 		$response->end("MySQL connect fail!");
 		return;
 	}
-	$mysql->defer(true);
+	$mysql->setDefer(true);
 	$mysql->query('select sleep(1)', 2);
 
 	$udp = new Swoole\Coroutine\Client(SWOOLE_SOCK_UDP);
@@ -58,9 +58,9 @@ $server->on('Request', function ($request, $response) {
 	$udp_res = $udp->recv();
 	$res = $mysql->query('select sleep(1)', 2);//get false
 	var_dump($res);
-	$res = $mysql->defer(false);
+	$res = $mysql->setDefer(false);
 	var_dump($res);//get false
-	$res = $mysql->defer();
+	$res = $mysql->setDefer();
 	var_dump($res);//get true
 	$mysql_res = $mysql->recv();
 	$res = $redis->get('key');//get false
@@ -72,6 +72,8 @@ $server->on('Request', function ($request, $response) {
 	var_dump($res);//get true
 
 	var_dump($udp_res, $mysql_res, $redis_res, $http_client);
+	var_dump($http_client->setDefer(false));
+	var_dump($mysql->getDefer(), $redis->getDefer(), $http_client->getDefer());
 	$response->end('Test End');
 });
 $server->start();
