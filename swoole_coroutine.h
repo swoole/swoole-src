@@ -17,6 +17,7 @@
  +----------------------------------------------------------------------+
  */
 
+#ifdef SW_COROUTINE
 #ifndef _PHP_SWOOLE_COROUTINE_H_
 #define _PHP_SWOOLE_COROUTINE_H_
 
@@ -97,5 +98,5 @@ void swoole_client_multi_init(int module_number TSRMLS_DC);
 void swoole_client_coro_init(int module_number TSRMLS_DC);
 void swoole_mysql_coro_init(int module_number TSRMLS_DC);
 void swoole_http_client_coro_init(int module_number TSRMLS_DC);
-
+#endif
 #endif
