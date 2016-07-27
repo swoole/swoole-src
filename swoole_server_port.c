@@ -416,5 +416,7 @@ static PHP_METHOD(swoole_server_port, getSocket)
         RETURN_FALSE;
     }
     SW_ZEND_REGISTER_RESOURCE(return_value, (void *) socket_object, php_sockets_le_socket());
+    zval *zsocket = sw_zval_dup(return_value);
+    sw_zval_add_ref(&zsocket);
 }
 #endif

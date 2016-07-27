@@ -1307,11 +1307,15 @@ static PHP_METHOD(swoole_client, getSocket)
     {
         RETURN_ZVAL(zsocket, 1, NULL);
     }
-
     swClient *cli = swoole_get_object(getThis());
     if (!cli || !cli->socket)
     {
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
+        RETURN_FALSE;
+    }
+    if (cli->keep)
+    {
+        swoole_php_fatal_error(E_WARNING, "The getSocket method cannot be used for long connection.");
         RETURN_FALSE;
     }
     php_socket *socket_object = swoole_convert_to_socket(cli->socket->fd);
