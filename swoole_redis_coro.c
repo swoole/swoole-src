@@ -555,7 +555,8 @@ static sw_inline void sw_redis_command_key_str_str(INTERNAL_FUNCTION_PARAMETERS,
 static PHP_METHOD(swoole_redis_coro, __construct);
 static PHP_METHOD(swoole_redis_coro, __destruct);
 static PHP_METHOD(swoole_redis_coro, connect);
-static PHP_METHOD(swoole_redis_coro, defer);
+static PHP_METHOD(swoole_redis_coro, setDefer);
+static PHP_METHOD(swoole_redis_coro, getDefer);
 static PHP_METHOD(swoole_redis_coro, recv);
 static PHP_METHOD(swoole_redis_coro, set);
 static PHP_METHOD(swoole_redis_coro, setBit);
@@ -690,7 +691,8 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_ME(swoole_redis_coro, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
     PHP_ME(swoole_redis_coro, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_redis_coro, connect, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_coro, defer, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, setDefer, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, getDefer, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, recv, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, close, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, set, NULL, ZEND_ACC_PUBLIC)
@@ -984,7 +986,14 @@ static PHP_METHOD(swoole_redis_coro, connect)
 	coro_yield();
 }
 
-static PHP_METHOD(swoole_redis_coro, defer)
+static PHP_METHOD(swoole_redis_coro, getDefer)
+{
+    swRedisClient *redis = swoole_get_object(getThis());
+
+	RETURN_BOOL(redis->defer);
+}
+
+static PHP_METHOD(swoole_redis_coro, setDefer)
 {
 	zend_bool defer = 1;
 
@@ -2965,17 +2974,6 @@ static PHP_METHOD(swoole_redis_coro, pSubscribe)
 		RETURN_FALSE;
 	}
 
-	if (redis->iowait == SW_REDIS_CORO_STATUS_WAIT)
-	{
-        zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC);
-        zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "redis client is waiting for response." TSRMLS_CC);
-	}
-	if (redis->iowait == SW_REDIS_CORO_STATUS_DONE)
-	{
-        zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC);
-        zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "redis client is waiting for calling recv." TSRMLS_CC);
-	}
-
 	php_context *context = swoole_get_property(getThis(), 0);
     switch (redis->state)
     {
@@ -3036,17 +3034,6 @@ static PHP_METHOD(swoole_redis_coro, subscribe)
 		zend_update_property_long(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC);
 		zend_update_property_string(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errMsg"), "subscribe cannot be used with defer enabled" TSRMLS_CC);
 		RETURN_FALSE;
-	}
-
-	if (redis->iowait == SW_REDIS_CORO_STATUS_WAIT)
-	{
-        zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC);
-        zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "redis client is waiting for response." TSRMLS_CC);
-	}
-	if (redis->iowait == SW_REDIS_CORO_STATUS_DONE)
-	{
-        zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC);
-        zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "redis client is waiting for calling recv." TSRMLS_CC);
 	}
 
 	php_context *context = swoole_get_property(getThis(), 0);
