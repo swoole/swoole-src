@@ -41,6 +41,12 @@ typedef struct
 
 } client_callback;
 
+enum client_property
+{
+    client_property_callback = 0,
+    client_property_socket = 1,
+};
+
 static PHP_METHOD(swoole_client, __construct);
 static PHP_METHOD(swoole_client, __destruct);
 static PHP_METHOD(swoole_client, set);
@@ -741,12 +747,23 @@ static PHP_METHOD(swoole_client, __destruct)
         }
     }
     //free memory
-    client_callback *cb = swoole_get_property(getThis(), 0);
+    client_callback *cb = swoole_get_property(getThis(), client_property_callback);
     if (cb)
     {
         efree(cb);
-        swoole_set_property(getThis(), 0, NULL);
+        swoole_set_property(getThis(), client_property_callback, NULL);
     }
+#ifdef SWOOLE_SOCKETS_SUPPORT
+    zval *zsocket = swoole_get_property(getThis(), client_property_socket);
+    if (zsocket)
+    {
+        sw_zval_ptr_dtor(&zsocket);
+#if PHP_MAJOR_VERSION >= 7
+        efree(zsocket);
+#endif
+        swoole_set_property(getThis(), client_property_socket, NULL);
+    }
+#endif
 }
 
 static PHP_METHOD(swoole_client, set)
@@ -1285,6 +1302,12 @@ static PHP_METHOD(swoole_client, getsockname)
 #ifdef SWOOLE_SOCKETS_SUPPORT
 static PHP_METHOD(swoole_client, getSocket)
 {
+    zval *zsocket = swoole_get_property(getThis(), client_property_socket);
+    if (zsocket)
+    {
+        RETURN_ZVAL(zsocket, 1, NULL);
+    }
+
     swClient *cli = swoole_get_object(getThis());
     if (!cli || !cli->socket)
     {
@@ -1296,7 +1319,10 @@ static PHP_METHOD(swoole_client, getSocket)
     {
         RETURN_FALSE;
     }
-    SW_ZEND_REGISTER_RESOURCE(return_value, (void *) socket_object, php_sockets_le_socket());
+    SW_ZEND_REGISTER_RESOURCE(return_value, (void * ) socket_object, php_sockets_le_socket());
+    zsocket = sw_zval_dup(return_value);
+    sw_zval_add_ref(&zsocket);
+    swoole_set_property(getThis(), client_property_socket, zsocket);
 }
 #endif
 
@@ -1409,12 +1435,12 @@ static PHP_METHOD(swoole_client, on)
         return;
     }
 
-    client_callback *cb = swoole_get_property(getThis(), 0);
+    client_callback *cb = swoole_get_property(getThis(), client_property_callback);
     if (!cb)
     {
         cb = emalloc(sizeof(client_callback));
         bzero(cb, sizeof(client_callback));
-        swoole_set_property(getThis(), 0, cb);
+        swoole_set_property(getThis(), client_property_callback, cb);
     }
 
 #ifdef PHP_SWOOLE_CHECK_CALLBACK
@@ -1556,7 +1582,7 @@ static PHP_METHOD(swoole_client, enableSSL)
         efree(func_name);
 #endif
 
-        client_callback *cb = swoole_get_property(getThis(), 0);
+        client_callback *cb = swoole_get_property(getThis(), client_property_callback);
         if (!cb)
         {
             swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
