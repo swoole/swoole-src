@@ -1235,11 +1235,14 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
 }
 
 #ifdef SW_COROUTINE
-void php_swoole_onConnect_finish()
+void php_swoole_onConnect_finish(void *param)
 {
-
+    swServer *serv = SwooleG->serv;
+    swTrace("onConnect finish and send confirm");
+    swServer_confirm(serv, (uint32_t)param);
 }
 #endif
+
 void php_swoole_onConnect(swServer *serv, swDataHead *info)
 {
     zval *zserv = (zval *) serv->ptr2;
@@ -1286,7 +1289,16 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
         swoole_php_error(E_WARNING, "swoole_server: onConnect handler error");
     }
 #else
-    int ret = coro_create(php_sw_callback_cache[SW_SERVER_CB_onConnect], args, 3, &retval, NULL);
+    int ret;
+    if (serv->enable_delay_receive)
+    {
+        ret = coro_create(php_sw_callback_cache[SW_SERVER_CB_onConnect], args, 3, &retval, php_swoole_onConnect_finish, (void*)fd);
+    }
+    else
+    {
+        ret = coro_create(php_sw_callback_cache[SW_SERVER_CB_onConnect], args, 3, &retval, NULL);
+    }
+
     if (ret != 0)
     {
         return SW_OK;
