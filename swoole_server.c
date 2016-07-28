@@ -1248,12 +1248,22 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
     }
 }
 
+#ifdef SW_COROUTINE
+void php_swoole_onConnect_finish()
+{
+
+}
+#endif
 void php_swoole_onConnect(swServer *serv, swDataHead *info)
 {
     zval *zserv = (zval *) serv->ptr2;
     zval *zfd;
     zval *zfrom_id;
+#ifdef SW_COROUTINE
+    zval *args[3];
+#else
     zval **args[3];
+#endif
     zval *retval = NULL;
 
     SW_MAKE_STD_ZVAL(zfd);
@@ -1262,15 +1272,23 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
     SW_MAKE_STD_ZVAL(zfrom_id);
     ZVAL_LONG(zfrom_id, info->from_id);
 
+#ifndef SW_COROUTINE
     args[0] = &zserv;
     sw_zval_add_ref(&zserv);
     args[1] = &zfd;
     args[2] = &zfrom_id;
+#else
+    args[0] = &zserv;
+    sw_zval_add_ref(&zserv);
+    args[1] = &zfd;
+    args[2] = &zfrom_id;
+#endif
 
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
+#ifndef SW_COROUTINE
     zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onConnect);
     if (!callback)
     {
@@ -1281,6 +1299,14 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
     {
         swoole_php_error(E_WARNING, "swoole_server: onConnect handler error");
     }
+#else
+    int ret = coro_create(php_sw_callback_cache[SW_SERVER_CB_onConnect], args, 3, &retval, NULL);
+    if (ret != 0)
+    {
+        return SW_OK;
+    }
+#endif
+
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
