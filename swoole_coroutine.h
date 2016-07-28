@@ -23,7 +23,6 @@
 
 #include "coroutine.h"
 
-#define coro_global _coro_global
 #define DEFAULT_MAX_CORO_NUM 3000
 
 #define CORO_END 0
@@ -52,13 +51,14 @@ struct _php_context
     void *parent;
 };
 
-typedef struct
+typedef struct _coro_global
 {
+	zend_bool init;
     int coro_num;
     int max_coro_num;
     zend_vm_stack origin_vm_stack;
     zend_execute_data *origin_ex;
-} _coro_global;
+} coro_global;
 
 extern zend_class_entry *swoole_client_coro_class_entry_ptr;
 extern zend_class_entry *swoole_client_multi_class_entry_ptr;
@@ -86,6 +86,7 @@ static sw_inline zend_fcall_info_cache* php_swoole_server_get_cache(swServer *se
 }
 
 int coro_init(TSRMLS_D);
+void coro_check(TSRMLS_D);
 int coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval **retval);
 void coro_close(TSRMLS_D);
 php_context *coro_save(zval *return_value, zval **return_value_ptr, php_context *sw_php_context);

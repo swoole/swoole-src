@@ -668,6 +668,8 @@ static void mysql_column_info(mysql_field *field)
 
 static PHP_METHOD(swoole_mysql_coro, __construct)
 {
+	coro_check(TSRMLS_C);
+
     if (!mysql_request_buffer)
     {
         mysql_request_buffer = swString_new(SW_MYSQL_QUERY_INIT_SIZE);
