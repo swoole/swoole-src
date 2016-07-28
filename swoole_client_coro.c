@@ -15,11 +15,11 @@
   +----------------------------------------------------------------------+
 */
 
-#ifdef SW_COROUTINE
 #include "php_swoole.h"
 
-#include "swoole_coroutine.h"
+#ifdef SW_COROUTINE
 
+#include "swoole_coroutine.h"
 #include "ext/standard/basic_functions.h"
 #include <setjmp.h>
 

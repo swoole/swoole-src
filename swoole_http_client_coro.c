@@ -16,11 +16,11 @@
  +----------------------------------------------------------------------+
  */
 
+#include "php_swoole.h"
+
 #ifdef SW_COROUTINE
 
-#include "php_swoole.h"
 #include "thirdparty/php_http_parser.h"
-
 #include "swoole_coroutine.h"
 #include <setjmp.h>
 
