@@ -73,8 +73,6 @@ static PHP_METHOD(swoole_table, del);
 static PHP_METHOD(swoole_table, exist);
 static PHP_METHOD(swoole_table, incr);
 static PHP_METHOD(swoole_table, decr);
-static PHP_METHOD(swoole_table, lock);
-static PHP_METHOD(swoole_table, unlock);
 static PHP_METHOD(swoole_table, count);
 static PHP_METHOD(swoole_table, destroy);
 
@@ -99,8 +97,6 @@ static const zend_function_entry swoole_table_methods[] =
     PHP_ME(swoole_table, exist,       arginfo_swoole_table_get, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, incr,        arginfo_swoole_table_incr, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, decr,        arginfo_swoole_table_decr, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, lock,        arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, unlock,      arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
 #ifdef HAVE_PCRE
     PHP_ME(swoole_table, rewind,      arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, next,        arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
@@ -502,18 +498,6 @@ static PHP_METHOD(swoole_table, del)
 
     swTable *table = swoole_get_object(getThis());
     SW_CHECK_RETURN(swTableRow_del(table, key, keylen));
-}
-
-static PHP_METHOD(swoole_table, lock)
-{
-    swTable *table = swoole_get_object(getThis());
-    SW_LOCK_CHECK_RETURN(table->lock.lock(&table->lock));
-}
-
-static PHP_METHOD(swoole_table, unlock)
-{
-    swTable *table = swoole_get_object(getThis());
-    SW_LOCK_CHECK_RETURN(table->lock.unlock(&table->lock));
 }
 
 static PHP_METHOD(swoole_table, count)
