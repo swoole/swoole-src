@@ -396,7 +396,6 @@ typedef struct
     socklen_t len;
 } swSocketAddress;
 
-
 typedef struct _swConnection
 {
     /**
@@ -434,6 +433,7 @@ typedef struct _swConnection
      */
     uint32_t close_notify :1;
 
+    uint32_t listen_wait :1;
     uint32_t recv_wait :1;
     uint32_t send_wait :1;
 

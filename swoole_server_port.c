@@ -15,6 +15,9 @@
  */
 
 #include "php_swoole.h"
+#ifdef SW_COROUTINE
+#include "swoole_coroutine.h"
+#endif
 
 zend_class_entry swoole_server_port_ce;
 zend_class_entry *swoole_server_port_class_entry_ptr;
@@ -329,7 +332,12 @@ static PHP_METHOD(swoole_server_port, on)
 
 #ifdef PHP_SWOOLE_CHECK_CALLBACK
     char *func_name = NULL;
+#ifdef SW_COROUTINE
+    zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
+    if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
+#else
     if (!sw_zend_is_callable(cb, 0, &func_name TSRMLS_CC))
+#endif
     {
         swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
         efree(func_name);
@@ -346,22 +354,40 @@ static PHP_METHOD(swoole_server_port, on)
         port->ptr = property;
     }
 
-    char *callback[PHP_SERVER_PORT_CALLBACK_NUM] = {
+    char *callback_name[PHP_SERVER_CALLBACK_NUM] = {
         "Connect",
         "Receive",
         "Close",
         "Packet",
+        "Start",
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        "Request",
+        "HandShake",
+        "Open",
+        "Message",
     };
 
     char property_name[128];
     int l_property_name = 0;
     memcpy(property_name, "on", 2);
 
-    for (i = 0; i < PHP_SERVER_PORT_CALLBACK_NUM; i++)
+    for (i = 0; i < PHP_SERVER_CALLBACK_NUM; i++)
     {
-        if (strncasecmp(callback[i], name, len) == 0)
+        if (callback_name[i] == NULL)
         {
-            memcpy(property_name + 2, callback[i], len);
+            continue;
+        }
+        if (strncasecmp(callback_name[i], name, len) == 0)
+        {
+            memcpy(property_name + 2, callback_name[i], len);
             l_property_name = len + 2;
             property_name[l_property_name] = '\0';
             zend_update_property(swoole_server_port_class_entry_ptr, getThis(), property_name, l_property_name, cb TSRMLS_CC);
@@ -376,6 +402,9 @@ static PHP_METHOD(swoole_server_port, on)
             {
                 SwooleG.serv->onClose = php_swoole_onClose;
             }
+#ifdef SW_COROUTINE
+            php_sw_server_caches[i] = func_cache;
+#endif
             break;
         }
     }
