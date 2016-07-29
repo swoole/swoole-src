@@ -15,6 +15,7 @@
 */
 
 #include "php_swoole.h"
+#include "socks5.h"
 
 #include "ext/standard/basic_functions.h"
 
@@ -404,6 +405,40 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
             swSysError("setsockopt(%d, TCP_NODELAY) failed.", cli->socket->fd);
         }
     }
+    /**
+     * socks5 proxy
+     */
+    if (php_swoole_array_get_value(vht, "socks5_host", v))
+    {
+        convert_to_string(v);
+        cli->socks5_proxy = emalloc(sizeof(swSocks5));
+        bzero(cli->socks5_proxy, sizeof(swSocks5));
+        cli->socks5_proxy->host = strdup(Z_STRVAL_P(v));
+        cli->socks5_proxy->dns_tunnel = 1;
+
+        if (php_swoole_array_get_value(vht, "socks5_port", v))
+        {
+            convert_to_long(v);
+            cli->socks5_proxy->port = Z_LVAL_P(v);
+        }
+        else
+        {
+            swoole_php_fatal_error(E_ERROR, "socks5 proxy require server port option.");
+            return;
+        }
+        if (php_swoole_array_get_value(vht, "socks5_username", v))
+        {
+            convert_to_string(v);
+            cli->socks5_proxy->username = Z_STRVAL_P(v);
+            cli->socks5_proxy->l_username = Z_STRLEN_P(v);
+        }
+        if (php_swoole_array_get_value(vht, "socks5_password", v))
+        {
+            convert_to_string(v);
+            cli->socks5_proxy->password = Z_STRVAL_P(v);
+            cli->socks5_proxy->l_password = Z_STRLEN_P(v);
+        }
+    }
 #ifdef SW_USE_OPENSSL
     if (php_swoole_array_get_value(vht, "ssl_method", v))
     {
@@ -559,6 +594,11 @@ void php_swoole_check_reactor()
 
 void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
 {
+    //socks5 proxy config
+    if (cli->socks5_proxy)
+    {
+        efree(cli->socks5_proxy);
+    }
     //long tcp connection, delete from php_sw_long_connections
     if (cli->keep)
     {
