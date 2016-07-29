@@ -39,12 +39,14 @@ static const SSL_METHOD *swSSL_get_method(int method)
 {
     switch (method)
     {
+#ifndef OPENSSL_NO_SSL3_METHOD
     case SW_SSLv3_METHOD:
         return SSLv3_method();
     case SW_SSLv3_SERVER_METHOD:
         return SSLv3_server_method();
     case SW_SSLv3_CLIENT_METHOD:
         return SSLv3_client_method();
+#endif
     case SW_SSLv23_SERVER_METHOD:
         return SSLv23_server_method();
     case SW_SSLv23_CLIENT_METHOD:
