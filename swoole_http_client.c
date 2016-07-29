@@ -1225,7 +1225,13 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
     {
         sw_zval_ptr_dtor(&retval);
     }
-    sw_zval_ptr_dtor(&zcallback);
+
+    http = swoole_get_object(zobject);
+    if (!http)
+    {
+        sw_zval_ptr_dtor(&zcallback);
+        return 0;
+    }
     /**
      * TODO: Sec-WebSocket-Accept check
      */
@@ -1246,6 +1252,7 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
             sw_zval_ptr_dtor(&retval);
         }
     }
+    sw_zval_ptr_dtor(&zcallback);
     return 0;
 }
 
