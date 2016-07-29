@@ -692,6 +692,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
         {
             if (swClient_enable_ssl_encrypt(cli) < 0)
             {
+                connect_fail:
                 cli->close(cli);
                 if (cli->onError)
                 {
@@ -700,7 +701,15 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
             }
             else
             {
-                SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE);
+                if (swClient_ssl_handshake(cli) < 0)
+                {
+                    goto connect_fail;
+                }
+                else
+                {
+                    cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
+                }
+                return SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE);
             }
         }
         else

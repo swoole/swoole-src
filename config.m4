@@ -47,7 +47,7 @@ PHP_ARG_ENABLE(swoole, swoole support,
 PHP_ARG_WITH(swoole, swoole support,
 [  --with-swoole           With swoole support])
 
-PHP_ARG_WITH(openssl, for OpenSSL support,
+PHP_ARG_WITH(openssl_dir, for OpenSSL support,
 [  --with-openssl[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
 
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
@@ -196,11 +196,13 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
     fi
 
-    if test "$PHP_OPENSSL" != "no"; then
-        if test "$PHP_OPENSSL" != "yes"; then
-            PHP_ADD_INCLUDE("${PHP_OPENSSL}/include")
-            PHP_ADD_LIBRARY_WITH_PATH(ssl, "${PHP_OPENSSL}/lib")
+
+    if test "$PHP_OPENSSL" != "no" || test "$PHP_OPENSSL_DIR" != "no"; then
+        if test "$PHP_OPENSSL_DIR" != "no"; then
+            PHP_ADD_INCLUDE("${PHP_OPENSSL_DIR}/include")
+            PHP_ADD_LIBRARY_WITH_PATH(ssl, "${PHP_OPENSSL_DIR}/lib")
         fi
+    
         AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])
         PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
         if test `uname` = "Darwin"; then
