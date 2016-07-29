@@ -340,9 +340,33 @@ static int mysql_get_result(mysql_connector *connector, char *buf, int len)
     }
 }
 
+/**
+1              [0a] protocol version
+string[NUL]    server version
+4              connection id
+string[8]      auth-plugin-data-part-1
+1              [00] filler
+2              capability flags (lower 2 bytes)
+  if more data in the packet:
+1              character set
+2              status flags
+2              capability flags (upper 2 bytes)
+  if capabilities & CLIENT_PLUGIN_AUTH {
+1              length of auth-plugin-data
+  } else {
+1              [00]
+  }
+string[10]     reserved (all [00])
+  if capabilities & CLIENT_SECURE_CONNECTION {
+string[$len]   auth-plugin-data-part-2 ($len=MAX(13, length of auth-plugin-data - 8))
+  if capabilities & CLIENT_PLUGIN_AUTH {
+string[NUL]    auth-plugin name
+  }
+ */
 static int mysql_handshake(mysql_connector *connector, char *buf, int len)
 {
     char *tmp = buf;
+
     /**
      * handshake request
      */
@@ -371,30 +395,32 @@ static int mysql_handshake(mysql_connector *connector, char *buf, int len)
         return -1;
     }
 
+    //1              [0a] protocol version
     request.server_version = tmp;
     tmp += (strlen(request.server_version) + 1);
-
+    //4              connection id
     request.connection_id = *((int *) tmp);
     tmp += 4;
-
+    //string[8]      auth-plugin-data-part-1
     memcpy(request.auth_plugin_data, tmp, 8);
     tmp += 8;
-
+    //1              [00] filler
     request.filler = *tmp;
     tmp += 1;
-
-    memcpy(((char *) (&request.capability_flags)) + 2, tmp, 2);
+    //2              capability flags (lower 2 bytes)
+    memcpy(((char *) (&request.capability_flags)), tmp, 2);
     tmp += 2;
 
     if (tmp - tmp < len)
     {
+        //1              character set
         request.character_set = *tmp;
         tmp += 1;
-
+        //2              status flags
         memcpy(&request.status_flags, tmp, 2);
         tmp += 2;
-
-        memcpy(&request.capability_flags, tmp, 2);
+        //2              capability flags (upper 2 bytes)
+        memcpy(((char *) (&request.capability_flags) + 2), tmp, 2);
         tmp += 2;
 
         request.l_auth_plugin_data = *tmp;
