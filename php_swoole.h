@@ -451,4 +451,11 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
         INIT_CLASS_ENTRY(ce, name, methods); \
     }
 
+#define SWOOLE_CLASS_ALIAS(name, name_ns) \
+    if (SWOOLE_G(use_namespace)) { \
+        zend_register_class_alias(#name, name##_class_entry_ptr);\
+    } else { \
+        zend_register_class_alias(name_ns, name##_class_entry_ptr);\
+    }
+
 #endif	/* PHP_SWOOLE_H */

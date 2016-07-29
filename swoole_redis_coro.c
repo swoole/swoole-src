@@ -919,14 +919,8 @@ static PHP_METHOD(swoole_redis_coro, connect)
         RETURN_FALSE;
     }
 
-    if (port <= 1 || port > 65535)
-    {
-		zend_update_property_long(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC);
-		zend_update_property_string(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errMsg"), "port is invalid." TSRMLS_CC);
-        RETURN_FALSE;
-    }
-
     swRedisClient *redis = swoole_get_object(getThis());
+    redisAsyncContext *context;
 
     if (redis->state != SWOOLE_REDIS_CORO_STATE_CONNECT
 			|| redis->state != SWOOLE_REDIS_CORO_STATE_CLOSED)
@@ -940,7 +934,21 @@ static PHP_METHOD(swoole_redis_coro, connect)
         }
     }
 
-    redisAsyncContext *context = redisAsyncConnect(host, (int) port);
+    if (strncasecmp(host, ZEND_STRL("unix:/")) == 0)
+    {
+        context = redisAsyncConnectUnix(host + 5);
+    }
+    else
+    {
+        if (port <= 1 || port > 65535)
+        {
+			zend_update_property_long(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC);
+			zend_update_property_string(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errMsg"), "port is invalid." TSRMLS_CC);
+			RETURN_FALSE;
+        }
+        context = redisAsyncConnect(host, (int) port);
+    }
+
     if (context->err)
     {
 		zend_update_property_long(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), context->err TSRMLS_CC);
