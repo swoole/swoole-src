@@ -30,7 +30,7 @@ static zend_class_entry swoole_mysql_ce;
 static zend_class_entry *swoole_mysql_class_entry_ptr;
 
 static zend_class_entry swoole_mysql_exception_ce;
-static zend_class_entry *swoole_mysql_exception_class_entry;
+static zend_class_entry *swoole_mysql_exception_class_entry_ptr;
 
 #define UTF8_MB4 "utf8mb4"
 #define UTF8_MB3 "utf8"
@@ -280,9 +280,11 @@ void swoole_mysql_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_ce, "swoole_mysql", "Swoole\\MySQL", swoole_mysql_methods);
     swoole_mysql_class_entry_ptr = zend_register_internal_class(&swoole_mysql_ce TSRMLS_CC);
+    SWOOLE_CLASS_ALIAS(swoole_mysql, "Swoole\\MySQL");
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_exception_ce, "swoole_mysql_exception", "Swoole\\MySQL\\Exception", NULL);
-    swoole_mysql_exception_class_entry = sw_zend_register_internal_class_ex(&swoole_mysql_exception_ce, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+    swoole_mysql_exception_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_mysql_exception_ce, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+    SWOOLE_CLASS_ALIAS(swoole_mysql_exception, "Swoole\\MySQL\\Exception");
 }
 
 static int mysql_request(swString *sql, swString *buffer)
@@ -689,7 +691,7 @@ static PHP_METHOD(swoole_mysql, connect)
     }
     else
     {
-        zend_throw_exception(swoole_mysql_exception_class_entry, "HOST parameter is required.", 11 TSRMLS_CC);
+        zend_throw_exception(swoole_mysql_exception_class_entry_ptr, "HOST parameter is required.", 11 TSRMLS_CC);
         RETURN_FALSE;
     }
     if (php_swoole_array_get_value(_ht, "port", value))
@@ -709,7 +711,7 @@ static PHP_METHOD(swoole_mysql, connect)
     }
     else
     {
-        zend_throw_exception(swoole_mysql_exception_class_entry, "USER parameter is required.", 11 TSRMLS_CC);
+        zend_throw_exception(swoole_mysql_exception_class_entry_ptr, "USER parameter is required.", 11 TSRMLS_CC);
         RETURN_FALSE;
     }
     if (php_swoole_array_get_value(_ht, "password", value))
@@ -720,7 +722,7 @@ static PHP_METHOD(swoole_mysql, connect)
     }
     else
     {
-        zend_throw_exception(swoole_mysql_exception_class_entry, "PASSWORD parameter is required.", 11 TSRMLS_CC);
+        zend_throw_exception(swoole_mysql_exception_class_entry_ptr, "PASSWORD parameter is required.", 11 TSRMLS_CC);
         RETURN_FALSE;
     }
     if (php_swoole_array_get_value(_ht, "database", value))
@@ -731,7 +733,7 @@ static PHP_METHOD(swoole_mysql, connect)
     }
     else
     {
-        zend_throw_exception(swoole_mysql_exception_class_entry, "DATABASE parameter is required.", 11 TSRMLS_CC);
+        zend_throw_exception(swoole_mysql_exception_class_entry_ptr, "DATABASE parameter is required.", 11 TSRMLS_CC);
         RETURN_FALSE;
     }
     if (php_swoole_array_get_value(_ht, "timeout", value))
@@ -750,7 +752,7 @@ static PHP_METHOD(swoole_mysql, connect)
         if (connector->character_set < 0)
         {
             snprintf(buf, sizeof(buf), "unknown charset [%s].", Z_STRVAL_P(value));
-            zend_throw_exception(swoole_mysql_exception_class_entry, buf, 11 TSRMLS_CC);
+            zend_throw_exception(swoole_mysql_exception_class_entry_ptr, buf, 11 TSRMLS_CC);
             RETURN_FALSE;
         }
     }
@@ -783,7 +785,7 @@ static PHP_METHOD(swoole_mysql, connect)
 
     if (swClient_create(cli, type, 0) < 0)
     {
-        zend_throw_exception(swoole_mysql_exception_class_entry, "swClient_create failed.", 1 TSRMLS_CC);
+        zend_throw_exception(swoole_mysql_exception_class_entry_ptr, "swClient_create failed.", 1 TSRMLS_CC);
         RETURN_FALSE;
     }
 
@@ -804,7 +806,7 @@ static PHP_METHOD(swoole_mysql, connect)
     else
     {
         snprintf(buf, sizeof(buf), "connect to mysql server[%s:%d] failed.", connector->host, connector->port);
-        zend_throw_exception(swoole_mysql_exception_class_entry, buf, 2 TSRMLS_CC);
+        zend_throw_exception(swoole_mysql_exception_class_entry_ptr, buf, 2 TSRMLS_CC);
         RETURN_FALSE;
     }
 
