@@ -882,6 +882,8 @@ void swoole_redis_coro_init(int module_number TSRMLS_DC)
 
 static PHP_METHOD(swoole_redis_coro, __construct)
 {
+	coro_check(TSRMLS_C);
+
     swRedisClient *redis = emalloc(sizeof(swRedisClient));
     bzero(redis, sizeof(swRedisClient));
 

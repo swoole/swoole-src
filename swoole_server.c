@@ -652,9 +652,16 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     args[3] = zdata;
 
     zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
-    int ret = coro_create(cache, args, 4, &retval);
+    int ret = coro_create(cache, args, 4, &retval, NULL, NULL);
     if (ret != 0)
     {
+        sw_zval_ptr_dtor(&zfd);
+        sw_zval_ptr_dtor(&zfrom_id);
+        sw_zval_ptr_dtor(&zdata);
+        if (ret == CORO_LIMIT)
+        {
+            SwooleG.serv->factory.end(&SwooleG.serv->factory, req->info.fd);
+        }
         return SW_OK;
     }
 #endif
@@ -1237,7 +1244,7 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
 #ifdef SW_COROUTINE
 void php_swoole_onConnect_finish(void *param)
 {
-    swServer *serv = SwooleG->serv;
+    swServer *serv = SwooleG.serv;
     swTrace("onConnect finish and send confirm");
     swServer_confirm(serv, (uint32_t)param);
 }
@@ -1267,10 +1274,10 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
     args[1] = &zfd;
     args[2] = &zfrom_id;
 #else
-    args[0] = &zserv;
+    args[0] = zserv;
     sw_zval_add_ref(&zserv);
-    args[1] = &zfd;
-    args[2] = &zfrom_id;
+    args[1] = zfd;
+    args[2] = zfrom_id;
 #endif
 
 #if PHP_MAJOR_VERSION < 7
@@ -1290,18 +1297,21 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
     }
 #else
     int ret;
+    zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, info->from_fd, SW_SERVER_CB_onConnect);
     if (serv->enable_delay_receive)
     {
-        ret = coro_create(php_sw_callback_cache[SW_SERVER_CB_onConnect], args, 3, &retval, php_swoole_onConnect_finish, (void*)fd);
+        ret = coro_create(cache, args, 3, &retval, php_swoole_onConnect_finish, (void*)info->fd);
     }
     else
     {
-        ret = coro_create(php_sw_callback_cache[SW_SERVER_CB_onConnect], args, 3, &retval, NULL);
+        ret = coro_create(cache, args, 3, &retval, NULL, NULL);
     }
 
     if (ret != 0)
     {
-        return SW_OK;
+        sw_zval_ptr_dtor(&zfd);
+        sw_zval_ptr_dtor(&zfrom_id);
+        return;
     }
 #endif
 

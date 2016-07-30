@@ -23,7 +23,6 @@
 
 #include "coroutine.h"
 
-#define coro_global _coro_global
 #define DEFAULT_MAX_CORO_NUM 3000
 
 #define CORO_END 0
@@ -54,17 +53,15 @@ struct _php_context
     coro_task *current_task;
 };
 
-typedef struct
+typedef struct _coro_global
 {
     uint32_t coro_num;
     uint32_t max_coro_num;
     zend_vm_stack origin_vm_stack;
     zend_execute_data *origin_ex;
     coro_task *current_coro;
-    //coro_info *task_list;
-    //coro_info *free_task_list;
-    //coro_info *busy_task_list;
-} _coro_global;
+    zend_bool init;
+} coro_global;
 
 struct _coro_task
 {
@@ -100,7 +97,8 @@ static sw_inline zend_fcall_info_cache* php_swoole_server_get_cache(swServer *se
 }
 
 int coro_init(TSRMLS_D);
-int coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval **retval, void *post_callback);
+int coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval **retval, void *post_callback, void *param);
+void coro_check(TSRMLS_D);
 void coro_close(TSRMLS_D);
 php_context *coro_save(zval *return_value, zval **return_value_ptr, php_context *sw_php_context);
 int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retval);

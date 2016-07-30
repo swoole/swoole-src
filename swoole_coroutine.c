@@ -34,7 +34,16 @@ int coro_init(TSRMLS_D)
     COROG.origin_ex = EG(current_execute_data);
     COROG.coro_num = 0;
     COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
+	COROG.init = 1;
     return 0;
+}
+
+void coro_check(TSRMLS_D)
+{
+	if (!COROG.init)
+	{
+        swoole_php_fatal_error(E_ERROR, "coroutine client just can use under swoole server.");
+	}
 }
 
 int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **retval, void *post_callback, void* params)
@@ -161,6 +170,7 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
     int coro_status;
     COROG.current_coro->start_time = time(NULL);
     COROG.current_coro->post_callback = post_callback;
+    COROG.current_coro->post_callback_params = params;
     if (!setjmp(swReactorCheckPoint))
     {
         zend_execute_ex(execute_data TSRMLS_CC);

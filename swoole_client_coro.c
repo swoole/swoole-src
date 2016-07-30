@@ -577,6 +577,8 @@ static swClient *php_swoole_client_coro_new(zval *object, char *host, int host_l
 
 static PHP_METHOD(swoole_client_coro, __construct)
 {
+	coro_check(TSRMLS_C);
+
     zval * ztype;
     char *id = NULL;
     zend_size_t len = 0;

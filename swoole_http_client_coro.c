@@ -813,6 +813,8 @@ static http_client* http_client_coro_create(zval *object TSRMLS_DC)
 
 static PHP_METHOD(swoole_http_client_coro, __construct)
 {
+	coro_check(TSRMLS_C);
+
     char *host;
     zend_size_t host_len;
     long port = 80;
