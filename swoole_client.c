@@ -729,11 +729,11 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
 static PHP_METHOD(swoole_client, __construct)
 {
     long async = 0;
-    zval *ztype;
+    long type = 0;
     char *id = NULL;
     zend_size_t len = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|ls", &ztype, &async, &id, &len) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|ls", &type, &async, &id, &len) == FAILURE)
     {
         swoole_php_fatal_error(E_ERROR, "require socket type param.");
         RETURN_FALSE;
@@ -741,25 +741,25 @@ static PHP_METHOD(swoole_client, __construct)
 
     if (async == 1)
     {
-        Z_LVAL_P(ztype) = Z_LVAL_P(ztype) | SW_FLAG_ASYNC;
+        type |= SW_FLAG_ASYNC;
     }
 
-    if ((Z_LVAL_P(ztype) & SW_FLAG_ASYNC))
+    if ((type & SW_FLAG_ASYNC))
     {
-        if ((Z_LVAL_P(ztype) & SW_FLAG_KEEP) && SWOOLE_G(cli))
+        if ((ztype & SW_FLAG_KEEP) && SWOOLE_G(cli))
         {
             swoole_php_fatal_error(E_ERROR, "The 'SWOOLE_KEEP' flag can only be used in the php-fpm or apache environment.");
         }
         php_swoole_check_reactor();
     }
 
-    int client_type = php_swoole_socktype(Z_LVAL_P(ztype));
+    int client_type = php_swoole_socktype(type);
     if (client_type < SW_SOCK_TCP || client_type > SW_SOCK_UNIX_STREAM)
     {
         swoole_php_fatal_error(E_ERROR, "Unknown client type '%d'.", client_type);
     }
 
-    zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("type"), ztype TSRMLS_CC);
+    zend_update_property_long(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("type"), type TSRMLS_CC);
     if (id)
     {
         zend_update_property_stringl(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("id"), id, len TSRMLS_CC);
