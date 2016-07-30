@@ -746,7 +746,7 @@ static PHP_METHOD(swoole_client, __construct)
 
     if ((type & SW_FLAG_ASYNC))
     {
-        if ((ztype & SW_FLAG_KEEP) && SWOOLE_G(cli))
+        if ((type & SW_FLAG_KEEP) && SWOOLE_G(cli))
         {
             swoole_php_fatal_error(E_ERROR, "The 'SWOOLE_KEEP' flag can only be used in the php-fpm or apache environment.");
         }
