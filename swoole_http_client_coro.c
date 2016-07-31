@@ -283,6 +283,36 @@ static int http_client_coro_execute(zval *zobject, char *uri, zend_size_t uri_le
     }
     http->cli = cli;
     
+    
+    
+    zval *ztmp;
+    HashTable *vht;
+    zval *zset = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("setting"), 1 TSRMLS_CC);
+    if (zset && !ZVAL_IS_NULL(zset))
+    {
+        vht = Z_ARRVAL_P(zset);
+        /**
+         * timeout
+         */
+        if (php_swoole_array_get_value(vht, "timeout", ztmp))
+        {
+            convert_to_double(ztmp);
+            http->timeout = (double) Z_DVAL_P(ztmp);
+        }
+        /**
+         * keep_alive
+         */
+        if (php_swoole_array_get_value(vht, "keep_alive", ztmp))
+        {
+            convert_to_boolean(ztmp);
+            http->keep_alive = (int) Z_LVAL_P(ztmp);
+        }
+        //client settings
+        php_swoole_client_check_setting(http->cli, zset TSRMLS_CC);
+    }
+
+    
+    
     if (cli->socket->active == 1)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_http_client is already connected.");
@@ -291,6 +321,8 @@ static int http_client_coro_execute(zval *zobject, char *uri, zend_size_t uri_le
     
     cli->object = zobject;
     sw_copy_to_stack(cli->object, hcc->_object);
+    cli->open_eof_check = 0;
+    cli->open_length_check = 0;
     cli->reactor_fdtype = PHP_SWOOLE_FD_STREAM_CLIENT;
     cli->onReceive = http_client_coro_onReceive;
     cli->onConnect = http_client_coro_onConnect;
@@ -775,6 +807,7 @@ static http_client* http_client_coro_create(zval *object TSRMLS_DC)
     
     http->timeout = SW_CLIENT_DEFAULT_TIMEOUT;
     http->keep_alive = 1;
+    http->state = HTTP_CLIENT_STATE_READY;
     
     zval *zset = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, object, ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zset && !ZVAL_IS_NULL(zset))
@@ -783,7 +816,7 @@ static http_client* http_client_coro_create(zval *object TSRMLS_DC)
         /**
          * timeout
          */
-        if (sw_zend_hash_find(vht, ZEND_STRS("timeout"), (void **) &ztmp) == SUCCESS)
+        if (php_swoole_array_get_value(vht, "timeout", ztmp))
         {
             convert_to_double(ztmp);
             http->timeout = (double) Z_DVAL_P(ztmp);
@@ -791,23 +824,12 @@ static http_client* http_client_coro_create(zval *object TSRMLS_DC)
         /**
          * keep_alive
          */
-        if (sw_zend_hash_find(vht, ZEND_STRS("keep_alive"), (void **) &ztmp) == SUCCESS)
+        if (php_swoole_array_get_value(vht, "keep_alive", ztmp))
         {
             convert_to_boolean(ztmp);
             http->keep_alive = (int) Z_LVAL_P(ztmp);
         }
-        
-        if (php_swoole_array_get_value(vht, "package_max_length", ztmp))
-        {
-            convert_to_long(ztmp);
-            http->cli->protocol.package_max_length = Z_LVAL_P(ztmp);
-        }
     }
-    
-    
-    
-    http->state = HTTP_CLIENT_STATE_READY;
-    
     return http;
 }
 
