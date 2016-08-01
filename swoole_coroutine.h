@@ -60,7 +60,7 @@ typedef struct _coro_global
     zend_vm_stack origin_vm_stack;
     zend_execute_data *origin_ex;
     coro_task *current_coro;
-    zend_bool init;
+    zend_bool require;
 } coro_global;
 
 struct _coro_task

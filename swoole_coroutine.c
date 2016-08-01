@@ -33,15 +33,15 @@ int coro_init(TSRMLS_D)
     COROG.origin_ex = EG(current_execute_data);
     COROG.coro_num = 0;
     COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
-	COROG.init = 1;
+	COROG.require = 0;
     return 0;
 }
 
 void coro_check(TSRMLS_D)
 {
-	if (!COROG.init)
+	if (!COROG.require)
 	{
-        swoole_php_fatal_error(E_ERROR, "coroutine client just can use under swoole server.");
+        swoole_php_fatal_error(E_ERROR, "coroutine client should use under swoole server in onRequet, onReceive, onConnect callback.");
 	}
 }
 
@@ -55,6 +55,7 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
         swWarn("exceed max number of coro %d", COROG.coro_num);
         return CORO_LIMIT;
     }
+	COROG.require = 1;
     zend_op_array *op_array = (zend_op_array *)fci_cache->function_handler;
     zend_execute_data *execute_data;
     size_t execute_data_size = ZEND_MM_ALIGNED_SIZE(sizeof(zend_execute_data));
