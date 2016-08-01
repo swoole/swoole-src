@@ -17,8 +17,8 @@ class G
         //'daemonize'                => 1,     // 设置守护进程模式
         'backlog'                  => 128,
         //'log_file'                 => '/data/logs/swoole.log',
-        'heartbeat_check_interval' => 10,    // 心跳检测间隔时长(秒)
-        'heartbeat_idle_time'      => 20,   // 连接最大允许空闲的时间
+        //'heartbeat_check_interval' => 10,    // 心跳检测间隔时长(秒)
+        //'heartbeat_idle_time'      => 20,   // 连接最大允许空闲的时间
         //'open_eof_check'           => 1,
         //'open_eof_split'           => 1,
         //'package_eof'              => "\r\r\n",
@@ -372,6 +372,16 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     elseif($cmd == "exit")
     {
         exit("worker php exit.\n");
+    }
+    elseif ($cmd == 'pause')
+    {
+        echo "pause receive data. fd={$fd}\n";
+        $serv->pause($fd);
+    }
+    elseif(substr($cmd, 0, 6) == "resume")
+    {
+        $resume_fd = substr($cmd, 7);
+        $serv->resume($resume_fd);
     }
     //关闭fd
     elseif(substr($cmd, 0, 5) == "close")

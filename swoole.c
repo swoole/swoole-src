@@ -37,9 +37,9 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server__construct, 0, 0, 2)
-    ZEND_ARG_INFO(0, serv_host)
-    ZEND_ARG_INFO(0, serv_port)
-    ZEND_ARG_INFO(0, serv_mode)
+    ZEND_ARG_INFO(0, host)
+    ZEND_ARG_INFO(0, port)
+    ZEND_ARG_INFO(0, mode)
     ZEND_ARG_INFO(0, sock_type)
 ZEND_END_ARG_INFO()
 
@@ -49,7 +49,7 @@ ZEND_END_ARG_INFO()
 
 //for object style
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_send_oo, 0, 0, 2)
-    ZEND_ARG_INFO(0, conn_fd)
+    ZEND_ARG_INFO(0, fd)
     ZEND_ARG_INFO(0, send_data)
     ZEND_ARG_INFO(0, from_id)
 ZEND_END_ARG_INFO()
@@ -60,11 +60,11 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_sendwait, 0, 0, 2)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_exist, 0, 0, 1)
-    ZEND_ARG_INFO(0, conn_fd)
+    ZEND_ARG_INFO(0, fd)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_protect, 0, 0, 1)
-    ZEND_ARG_INFO(0, conn_fd)
+    ZEND_ARG_INFO(0, fd)
     ZEND_ARG_INFO(0, is_protected)
 ZEND_END_ARG_INFO()
 
@@ -82,6 +82,14 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_sendfile_oo, 0, 0, 2)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_close_oo, 0, 0, 1)
+    ZEND_ARG_INFO(0, fd)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_pause, 0, 0, 1)
+    ZEND_ARG_INFO(0, fd)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_resume, 0, 0, 1)
     ZEND_ARG_INFO(0, fd)
 ZEND_END_ARG_INFO()
 
@@ -285,6 +293,8 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, sendfile, arginfo_swoole_server_sendfile_oo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, close, arginfo_swoole_server_close_oo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, confirm, arginfo_swoole_server_confirm, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, pause, arginfo_swoole_server_pause, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, resume, arginfo_swoole_server_resume, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, task, arginfo_swoole_server_task_oo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, taskwait, arginfo_swoole_server_taskwait_oo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, taskWaitMulti, arginfo_swoole_server_taskWaitMulti_oo, ZEND_ACC_PUBLIC)
