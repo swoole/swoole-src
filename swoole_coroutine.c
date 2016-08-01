@@ -29,7 +29,6 @@ jmp_buf swReactorCheckPoint;
 
 int coro_init(TSRMLS_D)
 {
-    uint32_t i;
     COROG.origin_vm_stack = EG(argument_stack);
     COROG.origin_ex = EG(current_execute_data);
     COROG.coro_num = 0;

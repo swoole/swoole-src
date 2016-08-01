@@ -439,7 +439,7 @@ static int mysql_handshake(mysql_connector *connector, char *buf, int len)
         if (request.capability_flags & SW_MYSQL_CLIENT_PLUGIN_AUTH)
         {
             request.auth_plugin_name = tmp;
-            request.l_auth_plugin_name = strlen(tmp);
+			request.l_auth_plugin_name = MIN(strlen(tmp), len - (tmp - buf));
         }
     }
 
