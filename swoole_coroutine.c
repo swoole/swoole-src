@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Xinyu Zhu  <xyzhu1120@gmail.com>                        |
+  | Author: Xinyu Zhu  <xyzhu1120@gmail.com>                             |
   +----------------------------------------------------------------------+
  */
 
@@ -33,10 +33,19 @@ int coro_init(TSRMLS_D)
     COROG.origin_ex = EG(current_execute_data);
     COROG.coro_num = 0;
     COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
+	COROG.require = 0;
     return 0;
 }
 
-int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **retval)
+void coro_check(TSRMLS_D)
+{
+	if (!COROG.require)
+	{
+        swoole_php_fatal_error(E_ERROR, "coroutine client should use under swoole server in onRequet, onReceive, onConnect callback.");
+	}
+}
+
+int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **retval, void *post_callback, void* params)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -46,6 +55,7 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
         swWarn("exceed max number of coro %d", COROG.coro_num);
         return CORO_LIMIT;
     }
+	COROG.require = 1;
     zend_op_array *op_array = (zend_op_array *)fci_cache->function_handler;
     zend_execute_data *execute_data;
     size_t execute_data_size = ZEND_MM_ALIGNED_SIZE(sizeof(zend_execute_data));
@@ -53,23 +63,24 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
     size_t Ts_size = ZEND_MM_ALIGNED_SIZE(sizeof(temp_variable)) * op_array->T;
     size_t call_slots_size = ZEND_MM_ALIGNED_SIZE(sizeof(call_slot)) * op_array->nested_calls;
     size_t stack_size = ZEND_MM_ALIGNED_SIZE(sizeof(zval*)) * op_array->used_stack;
+    size_t task_size = ZEND_MM_ALIGNED_SIZE(sizeof(coro_task));
     size_t total_size = execute_data_size + Ts_size + CVs_size + call_slots_size + stack_size;
 
     //from generator
     size_t args_size = ZEND_MM_ALIGNED_SIZE(sizeof(zval*)) * (argc + 1);
 
-    total_size += execute_data_size + args_size;
+    total_size += execute_data_size + args_size + task_size;
 
     EG(active_symbol_table) = NULL;
     EG(argument_stack) = zend_vm_stack_new_page((total_size + (sizeof(void*) - 1)) / sizeof(void*));
     EG(argument_stack)->prev = NULL;
-    execute_data = (zend_execute_data*)((char*)ZEND_VM_STACK_ELEMETS(EG(argument_stack)) + args_size + Ts_size + execute_data_size);
+    execute_data = (zend_execute_data*)((char*)ZEND_VM_STACK_ELEMETS(EG(argument_stack)) + args_size + Ts_size + execute_data_size + task_size);
 
     /* copy prev_execute_data */
-    execute_data->prev_execute_data = (zend_execute_data*)((char*)ZEND_VM_STACK_ELEMETS(EG(argument_stack)) + args_size);
+    execute_data->prev_execute_data = (zend_execute_data*)((char*)ZEND_VM_STACK_ELEMETS(EG(argument_stack)) + args_size + task_size);
     memset(execute_data->prev_execute_data, 0, sizeof(zend_execute_data));
     execute_data->prev_execute_data->function_state.function = (zend_function*)op_array;
-    execute_data->prev_execute_data->function_state.arguments = (void**)((char*)ZEND_VM_STACK_ELEMETS(EG(argument_stack)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval*)) * argc);
+    execute_data->prev_execute_data->function_state.arguments = (void**)((char*)ZEND_VM_STACK_ELEMETS(EG(argument_stack)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval*)) * argc + task_size);
 
     /* copy arguments */
     *execute_data->prev_execute_data->function_state.arguments = (void*)(zend_uintptr_t)argc;
@@ -154,8 +165,12 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
     EG(scope) = fci_cache->calling_scope;
     EG(called_scope) = fci_cache->called_scope;
     ++COROG.coro_num;
+    COROG.current_coro = (coro_task *)ZEND_VM_STACK_ELEMETS(EG(argument_stack));
 
     int coro_status;
+    COROG.current_coro->start_time = time(NULL);
+    COROG.current_coro->post_callback = post_callback;
+    COROG.current_coro->post_callback_params = params;
     if (!setjmp(swReactorCheckPoint))
     {
         zend_execute_ex(execute_data TSRMLS_CC);
@@ -177,7 +192,13 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
 
 sw_inline void coro_close(TSRMLS_D)
 {
+    if (COROG.current_coro->post_callback)
+    {
+        COROG.current_coro->post_callback(COROG.current_coro->post_callback_params);
+    }
+
     void **arguments = EG(current_execute_data)->function_state.arguments;
+
     if (arguments)
     {
         int arg_count = (int)(zend_uintptr_t)(*arguments);
@@ -209,6 +230,8 @@ sw_inline void coro_close(TSRMLS_D)
     EG(current_execute_data) = COROG.origin_ex;
     --COROG.coro_num;
     swTrace("closing coro and %d remained. heap size: %zu", COROG.coro_num, zend_memory_usage(0));
+    
+    return;
 }
 
 sw_inline php_context *coro_save(zval *return_value, zval **return_value_ptr, php_context *sw_current_context)
@@ -228,6 +251,8 @@ sw_inline php_context *coro_save(zval *return_value, zval **return_value_ptr, ph
     SWCC(current_scope) = EG(scope);
     SWCC(current_called_scope) = EG(called_scope);
     SWCC(current_vm_stack) = EG(argument_stack);
+    SWCC(current_task) = COROG.current_coro;
+
     return sw_current_context;
 }
 
@@ -266,6 +291,7 @@ int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retva
 
     sw_current_context->current_execute_data->call--;
     zend_vm_stack_clear_multiple(1 TSRMLS_CC);
+    COROG.current_coro = SWCC(current_task);
 
     int coro_status;
     if (!setjmp(swReactorCheckPoint))

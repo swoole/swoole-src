@@ -402,7 +402,7 @@ STD_PHP_INI_ENTRY("swoole.display_errors", "On", PHP_INI_ALL, OnUpdateBool, disp
 /**
  * namespace class style
  */
-STD_PHP_INI_ENTRY("swoole.use_namespace", "Off", PHP_INI_SYSTEM, OnUpdateBool, use_namespace, zend_swoole_globals, swoole_globals)
+STD_PHP_INI_ENTRY("swoole.use_namespace", "On", PHP_INI_SYSTEM, OnUpdateBool, use_namespace, zend_swoole_globals, swoole_globals)
 STD_PHP_INI_ENTRY("swoole.message_queue_key", "0", PHP_INI_ALL, OnUpdateString, message_queue_key, zend_swoole_globals, swoole_globals)
 /**
  * Unix socket buffer size
@@ -416,7 +416,7 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
     swoole_globals->aio_thread_num = SW_AIO_THREAD_NUM_DEFAULT;
     swoole_globals->socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
     swoole_globals->display_errors = 1;
-    swoole_globals->use_namespace = 0;
+    swoole_globals->use_namespace = 1;
 }
 
 void swoole_set_object(zval *object, void *ptr)
@@ -616,6 +616,7 @@ PHP_MINIT_FUNCTION(swoole)
 #endif
     swoole_mysql_coro_init(module_number TSRMLS_CC);
     swoole_http_client_coro_init(module_number TSRMLS_CC);
+	swoole_coroutine_util_init(module_number TSRMLS_CC);
 #endif
     swoole_http_client_init(module_number TSRMLS_CC);
     swoole_async_init(module_number TSRMLS_CC);

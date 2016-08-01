@@ -245,6 +245,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_client.c \
         swoole_client_coro.c \
         swoole_coroutine.c \
+        swoole_coroutine_util.c \
         swoole_event.c \
         swoole_timer.c \
         swoole_async.c \
@@ -307,6 +308,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/Timer.c \
         src/network/Port.c \
         src/os/base.c \
+        src/os/dl.c \
         src/os/linux_aio.c \
         src/os/msg_queue.c \
         src/os/sendfile.c \

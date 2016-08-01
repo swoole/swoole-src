@@ -341,6 +341,7 @@ void swoole_redis_coro_init(int module_number TSRMLS_DC);
 #endif
 void swoole_mysql_coro_init(int module_number TSRMLS_DC);
 void swoole_http_client_coro_init(int module_number TSRMLS_DC);
+void swoole_coroutine_util_init(int module_number TSRMLS_DC);
 #endif
 void swoole_http_client_init(int module_number TSRMLS_DC);
 #ifdef SW_USE_REDIS
@@ -449,6 +450,13 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
         INIT_CLASS_ENTRY(ce, name_ns, methods); \
     } else { \
         INIT_CLASS_ENTRY(ce, name, methods); \
+    }
+
+#define SWOOLE_CLASS_ALIAS(name, name_ns) \
+    if (SWOOLE_G(use_namespace)) { \
+        zend_register_class_alias(#name, name##_class_entry_ptr);\
+    } else { \
+        zend_register_class_alias(name_ns, name##_class_entry_ptr);\
     }
 
 #endif	/* PHP_SWOOLE_H */

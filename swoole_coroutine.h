@@ -13,15 +13,16 @@
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ |         Xinyu    Zhu  <xyzhu1120@gmail.com>                          |
  +----------------------------------------------------------------------+
  */
 
+#ifdef SW_COROUTINE
 #ifndef _PHP_SWOOLE_COROUTINE_H_
 #define _PHP_SWOOLE_COROUTINE_H_
 
 #include "coroutine.h"
 
-#define coro_global _coro_global
 #define DEFAULT_MAX_CORO_NUM 3000
 
 #define CORO_END 0
@@ -30,13 +31,13 @@
 #define CORO_SAVE 3
 
 typedef struct _php_context php_context;
+typedef struct _coro_task coro_task;
 
 struct _php_context
 {
     zval **current_coro_return_value_ptr_ptr;
     zval *current_coro_return_value_ptr;
     void *coro_params;
-    int coro_params_cnt;
     void (*onTimeout)(struct _php_context *cxt);
     zval **current_eg_return_value_ptr_ptr;
     zend_execute_data *current_execute_data;
@@ -49,15 +50,26 @@ struct _php_context
     zend_class_entry *current_called_scope;
     zend_vm_stack current_vm_stack;
     void *parent;
+    coro_task *current_task;
 };
 
-typedef struct
+typedef struct _coro_global
 {
-    int coro_num;
-    int max_coro_num;
+    uint32_t coro_num;
+    uint32_t max_coro_num;
     zend_vm_stack origin_vm_stack;
     zend_execute_data *origin_ex;
-} _coro_global;
+    coro_task *current_coro;
+    zend_bool require;
+} coro_global;
+
+struct _coro_task
+{
+    uint32_t *cid;
+    time_t start_time;
+    void (*post_callback)(void *param);
+    void *post_callback_params;
+};
 
 extern zend_class_entry *swoole_client_coro_class_entry_ptr;
 extern zend_class_entry *swoole_client_multi_class_entry_ptr;
@@ -85,7 +97,8 @@ static sw_inline zend_fcall_info_cache* php_swoole_server_get_cache(swServer *se
 }
 
 int coro_init(TSRMLS_D);
-int coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval **retval);
+int coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval **retval, void *post_callback, void *param);
+void coro_check(TSRMLS_D);
 void coro_close(TSRMLS_D);
 php_context *coro_save(zval *return_value, zval **return_value_ptr, php_context *sw_php_context);
 int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retval);
@@ -97,5 +110,5 @@ void swoole_client_multi_init(int module_number TSRMLS_DC);
 void swoole_client_coro_init(int module_number TSRMLS_DC);
 void swoole_mysql_coro_init(int module_number TSRMLS_DC);
 void swoole_http_client_coro_init(int module_number TSRMLS_DC);
-
+#endif
 #endif
