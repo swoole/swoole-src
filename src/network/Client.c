@@ -531,6 +531,19 @@ static int swClient_tcp_sendfile_async(swClient *cli, char *filename)
         SwooleG.error = errno;
         return SW_ERR;
     }
+    if (!(cli->socket->events & SW_EVENT_WRITE))
+    {
+        if (cli->socket->events & SW_EVENT_READ)
+        {
+            return SwooleG.main_reactor->set(SwooleG.main_reactor, cli->socket->fd,
+                    cli->socket->fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
+        }
+        else
+        {
+            return SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd,
+                    cli->socket->fdtype | SW_EVENT_WRITE);
+        }
+    }
     return SW_OK;
 }
 
