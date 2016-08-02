@@ -3,8 +3,8 @@
 #ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 
-static PHP_METHOD(swoole_coroutine_util, coroYield);
-static PHP_METHOD(swoole_coroutine_util, coroResume);
+static PHP_METHOD(swoole_coroutine_util, yield);
+static PHP_METHOD(swoole_coroutine_util, resume);
 
 static swHashMap *defer_coros;
 
@@ -13,14 +13,14 @@ static zend_class_entry *swoole_coroutine_util_class_entry_ptr;
 
 static const zend_function_entry swoole_coroutine_util_methods[] =
 {
-    PHP_ME(swoole_coroutine_util, coroYield, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_util, coroResume, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, yield, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, resume, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
 void swoole_coroutine_util_init(int module_number TSRMLS_DC)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_util_ce, "swoole_coroutine_util", "Swoole\\Coroutine\\Util", swoole_coroutine_util_methods);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_util_ce, "swoole_coroutine", "Swoole\\Coroutine", swoole_coroutine_util_methods);
     swoole_coroutine_util_class_entry_ptr = zend_register_internal_class(&swoole_coroutine_util_ce TSRMLS_CC);
 
     defer_coros = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
@@ -42,7 +42,7 @@ static void swoole_coroutine_util_resume(void *data)
 	efree(context);
 }
 
-static PHP_METHOD(swoole_coroutine_util, coroYield)
+static PHP_METHOD(swoole_coroutine_util, yield)
 {
 	char *id;
 	int id_len;
@@ -73,7 +73,7 @@ static PHP_METHOD(swoole_coroutine_util, coroYield)
 	coro_yield();
 }
 
-static PHP_METHOD(swoole_coroutine_util, coroResume)
+static PHP_METHOD(swoole_coroutine_util, resume)
 {
 	char *id;
 	int id_len;
