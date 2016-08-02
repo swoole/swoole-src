@@ -55,7 +55,6 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
         swWarn("exceed max number of coro %d", COROG.coro_num);
         return CORO_LIMIT;
     }
-	COROG.require = 1;
     zend_op_array *op_array = (zend_op_array *)fci_cache->function_handler;
     zend_execute_data *execute_data;
     size_t execute_data_size = ZEND_MM_ALIGNED_SIZE(sizeof(zend_execute_data));
@@ -171,6 +170,7 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
     COROG.current_coro->start_time = time(NULL);
     COROG.current_coro->post_callback = post_callback;
     COROG.current_coro->post_callback_params = params;
+	COROG.require = 1;
     if (!setjmp(swReactorCheckPoint))
     {
         zend_execute_ex(execute_data TSRMLS_CC);
@@ -186,6 +186,7 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
     {
         coro_status = CORO_YIELD;
     }
+	COROG.require = 0;
 
     return coro_status;
 }
@@ -292,6 +293,7 @@ int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retva
     sw_current_context->current_execute_data->call--;
     zend_vm_stack_clear_multiple(1 TSRMLS_CC);
     COROG.current_coro = SWCC(current_task);
+	COROG.require = 1;
 
     int coro_status;
     if (!setjmp(swReactorCheckPoint))
@@ -310,6 +312,7 @@ int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retva
         //coro yield
         coro_status = CORO_YIELD;
     }
+	COROG.require = 0;
 
     return coro_status;
 }

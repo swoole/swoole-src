@@ -491,10 +491,6 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-#ifdef SW_COROUTINE
-	COROG.require = 0;
-#endif
-
     zval *zserv = (zval *) serv->ptr2;
     zval *zworker_id;
     zval *zdata;
@@ -697,10 +693,6 @@ static int php_swoole_onPacket(swServer *serv, swEventData *req)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-#ifdef SW_COROUTINE
-	COROG.require = 0;
-#endif
-
     SW_MAKE_STD_ZVAL(zdata);
     SW_MAKE_STD_ZVAL(zaddr);
     array_init(zaddr);
@@ -856,10 +848,6 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
         args[3] = &zdata;
     }
 
-#ifdef SW_COROUTINE
-	COROG.require = 0;
-#endif
-
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onTask], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_server: onTask handler error");
@@ -902,10 +890,6 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
 
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
-#ifdef SW_COROUTINE
-	COROG.require = 0;
 #endif
 
     SW_MAKE_STD_ZVAL(ztask_id);
@@ -961,10 +945,6 @@ static void php_swoole_onStart(swServer *serv)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-#ifdef SW_COROUTINE
-	COROG.require = 0;
-#endif
-
     zval *zserv = (zval *) serv->ptr2;
     zval **args[1];
     zval *retval = NULL;
@@ -995,10 +975,6 @@ static void php_swoole_onManagerStart(swServer *serv)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
-#ifdef SW_COROUTINE
-	COROG.require = 0;
 #endif
 
     zval *zserv = (zval *) serv->ptr2;
@@ -1033,10 +1009,6 @@ static void php_swoole_onManagerStop(swServer *serv)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-#ifdef SW_COROUTINE
-	COROG.require = 0;
-#endif
-
     zval *zserv = (zval *) serv->ptr2;
     zval **args[1];
     zval *retval = NULL;
@@ -1069,10 +1041,6 @@ static void php_swoole_onShutdown(swServer *serv)
 
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
-#ifdef SW_COROUTINE
-	COROG.require = 0;
 #endif
 
     if (php_sw_server_callbacks[SW_SERVER_CB_onShutdown] != NULL)
@@ -1147,9 +1115,6 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     /**
      * Have not set the event callback
      */
-#ifdef SW_COROUTINE
-	COROG.require = 0;
-#endif
     if (php_sw_server_callbacks[SW_SERVER_CB_onWorkerStart] == NULL)
     {
         return;
@@ -1189,10 +1154,6 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
 
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
-#ifdef SW_COROUTINE
-	COROG.require = 0;
 #endif
 
     args[0] = &zobject;
@@ -1252,10 +1213,6 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
 
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
-#ifdef SW_COROUTINE
-	COROG.require = 0;
 #endif
 
     args[0] = &zobject;
