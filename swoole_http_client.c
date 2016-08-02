@@ -698,7 +698,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
         char boundary_str[39];
         int n;
 
-        memcpy(boundary_str, SW_STRL(SW_HTTP_CLIENT_BOUNDARY_PREKEY) - 1);
+        memcpy(boundary_str, SW_HTTP_CLIENT_BOUNDARY_PREKEY, sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY) - 1);
         swoole_random_string(boundary_str + sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY) - 1,
                 sizeof(boundary_str) - sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY));
 
