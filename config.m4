@@ -319,6 +319,7 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared)
 
+    PHP_ADD_INCLUDE([$ext_srcdir])
     PHP_ADD_INCLUDE([$ext_srcdir/include])
 
     PHP_ADD_BUILD_DIR($ext_builddir/src/core)
