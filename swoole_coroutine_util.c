@@ -3,7 +3,7 @@
 #ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 
-static PHP_METHOD(swoole_coroutine_util, yield);
+static PHP_METHOD(swoole_coroutine_util, suspend);
 static PHP_METHOD(swoole_coroutine_util, resume);
 
 static swHashMap *defer_coros;
@@ -13,7 +13,7 @@ static zend_class_entry *swoole_coroutine_util_class_entry_ptr;
 
 static const zend_function_entry swoole_coroutine_util_methods[] =
 {
-    PHP_ME(swoole_coroutine_util, yield, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, suspend, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, resume, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
@@ -42,7 +42,7 @@ static void swoole_coroutine_util_resume(void *data)
 	efree(context);
 }
 
-static PHP_METHOD(swoole_coroutine_util, yield)
+static PHP_METHOD(swoole_coroutine_util, suspend)
 {
 	char *id;
 	int id_len;
