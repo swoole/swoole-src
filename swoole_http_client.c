@@ -116,11 +116,11 @@ static sw_inline void http_client_swString_append_headers(swString* swStr, char*
     swString_append_ptr(swStr, ZEND_STRL("\r\n"));
 }
 
-static sw_inline void http_client_append_content_length(swString* swStr, int length)
+static sw_inline void http_client_append_content_length(swString* buf, int length)
 {
     char content_length_str[32];
     int n = snprintf(content_length_str, sizeof(content_length_str), "Content-Length: %d\r\n\r\n", length);
-    swString_append_ptr(http_client_buffer, content_length_str, n);
+    swString_append_ptr(buf, content_length_str, n);
 }
 
 static sw_inline void http_client_create_token(int length, char *buf)
