@@ -32,7 +32,10 @@ int coro_init(TSRMLS_D)
     COROG.origin_vm_stack = EG(argument_stack);
     COROG.origin_ex = EG(current_execute_data);
     COROG.coro_num = 0;
-    COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
+	if (COROG.max_coro_num <= 0)
+	{
+		COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
+	}
 	COROG.require = 0;
     return 0;
 }
