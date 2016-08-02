@@ -62,7 +62,6 @@ static PHP_METHOD(swoole_coroutine_util, suspend)
 		}
 		if (swHashMap_add(defer_coros, id, id_len, coros_list) == SW_ERR)
 		{
-			swLinkedList_free(coros_list);
 			RETURN_FALSE;
 		}
 	}
