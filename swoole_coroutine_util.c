@@ -62,13 +62,17 @@ static PHP_METHOD(swoole_coroutine_util, suspend)
 		}
 		if (swHashMap_add(defer_coros, id, id_len, coros_list) == SW_ERR)
 		{
+			swLinkedList_free(coros_list);
 			RETURN_FALSE;
 		}
 	}
 
     php_context *context = emalloc(sizeof(php_context));
 	coro_save(return_value, return_value_ptr, context);
-	swLinkedList_append(coros_list, (void *)context);
+	if (swLinkedList_append(coros_list, (void *)context) == SW_ERR) {
+		efree(context);
+		RETURN_FALSE;
+	}
 	coro_yield();
 }
 
