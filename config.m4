@@ -311,6 +311,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/WebSocket.c \
         src/protocol/Mqtt.c \
         src/protocol/Socks5.c \
+        src/protocol/MimeTypes.c \
         src/protocol/Base64.c"
 
     swoole_source_file="$swoole_source_file thirdparty/php_http_parser.c"

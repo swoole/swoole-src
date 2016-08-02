@@ -561,6 +561,7 @@ typedef struct _swProtocol
 uint32_t swoole_utf8_decode(u_char **p, size_t n);
 size_t swoole_utf8_length(u_char *p, size_t n);
 void swoole_random_string(char *buf, size_t size);
+char* swoole_get_mimetype(char *file);
 
 static sw_inline size_t swoole_size_align(size_t size, int pagesize)
 {

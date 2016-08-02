@@ -200,6 +200,8 @@
 					<file role="src" name="Sha1.c" />
 					<file role="src" name="Base64.c" />
 					<file role="src" name="Mqtt.c" />
+					<file role="src" name="Socks5.c" />
+					<file role="src" name="MimeTypes.c" />
 				</dir>
 			</dir>
 			<dir name="examples">
