@@ -38,8 +38,8 @@
     <date>2016-07-28</date>
     <time>11:48:51</time>
     <version>
-		<release>1.8.8</release>
-		<api>1.8.8</api>
+		<release>1.8.9</release>
+		<api>1.8.9</api>
     </version>
     <stability>
         <release>stable</release>
@@ -90,6 +90,7 @@
 				<file role="src" name="mqtt.h" />
 				<file role="src" name="error.h" />
 				<file role="src" name="module.h" />
+				<file role="src" name="socks5.h" />
 			</dir>
 			<file role="src" name="php_swoole.h" />
 			<file role="src" name="php7_wrapper.h" />
