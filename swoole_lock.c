@@ -56,7 +56,7 @@ void swoole_lock_init(int module_number TSRMLS_DC)
 #endif
 }
 
-PHP_METHOD(swoole_lock, __construct)
+static PHP_METHOD(swoole_lock, __construct)
 {
     long type = SW_MUTEX;
     char *filelock;
@@ -118,7 +118,7 @@ PHP_METHOD(swoole_lock, __construct)
     RETURN_TRUE;
 }
 
-PHP_METHOD(swoole_lock, __destruct)
+static PHP_METHOD(swoole_lock, __destruct)
 {
     swLock *lock = swoole_get_object(getThis());
     if (lock)
@@ -128,19 +128,19 @@ PHP_METHOD(swoole_lock, __destruct)
     }
 }
 
-PHP_METHOD(swoole_lock, lock)
+static PHP_METHOD(swoole_lock, lock)
 {
     swLock *lock = swoole_get_object(getThis());
     SW_LOCK_CHECK_RETURN(lock->lock(lock));
 }
 
-PHP_METHOD(swoole_lock, unlock)
+static PHP_METHOD(swoole_lock, unlock)
 {
     swLock *lock = swoole_get_object(getThis());
     SW_LOCK_CHECK_RETURN(lock->unlock(lock));
 }
 
-PHP_METHOD(swoole_lock, trylock)
+static PHP_METHOD(swoole_lock, trylock)
 {
     swLock *lock = swoole_get_object(getThis());
     if (lock->trylock == NULL)
@@ -151,7 +151,7 @@ PHP_METHOD(swoole_lock, trylock)
     SW_LOCK_CHECK_RETURN(lock->trylock(lock));
 }
 
-PHP_METHOD(swoole_lock, trylock_read)
+static PHP_METHOD(swoole_lock, trylock_read)
 {
     swLock *lock = swoole_get_object(getThis());
     if (lock->trylock_rd == NULL)
@@ -162,7 +162,7 @@ PHP_METHOD(swoole_lock, trylock_read)
     SW_LOCK_CHECK_RETURN(lock->trylock(lock));
 }
 
-PHP_METHOD(swoole_lock, lock_read)
+static PHP_METHOD(swoole_lock, lock_read)
 {
     swLock *lock = swoole_get_object(getThis());
     if (lock->lock_rd == NULL)
