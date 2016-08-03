@@ -1037,11 +1037,27 @@ static int swoole_mysql_onError(swReactor *reactor, swEvent *event)
     swClient *cli = event->socket->object;
     if (cli->socket->active)
     {
-        return cli->close(cli);
+#if PHP_MAJOR_VERSION < 7
+        TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+        mysql_client *client = event->socket->object;
+        if (!client)
+        {
+            close(event->fd);
+            return SW_ERR;
+        }
+        zval *retval = NULL;
+        zval *zobject = client->object;
+        sw_zend_call_method_with_0_params(&zobject, swoole_mysql_class_entry_ptr, NULL, "close", &retval);
+        if (retval)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
+        return SW_OK;
     }
     else
     {
-        return swClient_onWrite(reactor, event);
+        return swoole_mysql_onWrite(reactor, event);
     }
 }
 
