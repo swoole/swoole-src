@@ -145,7 +145,7 @@ static PHP_METHOD(swoole_lock, trylock)
     swLock *lock = swoole_get_object(getThis());
     if (lock->trylock == NULL)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "lock[type=%d] can not trylock", lock->type);
+        swoole_php_error(E_WARNING, "lock[type=%d] cannot use trylock", lock->type);
         RETURN_FALSE;
     }
     SW_LOCK_CHECK_RETURN(lock->trylock(lock));
@@ -156,10 +156,10 @@ static PHP_METHOD(swoole_lock, trylock_read)
     swLock *lock = swoole_get_object(getThis());
     if (lock->trylock_rd == NULL)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "lock[type=%d] can not trylock_read", lock->type);
+        swoole_php_error(E_WARNING, "lock[type=%d] cannot use trylock_read", lock->type);
         RETURN_FALSE;
     }
-    SW_LOCK_CHECK_RETURN(lock->trylock(lock));
+    SW_LOCK_CHECK_RETURN(lock->trylock_rd(lock));
 }
 
 static PHP_METHOD(swoole_lock, lock_read)
@@ -167,8 +167,8 @@ static PHP_METHOD(swoole_lock, lock_read)
     swLock *lock = swoole_get_object(getThis());
     if (lock->lock_rd == NULL)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "lock[type=%d] can not lock_read", lock->type);
+        swoole_php_error(E_WARNING, "lock[type=%d] cannot use lock_read", lock->type);
         RETURN_FALSE;
     }
-    SW_LOCK_CHECK_RETURN(lock->trylock(lock));
+    SW_LOCK_CHECK_RETURN(lock->lock_rd(lock));
 }
