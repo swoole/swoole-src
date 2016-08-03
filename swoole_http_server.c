@@ -883,9 +883,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
 
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
-    ctx->request.zdata = zdata;
     php_swoole_get_recv_data(zdata, req, NULL, 0);
-    sw_copy_to_stack(ctx->request.zdata, ctx->request._zdata);
 
     swTrace("httpRequest %d bytes:\n---------------------------------------\n%s\n", Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
 
@@ -928,6 +926,10 @@ static int http_onReceive(swServer *serv, swEventData *req)
             swWarn("connection[%d] is closed.", fd);
             return SW_ERR;
         }
+
+        zend_update_property(swoole_http_request_class_entry_ptr, zrequest_object, ZEND_STRL("data"), zdata TSRMLS_CC);
+        ctx->request.zdata = sw_zend_read_property(swoole_http_request_class_entry_ptr, zrequest_object, ZEND_STRL("data"), 0 TSRMLS_CC);
+        sw_copy_to_stack(ctx->request.zdata, ctx->request._zdata);
 
         add_assoc_long(ctx->request.zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[conn->from_fd]));
         add_assoc_long(ctx->request.zserver, "remote_port", swConnection_get_port(conn));
@@ -992,6 +994,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
         }
         sw_zval_ptr_dtor(&zrequest_object);
         sw_zval_ptr_dtor(&zresponse_object);
+        sw_zval_ptr_dtor(&zdata);
         if (retval)
         {
             sw_zval_ptr_dtor(&retval);
@@ -1120,10 +1123,6 @@ void swoole_http_context_free(http_context *ctx TSRMLS_DC)
     if (req->path)
     {
         efree(req->path);
-    }
-    if (req->zdata)
-    {
-        sw_zval_ptr_dtor(&req->zdata);
     }
 #ifdef SW_USE_HTTP2
     if (req->post_buffer)
