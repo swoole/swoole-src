@@ -447,7 +447,6 @@ PHP_FUNCTION(swoole_event_set)
     }
 
     php_reactor_fd *ev_set = socket->object;
-
     if (cb_read != NULL && !ZVAL_IS_NULL(cb_read))
     {
         if (!sw_zend_is_callable(cb_read, 0, &func_name TSRMLS_CC))
