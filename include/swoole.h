@@ -66,8 +66,9 @@ extern "C" {
 
 static double orwl_timebase = 0.0;
 static uint64_t orwl_timestart = 0;
-
+#ifndef HAVE_CLOCK_GETTIME
 int clock_gettime(clock_id_t which_clock, struct timespec *t);
+#endif
 #endif
 
 #ifndef HAVE_DAEMON
@@ -118,6 +119,8 @@ typedef unsigned long ulong_t;
 #define SW_END_LINE    "-------------------------END------------------------------"
 #define SW_SPACE       ' '
 #define SW_CRLF        "\r\n"
+#define SW_ASCII_CODE_0     64
+#define SW_ASCII_CODE_Z     106
 /*----------------------------------------------------------------------------*/
 
 #include "swoole_config.h"
@@ -556,8 +559,10 @@ typedef struct _swProtocol
 #define swoole_tolower(c)      (u_char) ((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
 #define swoole_toupper(c)      (u_char) ((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
 
+uint32_t swoole_utf8_decode(u_char **p, size_t n);
 size_t swoole_utf8_length(u_char *p, size_t n);
-size_t swoole_utf8_length(u_char *p, size_t n);
+void swoole_random_string(char *buf, size_t size);
+char* swoole_get_mimetype(char *file);
 
 static sw_inline size_t swoole_size_align(size_t size, int pagesize)
 {

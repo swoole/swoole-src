@@ -47,6 +47,7 @@ void swoole_server_port_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_server_port_ce, "swoole_server_port", "Swoole\\Server\\Port", swoole_server_port_methods);
     swoole_server_port_class_entry_ptr = zend_register_internal_class(&swoole_server_port_ce TSRMLS_CC);
+    SWOOLE_CLASS_ALIAS(swoole_server_port, "Swoole\\Server\\Port");
 }
 
 static PHP_METHOD(swoole_server_port, __construct)
@@ -427,5 +428,7 @@ static PHP_METHOD(swoole_server_port, getSocket)
         RETURN_FALSE;
     }
     SW_ZEND_REGISTER_RESOURCE(return_value, (void *) socket_object, php_sockets_le_socket());
+    zval *zsocket = sw_zval_dup(return_value);
+    sw_zval_add_ref(&zsocket);
 }
 #endif

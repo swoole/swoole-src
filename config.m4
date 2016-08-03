@@ -44,6 +44,12 @@ PHP_ARG_ENABLE(tcmalloc, enable tcmalloc support,
 PHP_ARG_ENABLE(swoole, swoole support,
 [  --enable-swoole         Enable swoole support], [enable_swoole="yes"])
 
+PHP_ARG_WITH(swoole, swoole support,
+[  --with-swoole           With swoole support])
+
+PHP_ARG_WITH(openssl_dir, for OpenSSL support,
+[  --with-openssl[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
+
 PHP_ARG_ENABLE(coroutine, whether to enable coroutine,
 [  --enable-coroutine      Enable coroutine], no, no)
 
@@ -202,19 +208,21 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
     fi
 
-    if test "$PHP_OPENSSL" != "no"; then
-        if test "$PHP_OPENSSL" != "yes"; then
-            PHP_ADD_INCLUDE("${PHP_OPENSSL}/include")
-            PHP_ADD_LIBRARY_WITH_PATH(ssl, "${PHP_OPENSSL}/lib")
+
+    if test "$PHP_OPENSSL" != "no" || test "$PHP_OPENSSL_DIR" != "no"; then
+        if test "$PHP_OPENSSL_DIR" != "no"; then
+            PHP_ADD_INCLUDE("${PHP_OPENSSL_DIR}/include")
+            PHP_ADD_LIBRARY_WITH_PATH(ssl, "${PHP_OPENSSL_DIR}/lib")
         fi
+
         AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])
         PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
         if test `uname` = "Darwin"; then
             PHP_ADD_LIBRARY(mcrypt, 1, SWOOLE_SHARED_LIBADD)
         else
             PHP_ADD_LIBRARY(crypt, 1, SWOOLE_SHARED_LIBADD)
+            PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
         fi
-        PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
     fi
 
 
@@ -320,6 +328,8 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/Http2.c \
         src/protocol/WebSocket.c \
         src/protocol/Mqtt.c \
+        src/protocol/Socks5.c \
+        src/protocol/MimeTypes.c \
         src/protocol/Base64.c"
 
     swoole_source_file="$swoole_source_file thirdparty/php_http_parser.c"
@@ -327,6 +337,7 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared)
 
+    PHP_ADD_INCLUDE([$ext_srcdir])
     PHP_ADD_INCLUDE([$ext_srcdir/include])
 
     PHP_ADD_BUILD_DIR($ext_builddir/src/core)

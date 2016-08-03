@@ -77,6 +77,7 @@ void swoole_module_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_module_ce, "swoole_module", "Swoole\\Module", swoole_module_methods);
     swoole_module_class_entry_ptr = zend_register_internal_class(&swoole_module_ce TSRMLS_CC);
+    SWOOLE_CLASS_ALIAS(swoole_module, "Swoole\\Module");
 
     SwooleG.call_php_func = swoole_call_php_func;
     SwooleG.module_stack = swString_new(8192);

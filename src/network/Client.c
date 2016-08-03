@@ -16,6 +16,7 @@
 
 #include "swoole.h"
 #include "Client.h"
+#include "socks5.h"
 
 static int swClient_inet_addr(swClient *cli, char *host, int port);
 static int swClient_tcp_connect_sync(swClient *cli, char *host, int port, double _timeout, int udp_connect);
@@ -186,6 +187,17 @@ int swClient_ssl_handshake(swClient *cli)
 
 static int swClient_inet_addr(swClient *cli, char *host, int port)
 {
+    //enable socks5 proxy
+    if (cli->socks5_proxy)
+    {
+        cli->socks5_proxy->target_host = host;
+        cli->socks5_proxy->l_target_host = strlen(host);
+        cli->socks5_proxy->target_port = port;
+
+        host = cli->socks5_proxy->host;
+        port = cli->socks5_proxy->port;
+    }
+
     void *s_addr = NULL;
     if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_UDP)
     {
@@ -318,7 +330,9 @@ static int swClient_close(swClient *cli)
 
 static int swClient_tcp_connect_sync(swClient *cli, char *host, int port, double timeout, int nonblock)
 {
-    int ret;
+    int ret, n;
+    char buf[1024];
+
     cli->timeout = timeout;
 
     if (swClient_inet_addr(cli, host, port) < 0)
@@ -354,6 +368,41 @@ static int swClient_tcp_connect_sync(swClient *cli, char *host, int port, double
     if (ret >= 0)
     {
         cli->socket->active = 1;
+
+        //socks5 proxy
+        if (cli->socks5_proxy)
+        {
+            swSocks5_pack(buf, cli->socks5_proxy->username == NULL ? 0x00 : 0x02);
+            if (cli->send(cli, buf, 3, 0) < 0)
+            {
+                return SW_ERR;
+            }
+            cli->socks5_proxy->state = SW_SOCKS5_STATE_HANDSHAKE;
+            while (1)
+            {
+                n = cli->recv(cli, buf, sizeof(buf), 0);
+                if (n > 0)
+                {
+                    if (swSocks5_connect(cli, buf, n) < 0)
+                    {
+                        return SW_ERR;
+                    }
+                    else
+                    {
+                        if (cli->socks5_proxy->state == SW_SOCKS5_STATE_READY)
+                        {
+                            break;
+                        }
+                        else
+                        {
+                            continue;
+                        }
+                    }
+                }
+                return SW_ERR;
+            }
+        }
+
 #ifdef SW_USE_OPENSSL
         if (cli->open_ssl)
         {
@@ -482,6 +531,19 @@ static int swClient_tcp_sendfile_async(swClient *cli, char *filename)
     {
         SwooleG.error = errno;
         return SW_ERR;
+    }
+    if (!(cli->socket->events & SW_EVENT_WRITE))
+    {
+        if (cli->socket->events & SW_EVENT_READ)
+        {
+            return SwooleG.main_reactor->set(SwooleG.main_reactor, cli->socket->fd,
+                    cli->socket->fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
+        }
+        else
+        {
+            return SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd,
+                    cli->socket->fdtype | SW_EVENT_WRITE);
+        }
     }
     return SW_OK;
 }
@@ -624,6 +686,54 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
     char *buf = cli->buffer->str;
     long buf_size = cli->buffer->size;
 
+    if (cli->socks5_proxy && cli->socks5_proxy->state != SW_SOCKS5_STATE_READY)
+    {
+        int n = swConnection_recv(event->socket, buf, buf_size, 0);
+        if (n <= 0)
+        {
+            goto __close;
+        }
+        if (swSocks5_connect(cli, buf, buf_size) < 0)
+        {
+            goto __close;
+        }
+        if (cli->socks5_proxy->state != SW_SOCKS5_STATE_READY)
+        {
+            return SW_OK;
+        }
+#ifdef SW_USE_OPENSSL
+        if (cli->open_ssl)
+        {
+            if (swClient_enable_ssl_encrypt(cli) < 0)
+            {
+                connect_fail:
+                cli->close(cli);
+                if (cli->onError)
+                {
+                    cli->onError(cli);
+                }
+            }
+            else
+            {
+                if (swClient_ssl_handshake(cli) < 0)
+                {
+                    goto connect_fail;
+                }
+                else
+                {
+                    cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
+                }
+                return SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE);
+            }
+        }
+        else
+#endif
+        {
+            cli->onConnect(cli);
+        }
+        return SW_OK;
+    }
+
 #ifdef SW_USE_OPENSSL
     if (cli->open_ssl && cli->socket->ssl_state == SW_SSL_STATE_WAIT_STREAM)
     {
@@ -679,7 +789,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
             swSysError("Read from socket[%d] failed.", event->fd);
             return SW_OK;
         case SW_CLOSE:
-            goto close_fd;
+            goto __close;
         case SW_WAIT:
             return SW_OK;
         default:
@@ -688,7 +798,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
     }
     else if (n == 0)
     {
-        close_fd:
+        __close:
         return  cli->close(cli);
     }
     else
@@ -780,7 +890,14 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
         SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, SW_FD_STREAM_CLIENT | SW_EVENT_READ);
         //connected
         cli->socket->active = 1;
-
+        //socks5 proxy
+        if (cli->socks5_proxy && cli->socks5_proxy->state == SW_SOCKS5_STATE_WAIT)
+        {
+            char buf[3];
+            swSocks5_pack(buf, cli->socks5_proxy->username == NULL ? 0x00 : 0x02);
+            cli->socks5_proxy->state = SW_SOCKS5_STATE_HANDSHAKE;
+            return cli->send(cli, buf, sizeof(buf), 0);
+        }
 #ifdef SW_USE_OPENSSL
         if (cli->open_ssl)
         {

@@ -262,6 +262,17 @@ static int mysql_request(swString *sql, swString *buffer);
 static int mysql_handshake(mysql_connector *connector, char *buf, int len);
 static int mysql_get_result(mysql_connector *connector, char *buf, int len);
 static int mysql_get_charset(char *name);
+static void mysql_client_free(mysql_client *client, zval* zobject);
+
+static void mysql_client_free(mysql_client *client, zval* zobject)
+{
+    //close the connection
+    client->cli->close(client->cli);
+    //release client object memory
+    swClient_free(client->cli);
+    efree(client->cli);
+    client->cli = NULL;
+}
 
 #ifdef SW_MYSQL_DEBUG
 static void mysql_client_info(mysql_client *client);
@@ -922,10 +933,9 @@ static PHP_METHOD(swoole_mysql, __destruct)
     mysql_client *client = swoole_get_object(getThis());
     if (!client)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
-        RETURN_FALSE;
+        return;
     }
-    else if (client->state != SW_MYSQL_STATE_CLOSED && client->cli)
+    if (client->state != SW_MYSQL_STATE_CLOSED && client->cli)
     {
         zval *retval = NULL;
         zval *zobject = getThis();
@@ -968,13 +978,6 @@ static PHP_METHOD(swoole_mysql, close)
 
     zend_bool is_destroyed = client->cli->destroyed;
 
-    //close the connection
-    client->cli->close(client->cli);
-    //release client object memory
-    swClient_free(client->cli);
-    efree(client->cli);
-    client->cli = NULL;
-
     zval *retval = NULL;
     zval **args[1];
     zval *object = getThis();
@@ -990,6 +993,7 @@ static PHP_METHOD(swoole_mysql, close)
             sw_zval_ptr_dtor(&retval);
         }
     }
+    mysql_client_free(client, getThis());
     if (!is_destroyed)
     {
         sw_zval_ptr_dtor(&object);
@@ -1030,21 +1034,31 @@ static PHP_METHOD(swoole_mysql, on)
 
 static int swoole_mysql_onError(swReactor *reactor, swEvent *event)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
-    zval *retval = NULL;
-    mysql_client *client = event->socket->object;
-    zval *zobject = client->object;
-
-    sw_zend_call_method_with_0_params(&zobject, swoole_mysql_class_entry_ptr, NULL, "close", &retval);
-    if (retval)
+    swClient *cli = event->socket->object;
+    if (cli->socket->active)
     {
-        sw_zval_ptr_dtor(&retval);
+#if PHP_MAJOR_VERSION < 7
+        TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+        mysql_client *client = event->socket->object;
+        if (!client)
+        {
+            close(event->fd);
+            return SW_ERR;
+        }
+        zval *retval = NULL;
+        zval *zobject = client->object;
+        sw_zend_call_method_with_0_params(&zobject, swoole_mysql_class_entry_ptr, NULL, "close", &retval);
+        if (retval)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
+        return SW_OK;
     }
-
-    return SW_OK;
+    else
+    {
+        return swoole_mysql_onWrite(reactor, event);
+    }
 }
 
 static void swoole_mysql_onConnect(mysql_client *client TSRMLS_DC)
@@ -1064,11 +1078,6 @@ static void swoole_mysql_onConnect(mysql_client *client TSRMLS_DC)
         zend_update_property_long(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("connect_errno"), client->connector.error_code TSRMLS_CC);
 
         ZVAL_BOOL(result, 0);
-
-        client->cli->close(client->cli);
-        swClient_free(client->cli);
-        efree(client->cli);
-        client->cli = NULL;
     }
     else
     {
@@ -1127,6 +1136,7 @@ static int swoole_mysql_onWrite(swReactor *reactor, swEvent *event)
         client->connector.error_code = SwooleG.error;
         client->connector.error_msg = strerror(SwooleG.error);
         client->connector.error_length = strlen(client->connector.error_msg);
+        mysql_client_free(client, client->object);
         swoole_mysql_onConnect(client TSRMLS_CC);
     }
     return SW_OK;

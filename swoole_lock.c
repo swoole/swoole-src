@@ -56,7 +56,7 @@ void swoole_lock_init(int module_number TSRMLS_DC)
 #endif
 }
 
-PHP_METHOD(swoole_lock, __construct)
+static PHP_METHOD(swoole_lock, __construct)
 {
     long type = SW_MUTEX;
     char *filelock;
@@ -118,7 +118,7 @@ PHP_METHOD(swoole_lock, __construct)
     RETURN_TRUE;
 }
 
-PHP_METHOD(swoole_lock, __destruct)
+static PHP_METHOD(swoole_lock, __destruct)
 {
     swLock *lock = swoole_get_object(getThis());
     if (lock)
