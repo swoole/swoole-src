@@ -71,11 +71,9 @@ struct _coro_task
     void *post_callback_params;
 };
 
-extern zend_class_entry *swoole_client_coro_class_entry_ptr;
-extern zend_class_entry *swoole_client_multi_class_entry_ptr;
 extern zend_fcall_info_cache *php_sw_server_caches[PHP_SERVER_CALLBACK_NUM];
 
-coro_global COROG;
+extern coro_global COROG;
 
 static sw_inline zend_fcall_info_cache* php_swoole_server_get_cache(swServer *serv, int server_fd, int event_type)
 {
