@@ -450,7 +450,7 @@ static int mysql_handshake(mysql_connector *connector, char *buf, int len)
         if (request.capability_flags & SW_MYSQL_CLIENT_PLUGIN_AUTH)
         {
             request.auth_plugin_name = tmp;
-            request.l_auth_plugin_name = strlen(tmp);
+            request.l_auth_plugin_name = MIN(strlen(tmp), len - (tmp - buf));
         }
     }
 
@@ -1344,6 +1344,9 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             }
             //free callback object
             sw_zval_ptr_dtor(&callback);
+#if PHP_MAJOR_VERSION > 5
+            efree(callback);
+#endif
             swConnection *_socket = swReactor_get(SwooleG.main_reactor, event->fd);
             if (_socket->object)
             {
