@@ -26,6 +26,7 @@
 #define SW_EX_CV(var) (*SW_EX_CV_NUM(execute_data, var))
 
 jmp_buf swReactorCheckPoint;
+coro_global COROG;
 
 int coro_init(TSRMLS_D)
 {
