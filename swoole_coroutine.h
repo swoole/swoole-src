@@ -103,10 +103,5 @@ int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retva
 long php_swoole_add_timer_coro(int ms, int cli_fd, void* param TSRMLS_DC);
 int php_swoole_clear_timer_coro(long id TSRMLS_DC);
 
-void swoole_multi_init(int module_number TSRMLS_DC);
-void swoole_client_multi_init(int module_number TSRMLS_DC);
-void swoole_client_coro_init(int module_number TSRMLS_DC);
-void swoole_mysql_coro_init(int module_number TSRMLS_DC);
-void swoole_http_client_coro_init(int module_number TSRMLS_DC);
 #endif
 #endif

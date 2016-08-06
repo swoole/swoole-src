@@ -217,6 +217,10 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
         memcpy(task.data.data + header_size, packet, task.data.info.len - header_size);
 
         uint32_t send_n = pkt.length + header_size;
+        if (socket_type == SW_SOCK_UNIX_DGRAM )
+        {
+			send_n -= pkt.addr.un.path_length;
+        }
         uint32_t offset = 0;
 
         /**
