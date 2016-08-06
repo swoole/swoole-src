@@ -164,7 +164,7 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
     EG(active_op_array) = op_array;
 
     EG(current_execute_data) = execute_data;
-    EG(return_value_ptr_ptr) = retval;
+    EG(return_value_ptr_ptr) = NULL;
     EG(scope) = fci_cache->calling_scope;
     EG(called_scope) = fci_cache->called_scope;
     ++COROG.coro_num;
