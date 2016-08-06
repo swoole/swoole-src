@@ -164,7 +164,7 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
     EG(active_op_array) = op_array;
 
     EG(current_execute_data) = execute_data;
-    EG(return_value_ptr_ptr) = NULL;
+    EG(return_value_ptr_ptr) = (zval **)emalloc(sizeof(zval *));
     EG(scope) = fci_cache->calling_scope;
     EG(called_scope) = fci_cache->called_scope;
     ++COROG.coro_num;
@@ -178,11 +178,11 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
     if (!setjmp(swReactorCheckPoint))
     {
         zend_execute_ex(execute_data TSRMLS_CC);
-        coro_close(TSRMLS_C);
         if (EG(return_value_ptr_ptr) != NULL)
         {
             *retval = *EG(return_value_ptr_ptr);
         }
+        coro_close(TSRMLS_C);
         swTrace("create the %d coro with stack %zu. heap size: %zu\n", COROG.coro_num, total_size, zend_memory_usage(0));
         coro_status = CORO_END;
     }
@@ -230,6 +230,7 @@ sw_inline void coro_close(TSRMLS_D)
         EG(active_symbol_table) = NULL;
     }
 
+	efree(EG(return_value_ptr_ptr));
     efree(EG(argument_stack));
     EG(argument_stack) = COROG.origin_vm_stack;
     EG(current_execute_data) = COROG.origin_ex;
@@ -304,11 +305,11 @@ int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retva
     {
         //coro exit
         zend_execute_ex(sw_current_context->current_execute_data TSRMLS_CC);
-        coro_close(TSRMLS_C);
         if (EG(return_value_ptr_ptr) != NULL)
         {
             *coro_retval = *EG(return_value_ptr_ptr);
         }
+        coro_close(TSRMLS_C);
         coro_status = CORO_END;
     }
     else
