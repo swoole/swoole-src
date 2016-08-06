@@ -15,6 +15,7 @@
 */
 
 #include "php_swoole.h"
+#include "socks5.h"
 
 #include "ext/standard/basic_functions.h"
 
@@ -40,6 +41,12 @@ typedef struct
 #endif
 
 } client_callback;
+
+enum client_property
+{
+    client_property_callback = 0,
+    client_property_socket = 1,
+};
 
 static PHP_METHOD(swoole_client, __construct);
 static PHP_METHOD(swoole_client, __destruct);
@@ -173,6 +180,7 @@ void swoole_client_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_client_ce, "swoole_client", "Swoole\\Client", swoole_client_methods);
     swoole_client_class_entry_ptr = zend_register_internal_class(&swoole_client_ce TSRMLS_CC);
+    SWOOLE_CLASS_ALIAS(swoole_client, "Swoole\\Client");
 
     zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
@@ -397,6 +405,40 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
             swSysError("setsockopt(%d, TCP_NODELAY) failed.", cli->socket->fd);
         }
     }
+    /**
+     * socks5 proxy
+     */
+    if (php_swoole_array_get_value(vht, "socks5_host", v))
+    {
+        convert_to_string(v);
+        cli->socks5_proxy = emalloc(sizeof(swSocks5));
+        bzero(cli->socks5_proxy, sizeof(swSocks5));
+        cli->socks5_proxy->host = strdup(Z_STRVAL_P(v));
+        cli->socks5_proxy->dns_tunnel = 1;
+
+        if (php_swoole_array_get_value(vht, "socks5_port", v))
+        {
+            convert_to_long(v);
+            cli->socks5_proxy->port = Z_LVAL_P(v);
+        }
+        else
+        {
+            swoole_php_fatal_error(E_ERROR, "socks5 proxy require server port option.");
+            return;
+        }
+        if (php_swoole_array_get_value(vht, "socks5_username", v))
+        {
+            convert_to_string(v);
+            cli->socks5_proxy->username = Z_STRVAL_P(v);
+            cli->socks5_proxy->l_username = Z_STRLEN_P(v);
+        }
+        if (php_swoole_array_get_value(vht, "socks5_password", v))
+        {
+            convert_to_string(v);
+            cli->socks5_proxy->password = Z_STRVAL_P(v);
+            cli->socks5_proxy->l_password = Z_STRLEN_P(v);
+        }
+    }
 #ifdef SW_USE_OPENSSL
     if (php_swoole_array_get_value(vht, "ssl_method", v))
     {
@@ -552,6 +594,11 @@ void php_swoole_check_reactor()
 
 void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
 {
+    //socks5 proxy config
+    if (cli->socks5_proxy)
+    {
+        efree(cli->socks5_proxy);
+    }
     //long tcp connection, delete from php_sw_long_connections
     if (cli->keep)
     {
@@ -682,11 +729,11 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
 static PHP_METHOD(swoole_client, __construct)
 {
     long async = 0;
-    zval *ztype;
+    long type = 0;
     char *id = NULL;
     zend_size_t len = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|ls", &ztype, &async, &id, &len) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|ls", &type, &async, &id, &len) == FAILURE)
     {
         swoole_php_fatal_error(E_ERROR, "require socket type param.");
         RETURN_FALSE;
@@ -694,25 +741,25 @@ static PHP_METHOD(swoole_client, __construct)
 
     if (async == 1)
     {
-        Z_LVAL_P(ztype) = Z_LVAL_P(ztype) | SW_FLAG_ASYNC;
+        type |= SW_FLAG_ASYNC;
     }
 
-    if ((Z_LVAL_P(ztype) & SW_FLAG_ASYNC))
+    if ((type & SW_FLAG_ASYNC))
     {
-        if ((Z_LVAL_P(ztype) & SW_FLAG_KEEP) && SWOOLE_G(cli))
+        if ((type & SW_FLAG_KEEP) && SWOOLE_G(cli))
         {
             swoole_php_fatal_error(E_ERROR, "The 'SWOOLE_KEEP' flag can only be used in the php-fpm or apache environment.");
         }
         php_swoole_check_reactor();
     }
 
-    int client_type = php_swoole_socktype(Z_LVAL_P(ztype));
+    int client_type = php_swoole_socktype(type);
     if (client_type < SW_SOCK_TCP || client_type > SW_SOCK_UNIX_STREAM)
     {
         swoole_php_fatal_error(E_ERROR, "Unknown client type '%d'.", client_type);
     }
 
-    zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("type"), ztype TSRMLS_CC);
+    zend_update_property_long(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("type"), type TSRMLS_CC);
     if (id)
     {
         zend_update_property_stringl(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("id"), id, len TSRMLS_CC);
@@ -741,12 +788,23 @@ static PHP_METHOD(swoole_client, __destruct)
         }
     }
     //free memory
-    client_callback *cb = swoole_get_property(getThis(), 0);
+    client_callback *cb = swoole_get_property(getThis(), client_property_callback);
     if (cb)
     {
         efree(cb);
-        swoole_set_property(getThis(), 0, NULL);
+        swoole_set_property(getThis(), client_property_callback, NULL);
     }
+#ifdef SWOOLE_SOCKETS_SUPPORT
+    zval *zsocket = swoole_get_property(getThis(), client_property_socket);
+    if (zsocket)
+    {
+        sw_zval_ptr_dtor(&zsocket);
+#if PHP_MAJOR_VERSION >= 7
+        efree(zsocket);
+#endif
+        swoole_set_property(getThis(), client_property_socket, NULL);
+    }
+#endif
 }
 
 static PHP_METHOD(swoole_client, set)
@@ -1285,10 +1343,20 @@ static PHP_METHOD(swoole_client, getsockname)
 #ifdef SWOOLE_SOCKETS_SUPPORT
 static PHP_METHOD(swoole_client, getSocket)
 {
+    zval *zsocket = swoole_get_property(getThis(), client_property_socket);
+    if (zsocket)
+    {
+        RETURN_ZVAL(zsocket, 1, NULL);
+    }
     swClient *cli = swoole_get_object(getThis());
     if (!cli || !cli->socket)
     {
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
+        RETURN_FALSE;
+    }
+    if (cli->keep)
+    {
+        swoole_php_fatal_error(E_WARNING, "The getSocket method cannot be used for long connection.");
         RETURN_FALSE;
     }
     php_socket *socket_object = swoole_convert_to_socket(cli->socket->fd);
@@ -1296,7 +1364,10 @@ static PHP_METHOD(swoole_client, getSocket)
     {
         RETURN_FALSE;
     }
-    SW_ZEND_REGISTER_RESOURCE(return_value, (void *) socket_object, php_sockets_le_socket());
+    SW_ZEND_REGISTER_RESOURCE(return_value, (void * ) socket_object, php_sockets_le_socket());
+    zsocket = sw_zval_dup(return_value);
+    sw_zval_add_ref(&zsocket);
+    swoole_set_property(getThis(), client_property_socket, zsocket);
 }
 #endif
 
@@ -1409,12 +1480,12 @@ static PHP_METHOD(swoole_client, on)
         return;
     }
 
-    client_callback *cb = swoole_get_property(getThis(), 0);
+    client_callback *cb = swoole_get_property(getThis(), client_property_callback);
     if (!cb)
     {
         cb = emalloc(sizeof(client_callback));
         bzero(cb, sizeof(client_callback));
-        swoole_set_property(getThis(), 0, cb);
+        swoole_set_property(getThis(), client_property_callback, cb);
     }
 
 #ifdef PHP_SWOOLE_CHECK_CALLBACK
@@ -1556,7 +1627,7 @@ static PHP_METHOD(swoole_client, enableSSL)
         efree(func_name);
 #endif
 
-        client_callback *cb = swoole_get_property(getThis(), 0);
+        client_callback *cb = swoole_get_property(getThis(), client_property_callback);
         if (!cb)
         {
             swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");

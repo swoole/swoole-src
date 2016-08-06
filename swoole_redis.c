@@ -302,6 +302,12 @@ static PHP_METHOD(swoole_redis, __call)
         return;
     }
 
+    if (Z_TYPE_P(params) != IS_ARRAY)
+    {
+        swoole_php_fatal_error(E_WARNING, "invalid params.");
+        RETURN_FALSE;
+    }
+
     swRedisClient *redis = swoole_get_object(getThis());
     if (!redis)
     {

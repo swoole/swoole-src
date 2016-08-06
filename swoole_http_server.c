@@ -2226,6 +2226,16 @@ static PHP_METHOD(swoole_http_response, header)
     }
     if (vlen > SW_HTTP_HEADER_VALUE_SIZE)
     {
+        swoole_php_error(E_WARNING, "value key is too long.");
+        RETURN_FALSE;
+    }
+    if (klen > SW_HTTP_HEADER_KEY_SIZE - 1)
+    {
+        swoole_php_error(E_WARNING, "header key is too long.");
+        RETURN_FALSE;
+    }
+    if (vlen > SW_HTTP_HEADER_VALUE_SIZE)
+    {
         swoole_php_error(E_WARNING, "header value is too long.");
         RETURN_FALSE;
     }

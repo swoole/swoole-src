@@ -35,8 +35,8 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2016-07-01</date>
-    <time>17:48:51</time>
+    <date>2016-07-28</date>
+    <time>11:48:51</time>
     <version>
 		<release>2.0.1</release>
 		<api>2.0.1</api>
@@ -47,15 +47,17 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed Swoole\Http\Server on PHP7 crash (zdata release request data memory problems)
-- Fixed Swoole\Http\Client crash when no have header setting
-- Fixed Swoole\MySQL parse unixsocket type host address fail
-- Fixed Swoole\Http\Client crash below the Linux-2.6.18 version of the kernel
-- Fixed Swoole\MySQL nested callback crash problem on PHP7
-- Update Swoole\Server maximum listening port number to 60,000
-- Update Swoole\Server main thread use epoll or kqueue
-- Fixed swoole_async_dns_lookup crash when hit cache
-- Added Swoole\Timer::exists
+- Added Swoole\Server\Port->getSocket
+- Added Swoole\Server->getClientInfo()['close_errno'] property
+- Added Swoole\Event namespace and class styles
+- Added Swoole\MySQL character set support
+- Added Swoole\Server->taskWaitMulti can perform multiple tasks concurrently
+- Added Swoole\Client->getPeerCert method
+- Added Swoole\Client->pause and Swoole\Client->resume
+- Fixed Swoole\Server->taskwait cannot use in BASE mode
+- Fixed Swoole\MySQL client crash when receive more than 250 field query statement
+- Fixed Swoole\Server->task third parameter passed Callback Crash at PHP7
+- Fixed Swoole\Http\Request->files crash on PHP7 when externally referenced
     </notes>
 	<contents>
 		<dir name="/">
@@ -88,7 +90,7 @@
 				<file role="src" name="mqtt.h" />
 				<file role="src" name="error.h" />
 				<file role="src" name="module.h" />
-				<file role="src" name="coroutine.h" />
+				<file role="src" name="socks5.h" />
 			</dir>
 			<file role="src" name="php_swoole.h" />
 			<file role="src" name="php7_wrapper.h" />
@@ -205,6 +207,8 @@
 					<file role="src" name="Sha1.c" />
 					<file role="src" name="Base64.c" />
 					<file role="src" name="Mqtt.c" />
+					<file role="src" name="Socks5.c" />
+					<file role="src" name="MimeTypes.c" />
 				</dir>
 			</dir>
 			<dir name="examples">

@@ -43,6 +43,7 @@ void swoole_lock_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_lock_ce, "swoole_lock", "Swoole\\Lock", swoole_lock_methods);
     swoole_lock_class_entry_ptr = zend_register_internal_class(&swoole_lock_ce TSRMLS_CC);
+    SWOOLE_CLASS_ALIAS(swoole_lock, "Swoole\\Lock");
 
     REGISTER_LONG_CONSTANT("SWOOLE_FILELOCK", SW_FILELOCK, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SWOOLE_MUTEX", SW_MUTEX, CONST_CS | CONST_PERSISTENT);
@@ -55,7 +56,7 @@ void swoole_lock_init(int module_number TSRMLS_DC)
 #endif
 }
 
-PHP_METHOD(swoole_lock, __construct)
+static PHP_METHOD(swoole_lock, __construct)
 {
     long type = SW_MUTEX;
     char *filelock;
@@ -70,7 +71,7 @@ PHP_METHOD(swoole_lock, __construct)
     swLock *lock = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swLock));
     if (lock == NULL)
     {
-        swoole_php_error(E_WARNING, "alloc failed.");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "alloc failed.");
         RETURN_FALSE;
     }
 
@@ -84,13 +85,13 @@ PHP_METHOD(swoole_lock, __construct)
     case SW_FILELOCK:
         if (filelock_len <= 0)
         {
-            swoole_php_error(E_ERROR, "filelock require lock file name.");
+            php_error_docref(NULL TSRMLS_CC, E_ERROR, "filelock require lock file name.");
             RETURN_FALSE;
         }
         int fd;
         if ((fd = open(filelock, O_RDWR | O_CREAT, 0666)) < 0)
         {
-            swoole_php_error(E_WARNING, "open file[%s] failed. Error: %s [%d]", filelock, strerror(errno), errno);
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "open file[%s] failed. Error: %s [%d]", filelock, strerror(errno), errno);
             RETURN_FALSE;
         }
         ret = swFileLock_create(lock, fd);
@@ -110,7 +111,7 @@ PHP_METHOD(swoole_lock, __construct)
     }
     if (ret < 0)
     {
-        swoole_php_error(E_WARNING, "create lock failed");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "create lock failed");
         RETURN_FALSE;
     }
     swoole_set_object(getThis(), lock);

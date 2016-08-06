@@ -154,7 +154,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 #else
     zval _zcontent;
     zval _zwriten;
-    bzero(&zcontent, sizeof(zval));
+    bzero(&_zcontent, sizeof(zval));
     bzero(&_zwriten, sizeof(zval));
 #endif
 
