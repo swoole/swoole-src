@@ -70,6 +70,7 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 #define sw_zend_hash_copy                     zend_hash_copy
 #define sw_zval_add_ref                       zval_add_ref
 #define sw_zval_dup(val)                      (val)
+#define sw_zval_free(val)                     (sw_zval_ptr_dtor(&val))
 #define sw_zend_hash_exists                   zend_hash_exists
 #define sw_php_format_date                    php_format_date
 #define sw_php_url_encode                     php_url_encode
@@ -258,7 +259,7 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval** 
     a = &b;\
     memcpy(a, __tmp, sizeof(zval));}
 
-static inline zval* sw_zval_dup(zval *val)
+static sw_inline zval* sw_zval_dup(zval *val)
 {
     zval *dup;
     SW_ALLOC_INIT_ZVAL(dup);
@@ -266,13 +267,21 @@ static inline zval* sw_zval_dup(zval *val)
     return dup;
 }
 
-static inline zval* sw_zend_read_property(zend_class_entry *class_ptr, zval *obj, char *s, int len, int silent)
+static sw_inline void sw_zval_free(zval *val)
+{
+    sw_zval_ptr_dtor(&val);
+#if PHP_MAJOR_VERSION > 5
+    efree(val);
+#endif
+}
+
+static sw_inline zval* sw_zend_read_property(zend_class_entry *class_ptr, zval *obj, char *s, int len, int silent)
 {
     zval rv;
     return zend_read_property(class_ptr, obj, s, len, silent, &rv);
 }
 
-static inline int sw_zend_is_callable(zval *cb, int a, char **name)
+static sw_inline int sw_zend_is_callable(zval *cb, int a, char **name)
 {
     zend_string *key = NULL;
     int ret = zend_is_callable(cb, a, &key);

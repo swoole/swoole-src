@@ -1442,6 +1442,7 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
     if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
     {
         swoole_php_fatal_error(E_WARNING, "swoole_http_client object have not receive callback.");
+        return SW_OK;
     }
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
@@ -1451,6 +1452,7 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
+    sw_zval_free(zcallback);
     if (retval)
     {
         sw_zval_ptr_dtor(&retval);
@@ -1459,7 +1461,6 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
     http = swoole_get_object(zobject);
     if (!http)
     {
-        sw_zval_ptr_dtor(&zcallback);
         return 0;
     }
     /**
@@ -1482,7 +1483,6 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
             sw_zval_ptr_dtor(&retval);
         }
     }
-    sw_zval_ptr_dtor(&zcallback);
     return 0;
 }
 
