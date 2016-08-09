@@ -34,6 +34,7 @@ enum http_client_state
     HTTP_CLIENT_STATE_BUSY,
     //WebSocket
     HTTP_CLIENT_STATE_UPGRADE,
+    HTTP_CLIENT_STATE_WAIT_CLOSE,
 };
 
 typedef struct
@@ -95,6 +96,7 @@ static swString *http_client_buffer;
 static int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length);
 static int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length);
 static int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length);
+static int http_client_parser_on_headers_complete(php_http_parser *parser);
 static int http_client_parser_on_message_complete(php_http_parser *parser);
 
 static void http_client_onReceive(swClient *cli, char *data, uint32_t length);
@@ -144,7 +146,7 @@ static const php_http_parser_settings http_parser_settings =
     NULL,
     http_client_parser_on_header_field,
     http_client_parser_on_header_value,
-    NULL,
+    http_client_parser_on_headers_complete,
     http_client_parser_on_body,
     http_client_parser_on_message_complete
 };
@@ -408,6 +410,11 @@ static void http_client_onClose(swClient *cli)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
     zval *zobject = cli->object;
+    http_client *http = swoole_get_object(zobject);
+    if (http && http->state == HTTP_CLIENT_STATE_WAIT_CLOSE)
+    {
+        http_client_parser_on_message_complete(&http->parser);
+    }
     if (!cli->released)
     {
         http_client_free(zobject TSRMLS_CC);
@@ -1398,6 +1405,17 @@ static int http_client_parser_on_body(php_http_parser *parser, const char *at, s
     return 0;
 }
 
+static int http_client_parser_on_headers_complete(php_http_parser *parser)
+{
+    //no content-length
+    if (parser->content_length == -1)
+    {
+        http_client* http = (http_client*) parser->data;
+        http->state = HTTP_CLIENT_STATE_WAIT_CLOSE;
+    }
+    return 0;
+}
+
 static int http_client_parser_on_message_complete(php_http_parser *parser)
 {
 #if PHP_MAJOR_VERSION < 7
@@ -1475,7 +1493,7 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
         cli->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
         http->state = HTTP_CLIENT_STATE_UPGRADE;
     }
-    else if (http->keep_alive == 0)
+    else if (http->keep_alive == 0 && http->state != HTTP_CLIENT_STATE_WAIT_CLOSE)
     {
         sw_zend_call_method_with_0_params(&zobject, swoole_http_client_class_entry_ptr, NULL, "close", &retval);
         if (retval)
