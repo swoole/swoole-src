@@ -41,6 +41,9 @@ PHP_ARG_ENABLE(jemalloc, enable jemalloc support,
 PHP_ARG_ENABLE(tcmalloc, enable tcmalloc support,
 [  --enable-tcmalloc       Use tcmalloc?], no, no)
 
+PHP_ARG_ENABLE(hugepage, enable hugepage support,
+[  --enable-hugepage       Use hugepage?], no, no)
+
 PHP_ARG_ENABLE(swoole, swoole support,
 [  --enable-swoole         Enable swoole support], [enable_swoole="yes"])
 
@@ -151,6 +154,10 @@ if test "$PHP_SWOOLE" != "no"; then
 
 	if test "$PHP_HTTP2" = "yes"; then
 		AC_DEFINE(SW_USE_HTTP2, 1, [enable http2.0 support])
+    fi
+
+	if test "$PHP_HUGEPAGE" = "yes"; then
+		AC_DEFINE(SW_USE_HUGEPAGE, 1, [enable hugepage support])
     fi
 
     if test "$PHP_THREAD" = "yes"; then
