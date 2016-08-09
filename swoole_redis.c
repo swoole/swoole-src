@@ -567,13 +567,7 @@ static void swoole_redis_onResult(redisAsyncContext *c, void *r, void *privdata)
         sw_zval_ptr_dtor(&retval);
     }
     sw_zval_ptr_dtor(&result);
-    if (redis->state == SWOOLE_REDIS_STATE_READY)
-    {
-        sw_zval_ptr_dtor(&callback);
-    }
-#if PHP_MAJOR_VERSION > 5
-    efree(callback);
-#endif
+    sw_zval_free(callback);
 }
 
 void swoole_redis_onConnect(const redisAsyncContext *c, int status)

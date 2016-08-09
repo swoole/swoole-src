@@ -1337,16 +1337,10 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             }
             if (result)
             {
-                sw_zval_ptr_dtor(&result);
-#if PHP_MAJOR_VERSION > 5
-                efree(result);
-#endif
+                sw_zval_free(result);
             }
             //free callback object
-            sw_zval_ptr_dtor(&callback);
-#if PHP_MAJOR_VERSION > 5
-            efree(callback);
-#endif
+            sw_zval_free(callback);
             swConnection *_socket = swReactor_get(SwooleG.main_reactor, event->fd);
             if (_socket->object)
             {
