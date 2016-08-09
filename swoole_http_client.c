@@ -1460,6 +1460,9 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
     if (!http)
     {
         sw_zval_ptr_dtor(&zcallback);
+#if PHP_MAJOR_VERSION > 5
+        efree(zcallback);
+#endif
         return 0;
     }
     /**
@@ -1483,6 +1486,9 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
         }
     }
     sw_zval_ptr_dtor(&zcallback);
+#if PHP_MAJOR_VERSION > 5
+    efree(zcallback);
+#endif
     return 0;
 }
 

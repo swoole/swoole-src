@@ -571,6 +571,9 @@ static void swoole_redis_onResult(redisAsyncContext *c, void *r, void *privdata)
     {
         sw_zval_ptr_dtor(&callback);
     }
+#if PHP_MAJOR_VERSION > 5
+    efree(callback);
+#endif
 }
 
 void swoole_redis_onConnect(const redisAsyncContext *c, int status)
