@@ -836,6 +836,9 @@ void swPort_init(swListenPort *port);
 void swPort_free(swListenPort *port);
 void swPort_set_protocol(swListenPort *ls);
 int swPort_set_option(swListenPort *ls);
+#ifdef SW_USE_OPENSSL
+int swPort_enable_ssl_encrypt(swListenPort *ls);
+#endif
 
 void swWorker_free(swWorker *worker);
 void swWorker_onStart(swServer *serv);
