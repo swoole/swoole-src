@@ -1845,9 +1845,10 @@ static PHP_METHOD(swoole_http_response, sendfile)
 {
     char *filename;
     zend_size_t filename_length;
+    long offset = 0;
     int ret;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &filename, &filename_length) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &filename, &filename_length, &offset) == FAILURE)
     {
         return;
     }
@@ -1870,28 +1871,21 @@ static PHP_METHOD(swoole_http_response, sendfile)
         RETURN_FALSE;
     }
 
-    int file_fd = open(filename, O_RDONLY);
-    if (file_fd < 0)
-    {
-        swoole_php_sys_error(E_WARNING, "open(%s) failed.", filename);
-        RETURN_FALSE;
-    }
-
     struct stat file_stat;
-    if (fstat(file_fd, &file_stat) < 0)
+    if (stat(filename, &file_stat) < 0)
     {
-        swoole_php_sys_error(E_WARNING, "fstat(%s) failed.", filename);
+        swoole_php_sys_error(E_WARNING, "stat(%s) failed.", filename);
         RETURN_FALSE;
     }
 
-    if (file_stat.st_size <= 0)
+    if (file_stat.st_size <= offset)
     {
-        swoole_php_error(E_WARNING, "file is empty.");
+        swoole_php_error(E_WARNING, "file[offset=%ld] is empty.", offset);
         RETURN_FALSE;
     }
 
     swString_clear(swoole_http_buffer);
-    http_build_header(ctx, getThis(), swoole_http_buffer, file_stat.st_size TSRMLS_CC);
+    http_build_header(ctx, getThis(), swoole_http_buffer, file_stat.st_size - offset TSRMLS_CC);
 
     ret = swServer_tcp_send(SwooleG.serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
     if (ret < 0)
@@ -1900,7 +1894,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
         RETURN_FALSE;
     }
 
-    ret = swServer_tcp_sendfile(SwooleG.serv, ctx->fd, filename, filename_length);
+    ret = swServer_tcp_sendfile(SwooleG.serv, ctx->fd, filename, filename_length, offset);
     if (ret < 0)
     {
         ctx->send_header = 0;

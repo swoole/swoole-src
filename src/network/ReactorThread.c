@@ -651,7 +651,7 @@ int swReactorThread_send(swSendData *_send)
     //sendfile to client
     else if (_send->info.type == SW_EVENT_SENDFILE)
     {
-        swConnection_sendfile(conn, _send_data);
+        swConnection_sendfile(conn, _send_data + sizeof(off_t), *((off_t *) _send_data));
     }
     //send data
     else

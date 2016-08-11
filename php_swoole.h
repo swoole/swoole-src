@@ -43,7 +43,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.8.9-alpha"
+#define PHP_SWOOLE_VERSION  "1.8.9-beta"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -78,7 +78,7 @@ extern zend_module_entry swoole_module_entry;
 #endif
 
 #define SWOOLE_PROPERTY_MAX     32
-#define SWOOLE_OBJECT_MAX       1000000
+#define SWOOLE_OBJECT_MAX       10000000
 
 typedef struct
 {

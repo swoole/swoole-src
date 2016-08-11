@@ -920,7 +920,7 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length)
     return SW_OK;
 }
 
-int swServer_tcp_sendfile(swServer *serv, int fd, char *filename, uint32_t len)
+int swServer_tcp_sendfile(swServer *serv, int fd, char *filename, uint32_t len, off_t offset)
 {
 #ifdef SW_USE_OPENSSL
     swConnection *conn = swServer_connection_verify(serv, fd);
@@ -932,29 +932,22 @@ int swServer_tcp_sendfile(swServer *serv, int fd, char *filename, uint32_t len)
 #endif
 
     swSendData send_data;
-    send_data.info.len = len;
     char buffer[SW_BUFFER_SIZE];
 
     //file name size
-    if (send_data.info.len > SW_BUFFER_SIZE - 1)
+    if (len > SW_BUFFER_SIZE - sizeof(offset) - 1)
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_NAME_TOO_LONG, "sendfile name too long. [MAX_LENGTH=%d]",
                 (int) SW_BUFFER_SIZE - 1);
         return SW_ERR;
     }
 
-    //check file exists
-    if (access(filename, R_OK) < 0)
-    {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_FILE_NOT_EXIST, "file[%s] not found.", filename);
-        return SW_ERR;
-    }
-
     send_data.info.fd = fd;
     send_data.info.type = SW_EVENT_SENDFILE;
-    memcpy(buffer, filename, send_data.info.len);
-    buffer[send_data.info.len] = 0;
-    send_data.info.len++;
+    memcpy(buffer, &offset, sizeof(off_t));
+    memcpy(buffer + sizeof(off_t), filename, len);
+    buffer[sizeof(off_t) + len] = 0;
+    send_data.info.len = sizeof(off_t) + len + 1;
     send_data.length = 0;
     send_data.data = buffer;
 
