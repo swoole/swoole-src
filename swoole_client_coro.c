@@ -1072,14 +1072,10 @@ static PHP_METHOD(swoole_client_coro, enableSSL)
         RETURN_FALSE;
     }
     cli->open_ssl = 1;
-    if (cli->async)
-    {
-        zend_update_property(swoole_client_coro_class_entry_ptr, getThis(), ZEND_STRL("onSSLReady"), zcallback TSRMLS_CC);
-        cli->ssl_wait_handshake = 1;
-        cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
+	cli->ssl_wait_handshake = 1;
+	cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
 
-        SwooleG.main_reactor->set(SwooleG.main_reactor, cli->socket->fd, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE);
-    }
+	SwooleG.main_reactor->set(SwooleG.main_reactor, cli->socket->fd, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE);
 
     RETURN_TRUE;
 }
