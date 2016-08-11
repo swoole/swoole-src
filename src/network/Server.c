@@ -1218,6 +1218,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
     int checktime;
 
     SwooleTG.type = SW_THREAD_HEARTBEAT;
+    SwooleTG.id = serv->reactor_num + serv->udp_thread_num;
 
     bzero(&notify_ev, sizeof(notify_ev));
     notify_ev.type = SW_EVENT_CLOSE;
@@ -1234,7 +1235,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
             swTrace("check fd=%d", fd);
             conn = swServer_connection_get(serv, fd);
 
-            if (conn != NULL && conn->active == 1 && conn->fdtype == SW_FD_TCP)
+            if (conn != NULL && conn->active == 1 && conn->closed == 0 && conn->fdtype == SW_FD_TCP)
             {
                 if (conn->protect || conn->last_time > checktime)
                 {
@@ -1264,7 +1265,14 @@ static void swHeartbeatThread_loop(swThreadParam *param)
                     reactor = &serv->reactor_threads[conn->from_id].reactor;
                 }
                 //notify to reactor thread
-                reactor->set(reactor, fd, SW_FD_TCP | SW_EVENT_WRITE);
+                if (conn->removed)
+                {
+                    serv->factory.notify(&serv->factory, &notify_ev);
+                }
+                else
+                {
+                    reactor->set(reactor, fd, SW_FD_TCP | SW_EVENT_WRITE);
+                }
             }
         }
         sleep(serv->heartbeat_check_interval);

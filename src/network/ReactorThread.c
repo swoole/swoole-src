@@ -1216,6 +1216,7 @@ static int swUDPThread_start(swServer *serv)
                 return SW_ERR;
             }
             ls->thread_id = thread_id;
+            serv->udp_thread_num ++;
         }
     }
     return SW_OK;
