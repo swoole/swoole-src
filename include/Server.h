@@ -532,7 +532,7 @@ static sw_inline swListenPort* swServer_get_port(swServer *serv, int fd)
 int swServer_udp_send(swServer *serv, swSendData *resp);
 int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length);
 int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length);
-int swServer_tcp_sendfile(swServer *serv, int fd, char *filename, uint32_t len);
+int swServer_tcp_sendfile(swServer *serv, int fd, char *filename, uint32_t len, off_t offset);
 int swServer_confirm(swServer *serv, int fd);
 
 //UDP, UDP必然超过0x1000000
