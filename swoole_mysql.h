@@ -298,6 +298,17 @@ typedef struct
                                     (((uint32_t) ((zend_uchar) (A)[6])) << 16) +\
                                     (((uint32_t) ((zend_uchar) (A)[7])) << 24))) << 32))
 
+int mysql_get_result(mysql_connector *connector, char *buf, int len);
+int mysql_get_charset(char *name);
+int mysql_handshake(mysql_connector *connector, char *buf, int len);
+int mysql_request(swString *sql, swString *buffer);
+int mysql_response(mysql_client *client);
+
+#ifdef SW_MYSQL_DEBUG
+void mysql_client_info(mysql_client *client);
+void mysql_column_info(mysql_field *field);
+#endif
+
 static sw_inline void mysql_pack_length(int length, char *buf)
 {
     buf[2] = length >> 16;

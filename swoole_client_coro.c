@@ -110,6 +110,10 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
 	zval *retval = NULL;
 	zval *result = NULL;
 
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+
 	if (type == SW_CLIENT_CB_onConnect 
 #ifdef SW_USE_OPENSSL
 			|| type == SW_CLIENT_CB_onSSLReady
@@ -825,8 +829,9 @@ static PHP_METHOD(swoole_client_coro, sendfile)
 {
     char *file;
     zend_size_t file_len;
+    long offset = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &file, &file_len) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &file, &file_len, &offset) == FAILURE)
     {
         return;
     }
@@ -855,7 +860,7 @@ static PHP_METHOD(swoole_client_coro, sendfile)
     }
     //clear errno
     SwooleG.error = 0;
-    int ret = cli->sendfile(cli, file);
+    int ret = cli->sendfile(cli, file, offset);
     if (ret < 0)
     {
         SwooleG.error = errno;

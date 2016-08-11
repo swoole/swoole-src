@@ -56,7 +56,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
     }
 #endif
 
-    int sendn = (task->filesize - task->offset > SW_SENDFILE_TRUNK) ? SW_SENDFILE_TRUNK : task->filesize - task->offset;
+    int sendn = (task->filesize - task->offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : task->filesize - task->offset;
     ret = swoole_sendfile(conn->fd, task->fd, &task->offset, sendn);
     swTrace("ret=%d|task->offset=%ld|sendn=%d|filesize=%ld", ret, task->offset, sendn, task->filesize);
 
@@ -216,7 +216,7 @@ void swConnection_sendfile_destructor(swBuffer_trunk *chunk)
     sw_free(task);
 }
 
-int swConnection_sendfile(swConnection *conn, char *filename)
+int swConnection_sendfile(swConnection *conn, char *filename, off_t offset)
 {
     if (conn->out_buffer == NULL)
     {
@@ -246,6 +246,7 @@ int swConnection_sendfile(swConnection *conn, char *filename)
         return SW_ERR;
     }
     task->fd = file_fd;
+    task->offset = offset;
 
     struct stat file_stat;
     if (fstat(file_fd, &file_stat) < 0)

@@ -531,6 +531,7 @@ static void swoole_redis_onResult(redisAsyncContext *c, void *r, void *privdata)
         return;
     }
 
+    zend_bool is_subscribe = 0;
     char *callback_type;
     swRedisClient *redis = c->ev.data;
     zval *result, *retval, *callback;
@@ -542,6 +543,7 @@ static void swoole_redis_onResult(redisAsyncContext *c, void *r, void *privdata)
     {
         callback = redis->message_callback;
         callback_type = "Message";
+        is_subscribe = 1;
     }
     else
     {
@@ -567,9 +569,9 @@ static void swoole_redis_onResult(redisAsyncContext *c, void *r, void *privdata)
         sw_zval_ptr_dtor(&retval);
     }
     sw_zval_ptr_dtor(&result);
-    if (redis->state == SWOOLE_REDIS_STATE_READY)
+    if (!is_subscribe)
     {
-        sw_zval_ptr_dtor(&callback);
+        sw_zval_free(callback);
     }
 }
 

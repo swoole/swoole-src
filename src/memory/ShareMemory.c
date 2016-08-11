@@ -111,6 +111,13 @@ void *swShareMemory_mmap_create(swShareMemory *object, int size, char *mapfile)
     object->tmpfd = tmpfd;
 #endif
 
+#if defined(SW_USE_HUGEPAGE) && defined(MAP_HUGETLB)
+    if (size > 2 * 1024 * 1024)
+    {
+        flag |= MAP_HUGETLB;
+    }
+#endif
+
     mem = mmap(NULL, size, PROT_READ | PROT_WRITE, flag, tmpfd, 0);
 #ifdef MAP_FAILED
     if (mem == MAP_FAILED)

@@ -50,6 +50,43 @@ void swPort_init(swListenPort *port)
     memcpy(port->protocol.package_eof, eof, port->protocol.package_eof_len);
 }
 
+#ifdef SW_USE_OPENSSL
+int swPort_enable_ssl_encrypt(swListenPort *ls)
+{
+    if (ls->ssl_cert_file == NULL || ls->ssl_key_file == NULL)
+    {
+        swWarn("SSL error, require ssl_cert_file and ssl_key_file.");
+        return SW_ERR;
+    }
+    ls->ssl_context = swSSL_get_context(ls->ssl_method, ls->ssl_cert_file, ls->ssl_key_file);
+    if (ls->ssl_context == NULL)
+    {
+        swWarn("swSSL_get_context() error.");
+        return SW_ERR;
+    }
+    if (ls->ssl_client_cert_file && swSSL_set_client_certificate(ls->ssl_context, ls->ssl_client_cert_file, ls->ssl_verify_depth) == SW_ERR)
+    {
+        swWarn("swSSL_set_client_certificate() error.");
+        return SW_ERR;
+    }
+    if (ls->open_http_protocol)
+    {
+        ls->ssl_config.http = 1;
+    }
+    if (ls->open_http2_protocol)
+    {
+        ls->ssl_config.http_v2 = 1;
+        swSSL_server_http_advise(ls->ssl_context, &ls->ssl_config);
+    }
+    if (swSSL_server_set_cipher(ls->ssl_context, &ls->ssl_config) < 0)
+    {
+        swWarn("swSSL_server_set_cipher() error.");
+        return SW_ERR;
+    }
+    return SW_OK;
+}
+#endif
+
 int swPort_set_option(swListenPort *ls)
 {
     int sock = ls->sock;
@@ -74,56 +111,6 @@ int swPort_set_option(swListenPort *ls)
         setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &ls->socket_buffer_size, sizeof(int));
         return SW_OK;
     }
-
-#ifdef SW_USE_OPENSSL
-    if (ls->open_ssl_encrypt)
-    {
-        if (ls->ssl_cert_file == NULL || ls->ssl_key_file == NULL)
-        {
-            swWarn("SSL error, require ssl_cert_file and ssl_key_file.");
-            return SW_ERR;
-        }
-        ls->ssl_context = swSSL_get_context(ls->ssl_method, ls->ssl_cert_file, ls->ssl_key_file);
-        if (ls->ssl_context == NULL)
-        {
-            swWarn("swSSL_get_context() error.");
-            return SW_ERR;
-        }
-        if (ls->ssl_client_cert_file && swSSL_set_client_certificate(ls->ssl_context, ls->ssl_client_cert_file, ls->ssl_verify_depth) == SW_ERR)
-        {
-            swWarn("swSSL_set_client_certificate() error.");
-            return SW_ERR;
-        }
-        if (ls->open_http_protocol)
-        {
-            ls->ssl_config.http = 1;
-        }
-        if (ls->open_http2_protocol)
-        {
-            ls->ssl_config.http_v2 = 1;
-            swSSL_server_http_advise(ls->ssl_context, &ls->ssl_config);
-        }
-        if (swSSL_server_set_cipher(ls->ssl_context, &ls->ssl_config) < 0)
-        {
-            swWarn("swSSL_server_set_cipher() error.");
-            return SW_ERR;
-        }
-    }
-
-    if (ls->ssl)
-    {
-        if (!ls->ssl_cert_file)
-        {
-            swWarn("need to set [ssl_cert_file] option.");
-            return SW_ERR;
-        }
-        if (!ls->ssl_key_file)
-        {
-            swWarn("need to set [ssl_key_file] option.");
-            return SW_ERR;
-        }
-    }
-#endif
 
     //listen stream socket
     if (listen(sock, ls->backlog) < 0)
