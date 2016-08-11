@@ -52,6 +52,7 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 #define sw_smart_str                          smart_str
 #define sw_php_var_unserialize                php_var_unserialize
 #define sw_zend_is_callable                   zend_is_callable
+#define sw_zend_is_callable_ex                zend_is_callable_ex
 #define sw_zend_hash_add                      zend_hash_add
 #define sw_zend_hash_index_update             zend_hash_index_update
 #define sw_call_user_function_ex              call_user_function_ex
@@ -288,6 +289,17 @@ static sw_inline int sw_zend_is_callable(zval *cb, int a, char **name)
     memcpy(tmp, key->val, key->len);
     zend_string_release(key);
     *name = tmp;
+    return ret;
+}
+
+static inline int sw_zend_is_callable_ex(zval *callable, zval *object, uint check_flags, char **callable_name, int *callable_name_len, zend_fcall_info_cache *fcc, char **error TSRMLS_DC)
+{
+    zend_string *key = NULL;
+    char *tmp = (char *)emalloc(key->len);
+    int ret = zend_is_callable_ex(callable, NULL, check_flags, &key, fcc, error);
+    memcpy(tmp, key->val, key->len);
+    zend_string_release(key);
+    *callable_name = tmp;
     return ret;
 }
 
