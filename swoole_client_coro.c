@@ -825,8 +825,9 @@ static PHP_METHOD(swoole_client_coro, sendfile)
 {
     char *file;
     zend_size_t file_len;
+    long offset = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &file, &file_len) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &file, &file_len, &offset) == FAILURE)
     {
         return;
     }
@@ -855,7 +856,7 @@ static PHP_METHOD(swoole_client_coro, sendfile)
     }
     //clear errno
     SwooleG.error = 0;
-    int ret = cli->sendfile(cli, file);
+    int ret = cli->sendfile(cli, file, offset);
     if (ret < 0)
     {
         SwooleG.error = errno;
