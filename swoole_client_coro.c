@@ -110,6 +110,10 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
 	zval *retval = NULL;
 	zval *result = NULL;
 
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+
 	if (type == SW_CLIENT_CB_onConnect 
 #ifdef SW_USE_OPENSSL
 			|| type == SW_CLIENT_CB_onSSLReady
