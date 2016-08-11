@@ -87,7 +87,7 @@ typedef struct _swClient
 
     int (*connect)(struct _swClient *cli, char *host, int port, double _timeout, int sock_flag);
     int (*send)(struct _swClient *cli, char *data, int length, int flags);
-    int (*sendfile)(struct _swClient *cli, char *filename);
+    int (*sendfile)(struct _swClient *cli, char *filename, off_t offset);
     int (*recv)(struct _swClient *cli, char *data, int len, int flags);
     int (*close)(struct _swClient *cli);
 
