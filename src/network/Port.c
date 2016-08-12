@@ -426,14 +426,12 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                     goto recv_data;
                 }
             }
-            else if (request->content_length > protocol->package_max_length)
+            else if (request->content_length > (protocol->package_max_length - SW_HTTP_HEADER_MAX_SIZE))
             {
-                swWarn("content-length more than the package_max_length[%d].", protocol->package_max_length);
+                swWarn("Content-Length is too big, MaxSize=[%d].", protocol->package_max_length - SW_HTTP_HEADER_MAX_SIZE);
                 goto close_fd;
             }
         }
-
-        uint32_t request_size = 0;
 
         //http header is not the end
         if (request->header_length == 0)
@@ -447,13 +445,10 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             {
                 goto recv_data;
             }
-            request_size = request->content_length + request->header_length;
-        }
-        else
-        {
-            request_size = request->content_length + request->header_length;
         }
 
+        //total length
+        uint32_t request_size = request->content_length + request->header_length;
         if (request_size > buffer->size && swString_extend(buffer, request_size) < 0)
         {
             goto close_fd;
