@@ -253,6 +253,11 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
 
 static void client_onConnect(swClient *cli)
 {
+    if (cli->timeout_id > 0)
+    {
+        php_swoole_clear_timer_coro(cli->timeout_id TSRMLS_CC);
+		cli->timeout_id = 0;
+    }
     zval *zobject = cli->object;
 #ifdef SW_USE_OPENSSL
     if (cli->ssl_wait_handshake)
@@ -1042,7 +1047,6 @@ static PHP_METHOD(swoole_client_coro, close)
 		cli->timeout_id = 0;
     }
     //Connection error, or short tcp connection.
-    //No keep connection
 	cli->released = 1;
 	ret = cli->close(cli);
 	php_swoole_client_coro_free(getThis(), cli TSRMLS_CC);
@@ -1082,7 +1086,9 @@ static PHP_METHOD(swoole_client_coro, enableSSL)
 
 	SwooleG.main_reactor->set(SwooleG.main_reactor, cli->socket->fd, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE);
 
-    RETURN_TRUE;
+	php_context *sw_current_context = swoole_get_property(getThis(), 0);
+	coro_save(return_value, return_value_ptr, sw_current_context);
+	coro_yield();
 }
 
 static PHP_METHOD(swoole_client_coro, getPeerCert)
