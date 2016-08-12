@@ -266,33 +266,33 @@ enum swWorker_status
 };
 //-------------------------------------------------------------------------------
 
-#define swWarn(str,...)        SwooleGS->lock.lock(&SwooleGS->lock);\
+#define swWarn(str,...)        SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
 snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str,__func__,##__VA_ARGS__);\
 swLog_put(SW_LOG_WARNING, sw_error);\
-SwooleGS->lock.unlock(&SwooleGS->lock)
+SwooleGS->lock_2.unlock(&SwooleGS->lock_2)
 
-#define swNotice(str,...)        SwooleGS->lock.lock(&SwooleGS->lock);\
+#define swNotice(str,...)        SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
 snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);\
 swLog_put(SW_LOG_NOTICE, sw_error);\
-SwooleGS->lock.unlock(&SwooleGS->lock)
+SwooleGS->lock_2.unlock(&SwooleGS->lock_2)
 
-#define swError(str,...)       SwooleGS->lock.lock(&SwooleGS->lock);\
+#define swError(str,...)       SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
 snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
 swLog_put(SW_LOG_ERROR, sw_error);\
-SwooleGS->lock.unlock(&SwooleGS->lock);\
+SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
 exit(1)
 
-#define swSysError(str,...) SwooleGS->lock.lock(&SwooleGS->lock);\
+#define swSysError(str,...) SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
 snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): "str" Error: %s[%d].",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
 swLog_put(SW_LOG_ERROR, sw_error);\
-SwooleGS->lock.unlock(&SwooleGS->lock)
+SwooleGS->lock_2.unlock(&SwooleGS->lock_2)
 
 #define swoole_error_log(level, errno, str, ...)      do{SwooleG.error=errno;\
     if (level >= SwooleG.log_level){\
     snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s (ERROR %d): "str,__func__,errno,##__VA_ARGS__);\
-    SwooleGS->lock.lock(&SwooleGS->lock);\
+    SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
     swLog_put( SW_LOG_ERROR, sw_error);\
-    SwooleGS->lock.unlock(&SwooleGS->lock);}}while(0)
+    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}}while(0)
 
 #ifdef SW_DEBUG_REMOTE_OPEN
 #define swDebug(str,...) int __debug_log_n = snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);\
@@ -324,17 +324,17 @@ enum swTraceType
 };
 
 #if SW_LOG_TRACE_OPEN == 1
-#define swTraceLog(id,str,...)      SwooleGS->lock.lock(&SwooleGS->lock);\
+#define swTraceLog(id,str,...)      SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
 snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str,__func__,##__VA_ARGS__);\
 swLog_put(SW_LOG_TRACE, sw_error);\
-SwooleGS->lock.unlock(&SwooleGS->lock)
+SwooleGS->lock_2.unlock(&SwooleGS->lock_2)
 #elif SW_LOG_TRACE_OPEN == 0
 #define swTraceLog(id,str,...)
 #else
-#define swTraceLog(id,str,...)      if (id==SW_LOG_TRACE_OPEN) {SwooleGS->lock.lock(&SwooleGS->lock);\
+#define swTraceLog(id,str,...)      if (id==SW_LOG_TRACE_OPEN) {SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
 snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str,__func__,##__VA_ARGS__);\
 swLog_put(SW_LOG_TRACE, sw_error);\
-SwooleGS->lock.unlock(&SwooleGS->lock);}
+SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
 #endif
 
 #define swYield()              sched_yield() //or usleep(1)
@@ -1699,6 +1699,7 @@ typedef struct
 
     sw_atomic_t spinlock;
     swLock lock;
+    swLock lock_2;
 
     swProcessPool task_workers;
     swProcessPool event_workers;

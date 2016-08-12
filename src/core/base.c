@@ -88,6 +88,7 @@ void swoole_init(void)
 
     //init global lock
     swMutex_create(&SwooleGS->lock, 1);
+    swMutex_create(&SwooleGS->lock_2, 1);
 
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
     {
