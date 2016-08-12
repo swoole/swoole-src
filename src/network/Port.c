@@ -384,136 +384,10 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             goto close_fd;
         }
 
-        //DELETE
-        if (request->method == HTTP_DELETE)
+        if (request->method > HTTP_PRI)
         {
-            if (request->content_length == 0 && swHttpRequest_have_content_length(request) == SW_FALSE)
-            {
-                goto http_no_entity;
-            }
-            else
-            {
-                goto http_entity;
-            }
-        }
-        //GET HEAD OPTIONS
-        else if (request->method == HTTP_GET || request->method == HTTP_HEAD || request->method == HTTP_OPTIONS)
-        {
-            http_no_entity:
-            if (memcmp(buffer->str + buffer->length - 4, "\r\n\r\n", 4) == 0)
-            {
-                swReactorThread_dispatch(conn, buffer->str, buffer->length);
-                swHttpRequest_free(conn);
-            }
-            else if (buffer->size == buffer->length)
-            {
-                swWarn("[0]http header is too long.");
-                goto close_fd;
-            }
-            //wait more data
-            else
-            {
-                goto recv_data;
-            }
-        }
-        //POST PUT HTTP_PATCH
-        else if (request->method == HTTP_POST || request->method == HTTP_PUT || request->method == HTTP_PATCH)
-        {
-            http_entity:
-            if (request->content_length == 0)
-            {
-                if (swHttpRequest_get_content_length(request) < 0)
-                {
-                    if (buffer->size == buffer->length)
-                    {
-                        swWarn("[1]http header is too long.");
-                        goto close_fd;
-                    }
-                    else
-                    {
-                        goto recv_data;
-                    }
-                }
-                else if (request->content_length > protocol->package_max_length)
-                {
-                    swWarn("content-length more than the package_max_length[%d].", protocol->package_max_length);
-                    goto close_fd;
-                }
-            }
-
-            uint32_t request_size = 0;
-
-            //http header is not the end
-            if (request->header_length == 0)
-            {
-                if (buffer->size == buffer->length)
-                {
-                    swWarn("[2]http header is too long.");
-                    goto close_fd;
-                }
-                if (swHttpRequest_get_header_length(request) < 0)
-                {
-                    goto recv_data;
-                }
-                request_size = request->content_length + request->header_length;
-            }
-            else
-            {
-                request_size = request->content_length + request->header_length;
-            }
-
-            if (request_size > buffer->size && swString_extend(buffer, request_size) < 0)
-            {
-                goto close_fd;
-            }
-
-            //discard the redundant data
-            if (buffer->length > request_size)
-            {
-                buffer->length = request_size;
-            }
-
-            if (buffer->length == request_size)
-            {
-                swReactorThread_dispatch(conn, buffer->str, buffer->length);
-                swHttpRequest_free(conn);
-            }
-            else
-            {
-#ifdef SW_HTTP_100_CONTINUE
-                //Expect: 100-continue
-                if (swHttpRequest_has_expect_header(request))
-                {
-                    swSendData _send;
-                    _send.data = "HTTP/1.1 100 Continue\r\n\r\n";
-                    _send.length = strlen(_send.data);
-
-                    int send_times = 0;
-                    direct_send:
-                    n = swConnection_send(conn, _send.data, _send.length, 0);
-                    if (n < _send.length)
-                    {
-                        _send.data += n;
-                        _send.length -= n;
-                        send_times++;
-                        if (send_times < 10)
-                        {
-                            goto direct_send;
-                        }
-                        else
-                        {
-                            swWarn("send http header failed");
-                        }
-                    }
-                }
-                else
-                {
-                    swTrace("PostWait: request->content_length=%d, buffer->length=%zd, request->header_length=%d\n",
-                            request->content_length, buffer->length, request->header_length);
-                }
-#endif
-                goto recv_data;
-            }
+            swWarn("method no support");
+            goto close_fd;
         }
 #ifdef SW_USE_HTTP2
         else if (request->method == HTTP_PRI)
@@ -530,10 +404,107 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             return SW_OK;
         }
 #endif
+
+        if (request->content_length == 0)
+        {
+            if (swHttpRequest_get_content_length(request) < 0)
+            {
+                if (memcmp(buffer->str + buffer->length - 4, "\r\n\r\n", 4) == 0)
+                {
+                    swReactorThread_dispatch(conn, buffer->str, buffer->length);
+                    swHttpRequest_free(conn);
+                    return SW_OK;
+                }
+                else if (buffer->size == buffer->length)
+                {
+                    swWarn("[0]http header is too long.");
+                    goto close_fd;
+                }
+                //wait more data
+                else
+                {
+                    goto recv_data;
+                }
+            }
+            else if (request->content_length > protocol->package_max_length)
+            {
+                swWarn("content-length more than the package_max_length[%d].", protocol->package_max_length);
+                goto close_fd;
+            }
+        }
+
+        uint32_t request_size = 0;
+
+        //http header is not the end
+        if (request->header_length == 0)
+        {
+            if (buffer->size == buffer->length)
+            {
+                swWarn("[2]http header is too long.");
+                goto close_fd;
+            }
+            if (swHttpRequest_get_header_length(request) < 0)
+            {
+                goto recv_data;
+            }
+            request_size = request->content_length + request->header_length;
+        }
         else
         {
-            swWarn("method no support");
+            request_size = request->content_length + request->header_length;
+        }
+
+        if (request_size > buffer->size && swString_extend(buffer, request_size) < 0)
+        {
             goto close_fd;
+        }
+
+        //discard the redundant data
+        if (buffer->length > request_size)
+        {
+            buffer->length = request_size;
+        }
+
+        if (buffer->length == request_size)
+        {
+            swReactorThread_dispatch(conn, buffer->str, buffer->length);
+            swHttpRequest_free(conn);
+        }
+        else
+        {
+#ifdef SW_HTTP_100_CONTINUE
+            //Expect: 100-continue
+            if (swHttpRequest_has_expect_header(request))
+            {
+                swSendData _send;
+                _send.data = "HTTP/1.1 100 Continue\r\n\r\n";
+                _send.length = strlen(_send.data);
+
+                int send_times = 0;
+                direct_send:
+                n = swConnection_send(conn, _send.data, _send.length, 0);
+                if (n < _send.length)
+                {
+                    _send.data += n;
+                    _send.length -= n;
+                    send_times++;
+                    if (send_times < 10)
+                    {
+                        goto direct_send;
+                    }
+                    else
+                    {
+                        swWarn("send http header failed");
+                    }
+                }
+            }
+            else
+            {
+                swTrace("PostWait: request->content_length=%d, buffer->length=%zd, request->header_length=%d\n",
+                        request->content_length, buffer->length, request->header_length);
+            }
+#endif
+            goto recv_data;
         }
     }
     return SW_OK;
