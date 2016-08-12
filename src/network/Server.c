@@ -660,10 +660,7 @@ int swServer_start(swServer *serv)
     {
         ret = swServer_start_proxy(serv);
     }
-    if (ret < 0)
-    {
-        SwooleGS->start = 0;
-    }
+    SwooleGS->start = 0;
     swServer_free(serv);
     return SW_OK;
 }
