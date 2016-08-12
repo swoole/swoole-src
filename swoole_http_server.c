@@ -1868,14 +1868,14 @@ static PHP_METHOD(swoole_http_response, sendfile)
 #ifdef SW_HAVE_ZLIB
     if (ctx->gzip_enable)
     {
-        swoole_php_error(E_WARNING, "cannot use sendfile when enable gzip compression.");
+        swoole_php_error(E_ERROR, "cannot use sendfile when enable gzip compression.");
         RETURN_FALSE;
     }
 #endif
 
     if (ctx->chunk)
     {
-        swoole_php_error(E_WARNING, "cannot use sendfile when enable Http-Chunk.");
+        swoole_php_error(E_ERROR, "cannot use sendfile when enable Http-Chunk.");
         RETURN_FALSE;
     }
 
