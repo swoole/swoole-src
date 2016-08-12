@@ -1145,6 +1145,8 @@ static void swServer_signal_hanlder(int sig)
         {
             SwooleG.running = 0;
         }
+        // Reset start status
+        SwooleGS->start = 0;
         swNotice("Server is shutdown now.");
         break;
     case SIGALRM:
