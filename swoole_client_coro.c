@@ -139,7 +139,7 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
 		sw_zval_ptr_dtor(&result);
 	}
 
-	if (type == SW_CLIENT_CB_onError)
+	if (type == SW_CLIENT_CB_onError || type == SW_CLIENT_CB_onClose)
 	{
 		SW_MAKE_STD_ZVAL(result);
 		ZVAL_BOOL(result, 0);
@@ -273,6 +273,20 @@ static void client_onConnect(swClient *cli)
 
 static void client_onClose(swClient *cli)
 {
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+    if (cli->timeout_id > 0)
+    {
+        php_swoole_clear_timer_coro(cli->timeout_id TSRMLS_CC);
+		cli->timeout_id = 0;
+    }
+    zval *zobject = cli->object;
+    if (!cli->released)
+    {
+        php_swoole_client_free(zobject, cli TSRMLS_CC);
+    }
+    client_execute_callback(zobject, SW_CLIENT_CB_onClose);
 }
 
 static void client_onError(swClient *cli)
