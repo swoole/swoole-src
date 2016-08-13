@@ -1048,8 +1048,6 @@ static PHP_METHOD(swoole_client_coro, getpeername)
 
 static PHP_METHOD(swoole_client_coro, close)
 {
-    int ret = 1;
-
     swClient *cli = swoole_get_object(getThis());
     if (!cli)
     {
@@ -1082,7 +1080,7 @@ static PHP_METHOD(swoole_client_coro, close)
 	swoole_client_coro_property *ccp = swoole_get_property(getThis(), 1);
 	ccp->iowait = SW_CLIENT_CORO_STATUS_READY;
 
-    SW_CHECK_RETURN(ret);
+	RETURN_TRUE;
 }
 
 #ifdef SW_USE_OPENSSL
