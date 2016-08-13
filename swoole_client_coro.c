@@ -804,13 +804,28 @@ static PHP_METHOD(swoole_client_coro, sendto)
     swClient *cli = swoole_get_object(getThis());
     if (!cli)
     {
-        cli = php_swoole_client_coro_new(getThis(), ip, ip_len, port);
-        if (cli == NULL)
-        {
-            RETURN_FALSE;
-        }
-        cli->socket->active = 1;
-        swoole_set_object(getThis(), cli);
+		zval *retval = NULL;
+		zval *remote_ip, *remote_port;
+		zend_bool r = 1;
+		SW_MAKE_STD_ZVAL(remote_ip);
+		SW_MAKE_STD_ZVAL(remote_port);
+		ZVAL_STRINGL(remote_ip, ip, ip_len, 1);
+		ZVAL_LONG(remote_port, port);
+		sw_zend_call_method_with_2_params(&getThis(), swoole_client_coro_class_entry_ptr, NULL, "connect", &retval, remote_ip, remote_port);
+		sw_zval_ptr_dtor(&remote_ip);
+		sw_zval_ptr_dtor(&remote_port);
+		if (retval)
+		{
+			r = Z_BVAL_P(retval);
+			sw_zval_ptr_dtor(&retval);
+		}
+
+		if (!r)
+		{
+			RETURN_FALSE;
+		}
+
+		cli = swoole_get_object(getThis());
     }
 
     int ret;
