@@ -284,7 +284,7 @@ static void client_onClose(swClient *cli)
     zval *zobject = cli->object;
     if (!cli->released)
     {
-        php_swoole_client_free(zobject, cli TSRMLS_CC);
+        php_swoole_client_coro_free(zobject, cli TSRMLS_CC);
     }
     client_execute_callback(zobject, SW_CLIENT_CB_onClose);
 }
@@ -1077,7 +1077,6 @@ static PHP_METHOD(swoole_client_coro, close)
     }
     //Connection error, or short tcp connection.
 	cli->released = 1;
-	ret = cli->close(cli);
 	php_swoole_client_coro_free(getThis(), cli TSRMLS_CC);
 
 	swoole_client_coro_property *ccp = swoole_get_property(getThis(), 1);
