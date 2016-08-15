@@ -302,6 +302,10 @@ struct _swServer
      * The number of pipe per reactor maintenance
      */
     uint16_t reactor_pipe_num;
+    /**
+     * UDP thread number
+     */
+    uint16_t udp_thread_num;
 
     uint8_t factory_mode;
 
@@ -532,7 +536,7 @@ static sw_inline swListenPort* swServer_get_port(swServer *serv, int fd)
 int swServer_udp_send(swServer *serv, swSendData *resp);
 int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length);
 int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length);
-int swServer_tcp_sendfile(swServer *serv, int fd, char *filename, uint32_t len);
+int swServer_tcp_sendfile(swServer *serv, int fd, char *filename, uint32_t len, off_t offset);
 int swServer_confirm(swServer *serv, int fd);
 
 //UDP, UDP必然超过0x1000000
@@ -836,6 +840,9 @@ void swPort_init(swListenPort *port);
 void swPort_free(swListenPort *port);
 void swPort_set_protocol(swListenPort *ls);
 int swPort_set_option(swListenPort *ls);
+#ifdef SW_USE_OPENSSL
+int swPort_enable_ssl_encrypt(swListenPort *ls);
+#endif
 
 void swWorker_free(swWorker *worker);
 void swWorker_onStart(swServer *serv);

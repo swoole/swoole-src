@@ -158,10 +158,9 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
         //server active close, discard data.
         if (conn->closed)
         {
+            //Connection has been clsoed by server
             if (!(task->data.info.type == SW_EVENT_CLOSE && conn->close_force))
             {
-                swWarn("dispatch[type=%d] failed, connection#%d[session_id=%d] is closed by server.",
-                        task->data.info.type, task->data.info.fd, conn->session_id);
                 return SW_OK;
             }
         }

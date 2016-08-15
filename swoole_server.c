@@ -2125,6 +2125,7 @@ PHP_METHOD(swoole_server, sendfile)
 
     char *filename;
     long fd;
+    long offset = 0;
 
     if (SwooleGS->start == 0)
     {
@@ -2132,7 +2133,7 @@ PHP_METHOD(swoole_server, sendfile)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls", &fd, &filename, &len) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls|l", &fd, &filename, &len, &offset) == FAILURE)
     {
         return;
     }
@@ -2144,8 +2145,21 @@ PHP_METHOD(swoole_server, sendfile)
         RETURN_FALSE;
     }
 
+    struct stat file_stat;
+    if (stat(filename, &file_stat) < 0)
+    {
+        swoole_php_sys_error(E_WARNING, "stat(%s) failed.", filename);
+        RETURN_FALSE;
+    }
+
+    if (file_stat.st_size <= offset)
+    {
+        swoole_php_error(E_WARNING, "file[offset=%ld] is empty.", offset);
+        RETURN_FALSE;
+    }
+
     swServer *serv = swoole_get_object(zobject);
-    SW_CHECK_RETURN(swServer_tcp_sendfile(serv, (int) fd, filename, len));
+    SW_CHECK_RETURN(swServer_tcp_sendfile(serv, (int) fd, filename, len, offset));
 }
 
 PHP_METHOD(swoole_server, close)

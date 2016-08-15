@@ -268,11 +268,6 @@ static PHP_METHOD(swoole_server_port, set)
             convert_to_long(v);
             port->ssl_verify_depth = (int) Z_LVAL_P(v);
         }
-        if (port->open_ssl_encrypt && !port->ssl_key_file)
-        {
-            swoole_php_fatal_error(E_ERROR, "ssl require key file.");
-            return;
-        }
         if (php_swoole_array_get_value(vht, "ssl_prefer_server_ciphers", v))
         {
             convert_to_boolean(v);
@@ -308,6 +303,11 @@ static PHP_METHOD(swoole_server_port, set)
         //        convert_to_string(v);
         //        port->ssl_config.session_cache = strdup(Z_STRVAL_P(v));
         //    }
+        if (swPort_enable_ssl_encrypt(port) < 0)
+        {
+            swoole_php_fatal_error(E_ERROR, "swPort_enable_ssl_encrypt() failed.");
+            RETURN_FALSE;
+        }
     }
 #endif
 
