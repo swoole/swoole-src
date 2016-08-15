@@ -47,7 +47,6 @@ static void swoole_coroutine_util_resume(void *data)
 
 static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache, zval **return_value_ptr)
 {
-    zval_ptr_dtor(return_value_ptr);
     int i;
     zend_execute_data *current = EG(current_execute_data);
     zval **origin_return_ptr_ptr;
@@ -55,12 +54,12 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
     zend_op **origin_opline_ptr;
 
     //current->call--;
-    char *func_name;
-    if (!sw_zend_is_callable_ex(fci->function_name, fci->object_ptr, 0, &func_name, NULL, fci_cache, NULL TSRMLS_CC))
-    {
-        return;
-    }
-    efree(func_name);
+    //char *func_name;
+    //if (!sw_zend_is_callable_ex(fci->function_name, fci->object_ptr, 0, &func_name, NULL, fci_cache, NULL TSRMLS_CC))
+    //{
+    //    return;
+    //}
+    //efree(func_name);
     zend_op_array *op_array = (zend_op_array *)fci_cache->function_handler;
     //zend_vm_stack_clear_multiple(1 TSRMLS_CC);
     //ZEND_VM_STACK_GROW_IF_NEEDED(fci->param_count + 1);
@@ -152,6 +151,7 @@ static PHP_METHOD(swoole_coroutine_util, call_user_function)
     zend_fcall_info fci;
     zend_fcall_info_cache fci_cache;
 
+    zval_ptr_dtor(return_value_ptr);
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "f*",&fci, &fci_cache, &fci.params, &fci.param_count) == FAILURE)
     {
         return;
