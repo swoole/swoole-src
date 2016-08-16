@@ -788,7 +788,7 @@ static PHP_METHOD(swoole_client_coro, send)
         SwooleG.error = errno;
         swoole_php_sys_error(E_WARNING, "send(%d) %d bytes failed.", cli->socket->fd, data_len);
         zend_update_property_long(swoole_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
-        RETVAL_FALSE;
+        RETURN_FALSE;
     }
     else
     {
@@ -935,7 +935,10 @@ static PHP_METHOD(swoole_client_coro, recv)
 		RETURN_ZVAL(result, 0, 1);
 	}
 	php_context *sw_current_context = swoole_get_property(getThis(), 0);
-    cli->timeout_id = php_swoole_add_timer_coro((int) (cli->timeout * 1000), cli->socket->fd, (void *) sw_current_context TSRMLS_CC);
+	if (cli->timeout > 0)
+	{
+		cli->timeout_id = php_swoole_add_timer_coro((int) (cli->timeout * 1000), cli->socket->fd, (void *) sw_current_context TSRMLS_CC);
+	}
 	ccp->iowait = SW_CLIENT_CORO_STATUS_WAIT;
 	coro_save(return_value, return_value_ptr, sw_current_context);
 	coro_yield();
