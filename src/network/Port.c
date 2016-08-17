@@ -436,14 +436,17 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
         //http header is not the end
         if (request->header_length == 0)
         {
-            if (buffer->size == buffer->length)
-            {
-                swWarn("[2]http header is too long.");
-                goto close_fd;
-            }
             if (swHttpRequest_get_header_length(request) < 0)
             {
-                goto recv_data;
+                if (buffer->size == buffer->length)
+                {
+                    swWarn("[2]http header is too long.");
+                    goto close_fd;
+                }
+                else
+                {
+                    goto recv_data;
+                }
             }
         }
 
