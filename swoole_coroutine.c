@@ -179,6 +179,7 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
     {
         swReactorCheckPoint.cnt++;
         zend_execute_ex(execute_data TSRMLS_CC);
+        swReactorCheckPoint.cnt--;
         if (EG(return_value_ptr_ptr) != NULL)
         {
             *retval = *EG(return_value_ptr_ptr);
@@ -311,6 +312,7 @@ int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retva
         //coro exit
         swReactorCheckPoint.cnt++;
         zend_execute_ex(sw_current_context->current_execute_data TSRMLS_CC);
+        swReactorCheckPoint.cnt--;
         if (EG(return_value_ptr_ptr) != NULL)
         {
             *coro_retval = *EG(return_value_ptr_ptr);
