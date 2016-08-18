@@ -35,8 +35,8 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2016-07-28</date>
-    <time>11:48:51</time>
+    <date>2016-08-18</date>
+    <time>16:48:51</time>
     <version>
 		<release>1.8.9</release>
 		<api>1.8.9</api>
@@ -47,17 +47,15 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Added Swoole\Server\Port->getSocket
-- Added Swoole\Server->getClientInfo()['close_errno'] property
+- Added namespace class alias
+- Added Swoole\Http\Client->addFile interface, support upload file
 - Added Swoole\Event namespace and class styles
-- Added Swoole\MySQL character set support
-- Added Swoole\Server->taskWaitMulti can perform multiple tasks concurrently
-- Added Swoole\Client->getPeerCert method
-- Added Swoole\Client->pause and Swoole\Client->resume
-- Fixed Swoole\Server->taskwait cannot use in BASE mode 
-- Fixed Swoole\MySQL client crash when receive more than 250 field query statement
-- Fixed Swoole\Server->task third parameter passed Callback Crash at PHP7
-- Fixed Swoole\Http\Request->files crash on PHP7 when externally referenced
+- Added Swoole\Http\Client no ContentLength response
+- Added --with-openssl compiler option, can specify the path of the OpenSSL Library
+- Fixed Swoole\MySQL memory leak on PHP7
+- Fixed Swoole\Redis memory leak on PHP7
+- Fixed Swoole\Http\Client memory leak on PHP7
+- Fixed Swoole\Http\Server crash when uploading files on PHP7
     </notes>
 	<contents>
 		<dir name="/">
