@@ -128,6 +128,7 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
         {
             efree(fci->params);
         }
+        --swReactorCheckPoint.cnt;
         EG(active_op_array) = origin_active_op_array;
         EG(return_value_ptr_ptr) = origin_return_ptr_ptr;
         EG(opline_ptr) = origin_opline_ptr;
