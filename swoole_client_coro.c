@@ -114,6 +114,7 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
+	swoole_client_coro_property *ccp = swoole_get_property(zobject, 1);
 	if (type == SW_CLIENT_CB_onConnect 
 #ifdef SW_USE_OPENSSL
 			|| type == SW_CLIENT_CB_onSSLReady
@@ -126,7 +127,6 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
 		{
 			return;
 		}
-		swoole_client_coro_property *ccp = swoole_get_property(zobject, 1);
 		ccp->iowait = SW_CLIENT_CORO_STATUS_READY;
 		SW_MAKE_STD_ZVAL(result);
 		ZVAL_BOOL(result, 1);
@@ -137,9 +137,10 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
 			sw_zval_ptr_dtor(&retval);
 		}
 		sw_zval_ptr_dtor(&result);
+		return;
 	}
 
-	if (type == SW_CLIENT_CB_onError || type == SW_CLIENT_CB_onClose)
+	if (type == SW_CLIENT_CB_onError || (type == SW_CLIENT_CB_onClose && ccp->iowait > SW_CLIENT_CORO_STATUS_READY))
 	{
 		SW_MAKE_STD_ZVAL(result);
 		ZVAL_BOOL(result, 0);
@@ -150,6 +151,7 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
 			sw_zval_ptr_dtor(&retval);
 		}
 		sw_zval_ptr_dtor(&result);
+		return;
 	}
 }
 
@@ -222,6 +224,8 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
 	swoole_client_coro_property *ccp = swoole_get_property(zobject, 1);
 	if (ccp->iowait == SW_CLIENT_CORO_STATUS_WAIT)
 	{
+		ccp->iowait = SW_CLIENT_CORO_STATUS_READY;
+
 		zval *retval = NULL;
 		zval *zdata;
 		SW_MAKE_STD_ZVAL(zdata);
@@ -1077,11 +1081,10 @@ static PHP_METHOD(swoole_client_coro, close)
 		cli->timeout_id = 0;
     }
     //Connection error, or short tcp connection.
+	swoole_client_coro_property *ccp = swoole_get_property(getThis(), 1);
+	ccp->iowait = SW_CLIENT_CORO_STATUS_CLOSED;
 	cli->released = 1;
 	php_swoole_client_coro_free(getThis(), cli TSRMLS_CC);
-
-	swoole_client_coro_property *ccp = swoole_get_property(getThis(), 1);
-	ccp->iowait = SW_CLIENT_CORO_STATUS_READY;
 
 	RETURN_TRUE;
 }
