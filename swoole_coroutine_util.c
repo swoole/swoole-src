@@ -148,7 +148,6 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
 
 static PHP_METHOD(swoole_coroutine_util, call_user_function)
 {
-    zval *ret;
     zend_fcall_info fci;
     zend_fcall_info_cache fci_cache;
 
