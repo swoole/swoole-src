@@ -24,7 +24,7 @@
 #define SW_EX_CV_NUM(ex, n) (((zval ***)(((char *)(ex)) + ZEND_MM_ALIGNED_SIZE(sizeof(zend_execute_data)))) + n)
 #define SW_EX_CV(var) (*SW_EX_CV_NUM(execute_data, var))
 
-coro_checkpoint_stack swReactorCheckPoint;
+jmp_buf *swReactorCheckPoint;
 coro_global COROG;
 
 int coro_init(TSRMLS_D)
@@ -37,7 +37,8 @@ int coro_init(TSRMLS_D)
 		COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
 	}
 	COROG.require = 0;
-    swReactorCheckPoint.cnt = 0;
+    //swReactorCheckPoint.cnt = 0;
+    swReactorCheckPoint = emalloc(sizeof(jmp_buf));
     return 0;
 }
 
@@ -175,11 +176,11 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
     COROG.current_coro->post_callback = post_callback;
     COROG.current_coro->post_callback_params = params;
 	COROG.require = 1;
-    if (!setjmp(swReactorCheckPoint.checkpoints[swReactorCheckPoint.cnt]))
+    if (!setjmp(*swReactorCheckPoint))
     {
-        swReactorCheckPoint.cnt++;
+        //swReactorCheckPoint.cnt++;
         zend_execute_ex(execute_data TSRMLS_CC);
-        swReactorCheckPoint.cnt--;
+        //swReactorCheckPoint.cnt--;
         if (EG(return_value_ptr_ptr) != NULL)
         {
             *retval = *EG(return_value_ptr_ptr);
@@ -190,7 +191,7 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
     }
     else
     {
-        swReactorCheckPoint.cnt--;
+        //swReactorCheckPoint.cnt--;
         coro_status = CORO_YIELD;
     }
 	COROG.require = 0;
@@ -307,12 +308,12 @@ int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retva
     COROG.require = 1;
 
     int coro_status;
-    if (!setjmp(swReactorCheckPoint.checkpoints[swReactorCheckPoint.cnt]))
+    if (!setjmp(*swReactorCheckPoint))
     {
         //coro exit
-        swReactorCheckPoint.cnt++;
+        //swReactorCheckPoint.cnt++;
         zend_execute_ex(sw_current_context->current_execute_data TSRMLS_CC);
-        swReactorCheckPoint.cnt--;
+        //swReactorCheckPoint.cnt--;
         if (EG(return_value_ptr_ptr) != NULL)
         {
             *coro_retval = *EG(return_value_ptr_ptr);
@@ -323,7 +324,7 @@ int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retva
     else
     {
         //coro yield
-        --swReactorCheckPoint.cnt;
+        //--swReactorCheckPoint.cnt;
         coro_status = CORO_YIELD;
     }
 	COROG.require = 0;
@@ -333,7 +334,7 @@ int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retva
 
 sw_inline void coro_yield()
 {
-    longjmp(swReactorCheckPoint.checkpoints[swReactorCheckPoint.cnt - 1], 1);
+    longjmp(*swReactorCheckPoint, 1);
 }
 
 sw_inline void coro_handle_timeout()
