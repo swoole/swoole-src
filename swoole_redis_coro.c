@@ -21,6 +21,8 @@
 #ifdef SW_USE_REDIS
 #include <hiredis/hiredis.h>
 #include <hiredis/async.h>
+#include <ext/standard/php_var.h>
+#include <ext/standard/php_smart_str.h>
 
 #define SW_REDIS_COMMAND_BUFFER_SIZE   64
 #define SW_BITOP_MIN_OFFSET 0
@@ -147,6 +149,21 @@ static int isset_event_callback = 0;
 	argvlen[i] = str_len; \
 	argv[i] = estrndup(str, argvlen[i]); \
 	i++;
+#define SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(zval) \
+	if (redis->serialize) { \
+		smart_str sstr = {0}; \
+		php_serialize_data_t s_ht; \
+		PHP_VAR_SERIALIZE_INIT(s_ht); \
+		php_var_serialize(&sstr, &zval, &s_ht TSRMLS_CC); \
+		argvlen[i] = (size_t)sstr.len; \
+		argv[i] = sstr.c; \
+		PHP_VAR_SERIALIZE_DESTROY(s_ht); \
+	} else { \
+		convert_to_string(zval); \
+		argvlen[i] = (size_t) Z_STRLEN_P(zval); \
+		argv[i] = estrndup(Z_STRVAL_P(zval), argvlen[i]); \
+	} \
+	i++;
 #define SW_REDIS_COMMAND_ALLOC_ARGV \
     size_t stack_argvlen[SW_REDIS_COMMAND_BUFFER_SIZE]; \
     char *stack_argv[SW_REDIS_COMMAND_BUFFER_SIZE]; \
@@ -205,6 +222,7 @@ typedef struct
 	uint16_t queued_cmd_count;
 	zval *pipeline_result;
 	zval *result;
+	zend_bool serialize;
 
     zval *object;
     zval _object;
@@ -351,7 +369,7 @@ static sw_inline void sw_redis_command_key_var_val(INTERNAL_FUNCTION_PARAMETERS,
     SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(z_args[0]), Z_STRLEN_P(z_args[0]))
 	for (j = 1; j < argc - 1; ++j)
 	{
-		SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(z_args[j]), Z_STRLEN_P(z_args[j]))
+		SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(z_args[j])
 	}
 	efree(z_args);
     SW_REDIS_COMMAND(argc);
@@ -378,7 +396,7 @@ static sw_inline void sw_redis_command_key_long_val(INTERNAL_FUNCTION_PARAMETERS
     char str[32];
     sprintf(str, "%ld", l_val);
     SW_REDIS_COMMAND_ARGV_FILL(str, strlen(str))
-    SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(z_value), Z_STRLEN_P(z_value))
+    SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(z_value)
     SW_REDIS_COMMAND(4);
     SW_REDIS_COMMAND_YIELD  	
 }
@@ -508,7 +526,7 @@ static sw_inline void sw_redis_command_key_val(INTERNAL_FUNCTION_PARAMETERS, cha
     char *argv[3];
     SW_REDIS_COMMAND_ARGV_FILL(cmd, cmd_len)
     SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
-    SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(z_value), Z_STRLEN_P(z_value))
+    SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(z_value)
     SW_REDIS_COMMAND(3)
     SW_REDIS_COMMAND_YIELD
 }
@@ -906,8 +924,9 @@ static PHP_METHOD(swoole_redis_coro, connect)
     char *host;
     zend_size_t host_len;
     long port;
+	zend_bool serialize = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl", &host, &host_len, &port) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl|b", &host, &host_len, &port, &serialize) == FAILURE)
     {
         return;
     }
@@ -920,6 +939,7 @@ static PHP_METHOD(swoole_redis_coro, connect)
     }
 
     swRedisClient *redis = swoole_get_object(getThis());
+	redis->serialize = serialize;
     redisAsyncContext *context;
 
     if (redis->state != SWOOLE_REDIS_CORO_STATE_CONNECT
@@ -1161,14 +1181,12 @@ static PHP_METHOD(swoole_redis_coro, set)
 	
 	SW_REDIS_COMMAND_ALLOC_ARGV
 
-    convert_to_string(z_value);
-
 	int i = 0;
 	if (exp_type || set_type)
 	{
 		SW_REDIS_COMMAND_ARGV_FILL("SET", 3)
 		SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
-		SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(z_value), Z_STRLEN_P(z_value))
+		SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(z_value)
 
 		if (set_type)
 		{
@@ -1191,11 +1209,11 @@ static PHP_METHOD(swoole_redis_coro, set)
 		sprintf(str, "%ld", expire);
 		SW_REDIS_COMMAND_ARGV_FILL(str, (size_t) strlen(str))
 
-		SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(z_value), Z_STRLEN_P(z_value))
+		SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(z_value)
 	} else {
 		SW_REDIS_COMMAND_ARGV_FILL("SET", 3)
 		SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
-		SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(z_value), Z_STRLEN_P(z_value))
+		SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(z_value)
 	}
 
 	SW_REDIS_COMMAND(argc)
@@ -1327,7 +1345,7 @@ static PHP_METHOD(swoole_redis_coro, hSet)
 	SW_REDIS_COMMAND_ARGV_FILL("HSET", 4)
 	SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
 	SW_REDIS_COMMAND_ARGV_FILL(field, field_len)
-	SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(z_val), Z_STRLEN_P(z_val))
+	SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(z_val)
 
 	SW_REDIS_COMMAND(4)
 
@@ -1368,7 +1386,7 @@ static PHP_METHOD(swoole_redis_coro, hMSet)
 			key = (char*)buf;
 		}
 		SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
-		SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(value), Z_STRLEN_P(value))
+		SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(value)
 	}
 	SW_HASHTABLE_FOREACH_END();
 	
@@ -1499,7 +1517,7 @@ static PHP_METHOD(swoole_redis_coro, mSet)
 			key = (char*)buf;
 		}
 		SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
-		SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(value), Z_STRLEN_P(value))
+		SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(value)
 	}
 	SW_HASHTABLE_FOREACH_END();
 	
@@ -1540,7 +1558,7 @@ static PHP_METHOD(swoole_redis_coro, mSetNx)
 			key = (char*)buf;
 		}
 		SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
-		SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(value), Z_STRLEN_P(value))
+		SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(value)
 	}
 	SW_HASHTABLE_FOREACH_END();
 	
@@ -2503,7 +2521,7 @@ static PHP_METHOD(swoole_redis_coro, zIncrBy)
 	size_t buf_len;
     buf_len = sprintf(buf, "%f", incrby);
     SW_REDIS_COMMAND_ARGV_FILL(buf, buf_len)
-    SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(z_val), Z_STRLEN_P(z_val))
+    SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(z_val)
 	SW_REDIS_COMMAND(4)
 	SW_REDIS_COMMAND_YIELD
 }
@@ -2572,7 +2590,7 @@ static PHP_METHOD(swoole_redis_coro, zAdd)
         convert_to_double(z_args[j]);
 		buf_len = snprintf(buf, sizeof(buf), "%f", Z_DVAL_P(z_args[j]));
 		SW_REDIS_COMMAND_ARGV_FILL((char*)buf, buf_len)
-		SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(z_args[j+1]), Z_STRLEN_P(z_args[j+1]))
+		SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(z_args[j+1])
     }
     efree(z_args);
 
@@ -2748,6 +2766,12 @@ static PHP_METHOD(swoole_redis_coro, lInsert)
     {
         return;
     }
+
+	if (strncasecmp(pos, "after", 5) && strncasecmp(pos, "before", 6)) {
+		swoole_php_error(E_WARNING, "Position must be either 'BEFORE' or 'AFTER'");
+		RETURN_FALSE;
+	}
+
 	SW_REDIS_COMMAND_CHECK
 
 	int i = 0;
@@ -2757,8 +2781,8 @@ static PHP_METHOD(swoole_redis_coro, lInsert)
 	SW_REDIS_COMMAND_ARGV_FILL("LINSERT", 7)
 	SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
 	SW_REDIS_COMMAND_ARGV_FILL(pos, pos_len)
-	SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(z_pivot), Z_STRLEN_P(z_pivot))
-	SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(z_val), Z_STRLEN_P(z_val))
+	SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(z_pivot)
+	SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(z_val)
 	SW_REDIS_COMMAND(5);
 	SW_REDIS_COMMAND_YIELD
 }
@@ -2795,7 +2819,6 @@ static PHP_METHOD(swoole_redis_coro, move)
 
 static PHP_METHOD(swoole_redis_coro, select)
 {
-	//swoole_php_error(E_WARNING, "test memory leak");
     long db_number;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &db_number) == FAILURE) {
@@ -2852,7 +2875,7 @@ static PHP_METHOD(swoole_redis_coro, lRem)
     char str[32];
     sprintf(str, "%d", (int)count);
     SW_REDIS_COMMAND_ARGV_FILL(str, strlen(str))
-    SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(z_val), Z_STRLEN_P(z_val))
+    SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(z_val)
 
 	SW_REDIS_COMMAND(4)
 
@@ -2948,7 +2971,7 @@ static PHP_METHOD(swoole_redis_coro, sMove)
 	SW_REDIS_COMMAND_ARGV_FILL("SMOVE", 5)
 	SW_REDIS_COMMAND_ARGV_FILL(src, src_len)
 	SW_REDIS_COMMAND_ARGV_FILL(dst, dst_len)
-	SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(z_val), Z_STRLEN_P(z_val))
+	SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(z_val)
 	SW_REDIS_COMMAND(4)
 	SW_REDIS_COMMAND_YIELD
 }
@@ -3223,7 +3246,22 @@ static void swoole_redis_coro_parse_result(swRedisClient *redis, zval* return_va
         break;
 
     case REDIS_REPLY_STRING:
-        SW_ZVAL_STRINGL(return_value, reply->str, reply->len, 1);
+		if (redis->serialize)
+		{
+			char *reserve_str = reply->str;
+			php_unserialize_data_t s_ht;
+			PHP_VAR_UNSERIALIZE_INIT(s_ht);
+			if(!php_var_unserialize(&return_value, (const unsigned char**)&reply->str,
+						(const unsigned char*)reply->str + reply->len, &s_ht TSRMLS_CC)) {
+				SW_ZVAL_STRINGL(return_value, reply->str, reply->len, 1);
+			}
+			PHP_VAR_UNSERIALIZE_DESTROY(s_ht);
+			reply->str = reserve_str;
+		}
+		else
+		{
+			SW_ZVAL_STRINGL(return_value, reply->str, reply->len, 1);
+		}
         break;
 
     case REDIS_REPLY_ARRAY:

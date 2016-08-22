@@ -110,6 +110,9 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
     execute_data->symbol_table = NULL;
     execute_data->call = NULL;
     execute_data->nested = 0;
+	execute_data->original_return_value = NULL;
+	execute_data->fast_ret = NULL;
+	execute_data->delayed_exception = NULL;
 
     if (!op_array->run_time_cache && op_array->last_cache_slot)
     {
