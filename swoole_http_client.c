@@ -87,6 +87,7 @@ typedef struct
     uint8_t keep_alive;  //0 no 1 keep
     uint8_t upgrade;
     uint8_t gzip;
+    uint8_t chunked;     //Transfer-Encoding: chunked
 
 } http_client;
 
@@ -1337,6 +1338,10 @@ static int http_client_parser_on_header_value(php_http_parser *parser, const cha
         http->gzip = 1;
     }
 #endif
+    else if (strcasecmp(header_name, "Transfer-Encoding") == 0 && strncasecmp(at, "chunked", length) == 0)
+    {
+        http->chunked = 1;
+    }
     efree(header_name);
     return 0;
 }
@@ -1412,10 +1417,10 @@ static int http_client_parser_on_body(php_http_parser *parser, const char *at, s
 
 static int http_client_parser_on_headers_complete(php_http_parser *parser)
 {
+    http_client* http = (http_client*) parser->data;
     //no content-length
-    if (parser->content_length == -1)
+    if (http->chunked == 0 && parser->content_length == -1)
     {
-        http_client* http = (http_client*) parser->data;
         http->state = HTTP_CLIENT_STATE_WAIT_CLOSE;
     }
     return 0;
@@ -1429,6 +1434,7 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
 
     http_client* http = (http_client*) parser->data;
     swClient *cli = http->cli;
+    swConnection *conn = cli->socket;
     zval* zobject = (zval*) http->cli->object;
 
     if (http->keep_alive == 1)
@@ -1475,14 +1481,12 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-    sw_zval_free(zcallback);
     if (retval)
     {
         sw_zval_ptr_dtor(&retval);
     }
-
-    http = swoole_get_object(zobject);
-    if (!http)
+    sw_zval_free(zcallback);
+    if (conn->active == 0)
     {
         return 0;
     }
