@@ -1445,7 +1445,7 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
     args[0] = &zobject;
 
 #ifdef SW_HAVE_ZLIB
-    if (http->gzip && parser->content_length > 0)
+    if (http->gzip && http->body->length > 0)
     {
         if (http_response_uncompress(http->body->str, http->body->length) == SW_ERR)
         {
