@@ -846,6 +846,12 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     }
     else if (conn->close_notify)
     {
+#ifdef SW_USE_OPENSSL
+        if (conn->ssl && conn->ssl_state != SW_SSL_STATE_READY)
+        {
+            return swReactorThread_close(reactor, fd);
+        }
+#endif
         swDataHead close_event;
         close_event.type = SW_EVENT_CLOSE;
         close_event.from_id = reactor->id;

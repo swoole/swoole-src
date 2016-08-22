@@ -536,6 +536,13 @@ static void swReactorProcess_onTimeout(swReactor *reactor)
             {
                 continue;
             }
+#ifdef SW_USE_OPENSSL
+            if (conn->ssl && conn->ssl_state != SW_SSL_STATE_READY)
+            {
+                swReactorThread_close(reactor, fd);
+                continue;
+            }
+#endif
             notify_ev.fd = fd;
             notify_ev.from_id = conn->from_id;
             swReactorProcess_onClose(reactor, &notify_ev);
