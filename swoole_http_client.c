@@ -1002,9 +1002,14 @@ static PHP_METHOD(swoole_http_client, __construct)
     swoole_set_property(getThis(), 0, hcc);
 
     int flags = SW_SOCK_TCP | SW_FLAG_ASYNC;
+
     if (ssl)
     {
+#ifdef SW_USE_OPENSSL
         flags |= SW_SOCK_SSL;
+#else
+        swoole_php_fatal_error(E_ERROR, "require openssl library.");
+#endif
     }
 
     zend_update_property_long(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("type"), flags TSRMLS_CC);
