@@ -35,11 +35,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2016-08-18</date>
-    <time>16:48:51</time>
+    <date>2016-08-23</date>
+    <time>12:48:51</time>
     <version>
-		<release>1.8.9</release>
-		<api>1.8.9</api>
+		<release>1.8.10</release>
+		<api>1.8.10</api>
     </version>
     <stability>
         <release>stable</release>
@@ -47,15 +47,8 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Added namespace class alias
-- Added Swoole\Http\Client->addFile interface, support upload file
-- Added Swoole\Event namespace and class styles
-- Added Swoole\Http\Client no ContentLength response
-- Added --with-openssl compiler option, can specify the path of the OpenSSL Library
-- Fixed Swoole\MySQL memory leak on PHP7
-- Fixed Swoole\Redis memory leak on PHP7
-- Fixed Swoole\Http\Client memory leak on PHP7
-- Fixed Swoole\Http\Server crash when uploading files on PHP7
+- Fixed Swoole\Http\Client crash when do close connection in the callback function
+- Fixed Swoole\Http\Server cannot support more than 1024 concurrent
     </notes>
 	<contents>
 		<dir name="/">
