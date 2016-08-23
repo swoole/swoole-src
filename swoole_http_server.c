@@ -857,7 +857,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
         return swoole_websocket_onMessage(req);
     }
 
-    swoole_http_client *client = swArray_fetch(http_client_array, conn->fd);
+    swoole_http_client *client = swArray_alloc(http_client_array, conn->fd);
     if (!client)
     {
         return SW_OK;

@@ -3016,6 +3016,12 @@ PHP_METHOD(swoole_server, connection_list)
 
         if (conn->active && !conn->closed)
         {
+#ifdef SW_USE_OPENSSL
+            if (conn->ssl && conn->ssl_state != SW_SSL_STATE_READY)
+            {
+                continue;
+            }
+#endif
 #ifdef SW_REACTOR_USE_SESSION
             add_next_index_long(return_value, conn->session_id);
 #else
