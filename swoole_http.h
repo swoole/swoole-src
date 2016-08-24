@@ -166,6 +166,7 @@ z##name = ctx->class.z##name;
  */
 int swoole_http2_onFrame(swoole_http_client *client, swEventData *req);
 int swoole_http2_do_response(http_context *ctx, swString *body);
+void swoole_http2_free(swoole_http_client *client);
 #endif
 
 extern zend_class_entry swoole_http_server_ce;

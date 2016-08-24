@@ -39,7 +39,6 @@
 
 #ifdef SW_USE_HTTP2
 #include "http2.h"
-#include <nghttp2/nghttp2.h>
 #endif
 
 static swArray *http_client_array;
@@ -79,6 +78,7 @@ zend_class_entry swoole_http_request_ce;
 zend_class_entry *swoole_http_request_class_entry_ptr;
 
 static int http_onReceive(swServer *serv, swEventData *req);
+static void http_onClose(swServer *serv, swDataHead *ev);
 
 static int http_request_on_path(php_http_parser *parser, const char *at, size_t length);
 static int http_request_on_query_string(php_http_parser *parser, const char *at, size_t length);
@@ -891,9 +891,8 @@ static int http_onReceive(swServer *serv, swEventData *req)
     if (n < 0)
     {
         sw_zval_ptr_dtor(&zdata);
-        efree(client);
+        bzero(client, sizeof(swoole_http_client));
         swWarn("php_http_parser_execute failed.");
-
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
         {
             return SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
@@ -992,6 +991,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
                 conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
             }
         }
+        bzero(client, sizeof(swoole_http_client));
         sw_zval_ptr_dtor(&zrequest_object);
         sw_zval_ptr_dtor(&zresponse_object);
         sw_zval_ptr_dtor(&zdata);
@@ -1001,6 +1001,32 @@ static int http_onReceive(swServer *serv, swEventData *req)
         }
     }
     return SW_OK;
+}
+
+static void http_onClose(swServer *serv, swDataHead *ev)
+{
+    int fd = ev->fd;
+
+    swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
+    if (!conn)
+    {
+        return;
+    }
+    swoole_http_client *client = swArray_alloc(http_client_array, conn->fd);
+    if (!client)
+    {
+        return;
+    }
+    if (client->http2)
+    {
+        swoole_http2_free(client);
+    }
+    zval *zcallback = php_swoole_server_get_callback(serv, ev->from_fd, SW_SERVER_CB_onClose);
+    if (!zcallback)
+    {
+        return;
+    }
+    php_swoole_onClose(serv, ev);
 }
 
 void swoole_http_server_init(int module_number TSRMLS_DC)
@@ -1316,6 +1342,11 @@ static PHP_METHOD(swoole_http_server, start)
 #endif
 
     serv->onReceive = http_onReceive;
+
+    if (serv->listen_list->open_http2_protocol)
+    {
+        serv->onClose = http_onClose;
+    }
 
     zval *zsetting = sw_zend_read_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zsetting == NULL || ZVAL_IS_NULL(zsetting))
