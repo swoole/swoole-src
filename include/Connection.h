@@ -17,6 +17,10 @@
 #ifndef SW_CONNECTION_H_
 #define SW_CONNECTION_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "buffer.h"
 
 #ifdef SW_USE_OPENSSL
@@ -194,5 +198,8 @@ static sw_inline int swConnection_error(int err)
 	}
 }
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SW_CONNECTION_H_ */
