@@ -75,7 +75,7 @@ typedef struct
     double timeout;
     char* uri;
     zend_size_t uri_len;
-    
+
     char *tmp_header_field_name;
     zend_size_t tmp_header_field_name_len;
 
@@ -638,19 +638,19 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_http_client.");
         return SW_ERR;
     }
-    
+
     if (!http->cli->socket && http->cli->socket->active == 0)
     {
         swoole_php_error(E_WARNING, "server is not connected.");
         return SW_ERR;
     }
-    
+
     if (http->state != HTTP_CLIENT_STATE_READY)
     {
         swoole_php_error(E_WARNING, "http client is not ready.");
         return SW_ERR;
     }
-    
+
     http->state = HTTP_CLIENT_STATE_BUSY;
      //clear errno
     SwooleG.error = 0;
@@ -945,7 +945,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
         swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
     }
 
-    swTrace("[%d]: %s\n", http_client_buffer->length, http_client_buffer->str);
+    swTrace("[%d]: %s\n", (int)http_client_buffer->length, http_client_buffer->str);
 
     if ((ret = http->cli->send(http->cli, http_client_buffer->str, http_client_buffer->length, 0)) < 0)
     {
@@ -1043,7 +1043,7 @@ static PHP_METHOD(swoole_http_client, __construct)
     {
         return;
     }
-    
+
     if (host_len <= 0)
     {
         swoole_php_fatal_error(E_ERROR, "host is empty.");
@@ -1051,7 +1051,7 @@ static PHP_METHOD(swoole_http_client, __construct)
     }
 
     zend_update_property_stringl(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("host"), host, host_len TSRMLS_CC);
-    
+
     zend_update_property_long(swoole_http_client_class_entry_ptr,
     getThis(), ZEND_STRL("port"), port TSRMLS_CC);
 
@@ -1081,7 +1081,7 @@ static PHP_METHOD(swoole_http_client, __construct)
     }
 
     zend_update_property_long(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("type"), flags TSRMLS_CC);
-    
+
     RETURN_TRUE;
 }
 

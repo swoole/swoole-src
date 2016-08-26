@@ -87,7 +87,7 @@ int swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, cha
         }
         header_length += SW_WEBSOCKET_MASK_LEN;
     }
-    swTrace("header_length=%d, payload_length=%d", header_length, payload_length);
+    swTrace("header_length=%d, payload_length=%d", (int)header_length, (int)payload_length);
     return header_length + payload_length;
 }
 

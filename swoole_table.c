@@ -291,6 +291,7 @@ static PHP_METHOD(swoole_table, set)
             swTableRow_set_value(row, col, &Z_LVAL_P(v), 0);
         }
     }
+    (void)ktype;
     SW_HASHTABLE_FOREACH_END();
     sw_spinlock_release(_lock);
     RETURN_TRUE;
