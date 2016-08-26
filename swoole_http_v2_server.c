@@ -125,6 +125,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
             http2_add_header(&nv[index++], key, keylen - 1, Z_STRVAL_P(value), Z_STRLEN_P(value));
         }
         SW_HASHTABLE_FOREACH_END();
+        (void)type;
 
         if (!(flag & HTTP_RESPONSE_SERVER))
         {

@@ -230,7 +230,7 @@ static const php_http_parser_settings http_parser_settings =
     http_request_message_complete
 };
 
-static const multipart_parser_settings mt_parser_settings = 
+static const multipart_parser_settings mt_parser_settings =
 {
     multipart_body_on_header_field,
     multipart_body_on_header_value,
@@ -337,7 +337,7 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
     int klen = 0;
     int vlen = 0;
     int state = -1;
-	
+
     int i = 0, j = 0;
     while (_c < at + length)
     {
@@ -371,9 +371,9 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
         {
             if (isspace(*_c))
             {
-                //Remove leading spaces from cookie names 
+                //Remove leading spaces from cookie names
                 ++j;
-            } 
+            }
             else
             {
                 state = 0;
@@ -686,25 +686,25 @@ static int multipart_body_on_data_end(multipart_parser* p)
             swoole_http_server_array_init(post, request);
         }
 
-		char *name = ctx->current_form_data_name;
-		int len = ctx->current_form_data_name_len;
+        char *name = ctx->current_form_data_name;
+        int len = ctx->current_form_data_name_len;
 
-		if ((name[len-1] == ']') && (name[len-2] == '['))
-		{
-			zval *array_value;
-			if (sw_zend_hash_find(Z_ARRVAL_P(zpost), name, len + 1, (void **) &array_value) == FAILURE)
-			{
-				SW_MAKE_STD_ZVAL(array_value);
-				array_init(array_value);
-				add_assoc_zval(zpost, name, array_value);
-			}
+        if ((name[len-1] == ']') && (name[len-2] == '['))
+        {
+            zval *array_value;
+            if (sw_zend_hash_find(Z_ARRVAL_P(zpost), name, len + 1, (void **) &array_value) == FAILURE)
+            {
+                SW_MAKE_STD_ZVAL(array_value);
+                array_init(array_value);
+                add_assoc_zval(zpost, name, array_value);
+            }
             sw_add_next_index_stringl(array_value, swoole_http_form_data_buffer->str, swoole_http_form_data_buffer->length, 1);
-		}
-		else
-		{
+        }
+        else
+        {
             sw_add_assoc_stringl_ex(zpost, ctx->current_form_data_name, ctx->current_form_data_name_len + 1,
                     swoole_http_form_data_buffer->str, swoole_http_form_data_buffer->length, 1);
-		}
+        }
 
         efree(ctx->current_form_data_name);
         ctx->current_form_data_name = NULL;
@@ -885,7 +885,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
     SW_MAKE_STD_ZVAL(zdata);
     php_swoole_get_recv_data(zdata, req, NULL, 0);
 
-    swTrace("httpRequest %d bytes:\n---------------------------------------\n%s\n", Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
+    swTrace("httpRequest %d bytes:\n---------------------------------------\n%s\n", (int)Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
 
     long n = php_http_parser_execute(parser, &http_parser_settings, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
     if (n < 0)
@@ -951,7 +951,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
         {
             return swoole_websocket_onHandshake(ctx);
         }
-        
+
         args[0] = &zrequest_object;
         args[1] = &zresponse_object;
 
@@ -1445,6 +1445,8 @@ static PHP_METHOD(swoole_http_request, __destruct)
             }
         }
         SW_HASHTABLE_FOREACH_END();
+        (void)key;
+        (void)keylen;
     }
     swoole_set_object(getThis(), NULL);
 }
@@ -1609,6 +1611,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
             swString_append_ptr(response, buf, n);
         }
         SW_HASHTABLE_FOREACH_END();
+        (void)type;
 
         if (!(flag & HTTP_RESPONSE_SERVER))
         {

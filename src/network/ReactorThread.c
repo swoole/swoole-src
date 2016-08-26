@@ -1265,7 +1265,7 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
     task.data.info.fd = conn->fd;
     task.data.info.from_id = conn->from_id;
 
-    swTrace("send string package, size=%ld bytes.", length);
+    swTrace("send string package, size=%ld bytes.", (long)length);
 
 #ifdef SW_USE_RINGBUFFER
     swServer *serv = SwooleG.serv;
@@ -1473,10 +1473,10 @@ void swReactorThread_free(swServer *serv)
         {
             if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
             {
-    			if (pthread_cancel(ls->thread_id) < 0)
-    			{
-    				swSysError("pthread_cancel(%d) failed.", (int) ls->thread_id);
-    			}
+                if (pthread_cancel(ls->thread_id) < 0)
+                {
+                    swSysError("pthread_cancel(%d) failed.", (int) ls->thread_id);
+                }
                 if (pthread_join(ls->thread_id, NULL))
                 {
                     swWarn("pthread_join() failed. Error: %s[%d]", strerror(errno), errno);

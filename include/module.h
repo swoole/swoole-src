@@ -166,6 +166,7 @@ static sw_inline void swArgs_pop_null(void)
     assert(buffer->length >= buffer->offset);
     swVal *v = (swVal*) (buffer->str + buffer->offset);
     assert(v->type == SW_VAL_NULL);
+    (void)v;
 }
 
 static sw_inline uint8_t swArgs_pop_bool()
