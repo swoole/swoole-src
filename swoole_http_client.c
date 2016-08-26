@@ -88,6 +88,7 @@ typedef struct
     uint8_t upgrade;
     uint8_t gzip;
     uint8_t chunked;     //Transfer-Encoding: chunked
+    uint8_t completed;
 
 } http_client;
 
@@ -498,6 +499,11 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
         swSysError("Parsing http over socket[%d] failed.", cli->socket->fd);
         cli->close(cli);
     }
+    //not complete
+    if (!http->completed)
+    {
+        return;
+    }
 
     swConnection *conn = cli->socket;
     zval *retval = NULL;
@@ -557,6 +563,7 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
     {
         //reset http phase for reuse
         http->state = HTTP_CLIENT_STATE_READY;
+        http->completed = 0;
     }
 }
 
@@ -1510,6 +1517,8 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
     {
         zend_update_property_stringl(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("body"), http->body->str, http->body->length TSRMLS_CC);
     }
+
+    http->completed = 1;
 
     //http status code
     zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("statusCode"), http->parser.status_code TSRMLS_CC);
