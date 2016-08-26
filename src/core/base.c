@@ -261,6 +261,9 @@ int swoole_type_size(char type)
 {
     switch (type)
     {
+    case 'c':
+    case 'C':
+        return 1;
     case 's':
     case 'S':
     case 'n':

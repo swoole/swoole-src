@@ -971,6 +971,11 @@ static sw_inline int32_t swoole_unpack(char type, void *data)
     switch(type)
     {
     /*-------------------------16bit-----------------------------*/
+    case 'c':
+        return *((int8_t *) data);
+    case 'C':
+        return *((uint8_t *) data);
+    /*-------------------------16bit-----------------------------*/
     /**
      * signed short (always 16 bit, machine byte order)
      */
