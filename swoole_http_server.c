@@ -1017,10 +1017,12 @@ static void http_onClose(swServer *serv, swDataHead *ev)
     {
         return;
     }
+#ifdef SW_USE_HTTP2
     if (client->http2)
     {
         swoole_http2_free(client);
     }
+#endif
     zval *zcallback = php_swoole_server_get_callback(serv, ev->from_fd, SW_SERVER_CB_onClose);
     if (!zcallback)
     {
