@@ -161,7 +161,6 @@ static PHP_METHOD(swoole_coroutine_util, call_user_function)
 
 static PHP_METHOD(swoole_coroutine_util, call_user_function_array)
 {
-    zval *ret;
     zval *params;
     zend_fcall_info fci;
     zend_fcall_info_cache fci_cache;
