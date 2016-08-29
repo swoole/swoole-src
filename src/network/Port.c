@@ -173,7 +173,10 @@ void swPort_set_protocol(swListenPort *ls)
     }
     else if (ls->open_length_check)
     {
-        ls->protocol.get_package_length = swProtocol_get_package_length;
+        if (ls->protocol.package_length_type != '_')
+        {
+            ls->protocol.get_package_length = swProtocol_get_package_length;
+        }
         ls->protocol.onPackage = swReactorThread_dispatch;
         ls->onRead = swPort_onRead_check_length;
     }

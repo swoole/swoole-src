@@ -555,6 +555,7 @@ typedef struct _swProtocol
     int (*onPackage)(swConnection *conn, char *data, uint32_t length);
     int (*get_package_length)(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 } swProtocol;
+typedef int (*swProtocol_length_function)(struct _swProtocol *, swConnection *, char *, uint32_t);
 //------------------------------String--------------------------------
 #define swoole_tolower(c)      (u_char) ((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
 #define swoole_toupper(c)      (u_char) ((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
@@ -1834,6 +1835,7 @@ typedef struct
     swString *module_stack;
     int call_php_func_argc;
     int (*call_php_func)(const char *name);
+    swHashMap *functions;
 
 } swServerG;
 

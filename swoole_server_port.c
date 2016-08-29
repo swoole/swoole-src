@@ -15,6 +15,7 @@
  */
 
 #include "php_swoole.h"
+#include "module.h"
 
 zend_class_entry swoole_server_port_ce;
 zend_class_entry *swoole_server_port_class_entry_ptr;
@@ -191,12 +192,38 @@ static PHP_METHOD(swoole_server_port, set)
     {
         convert_to_string(v);
         port->protocol.package_length_type = Z_STRVAL_P(v)[0];
-        port->protocol.package_length_size = swoole_type_size(port->protocol.package_length_type);
-
-        if (port->protocol.package_length_size == 0)
+        if (port->protocol.package_length_type == '_')
         {
-            swoole_php_fatal_error(E_ERROR, "unknow package_length_type, see pack(). Link: http://php.net/pack");
-            RETURN_FALSE;
+            if (php_swoole_array_get_value(vht, "package_length_func", v))
+            {
+                convert_to_string(v);
+                swProtocol_length_function func = swModule_get_length_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
+                if (func == NULL)
+                {
+                    swoole_php_fatal_error(E_ERROR, "extension module function '%s' is undefined.", Z_STRVAL_P(v));
+                    return;
+                }
+                else
+                {
+                    port->protocol.get_package_length = func;
+                    port->protocol.package_length_size = 0;
+                    port->protocol.package_length_offset = SW_BUFFER_SIZE;
+                }
+            }
+            else
+            {
+                swoole_php_fatal_error(E_ERROR, "require package_length_function.");
+                RETURN_FALSE;
+            }
+        }
+        else
+        {
+            port->protocol.package_length_size = swoole_type_size(port->protocol.package_length_type);
+            if (port->protocol.package_length_size == 0)
+            {
+                swoole_php_fatal_error(E_ERROR, "unknow package_length_type, see pack(). Link: http://php.net/pack");
+                RETURN_FALSE;
+            }
         }
     }
     //package length offset
