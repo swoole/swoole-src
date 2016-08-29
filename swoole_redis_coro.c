@@ -620,6 +620,7 @@ static PHP_METHOD(swoole_redis_coro, renameNx);
 static PHP_METHOD(swoole_redis_coro, rpoplpush);
 static PHP_METHOD(swoole_redis_coro, randomKey);
 static PHP_METHOD(swoole_redis_coro, ping);
+static PHP_METHOD(swoole_redis_coro, auth);
 static PHP_METHOD(swoole_redis_coro, unwatch);
 static PHP_METHOD(swoole_redis_coro, watch);
 static PHP_METHOD(swoole_redis_coro, save);
@@ -764,6 +765,7 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_ME(swoole_redis_coro, rpoplpush, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, randomKey, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, ping, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, auth, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, unwatch, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, watch, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, save, NULL, ZEND_ACC_PUBLIC)
@@ -1854,6 +1856,24 @@ static PHP_METHOD(swoole_redis_coro, unwatch)
 static PHP_METHOD(swoole_redis_coro, ping)
 {
     sw_redis_command_empty(INTERNAL_FUNCTION_PARAM_PASSTHRU, "PING", 4);
+}
+
+static PHP_METHOD(swoole_redis_coro, auth)
+{
+	char *pw;
+    int pw_len;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &pw, &pw_len) == FAILURE)
+    {
+        return;
+    }
+    SW_REDIS_COMMAND_CHECK
+    int i = 0;
+    size_t argvlen[2];
+    char *argv[2];
+    SW_REDIS_COMMAND_ARGV_FILL("AUTH", 4)
+    SW_REDIS_COMMAND_ARGV_FILL(pw, pw_len)
+    SW_REDIS_COMMAND(2)
+    SW_REDIS_COMMAND_YIELD
 }
 
 static PHP_METHOD(swoole_redis_coro, save)
