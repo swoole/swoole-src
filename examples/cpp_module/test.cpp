@@ -31,6 +31,7 @@ int test_get_length(swProtocol *protocol, swConnection *conn, char *data, uint32
 
 int swModule_init(swModule *module)
 {
+    printf("cpp module init\n");
     module->name = (char *) "test";
 
     string s = "123456789";
@@ -41,7 +42,7 @@ int swModule_init(swModule *module)
     swArgs_push_string(s.c_str(), s.length());
 
     swModule_register_function(module, (char *) "cppMethod", cppMethod);
-    swModule_register_length_function((char *) "test_get_length", test_get_length);
+    swModule_register_global_function((char *) "test_get_length", (void *) test_get_length);
 
 //    int ret = SwooleG.call_php_func(php_func.c_str());
 //    if (ret < 0)
@@ -58,7 +59,7 @@ int swModule_init(swModule *module)
 
 int test_get_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
 {
-    printf("size=%d\n", length);
+    printf("cpp, size=%d\n", length);
     return 100;
 }
 

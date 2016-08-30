@@ -197,7 +197,7 @@ static PHP_METHOD(swoole_server_port, set)
             if (php_swoole_array_get_value(vht, "package_length_func", v))
             {
                 convert_to_string(v);
-                swProtocol_length_function func = swModule_get_length_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
+                swProtocol_length_function func = swModule_get_global_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
                 if (func == NULL)
                 {
                     swoole_php_fatal_error(E_ERROR, "extension module function '%s' is undefined.", Z_STRVAL_P(v));

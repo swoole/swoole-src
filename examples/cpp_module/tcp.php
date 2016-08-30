@@ -1,5 +1,6 @@
 <?php
 swoole_load_module(__DIR__.'/test.so');
+swoole_load_module(dirname(__DIR__).'/c_module/test.so');
 
 $serv = new swoole_server("0.0.0.0", 9502, SWOOLE_BASE);
 //$serv = new swoole_server("0.0.0.0", 9502);

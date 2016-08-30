@@ -24,6 +24,7 @@ int test_get_length(swProtocol *protocol, swConnection *conn, char *data, uint32
 
 int swModule_init(swModule *module)
 {
+    printf("c module init\n");
     module->name = (char *) "test";
 
     char *s = "123456789";
@@ -34,14 +35,14 @@ int swModule_init(swModule *module)
     swArgs_push_string(s, strlen(s));
 
     swModule_register_function(module, (char *) "cppMethod", cMethod);
-    swModule_register_length_function((char *) "test_get_length", test_get_length);
+    swModule_register_global_function((char *) "test_get_length", test_get_length);
 
     return SW_OK;
 }
 
 int test_get_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
 {
-    printf("size=%d\n", length);
+    printf("c, size=%d\n", length);
     return 100;
 }
 

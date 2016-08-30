@@ -68,7 +68,7 @@ int swModule_register_function(swModule *module, const char *name, swModule_func
     return swHashMap_add(module->functions, (char *) name, strlen(name), (void *) func);
 }
 
-int swModule_register_length_function(const char *name, swProtocol_length_function func)
+int swModule_register_global_function(const char *name, void* func)
 {
     if (SwooleG.functions == NULL)
     {
@@ -78,10 +78,15 @@ int swModule_register_length_function(const char *name, swProtocol_length_functi
             return SW_ERR;
         }
     }
-    return swHashMap_add(SwooleG.functions, (char *) name, strlen(name), (void*) func);
+    if (swHashMap_find(SwooleG.functions, (char *) name, strlen(name)) != NULL)
+    {
+        swWarn("Function '%s' already exists.", name);
+        return SW_ERR;
+    }
+    return swHashMap_add(SwooleG.functions, (char *) name, strlen(name), func);
 }
 
-swProtocol_length_function swModule_get_length_function(char *name, uint32_t length)
+void* swModule_get_global_function(char *name, uint32_t length)
 {
     if (!SwooleG.functions)
     {
