@@ -1451,6 +1451,19 @@ PHP_METHOD(swoole_server, set)
         convert_to_long(v);
         serv->dispatch_mode = (int) Z_LVAL_P(v);
     }
+    //c/c++ function
+    if (php_swoole_array_get_value(vht, "dispatch_func", v))
+    {
+        convert_to_string(v);
+        swServer_dispatch_function func = swModule_get_global_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        if (func == NULL)
+        {
+            swoole_php_fatal_error(E_ERROR, "extension module function '%s' is undefined.", Z_STRVAL_P(v));
+            return;
+        }
+        serv->dispatch_mode = 0;
+        serv->dispatch_func = func;
+    }
     //log_file
     if (php_swoole_array_get_value(vht, "log_file", v))
     {

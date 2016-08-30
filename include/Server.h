@@ -268,6 +268,8 @@ typedef struct _swRequest
     void *object;
 } swRequest;
 
+typedef int (*swServer_dispatch_function)(swServer *, swConnection *, char *, uint32_t);
+
 int swFactory_create(swFactory *factory);
 int swFactory_start(swFactory *factory);
 int swFactory_shutdown(swFactory *factory);
@@ -314,7 +316,8 @@ struct _swServer
     /**
      * package dispatch mode
      */
-    uint8_t dispatch_mode; //分配模式，1平均分配，2按FD取摸固定分配，3,使用抢占式队列(IPC消息队列)分配
+    uint8_t dispatch_mode;
+
 
     int worker_uid;
     int worker_groupid;
@@ -460,6 +463,7 @@ struct _swServer
     int (*onFinish)(swServer *serv, swEventData *data);
 
     int (*send)(swServer *, swSendData *);
+    int (*dispatch_func)(swServer *, swConnection *, char *, uint32_t);
 };
 
 typedef struct _swSocketLocal

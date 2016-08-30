@@ -6,7 +6,6 @@ $serv = new swoole_server("0.0.0.0", 9502, SWOOLE_BASE);
 $serv->set(array(
     'worker_num' => 1,
     'open_length_check' => true,
-    'package_length_type' => '_',
     'package_length_func' => 'test_get_length',
 ));
 
