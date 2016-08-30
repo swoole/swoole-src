@@ -569,6 +569,15 @@ static int mysql_response(mysql_client *client)
                 /* status flag 1byte (#), skip.. */
                 memcpy(client->response.status_msg, p + 3, 5);
                 client->response.server_msg = p + 8;
+                /**
+                 * int<1> header  [ff] header of the ERR packet
+                 * int<2>  error_code  error-code
+                 * if capabilities & CLIENT_PROTOCOL_41 {
+                 *  string[1] sql_state_marker    # marker of the SQL State
+                 *  string[5] sql_state   SQL State
+                 * }
+                 */
+                client->response.l_server_msg = client->response.packet_length - 9;
                 client->state = SW_MYSQL_STATE_READ_END;
                 return SW_OK;
             }
@@ -1314,7 +1323,7 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
                 SW_ALLOC_INIT_ZVAL(result);
                 ZVAL_BOOL(result, 0);
 
-                zend_update_property_string(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("error"), client->response.server_msg TSRMLS_CC);
+                zend_update_property_stringl(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("error"), client->response.server_msg, client->response.l_server_msg TSRMLS_CC);
                 zend_update_property_long(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("errno"), client->response.error_code TSRMLS_CC);
             }
             //ResultSet
