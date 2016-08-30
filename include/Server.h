@@ -268,6 +268,8 @@ typedef struct _swRequest
     void *object;
 } swRequest;
 
+typedef int (*swServer_dispatch_function)(swServer *, swConnection *, char *, uint32_t);
+
 int swFactory_create(swFactory *factory);
 int swFactory_start(swFactory *factory);
 int swFactory_shutdown(swFactory *factory);
@@ -314,7 +316,8 @@ struct _swServer
     /**
      * package dispatch mode
      */
-    uint8_t dispatch_mode; //分配模式，1平均分配，2按FD取摸固定分配，3,使用抢占式队列(IPC消息队列)分配
+    uint8_t dispatch_mode;
+
 
     int worker_uid;
     int worker_groupid;
@@ -460,6 +463,7 @@ struct _swServer
     int (*onFinish)(swServer *serv, swEventData *data);
 
     int (*send)(swServer *, swSendData *);
+    int (*dispatch_func)(swServer *, swConnection *, char *, uint32_t);
 };
 
 typedef struct _swSocketLocal
@@ -606,7 +610,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags);
     if (_length > SwooleG.serv->listen_list->protocol.package_max_length) {\
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_TASK_PACKAGE_TOO_BIG, "task package[length=%d] is too big.", _length);\
     }\
-    _buf = __malloc(_length + 1);\
+    _buf = (char *)__malloc(_length + 1);\
     _buf[_length] = 0;\
     int tmp_file_fd = open(_pkg.tmpfile, O_RDONLY);\
     if (tmp_file_fd < 0){\

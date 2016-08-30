@@ -1263,6 +1263,16 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
 #endif
     zval *retval = NULL;
 
+    zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onConnect);
+    if (!callback)
+    {
+        return;
+    }
+
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+
     SW_MAKE_STD_ZVAL(zfd);
     ZVAL_LONG(zfd, info->fd);
 
@@ -1337,6 +1347,12 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
     zval **args[3];
     zval *retval = NULL;
 
+    zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onClose);
+    if (!callback)
+    {
+        return;
+    }
+
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
@@ -1352,12 +1368,6 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
     args[1] = &zfd;
     args[2] = &zfrom_id;
 
-    zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onClose);
-    if (!callback)
-    {
-        return;
-    }
-
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onClose handler error");
@@ -1366,7 +1376,6 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-
     sw_zval_ptr_dtor(&zfd);
     sw_zval_ptr_dtor(&zfrom_id);
     if (retval != NULL)
@@ -1543,6 +1552,19 @@ PHP_METHOD(swoole_server, set)
     {
         convert_to_long(v);
         serv->dispatch_mode = (int) Z_LVAL_P(v);
+    }
+    //c/c++ function
+    if (php_swoole_array_get_value(vht, "dispatch_func", v))
+    {
+        convert_to_string(v);
+        swServer_dispatch_function func = swModule_get_global_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        if (func == NULL)
+        {
+            swoole_php_fatal_error(E_ERROR, "extension module function '%s' is undefined.", Z_STRVAL_P(v));
+            return;
+        }
+        serv->dispatch_mode = 0;
+        serv->dispatch_func = func;
     }
     //log_file
     if (php_swoole_array_get_value(vht, "log_file", v))

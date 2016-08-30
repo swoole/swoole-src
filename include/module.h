@@ -39,6 +39,8 @@ typedef swVal* (*swModule_function)(swModule *, int);
 
 swModule* swModule_load(char *so_file);
 int swModule_register_function(swModule *module, const char *name, swModule_function func);
+int swModule_register_global_function(const char *name, void* func);
+void* swModule_get_global_function(char *name, uint32_t length);
 
 static sw_inline void swVal_bool(swVal *val, uint8_t bval)
 {
@@ -166,6 +168,7 @@ static sw_inline void swArgs_pop_null(void)
     assert(buffer->length >= buffer->offset);
     swVal *v = (swVal*) (buffer->str + buffer->offset);
     assert(v->type == SW_VAL_NULL);
+    (void)v;
 }
 
 static sw_inline uint8_t swArgs_pop_bool()

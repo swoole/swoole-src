@@ -19,7 +19,6 @@
 
 #ifdef SW_USE_HTTP2
 #include "http2.h"
-#include <nghttp2/nghttp2.h>
 #include <main/php_variables.h>
 
 static sw_inline void http2_add_header(nghttp2_nv *headers, char *k, int kl, char *v, int vl)
@@ -126,6 +125,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
             http2_add_header(&nv[index++], key, keylen - 1, Z_STRVAL_P(value), Z_STRLEN_P(value));
         }
         SW_HASHTABLE_FOREACH_END();
+        (void)type;
 
         if (!(flag & HTTP_RESPONSE_SERVER))
         {
@@ -574,5 +574,14 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
     }
     sw_zval_ptr_dtor(&zdata);
     return SW_OK;
+}
+
+void swoole_http2_free(swoole_http_client *client)
+{
+    if (client->inflater)
+    {
+        nghttp2_hd_inflate_del(client->inflater);
+        client->inflater = NULL;
+    }
 }
 #endif

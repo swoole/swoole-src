@@ -267,7 +267,7 @@ enum swWorker_status
 //-------------------------------------------------------------------------------
 
 #define swWarn(str,...)        SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str,__func__,##__VA_ARGS__);\
+snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: " str,__func__,##__VA_ARGS__);\
 swLog_put(SW_LOG_WARNING, sw_error);\
 SwooleGS->lock_2.unlock(&SwooleGS->lock_2)
 
@@ -283,26 +283,26 @@ SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
 exit(1)
 
 #define swSysError(str,...) SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): "str" Error: %s[%d].",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
+snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str " Error: %s[%d].",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
 swLog_put(SW_LOG_ERROR, sw_error);\
 SwooleGS->lock_2.unlock(&SwooleGS->lock_2)
 
 #define swoole_error_log(level, errno, str, ...)      do{SwooleG.error=errno;\
     if (level >= SwooleG.log_level){\
-    snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s (ERROR %d): "str,__func__,errno,##__VA_ARGS__);\
+    snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s (ERROR %d): " str,__func__,errno,##__VA_ARGS__);\
     SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
     swLog_put( SW_LOG_ERROR, sw_error);\
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}}while(0)
 
 #ifdef SW_DEBUG_REMOTE_OPEN
-#define swDebug(str,...) int __debug_log_n = snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);\
+#define swDebug(str,...) int __debug_log_n = snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
 write(SwooleG.debug_fd, sw_error, __debug_log_n);
 #else
 #define swDebug(str,...)
 #endif
 
 #ifdef SW_DEBUG
-#define swTrace(str,...)       {printf("[%s:%d@%s]"str"\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);}
+#define swTrace(str,...)       {printf("[%s:%d@%s]" str "\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);}
 //#define swWarn(str,...)        {printf("[%s:%d@%s]"str"\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);}
 #else
 #define swTrace(str,...)
@@ -555,6 +555,7 @@ typedef struct _swProtocol
     int (*onPackage)(swConnection *conn, char *data, uint32_t length);
     int (*get_package_length)(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 } swProtocol;
+typedef int (*swProtocol_length_function)(struct _swProtocol *, swConnection *, char *, uint32_t);
 //------------------------------String--------------------------------
 #define swoole_tolower(c)      (u_char) ((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
 #define swoole_toupper(c)      (u_char) ((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
@@ -970,6 +971,11 @@ static sw_inline int32_t swoole_unpack(char type, void *data)
 {
     switch(type)
     {
+    /*-------------------------16bit-----------------------------*/
+    case 'c':
+        return *((int8_t *) data);
+    case 'C':
+        return *((uint8_t *) data);
     /*-------------------------16bit-----------------------------*/
     /**
      * signed short (always 16 bit, machine byte order)
@@ -1834,6 +1840,7 @@ typedef struct
     swString *module_stack;
     int call_php_func_argc;
     int (*call_php_func)(const char *name);
+    swHashMap *functions;
 
 } swServerG;
 

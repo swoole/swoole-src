@@ -67,3 +67,30 @@ int swModule_register_function(swModule *module, const char *name, swModule_func
 {
     return swHashMap_add(module->functions, (char *) name, strlen(name), (void *) func);
 }
+
+int swModule_register_global_function(const char *name, void* func)
+{
+    if (SwooleG.functions == NULL)
+    {
+        SwooleG.functions = swHashMap_new(64, NULL);
+        if (SwooleG.functions == NULL)
+        {
+            return SW_ERR;
+        }
+    }
+    if (swHashMap_find(SwooleG.functions, (char *) name, strlen(name)) != NULL)
+    {
+        swWarn("Function '%s' already exists.", name);
+        return SW_ERR;
+    }
+    return swHashMap_add(SwooleG.functions, (char *) name, strlen(name), func);
+}
+
+void* swModule_get_global_function(char *name, uint32_t length)
+{
+    if (!SwooleG.functions)
+    {
+        return NULL;
+    }
+    return swHashMap_find(SwooleG.functions, name, length);
+}
