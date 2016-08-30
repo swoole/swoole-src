@@ -565,8 +565,6 @@ int mysql_response(mysql_client *client)
                 /* status flag 1byte (#), skip.. */
                 memcpy(client->response.status_msg, p + 3, 5);
                 client->response.server_msg = p + 8;
-				p = buffer->str + buffer->length;
-				*p = '\0';
                 client->state = SW_MYSQL_STATE_READ_END;
                 return SW_OK;
             }
