@@ -1263,12 +1263,6 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
 #endif
     zval *retval = NULL;
 
-    zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onConnect);
-    if (!callback)
-    {
-        return;
-    }
-
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
@@ -1289,10 +1283,6 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
     sw_zval_add_ref(&zserv);
     args[1] = zfd;
     args[2] = zfrom_id;
-#endif
-
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
 #ifndef SW_COROUTINE
