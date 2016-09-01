@@ -993,6 +993,7 @@ void swServer_signal_init(void)
     swSignal_add(SIGUSR1, swServer_signal_hanlder);
     swSignal_add(SIGUSR2, swServer_signal_hanlder);
     swSignal_add(SIGTERM, swServer_signal_hanlder);
+    swSignal_add(SIGRTMIN, swServer_signal_hanlder);
     swSignal_add(SIGALRM, swSystemTimer_signal_handler);
     //for test
     swSignal_add(SIGVTALRM, swServer_signal_hanlder);
@@ -1177,6 +1178,10 @@ static void swServer_signal_hanlder(int sig)
         }
         break;
     default:
+        if (sig == SIGRTMIN)
+        {
+            SwooleGS->logfile_version++;
+        }
         break;
     }
 }
