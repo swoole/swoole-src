@@ -272,6 +272,7 @@ typedef struct
         uint16_t status_code;
         char status_msg[6];
         char *server_msg;
+        uint16_t l_server_msg;
         ulong_t affected_rows;
         ulong_t insert_id;
         zval *result_array;

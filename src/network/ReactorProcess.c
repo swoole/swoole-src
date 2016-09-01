@@ -435,11 +435,15 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
 {
     swServer *serv = SwooleG.serv;
     int session_id = _send->info.fd;
+    if (_send->length == 0)
+    {
+        _send->length = _send->info.len;
+    }
 
     swSession *session = swServer_get_session(serv, session_id);
     if (session->fd == 0)
     {
-        swWarn("send[%d] failed, session#%d has expired.", _send->info.type, session_id);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "send %d byte failed, session#%d does not exist.",  _send->length, session_id);
         return SW_ERR;
     }
     //proxy
@@ -454,11 +458,6 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
             proxy_msg.info.fd = session_id;
             proxy_msg.info.from_id = SwooleWG.id;
             proxy_msg.info.type = SW_EVENT_PROXY_START;
-
-            if (_send->length == 0)
-            {
-                _send->length = _send->info.len;
-            }
 
             size_t send_n = _send->length;
             size_t offset = 0;

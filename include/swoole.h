@@ -1700,6 +1700,7 @@ typedef struct
 
     uint32_t session_round :24;
     uint8_t start;  //after swServer_start will set start=1
+    uint16_t logfile_version;
 
     time_t now;
 
@@ -1738,6 +1739,7 @@ typedef struct
     uint32_t reload;
     uint32_t reload_count;   //reload计数
     uint32_t request_count;
+    uint16_t logfile_version;
 
     int max_request;
 

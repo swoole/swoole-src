@@ -311,9 +311,8 @@ int swReactorThread_close(swReactor *reactor, int fd)
         swHttpRequest_free(conn);
     }
 
-#if 0
-    //立即关闭socket，清理缓存区
-    if (0)
+#ifdef SW_USE_SOCKET_LINGER
+    if (conn->close_force)
     {
         struct linger linger;
         linger.l_onoff = 1;
