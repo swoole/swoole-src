@@ -5,16 +5,21 @@
 
 static PHP_METHOD(swoole_coroutine_util, suspend);
 static PHP_METHOD(swoole_coroutine_util, resume);
+static PHP_METHOD(swoole_coroutine_util, call_user_function);
+static PHP_METHOD(swoole_coroutine_util, call_user_function_array);
 
 static swHashMap *defer_coros;
 
 static zend_class_entry swoole_coroutine_util_ce;
 static zend_class_entry *swoole_coroutine_util_class_entry_ptr;
 
+extern jmp_buf *swReactorCheckPoint;
 static const zend_function_entry swoole_coroutine_util_methods[] =
 {
     PHP_ME(swoole_coroutine_util, suspend, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, resume, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, call_user_function, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, call_user_function_array, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
@@ -40,6 +45,134 @@ static void swoole_coroutine_util_resume(void *data)
 	}
 	sw_zval_ptr_dtor(&result);
 	efree(context);
+}
+
+static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache, zval **return_value_ptr)
+{
+    int i;
+    zend_execute_data *current = EG(current_execute_data);
+    zval **origin_return_ptr_ptr;
+    zend_op_array *origin_active_op_array;
+    zend_op **origin_opline_ptr;
+
+    zend_op_array *op_array = (zend_op_array *)fci_cache->function_handler;
+    void **end = EG(argument_stack)->top - 1;
+    void **start = end - (int)(zend_uintptr_t)(*end);
+    zval_ptr_dtor((zval **)(start));
+    for (i = 0; i < fci->param_count; ++i)
+    {
+        *start = *(start + 1);
+        ++start;
+    }
+    *start = (void*)(zend_uintptr_t)fci->param_count;
+    EG(argument_stack)->top = start + 1;
+    current->function_state.arguments = start;
+    origin_return_ptr_ptr = EG(return_value_ptr_ptr);
+    if (current->opline->result_type & EXT_TYPE_UNUSED)
+    {
+        EG(return_value_ptr_ptr) = NULL;
+    }
+    else
+    {
+        EG(return_value_ptr_ptr) = return_value_ptr;
+    }
+    origin_active_op_array = EG(active_op_array);
+    origin_opline_ptr = EG(opline_ptr);
+    EG(active_op_array) = op_array;
+    EG(active_symbol_table) = NULL;
+    EG(scope) = fci_cache->calling_scope;
+    if (fci_cache->called_scope)
+    {
+        EG(called_scope) = fci_cache->called_scope;
+    }
+    else
+    {
+        EG(called_scope) = NULL;
+    }
+
+    if (fci_cache->object_ptr)
+    {
+        EG(This) = fci_cache->object_ptr;
+        if (!PZVAL_IS_REF(EG(This)))
+        {
+            Z_ADDREF_P(EG(This));
+        }
+        else
+        {
+            zval *this_ptr;
+            ALLOC_ZVAL(this_ptr);
+            *this_ptr = *EG(This);
+            INIT_PZVAL(this_ptr);
+            zval_copy_ctor(this_ptr);
+            EG(This) = this_ptr;
+        }
+    }
+    else
+    {
+        EG(This) = NULL;
+    }
+
+    zend_execute_data *next = zend_create_execute_data_from_op_array(op_array, 0);
+    jmp_buf *prev_checkpoint = swReactorCheckPoint;
+    swReactorCheckPoint = emalloc(sizeof(jmp_buf));
+    if (!setjmp(*swReactorCheckPoint))
+    {
+        //++swReactorCheckPoint.cnt;
+        zend_execute_ex(next);
+        if (fci->params)
+        {
+            efree(fci->params);
+        }
+        //--swReactorCheckPoint.cnt;
+        efree(swReactorCheckPoint);
+        swReactorCheckPoint = prev_checkpoint;
+        EG(active_op_array) = origin_active_op_array;
+        EG(return_value_ptr_ptr) = origin_return_ptr_ptr;
+        EG(opline_ptr) = origin_opline_ptr;
+    }
+    else
+    {
+        current->original_return_value = origin_return_ptr_ptr;
+        next->nested = 1;
+        //--swReactorCheckPoint.cnt;
+        efree(swReactorCheckPoint);
+        swReactorCheckPoint = prev_checkpoint;
+        if (fci->params)
+        {
+            efree(fci->params);
+        }
+        longjmp(*swReactorCheckPoint, 1);
+    }
+}
+
+static PHP_METHOD(swoole_coroutine_util, call_user_function)
+{
+    zend_fcall_info fci;
+    zend_fcall_info_cache fci_cache;
+
+    zval_ptr_dtor(return_value_ptr);
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "f*",&fci, &fci_cache, &fci.params, &fci.param_count) == FAILURE)
+    {
+        return;
+    }
+
+    swoole_corountine_call_function(&fci, &fci_cache, return_value_ptr);
+}
+
+static PHP_METHOD(swoole_coroutine_util, call_user_function_array)
+{
+    zval *params;
+    zend_fcall_info fci;
+    zend_fcall_info_cache fci_cache;
+
+    zval_ptr_dtor(return_value_ptr);
+    zend_fcall_info_args(&fci, params);
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "fa/",&fci, &fci_cache, &params) == FAILURE)
+    {
+        return;
+    }
+
+    swoole_corountine_call_function(&fci, &fci_cache, return_value_ptr);
 }
 
 static PHP_METHOD(swoole_coroutine_util, suspend)

@@ -682,7 +682,12 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
 static int php_swoole_onPacket(swServer *serv, swEventData *req)
 {
     zval *zserv = (zval *) serv->ptr2;
+
+#ifdef SW_COROUTINE
+    zval *args[3];
+#else
     zval **args[3];
+#endif
 
     zval *zdata;
     zval *zaddr;
@@ -702,7 +707,6 @@ static int php_swoole_onPacket(swServer *serv, swEventData *req)
 
     add_assoc_long(zaddr, "server_socket", req->info.from_fd);
 
-    zval *callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
 
     //udp ipv4
     if (req->info.type == SW_EVENT_UDP)
@@ -731,14 +735,35 @@ static int php_swoole_onPacket(swServer *serv, swEventData *req)
         dgram_server_socket = req->info.from_fd;
     }
 
+#ifndef SW_COROUTINE
     args[0] = &zserv;
     args[1] = &zdata;
     args[2] = &zaddr;
 
+    zval *callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_server: onPacket handler error");
     }
+#else
+    args[0] = zserv;
+    args[1] = zdata;
+    args[2] = zaddr;
+
+    zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
+    int ret = coro_create(cache, args, 4, &retval, NULL, NULL);
+    if (ret != 0)
+    {
+        sw_zval_ptr_dtor(&zaddr);
+        sw_zval_ptr_dtor(&zdata);
+        if (ret == CORO_LIMIT)
+        {
+            SwooleG.serv->factory.end(&SwooleG.serv->factory, req->info.fd);
+        }
+        return SW_OK;
+    }
+#endif
+
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);

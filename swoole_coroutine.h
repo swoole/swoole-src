@@ -22,6 +22,7 @@
 #define _PHP_SWOOLE_COROUTINE_H_
 
 #include "coroutine.h"
+#include <setjmp.h>
 
 #define DEFAULT_MAX_CORO_NUM 3000
 
@@ -70,6 +71,12 @@ struct _coro_task
     void (*post_callback)(void *param);
     void *post_callback_params;
 };
+
+typedef struct
+{
+    uint32_t cnt;
+    jmp_buf checkpoints[10];
+} coro_checkpoint_stack;
 
 extern zend_fcall_info_cache *php_sw_server_caches[PHP_SERVER_CALLBACK_NUM];
 
