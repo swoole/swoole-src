@@ -47,26 +47,44 @@ static void swoole_coroutine_util_resume(void *data)
 	efree(context);
 }
 
-static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache, zval **return_value_ptr)
+static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache, zval **return_value_ptr, int use_array)
 {
     int i;
-    zend_execute_data *current = EG(current_execute_data);
     zval **origin_return_ptr_ptr;
-    zend_op_array *origin_active_op_array;
     zend_op **origin_opline_ptr;
-
+    zend_op_array *origin_active_op_array;
     zend_op_array *op_array = (zend_op_array *)fci_cache->function_handler;
-    void **end = EG(argument_stack)->top - 1;
-    void **start = end - (int)(zend_uintptr_t)(*end);
-    zval_ptr_dtor((zval **)(start));
-    for (i = 0; i < fci->param_count; ++i)
+    zend_execute_data *current = EG(current_execute_data);
+    void **start, **end, **index;
+
+    if (use_array == 0) 
     {
-        *start = *(start + 1);
-        ++start;
+        end = EG(argument_stack)->top - 1;
+        start = end - (int)(zend_uintptr_t)(*end);
+        zval_ptr_dtor((zval **)(start));
+        for (i = 0; i < fci->param_count; ++i)
+        {
+            *start = *(start + 1);
+            ++start;
+        }
+        *start = (void*)(zend_uintptr_t)fci->param_count;
+        EG(argument_stack)->top = start + 1;
+        current->function_state.arguments = start;
     }
-    *start = (void*)(zend_uintptr_t)fci->param_count;
-    EG(argument_stack)->top = start + 1;
-    current->function_state.arguments = start;
+    else
+    {
+        start = (void **)emalloc(sizeof(zval **) * (fci->param_count + 1));
+        index = start;
+        end = start + fci->param_count;
+        current->function_state.arguments = end;
+        for (i = 0; i < fci->param_count; ++i)
+        {
+            *start = *fci->params[i];
+            ++start;
+        }
+        *start = (void*)(zend_uintptr_t)fci->param_count;
+    }
+
     origin_return_ptr_ptr = EG(return_value_ptr_ptr);
     if (current->opline->result_type & EXT_TYPE_UNUSED)
     {
@@ -122,6 +140,10 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
         if (fci->params)
         {
             efree(fci->params);
+            if (use_array == 1)
+            {
+                efree(index);
+            }
         }
         //--swReactorCheckPoint.cnt;
         efree(swReactorCheckPoint);
@@ -140,6 +162,10 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
         if (fci->params)
         {
             efree(fci->params);
+            if (use_array == 1)
+            {
+                efree(index);
+            }
         }
         longjmp(*swReactorCheckPoint, 1);
     }
@@ -156,7 +182,7 @@ static PHP_METHOD(swoole_coroutine_util, call_user_function)
         return;
     }
 
-    swoole_corountine_call_function(&fci, &fci_cache, return_value_ptr);
+    swoole_corountine_call_function(&fci, &fci_cache, return_value_ptr, 0);
 }
 
 static PHP_METHOD(swoole_coroutine_util, call_user_function_array)
@@ -166,13 +192,12 @@ static PHP_METHOD(swoole_coroutine_util, call_user_function_array)
     zend_fcall_info_cache fci_cache;
 
     zval_ptr_dtor(return_value_ptr);
-    zend_fcall_info_args(&fci, params);
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "fa/",&fci, &fci_cache, &params) == FAILURE)
     {
         return;
     }
-
-    swoole_corountine_call_function(&fci, &fci_cache, return_value_ptr);
+    zend_fcall_info_args(&fci, params);
+    swoole_corountine_call_function(&fci, &fci_cache, return_value_ptr, 1);
 }
 
 static PHP_METHOD(swoole_coroutine_util, suspend)
