@@ -235,6 +235,7 @@ static void swoole_redis_coro_onConnect(const redisAsyncContext *c, int status);
 static void swoole_redis_coro_onClose(const redisAsyncContext *c, int status);
 static int swoole_redis_coro_onRead(swReactor *reactor, swEvent *event);
 static int swoole_redis_coro_onWrite(swReactor *reactor, swEvent *event);
+static int swoole_redis_onError(swReactor *reactor, swEvent *event);
 static void swoole_redis_coro_onResult(redisAsyncContext *c, void *r, void *privdata);
 static void swoole_redis_coro_parse_result(swRedisClient *redis, zval* return_value, redisReply* reply TSRMLS_DC);
 
@@ -983,6 +984,7 @@ static PHP_METHOD(swoole_redis_coro, connect)
     {
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_REDIS | SW_EVENT_READ, swoole_redis_coro_onRead);
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_REDIS | SW_EVENT_WRITE, swoole_redis_coro_onWrite);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_REDIS | SW_EVENT_ERROR, swoole_redis_onError);
         isset_event_callback = 1;
     }
 
@@ -1087,6 +1089,17 @@ static PHP_METHOD(swoole_redis_coro, close)
 	}
 	redis->state = SWOOLE_REDIS_CORO_STATE_CLOSING;
 	redis->iowait = SW_REDIS_CORO_STATUS_CLOSED;
+	if (redis->defer)
+	{
+		redisCallback *head = redis->context->replies.head;
+		redisCallback *cb = head;
+		while (head != NULL) {
+			head = cb->next;
+			free(cb);
+			cb = head;
+		}
+		redis->context->replies.head = NULL;
+	}
     redisAsyncDisconnect(redis->context);
 
 	RETURN_TRUE;
@@ -3430,6 +3443,22 @@ void swoole_redis_coro_onClose(const redisAsyncContext *c, int status)
 {
     swRedisClient *redis = c->ev.data;
     redis->state = SWOOLE_REDIS_CORO_STATE_CLOSED;
+}
+
+static int swoole_redis_onError(swReactor *reactor, swEvent *event)
+{
+    swRedisClient *redis = event->socket->object;
+    redisAsyncContext *c = redis->context;
+	zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), c->err TSRMLS_CC);
+	zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), c->errstr TSRMLS_CC);
+	zval *retval;
+	sw_zend_call_method_with_0_params(&redis->object, swoole_redis_coro_class_entry_ptr, NULL, "close", &retval);
+	if (retval)
+	{
+		sw_zval_ptr_dtor(&retval);
+	}
+
+	return SW_OK;
 }
 
 static void swoole_redis_coro_event_AddRead(void *privdata)

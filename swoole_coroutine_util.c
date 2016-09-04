@@ -5,8 +5,8 @@
 
 static PHP_METHOD(swoole_coroutine_util, suspend);
 static PHP_METHOD(swoole_coroutine_util, resume);
-static PHP_METHOD(swoole_coroutine_util, call_user_function);
-static PHP_METHOD(swoole_coroutine_util, call_user_function_array);
+static PHP_METHOD(swoole_coroutine_util, call_user_func);
+static PHP_METHOD(swoole_coroutine_util, call_user_func_array);
 
 static swHashMap *defer_coros;
 
@@ -18,8 +18,8 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
 {
     PHP_ME(swoole_coroutine_util, suspend, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, resume, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_util, call_user_function, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_util, call_user_function_array, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, call_user_func, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, call_user_func_array, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
@@ -47,7 +47,7 @@ static void swoole_coroutine_util_resume(void *data)
 	efree(context);
 }
 
-static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache, zval **return_value_ptr, int use_array)
+static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache, zval **return_value_ptr, zend_bool use_array)
 {
     int i;
     zval **origin_return_ptr_ptr;
@@ -55,9 +55,22 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
     zend_op_array *origin_active_op_array;
     zend_op_array *op_array = (zend_op_array *)fci_cache->function_handler;
     zend_execute_data *current = EG(current_execute_data);
-    void **start, **end, **index;
+    void **start, **end, **allocated_params;
 
-    if (use_array == 0) 
+    if (use_array)
+    {
+        start = (void **)emalloc(sizeof(zval **) * (fci->param_count + 1));
+        allocated_params = start;
+        end = start + fci->param_count;
+        current->function_state.arguments = end;
+        for (i = 0; i < fci->param_count; ++i)
+        {
+            *start = *fci->params[i];
+            ++start;
+        }
+        *start = (void*)(zend_uintptr_t)fci->param_count;
+    }
+    else
     {
         end = EG(argument_stack)->top - 1;
         start = end - (int)(zend_uintptr_t)(*end);
@@ -70,19 +83,6 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
         *start = (void*)(zend_uintptr_t)fci->param_count;
         EG(argument_stack)->top = start + 1;
         current->function_state.arguments = start;
-    }
-    else
-    {
-        start = (void **)emalloc(sizeof(zval **) * (fci->param_count + 1));
-        index = start;
-        end = start + fci->param_count;
-        current->function_state.arguments = end;
-        for (i = 0; i < fci->param_count; ++i)
-        {
-            *start = *fci->params[i];
-            ++start;
-        }
-        *start = (void*)(zend_uintptr_t)fci->param_count;
     }
 
     origin_return_ptr_ptr = EG(return_value_ptr_ptr);
@@ -140,9 +140,9 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
         if (fci->params)
         {
             efree(fci->params);
-            if (use_array == 1)
+            if (use_array)
             {
-                efree(index);
+                efree(allocated_params);
             }
         }
         //--swReactorCheckPoint.cnt;
@@ -162,16 +162,16 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
         if (fci->params)
         {
             efree(fci->params);
-            if (use_array == 1)
+            if (use_array)
             {
-                efree(index);
+                efree(allocated_params);
             }
         }
         longjmp(*swReactorCheckPoint, 1);
     }
 }
 
-static PHP_METHOD(swoole_coroutine_util, call_user_function)
+static PHP_METHOD(swoole_coroutine_util, call_user_func)
 {
     zend_fcall_info fci;
     zend_fcall_info_cache fci_cache;
@@ -185,7 +185,7 @@ static PHP_METHOD(swoole_coroutine_util, call_user_function)
     swoole_corountine_call_function(&fci, &fci_cache, return_value_ptr, 0);
 }
 
-static PHP_METHOD(swoole_coroutine_util, call_user_function_array)
+static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
 {
     zval *params;
     zend_fcall_info fci;
