@@ -1089,17 +1089,14 @@ static PHP_METHOD(swoole_redis_coro, close)
 	}
 	redis->state = SWOOLE_REDIS_CORO_STATE_CLOSING;
 	redis->iowait = SW_REDIS_CORO_STATUS_CLOSED;
-	if (redis->defer)
-	{
-		redisCallback *head = redis->context->replies.head;
-		redisCallback *cb = head;
-		while (head != NULL) {
-			head = cb->next;
-			free(cb);
-			cb = head;
-		}
-		redis->context->replies.head = NULL;
+	redisCallback *head = redis->context->replies.head;
+	redisCallback *cb = head;
+	while (head != NULL) {
+		head = cb->next;
+		free(cb);
+		cb = head;
 	}
+	redis->context->replies.head = NULL;
     redisAsyncDisconnect(redis->context);
 
 	RETURN_TRUE;
