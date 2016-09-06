@@ -1,6 +1,6 @@
 PROJECT(swoole_server)
 
-SET(SWOOLE_VERSION 1.8.8)
+SET(SWOOLE_VERSION 1.8.11)
 SET(SWOOLE_CLFLAGS pthread rt dl ssl crypt crypto nghttp2)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.4)
 
@@ -15,11 +15,7 @@ SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 #message(STATUS "source=${SRC_LIST}")
 #message(STATUS "header=${HEAD_FILES}")
 
-#for Linux
-add_definitions(-DHAVE_EPOLL -DHAVE_ACCEPT4 -DHAVE_EVENTFD -DHAVE_TIMERFD -DHAVE_CPU_AFFINITY -DHAVE_OPENSSL -DSW_USE_OPENSSL)
-
-#for FreeBSD
-#add_definitions(-DHAVE_KQUEUE)
+add_definitions(-DHAVE_CONFIG_H)
 
 INCLUDE_DIRECTORIES(BEFORE ./include ./ /usr/local/php/include /usr/local/php/include/Zend /usr/local/php/include/main)
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
