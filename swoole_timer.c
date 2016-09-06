@@ -37,7 +37,9 @@ typedef struct _swTimer_callback
 
 typedef struct _swTimer_coro_callback
 {
+    int ms;
     int cli_fd;
+    int *timeout_id;
     void* data;
 } swTimer_coro_callback;
 
@@ -46,15 +48,16 @@ static swHashMap *timer_map;
 static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode);
 static void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode);
 #ifdef SW_COROUTINE
-long php_swoole_add_timer_coro(int ms, int cli_fd, void* param TSRMLS_DC);
+long php_swoole_add_timer_coro(int ms, int cli_fd, int *timeout_id, void* param TSRMLS_DC);
 int php_swoole_del_timer_coro(swTimer_node *tnode TSRMLS_DC);
 int php_swoole_clear_timer_coro(long id TSRMLS_DC);
+static void add_timer_coro(void* scc);
 #endif
 static long php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tick TSRMLS_DC);
 static int php_swoole_del_timer(swTimer_node *tnode TSRMLS_DC);
 
 #ifdef SW_COROUTINE
-long php_swoole_add_timer_coro(int ms, int cli_fd, void* param TSRMLS_DC) //void *
+long php_swoole_add_timer_coro(int ms, int cli_fd, int *timeout_id, void* param TSRMLS_DC) //void *
 {
     if (SwooleG.serv && swIsMaster())
     {
@@ -80,9 +83,14 @@ long php_swoole_add_timer_coro(int ms, int cli_fd, void* param TSRMLS_DC) //void
     php_swoole_check_timer(ms);
 
     swTimer_coro_callback *scc = emalloc(sizeof(swTimer_coro_callback));
+    scc->ms = ms;
     scc->data = param;
     scc->cli_fd = cli_fd;
+    scc->timeout_id = timeout_id;
 
+    SwooleG.main_reactor->defer(SwooleG.main_reactor, add_timer_coro, scc);
+    return SW_OK;
+/*
     swTimer_node *tnode = swTimer_add(&SwooleG.timer, ms, 0, scc);
     tnode->type = SW_TIMER_TYPE_CORO;
 
@@ -101,6 +109,30 @@ long php_swoole_add_timer_coro(int ms, int cli_fd, void* param TSRMLS_DC) //void
         }
         return tnode->id;
     }
+*/
+}
+
+static void add_timer_coro(void* s){
+
+    swTimer_coro_callback *scc = (swTimer_coro_callback *)s;
+    swTimer_node *tnode = swTimer_add(&SwooleG.timer, scc->ms, 0, scc);
+    tnode->type = SW_TIMER_TYPE_CORO;
+
+    if (tnode == NULL)
+    {
+        swoole_php_fatal_error(E_WARNING, "addtimer failed.");
+    }
+    else
+    {
+        swHashMap_add_int(timer_map, tnode->id, tnode);
+        if (SwooleG.main_reactor->timeout_msec < 0)
+        {
+            SwooleG.main_reactor->timeout_msec = 100;
+        }
+        scc ->timeout_id = &tnode->id;
+    }
+
+    //efree(scc);
 }
 
 int php_swoole_clear_timer_coro(long id TSRMLS_DC)

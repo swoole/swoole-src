@@ -353,7 +353,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
 		php_context *context = swoole_get_property(getThis(), 0);
         if ((int) timeout > 0)
         {
-            client->cli->timeout_id = php_swoole_add_timer_coro((int) (timeout * 1000), client->fd, (void *) context TSRMLS_CC);
+            php_swoole_add_timer_coro((int) (timeout * 1000), client->fd, &client->cli->timeout_id, (void *) context TSRMLS_CC);
         }
 		if (client->defer)
 		{

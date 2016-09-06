@@ -941,7 +941,7 @@ static PHP_METHOD(swoole_client_coro, recv)
 	php_context *sw_current_context = swoole_get_property(getThis(), 0);
 	if (cli->timeout > 0)
 	{
-		cli->timeout_id = php_swoole_add_timer_coro((int) (cli->timeout * 1000), cli->socket->fd, (void *) sw_current_context TSRMLS_CC);
+		php_swoole_add_timer_coro((int) (cli->timeout * 1000), cli->socket->fd, &cli->timeout_id, (void *) sw_current_context TSRMLS_CC);
 	}
 	ccp->iowait = SW_CLIENT_CORO_STATUS_WAIT;
 	coro_save(return_value, return_value_ptr, sw_current_context);

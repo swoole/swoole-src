@@ -107,7 +107,7 @@ void coro_check(TSRMLS_D);
 void coro_close(TSRMLS_D);
 php_context *coro_save(zval *return_value, zval **return_value_ptr, php_context *sw_php_context);
 int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retval);
-long php_swoole_add_timer_coro(int ms, int cli_fd, void* param TSRMLS_DC);
+long php_swoole_add_timer_coro(int ms, int cli_fd, int *timeout_id, void* param TSRMLS_DC);
 int php_swoole_clear_timer_coro(long id TSRMLS_DC);
 
 #endif
