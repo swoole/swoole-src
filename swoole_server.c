@@ -15,7 +15,7 @@
  */
 
 #include "php_swoole.h"
-
+#include "module.h"
 #include "Connection.h"
 
 #include "ext/standard/php_var.h"
