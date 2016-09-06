@@ -1,5 +1,5 @@
 <?php
-define('OUTPUT_FILE', __DIR__.'/swoole-ide-helper.php');
+define('OUTPUT_FILE', __DIR__.'/swoole.php');
 
 function getFuncDef(array $funcs, $version)
 {
