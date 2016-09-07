@@ -1404,7 +1404,7 @@ static PHP_METHOD(swoole_http_client_coro, post)
     char *uri = NULL;
     zend_size_t uri_len = 0;
     zval *post_data;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "szz", &uri, &uri_len, &post_data) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &uri, &uri_len, &post_data) == FAILURE)
     {
         return;
     }
