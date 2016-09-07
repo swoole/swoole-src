@@ -751,7 +751,7 @@ static int php_swoole_onPacket(swServer *serv, swEventData *req)
     args[2] = zaddr;
 
     zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
-    int ret = coro_create(cache, args, 4, &retval, NULL, NULL);
+    int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
     if (ret != 0)
     {
         sw_zval_ptr_dtor(&zaddr);
