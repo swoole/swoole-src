@@ -1608,7 +1608,7 @@ PHP_METHOD(swoole_server, set)
         serv->enable_unsafe_event = Z_BVAL_P(v);
     }
     //port reuse
-    if (php_swoole_array_get_value(vht, "enable_port_reuse", v))
+    if (php_swoole_array_get_value(vht, "enable_reuse_port", v))
     {
         convert_to_boolean(v);
         SwooleG.reuse_port = Z_BVAL_P(v);
