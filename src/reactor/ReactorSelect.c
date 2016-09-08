@@ -182,9 +182,6 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
         FD_ZERO(&(object->wfds));
         FD_ZERO(&(object->efds));
 
-        timeout.tv_sec = timeo->tv_sec;
-        timeout.tv_usec = timeo->tv_usec;
-
         LL_FOREACH(object->fds, ev)
         {
             if (swReactor_event_read(ev->fdtype))
