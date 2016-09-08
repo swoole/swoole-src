@@ -98,7 +98,7 @@ static swString *http_client_buffer;
 static int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length);
 static int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length);
 static int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length);
-static int http_client_parser_on_headers_complete(php_http_parser *parser);
+int http_client_parser_on_headers_complete(php_http_parser *parser);
 static int http_client_parser_on_message_complete(php_http_parser *parser);
 
 static void http_client_onReceive(swClient *cli, char *data, uint32_t length);
@@ -112,7 +112,7 @@ static http_client* http_client_create(zval *object TSRMLS_DC);
 static void http_client_free(zval *object TSRMLS_DC);
 static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zval *callback TSRMLS_DC);
 
-static sw_inline void http_client_swString_append_headers(swString* swStr, char* key, zend_size_t key_len, char* data, zend_size_t data_len)
+sw_inline void http_client_swString_append_headers(swString* swStr, char* key, zend_size_t key_len, char* data, zend_size_t data_len)
 {
     swString_append_ptr(swStr, key, key_len);
     swString_append_ptr(swStr, ZEND_STRL(": "));
@@ -120,14 +120,14 @@ static sw_inline void http_client_swString_append_headers(swString* swStr, char*
     swString_append_ptr(swStr, ZEND_STRL("\r\n"));
 }
 
-static sw_inline void http_client_append_content_length(swString* buf, int length)
+sw_inline void http_client_append_content_length(swString* buf, int length)
 {
     char content_length_str[32];
     int n = snprintf(content_length_str, sizeof(content_length_str), "Content-Length: %d\r\n\r\n", length);
     swString_append_ptr(buf, content_length_str, n);
 }
 
-static sw_inline void http_client_create_token(int length, char *buf)
+sw_inline void http_client_create_token(int length, char *buf)
 {
     char characters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"§$%&/()=[]{}";
     int i;
@@ -586,7 +586,7 @@ static void http_client_onConnect(swClient *cli)
 }
 
 #if PHP_MAJOR_VERSION < 7
-static inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_str *formstr TSRMLS_DC)
+inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_str *formstr TSRMLS_DC)
 {
 #if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION == 3
     if (php_url_encode_hash_ex(HASH_OF(data), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL TSRMLS_CC) == FAILURE)
@@ -609,7 +609,7 @@ static inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_s
     return formstr->c;
 }
 #else
-static inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_str *formstr TSRMLS_DC)
+inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_str *formstr TSRMLS_DC)
 {
     if (php_url_encode_hash_ex(HASH_OF(data), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738) == FAILURE)
     {
@@ -956,8 +956,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
     }
     return ret;
 }
-
-static void http_client_free(zval *object TSRMLS_DC)
+ void http_client_free(zval *object TSRMLS_DC)
 {
     http_client *http = swoole_get_object(object);
     if (!http)
@@ -1355,7 +1354,7 @@ static int http_client_parser_on_header_field(php_http_parser *parser, const cha
     return 0;
 }
 
-static int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length)
+int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -1414,7 +1413,7 @@ static int http_client_parser_on_header_value(php_http_parser *parser, const cha
 }
 
 #ifdef SW_HAVE_ZLIB
-static int http_response_uncompress(char *body, int length)
+ int http_response_uncompress(char *body, int length)
 {
     z_stream stream;
     memset(&stream, 0, sizeof(stream));
@@ -1472,7 +1471,7 @@ static int http_response_uncompress(char *body, int length)
 }
 #endif
 
-static int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length)
+int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length)
 {
     http_client* http = (http_client*) parser->data;
     if (swString_append_ptr(http->body, (char *) at, length) < 0)
@@ -1482,7 +1481,7 @@ static int http_client_parser_on_body(php_http_parser *parser, const char *at, s
     return 0;
 }
 
-static int http_client_parser_on_headers_complete(php_http_parser *parser)
+int http_client_parser_on_headers_complete(php_http_parser *parser)
 {
     http_client* http = (http_client*) parser->data;
     //no content-length
