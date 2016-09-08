@@ -1745,7 +1745,7 @@ typedef struct
 
 #ifdef SW_COROUTINE
     swLinkedList *coro_timeout_list;
-    uint32_t scheduler_count;
+    swLinkedList *delayed_coro_timeout_list;
 #endif
 
     swString **buffer_input;

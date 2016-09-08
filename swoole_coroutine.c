@@ -181,9 +181,7 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
 	COROG.require = 1;
     if (!setjmp(*swReactorCheckPoint))
     {
-        //swReactorCheckPoint.cnt++;
         zend_execute_ex(execute_data TSRMLS_CC);
-        //swReactorCheckPoint.cnt--;
         if (EG(return_value_ptr_ptr) != NULL)
         {
             *retval = *EG(return_value_ptr_ptr);
@@ -194,7 +192,6 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
     }
     else
     {
-        //swReactorCheckPoint.cnt--;
         coro_status = CORO_YIELD;
     }
 	COROG.require = 0;
@@ -314,9 +311,7 @@ int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retva
     if (!setjmp(*swReactorCheckPoint))
     {
         //coro exit
-        //swReactorCheckPoint.cnt++;
         zend_execute_ex(sw_current_context->current_execute_data TSRMLS_CC);
-        //swReactorCheckPoint.cnt--;
         if (EG(return_value_ptr_ptr) != NULL)
         {
             *coro_retval = *EG(return_value_ptr_ptr);
@@ -327,7 +322,6 @@ int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retva
     else
     {
         //coro yield
-        //--swReactorCheckPoint.cnt;
         coro_status = CORO_YIELD;
     }
 	COROG.require = 0;
@@ -343,28 +337,37 @@ sw_inline void coro_yield()
 sw_inline void coro_handle_timeout()
 {
     swLinkedList *timeout_list = SwooleWG.coro_timeout_list;
-    if (timeout_list == NULL || timeout_list->num == 0)
+    if (timeout_list != NULL && timeout_list->num > 0)
     {
-        return;
+		php_context *cxt = (php_context *)swLinkedList_pop(timeout_list);
+		while(cxt != NULL) {
+			cxt->onTimeout(cxt);
+			cxt = (php_context *)swLinkedList_pop(timeout_list);
+		}
     }
 
-	php_context *cxt = (php_context *)swLinkedList_pop(timeout_list);
-	while(cxt != NULL) {
-		//TODO user define
-		if (SwooleG.main_reactor->timeout_msec <= 0 && timeout_list->num > 0)
-		{
-			SwooleG.main_reactor->timeout_msec = SW_CORO_SCHEDUER_TIMEOUT;
-		}
-		cxt->onTimeout(cxt);
-		cxt = (php_context *)swLinkedList_pop(timeout_list);
-	}
-	//if the timeout node is null then no need the timeout function loop
-	if (SwooleG.timer.num == 0)
+	timeout_list = SwooleWG.delayed_coro_timeout_list;
+	if (likely(timeout_list != NULL))
 	{
-		SwooleG.main_reactor->timeout_msec = -1;
+		swTimer_coro_callback *scc = (swTimer_coro_callback *)swLinkedList_pop(timeout_list);
+		while (scc != NULL) {
+			swTimer_node *tnode = swTimer_add(&SwooleG.timer, scc->ms, 0, scc);
+
+			if (tnode == NULL)
+			{
+				swWarn("Addtimer coro failed.");
+			}
+			else
+			{
+				tnode->type = SW_TIMER_TYPE_CORO;
+				swHashMap_add_int(timer_map, tnode->id, tnode);
+				*scc ->timeout_id = tnode->id;
+			}
+			scc = (swTimer_coro_callback *)swLinkedList_pop(timeout_list);
+		}
 	}
 
-    return;
+	SwooleG.main_reactor->timeout_msec = SwooleG.timer.num == 0 ? -1 : 100;
 }
 #endif
 

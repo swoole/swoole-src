@@ -78,9 +78,19 @@ typedef struct
     jmp_buf checkpoints[10];
 } coro_checkpoint_stack;
 
+typedef struct _swTimer_coro_callback
+{
+    int ms;
+    int cli_fd;
+    long *timeout_id;
+    void* data;
+} swTimer_coro_callback;
+
 extern zend_fcall_info_cache *php_sw_server_caches[PHP_SERVER_CALLBACK_NUM];
 
 extern coro_global COROG;
+
+extern swHashMap *timer_map;
 
 static sw_inline zend_fcall_info_cache* php_swoole_server_get_cache(swServer *serv, int server_fd, int event_type)
 {
@@ -107,7 +117,7 @@ void coro_check(TSRMLS_D);
 void coro_close(TSRMLS_D);
 php_context *coro_save(zval *return_value, zval **return_value_ptr, php_context *sw_php_context);
 int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retval);
-long php_swoole_add_timer_coro(int ms, int cli_fd, int *timeout_id, void* param TSRMLS_DC);
+int php_swoole_add_timer_coro(int ms, int cli_fd, long *timeout_id, void* param TSRMLS_DC);
 int php_swoole_clear_timer_coro(long id TSRMLS_DC);
 
 #endif
