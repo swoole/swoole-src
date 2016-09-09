@@ -35,11 +35,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2016-08-23</date>
-    <time>12:48:51</time>
+    <date>2016-09-09</date>
+    <time>16:48:51</time>
     <version>
-		<release>1.8.10</release>
-		<api>1.8.10</api>
+		<release>1.8.11</release>
+		<api>1.8.11</api>
     </version>
     <stability>
         <release>stable</release>
@@ -47,8 +47,10 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed Swoole\Http\Client crash when do close connection in the callback function
-- Fixed Swoole\Http\Server cannot support more than 1024 concurrent
+- Added new package_length_type C(unsigned 8bit)/c(signed 8bit)
+- Added package_length_func option, you can use the C/C++ function to parse the packet length
+- Added SIGRTMIN signal handler, used to reopen the log file
+- Fixed server crash on Cygwin environment
     </notes>
 	<contents>
 		<dir name="/">
