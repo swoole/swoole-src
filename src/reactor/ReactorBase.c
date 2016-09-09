@@ -32,7 +32,7 @@ int swReactor_create(swReactor *reactor, int max_event)
     ret = swReactorEpoll_create(reactor, max_event);
 #elif defined(HAVE_KQUEUE)
     ret = swReactorKqueue_create(reactor, max_event);
-#elif defined(SW_MAINREACTOR_USE_POLL)
+#elif defined(HAVE_POLL)
     ret = swReactorPoll_create(reactor, max_event);
 #else
     ret = swReactorSelect_create(reactor);
