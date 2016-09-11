@@ -85,7 +85,7 @@ typedef struct
 
     zend_bool defer;//0 normal 1 wait for receive
     zend_bool defer_result;//0
-    zend_bool defer_chunk_status;// 0 1
+    zend_bool defer_chunk_status;// 0 1 now use rango http->complete
     http_client_defer_state defer_status;
 
 } http_client_property;
@@ -132,12 +132,12 @@ extern int http_client_parser_on_header_value(php_http_parser *parser, const cha
 extern int http_client_parser_on_headers_complete(php_http_parser *parser);
 extern sw_inline void http_client_swString_append_headers(swString* swStr, char* key, zend_size_t key_len, char* data, zend_size_t data_len);
 extern http_client* http_client_create(zval *object TSRMLS_DC);
-extern sw_inline void http_client_append_content_length(swString* buf, int length);
+//extern sw_inline void http_client_append_content_length(swString* buf, int length);
 extern inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_str *formstr TSRMLS_DC);
 
 extern void http_client_free(zval *object TSRMLS_DC);
 extern int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length);
-static int http_client_coro_parser_on_message_complete(php_http_parser *parser);
+extern int http_client_parser_on_message_complete(php_http_parser *parser);
 
 static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t length);
 static void http_client_coro_onConnect(swClient *cli);
@@ -204,7 +204,7 @@ static const php_http_parser_settings http_parser_settings =
     http_client_parser_on_header_value,
     http_client_parser_on_headers_complete,
     http_client_parser_on_body,
-    http_client_coro_parser_on_message_complete
+    http_client_parser_on_message_complete
 };
 
 zend_class_entry swoole_http_client_coro_ce;
@@ -545,9 +545,17 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
         goto begin_resume;
     }
 
-    if(!hcc->defer_chunk_status){ //not recv all wait for next
+        //not complete
+    if (!http->completed)
+    {
         return;
     }
+
+
+//    if(!hcc->defer_chunk_status){ //not recv all wait for next
+//        return;
+//    }
+
 
     SW_MAKE_STD_ZVAL(zdata);
     ZVAL_BOOL(zdata, 1); //return false
@@ -563,7 +571,9 @@ begin_resume:
         /*if next cr*/
         php_context *sw_current_context = swoole_get_property(zobject, 1);
         hcc->defer_status = HTTP_CLIENT_STATE_DEFER_INIT;
-        hcc->defer_chunk_status = 0;
+    //    hcc->defer_chunk_status = 0;
+        http->completed = 0;
+
         int ret = coro_resume(sw_current_context, zdata, &retval);
         if (ret > 0)
         {
@@ -1015,7 +1025,7 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
     hcc = (http_client_property*) emalloc(sizeof(http_client_property));
     bzero(hcc, sizeof(http_client_property));
     hcc->defer_status = HTTP_CLIENT_STATE_DEFER_INIT;
-    hcc->defer_chunk_status = 0;
+   // hcc->defer_chunk_status = 0;
     swoole_set_property(getThis(), 0, hcc);
 
     int flags = SW_SOCK_TCP | SW_FLAG_ASYNC;
@@ -1436,41 +1446,43 @@ static PHP_METHOD(swoole_http_client_coro, close)
 //    return 0;
 //}
 
-static int http_client_coro_parser_on_message_complete(php_http_parser *parser)
-{
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
-    http_client* http = (http_client*) parser->data;
-    zval* zobject = (zval*) http->cli->object;
-
-
-
-#ifdef SW_HAVE_ZLIB
-    if (http->gzip && http->body->length > 0)
-    {
-        if (http_response_uncompress(http->body->str, http->body->length) == SW_ERR)
-        {
-            swWarn("http_response_uncompress failed.");
-            return 0;
-        }
-        zend_update_property_stringl(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("body"), swoole_zlib_buffer->str, swoole_zlib_buffer->length TSRMLS_CC);
-    }
-    else
-#endif
-    {
-        zend_update_property_stringl(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("body"), http->body->str, http->body->length TSRMLS_CC);
-    }
-
-    http->completed = 1;
-
-    zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("statusCode"), http->parser.status_code TSRMLS_CC);
-
-    http_client_property *hcc = swoole_get_property(zobject, 0);
-    hcc->defer_chunk_status = 1;//recv done
-    return 0;
-}
+//static int http_client_coro_parser_on_message_complete(php_http_parser *parser)
+//{
+//#if PHP_MAJOR_VERSION < 7
+//    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+//#endif
+//
+//    http_client* http = (http_client*) parser->data;
+//    zval* zobject = (zval*) http->cli->object;
+//
+//
+//
+//#ifdef SW_HAVE_ZLIB
+//    if (http->gzip && http->body->length > 0)
+//    {
+//        if (http_response_uncompress(http->body->str, http->body->length) == SW_ERR)
+//        {
+//            swWarn("http_response_uncompress failed.");
+//            return 0;
+//        }
+//        zend_update_property_stringl(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("body"), swoole_zlib_buffer->str, swoole_zlib_buffer->length TSRMLS_CC);
+//    }
+//    else
+//#endif
+//    {
+//        zend_update_property_stringl(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("body"), http->body->str, http->body->length TSRMLS_CC);
+//    }
+//
+//    http->completed = 1;
+//
+//
+//
+//    zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("statusCode"), http->parser.status_code TSRMLS_CC);
+//
+//    http_client_property *hcc = swoole_get_property(zobject, 0);
+//   // hcc->defer_chunk_status = 1;//recv done
+//    return 0;
+//}
 
 
 static PHP_METHOD(swoole_http_client_coro, execute)

@@ -102,7 +102,7 @@ int http_client_parser_on_headers_complete(php_http_parser *parser);
 inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_str *formstr TSRMLS_DC);
 
 int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length);
-static int http_client_parser_on_message_complete(php_http_parser *parser);
+int http_client_parser_on_message_complete(php_http_parser *parser);
 
 static void http_client_onReceive(swClient *cli, char *data, uint32_t length);
 static void http_client_onConnect(swClient *cli);
@@ -1495,7 +1495,7 @@ int http_client_parser_on_headers_complete(php_http_parser *parser)
     return 0;
 }
 
-static int http_client_parser_on_message_complete(php_http_parser *parser)
+int http_client_parser_on_message_complete(php_http_parser *parser)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
