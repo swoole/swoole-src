@@ -101,7 +101,7 @@ int http_client_parser_on_header_value(php_http_parser *parser, const char *at, 
 int http_client_parser_on_headers_complete(php_http_parser *parser);
 inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_str *formstr TSRMLS_DC);
 
-static int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length);
+int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length);
 static int http_client_parser_on_message_complete(php_http_parser *parser);
 
 static void http_client_onReceive(swClient *cli, char *data, uint32_t length);
@@ -112,7 +112,7 @@ static int http_client_onMessage(swConnection *conn, char *data, uint32_t length
 
 static int http_client_send_http_request(zval *zobject TSRMLS_DC);
 http_client* http_client_create(zval *object TSRMLS_DC);
-static void http_client_free(zval *object TSRMLS_DC);
+void http_client_free(zval *object TSRMLS_DC);
 static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zval *callback TSRMLS_DC);
 
 static sw_inline void http_client_swString_append_headers(swString* swStr, char* key, zend_size_t key_len, char* data, zend_size_t data_len)
