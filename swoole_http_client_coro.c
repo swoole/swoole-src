@@ -62,8 +62,8 @@ typedef struct
     zval *onClose;
     zval *onMessage;
     zval *onResponse;
-    
-    
+
+
 #if PHP_MAJOR_VERSION >= 7
     zval _object;
     zval _request_body;
@@ -75,18 +75,17 @@ typedef struct
     zval _onClose;
     zval _onMessage;
 #endif
-    
+
     zval *cookies;
     zval *request_header;
     zval *request_body;
+    zval *request_upload_files;
     char *request_method;
     int callback_index;
-    
+
     zend_bool defer;//0 normal 1 wait for receive
     zend_bool defer_result;//0
-
     zend_bool defer_chunk_status;// 0 1
-
     http_client_defer_state defer_status;
 
 } http_client_property;
@@ -100,10 +99,10 @@ typedef struct
     double timeout;
     char* uri;
     zend_size_t uri_len;
-    
+
     char *tmp_header_field_name;
     zend_size_t tmp_header_field_name_len;
-    
+
     php_http_parser parser;
     swString *body;
     uint8_t state;       //0 wait 1 ready 2 busy
@@ -112,14 +111,32 @@ typedef struct
     uint8_t gzip;
     uint8_t chunked;     //标示是否是chunked
     uint8_t completed;  // 标示是否完成
-    
+
 } http_client;
+
+
 extern swString *swoole_zlib_buffer;
 static swString *http_client_buffer;
 
-static int http_client_coro_parser_on_header_field(php_http_parser *parser, const char *at, size_t length);
-static int http_client_coro_parser_on_header_value(php_http_parser *parser, const char *at, size_t length);
-static int http_client_coro_parser_on_body(php_http_parser *parser, const char *at, size_t length);
+//extern struct http_client_property;
+//extern enum http_client_defer_state;
+//extern enum http_client_state;
+
+#ifdef SW_HAVE_ZLIB
+extern int http_response_uncompress(char *body, int length);
+#endif
+
+
+extern int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length);
+extern int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length);
+extern int http_client_parser_on_headers_complete(php_http_parser *parser);
+extern sw_inline void http_client_swString_append_headers(swString* swStr, char* key, zend_size_t key_len, char* data, zend_size_t data_len);
+extern http_client* http_client_create(zval *object TSRMLS_DC);
+extern sw_inline void http_client_append_content_length(swString* buf, int length);
+extern inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_str *formstr TSRMLS_DC);
+
+extern void http_client_free(zval *object TSRMLS_DC);
+extern int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length);
 static int http_client_coro_parser_on_message_complete(php_http_parser *parser);
 
 static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t length);
@@ -128,11 +145,37 @@ static void http_client_coro_onClose(swClient *cli);
 static void http_client_coro_onError(swClient *cli);
 
 static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC);
- http_client* http_client_create(zval *object TSRMLS_DC);
-static void http_client_free(zval *object TSRMLS_DC);
 static int http_client_coro_execute(zval *zobject, char *uri, zend_size_t uri_len TSRMLS_DC);
 
 static void http_client_coro_onTimeout(php_context *cxt);
+
+
+static sw_inline void http_client_swString_append_headers(swString* swStr, char* key, zend_size_t key_len, char* data, zend_size_t data_len)
+{
+    swString_append_ptr(swStr, key, key_len);
+    swString_append_ptr(swStr, ZEND_STRL(": "));
+    swString_append_ptr(swStr, data, data_len);
+    swString_append_ptr(swStr, ZEND_STRL("\r\n"));
+}
+
+static sw_inline void http_client_append_content_length(swString* buf, int length)
+{
+    char content_length_str[32];
+    int n = snprintf(content_length_str, sizeof(content_length_str), "Content-Length: %d\r\n\r\n", length);
+    swString_append_ptr(buf, content_length_str, n);
+}
+
+static sw_inline void http_client_create_token(int length, char *buf)
+{
+    char characters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"§$%&/()=[]{}";
+    int i;
+    assert(length < 1024);
+    for (i = 0; i < length; i++)
+    {
+        buf[i] = characters[rand() % sizeof(characters) - 1];
+    }
+    buf[length] = '\0';
+}
 
 
 
@@ -158,9 +201,9 @@ static const php_http_parser_settings http_parser_settings =
     NULL,
     NULL,
     http_client_parser_on_header_field,
-    http_client_coro_parser_on_header_value,
+    http_client_parser_on_header_value,
     http_client_parser_on_headers_complete,
-    http_client_coro_parser_on_body,
+    http_client_parser_on_body,
     http_client_coro_parser_on_message_complete
 };
 
@@ -844,29 +887,26 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
     else if (post_data)
     {
 
-        if (Z_TYPE_P(post_data) == IS_ARRAY)
+         if (Z_TYPE_P(post_data) == IS_ARRAY)
         {
             zend_size_t len;
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Content-Type"), ZEND_STRL("application/x-www-form-urlencoded"));
             smart_str formstr_s = { 0 };
-            char *formstr = sw_http_build_query(post_data, &len TSRMLS_CC);
+            char *formstr = sw_http_build_query(post_data, &len, &formstr_s TSRMLS_CC);
             if (formstr == NULL)
             {
                 swoole_php_error(E_WARNING, "http_build_query failed.");
                 return SW_ERR;
             }
-            n = snprintf(content_length_str, sizeof(content_length_str), "Content-Length: %d\r\n\r\n", len);
-            swString_append_ptr(http_client_buffer, content_length_str, n);
+            http_client_append_content_length(http_client_buffer, len);
             swString_append_ptr(http_client_buffer, formstr, len);
             smart_str_free(&formstr_s);
         }
         else
         {
-            n = snprintf(content_length_str, sizeof(content_length_str), "Content-Length: %d\r\n\r\n", Z_STRLEN_P(post_data));
-            swString_append_ptr(http_client_buffer, content_length_str, n);
+            http_client_append_content_length(http_client_buffer, Z_STRLEN_P(post_data));
             swString_append_ptr(http_client_buffer, Z_STRVAL_P(post_data), Z_STRLEN_P(post_data));
         }
-
         zend_update_property_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestBody") TSRMLS_CC);
         hcc->request_body = NULL;
     }
