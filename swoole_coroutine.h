@@ -34,6 +34,13 @@
 typedef struct _php_context php_context;
 typedef struct _coro_task coro_task;
 
+typedef enum
+{
+	SW_CORO_CONTEXT_RUNNING,
+	SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST,
+	SW_CORO_CONTEXT_TERM
+} php_context_state;
+
 struct _php_context
 {
     zval **current_coro_return_value_ptr_ptr;
@@ -49,9 +56,9 @@ struct _php_context
     zval *current_this;
     zend_class_entry *current_scope;
     zend_class_entry *current_called_scope;
-    zend_vm_stack current_vm_stack;
-    void *parent;
     coro_task *current_task;
+    zend_vm_stack current_vm_stack;
+	php_context_state state;
 };
 
 typedef struct _coro_global

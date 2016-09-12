@@ -353,17 +353,27 @@ sw_inline void coro_handle_timeout()
 	{
 		swTimer_coro_callback *scc = (swTimer_coro_callback *)swLinkedList_pop(timeout_list);
 		while (scc != NULL) {
-			swTimer_node *tnode = swTimer_add(&SwooleG.timer, scc->ms, 0, scc);
-
-			if (tnode == NULL)
+			php_context *context = (php_context *)scc->data;
+			if (unlikely(context->state == SW_CORO_CONTEXT_TERM))
 			{
-				swWarn("Addtimer coro failed.");
+				efree(context);
+				efree(scc);
 			}
 			else
 			{
-				tnode->type = SW_TIMER_TYPE_CORO;
-				swHashMap_add_int(timer_map, tnode->id, tnode);
-				*scc ->timeout_id = tnode->id;
+				context->state = SW_CORO_CONTEXT_RUNNING;
+				swTimer_node *tnode = swTimer_add(&SwooleG.timer, scc->ms, 0, scc);
+
+				if (tnode == NULL)
+				{
+					swWarn("Addtimer coro failed.");
+				}
+				else
+				{
+					tnode->type = SW_TIMER_TYPE_CORO;
+					swHashMap_add_int(timer_map, tnode->id, tnode);
+					*scc ->timeout_id = tnode->id;
+				}
 			}
 			scc = (swTimer_coro_callback *)swLinkedList_pop(timeout_list);
 		}

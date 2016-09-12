@@ -188,7 +188,14 @@ static sw_inline void client_free_php_context(zval *object)
         return;
     }
 
-    efree(context);
+	if (likely(context->state == SW_CORO_CONTEXT_RUNNING))
+	{
+		efree(context);
+	}
+	else
+	{
+		context->state = SW_CORO_CONTEXT_TERM;
+	}
     swoole_set_property(object, 1, NULL);
 }
 
@@ -1314,7 +1321,14 @@ static PHP_METHOD(swoole_http_client_coro, execute)
     http_client *http = swoole_get_object(getThis());
     context->onTimeout = http_client_coro_onTimeout;
     context->coro_params = getThis();
-    php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, &http->cli->timeout_id, (void *)context TSRMLS_CC);
+	if (http->timeout > 0)
+	{
+		if (php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, &http->cli->timeout_id, (void *)context TSRMLS_CC) == SW_OK
+				&& hcc->defer)
+		{
+			context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
+		}
+	}
     if (hcc->defer)
     {
         RETURN_TRUE;
@@ -1359,7 +1373,14 @@ static PHP_METHOD(swoole_http_client_coro, get)
     }
     context->onTimeout = http_client_coro_onTimeout;
     context->coro_params = getThis();
-    php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, &http->cli->timeout_id, (void *)context TSRMLS_CC);
+	if (http->timeout > 0)
+	{
+		if (php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, &http->cli->timeout_id, (void *)context TSRMLS_CC) == SW_OK
+				&& hcc->defer)
+		{
+			context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
+		}
+	}
     if (hcc->defer)
     {
         RETURN_TRUE;
@@ -1415,7 +1436,14 @@ static PHP_METHOD(swoole_http_client_coro, post)
     }
     context->onTimeout = http_client_coro_onTimeout;
     context->coro_params = getThis();
-    php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, &http->cli->timeout_id, (void *)context TSRMLS_CC);
+	if (http->timeout > 0)
+	{
+		if (php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, &http->cli->timeout_id, (void *)context TSRMLS_CC) == SW_OK
+				&& hcc->defer)
+		{
+			context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
+		}
+	}
     if (hcc->defer)
     {
         RETURN_TRUE;

@@ -351,9 +351,13 @@ static PHP_METHOD(swoole_mysql_coro, query)
     {
         client->state = SW_MYSQL_STATE_READ_START;
 		php_context *context = swoole_get_property(getThis(), 0);
-        if ((int) timeout > 0)
+        if (timeout > 0)
         {
-            php_swoole_add_timer_coro((int) (timeout * 1000), client->fd, &client->cli->timeout_id, (void *) context TSRMLS_CC);
+            if (php_swoole_add_timer_coro((int) (timeout * 1000), client->fd, &client->cli->timeout_id, (void *) context TSRMLS_CC) == SW_OK
+					&& client->defer)
+			{
+				context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
+			}
         }
 		if (client->defer)
 		{
@@ -449,7 +453,14 @@ static PHP_METHOD(swoole_mysql_coro, __destruct)
     {
 		return;
     }
-	efree(context);
+	if (likely(context->state == SW_CORO_CONTEXT_RUNNING))
+	{
+		efree(context);
+	}
+	else
+	{
+		context->state = SW_CORO_CONTEXT_TERM;
+	}
     swoole_set_property(getThis(), 0, NULL);
 }
 

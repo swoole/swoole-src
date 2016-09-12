@@ -230,10 +230,12 @@ static int swClient_inet_addr(swClient *cli, char *host, int port)
         cli->server_addr.len = sizeof(cli->server_addr.addr.un);
         return SW_OK;
     }
+#ifndef SW_COROUTINE
     if (cli->async)
     {
         swWarn("DNS lookup will block the process. Please use swoole_async_dns_lookup.");
     }
+#endif
     if (swoole_gethostbyname(cli->_sock_domain, host, s_addr) < 0)
     {
         return SW_ERR;
