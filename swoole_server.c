@@ -751,7 +751,7 @@ static int php_swoole_onPacket(swServer *serv, swEventData *req)
     args[2] = zaddr;
 
     zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
-    int ret = coro_create(cache, args, 4, &retval, NULL, NULL);
+    int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
     if (ret != 0)
     {
         sw_zval_ptr_dtor(&zaddr);
@@ -1608,7 +1608,7 @@ PHP_METHOD(swoole_server, set)
         serv->enable_unsafe_event = Z_BVAL_P(v);
     }
     //port reuse
-    if (php_swoole_array_get_value(vht, "enable_port_reuse", v))
+    if (php_swoole_array_get_value(vht, "enable_reuse_port", v))
     {
         convert_to_boolean(v);
         SwooleG.reuse_port = Z_BVAL_P(v);
