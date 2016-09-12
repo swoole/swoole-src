@@ -462,7 +462,8 @@ struct _swServer
     int (*onTask)(swServer *serv, swEventData *data);
     int (*onFinish)(swServer *serv, swEventData *data);
 
-    int (*send)(swServer *, swSendData *);
+    int (*send)(swServer *serv, int fd, void *data, uint32_t length);
+    int (*sendfile)(swServer *serv, int fd, char *filename, uint32_t length, off_t offset);
     int (*dispatch_func)(swServer *, swConnection *, char *, uint32_t);
 };
 

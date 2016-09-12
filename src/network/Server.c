@@ -568,14 +568,8 @@ int swServer_start(swServer *serv)
     SwooleGS->start = 1;
     SwooleGS->now = SwooleStats->start_time = time(NULL);
 
-    if (serv->have_udp_sock == 1 && serv->factory_mode != SW_MODE_PROCESS)
-    {
-        serv->send = swServer_send2;
-    }
-    else
-    {
-        serv->send = swServer_send1;
-    }
+    serv->send = swServer_tcp_send;
+    serv->sendfile = swServer_tcp_sendfile;
 
     serv->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
     if (serv->workers == NULL)
