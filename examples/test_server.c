@@ -26,7 +26,7 @@ int main(int argc, char **argv)
     serv.reactor_num = 4;  //reactor线程数量
     serv.worker_num = 4;  //worker进程数量
 
-    serv.factory_mode = SW_MODE_PROCESS;
+    serv.factory_mode = SW_MODE_BASE;
     //serv.factory_mode = SW_MODE_SINGLE; //SW_MODE_PROCESS/SW_MODE_THREAD/SW_MODE_BASE/SW_MODE_SINGLE
     serv.max_connection = 10000;
     //serv.open_cpu_affinity = 1;
@@ -108,7 +108,7 @@ int my_onReceive(swServer *serv, swEventData *req)
     printf("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d\n", g_receive_count, swConnection_get_ip(conn),
             swConnection_get_port(conn), req->data, req->info.len);
 
-    int n = snprintf(resp_data, SW_BUFFER_SIZE, "Server: %*s", req->info.len, req->data);
+    int n = snprintf(resp_data, SW_BUFFER_SIZE, "Server: %*s\n", req->info.len, req->data);
     ret = serv->send(serv, req->info.fd, resp_data, n);
     if (ret < 0)
     {
@@ -117,14 +117,6 @@ int my_onReceive(swServer *serv, swEventData *req)
     else
     {
         printf("send %d bytes to client success. data=%s\n", n, resp_data);
-    }
-
-    if (req->info.from_id >= serv->reactor_num)
-    {
-        struct in_addr addr;
-        addr.s_addr = req->info.fd;
-
-        //printf("onReceive[%d]: ip=%s:%d, Data=%s\n", g_receive_count, inet_ntoa(addr), req->info.from_id, rtrim(req->data, req->info.len));
     }
     return SW_OK;
 }
@@ -217,12 +209,10 @@ void my_onShutdown(swServer *serv)
 
 void my_onConnect(swServer *serv, swDataHead *info)
 {
-//	ProfilerStart("/tmp/profile.prof");
     printf("PID=%d\tConnect fd=%d|from_id=%d\n", getpid(), info->fd, info->from_id);
 }
 
 void my_onClose(swServer *serv, swDataHead *info)
 {
     printf("PID=%d\tClose fd=%d|from_id=%d\n", getpid(), info->fd, info->from_id);
-//	ProfilerStop();
 }

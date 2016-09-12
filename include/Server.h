@@ -464,6 +464,7 @@ struct _swServer
 
     int (*send)(swServer *serv, int fd, void *data, uint32_t length);
     int (*sendfile)(swServer *serv, int fd, char *filename, uint32_t length, off_t offset);
+    int (*sendwait)(swServer *serv, int fd, void *data, uint32_t length);
     int (*dispatch_func)(swServer *, swConnection *, char *, uint32_t);
 };
 

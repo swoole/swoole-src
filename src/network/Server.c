@@ -43,9 +43,6 @@ static void swServer_disable_accept(swReactor *reactor);
 static void swHeartbeatThread_start(swServer *serv);
 static void swHeartbeatThread_loop(swThreadParam *param);
 
-static int swServer_send1(swServer *serv, swSendData *resp);
-static int swServer_send2(swServer *serv, swSendData *resp);
-
 static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int from_fd, int reactor_id);
 
 swServerG SwooleG;
@@ -569,6 +566,7 @@ int swServer_start(swServer *serv)
     SwooleGS->now = SwooleStats->start_time = time(NULL);
 
     serv->send = swServer_tcp_send;
+    serv->sendwait = swServer_tcp_sendwait;
     serv->sendfile = swServer_tcp_sendfile;
 
     serv->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
@@ -799,14 +797,6 @@ int swServer_free(swServer *serv)
     return SW_OK;
 }
 
-/**
- * only tcp
- */
-static int swServer_send1(swServer *serv, swSendData *resp)
-{
-    return swWrite(resp->info.fd, resp->data, resp->info.len);
-}
-
 int swServer_udp_send(swServer *serv, swSendData *resp)
 {
     struct sockaddr_in addr_in;
@@ -954,29 +944,6 @@ int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length)
         return SW_ERR;
     }
     return swSocket_write_blocking(conn->fd, data, length);
-}
-
-/**
- * for udp + tcp
- */
-static int swServer_send2(swServer *serv, swSendData *resp)
-{
-    int ret;
-
-    //UDP
-    if (resp->info.from_id >= serv->reactor_num)
-    {
-        ret = swServer_udp_send(serv, resp);
-    }
-    else
-    {
-        ret = swWrite(resp->info.fd, resp->data, resp->info.len);
-    }
-    if (ret < 0)
-    {
-        swWarn("[Writer]sendto client failed. errno=%d", errno);
-    }
-    return ret;
 }
 
 void swServer_signal_init(void)
