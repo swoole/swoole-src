@@ -170,7 +170,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         /*
          * [!!!] new_connection function must before reactor->add
          */
-        if (serv->factory_mode == SW_MODE_PROCESS)
+        if (serv->factory_mode != SW_MODE_SINGLE)
         {
             int events;
             if (serv->onConnect && !listen_host->ssl)
