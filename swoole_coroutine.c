@@ -366,6 +366,7 @@ sw_inline void coro_handle_timeout()
 
 				if (tnode == NULL)
 				{
+					efree(scc);
 					swWarn("Addtimer coro failed.");
 				}
 				else
