@@ -1226,15 +1226,15 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
 
 static PHP_METHOD(swoole_http_client_coro, setMethod)
 {
-    zval *data;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &data) == FAILURE)
+    zval *method;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &method) == FAILURE)
     {
         return;
     }
-    zend_update_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), data TSRMLS_CC);
+    convert_to_string(method);
+    zend_update_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestMethod"), method TSRMLS_CC);
     http_client_property *hcc = swoole_get_property(getThis(), 0);
-    hcc->request_body = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), 1 TSRMLS_CC);
-    sw_copy_to_stack(hcc->request_body, hcc->_request_body);
+    hcc->request_method = Z_STRVAL_P(method);
     RETURN_TRUE;
 }
 
