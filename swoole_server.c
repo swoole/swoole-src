@@ -2703,7 +2703,7 @@ PHP_METHOD(swoole_server, bind)
     SwooleGS->lock.lock(&SwooleGS->lock);
     if (conn->uid == 0)
     {
-        conn->uid = uid;
+        conn->uid = (uint32_t) uid;
         ret = 1;
     }
     SwooleGS->lock.unlock(&SwooleGS->lock);
