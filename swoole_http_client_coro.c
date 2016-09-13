@@ -996,6 +996,16 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
 
     zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("type"), flags TSRMLS_CC);
 
+    php_context *context = swoole_get_property(getThis(), 1);
+    if (!context)
+    {
+        context = emalloc(sizeof(php_context));
+        swoole_set_property(getThis(), 1, context);
+    }
+    context->onTimeout = http_client_coro_onTimeout;
+    context->coro_params = getThis();
+	context->state = SW_CORO_CONTEXT_RUNNING;
+
     RETURN_TRUE;
 }
 
@@ -1313,14 +1323,7 @@ static PHP_METHOD(swoole_http_client_coro, execute)
 
 
     php_context *context = swoole_get_property(getThis(), 1);
-    if (!context)
-    {
-        context = emalloc(sizeof(php_context));
-        swoole_set_property(getThis(), 1, context);
-    }
     http_client *http = swoole_get_object(getThis());
-    context->onTimeout = http_client_coro_onTimeout;
-    context->coro_params = getThis();
 	if (http->timeout > 0)
 	{
 		if (php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, &http->cli->timeout_id, (void *)context TSRMLS_CC) == SW_OK
@@ -1366,13 +1369,6 @@ static PHP_METHOD(swoole_http_client_coro, get)
 
     http_client *http = swoole_get_object(getThis());
     php_context *context = swoole_get_property(getThis(), 1);
-    if (!context)
-    {
-        context = emalloc(sizeof(php_context));
-        swoole_set_property(getThis(), 1, context);
-    }
-    context->onTimeout = http_client_coro_onTimeout;
-    context->coro_params = getThis();
 	if (http->timeout > 0)
 	{
 		if (php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, &http->cli->timeout_id, (void *)context TSRMLS_CC) == SW_OK
@@ -1429,13 +1425,6 @@ static PHP_METHOD(swoole_http_client_coro, post)
 
     http_client *http = swoole_get_object(getThis());
     php_context *context = swoole_get_property(getThis(), 1);
-    if (!context)
-    {
-        context = emalloc(sizeof(php_context));
-        swoole_set_property(getThis(), 1, context);
-    }
-    context->onTimeout = http_client_coro_onTimeout;
-    context->coro_params = getThis();
 	if (http->timeout > 0)
 	{
 		if (php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, &http->cli->timeout_id, (void *)context TSRMLS_CC) == SW_OK

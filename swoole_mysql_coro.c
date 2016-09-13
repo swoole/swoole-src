@@ -276,6 +276,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         context = emalloc(sizeof(php_context));
         swoole_set_property(getThis(), 0, context);
     }
+	context->state = SW_CORO_CONTEXT_RUNNING;
 	context->onTimeout = swoole_mysql_coro_onTimeout;
 	context->coro_params = getThis();
 	coro_save(return_value, return_value_ptr, context);
