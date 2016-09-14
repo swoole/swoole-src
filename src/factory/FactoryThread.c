@@ -91,6 +91,7 @@ int swFactoryThread_create(swFactory *factory, int worker_num)
 static int swFactoryThread_start(swFactory *factory)
 {
     swFactoryThread *object = factory->object;
+    SwooleWG.run_always = 1;
     swThreadPool_run(&object->workers);
     return SW_OK;
 }

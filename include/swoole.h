@@ -519,7 +519,7 @@ typedef struct _swConnection
     /**
      * bind uid
      */
-    long uid;
+    uint32_t uid;
 
     /**
      * memory buffer size;
