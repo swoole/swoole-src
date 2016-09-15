@@ -502,7 +502,6 @@ static PHP_METHOD(swoole_mysql_coro, close)
 
     client->cli->close(client->cli);
     swClient_free(client->cli);
-	sw_free(client->cli->socket);
     efree(client->cli);
     client->cli = NULL;
 	client->state = SW_MYSQL_STATE_CLOSED;

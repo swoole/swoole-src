@@ -15,7 +15,7 @@
  */
 
 #include "php_swoole.h"
-
+#include "module.h"
 #include "Connection.h"
 
 #ifdef SW_COROUTINE
@@ -1062,7 +1062,6 @@ static void php_swoole_onShutdown(swServer *serv)
     zval *retval = NULL;
 
     args[0] = &zserv;
-    sw_zval_add_ref(&zserv);
 
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -1100,7 +1099,6 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     ZVAL_LONG(zworker_id, worker_id);
 
     args[0] = &zserv;
-    sw_zval_add_ref(&zserv);
     args[1] = &zworker_id;
 
     /**
@@ -1300,7 +1298,6 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
 
 #ifndef SW_COROUTINE
     args[0] = &zserv;
-    sw_zval_add_ref(&zserv);
     args[1] = &zfd;
     args[2] = &zfrom_id;
 #else
@@ -1379,7 +1376,6 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
     ZVAL_LONG(zfrom_id, info->from_id);
 
     args[0] = &zserv;
-    sw_zval_add_ref(&zserv);
     args[1] = &zfd;
     args[2] = &zfrom_id;
 
@@ -1607,7 +1603,8 @@ PHP_METHOD(swoole_server, set)
         convert_to_boolean(v);
         serv->enable_unsafe_event = Z_BVAL_P(v);
     }
-    //port reuse
+
+    //reuse port
     if (php_swoole_array_get_value(vht, "enable_reuse_port", v))
     {
         convert_to_boolean(v);
@@ -1988,6 +1985,7 @@ PHP_METHOD(swoole_server, start)
     serv->onReceive = php_swoole_onReceive;
     serv->ptr2 = zobject;
 
+    sw_zval_add_ref(&zobject);
     php_swoole_server_before_start(serv, zobject TSRMLS_CC);
 
     ret = swServer_start(serv);
@@ -2832,7 +2830,7 @@ PHP_METHOD(swoole_server, bind)
     SwooleGS->lock.lock(&SwooleGS->lock);
     if (conn->uid == 0)
     {
-        conn->uid = uid;
+        conn->uid = (uint32_t) uid;
         ret = 1;
     }
     SwooleGS->lock.unlock(&SwooleGS->lock);
