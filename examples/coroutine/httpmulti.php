@@ -33,6 +33,7 @@ class Server
                 'Accept-Encoding' => 'gzip',
             ]);
             $ret = ($cli->get('/cgi-bin/token?appid=3333&secret=222'.$i.$i.$i.$i.$i));
+            error_log(__LINE__.var_export($cli,true).PHP_EOL,3,'/tmp/markyuan');
             $cli->close();
         }
     }
