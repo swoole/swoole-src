@@ -130,7 +130,7 @@ extern int http_response_uncompress(char *body, int length);
 extern int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length);
 extern int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length);
 extern int http_client_parser_on_headers_complete(php_http_parser *parser);
-extern sw_inline void http_client_swString_append_headers(swString* swStr, char* key, zend_size_t key_len, char* data, zend_size_t data_len);
+//extern sw_inline void http_client_swString_append_headers(swString* swStr, char* key, zend_size_t key_len, char* data, zend_size_t data_len);
 extern http_client* http_client_create(zval *object TSRMLS_DC);
 //extern sw_inline void http_client_append_content_length(swString* buf, int length);
 extern inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_str *formstr TSRMLS_DC);
