@@ -43,9 +43,6 @@ static void swServer_disable_accept(swReactor *reactor);
 static void swHeartbeatThread_start(swServer *serv);
 static void swHeartbeatThread_loop(swThreadParam *param);
 
-static int swServer_send1(swServer *serv, swSendData *resp);
-static int swServer_send2(swServer *serv, swSendData *resp);
-
 static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int from_fd, int reactor_id);
 
 swServerG SwooleG;
@@ -173,7 +170,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         /*
          * [!!!] new_connection function must before reactor->add
          */
-        if (serv->factory_mode == SW_MODE_PROCESS)
+        if (serv->factory_mode != SW_MODE_SINGLE)
         {
             int events;
             if (serv->onConnect && !listen_host->ssl)
@@ -568,14 +565,9 @@ int swServer_start(swServer *serv)
     SwooleGS->start = 1;
     SwooleGS->now = SwooleStats->start_time = time(NULL);
 
-    if (serv->have_udp_sock == 1 && serv->factory_mode != SW_MODE_PROCESS)
-    {
-        serv->send = swServer_send2;
-    }
-    else
-    {
-        serv->send = swServer_send1;
-    }
+    serv->send = swServer_tcp_send;
+    serv->sendwait = swServer_tcp_sendwait;
+    serv->sendfile = swServer_tcp_sendfile;
 
     serv->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
     if (serv->workers == NULL)
@@ -805,14 +797,6 @@ int swServer_free(swServer *serv)
     return SW_OK;
 }
 
-/**
- * only tcp
- */
-static int swServer_send1(swServer *serv, swSendData *resp)
-{
-    return swWrite(resp->info.fd, resp->data, resp->info.len);
-}
-
 int swServer_udp_send(swServer *serv, swSendData *resp)
 {
     struct sockaddr_in addr_in;
@@ -962,29 +946,6 @@ int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length)
     return swSocket_write_blocking(conn->fd, data, length);
 }
 
-/**
- * for udp + tcp
- */
-static int swServer_send2(swServer *serv, swSendData *resp)
-{
-    int ret;
-
-    //UDP
-    if (resp->info.from_id >= serv->reactor_num)
-    {
-        ret = swServer_udp_send(serv, resp);
-    }
-    else
-    {
-        ret = swWrite(resp->info.fd, resp->data, resp->info.len);
-    }
-    if (ret < 0)
-    {
-        swWarn("[Writer]sendto client failed. errno=%d", errno);
-    }
-    return ret;
-}
-
 void swServer_signal_init(void)
 {
     swSignal_add(SIGPIPE, NULL);
@@ -993,7 +954,9 @@ void swServer_signal_init(void)
     swSignal_add(SIGUSR1, swServer_signal_hanlder);
     swSignal_add(SIGUSR2, swServer_signal_hanlder);
     swSignal_add(SIGTERM, swServer_signal_hanlder);
+#ifdef SIGRTMIN
     swSignal_add(SIGRTMIN, swServer_signal_hanlder);
+#endif
     swSignal_add(SIGALRM, swSystemTimer_signal_handler);
     //for test
     swSignal_add(SIGVTALRM, swServer_signal_hanlder);
@@ -1178,10 +1141,12 @@ static void swServer_signal_hanlder(int sig)
         }
         break;
     default:
+#ifdef SIGRTMIN
         if (sig == SIGRTMIN)
         {
             SwooleGS->logfile_version++;
         }
+#endif
         break;
     }
 }
