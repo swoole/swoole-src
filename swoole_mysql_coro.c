@@ -279,6 +279,10 @@ static PHP_METHOD(swoole_mysql_coro, connect)
 	context->state = SW_CORO_CONTEXT_RUNNING;
 	context->onTimeout = swoole_mysql_coro_onTimeout;
 	context->coro_params = getThis();
+	if (connector->timeout > 0)
+	{
+		php_swoole_add_timer_coro((int) (connector->timeout * 1000), client->fd, &client->cli->timeout_id, (void *) context TSRMLS_CC);
+	}
 	coro_save(return_value, return_value_ptr, context);
 	coro_yield();
 }
@@ -558,6 +562,12 @@ static void swoole_mysql_coro_onConnect(mysql_client *client TSRMLS_DC)
 
     zval *retval;
     zval *result;
+
+	if (client->cli->timeout_id > 0)
+	{
+		php_swoole_clear_timer_coro(client->cli->timeout_id TSRMLS_CC);
+		client->cli->timeout_id = 0;
+	}
 
     SW_MAKE_STD_ZVAL(result);
 
