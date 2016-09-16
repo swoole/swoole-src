@@ -737,6 +737,7 @@ static PHP_METHOD(swoole_client_coro, connect)
         sw_copy_to_stack(cli->object, cb->_object);
     }
 
+	cli->timeout = timeout;
     //nonblock async
     if (cli->connect(cli, host, port, timeout, sock_flag) < 0)
     {
@@ -749,7 +750,12 @@ static PHP_METHOD(swoole_client_coro, connect)
 	{
 		RETURN_TRUE;
 	}
+
 	php_context *sw_current_context = swoole_get_property(getThis(), 0);
+	if (cli->timeout > 0)
+	{
+		php_swoole_add_timer_coro((int) (cli->timeout * 1000), cli->socket->fd, &cli->timeout_id, (void *) sw_current_context TSRMLS_CC);
+	}
 	coro_save(return_value, return_value_ptr, sw_current_context);
 	coro_yield();
 }
