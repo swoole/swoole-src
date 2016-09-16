@@ -598,7 +598,7 @@ static int swManager_loop_sync(swFactory *factory)
     }
 
     sw_free(reload_workers);
-
+	swSignal_none();
     //kill all child process
     for (i = 0; i < serv->worker_num; i++)
     {
