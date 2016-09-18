@@ -1012,7 +1012,7 @@ static void http_onClose(swServer *serv, swDataHead *ev)
     {
         return;
     }
-    swoole_http_client *client = swArray_alloc(http_client_array, conn->fd);
+    swoole_http_client *client = swArray_fetch(http_client_array, conn->fd);
     if (!client)
     {
         return;
