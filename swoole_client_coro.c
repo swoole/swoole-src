@@ -604,6 +604,7 @@ static PHP_METHOD(swoole_client_coro, __construct)
 	php_context *sw_current_context = emalloc(sizeof(php_context));
 	sw_current_context->onTimeout = client_coro_onTimeout;
     sw_current_context->coro_params = getThis();
+	sw_current_context->state = SW_CORO_CONTEXT_RUNNING;
 	swoole_set_property(getThis(), 0, sw_current_context);
 
     RETURN_TRUE;
