@@ -120,7 +120,7 @@ int swReactorProcess_start(swServer *serv)
         key_t key = 0;
         int create_pipe = 1;
 
-        if (SwooleG.task_ipc_mode == SW_IPC_MSGQUEUE)
+        if (SwooleG.task_ipc_mode > SW_TASK_IPC_UNIXSOCK)
         {
             key = serv->message_queue_key;
             create_pipe = 0;
