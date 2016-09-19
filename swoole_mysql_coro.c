@@ -267,8 +267,9 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     client->cli = cli;
     sw_copy_to_stack(client->object, client->_object);
 
-	swConnection *socket = swReactor_get(SwooleG.main_reactor, cli->socket->fd);
-    socket->object = client;
+	swConnection *_socket = swReactor_get(SwooleG.main_reactor, cli->socket->fd);
+    _socket->object = client;
+	_socket->active = 0;
 
     php_context *context = swoole_get_property(getThis(), 0);
     if (!context)
