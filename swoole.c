@@ -445,6 +445,7 @@ static sw_inline uint32_t swoole_get_new_size(uint32_t old_size, int handle)
 void swoole_set_object(zval *object, void *ptr)
 {
 #if PHP_MAJOR_VERSION < 7
+	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
     zend_object_handle handle = Z_OBJ_HANDLE_P(object);
 #else
     int handle = (int) Z_OBJ_HANDLE(*object);
@@ -479,6 +480,7 @@ void swoole_set_object(zval *object, void *ptr)
 void swoole_set_property(zval *object, int property_id, void *ptr)
 {
 #if PHP_MAJOR_VERSION < 7
+	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
     zend_object_handle handle = Z_OBJ_HANDLE_P(object);
 #else
     int handle = (int) Z_OBJ_HANDLE(*object);
