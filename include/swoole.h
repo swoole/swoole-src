@@ -216,6 +216,7 @@ enum swEvent_type
     SW_EVENT_READ = 1u << 9,
     SW_EVENT_WRITE = 1u << 10,
     SW_EVENT_ERROR = 1u << 11,
+    SW_EVENT_ONCE = 1u << 12,
 };
 //-------------------------------------------------------------------------------
 enum swServer_mode
