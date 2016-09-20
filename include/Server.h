@@ -61,13 +61,6 @@ enum swEventType
     SW_EVENT_CONFIRM         = 18,
 };
 
-enum swIPCMode
-{
-	SW_IPC_UNSOCK   = 1,
-	SW_IPC_MSGQUEUE = 2,
-	SW_IPC_CHANNEL  = 3,
-};
-
 enum swTaskIPCMode
 {
     SW_TASK_IPC_UNIXSOCK    = 1,

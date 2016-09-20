@@ -351,7 +351,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         swConnection *psock;
         int pfd;
 
-        if (SwooleG.task_ipc_mode == SW_IPC_UNSOCK)
+        if (SwooleG.task_ipc_mode > SW_TASK_IPC_UNIXSOCK)
         {
             for (i = 0; i < SwooleGS->task_workers.worker_num; i++)
             {
