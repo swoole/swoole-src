@@ -429,9 +429,29 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
     swoole_globals->use_namespace = 1;
 }
 
+static sw_inline uint32_t swoole_get_new_size(uint32_t old_size, int handle TSRMLS_DC)
+{
+    uint32_t new_size = old_size * 2;
+    if (handle > SWOOLE_OBJECT_MAX)
+    {
+        swoole_php_fatal_error(E_ERROR, "handle %d exceed %d", handle, SWOOLE_OBJECT_MAX);
+        return 0;
+    }
+    while (new_size <= handle)
+    {
+        new_size *= 2;
+    }
+    if (new_size > SWOOLE_OBJECT_MAX)
+    {
+        new_size = SWOOLE_OBJECT_MAX;
+    }
+    return new_size;
+}
+
 void swoole_set_object(zval *object, void *ptr)
 {
 #if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
     zend_object_handle handle = Z_OBJ_HANDLE_P(object);
 #else
     int handle = (int) Z_OBJ_HANDLE(*object);
@@ -440,18 +460,15 @@ void swoole_set_object(zval *object, void *ptr)
     if (handle >= swoole_objects.size)
     {
         uint32_t old_size = swoole_objects.size;
-        uint32_t new_size = old_size * 2;
+        uint32_t new_size = swoole_get_new_size(old_size, handle TSRMLS_CC);
 
         void *old_ptr = swoole_objects.array;
         void *new_ptr = NULL;
 
-        if (new_size > SWOOLE_OBJECT_MAX)
-        {
-            new_size = SWOOLE_OBJECT_MAX;
-        }
         new_ptr = realloc(old_ptr, sizeof(void*) * new_size);
         if (!new_ptr)
         {
+            swoole_php_fatal_error(E_ERROR, "malloc(%d) failed.", (int )(new_size * sizeof(void *)));
             return;
         }
         bzero(new_ptr + (old_size * sizeof(void*)), (new_size - old_size) * sizeof(void*));
@@ -464,6 +481,7 @@ void swoole_set_object(zval *object, void *ptr)
 void swoole_set_property(zval *object, int property_id, void *ptr)
 {
 #if PHP_MAJOR_VERSION < 7
+	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
     zend_object_handle handle = Z_OBJ_HANDLE_P(object);
 #else
     int handle = (int) Z_OBJ_HANDLE(*object);
@@ -485,16 +503,13 @@ void swoole_set_property(zval *object, int property_id, void *ptr)
         }
         else
         {
-            new_size = old_size * 2;
-            if (new_size > SWOOLE_OBJECT_MAX)
-            {
-                new_size = SWOOLE_OBJECT_MAX;
-            }
+            new_size = swoole_get_new_size(old_size, handle TSRMLS_CC);
             old_ptr = swoole_objects.property[property_id];
             new_ptr = realloc(old_ptr, new_size * sizeof(void *));
         }
         if (new_ptr == NULL)
         {
+            swoole_php_fatal_error(E_ERROR, "malloc(%d) failed.", (int )(new_size * sizeof(void *)));
             return;
         }
         if (old_size > 0)

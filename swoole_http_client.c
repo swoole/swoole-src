@@ -89,6 +89,7 @@ typedef struct
     uint8_t gzip;
     uint8_t chunked;     //Transfer-Encoding: chunked
     uint8_t completed;
+    uint8_t websocket_mask;
 
 } http_client;
 
@@ -297,6 +298,14 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
         {
             convert_to_boolean(ztmp);
             http->keep_alive = (int) Z_LVAL_P(ztmp);
+        }
+        /**
+         * websocket mask
+         */
+        if (php_swoole_array_get_value(vht, "websocket_mask", ztmp))
+        {
+            convert_to_boolean(ztmp);
+            http->websocket_mask = (int) Z_LVAL_P(ztmp);
         }
         //client settings
         php_swoole_client_check_setting(http->cli, zset TSRMLS_CC);
@@ -1685,6 +1694,6 @@ static PHP_METHOD(swoole_http_client, push)
     }
 
     swString_clear(http_client_buffer);
-    swWebSocket_encode(http_client_buffer, data, length, opcode, (int) fin, 0);
+    swWebSocket_encode(http_client_buffer, data, length, opcode, (int) fin, http->websocket_mask);
     SW_CHECK_RETURN(http->cli->send(http->cli, http_client_buffer->str, http_client_buffer->length, 0));
 }

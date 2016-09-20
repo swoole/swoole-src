@@ -506,11 +506,10 @@ int swServer_start(swServer *serv)
     {
         return SW_ERR;
     }
-
     if (serv->message_queue_key == 0)
     {
         char path_buf[128];
-        char *path_ptr = getcwd(path_buf, 128);
+        char *path_ptr = getcwd(path_buf, sizeof(path_buf));
         serv->message_queue_key = ftok(path_ptr, 1);
     }
     //init loggger
