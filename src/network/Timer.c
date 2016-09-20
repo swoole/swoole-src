@@ -111,7 +111,7 @@ swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data)
     tnode->interval = interval ? _msec : 0;
     tnode->remove = 0;
 
-    if (timer->_next_msec > _msec)
+    if (timer->_next_msec < 0 || timer->_next_msec > _msec)
     {
         timer->set(timer, _msec);
         timer->_next_msec = _msec;
@@ -192,6 +192,7 @@ int swTimer_select(swTimer *timer)
 
     if (!tnode)
     {
+        timer->_next_msec = -1;
         timer->set(timer, -1);
     }
     else
