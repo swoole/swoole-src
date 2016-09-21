@@ -227,7 +227,9 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
             swWarn("websocket frame is too big, remote_addr=%s:%d.", swConnection_get_ip(conn), swConnection_get_port(conn));
             return SW_ERR;
         }
+        //merge incomplete data
         swString_append_ptr(frame_buffer, data + offset, frame_length);
+        //frame is finished, do dispatch
         if (ws.header.FIN)
         {
             swReactorThread_dispatch(conn, frame_buffer->str, frame_buffer->length);
