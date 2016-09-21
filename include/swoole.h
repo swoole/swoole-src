@@ -528,9 +528,14 @@ typedef struct _swConnection
     int buffer_size;
 
     /**
-     *  upgarde websocket
+     * upgarde websocket
      */
     uint8_t websocket_status;
+
+    /**
+     * unfinished data frame
+     */
+    swString *websocket_buffer;
 
 #ifdef SW_USE_OPENSSL
     SSL *ssl;
