@@ -164,6 +164,10 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
             {
                 do_dispatch:
                 ret = protocol->onPackage(conn, buffer->str, buffer->offset);
+                if (ret < 0)
+                {
+                    return SW_ERR;
+                }
                 conn->recv_wait = 0;
 
                 int remaining_length = buffer->length - buffer->offset;
