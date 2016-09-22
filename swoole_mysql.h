@@ -709,7 +709,7 @@ static sw_inline int mysql_read_columns(mysql_client *client)
         client->response.packet_length = mysql_uint3korr(buffer);
 
         //no enough data
-        if (n_buf - 4 < client->response.packet_length)
+        if ((n_buf < 4) || (n_buf - 4 < client->response.packet_length))
         {
             return SW_ERR;
         }
