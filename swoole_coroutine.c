@@ -323,6 +323,11 @@ int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retva
     {
         sw_zval_ptr_dtor(&saved_return_value);
     }
+	if (unlikely(coro_status == CORO_END && EG(exception)))
+	{
+		sw_zval_ptr_dtor(&retval);
+		zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+	}
 
     return coro_status;
 }
