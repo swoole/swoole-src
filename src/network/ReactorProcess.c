@@ -21,6 +21,7 @@ static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event);
 static int swReactorProcess_send2client(swFactory *, swSendData *);
 static int swReactorProcess_send2worker(int, void *, int);
 static void swReactorProcess_onTimeout(swReactor *reactor);
+static int swReactorProcess_reuse_port(swListenPort *ls);
 
 static uint32_t heartbeat_check_lasttime = 0;
 static void (*swReactor_onTimeout_old)(swReactor *reactor);
@@ -71,16 +72,21 @@ int swReactorProcess_start(swServer *serv)
             {
                 continue;
             }
-#ifdef HAVE_REUSEPORT
             if (SwooleG.reuse_port)
             {
+                if (close(ls->sock) < 0)
+                {
+                    swSysError("close(%d) failed.", ls->sock);
+                }
                 continue;
             }
-#endif
-            //listen server socket
-            if (swPort_set_option(ls) < 0)
+            else
             {
-                return SW_ERR;
+                //listen server socket
+                if (swPort_listen(ls) < 0)
+                {
+                    return SW_ERR;
+                }
             }
         }
     }
@@ -120,7 +126,7 @@ int swReactorProcess_start(swServer *serv)
         key_t key = 0;
         int create_pipe = 1;
 
-        if (SwooleG.task_ipc_mode == SW_IPC_MSGQUEUE)
+        if (SwooleG.task_ipc_mode > SW_TASK_IPC_UNIXSOCK)
         {
             key = serv->message_queue_key;
             create_pipe = 0;
@@ -267,29 +273,19 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     //create reactor
     if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
     {
-        swWarn("ReactorProcess create failed.");
         return SW_ERR;
     }
 
     swListenPort *ls;
     int fdtype;
 
-    //listen the all tcp port
     LL_FOREACH(serv->listen_list, ls)
     {
         fdtype = swSocket_is_dgram(ls->type) ? SW_FD_UDP : SW_FD_LISTEN;
-        if (fdtype == SW_FD_UDP)
-        {
-            if (swPort_set_option(ls) < 0)
-            {
-                continue;
-            }
-        }
-
 #ifdef HAVE_REUSEPORT
         if (fdtype == SW_FD_LISTEN && SwooleG.reuse_port)
         {
-            if (swPort_set_option(ls) < 0)
+            if (swReactorProcess_reuse_port(ls) < 0)
             {
                 return SW_ERR;
             }
@@ -297,6 +293,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 #endif
         reactor->add(reactor, ls->sock, fdtype);
     }
+
     SwooleG.main_reactor = reactor;
 
     reactor->id = worker->id;
@@ -351,7 +348,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         swConnection *psock;
         int pfd;
 
-        if (SwooleG.task_ipc_mode == SW_IPC_UNSOCK)
+        if (SwooleG.task_ipc_mode == SW_TASK_IPC_UNIXSOCK)
         {
             for (i = 0; i < SwooleGS->task_workers.worker_num; i++)
             {
@@ -547,4 +544,27 @@ static void swReactorProcess_onTimeout(swReactor *reactor)
             swReactorProcess_onClose(reactor, &notify_ev);
         }
     }
+}
+
+static int swReactorProcess_reuse_port(swListenPort *ls)
+{
+    //create new socket
+    int sock = swSocket_create(ls->type);
+    if (sock < 0)
+    {
+        swSysError("create socket failed.");
+        return SW_ERR;
+    }
+    //bind address and port
+    if (swSocket_bind(sock, ls->type, ls->host, ls->port) < 0)
+    {
+        return SW_ERR;
+    }
+    //stream socket, set nonblock
+    if (swSocket_is_stream(ls->type))
+    {
+        swSetNonBlock(sock);
+    }
+    ls->sock = sock;
+    return swPort_listen(ls);
 }

@@ -91,7 +91,7 @@ int swManager_start(swFactory *factory)
             {
                 return SW_ERR;
             }
-            if (SwooleG.task_ipc_mode == SW_IPC_UNSOCK)
+            if (SwooleG.task_ipc_mode == SW_TASK_IPC_UNIXSOCK)
             {
                 swServer_store_pipe_fd(SwooleG.serv, worker->pipe_object);
             }

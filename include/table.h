@@ -30,12 +30,6 @@ typedef struct _swTableRow
      * 1:used, 0:empty
      */
     uint8_t active;
-
-    /**
-     * iterator
-     */
-    uint32_t list_index;
-
     /**
      * next slot
      */
@@ -51,9 +45,6 @@ typedef struct
 {
     uint32_t absolute_index;
     uint32_t collision_index;
-    uint32_t skip_count;
-
-    swTableRow *tmp_row;
 } swTable_iterator;
 
 typedef struct
@@ -73,11 +64,6 @@ typedef struct
     swTableRow **rows;
     swMemoryPool *pool;
 
-    /**
-     * for iterator
-     */
-    swTableRow **rows_list;
-    sw_atomic_t list_n;
     uint32_t compress_threshold;
 
     swTable_iterator *iterator;
