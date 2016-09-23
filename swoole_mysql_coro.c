@@ -262,6 +262,11 @@ static PHP_METHOD(swoole_mysql_coro, connect)
 	{
 		client->buffer = swString_new(SW_BUFFER_SIZE_BIG);
 	}
+	else
+	{
+		swString_clear(client->buffer);
+		bzero(&client->response, sizeof(client->response));
+	}
     client->fd = cli->socket->fd;
     client->object = getThis();
     client->cli = cli;
@@ -412,6 +417,13 @@ static PHP_METHOD(swoole_mysql_coro, recv)
 		RETURN_FALSE;
 	}
 
+	if (client->iowait == SW_MYSQL_CORO_STATUS_CLOSED && client->result)
+	{
+		zval *result = client->result;
+		client->result = NULL;
+		RETURN_ZVAL(result, 0, 1);
+	}
+
 	if (client->iowait == SW_MYSQL_CORO_STATUS_DONE)
 	{
 		client->iowait = SW_MYSQL_CORO_STATUS_READY;
@@ -495,9 +507,9 @@ static PHP_METHOD(swoole_mysql_coro, close)
     {
         SwooleG.main_reactor->del(SwooleG.main_reactor, client->fd);
     }
-	swConnection *socket = swReactor_get(SwooleG.main_reactor, client->fd);
-	socket->object = NULL;
-	socket->active = 0;
+	swConnection *_socket = swReactor_get(SwooleG.main_reactor, client->fd);
+	_socket->object = NULL;
+	_socket->active = 0;
 
     if (client->cli->timeout_id > 0)
     {
@@ -537,12 +549,10 @@ static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event)
     ZVAL_BOOL(result, 0);
 	if (client->defer && !client->_defer)
 	{
-		client->iowait = SW_MYSQL_CORO_STATUS_DONE;
 		client->result = result;
 		return SW_OK;
 	}
 	client->_defer = 0;
-	client->iowait = SW_MYSQL_CORO_STATUS_READY;
 	php_context *sw_current_context = swoole_get_property(zobject, 0);
 	int ret = coro_resume(sw_current_context, result, &retval);
     sw_zval_ptr_dtor(&result);
@@ -619,11 +629,19 @@ static void swoole_mysql_coro_onTimeout(php_context *ctx)
     SW_MAKE_STD_ZVAL(result);
     ZVAL_BOOL(result, 0);
     zval *zobject = (zval *)ctx->coro_params;
-	zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), "query timeout." TSRMLS_CC);
+    mysql_client *client = swoole_get_object(zobject);
+
+	if (client->iowait == SW_MYSQL_CORO_STATUS_CLOSED)
+	{
+		zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), "connect timeout." TSRMLS_CC);
+	}
+	else
+	{
+		zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), "query timeout." TSRMLS_CC);
+	}
 	zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"), 110 TSRMLS_CC);
 
 	//timeout close conncttion
-    mysql_client *client = swoole_get_object(zobject);
 	client->cli->timeout_id = 0;
 	client->state = SW_MYSQL_STATE_QUERY;
     sw_zend_call_method_with_0_params(&zobject, swoole_mysql_coro_class_entry_ptr, NULL, "close", &retval);
@@ -634,12 +652,10 @@ static void swoole_mysql_coro_onTimeout(php_context *ctx)
 
 	if (client->defer && !client->_defer)
 	{
-		client->iowait = SW_MYSQL_CORO_STATUS_DONE;
 		client->result = result;
 		return;
 	}
 	client->_defer = 0;
-	client->iowait = SW_MYSQL_CORO_STATUS_READY;
 
     int ret = coro_resume(ctx, result, &retval);
 
