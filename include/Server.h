@@ -61,13 +61,6 @@ enum swEventType
     SW_EVENT_CONFIRM         = 18,
 };
 
-enum swIPCMode
-{
-	SW_IPC_UNSOCK   = 1,
-	SW_IPC_MSGQUEUE = 2,
-	SW_IPC_CHANNEL  = 3,
-};
-
 enum swTaskIPCMode
 {
     SW_TASK_IPC_UNIXSOCK    = 1,
@@ -845,7 +838,7 @@ static sw_inline void swServer_connection_ready(swServer *serv, int fd, int reac
 void swPort_init(swListenPort *port);
 void swPort_free(swListenPort *port);
 void swPort_set_protocol(swListenPort *ls);
-int swPort_set_option(swListenPort *ls);
+int swPort_listen(swListenPort *ls);
 #ifdef SW_USE_OPENSSL
 int swPort_enable_ssl_encrypt(swListenPort *ls);
 #endif

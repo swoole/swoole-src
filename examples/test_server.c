@@ -11,7 +11,6 @@ void my_onStart(swServer *serv);
 void my_onShutdown(swServer *serv);
 void my_onConnect(swServer *serv, swDataHead *info);
 void my_onClose(swServer *serv, swDataHead *info);
-void my_onTimer(swServer *serv, int interval);
 void my_onWorkerStart(swServer *serv, int worker_id);
 void my_onWorkerStop(swServer *serv, int worker_id);
 
@@ -24,7 +23,7 @@ int main(int argc, char **argv)
     swServer_init(&serv);  //初始化
 
     serv.reactor_num = 4;  //reactor线程数量
-    serv.worker_num = 4;  //worker进程数量
+    serv.worker_num = 2;  //worker进程数量
 
     serv.factory_mode = SW_MODE_BASE;
     //serv.factory_mode = SW_MODE_SINGLE; //SW_MODE_PROCESS/SW_MODE_THREAD/SW_MODE_BASE/SW_MODE_SINGLE
@@ -89,11 +88,6 @@ void my_onWorkerStart(swServer *serv, int worker_id)
 void my_onWorkerStop(swServer *serv, int worker_id)
 {
     printf("WorkerStop[%d]PID=%d\n", worker_id, getpid());
-}
-
-void my_onTimer(swServer *serv, int interval)
-{
-    printf("Timer Interval=[%d]\n", interval);
 }
 
 int my_onReceive(swServer *serv, swEventData *req)

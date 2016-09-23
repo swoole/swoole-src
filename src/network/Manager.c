@@ -91,7 +91,7 @@ int swManager_start(swFactory *factory)
             {
                 return SW_ERR;
             }
-            if (SwooleG.task_ipc_mode == SW_IPC_UNSOCK)
+            if (SwooleG.task_ipc_mode == SW_TASK_IPC_UNIXSOCK)
             {
                 swServer_store_pipe_fd(SwooleG.serv, worker->pipe_object);
             }
@@ -598,7 +598,7 @@ static int swManager_loop_sync(swFactory *factory)
     }
 
     sw_free(reload_workers);
-
+	swSignal_none();
     //kill all child process
     for (i = 0; i < serv->worker_num; i++)
     {

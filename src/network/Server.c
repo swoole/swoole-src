@@ -312,6 +312,13 @@ static int swServer_start_proxy(swServer *serv)
     }
 #endif
 
+    //set listen socket options
+    swListenPort *ls;
+    LL_FOREACH(serv->listen_list, ls)
+    {
+        swPort_listen(ls);
+    }
+
     /**
      * create reactor thread
      */
@@ -506,11 +513,10 @@ int swServer_start(swServer *serv)
     {
         return SW_ERR;
     }
-
-    if (serv->message_queue_key == 0)
+    if (SwooleG.task_ipc_mode > SW_TASK_IPC_UNIXSOCK && serv->message_queue_key == 0)
     {
         char path_buf[128];
-        char *path_ptr = getcwd(path_buf, 128);
+        char *path_ptr = getcwd(path_buf, sizeof(path_buf));
         serv->message_queue_key = ftok(path_ptr, 1);
     }
     //init loggger
@@ -630,12 +636,6 @@ int swServer_start(swServer *serv)
         }
     }
 
-    //set listen socket options
-    swListenPort *ls;
-    LL_FOREACH(serv->listen_list, ls)
-    {
-        swPort_set_option(ls);
-    }
     //factory start
     if (factory->start(factory) < 0)
     {
@@ -1043,6 +1043,12 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
     if (swSocket_is_stream(ls->type))
     {
         swSetNonBlock(sock);
+    }
+    //dgram socket, setting socket buffer size
+    else
+    {
+        setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &ls->socket_buffer_size, sizeof(int));
+        setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &ls->socket_buffer_size, sizeof(int));
     }
 
     ls->sock = sock;

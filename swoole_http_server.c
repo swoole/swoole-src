@@ -1038,7 +1038,7 @@ static void http_onClose(swServer *serv, swDataHead *ev)
     {
         return;
     }
-    swoole_http_client *client = swArray_alloc(http_client_array, conn->fd);
+    swoole_http_client *client = swArray_fetch(http_client_array, conn->fd);
     if (!client)
     {
         return;
@@ -1766,6 +1766,16 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
 }
 
 #ifdef SW_HAVE_ZLIB
+static voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size)
+{
+    return (voidpf)safe_emalloc(items, size, 0);
+}
+
+static void php_zlib_free(voidpf opaque, voidpf address)
+{
+    efree((void*)address);
+}
+
 static int http_response_compress(swString *body, int level)
 {
     assert(level > 0 || level < 10);
@@ -1788,6 +1798,9 @@ static int http_response_compress(swString *body, int level)
 #endif
 
     int status;
+    zstream.zalloc = php_zlib_alloc;
+    zstream.zfree = php_zlib_free;
+
     if (Z_OK == deflateInit2(&zstream, level, Z_DEFLATED, encoding, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY))
     {
         zstream.next_in = (Bytef *) body->str;
