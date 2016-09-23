@@ -55,13 +55,14 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
     zend_op_array *origin_active_op_array;
     zend_op_array *op_array = (zend_op_array *)fci_cache->function_handler;
     zend_execute_data *current = EG(current_execute_data);
-    void **start, **end, **allocated_params;
+    void **start, **end, **allocated_params, **old_arguments;
 
     if (use_array)
     {
         start = (void **)emalloc(sizeof(zval **) * (fci->param_count + 1));
         allocated_params = start;
         end = start + fci->param_count;
+        old_arguments = current->function_state.arguments;
         current->function_state.arguments = end;
         for (i = 0; i < fci->param_count; ++i)
         {
@@ -165,6 +166,7 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
             if (use_array)
             {
                 efree(allocated_params);
+                current->function_state.arguments = old_arguments;
             }
         }
         longjmp(*swReactorCheckPoint, 1);
