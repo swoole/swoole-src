@@ -244,7 +244,7 @@ sw_inline void coro_close(TSRMLS_D)
     EG(argument_stack) = COROG.origin_vm_stack;
     EG(current_execute_data) = COROG.origin_ex;
     --COROG.coro_num;
-    swTrace("closing coro and %d remained. heap size: %zu", COROG.coro_num, zend_memory_usage(0));
+    swTrace("closing coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
     
     return;
 }
@@ -279,21 +279,13 @@ int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retva
     //free unused return value
     zval *saved_return_value = sw_current_context->current_coro_return_value_ptr;
     zend_bool unused = sw_current_context->current_execute_data->opline->result_type & EXT_TYPE_UNUSED;
-    if (unused)
-    {
-        sw_zval_ptr_dtor(&saved_return_value);
-    }
-    else
-    {
-        *(saved_return_value) = *retval;
-    }
     sw_current_context->current_execute_data->opline++;
     if (SWCC(current_this))
     {
         zval_ptr_dtor(&SWCC(current_this));
     }
     EG(return_value_ptr_ptr) = SWCC(current_eg_return_value_ptr_ptr);
-    //*(sw_current_context->current_coro_return_value_ptr) = *retval;
+    *(sw_current_context->current_coro_return_value_ptr) = *retval;
     zval_copy_ctor(sw_current_context->current_coro_return_value_ptr);
     EG(current_execute_data) = SWCC(current_execute_data);
     EG(opline_ptr) = SWCC(current_opline_ptr);
@@ -327,6 +319,10 @@ int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retva
         coro_status = CORO_YIELD;
     }
 	COROG.require = 0;
+    if (unused)
+    {
+        sw_zval_ptr_dtor(&saved_return_value);
+    }
 
     return coro_status;
 }

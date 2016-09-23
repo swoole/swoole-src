@@ -138,6 +138,7 @@ int php_swoole_clear_timer_coro(long id TSRMLS_DC)
     else
     {
         swTimer_del(&SwooleG.timer, tnode);
+		SwooleG.timer.num--;
         return SW_OK;
     }
 }

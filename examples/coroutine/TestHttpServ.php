@@ -3,7 +3,7 @@
  * @Author: winterswang
  * @Date:   2015-06-18 16:45:09
  * @Last Modified by:   winterswang
- * @Last Modified time: 2016-09-18 17:36:18
+ * @Last Modified time: 2016-09-18 17:33:51
  */
 
 class TestHttpServer {
@@ -38,7 +38,7 @@ class TestHttpServer {
 			$this ->setting['port'] = '9999';
 		}
 
-		$this ->http = new Swoole\Http\Server($this ->setting['host'], $this ->setting['port']);
+		$this ->http = new swoole_http_server($this ->setting['host'], $this ->setting['port']);
 		$this ->http ->set($this ->setting);
 
 		$this ->http ->on('request', array($this, 'onRequest'));
@@ -53,35 +53,30 @@ class TestHttpServer {
 	 */
 	public function onRequest($request, $response){
 
-		
-		//$udp_cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_UDP);
-		$tcp_cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
+		// $udp = new swoole_client(SWOOLE_SOCK_UDP, SWOOLE_SOCK_ASYNC);
+		// $udp->on("connect", function(swoole_client $cli) {
+		//     $cli->send("udp test");
+		// });
+		// $udp->on("receive", function(swoole_client $cli, $data)use($response){
 
-		// $ret = $udp_cli ->connect('10.100.65.222', 9906);
-		// $ret = $udp_cli ->send('test for the coro');
-		// $ret = $udp_cli ->recv(100);
-		// $udp_cli->close();
+			$tcp = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
+			$tcp->on("connect", function(swoole_client $cli) {
+			    $cli->send("tcp test");
+			});
+			$tcp->on("receive", function(swoole_client $cli, $data)use($response){
+				$response ->end("<h1> swoole response</h1>");
+			});
+			$tcp->on("close", function(swoole_client $cli){
+			});
+			$tcp->on("error", function(swoole_client $cli){
+			});			
+			$tcp->connect('10.100.64.151', 9805);		
 
-		// if ($ret) {
-		// 	//error_log(" udp cli get rsp == " . print_r($ret, true),3, '/data/log/udp_timeout.log');
-		// }
-		// else{
-		// 	error_log(" udp cli timeout \n",3, '/data/log/udp_timeout.log');
-		// }
+		// });
+		// $udp->on("close", function(swoole_client $cli){
+		// });
+		// $udp->connect('10.100.65.222', 9906);
 
-  		$ret = $tcp_cli ->connect("10.100.64.151", 9805);
-		$ret = $tcp_cli ->send('test for the coro');
-		$ret = $tcp_cli ->recv(100);
-		$tcp_cli->close();
-
-		if ($ret) {
-			//error_log(" tcp cli get rsp == " . print_r($ret, true) . PHP_EOL, 3, '/data/log/udp_timeout.log');
-		}
-		else{
-			error_log(" tcp cli timeout \n",3, '/data/log/udp_timeout.log');
-		}
-		
-		$response ->end(" swoole response is ok");
 	}
 
 	/**
@@ -109,9 +104,9 @@ class TestHttpServer {
 
 $setting = array(
 		'host' => '0.0.0.0',
-		'port' => 10006,
+		'port' => 10005,
 		'worker_num' => 4,
-		'dispatch_mode' => 3,   //固定分配请求到worker
+		'dispatch_mode' => 2,   //固定分配请求到worker
 		'reactor_num' => 4,     //亲核
 		'daemonize' => 1,       //守护进程
 		'backlog' => 128,
@@ -120,7 +115,3 @@ $setting = array(
 $th = new TestHttpServer();
 $th ->set($setting);
 $th ->start();
-
-
-
-
