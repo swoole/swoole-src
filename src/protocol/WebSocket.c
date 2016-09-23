@@ -209,16 +209,48 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
     swWebSocket_frame ws;
     swWebSocket_decode(&ws, &frame);
 
+    swString *frame_buffer;
+    int frame_length;
+    swListenPort *port;
+
     size_t offset;
     switch (ws.header.OPCODE)
     {
     case WEBSOCKET_OPCODE_CONTINUATION_FRAME:
+        offset = length - ws.payload_length;
+        frame_buffer = conn->websocket_buffer;
+        frame_length = length - offset;
+        port = swServer_get_port(SwooleG.serv, conn->fd);
+        //frame data overflow
+        if (frame_buffer->length + frame_length > port->protocol.package_max_length)
+        {
+            swWarn("websocket frame is too big, remote_addr=%s:%d.", swConnection_get_ip(conn), swConnection_get_port(conn));
+            return SW_ERR;
+        }
+        //merge incomplete data
+        swString_append_ptr(frame_buffer, data + offset, frame_length);
+        //frame is finished, do dispatch
+        if (ws.header.FIN)
+        {
+            swReactorThread_dispatch(conn, frame_buffer->str, frame_buffer->length);
+            swString_free(frame_buffer);
+            conn->websocket_buffer = NULL;
+        }
+        break;
+
     case WEBSOCKET_OPCODE_TEXT_FRAME:
     case WEBSOCKET_OPCODE_BINARY_FRAME:
         offset = length - ws.payload_length - 2;
-        data[offset] = ws.header.FIN;
+        data[offset] = 1;
         data[offset + 1] = ws.header.OPCODE;
-        swReactorThread_dispatch(conn, data + offset, length - offset);
+        if (!ws.header.FIN)
+        {
+            conn->websocket_buffer = swString_dup(data + offset, length - offset);
+        }
+        else
+        {
+            swReactorThread_dispatch(conn, data + offset, length - offset);
+        }
         break;
 
     case WEBSOCKET_OPCODE_PING:

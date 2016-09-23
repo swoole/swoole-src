@@ -216,6 +216,7 @@ enum swEvent_type
     SW_EVENT_READ = 1u << 9,
     SW_EVENT_WRITE = 1u << 10,
     SW_EVENT_ERROR = 1u << 11,
+    SW_EVENT_ONCE = 1u << 12,
 };
 //-------------------------------------------------------------------------------
 enum swServer_mode
@@ -527,9 +528,14 @@ typedef struct _swConnection
     int buffer_size;
 
     /**
-     *  upgarde websocket
+     * upgarde websocket
      */
     uint8_t websocket_status;
+
+    /**
+     * unfinished data frame
+     */
+    swString *websocket_buffer;
 
 #ifdef SW_USE_OPENSSL
     SSL *ssl;
