@@ -706,6 +706,11 @@ static sw_inline int mysql_read_columns(mysql_client *client)
 
     for (; client->response.index_column < client->response.num_column; client->response.index_column++)
     {
+        if (n_buf < 4)
+        {
+            return SW_ERR;
+        }
+
         client->response.packet_length = mysql_uint3korr(buffer);
 
         //no enough data
