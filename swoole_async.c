@@ -704,6 +704,17 @@ PHP_FUNCTION(swoole_async_set)
         convert_to_boolean(v);
         SwooleG.dns_lookup_random = Z_BVAL_P(v);
     }
+#if defined(HAVE_REUSEPORT) && defined(HAVE_EPOLL)
+    //reuse port
+    if (php_swoole_array_get_value(vht, "enable_reuse_port", v))
+    {
+        convert_to_boolean(v);
+        if (Z_BVAL_P(v) && swoole_version_compare(SwooleG.uname.release, "3.9.0") >= 0)
+        {
+            SwooleG.reuse_port = 1;
+        }
+    }
+#endif
 }
 
 PHP_FUNCTION(swoole_async_dns_lookup)

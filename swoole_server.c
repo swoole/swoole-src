@@ -1486,18 +1486,6 @@ PHP_METHOD(swoole_server, set)
         convert_to_boolean(v);
         serv->enable_unsafe_event = Z_BVAL_P(v);
     }
-#ifdef HAVE_REUSEPORT
-    //reuse port
-    if (php_swoole_array_get_value(vht, "enable_reuse_port", v))
-    {
-        convert_to_boolean(v);
-        SwooleG.reuse_port = Z_BVAL_P(v);
-    }
-    else
-    {
-        SwooleG.reuse_port = 0;
-    }
-#endif
     //delay receive
     if (php_swoole_array_get_value(vht, "enable_delay_receive", v))
     {
