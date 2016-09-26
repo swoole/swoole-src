@@ -304,6 +304,17 @@ int swSocket_bind(int sock, int type, char *host, int port)
     {
         swSysError("setsockopt(%d, SO_REUSEADDR) failed.", sock);
     }
+    //reuse port
+#ifdef HAVE_REUSEPORT
+    if (SwooleG.reuse_port)
+    {
+        if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) < 0)
+        {
+            swSysError("setsockopt(SO_REUSEPORT) failed.");
+            SwooleG.reuse_port = 0;
+        }
+    }
+#endif
     //unix socket
     if (type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM)
     {

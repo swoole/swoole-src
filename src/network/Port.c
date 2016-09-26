@@ -90,20 +90,8 @@ int swPort_enable_ssl_encrypt(swListenPort *ls)
 int swPort_listen(swListenPort *ls)
 {
     int sock = ls->sock;
-
-    //reuse address
     int option = 1;
-    //reuse port
-#ifdef HAVE_REUSEPORT
-    if (SwooleG.reuse_port)
-    {
-        if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) < 0)
-        {
-            swSysError("setsockopt(SO_REUSEPORT) failed.");
-            SwooleG.reuse_port = 0;
-        }
-    }
-#endif
+
     //listen stream socket
     if (listen(sock, ls->backlog) < 0)
     {
