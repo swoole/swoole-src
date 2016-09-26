@@ -661,7 +661,7 @@ static PHP_METHOD(swoole_client_coro, connect)
     zend_size_t host_len;
     double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|ldl", &host, &host_len, &port, &timeout, &sock_flag) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|ld", &host, &host_len, &port, &timeout) == FAILURE)
     {
         return;
     }
