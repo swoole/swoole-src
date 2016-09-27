@@ -316,6 +316,10 @@ static int swServer_start_proxy(swServer *serv)
     swListenPort *ls;
     LL_FOREACH(serv->listen_list, ls)
     {
+        if (swSocket_is_dgram(ls->type))
+        {
+            continue;
+        }
         swPort_listen(ls);
     }
 
