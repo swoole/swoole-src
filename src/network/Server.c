@@ -301,7 +301,7 @@ static int swServer_start_proxy(swServer *serv)
     }
 
     main_reactor->thread = 1;
-    main_reactor->socket_list = serv->connection_list;    
+    main_reactor->socket_list = serv->connection_list;
     main_reactor->disable_accept = 0;
     main_reactor->enable_accept = swServer_enable_accept;
 
@@ -751,12 +751,12 @@ int swServer_free(swServer *serv)
     {
         if (pthread_cancel(SwooleG.heartbeat_pidt) < 0)
         {
-            swSysError("pthread_cancel(%d) failed.", (int ) SwooleG.heartbeat_pidt);
+            swSysError("pthread_cancel(%p) failed.", SwooleG.heartbeat_pidt);
         }
         //wait thread
         if (pthread_join(SwooleG.heartbeat_pidt, NULL) < 0)
         {
-            swSysError("pthread_join(%d) failed.", (int ) SwooleG.heartbeat_pidt);
+            swSysError("pthread_join(%p) failed.", SwooleG.heartbeat_pidt);
         }
     }
     if (serv->factory_mode == SW_MODE_SINGLE)

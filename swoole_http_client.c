@@ -1653,7 +1653,6 @@ static PHP_METHOD(swoole_http_client, push)
 {
     char *data;
     zend_size_t length;
-    long fd = 0;
     long opcode = WEBSOCKET_OPCODE_TEXT_FRAME;
     zend_bool fin = 1;
 
