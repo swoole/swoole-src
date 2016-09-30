@@ -463,6 +463,32 @@ swString** swServer_create_worker_buffer(swServer *serv)
     return buffers;
 }
 
+int swServer_create_task_worker(swServer *serv)
+{
+    key_t key = 0;
+    int ipc_type;
+
+    if (SwooleG.task_ipc_mode > SW_TASK_IPC_UNIXSOCK)
+    {
+        key = serv->message_queue_key;
+        ipc_type = SW_IPC_MSGQUEUE;
+    }
+    else
+    {
+        ipc_type = SW_IPC_UNIXSOCK;
+    }
+
+    if (swProcessPool_create(&SwooleGS->task_workers, SwooleG.task_worker_num, SwooleG.task_max_request, key, ipc_type) < 0)
+    {
+        swWarn("[Master] create task_workers failed.");
+        return SW_ERR;
+    }
+    else
+    {
+        return SW_OK;
+    }
+}
+
 int swServer_worker_init(swServer *serv, swWorker *worker)
 {
 #ifdef HAVE_CPU_AFFINITY
@@ -516,12 +542,6 @@ int swServer_start(swServer *serv)
     if (ret < 0)
     {
         return SW_ERR;
-    }
-    if (SwooleG.task_ipc_mode > SW_TASK_IPC_UNIXSOCK && serv->message_queue_key == 0)
-    {
-        char path_buf[128];
-        char *path_ptr = getcwd(path_buf, sizeof(path_buf));
-        serv->message_queue_key = ftok(path_ptr, 1);
     }
     //init loggger
     if (SwooleG.log_file)

@@ -65,18 +65,8 @@ int swManager_start(swFactory *factory)
 
     if (SwooleG.task_worker_num > 0)
     {
-        key_t key = 0;
-        int create_pipe = 1;
-
-        if (SwooleG.task_ipc_mode > SW_TASK_IPC_UNIXSOCK)
+        if (swServer_create_task_worker(serv) < 0)
         {
-            key = serv->message_queue_key;
-            create_pipe = 0;
-        }
-
-        if (swProcessPool_create(&SwooleGS->task_workers, SwooleG.task_worker_num, SwooleG.task_max_request, key, create_pipe) < 0)
-        {
-            swWarn("[Master] create task_workers failed.");
             return SW_ERR;
         }
 

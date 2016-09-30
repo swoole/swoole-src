@@ -23,17 +23,22 @@ static void swProcessPool_free(swProcessPool *pool);
 /**
  * Process manager
  */
-int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, key_t msgqueue_key, int create_pipe)
+int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, key_t msgqueue_key, int ipc_type)
 {
     bzero(pool, sizeof(swProcessPool));
 
     pool->worker_num = worker_num;
     pool->max_request = max_request;
 
-    if (msgqueue_key > 0)
+    if (ipc_type == SW_IPC_MSGQUEUE)
     {
         pool->use_msgqueue = 1;
         pool->msgqueue_key = msgqueue_key;
+    }
+    else
+    {
+        pool->use_msgqueue = 0;
+        pool->msgqueue_key = 0;
     }
     
     pool->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, worker_num * sizeof(swWorker));
@@ -64,7 +69,7 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
             return SW_ERR;
         }
     }
-    else if (create_pipe)
+    else
     {
         pool->pipes = sw_calloc(worker_num, sizeof(swPipe));
         if (pool->pipes == NULL)
@@ -463,6 +468,12 @@ static void swProcessPool_free(swProcessPool *pool)
         }
         sw_free(pool->pipes);
     }
+    else if (pool->msgqueue_key == 0)
+    {
+        pool->queue->remove = 1;
+        swMsgQueue_free(pool->queue);
+    }
+
     if (pool->map)
     {
         swHashMap_free(pool->map);

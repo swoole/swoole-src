@@ -61,6 +61,12 @@ enum swEventType
     SW_EVENT_CONFIRM         = 18,
 };
 
+enum swIPCType
+{
+    SW_IPC_UNIXSOCK = 1,
+    SW_IPC_MSGQUEUE = 2,
+};
+
 enum swTaskIPCMode
 {
     SW_TASK_IPC_UNIXSOCK    = 1,
@@ -582,6 +588,7 @@ int swServer_get_manager_pid(swServer *serv);
 int swServer_get_socket(swServer *serv, int port);
 int swServer_worker_init(swServer *serv, swWorker *worker);
 swString** swServer_create_worker_buffer(swServer *serv);
+int swServer_create_task_worker(swServer *serv);
 void swServer_close_listen_port(swServer *serv);
 void swServer_enable_accept(swReactor *reactor);
 
