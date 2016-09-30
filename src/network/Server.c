@@ -751,12 +751,12 @@ int swServer_free(swServer *serv)
     {
         if (pthread_cancel(SwooleG.heartbeat_pidt) < 0)
         {
-            swSysError("pthread_cancel(%p) failed.", SwooleG.heartbeat_pidt);
+            swSysError("pthread_cancel(%ld) failed.", (ulong_t )SwooleG.heartbeat_pidt);
         }
         //wait thread
         if (pthread_join(SwooleG.heartbeat_pidt, NULL) < 0)
         {
-            swSysError("pthread_join(%p) failed.", SwooleG.heartbeat_pidt);
+            swSysError("pthread_join(%ld) failed.", (ulong_t )SwooleG.heartbeat_pidt);
         }
     }
     if (serv->factory_mode == SW_MODE_SINGLE)
