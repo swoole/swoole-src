@@ -35,11 +35,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2016-09-09</date>
+    <date>2016-09-30</date>
     <time>16:48:51</time>
     <version>
-		<release>1.8.11</release>
-		<api>1.8.11</api>
+		<release>1.8.12</release>
+		<api>1.8.12</api>
     </version>
     <stability>
         <release>stable</release>
@@ -47,10 +47,15 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Added new package_length_type C(unsigned 8bit)/c(signed 8bit)
-- Added package_length_func option, you can use the C/C++ function to parse the packet length
-- Added SIGRTMIN signal handler, used to reopen the log file
-- Fixed server crash on Cygwin environment
+- Fixed Table Errors caused by iterator errors when deleting elements while traversing data
+- Added Http\Client new option websocket_mask controls websocket client enable mask
+- Repair Swoole \ Server in BASE mode can not use task_ipc_mode = 3 configuration
+- Optimize the performance of Http\Server response body gzip compression
+- Fixed Timer::after can only be executed once in the task process
+- Added automatic splicing incomplete data frame for WebSocket\Server
+- Remove the enable_reuse_port option
+- Added Swoole\Async namespace class style api
+- Fixed Http\Server lisnten UDP port cannot use onReceive callback function
     </notes>
 	<contents>
 		<dir name="/">
