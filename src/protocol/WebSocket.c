@@ -217,8 +217,13 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
     switch (ws.header.OPCODE)
     {
     case WEBSOCKET_OPCODE_CONTINUATION_FRAME:
-        offset = length - ws.payload_length;
         frame_buffer = conn->websocket_buffer;
+        if (frame_buffer == NULL)
+        {
+            swWarn("bad frame[opcode=0]. remote_addr=%s:%d.", swConnection_get_ip(conn), swConnection_get_port(conn));
+            return SW_ERR;
+        }
+        offset = length - ws.payload_length;
         frame_length = length - offset;
         port = swServer_get_port(SwooleG.serv, conn->fd);
         //frame data overflow
@@ -245,6 +250,11 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
         data[offset + 1] = ws.header.OPCODE;
         if (!ws.header.FIN)
         {
+            if (conn->websocket_buffer)
+            {
+                swWarn("merging incomplete frame, bad request. remote_addr=%s:%d.", swConnection_get_ip(conn), swConnection_get_port(conn));
+                return SW_ERR;
+            }
             conn->websocket_buffer = swString_dup(data + offset, length - offset);
         }
         else

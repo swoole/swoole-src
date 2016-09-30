@@ -259,6 +259,10 @@ int swReactor_close(swReactor *reactor, int fd)
     {
         swBuffer_free(socket->in_buffer);
     }
+    if (socket->websocket_buffer)
+    {
+        swBuffer_free(socket->websocket_buffer);
+    }
     bzero(socket, sizeof(swConnection));
     socket->removed = 1;
     return close(fd);
