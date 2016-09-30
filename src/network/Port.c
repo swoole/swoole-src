@@ -516,8 +516,20 @@ void swPort_free(swListenPort *port)
     if (port->ssl)
     {
         swSSL_free_context(port->ssl_context);
-        free(port->ssl_cert_file);
-        free(port->ssl_key_file);
+        sw_strdup_free(port->ssl_cert_file);
+        sw_strdup_free(port->ssl_key_file);
+        if (port->ssl_client_cert_file)
+        {
+            sw_strdup_free(port->ssl_client_cert_file);
+        }
+        if (port->ssl_config.ciphers)
+        {
+            sw_strdup_free(port->ssl_config.ciphers);
+        }
+        if (port->ssl_config.ecdh_curve)
+        {
+            sw_strdup_free(port->ssl_config.ecdh_curve);
+        }
     }
 #endif
 
