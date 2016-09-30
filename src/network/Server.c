@@ -703,7 +703,9 @@ void swServer_init(swServer *serv)
     serv->max_connection = SwooleG.max_sockets;
     serv->max_request = 0;
 
+    //http server
     serv->http_parse_post = 1;
+    serv->upload_tmp_dir = "/tmp";
 
     //heartbeat check
     serv->heartbeat_idle_time = SW_HEARTBEAT_IDLE;

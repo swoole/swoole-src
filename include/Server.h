@@ -432,6 +432,11 @@ struct _swServer
     swSession *session_list;
 
     /**
+     * temporary directory for HTTP uploaded file.
+     */
+    char *upload_tmp_dir;
+
+    /**
      * message queue key
      */
     uint64_t message_queue_key;

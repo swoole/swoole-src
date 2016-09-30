@@ -1511,14 +1511,13 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "task_tmpdir", v))
     {
         convert_to_string(v);
-        SwooleG.task_tmpdir = emalloc(SW_TASK_TMPDIR_SIZE);
-        SwooleG.task_tmpdir_len = snprintf(SwooleG.task_tmpdir, SW_TASK_TMPDIR_SIZE, "%s/task.XXXXXX", Z_STRVAL_P(v)) + 1;
-
-        if (SwooleG.task_tmpdir_len > SW_TASK_TMPDIR_SIZE - 1)
+        if (Z_STRLEN_P(v) > SW_TASK_TMPDIR_SIZE - 22)
         {
             swoole_php_fatal_error(E_ERROR, "task_tmpdir is too long, max size is %d.", SW_TASK_TMPDIR_SIZE - 1);
             return;
         }
+        SwooleG.task_tmpdir = emalloc(SW_TASK_TMPDIR_SIZE);
+        SwooleG.task_tmpdir_len = snprintf(SwooleG.task_tmpdir, SW_TASK_TMPDIR_SIZE, "%s/task.XXXXXX", Z_STRVAL_P(v)) + 1;
     }
     else
     {
@@ -1611,6 +1610,18 @@ PHP_METHOD(swoole_server, set)
         convert_to_boolean(v);
         serv->http_parse_post = Z_BVAL_P(v);
     }
+    //temporary directory for HTTP uploaded file.
+    if (php_swoole_array_get_value(vht, "upload_tmp_dir", v))
+    {
+        convert_to_string(v);
+        if (Z_STRLEN_P(v) >= SW_HTTP_UPLOAD_TMPDIR_SIZE - 22)
+        {
+            swoole_php_fatal_error(E_ERROR, "option upload_tmp_dir [%s] is too long.", Z_STRVAL_P(v));
+            RETURN_FALSE;
+        }
+        serv->upload_tmp_dir = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+    }
+
     /**
      * buffer input size
      */
