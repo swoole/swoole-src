@@ -1478,7 +1478,7 @@ void swReactorThread_free(swServer *serv)
                 }
                 if (pthread_join(ls->thread_id, NULL))
                 {
-                    swWarn("pthread_join(%ld) failed.", (long) ls->thread_id);
+                    swSysError("pthread_join(%ld) failed.", (long) ls->thread_id);
                 }
             }
         }
