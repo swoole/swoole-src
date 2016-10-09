@@ -1450,12 +1450,12 @@ void swReactorThread_free(swServer *serv)
             SW_START_SLEEP;
             if (pthread_cancel(thread->thread_id) != 0)
             {
-                swSysError("pthread_cancel(%d) failed.", (int ) thread->thread_id);
+                swSysError("pthread_cancel(%ld) failed.", (long ) thread->thread_id);
             }
             //wait thread
             if (pthread_join(thread->thread_id, NULL) != 0)
             {
-                swWarn("pthread_join() failed. Error: %s[%d]", strerror(errno), errno);
+                swSysError("pthread_join(%ld) failed.", (long ) thread->thread_id);
             }
             //release the lock
             SwooleGS->lock.unlock(&SwooleGS->lock);
@@ -1474,11 +1474,11 @@ void swReactorThread_free(swServer *serv)
             {
                 if (pthread_cancel(ls->thread_id) < 0)
                 {
-                    swSysError("pthread_cancel(%d) failed.", (int) ls->thread_id);
+                    swSysError("pthread_cancel(%ld) failed.", (long) ls->thread_id);
                 }
                 if (pthread_join(ls->thread_id, NULL))
                 {
-                    swWarn("pthread_join() failed. Error: %s[%d]", strerror(errno), errno);
+                    swWarn("pthread_join(%ld) failed.", (long) ls->thread_id);
                 }
             }
         }
