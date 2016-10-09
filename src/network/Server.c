@@ -463,6 +463,32 @@ swString** swServer_create_worker_buffer(swServer *serv)
     return buffers;
 }
 
+int swServer_create_task_worker(swServer *serv)
+{
+    key_t key = 0;
+    int ipc_type;
+
+    if (SwooleG.task_ipc_mode > SW_TASK_IPC_UNIXSOCK)
+    {
+        key = serv->message_queue_key;
+        ipc_type = SW_IPC_MSGQUEUE;
+    }
+    else
+    {
+        ipc_type = SW_IPC_UNIXSOCK;
+    }
+
+    if (swProcessPool_create(&SwooleGS->task_workers, SwooleG.task_worker_num, SwooleG.task_max_request, key, ipc_type) < 0)
+    {
+        swWarn("[Master] create task_workers failed.");
+        return SW_ERR;
+    }
+    else
+    {
+        return SW_OK;
+    }
+}
+
 int swServer_worker_init(swServer *serv, swWorker *worker)
 {
 #ifdef HAVE_CPU_AFFINITY
@@ -516,12 +542,6 @@ int swServer_start(swServer *serv)
     if (ret < 0)
     {
         return SW_ERR;
-    }
-    if (SwooleG.task_ipc_mode > SW_TASK_IPC_UNIXSOCK && serv->message_queue_key == 0)
-    {
-        char path_buf[128];
-        char *path_ptr = getcwd(path_buf, sizeof(path_buf));
-        serv->message_queue_key = ftok(path_ptr, 1);
     }
     //init loggger
     if (SwooleG.log_file)
@@ -683,7 +703,9 @@ void swServer_init(swServer *serv)
     serv->max_connection = SwooleG.max_sockets;
     serv->max_request = 0;
 
+    //http server
     serv->http_parse_post = 1;
+    serv->upload_tmp_dir = "/tmp";
 
     //heartbeat check
     serv->heartbeat_idle_time = SW_HEARTBEAT_IDLE;
@@ -751,12 +773,12 @@ int swServer_free(swServer *serv)
     {
         if (pthread_cancel(SwooleG.heartbeat_pidt) < 0)
         {
-            swSysError("pthread_cancel(%p) failed.", SwooleG.heartbeat_pidt);
+            swSysError("pthread_cancel(%ld) failed.", (ulong_t )SwooleG.heartbeat_pidt);
         }
         //wait thread
         if (pthread_join(SwooleG.heartbeat_pidt, NULL) < 0)
         {
-            swSysError("pthread_join(%p) failed.", SwooleG.heartbeat_pidt);
+            swSysError("pthread_join(%ld) failed.", (ulong_t )SwooleG.heartbeat_pidt);
         }
     }
     if (serv->factory_mode == SW_MODE_SINGLE)

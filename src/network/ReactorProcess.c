@@ -91,7 +91,7 @@ int swReactorProcess_start(swServer *serv)
         }
     }
 
-    if (swProcessPool_create(&SwooleGS->event_workers, serv->worker_num, serv->max_request, 0, 1) < 0)
+    if (swProcessPool_create(&SwooleGS->event_workers, serv->worker_num, serv->max_request, 0, SW_IPC_UNIXSOCK) < 0)
     {
         return SW_ERR;
     }
@@ -123,18 +123,8 @@ int swReactorProcess_start(swServer *serv)
     //task workers
     if (SwooleG.task_worker_num > 0)
     {
-        key_t key = 0;
-        int create_pipe = 1;
-
-        if (SwooleG.task_ipc_mode > SW_TASK_IPC_UNIXSOCK)
+        if (swServer_create_task_worker(serv) < 0)
         {
-            key = serv->message_queue_key;
-            create_pipe = 0;
-        }
-
-        if (swProcessPool_create(&SwooleGS->task_workers, SwooleG.task_worker_num, SwooleG.task_max_request, key, create_pipe) < 0)
-        {
-            swWarn("[Master] create task_workers failed.");
             return SW_ERR;
         }
 
