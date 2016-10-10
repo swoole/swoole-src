@@ -21,7 +21,10 @@ static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event);
 static int swReactorProcess_send2client(swFactory *, swSendData *);
 static int swReactorProcess_send2worker(int, void *, int);
 static void swReactorProcess_onTimeout(swReactor *reactor);
+
+#ifdef HAVE_REUSEPORT
 static int swReactorProcess_reuse_port(swListenPort *ls);
+#endif
 
 static uint32_t heartbeat_check_lasttime = 0;
 static void (*swReactor_onTimeout_old)(swReactor *reactor);
@@ -232,7 +235,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     SwooleWG.id = worker->id;
     SwooleWG.max_request = serv->max_request;
     SwooleWG.request_count = 0;
-    
+
     SwooleTG.id = 0;
     if (worker->id == 0)
     {
@@ -307,7 +310,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     reactor->thread = 1;
     reactor->socket_list = serv->connection_list;
     reactor->max_socket = serv->max_connection;
-    
+
     reactor->disable_accept = 0;
     reactor->enable_accept = swServer_enable_accept;
     reactor->close = swReactorThread_close;
@@ -536,6 +539,7 @@ static void swReactorProcess_onTimeout(swReactor *reactor)
     }
 }
 
+#ifdef HAVE_REUSEPORT
 static int swReactorProcess_reuse_port(swListenPort *ls)
 {
     //create new socket
@@ -558,3 +562,4 @@ static int swReactorProcess_reuse_port(swListenPort *ls)
     ls->sock = sock;
     return swPort_listen(ls);
 }
+#endif

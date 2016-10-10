@@ -259,7 +259,8 @@ static sw_inline long swReturnValue_get_long(long lval)
     swString *buffer = SwooleG.module_stack;
     swVal *val = (swVal *) buffer->str;
     assert(val->type == SW_VAL_LONG);
-    return *(long *) val->value;
+    long *tmp = (long *) val->value;
+    return *tmp;
 }
 
 static sw_inline uint8_t swReturnValue_get_bool(uint8_t bval)
@@ -275,7 +276,8 @@ static sw_inline double swReturnValue_get_double(double dval)
     swString *buffer = SwooleG.module_stack;
     swVal *val = (swVal *) buffer->str;
     assert(val->type == SW_VAL_DOUBLE);
-    return *(double *) val->value;
+    double *tmp = (double *) val->value;
+    return *tmp;
 }
 
 static sw_inline char* swReturnValue_get_string(int *len)
