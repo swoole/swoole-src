@@ -728,14 +728,14 @@ static PHP_METHOD(swoole_client_coro, connect)
         }
         else
         {
-			cli->onConnect = client_onConnect;
+            cli->onConnect = client_onConnect;
             cli->onReceive = client_onReceive;
             cli->reactor_fdtype = PHP_SWOOLE_FD_DGRAM_CLIENT;
         }
 
         zval *zobject = getThis();
         cli->object = zobject;
-        sw_copy_to_stack(cli->object, cb->_object);
+        //sw_copy_to_stack(cli->object, cb->_object);
     }
 
 	cli->timeout = timeout;
@@ -757,7 +757,11 @@ static PHP_METHOD(swoole_client_coro, connect)
 	{
 		php_swoole_add_timer_coro((int) (cli->timeout * 1000), cli->socket->fd, &cli->timeout_id, (void *) sw_current_context TSRMLS_CC);
 	}
+#if PHP_MAJOR_VERSION < 7
 	coro_save(return_value, return_value_ptr, sw_current_context);
+#else
+	coro_save(sw_current_context);
+#endif
 	coro_yield();
 }
 
@@ -827,31 +831,31 @@ static PHP_METHOD(swoole_client_coro, sendto)
     }
 
     swClient *cli = swoole_get_object(getThis());
-    if (!cli)
-    {
-		zval *retval = NULL;
-		zval *remote_ip, *remote_port;
-		zend_bool r = 1;
-		SW_MAKE_STD_ZVAL(remote_ip);
-		SW_MAKE_STD_ZVAL(remote_port);
-		ZVAL_STRINGL(remote_ip, ip, ip_len, 1);
-		ZVAL_LONG(remote_port, port);
-		sw_zend_call_method_with_2_params(&getThis(), swoole_client_coro_class_entry_ptr, NULL, "connect", &retval, remote_ip, remote_port);
-		sw_zval_ptr_dtor(&remote_ip);
-		sw_zval_ptr_dtor(&remote_port);
-		if (retval)
-		{
-			r = Z_BVAL_P(retval);
-			sw_zval_ptr_dtor(&retval);
-		}
+    //if (!cli)
+    //{
+    //    	zval *retval = NULL;
+    //    	zval *remote_ip, *remote_port;
+    //    	zend_bool r = 1;
+    //    	SW_MAKE_STD_ZVAL(remote_ip);
+    //    	SW_MAKE_STD_ZVAL(remote_port);
+    //    	SW_ZVAL_STRINGL(remote_ip, ip, ip_len, 1);
+    //    	ZVAL_LONG(remote_port, port);
+    //    	//sw_zend_call_method_with_2_params(&getThis(), swoole_client_coro_class_entry_ptr, NULL, "connect", &retval, remote_ip, remote_port);
+    //    	sw_zval_ptr_dtor(&remote_ip);
+    //    	sw_zval_ptr_dtor(&remote_port);
+    //    	if (retval)
+    //    	{
+    //    		r = Z_BVAL_P(retval);
+    //    		sw_zval_ptr_dtor(&retval);
+    //    	}
 
-		if (!r)
-		{
-			RETURN_FALSE;
-		}
+    //    	if (!r)
+    //    	{
+    //    		RETURN_FALSE;
+    //    	}
 
-		cli = swoole_get_object(getThis());
-    }
+    //    	cli = swoole_get_object(getThis());
+    //}
 
     int ret;
     if (cli->type == SW_SOCK_UDP)
@@ -951,7 +955,8 @@ static PHP_METHOD(swoole_client_coro, recv)
 		php_swoole_add_timer_coro((int) (cli->timeout * 1000), cli->socket->fd, &cli->timeout_id, (void *) sw_current_context TSRMLS_CC);
 	}
 	ccp->iowait = SW_CLIENT_CORO_STATUS_WAIT;
-	coro_save(return_value, return_value_ptr, sw_current_context);
+	coro_save(sw_current_context);
+
 	coro_yield();
 }
 

@@ -369,7 +369,7 @@ static int http_client_coro_execute(zval *zobject, char *uri, zend_size_t uri_le
     }
 
     cli->object = zobject;
-    sw_copy_to_stack(cli->object, hcc->_object);
+    //sw_copy_to_stack(cli->object, hcc->_object);
     cli->open_eof_check = 0;
     cli->open_length_check = 0;
     cli->reactor_fdtype = PHP_SWOOLE_FD_STREAM_CLIENT;
@@ -390,8 +390,9 @@ static void http_client_coro_onTimeout(php_context *ctx)
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
-    zval * zdata;
-    zval * retval;
+    zval *zdata;
+    zval *retval = NULL;
+
     SW_MAKE_STD_ZVAL(zdata);
     ZVAL_BOOL(zdata, 0); //return false
     zval *zobject = (zval *)ctx->coro_params;
@@ -465,8 +466,8 @@ static void http_client_coro_onError(swClient *cli)
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
-    zval * zdata;
-    zval * retval;
+    zval *zdata;
+    zval *retval = NULL;
 
     SW_MAKE_STD_ZVAL(zdata);
     //return false
@@ -1019,7 +1020,7 @@ static PHP_METHOD(swoole_http_client_coro, __destruct)
     if (http)
     {
         zval *zobject = getThis();
-        zval *retval;
+        zval *retval = NULL;
         sw_zend_call_method_with_0_params(&zobject, swoole_http_client_coro_class_entry_ptr, NULL, "close", &retval);
         if (retval)
         {
@@ -1121,7 +1122,7 @@ static PHP_METHOD(swoole_http_client_coro, recv)
             hcc->defer_status = HTTP_CLIENT_STATE_DEFER_WAIT;
             //not ready
             php_context *context = swoole_get_property(getThis(), 1);
-            coro_save(return_value, return_value_ptr, context);
+            coro_save(context);
             coro_yield();
             break;
         case HTTP_CLIENT_STATE_DEFER_INIT:
@@ -1205,7 +1206,7 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
         sw_zval_ptr_dtor(&files);
 
         hcc->request_upload_files = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("uploadFiles"), 0 TSRMLS_CC);
-        sw_copy_to_stack(hcc->request_upload_files, hcc->_request_upload_files);
+        //sw_copy_to_stack(hcc->request_upload_files, hcc->_request_upload_files);
     }
 
     zval *upload_file;
@@ -1336,7 +1337,7 @@ static PHP_METHOD(swoole_http_client_coro, execute)
     {
         RETURN_TRUE;
     }
-    coro_save(return_value, return_value_ptr, context);
+    coro_save(context);
     coro_yield();
 }
 
@@ -1382,7 +1383,7 @@ static PHP_METHOD(swoole_http_client_coro, get)
         RETURN_TRUE;
     }
 
-    coro_save(return_value, return_value_ptr, context);
+    coro_save(context);
     coro_yield();
 }
 
@@ -1437,7 +1438,7 @@ static PHP_METHOD(swoole_http_client_coro, post)
     {
         RETURN_TRUE;
     }
-    coro_save(return_value, return_value_ptr, context);
+    coro_save(context);
     coro_yield();
 }
 #endif

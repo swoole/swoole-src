@@ -116,7 +116,8 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     {
 		//This is reconnect, close previous connection
         zval *retval;
-        sw_zend_call_method_with_0_params(&getThis(), swoole_mysql_coro_class_entry_ptr, NULL, "close", &retval);
+        zval *zobject = getThis();
+        sw_zend_call_method_with_0_params(&zobject, swoole_mysql_coro_class_entry_ptr, NULL, "close", &retval);
         if (retval)
         {
             sw_zval_ptr_dtor(&retval);
@@ -289,7 +290,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
 	{
 		php_swoole_add_timer_coro((int) (connector->timeout * 1000), client->fd, &client->cli->timeout_id, (void *) context TSRMLS_CC);
 	}
-	coro_save(return_value, return_value_ptr, context);
+        coro_save(context);
 	coro_yield();
 }
 
@@ -375,7 +376,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
 			client->iowait = SW_MYSQL_CORO_STATUS_WAIT;
 			RETURN_TRUE;
 		}
-		coro_save(return_value, return_value_ptr, context);
+                coro_save(context);
 		coro_yield();
     }
 }
@@ -439,7 +440,7 @@ static PHP_METHOD(swoole_mysql_coro, recv)
 
 	client->_defer = 1;
 	php_context *context = swoole_get_property(getThis(), 0);
-	coro_save(return_value, return_value_ptr, context);
+        coro_save(context);
 	coro_yield();
 }
 
@@ -454,7 +455,8 @@ static PHP_METHOD(swoole_mysql_coro, __destruct)
     else if (client->state != SW_MYSQL_STATE_CLOSED && client->cli)
     {
         zval *retval;
-        sw_zend_call_method_with_0_params(&getThis(), swoole_mysql_coro_class_entry_ptr, NULL, "close", &retval);
+        zval *zobject = getThis();
+        sw_zend_call_method_with_0_params(&zobject, swoole_mysql_coro_class_entry_ptr, NULL, "close", &retval);
         if (retval)
         {
             sw_zval_ptr_dtor(&retval);
@@ -624,7 +626,7 @@ static void swoole_mysql_coro_onTimeout(php_context *ctx)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
     zval *result;
-    zval *retval;
+    zval *retval = NULL;
 
     SW_MAKE_STD_ZVAL(result);
     ZVAL_BOOL(result, 0);

@@ -31,6 +31,7 @@
 #define CORO_LIMIT 2
 #define CORO_SAVE 3
 
+
 typedef struct _php_context php_context;
 typedef struct _coro_task coro_task;
 
@@ -49,6 +50,7 @@ struct _php_context
     void (*onTimeout)(struct _php_context *cxt);
     zval **current_eg_return_value_ptr_ptr;
     zend_execute_data *current_execute_data;
+#if PHP_MAJOR_VERSION < 7
     zend_op **current_opline_ptr;
     zend_op *current_opline;
     zend_op_array *current_active_op_array;
@@ -56,6 +58,10 @@ struct _php_context
     zval *current_this;
     zend_class_entry *current_scope;
     zend_class_entry *current_called_scope;
+#else
+    zval *current_vm_stack_top;
+    zval *current_vm_stack_end;
+#endif
     coro_task *current_task;
     zend_vm_stack current_vm_stack;
 	php_context_state state;
@@ -66,6 +72,10 @@ typedef struct _coro_global
     uint32_t coro_num;
     uint32_t max_coro_num;
     zend_vm_stack origin_vm_stack;
+#if PHP_MAJOR_VERSION >= 7
+    zval *origin_vm_stack_top;
+    zval *origin_vm_stack_end;
+#endif
     zend_execute_data *origin_ex;
     coro_task *current_coro;
     zend_bool require;
@@ -119,11 +129,30 @@ static sw_inline zend_fcall_info_cache* php_swoole_server_get_cache(swServer *se
 }
 
 int coro_init(TSRMLS_D);
-int coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval **retval, void *post_callback, void *param);
+#if PHP_MAJOR_VERSION >= 7
+#define coro_create(op_array, argv, argc, retval, post_callback, param) \
+        sw_coro_create(op_array, argv, argc, *retval, post_callback, param)
+#define coro_save(sw_php_context) \
+        sw_coro_save(return_value, sw_php_context);
+#define coro_resume(sw_current_context, retval, coro_retval) \
+        sw_coro_resume(sw_current_context, retval, *coro_retval);
+
+int sw_coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval *retval, void *post_callback, void *param);
+php_context *sw_coro_save(zval *return_value, php_context *sw_php_context);
+int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval);
+
+#else
+
+#define coro_create sw_coro_create
+#define coro_save(sw_php_context) sw_coro_save(return_value, return_value_ptr, sw_php_context)
+#define coro_resume sw_coro_resume
+int sw_coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval **retval, void *post_callback, void *param);
+php_context *sw_coro_save(zval *return_value, zval **return_value_ptr, php_context *sw_php_context);
+int sw_coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retval);
+#endif
+
 void coro_check(TSRMLS_D);
 void coro_close(TSRMLS_D);
-php_context *coro_save(zval *return_value, zval **return_value_ptr, php_context *sw_php_context);
-int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retval);
 int php_swoole_add_timer_coro(int ms, int cli_fd, long *timeout_id, void* param TSRMLS_DC);
 int php_swoole_clear_timer_coro(long id TSRMLS_DC);
 

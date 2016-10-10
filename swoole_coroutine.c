@@ -29,7 +29,13 @@ coro_global COROG;
 
 int coro_init(TSRMLS_D)
 {
+#if PHP_MAJOR_VERSION < 7
     COROG.origin_vm_stack = EG(argument_stack);
+#else
+    COROG.origin_vm_stack = EG(vm_stack);
+    COROG.origin_vm_stack_top = EG(vm_stack_top);
+    COROG.origin_vm_stack_end = EG(vm_stack_end);
+#endif
     COROG.origin_ex = EG(current_execute_data);
     COROG.coro_num = 0;
 	if (COROG.max_coro_num <= 0)
@@ -50,7 +56,8 @@ void coro_check(TSRMLS_D)
 	}
 }
 
-int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **retval, void *post_callback, void* params)
+#if PHP_MAJOR_VERSION < 7
+int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **retval, void *post_callback, void* params)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -180,7 +187,7 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
     COROG.current_coro->start_time = time(NULL);
     COROG.current_coro->post_callback = post_callback;
     COROG.current_coro->post_callback_params = params;
-	COROG.require = 1;
+    COROG.require = 1;
     if (!setjmp(*swReactorCheckPoint))
     {
         zend_execute_ex(execute_data TSRMLS_CC);
@@ -196,11 +203,75 @@ int coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **
     {
         coro_status = CORO_YIELD;
     }
-	COROG.require = 0;
+    COROG.require = 0;
 
     return coro_status;
 }
 
+#else
+int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval, void *post_callback, void* params)
+{
+    if (__builtin_expect(COROG.coro_num >= COROG.max_coro_num, 0))
+    {
+        swWarn("exceed max number of coro %d", COROG.coro_num);
+        return CORO_LIMIT;
+    }
+    zend_function *func = fci_cache->function_handler;
+    zend_op_array *op_array = (zend_op_array *)fci_cache->function_handler;
+    zend_object *object;
+    int i;
+
+    size_t total = ZEND_CALL_FRAME_SLOT + argc;
+    total += op_array->last_var + op_array->T - MIN(op_array->num_args, argc);
+    total *= sizeof(zval);
+    zend_vm_stack_init();
+
+    zend_execute_data *call = (zend_execute_data *)EG(vm_stack_top);
+    if (__builtin_expect(total > (size_t)((char *)EG(vm_stack_end) - (char *)call), 0))
+    {
+        call = (zend_execute_data *)zend_vm_stack_extend(total);
+    }
+    else
+    {
+        EG(vm_stack_top) = (zval *)((char *)call + total);
+    }
+    object = (func->common.fn_flags | ZEND_ACC_STATIC) ? NULL : fci_cache->object;
+    zend_vm_init_call_frame(call, ZEND_CALL_TOP_FUNCTION | ZEND_CALL_DYNAMIC | ZEND_CALL_ALLOCATED, fci_cache->function_handler, argc, fci_cache->called_scope, object);
+
+    for (i = 0; i < argc; ++i)
+    {
+        zval *target;
+        target = ZEND_CALL_ARG(call, i + 1);
+        ZVAL_COPY(target, argv[i]);
+    }
+
+    if (__builtin_expect(func->common.fn_flags & ZEND_ACC_CLOSURE, 0))
+    {
+        ZEND_ADD_CALL_FLAG(call, ZEND_CALL_CLOSURE);
+    }
+    
+    zend_init_execute_data(call, op_array, retval);
+
+    ++COROG.coro_num;
+    COROG.require = 1;
+
+    int coro_status;
+    if (!setjmp(*swReactorCheckPoint))
+    {
+        zend_execute_ex(call);
+        coro_close(TSRMLS_C);
+        swTrace("create the %d coro with stack %zu. heap size: %zu\n", COROG.coro_num, total, zend_memory_usage(0));
+        coro_status = CORO_END;
+    }
+    else
+    {
+        coro_status = CORO_YIELD;
+    }
+    return coro_status;
+}
+#endif
+
+#if PHP_MAJOR_VERSION < 7
 sw_inline void coro_close(TSRMLS_D)
 {
     if (COROG.current_coro->post_callback)
@@ -248,8 +319,20 @@ sw_inline void coro_close(TSRMLS_D)
     
     return;
 }
+#else
+sw_inline void coro_close(TSRMLS_D)
+{
+    efree(EG(vm_stack));
+    EG(vm_stack) = COROG.origin_vm_stack;
+    EG(vm_stack_top) = COROG.origin_vm_stack_top;
+    EG(vm_stack_end) = COROG.origin_vm_stack_end;
+    --COROG.coro_num;
+    swTrace("closing coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
+}
+#endif
 
-sw_inline php_context *coro_save(zval *return_value, zval **return_value_ptr, php_context *sw_current_context)
+#if PHP_MAJOR_VERSION < 7
+sw_inline php_context *sw_coro_save(zval *return_value, zval **return_value_ptr, php_context *sw_current_context)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -270,8 +353,33 @@ sw_inline php_context *coro_save(zval *return_value, zval **return_value_ptr, ph
 
     return sw_current_context;
 }
+#else
+sw_inline php_context *sw_coro_save(zval *return_value, php_context *sw_current_context)
+{
 
-int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retval)
+    zend_execute_data *current = EG(current_execute_data);
+    if (ZEND_CALL_INFO(current) & ZEND_CALL_RELEASE_THIS)
+    {
+        zval_ptr_dtor(&(current->This));
+    }
+    zend_vm_stack_free_args(EG(current_execute_data));
+    zend_vm_stack_free_call_frame(EG(current_execute_data));
+
+    SWCC(current_coro_return_value_ptr) = return_value;
+    SWCC(current_execute_data) = EG(current_execute_data)->prev_execute_data;
+    SWCC(current_execute_data)->opline++;
+    SWCC(current_vm_stack) = EG(vm_stack);
+    SWCC(current_vm_stack_top) = EG(vm_stack_top);
+    SWCC(current_vm_stack_end) = EG(vm_stack_end);
+    SWCC(current_task) = COROG.current_coro;
+
+    return sw_current_context;
+
+}
+#endif
+
+#if PHP_MAJOR_VERSION < 7
+int sw_coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retval)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -331,6 +439,34 @@ int coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retva
 
     return coro_status;
 }
+#else
+int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval)
+{
+    EG(current_execute_data) = SWCC(current_execute_data);
+    ZVAL_COPY(SWCC(current_coro_return_value_ptr), retval);
+    EG(vm_stack) = SWCC(current_vm_stack);
+    EG(vm_stack_top) = SWCC(current_vm_stack_top);
+    EG(vm_stack_end) = SWCC(current_vm_stack_end);
+    //EG(current_task) = COROG.current_coro;
+    int coro_status;
+    if (!setjmp(*swReactorCheckPoint))
+    {
+        //coro exit
+        zend_execute_ex(sw_current_context->current_execute_data TSRMLS_CC);
+        //if (EG(return_value_ptr_ptr) != NULL)
+        //{
+        //    *coro_retval = *EG(return_value_ptr_ptr);
+        //}
+        coro_close(TSRMLS_C);
+        coro_status = CORO_END;
+    }
+    else
+    {
+        //coro yield
+        coro_status = CORO_YIELD;
+    }
+}
+#endif
 
 sw_inline void coro_yield()
 {

@@ -47,6 +47,7 @@ static void swoole_coroutine_util_resume(void *data)
 	efree(context);
 }
 
+#if PHP_MAJOR_VERSION < 7
 static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache, zval **return_value_ptr, zend_bool use_array)
 {
     int i;
@@ -172,19 +173,31 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
         longjmp(*swReactorCheckPoint, 1);
     }
 }
+#else
+static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache, zend_bool use_array)
+{
+}
+#endif
+
 
 static PHP_METHOD(swoole_coroutine_util, call_user_func)
 {
     zend_fcall_info fci;
     zend_fcall_info_cache fci_cache;
 
+#if PHP_MAJOR_VERSION < 7
     zval_ptr_dtor(return_value_ptr);
+#endif
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "f*",&fci, &fci_cache, &fci.params, &fci.param_count) == FAILURE)
     {
         return;
     }
 
+#if PHP_MAJOR_VERSION < 7
     swoole_corountine_call_function(&fci, &fci_cache, return_value_ptr, 0);
+#else
+    swoole_corountine_call_function(&fci, &fci_cache, 0);
+#endif
 }
 
 static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
@@ -193,13 +206,20 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
     zend_fcall_info fci;
     zend_fcall_info_cache fci_cache;
 
+#if PHP_MAJOR_VERSION < 7
     zval_ptr_dtor(return_value_ptr);
+#endif
+
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "fa/",&fci, &fci_cache, &params) == FAILURE)
     {
         return;
     }
     zend_fcall_info_args(&fci, params);
+#if PHP_MAJOR_VERSION < 7
     swoole_corountine_call_function(&fci, &fci_cache, return_value_ptr, 1);
+#else
+    swoole_corountine_call_function(&fci, &fci_cache, 1);
+#endif
 }
 
 static PHP_METHOD(swoole_coroutine_util, suspend)
@@ -228,7 +248,7 @@ static PHP_METHOD(swoole_coroutine_util, suspend)
 	}
 
     php_context *context = emalloc(sizeof(php_context));
-	coro_save(return_value, return_value_ptr, context);
+	coro_save(context);
 	if (swLinkedList_append(coros_list, (void *)context) == SW_ERR) {
 		efree(context);
 		RETURN_FALSE;
