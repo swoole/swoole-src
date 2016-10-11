@@ -348,7 +348,7 @@ static PHP_METHOD(swoole_process, signal)
         RETURN_FALSE;
     }
 
-    if (SwooleGS->start)
+    if (SwooleGS->start && (swIsWorker() || swIsMaster() || swIsManager() || swIsTaskWorker()))
     {
         if (signo == SIGTERM || signo == SIGALRM)
         {
