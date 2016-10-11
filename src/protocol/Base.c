@@ -168,6 +168,10 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
                 {
                     return SW_ERR;
                 }
+                if (conn->removed)
+                {
+                    return SW_OK;
+                }
                 conn->recv_wait = 0;
 
                 int remaining_length = buffer->length - buffer->offset;
@@ -244,6 +248,7 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString
 {
     int recv_again = SW_FALSE;
     int buf_size;
+    int ret;
 
     recv_data: buf_size = buffer->size - buffer->length;
     char *buf_ptr = buffer->str + buffer->length;
@@ -295,7 +300,15 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString
         }
         else if (memcmp(buffer->str + buffer->length - protocol->package_eof_len, protocol->package_eof, protocol->package_eof_len) == 0)
         {
-            protocol->onPackage(conn, buffer->str, buffer->length);
+            ret = protocol->onPackage(conn, buffer->str, buffer->length);
+            if (ret < 0)
+            {
+                return SW_ERR;
+            }
+            if (conn->removed)
+            {
+                return SW_OK;
+            }
             swString_clear(buffer);
             return SW_OK;
         }
