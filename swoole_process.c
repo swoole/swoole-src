@@ -27,6 +27,7 @@ static PHP_METHOD(swoole_process, pop);
 static PHP_METHOD(swoole_process, push);
 static PHP_METHOD(swoole_process, kill);
 static PHP_METHOD(swoole_process, signal);
+static PHP_METHOD(swoole_process, alarm);
 static PHP_METHOD(swoole_process, wait);
 static PHP_METHOD(swoole_process, daemon);
 #ifdef HAVE_CPU_AFFINITY
@@ -52,6 +53,7 @@ static const zend_function_entry swoole_process_methods[] =
     PHP_ME(swoole_process, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_process, wait, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_process, signal, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_process, alarm, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_process, kill, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_process, daemon, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 #ifdef HAVE_CPU_AFFINITY
@@ -348,7 +350,7 @@ static PHP_METHOD(swoole_process, signal)
         RETURN_FALSE;
     }
 
-    if (SwooleGS->start)
+    if (SwooleGS->start && (swIsWorker() || swIsMaster() || swIsManager() || swIsTaskWorker()))
     {
         if (signo == SIGTERM || signo == SIGALRM)
         {
@@ -408,6 +410,65 @@ static PHP_METHOD(swoole_process, signal)
      */
     SwooleG.main_reactor->check_signalfd = 1;
     swSignal_add(signo, php_swoole_onSignal);
+
+    RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_process, alarm)
+{
+    long usec = 0;
+    long type = ITIMER_REAL;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|l", &usec, &type) == FAILURE)
+    {
+        return;
+    }
+
+    if (!SWOOLE_G(cli))
+    {
+        swoole_php_fatal_error(E_ERROR, "cannot use swoole_process::alarm here.");
+        RETURN_FALSE;
+    }
+
+    if (SwooleG.timer.fd != 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "cannot use both timer and alarm at the same time.");
+        RETURN_FALSE;
+    }
+
+    struct timeval now;
+    if (gettimeofday(&now, NULL) < 0)
+    {
+        swoole_php_error(E_WARNING, "gettimeofday() failed. Error: %s[%d]", strerror(errno), errno);
+        RETURN_FALSE;
+    }
+
+    struct itimerval timer_set;
+    bzero(&timer_set, sizeof(timer_set));
+
+    if (usec > 0)
+    {
+        long _sec = usec / 1000000;
+        long _usec = usec - (_sec * 1000000);
+
+        timer_set.it_interval.tv_sec = _sec;
+        timer_set.it_interval.tv_usec = _usec;
+
+        timer_set.it_value.tv_sec = _sec;
+        timer_set.it_value.tv_usec = _usec;
+
+        if (timer_set.it_value.tv_usec > 1e6)
+        {
+            timer_set.it_value.tv_usec = timer_set.it_value.tv_usec - 1e6;
+            timer_set.it_value.tv_sec += 1;
+        }
+    }
+
+    if (setitimer(type, &timer_set, NULL) < 0)
+    {
+        swoole_php_error(E_WARNING, "setitimer() failed. Error: %s[%d]", strerror(errno), errno);
+        RETURN_FALSE;
+    }
 
     RETURN_TRUE;
 }

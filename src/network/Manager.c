@@ -734,6 +734,7 @@ pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
     //child
     else if (pid == 0)
     {
+        SwooleG.process_type = SW_PROCESS_USERWORKER;
         serv->onUserWorkerStart(serv, worker);
         exit(0);
     }

@@ -139,8 +139,8 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
         recv_size = protocol->package_length_offset + protocol->package_length_size;
     }
 
-    int ret = swConnection_recv(conn, buffer->str + buffer->length, recv_size, 0);
-    if (ret < 0)
+    int n = swConnection_recv(conn, buffer->str + buffer->length, recv_size, 0);
+    if (n < 0)
     {
         switch (swConnection_error(errno))
         {
@@ -154,23 +154,26 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
             return SW_OK;
         }
     }
-    else if (ret == 0)
+    else if (n == 0)
     {
         return SW_ERR;
     }
     else
     {
-        buffer->length += ret;
+        buffer->length += n;
 
         if (conn->recv_wait)
         {
             if (buffer->length >= buffer->offset)
             {
                 do_dispatch:
-                ret = protocol->onPackage(conn, buffer->str, buffer->offset);
-                if (ret < 0)
+                if (protocol->onPackage(conn, buffer->str, buffer->offset) < 0)
                 {
                     return SW_ERR;
+                }
+                if (conn->removed)
+                {
+                    return SW_OK;
                 }
                 conn->recv_wait = 0;
 
@@ -299,7 +302,14 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString
         }
         else if (memcmp(buffer->str + buffer->length - protocol->package_eof_len, protocol->package_eof, protocol->package_eof_len) == 0)
         {
-            protocol->onPackage(conn, buffer->str, buffer->length);
+            if (protocol->onPackage(conn, buffer->str, buffer->length) < 0)
+            {
+                return SW_ERR;
+            }
+            if (conn->removed)
+            {
+                return SW_OK;
+            }
             swString_clear(buffer);
             return SW_OK;
         }

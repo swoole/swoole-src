@@ -848,7 +848,6 @@ static PHP_METHOD(swoole_client, connect)
     {
         RETURN_FALSE;
     }
-
     swoole_set_object(getThis(), cli);
 
     if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
