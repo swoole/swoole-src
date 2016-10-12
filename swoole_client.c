@@ -837,15 +837,17 @@ static PHP_METHOD(swoole_client, connect)
     }
 
     swClient *cli = swoole_get_object(getThis());
-    if (!cli)
+    if (cli)
     {
-        cli = php_swoole_client_new(getThis(), host, host_len, port);
-        if (cli == NULL)
-        {
-            RETURN_FALSE;
-        }
+        swoole_php_fatal_error(E_WARNING, "The client is already connected server.");
+        RETURN_FALSE;
     }
 
+    cli = php_swoole_client_new(getThis(), host, host_len, port);
+    if (cli == NULL)
+    {
+        RETURN_FALSE;
+    }
     swoole_set_object(getThis(), cli);
 
     if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
