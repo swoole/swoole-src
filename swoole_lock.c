@@ -71,7 +71,7 @@ static PHP_METHOD(swoole_lock, __construct)
     swLock *lock = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swLock));
     if (lock == NULL)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "alloc failed.");
+        swoole_php_fatal_error(E_ERROR, "alloc global memory failed.");
         RETURN_FALSE;
     }
 
@@ -85,13 +85,13 @@ static PHP_METHOD(swoole_lock, __construct)
     case SW_FILELOCK:
         if (filelock_len <= 0)
         {
-            php_error_docref(NULL TSRMLS_CC, E_ERROR, "filelock require lock file name.");
+            swoole_php_error(E_ERROR, "filelock require lock file name.");
             RETURN_FALSE;
         }
         int fd;
         if ((fd = open(filelock, O_RDWR | O_CREAT, 0666)) < 0)
         {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "open file[%s] failed. Error: %s [%d]", filelock, strerror(errno), errno);
+            swoole_php_error(E_WARNING, "open file[%s] failed. Error: %s [%d]", filelock, strerror(errno), errno);
             RETURN_FALSE;
         }
         ret = swFileLock_create(lock, fd);
@@ -111,7 +111,7 @@ static PHP_METHOD(swoole_lock, __construct)
     }
     if (ret < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "create lock failed");
+        swoole_php_error(E_WARNING, "create lock failed");
         RETURN_FALSE;
     }
     swoole_set_object(getThis(), lock);
