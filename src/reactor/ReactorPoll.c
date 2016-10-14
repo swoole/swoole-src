@@ -266,6 +266,11 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
                 //error
                 if ((object->events[i].revents & (POLLHUP | POLLERR)) && !event.socket->removed)
                 {
+                    //ignore ERR and HUP, because event is already processed at IN and OUT handler.
+                    if ((object->events[i].revents & POLLIN) || (object->events[i].revents & POLLOUT))
+                    {
+                        continue;
+                    }
                     handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, event.type);
                     ret = handle(reactor, &event);
                     if (ret < 0)

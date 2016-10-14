@@ -73,8 +73,6 @@ static PHP_METHOD(swoole_table, del);
 static PHP_METHOD(swoole_table, exist);
 static PHP_METHOD(swoole_table, incr);
 static PHP_METHOD(swoole_table, decr);
-static PHP_METHOD(swoole_table, lock);
-static PHP_METHOD(swoole_table, unlock);
 static PHP_METHOD(swoole_table, count);
 static PHP_METHOD(swoole_table, destroy);
 
@@ -99,8 +97,6 @@ static const zend_function_entry swoole_table_methods[] =
     PHP_ME(swoole_table, exist,       arginfo_swoole_table_get, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, incr,        arginfo_swoole_table_incr, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, decr,        arginfo_swoole_table_decr, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, lock,        arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, unlock,      arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
 #ifdef HAVE_PCRE
     PHP_ME(swoole_table, rewind,      arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, next,        arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
@@ -167,6 +163,7 @@ void swoole_table_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_table_ce, "swoole_table", "Swoole\\Table", swoole_table_methods);
     swoole_table_class_entry_ptr = zend_register_internal_class(&swoole_table_ce TSRMLS_CC);
+    SWOOLE_CLASS_ALIAS(swoole_table, "Swoole\\Table");
 
 #ifdef HAVE_PCRE
     zend_class_implements(swoole_table_class_entry_ptr TSRMLS_CC, 2, spl_ce_Iterator, spl_ce_Countable);
@@ -196,6 +193,11 @@ PHP_METHOD(swoole_table, __construct)
     }
 
     swTable *table = swTable_new(table_size);
+    if (table == NULL)
+    {
+        swoole_php_fatal_error(E_ERROR, "alloc global memory failed.");
+        RETURN_FALSE;
+    }
     swoole_set_object(getThis(), table);
 }
 
@@ -221,6 +223,11 @@ PHP_METHOD(swoole_table, column)
         size = 4;
     }
     swTable *table = swoole_get_object(getThis());
+    if (table->memory)
+    {
+        swoole_php_fatal_error(E_WARNING, "Must be used before create table.");
+        RETURN_FALSE;
+    }
     swTableColumn_add(table, name, len, type, size);
     RETURN_TRUE;
 }
@@ -228,6 +235,11 @@ PHP_METHOD(swoole_table, column)
 static PHP_METHOD(swoole_table, create)
 {
     swTable *table = swoole_get_object(getThis());
+    if (table->memory)
+    {
+        swoole_php_fatal_error(E_WARNING, "The table have beed created.");
+        RETURN_FALSE;
+    }
     if (swTable_create(table) < 0)
     {
         swoole_php_fatal_error(E_ERROR, "Unable to allocate memory.");
@@ -239,6 +251,12 @@ static PHP_METHOD(swoole_table, create)
 static PHP_METHOD(swoole_table, destroy)
 {
     swTable *table = swoole_get_object(getThis());
+    if (!table->memory)
+    {
+        swoole_php_fatal_error(E_ERROR, "Must create table first.");
+        RETURN_FALSE;
+    }
+
     swTable_free(table);
     RETURN_TRUE;
 }
@@ -255,6 +273,12 @@ static PHP_METHOD(swoole_table, set)
     }
 
     swTable *table = swoole_get_object(getThis());
+    if (!table->memory)
+    {
+        swoole_php_fatal_error(E_ERROR, "Must create table first.");
+        RETURN_FALSE;
+    }
+
     sw_atomic_t *_lock = NULL;
     swTableRow *row = swTableRow_set(table, key, keylen, &_lock);
     if (!row)
@@ -294,6 +318,7 @@ static PHP_METHOD(swoole_table, set)
             swTableRow_set_value(row, col, &Z_LVAL_P(v), 0);
         }
     }
+    (void)ktype;
     SW_HASHTABLE_FOREACH_END();
     sw_spinlock_release(_lock);
     RETURN_TRUE;
@@ -314,6 +339,12 @@ static PHP_METHOD(swoole_table, incr)
 
     sw_atomic_t *_lock = NULL;
     swTable *table = swoole_get_object(getThis());
+    if (!table->memory)
+    {
+        swoole_php_fatal_error(E_ERROR, "Must create table first.");
+        RETURN_FALSE;
+    }
+
     swTableRow *row = swTableRow_set(table, key, key_len, &_lock);
     if (!row)
     {
@@ -386,6 +417,12 @@ static PHP_METHOD(swoole_table, decr)
 
     sw_atomic_t *_lock = NULL;
     swTable *table = swoole_get_object(getThis());
+    if (!table->memory)
+    {
+        swoole_php_fatal_error(E_ERROR, "Must create table first.");
+        RETURN_FALSE;
+    }
+
     swTableRow *row = swTableRow_set(table, key, key_len, &_lock);
     if (!row)
     {
@@ -454,6 +491,12 @@ static PHP_METHOD(swoole_table, get)
     }
     sw_atomic_t *_lock = NULL;
     swTable *table = swoole_get_object(getThis());
+    if (!table->memory)
+    {
+        swoole_php_fatal_error(E_ERROR, "Must create table first.");
+        RETURN_FALSE;
+    }
+
     swTableRow *row = swTableRow_get(table, key, keylen, &_lock);
     if (!row)
     {
@@ -478,6 +521,12 @@ static PHP_METHOD(swoole_table, exist)
 
     sw_atomic_t *_lock = NULL;
     swTable *table = swoole_get_object(getThis());
+    if (!table->memory)
+    {
+        swoole_php_fatal_error(E_ERROR, "Must create table first.");
+        RETURN_FALSE;
+    }
+
     swTableRow *row = swTableRow_get(table, key, keylen, &_lock);
     sw_spinlock_release(_lock);
     if (!row)
@@ -501,19 +550,12 @@ static PHP_METHOD(swoole_table, del)
     }
 
     swTable *table = swoole_get_object(getThis());
+    if (!table->memory)
+    {
+        swoole_php_fatal_error(E_ERROR, "Must create table first.");
+        RETURN_FALSE;
+    }
     SW_CHECK_RETURN(swTableRow_del(table, key, keylen));
-}
-
-static PHP_METHOD(swoole_table, lock)
-{
-    swTable *table = swoole_get_object(getThis());
-    SW_LOCK_CHECK_RETURN(table->lock.lock(&table->lock));
-}
-
-static PHP_METHOD(swoole_table, unlock)
-{
-    swTable *table = swoole_get_object(getThis());
-    SW_LOCK_CHECK_RETURN(table->lock.unlock(&table->lock));
 }
 
 static PHP_METHOD(swoole_table, count)
@@ -529,6 +571,11 @@ static PHP_METHOD(swoole_table, count)
     }
 
     swTable *table = swoole_get_object(getThis());
+    if (!table->memory)
+    {
+        swoole_php_fatal_error(E_ERROR, "Must create table first.");
+        RETURN_FALSE;
+    }
 
     if (mode == COUNT_NORMAL)
     {
@@ -544,12 +591,22 @@ static PHP_METHOD(swoole_table, count)
 static PHP_METHOD(swoole_table, rewind)
 {
     swTable *table = swoole_get_object(getThis());
+    if (!table->memory)
+    {
+        swoole_php_fatal_error(E_ERROR, "Must create table first.");
+        RETURN_FALSE;
+    }
     swTable_iterator_rewind(table);
 }
 
 static PHP_METHOD(swoole_table, current)
 {
     swTable *table = swoole_get_object(getThis());
+    if (!table->memory)
+    {
+        swoole_php_fatal_error(E_ERROR, "Must create table first.");
+        RETURN_FALSE;
+    }
     swTableRow *row = swTable_iterator_current(table);
     php_swoole_table_row2array(table, row, return_value);
 }
@@ -557,6 +614,11 @@ static PHP_METHOD(swoole_table, current)
 static PHP_METHOD(swoole_table, key)
 {
     swTable *table = swoole_get_object(getThis());
+    if (!table->memory)
+    {
+        swoole_php_fatal_error(E_ERROR, "Must create table first.");
+        RETURN_FALSE;
+    }
     swTableRow *row = swTable_iterator_current(table);
     SW_RETURN_STRING(row->key, 1);
 }
@@ -564,12 +626,22 @@ static PHP_METHOD(swoole_table, key)
 static PHP_METHOD(swoole_table, next)
 {
     swTable *table = swoole_get_object(getThis());
+    if (!table->memory)
+    {
+        swoole_php_fatal_error(E_ERROR, "Must create table first.");
+        RETURN_FALSE;
+    }
     swTable_iterator_forward(table);
 }
 
 static PHP_METHOD(swoole_table, valid)
 {
     swTable *table = swoole_get_object(getThis());
+    if (!table->memory)
+    {
+        swoole_php_fatal_error(E_ERROR, "Must create table first.");
+        RETURN_FALSE;
+    }
     swTableRow *row = swTable_iterator_current(table);
     RETURN_BOOL(row != NULL);
 }

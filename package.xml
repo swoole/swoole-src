@@ -35,11 +35,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2016-06-16</date>
+    <date>2016-09-30</date>
     <time>16:48:51</time>
     <version>
-		<release>1.8.6</release>
-		<api>1.8.6</api>
+		<release>1.8.12</release>
+		<api>1.8.12</api>
     </version>
     <stability>
         <release>stable</release>
@@ -47,14 +47,15 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Added `swoole_mysql` real async mysql client
-- Fixed swoole_client/swoole_http_client/swoole_redis memory leak and crash bug on PHP7
-- Remove gcc_aio.c
-- Remove swoole_mysqli_get_socket and swoole_mysql_query
-- Remove swoole_http_server->setGlobal
-- Added swoole_async_dns_lookup result cache
-- Optimize websocket server performance
-- Added swoole_server->task complete callback parameter
+- Fixed Table Errors caused by iterator errors when deleting elements while traversing data
+- Added Http\Client new option websocket_mask controls websocket client enable mask
+- Repair Swoole \ Server in BASE mode can not use task_ipc_mode = 3 configuration
+- Optimize the performance of Http\Server response body gzip compression
+- Fixed Timer::after can only be executed once in the task process
+- Added automatic splicing incomplete data frame for WebSocket\Server
+- Remove the enable_reuse_port option
+- Added Swoole\Async namespace class style api
+- Fixed Http\Server lisnten UDP port cannot use onReceive callback function
     </notes>
 	<contents>
 		<dir name="/">
@@ -86,6 +87,8 @@
 				<file role="src" name="base64.h" />
 				<file role="src" name="mqtt.h" />
 				<file role="src" name="error.h" />
+				<file role="src" name="module.h" />
+				<file role="src" name="socks5.h" />
 			</dir>
 			<file role="src" name="php_swoole.h" />
 			<file role="src" name="php7_wrapper.h" />
@@ -110,6 +113,7 @@
 			<file role="src" name="swoole_mysql.c" />
 			<file role="src" name="swoole_mysql.h" />
 			<file role="src" name="swoole_redis.c" />
+			<file role="src" name="swoole_module.c" />
 			<dir name="thirdparty">
 				<file role="src" name="php_http_parser.c" />
 				<file role="src" name="php_http_parser.h" />
@@ -184,6 +188,7 @@
 					<file role="src" name="sendfile.c" />
 					<file role="src" name="signal.c" />
 					<file role="src" name="timer.c" />
+					<file role="src" name="dl.c" />
 				</dir>
 				<dir name="protocol">
 				    <file role="src" name="Base.c" />
@@ -194,6 +199,8 @@
 					<file role="src" name="Sha1.c" />
 					<file role="src" name="Base64.c" />
 					<file role="src" name="Mqtt.c" />
+					<file role="src" name="Socks5.c" />
+					<file role="src" name="MimeTypes.c" />
 				</dir>
 			</dir>
 			<dir name="examples">
@@ -284,7 +291,6 @@
                     <file role="src" name="tick.php" />
                 </dir>
                 <dir name="mysql">
-                    <file role="src" name="async_mysql2.php" />
                     <file role="src" name="real_async.php" />
                 </dir>
                 <dir name="redis">

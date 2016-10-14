@@ -127,6 +127,7 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
 {
     swServer *serv = pool->ptr;
     SwooleWG.id = worker_id;
+    SwooleG.pid = getpid();
 
     SwooleG.use_timer_pipe = 0;
     SwooleG.use_timerfd = 0;
@@ -203,24 +204,64 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
         //lock worker
         worker->lock.lock(&worker->lock);
 
-        result->info.type = SW_EVENT_FINISH;
-        result->info.fd = current_task->info.fd;
-        swTask_type(result) = flags;
-
-        if (data_len >= SW_IPC_MAX_SIZE - sizeof(buf.info))
+        if (swTask_type(current_task) & SW_TASK_WAITALL)
         {
-            if (swTaskWorker_large_pack(result, data, data_len) < 0)
+            sw_atomic_t *finish_count = (sw_atomic_t*) result->data;
+            char *_tmpfile = result->data + 4;
+            int fd = open(_tmpfile, O_APPEND | O_WRONLY);
+            if (fd < 0)
             {
-                //unlock worker
-                worker->lock.unlock(&worker->lock);
-                swWarn("large task pack failed()");
-                return SW_ERR;
+                swSysError("open(%s) failed.", _tmpfile);
+                (*finish_count) ++;
+            }
+            else
+            {
+                buf.info.type = SW_EVENT_FINISH;
+                buf.info.fd = current_task->info.fd;
+                swTask_type(&buf) = flags;
+                //result pack
+                if (data_len >= SW_IPC_MAX_SIZE - sizeof(buf.info))
+                {
+                    if (swTaskWorker_large_pack(result, data, data_len) < 0)
+                    {
+                        swWarn("large task pack failed()");
+                        buf.info.len = 0;
+                    }
+                }
+                else
+                {
+                    buf.info.len = data_len;
+                    memcpy(buf.data, data, data_len);
+                }
+                sw_atomic_fetch_add(finish_count, 1);
+                //write to tmpfile
+                if (write(fd, &buf, sizeof(buf.info) + buf.info.len) < 0)
+                {
+                    swSysError("write(%s, %ld) failed.", result->data, sizeof(buf.info) + buf.info.len);
+                }
             }
         }
         else
         {
-            memcpy(result->data, data, data_len);
-            result->info.len = data_len;
+            result->info.type = SW_EVENT_FINISH;
+            result->info.fd = current_task->info.fd;
+            swTask_type(result) = flags;
+
+            if (data_len >= SW_IPC_MAX_SIZE - sizeof(buf.info))
+            {
+                if (swTaskWorker_large_pack(result, data, data_len) < 0)
+                {
+                    //unlock worker
+                    worker->lock.unlock(&worker->lock);
+                    swWarn("large task pack failed()");
+                    return SW_ERR;
+                }
+            }
+            else
+            {
+                memcpy(result->data, data, data_len);
+                result->info.len = data_len;
+            }
         }
 
         //unlock worker

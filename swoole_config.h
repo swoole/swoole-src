@@ -78,7 +78,7 @@
 
 #define SW_BUFFER_SIZE_BIG         65536
 #define SW_BUFFER_SIZE_UDP         65536
-#define SW_SENDFILE_TRUNK          65536
+#define SW_SENDFILE_CHUNK_SIZE     65536
 
 #define SW_SENDFILE_MAXLEN         4194304
 
@@ -109,7 +109,7 @@
 #define SW_THREADPOOL_QUEUE_LEN          10000
 #define SW_IP_MAX_LENGTH                 32
 
-#define SW_USE_WRITER_THREAD       0    //使用单独的发送线程
+//#define SW_USE_SOCKET_LINGER
 
 #define SW_WORKER_SENDTO_COUNT     32    //写回客户端失败尝试次数
 #define SW_WORKER_SENDTO_YIELD     10   //yield after sendto
@@ -227,8 +227,10 @@
 #define SW_HTTP_COOKIE_VALLEN            4096
 #define SW_HTTP_RESPONSE_INIT_SIZE       65536
 #define SW_HTTP_HEADER_MAX_SIZE          8192
+#define SW_HTTP_HEADER_KEY_SIZE          128
+#define SW_HTTP_HEADER_VALUE_SIZE        4096
 #define SW_HTTP_COMPRESS_GZIP
-#define SW_HTTP_UPLOAD_TMP_FILE          "/tmp/swoole.upfile.XXXXXX"
+#define SW_HTTP_UPLOAD_TMPDIR_SIZE       256
 #define SW_HTTP_DATE_FORMAT              "D, d M Y H:i:s T"
 //#define SW_HTTP_100_CONTINUE
 #define SW_HTTP2_DATA_BUFFSER_SIZE       8192
@@ -237,6 +239,9 @@
 #define SW_HTTP2_MAX_WINDOW              ((1u << 31) - 1)
 
 #define SW_HTTP_CLIENT_USERAGENT         "swoole-http-client"
+#define SW_HTTP_CLIENT_BOUNDARY_PREKEY   "----SwooleBoundary"
+#define SW_HTTP_FORM_DATA_FORMAT_STRING  "--%*s\r\nContent-Disposition: form-data; name=\"%*s\"\r\n\r\n"
+#define SW_HTTP_FORM_DATA_FORMAT_FILE    "--%*s\r\nContent-Disposition: form-data; name=\"%*s\"; filename=\"%*s\"\r\nContent-Type: %*s\r\n\r\n"
 
 #define SW_WEBSOCKET_SERVER_SOFTWARE     "swoole-websocket-server"
 #define SW_WEBSOCKET_VERSION             "13"
@@ -245,5 +250,8 @@
 #define SW_MYSQL_QUERY_INIT_SIZE         8192
 #define SW_MYSQL_DEFAULT_PORT            3306
 #define SW_MYSQL_CONNECT_TIMEOUT         1.0
+#define SW_MYSQL_DEFAULT_CHARSET         33  //0x21, utf8_general_ci
+
+#define SW_PHP_FUNCTION_MAX_ARG          16
 
 #endif /* SWOOLE_CONFIG_H_ */

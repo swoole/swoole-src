@@ -62,13 +62,6 @@ void swoole_init(void)
     //get system uname
     uname(&SwooleG.uname);
 
-#if defined(HAVE_REUSEPORT) && defined(HAVE_EPOLL)
-    if (swoole_version_compare(SwooleG.uname.release, "3.9.0") >= 0)
-    {
-        SwooleG.reuse_port = 1;
-    }
-#endif
-
     //random seed
     srandom(time(NULL));
 
@@ -88,6 +81,7 @@ void swoole_init(void)
 
     //init global lock
     swMutex_create(&SwooleGS->lock, 1);
+    swMutex_create(&SwooleGS->lock_2, 1);
 
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
     {
@@ -260,6 +254,9 @@ int swoole_type_size(char type)
 {
     switch (type)
     {
+    case 'c':
+    case 'C':
+        return 1;
     case 's':
     case 'S':
     case 'n':
@@ -618,38 +615,6 @@ uint32_t swoole_common_multiple(uint32_t u, uint32_t v)
 void swBreakPoint()
 {
 
-}
-
-int swWrite(int fd, void *buf, int count)
-{
-    int nwritten = 0, totlen = 0;
-    while (totlen != count)
-    {
-        nwritten = write(fd, buf, count - totlen);
-        if (nwritten == 0)
-        {
-            return totlen;
-        }
-        if (nwritten == -1)
-        {
-            if (errno == EINTR)
-            {
-                continue;
-            }
-            else if (errno == EAGAIN)
-            {
-                swYield();
-                continue;
-            }
-            else
-            {
-                return -1;
-            }
-        }
-        totlen += nwritten;
-        buf += nwritten;
-    }
-    return totlen;
 }
 
 void swoole_ioctl_set_block(int sock, int nonblock)

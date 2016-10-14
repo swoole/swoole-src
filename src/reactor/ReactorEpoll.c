@@ -278,6 +278,11 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
             if ((events[i].events & (EPOLLERR | EPOLLHUP)) && !event.socket->removed)
 #endif
             {
+                //ignore ERR and HUP, because event is already processed at IN and OUT handler.
+                if ((events[i].events & EPOLLIN) || (events[i].events & EPOLLOUT))
+                {
+                    continue;
+                }
                 handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, event.type);
                 ret = handle(reactor, &event);
                 if (ret < 0)

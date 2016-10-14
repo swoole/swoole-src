@@ -41,6 +41,7 @@ void swoole_atomic_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_atomic_ce, "swoole_atomic", "Swoole\\Atomic", swoole_atomic_methods);
     swoole_atomic_class_entry_ptr = zend_register_internal_class(&swoole_atomic_ce TSRMLS_CC);
+    SWOOLE_CLASS_ALIAS(swoole_atomic, "Swoole\\Atomic");
 }
 
 PHP_METHOD(swoole_atomic, __construct)
@@ -53,6 +54,11 @@ PHP_METHOD(swoole_atomic, __construct)
     }
 
     sw_atomic_t *atomic = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(sw_atomic_t));
+    if (atomic == NULL)
+    {
+        swoole_php_fatal_error(E_ERROR, "alloc global memory failed.");
+        RETURN_FALSE;
+    }
     *atomic = (sw_atomic_t) value;
     swoole_set_object(getThis(), (void*) atomic);
 

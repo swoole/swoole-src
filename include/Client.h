@@ -35,6 +35,7 @@ typedef struct _swClient
     uint32_t async :1;
     uint32_t keep :1;
     uint32_t released :1;
+    uint32_t destroyed :1;
 
     /**
      * one package: length check
@@ -43,6 +44,7 @@ typedef struct _swClient
     uint32_t open_eof_check :1;
 
     swProtocol protocol;
+    struct _swSocks5 *socks5_proxy;
 
     char *server_str;
     void *ptr;
@@ -71,7 +73,7 @@ typedef struct _swClient
 #ifdef SW_USE_OPENSSL
     uint8_t open_ssl :1;
     uint8_t ssl_disable_compress :1;
-    uint8_t ssl_verify :1;
+    uint8_t ssl_wait_handshake :1;
     char *ssl_cert_file;
     char *ssl_key_file;
     SSL_CTX *ssl_context;
@@ -85,13 +87,17 @@ typedef struct _swClient
 
     int (*connect)(struct _swClient *cli, char *host, int port, double _timeout, int sock_flag);
     int (*send)(struct _swClient *cli, char *data, int length, int flags);
-    int (*sendfile)(struct _swClient *cli, char *filename);
+    int (*sendfile)(struct _swClient *cli, char *filename, off_t offset);
     int (*recv)(struct _swClient *cli, char *data, int len, int flags);
     int (*close)(struct _swClient *cli);
 
 } swClient;
 
 int swClient_create(swClient *cli, int type, int async);
+#ifdef SW_USE_OPENSSL
+int swClient_enable_ssl_encrypt(swClient *cli);
+int swClient_ssl_handshake(swClient *cli);
+#endif
 void swClient_free(swClient *cli);
 
 typedef struct

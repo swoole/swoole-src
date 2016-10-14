@@ -26,14 +26,6 @@
 #include <nghttp2/nghttp2.h>
 #endif
 
-#define HTTP_SERVER_CALLBACK_NUM   3
-
-enum http_callback_type
-{
-    HTTP_CALLBACK_onRequest = 0,
-    HTTP_CALLBACK_onHandShake = 1,
-};
-
 enum http_response_flag
 {
     HTTP_RESPONSE_SERVER           = 1u << 1,
@@ -53,7 +45,7 @@ typedef struct
     uint32_t ext_len;
     uint8_t post_form_urlencoded;
 
-    char *post_content;
+    swString *post_buffer;
     uint32_t post_length;
 
     zval *zdata;
@@ -111,7 +103,6 @@ typedef struct
     uint32_t content_sender_initialized :1;
 
 #ifdef SW_USE_HTTP2
-    swString *buffer;
     uint8_t priority;
     uint32_t stream_id;
 #endif
@@ -144,18 +135,16 @@ typedef struct _swoole_http_client
     uint32_t window_size;
 #endif
 
-    http_context context;
-
 } swoole_http_client;
 
 /**
  * WebSocket
  */
-int swoole_websocket_onMessage(swEventData *req);
-int swoole_websocket_onHandshake(swoole_http_client *client);
-void swoole_websocket_onOpen(swoole_http_client *client);
-void swoole_websocket_onReuqest(swoole_http_client *client);
-int swoole_websocket_isset_onMessage(void);
+int swoole_websocket_onMessage(swEventData *);
+int swoole_websocket_onHandshake(http_context *);
+void swoole_websocket_onOpen(http_context *);
+void swoole_websocket_onReuqest(http_context *);
+
 /**
  * Http Context
  */
@@ -168,7 +157,8 @@ array_init(z##name);\
 zend_update_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), z##name TSRMLS_CC);\
 ctx->class.z##name = sw_zend_read_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), 0 TSRMLS_CC);\
 sw_copy_to_stack(ctx->class.z##name, ctx->request._z##name);\
-sw_zval_ptr_dtor(&z##name);
+sw_zval_ptr_dtor(&z##name);\
+z##name = ctx->class.z##name;
 
 #ifdef SW_USE_HTTP2
 /**
@@ -176,6 +166,7 @@ sw_zval_ptr_dtor(&z##name);
  */
 int swoole_http2_onFrame(swoole_http_client *client, swEventData *req);
 int swoole_http2_do_response(http_context *ctx, swString *body);
+void swoole_http2_free(swoole_http_client *client);
 #endif
 
 extern zend_class_entry swoole_http_server_ce;
@@ -189,7 +180,5 @@ extern zend_class_entry *swoole_http_request_class_entry_ptr;
 
 extern swString *swoole_http_buffer;
 extern swString *swoole_zlib_buffer;
-
-extern zval* php_sw_http_server_callbacks[HTTP_SERVER_CALLBACK_NUM];
 
 #endif /* SWOOLE_HTTP_H_ */

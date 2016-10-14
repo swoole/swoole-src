@@ -43,6 +43,7 @@ void swoole_lock_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_lock_ce, "swoole_lock", "Swoole\\Lock", swoole_lock_methods);
     swoole_lock_class_entry_ptr = zend_register_internal_class(&swoole_lock_ce TSRMLS_CC);
+    SWOOLE_CLASS_ALIAS(swoole_lock, "Swoole\\Lock");
 
     REGISTER_LONG_CONSTANT("SWOOLE_FILELOCK", SW_FILELOCK, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SWOOLE_MUTEX", SW_MUTEX, CONST_CS | CONST_PERSISTENT);
@@ -55,7 +56,7 @@ void swoole_lock_init(int module_number TSRMLS_DC)
 #endif
 }
 
-PHP_METHOD(swoole_lock, __construct)
+static PHP_METHOD(swoole_lock, __construct)
 {
     long type = SW_MUTEX;
     char *filelock;
@@ -70,7 +71,7 @@ PHP_METHOD(swoole_lock, __construct)
     swLock *lock = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swLock));
     if (lock == NULL)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "alloc failed.");
+        swoole_php_fatal_error(E_ERROR, "alloc global memory failed.");
         RETURN_FALSE;
     }
 
@@ -84,13 +85,13 @@ PHP_METHOD(swoole_lock, __construct)
     case SW_FILELOCK:
         if (filelock_len <= 0)
         {
-            php_error_docref(NULL TSRMLS_CC, E_ERROR, "filelock require lock file name.");
+            swoole_php_error(E_ERROR, "filelock require lock file name.");
             RETURN_FALSE;
         }
         int fd;
         if ((fd = open(filelock, O_RDWR | O_CREAT, 0666)) < 0)
         {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "open file[%s] failed. Error: %s [%d]", filelock, strerror(errno), errno);
+            swoole_php_error(E_WARNING, "open file[%s] failed. Error: %s [%d]", filelock, strerror(errno), errno);
             RETURN_FALSE;
         }
         ret = swFileLock_create(lock, fd);
@@ -110,14 +111,14 @@ PHP_METHOD(swoole_lock, __construct)
     }
     if (ret < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "create lock failed");
+        swoole_php_error(E_WARNING, "create lock failed");
         RETURN_FALSE;
     }
     swoole_set_object(getThis(), lock);
     RETURN_TRUE;
 }
 
-PHP_METHOD(swoole_lock, __destruct)
+static PHP_METHOD(swoole_lock, __destruct)
 {
     swLock *lock = swoole_get_object(getThis());
     if (lock)
@@ -127,47 +128,47 @@ PHP_METHOD(swoole_lock, __destruct)
     }
 }
 
-PHP_METHOD(swoole_lock, lock)
+static PHP_METHOD(swoole_lock, lock)
 {
     swLock *lock = swoole_get_object(getThis());
     SW_LOCK_CHECK_RETURN(lock->lock(lock));
 }
 
-PHP_METHOD(swoole_lock, unlock)
+static PHP_METHOD(swoole_lock, unlock)
 {
     swLock *lock = swoole_get_object(getThis());
     SW_LOCK_CHECK_RETURN(lock->unlock(lock));
 }
 
-PHP_METHOD(swoole_lock, trylock)
+static PHP_METHOD(swoole_lock, trylock)
 {
     swLock *lock = swoole_get_object(getThis());
     if (lock->trylock == NULL)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "lock[type=%d] can not trylock", lock->type);
+        swoole_php_error(E_WARNING, "lock[type=%d] cannot use trylock", lock->type);
         RETURN_FALSE;
     }
     SW_LOCK_CHECK_RETURN(lock->trylock(lock));
 }
 
-PHP_METHOD(swoole_lock, trylock_read)
+static PHP_METHOD(swoole_lock, trylock_read)
 {
     swLock *lock = swoole_get_object(getThis());
     if (lock->trylock_rd == NULL)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "lock[type=%d] can not trylock_read", lock->type);
+        swoole_php_error(E_WARNING, "lock[type=%d] cannot use trylock_read", lock->type);
         RETURN_FALSE;
     }
-    SW_LOCK_CHECK_RETURN(lock->trylock(lock));
+    SW_LOCK_CHECK_RETURN(lock->trylock_rd(lock));
 }
 
-PHP_METHOD(swoole_lock, lock_read)
+static PHP_METHOD(swoole_lock, lock_read)
 {
     swLock *lock = swoole_get_object(getThis());
     if (lock->lock_rd == NULL)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "lock[type=%d] can not lock_read", lock->type);
+        swoole_php_error(E_WARNING, "lock[type=%d] cannot use lock_read", lock->type);
         RETURN_FALSE;
     }
-    SW_LOCK_CHECK_RETURN(lock->trylock(lock));
+    SW_LOCK_CHECK_RETURN(lock->lock_rd(lock));
 }

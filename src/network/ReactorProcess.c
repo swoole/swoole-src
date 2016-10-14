@@ -19,7 +19,12 @@
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker);
 static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event);
 static int swReactorProcess_send2client(swFactory *, swSendData *);
+static int swReactorProcess_send2worker(int, void *, int);
 static void swReactorProcess_onTimeout(swReactor *reactor);
+
+#ifdef HAVE_REUSEPORT
+static int swReactorProcess_reuse_port(swListenPort *ls);
+#endif
 
 static uint32_t heartbeat_check_lasttime = 0;
 static void (*swReactor_onTimeout_old)(swReactor *reactor);
@@ -70,21 +75,26 @@ int swReactorProcess_start(swServer *serv)
             {
                 continue;
             }
-#ifdef HAVE_REUSEPORT
             if (SwooleG.reuse_port)
             {
+                if (close(ls->sock) < 0)
+                {
+                    swSysError("close(%d) failed.", ls->sock);
+                }
                 continue;
             }
-#endif
-            //listen server socket
-            if (swPort_set_option(ls) < 0)
+            else
             {
-                return SW_ERR;
+                //listen server socket
+                if (swPort_listen(ls) < 0)
+                {
+                    return SW_ERR;
+                }
             }
         }
     }
 
-    if (swProcessPool_create(&SwooleGS->event_workers, serv->worker_num, serv->max_request, 0, 1) < 0)
+    if (swProcessPool_create(&SwooleGS->event_workers, serv->worker_num, serv->max_request, 0, SW_IPC_UNIXSOCK) < 0)
     {
         return SW_ERR;
     }
@@ -102,21 +112,22 @@ int swReactorProcess_start(swServer *serv)
         return swReactorProcess_loop(&SwooleGS->event_workers, &single_worker);
     }
 
+    swWorker *worker;
+    int i;
+    for (i = 0; i < serv->worker_num; i++)
+    {
+        worker = &SwooleGS->event_workers.workers[i];
+        if (swWorker_create(worker) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+
     //task workers
     if (SwooleG.task_worker_num > 0)
     {
-        key_t key = 0;
-        int create_pipe = 1;
-
-        if (SwooleG.task_ipc_mode == SW_IPC_MSGQUEUE)
+        if (swServer_create_task_worker(serv) < 0)
         {
-            key = serv->message_queue_key;
-            create_pipe = 0;
-        }
-
-        if (swProcessPool_create(&SwooleGS->task_workers, SwooleG.task_worker_num, SwooleG.task_max_request, key, create_pipe) < 0)
-        {
-            swWarn("[Master] create task_workers failed.");
             return SW_ERR;
         }
 
@@ -224,7 +235,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     SwooleWG.id = worker->id;
     SwooleWG.max_request = serv->max_request;
     SwooleWG.request_count = 0;
-    
+
     SwooleTG.id = 0;
     if (worker->id == 0)
     {
@@ -233,7 +244,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 
     swServer_worker_init(serv, worker);
 
-    SwooleWG.buffer_output = sw_malloc(sizeof(swString*) * serv->worker_num);
+    int n_buffer = serv->worker_num + SwooleG.task_worker_num;
+    SwooleWG.buffer_output = sw_malloc(sizeof(swString*) * n_buffer);
     if (SwooleWG.buffer_output == NULL)
     {
         swError("malloc for SwooleWG.buffer_output failed.");
@@ -241,7 +253,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     }
 
     int i;
-    for (i = 0; i < serv->worker_num; i++)
+    for (i = 0; i < n_buffer; i++)
     {
         SwooleWG.buffer_output[i] = swString_new(SW_BUFFER_SIZE_BIG);
         if (SwooleWG.buffer_output[i] == NULL)
@@ -254,29 +266,19 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     //create reactor
     if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
     {
-        swWarn("ReactorProcess create failed.");
         return SW_ERR;
     }
 
     swListenPort *ls;
     int fdtype;
 
-    //listen the all tcp port
     LL_FOREACH(serv->listen_list, ls)
     {
         fdtype = swSocket_is_dgram(ls->type) ? SW_FD_UDP : SW_FD_LISTEN;
-        if (fdtype == SW_FD_UDP)
-        {
-            if (swPort_set_option(ls) < 0)
-            {
-                continue;
-            }
-        }
-
 #ifdef HAVE_REUSEPORT
         if (fdtype == SW_FD_LISTEN && SwooleG.reuse_port)
         {
-            if (swPort_set_option(ls) < 0)
+            if (swReactorProcess_reuse_port(ls) < 0)
             {
                 return SW_ERR;
             }
@@ -284,6 +286,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 #endif
         reactor->add(reactor, ls->sock, fdtype);
     }
+
     SwooleG.main_reactor = reactor;
 
     reactor->id = worker->id;
@@ -307,7 +310,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     reactor->thread = 1;
     reactor->socket_list = serv->connection_list;
     reactor->max_socket = serv->max_connection;
-    
+
     reactor->disable_accept = 0;
     reactor->enable_accept = swServer_enable_accept;
     reactor->close = swReactorThread_close;
@@ -338,7 +341,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         swConnection *psock;
         int pfd;
 
-        if (SwooleG.task_ipc_mode == SW_IPC_UNSOCK)
+        if (SwooleG.task_ipc_mode == SW_TASK_IPC_UNIXSOCK)
         {
             for (i = 0; i < SwooleGS->task_workers.worker_num; i++)
             {
@@ -371,7 +374,14 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     struct timeval timeo;
     timeo.tv_sec = 1;
     timeo.tv_usec = 0;
-    return reactor->wait(reactor, &timeo);
+    reactor->wait(reactor, &timeo);
+
+    if (serv->onWorkerStop)
+    {
+        serv->onWorkerStop(serv, worker->id);
+    }
+
+    return SW_OK;
 }
 
 int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
@@ -399,21 +409,37 @@ int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
     }
 }
 
+static int swReactorProcess_send2worker(int pipe_fd, void *data, int length)
+{
+    if (swIsTaskWorker())
+    {
+        return swSocket_write_blocking(pipe_fd, data, length);
+    }
+    else
+    {
+        return SwooleG.main_reactor->write(SwooleG.main_reactor, pipe_fd, data, length);
+    }
+}
+
 static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
 {
     swServer *serv = SwooleG.serv;
     int session_id = _send->info.fd;
+    if (_send->length == 0)
+    {
+        _send->length = _send->info.len;
+    }
 
     swSession *session = swServer_get_session(serv, session_id);
     if (session->fd == 0)
     {
-        swWarn("send[%d] failed, session#%d has expired.", _send->info.type, session_id);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "send %d byte failed, session#%d does not exist.",  _send->length, session_id);
         return SW_ERR;
     }
     //proxy
     if (session->reactor_id != SwooleWG.id)
     {
-        swWarn("session->reactor_id=%d, SwooleWG.id=%d", session->reactor_id, SwooleWG.id);
+        swTrace("session->reactor_id=%d, SwooleWG.id=%d", session->reactor_id, SwooleWG.id);
         swWorker *worker = swProcessPool_get_worker(&SwooleGS->event_workers, session->reactor_id);
         swEventData proxy_msg;
 
@@ -422,11 +448,6 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
             proxy_msg.info.fd = session_id;
             proxy_msg.info.from_id = SwooleWG.id;
             proxy_msg.info.type = SW_EVENT_PROXY_START;
-
-            if (_send->length == 0)
-            {
-                _send->length = _send->info.len;
-            }
 
             size_t send_n = _send->length;
             size_t offset = 0;
@@ -442,13 +463,10 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
                     proxy_msg.info.type = SW_EVENT_PROXY_END;
                     proxy_msg.info.len = send_n;
                 }
-
                 memcpy(proxy_msg.data, _send->data + offset, proxy_msg.info.len);
-
                 send_n -= proxy_msg.info.len;
                 offset += proxy_msg.info.len;
-
-                SwooleG.main_reactor->write(SwooleG.main_reactor, worker->pipe_master, &proxy_msg, sizeof(proxy_msg.info) + proxy_msg.info.len);
+                swReactorProcess_send2worker(worker->pipe_master, &proxy_msg, sizeof(proxy_msg.info) + proxy_msg.info.len);
             }
             swTrace("proxy message, fd=%d, len=%ld",worker->pipe_master, sizeof(proxy_msg.info) + proxy_msg.info.len);
         }
@@ -456,7 +474,7 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
         {
             memcpy(&proxy_msg.info, &_send->info, sizeof(proxy_msg.info));
             memcpy(proxy_msg.data, _send->data, _send->length);
-            return SwooleG.main_reactor->write(SwooleG.main_reactor, worker->pipe_master, &proxy_msg, sizeof(proxy_msg.info) + proxy_msg.info.len);
+            return swReactorProcess_send2worker(worker->pipe_master, &proxy_msg, sizeof(proxy_msg.info) + proxy_msg.info.len);
         }
         else
         {
@@ -507,9 +525,41 @@ static void swReactorProcess_onTimeout(swReactor *reactor)
             {
                 continue;
             }
+#ifdef SW_USE_OPENSSL
+            if (conn->ssl && conn->ssl_state != SW_SSL_STATE_READY)
+            {
+                swReactorThread_close(reactor, fd);
+                continue;
+            }
+#endif
             notify_ev.fd = fd;
             notify_ev.from_id = conn->from_id;
             swReactorProcess_onClose(reactor, &notify_ev);
         }
     }
 }
+
+#ifdef HAVE_REUSEPORT
+static int swReactorProcess_reuse_port(swListenPort *ls)
+{
+    //create new socket
+    int sock = swSocket_create(ls->type);
+    if (sock < 0)
+    {
+        swSysError("create socket failed.");
+        return SW_ERR;
+    }
+    //bind address and port
+    if (swSocket_bind(sock, ls->type, ls->host, ls->port) < 0)
+    {
+        return SW_ERR;
+    }
+    //stream socket, set nonblock
+    if (swSocket_is_stream(ls->type))
+    {
+        swSetNonBlock(sock);
+    }
+    ls->sock = sock;
+    return swPort_listen(ls);
+}
+#endif

@@ -323,26 +323,8 @@ PHP_FUNCTION(swoole_event_add)
     }
 
     php_reactor_fd *reactor_fd = emalloc(sizeof(php_reactor_fd));
-
-#if PHP_MAJOR_VERSION < 7
-    reactor_fd->cb_read = cb_read;
-    reactor_fd->cb_write = cb_write;
     reactor_fd->socket = zfd;
-#else
-    reactor_fd->cb_read = &reactor_fd->stack.cb_read;
-    reactor_fd->cb_write = &reactor_fd->stack.cb_write;
-    reactor_fd->socket = &reactor_fd->stack.socket;
-    memcpy(reactor_fd->socket, zfd, sizeof(zval));
-    if (cb_read)
-    {
-        memcpy(reactor_fd->cb_read, cb_read, sizeof(zval));
-    }
-    if (cb_write)
-    {
-        memcpy(reactor_fd->cb_write, cb_write, sizeof(zval));
-    }
-#endif
-
+    sw_copy_to_stack(reactor_fd->socket, reactor_fd->stack.socket);
     sw_zval_add_ref(&reactor_fd->socket);
 
     if (cb_read!= NULL && !ZVAL_IS_NULL(cb_read))
@@ -354,7 +336,9 @@ PHP_FUNCTION(swoole_event_add)
             RETURN_FALSE;
         }
         efree(func_name);
-        sw_zval_add_ref(&reactor_fd->cb_read);
+        reactor_fd->cb_read = cb_read;
+        sw_zval_add_ref(&cb_read);
+        sw_copy_to_stack(reactor_fd->cb_read, reactor_fd->stack.cb_read);
     }
 
     if (cb_write!= NULL && !ZVAL_IS_NULL(cb_write))
@@ -366,7 +350,9 @@ PHP_FUNCTION(swoole_event_add)
             RETURN_FALSE;
         }
         efree(func_name);
-        sw_zval_add_ref(&reactor_fd->cb_write);
+        reactor_fd->cb_write = cb_write;
+        sw_zval_add_ref(&cb_write);
+        sw_copy_to_stack(reactor_fd->cb_write, reactor_fd->stack.cb_write);
     }
 
     php_swoole_check_reactor();
@@ -459,8 +445,8 @@ PHP_FUNCTION(swoole_event_set)
         efree(func_name);
         RETURN_FALSE;
     }
-    php_reactor_fd *ev_set = socket->object;
 
+    php_reactor_fd *ev_set = socket->object;
     if (cb_read != NULL && !ZVAL_IS_NULL(cb_read))
     {
         if (!sw_zend_is_callable(cb_read, 0, &func_name TSRMLS_CC))
@@ -471,12 +457,13 @@ PHP_FUNCTION(swoole_event_set)
         }
         else
         {
-#if PHP_MAJOR_VERSION < 7
+            if (ev_set->cb_read)
+            {
+                sw_zval_ptr_dtor(&ev_set->cb_read);
+            }
             ev_set->cb_read = cb_read;
-#else
-            memcpy(ev_set->cb_read, cb_read, sizeof(zval));
-#endif
             sw_zval_add_ref(&cb_read);
+            sw_copy_to_stack(ev_set->cb_read, ev_set->stack.cb_read);
             efree(func_name);
         }
     }
@@ -496,12 +483,13 @@ PHP_FUNCTION(swoole_event_set)
         }
         else
         {
-#if PHP_MAJOR_VERSION < 7
+            if (ev_set->cb_write)
+            {
+                sw_zval_ptr_dtor(&ev_set->cb_write);
+            }
             ev_set->cb_write = cb_write;
-#else
-            memcpy(ev_set->cb_write, cb_write, sizeof(zval));
-#endif
             sw_zval_add_ref(&cb_write);
+            sw_copy_to_stack(ev_set->cb_write, ev_set->stack.cb_write);
             efree(func_name);
         }
     }

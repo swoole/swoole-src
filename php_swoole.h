@@ -43,7 +43,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.8.7-alpha"
+#define PHP_SWOOLE_VERSION  "1.8.13-alpha"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -78,7 +78,7 @@ extern zend_module_entry swoole_module_entry;
 #endif
 
 #define SWOOLE_PROPERTY_MAX     32
-#define SWOOLE_OBJECT_MAX       1000000
+#define SWOOLE_OBJECT_MAX       10000000
 
 typedef struct
 {
@@ -155,40 +155,44 @@ enum php_swoole_client_callback_type
     SW_CLIENT_CB_onReceive,
     SW_CLIENT_CB_onClose,
     SW_CLIENT_CB_onError,
+#ifdef SW_USE_OPENSSL
+    SW_CLIENT_CB_onSSLReady,
+#endif
 };
 //--------------------------------------------------------
 enum php_swoole_server_callback_type
 {
-    /**
-     * port callback
-     */
-    SW_SERVER_CB_onConnect,        //accept new connection(worker)
-    SW_SERVER_CB_onReceive,        //receive data(worker)
-    SW_SERVER_CB_onClose,          //close tcp connection(worker)
-    SW_SERVER_CB_onPacket,         //udp packet
-    /**
-     * server callback
-     */
-    SW_SERVER_CB_onStart,          //Server start(master)
-    SW_SERVER_CB_onShutdown,       //Server sthudown(master)
-    SW_SERVER_CB_onWorkerStart,    //Worker start(worker)
-    SW_SERVER_CB_onWorkerStop,     //Worker shutdown(worker)
-    SW_SERVER_CB_onTask,           //new task(task_worker)
-    SW_SERVER_CB_onFinish,         //async task finish(worker)
-    SW_SERVER_CB_onWorkerError,    //worker exception(manager)
-    SW_SERVER_CB_onManagerStart,
-    SW_SERVER_CB_onManagerStop,
-    SW_SERVER_CB_onPipeMessage,
+    //--------------------------Swoole\Server--------------------------
+    SW_SERVER_CB_onConnect,        //worker(event)
+    SW_SERVER_CB_onReceive,        //worker(event)
+    SW_SERVER_CB_onClose,          //worker(event)
+    SW_SERVER_CB_onPacket,         //worker(event)
+    SW_SERVER_CB_onStart,          //master
+    SW_SERVER_CB_onShutdown,       //master
+    SW_SERVER_CB_onWorkerStart,    //worker(event & task)
+    SW_SERVER_CB_onWorkerStop,     //worker(event & task)
+    SW_SERVER_CB_onTask,           //worker(task)
+    SW_SERVER_CB_onFinish,         //worker(event & task)
+    SW_SERVER_CB_onWorkerError,    //manager
+    SW_SERVER_CB_onManagerStart,   //manager
+    SW_SERVER_CB_onManagerStop,    //manager
+    SW_SERVER_CB_onPipeMessage,    //worker(evnet & task)
+    //--------------------------Swoole\Http\Server----------------------
+    SW_SERVER_CB_onRequest,        //http server
+    //--------------------------Swoole\WebSocket\Server-----------------
+    SW_SERVER_CB_onHandShake,      //worker(event)
+    SW_SERVER_CB_onOpen,           //worker(event)
+    SW_SERVER_CB_onMessage,        //worker(event)
+    //-------------------------------END--------------------------------
 };
 
-#define PHP_SERVER_CALLBACK_NUM             (SW_SERVER_CB_onPipeMessage+1)
-#define PHP_SERVER_PORT_CALLBACK_NUM        (SW_SERVER_CB_onPacket+1)
+#define PHP_SERVER_CALLBACK_NUM             (SW_SERVER_CB_onMessage+1)
 
 typedef struct
 {
-    zval *callbacks[PHP_SERVER_PORT_CALLBACK_NUM];
+    zval *callbacks[PHP_SERVER_CALLBACK_NUM];
 #if PHP_MAJOR_VERSION >= 7
-    zval _callbacks[PHP_SERVER_PORT_CALLBACK_NUM];
+    zval _callbacks[PHP_SERVER_CALLBACK_NUM];
 #endif
     zval *setting;
 } swoole_server_port_property;
@@ -224,6 +228,9 @@ extern zend_class_entry *swoole_websocket_frame_class_entry_ptr;
 extern zend_class_entry *swoole_server_port_class_entry_ptr;
 
 extern zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
+#if PHP_MAJOR_VERSION >= 7
+extern zval _php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
+#endif
 
 PHP_MINIT_FUNCTION(swoole);
 PHP_RINIT_FUNCTION(swoole);
@@ -255,8 +262,12 @@ PHP_METHOD(swoole_server, sendwait);
 PHP_METHOD(swoole_server, exist);
 PHP_METHOD(swoole_server, protect);
 PHP_METHOD(swoole_server, close);
+PHP_METHOD(swoole_server, confirm);
+PHP_METHOD(swoole_server, pause);
+PHP_METHOD(swoole_server, resume);
 PHP_METHOD(swoole_server, task);
 PHP_METHOD(swoole_server, taskwait);
+PHP_METHOD(swoole_server, taskWaitMulti);
 PHP_METHOD(swoole_server, finish);
 PHP_METHOD(swoole_server, reload);
 PHP_METHOD(swoole_server, shutdown);
@@ -289,6 +300,7 @@ PHP_FUNCTION(swoole_event_write);
 PHP_FUNCTION(swoole_event_wait);
 PHP_FUNCTION(swoole_event_exit);
 PHP_FUNCTION(swoole_event_defer);
+PHP_FUNCTION(swoole_client_select);
 //---------------------------------------------------------
 //                  swoole_async
 //---------------------------------------------------------
@@ -306,18 +318,12 @@ PHP_FUNCTION(swoole_timer_after);
 PHP_FUNCTION(swoole_timer_tick);
 PHP_FUNCTION(swoole_timer_exists);
 PHP_FUNCTION(swoole_timer_clear);
-
+//---------------------------------------------------------
+//                  other
+//---------------------------------------------------------
+PHP_FUNCTION(swoole_load_module);
 PHP_FUNCTION(swoole_strerror);
 PHP_FUNCTION(swoole_errno);
-//---------------------------------------------------------
-//                  swoole_mysql
-//---------------------------------------------------------
-#ifdef SW_ASYNC_MYSQL
-PHP_FUNCTION(swoole_get_mysqli_sock);
-PHP_FUNCTION(swoole_mysql_query);
-#endif
-
-PHP_FUNCTION(swoole_client_select);
 
 void swoole_destory_table(zend_resource *rsrc TSRMLS_DC);
 
@@ -336,6 +342,7 @@ void swoole_http_server_init(int module_number TSRMLS_DC);
 void swoole_websocket_init(int module_number TSRMLS_DC);
 void swoole_buffer_init(int module_number TSRMLS_DC);
 void swoole_mysql_init(int module_number TSRMLS_DC);
+void swoole_module_init(int module_number TSRMLS_DC);
 
 int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC);
 
@@ -346,6 +353,7 @@ void php_swoole_check_timer(int interval);
 void php_swoole_register_callback(swServer *serv);
 void php_swoole_client_free(zval *object, swClient *cli TSRMLS_DC);
 swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port);
+void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC);
 zval* php_swoole_websocket_unpack(swString *data TSRMLS_DC);
 void php_swoole_sha1(const char *str, int _len, unsigned char *digest);
 
@@ -388,6 +396,25 @@ void php_swoole_onConnect(swServer *serv, swDataHead *);
 int php_swoole_onReceive(swServer *serv, swEventData *req);
 void php_swoole_onClose(swServer *, swDataHead *);
 
+static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type)
+{
+    swListenPort *port = serv->connection_list[server_fd].object;
+    swoole_server_port_property *property = port->ptr;
+    if (!property)
+    {
+        return php_sw_server_callbacks[event_type];
+    }
+    zval *callback = property->callbacks[event_type];
+    if (!callback)
+    {
+        return php_sw_server_callbacks[event_type];
+    }
+    else
+    {
+        return callback;
+    }
+}
+
 #define php_swoole_array_get_value(ht, str, v)     (sw_zend_hash_find(ht, str, sizeof(str), (void **) &v) == SUCCESS && !ZVAL_IS_NULL(v))
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
@@ -413,6 +440,13 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
         INIT_CLASS_ENTRY(ce, name_ns, methods); \
     } else { \
         INIT_CLASS_ENTRY(ce, name, methods); \
+    }
+
+#define SWOOLE_CLASS_ALIAS(name, name_ns) \
+    if (SWOOLE_G(use_namespace)) { \
+        zend_register_class_alias(#name, name##_class_entry_ptr);\
+    } else { \
+        zend_register_class_alias(name_ns, name##_class_entry_ptr);\
     }
 
 #endif	/* PHP_SWOOLE_H */

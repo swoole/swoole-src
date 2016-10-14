@@ -58,13 +58,13 @@ enum swEventType
     //proxy
     SW_EVENT_PROXY_START     = 16,
     SW_EVENT_PROXY_END       = 17,
+    SW_EVENT_CONFIRM         = 18,
 };
 
-enum swIPCMode
+enum swIPCType
 {
-	SW_IPC_UNSOCK   = 1,
-	SW_IPC_MSGQUEUE = 2,
-	SW_IPC_CHANNEL  = 3,
+    SW_IPC_UNIXSOCK = 1,
+    SW_IPC_MSGQUEUE = 2,
 };
 
 enum swTaskIPCMode
@@ -102,6 +102,7 @@ enum swTaskType
     SW_TASK_SERIALIZE  = 2,  //php serialize
     SW_TASK_NONBLOCK   = 4,  //task
     SW_TASK_CALLBACK   = 8,  //callback
+    SW_TASK_WAITALL    = 16, //for taskWaitAll
 };
 
 typedef struct _swUdpFd
@@ -145,6 +146,8 @@ typedef struct _swListenPort
     int tcp_keepidle;
     int tcp_keepinterval;
     int tcp_keepcount;
+
+    int socket_buffer_size;
 
     uint8_t type;
     uint8_t ssl;
@@ -264,6 +267,8 @@ typedef struct _swRequest
     void *object;
 } swRequest;
 
+typedef int (*swServer_dispatch_function)(swServer *, swConnection *, char *, uint32_t);
+
 int swFactory_create(swFactory *factory);
 int swFactory_start(swFactory *factory);
 int swFactory_shutdown(swFactory *factory);
@@ -298,6 +303,10 @@ struct _swServer
      * The number of pipe per reactor maintenance
      */
     uint16_t reactor_pipe_num;
+    /**
+     * UDP thread number
+     */
+    uint16_t udp_thread_num;
 
     uint8_t factory_mode;
 
@@ -306,7 +315,8 @@ struct _swServer
     /**
      * package dispatch mode
      */
-    uint8_t dispatch_mode; //分配模式，1平均分配，2按FD取摸固定分配，3,使用抢占式队列(IPC消息队列)分配
+    uint8_t dispatch_mode;
+
 
     int worker_uid;
     int worker_groupid;
@@ -375,6 +385,10 @@ struct _swServer
      */
     uint32_t enable_unsafe_event :1;
     /**
+     * waiting for worekr onConnect callback function to return
+     */
+    uint32_t enable_delay_receive :1;
+    /**
      * run as a daemon process
      */
     uint32_t reload_async :1;
@@ -418,6 +432,11 @@ struct _swServer
     swSession *session_list;
 
     /**
+     * temporary directory for HTTP uploaded file.
+     */
+    char *upload_tmp_dir;
+
+    /**
      * message queue key
      */
     uint64_t message_queue_key;
@@ -447,7 +466,10 @@ struct _swServer
     int (*onTask)(swServer *serv, swEventData *data);
     int (*onFinish)(swServer *serv, swEventData *data);
 
-    int (*send)(swServer *, swSendData *);
+    int (*send)(swServer *serv, int fd, void *data, uint32_t length);
+    int (*sendfile)(swServer *serv, int fd, char *filename, uint32_t length, off_t offset);
+    int (*sendwait)(swServer *serv, int fd, void *data, uint32_t length);
+    int (*dispatch_func)(swServer *, swConnection *, char *, uint32_t);
 };
 
 typedef struct _swSocketLocal
@@ -518,13 +540,14 @@ static sw_inline void swServer_free_buffer(swServer *serv, int fd)
 static sw_inline swListenPort* swServer_get_port(swServer *serv, int fd)
 {
     int server_fd = serv->connection_list[fd].from_fd;
-    return serv->connection_list[server_fd].object;
+    return (swListenPort*) serv->connection_list[server_fd].object;
 }
 
 int swServer_udp_send(swServer *serv, swSendData *resp);
 int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length);
 int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length);
-int swServer_tcp_sendfile(swServer *serv, int fd, char *filename, uint32_t len);
+int swServer_tcp_sendfile(swServer *serv, int fd, char *filename, uint32_t len, off_t offset);
+int swServer_confirm(swServer *serv, int fd);
 
 //UDP, UDP必然超过0x1000000
 //原因：IPv4的第4字节最小为1,而这里的conn_fd是网络字节序
@@ -570,6 +593,7 @@ int swServer_get_manager_pid(swServer *serv);
 int swServer_get_socket(swServer *serv, int port);
 int swServer_worker_init(swServer *serv, swWorker *worker);
 swString** swServer_create_worker_buffer(swServer *serv);
+int swServer_create_task_worker(swServer *serv);
 void swServer_close_listen_port(swServer *serv);
 void swServer_enable_accept(swReactor *reactor);
 
@@ -593,11 +617,11 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags);
     if (_length > SwooleG.serv->listen_list->protocol.package_max_length) {\
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_TASK_PACKAGE_TOO_BIG, "task package[length=%d] is too big.", _length);\
     }\
-    _buf = __malloc(_length + 1);\
+    _buf = (char *)__malloc(_length + 1);\
     _buf[_length] = 0;\
     int tmp_file_fd = open(_pkg.tmpfile, O_RDONLY);\
     if (tmp_file_fd < 0){\
-        swSysError("open(%s) failed.", task->data);\
+        swSysError("open(%s) failed.", _pkg.tmpfile);\
         _length = -1;\
     } else if (swoole_sync_readfile(tmp_file_fd, _buf, _length) > 0) {\
         close(tmp_file_fd);\
@@ -777,7 +801,7 @@ static sw_inline swString *swWorker_get_buffer(swServer *serv, int worker_id)
     }
 }
 
-static sw_inline swConnection *swServer_connection_verify(swServer *serv, int session_id)
+static sw_inline swConnection *swServer_connection_verify_no_ssl(swServer *serv, int session_id)
 {
     swSession *session = swServer_get_session(serv, session_id);
     int fd = session->fd;
@@ -790,7 +814,17 @@ static sw_inline swConnection *swServer_connection_verify(swServer *serv, int se
     {
         return NULL;
     }
+    return conn;
+}
+
+static sw_inline swConnection *swServer_connection_verify(swServer *serv, int session_id)
+{
+    swConnection *conn = swServer_connection_verify_no_ssl(serv, session_id);
 #ifdef SW_USE_OPENSSL
+    if (!conn)
+    {
+        return NULL;
+    }
     if (conn->ssl && conn->ssl_state != SW_SSL_STATE_READY)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SSL_NOT_READY, "SSL not ready");
@@ -816,7 +850,10 @@ static sw_inline void swServer_connection_ready(swServer *serv, int fd, int reac
 void swPort_init(swListenPort *port);
 void swPort_free(swListenPort *port);
 void swPort_set_protocol(swListenPort *ls);
-int swPort_set_option(swListenPort *ls);
+int swPort_listen(swListenPort *ls);
+#ifdef SW_USE_OPENSSL
+int swPort_enable_ssl_encrypt(swListenPort *ls);
+#endif
 
 void swWorker_free(swWorker *worker);
 void swWorker_onStart(swServer *serv);

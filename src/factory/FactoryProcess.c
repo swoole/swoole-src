@@ -158,10 +158,9 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
         //server active close, discard data.
         if (conn->closed)
         {
+            //Connection has been clsoed by server
             if (!(task->data.info.type == SW_EVENT_CLOSE && conn->close_force))
             {
-                swWarn("dispatch[type=%d] failed, connection#%d[session_id=%d] is closed by server.",
-                        task->data.info.type, task->data.info.fd, conn->session_id);
                 return SW_OK;
             }
         }
@@ -182,21 +181,29 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     swServer *serv = factory->ptr;
     int fd = resp->info.fd;
 
-    swConnection *conn = swServer_connection_verify(serv, fd);
+    swConnection *conn;
+    if (resp->info.type != SW_EVENT_CLOSE)
+    {
+        conn = swServer_connection_verify(serv, fd);
+    }
+    else
+    {
+        conn = swServer_connection_verify_no_ssl(serv, fd);
+    }
     if (!conn)
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session#%d does not exist.", fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists.", fd);
         return SW_ERR;
     }
     else if ((conn->closed || conn->removed) && resp->info.type != SW_EVENT_CLOSE)
     {
         int _len = resp->length > 0 ? resp->length : resp->info.len;
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "send %d byte failed, because session#%d is closed.", _len, fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "send %d byte failed, because connection[fd=%d] is closed.", _len, fd);
         return SW_ERR;
     }
     else if (conn->overflow)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "send failed, session#%d output buffer has been overflowed.", fd);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "send failed, connection[fd=%d] output buffer has been overflowed.", fd);
         return SW_ERR;
     }
 
@@ -295,6 +302,7 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
         }
         conn->closing = 0;
         conn->closed = 1;
+        conn->close_errno = 0;
         return factory->finish(factory, &_send);
     }
 }

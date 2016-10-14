@@ -17,12 +17,15 @@ class G
         //'daemonize'                => 1,     // 设置守护进程模式
         'backlog'                  => 128,
         //'log_file'                 => '/data/logs/swoole.log',
-        'heartbeat_check_interval' => 10,    // 心跳检测间隔时长(秒)
-        'heartbeat_idle_time'      => 20,   // 连接最大允许空闲的时间
+        //'heartbeat_check_interval' => 10,    // 心跳检测间隔时长(秒)
+        //'heartbeat_idle_time'      => 20,   // 连接最大允许空闲的时间
         //'open_eof_check'           => 1,
         //'open_eof_split'           => 1,
         //'package_eof'              => "\r\r\n",
         //'open_cpu_affinity'        => 1,
+        'socket_buffer_size'         => 1024 * 1024 * 128,
+        'buffer_output_size'         => 1024 * 1024 * 2,
+        //'enable_delay_receive'       => true,
         //'cpu_affinity_ignore' =>array(0,1)//如果你的网卡2个队列（或者没有多队列那么默认是cpu0来处理中断）,并且绑定了core 0和core 1,那么可以通过这个设置避免swoole的线程或者进程绑定到这2个core，防止cpu0，1被耗光而造成的丢包
     );
 
@@ -47,13 +50,13 @@ class G
 }
 
 if (isset($argv[1]) and $argv[1] == 'daemon') {
-	$config['daemonize'] = true;
+	G::$config['daemonize'] = true;
 } else {
-	$config['daemonize'] = false;
+    G::$config['daemonize'] = false;
 }
 
-//$mode = SWOOLE_BASE;
-$mode = SWOOLE_PROCESS;
+$mode = SWOOLE_BASE;
+//$mode = SWOOLE_PROCESS;
 
 $serv = new swoole_server("0.0.0.0", 9501, $mode, SWOOLE_SOCK_TCP);
 $serv->listen('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
@@ -87,12 +90,7 @@ $process2 = new swoole_process(function ($worker) use ($serv) {
 }, false);
 
 //$serv->addprocess($process2);
-
 $serv->set(G::$config);
-/**
- * 保存数据到对象属性，在任意位置均可访问
- */
-$serv->config = $config;
 /**
  * 使用类的静态属性，可以直接访问
  */
@@ -198,6 +196,9 @@ function my_onConnect(swoole_server $serv, $fd, $from_id)
 //    var_dump($serv->connection_info($fd));
     //var_dump($serv, $fd, $from_id);
 //    echo "Worker#{$serv->worker_pid} Client[$fd@$from_id]: Connect.\n";
+    //$serv->after(2000, function() use ($serv, $fd) {
+    //    $serv->confirm($fd);
+    //});
     my_log("Client: Connect --- {$fd}");
 }
 
@@ -265,6 +266,10 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     {
         $serv->task("close " . $fd);
         echo "close the connection in taskworker\n";
+    }
+    elseif ($cmd == "tasksend")
+    {
+        $serv->task("send " . $fd);
     }
     elseif($cmd == "taskwait")
     {
@@ -368,6 +373,16 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     {
         exit("worker php exit.\n");
     }
+    elseif ($cmd == 'pause')
+    {
+        echo "pause receive data. fd={$fd}\n";
+        $serv->pause($fd);
+    }
+    elseif(substr($cmd, 0, 6) == "resume")
+    {
+        $resume_fd = substr($cmd, 7);
+        $serv->resume($resume_fd);
+    }
     //关闭fd
     elseif(substr($cmd, 0, 5) == "close")
     {
@@ -429,7 +444,7 @@ function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
         $cmd = explode(' ', $data);
         if ($cmd[0] == 'send')
         {
-            $serv->send($cmd[1], "hello world in taskworker.");
+            $serv->send($cmd[1], str_repeat('A', 10000)."\n");
         }
         elseif ($cmd[0] == 'close')
         {

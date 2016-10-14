@@ -29,9 +29,9 @@ typedef struct
     uint8_t state;
     uint8_t subscribe;
     uint8_t connecting;
+    uint32_t reqnum;
 
     zval *object;
-    zval *result_callback;
     zval *message_callback;
 
 #if PHP_MAJOR_VERSION >= 7
@@ -130,6 +130,7 @@ void swoole_redis_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_redis_ce, "swoole_redis", "Swoole\\Redis", swoole_redis_methods);
     swoole_redis_class_entry_ptr = zend_register_internal_class(&swoole_redis_ce TSRMLS_CC);
+    SWOOLE_CLASS_ALIAS(swoole_redis, "Swoole\\Redis");
 }
 
 static PHP_METHOD(swoole_redis, __construct)
@@ -199,14 +200,23 @@ static PHP_METHOD(swoole_redis, connect)
         RETURN_FALSE;
     }
 
-    if (port <= 1 || port > 65535)
+    swRedisClient *redis = swoole_get_object(getThis());
+    redisAsyncContext *context;
+
+    if (strncasecmp(host, ZEND_STRL("unix:/")) == 0)
     {
-        swoole_php_error(E_WARNING, "port is invalid.");
-        RETURN_FALSE;
+        context = redisAsyncConnectUnix(host + 5);
+    }
+    else
+    {
+        if (port <= 1 || port > 65535)
+        {
+            swoole_php_error(E_WARNING, "port is invalid.");
+            RETURN_FALSE;
+        }
+        context = redisAsyncConnect(host, (int) port);
     }
 
-    swRedisClient *redis = swoole_get_object(getThis());
-    redisAsyncContext *context = redisAsyncConnect(host, (int) port);
     if (context->err)
     {
         swoole_php_error(E_WARNING, "connect to redis-server[%s:%d] failed, Erorr: %s[%d]", host, (int) port, context->errstr, context->err);
@@ -292,6 +302,12 @@ static PHP_METHOD(swoole_redis, __call)
         return;
     }
 
+    if (Z_TYPE_P(params) != IS_ARRAY)
+    {
+        swoole_php_fatal_error(E_WARNING, "invalid params.");
+        RETURN_FALSE;
+    }
+
     swRedisClient *redis = swoole_get_object(getThis());
     if (!redis)
     {
@@ -306,8 +322,11 @@ static PHP_METHOD(swoole_redis, __call)
         RETURN_FALSE;
         break;
     case SWOOLE_REDIS_STATE_WAIT_RESULT:
-        swoole_php_error(E_WARNING, "redis client is waiting for response.");
-        RETURN_FALSE;
+        if (swoole_redis_is_message_command(command, command_len))
+        {
+            swoole_php_error(E_WARNING, "redis client is waiting for response.");
+            RETURN_FALSE;
+        }
         break;
     case SWOOLE_REDIS_STATE_SUBSCRIBE:
         if (!swoole_redis_is_message_command(command, command_len))
@@ -343,6 +362,23 @@ static PHP_METHOD(swoole_redis, __call)
         argvlen = stack_argvlen;
         argv = stack_argv;
     }
+#define FREE_MEM() do {                 \
+    for (i = 1; i < argc; i++)          \
+    {                                   \
+        efree((void* )argv[i]);         \
+    }                                   \
+                                        \
+    if (redis->state == SWOOLE_REDIS_STATE_SUBSCRIBE) \
+    {                                   \
+        efree(argv[argc]);              \
+    }                                   \
+                                        \
+    if (free_mm)                        \
+    {                                   \
+        efree(argvlen);                 \
+        efree(argv);                    \
+    }                                   \
+} while (0)
 
     assert(command_len < SW_REDIS_COMMAND_KEY_SIZE - 1);
 
@@ -377,6 +413,7 @@ static PHP_METHOD(swoole_redis, __call)
         if (redisAsyncCommandArgv(redis->context, swoole_redis_onResult, NULL, argc + 1, (const char **) argv, (const size_t *) argvlen) < 0)
         {
             swoole_php_error(E_WARNING, "redisAsyncCommandArgv() failed.");
+            FREE_MEM();
             RETURN_FALSE;
         }
     }
@@ -386,6 +423,7 @@ static PHP_METHOD(swoole_redis, __call)
     else
     {
         redis->state = SWOOLE_REDIS_STATE_WAIT_RESULT;
+        redis->reqnum++;
 
 #if PHP_MAJOR_VERSION < 7
         zval *callback;
@@ -393,6 +431,7 @@ static PHP_METHOD(swoole_redis, __call)
         if (zend_hash_index_find(Z_ARRVAL_P(params), zend_hash_num_elements(Z_ARRVAL_P(params)) - 1, (void **) &cb_tmp) == FAILURE)
         {
             swoole_php_error(E_WARNING, "index out of array.");
+            FREE_MEM();
             RETURN_FALSE;
         }
         callback = *cb_tmp;
@@ -401,48 +440,48 @@ static PHP_METHOD(swoole_redis, __call)
         if (callback == NULL)
         {
             swoole_php_error(E_WARNING, "index out of array.");
+            FREE_MEM();
             RETURN_FALSE;
         }
 #endif
 
         sw_zval_add_ref(&callback);
-        redis->result_callback = sw_zval_dup(callback);
+        callback = sw_zval_dup(callback);
 
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(params), value)
-            convert_to_string(value);
-            argvlen[i] = (size_t) Z_STRLEN_P(value);
-            argv[i] = estrndup(Z_STRVAL_P(value), Z_STRLEN_P(value));
-            if (i == argc - 1)
+            if (i == argc)
             {
                 break;
             }
+
+            convert_to_string(value);
+            argvlen[i] = (size_t) Z_STRLEN_P(value);
+            argv[i] = estrndup(Z_STRVAL_P(value), Z_STRLEN_P(value));
             i++;
         SW_HASHTABLE_FOREACH_END();
 
-        if (redisAsyncCommandArgv(redis->context, swoole_redis_onResult, NULL, argc, (const char **) argv, (const size_t *) argvlen) < 0)
+        if (redisAsyncCommandArgv(redis->context, swoole_redis_onResult, callback, argc, (const char **) argv, (const size_t *) argvlen) < 0)
         {
             swoole_php_error(E_WARNING, "redisAsyncCommandArgv() failed.");
+            FREE_MEM();
             RETURN_FALSE;
         }
     }
 
-    for (i = 1; i < argc; i++)
-    {
-        efree((void* )argv[i]);
-    }
-
-    if (redis->state == SWOOLE_REDIS_STATE_SUBSCRIBE)
-    {
-        efree(argv[argc]);
-    }
-
-    if (free_mm)
-    {
-        efree(argvlen);
-        efree(argv);
-    }
-
+    FREE_MEM();
     RETURN_TRUE;
+}
+
+static void swoole_redis_set_error(swRedisClient *redis, zval* return_value, redisReply* reply TSRMLS_DC)
+{
+    char *str = malloc(reply->len + 1);
+    memcpy(str, reply->str, reply->len);
+    str[reply->len] = 0;
+
+    ZVAL_FALSE(return_value);
+    zend_update_property_long(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("errCode"), -1 TSRMLS_CC);
+    zend_update_property_string(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), str TSRMLS_CC);
+    free(str);
 }
 
 static void swoole_redis_parse_result(swRedisClient *redis, zval* return_value, redisReply* reply TSRMLS_DC)
@@ -463,9 +502,11 @@ static void swoole_redis_parse_result(swRedisClient *redis, zval* return_value, 
         break;
 
     case REDIS_REPLY_ERROR:
-        ZVAL_FALSE(return_value);
-        zend_update_property_long(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("errCode"), redis->context->err TSRMLS_CC);
-        zend_update_property_string(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), redis->context->errstr TSRMLS_CC);
+        swoole_redis_set_error(redis, return_value, reply TSRMLS_CC);
+        // not network error:
+        // ZVAL_FALSE(return_value);
+        // zend_update_property_long(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("errCode"), redis->context->err TSRMLS_CC);
+        // zend_update_property_string(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), redis->context->errstr TSRMLS_CC);
         break;
 
     case REDIS_REPLY_STATUS:
@@ -515,6 +556,7 @@ static void swoole_redis_onResult(redisAsyncContext *c, void *r, void *privdata)
         return;
     }
 
+    zend_bool is_subscribe = 0;
     char *callback_type;
     swRedisClient *redis = c->ev.data;
     zval *result, *retval, *callback;
@@ -526,12 +568,18 @@ static void swoole_redis_onResult(redisAsyncContext *c, void *r, void *privdata)
     {
         callback = redis->message_callback;
         callback_type = "Message";
+        is_subscribe = 1;
     }
     else
     {
-        callback = redis->result_callback;
+        callback = (zval *)privdata;
         callback_type = "Result";
-        redis->state = SWOOLE_REDIS_STATE_READY;
+        assert(redis->reqnum > 0 && redis->state == SWOOLE_REDIS_STATE_WAIT_RESULT);
+        redis->reqnum--;
+        if (redis->reqnum == 0)
+        {
+            redis->state = SWOOLE_REDIS_STATE_READY;
+        }
     }
 
     zval **args[2];
@@ -551,9 +599,9 @@ static void swoole_redis_onResult(redisAsyncContext *c, void *r, void *privdata)
         sw_zval_ptr_dtor(&retval);
     }
     sw_zval_ptr_dtor(&result);
-    if (redis->state == SWOOLE_REDIS_STATE_READY)
+    if (!is_subscribe)
     {
-        sw_zval_ptr_dtor(&callback);
+        sw_zval_free(callback);
     }
 }
 

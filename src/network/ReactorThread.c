@@ -74,8 +74,9 @@ static sw_inline void* swReactorThread_alloc(swReactorThread *thread, uint32_t s
 #endif
 
 #ifdef SW_USE_OPENSSL
-static sw_inline int swReactorThread_verify_ssl_state(swListenPort *port, swConnection *conn)
+static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swListenPort *port, swConnection *conn)
 {
+    swServer *serv = reactor->ptr;
     if (conn->ssl_state == 0 && conn->ssl)
     {
         int ret = swSSL_accept(conn);
@@ -97,16 +98,20 @@ static sw_inline int swReactorThread_verify_ssl_state(swListenPort *port, swConn
                     task.data.info.type = SW_EVENT_CONNECT;
                     task.data.info.from_id = conn->from_id;
                     task.data.info.len = ret;
-                    if (factory->dispatch(factory, &task) < 0)
-                    {
-                        return SW_OK;
-                    }
+                    factory->dispatch(factory, &task);
+                    goto delay_receive;
                 }
             }
             no_client_cert:
             if (SwooleG.serv->onConnect)
             {
                 swServer_connection_ready(SwooleG.serv, conn->fd, conn->from_id);
+            }
+            delay_receive:
+            if (serv->enable_delay_receive)
+            {
+                conn->listen_wait = 1;
+                return reactor->del(reactor, conn->fd);
             }
             return SW_OK;
         }
@@ -194,7 +199,7 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
         //dgram header
         memcpy(task.data.data, &pkt, sizeof(pkt));
         //unix dgram
-        if (socket_type == SW_SOCK_UNIX_DGRAM )
+        if (socket_type == SW_SOCK_UNIX_DGRAM)
         {
             header_size += pkt.addr.un.path_length;
             memcpy(task.data.data + sizeof(pkt), info.addr.un.sun_path, pkt.addr.un.path_length);
@@ -212,6 +217,10 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
         memcpy(task.data.data + header_size, packet, task.data.info.len - header_size);
 
         uint32_t send_n = pkt.length + header_size;
+        if (socket_type == SW_SOCK_UNIX_DGRAM)
+        {
+            send_n -= pkt.addr.un.path_length;
+        }
         uint32_t offset = 0;
 
         /**
@@ -302,9 +311,8 @@ int swReactorThread_close(swReactor *reactor, int fd)
         swHttpRequest_free(conn);
     }
 
-#if 0
-    //立即关闭socket，清理缓存区
-    if (0)
+#ifdef SW_USE_SOCKET_LINGER
+    if (conn->close_force)
     {
         struct linger linger;
         linger.l_onoff = 1;
@@ -523,7 +531,15 @@ int swReactorThread_send(swSendData *_send)
     void *_send_data = _send->data;
     uint32_t _send_length = _send->length;
 
-    swConnection *conn = swServer_connection_verify(serv, session_id);
+    swConnection *conn;
+    if (_send->info.type != SW_EVENT_CLOSE)
+    {
+        conn = swServer_connection_verify(serv, session_id);
+    }
+    else
+    {
+        conn = swServer_connection_verify_no_ssl(serv, session_id);
+    }
     if (!conn)
     {
         if (_send->info.type == SW_EVENT_TCP)
@@ -552,9 +568,15 @@ int swReactorThread_send(swSendData *_send)
     /**
      * Reset send buffer, Immediately close the connection.
      */
-    if (_send->info.type == SW_EVENT_CLOSE && conn->close_reset)
+    if (_send->info.type == SW_EVENT_CLOSE && (conn->close_reset || conn->removed))
     {
         goto close_fd;
+    }
+    else if (_send->info.type == SW_EVENT_CONFIRM)
+    {
+        reactor->add(reactor, conn->fd, conn->fdtype | SW_EVENT_READ);
+        conn->listen_wait = 0;
+        return SW_OK;
     }
 
     if (swBuffer_empty(conn->out_buffer))
@@ -628,7 +650,7 @@ int swReactorThread_send(swSendData *_send)
     //sendfile to client
     else if (_send->info.type == SW_EVENT_SENDFILE)
     {
-        swConnection_sendfile(conn, _send_data);
+        swConnection_sendfile(conn, _send_data + sizeof(off_t), *((off_t *) _send_data));
     }
     //send data
     else
@@ -640,7 +662,7 @@ int swReactorThread_send(swSendData *_send)
             return SW_ERR;
         }
         //connection output buffer overflow
-        if (conn->out_buffer->length >= serv->buffer_output_size)
+        if (conn->out_buffer->length >= conn->buffer_size)
         {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "connection#%d output buffer overflow.", fd);
             conn->overflow = 1;
@@ -779,9 +801,8 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
 {
     swServer *serv = reactor->ptr;
     swListenPort *port = swServer_get_port(serv, event->fd);
-
 #ifdef SW_USE_OPENSSL
-    if (swReactorThread_verify_ssl_state(port, event->socket) < 0)
+    if (swReactorThread_verify_ssl_state(reactor, port, event->socket) < 0)
     {
         return swReactorThread_close(reactor, event->fd);
     }
@@ -812,10 +833,24 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     {
         swServer_connection_ready(serv, fd, reactor->id);
         conn->connect_notify = 0;
-        return reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_READ);
+        if (serv->enable_delay_receive)
+        {
+            conn->listen_wait = 1;
+            return reactor->del(reactor, fd);
+        }
+        else
+        {
+            return reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_READ);
+        }
     }
     else if (conn->close_notify)
     {
+#ifdef SW_USE_OPENSSL
+        if (conn->ssl && conn->ssl_state != SW_SSL_STATE_READY)
+        {
+            return swReactorThread_close(reactor, fd);
+        }
+#endif
         swDataHead close_event;
         close_event.type = SW_EVENT_CLOSE;
         close_event.from_id = reactor->id;
@@ -865,7 +900,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         }
     }
 
-    if (conn->overflow && conn->out_buffer->length < SwooleG.socket_buffer_size)
+    if (conn->overflow && conn->out_buffer->length < conn->buffer_size)
     {
         conn->overflow = 0;
     }
@@ -1186,6 +1221,7 @@ static int swUDPThread_start(swServer *serv)
                 return SW_ERR;
             }
             ls->thread_id = thread_id;
+            serv->udp_thread_num ++;
         }
     }
     return SW_OK;
@@ -1228,7 +1264,7 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
     task.data.info.fd = conn->fd;
     task.data.info.from_id = conn->from_id;
 
-    swTrace("send string package, size=%ld bytes.", length);
+    swTrace("send string package, size=%ld bytes.", (long)length);
 
 #ifdef SW_USE_RINGBUFFER
     swServer *serv = SwooleG.serv;
@@ -1414,12 +1450,12 @@ void swReactorThread_free(swServer *serv)
             SW_START_SLEEP;
             if (pthread_cancel(thread->thread_id) != 0)
             {
-                swSysError("pthread_cancel(%d) failed.", (int ) thread->thread_id);
+                swSysError("pthread_cancel(%ld) failed.", (long ) thread->thread_id);
             }
             //wait thread
             if (pthread_join(thread->thread_id, NULL) != 0)
             {
-                swWarn("pthread_join() failed. Error: %s[%d]", strerror(errno), errno);
+                swSysError("pthread_join(%ld) failed.", (long ) thread->thread_id);
             }
             //release the lock
             SwooleGS->lock.unlock(&SwooleGS->lock);
@@ -1436,13 +1472,13 @@ void swReactorThread_free(swServer *serv)
         {
             if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
             {
-    			if (pthread_cancel(ls->thread_id) < 0)
-    			{
-    				swSysError("pthread_cancel(%d) failed.", (int) ls->thread_id);
-    			}
+                if (pthread_cancel(ls->thread_id) < 0)
+                {
+                    swSysError("pthread_cancel(%ld) failed.", (long) ls->thread_id);
+                }
                 if (pthread_join(ls->thread_id, NULL))
                 {
-                    swWarn("pthread_join() failed. Error: %s[%d]", strerror(errno), errno);
+                    swSysError("pthread_join(%ld) failed.", (long) ls->thread_id);
                 }
             }
         }

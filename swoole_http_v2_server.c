@@ -19,7 +19,6 @@
 
 #ifdef SW_USE_HTTP2
 #include "http2.h"
-#include <nghttp2/nghttp2.h>
 #include <main/php_variables.h>
 
 static sw_inline void http2_add_header(nghttp2_nv *headers, char *k, int kl, char *v, int vl)
@@ -30,7 +29,7 @@ static sw_inline void http2_add_header(nghttp2_nv *headers, char *k, int kl, cha
     headers->valuelen = vl;
 }
 
-static void http2_onRequest(http_context *ctx TSRMLS_DC)
+static sw_inline void http2_onRequest(http_context *ctx, int server_fd TSRMLS_DC)
 {
     zval *retval;
     zval **args[2];
@@ -41,7 +40,8 @@ static void http2_onRequest(http_context *ctx TSRMLS_DC)
     args[0] = &zrequest_object;
     args[1] = &zresponse_object;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_http_server_callbacks[HTTP_CALLBACK_onRequest], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+    zval *zcallback = php_swoole_server_get_callback(SwooleG.serv, server_fd, SW_SERVER_CB_onRequest);
+    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "onRequest handler error");
     }
@@ -125,6 +125,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
             http2_add_header(&nv[index++], key, keylen - 1, Z_STRVAL_P(value), Z_STRLEN_P(value));
         }
         SW_HASHTABLE_FOREACH_END();
+        (void)type;
 
         if (!(flag & HTTP_RESPONSE_SERVER))
         {
@@ -282,14 +283,12 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
         ctx->send_header = 0;
         return SW_ERR;
     }
-    swoole_http_context_free(ctx TSRMLS_CC);
-
-    if (ctx->client->streams)
+    swoole_http_client *client = ctx->client;
+    if (client->streams)
     {
-        swHashMap_del_int(ctx->client->streams, ctx->stream_id);
+        swHashMap_del_int(client->streams, ctx->stream_id);
     }
-    efree(ctx);
-
+    swoole_http_context_free(ctx TSRMLS_CC);
     return SW_OK;
 }
 
@@ -511,7 +510,7 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
 
         if (flags & SW_HTTP2_FLAG_END_STREAM)
         {
-            http2_onRequest(ctx TSRMLS_CC);
+            http2_onRequest(ctx, req->info.from_fd TSRMLS_CC);
         }
         else
         {
@@ -532,11 +531,11 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
             return SW_ERR;
         }
 
-        swString *buffer = ctx->buffer;
+        swString *buffer = ctx->request.post_buffer;
         if (!buffer)
         {
             buffer = swString_new(SW_HTTP2_DATA_BUFFSER_SIZE);
-            ctx->buffer = buffer;
+            ctx->request.post_buffer = buffer;
         }
         swString_append_ptr(buffer, buf + SW_HTTP2_FRAME_HEADER_SIZE, length);
 
@@ -547,8 +546,8 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
                 zval *zpost;
                 zval *zrequest_object = ctx->request.zobject;
                 swoole_http_server_array_init(post, request);
-                ctx->request.post_content = estrndup(buffer->str, buffer->length);
-                sapi_module.treat_data(PARSE_STRING, ctx->request.post_content, zpost TSRMLS_CC);
+                char *post_content = estrndup(buffer->str, buffer->length);
+                sapi_module.treat_data(PARSE_STRING, post_content, zpost TSRMLS_CC);
             }
             else if (ctx->mt_parser != NULL)
             {
@@ -559,7 +558,7 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
                     swoole_php_fatal_error(E_WARNING, "parse multipart body failed.");
                 }
             }
-            http2_onRequest(ctx TSRMLS_CC);
+            http2_onRequest(ctx, req->info.from_fd TSRMLS_CC);
         }
     }
     else if (type == SW_HTTP2_TYPE_PING)
@@ -575,5 +574,14 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
     }
     sw_zval_ptr_dtor(&zdata);
     return SW_OK;
+}
+
+void swoole_http2_free(swoole_http_client *client)
+{
+    if (client->inflater)
+    {
+        nghttp2_hd_inflate_del(client->inflater);
+        client->inflater = NULL;
+    }
 }
 #endif
