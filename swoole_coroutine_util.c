@@ -5,6 +5,7 @@
 
 static PHP_METHOD(swoole_coroutine_util, suspend);
 static PHP_METHOD(swoole_coroutine_util, resume);
+static PHP_METHOD(swoole_coroutine_util, getuid);
 static PHP_METHOD(swoole_coroutine_util, call_user_func);
 static PHP_METHOD(swoole_coroutine_util, call_user_func_array);
 
@@ -18,6 +19,7 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
 {
     PHP_ME(swoole_coroutine_util, suspend, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, resume, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, getuid, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, call_user_func, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, call_user_func_array, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
@@ -263,5 +265,10 @@ static PHP_METHOD(swoole_coroutine_util, resume)
 	SwooleG.main_reactor->defer(SwooleG.main_reactor, swoole_coroutine_util_resume, context);
 
 	RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_coroutine_util, getuid)
+{
+    SW_RETURN_STRINGL(COROG.uid, 20, 1)
 }
 #endif
