@@ -1422,8 +1422,8 @@ PHP_METHOD(swoole_server, set)
     }
     else
     {
-        SwooleG.task_tmpdir = strndup(SW_TASK_TMP_FILE, sizeof (SW_TASK_TMP_FILE));
-        SwooleG.task_tmpdir_len = sizeof (SW_TASK_TMP_FILE);
+        SwooleG.task_tmpdir = strndup(SW_TASK_TMP_FILE, sizeof(SW_TASK_TMP_FILE));
+        SwooleG.task_tmpdir_len = sizeof(SW_TASK_TMP_FILE);
     }
     //task_max_request
     if (php_swoole_array_get_value(vht, "task_max_request", v))
