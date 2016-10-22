@@ -47,7 +47,7 @@ static void swoole_coroutine_util_resume(void *data)
 	efree(context);
 }
 
-static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache, zval **return_value_ptr, zend_bool use_array)
+static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache, zval **return_value_ptr, zend_bool use_array, int return_value_used)
 {
     int i;
     zval **origin_return_ptr_ptr;
@@ -160,6 +160,8 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
         //--swReactorCheckPoint.cnt;
         efree(swReactorCheckPoint);
         swReactorCheckPoint = prev_checkpoint;
+        if (!return_value_used)
+            zval_ptr_dtor(return_value_ptr);
         if (fci->params)
         {
             efree(fci->params);
@@ -178,13 +180,12 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func)
     zend_fcall_info fci;
     zend_fcall_info_cache fci_cache;
 
-    zval_ptr_dtor(return_value_ptr);
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "f*",&fci, &fci_cache, &fci.params, &fci.param_count) == FAILURE)
     {
         return;
     }
 
-    swoole_corountine_call_function(&fci, &fci_cache, return_value_ptr, 0);
+    swoole_corountine_call_function(&fci, &fci_cache, return_value_ptr, 0, return_value_used);
 }
 
 static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
@@ -193,13 +194,12 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
     zend_fcall_info fci;
     zend_fcall_info_cache fci_cache;
 
-    zval_ptr_dtor(return_value_ptr);
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "fa/",&fci, &fci_cache, &params) == FAILURE)
     {
         return;
     }
     zend_fcall_info_args(&fci, params);
-    swoole_corountine_call_function(&fci, &fci_cache, return_value_ptr, 1);
+    swoole_corountine_call_function(&fci, &fci_cache, return_value_ptr, 1, return_value_used);
 }
 
 static PHP_METHOD(swoole_coroutine_util, suspend)
