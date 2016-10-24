@@ -303,10 +303,6 @@ struct _swServer
      * The number of pipe per reactor maintenance
      */
     uint16_t reactor_pipe_num;
-    /**
-     * UDP thread number
-     */
-    uint16_t udp_thread_num;
 
     uint8_t factory_mode;
 

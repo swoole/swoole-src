@@ -1065,18 +1065,13 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
     {
         return NULL;
     }
-    //stream socket, set nonblock
-    if (swSocket_is_stream(ls->type))
-    {
-        swSetNonBlock(sock);
-    }
     //dgram socket, setting socket buffer size
-    else
+    if (swSocket_is_dgram(ls->type))
     {
         setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &ls->socket_buffer_size, sizeof(int));
         setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &ls->socket_buffer_size, sizeof(int));
     }
-
+    swSetNonBlock(sock);
     ls->sock = sock;
 
     if (swSocket_is_dgram(ls->type))
@@ -1219,7 +1214,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
     int checktime;
 
     SwooleTG.type = SW_THREAD_HEARTBEAT;
-    SwooleTG.id = serv->reactor_num + serv->udp_thread_num;
+    SwooleTG.id = serv->reactor_num;
 
     bzero(&notify_ev, sizeof(notify_ev));
     notify_ev.type = SW_EVENT_CLOSE;
