@@ -2,9 +2,9 @@
 function send(swoole_client $cli)
 {
     $data = array(
-        'str1' => str_repeat('A', rand(1000, 9000)),
-        'str2' => str_repeat('B', rand(1000, 9000)),
-        'str3' => str_repeat('C', rand(1000, 9000)),
+        'str1' => str_repeat('A', rand(100000, 900000)),
+        'str2' => str_repeat('B', rand(100000, 900000)),
+        'str3' => str_repeat('C', rand(10000, 90000)),
     );
 
     $data['int1'] = rand(100000, 999999);
@@ -31,7 +31,8 @@ $client->on("connect", function(swoole_client $cli) {
 
 $client->on("receive", function (swoole_client $cli, $data) {
     $resp = unserialize(substr($data, 4));
-    echo "recv length=" . strlen($data) . ", SerId={$resp['int1']}\n".str_repeat('-', 60)."\n";;
+    echo "recv length=" . strlen($data) . ", SerId={$resp['int1']}\n".str_repeat('-', 60)."\n";
+    $cli->close();
 //    sleep(1);
     //usleep(200000);
     //send($cli);

@@ -298,12 +298,21 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
 
     vht = Z_ARRVAL_P(zset);
 
-    //buffer: check eof
-    if (php_swoole_array_get_value(vht, "open_eof_split", v) || php_swoole_array_get_value(vht, "open_eof_check", v))
+    //buffer: eof check
+    if (php_swoole_array_get_value(vht, "open_eof_check", v))
     {
         convert_to_boolean(v);
         cli->open_eof_check = Z_BVAL_P(v);
-        cli->protocol.split_by_eof = 1;
+    }
+    //buffer: split package with eof
+    if (php_swoole_array_get_value(vht, "open_eof_split", v))
+    {
+        convert_to_boolean(v);
+        cli->protocol.split_by_eof = Z_BVAL_P(v);
+        if (cli->protocol.split_by_eof)
+        {
+            cli->open_eof_check = 1;
+        }
     }
     //package eof
     if (php_swoole_array_get_value(vht, "package_eof", v))

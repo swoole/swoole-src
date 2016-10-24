@@ -193,6 +193,11 @@ PHP_METHOD(swoole_table, __construct)
     }
 
     swTable *table = swTable_new(table_size);
+    if (table == NULL)
+    {
+        swoole_php_fatal_error(E_ERROR, "alloc global memory failed.");
+        RETURN_FALSE;
+    }
     swoole_set_object(getThis(), table);
 }
 

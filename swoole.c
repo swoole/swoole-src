@@ -229,9 +229,9 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_dns_lookup, 0, 0, 2)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_select, 0, 0, 3)
-    ZEND_ARG_INFO(0, read_array)
-    ZEND_ARG_INFO(0, write_array)
-    ZEND_ARG_INFO(0, error_array)
+    ZEND_ARG_INFO(1, read_array)
+    ZEND_ARG_INFO(1, write_array)
+    ZEND_ARG_INFO(1, error_array)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 

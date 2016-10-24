@@ -117,6 +117,12 @@ static PHP_METHOD(swoole_server_port, set)
         convert_to_boolean(v);
         port->open_tcp_keepalive = Z_BVAL_P(v);
     }
+    //buffer: eof check
+    if (php_swoole_array_get_value(vht, "open_eof_check", v))
+    {
+        convert_to_boolean(v);
+        port->open_eof_check = Z_BVAL_P(v);
+    }
     //buffer: split package with eof
     if (php_swoole_array_get_value(vht, "open_eof_split", v))
     {
