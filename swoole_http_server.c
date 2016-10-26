@@ -652,8 +652,8 @@ static int multipart_body_on_header_complete(multipart_parser* p)
         return 0;
     }
 
-    char file_path[sizeof(SW_HTTP_UPLOAD_TMP_FILE)];
-    memcpy(file_path, SW_HTTP_UPLOAD_TMP_FILE, sizeof(SW_HTTP_UPLOAD_TMP_FILE));
+    char file_path[SW_HTTP_UPLOAD_TMPDIR_SIZE];
+    snprintf(file_path, SW_HTTP_UPLOAD_TMPDIR_SIZE, "%s/swoole.upfile.XXXXXX", SwooleG.serv->upload_tmp_dir);
     int tmpfile = swoole_tmpfile(file_path);
 
     FILE *fp = fdopen(tmpfile, "wb+");
@@ -834,8 +834,12 @@ static int http_request_message_complete(php_http_parser *parser)
 
 static int http_onReceive(swServer *serv, swEventData *req)
 {
-    int fd = req->info.fd;
+    if (swEventData_is_dgram(req->info.type))
+    {
+        return php_swoole_onReceive(serv, req);
+    }
 
+    int fd = req->info.fd;
     swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
     if (!conn)
     {
@@ -1012,7 +1016,7 @@ static void http_onClose(swServer *serv, swDataHead *ev)
     {
         return;
     }
-    swoole_http_client *client = swArray_alloc(http_client_array, conn->fd);
+    swoole_http_client *client = swArray_fetch(http_client_array, conn->fd);
     if (!client)
     {
         return;
@@ -1729,6 +1733,16 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
 }
 
 #ifdef SW_HAVE_ZLIB
+static voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size)
+{
+    return (voidpf)safe_emalloc(items, size, 0);
+}
+
+static void php_zlib_free(voidpf opaque, voidpf address)
+{
+    efree((void*)address);
+}
+
 static int http_response_compress(swString *body, int level)
 {
     assert(level > 0 || level < 10);
@@ -1751,6 +1765,9 @@ static int http_response_compress(swString *body, int level)
 #endif
 
     int status;
+    zstream.zalloc = php_zlib_alloc;
+    zstream.zfree = php_zlib_free;
+
     if (Z_OK == deflateInit2(&zstream, level, Z_DEFLATED, encoding, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY))
     {
         zstream.next_in = (Bytef *) body->str;

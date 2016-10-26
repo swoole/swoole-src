@@ -35,7 +35,7 @@ void swTaskWorker_init(swProcessPool *pool)
     //create tmp dir
     if (access(tmp_dir, R_OK) < 0 && swoole_mkdir_recursive(tmp_dir) < 0)
     {
-        swWarn("create task tmp dir failed.");
+        swWarn("create task tmp dir(%s) failed.", tmp_dir);
     }
     if (SwooleG.task_ipc_mode == SW_TASK_IPC_PREEMPTIVE)
     {

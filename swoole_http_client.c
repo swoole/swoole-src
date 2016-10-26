@@ -89,6 +89,7 @@ typedef struct
     uint8_t gzip;
     uint8_t chunked;     //Transfer-Encoding: chunked
     uint8_t completed;
+    uint8_t websocket_mask;
 
 } http_client;
 
@@ -297,6 +298,14 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
         {
             convert_to_boolean(ztmp);
             http->keep_alive = (int) Z_LVAL_P(ztmp);
+        }
+        /**
+         * websocket mask
+         */
+        if (php_swoole_array_get_value(vht, "websocket_mask", ztmp))
+        {
+            convert_to_boolean(ztmp);
+            http->websocket_mask = (int) Z_LVAL_P(ztmp);
         }
         //client settings
         php_swoole_client_check_setting(http->cli, zset TSRMLS_CC);
@@ -1626,10 +1635,10 @@ static PHP_METHOD(swoole_http_client, upgrade)
     int encoded_value_len = 0;
 
 #if PHP_MAJOR_VERSION < 7
-    uchar *encoded_value = php_base64_encode((const unsigned char *)buf, SW_WEBSOCKET_KEY_LENGTH + 1, &encoded_value_len);
+    uchar *encoded_value = php_base64_encode((const unsigned char *)buf, SW_WEBSOCKET_KEY_LENGTH, &encoded_value_len);
     add_assoc_stringl(hcc->request_header, "Sec-WebSocket-Key", (char*)encoded_value, encoded_value_len, 0);
 #else
-    zend_string *str = php_base64_encode((const unsigned char *)buf, SW_WEBSOCKET_KEY_LENGTH + 1);
+    zend_string *str = php_base64_encode((const unsigned char *)buf, SW_WEBSOCKET_KEY_LENGTH);
     char *encoded_value = str->val;
     encoded_value_len = str->len;
     add_assoc_stringl(hcc->request_header, "Sec-WebSocket-Key", (char*)encoded_value, encoded_value_len);
@@ -1644,7 +1653,6 @@ static PHP_METHOD(swoole_http_client, push)
 {
     char *data;
     zend_size_t length;
-    long fd = 0;
     long opcode = WEBSOCKET_OPCODE_TEXT_FRAME;
     zend_bool fin = 1;
 
@@ -1680,11 +1688,11 @@ static PHP_METHOD(swoole_http_client, push)
 
     if (!http->upgrade)
     {
-        swoole_php_fatal_error(E_WARNING, "connection[%d] is not a websocket client.", (int ) fd);
+        swoole_php_fatal_error(E_WARNING, "websocket handshake failed, cannot push data.");
         RETURN_FALSE;
     }
 
     swString_clear(http_client_buffer);
-    swWebSocket_encode(http_client_buffer, data, length, opcode, (int) fin, 0);
+    swWebSocket_encode(http_client_buffer, data, length, opcode, (int) fin, http->websocket_mask);
     SW_CHECK_RETURN(http->cli->send(http->cli, http_client_buffer->str, http_client_buffer->length, 0));
 }

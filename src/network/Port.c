@@ -87,30 +87,10 @@ int swPort_enable_ssl_encrypt(swListenPort *ls)
 }
 #endif
 
-int swPort_set_option(swListenPort *ls)
+int swPort_listen(swListenPort *ls)
 {
     int sock = ls->sock;
-
-    //reuse address
     int option = 1;
-    //reuse port
-#ifdef HAVE_REUSEPORT
-    if (SwooleG.reuse_port)
-    {
-        if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) < 0)
-        {
-            swSysError("setsockopt(SO_REUSEPORT) failed.");
-            SwooleG.reuse_port = 0;
-        }
-    }
-#endif
-
-    if (swSocket_is_dgram(ls->type))
-    {
-        setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &ls->socket_buffer_size, sizeof(int));
-        setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &ls->socket_buffer_size, sizeof(int));
-        return SW_OK;
-    }
 
     //listen stream socket
     if (listen(sock, ls->backlog) < 0)
@@ -142,7 +122,6 @@ int swPort_set_option(swListenPort *ls)
 #ifdef SO_KEEPALIVE
     if (ls->open_tcp_keepalive == 1)
     {
-        option = 1;
         if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (void *) &option, sizeof(option)) < 0)
         {
             swSysError("setsockopt(SO_KEEPALIVE) failed.");
@@ -537,8 +516,12 @@ void swPort_free(swListenPort *port)
     if (port->ssl)
     {
         swSSL_free_context(port->ssl_context);
-        free(port->ssl_cert_file);
-        free(port->ssl_key_file);
+        sw_strdup_free(port->ssl_cert_file);
+        sw_strdup_free(port->ssl_key_file);
+        if (port->ssl_client_cert_file)
+        {
+            sw_strdup_free(port->ssl_client_cert_file);
+        }
     }
 #endif
 

@@ -63,3 +63,4 @@ modules/*
 /tests/hpack/data.txt
 /examples/cpp_module/.cproject
 /examples/cpp_module/.project
+/ide_helper/swoole.php

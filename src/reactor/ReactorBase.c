@@ -32,7 +32,7 @@ int swReactor_create(swReactor *reactor, int max_event)
     ret = swReactorEpoll_create(reactor, max_event);
 #elif defined(HAVE_KQUEUE)
     ret = swReactorKqueue_create(reactor, max_event);
-#elif defined(SW_MAINREACTOR_USE_POLL)
+#elif defined(HAVE_POLL)
     ret = swReactorPoll_create(reactor, max_event);
 #else
     ret = swReactorSelect_create(reactor);
@@ -258,6 +258,10 @@ int swReactor_close(swReactor *reactor, int fd)
     if (socket->in_buffer)
     {
         swBuffer_free(socket->in_buffer);
+    }
+    if (socket->websocket_buffer)
+    {
+        swString_free(socket->websocket_buffer);
     }
     bzero(socket, sizeof(swConnection));
     socket->removed = 1;

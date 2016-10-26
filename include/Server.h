@@ -61,11 +61,10 @@ enum swEventType
     SW_EVENT_CONFIRM         = 18,
 };
 
-enum swIPCMode
+enum swIPCType
 {
-	SW_IPC_UNSOCK   = 1,
-	SW_IPC_MSGQUEUE = 2,
-	SW_IPC_CHANNEL  = 3,
+    SW_IPC_UNIXSOCK = 1,
+    SW_IPC_MSGQUEUE = 2,
 };
 
 enum swTaskIPCMode
@@ -304,10 +303,6 @@ struct _swServer
      * The number of pipe per reactor maintenance
      */
     uint16_t reactor_pipe_num;
-    /**
-     * UDP thread number
-     */
-    uint16_t udp_thread_num;
 
     uint8_t factory_mode;
 
@@ -433,6 +428,11 @@ struct _swServer
     swSession *session_list;
 
     /**
+     * temporary directory for HTTP uploaded file.
+     */
+    char *upload_tmp_dir;
+
+    /**
      * message queue key
      */
     uint64_t message_queue_key;
@@ -462,7 +462,9 @@ struct _swServer
     int (*onTask)(swServer *serv, swEventData *data);
     int (*onFinish)(swServer *serv, swEventData *data);
 
-    int (*send)(swServer *, swSendData *);
+    int (*send)(swServer *serv, int fd, void *data, uint32_t length);
+    int (*sendfile)(swServer *serv, int fd, char *filename, uint32_t length, off_t offset);
+    int (*sendwait)(swServer *serv, int fd, void *data, uint32_t length);
     int (*dispatch_func)(swServer *, swConnection *, char *, uint32_t);
 };
 
@@ -587,6 +589,7 @@ int swServer_get_manager_pid(swServer *serv);
 int swServer_get_socket(swServer *serv, int port);
 int swServer_worker_init(swServer *serv, swWorker *worker);
 swString** swServer_create_worker_buffer(swServer *serv);
+int swServer_create_task_worker(swServer *serv);
 void swServer_close_listen_port(swServer *serv);
 void swServer_enable_accept(swReactor *reactor);
 
@@ -614,7 +617,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags);
     _buf[_length] = 0;\
     int tmp_file_fd = open(_pkg.tmpfile, O_RDONLY);\
     if (tmp_file_fd < 0){\
-        swSysError("open(%s) failed.", task->data);\
+        swSysError("open(%s) failed.", _pkg.tmpfile);\
         _length = -1;\
     } else if (swoole_sync_readfile(tmp_file_fd, _buf, _length) > 0) {\
         close(tmp_file_fd);\
@@ -843,7 +846,7 @@ static sw_inline void swServer_connection_ready(swServer *serv, int fd, int reac
 void swPort_init(swListenPort *port);
 void swPort_free(swListenPort *port);
 void swPort_set_protocol(swListenPort *ls);
-int swPort_set_option(swListenPort *ls);
+int swPort_listen(swListenPort *ls);
 #ifdef SW_USE_OPENSSL
 int swPort_enable_ssl_encrypt(swListenPort *ls);
 #endif

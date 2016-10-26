@@ -35,11 +35,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2016-08-23</date>
-    <time>12:48:51</time>
+    <date>2016-10-25</date>
+    <time>16:48:51</time>
     <version>
-		<release>1.8.10</release>
-		<api>1.8.10</api>
+		<release>1.8.13</release>
+		<api>1.8</api>
     </version>
     <stability>
         <release>stable</release>
@@ -47,8 +47,12 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed Swoole\Http\Client crash when do close connection in the callback function
-- Fixed Swoole\Http\Server cannot support more than 1024 concurrent
+- Fixed WebSocket\Server automatically merge the incomplete data frame exists security vulnerabilities
+- Added the upload_tmp_dir option to set the Http\Server upload file temporary directory
+- Added Server->sendMessage automatic stringing function, and now sendMessage PHP variables can be sent to any other work process
+- Added Process::alarm high-precision timer
+- Fixed a bug where the protocol length function crashed when the connection was closed
+- Fixed swoole_select function in PHP7 can not modify the reference array problem
     </notes>
 	<contents>
 		<dir name="/">

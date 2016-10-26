@@ -216,6 +216,7 @@ enum swEvent_type
     SW_EVENT_READ = 1u << 9,
     SW_EVENT_WRITE = 1u << 10,
     SW_EVENT_ERROR = 1u << 11,
+    SW_EVENT_ONCE = 1u << 12,
 };
 //-------------------------------------------------------------------------------
 enum swServer_mode
@@ -519,7 +520,7 @@ typedef struct _swConnection
     /**
      * bind uid
      */
-    long uid;
+    uint32_t uid;
 
     /**
      * memory buffer size;
@@ -527,9 +528,14 @@ typedef struct _swConnection
     int buffer_size;
 
     /**
-     *  upgarde websocket
+     * upgarde websocket
      */
     uint8_t websocket_status;
+
+    /**
+     * unfinished data frame
+     */
+    swString *websocket_buffer;
 
 #ifdef SW_USE_OPENSSL
     SSL *ssl;
@@ -946,6 +952,7 @@ enum swProcessType
 #define swIsWorker()          (SwooleG.process_type==SW_PROCESS_WORKER)
 #define swIsTaskWorker()      (SwooleG.process_type==SW_PROCESS_TASKWORKER)
 #define swIsManager()         (SwooleG.process_type==SW_PROCESS_MANAGER)
+#define swIsUserWorker()      (SwooleG.process_type==SW_PROCESS_USERWORKER)
 
 //----------------------tool function---------------------
 int swLog_init(char *logfile);
@@ -1118,7 +1125,6 @@ void swoole_fcntl_set_block(int sock, int nonblock);
 int swoole_gethostbyname(int type, char *name, char *addr);
 //----------------------core function---------------------
 int swSocket_set_timeout(int sock, double timeout);
-int swWrite(int, void *, int);
 
 static sw_inline int swSocket_is_dgram(uint8_t type)
 {
@@ -1539,7 +1545,7 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num);
 int swReactorSelect_create(swReactor *reactor);
 
 /*----------------------------Process Pool-------------------------------*/
-int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, key_t msgqueue_key, int nopipe);
+int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, key_t msgqueue_key, int ipc_type);
 int swProcessPool_wait(swProcessPool *pool);
 int swProcessPool_start(swProcessPool *pool);
 void swProcessPool_shutdown(swProcessPool *pool);
