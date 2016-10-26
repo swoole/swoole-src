@@ -312,8 +312,15 @@ PHP_FUNCTION(swoole_timer_clear)
     //current timer, cannot remove here.
     if (tnode->id == SwooleG.timer._current_id)
     {
-        tnode->remove = 1;
-        RETURN_TRUE;
+        if (0 == tnode->remove)  //To avoid repeat delete
+        {
+            tnode->remove = 1;
+            RETURN_TRUE;
+        }
+        else
+        {
+            RETURN_FALSE;
+        }
     }
 
     if (php_swoole_del_timer(tnode TSRMLS_CC) < 0)
@@ -350,4 +357,32 @@ PHP_FUNCTION(swoole_timer_exists)
     {
        RETURN_TRUE
     }
+}
+
+PHP_FUNCTION(swoole_timer_isclear)
+{
+    if (!SwooleG.timer.set)
+    {
+        swoole_php_error(E_WARNING, "no timer");
+        RETURN_FALSE;
+    }
+
+    long id;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &id) == FAILURE)
+    {
+        return;
+    }
+
+    swTimer_node *tnode = swHashMap_find_int(timer_map, id);
+    if (tnode == NULL)
+    {
+        RETURN_TRUE;
+    }
+    
+    if (1 == tnode->remove)
+    {
+        RETURN_TRUE;
+    }
+    
+    RETURN_FALSE;
 }
