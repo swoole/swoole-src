@@ -209,6 +209,8 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
 }
 
 #else
+#define TASK_SLOT \
+    ((int)((ZEND_MM_ALIGNED_SIZE(sizeof(coro_task)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) / ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
 int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval, void *post_callback, void* params)
 {
     if (__builtin_expect(COROG.coro_num >= COROG.max_coro_num, 0))
@@ -221,12 +223,12 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     zend_object *object;
     int i;
 
-    size_t total = ZEND_CALL_FRAME_SLOT + argc;
+    size_t total = ZEND_CALL_FRAME_SLOT + TASK_SLOT + argc;
     total += op_array->last_var + op_array->T - MIN(op_array->num_args, argc);
     total *= sizeof(zval);
     zend_vm_stack_init();
 
-    zend_execute_data *call = (zend_execute_data *)EG(vm_stack_top);
+    zend_execute_data *call = (zend_execute_data *)(EG(vm_stack_top) + TASK_SLOT * sizeof(zval));
     if (__builtin_expect(total > (size_t)((char *)EG(vm_stack_end) - (char *)call), 0))
     {
         call = (zend_execute_data *)zend_vm_stack_extend(total);
@@ -235,6 +237,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     {
         EG(vm_stack_top) = (zval *)((char *)call + total);
     }
+
     object = (func->common.fn_flags | ZEND_ACC_STATIC) ? NULL : fci_cache->object;
     zend_vm_init_call_frame(call, ZEND_CALL_TOP_FUNCTION | ZEND_CALL_DYNAMIC | ZEND_CALL_ALLOCATED, fci_cache->function_handler, argc, fci_cache->called_scope, object);
 

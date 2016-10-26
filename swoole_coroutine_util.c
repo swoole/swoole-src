@@ -137,7 +137,6 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
     swReactorCheckPoint = emalloc(sizeof(jmp_buf));
     if (!setjmp(*swReactorCheckPoint))
     {
-        //++swReactorCheckPoint.cnt;
         zend_execute_ex(next);
         if (fci->params)
         {
@@ -147,7 +146,6 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
                 efree(allocated_params);
             }
         }
-        //--swReactorCheckPoint.cnt;
         efree(swReactorCheckPoint);
         swReactorCheckPoint = prev_checkpoint;
         EG(active_op_array) = origin_active_op_array;
@@ -158,7 +156,6 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
     {
         current->original_return_value = origin_return_ptr_ptr;
         next->nested = 1;
-        //--swReactorCheckPoint.cnt;
         efree(swReactorCheckPoint);
         swReactorCheckPoint = prev_checkpoint;
         if (fci->params)
