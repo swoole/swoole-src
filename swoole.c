@@ -189,10 +189,6 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_clear, 0, 0, 1)
     ZEND_ARG_INFO(0, timer_id)
 ZEND_END_ARG_INFO()
-        
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_isclear, 0, 0, 1)
-    ZEND_ARG_INFO(0, timer_id)
-ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_set, 0, 0, 1)
     ZEND_ARG_INFO(0, settings)
@@ -264,7 +260,6 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_timer_tick, arginfo_swoole_timer_tick)
     PHP_FE(swoole_timer_exists, arginfo_swoole_timer_exists)
     PHP_FE(swoole_timer_clear, arginfo_swoole_timer_clear)
-    PHP_FE(swoole_timer_isclear, arginfo_swoole_timer_isclear)
     /*------swoole_async_io------*/
     PHP_FE(swoole_async_set, arginfo_swoole_async_set)
     PHP_FE(swoole_async_read, arginfo_swoole_async_read)
@@ -318,7 +313,6 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_FALIAS(after, swoole_timer_after, arginfo_swoole_timer_after)
     PHP_FALIAS(tick, swoole_timer_tick, arginfo_swoole_timer_tick)
     PHP_FALIAS(clearTimer, swoole_timer_clear, arginfo_swoole_timer_clear)
-    PHP_FALIAS(isClear, swoole_timer_isclear, arginfo_swoole_timer_isclear)
     PHP_FALIAS(defer, swoole_event_defer, arginfo_swoole_event_defer)
     //process
     PHP_ME(swoole_server, sendMessage, NULL, ZEND_ACC_PUBLIC)
@@ -350,7 +344,6 @@ static const zend_function_entry swoole_timer_methods[] =
     ZEND_FENTRY(after, ZEND_FN(swoole_timer_after), arginfo_swoole_timer_tick, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(exists, ZEND_FN(swoole_timer_exists), arginfo_swoole_timer_exists, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(clear, ZEND_FN(swoole_timer_clear), arginfo_swoole_timer_clear, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(isclear, ZEND_FN(swoole_timer_isclear), arginfo_swoole_timer_isclear, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
