@@ -145,6 +145,11 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
             efree(fci->params);
             if (use_array)
             {
+                for (i = 0; i < fci->param_count; ++i)
+                {
+                    zval *tmp = (zval *) *(--start);
+                    zval_ptr_dtor(&tmp);
+                }
                 efree(allocated_params);
             }
         }
