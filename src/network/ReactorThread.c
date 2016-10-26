@@ -1404,12 +1404,12 @@ void swReactorThread_free(swServer *serv)
         thread = &(serv->reactor_threads[i]);
         thread->reactor.running = 0;
         SW_START_SLEEP;
-        if (pthread_cancel(thread->thread_id) != 0)
+        if (thread->thread_id && pthread_cancel(thread->thread_id) != 0)
         {
             swSysError("pthread_cancel(%ld) failed.", (long ) thread->thread_id);
         }
         //wait thread
-        if (pthread_join(thread->thread_id, NULL) != 0)
+        if (thread->thread_id && pthread_join(thread->thread_id, NULL) != 0)
         {
             swSysError("pthread_join(%ld) failed.", (long ) thread->thread_id);
         }

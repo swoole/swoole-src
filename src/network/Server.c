@@ -320,7 +320,10 @@ static int swServer_start_proxy(swServer *serv)
         {
             continue;
         }
-        swPort_listen(ls);
+        if (swPort_listen(ls) < 0)
+        {
+            return SW_ERR;
+        }
     }
 
     /**
