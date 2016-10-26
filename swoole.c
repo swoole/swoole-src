@@ -189,6 +189,10 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_clear, 0, 0, 1)
     ZEND_ARG_INFO(0, timer_id)
 ZEND_END_ARG_INFO()
+        
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_isclear, 0, 0, 1)
+    ZEND_ARG_INFO(0, timer_id)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_set, 0, 0, 1)
     ZEND_ARG_INFO(0, settings)
@@ -314,6 +318,7 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_FALIAS(after, swoole_timer_after, arginfo_swoole_timer_after)
     PHP_FALIAS(tick, swoole_timer_tick, arginfo_swoole_timer_tick)
     PHP_FALIAS(clearTimer, swoole_timer_clear, arginfo_swoole_timer_clear)
+    PHP_FALIAS(isClear, swoole_timer_isclear, arginfo_swoole_timer_isclear)
     PHP_FALIAS(defer, swoole_event_defer, arginfo_swoole_event_defer)
     //process
     PHP_ME(swoole_server, sendMessage, NULL, ZEND_ACC_PUBLIC)
