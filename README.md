@@ -2,6 +2,7 @@ Swoole
 ======
 [![Build Status](https://api.travis-ci.org/swoole/swoole-src.svg)](https://travis-ci.org/swoole/swoole-src)
 [![License](https://img.shields.io/badge/license-apache2-blue.svg)](LICENSE)
+[![Join the chat at https://gitter.im/swoole/swoole-src](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/swoole/swoole-src?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 Swoole is an event-driven asynchronous & concurrent networking communication framework with high performance written only in C for PHP.
 
