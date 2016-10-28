@@ -773,7 +773,15 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef HAVE_PTHREAD_BARRIER
     php_info_print_table_row(2, "pthread_barrier", "enabled");
 #endif
-
+#ifdef SW_USE_JEMALLOC
+    php_info_print_table_row(2, "jemalloc", "enabled");
+#endif
+#ifdef SW_USE_TCMALLOC
+    php_info_print_table_row(2, "tcmalloc", "enabled");
+#endif
+#ifdef SW_USE_HUGEPAGE
+    php_info_print_table_row(2, "hugepage", "enabled");
+#endif
     php_info_print_table_end();
 
     DISPLAY_INI_ENTRIES();
