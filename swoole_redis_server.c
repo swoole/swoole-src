@@ -102,7 +102,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     char *p = Z_STRVAL_P(zdata);
     char *pe = p + Z_STRLEN_P(zdata);
     int ret;
-    int length;
+    int length = 0;
 
     zval *zparams;
     SW_MAKE_STD_ZVAL(zparams);
@@ -112,8 +112,8 @@ static int redis_onReceive(swServer *serv, swEventData *req)
 
     int state = SW_REDIS_RECEIVE_TOTAL_LINE;
     int add_param = 0;
-    char *command;
-    int command_len;
+    char *command = NULL;
+    int command_len = 0;
 
     do
     {
@@ -422,6 +422,7 @@ static PHP_METHOD(swoole_redis_server, format)
             swString_append_ptr(format_buffer, Z_STRVAL_P(item), Z_STRLEN_P(item));
             swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
             SW_RETURN_STRINGL(format_buffer->str, format_buffer->length, 1);
+            (void) keytype;
         SW_HASHTABLE_FOREACH_END();
     }
     else
