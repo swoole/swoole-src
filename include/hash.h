@@ -63,24 +63,34 @@ static inline uint64_t swoole_hash_jenkins(char *key, uint32_t keylen)
     {
     case 11:
         hashv += ((unsigned) key[10] << 24);
+        /* no break */
     case 10:
         hashv += ((unsigned) key[9] << 16);
+        /* no break */
     case 9:
         hashv += ((unsigned) key[8] << 8);
+        /* no break */
     case 8:
         j += ((unsigned) key[7] << 24);
+        /* no break */
     case 7:
         j += ((unsigned) key[6] << 16);
+        /* no break */
     case 6:
         j += ((unsigned) key[5] << 8);
+        /* no break */
     case 5:
         j += key[4];
+        /* no break */
     case 4:
         i += ((unsigned) key[3] << 24);
+        /* no break */
     case 3:
         i += ((unsigned) key[2] << 16);
+        /* no break */
     case 2:
         i += ((unsigned) key[1] << 8);
+        /* no break */
     case 1:
         i += key[0];
     }
@@ -118,8 +128,10 @@ static inline uint32_t swoole_hash_austin(char *key, unsigned int keylen)
     {
     case 3:
         h ^= key[2] << 16;
+        /* no break */
     case 2:
         h ^= key[1] << 8;
+        /* no break */
     case 1:
         h ^= key[0];
         h *= 0x5bd1e995;
@@ -181,11 +193,17 @@ static inline uint64_t swoole_hash_php(char *key, uint32_t len)
     switch (len)
     {
         case 7: hash = ((hash << 5) + hash) + *key++; /* fallthrough... */
+        /* no break */
         case 6: hash = ((hash << 5) + hash) + *key++; /* fallthrough... */
+        /* no break */
         case 5: hash = ((hash << 5) + hash) + *key++; /* fallthrough... */
+        /* no break */
         case 4: hash = ((hash << 5) + hash) + *key++; /* fallthrough... */
+        /* no break */
         case 3: hash = ((hash << 5) + hash) + *key++; /* fallthrough... */
+        /* no break */
         case 2: hash = ((hash << 5) + hash) + *key++; /* fallthrough... */
+        /* no break */
         case 1: hash = ((hash << 5) + hash) + *key++; break;
         case 0: break;
         default: break;
