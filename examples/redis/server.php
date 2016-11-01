@@ -17,36 +17,36 @@ else
 $server->setHandler('GET', function ($data) use ($server) {
     if (count($data) == 0)
     {
-        return $server->format(Server::ERROR, "ERR wrong number of arguments for 'GET' command");
+        return Server::format(Server::ERROR, "ERR wrong number of arguments for 'GET' command");
     }
         
     $key = $data[0];
     if (empty($server->data[$key]))
     {
-        return $server->format(Server::NIL);
+        return Server::format(Server::NIL);
     }
     else
     {
-        return $server->format(Server::STRING, $server->data[$key]);
+        return Server::format(Server::STRING, $server->data[$key]);
     }
 });
 
 $server->setHandler('SET', function ($data) use ($server) {
     if (count($data) < 2)
     {
-        return $server->format(Server::ERROR, "ERR wrong number of arguments for 'SET' command");
+        return Server::format(Server::ERROR, "ERR wrong number of arguments for 'SET' command");
     }
 
     $key = $data[0];
     $server->data[$key] = $data[1];
-    return $server->format(Server::STATUS, 'OK');
+    return Server::format(Server::STATUS, 'OK');
 });
 
 $server->setHandler('sAdd', function ($data) use ($server) {
 
     if (count($data) < 2)
     {
-        return $server->format(Server::ERROR, "ERR wrong number of arguments for 'sAdd' command");
+        return Server::format(Server::ERROR, "ERR wrong number of arguments for 'sAdd' command");
     }
 
     $key = $data[0];
@@ -66,27 +66,27 @@ $server->setHandler('sAdd', function ($data) use ($server) {
         }
     }
 
-    return $server->format(Server::INT, $count);
+    return Server::format(Server::INT, $count);
 });
 
 $server->setHandler('sMembers', function ($data) use ($server) {
     if (count($data) < 1)
     {
-        return $server->format(Server::ERROR, "ERR wrong number of arguments for 'sMembers' command");
+        return Server::format(Server::ERROR, "ERR wrong number of arguments for 'sMembers' command");
     }
     $key = $data[0];
     if (!isset($server->data[$key]))
     {
-        return $server->format(Server::NIL);
+        return Server::format(Server::NIL);
     }
-    return $server->format(Server::SET, array_keys($server->data[$key]));
+    return Server::format(Server::SET, array_keys($server->data[$key]));
 });
 
 $server->setHandler('hSet', function ($data) use ($server) {
 
     if (count($data) < 3)
     {
-        return $server->format(Server::ERROR, "ERR wrong number of arguments for 'hSet' command");
+        return Server::format(Server::ERROR, "ERR wrong number of arguments for 'hSet' command");
     }
 
     $key = $data[0];
@@ -98,20 +98,20 @@ $server->setHandler('hSet', function ($data) use ($server) {
     $value = $data[2];
     $count = !isset($server->data[$key][$field]) ? 1 : 0;
     $server->data[$key][$field] = $value;
-    return $server->format(Server::INT, $count);
+    return Server::format(Server::INT, $count);
 });
 
 $server->setHandler('hGetAll', function ($data) use ($server) {
     if (count($data) < 1)
     {
-        return $server->format(Server::ERROR, "ERR wrong number of arguments for 'hGetAll' command");
+        return Server::format(Server::ERROR, "ERR wrong number of arguments for 'hGetAll' command");
     }
     $key = $data[0];
     if (!isset($server->data[$key]))
     {
-        return $server->format(Server::NIL);
+        return Server::format(Server::NIL);
     }
-    return $server->format(Server::MAP, $server->data[$key]);
+    return Server::format(Server::MAP, $server->data[$key]);
 });
 
 $server->on('WorkerStart', function ($server) {
