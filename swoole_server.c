@@ -623,9 +623,7 @@ static int php_swoole_onPacket(swServer *serv, swEventData *req)
     zval *retval = NULL;
     swDgramPacket *packet;
 
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SW_GET_TSRMLS();
 
     SW_MAKE_STD_ZVAL(zdata);
     SW_MAKE_STD_ZVAL(zaddr);

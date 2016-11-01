@@ -181,6 +181,10 @@ typedef struct _swListenPort
      */
     uint32_t open_mqtt_protocol :1;
     /**
+     *  redis protocol
+     */
+    uint32_t open_redis_protocol :1;
+    /**
      * open tcp nodelay option
      */
     uint32_t open_tcp_nodelay :1;

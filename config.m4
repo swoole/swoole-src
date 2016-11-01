@@ -259,7 +259,8 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_http_client.c \
         swoole_mysql.c \
         swoole_redis.c \
-        swoole_module.c \
+        swoole_redis_server.c \
+	swoole_module.c \
         src/core/base.c \
         src/core/log.c \
         src/core/hashmap.c \
@@ -320,6 +321,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/Mqtt.c \
         src/protocol/Socks5.c \
         src/protocol/MimeTypes.c \
+        src/protocol/Redis.c \
         src/protocol/Base64.c"
 
     swoole_source_file="$swoole_source_file thirdparty/php_http_parser.c"

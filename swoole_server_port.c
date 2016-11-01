@@ -169,6 +169,12 @@ static PHP_METHOD(swoole_server_port, set)
         convert_to_boolean(v);
         port->open_mqtt_protocol = Z_BVAL_P(v);
     }
+    //redis protocol
+    if (php_swoole_array_get_value(vht, "open_redis_protocol", v))
+    {
+        convert_to_boolean(v);
+        port->open_redis_protocol = Z_BVAL_P(v);
+    }
     //tcp_keepidle
     if (php_swoole_array_get_value(vht, "tcp_keepidle", v))
     {

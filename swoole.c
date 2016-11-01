@@ -667,6 +667,7 @@ PHP_MINIT_FUNCTION(swoole)
 #ifdef SW_USE_REDIS
     swoole_redis_init(module_number TSRMLS_CC);
 #endif
+    swoole_redis_server_init(module_number TSRMLS_CC);
 
     if (SWOOLE_G(socket_buffer_size) > 0)
     {

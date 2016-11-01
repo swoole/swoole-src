@@ -119,6 +119,7 @@ typedef unsigned long ulong_t;
 #define SW_END_LINE    "-------------------------END------------------------------"
 #define SW_SPACE       ' '
 #define SW_CRLF        "\r\n"
+#define SW_CRLF_LEN    2
 #define SW_ASCII_CODE_0     64
 #define SW_ASCII_CODE_Z     106
 /*----------------------------------------------------------------------------*/
@@ -288,9 +289,9 @@ snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str " Error: %s[%d].",__func__,_
 swLog_put(SW_LOG_ERROR, sw_error);\
 SwooleGS->lock_2.unlock(&SwooleGS->lock_2)
 
-#define swoole_error_log(level, errno, str, ...)      do{SwooleG.error=errno;\
+#define swoole_error_log(level, __errno, str, ...)      do{SwooleG.error=__errno;\
     if (level >= SwooleG.log_level){\
-    snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s (ERROR %d): " str,__func__,errno,##__VA_ARGS__);\
+    snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s (ERROR %d): " str,__func__,__errno,##__VA_ARGS__);\
     SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
     swLog_put( SW_LOG_ERROR, sw_error);\
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}}while(0)

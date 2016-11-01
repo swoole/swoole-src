@@ -337,6 +337,7 @@ void swoole_http_client_init(int module_number TSRMLS_DC);
 #ifdef SW_USE_REDIS
 void swoole_redis_init(int module_number TSRMLS_DC);
 #endif
+void swoole_redis_server_init(int module_number TSRMLS_DC);
 void swoole_process_init(int module_number TSRMLS_DC);
 void swoole_http_server_init(int module_number TSRMLS_DC);
 void swoole_websocket_init(int module_number TSRMLS_DC);
