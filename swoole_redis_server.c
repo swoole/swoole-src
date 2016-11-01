@@ -139,6 +139,12 @@ static int redis_onReceive(swServer *serv, swEventData *req)
                 state = SW_REDIS_RECEIVE_STRING;
                 break;
             }
+            //integer
+            else if (*p == ':' && (p = swRedis_get_number(p, &ret)))
+            {
+                add_next_index_long(zparams, ret);
+                break;
+            }
             /* no break */
 
         case SW_REDIS_RECEIVE_STRING:

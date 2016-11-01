@@ -131,6 +131,11 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
                     request->state = SW_REDIS_RECEIVE_STRING;
                     break;
                 }
+                //integer
+                else if (*p == ':' && (p = swRedis_get_number(p, &ret)))
+                {
+                    break;
+                }
                 /* no break */
 
             case SW_REDIS_RECEIVE_STRING:
