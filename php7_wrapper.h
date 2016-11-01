@@ -57,7 +57,7 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 #define sw_zend_hash_index_update             zend_hash_index_update
 #define sw_call_user_function_ex              call_user_function_ex
 #define sw_copy_to_stack(a, b)
-#define SW_GET_TSRMLS()                       TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL)
+#define SW_GET_TSRMLS                         TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL)
 
 //----------------------------------Array API------------------------------------
 #define sw_add_assoc_string                   add_assoc_string
