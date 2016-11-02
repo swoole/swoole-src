@@ -469,6 +469,7 @@ struct _swServer
     int (*send)(swServer *serv, int fd, void *data, uint32_t length);
     int (*sendfile)(swServer *serv, int fd, char *filename, uint32_t length, off_t offset);
     int (*sendwait)(swServer *serv, int fd, void *data, uint32_t length);
+    int (*close)(swServer *serv, int fd, int reset);
     int (*dispatch_func)(swServer *, swConnection *, char *, uint32_t);
 };
 
@@ -546,6 +547,7 @@ static sw_inline swListenPort* swServer_get_port(swServer *serv, int fd)
 int swServer_udp_send(swServer *serv, swSendData *resp);
 int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length);
 int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length);
+int swServer_tcp_close(swServer *serv, int fd, int reset);
 int swServer_tcp_sendfile(swServer *serv, int fd, char *filename, uint32_t len, off_t offset);
 int swServer_confirm(swServer *serv, int fd);
 

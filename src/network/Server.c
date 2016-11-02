@@ -601,6 +601,7 @@ int swServer_start(swServer *serv)
     serv->send = swServer_tcp_send;
     serv->sendwait = swServer_tcp_sendwait;
     serv->sendfile = swServer_tcp_sendfile;
+    serv->close = swServer_tcp_close;
 
     serv->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
     if (serv->workers == NULL)
@@ -973,6 +974,35 @@ int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length)
         return SW_ERR;
     }
     return swSocket_write_blocking(conn->fd, data, length);
+}
+
+int swServer_tcp_close(swServer *serv, int fd, int reset)
+{
+    swConnection *conn = swServer_connection_verify_no_ssl(serv, fd);
+    if (!conn)
+    {
+        return SW_ERR;
+    }
+    //Reset send buffer, Immediately close the connection.
+    if (reset)
+    {
+        conn->close_reset = 1;
+    }
+    int ret;
+    if (!swIsWorker())
+    {
+        swWorker *worker = swServer_get_worker(serv, conn->fd % serv->worker_num);
+        swDataHead ev;
+        ev.type = SW_EVENT_CLOSE;
+        ev.fd = fd;
+        ev.from_id = conn->from_id;
+        ret = swWorker_send2worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
+    }
+    else
+    {
+        ret = serv->factory.end(&serv->factory, fd);
+    }
+    return ret;
 }
 
 void swServer_signal_init(void)

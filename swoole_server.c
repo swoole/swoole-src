@@ -1998,33 +1998,7 @@ PHP_METHOD(swoole_server, close)
     }
 
     swServer *serv = swoole_get_object(zobject);
-    swConnection *conn = swServer_connection_verify_no_ssl(serv, fd);
-    if (!conn)
-    {
-        RETURN_FALSE;
-    }
-
-    //Reset send buffer, Immediately close the connection.
-    if (reset)
-    {
-        conn->close_reset = 1;
-    }
-
-    int ret;
-    if (!swIsWorker())
-    {
-        swWorker *worker = swServer_get_worker(serv, conn->fd % serv->worker_num);
-        swDataHead ev;
-        ev.type = SW_EVENT_CLOSE;
-        ev.fd = fd;
-        ev.from_id = conn->from_id;
-        ret = swWorker_send2worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
-    }
-    else
-    {
-        ret = serv->factory.end(&serv->factory, fd);
-    }
-    SW_CHECK_RETURN(ret);
+    SW_CHECK_RETURN(serv->close(serv, (int )fd, (int )reset));
 }
 
 PHP_METHOD(swoole_server, confirm)
