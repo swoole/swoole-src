@@ -169,6 +169,13 @@ static int redis_onReceive(swServer *serv, swEventData *req)
 
     _current_fd = req->info.fd;
 
+    if (command_len >= SW_REDIS_MAX_COMMAND_SIZE)
+    {
+        swoole_php_error(E_WARNING, "command is too long.");
+        serv->close(serv, _current_fd, 0);
+        return SW_OK;
+    }
+
     char _command[SW_REDIS_MAX_COMMAND_SIZE];
     command[command_len] = 0;
     int _command_len = snprintf(_command, sizeof(_command), "_handler_%*s", command_len, command);
@@ -190,7 +197,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     args[0] = &zparams;
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        swoole_php_error(E_WARNING, "onRequest handler error");
+        swoole_php_error(E_WARNING, "command handler error.");
     }
     if (EG(exception))
     {
@@ -201,7 +208,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     {
         if (Z_TYPE_P(retval) == IS_STRING)
         {
-            swServer_tcp_send(serv, _current_fd, Z_STRVAL_P(retval), Z_STRLEN_P(retval));
+            serv->send(serv, _current_fd, Z_STRVAL_P(retval), Z_STRLEN_P(retval));
         }
         sw_zval_ptr_dtor(&retval);
     }
