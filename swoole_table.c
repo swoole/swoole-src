@@ -608,7 +608,9 @@ static PHP_METHOD(swoole_table, current)
         RETURN_FALSE;
     }
     swTableRow *row = swTable_iterator_current(table);
+    sw_spinlock(&row->lock);
     php_swoole_table_row2array(table, row, return_value);
+    sw_spinlock_release(&row->lock);
 }
 
 static PHP_METHOD(swoole_table, key)
