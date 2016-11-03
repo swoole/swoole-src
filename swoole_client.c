@@ -508,7 +508,7 @@ void php_swoole_at_shutdown(char *function)
         swoole_php_fatal_error(E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
     }
 #else
-    
+
     zval *callback;
     SW_MAKE_STD_ZVAL(callback);
     SW_ZVAL_STRING(callback, "swoole_event_wait", 1);
@@ -546,7 +546,7 @@ void php_swoole_at_shutdown(char *function)
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
 #endif
-    
+
 #endif
 }
 
@@ -1243,6 +1243,11 @@ static PHP_METHOD(swoole_client, recv)
         //empty package
         else if (buf_len == header_len)
         {
+            SW_RETURN_STRINGL(stack_buf, header_len, 1);
+        }
+        else if (buf_len > protocol->package_max_length)
+        {
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "Package is too big. package_length=%d", (int )buf_len);
             RETURN_EMPTY_STRING();
         }
 
