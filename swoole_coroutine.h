@@ -31,6 +31,10 @@
 #define CORO_LIMIT 2
 #define CORO_SAVE 3
 
+
+#define SW_EX_CV_NUM(ex, n) (((zval ***)(((char *)(ex)) + ZEND_MM_ALIGNED_SIZE(sizeof(zend_execute_data)))) + n)
+#define SW_EX_CV(var) (*SW_EX_CV_NUM(execute_data, var))
+
 typedef struct _php_context php_context;
 typedef struct _coro_task coro_task;
 

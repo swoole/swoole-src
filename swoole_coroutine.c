@@ -22,8 +22,6 @@
 #include "swoole_coroutine.h"
 
 #define SWCC(x) sw_current_context->x
-#define SW_EX_CV_NUM(ex, n) (((zval ***)(((char *)(ex)) + ZEND_MM_ALIGNED_SIZE(sizeof(zend_execute_data)))) + n)
-#define SW_EX_CV(var) (*SW_EX_CV_NUM(execute_data, var))
 
 jmp_buf *swReactorCheckPoint;
 coro_global COROG;

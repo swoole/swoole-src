@@ -49,6 +49,67 @@ static void swoole_coroutine_util_resume(void *data)
 	efree(context);
 }
 
+#if ZEND_MODULE_API_NO <= 20121212
+#define zend_create_execute_data_from_op_array sw_zend_create_execute_data_from_op_array
+zend_execute_data *sw_zend_create_execute_data_from_op_array(zend_op_array *op_array, zend_bool nested)
+{
+	zend_execute_data *execute_data;
+
+	size_t execute_data_size = ZEND_MM_ALIGNED_SIZE(sizeof(zend_execute_data));
+	size_t CVs_size = ZEND_MM_ALIGNED_SIZE(sizeof(zval **) * op_array->last_var * (EG(active_symbol_table) ? 1 : 2));
+	size_t Ts_size = ZEND_MM_ALIGNED_SIZE(sizeof(temp_variable)) * op_array->T;
+	size_t call_slots_size = ZEND_MM_ALIGNED_SIZE(sizeof(call_slot)) * op_array->nested_calls;
+	size_t stack_size = ZEND_MM_ALIGNED_SIZE(sizeof(zval*)) * op_array->used_stack;
+	size_t total_size = execute_data_size + Ts_size + CVs_size + call_slots_size + stack_size;
+
+        execute_data = zend_vm_stack_alloc(total_size TSRMLS_CC);
+        execute_data = (zend_execute_data*)((char*)execute_data + Ts_size);
+        execute_data->prev_execute_data = EG(current_execute_data);
+
+
+        memset(EX_CV_NUM(execute_data, 0), 0, sizeof(zval **) * op_array->last_var);
+
+	execute_data->call_slots = (call_slot*)((char *)execute_data + execute_data_size + CVs_size);
+
+
+	execute_data->op_array = op_array;
+
+	EG(argument_stack)->top = zend_vm_stack_frame_base(execute_data);
+
+	execute_data->object = NULL;
+	execute_data->current_this = NULL;
+	execute_data->old_error_reporting = NULL;
+	execute_data->symbol_table = EG(active_symbol_table);
+	execute_data->call = NULL;
+	EG(current_execute_data) = execute_data;
+	execute_data->nested = nested;
+
+	if (!op_array->run_time_cache && op_array->last_cache_slot) {
+		op_array->run_time_cache = ecalloc(op_array->last_cache_slot, sizeof(void*));
+	}
+
+	if (op_array->this_var != -1 && EG(This)) {
+ 		Z_ADDREF_P(EG(This)); /* For $this pointer */
+		if (!EG(active_symbol_table)) {
+			SW_EX_CV(op_array->this_var) = (zval **) SW_EX_CV_NUM(execute_data, op_array->last_var + op_array->this_var);
+			*SW_EX_CV(op_array->this_var) = EG(This);
+		} else {
+			if (zend_hash_add(EG(active_symbol_table), "this", sizeof("this"), &EG(This), sizeof(zval *), (void **) EX_CV_NUM(execute_data, op_array->this_var))==FAILURE) {
+				Z_DELREF_P(EG(This));
+			}
+		}
+	}
+
+	execute_data->opline = UNEXPECTED((op_array->fn_flags & ZEND_ACC_INTERACTIVE) != 0) && EG(start_op) ? EG(start_op) : op_array->opcodes;
+	EG(opline_ptr) = &(execute_data->opline);
+
+	execute_data->function_state.function = (zend_function *) op_array;
+	execute_data->function_state.arguments = NULL;
+
+	return execute_data;
+}
+#endif
+
 static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache, zval **return_value_ptr, zend_bool use_array, int return_value_used)
 {
     int i;
