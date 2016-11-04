@@ -550,7 +550,7 @@ static sw_inline void swServer_free_buffer(swServer *serv, int fd)
 
 static sw_inline swListenPort* swServer_get_port(swServer *serv, int fd)
 {
-    uint16_t server_fd = serv->connection_list[fd].from_fd;
+    sw_atomic_t server_fd = serv->connection_list[fd].from_fd;
     return (swListenPort*) serv->connection_list[server_fd].object;
 }
 

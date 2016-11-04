@@ -475,14 +475,14 @@ typedef struct _swConnection
     uint16_t from_id;
 
     /**
-     * from which socket fd
-     */
-    uint16_t from_fd;
-
-    /**
      * close error code
      */
     uint16_t close_errno;
+
+    /**
+     * from which socket fd
+     */
+    sw_atomic_t from_fd;
 
     /**
      * socket address

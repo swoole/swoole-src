@@ -1351,7 +1351,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
 
     connection->fd = fd;
     connection->from_id = serv->factory_mode == SW_MODE_SINGLE ? SwooleWG.id : reactor_id;
-    connection->from_fd = (uint16_t) from_fd;
+    connection->from_fd = (sw_atomic_t) from_fd;
     connection->connect_time = SwooleGS->now;
     connection->last_time = SwooleGS->now;
     connection->active = 1;
