@@ -799,6 +799,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
 
     if (cli->redirect)
     {
+        int ret;
         n = swConnection_recv(event->socket, buf, buf_size, 0);
         if (n < 0)
         {
@@ -810,18 +811,29 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
         }
         if (cli->_redirect_to_socket)
         {
-            SwooleG.main_reactor->write(SwooleG.main_reactor, cli->_redirect_to_socket, buf, n);
+            ret = SwooleG.main_reactor->write(SwooleG.main_reactor, cli->_redirect_to_socket, buf, n);
         }
         else if (cli->_redirect_to_session)
         {
-            SwooleG.serv->send(SwooleG.serv, cli->_redirect_to_session, buf, n);
+            if (SwooleG.serv->send(SwooleG.serv, cli->_redirect_to_session, buf, n) < 0)
+            {
+                if (SwooleG.error >= SW_ERROR_SESSION_CLOSED_BY_SERVER || SwooleG.error >= SW_ERROR_SESSION_INVALID_ID)
+                {
+                    goto __close;
+                }
+            }
+            else
+            {
+                return SW_OK;
+            }
         }
         else
         {
-            if (swSocket_write_blocking(cli->_redirect_to_file, buf, n) < 0)
-            {
-                return SW_ERR;
-            }
+            ret = swSocket_write_blocking(cli->_redirect_to_file, buf, n);
+        }
+        if (ret < 0)
+        {
+            goto __error;
         }
         return SW_OK;
     }

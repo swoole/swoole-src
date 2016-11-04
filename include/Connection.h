@@ -177,6 +177,7 @@ static sw_inline int swConnection_error(int err)
     case EFAULT:
         abort();
         return SW_ERROR;
+    case EBADF:
 	case ECONNRESET:
 	case EPIPE:
 	case ENOTCONN:
