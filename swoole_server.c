@@ -432,6 +432,14 @@ void php_swoole_register_callback(swServer *serv)
     {
         serv->onPipeMessage = php_swoole_onPipeMessage;
     }
+    if (php_sw_server_callbacks[SW_SERVER_CB_onBufferFull] != NULL)
+    {
+        serv->onBufferFull = php_swoole_onBufferFull;
+    }
+    if (php_sw_server_callbacks[SW_SERVER_CB_onBufferEmpty] != NULL)
+    {
+        serv->onBufferEmpty = php_swoole_onBufferEmpty;
+    }
 }
 
 static int php_swoole_task_finish(swServer *serv, zval *data TSRMLS_DC)
@@ -623,7 +631,7 @@ static int php_swoole_onPacket(swServer *serv, swEventData *req)
     zval *retval = NULL;
     swDgramPacket *packet;
 
-    SW_GET_TSRMLS;
+    SWOOLE_GET_TSRMLS;
 
     SW_MAKE_STD_ZVAL(zdata);
     SW_MAKE_STD_ZVAL(zaddr);
@@ -1158,9 +1166,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
         return;
     }
 
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SWOOLE_GET_TSRMLS;
 
     SW_MAKE_STD_ZVAL(zfd);
     ZVAL_LONG(zfd, info->fd);
@@ -1174,7 +1180,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
 
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "onClose handler error");
+        swoole_php_fatal_error(E_WARNING, "swoole_server: onClose handler error");
     }
     if (EG(exception))
     {
@@ -1182,6 +1188,78 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
     }
     sw_zval_ptr_dtor(&zfd);
     sw_zval_ptr_dtor(&zfrom_id);
+    if (retval != NULL)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+}
+
+void php_swoole_onBufferFull(swServer *serv, swDataHead *info)
+{
+    zval *zserv = (zval *) serv->ptr2;
+    zval *zfd;
+    zval **args[2];
+    zval *retval = NULL;
+
+    zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onBufferFull);
+    if (!callback)
+    {
+        return;
+    }
+
+    SWOOLE_GET_TSRMLS;
+
+    SW_MAKE_STD_ZVAL(zfd);
+    ZVAL_LONG(zfd, info->fd);
+
+    args[0] = &zserv;
+    args[1] = &zfd;
+
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+    {
+        swoole_php_error(E_WARNING, "swoole_server: onConnect handler error");
+    }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+    }
+    sw_zval_ptr_dtor(&zfd);
+    if (retval != NULL)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+}
+
+void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
+{
+    zval *zserv = (zval *) serv->ptr2;
+    zval *zfd;
+    zval **args[2];
+    zval *retval = NULL;
+
+    zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onBufferEmpty);
+    if (!callback)
+    {
+        return;
+    }
+
+    SWOOLE_GET_TSRMLS;
+
+    SW_MAKE_STD_ZVAL(zfd);
+    ZVAL_LONG(zfd, info->fd);
+
+    args[0] = &zserv;
+    args[1] = &zfd;
+
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+    {
+        swoole_php_error(E_WARNING, "swoole_server: onBufferEmpty handler error");
+    }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+    }
+    sw_zval_ptr_dtor(&zfd);
     if (retval != NULL)
     {
         sw_zval_ptr_dtor(&retval);
@@ -1613,6 +1691,8 @@ PHP_METHOD(swoole_server, on)
         NULL,
         NULL,
         NULL,
+        "BufferFull",
+        "BufferEmpty",
     };
 
     int i;

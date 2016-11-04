@@ -59,6 +59,12 @@ enum swEventType
     SW_EVENT_PROXY_START     = 16,
     SW_EVENT_PROXY_END       = 17,
     SW_EVENT_CONFIRM         = 18,
+    //event operate
+    SW_EVENT_PAUSE_RECV,
+    SW_EVENT_RESUME_RECV,
+    //buffer event
+    SW_EVENT_BUFFER_FULL,
+    SW_EVENT_BUFFER_EMPTY,
 };
 
 enum swIPCType
@@ -148,6 +154,8 @@ typedef struct _swListenPort
     int tcp_keepcount;
 
     int socket_buffer_size;
+    uint32_t buffer_high_watermark;
+    uint32_t buffer_low_watermark;
 
     uint8_t type;
     uint8_t ssl;
@@ -460,6 +468,8 @@ struct _swServer
     int (*onPacket)(swServer *, swEventData *);
     void (*onClose)(swServer *serv, swDataHead *);
     void (*onConnect)(swServer *serv, swDataHead *);
+    void (*onBufferFull)(swServer *serv, swDataHead *);
+    void (*onBufferEmpty)(swServer *serv, swDataHead *);
     /**
      * Task Worker
      */
@@ -549,6 +559,7 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length);
 int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length);
 int swServer_tcp_close(swServer *serv, int fd, int reset);
 int swServer_tcp_sendfile(swServer *serv, int fd, char *filename, uint32_t len, off_t offset);
+int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
 int swServer_confirm(swServer *serv, int fd);
 
 //UDP, UDP必然超过0x1000000
@@ -581,6 +592,10 @@ static sw_inline int swEventData_is_stream(uint8_t type)
     case SW_EVENT_PACKAGE_END:
     case SW_EVENT_CONNECT:
     case SW_EVENT_CLOSE:
+    case SW_EVENT_PAUSE_RECV:
+    case SW_EVENT_RESUME_RECV:
+    case SW_EVENT_BUFFER_FULL:
+    case SW_EVENT_BUFFER_EMPTY:
         return SW_TRUE;
     default:
         return SW_FALSE;
@@ -834,19 +849,6 @@ static sw_inline swConnection *swServer_connection_verify(swServer *serv, int se
     }
 #endif
     return conn;
-}
-
-static sw_inline void swServer_connection_ready(swServer *serv, int fd, int reactor_id)
-{
-    swDataHead connect_event;
-    connect_event.type = SW_EVENT_CONNECT;
-    connect_event.from_id = reactor_id;
-    connect_event.fd = fd;
-
-    if (serv->factory.notify(&serv->factory, &connect_event) < 0)
-    {
-        swWarn("send notification [fd=%d] failed.", fd);
-    }
 }
 
 void swPort_init(swListenPort *port);

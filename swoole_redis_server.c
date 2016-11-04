@@ -94,7 +94,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
         return php_swoole_onReceive(serv, req);
     }
 
-    SW_GET_TSRMLS;
+    SWOOLE_GET_TSRMLS;
 
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);

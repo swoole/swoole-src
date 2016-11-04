@@ -387,13 +387,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
 {
     int fd = event->fd;
-    swDataHead notify_ev;
-    bzero(&notify_ev, sizeof(notify_ev));
-
-    notify_ev.from_id = reactor->id;
-    notify_ev.fd = fd;
-    notify_ev.type = SW_EVENT_CLOSE;
-
+    swServer *serv = reactor->ptr;
     swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
     if (conn == NULL || conn->active == 0)
     {
@@ -401,7 +395,7 @@ int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
     }
     if (reactor->del(reactor, fd) == 0)
     {
-        return SwooleG.factory->notify(SwooleG.factory, &notify_ev);
+        return swServer_tcp_notify(serv, conn, SW_EVENT_CLOSE);
     }
     else
     {

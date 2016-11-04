@@ -458,6 +458,7 @@ typedef struct _swConnection
 
     uint32_t removed :1;
     uint32_t overflow :1;
+    uint32_t high_watermark :1;
 
     uint32_t tcp_nopush :1;
     uint32_t tcp_nodelay :1;

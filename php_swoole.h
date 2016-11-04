@@ -155,6 +155,8 @@ enum php_swoole_client_callback_type
     SW_CLIENT_CB_onReceive,
     SW_CLIENT_CB_onClose,
     SW_CLIENT_CB_onError,
+    SW_CLIENT_CB_onBufferFull,
+    SW_CLIENT_CB_onBufferEmpty,
 #ifdef SW_USE_OPENSSL
     SW_CLIENT_CB_onSSLReady,
 #endif
@@ -183,10 +185,13 @@ enum php_swoole_server_callback_type
     SW_SERVER_CB_onHandShake,      //worker(event)
     SW_SERVER_CB_onOpen,           //worker(event)
     SW_SERVER_CB_onMessage,        //worker(event)
+    //--------------------------Buffer Event----------------------------
+    SW_SERVER_CB_onBufferFull,     //worker(event)
+    SW_SERVER_CB_onBufferEmpty,    //worker(event)
     //-------------------------------END--------------------------------
 };
 
-#define PHP_SERVER_CALLBACK_NUM             (SW_SERVER_CB_onMessage+1)
+#define PHP_SERVER_CALLBACK_NUM             (SW_SERVER_CB_onBufferEmpty+1)
 
 typedef struct
 {
@@ -394,9 +399,11 @@ php_socket *swoole_convert_to_socket(int sock);
 void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC);
 void php_swoole_get_recv_data(zval *zdata, swEventData *req, char *header, uint32_t header_length);
 int php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC);
-void php_swoole_onConnect(swServer *serv, swDataHead *);
-int php_swoole_onReceive(swServer *serv, swEventData *req);
+void php_swoole_onConnect(swServer *, swDataHead *);
+int php_swoole_onReceive(swServer *, swEventData *);
 void php_swoole_onClose(swServer *, swDataHead *);
+void php_swoole_onBufferFull(swServer *, swDataHead *);
+void php_swoole_onBufferEmpty(swServer *, swDataHead *);
 
 static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type)
 {

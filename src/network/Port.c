@@ -135,6 +135,10 @@ int swPort_listen(swListenPort *ls)
 #endif
     }
 #endif
+
+    ls->buffer_high_watermark = ls->socket_buffer_size * 0.8;
+    ls->buffer_low_watermark = 0;
+
     return SW_OK;
 }
 

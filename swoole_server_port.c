@@ -96,6 +96,16 @@ static PHP_METHOD(swoole_server_port, set)
         convert_to_long(v);
         port->socket_buffer_size = (int) Z_LVAL_P(v);
     }
+    if (php_swoole_array_get_value(vht, "buffer_high_watermark", v))
+    {
+        convert_to_long(v);
+        port->buffer_high_watermark = (int) Z_LVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "buffer_low_watermark", v))
+    {
+        convert_to_long(v);
+        port->buffer_low_watermark = (int) Z_LVAL_P(v);
+    }
     //tcp_nodelay
     if (php_swoole_array_get_value(vht, "open_tcp_nodelay", v))
     {
@@ -393,6 +403,8 @@ static PHP_METHOD(swoole_server_port, on)
         "HandShake",
         "Open",
         "Message",
+        "BufferFull",
+        "BufferEmpty",
     };
 
     char property_name[128];
@@ -421,6 +433,14 @@ static PHP_METHOD(swoole_server_port, on)
             else if (i == SW_SERVER_CB_onClose && SwooleG.serv->onClose == NULL)
             {
                 SwooleG.serv->onClose = php_swoole_onClose;
+            }
+            else if (i == SW_SERVER_CB_onBufferFull && SwooleG.serv->onBufferFull == NULL)
+            {
+                SwooleG.serv->onBufferFull = php_swoole_onBufferFull;
+            }
+            else if (i == SW_SERVER_CB_onBufferEmpty && SwooleG.serv->onBufferEmpty == NULL)
+            {
+                SwooleG.serv->onBufferEmpty = php_swoole_onBufferEmpty;
             }
             break;
         }

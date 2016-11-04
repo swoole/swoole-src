@@ -91,9 +91,7 @@ static void client_onBufferEmpty(swClient *cli);
 
 static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_client_callback_type type)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SWOOLE_GET_TSRMLS;
 
     zval *callback = NULL;
     zval *retval = NULL;
@@ -430,8 +428,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
     {
         convert_to_long(v);
         value = (int) Z_LVAL_P(v);
-        swSocket_set_buffer_size(cli->socket->fd, value);
-        cli->socket->buffer_size = cli->buffer_input_size = value;
+        cli->buffer_high_watermark = value;
     }
     if (php_swoole_array_get_value(vht, "buffer_low_watermark", v))
     {

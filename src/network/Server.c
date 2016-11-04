@@ -192,7 +192,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
             }
             if (ret >= 0 && serv->onConnect && !listen_host->ssl)
             {
-                swServer_connection_ready(serv, new_fd, reactor->id);
+                swServer_tcp_notify(serv, conn, SW_EVENT_CONNECT);
             }
         }
 
@@ -931,6 +931,16 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length)
     return SW_OK;
 }
 
+int swServer_tcp_notify(swServer *serv, swConnection *conn, int event)
+{
+    swDataHead notify_event;
+    notify_event.type = event;
+    notify_event.from_id = conn->from_id;
+    notify_event.fd = conn->fd;
+    notify_event.from_fd = conn->from_fd;
+    return serv->factory.notify(&serv->factory, &notify_event);
+}
+
 int swServer_tcp_sendfile(swServer *serv, int fd, char *filename, uint32_t len, off_t offset)
 {
 #ifdef SW_USE_OPENSSL
@@ -1237,7 +1247,6 @@ static void swHeartbeatThread_loop(swThreadParam *param)
     swSignal_none();
 
     swServer *serv = param->object;
-    swDataHead notify_ev;
     swConnection *conn;
     swReactor *reactor;
 
@@ -1248,9 +1257,6 @@ static void swHeartbeatThread_loop(swThreadParam *param)
 
     SwooleTG.type = SW_THREAD_HEARTBEAT;
     SwooleTG.id = serv->reactor_num;
-
-    bzero(&notify_ev, sizeof(notify_ev));
-    notify_ev.type = SW_EVENT_CLOSE;
 
     while (SwooleG.running)
     {
@@ -1270,9 +1276,6 @@ static void swHeartbeatThread_loop(swThreadParam *param)
                 {
                     continue;
                 }
-
-                notify_ev.fd = fd;
-                notify_ev.from_id = conn->from_id;
 
                 conn->close_force = 1;
                 conn->close_notify = 1;
@@ -1296,7 +1299,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
                 //notify to reactor thread
                 if (conn->removed)
                 {
-                    serv->factory.notify(&serv->factory, &notify_ev);
+                    swServer_tcp_notify(serv, conn, SW_EVENT_CLOSE);
                 }
                 else
                 {

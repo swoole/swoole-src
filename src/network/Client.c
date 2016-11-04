@@ -128,8 +128,8 @@ int swClient_create(swClient *cli, int type, int async)
             cli->send = swClient_tcp_send_async;
             cli->sendfile = swClient_tcp_sendfile_async;
             cli->pipe = swClient_tcp_pipe;
-            cli->buffer_high_watermark = SwooleG.socket_buffer_size;
-            cli->buffer_low_watermark = SwooleG.socket_buffer_size / 2;
+            cli->buffer_high_watermark = SwooleG.socket_buffer_size * 0.8;
+            cli->buffer_low_watermark = 0;
         }
         else
         {
@@ -519,6 +519,7 @@ static int swClient_tcp_send_async(swClient *cli, char *data, int length, int fl
     {
         if (cli->onBufferFull && cli->socket->out_buffer->length >= cli->buffer_high_watermark)
         {
+            cli->socket->high_watermark = 1;
             cli->onBufferFull(cli);
         }
         return length;
@@ -922,23 +923,24 @@ static int swClient_onError(swReactor *reactor, swEvent *event)
 static int swClient_onWrite(swReactor *reactor, swEvent *event)
 {
     swClient *cli = event->socket->object;
+    swConnection *_socket = cli->socket;
 
     if (cli->socket->active)
     {
 #ifdef SW_USE_OPENSSL
-        if (cli->open_ssl && cli->socket->ssl_state == SW_SSL_STATE_WAIT_STREAM)
+        if (cli->open_ssl && _socket->ssl_state == SW_SSL_STATE_WAIT_STREAM)
         {
             if (swClient_ssl_handshake(cli) < 0)
             {
                 goto connect_fail;
             }
-            else if (cli->socket->ssl_state == SW_SSL_STATE_READY)
+            else if (_socket->ssl_state == SW_SSL_STATE_READY)
             {
                 goto connect_success;
             }
             else
             {
-                if (cli->socket->ssl_want_read)
+                if (_socket->ssl_want_read)
                 {
                     SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, SW_FD_STREAM_CLIENT | SW_EVENT_READ);
                 }
@@ -950,8 +952,9 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
         {
             return SW_ERR;
         }
-        if (cli->onBufferEmpty && cli->socket->out_buffer->length <= cli->buffer_low_watermark)
+        if (cli->onBufferEmpty && _socket->high_watermark && _socket->out_buffer->length <= cli->buffer_low_watermark)
         {
+            _socket->high_watermark = 0;
             cli->onBufferEmpty(cli);
         }
         return SW_OK;
@@ -970,7 +973,7 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
         //listen read event
         SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, SW_FD_STREAM_CLIENT | SW_EVENT_READ);
         //connected
-        cli->socket->active = 1;
+        _socket->active = 1;
         //socks5 proxy
         if (cli->socks5_proxy && cli->socks5_proxy->state == SW_SOCKS5_STATE_WAIT)
         {
@@ -992,7 +995,7 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
             }
             else
             {
-                cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
+                _socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
             }
             return SW_OK;
         }
