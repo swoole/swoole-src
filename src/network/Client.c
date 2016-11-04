@@ -797,9 +797,12 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
     }
 #endif
 
+    /**
+     * redirect stream data to other socket
+     */
     if (cli->redirect)
     {
-        int ret;
+        int ret = 0;
         n = swConnection_recv(event->socket, buf, buf_size, 0);
         if (n < 0)
         {
