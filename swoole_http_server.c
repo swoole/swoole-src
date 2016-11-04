@@ -1097,9 +1097,9 @@ static PHP_METHOD(swoole_http_server, on)
 #else
     zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
 #if PHP_MAJOR_VERSION < 7
-    if (!zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
+    if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
 #else
-    if (!zend_is_callable_ex(callback, NULL, 0, &func_name, func_cache, NULL TSRMLS_CC))
+    if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
 #endif
 #endif
     {

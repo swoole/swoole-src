@@ -295,8 +295,8 @@ static sw_inline int sw_zend_is_callable(zval *cb, int a, char **name)
 static inline int sw_zend_is_callable_ex(zval *callable, zval *object, uint check_flags, char **callable_name, int *callable_name_len, zend_fcall_info_cache *fcc, char **error TSRMLS_DC)
 {
     zend_string *key = NULL;
-    char *tmp = (char *)emalloc(key->len);
     int ret = zend_is_callable_ex(callable, NULL, check_flags, &key, fcc, error);
+    char *tmp = (char *)emalloc(key->len);
     memcpy(tmp, key->val, key->len);
     zend_string_release(key);
     *callable_name = tmp;

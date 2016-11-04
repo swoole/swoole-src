@@ -61,6 +61,7 @@ struct _php_context
 #else
     zval *current_vm_stack_top;
     zval *current_vm_stack_end;
+    zval *allocated_return_value_ptr;
 #endif
     coro_task *current_task;
     zend_vm_stack current_vm_stack;
@@ -75,6 +76,7 @@ typedef struct _coro_global
 #if PHP_MAJOR_VERSION >= 7
     zval *origin_vm_stack_top;
     zval *origin_vm_stack_end;
+    zval *allocated_return_value_ptr;
 #endif
     zend_execute_data *origin_ex;
     coro_task *current_coro;
