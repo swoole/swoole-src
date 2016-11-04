@@ -385,6 +385,7 @@ static sw_inline void* swoole_get_property(zval *object, int property_id)
 
 void swoole_set_object(zval *object, void *ptr);
 void swoole_set_property(zval *object, int property_id, void *ptr);
+int swoole_convert_to_fd(zval *zsocket);
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
 php_socket *swoole_convert_to_socket(int sock);

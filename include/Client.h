@@ -23,6 +23,11 @@
 #define SW_SOCK_ASYNC    1
 #define SW_SOCK_SYNC     0
 
+enum swClient_pipe_flag
+{
+    SW_CLIENT_PIPE_TCP_SESSION = 1,
+};
+
 typedef struct _swClient
 {
     int id;
@@ -32,10 +37,15 @@ typedef struct _swClient
     int _protocol;
     int reactor_fdtype;
 
+    int _redirect_to_file;
+    int _redirect_to_socket;
+    int _redirect_to_session;
+
     uint32_t async :1;
     uint32_t keep :1;
     uint32_t released :1;
     uint32_t destroyed :1;
+    uint32_t redirect :1;
 
     /**
      * one package: length check
@@ -89,6 +99,7 @@ typedef struct _swClient
     int (*send)(struct _swClient *cli, char *data, int length, int flags);
     int (*sendfile)(struct _swClient *cli, char *filename, off_t offset);
     int (*recv)(struct _swClient *cli, char *data, int len, int flags);
+    int (*pipe)(struct _swClient *cli, int write_fd, int is_session_id);
     int (*close)(struct _swClient *cli);
 
 } swClient;
