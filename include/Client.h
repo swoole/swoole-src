@@ -80,6 +80,9 @@ typedef struct _swClient
     uint32_t wait_length;
     uint32_t buffer_input_size;
 
+    uint32_t buffer_high_watermark;
+    uint32_t buffer_low_watermark;
+
 #ifdef SW_USE_OPENSSL
     uint8_t open_ssl :1;
     uint8_t ssl_disable_compress :1;
@@ -94,6 +97,8 @@ typedef struct _swClient
     void (*onError)(struct _swClient *cli);
     void (*onReceive)(struct _swClient *cli, char *data, uint32_t length);
     void (*onClose)(struct _swClient *cli);
+    void (*onBufferFull)(struct _swClient *cli);
+    void (*onBufferEmpty)(struct _swClient *cli);
 
     int (*connect)(struct _swClient *cli, char *host, int port, double _timeout, int sock_flag);
     int (*send)(struct _swClient *cli, char *data, int length, int flags);

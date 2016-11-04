@@ -128,6 +128,8 @@ int swClient_create(swClient *cli, int type, int async)
             cli->send = swClient_tcp_send_async;
             cli->sendfile = swClient_tcp_sendfile_async;
             cli->pipe = swClient_tcp_pipe;
+            cli->buffer_high_watermark = SwooleG.socket_buffer_size;
+            cli->buffer_low_watermark = SwooleG.socket_buffer_size / 2;
         }
         else
         {
@@ -515,6 +517,10 @@ static int swClient_tcp_send_async(swClient *cli, char *data, int length, int fl
     }
     else
     {
+        if (cli->onBufferFull && cli->socket->out_buffer->length >= cli->buffer_high_watermark)
+        {
+            cli->onBufferFull(cli);
+        }
         return length;
     }
 }
@@ -940,7 +946,15 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
             }
         }
 #endif
-        return swReactor_onWrite(SwooleG.main_reactor, event);
+        if (swReactor_onWrite(SwooleG.main_reactor, event) < 0)
+        {
+            return SW_ERR;
+        }
+        if (cli->onBufferEmpty && cli->socket->out_buffer->length <= cli->buffer_low_watermark)
+        {
+            cli->onBufferEmpty(cli);
+        }
+        return SW_OK;
     }
 
     socklen_t len = sizeof(SwooleG.error);

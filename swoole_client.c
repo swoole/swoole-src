@@ -25,6 +25,8 @@ typedef struct
     zval *onReceive;
     zval *onClose;
     zval *onError;
+    zval *onBufferFull;
+    zval *onBufferEmpty;
 #ifdef SW_USE_OPENSSL
     zval *onSSLReady;
 #endif
@@ -35,6 +37,8 @@ typedef struct
     zval _onReceive;
     zval _onClose;
     zval _onError;
+    zval _onBufferFull;
+    zval _onBufferEmpty;
 #ifdef SW_USE_OPENSSL
     zval _onSSLReady;
 #endif
@@ -82,6 +86,8 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length);
 static int client_onPackage(swConnection *conn, char *data, uint32_t length);
 static void client_onClose(swClient *cli);
 static void client_onError(swClient *cli);
+static void client_onBufferFull(swClient *cli);
+static void client_onBufferEmpty(swClient *cli);
 
 static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_client_callback_type type)
 {
@@ -109,6 +115,14 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
     case SW_CLIENT_CB_onClose:
         callback = cb->onClose;
         callback_name = "onClose";
+        break;
+    case SW_CLIENT_CB_onBufferFull:
+        callback = cb->onBufferFull;
+        callback_name = "onBufferFull";
+        break;
+    case SW_CLIENT_CB_onBufferEmpty:
+        callback = cb->onBufferEmpty;
+        callback_name = "onBufferEmpty";
         break;
 #ifdef SW_USE_OPENSSL
     case SW_CLIENT_CB_onSSLReady:
@@ -298,6 +312,24 @@ static void client_onError(swClient *cli)
     sw_zval_ptr_dtor(&zobject);
 }
 
+static void client_onBufferFull(swClient *cli)
+{
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+    zval *zobject = cli->object;
+    client_execute_callback(zobject, SW_CLIENT_CB_onBufferFull);
+}
+
+static void client_onBufferEmpty(swClient *cli)
+{
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+    zval *zobject = cli->object;
+    client_execute_callback(zobject, SW_CLIENT_CB_onBufferEmpty);
+}
+
 void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
 {
     HashTable *vht;
@@ -393,6 +425,19 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         value = (int) Z_LVAL_P(v);
         swSocket_set_buffer_size(cli->socket->fd, value);
         cli->socket->buffer_size = cli->buffer_input_size = value;
+    }
+    if (php_swoole_array_get_value(vht, "buffer_high_watermark", v))
+    {
+        convert_to_long(v);
+        value = (int) Z_LVAL_P(v);
+        swSocket_set_buffer_size(cli->socket->fd, value);
+        cli->socket->buffer_size = cli->buffer_input_size = value;
+    }
+    if (php_swoole_array_get_value(vht, "buffer_low_watermark", v))
+    {
+        convert_to_long(v);
+        value = (int) Z_LVAL_P(v);
+        cli->buffer_low_watermark = value;
     }
     /**
      * bind address
@@ -929,6 +974,14 @@ static PHP_METHOD(swoole_client, connect)
             cli->onError = client_onError;
             cli->onReceive = client_onReceive;
             cli->reactor_fdtype = PHP_SWOOLE_FD_STREAM_CLIENT;
+            if (!cb->onBufferFull)
+            {
+                cli->onBufferFull = client_onBufferFull;
+            }
+            if (!cb->onBufferEmpty)
+            {
+                cli->onBufferEmpty = client_onBufferEmpty;
+            }
         }
         else
         {
@@ -1546,6 +1599,18 @@ static PHP_METHOD(swoole_client, on)
         zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onError"), zcallback TSRMLS_CC);
         cb->onError = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onError"), 0 TSRMLS_CC);
         sw_copy_to_stack(cb->onError, cb->_onError);
+    }
+    else if (strncasecmp("bufferFull", cb_name, cb_name_len) == 0)
+    {
+        zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onBufferFull"), zcallback TSRMLS_CC);
+        cb->onBufferFull = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onBufferFull"), 0 TSRMLS_CC);
+        sw_copy_to_stack(cb->onBufferFull, cb->_onBufferFull);
+    }
+    else if (strncasecmp("bufferEmpty", cb_name, cb_name_len) == 0)
+    {
+        zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onBufferEmpty"), zcallback TSRMLS_CC);
+        cb->onBufferEmpty = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onBufferEmpty"), 0 TSRMLS_CC);
+        sw_copy_to_stack(cb->onBufferEmpty, cb->_onBufferEmpty);
     }
     else
     {
