@@ -430,6 +430,10 @@ static PHP_METHOD(swoole_redis_server, format)
         int keytype;
 
         SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(value), key, keylen, keytype, item)
+            if (key == NULL || keylen <= 0)
+            {
+                continue;
+            }
             length = snprintf(message, sizeof(message), "$%d\r\n%s\r\n$%d\r\n", keylen, key, Z_STRLEN_P(item));
             swString_append_ptr(format_buffer, message, length);
             swString_append_ptr(format_buffer, Z_STRVAL_P(item), Z_STRLEN_P(item));
