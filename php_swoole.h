@@ -43,7 +43,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.8.14-alpha"
+#define PHP_SWOOLE_VERSION  "1.9.0-alpha"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -390,7 +390,7 @@ static sw_inline void* swoole_get_property(zval *object, int property_id)
 
 void swoole_set_object(zval *object, void *ptr);
 void swoole_set_property(zval *object, int property_id, void *ptr);
-int swoole_convert_to_fd(zval *zsocket);
+int swoole_convert_to_fd(zval *zsocket TSRMLS_DC);
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
 php_socket *swoole_convert_to_socket(int sock);

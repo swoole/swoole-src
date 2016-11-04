@@ -273,6 +273,7 @@ static void client_onConnect(swClient *cli)
     }
     else
     {
+        SWOOLE_GET_TSRMLS;
         client_callback *cb = swoole_get_property(zobject, 0);
         if (!cb || !cb->onReceive)
         {
@@ -283,9 +284,7 @@ static void client_onConnect(swClient *cli)
 
 static void client_onClose(swClient *cli)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SWOOLE_GET_TSRMLS;
     zval *zobject = cli->object;
     if (!cli->released)
     {
@@ -297,9 +296,7 @@ static void client_onClose(swClient *cli)
 
 static void client_onError(swClient *cli)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SWOOLE_GET_TSRMLS;
     zval *zobject = cli->object;
     zend_update_property_long(swoole_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
     if (!cli->released)
@@ -312,18 +309,12 @@ static void client_onError(swClient *cli)
 
 static void client_onBufferFull(swClient *cli)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
     zval *zobject = cli->object;
     client_execute_callback(zobject, SW_CLIENT_CB_onBufferFull);
 }
 
 static void client_onBufferEmpty(swClient *cli)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
     zval *zobject = cli->object;
     client_execute_callback(zobject, SW_CLIENT_CB_onBufferEmpty);
 }

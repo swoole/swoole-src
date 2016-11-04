@@ -193,14 +193,10 @@ void php_swoole_event_wait()
     }
 }
 
-int swoole_convert_to_fd(zval *zfd)
+int swoole_convert_to_fd(zval *zfd TSRMLS_DC)
 {
     php_stream *stream;
     int socket_fd;
-
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
     php_socket *php_sock;
@@ -326,7 +322,7 @@ PHP_FUNCTION(swoole_event_add)
         RETURN_FALSE;
     }
 
-    int socket_fd = swoole_convert_to_fd(zfd);
+    int socket_fd = swoole_convert_to_fd(zfd TSRMLS_CC);
     if (socket_fd < 0)
     {
         swoole_php_fatal_error(E_WARNING, "unknow type.");
@@ -410,7 +406,7 @@ PHP_FUNCTION(swoole_event_write)
         RETURN_FALSE;
     }
 
-    int socket_fd = swoole_convert_to_fd(zfd);
+    int socket_fd = swoole_convert_to_fd(zfd TSRMLS_CC);
     if (socket_fd < 0)
     {
         swoole_php_fatal_error(E_WARNING, "unknow type.");
@@ -447,7 +443,7 @@ PHP_FUNCTION(swoole_event_set)
         return;
     }
 
-    int socket_fd = swoole_convert_to_fd(zfd);
+    int socket_fd = swoole_convert_to_fd(zfd TSRMLS_CC);
     if (socket_fd < 0)
     {
         swoole_php_fatal_error(E_WARNING, "unknow type.");
@@ -546,7 +542,7 @@ PHP_FUNCTION(swoole_event_del)
         return;
     }
 
-    int socket_fd = swoole_convert_to_fd(zfd);
+    int socket_fd = swoole_convert_to_fd(zfd TSRMLS_CC);
     if (socket_fd < 0)
     {
         swoole_php_fatal_error(E_WARNING, "unknow type.");
