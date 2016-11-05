@@ -25,26 +25,23 @@
 
 #if PHP_MAJOR_VERSION < 7
 #include <ext/standard/php_smart_str.h>
-
-#undef zend_get_parameters_array
-#define zend_get_parameters_array(ht, param_count, argument_array) \
-    inline_zend_get_parameters_array(ht, param_count, argument_array TSRMLS_CC)
-
-static zend_always_inline int 
-inline_zend_get_parameters_array(int ht, int param_count, zval *argument_array TSRMLS_DC)
-{
-    int i, ret = FAILURE;
-    zval **zv = ecalloc(param_count, sizeof(zval *));
-
-    if (_zend_get_parameters_array(ht, param_count, zv TSRMLS_CC) == SUCCESS) {
-        for (i = 0; i < param_count; i++) {
-            argument_array[i] = *zv[i];
-        }
-        ret = SUCCESS;
-    }   
-    efree(zv);
-    return ret;
-}
+#define SW_REDIS_COMMAND_ALLOC_ARGS_ARR zval **z_args = emalloc(argc*sizeof(zval*));
+#define SW_REDIS_COMMAND_ARGS_TYPE(arg) Z_TYPE_P(arg)
+#define SW_REDIS_COMMAND_ARGS_LVAL(arg) Z_LVAL_P(arg)
+#define SW_REDIS_COMMAND_ARGS_DVAL(arg) Z_DVAL_P(arg)
+#define SW_REDIS_COMMAND_ARGS_ARRVAL(arg) Z_ARRVAL_P(arg)
+#define SW_REDIS_COMMAND_ARGS_STRVAL(arg) Z_STRVAL_P(arg)
+#define SW_REDIS_COMMAND_ARGS_STRLEN(arg) Z_STRLEN_P(arg)
+#define SW_REDIS_COMMAND_ARGS_REF(arg) arg
+#else
+#define SW_REDIS_COMMAND_ALLOC_ARGS_ARR zval *z_args = emalloc(argc*sizeof(zval));
+#define SW_REDIS_COMMAND_ARGS_TYPE(arg) Z_TYPE(arg)
+#define SW_REDIS_COMMAND_ARGS_LVAL(arg) Z_LVAL(arg)
+#define SW_REDIS_COMMAND_ARGS_DVAL(arg) Z_DVAL(arg)
+#define SW_REDIS_COMMAND_ARGS_ARRVAL(arg) Z_ARRVAL(arg)
+#define SW_REDIS_COMMAND_ARGS_STRVAL(arg) Z_STRVAL(arg)
+#define SW_REDIS_COMMAND_ARGS_STRLEN(arg) Z_STRLEN(arg)
+#define SW_REDIS_COMMAND_ARGS_REF(arg) &arg
 #endif
 
 #define SW_REDIS_COMMAND_BUFFER_SIZE   64
@@ -178,8 +175,7 @@ static int isset_event_callback = 0;
 		smart_str sstr = {0}; \
 		php_serialize_data_t s_ht; \
 		PHP_VAR_SERIALIZE_INIT(s_ht); \
-        zval *_z = _val; \
-		php_var_serialize(&sstr, &_z, &s_ht TSRMLS_CC); \
+		php_var_serialize(&sstr, &_val, &s_ht TSRMLS_CC); \
 		argvlen[i] = (size_t)sstr.len; \
 		argv[i] = sstr.c; \
 		PHP_VAR_SERIALIZE_DESTROY(s_ht); \
@@ -301,8 +297,7 @@ static sw_inline void sw_redis_command_var_key(INTERNAL_FUNCTION_PARAMETERS, cha
     if(argc < min_argc) {
         RETURN_FALSE;
     }
-	zval *z_args;
-    z_args = emalloc(argc * sizeof(zval));
+	SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if(argc == 0 || zend_get_parameters_array(ht, argc, z_args) == FAILURE) {
         efree(z_args);
         RETURN_FALSE;
@@ -310,15 +305,15 @@ static sw_inline void sw_redis_command_var_key(INTERNAL_FUNCTION_PARAMETERS, cha
 	SW_REDIS_COMMAND_CHECK_WITH_FREE_Z_ARGS
 	zend_bool single_array = 0;
     if(has_timeout == 0) {
-        single_array = argc==1 && Z_TYPE(z_args[0])==IS_ARRAY;
+        single_array = argc==1 && SW_REDIS_COMMAND_ARGS_TYPE(z_args[0])==IS_ARRAY;
     } else {
-        single_array = argc==2 && Z_TYPE(z_args[0])==IS_ARRAY &&
-            Z_TYPE(z_args[1])==IS_LONG;
-        timeout = Z_LVAL(z_args[1]);
+        single_array = argc==2 && SW_REDIS_COMMAND_ARGS_TYPE(z_args[0])==IS_ARRAY &&
+            SW_REDIS_COMMAND_ARGS_TYPE(z_args[1])==IS_LONG;
+        timeout = SW_REDIS_COMMAND_ARGS_LVAL(z_args[1]);
     }
 	if (single_array)
 	{
-		argc = zend_hash_num_elements(Z_ARRVAL(z_args[0])) + 1;
+		argc = zend_hash_num_elements(SW_REDIS_COMMAND_ARGS_ARRVAL(z_args[0])) + 1;
 	}
 	else
 	{
@@ -333,7 +328,7 @@ static sw_inline void sw_redis_command_var_key(INTERNAL_FUNCTION_PARAMETERS, cha
 	if (single_array)
 	{
 		zval *value;
-		SW_HASHTABLE_FOREACH_START(Z_ARRVAL(z_args[0]), value)
+		SW_HASHTABLE_FOREACH_START(SW_REDIS_COMMAND_ARGS_ARRVAL(z_args[0]), value)
 #if PHP_MAJOR_VERSION < 7
 			convert_to_string(value);
 			SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(value), Z_STRLEN_P(value))
@@ -350,7 +345,7 @@ static sw_inline void sw_redis_command_var_key(INTERNAL_FUNCTION_PARAMETERS, cha
 	}
 	else
 	{
-        if(has_timeout && Z_TYPE(z_args[argc-2]) != IS_LONG) {
+        if(has_timeout && SW_REDIS_COMMAND_ARGS_TYPE(z_args[argc-2]) != IS_LONG) {
 			zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC);
 			zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "Timeout value must be a LONG" TSRMLS_CC);
             efree(z_args);
@@ -361,8 +356,8 @@ static sw_inline void sw_redis_command_var_key(INTERNAL_FUNCTION_PARAMETERS, cha
 		for (j = 0; j < tail; ++j)
 		{
 #if PHP_MAJOR_VERSION < 7
-            convert_to_string(&z_args[j]);
-            SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL(z_args[j]), Z_STRLEN(z_args[j]))
+            convert_to_string(z_args[j]);
+            SW_REDIS_COMMAND_ARGV_FILL(SW_REDIS_COMMAND_ARGS_STRVAL(z_args[j]), SW_REDIS_COMMAND_ARGS_STRLEN(z_args[j]))
 #else
             zend_string *convert_str = zval_get_string(&z_args[j]);
             SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
@@ -370,7 +365,7 @@ static sw_inline void sw_redis_command_var_key(INTERNAL_FUNCTION_PARAMETERS, cha
 #endif
 		}
         if(has_timeout) {
-			buf_len = snprintf(buf, sizeof(buf), "%ld", Z_LVAL(z_args[tail]));
+			buf_len = snprintf(buf, sizeof(buf), "%ld", SW_REDIS_COMMAND_ARGS_LVAL(z_args[tail]));
 			SW_REDIS_COMMAND_ARGV_FILL((char*)buf, buf_len);
         }
 	}
@@ -402,7 +397,6 @@ static sw_inline void sw_redis_command_key(INTERNAL_FUNCTION_PARAMETERS, char *c
 
 static sw_inline void sw_redis_command_key_var_val(INTERNAL_FUNCTION_PARAMETERS, char *cmd, int cmd_len)
 {
-    zval *z_args;
     int argc = ZEND_NUM_ARGS();
 
     // We at least need a key and one value
@@ -411,7 +405,7 @@ static sw_inline void sw_redis_command_key_var_val(INTERNAL_FUNCTION_PARAMETERS,
     }
 
     // Make sure we at least have a key, and we can get other args
-    z_args = emalloc(argc * sizeof(zval));
+    SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if(zend_get_parameters_array(ht, argc, z_args) == FAILURE) {
         efree(z_args);
 		RETURN_FALSE;
@@ -423,8 +417,8 @@ static sw_inline void sw_redis_command_key_var_val(INTERNAL_FUNCTION_PARAMETERS,
 	SW_REDIS_COMMAND_ALLOC_ARGV
     SW_REDIS_COMMAND_ARGV_FILL(cmd, cmd_len)
 #if PHP_MAJOR_VERSION < 7
-    convert_to_string(&z_args[0]);
-    SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL(z_args[0]), Z_STRLEN(z_args[0]))
+    convert_to_string(z_args[0]);
+    SW_REDIS_COMMAND_ARGV_FILL(SW_REDIS_COMMAND_ARGS_STRVAL(z_args[0]), SW_REDIS_COMMAND_ARGS_STRLEN(z_args[0]))
 #else
     zend_string *convert_str = zval_get_string(&z_args[0]);
     SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
@@ -432,7 +426,7 @@ static sw_inline void sw_redis_command_key_var_val(INTERNAL_FUNCTION_PARAMETERS,
 #endif
 	for (j = 1; j < argc - 1; ++j)
 	{
-		SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(&z_args[j])
+		SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(SW_REDIS_COMMAND_ARGS_REF(z_args[j]))
 	}
 	efree(z_args);
     SW_REDIS_COMMAND(argc);
@@ -1545,9 +1539,8 @@ static PHP_METHOD(swoole_redis_coro, hSetNx)
 
 static PHP_METHOD(swoole_redis_coro, hDel)
 {
-	zval *z_args;
 	int argc = ZEND_NUM_ARGS();
-    z_args = emalloc(argc * sizeof(zval));
+    SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if(argc < 2 || zend_get_parameters_array(ht, argc, z_args) == FAILURE) {
         efree(z_args);
         RETURN_FALSE;
@@ -1560,8 +1553,8 @@ static PHP_METHOD(swoole_redis_coro, hDel)
 	for (j = 0; j < argc-1; ++j)
 	{
 #if PHP_MAJOR_VERSION < 7
-        convert_to_string(&z_args[j]);
-        SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL(z_args[j]), Z_STRLEN(z_args[j]))
+        convert_to_string(z_args[j]);
+        SW_REDIS_COMMAND_ARGV_FILL(SW_REDIS_COMMAND_ARGS_STRVAL(z_args[j]), SW_REDIS_COMMAND_ARGS_STRLEN(z_args[j]))
 #else
         zend_string *convert_str = zval_get_string(&z_args[j]);
         SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
@@ -1791,10 +1784,9 @@ static PHP_METHOD(swoole_redis_coro, bRPopLPush)
 
 static PHP_METHOD(swoole_redis_coro, blPop)
 {
-    zval *z_args;
     int argc = ZEND_NUM_ARGS();
 
-    z_args = emalloc(argc * sizeof(zval));
+    SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if(zend_get_parameters_array(ht, argc, z_args) == FAILURE || argc < 1)
     {
         efree(z_args);
@@ -1803,9 +1795,9 @@ static PHP_METHOD(swoole_redis_coro, blPop)
 	SW_REDIS_COMMAND_CHECK_WITH_FREE_Z_ARGS
 
 	zend_bool single_array = 0;
-	if (argc == 2 && Z_TYPE(z_args[0]) == IS_ARRAY)
+	if (argc == 2 && SW_REDIS_COMMAND_ARGS_TYPE(z_args[0]) == IS_ARRAY)
 	{
-		argc = zend_hash_num_elements(Z_ARRVAL(z_args[0])) + 2;
+		argc = zend_hash_num_elements(SW_REDIS_COMMAND_ARGS_ARRVAL(z_args[0])) + 2;
 		single_array = 1;
 	}
 	else
@@ -1818,7 +1810,7 @@ static PHP_METHOD(swoole_redis_coro, blPop)
 	if (single_array)
 	{
 		zval *value;
-		SW_HASHTABLE_FOREACH_START(Z_ARRVAL(z_args[0]), value)
+		SW_HASHTABLE_FOREACH_START(SW_REDIS_COMMAND_ARGS_ARRVAL(z_args[0]), value)
 #if PHP_MAJOR_VERSION < 7
 			convert_to_string(value);
 			SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(value), Z_STRLEN_P(value))
@@ -1829,8 +1821,8 @@ static PHP_METHOD(swoole_redis_coro, blPop)
 #endif
 		SW_HASHTABLE_FOREACH_END();
 #if PHP_MAJOR_VERSION < 7
-		convert_to_string(&z_args[1]);
-        SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL(z_args[1]), Z_STRLEN(z_args[1]))
+		convert_to_string(z_args[1]);
+        SW_REDIS_COMMAND_ARGV_FILL(SW_REDIS_COMMAND_ARGS_STRVAL(z_args[1]), SW_REDIS_COMMAND_ARGS_STRLEN(z_args[1]))
 #else
         zend_string *convert_str = zval_get_string(&z_args[1]);
         SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
@@ -1843,8 +1835,8 @@ static PHP_METHOD(swoole_redis_coro, blPop)
 		for (j = 0; j < argc - 1; ++j)
 		{
 #if PHP_MAJOR_VERSION < 7
-			convert_to_string(&z_args[j]);
-			SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL(z_args[j]), Z_STRLEN(z_args[j]))
+			convert_to_string(z_args[j]);
+			SW_REDIS_COMMAND_ARGV_FILL(SW_REDIS_COMMAND_ARGS_STRVAL(z_args[j]), SW_REDIS_COMMAND_ARGS_STRLEN(z_args[j]))
 #else
             zend_string *convert_str = zval_get_string(&z_args[j]);
             SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
@@ -1861,10 +1853,9 @@ static PHP_METHOD(swoole_redis_coro, blPop)
 
 static PHP_METHOD(swoole_redis_coro, brPop)
 {
-    zval *z_args;
     int argc = ZEND_NUM_ARGS();
 
-    z_args = emalloc(argc * sizeof(zval));
+    SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if(zend_get_parameters_array(ht, argc, z_args) == FAILURE || argc < 1)
     {
         efree(z_args);
@@ -1873,9 +1864,9 @@ static PHP_METHOD(swoole_redis_coro, brPop)
 	SW_REDIS_COMMAND_CHECK_WITH_FREE_Z_ARGS
 
 	zend_bool single_array = 0;
-	if (argc == 2 && Z_TYPE(z_args[0]) == IS_ARRAY)
+	if (argc == 2 && SW_REDIS_COMMAND_ARGS_TYPE(z_args[0]) == IS_ARRAY)
 	{
-		argc = zend_hash_num_elements(Z_ARRVAL(z_args[0])) + 2;
+		argc = zend_hash_num_elements(SW_REDIS_COMMAND_ARGS_ARRVAL(z_args[0])) + 2;
 		single_array = 1;
 	}
 	else
@@ -1888,7 +1879,7 @@ static PHP_METHOD(swoole_redis_coro, brPop)
 	if (single_array)
 	{
 		zval *value;
-		SW_HASHTABLE_FOREACH_START(Z_ARRVAL(z_args[0]), value)
+		SW_HASHTABLE_FOREACH_START(SW_REDIS_COMMAND_ARGS_ARRVAL(z_args[0]), value)
 #if PHP_MAJOR_VERSION < 7
             convert_to_string(value);
             SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(value), Z_STRLEN_P(value))
@@ -1899,8 +1890,8 @@ static PHP_METHOD(swoole_redis_coro, brPop)
 #endif
         SW_HASHTABLE_FOREACH_END();
 #if PHP_MAJOR_VERSION < 7
-        convert_to_string(&z_args[1]);
-        SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL(z_args[1]), Z_STRLEN(z_args[1]))
+        convert_to_string(z_args[1]);
+        SW_REDIS_COMMAND_ARGV_FILL(SW_REDIS_COMMAND_ARGS_STRVAL(z_args[1]), SW_REDIS_COMMAND_ARGS_STRLEN(z_args[1]))
 #else
         zend_string *convert_str = zval_get_string(&z_args[1]);
         SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
@@ -1913,8 +1904,8 @@ static PHP_METHOD(swoole_redis_coro, brPop)
 		for (j = 0; j < argc - 1; ++j)
 		{
 #if PHP_MAJOR_VERSION < 7
-            convert_to_string(&z_args[j]);
-            SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL(z_args[j]), Z_STRLEN(z_args[j]))
+            convert_to_string(z_args[j]);
+            SW_REDIS_COMMAND_ARGV_FILL(SW_REDIS_COMMAND_ARGS_STRVAL(z_args[j]), SW_REDIS_COMMAND_ARGS_STRLEN(z_args[j]))
 #else
             zend_string *convert_str = zval_get_string(&z_args[j]);
             SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
@@ -2792,17 +2783,16 @@ static PHP_METHOD(swoole_redis_coro, zIncrBy)
 
 static PHP_METHOD(swoole_redis_coro, zAdd)
 {
-    zval *z_args;
     int argc = ZEND_NUM_ARGS();
 
-    z_args = emalloc(argc * sizeof(zval));
+    SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if(zend_get_parameters_array(ht, argc, z_args)==FAILURE) {
         efree(z_args);
 		RETURN_FALSE;
     }
 
 #if PHP_MAJOR_VERSION < 7
-    if (argc > 0) convert_to_string(&z_args[0]);
+    if (argc > 0) convert_to_string(z_args[0]);
 #else
     zend_bool convert = 0;
     if (argc > 0)
@@ -2811,7 +2801,7 @@ static PHP_METHOD(swoole_redis_coro, zAdd)
         convert = 1;
     }
 #endif
-    if (argc < 3 || Z_TYPE(z_args[0]) != IS_STRING) {
+    if (argc < 3 || SW_REDIS_COMMAND_ARGS_TYPE(z_args[0]) != IS_STRING) {
         efree(z_args);
 		RETURN_FALSE;
     }
@@ -2822,27 +2812,27 @@ static PHP_METHOD(swoole_redis_coro, zAdd)
 	argc++;
 	SW_REDIS_COMMAND_ALLOC_ARGV
 	SW_REDIS_COMMAND_ARGV_FILL("ZADD", 4)
-	SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL(z_args[0]), (size_t)Z_STRLEN(z_args[0]))
+	SW_REDIS_COMMAND_ARGV_FILL(SW_REDIS_COMMAND_ARGS_STRVAL(z_args[0]), (size_t)SW_REDIS_COMMAND_ARGS_STRLEN(z_args[0]))
 #if PHP_MAJOR_VERSION >= 7
     if (convert) zval_ptr_dtor(&z_args[0]);
 #endif
 	k = 1;
 
-	if (Z_TYPE(z_args[k]) == IS_STRING && IS_NX_XX_ARG(Z_STRVAL(z_args[k])))
+	if (SW_REDIS_COMMAND_ARGS_TYPE(z_args[k]) == IS_STRING && IS_NX_XX_ARG(SW_REDIS_COMMAND_ARGS_STRVAL(z_args[k])))
 	{
-		SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL(z_args[k]), (size_t)Z_STRLEN(z_args[k]))
+		SW_REDIS_COMMAND_ARGV_FILL(SW_REDIS_COMMAND_ARGS_STRVAL(z_args[k]), (size_t)SW_REDIS_COMMAND_ARGS_STRLEN(z_args[k]))
 		k++;
 		valid_params--;
 	}
 
-	if (Z_TYPE(z_args[k]) == IS_STRING && strncasecmp(Z_STRVAL(z_args[k]), "CH", 2) == 0)
+	if (SW_REDIS_COMMAND_ARGS_TYPE(z_args[k]) == IS_STRING && strncasecmp(SW_REDIS_COMMAND_ARGS_STRVAL(z_args[k]), "CH", 2) == 0)
 	{
 		SW_REDIS_COMMAND_ARGV_FILL("CH", 2)
 		k++;
 		valid_params--;
 	}
 
-	if (Z_TYPE(z_args[k]) == IS_STRING && strncasecmp(Z_STRVAL(z_args[k]), "INCR", 4) == 0)
+	if (SW_REDIS_COMMAND_ARGS_TYPE(z_args[k]) == IS_STRING && strncasecmp(SW_REDIS_COMMAND_ARGS_STRVAL(z_args[k]), "INCR", 4) == 0)
 	{
 		SW_REDIS_COMMAND_ARGV_FILL("INCR", 4)
 		k++;
@@ -2863,10 +2853,9 @@ static PHP_METHOD(swoole_redis_coro, zAdd)
 	char buf[32];
 	size_t buf_len;
     for (j = k; j < argc-1; j += 2) {
-        convert_to_double(&z_args[j]);
-		buf_len = snprintf(buf, sizeof(buf), "%f", Z_DVAL(z_args[j]));
+        convert_to_double(SW_REDIS_COMMAND_ARGS_REF(z_args[j])); buf_len = snprintf(buf, sizeof(buf), "%f", SW_REDIS_COMMAND_ARGS_DVAL(z_args[j]));
 		SW_REDIS_COMMAND_ARGV_FILL((char*)buf, buf_len)
-		SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(&z_args[j+1])
+		SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(SW_REDIS_COMMAND_ARGS_REF(z_args[j+1]))
     }
     efree(z_args);
 
@@ -3206,12 +3195,11 @@ static PHP_METHOD(swoole_redis_coro, bitCount)
 
 static PHP_METHOD(swoole_redis_coro, bitOp)
 {
-    zval *z_args;
     int argc = ZEND_NUM_ARGS();
 
-    z_args = emalloc(argc * sizeof(zval));
+    SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if(zend_get_parameters_array(ht, argc, z_args) == FAILURE ||
-       argc < 3 || Z_TYPE(z_args[0]) != IS_STRING)
+       argc < 3 || SW_REDIS_COMMAND_ARGS_TYPE(z_args[0]) != IS_STRING)
     {
         efree(z_args);
         return;
@@ -3223,11 +3211,11 @@ static PHP_METHOD(swoole_redis_coro, bitOp)
 	argc++;
 	SW_REDIS_COMMAND_ALLOC_ARGV
 	SW_REDIS_COMMAND_ARGV_FILL("BITOP", 5)
-	SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL(z_args[0]), Z_STRLEN(z_args[0]))
+	SW_REDIS_COMMAND_ARGV_FILL(SW_REDIS_COMMAND_ARGS_STRVAL(z_args[0]), SW_REDIS_COMMAND_ARGS_STRLEN(z_args[0]))
     for(j = 1; j < argc - 1; j++) {
 #if PHP_MAJOR_VERSION < 7
-        convert_to_string(&z_args[j]);
-        SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL(z_args[j]), Z_STRLEN(z_args[j]))
+        convert_to_string(z_args[j]);
+        SW_REDIS_COMMAND_ARGV_FILL(SW_REDIS_COMMAND_ARGS_STRVAL(z_args[j]), SW_REDIS_COMMAND_ARGS_STRLEN(z_args[j]))
 #else
         zend_string *convert_str = zval_get_string(&z_args[j]);
         SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
