@@ -222,25 +222,13 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     zend_op_array *op_array = (zend_op_array *)fci_cache->function_handler;
     zend_object *object;
     int i;
-
-    size_t total = ZEND_CALL_FRAME_SLOT + TASK_SLOT + argc;
-    total += op_array->last_var + op_array->T - MIN(op_array->num_args, argc);
-    total *= sizeof(zval);
     zend_vm_stack_init();
 
-    zend_execute_data *call = (zend_execute_data *)(EG(vm_stack_top) + TASK_SLOT * sizeof(zval));
     COROG.current_coro = (coro_task *)EG(vm_stack_top);
-    if (__builtin_expect(total > (size_t)((char *)EG(vm_stack_end) - (char *)call), 0))
-    {
-        call = (zend_execute_data *)zend_vm_stack_extend(total);
-    }
-    else
-    {
-        EG(vm_stack_top) = (zval *)((char *)call + total);
-    }
-
+    zend_execute_data *call = (zend_execute_data *)(EG(vm_stack_top));
+    EG(vm_stack_top) = (zval *)((char *)call + TASK_SLOT * sizeof(zval));
     object = (func->common.fn_flags | ZEND_ACC_STATIC) ? NULL : fci_cache->object;
-    zend_vm_init_call_frame(call, ZEND_CALL_TOP_FUNCTION | ZEND_CALL_DYNAMIC | ZEND_CALL_ALLOCATED, fci_cache->function_handler, argc, fci_cache->called_scope, object);
+    call = zend_vm_stack_push_call_frame(ZEND_CALL_TOP_FUNCTION | ZEND_CALL_ALLOCATED, fci_cache->function_handler, argc, fci_cache->called_scope, object);
 
     for (i = 0; i < argc; ++i)
     {
@@ -253,11 +241,10 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     {
         ZEND_ADD_CALL_FLAG(call, ZEND_CALL_CLOSURE);
     }
-    
+
     zend_init_execute_data(call, op_array, retval);
 
     ++COROG.coro_num;
-    COROG.require = 1;
     COROG.current_coro->start_time = time(NULL);
     COROG.current_coro->post_callback = post_callback;
     COROG.current_coro->post_callback_params = params;
@@ -268,7 +255,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     {
         zend_execute_ex(call);
         coro_close(TSRMLS_C);
-        swTrace("create the %d coro with stack %zu. heap size: %zu\n", COROG.coro_num, total, zend_memory_usage(0));
+        swTrace("create the %d coro with stack. heap size: %zu\n", COROG.coro_num, zend_memory_usage(0));
         coro_status = CORO_END;
     }
     else
@@ -461,10 +448,6 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
     {
         //coro exit
         zend_execute_ex(sw_current_context->current_execute_data TSRMLS_CC);
-        //if (EG(return_value_ptr_ptr) != NULL)
-        //{
-        //    *coro_retval = *EG(return_value_ptr_ptr);
-        //}
         coro_close(TSRMLS_C);
         coro_status = CORO_END;
     }
@@ -473,6 +456,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
         //coro yield
         coro_status = CORO_YIELD;
     }
+    return coro_status;
 }
 #endif
 
