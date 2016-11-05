@@ -229,6 +229,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     zend_vm_stack_init();
 
     zend_execute_data *call = (zend_execute_data *)(EG(vm_stack_top) + TASK_SLOT * sizeof(zval));
+    COROG.current_coro = (coro_task *)EG(vm_stack_top);
     if (__builtin_expect(total > (size_t)((char *)EG(vm_stack_end) - (char *)call), 0))
     {
         call = (zend_execute_data *)zend_vm_stack_extend(total);
@@ -256,6 +257,10 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     zend_init_execute_data(call, op_array, retval);
 
     ++COROG.coro_num;
+    COROG.require = 1;
+    COROG.current_coro->start_time = time(NULL);
+    COROG.current_coro->post_callback = post_callback;
+    COROG.current_coro->post_callback_params = params;
     COROG.require = 1;
 
     int coro_status;
