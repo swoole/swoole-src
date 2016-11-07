@@ -517,7 +517,7 @@ static int swClient_tcp_send_async(swClient *cli, char *data, int length, int fl
     }
     else
     {
-        if (cli->onBufferFull && cli->socket->out_buffer->length >= cli->buffer_high_watermark)
+        if (cli->onBufferFull && cli->socket->out_buffer && cli->socket->out_buffer->length >= cli->buffer_high_watermark)
         {
             cli->socket->high_watermark = 1;
             cli->onBufferFull(cli);
