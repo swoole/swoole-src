@@ -117,6 +117,17 @@
 				<file role="src" name="multipart_parser.c" />
 				<file role="src" name="multipart_parser.h" />
 			</dir>
+            <dir name="benchmark">
+                <file role="src" name="async.php" />
+                <file role="src" name="run.php" />
+                <file role="src" name="tcp.php" />
+                <file role="src" name="udp.php" />
+                <file role="src" name="http.php" />
+                <file role="src" name="http.js" />
+                <file role="src" name="tcp.js" />
+                <file role="src" name="tcp.go" />
+                <file role="src" name="http.go" />
+            </dir>
 			<dir name="src">
 				<dir name="core">
 					<file role="src" name="base.c" />
@@ -273,16 +284,6 @@
                     <file role="src" name="tcp_client.php" />
                     <file role="src" name="udp_client.php" />
                 </dir>
-				<dir name="bench">
-					<file role="src" name="http.js" />
-					<file role="src" name="tcp.js" />
-					<file role="src" name="tcp.go" />
-					<file role="src" name="http.go" />
-					<file role="src" name="tcp.php" />
-					<file role="src" name="udp.php" />
-					<file role="src" name="http.php" />
-					<file role="src" name="run.php" />
-				</dir>
 				<dir name="timer">
                     <file role="src" name="after.php" />
                     <file role="src" name="tick.php" />

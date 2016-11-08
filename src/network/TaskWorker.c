@@ -31,6 +31,12 @@ void swTaskWorker_init(swProcessPool *pool)
     pool->start_id = SwooleG.serv->worker_num;
     pool->run_worker_num = SwooleG.task_worker_num;
 
+    if (!SwooleG.task_tmpdir)
+    {
+        SwooleG.task_tmpdir = strndup(SW_TASK_TMP_FILE, sizeof(SW_TASK_TMP_FILE));
+        SwooleG.task_tmpdir_len = sizeof(SW_TASK_TMP_FILE);
+    }
+
     char *tmp_dir = swoole_dirname(SwooleG.task_tmpdir);
     //create tmp dir
     if (access(tmp_dir, R_OK) < 0 && swoole_mkdir_recursive(tmp_dir) < 0)
@@ -273,7 +279,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
 #ifdef HAVE_KQUEUE
             if (errno == EAGAIN || errno == ENOBUFS)
 #else
-            if (errno == EAGAIN)
+            if (ret < 0 && errno == EAGAIN)
 #endif
             {
                 if (swSocket_wait(task_notify_pipe->getFd(task_notify_pipe, 1), -1, SW_EVENT_WRITE) == 0)
