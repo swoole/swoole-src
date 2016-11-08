@@ -783,6 +783,20 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
     return match;
 }
 
+void swoole_clear_dns_cache(void)
+{
+    if (swoole_dns_cache_v4)
+    {
+        swHashMap_free(swoole_dns_cache_v4);
+        swoole_dns_cache_v4 = NULL;
+    }
+    if (swoole_dns_cache_v6)
+    {
+        swHashMap_free(swoole_dns_cache_v6);
+        swoole_dns_cache_v6 = NULL;
+    }
+}
+
 /**
  * DNS lookup
  */

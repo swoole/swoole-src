@@ -243,10 +243,13 @@ ZEND_END_ARG_INFO()
 
 #include "zend_exceptions.h"
 
+PHP_FUNCTION(swoole_clear_dns_cache);
+
 const zend_function_entry swoole_functions[] =
 {
-    PHP_FE(swoole_version, NULL)
-    PHP_FE(swoole_cpu_num, NULL)
+    PHP_FE(swoole_version, arginfo_swoole_void)
+    PHP_FE(swoole_cpu_num, arginfo_swoole_void)
+    PHP_FE(swoole_clear_dns_cache, arginfo_swoole_void)
     /*------swoole_event-----*/
     PHP_FE(swoole_event_add, arginfo_swoole_event_add)
     PHP_FE(swoole_event_set, NULL)
@@ -883,6 +886,11 @@ PHP_FUNCTION(swoole_strerror)
 PHP_FUNCTION(swoole_errno)
 {
     RETURN_LONG(errno);
+}
+
+PHP_FUNCTION(swoole_clear_dns_cache)
+{
+    swoole_clear_dns_cache();
 }
 
 PHP_FUNCTION(swoole_set_process_name)

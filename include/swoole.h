@@ -1125,6 +1125,7 @@ void swoole_print_trace(void);
 void swoole_ioctl_set_block(int sock, int nonblock);
 void swoole_fcntl_set_block(int sock, int nonblock);
 int swoole_gethostbyname(int type, char *name, char *addr);
+void swoole_clear_dns_cache(void);
 //----------------------core function---------------------
 int swSocket_set_timeout(int sock, double timeout);
 
