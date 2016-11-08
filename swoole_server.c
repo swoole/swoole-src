@@ -944,7 +944,7 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     args[1] = &zworker_id;
 
     /**
-     * Manager Process ID
+     * Master Process ID
      */
     zend_update_property_long(swoole_server_class_entry_ptr, zserv, ZEND_STRL("master_pid"), SwooleGS->master_pid TSRMLS_CC);
 
