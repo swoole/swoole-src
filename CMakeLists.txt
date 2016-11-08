@@ -1,6 +1,6 @@
 PROJECT(swoole_server)
 
-SET(SWOOLE_VERSION 1.8.11)
+SET(SWOOLE_VERSION 1.9.0)
 SET(SWOOLE_CLFLAGS pthread rt dl ssl crypt crypto nghttp2)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.4)
 
