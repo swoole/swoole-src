@@ -1152,6 +1152,7 @@ void swoole_clean(void);
 void swoole_update_time(void);
 double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
+void swoole_redirect_stdout(int new_fd);
 
 static sw_inline uint64_t swoole_hton64(uint64_t host)
 {

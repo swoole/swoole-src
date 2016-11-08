@@ -559,10 +559,7 @@ int swServer_start(swServer *serv)
          */
         if (SwooleG.log_fd > STDOUT_FILENO)
         {
-            if (dup2(SwooleG.log_fd, STDOUT_FILENO) < 0)
-            {
-                swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "dup2() failed. Error: %s[%d]", strerror(errno), errno);
-            }
+            swoole_redirect_stdout(SwooleG.log_fd);
         }
         /**
          * redirect STDOUT_FILENO/STDERR_FILENO to /dev/null
@@ -572,14 +569,7 @@ int swServer_start(swServer *serv)
             SwooleG.null_fd = open("/dev/null", O_WRONLY);
             if (SwooleG.null_fd > 0)
             {
-                if (dup2(SwooleG.null_fd, STDOUT_FILENO) < 0)
-                {
-                    swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "dup2(STDOUT_FILENO) failed. Error: %s[%d]", strerror(errno), errno);
-                }
-                if (dup2(SwooleG.null_fd, STDERR_FILENO) < 0)
-                {
-                    swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "dup2(STDERR_FILENO) failed. Error: %s[%d]", strerror(errno), errno);
-                }
+                swoole_redirect_stdout(SwooleG.null_fd);
             }
             else
             {
