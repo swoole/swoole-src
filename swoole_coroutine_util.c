@@ -228,7 +228,7 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
         //--swReactorCheckPoint.cnt;
         efree(swReactorCheckPoint);
         swReactorCheckPoint = prev_checkpoint;
-        if (!return_value_used)
+        if (!return_value_used && return_value_ptr)
             zval_ptr_dtor(return_value_ptr);
         if (fci->params)
         {
