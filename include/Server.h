@@ -550,7 +550,23 @@ static sw_inline void swServer_free_buffer(swServer *serv, int fd)
 
 static sw_inline swListenPort* swServer_get_port(swServer *serv, int fd)
 {
-    sw_atomic_t server_fd = serv->connection_list[fd].from_fd;
+    sw_atomic_t server_fd = 0;
+    int i;
+    for (i = 0; i < 128; i++)
+    {
+        server_fd = serv->connection_list[fd].from_fd;
+        if (server_fd > 0)
+        {
+            break;
+        }
+        swYield();
+    }
+#if defined(__GNUC__)
+    if (i > 0)
+    {
+        swWarn("get port failed, count=%d. gcc version=%d.%d", i, __GNUC__, __GNUC_MINOR__);
+    }
+#endif
     return (swListenPort*) serv->connection_list[server_fd].object;
 }
 
@@ -613,10 +629,6 @@ swString** swServer_create_worker_buffer(swServer *serv);
 int swServer_create_task_worker(swServer *serv);
 void swServer_close_listen_port(swServer *serv);
 void swServer_enable_accept(swReactor *reactor);
-
-#ifdef HAVE_INOTIFY
-int swServer_watch_file(swServer *serv, swReactor *reactor);
-#endif
 
 void swTaskWorker_init(swProcessPool *pool);
 int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);
