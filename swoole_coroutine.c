@@ -241,11 +241,8 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
         ZVAL_COPY(target, argv[i]);
     }
 
-    if (__builtin_expect(func->common.fn_flags & ZEND_ACC_CLOSURE, 0))
-    {
-        ZEND_ADD_CALL_FLAG(call, ZEND_CALL_CLOSURE);
-    }
-
+    SW_ALLOC_INIT_ZVAL(retval);
+    COROG.allocated_return_value_ptr = retval;
     zend_init_execute_data(call, op_array, retval);
 
     ++COROG.coro_num;
@@ -322,6 +319,7 @@ sw_inline void coro_close(TSRMLS_D)
 sw_inline void coro_close(TSRMLS_D)
 {
     efree(EG(vm_stack));
+    efree(COROG.allocated_return_value_ptr);
     EG(vm_stack) = COROG.origin_vm_stack;
     EG(vm_stack_top) = COROG.origin_vm_stack_top;
     EG(vm_stack_end) = COROG.origin_vm_stack_end;
@@ -366,11 +364,11 @@ sw_inline php_context *sw_coro_save(zval *return_value, php_context *sw_current_
 
     SWCC(current_coro_return_value_ptr) = return_value;
     SWCC(current_execute_data) = EG(current_execute_data)->prev_execute_data;
-    SWCC(current_execute_data)->opline++;
     SWCC(current_vm_stack) = EG(vm_stack);
     SWCC(current_vm_stack_top) = EG(vm_stack_top);
     SWCC(current_vm_stack_end) = EG(vm_stack_end);
     SWCC(current_task) = COROG.current_coro;
+    SWCC(allocated_return_value_ptr) = COROG.allocated_return_value_ptr;
 
     return sw_current_context;
 
@@ -441,12 +439,17 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval **coro_re
 #else
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval)
 {
-    EG(current_execute_data) = SWCC(current_execute_data);
-    ZVAL_COPY(SWCC(current_coro_return_value_ptr), retval);
     EG(vm_stack) = SWCC(current_vm_stack);
     EG(vm_stack_top) = SWCC(current_vm_stack_top);
     EG(vm_stack_end) = SWCC(current_vm_stack_end);
     //EG(current_task) = COROG.current_coro;
+    COROG.allocated_return_value_ptr = SWCC(allocated_return_value_ptr);
+    if ( SWCC(current_execute_data)->opline->result_type != IS_UNUSED)
+    {
+        ZVAL_COPY(SWCC(current_coro_return_value_ptr), retval);
+    }
+    SWCC(current_execute_data)->opline++;
+    EG(current_execute_data) = SWCC(current_execute_data);
     int coro_status;
     if (!setjmp(*swReactorCheckPoint))
     {

@@ -757,11 +757,8 @@ static PHP_METHOD(swoole_client_coro, connect)
 	{
 		php_swoole_add_timer_coro((int) (cli->timeout * 1000), cli->socket->fd, &cli->timeout_id, (void *) sw_current_context TSRMLS_CC);
 	}
-#if PHP_MAJOR_VERSION < 7
-	coro_save(return_value, return_value_ptr, sw_current_context);
-#else
+
 	coro_save(sw_current_context);
-#endif
 	coro_yield();
 }
 
@@ -1131,7 +1128,7 @@ static PHP_METHOD(swoole_client_coro, enableSSL)
 	SwooleG.main_reactor->set(SwooleG.main_reactor, cli->socket->fd, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE);
 
 	php_context *sw_current_context = swoole_get_property(getThis(), 0);
-	coro_save(return_value, return_value_ptr, sw_current_context);
+	coro_save(sw_current_context);
 	coro_yield();
 }
 
