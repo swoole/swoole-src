@@ -643,13 +643,12 @@ static int php_swoole_onPacket(swServer *serv, swEventData *req)
     add_assoc_long(zaddr, "server_socket", req->info.from_fd);
 
     zval *callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
+    char address[INET6_ADDRSTRLEN];
 
     //udp ipv4
     if (req->info.type == SW_EVENT_UDP)
     {
-        struct in_addr sin_addr;
-        sin_addr.s_addr = packet->addr.v4.s_addr;
-        char *address = inet_ntoa(sin_addr);
+        inet_ntop(AF_INET, &packet->addr.v4, address, sizeof(address));
         sw_add_assoc_string(zaddr, "address", address, 1);
         add_assoc_long(zaddr, "port", packet->port);
         SW_ZVAL_STRINGL(zdata, packet->data, packet->length, 1);
@@ -657,9 +656,8 @@ static int php_swoole_onPacket(swServer *serv, swEventData *req)
     //udp ipv6
     else if (req->info.type == SW_EVENT_UDP6)
     {
-        char tmp[INET6_ADDRSTRLEN];
-        inet_ntop(AF_INET6, &packet->addr.v6, tmp, sizeof(tmp));
-        sw_add_assoc_string(zaddr, "address", tmp, 1);
+        inet_ntop(AF_INET6, &packet->addr.v6, address, sizeof(address));
+        sw_add_assoc_string(zaddr, "address", address, 1);
         add_assoc_long(zaddr, "port", packet->port);
         SW_ZVAL_STRINGL(zdata, packet->data, packet->length, 1);
     }
