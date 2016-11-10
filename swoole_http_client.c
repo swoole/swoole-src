@@ -305,7 +305,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
         if (php_swoole_array_get_value(vht, "websocket_mask", ztmp))
         {
             convert_to_boolean(ztmp);
-            http->websocket_mask = (int) Z_LVAL_P(ztmp);
+            http->websocket_mask = (int) Z_BVAL_P(ztmp);
         }
         //client settings
         php_swoole_client_check_setting(http->cli, zset TSRMLS_CC);
