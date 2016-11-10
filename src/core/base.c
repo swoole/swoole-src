@@ -58,6 +58,7 @@ void swoole_init(void)
     SwooleG.cpu_num = sysconf(_SC_NPROCESSORS_ONLN);
     SwooleG.pagesize = getpagesize();
     SwooleG.pid = getpid();
+    SwooleG.socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
 
     //get system uname
     uname(&SwooleG.uname);
