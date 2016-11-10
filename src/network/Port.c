@@ -241,11 +241,10 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
             ret = swReactorThread_dispatch(conn, task.data.data, task.data.info.len);
         }
         else
-#else
+#endif
         {
             ret = serv->factory.dispatch(&serv->factory, &task);
         }
-#endif
         return ret;
     }
     return SW_OK;
