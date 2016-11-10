@@ -481,9 +481,7 @@ static int php_swoole_task_finish(swServer *serv, zval *data TSRMLS_DC)
 
 static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SWOOLE_GET_TSRMLS;
 
     zval *zserv = (zval *) serv->ptr2;
     zval *zworker_id;
@@ -503,7 +501,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
 
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onPipeMessage], &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_server: onPipeMessage handler error");
+        swoole_php_fatal_error(E_WARNING, "onPipeMessage handler error.");
     }
 
     if (EG(exception))
@@ -531,11 +529,14 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     zval *zdata;
     zval *retval = NULL;
 
-    zval *callback;
+    SWOOLE_GET_TSRMLS;
 
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    zval *callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
+    if (callback == NULL || ZVAL_IS_NULL(callback))
+    {
+        swoole_php_fatal_error(E_WARNING, "onReceive callback is null.");
+        return SW_OK;
+    }
 
     //UDP使用from_id作为port,fd做为ip
     php_swoole_udp_t udp_info;
@@ -596,8 +597,6 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
         php_swoole_get_recv_data(zdata, req, NULL, 0);
     }
 
-    callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
-
     args[0] = &zserv;
     args[1] = &zfd;
     args[2] = &zfrom_id;
@@ -605,7 +604,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
 
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_server: onReceive handler error");
+        swoole_php_fatal_error(E_WARNING, "onReceive handler error.");
     }
     if (EG(exception))
     {
@@ -643,6 +642,12 @@ static int php_swoole_onPacket(swServer *serv, swEventData *req)
     add_assoc_long(zaddr, "server_socket", req->info.from_fd);
 
     zval *callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
+    if (callback == NULL || ZVAL_IS_NULL(callback))
+    {
+        swoole_php_fatal_error(E_WARNING, "onPacket callback is null.");
+        return SW_OK;
+    }
+
     char address[INET6_ADDRSTRLEN];
 
     //udp ipv4
@@ -675,7 +680,7 @@ static int php_swoole_onPacket(swServer *serv, swEventData *req)
 
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_server: onPacket handler error");
+        swoole_php_fatal_error(E_WARNING, "onPacket handler error.");
     }
     if (EG(exception))
     {
@@ -702,9 +707,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
 
     zval *retval = NULL;
 
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SWOOLE_GET_TSRMLS;
 
     SW_MAKE_STD_ZVAL(zfd);
     ZVAL_LONG(zfd, (long) req->info.fd);
@@ -721,7 +724,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
 
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onTask], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_server: onTask handler error");
+        swoole_php_fatal_error(E_WARNING, "onTask handler error.");
     }
 
     if (EG(exception))
@@ -754,9 +757,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     zval *zdata;
     zval *retval = NULL;
 
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SWOOLE_GET_TSRMLS;
 
     SW_MAKE_STD_ZVAL(ztask_id);
     ZVAL_LONG(ztask_id, (long) req->info.fd);
@@ -779,7 +780,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
 
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_server: onFinish handler error");
+        swoole_php_fatal_error(E_WARNING, "onFinish handler error.");
     }
     if (EG(exception))
     {
@@ -807,9 +808,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
 
 static void php_swoole_onStart(swServer *serv)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SWOOLE_GET_TSRMLS;
 
     zval *zserv = (zval *) serv->ptr2;
     zval **args[1];
@@ -825,7 +824,7 @@ static void php_swoole_onStart(swServer *serv)
 
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onStart], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_server: onStart handler error");
+        swoole_php_fatal_error(E_WARNING, "onStart handler error.");
     }
     if (EG(exception))
     {
@@ -839,9 +838,7 @@ static void php_swoole_onStart(swServer *serv)
 
 static void php_swoole_onManagerStart(swServer *serv)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SWOOLE_GET_TSRMLS;
 
     zval *zserv = (zval *) serv->ptr2;
     zval **args[1];
@@ -857,7 +854,7 @@ static void php_swoole_onManagerStart(swServer *serv)
 
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onManagerStart], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_server: onManagerStart handler error");
+        swoole_php_fatal_error(E_WARNING, "onManagerStart handler error.");
     }
     if (EG(exception))
     {
@@ -871,9 +868,7 @@ static void php_swoole_onManagerStart(swServer *serv)
 
 static void php_swoole_onManagerStop(swServer *serv)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SWOOLE_GET_TSRMLS;
     zval *zserv = (zval *) serv->ptr2;
     zval **args[1];
     zval *retval = NULL;
@@ -883,7 +878,7 @@ static void php_swoole_onManagerStop(swServer *serv)
 
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onManagerStop], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_server: onManagerStop handler error");
+        swoole_php_fatal_error(E_WARNING, "onManagerStop handler error.");
     }
     if (EG(exception))
     {
@@ -903,15 +898,13 @@ static void php_swoole_onShutdown(swServer *serv)
 
     args[0] = &zserv;
 
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SWOOLE_GET_TSRMLS;
 
     if (php_sw_server_callbacks[SW_SERVER_CB_onShutdown] != NULL)
     {
         if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onShutdown], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
         {
-            swoole_php_fatal_error(E_WARNING, "swoole_server: onShutdown handler error");
+            swoole_php_fatal_error(E_WARNING, "onShutdown handler error.");
         }
         if (EG(exception))
         {
@@ -931,9 +924,7 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     zval **args[2];
     zval *retval = NULL;
 
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SWOOLE_GET_TSRMLS;
 
     SW_MAKE_STD_ZVAL(zworker_id);
     ZVAL_LONG(zworker_id, worker_id);
@@ -985,7 +976,7 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
 
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onWorkerStart], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_server: onWorkerStart handler error");
+        swoole_php_fatal_error(E_WARNING, "onWorkerStart handler error.");
     }
     if (EG(exception))
     {
@@ -1007,7 +998,7 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
 
     zval *zobject = (zval *) serv->ptr2;
     zval *zworker_id;
-    zval **args[2]; //这里必须与下面的数字对应
+    zval **args[2];
     zval *retval = NULL;
 
     SW_MAKE_STD_ZVAL(zworker_id);
@@ -1015,16 +1006,14 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
 
     sw_zval_add_ref(&zobject);
 
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SWOOLE_GET_TSRMLS;
 
     args[0] = &zobject;
     args[1] = &zworker_id;
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onWorkerStop], &retval, 2, args, 0,
             NULL TSRMLS_CC) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_server: onWorkerStop handler error");
+        swoole_php_fatal_error(E_WARNING, "onWorkerStop handler error.");
     }
     if (EG(exception))
     {
@@ -1043,9 +1032,7 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
 
 static void php_swoole_onUserWorkerStart(swServer *serv, swWorker *worker)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SWOOLE_GET_TSRMLS;
 
     zval *object = worker->ptr;
     zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("id"), SwooleWG.id TSRMLS_CC);
@@ -1074,9 +1061,7 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
 
     sw_zval_add_ref(&zobject);
 
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SWOOLE_GET_TSRMLS;
 
     args[0] = &zobject;
     args[1] = &zworker_id;
@@ -1086,7 +1071,7 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
 
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onWorkerError], &retval, 5, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_server: onWorkerError handler error");
+        swoole_php_fatal_error(E_WARNING, "onWorkerError handler error.");
     }
 
     if (EG(exception))
@@ -1113,15 +1098,14 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
     zval **args[3];
     zval *retval = NULL;
 
+    SWOOLE_GET_TSRMLS;
+
     zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onConnect);
-    if (!callback)
+    if (callback == NULL || ZVAL_IS_NULL(callback))
     {
+        swoole_php_fatal_error(E_WARNING, "onConnect callback is null.");
         return;
     }
-
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
 
     SW_MAKE_STD_ZVAL(zfd);
     ZVAL_LONG(zfd, info->fd);
@@ -1135,7 +1119,7 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
 
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        swoole_php_error(E_WARNING, "swoole_server: onConnect handler error");
+        swoole_php_error(E_WARNING, "onConnect handler error.");
     }
     if (EG(exception))
     {
@@ -1158,13 +1142,14 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
     zval **args[3];
     zval *retval = NULL;
 
+    SWOOLE_GET_TSRMLS;
+
     zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onClose);
-    if (!callback)
+    if (callback == NULL || ZVAL_IS_NULL(callback))
     {
+        swoole_php_fatal_error(E_WARNING, "onClose callback is null.");
         return;
     }
-
-    SWOOLE_GET_TSRMLS;
 
     SW_MAKE_STD_ZVAL(zfd);
     ZVAL_LONG(zfd, info->fd);
@@ -1178,7 +1163,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
 
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_server: onClose handler error");
+        swoole_php_fatal_error(E_WARNING, "onClose handler error.");
     }
     if (EG(exception))
     {
@@ -1215,7 +1200,7 @@ void php_swoole_onBufferFull(swServer *serv, swDataHead *info)
 
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        swoole_php_error(E_WARNING, "swoole_server: onConnect handler error");
+        swoole_php_error(E_WARNING, "onBufferFull handler error.");
     }
     if (EG(exception))
     {
@@ -1251,7 +1236,7 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
 
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        swoole_php_error(E_WARNING, "swoole_server: onBufferEmpty handler error");
+        swoole_php_error(E_WARNING, "onBufferEmpty handler error.");
     }
     if (EG(exception))
     {
