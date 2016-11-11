@@ -58,15 +58,18 @@ class BenchMark
             $cli->close();
             unset($this->clients[$k]);
         }
+        echo "============================================================\n";
+        echo "              Swoole Version ".SWOOLE_VERSION."\n";
+        echo "============================================================\n";
         echo "{$this->requestCount}\tbenchmark tests is finished.\n";
-        echo "SendBytes: {$this->nSendBytes}\n";
-        echo "nReceBytes: {$this->nRecvBytes}\n";
+        echo "SendBytes:\t{$this->nSendBytes}\n";
+        echo "nReceBytes:\t{$this->nRecvBytes}\n";
         echo "concurrency:\t".$this->nConcurrency,"\n";
         echo "request num:\t" . $this->nRequest, "\n";
         $costTime = $this->format(microtime(true) - $this->startTime);
         echo "total time:\t" . ($costTime) . "\n";
-        echo "req per second:\t" . intval($this->nRequest / $costTime), "\n";
-        echo "connect: " . $this->format($this->connectTime) . "\n";
+        echo "request per second:\t" . intval($this->nRequest / $costTime), "\n";
+        echo "connection time:\t" . $this->format($this->connectTime) . "\n";
     }
 
     function format($time)
@@ -77,6 +80,9 @@ class BenchMark
     function onReceive($cli, $data)
     {
         $this->nRecvBytes += strlen($data);
+        /**
+         * 请求已经发完了，关闭连接，等待所有连接结束
+         */
         if ($this->requestCount >= $this->nRequest)
         {
             $cli->close();
@@ -94,8 +100,16 @@ class BenchMark
 
     function send($cli)
     {
-        $data = "hello world";
+        $data = "hello world\n";
         $cli->send($data);
+        $this->nSendBytes += strlen($data);
+        $this->requestCount++;
+    }
+
+    function push($cli)
+    {
+        $data = "hello world\n";
+        $cli->push($data);
         $this->nSendBytes += strlen($data);
         $this->requestCount++;
     }
@@ -115,16 +129,52 @@ class BenchMark
         $this->send($cli);
     }
 
+    function websocket()
+    {
+        $cli = new swoole\http\client($this->host, $this->port);
+        $cli->set(array('websocket_mask' => true));
+        $cli->on('Message', function($cli, $frame) {
+            $this->nRecvBytes += strlen($frame->data);
+            /**
+             * 请求已经发完了，关闭连接，等待所有连接结束
+             */
+            if ($this->requestCount >= $this->nRequest)
+            {
+                $cli->close();
+                unset($this->clients[$cli->sock]);
+                if (count($this->clients) == 0)
+                {
+                    $this->finish();
+                }
+            }
+            else
+            {
+                $this->push($cli);
+            }
+        });
+        $cli->upgrade('/', function ($cli) {
+            $this->push($cli);
+        });
+        return $cli;
+    }
+
+    function long_tcp()
+    {
+        $cli = new swoole\client(SWOOLE_TCP | SWOOLE_ASYNC);
+        $cli->on('receive', [$this, 'onReceive']);
+        $cli->on('close', [$this, 'onClose']);
+        $cli->on('connect', [$this, 'onConnect']);
+        $cli->on('error', [$this, 'onError']);
+        $cli->connect($this->host, $this->port);
+        return $cli;
+    }
+
     function run()
     {
         $this->startTime = microtime(true);
-        for ($i = 0; $i < $this->nConcurrency; $i++) {
-            $cli = new swoole\client(SWOOLE_TCP | SWOOLE_ASYNC);
-            $cli->on('receive', [$this, 'onReceive']);
-            $cli->on('close', [$this, 'onClose']);
-            $cli->on('connect', [$this, 'onConnect']);
-            $cli->on('error', [$this, 'onError']);
-            $cli->connect($this->host, $this->port);
+        for ($i = 0; $i < $this->nConcurrency; $i++)
+        {
+            $cli = $this->websocket();
             $this->clients[$cli->sock] = $cli;
         }
         $this->beginSendTime = microtime(true);
