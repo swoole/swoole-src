@@ -471,8 +471,8 @@ void swoole_rtrim(char *str, int len)
 
 int swoole_tmpfile(char *filename)
 {
-#ifdef HAVE_MKOSTEMP
-    int tmp_fd = mkostemp(filename, O_WRONLY);
+#if defined(HAVE_MKOSTEMP) && defined(HAVE_EPOLL)
+    int tmp_fd = mkostemp(filename, O_WRONLY | O_CREAT);
 #else
     int tmp_fd = mkstemp(filename);
 #endif

@@ -1471,13 +1471,13 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "task_tmpdir", v))
     {
         convert_to_string(v);
-        if (Z_STRLEN_P(v) > SW_TASK_TMPDIR_SIZE - 22)
+        if (Z_STRLEN_P(v) > SW_TASK_TMPDIR_SIZE - 30)
         {
             swoole_php_fatal_error(E_ERROR, "task_tmpdir is too long, max size is %d.", SW_TASK_TMPDIR_SIZE - 1);
             return;
         }
         SwooleG.task_tmpdir = emalloc(SW_TASK_TMPDIR_SIZE);
-        SwooleG.task_tmpdir_len = snprintf(SwooleG.task_tmpdir, SW_TASK_TMPDIR_SIZE, "%s/task.XXXXXX", Z_STRVAL_P(v)) + 1;
+        SwooleG.task_tmpdir_len = snprintf(SwooleG.task_tmpdir, SW_TASK_TMPDIR_SIZE, "%s/swoole.task.XXXXXX", Z_STRVAL_P(v)) + 1;
     }
     //task_max_request
     if (php_swoole_array_get_value(vht, "task_max_request", v))
