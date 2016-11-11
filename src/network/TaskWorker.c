@@ -228,7 +228,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
                 //result pack
                 if (data_len >= SW_IPC_MAX_SIZE - sizeof(buf.info))
                 {
-                    if (swTaskWorker_large_pack(result, data, data_len) < 0)
+                    if (swTaskWorker_large_pack(&buf, data, data_len) < 0)
                     {
                         swWarn("large task pack failed()");
                         buf.info.len = 0;
@@ -241,7 +241,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
                 }
                 sw_atomic_fetch_add(finish_count, 1);
                 //write to tmpfile
-                if (write(fd, &buf, sizeof(buf.info) + buf.info.len) < 0)
+                if (swoole_sync_writefile(fd, &buf, sizeof(buf.info) + buf.info.len) < 0)
                 {
                     swSysError("write(%s, %ld) failed.", result->data, sizeof(buf.info) + buf.info.len);
                 }

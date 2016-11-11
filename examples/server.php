@@ -283,6 +283,27 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
         }
         echo "SyncTask: result=".var_export($result, true)."\n";
     }
+    elseif($cmd == "taskWaitMulti")
+    {
+        $result = $serv->taskWaitMulti(array(
+            str_repeat('A', 8192 * 5),
+            str_repeat('B', 8192 * 6),
+            str_repeat('C', 8192 * 8)
+        ));
+        if ($result)
+        {
+            $resp = "taskWaitMulti ok\n";
+            foreach($result as $k => $v)
+            {
+                $resp .= "result[$k] length=".strlen($v)."\n";
+            }
+            $serv->send($fd, $resp);
+        }
+        else
+        {
+            $serv->send($fd, "taskWaitMulti error\n");
+        }
+    }
     elseif ($cmd == "hellotask")
     {
         $serv->task("hellotask");
@@ -443,6 +464,11 @@ function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
         elseif ($cmd[0] == 'close')
         {
             $serv->close($cmd[1]);
+        }
+        else
+        {
+            echo "bigtask: length=".strlen($data)."\n";
+            return $data;
         }
 //        $serv->sendto('127.0.0.1', 9999, "hello world");
         //swoole_timer_after(1000, "test");

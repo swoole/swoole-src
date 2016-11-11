@@ -479,7 +479,7 @@ int swoole_tmpfile(char *filename)
 
     if (tmp_fd < 0)
     {
-        swSysError("mkdtemp(%s) failed.", filename);
+        swSysError("mkstemp(%s) failed.", filename);
         return SW_ERR;
     }
     else

@@ -2495,7 +2495,6 @@ PHP_METHOD(swoole_server, taskWaitMulti)
     int _tmpfile_fd = swoole_tmpfile(_tmpfile);
     if (_tmpfile_fd < 0)
     {
-        swoole_php_sys_error(E_WARNING, "mktemp(%s) failed.", SW_TASK_TMP_FILE);
         RETURN_FALSE;
     }
     close(_tmpfile_fd);
