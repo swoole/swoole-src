@@ -119,6 +119,7 @@ typedef unsigned long ulong_t;
 #define SW_END_LINE    "-------------------------END------------------------------"
 #define SW_SPACE       ' '
 #define SW_CRLF        "\r\n"
+#define SW_CRLF_LEN    2
 #define SW_ASCII_CODE_0     64
 #define SW_ASCII_CODE_Z     106
 /*----------------------------------------------------------------------------*/
@@ -288,9 +289,9 @@ snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str " Error: %s[%d].",__func__,_
 swLog_put(SW_LOG_ERROR, sw_error);\
 SwooleGS->lock_2.unlock(&SwooleGS->lock_2)
 
-#define swoole_error_log(level, errno, str, ...)      do{SwooleG.error=errno;\
+#define swoole_error_log(level, __errno, str, ...)      do{SwooleG.error=__errno;\
     if (level >= SwooleG.log_level){\
-    snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s (ERROR %d): " str,__func__,errno,##__VA_ARGS__);\
+    snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s (ERROR %d): " str,__func__,__errno,##__VA_ARGS__);\
     SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
     swLog_put( SW_LOG_ERROR, sw_error);\
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}}while(0)
@@ -457,6 +458,7 @@ typedef struct _swConnection
 
     uint32_t removed :1;
     uint32_t overflow :1;
+    uint32_t high_watermark :1;
 
     uint32_t tcp_nopush :1;
     uint32_t tcp_nodelay :1;
@@ -473,14 +475,14 @@ typedef struct _swConnection
     uint16_t from_id;
 
     /**
-     * from which socket fd
-     */
-    uint16_t from_fd;
-
-    /**
      * close error code
      */
     uint16_t close_errno;
+
+    /**
+     * from which socket fd
+     */
+    sw_atomic_t from_fd;
 
     /**
      * socket address
@@ -1123,6 +1125,7 @@ void swoole_print_trace(void);
 void swoole_ioctl_set_block(int sock, int nonblock);
 void swoole_fcntl_set_block(int sock, int nonblock);
 int swoole_gethostbyname(int type, char *name, char *addr);
+void swoole_clear_dns_cache(void);
 //----------------------core function---------------------
 int swSocket_set_timeout(int sock, double timeout);
 
@@ -1149,6 +1152,7 @@ void swoole_clean(void);
 void swoole_update_time(void);
 double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
+void swoole_redirect_stdout(int new_fd);
 
 static sw_inline uint64_t swoole_hton64(uint64_t host)
 {
@@ -1814,10 +1818,6 @@ typedef struct
      *  task worker process num
      */
     uint16_t task_worker_num;
-    /**
-     *  task worker process max
-     */
-    uint8_t task_recycle_num;
     char *task_tmpdir;
     uint16_t task_tmpdir_len;
     uint8_t task_ipc_mode;

@@ -19,11 +19,13 @@
 #include "http2.h"
 #include "websocket.h"
 #include "mqtt.h"
+#include "redis.h"
 
 static int swPort_onRead_raw(swReactor *reactor, swListenPort *lp, swEvent *event);
 static int swPort_onRead_check_length(swReactor *reactor, swListenPort *lp, swEvent *event);
 static int swPort_onRead_check_eof(swReactor *reactor, swListenPort *lp, swEvent *event);
 static int swPort_onRead_http(swReactor *reactor, swListenPort *lp, swEvent *event);
+static int swPort_onRead_redis(swReactor *reactor, swListenPort *lp, swEvent *event);
 
 void swPort_init(swListenPort *port)
 {
@@ -133,6 +135,10 @@ int swPort_listen(swListenPort *ls)
 #endif
     }
 #endif
+
+    ls->buffer_high_watermark = ls->socket_buffer_size * 0.8;
+    ls->buffer_low_watermark = 0;
+
     return SW_OK;
 }
 
@@ -183,6 +189,11 @@ void swPort_set_protocol(swListenPort *ls)
         ls->protocol.onPackage = swReactorThread_dispatch;
         ls->onRead = swPort_onRead_check_length;
     }
+    else if (ls->open_redis_protocol)
+    {
+        ls->protocol.onPackage = swReactorThread_dispatch;
+        ls->onRead = swPort_onRead_redis;
+    }
     else
     {
         ls->onRead = swPort_onRead_raw;
@@ -230,11 +241,10 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
             ret = swReactorThread_dispatch(conn, task.data.data, task.data.info.len);
         }
         else
-#else
+#endif
         {
             ret = serv->factory.dispatch(&serv->factory, &task);
         }
-#endif
         return ret;
     }
     return SW_OK;
@@ -487,6 +497,26 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             goto recv_data;
         }
     }
+    return SW_OK;
+}
+
+static int swPort_onRead_redis(swReactor *reactor, swListenPort *port, swEvent *event)
+{
+    swConnection *conn = event->socket;
+    swProtocol *protocol = &port->protocol;
+    swServer *serv = reactor->ptr;
+
+    swString *buffer = swServer_get_buffer(serv, event->fd);
+    if (!buffer)
+    {
+        return SW_ERR;
+    }
+
+    if (swRedis_recv(protocol, conn, buffer) < 0)
+    {
+        swReactorThread_onClose(reactor, event);
+    }
+
     return SW_OK;
 }
 

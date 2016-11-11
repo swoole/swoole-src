@@ -503,16 +503,19 @@ static void swoole_redis_parse_result(swRedisClient *redis, zval* return_value, 
 
     case REDIS_REPLY_ERROR:
         swoole_redis_set_error(redis, return_value, reply TSRMLS_CC);
-        // not network error:
-        // ZVAL_FALSE(return_value);
-        // zend_update_property_long(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("errCode"), redis->context->err TSRMLS_CC);
-        // zend_update_property_string(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), redis->context->errstr TSRMLS_CC);
         break;
 
     case REDIS_REPLY_STATUS:
         if (redis->context->err == 0)
         {
-            ZVAL_TRUE(return_value);
+            if (reply->len > 0)
+            {
+                SW_ZVAL_STRINGL(return_value, reply->str, reply->len, 1);
+            }
+            else
+            {
+                ZVAL_TRUE(return_value);
+            }
         }
         else
         {

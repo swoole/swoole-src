@@ -200,7 +200,7 @@ static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid
 
 static int swManager_loop_async(swFactory *factory)
 {
-    int pid, new_pid;
+    pid_t pid, new_pid;
     int i;
     int reload_worker_num;
     int ret;
@@ -300,7 +300,7 @@ static int swManager_loop_async(swFactory *factory)
                     swManager_check_exit_status(serv, i, pid, status);
 
                     //pid ->new pid
-                    new_pid = (pid_t) swHashMap_find_int(pidMap, pid);
+                    new_pid = (pid_t) (long) swHashMap_find_int(pidMap, pid);
                     swWarn(" now the worker pid is %d", new_pid);
                     serv->workers[i].pid = new_pid;
                 }
@@ -350,7 +350,7 @@ static int swManager_loop_async(swFactory *factory)
                     }
                     else
                     {
-                        swHashMap_add_int(pidMap, reload_workers[i].pid, (void*) new_pid);
+                        swHashMap_add_int(pidMap, reload_workers[i].pid, (void*) (long) new_pid);
                         swWarn(" add pidMap new_pid is %d old pid is %d", new_pid, reload_workers[i].pid);
                         break;
                     }

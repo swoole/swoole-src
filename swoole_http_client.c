@@ -308,7 +308,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
         if (php_swoole_array_get_value(vht, "websocket_mask", ztmp))
         {
             convert_to_boolean(ztmp);
-            http->websocket_mask = (int) Z_LVAL_P(ztmp);
+            http->websocket_mask = (int) Z_BVAL_P(ztmp);
         }
         //client settings
         php_swoole_client_check_setting(http->cli, zset TSRMLS_CC);
@@ -530,6 +530,23 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
         swoole_php_fatal_error(E_WARNING, "swoole_http_client object have not receive callback.");
         return;
     }
+    /**
+     * TODO: Sec-WebSocket-Accept check
+     */
+    if (http->upgrade)
+    {
+        cli->open_length_check = 1;
+        swString_clear(cli->buffer);
+        cli->protocol.get_package_length = swWebSocket_get_package_length;
+        cli->protocol.onPackage = http_client_onMessage;
+        cli->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
+        http->state = HTTP_CLIENT_STATE_UPGRADE;
+    }
+    else if (http->keep_alive == 1)
+    {
+        http->state = HTTP_CLIENT_STATE_READY;
+        http->completed = 0;
+    }
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onReactorCallback handler error");
@@ -547,35 +564,13 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
     {
         return;
     }
-
-    /**
-     * TODO: Sec-WebSocket-Accept check
-     */
-    if (http->upgrade)
+    if (http->keep_alive == 0 && http->state != HTTP_CLIENT_STATE_WAIT_CLOSE)
     {
-        cli->open_length_check = 1;
-        swString_clear(cli->buffer);
-        cli->protocol.get_package_length = swWebSocket_get_package_length;
-        cli->protocol.onPackage = http_client_onMessage;
-        cli->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
-        http->state = HTTP_CLIENT_STATE_UPGRADE;
-    }
-    else if (http->keep_alive == 0)
-    {
-        if (http->state != HTTP_CLIENT_STATE_WAIT_CLOSE)
+        sw_zend_call_method_with_0_params(&zobject, swoole_http_client_class_entry_ptr, NULL, "close", &retval);
+        if (retval)
         {
-            sw_zend_call_method_with_0_params(&zobject, swoole_http_client_class_entry_ptr, NULL, "close", &retval);
-            if (retval)
-            {
-                sw_zval_ptr_dtor(&retval);
-            }
+            sw_zval_ptr_dtor(&retval);
         }
-    }
-    else
-    {
-        //reset http phase for reuse
-        http->state = HTTP_CLIENT_STATE_READY;
-        http->completed = 0;
     }
 }
 

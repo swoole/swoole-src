@@ -273,7 +273,7 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
     swConnection *conn = swWorker_get_connection(serv, fd);
     if (conn == NULL || conn->active == 0)
     {
-        //swWarn("can not close. Connection[%d] not found.", _send.info.fd);
+        SwooleG.error = SW_ERROR_SESSION_NOT_EXIST;
         return SW_ERR;
     }
     else if (conn->close_force)

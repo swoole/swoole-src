@@ -123,7 +123,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
 {
     int package_length;
     uint32_t recv_size;
-    char swap[SW_BUFFER_SIZE];
+    char swap[SW_BUFFER_SIZE_STD];
 
     do_recv:
 	if (conn->active == 0)
@@ -255,9 +255,9 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString
     recv_data: buf_size = buffer->size - buffer->length;
     char *buf_ptr = buffer->str + buffer->length;
 
-    if (buf_size > SW_BUFFER_SIZE)
+    if (buf_size > SW_BUFFER_SIZE_STD)
     {
-        buf_size = SW_BUFFER_SIZE;
+        buf_size = SW_BUFFER_SIZE_STD;
     }
 
     int n = swConnection_recv(conn, buf_ptr, buf_size, 0);

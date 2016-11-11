@@ -78,6 +78,7 @@
 #endif
 //!!!End.-------------------------------------------------------------------
 
+#define SW_BUFFER_SIZE_STD         8192
 #define SW_BUFFER_SIZE_BIG         65536
 #define SW_BUFFER_SIZE_UDP         65536
 #define SW_SENDFILE_CHUNK_SIZE     65536

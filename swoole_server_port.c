@@ -99,6 +99,16 @@ static PHP_METHOD(swoole_server_port, set)
         convert_to_long(v);
         port->socket_buffer_size = (int) Z_LVAL_P(v);
     }
+    if (php_swoole_array_get_value(vht, "buffer_high_watermark", v))
+    {
+        convert_to_long(v);
+        port->buffer_high_watermark = (int) Z_LVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "buffer_low_watermark", v))
+    {
+        convert_to_long(v);
+        port->buffer_low_watermark = (int) Z_LVAL_P(v);
+    }
     //tcp_nodelay
     if (php_swoole_array_get_value(vht, "open_tcp_nodelay", v))
     {
@@ -171,6 +181,12 @@ static PHP_METHOD(swoole_server_port, set)
     {
         convert_to_boolean(v);
         port->open_mqtt_protocol = Z_BVAL_P(v);
+    }
+    //redis protocol
+    if (php_swoole_array_get_value(vht, "open_redis_protocol", v))
+    {
+        convert_to_boolean(v);
+        port->open_redis_protocol = Z_BVAL_P(v);
     }
     //tcp_keepidle
     if (php_swoole_array_get_value(vht, "tcp_keepidle", v))
@@ -354,12 +370,7 @@ static PHP_METHOD(swoole_server_port, on)
 
 #ifdef PHP_SWOOLE_CHECK_CALLBACK
     char *func_name = NULL;
-#ifdef SW_COROUTINE
-    zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
-    if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
-#else
     if (!sw_zend_is_callable(cb, 0, &func_name TSRMLS_CC))
-#endif
     {
         swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
         efree(func_name);
@@ -395,6 +406,8 @@ static PHP_METHOD(swoole_server_port, on)
         "HandShake",
         "Open",
         "Message",
+        "BufferFull",
+        "BufferEmpty",
     };
 
     char property_name[128];
@@ -423,6 +436,14 @@ static PHP_METHOD(swoole_server_port, on)
             else if (i == SW_SERVER_CB_onClose && SwooleG.serv->onClose == NULL)
             {
                 SwooleG.serv->onClose = php_swoole_onClose;
+            }
+            else if (i == SW_SERVER_CB_onBufferFull && SwooleG.serv->onBufferFull == NULL)
+            {
+                SwooleG.serv->onBufferFull = php_swoole_onBufferFull;
+            }
+            else if (i == SW_SERVER_CB_onBufferEmpty && SwooleG.serv->onBufferEmpty == NULL)
+            {
+                SwooleG.serv->onBufferEmpty = php_swoole_onBufferEmpty;
             }
 #ifdef SW_COROUTINE
             php_sw_server_caches[i] = func_cache;
