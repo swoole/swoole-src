@@ -245,6 +245,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
                 {
                     swSysError("write(%s, %ld) failed.", result->data, sizeof(buf.info) + buf.info.len);
                 }
+                close(fd);
             }
         }
         else

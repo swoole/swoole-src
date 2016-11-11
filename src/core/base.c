@@ -538,13 +538,15 @@ swString* swoole_file_get_contents(char *filename)
             }
             else
             {
-                swWarn("pread() failed. Error: %s[%d]", strerror(errno), errno);
+                swSysError("pread(%d, %d, %d) failed.", fd, file_stat.st_size - readn, readn);
                 swString_free(content);
+                close(fd);
                 return NULL;
             }
         }
         readn += n;
     }
+    close(fd);
     return content;
 }
 
