@@ -278,7 +278,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
         {
             ret = task_notify_pipe->write(task_notify_pipe, &flag, sizeof(flag));
 #ifdef HAVE_KQUEUE
-            if (errno == EAGAIN || errno == ENOBUFS)
+            if (ret < 0 && errno == EAGAIN || errno == ENOBUFS)
 #else
             if (ret < 0 && errno == EAGAIN)
 #endif
