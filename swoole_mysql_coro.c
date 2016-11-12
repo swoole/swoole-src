@@ -324,7 +324,11 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
 	context->state = SW_CORO_CONTEXT_RUNNING;
 	context->onTimeout = swoole_mysql_coro_onTimeout;
+#if PHP_MAJOR_VERSION < 7
 	context->coro_params = getThis();
+#else
+	context->coro_params = *getThis();
+#endif
 	if (connector->timeout > 0)
 	{
 		php_swoole_add_timer_coro((int) (connector->timeout * 1000), client->fd, &client->cli->timeout_id, (void *) context TSRMLS_CC);
@@ -614,7 +618,12 @@ static void swoole_mysql_coro_onTimeout(php_context *ctx)
 
     SW_ALLOC_INIT_ZVAL(result);
     ZVAL_BOOL(result, 0);
+#if PHP_MAJOR_VERSION < 7
     zval *zobject = (zval *)ctx->coro_params;
+#else
+    zval _zobject = ctx->coro_params;
+    zval *zobject = & _zobject;
+#endif
     mysql_client *client = swoole_get_object(zobject);
 
 	if (client->iowait == SW_MYSQL_CORO_STATUS_CLOSED)

@@ -179,7 +179,12 @@ static void client_coro_onTimeout(php_context *ctx)
     zval *zdata = NULL;
     zval *retval = NULL;
 
+#if PHP_MAJOR_VERSION < 7
     zval *zobject = (zval *)ctx->coro_params;
+#else
+    zval _zobject = ctx->coro_params;
+    zval *zobject = & _zobject;
+#endif
     zend_update_property_long(swoole_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), 110 TSRMLS_CC);
 
     swClient *cli = swoole_get_object(zobject);
@@ -603,7 +608,11 @@ static PHP_METHOD(swoole_client_coro, __construct)
 
 	php_context *sw_current_context = emalloc(sizeof(php_context));
 	sw_current_context->onTimeout = client_coro_onTimeout;
-    sw_current_context->coro_params = getThis();
+#if PHP_MAJOR_VERSION < 7
+	sw_current_context->coro_params = getThis();
+#else
+	sw_current_context->coro_params = *getThis();
+#endif
 	sw_current_context->state = SW_CORO_CONTEXT_RUNNING;
 	swoole_set_property(getThis(), 0, sw_current_context);
 

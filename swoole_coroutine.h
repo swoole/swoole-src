@@ -46,7 +46,11 @@ struct _php_context
 {
     zval **current_coro_return_value_ptr_ptr;
     zval *current_coro_return_value_ptr;
+#if PHP_MAJOR_VERSION < 7
     void *coro_params;
+#else
+    zval coro_params;
+#endif
     void (*onTimeout)(struct _php_context *cxt);
     zval **current_eg_return_value_ptr_ptr;
     zend_execute_data *current_execute_data;

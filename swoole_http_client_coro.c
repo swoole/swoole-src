@@ -395,7 +395,12 @@ static void http_client_coro_onTimeout(php_context *ctx)
 
     SW_MAKE_STD_ZVAL(zdata);
     ZVAL_BOOL(zdata, 0); //return false
+#if PHP_MAJOR_VERSION < 7
     zval *zobject = (zval *)ctx->coro_params;
+#else
+    zval _zobject = ctx->coro_params;
+    zval *zobject = & _zobject;
+#endif
     //define time out RETURN ERROR  110
     zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), 110 TSRMLS_CC);
 
@@ -1004,7 +1009,11 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
         swoole_set_property(getThis(), 1, context);
     }
     context->onTimeout = http_client_coro_onTimeout;
-    context->coro_params = getThis();
+#if PHP_MAJOR_VERSION < 7
+	context->coro_params = getThis();
+#else
+	context->coro_params = *getThis();
+#endif
 	context->state = SW_CORO_CONTEXT_RUNNING;
 
     RETURN_TRUE;
