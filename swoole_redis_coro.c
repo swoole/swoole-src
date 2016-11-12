@@ -1113,7 +1113,13 @@ static PHP_METHOD(swoole_redis_coro, recv)
 	if (redis->iowait == SW_REDIS_CORO_STATUS_DONE)
 	{
 		redis->iowait = SW_REDIS_CORO_STATUS_READY;
-		zval *result = redis->result;
+#if PHP_MAJOR_VERSION >= 7
+        zval _result = *redis->result;
+        efree(redis->result);
+        zval *result = &_result;
+#else
+        zval *result = redis->result;
+#endif
 		redis->result = NULL;
 		RETURN_ZVAL(result, 0, 1);
 	}

@@ -415,7 +415,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
 			client->iowait = SW_MYSQL_CORO_STATUS_WAIT;
 			RETURN_TRUE;
 		}
-                coro_save(context);
+        coro_save(context);
 		coro_yield();
     }
 }
@@ -457,24 +457,13 @@ static PHP_METHOD(swoole_mysql_coro, recv)
 		RETURN_FALSE;
 	}
 
-	if (client->iowait == SW_MYSQL_CORO_STATUS_CLOSED && client->result)
-	{
-#if PHP_MAJOR_VERSION > 7
-		zval result = *client->result;
-        efree(client->result);
-#else
-        zval *result = client->result;
-#endif
-        client->result = NULL;
-        RETURN_ZVAL(result, 0, 1);
-	}
-
 	if (client->iowait == SW_MYSQL_CORO_STATUS_DONE)
 	{
 		client->iowait = SW_MYSQL_CORO_STATUS_READY;
-#if PHP_MAJOR_VERSION > 7
-        zval result = *client->result;
+#if PHP_MAJOR_VERSION >= 7
+        zval _result = *client->result;
         efree(client->result);
+        zval *result = &_result;
 #else
         zval *result = client->result;
 #endif
