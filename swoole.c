@@ -666,6 +666,7 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_websocket_init(module_number TSRMLS_CC);
     swoole_mysql_init(module_number TSRMLS_CC);
     swoole_module_init(module_number TSRMLS_CC);
+    swoole_mmap_init(module_number TSRMLS_CC);
 
 #ifdef SW_USE_REDIS
     swoole_redis_init(module_number TSRMLS_CC);

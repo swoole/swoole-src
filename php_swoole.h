@@ -43,7 +43,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.9.0-beta"
+#define PHP_SWOOLE_VERSION  "1.9.0-rc1"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -349,6 +349,7 @@ void swoole_websocket_init(int module_number TSRMLS_DC);
 void swoole_buffer_init(int module_number TSRMLS_DC);
 void swoole_mysql_init(int module_number TSRMLS_DC);
 void swoole_module_init(int module_number TSRMLS_DC);
+void swoole_mmap_init(int module_number TSRMLS_DC);
 
 int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC);
 

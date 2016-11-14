@@ -99,11 +99,11 @@ void *swShareMemory_mmap_create(swShareMemory *object, int size, char *mapfile)
 #ifdef MAP_ANONYMOUS
     flag |= MAP_ANONYMOUS;
 #else
-    if(mapfile == NULL)
+    if (mapfile == NULL)
     {
         mapfile = "/dev/zero";
     }
-    if((tmpfd = open(mapfile, O_RDWR)) < 0)
+    if ((tmpfd = open(mapfile, O_RDWR)) < 0)
     {
         return NULL;
     }

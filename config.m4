@@ -261,6 +261,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_redis.c \
         swoole_redis_server.c \
 	    swoole_module.c \
+	    swoole_mmap.c \
         src/core/base.c \
         src/core/log.c \
         src/core/hashmap.c \

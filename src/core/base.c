@@ -538,7 +538,7 @@ swString* swoole_file_get_contents(char *filename)
             }
             else
             {
-                swSysError("pread(%d, %d, %d) failed.", fd, file_stat.st_size - readn, readn);
+                swSysError("pread(%d, %ld, %d) failed.", fd, file_stat.st_size - readn, readn);
                 swString_free(content);
                 close(fd);
                 return NULL;
