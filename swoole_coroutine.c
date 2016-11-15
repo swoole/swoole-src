@@ -16,13 +16,12 @@
 
 #include "php_swoole.h"
 #include "zend_API.h"
+#include "standard/php_lcg.h"
 
 #ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 
 #define SWCC(x) sw_current_context->x
-#define SW_EX_CV_NUM(ex, n) (((zval ***)(((char *)(ex)) + ZEND_MM_ALIGNED_SIZE(sizeof(zend_execute_data)))) + n)
-#define SW_EX_CV(var) (*SW_EX_CV_NUM(execute_data, var))
 
 jmp_buf *swReactorCheckPoint;
 coro_global COROG;
@@ -38,12 +37,11 @@ int coro_init(TSRMLS_D)
 #endif
     COROG.origin_ex = EG(current_execute_data);
     COROG.coro_num = 0;
-	if (COROG.max_coro_num <= 0)
-	{
-		COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
-	}
-	COROG.require = 0;
-    //swReactorCheckPoint.cnt = 0;
+    if (COROG.max_coro_num <= 0)
+    {
+        COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
+    }
+    COROG.require = 0;
     swReactorCheckPoint = emalloc(sizeof(jmp_buf));
     return 0;
 }
@@ -59,9 +57,7 @@ void coro_check(TSRMLS_D)
 #if PHP_MAJOR_VERSION < 7
 int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **retval, void *post_callback, void* params)
 {
-#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
     if (__builtin_expect(COROG.coro_num >= COROG.max_coro_num, 0))
     {
         swWarn("exceed max number of coro %d", COROG.coro_num);
@@ -184,6 +180,9 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     COROG.current_coro = (coro_task *)ZEND_VM_STACK_ELEMETS(EG(argument_stack));
 
     int coro_status;
+    struct timeval tv;
+    gettimeofday((struct timeval *) &tv, (struct timezone *) NULL);
+    snprintf(COROG.uid, 21, "%08x%05x%07.7F", (int)tv.tv_sec, (int)tv.tv_usec, php_combined_lcg(TSRMLS_C) * 10);
     COROG.current_coro->start_time = time(NULL);
     COROG.current_coro->post_callback = post_callback;
     COROG.current_coro->post_callback_params = params;
@@ -252,6 +251,9 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     COROG.require = 1;
 
     int coro_status;
+    struct timeval tv;
+    gettimeofday((struct timeval *) &tv, (struct timezone *) NULL);
+    snprintf(COROG.uid, 21, "%08x%05x%07.7F", (int)tv.tv_sec, (int)tv.tv_usec, php_combined_lcg(TSRMLS_C) * 10);
     if (!setjmp(*swReactorCheckPoint))
     {
         zend_execute_ex(call);
@@ -331,9 +333,8 @@ sw_inline void coro_close(TSRMLS_D)
 #if PHP_MAJOR_VERSION < 7
 sw_inline php_context *sw_coro_save(zval *return_value, zval **return_value_ptr, php_context *sw_current_context)
 {
-#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    strncpy(SWCC(uid), COROG.uid, 20);
     SWCC(current_coro_return_value_ptr_ptr) = return_value_ptr;
     SWCC(current_coro_return_value_ptr) = return_value;
     SWCC(current_eg_return_value_ptr_ptr) = EG(return_value_ptr_ptr);
@@ -362,6 +363,7 @@ sw_inline php_context *sw_coro_save(zval *return_value, php_context *sw_current_
     zend_vm_stack_free_args(EG(current_execute_data));
     zend_vm_stack_free_call_frame(EG(current_execute_data));
 
+    strncpy(SWCC(uid), COROG.uid, 20);
     SWCC(current_coro_return_value_ptr) = return_value;
     SWCC(current_execute_data) = EG(current_execute_data)->prev_execute_data;
     SWCC(current_vm_stack) = EG(vm_stack);
@@ -378,9 +380,8 @@ sw_inline php_context *sw_coro_save(zval *return_value, php_context *sw_current_
 #if PHP_MAJOR_VERSION < 7
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retval)
 {
-#if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    strncpy(COROG.uid, SWCC(uid), 20);
     //free unused return value
     zval *saved_return_value = sw_current_context->current_coro_return_value_ptr;
     zend_bool unused = sw_current_context->current_execute_data->opline->result_type & EXT_TYPE_UNUSED;
@@ -443,6 +444,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
     EG(vm_stack_top) = SWCC(current_vm_stack_top);
     EG(vm_stack_end) = SWCC(current_vm_stack_end);
     //EG(current_task) = COROG.current_coro;
+    strncpy(COROG.uid, SWCC(uid), 20);
     COROG.allocated_return_value_ptr = SWCC(allocated_return_value_ptr);
     if ( SWCC(current_execute_data)->opline->result_type != IS_UNUSED)
     {
