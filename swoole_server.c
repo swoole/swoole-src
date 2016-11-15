@@ -1103,7 +1103,6 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
     zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onConnect);
     if (callback == NULL || ZVAL_IS_NULL(callback))
     {
-        swoole_php_fatal_error(E_WARNING, "onConnect callback is null.");
         return;
     }
 
@@ -1147,7 +1146,6 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
     zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onClose);
     if (callback == NULL || ZVAL_IS_NULL(callback))
     {
-        swoole_php_fatal_error(E_WARNING, "onClose callback is null.");
         return;
     }
 
