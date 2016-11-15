@@ -31,11 +31,17 @@ void swTaskWorker_init(swProcessPool *pool)
     pool->start_id = SwooleG.serv->worker_num;
     pool->run_worker_num = SwooleG.task_worker_num;
 
+    if (!SwooleG.task_tmpdir)
+    {
+        SwooleG.task_tmpdir = strndup(SW_TASK_TMP_FILE, sizeof(SW_TASK_TMP_FILE));
+        SwooleG.task_tmpdir_len = sizeof(SW_TASK_TMP_FILE);
+    }
+
     char *tmp_dir = swoole_dirname(SwooleG.task_tmpdir);
     //create tmp dir
     if (access(tmp_dir, R_OK) < 0 && swoole_mkdir_recursive(tmp_dir) < 0)
     {
-        swWarn("create task tmp dir failed.");
+        swWarn("create task tmp dir(%s) failed.", tmp_dir);
     }
     if (SwooleG.task_ipc_mode == SW_TASK_IPC_PREEMPTIVE)
     {
@@ -222,7 +228,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
                 //result pack
                 if (data_len >= SW_IPC_MAX_SIZE - sizeof(buf.info))
                 {
-                    if (swTaskWorker_large_pack(result, data, data_len) < 0)
+                    if (swTaskWorker_large_pack(&buf, data, data_len) < 0)
                     {
                         swWarn("large task pack failed()");
                         buf.info.len = 0;
@@ -235,10 +241,11 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
                 }
                 sw_atomic_fetch_add(finish_count, 1);
                 //write to tmpfile
-                if (write(fd, &buf, sizeof(buf.info) + buf.info.len) < 0)
+                if (swoole_sync_writefile(fd, &buf, sizeof(buf.info) + buf.info.len) < 0)
                 {
                     swSysError("write(%s, %ld) failed.", result->data, sizeof(buf.info) + buf.info.len);
                 }
+                close(fd);
             }
         }
         else
@@ -273,7 +280,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
 #ifdef HAVE_KQUEUE
             if (errno == EAGAIN || errno == ENOBUFS)
 #else
-            if (errno == EAGAIN)
+            if (ret < 0 && errno == EAGAIN)
 #endif
             {
                 if (swSocket_wait(task_notify_pipe->getFd(task_notify_pipe, 1), -1, SW_EVENT_WRITE) == 0)

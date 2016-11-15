@@ -58,6 +58,7 @@ void swoole_init(void)
     SwooleG.cpu_num = sysconf(_SC_NPROCESSORS_ONLN);
     SwooleG.pagesize = getpagesize();
     SwooleG.pid = getpid();
+    SwooleG.socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
 
     //get system uname
     uname(&SwooleG.uname);
@@ -369,6 +370,18 @@ int swoole_system_random(int min, int max)
     return min + (random_value % (max - min + 1));
 }
 
+void swoole_redirect_stdout(int new_fd)
+{
+    if (dup2(new_fd, STDOUT_FILENO) < 0)
+    {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "dup2(STDOUT_FILENO) failed. Error: %s[%d]", strerror(errno), errno);
+    }
+    if (dup2(new_fd, STDERR_FILENO) < 0)
+    {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "dup2(STDERR_FILENO) failed. Error: %s[%d]", strerror(errno), errno);
+    }
+}
+
 void swoole_update_time(void)
 {
     time_t now = time(NULL);
@@ -458,15 +471,15 @@ void swoole_rtrim(char *str, int len)
 
 int swoole_tmpfile(char *filename)
 {
-#ifdef HAVE_MKOSTEMP
-    int tmp_fd = mkostemp(filename, O_WRONLY);
+#if defined(HAVE_MKOSTEMP) && defined(HAVE_EPOLL)
+    int tmp_fd = mkostemp(filename, O_WRONLY | O_CREAT);
 #else
     int tmp_fd = mkstemp(filename);
 #endif
 
     if (tmp_fd < 0)
     {
-        swSysError("mkdtemp(%s) failed.", filename);
+        swSysError("mkstemp(%s) failed.", filename);
         return SW_ERR;
     }
     else
@@ -525,13 +538,15 @@ swString* swoole_file_get_contents(char *filename)
             }
             else
             {
-                swWarn("pread() failed. Error: %s[%d]", strerror(errno), errno);
+                swSysError("pread(%d, %d, %d) failed.", fd, file_stat.st_size - readn, readn);
                 swString_free(content);
+                close(fd);
                 return NULL;
             }
         }
         readn += n;
     }
+    close(fd);
     return content;
 }
 
@@ -781,6 +796,20 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
     char *match = swoole_kmp_search(haystack, length, needle, nlen, borders);
     free(borders);
     return match;
+}
+
+void swoole_clear_dns_cache(void)
+{
+    if (swoole_dns_cache_v4)
+    {
+        swHashMap_free(swoole_dns_cache_v4);
+        swoole_dns_cache_v4 = NULL;
+    }
+    if (swoole_dns_cache_v6)
+    {
+        swHashMap_free(swoole_dns_cache_v6);
+        swoole_dns_cache_v6 = NULL;
+    }
 }
 
 /**

@@ -65,18 +65,8 @@ int swManager_start(swFactory *factory)
 
     if (SwooleG.task_worker_num > 0)
     {
-        key_t key = 0;
-        int create_pipe = 1;
-
-        if (SwooleG.task_ipc_mode > SW_TASK_IPC_UNIXSOCK)
+        if (swServer_create_task_worker(serv) < 0)
         {
-            key = serv->message_queue_key;
-            create_pipe = 0;
-        }
-
-        if (swProcessPool_create(&SwooleGS->task_workers, SwooleG.task_worker_num, SwooleG.task_max_request, key, create_pipe) < 0)
-        {
-            swWarn("[Master] create task_workers failed.");
             return SW_ERR;
         }
 
@@ -210,7 +200,7 @@ static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid
 
 static int swManager_loop_async(swFactory *factory)
 {
-    int pid, new_pid;
+    pid_t pid, new_pid;
     int i;
     int reload_worker_num;
     int ret;
@@ -310,7 +300,7 @@ static int swManager_loop_async(swFactory *factory)
                     swManager_check_exit_status(serv, i, pid, status);
 
                     //pid ->new pid
-                    new_pid = (pid_t) swHashMap_find_int(pidMap, pid);
+                    new_pid = (pid_t) (long) swHashMap_find_int(pidMap, pid);
                     swWarn(" now the worker pid is %d", new_pid);
                     serv->workers[i].pid = new_pid;
                 }
@@ -360,7 +350,7 @@ static int swManager_loop_async(swFactory *factory)
                     }
                     else
                     {
-                        swHashMap_add_int(pidMap, reload_workers[i].pid, (void*) new_pid);
+                        swHashMap_add_int(pidMap, reload_workers[i].pid, (void*) (long) new_pid);
                         swWarn(" add pidMap new_pid is %d old pid is %d", new_pid, reload_workers[i].pid);
                         break;
                     }
@@ -744,6 +734,7 @@ pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
     //child
     else if (pid == 0)
     {
+        SwooleG.process_type = SW_PROCESS_USERWORKER;
         serv->onUserWorkerStart(serv, worker);
         exit(0);
     }

@@ -35,29 +35,24 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2016-07-28</date>
-    <time>11:48:51</time>
+    <date>2016-10-25</date>
+    <time>16:48:51</time>
     <version>
-		<release>2.0.1</release>
-		<api>2.0.1</api>
+		<release>1.8.13</release>
+		<api>1.8</api>
     </version>
     <stability>
-        <release>alpha</release>
-        <api>alpha</api>
+        <release>stable</release>
+        <api>stable</api>
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Added Swoole\Server\Port->getSocket
-- Added Swoole\Server->getClientInfo()['close_errno'] property
-- Added Swoole\Event namespace and class styles
-- Added Swoole\MySQL character set support
-- Added Swoole\Server->taskWaitMulti can perform multiple tasks concurrently
-- Added Swoole\Client->getPeerCert method
-- Added Swoole\Client->pause and Swoole\Client->resume
-- Fixed Swoole\Server->taskwait cannot use in BASE mode
-- Fixed Swoole\MySQL client crash when receive more than 250 field query statement
-- Fixed Swoole\Server->task third parameter passed Callback Crash at PHP7
-- Fixed Swoole\Http\Request->files crash on PHP7 when externally referenced
+- Fixed WebSocket\Server automatically merge the incomplete data frame exists security vulnerabilities
+- Added the upload_tmp_dir option to set the Http\Server upload file temporary directory
+- Added Server->sendMessage automatic stringing function, and now sendMessage PHP variables can be sent to any other work process
+- Added Process::alarm high-precision timer
+- Fixed a bug where the protocol length function crashed when the connection was closed
+- Fixed swoole_select function in PHP7 can not modify the reference array problem
     </notes>
 	<contents>
 		<dir name="/">
@@ -128,6 +123,17 @@
 				<file role="src" name="multipart_parser.c" />
 				<file role="src" name="multipart_parser.h" />
 			</dir>
+            <dir name="benchmark">
+                <file role="src" name="async.php" />
+                <file role="src" name="run.php" />
+                <file role="src" name="tcp.php" />
+                <file role="src" name="udp.php" />
+                <file role="src" name="http.php" />
+                <file role="src" name="http.js" />
+                <file role="src" name="tcp.js" />
+                <file role="src" name="tcp.go" />
+                <file role="src" name="http.go" />
+            </dir>
 			<dir name="src">
 				<dir name="core">
 					<file role="src" name="base.c" />
@@ -284,16 +290,6 @@
                     <file role="src" name="tcp_client.php" />
                     <file role="src" name="udp_client.php" />
                 </dir>
-				<dir name="bench">
-					<file role="src" name="http.js" />
-					<file role="src" name="tcp.js" />
-					<file role="src" name="tcp.go" />
-					<file role="src" name="http.go" />
-					<file role="src" name="tcp.php" />
-					<file role="src" name="udp.php" />
-					<file role="src" name="http.php" />
-					<file role="src" name="run.php" />
-				</dir>
 				<dir name="timer">
                     <file role="src" name="after.php" />
                     <file role="src" name="tick.php" />

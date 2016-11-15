@@ -267,6 +267,10 @@ int swReactor_close(swReactor *reactor, int fd)
     {
         swBuffer_free(socket->in_buffer);
     }
+    if (socket->websocket_buffer)
+    {
+        swString_free(socket->websocket_buffer);
+    }
     bzero(socket, sizeof(swConnection));
     socket->removed = 1;
     return close(fd);
@@ -286,6 +290,12 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
     if (socket->buffer_size == 0)
     {
         socket->buffer_size = SwooleG.socket_buffer_size;
+    }
+
+    if (n > socket->buffer_size)
+    {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "data is too large, cannot exceed buffer size.");
+        return SW_ERR;
     }
 
     if (swBuffer_empty(buffer))
@@ -363,13 +373,13 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
 
         if (buffer->length > socket->buffer_size)
         {
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow.", fd);
             if (SwooleG.socket_dontwait)
             {
                 return SW_ERR;
             }
             else
             {
-                swWarn("socket[fd=%d, type=%d] output buffer overflow, reactor will block.", fd, socket->fdtype);
                 swYield();
                 swSocket_wait(fd, SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
             }

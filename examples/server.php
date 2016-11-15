@@ -6,12 +6,12 @@ class G
     static $config = array(
         //'reactor_num'              => 16,     // 线程数. 一般设置为CPU核数的1-4倍
         'worker_num'               => 1,    // 工作进程数量. 设置为CPU的1-4倍最合理
-        'max_request'              => 0,     // 防止 PHP 内存溢出, 一个工作进程处理 X 次任务后自动重启 (注: 0,不自动重启)
+        'max_request'              => 1000,     // 防止 PHP 内存溢出, 一个工作进程处理 X 次任务后自动重启 (注: 0,不自动重启)
         'max_conn'                 => 10000, // 最大连接数
         'task_worker_num'          => 1,     // 任务工作进程数量
 //        'task_ipc_mode'            => 2,     // 设置 Task 进程与 Worker 进程之间通信的方式。
         'task_max_request'         => 0,     // 防止 PHP 内存溢出
-        'task_tmpdir'              => '/tmp',
+        //'task_tmpdir'              => '/tmp',
         //'message_queue_key'        => ftok(SYS_ROOT . 'queue.msg', 1),
         'dispatch_mode'            => 2,
         //'daemonize'                => 1,     // 设置守护进程模式
@@ -55,8 +55,8 @@ if (isset($argv[1]) and $argv[1] == 'daemon') {
     G::$config['daemonize'] = false;
 }
 
-$mode = SWOOLE_BASE;
-//$mode = SWOOLE_PROCESS;
+//$mode = SWOOLE_BASE;
+$mode = SWOOLE_PROCESS;
 
 $serv = new swoole_server("0.0.0.0", 9501, $mode, SWOOLE_SOCK_TCP);
 $serv->listen('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
@@ -271,6 +271,10 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     {
         $serv->task("send " . $fd);
     }
+    elseif ($cmd == "bigtask")
+    {
+        $serv->task(str_repeat('A', 8192*5));
+    }
     elseif($cmd == "taskwait")
     {
         $result = $serv->taskwait("taskwait");
@@ -278,6 +282,27 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
         	$serv->send($fd, "taskwaitok");
         }
         echo "SyncTask: result=".var_export($result, true)."\n";
+    }
+    elseif($cmd == "taskWaitMulti")
+    {
+        $result = $serv->taskWaitMulti(array(
+            str_repeat('A', 8192 * 5),
+            str_repeat('B', 8192 * 6),
+            str_repeat('C', 8192 * 8)
+        ));
+        if ($result)
+        {
+            $resp = "taskWaitMulti ok\n";
+            foreach($result as $k => $v)
+            {
+                $resp .= "result[$k] length=".strlen($v)."\n";
+            }
+            $serv->send($fd, $resp);
+        }
+        else
+        {
+            $serv->send($fd, "taskWaitMulti error\n");
+        }
     }
     elseif ($cmd == "hellotask")
     {
@@ -439,6 +464,11 @@ function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
         elseif ($cmd[0] == 'close')
         {
             $serv->close($cmd[1]);
+        }
+        else
+        {
+            echo "bigtask: length=".strlen($data)."\n";
+            return $data;
         }
 //        $serv->sendto('127.0.0.1', 9999, "hello world");
         //swoole_timer_after(1000, "test");

@@ -458,8 +458,15 @@ PHP_FUNCTION(swoole_timer_clear)
     //current timer, cannot remove here.
     if (tnode->id == SwooleG.timer._current_id)
     {
-        tnode->remove = 1;
-        RETURN_TRUE;
+        if (0 == tnode->remove)  //To avoid repeat delete
+        {
+            tnode->remove = 1;
+            RETURN_TRUE;
+        }
+        else
+        {
+            RETURN_FALSE;
+        }
     }
 
     if (php_swoole_del_timer(tnode TSRMLS_CC) < 0)
@@ -492,8 +499,11 @@ PHP_FUNCTION(swoole_timer_exists)
     {
        RETURN_FALSE;
     }
-    else
+    
+    if (1 == tnode->remove)
     {
-       RETURN_TRUE
+        RETURN_TRUE;
     }
+    
+    RETURN_FALSE;
 }

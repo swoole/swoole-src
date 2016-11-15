@@ -229,9 +229,9 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_dns_lookup, 0, 0, 2)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_select, 0, 0, 3)
-    ZEND_ARG_INFO(0, read_array)
-    ZEND_ARG_INFO(0, write_array)
-    ZEND_ARG_INFO(0, error_array)
+    ZEND_ARG_INFO(1, read_array)
+    ZEND_ARG_INFO(1, write_array)
+    ZEND_ARG_INFO(1, error_array)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
@@ -247,10 +247,13 @@ ZEND_END_ARG_INFO()
 
 #include "zend_exceptions.h"
 
+PHP_FUNCTION(swoole_clear_dns_cache);
+
 const zend_function_entry swoole_functions[] =
 {
-    PHP_FE(swoole_version, NULL)
-    PHP_FE(swoole_cpu_num, NULL)
+    PHP_FE(swoole_version, arginfo_swoole_void)
+    PHP_FE(swoole_cpu_num, arginfo_swoole_void)
+    PHP_FE(swoole_clear_dns_cache, arginfo_swoole_void)
     /*------swoole_event-----*/
     PHP_FE(swoole_event_add, arginfo_swoole_event_add)
     PHP_FE(swoole_event_set, NULL)
@@ -680,6 +683,7 @@ PHP_MINIT_FUNCTION(swoole)
 #ifdef SW_USE_REDIS
     swoole_redis_init(module_number TSRMLS_CC);
 #endif
+    swoole_redis_server_init(module_number TSRMLS_CC);
 
     if (SWOOLE_G(socket_buffer_size) > 0)
     {
@@ -786,7 +790,15 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef HAVE_PTHREAD_BARRIER
     php_info_print_table_row(2, "pthread_barrier", "enabled");
 #endif
-
+#ifdef SW_USE_JEMALLOC
+    php_info_print_table_row(2, "jemalloc", "enabled");
+#endif
+#ifdef SW_USE_TCMALLOC
+    php_info_print_table_row(2, "tcmalloc", "enabled");
+#endif
+#ifdef SW_USE_HUGEPAGE
+    php_info_print_table_row(2, "hugepage", "enabled");
+#endif
     php_info_print_table_end();
 
     DISPLAY_INI_ENTRIES();
@@ -887,6 +899,11 @@ PHP_FUNCTION(swoole_strerror)
 PHP_FUNCTION(swoole_errno)
 {
     RETURN_LONG(errno);
+}
+
+PHP_FUNCTION(swoole_clear_dns_cache)
+{
+    swoole_clear_dns_cache();
 }
 
 PHP_FUNCTION(swoole_set_process_name)

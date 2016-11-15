@@ -46,8 +46,6 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event);
 static int php_swoole_event_onError(swReactor *reactor, swEvent *event);
 static void php_swoole_event_onDefer(void *_cb);
 
-static int swoole_convert_to_fd(zval *zfd);
-
 static int php_swoole_event_onRead(swReactor *reactor, swEvent *event)
 {
     zval *retval;
@@ -195,14 +193,10 @@ void php_swoole_event_wait()
     }
 }
 
-static int swoole_convert_to_fd(zval *zfd)
+int swoole_convert_to_fd(zval *zfd TSRMLS_DC)
 {
     php_stream *stream;
     int socket_fd;
-
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
     php_socket *php_sock;
@@ -243,6 +237,24 @@ static int swoole_convert_to_fd(zval *zfd)
             swoole_php_fatal_error(E_WARNING, "invalid file descriptor passed");
             return SW_ERR;
         }
+    }
+    else if (SW_Z_TYPE_P(zfd) == IS_OBJECT)
+    {
+        zval *zsock = NULL;
+        if (instanceof_function(Z_OBJCE_P(zfd), swoole_client_class_entry_ptr TSRMLS_CC))
+        {
+            zsock = sw_zend_read_property(Z_OBJCE_P(zfd), zfd, SW_STRL("sock")-1, 0 TSRMLS_CC);
+        }
+        else if (instanceof_function(Z_OBJCE_P(zfd), swoole_process_class_entry_ptr TSRMLS_CC))
+        {
+            zsock = sw_zend_read_property(Z_OBJCE_P(zfd), zfd, SW_STRL("pipe")-1, 0 TSRMLS_CC);
+        }
+        if (zsock == NULL || ZVAL_IS_NULL(zsock))
+        {
+            swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client or swoole_process.");
+            return -1;
+        }
+        socket_fd = Z_LVAL_P(zsock);
     }
     else
     {
@@ -310,7 +322,7 @@ PHP_FUNCTION(swoole_event_add)
         RETURN_FALSE;
     }
 
-    int socket_fd = swoole_convert_to_fd(zfd);
+    int socket_fd = swoole_convert_to_fd(zfd TSRMLS_CC);
     if (socket_fd < 0)
     {
         swoole_php_fatal_error(E_WARNING, "unknow type.");
@@ -394,7 +406,7 @@ PHP_FUNCTION(swoole_event_write)
         RETURN_FALSE;
     }
 
-    int socket_fd = swoole_convert_to_fd(zfd);
+    int socket_fd = swoole_convert_to_fd(zfd TSRMLS_CC);
     if (socket_fd < 0)
     {
         swoole_php_fatal_error(E_WARNING, "unknow type.");
@@ -431,7 +443,7 @@ PHP_FUNCTION(swoole_event_set)
         return;
     }
 
-    int socket_fd = swoole_convert_to_fd(zfd);
+    int socket_fd = swoole_convert_to_fd(zfd TSRMLS_CC);
     if (socket_fd < 0)
     {
         swoole_php_fatal_error(E_WARNING, "unknow type.");
@@ -530,7 +542,7 @@ PHP_FUNCTION(swoole_event_del)
         return;
     }
 
-    int socket_fd = swoole_convert_to_fd(zfd);
+    int socket_fd = swoole_convert_to_fd(zfd TSRMLS_CC);
     if (socket_fd < 0)
     {
         swoole_php_fatal_error(E_WARNING, "unknow type.");

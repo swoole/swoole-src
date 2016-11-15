@@ -177,15 +177,16 @@ static sw_inline int swConnection_error(int err)
     case EFAULT:
         abort();
         return SW_ERROR;
-	case ECONNRESET:
-	case EPIPE:
-	case ENOTCONN:
-	case ETIMEDOUT:
-	case ECONNREFUSED:
-	case ENETDOWN:
-	case ENETUNREACH:
-	case EHOSTDOWN:
-	case EHOSTUNREACH:
+    case EBADF:
+    case ECONNRESET:
+    case EPIPE:
+    case ENOTCONN:
+    case ETIMEDOUT:
+    case ECONNREFUSED:
+    case ENETDOWN:
+    case ENETUNREACH:
+    case EHOSTDOWN:
+    case EHOSTUNREACH:
 		return SW_CLOSE;
 	case EAGAIN:
 #ifdef HAVE_KQUEUE
