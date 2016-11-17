@@ -1,7 +1,10 @@
 <?php
-$file = __DIR__.'/data';
+$file = '/tmp/data';
 $size = 8192;
-//file_put_contents($file, str_repeat("\0", $size));
+
+if (!is_file($file)) {
+    file_put_contents($file, str_repeat("\0", $size));
+}
 
 $fp = swoole\mmap::open($file, 8192);
 
