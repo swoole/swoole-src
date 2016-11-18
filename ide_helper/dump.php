@@ -1,17 +1,21 @@
 <?php
-define('OUTPUT_FILE', __DIR__ . '/swoole.php');
+define('OUTPUT_DIR', __DIR__ . '/src');
 
 function isPHPKeyword($word)
 {
     $keywords = array('exit', 'die', 'echo', 'class', 'interface', 'function', 'public', 'protected', 'private');
+
     return in_array($word, $keywords);
 }
 
-function getFuncDef(array $funcs, $version)
+function getFunctionsDef(array $funcs, $version)
 {
     $all = '';
     foreach ($funcs as $k => $v)
     {
+        /**
+         * @var $v ReflectionMethod
+         */
         $comment = '';
         $vp = array();
         $params = $v->getParameters();
@@ -22,22 +26,33 @@ function getFuncDef(array $funcs, $version)
             {
                 if ($v1->isOptional())
                 {
-                    $comment .= "* @param $" . $v1->name . "[optional]\n";
+                    $comment .= " * @param $" . $v1->name . "[optional]\n";
                     $vp[] = '$' . $v1->name . '=null';
                 }
                 else
                 {
-                    $comment .= "* @param $" . $v1->name . "[required]\n";
+                    $comment .= " * @param $" . $v1->name . "[required]\n";
                     $vp[] = '$' . $v1->name;
                 }
             }
-            $comment .= "* @return mixed\n";
-            $comment .= "*/\n";
+            $comment .= " * @return mixed\n";
+            $comment .= " */\n";
         }
-        $comment .= sprintf("function %s(%s){}\n\n", $k, join(',', $vp));
+        $comment .= sprintf("function %s(%s){}\n\n", $k, join(', ', $vp));
         $all .= $comment;
     }
 
+    return $all;
+}
+
+function getConstantsDef(array $consts)
+{
+    $all = "";
+    $sp4 = str_repeat(' ', 4);
+    foreach ($consts as $k => $v)
+    {
+        $all .= "{$sp4}const {$k} = $v;\n";
+    }
     return $all;
 }
 
@@ -88,7 +103,7 @@ function getMethodsDef(array $methods, $version)
             ' ', Reflection::getModifierNames($v->getModifiers())
         );
         $comment .= sprintf(
-            "$sp4%s function %s(%s){}\n\n", $modifiers, $method_name, join(',', $vp)
+            "$sp4%s function %s(%s){}\n\n", $modifiers, $method_name, join(', ', $vp)
         );
         $all .= $comment;
     }
@@ -104,11 +119,12 @@ function exportNamespaceClass($class)
         return;
     }
 
-    array_walk($ns, function(&$v, $k) use(&$ns) {
+    array_walk($ns, function (&$v, $k) use (&$ns)
+    {
         $v = ucfirst($v);
     });
 
-    $path = __DIR__ . '/namespace/' . implode('/', array_slice($ns, 1));
+    $path = OUTPUT_DIR . '/namespace/' . implode('/', array_slice($ns, 1));
 
     $dir = dirname($path);
     $name = basename($path);
@@ -131,7 +147,7 @@ function exportExtension($ext)
     $version = $rf_ext->getVersion();
     $defines = '';
 
-    $fdefs = getFuncDef($funcs, $version);
+    $fdefs = getFunctionsDef($funcs, $version);
     $class_def = '';
     foreach ($consts as $k => $v)
     {
@@ -171,14 +187,17 @@ function exportExtension($ext)
         {
             $modifier = 'interface';
         }
+        //获取常量定义
+        $consts = getConstantsDef($v->getConstants());
+        //获取方法定义
         $mdefs = getMethodsDef($v->getMethods(), $version);
         $class_def .= sprintf(
-            "/**\n*@since %s\n*/\n%s %s{\n%s%s\n}\n", $version, $modifier, $k,
-            $prop_str, $mdefs
+            "/**\n*@since %s\n*/\n%s %s\n{\n%s\n%s\n%s\n}\n", $version, $modifier, $k,
+            $consts, $prop_str, $mdefs
         );
     }
     file_put_contents(
-        OUTPUT_FILE, "<?php\n" . $defines . $fdefs . $class_def
+        OUTPUT_DIR . '/mixed.php', "<?php\n" . $defines . $fdefs . $class_def
     );
 }
 
