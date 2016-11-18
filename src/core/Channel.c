@@ -16,7 +16,7 @@
 
 #include "swoole.h"
 
-#define SW_CHANNEL_MIN_MEM (1024*64)   //最小内存分配
+#define SW_CHANNEL_MIN_MEM (1024*64)
 
 #define swChannel_empty(q) (q->num == 0)
 #define swChannel_full(q) ((q->head == q->tail) && (q->tail_tag != q->head_tag))
