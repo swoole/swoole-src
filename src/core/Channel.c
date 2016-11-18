@@ -35,11 +35,6 @@ int swChannel_wait(swChannel *object);
 int swChannel_notify(swChannel *object);
 void swChannel_free(swChannel *object);
 
-void swChannel_debug(swChannel *chan)
-{
-    printf("RingBuffer: num=%d|head=%d|tail=%d|tail_tag=%d|head_tag=%d\n", chan->num, chan->head, chan->tail, (int)chan->tail_tag, (int)chan->head_tag);
-}
-
 swChannel* swChannel_new(size_t size, int maxlen, int flags)
 {
     assert(size > SW_CHANNEL_MIN_MEM + maxlen);
@@ -101,13 +96,8 @@ swChannel* swChannel_new(size_t size, int maxlen, int flags)
 int swChannel_in(swChannel *object, void *in, int data_length)
 {
     assert(data_length < object->maxlen);
-    //队列满了
     if (swChannel_full(object))
     {
-        swWarn("queue full");
-        swChannel_debug(object);
-        //这里非常重要,避免此线程再次获得锁
-        swYield();
         return SW_ERR;
     }
     swChannel_item *item;
@@ -115,15 +105,14 @@ int swChannel_in(swChannel *object, void *in, int data_length)
 
     if (object->tail < object->head)
     {
+        //no enough memory space
         if ((object->head - object->tail) < msize)
         {
-            //空间不足
             return SW_ERR;
         }
         item = object->mem + object->tail;
         object->tail += msize;
     }
-    //这里tail必然小于size,无需判断,因为每次分配完会计算超过size后转到开始
     else
     {
         item = object->mem + object->tail;
@@ -148,15 +137,11 @@ int swChannel_out(swChannel *object, void *out, int buffer_length)
 {
     if (swChannel_empty(object))
     {
-        swWarn("queue empty");
-        swChannel_debug(object);
-        swYield();
         return SW_ERR;
     }
 
     swChannel_item *item = object->mem + object->head;
     assert(buffer_length >= item->length);
-//    swWarn("out,len=%d|data=%s", item->length, item->data);
     memcpy(out, item->data, item->length);
     object->head += (item->length + sizeof(item->length));
     if (object->head >= object->size)
