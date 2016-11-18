@@ -1574,20 +1574,21 @@ enum SW_CHANNEL_FLAGS
 
 typedef struct _swChannel
 {
-	int head;    //头部，出队列方向
-	int tail;    //尾部，入队列方向
-	int size;    //队列总尺寸
-	char head_tag;
-	char tail_tag;
-	int num;
-	int flag;
-	int maxlen;
-	void *mem;   //内存块
-	swLock lock;
-	swPipe notify_fd;
+    off_t head;
+    off_t tail;
+    size_t size;
+    char head_tag;
+    char tail_tag;
+    int num;
+    size_t bytes;
+    int flag;
+    int maxlen;
+    void *mem;   //内存块
+    swLock lock;
+    swPipe notify_fd;
 } swChannel;
 
-swChannel* swChannel_new(int size, int maxlen, int flag);
+swChannel* swChannel_new(size_t size, int maxlen, int flag);
 int swChannel_pop(swChannel *object, void *out, int buffer_length);
 int swChannel_push(swChannel *object, void *in, int data_length);
 int swChannel_out(swChannel *object, void *out, int buffer_length);

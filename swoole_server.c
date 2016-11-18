@@ -61,10 +61,7 @@ static void php_swoole_onManagerStop(swServer *serv);
 
 static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC);
 
-static int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC);
-static zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC);
-
-static int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
+int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
 {
     smart_str serialized_data = { 0 };
     php_serialize_data_t var_hash;
@@ -228,7 +225,7 @@ static sw_inline int php_swoole_check_task_param(int dst_worker_id TSRMLS_DC)
     return SW_OK;
 }
 
-static zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC)
+zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC)
 {
     zval *result_data, *result_unserialized_data;
     char *result_data_str;
