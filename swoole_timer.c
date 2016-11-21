@@ -53,7 +53,7 @@ static long php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tic
 static int php_swoole_del_timer(swTimer_node *tnode TSRMLS_DC);
 
 #ifdef SW_COROUTINE
-int php_swoole_add_timer_coro(int ms, int cli_fd, long *timeout_id, void* param TSRMLS_DC) //void *
+int php_swoole_add_timer_coro(int ms, int cli_fd, long *timeout_id, void* param, swLinkedList_node **node TSRMLS_DC) //void *
 {
     if (SwooleG.serv && swIsMaster())
     {
@@ -94,12 +94,15 @@ int php_swoole_add_timer_coro(int ms, int cli_fd, long *timeout_id, void* param 
     scc->cli_fd = cli_fd;
     scc->timeout_id = timeout_id;
 
-	if (swLinkedList_append(SwooleWG.delayed_coro_timeout_list, (void *)scc) == SW_ERR)
-	{
-		efree(scc);
-		swoole_php_fatal_error(E_WARNING, "Append to swTimer_coro_callback_list failed.");
-		return SW_ERR;
-	}
+    if (swLinkedList_append(SwooleWG.delayed_coro_timeout_list, (void *)scc) == SW_ERR)
+    {
+        efree(scc);
+        swoole_php_fatal_error(E_WARNING, "Append to swTimer_coro_callback_list failed.");
+        return SW_ERR;
+    }
+    if (node != NULL) {
+        *node = SwooleWG.delayed_coro_timeout_list->tail;
+    }
 
     return SW_OK;
 }

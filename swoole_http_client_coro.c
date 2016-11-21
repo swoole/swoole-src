@@ -1336,7 +1336,7 @@ static PHP_METHOD(swoole_http_client_coro, execute)
     http_client *http = swoole_get_object(getThis());
 	if (http->timeout > 0)
 	{
-		if (php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, &http->cli->timeout_id, (void *)context TSRMLS_CC) == SW_OK
+		if (php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, &http->cli->timeout_id, (void *)context, NULL TSRMLS_CC) == SW_OK
 				&& hcc->defer)
 		{
 			context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
@@ -1381,7 +1381,7 @@ static PHP_METHOD(swoole_http_client_coro, get)
     php_context *context = swoole_get_property(getThis(), 1);
 	if (http->timeout > 0)
 	{
-		if (php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, &http->cli->timeout_id, (void *)context TSRMLS_CC) == SW_OK
+		if (php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, &http->cli->timeout_id, (void *)context, NULL TSRMLS_CC) == SW_OK
 				&& hcc->defer)
 		{
 			context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
@@ -1437,7 +1437,7 @@ static PHP_METHOD(swoole_http_client_coro, post)
     php_context *context = swoole_get_property(getThis(), 1);
 	if (http->timeout > 0)
 	{
-		if (php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, &http->cli->timeout_id, (void *)context TSRMLS_CC) == SW_OK
+		if (php_swoole_add_timer_coro((int)(http->timeout*1000), http->cli->socket->fd, &http->cli->timeout_id, (void *)context, NULL TSRMLS_CC) == SW_OK
 				&& hcc->defer)
 		{
 			context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
