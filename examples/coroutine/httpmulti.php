@@ -3,6 +3,8 @@
  * @Author: syyuanyizhi@163.com
     connect refuse： errorCode  111
     I/O     timeout：errorCode  110
+    http 9510
+    tcp  9511
 
  */
 class Server
@@ -24,7 +26,7 @@ class Server
     private static function https(){
         //--enable-openssl 
         for($i=0;$i<2;$i++){
-            $cli = new Swoole\Coroutine\Http\Client('10.166.145.243',443,TRUE );
+            $cli = new Swoole\Coroutine\Http\Client('0.0.0.0',443,TRUE );
             $cli->set([ 'timeout' => 1]);
             $cli->setHeaders([
                 'Host' => "api.mp.qq.com",
@@ -41,7 +43,7 @@ class Server
     private static function http(){
         error_log(__LINE__.'---------- begin --- http --------------'.PHP_EOL,3,'/tmp/markyuan');
         for($i=0;$i<2;$i++){
-            $cli = new Swoole\Coroutine\Http\Client('0.0.0.0', 9599);
+            $cli = new Swoole\Coroutine\Http\Client('0.0.0.0', 9510);
             $cli->set([ 'timeout' => 1]);
             $cli->setHeaders([
                 'Host' => "api.mp.qq.com",
@@ -63,13 +65,13 @@ class Server
         
         error_log(__LINE__.'---------- begin --- multi --------------'.PHP_EOL,3,'/tmp/markyuan');
         
-        $cliAA= new Swoole\Coroutine\Http\Client('0.0.0.0', 9599);
+        $cliAA= new Swoole\Coroutine\Http\Client('0.0.0.0', 9510);
         $cliAA->set(['timeout' => 1]);
         $cliAA->setHeaders([
             'Host' => "api.mp.qq.com",
             "User-Agent" => 'Chrome/49.0.2587.3',
         ]);
-        $cliBB= new Swoole\Coroutine\Http\Client('0.0.0.0', 9599);
+        $cliBB= new Swoole\Coroutine\Http\Client('0.0.0.0', 9510);
         $cliBB->set([ 'timeout' => 1]);//
         $cliBB->setHeaders([
             'Host' => "api.mp.qq.com",
@@ -105,7 +107,7 @@ class Server
     private static function tcp(){
         for($i=0;$i<2;$i++){
             $tcp_cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
-            $ret = $tcp_cli ->connect("10.213.144.140", 9805);
+            $ret = $tcp_cli ->connect("0.0.0.0", 9511);
             $ret = $tcp_cli ->send('test for the coro');
             $ret = $tcp_cli ->recv();
             $ret=$tcp_cli->close();
@@ -115,8 +117,8 @@ class Server
  private static function tcpmulti(){
         $cliAA = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
         $cliBB = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
-        $retAA = $cliAA ->connect("10.213.144.140", 9805);
-        $retBB = $cliBB ->connect("10.213.144.140", 9805);       
+        $retAA = $cliAA ->connect("0.0.0.0", 9511);
+        $retBB = $cliBB ->connect("0.0.0.0", 9511);       
         $retAA = $cliAA ->send('test for the coro');
         $retBB = $cliBB ->send('test for the coro');
         $retAA = $cliAA->recv();
@@ -127,11 +129,11 @@ class Server
 
     public static function onRequest($request, $response)
     {
-        self::multihttp();
-        self::http();
-        self::https();
-       // self::tcp();
-        //self::tcpmulti();
+//        self::multihttp();
+//        self::http();
+        //self::https();
+//        self::tcp();
+        self::tcpmulti();
         $response->end('xxxx');
     }
 
