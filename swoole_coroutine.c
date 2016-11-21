@@ -230,7 +230,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     call = zend_vm_stack_push_call_frame(ZEND_CALL_TOP_FUNCTION | ZEND_CALL_ALLOCATED, fci_cache->function_handler, argc, fci_cache->called_scope, object);
 
 #if PHP_MINOR_VERSION < 1
-    EG(scope) = fci_cache->called_scope;
+    EG(scope) = func->common.scope;
 #endif
 
     for (i = 0; i < argc; ++i)
