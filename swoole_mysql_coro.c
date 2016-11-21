@@ -331,7 +331,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
 #endif
 	if (connector->timeout > 0)
 	{
-		php_swoole_add_timer_coro((int) (connector->timeout * 1000), client->fd, &client->cli->timeout_id, (void *) context TSRMLS_CC);
+		php_swoole_add_timer_coro((int) (connector->timeout * 1000), client->fd, &client->cli->timeout_id, (void *) context, NULL TSRMLS_CC);
 	}
         coro_save(context);
 	coro_yield();
@@ -408,7 +408,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
 		php_context *context = swoole_get_property(getThis(), 0);
         if (timeout > 0)
         {
-            if (php_swoole_add_timer_coro((int) (timeout * 1000), client->fd, &client->cli->timeout_id, (void *) context TSRMLS_CC) == SW_OK
+            if (php_swoole_add_timer_coro((int) (timeout * 1000), client->fd, &client->cli->timeout_id, (void *) context, NULL TSRMLS_CC) == SW_OK
 					&& client->defer)
 			{
 				context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
