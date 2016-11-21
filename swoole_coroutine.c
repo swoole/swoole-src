@@ -226,7 +226,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     COROG.current_coro = (coro_task *)EG(vm_stack_top);
     zend_execute_data *call = (zend_execute_data *)(EG(vm_stack_top));
     EG(vm_stack_top) = (zval *)((char *)call + TASK_SLOT * sizeof(zval));
-    object = (func->common.fn_flags | ZEND_ACC_STATIC) ? NULL : fci_cache->object;
+    object = (func->common.fn_flags & ZEND_ACC_STATIC) ? NULL : fci_cache->object;
     call = zend_vm_stack_push_call_frame(ZEND_CALL_TOP_FUNCTION | ZEND_CALL_ALLOCATED, fci_cache->function_handler, argc, fci_cache->called_scope, object);
 
 #if PHP_MINOR_VERSION < 1
