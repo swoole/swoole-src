@@ -35,11 +35,11 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2016-10-25</date>
-    <time>16:48:51</time>
+    <date>2016-11-22</date>
+    <time>12:12:00</time>
     <version>
-		<release>1.8.13</release>
-		<api>1.8</api>
+		<release>1.9.0</release>
+		<api>1.9</api>
     </version>
     <stability>
         <release>stable</release>
@@ -47,12 +47,21 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed WebSocket\Server automatically merge the incomplete data frame exists security vulnerabilities
-- Added the upload_tmp_dir option to set the Http\Server upload file temporary directory
-- Added Server->sendMessage automatic stringing function, and now sendMessage PHP variables can be sent to any other work process
-- Added Process::alarm high-precision timer
-- Fixed a bug where the protocol length function crashed when the connection was closed
-- Fixed swoole_select function in PHP7 can not modify the reference array problem
+- Added Swoole\Redis\Server, redis compatible protocol server framework
+- Added Swoole\Mmap, high-performance disk read and write function
+- Added Swoole\Client::pipe method
+- Added onBufferEmpty and onBufferFull event callback for Swoole\Server
+- Added buffer_high_watermark and buffer_low_watermark option for Swoole\Server
+- Added swoole_clear_dns_cache function
+- Added Swoole\Channel, high performance shared memory queue
+- Fixed redis client type method could not return a string
+- Fixed an issue when the sync client length protocol package_max_length was invalid
+- Fixed low-level version of gcc running under the long-term crash happened
+- Fixed invalid websocket_mask for asynchronous WebSocket client
+- Fixed a problem where the MySQL client crashed accidentally when there were too many records
+- Fixed Mac platform task more than 8K to create a temporary file failed to lead to the problem of undeliverable tasks
+- Fixed taskWaitMulti When the process returns more than 8K receive timeout problem
+- Fixed atmoic add and sub return value exists data synchronization problems
     </notes>
 	<contents>
 		<dir name="/">
@@ -86,6 +95,7 @@
 				<file role="src" name="error.h" />
 				<file role="src" name="module.h" />
 				<file role="src" name="socks5.h" />
+				<file role="src" name="redis.h" />
 			</dir>
 			<file role="src" name="php_swoole.h" />
 			<file role="src" name="php7_wrapper.h" />
@@ -110,7 +120,10 @@
 			<file role="src" name="swoole_mysql.c" />
 			<file role="src" name="swoole_mysql.h" />
 			<file role="src" name="swoole_redis.c" />
+			<file role="src" name="swoole_redis_server.c" />
 			<file role="src" name="swoole_module.c" />
+			<file role="src" name="swoole_mmap.c" />
+			<file role="src" name="swoole_channel.c" />
 			<dir name="thirdparty">
 				<file role="src" name="php_http_parser.c" />
 				<file role="src" name="php_http_parser.h" />
@@ -209,6 +222,7 @@
 					<file role="src" name="Mqtt.c" />
 					<file role="src" name="Socks5.c" />
 					<file role="src" name="MimeTypes.c" />
+                    <file role="src" name="Redis.c" />
 				</dir>
 			</dir>
 			<dir name="examples">
@@ -293,8 +307,14 @@
                 </dir>
                 <dir name="redis">
                     <file role="src" name="client.php" />
+                    <file role="src" name="server.php" />
+                    <file role="src" name="subscribe.php" />
+                </dir>
+                <dir name="mmap">
+                    <file role="src" name="mmap.php" />
                 </dir>
 				<file role="src" name="server.php" />
+                <file role="src" name="channel.php" />
 				<file role="src" name="mysql_proxy_server.php" />
 				<file role="src" name="proxy_sync.php" />
 				<file role="src" name="sendfile_server.php" />
