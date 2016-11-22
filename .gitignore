@@ -67,3 +67,4 @@ modules/*
 /benchmark/.idea/
 examples/c_module/.cproject
 examples/c_module/.project
+/ide_helper/output/
