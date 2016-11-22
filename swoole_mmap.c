@@ -18,7 +18,6 @@
 
 typedef struct
 {
-    int fd;
     size_t size;
     off_t offset;
     char *filename;
@@ -150,9 +149,6 @@ void swoole_mmap_init(int module_number TSRMLS_DC)
     SWOOLE_INIT_CLASS_ENTRY(swoole_mmap_ce, "swoole_mmap", "Swoole\\Mmap", swoole_mmap_methods);
     swoole_mmap_class_entry_ptr = zend_register_internal_class(&swoole_mmap_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_mmap, "Swoole\\Mmap");
-
-    zend_declare_class_constant_long(swoole_mmap_class_entry_ptr, SW_STRL("MAP_SHARED")-1, MAP_SHARED TSRMLS_CC);
-    zend_declare_class_constant_long(swoole_mmap_class_entry_ptr, SW_STRL("MAP_PRIVATE")-1, MAP_PRIVATE TSRMLS_CC);
 }
 
 static PHP_METHOD(swoole_mmap, open)
@@ -161,9 +157,8 @@ static PHP_METHOD(swoole_mmap, open)
     zend_size_t l_filename;
     long offset = 0;
     long size = -1;
-    long flags = MAP_PRIVATE;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|lll", &filename, &l_filename, &size, &offset, &flags) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|ll", &filename, &l_filename, &size, &offset) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -204,7 +199,7 @@ static PHP_METHOD(swoole_mmap, open)
         }
     }
 
-    void *addr = mmap(NULL, size, PROT_WRITE | PROT_READ, (int) flags, fd, offset);
+    void *addr = mmap(NULL, size, PROT_WRITE | PROT_READ, MAP_SHARED, fd, offset);
     if (addr == NULL)
     {
         swoole_php_sys_error(E_WARNING, "mmap(%ld) failed.", size);
@@ -212,7 +207,6 @@ static PHP_METHOD(swoole_mmap, open)
     }
 
     swMmapFile *res = emalloc(sizeof(swMmapFile));
-    res->fd = fd;
     res->filename = filename;
     res->size = size;
     res->offset = offset;
