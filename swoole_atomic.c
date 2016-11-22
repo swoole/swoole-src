@@ -74,7 +74,7 @@ PHP_METHOD(swoole_atomic, add)
     {
         RETURN_FALSE;
     }
-    RETURN_LONG(__sync_add_and_fetch(atomic, (uint32_t ) add_value));
+    RETURN_LONG(sw_atomic_add_fetch(atomic, (uint32_t ) add_value));
 }
 
 PHP_METHOD(swoole_atomic, sub)
@@ -86,7 +86,7 @@ PHP_METHOD(swoole_atomic, sub)
     {
         RETURN_FALSE;
     }
-    RETURN_LONG(__sync_sub_and_fetch(atomic, (uint32_t ) sub_value));
+    RETURN_LONG(sw_atomic_sub_fetch(atomic, (uint32_t ) sub_value));
 }
 
 PHP_METHOD(swoole_atomic, get)
