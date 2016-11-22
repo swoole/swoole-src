@@ -154,8 +154,8 @@ static const php_http_parser_settings http_parser_settings =
     http_client_parser_on_message_complete
 };
 
-zend_class_entry swoole_http_client_ce;
-zend_class_entry *swoole_http_client_class_entry_ptr;
+static zend_class_entry swoole_http_client_ce;
+static zend_class_entry *swoole_http_client_class_entry_ptr;
 
 static PHP_METHOD(swoole_http_client, __construct);
 static PHP_METHOD(swoole_http_client, __destruct);
