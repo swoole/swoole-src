@@ -472,6 +472,14 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
 
 sw_inline void coro_yield()
 {
+#if PHP_MAJOR_VERSION >= 7
+    EG(vm_stack) = COROG.origin_vm_stack;
+    EG(vm_stack_top) = COROG.origin_vm_stack_top;
+    EG(vm_stack_end) = COROG.origin_vm_stack_end;
+#else
+    EG(argument_stack) = COROG.origin_vm_stack;
+    EG(current_execute_data) = COROG.origin_ex;
+#endif
     longjmp(*swReactorCheckPoint, 1);
 }
 
