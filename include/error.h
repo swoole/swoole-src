@@ -27,6 +27,7 @@ enum swErrorCode
     SW_ERROR_PHP_FATAL_ERROR,
     SW_ERROR_NAME_TOO_LONG,
     SW_ERROR_FILE_NOT_EXIST,
+    SW_ERROR_INVALID_PARAMS,
 
     /**
      * connection error

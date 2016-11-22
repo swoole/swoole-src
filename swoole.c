@@ -383,14 +383,17 @@ zend_class_entry *swoole_server_class_entry_ptr;
 zend_class_entry swoole_connection_iterator_ce;
 zend_class_entry *swoole_connection_iterator_class_entry_ptr;
 
-zend_class_entry swoole_timer_ce;
-zend_class_entry *swoole_timer_class_entry_ptr;
+static zend_class_entry swoole_timer_ce;
+static zend_class_entry *swoole_timer_class_entry_ptr;
 
-zend_class_entry swoole_event_ce;
-zend_class_entry *swoole_event_class_entry_ptr;
+static zend_class_entry swoole_event_ce;
+static zend_class_entry *swoole_event_class_entry_ptr;
 
-zend_class_entry swoole_async_ce;
-zend_class_entry *swoole_async_class_entry_ptr;
+static zend_class_entry swoole_async_ce;
+static zend_class_entry *swoole_async_class_entry_ptr;
+
+zend_class_entry swoole_exception_ce;
+zend_class_entry *swoole_exception_class_entry_ptr;
 
 zend_module_entry swoole_module_entry =
 {
@@ -650,6 +653,10 @@ PHP_MINIT_FUNCTION(swoole)
     SWOOLE_CLASS_ALIAS(swoole_connection_iterator, "Swoole\\Connection\\Iterator");
     zend_class_implements(swoole_connection_iterator_class_entry_ptr TSRMLS_CC, 2, spl_ce_Iterator, spl_ce_Countable);
 #endif
+
+    SWOOLE_INIT_CLASS_ENTRY(swoole_exception_ce, "swoole_exception", "Swoole\\Exception", NULL);
+    swoole_exception_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_exception_ce, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+    SWOOLE_CLASS_ALIAS(swoole_exception, "Swoole\\Exception");
 
     //swoole init
     swoole_init();

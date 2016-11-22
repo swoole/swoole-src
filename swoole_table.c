@@ -23,8 +23,8 @@
 
 #include "include/table.h"
 
-zend_class_entry swoole_table_ce;
-zend_class_entry *swoole_table_class_entry_ptr;
+static zend_class_entry swoole_table_ce;
+static zend_class_entry *swoole_table_class_entry_ptr;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -195,7 +195,7 @@ PHP_METHOD(swoole_table, __construct)
     swTable *table = swTable_new(table_size);
     if (table == NULL)
     {
-        swoole_php_fatal_error(E_ERROR, "alloc global memory failed.");
+        zend_throw_exception(swoole_exception_class_entry_ptr, "alloc global memory failed.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
         RETURN_FALSE;
     }
     swoole_set_object(getThis(), table);

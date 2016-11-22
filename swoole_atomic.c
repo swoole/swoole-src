@@ -56,7 +56,7 @@ PHP_METHOD(swoole_atomic, __construct)
     sw_atomic_t *atomic = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(sw_atomic_t));
     if (atomic == NULL)
     {
-        swoole_php_fatal_error(E_ERROR, "alloc global memory failed.");
+        zend_throw_exception(swoole_exception_class_entry_ptr, "alloc global memory failed.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
         RETURN_FALSE;
     }
     *atomic = (sw_atomic_t) value;

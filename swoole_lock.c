@@ -25,7 +25,7 @@ static PHP_METHOD(swoole_lock, trylock_read);
 static PHP_METHOD(swoole_lock, unlock);
 
 static zend_class_entry swoole_lock_ce;
-zend_class_entry *swoole_lock_class_entry_ptr;
+static zend_class_entry *swoole_lock_class_entry_ptr;
 
 static const zend_function_entry swoole_lock_methods[] =
 {
@@ -71,7 +71,7 @@ static PHP_METHOD(swoole_lock, __construct)
     swLock *lock = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swLock));
     if (lock == NULL)
     {
-        swoole_php_fatal_error(E_ERROR, "alloc global memory failed.");
+        zend_throw_exception(swoole_exception_class_entry_ptr, "alloc global memory failed.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
         RETURN_FALSE;
     }
 
@@ -85,13 +85,13 @@ static PHP_METHOD(swoole_lock, __construct)
     case SW_FILELOCK:
         if (filelock_len <= 0)
         {
-            swoole_php_error(E_ERROR, "filelock require lock file name.");
+            zend_throw_exception(swoole_exception_class_entry_ptr, "filelock require lock file name.", SW_ERROR_INVALID_PARAMS TSRMLS_CC);
             RETURN_FALSE;
         }
         int fd;
         if ((fd = open(filelock, O_RDWR | O_CREAT, 0666)) < 0)
         {
-            swoole_php_error(E_WARNING, "open file[%s] failed. Error: %s [%d]", filelock, strerror(errno), errno);
+            zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno TSRMLS_CC, "open file[%s] failed. Error: %s [%d]", filelock, strerror(errno), errno);
             RETURN_FALSE;
         }
         ret = swFileLock_create(lock, fd);
@@ -111,7 +111,7 @@ static PHP_METHOD(swoole_lock, __construct)
     }
     if (ret < 0)
     {
-        swoole_php_error(E_WARNING, "create lock failed");
+        zend_throw_exception(swoole_exception_class_entry_ptr, "create lock failed.", errno TSRMLS_CC);
         RETURN_FALSE;
     }
     swoole_set_object(getThis(), lock);
