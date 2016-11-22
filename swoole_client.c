@@ -1289,7 +1289,7 @@ static PHP_METHOD(swoole_client, recv)
         //error package
         if (buf_len < 0)
         {
-            RETURN_FALSE;
+            RETURN_EMPTY_STRING();
         }
         //empty package
         else if (buf_len == header_len)
