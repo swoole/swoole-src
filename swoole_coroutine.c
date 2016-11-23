@@ -445,6 +445,9 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
     EG(vm_stack_top) = SWCC(current_vm_stack_top);
     EG(vm_stack_end) = SWCC(current_vm_stack_end);
     //EG(current_task) = COROG.current_coro;
+#if PHP_MINOR_VERSION < 1
+    EG(scope) = SWCC(current_execute_data)->func->op_array.scope;
+#endif
     strncpy(COROG.uid, SWCC(uid), 20);
     COROG.allocated_return_value_ptr = SWCC(allocated_return_value_ptr);
     if ( SWCC(current_execute_data)->opline->result_type != IS_UNUSED)
@@ -465,6 +468,12 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
     {
         //coro yield
         coro_status = CORO_YIELD;
+    }
+
+    if (unlikely(coro_status == CORO_END && EG(exception)))
+    {
+        sw_zval_ptr_dtor(&retval);
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
     return coro_status;
 }
