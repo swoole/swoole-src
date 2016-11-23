@@ -474,9 +474,9 @@ int swWorker_loop(swFactory *factory, int worker_id)
         return SW_ERR;
     }
     
-    serv->workers[worker_id].status = SW_WORKER_IDLE;
+    worker->status = SW_WORKER_IDLE;
 
-    int pipe_worker = serv->workers[worker_id].pipe_worker;
+    int pipe_worker = worker->pipe_worker;
 
     swSetNonBlock(pipe_worker);
     SwooleG.main_reactor->ptr = serv;
