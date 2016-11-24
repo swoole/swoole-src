@@ -1100,11 +1100,7 @@ static PHP_METHOD(swoole_http_server, on)
     if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
 #else
     zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
-#if PHP_MAJOR_VERSION < 7
     if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
-#else
-    if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
-#endif
 #endif
     {
         swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
