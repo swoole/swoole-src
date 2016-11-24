@@ -209,6 +209,7 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
     }
     else if (cli->timeout > 0 && ccp->iowait == SW_CLIENT_CORO_STATUS_WAIT && ccp->timeout_node != NULL)
     {
+        efree(ccp->timeout_node->data);
         swLinkedList_remove_node(SwooleWG.delayed_coro_timeout_list, ccp->timeout_node);
         ccp->timeout_node = NULL;
     }
