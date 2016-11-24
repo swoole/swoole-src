@@ -23,33 +23,13 @@
 #include "ext/standard/basic_functions.h"
 #include <setjmp.h>
 
-typedef struct
-{
-    zval *onConnect;
-    zval *onReceive;
-    zval *onClose;
-    zval *onError;
-#ifdef SW_USE_OPENSSL
-    zval *onSSLReady;
-#endif
-
-#if PHP_MAJOR_VERSION >= 7
-    zval _object;
-    zval _onConnect;
-    zval _onReceive;
-    zval _onClose;
-    zval _onError;
-#ifdef SW_USE_OPENSSL
-    zval _onSSLReady;
-#endif
-#endif
-
-} client_callback;
-
 typedef enum {SW_CLIENT_CORO_STATUS_CLOSED, SW_CLIENT_CORO_STATUS_READY, SW_CLIENT_CORO_STATUS_WAIT, SW_CLIENT_CORO_STATUS_DONE} swoole_client_coro_io_status;
 
 typedef struct
 {
+#if PHP_MAJOR_VERSION >= 7
+    zval _object;
+#endif
     swoole_client_coro_io_status iowait;
     swLinkedList_node *timeout_node;
     swString *result;
@@ -729,31 +709,28 @@ static PHP_METHOD(swoole_client_coro, connect)
         php_swoole_client_coro_check_setting(cli, zset TSRMLS_CC);
     }
 
-    //nonblock async
-    if (cli->async)
+    if (swSocket_is_stream(cli->type))
     {
-        if (swSocket_is_stream(cli->type))
-        {
-            cli->onConnect = client_onConnect;
-            cli->onClose = client_onClose;
-            cli->onError = client_onError;
-            cli->onReceive = client_onReceive;
+        cli->onConnect = client_onConnect;
+        cli->onClose = client_onClose;
+        cli->onError = client_onError;
+        cli->onReceive = client_onReceive;
 
-            cli->reactor_fdtype = PHP_SWOOLE_FD_STREAM_CLIENT;
-        }
-        else
-        {
-            cli->onConnect = client_onConnect;
-            cli->onReceive = client_onReceive;
-            cli->reactor_fdtype = PHP_SWOOLE_FD_DGRAM_CLIENT;
-        }
-
-        zval *zobject = getThis();
-        cli->object = zobject;
-        //sw_copy_to_stack(cli->object, cb->_object);
+        cli->reactor_fdtype = PHP_SWOOLE_FD_STREAM_CLIENT;
+    }
+    else
+    {
+        cli->onConnect = client_onConnect;
+        cli->onReceive = client_onReceive;
+        cli->reactor_fdtype = PHP_SWOOLE_FD_DGRAM_CLIENT;
     }
 
-	cli->timeout = timeout;
+    zval *zobject = getThis();
+    cli->object = zobject;
+    swoole_client_coro_property *ccp = swoole_get_property(getThis(), 1);
+    sw_copy_to_stack(cli->object, ccp->_object);
+
+    cli->timeout = timeout;
     //nonblock async
     if (cli->connect(cli, host, port, timeout, sock_flag) < 0)
     {
