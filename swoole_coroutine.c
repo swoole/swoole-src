@@ -244,7 +244,6 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     COROG.allocated_return_value_ptr = retval;
     EG(current_execute_data) = NULL;
     zend_init_execute_data(call, op_array, retval);
-    call->prev_execute_data = NULL;
 
     ++COROG.coro_num;
     COROG.current_coro->start_time = time(NULL);
