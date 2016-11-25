@@ -16,6 +16,7 @@
 
 #include "swoole.h"
 #include "async.h"
+#include <sys/file.h>
 
 swAsyncIO SwooleAIO;
 swPipe swoole_aio_pipe;
@@ -200,10 +201,28 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
     switch(event->type)
     {
     case SW_AIO_WRITE:
+        if (flock(event->fd, LOCK_EX) < 0)
+        {
+            swSysError("flock(%d, LOCK_EX) failed.", event->fd);
+            break;
+        }
         ret = pwrite(event->fd, event->buf, event->nbytes, event->offset);
+        if (flock(event->fd, LOCK_UN) < 0)
+        {
+            swSysError("flock(%d, LOCK_UN) failed.", event->fd);
+        }
         break;
     case SW_AIO_READ:
+        if (flock(event->fd, LOCK_SH) < 0)
+        {
+            swSysError("flock(%d, LOCK_SH) failed.", event->fd);
+            break;
+        }
         ret = pread(event->fd, event->buf, event->nbytes, event->offset);
+        if (flock(event->fd, LOCK_UN) < 0)
+        {
+            swSysError("flock(%d, LOCK_UN) failed.", event->fd);
+        }
         break;
     case SW_AIO_DNS_LOOKUP:
         ret = swoole_gethostbyname(AF_INET, event->buf, (char *) &addr);
