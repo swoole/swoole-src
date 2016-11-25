@@ -17,9 +17,13 @@
 #include "swoole.h"
 #include "table.h"
 
+//#define SW_TABLE_DEBUG 1
+#define SW_TABLE_USE_PHP_HASH
+
 #ifdef SW_TABLE_DEBUG
 static int conflict_count = 0;
 static int insert_count = 0;
+static int conflict_level = 0;
 #endif
 
 static void swTableColumn_free(swTableColumn *col);
@@ -177,7 +181,8 @@ int swTable_create(swTable *table)
 void swTable_free(swTable *table)
 {
 #ifdef SW_TABLE_DEBUG
-    printf("swoole_table: size=%d, conflict_count=%d, insert_count=%d\n", table->size, conflict_count, insert_count);
+    printf("swoole_table: size=%d, conflict_count=%d, conflict_level=%d, insert_count=%d\n", table->size,
+            conflict_count, conflict_level, insert_count);
 #endif
 
     swHashMap_free(table->columns);
@@ -213,18 +218,10 @@ static sw_inline swTableRow* swTable_iterator_get(swTable *table, uint32_t index
 
 swTableRow* swTable_iterator_current(swTable *table)
 {
-    swTableRow *row = NULL;
-    for (; table->iterator->absolute_index < table->size; table->iterator->absolute_index++)
+    swTableRow *row = swTable_iterator_get(table, table->iterator->absolute_index);
+    if (row == NULL)
     {
-        row = swTable_iterator_get(table, table->iterator->absolute_index);
-        if (row == NULL)
-        {
-            continue;
-        }
-        else
-        {
-            break;
-        }
+        return NULL;
     }
     if (table->iterator->collision_index == 0)
     {
@@ -262,14 +259,14 @@ void swTable_iterator_forward(swTable *table)
                 {
                     if (row == NULL)
                     {
-                        table->iterator->absolute_index++;
                         table->iterator->collision_index = 0;
+                        continue;
                     }
                     else
                     {
                         table->iterator->collision_index++;
+                        return;
                     }
-                    return;
                 }
             }
         }
@@ -324,6 +321,10 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen, sw_atomic_t **
     sw_spinlock(lock);
     *rowlock = lock;
 
+#ifdef SW_TABLE_DEBUG
+    int _conflict_level = 0;
+#endif
+
     if (row->active)
     {
         for (;;)
@@ -339,6 +340,11 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen, sw_atomic_t **
 
 #ifdef SW_TABLE_DEBUG
                 conflict_count ++;
+                if (_conflict_level > conflict_level)
+                {
+                    conflict_level = _conflict_level;
+                }
+
 #endif
                 table->lock.unlock(&table->lock);
 
@@ -356,6 +362,9 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen, sw_atomic_t **
             else
             {
                 row = row->next;
+#ifdef SW_TABLE_DEBUG
+                _conflict_level++;
+#endif
             }
         }
     }
