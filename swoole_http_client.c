@@ -203,6 +203,15 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
         return SW_ERR;
     }
 
+    char *func_name = NULL;
+    if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+    {
+        swoole_php_fatal_error(E_WARNING, "Function '%s' is not callable", func_name);
+        efree(func_name);
+        return SW_ERR;
+    }
+    efree(func_name);
+
     http_client *http = swoole_get_object(zobject);
 
     //http is not null when keeping alive
