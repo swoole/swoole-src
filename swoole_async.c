@@ -54,7 +54,6 @@ typedef struct
 
 static void php_swoole_check_aio();
 static void php_swoole_aio_onComplete(swAio_event *event);
-static void php_swoole_aio_efree(void *data);
 static void php_swoole_file_request_free(void *data);
 
 static swHashMap *php_swoole_open_files;
@@ -94,11 +93,6 @@ static sw_inline void* swoole_aio_malloc(size_t __size)
     }
 }
 
-static void php_swoole_aio_efree(void *data)
-{
-    efree(data);
-}
-
 static void php_swoole_file_request_free(void *data)
 {
     file_request *file_req = data;
@@ -118,7 +112,7 @@ void swoole_async_init(int module_number TSRMLS_DC)
     REGISTER_LONG_CONSTANT("SWOOLE_AIO_BASE", SW_AIO_BASE, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SWOOLE_AIO_LINUX", SW_AIO_LINUX, CONST_CS | CONST_PERSISTENT);
 
-    php_swoole_open_files = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, php_swoole_aio_efree);
+    php_swoole_open_files = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
     if (php_swoole_open_files == NULL)
     {
         swoole_php_fatal_error(E_ERROR, "create hashmap[1] failed.");
@@ -418,7 +412,6 @@ PHP_FUNCTION(swoole_async_write)
 
     char *fcnt;
     zend_size_t fcnt_len = 0;
-    int fd;
     off_t offset = -1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zs|lz", &filename, &fcnt, &fcnt_len, &offset, &callback) == FAILURE)
@@ -443,62 +436,41 @@ PHP_FUNCTION(swoole_async_write)
 
     convert_to_string(filename);
 
-    int open_flag = O_WRONLY | O_CREAT;
-
-    if (SwooleAIO.mode == SW_AIO_LINUX)
+    long fd = (long) swHashMap_find(php_swoole_open_files, Z_STRVAL_P(filename), Z_STRLEN_P(filename));
+    if (fd == 0)
     {
-        open_flag |= O_DIRECT;
+        int open_flag = O_WRONLY | O_CREAT;
+        if (SwooleAIO.mode == SW_AIO_LINUX)
+        {
+            open_flag |= O_DIRECT;
+        }
+        if (offset < 0)
+        {
+            open_flag |= O_APPEND;
+        }
+
+        fd = open(Z_STRVAL_P(filename), open_flag, 0644);
+        if (fd < 0)
+        {
+            swoole_php_fatal_error(E_WARNING, "open(%s, %d) failed. Error: %s[%d]", Z_STRVAL_P(filename), open_flag, strerror(errno), errno);
+            RETURN_FALSE;
+        }
+        swHashMap_add(php_swoole_open_files, Z_STRVAL_P(filename), Z_STRLEN_P(filename), (void*) fd);
+    }
+
+    if (offset < 0)
+    {
+        offset = 0;
     }
 
     file_request *req = emalloc(sizeof(file_request));
     char *wt_cnt = swoole_aio_malloc(fcnt_len);
-
-    file_handle *file = swHashMap_find(php_swoole_open_files, Z_STRVAL_P(filename), Z_STRLEN_P(filename));
-    if (file == NULL)
-    {
-        fd = open(Z_STRVAL_P(filename), open_flag, 0644);
-        if (fd < 0)
-        {
-            swoole_php_fatal_error(E_WARNING, "open file failed. Error: %s[%d]", strerror(errno), errno);
-            RETURN_FALSE;
-        }
-
-        file = emalloc(sizeof(file_handle));
-        file->fd = fd;
-
-        if (offset < 0)
-        {
-            struct stat file_stat;
-            if (fstat(fd, &file_stat) < 0)
-            {
-                swoole_php_fatal_error(E_WARNING, "fstat() failed. Error: %s[%d]", strerror(errno), errno);
-                RETURN_FALSE;
-            }
-            offset = file_stat.st_size;
-            file->offset = offset + fcnt_len;
-        }
-        else
-        {
-            file->offset = 0;
-        }
-        swHashMap_add(php_swoole_open_files, Z_STRVAL_P(filename), Z_STRLEN_P(filename), file);
-    }
-    else
-    {
-        if (offset < 0)
-        {
-            offset = file->offset;
-            file->offset += fcnt_len;
-        }
-        fd = file->fd;
-    }
-
     req->fd = fd;
     req->content = wt_cnt;
     req->once = 0;
     req->type = SW_AIO_WRITE;
     req->length = fcnt_len;
-
+    req->offset = offset;
     req->filename = filename;
     sw_zval_add_ref(&filename);
     sw_copy_to_stack(req->filename, req->_filename);
@@ -508,6 +480,10 @@ PHP_FUNCTION(swoole_async_write)
         req->callback = callback;
         sw_zval_add_ref(&callback);
         sw_copy_to_stack(req->callback, req->_callback);
+    }
+    else
+    {
+        req->callback = NULL;
     }
 
     memcpy(wt_cnt, fcnt, fcnt_len);
@@ -653,10 +629,9 @@ PHP_FUNCTION(swoole_async_writefile)
         RETURN_FALSE;
     }
 
-    char *wt_cnt = swoole_aio_malloc(fcnt_len);;
-    file_request *req = emalloc(sizeof(file_request));
-    bzero(req, sizeof(file_request));
+    char *wt_cnt = swoole_aio_malloc(fcnt_len);
 
+    file_request *req = emalloc(sizeof(file_request));
     req->filename = filename;
     sw_zval_add_ref(&filename);
     sw_copy_to_stack(req->filename, req->_filename);
@@ -666,6 +641,10 @@ PHP_FUNCTION(swoole_async_writefile)
         req->callback = callback;
         sw_zval_add_ref(&callback);
         sw_copy_to_stack(req->callback, req->_callback);
+    }
+    else
+    {
+        req->callback = NULL;
     }
 
     req->fd = fd;
