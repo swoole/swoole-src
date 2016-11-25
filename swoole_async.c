@@ -18,6 +18,8 @@
 #include "php_streams.h"
 #include "php_network.h"
 
+#include "ext/standard/file.h"
+
 typedef struct
 {
 #if PHP_MAJOR_VERSION >= 7
@@ -423,6 +425,22 @@ PHP_FUNCTION(swoole_async_write)
     {
         return;
     }
+    if (fcnt_len <= 0)
+    {
+        RETURN_FALSE;
+    }
+    if (callback && !ZVAL_IS_NULL(callback))
+    {
+        char *func_name = NULL;
+        if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+        {
+            swoole_php_fatal_error(E_WARNING, "Function '%s' is not callable", func_name);
+            efree(func_name);
+            RETURN_FALSE;
+        }
+        efree(func_name);
+    }
+
     convert_to_string(filename);
 
     int open_flag = O_WRONLY | O_CREAT;
@@ -589,6 +607,7 @@ PHP_FUNCTION(swoole_async_writefile)
     zval *filename;
     char *fcnt;
     zend_size_t fcnt_len;
+    long flags;
 
     int open_flag = O_CREAT | O_WRONLY;
     if (SwooleAIO.mode == SW_AIO_LINUX)
@@ -596,13 +615,16 @@ PHP_FUNCTION(swoole_async_writefile)
         open_flag |= O_DIRECT;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "zs|z", &filename, &fcnt, &fcnt_len, &callback) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "zs|zl", &filename, &fcnt, &fcnt_len, &callback, &flags) == FAILURE)
     {
         return;
     }
+    if (flags & PHP_FILE_APPEND)
+    {
+        open_flag |= O_APPEND;
+    }
     if (fcnt_len <= 0)
     {
-        swoole_php_fatal_error(E_WARNING, "file is empty.");
         RETURN_FALSE;
     }
     if (fcnt_len > SW_AIO_MAX_FILESIZE)
@@ -610,6 +632,17 @@ PHP_FUNCTION(swoole_async_writefile)
         swoole_php_fatal_error(E_WARNING, "file_size[size=%d|max_size=%d] is too big. Please use swoole_async_write.",
                 fcnt_len, SW_AIO_MAX_FILESIZE);
         RETURN_FALSE;
+    }
+    if (callback && !ZVAL_IS_NULL(callback))
+    {
+        char *func_name = NULL;
+        if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+        {
+            swoole_php_fatal_error(E_WARNING, "Function '%s' is not callable", func_name);
+            efree(func_name);
+            RETURN_FALSE;
+        }
+        efree(func_name);
     }
 
     convert_to_string(filename);
@@ -688,6 +721,10 @@ PHP_FUNCTION(swoole_async_set)
     {
         convert_to_long(v);
         SwooleG.socket_buffer_size = Z_LVAL_P(v);
+        if (SwooleG.socket_buffer_size <= 0 || SwooleG.socket_buffer_size > SW_MAX_INT)
+        {
+            SwooleG.socket_buffer_size = SW_MAX_INT;
+        }
     }
     if (php_swoole_array_get_value(vht, "socket_dontwait", v))
     {
