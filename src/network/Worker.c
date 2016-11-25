@@ -58,6 +58,9 @@ void swWorker_signal_init(void)
     swSignal_add(SIGALRM, swSystemTimer_signal_handler);
     //for test
     swSignal_add(SIGVTALRM, swWorker_signal_handler);
+#ifdef SIGRTMIN
+    swSignal_set(SIGRTMIN, swWorker_signal_handler, 1, 0);
+#endif
 }
 
 void swWorker_signal_handler(int signo)
@@ -113,10 +116,17 @@ void swWorker_signal_handler(int signo)
         {
             SwooleG.running = 0;
         }
-        break;    
+        break;
+
     case SIGUSR2:
         break;
     default:
+#ifdef SIGRTMIN
+        if (signo == SIGRTMIN)
+        {
+            swServer_reopen_log_file(SwooleG.serv);
+        }
+#endif
         break;
     }
 }
