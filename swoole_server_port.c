@@ -95,6 +95,10 @@ static PHP_METHOD(swoole_server_port, set)
     {
         convert_to_long(v);
         port->socket_buffer_size = (int) Z_LVAL_P(v);
+        if (port->socket_buffer_size <= 0 || port->socket_buffer_size > SW_MAX_INT)
+        {
+            port->socket_buffer_size = SW_MAX_INT;
+        }
     }
     if (php_swoole_array_get_value(vht, "buffer_high_watermark", v))
     {
