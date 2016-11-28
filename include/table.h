@@ -45,6 +45,7 @@ typedef struct
 {
     uint32_t absolute_index;
     uint32_t collision_index;
+    swTableRow *row;
 } swTable_iterator;
 
 typedef struct

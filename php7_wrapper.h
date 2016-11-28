@@ -77,6 +77,7 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 #define sw_php_url_encode                     php_url_encode
 #define sw_php_array_merge(dest,src)          php_array_merge(dest,src,1 TSRMLS_CC)
 #define SW_RETURN_STRINGL                     RETURN_STRINGL
+#define SW_RETVAL_STRING                      RETVAL_STRING
 #define sw_zend_register_internal_class_ex    zend_register_internal_class_ex
 
 #define sw_zend_call_method_with_0_params     zend_call_method_with_0_params
@@ -234,9 +235,10 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval** 
 
 #define sw_php_var_unserialize(rval, p, max, var_hash)  php_var_unserialize(*rval, p, max, var_hash)
 #define SW_MAKE_STD_ZVAL(p)             zval _stack_zval_##p; p = &(_stack_zval_##p)
-#define SW_ALLOC_INIT_ZVAL(p)           p = emalloc(sizeof(zval)); bzero(p, sizeof(zval))
+#define SW_ALLOC_INIT_ZVAL(p)           do{p = emalloc(sizeof(zval)); bzero(p, sizeof(zval));}while(0)
 #define SW_RETURN_STRINGL(s, l, dup)    RETURN_STRINGL(s, l)
-#define SW_RETVAL_STRINGL(s, l, dup)    RETVAL_STRINGL(s, l); if (dup == 0) efree(s)
+#define SW_RETVAL_STRINGL(s, l, dup)    do{RETVAL_STRINGL(s, l); if (dup == 0) efree(s);}while(0)
+#define SW_RETVAL_STRING(s, dup)        do{RETVAL_STRING(s); if (dup == 0) efree(s);}while(0)
 
 #define SW_ZEND_FETCH_RESOURCE_NO_RETURN(rsrc, rsrc_type, passed_id, default_id, resource_type_name, resource_type)        \
         (rsrc = (rsrc_type) zend_fetch_resource(Z_RES_P(*passed_id), resource_type_name, resource_type))

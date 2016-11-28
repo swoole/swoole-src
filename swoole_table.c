@@ -597,6 +597,7 @@ static PHP_METHOD(swoole_table, rewind)
         RETURN_FALSE;
     }
     swTable_iterator_rewind(table);
+    swTable_iterator_forward(table);
 }
 
 static PHP_METHOD(swoole_table, current)
@@ -622,7 +623,9 @@ static PHP_METHOD(swoole_table, key)
         RETURN_FALSE;
     }
     swTableRow *row = swTable_iterator_current(table);
-    SW_RETURN_STRING(row->key, 1);
+    sw_spinlock(&row->lock);
+    SW_RETVAL_STRING(row->key, 1);
+    sw_spinlock_release(&row->lock);
 }
 
 static PHP_METHOD(swoole_table, next)
