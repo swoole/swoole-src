@@ -250,9 +250,23 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval** 
 #define sw_php_array_merge                                          php_array_merge
 #define sw_zend_register_internal_class_ex(entry,parent_ptr,str)    zend_register_internal_class_ex(entry,parent_ptr)
 
-#define sw_zend_call_method_with_0_params(obj, ptr, what, method, retval)               zend_call_method_with_0_params(*obj,ptr,what,method,*retval)
-#define sw_zend_call_method_with_1_params(obj, ptr, what, method, retval, v1)           zend_call_method_with_1_params(*obj,ptr,what,method,*retval,v1)
-#define sw_zend_call_method_with_2_params(obj, ptr, what, method, retval, name, cb)     zend_call_method_with_2_params(*obj,ptr,what,method,*retval,name,cb)
+#define sw_zend_call_method_with_0_params(obj, ptr, what, method, retval) \
+    zval __retval;\
+    zend_call_method_with_0_params(*obj, ptr, what, method, &__retval);\
+    if (ZVAL_IS_NULL(&__retval)) *(retval) = NULL;\
+    else *(retval) = &__retval;
+
+#define sw_zend_call_method_with_1_params(obj, ptr, what, method, retval, v1)           \
+    zval __retval;\
+    zend_call_method_with_1_params(*obj, ptr, what, method, &__retval, v1);\
+    if (ZVAL_IS_NULL(&__retval)) *(retval) = NULL;\
+    else *(retval) = &__retval;
+
+#define sw_zend_call_method_with_2_params(obj, ptr, what, method, retval, v1, v2)    \
+    zval __retval;\
+    zend_call_method_with_2_params(*obj, ptr, what, method, &__retval, v1, v2);\
+    if (ZVAL_IS_NULL(&__retval)) *(retval) = NULL;\
+    else *(retval) = &__retval;
 
 #define SWOOLE_GET_TSRMLS
 #define SW_ZVAL_STRINGL(z, s, l, dup)         ZVAL_STRINGL(z, s, l)
