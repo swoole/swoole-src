@@ -179,36 +179,36 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 {
     int ret, sendn;
     swServer *serv = factory->ptr;
-    int fd = resp->info.fd;
+    int session_id = resp->info.fd;
 
     swConnection *conn;
     if (resp->info.type != SW_EVENT_CLOSE)
     {
-        conn = swServer_connection_verify(serv, fd);
+        conn = swServer_connection_verify(serv, session_id);
     }
     else
     {
-        conn = swServer_connection_verify_no_ssl(serv, fd);
+        conn = swServer_connection_verify_no_ssl(serv, session_id);
     }
     if (!conn)
     {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists.", fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists.", session_id);
         return SW_ERR;
     }
     else if ((conn->closed || conn->removed) && resp->info.type != SW_EVENT_CLOSE)
     {
         int _len = resp->length > 0 ? resp->length : resp->info.len;
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "send %d byte failed, because connection[fd=%d] is closed.", _len, fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "send %d byte failed, because connection[fd=%d] is closed.", _len, session_id);
         return SW_ERR;
     }
     else if (conn->overflow)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "send failed, connection[fd=%d] output buffer has been overflowed.", fd);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "send failed, connection[fd=%d] output buffer has been overflowed.", session_id);
         return SW_ERR;
     }
 
     swEventData ev_data;
-    ev_data.info.fd = fd;
+    ev_data.info.fd = session_id;
     ev_data.info.type = resp->info.type;
     swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
 
@@ -223,19 +223,34 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
             return SW_ERR;
         }
 
+        //worker process
+        if (SwooleG.main_reactor)
+        {
+            int _pipe_fd = swWorker_get_send_pipe(serv, session_id, conn->from_id);
+            swConnection *_pipe_socket = swReactor_get(SwooleG.main_reactor, _pipe_fd);
+
+            //cannot use send_shm
+            if (!swBuffer_empty(_pipe_socket->out_buffer))
+            {
+                if (swTaskWorker_large_pack(&ev_data, resp->data, resp->length) < 0)
+                {
+                    return SW_ERR;
+                }
+                ev_data.info.from_fd = SW_RESPONSE_TMPFILE;
+                goto send_to_reactor_thread;
+            }
+        }
+
         swPackage_response response;
-
-        worker->lock.lock(&worker->lock);
-
         response.length = resp->length;
         response.worker_id = SwooleWG.id;
-
-        //swWarn("BigPackage, length=%d|worker_id=%d", response.length, response.worker_id);
-
         ev_data.info.from_fd = SW_RESPONSE_BIG;
         ev_data.info.len = sizeof(response);
-
         memcpy(ev_data.data, &response, sizeof(response));
+
+        swTrace("[Worker] big response, length=%d|worker_id=%d", response.length, response.worker_id);
+
+        worker->lock.lock(&worker->lock);
         memcpy(worker->send_shm, resp->data, resp->length);
     }
     else
@@ -247,11 +262,11 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         ev_data.info.from_fd = SW_RESPONSE_SMALL;
     }
 
-    ev_data.info.from_id = conn->from_id;
-
+    send_to_reactor_thread: ev_data.info.from_id = conn->from_id;
     sendn = ev_data.info.len + sizeof(resp->info);
+
     swTrace("[Worker] send: sendn=%d|type=%d|content=%s", sendn, resp->info.type, resp->data);
-    ret = swWorker_send2reactor(&ev_data, sendn, fd);
+    ret = swWorker_send2reactor(&ev_data, sendn, session_id);
     if (ret < 0)
     {
         swWarn("sendto to reactor failed. Error: %s [%d]", strerror(errno), errno);

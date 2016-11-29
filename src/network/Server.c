@@ -951,13 +951,13 @@ int swServer_tcp_notify(swServer *serv, swConnection *conn, int event)
     return serv->factory.notify(&serv->factory, &notify_event);
 }
 
-int swServer_tcp_sendfile(swServer *serv, int fd, char *filename, uint32_t len, off_t offset)
+int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32_t len, off_t offset)
 {
 #ifdef SW_USE_OPENSSL
-    swConnection *conn = swServer_connection_verify(serv, fd);
+    swConnection *conn = swServer_connection_verify(serv, session_id);
     if (conn && conn->ssl)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SSL_CANNOT_USE_SENFILE, "SSL session#%d cannot use sendfile().", fd);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SSL_CANNOT_USE_SENFILE, "SSL session#%d cannot use sendfile().", session_id);
         return SW_ERR;
     }
 #endif
@@ -973,7 +973,7 @@ int swServer_tcp_sendfile(swServer *serv, int fd, char *filename, uint32_t len, 
         return SW_ERR;
     }
 
-    send_data.info.fd = fd;
+    send_data.info.fd = session_id;
     send_data.info.type = SW_EVENT_SENDFILE;
     memcpy(buffer, &offset, sizeof(off_t));
     memcpy(buffer + sizeof(off_t), filename, len);

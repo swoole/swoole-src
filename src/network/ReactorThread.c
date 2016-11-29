@@ -422,13 +422,15 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
         if (n > 0)
         {
             memcpy(&_send.info, &resp.info, sizeof(resp.info));
+            //pipe data
             if (_send.info.from_fd == SW_RESPONSE_SMALL)
             {
                 _send.data = resp.data;
                 _send.length = resp.info.len;
                 swReactorThread_send(&_send);
             }
-            else
+            //use send shm
+            else if (_send.info.from_fd == SW_RESPONSE_BIG)
             {
                 memcpy(&pkg_resp, resp.data, sizeof(pkg_resp));
                 worker = swServer_get_worker(SwooleG.serv, pkg_resp.worker_id);
@@ -449,6 +451,22 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
 #endif
                 swReactorThread_send(&_send);
                 worker->lock.unlock(&worker->lock);
+            }
+            //use tmp file
+            else if (_send.info.from_fd == SW_RESPONSE_TMPFILE)
+            {
+                swString *data = swTaskWorker_large_unpack_buffer(&resp);
+                if (data == NULL)
+                {
+                    return SW_ERR;
+                }
+                _send.data = data->str;
+                _send.length = data->length;
+                swReactorThread_send(&_send);
+            }
+            else
+            {
+                abort();
             }
         }
         else if (errno == EAGAIN)

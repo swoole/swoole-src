@@ -528,30 +528,19 @@ int swWorker_loop(swFactory *factory, int worker_id)
 /**
  * Send data to ReactorThread
  */
-int swWorker_send2reactor(swEventData *ev_data, size_t sendn, int fd)
+int swWorker_send2reactor(swEventData *ev_data, size_t sendn, int session_id)
 {
     int ret;
     swServer *serv = SwooleG.serv;
-
-    /**
-     * reactor_id: The fd in which the reactor.
-     */
-    int reactor_id = ev_data->info.from_id;
-    int pipe_index = fd % serv->reactor_pipe_num;
-
-    /**
-     * pipe_worker_id: The pipe in which worker.
-     */
-    int pipe_worker_id = reactor_id + (pipe_index * serv->reactor_num);
-    swWorker *worker = swServer_get_worker(serv, pipe_worker_id);
+    int _pipe_fd = swWorker_get_send_pipe(serv, session_id, ev_data->info.from_id);
 
     if (SwooleG.main_reactor)
     {
-        ret = SwooleG.main_reactor->write(SwooleG.main_reactor, worker->pipe_worker, ev_data, sendn);
+        ret = SwooleG.main_reactor->write(SwooleG.main_reactor, _pipe_fd, ev_data, sendn);
     }
     else
     {
-        ret = swSocket_write_blocking(worker->pipe_worker, ev_data, sendn);
+        ret = swSocket_write_blocking(_pipe_fd, ev_data, sendn);
     }
     return ret;
 }

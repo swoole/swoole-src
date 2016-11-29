@@ -601,6 +601,16 @@ int swString_append_ptr(swString *str, char *append_str, int length);
 
 int swString_extend(swString *str, size_t new_size);
 
+static sw_inline int swString_extend_align(swString *str, size_t _new_size)
+{
+    size_t align_size = str->size * 2;
+    while (align_size < _new_size)
+    {
+        align_size *= 2;
+    }
+    return swString_extend(str, align_size);
+}
+
 #define swString_length(s) (s->length)
 #define swString_ptr(s) (s->str)
 //------------------------------Base--------------------------------
