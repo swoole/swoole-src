@@ -80,11 +80,6 @@ void swoole_module_init(int module_number TSRMLS_DC)
     SWOOLE_CLASS_ALIAS(swoole_module, "Swoole\\Module");
 
     SwooleG.call_php_func = swoole_call_php_func;
-    SwooleG.module_stack = swString_new(8192);
-    if (SwooleG.module_stack == NULL)
-    {
-        swoole_php_fatal_error(E_ERROR, "swString_new(8192) failed.");
-    }
 }
 
 PHP_FUNCTION(swoole_load_module)
