@@ -31,25 +31,9 @@ void swTaskWorker_init(swProcessPool *pool)
     pool->start_id = SwooleG.serv->worker_num;
     pool->run_worker_num = SwooleG.task_worker_num;
 
-    if (!SwooleG.task_tmpdir)
-    {
-        SwooleG.task_tmpdir = strndup(SW_TASK_TMP_FILE, sizeof(SW_TASK_TMP_FILE));
-        SwooleG.task_tmpdir_len = sizeof(SW_TASK_TMP_FILE);
-    }
-
-    char *tmp_dir = swoole_dirname(SwooleG.task_tmpdir);
-    //create tmp dir
-    if (access(tmp_dir, R_OK) < 0 && swoole_mkdir_recursive(tmp_dir) < 0)
-    {
-        swWarn("create task tmp dir(%s) failed.", tmp_dir);
-    }
     if (SwooleG.task_ipc_mode == SW_TASK_IPC_PREEMPTIVE)
     {
         pool->dispatch_mode = SW_DISPATCH_QUEUE;
-    }
-    if (tmp_dir)
-    {
-        sw_strdup_free(tmp_dir);
     }
 }
 
@@ -127,6 +111,9 @@ static void swTaskWorker_signal_init(void)
     swSignal_set(SIGUSR2, NULL, 1, 0);
     swSignal_set(SIGTERM, swWorker_signal_handler, 1, 0);
     swSignal_set(SIGALRM, swSystemTimer_signal_handler, 1, 0);
+#ifdef SIGRTMIN
+    swSignal_set(SIGRTMIN, swWorker_signal_handler, 1, 0);
+#endif
 }
 
 void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
@@ -278,7 +265,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
         {
             ret = task_notify_pipe->write(task_notify_pipe, &flag, sizeof(flag));
 #ifdef HAVE_KQUEUE
-            if (errno == EAGAIN || errno == ENOBUFS)
+            if (ret < 0 && errno == EAGAIN || errno == ENOBUFS)
 #else
             if (ret < 0 && errno == EAGAIN)
 #endif

@@ -157,8 +157,8 @@ static const php_http_parser_settings http_parser_settings =
     http_client_parser_on_message_complete
 };
 
-zend_class_entry swoole_http_client_ce;
-zend_class_entry *swoole_http_client_class_entry_ptr;
+static zend_class_entry swoole_http_client_ce;
+static zend_class_entry *swoole_http_client_class_entry_ptr;
 
 static PHP_METHOD(swoole_http_client, __construct);
 static PHP_METHOD(swoole_http_client, __destruct);
@@ -205,6 +205,15 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
         swoole_php_fatal_error(E_WARNING, "path is empty.");
         return SW_ERR;
     }
+
+    char *func_name = NULL;
+    if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+    {
+        swoole_php_fatal_error(E_WARNING, "Function '%s' is not callable", func_name);
+        efree(func_name);
+        return SW_ERR;
+    }
+    efree(func_name);
 
     http_client *http = swoole_get_object(zobject);
 

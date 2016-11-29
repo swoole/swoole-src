@@ -68,10 +68,7 @@ static void php_swoole_onManagerStop(swServer *serv);
 
 static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC);
 
-static int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC);
-static zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC);
-
-static int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
+int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
 {
     smart_str serialized_data = { 0 };
     php_serialize_data_t var_hash;
@@ -235,7 +232,7 @@ static sw_inline int php_swoole_check_task_param(int dst_worker_id TSRMLS_DC)
     return SW_OK;
 }
 
-static zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC)
+zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC)
 {
     zval *result_data, *result_unserialized_data;
     char *result_data_str;
@@ -551,6 +548,13 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
 
     SWOOLE_GET_TSRMLS;
 
+    zval *callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
+    if (callback == NULL || ZVAL_IS_NULL(callback))
+    {
+        swoole_php_fatal_error(E_WARNING, "onReceive callback is null.");
+        return SW_OK;
+    }
+
     //UDP使用from_id作为port,fd做为ip
     php_swoole_udp_t udp_info;
     swDgramPacket *packet;
@@ -562,6 +566,8 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     //dgram
     if (swEventData_is_dgram(req->info.type))
     {
+        swoole_php_error(E_DEPRECATED, "The udp onReceive callback is deprecated, use onPacket instead.");
+
         swString *buffer = swWorker_get_buffer(serv, req->info.from_id);
         packet = (swDgramPacket*) buffer->str;
 
@@ -686,6 +692,18 @@ static int php_swoole_onPacket(swServer *serv, swEventData *req)
     packet = (swDgramPacket*) buffer->str;
 
     add_assoc_long(zaddr, "server_socket", req->info.from_fd);
+    swConnection *from_sock = swServer_connection_get(serv, req->info.from_fd);
+    if (from_sock)
+    {
+        add_assoc_long(zaddr, "server_port", swConnection_get_port(from_sock));
+    }
+
+    zval *callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
+    if (callback == NULL || ZVAL_IS_NULL(callback))
+    {
+        swoole_php_fatal_error(E_WARNING, "onPacket callback is null.");
+        return SW_OK;
+    }
 
     char address[INET6_ADDRSTRLEN];
 
@@ -1200,7 +1218,6 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
     zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onConnect);
     if (callback == NULL || ZVAL_IS_NULL(callback))
     {
-        swoole_php_fatal_error(E_WARNING, "onConnect callback is null.");
         return;
     }
 
@@ -1254,7 +1271,6 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
     zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onClose);
     if (callback == NULL || ZVAL_IS_NULL(callback))
     {
-        swoole_php_fatal_error(E_WARNING, "onClose callback is null.");
         return;
     }
 
@@ -2833,6 +2849,8 @@ PHP_METHOD(swoole_server, connection_info)
     {
         array_init(return_value);
 
+        swoole_php_error(E_DEPRECATED, "The udp connection_info is deprecated, use onPacket instead.");
+
         if (ipv6_udp)
         {
             add_assoc_zval(return_value, "remote_ip", zfd);
@@ -3239,6 +3257,50 @@ PHP_METHOD(swoole_connection_iterator, count)
 {
     RETURN_LONG(SwooleStats->connection_num);
 }
+
+PHP_METHOD(swoole_connection_iterator, offsetExists)
+{
+    zval *zobject = (zval *) SwooleG.serv->ptr2;
+    zval *retval = NULL;
+    zval *zfd;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zfd) == FAILURE)
+    {
+        return;
+    }
+    sw_zend_call_method_with_1_params(&zobject, swoole_server_class_entry_ptr, NULL, "exist", &retval, zfd);
+    if (retval)
+    {
+        RETVAL_BOOL(Z_BVAL_P(retval));
+        sw_zval_ptr_dtor(&retval);
+    }
+}
+
+PHP_METHOD(swoole_connection_iterator, offsetGet)
+{
+    zval *zobject = (zval *) SwooleG.serv->ptr2;
+    zval *retval = NULL;
+    zval *zfd;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zfd) == FAILURE)
+    {
+        return;
+    }
+    sw_zend_call_method_with_1_params(&zobject, swoole_server_class_entry_ptr, NULL, "connection_info", &retval, zfd);
+    if (retval)
+    {
+        RETVAL_ZVAL(retval, 0, 0);
+    }
+}
+
+PHP_METHOD(swoole_connection_iterator, offsetSet)
+{
+    return;
+}
+
+PHP_METHOD(swoole_connection_iterator, offsetUnset)
+{
+    return;
+}
+
 #endif
 
 /*

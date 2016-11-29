@@ -77,6 +77,7 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 #define sw_php_url_encode                     php_url_encode
 #define sw_php_array_merge(dest,src)          php_array_merge(dest,src,1 TSRMLS_CC)
 #define SW_RETURN_STRINGL                     RETURN_STRINGL
+#define SW_RETVAL_STRING                      RETVAL_STRING
 #define sw_zend_register_internal_class_ex    zend_register_internal_class_ex
 
 #define sw_zend_call_method_with_0_params     zend_call_method_with_0_params
@@ -234,9 +235,10 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval** 
 
 #define sw_php_var_unserialize(rval, p, max, var_hash)  php_var_unserialize(*rval, p, max, var_hash)
 #define SW_MAKE_STD_ZVAL(p)             zval _stack_zval_##p; p = &(_stack_zval_##p)
-#define SW_ALLOC_INIT_ZVAL(p)           p = emalloc(sizeof(zval)); bzero(p, sizeof(zval))
+#define SW_ALLOC_INIT_ZVAL(p)           do{p = emalloc(sizeof(zval)); bzero(p, sizeof(zval));}while(0)
 #define SW_RETURN_STRINGL(s, l, dup)    RETURN_STRINGL(s, l)
-#define SW_RETVAL_STRINGL(s, l, dup)    RETVAL_STRINGL(s, l); if (dup == 0) efree(s)
+#define SW_RETVAL_STRINGL(s, l, dup)    do{RETVAL_STRINGL(s, l); if (dup == 0) efree(s);}while(0)
+#define SW_RETVAL_STRING(s, dup)        do{RETVAL_STRING(s); if (dup == 0) efree(s);}while(0)
 
 #define SW_ZEND_FETCH_RESOURCE_NO_RETURN(rsrc, rsrc_type, passed_id, default_id, resource_type_name, resource_type)        \
         (rsrc = (rsrc_type) zend_fetch_resource(Z_RES_P(*passed_id), resource_type_name, resource_type))
@@ -248,9 +250,23 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval** 
 #define sw_php_array_merge                                          php_array_merge
 #define sw_zend_register_internal_class_ex(entry,parent_ptr,str)    zend_register_internal_class_ex(entry,parent_ptr)
 
-#define sw_zend_call_method_with_0_params(obj, ptr, what, method, retval)               zend_call_method_with_0_params(*obj,ptr,what,method,*retval)
-#define sw_zend_call_method_with_1_params(obj, ptr, what, method, retval, v1)           zend_call_method_with_1_params(*obj,ptr,what,method,*retval,v1)
-#define sw_zend_call_method_with_2_params(obj, ptr, what, method, retval, name, cb)     zend_call_method_with_2_params(*obj,ptr,what,method,*retval,name,cb)
+#define sw_zend_call_method_with_0_params(obj, ptr, what, method, retval) \
+    zval __retval;\
+    zend_call_method_with_0_params(*obj, ptr, what, method, &__retval);\
+    if (ZVAL_IS_NULL(&__retval)) *(retval) = NULL;\
+    else *(retval) = &__retval;
+
+#define sw_zend_call_method_with_1_params(obj, ptr, what, method, retval, v1)           \
+    zval __retval;\
+    zend_call_method_with_1_params(*obj, ptr, what, method, &__retval, v1);\
+    if (ZVAL_IS_NULL(&__retval)) *(retval) = NULL;\
+    else *(retval) = &__retval;
+
+#define sw_zend_call_method_with_2_params(obj, ptr, what, method, retval, v1, v2)    \
+    zval __retval;\
+    zend_call_method_with_2_params(*obj, ptr, what, method, &__retval, v1, v2);\
+    if (ZVAL_IS_NULL(&__retval)) *(retval) = NULL;\
+    else *(retval) = &__retval;
 
 #define SWOOLE_GET_TSRMLS
 #define SW_ZVAL_STRINGL(z, s, l, dup)         ZVAL_STRINGL(z, s, l)

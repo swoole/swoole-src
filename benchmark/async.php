@@ -21,7 +21,7 @@ if (!isset($opt['s'])) {
     exit("require -s [server_url]. ep: -s tcp://127.0.0.1:9999\n");
 }
 if (!isset($opt['f'])) {
-    exit("require -f [test_function]. ep: -f short_tcp\n");
+    exit("require -f [test_function]. ep: -f websocket|http|tcp|udp\n");
 }
 
 class BenchMark
@@ -36,11 +36,13 @@ class BenchMark
     protected $nSendBytes = 0;
 
     protected $requestCount = 0;
+    protected $connectErrorCount = 0;
 
     protected $connectTime = 0;
 
     protected $startTime;
     protected $beginSendTime;
+    protected $testMethod;
 
     function __construct($opt)
     {
@@ -49,13 +51,24 @@ class BenchMark
         $serv = parse_url($opt['s']);
         $this->host = $serv['host'];
         $this->port = $serv['port'];
+        $this->testMethod = $opt['f'];
+        if (!method_exists($this, $this->testMethod))
+        {
+            throw new RuntimeException("method [{$this->testMethod}] is not exists.");
+        }
     }
 
     protected function finish()
     {
         foreach($this->clients as $k => $cli)
         {
-            $cli->close();
+            /**
+             * @var $cli swoole\client
+             */
+            if ($cli->isConnected())
+            {
+                $cli->close();
+            }
             unset($this->clients[$k]);
         }
         echo "============================================================\n";
@@ -65,10 +78,18 @@ class BenchMark
         echo "SendBytes:\t{$this->nSendBytes}\n";
         echo "nReceBytes:\t{$this->nRecvBytes}\n";
         echo "concurrency:\t".$this->nConcurrency,"\n";
+        echo "connect failed:\t" . $this->connectErrorCount, "\n";
         echo "request num:\t" . $this->nRequest, "\n";
         $costTime = $this->format(microtime(true) - $this->startTime);
         echo "total time:\t" . ($costTime) . "\n";
-        echo "request per second:\t" . intval($this->nRequest / $costTime), "\n";
+        if ($this->requestCount > 0)
+        {
+            echo "request per second:\t" . intval($this->requestCount / $costTime), "\n";
+        }
+        else
+        {
+            echo "request per second:\t0\n";
+        }
         echo "connection time:\t" . $this->format($this->connectTime) . "\n";
     }
 
@@ -121,7 +142,11 @@ class BenchMark
 
     function onError($cli)
     {
-
+        $this->connectErrorCount ++;
+        if ($this->connectErrorCount >= $this->nConcurrency)
+        {
+            $this->finish();
+        }
     }
 
     function onConnect($cli)
@@ -174,7 +199,7 @@ class BenchMark
         $this->startTime = microtime(true);
         for ($i = 0; $i < $this->nConcurrency; $i++)
         {
-            $cli = $this->websocket();
+            $cli = call_user_func([$this, $this->testMethod]);
             $this->clients[$cli->sock] = $cli;
         }
         $this->beginSendTime = microtime(true);

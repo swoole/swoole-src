@@ -1,7 +1,7 @@
 <?php
 use Swoole\Redis\Server;
 
-define('DB_FILE', __DIR__.'/db.php');
+define('DB_FILE', '/tmp/redis.data');
 
 $server = new Server("127.0.0.1", 9501, SWOOLE_BASE);
 
@@ -14,7 +14,7 @@ else
     $server->data = array();
 }
 
-$server->setHandler('GET', function ($data) use ($server) {
+$server->setHandler('GET', function ($fd, $data) use ($server) {
     if (count($data) == 0)
     {
         return Server::format(Server::ERROR, "ERR wrong number of arguments for 'GET' command");
@@ -31,7 +31,7 @@ $server->setHandler('GET', function ($data) use ($server) {
     }
 });
 
-$server->setHandler('SET', function ($data) use ($server) {
+$server->setHandler('SET', function ($fd, $data) use ($server) {
     if (count($data) < 2)
     {
         return Server::format(Server::ERROR, "ERR wrong number of arguments for 'SET' command");
@@ -42,7 +42,7 @@ $server->setHandler('SET', function ($data) use ($server) {
     return Server::format(Server::STATUS, 'OK');
 });
 
-$server->setHandler('sAdd', function ($data) use ($server) {
+$server->setHandler('sAdd', function ($fd, $data) use ($server) {
 
     if (count($data) < 2)
     {
@@ -69,7 +69,7 @@ $server->setHandler('sAdd', function ($data) use ($server) {
     return Server::format(Server::INT, $count);
 });
 
-$server->setHandler('sMembers', function ($data) use ($server) {
+$server->setHandler('sMembers', function ($fd, $data) use ($server) {
     if (count($data) < 1)
     {
         return Server::format(Server::ERROR, "ERR wrong number of arguments for 'sMembers' command");
@@ -82,7 +82,7 @@ $server->setHandler('sMembers', function ($data) use ($server) {
     return Server::format(Server::SET, array_keys($server->data[$key]));
 });
 
-$server->setHandler('hSet', function ($data) use ($server) {
+$server->setHandler('hSet', function ($fd, $data) use ($server) {
 
     if (count($data) < 3)
     {
@@ -101,7 +101,7 @@ $server->setHandler('hSet', function ($data) use ($server) {
     return Server::format(Server::INT, $count);
 });
 
-$server->setHandler('hGetAll', function ($data) use ($server) {
+$server->setHandler('hGetAll', function ($fd, $data) use ($server) {
     if (count($data) < 1)
     {
         return Server::format(Server::ERROR, "ERR wrong number of arguments for 'hGetAll' command");

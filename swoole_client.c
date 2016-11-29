@@ -412,6 +412,10 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
     {
         convert_to_long(v);
         value = (int) Z_LVAL_P(v);
+        if (value <= 0 || value > SW_MAX_INT)
+        {
+            value = SW_MAX_INT;
+        }
         swSocket_set_buffer_size(cli->socket->fd, value);
         cli->socket->buffer_size = cli->buffer_input_size = value;
     }
@@ -1289,7 +1293,7 @@ static PHP_METHOD(swoole_client, recv)
         //error package
         if (buf_len < 0)
         {
-            RETURN_FALSE;
+            RETURN_EMPTY_STRING();
         }
         //empty package
         else if (buf_len == header_len)

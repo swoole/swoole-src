@@ -22,12 +22,10 @@
 zend_class_entry swoole_redis_server_ce;
 zend_class_entry *swoole_redis_server_class_entry_ptr;
 
-static int _current_fd = 0;
 static swString *format_buffer;
 
 static PHP_METHOD(swoole_redis_server, start);
 static PHP_METHOD(swoole_redis_server, setHandler);
-static PHP_METHOD(swoole_redis_server, getFd);
 static PHP_METHOD(swoole_redis_server, format);
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_server_start, 0, 0, 0)
@@ -45,14 +43,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_server_format, 0, 0, 1)
     ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_server_getFd, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
 const zend_function_entry swoole_redis_server_methods[] =
 {
     PHP_ME(swoole_redis_server, start, arginfo_swoole_redis_server_start, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_server, setHandler, arginfo_swoole_redis_server_setHandler, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_server, getFd, arginfo_swoole_redis_server_getFd, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_server, format, arginfo_swoole_redis_server_format, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
@@ -167,12 +161,10 @@ static int redis_onReceive(swServer *serv, swEventData *req)
         }
     } while(p < pe);
 
-    _current_fd = req->info.fd;
-
     if (command_len >= SW_REDIS_MAX_COMMAND_SIZE)
     {
         swoole_php_error(E_WARNING, "command is too long.");
-        serv->close(serv, _current_fd, 0);
+        serv->close(serv, fd, 0);
         return SW_OK;
     }
 
@@ -181,20 +173,25 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     int _command_len = snprintf(_command, sizeof(_command), "_handler_%*s", command_len, command);
     php_strtolower(_command, _command_len);
 
-    zval **args[1];
+    zval **args[2];
     zval *zobject = serv->ptr2;
     zval *zcallback = sw_zend_read_property(swoole_redis_server_class_entry_ptr, zobject, _command, _command_len, 1 TSRMLS_CC);
 
     char err_msg[256];
     if (!zcallback || ZVAL_IS_NULL(zcallback))
     {
-
         length = snprintf(err_msg, sizeof(err_msg), "-ERR unknown command '%*s'\r\n", command_len, command);
-        swServer_tcp_send(serv, _current_fd, err_msg, length);
+        swServer_tcp_send(serv, fd, err_msg, length);
         return SW_OK;
     }
 
-    args[0] = &zparams;
+    zval *zfd;
+    SW_MAKE_STD_ZVAL(zfd);
+    ZVAL_LONG(zfd, fd);
+
+    args[0] = &zfd;
+    args[1] = &zparams;
+
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_error(E_WARNING, "command handler error.");
@@ -208,11 +205,11 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     {
         if (Z_TYPE_P(retval) == IS_STRING)
         {
-            serv->send(serv, _current_fd, Z_STRVAL_P(retval), Z_STRLEN_P(retval));
+            serv->send(serv, fd, Z_STRVAL_P(retval), Z_STRLEN_P(retval));
         }
         sw_zval_ptr_dtor(&retval);
     }
-    _current_fd = 0;
+    sw_zval_ptr_dtor(&zfd);
     sw_zval_ptr_dtor(&zdata);
     sw_zval_ptr_dtor(&zparams);
     return SW_OK;
@@ -271,11 +268,6 @@ static PHP_METHOD(swoole_redis_server, start)
         RETURN_LONG(ret);
     }
     RETURN_TRUE;
-}
-
-static PHP_METHOD(swoole_redis_server, getFd)
-{
-    RETURN_LONG(_current_fd);
 }
 
 static PHP_METHOD(swoole_redis_server, setHandler)

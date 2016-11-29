@@ -61,19 +61,19 @@ static PHP_METHOD(swoole_buffer, __construct)
 
     if (size < 1)
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "buffer size cannot be less than 0");
+        zend_throw_exception(swoole_exception_class_entry_ptr, "buffer size cannot be less than 0.", SW_ERROR_INVALID_PARAMS TSRMLS_CC);
         RETURN_FALSE;
     }
     else if (size > SW_STRING_BUFFER_MAXLEN)
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "buffer size must not exceed %d", SW_STRING_BUFFER_MAXLEN);
+        zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno TSRMLS_CC, "buffer size must not exceed %d", SW_STRING_BUFFER_MAXLEN);
         RETURN_FALSE;
     }
 
     swString *buffer = swString_new(size);
     if (buffer == NULL)
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "malloc(%ld) failed.", size);
+        zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno TSRMLS_CC, "malloc(%ld) failed.", size);
         RETURN_FALSE;
     }
 

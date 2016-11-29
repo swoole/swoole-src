@@ -43,7 +43,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.8.13-beta"
+#define PHP_SWOOLE_VERSION  "2.0.1"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -223,17 +223,14 @@ enum php_swoole_fd_type
 
 #define SW_LONG_CONNECTION_KEY_LEN          64
 
-extern zend_class_entry *swoole_lock_class_entry_ptr;
 extern zend_class_entry *swoole_process_class_entry_ptr;
 extern zend_class_entry *swoole_client_class_entry_ptr;
-extern zend_class_entry *swoole_http_client_class_entry_ptr;
 extern zend_class_entry *swoole_server_class_entry_ptr;
 extern zend_class_entry *swoole_connection_iterator_class_entry_ptr;
 extern zend_class_entry *swoole_buffer_class_entry_ptr;
-extern zend_class_entry *swoole_table_class_entry_ptr;
 extern zend_class_entry *swoole_http_server_class_entry_ptr;
-extern zend_class_entry *swoole_websocket_frame_class_entry_ptr;
 extern zend_class_entry *swoole_server_port_class_entry_ptr;
+extern zend_class_entry *swoole_exception_class_entry_ptr;
 
 extern zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
 #if PHP_MAJOR_VERSION >= 7
@@ -293,6 +290,10 @@ PHP_METHOD(swoole_connection_iterator, next);
 PHP_METHOD(swoole_connection_iterator, current);
 PHP_METHOD(swoole_connection_iterator, key);
 PHP_METHOD(swoole_connection_iterator, valid);
+PHP_METHOD(swoole_connection_iterator, offsetExists);
+PHP_METHOD(swoole_connection_iterator, offsetGet);
+PHP_METHOD(swoole_connection_iterator, offsetSet);
+PHP_METHOD(swoole_connection_iterator, offsetUnset);
 #endif
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
@@ -361,6 +362,8 @@ void swoole_websocket_init(int module_number TSRMLS_DC);
 void swoole_buffer_init(int module_number TSRMLS_DC);
 void swoole_mysql_init(int module_number TSRMLS_DC);
 void swoole_module_init(int module_number TSRMLS_DC);
+void swoole_mmap_init(int module_number TSRMLS_DC);
+void swoole_channel_init(int module_number TSRMLS_DC);
 
 int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC);
 
@@ -374,6 +377,9 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
 void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC);
 zval* php_swoole_websocket_unpack(swString *data TSRMLS_DC);
 void php_swoole_sha1(const char *str, int _len, unsigned char *digest);
+
+int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC);
+zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC);
 
 static sw_inline void* swoole_get_object(zval *object)
 {

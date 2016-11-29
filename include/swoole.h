@@ -601,6 +601,16 @@ int swString_append_ptr(swString *str, char *append_str, int length);
 
 int swString_extend(swString *str, size_t new_size);
 
+static sw_inline int swString_extend_align(swString *str, size_t _new_size)
+{
+    size_t align_size = str->size * 2;
+    while (align_size < _new_size)
+    {
+        align_size *= 2;
+    }
+    return swString_extend(str, align_size);
+}
+
 #define swString_length(s) (s->length)
 #define swString_ptr(s) (s->str)
 //------------------------------Base--------------------------------
@@ -1574,20 +1584,21 @@ enum SW_CHANNEL_FLAGS
 
 typedef struct _swChannel
 {
-	int head;    //头部，出队列方向
-	int tail;    //尾部，入队列方向
-	int size;    //队列总尺寸
-	char head_tag;
-	char tail_tag;
-	int num;
-	int flag;
-	int maxlen;
-	void *mem;   //内存块
-	swLock lock;
-	swPipe notify_fd;
+    off_t head;
+    off_t tail;
+    size_t size;
+    char head_tag;
+    char tail_tag;
+    int num;
+    size_t bytes;
+    int flag;
+    int maxlen;
+    void *mem;   //内存块
+    swLock lock;
+    swPipe notify_fd;
 } swChannel;
 
-swChannel* swChannel_new(int size, int maxlen, int flag);
+swChannel* swChannel_new(size_t size, int maxlen, int flag);
 int swChannel_pop(swChannel *object, void *out, int buffer_length);
 int swChannel_push(swChannel *object, void *in, int data_length);
 int swChannel_out(swChannel *object, void *out, int buffer_length);
@@ -1710,7 +1721,6 @@ typedef struct
 
     uint32_t session_round :24;
     uint8_t start;  //after swServer_start will set start=1
-    uint16_t logfile_version;
 
     time_t now;
 
@@ -1747,9 +1757,8 @@ typedef struct
     uint32_t in_client :1;
     uint32_t shutdown :1;
     uint32_t reload;
-    uint32_t reload_count;   //reload计数
+    uint32_t reload_count;
     uint32_t request_count;
-    uint16_t logfile_version;
 
     int max_request;
 

@@ -16,7 +16,7 @@
 
 #include "swoole.h"
 
-#define SW_CHANNEL_MIN_MEM (1024*64)   //最小内存分配
+#define SW_CHANNEL_MIN_MEM (1024*64)
 
 #define swChannel_empty(q) (q->num == 0)
 #define swChannel_full(q) ((q->head == q->tail) && (q->tail_tag != q->head_tag))
@@ -35,19 +35,14 @@ int swChannel_wait(swChannel *object);
 int swChannel_notify(swChannel *object);
 void swChannel_free(swChannel *object);
 
-void swChannel_debug(swChannel *chan)
-{
-    printf("RingBuffer: num=%d|head=%d|tail=%d|tail_tag=%d|head_tag=%d\n", chan->num, chan->head, chan->tail, (int)chan->tail_tag, (int)chan->head_tag);
-}
-
-swChannel* swChannel_new(int size, int maxlen, int flag)
+swChannel* swChannel_new(size_t size, int maxlen, int flags)
 {
     assert(size > SW_CHANNEL_MIN_MEM + maxlen);
     int ret;
     void *mem;
 
     //use shared memory
-    if (flag & SW_CHAN_SHM)
+    if (flags & SW_CHAN_SHM)
     {
         mem = sw_shm_malloc(size);
     }
@@ -58,7 +53,7 @@ swChannel* swChannel_new(int size, int maxlen, int flag)
 
     if (mem == NULL)
     {
-        swWarn("swChannel_create: malloc fail");
+        swWarn("swChannel_create: malloc(%ld) failed.", size);
         return NULL;
     }
     swChannel *object = mem;
@@ -70,25 +65,25 @@ swChannel* swChannel_new(int size, int maxlen, int flag)
     object->size = size - maxlen;
     object->mem = mem;
     object->maxlen = maxlen;
-    object->flag = flag;
+    object->flag = flags;
 
     //use lock
-    if (flag & SW_CHAN_LOCK)
+    if (flags & SW_CHAN_LOCK)
     {
         //init lock
         if (swMutex_create(&object->lock, 1) < 0)
         {
-            swWarn("swChannel_create: mutex init fail");
+            swWarn("mutex init failed.");
             return NULL;
         }
     }
     //use notify
-    if (flag & SW_CHAN_NOTIFY)
+    if (flags & SW_CHAN_NOTIFY)
     {
         ret = swPipeNotify_auto(&object->notify_fd, 1, 1);
         if (ret < 0)
         {
-            swWarn("swChannel_create: notify_fd init fail");
+            swWarn("notify_fd init failed.");
             return NULL;
         }
     }
@@ -101,13 +96,8 @@ swChannel* swChannel_new(int size, int maxlen, int flag)
 int swChannel_in(swChannel *object, void *in, int data_length)
 {
     assert(data_length < object->maxlen);
-    //队列满了
     if (swChannel_full(object))
     {
-        swWarn("queue full");
-        swChannel_debug(object);
-        //这里非常重要,避免此线程再次获得锁
-        swYield();
         return SW_ERR;
     }
     swChannel_item *item;
@@ -115,15 +105,14 @@ int swChannel_in(swChannel *object, void *in, int data_length)
 
     if (object->tail < object->head)
     {
+        //no enough memory space
         if ((object->head - object->tail) < msize)
         {
-            //空间不足
             return SW_ERR;
         }
         item = object->mem + object->tail;
         object->tail += msize;
     }
-    //这里tail必然小于size,无需判断,因为每次分配完会计算超过size后转到开始
     else
     {
         item = object->mem + object->tail;
@@ -135,6 +124,7 @@ int swChannel_in(swChannel *object, void *in, int data_length)
         }
     }
     object->num++;
+    object->bytes += data_length;
     item->length = data_length;
     memcpy(item->data, in, data_length);
     return SW_OK;
@@ -145,18 +135,13 @@ int swChannel_in(swChannel *object, void *in, int data_length)
  */
 int swChannel_out(swChannel *object, void *out, int buffer_length)
 {
-    //队列为空
     if (swChannel_empty(object))
     {
-        swWarn("queue empty");
-        swChannel_debug(object);
-        //这里非常重要,避免此线程再次获得锁
-        swYield();
         return SW_ERR;
     }
+
     swChannel_item *item = object->mem + object->head;
     assert(buffer_length >= item->length);
-//    swWarn("out,len=%d|data=%s", item->length, item->data);
     memcpy(out, item->data, item->length);
     object->head += (item->length + sizeof(item->length));
     if (object->head >= object->size)
@@ -165,6 +150,7 @@ int swChannel_out(swChannel *object, void *out, int buffer_length)
         object->head_tag = 1 - object->head_tag;
     }
     object->num--;
+    object->bytes -= item->length;
     return item->length;
 }
 

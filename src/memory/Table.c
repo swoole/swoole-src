@@ -17,9 +17,13 @@
 #include "swoole.h"
 #include "table.h"
 
+//#define SW_TABLE_DEBUG 1
+#define SW_TABLE_USE_PHP_HASH
+
 #ifdef SW_TABLE_DEBUG
 static int conflict_count = 0;
 static int insert_count = 0;
+static int conflict_max_level = 0;
 #endif
 
 static void swTableColumn_free(swTableColumn *col);
@@ -177,7 +181,8 @@ int swTable_create(swTable *table)
 void swTable_free(swTable *table)
 {
 #ifdef SW_TABLE_DEBUG
-    printf("swoole_table: size=%d, conflict_count=%d, insert_count=%d\n", table->size, conflict_count, insert_count);
+    printf("swoole_table: size=%d, conflict_count=%d, conflict_max_level=%d, insert_count=%d\n", table->size,
+            conflict_count, conflict_max_level, insert_count);
 #endif
 
     swHashMap_free(table->columns);
@@ -213,29 +218,7 @@ static sw_inline swTableRow* swTable_iterator_get(swTable *table, uint32_t index
 
 swTableRow* swTable_iterator_current(swTable *table)
 {
-    swTableRow *row = NULL;
-    for (; table->iterator->absolute_index < table->size; table->iterator->absolute_index++)
-    {
-        row = swTable_iterator_get(table, table->iterator->absolute_index);
-        if (row == NULL)
-        {
-            continue;
-        }
-        else
-        {
-            break;
-        }
-    }
-    if (table->iterator->collision_index == 0)
-    {
-        return row;
-    }
-    int i;
-    for (i = 0; i < table->iterator->collision_index; i++)
-    {
-        row = row->next;
-    }
-    return row;
+    return table->iterator->row;
 }
 
 void swTable_iterator_forward(swTable *table)
@@ -250,6 +233,7 @@ void swTable_iterator_forward(swTable *table)
         else if (row->next == NULL)
         {
             table->iterator->absolute_index++;
+            table->iterator->row = row;
             return;
         }
         else
@@ -257,23 +241,25 @@ void swTable_iterator_forward(swTable *table)
             int i = 0;
             for (;; i++)
             {
-                row = row->next;
                 if (i == table->iterator->collision_index)
                 {
                     if (row == NULL)
                     {
-                        table->iterator->absolute_index++;
                         table->iterator->collision_index = 0;
+                        break;
                     }
                     else
                     {
                         table->iterator->collision_index++;
+                        table->iterator->row = row;
+                        return;
                     }
-                    return;
                 }
+                row = row->next;
             }
         }
     }
+    table->iterator->row = NULL;
 }
 
 swTableRow* swTableRow_get(swTable *table, char *key, int keylen, sw_atomic_t **rowlock)
@@ -324,6 +310,10 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen, sw_atomic_t **
     sw_spinlock(lock);
     *rowlock = lock;
 
+#ifdef SW_TABLE_DEBUG
+    int _conflict_level = 0;
+#endif
+
     if (row->active)
     {
         for (;;)
@@ -339,6 +329,11 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen, sw_atomic_t **
 
 #ifdef SW_TABLE_DEBUG
                 conflict_count ++;
+                if (_conflict_level > conflict_max_level)
+                {
+                    conflict_max_level = _conflict_level;
+                }
+
 #endif
                 table->lock.unlock(&table->lock);
 
@@ -356,6 +351,9 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen, sw_atomic_t **
             else
             {
                 row = row->next;
+#ifdef SW_TABLE_DEBUG
+                _conflict_level++;
+#endif
             }
         }
     }
@@ -364,7 +362,6 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen, sw_atomic_t **
 #ifdef SW_TABLE_DEBUG
         insert_count ++;
 #endif
-
         sw_atomic_fetch_add(&(table->row_num), 1);
     }
 

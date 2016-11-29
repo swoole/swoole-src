@@ -502,11 +502,9 @@ PHP_FUNCTION(swoole_timer_exists)
     {
        RETURN_FALSE;
     }
-    
-    if (1 == tnode->remove)
+    if (tnode->remove)
     {
-        RETURN_TRUE;
+        RETURN_FALSE;
     }
-    
-    RETURN_FALSE;
+    RETURN_TRUE;
 }

@@ -16,6 +16,8 @@ typedef atomic_uint32_t  sw_atomic_t;
 #define sw_atomic_fetch_add(value, add)   __sync_fetch_and_add(value, add)
 #define sw_atomic_fetch_sub(value, sub)   __sync_fetch_and_sub(value, sub)
 #define sw_atomic_memory_barrier()        __sync_synchronize()
+#define sw_atomic_add_fetch(value, add)   __sync_add_and_fetch(value, add)
+#define sw_atomic_sub_fetch(value, sub)   __sync_sub_and_fetch(value, sub)
 
 #ifdef __arm__
 #define sw_atomic_cpu_pause()             __asm__ __volatile__ ("NOP");

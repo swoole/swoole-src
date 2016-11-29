@@ -94,6 +94,29 @@ void swoole_init(void)
         SwooleG.max_sockets = (uint32_t) rlmt.rlim_cur;
     }
 
+    SwooleG.module_stack = swString_new(8192);
+    if (SwooleG.module_stack == NULL)
+    {
+        exit(3);
+    }
+
+    if (!SwooleG.task_tmpdir)
+    {
+        SwooleG.task_tmpdir = strndup(SW_TASK_TMP_FILE, sizeof(SW_TASK_TMP_FILE));
+        SwooleG.task_tmpdir_len = sizeof(SW_TASK_TMP_FILE);
+    }
+
+    char *tmp_dir = swoole_dirname(SwooleG.task_tmpdir);
+    //create tmp dir
+    if (access(tmp_dir, R_OK) < 0 && swoole_mkdir_recursive(tmp_dir) < 0)
+    {
+        swWarn("create task tmp dir(%s) failed.", tmp_dir);
+    }
+    if (tmp_dir)
+    {
+        sw_strdup_free(tmp_dir);
+    }
+
     //init signalfd
 #ifdef HAVE_SIGNALFD
     swSignalfd_init();
@@ -538,7 +561,7 @@ swString* swoole_file_get_contents(char *filename)
             }
             else
             {
-                swSysError("pread(%d, %d, %d) failed.", fd, file_stat.st_size - readn, readn);
+                swSysError("pread(%d, %ld, %d) failed.", fd, file_stat.st_size - readn, readn);
                 swString_free(content);
                 close(fd);
                 return NULL;

@@ -89,7 +89,8 @@ enum swCloseType
 enum swResponseType
 {
 	SW_RESPONSE_SMALL = 0,
-	SW_RESPONSE_BIG   = 1,
+	SW_RESPONSE_SHM   = 1,
+	SW_RESPONSE_TMPFILE,
 };
 
 enum swWorkerPipeType
@@ -574,7 +575,7 @@ int swServer_udp_send(swServer *serv, swSendData *resp);
 int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length);
 int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length);
 int swServer_tcp_close(swServer *serv, int fd, int reset);
-int swServer_tcp_sendfile(swServer *serv, int fd, char *filename, uint32_t len, off_t offset);
+int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32_t len, off_t offset);
 int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
 int swServer_confirm(swServer *serv, int fd);
 
@@ -629,6 +630,7 @@ swString** swServer_create_worker_buffer(swServer *serv);
 int swServer_create_task_worker(swServer *serv);
 void swServer_close_listen_port(swServer *serv);
 void swServer_enable_accept(swReactor *reactor);
+void swServer_reopen_log_file(swServer *serv);
 
 void swTaskWorker_init(swProcessPool *pool);
 int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);
@@ -658,6 +660,31 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags);
     } else {\
         _length = -1;\
     }
+
+static sw_inline swString* swTaskWorker_large_unpack_buffer(swEventData *task_result)
+{
+    swPackage_task _pkg;
+    memcpy(&_pkg, task_result->data, sizeof(_pkg));
+
+    int tmp_file_fd = open(_pkg.tmpfile, O_RDONLY);
+    if (tmp_file_fd < 0)
+    {
+        swSysError("open(%s) failed.", _pkg.tmpfile);
+        return NULL;
+    }
+    if (SwooleG.module_stack->size < _pkg.length && swString_extend_align(SwooleG.module_stack, _pkg.length) < 0)
+    {
+        return NULL;
+    }
+    if (swoole_sync_readfile(tmp_file_fd, SwooleG.module_stack->str, _pkg.length) < 0)
+    {
+        return NULL;
+    }
+    close(tmp_file_fd);
+    unlink(_pkg.tmpfile);
+    SwooleG.module_stack->length = _pkg.length;
+    return SwooleG.module_stack;
+}
 
 #define swPackage_data(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->str:task->data)
 #define swPackage_length(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->length:task->info.len)
@@ -879,6 +906,20 @@ int swWorker_send2reactor(swEventData *ev_data, size_t sendn, int fd);
 int swWorker_send2worker(swWorker *dst_worker, void *buf, int n, int flag);
 void swWorker_signal_handler(int signo);
 void swWorker_clean(void);
+
+/**
+ * reactor_id: The fd in which the reactor.
+ */
+static sw_inline int swWorker_get_send_pipe(swServer *serv, int session_id, int reactor_id)
+{
+    int pipe_index = session_id % serv->reactor_pipe_num;
+    /**
+     * pipe_worker_id: The pipe in which worker.
+     */
+    int pipe_worker_id = reactor_id + (pipe_index * serv->reactor_num);
+    swWorker *worker = swServer_get_worker(serv, pipe_worker_id);
+    return worker->pipe_worker;
+}
 
 int swReactorThread_create(swServer *serv);
 int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr);

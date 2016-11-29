@@ -56,7 +56,7 @@ PHP_METHOD(swoole_atomic, __construct)
     sw_atomic_t *atomic = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(sw_atomic_t));
     if (atomic == NULL)
     {
-        swoole_php_fatal_error(E_ERROR, "alloc global memory failed.");
+        zend_throw_exception(swoole_exception_class_entry_ptr, "alloc global memory failed.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
         RETURN_FALSE;
     }
     *atomic = (sw_atomic_t) value;
@@ -74,8 +74,7 @@ PHP_METHOD(swoole_atomic, add)
     {
         RETURN_FALSE;
     }
-    sw_atomic_fetch_add(atomic, (uint32_t ) add_value);
-    RETURN_LONG(*atomic);
+    RETURN_LONG(sw_atomic_add_fetch(atomic, (uint32_t ) add_value));
 }
 
 PHP_METHOD(swoole_atomic, sub)
@@ -87,8 +86,7 @@ PHP_METHOD(swoole_atomic, sub)
     {
         RETURN_FALSE;
     }
-    sw_atomic_fetch_sub(atomic, (uint32_t) sub_value);
-    RETURN_LONG(*atomic);
+    RETURN_LONG(sw_atomic_sub_fetch(atomic, (uint32_t ) sub_value));
 }
 
 PHP_METHOD(swoole_atomic, get)

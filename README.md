@@ -8,11 +8,11 @@ Swoole is an event-driven asynchronous & concurrent networking communication fra
 
 __Document__: <https://rawgit.com/tchiotludo/swoole-ide-helper/english/docs/index.html>
 
-__IDE Helper__: <https://github.com/tchiotludo/swoole-ide-helper>
+__IDE Helper__: <https://github.com/swoole/ide-helper>
 
 __中文文档__: <http://wiki.swoole.com/>
 
-__IRC__:  <http://webchat.freenode.net/?channels=swoole&uio=d4>
+__IRC__:  <https://gitter.im/swoole/swoole-src>
 
 
 event-based
@@ -405,11 +405,10 @@ bool swoole_client::close();
 
 Refer [API Reference](http://wiki.swoole.com/wiki/page/3.html) for more detail information of these functions.
 
-
 ## API Reference
 
 * [中文](http://wiki.swoole.com/) 
-* [English](https://cdn.rawgit.com/tchiotludo/swoole-ide-helper/dd73ce0dd949870daebbf3e8fee64361858422a1/docs/index.html)
+* [English](https://rawgit.com/tchiotludo/swoole-ide-helper/english/docs/index.html)
 
 ## Related Projects
 

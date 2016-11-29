@@ -536,6 +536,26 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     return SW_OK;
 }
 
+void swServer_reopen_log_file(swServer *serv)
+{
+    if (!SwooleG.log_file)
+    {
+        return;
+    }
+    /**
+     * reopen log file
+     */
+    close(SwooleG.log_fd);
+    swLog_init(SwooleG.log_file);
+    /**
+     * redirect STDOUT & STDERR to log file
+     */
+    if (serv->daemonize)
+    {
+        swoole_redirect_stdout(SwooleG.log_fd);
+    }
+}
+
 int swServer_start(swServer *serv)
 {
     swFactory *factory = &serv->factory;
@@ -931,13 +951,13 @@ int swServer_tcp_notify(swServer *serv, swConnection *conn, int event)
     return serv->factory.notify(&serv->factory, &notify_event);
 }
 
-int swServer_tcp_sendfile(swServer *serv, int fd, char *filename, uint32_t len, off_t offset)
+int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32_t len, off_t offset)
 {
 #ifdef SW_USE_OPENSSL
-    swConnection *conn = swServer_connection_verify(serv, fd);
+    swConnection *conn = swServer_connection_verify(serv, session_id);
     if (conn && conn->ssl)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SSL_CANNOT_USE_SENFILE, "SSL session#%d cannot use sendfile().", fd);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SSL_CANNOT_USE_SENFILE, "SSL session#%d cannot use sendfile().", session_id);
         return SW_ERR;
     }
 #endif
@@ -953,7 +973,7 @@ int swServer_tcp_sendfile(swServer *serv, int fd, char *filename, uint32_t len, 
         return SW_ERR;
     }
 
-    send_data.info.fd = fd;
+    send_data.info.fd = session_id;
     send_data.info.type = SW_EVENT_SENDFILE;
     memcpy(buffer, &offset, sizeof(off_t));
     memcpy(buffer + sizeof(off_t), filename, len);
@@ -1031,7 +1051,14 @@ int swServer_add_worker(swServer *serv, swWorker *worker)
     }
 
     serv->user_worker_num++;
-    user_worker->worker = worker;
+
+    swWorker *_shm_worker = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swWorker));
+    if (_shm_worker == NULL)
+    {
+        return SW_ERR;
+    }
+    memcpy(_shm_worker, worker, sizeof(swWorker));
+    user_worker->worker = _shm_worker;
 
     LL_APPEND(serv->user_worker_list, user_worker);
     if (!serv->user_worker_map)
@@ -1204,7 +1231,18 @@ static void swServer_signal_hanlder(int sig)
 #ifdef SIGRTMIN
         if (sig == SIGRTMIN)
         {
-            SwooleGS->logfile_version++;
+            int i;
+            swWorker *worker;
+            for (i = 0; i < SwooleG.serv->worker_num + SwooleG.task_worker_num + SwooleG.serv->user_worker_num; i++)
+            {
+                worker = swServer_get_worker(SwooleG.serv, i);
+                kill(worker->pid, SIGRTMIN);
+            }
+            if (SwooleG.serv->factory_mode == SW_MODE_PROCESS)
+            {
+                kill(SwooleGS->manager_pid, SIGRTMIN);
+            }
+            swServer_reopen_log_file(SwooleG.serv);
         }
 #endif
         break;

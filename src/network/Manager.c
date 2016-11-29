@@ -467,6 +467,9 @@ static int swManager_loop_sync(swFactory *factory)
     swSignal_add(SIGTERM, swManager_signal_handle);
     swSignal_add(SIGUSR1, swManager_signal_handle);
     swSignal_add(SIGUSR2, swManager_signal_handle);
+#ifdef SIGRTMIN
+    swSignal_add(SIGRTMIN, swManager_signal_handle);
+#endif
     //swSignal_add(SIGINT, swManager_signal_handle);
 
     SwooleG.main_reactor = NULL;
@@ -704,6 +707,12 @@ static void swManager_signal_handle(int sig)
         }
         break;
     default:
+#ifdef SIGRTMIN
+        if (sig == SIGRTMIN)
+        {
+            swServer_reopen_log_file(SwooleG.serv);
+        }
+#endif
         break;
     }
 }
@@ -735,6 +744,9 @@ pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
     else if (pid == 0)
     {
         SwooleG.process_type = SW_PROCESS_USERWORKER;
+        SwooleWG.worker = worker;
+        SwooleWG.id = worker->id;
+        worker->pid = getpid();
         serv->onUserWorkerStart(serv, worker);
         exit(0);
     }
