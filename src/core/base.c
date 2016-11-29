@@ -100,6 +100,23 @@ void swoole_init(void)
         exit(3);
     }
 
+    if (!SwooleG.task_tmpdir)
+    {
+        SwooleG.task_tmpdir = strndup(SW_TASK_TMP_FILE, sizeof(SW_TASK_TMP_FILE));
+        SwooleG.task_tmpdir_len = sizeof(SW_TASK_TMP_FILE);
+    }
+
+    char *tmp_dir = swoole_dirname(SwooleG.task_tmpdir);
+    //create tmp dir
+    if (access(tmp_dir, R_OK) < 0 && swoole_mkdir_recursive(tmp_dir) < 0)
+    {
+        swWarn("create task tmp dir(%s) failed.", tmp_dir);
+    }
+    if (tmp_dir)
+    {
+        sw_strdup_free(tmp_dir);
+    }
+
     //init signalfd
 #ifdef HAVE_SIGNALFD
     swSignalfd_init();
