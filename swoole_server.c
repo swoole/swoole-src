@@ -548,14 +548,6 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
 
     SWOOLE_GET_TSRMLS;
 
-    zval *callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
-    if (callback == NULL || ZVAL_IS_NULL(callback))
-    {
-        swoole_php_fatal_error(E_WARNING, "onReceive callback is null.");
-        return SW_OK;
-    }
-
-    //UDP使用from_id作为port,fd做为ip
     php_swoole_udp_t udp_info;
     swDgramPacket *packet;
 
@@ -696,13 +688,6 @@ static int php_swoole_onPacket(swServer *serv, swEventData *req)
     if (from_sock)
     {
         add_assoc_long(zaddr, "server_port", swConnection_get_port(from_sock));
-    }
-
-    zval *callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
-    if (callback == NULL || ZVAL_IS_NULL(callback))
-    {
-        swoole_php_fatal_error(E_WARNING, "onPacket callback is null.");
-        return SW_OK;
     }
 
     char address[INET6_ADDRSTRLEN];
@@ -1179,7 +1164,7 @@ void php_swoole_onConnect_finish(void *param)
 {
     swServer *serv = SwooleG.serv;
     swTrace("onConnect finish and send confirm");
-    swServer_confirm(serv, (uint32_t)param);
+    swServer_confirm(serv, (uint32_t) (long) param);
 }
 #endif
 
@@ -1230,7 +1215,7 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
     zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, info->from_fd, SW_SERVER_CB_onConnect);
     if (serv->enable_delay_receive)
     {
-        ret = coro_create(cache, args, 3, &retval, php_swoole_onConnect_finish, (void*)info->fd);
+        ret = coro_create(cache, args, 3, &retval, php_swoole_onConnect_finish, (void*) (long) info->fd);
     }
     else
     {
