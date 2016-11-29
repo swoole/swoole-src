@@ -3117,6 +3117,50 @@ PHP_METHOD(swoole_connection_iterator, count)
 {
     RETURN_LONG(SwooleStats->connection_num);
 }
+
+PHP_METHOD(swoole_connection_iterator, offsetExists)
+{
+    zval *zobject = (zval *) SwooleG.serv->ptr2;
+    zval *retval = NULL;
+    zval *zfd;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zfd) == FAILURE)
+    {
+        return;
+    }
+    sw_zend_call_method_with_1_params(&zobject, swoole_server_class_entry_ptr, NULL, "exist", &retval, zfd);
+    if (retval)
+    {
+        RETVAL_BOOL(Z_BVAL_P(retval));
+        sw_zval_ptr_dtor(&retval);
+    }
+}
+
+PHP_METHOD(swoole_connection_iterator, offsetGet)
+{
+    zval *zobject = (zval *) SwooleG.serv->ptr2;
+    zval *retval = NULL;
+    zval *zfd;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zfd) == FAILURE)
+    {
+        return;
+    }
+    sw_zend_call_method_with_1_params(&zobject, swoole_server_class_entry_ptr, NULL, "connection_info", &retval, zfd);
+    if (retval)
+    {
+        RETVAL_ZVAL(retval, 0, 0);
+    }
+}
+
+PHP_METHOD(swoole_connection_iterator, offsetSet)
+{
+    return;
+}
+
+PHP_METHOD(swoole_connection_iterator, offsetUnset)
+{
+    return;
+}
+
 #endif
 
 /*
