@@ -546,6 +546,8 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     //dgram
     if (swEventData_is_dgram(req->info.type))
     {
+        swoole_php_error(E_DEPRECATED, "The udp onReceive callback is deprecated, use onPacket instead.");
+
         swString *buffer = swWorker_get_buffer(serv, req->info.from_id);
         packet = (swDgramPacket*) buffer->str;
 
@@ -637,6 +639,12 @@ static int php_swoole_onPacket(swServer *serv, swEventData *req)
     packet = (swDgramPacket*) buffer->str;
 
     add_assoc_long(zaddr, "server_socket", req->info.from_fd);
+
+    swConnection *from_sock = swServer_connection_get(serv, req->info.from_fd);
+    if (from_sock)
+    {
+        add_assoc_long(zaddr, "server_port", swConnection_get_port(from_sock));
+    }
 
     zval *callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
     if (callback == NULL || ZVAL_IS_NULL(callback))
@@ -2700,6 +2708,8 @@ PHP_METHOD(swoole_server, connection_info)
     if (ipv6_udp || swServer_is_udp(fd))
     {
         array_init(return_value);
+
+        swoole_php_error(E_DEPRECATED, "The udp connection_info is deprecated, use onPacket instead.");
 
         if (ipv6_udp)
         {
