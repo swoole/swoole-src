@@ -89,7 +89,7 @@ enum swCloseType
 enum swResponseType
 {
 	SW_RESPONSE_SMALL = 0,
-	SW_RESPONSE_BIG   = 1,
+	SW_RESPONSE_SHM   = 1,
 	SW_RESPONSE_TMPFILE,
 };
 

@@ -430,7 +430,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
                 swReactorThread_send(&_send);
             }
             //use send shm
-            else if (_send.info.from_fd == SW_RESPONSE_BIG)
+            else if (_send.info.from_fd == SW_RESPONSE_SHM)
             {
                 memcpy(&pkg_resp, resp.data, sizeof(pkg_resp));
                 worker = swServer_get_worker(SwooleG.serv, pkg_resp.worker_id);

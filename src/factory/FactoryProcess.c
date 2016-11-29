@@ -244,7 +244,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         swPackage_response response;
         response.length = resp->length;
         response.worker_id = SwooleWG.id;
-        ev_data.info.from_fd = SW_RESPONSE_BIG;
+        ev_data.info.from_fd = SW_RESPONSE_SHM;
         ev_data.info.len = sizeof(response);
         memcpy(ev_data.data, &response, sizeof(response));
 
