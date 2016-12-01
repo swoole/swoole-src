@@ -175,7 +175,15 @@ class WebSocketClient
 			}
 		}
 
-        return swoole_websocket_server::unpack($response);
+        $frame = swoole_websocket_server::unpack($response);
+        if ($frame)
+        {
+            return $frame->data;
+        }
+        else
+        {
+            throw new \Exception("swoole_websocket_server::unpack failed.");
+        }
     }
 
     /**
