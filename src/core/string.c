@@ -141,6 +141,20 @@ int swString_extend(swString *str, size_t new_size)
     return SW_OK;
 }
 
+char* swString_alloc(swString *str, size_t __size)
+{
+    if (str->length + __size < str->size)
+    {
+        if (swString_extend_align(str, str->length + __size) < 0)
+        {
+            return NULL;
+        }
+    }
+    char *tmp = str->str + str->length;
+    str->length += __size;
+    return tmp;
+}
+
 uint32_t swoole_utf8_decode(u_char **p, size_t n)
 {
     size_t len;
