@@ -909,7 +909,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
     }
     else
     {
-        zval *retval;
+        zval *retval = NULL;
 #ifndef SW_COROUTINE
         zval **args[2];
 #else
