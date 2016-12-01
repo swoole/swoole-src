@@ -543,7 +543,6 @@ swString* swoole_file_get_contents(char *filename)
     swString *content = swString_new(file_stat.st_size);
     if (!content)
     {
-        swWarn("malloc failed");
         return NULL;
     }
 
@@ -570,6 +569,7 @@ swString* swoole_file_get_contents(char *filename)
         readn += n;
     }
     close(fd);
+    content->length = readn;
     return content;
 }
 

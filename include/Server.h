@@ -642,26 +642,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags);
 
 #define swTask_type(task)                  ((task)->info.from_fd)
 
-#define swTaskWorker_large_unpack(task, __malloc, _buf, _length)   swPackage_task _pkg;\
-	memcpy(&_pkg, task->data, sizeof(_pkg));\
-	_length = _pkg.length;\
-    if (_length > SwooleG.serv->listen_list->protocol.package_max_length) {\
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_TASK_PACKAGE_TOO_BIG, "task package[length=%d] is too big.", _length);\
-    }\
-    _buf = (char *)__malloc(_length + 1);\
-    _buf[_length] = 0;\
-    int tmp_file_fd = open(_pkg.tmpfile, O_RDONLY);\
-    if (tmp_file_fd < 0){\
-        swSysError("open(%s) failed.", _pkg.tmpfile);\
-        _length = -1;\
-    } else if (swoole_sync_readfile(tmp_file_fd, _buf, _length) > 0) {\
-        close(tmp_file_fd);\
-        unlink(_pkg.tmpfile);\
-    } else {\
-        _length = -1;\
-    }
-
-static sw_inline swString* swTaskWorker_large_unpack_buffer(swEventData *task_result)
+static sw_inline swString* swTaskWorker_large_unpack(swEventData *task_result)
 {
     swPackage_task _pkg;
     memcpy(&_pkg, task_result->data, sizeof(_pkg));

@@ -238,29 +238,23 @@ zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC)
     char *result_data_str;
     int result_data_len = 0;
     php_unserialize_data_t var_hash;
-
-    int data_len;
-    char *data_str = NULL;
+    swString *large_packet;
 
     /**
      * Large result package
      */
     if (swTask_type(task_result) & SW_TASK_TMPFILE)
     {
-        swTaskWorker_large_unpack(task_result, emalloc, data_str, data_len);
+        large_packet = swTaskWorker_large_unpack(task_result);
         /**
          * unpack failed
          */
-        if (data_len == -1)
+        if (large_packet == NULL)
         {
-            if (data_str)
-            {
-                efree(data_str);
-            }
             return NULL;
         }
-        result_data_str = data_str;
-        result_data_len = data_len;
+        result_data_str = large_packet->str;
+        result_data_len = large_packet->length;
     }
     else
     {
@@ -289,10 +283,6 @@ zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC)
     {
         SW_ALLOC_INIT_ZVAL(result_data);
         SW_ZVAL_STRINGL(result_data, result_data_str, result_data_len, 1);
-    }
-    if (data_str)
-    {
-        efree(data_str);
     }
     return result_data;
 }
@@ -2538,19 +2528,11 @@ PHP_METHOD(swoole_server, taskWaitMulti)
     {
         task_notify_pipe->timeout = timeout;
         int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
-        if (ret > 0)
+        if (ret > 0 && *finish_count < n_task)
         {
-            if (*finish_count == n_task)
-            {
-                break;
-            }
+            continue;
         }
-        else
-        {
-            swoole_php_fatal_error(E_WARNING, "taskwait failed. Error: %s[%d]", strerror(errno), errno);
-            unlink(_tmpfile);
-            RETURN_FALSE;
-        }
+        break;
     }
 
     swString *content = swoole_file_get_contents(_tmpfile);
@@ -2563,7 +2545,7 @@ PHP_METHOD(swoole_server, taskWaitMulti)
     zval *zdata;
     int j;
 
-    for (i = 0; i < n_task; i++)
+    do
     {
         result = (swEventData *) (content->str + content->offset);
         task_id = result->info.fd;
@@ -2578,6 +2560,10 @@ PHP_METHOD(swoole_server, taskWaitMulti)
         add_index_zval(return_value, j, zdata);
         content->offset += sizeof(swDataHead) + result->info.len;
     }
+    while(content->offset < content->length);
+    //free memory
+    swString_free(content);
+    //delete tmp file
     unlink(_tmpfile);
 }
 

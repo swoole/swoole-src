@@ -455,7 +455,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
             //use tmp file
             else if (_send.info.from_fd == SW_RESPONSE_TMPFILE)
             {
-                swString *data = swTaskWorker_large_unpack_buffer(&resp);
+                swString *data = swTaskWorker_large_unpack(&resp);
                 if (data == NULL)
                 {
                     return SW_ERR;

@@ -839,8 +839,8 @@ static PHP_METHOD(swoole_process, exec)
 
 static PHP_METHOD(swoole_process, daemon)
 {
-    zend_bool nochdir = 0;
-    zend_bool noclose = 0;
+    zend_bool nochdir = 1;
+    zend_bool noclose = 1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|bb", &nochdir, &noclose) == FAILURE)
     {
