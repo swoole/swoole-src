@@ -598,8 +598,8 @@ void swString_print(swString *str);
 void swString_free(swString *str);
 int swString_append(swString *str, swString *append_str);
 int swString_append_ptr(swString *str, char *append_str, int length);
-
 int swString_extend(swString *str, size_t new_size);
+char* swString_alloc(swString *str, size_t __size);
 
 static sw_inline int swString_extend_align(swString *str, size_t _new_size)
 {
