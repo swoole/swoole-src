@@ -202,12 +202,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
             sw_atomic_t *finish_count = (sw_atomic_t*) result->data;
             char *_tmpfile = result->data + 4;
             int fd = open(_tmpfile, O_APPEND | O_WRONLY);
-            if (fd < 0)
-            {
-                swSysError("open(%s) failed.", _tmpfile);
-                (*finish_count) ++;
-            }
-            else
+            if (fd >= 0)
             {
                 buf.info.type = SW_EVENT_FINISH;
                 buf.info.fd = current_task->info.fd;
