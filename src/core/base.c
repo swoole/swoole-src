@@ -525,12 +525,18 @@ swString* swoole_file_get_contents(char *filename)
     struct stat file_stat;
     if (lstat(filename, &file_stat) < 0)
     {
-        swWarn("lstat(%s) failed. Error: %s[%d]", filename, strerror(errno), errno);
+        swSysError("lstat(%s) failed.", filename);
+        SwooleG.error = errno;
         return NULL;
     }
     if (file_stat.st_size > SW_MAX_FILE_CONTENT)
     {
-        swWarn("file is too big");
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_FILE_TOO_LARGE, "file[%s] is too large.", filename);
+        return NULL;
+    }
+    if (file_stat.st_size == 0)
+    {
+        swoole_error_log(SW_LOG_TRACE, SW_ERROR_FILE_EMPTY, "file[%s] is empty.", filename);
         return NULL;
     }
     int fd = open(filename, O_RDONLY);
@@ -539,7 +545,6 @@ swString* swoole_file_get_contents(char *filename)
         swWarn("open(%s) failed. Error: %s[%d]", filename, strerror(errno), errno);
         return NULL;
     }
-
     swString *content = swString_new(file_stat.st_size);
     if (!content)
     {

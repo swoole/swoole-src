@@ -2413,7 +2413,7 @@ PHP_METHOD(swoole_server, taskWaitMulti)
     swString *content = swoole_file_get_contents(_tmpfile);
     if (content == NULL)
     {
-        return;
+        RETURN_FALSE;
     }
 
     swEventData *result;
