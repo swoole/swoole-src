@@ -396,9 +396,7 @@ static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
         return -SW_MYSQL_ERR_LEN_OVER_BUFFER;
     }
     col->catalog_length = size;
-    col->catalog = emalloc(size + 1);
-    memcpy(col->catalog, &buf[i], size);
-    col->catalog[size] = '\0';
+    col->catalog = estrndup(&buf[i], size);
     wh += size + 1;
     i += size;
 
@@ -414,9 +412,7 @@ static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
         return -SW_MYSQL_ERR_LEN_OVER_BUFFER;
     }
     col->db_length = size;
-    col->db = emalloc(size + 1);
-    memcpy(col->db, &buf[i], size);
-    col->db[size] = '\0';
+    col->db = estrndup(&buf[i], size);
     wh += size + 1;
     i += size;
 
@@ -432,9 +428,7 @@ static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
         return -SW_MYSQL_ERR_LEN_OVER_BUFFER;
     }
     col->table_length = size;
-    col->table = emalloc(size + 1);
-    memcpy(col->table, &buf[i], size);
-    col->table[size] = '\0';
+    col->table = estrndup(&buf[i], size);
     wh += size + 1;
     i += size;
 
@@ -450,9 +444,7 @@ static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
         return -SW_MYSQL_ERR_LEN_OVER_BUFFER;
     }
     col->org_table_length = size;
-    col->org_table = emalloc(size + 1);
-    memcpy(col->org_table, &buf[i], size);
-    col->org_table[size] = '\0';
+    col->org_table = estrndup(&buf[i], size);
     wh += size + 1;
     i += size;
 
@@ -468,9 +460,7 @@ static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
         return -SW_MYSQL_ERR_LEN_OVER_BUFFER;
     }
     col->name_length = size;
-    col->name = emalloc(size + 1);
-    memcpy(col->name, &buf[i], size);
-    col->name[size] = '\0';
+    col->name = estrndup(&buf[i], size);
     wh += size + 1;
     i += size;
 
@@ -486,9 +476,7 @@ static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
         return -SW_MYSQL_ERR_LEN_OVER_BUFFER;
     }
     col->org_name_length = size;
-    col->org_name = emalloc(size + 1);
-    memcpy(col->org_name, &buf[i], size);
-    col->org_name[size] = '\0';
+    col->org_name = estrndup(&buf[i], size);
     wh += size + 1;
     i += size;
 
@@ -538,9 +526,7 @@ static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
             return -SW_MYSQL_ERR_LEN_OVER_BUFFER;
         }
         col->def_length = size;
-        col->def = emalloc(size + 1);
-        memcpy(col->def, &buf[i], size);
-        col->def[size] = '\0';
+        col->def = estrndup(&buf[i], size);
         wh += size + 1;
         i += size;
     }
