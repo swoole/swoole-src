@@ -1,6 +1,4 @@
 <?php
-require dirname(__DIR__) . '/examples/websocket/WebSocketClient.php';
-
 //关闭错误输出
 //error_reporting(0);
 $shortopts = "c:";
@@ -44,6 +42,8 @@ class BenchMark
     protected $beginSendTime;
     protected $testMethod;
 
+    static $sentData = "hello world\n";
+
     function __construct($opt)
     {
         $this->nConcurrency = $opt['c'];
@@ -75,8 +75,8 @@ class BenchMark
         echo "              Swoole Version ".SWOOLE_VERSION."\n";
         echo "============================================================\n";
         echo "{$this->requestCount}\tbenchmark tests is finished.\n";
-        echo "SendBytes:\t{$this->nSendBytes}\n";
-        echo "nReceBytes:\t{$this->nRecvBytes}\n";
+        echo "SendBytes:\t".number_format($this->nSendBytes)."\n";
+        echo "nReceBytes:\t".number_format($this->nRecvBytes)."\n";
         echo "concurrency:\t".$this->nConcurrency,"\n";
         echo "connect failed:\t" . $this->connectErrorCount, "\n";
         echo "request num:\t" . $this->nRequest, "\n";
@@ -121,7 +121,7 @@ class BenchMark
 
     function send($cli)
     {
-        $data = "hello world\n";
+        $data = self::$sentData;
         $cli->send($data);
         $this->nSendBytes += strlen($data);
         $this->requestCount++;
@@ -129,7 +129,7 @@ class BenchMark
 
     function push($cli)
     {
-        $data = "hello world\n";
+        $data = self::$sentData;
         $cli->push($data);
         $this->nSendBytes += strlen($data);
         $this->requestCount++;
@@ -186,6 +186,48 @@ class BenchMark
     function long_tcp()
     {
         $cli = new swoole\client(SWOOLE_TCP | SWOOLE_ASYNC);
+        $cli->on('receive', [$this, 'onReceive']);
+        $cli->on('close', [$this, 'onClose']);
+        $cli->on('connect', [$this, 'onConnect']);
+        $cli->on('error', [$this, 'onError']);
+        $cli->connect($this->host, $this->port);
+        return $cli;
+    }
+
+    function eof()
+    {
+        $eof = "\r\n\r\n";
+        $cli = new swoole\client(SWOOLE_TCP | SWOOLE_ASYNC);
+        $cli->set(array('open_eof_check' => true, "package_eof" => $eof));
+        $cli->on('receive', [$this, 'onReceive']);
+        $cli->on('close', [$this, 'onClose']);
+        $cli->on('connect', [$this, 'onConnect']);
+        $cli->on('error', [$this, 'onError']);
+        $cli->connect($this->host, $this->port);
+        self::$sentData .= $eof;
+        return $cli;
+    }
+
+    function length()
+    {
+        $cli = new swoole\client(SWOOLE_TCP | SWOOLE_ASYNC);
+        $cli->set(array(
+            'open_length_check' => true,
+            "package_length_type" => 'N',
+            'package_body_offset' => 4,
+        ));
+        $cli->on('receive', [$this, 'onReceive']);
+        $cli->on('close', [$this, 'onClose']);
+        $cli->on('connect', [$this, 'onConnect']);
+        $cli->on('error', [$this, 'onError']);
+        $cli->connect($this->host, $this->port);
+        self::$sentData = pack('N', strlen(self::$sentData)) . self::$sentData;
+        return $cli;
+    }
+
+    function udp()
+    {
+        $cli = new swoole\client(SWOOLE_UDP | SWOOLE_ASYNC);
         $cli->on('receive', [$this, 'onReceive']);
         $cli->on('close', [$this, 'onClose']);
         $cli->on('connect', [$this, 'onConnect']);
