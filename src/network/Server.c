@@ -1131,7 +1131,8 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
         setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &ls->socket_buffer_size, sizeof(int));
         setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &ls->socket_buffer_size, sizeof(int));
     }
-    swSetNonBlock(sock);
+    //O_NONBLOCK & O_CLOEXEC
+    swoole_fcntl_set_option(sock, 1, 1);
     ls->sock = sock;
 
     if (swSocket_is_dgram(ls->type))
