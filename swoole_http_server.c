@@ -1589,11 +1589,11 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
             {
                 break;
             }
-            if (strncmp(key, key_server, keylen) == 0)
+            if (strncmp(key, "Server", keylen) == 0)
             {
                 flag |= HTTP_RESPONSE_SERVER;
             }
-            else if (strncmp(key, key_connection, keylen) == 0)
+            else if (strncmp(key, "Connection", keylen) == 0)
             {
                 flag |= HTTP_RESPONSE_CONNECTION;
             }
