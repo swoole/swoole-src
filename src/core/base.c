@@ -675,7 +675,7 @@ void swoole_ioctl_set_block(int sock, int nonblock)
     }
 }
 
-void swoole_fcntl_set_block(int sock, int nonblock)
+void swoole_fcntl_set_option(int sock, int nonblock, int cloexec)
 {
     int opts, ret;
     do
@@ -696,6 +696,15 @@ void swoole_fcntl_set_block(int sock, int nonblock)
     else
     {
         opts = opts & ~O_NONBLOCK;
+    }
+
+    if (cloexec)
+    {
+        opts = opts | O_CLOEXEC;
+    }
+    else
+    {
+        opts = opts & ~O_CLOEXEC;
     }
 
     do
