@@ -2403,7 +2403,6 @@ PHP_METHOD(swoole_server, taskWaitMulti)
 
     while (n_task > 0)
     {
-        printf("timeout=%f\n", timeout);
         task_notify_pipe->timeout = timeout;
         int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
         if (ret > 0 && *finish_count < n_task)
