@@ -84,6 +84,21 @@ void swServer_enable_accept(swReactor *reactor)
     }
 }
 
+void swServer_close_port(swServer *serv, enum swBool_type only_stream_port)
+{
+    swListenPort *ls;
+    LL_FOREACH(serv->listen_list, ls)
+    {
+        //dgram socket
+        if (only_stream_port && (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM))
+        {
+            continue;
+        }
+        //stream socket
+        close(ls->sock);
+    }
+}
+
 int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 {
     swServer *serv = reactor->ptr;
