@@ -2399,12 +2399,16 @@ PHP_METHOD(swoole_server, taskWaitMulti)
         i++;
     SW_HASHTABLE_FOREACH_END();
 
+    double _now = swoole_microtime();
+
     while (n_task > 0)
     {
+        printf("timeout=%f\n", timeout);
         task_notify_pipe->timeout = timeout;
         int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
         if (ret > 0 && *finish_count < n_task)
         {
+            timeout -= (swoole_microtime() - _now);
             continue;
         }
         break;

@@ -24,6 +24,14 @@ $serv->on('Task', function (swoole_server $serv, $task_id, $from_id, $data) {
     {
         sleep(3);
     }
+    elseif ($serv->worker_id % 4 == 2)
+    {
+        usleep(1500000);
+    }
+    elseif ($serv->worker_id % 4 == 1)
+    {
+        usleep(200000);
+    }
     return "hello world.[{$data}]";
 });
 
