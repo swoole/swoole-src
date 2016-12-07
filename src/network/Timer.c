@@ -19,12 +19,32 @@
 static int swReactorTimer_init(long msec);
 static int swReactorTimer_set(swTimer *timer, long exec_msec);
 
+static int swReactorTimer_now(struct timeval *time)
+{
+#ifdef SW_USE_MONOTONIC_TIME
+    struct timespec _now;
+    if (clock_gettime(CLOCK_MONOTONIC, &_now) < 0)
+    {
+        swSysError("clock_gettime(CLOCK_MONOTONIC) failed.");
+        return SW_ERR;
+    }
+    time->tv_sec = _now.tv_sec;
+    time->tv_usec = _now.tv_nsec / 1000;
+#else
+    if (gettimeofday(time, NULL) < 0)
+    {
+        swSysError("gettimeofday() failed.");
+        return SW_ERR;
+    }
+#endif
+    return SW_OK;
+}
+
 static sw_inline int64_t swTimer_get_relative_msec()
 {
     struct timeval now;
-    if (gettimeofday(&now, NULL) < 0)
+    if (swReactorTimer_now(&now) < 0)
     {
-        swSysError("gettimeofday() failed.");
         return SW_ERR;
     }
     int64_t msec1 = (now.tv_sec - SwooleG.timer.basetime.tv_sec) * 1000;
@@ -40,9 +60,8 @@ int swTimer_init(long msec)
         return SW_ERR;
     }
 
-    if (gettimeofday(&SwooleG.timer.basetime, NULL) < 0)
+    if (swReactorTimer_now(&SwooleG.timer.basetime) < 0)
     {
-        swSysError("gettimeofday() failed.");
         return SW_ERR;
     }
 

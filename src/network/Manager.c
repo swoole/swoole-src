@@ -747,6 +747,11 @@ pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
         SwooleWG.worker = worker;
         SwooleWG.id = worker->id;
         worker->pid = getpid();
+        //close tcp listen socket
+        if (serv->factory_mode == SW_MODE_SINGLE)
+        {
+            swServer_close_port(serv, SW_TRUE);
+        }
         serv->onUserWorkerStart(serv, worker);
         exit(0);
     }

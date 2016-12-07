@@ -89,10 +89,6 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
     if (zheader)
     {
         int flag = 0x0;
-        char *key_server = "server";
-        char *key_content_length = "content-length";
-        char *key_content_type = "content-type";
-        char *key_date = "date";
 
         HashTable *ht = Z_ARRVAL_P(zheader);
         zval *value = NULL;
@@ -106,19 +102,19 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
             {
                 break;
             }
-            if (strcmp(key, key_server) == 0)
+            if (strncmp(key, "server", keylen) == 0)
             {
                 flag |= HTTP_RESPONSE_SERVER;
             }
-            else if (strcmp(key, key_content_length) == 0)
+            else if (strncmp(key, "content-length", keylen) == 0)
             {
                 flag |= HTTP_RESPONSE_CONTENT_LENGTH;
             }
-            else if (strcmp(key, key_date) == 0)
+            else if (strncmp(key, "date", keylen) == 0)
             {
                 flag |= HTTP_RESPONSE_DATE;
             }
-            else if (strcmp(key, key_content_type) == 0)
+            else if (strncmp(key, "content-type", keylen) == 0)
             {
                 flag |= HTTP_RESPONSE_CONTENT_TYPE;
             }
@@ -347,11 +343,11 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
         {
             if (nv.name[0] == ':')
             {
-                if (strncasecmp((char *) nv.name + 1, ZEND_STRL("method")) == 0)
+                if (strncasecmp((char *) nv.name + 1, "method", nv.namelen -1) == 0)
                 {
                     sw_add_assoc_stringl_ex(zserver, ZEND_STRS("request_method"), (char *) nv.value, nv.valuelen, 1);
                 }
-                else if (strncasecmp((char *) nv.name + 1, ZEND_STRL("path")) == 0)
+                else if (strncasecmp((char *) nv.name + 1, "path", nv.namelen -1) == 0)
                 {
                     char pathbuf[SW_HTTP_HEADER_MAX_SIZE];
                     char *v_str = strchr((char *) nv.value, '?');
@@ -379,20 +375,20 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
                         sw_add_assoc_stringl_ex(zserver, ZEND_STRS("request_uri"), (char *) nv.value, nv.valuelen, 1);
                     }
                 }
-                else if (strncasecmp((char *) nv.name + 1, ZEND_STRL("authority")) == 0)
+                else if (strncasecmp((char *) nv.name + 1, "authority", nv.namelen -1) == 0)
                 {
                     sw_add_assoc_stringl_ex(zheader, ZEND_STRS("host"), (char * ) nv.value, nv.valuelen, 1);
                 }
             }
             else
             {
-                if (memcmp(nv.name, ZEND_STRL("content-type")) == 0)
+                if (strncasecmp((char *) nv.name, "content-type", nv.namelen) == 0)
                 {
-                    if (strncasecmp((char *) nv.value, ZEND_STRL("application/x-www-form-urlencoded")) == 0)
+                    if (strncasecmp((char *) nv.value, "application/x-www-form-urlencoded", nv.valuelen) == 0)
                     {
                         ctx->request.post_form_urlencoded = 1;
                     }
-                    else if (strncasecmp((char *) nv.value, ZEND_STRL("multipart/form-data")) == 0)
+                    else if (strncasecmp((char *) nv.value, "multipart/form-data", nv.valuelen) == 0)
                     {
                         int boundary_len = nv.valuelen - strlen("multipart/form-data; boundary=");
                         if (boundary_len <= 0)
@@ -404,7 +400,7 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
                         ctx->parser.data = ctx;
                     }
                 }
-                else if (memcmp(nv.name, ZEND_STRL("cookie")) == 0)
+                else if (strncasecmp((char *) nv.name, "cookie", nv.namelen) == 0)
                 {
                     zval *zcookie = ctx->request.zcookie;
                     zval *zrequest_object = ctx->request.zobject;

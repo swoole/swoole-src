@@ -425,9 +425,10 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
 
     http_context *ctx = parser->data;
     zval *zrequest_object = ctx->request.zobject;
-    char *header_name = zend_str_tolower_dup(ctx->current_header_name, ctx->current_header_name_len);
+    size_t header_len = ctx->current_header_name_len;
+    char *header_name = zend_str_tolower_dup(ctx->current_header_name, header_len);
 
-    if (strncasecmp(header_name, "cookie", ctx->current_header_name_len) == 0)
+    if (strncmp(header_name, "cookie", header_len) == 0)
     {
         zval *zcookie;
         if (length >= SW_HTTP_COOKIE_VALLEN)
@@ -441,7 +442,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
         }
         goto free_memory;
     }
-    else if (SwooleG.serv->listen_list->open_websocket_protocol && strncasecmp(header_name, ZEND_STRL("upgrade")) == 0 && strncasecmp(at, ZEND_STRL("websocket")) == 0)
+    else if (SwooleG.serv->listen_list->open_websocket_protocol && strncmp(header_name, "upgrade", header_len) == 0 && strncasecmp(at, "websocket", length) == 0)
     {
         swConnection *conn = swWorker_get_connection(SwooleG.serv, ctx->fd);
         if (!conn)
@@ -453,15 +454,15 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
     }
     else if (parser->method == PHP_HTTP_POST || parser->method == PHP_HTTP_PUT || parser->method == PHP_HTTP_DELETE || parser->method == PHP_HTTP_PATCH)
     {
-        if (memcmp(header_name, ZEND_STRL("content-type")) == 0)
+        if (strncmp(header_name, "content-type", header_len) == 0)
         {
-            if (strncasecmp(at, ZEND_STRL("application/x-www-form-urlencoded")) == 0)
+            if (strncasecmp(at, "application/x-www-form-urlencoded", length) == 0)
             {
                 ctx->request.post_form_urlencoded = 1;
             }
-            else if (memcmp(header_name, ZEND_STRL("content-type")) == 0 && strncasecmp(at, ZEND_STRL("multipart/form-data")) == 0)
+            else if (length > sizeof("multipart/form-data") && strncasecmp(at, ZEND_STRL("multipart/form-data")) == 0)
             {
-                int boundary_len = length - strlen("multipart/form-data; boundary=");
+                int boundary_len = length - (sizeof("multipart/form-data; boundary=") - 1);
                 if (boundary_len <= 0)
                 {
                     swWarn("invalid multipart/form-data body.", ctx->fd);
@@ -519,9 +520,10 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
         swoole_http_server_array_init(files, request);
     }
 
-    char *headername = zend_str_tolower_dup(ctx->current_header_name, ctx->current_header_name_len);
+    size_t header_len = ctx->current_header_name_len;
+    char *headername = zend_str_tolower_dup(ctx->current_header_name, header_len);
 
-    if (strncasecmp(headername, ZEND_STRL("content-disposition")) == 0)
+    if (strncasecmp(headername, "content-disposition", header_len) == 0)
     {
         //not form data
         if (swoole_strnpos((char *) at, length, ZEND_STRL("form-data;")) < 0)
@@ -572,7 +574,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
         sw_zval_ptr_dtor(&tmp_array);
     }
 
-    if (strncasecmp(headername, ZEND_STRL("content-type")) == 0)
+    if (strncasecmp(headername, "content-type", header_len) == 0)
     {
         zval *multipart_header = NULL;
         sw_zend_hash_find(Z_ARRVAL_P(zfiles), ctx->current_input_name, strlen(ctx->current_input_name) + 1, (void **) &multipart_header);
@@ -1612,12 +1614,6 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
     if (header)
     {
         int flag = 0x0;
-        char *key_server = "Server";
-        char *key_connection = "Connection";
-        char *key_content_length = "Content-Length";
-        char *key_content_type = "Content-Type";
-        char *key_date = "Date";
-
         HashTable *ht = Z_ARRVAL_P(header);
         zval *value = NULL;
         char *key = NULL;
@@ -1630,23 +1626,23 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
             {
                 break;
             }
-            if (strcmp(key, key_server) == 0)
+            if (strncmp(key, "Server", keylen) == 0)
             {
                 flag |= HTTP_RESPONSE_SERVER;
             }
-            else if (strcmp(key, key_connection) == 0)
+            else if (strncmp(key, "Connection", keylen) == 0)
             {
                 flag |= HTTP_RESPONSE_CONNECTION;
             }
-            else if (strcmp(key, key_content_length) == 0)
+            else if (strncmp(key, "Content-Length", keylen) == 0)
             {
                 flag |= HTTP_RESPONSE_CONTENT_LENGTH;
             }
-            else if (strcmp(key, key_date) == 0)
+            else if (strncmp(key, "Date", keylen) == 0)
             {
                 flag |= HTTP_RESPONSE_DATE;
             }
-            else if (strcmp(key, key_content_type) == 0)
+            else if (strncmp(key, "Content-Type", keylen) == 0)
             {
                 flag |= HTTP_RESPONSE_CONTENT_TYPE;
             }

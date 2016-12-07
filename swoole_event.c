@@ -52,9 +52,7 @@ static int php_swoole_event_onRead(swReactor *reactor, swEvent *event)
     zval **args[1];
     php_reactor_fd *fd = event->socket->object;
 
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SWOOLE_GET_TSRMLS;
 
     args[0] = &fd->socket;
 
@@ -81,9 +79,7 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
     zval **args[1];
     php_reactor_fd *fd = event->socket->object;
 
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SWOOLE_GET_TSRMLS;
 
     if (!fd->cb_write)
     {
@@ -111,10 +107,7 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
 
 static int php_swoole_event_onError(swReactor *reactor, swEvent *event)
 {
-
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SWOOLE_GET_TSRMLS;
 
     int error;
     socklen_t len = sizeof(error);
@@ -141,10 +134,7 @@ static void php_swoole_event_onDefer(void *_cb)
 {
     php_defer_callback *defer = _cb;
 
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
+    SWOOLE_GET_TSRMLS;
     zval *retval;
     if (sw_call_user_function_ex(EG(function_table), NULL, defer->callback, &retval, 0, NULL, 0, NULL TSRMLS_CC) == FAILURE)
     {
@@ -172,9 +162,7 @@ void php_swoole_event_init(void)
 
 void php_swoole_event_wait()
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SWOOLE_GET_TSRMLS;
     if (SwooleWG.in_client == 1 && SwooleWG.reactor_ready == 0 && SwooleG.running)
     {
         SwooleWG.reactor_ready = 1;
@@ -266,9 +254,7 @@ int swoole_convert_to_fd(zval *zfd TSRMLS_DC)
 #ifdef SWOOLE_SOCKETS_SUPPORT
 php_socket* swoole_convert_to_socket(int sock)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SWOOLE_GET_TSRMLS;
     php_socket *socket_object = emalloc(sizeof *socket_object);
     bzero(socket_object, sizeof(php_socket));
     socket_object->bsd_socket = sock;

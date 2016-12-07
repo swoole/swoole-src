@@ -125,6 +125,8 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
     SwooleG.use_timer_pipe = 0;
     SwooleG.use_timerfd = 0;
 
+    swServer_close_port(serv, SW_TRUE);
+
     swTaskWorker_signal_init();
     swWorker_onStart(serv);
 

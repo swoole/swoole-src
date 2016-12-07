@@ -2524,12 +2524,15 @@ PHP_METHOD(swoole_server, taskWaitMulti)
         i++;
     SW_HASHTABLE_FOREACH_END();
 
+    double _now = swoole_microtime();
+
     while (n_task > 0)
     {
         task_notify_pipe->timeout = timeout;
         int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
         if (ret > 0 && *finish_count < n_task)
         {
+            timeout -= (swoole_microtime() - _now);
             continue;
         }
         break;
@@ -2538,7 +2541,7 @@ PHP_METHOD(swoole_server, taskWaitMulti)
     swString *content = swoole_file_get_contents(_tmpfile);
     if (content == NULL)
     {
-        return;
+        RETURN_FALSE;
     }
 
     swEventData *result;
