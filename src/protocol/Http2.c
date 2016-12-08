@@ -21,7 +21,7 @@
 int swHttp2_parse_frame(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
 {
     int wait_body = 0;
-    int package_length;
+    int package_length = 0;
 
     while (length > 0)
     {

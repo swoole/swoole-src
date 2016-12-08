@@ -31,6 +31,7 @@
 
 //#define SW_USE_MALLOC_TRIM
 #define SW_USE_EVENT_TIMER
+#define SW_USE_MONOTONIC_TIME
 //#define SW_USE_RINGBUFFER
 
 //#define SW_DEBUG_REMOTE_OPEN

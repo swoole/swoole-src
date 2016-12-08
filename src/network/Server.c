@@ -84,6 +84,21 @@ void swServer_enable_accept(swReactor *reactor)
     }
 }
 
+void swServer_close_port(swServer *serv, enum swBool_type only_stream_port)
+{
+    swListenPort *ls;
+    LL_FOREACH(serv->listen_list, ls)
+    {
+        //dgram socket
+        if (only_stream_port && (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM))
+        {
+            continue;
+        }
+        //stream socket
+        close(ls->sock);
+    }
+}
+
 int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 {
     swServer *serv = reactor->ptr;
@@ -123,7 +138,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 #ifndef HAVE_ACCEPT4
         else
         {
-            swSetNonBlock(new_fd);
+            swoole_fcntl_set_option(new_fd, 1, 1);
         }
 #endif
 
@@ -1131,7 +1146,8 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
         setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &ls->socket_buffer_size, sizeof(int));
         setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &ls->socket_buffer_size, sizeof(int));
     }
-    swSetNonBlock(sock);
+    //O_NONBLOCK & O_CLOEXEC
+    swoole_fcntl_set_option(sock, 1, 1);
     ls->sock = sock;
 
     if (swSocket_is_dgram(ls->type))

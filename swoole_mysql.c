@@ -824,19 +824,22 @@ static PHP_METHOD(swoole_mysql, connect)
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL | SW_EVENT_WRITE, swoole_mysql_onWrite);
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL | SW_EVENT_ERROR, swoole_mysql_onError);
     }
-
+    //create socket
     if (swClient_create(cli, type, 0) < 0)
     {
         zend_throw_exception(swoole_mysql_exception_class_entry_ptr, "swClient_create failed.", 1 TSRMLS_CC);
         RETURN_FALSE;
     }
-
-    int tcp_nodelay = 1;
-    if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &tcp_nodelay, sizeof(int)) == -1)
+    //tcp nodelay
+    if (type != SW_SOCK_UNIX_STREAM)
     {
-        swoole_php_sys_error(E_WARNING, "setsockopt(%d, IPPROTO_TCP, TCP_NODELAY) failed.", cli->socket->fd);
+        int tcp_nodelay = 1;
+        if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &tcp_nodelay, sizeof(int)) == -1)
+        {
+            swoole_php_sys_error(E_WARNING, "setsockopt(%d, IPPROTO_TCP, TCP_NODELAY) failed.", cli->socket->fd);
+        }
     }
-
+    //connect to mysql server
     int ret = cli->connect(cli, connector->host, connector->port, connector->timeout, 1);
     if ((ret < 0 && errno == EINPROGRESS) || ret == 0)
     {

@@ -598,8 +598,8 @@ void swString_print(swString *str);
 void swString_free(swString *str);
 int swString_append(swString *str, swString *append_str);
 int swString_append_ptr(swString *str, char *append_str, int length);
-
 int swString_extend(swString *str, size_t new_size);
+char* swString_alloc(swString *str, size_t __size);
 
 static sw_inline int swString_extend_align(swString *str, size_t _new_size)
 {
@@ -1133,7 +1133,7 @@ int swoole_version_compare(char *version1, char *version2);
 void swoole_print_trace(void);
 #endif
 void swoole_ioctl_set_block(int sock, int nonblock);
-void swoole_fcntl_set_block(int sock, int nonblock);
+void swoole_fcntl_set_option(int sock, int nonblock, int cloexec);
 int swoole_gethostbyname(int type, char *name, char *addr);
 void swoole_clear_dns_cache(void);
 //----------------------core function---------------------
@@ -1153,8 +1153,8 @@ static sw_inline int swSocket_is_stream(uint8_t type)
 #define swSetNonBlock(sock)   swoole_ioctl_set_block(sock, 1)
 #define swSetBlock(sock)      swoole_ioctl_set_block(sock, 0)
 #else
-#define swSetNonBlock(sock)   swoole_fcntl_set_block(sock, 1)
-#define swSetBlock(sock)      swoole_fcntl_set_block(sock, 0)
+#define swSetNonBlock(sock)   swoole_fcntl_set_option(sock, 1, 0)
+#define swSetBlock(sock)      swoole_fcntl_set_option(sock, 0, 0)
 #endif
 
 void swoole_init(void);

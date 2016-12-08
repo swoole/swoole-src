@@ -2,8 +2,8 @@
 $db = new swoole_mysql;
 $server = array(
     'host' => '127.0.0.1',
-    'user' => 'chelun_appuser',
-    'password' => 'hGbxB9PrmVLJzuxE',
+    'user' => 'root',
+    'password' => 'root',
     'database' => 'chelun',
 );
 $r = $db->connect($server, function ($db, $result)

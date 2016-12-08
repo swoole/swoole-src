@@ -78,7 +78,11 @@ int swClient_create(swClient *cli, int type, int async)
         return SW_ERR;
     }
 
+#ifdef SOCK_CLOEXEC
+    int sockfd = socket(_domain, _type | SOCK_CLOEXEC, 0);
+#else
     int sockfd = socket(_domain, _type, 0);
+#endif
     if (sockfd < 0)
     {
         swWarn("socket() failed. Error: %s[%d]", strerror(errno), errno);

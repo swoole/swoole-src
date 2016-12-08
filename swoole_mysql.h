@@ -196,6 +196,7 @@ typedef struct
 
 typedef struct
 {
+    char *buffer;
     char *name; /* Name of column */
     char *org_name; /* Original column name, if an alias */
     char *table; /* Table of column if column was a field */
@@ -236,8 +237,29 @@ typedef union
 
 typedef struct
 {
+    mysql_field *columns;
+    uint16_t num_column;
+    uint16_t index_column;
+    uint32_t num_row;
+    uint8_t wait_recv;
+    uint8_t response_type;
+    uint32_t packet_length :24;
+    uint32_t packet_number :8;
+    uint32_t error_code;
+    uint32_t warnings;
+    uint16_t status_code;
+    char status_msg[6];
+    char *server_msg;
+    uint16_t l_server_msg;
+    ulong_t affected_rows;
+    ulong_t insert_id;
+    zval *result_array;
+} mysql_response_t;
+
+typedef struct
+{
 #ifdef SW_COROUTINE
-	zend_bool defer;
+    zend_bool defer;
 	zend_bool _defer;
 	mysql_io_status iowait;
 	zval *result;
@@ -257,27 +279,7 @@ typedef struct
     zval _object;
     zval _onClose;
 #endif
-    struct
-    {
-        mysql_field *columns;
-        uint16_t num_column;
-        uint16_t index_column;
-        uint32_t num_row;
-        uint8_t wait_recv;
-        uint8_t response_type;
-        uint32_t packet_length :24;
-        uint32_t packet_number :8;
-        uint32_t error_code;
-        uint32_t warnings;
-        uint16_t status_code;
-        char status_msg[6];
-        char *server_msg;
-        uint16_t l_server_msg;
-        ulong_t affected_rows;
-        ulong_t insert_id;
-        zval *result_array;
-    } response;
-
+    mysql_response_t response;
 } mysql_client;
 
 #define mysql_uint2korr(A)  (uint16_t) (((uint16_t) ((zend_uchar) (A)[0])) +\
@@ -381,6 +383,16 @@ static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
     char *wh;
     int tmp_len;
 
+    /**
+     * string buffer
+     */
+    char *_buffer = emalloc(len);
+    if (!_buffer)
+    {
+        return -SW_MYSQL_ERR_BAD_LCB;
+    }
+    col->buffer = _buffer;
+
     wh = buf;
 
     i = 0;
@@ -396,7 +408,8 @@ static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
         return -SW_MYSQL_ERR_LEN_OVER_BUFFER;
     }
     col->catalog_length = size;
-    col->catalog = emalloc(size + 1);
+    col->catalog = _buffer;
+    _buffer += (size + 1);
     memcpy(col->catalog, &buf[i], size);
     col->catalog[size] = '\0';
     wh += size + 1;
@@ -414,7 +427,8 @@ static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
         return -SW_MYSQL_ERR_LEN_OVER_BUFFER;
     }
     col->db_length = size;
-    col->db = emalloc(size + 1);
+    col->db = _buffer;
+    _buffer += (size + 1);
     memcpy(col->db, &buf[i], size);
     col->db[size] = '\0';
     wh += size + 1;
@@ -432,7 +446,8 @@ static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
         return -SW_MYSQL_ERR_LEN_OVER_BUFFER;
     }
     col->table_length = size;
-    col->table = emalloc(size + 1);
+    col->table = _buffer;
+    _buffer += (size + 1);
     memcpy(col->table, &buf[i], size);
     col->table[size] = '\0';
     wh += size + 1;
@@ -450,7 +465,8 @@ static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
         return -SW_MYSQL_ERR_LEN_OVER_BUFFER;
     }
     col->org_table_length = size;
-    col->org_table = emalloc(size + 1);
+    col->org_table = _buffer;
+    _buffer += (size + 1);
     memcpy(col->org_table, &buf[i], size);
     col->org_table[size] = '\0';
     wh += size + 1;
@@ -468,7 +484,8 @@ static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
         return -SW_MYSQL_ERR_LEN_OVER_BUFFER;
     }
     col->name_length = size;
-    col->name = emalloc(size + 1);
+    col->name = _buffer;
+    _buffer += (size + 1);
     memcpy(col->name, &buf[i], size);
     col->name[size] = '\0';
     wh += size + 1;
@@ -486,7 +503,8 @@ static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
         return -SW_MYSQL_ERR_LEN_OVER_BUFFER;
     }
     col->org_name_length = size;
-    col->org_name = emalloc(size + 1);
+    col->org_name = _buffer;
+    _buffer += (size + 1);
     memcpy(col->org_name, &buf[i], size);
     col->org_name[size] = '\0';
     wh += size + 1;
@@ -538,7 +556,8 @@ static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
             return -SW_MYSQL_ERR_LEN_OVER_BUFFER;
         }
         col->def_length = size;
-        col->def = emalloc(size + 1);
+        col->def = _buffer;
+        //_buffer += (size + 1);
         memcpy(col->def, &buf[i], size);
         col->def[size] = '\0';
         wh += size + 1;
@@ -806,33 +825,10 @@ static sw_inline int mysql_read_rows(mysql_client *client)
                 int i;
                 for (i = 0; i < client->response.num_column; i++)
                 {
-                    if (client->response.columns[i].name)
+                    if (client->response.columns[i].buffer)
                     {
-                        efree(client->response.columns[i].name);
-                    }
-                    if (client->response.columns[i].org_name)
-                    {
-                        efree(client->response.columns[i].org_name);
-                    }
-                    if (client->response.columns[i].table)
-                    {
-                        efree(client->response.columns[i].table);
-                    }
-                    if (client->response.columns[i].org_table)
-                    {
-                        efree(client->response.columns[i].org_table);
-                    }
-                    if (client->response.columns[i].db)
-                    {
-                        efree(client->response.columns[i].db);
-                    }
-                    if (client->response.columns[i].catalog)
-                    {
-                        efree(client->response.columns[i].catalog);
-                    }
-                    if (client->response.columns[i].def)
-                    {
-                        efree(client->response.columns[i].def);
+                        efree(client->response.columns[i].buffer);
+                        client->response.columns[i].buffer = NULL;
                     }
                 }
                 efree(client->response.columns);
