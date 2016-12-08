@@ -1019,10 +1019,6 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
     {
         sw_zval_ptr_dtor(&retval);
     }
-
-#if 1
-    shutdown_memory_manager(0, 1 TSRMLS_CC);
-#endif
 }
 
 static void php_swoole_onUserWorkerStart(swServer *serv, swWorker *worker)
