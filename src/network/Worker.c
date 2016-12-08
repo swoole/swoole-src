@@ -466,8 +466,6 @@ int swWorker_loop(swFactory *factory, int worker_id)
     SwooleWG.request_count = 0;
     SwooleG.pid = getpid();
 
-    //signal init
-    swWorker_signal_init();
     swWorker *worker = swServer_get_worker(serv, worker_id);
     swServer_worker_init(serv, worker);
 

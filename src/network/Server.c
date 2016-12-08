@@ -529,6 +529,9 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     }
 #endif
 
+    //signal init
+    swWorker_signal_init();
+
     SwooleWG.buffer_input = swServer_create_worker_buffer(serv);
     if (!SwooleWG.buffer_input)
     {
