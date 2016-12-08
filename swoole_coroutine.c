@@ -240,6 +240,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
         ZVAL_COPY(target, argv[i]);
     }
 
+    call->symbol_table = NULL;
     SW_ALLOC_INIT_ZVAL(retval);
     COROG.allocated_return_value_ptr = retval;
     EG(current_execute_data) = NULL;
