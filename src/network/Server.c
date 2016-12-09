@@ -698,7 +698,7 @@ int swServer_start(swServer *serv)
         return SW_ERR;
     }
     //signal Init
-    swServer_signal_init();
+    swServer_signal_init(serv);
 
     if (serv->factory_mode == SW_MODE_SINGLE)
     {
@@ -1043,11 +1043,14 @@ int swServer_tcp_close(swServer *serv, int fd, int reset)
     return ret;
 }
 
-void swServer_signal_init(void)
+void swServer_signal_init(swServer *serv)
 {
     swSignal_add(SIGPIPE, NULL);
     swSignal_add(SIGHUP, NULL);
-    swSignal_add(SIGCHLD, swServer_signal_hanlder);
+    if (serv->factory_mode != SW_MODE_PROCESS)
+    {
+        swSignal_add(SIGCHLD, swServer_signal_hanlder);
+    }
     swSignal_add(SIGUSR1, swServer_signal_hanlder);
     swSignal_add(SIGUSR2, swServer_signal_hanlder);
     swSignal_add(SIGTERM, swServer_signal_hanlder);
@@ -1219,8 +1222,12 @@ static void swServer_signal_hanlder(int sig)
         swSystemTimer_signal_handler(SIGALRM);
         break;
     case SIGCHLD:
+        if (!SwooleG.running)
+        {
+            break;
+        }
         pid = waitpid(-1, &status, WNOHANG);
-        if (pid > 0 && pid == SwooleGS->manager_pid && SwooleG.running)
+        if (pid > 0 && pid == SwooleGS->manager_pid)
         {
             swWarn("Fatal Error: manager process exit. status=%d, signal=%d.", WEXITSTATUS(status), WTERMSIG(status));
         }

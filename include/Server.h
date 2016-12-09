@@ -514,7 +514,7 @@ int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
 
 void swServer_init(swServer *serv);
-void swServer_signal_init(void);
+void swServer_signal_init(swServer *serv);
 int swServer_start(swServer *serv);
 swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port);
 void swServer_close_port(swServer *serv, enum swBool_type only_stream_port);
