@@ -76,6 +76,8 @@ static PHP_METHOD(swoole_server_port, set)
         return;
     }
 
+    php_swoole_array_separate(zset);
+
     vht = Z_ARRVAL_P(zset);
     swListenPort *port = swoole_get_object(getThis());
     swoole_server_port_property *property = swoole_get_property(getThis(), 0);

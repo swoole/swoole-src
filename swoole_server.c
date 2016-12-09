@@ -1448,6 +1448,8 @@ PHP_METHOD(swoole_server, set)
         return;
     }
 
+    php_swoole_array_separate(zset);
+
     swServer *serv = swoole_get_object(zobject);
 
     vht = Z_ARRVAL_P(zset);
