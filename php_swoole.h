@@ -33,6 +33,7 @@
 #include <ext/date/php_date.h>
 #include <ext/standard/url.h>
 #include <ext/standard/info.h>
+#include <ext/standard/php_array.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -43,7 +44,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.9.1"
+#define PHP_SWOOLE_VERSION  "1.9.2-alpha"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -431,6 +432,11 @@ static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server
 }
 
 #define php_swoole_array_get_value(ht, str, v)     (sw_zend_hash_find(ht, str, sizeof(str), (void **) &v) == SUCCESS && !ZVAL_IS_NULL(v))
+#define php_swoole_array_separate(arr)       zval *_new_##arr;\
+    SW_MAKE_STD_ZVAL(_new_##arr);\
+    array_init(_new_##arr);\
+    sw_php_array_merge(Z_ARRVAL_P(_new_##arr), Z_ARRVAL_P(arr));\
+    arr = _new_##arr;
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
     long aio_thread_num;

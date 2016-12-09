@@ -680,6 +680,8 @@ PHP_FUNCTION(swoole_async_set)
         return;
     }
 
+    php_swoole_array_separate(zset);
+
     vht = Z_ARRVAL_P(zset);
     if (php_swoole_array_get_value(vht, "aio_mode", v))
     {

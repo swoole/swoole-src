@@ -871,6 +871,7 @@ static PHP_METHOD(swoole_client, set)
     {
         return;
     }
+    php_swoole_array_separate(zset);
     zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("setting"), zset TSRMLS_CC);
     RETURN_TRUE;
 }
