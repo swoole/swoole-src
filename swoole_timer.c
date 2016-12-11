@@ -2,7 +2,7 @@
  +----------------------------------------------------------------------+
  | Swoole                                                               |
  +----------------------------------------------------------------------+
- | Copyright (c) 2012-2015 The Swoole Group                             |
+ | Copyright (c) 2012-2016 The Swoole Group                             |
  +----------------------------------------------------------------------+
  | This source file is subject to version 2.0 of the Apache license,    |
  | that is bundled with this package in the file LICENSE, and is        |
@@ -54,9 +54,9 @@ static long php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tic
         swoole_php_fatal_error(E_WARNING, "The given parameters is too big.");
         return SW_ERR;
     }
-    if (ms <= 0)
+    if (ms < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "Timer must be greater than 0");
+        swoole_php_fatal_error(E_WARNING, "Timer must be not less than 0");
         return SW_ERR;
     }
 
