@@ -183,7 +183,8 @@ static void php_swoole_aio_onComplete(swAio_event *event)
     ret = event->ret;
     if (ret < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_async: Aio Error: %s[%d]", strerror(event->error), event->error);
+        SwooleG.error = event->error;
+        swoole_php_error(E_WARNING, "Aio Error: %s[%d]", strerror(event->error), event->error);
     }
     else if (file_req != NULL)
     {
