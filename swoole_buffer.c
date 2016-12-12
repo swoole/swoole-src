@@ -25,6 +25,7 @@ static PHP_METHOD(swoole_buffer, read);
 static PHP_METHOD(swoole_buffer, write);
 static PHP_METHOD(swoole_buffer, expand);
 static PHP_METHOD(swoole_buffer, clear);
+static PHP_METHOD(swoole_buffer, c_str);
 
 static const zend_function_entry swoole_buffer_methods[] =
 {
@@ -37,6 +38,7 @@ static const zend_function_entry swoole_buffer_methods[] =
     PHP_ME(swoole_buffer, append, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_buffer, expand, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_buffer, clear, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_buffer, c_str, NULL, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -244,4 +246,14 @@ static PHP_METHOD(swoole_buffer, clear)
     buffer->length = 0;
     buffer->offset = 0;
     zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"), 0 TSRMLS_CC);
+}
+
+static PHP_METHOD(swoole_buffer, c_str)
+{
+    swString *buffer = swoole_get_object(getThis());
+    if (0 == buffer->length) {
+    	RETVAL_EMPTY_STRING();
+    } else {
+    	RETVAL_STRINGL(buffer->str, buffer->length);
+    }
 }
