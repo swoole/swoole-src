@@ -1127,6 +1127,7 @@ int swoole_system_random(int min, int max);
 long swoole_file_get_size(FILE *fp);
 int swoole_tmpfile(char *filename);
 swString* swoole_file_get_contents(char *filename);
+size_t swoole_file_size(char *filename);
 void swoole_open_remote_debug(void);
 char *swoole_dec2hex(int value, int base);
 int swoole_version_compare(char *version1, char *version2);
