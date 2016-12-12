@@ -3036,11 +3036,6 @@ PHP_METHOD(swoole_server, stop)
     RETURN_TRUE;
 }
 
-PHP_METHOD(swoole_server, getLastError)
-{
-    RETURN_LONG(SwooleG.error);
-}
-
 #ifdef HAVE_PCRE
 static struct
 {

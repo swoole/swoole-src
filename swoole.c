@@ -259,13 +259,15 @@ ZEND_END_ARG_INFO()
 
 #include "zend_exceptions.h"
 
-PHP_FUNCTION(swoole_clear_dns_cache);
+static PHP_FUNCTION(swoole_clear_dns_cache);
+static PHP_FUNCTION(swoole_last_error);
 
 const zend_function_entry swoole_functions[] =
 {
     PHP_FE(swoole_version, arginfo_swoole_void)
     PHP_FE(swoole_cpu_num, arginfo_swoole_void)
     PHP_FE(swoole_clear_dns_cache, arginfo_swoole_void)
+    PHP_FE(swoole_last_error, arginfo_swoole_void)
     /*------swoole_event-----*/
     PHP_FE(swoole_event_add, arginfo_swoole_event_add)
     PHP_FE(swoole_event_set, NULL)
@@ -321,7 +323,7 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, reload, arginfo_swoole_server_reload_oo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, shutdown, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, stop, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server, getLastError, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_FALIAS(getLastError, swoole_last_error, arginfo_swoole_void)
     PHP_ME(swoole_server, heartbeat, arginfo_swoole_server_heartbeat_oo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, connection_info, arginfo_swoole_connection_info, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, connection_list, arginfo_swoole_connection_list, ZEND_ACC_PUBLIC)
@@ -888,6 +890,11 @@ PHP_FUNCTION(swoole_version)
     SW_RETURN_STRING(swoole_version, 1);
 }
 
+static PHP_FUNCTION(swoole_last_error)
+{
+    RETURN_LONG(SwooleG.error);
+}
+
 PHP_FUNCTION(swoole_cpu_num)
 {
     long cpu_num = 1;
@@ -917,7 +924,7 @@ PHP_FUNCTION(swoole_errno)
     RETURN_LONG(errno);
 }
 
-PHP_FUNCTION(swoole_clear_dns_cache)
+static PHP_FUNCTION(swoole_clear_dns_cache)
 {
     swoole_clear_dns_cache();
 }
