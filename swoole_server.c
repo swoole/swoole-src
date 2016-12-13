@@ -2615,15 +2615,17 @@ PHP_METHOD(swoole_server, task)
     }
 
     swTask_type(&buf) |= SW_TASK_NONBLOCK;
+    sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
     if (swProcessPool_dispatch(&SwooleGS->task_workers, &buf, (int*) &dst_worker_id) >= 0)
     {
-        sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
         RETURN_LONG(buf.info.fd);
     }
     else
     {
+        sw_atomic_fetch_sub(&SwooleStats->tasking_num, 1);
         RETURN_FALSE;
     }
+
 }
 
 PHP_METHOD(swoole_server, sendMessage)
@@ -3159,11 +3161,6 @@ PHP_METHOD(swoole_server, stop)
         }
     }
     RETURN_TRUE;
-}
-
-PHP_METHOD(swoole_server, getLastError)
-{
-    RETURN_LONG(SwooleG.error);
 }
 
 #ifdef HAVE_PCRE

@@ -567,7 +567,7 @@ typedef int (*swProtocol_length_function)(struct _swProtocol *, swConnection *, 
 //------------------------------String--------------------------------
 #define swoole_tolower(c)      (u_char) ((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
 #define swoole_toupper(c)      (u_char) ((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
-#define swoole_length_gt(str,len) (length > sizeof(str)-1)
+#define swoole_length_gt(str,len) (len > sizeof(str)-1)
 
 uint32_t swoole_utf8_decode(u_char **p, size_t n);
 size_t swoole_utf8_length(u_char *p, size_t n);
@@ -1127,6 +1127,7 @@ int swoole_system_random(int min, int max);
 long swoole_file_get_size(FILE *fp);
 int swoole_tmpfile(char *filename);
 swString* swoole_file_get_contents(char *filename);
+size_t swoole_file_size(char *filename);
 void swoole_open_remote_debug(void);
 char *swoole_dec2hex(int value, int base);
 int swoole_version_compare(char *version1, char *version2);
@@ -1678,7 +1679,6 @@ typedef struct _swTimer_node
     int64_t exec_msec;
     uint32_t interval;
     long id;
-    int type;                 //0 normal node 1 node for client_coro
     uint8_t remove :1;
 } swTimer_node;
 
@@ -1762,11 +1762,6 @@ typedef struct
     uint32_t request_count;
 
     int max_request;
-
-#ifdef SW_COROUTINE
-    swLinkedList *coro_timeout_list;
-    swLinkedList *delayed_coro_timeout_list;
-#endif
 
     swString **buffer_input;
     swString **buffer_output;

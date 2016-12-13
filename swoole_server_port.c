@@ -174,6 +174,12 @@ static PHP_METHOD(swoole_server_port, set)
         convert_to_boolean(v);
         port->open_websocket_protocol = Z_BVAL_P(v);
     }
+    if (php_swoole_array_get_value(vht, "websocket_subprotocol", v))
+    {
+        convert_to_string(v);
+        port->websocket_subprotocol = strdup(Z_STRVAL_P(v));
+        port->websocket_subprotocol_length = Z_STRLEN_P(v);
+    }
 #ifdef SW_USE_HTTP2
     //http2 protocol
     if (php_swoole_array_get_value(vht, "open_http2_protocol", v))

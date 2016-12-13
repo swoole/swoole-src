@@ -209,6 +209,11 @@ typedef struct _swListenPort
      * open tcp keepalive
      */
     uint32_t open_ssl_encrypt :1;
+    /**
+     * Sec-WebSocket-Protocol
+     */
+    char *websocket_subprotocol;
+    uint16_t websocket_subprotocol_length;
 
 #ifdef SW_USE_OPENSSL
     char *ssl_cert_file;

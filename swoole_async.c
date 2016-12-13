@@ -183,7 +183,8 @@ static void php_swoole_aio_onComplete(swAio_event *event)
     ret = event->ret;
     if (ret < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_async: Aio Error: %s[%d]", strerror(event->error), event->error);
+        SwooleG.error = event->error;
+        swoole_php_error(E_WARNING, "Aio Error: %s[%d]", strerror(event->error), event->error);
     }
     else if (file_req != NULL)
     {
@@ -443,8 +444,14 @@ PHP_FUNCTION(swoole_async_write)
         if (SwooleAIO.mode == SW_AIO_LINUX)
         {
             open_flag |= O_DIRECT;
+            if (offset < 0)
+            {
+                swoole_php_fatal_error(E_WARNING, "cannot use FILE_APPEND with linux native aio.", fcnt_len,
+                        SW_AIO_MAX_FILESIZE);
+                RETURN_FALSE;
+            }
         }
-        if (offset < 0)
+        else if (offset < 0)
         {
             open_flag |= O_APPEND;
         }
@@ -583,19 +590,24 @@ PHP_FUNCTION(swoole_async_writefile)
     zval *filename;
     char *fcnt;
     zend_size_t fcnt_len;
-    long flags;
-
-    int open_flag = O_CREAT | O_WRONLY;
-    if (SwooleAIO.mode == SW_AIO_LINUX)
-    {
-        open_flag |= O_DIRECT;
-    }
+    long flags = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "zs|zl", &filename, &fcnt, &fcnt_len, &callback, &flags) == FAILURE)
     {
         return;
     }
-    if (flags & PHP_FILE_APPEND)
+    int open_flag = O_CREAT | O_WRONLY;
+    if (SwooleAIO.mode == SW_AIO_LINUX)
+    {
+        open_flag |= O_DIRECT;
+        if (flags & PHP_FILE_APPEND)
+        {
+            swoole_php_fatal_error(E_WARNING, "cannot use FILE_APPEND with linux native aio.",
+                       fcnt_len, SW_AIO_MAX_FILESIZE);
+            RETURN_FALSE;
+        }
+    }
+    else if (flags & PHP_FILE_APPEND)
     {
         open_flag |= O_APPEND;
     }
