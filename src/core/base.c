@@ -520,32 +520,43 @@ long swoole_file_get_size(FILE *fp)
     return size;
 }
 
-swString* swoole_file_get_contents(char *filename)
+size_t swoole_file_size(char *filename)
 {
     struct stat file_stat;
     if (lstat(filename, &file_stat) < 0)
     {
         swSysError("lstat(%s) failed.", filename);
         SwooleG.error = errno;
-        return NULL;
+        return -1;
     }
-    if (file_stat.st_size > SW_MAX_FILE_CONTENT)
+    return file_stat.st_size;
+}
+
+swString* swoole_file_get_contents(char *filename)
+{
+    size_t filesize = swoole_file_size(filename);
+    if (filesize < 0)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_FILE_TOO_LARGE, "file[%s] is too large.", filename);
         return NULL;
     }
-    if (file_stat.st_size == 0)
+    else if (filesize == 0)
     {
         swoole_error_log(SW_LOG_TRACE, SW_ERROR_FILE_EMPTY, "file[%s] is empty.", filename);
         return NULL;
     }
+    else if (filesize > SW_MAX_FILE_CONTENT)
+    {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_FILE_TOO_LARGE, "file[%s] is too large.", filename);
+        return NULL;
+    }
+
     int fd = open(filename, O_RDONLY);
     if (fd < 0)
     {
         swWarn("open(%s) failed. Error: %s[%d]", filename, strerror(errno), errno);
         return NULL;
     }
-    swString *content = swString_new(file_stat.st_size);
+    swString *content = swString_new(filesize);
     if (!content)
     {
         return NULL;
@@ -554,9 +565,9 @@ swString* swoole_file_get_contents(char *filename)
     int readn = 0;
     int n;
 
-    while(readn < file_stat.st_size)
+    while(readn < filesize)
     {
-        n = pread(fd, content->str + readn, file_stat.st_size - readn, readn);
+        n = pread(fd, content->str + readn, filesize - readn, readn);
         if (n < 0)
         {
             if (errno == EINTR)
@@ -565,7 +576,7 @@ swString* swoole_file_get_contents(char *filename)
             }
             else
             {
-                swSysError("pread(%d, %ld, %d) failed.", fd, file_stat.st_size - readn, readn);
+                swSysError("pread(%d, %ld, %d) failed.", fd, filesize - readn, readn);
                 swString_free(content);
                 close(fd);
                 return NULL;
@@ -698,6 +709,7 @@ void swoole_fcntl_set_option(int sock, int nonblock, int cloexec)
         opts = opts & ~O_NONBLOCK;
     }
 
+#ifdef O_CLOEXEC
     if (cloexec)
     {
         opts = opts | O_CLOEXEC;
@@ -706,6 +718,7 @@ void swoole_fcntl_set_option(int sock, int nonblock, int cloexec)
     {
         opts = opts & ~O_CLOEXEC;
     }
+#endif
 
     do
     {

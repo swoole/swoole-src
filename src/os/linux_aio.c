@@ -102,7 +102,15 @@ static int swAioLinux_onFinish(swReactor *reactor, swEvent *event)
             for (i = 0; i < n; i++)
             {
                 aiocb = (struct iocb *) events[i].obj;
-                aio_ev.ret = (int) events[i].res;
+                if ((int) events[i].res < 0)
+                {
+                    aio_ev.error = abs((int) events[i].res);
+                    aio_ev.ret = -1;
+                }
+                else
+                {
+                    aio_ev.ret = (int) events[i].res;
+                }
                 aio_ev.fd = aiocb->aio_fildes;
                 aio_ev.type = aiocb->aio_lio_opcode == IOCB_CMD_PREAD ? SW_AIO_READ : SW_AIO_WRITE;
                 aio_ev.nbytes = aio_ev.ret;

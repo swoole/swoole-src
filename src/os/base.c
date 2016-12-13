@@ -206,7 +206,14 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
             swSysError("flock(%d, LOCK_EX) failed.", event->fd);
             break;
         }
-        ret = pwrite(event->fd, event->buf, event->nbytes, event->offset);
+        if (event->offset == 0)
+        {
+            ret = write(event->fd, event->buf, event->nbytes);
+        }
+        else
+        {
+            ret = pwrite(event->fd, event->buf, event->nbytes, event->offset);
+        }
         if (flock(event->fd, LOCK_UN) < 0)
         {
             swSysError("flock(%d, LOCK_UN) failed.", event->fd);

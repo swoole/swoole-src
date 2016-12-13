@@ -456,11 +456,13 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
     {
         if (strncmp(header_name, "content-type", header_len) == 0)
         {
-            if (strncasecmp(at, "application/x-www-form-urlencoded", length) == 0)
+            if (swoole_length_gt("application/x-www-form-urlencoded", length)
+                    && strncasecmp(at, ZEND_STRL("application/x-www-form-urlencoded")) == 0)
             {
                 ctx->request.post_form_urlencoded = 1;
             }
-            else if (length > sizeof("multipart/form-data") && strncasecmp(at, ZEND_STRL("multipart/form-data")) == 0)
+            else if (swoole_length_gt("multipart/form-data", length)
+                    && strncasecmp(at, ZEND_STRL("multipart/form-data")) == 0)
             {
                 int boundary_len = length - (sizeof("multipart/form-data; boundary=") - 1);
                 if (boundary_len <= 0)
@@ -960,7 +962,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
         //websocket handshake
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION && zcallback == NULL)
         {
-            return swoole_websocket_onHandshake(ctx);
+            return swoole_websocket_onHandshake(port, ctx);
         }
 
 #ifndef SW_COROUTINE
