@@ -957,7 +957,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
         //websocket handshake
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION && zcallback == NULL)
         {
-            return swoole_websocket_onHandshake(ctx);
+            return swoole_websocket_onHandshake(port, ctx);
         }
 
         args[0] = &zrequest_object;
