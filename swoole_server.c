@@ -2428,9 +2428,9 @@ PHP_METHOD(swoole_server, taskwait)
     //clear history task
     while (read(efd, &notify, sizeof(notify)) > 0);
 
+    sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
     if (swProcessPool_dispatch_blocking(&SwooleGS->task_workers, &buf, (int*) &dst_worker_id) >= 0)
-    {
-        sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
+    {      
         task_notify_pipe->timeout = timeout;
         int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
         if (ret > 0)
@@ -2442,6 +2442,10 @@ PHP_METHOD(swoole_server, taskwait)
         {
             swoole_php_fatal_error(E_WARNING, "taskwait failed. Error: %s[%d]", strerror(errno), errno);
         }
+    }
+    else
+    {
+        sw_atomic_fetch_sub(&SwooleStats->tasking_num, 1);
     }
     RETURN_FALSE;
 }
@@ -2507,13 +2511,14 @@ PHP_METHOD(swoole_server, taskWaitMulti)
         }
         swTask_type(&buf) |= SW_TASK_WAITALL;
         dst_worker_id = -1;
+        sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
         if (swProcessPool_dispatch_blocking(&SwooleGS->task_workers, &buf, (int*) &dst_worker_id) >= 0)
         {
-            sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
             list_of_id[i] = task_id;
         }
         else
         {
+            sw_atomic_fetch_sub(&SwooleStats->tasking_num, 1);
             swoole_php_fatal_error(E_WARNING, "taskwait failed. Error: %s[%d]", strerror(errno), errno);
             fail:
             add_index_bool(return_value, i, 0);
