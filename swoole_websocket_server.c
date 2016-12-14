@@ -233,16 +233,38 @@ int swoole_websocket_onMessage(swEventData *req)
     swServer *serv = SwooleG.serv;
     zval *zserv = (zval *) serv->ptr2;
 
+#ifndef SW_COROUTINE
     zval **args[2];
     args[0] = &zserv;
     args[1] = &zframe;
+#else
+    zval *args[2];
+    args[0] = zserv;
+    args[1] = zframe;
+#endif
 
     zval *retval = NULL;
+
+#ifndef SW_COROUTINE
     zval *zcallback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "onMessage handler error");
+        swoole_php_error(E_WARNING, "onMessage handler error");
     }
+#else
+    zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
+    int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
+    if (ret != 0)
+    {
+        sw_zval_ptr_dtor(&zdata);
+        sw_zval_ptr_dtor(&zframe);
+        if (ret == CORO_LIMIT)
+        {
+            SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+        }
+        return SW_OK;
+    }
+#endif
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
