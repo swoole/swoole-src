@@ -733,6 +733,7 @@ typedef struct _swMsgQueue
 } swMsgQueue;
 
 int swMsgQueue_create(swMsgQueue *q, int wait, key_t msg_key, long type);
+void swMsgQueue_set_blocking(swMsgQueue *q, uint8_t blocking);
 int swMsgQueue_push(swMsgQueue *p, swQueue_data *in, int data_length);
 int swMsgQueue_pop(swMsgQueue *p, swQueue_data *out, int buffer_length);
 int swMsgQueue_stat(swMsgQueue *q, int *queue_num, int *queue_bytes);
