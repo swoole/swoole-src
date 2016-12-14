@@ -759,9 +759,12 @@ static PHP_METHOD(swoole_process, pop)
     {
         RETURN_FALSE;
     }
-    if (maxsize <= 0 || maxsize > SW_MSGMAX)
+    if (maxsize > SW_MSGMAX)
     {
         maxsize = SW_MSGMAX;
+    } else if (maxsize <= 0)
+    {
+        maxsize = 8192;
     }
     swWorker *process = swoole_get_object(getThis());
     if (!process->queue)
