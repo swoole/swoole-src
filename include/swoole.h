@@ -733,10 +733,11 @@ typedef struct _swMsgQueue
 } swMsgQueue;
 
 int swMsgQueue_create(swMsgQueue *q, int wait, key_t msg_key, long type);
-int swMsgQueue_push(swMsgQueue *p, swQueue_data *in, int data_length);
-int swMsgQueue_pop(swMsgQueue *p, swQueue_data *out, int buffer_length);
+void swMsgQueue_set_blocking(swMsgQueue *q, uint8_t blocking);
+int swMsgQueue_push(swMsgQueue *q, swQueue_data *in, int data_length);
+int swMsgQueue_pop(swMsgQueue *q, swQueue_data *out, int buffer_length);
 int swMsgQueue_stat(swMsgQueue *q, int *queue_num, int *queue_bytes);
-void swMsgQueue_free(swMsgQueue *p);
+void swMsgQueue_free(swMsgQueue *q);
 
 //------------------Lock--------------------------------------
 enum SW_LOCKS

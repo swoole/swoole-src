@@ -446,8 +446,7 @@ PHP_FUNCTION(swoole_async_write)
             open_flag |= O_DIRECT;
             if (offset < 0)
             {
-                swoole_php_fatal_error(E_WARNING, "cannot use FILE_APPEND with linux native aio.", fcnt_len,
-                        SW_AIO_MAX_FILESIZE);
+                swoole_php_fatal_error(E_WARNING, "cannot use FILE_APPEND with linux native aio.");
                 RETURN_FALSE;
             }
         }
@@ -602,8 +601,7 @@ PHP_FUNCTION(swoole_async_writefile)
         open_flag |= O_DIRECT;
         if (flags & PHP_FILE_APPEND)
         {
-            swoole_php_fatal_error(E_WARNING, "cannot use FILE_APPEND with linux native aio.",
-                       fcnt_len, SW_AIO_MAX_FILESIZE);
+            swoole_php_fatal_error(E_WARNING, "cannot use FILE_APPEND with linux native aio.");
             RETURN_FALSE;
         }
     }
