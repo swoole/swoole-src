@@ -723,6 +723,8 @@ static PHP_METHOD(swoole_mysql, connect)
         RETURN_FALSE;
     }
 
+    php_swoole_array_separate(server_info);
+
     HashTable *_ht = Z_ARRVAL_P(server_info);
     zval *value;
 
