@@ -14,15 +14,23 @@ function callback_function(swoole_process $worker)
 }
 
 $process = new swoole_process('callback_function', false, false);
-$process->useQueue();
+$process->useQueue(ftok(__FILE__, 1), 2 | swoole_process::IPC_NOWAIT);
 
-$bytes = 0;
+$send_bytes = 0;
 foreach(range(1, 10) as $i)
 {
-    $data = "hello worker[$i]\n";
-    $bytes += strlen($data);
+    $data = str_repeat('A', 65535);
+//    $data = "hello worker[$i]\n";
+    $send_bytes += strlen($data);
     $process->push($data);
 }
 
-echo "bytes={$bytes}\n";
+$recv_bytes = 0;
+$r_data = true;
+while($r_data)
+{
+    $r_data = $process->pop();
+    $recv_bytes += $r_data;
+}
+echo "send={$send_bytes}, recv=$recv_bytes\n";
 var_dump($process->statQueue());

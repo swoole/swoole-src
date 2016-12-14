@@ -135,7 +135,8 @@ static inline int SW_Z_TYPE_P(zval *z)
     }
 }
 
-#define sw_php_var_serialize(a,b,c)       php_var_serialize(a,&b,c)
+#define sw_php_var_serialize(a,b,c)         php_var_serialize(a,&b,c)
+#define sw_zend_get_executed_filename()     zend_get_executed_filename(TSRMLS_C)
 #define IS_TRUE    1
 inline int SW_Z_TYPE_P(zval *z);
 #define SW_Z_TYPE_PP(z)        SW_Z_TYPE_P(*z)
@@ -143,6 +144,8 @@ inline int SW_Z_TYPE_P(zval *z);
 #define sw_php_var_serialize                php_var_serialize
 typedef size_t zend_size_t;
 #define ZEND_SET_SYMBOL(ht,str,arr)         zval_add_ref(arr); zend_hash_str_update(ht, str, sizeof(str)-1, arr);
+
+
 
 static sw_inline int Z_BVAL_P(zval *v)
 {
@@ -249,6 +252,7 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval** 
 #define sw_zend_hash_copy(target,source,pCopyConstructor,tmp,size) zend_hash_copy(target,source,pCopyConstructor)
 #define sw_php_array_merge                                          php_array_merge
 #define sw_zend_register_internal_class_ex(entry,parent_ptr,str)    zend_register_internal_class_ex(entry,parent_ptr)
+#define sw_zend_get_executed_filename()                             zend_get_executed_filename()
 
 #define sw_zend_call_method_with_0_params(obj, ptr, what, method, retval) \
     zval __retval;\

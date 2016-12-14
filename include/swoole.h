@@ -285,9 +285,10 @@ SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
 exit(1)
 
 #define swSysError(str,...) SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str " Error: %s[%d].",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
-swLog_put(SW_LOG_ERROR, sw_error);\
-SwooleGS->lock_2.unlock(&SwooleGS->lock_2)
+    snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str " Error: %s[%d].",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\
+    swLog_put(SW_LOG_ERROR, sw_error);\
+    SwooleG.error=errno;\
+    SwooleGS->lock_2.unlock(&SwooleGS->lock_2)
 
 #define swoole_error_log(level, __errno, str, ...)      do{SwooleG.error=__errno;\
     if (level >= SwooleG.log_level){\
@@ -726,7 +727,7 @@ typedef struct _swMsgQueue
 {
     int blocking;
     int msg_id;
-    int ipc_wait;
+    int flags;
     uint8_t remove;
     long type;
 } swMsgQueue;
