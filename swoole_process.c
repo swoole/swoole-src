@@ -47,6 +47,8 @@ static zval *signal_callback[SW_SIGNO_MAX];
 static zend_class_entry swoole_process_ce;
 zend_class_entry *swoole_process_class_entry_ptr;
 
+#define MSGQUEUE_NOWAIT    (1 << 8)
+
 static const zend_function_entry swoole_process_methods[] =
 {
     PHP_ME(swoole_process, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
@@ -79,6 +81,7 @@ void swoole_process_init(int module_number TSRMLS_DC)
     SWOOLE_INIT_CLASS_ENTRY(swoole_process_ce, "swoole_process", "Swoole\\Process", swoole_process_methods);
     swoole_process_class_entry_ptr = zend_register_internal_class(&swoole_process_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_process, "Swoole\\Process");
+    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("IPC_NOWAIT")-1, MSGQUEUE_NOWAIT TSRMLS_CC);
     /**
      * 31 signal constants
      */
@@ -252,17 +255,18 @@ static PHP_METHOD(swoole_process, useQueue)
 
     if (msgkey <= 0)
     {
-#if PHP_MAJOR_VERSION >= 7
-        msgkey = ftok(zend_get_executed_filename(), 0);
-#else
-        msgkey = ftok(zend_get_executed_filename(TSRMLS_C), 0);
-#endif
+        msgkey = ftok(sw_zend_get_executed_filename(), 1);
     }
 
     swMsgQueue *queue = emalloc(sizeof(swMsgQueue));
     if (swMsgQueue_create(queue, 1, msgkey, 0) < 0)
     {
         RETURN_FALSE;
+    }
+    if (mode & MSGQUEUE_NOWAIT)
+    {
+        swMsgQueue_set_blocking(queue, 0);
+        mode = mode & (~MSGQUEUE_NOWAIT);
     }
     queue->remove = 0;
     process->queue = queue;
@@ -713,7 +717,7 @@ static PHP_METHOD(swoole_process, push)
     struct
     {
         long type;
-        char data[65536];
+        char data[SW_MSGMAX];
     } message;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &data, &length) == FAILURE)
@@ -759,10 +763,12 @@ static PHP_METHOD(swoole_process, pop)
     {
         RETURN_FALSE;
     }
-    if (maxsize <= 0 || maxsize > SW_MSGMAX)
+
+    if (maxsize > SW_MSGMAX || maxsize <= 0)
     {
         maxsize = SW_MSGMAX;
     }
+
     swWorker *process = swoole_get_object(getThis());
     if (!process->queue)
     {
@@ -788,7 +794,6 @@ static PHP_METHOD(swoole_process, pop)
     int n = swMsgQueue_pop(process->queue, (swQueue_data *) &message, maxsize);
     if (n < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "msgrcv() failed. Error: %s[%d]", strerror(errno), errno);
         RETURN_FALSE;
     }
     SW_RETURN_STRINGL(message.data, n, 1);

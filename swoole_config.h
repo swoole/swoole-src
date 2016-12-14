@@ -133,7 +133,7 @@
 #define SW_REACTOR_USE_SESSION
 #define SW_SESSION_LIST_SIZE             (1024*1024)
 
-#define SW_MSGMAX                        8192
+#define SW_MSGMAX                        65536
 
 /**
  * 最大Reactor线程数量，默认会启动CPU核数的线程数
