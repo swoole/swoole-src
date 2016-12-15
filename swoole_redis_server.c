@@ -192,7 +192,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     args[0] = &zfd;
     args[1] = &zparams;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_error(E_WARNING, "command handler error.");
     }
