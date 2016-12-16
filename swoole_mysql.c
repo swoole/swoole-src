@@ -1114,13 +1114,15 @@ static void swoole_mysql_onConnect(mysql_client *client TSRMLS_DC)
         sw_zval_ptr_dtor(&retval);
     }
     sw_zval_ptr_dtor(&result);
-
-    retval = NULL;
-    //close
-    sw_zend_call_method_with_0_params(&zobject, swoole_mysql_class_entry_ptr, NULL, "close", &retval);
-    if (retval)
+    if (client->connector.error_code > 0)
     {
-        sw_zval_ptr_dtor(&retval);
+        retval = NULL;
+        //close
+        sw_zend_call_method_with_0_params(&zobject, swoole_mysql_class_entry_ptr, NULL, "close", &retval);
+        if (retval)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
     }
 }
 
