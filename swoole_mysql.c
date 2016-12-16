@@ -1080,7 +1080,7 @@ static void swoole_mysql_onConnect(mysql_client *client TSRMLS_DC)
     zval *zobject = client->object;
     zval *callback = sw_zend_read_property(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("onConnect"), 0 TSRMLS_CC);
 
-    zval *retval;
+    zval *retval = NULL;
     zval *result;
     zval **args[2];
 
