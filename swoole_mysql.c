@@ -1091,12 +1091,6 @@ static void swoole_mysql_onConnect(mysql_client *client TSRMLS_DC)
         zend_update_property_stringl(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("connect_error"), client->connector.error_msg, client->connector.error_length TSRMLS_CC);
         zend_update_property_long(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("connect_errno"), client->connector.error_code TSRMLS_CC);
         ZVAL_BOOL(result, 0);
-        //close
-        sw_zend_call_method_with_0_params(&zobject, swoole_mysql_class_entry_ptr, NULL, "close", &retval);
-        if (retval)
-        {
-            sw_zval_ptr_dtor(&retval);
-        }
     }
     else
     {
@@ -1120,6 +1114,14 @@ static void swoole_mysql_onConnect(mysql_client *client TSRMLS_DC)
         sw_zval_ptr_dtor(&retval);
     }
     sw_zval_ptr_dtor(&result);
+
+    retval = NULL;
+    //close
+    sw_zend_call_method_with_0_params(&zobject, swoole_mysql_class_entry_ptr, NULL, "close", &retval);
+    if (retval)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
 }
 
 static int swoole_mysql_onWrite(swReactor *reactor, swEvent *event)
