@@ -101,6 +101,9 @@ static void http_parse_cookie(zval *array, const char *at, size_t length);
 static void http_build_header(http_context *, zval *object, swString *response, int body_length TSRMLS_DC);
 static int http_trim_double_quote(zval **value, char **ptr);
 
+#define http_strncasecmp(const_str, at, length) ((length >= sizeof(const_str)-1) &&\
+        (strncasecmp(at, ZEND_STRL(const_str)) == 0))
+
 static inline void http_header_key_format(char *key, int length)
 {
     int i, state = 0;
@@ -495,13 +498,11 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
     {
         if (strncmp(header_name, "content-type", header_len) == 0)
         {
-            if (swoole_length_gt("application/x-www-form-urlencoded", length)
-                    && strncasecmp(at, ZEND_STRL("application/x-www-form-urlencoded")) == 0)
+            if (http_strncasecmp("application/x-www-form-urlencoded", at, length))
             {
                 ctx->request.post_form_urlencoded = 1;
             }
-            else if (swoole_length_gt("multipart/form-data", length)
-                    && strncasecmp(at, ZEND_STRL("multipart/form-data")) == 0)
+            else if (http_strncasecmp("multipart/form-data", at, length))
             {
                 int boundary_len = length - (sizeof("multipart/form-data; boundary=") - 1);
                 if (boundary_len <= 0)
