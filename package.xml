@@ -35,10 +35,10 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2016-12-07</date>
+    <date>2016-12-19</date>
     <time>15:12:00</time>
     <version>
-		<release>1.9.1</release>
+		<release>1.9.2</release>
 		<api>1.9</api>
     </version>
     <stability>
@@ -47,15 +47,13 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed server cannot shutdown when using addProcess
-- Fixed Async::write function does not set the callback function to crash
-- Fixed a problem with the Table Iterator missing data
-- Added Async::writeFile FILE_APPEND option supports
-- Added file lock to Async::write/read function
-- Refactor the implementation of the Async::write function, using O_APPEND
-- Refactor reopen the reopen log file feature
-- Fixed taskWaitMulti unable to return to the results of the successful implementation of the task after a timeout
-- Timers use monotonic time to solve the system time to modify the problem caused by timer confusion
+- Fixed zend_mm_heap corrupted on PHP7
+- Fixed Async::writeFile parameter FILE_APPEND is invalid on MacOS
+- Disabling Async::writeFile Use the FILE_APPEND parameter in LinuxAIO mode
+- Added websocket_subprotocol option WebSocket server supports setting Sec-WebSocket-Protocol
+- Fixed CentOS 4.3 or lower operating system does not exist O_CLOEXEC causes compilation to fail
+- Fixed server tasking_num overflow bugs
+- Added ucwords parameter to response header method
     </notes>
 	<contents>
 		<dir name="/">
