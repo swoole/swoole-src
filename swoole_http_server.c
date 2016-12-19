@@ -211,9 +211,51 @@ static sw_inline char* http_get_method_name(int method)
     }
 }
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_void, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_server_on, 0, 0, 2)
     ZEND_ARG_INFO(0, ha_name)
     ZEND_ARG_INFO(0, cb)
+ZEND_END_ARG_INFO()
+
+#ifdef SW_HAVE_ZLIB
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_gzip, 0, 0, 0)
+    ZEND_ARG_INFO(0, compress_level)
+ZEND_END_ARG_INFO()
+#endif
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_status, 0, 0, 1)
+    ZEND_ARG_INFO(0, http_code)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_header, 0, 0, 2)
+    ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, value)
+    ZEND_ARG_INFO(0, ucwords)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_cookie, 0, 0, 1)
+    ZEND_ARG_INFO(0, name)
+    ZEND_ARG_INFO(0, value)
+    ZEND_ARG_INFO(0, expires)
+    ZEND_ARG_INFO(0, path)
+    ZEND_ARG_INFO(0, domain)
+    ZEND_ARG_INFO(0, secure)
+    ZEND_ARG_INFO(0, httponly)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_write, 0, 0, 1)
+    ZEND_ARG_INFO(0, content)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_end, 0, 0, 0)
+    ZEND_ARG_INFO(0, content)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_sendfile, 0, 0, 1)
+    ZEND_ARG_INFO(0, filename)
+    ZEND_ARG_INFO(0, offset)
 ZEND_END_ARG_INFO()
 
 static const php_http_parser_settings http_parser_settings =
@@ -244,30 +286,30 @@ static const multipart_parser_settings mt_parser_settings =
 const zend_function_entry swoole_http_server_methods[] =
 {
     PHP_ME(swoole_http_server, on,         arginfo_swoole_http_server_on, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_server, start,      NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_server, start,      arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
 const zend_function_entry swoole_http_request_methods[] =
 {
-    PHP_ME(swoole_http_request, rawcontent, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_request, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
+    PHP_ME(swoole_http_request, rawcontent, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_request, __destruct, arginfo_swoole_http_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_FE_END
 };
 
 const zend_function_entry swoole_http_response_methods[] =
 {
-    PHP_ME(swoole_http_response, cookie, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, rawcookie, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, status, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, cookie, arginfo_swoole_http_response_cookie, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, rawcookie, arginfo_swoole_http_response_cookie, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, status, arginfo_swoole_http_response_status, ZEND_ACC_PUBLIC)
 #ifdef SW_HAVE_ZLIB
-    PHP_ME(swoole_http_response, gzip, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, gzip, arginfo_swoole_http_response_gzip, ZEND_ACC_PUBLIC)
 #endif
-    PHP_ME(swoole_http_response, header, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, write, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, end, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, sendfile, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
+    PHP_ME(swoole_http_response, header, arginfo_swoole_http_response_header, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, write, arginfo_swoole_http_response_write, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, end, arginfo_swoole_http_response_end, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, sendfile, arginfo_swoole_http_response_sendfile, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, __destruct, arginfo_swoole_http_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_FE_END
 };
 
@@ -2217,8 +2259,9 @@ static PHP_METHOD(swoole_http_response, header)
 {
     char *k, *v;
     zend_size_t klen, vlen;
+    zend_bool ucwords = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss", &k, &klen, &v, &vlen) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|b", &k, &klen, &v, &vlen, &ucwords) == FAILURE)
     {
         return;
     }
@@ -2245,18 +2288,27 @@ static PHP_METHOD(swoole_http_response, header)
         swoole_php_error(E_WARNING, "header value is too long.");
         RETURN_FALSE;
     }
-    char key_buf[SW_HTTP_HEADER_KEY_SIZE];
-    memcpy(key_buf, k, klen);
-    key_buf[klen] = '\0';
-    if (ctx->http2)
+
+    if (ucwords)
     {
-        swoole_strtolower(key_buf, klen);
+        char key_buf[SW_HTTP_HEADER_KEY_SIZE];
+        memcpy(key_buf, k, klen);
+        key_buf[klen] = '\0';
+        if (ctx->http2)
+        {
+            swoole_strtolower(key_buf, klen);
+        }
+        else
+        {
+            http_header_key_format(key_buf, klen);
+        }
+        sw_add_assoc_stringl_ex(zheader, key_buf, klen + 1, v, vlen, 1);
     }
     else
     {
-        http_header_key_format(key_buf, klen);
+        sw_add_assoc_stringl_ex(zheader, k, klen + 1, v, vlen, 1);
     }
-    sw_add_assoc_stringl_ex(zheader, key_buf, klen + 1, v, vlen, 1);
+
 }
 
 #ifdef SW_HAVE_ZLIB
