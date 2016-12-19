@@ -1634,23 +1634,23 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
             {
                 break;
             }
-            if (strncmp(key, "Server", keylen) == 0)
+            if (strncasecmp(key, "Server", keylen) == 0)
             {
                 flag |= HTTP_RESPONSE_SERVER;
             }
-            else if (strncmp(key, "Connection", keylen) == 0)
+            else if (strncasecmp(key, "Connection", keylen) == 0)
             {
                 flag |= HTTP_RESPONSE_CONNECTION;
             }
-            else if (strncmp(key, "Content-Length", keylen) == 0)
+            else if (strncasecmp(key, "Content-Length", keylen) == 0)
             {
                 flag |= HTTP_RESPONSE_CONTENT_LENGTH;
             }
-            else if (strncmp(key, "Date", keylen) == 0)
+            else if (strncasecmp(key, "Date", keylen) == 0)
             {
                 flag |= HTTP_RESPONSE_DATE;
             }
-            else if (strncmp(key, "Content-Type", keylen) == 0)
+            else if (strncasecmp(key, "Content-Type", keylen) == 0)
             {
                 flag |= HTTP_RESPONSE_CONTENT_TYPE;
             }
@@ -1679,18 +1679,21 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
         {
             swString_append_ptr(response, ZEND_STRL("Allow: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS\r\nContent-Length: 0\r\n"));
         }
-        else
+        else if (body_length > 0)
         {
-            if (!(flag & HTTP_RESPONSE_CONTENT_LENGTH) && body_length >= 0)
-            {
+
 #ifdef SW_HAVE_ZLIB
-                if (ctx->gzip_enable)
-                {
-                    body_length = swoole_zlib_buffer->length;
-                }
+            if (ctx->gzip_enable)
+            {
+                body_length = swoole_zlib_buffer->length;
+            }
 #endif
-                n = snprintf(buf, sizeof(buf), "Content-Length: %d\r\n", body_length);
-                swString_append_ptr(response, buf, n);
+            n = snprintf(buf, sizeof(buf), "Content-Length: %d\r\n", body_length);
+            swString_append_ptr(response, buf, n);
+
+            if (!(flag & HTTP_RESPONSE_CONTENT_TYPE))
+            {
+                swString_append_ptr(response, ZEND_STRL("Content-Type: text/html\r\n"));
             }
         }
         if (!(flag & HTTP_RESPONSE_DATE))
@@ -1699,10 +1702,6 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
             n = snprintf(buf, sizeof(buf), "Date: %s\r\n", date_str);
             swString_append_ptr(response, buf, n);
             efree(date_str);
-        }
-        if (!(flag & HTTP_RESPONSE_CONTENT_TYPE))
-        {
-            swString_append_ptr(response, ZEND_STRL("Content-Type: text/html\r\n"));
         }
     }
     else
@@ -1727,7 +1726,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
             n = snprintf(buf, sizeof(buf), "Allow: GET, POST, PUT, DELETE, HEAD, OPTIONS\r\nContent-Length: %d\r\n", 0);
             swString_append_ptr(response, buf, n);
         }
-        else if (body_length >= 0)
+        else if (body_length > 0)
         {
 #ifdef SW_HAVE_ZLIB
             if (ctx->gzip_enable)
