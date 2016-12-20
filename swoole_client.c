@@ -1239,11 +1239,6 @@ static PHP_METHOD(swoole_client, recv)
         RETURN_FALSE;
     }
 
-    if ((flags & MSG_WAITALL) && buf_len > SW_PHP_CLIENT_BUFFER_SIZE)
-    {
-        buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
-    }
-
     if (cli->socket->active == 0)
     {
         swoole_php_error(E_WARNING, "server is not connected.");
@@ -1377,6 +1372,10 @@ static PHP_METHOD(swoole_client, recv)
     }
     else
     {
+        if (!(flags & MSG_WAITALL) && buf_len > SW_PHP_CLIENT_BUFFER_SIZE)
+        {
+            buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
+        }
         buf = emalloc(buf_len + 1);
         SwooleG.error = 0;
         ret = cli->recv(cli, buf, buf_len, flags);
