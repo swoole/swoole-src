@@ -568,7 +568,6 @@ typedef int (*swProtocol_length_function)(struct _swProtocol *, swConnection *, 
 //------------------------------String--------------------------------
 #define swoole_tolower(c)      (u_char) ((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
 #define swoole_toupper(c)      (u_char) ((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
-#define swoole_length_gt(str,len) (len > sizeof(str)-1)
 
 uint32_t swoole_utf8_decode(u_char **p, size_t n);
 size_t swoole_utf8_length(u_char *p, size_t n);

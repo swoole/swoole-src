@@ -34,6 +34,7 @@ typedef struct
 } swSignal;
 
 static swSignal signals[SW_SIGNO_MAX];
+static int _lock = 0;
 
 static void swSignal_async_handler(int signo);
 
@@ -110,7 +111,14 @@ static void swSignal_async_handler(int signo)
     }
     else
     {
+        //discard signal
+        if (_lock)
+        {
+            return;
+        }
+        _lock = 1;
         swSignal_callback(signo);
+        _lock = 0;
     }
 }
 

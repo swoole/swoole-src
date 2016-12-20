@@ -154,33 +154,92 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
     }
 }
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_void, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_construct, 0, 0, 1)
+    ZEND_ARG_INFO(0, type)
+    ZEND_ARG_INFO(0, async)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_set, 0, 0, 1)
+    ZEND_ARG_ARRAY_INFO(0, settings, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_connect, 0, 0, 1)
+    ZEND_ARG_INFO(0, host)
+    ZEND_ARG_INFO(0, port)
+    ZEND_ARG_INFO(0, timeout)
+    ZEND_ARG_INFO(0, sock_flag)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_recv, 0, 0, 0)
+    ZEND_ARG_INFO(0, size)
+    ZEND_ARG_INFO(0, flag)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_send, 0, 0, 1)
+    ZEND_ARG_INFO(0, data)
+    ZEND_ARG_INFO(0, flag)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_pipe, 0, 0, 1)
+    ZEND_ARG_INFO(0, dst_socket)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_sendfile, 0, 0, 1)
+    ZEND_ARG_INFO(0, filename)
+    ZEND_ARG_INFO(0, offset)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_sendto, 0, 0, 3)
+    ZEND_ARG_INFO(0, ip)
+    ZEND_ARG_INFO(0, port)
+    ZEND_ARG_INFO(0, data)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_close, 0, 0, 0)
+    ZEND_ARG_INFO(0, force)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_on, 0, 0, 2)
+    ZEND_ARG_INFO(0, event_name)
+    ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
+
+#ifdef SW_USE_OPENSSL
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_enableSSL, 0, 0, 0)
+    ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
+#endif
+
 static const zend_function_entry swoole_client_methods[] =
 {
-    PHP_ME(swoole_client, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-    PHP_ME(swoole_client, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
-    PHP_ME(swoole_client, set, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, connect, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, recv, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, send, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, pipe, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, sendfile, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, sendto, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, sleep, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, wakeup, NULL, ZEND_ACC_PUBLIC)
-    PHP_MALIAS(swoole_client, pause, sleep, NULL, ZEND_ACC_PUBLIC)
-    PHP_MALIAS(swoole_client, resume, wakeup, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, __construct, arginfo_swoole_client_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_client, __destruct, arginfo_swoole_client_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
+    PHP_ME(swoole_client, set, arginfo_swoole_client_set, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, connect, arginfo_swoole_client_connect, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, recv, arginfo_swoole_client_recv, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, send, arginfo_swoole_client_send, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, pipe, arginfo_swoole_client_pipe, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, sendfile, arginfo_swoole_client_sendfile, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, sendto, arginfo_swoole_client_sendto, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, sleep, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, wakeup, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_client, pause, sleep, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_client, resume, wakeup, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
 #ifdef SW_USE_OPENSSL
-    PHP_ME(swoole_client, enableSSL, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, getPeerCert, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, verifyPeerCert, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, enableSSL, arginfo_swoole_client_enableSSL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, getPeerCert, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, verifyPeerCert, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
 #endif
-    PHP_ME(swoole_client, isConnected, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, getsockname, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, getpeername, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, close, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, on, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, isConnected, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, getsockname, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, getpeername, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, close, arginfo_swoole_client_close, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, on, arginfo_swoole_client_on, ZEND_ACC_PUBLIC)
 #ifdef SWOOLE_SOCKETS_SUPPORT
-    PHP_ME(swoole_client, getSocket, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, getSocket, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
 #endif
     PHP_FE_END
 };

@@ -48,7 +48,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server__construct, 0, 0, 2)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_set_oo, 0, 0, 1)
-    ZEND_ARG_INFO(0, zset)
+    ZEND_ARG_ARRAY_INFO(0, settings, 0)
 ZEND_END_ARG_INFO()
 
 //for object style
@@ -73,20 +73,23 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_protect, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 //for object style
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_sendto_oo, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_sendto, 0, 0, 3)
     ZEND_ARG_INFO(0, ip)
     ZEND_ARG_INFO(0, port)
     ZEND_ARG_INFO(0, send_data)
+    ZEND_ARG_INFO(0, server_socket)
 ZEND_END_ARG_INFO()
 
 //for object style
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_sendfile_oo, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_sendfile, 0, 0, 2)
     ZEND_ARG_INFO(0, conn_fd)
     ZEND_ARG_INFO(0, filename)
+    ZEND_ARG_INFO(0, offset)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_close_oo, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_close, 0, 0, 1)
     ZEND_ARG_INFO(0, fd)
+    ZEND_ARG_INFO(0, reset)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_pause, 0, 0, 1)
@@ -101,9 +104,15 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_confirm, 0, 0, 1)
     ZEND_ARG_INFO(0, fd)
 ZEND_END_ARG_INFO()
 
+#ifdef SWOOLE_SOCKETS_SUPPORT
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_getSocket, 0, 0, 0)
+    ZEND_ARG_INFO(0, port)
+ZEND_END_ARG_INFO()
+#endif
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_on, 0, 0, 2)
-    ZEND_ARG_INFO(0, name)
-    ZEND_ARG_INFO(0, cb)
+    ZEND_ARG_INFO(0, event_name)
+    ZEND_ARG_INFO(0, callback)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_listen, 0, 0, 3)
@@ -116,6 +125,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_task, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
     ZEND_ARG_INFO(0, worker_id)
+    ZEND_ARG_INFO(0, finish_callback)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_taskwait, 0, 0, 1)
@@ -125,7 +135,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_taskwait, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_taskWaitMulti_oo, 0, 0, 1)
-    ZEND_ARG_INFO(0, tasks)
+    ZEND_ARG_ARRAY_INFO(0, tasks, 0)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
@@ -140,9 +150,22 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_heartbeat_oo, 0, 0, 1)
     ZEND_ARG_INFO(0, reactor_id)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_stop, 0, 0, 0)
+    ZEND_ARG_INFO(0, worker_id)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_bind, 0, 0, 2)
     ZEND_ARG_INFO(0, fd)
     ZEND_ARG_INFO(0, uid)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_sendMessage, 0, 0, 2)
+    ZEND_ARG_INFO(0, dst_worker_id)
+    ZEND_ARG_INFO(0, data)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_addProcess, 0, 0, 1)
+    ZEND_ARG_OBJ_INFO(0, process, swoole_process, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_connection_info, 0, 0, 1)
@@ -158,7 +181,16 @@ ZEND_END_ARG_INFO()
 //arginfo event
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_add, 0, 0, 2)
     ZEND_ARG_INFO(0, fd)
-    ZEND_ARG_INFO(0, cb)
+    ZEND_ARG_INFO(0, read_callback)
+    ZEND_ARG_INFO(0, write_callback)
+    ZEND_ARG_INFO(0, events)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_set, 0, 0, 1)
+    ZEND_ARG_INFO(0, fd)
+    ZEND_ARG_INFO(0, read_callback)
+    ZEND_ARG_INFO(0, write_callback)
+    ZEND_ARG_INFO(0, events)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_write, 0, 0, 2)
@@ -194,7 +226,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_clear, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_set, 0, 0, 1)
-    ZEND_ARG_INFO(0, settings)
+    ZEND_ARG_ARRAY_INFO(0, settings, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_readfile, 0, 0, 2)
@@ -206,6 +238,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_writefile, 0, 0, 2)
     ZEND_ARG_INFO(0, filename)
     ZEND_ARG_INFO(0, content)
     ZEND_ARG_INFO(0, callback)
+    ZEND_ARG_INFO(0, flags)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_read, 0, 0, 2)
@@ -274,7 +307,7 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_last_error, arginfo_swoole_void)
     /*------swoole_event-----*/
     PHP_FE(swoole_event_add, arginfo_swoole_event_add)
-    PHP_FE(swoole_event_set, NULL)
+    PHP_FE(swoole_event_set, arginfo_swoole_event_set)
     PHP_FE(swoole_event_del, arginfo_swoole_event_del)
     PHP_FE(swoole_event_exit, arginfo_swoole_void)
     PHP_FE(swoole_event_wait, arginfo_swoole_void)
@@ -311,12 +344,12 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, set, arginfo_swoole_server_set_oo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, start, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, send, arginfo_swoole_server_send_oo, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server, sendto, arginfo_swoole_server_sendto_oo, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, sendto, arginfo_swoole_server_sendto, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, sendwait, arginfo_swoole_server_sendwait, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, exist, arginfo_swoole_server_exist, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, protect, arginfo_swoole_server_protect, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server, sendfile, arginfo_swoole_server_sendfile_oo, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server, close, arginfo_swoole_server_close_oo, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, sendfile, arginfo_swoole_server_sendfile, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, close, arginfo_swoole_server_close, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, confirm, arginfo_swoole_server_confirm, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, pause, arginfo_swoole_server_pause, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, resume, arginfo_swoole_server_resume, ZEND_ACC_PUBLIC)
@@ -326,7 +359,7 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, finish, arginfo_swoole_server_finish_oo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, reload, arginfo_swoole_server_reload_oo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, shutdown, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server, stop, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, stop, arginfo_swoole_server_stop, ZEND_ACC_PUBLIC)
     PHP_FALIAS(getLastError, swoole_last_error, arginfo_swoole_void)
     PHP_ME(swoole_server, heartbeat, arginfo_swoole_server_heartbeat_oo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, connection_info, arginfo_swoole_connection_info, ZEND_ACC_PUBLIC)
@@ -340,11 +373,11 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_FALIAS(clearTimer, swoole_timer_clear, arginfo_swoole_timer_clear)
     PHP_FALIAS(defer, swoole_event_defer, arginfo_swoole_event_defer)
     //process
-    PHP_ME(swoole_server, sendMessage, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server, addProcess, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server, stats, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, sendMessage, arginfo_swoole_server_sendMessage, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, addProcess, arginfo_swoole_server_addProcess, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, stats, arginfo_swoole_void, ZEND_ACC_PUBLIC)
 #ifdef SWOOLE_SOCKETS_SUPPORT
-    PHP_ME(swoole_server, getSocket, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, getSocket, arginfo_swoole_server_getSocket, ZEND_ACC_PUBLIC)
 #endif
     PHP_ME(swoole_server, bind, arginfo_swoole_server_bind, ZEND_ACC_PUBLIC)
     {NULL, NULL, NULL}
@@ -380,7 +413,7 @@ static const zend_function_entry swoole_event_methods[] =
 {
     ZEND_FENTRY(add, ZEND_FN(swoole_event_add), arginfo_swoole_event_add, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(del, ZEND_FN(swoole_event_del), arginfo_swoole_event_del, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(set, ZEND_FN(swoole_event_set), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(set, ZEND_FN(swoole_event_set), arginfo_swoole_event_set, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(exit, ZEND_FN(swoole_event_exit), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(write, ZEND_FN(swoole_event_write), arginfo_swoole_event_write, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(wait, ZEND_FN(swoole_event_wait), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
