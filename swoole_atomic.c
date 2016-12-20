@@ -23,17 +23,41 @@ static PHP_METHOD(swoole_atomic, get);
 static PHP_METHOD(swoole_atomic, set);
 static PHP_METHOD(swoole_atomic, cmpset);
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_construct, 0, 0, 0)
+    ZEND_ARG_INFO(0, value)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_add, 0, 0, 0)
+    ZEND_ARG_INFO(0, add_value)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_sub, 0, 0, 0)
+    ZEND_ARG_INFO(0, sub_value)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_get, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_set, 0, 0, 1)
+    ZEND_ARG_INFO(0, value)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_cmpset, 0, 0, 2)
+    ZEND_ARG_INFO(0, cmp_value)
+    ZEND_ARG_INFO(0, new_value)
+ZEND_END_ARG_INFO()
+
 static zend_class_entry swoole_atomic_ce;
 zend_class_entry *swoole_atomic_class_entry_ptr;
 
 static const zend_function_entry swoole_atomic_methods[] =
 {
-    PHP_ME(swoole_atomic, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-    PHP_ME(swoole_atomic, add, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic, sub, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic, get, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic, set, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic, cmpset, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic, __construct, arginfo_swoole_atomic_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_atomic, add, arginfo_swoole_atomic_add, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic, sub, arginfo_swoole_atomic_sub, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic, get, arginfo_swoole_atomic_get, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic, set, arginfo_swoole_atomic_set, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic, cmpset, arginfo_swoole_atomic_cmpset, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 

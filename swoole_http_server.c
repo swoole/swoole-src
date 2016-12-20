@@ -218,8 +218,8 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_server_on, 0, 0, 2)
-    ZEND_ARG_INFO(0, ha_name)
-    ZEND_ARG_INFO(0, cb)
+    ZEND_ARG_INFO(0, event_name)
+    ZEND_ARG_INFO(0, callback)
 ZEND_END_ARG_INFO()
 
 #ifdef SW_HAVE_ZLIB
