@@ -44,7 +44,9 @@
 static swArray *http_client_array;
 
 swString *swoole_http_buffer;
+#ifdef SW_HAVE_ZLIB
 swString *swoole_zlib_buffer;
+#endif
 swString *swoole_http_form_data_buffer;
 
 enum http_global_flag

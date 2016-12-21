@@ -179,6 +179,8 @@ extern zend_class_entry swoole_http_request_ce;
 extern zend_class_entry *swoole_http_request_class_entry_ptr;
 
 extern swString *swoole_http_buffer;
+#ifdef SW_HAVE_ZLIB
 extern swString *swoole_zlib_buffer;
+#endif
 
 #endif /* SWOOLE_HTTP_H_ */
