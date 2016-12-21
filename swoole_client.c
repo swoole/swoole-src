@@ -1003,6 +1003,11 @@ static PHP_METHOD(swoole_client, connect)
     if (cli->async)
     {
         client_callback *cb = swoole_get_property(getThis(), 0);
+        if (!cb)
+        {
+            swoole_php_fatal_error(E_ERROR, "no event callback function.");
+            RETURN_FALSE;
+        }
 
         if (swSocket_is_stream(cli->type))
         {
