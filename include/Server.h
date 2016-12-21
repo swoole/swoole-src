@@ -557,23 +557,7 @@ static sw_inline void swServer_free_buffer(swServer *serv, int fd)
 
 static sw_inline swListenPort* swServer_get_port(swServer *serv, int fd)
 {
-    sw_atomic_t server_fd = 0;
-    int i;
-    for (i = 0; i < 128; i++)
-    {
-        server_fd = serv->connection_list[fd].from_fd;
-        if (server_fd > 0)
-        {
-            break;
-        }
-        swYield();
-    }
-#if defined(__GNUC__)
-    if (i > 0)
-    {
-        swWarn("get port failed, count=%d. gcc version=%d.%d", i, __GNUC__, __GNUC_MINOR__);
-    }
-#endif
+    sw_atomic_t server_fd = serv->connection_list[fd].from_fd;
     return (swListenPort*) serv->connection_list[server_fd].object;
 }
 
