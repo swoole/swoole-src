@@ -16,6 +16,7 @@
 
 #include "php_swoole.h"
 #include "socks5.h"
+#include "module.h"
 
 #include "ext/standard/basic_functions.h"
 
@@ -440,6 +441,39 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
             return;
         }
     }
+    //length function
+    if (php_swoole_array_get_value(vht, "package_length_func", v))
+    {
+        while(1)
+        {
+            if (Z_TYPE_P(v) == IS_STRING)
+            {
+                swProtocol_length_function func = swModule_get_global_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
+                if (func != NULL)
+                {
+                    cli->protocol.get_package_length = func;
+                    break;
+                }
+            }
+
+            char *func_name = NULL;
+            if (!sw_zend_is_callable(v, 0, &func_name TSRMLS_CC))
+            {
+                swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+                efree(func_name);
+                return;
+            }
+            efree(func_name);
+            cli->protocol.get_package_length = php_swoole_length_func;
+            sw_zval_add_ref(&v);
+            cli->protocol.private_data = sw_zval_dup(v);
+            break;
+        }
+
+        cli->protocol.package_length_size = 0;
+        cli->protocol.package_length_type = '\0';
+        cli->protocol.package_length_offset = SW_BUFFER_SIZE;
+    }
     //package length offset
     if (php_swoole_array_get_value(vht, "package_length_offset", v))
     {
@@ -714,6 +748,11 @@ void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
     if (cli->socks5_proxy)
     {
         efree(cli->socks5_proxy);
+    }
+    if (cli->protocol.private_data)
+    {
+        zval *zcallback = cli->protocol.private_data;
+        sw_zval_free(zcallback);
     }
     //long tcp connection, delete from php_sw_long_connections
     if (cli->keep)

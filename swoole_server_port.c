@@ -20,8 +20,6 @@
 zend_class_entry swoole_server_port_ce;
 zend_class_entry *swoole_server_port_class_entry_ptr;
 
-static int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
-
 static PHP_METHOD(swoole_server_port, __construct);
 static PHP_METHOD(swoole_server_port, __destruct);
 static PHP_METHOD(swoole_server_port, on);
@@ -60,46 +58,6 @@ void swoole_server_port_init(int module_number TSRMLS_DC)
     SWOOLE_INIT_CLASS_ENTRY(swoole_server_port_ce, "swoole_server_port", "Swoole\\Server\\Port", swoole_server_port_methods);
     swoole_server_port_class_entry_ptr = zend_register_internal_class(&swoole_server_port_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_server_port, "Swoole\\Server\\Port");
-}
-
-static int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
-{
-    SwooleG.lock.lock(&SwooleG.lock);
-    SWOOLE_GET_TSRMLS;
-
-    zval *zdata;
-    zval *retval = NULL;
-
-    SW_MAKE_STD_ZVAL(zdata);
-    SW_ZVAL_STRINGL(zdata, data, length, 1);
-
-    zval **args[1];
-    args[0] = &zdata;
-
-    zval *callback = protocol->private_data;
-
-    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
-    {
-        swoole_php_fatal_error(E_WARNING, "onPipeMessage handler error.");
-        goto error;
-    }
-    if (EG(exception))
-    {
-        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
-        goto error;
-    }
-    sw_zval_ptr_dtor(&zdata);
-    if (retval != NULL)
-    {
-        convert_to_long(retval);
-        int length = Z_LVAL_P(retval);
-        sw_zval_ptr_dtor(&retval);
-        SwooleG.lock.unlock(&SwooleG.lock);
-        return length;
-    }
-    error:
-    SwooleG.lock.unlock(&SwooleG.lock);
-    return -1;
 }
 
 static PHP_METHOD(swoole_server_port, __construct)
@@ -311,6 +269,7 @@ static PHP_METHOD(swoole_server_port, set)
             }
             efree(func_name);
             port->protocol.get_package_length = php_swoole_length_func;
+            sw_zval_add_ref(&v);
             port->protocol.private_data = sw_zval_dup(v);
             break;
         }

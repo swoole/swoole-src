@@ -271,6 +271,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_strerror, 0, 0, 1)
     ZEND_ARG_INFO(0, errno)
 ZEND_END_ARG_INFO()
 
+#ifdef HAVE_PCRE
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_connection_iterator_offsetExists, 0, 0, 1)
     ZEND_ARG_INFO(0, fd)
 ZEND_END_ARG_INFO()
@@ -287,6 +288,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_connection_iterator_offsetSet, 0, 0, 2)
     ZEND_ARG_INFO(0, fd)
     ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
+#endif
 
 //arginfo end
 
@@ -498,6 +500,46 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
     swoole_globals->socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
     swoole_globals->display_errors = 1;
     swoole_globals->use_namespace = 0;
+}
+
+int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
+{
+    SwooleG.lock.lock(&SwooleG.lock);
+    SWOOLE_GET_TSRMLS;
+
+    zval *zdata;
+    zval *retval = NULL;
+
+    SW_MAKE_STD_ZVAL(zdata);
+    SW_ZVAL_STRINGL(zdata, data, length, 1);
+
+    zval **args[1];
+    args[0] = &zdata;
+
+    zval *callback = protocol->private_data;
+
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    {
+        swoole_php_fatal_error(E_WARNING, "onPipeMessage handler error.");
+        goto error;
+    }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+        goto error;
+    }
+    sw_zval_ptr_dtor(&zdata);
+    if (retval != NULL)
+    {
+        convert_to_long(retval);
+        int length = Z_LVAL_P(retval);
+        sw_zval_ptr_dtor(&retval);
+        SwooleG.lock.unlock(&SwooleG.lock);
+        return length;
+    }
+    error:
+    SwooleG.lock.unlock(&SwooleG.lock);
+    return -1;
 }
 
 static sw_inline uint32_t swoole_get_new_size(uint32_t old_size, int handle TSRMLS_DC)
