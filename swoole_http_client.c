@@ -82,7 +82,7 @@ typedef struct
     zend_size_t tmp_header_field_name_len;
 
 #ifdef SW_HAVE_ZLIB
-    z_stream stream;
+    z_stream gzip_stream;
 #endif
 
     /**
@@ -368,7 +368,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
      */
     if (hcc->download_file)
     {
-        int fd = open(Z_STRVAL_P(hcc->download_file), O_CREAT | O_WRONLY, 0633);
+        int fd = open(Z_STRVAL_P(hcc->download_file), O_CREAT | O_WRONLY, 0664);
         if (fd < 0)
         {
             swSysError("open(%s, O_CREAT | O_WRONLY) failed.", Z_STRVAL_P(hcc->download_file));
@@ -669,6 +669,11 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
         close(http->file_fd);
         http->download = 0;
         http->file_fd = 0;
+    }
+    if (http->gzip)
+    {
+        inflateEnd(&http->gzip_stream);
+        http->gzip = 0;
     }
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
@@ -1102,6 +1107,11 @@ static void http_client_free(zval *object TSRMLS_DC)
     {
         swString_free(http->body);
     }
+    if (http->gzip)
+    {
+        inflateEnd(&http->gzip_stream);
+        http->gzip = 0;
+    }
     swClient *cli = http->cli;
     if (cli)
     {
@@ -1534,10 +1544,21 @@ static int http_client_parser_on_header_value(php_http_parser *parser, const cha
     else if (strcasecmp(header_name, "Content-Encoding") == 0 && strncasecmp(at, "gzip", length) == 0)
     {
         http->gzip = 1;
-        memset(&http->stream, 0, sizeof(http->stream));
-        if (Z_OK != inflateInit2(&http->stream, MAX_WBITS + 16))
+        memset(&http->gzip_stream, 0, sizeof(http->gzip_stream));
+        if (Z_OK != inflateInit2(&http->gzip_stream, MAX_WBITS + 16))
         {
             swWarn("inflateInit2() failed.");
+            return SW_ERR;
+        }
+        swString_clear(swoole_zlib_buffer);
+    }
+    else if (strcasecmp(header_name, "Content-Encoding") == 0 && strncasecmp(at, "deflate", length) == 0)
+    {
+        http->gzip = 1;
+        memset(&http->gzip_stream, 0, sizeof(http->gzip_stream));
+        if (Z_OK != inflateInit(&http->gzip_stream))
+        {
+            swWarn("inflateInit() failed.");
             return SW_ERR;
         }
         swString_clear(swoole_zlib_buffer);
@@ -1560,8 +1581,8 @@ static int http_response_uncompress(z_stream *stream, char *body, int length)
     stream->next_in = (Bytef *) body;
 
 #if 0
-    printf(SW_START_LINE"\nstatus=%d\tavail_in=%ld,\tavail_out=%ld,\ttotal_in=%ld,\ttotal_out=%ld\n", status, stream->avail_in, stream->avail_out,
-                        stream->total_in, stream->total_out);
+    printf(SW_START_LINE"\nstatus=%d\tavail_in=%ld,\tavail_out=%ld,\ttotal_in=%ld,\ttotal_out=%ld\n", status, gzip_stream->avail_in, gzip_stream->avail_out,
+                        gzip_stream->total_in, gzip_stream->total_out);
 #endif
 
     while (1)
@@ -1572,8 +1593,8 @@ static int http_response_uncompress(z_stream *stream, char *body, int length)
         status = inflate(stream, Z_SYNC_FLUSH);
 
 #if 0
-        printf("status=%d\tavail_in=%ld,\tavail_out=%ld,\ttotal_in=%ld,\ttotal_out=%ld,\tlength=%ld\n", status, stream->avail_in, stream->avail_out,
-                stream->total_in, stream->total_out, swoole_zlib_buffer->length);
+        printf("status=%d\tavail_in=%ld,\tavail_out=%ld,\ttotal_in=%ld,\ttotal_out=%ld,\tlength=%ld\n", status, gzip_stream->avail_in, gzip_stream->avail_out,
+                gzip_stream->total_in, gzip_stream->total_out, swoole_zlib_buffer->length);
 #endif
         if (status >= 0)
         {
@@ -1581,7 +1602,6 @@ static int http_response_uncompress(z_stream *stream, char *body, int length)
         }
         if (status == Z_STREAM_END)
         {
-            inflateEnd(stream);
             return SW_OK;
         }
         else if (status == Z_OK)
@@ -1597,7 +1617,6 @@ static int http_response_uncompress(z_stream *stream, char *body, int length)
         }
         else
         {
-            inflateEnd(stream);
             return SW_ERR;
         }
     }
@@ -1617,7 +1636,7 @@ static int http_client_parser_on_body(php_http_parser *parser, const char *at, s
 #ifdef SW_HAVE_ZLIB
         if (http->gzip)
         {
-            if (http_response_uncompress(&http->stream, http->body->str, http->body->length))
+            if (http_response_uncompress(&http->gzip_stream, http->body->str, http->body->length))
             {
                 return -1;
             }
@@ -1664,7 +1683,7 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
 #ifdef SW_HAVE_ZLIB
     if (http->gzip && http->body->length > 0)
     {
-        if (http_response_uncompress(&http->stream, http->body->str, http->body->length) == SW_ERR)
+        if (http_response_uncompress(&http->gzip_stream, http->body->str, http->body->length) == SW_ERR)
         {
             swWarn("http_response_uncompress failed.");
             return 0;
