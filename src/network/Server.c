@@ -1072,14 +1072,7 @@ int swServer_add_worker(swServer *serv, swWorker *worker)
     }
 
     serv->user_worker_num++;
-
-    swWorker *_shm_worker = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swWorker));
-    if (_shm_worker == NULL)
-    {
-        return SW_ERR;
-    }
-    memcpy(_shm_worker, worker, sizeof(swWorker));
-    user_worker->worker = _shm_worker;
+    user_worker->worker = worker;
 
     LL_APPEND(serv->user_worker_list, user_worker);
     if (!serv->user_worker_map)
