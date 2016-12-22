@@ -803,6 +803,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
 
 static void php_swoole_onStart(swServer *serv)
 {
+    SwooleG.lock.lock(&SwooleG.lock);
     SWOOLE_GET_TSRMLS;
 
     zval *zserv = (zval *) serv->ptr2;
@@ -829,6 +830,7 @@ static void php_swoole_onStart(swServer *serv)
     {
         sw_zval_ptr_dtor(&retval);
     }
+    SwooleG.lock.unlock(&SwooleG.lock);
 }
 
 static void php_swoole_onManagerStart(swServer *serv)
@@ -887,6 +889,7 @@ static void php_swoole_onManagerStop(swServer *serv)
 
 static void php_swoole_onShutdown(swServer *serv)
 {
+    SwooleG.lock.lock(&SwooleG.lock);
     zval *zserv = (zval *) serv->ptr2;
     zval **args[1];
     zval *retval = NULL;
@@ -910,6 +913,7 @@ static void php_swoole_onShutdown(swServer *serv)
             sw_zval_ptr_dtor(&retval);
         }
     }
+    SwooleG.lock.unlock(&SwooleG.lock);
 }
 
 static void php_swoole_onWorkerStart(swServer *serv, int worker_id)

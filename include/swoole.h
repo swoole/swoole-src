@@ -561,6 +561,8 @@ typedef struct _swProtocol
     uint16_t package_body_offset;  //第几个字节开始计算长度
     uint32_t package_max_length;
 
+    void *private_data;
+
     int (*onPackage)(swConnection *conn, char *data, uint32_t length);
     int (*get_package_length)(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 } swProtocol;
@@ -1851,6 +1853,7 @@ typedef struct
 
     pthread_t heartbeat_pidt;
 
+    swLock lock;
     swString *module_stack;
     int call_php_func_argc;
     int (*call_php_func)(const char *name);

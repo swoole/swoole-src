@@ -20,6 +20,8 @@
 zend_class_entry swoole_server_port_ce;
 zend_class_entry *swoole_server_port_class_entry_ptr;
 
+static int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
+
 static PHP_METHOD(swoole_server_port, __construct);
 static PHP_METHOD(swoole_server_port, __destruct);
 static PHP_METHOD(swoole_server_port, on);
@@ -58,6 +60,46 @@ void swoole_server_port_init(int module_number TSRMLS_DC)
     SWOOLE_INIT_CLASS_ENTRY(swoole_server_port_ce, "swoole_server_port", "Swoole\\Server\\Port", swoole_server_port_methods);
     swoole_server_port_class_entry_ptr = zend_register_internal_class(&swoole_server_port_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_server_port, "Swoole\\Server\\Port");
+}
+
+static int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
+{
+    SwooleG.lock.lock(&SwooleG.lock);
+    SWOOLE_GET_TSRMLS;
+
+    zval *zdata;
+    zval *retval = NULL;
+
+    SW_MAKE_STD_ZVAL(zdata);
+    SW_ZVAL_STRINGL(zdata, data, length, 1);
+
+    zval **args[1];
+    args[0] = &zdata;
+
+    zval *callback = protocol->private_data;
+
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    {
+        swoole_php_fatal_error(E_WARNING, "onPipeMessage handler error.");
+        goto error;
+    }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+        goto error;
+    }
+    sw_zval_ptr_dtor(&zdata);
+    if (retval != NULL)
+    {
+        convert_to_long(retval);
+        int length = Z_LVAL_P(retval);
+        sw_zval_ptr_dtor(&retval);
+        SwooleG.lock.unlock(&SwooleG.lock);
+        return length;
+    }
+    error:
+    SwooleG.lock.unlock(&SwooleG.lock);
+    return -1;
 }
 
 static PHP_METHOD(swoole_server_port, __construct)
@@ -245,17 +287,34 @@ static PHP_METHOD(swoole_server_port, set)
             RETURN_FALSE;
         }
     }
-    //c/c++ function
+    //length function
     if (php_swoole_array_get_value(vht, "package_length_func", v))
     {
-        convert_to_string(v);
-        swProtocol_length_function func = swModule_get_global_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
-        if (func == NULL)
+        while(1)
         {
-            swoole_php_fatal_error(E_ERROR, "extension module function '%s' is undefined.", Z_STRVAL_P(v));
-            return;
+            if (Z_TYPE_P(v) == IS_STRING)
+            {
+                swProtocol_length_function func = swModule_get_global_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
+                if (func != NULL)
+                {
+                    port->protocol.get_package_length = func;
+                    break;
+                }
+            }
+
+            char *func_name = NULL;
+            if (!sw_zend_is_callable(v, 0, &func_name TSRMLS_CC))
+            {
+                swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+                efree(func_name);
+                return;
+            }
+            efree(func_name);
+            port->protocol.get_package_length = php_swoole_length_func;
+            port->protocol.private_data = sw_zval_dup(v);
+            break;
         }
-        port->protocol.get_package_length = func;
+
         port->protocol.package_length_size = 0;
         port->protocol.package_length_type = '\0';
         port->protocol.package_length_offset = SW_BUFFER_SIZE;
@@ -265,12 +324,20 @@ static PHP_METHOD(swoole_server_port, set)
     {
         convert_to_long(v);
         port->protocol.package_length_offset = (int) Z_LVAL_P(v);
+        if (port->protocol.package_length_offset > SW_BUFFER_SIZE)
+        {
+            swoole_php_fatal_error(E_ERROR, "'package_length_offset' value is too large.");
+        }
     }
     //package body start
     if (php_swoole_array_get_value(vht, "package_body_offset", v) || php_swoole_array_get_value(vht, "package_body_start", v))
     {
         convert_to_long(v);
         port->protocol.package_body_offset = (int) Z_LVAL_P(v);
+        if (port->protocol.package_body_offset > SW_BUFFER_SIZE)
+        {
+            swoole_php_fatal_error(E_ERROR, "'package_body_offset' value is too large.");
+        }
     }
     /**
      * package max length
