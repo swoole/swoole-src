@@ -63,6 +63,7 @@ typedef struct
     zval *request_body;
     zval *request_upload_files;
     zval *download_file;
+    long download_offset;
     char *request_method;
     int callback_index;
 
@@ -374,10 +375,21 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
             swSysError("open(%s, O_CREAT | O_WRONLY) failed.", Z_STRVAL_P(hcc->download_file));
             return SW_ERR;
         }
-        if (ftruncate(fd, 0) < 0)
+        if (hcc->download_offset == 0)
         {
-            swSysError("ftruncate(%s) failed.", Z_STRVAL_P(hcc->download_file));
-            return SW_ERR;
+            if (ftruncate(fd, 0) < 0)
+            {
+                swSysError("ftruncate(%s) failed.", Z_STRVAL_P(hcc->download_file));
+                return SW_ERR;
+            }
+        }
+        else
+        {
+            if (fseek(fd, hcc->download_offset, SEEK_SET) < 0)
+            {
+                swSysError("fseek(%s, %ld) failed.", Z_STRVAL_P(hcc->download_file), hcc->download_offset);
+                return SW_ERR;
+            }
         }
         http->download = 1;
         http->file_fd = fd;
@@ -1741,14 +1753,17 @@ static PHP_METHOD(swoole_http_client, download)
     zend_size_t uri_len = 0;
     zval *finish_cb;
     zval *download_file;
+    long offset = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "szz", &uri, &uri_len, &download_file, &finish_cb) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "szz", &uri, &uri_len, &download_file, &finish_cb, &offset) == FAILURE)
     {
         return;
     }
+
     http_client_property *hcc = swoole_get_property(getThis(), 0);
     zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("downloadFile"), download_file TSRMLS_CC);
     hcc->download_file = sw_zend_read_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("downloadFile"), 1 TSRMLS_CC);
+    hcc->download_offset = offset;
     sw_copy_to_stack(hcc->download_file, hcc->_download_file);
     ret = http_client_execute(getThis(), uri, uri_len, finish_cb TSRMLS_CC);
     SW_CHECK_RETURN(ret);
