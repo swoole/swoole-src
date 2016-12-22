@@ -225,6 +225,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_addFile, 0, 0, 2)
     ZEND_ARG_INFO(0, name)
     ZEND_ARG_INFO(0, type)
     ZEND_ARG_INFO(0, filename)
+    ZEND_ARG_INFO(0, offset)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_execute, 0, 0, 2)
@@ -247,6 +248,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_download, 0, 0, 3)
     ZEND_ARG_INFO(0, path)
     ZEND_ARG_INFO(0, file)
     ZEND_ARG_INFO(0, callback)
+    ZEND_ARG_INFO(0, offset)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_upgrade, 0, 0, 2)
@@ -952,6 +954,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
         zval *zsize;
         zval *zpath;
         zval *zfilename;
+        zval *zoffset;
 
         if (hcc->request_upload_files)
         {
@@ -1027,6 +1030,10 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
                 {
                     continue;
                 }
+                if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("offset"), (void **) &zoffset) == FAILURE)
+                {
+                    continue;
+                }
 
                 n = snprintf(header_buf, sizeof(header_buf), SW_HTTP_FORM_DATA_FORMAT_FILE, sizeof(boundary_str) - 1,
                         boundary_str, Z_STRLEN_P(zname), Z_STRVAL_P(zname), Z_STRLEN_P(zfilename),
@@ -1036,7 +1043,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
                 {
                     goto send_fail;
                 }
-                if ((ret = http->cli->sendfile(http->cli, Z_STRVAL_P(zpath), 0)) < 0)
+                if ((ret = http->cli->sendfile(http->cli, Z_STRVAL_P(zpath), Z_LVAL_P(zoffset))) < 0)
                 {
                     goto send_fail;
                 }
@@ -1320,9 +1327,10 @@ static PHP_METHOD(swoole_http_client, addFile)
     zend_size_t l_type;
     char *filename = NULL;
     zend_size_t l_filename;
+    long offset = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|ss", &path, &l_path, &name, &l_name, &type, &l_type,
-            &filename, &l_filename) == FAILURE)
+            &filename, &l_filename, &offset) == FAILURE)
     {
         return;
     }
@@ -1336,6 +1344,11 @@ static PHP_METHOD(swoole_http_client, addFile)
     if (file_stat.st_size <= 0)
     {
         swoole_php_sys_error(E_WARNING, "file[%s] size <= 0.", path);
+        RETURN_FALSE;
+    }
+    if (offset > file_stat.st_size)
+    {
+        swoole_php_sys_error(E_WARNING, "offset[%ld] is too large.", offset);
         RETURN_FALSE;
     }
     if (type == NULL)
@@ -1379,7 +1392,8 @@ static PHP_METHOD(swoole_http_client, addFile)
     sw_add_assoc_stringl_ex(upload_file, ZEND_STRS("name"), name, l_name, 1);
     sw_add_assoc_stringl_ex(upload_file, ZEND_STRS("filename"), filename, l_filename, 1);
     sw_add_assoc_stringl_ex(upload_file, ZEND_STRS("type"), type, l_type, 1);
-    add_assoc_long(upload_file, "size", file_stat.st_size);
+    add_assoc_long(upload_file, "size", file_stat.st_size - offset);
+    add_assoc_long(upload_file, "offset", offset);
 
     add_next_index_zval(hcc->request_upload_files, upload_file);
     RETURN_TRUE;
