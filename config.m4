@@ -51,7 +51,7 @@ PHP_ARG_WITH(swoole, swoole support,
 [  --with-swoole           With swoole support])
 
 PHP_ARG_WITH(openssl_dir, for OpenSSL support,
-[  --with-openssl[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
+[  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
 
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
