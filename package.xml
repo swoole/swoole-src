@@ -35,10 +35,10 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2016-12-19</date>
+    <date>2016-12-23</date>
     <time>15:12:00</time>
     <version>
-		<release>1.9.2</release>
+		<release>1.9.3</release>
 		<api>1.9</api>
     </version>
     <stability>
@@ -47,13 +47,12 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed zend_mm_heap corrupted on PHP7
-- Fixed Async::writeFile parameter FILE_APPEND is invalid on MacOS
-- Disabling Async::writeFile Use the FILE_APPEND parameter in LinuxAIO mode
-- Added websocket_subprotocol option WebSocket server supports setting Sec-WebSocket-Protocol
-- Fixed CentOS 4.3 or lower operating system does not exist O_CLOEXEC causes compilation to fail
-- Fixed server tasking_num overflow bugs
-- Added ucwords parameter to response header method
+- Added extension function args info
+- Added package_length_func option
+- Added http_client download method
+- Fixed issue#965
+- Fixed issue#966
+- Fixed issue#967
     </notes>
 	<contents>
 		<dir name="/">
