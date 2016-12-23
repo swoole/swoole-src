@@ -63,7 +63,7 @@ typedef struct
     zval *request_body;
     zval *request_upload_files;
     zval *download_file;
-    long download_offset;
+    off_t download_offset;
     char *request_method;
     int callback_index;
 
@@ -387,7 +387,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
         }
         else
         {
-            if (fseek(fd, hcc->download_offset, SEEK_SET) < 0)
+            if (lseek(fd, hcc->download_offset, SEEK_SET) < 0)
             {
                 swSysError("fseek(%s, %ld) failed.", Z_STRVAL_P(hcc->download_file), hcc->download_offset);
                 return SW_ERR;
@@ -1767,7 +1767,7 @@ static PHP_METHOD(swoole_http_client, download)
     zend_size_t uri_len = 0;
     zval *finish_cb;
     zval *download_file;
-    long offset = 0;
+    off_t offset = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "szz", &uri, &uri_len, &download_file, &finish_cb, &offset) == FAILURE)
     {
