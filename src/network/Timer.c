@@ -21,7 +21,7 @@ static int swReactorTimer_set(swTimer *timer, long exec_msec);
 
 static int swReactorTimer_now(struct timeval *time)
 {
-#ifdef SW_USE_MONOTONIC_TIME
+#if defined(SW_USE_MONOTONIC_TIME) && defined(CLOCK_MONOTONIC)
     struct timespec _now;
     if (clock_gettime(CLOCK_MONOTONIC, &_now) < 0)
     {

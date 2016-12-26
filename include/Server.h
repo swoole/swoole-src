@@ -209,6 +209,11 @@ typedef struct _swListenPort
      * open tcp keepalive
      */
     uint32_t open_ssl_encrypt :1;
+    /**
+     * Sec-WebSocket-Protocol
+     */
+    char *websocket_subprotocol;
+    uint16_t websocket_subprotocol_length;
 
 #ifdef SW_USE_OPENSSL
     char *ssl_cert_file;
@@ -514,7 +519,7 @@ int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
 
 void swServer_init(swServer *serv);
-void swServer_signal_init(void);
+void swServer_signal_init(swServer *serv);
 int swServer_start(swServer *serv);
 swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port);
 void swServer_close_port(swServer *serv, enum swBool_type only_stream_port);
@@ -887,6 +892,7 @@ int swWorker_loop(swFactory *factory, int worker_pti);
 int swWorker_send2reactor(swEventData *ev_data, size_t sendn, int fd);
 int swWorker_send2worker(swWorker *dst_worker, void *buf, int n, int flag);
 void swWorker_signal_handler(int signo);
+void swWorker_signal_init(void);
 void swWorker_clean(void);
 
 /**
