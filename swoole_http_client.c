@@ -131,7 +131,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
 
 #ifdef SW_HAVE_ZLIB
 static int http_response_uncompress(z_stream *stream, char *body, int length);
-static int http_init_gzip_stream(http_client *);
+static void http_init_gzip_stream(http_client *);
 extern voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);
 extern void php_zlib_free(voidpf opaque, voidpf address);
 #endif
