@@ -135,6 +135,8 @@ static inline void http_header_key_format(char *key, int length)
 
 #ifdef SW_HAVE_ZLIB
 static int http_response_compress(swString *body, int level);
+voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);
+void php_zlib_free(voidpf opaque, voidpf address);
 #endif
 
 static PHP_METHOD(swoole_http_server, on);
@@ -1775,12 +1777,12 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
 }
 
 #ifdef SW_HAVE_ZLIB
-static voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size)
+voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size)
 {
     return (voidpf)safe_emalloc(items, size, 0);
 }
 
-static void php_zlib_free(voidpf opaque, voidpf address)
+void php_zlib_free(voidpf opaque, voidpf address)
 {
     efree((void*)address);
 }

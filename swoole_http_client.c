@@ -129,6 +129,13 @@ static http_client* http_client_create(zval *object TSRMLS_DC);
 static void http_client_free(zval *object TSRMLS_DC);
 static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zval *callback TSRMLS_DC);
 
+#ifdef SW_HAVE_ZLIB
+static int http_response_uncompress(z_stream *stream, char *body, int length);
+static int http_init_gzip_stream(http_client *);
+extern voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);
+extern void php_zlib_free(voidpf opaque, voidpf address);
+#endif
+
 static sw_inline void http_client_swString_append_headers(swString* swStr, char* key, zend_size_t key_len, char* data, zend_size_t data_len)
 {
     swString_append_ptr(swStr, key, key_len);
@@ -684,11 +691,13 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
         http->download = 0;
         http->file_fd = 0;
     }
+#ifdef SW_HAVE_ZLIB
     if (http->gzip)
     {
         inflateEnd(&http->gzip_stream);
         http->gzip = 0;
     }
+#endif
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onReactorCallback handler error");
@@ -1126,11 +1135,13 @@ static void http_client_free(zval *object TSRMLS_DC)
     {
         swString_free(http->body);
     }
+#ifdef SW_HAVE_ZLIB
     if (http->gzip)
     {
         inflateEnd(&http->gzip_stream);
         http->gzip = 0;
     }
+#endif
     swClient *cli = http->cli;
     if (cli)
     {
@@ -1569,25 +1580,21 @@ static int http_client_parser_on_header_value(php_http_parser *parser, const cha
 #ifdef SW_HAVE_ZLIB
     else if (strcasecmp(header_name, "Content-Encoding") == 0 && strncasecmp(at, "gzip", length) == 0)
     {
-        http->gzip = 1;
-        memset(&http->gzip_stream, 0, sizeof(http->gzip_stream));
+        http_init_gzip_stream(http);
         if (Z_OK != inflateInit2(&http->gzip_stream, MAX_WBITS + 16))
         {
             swWarn("inflateInit2() failed.");
             return SW_ERR;
         }
-        swString_clear(swoole_zlib_buffer);
     }
     else if (strcasecmp(header_name, "Content-Encoding") == 0 && strncasecmp(at, "deflate", length) == 0)
     {
-        http->gzip = 1;
-        memset(&http->gzip_stream, 0, sizeof(http->gzip_stream));
+        http_init_gzip_stream(http);
         if (Z_OK != inflateInit(&http->gzip_stream))
         {
             swWarn("inflateInit() failed.");
             return SW_ERR;
         }
-        swString_clear(swoole_zlib_buffer);
     }
 #endif
     else if (strcasecmp(header_name, "Transfer-Encoding") == 0 && strncasecmp(at, "chunked", length) == 0)
@@ -1599,6 +1606,18 @@ static int http_client_parser_on_header_value(php_http_parser *parser, const cha
 }
 
 #ifdef SW_HAVE_ZLIB
+/**
+ * init zlib stream
+ */
+static void http_init_gzip_stream(http_client *http)
+{
+    http->gzip = 1;
+    memset(&http->gzip_stream, 0, sizeof(http->gzip_stream));
+    swString_clear(swoole_zlib_buffer);
+    http->gzip_stream.zalloc = php_zlib_alloc;
+    http->gzip_stream.zfree = php_zlib_free;
+}
+
 static int http_response_uncompress(z_stream *stream, char *body, int length)
 {
     int status = 0;
