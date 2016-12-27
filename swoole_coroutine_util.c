@@ -256,7 +256,7 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func)
     swoole_corountine_call_function(&fci, &fci_cache, return_value_ptr, 0, return_value_used);
 #else
     swoole_php_fatal_error(E_ERROR, "swoole reflection is deprecated in php7");
-    return_FALSE;
+    RETURN_FALSE;
 #endif
 }
 
