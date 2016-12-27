@@ -160,6 +160,9 @@ sw_copy_to_stack(ctx->class.z##name, ctx->request._z##name);\
 sw_zval_ptr_dtor(&z##name);\
 z##name = ctx->class.z##name;
 
+#define http_strncasecmp(const_str, at, length) ((length >= sizeof(const_str)-1) &&\
+        (strncasecmp(at, ZEND_STRL(const_str)) == 0))
+
 #ifdef SW_USE_HTTP2
 /**
  * Http v2
@@ -179,6 +182,8 @@ extern zend_class_entry swoole_http_request_ce;
 extern zend_class_entry *swoole_http_request_class_entry_ptr;
 
 extern swString *swoole_http_buffer;
+#ifdef SW_HAVE_ZLIB
 extern swString *swoole_zlib_buffer;
+#endif
 
 #endif /* SWOOLE_HTTP_H_ */

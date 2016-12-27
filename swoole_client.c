@@ -16,6 +16,7 @@
 
 #include "php_swoole.h"
 #include "socks5.h"
+#include "module.h"
 
 #include "ext/standard/basic_functions.h"
 
@@ -258,6 +259,7 @@ void swoole_client_init(int module_number TSRMLS_DC)
     zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_bool(swoole_client_class_entry_ptr, SW_STRL("reuse")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("reuseCount")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
 
     php_sw_long_connections = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
 
@@ -439,6 +441,39 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
             swoole_php_fatal_error(E_ERROR, "Unknown package_length_type name '%c', see pack(). Link: http://php.net/pack", cli->protocol.package_length_type);
             return;
         }
+    }
+    //length function
+    if (php_swoole_array_get_value(vht, "package_length_func", v))
+    {
+        while(1)
+        {
+            if (Z_TYPE_P(v) == IS_STRING)
+            {
+                swProtocol_length_function func = swModule_get_global_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
+                if (func != NULL)
+                {
+                    cli->protocol.get_package_length = func;
+                    break;
+                }
+            }
+
+            char *func_name = NULL;
+            if (!sw_zend_is_callable(v, 0, &func_name TSRMLS_CC))
+            {
+                swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+                efree(func_name);
+                return;
+            }
+            efree(func_name);
+            cli->protocol.get_package_length = php_swoole_length_func;
+            sw_zval_add_ref(&v);
+            cli->protocol.private_data = sw_zval_dup(v);
+            break;
+        }
+
+        cli->protocol.package_length_size = 0;
+        cli->protocol.package_length_type = '\0';
+        cli->protocol.package_length_offset = SW_BUFFER_SIZE;
     }
     //package length offset
     if (php_swoole_array_get_value(vht, "package_length_offset", v))
@@ -715,6 +750,11 @@ void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
     {
         efree(cli->socks5_proxy);
     }
+    if (cli->protocol.private_data)
+    {
+        zval *zcallback = cli->protocol.private_data;
+        sw_zval_free(zcallback);
+    }
     //long tcp connection, delete from php_sw_long_connections
     if (cli->keep)
     {
@@ -806,6 +846,8 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
             {
                 swSocket_clean(cli->socket->fd);
             }
+            cli->reuse_count ++;
+            zend_update_property_long(swoole_client_class_entry_ptr, object, ZEND_STRL("reuseCount"), cli->reuse_count TSRMLS_CC);
         }
     }
     else
@@ -1003,6 +1045,11 @@ static PHP_METHOD(swoole_client, connect)
     if (cli->async)
     {
         client_callback *cb = swoole_get_property(getThis(), 0);
+        if (!cb)
+        {
+            swoole_php_fatal_error(E_ERROR, "no event callback function.");
+            RETURN_FALSE;
+        }
 
         if (swSocket_is_stream(cli->type))
         {
@@ -1239,11 +1286,6 @@ static PHP_METHOD(swoole_client, recv)
         RETURN_FALSE;
     }
 
-    if ((flags & MSG_WAITALL) && buf_len > SW_PHP_CLIENT_BUFFER_SIZE)
-    {
-        buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
-    }
-
     if (cli->socket->active == 0)
     {
         swoole_php_error(E_WARNING, "server is not connected.");
@@ -1377,6 +1419,10 @@ static PHP_METHOD(swoole_client, recv)
     }
     else
     {
+        if (!(flags & MSG_WAITALL) && buf_len > SW_PHP_CLIENT_BUFFER_SIZE)
+        {
+            buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
+        }
         buf = emalloc(buf_len + 1);
         SwooleG.error = 0;
         ret = cli->recv(cli, buf, buf_len, flags);

@@ -423,6 +423,7 @@ int php_swoole_onReceive(swServer *, swEventData *);
 void php_swoole_onClose(swServer *, swDataHead *);
 void php_swoole_onBufferFull(swServer *, swDataHead *);
 void php_swoole_onBufferEmpty(swServer *, swDataHead *);
+int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 
 static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type)
 {

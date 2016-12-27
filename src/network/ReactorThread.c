@@ -836,6 +836,14 @@ void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
 static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
 {
     swServer *serv = reactor->ptr;
+    /**
+     * invalid event
+     * The server has been actively closed the connection, the client also initiated off, fd has been reused.
+     */
+    if (event->socket->from_fd == 0)
+    {
+        return SW_OK;
+    }
     swListenPort *port = swServer_get_port(serv, event->fd);
 #ifdef SW_USE_OPENSSL
     if (swReactorThread_verify_ssl_state(reactor, port, event->socket) < 0)

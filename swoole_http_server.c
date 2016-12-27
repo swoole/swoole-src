@@ -47,7 +47,9 @@
 static swArray *http_client_array;
 
 swString *swoole_http_buffer;
+#ifdef SW_HAVE_ZLIB
 swString *swoole_zlib_buffer;
+#endif
 swString *swoole_http_form_data_buffer;
 
 enum http_global_flag
@@ -104,9 +106,6 @@ static void http_parse_cookie(zval *array, const char *at, size_t length);
 static void http_build_header(http_context *, zval *object, swString *response, int body_length TSRMLS_DC);
 static int http_trim_double_quote(zval **value, char **ptr);
 
-#define http_strncasecmp(const_str, at, length) ((length >= sizeof(const_str)-1) &&\
-        (strncasecmp(at, ZEND_STRL(const_str)) == 0))
-
 static inline void http_header_key_format(char *key, int length)
 {
     int i, state = 0;
@@ -136,6 +135,8 @@ static inline void http_header_key_format(char *key, int length)
 
 #ifdef SW_HAVE_ZLIB
 static int http_response_compress(swString *body, int level);
+voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);
+void php_zlib_free(voidpf opaque, voidpf address);
 #endif
 
 static PHP_METHOD(swoole_http_server, on);
@@ -1810,12 +1811,12 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
 }
 
 #ifdef SW_HAVE_ZLIB
-static voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size)
+voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size)
 {
     return (voidpf)safe_emalloc(items, size, 0);
 }
 
-static void php_zlib_free(voidpf opaque, voidpf address)
+void php_zlib_free(voidpf opaque, voidpf address)
 {
     efree((void*)address);
 }
