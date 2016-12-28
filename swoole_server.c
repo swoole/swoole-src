@@ -2419,7 +2419,10 @@ PHP_METHOD(swoole_server, taskWaitMulti)
         break;
     }
 
+    worker->lock.lock(&worker->lock);
     swString *content = swoole_file_get_contents(_tmpfile);
+    worker->lock.unlock(&worker->lock);
+
     if (content == NULL)
     {
         RETURN_FALSE;
