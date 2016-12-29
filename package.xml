@@ -35,24 +35,23 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2016-10-25</date>
-    <time>16:48:51</time>
+    <date>2016-12-29</date>
+    <time>20:48:51</time>
     <version>
-		<release>1.8.13</release>
-		<api>1.8</api>
+		<release>2.0.3</release>
+		<api>2.0</api>
     </version>
     <stability>
-        <release>stable</release>
-        <api>stable</api>
+        <release>beta</release>
+        <api>beta</api>
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed WebSocket\Server automatically merge the incomplete data frame exists security vulnerabilities
-- Added the upload_tmp_dir option to set the Http\Server upload file temporary directory
-- Added Server->sendMessage automatic stringing function, and now sendMessage PHP variables can be sent to any other work process
-- Added Process::alarm high-precision timer
-- Fixed a bug where the protocol length function crashed when the connection was closed
-- Fixed swoole_select function in PHP7 can not modify the reference array problem
+- Added native coroutine
+- Added Swoole\Coroutine\Client
+- Added Swoole\Coroutine\Http\Client
+- Added Swoole\Coroutine\MySQL
+- Added Swoole\Coroutine\Redis
     </notes>
 	<contents>
 		<dir name="/">
@@ -86,6 +85,7 @@
 				<file role="src" name="error.h" />
 				<file role="src" name="module.h" />
 				<file role="src" name="socks5.h" />
+				<file role="src" name="redis.h" />
 			</dir>
 			<file role="src" name="php_swoole.h" />
 			<file role="src" name="php7_wrapper.h" />
@@ -110,9 +110,13 @@
 			<file role="src" name="swoole_mysql.c" />
 			<file role="src" name="swoole_mysql.h" />
 			<file role="src" name="swoole_redis.c" />
+			<file role="src" name="swoole_redis_server.c" />
 			<file role="src" name="swoole_module.c" />
+			<file role="src" name="swoole_mmap.c" />
+			<file role="src" name="swoole_channel.c" />
 			<file role="src" name="swoole_coroutine.h" />
 			<file role="src" name="swoole_coroutine.c" />
+			<file role="src" name="swoole_coroutine_util.c" />
 			<file role="src" name="swoole_client_coro.c" />
 			<file role="src" name="swoole_http_client_coro.c" />
 			<file role="src" name="swoole_redis_coro.c" />
@@ -215,6 +219,7 @@
 					<file role="src" name="Mqtt.c" />
 					<file role="src" name="Socks5.c" />
 					<file role="src" name="MimeTypes.c" />
+					<file role="src" name="Redis.c" />
 				</dir>
 			</dir>
 			<dir name="examples">
