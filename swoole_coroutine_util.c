@@ -240,12 +240,7 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
         longjmp(*swReactorCheckPoint, 1);
     }
 }
-#else
-static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache, zend_bool use_array)
-{
-}
 #endif
-
 
 static PHP_METHOD(swoole_coroutine_util, call_user_func)
 {
@@ -260,7 +255,8 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func)
 #if PHP_MAJOR_VERSION < 7
     swoole_corountine_call_function(&fci, &fci_cache, return_value_ptr, 0, return_value_used);
 #else
-    swoole_corountine_call_function(&fci, &fci_cache, 0);
+    swoole_php_fatal_error(E_ERROR, "swoole reflection is deprecated in php7");
+    RETURN_FALSE;
 #endif
 }
 
