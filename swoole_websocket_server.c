@@ -142,7 +142,9 @@ void swoole_websocket_onReuqest(http_context *ctx)
 
     int n = sprintf(buf, bad_request, strlen(content), content);
     swServer_tcp_send(SwooleG.serv, ctx->fd, buf, n);
+    ctx->end = 1;
     SwooleG.serv->factory.end(&SwooleG.serv->factory, ctx->fd);
+    swoole_http_context_free(ctx TSRMLS_CC);
 }
 
 void php_swoole_sha1(const char *str, int _len, unsigned char *digest)

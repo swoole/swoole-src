@@ -827,16 +827,15 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     args[1] = &ztask_id;
     args[2] = &zdata;
 
-    zval *callback;
+    zval *callback = NULL;
     if (swTask_type(req) & SW_TASK_CALLBACK)
     {
         callback = swHashMap_find_int(task_callbacks, req->info.fd);
     }
-    else
+    if (callback == NULL)
     {
         callback = php_sw_server_callbacks[SW_SERVER_CB_onFinish];
     }
-
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onFinish handler error.");
@@ -2545,7 +2544,10 @@ PHP_METHOD(swoole_server, taskWaitMulti)
         break;
     }
 
+    worker->lock.lock(&worker->lock);
     swString *content = swoole_file_get_contents(_tmpfile);
+    worker->lock.unlock(&worker->lock);
+
     if (content == NULL)
     {
         RETURN_FALSE;

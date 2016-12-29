@@ -1031,6 +1031,10 @@ static int http_onReceive(swServer *serv, swEventData *req)
             if (zcallback == NULL)
             {
                 swoole_websocket_onReuqest(ctx);
+                sw_zval_ptr_dtor(&zrequest_object);
+                sw_zval_ptr_dtor(&zresponse_object);
+                sw_zval_ptr_dtor(&zdata);
+                bzero(client, sizeof(swoole_http_client));
                 return SW_OK;
             }
         }
