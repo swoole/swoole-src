@@ -384,11 +384,11 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
             {
                 if (strncasecmp((char *) nv.name, "content-type", nv.namelen) == 0)
                 {
-                    if (strncasecmp((char *) nv.value, "application/x-www-form-urlencoded", nv.valuelen) == 0)
+                    if (http_strncasecmp("application/x-www-form-urlencoded", (char *) nv.value, nv.valuelen))
                     {
                         ctx->request.post_form_urlencoded = 1;
                     }
-                    else if (strncasecmp((char *) nv.value, "multipart/form-data", nv.valuelen) == 0)
+                    else if (http_strncasecmp("multipart/form-data", (char *) nv.value, nv.valuelen))
                     {
                         int boundary_len = nv.valuelen - strlen("multipart/form-data; boundary=");
                         if (boundary_len <= 0)

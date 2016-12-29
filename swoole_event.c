@@ -165,6 +165,21 @@ void php_swoole_event_wait()
     SWOOLE_GET_TSRMLS;
     if (SwooleWG.in_client == 1 && SwooleWG.reactor_ready == 0 && SwooleG.running)
     {
+#if PHP_MAJOR_VERSION >= 7
+        if (PG(last_error_message))
+        {
+            switch (PG(last_error_type))
+            {
+            case E_ERROR:
+            case E_CORE_ERROR:
+            case E_USER_ERROR:
+            case E_COMPILE_ERROR:
+                return;
+            default:
+                break;
+            }
+        }
+#endif
         SwooleWG.reactor_ready = 1;
 
 #ifdef HAVE_SIGNALFD

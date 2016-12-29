@@ -241,19 +241,16 @@ void swTable_iterator_forward(swTable *table)
             int i = 0;
             for (;; i++)
             {
+                if (row == NULL)
+                {
+                    table->iterator->collision_index = 0;
+                    break;
+                }
                 if (i == table->iterator->collision_index)
                 {
-                    if (row == NULL)
-                    {
-                        table->iterator->collision_index = 0;
-                        break;
-                    }
-                    else
-                    {
-                        table->iterator->collision_index++;
-                        table->iterator->row = row;
-                        return;
-                    }
+                    table->iterator->collision_index++;
+                    table->iterator->row = row;
+                    return;
                 }
                 row = row->next;
             }

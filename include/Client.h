@@ -57,6 +57,8 @@ typedef struct _swClient
     swProtocol protocol;
     struct _swSocks5 *socks5_proxy;
 
+    uint32_t reuse_count;
+
     char *server_str;
     void *ptr;
     void *params;

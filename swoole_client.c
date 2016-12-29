@@ -16,6 +16,7 @@
 
 #include "php_swoole.h"
 #include "socks5.h"
+#include "module.h"
 
 #include "ext/standard/basic_functions.h"
 
@@ -154,33 +155,92 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
     }
 }
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_void, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_construct, 0, 0, 1)
+    ZEND_ARG_INFO(0, type)
+    ZEND_ARG_INFO(0, async)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_set, 0, 0, 1)
+    ZEND_ARG_ARRAY_INFO(0, settings, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_connect, 0, 0, 1)
+    ZEND_ARG_INFO(0, host)
+    ZEND_ARG_INFO(0, port)
+    ZEND_ARG_INFO(0, timeout)
+    ZEND_ARG_INFO(0, sock_flag)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_recv, 0, 0, 0)
+    ZEND_ARG_INFO(0, size)
+    ZEND_ARG_INFO(0, flag)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_send, 0, 0, 1)
+    ZEND_ARG_INFO(0, data)
+    ZEND_ARG_INFO(0, flag)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_pipe, 0, 0, 1)
+    ZEND_ARG_INFO(0, dst_socket)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_sendfile, 0, 0, 1)
+    ZEND_ARG_INFO(0, filename)
+    ZEND_ARG_INFO(0, offset)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_sendto, 0, 0, 3)
+    ZEND_ARG_INFO(0, ip)
+    ZEND_ARG_INFO(0, port)
+    ZEND_ARG_INFO(0, data)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_close, 0, 0, 0)
+    ZEND_ARG_INFO(0, force)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_on, 0, 0, 2)
+    ZEND_ARG_INFO(0, event_name)
+    ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
+
+#ifdef SW_USE_OPENSSL
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_enableSSL, 0, 0, 0)
+    ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
+#endif
+
 static const zend_function_entry swoole_client_methods[] =
 {
-    PHP_ME(swoole_client, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-    PHP_ME(swoole_client, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
-    PHP_ME(swoole_client, set, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, connect, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, recv, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, send, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, pipe, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, sendfile, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, sendto, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, sleep, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, wakeup, NULL, ZEND_ACC_PUBLIC)
-    PHP_MALIAS(swoole_client, pause, sleep, NULL, ZEND_ACC_PUBLIC)
-    PHP_MALIAS(swoole_client, resume, wakeup, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, __construct, arginfo_swoole_client_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_client, __destruct, arginfo_swoole_client_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
+    PHP_ME(swoole_client, set, arginfo_swoole_client_set, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, connect, arginfo_swoole_client_connect, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, recv, arginfo_swoole_client_recv, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, send, arginfo_swoole_client_send, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, pipe, arginfo_swoole_client_pipe, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, sendfile, arginfo_swoole_client_sendfile, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, sendto, arginfo_swoole_client_sendto, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, sleep, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, wakeup, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_client, pause, sleep, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_client, resume, wakeup, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
 #ifdef SW_USE_OPENSSL
-    PHP_ME(swoole_client, enableSSL, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, getPeerCert, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, verifyPeerCert, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, enableSSL, arginfo_swoole_client_enableSSL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, getPeerCert, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, verifyPeerCert, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
 #endif
-    PHP_ME(swoole_client, isConnected, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, getsockname, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, getpeername, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, close, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, on, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, isConnected, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, getsockname, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, getpeername, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, close, arginfo_swoole_client_close, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, on, arginfo_swoole_client_on, ZEND_ACC_PUBLIC)
 #ifdef SWOOLE_SOCKETS_SUPPORT
-    PHP_ME(swoole_client, getSocket, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, getSocket, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
 #endif
     PHP_FE_END
 };
@@ -199,6 +259,7 @@ void swoole_client_init(int module_number TSRMLS_DC)
     zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_bool(swoole_client_class_entry_ptr, SW_STRL("reuse")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("reuseCount")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
 
     php_sw_long_connections = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
 
@@ -380,6 +441,39 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
             swoole_php_fatal_error(E_ERROR, "Unknown package_length_type name '%c', see pack(). Link: http://php.net/pack", cli->protocol.package_length_type);
             return;
         }
+    }
+    //length function
+    if (php_swoole_array_get_value(vht, "package_length_func", v))
+    {
+        while(1)
+        {
+            if (Z_TYPE_P(v) == IS_STRING)
+            {
+                swProtocol_length_function func = swModule_get_global_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
+                if (func != NULL)
+                {
+                    cli->protocol.get_package_length = func;
+                    break;
+                }
+            }
+
+            char *func_name = NULL;
+            if (!sw_zend_is_callable(v, 0, &func_name TSRMLS_CC))
+            {
+                swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+                efree(func_name);
+                return;
+            }
+            efree(func_name);
+            cli->protocol.get_package_length = php_swoole_length_func;
+            sw_zval_add_ref(&v);
+            cli->protocol.private_data = sw_zval_dup(v);
+            break;
+        }
+
+        cli->protocol.package_length_size = 0;
+        cli->protocol.package_length_type = '\0';
+        cli->protocol.package_length_offset = SW_BUFFER_SIZE;
     }
     //package length offset
     if (php_swoole_array_get_value(vht, "package_length_offset", v))
@@ -656,6 +750,11 @@ void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
     {
         efree(cli->socks5_proxy);
     }
+    if (cli->protocol.private_data)
+    {
+        zval *zcallback = cli->protocol.private_data;
+        sw_zval_free(zcallback);
+    }
     //long tcp connection, delete from php_sw_long_connections
     if (cli->keep)
     {
@@ -747,6 +846,8 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
             {
                 swSocket_clean(cli->socket->fd);
             }
+            cli->reuse_count ++;
+            zend_update_property_long(swoole_client_class_entry_ptr, object, ZEND_STRL("reuseCount"), cli->reuse_count TSRMLS_CC);
         }
     }
     else
@@ -944,6 +1045,11 @@ static PHP_METHOD(swoole_client, connect)
     if (cli->async)
     {
         client_callback *cb = swoole_get_property(getThis(), 0);
+        if (!cb)
+        {
+            swoole_php_fatal_error(E_ERROR, "no event callback function.");
+            RETURN_FALSE;
+        }
 
         if (swSocket_is_stream(cli->type))
         {
@@ -1180,11 +1286,6 @@ static PHP_METHOD(swoole_client, recv)
         RETURN_FALSE;
     }
 
-    if ((flags & MSG_WAITALL) && buf_len > SW_PHP_CLIENT_BUFFER_SIZE)
-    {
-        buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
-    }
-
     if (cli->socket->active == 0)
     {
         swoole_php_error(E_WARNING, "server is not connected.");
@@ -1318,6 +1419,10 @@ static PHP_METHOD(swoole_client, recv)
     }
     else
     {
+        if (!(flags & MSG_WAITALL) && buf_len > SW_PHP_CLIENT_BUFFER_SIZE)
+        {
+            buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
+        }
         buf = emalloc(buf_len + 1);
         SwooleG.error = 0;
         ret = cli->recv(cli, buf, buf_len, flags);

@@ -176,6 +176,8 @@ int swReactorProcess_start(swServer *serv)
     swProcessPool_wait(&SwooleGS->event_workers);
     swProcessPool_shutdown(&SwooleGS->event_workers);
 
+    swManager_kill_user_worker(serv);
+
     return SW_OK;
 }
 

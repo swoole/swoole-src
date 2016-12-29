@@ -37,16 +37,16 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_channel_push, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_channel_void, 0, 0, 0)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry swoole_channel_methods[] =
 {
     PHP_ME(swoole_channel, __construct, arginfo_swoole_channel_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-    PHP_ME(swoole_channel, __destruct, arginfo_swoole_channel_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
+    PHP_ME(swoole_channel, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_channel, push, arginfo_swoole_channel_push, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_channel, pop, arginfo_swoole_channel_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_channel, stats, arginfo_swoole_channel_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_channel, pop, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_channel, stats, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 

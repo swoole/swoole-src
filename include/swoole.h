@@ -561,6 +561,8 @@ typedef struct _swProtocol
     uint16_t package_body_offset;  //第几个字节开始计算长度
     uint32_t package_max_length;
 
+    void *private_data;
+
     int (*onPackage)(swConnection *conn, char *data, uint32_t length);
     int (*get_package_length)(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 } swProtocol;
@@ -568,7 +570,6 @@ typedef int (*swProtocol_length_function)(struct _swProtocol *, swConnection *, 
 //------------------------------String--------------------------------
 #define swoole_tolower(c)      (u_char) ((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
 #define swoole_toupper(c)      (u_char) ((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
-#define swoole_length_gt(str,len) (len > sizeof(str)-1)
 
 uint32_t swoole_utf8_decode(u_char **p, size_t n);
 size_t swoole_utf8_length(u_char *p, size_t n);
@@ -1858,6 +1859,7 @@ typedef struct
 
     pthread_t heartbeat_pidt;
 
+    swLock lock;
     swString *module_stack;
     int call_php_func_argc;
     int (*call_php_func)(const char *name);

@@ -33,7 +33,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_construct, 0, 0, 1)
     ZEND_ARG_INFO(0, table_size)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_column, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_column, 0, 0, 2)
     ZEND_ARG_INFO(0, name)
     ZEND_ARG_INFO(0, type)
     ZEND_ARG_INFO(0, size)
@@ -41,7 +41,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_set, 0, 0, 2)
     ZEND_ARG_INFO(0, key)
-    ZEND_ARG_INFO(0, value)
+    ZEND_ARG_ARRAY_INFO(0, value, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_get, 0, 0, 1)

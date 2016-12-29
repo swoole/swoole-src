@@ -568,7 +568,7 @@ static void swoole_mysql_coro_onConnect(mysql_client *client TSRMLS_DC)
 {
     zval *zobject = client->object;
 
-    zval *retval;
+    zval *retval = NULL;
     zval *result;
 
 	if (client->cli->timeout_id > 0)

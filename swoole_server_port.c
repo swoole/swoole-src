@@ -32,14 +32,26 @@ static PHP_METHOD(swoole_server_port, set);
 static PHP_METHOD(swoole_server_port, getSocket);
 #endif
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_port_set, 0, 0, 1)
+    ZEND_ARG_ARRAY_INFO(0, settings, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_port_on, 0, 0, 2)
+    ZEND_ARG_INFO(0, event_name)
+    ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
+
 const zend_function_entry swoole_server_port_methods[] =
 {
-    PHP_ME(swoole_server_port, __construct,     NULL, ZEND_ACC_PRIVATE | ZEND_ACC_CTOR)
-    PHP_ME(swoole_server_port, __destruct,      NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
-    PHP_ME(swoole_server_port, set,             NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server_port, on,              NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server_port, __construct,     arginfo_swoole_void, ZEND_ACC_PRIVATE | ZEND_ACC_CTOR)
+    PHP_ME(swoole_server_port, __destruct,      arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
+    PHP_ME(swoole_server_port, set,             arginfo_swoole_server_port_set, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server_port, on,              arginfo_swoole_server_port_on, ZEND_ACC_PUBLIC)
 #ifdef SWOOLE_SOCKETS_SUPPORT
-    PHP_ME(swoole_server_port, getSocket,       NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server_port, getSocket,       arginfo_swoole_void, ZEND_ACC_PUBLIC)
 #endif
     PHP_FE_END
 };
@@ -236,17 +248,35 @@ static PHP_METHOD(swoole_server_port, set)
             RETURN_FALSE;
         }
     }
-    //c/c++ function
+    //length function
     if (php_swoole_array_get_value(vht, "package_length_func", v))
     {
-        convert_to_string(v);
-        swProtocol_length_function func = swModule_get_global_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
-        if (func == NULL)
+        while(1)
         {
-            swoole_php_fatal_error(E_ERROR, "extension module function '%s' is undefined.", Z_STRVAL_P(v));
-            return;
+            if (Z_TYPE_P(v) == IS_STRING)
+            {
+                swProtocol_length_function func = swModule_get_global_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
+                if (func != NULL)
+                {
+                    port->protocol.get_package_length = func;
+                    break;
+                }
+            }
+
+            char *func_name = NULL;
+            if (!sw_zend_is_callable(v, 0, &func_name TSRMLS_CC))
+            {
+                swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+                efree(func_name);
+                return;
+            }
+            efree(func_name);
+            port->protocol.get_package_length = php_swoole_length_func;
+            sw_zval_add_ref(&v);
+            port->protocol.private_data = sw_zval_dup(v);
+            break;
         }
-        port->protocol.get_package_length = func;
+
         port->protocol.package_length_size = 0;
         port->protocol.package_length_type = '\0';
         port->protocol.package_length_offset = SW_BUFFER_SIZE;
@@ -256,12 +286,20 @@ static PHP_METHOD(swoole_server_port, set)
     {
         convert_to_long(v);
         port->protocol.package_length_offset = (int) Z_LVAL_P(v);
+        if (port->protocol.package_length_offset > SW_BUFFER_SIZE)
+        {
+            swoole_php_fatal_error(E_ERROR, "'package_length_offset' value is too large.");
+        }
     }
     //package body start
     if (php_swoole_array_get_value(vht, "package_body_offset", v) || php_swoole_array_get_value(vht, "package_body_start", v))
     {
         convert_to_long(v);
         port->protocol.package_body_offset = (int) Z_LVAL_P(v);
+        if (port->protocol.package_body_offset > SW_BUFFER_SIZE)
+        {
+            swoole_php_fatal_error(E_ERROR, "'package_body_offset' value is too large.");
+        }
     }
     /**
      * package max length
