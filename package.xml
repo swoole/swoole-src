@@ -86,6 +86,7 @@
 				<file role="src" name="module.h" />
 				<file role="src" name="socks5.h" />
 				<file role="src" name="redis.h" />
+				<file role="src" name="coroutine.h" />
 			</dir>
 			<file role="src" name="php_swoole.h" />
 			<file role="src" name="php7_wrapper.h" />
