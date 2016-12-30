@@ -197,9 +197,7 @@ static int client_onPackage(swConnection *conn, char *data, uint32_t length)
 
 static void client_onReceive(swClient *cli, char *data, uint32_t length)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SWOOLE_GET_TSRMLS;
     zval *zobject = cli->object;
     swoole_client_coro_property *ccp = swoole_get_property(zobject, 1);
     if (cli->timeout_id > 0)
@@ -249,6 +247,7 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
 
 static void client_onConnect(swClient *cli)
 {
+    SWOOLE_GET_TSRMLS;
     if (cli->timeout_id > 0)
     {
         php_swoole_clear_timer_coro(cli->timeout_id TSRMLS_CC);
@@ -269,9 +268,7 @@ static void client_onConnect(swClient *cli)
 
 static void client_onClose(swClient *cli)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SWOOLE_GET_TSRMLS;
     if (cli->timeout_id > 0)
     {
         php_swoole_clear_timer_coro(cli->timeout_id TSRMLS_CC);
@@ -287,9 +284,7 @@ static void client_onClose(swClient *cli)
 
 static void client_onError(swClient *cli)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    SWOOLE_GET_TSRMLS;
     if (cli->timeout_id > 0)
     {
         php_swoole_clear_timer_coro(cli->timeout_id TSRMLS_CC);
