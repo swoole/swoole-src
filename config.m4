@@ -59,9 +59,6 @@ PHP_ARG_ENABLE(coroutine, whether to enable coroutine,
 PHP_ARG_WITH(swoole, swoole support,
 [  --with-swoole           With swoole support])
 
-PHP_ARG_WITH(openssl, for OpenSSL support,
-[  --with-openssl[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
-
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
     haveext=$[PHP_]translit($1,a-z_-,A-Z__)
