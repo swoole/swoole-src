@@ -54,7 +54,7 @@ PHP_ARG_WITH(openssl_dir, for OpenSSL support,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
 
 PHP_ARG_ENABLE(coroutine, whether to enable coroutine,
-[  --enable-coroutine      Enable coroutine], no, no)
+[  --enable-coroutine      Enable coroutine], yes, no)
 
 PHP_ARG_WITH(swoole, swoole support,
 [  --with-swoole           With swoole support])
@@ -156,6 +156,7 @@ if test "$PHP_SWOOLE" != "no"; then
     if test "$PHP_COROUTINE" != "no"; then
         AC_DEFINE(SW_COROUTINE, 1, [enable ability of coroutine])
     fi
+
     if test "$PHP_SOCKETS" = "yes"; then
 		AC_DEFINE(SW_SOCKETS, 1, [enable sockets support])
     fi
