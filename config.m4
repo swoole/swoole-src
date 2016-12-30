@@ -54,7 +54,7 @@ PHP_ARG_WITH(openssl_dir, for OpenSSL support,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
 
 PHP_ARG_ENABLE(coroutine, whether to enable coroutine,
-[  --enable-coroutine      Enable coroutine], yes, no)
+[  --enable-coroutine      Enable coroutine (requires PHP >= 5.5)], yes, no)
 
 PHP_ARG_WITH(swoole, swoole support,
 [  --with-swoole           With swoole support])
