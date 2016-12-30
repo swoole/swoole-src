@@ -35,10 +35,10 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2016-12-29</date>
+    <date>2016-12-30</date>
     <time>20:48:51</time>
     <version>
-		<release>2.0.3</release>
+		<release>2.0.4</release>
 		<api>2.0</api>
     </version>
     <stability>

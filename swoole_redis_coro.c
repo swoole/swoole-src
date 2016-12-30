@@ -1236,6 +1236,7 @@ static PHP_METHOD(swoole_redis_coro, set)
                 argc += 1;
                 set_type = Z_STRVAL_P(v);
             }
+            (void) idx;
         } ZEND_HASH_FOREACH_END();
 #else
         int type;
@@ -1271,7 +1272,8 @@ static PHP_METHOD(swoole_redis_coro, set)
             } else if (Z_TYPE_PP(v) == IS_STRING && IS_NX_XX_ARG(Z_STRVAL_PP(v))) {
                 argc += 1;
                 set_type = Z_STRVAL_PP(v);
-            }    
+            }
+            (void) idx;
         }
 #endif
     } else if(z_opts && Z_TYPE_P(z_opts) == IS_LONG) {

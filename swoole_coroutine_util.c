@@ -274,7 +274,8 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
 #if PHP_MAJOR_VERSION < 7
     swoole_corountine_call_function(&fci, &fci_cache, return_value_ptr, 1, return_value_used);
 #else
-    swoole_corountine_call_function(&fci, &fci_cache, 1);
+    swoole_php_fatal_error(E_ERROR, "swoole reflection is deprecated in php7");
+    RETURN_FALSE;
 #endif
 }
 
