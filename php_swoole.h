@@ -119,10 +119,6 @@ extern swoole_object_array swoole_objects;
 #ifndef HAVE_OPENSSL
 #error "Enable openssl support, require openssl library."
 #endif
-#else
-#ifdef SW_USE_HTTP2
-#error "Enable http2 support, require --enable-openssl."
-#endif
 #endif
 
 #ifdef SW_SOCKETS
