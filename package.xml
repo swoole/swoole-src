@@ -38,7 +38,7 @@
     <date>2016-12-30</date>
     <time>20:48:51</time>
     <version>
-		<release>2.0.4</release>
+		<release>2.0.5</release>
 		<api>2.0</api>
     </version>
     <stability>
@@ -52,6 +52,8 @@
 - Added Swoole\Coroutine\Http\Client
 - Added Swoole\Coroutine\MySQL
 - Added Swoole\Coroutine\Redis
+- Fixed compile failure with ZTS
+- The minimum version requirement upgrade to 5.5
     </notes>
 	<contents>
 		<dir name="/">
