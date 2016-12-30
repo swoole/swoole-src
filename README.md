@@ -32,6 +32,10 @@ in-memory
 
 Unlike traditional apache/php-fpm stuff, the memory allocated in Swoole will not be free'd after a request, which can improve performance a lot.
 
+coroutine
+----------------
+Swoole 2.0 support from the beginning of the built-in coroutine, you can use fully synchronized code to implement asynchronous program. 
+PHP code without any additional keywords, the underlying automatic coroutine-scheduling.
 
 ## Why Swoole?
 
