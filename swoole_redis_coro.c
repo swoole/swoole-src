@@ -756,11 +756,11 @@ static PHP_METHOD(swoole_redis_coro, close);
 static PHP_METHOD(swoole_redis_coro, multi);
 static PHP_METHOD(swoole_redis_coro, exec);
 
-static void swoole_redis_coro_event_AddRead(void *privdata);
-static void swoole_redis_coro_event_AddWrite(void *privdata);
-static void swoole_redis_coro_event_DelRead(void *privdata);
-static void swoole_redis_coro_event_DelWrite(void *privdata);
-static void swoole_redis_coro_event_Cleanup(void *privdata);
+extern void swoole_redis_event_AddRead(void *privdata);
+extern void swoole_redis_event_AddWrite(void *privdata);
+extern void swoole_redis_event_DelRead(void *privdata);
+extern void swoole_redis_event_DelWrite(void *privdata);
+extern void swoole_redis_event_Cleanup(void *privdata);
 
 static const zend_function_entry swoole_redis_coro_methods[] =
 {
@@ -1045,11 +1045,11 @@ static PHP_METHOD(swoole_redis_coro, connect)
     redisAsyncSetDisconnectCallback(context, swoole_redis_coro_onClose);
 
     redis->context = context;
-    context->ev.addRead = swoole_redis_coro_event_AddRead;
-    context->ev.delRead = swoole_redis_coro_event_DelRead;
-    context->ev.addWrite = swoole_redis_coro_event_AddWrite;
-    context->ev.delWrite = swoole_redis_coro_event_DelWrite;
-    context->ev.cleanup = swoole_redis_coro_event_Cleanup;
+    context->ev.addRead = swoole_redis_event_AddRead;
+    context->ev.delRead = swoole_redis_event_DelRead;
+    context->ev.addWrite = swoole_redis_event_AddWrite;
+    context->ev.delWrite = swoole_redis_event_DelWrite;
+    context->ev.cleanup = swoole_redis_event_Cleanup;
     context->ev.data = redis;
 
     zend_update_property_string(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("host"), host TSRMLS_CC);
@@ -3742,36 +3742,6 @@ static int swoole_redis_onError(swReactor *reactor, swEvent *event)
 	}
 
 	return SW_OK;
-}
-
-static void swoole_redis_coro_event_AddRead(void *privdata)
-{
-    swRedisClient *redis = (swRedisClient*) privdata;
-    swReactor_add_event(SwooleG.main_reactor, redis->context->c.fd, SW_EVENT_READ);
-}
-
-static void swoole_redis_coro_event_DelRead(void *privdata)
-{
-    swRedisClient *redis = (swRedisClient*) privdata;
-    swReactor_del_event(SwooleG.main_reactor, redis->context->c.fd, SW_EVENT_READ);
-}
-
-static void swoole_redis_coro_event_AddWrite(void *privdata)
-{
-    swRedisClient *redis = (swRedisClient*) privdata;
-    swReactor_add_event(SwooleG.main_reactor, redis->context->c.fd, SW_EVENT_WRITE);
-}
-
-static void swoole_redis_coro_event_DelWrite(void *privdata)
-{
-    swRedisClient *redis = (swRedisClient*) privdata;
-    swReactor_del_event(SwooleG.main_reactor, redis->context->c.fd, SW_EVENT_WRITE);
-}
-
-static void swoole_redis_coro_event_Cleanup(void *privdata)
-{
-    swRedisClient *redis = (swRedisClient*) privdata;
-    SwooleG.main_reactor->del(SwooleG.main_reactor, redis->context->c.fd);
 }
 
 static int swoole_redis_coro_onRead(swReactor *reactor, swEvent *event)

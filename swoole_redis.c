@@ -81,11 +81,11 @@ static int swoole_redis_onError(swReactor *reactor, swEvent *event);
 static void swoole_redis_onResult(redisAsyncContext *c, void *r, void *privdata);
 static void swoole_redis_parse_result(swRedisClient *redis, zval* return_value, redisReply* reply TSRMLS_DC);
 
-static void swoole_redis_event_AddRead(void *privdata);
-static void swoole_redis_event_AddWrite(void *privdata);
-static void swoole_redis_event_DelRead(void *privdata);
-static void swoole_redis_event_DelWrite(void *privdata);
-static void swoole_redis_event_Cleanup(void *privdata);
+void swoole_redis_event_AddRead(void *privdata);
+void swoole_redis_event_AddWrite(void *privdata);
+void swoole_redis_event_DelRead(void *privdata);
+void swoole_redis_event_DelWrite(void *privdata);
+void swoole_redis_event_Cleanup(void *privdata);
 
 static zend_class_entry swoole_redis_ce;
 static zend_class_entry *swoole_redis_class_entry_ptr;
@@ -714,7 +714,7 @@ static int swoole_redis_onError(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
-static void swoole_redis_event_AddRead(void *privdata)
+void swoole_redis_event_AddRead(void *privdata)
 {
     swRedisClient *redis = (swRedisClient*) privdata;
     if (redis->context && SwooleG.main_reactor)
@@ -723,7 +723,7 @@ static void swoole_redis_event_AddRead(void *privdata)
     }
 }
 
-static void swoole_redis_event_DelRead(void *privdata)
+void swoole_redis_event_DelRead(void *privdata)
 {
     swRedisClient *redis = (swRedisClient*) privdata;
     if (redis->context && SwooleG.main_reactor)
@@ -732,7 +732,7 @@ static void swoole_redis_event_DelRead(void *privdata)
     }
 }
 
-static void swoole_redis_event_AddWrite(void *privdata)
+void swoole_redis_event_AddWrite(void *privdata)
 {
     swRedisClient *redis = (swRedisClient*) privdata;
     if (redis->context && SwooleG.main_reactor)
@@ -741,7 +741,7 @@ static void swoole_redis_event_AddWrite(void *privdata)
     }
 }
 
-static void swoole_redis_event_DelWrite(void *privdata)
+void swoole_redis_event_DelWrite(void *privdata)
 {
     swRedisClient *redis = (swRedisClient*) privdata;
     if (redis->context && SwooleG.main_reactor)
@@ -750,7 +750,7 @@ static void swoole_redis_event_DelWrite(void *privdata)
     }
 }
 
-static void swoole_redis_event_Cleanup(void *privdata)
+void swoole_redis_event_Cleanup(void *privdata)
 {
     swRedisClient *redis = (swRedisClient*) privdata;
     redis->state = SWOOLE_REDIS_STATE_CLOSED;
