@@ -25,7 +25,6 @@
 #include <setjmp.h>
 
 #include "ext/standard/basic_functions.h"
-#include "ext/standard/php_http.h"
 #include "ext/standard/base64.h"
 
 #include "websocket.h"
@@ -54,15 +53,12 @@ typedef enum
     HTTP_CLIENT_STATE_DEFER_DONE,
 } http_client_defer_state;
 
-
-
 typedef struct
 {
     zval *onError;
     zval *onClose;
     zval *onMessage;
     zval *onResponse;
-
 
 #if PHP_MAJOR_VERSION >= 7
     zval _object;
@@ -122,11 +118,6 @@ static swString *http_client_buffer;
 //extern enum http_client_defer_state;
 //extern enum http_client_state;
 
-#ifdef SW_HAVE_ZLIB
-extern int http_response_uncompress(char *body, int length);
-#endif
-
-
 extern int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length);
 extern int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length);
 extern int http_client_parser_on_headers_complete(php_http_parser *parser);
@@ -145,7 +136,6 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC);
 static int http_client_coro_execute(zval *zobject, char *uri, zend_size_t uri_len TSRMLS_DC);
 
 static void http_client_coro_onTimeout(php_context *cxt);
-
 
 static sw_inline void http_client_swString_append_headers(swString* swStr, char* key, zend_size_t key_len, char* data, zend_size_t data_len)
 {
@@ -173,51 +163,6 @@ static sw_inline void http_client_create_token(int length, char *buf)
     }
     buf[length] = '\0';
 }
-
-#if PHP_MAJOR_VERSION < 7
-static sw_inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_str *formstr TSRMLS_DC)
-{
-#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION == 3
-    if (php_url_encode_hash_ex(HASH_OF(data), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL TSRMLS_CC) == FAILURE)
-#else
-    if (php_url_encode_hash_ex(HASH_OF(data), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738 TSRMLS_CC) == FAILURE)
-#endif
-    {
-        if (formstr->c)
-        {
-            smart_str_free(formstr);
-        }
-        return NULL;
-    }
-    if (!formstr->c)
-    {
-        return NULL;
-    }
-    smart_str_0(formstr);
-    *length = formstr->len;
-    return formstr->c;
-}
-#else
-static sw_inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_str *formstr TSRMLS_DC)
-{
-    if (php_url_encode_hash_ex(HASH_OF(data), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738) == FAILURE)
-    {
-        if (formstr->s)
-        {
-            smart_str_free(formstr);
-        }
-        return NULL;
-    }
-    if (!formstr->s)
-    {
-        return NULL;
-    }
-    smart_str_0(formstr);
-    *length = formstr->s->len;
-    return formstr->s->val;
-}
-#endif
-
 
 static sw_inline void client_free_php_context(zval *object)
 {

@@ -112,11 +112,11 @@ extern swString *swoole_zlib_buffer;
 
 static swString *http_client_buffer;
 
-static int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length);
-static int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length);
-static int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length);
-static int http_client_parser_on_headers_complete(php_http_parser *parser);
-static int http_client_parser_on_message_complete(php_http_parser *parser);
+int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length);
+int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length);
+int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length);
+int http_client_parser_on_headers_complete(php_http_parser *parser);
+int http_client_parser_on_message_complete(php_http_parser *parser);
 
 static void http_client_onReceive(swClient *cli, char *data, uint32_t length);
 static void http_client_onConnect(swClient *cli);
@@ -125,12 +125,12 @@ static void http_client_onError(swClient *cli);
 static int http_client_onMessage(swConnection *conn, char *data, uint32_t length);
 
 static int http_client_send_http_request(zval *zobject TSRMLS_DC);
-static http_client* http_client_create(zval *object TSRMLS_DC);
-static void http_client_free(zval *object TSRMLS_DC);
+http_client* http_client_create(zval *object TSRMLS_DC);
+void http_client_free(zval *object TSRMLS_DC);
 static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zval *callback TSRMLS_DC);
 
 #ifdef SW_HAVE_ZLIB
-static int http_response_uncompress(z_stream *stream, char *body, int length);
+int http_response_uncompress(z_stream *stream, char *body, int length);
 static void http_init_gzip_stream(http_client *);
 extern voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);
 extern void php_zlib_free(voidpf opaque, voidpf address);
@@ -743,50 +743,6 @@ static void http_client_onConnect(swClient *cli)
     http_client_send_http_request(zobject TSRMLS_CC);
 }
 
-#if PHP_MAJOR_VERSION < 7
-static inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_str *formstr TSRMLS_DC)
-{
-#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION == 3
-    if (php_url_encode_hash_ex(HASH_OF(data), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL TSRMLS_CC) == FAILURE)
-#else
-    if (php_url_encode_hash_ex(HASH_OF(data), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738 TSRMLS_CC) == FAILURE)
-#endif
-    {
-        if (formstr->c)
-        {
-            smart_str_free(formstr);
-        }
-        return NULL;
-    }
-    if (!formstr->c)
-    {
-        return NULL;
-    }
-    smart_str_0(formstr);
-    *length = formstr->len;
-    return formstr->c;
-}
-#else
-static inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_str *formstr TSRMLS_DC)
-{
-    if (php_url_encode_hash_ex(HASH_OF(data), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738) == FAILURE)
-    {
-        if (formstr->s)
-        {
-            smart_str_free(formstr);
-        }
-        return NULL;
-    }
-    if (!formstr->s)
-    {
-        return NULL;
-    }
-    smart_str_0(formstr);
-    *length = formstr->s->len;
-    return formstr->s->val;
-}
-#endif
-
 static int http_client_send_http_request(zval *zobject TSRMLS_DC)
 {
     int ret;
@@ -1120,7 +1076,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
     return ret;
 }
 
-static void http_client_free(zval *object TSRMLS_DC)
+void http_client_free(zval *object TSRMLS_DC)
 {
     http_client *http = swoole_get_object(object);
     if (!http)
@@ -1151,7 +1107,7 @@ static void http_client_free(zval *object TSRMLS_DC)
     efree(http);
 }
 
-static http_client* http_client_create(zval *object TSRMLS_DC)
+http_client* http_client_create(zval *object TSRMLS_DC)
 {
     zval *ztmp;
     http_client *http;
@@ -1520,7 +1476,7 @@ static PHP_METHOD(swoole_http_client, on)
     RETURN_TRUE;
 }
 
-static int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length)
+int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length)
 {
 // #if PHP_MAJOR_VERSION < 7
 //     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -1533,7 +1489,7 @@ static int http_client_parser_on_header_field(php_http_parser *parser, const cha
     return 0;
 }
 
-static int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length)
+int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -1618,7 +1574,7 @@ static void http_init_gzip_stream(http_client *http)
     http->gzip_stream.zfree = php_zlib_free;
 }
 
-static int http_response_uncompress(z_stream *stream, char *body, int length)
+int http_response_uncompress(z_stream *stream, char *body, int length)
 {
     int status = 0;
 
@@ -1669,7 +1625,7 @@ static int http_response_uncompress(z_stream *stream, char *body, int length)
 }
 #endif
 
-static int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length)
+int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length)
 {
     http_client* http = (http_client*) parser->data;
     if (swString_append_ptr(http->body, (char *) at, length) < 0)
@@ -1705,7 +1661,7 @@ static int http_client_parser_on_body(php_http_parser *parser, const char *at, s
     return 0;
 }
 
-static int http_client_parser_on_headers_complete(php_http_parser *parser)
+int http_client_parser_on_headers_complete(php_http_parser *parser)
 {
     http_client* http = (http_client*) parser->data;
     //no content-length
@@ -1716,7 +1672,7 @@ static int http_client_parser_on_headers_complete(php_http_parser *parser)
     return 0;
 }
 
-static int http_client_parser_on_message_complete(php_http_parser *parser)
+int http_client_parser_on_message_complete(php_http_parser *parser)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
