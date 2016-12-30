@@ -19,113 +19,11 @@
 #include "php_swoole.h"
 
 #ifdef SW_COROUTINE
-
-#include "thirdparty/php_http_parser.h"
+#include "swoole_http_client.h"
 #include "swoole_coroutine.h"
 #include <setjmp.h>
 
-#include "ext/standard/basic_functions.h"
-#include "ext/standard/base64.h"
-
-#include "websocket.h"
-
-#ifdef SW_HAVE_ZLIB
-#include <zlib.h>
-#endif
-
-
-enum http_client_state
-{
-    HTTP_CLIENT_STATE_WAIT,
-    HTTP_CLIENT_STATE_READY,
-    HTTP_CLIENT_STATE_BUSY,
-    //WebSocket
-    HTTP_CLIENT_STATE_UPGRADE,
-    HTTP_CLIENT_STATE_WAIT_CLOSE,
-
-};
-
-typedef enum
-{
-    HTTP_CLIENT_STATE_DEFER_INIT,
-    HTTP_CLIENT_STATE_DEFER_SEND,
-    HTTP_CLIENT_STATE_DEFER_WAIT,
-    HTTP_CLIENT_STATE_DEFER_DONE,
-} http_client_defer_state;
-
-typedef struct
-{
-    zval *onError;
-    zval *onClose;
-    zval *onMessage;
-    zval *onResponse;
-
-#if PHP_MAJOR_VERSION >= 7
-    zval _object;
-    zval _request_body;
-    zval _request_header;
-    zval _cookies;
-    zval _onResponse;
-    zval _onConnect;
-    zval _onError;
-    zval _onClose;
-    zval _onMessage;
-#endif
-
-    zval *cookies;
-    zval *request_header;
-    zval *request_body;
-    zval *request_upload_files;
-    char *request_method;
-    int callback_index;
-
-    zend_bool defer;//0 normal 1 wait for receive
-    zend_bool defer_result;//0
-    zend_bool defer_chunk_status;// 0 1 now use rango http->complete
-    http_client_defer_state defer_status;
-
-} http_client_property;
-
-typedef struct
-{
-    swClient *cli;
-    char *host;
-    zend_size_t host_len;
-    long port;
-    double timeout;
-    char* uri;
-    zend_size_t uri_len;
-
-    char *tmp_header_field_name;
-    zend_size_t tmp_header_field_name_len;
-
-    php_http_parser parser;
-    swString *body;
-    uint8_t state;       //0 wait 1 ready 2 busy
-    uint8_t keep_alive;  //0 no 1 keep
-    uint8_t upgrade;
-    uint8_t gzip;
-    uint8_t chunked;     //标示是否是chunked
-    uint8_t completed;  // 标示是否完成
-
-} http_client;
-
-
-extern swString *swoole_zlib_buffer;
 static swString *http_client_buffer;
-
-//extern struct http_client_property;
-//extern enum http_client_defer_state;
-//extern enum http_client_state;
-
-extern int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length);
-extern int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length);
-extern int http_client_parser_on_headers_complete(php_http_parser *parser);
-extern http_client* http_client_create(zval *object TSRMLS_DC);
-
-extern void http_client_free(zval *object TSRMLS_DC);
-extern int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length);
-extern int http_client_parser_on_message_complete(php_http_parser *parser);
 
 static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t length);
 static void http_client_coro_onConnect(swClient *cli);
@@ -137,33 +35,6 @@ static int http_client_coro_execute(zval *zobject, char *uri, zend_size_t uri_le
 
 static void http_client_coro_onTimeout(php_context *cxt);
 
-static sw_inline void http_client_swString_append_headers(swString* swStr, char* key, zend_size_t key_len, char* data, zend_size_t data_len)
-{
-    swString_append_ptr(swStr, key, key_len);
-    swString_append_ptr(swStr, ZEND_STRL(": "));
-    swString_append_ptr(swStr, data, data_len);
-    swString_append_ptr(swStr, ZEND_STRL("\r\n"));
-}
-
-static sw_inline void http_client_append_content_length(swString* buf, int length)
-{
-    char content_length_str[32];
-    int n = snprintf(content_length_str, sizeof(content_length_str), "Content-Length: %d\r\n\r\n", length);
-    swString_append_ptr(buf, content_length_str, n);
-}
-
-static sw_inline void http_client_create_token(int length, char *buf)
-{
-    char characters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"§$%&/()=[]{}";
-    int i;
-    assert(length < 1024);
-    for (i = 0; i < length; i++)
-    {
-        buf[i] = characters[rand() % sizeof(characters) - 1];
-    }
-    buf[length] = '\0';
-}
-
 static sw_inline void client_free_php_context(zval *object)
 {
     //free memory
@@ -173,17 +44,16 @@ static sw_inline void client_free_php_context(zval *object)
         return;
     }
 
-	if (likely(context->state == SW_CORO_CONTEXT_RUNNING))
-	{
-		efree(context);
-	}
-	else
-	{
-		context->state = SW_CORO_CONTEXT_TERM;
-	}
+    if (likely(context->state == SW_CORO_CONTEXT_RUNNING))
+    {
+        efree(context);
+    }
+    else
+    {
+        context->state = SW_CORO_CONTEXT_TERM;
+    }
     swoole_set_property(object, 1, NULL);
 }
-
 
 static const php_http_parser_settings http_parser_settings =
 {
@@ -218,8 +88,6 @@ static PHP_METHOD(swoole_http_client_coro, post);
 static PHP_METHOD(swoole_http_client_coro, setDefer);
 static PHP_METHOD(swoole_http_client_coro, getDefer);
 static PHP_METHOD(swoole_http_client_coro, recv);
-
-
 
 static const zend_function_entry swoole_http_client_coro_methods[] =
 {
@@ -519,7 +387,6 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
         php_swoole_clear_timer_coro(cli->timeout_id TSRMLS_CC);
         cli->timeout_id=0;
     }
-
 
     long parsed_n = php_http_parser_execute(&http->parser, &http_parser_settings, data, length);
 
