@@ -113,6 +113,7 @@ zend_execute_data *sw_zend_create_execute_data_from_op_array(zend_op_array *op_a
 
 static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache, zval **return_value_ptr, zend_bool use_array, int return_value_used)
 {
+    SWOOLE_GET_TSRMLS;
     int i;
     zval **origin_return_ptr_ptr;
     zend_op **origin_opline_ptr;
@@ -195,12 +196,12 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
         EG(This) = NULL;
     }
 
-    zend_execute_data *next = zend_create_execute_data_from_op_array(op_array, 0);
+    zend_execute_data *next = zend_create_execute_data_from_op_array(op_array, 0 TSRMLS_CC);
     jmp_buf *prev_checkpoint = swReactorCheckPoint;
     swReactorCheckPoint = emalloc(sizeof(jmp_buf));
     if (!setjmp(*swReactorCheckPoint))
     {
-        zend_execute_ex(next);
+        zend_execute_ex(next TSRMLS_CC);
         if (fci->params)
         {
             efree(fci->params);
@@ -270,7 +271,7 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
     {
         return;
     }
-    zend_fcall_info_args(&fci, params);
+    zend_fcall_info_args(&fci, params TSRMLS_CC);
 #if PHP_MAJOR_VERSION < 7
     swoole_corountine_call_function(&fci, &fci_cache, return_value_ptr, 1, return_value_used);
 #else

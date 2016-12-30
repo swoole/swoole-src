@@ -80,6 +80,7 @@ void swoole_mysql_coro_init(int module_number TSRMLS_DC)
 
 static zend_bool swoole_mysql_coro_close(zval *this)
 {
+    SWOOLE_GET_TSRMLS;
     mysql_client *client = swoole_get_object(this);
     if (!client)
     {

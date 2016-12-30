@@ -482,6 +482,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
 
 sw_inline void coro_yield()
 {
+    SWOOLE_GET_TSRMLS;
 #if PHP_MAJOR_VERSION >= 7
     EG(vm_stack) = COROG.origin_vm_stack;
     EG(vm_stack_top) = COROG.origin_vm_stack_top;

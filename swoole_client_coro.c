@@ -723,8 +723,10 @@ static PHP_METHOD(swoole_client_coro, connect)
 
     zval *zobject = getThis();
     cli->object = zobject;
+#if PHP_MAJOR_VERSION >= 7
     swoole_client_coro_property *ccp = swoole_get_property(getThis(), 1);
     sw_copy_to_stack(cli->object, ccp->_object);
+#endif
 
     cli->timeout = timeout;
     //nonblock async
