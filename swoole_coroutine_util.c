@@ -52,7 +52,7 @@ static void swoole_coroutine_util_resume(void *data)
 #if PHP_MAJOR_VERSION < 7
 #if ZEND_MODULE_API_NO <= 20121212
 #define zend_create_execute_data_from_op_array sw_zend_create_execute_data_from_op_array
-zend_execute_data *sw_zend_create_execute_data_from_op_array(zend_op_array *op_array, zend_bool nested)
+zend_execute_data *sw_zend_create_execute_data_from_op_array(zend_op_array *op_array, zend_bool nested TSRMLS_DC)
 {
 	zend_execute_data *execute_data;
 
