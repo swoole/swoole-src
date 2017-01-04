@@ -915,30 +915,6 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_FE_END
 };
 
-static sw_inline int swoole_redis_coro_is_message_command(char *command, int command_len)
-{
-    if (strncasecmp("subscribe", command, command_len) == 0)
-    {
-        return SW_TRUE;
-    }
-    else if (strncasecmp("psubscribe", command, command_len) == 0)
-    {
-        return SW_TRUE;
-    }
-    else if (strncasecmp("unsubscribe", command, command_len) == 0)
-    {
-        return SW_TRUE;
-    }
-    else if (strncasecmp("punsubscribe", command, command_len) == 0)
-    {
-        return SW_TRUE;
-    }
-    else
-    {
-        return SW_FALSE;
-    }
-}
-
 void swoole_redis_coro_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_redis_coro_ce, "swoole_redis_coro", "Swoole\\Coroutine\\Redis", swoole_redis_coro_methods);
@@ -1061,6 +1037,8 @@ static PHP_METHOD(swoole_redis_coro, connect)
         RETURN_FALSE;
     }
 
+    sw_zval_add_ref(&redis->object);
+
     swConnection *conn = swReactor_get(SwooleG.main_reactor, redis->context->c.fd);
     conn->object = redis;
 	php_context *sw_current_context = swoole_get_property(getThis(), 0);
@@ -1148,14 +1126,15 @@ static PHP_METHOD(swoole_redis_coro, close)
 	}
 	redis->state = SWOOLE_REDIS_CORO_STATE_CLOSING;
 	redis->iowait = SW_REDIS_CORO_STATUS_CLOSED;
-	redisCallback *head = redis->context->replies.head;
-	redisCallback *cb = head;
-	while (head != NULL) {
-		head = cb->next;
-		free(cb);
-		cb = head;
-	}
-	redis->context->replies.head = NULL;
+    redisCallback *head = redis->context->replies.head;
+    redisCallback *cb = head;
+    while (head != NULL)
+    {
+        head = cb->next;
+        free(cb);
+        cb = head;
+    }
+    redis->context->replies.head = NULL;
     redisAsyncDisconnect(redis->context);
 
 	RETURN_TRUE;
@@ -3728,6 +3707,8 @@ static void swoole_redis_coro_onClose(const redisAsyncContext *c, int status)
 {
     swRedisClient *redis = c->ev.data;
     redis->state = SWOOLE_REDIS_CORO_STATE_CLOSED;
+    redis->context = NULL;
+    sw_zval_ptr_dtor(&redis->object);
 }
 
 static void swoole_redis_coro_event_AddRead(void *privdata)
