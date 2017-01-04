@@ -244,9 +244,10 @@ static PHP_METHOD(swoole_buffer, read)
         offset = buffer->length + offset;
     }
     offset += buffer->offset;
-    if (length > buffer->size - offset)
+    if (length > buffer->length - offset)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "no enough data.");
+        // Warning is a waste of resources.
+        // php_error_docref(NULL TSRMLS_CC, E_WARNING, "no enough data.");
         RETURN_FALSE;
     }
     SW_RETURN_STRINGL(buffer->str + offset, length, 1);
