@@ -163,17 +163,17 @@ static PHP_METHOD(swoole_buffer, substr)
 {
     long offset;
     long length = -1;
-    zend_bool seek = 0;
+    zend_bool remove = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|lb", &offset, &length, &seek) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|lb", &offset, &length, &remove) == FAILURE)
     {
         RETURN_FALSE;
     }
     swString *buffer = swoole_get_object(getThis());
 
-    if (seek && !(offset == 0 && length < buffer->length))
+    if (remove && !(offset == 0 && length < buffer->length))
     {
-        seek = 0;
+        remove = 0;
     }
     if (offset < 0)
     {
@@ -189,7 +189,7 @@ static PHP_METHOD(swoole_buffer, substr)
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "offset(%ld,%ld) out of bounds.", offset, length);
         RETURN_FALSE;
     }
-    if (seek)
+    if (remove)
     {
         buffer->offset += length;
         zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"),
