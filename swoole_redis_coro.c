@@ -1037,8 +1037,6 @@ static PHP_METHOD(swoole_redis_coro, connect)
         RETURN_FALSE;
     }
 
-    sw_zval_add_ref(&redis->object);
-
     swConnection *conn = swReactor_get(SwooleG.main_reactor, redis->context->c.fd);
     conn->object = redis;
 	php_context *sw_current_context = swoole_get_property(getThis(), 0);
@@ -3708,7 +3706,6 @@ static void swoole_redis_coro_onClose(const redisAsyncContext *c, int status)
     swRedisClient *redis = c->ev.data;
     redis->state = SWOOLE_REDIS_CORO_STATE_CLOSED;
     redis->context = NULL;
-    sw_zval_ptr_dtor(&redis->object);
 }
 
 static void swoole_redis_coro_event_AddRead(void *privdata)
