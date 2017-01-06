@@ -151,8 +151,9 @@ static PHP_METHOD(swoole_buffer, append)
         {
             zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("capacity"), buffer->size TSRMLS_CC);
         }
-        zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"), buffer->length TSRMLS_CC);
-        RETURN_LONG(buffer->length);
+        zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"),
+                buffer->length - buffer->offset TSRMLS_CC);
+        RETURN_LONG(buffer->length - buffer->offset);
     }
     else
     {
