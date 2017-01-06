@@ -110,6 +110,7 @@ static PHP_METHOD(swoole_buffer, __construct)
 
     swoole_set_object(getThis(), buffer);
     zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("capacity"), size TSRMLS_CC);
+    zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"), 0 TSRMLS_CC);
 }
 
 static PHP_METHOD(swoole_buffer, __destruct)
