@@ -209,26 +209,50 @@ static PHP_METHOD(swoole_buffer, __toString)
 static PHP_METHOD(swoole_buffer, write)
 {
     long offset;
-    char *new_str;
-    zend_size_t length;
+    swString str;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls", &offset, &new_str, &length) == FAILURE)
+    bzero(&str, sizeof(str));
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls", &offset, &str.str, &str.length) == FAILURE)
     {
         RETURN_FALSE;
     }
+
+    if (str.length < 1)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "string empty.");
+        RETURN_FALSE;
+    }
+
     swString *buffer = swoole_get_object(getThis());
+
     if (offset < 0)
     {
-        offset = buffer->length + offset;
+        offset = buffer->length - buffer->offset + offset;
     }
-    offset += buffer->offset;
-    if (length > buffer->size - offset)
+    if (offset < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "string is too long.");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "offset(%ld) out of bounds.", offset);
         RETURN_FALSE;
     }
-    memcpy(buffer->str + offset, new_str, length);
-    RETURN_TRUE;
+
+    offset += buffer->offset;
+
+    size_t size_old = buffer->size;
+    if (swString_write(buffer, offset, &str) == SW_OK)
+    {
+        if (buffer->size > size_old)
+        {
+            zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("capacity"), buffer->size TSRMLS_CC);
+        }
+        zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"),
+                buffer->length - buffer->offset TSRMLS_CC);
+        RETURN_LONG(buffer->length - buffer->offset);
+    }
+    else
+    {
+        RETURN_FALSE;
+    }
 }
 
 static PHP_METHOD(swoole_buffer, read)
