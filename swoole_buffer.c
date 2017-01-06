@@ -163,15 +163,15 @@ static PHP_METHOD(swoole_buffer, substr)
 {
     long offset;
     long length = -1;
-    zend_bool seek = 0;
+    long seek = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|lb", &offset, &length, &seek) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|ll", &offset, &length, &seek) == FAILURE)
     {
         RETURN_FALSE;
     }
     swString *buffer = swoole_get_object(getThis());
 
-    if (seek && !(offset == 0 && length < buffer->length))
+    if (seek && !(offset == 0 && length <= buffer->length))
     {
         seek = 0;
     }
@@ -191,9 +191,18 @@ static PHP_METHOD(swoole_buffer, substr)
     }
     if (seek)
     {
-        buffer->offset += length;
-        zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"),
-                buffer->length - buffer->offset TSRMLS_CC);
+        if (1 == seek) {
+			buffer->offset += length;
+			zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"),
+					buffer->length - buffer->offset TSRMLS_CC);
+    	} else {
+    		SW_RETVAL_STRINGL(buffer->str + offset, length, 1);
+    		buffer->length -= length;
+    		zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"),
+    							buffer->length TSRMLS_CC);
+    		memcpy(buffer->str, buffer->str + length, buffer->length);
+    		return;
+    	}
     }
     SW_RETURN_STRINGL(buffer->str + offset, length, 1);
 }
