@@ -138,7 +138,7 @@ static PHP_METHOD(swoole_buffer, append)
     }
     swString *buffer = swoole_get_object(getThis());
 
-    if ((str.length + buffer->length) > SW_STRING_BUFFER_MAXLEN)
+    if ((str.length + buffer->length) > buffer->size && (str.length + buffer->length) > SW_STRING_BUFFER_MAXLEN)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "buffer size must not exceed %d", SW_STRING_BUFFER_MAXLEN);
         RETURN_FALSE;
