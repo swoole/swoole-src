@@ -214,6 +214,8 @@
 
 #define SW_STRING_BUFFER_MAXLEN          (1024*1024*128)
 #define SW_STRING_BUFFER_DEFAULT         128
+#define SW_STRING_BUFFER_GARBAGE_MIN     (1024*64)
+#define SW_STRING_BUFFER_GARBAGE_RATIO   4
 
 #define SW_SIGNO_MAX                     128
 
