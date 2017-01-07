@@ -238,6 +238,12 @@ static PHP_METHOD(swoole_buffer, write)
 
     offset += buffer->offset;
 
+    if ((str.length + offset) > SW_STRING_BUFFER_MAXLEN)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "buffer size must not exceed %d", SW_STRING_BUFFER_MAXLEN);
+        RETURN_FALSE;
+    }
+
     size_t size_old = buffer->size;
     if (swString_write(buffer, offset, &str) == SW_OK)
     {
