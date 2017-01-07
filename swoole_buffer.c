@@ -138,7 +138,7 @@ static PHP_METHOD(swoole_buffer, append)
     }
     swString *buffer = swoole_get_object(getThis());
 
-    if ((str.length + buffer->size) > SW_STRING_BUFFER_MAXLEN)
+    if ((str.length + buffer->length) > SW_STRING_BUFFER_MAXLEN)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "buffer size must not exceed %d", SW_STRING_BUFFER_MAXLEN);
         RETURN_FALSE;
@@ -270,36 +270,55 @@ static PHP_METHOD(swoole_buffer, read)
     {
         RETURN_FALSE;
     }
+
     swString *buffer = swoole_get_object(getThis());
+
     if (offset < 0)
     {
-        offset = buffer->length + offset;
+        offset = buffer->length - buffer->offset + offset;
     }
-    offset += buffer->offset;
-    if (length > buffer->length - offset)
+    if (offset < 0)
     {
-        // Warning is a waste of resources.
-        // php_error_docref(NULL TSRMLS_CC, E_WARNING, "no enough data.");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "offset(%ld) out of bounds.", offset);
         RETURN_FALSE;
     }
+
+    offset += buffer->offset;
+
+    if (length > buffer->length - offset)
+    {
+        RETURN_FALSE;
+    }
+
     SW_RETURN_STRINGL(buffer->str + offset, length, 1);
 }
 
 static PHP_METHOD(swoole_buffer, expand)
 {
     long size = -1;
+
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &size) == FAILURE)
     {
         RETURN_FALSE;
     }
+
     swString *buffer = swoole_get_object(getThis());
+
     if (size <= buffer->size)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "new size must more than %ld", buffer->size);
         RETURN_FALSE;
     }
-    zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("capacity"), size TSRMLS_CC);
-    SW_CHECK_RETURN(swString_extend(buffer, size));
+
+    if (swString_extend(buffer, size) == SW_OK)
+    {
+        zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("capacity"), size TSRMLS_CC);
+        RETURN_TRUE;
+    }
+    else
+    {
+        RETURN_FALSE;
+    }
 }
 
 static PHP_METHOD(swoole_buffer, clear)
