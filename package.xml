@@ -35,10 +35,10 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2016-12-23</date>
-    <time>15:12:00</time>
+    <date>2017-01-09</date>
+    <time>09:50:10</time>
     <version>
-		<release>1.9.3</release>
+		<release>1.9.4</release>
 		<api>1.9</api>
     </version>
     <stability>
@@ -47,12 +47,9 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Added extension function args info
-- Added package_length_func option
-- Added http_client download method
-- Fixed issue#965
-- Fixed issue#966
-- Fixed issue#967
+- Fixed WebSocket server default onRequest method memory leak problem
+- Fixed the problem of missing zlib library compilation failures
+- Added Client->reuseCount property to query the number of multiplexed sockets
     </notes>
 	<contents>
 		<dir name="/">
@@ -239,6 +236,9 @@
 					<file role="src" name="server.php" />
 					<file role="src" name="client.php" />
 					<file role="src" name="curl.php" />
+					<file role="src" name="async_client.php" />
+					<file role="src" name="async_websocket.php" />
+					<file role="src" name="download.php" />
 				</dir>
 				<dir name="length">
                     <file role="src" name="server.php" />
@@ -268,6 +268,7 @@
 				</dir>
 				<dir name="task">
 					<file role="src" name="task.php" />
+					<file role="src" name="task_coro.php" />
 					<file role="src" name="shared_client.php" />
 					<file role="src" name="shared_server.php" />
 				</dir>
