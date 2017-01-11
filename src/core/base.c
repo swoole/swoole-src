@@ -560,6 +560,7 @@ swString* swoole_file_get_contents(char *filename)
     swString *content = swString_new(filesize);
     if (!content)
     {
+        close(fd);
         return NULL;
     }
 
