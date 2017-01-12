@@ -145,8 +145,6 @@ inline int SW_Z_TYPE_P(zval *z);
 typedef size_t zend_size_t;
 #define ZEND_SET_SYMBOL(ht,str,arr)         zval_add_ref(arr); zend_hash_str_update(ht, str, sizeof(str)-1, arr);
 
-
-
 static sw_inline int Z_BVAL_P(zval *v)
 {
     if (Z_TYPE_P(v) == IS_TRUE)
@@ -198,9 +196,8 @@ static sw_inline int sw_add_assoc_double_ex(zval *arg, const char *key, size_t k
 static inline char* sw_php_format_date(char *format, size_t format_len, time_t ts, int localtime)
 {
     zend_string *time = php_format_date(format, format_len, ts, localtime);
-    char *return_str = (char*) emalloc(time->len + 1);
+    char *return_str = estrndup(time->val, time->len);
     memcpy(return_str, time->val, time->len);
-    return_str[time->len] = 0;
     zend_string_release(time);
     return return_str;
 }
@@ -209,11 +206,9 @@ static sw_inline char* sw_php_url_encode(char *value, size_t value_len, int* ext
 {
     zend_string *str = php_url_encode(value, value_len);
     *exten = str->len;
-
-    char *return_str = (char*) emalloc(str->len + 1);
+    char *return_str = estrndup(str->val, str->len);
     memcpy(return_str, str->val, str->len);
     zend_string_release(str);
-    return_str[str->len] = 0;
     return return_str;
 }
 
@@ -307,7 +302,7 @@ static sw_inline int sw_zend_is_callable(zval *cb, int a, char **name)
 {
     zend_string *key = NULL;
     int ret = zend_is_callable(cb, a, &key);
-    char *tmp = (char *)emalloc(key->len);
+    char *tmp = estrndup(key->val, key->len);
     memcpy(tmp, key->val, key->len);
     zend_string_release(key);
     *name = tmp;
@@ -317,7 +312,7 @@ static sw_inline int sw_zend_is_callable(zval *cb, int a, char **name)
 static inline int sw_zend_is_callable_ex(zval *callable, zval *object, uint check_flags, char **callable_name, int *callable_name_len, zend_fcall_info_cache *fcc, char **error TSRMLS_DC)
 {
     zend_string *key = NULL;
-    char *tmp = (char *)emalloc(key->len);
+    char *tmp = estrndup(key->val, key->len);
     int ret = zend_is_callable_ex(callable, NULL, check_flags, &key, fcc, error);
     memcpy(tmp, key->val, key->len);
     zend_string_release(key);
