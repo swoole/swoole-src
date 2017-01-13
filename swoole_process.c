@@ -827,7 +827,6 @@ static PHP_METHOD(swoole_process, push)
 
     if (swMsgQueue_push(process->queue, (swQueue_data *)&message, length) < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "msgsnd() failed. Error: %s[%d]", strerror(errno), errno);
         RETURN_FALSE;
     }
     RETURN_TRUE;

@@ -84,11 +84,11 @@ int swMsgQueue_push(swMsgQueue *q, swQueue_data *in, int length)
             }
             else if (errno == EAGAIN)
             {
-                swYield();
-                continue;
+                return -1;
             }
             else
             {
+                swSysError("msgsnd(%d, %d, %ld) failed.", q->msg_id, length, in->mtype);
                 return -1;
             }
         }
