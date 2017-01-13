@@ -62,9 +62,13 @@ int swMsgQueue_create(swMsgQueue *q, int blocking, key_t msg_key, long type)
 int swMsgQueue_pop(swMsgQueue *q, swQueue_data *data, int length)
 {
     int ret = msgrcv(q->msg_id, data, length, data->mtype, q->flags);
-    if (ret < 0 && errno != ENOMSG && errno != EINTR)
+    if (ret < 0)
     {
-        swSysError("msgrcv(%d, %d, %ld) failed.", q->msg_id, length, data->mtype);
+        SwooleG.error = errno;
+        if (errno != ENOMSG && errno != EINTR)
+        {
+            swSysError("msgrcv(%d, %d, %ld) failed.", q->msg_id, length, data->mtype);
+        }
     }
     return ret;
 }
@@ -78,6 +82,7 @@ int swMsgQueue_push(swMsgQueue *q, swQueue_data *in, int length)
         ret = msgsnd(q->msg_id, in, length, q->flags);
         if (ret < 0)
         {
+            SwooleG.error = errno;
             if (errno == EINTR)
             {
                 continue;
