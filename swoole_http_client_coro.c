@@ -313,6 +313,15 @@ void swoole_http_client_coro_init(int module_number TSRMLS_DC)
  */
 static void http_client_coro_onClose(swClient *cli)
 {
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+    zval *zobject = cli->object;
+    http_client *http = swoole_get_object(zobject);
+    if (!cli->released)
+    {
+        http_client_free(zobject TSRMLS_CC);
+    }
     return;
 }
 
