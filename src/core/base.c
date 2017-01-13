@@ -560,6 +560,7 @@ swString* swoole_file_get_contents(char *filename)
     swString *content = swString_new(filesize);
     if (!content)
     {
+        close(fd);
         return NULL;
     }
 
@@ -868,7 +869,10 @@ void swoole_clear_dns_cache(void)
  */
 int swoole_gethostbyname(int flags, char *name, char *addr)
 {
-    SwooleGS->lock.lock(&SwooleGS->lock);
+    /**
+     * use local lock
+     */
+    SwooleG.lock.lock(&SwooleG.lock);
     swHashMap *cache_table;
 
     int __af = flags & (~SW_DNS_LOOKUP_CACHE_ONLY) & (~SW_DNS_LOOKUP_RANDOM);
@@ -890,17 +894,16 @@ int swoole_gethostbyname(int flags, char *name, char *addr)
     }
     else
     {
-        SwooleGS->lock.unlock(&SwooleGS->lock);
+        SwooleG.lock.unlock(&SwooleG.lock);
         return SW_ERR;
     }
-
 
     int name_length = strlen(name);
     int index = 0;
     swDNS_cache *cache = swHashMap_find(cache_table, name, name_length);
     if (cache == NULL && (flags & SW_DNS_LOOKUP_CACHE_ONLY))
     {
-        SwooleGS->lock.unlock(&SwooleGS->lock);
+        SwooleG.lock.unlock(&SwooleG.lock);
         return SW_ERR;
     }
 
@@ -909,7 +912,7 @@ int swoole_gethostbyname(int flags, char *name, char *addr)
         struct hostent *host_entry;
         if (!(host_entry = gethostbyname2(name, __af)))
         {
-            SwooleGS->lock.unlock(&SwooleGS->lock);
+            SwooleG.lock.unlock(&SwooleG.lock);
             return SW_ERR;
         }
 
@@ -942,7 +945,7 @@ int swoole_gethostbyname(int flags, char *name, char *addr)
         cache->addr_length = host_entry->h_length;
         swHashMap_add(cache_table, name, name_length, cache);
     }
-    SwooleGS->lock.unlock(&SwooleGS->lock);
+    SwooleG.lock.unlock(&SwooleG.lock);
     if (flags & SW_DNS_LOOKUP_RANDOM)
     {
         index = rand() % cache->number;
