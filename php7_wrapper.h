@@ -197,7 +197,6 @@ static inline char* sw_php_format_date(char *format, size_t format_len, time_t t
 {
     zend_string *time = php_format_date(format, format_len, ts, localtime);
     char *return_str = estrndup(time->val, time->len);
-    memcpy(return_str, time->val, time->len);
     zend_string_release(time);
     return return_str;
 }
@@ -207,7 +206,6 @@ static sw_inline char* sw_php_url_encode(char *value, size_t value_len, int* ext
     zend_string *str = php_url_encode(value, value_len);
     *exten = str->len;
     char *return_str = estrndup(str->val, str->len);
-    memcpy(return_str, str->val, str->len);
     zend_string_release(str);
     return return_str;
 }
@@ -303,7 +301,6 @@ static sw_inline int sw_zend_is_callable(zval *cb, int a, char **name)
     zend_string *key = NULL;
     int ret = zend_is_callable(cb, a, &key);
     char *tmp = estrndup(key->val, key->len);
-    memcpy(tmp, key->val, key->len);
     zend_string_release(key);
     *name = tmp;
     return ret;
@@ -312,9 +309,8 @@ static sw_inline int sw_zend_is_callable(zval *cb, int a, char **name)
 static inline int sw_zend_is_callable_ex(zval *callable, zval *object, uint check_flags, char **callable_name, int *callable_name_len, zend_fcall_info_cache *fcc, char **error TSRMLS_DC)
 {
     zend_string *key = NULL;
-    char *tmp = estrndup(key->val, key->len);
     int ret = zend_is_callable_ex(callable, NULL, check_flags, &key, fcc, error);
-    memcpy(tmp, key->val, key->len);
+    char *tmp = estrndup(key->val, key->len);
     zend_string_release(key);
     *callable_name = tmp;
     return ret;
