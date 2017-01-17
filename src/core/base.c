@@ -591,6 +591,55 @@ swString* swoole_file_get_contents(char *filename)
     return content;
 }
 
+int swoole_file_put_contents(char *filename, char *content, size_t length)
+{
+    if (length <= 0)
+    {
+        swoole_error_log(SW_LOG_TRACE, SW_ERROR_FILE_EMPTY, "content is empty.");
+        return SW_ERR;
+    }
+    if (length > SW_MAX_FILE_CONTENT)
+    {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_FILE_TOO_LARGE, "content is too large.");
+        return SW_ERR;
+    }
+
+    int fd = open(filename, O_WRONLY | O_TRUNC | O_CREAT, 0666);
+    if (fd < 0)
+    {
+        swSysError("open(%s) failed.", filename);
+        return SW_ERR;
+    }
+
+    int n, chunk_size, written = 0;
+
+    while(written < length)
+    {
+        chunk_size = length - written;
+        if (chunk_size > SW_BUFFER_SIZE_BIG)
+        {
+            chunk_size = SW_BUFFER_SIZE_BIG;
+        }
+        n = write(fd, content + written, chunk_size);
+        if (n < 0)
+        {
+            if (errno == EINTR)
+            {
+                continue;
+            }
+            else
+            {
+                swSysError("write(%d, %d) failed.", fd, chunk_size);
+                close(fd);
+                return -1;
+            }
+        }
+        written += n;
+    }
+    close(fd);
+    return SW_OK;
+}
+
 int swoole_sync_readfile(int fd, void *buf, int len)
 {
     int n = 0;
