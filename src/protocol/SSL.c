@@ -437,8 +437,8 @@ ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
             return SW_ERR;
 
         case SSL_ERROR_SSL:
-            int reason = ERR_GET_REASON(ERR_peek_error());
-            swWarn("SSL_read(%d, %ld) failed, Reason: %s[%d].", conn->fd, __n, ERR_reason_error_string(reason), reason);
+            n = ERR_GET_REASON(ERR_peek_error());
+            swWarn("SSL_read(%d, %ld) failed, Reason: %s[%d].", conn->fd, __n, ERR_reason_error_string((ulong_t )n), n);
             errno = SW_ERROR_SSL_BAD_CLIENT;
             return SW_ERR;
 
@@ -472,8 +472,8 @@ ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n)
             return SW_ERR;
 
         case SSL_ERROR_SSL:
-            int reason = ERR_GET_REASON(ERR_peek_error());
-            swWarn("SSL_write(%d, %ld) failed, Reason: %s[%d].", conn->fd, __n, ERR_reason_error_string(reason), reason);
+            n = ERR_GET_REASON(ERR_peek_error());
+            swWarn("SSL_write(%d, %ld) failed, Reason: %s[%d].", conn->fd, __n, ERR_reason_error_string((ulong_t )n), n);
             errno = SW_ERROR_SSL_BAD_CLIENT;
             return SW_ERR;
 
