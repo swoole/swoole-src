@@ -1375,6 +1375,12 @@ PHP_METHOD(swoole_server, set)
         convert_to_boolean(v);
         serv->daemonize = Z_BVAL_P(v);
     }
+    //pid file
+    if (php_swoole_array_get_value(vht, "pid_file", v))
+    {
+        convert_to_string(v);
+        serv->pid_file = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+    }
     //reactor thread num
     if (php_swoole_array_get_value(vht, "reactor_num", v))
     {

@@ -700,6 +700,12 @@ int swServer_start(swServer *serv)
     //signal Init
     swServer_signal_init(serv);
 
+    //write PID file
+    if (serv->pid_file)
+    {
+        ret = snprintf(SwooleG.module_stack->str, SwooleG.module_stack->size, "%d", getpid());
+        swoole_file_put_contents(serv->pid_file, SwooleG.module_stack->str, ret);
+    }
     if (serv->factory_mode == SW_MODE_SINGLE)
     {
         ret = swReactorProcess_start(serv);
@@ -710,6 +716,11 @@ int swServer_start(swServer *serv)
     }
     swServer_free(serv);
     SwooleGS->start = 0;
+    //remove PID file
+    if (serv->pid_file)
+    {
+        unlink(serv->pid_file);
+    }
     return SW_OK;
 }
 
