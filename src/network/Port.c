@@ -396,7 +396,24 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             return SW_OK;
         }
 #endif
+        //http header is not the end
+        if (request->header_length == 0)
+        {
+            if (swHttpRequest_get_header_length(request) < 0)
+            {
+                if (buffer->size == buffer->length)
+                {
+                    swWarn("[2]http header is too long.");
+                    goto close_fd;
+                }
+                else
+                {
+                    goto recv_data;
+                }
+            }
+        }
 
+        //http body
         if (request->content_length == 0)
         {
             if (swHttpRequest_get_content_length(request) < 0)
@@ -425,25 +442,8 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             }
         }
 
-        //http header is not the end
-        if (request->header_length == 0)
-        {
-            if (swHttpRequest_get_header_length(request) < 0)
-            {
-                if (buffer->size == buffer->length)
-                {
-                    swWarn("[2]http header is too long.");
-                    goto close_fd;
-                }
-                else
-                {
-                    goto recv_data;
-                }
-            }
-        }
-
         //total length
-        uint32_t request_size = request->content_length + request->header_length;
+        uint32_t request_size = request->header_length + request->content_length;
         if (request_size > buffer->size && swString_extend(buffer, request_size) < 0)
         {
             goto close_fd;
