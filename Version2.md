@@ -24,29 +24,29 @@ $server = new Swoole\Http\Server('127.0.0.1', 9501);
  */
 $server->on('Request', function($request, $response) {
 
-        $tcp_cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
-        /*
-            In the underlining implement of method connect, swoole will 
-            save the php context and suspend this coroutine.
-            After tcp connection is established, swoole will set the 
-            return value and resume this cortoutine.
-         */
-        $ret = $tcp_cli->connect('127.0.0.1', 9906);
-        $tcp_cli ->send('test for the coro');
-        /*
-            method recv will do the coroutine switching like that of connection.
-            swoole will resume this coroutine if server responses nothing after 5s
-            and errCode will be set 110 in the example below
-         */
-        $ret = $tcp_cli->recv(5);
-        $tcp_cli->close();
+    $tcp_cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
+    /*
+        In the underlining implement of method connect, swoole will 
+        save the php context and suspend this coroutine.
+        After tcp connection is established, swoole will set the 
+        return value and resume this cortoutine.
+     */
+    $ret = $tcp_cli->connect('127.0.0.1', 9906);
+    $tcp_cli ->send('test for the coro');
+    /*
+        method recv will do the coroutine switching like that of connection.
+        swoole will resume this coroutine if server responses nothing after 5s
+        and errCode will be set 110 in the example below
+     */
+    $ret = $tcp_cli->recv(5);
+    $tcp_cli->close();
 
-        if ($ret) {
-            $response->end(" swoole response is ok");
-        }
-        else{
-            $response->end(" recv failed error : {$client->errCode}");
-        }
+    if ($ret) {
+        $response->end(" swoole response is ok");
+    }
+    else{
+        $response->end(" recv failed error : {$client->errCode}");
+    }
 });
 
 $server->start();
@@ -60,18 +60,18 @@ $server = new Swoole\Http\Server('127.0.0.1', 9501);
 
 $server->on('Request', function($request, $response) {
 
-        $tcp_cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
-        $ret = $tcp_cli ->connect('127.0.0.1', 9906);
-        $tcp_cli ->send('test for the coro');
-        $ret = $tcp_cli ->recv(100);
-        $tcp_cli->close();
+    $tcp_cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
+    $ret = $tcp_cli ->connect('127.0.0.1', 9906);
+    $tcp_cli ->send('test for the coro');
+    $ret = $tcp_cli ->recv(100);
+    $tcp_cli->close();
 
-        if ($ret) {
-            $response ->end(" swoole response is ok");
-        }
-        else{
-            $response ->end(" recv failed error : {$client->errCode}");
-        }
+    if ($ret) {
+        $response ->end(" swoole response is ok");
+    }
+    else{
+        $response ->end(" recv failed error : {$client->errCode}");
+    }
 });
 
 $server->start();
@@ -126,3 +126,16 @@ $swoole_mysql = new Swoole\Coroutine\MySQL();
 $swoole_mysql->connect(['host' => '127.0.0.1', 'user' => 'user', 'password' => 'pass', 'database' => 'test']);
 $res = $swoole_mysql->query('select sleep(1)');
 ```
+
+## Build and Install
+* Recommended with PHP7
+* Download [swoole-2.0.5](https://github.com/swoole/swoole-src/releases/tag/v2.0.5)
+
+```shell
+phpize
+./configure 
+make -j 4
+sudo make install
+```
+You should add "extension=swoole.so" to php.ini, execute the demo program.
+
