@@ -129,7 +129,7 @@ void swoole_websocket_onOpen(http_context *ctx)
 /**
  * default onRequest callback
  */
-void swoole_websocket_onReuqest(http_context *ctx)
+void swoole_websocket_onRequest(http_context *ctx)
 {
     SWOOLE_GET_TSRMLS;
     char *content = "<html><body><h2>HTTP ERROR 400</h2><hr><i>Powered by "SW_HTTP_SERVER_SOFTWARE" ("PHP_SWOOLE_VERSION")</i></body></html>";

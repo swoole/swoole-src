@@ -187,6 +187,7 @@ static sw_inline int swConnection_error(int err)
     case ENETUNREACH:
     case EHOSTDOWN:
     case EHOSTUNREACH:
+    case SW_ERROR_SSL_BAD_CLIENT:
 		return SW_CLOSE;
 	case EAGAIN:
 #ifdef HAVE_KQUEUE

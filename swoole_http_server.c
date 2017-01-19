@@ -1030,7 +1030,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
             //no have onRequest callback
             if (zcallback == NULL)
             {
-                swoole_websocket_onReuqest(ctx);
+                swoole_websocket_onRequest(ctx);
                 sw_zval_ptr_dtor(&zrequest_object);
                 sw_zval_ptr_dtor(&zresponse_object);
                 sw_zval_ptr_dtor(&zdata);
