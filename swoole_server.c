@@ -1246,7 +1246,7 @@ PHP_METHOD(swoole_server, __construct)
     zend_size_t host_len = 0;
     char *serv_host;
     long sock_type = SW_SOCK_TCP;
-    long serv_port;
+    long serv_port = 0;
     long serv_mode = SW_MODE_PROCESS;
 
     //only cli env
@@ -1271,7 +1271,7 @@ PHP_METHOD(swoole_server, __construct)
     swServer *serv = sw_malloc(sizeof (swServer));
     swServer_init(serv);
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl|ll", &serv_host, &host_len, &serv_port, &serv_mode, &sock_type) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|lll", &serv_host, &host_len, &serv_port, &serv_mode, &sock_type) == FAILURE)
     {
         swoole_php_fatal_error(E_ERROR, "invalid parameters.");
         return;
@@ -1313,7 +1313,7 @@ PHP_METHOD(swoole_server, __construct)
 #endif
 
     zend_update_property_stringl(swoole_server_class_entry_ptr, server_object, ZEND_STRL("host"), serv_host, host_len TSRMLS_CC);
-    zend_update_property_long(swoole_server_class_entry_ptr, server_object, ZEND_STRL("port"), serv_port TSRMLS_CC);
+    zend_update_property_long(swoole_server_class_entry_ptr, server_object, ZEND_STRL("port"), (long) port->port TSRMLS_CC);
     zend_update_property_long(swoole_server_class_entry_ptr, server_object, ZEND_STRL("mode"), serv->factory_mode TSRMLS_CC);
     zend_update_property_long(swoole_server_class_entry_ptr, server_object, ZEND_STRL("type"), sock_type TSRMLS_CC);
     swoole_set_object(server_object, serv);
@@ -1529,7 +1529,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "cpu_affinity_ignore", v))
     {
         int ignore_num = zend_hash_num_elements(Z_ARRVAL_P(v));
-        if (ignore_num >= SW_CPU_NUM) 
+        if (ignore_num >= SW_CPU_NUM)
         {
             swoole_php_fatal_error(E_ERROR, "cpu_affinity_ignore num must be less than cpu num (%d)", SW_CPU_NUM);
             RETURN_FALSE;
@@ -2314,7 +2314,7 @@ PHP_METHOD(swoole_server, taskwait)
 
     sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
     if (swProcessPool_dispatch_blocking(&SwooleGS->task_workers, &buf, (int*) &dst_worker_id) >= 0)
-    {      
+    {
         task_notify_pipe->timeout = timeout;
         int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
         if (ret > 0)
