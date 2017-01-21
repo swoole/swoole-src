@@ -121,9 +121,6 @@ static zend_bool swoole_mysql_coro_close(zval *this)
     client->state = SW_MYSQL_STATE_CLOSED;
     client->iowait = SW_MYSQL_CORO_STATUS_CLOSED;
 
-#if PHP_MAJOR_VERSION < 7
-    sw_zval_ptr_dtor(&object);
-#endif
     return SUCCESS;
 }
 
@@ -537,6 +534,10 @@ static PHP_METHOD(swoole_mysql_coro, close)
         RETURN_FALSE;
     }
 
+
+#if PHP_MAJOR_VERSION < 7
+    sw_zval_ptr_dtor(&getThis());
+#endif
 	RETURN_TRUE;
 }
 
