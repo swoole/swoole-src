@@ -315,9 +315,13 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     client->cli = cli;
     sw_copy_to_stack(client->object, client->_object);
 
-	swConnection *_socket = swReactor_get(SwooleG.main_reactor, cli->socket->fd);
+#if PHP_MAJOR_VERSION < 7
+    sw_zval_add_ref(&client->object);
+#endif
+
+    swConnection *_socket = swReactor_get(SwooleG.main_reactor, cli->socket->fd);
     _socket->object = client;
-	_socket->active = 0;
+    _socket->active = 0;
 
     php_context *context = swoole_get_property(getThis(), 0);
     if (!context)
@@ -530,6 +534,10 @@ static PHP_METHOD(swoole_mysql_coro, close)
         RETURN_FALSE;
     }
 
+
+#if PHP_MAJOR_VERSION < 7
+    sw_zval_ptr_dtor(&getThis());
+#endif
 	RETURN_TRUE;
 }
 
