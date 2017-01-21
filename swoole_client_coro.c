@@ -280,6 +280,9 @@ static void client_onClose(swClient *cli)
         php_swoole_client_coro_free(zobject, cli TSRMLS_CC);
     }
     client_execute_callback(zobject, SW_CLIENT_CB_onClose);
+#if PHP_MAJOR_VERSION < 7
+    sw_zval_ptr_dtor(&zobject);
+#endif
 }
 
 static void client_onError(swClient *cli)
@@ -726,6 +729,10 @@ static PHP_METHOD(swoole_client_coro, connect)
 #if PHP_MAJOR_VERSION >= 7
     swoole_client_coro_property *ccp = swoole_get_property(getThis(), 1);
     sw_copy_to_stack(cli->object, ccp->_object);
+#endif
+
+#if PHP_MAJOR_VERSION < 7
+    sw_zval_add_ref(&zobject);
 #endif
 
     cli->timeout = timeout;

@@ -221,6 +221,10 @@ static int http_client_coro_execute(zval *zobject, char *uri, zend_size_t uri_le
         return SW_ERR;
     }
 
+#if PHP_MAJOR_VERSION < 7
+    sw_zval_add_ref(&zobject);
+#endif
+
     cli->object = zobject;
     //sw_copy_to_stack(cli->object, hcc->_object);
     cli->open_eof_check = 0;
@@ -313,6 +317,10 @@ void swoole_http_client_coro_init(int module_number TSRMLS_DC)
  */
 static void http_client_coro_onClose(swClient *cli)
 {
+    zval *zobject = cli->object;
+#if PHP_MAJOR_VERSION < 7
+    sw_zval_ptr_dtor(&zobject);
+#endif
     return;
 }
 
