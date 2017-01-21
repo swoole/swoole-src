@@ -1480,6 +1480,12 @@ PHP_METHOD(swoole_server, set)
         convert_to_boolean(v);
         serv->daemonize = Z_BVAL_P(v);
     }
+    //pid file
+    if (php_swoole_array_get_value(vht, "pid_file", v))
+    {
+        convert_to_string(v);
+        serv->pid_file = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+    }
     //reactor thread num
     if (php_swoole_array_get_value(vht, "reactor_num", v))
     {
@@ -2531,15 +2537,16 @@ PHP_METHOD(swoole_server, taskWaitMulti)
     SW_HASHTABLE_FOREACH_END();
 
     double _now = swoole_microtime();
-
     while (n_task > 0)
     {
         task_notify_pipe->timeout = timeout;
         int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
         if (ret > 0 && *finish_count < n_task)
         {
-            timeout -= (swoole_microtime() - _now);
-            continue;
+            if (swoole_microtime() - _now < timeout)
+            {
+                continue;
+            }
         }
         break;
     }

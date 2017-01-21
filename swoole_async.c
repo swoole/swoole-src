@@ -755,6 +755,12 @@ PHP_FUNCTION(swoole_async_dns_lookup)
         return;
     }
 
+    if (Z_TYPE_P(domain) != IS_STRING)
+    {
+        swoole_php_fatal_error(E_WARNING, "invalid domain name.");
+        RETURN_FALSE;
+    }
+
     if (Z_STRLEN_P(domain) == 0)
     {
         swoole_php_fatal_error(E_WARNING, "domain name empty.");

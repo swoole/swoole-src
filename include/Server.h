@@ -451,6 +451,11 @@ struct _swServer
     char *upload_tmp_dir;
 
     /**
+     * master process pid
+     */
+    char *pid_file;
+
+    /**
      * message queue key
      */
     uint64_t message_queue_key;

@@ -601,6 +601,8 @@ void swString_print(swString *str);
 void swString_free(swString *str);
 int swString_append(swString *str, swString *append_str);
 int swString_append_ptr(swString *str, char *append_str, int length);
+int swString_write(swString *str, off_t offset, swString *write_str);
+int swString_write_ptr(swString *str, off_t offset, char *write_str, int length);
 int swString_extend(swString *str, size_t new_size);
 char* swString_alloc(swString *str, size_t __size);
 
@@ -1130,6 +1132,7 @@ int swoole_system_random(int min, int max);
 long swoole_file_get_size(FILE *fp);
 int swoole_tmpfile(char *filename);
 swString* swoole_file_get_contents(char *filename);
+int swoole_file_put_contents(char *filename, char *content, size_t length);
 size_t swoole_file_size(char *filename);
 void swoole_open_remote_debug(void);
 char *swoole_dec2hex(int value, int base);
