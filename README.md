@@ -20,6 +20,11 @@ event-based
 
 The network layer in Swoole is event-based and takes full advantage of the underlaying epoll/kqueue implementation, making it really easy to serve thousands of connections.
 
+coroutine
+----------------
+[Swoole 2.0](Version2.md) support the  built-in coroutine, you can use fully synchronized code to implement asynchronous program. 
+PHP code without any additional keywords, the underlying automatic coroutine-scheduling.
+
 concurrent
 ------
 
@@ -32,10 +37,6 @@ in-memory
 
 Unlike traditional apache/php-fpm stuff, the memory allocated in Swoole will not be free'd after a request, which can improve performance a lot.
 
-coroutine
-----------------
-Swoole 2.0 support from the beginning of the built-in coroutine, you can use fully synchronized code to implement asynchronous program. 
-PHP code without any additional keywords, the underlying automatic coroutine-scheduling.
 
 ## Why Swoole?
 
