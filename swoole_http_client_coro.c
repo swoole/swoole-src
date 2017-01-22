@@ -321,7 +321,6 @@ static void http_client_coro_onClose(swClient *cli)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
     zval *zobject = cli->object;
-    http_client *http = swoole_get_object(zobject);
     if (!cli->released)
     {
         http_client_free(zobject TSRMLS_CC);

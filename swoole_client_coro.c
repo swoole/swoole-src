@@ -407,7 +407,7 @@ void php_swoole_client_coro_check_setting(swClient *cli, zval *zset TSRMLS_DC)
     }
     if (bind_address)
     {
-        swSocket_bind(cli->socket->fd, cli->type, bind_address, bind_port);
+        swSocket_bind(cli->socket->fd, cli->type, bind_address, &bind_port);
     }
     /**
      * TCP_NODELAY
