@@ -825,46 +825,6 @@ PHP_FUNCTION(swoole_async_dns_lookup)
         RETURN_FALSE;
     }
 
-    struct in_addr addr;
-    if (!SwooleG.disable_dns_cache)
-    {
-        int flags = AF_INET | SW_DNS_LOOKUP_CACHE_ONLY;
-        if (SwooleG.dns_lookup_random)
-        {
-            flags |= SW_DNS_LOOKUP_RANDOM;
-        }
-        //hit the dns lookup cache
-        if (swoole_gethostbyname(flags, Z_STRVAL_P(domain), (char *) &addr) == SW_OK)
-        {
-            zval **args[2];
-            zval *zdomain;
-            zval *zcontent;
-            zval *retval;
-
-            char *ip_addr = inet_ntoa(addr);
-            SW_MAKE_STD_ZVAL(zcontent);
-            SW_ZVAL_STRING(zcontent, ip_addr, 1);
-
-            SW_MAKE_STD_ZVAL(zdomain);
-            SW_ZVAL_STRINGL(zdomain, Z_STRVAL_P(domain), Z_STRLEN_P(domain), 1);
-
-            args[0] = &zdomain;
-            args[1] = &zcontent;
-            if (sw_call_user_function_ex(EG(function_table), NULL, cb, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
-            {
-                swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete handler error");
-                return;
-            }
-            if (retval)
-            {
-                sw_zval_ptr_dtor(&retval);
-            }
-            sw_zval_ptr_dtor(&zdomain);
-            sw_zval_ptr_dtor(&zcontent);
-            return;
-        }
-    }
-
     dns_request *req = emalloc(sizeof(dns_request));
     req->callback = cb;
     sw_copy_to_stack(req->callback, req->_callback);
@@ -874,12 +834,18 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     sw_copy_to_stack(req->domain, req->_domain);
     sw_zval_add_ref(&req->domain);
 
+    /**
+     * Use asynchronous IO
+     */
     if (SwooleG.use_async_resolver)
     {
         php_swoole_check_reactor();
         SW_CHECK_RETURN(swDNSResolver_request(Z_STRVAL_P(domain), php_swoole_dns_callback, (void *) req));
     }
 
+    /**
+     * Use thread pool
+     */
     int buf_size;
     if (Z_STRLEN_P(domain) < SW_IP_MAX_LENGTH)
     {

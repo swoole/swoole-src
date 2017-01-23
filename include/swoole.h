@@ -761,7 +761,6 @@ enum SW_LOCKS
 
 enum swDNSLookup_cache_type
 {
-    SW_DNS_LOOKUP_CACHE_ONLY =  (1u << 10),
     SW_DNS_LOOKUP_RANDOM  = (1u << 11),
 };
 

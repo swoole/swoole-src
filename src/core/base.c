@@ -918,13 +918,25 @@ void swoole_clear_dns_cache(void)
  */
 int swoole_gethostbyname(int flags, char *name, char *addr)
 {
+    int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
+
+    if (SwooleG.disable_dns_cache)
+    {
+        struct hostent *host_entry;
+        if (!(host_entry = gethostbyname2(name, __af)))
+        {
+            return SW_ERR;
+        }
+        memcpy(addr, host_entry->h_addr_list[0], host_entry->h_length);
+        return SW_OK;
+    }
+
     /**
      * use local lock
      */
     SwooleG.lock.lock(&SwooleG.lock);
     swHashMap *cache_table;
 
-    int __af = flags & (~SW_DNS_LOOKUP_CACHE_ONLY) & (~SW_DNS_LOOKUP_RANDOM);
     if (__af == AF_INET)
     {
         if (!swoole_dns_cache_v4)
@@ -950,11 +962,6 @@ int swoole_gethostbyname(int flags, char *name, char *addr)
     int name_length = strlen(name);
     int index = 0;
     swDNS_cache *cache = swHashMap_find(cache_table, name, name_length);
-    if (cache == NULL && (flags & SW_DNS_LOOKUP_CACHE_ONLY))
-    {
-        SwooleG.lock.unlock(&SwooleG.lock);
-        return SW_ERR;
-    }
 
     if (cache == NULL)
     {
