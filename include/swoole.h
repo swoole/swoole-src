@@ -1142,7 +1142,6 @@ void swoole_print_trace(void);
 void swoole_ioctl_set_block(int sock, int nonblock);
 void swoole_fcntl_set_option(int sock, int nonblock, int cloexec);
 int swoole_gethostbyname(int type, char *name, char *addr);
-void swoole_clear_dns_cache(void);
 //----------------------core function---------------------
 int swSocket_set_timeout(int sock, double timeout);
 
@@ -1805,7 +1804,6 @@ typedef struct
     uint8_t use_signalfd :1;
     uint8_t reuse_port :1;
     uint8_t socket_dontwait :1;
-    uint8_t disable_dns_cache :1;
     uint8_t dns_lookup_random :1;
     uint8_t use_async_resolver :1;
 

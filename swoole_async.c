@@ -770,11 +770,6 @@ PHP_FUNCTION(swoole_async_set)
         convert_to_boolean(v);
         SwooleG.socket_dontwait = Z_BVAL_P(v);
     }
-    if (php_swoole_array_get_value(vht, "disable_dns_cache", v))
-    {
-        convert_to_boolean(v);
-        SwooleG.disable_dns_cache = Z_BVAL_P(v);
-    }
     if (php_swoole_array_get_value(vht, "dns_lookup_random", v))
     {
         convert_to_boolean(v);
