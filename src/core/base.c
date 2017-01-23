@@ -25,20 +25,6 @@
 #include <execinfo.h>
 #endif
 
-typedef struct
-{
-    int number;
-    int addr_length;
-    union
-    {
-        struct in_addr v4;
-        struct in6_addr v6;
-    } addr[SW_DNS_LOOKUP_CACHE_SIZE];
-} swDNS_cache;
-
-static swHashMap *swoole_dns_cache_v4 = NULL;
-static swHashMap *swoole_dns_cache_v6 = NULL;
-
 void swoole_init(void)
 {
     struct rlimit rlmt;
@@ -899,113 +885,49 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
     return match;
 }
 
-void swoole_clear_dns_cache(void)
-{
-    if (swoole_dns_cache_v4)
-    {
-        swHashMap_free(swoole_dns_cache_v4);
-        swoole_dns_cache_v4 = NULL;
-    }
-    if (swoole_dns_cache_v6)
-    {
-        swHashMap_free(swoole_dns_cache_v6);
-        swoole_dns_cache_v6 = NULL;
-    }
-}
-
 /**
  * DNS lookup
  */
 int swoole_gethostbyname(int flags, char *name, char *addr)
 {
-    /**
-     * use local lock
-     */
-    SwooleG.lock.lock(&SwooleG.lock);
-    swHashMap *cache_table;
-
-    int __af = flags & (~SW_DNS_LOOKUP_CACHE_ONLY) & (~SW_DNS_LOOKUP_RANDOM);
-    if (__af == AF_INET)
-    {
-        if (!swoole_dns_cache_v4)
-        {
-            swoole_dns_cache_v4 = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
-        }
-        cache_table = swoole_dns_cache_v4;
-    }
-    else if (__af == AF_INET6)
-    {
-        if (!swoole_dns_cache_v6)
-        {
-            swoole_dns_cache_v6 = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
-        }
-        cache_table = swoole_dns_cache_v6;
-    }
-    else
-    {
-        SwooleG.lock.unlock(&SwooleG.lock);
-        return SW_ERR;
-    }
-
-    int name_length = strlen(name);
+    int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
     int index = 0;
-    swDNS_cache *cache = swHashMap_find(cache_table, name, name_length);
-    if (cache == NULL && (flags & SW_DNS_LOOKUP_CACHE_ONLY))
+
+    struct hostent *host_entry;
+    if (!(host_entry = gethostbyname2(name, __af)))
     {
-        SwooleG.lock.unlock(&SwooleG.lock);
         return SW_ERR;
     }
 
-    if (cache == NULL)
+    union
     {
-        struct hostent *host_entry;
-        if (!(host_entry = gethostbyname2(name, __af)))
-        {
-            SwooleG.lock.unlock(&SwooleG.lock);
-            return SW_ERR;
-        }
+        char v4[16];
+        char v6[46];
+    } addr_list[SW_DNS_HOST_BUFFER_SIZE];
 
-        cache = sw_malloc(sizeof(swDNS_cache));
-        if (cache == NULL)
-        {
-            SwooleGS->lock.unlock(&SwooleGS->lock);
-            memcpy(addr, host_entry->h_addr_list[0], host_entry->h_length);
-            return SW_OK;
-        }
-
-        bzero(cache, sizeof(swDNS_cache));
-        int i = 0;
-        for (i = 0; i < SW_DNS_LOOKUP_CACHE_SIZE; i++)
-        {
-            if (host_entry->h_addr_list[i] == NULL)
-            {
-                break;
-            }
-            if (__af == AF_INET)
-            {
-                memcpy(&cache->addr[i].v4, host_entry->h_addr_list[i], host_entry->h_length);
-            }
-            else
-            {
-                memcpy(&cache->addr[i].v6, host_entry->h_addr_list[i], host_entry->h_length);
-            }
-        }
-        cache->number = i;
-        cache->addr_length = host_entry->h_length;
-        swHashMap_add(cache_table, name, name_length, cache);
-    }
-    SwooleG.lock.unlock(&SwooleG.lock);
-    if (flags & SW_DNS_LOOKUP_RANDOM)
+    int i = 0;
+    for (i = 0; i < SW_DNS_HOST_BUFFER_SIZE; i++)
     {
-        index = rand() % cache->number;
+        if (host_entry->h_addr_list[i] == NULL)
+        {
+            break;
+        }
+        if (__af == AF_INET)
+        {
+            memcpy(addr_list[i].v4, host_entry->h_addr_list[i], host_entry->h_length);
+        }
+        else
+        {
+            memcpy(addr_list[i].v6, host_entry->h_addr_list[i], host_entry->h_length);
+        }
     }
     if (__af == AF_INET)
     {
-        memcpy(addr, &cache->addr[index].v4, cache->addr_length);
+        strcpy(addr, addr_list[index].v4);
     }
     else
     {
-        memcpy(addr, &cache->addr[index].v6, cache->addr_length);
+        strcpy(addr, addr_list[index].v6);
     }
     return SW_OK;
 }

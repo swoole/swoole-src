@@ -121,11 +121,14 @@ void swClient_free(swClient *cli);
 
 typedef struct
 {
-    void (*callback)(void *addrs);
-    void *object;
-    char *domain;
-} swDNS_request;
+    uint8_t num;
+    struct
+    {
+        uint8_t length;
+        char address[16];
+    } hosts[SW_DNS_HOST_BUFFER_SIZE];
+} swDNSResolver_result;
 
-int swDNSResolver_request(swDNS_request *request);
+int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_result *, void *), void *data);
 
 #endif /* SW_CLIENT_H_ */

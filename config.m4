@@ -324,6 +324,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/Worker.c \
         src/network/Timer.c \
         src/network/Port.c \
+        src/network/DNS.c \
         src/os/base.c \
         src/os/dl.c \
         src/os/linux_aio.c \

@@ -221,8 +221,8 @@
 
 #define SW_SIGNO_MAX                     128
 
-#define SW_DNS_LOOKUP_USE_THREAD
-#define SW_DNS_LOOKUP_CACHE_SIZE         4
+#define SW_DNS_HOST_BUFFER_SIZE          16
+#define SW_DNS_SERVER_PORT               53
 
 //#define SW_HTTP_CLIENT_ENABLE
 
