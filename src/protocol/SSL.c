@@ -373,7 +373,8 @@ int swSSL_accept(swConnection *conn)
     {
         return SW_ERROR;
     }
-    swWarn("swSSL_accept() failed. Error: %s[%ld]", ERR_reason_error_string(err), err);
+    err = ERR_GET_REASON(ERR_peek_error());
+    swWarn("SSL_do_handshake() failed. Error: %s[%ld]", ERR_reason_error_string(err), err);
     return SW_ERROR;
 }
 
