@@ -1785,6 +1785,15 @@ typedef struct
     swString **buffer_input;
 } swThreadG;
 
+typedef struct
+{
+    union
+    {
+        char v4[INET_ADDRSTRLEN];
+        char v6[INET6_ADDRSTRLEN];
+    } address;
+} swDNS_server;
+
 typedef struct _swServer swServer;
 typedef struct _swFactory swFactory;
 
@@ -1798,7 +1807,8 @@ typedef struct
     uint8_t reuse_port :1;
     uint8_t socket_dontwait :1;
     uint8_t disable_dns_cache :1;
-    uint8_t dns_lookup_random: 1;
+    uint8_t dns_lookup_random :1;
+    uint8_t use_async_resolver :1;
 
     /**
      * Timer used pipe
@@ -1855,6 +1865,9 @@ typedef struct
     swEventData *task_result;
 
     pthread_t heartbeat_pidt;
+
+    char *dns_server_v4;
+    char *dns_server_v6;
 
     swLock lock;
     swString *module_stack;

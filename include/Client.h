@@ -102,7 +102,7 @@ typedef struct _swClient
     void (*onBufferFull)(struct _swClient *cli);
     void (*onBufferEmpty)(struct _swClient *cli);
 
-    int (*connect)(struct _swClient *cli, char *host, int port, double _timeout, int sock_flag);
+    int (*connect)(struct _swClient *cli, char *hosts, int port, double _timeout, int sock_flag);
     int (*send)(struct _swClient *cli, char *data, int length, int flags);
     int (*sendfile)(struct _swClient *cli, char *filename, off_t offset);
     int (*recv)(struct _swClient *cli, char *data, int len, int flags);
@@ -120,11 +120,14 @@ void swClient_free(swClient *cli);
 
 typedef struct
 {
-    void (*callback)(void *addrs);
-    void *object;
-    char *domain;
-} swDNS_request;
+    uint8_t num;
+    struct
+    {
+        uint8_t length;
+        char address[16];
+    } hosts[SW_DNS_HOST_BUFFER_SIZE];
+} swDNSResolver_result;
 
-int swDNSResolver_request(swDNS_request *request);
+int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_result *, void *), void *data);
 
 #endif /* SW_CLIENT_H_ */

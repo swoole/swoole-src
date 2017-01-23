@@ -54,6 +54,7 @@ typedef struct
 
 static void php_swoole_check_aio();
 static void php_swoole_aio_onComplete(swAio_event *event);
+static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, void *data);
 static void php_swoole_file_request_free(void *data);
 
 static swHashMap *php_swoole_open_files;
@@ -132,6 +133,53 @@ static void php_swoole_check_aio()
         swAio_init();
         SwooleAIO.callback = php_swoole_aio_onComplete;
     }
+}
+
+static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, void *data)
+{
+    SWOOLE_GET_TSRMLS;
+    dns_request *req = data;
+    zval *retval = NULL;
+    zval *zaddress;
+    zval **args[2];
+    char *address;
+
+    SW_MAKE_STD_ZVAL(zaddress);
+    if (result->num > 0)
+    {
+        if (SwooleG.dns_lookup_random)
+        {
+            address = result->hosts[rand() % result->num].address;
+        }
+        else
+        {
+            address = result->hosts[0].address;
+        }
+        SW_ZVAL_STRING(zaddress, address, 1);
+    }
+    else
+    {
+        SW_ZVAL_STRING(zaddress, "", 1);
+    }
+
+    args[0] = &req->domain;
+    args[1] = &zaddress;
+
+    zval *zcallback = req->callback;
+    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+    {
+        swoole_php_fatal_error(E_WARNING, "swoole_asyns_dns_lookup handler error.");
+        return;
+    }
+
+    sw_zval_ptr_dtor(&req->callback);
+    sw_zval_ptr_dtor(&req->domain);
+    efree(req);
+    if (retval)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+    sw_zval_ptr_dtor(&zaddress);
 }
 
 static void php_swoole_aio_onComplete(swAio_event *event)
@@ -732,6 +780,16 @@ PHP_FUNCTION(swoole_async_set)
         convert_to_boolean(v);
         SwooleG.dns_lookup_random = Z_BVAL_P(v);
     }
+    if (php_swoole_array_get_value(vht, "dns_server", v))
+    {
+        convert_to_string(v);
+        SwooleG.dns_server_v4 = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+    }
+    if (php_swoole_array_get_value(vht, "use_async_resolver", v))
+    {
+        convert_to_boolean(v);
+        SwooleG.use_async_resolver = Z_BVAL_P(v);
+    }
 #if defined(HAVE_REUSEPORT) && defined(HAVE_EPOLL)
     //reuse port
     if (php_swoole_array_get_value(vht, "enable_reuse_port", v))
@@ -816,6 +874,12 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     sw_copy_to_stack(req->domain, req->_domain);
     sw_zval_add_ref(&req->domain);
 
+    if (SwooleG.use_async_resolver)
+    {
+        php_swoole_check_reactor();
+        SW_CHECK_RETURN(swDNSResolver_request(Z_STRVAL_P(domain), php_swoole_dns_callback, (void *) req));
+    }
+
     int buf_size;
     if (Z_STRLEN_P(domain) < SW_IP_MAX_LENGTH)
     {
@@ -826,20 +890,9 @@ PHP_FUNCTION(swoole_async_dns_lookup)
         buf_size = Z_STRLEN_P(domain) + 1;
     }
 
-#ifdef SW_DNS_LOOKUP_USE_THREAD
     void *buf = emalloc(buf_size);
     bzero(buf, buf_size);
     memcpy(buf, Z_STRVAL_P(domain), Z_STRLEN_P(domain));
     php_swoole_check_aio();
     SW_CHECK_RETURN(swAio_dns_lookup(req, buf, buf_size));
-#else
-    swDNS_request *request = emalloc(sizeof(swDNS_request));
-    request->callback = php_swoole_aio_onDNSResponse;
-    request->object = req;
-    request->domain = Z_STRVAL_P(domain);
-
-    php_swoole_check_reactor();
-    swDNSResolver_request(request);
-    php_swoole_try_run_reactor();
-#endif
 }

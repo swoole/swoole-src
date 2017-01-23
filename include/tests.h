@@ -35,6 +35,7 @@ swUnitTest(mem_test2);
 swUnitTest(mem_test3);
 swUnitTest(mem_test4);
 
+swUnitTest(dnslookup_test);
 swUnitTest(client_test);
 swUnitTest(server_test);
 

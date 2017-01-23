@@ -4,25 +4,27 @@
 
 static swReactor main_reactor;
 
-void dns_callback(void *ptr)
+void dns_callback(char *domain, swDNSResolver_result *result, void *data)
 {
+    printf("domain [%s]\n", domain);
+    int i;
+    for (i = 0; i < result->num; i++)
+    {
+        printf("ip[%d]: %s\n", i, result->host[i].address);
+    }
+    printf("private data=%s\n", (char *) data);
+}
 
+swUnitTest(dnslookup_test)
+{
+    swReactor_create(&main_reactor, 1024);
+    SwooleG.main_reactor = &main_reactor;
+    swDNSResolver_request("www.baidu.com", dns_callback, "hello");
+    return main_reactor.wait(&main_reactor, NULL);
 }
 
 swUnitTest(client_test)
 {
-    swReactor_create(&main_reactor, 1024);
-    SwooleG.main_reactor = &main_reactor;
-
-    swDNS_request request;
-
-    request.domain = "www.baidu.com";
-    request.callback = dns_callback;
-
-    swDNSResolver_request(&request);
-
-    return main_reactor.wait(&main_reactor, NULL);
-
 	int ret;
 	swClient cli, cli2;
 	char buf[128];

@@ -258,4 +258,7 @@
 
 #define SW_PHP_FUNCTION_MAX_ARG          16
 
+#define SW_DNS_HOST_BUFFER_SIZE          16
+#define SW_DNS_SERVER_PORT               53
+
 #endif /* SWOOLE_CONFIG_H_ */
