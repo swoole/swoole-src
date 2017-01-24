@@ -35,10 +35,10 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2017-01-09</date>
+    <date>2017-01-24</date>
     <time>09:50:10</time>
     <version>
-		<release>1.9.4</release>
+		<release>1.9.5</release>
 		<api>1.9</api>
     </version>
     <stability>
@@ -47,9 +47,11 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed WebSocket server default onRequest method memory leak problem
-- Fixed the problem of missing zlib library compilation failures
-- Added Client->reuseCount property to query the number of multiplexed sockets
+- Fixed taskWaitMulti special case of file descriptor leak problem
+- Added pid_file option to write the master PID to file
+- Added listen random port support, OS will automatically be assigned an available port
+- Removed DNS cache, removed swoole_clear_dns_cache function
+- Added use_async_resolver option to enable real async-io DNS lookup
     </notes>
 	<contents>
 		<dir name="/">
