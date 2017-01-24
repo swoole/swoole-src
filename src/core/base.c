@@ -901,8 +901,8 @@ int swoole_gethostbyname(int flags, char *name, char *addr)
 
     union
     {
-        char v4[16];
-        char v6[46];
+        char v4[INET_ADDRSTRLEN];
+        char v6[INET6_ADDRSTRLEN];
     } addr_list[SW_DNS_HOST_BUFFER_SIZE];
 
     int i = 0;
