@@ -1132,7 +1132,7 @@ long swoole_file_get_size(FILE *fp);
 int swoole_tmpfile(char *filename);
 swString* swoole_file_get_contents(char *filename);
 int swoole_file_put_contents(char *filename, char *content, size_t length);
-size_t swoole_file_size(char *filename);
+long swoole_file_size(char *filename);
 void swoole_open_remote_debug(void);
 char *swoole_dec2hex(int value, int base);
 int swoole_version_compare(char *version1, char *version2);

@@ -507,7 +507,7 @@ long swoole_file_get_size(FILE *fp)
     return size;
 }
 
-size_t swoole_file_size(char *filename)
+long swoole_file_size(char *filename)
 {
     struct stat file_stat;
     if (lstat(filename, &file_stat) < 0)
@@ -521,7 +521,7 @@ size_t swoole_file_size(char *filename)
 
 swString* swoole_file_get_contents(char *filename)
 {
-    size_t filesize = swoole_file_size(filename);
+    long filesize = swoole_file_size(filename);
     if (filesize < 0)
     {
         return NULL;
