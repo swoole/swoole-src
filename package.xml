@@ -35,10 +35,10 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2017-01-03</date>
+    <date>2017-01-24</date>
     <time>09:50:10</time>
     <version>
-		<release>2.0.5</release>
+		<release>2.0.6</release>
 		<api>2.0</api>
     </version>
     <stability>
@@ -47,13 +47,8 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Added native coroutine
-- Added Swoole\Coroutine\Client
-- Added Swoole\Coroutine\Http\Client
-- Added Swoole\Coroutine\MySQL
-- Added Swoole\Coroutine\Redis
-- Fixed compile failure with ZTS
-- The minimum version requirement upgrade to 5.5
+    - Fixed http client and redis client conflicts
+    - Fixed the coroutine client cannot use the SplQueue on PHP5
     </notes>
 	<contents>
 		<dir name="/">
