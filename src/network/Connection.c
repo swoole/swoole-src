@@ -241,8 +241,8 @@ int swConnection_sendfile(swConnection *conn, char *filename, off_t offset)
     if (file_fd < 0)
     {
         sw_strdup_free(task->filename);
-        free(task);
         swSysError("open(%s) failed.", task->filename);
+        free(task);
         return SW_ERR;
     }
     task->fd = file_fd;
