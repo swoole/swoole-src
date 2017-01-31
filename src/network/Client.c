@@ -487,7 +487,7 @@ static int swClient_tcp_pipe(swClient *cli, int write_fd, int flags)
     }
 
     int socktype;
-    socklen_t length;
+    socklen_t length = sizeof(socktype);
 
     if (flags & SW_CLIENT_PIPE_TCP_SESSION)
     {
