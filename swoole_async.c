@@ -583,17 +583,20 @@ PHP_FUNCTION(swoole_async_readfile)
     if (fstat(fd, &file_stat) < 0)
     {
         swoole_php_fatal_error(E_WARNING, "fstat failed. Error: %s[%d]", strerror(errno), errno);
+        close(fd);
         RETURN_FALSE;
     }
     if (file_stat.st_size <= 0)
     {
         swoole_php_fatal_error(E_WARNING, "file is empty.");
+        close(fd);
         RETURN_FALSE;
     }
     if (file_stat.st_size > SW_AIO_MAX_FILESIZE)
     {
         swoole_php_fatal_error(E_WARNING, "file_size[size=%ld|max_size=%d] is too big. Please use swoole_async_read.",
                 (long int) file_stat.st_size, SW_AIO_MAX_FILESIZE);
+        close(fd);
         RETURN_FALSE;
     }
 
