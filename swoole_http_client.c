@@ -389,6 +389,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
             if (ftruncate(fd, 0) < 0)
             {
                 swSysError("ftruncate(%s) failed.", Z_STRVAL_P(hcc->download_file));
+                close(fd);
                 return SW_ERR;
             }
         }
@@ -397,6 +398,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
             if (lseek(fd, hcc->download_offset, SEEK_SET) < 0)
             {
                 swSysError("fseek(%s, %ld) failed.", Z_STRVAL_P(hcc->download_file), hcc->download_offset);
+                close(fd);
                 return SW_ERR;
             }
         }
