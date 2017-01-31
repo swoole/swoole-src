@@ -33,6 +33,7 @@ int swSocket_sendfile_sync(int sock, char *filename, off_t offset, double timeou
     if (fstat(file_fd, &file_stat) < 0)
     {
         swWarn("fstat() failed. Error: %s[%d]", strerror(errno), errno);
+        close(file_fd);
         return SW_ERR;
     }
 
