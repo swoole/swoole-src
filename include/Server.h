@@ -650,10 +650,12 @@ static sw_inline swString* swTaskWorker_large_unpack(swEventData *task_result)
     }
     if (SwooleG.module_stack->size < _pkg.length && swString_extend_align(SwooleG.module_stack, _pkg.length) < 0)
     {
+        close(tmp_file_fd);
         return NULL;
     }
     if (swoole_sync_readfile(tmp_file_fd, SwooleG.module_stack->str, _pkg.length) < 0)
     {
+        close(tmp_file_fd);
         return NULL;
     }
     close(tmp_file_fd);
