@@ -1148,6 +1148,7 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
     //bind address and port
     if (swSocket_bind(sock, ls->type, ls->host, &ls->port) < 0)
     {
+        close(sock);
         return NULL;
     }
     //dgram socket, setting socket buffer size
