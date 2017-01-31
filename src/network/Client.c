@@ -103,6 +103,7 @@ int swClient_create(swClient *cli, int type, int async)
     if (!cli->socket)
     {
         swWarn("malloc(%d) failed.", (int ) sizeof(swConnection));
+        close(sockfd);
         return SW_ERR;
     }
 
