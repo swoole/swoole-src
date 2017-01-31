@@ -115,6 +115,7 @@ swHashMap* swHashMap_new(uint32_t bucket_num, swHashMap_dtor dtor)
     if (!(root->hh.tbl))
     {
         swWarn("malloc for table failed.");
+        sw_free(hmap);
         return NULL;
     }
 
@@ -127,6 +128,7 @@ swHashMap* swHashMap_new(uint32_t bucket_num, swHashMap_dtor dtor)
     if (!root->hh.tbl->buckets)
     {
         swWarn("malloc for buckets failed.");
+        sw_free(hmap);
         return NULL;
     }
     memset(root->hh.tbl->buckets, 0, SW_HASHMAP_INIT_BUCKET_N * sizeof(struct UT_hash_bucket));
