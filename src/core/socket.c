@@ -322,7 +322,7 @@ int swSocket_bind(int sock, int type, char *host, int *port)
         bzero(&addr_un, sizeof(addr_un));
         unlink(host);
         addr_un.sun_family = AF_UNIX;
-        strncpy(addr_un.sun_path, host, sizeof(addr_un.sun_path));
+        strncpy(addr_un.sun_path, host, sizeof(addr_un.sun_path) - 1);
         ret = bind(sock, (struct sockaddr*) &addr_un, sizeof(addr_un));
     }
     //IPv6
