@@ -1117,8 +1117,9 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
     swPort_init(ls);
     ls->type = type;
     ls->port = port;
-    bzero(ls->host, SW_HOST_MAXSIZE);
-    strncpy(ls->host, host, SW_HOST_MAXSIZE);
+
+    strncpy(ls->host, host, HOST_NAME_MAX);
+    ls->host[HOST_NAME_MAX] = '\0';
 
     if (type & SW_SOCK_SSL)
     {

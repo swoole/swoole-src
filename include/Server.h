@@ -17,6 +17,7 @@
 #ifndef SW_SERVER_H_
 #define SW_SERVER_H_
 
+#include <limits.h>
 #include "swoole.h"
 #include "buffer.h"
 #include "Connection.h"
@@ -163,7 +164,7 @@ typedef struct _swListenPort
     int port;
     int sock;
     pthread_t thread_id;
-    char host[SW_HOST_MAXSIZE];
+    char host[HOST_NAME_MAX + 1];
 
     /**
      * check data eof
