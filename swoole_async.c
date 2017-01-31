@@ -404,11 +404,13 @@ PHP_FUNCTION(swoole_async_read)
     if (fstat(fd, &file_stat) < 0)
     {
         swoole_php_sys_error(E_WARNING, "fstat(%s) failed.", Z_STRVAL_P(filename));
+        close(fd);
         RETURN_FALSE;
     }
     if (offset >= file_stat.st_size)
     {
         swoole_php_fatal_error(E_WARNING, "offset must be less than file_size[=%ld].", file_stat.st_size);
+        close(fd);
         RETURN_FALSE;
     }
 
@@ -416,6 +418,7 @@ PHP_FUNCTION(swoole_async_read)
     if (fcnt == NULL)
     {
         swoole_php_sys_error(E_WARNING, "malloc failed.");
+        close(fd);
         RETURN_FALSE;
     }
 
