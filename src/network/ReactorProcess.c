@@ -548,6 +548,7 @@ static int swReactorProcess_reuse_port(swListenPort *ls)
     //bind address and port
     if (swSocket_bind(sock, ls->type, ls->host, &ls->port) < 0)
     {
+        close(sock);
         return SW_ERR;
     }
     //stream socket, set nonblock
