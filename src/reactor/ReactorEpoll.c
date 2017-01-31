@@ -84,6 +84,7 @@ int swReactorEpoll_create(swReactor *reactor, int max_event_num)
     if (reactor_object->events == NULL)
     {
         swWarn("malloc[1] failed.");
+        sw_free(reactor_object);
         return SW_ERR;
     }
     //epoll create
@@ -91,6 +92,7 @@ int swReactorEpoll_create(swReactor *reactor, int max_event_num)
     if (reactor_object->epfd < 0)
     {
         swWarn("epoll_create failed. Error: %s[%d]", strerror(errno), errno);
+        sw_free(reactor_object);
         return SW_ERR;
     }
     //binding method
