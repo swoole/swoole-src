@@ -144,18 +144,22 @@ int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events)
         int ret = poll(event_list, n_fd, timeout_ms);
         if (ret == 0)
         {
+            sw_free(event_list);
             return SW_ERR;
         }
         else if (ret < 0 && errno != EINTR)
         {
             swWarn("poll() failed. Error: %s[%d]", strerror(errno), errno);
+            sw_free(event_list);
             return SW_ERR;
         }
         else
         {
+            sw_free(event_list);
             return ret;
         }
     }
+    sw_free(event_list);
     return SW_OK;
 }
 
