@@ -35,6 +35,7 @@ swModule* swModule_load(char *so_file)
     if (module == NULL)
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "malloc failed.");
+        dlclose(handle);
         return NULL;
     }
     //get init function
@@ -44,6 +45,7 @@ swModule* swModule_load(char *so_file)
     {
         swWarn("dlsym() failed. Error: %s", error);
         sw_free(module);
+        dlclose(handle);
         return NULL;
     }
     module->file = strdup(so_file);
@@ -52,14 +54,17 @@ swModule* swModule_load(char *so_file)
     if (module->functions == NULL)
     {
         sw_free(module);
+        dlclose(handle);
         return NULL;
     }
     //init module
     if ((*init_func)(module) < 0)
     {
         sw_free(module);
+        dlclose(handle);
         return NULL;
     }
+    module->handle = handle;
     return module;
 }
 
