@@ -203,9 +203,14 @@ void swoole_dump_hex(char *data, int outlen)
 int swoole_mkdir_recursive(const char *dir)
 {
     char tmp[PATH_MAX];
-    strncpy(tmp, dir, PATH_MAX);
-    tmp[PATH_MAX] = '\0';
-    int i, len = strlen(tmp);
+    int i, len = strlen(dir);
+
+    if (len + 1 > PATH_MAX) /* PATH_MAX limit includes string trailing null character */
+    {
+        swWarn("mkdir(%s) failed. Path exceeds %d characters limit.", dir, PATH_MAX - 1);
+        return -1;
+    }
+    strncpy(tmp, dir, len + 1);
 
     if (dir[len - 1] != '/')
     {
