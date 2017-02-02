@@ -1106,9 +1106,9 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_LISTEN_PORT, "invalid port [%d]", port);
         return NULL;
     }
-    if (strlen(host) > HOST_NAME_MAX)
+    if (strlen(host) + 1  > SW_HOST_MAXSIZE)
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_NAME_TOO_LONG, "host name '%s' exceeds %d characters limit", host, HOST_NAME_MAX);
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_NAME_TOO_LONG, "address '%s' exceeds %d characters limit", host, SW_HOST_MAXSIZE - 1);
         return NULL;
     }
 
