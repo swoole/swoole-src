@@ -20,6 +20,7 @@
 #include <sys/stat.h>
 #include <sys/resource.h>
 #include <sys/ioctl.h>
+#include <limits.h>
 
 #ifdef HAVE_EXECINFO
 #include <execinfo.h>
@@ -201,9 +202,15 @@ void swoole_dump_hex(char *data, int outlen)
  */
 int swoole_mkdir_recursive(const char *dir)
 {
-    char tmp[1024];
-    strncpy(tmp, dir, 1024);
-    int i, len = strlen(tmp);
+    char tmp[PATH_MAX];
+    int i, len = strlen(dir);
+
+    if (len + 1 > PATH_MAX) /* PATH_MAX limit includes string trailing null character */
+    {
+        swWarn("mkdir(%s) failed. Path exceeds %d characters limit.", dir, PATH_MAX - 1);
+        return -1;
+    }
+    strncpy(tmp, dir, len + 1);
 
     if (dir[len - 1] != '/')
     {
