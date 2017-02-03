@@ -288,7 +288,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         break;
 
     case SW_EVENT_BUFFER_EMPTY:
-        if (serv->onBufferFull)
+        if (serv->onBufferEmpty)
         {
             serv->onBufferEmpty(serv, &task->info);
         }
