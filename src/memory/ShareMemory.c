@@ -157,7 +157,7 @@ void *swShareMemory_sysv_create(swShareMemory *object, int size, int key)
         swWarn("shmget() failed. Error: %s[%d]", strerror(errno), errno);
         return NULL;
     }
-    if ((mem = shmat(shmid, NULL, 0)) < 0)
+    if ((mem = shmat(shmid, NULL, 0)) == (void *) -1)
     {
         swWarn("shmat() failed. Error: %s[%d]", strerror(errno), errno);
         return NULL;
