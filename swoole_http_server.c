@@ -376,8 +376,8 @@ int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int
 
 static void http_parse_cookie(zval *array, const char *at, size_t length)
 {
-    char keybuf[SW_HTTP_COOKIE_KEYLEN];
-    char valbuf[SW_HTTP_COOKIE_VALLEN];
+    char keybuf[SW_HTTP_COOKIE_KEYLEN + 1];
+    char valbuf[SW_HTTP_COOKIE_VALLEN + 1];
     char *_c = (char *) at;
 
     int klen = 0;
