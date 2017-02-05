@@ -91,10 +91,10 @@ AC_DEFUN([AC_SWOOLE_CPU_AFFINITY],
     AC_MSG_CHECKING([for cpu affinity])
     AC_TRY_COMPILE(
     [
-		#include <sched.h>
+        #include <sched.h>
     ], [
-		cpu_set_t cpu_set;
-		CPU_ZERO(&cpu_set);
+        cpu_set_t cpu_set;
+        CPU_ZERO(&cpu_set);
     ], [
         AC_DEFINE([HAVE_CPU_AFFINITY], 1, [cpu affinity?])
         AC_MSG_RESULT([yes])
@@ -108,10 +108,10 @@ AC_DEFUN([AC_SWOOLE_HAVE_REUSEPORT],
     AC_MSG_CHECKING([for socket REUSEPORT])
     AC_TRY_COMPILE(
     [
-		#include <sys/socket.h>
+        #include <sys/socket.h>
     ], [
         int val = 1;
-		setsockopt(0, SOL_SOCKET, SO_REUSEPORT, &val, sizeof(val));
+        setsockopt(0, SOL_SOCKET, SO_REUSEPORT, &val, sizeof(val));
     ], [
         AC_DEFINE([HAVE_REUSEPORT], 1, [have SO_REUSEPORT?])
         AC_MSG_RESULT([yes])
@@ -155,23 +155,23 @@ if test "$PHP_SWOOLE" != "no"; then
     fi
 
     if test "$PHP_SOCKETS" = "yes"; then
-		AC_DEFINE(SW_SOCKETS, 1, [enable sockets support])
+        AC_DEFINE(SW_SOCKETS, 1, [enable sockets support])
     fi
 
     if test "$PHP_RINGBUFFER" = "yes"; then
-		AC_DEFINE(SW_USE_RINGBUFFER, 1, [enable ringbuffer support])
+        AC_DEFINE(SW_USE_RINGBUFFER, 1, [enable ringbuffer support])
     fi
 
-	if test "$PHP_HTTP2" = "yes"; then
-		AC_DEFINE(SW_USE_HTTP2, 1, [enable http2.0 support])
+    if test "$PHP_HTTP2" = "yes"; then
+        AC_DEFINE(SW_USE_HTTP2, 1, [enable http2.0 support])
     fi
 
-	if test "$PHP_HUGEPAGE" = "yes"; then
-		AC_DEFINE(SW_USE_HUGEPAGE, 1, [enable hugepage support])
+    if test "$PHP_HUGEPAGE" = "yes"; then
+        AC_DEFINE(SW_USE_HUGEPAGE, 1, [enable hugepage support])
     fi
 
     if test "$PHP_THREAD" = "yes"; then
-		AC_DEFINE(SW_USE_THREAD, 1, [enable thread support])
+        AC_DEFINE(SW_USE_THREAD, 1, [enable thread support])
     fi
 
     AC_SWOOLE_CPU_AFFINITY
@@ -179,6 +179,43 @@ if test "$PHP_SWOOLE" != "no"; then
 
     CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
+
+    if test `uname` = "Darwin"; then
+        AC_CHECK_LIB(c, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
+    else
+        AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
+        PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
+    fi
+
+    if test "$PHP_OPENSSL" != "no" || test "$PHP_OPENSSL_DIR" != "no"; then
+        if test "$PHP_OPENSSL_DIR" != "no"; then
+            PHP_ADD_INCLUDE("${PHP_OPENSSL_DIR}/include")
+            PHP_ADD_LIBRARY_WITH_PATH(ssl, "${PHP_OPENSSL_DIR}/lib")
+        fi
+
+        AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])
+        PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
+        PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
+    fi
+
+    PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
+
+    if test "$PHP_ASYNC_REDIS" = "yes"; then
+        AC_DEFINE(SW_USE_REDIS, 1, [enable async-redis support])
+        PHP_ADD_LIBRARY(hiredis, 1, SWOOLE_SHARED_LIBADD)
+    fi
+
+    if test "$PHP_HTTP2" = "yes"; then
+        PHP_ADD_LIBRARY(nghttp2, 1, SWOOLE_SHARED_LIBADD)
+    fi
+
+    if test "$PHP_JEMALLOC" = "yes"; then
+        PHP_ADD_LIBRARY(jemalloc, 1, SWOOLE_SHARED_LIBADD)
+        AC_DEFINE(SW_USE_JEMALLOC, 1, [use jemalloc])
+    elif test "$PHP_TCMALLOC" = "yes"; then
+        PHP_ADD_LIBRARY(tcmalloc, 1, SWOOLE_SHARED_LIBADD)
+        AC_DEFINE(SW_USE_TCMALLOC, 1, [use tcmalloc])
+    fi
 
     AC_CHECK_LIB(c, accept4, AC_DEFINE(HAVE_ACCEPT4, 1, [have accept4]))
     AC_CHECK_LIB(c, signalfd, AC_DEFINE(HAVE_SIGNALFD, 1, [have signalfd]))
@@ -195,7 +232,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(c, inotify_init1, AC_DEFINE(HAVE_INOTIFY_INIT1, 1, [have inotify_init1]))
     AC_CHECK_LIB(pthread, pthread_rwlock_init, AC_DEFINE(HAVE_RWLOCK, 1, [have pthread_rwlock_init]))
     AC_CHECK_LIB(pthread, pthread_spin_lock, AC_DEFINE(HAVE_SPINLOCK, 1, [have pthread_spin_lock]))
-	AC_CHECK_LIB(pthread, pthread_mutex_timedlock, AC_DEFINE(HAVE_MUTEX_TIMEDLOCK, 1, [have pthread_mutex_timedlock]))
+    AC_CHECK_LIB(pthread, pthread_mutex_timedlock, AC_DEFINE(HAVE_MUTEX_TIMEDLOCK, 1, [have pthread_mutex_timedlock]))
     AC_CHECK_LIB(pthread, pthread_barrier_init, AC_DEFINE(HAVE_PTHREAD_BARRIER, 1, [have pthread_barrier_init]))
     AC_CHECK_LIB(ssl, SSL_library_init, AC_DEFINE(HAVE_OPENSSL, 1, [have openssl]))
     AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
@@ -206,50 +243,6 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
         PHP_ADD_LIBRARY(z, 1, SWOOLE_SHARED_LIBADD)
     ])
-
-    if test `uname` = "Darwin"; then
-        AC_CHECK_LIB(c, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
-    else
-        AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
-        PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
-    fi
-
-
-    if test "$PHP_OPENSSL" != "no" || test "$PHP_OPENSSL_DIR" != "no"; then
-        if test "$PHP_OPENSSL_DIR" != "no"; then
-            PHP_ADD_INCLUDE("${PHP_OPENSSL_DIR}/include")
-            PHP_ADD_LIBRARY_WITH_PATH(ssl, "${PHP_OPENSSL_DIR}/lib")
-        fi
-
-        AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])
-        PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
-        if test `uname` = "Darwin"; then
-            PHP_ADD_LIBRARY(mcrypt, 1, SWOOLE_SHARED_LIBADD)
-        else
-            PHP_ADD_LIBRARY(crypt, 1, SWOOLE_SHARED_LIBADD)
-            PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
-        fi
-    fi
-
-
-    PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
-
-    if test "$PHP_ASYNC_REDIS" = "yes"; then
-        AC_DEFINE(SW_USE_REDIS, 1, [enable async-redis support])
-        PHP_ADD_LIBRARY(hiredis, 1, SWOOLE_SHARED_LIBADD)
-    fi
-
-	if test "$PHP_HTTP2" = "yes"; then
-		PHP_ADD_LIBRARY(nghttp2, 1, SWOOLE_SHARED_LIBADD)
-    fi
-    
-    if test "$PHP_JEMALLOC" = "yes"; then
-        PHP_ADD_LIBRARY(jemalloc, 1, SWOOLE_SHARED_LIBADD)
-        AC_DEFINE(SW_USE_JEMALLOC, 1, [use jemalloc])
-    elif test "$PHP_TCMALLOC" = "yes"; then
-    	PHP_ADD_LIBRARY(tcmalloc, 1, SWOOLE_SHARED_LIBADD)
-        AC_DEFINE(SW_USE_TCMALLOC, 1, [use tcmalloc])
-    fi
 
     swoole_source_file="swoole.c \
         swoole_server.c \
@@ -267,7 +260,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_buffer.c \
         swoole_table.c \
         swoole_http_server.c \
-     	swoole_http_v2_server.c \
+        swoole_http_v2_server.c \
         swoole_websocket_server.c \
         swoole_http_client.c \
         swoole_http_client_coro.c \

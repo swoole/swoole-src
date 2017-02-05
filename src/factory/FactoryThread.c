@@ -57,6 +57,7 @@ int swFactoryThread_create(swFactory *factory, int worker_num)
 
     if (swThreadPool_create(&object->workers, worker_num) < 0)
     {
+        sw_free(object);
         return SW_ERR;
     }
 

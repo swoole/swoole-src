@@ -27,6 +27,7 @@ extern "C"
 
 typedef struct _swModule
 {
+    void *handle;
     char *file;
     char *name;
     swHashMap *functions;

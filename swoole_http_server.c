@@ -708,7 +708,7 @@ static int multipart_body_on_header_complete(multipart_parser* p)
     int tmpfile = swoole_tmpfile(file_path);
 
     FILE *fp = fdopen(tmpfile, "wb+");
-    if (fp < 0)
+    if (fp == NULL)
     {
         add_assoc_long(multipart_header, "error", HTTP_UPLOAD_ERR_NO_TMP_DIR);
         swWarn("fopen(%s) failed. Error %s[%d]", file_path, strerror(errno), errno);
