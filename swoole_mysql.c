@@ -886,6 +886,7 @@ static PHP_METHOD(swoole_mysql, connect)
     client->cli = cli;
     sw_copy_to_stack(client->object, client->_object);
     sw_zval_add_ref(&client->object);
+    sw_zval_ptr_dtor(&server_info);
 
     swConnection *_socket = swReactor_get(SwooleG.main_reactor, cli->socket->fd);
     _socket->object = client;
