@@ -91,6 +91,7 @@ typedef struct
     char *ciphers;
     char *ecdh_curve;
     char *session_cache;
+    char *dhparam;
 } swSSL_config;
 
 void swSSL_init(void);

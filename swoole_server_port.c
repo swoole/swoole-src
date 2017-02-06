@@ -382,6 +382,11 @@ static PHP_METHOD(swoole_server_port, set)
             convert_to_string(v);
             port->ssl_config.ecdh_curve = strdup(Z_STRVAL_P(v));
         }
+        if (php_swoole_array_get_value(vht, "ssl_dhparam", v))
+        {
+            convert_to_string(v);
+            port->ssl_config.dhparam = strdup(Z_STRVAL_P(v));
+        }
         //    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_session_cache"), (void **) &v) == SUCCESS)
         //    {
         //        convert_to_string(v);
