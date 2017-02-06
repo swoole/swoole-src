@@ -146,7 +146,7 @@ int swSSL_server_set_cipher(SSL_CTX* ssl_context, swSSL_config *cfg)
     SSL_CTX_set_tmp_rsa_callback(ssl_context, swSSL_rsa_key_callback);
 #endif
 
-    if (strlen(cfg->dhparam) > 0)
+    if (cfg->dhparam && strlen(cfg->dhparam) > 0)
     {
         swSSL_set_dhparam(ssl_context, cfg->dhparam);
     }
@@ -156,7 +156,7 @@ int swSSL_server_set_cipher(SSL_CTX* ssl_context, swSSL_config *cfg)
         swSSL_set_default_dhparam(ssl_context);
     }
 #endif
-    if (strlen(cfg->ecdh_curve) > 0)
+    if (cfg->ecdh_curve && strlen(cfg->ecdh_curve) > 0)
     {
         swSSL_set_ecdh_curve(ssl_context);
     }
