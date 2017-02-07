@@ -2623,7 +2623,7 @@ PHP_METHOD(swoole_server, bind)
     //connection is closed
     if (conn->active == 0)
     {
-        swTrace("fd:%ld a:%d, uid: %ld", fd, conn->active, conn->uid);
+        swTrace("fd:%ld a:%d, uid: %d", fd, conn->active, conn->uid);
         RETURN_FALSE;
     }
 
