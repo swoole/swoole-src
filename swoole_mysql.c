@@ -1445,12 +1445,20 @@ static PHP_METHOD(swoole_mysql, escape)
         RETURN_FALSE;
     }
 
-    int newstr_len;
-    char *newstr = safe_emalloc(2, str.length, 1);
+    char *newstr = safe_emalloc(2, str.length + 1, 1);
+    if (newstr == NULL)
+    {
+        swoole_php_fatal_error(E_ERROR, "emalloc(%ld) failed.", str.length + 1);
+        RETURN_FALSE;
+    }
 
     const MYSQLND_CHARSET* cset = mysqlnd_find_charset_nr(client->connector.character_set);
-    newstr_len = mysqlnd_cset_escape_slashes(cset, newstr, str.str, str.length);
-    newstr = erealloc(newstr, newstr_len + 1);
-    SW_RETURN_STRINGL(newstr, newstr_len, 0);
+    int newstr_len = mysqlnd_cset_escape_slashes(cset, newstr, str.str, str.length TSRMLS_CC);
+    if (newstr_len < 0)
+    {
+        swoole_php_fatal_error(E_ERROR, "mysqlnd_cset_escape_slashes() failed.");
+        RETURN_FALSE;
+    }
+    SW_RETURN_STRINGL(newstr, newstr_len, 1);
 }
 #endif
