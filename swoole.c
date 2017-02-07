@@ -432,6 +432,16 @@ static const zend_function_entry swoole_async_methods[] =
     PHP_FE_END
 };
 
+static const zend_function_entry swoole_serialize_methods[] =
+{
+//    ZEND_FENTRY(pack, ZEND_FN(swoole_serialize), NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+//    ZEND_FENTRY(fastPack, ZEND_FN(swoole_fast_serialize), NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+//    ZEND_FENTRY(unpack, ZEND_FN(swoole_unserialize), NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+//    PHP_ME(swoole_serialize, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+//    PHP_ME(swoole_serialize, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
+    PHP_FE_END
+};
+
 #if PHP_MEMORY_DEBUG
 php_vmstat_t php_vmstat;
 #endif
@@ -450,6 +460,9 @@ static zend_class_entry *swoole_event_class_entry_ptr;
 
 static zend_class_entry swoole_async_ce;
 static zend_class_entry *swoole_async_class_entry_ptr;
+
+static zend_class_entry swoole_serialize_ce;
+static zend_class_entry *swoole_serialize_class_entry_ptr;
 
 zend_class_entry swoole_exception_ce;
 zend_class_entry *swoole_exception_class_entry_ptr;
@@ -745,6 +758,10 @@ PHP_MINIT_FUNCTION(swoole)
     SWOOLE_INIT_CLASS_ENTRY(swoole_async_ce, "swoole_async", "Swoole\\Async", swoole_async_methods);
     swoole_async_class_entry_ptr = zend_register_internal_class(&swoole_async_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_async, "Swoole\\Async");
+    
+    SWOOLE_INIT_CLASS_ENTRY(swoole_serialize_ce, "swoole_serialize", "Swoole\\Serialize", swoole_serialize_methods);
+    swoole_serialize_class_entry_ptr = zend_register_internal_class(&swoole_serialize_ce TSRMLS_CC);
+    SWOOLE_CLASS_ALIAS(swoole_async, "Swoole\\Serialize");
 
 #ifdef HAVE_PCRE
     SWOOLE_INIT_CLASS_ENTRY(swoole_connection_iterator_ce, "swoole_connection_iterator", "Swoole\\Connection\\Iterator",  swoole_connection_iterator_methods);

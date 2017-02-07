@@ -428,6 +428,7 @@ int swProcessPool_wait(swProcessPool *pool)
             if (new_pid < 0)
             {
                 swWarn("Fork worker process failed. Error: %s [%d]", strerror(errno), errno);
+                sw_free(reload_workers);
                 return SW_ERR;
             }
             swHashMap_del_int(pool->map, pid);
@@ -452,6 +453,7 @@ int swProcessPool_wait(swProcessPool *pool)
             reload_worker_i++;
         }
     }
+    sw_free(reload_workers);
     return SW_OK;
 }
 
