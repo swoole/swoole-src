@@ -315,7 +315,7 @@ sw_inline void coro_close(TSRMLS_D)
     EG(argument_stack) = COROG.origin_vm_stack;
     EG(current_execute_data) = COROG.origin_ex;
     --COROG.coro_num;
-    swTrace("closing coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
+    swTrace("closing coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0 TSRMLS_CC), zend_memory_usage(1 TSRMLS_CC));
     
     return;
 }
