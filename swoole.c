@@ -430,7 +430,11 @@ static const zend_function_entry swoole_async_methods[] =
 
 static const zend_function_entry swoole_serialize_methods[] =
 {
-   
+    ZEND_FENTRY(pack, ZEND_FN(swoole_serialize), NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(fastPack, ZEND_FN(swoole_fast_serialize), NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(unpack, ZEND_FN(swoole_unserialize), NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+//    PHP_ME(swoole_serialize, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+//    PHP_ME(swoole_serialize, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_FE_END
 };
 

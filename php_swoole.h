@@ -331,6 +331,12 @@ PHP_FUNCTION(swoole_timer_clear);
 PHP_FUNCTION(swoole_load_module);
 PHP_FUNCTION(swoole_strerror);
 PHP_FUNCTION(swoole_errno);
+//---------------------------------------------------------
+//                  serialize
+//---------------------------------------------------------
+PHP_FUNCTION(swoole_serialize);
+PHP_FUNCTION(swoole_fast_serialize);
+PHP_FUNCTION(swoole_unserialize);
 
 void swoole_destory_table(zend_resource *rsrc TSRMLS_DC);
 
