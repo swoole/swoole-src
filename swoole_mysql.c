@@ -504,6 +504,12 @@ static int mysql_handshake(mysql_connector *connector, char *buf, int len)
     memcpy(tmp, &value, sizeof(value));
     tmp += 4;
 
+    //use the server character_set when the character_set is not set.
+    if (connector->character_set == 0)
+    {
+        connector->character_set = request.character_set;
+    }
+
     //character set
     *tmp = connector->character_set;
     tmp += 1;
@@ -841,9 +847,10 @@ static PHP_METHOD(swoole_mysql, connect)
             RETURN_FALSE;
         }
     }
+    //use the server default charset.
     else
     {
-        connector->character_set = SW_MYSQL_DEFAULT_CHARSET;
+        connector->character_set = 0;
     }
 
     swClient *cli = emalloc(sizeof(swClient));
