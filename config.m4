@@ -85,7 +85,13 @@ AC_DEFUN([AC_SWOOLE_CPU_AFFINITY],
     AC_MSG_CHECKING([for cpu affinity])
     AC_TRY_COMPILE(
     [
+        #ifdef __FreeBSD__
+        #include <sys/types.h>
+        #include <sys/cpuset.h>
+        typedef cpuset_t cpu_set_t;
+        #else
         #include <sched.h>
+        #endif
     ], [
         cpu_set_t cpu_set;
         CPU_ZERO(&cpu_set);
