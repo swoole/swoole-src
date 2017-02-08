@@ -789,7 +789,7 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_channel_init(module_number TSRMLS_CC);
     
 #if PHP_MAJOR_VERSION == 7
-    swoole_serialize_init(int module_number TSRMLS_DC);
+    swoole_serialize_init(module_number TSRMLS_DC);
 #endif
 
 #ifdef SW_USE_REDIS

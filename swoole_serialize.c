@@ -20,7 +20,7 @@
 #if PHP_MAJOR_VERSION == 7
 
 
-#define CPINLINE swoole_inline
+#define CPINLINE sw_inline
 static void swoole_serialize_object(seriaString *buffer, zval *zvalue, size_t start);
 static void swoole_serialize_arr(seriaString *buffer, zend_array *zvalue);
 static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t num);
@@ -222,7 +222,7 @@ static CPINLINE void swoole_mini_filter_add(zend_string *zstr, size_t offset, ze
             return;
         }
         // do not extend it ,cause the hash full prove the data concentration is not high,in this situation pack string is low effective
-        uint16_t mod = zstr->h & SERIA_SIZE - 1;
+        uint16_t mod = zstr->h & (SERIA_SIZE - 1);
 
         mini_filter[mod].offset = offset << 3;
         if (offset <= 0x1fff)
@@ -243,7 +243,7 @@ static CPINLINE swPoolstr* swoole_mini_filter_find(zend_string *zstr)
     if (swSeriaG.pack_string)
     {
         zend_ulong h = zend_string_hash_val(zstr);
-        swPoolstr* str = &mini_filter[h & SERIA_SIZE - 1];
+        swPoolstr* str = &mini_filter[h & (SERIA_SIZE - 1)];
         if (!str->str)
         {
             return NULL;
@@ -569,7 +569,7 @@ static void swoole_serialize_arr(seriaString *buffer, zend_array *zvalue)
             if (key)
             {
                 type.key_type = KEY_TYPE_STRING;
-                if (swStr = swoole_mini_filter_find(key))
+                if ((swStr = swoole_mini_filter_find(key)))
                 {
                     type.key_len = 3; //means use same string
                     SERIA_SET_ENTRY_TYPE(buffer, type);
@@ -639,7 +639,7 @@ try_again:
         {
             case IS_STRING:
             {
-                if (swStr = swoole_mini_filter_find(Z_STR_P(data)))
+                if ((swStr = swoole_mini_filter_find(Z_STR_P(data))))
                 {
                     ((SBucketType*) (buffer->buffer + p))->data_len = 3; //means use same string
                     if (swStr->offset & 4)
@@ -915,8 +915,9 @@ static CPINLINE zend_string * swoole_string_init(const char *str, size_t len)
  */
 static CPINLINE void swoole_string_release(zend_string *str)
 {
-    ALLOCA_FLAG(use_heap);
-    ZSTR_ALLOCA_FREE(str, use_heap);
+    //if dont support alloc 0 will ignore
+    //if support alloc size is definitely < ZEND_ALLOCA_MAX_SIZE
+    ZSTR_ALLOCA_FREE(str, 0);
 }
 
 static CPINLINE zend_class_entry* swoole_try_get_ce(zend_string *class_name)
@@ -1095,7 +1096,7 @@ again:
     }
 }
 
-PHP_SWOOLE_SERIALIZE_API zend_string* php_swoole_serialize(zval *zvalue)
+zend_string* php_swoole_serialize(zval *zvalue)
 {
 
     seriaString str;
@@ -1118,7 +1119,7 @@ PHP_SWOOLE_SERIALIZE_API zend_string* php_swoole_serialize(zval *zvalue)
  * return_value is unseria bucket
  * args is for the object ctor (can be NULL)
  */
-PHP_SWOOLE_SERIALIZE_API void php_swoole_unserialize(void * buffer, size_t len, zval *return_value, zval *object_args)
+void php_swoole_unserialize(void * buffer, size_t len, zval *return_value, zval *object_args)
 {
     SBucketType type = *(SBucketType*) (buffer);
     zend_uchar real_type = type.data_type;
@@ -1195,6 +1196,20 @@ static PHP_METHOD(swoole_serialize, unpack)
     }
 
 }
+
+
+
+PHP_METHOD(swoole_serialize, __construct)
+{//do noting now
+    return;
+}
+
+PHP_METHOD(swoole_serialize, __destruct)
+{
+    //do noting now
+    return;
+}
+
 
 
 #endif
