@@ -50,9 +50,6 @@ extern "C" {
 
     struct _swSeriaG swSeriaG;
 
-    ZVAL_STRING(&swSeriaG.sleep_fname, "__sleep");
-    ZVAL_STRING(&swSeriaG.weekup_fname, "__weekup");
-
     static void *unser_start = 0;
     static swPoolstr mini_filter[SERIA_SIZE];
 

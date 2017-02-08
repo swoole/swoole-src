@@ -12,7 +12,7 @@
   +----------------------------------------------------------------------+
   | Author: xinhua.guo  <woshiguo35@gmail.com>                        |
   +----------------------------------------------------------------------+
-*/
+ */
 
 #include "php_swoole.h"
 #include "swoole_serialize.h"
@@ -34,13 +34,12 @@ static PHP_METHOD(swoole_serialize, fastPack);
 static PHP_METHOD(swoole_serialize, unpack);
 
 
-static const zend_function_entry swoole_serialize_methods[] =
-{
+static const zend_function_entry swoole_serialize_methods[] ={
     PHP_ME(swoole_serialize, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
     PHP_ME(swoole_serialize, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
-    PHP_ME(swoole_serialize, pack, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
-    PHP_ME(swoole_serialize, fastPack, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
-    PHP_ME(swoole_serialize, unpack, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+    PHP_ME(swoole_serialize, pack, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_serialize, fastPack, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_serialize, unpack, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
@@ -52,8 +51,10 @@ void swoole_serialize_init(int module_number TSRMLS_DC)
     SWOOLE_INIT_CLASS_ENTRY(swoole_serialize_ce, "swoole_serialize", "Swoole\\Serialize", swoole_serialize_methods);
     swoole_serialize_class_entry_ptr = zend_register_internal_class(&swoole_serialize_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_serialize, "Swoole\\Serialize");
-}
 
+    ZVAL_STRING(&swSeriaG.sleep_fname, "__sleep");
+    ZVAL_STRING(&swSeriaG.weekup_fname, "__weekup");
+}
 
 static CPINLINE int swoole_string_new(size_t size, seriaString *str, zend_uchar type)
 {
@@ -1183,7 +1184,6 @@ static PHP_METHOD(swoole_serialize, fastPack)
     }
 
 }
-
 
 static PHP_METHOD(swoole_serialize, unpack)
 {
