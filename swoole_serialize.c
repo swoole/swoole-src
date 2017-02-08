@@ -34,7 +34,7 @@ static PHP_METHOD(swoole_serialize, fastPack);
 static PHP_METHOD(swoole_serialize, unpack);
 
 
-static const zend_function_entry swoole_serialize_methods[] ={
+static const zend_function_entry swoole_serialize_methods[] = {
     PHP_ME(swoole_serialize, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
     PHP_ME(swoole_serialize, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_serialize, pack, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -1166,12 +1166,17 @@ void php_swoole_unserialize(void * buffer, size_t len, zval *return_value, zval 
 
 static PHP_METHOD(swoole_serialize, pack)
 {
-    long size = -1;
+    zval *zvalue;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &size) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zvalue) == FAILURE)
     {
         RETURN_FALSE;
     }
+    swSeriaG.pack_string = 1;
+    zend_string *z_str = php_swoole_serialize(zvalue);
+
+    RETURN_STR(z_str);
+
 
 }
 
@@ -1197,8 +1202,6 @@ static PHP_METHOD(swoole_serialize, unpack)
 
 }
 
-
-
 PHP_METHOD(swoole_serialize, __construct)
 {
     return;
@@ -1206,7 +1209,7 @@ PHP_METHOD(swoole_serialize, __construct)
 
 PHP_METHOD(swoole_serialize, __destruct)
 {
- 
+
     return;
 }
 
