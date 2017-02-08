@@ -252,6 +252,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_timer.c \
         swoole_async.c \
         swoole_process.c \
+        swoole_serialize.c \
         swoole_buffer.c \
         swoole_table.c \
         swoole_http_server.c \
