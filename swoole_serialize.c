@@ -1200,13 +1200,13 @@ static PHP_METHOD(swoole_serialize, unpack)
 
 
 PHP_METHOD(swoole_serialize, __construct)
-{//do noting now
+{
     return;
 }
 
 PHP_METHOD(swoole_serialize, __destruct)
 {
-    //do noting now
+ 
     return;
 }
 
