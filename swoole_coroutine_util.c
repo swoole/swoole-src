@@ -3,6 +3,7 @@
 #ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 
+static PHP_METHOD(swoole_coroutine_util, create);
 static PHP_METHOD(swoole_coroutine_util, suspend);
 static PHP_METHOD(swoole_coroutine_util, resume);
 static PHP_METHOD(swoole_coroutine_util, getuid);
@@ -17,6 +18,7 @@ static zend_class_entry *swoole_coroutine_util_class_entry_ptr;
 extern jmp_buf *swReactorCheckPoint;
 static const zend_function_entry swoole_coroutine_util_methods[] =
 {
+    PHP_ME(swoole_coroutine_util, create, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, suspend, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, resume, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, getuid, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -29,6 +31,15 @@ void swoole_coroutine_util_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_util_ce, "swoole_coroutine", "Swoole\\Coroutine", swoole_coroutine_util_methods);
     swoole_coroutine_util_class_entry_ptr = zend_register_internal_class(&swoole_coroutine_util_ce TSRMLS_CC);
+
+    if (SWOOLE_G(use_namespace))
+    {
+        zend_register_class_alias("swoole_coroutine", swoole_coroutine_util_class_entry_ptr);
+    }
+    else
+    {
+        zend_register_class_alias("Swoole\\Coroutine", swoole_coroutine_util_class_entry_ptr);
+    }
 
     defer_coros = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
 }
@@ -314,37 +325,80 @@ static PHP_METHOD(swoole_coroutine_util, suspend)
 	coro_yield();
 }
 
+static PHP_METHOD(swoole_coroutine_util, create)
+{
+    zval *callback;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &callback) == FAILURE)
+    {
+        return;
+    }
+
+    char *func_name = NULL;
+    zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
+    if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
+    {
+        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        efree(func_name);
+        return;
+    }
+    efree(func_name);
+
+    if (swReactorCheckPoint == NULL)
+    {
+        coro_init();
+    }
+
+    zval *retval = NULL;
+    zval *args[1];
+    php_swoole_check_reactor();
+
+    int ret = coro_create(func_cache, args, 0, &retval, NULL, NULL);
+    if (ret != 0)
+    {
+        RETURN_FALSE;
+    }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+    }
+    if (retval != NULL)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+	RETURN_TRUE;
+}
+
 static PHP_METHOD(swoole_coroutine_util, resume)
 {
-	char *id;
-	int id_len;
+    char *id;
+    int id_len;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &id, &id_len) == FAILURE)
-	{
-		return;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &id, &id_len) == FAILURE)
+    {
+        return;
+    }
 
     swLinkedList *coros_list = swHashMap_find(defer_coros, id, id_len);
-	if (coros_list == NULL)
-	{
+    if (coros_list == NULL)
+    {
         swoole_php_fatal_error(E_WARNING, "Nothing can coroResume.");
-		RETURN_FALSE;
-	}
+        RETURN_FALSE;
+    }
 
-	php_context *context = swLinkedList_shift(coros_list);
-	if (context == NULL)
-	{
+    php_context *context = swLinkedList_shift(coros_list);
+    if (context == NULL)
+    {
         swoole_php_fatal_error(E_WARNING, "Nothing can coroResume.");
-		RETURN_FALSE;
-	}
+        RETURN_FALSE;
+    }
 
-	SwooleG.main_reactor->defer(SwooleG.main_reactor, swoole_coroutine_util_resume, context);
+    SwooleG.main_reactor->defer(SwooleG.main_reactor, swoole_coroutine_util_resume, context);
 
-	RETURN_TRUE;
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_coroutine_util, getuid)
 {
-    SW_RETURN_STRINGL(COROG.uid, 20, 1)
+    SW_RETURN_STRINGL(COROG.uid, 20, 1);
 }
 #endif

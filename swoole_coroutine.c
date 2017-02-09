@@ -23,7 +23,7 @@
 
 #define SWCC(x) sw_current_context->x
 
-jmp_buf *swReactorCheckPoint;
+jmp_buf *swReactorCheckPoint = NULL;
 coro_global COROG;
 
 int coro_init(TSRMLS_D)

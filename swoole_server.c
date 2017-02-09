@@ -733,10 +733,6 @@ static int php_swoole_onPacket(swServer *serv, swEventData *req)
     {
         sw_zval_ptr_dtor(&zaddr);
         sw_zval_ptr_dtor(&zdata);
-        if (ret == CORO_LIMIT)
-        {
-            SwooleG.serv->factory.end(&SwooleG.serv->factory, req->info.fd);
-        }
         return SW_OK;
     }
 #endif
