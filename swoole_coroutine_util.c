@@ -345,7 +345,7 @@ static PHP_METHOD(swoole_coroutine_util, create)
 
     if (swReactorCheckPoint == NULL)
     {
-        coro_init();
+        coro_init(TSRMLS_C);
     }
 
     zval *retval = NULL;
