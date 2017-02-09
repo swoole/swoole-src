@@ -53,6 +53,9 @@ PHP_ARG_WITH(swoole, swoole support,
 PHP_ARG_WITH(openssl_dir, for OpenSSL support,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
 
+PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
+[  --enable-mysqlnd       Do you have mysqlnd?], no, no)
+
 PHP_ARG_ENABLE(coroutine, whether to enable coroutine,
 [  --enable-coroutine      Enable coroutine (requires PHP >= 5.5)], yes, no)
 
@@ -224,6 +227,11 @@ if test "$PHP_SWOOLE" != "no"; then
     elif test "$PHP_TCMALLOC" = "yes"; then
         PHP_ADD_LIBRARY(tcmalloc, 1, SWOOLE_SHARED_LIBADD)
         AC_DEFINE(SW_USE_TCMALLOC, 1, [use tcmalloc])
+    fi
+
+    if test "$PHP_MYSQLND" = "yes"; then
+        PHP_ADD_EXTENSION_DEP(mysqli, mysqlnd)
+        AC_DEFINE(SW_USE_MYSQLND, 1, [use mysqlnd])
     fi
 
     AC_CHECK_LIB(c, accept4, AC_DEFINE(HAVE_ACCEPT4, 1, [have accept4]))
