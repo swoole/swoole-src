@@ -1302,6 +1302,8 @@ struct _swReactor
     uint32_t max_event_num;
 
     uint32_t check_timer :1;
+    uint32_t check_coroutine :1;
+
     uint32_t running :1;
 
     /**
