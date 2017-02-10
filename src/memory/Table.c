@@ -83,9 +83,14 @@ swTable* swTable_new(uint32_t rows_size)
 int swTableColumn_add(swTable *table, char *name, int len, int type, int size)
 {
     swTableColumn *col = sw_malloc(sizeof(swTableColumn));
+    if (!col)
+    {
+        return SW_ERR;
+    }
     col->name = swString_dup(name, len);
     if (!col->name)
     {
+        sw_free(col);
         return SW_ERR;
     }
     switch(type)
