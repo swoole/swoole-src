@@ -1182,24 +1182,30 @@ static PHP_METHOD(swoole_serialize, pack)
 
 static PHP_METHOD(swoole_serialize, fastPack)
 {
-    long size = -1;
+    zval *zvalue;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &size) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zvalue) == FAILURE)
     {
         RETURN_FALSE;
     }
+    swSeriaG.pack_string = 0;
+    zend_string *z_str = php_swoole_serialize(zvalue);
 
+    RETURN_STR(z_str);
 }
 
 static PHP_METHOD(swoole_serialize, unpack)
 {
-    long size = -1;
+    char *buffer = NULL;
+    size_t arg_len;
+    zval *args = NULL; //for object
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &size) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|a", &buffer, &arg_len, &args) == FAILURE)
     {
         RETURN_FALSE;
     }
-
+    php_swoole_unserialize(buffer, arg_len, return_value, args);
+    return;
 }
 
 PHP_METHOD(swoole_serialize, __construct)
