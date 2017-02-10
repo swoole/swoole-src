@@ -128,6 +128,7 @@ int swTableColumn_add(swTable *table, char *name, int len, int type, int size)
         break;
     default:
         swWarn("unkown column type.");
+        swTableColumn_free(col);
         return SW_ERR;
     }
     col->index = table->item_size;
