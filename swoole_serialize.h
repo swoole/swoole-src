@@ -20,7 +20,8 @@
 #ifdef	__cplusplus
 extern "C" {
 #endif
-
+#if PHP_MAJOR_VERSION == 7
+    
 #define SERIA_SIZE 1024
 
     typedef struct _seriaString {
@@ -48,9 +49,6 @@ extern "C" {
     } swPoolstr;
 
     struct _swSeriaG swSeriaG;
-
-    ZVAL_STRING(&swSeriaG.sleep_fname, "__sleep");
-    ZVAL_STRING(&swSeriaG.weekup_fname, "__weekup");
 
     static void *unser_start = 0;
     static swPoolstr mini_filter[SERIA_SIZE];
@@ -89,7 +87,8 @@ extern "C" {
 #define KEY_TYPE_STRING               1
 #define KEY_TYPE_INDEX                0
 
-
+#endif
+    
 #ifdef	__cplusplus
 }
 #endif
