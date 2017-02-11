@@ -376,8 +376,8 @@ int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int
 
 static void http_parse_cookie(zval *array, const char *at, size_t length)
 {
-    char keybuf[SW_HTTP_COOKIE_KEYLEN + 1];
-    char valbuf[SW_HTTP_COOKIE_VALLEN + 1];
+    char keybuf[SW_HTTP_COOKIE_KEYLEN];
+    char valbuf[SW_HTTP_COOKIE_VALLEN];
     char *_c = (char *) at;
 
     int klen = 0;
@@ -404,7 +404,13 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
         else if (state == 1 && *_c == ';')
         {
             vlen = i - j;
-            strncpy(valbuf, (char * ) at + j, SW_HTTP_COOKIE_VALLEN);
+            if (vlen >= SW_HTTP_COOKIE_KEYLEN)
+            {
+                swWarn("cookie value is too large.");
+                return;
+            }
+            memcpy(valbuf, (char *) at + j, vlen);
+            valbuf[vlen] = 0;
             vlen = php_url_decode(valbuf, vlen);
             if (klen > 1)
             {
@@ -432,7 +438,13 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
     {
         vlen = i - j;
         keybuf[klen - 1] = 0;
-        strncpy(valbuf, (char * ) at + j, SW_HTTP_COOKIE_VALLEN);
+        if (vlen >= SW_HTTP_COOKIE_KEYLEN)
+        {
+            swWarn("cookie value is too large.");
+            return;
+        }
+        memcpy(valbuf, (char *) at + j, vlen);
+        valbuf[vlen] = 0;;
         vlen = php_url_decode(valbuf, vlen);
         if (klen > 1)
         {

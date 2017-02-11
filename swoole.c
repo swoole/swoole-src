@@ -429,6 +429,7 @@ static const zend_function_entry swoole_async_methods[] =
 };
 
 
+
 #if PHP_MEMORY_DEBUG
 php_vmstat_t php_vmstat;
 #endif
