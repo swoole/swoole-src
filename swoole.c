@@ -774,7 +774,7 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_mmap_init(module_number TSRMLS_CC);
     swoole_channel_init(module_number TSRMLS_CC);
     
-#if PHP_MAJOR_VERSION == 7
+#if PHP_MAJOR_VERSION >= 7
     swoole_serialize_init(module_number TSRMLS_DC);
 #endif
 

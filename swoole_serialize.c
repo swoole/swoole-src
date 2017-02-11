@@ -17,7 +17,7 @@
 #include "php_swoole.h"
 #include "swoole_serialize.h"
 
-#if PHP_MAJOR_VERSION == 7
+#if PHP_MAJOR_VERSION >= 7
 
 
 #define CPINLINE sw_inline
