@@ -20,7 +20,7 @@
 #ifdef	__cplusplus
 extern "C" {
 #endif
-#if PHP_MAJOR_VERSION == 7
+#if PHP_MAJOR_VERSION >= 7
     
 #define SERIA_SIZE 1024
 
