@@ -357,17 +357,10 @@ sw_inline php_context *sw_coro_save(zval *return_value, zval **return_value_ptr,
 sw_inline php_context *sw_coro_save(zval *return_value, php_context *sw_current_context)
 {
 
-    zend_execute_data *current = EG(current_execute_data);
-    if (ZEND_CALL_INFO(current) & ZEND_CALL_RELEASE_THIS)
-    {
-        zval_ptr_dtor(&(current->This));
-    }
-    zend_vm_stack_free_args(EG(current_execute_data));
-    zend_vm_stack_free_call_frame(EG(current_execute_data));
-
+    
     strncpy(SWCC(uid), COROG.uid, 20);
     SWCC(current_coro_return_value_ptr) = return_value;
-    SWCC(current_execute_data) = EG(current_execute_data)->prev_execute_data;
+    SWCC(current_execute_data) = EG(current_execute_data);
     SWCC(current_vm_stack) = EG(vm_stack);
     SWCC(current_vm_stack_top) = EG(vm_stack_top);
     SWCC(current_vm_stack_end) = EG(vm_stack_end);
@@ -445,23 +438,33 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
     EG(vm_stack) = SWCC(current_vm_stack);
     EG(vm_stack_top) = SWCC(current_vm_stack_top);
     EG(vm_stack_end) = SWCC(current_vm_stack_end);
+
+    zend_execute_data *current = SWCC(current_execute_data);
+    if (ZEND_CALL_INFO(current) & ZEND_CALL_RELEASE_THIS)
+    {
+        zval_ptr_dtor(&(current->This));
+    }
+    zend_vm_stack_free_args(current);
+    zend_vm_stack_free_call_frame(current);
+
+    EG(current_execute_data) = current->prev_execute_data;
     //EG(current_task) = COROG.current_coro;
 #if PHP_MINOR_VERSION < 1
-    EG(scope) = SWCC(current_execute_data)->func->op_array.scope;
+    EG(scope) = EG(current_execute_data)->func->op_array.scope;
 #endif
     strncpy(COROG.uid, SWCC(uid), 20);
     COROG.allocated_return_value_ptr = SWCC(allocated_return_value_ptr);
-    if ( SWCC(current_execute_data)->opline->result_type != IS_UNUSED)
+    if ( EG(current_execute_data)->opline->result_type != IS_UNUSED)
     {
         ZVAL_COPY(SWCC(current_coro_return_value_ptr), retval);
     }
-    SWCC(current_execute_data)->opline++;
-    EG(current_execute_data) = SWCC(current_execute_data);
+    EG(current_execute_data)->opline++;
+    
     int coro_status;
     if (!setjmp(*swReactorCheckPoint))
     {
         //coro exit
-        zend_execute_ex(sw_current_context->current_execute_data TSRMLS_CC);
+        zend_execute_ex(EG(current_execute_data) TSRMLS_CC);
         coro_close(TSRMLS_C);
         coro_status = CORO_END;
     }
@@ -477,6 +480,19 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
     return coro_status;
+}
+
+int sw_coro_resume_parent(php_context *sw_current_context, zval *retval, zval *coro_retval)
+{
+    EG(vm_stack) = SWCC(current_vm_stack);
+    EG(vm_stack_top) = SWCC(current_vm_stack_top);
+    EG(vm_stack_end) = SWCC(current_vm_stack_end);
+
+    EG(current_execute_data) = SWCC(current_execute_data);
+    //EG(current_task) = COROG.current_coro;
+    strncpy(COROG.uid, SWCC(uid), 20);
+    COROG.allocated_return_value_ptr = SWCC(allocated_return_value_ptr);
+    return CORO_END;
 }
 #endif
 

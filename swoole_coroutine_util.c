@@ -354,11 +354,18 @@ static PHP_METHOD(swoole_coroutine_util, create)
     zval *retval = NULL;
     zval *args[1];
 
+    jmp_buf *prev_checkpoint = swReactorCheckPoint;
+    swReactorCheckPoint = emalloc(sizeof(jmp_buf));
+
+    php_context *cxt = emalloc(sizeof(php_context));
+    coro_save(cxt);
     int ret = coro_create(func_cache, args, 0, &retval, NULL, NULL);
-    if (ret != 0)
-    {
-        RETURN_FALSE;
-    }
+    efree(func_cache);
+    efree(swReactorCheckPoint);
+
+    swReactorCheckPoint = prev_checkpoint;
+    coro_resume_parent(cxt, retval, retval);
+    efree(cxt);
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
@@ -367,7 +374,7 @@ static PHP_METHOD(swoole_coroutine_util, create)
     {
         sw_zval_ptr_dtor(&retval);
     }
-	RETURN_TRUE;
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_coroutine_util, resume)
