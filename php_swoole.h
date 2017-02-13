@@ -422,6 +422,9 @@ void php_swoole_onBufferFull(swServer *, swDataHead *);
 void php_swoole_onBufferEmpty(swServer *, swDataHead *);
 int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 
+PHPAPI zend_string* php_swoole_serialize(zval *zvalue);
+PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, zval *object_args);
+
 static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type)
 {
     swListenPort *port = serv->connection_list[server_fd].object;
@@ -453,7 +456,7 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool display_errors;
     zend_bool cli;
     zend_bool use_namespace;
-    key_t message_queue_key;
+    zend_bool fast_serialize;
     uint32_t socket_buffer_size;
 ZEND_END_MODULE_GLOBALS(swoole)
 

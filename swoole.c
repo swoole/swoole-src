@@ -486,7 +486,10 @@ STD_PHP_INI_ENTRY("swoole.display_errors", "On", PHP_INI_ALL, OnUpdateBool, disp
  * namespace class style
  */
 STD_PHP_INI_ENTRY("swoole.use_namespace", "Off", PHP_INI_SYSTEM, OnUpdateBool, use_namespace, zend_swoole_globals, swoole_globals)
-STD_PHP_INI_ENTRY("swoole.message_queue_key", "0", PHP_INI_ALL, OnUpdateString, message_queue_key, zend_swoole_globals, swoole_globals)
+/**
+ * enable swoole_serialize
+ */
+STD_PHP_INI_ENTRY("swoole.fast_serialize", "Off", PHP_INI_ALL, OnUpdateBool, fast_serialize, zend_swoole_globals, swoole_globals)
 /**
  * Unix socket buffer size
  */
@@ -495,11 +498,11 @@ PHP_INI_END()
 
 static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
 {
-    swoole_globals->message_queue_key = 0;
     swoole_globals->aio_thread_num = SW_AIO_THREAD_NUM_DEFAULT;
     swoole_globals->socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
     swoole_globals->display_errors = 1;
     swoole_globals->use_namespace = 0;
+    swoole_globals->fast_serialize = 0;
 }
 
 int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)

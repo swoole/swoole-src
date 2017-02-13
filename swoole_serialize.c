@@ -1100,7 +1100,7 @@ again:
     }
 }
 
-zend_string* php_swoole_serialize(zval *zvalue)
+PHPAPI zend_string* php_swoole_serialize(zval *zvalue)
 {
 
     seriaString str;
@@ -1123,49 +1123,49 @@ zend_string* php_swoole_serialize(zval *zvalue)
  * return_value is unseria bucket
  * args is for the object ctor (can be NULL)
  */
-void php_swoole_unserialize(void * buffer, size_t len, zval *return_value, zval *object_args)
+PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, zval *object_args)
 {
     SBucketType type = *(SBucketType*) (buffer);
     zend_uchar real_type = type.data_type;
-    buffer += sizeof (SBucketType);
+    buffer += sizeof(SBucketType);
     switch (real_type)
     {
-        case IS_NULL:
-        case IS_TRUE:
-        case IS_FALSE:
-            Z_TYPE_INFO_P(return_value) = real_type;
-            break;
-        case IS_LONG:
-            swoole_unserialize_long(buffer, return_value, type);
-            Z_TYPE_INFO_P(return_value) = real_type;
-            break;
-        case IS_DOUBLE:
-            swoole_unserialize_raw(buffer, return_value);
-            Z_TYPE_INFO_P(return_value) = real_type;
-            break;
-        case IS_STRING:
-            len -= sizeof (SBucketType);
-            zend_string *str = swoole_unserialize_string(buffer, len);
-            RETURN_STR(str);
-            break;
-        case IS_ARRAY:
-        {
-            unser_start = buffer - sizeof (SBucketType);
-            uint32_t num = 0;
-            buffer = get_array_real_len(buffer, type.data_len, &num);
-            swoole_unserialize_arr(buffer, return_value, num);
-            break;
-        }
-        case IS_UNDEF:
-            unser_start = buffer - sizeof (SBucketType);
-            swoole_unserialize_object(buffer, return_value, type.data_len, object_args);
-            break;
-        default:
-            ZVAL_FALSE(return_value);
-            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "swoole serialize not support this type ");
-
-            break;
+    case IS_NULL:
+    case IS_TRUE:
+    case IS_FALSE:
+        Z_TYPE_INFO_P(return_value) = real_type;
+        break;
+    case IS_LONG:
+        swoole_unserialize_long(buffer, return_value, type);
+        Z_TYPE_INFO_P(return_value) = real_type;
+        break;
+    case IS_DOUBLE:
+        swoole_unserialize_raw(buffer, return_value);
+        Z_TYPE_INFO_P(return_value) = real_type;
+        break;
+    case IS_STRING:
+        len -= sizeof(SBucketType);
+        zend_string *str = swoole_unserialize_string(buffer, len);
+        ZVAL_STR(return_value, str);
+        break;
+    case IS_ARRAY:
+    {
+        unser_start = buffer - sizeof(SBucketType);
+        uint32_t num = 0;
+        buffer = get_array_real_len(buffer, type.data_len, &num);
+        swoole_unserialize_arr(buffer, return_value, num);
+        break;
     }
+    case IS_UNDEF:
+        unser_start = buffer - sizeof(SBucketType);
+        swoole_unserialize_object(buffer, return_value, type.data_len, object_args);
+        break;
+    default:
+        php_error_docref(NULL TSRMLS_CC, E_NOTICE, "swoole serialize not support this type ");
+        return SW_FALSE;
+    }
+
+    return SW_TRUE;
 }
 
 static PHP_METHOD(swoole_serialize, pack)
@@ -1181,10 +1181,7 @@ static PHP_METHOD(swoole_serialize, pack)
     zend_string *z_str = php_swoole_serialize(zvalue);
 
     RETURN_STR(z_str);
-
-
 }
-
 
 static PHP_METHOD(swoole_serialize, unpack)
 {
@@ -1196,10 +1193,10 @@ static PHP_METHOD(swoole_serialize, unpack)
     {
         RETURN_FALSE;
     }
-    php_swoole_unserialize(buffer, arg_len, return_value, args);
-    return;
+    if (!php_swoole_unserialize(buffer, arg_len, return_value, args))
+    {
+        RETURN_FALSE;
+    }
 }
-
-
 
 #endif
