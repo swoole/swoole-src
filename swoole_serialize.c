@@ -27,18 +27,12 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t num);
 static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uchar bucket_len, zval *args);
 
 
-static PHP_METHOD(swoole_serialize, __construct);
-static PHP_METHOD(swoole_serialize, __destruct);
 static PHP_METHOD(swoole_serialize, pack);
-static PHP_METHOD(swoole_serialize, fastPack);
 static PHP_METHOD(swoole_serialize, unpack);
 
 
 static const zend_function_entry swoole_serialize_methods[] = {
-    PHP_ME(swoole_serialize, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-    PHP_ME(swoole_serialize, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_serialize, pack, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_serialize, fastPack, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_serialize, unpack, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
@@ -54,6 +48,8 @@ void swoole_serialize_init(int module_number TSRMLS_DC)
 
     ZVAL_STRING(&swSeriaG.sleep_fname, "__sleep");
     ZVAL_STRING(&swSeriaG.weekup_fname, "__weekup");
+
+    REGISTER_LONG_CONSTANT("SWOOLE_FAST_PACK", SW_FAST_PACK, CONST_CS | CONST_PERSISTENT);
 }
 
 static CPINLINE int swoole_string_new(size_t size, seriaString *str, zend_uchar type)
@@ -1167,12 +1163,13 @@ void php_swoole_unserialize(void * buffer, size_t len, zval *return_value, zval 
 static PHP_METHOD(swoole_serialize, pack)
 {
     zval *zvalue;
+    zend_size_t is_fast = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zvalue) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|l", &zvalue, &is_fast) == FAILURE)
     {
         RETURN_FALSE;
     }
-    swSeriaG.pack_string = 1;
+    swSeriaG.pack_string = !is_fast;
     zend_string *z_str = php_swoole_serialize(zvalue);
 
     RETURN_STR(z_str);
@@ -1180,19 +1177,6 @@ static PHP_METHOD(swoole_serialize, pack)
 
 }
 
-static PHP_METHOD(swoole_serialize, fastPack)
-{
-    zval *zvalue;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zvalue) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-    swSeriaG.pack_string = 0;
-    zend_string *z_str = php_swoole_serialize(zvalue);
-
-    RETURN_STR(z_str);
-}
 
 static PHP_METHOD(swoole_serialize, unpack)
 {
@@ -1205,17 +1189,6 @@ static PHP_METHOD(swoole_serialize, unpack)
         RETURN_FALSE;
     }
     php_swoole_unserialize(buffer, arg_len, return_value, args);
-    return;
-}
-
-PHP_METHOD(swoole_serialize, __construct)
-{
-    return;
-}
-
-PHP_METHOD(swoole_serialize, __destruct)
-{
-
     return;
 }
 
