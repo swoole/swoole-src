@@ -27,16 +27,12 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t num);
 static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uchar bucket_len, zval *args);
 
 
-static PHP_METHOD(swoole_serialize, __construct);
-static PHP_METHOD(swoole_serialize, __destruct);
 static PHP_METHOD(swoole_serialize, pack);
 static PHP_METHOD(swoole_serialize, fastPack);
 static PHP_METHOD(swoole_serialize, unpack);
 
 
 static const zend_function_entry swoole_serialize_methods[] = {
-    PHP_ME(swoole_serialize, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-    PHP_ME(swoole_serialize, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_serialize, pack, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_serialize, fastPack, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_serialize, unpack, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -1205,17 +1201,6 @@ static PHP_METHOD(swoole_serialize, unpack)
         RETURN_FALSE;
     }
     php_swoole_unserialize(buffer, arg_len, return_value, args);
-    return;
-}
-
-PHP_METHOD(swoole_serialize, __construct)
-{
-    return;
-}
-
-PHP_METHOD(swoole_serialize, __destruct)
-{
-
     return;
 }
 
