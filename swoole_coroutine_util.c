@@ -363,6 +363,11 @@ static PHP_METHOD(swoole_coroutine_util, create)
     efree(func_cache);
     efree(swReactorCheckPoint);
 
+    if (ret < 0)
+    {
+        RETURN_FALSE;
+    }
+
     swReactorCheckPoint = prev_checkpoint;
     coro_resume_parent(cxt, retval, retval);
     efree(cxt);
