@@ -18,22 +18,30 @@
 #include "swoole_serialize.h"
 
 #if PHP_MAJOR_VERSION >= 7
-
-
 #define CPINLINE sw_inline
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_serialize_pack, 0, 0, 1)
+    ZEND_ARG_INFO(0, data)
+    ZEND_ARG_INFO(0, flag)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_serialize_unpack, 0, 0, 1)
+    ZEND_ARG_INFO(0, string)
+    ZEND_ARG_INFO(0, args)
+ZEND_END_ARG_INFO()
+
 static void swoole_serialize_object(seriaString *buffer, zval *zvalue, size_t start);
 static void swoole_serialize_arr(seriaString *buffer, zend_array *zvalue);
 static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t num);
 static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uchar bucket_len, zval *args);
-
 
 static PHP_METHOD(swoole_serialize, pack);
 static PHP_METHOD(swoole_serialize, unpack);
 
 
 static const zend_function_entry swoole_serialize_methods[] = {
-    PHP_ME(swoole_serialize, pack, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_serialize, unpack, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_serialize, pack, arginfo_swoole_serialize_pack, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_serialize, unpack, arginfo_swoole_serialize_unpack, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
