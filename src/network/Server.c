@@ -892,7 +892,7 @@ int swServer_udp_send(swServer *serv, swSendData *resp)
 int swServer_confirm(swServer *serv, int fd)
 {
     swConnection *conn = swServer_connection_verify(serv, fd);
-    if (!conn && !conn->listen_wait)
+    if (!conn || !conn->listen_wait)
     {
         return SW_ERR;
     }
