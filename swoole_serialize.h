@@ -86,6 +86,8 @@ extern "C" {
 
 #define KEY_TYPE_STRING               1
 #define KEY_TYPE_INDEX                0
+    
+#define SW_FAST_PACK                  1
 
 #endif
     
