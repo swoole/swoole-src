@@ -379,9 +379,9 @@ int swoole_system_random(int min, int max)
     next_random_byte = (char *) &random_value;
     bytes_to_read = sizeof(random_value);
 
-    if (read(dev_random_fd, next_random_byte, bytes_to_read) < 0)
+    if (read(dev_random_fd, next_random_byte, bytes_to_read) < bytes_to_read)
     {
-        swSysError("read() failed.");
+        swSysError("read() from /dev/urandom failed.");
         return SW_ERR;
     }
     return min + (random_value % (max - min + 1));
