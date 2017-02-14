@@ -232,7 +232,7 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval** 
 #define sw_php_var_unserialize(rval, p, max, var_hash)  php_var_unserialize(*rval, p, max, var_hash)
 #define SW_MAKE_STD_ZVAL(p)             zval _stack_zval_##p; p = &(_stack_zval_##p)
 #define SW_ALLOC_INIT_ZVAL(p)           do{p = emalloc(sizeof(zval)); bzero(p, sizeof(zval));}while(0)
-#define SW_RETURN_STRINGL(s, l, dup)    RETURN_STRINGL(s, l)
+#define SW_RETURN_STRINGL(s, l, dup)    do{RETVAL_STRINGL(s, l); if (dup == 0) efree(s);}while(0);return
 #define SW_RETVAL_STRINGL(s, l, dup)    do{RETVAL_STRINGL(s, l); if (dup == 0) efree(s);}while(0)
 #define SW_RETVAL_STRING(s, dup)        do{RETVAL_STRING(s); if (dup == 0) efree(s);}while(0)
 

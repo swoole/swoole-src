@@ -404,7 +404,13 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
         else if (state == 1 && *_c == ';')
         {
             vlen = i - j;
-            strncpy(valbuf, (char * ) at + j, SW_HTTP_COOKIE_VALLEN);
+            if (vlen >= SW_HTTP_COOKIE_KEYLEN)
+            {
+                swWarn("cookie value is too large.");
+                return;
+            }
+            memcpy(valbuf, (char *) at + j, vlen);
+            valbuf[vlen] = 0;
             vlen = php_url_decode(valbuf, vlen);
             if (klen > 1)
             {
@@ -432,7 +438,13 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
     {
         vlen = i - j;
         keybuf[klen - 1] = 0;
-        strncpy(valbuf, (char * ) at + j, SW_HTTP_COOKIE_VALLEN);
+        if (vlen >= SW_HTTP_COOKIE_KEYLEN)
+        {
+            swWarn("cookie value is too large.");
+            return;
+        }
+        memcpy(valbuf, (char *) at + j, vlen);
+        valbuf[vlen] = 0;;
         vlen = php_url_decode(valbuf, vlen);
         if (klen > 1)
         {
@@ -705,7 +717,7 @@ static int multipart_body_on_header_complete(multipart_parser* p)
     int tmpfile = swoole_tmpfile(file_path);
 
     FILE *fp = fdopen(tmpfile, "wb+");
-    if (fp < 0)
+    if (fp == NULL)
     {
         add_assoc_long(multipart_header, "error", HTTP_UPLOAD_ERR_NO_TMP_DIR);
         swWarn("fopen(%s) failed. Error %s[%d]", file_path, strerror(errno), errno);
