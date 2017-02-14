@@ -1564,7 +1564,22 @@ static int http_client_parser_on_header_value(php_http_parser *parser, const cha
         {
             l_cookie = strstr(at, "\r\n") - at;
         }
+        //invalid cookie value
+        if (l_cookie < 0 || l_cookie >= length)
+        {
+            swWarn("cookie value format is wrong.");
+            efree(header_name);
+            return SW_ERR;
+        }
+        //invalid cookie key
         int l_key = strchr(at, '=') - at;
+        if (l_key < 0 || l_key >= SW_HTTP_COOKIE_KEYLEN)
+        {
+            swWarn("cookie key format is wrong.");
+            efree(header_name);
+            return SW_ERR;
+        }
+
         char keybuf[SW_HTTP_COOKIE_KEYLEN];
 
         zval *cookies = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("cookies"), 1 TSRMLS_CC);
@@ -1586,6 +1601,7 @@ static int http_client_parser_on_header_value(php_http_parser *parser, const cha
         http_init_gzip_stream(http);
         if (Z_OK != inflateInit2(&http->gzip_stream, MAX_WBITS + 16))
         {
+            efree(header_name);
             swWarn("inflateInit2() failed.");
             return SW_ERR;
         }
@@ -1595,6 +1611,7 @@ static int http_client_parser_on_header_value(php_http_parser *parser, const cha
         http_init_gzip_stream(http);
         if (Z_OK != inflateInit(&http->gzip_stream))
         {
+            efree(header_name);
             swWarn("inflateInit() failed.");
             return SW_ERR;
         }
