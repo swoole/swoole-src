@@ -1319,6 +1319,8 @@ static char *http_status_message(int code)
         return "502 Bad Gateway";
     case 503:
         return "503 Service Unavailable";
+    case 504:
+        return "504 Gateway Timeout";
     case 505:
         return "505 HTTP Version Not Supported";
     case 506:
