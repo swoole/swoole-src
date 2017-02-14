@@ -360,6 +360,9 @@ int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length)
 int swSSL_accept(swConnection *conn)
 {
     int n = SSL_do_handshake(conn->ssl);
+    /**
+     * The TLS/SSL handshake was successfully completed
+     */
     if (n == 1)
     {
         conn->ssl_state = SW_SSL_STATE_READY;
@@ -373,6 +376,14 @@ int swSSL_accept(swConnection *conn)
 #endif
         return SW_READY;
     }
+    /**
+     * The TLS/SSL handshake was not successful but was shutdown.
+     */
+    else if (n == 0)
+    {
+        return SW_ERROR;
+    }
+
     long err = SSL_get_error(conn->ssl, n);
     if (err == SSL_ERROR_WANT_READ)
     {

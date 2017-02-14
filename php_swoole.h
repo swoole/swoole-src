@@ -371,6 +371,9 @@ void swoole_mysql_init(int module_number TSRMLS_DC);
 void swoole_module_init(int module_number TSRMLS_DC);
 void swoole_mmap_init(int module_number TSRMLS_DC);
 void swoole_channel_init(int module_number TSRMLS_DC);
+#if PHP_MAJOR_VERSION == 7
+void swoole_serialize_init(int module_number TSRMLS_DC);
+#endif
 
 int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC);
 
@@ -431,6 +434,11 @@ void php_swoole_onBufferFull(swServer *, swDataHead *);
 void php_swoole_onBufferEmpty(swServer *, swDataHead *);
 int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 
+#if PHP_MAJOR_VERSION >= 7
+PHPAPI zend_string* php_swoole_serialize(zval *zvalue);
+PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, zval *object_args);
+#endif
+
 static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type)
 {
     swListenPort *port = serv->connection_list[server_fd].object;
@@ -462,7 +470,7 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool display_errors;
     zend_bool cli;
     zend_bool use_namespace;
-    key_t message_queue_key;
+    zend_bool fast_serialize;
     uint32_t socket_buffer_size;
 ZEND_END_MODULE_GLOBALS(swoole)
 

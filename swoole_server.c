@@ -72,6 +72,9 @@ int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
 {
     smart_str serialized_data = { 0 };
     php_serialize_data_t var_hash;
+#if PHP_MAJOR_VERSION >= 7
+    zend_string *serialized_string = NULL;
+#endif
 
     task->info.type = SW_EVENT_TASK;
     //field fd save task_id
@@ -87,16 +90,29 @@ int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
     {
         //serialize
         swTask_type(task) |= SW_TASK_SERIALIZE;
-        PHP_VAR_SERIALIZE_INIT(var_hash);
-        sw_php_var_serialize(&serialized_data, data, &var_hash TSRMLS_CC);
-        PHP_VAR_SERIALIZE_DESTROY(var_hash);
-#if PHP_MAJOR_VERSION<7
-        task_data_str = serialized_data.c;
-        task_data_len = serialized_data.len;
-#else
-        task_data_str = serialized_data.s->val;
-        task_data_len = serialized_data.s->len;
+
+#if PHP_MAJOR_VERSION >= 7
+        if (SWOOLE_G(fast_serialize))
+        {
+            serialized_string = php_swoole_serialize(data);
+            task_data_str = serialized_string->val;
+            task_data_len = serialized_string->len;
+        }
+        else
 #endif
+        {
+            PHP_VAR_SERIALIZE_INIT(var_hash);
+            sw_php_var_serialize(&serialized_data, data, &var_hash TSRMLS_CC);
+            PHP_VAR_SERIALIZE_DESTROY(var_hash);
+
+#if PHP_MAJOR_VERSION < 7
+            task_data_str = serialized_data.c;
+            task_data_len = serialized_data.len;
+#else
+            task_data_str = serialized_data.s->val;
+            task_data_len = serialized_data.s->len;
+#endif
+        }
     }
     else
     {
@@ -108,9 +124,8 @@ int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
     {
         if (swTaskWorker_large_pack(task, task_data_str, task_data_len) < 0)
         {
-            smart_str_free(&serialized_data);
-            swoole_php_fatal_error(E_WARNING, "large task pack failed()");
-            return SW_ERR;
+            swoole_php_fatal_error(E_WARNING, "large task pack failed().");
+            task->info.fd = SW_ERR;
         }
     }
     else
@@ -118,7 +133,17 @@ int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
         memcpy(task->data, task_data_str, task_data_len);
         task->info.len = task_data_len;
     }
-    smart_str_free(&serialized_data);
+
+#if PHP_MAJOR_VERSION >= 7
+    if (SWOOLE_G(fast_serialize))
+    {
+        zend_string_release(serialized_string);
+    }
+    else
+#endif
+    {
+        smart_str_free(&serialized_data);
+    }
     return task->info.fd;
 }
 
@@ -264,20 +289,39 @@ zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC)
 
     if (swTask_type(task_result) & SW_TASK_SERIALIZE)
     {
-        PHP_VAR_UNSERIALIZE_INIT(var_hash);
         SW_ALLOC_INIT_ZVAL(result_unserialized_data);
 
-        if (sw_php_var_unserialize(&result_unserialized_data, (const unsigned char **) &result_data_str,
-                (const unsigned char *) (result_data_str + result_data_len), &var_hash TSRMLS_CC))
+#if PHP_MAJOR_VERSION >= 7
+        if (SWOOLE_G(fast_serialize))
         {
-            result_data = result_unserialized_data;
+            if (php_swoole_unserialize(result_data_str, result_data_len, result_unserialized_data, NULL))
+            {
+                result_data = result_unserialized_data;
+            }
+            else
+            {
+                SW_ALLOC_INIT_ZVAL(result_data);
+                SW_ZVAL_STRINGL(result_data, result_data_str, result_data_len, 1);
+            }
         }
         else
+#endif
         {
-            SW_ALLOC_INIT_ZVAL(result_data);
-            SW_ZVAL_STRINGL(result_data, result_data_str, result_data_len, 1);
+            PHP_VAR_UNSERIALIZE_INIT(var_hash);
+            //unserialize success
+            if (sw_php_var_unserialize(&result_unserialized_data, (const unsigned char ** ) &result_data_str,
+                    (const unsigned char * ) (result_data_str + result_data_len), &var_hash TSRMLS_CC))
+            {
+                result_data = result_unserialized_data;
+            }
+            //failed
+            else
+            {
+                SW_ALLOC_INIT_ZVAL(result_data);
+                SW_ZVAL_STRINGL(result_data, result_data_str, result_data_len, 1);
+            }
+            PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
         }
-        PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
     }
     else
     {

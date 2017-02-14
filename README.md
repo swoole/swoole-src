@@ -68,7 +68,6 @@ $server->on('Request', function($request, $response) {
 $server->start();
 ```
 
-
 concurrent
 ------
 
