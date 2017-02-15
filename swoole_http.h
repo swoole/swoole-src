@@ -57,6 +57,7 @@ typedef struct
     zval *zcookie;
     zval *zrequest;
     zval *zfiles;
+    zval *ztmpfiles;
 #if PHP_MAJOR_VERSION >= 7
     zval _zdata;
     zval _zobject;
@@ -67,6 +68,7 @@ typedef struct
     zval _zpost;
     zval _zfiles;
     zval _zcookie;
+    zval _ztmpfiles;
 #endif
 } http_request;
 
@@ -120,6 +122,7 @@ typedef struct
     char *current_form_data_name;
     size_t current_form_data_name_len;
     char *current_form_data_value;
+    zval *current_multipart_header;
 
 } http_context;
 
