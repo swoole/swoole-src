@@ -1609,9 +1609,9 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
      * http header
      */
     zval *header = ctx->response.zheader;
+    int flag = 0x0;
     if (header)
     {
-        int flag = 0x0;
         HashTable *ht = Z_ARRVAL_P(header);
         zval *value = NULL;
         char *key = NULL;
@@ -1649,7 +1649,10 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
         }
         SW_HASHTABLE_FOREACH_END();
         (void)type;
+    }
 
+    if (!ctx->chunk)
+    {
         if (!(flag & HTTP_RESPONSE_SERVER))
         {
             swString_append_ptr(response, ZEND_STRL("Server: "SW_HTTP_SERVER_SOFTWARE"\r\n"));
@@ -1665,22 +1668,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
                 swString_append_ptr(response, ZEND_STRL("Connection: close\r\n"));
             }
         }
-        if (ctx->request.method == PHP_HTTP_OPTIONS)
         {
-            swString_append_ptr(response, ZEND_STRL("Allow: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS\r\nContent-Length: 0\r\n"));
-        }
-        else
-        {
-
-#ifdef SW_HAVE_ZLIB
-            if (ctx->gzip_enable)
-            {
-                body_length = swoole_zlib_buffer->length;
-            }
-#endif
-            n = snprintf(buf, sizeof(buf), "Content-Length: %d\r\n", body_length);
-            swString_append_ptr(response, buf, n);
-
             if (!(flag & HTTP_RESPONSE_CONTENT_TYPE))
             {
                 swString_append_ptr(response, ZEND_STRL("Content-Type: text/html\r\n"));
@@ -1693,30 +1681,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
             swString_append_ptr(response, buf, n);
             efree(date_str);
         }
-    }
-    else
-    {
-        swString_append_ptr(response, ZEND_STRL("Server: "SW_HTTP_SERVER_SOFTWARE"\r\nContent-Type: text/html\r\n"));
-        if (ctx->keepalive)
-        {
-            swString_append_ptr(response, ZEND_STRL("Connection: keep-alive\r\n"));
-        }
-        else
-        {
-            swString_append_ptr(response, ZEND_STRL("Connection: close\r\n"));
-        }
 
-        date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), SwooleGS->now, 0 TSRMLS_CC);
-        n = snprintf(buf, sizeof(buf), "Date: %s\r\n", date_str);
-        efree(date_str);
-        swString_append_ptr(response, buf, n);
-
-        if (ctx->request.method == PHP_HTTP_OPTIONS)
-        {
-            n = snprintf(buf, sizeof(buf), "Allow: GET, POST, PUT, DELETE, HEAD, OPTIONS\r\nContent-Length: %d\r\n", 0);
-            swString_append_ptr(response, buf, n);
-        }
-        else if (body_length >= 0)
         {
 #ifdef SW_HAVE_ZLIB
             if (ctx->gzip_enable)
@@ -1728,8 +1693,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
             swString_append_ptr(response, buf, n);
         }
     }
-
-    if (ctx->chunk)
+    else
     {
         swString_append_ptr(response, SW_STRL("Transfer-Encoding: chunked\r\n") - 1);
     }
