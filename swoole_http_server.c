@@ -1669,7 +1669,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
         {
             swString_append_ptr(response, ZEND_STRL("Allow: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS\r\nContent-Length: 0\r\n"));
         }
-        else if (body_length > 0)
+        else
         {
 
 #ifdef SW_HAVE_ZLIB
@@ -1716,7 +1716,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
             n = snprintf(buf, sizeof(buf), "Allow: GET, POST, PUT, DELETE, HEAD, OPTIONS\r\nContent-Length: %d\r\n", 0);
             swString_append_ptr(response, buf, n);
         }
-        else if (body_length > 0)
+        else if (body_length >= 0)
         {
 #ifdef SW_HAVE_ZLIB
             if (ctx->gzip_enable)
