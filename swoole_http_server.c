@@ -147,6 +147,7 @@ static PHP_METHOD(swoole_http_response, sendfile);
 static PHP_METHOD(swoole_http_response, cookie);
 static PHP_METHOD(swoole_http_response, rawcookie);
 static PHP_METHOD(swoole_http_response, header);
+static PHP_METHOD(swoole_http_response, initHeader);
 #ifdef SW_HAVE_ZLIB
 static PHP_METHOD(swoole_http_response, gzip);
 #endif
@@ -302,6 +303,7 @@ const zend_function_entry swoole_http_request_methods[] =
 
 const zend_function_entry swoole_http_response_methods[] =
 {
+    PHP_ME(swoole_http_response, initHeader, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, cookie, arginfo_swoole_http_response_cookie, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, rawcookie, arginfo_swoole_http_response_cookie, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, status, arginfo_swoole_http_response_status, ZEND_ACC_PUBLIC)
@@ -1819,6 +1821,27 @@ static int http_response_compress(swString *body, int level)
     return SW_ERR;
 }
 #endif
+
+static PHP_METHOD(swoole_http_response, initHeader)
+{
+    http_context *ctx = http_get_context(getThis(), 0 TSRMLS_CC);
+    if (!ctx)
+    {
+        RETURN_FALSE;
+    }
+    zval *zresponse_object = ctx->response.zobject;
+    zval *zheader = ctx->response.zheader;
+    if (!zheader)
+    {
+        swoole_http_server_array_init(header, response);
+    }
+
+    zval *zcookie = ctx->response.zcookie;
+    if (!zcookie)
+    {
+        swoole_http_server_array_init(cookie, response);
+    }
+}
 
 static PHP_METHOD(swoole_http_response, end)
 {
