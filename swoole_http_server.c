@@ -776,7 +776,11 @@ static int multipart_body_on_data_end(multipart_parser* p)
 
     efree(ctx->current_input_name);
     ctx->current_input_name = NULL;
+#if PHP_MAJOR_VERSION < 7
     efree(ctx->current_multipart_header);
+#else
+    sw_zval_ptr_dtor(&multipart_header);
+#endif
     ctx->current_multipart_header = NULL;
 
     return 0;
