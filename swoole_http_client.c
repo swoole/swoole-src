@@ -1576,9 +1576,19 @@ static int http_client_parser_on_header_value(php_http_parser *parser, const cha
             sw_zval_ptr_dtor(&cookies);
         }
 
+        zval *set_cookie_headers = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("set_cookie_headers"), 1 TSRMLS_CC);
+        if (!set_cookie_headers || ZVAL_IS_NULL(set_cookie_headers))
+        {
+            SW_MAKE_STD_ZVAL(set_cookie_headers);
+            array_init(set_cookie_headers);
+            zend_update_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("set_cookie_headers"), set_cookie_headers TSRMLS_CC);
+            sw_zval_ptr_dtor(&set_cookie_headers);
+        }
+
         memcpy(keybuf, at, l_key);
         keybuf[l_key] = '\0';
         sw_add_assoc_stringl_ex(cookies, keybuf, l_key + 1, (char*) at + l_key + 1, l_cookie - l_key - 1, 1);
+        sw_add_assoc_stringl_ex(set_cookie_headers, keybuf, l_key + 1, (char*) at, length, 1);
     }
 #ifdef SW_HAVE_ZLIB
     else if (strcasecmp(header_name, "Content-Encoding") == 0 && strncasecmp(at, "gzip", length) == 0)
