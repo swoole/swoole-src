@@ -116,6 +116,7 @@ typedef struct
     multipart_parser *mt_parser;
     struct _swoole_http_client *client;
 
+    uint16_t input_var_num;
     char *current_header_name;
     size_t current_header_name_len;
     char *current_input_name;

@@ -562,7 +562,24 @@ static int multipart_body_on_header_field(multipart_parser* p, const char *at, s
 
 static int multipart_body_on_header_value(multipart_parser* p, const char *at, size_t length)
 {
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+
     http_context *ctx = p->data;
+    /**
+     * Hash collision attack
+     */
+    if (ctx->input_var_num > PG(max_input_vars))
+    {
+        swoole_php_error(E_WARNING, "Input variables exceeded %ld. "
+                "To increase the limit change max_input_vars in php.ini.", PG(max_input_vars));
+        return SW_OK;
+    }
+    else
+    {
+        ctx->input_var_num++;
+    }
 
     size_t header_len = ctx->current_header_name_len;
     char *headername = zend_str_tolower_dup(ctx->current_header_name, header_len);
@@ -682,7 +699,7 @@ static int multipart_body_on_header_complete(multipart_parser* p)
 #endif
 
     http_context *ctx = p->data;
-    if (!ctx->current_input_name || !ctx->current_multipart_header)
+    if (!ctx->current_input_name)
     {
         return 0;
     }
@@ -751,7 +768,7 @@ static int multipart_body_on_data_end(multipart_parser* p)
         return 0;
     }
 
-    if (!ctx->current_input_name || !ctx->current_multipart_header)
+    if (!ctx->current_input_name)
     {
         return 0;
     }
