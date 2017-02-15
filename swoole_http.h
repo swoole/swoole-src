@@ -160,6 +160,13 @@ sw_copy_to_stack(ctx->class.z##name, ctx->request._z##name);\
 sw_zval_ptr_dtor(&z##name);\
 z##name = ctx->class.z##name;
 
+#define swoole_http_server_array_init_no_copy(name, class)    SW_MAKE_STD_ZVAL(z##name);\
+array_init(z##name);\
+zend_update_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), z##name TSRMLS_CC);\
+ctx->class.z##name = sw_zend_read_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), 0 TSRMLS_CC);\
+sw_zval_ptr_dtor(&z##name);\
+z##name = ctx->class.z##name;
+
 #define http_strncasecmp(const_str, at, length) ((length >= sizeof(const_str)-1) &&\
         (strncasecmp(at, ZEND_STRL(const_str)) == 0))
 
