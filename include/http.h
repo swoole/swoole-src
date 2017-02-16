@@ -62,7 +62,7 @@ typedef struct _swHttpRequest
 
 } swHttpRequest;
 
-int swHttp_get_method(char *method_str);
+int swHttp_get_method(const char *method_str, int method_len);
 int swHttpRequest_get_protocol(swHttpRequest *request);
 int swHttpRequest_get_content_length(swHttpRequest *request);
 int swHttpRequest_get_header_length(swHttpRequest *request);

@@ -27,14 +27,14 @@ static const char *method_strings[] =
     "SUBSCRIBE", "UNSUBSCRIBE", "PRI",
 };
 
-int swHttp_get_method(char *method_str)
+int swHttp_get_method(const char *method_str, int method_len)
 {
     int i;
-    for (i = 1; i < HTTP_PRI; i++)
+    for (i = 0; i < HTTP_PRI; i++)
     {
-        if (strncasecmp(method_strings[i], method_str, strlen(method_strings[i])) == 0)
+        if (strncasecmp(method_strings[i], method_str, method_len) == 0)
         {
-            return i;
+            return i + 1;
         }
     }
     return -1;
