@@ -310,9 +310,7 @@ static sw_inline zval* sw_zval_dup(zval *val)
 static sw_inline void sw_zval_free(zval *val)
 {
     sw_zval_ptr_dtor(&val);
-#if PHP_MAJOR_VERSION > 5
     efree(val);
-#endif
 }
 
 static sw_inline zval* sw_zend_read_property(zend_class_entry *class_ptr, zval *obj, char *s, int len, int silent)

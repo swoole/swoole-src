@@ -82,7 +82,6 @@ static CPINLINE int swoole_string_new(size_t size, seriaString *str, zend_uchar 
 
 static CPINLINE void swoole_check_size(seriaString *str, size_t len)
 {
-
     int new_size = len + str->offset;
     //    int new_size = len + str->offset + 3 + sizeof (zend_ulong); //space 1 for the type and 2 for key string len or index len and(zend_ulong) for key h
     if (str->total < new_size)
@@ -97,7 +96,6 @@ static CPINLINE void swoole_check_size(seriaString *str, size_t len)
         }
         str->total = new_size;
     }
-
 }
 
 static CPINLINE void swoole_string_cpy(seriaString *str, void *mem, size_t len)
@@ -773,7 +771,6 @@ static CPINLINE zend_string* swoole_unserialize_string(void *buffer, size_t len)
 /*
  * raw
  */
-
 static CPINLINE void swoole_unserialize_raw(void *buffer, zval *zvalue)
 {
 
@@ -783,7 +780,6 @@ static CPINLINE void swoole_unserialize_raw(void *buffer, zval *zvalue)
 /*
  * null
  */
-
 static CPINLINE void swoole_unserialize_null(void *buffer, zval *zvalue)
 {
 
@@ -840,7 +836,7 @@ static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start
                 //for the zero malloc
                 zend_array tmp_arr;
                 zend_array *ht = (zend_array *) & tmp_arr;
-                _zend_hash_init(ht, zend_hash_num_elements(Z_ARRVAL(retval)), ZVAL_PTR_DTOR, 0 ZEND_FILE_LINE_RELAY_CC);
+                _zend_hash_init(ht, zend_hash_num_elements(Z_ARRVAL(retval)), ZVAL_PTR_DTOR, 0 ZEND_FILE_LINE_CC);
                 ht->nTableMask = -(ht)->nTableSize;
                 ALLOCA_FLAG(use_heap);
                 void *ht_addr = do_alloca(HT_SIZE(ht), use_heap);
@@ -864,7 +860,7 @@ static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start
                         {
                             got_num++;
                             //add mangle key,unmangle in unseria 
-                            _zend_hash_add_or_update(ht, prop_key, prop_value, HASH_UPDATE ZEND_FILE_LINE_RELAY_CC);
+                            _zend_hash_add_or_update(ht, prop_key, prop_value, HASH_UPDATE ZEND_FILE_LINE_CC);
 
                             break;
                         }
@@ -988,7 +984,6 @@ static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uc
 
     ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL(property), index, key, data)
     {
-
         const char *prop_name, *tmp;
         size_t prop_len;
         if (key)
@@ -1001,6 +996,7 @@ static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uc
             zend_hash_next_index_insert(Z_OBJPROP_P(return_value), data);
         }
     }
+    (void) index;
     ZEND_HASH_FOREACH_END();
     zval_dtor(&property);
 

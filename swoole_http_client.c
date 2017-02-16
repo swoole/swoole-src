@@ -1385,24 +1385,23 @@ int http_client_parser_on_header_value(php_http_parser *parser, const char *at, 
     else if (strcasecmp(header_name, "Set-Cookie") == 0)
     {
         int l_cookie = 0;
-        if (strchr(at, ';'))
+        char *p = (char*) memchr(at, ';', length);
+        if (p)
         {
-            l_cookie = strchr(at, ';') - at;
+            l_cookie = p - at;
         }
         else
         {
-            l_cookie = strstr(at, "\r\n") - at;
+            l_cookie = length;
         }
-        //invalid cookie value
-        if (l_cookie < 0 || l_cookie >= length)
+
+        p = (char*) memchr(at, '=', length);
+        int l_key = 0;
+        if (p)
         {
-            swWarn("cookie value format is wrong.");
-            efree(header_name);
-            return SW_ERR;
+            l_key = p - at;
         }
-        //invalid cookie key
-        int l_key = strchr(at, '=') - at;
-        if (l_key < 0 || l_key >= SW_HTTP_COOKIE_KEYLEN)
+        if (l_key == 0 || l_key >= SW_HTTP_COOKIE_KEYLEN || l_key >= length - 1)
         {
             swWarn("cookie key format is wrong.");
             efree(header_name);
@@ -1420,9 +1419,19 @@ int http_client_parser_on_header_value(php_http_parser *parser, const char *at, 
             sw_zval_ptr_dtor(&cookies);
         }
 
+        zval *set_cookie_headers = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("set_cookie_headers"), 1 TSRMLS_CC);
+        if (!set_cookie_headers || ZVAL_IS_NULL(set_cookie_headers))
+        {
+            SW_MAKE_STD_ZVAL(set_cookie_headers);
+            array_init(set_cookie_headers);
+            zend_update_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("set_cookie_headers"), set_cookie_headers TSRMLS_CC);
+            sw_zval_ptr_dtor(&set_cookie_headers);
+        }
+
         memcpy(keybuf, at, l_key);
         keybuf[l_key] = '\0';
         sw_add_assoc_stringl_ex(cookies, keybuf, l_key + 1, (char*) at + l_key + 1, l_cookie - l_key - 1, 1);
+        sw_add_assoc_stringl_ex(set_cookie_headers, keybuf, l_key + 1, (char*) at, length, 1);
     }
 #ifdef SW_HAVE_ZLIB
     else if (strcasecmp(header_name, "Content-Encoding") == 0 && strncasecmp(at, "gzip", length) == 0)

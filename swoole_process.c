@@ -248,7 +248,10 @@ static PHP_METHOD(swoole_process, __construct)
         process->redirect_stdin = 1;
         process->redirect_stdout = 1;
         process->redirect_stderr = 1;
-        pipe_type = 2;
+        /**
+         * Forced to use stream pipe
+         */
+        pipe_type = 1;
     }
 
     if (pipe_type > 0)
