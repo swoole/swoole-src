@@ -56,6 +56,9 @@ void swoole_serialize_init(int module_number TSRMLS_DC)
 
     ZVAL_STRING(&swSeriaG.sleep_fname, "__sleep");
     ZVAL_STRING(&swSeriaG.weekup_fname, "__weekup");
+    
+    memset(&swSeriaG.filter, 0, sizeof (swSeriaG.filter));
+    memset(&mini_filter, 0, sizeof (mini_filter));
 
     REGISTER_LONG_CONSTANT("SWOOLE_FAST_PACK", SW_FAST_PACK, CONST_CS | CONST_PERSISTENT);
 }
@@ -211,6 +214,26 @@ static CPINLINE void swoole_mini_filter_clear()
     if (swSeriaG.pack_string)
     {
         memset(&mini_filter, 0, sizeof (mini_filter));
+        if (bigger_filter)
+        {
+            efree(bigger_filter);
+            bigger_filter = NULL;
+
+        }
+        memset(&swSeriaG.filter, 0, sizeof (struct _swMinFilter));
+    }
+}
+
+static CPINLINE void swoole_make_bigger_filter_size()
+{
+    if (FILTER_SIZE <= swSeriaG.filter.mini_fillter_miss_cnt &&
+            swSeriaG.filter.mini_fillter_find_cnt < swSeriaG.filter.mini_fillter_miss_cnt)
+        //        if (FILTER_SIZE <= swSeriaG.filter.mini_fillter_miss_cnt &&
+        //                (swSeriaG.filter.mini_fillter_find_cnt / swSeriaG.filter.mini_fillter_miss_cnt) < 1)
+    {
+        swSeriaG.filter.bigger_fillter_size = swSeriaG.filter.mini_fillter_miss_cnt * 128;
+        bigger_filter = (swPoolstr*) ecalloc(1, sizeof (swPoolstr) * swSeriaG.filter.bigger_fillter_size);
+        memcpy(bigger_filter, &mini_filter, sizeof (mini_filter));
     }
 }
 
@@ -219,23 +242,43 @@ static CPINLINE void swoole_mini_filter_add(zend_string *zstr, size_t offset, ze
     if (swSeriaG.pack_string)
     {
         offset -= _STR_HEADER_SIZE;
-        if (offset >= 0x1fffffff)//head 3bit is overhead
+        //head 3bit is overhead
+        if (offset >= 0x1fffffff)
         {
             return;
         }
-        // do not extend it ,cause the hash full prove the data concentration is not high,in this situation pack string is low effective
-        uint16_t mod = zstr->h & (SERIA_SIZE - 1);
-
-        mini_filter[mod].offset = offset << 3;
-        if (offset <= 0x1fff)
+        if (bigger_filter)
         {
-            mini_filter[mod].offset |= byte;
+            uint32_t mod_big = zstr->h & (swSeriaG.filter.bigger_fillter_size - 1);
+
+            bigger_filter[mod_big].offset = offset << 3;
+            if (offset <= 0x1fff)
+            {
+                bigger_filter[mod_big].offset |= byte;
+            }
+            else
+            {
+                bigger_filter[mod_big].offset |= (byte | 4);
+            }
+            bigger_filter[mod_big].str = zstr;
         }
         else
         {
-            mini_filter[mod].offset |= (byte | 4);
+            uint16_t mod = zstr->h & (FILTER_SIZE - 1);
+            //repalce it is effective,cause the principle of locality
+            mini_filter[mod].offset = offset << 3;
+            if (offset <= 0x1fff)
+            {
+                mini_filter[mod].offset |= byte;
+            }
+            else
+            {
+                mini_filter[mod].offset |= (byte | 4);
+            }
+            mini_filter[mod].str = zstr;
+            swSeriaG.filter.mini_fillter_miss_cnt++;
+            swoole_make_bigger_filter_size();
         }
-        mini_filter[mod].str = zstr;
     }
 
 }
@@ -245,7 +288,16 @@ static CPINLINE swPoolstr* swoole_mini_filter_find(zend_string *zstr)
     if (swSeriaG.pack_string)
     {
         zend_ulong h = zend_string_hash_val(zstr);
-        swPoolstr* str = &mini_filter[h & (SERIA_SIZE - 1)];
+        swPoolstr* str = NULL;
+        if (bigger_filter)
+        {
+            str = &bigger_filter[h & (swSeriaG.filter.bigger_fillter_size - 1)];
+        }
+        else
+        {
+            str = &mini_filter[h & (FILTER_SIZE - 1)];
+        }
+
         if (!str->str)
         {
             return NULL;
@@ -255,6 +307,7 @@ static CPINLINE swPoolstr* swoole_mini_filter_find(zend_string *zstr)
                 zstr->len == str->str->len &&
                 memcmp(zstr->val, str->str->val, zstr->len) == 0)
         {
+            swSeriaG.filter.mini_fillter_find_cnt++;
             return str;
         }
         else
