@@ -1556,24 +1556,23 @@ static int http_client_parser_on_header_value(php_http_parser *parser, const cha
     else if (strcasecmp(header_name, "Set-Cookie") == 0)
     {
         int l_cookie = 0;
-        if (strchr(at, ';'))
+        char *p = NULL;
+        p = (char*)php_memnstr(at, ";", 1, at + length);
+        if (p)
         {
-            l_cookie = strchr(at, ';') - at;
+            l_cookie = p - at;
         }
         else
         {
-            l_cookie = strstr(at, "\r\n") - at;
+            l_cookie = length;
         }
-        //invalid cookie value
-        if (l_cookie < 0 || l_cookie >= length)
-        {
-            swWarn("cookie value format is wrong.");
-            efree(header_name);
-            return SW_ERR;
+        p = NULL;
+        p = (char*)php_memnstr(at, "=", 1, at + length);
+        int l_key = 0;
+        if (p) {
+            l_key = p - at;
         }
-        //invalid cookie key
-        int l_key = strchr(at, '=') - at;
-        if (l_key < 0 || l_key >= SW_HTTP_COOKIE_KEYLEN)
+        if (l_key == 0 || l_key >= SW_HTTP_COOKIE_KEYLEN || l_key >= length - 1)
         {
             swWarn("cookie key format is wrong.");
             efree(header_name);
