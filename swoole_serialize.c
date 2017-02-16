@@ -612,7 +612,7 @@ static void swoole_serialize_arr(seriaString *buffer, zend_array *zvalue)
         //start point
         size_t p = buffer->offset;
 
-        if (is_pack)
+        if (is_pack && zvalue->nNextFreeElement == zvalue->nNumOfElements)
         {
             type.key_type = KEY_TYPE_INDEX;
             type.key_len = 0;
