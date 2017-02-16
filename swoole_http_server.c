@@ -1481,7 +1481,10 @@ static PHP_METHOD(swoole_http_request, __destruct)
                 continue;
             }
             unlink(Z_STRVAL_P(file_path));
-            sw_zend_hash_del(SG(rfc1867_uploaded_files), Z_STRVAL_P(file_path), Z_STRLEN_P(file_path) + 1);
+            if (SG(rfc1867_uploaded_files))
+            {
+                sw_zend_hash_del(SG(rfc1867_uploaded_files), Z_STRVAL_P(file_path), Z_STRLEN_P(file_path) + 1);
+            }
         }
         SW_HASHTABLE_FOREACH_END();
     }
