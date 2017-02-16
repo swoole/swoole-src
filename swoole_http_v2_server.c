@@ -163,7 +163,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
         date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), SwooleGS->now, 0 TSRMLS_CC);
         http2_add_header(&nv[index++], ZEND_STRL("date"), date_str, strlen(date_str));
 
-        if (ctx->request.method == PHP_HTTP_OPTIONS)
+        if (ctx->request.method == HTTP_OPTIONS)
         {
             http2_add_header(&nv[index++], ZEND_STRL("allow"), ZEND_STRL("GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS"));
         }
@@ -346,6 +346,7 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
                 if (strncasecmp((char *) nv.name + 1, "method", nv.namelen -1) == 0)
                 {
                     sw_add_assoc_stringl_ex(zserver, ZEND_STRS("request_method"), (char *) nv.value, nv.valuelen, 1);
+                    ctx->request.method = swHttp_get_method(nv.value);
                 }
                 else if (strncasecmp((char *) nv.name + 1, "path", nv.namelen -1) == 0)
                 {

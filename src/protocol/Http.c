@@ -20,6 +20,26 @@
 #include <assert.h>
 #include <stddef.h>
 
+static const char *method_strings[] =
+{
+    "DELETE", "GET", "HEAD", "POST", "PUT", "PATCH", "CONNECT", "OPTIONS", "TRACE", "COPY", "LOCK", "MKCOL", "MOVE",
+    "PROPFIND", "PROPPATCH", "UNLOCK", "REPORT", "MKACTIVITY", "CHECKOUT", "MERGE", "M-SEARCH", "NOTIFY",
+    "SUBSCRIBE", "UNSUBSCRIBE", "PRI",
+};
+
+int swHttp_get_method(char *method_str)
+{
+    int i;
+    for (i = 1; i < HTTP_PRI; i++)
+    {
+        if (strncasecmp(method_strings[i], method_str, strlen(method_strings[i])) == 0)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
 /**
  * only GET/POST
  */
