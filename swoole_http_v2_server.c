@@ -127,23 +127,16 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
         {
             http2_add_header(&nv[index++], ZEND_STRL("server"), ZEND_STRL(SW_HTTP_SERVER_SOFTWARE));
         }
-        if (ctx->request.method == PHP_HTTP_OPTIONS)
+        if (!(flag & HTTP_RESPONSE_CONTENT_LENGTH) && body_length >= 0)
         {
-            http2_add_header(&nv[index++], ZEND_STRL("allow"), ZEND_STRL("GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS"));
-        }
-        else
-        {
-            if (!(flag & HTTP_RESPONSE_CONTENT_LENGTH) && body_length >= 0)
-            {
 #ifdef SW_HAVE_ZLIB
-                if (ctx->gzip_enable)
-                {
-                    body_length = swoole_zlib_buffer->length;
-                }
-#endif
-                ret = swoole_itoa(intbuf[1], body_length);
-                http2_add_header(&nv[index++], ZEND_STRL("content-length"), intbuf[1], ret);
+            if (ctx->gzip_enable)
+            {
+                body_length = swoole_zlib_buffer->length;
             }
+#endif
+            ret = swoole_itoa(intbuf[1], body_length);
+            http2_add_header(&nv[index++], ZEND_STRL("content-length"), intbuf[1], ret);
         }
         if (!(flag & HTTP_RESPONSE_DATE))
         {
@@ -163,21 +156,14 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
         date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), SwooleGS->now, 0 TSRMLS_CC);
         http2_add_header(&nv[index++], ZEND_STRL("date"), date_str, strlen(date_str));
 
-        if (ctx->request.method == HTTP_OPTIONS)
-        {
-            http2_add_header(&nv[index++], ZEND_STRL("allow"), ZEND_STRL("GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS"));
-        }
-        else if (body_length >= 0)
-        {
 #ifdef SW_HAVE_ZLIB
-            if (ctx->gzip_enable)
-            {
-                body_length = swoole_zlib_buffer->length;
-            }
-#endif
-            ret = swoole_itoa(buf, body_length);
-            http2_add_header(&nv[index++], ZEND_STRL("content-length"), buf, ret);
+        if (ctx->gzip_enable)
+        {
+            body_length = swoole_zlib_buffer->length;
         }
+#endif
+        ret = swoole_itoa(buf, body_length);
+        http2_add_header(&nv[index++], ZEND_STRL("content-length"), buf, ret);
     }
     //http cookies
     if (ctx->response.zcookie)
