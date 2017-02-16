@@ -1556,8 +1556,7 @@ static int http_client_parser_on_header_value(php_http_parser *parser, const cha
     else if (strcasecmp(header_name, "Set-Cookie") == 0)
     {
         int l_cookie = 0;
-        char *p = NULL;
-        p = (char*)php_memnstr(at, ";", 1, at + length);
+        char *p = (char*) memchr(at, ';', 1, at + length);
         if (p)
         {
             l_cookie = p - at;
@@ -1566,10 +1565,11 @@ static int http_client_parser_on_header_value(php_http_parser *parser, const cha
         {
             l_cookie = length;
         }
-        p = NULL;
-        p = (char*)php_memnstr(at, "=", 1, at + length);
+
+        p = (char*) memchr(at, '=', 1, at + length);
         int l_key = 0;
-        if (p) {
+        if (p)
+        {
             l_key = p - at;
         }
         if (l_key == 0 || l_key >= SW_HTTP_COOKIE_KEYLEN || l_key >= length - 1)
