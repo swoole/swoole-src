@@ -1125,9 +1125,9 @@ again:
             break;
         case IS_ARRAY:
         {
-            swoole_mini_filter_clear();
             seria_array_type(Z_ARRVAL_P(zvalue), buffer, _STR_HEADER_SIZE, _STR_HEADER_SIZE + 1);
             swoole_serialize_arr(buffer, Z_ARRVAL_P(zvalue));
+            swoole_mini_filter_clear();
             break;
         }
         case IS_REFERENCE:
@@ -1136,10 +1136,10 @@ again:
             break;
         case IS_OBJECT:
         {
-            swoole_mini_filter_clear();
             SBucketType* type = (SBucketType*) (buffer->buffer + _STR_HEADER_SIZE);
             type->data_type = IS_UNDEF;
             swoole_serialize_object(buffer, zvalue, _STR_HEADER_SIZE);
+            swoole_mini_filter_clear();
             break;
         }
         default:
