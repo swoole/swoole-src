@@ -34,6 +34,7 @@ public:
     Variant()
     {
         init();
+        ZVAL_NULL(&val);
     }
     Variant(long v)
     {
@@ -161,6 +162,18 @@ public:
     {
         return Z_TYPE(val) == IS_TRUE || Z_TYPE(val) == IS_FALSE;
     }
+    bool isNull()
+    {
+        return Z_TYPE(val) == IS_NULL;
+    }
+    bool isResource()
+    {
+        return Z_TYPE(val) == IS_RESOURCE;
+    }
+    bool isReference()
+    {
+        return Z_TYPE(val) == IS_REFERENCE;
+    }
     string toString()
     {
         return string(Z_STRVAL_P(&val), Z_STRLEN_P(&val));
@@ -193,6 +206,73 @@ protected:
     }
 };
 
+class ArrayIterator
+{
+public:
+    ArrayIterator(Bucket *p)
+    {
+        _ptr = p;
+        _key = _ptr->key;
+        _val = &_ptr->val;
+        _index = _ptr->h;
+    }
+    void operator ++(int i)
+    {
+        while (1)
+        {
+            _ptr++;
+            _val = &_ptr->val;
+            if (_val && Z_TYPE_P(_val) == IS_INDIRECT)
+            {
+                _val = Z_INDIRECT_P(_val);
+            }
+            if (UNEXPECTED(Z_TYPE_P(_val) == IS_UNDEF))
+            {
+                continue;
+            }
+            if (_key)
+            {
+                _key = _ptr->key;
+                _index = 0;
+            }
+            else
+            {
+                _index = _ptr->h;
+                _key = NULL;
+            }
+            break;
+        }
+    }
+    bool operator !=(ArrayIterator b)
+    {
+        return b.ptr() != _ptr;
+    }
+    Variant key()
+    {
+        if (_key)
+        {
+            return Variant(_key->val, _key->len);
+        }
+        else
+        {
+            return Variant((long) _index);
+        }
+    }
+    Variant value()
+    {
+        return Variant(_val);
+    }
+    Bucket *ptr()
+    {
+        return _ptr;
+    }
+private:
+    zval *_val;
+    zend_string *_key;
+    Bucket *_ptr;
+    zend_ulong _index;
+};
+
 class Array: public Variant
 {
 public:
@@ -213,6 +293,10 @@ public:
         zval_add_ref(&val);
     }
     void append(Variant &v)
+    {
+        add_next_index_zval(&val, v.ptr());
+    }
+    void append(Variant v)
     {
         add_next_index_zval(&val, v.ptr());
     }
@@ -243,6 +327,10 @@ public:
     void append(float v)
     {
         add_next_index_double(&val, (double) v);
+    }
+    void append(void *v)
+    {
+        add_next_index_null(&val);
     }
     void append(Array &v)
     {
@@ -292,12 +380,31 @@ public:
         zval *ret = zend_hash_str_find(Z_ARRVAL(val), key, strlen(key));
         return Variant(ret);
     }
-    bool exists(string &key)
+    bool remove(const char *key)
     {
-        zend_string *_key = zend_string_init(key.c_str(), key.length(), 0);
-        bool ret = zend_hash_exists(Z_ARRVAL(val), _key) != 0;
+        zend_string *_key = zend_string_init(key, strlen(key), 0);
+        bool ret = zend_hash_del(Z_ARRVAL(val), _key) == SUCCESS;
         zend_string_free(_key);
         return ret;
+    }
+    void clean()
+    {
+        zend_hash_clean(Z_ARRVAL(val));
+    }
+    bool exists(const char *key)
+    {
+        zend_string *_key = zend_string_init(key, strlen(key), 0);
+        bool ret = zend_hash_exists(Z_ARRVAL(val), _key) == SUCCESS;
+        zend_string_free(_key);
+        return ret;
+    }
+    ArrayIterator begin()
+    {
+        return ArrayIterator(Z_ARRVAL(val)->arData);
+    }
+    ArrayIterator end()
+    {
+        return ArrayIterator(Z_ARRVAL(val)->arData + Z_ARRVAL(val)->nNumUsed);
     }
     size_t count()
     {
@@ -459,6 +566,27 @@ Object create(const char *name, Array &args)
     }
     object = Object(&zobject);
     object.call("__construct", args);
+    return object;
+}
+
+Object create(const char *name)
+{
+    zend_string *class_name = zend_string_init(name, strlen(name), 0);
+    Object object;
+
+    zend_class_entry *ce = zend_lookup_class(class_name);
+    zend_string_free(class_name);
+    if (ce == NULL)
+    {
+        swoole_php_error(E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
     return object;
 }
 

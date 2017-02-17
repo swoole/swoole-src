@@ -47,6 +47,20 @@ int test_get_length(swProtocol *protocol, swConnection *conn, char *data, uint32
     return 100;
 }
 
+void testRedis()
+{
+    Object redis = PHP::create("redis");
+    Array args;
+    args.append("127.0.0.1");
+    args.append(6379);
+    auto ret = redis.call("connect", args);
+
+    Array args2;
+    args2.append("key");
+    Variant ret2 = redis.call("get", args2);
+    printf("value=%s\n", ret2.toCString());
+}
+
 /**
  * $module = swoole_load_module(__DIR__.'/test.so');
  * $module->cppMethod("abc", 1234, 459.55, "hello");
@@ -67,6 +81,7 @@ void cppMethod(swModule *module, zval *_params, zval *_return_value)
     Array args;
     args.append(1234);
     args.append(1234.56);
+    args.append(Variant());
     args.append("123456789");
     args.append("tianfenghan");
 
@@ -99,6 +114,21 @@ void cppMethod(swModule *module, zval *_params, zval *_return_value)
         Array map;
         map.set("myname", "rango");
         map.set("city", "上海");
+
+        for (auto i = map.begin(); i != map.end(); i++)
+        {
+            Variant key = i.key();
+            Variant value = i.value();
+            if (key.isString())
+            {
+                printf("key=%s, value=%s\n", key.toCString(), value.toCString());
+            }
+            else
+            {
+                printf("key=%ld,\n", key.toInt());
+            }
+        }
+
         args2.append(map);
 
         /**
@@ -130,6 +160,8 @@ void cppMethod(swModule *module, zval *_params, zval *_return_value)
          * 调用它的hello方法
          */
         obj2.call("hello");
+
+        testRedis();
     }
     else
     {
