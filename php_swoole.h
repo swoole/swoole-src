@@ -429,8 +429,8 @@ PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, 
 
 static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type)
 {
-    swListenPort *port = serv->connection_list[server_fd].object;
-    swoole_server_port_property *property = port->ptr;
+    swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
+    swoole_server_port_property *property = (swoole_server_port_property *) port->ptr;
     if (!property)
     {
         return php_sw_server_callbacks[event_type];

@@ -231,7 +231,7 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval** 
 
 #define sw_php_var_unserialize(rval, p, max, var_hash)  php_var_unserialize(*rval, p, max, var_hash)
 #define SW_MAKE_STD_ZVAL(p)             zval _stack_zval_##p; p = &(_stack_zval_##p)
-#define SW_ALLOC_INIT_ZVAL(p)           do{p = emalloc(sizeof(zval)); bzero(p, sizeof(zval));}while(0)
+#define SW_ALLOC_INIT_ZVAL(p)           do{p = (zval *)emalloc(sizeof(zval)); bzero(p, sizeof(zval));}while(0)
 #define SW_RETURN_STRINGL(s, l, dup)    do{RETVAL_STRINGL(s, l); if (dup == 0) efree(s);}while(0);return
 #define SW_RETVAL_STRINGL(s, l, dup)    do{RETVAL_STRINGL(s, l); if (dup == 0) efree(s);}while(0)
 #define SW_RETVAL_STRING(s, dup)        do{RETVAL_STRING(s); if (dup == 0) efree(s);}while(0)
@@ -321,19 +321,19 @@ static inline int sw_zend_hash_del(HashTable *ht, char *k, int len)
 
 static inline int sw_zend_hash_add(HashTable *ht, char *k, int len, void *pData, int datasize, void **pDest)
 {
-    zval **real_p = pData;
+    zval **real_p = (zval **)pData;
     return zend_hash_str_add(ht, k, len - 1, *real_p) ? SUCCESS : FAILURE;
 }
 
 static inline int sw_zend_hash_index_update(HashTable *ht, int key, void *pData, int datasize, void **pDest)
 {
-    zval **real_p = pData;
+    zval **real_p = (zval **)pData;
     return zend_hash_index_update(ht, key, *real_p) ? SUCCESS : FAILURE;
 }
 
-static inline int sw_zend_hash_update(HashTable *ht, char *k, int len, void *val, int size, void *ptr)
+static inline int sw_zend_hash_update(HashTable *ht, char *k, int len, zval *val, int size, void *ptr)
 {
-    return zend_hash_str_update(ht, k, len -1, val) ? SUCCESS : FAILURE;
+    return zend_hash_str_update(ht, (const char*)k, len -1, val) ? SUCCESS : FAILURE;
 }
 
 static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
