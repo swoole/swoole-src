@@ -50,8 +50,6 @@ void swPort_init(swListenPort *port)
     char eof[] = SW_DATA_EOF;
     port->protocol.package_eof_len = sizeof(SW_DATA_EOF) - 1;
     memcpy(port->protocol.package_eof, eof, port->protocol.package_eof_len);
-
-    port->onRead = NULL;
 }
 
 #ifdef SW_USE_OPENSSL
