@@ -165,6 +165,10 @@ public:
     {
         return string(Z_STRVAL_P(&val), Z_STRLEN_P(&val));
     }
+    char* toCString()
+    {
+        return Z_STRVAL_P(&val);
+    }
     long toInt()
     {
         return Z_LVAL_P(&val);
@@ -321,10 +325,16 @@ static inline Variant _call(zval *object, zval *func, Array &args)
     return retval;
 }
 
-Variant call(string &func, Array &args)
+static inline Variant _call(zval *object, zval *func)
 {
-    Variant _func(func);
-    return _call(NULL, _func.ptr(), args);
+    Variant retval = false;
+    zval params[0];
+    zval _retval;
+    if (call_user_function(EG(function_table), object, func, &_retval, 0, params) == 0)
+    {
+        retval = Variant(&_retval);
+    }
+    return retval;
 }
 
 Variant call(Variant &func, Array &args)
@@ -357,11 +367,6 @@ public:
     {
 
     }
-    Variant call(string &func, Array &args)
-    {
-        Variant _func(func);
-        return _call(ptr(), _func.ptr(), args);
-    }
     Variant call(Variant &func, Array &args)
     {
         return _call(ptr(), func.ptr(), args);
@@ -370,6 +375,18 @@ public:
     {
         Variant _func(func);
         return _call(ptr(), _func.ptr(), args);
+    }
+    /**
+     * call php function with 0 params.
+     */
+    Variant call(Variant &func)
+    {
+        return _call(ptr(), func.ptr());
+    }
+    Variant call(const char *func)
+    {
+        Variant _func(func);
+        return _call(ptr(), _func.ptr());
     }
     Variant get(const char *name)
     {

@@ -14,6 +14,11 @@ class Test2
       echo "class Test2 __construct\n";
       var_dump(func_get_args());
     }
+
+    function hello()
+    {
+      echo __CLASS__.": ".__LINE__."\n";
+    }
 }
 
 class Test

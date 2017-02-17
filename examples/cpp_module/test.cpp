@@ -56,10 +56,10 @@ void cppMethod(swModule *module, zval *_params, zval *_return_value)
     Array params(_params);
     Variant return_value(_return_value, true);
 
-    printf("key[0] = %s\n", params[0].toString().c_str());
+    printf("key[0] = %s\n", params[0].toCString());
     printf("key[1] = %ld\n", params[1].toInt());
     printf("key[2] = %f\n", params[2].toFloat());
-    printf("key[3] = %s\n", params[3].toString().c_str());
+    printf("key[3] = %s\n", params[3].toCString());
 
     /**
      * 调用PHP代码中的test2函数
@@ -122,7 +122,14 @@ void cppMethod(swModule *module, zval *_params, zval *_return_value)
         Variant name = obj.get("name");
         cout << "name property: " << name.toString() << endl;
 
+        /**
+         * 创建一个Test2类的对象
+         */
         Object obj2 = PHP::create("Test2", args2);
+        /**
+         * 调用它的hello方法
+         */
+        obj2.call("hello");
     }
     else
     {
