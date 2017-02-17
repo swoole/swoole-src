@@ -405,7 +405,7 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
         else if (state == 1 && *_c == ';')
         {
             vlen = i - j;
-            if (vlen >= SW_HTTP_COOKIE_KEYLEN)
+            if (vlen >= SW_HTTP_COOKIE_VALLEN)
             {
                 swWarn("cookie value is too large.");
                 return;
@@ -439,7 +439,7 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
     {
         vlen = i - j;
         keybuf[klen - 1] = 0;
-        if (vlen >= SW_HTTP_COOKIE_KEYLEN)
+        if (vlen >= SW_HTTP_COOKIE_VALLEN)
         {
             swWarn("cookie value is too large.");
             return;
