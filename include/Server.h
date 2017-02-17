@@ -227,7 +227,7 @@ typedef struct _swListenPort
 
     swProtocol protocol;
     void *ptr;
-    int (*onRead)(swReactor *reactor, struct _swListenPort *port, swEvent *event);
+    int (*onRead)(swReactor *reactor, swConnection *conn, swEvent *event);
 } swListenPort;
 
 typedef struct _swUserWorker_node
@@ -413,7 +413,7 @@ struct _swServer
 
     int *cpu_affinity_available;
     int cpu_affinity_available_num;
-    
+
     uint16_t listen_port_num;
     time_t reload_time;
 

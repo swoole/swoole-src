@@ -21,11 +21,11 @@
 #include "mqtt.h"
 #include "redis.h"
 
-static int swPort_onRead_raw(swReactor *reactor, swListenPort *lp, swEvent *event);
-static int swPort_onRead_check_length(swReactor *reactor, swListenPort *lp, swEvent *event);
-static int swPort_onRead_check_eof(swReactor *reactor, swListenPort *lp, swEvent *event);
-static int swPort_onRead_http(swReactor *reactor, swListenPort *lp, swEvent *event);
-static int swPort_onRead_redis(swReactor *reactor, swListenPort *lp, swEvent *event);
+int swPort_onRead_raw(swReactor *reactor, swConnection *conn, swEvent *event);
+int swPort_onRead_check_length(swReactor *reactor, swConnection *conn, swEvent *event);
+int swPort_onRead_check_eof(swReactor *reactor, swConnection *conn, swEvent *event);
+int swPort_onRead_http(swReactor *reactor, swConnection *conn, swEvent *event);
+int swPort_onRead_redis(swReactor *reactor, swConnection *conn, swEvent *event);
 
 void swPort_init(swListenPort *port)
 {
@@ -50,6 +50,8 @@ void swPort_init(swListenPort *port)
     char eof[] = SW_DATA_EOF;
     port->protocol.package_eof_len = sizeof(SW_DATA_EOF) - 1;
     memcpy(port->protocol.package_eof, eof, port->protocol.package_eof_len);
+
+    port->onRead = NULL;
 }
 
 #ifdef SW_USE_OPENSSL
@@ -200,12 +202,11 @@ void swPort_set_protocol(swListenPort *ls)
     }
 }
 
-static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *event)
+int swPort_onRead_raw(swReactor *reactor, swConnection *conn, swEvent *event)
 {
     int ret = 0, n;
     swServer *serv = reactor->ptr;
     swDispatchData task;
-    swConnection *conn =  event->socket;
 
     n = swConnection_recv(conn, task.data.data, SW_BUFFER_SIZE, 0);
     if (n < 0)
@@ -251,11 +252,10 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
 }
 
 
-static int swPort_onRead_check_length(swReactor *reactor, swListenPort *port, swEvent *event)
+int swPort_onRead_check_length(swReactor *reactor, swConnection *conn, swEvent *event)
 {
     swServer *serv = reactor->ptr;
-    swConnection *conn = event->socket;
-    swProtocol *protocol = &port->protocol;
+    swProtocol *protocol = &conn->protocol;
 
     swString *buffer = swServer_get_buffer(serv, event->fd);
     if (!buffer)
@@ -275,10 +275,8 @@ static int swPort_onRead_check_length(swReactor *reactor, swListenPort *port, sw
 /**
  * For Http Protocol
  */
-static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *event)
+int swPort_onRead_http(swReactor *reactor, swConnection *conn, swEvent *event)
 {
-    swConnection *conn = event->socket;
-
     if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE)
     {
         if (conn->http_upgrade == 0)
@@ -287,7 +285,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
             conn->http_upgrade = 1;
         }
-        return swPort_onRead_check_length(reactor, port, event);
+        return swPort_onRead_check_length(reactor, conn, event);
     }
 
 #ifdef SW_USE_HTTP2
@@ -302,7 +300,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
     int buf_len;
 
     swHttpRequest *request = NULL;
-    swProtocol *protocol = &port->protocol;
+    swProtocol *protocol = &conn->protocol;
 
     //new http request
     if (conn->object == NULL)
@@ -500,10 +498,9 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
     return SW_OK;
 }
 
-static int swPort_onRead_redis(swReactor *reactor, swListenPort *port, swEvent *event)
+int swPort_onRead_redis(swReactor *reactor, swConnection *conn, swEvent *event)
 {
-    swConnection *conn = event->socket;
-    swProtocol *protocol = &port->protocol;
+    swProtocol *protocol = &conn->protocol;
     swServer *serv = reactor->ptr;
 
     swString *buffer = swServer_get_buffer(serv, event->fd);
@@ -520,10 +517,9 @@ static int swPort_onRead_redis(swReactor *reactor, swListenPort *port, swEvent *
     return SW_OK;
 }
 
-static int swPort_onRead_check_eof(swReactor *reactor, swListenPort *port, swEvent *event)
+int swPort_onRead_check_eof(swReactor *reactor, swConnection *conn, swEvent *event)
 {
-    swConnection *conn = event->socket;
-    swProtocol *protocol = &port->protocol;
+    swProtocol *protocol = &conn->protocol;
     swServer *serv = reactor->ptr;
 
     swString *buffer = swServer_get_buffer(serv, event->fd);
