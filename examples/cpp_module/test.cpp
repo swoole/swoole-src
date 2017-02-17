@@ -16,44 +16,28 @@
 
 #include <string>
 #include <iostream>
-#include "swoole.h"
+
+#include "PHP_API.hpp"
 #include "module.h"
 
 using namespace std;
+using namespace PHP;
 
 extern "C"
 {
     int swModule_init(swModule *);
 }
 
-swVal* cppMethod(swModule *module, int argc);
+void cppMethod(swModule *module, zval *_params, zval *_return_value);
 int test_get_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 
 int swModule_init(swModule *module)
 {
-    printf("cpp module init\n");
     module->name = (char *) "test";
 
-    string s = "123456789";
-    string php_func = "test";
-
-    swArgs_push_long(1234);
-    swArgs_push_double(1234.56);
-    swArgs_push_string(s.c_str(), s.length());
-
-    swModule_register_function(module, (char *) "cppMethod", cppMethod);
+    swModule_register_function(module, (char *) "cppMethod", (void *) cppMethod);
     swModule_register_global_function((char *) "test_get_length", (void *) test_get_length);
 
-//    int ret = SwooleG.call_php_func(php_func.c_str());
-//    if (ret < 0)
-//    {
-//        cout << "call php function failed." << endl;
-//    }
-//    else if (ret > 0)
-//    {
-//        int length;
-//        cout << "return value type=" << ret << ", value=" <<  swReturnValue_get_string(&length) << endl;
-//    }
     return SW_OK;
 }
 
@@ -67,17 +51,84 @@ int test_get_length(swProtocol *protocol, swConnection *conn, char *data, uint32
  * $module = swoole_load_module(__DIR__.'/test.so');
  * $module->cppMethod("abc", 1234, 459.55, "hello");
  */
-swVal* cppMethod(swModule *module, int argc)
+void cppMethod(swModule *module, zval *_params, zval *_return_value)
 {
-    int l_a, l_d;
-    char *a = swArgs_pop_string(&l_a);
-    long b = swArgs_pop_long();
-    double c = swArgs_pop_double();
-    char *d = swArgs_pop_string(&l_d);
+    Array params(_params);
+    Variant return_value(_return_value, true);
 
-    return swReturnValue_long(1234);
+    printf("key[0] = %s\n", params[0].toString().c_str());
+    printf("key[1] = %ld\n", params[1].toInt());
+    printf("key[2] = %f\n", params[2].toFloat());
+    printf("key[3] = %s\n", params[3].toString().c_str());
 
-    //char buf[256];
-    //int len = snprintf(buf, sizeof(buf), "a[%d]=%s, b=%ld, c=%f, d[%d]=%s\n", l_a, a, b, c, l_d, d);
-    //return swReturnValue_string(buf, len);
+    /**
+     * 调用PHP代码中的test2函数
+     */
+    Array args;
+    args.append(1234);
+    args.append(1234.56);
+    args.append("123456789");
+    args.append("tianfenghan");
+
+    Variant retval = PHP::call("test2", args);
+    /**
+     * test2函数返回了数组
+     */
+    if (retval.isArray())
+    {
+        //把变量转成数组
+        Array arr(retval);
+        for (int i = 0; i < arr.count(); i++)
+        {
+            printf("key[%d] = %s\n", i, arr[i].toString().c_str());
+        }
+    }
+    /**
+     * test2函数返回了对象
+     */
+    else if (retval.isObject())
+    {
+        //把变量转为对象
+        Object obj(retval);
+
+        Array args2;
+        args2.append("Get");
+        args2.append("POST");
+        args2.append(args);
+
+        Array map;
+        map.set("myname", "rango");
+        map.set("city", "上海");
+        args2.append(map);
+
+        /**
+         * 设置对象属性
+         */
+        obj.set("hello", map);
+
+        /**
+         * 调用对象的方法
+         */
+        Variant retval2 = obj.call("abc", args2);
+        if (retval2.isArray())
+        {
+            //把return的变量转成数组
+            Array arr2(retval2);
+            cout << "key: " << arr2["key"].toString() << ", value: " << arr2["value"].toString() << endl;
+        }
+        /**
+         * 读取对象属性
+         */
+        Variant name = obj.get("name");
+        cout << "name property: " << name.toString() << endl;
+
+        Object obj2 = PHP::create("Test2", args2);
+    }
+    else
+    {
+        cout << "return value=" << retval.toString() << endl;
+    }
+
+    return_value = "hello";
+    return;
 }

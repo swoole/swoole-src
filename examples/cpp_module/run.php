@@ -1,9 +1,39 @@
 <?php
 function test()
 {
-    var_dump(func_get_args());
-    return "hello world\n";
+    //var_dump(func_get_args());
+    return array("hello world\n", "women", "tolx");
 }
+
+class Test2
+{
+    public $value = 1234;
+
+    function __construct()
+    {
+      echo "class Test2 __construct\n";
+      var_dump(func_get_args());
+    }
+}
+
+class Test
+{
+  public $name = "Test";
+  public $hello = "";
+
+    function abc()
+    {
+      var_dump(func_get_args());
+      var_dump($this->hello);
+      return array("key" => 'rango', 'value' => 'tianfeng');
+    }
+}
+
+function test2()
+{
+  return new Test();
+}
+
 $module = swoole_load_module(__DIR__.'/test.so');
 
 $s = microtime(true);
@@ -15,3 +45,4 @@ for($i =0; $i< 1; $i++)
 echo "use ".(microtime(true) - $s)."s\n";
 var_dump($ret);
 
+//sleep(1000);
