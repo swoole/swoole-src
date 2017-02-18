@@ -42,7 +42,8 @@ function test2()
 
 $module = swoole_load_module(__DIR__.'/test.so');
 
-cpp_hello_world(1234, 456, 789);
+$r = cpp_hello_world(1234, 456, 789);
+var_dump($r);
 
 $s = microtime(true);
 for($i =0; $i< 1; $i++)

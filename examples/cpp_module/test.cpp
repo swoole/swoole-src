@@ -68,12 +68,12 @@ Variant cpp_hello_world(Array &args)
 {
     printf("cpp function call\n");
     var_dump(args);
-    return Variant(3.1415926);
+    return 3.1415926;
 }
 
 /**
  * $module = swoole_load_module(__DIR__.'/test.so');
- * cppMethod("abc", 1234, 459.55, "hello");
+ * cpp_test("abc", 1234, 459.55, "hello");
  */
 Variant cpp_test(Array &params)
 {
