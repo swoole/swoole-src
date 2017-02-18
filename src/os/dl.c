@@ -49,14 +49,6 @@ swModule* swModule_load(char *so_file)
         return NULL;
     }
     module->file = strdup(so_file);
-    //create function hashmap
-    module->functions = swHashMap_new(64, NULL);
-    if (module->functions == NULL)
-    {
-        sw_free(module);
-        dlclose(handle);
-        return NULL;
-    }
     //init module
     if ((*init_func)(module) < 0)
     {
@@ -66,11 +58,6 @@ swModule* swModule_load(char *so_file)
     }
     module->handle = handle;
     return module;
-}
-
-int swModule_register_function(swModule *module, const char *name, void *func)
-{
-    return swHashMap_add(module->functions, (char *) name, strlen(name), func);
 }
 
 int swModule_register_global_function(const char *name, void* func)

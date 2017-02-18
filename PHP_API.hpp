@@ -22,7 +22,11 @@ extern "C"
 #include "ext/standard/php_var.h"
 }
 
-#define MAX_ARGC  20
+#include <unordered_map>
+#include <string>
+
+#define MAX_ARGC        20
+#define VAR_DUMP_LEVEL  10
 
 using namespace std;
 
@@ -455,6 +459,11 @@ Variant call(const char *func, Array &args)
     return _call(NULL, _func.ptr(), args);
 }
 
+void var_dump(Array &array)
+{
+    php_var_dump(array.ptr(), VAR_DUMP_LEVEL);
+}
+
 class Object: public Variant
 {
 public:
@@ -588,6 +597,41 @@ Object create(const char *name)
     }
     object = Object(&zobject);
     return object;
+}
+
+#define function(f) #f, f
+typedef Variant (*function_t)(Array &);
+static unordered_map<string, function_t> function_map;
+
+void _call_function(zend_execute_data *data, zval *return_value)
+{
+    const char *name = data->func->common.function_name->val;
+    function_t func = function_map[name];
+    Array args;
+
+    zval *param_ptr = ZEND_CALL_ARG(EG(current_execute_data), 1);
+    int arg_count = ZEND_CALL_NUM_ARGS(EG(current_execute_data));
+
+    while (arg_count-- > 0)
+    {
+        args.append(Variant(param_ptr, true));
+        param_ptr++;
+    }
+    Variant retval = func(args);
+    ZVAL_COPY_VALUE(return_value, retval.ptr());
+    return;
+}
+
+void registerFunction(const char *name, function_t func)
+{
+    zend_function_entry functions[] = {
+        {name, _call_function, NULL, (uint32_t) (sizeof(void*) / sizeof(struct _zend_internal_arg_info) - 1), 0 },
+        {NULL, NULL, NULL,}
+    };
+    if (zend_register_functions(NULL, functions, NULL, MODULE_PERSISTENT) == SUCCESS)
+    {
+        function_map[name] = func;
+    }
 }
 
 }

@@ -28,15 +28,18 @@ extern "C"
     int swModule_init(swModule *);
 }
 
-void cppMethod(swModule *module, zval *_params, zval *_return_value);
+Variant cpp_hello_world(Array &args);
+Variant cpp_test(Array &params);
+
 int test_get_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 
 int swModule_init(swModule *module)
 {
     module->name = (char *) "test";
-
-    swModule_register_function(module, (char *) "cppMethod", (void *) cppMethod);
     swModule_register_global_function((char *) "test_get_length", (void *) test_get_length);
+
+    PHP::registerFunction(function(cpp_hello_world));
+    PHP::registerFunction(function(cpp_test));
 
     return SW_OK;
 }
@@ -61,15 +64,19 @@ void testRedis()
     printf("value=%s\n", ret2.toCString());
 }
 
+Variant cpp_hello_world(Array &args)
+{
+    printf("cpp function call\n");
+    var_dump(args);
+    return Variant(3.1415926);
+}
+
 /**
  * $module = swoole_load_module(__DIR__.'/test.so');
- * $module->cppMethod("abc", 1234, 459.55, "hello");
+ * cppMethod("abc", 1234, 459.55, "hello");
  */
-void cppMethod(swModule *module, zval *_params, zval *_return_value)
+Variant cpp_test(Array &params)
 {
-    Array params(_params);
-    Variant return_value(_return_value, true);
-
     printf("key[0] = %s\n", params[0].toCString());
     printf("key[1] = %ld\n", params[1].toInt());
     printf("key[2] = %f\n", params[2].toFloat());
@@ -168,6 +175,5 @@ void cppMethod(swModule *module, zval *_params, zval *_return_value)
         cout << "return value=" << retval.toString() << endl;
     }
 
-    return_value = "hello";
-    return;
+    return Variant("hello");
 }

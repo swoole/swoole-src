@@ -30,7 +30,6 @@ typedef struct _swModule
     void *handle;
     char *file;
     char *name;
-    swHashMap *functions;
     int (*beforeDispatch)(struct _swModule*, swServer *, swEventData *data);
     int (*beforeReceive)(struct _swModule*, swServer *, swEventData *data);
     int (*shutdown)(struct _swModule*);
@@ -38,7 +37,6 @@ typedef struct _swModule
 
 swModule* swModule_load(char *so_file);
 int swModule_register_global_function(const char *name, void* func);
-int swModule_register_function(swModule *module, const char *name, void *func);
 void* swModule_get_global_function(char *name, uint32_t length);
 
 #ifdef __cplusplus
