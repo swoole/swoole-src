@@ -186,23 +186,43 @@ public:
     }
     inline string toString()
     {
-        return string(Z_STRVAL_P(&val), Z_STRLEN_P(&val));
+        if (!isString())
+        {
+            convert_to_string(ptr());
+        }
+        return string(Z_STRVAL_P(ptr()), Z_STRLEN_P(ptr()));
     }
     inline char* toCString()
     {
-        return Z_STRVAL_P(&val);
+        if (!isString())
+        {
+            convert_to_string(ptr());
+        }
+        return Z_STRVAL_P(ptr());
     }
     inline long toInt()
     {
-        return Z_LVAL_P(&val);
+        if (!isInt())
+        {
+            convert_to_long(ptr());
+        }
+        return Z_LVAL_P(ptr());
     }
     inline double toFloat()
     {
-        return Z_DVAL_P(&val);
+        if (!isFloat())
+        {
+            convert_to_double(ptr());
+        }
+        return Z_DVAL_P(ptr());
     }
     inline bool toBool()
     {
-        return Z_BVAL_P(&val) == 1;
+        if (!isBool())
+        {
+            convert_to_boolean(ptr());
+        }
+        return Z_BVAL_P(ptr()) == 1;
     }
 protected:
     bool reference;
