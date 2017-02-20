@@ -69,9 +69,20 @@ int swModule_init(swModule *module)
      * 静态方法
      */
     c.addMethod("test", CppClass_test, STATIC);
-
+    /**
+     * 添加默认属性
+     */
     c.addProperty("name", 1234);
+    /**
+     * 添加常量
+     */
     c.addConstant("VERSION", "1.9.0");
+    /**
+     * 读取全局变量
+     */
+    Variant server = PHP::getGlobalVariant("_SERVER");
+    Variant shell = Array(server)["SHELL"];
+    var_dump(shell);
     /**
      * 激活类
      */

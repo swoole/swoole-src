@@ -470,6 +470,17 @@ void var_dump(Variant &v)
     php_var_dump(v.ptr(), VAR_DUMP_LEVEL);
 }
 
+Variant getGlobalVariant(const char *name)
+{
+    zend_string *key = zend_string_init(name, strlen(name), 0);
+    zval *var = zend_hash_find_ind(&EG(symbol_table), key);
+    if (!var)
+    {
+        return false;
+    }
+    return Variant(var, true);
+}
+
 class Object: public Variant
 {
 public:
@@ -936,20 +947,20 @@ public:
         }
         return true;
     }
-private:
-    void zval_copy(zval *dst, zval *src)
+    bool alias(const char *alias_name)
     {
-        switch (zval_get_type(src))
+        if (!activated)
         {
-        case IS_STRING:
-            ZVAL_NEW_STR(dst, zend_string_init(Z_STRVAL_P(src), Z_STRLEN_P(src), 1));
-            break;
-        default:
-            memcpy(dst, src, sizeof(zval));
-            break;
+            php_error_docref(NULL, E_WARNING, "Please execute alias method after activate.");
+            return false;
         }
+        if (zend_register_class_alias_ex(alias_name, strlen(alias_name), ce) < 0)
+        {
+            return false;
+        }
+        return true;
     }
-
+private:
     bool activated;
     string class_name;
     string parent_class_name;
