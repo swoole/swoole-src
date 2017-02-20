@@ -30,6 +30,9 @@ extern "C"
 
 Variant cpp_hello_world(Array &args);
 Variant cpp_test(Array &params);
+Variant CppClass_construct(Object &_this, Array &args);
+Variant CppClass_test(Object &_this, Array &args);
+Variant CppClass_test2(Object &_this, Array &args);
 
 int test_get_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 
@@ -40,6 +43,33 @@ int swModule_init(swModule *module)
 
     PHP::registerFunction(function(cpp_hello_world));
     PHP::registerFunction(function(cpp_test));
+    PHP::registerConstant("CPP_CONSTANTS_INT", 1234);
+
+    Array args;
+    args.append("127.0.0.1");
+    args.append(6379);
+
+    PHP::registerConstant("CPP_CONSTANTS_ARRAY", args);
+
+    string str("test");
+    PHP::registerConstant("CPP_CONSTANTS_STRING", str);
+
+    printf("SWOOLE_BASE=%ld\n", PHP::constant("SWOOLE_BASE").toInt());
+
+    static Class c("CppClass");
+
+    /**
+     * 注册构造方法
+     */
+    c.registerMethod("__construct", CppClass_construct, CONSTRUCT);
+    /**
+     * 普通方法
+     */
+//    c.registerMethod("test2", CppClass_test2);
+    /**
+     * 静态方法
+     */
+//    c.registerMethod("test", CppClass_test, STATIC);
 
     return SW_OK;
 }
@@ -62,6 +92,31 @@ void testRedis()
     args2.append("key");
     Variant ret2 = redis.call("get", args2);
     printf("value=%s\n", ret2.toCString());
+}
+
+Variant CppClass_construct(Object &_this, Array &args)
+{
+    printf("CppClass_construct\n");
+//    _this.set("name", "CppClass");
+//    return nullptr;
+    return true;
+}
+
+Variant CppClass_test(Object &_this, Array &args)
+{
+    printf("CppClass static method call\n");
+    //静态方法, _this为null
+    var_dump(_this);
+    var_dump(args);
+    return "3.1415926";
+}
+
+Variant CppClass_test2(Object &_this, Array &args)
+{
+    printf("CppClass method call\n");
+    var_dump(_this);
+    var_dump(args);
+    return "3.1415926";
 }
 
 Variant cpp_hello_world(Array &args)

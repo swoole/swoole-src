@@ -40,6 +40,11 @@ public:
         init();
         ZVAL_NULL(&val);
     }
+    Variant(nullptr_t v)
+    {
+        init();
+        ZVAL_NULL(&val);
+    }
     Variant(long v)
     {
         init();
@@ -459,9 +464,9 @@ Variant call(const char *func, Array &args)
     return _call(NULL, _func.ptr(), args);
 }
 
-void var_dump(Array &array)
+void var_dump(Variant &v)
 {
-    php_var_dump(array.ptr(), VAR_DUMP_LEVEL);
+    php_var_dump(v.ptr(), VAR_DUMP_LEVEL);
 }
 
 class Object: public Variant
@@ -475,6 +480,11 @@ public:
     }
     Object(zval *v) :
             Variant(v)
+    {
+
+    }
+    Object(zval *v, bool is_ref) :
+            Variant(v, is_ref)
     {
 
     }
@@ -534,7 +544,7 @@ public:
     {
         zend_update_property_stringl(Z_OBJCE_P(&val), &val, name, strlen(name), v.c_str(), v.length());
     }
-    void set(const char *name, char *v)
+    void set(const char *name, const char *v)
     {
         zend_update_property_string(Z_OBJCE_P(&val), &val, name, strlen(name), v);
     }
@@ -601,9 +611,11 @@ Object create(const char *name)
 
 #define function(f) #f, f
 typedef Variant (*function_t)(Array &);
+typedef Variant (*method_t)(Object &, Array &);
 static unordered_map<string, function_t> function_map;
+static unordered_map<string, unordered_map<string, method_t> > method_map;
 
-void _call_function(zend_execute_data *data, zval *return_value)
+static void _exec_function(zend_execute_data *data, zval *return_value)
 {
     const char *name = data->func->common.function_name->val;
     function_t func = function_map[name];
@@ -622,10 +634,33 @@ void _call_function(zend_execute_data *data, zval *return_value)
     return;
 }
 
+static void _exec_method(zend_execute_data *data, zval *return_value)
+{
+    const char *method_name = data->func->common.function_name->val;
+    const char *class_name = data->func->common.scope->name->val;
+
+    method_t func = method_map[class_name][method_name];
+    Array args;
+
+    Object _this(&data->This, true);
+
+    zval *param_ptr = ZEND_CALL_ARG(EG(current_execute_data), 1);
+    int arg_count = ZEND_CALL_NUM_ARGS(EG(current_execute_data));
+
+    while (arg_count-- > 0)
+    {
+        args.append(Variant(param_ptr, true));
+        param_ptr++;
+    }
+    Variant retval = func(_this, args);
+    ZVAL_COPY_VALUE(return_value, retval.ptr());
+    return;
+}
+
 void registerFunction(const char *name, function_t func)
 {
     zend_function_entry functions[] = {
-        {name, _call_function, NULL, (uint32_t) (sizeof(void*) / sizeof(struct _zend_internal_arg_info) - 1), 0 },
+        {name, _exec_function, NULL, (uint32_t) (sizeof(void*) / sizeof(struct _zend_internal_arg_info) - 1), 0 },
         {NULL, NULL, NULL,}
     };
     if (zend_register_functions(NULL, functions, NULL, MODULE_PERSISTENT) == SUCCESS)
@@ -633,5 +668,167 @@ void registerFunction(const char *name, function_t func)
         function_map[name] = func;
     }
 }
+void registerConstant(const char *name, long v)
+{
+    zend_constant c;
+    ZVAL_LONG(&c.value, v);
+    c.flags = CONST_CS;
+    c.name = zend_string_init(name, strlen(name), c.flags);
+    c.module_number = 0;
+    zend_register_constant(&c);
+}
+void registerConstant(const char *name, int v)
+{
+    zend_constant c;
+    ZVAL_LONG(&c.value, v);
+    c.flags = CONST_CS;
+    c.name = zend_string_init(name, strlen(name), c.flags);
+    c.module_number = 0;
+    zend_register_constant(&c);
+}
+void registerConstant(const char *name, bool v)
+{
+    zend_constant c;
+    if (v)
+    {
+        ZVAL_TRUE(&c.value);
+    }
+    else
+    {
+        ZVAL_FALSE(&c.value);
+    }
+    c.flags = CONST_CS;
+    c.name = zend_string_init(name, strlen(name), c.flags);
+    c.module_number = 0;
+    zend_register_constant(&c);
+}
+void registerConstant(const char *name, double v)
+{
+    zend_constant c;
+    ZVAL_DOUBLE(&c.value, v);
+    c.flags = CONST_CS;
+    c.name = zend_string_init(name, strlen(name), c.flags);
+    c.module_number = 0;
+    zend_register_constant(&c);
+}
+void registerConstant(const char *name, float v)
+{
+    zend_constant c;
+    ZVAL_DOUBLE(&c.value, v);
+    c.flags = CONST_CS;
+    c.name = zend_string_init(name, strlen(name), c.flags);
+    c.module_number = 0;
+    zend_register_constant(&c);
+}
+void registerConstant(const char *name, const char *v)
+{
+    zend_constant c;
+    ZVAL_STRING(&c.value, (char* )v);
+    c.flags = CONST_CS;
+    c.name = zend_string_init(name, strlen(name), c.flags);
+    c.module_number = 0;
+    zend_register_constant(&c);
+}
+void registerConstant(const char *name, string &v)
+{
+    zend_constant c;
+    ZVAL_STRINGL(&c.value, (char * )v.c_str(), v.length());
+    c.flags = CONST_CS;
+    c.name = zend_string_init(name, strlen(name), c.flags);
+    c.module_number = 0;
+    zend_register_constant(&c);
+}
+void registerConstant(const char *name, Variant &v)
+{
+    zend_constant c;
+    ZVAL_COPY(&c.value, v.ptr());
+    c.flags = CONST_CS;
+    c.name = zend_string_init(name, strlen(name), c.flags);
+    c.module_number = 0;
+    zend_register_constant(&c);
+}
+Variant constant(const char *name)
+{
+    zend_string *_name = zend_string_init(name, strlen(name), 0);
+    Variant retval(zend_get_constant(_name));
+    zend_string_free(_name);
+    return retval;
+}
 
+enum ClassFlags
+{
+    STATIC = ZEND_ACC_STATIC,
+    ABSTRACT = ZEND_ACC_ABSTRACT,
+    FINAL = ZEND_ACC_FINAL,
+    INTERFACE = ZEND_ACC_INTERFACE,
+    TRAIT = ZEND_ACC_TRAIT,
+    PUBLIC = ZEND_ACC_PUBLIC,
+    PROTECTED = ZEND_ACC_PROTECTED,
+    PRIVATE = ZEND_ACC_PRIVATE,
+    CONSTRUCT = ZEND_ACC_CTOR,
+    DESTRUCT = ZEND_ACC_DTOR,
+    CLONE = ZEND_ACC_CLONE,
+};
+
+class Class
+{
+
+public:
+    Class(const char *name)
+    {
+        class_name = name;
+        INIT_CLASS_ENTRY_EX(_ce, name, strlen(name), NULL);
+        ce = zend_register_internal_class(&_ce TSRMLS_CC);
+        parent_ce = NULL;
+    }
+    Class(const char *name, const char *_parent_class)
+    {
+        class_name = name;
+        parent_class_name = _parent_class;
+        INIT_CLASS_ENTRY_EX(_ce, name, strlen(name), NULL);
+        zend_string *parent_class_name = zend_string_init(_parent_class, strlen(_parent_class), 0);
+        parent_ce = zend_lookup_class(parent_class_name);
+        ce = zend_register_internal_class_ex(ce, parent_ce);
+    }
+    bool registerConstant()
+    {
+        return true;
+    }
+    bool registerProperty()
+    {
+        return true;
+    }
+    bool registerMethod(const char *name, method_t method)
+    {
+        return registerMethod(name, method, PUBLIC);
+    }
+    bool registerMethod(const char *name, method_t method, int flags)
+    {
+        if ((flags & CONSTRUCT) || (flags & DESTRUCT) || !(flags & ZEND_ACC_PPP_MASK))
+        {
+            flags |= PUBLIC;
+        }
+        zend_function_entry methods[] =
+        {
+            {name, _exec_method, NULL, (uint32_t) (sizeof(void*) / sizeof(struct _zend_internal_arg_info) - 1), (uint32_t)flags},
+            {NULL, NULL, NULL,}
+        };
+        if (zend_register_functions(ce, methods, &ce->function_table, MODULE_PERSISTENT) == SUCCESS)
+        {
+            method_map[class_name][name] = method;
+            return true;
+        }
+        return false;
+    }
+    bool implements()
+    {
+        return true;
+    }
+private:
+    string class_name;
+    string parent_class_name;
+    zend_class_entry *parent_ce;
+    zend_class_entry _ce;
+    zend_class_entry *ce;
+};
 }
