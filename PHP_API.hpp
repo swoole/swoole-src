@@ -245,6 +245,15 @@ public:
         _key = _ptr->key;
         _val = &_ptr->val;
         _index = _ptr->h;
+        pe = p;
+    }
+    ArrayIterator(Bucket *p, Bucket *_pe)
+    {
+        _ptr = p;
+        _key = _ptr->key;
+        _val = &_ptr->val;
+        _index = _ptr->h;
+        pe = _pe;
     }
     void operator ++(int i)
     {
@@ -256,11 +265,11 @@ public:
             {
                 _val = Z_INDIRECT_P(_val);
             }
-            if (UNEXPECTED(Z_TYPE_P(_val) == IS_UNDEF))
+            if (UNEXPECTED(Z_TYPE_P(_val) == IS_UNDEF) && pe != _ptr)
             {
                 continue;
             }
-            if (_key)
+            if (_ptr->key)
             {
                 _key = _ptr->key;
                 _index = 0;
@@ -300,6 +309,7 @@ private:
     zval *_val;
     zend_string *_key;
     Bucket *_ptr;
+    Bucket *pe;
     zend_ulong _index;
 };
 
@@ -324,121 +334,121 @@ public:
     }
     void append(Variant &v)
     {
-        add_next_index_zval(&val, v.ptr());
+        add_next_index_zval(ptr(), v.ptr());
     }
     void append(Variant v)
     {
-        add_next_index_zval(&val, v.ptr());
+        add_next_index_zval(ptr(), v.ptr());
     }
     void append(const char *str)
     {
-        add_next_index_string(&val, str);
+        add_next_index_string(ptr(), str);
     }
     void append(string &str)
     {
-        add_next_index_stringl(&val, str.c_str(), str.length());
+        add_next_index_stringl(ptr(), str.c_str(), str.length());
     }
     void append(long v)
     {
-        add_next_index_long(&val, v);
+        add_next_index_long(ptr(), v);
     }
     void append(int v)
     {
-        add_next_index_long(&val, (long) v);
+        add_next_index_long(ptr(), (long) v);
     }
     void append(bool v)
     {
-        add_next_index_bool(&val, v ? 1 : 0);
+        add_next_index_bool(ptr(), v ? 1 : 0);
     }
     void append(double v)
     {
-        add_next_index_double(&val, (double) v);
+        add_next_index_double(ptr(), (double) v);
     }
     void append(float v)
     {
-        add_next_index_double(&val, (double) v);
+        add_next_index_double(ptr(), (double) v);
     }
     void append(void *v)
     {
-        add_next_index_null(&val);
+        add_next_index_null(ptr());
     }
     void append(Array &v)
     {
         zval_add_ref(v.ptr());
-        add_next_index_zval(&val, v.ptr());
+        add_next_index_zval(ptr(), v.ptr());
     }
     //------------------------------------
     void set(const char *key, Variant &v)
     {
-        add_assoc_zval(&val, key, v.ptr());
+        add_assoc_zval(ptr(), key, v.ptr());
     }
     void set(const char *key, long v)
     {
-        add_assoc_long(&val, key, v);
+        add_assoc_long(ptr(), key, v);
     }
     void set(const char *key, const char *v)
     {
-        add_assoc_string(&val, key, (char * )v);
+        add_assoc_string(ptr(), key, (char * )v);
     }
     void set(const char *key, string &v)
     {
-        add_assoc_stringl(&val, key, (char* )v.c_str(), v.length());
+        add_assoc_stringl(ptr(), key, (char* )v.c_str(), v.length());
     }
     void set(const char *key, double v)
     {
-        add_assoc_double(&val, key, v);
+        add_assoc_double(ptr(), key, v);
     }
     void set(const char *key, float v)
     {
-        add_assoc_double(&val, key, (double ) v);
+        add_assoc_double(ptr(), key, (double ) v);
     }
     void set(const char *key, bool v)
     {
-        add_assoc_bool(&val, key, v ? 1 : 0);
+        add_assoc_bool(ptr(), key, v ? 1 : 0);
     }
     void set(int i, Variant &v)
     {
-        add_index_zval(&val, (zend_ulong) i, v.ptr());
+        add_index_zval(ptr(), (zend_ulong) i, v.ptr());
     }
-    Variant operator [](int i) const
+    Variant operator [](int i)
     {
-        zval *ret = zend_hash_index_find(Z_ARRVAL(val), (zend_ulong) i);
+        zval *ret = zend_hash_index_find(Z_ARRVAL_P(ptr()), (zend_ulong) i);
         return Variant(ret);
     }
-    Variant operator [](const char *key) const
+    Variant operator [](const char *key)
     {
-        zval *ret = zend_hash_str_find(Z_ARRVAL(val), key, strlen(key));
+        zval *ret = zend_hash_str_find(Z_ARRVAL_P(ptr()), key, strlen(key));
         return Variant(ret);
     }
     bool remove(const char *key)
     {
         zend_string *_key = zend_string_init(key, strlen(key), 0);
-        bool ret = zend_hash_del(Z_ARRVAL(val), _key) == SUCCESS;
+        bool ret = zend_hash_del(Z_ARRVAL_P(ptr()), _key) == SUCCESS;
         zend_string_free(_key);
         return ret;
     }
     void clean()
     {
-        zend_hash_clean(Z_ARRVAL(val));
+        zend_hash_clean(Z_ARRVAL_P(ptr()));
     }
     bool exists(const char *key)
     {
         zend_string *_key = zend_string_init(key, strlen(key), 0);
-        bool ret = zend_hash_exists(Z_ARRVAL(val), _key) == SUCCESS;
+        bool ret = zend_hash_exists(Z_ARRVAL_P(ptr()), _key) == SUCCESS;
         zend_string_free(_key);
         return ret;
     }
     ArrayIterator begin()
     {
-        return ArrayIterator(Z_ARRVAL(val)->arData);
+        return ArrayIterator(Z_ARRVAL_P(ptr())->arData, Z_ARRVAL_P(ptr())->arData + Z_ARRVAL_P(ptr())->nNumUsed);
     }
     ArrayIterator end()
     {
-        return ArrayIterator(Z_ARRVAL(val)->arData + Z_ARRVAL(val)->nNumUsed);
+        return ArrayIterator(Z_ARRVAL_P(ptr())->arData + Z_ARRVAL_P(ptr())->nNumUsed);
     }
     size_t count()
     {
-        return Z_ARRVAL(val)->nNumOfElements;
+        return Z_ARRVAL_P(ptr())->nNumOfElements;
     }
 };
 
@@ -513,7 +523,6 @@ public:
     Object(zval *v) :
             Variant(v)
     {
-
     }
     Object(zval *v, bool ref) :
             Variant(v, ref)
@@ -606,7 +615,6 @@ Object create(const char *name, Array &args)
 {
     zend_string *class_name = zend_string_init(name, strlen(name), 0);
     Object object;
-
     zend_class_entry *ce = zend_lookup_class(class_name);
     zend_string_free(class_name);
     if (ce == NULL)
