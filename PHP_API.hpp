@@ -133,7 +133,7 @@ public:
     {
         ZVAL_BOOL(ptr(), v);
     }
-    zval *ptr(void)
+    inline zval *ptr(void)
     {
         if (reference)
         {
@@ -144,63 +144,63 @@ public:
             return &val;
         }
     }
-    int type()
+    inline int type()
     {
         return Z_TYPE(val);
     }
-    bool isString()
+    inline bool isString()
     {
         return Z_TYPE(val) == IS_STRING;
     }
-    bool isArray()
+    inline bool isArray()
     {
         return Z_TYPE(val) == IS_ARRAY;
     }
-    bool isObject()
+    inline bool isObject()
     {
         return Z_TYPE(val) == IS_OBJECT;
     }
-    bool isInt()
+    inline bool isInt()
     {
         return Z_TYPE(val) == IS_LONG;
     }
-    bool isFloat()
+    inline bool isFloat()
     {
         return Z_TYPE(val) == IS_DOUBLE;
     }
-    bool isBool()
+    inline bool isBool()
     {
         return Z_TYPE(val) == IS_TRUE || Z_TYPE(val) == IS_FALSE;
     }
-    bool isNull()
+    inline bool isNull()
     {
         return Z_TYPE(val) == IS_NULL;
     }
-    bool isResource()
+    inline bool isResource()
     {
         return Z_TYPE(val) == IS_RESOURCE;
     }
-    bool isReference()
+    inline bool isReference()
     {
         return Z_TYPE(val) == IS_REFERENCE;
     }
-    string toString()
+    inline string toString()
     {
         return string(Z_STRVAL_P(&val), Z_STRLEN_P(&val));
     }
-    char* toCString()
+    inline char* toCString()
     {
         return Z_STRVAL_P(&val);
     }
-    long toInt()
+    inline long toInt()
     {
         return Z_LVAL_P(&val);
     }
-    double toFloat()
+    inline double toFloat()
     {
         return Z_DVAL_P(&val);
     }
-    bool toBool()
+    inline bool toBool()
     {
         return Z_BVAL_P(&val) == 1;
     }
@@ -208,7 +208,7 @@ protected:
     bool reference;
     zval *ref_val;
     zval val;
-    void init()
+    inline void init()
     {
         reference = false;
         ref_val = NULL;
@@ -484,6 +484,11 @@ public:
     {
 
     }
+    Object(zval *v, bool ref) :
+            Variant(v, ref)
+    {
+
+    }
     Object() :
             Variant()
     {
@@ -514,7 +519,7 @@ public:
     {
         Variant retval;
         zval rv;
-        zval *member_p = zend_read_property(Z_OBJCE_P(&val), &val, name, strlen(name), 0, &rv);
+        zval *member_p = zend_read_property(Z_OBJCE_P(ptr()), ptr(), name, strlen(name), 0, &rv);
         if (member_p != &rv)
         {
             ZVAL_COPY(retval.ptr(), member_p);
@@ -528,41 +533,41 @@ public:
 
     void set(const char *name, Variant &v)
     {
-        zend_update_property(Z_OBJCE_P(&val), &val, name, strlen(name), v.ptr());
+        zend_update_property(Z_OBJCE_P(ptr()), ptr(), name, strlen(name), v.ptr());
     }
 
     void set(const char *name, Array &v)
     {
-        zend_update_property(Z_OBJCE_P(&val), &val, name, strlen(name), v.ptr());
+        zend_update_property(Z_OBJCE_P(ptr()), ptr(), name, strlen(name), v.ptr());
     }
 
     void set(const char *name, string &v)
     {
-        zend_update_property_stringl(Z_OBJCE_P(&val), &val, name, strlen(name), v.c_str(), v.length());
+        zend_update_property_stringl(Z_OBJCE_P(ptr()), ptr(), name, strlen(name), v.c_str(), v.length());
     }
     void set(const char *name, const char *v)
     {
-        zend_update_property_string(Z_OBJCE_P(&val), &val, name, strlen(name), v);
+        zend_update_property_string(Z_OBJCE_P(ptr()), ptr(), name, strlen(name), v);
     }
     void set(const char *name, long v)
     {
-        zend_update_property_long(Z_OBJCE_P(&val), &val, name, strlen(name), v);
+        zend_update_property_long(Z_OBJCE_P(ptr()), ptr(), name, strlen(name), v);
     }
     void set(const char *name, double v)
     {
-        zend_update_property_double(Z_OBJCE_P(&val), &val, name, strlen(name), v);
+        zend_update_property_double(Z_OBJCE_P(ptr()), ptr(), name, strlen(name), v);
     }
     void set(const char *name, float v)
     {
-        zend_update_property_double(Z_OBJCE_P(&val), &val, name, strlen(name), (double) v);
+        zend_update_property_double(Z_OBJCE_P(ptr()), ptr(), name, strlen(name), (double) v);
     }
     void set(const char *name, bool v)
     {
-        zend_update_property_bool(Z_OBJCE_P(&val), &val, name, strlen(name), v ? 1 : 0);
+        zend_update_property_bool(Z_OBJCE_P(ptr()), ptr(), name, strlen(name), v ? 1 : 0);
     }
     string getClassName()
     {
-        return string(Z_OBJCE_P(&val)->name->val, Z_OBJCE_P(&val)->name->len);
+        return string(Z_OBJCE_P(ptr())->name->val, Z_OBJCE_P(ptr())->name->len);
     }
 };
 
@@ -630,7 +635,7 @@ static void _exec_function(zend_execute_data *data, zval *return_value)
         param_ptr++;
     }
     Variant retval = func(args);
-    ZVAL_COPY_VALUE(return_value, retval.ptr());
+    ZVAL_DUP(return_value, retval.ptr());
     return;
 }
 
@@ -642,7 +647,7 @@ static void _exec_method(zend_execute_data *data, zval *return_value)
     method_t func = method_map[class_name][method_name];
     Array args;
 
-    Object _this(&data->This);
+    Object _this(&data->This, true);
 
     zval *param_ptr = ZEND_CALL_ARG(EG(current_execute_data), 1);
     int arg_count = ZEND_CALL_NUM_ARGS(EG(current_execute_data));
@@ -653,7 +658,7 @@ static void _exec_method(zend_execute_data *data, zval *return_value)
         param_ptr++;
     }
     Variant retval = func(_this, args);
-    ZVAL_COPY_VALUE(return_value, retval.ptr());
+    ZVAL_DUP(return_value, retval.ptr());
     return;
 }
 
@@ -828,7 +833,7 @@ public:
         }
         Constant c;
         c.name = name;
-        ZVAL_COPY_VALUE(&c.value, v.ptr());
+        ZVAL_COPY(&c.value, v.ptr());
         constants.push_back(c);
         return true;
     }
@@ -840,7 +845,7 @@ public:
         }
         Property p;
         p.name = name;
-        ZVAL_COPY_VALUE(&p.value, v.ptr());
+        ZVAL_COPY(&p.value, v.ptr());
         p.flags = flags;
         propertys.push_back(p);
         return true;
@@ -900,20 +905,51 @@ public:
         /**
          * register property
          */
-        for(int i =0; i != propertys.size(); i++)
+        for (int i = 0; i != propertys.size(); i++)
         {
-            zend_declare_property(ce, propertys[i].name.c_str(), propertys[i].name.length(), &propertys[i].value, propertys[i].flags);
+            if (Z_TYPE(propertys[i].value) == IS_STRING)
+            {
+                zend_declare_property_stringl(ce, propertys[i].name.c_str(), propertys[i].name.length(),
+                        Z_STRVAL(propertys[i].value), Z_STRLEN(propertys[i].value), propertys[i].flags);
+            }
+            else
+            {
+                zend_declare_property(ce, propertys[i].name.c_str(), propertys[i].name.length(), &propertys[i].value,
+                        propertys[i].flags);
+            }
         }
         /**
          * register constant
          */
-        for(int i =0; i != constants.size(); i++)
+        for (int i = 0; i != constants.size(); i++)
         {
-            zend_declare_class_constant(ce, constants[i].name.c_str(), constants[i].name.length(), &constants[i].value);
+            if (Z_TYPE(constants[i].value) == IS_STRING)
+            {
+                zend_declare_class_constant_stringl(ce, constants[i].name.c_str(), constants[i].name.length(),
+                        Z_STRVAL(constants[i].value), Z_STRLEN(constants[i].value));
+            }
+            else
+            {
+                zend_declare_class_constant(ce, constants[i].name.c_str(), constants[i].name.length(),
+                        &constants[i].value);
+            }
         }
         return true;
     }
 private:
+    void zval_copy(zval *dst, zval *src)
+    {
+        switch (zval_get_type(src))
+        {
+        case IS_STRING:
+            ZVAL_NEW_STR(dst, zend_string_init(Z_STRVAL_P(src), Z_STRLEN_P(src), 1));
+            break;
+        default:
+            memcpy(dst, src, sizeof(zval));
+            break;
+        }
+    }
+
     bool activated;
     string class_name;
     string parent_class_name;

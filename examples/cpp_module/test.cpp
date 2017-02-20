@@ -56,20 +56,26 @@ int swModule_init(swModule *module)
 
     printf("SWOOLE_BASE=%ld\n", PHP::constant("SWOOLE_BASE").toInt());
 
-    static Class c("CppClass");
-
+    Class c("CppClass");
     /**
      * 注册构造方法
      */
-    c.registerMethod("__construct", CppClass_construct, CONSTRUCT);
+    c.addMethod("__construct", CppClass_construct, CONSTRUCT);
     /**
      * 普通方法
      */
-//    c.registerMethod("test2", CppClass_test2);
+    c.addMethod("test2", CppClass_test2);
     /**
      * 静态方法
      */
-//    c.registerMethod("test", CppClass_test, STATIC);
+    c.addMethod("test", CppClass_test, STATIC);
+
+    c.addProperty("name", 1234);
+    c.addConstant("VERSION", "1.9.0");
+    /**
+     * 激活类
+     */
+    c.activate();
 
     return SW_OK;
 }
@@ -96,26 +102,27 @@ void testRedis()
 
 Variant CppClass_construct(Object &_this, Array &args)
 {
-    printf("CppClass_construct\n");
-//    _this.set("name", "CppClass");
-//    return nullptr;
-    return true;
+    printf("%s _construct\n", _this.getClassName().c_str());
+    Array arr;
+    arr.append(1234);
+    _this.set("name", arr);
+    return nullptr;
 }
 
 Variant CppClass_test(Object &_this, Array &args)
 {
     printf("CppClass static method call\n");
     //静态方法, _this为null
-    var_dump(_this);
-    var_dump(args);
+    //var_dump(_this);
+    //var_dump(args);
     return "3.1415926";
 }
 
 Variant CppClass_test2(Object &_this, Array &args)
 {
     printf("CppClass method call\n");
-    var_dump(_this);
-    var_dump(args);
+    //var_dump(_this);
+    //var_dump(args);
     return "3.1415926";
 }
 
