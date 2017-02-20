@@ -24,6 +24,7 @@ extern "C"
 
 #include <unordered_map>
 #include <string>
+#include <vector>
 
 #define MAX_ARGC        20
 #define VAR_DUMP_LEVEL  10
@@ -483,11 +484,6 @@ public:
     {
 
     }
-    Object(zval *v, bool is_ref) :
-            Variant(v, is_ref)
-    {
-
-    }
     Object() :
             Variant()
     {
@@ -563,6 +559,10 @@ public:
     void set(const char *name, bool v)
     {
         zend_update_property_bool(Z_OBJCE_P(&val), &val, name, strlen(name), v ? 1 : 0);
+    }
+    string getClassName()
+    {
+        return string(Z_OBJCE_P(&val)->name->val, Z_OBJCE_P(&val)->name->len);
     }
 };
 
@@ -642,7 +642,7 @@ static void _exec_method(zend_execute_data *data, zval *return_value)
     method_t func = method_map[class_name][method_name];
     Array args;
 
-    Object _this(&data->This, true);
+    Object _this(&data->This);
 
     zval *param_ptr = ZEND_CALL_ARG(EG(current_execute_data), 1);
     int arg_count = ZEND_CALL_NUM_ARGS(EG(current_execute_data));
@@ -772,63 +772,156 @@ enum ClassFlags
 
 class Class
 {
+    struct Method
+    {
+        string name;
+        int flags;
+        method_t method;
+    };
+
+    struct Property
+    {
+        string name;
+        zval value;
+        int flags;
+    };
+
+    struct Constant
+    {
+        string name;
+        zval value;
+    };
 
 public:
     Class(const char *name)
     {
         class_name = name;
         INIT_CLASS_ENTRY_EX(_ce, name, strlen(name), NULL);
-        ce = zend_register_internal_class(&_ce TSRMLS_CC);
         parent_ce = NULL;
+        ce = NULL;
+        activated = false;
     }
-    Class(const char *name, const char *_parent_class)
+    bool extends(const char *_parent_class)
     {
-        class_name = name;
+        if (activated)
+        {
+            return false;
+        }
         parent_class_name = _parent_class;
-        INIT_CLASS_ENTRY_EX(_ce, name, strlen(name), NULL);
         zend_string *parent_class_name = zend_string_init(_parent_class, strlen(_parent_class), 0);
         parent_ce = zend_lookup_class(parent_class_name);
-        ce = zend_register_internal_class_ex(ce, parent_ce);
+        return parent_ce != NULL;
     }
-    bool registerConstant()
+    bool implements()
     {
+        if (activated)
+        {
+            return false;
+        }
         return true;
     }
-    bool registerProperty()
+    bool addConstant(const char *name, Variant v)
     {
+        if (activated)
+        {
+            return false;
+        }
+        Constant c;
+        c.name = name;
+        ZVAL_COPY_VALUE(&c.value, v.ptr());
+        constants.push_back(c);
         return true;
     }
-    bool registerMethod(const char *name, method_t method)
+    bool addProperty(const char *name, Variant v, int flags = PUBLIC)
     {
-        return registerMethod(name, method, PUBLIC);
+        if (activated)
+        {
+            return false;
+        }
+        Property p;
+        p.name = name;
+        ZVAL_COPY_VALUE(&p.value, v.ptr());
+        p.flags = flags;
+        propertys.push_back(p);
+        return true;
     }
-    bool registerMethod(const char *name, method_t method, int flags)
+    bool addMethod(const char *name, method_t method, int flags = PUBLIC)
     {
+        if (activated)
+        {
+            return false;
+        }
         if ((flags & CONSTRUCT) || (flags & DESTRUCT) || !(flags & ZEND_ACC_PPP_MASK))
         {
             flags |= PUBLIC;
         }
-        zend_function_entry methods[] =
-        {
-            {name, _exec_method, NULL, (uint32_t) (sizeof(void*) / sizeof(struct _zend_internal_arg_info) - 1), (uint32_t)flags},
-            {NULL, NULL, NULL,}
-        };
-        if (zend_register_functions(ce, methods, &ce->function_table, MODULE_PERSISTENT) == SUCCESS)
-        {
-            method_map[class_name][name] = method;
-            return true;
-        }
+        Method m;
+        m.flags = flags;
+        m.method = method;
+        m.name = name;
+        methods.push_back(m);
         return false;
     }
-    bool implements()
+    bool activate()
     {
+        if (activated)
+        {
+            return false;
+        }
+        /**
+         * register methods
+         */
+        int n = methods.size();
+        zend_function_entry *_methods = (zend_function_entry *) ecalloc(n + 1, sizeof(zend_function_entry));
+        for (int i = 0; i < n; i++)
+        {
+            _methods[i].fname = methods[i].name.c_str();
+            _methods[i].handler = _exec_method;
+            _methods[i].arg_info = NULL;
+            _methods[i].num_args = (uint32_t) (sizeof(void*) / sizeof(struct _zend_internal_arg_info) - 1);
+            _methods[i].flags = methods[i].flags;
+            method_map[class_name][methods[i].name] = methods[i].method;
+        }
+        memset(&_methods[n], 0, sizeof(zend_function_entry));
+        _ce.info.internal.builtin_functions = _methods;
+        if (parent_ce)
+        {
+            ce = zend_register_internal_class_ex(ce, parent_ce);
+        }
+        else
+        {
+            ce = zend_register_internal_class(&_ce TSRMLS_CC);
+        }
+        efree(_methods);
+        if (ce == NULL)
+        {
+            return false;
+        }
+        /**
+         * register property
+         */
+        for(int i =0; i != propertys.size(); i++)
+        {
+            zend_declare_property(ce, propertys[i].name.c_str(), propertys[i].name.length(), &propertys[i].value, propertys[i].flags);
+        }
+        /**
+         * register constant
+         */
+        for(int i =0; i != constants.size(); i++)
+        {
+            zend_declare_class_constant(ce, constants[i].name.c_str(), constants[i].name.length(), &constants[i].value);
+        }
         return true;
     }
 private:
+    bool activated;
     string class_name;
     string parent_class_name;
     zend_class_entry *parent_ce;
     zend_class_entry _ce;
     zend_class_entry *ce;
+    vector<Method> methods;
+    vector<Property> propertys;
+    vector<Constant> constants;
 };
 }
