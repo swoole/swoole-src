@@ -40,7 +40,7 @@ extern sapi_module_struct sapi_module;
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server__construct, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server__construct, 0, 0, 1)
     ZEND_ARG_INFO(0, host)
     ZEND_ARG_INFO(0, port)
     ZEND_ARG_INFO(0, mode)
@@ -298,14 +298,12 @@ ZEND_END_ARG_INFO()
 
 #include "zend_exceptions.h"
 
-static PHP_FUNCTION(swoole_clear_dns_cache);
 static PHP_FUNCTION(swoole_last_error);
 
 const zend_function_entry swoole_functions[] =
 {
     PHP_FE(swoole_version, arginfo_swoole_void)
     PHP_FE(swoole_cpu_num, arginfo_swoole_void)
-    PHP_FE(swoole_clear_dns_cache, arginfo_swoole_void)
     PHP_FE(swoole_last_error, arginfo_swoole_void)
     /*------swoole_event-----*/
     PHP_FE(swoole_event_add, arginfo_swoole_event_add)
@@ -434,6 +432,8 @@ static const zend_function_entry swoole_async_methods[] =
     PHP_FE_END
 };
 
+
+
 #if PHP_MEMORY_DEBUG
 php_vmstat_t php_vmstat;
 #endif
@@ -490,7 +490,10 @@ STD_PHP_INI_ENTRY("swoole.display_errors", "On", PHP_INI_ALL, OnUpdateBool, disp
  * namespace class style
  */
 STD_PHP_INI_ENTRY("swoole.use_namespace", "On", PHP_INI_SYSTEM, OnUpdateBool, use_namespace, zend_swoole_globals, swoole_globals)
-STD_PHP_INI_ENTRY("swoole.message_queue_key", "0", PHP_INI_ALL, OnUpdateString, message_queue_key, zend_swoole_globals, swoole_globals)
+/**
+ * enable swoole_serialize
+ */
+STD_PHP_INI_ENTRY("swoole.fast_serialize", "Off", PHP_INI_ALL, OnUpdateBool, fast_serialize, zend_swoole_globals, swoole_globals)
 /**
  * Unix socket buffer size
  */
@@ -499,11 +502,11 @@ PHP_INI_END()
 
 static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
 {
-    swoole_globals->message_queue_key = 0;
     swoole_globals->aio_thread_num = SW_AIO_THREAD_NUM_DEFAULT;
     swoole_globals->socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
     swoole_globals->display_errors = 1;
     swoole_globals->use_namespace = 1;
+    swoole_globals->fast_serialize = 0;
 }
 
 int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
@@ -748,6 +751,7 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_async_class_entry_ptr = zend_register_internal_class(&swoole_async_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_async, "Swoole\\Async");
 
+
 #ifdef HAVE_PCRE
     SWOOLE_INIT_CLASS_ENTRY(swoole_connection_iterator_ce, "swoole_connection_iterator", "Swoole\\Connection\\Iterator",  swoole_connection_iterator_methods);
     swoole_connection_iterator_class_entry_ptr = zend_register_internal_class(&swoole_connection_iterator_ce TSRMLS_CC);
@@ -785,6 +789,10 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_module_init(module_number TSRMLS_CC);
     swoole_mmap_init(module_number TSRMLS_CC);
     swoole_channel_init(module_number TSRMLS_CC);
+
+#if PHP_MAJOR_VERSION >= 7
+    swoole_serialize_init(module_number TSRMLS_DC);
+#endif
 
 #ifdef SW_USE_REDIS
     swoole_redis_init(module_number TSRMLS_CC);
@@ -1010,11 +1018,6 @@ PHP_FUNCTION(swoole_strerror)
 PHP_FUNCTION(swoole_errno)
 {
     RETURN_LONG(errno);
-}
-
-static PHP_FUNCTION(swoole_clear_dns_cache)
-{
-    swoole_clear_dns_cache();
 }
 
 PHP_FUNCTION(swoole_set_process_name)

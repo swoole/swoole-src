@@ -1,6 +1,6 @@
 PROJECT(swoole_server)
 
-SET(SWOOLE_VERSION 1.9.0)
+SET(SWOOLE_VERSION 1.9.5)
 SET(SWOOLE_CLFLAGS pthread rt dl ssl crypt crypto nghttp2)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.4)
 
@@ -36,7 +36,12 @@ LINK_DIRECTORIES(${LIBRARY_OUTPUT_PATH})
 set(TEST_SRC_LIST examples/test_server.c)
 add_executable(test_server ${TEST_SRC_LIST})
 add_dependencies(test_server static)
-target_link_libraries(test_server  ${SWOOLE_CLFLAGS} swoole)
+target_link_libraries(test_server ${SWOOLE_CLFLAGS} swoole)
+
+#unittest
+file(GLOB_RECURSE UNITTEST_SRC_LIST FOLLOW_SYMLINKS tests/*.c)
+add_executable(unittest ${SRC_LIST} ${UNITTEST_SRC_LIST})
+target_link_libraries(unittest ${SWOOLE_CLFLAGS})
 
 #install
 INSTALL(CODE "MESSAGE(\"Are you run command using root user?\")")

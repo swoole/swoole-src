@@ -19,9 +19,17 @@
 #include "php_swoole.h"
 #include "swoole_mysql.h"
 
+#ifdef SW_USE_MYSQLND
+#include "ext/mysqlnd/mysqlnd.h"
+#include "ext/mysqlnd/mysqlnd_charset.h"
+#endif
+
 static PHP_METHOD(swoole_mysql, __construct);
 static PHP_METHOD(swoole_mysql, __destruct);
 static PHP_METHOD(swoole_mysql, connect);
+#ifdef SW_USE_MYSQLND
+static PHP_METHOD(swoole_mysql, escape);
+#endif
 static PHP_METHOD(swoole_mysql, query);
 static PHP_METHOD(swoole_mysql, close);
 static PHP_METHOD(swoole_mysql, on);
@@ -261,6 +269,13 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_connect, 0, 0, 2)
     ZEND_ARG_INFO(0, callback)
 ZEND_END_ARG_INFO()
 
+#ifdef SW_USE_MYSQLND
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_escape, 0, 0, 1)
+    ZEND_ARG_INFO(0, string)
+    ZEND_ARG_INFO(0, flags)
+ZEND_END_ARG_INFO()
+#endif
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_query, 0, 0, 2)
     ZEND_ARG_INFO(0, sql)
     ZEND_ARG_INFO(0, callback)
@@ -271,6 +286,9 @@ static const zend_function_entry swoole_mysql_methods[] =
     PHP_ME(swoole_mysql, __construct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
     PHP_ME(swoole_mysql, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_mysql, connect, arginfo_swoole_mysql_connect, ZEND_ACC_PUBLIC)
+#ifdef SW_USE_MYSQLND
+    PHP_ME(swoole_mysql, escape, arginfo_swoole_mysql_escape, ZEND_ACC_PUBLIC)
+#endif
     PHP_ME(swoole_mysql, query, arginfo_swoole_mysql_query, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql, close, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql, on, arginfo_swoole_mysql_on, ZEND_ACC_PUBLIC)
@@ -481,6 +499,12 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
     value = 300;
     memcpy(tmp, &value, sizeof(value));
     tmp += 4;
+
+    //use the server character_set when the character_set is not set.
+    if (connector->character_set == 0)
+    {
+        connector->character_set = request.character_set;
+    }
 
     //character set
     *tmp = connector->character_set;
@@ -819,9 +843,10 @@ static PHP_METHOD(swoole_mysql, connect)
             RETURN_FALSE;
         }
     }
+    //use the server default charset.
     else
     {
-        connector->character_set = SW_MYSQL_DEFAULT_CHARSET;
+        connector->character_set = 0;
     }
 
     swClient *cli = emalloc(sizeof(swClient));
@@ -886,6 +911,7 @@ static PHP_METHOD(swoole_mysql, connect)
     client->cli = cli;
     sw_copy_to_stack(client->object, client->_object);
     sw_zval_add_ref(&client->object);
+    sw_zval_ptr_dtor(&server_info);
 
     swConnection *_socket = swReactor_get(SwooleG.main_reactor, cli->socket->fd);
     _socket->object = client;
@@ -1392,3 +1418,50 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
+#ifdef SW_USE_MYSQLND
+static PHP_METHOD(swoole_mysql, escape)
+{
+    swString str;
+    bzero(&str, sizeof(str));
+    long flags;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &str.str, &str.length, &flags) == FAILURE)
+    {
+        return;
+    }
+
+    if (str.length <= 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "String is empty.");
+        RETURN_FALSE;
+    }
+
+    mysql_client *client = swoole_get_object(getThis());
+    if (!client)
+    {
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
+        RETURN_FALSE;
+    }
+    if (!client->cli)
+    {
+        swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
+        RETURN_FALSE;
+    }
+
+    char *newstr = safe_emalloc(2, str.length + 1, 1);
+    if (newstr == NULL)
+    {
+        swoole_php_fatal_error(E_ERROR, "emalloc(%ld) failed.", str.length + 1);
+        RETURN_FALSE;
+    }
+
+    const MYSQLND_CHARSET* cset = mysqlnd_find_charset_nr(client->connector.character_set);
+    int newstr_len = mysqlnd_cset_escape_slashes(cset, newstr, str.str, str.length TSRMLS_CC);
+    if (newstr_len < 0)
+    {
+        swoole_php_fatal_error(E_ERROR, "mysqlnd_cset_escape_slashes() failed.");
+        RETURN_FALSE;
+    }
+    SW_RETURN_STRINGL(newstr, newstr_len, 0);
+}
+#endif

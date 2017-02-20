@@ -57,6 +57,7 @@ typedef struct
     zval *zcookie;
     zval *zrequest;
     zval *zfiles;
+    zval *ztmpfiles;
 #if PHP_MAJOR_VERSION >= 7
     zval _zdata;
     zval _zobject;
@@ -67,6 +68,7 @@ typedef struct
     zval _zpost;
     zval _zfiles;
     zval _zcookie;
+    zval _ztmpfiles;
 #endif
 } http_request;
 
@@ -114,12 +116,14 @@ typedef struct
     multipart_parser *mt_parser;
     struct _swoole_http_client *client;
 
+    uint16_t input_var_num;
     char *current_header_name;
     size_t current_header_name_len;
     char *current_input_name;
     char *current_form_data_name;
     size_t current_form_data_name_len;
     char *current_form_data_value;
+    zval *current_multipart_header;
 
 } http_context;
 
@@ -143,7 +147,7 @@ typedef struct _swoole_http_client
 int swoole_websocket_onMessage(swEventData *);
 int swoole_websocket_onHandshake(swListenPort *port, http_context *);
 void swoole_websocket_onOpen(http_context *);
-void swoole_websocket_onReuqest(http_context *);
+void swoole_websocket_onRequest(http_context *);
 
 /**
  * Http Context

@@ -221,9 +221,7 @@ static sw_inline int sw_add_assoc_double_ex(zval *arg, const char *key, size_t k
 static inline char* sw_php_format_date(char *format, size_t format_len, time_t ts, int localtime)
 {
     zend_string *time = php_format_date(format, format_len, ts, localtime);
-    char *return_str = (char*) emalloc(time->len + 1);
-    memcpy(return_str, time->val, time->len);
-    return_str[time->len] = 0;
+    char *return_str = estrndup(time->val, time->len);
     zend_string_release(time);
     return return_str;
 }
@@ -232,11 +230,8 @@ static sw_inline char* sw_php_url_encode(char *value, size_t value_len, int* ext
 {
     zend_string *str = php_url_encode(value, value_len);
     *exten = str->len;
-
-    char *return_str = (char*) emalloc(str->len + 1);
-    memcpy(return_str, str->val, str->len);
+    char *return_str = estrndup(str->val, str->len);
     zend_string_release(str);
-    return_str[str->len] = 0;
     return return_str;
 }
 
@@ -262,7 +257,7 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval** 
 #define sw_php_var_unserialize(rval, p, max, var_hash)  php_var_unserialize(*rval, p, max, var_hash)
 #define SW_MAKE_STD_ZVAL(p)             zval _stack_zval_##p; p = &(_stack_zval_##p)
 #define SW_ALLOC_INIT_ZVAL(p)           do{p = emalloc(sizeof(zval)); bzero(p, sizeof(zval));}while(0)
-#define SW_RETURN_STRINGL(s, l, dup)    RETURN_STRINGL(s, l)
+#define SW_RETURN_STRINGL(s, l, dup)    do{RETVAL_STRINGL(s, l); if (dup == 0) efree(s);}while(0);return
 #define SW_RETVAL_STRINGL(s, l, dup)    do{RETVAL_STRINGL(s, l); if (dup == 0) efree(s);}while(0)
 #define SW_RETVAL_STRING(s, dup)        do{RETVAL_STRING(s); if (dup == 0) efree(s);}while(0)
 
@@ -315,9 +310,7 @@ static sw_inline zval* sw_zval_dup(zval *val)
 static sw_inline void sw_zval_free(zval *val)
 {
     sw_zval_ptr_dtor(&val);
-#if PHP_MAJOR_VERSION > 5
     efree(val);
-#endif
 }
 
 static sw_inline zval* sw_zend_read_property(zend_class_entry *class_ptr, zval *obj, char *s, int len, int silent)
@@ -330,8 +323,7 @@ static sw_inline int sw_zend_is_callable(zval *cb, int a, char **name)
 {
     zend_string *key = NULL;
     int ret = zend_is_callable(cb, a, &key);
-    char *tmp = (char *)emalloc(key->len);
-    memcpy(tmp, key->val, key->len);
+    char *tmp = estrndup(key->val, key->len);
     zend_string_release(key);
     *name = tmp;
     return ret;
@@ -341,8 +333,7 @@ static inline int sw_zend_is_callable_ex(zval *callable, zval *object, uint chec
 {
     zend_string *key = NULL;
     int ret = zend_is_callable_ex(callable, NULL, check_flags, &key, fcc, error);
-    char *tmp = (char *)emalloc(key->len);
-    memcpy(tmp, key->val, key->len);
+    char *tmp = estrndup(key->val, key->len);
     zend_string_release(key);
     *callable_name = tmp;
     return ret;

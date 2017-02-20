@@ -20,6 +20,26 @@
 #include <assert.h>
 #include <stddef.h>
 
+static const char *method_strings[] =
+{
+    "DELETE", "GET", "HEAD", "POST", "PUT", "PATCH", "CONNECT", "OPTIONS", "TRACE", "COPY", "LOCK", "MKCOL", "MOVE",
+    "PROPFIND", "PROPPATCH", "UNLOCK", "REPORT", "MKACTIVITY", "CHECKOUT", "MERGE", "M-SEARCH", "NOTIFY",
+    "SUBSCRIBE", "UNSUBSCRIBE", "PRI",
+};
+
+int swHttp_get_method(char *method_str)
+{
+    int i;
+    for (i = 1; i < HTTP_PRI; i++)
+    {
+        if (strncasecmp(method_strings[i], method_str, strlen(method_strings[i])) == 0)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
 /**
  * only GET/POST
  */
@@ -159,15 +179,14 @@ int swHttpRequest_get_content_length(swHttpRequest *request)
 
     for (p = buf; p < pe; p++)
     {
-        if (*p == '\r' && *(p + 1) == '\n')
+        if (*p == '\r' && pe - p > sizeof("Content-Length"))
         {
-            buffer->offset = p - buffer->str;
-
-            if (strncasecmp(p + 2, SW_STRL("Content-Length") - 1) == 0)
+            if (strncasecmp(p, SW_STRL("\r\nContent-Length") - 1) == 0)
             {
                 //strlen("\r\n") + strlen("Content-Length")
                 p += (2 + (sizeof("Content-Length:") - 1));
-                if (isspace(*p))
+                //skip space
+                if (*p == ' ')
                 {
                     p++;
                 }
@@ -177,7 +196,6 @@ int swHttpRequest_get_content_length(swHttpRequest *request)
                     return SW_ERR;
                 }
                 request->content_length = atoi(p);
-                buffer->offset = eol - buffer->str;
                 return SW_OK;
             }
         }
@@ -201,9 +219,9 @@ int swHttpRequest_has_expect_header(swHttpRequest *request)
     for (p = buf; p < pe; p++)
     {
 
-        if (*p == '\r' && *(p + 1) == '\n')
+        if (*p == '\r' && pe - p > sizeof("\r\nExpect"))
         {
-            if (strncasecmp(p + 2, SW_STRL("Expect") - 1) == 0)
+            if (strncasecmp(p + 2, SW_STRL("\r\nExpect") - 1) == 0)
             {
                 p += sizeof("Expect: ") + 1;
                 if (strncasecmp(p, SW_STRL("100-continue") - 1) == 0)
@@ -226,7 +244,7 @@ int swHttpRequest_has_expect_header(swHttpRequest *request)
 #endif
 
 /**
- * POST get header-length
+ * header-length
  */
 int swHttpRequest_get_header_length(swHttpRequest *request)
 {
@@ -239,18 +257,11 @@ int swHttpRequest_get_header_length(swHttpRequest *request)
 
     for (p = buf; p < pe; p++)
     {
-        if (*p == '\r' && *(p + 1) == '\n')
+        if (*p == '\r' && p + 4 <= pe && memcmp(p, "\r\n\r\n", 4) == 0)
         {
-            buffer->offset = p - buffer->str;
-            p += 2;
-
-            if (memcmp(p, SW_STRL("\r\n") - 1) == 0)
-            {
-                //strlen(header) + strlen("\r\n\r\n")
-                request->header_length = p - buffer->str + 2;
-                buffer->offset = request->header_length;
-                return SW_OK;
-            }
+            //strlen(header) + strlen("\r\n\r\n")
+            request->header_length = p - buffer->str + 4;
+            return SW_OK;
         }
     }
     return SW_ERR;

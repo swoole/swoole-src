@@ -248,7 +248,10 @@ static PHP_METHOD(swoole_process, __construct)
         process->redirect_stdin = 1;
         process->redirect_stdout = 1;
         process->redirect_stderr = 1;
-        pipe_type = 2;
+        /**
+         * Forced to use stream pipe
+         */
+        pipe_type = 1;
     }
 
     if (pipe_type > 0)
@@ -827,7 +830,6 @@ static PHP_METHOD(swoole_process, push)
 
     if (swMsgQueue_push(process->queue, (swQueue_data *)&message, length) < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "msgsnd() failed. Error: %s[%d]", strerror(errno), errno);
         RETURN_FALSE;
     }
     RETURN_TRUE;
@@ -964,7 +966,12 @@ static PHP_METHOD(swoole_process, setaffinity)
         CPU_SET(Z_LVAL_P(value), &cpu_set);
     SW_HASHTABLE_FOREACH_END();
 
+#ifdef __FreeBSD__
+    if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1,
+                           sizeof(cpu_set), &cpu_set) < 0)
+#else
     if (sched_setaffinity(getpid(), sizeof(cpu_set), &cpu_set) < 0)
+#endif
     {
         swoole_php_sys_error(E_WARNING, "sched_setaffinity() failed.");
         RETURN_FALSE;

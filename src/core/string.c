@@ -127,6 +127,48 @@ int swString_append_ptr(swString *str, char *append_str, int length)
     return SW_OK;
 }
 
+int swString_write(swString *str, off_t offset, swString *write_str)
+{
+    int new_length = offset + write_str->length;
+    if (new_length > str->size)
+    {
+        if (swString_extend(str, swoole_size_align(new_length * 2, sysconf(_SC_PAGESIZE))) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+
+    memcpy(str->str + offset, write_str->str, write_str->length);
+
+    if (new_length > str->length)
+    {
+        str->length = new_length;
+    }
+
+    return SW_OK;
+}
+
+int swString_write_ptr(swString *str, off_t offset, char *write_str, int length)
+{
+    int new_length = offset + length;
+    if (new_length > str->size)
+    {
+        if (swString_extend(str, swoole_size_align(new_length * 2, sysconf(_SC_PAGESIZE))) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+
+    memcpy(str->str + offset, write_str, length);
+
+    if (new_length > str->length)
+    {
+        str->length = new_length;
+    }
+
+    return SW_OK;
+}
+
 int swString_extend(swString *str, size_t new_size)
 {
     assert(new_size > str->size);

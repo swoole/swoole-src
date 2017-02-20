@@ -20,24 +20,11 @@
 #include <sys/stat.h>
 #include <sys/resource.h>
 #include <sys/ioctl.h>
+#include <limits.h>
 
 #ifdef HAVE_EXECINFO
 #include <execinfo.h>
 #endif
-
-typedef struct
-{
-    int number;
-    int addr_length;
-    union
-    {
-        struct in_addr v4;
-        struct in6_addr v6;
-    } addr[SW_DNS_LOOKUP_CACHE_SIZE];
-} swDNS_cache;
-
-static swHashMap *swoole_dns_cache_v4 = NULL;
-static swHashMap *swoole_dns_cache_v6 = NULL;
 
 void swoole_init(void)
 {
@@ -215,9 +202,15 @@ void swoole_dump_hex(char *data, int outlen)
  */
 int swoole_mkdir_recursive(const char *dir)
 {
-    char tmp[1024];
-    strncpy(tmp, dir, 1024);
-    int i, len = strlen(tmp);
+    char tmp[PATH_MAX];
+    int i, len = strlen(dir);
+
+    if (len + 1 > PATH_MAX) /* PATH_MAX limit includes string trailing null character */
+    {
+        swWarn("mkdir(%s) failed. Path exceeds %d characters limit.", dir, PATH_MAX - 1);
+        return -1;
+    }
+    strncpy(tmp, dir, len + 1);
 
     if (dir[len - 1] != '/')
     {
@@ -521,7 +514,7 @@ long swoole_file_get_size(FILE *fp)
     return size;
 }
 
-size_t swoole_file_size(char *filename)
+long swoole_file_size(char *filename)
 {
     struct stat file_stat;
     if (lstat(filename, &file_stat) < 0)
@@ -535,7 +528,7 @@ size_t swoole_file_size(char *filename)
 
 swString* swoole_file_get_contents(char *filename)
 {
-    size_t filesize = swoole_file_size(filename);
+    long filesize = swoole_file_size(filename);
     if (filesize < 0)
     {
         return NULL;
@@ -560,6 +553,7 @@ swString* swoole_file_get_contents(char *filename)
     swString *content = swString_new(filesize);
     if (!content)
     {
+        close(fd);
         return NULL;
     }
 
@@ -588,6 +582,55 @@ swString* swoole_file_get_contents(char *filename)
     close(fd);
     content->length = readn;
     return content;
+}
+
+int swoole_file_put_contents(char *filename, char *content, size_t length)
+{
+    if (length <= 0)
+    {
+        swoole_error_log(SW_LOG_TRACE, SW_ERROR_FILE_EMPTY, "content is empty.");
+        return SW_ERR;
+    }
+    if (length > SW_MAX_FILE_CONTENT)
+    {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_FILE_TOO_LARGE, "content is too large.");
+        return SW_ERR;
+    }
+
+    int fd = open(filename, O_WRONLY | O_TRUNC | O_CREAT, 0666);
+    if (fd < 0)
+    {
+        swSysError("open(%s) failed.", filename);
+        return SW_ERR;
+    }
+
+    int n, chunk_size, written = 0;
+
+    while(written < length)
+    {
+        chunk_size = length - written;
+        if (chunk_size > SW_BUFFER_SIZE_BIG)
+        {
+            chunk_size = SW_BUFFER_SIZE_BIG;
+        }
+        n = write(fd, content + written, chunk_size);
+        if (n < 0)
+        {
+            if (errno == EINTR)
+            {
+                continue;
+            }
+            else
+            {
+                swSysError("write(%d, %d) failed.", fd, chunk_size);
+                close(fd);
+                return -1;
+            }
+        }
+        written += n;
+    }
+    close(fd);
+    return SW_OK;
 }
 
 int swoole_sync_readfile(int fd, void *buf, int len)
@@ -849,111 +892,49 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
     return match;
 }
 
-void swoole_clear_dns_cache(void)
-{
-    if (swoole_dns_cache_v4)
-    {
-        swHashMap_free(swoole_dns_cache_v4);
-        swoole_dns_cache_v4 = NULL;
-    }
-    if (swoole_dns_cache_v6)
-    {
-        swHashMap_free(swoole_dns_cache_v6);
-        swoole_dns_cache_v6 = NULL;
-    }
-}
-
 /**
  * DNS lookup
  */
 int swoole_gethostbyname(int flags, char *name, char *addr)
 {
-    SwooleGS->lock.lock(&SwooleGS->lock);
-    swHashMap *cache_table;
-
-    int __af = flags & (~SW_DNS_LOOKUP_CACHE_ONLY) & (~SW_DNS_LOOKUP_RANDOM);
-    if (__af == AF_INET)
-    {
-        if (!swoole_dns_cache_v4)
-        {
-            swoole_dns_cache_v4 = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
-        }
-        cache_table = swoole_dns_cache_v4;
-    }
-    else if (__af == AF_INET6)
-    {
-        if (!swoole_dns_cache_v6)
-        {
-            swoole_dns_cache_v6 = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, free);
-        }
-        cache_table = swoole_dns_cache_v6;
-    }
-    else
-    {
-        SwooleGS->lock.unlock(&SwooleGS->lock);
-        return SW_ERR;
-    }
-
-
-    int name_length = strlen(name);
+    int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
     int index = 0;
-    swDNS_cache *cache = swHashMap_find(cache_table, name, name_length);
-    if (cache == NULL && (flags & SW_DNS_LOOKUP_CACHE_ONLY))
+
+    struct hostent *host_entry;
+    if (!(host_entry = gethostbyname2(name, __af)))
     {
-        SwooleGS->lock.unlock(&SwooleGS->lock);
         return SW_ERR;
     }
 
-    if (cache == NULL)
+    union
     {
-        struct hostent *host_entry;
-        if (!(host_entry = gethostbyname2(name, __af)))
-        {
-            SwooleGS->lock.unlock(&SwooleGS->lock);
-            return SW_ERR;
-        }
+        char v4[INET_ADDRSTRLEN];
+        char v6[INET6_ADDRSTRLEN];
+    } addr_list[SW_DNS_HOST_BUFFER_SIZE];
 
-        cache = sw_malloc(sizeof(swDNS_cache));
-        if (cache == NULL)
-        {
-            SwooleGS->lock.unlock(&SwooleGS->lock);
-            memcpy(addr, host_entry->h_addr_list[0], host_entry->h_length);
-            return SW_OK;
-        }
-
-        bzero(cache, sizeof(swDNS_cache));
-        int i = 0;
-        for (i = 0; i < SW_DNS_LOOKUP_CACHE_SIZE; i++)
-        {
-            if (host_entry->h_addr_list[i] == NULL)
-            {
-                break;
-            }
-            if (__af == AF_INET)
-            {
-                memcpy(&cache->addr[i].v4, host_entry->h_addr_list[i], host_entry->h_length);
-            }
-            else
-            {
-                memcpy(&cache->addr[i].v6, host_entry->h_addr_list[i], host_entry->h_length);
-            }
-        }
-        cache->number = i;
-        cache->addr_length = host_entry->h_length;
-        swHashMap_add(cache_table, name, name_length, cache);
-    }
-    SwooleGS->lock.unlock(&SwooleGS->lock);
-    if (flags & SW_DNS_LOOKUP_RANDOM)
+    int i = 0;
+    for (i = 0; i < SW_DNS_HOST_BUFFER_SIZE; i++)
     {
-        index = rand() % cache->number;
+        if (host_entry->h_addr_list[i] == NULL)
+        {
+            break;
+        }
+        if (__af == AF_INET)
+        {
+            memcpy(addr_list[i].v4, host_entry->h_addr_list[i], host_entry->h_length);
+        }
+        else
+        {
+            memcpy(addr_list[i].v6, host_entry->h_addr_list[i], host_entry->h_length);
+        }
     }
     if (__af == AF_INET)
     {
-        memcpy(addr, &cache->addr[index].v4, cache->addr_length);
+        strcpy(addr, addr_list[index].v4);
     }
     else
     {
-        memcpy(addr, &cache->addr[index].v6, cache->addr_length);
+        strcpy(addr, addr_list[index].v6);
     }
     return SW_OK;
 }

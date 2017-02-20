@@ -20,6 +20,54 @@ event-based
 
 The network layer in Swoole is event-based and takes full advantage of the underlaying epoll/kqueue implementation, making it really easy to serve thousands of connections.
 
+coroutine
+----------------
+[Swoole 2.0](Version2.md) support the  built-in coroutine, you can use fully synchronized code to implement asynchronous program. 
+PHP code without any additional keywords, the underlying automatic coroutine-scheduling.
+
+```php
+<?php
+for($i = 0; $i < 100; $i++) {
+    Swoole\Coroutine::create(function() use ($i) {
+        $redis = new Swoole\Coroutine\Redis();
+        $res = $redis->connect('127.0.0.1', 6379);
+        $ret = $redis->incr('coroutine');
+        $redis->close();
+        if ($i == 50) {
+            Swoole\Coroutine::create(function() use ($i) {
+                $redis = new Swoole\Coroutine\Redis();
+                $res = $redis->connect('127.0.0.1', 6379);
+                $ret = $redis->set('coroutine_i', 50);
+                $redis->close();
+            });
+        }
+    });
+}
+```
+
+```php
+<?php  
+$server = new Swoole\Http\Server('127.0.0.1', 9501);
+
+$server->on('Request', function($request, $response) {
+
+    $tcp_cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
+    $ret = $tcp_cli->connect('127.0.0.1', 9906);
+    $tcp_cli ->send('test for the coro');
+    $ret = $tcp_cli->recv(5);
+    $tcp_cli->close();
+
+    if ($ret) {
+        $response->end(" swoole response is ok");
+    }
+    else{
+        $response->end(" recv failed error : {$client->errCode}");
+    }
+});
+
+$server->start();
+```
+
 concurrent
 ------
 
@@ -32,10 +80,6 @@ in-memory
 
 Unlike traditional apache/php-fpm stuff, the memory allocated in Swoole will not be free'd after a request, which can improve performance a lot.
 
-coroutine
-----------------
-Swoole 2.0 support from the beginning of the built-in coroutine, you can use fully synchronized code to implement asynchronous program. 
-PHP code without any additional keywords, the underlying automatic coroutine-scheduling.
 
 ## Why Swoole?
 

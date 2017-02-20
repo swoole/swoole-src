@@ -522,7 +522,12 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
         {
             CPU_SET(SwooleWG.id % SW_CPU_NUM, &cpu_set);
         }
+#ifdef __FreeBSD__
+        if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1,
+                                sizeof(cpu_set), &cpu_set) < 0)
+#else
         if (sched_setaffinity(getpid(), sizeof(cpu_set), &cpu_set) < 0)
+#endif
         {
             swSysError("sched_setaffinity() failed.");
         }
@@ -700,6 +705,12 @@ int swServer_start(swServer *serv)
     //signal Init
     swServer_signal_init(serv);
 
+    //write PID file
+    if (serv->pid_file)
+    {
+        ret = snprintf(SwooleG.module_stack->str, SwooleG.module_stack->size, "%d", getpid());
+        swoole_file_put_contents(serv->pid_file, SwooleG.module_stack->str, ret);
+    }
     if (serv->factory_mode == SW_MODE_SINGLE)
     {
         ret = swReactorProcess_start(serv);
@@ -710,6 +721,11 @@ int swServer_start(swServer *serv)
     }
     swServer_free(serv);
     SwooleGS->start = 0;
+    //remove PID file
+    if (serv->pid_file)
+    {
+        unlink(serv->pid_file);
+    }
     return SW_OK;
 }
 
@@ -876,7 +892,7 @@ int swServer_udp_send(swServer *serv, swSendData *resp)
 int swServer_confirm(swServer *serv, int fd)
 {
     swConnection *conn = swServer_connection_verify(serv, fd);
-    if (!conn && !conn->listen_wait)
+    if (!conn || !conn->listen_wait)
     {
         return SW_ERR;
     }
@@ -1090,7 +1106,7 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT, "allows up to %d ports to listen", SW_MAX_LISTEN_PORT);
         return NULL;
     }
-    if (!(type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM) && (port < 1 || port > 65535))
+    if (!(type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM) && (port < 0 || port > 65535))
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_LISTEN_PORT, "invalid port [%d]", port);
         return NULL;
@@ -1135,8 +1151,9 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
         return NULL;
     }
     //bind address and port
-    if (swSocket_bind(sock, ls->type, ls->host, ls->port) < 0)
+    if (swSocket_bind(sock, ls->type, ls->host, &ls->port) < 0)
     {
+        close(sock);
         return NULL;
     }
     //dgram socket, setting socket buffer size

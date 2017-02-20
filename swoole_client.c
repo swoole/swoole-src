@@ -155,6 +155,20 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
     }
 }
 
+static sw_inline swClient* client_get_ptr(zval *zobject TSRMLS_DC)
+{
+    swClient *cli = swoole_get_object(zobject);
+    if (cli && cli->socket && cli->socket->active == 1)
+    {
+        return cli;
+    }
+    else
+    {
+        swoole_php_fatal_error(E_WARNING, "client is not connected to server.");
+        return NULL;
+    }
+}
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
@@ -543,7 +557,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
     }
     if (bind_address)
     {
-        swSocket_bind(cli->socket->fd, cli->type, bind_address, bind_port);
+        swSocket_bind(cli->socket->fd, cli->type, bind_address, &bind_port);
     }
     /**
      * TCP_NODELAY
@@ -591,42 +605,43 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         }
     }
 #ifdef SW_USE_OPENSSL
-    if (php_swoole_array_get_value(vht, "ssl_method", v))
+    if (cli->open_ssl)
     {
-        convert_to_long(v);
-        cli->ssl_method = (int) Z_LVAL_P(v);
-        cli->open_ssl = 1;
-    }
-    if (php_swoole_array_get_value(vht, "ssl_compress", v))
-    {
-        convert_to_boolean(v);
-        cli->ssl_disable_compress = !Z_BVAL_P(v);
-    }
-    if (php_swoole_array_get_value(vht, "ssl_cert_file", v))
-    {
-        convert_to_string(v);
-        cli->ssl_cert_file = strdup(Z_STRVAL_P(v));
-        if (access(cli->ssl_cert_file, R_OK) < 0)
+        if (php_swoole_array_get_value(vht, "ssl_method", v))
         {
-            swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", cli->ssl_cert_file);
+            convert_to_long(v);
+            cli->ssl_method = (int) Z_LVAL_P(v);
+        }
+        if (php_swoole_array_get_value(vht, "ssl_compress", v))
+        {
+            convert_to_boolean(v);
+            cli->ssl_disable_compress = !Z_BVAL_P(v);
+        }
+        if (php_swoole_array_get_value(vht, "ssl_cert_file", v))
+        {
+            convert_to_string(v);
+            cli->ssl_cert_file = strdup(Z_STRVAL_P(v));
+            if (access(cli->ssl_cert_file, R_OK) < 0)
+            {
+                swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", cli->ssl_cert_file);
+                return;
+            }
+        }
+        if (php_swoole_array_get_value(vht, "ssl_key_file", v))
+        {
+            convert_to_string(v);
+            cli->ssl_key_file = strdup(Z_STRVAL_P(v));
+            if (access(cli->ssl_key_file, R_OK) < 0)
+            {
+                swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", cli->ssl_key_file);
+                return;
+            }
+        }
+        if (cli->ssl_cert_file && !cli->ssl_key_file)
+        {
+            swoole_php_fatal_error(E_ERROR, "ssl require key file.");
             return;
         }
-        cli->open_ssl = 1;
-    }
-    if (php_swoole_array_get_value(vht, "ssl_key_file", v))
-    {
-        convert_to_string(v);
-        cli->ssl_key_file = strdup(Z_STRVAL_P(v));
-        if (access(cli->ssl_key_file, R_OK) < 0)
-        {
-            swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", cli->ssl_key_file);
-            return;
-        }
-    }
-    if (cli->ssl_cert_file && !cli->ssl_key_file)
-    {
-        swoole_php_fatal_error(E_ERROR, "ssl require key file.");
-        return;
     }
 #endif
 }
@@ -974,6 +989,7 @@ static PHP_METHOD(swoole_client, set)
     }
     php_swoole_array_separate(zset);
     zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("setting"), zset TSRMLS_CC);
+    sw_zval_ptr_dtor(&zset);
     RETURN_TRUE;
 }
 
@@ -1134,16 +1150,9 @@ static PHP_METHOD(swoole_client, send)
         RETURN_FALSE;
     }
 
-    swClient *cli = swoole_get_object(getThis());
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
-        RETURN_FALSE;
-    }
-
-    if (cli->socket->active == 0)
-    {
-        swoole_php_error(E_WARNING, "server is not connected.");
         RETURN_FALSE;
     }
 
@@ -1227,21 +1236,15 @@ static PHP_METHOD(swoole_client, sendfile)
         RETURN_FALSE;
     }
 
-    swClient *cli = swoole_get_object(getThis());
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
         RETURN_FALSE;
     }
-
+    //only stream socket can sendfile
     if (!(cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6 || cli->type == SW_SOCK_UNIX_STREAM))
     {
         swoole_php_error(E_WARNING, "dgram socket cannot use sendfile.");
-        RETURN_FALSE;
-    }
-    if (cli->socket->active == 0)
-    {
-        swoole_php_error(E_WARNING, "Server is not connected.");
         RETURN_FALSE;
     }
     //clear errno
@@ -1279,16 +1282,9 @@ static PHP_METHOD(swoole_client, recv)
         flags = MSG_WAITALL;
     }
 
-    swClient *cli = swoole_get_object(getThis());
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
-        RETURN_FALSE;
-    }
-
-    if (cli->socket->active == 0)
-    {
-        swoole_php_error(E_WARNING, "server is not connected.");
         RETURN_FALSE;
     }
 
@@ -1469,15 +1465,9 @@ static PHP_METHOD(swoole_client, isConnected)
 
 static PHP_METHOD(swoole_client, getsockname)
 {
-    swClient *cli = swoole_get_object(getThis());
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
-        RETURN_FALSE;
-    }
-    if (!cli->socket->active)
-    {
-        swoole_php_error(E_WARNING, "not connected to the server");
         RETURN_FALSE;
     }
 
@@ -1523,10 +1513,9 @@ static PHP_METHOD(swoole_client, getSocket)
     {
         RETURN_ZVAL(zsocket, 1, NULL);
     }
-    swClient *cli = swoole_get_object(getThis());
-    if (!cli || !cli->socket)
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
+    if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
         RETURN_FALSE;
     }
     if (cli->keep)
@@ -1548,16 +1537,9 @@ static PHP_METHOD(swoole_client, getSocket)
 
 static PHP_METHOD(swoole_client, getpeername)
 {
-    swClient *cli = swoole_get_object(getThis());
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
-        RETURN_FALSE;
-    }
-
-    if (!cli->socket->active)
-    {
-        swoole_php_error(E_WARNING, "not connected to the server");
         RETURN_FALSE;
     }
 
@@ -1599,15 +1581,9 @@ static PHP_METHOD(swoole_client, close)
         return;
     }
 
-    swClient *cli = swoole_get_object(getThis());
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
-        RETURN_FALSE;
-    }
-    if (!cli->socket)
-    {
-        swoole_php_error(E_WARNING, "not connected to the server");
         RETURN_FALSE;
     }
     if (cli->socket->closed)
@@ -1720,19 +1696,11 @@ static PHP_METHOD(swoole_client, on)
 
 static PHP_METHOD(swoole_client, sleep)
 {
-    swClient *cli = swoole_get_object(getThis());
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
         RETURN_FALSE;
     }
-
-    if (cli->socket->active == 0)
-    {
-        swoole_php_error(E_WARNING, "server is not connected.");
-        RETURN_FALSE;
-    }
-
     int ret;
     if (cli->socket->events & SW_EVENT_WRITE)
     {
@@ -1747,19 +1715,11 @@ static PHP_METHOD(swoole_client, sleep)
 
 static PHP_METHOD(swoole_client, wakeup)
 {
-    swClient *cli = swoole_get_object(getThis());
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
         RETURN_FALSE;
     }
-
-    if (cli->socket->active == 0)
-    {
-        swoole_php_error(E_WARNING, "server is not connected.");
-        RETURN_FALSE;
-    }
-
     int ret;
     if (cli->socket->events & SW_EVENT_WRITE)
     {
@@ -1775,10 +1735,9 @@ static PHP_METHOD(swoole_client, wakeup)
 #ifdef SW_USE_OPENSSL
 static PHP_METHOD(swoole_client, enableSSL)
 {
-    swClient *cli = swoole_get_object(getThis());
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
         RETURN_FALSE;
     }
     if (cli->type != SW_SOCK_TCP && cli->type != SW_SOCK_TCP6)
@@ -1841,10 +1800,9 @@ static PHP_METHOD(swoole_client, enableSSL)
 
 static PHP_METHOD(swoole_client, getPeerCert)
 {
-    swClient *cli = swoole_get_object(getThis());
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
         RETURN_FALSE;
     }
     if (!cli->socket->ssl)
@@ -1863,10 +1821,9 @@ static PHP_METHOD(swoole_client, getPeerCert)
 
 static PHP_METHOD(swoole_client, verifyPeerCert)
 {
-    swClient *cli = swoole_get_object(getThis());
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
         RETURN_FALSE;
     }
     if (!cli->socket->ssl)
@@ -1885,10 +1842,9 @@ static PHP_METHOD(swoole_client, verifyPeerCert)
 
 static PHP_METHOD(swoole_client, pipe)
 {
-    swClient *cli = swoole_get_object(getThis());
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
         RETURN_FALSE;
     }
     zval *write_socket;

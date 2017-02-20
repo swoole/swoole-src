@@ -69,13 +69,11 @@ uint32_t swHeap_size(swHeap *q)
 static uint32_t swHeap_maxchild(swHeap *heap, uint32_t i)
 {
     uint32_t child_i = left(i);
-    swHeap_node * child_node = heap->nodes[child_i];
-
     if (child_i >= heap->num)
     {
         return 0;
     }
-
+    swHeap_node * child_node = heap->nodes[child_i];
     if ((child_i + 1) < heap->num && swHeap_compare(heap->type, child_node->priority, heap->nodes[child_i + 1]->priority))
     {
         child_i++;

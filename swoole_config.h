@@ -216,11 +216,13 @@
 
 #define SW_STRING_BUFFER_MAXLEN          (1024*1024*128)
 #define SW_STRING_BUFFER_DEFAULT         128
+#define SW_STRING_BUFFER_GARBAGE_MIN     (1024*64)
+#define SW_STRING_BUFFER_GARBAGE_RATIO   4
 
 #define SW_SIGNO_MAX                     128
 
-#define SW_DNS_LOOKUP_USE_THREAD
-#define SW_DNS_LOOKUP_CACHE_SIZE         4
+#define SW_DNS_HOST_BUFFER_SIZE          16
+#define SW_DNS_SERVER_PORT               53
 
 //#define SW_HTTP_CLIENT_ENABLE
 

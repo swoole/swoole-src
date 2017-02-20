@@ -122,6 +122,7 @@ swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data)
     int64_t now_msec = swTimer_get_relative_msec();
     if (now_msec < 0)
     {
+        sw_free(tnode);
         return NULL;
     }
 

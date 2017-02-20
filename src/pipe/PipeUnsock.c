@@ -62,6 +62,7 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
     if (ret < 0)
     {
         swWarn("socketpair() failed. Error: %s [%d]", strerror(errno), errno);
+        sw_free(object);
         return SW_ERR;
     }
     else

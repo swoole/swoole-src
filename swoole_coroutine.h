@@ -72,7 +72,7 @@ struct _php_context
 #endif
     coro_task *current_task;
     zend_vm_stack current_vm_stack;
-	php_context_state state;
+    php_context_state state;
     char uid[20];
 };
 
@@ -133,6 +133,8 @@ static sw_inline zend_fcall_info_cache* php_swoole_server_get_cache(swServer *se
     }
 }
 
+int sw_coro_resume_parent(php_context *sw_current_context, zval *retval, zval *coro_retval);
+
 int coro_init(TSRMLS_D);
 #if PHP_MAJOR_VERSION >= 7
 #define coro_create(op_array, argv, argc, retval, post_callback, param) \
@@ -141,6 +143,8 @@ int coro_init(TSRMLS_D);
         sw_coro_save(return_value, sw_php_context);
 #define coro_resume(sw_current_context, retval, coro_retval) \
         sw_coro_resume(sw_current_context, retval, *coro_retval);
+#define coro_resume_parent(sw_current_context, retval, coro_retval) \
+        sw_coro_resume_parent(sw_current_context, retval, coro_retval);
 
 int sw_coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval *retval, void *post_callback, void *param);
 php_context *sw_coro_save(zval *return_value, php_context *sw_php_context);
@@ -151,6 +155,8 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
 #define coro_create sw_coro_create
 #define coro_save(sw_php_context) sw_coro_save(return_value, return_value_ptr, sw_php_context)
 #define coro_resume sw_coro_resume
+#define coro_resume_parent(sw_current_context, retval, coro_retval) \
+
 int sw_coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval **retval, void *post_callback, void *param);
 php_context *sw_coro_save(zval *return_value, zval **return_value_ptr, php_context *sw_php_context);
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retval);

@@ -182,11 +182,13 @@ static PHP_METHOD(swoole_mmap, open)
         if (fstat(fd, &_stat) < 0)
         {
             swoole_php_sys_error(E_WARNING, "fstat(%s) failed.", filename);
+            close(fd);
             RETURN_FALSE;
         }
         if (_stat.st_size == 0)
         {
             swoole_php_sys_error(E_WARNING, "file[%s] is empty.", filename);
+            close(fd);
             RETURN_FALSE;
         }
         if (offset > 0)

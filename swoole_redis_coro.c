@@ -1464,10 +1464,8 @@ static PHP_METHOD(swoole_redis_coro, hMSet)
 	SW_REDIS_COMMAND_ARGV_FILL("HMSET", 5)
 	SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
 #if  (PHP_MAJOR_VERSION < 7)
-	char *field;
-	uint32_t field_len;
 	int keytype;
-	SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(z_arr), field, field_len, keytype, value)
+	SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(z_arr), key, key_len, keytype, value)
 	{
 		if (HASH_KEY_IS_STRING != keytype)
 		{

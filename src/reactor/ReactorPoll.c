@@ -51,12 +51,14 @@ int swReactorPoll_create(swReactor *reactor, int max_fd_num)
     if (object->fds == NULL)
     {
         swWarn("malloc[1] failed");
+        sw_free(object);
         return SW_ERR;
     }
     object->events = sw_calloc(max_fd_num, sizeof(struct pollfd));
     if (object->events == NULL)
     {
         swWarn("malloc[2] failed");
+        sw_free(object);
         return SW_ERR;
     }
     object->max_fd_num = max_fd_num;

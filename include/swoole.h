@@ -40,7 +40,16 @@ extern "C" {
 #include <assert.h>
 #include <time.h>
 #include <pthread.h>
+#if defined(HAVE_CPU_AFFINITY)
+#ifdef __FreeBSD__
+#include <sys/types.h>
+#include <sys/cpuset.h>
+#include <pthread_np.h>
+typedef cpuset_t cpu_set_t;
+#else
 #include <sched.h>
+#endif
+#endif
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -601,6 +610,8 @@ void swString_print(swString *str);
 void swString_free(swString *str);
 int swString_append(swString *str, swString *append_str);
 int swString_append_ptr(swString *str, char *append_str, int length);
+int swString_write(swString *str, off_t offset, swString *write_str);
+int swString_write_ptr(swString *str, off_t offset, char *write_str, int length);
 int swString_extend(swString *str, size_t new_size);
 char* swString_alloc(swString *str, size_t __size);
 
@@ -759,7 +770,6 @@ enum SW_LOCKS
 
 enum swDNSLookup_cache_type
 {
-    SW_DNS_LOOKUP_CACHE_ONLY =  (1u << 10),
     SW_DNS_LOOKUP_RANDOM  = (1u << 11),
 };
 
@@ -1130,7 +1140,8 @@ int swoole_system_random(int min, int max);
 long swoole_file_get_size(FILE *fp);
 int swoole_tmpfile(char *filename);
 swString* swoole_file_get_contents(char *filename);
-size_t swoole_file_size(char *filename);
+int swoole_file_put_contents(char *filename, char *content, size_t length);
+long swoole_file_size(char *filename);
 void swoole_open_remote_debug(void);
 char *swoole_dec2hex(int value, int base);
 int swoole_version_compare(char *version1, char *version2);
@@ -1140,7 +1151,6 @@ void swoole_print_trace(void);
 void swoole_ioctl_set_block(int sock, int nonblock);
 void swoole_fcntl_set_option(int sock, int nonblock, int cloexec);
 int swoole_gethostbyname(int type, char *name, char *addr);
-void swoole_clear_dns_cache(void);
 //----------------------core function---------------------
 int swSocket_set_timeout(int sock, double timeout);
 
@@ -1201,7 +1211,7 @@ static sw_inline uint64_t swoole_ntoh64(uint64_t net)
 }
 
 int swSocket_create(int type);
-int swSocket_bind(int sock, int type, char *host, int port);
+int swSocket_bind(int sock, int type, char *host, int *port);
 int swSocket_wait(int fd, int timeout_ms, int events);
 int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events);
 void swSocket_clean(int fd);
@@ -1292,6 +1302,8 @@ struct _swReactor
     uint32_t max_event_num;
 
     uint32_t check_timer :1;
+    uint32_t check_coroutine :1;
+
     uint32_t running :1;
 
     /**
@@ -1788,6 +1800,15 @@ typedef struct
     swString **buffer_input;
 } swThreadG;
 
+typedef struct
+{
+    union
+    {
+        char v4[INET_ADDRSTRLEN];
+        char v6[INET6_ADDRSTRLEN];
+    } address;
+} swDNS_server;
+
 typedef struct _swServer swServer;
 typedef struct _swFactory swFactory;
 
@@ -1800,8 +1821,8 @@ typedef struct
     uint8_t use_signalfd :1;
     uint8_t reuse_port :1;
     uint8_t socket_dontwait :1;
-    uint8_t disable_dns_cache :1;
-    uint8_t dns_lookup_random: 1;
+    uint8_t dns_lookup_random :1;
+    uint8_t use_async_resolver :1;
 
     /**
      * Timer used pipe
@@ -1858,6 +1879,9 @@ typedef struct
     swEventData *task_result;
 
     pthread_t heartbeat_pidt;
+
+    char *dns_server_v4;
+    char *dns_server_v6;
 
     swLock lock;
     swString *module_stack;

@@ -339,6 +339,7 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
         {
             if (errno == EINTR && SwooleG.signal_alarm)
             {
+                alarm_handler: SwooleG.signal_alarm = 0;
                 swTimer_select(&SwooleG.timer);
             }
             continue;
@@ -350,6 +351,14 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
         SwooleWG.worker->status = SW_WORKER_BUSY;
         ret = pool->onTask(pool, &out.buf);
         SwooleWG.worker->status = SW_WORKER_IDLE;
+
+        /**
+         * timer
+         */
+        if (SwooleG.signal_alarm)
+        {
+            goto alarm_handler;
+        }
 
         if (ret >= 0 && !worker_task_always)
         {
@@ -428,6 +437,7 @@ int swProcessPool_wait(swProcessPool *pool)
             if (new_pid < 0)
             {
                 swWarn("Fork worker process failed. Error: %s [%d]", strerror(errno), errno);
+                sw_free(reload_workers);
                 return SW_ERR;
             }
             swHashMap_del_int(pool->map, pid);
@@ -452,6 +462,7 @@ int swProcessPool_wait(swProcessPool *pool)
             reload_worker_i++;
         }
     }
+    sw_free(reload_workers);
     return SW_OK;
 }
 

@@ -262,6 +262,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
             if (ftruncate(fd, 0) < 0)
             {
                 swSysError("ftruncate(%s) failed.", Z_STRVAL_P(hcc->download_file));
+                close(fd);
                 return SW_ERR;
             }
         }
@@ -270,6 +271,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
             if (lseek(fd, hcc->download_offset, SEEK_SET) < 0)
             {
                 swSysError("fseek(%s, %ld) failed.", Z_STRVAL_P(hcc->download_file), hcc->download_offset);
+                close(fd);
                 return SW_ERR;
             }
         }
@@ -1111,6 +1113,7 @@ static PHP_METHOD(swoole_http_client, set)
     }
     php_swoole_array_separate(zset);
     zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("setting"), zset TSRMLS_CC);
+    sw_zval_ptr_dtor(&zset);
     RETURN_TRUE;
 }
 
@@ -1382,15 +1385,29 @@ int http_client_parser_on_header_value(php_http_parser *parser, const char *at, 
     else if (strcasecmp(header_name, "Set-Cookie") == 0)
     {
         int l_cookie = 0;
-        if (strchr(at, ';'))
+        char *p = (char*) memchr(at, ';', length);
+        if (p)
         {
-            l_cookie = strchr(at, ';') - at;
+            l_cookie = p - at;
         }
         else
         {
-            l_cookie = strstr(at, "\r\n") - at;
+            l_cookie = length;
         }
-        int l_key = strchr(at, '=') - at;
+
+        p = (char*) memchr(at, '=', length);
+        int l_key = 0;
+        if (p)
+        {
+            l_key = p - at;
+        }
+        if (l_key == 0 || l_key >= SW_HTTP_COOKIE_KEYLEN || l_key >= length - 1)
+        {
+            swWarn("cookie key format is wrong.");
+            efree(header_name);
+            return SW_ERR;
+        }
+
         char keybuf[SW_HTTP_COOKIE_KEYLEN];
 
         zval *cookies = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("cookies"), 1 TSRMLS_CC);
@@ -1402,9 +1419,19 @@ int http_client_parser_on_header_value(php_http_parser *parser, const char *at, 
             sw_zval_ptr_dtor(&cookies);
         }
 
+        zval *set_cookie_headers = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("set_cookie_headers"), 1 TSRMLS_CC);
+        if (!set_cookie_headers || ZVAL_IS_NULL(set_cookie_headers))
+        {
+            SW_MAKE_STD_ZVAL(set_cookie_headers);
+            array_init(set_cookie_headers);
+            zend_update_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("set_cookie_headers"), set_cookie_headers TSRMLS_CC);
+            sw_zval_ptr_dtor(&set_cookie_headers);
+        }
+
         memcpy(keybuf, at, l_key);
         keybuf[l_key] = '\0';
         sw_add_assoc_stringl_ex(cookies, keybuf, l_key + 1, (char*) at + l_key + 1, l_cookie - l_key - 1, 1);
+        sw_add_assoc_stringl_ex(set_cookie_headers, keybuf, l_key + 1, (char*) at, length, 1);
     }
 #ifdef SW_HAVE_ZLIB
     else if (strcasecmp(header_name, "Content-Encoding") == 0 && strncasecmp(at, "gzip", length) == 0)
@@ -1412,6 +1439,7 @@ int http_client_parser_on_header_value(php_http_parser *parser, const char *at, 
         http_init_gzip_stream(http);
         if (Z_OK != inflateInit2(&http->gzip_stream, MAX_WBITS + 16))
         {
+            efree(header_name);
             swWarn("inflateInit2() failed.");
             return SW_ERR;
         }
@@ -1421,6 +1449,7 @@ int http_client_parser_on_header_value(php_http_parser *parser, const char *at, 
         http_init_gzip_stream(http);
         if (Z_OK != inflateInit(&http->gzip_stream))
         {
+            efree(header_name);
             swWarn("inflateInit() failed.");
             return SW_ERR;
         }

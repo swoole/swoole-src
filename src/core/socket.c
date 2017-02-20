@@ -33,6 +33,7 @@ int swSocket_sendfile_sync(int sock, char *filename, off_t offset, double timeou
     if (fstat(file_fd, &file_stat) < 0)
     {
         swWarn("fstat() failed. Error: %s[%d]", strerror(errno), errno);
+        close(file_fd);
         return SW_ERR;
     }
 
@@ -143,18 +144,22 @@ int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events)
         int ret = poll(event_list, n_fd, timeout_ms);
         if (ret == 0)
         {
+            sw_free(event_list);
             return SW_ERR;
         }
         else if (ret < 0 && errno != EINTR)
         {
             swWarn("poll() failed. Error: %s[%d]", strerror(errno), errno);
+            sw_free(event_list);
             return SW_ERR;
         }
         else
         {
+            sw_free(event_list);
             return ret;
         }
     }
+    sw_free(event_list);
     return SW_OK;
 }
 
@@ -290,13 +295,14 @@ int swSocket_create(int type)
     return socket(_domain, _type, 0);
 }
 
-int swSocket_bind(int sock, int type, char *host, int port)
+int swSocket_bind(int sock, int type, char *host, int *port)
 {
     int ret;
 
     struct sockaddr_in addr_in4;
     struct sockaddr_in6 addr_in6;
     struct sockaddr_un addr_un;
+    socklen_t len;
 
     //SO_REUSEADDR option
     int option = 1;
@@ -321,7 +327,7 @@ int swSocket_bind(int sock, int type, char *host, int port)
         bzero(&addr_un, sizeof(addr_un));
         unlink(host);
         addr_un.sun_family = AF_UNIX;
-        strncpy(addr_un.sun_path, host, sizeof(addr_un.sun_path));
+        strncpy(addr_un.sun_path, host, sizeof(addr_un.sun_path) - 1);
         ret = bind(sock, (struct sockaddr*) &addr_un, sizeof(addr_un));
     }
     //IPv6
@@ -329,25 +335,36 @@ int swSocket_bind(int sock, int type, char *host, int port)
     {
         bzero(&addr_in6, sizeof(addr_in6));
         inet_pton(AF_INET6, host, &(addr_in6.sin6_addr));
-        addr_in6.sin6_port = htons(port);
+        addr_in6.sin6_port = htons(*port);
         addr_in6.sin6_family = AF_INET6;
         ret = bind(sock, (struct sockaddr *) &addr_in6, sizeof(addr_in6));
+
+        len = sizeof(addr_in6);
+        if (getsockname(sock, (struct sockaddr *)&addr_in6, &len) != -1) {
+            *port = ntohs(addr_in6.sin6_port);
+        }
     }
     //IPv4
     else
     {
         bzero(&addr_in4, sizeof(addr_in4));
         inet_pton(AF_INET, host, &(addr_in4.sin_addr));
-        addr_in4.sin_port = htons(port);
+        addr_in4.sin_port = htons(*port);
         addr_in4.sin_family = AF_INET;
         ret = bind(sock, (struct sockaddr *) &addr_in4, sizeof(addr_in4));
+
+        len = sizeof(addr_in4);
+        if (getsockname(sock, (struct sockaddr *)&addr_in4, &len) != -1) {
+            *port = ntohs(addr_in4.sin_port);
+        }
     }
     //bind failed
     if (ret < 0)
     {
-        swWarn("bind(%s:%d) failed. Error: %s [%d]", host, port, strerror(errno), errno);
+        swWarn("bind(%s:%d) failed. Error: %s [%d]", host, *port, strerror(errno), errno);
         return SW_ERR;
     }
+
     return ret;
 }
 
