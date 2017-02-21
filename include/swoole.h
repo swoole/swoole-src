@@ -1877,8 +1877,6 @@ typedef struct
 
     swLock lock;
     swString *module_stack;
-    int call_php_func_argc;
-    int (*call_php_func)(const char *name);
     swHashMap *functions;
 
 } swServerG;
