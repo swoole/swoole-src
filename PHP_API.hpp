@@ -413,11 +413,19 @@ public:
     Variant operator [](int i)
     {
         zval *ret = zend_hash_index_find(Z_ARRVAL_P(ptr()), (zend_ulong) i);
+        if (ret == NULL)
+        {
+            return Variant(nullptr);
+        }
         return Variant(ret);
     }
     Variant operator [](const char *key)
     {
         zval *ret = zend_hash_str_find(Z_ARRVAL_P(ptr()), key, strlen(key));
+        if (ret == NULL)
+        {
+            return Variant(nullptr);
+        }
         return Variant(ret);
     }
     bool remove(const char *key)
