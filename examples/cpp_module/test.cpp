@@ -139,8 +139,8 @@ Variant CppClass_test2(Object &_this, Array &args)
 
 Variant cpp_hello_world(Array &args)
 {
-    printf("cpp function call\n");
-    var_dump(args);
+    //printf("cpp function call\n");
+    //var_dump(args);
     return 3.1415926;
 }
 
@@ -186,6 +186,22 @@ Variant cpp_test(Array &params)
         //把变量转为对象
         Object obj(retval);
 
+        if (obj.methodExists("hello"))
+        {
+            cout << "method [hello] exists\n";
+        }
+        if (obj.methodExists("abc"))
+        {
+            cout << "method [abc] exists\n";
+        }
+        if (obj.propertyExists("name"))
+        {
+            cout << "property [name] exists\n";
+        }
+        if (obj.propertyExists("test"))
+        {
+            cout << "property [test] exists\n";
+        }
         Array args2;
         args2.append("Get");
         args2.append("POST");

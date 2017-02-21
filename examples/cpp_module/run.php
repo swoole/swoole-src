@@ -42,16 +42,27 @@ function test2()
 
 $module = swoole_load_module(__DIR__.'/test.so');
 
-$r = cpp_hello_world(1234, 456, 789);
-var_dump($r);
+function php_hello_world()
+{
+  $arr = func_get_args();
+  return 3.1415926;
+}
 
+$r = cpp_test(1234, 456, 789);
+var_dump($r);
+return;
+
+$n = 1000000;
 $s = microtime(true);
-for($i =0; $i< 1; $i++)
+for($i =0; $i< $n; $i++)
 {
     //$ret = swoole_strerror(11);
-    $ret = cpp_test("abc", 1234, 459.55, "hello");
+    $ret = cpp_hello_world("abc", 1234, 459.55, "hello");
+    //$ret = str_pad("i", 1, "p", STR_PAD_BOTH);
 }
-echo "use ".(microtime(true) - $s)."s\n";
+$use = (microtime(true) - $s);
+echo "use ".$use."s\n";
+echo "QPS=".number_format($n/$use)."\n";
 var_dump($ret);
 
 //sleep(1000);
