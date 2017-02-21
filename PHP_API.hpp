@@ -16,11 +16,27 @@
 
 #pragma once
 
-#include "php_swoole.h"
 extern "C"
 {
-#include "ext/standard/php_var.h"
+#include "php.h"
+#include "php_ini.h"
+#include "php_globals.h"
+#include "php_main.h"
+
+#include "zend_API.h"
+#include "php_streams.h"
+#include "php_network.h"
+
+#include "zend_interfaces.h"
+#include "zend_exceptions.h"
+#include "zend_variables.h"
 #include "zend_inheritance.h"
+
+#include <ext/date/php_date.h>
+#include <ext/standard/url.h>
+#include <ext/standard/info.h>
+#include <ext/standard/php_array.h>
+#include "ext/standard/php_var.h"
 }
 
 #include <unordered_map>
@@ -223,7 +239,7 @@ public:
         {
             convert_to_boolean(ptr());
         }
-        return Z_BVAL_P(ptr()) == 1;
+        return Z_TYPE_P(ptr()) == IS_TRUE;
     }
 protected:
     bool reference;
@@ -636,7 +652,7 @@ Object create(const char *name, Array &args)
     zend_string_free(class_name);
     if (ce == NULL)
     {
-        swoole_php_error(E_WARNING, "class '%s' is undefined.", name);
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
         return object;
     }
     zval zobject;
@@ -658,7 +674,7 @@ Object create(const char *name)
     zend_string_free(class_name);
     if (ce == NULL)
     {
-        swoole_php_error(E_WARNING, "class '%s' is undefined.", name);
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
         return object;
     }
     zval zobject;
