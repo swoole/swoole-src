@@ -617,6 +617,14 @@ public:
     {
         return string(Z_OBJCE_P(ptr())->name->val, Z_OBJCE_P(ptr())->name->len);
     }
+    bool methodExists(const char *name)
+    {
+        return zend_hash_str_exists(&Z_OBJCE_P(ptr())->function_table, name, strlen(name));
+    }
+    bool propertyExists(const char *name)
+    {
+        return zend_hash_str_exists(&Z_OBJCE_P(ptr())->properties_info, name, strlen(name));
+    }
 };
 
 Object create(const char *name, Array &args)
