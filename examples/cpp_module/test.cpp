@@ -57,6 +57,8 @@ int swModule_init(swModule *module)
     PHP::registerConstant("CPP_CONSTANTS_STRING", str);
 
     printf("SWOOLE_BASE=%ld\n", PHP::constant("SWOOLE_BASE").toInt());
+    printf("swoole_table::TYPE_INT=%ld\n", PHP::constant("swoole_table::TYPE_INT").toInt());
+
 
     Class c("CppClass");
     /**

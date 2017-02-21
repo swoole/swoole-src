@@ -811,8 +811,13 @@ void registerConstant(const char *name, Variant &v)
 Variant constant(const char *name)
 {
     zend_string *_name = zend_string_init(name, strlen(name), 0);
-    Variant retval(zend_get_constant(_name));
+    zval *val = zend_get_constant_ex(_name, NULL, ZEND_FETCH_CLASS_SILENT);
     zend_string_free(_name);
+    if (val == NULL)
+    {
+        return nullptr;
+    }
+    Variant retval(val);
     return retval;
 }
 
