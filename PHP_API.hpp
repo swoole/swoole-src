@@ -20,6 +20,7 @@
 extern "C"
 {
 #include "ext/standard/php_var.h"
+#include "zend_inheritance.h"
 }
 
 #include <unordered_map>
@@ -872,12 +873,25 @@ public:
         parent_ce = zend_lookup_class(parent_class_name);
         return parent_ce != NULL;
     }
-    bool implements()
+    bool implements(const char *name)
     {
         if (activated)
         {
             return false;
         }
+        if (interfaces.find(name) != interfaces.end())
+        {
+            return false;
+        }
+        zend_string *_name = zend_string_init(name, strlen(name), 0);
+        zend_class_entry *interface_ce = zend_lookup_class(_name);
+        zend_string_free(_name);
+        if (interface_ce == NULL)
+        {
+            return false;
+        }
+        printf("name%s\n", name);
+        interfaces[name] = interface_ce;
         return true;
     }
     bool addConstant(const char *name, Variant v)
@@ -958,6 +972,13 @@ public:
             return false;
         }
         /**
+         * implements interface
+         */
+        for (auto i = interfaces.begin(); i != interfaces.end(); i++)
+        {
+            zend_do_implement_interface(ce, interfaces[i->first]);
+        }
+        /**
          * register property
          */
         for (int i = 0; i != propertys.size(); i++)
@@ -1011,6 +1032,7 @@ private:
     zend_class_entry *parent_ce;
     zend_class_entry _ce;
     zend_class_entry *ce;
+    unordered_map<string, zend_class_entry *> interfaces;
     vector<Method> methods;
     vector<Property> propertys;
     vector<Constant> constants;

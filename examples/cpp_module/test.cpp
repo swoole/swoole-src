@@ -31,8 +31,10 @@ extern "C"
 Variant cpp_hello_world(Array &args);
 Variant cpp_test(Array &params);
 Variant CppClass_construct(Object &_this, Array &args);
+
 Variant CppClass_test(Object &_this, Array &args);
 Variant CppClass_test2(Object &_this, Array &args);
+Variant CppClass_count(Object &_this, Array &args);
 
 int test_get_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 
@@ -69,6 +71,11 @@ int swModule_init(swModule *module)
      * 静态方法
      */
     c.addMethod("test", CppClass_test, STATIC);
+    /**
+     * 实现接口
+     */
+    c.implements("Countable");
+    c.addMethod("count", CppClass_count);
     /**
      * 添加默认属性
      */
@@ -135,6 +142,11 @@ Variant CppClass_test2(Object &_this, Array &args)
     //var_dump(_this);
     //var_dump(args);
     return "3.1415926";
+}
+
+Variant CppClass_count(Object &_this, Array &args)
+{
+    return 1;
 }
 
 Variant cpp_hello_world(Array &args)
