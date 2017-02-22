@@ -413,6 +413,6 @@ static PHP_METHOD(swoole_coroutine_util, resume)
 
 static PHP_METHOD(swoole_coroutine_util, getuid)
 {
-    SW_RETURN_STRINGL(COROG.uid, 20, 1);
+    RETURN_LONG(COROG.current_coro->cid);
 }
 #endif

@@ -73,12 +73,10 @@ struct _php_context
     coro_task *current_task;
     zend_vm_stack current_vm_stack;
     php_context_state state;
-    char uid[20];
 };
 
 typedef struct _coro_global
 {
-    char uid[21];
     uint32_t coro_num;
     uint32_t max_coro_num;
     zend_vm_stack origin_vm_stack;
@@ -94,7 +92,7 @@ typedef struct _coro_global
 
 struct _coro_task
 {
-    uint32_t *cid;
+    int cid;
     time_t start_time;
     void (*post_callback)(void *param);
     void *post_callback_params;
