@@ -475,6 +475,10 @@ public:
     {
         return Z_ARRVAL_P(ptr())->nNumOfElements;
     }
+    bool empty()
+    {
+        return Z_ARRVAL_P(ptr())->nNumOfElements == 0;
+    }
 };
 
 class Args
@@ -493,12 +497,16 @@ public:
     {
         return argc;
     }
+    bool empty()
+    {
+        return argc == 0;
+    }
     Array toArray()
     {
         Array array;
         for (int i = 0; i < argc; i++)
         {
-            array.append(argv[i]);
+            array.append(Variant(argv[i]));
         }
         return array;
     }
