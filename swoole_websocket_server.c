@@ -99,22 +99,44 @@ void swoole_websocket_onOpen(http_context *ctx)
     }
     conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
 
+#ifndef SW_COROUTINE
     zval *zcallback = php_swoole_server_get_callback(SwooleG.serv, conn->from_fd, SW_SERVER_CB_onOpen);
     if (zcallback)
+#else
+    zend_fcall_info_cache *cache = php_swoole_server_get_cache(SwooleG.serv, conn->from_fd, SW_SERVER_CB_onOpen);
+    if (cache)
+#endif
     {
-        zval **args[2];
         swServer *serv = SwooleG.serv;
         zval *zserv = (zval *) serv->ptr2;
         zval *zrequest_object = ctx->request.zobject;
         zval *retval = NULL;
 
+#ifndef SW_COROUTINE
+        zval **args[2];
         args[0] = &zserv;
         args[1] = &zrequest_object;
-
+#else
+        zval *args[2];
+        args[0] = zserv;
+        args[1] = zrequest_object;
+#endif
+#ifndef SW_COROUTINE
         if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0,  NULL TSRMLS_CC) == FAILURE)
         {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "onOpen handler error");
+            swoole_php_error(E_WARNING, "onOpen handler error");
         }
+#else
+        int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
+        if (ret != 0)
+        {
+            if (ret == CORO_LIMIT)
+            {
+                SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+            }
+            return;
+        }
+#endif
         if (EG(exception))
         {
             zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);

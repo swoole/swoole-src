@@ -203,11 +203,8 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
         }
     }
 #ifdef SW_COROUTINE
-    if (reactor->check_coroutine)
-    {
-        //coro timeout
-        coro_handle_timeout();
-    }
+    //coro timeout
+    coro_handle_timeout();
 #endif
     //client
     if (SwooleG.serv == NULL && SwooleG.timer.num <= 0)

@@ -1302,7 +1302,6 @@ struct _swReactor
     uint32_t max_event_num;
 
     uint32_t check_timer :1;
-    uint32_t check_coroutine :1;
 
     uint32_t running :1;
 
@@ -1885,8 +1884,6 @@ typedef struct
 
     swLock lock;
     swString *module_stack;
-    int call_php_func_argc;
-    int (*call_php_func)(const char *name);
     swHashMap *functions;
 
 } swServerG;
