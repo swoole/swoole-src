@@ -62,7 +62,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
     int cid = alloc_cidmap();
-    if (__builtin_expect(COROG.coro_num >= COROG.max_coro_num, 0) && cid != -1)
+    if (unlikely(COROG.coro_num >= COROG.max_coro_num) && unlikely(cid != -1))
     {
         swWarn("exceed max number of coro %d", COROG.coro_num);
         return CORO_LIMIT;
@@ -215,7 +215,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
 int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval, void *post_callback, void* params)
 {
     int cid = alloc_cidmap();
-    if (__builtin_expect(COROG.coro_num >= COROG.max_coro_num, 0) && cid != -1)
+    if (unlikely(COROG.coro_num >= COROG.max_coro_num) && unlikely(cid != -1))
     {
         swWarn("exceed max number of coro %d", COROG.coro_num);
         return CORO_LIMIT;
@@ -375,7 +375,6 @@ sw_inline php_context *sw_coro_save(zval *return_value, php_context *sw_current_
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retval)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-    strncpy(COROG.cid, SWCC(cid), 20);
     //free unused return value
     zval *saved_return_value = sw_current_context->current_coro_return_value_ptr;
     zend_bool unused = sw_current_context->current_execute_data->opline->result_type & EXT_TYPE_UNUSED;
