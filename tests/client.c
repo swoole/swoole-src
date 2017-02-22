@@ -10,7 +10,7 @@ void dns_callback(char *domain, swDNSResolver_result *result, void *data)
     int i;
     for (i = 0; i < result->num; i++)
     {
-        printf("ip[%d]: %s\n", i, result->host[i].address);
+        printf("ip[%d]: %s\n", i, result->hosts[i].address);
     }
     printf("private data=%s\n", (char *) data);
 }

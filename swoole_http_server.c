@@ -408,7 +408,7 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
         else if (state == 1 && *_c == ';')
         {
             vlen = i - j;
-            if (vlen >= SW_HTTP_COOKIE_KEYLEN)
+            if (vlen >= SW_HTTP_COOKIE_VALLEN)
             {
                 swWarn("cookie value is too large.");
                 return;
@@ -442,7 +442,7 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
     {
         vlen = i - j;
         keybuf[klen - 1] = 0;
-        if (vlen >= SW_HTTP_COOKIE_KEYLEN)
+        if (vlen >= SW_HTTP_COOKIE_VALLEN)
         {
             swWarn("cookie value is too large.");
             return;
@@ -1518,7 +1518,10 @@ static PHP_METHOD(swoole_http_request, __destruct)
                 continue;
             }
             unlink(Z_STRVAL_P(file_path));
-            sw_zend_hash_del(SG(rfc1867_uploaded_files), Z_STRVAL_P(file_path), Z_STRLEN_P(file_path) + 1);
+            if (SG(rfc1867_uploaded_files))
+            {
+                sw_zend_hash_del(SG(rfc1867_uploaded_files), Z_STRVAL_P(file_path), Z_STRLEN_P(file_path) + 1);
+            }
         }
         SW_HASHTABLE_FOREACH_END();
     }

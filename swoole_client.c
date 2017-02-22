@@ -1581,9 +1581,10 @@ static PHP_METHOD(swoole_client, close)
         return;
     }
 
-    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
-    if (!cli)
+    swClient *cli = swoole_get_object(getThis());
+    if (!cli || !cli->socket)
     {
+        swoole_php_fatal_error(E_WARNING, "client is not connected to server.");
         RETURN_FALSE;
     }
     if (cli->socket->closed)
