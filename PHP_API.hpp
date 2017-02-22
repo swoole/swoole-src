@@ -477,6 +477,44 @@ public:
     }
 };
 
+class Args
+{
+public:
+    Args()
+    {
+        argc = 0;
+    }
+    void append(zval *v)
+    {
+        assert(argc < MAX_ARGC);
+        argv[argc++] = v;
+    }
+    size_t count()
+    {
+        return argc;
+    }
+    Array toArray()
+    {
+        Array array;
+        for (int i = 0; i < argc; i++)
+        {
+            array.append(argv[i]);
+        }
+        return array;
+    }
+    Variant operator [](int i)
+    {
+        if (i >= argc)
+        {
+            return Variant(nullptr);
+        }
+        return Variant(argv[i], true);
+    }
+private:
+    int argc;
+    zval *argv[MAX_ARGC];
+};
+
 static inline Variant _call(zval *object, zval *func, Array &args)
 {
     Variant retval = false;
@@ -687,8 +725,8 @@ Object create(const char *name)
 }
 
 #define function(f) #f, f
-typedef Variant (*function_t)(Array &);
-typedef Variant (*method_t)(Object &, Array &);
+typedef Variant (*function_t)(Args &);
+typedef Variant (*method_t)(Object &, Args &);
 static unordered_map<string, function_t> function_map;
 static unordered_map<string, unordered_map<string, method_t> > method_map;
 
@@ -696,14 +734,14 @@ static void _exec_function(zend_execute_data *data, zval *return_value)
 {
     const char *name = data->func->common.function_name->val;
     function_t func = function_map[name];
-    Array args;
+    Args args;
 
     zval *param_ptr = ZEND_CALL_ARG(EG(current_execute_data), 1);
     int arg_count = ZEND_CALL_NUM_ARGS(EG(current_execute_data));
 
     while (arg_count-- > 0)
     {
-        args.append(Variant(param_ptr, true));
+        args.append(param_ptr);
         param_ptr++;
     }
     Variant retval = func(args);
@@ -717,7 +755,7 @@ static void _exec_method(zend_execute_data *data, zval *return_value)
     const char *class_name = data->func->common.scope->name->val;
 
     method_t func = method_map[class_name][method_name];
-    Array args;
+    Args args;
 
     Object _this(&data->This, true);
 
@@ -726,7 +764,7 @@ static void _exec_method(zend_execute_data *data, zval *return_value)
 
     while (arg_count-- > 0)
     {
-        args.append(Variant(param_ptr, true));
+        args.append(param_ptr);
         param_ptr++;
     }
     Variant retval = func(_this, args);
@@ -734,10 +772,12 @@ static void _exec_method(zend_execute_data *data, zval *return_value)
     return;
 }
 
+typedef struct _zend_internal_arg_info ArgInfo;
+
 void registerFunction(const char *name, function_t func)
 {
     zend_function_entry functions[] = {
-        {name, _exec_function, NULL, (uint32_t) (sizeof(void*) / sizeof(struct _zend_internal_arg_info) - 1), 0 },
+        {name, _exec_function, NULL, 0, 0},
         {NULL, NULL, NULL,}
     };
     if (zend_register_functions(NULL, functions, NULL, MODULE_PERSISTENT) == SUCCESS)

@@ -28,13 +28,13 @@ extern "C"
     int swModule_init(swModule *);
 }
 
-Variant cpp_hello_world(Array &args);
-Variant cpp_test(Array &params);
-Variant CppClass_construct(Object &_this, Array &args);
+Variant cpp_hello_world(Args &args);
+Variant cpp_test(Args &params);
+Variant CppClass_construct(Object &_this, Args &args);
 
-Variant CppClass_test(Object &_this, Array &args);
-Variant CppClass_test2(Object &_this, Array &args);
-Variant CppClass_count(Object &_this, Array &args);
+Variant CppClass_test(Object &_this, Args &args);
+Variant CppClass_test2(Object &_this, Args &args);
+Variant CppClass_count(Object &_this, Args &args);
 
 int test_get_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 
@@ -120,7 +120,7 @@ void testRedis()
     printf("value=%s\n", ret2.toCString());
 }
 
-Variant CppClass_construct(Object &_this, Array &args)
+Variant CppClass_construct(Object &_this, Args &args)
 {
     printf("%s _construct\n", _this.getClassName().c_str());
     Array arr;
@@ -129,7 +129,7 @@ Variant CppClass_construct(Object &_this, Array &args)
     return nullptr;
 }
 
-Variant CppClass_test(Object &_this, Array &args)
+Variant CppClass_test(Object &_this, Args &args)
 {
     printf("CppClass static method call\n");
     //静态方法, _this为null
@@ -138,7 +138,7 @@ Variant CppClass_test(Object &_this, Array &args)
     return "3.1415926";
 }
 
-Variant CppClass_test2(Object &_this, Array &args)
+Variant CppClass_test2(Object &_this, Args &args)
 {
     printf("CppClass method call\n");
     //var_dump(_this);
@@ -146,12 +146,12 @@ Variant CppClass_test2(Object &_this, Array &args)
     return "3.1415926";
 }
 
-Variant CppClass_count(Object &_this, Array &args)
+Variant CppClass_count(Object &_this, Args &args)
 {
     return 1;
 }
 
-Variant cpp_hello_world(Array &args)
+Variant cpp_hello_world(Args &args)
 {
     //printf("cpp function call\n");
     //var_dump(args);
@@ -162,7 +162,7 @@ Variant cpp_hello_world(Array &args)
  * $module = swoole_load_module(__DIR__.'/test.so');
  * cpp_test("abc", 1234, 459.55, "hello");
  */
-Variant cpp_test(Array &params)
+Variant cpp_test(Args &params)
 {
     printf("key[0] = %s\n", params[0].toCString());
     printf("key[1] = %ld\n", params[1].toInt());
