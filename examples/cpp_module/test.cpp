@@ -47,11 +47,11 @@ int swModule_init(swModule *module)
     PHP::registerFunction(function(cpp_test));
     PHP::registerConstant("CPP_CONSTANTS_INT", 1234);
 
-    Array args;
-    args.append("127.0.0.1");
-    args.append(6379);
+    Array array;
+    array.append("127.0.0.1");
+    array.append(6379);
 
-    PHP::registerConstant("CPP_CONSTANTS_ARRAY", args);
+    PHP::registerConstant("CPP_CONSTANTS_ARRAY", array);
 
     string str("test");
     PHP::registerConstant("CPP_CONSTANTS_STRING", str);
@@ -167,19 +167,21 @@ Variant cpp_test(Args &params)
     printf("key[0] = %s\n", params[0].toCString());
     printf("key[1] = %ld\n", params[1].toInt());
     printf("key[2] = %f\n", params[2].toFloat());
-    printf("key[3] = %s\n", params[3].toCString());
-
+    if (params.count() == 4)
+    {
+        printf("key[3] = %s\n", params[3].toCString());
+    }
     /**
      * 调用PHP代码中的test2函数
      */
-    Array args;
-    args.append(1234);
-    args.append(1234.56);
-    args.append(Variant());
-    args.append("123456789");
-    args.append("tianfenghan");
+    Array array;
+    array.append(1234);
+    array.append(1234.56);
+    array.append(Variant());
+    array.append("123456789");
+    array.append("tianfenghan");
 
-    Variant retval = PHP::call("test2", args);
+    Variant retval = PHP::call("test2", array);
     /**
      * test2函数返回了数组
      */
@@ -219,7 +221,7 @@ Variant cpp_test(Args &params)
         Array args2;
         args2.append("Get");
         args2.append("POST");
-        args2.append(args);
+        args2.append(array);
 
         Array map;
         map.set("myname", "rango");
