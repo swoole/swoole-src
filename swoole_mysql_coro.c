@@ -292,22 +292,22 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     {
         if (SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, PHP_SWOOLE_FD_MYSQL | SW_EVENT_WRITE) < 0)
         {
-			efree(cli);
+            efree(cli);
             sw_zval_ptr_dtor(&server_info);
             RETURN_FALSE;
         }
     }
     else
     {
-		efree(cli);
+        efree(cli);
         snprintf(buf, sizeof(buf), "connect to mysql server[%s:%d] failed.", connector->host, connector->port);
-        zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, buf, 2 TSRMLS_CC);
         sw_zval_ptr_dtor(&server_info);
+        zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, buf, 2 TSRMLS_CC);
         RETURN_FALSE;
     }
 
     zend_update_property(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("serverInfo"), server_info TSRMLS_CC);
-        sw_zval_ptr_dtor(&server_info);
+    sw_zval_ptr_dtor(&server_info);
 	zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("sock"), cli->socket->fd TSRMLS_CC);
 
 	if (!client->buffer)
