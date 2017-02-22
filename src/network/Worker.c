@@ -405,13 +405,6 @@ void swWorker_onStart(swServer *serv)
         }
     }
 
-#ifdef SW_COROUTINE
-    if (SwooleG.main_reactor)
-    {
-        SwooleG.main_reactor->check_coroutine = 1;
-    }
-#endif
-
     if (serv->onWorkerStart)
     {
         serv->onWorkerStart(serv, SwooleWG.id);
