@@ -124,11 +124,11 @@ public:
     }
     void operator =(int v)
     {
-        ZVAL_LONG(&val, (long )v);
+        ZVAL_LONG(ptr(), (long )v);
     }
     void operator =(long v)
     {
-        ZVAL_LONG(&val, v);
+        ZVAL_LONG(ptr(), v);
     }
     void operator =(string &str)
     {
@@ -163,43 +163,43 @@ public:
     }
     inline int type()
     {
-        return Z_TYPE(val);
+        return Z_TYPE_P(ptr());
     }
     inline bool isString()
     {
-        return Z_TYPE(val) == IS_STRING;
+        return Z_TYPE_P(ptr()) == IS_STRING;
     }
     inline bool isArray()
     {
-        return Z_TYPE(val) == IS_ARRAY;
+        return Z_TYPE_P(ptr()) == IS_ARRAY;
     }
     inline bool isObject()
     {
-        return Z_TYPE(val) == IS_OBJECT;
+        return Z_TYPE_P(ptr()) == IS_OBJECT;
     }
     inline bool isInt()
     {
-        return Z_TYPE(val) == IS_LONG;
+        return Z_TYPE_P(ptr()) == IS_LONG;
     }
     inline bool isFloat()
     {
-        return Z_TYPE(val) == IS_DOUBLE;
+        return Z_TYPE_P(ptr()) == IS_DOUBLE;
     }
     inline bool isBool()
     {
-        return Z_TYPE(val) == IS_TRUE || Z_TYPE(val) == IS_FALSE;
+        return Z_TYPE_P(ptr()) == IS_TRUE || Z_TYPE_P(ptr()) == IS_FALSE;
     }
     inline bool isNull()
     {
-        return Z_TYPE(val) == IS_NULL;
+        return Z_TYPE_P(ptr()) == IS_NULL;
     }
     inline bool isResource()
     {
-        return Z_TYPE(val) == IS_RESOURCE;
+        return Z_TYPE_P(ptr()) == IS_RESOURCE;
     }
     inline bool isReference()
     {
-        return Z_TYPE(val) == IS_REFERENCE;
+        return Z_TYPE_P(ptr()) == IS_REFERENCE;
     }
     inline string toString()
     {
@@ -793,6 +793,7 @@ void registerFunction(const char *name, function_t func)
         function_map[name] = func;
     }
 }
+
 void registerConstant(const char *name, long v)
 {
     zend_constant c;
