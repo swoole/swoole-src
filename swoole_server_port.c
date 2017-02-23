@@ -485,6 +485,10 @@ static PHP_METHOD(swoole_server_port, on)
             {
                 SwooleG.serv->onConnect = php_swoole_onConnect;
             }
+            else if (i == SW_SERVER_CB_onPacket && SwooleG.serv->onPacket == NULL)
+            {
+                SwooleG.serv->onPacket = php_swoole_onPacket;
+            }
             else if (i == SW_SERVER_CB_onClose && SwooleG.serv->onClose == NULL)
             {
                 SwooleG.serv->onClose = php_swoole_onClose;

@@ -47,9 +47,6 @@ static int php_swoole_task_finish(swServer *serv, zval *data TSRMLS_DC);
 static void php_swoole_onPipeMessage(swServer *serv, swEventData *req);
 static void php_swoole_onStart(swServer *);
 static void php_swoole_onShutdown(swServer *);
-
-static int php_swoole_onPacket(swServer *, swEventData *);
-
 static void php_swoole_onWorkerStart(swServer *, int worker_id);
 static void php_swoole_onWorkerStop(swServer *, int worker_id);
 static void php_swoole_onUserWorkerStart(swServer *serv, swWorker *worker);
@@ -676,7 +673,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     return SW_OK;
 }
 
-static int php_swoole_onPacket(swServer *serv, swEventData *req)
+int php_swoole_onPacket(swServer *serv, swEventData *req)
 {
     zval *zserv = (zval *) serv->ptr2;
     zval **args[3];
