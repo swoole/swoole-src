@@ -210,7 +210,7 @@ int swTimer_select(swTimer *timer)
         swHeap_pop(timer->heap);
     }
 
-    if (!tnode)
+    if (!tnode || !tmp)
     {
         timer->_next_msec = -1;
         timer->set(timer, -1);

@@ -513,6 +513,7 @@ sw_inline void coro_yield()
 sw_inline void coro_handle_timeout()
 {
     swLinkedList *timeout_list = SwooleWG.coro_timeout_list;
+    swTimer_node *tnode = NULL;
     if (timeout_list != NULL && timeout_list->num > 0)
     {
 		php_context *cxt = (php_context *)swLinkedList_pop(timeout_list);
@@ -536,7 +537,7 @@ sw_inline void coro_handle_timeout()
 			else
 			{
 				context->state = SW_CORO_CONTEXT_RUNNING;
-				swTimer_node *tnode = swTimer_add(&SwooleG.timer, scc->ms, 0, scc);
+				tnode = swTimer_add(&SwooleG.timer, scc->ms, 0, scc);
 
 				if (tnode == NULL)
 				{
@@ -553,8 +554,6 @@ sw_inline void coro_handle_timeout()
 			scc = (swTimer_coro_callback *)swLinkedList_pop(timeout_list);
 		}
 	}
-
-	SwooleG.main_reactor->timeout_msec = SwooleG.timer.num == 0 ? -1 : 100;
 }
 #endif
 
