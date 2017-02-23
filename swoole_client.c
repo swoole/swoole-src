@@ -1764,15 +1764,15 @@ static PHP_METHOD(swoole_client, enableSSL)
         swoole_php_fatal_error(E_WARNING, "SSL has been enabled.");
         RETURN_FALSE;
     }
-    if (swClient_enable_ssl_encrypt(cli) < 0)
-    {
-        RETURN_FALSE;
-    }
     cli->open_ssl = 1;
     zval *zset = sw_zend_read_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zset && !ZVAL_IS_NULL(zset))
     {
         client_check_ssl_setting(cli, zset TSRMLS_CC);
+    }
+    if (swClient_enable_ssl_encrypt(cli) < 0)
+    {
+        RETURN_FALSE;
     }
     if (cli->async)
     {
