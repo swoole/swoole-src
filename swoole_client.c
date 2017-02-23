@@ -400,7 +400,7 @@ static void client_onBufferEmpty(swClient *cli)
 #ifdef SW_USE_OPENSSL
 static void client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC)
 {
-    HashTable *vht;
+    HashTable *vht = Z_ARRVAL_P(zset);
     zval *v;
 
     if (php_swoole_array_get_value(vht, "ssl_method", v))
