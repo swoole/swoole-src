@@ -59,7 +59,6 @@ int swModule_init(swModule *module)
     printf("SWOOLE_BASE=%ld\n", PHP::constant("SWOOLE_BASE").toInt());
     printf("swoole_table::TYPE_INT=%ld\n", PHP::constant("swoole_table::TYPE_INT").toInt());
 
-
     Class c("CppClass");
     /**
      * 注册构造方法
@@ -90,8 +89,11 @@ int swModule_init(swModule *module)
      * 读取全局变量
      */
     Variant server = PHP::getGlobalVariant("_SERVER");
-    Variant shell = Array(server)["SHELL"];
-    var_dump(shell);
+    if (server.isArray())
+    {
+      Variant shell = Array(server)["SHELL"];
+      var_dump(shell);
+    }
     /**
      * 激活类
      */
@@ -108,6 +110,7 @@ int test_get_length(swProtocol *protocol, swConnection *conn, char *data, uint32
 
 void testRedis()
 {
+    cout << "=====================Test Redis==================\n";
     Object redis = PHP::create("redis");
     Array args;
     args.append("127.0.0.1");
