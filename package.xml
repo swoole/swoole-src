@@ -47,13 +47,13 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
--Added swoole_mysql::escape method to escape special characters in SQL statements
--Added support for openssl-1.1
--Fixed timer crash when more than 10,000 timers were added
--Added swoole_serialize module, PHP7 under high performance serialization library
--Fixed swoole_client->enableSSL method ssl_cert_file and ssl_key_file invalid parameters
--Added swoole_http_server support for POST multi-level KEY
--Fixed listening on UDP port setting onPacket invalid issue
+- Added swoole_mysql::escape method to escape special characters in SQL statements
+- Added support for openssl-1.1
+- Fixed timer crash when more than 10,000 timers were added
+- Added swoole_serialize module, PHP7 under high performance serialization library
+- Fixed swoole_client->enableSSL method ssl_cert_file and ssl_key_file invalid parameters
+- Added swoole_http_server support for POST multi-level KEY
+- Fixed listening on UDP port setting onPacket invalid issue
     </notes>
 	<contents>
 		<dir name="/">

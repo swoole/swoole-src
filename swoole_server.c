@@ -1481,7 +1481,7 @@ PHP_METHOD(swoole_server, set)
             swoole_php_fatal_error(E_ERROR, "extension module function '%s' is undefined.", Z_STRVAL_P(v));
             return;
         }
-        serv->dispatch_mode = 0;
+        serv->dispatch_mode = SW_DISPATCH_USERFUNC;
         serv->dispatch_func = func;
     }
     //log_file

@@ -37,11 +37,13 @@ Variant CppClass_test2(Object &_this, Args &args);
 Variant CppClass_count(Object &_this, Args &args);
 
 int test_get_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
+int dispatch_function(swServer *serv, swConnection *conn, swEventData *data);
 
 int swModule_init(swModule *module)
 {
     module->name = (char *) "test";
     swModule_register_global_function((char *) "test_get_length", (void *) test_get_length);
+    swModule_register_global_function((char *) "my_dispatch_function", (void *) dispatch_function);
 
     PHP::registerFunction(function(cpp_hello_world));
     PHP::registerFunction(function(cpp_test));
@@ -106,6 +108,12 @@ int test_get_length(swProtocol *protocol, swConnection *conn, char *data, uint32
 {
     printf("cpp, size=%d\n", length);
     return 100;
+}
+
+int dispatch_function(swServer *serv, swConnection *conn, swEventData *data)
+{
+    printf("cpp, type=%d, size=%d\n", data->info.type, data->info.len);
+    return data->info.len % serv->worker_num;
 }
 
 void testRedis()
