@@ -859,7 +859,6 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
 				return SW_OK;
 			}
 			client->_defer = 0;
-			client->iowait = SW_MYSQL_CORO_STATUS_READY;
 			php_context *sw_current_context = swoole_get_property(zobject, 0);
 			ret = coro_resume(sw_current_context, result, &retval);
 			sw_zval_free(result);
