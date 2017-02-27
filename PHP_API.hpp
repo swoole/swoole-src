@@ -241,7 +241,7 @@ public:
         }
         return Z_TYPE_P(ptr()) == IS_TRUE;
     }
-    inline int len()
+    inline int length()
     {
         if (!isString())
         {
