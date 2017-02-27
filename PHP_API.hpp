@@ -241,6 +241,14 @@ public:
         }
         return Z_TYPE_P(ptr()) == IS_TRUE;
     }
+    inline int len()
+    {
+        if (!isString())
+        {
+            convert_to_string(ptr());
+        }
+        return Z_STRLEN_P(ptr());
+    }
 protected:
     bool reference;
     zval *ref_val;
