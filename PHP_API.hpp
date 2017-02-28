@@ -37,6 +37,10 @@ extern "C"
 #include <ext/standard/info.h>
 #include <ext/standard/php_array.h>
 #include "ext/standard/php_var.h"
+
+#if PHP_MAJOR_VERSION < 7
+#error "only supports PHP7 or later."
+#endif
 }
 
 #include <unordered_map>
@@ -399,8 +403,10 @@ public:
     }
     void append(Array &v)
     {
-        zval_add_ref(v.ptr());
-        add_next_index_zval(ptr(), v.ptr());
+        zend_array *arr = zend_array_dup(Z_ARR_P(v.ptr()));
+        zval array;
+        ZVAL_ARR(&array, arr);
+        add_next_index_zval(ptr(), &array);
     }
     //------------------------------------
     void set(const char *key, Variant &v)
