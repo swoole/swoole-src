@@ -134,6 +134,21 @@ AC_COMPILE_IFELSE([
 )
 AC_MSG_RESULT([$CLANG])
 
+AC_MSG_CHECKING([if compiling with low version gcc.])
+AC_COMPILE_IFELSE([
+    AC_LANG_PROGRAM([], [[
+        #if defined(__GNUC__) && ((__GNUC__ <= 4 && __GNUC_MINOR__ < 8))
+        #error "low version gcc."
+        #endif
+    ]])],
+    [GCC_LOW_VERSION=no], [GCC_LOW_VERSION=yes]
+)
+AC_MSG_RESULT([$GCC_LOW_VERSION])
+
+if test "$GCC_LOW_VERSION" = "yes"; then
+    CFLAGS="$CFLAGS -fno-strict-aliasing"
+fi
+
 if test "$CLANG" = "yes"; then
     CFLAGS="$CFLAGS -std=gnu89"
 fi
