@@ -142,7 +142,16 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
         {
             if (serv->dispatch_mode == SW_DISPATCH_USERFUNC)
             {
-                target_worker_id = serv->dispatch_func(serv, swServer_connection_get(serv, fd), &task->data);
+                int ret = serv->dispatch_func(serv, swServer_connection_get(serv, fd), &task->data);
+                //discard the data packet.
+                if (ret < 0)
+                {
+                    return SW_OK;
+                }
+                else
+                {
+                    target_worker_id = ret;
+                }
             }
             else
             {
