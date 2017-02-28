@@ -1362,11 +1362,6 @@ PHP_METHOD(swoole_server, __construct)
 
     if (serv_port == 0 && strcasecmp(serv_host, "SYSTEMD") == 0)
     {
-        sock_type = SW_SOCK_SYSTEMD;
-    }
-
-    if (sock_type == SW_SOCK_SYSTEMD)
-    {
         if (swserver_add_systemd_socket(serv) <= 0)
         {
             swoole_php_fatal_error(E_ERROR, "add systemd socket failed.");

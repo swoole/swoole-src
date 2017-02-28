@@ -245,7 +245,6 @@ enum swSocket_type
     SW_SOCK_UDP6         =  4,
     SW_SOCK_UNIX_DGRAM   =  5,  //unix sock dgram
     SW_SOCK_UNIX_STREAM  =  6,  //unix sock stream
-    SW_SOCK_SYSTEMD      =  7,  //systemd socket
 };
 
 #define SW_SOCK_SSL            (1u << 9)
