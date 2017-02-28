@@ -1145,12 +1145,17 @@ int swserver_add_systemd_socket(swServer *serv)
         }
         sock_type = val;
         //get socket family
+#ifndef SO_DOMAIN
+        swWarn("no getsockopt(SO_DOMAIN) supports.");
+        return count;
+#else
         optlen = sizeof(val);
         if (getsockopt(sock, SOL_SOCKET, SO_DOMAIN, &val, &optlen) < 0)
         {
             swWarn("getsockopt(%d, SOL_SOCKET, SO_DOMAIN) failed.", sock);
             return count;
         }
+#endif
         sock_family = val;
         //get address info
         address.len = sizeof(address.addr);
