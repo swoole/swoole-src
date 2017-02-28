@@ -1360,11 +1360,22 @@ PHP_METHOD(swoole_server, __construct)
 
     bzero(php_sw_server_callbacks, sizeof (zval*) * PHP_SERVER_CALLBACK_NUM);
 
-    swListenPort *port = swServer_add_port(serv, sock_type, serv_host, serv_port);
-    if (!port)
+    if (sock_type == SW_SOCK_SYSTEMD)
     {
-        swoole_php_fatal_error(E_ERROR, "listen server port failed.");
-        return;
+        if (swserver_add_systemd_socket(serv) <= 0)
+        {
+            swoole_php_fatal_error(E_ERROR, "no any systemd listen port.");
+            return;
+        }
+    }
+    else
+    {
+        swListenPort *port = swServer_add_port(serv, sock_type, serv_host, serv_port);
+        if (!port)
+        {
+            swoole_php_fatal_error(E_ERROR, "listen server port failed.");
+            return;
+        }
     }
 
     zval *server_object = getThis();
@@ -1377,7 +1388,7 @@ PHP_METHOD(swoole_server, __construct)
 #endif
 
     zend_update_property_stringl(swoole_server_class_entry_ptr, server_object, ZEND_STRL("host"), serv_host, host_len TSRMLS_CC);
-    zend_update_property_long(swoole_server_class_entry_ptr, server_object, ZEND_STRL("port"), (long) port->port TSRMLS_CC);
+    zend_update_property_long(swoole_server_class_entry_ptr, server_object, ZEND_STRL("port"), (long) serv->listen_list->port TSRMLS_CC);
     zend_update_property_long(swoole_server_class_entry_ptr, server_object, ZEND_STRL("mode"), serv->factory_mode TSRMLS_CC);
     zend_update_property_long(swoole_server_class_entry_ptr, server_object, ZEND_STRL("type"), sock_type TSRMLS_CC);
     swoole_set_object(server_object, serv);
@@ -1388,7 +1399,11 @@ PHP_METHOD(swoole_server, __construct)
     zend_update_property(swoole_server_class_entry_ptr, server_object, ZEND_STRL("ports"), ports TSRMLS_CC);
     server_port_list.zports = ports;
 
-    php_swoole_server_add_port(port TSRMLS_CC);
+    swListenPort *ls;
+    LL_FOREACH(serv->listen_list, ls)
+    {
+        php_swoole_server_add_port(ls TSRMLS_CC);
+    }
 }
 
 PHP_METHOD(swoole_server, set)

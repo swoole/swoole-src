@@ -529,6 +529,7 @@ int swServer_start(swServer *serv);
 swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port);
 void swServer_close_port(swServer *serv, enum swBool_type only_stream_port);
 int swServer_add_worker(swServer *serv, swWorker *worker);
+int swserver_add_systemd_socket(swServer *serv);
 
 int swServer_create(swServer *serv);
 int swServer_free(swServer *serv);
