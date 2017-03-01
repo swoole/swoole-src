@@ -37,11 +37,13 @@ Variant CppClass_test2(Object &_this, Args &args);
 Variant CppClass_count(Object &_this, Args &args);
 
 int test_get_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
+int dispatch_function(swServer *serv, swConnection *conn, swEventData *data);
 
 int swModule_init(swModule *module)
 {
     module->name = (char *) "test";
     swModule_register_global_function((char *) "test_get_length", (void *) test_get_length);
+    swModule_register_global_function((char *) "my_dispatch_function", (void *) dispatch_function);
 
     PHP::registerFunction(function(cpp_hello_world));
     PHP::registerFunction(function(cpp_test));
@@ -58,7 +60,6 @@ int swModule_init(swModule *module)
 
     printf("SWOOLE_BASE=%ld\n", PHP::constant("SWOOLE_BASE").toInt());
     printf("swoole_table::TYPE_INT=%ld\n", PHP::constant("swoole_table::TYPE_INT").toInt());
-
 
     Class c("CppClass");
     /**
@@ -90,8 +91,11 @@ int swModule_init(swModule *module)
      * 读取全局变量
      */
     Variant server = PHP::getGlobalVariant("_SERVER");
-    Variant shell = Array(server)["SHELL"];
-    var_dump(shell);
+    if (server.isArray())
+    {
+      Variant shell = Array(server)["SHELL"];
+      var_dump(shell);
+    }
     /**
      * 激活类
      */
@@ -106,8 +110,15 @@ int test_get_length(swProtocol *protocol, swConnection *conn, char *data, uint32
     return 100;
 }
 
+int dispatch_function(swServer *serv, swConnection *conn, swEventData *data)
+{
+    printf("cpp, type=%d, size=%d\n", data->info.type, data->info.len);
+    return data->info.len % serv->worker_num;
+}
+
 void testRedis()
 {
+    cout << "=====================Test Redis==================\n";
     Object redis = PHP::create("redis");
     Array args;
     args.append("127.0.0.1");

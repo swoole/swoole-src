@@ -285,7 +285,7 @@ typedef struct _swRequest
     void *object;
 } swRequest;
 
-typedef int (*swServer_dispatch_function)(swServer *, swConnection *, char *, uint32_t);
+typedef int (*swServer_dispatch_function)(swServer *, swConnection *, swEventData *);
 
 int swFactory_create(swFactory *factory);
 int swFactory_start(swFactory *factory);
@@ -491,7 +491,7 @@ struct _swServer
     int (*sendfile)(swServer *serv, int fd, char *filename, uint32_t length, off_t offset);
     int (*sendwait)(swServer *serv, int fd, void *data, uint32_t length);
     int (*close)(swServer *serv, int fd, int reset);
-    int (*dispatch_func)(swServer *, swConnection *, char *, uint32_t);
+    int (*dispatch_func)(swServer *, swConnection *, swEventData *);
 };
 
 typedef struct _swSocketLocal
@@ -529,6 +529,7 @@ int swServer_start(swServer *serv);
 swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port);
 void swServer_close_port(swServer *serv, enum swBool_type only_stream_port);
 int swServer_add_worker(swServer *serv, swWorker *worker);
+int swserver_add_systemd_socket(swServer *serv);
 
 int swServer_create(swServer *serv);
 int swServer_free(swServer *serv);

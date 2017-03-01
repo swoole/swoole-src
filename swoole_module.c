@@ -29,6 +29,8 @@ void swoole_module_init(int module_number TSRMLS_DC)
     SWOOLE_CLASS_ALIAS(swoole_module, "Swoole\\Module");
 }
 
+static zval *loaded_modules = NULL;
+
 PHP_FUNCTION(swoole_load_module)
 {
     char *name;
@@ -38,11 +40,21 @@ PHP_FUNCTION(swoole_load_module)
     {
         return;
     }
-    if (access(name, R_OK) < 0)
+
+    if (loaded_modules == NULL)
     {
-        swoole_php_error(E_WARNING, "file[%s] not found.", name);
-        RETURN_FALSE;
+        SW_ALLOC_INIT_ZVAL(loaded_modules);
+        array_init(loaded_modules);
     }
+    else
+    {
+        zval *value;
+        if (sw_zend_hash_find(Z_ARRVAL_P(loaded_modules), name, len + 1, (void **) &value) == SUCCESS)
+        {
+            RETURN_ZVAL(value, 1, 0);
+        }
+    }
+
     swModule *module = swModule_load(name);
     if (module == NULL)
     {
@@ -50,4 +62,5 @@ PHP_FUNCTION(swoole_load_module)
     }
     object_init_ex(return_value, swoole_module_class_entry_ptr);
     swoole_set_object(return_value, module);
+    sw_zend_hash_update(Z_ARRVAL_P(loaded_modules), name, len + 1, return_value, sizeof(return_value), NULL);
 }

@@ -89,6 +89,9 @@ static void client_onClose(swClient *cli);
 static void client_onError(swClient *cli);
 static void client_onBufferFull(swClient *cli);
 static void client_onBufferEmpty(swClient *cli);
+#ifdef SW_USE_OPENSSL
+static void client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC);
+#endif
 
 static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_client_callback_type type)
 {
@@ -394,6 +397,50 @@ static void client_onBufferEmpty(swClient *cli)
     client_execute_callback(zobject, SW_CLIENT_CB_onBufferEmpty);
 }
 
+#ifdef SW_USE_OPENSSL
+static void client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC)
+{
+    HashTable *vht = Z_ARRVAL_P(zset);
+    zval *v;
+
+    if (php_swoole_array_get_value(vht, "ssl_method", v))
+    {
+        convert_to_long(v);
+        cli->ssl_method = (int) Z_LVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "ssl_compress", v))
+    {
+        convert_to_boolean(v);
+        cli->ssl_disable_compress = !Z_BVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "ssl_cert_file", v))
+    {
+        convert_to_string(v);
+        cli->ssl_cert_file = strdup(Z_STRVAL_P(v));
+        if (access(cli->ssl_cert_file, R_OK) < 0)
+        {
+            swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", cli->ssl_cert_file);
+            return;
+        }
+    }
+    if (php_swoole_array_get_value(vht, "ssl_key_file", v))
+    {
+        convert_to_string(v);
+        cli->ssl_key_file = strdup(Z_STRVAL_P(v));
+        if (access(cli->ssl_key_file, R_OK) < 0)
+        {
+            swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", cli->ssl_key_file);
+            return;
+        }
+    }
+    if (cli->ssl_cert_file && !cli->ssl_key_file)
+    {
+        swoole_php_fatal_error(E_ERROR, "ssl require key file.");
+        return;
+    }
+}
+#endif
+
 void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
 {
     HashTable *vht;
@@ -607,41 +654,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
 #ifdef SW_USE_OPENSSL
     if (cli->open_ssl)
     {
-        if (php_swoole_array_get_value(vht, "ssl_method", v))
-        {
-            convert_to_long(v);
-            cli->ssl_method = (int) Z_LVAL_P(v);
-        }
-        if (php_swoole_array_get_value(vht, "ssl_compress", v))
-        {
-            convert_to_boolean(v);
-            cli->ssl_disable_compress = !Z_BVAL_P(v);
-        }
-        if (php_swoole_array_get_value(vht, "ssl_cert_file", v))
-        {
-            convert_to_string(v);
-            cli->ssl_cert_file = strdup(Z_STRVAL_P(v));
-            if (access(cli->ssl_cert_file, R_OK) < 0)
-            {
-                swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", cli->ssl_cert_file);
-                return;
-            }
-        }
-        if (php_swoole_array_get_value(vht, "ssl_key_file", v))
-        {
-            convert_to_string(v);
-            cli->ssl_key_file = strdup(Z_STRVAL_P(v));
-            if (access(cli->ssl_key_file, R_OK) < 0)
-            {
-                swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", cli->ssl_key_file);
-                return;
-            }
-        }
-        if (cli->ssl_cert_file && !cli->ssl_key_file)
-        {
-            swoole_php_fatal_error(E_ERROR, "ssl require key file.");
-            return;
-        }
+        client_check_ssl_setting(cli, zset TSRMLS_CC);
     }
 #endif
 }
@@ -1751,11 +1764,16 @@ static PHP_METHOD(swoole_client, enableSSL)
         swoole_php_fatal_error(E_WARNING, "SSL has been enabled.");
         RETURN_FALSE;
     }
+    cli->open_ssl = 1;
+    zval *zset = sw_zend_read_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
+    if (zset && !ZVAL_IS_NULL(zset))
+    {
+        client_check_ssl_setting(cli, zset TSRMLS_CC);
+    }
     if (swClient_enable_ssl_encrypt(cli) < 0)
     {
         RETURN_FALSE;
     }
-    cli->open_ssl = 1;
     if (cli->async)
     {
         zval *zcallback;

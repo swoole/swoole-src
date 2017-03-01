@@ -54,9 +54,6 @@ static int php_swoole_task_finish(swServer *serv, zval *data TSRMLS_DC);
 static void php_swoole_onPipeMessage(swServer *serv, swEventData *req);
 static void php_swoole_onStart(swServer *);
 static void php_swoole_onShutdown(swServer *);
-
-static int php_swoole_onPacket(swServer *, swEventData *);
-
 static void php_swoole_onWorkerStart(swServer *, int worker_id);
 static void php_swoole_onWorkerStop(swServer *, int worker_id);
 static void php_swoole_onUserWorkerStart(swServer *serv, swWorker *worker);
@@ -716,7 +713,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     return SW_OK;
 }
 
-static int php_swoole_onPacket(swServer *serv, swEventData *req)
+int php_swoole_onPacket(swServer *serv, swEventData *req)
 {
     zval *zserv = (zval *) serv->ptr2;
 
@@ -1464,11 +1461,22 @@ PHP_METHOD(swoole_server, __construct)
 
     bzero(php_sw_server_callbacks, sizeof (zval*) * PHP_SERVER_CALLBACK_NUM);
 
-    swListenPort *port = swServer_add_port(serv, sock_type, serv_host, serv_port);
-    if (!port)
+    if (serv_port == 0 && strcasecmp(serv_host, "SYSTEMD") == 0)
     {
-        swoole_php_fatal_error(E_ERROR, "listen server port failed.");
-        return;
+        if (swserver_add_systemd_socket(serv) <= 0)
+        {
+            swoole_php_fatal_error(E_ERROR, "add systemd socket failed.");
+            return;
+        }
+    }
+    else
+    {
+        swListenPort *port = swServer_add_port(serv, sock_type, serv_host, serv_port);
+        if (!port)
+        {
+            swoole_php_fatal_error(E_ERROR, "listen server port failed.");
+            return;
+        }
     }
 
     zval *server_object = getThis();
@@ -1481,7 +1489,7 @@ PHP_METHOD(swoole_server, __construct)
 #endif
 
     zend_update_property_stringl(swoole_server_class_entry_ptr, server_object, ZEND_STRL("host"), serv_host, host_len TSRMLS_CC);
-    zend_update_property_long(swoole_server_class_entry_ptr, server_object, ZEND_STRL("port"), (long) port->port TSRMLS_CC);
+    zend_update_property_long(swoole_server_class_entry_ptr, server_object, ZEND_STRL("port"), (long) serv->listen_list->port TSRMLS_CC);
     zend_update_property_long(swoole_server_class_entry_ptr, server_object, ZEND_STRL("mode"), serv->factory_mode TSRMLS_CC);
     zend_update_property_long(swoole_server_class_entry_ptr, server_object, ZEND_STRL("type"), sock_type TSRMLS_CC);
     swoole_set_object(server_object, serv);
@@ -1492,7 +1500,11 @@ PHP_METHOD(swoole_server, __construct)
     zend_update_property(swoole_server_class_entry_ptr, server_object, ZEND_STRL("ports"), ports TSRMLS_CC);
     server_port_list.zports = ports;
 
-    php_swoole_server_add_port(port TSRMLS_CC);
+    swListenPort *ls;
+    LL_FOREACH(serv->listen_list, ls)
+    {
+        php_swoole_server_add_port(ls TSRMLS_CC);
+    }
 }
 
 PHP_METHOD(swoole_server, set)
@@ -1596,7 +1608,7 @@ PHP_METHOD(swoole_server, set)
             swoole_php_fatal_error(E_ERROR, "extension module function '%s' is undefined.", Z_STRVAL_P(v));
             return;
         }
-        serv->dispatch_mode = 0;
+        serv->dispatch_mode = SW_DISPATCH_USERFUNC;
         serv->dispatch_func = func;
     }
     //log_file

@@ -113,6 +113,8 @@
 			<file role="src" name="swoole_module.c" />
 			<file role="src" name="swoole_mmap.c" />
 			<file role="src" name="swoole_channel.c" />
+            <file role="src" name="swoole_serialize.h" />
+            <file role="src" name="swoole_serialize.c" />
 			<file role="src" name="swoole_coroutine.h" />
 			<file role="src" name="swoole_coroutine.c" />
 			<file role="src" name="swoole_coroutine_util.c" />
@@ -244,6 +246,9 @@
 					<file role="src" name="server.php" />
 					<file role="src" name="client.php" />
 					<file role="src" name="curl.php" />
+					<file role="src" name="async_client.php" />
+					<file role="src" name="async_websocket.php" />
+					<file role="src" name="download.php" />
 				</dir>
 				<dir name="length">
                     <file role="src" name="server.php" />
@@ -273,6 +278,7 @@
 				</dir>
 				<dir name="task">
 					<file role="src" name="task.php" />
+					<file role="src" name="task_coro.php" />
 					<file role="src" name="shared_client.php" />
 					<file role="src" name="shared_server.php" />
 				</dir>
@@ -303,8 +309,14 @@
                 </dir>
                 <dir name="redis">
                     <file role="src" name="client.php" />
+                    <file role="src" name="server.php" />
+                    <file role="src" name="subscribe.php" />
+                </dir>
+                <dir name="mmap">
+                    <file role="src" name="mmap.php" />
                 </dir>
 				<file role="src" name="server.php" />
+                <file role="src" name="channel.php" />
 				<file role="src" name="mysql_proxy_server.php" />
 				<file role="src" name="proxy_sync.php" />
 				<file role="src" name="sendfile_server.php" />

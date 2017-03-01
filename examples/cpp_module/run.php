@@ -1,4 +1,6 @@
 <?php
+swoole_load_module(__DIR__.'/test.so');
+
 function test()
 {
     //var_dump(func_get_args());
@@ -24,7 +26,7 @@ class Test2
 class Test
 {
   public $name = "Test";
-  public $hello = "";
+  //public $hello = "";
 
     function abc()
     {
@@ -41,67 +43,78 @@ function test2()
 }
 
 
-$module = swoole_load_module(__DIR__.'/test.so');
+//$module = swoole_load_module(__DIR__.'/test.so');
 
-
+/*
 function php_hello_world($a, $b, $c, $d)
 {
    $b = 1236 +  $b;
    return 3.1415926;
 }
+*/
 
 $r = cpp_test(1234, 456, 789);
 var_dump($r);
 
-$n = 1000000;
+$options = array('');
+$n = 100;
 
-/**
- * PHP用户函数
-*/
 
-echo "=================PHP用户定义函数====================\n";
-$s = microtime(true);
-for($i =0; $i< $n; $i++)
+if (in_array('php', $options))
 {
-    //$ret = swoole_strerror(11);
-    $ret = php_hello_world("abc", 1234, 459.55, "hello");
-    //$ret = str_pad("i", 1, "p", STR_PAD_BOTH);
-}
-$use = (microtime(true) - $s);
-echo "use ".$use."s\n";
-echo "QPS=".number_format($n/$use)."\n";
-var_dump($ret);
+  /**
+   * PHP用户函数
+  */
 
-/**
- * C++扩展函数
- */
-echo "=================C++扩展函数====================\n";
-$s = microtime(true);
-for($i =0; $i< $n; $i++)
+  echo "=================PHP用户定义函数====================\n";
+  $s = microtime(true);
+  for($i =0; $i< $n; $i++)
+  {
+      //$ret = swoole_strerror(11);
+      $ret = php_hello_world("abc", 1234, 459.55, "hello");
+      //$ret = str_pad("i", 1, "p", STR_PAD_BOTH);
+  }
+  $use = (microtime(true) - $s);
+  echo "use ".$use."s\n";
+  echo "QPS=".number_format($n/$use)."\n";
+  var_dump($ret);
+}
+
+if (in_array('cpp', $options))
 {
-    //$ret = swoole_strerror(11);
-    $ret = cpp_hello_world("abc", 1234, 459.55, "hello");
-    //$ret = str_pad("i", 1, "p", STR_PAD_BOTH);
+  /**
+   * C++扩展函数
+   */
+  echo "=================C++扩展函数====================\n";
+  $s = microtime(true);
+  for($i =0; $i< $n; $i++)
+  {
+      //$ret = swoole_strerror(11);
+      $ret = cpp_hello_world("abc", 1234, 459.55, "hello");
+      //$ret = str_pad("i", 1, "p", STR_PAD_BOTH);
+  }
+  $use = (microtime(true) - $s);
+  echo "use ".$use."s\n";
+  echo "QPS=".number_format($n/$use)."\n";
+  var_dump($ret);
 }
-$use = (microtime(true) - $s);
-echo "use ".$use."s\n";
-echo "QPS=".number_format($n/$use)."\n";
-var_dump($ret);
 
-/**
- * PHP内置函数
- */
-echo "=================扩展函数====================\n";
-$s = microtime(true);
-for($i =0; $i< $n; $i++)
+if (in_array('ext', $options))
 {
-    //$ret = swoole_strerror(11);
-    $ret = swoole_version("abc", 1234, 459.55, "hello");
-    //$ret = str_pad("i", 1, "p", STR_PAD_BOTH);
-}
-$use = (microtime(true) - $s);
-echo "use ".$use."s\n";
-echo "QPS=".number_format($n/$use)."\n";
-var_dump($ret);
-
+  /**
+   * PHP内置函数
+   */
+  echo "=================扩展函数====================\n";
+  $s = microtime(true);
+  for($i =0; $i< $n; $i++)
+  {
+      //$ret = swoole_strerror(11);
+      $ret = swoole_version("abc", 1234, 459.55, "hello");
+      //$ret = str_pad("i", 1, "p", STR_PAD_BOTH);
+  }
+  $use = (microtime(true) - $s);
+  echo "use ".$use."s\n";
+  echo "QPS=".number_format($n/$use)."\n";
+  var_dump($ret);
+  }
 //sleep(1000);
