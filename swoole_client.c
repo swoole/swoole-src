@@ -617,6 +617,20 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
             swSysError("setsockopt(%d, TCP_NODELAY) failed.", cli->socket->fd);
         }
     }
+    if (php_swoole_array_get_value(vht, "socket_linger", v))
+    {
+        convert_to_long(v);
+        int linger = (int) Z_LVAL_P(v);
+
+        struct linger so_linger;
+        so_linger.l_onoff = 1;
+        so_linger.l_linger = linger;
+
+        if (setsockopt(cli->socket->fd, SOL_SOCKET, SO_LINGER, &so_linger, sizeof(so_linger)))
+        {
+            swSysError("setsockopt(%d, SO_LINGER) failed.", cli->socket->fd);
+        }
+    }
     /**
      * socks5 proxy
      */
