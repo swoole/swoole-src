@@ -229,6 +229,10 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     object = (func->common.fn_flags & ZEND_ACC_STATIC) ? NULL : fci_cache->object;
     call = zend_vm_stack_push_call_frame(ZEND_CALL_TOP_FUNCTION | ZEND_CALL_ALLOCATED, fci_cache->function_handler, argc, fci_cache->called_scope, object);
 
+    if (unlikely(op_array->fn_flags | ZEND_ACC_CLOSURE)) {
+        GC_REFCOUNT((zend_object*)op_array->prototype)++;
+        ZEND_ADD_CALL_FLAG(call, ZEND_CALL_CLOSURE);
+    }
 #if PHP_MINOR_VERSION < 1
     EG(scope) = func->common.scope;
 #endif
