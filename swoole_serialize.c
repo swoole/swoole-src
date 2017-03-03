@@ -436,15 +436,15 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
    // if (ht->nNumUsed)
     //{
         //    void *arData = ecalloc(1, len);
-        HT_SET_DATA_ADDR(ht, emalloc(HT_SIZE(ht)));
-        ht->u.flags |= HASH_FLAG_INITIALIZED;
-        int ht_hash_size = HT_HASH_SIZE((ht)->nTableMask);
-        if (ht_hash_size <= 0)
-        {
-            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "illegal unserialize data");
-            return NULL;
-        }
-        HT_HASH_RESET(ht);
+    HT_SET_DATA_ADDR(ht, emalloc(HT_SIZE(ht)));
+    ht->u.flags |= HASH_FLAG_INITIALIZED;
+    int ht_hash_size = HT_HASH_SIZE((ht)->nTableMask);
+    if (ht_hash_size <= 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_NOTICE, "illegal unserialize data");
+        return NULL;
+    }
+    HT_HASH_RESET(ht);
     //}
 
 
