@@ -433,8 +433,8 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
 
     GC_REFCOUNT(ht) = 1;
     GC_TYPE_INFO(ht) = IS_ARRAY;
-    if (ht->nNumUsed)
-    {
+   // if (ht->nNumUsed)
+    //{
         //    void *arData = ecalloc(1, len);
         HT_SET_DATA_ADDR(ht, emalloc(HT_SIZE(ht)));
         ht->u.flags |= HASH_FLAG_INITIALIZED;
@@ -445,7 +445,7 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
             return NULL;
         }
         HT_HASH_RESET(ht);
-    }
+    //}
 
 
     int idx;
