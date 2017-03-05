@@ -385,7 +385,7 @@ static PHP_METHOD(swoole_coroutine_util, create)
 
 
 static PHP_METHOD(swoole_coroutine_util, cli_wait) {
-    if (SwooleGS->start == 1 && SwooleG.process_type != SW_PROCESS_USERWORKER) {
+    if (SwooleGS->start == 1) {
         RETURN_FALSE;
     }
     php_context *cxt = emalloc(sizeof(php_context));
