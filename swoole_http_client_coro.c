@@ -261,6 +261,8 @@ static void http_client_coro_onTimeout(php_context *ctx)
     //define time out RETURN ERROR  110
     zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), 110 TSRMLS_CC);
 
+    http_client *http = swoole_get_object(zobject);
+    http->cli->released = 1;
     http_client_free(zobject TSRMLS_CC);
     swoole_set_object(zobject, NULL);
 
