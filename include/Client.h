@@ -28,6 +28,14 @@ enum swClient_pipe_flag
     SW_CLIENT_PIPE_TCP_SESSION = 1,
 };
 
+typedef struct
+{
+    uint8_t state;
+    int target_port;
+    char *target_host;
+    char buf[600];
+}https_proxy;
+
 typedef struct _swClient
 {
     int id;
@@ -52,9 +60,12 @@ typedef struct _swClient
      */
     uint32_t open_length_check :1;
     uint32_t open_eof_check :1;
+    
+    uint32_t open_https_proxy:1;
 
     swProtocol protocol;
     struct _swSocks5 *socks5_proxy;
+    https_proxy *https_proxy;
 
     uint32_t reuse_count;
 
