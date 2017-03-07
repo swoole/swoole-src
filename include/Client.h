@@ -28,13 +28,23 @@ enum swClient_pipe_flag
     SW_CLIENT_PIPE_TCP_SESSION = 1,
 };
 
-typedef struct
+enum swHttps_proxy_state
+{
+    SW_SPROXY_STATE_WAIT = 0,
+    SW_SPROXY_STATE_HANDSHAKE,
+    SW_SPROXY_STATE_READY,
+};
+
+struct _http_proxy
 {
     uint8_t state;
-    int target_port;
+    int proxy_port;
+    char *proxy_host;
+    
     char *target_host;
+    int target_port;
     char buf[600];
-}https_proxy;
+};
 
 typedef struct _swClient
 {
@@ -60,12 +70,10 @@ typedef struct _swClient
      */
     uint32_t open_length_check :1;
     uint32_t open_eof_check :1;
-    
-    uint32_t open_https_proxy:1;
 
     swProtocol protocol;
     struct _swSocks5 *socks5_proxy;
-    https_proxy *https_proxy;
+    struct _http_proxy* http_proxy;
 
     uint32_t reuse_count;
 

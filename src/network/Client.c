@@ -206,6 +206,16 @@ static int swClient_inet_addr(swClient *cli, char *host, int port)
         host = cli->socks5_proxy->host;
         port = cli->socks5_proxy->port;
     }
+    
+    //enable http proxy
+    if (cli->http_proxy)
+    {
+        cli->http_proxy->target_host = host;
+        cli->http_proxy->target_port = port;
+
+        host = cli->http_proxy->proxy_host;
+        port = cli->http_proxy->proxy_port;
+    }
 
     void *s_addr = NULL;
     if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_UDP)
@@ -735,6 +745,20 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
     char *buf = cli->buffer->str;
     long buf_size = cli->buffer->size;
 
+    if (cli->http_proxy && cli->http_proxy->state != SW_SPROXY_STATE_READY)
+    {
+        int n = swConnection_recv(event->socket, buf, buf_size, 0);
+         printf("fuck %s\n",buf);
+        if (n <= 0)
+        {
+            goto __close;
+        }
+        else
+       {
+            cli->http_proxy->state = SW_SPROXY_STATE_READY;
+            cli->onConnect(cli);
+        }
+    }
     if (cli->socks5_proxy && cli->socks5_proxy->state != SW_SOCKS5_STATE_READY)
     {
         int n = swConnection_recv(event->socket, buf, buf_size, 0);
@@ -1001,6 +1025,12 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
             swSocks5_pack(buf, cli->socks5_proxy->username == NULL ? 0x00 : 0x02);
             cli->socks5_proxy->state = SW_SOCKS5_STATE_HANDSHAKE;
             return cli->send(cli, buf, sizeof(buf), 0);
+        }
+        if (cli->http_proxy && cli->http_proxy->state == SW_SPROXY_STATE_WAIT)
+        {
+            cli->http_proxy->state == SW_SPROXY_STATE_HANDSHAKE;
+            printf("fuck send %s\n",cli->http_proxy->buf);
+            return cli->send (cli, cli->http_proxy->buf, strlen (cli->http_proxy->buf), 0);
         }
 #ifdef SW_USE_OPENSSL
         if (cli->open_ssl)

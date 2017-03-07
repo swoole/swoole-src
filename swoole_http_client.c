@@ -106,6 +106,8 @@ typedef struct
 
 } http_client;
 
+
+
 #ifdef SW_HAVE_ZLIB
 extern swString *swoole_zlib_buffer;
 #endif
@@ -471,7 +473,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
     cli->onConnect = http_client_onConnect;
     cli->onClose = http_client_onClose;
     cli->onError = http_client_onError;
-
+    
     return cli->connect(cli, http->host, http->port, http->timeout, 0);
 }
 

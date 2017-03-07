@@ -651,15 +651,17 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
             cli->socks5_proxy->l_password = Z_STRLEN_P(v);
         }
     }
-    if (php_swoole_array_get_value(vht, "https_proxy_target_host", v))
+    if (php_swoole_array_get_value(vht, "http_proxy_host", v))
     {
         convert_to_string(v);
         char *host = Z_STRVAL_P(v);
-        if (php_swoole_array_get_value(vht, "https_proxy_target_port", v))
+        if (php_swoole_array_get_value(vht, "http_proxy_port", v))
         {
             convert_to_long(v);
-            cli->https_proxy = ecalloc(1,sizeof(cli->https_proxy));
-            sprintf(cli->https_proxy->buf, "CONNECT %s:%d HTTP/1.1", host, Z_LVAL_P(v));
+            cli->http_proxy = ecalloc(1,sizeof(cli->http_proxy));
+            cli->http_proxy->proxy_host = strdup(host);
+            cli->http_proxy->proxy_port = Z_LVAL_P(v);
+            sprintf(cli->http_proxy->buf, "CONNECT www.baidu.com:443 HTTP/1.1\r\nHost: www.baidu.com:443\r\nUser-Agent: curl/7.35.0\r\nProxy-Connection: Keep-Alive\r\n", host, Z_LVAL_P(v));
         }
     }
 #ifdef SW_USE_OPENSSL
