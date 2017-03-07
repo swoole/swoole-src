@@ -658,7 +658,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         if (php_swoole_array_get_value(vht, "https_proxy_target_port", v))
         {
             convert_to_long(v);
-            cli->https_proxy = ecalloc(1,sizeof(https_proxy));
+            cli->https_proxy = ecalloc(1,sizeof(cli->https_proxy));
             sprintf(cli->https_proxy->buf, "CONNECT %s:%d HTTP/1.1", host, Z_LVAL_P(v));
         }
     }
