@@ -853,7 +853,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
     char *key;
     uint32_t keylen;
     int keytype;
-    zval *value;
+    zval *value = NULL;
 
     swString_clear(http_client_buffer);
     swString_append_ptr(http_client_buffer, hcc->request_method, strlen(hcc->request_method));
@@ -862,9 +862,16 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
     if (http->cli->http_proxy)
     {
         sw_zend_hash_find (Z_ARRVAL_P (send_header), ZEND_STRS ("Host"), (void **) &value); //checked before
-        int len = http->uri_len + Z_STRLEN_P (value) + strlen ("http://")+1;
-        void *addr = ecalloc (len,1);
-        snprintf (addr, len, "http://%s%s", Z_STRVAL_P (value), http->uri);
+        char *pre = "http://";
+#ifdef SW_USE_OPENSSL
+        if (http->cli->open_ssl)
+        {
+            pre = "https://";
+        }
+#endif
+        int len = http->uri_len + Z_STRLEN_P (value) + strlen (pre) + 1;
+        void *addr = ecalloc (len, 1);
+        snprintf (addr, len, "%s%s%s", pre, Z_STRVAL_P (value), http->uri);
         efree (http->uri);
         http->uri = addr;
         http->uri_len = len;
