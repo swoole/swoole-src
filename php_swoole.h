@@ -34,6 +34,8 @@
 #include <ext/standard/url.h>
 #include <ext/standard/info.h>
 #include <ext/standard/php_array.h>
+#include <ext/standard/basic_functions.h>
+#include <ext/standard/php_http.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -346,6 +348,9 @@ void swoole_redis_init(int module_number TSRMLS_DC);
 void swoole_redis_server_init(int module_number TSRMLS_DC);
 void swoole_process_init(int module_number TSRMLS_DC);
 void swoole_http_server_init(int module_number TSRMLS_DC);
+#ifdef SW_USE_HTTP2
+void swoole_http2_client_init(int module_number TSRMLS_DC);
+#endif
 void swoole_websocket_init(int module_number TSRMLS_DC);
 void swoole_buffer_init(int module_number TSRMLS_DC);
 void swoole_mysql_init(int module_number TSRMLS_DC);
@@ -415,6 +420,7 @@ void php_swoole_onClose(swServer *, swDataHead *);
 void php_swoole_onBufferFull(swServer *, swDataHead *);
 void php_swoole_onBufferEmpty(swServer *, swDataHead *);
 int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
+int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length);
 
 #if PHP_MAJOR_VERSION >= 7
 PHPAPI zend_string* php_swoole_serialize(zval *zvalue);
@@ -453,7 +459,7 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool cli;
     zend_bool use_namespace;
     zend_bool fast_serialize;
-    uint32_t socket_buffer_size;
+    long socket_buffer_size;
 ZEND_END_MODULE_GLOBALS(swoole)
 
 extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
