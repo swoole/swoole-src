@@ -745,7 +745,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
     char *buf = cli->buffer->str;
     long buf_size = cli->buffer->size;
 
-    if (cli->http_proxy && cli->http_proxy->state != SW_SPROXY_STATE_READY)
+    if (cli->http_proxy && cli->http_proxy->state != SW_SPROXY_STATE_READY&&cli->open_ssl)
     {
         int n = swConnection_recv(event->socket, buf, buf_size, 0);
         if (n <= 0)
@@ -770,7 +770,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
         {
             if (swClient_enable_ssl_encrypt(cli) < 0)
             {
-                connect_fail:
+                connect_fail1:
                 cli->close(cli);
                 if (cli->onError)
                 {
@@ -781,7 +781,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
             {
                 if (swClient_ssl_handshake(cli) < 0)
                 {
-                    goto connect_fail;
+                    goto connect_fail1;
                 }
                 else
                 {
@@ -817,7 +817,12 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
         {
             if (swClient_enable_ssl_encrypt(cli) < 0)
             {
-               goto connect_fail;
+                connect_fail:
+                cli->close(cli);
+                if (cli->onError)
+                {
+                    cli->onError(cli);
+                }
             }
             else
             {
@@ -1059,7 +1064,7 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
             cli->socks5_proxy->state = SW_SOCKS5_STATE_HANDSHAKE;
             return cli->send(cli, buf, sizeof(buf), 0);
         }
-        if (cli->http_proxy && cli->http_proxy->state == SW_SPROXY_STATE_WAIT)
+        if (cli->http_proxy && cli->http_proxy->state == SW_SPROXY_STATE_WAIT&&cli->open_ssl)
         {
             cli->http_proxy->state = SW_SPROXY_STATE_HANDSHAKE;
             int n = snprintf(cli->http_proxy->buf,sizeof(cli->http_proxy->buf), "CONNECT %s:%d HTTP/1.1\r\n\r\n", cli->http_proxy->target_host, cli->http_proxy->target_port);

@@ -661,7 +661,6 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
             cli->http_proxy = ecalloc(1,sizeof(cli->http_proxy));
             cli->http_proxy->proxy_host = strdup(host);
             cli->http_proxy->proxy_port = Z_LVAL_P(v);
-            sprintf(cli->http_proxy->buf, "CONNECT www.baidu.com:443 HTTP/1.1\r\nHost: www.baidu.com:443\r\nUser-Agent: curl/7.35.0\r\nProxy-Connection: Keep-Alive\r\n", host, Z_LVAL_P(v));
         }
     }
 #ifdef SW_USE_OPENSSL
