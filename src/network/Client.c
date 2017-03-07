@@ -174,6 +174,15 @@ int swClient_enable_ssl_encrypt(swClient *cli)
         return SW_ERR;
     }
     cli->socket->ssl_send = 1;
+#ifdef SW_USE_HTTP2
+    if (cli->http2)
+    {
+        if (SSL_CTX_set_alpn_protos(cli->ssl_context, (const unsigned char *) "\x02h2", 3) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+#endif
     return SW_OK;
 }
 

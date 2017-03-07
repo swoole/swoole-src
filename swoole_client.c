@@ -84,7 +84,6 @@ static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC);
 
 static void client_onConnect(swClient *cli);
 static void client_onReceive(swClient *cli, char *data, uint32_t length);
-static int client_onPackage(swConnection *conn, char *data, uint32_t length);
 static void client_onClose(swClient *cli);
 static void client_onError(swClient *cli);
 static void client_onBufferFull(swClient *cli);
@@ -286,7 +285,7 @@ void swoole_client_init(int module_number TSRMLS_DC)
     zend_declare_class_constant_long(swoole_client_class_entry_ptr, ZEND_STRL("MSG_WAITALL"), MSG_WAITALL TSRMLS_CC);
 }
 
-static int client_onPackage(swConnection *conn, char *data, uint32_t length)
+int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length)
 {
     client_onReceive(conn->object, data, length);
     return SW_OK;
@@ -480,7 +479,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         }
         bzero(cli->protocol.package_eof, SW_DATA_EOF_MAXLEN);
         memcpy(cli->protocol.package_eof, Z_STRVAL_P(v), Z_STRLEN_P(v));
-        cli->protocol.onPackage = client_onPackage;
+        cli->protocol.onPackage = php_swoole_client_onPackage;
     }
     //open length check
     if (php_swoole_array_get_value(vht, "open_length_check", v))
@@ -488,7 +487,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         convert_to_boolean(v);
         cli->open_length_check = Z_BVAL_P(v);
         cli->protocol.get_package_length = swProtocol_get_package_length;
-        cli->protocol.onPackage = client_onPackage;
+        cli->protocol.onPackage = php_swoole_client_onPackage;
     }
     //package length size
     if (php_swoole_array_get_value(vht, "package_length_type", v))
