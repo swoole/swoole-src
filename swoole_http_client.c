@@ -1141,7 +1141,6 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
     }
 
     swTrace("[%d]: %s\n", (int)http_client_buffer->length, http_client_buffer->str);
-    printf("aaaaa %s\n",http_client_buffer->str);
     if ((ret = http->cli->send(http->cli, http_client_buffer->str, http_client_buffer->length, 0)) < 0)
     {
         send_fail:
