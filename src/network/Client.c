@@ -748,16 +748,54 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
     if (cli->http_proxy && cli->http_proxy->state != SW_SPROXY_STATE_READY)
     {
         int n = swConnection_recv(event->socket, buf, buf_size, 0);
-         printf("fuck %s\n",buf);
         if (n <= 0)
         {
             goto __close;
         }
+        if (n < strlen (SW_HTTPS_PROXY_HANDSHAKE_RESPONSE))
+        {
+            return SW_OK;
+        }
+        if (strncasecmp (SW_HTTPS_PROXY_HANDSHAKE_RESPONSE, buf,strlen(SW_HTTPS_PROXY_HANDSHAKE_RESPONSE)) != 0)
+        {
+            swoole_error_log (SW_LOG_NOTICE,SW_ERROR_SOCKS5_UNSUPPORT_METHOD, "handshake error with http proxy");
+            return SW_ERR;
+        }
         else
-       {
+        {
             cli->http_proxy->state = SW_SPROXY_STATE_READY;
+        }
+#ifdef SW_USE_OPENSSL
+        if (cli->open_ssl)
+        {
+            if (swClient_enable_ssl_encrypt(cli) < 0)
+            {
+                connect_fail:
+                cli->close(cli);
+                if (cli->onError)
+                {
+                    cli->onError(cli);
+                }
+            }
+            else
+            {
+                if (swClient_ssl_handshake(cli) < 0)
+                {
+                    goto connect_fail;
+                }
+                else
+                {
+                    cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
+                }
+                return SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE);
+            }
+        }
+        else
+#endif
+        {
             cli->onConnect(cli);
         }
+        return SW_OK;
     }
     if (cli->socks5_proxy && cli->socks5_proxy->state != SW_SOCKS5_STATE_READY)
     {
@@ -779,12 +817,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
         {
             if (swClient_enable_ssl_encrypt(cli) < 0)
             {
-                connect_fail:
-                cli->close(cli);
-                if (cli->onError)
-                {
-                    cli->onError(cli);
-                }
+               goto connect_fail;
             }
             else
             {
@@ -1028,9 +1061,9 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
         }
         if (cli->http_proxy && cli->http_proxy->state == SW_SPROXY_STATE_WAIT)
         {
-            cli->http_proxy->state == SW_SPROXY_STATE_HANDSHAKE;
-            printf("fuck send %s\n",cli->http_proxy->buf);
-            return cli->send (cli, cli->http_proxy->buf, strlen (cli->http_proxy->buf), 0);
+            cli->http_proxy->state = SW_SPROXY_STATE_HANDSHAKE;
+            int n = snprintf(cli->http_proxy->buf,sizeof(cli->http_proxy->buf), "CONNECT %s:%d HTTP/1.1\r\n\r\n", cli->http_proxy->target_host, cli->http_proxy->target_port);
+            return cli->send (cli, cli->http_proxy->buf, n, 0);
         }
 #ifdef SW_USE_OPENSSL
         if (cli->open_ssl)
