@@ -661,6 +661,10 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
             cli->http_proxy->proxy_host = strdup(host);
             cli->http_proxy->proxy_port = Z_LVAL_P(v);
         }
+        else
+        {
+            swSysError("http_proxy_port can not be null");
+        }
     }
 #ifdef SW_USE_OPENSSL
     if (cli->open_ssl)
