@@ -66,6 +66,8 @@ enum swErrorCode
     SW_ERROR_SOCKS5_UNSUPPORT_METHOD,
     SW_ERROR_SOCKS5_AUTH_FAILED,
     SW_ERROR_SOCKS5_SERVER_ERROR,
+    
+    SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR = 8001,
 
     /**
      * server global error
