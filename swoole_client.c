@@ -650,6 +650,18 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
             cli->socks5_proxy->l_password = Z_STRLEN_P(v);
         }
     }
+    if (php_swoole_array_get_value(vht, "http_proxy_host", v))
+    {
+        convert_to_string(v);
+        char *host = Z_STRVAL_P(v);
+        if (php_swoole_array_get_value(vht, "http_proxy_port", v))
+        {
+            convert_to_long(v);
+            cli->http_proxy = ecalloc(1,sizeof(cli->http_proxy));
+            cli->http_proxy->proxy_host = strdup(host);
+            cli->http_proxy->proxy_port = Z_LVAL_P(v);
+        }
+    }
 #ifdef SW_USE_OPENSSL
     if (cli->open_ssl)
     {
