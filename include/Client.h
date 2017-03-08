@@ -30,11 +30,11 @@ enum swClient_pipe_flag
     SW_CLIENT_PIPE_TCP_SESSION = 1,
 };
 
-enum swHttps_proxy_state
+enum swHttp_proxy_state
 {
-    SW_SPROXY_STATE_WAIT = 0,
-    SW_SPROXY_STATE_HANDSHAKE,
-    SW_SPROXY_STATE_READY,
+    SW_HTTP_PROXY_STATE_WAIT = 0,
+    SW_HTTP_PROXY_STATE_HANDSHAKE,
+    SW_HTTP_PROXY_STATE_READY,
 };
 
 struct _http_proxy
