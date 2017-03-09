@@ -793,6 +793,11 @@ void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
     {
         efree(cli->socks5_proxy);
     }
+    //http proxy config
+    if (cli->http_proxy)
+    {
+        efree(cli->http_proxy);
+    }
     if (cli->protocol.private_data)
     {
         zval *zcallback = cli->protocol.private_data;
