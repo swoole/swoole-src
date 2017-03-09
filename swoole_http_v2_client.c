@@ -524,11 +524,6 @@ static int http2_client_onFrame(zval *zobject, zval *zdata TSRMLS_DC)
     {
         hcc->window_size = ntohl(*(int *) buf);
         swTraceLog(SW_TRACE_HTTP2, "update: window_size=%d.", hcc->window_size);
-
-        swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_WINDOW_UPDATE, 0, SW_HTTP2_FLAG_ACK, stream_id);
-        swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", ACK, STREAM#%d]\t[length=%d]", swHttp2_get_type(SW_HTTP2_TYPE_WINDOW_UPDATE), stream_id, 0);
-        cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE, 0);
-
         return SW_OK;
     }
     else if (type == SW_HTTP2_TYPE_PING)
@@ -740,7 +735,7 @@ static void http2_client_send_request(zval *zobject, http2_client_request *req T
     zend_update_property_long(swoole_http2_response_class_entry_ptr, response_object, ZEND_STRL("streamId"), stream->stream_id TSRMLS_CC);
 
     swHashMap_add_int(hcc->streams, hcc->stream_id, stream);
-    swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", STREAM#%d] length=%d", swHttp2_get_type(SW_HTTP2_TYPE_HEADERS), hcc->stream_id, n);
+    swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", STREAM#%d] flags=%d, length=%d", swHttp2_get_type(SW_HTTP2_TYPE_HEADERS), hcc->stream_id, n);
     cli->send(cli, buffer, n + SW_HTTP2_FRAME_HEADER_SIZE, 0);
 
     /**
@@ -947,12 +942,13 @@ static PHP_METHOD(swoole_http2_client, onConnect)
     http2_client_send_all_requests(getThis() TSRMLS_CC);
 }
 
-static void http2_client_send_setting(swClient *cli)
+static inline void http2_client_send_setting(swClient *cli)
 {
-    uint16_t id;
-    uint32_t value;
+    uint16_t id = 0;
+    uint32_t value = 0;
 
     char frame[SW_HTTP2_FRAME_HEADER_SIZE + 18];
+    memset(frame, 0, sizeof(frame));
     swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_SETTINGS, 18, 0, 0);
 
     char *p = frame + SW_HTTP2_FRAME_HEADER_SIZE;
