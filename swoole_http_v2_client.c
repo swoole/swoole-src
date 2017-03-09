@@ -221,20 +221,10 @@ static int http2_client_build_header(zval *zobject, http2_client_request *req, c
     int ret;
     zval *zheader = sw_zend_read_property(swoole_http2_client_class_entry_ptr, zobject, ZEND_STRL("requestHeaders"), 1 TSRMLS_CC);
     int index = 0;
+    int find_host = 0;
 
     nghttp2_nv nv[128];
     http2_client_property *hcc = swoole_get_property(zobject, HTTP2_CLIENT_PROPERTY_INDEX);
-    if (hcc->ssl)
-    {
-        http2_add_header(&nv[index++], ZEND_STRL(":scheme"), ZEND_STRL("https"));
-    }
-    else
-    {
-        http2_add_header(&nv[index++], ZEND_STRL(":scheme"), ZEND_STRL("http"));
-    }
-
-    http2_add_header(&nv[index++], ZEND_STRL(":path"), req->uri, req->uri_len);
-
     if (req->type == HTTP_GET)
     {
         http2_add_header(&nv[index++], ZEND_STRL(":method"), ZEND_STRL("GET"));
@@ -243,6 +233,17 @@ static int http2_client_build_header(zval *zobject, http2_client_request *req, c
     {
         http2_add_header(&nv[index++], ZEND_STRL(":method"), ZEND_STRL("POST"));
     }
+    http2_add_header(&nv[index++], ZEND_STRL(":path"), req->uri, req->uri_len);
+    if (hcc->ssl)
+    {
+        http2_add_header(&nv[index++], ZEND_STRL(":scheme"), ZEND_STRL("https"));
+    }
+    else
+    {
+        http2_add_header(&nv[index++], ZEND_STRL(":scheme"), ZEND_STRL("http"));
+    }
+    //Host
+    index++;
 
     if (zheader && !ZVAL_IS_NULL(zheader))
     {
@@ -258,9 +259,14 @@ static int http2_client_build_header(zval *zobject, http2_client_request *req, c
             {
                 break;
             }
+            if (*key == ':')
+            {
+                continue;
+            }
             if (strncasecmp("Host", key, keylen) == 0)
             {
-                http2_add_header(&nv[index++], ZEND_STRL(":authority"), Z_STRVAL_P(value), Z_STRLEN_P(value));
+                http2_add_header(&nv[3], ZEND_STRL(":authority"), Z_STRVAL_P(value), Z_STRLEN_P(value));
+                find_host = 1;
             }
             else
             {
@@ -269,6 +275,11 @@ static int http2_client_build_header(zval *zobject, http2_client_request *req, c
         }
         SW_HASHTABLE_FOREACH_END();
         (void)type;
+    }
+    if (!find_host)
+    {
+        zval *zhost = sw_zend_read_property(swoole_http2_client_class_entry_ptr, zobject, ZEND_STRL("host"), 1 TSRMLS_CC);
+        http2_add_header(&nv[3], ZEND_STRL(":authority"), Z_STRVAL_P(zhost), Z_STRLEN_P(zhost));
     }
 
     zval *zcookie = sw_zend_read_property(swoole_http2_client_class_entry_ptr, zobject, ZEND_STRL("cookies"), 1 TSRMLS_CC);
@@ -291,6 +302,13 @@ static int http2_client_build_header(zval *zobject, http2_client_request *req, c
     size_t buflen;
     size_t i;
     size_t sum = 0;
+
+#if 0
+    for (i = 0; i < index; ++i)
+    {
+        swTraceLog(SW_TRACE_HTTP2, "Header[%d]: "SW_ECHO_CYAN_BLUE"=%s", i, nv[i].name, nv[i].value);
+    }
+#endif
 
     nghttp2_hd_deflater *deflater;
     ret = nghttp2_hd_deflate_new(&deflater, 4096);
@@ -462,7 +480,7 @@ static int http2_client_onFrame(zval *zobject, zval *zdata TSRMLS_DC)
 
     uint16_t id;
     uint32_t value;
-    swWarn("[%s]\tflags=%d, stream_id=%d, length=%d", swHttp2_get_type(type), flags, stream_id, length);
+    swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_YELLOW"]\tflags=%d, stream_id=%d, length=%d", swHttp2_get_type(type), flags, stream_id, length);
 
     if (type == SW_HTTP2_TYPE_SETTINGS)
     {
@@ -471,43 +489,62 @@ static int http2_client_onFrame(zval *zobject, zval *zdata TSRMLS_DC)
             return SW_OK;
         }
 
-        id = htons(*(uint16_t *) (buf));
-        value = htonl(*(uint32_t *) (buf + sizeof(uint16_t)));
-        switch (id)
+        while(length > 0)
         {
-        case SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS:
-            hcc->max_concurrent_streams = value;
-            swWarn("max_concurrent_streams=%d.", value);
-            break;
-        case SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE:
-            hcc->window_size = value;
-            swWarn("max_concurrent_streams=%d.", value);
-            break;
-        case SW_HTTP2_SETTINGS_MAX_FRAME_SIZE:
-            hcc->max_frame_size = value;
-            swWarn("max_concurrent_streams=%d.", value);
-            break;
-        default:
-            swWarn("unknown option[%d].", id);
-            break;
+            id = ntohs(*(uint16_t *) (buf));
+            value = ntohl(*(uint32_t *) (buf + sizeof(uint16_t)));
+            switch (id)
+            {
+            case SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS:
+                hcc->max_concurrent_streams = value;
+                swTraceLog(SW_TRACE_HTTP2, "setting: max_concurrent_streams=%d.", value);
+                break;
+            case SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE:
+                hcc->window_size = value;
+                swTraceLog(SW_TRACE_HTTP2, "setting: init_window_size=%d.", value);
+                break;
+            case SW_HTTP2_SETTINGS_MAX_FRAME_SIZE:
+                hcc->max_frame_size = value;
+                swTraceLog(SW_TRACE_HTTP2, "setting: max_frame_size=%d.", value);
+                break;
+            default:
+                swWarn("unknown option[%d].", id);
+                break;
+            }
+            buf += sizeof(id) + sizeof(value);
+            length -= sizeof(id) + sizeof(value);
         }
+
         swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_SETTINGS, 0, SW_HTTP2_FLAG_ACK, stream_id);
+        swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", ACK, STREAM#%d]\t[length=%d]", swHttp2_get_type(SW_HTTP2_TYPE_SETTINGS), stream_id, length);
         cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE, 0);
         return SW_OK;
     }
     else if (type == SW_HTTP2_TYPE_WINDOW_UPDATE)
     {
-        value = *(int *) buf & 0x7fffffff;
-        hcc->window_size = value;
+        hcc->window_size = ntohl(*(int *) buf);
+        swTraceLog(SW_TRACE_HTTP2, "update: window_size=%d.", hcc->window_size);
+
         swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_WINDOW_UPDATE, 0, SW_HTTP2_FLAG_ACK, stream_id);
+        swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", ACK, STREAM#%d]\t[length=%d]", swHttp2_get_type(SW_HTTP2_TYPE_WINDOW_UPDATE), stream_id, 0);
         cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE, 0);
+
         return SW_OK;
     }
     else if (type == SW_HTTP2_TYPE_PING)
     {
         swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_ACK, stream_id);
         memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE, buf + SW_HTTP2_FRAME_HEADER_SIZE, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
+        swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", STREAM#%d]", swHttp2_get_type(SW_HTTP2_FRAME_PING_PAYLOAD_SIZE), stream_id);
         cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, 0);
+        return SW_OK;
+    }
+    else if (type == SW_HTTP2_TYPE_GOAWAY)
+    {
+        int last_stream_id = htonl(*(int *) (buf));
+        buf += 4;
+        int error_code = htonl(*(int *) (buf));
+        swWarn("["SW_ECHO_RED"] last_stream_id=%d, error_code=%d.", "GOAWAY", last_stream_id, error_code);
         return SW_OK;
     }
 
@@ -670,10 +707,10 @@ static void http2_client_send_request(zval *zobject, http2_client_request *req T
      * send header
      */
     char buffer[8192];
-    long n = http2_client_build_header(zobject, req, buffer + SW_HTTP2_FRAME_HEADER_SIZE, sizeof(buffer) - SW_HTTP2_FRAME_HEADER_SIZE TSRMLS_CC);
-
-    if (n < 0)
+    int n = http2_client_build_header(zobject, req, buffer + SW_HTTP2_FRAME_HEADER_SIZE, sizeof(buffer) - SW_HTTP2_FRAME_HEADER_SIZE TSRMLS_CC);
+    if (n <= 0)
     {
+        swWarn("http2_client_build_header() failed.");
         return;
     }
     if (post_data == NULL)
@@ -703,6 +740,7 @@ static void http2_client_send_request(zval *zobject, http2_client_request *req T
     zend_update_property_long(swoole_http2_response_class_entry_ptr, response_object, ZEND_STRL("streamId"), stream->stream_id TSRMLS_CC);
 
     swHashMap_add_int(hcc->streams, hcc->stream_id, stream);
+    swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", STREAM#%d] length=%d", swHttp2_get_type(SW_HTTP2_TYPE_HEADERS), hcc->stream_id, n);
     cli->send(cli, buffer, n + SW_HTTP2_FRAME_HEADER_SIZE, 0);
 
     /**
@@ -721,14 +759,16 @@ static void http2_client_send_request(zval *zobject, http2_client_request *req T
                 return;
             }
             memset(buffer, 0, SW_HTTP2_FRAME_HEADER_SIZE);
-            swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_DATA, len, SW_HTTP2_FLAG_END_STREAM | SW_HTTP2_FLAG_PRIORITY, hcc->stream_id);
+            swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_DATA, len, SW_HTTP2_FLAG_END_STREAM, hcc->stream_id);
+            swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", END, STREAM#%d] length=%d", swHttp2_get_type(SW_HTTP2_TYPE_DATA), hcc->stream_id, len);
             cli->send(cli, buffer, SW_HTTP2_FRAME_HEADER_SIZE, 0);
             cli->send(cli, formstr, len, 0);
             smart_str_free(&formstr_s);
         }
         else
         {
-            swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_DATA, Z_STRLEN_P(req->data), SW_HTTP2_FLAG_END_STREAM | SW_HTTP2_FLAG_PRIORITY, hcc->stream_id);
+            swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_DATA, Z_STRLEN_P(req->data), SW_HTTP2_FLAG_END_STREAM, hcc->stream_id);
+            swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", END, STREAM#%d] length=%d", swHttp2_get_type(SW_HTTP2_TYPE_DATA), hcc->stream_id, Z_STRLEN_P(req->data));
             cli->send(cli, buffer, SW_HTTP2_FRAME_HEADER_SIZE, 0);
             cli->send(cli, Z_STRVAL_P(post_data), Z_STRLEN_P(post_data), 0);
         }
@@ -805,6 +845,7 @@ static PHP_METHOD(swoole_http2_client, get)
         req->uri_len = Z_STRLEN_P(uri);
         req->type = HTTP_GET;
         req->callback = callback;
+        req->data = NULL;
         sw_copy_to_stack(req->callback, req->_callback);
         sw_zval_add_ref(&req->callback);
 
@@ -911,31 +952,40 @@ static void http2_client_send_setting(swClient *cli)
     uint16_t id;
     uint32_t value;
 
-    char frame[SW_HTTP2_FRAME_HEADER_SIZE + 21];
-    swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_SETTINGS, 12, 0, 0);
+    char frame[SW_HTTP2_FRAME_HEADER_SIZE + 18];
+    swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_SETTINGS, 18, 0, 0);
 
     char *p = frame + SW_HTTP2_FRAME_HEADER_SIZE;
     /**
      * MAX_CONCURRENT_STREAMS
      */
-    id = ntohs(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS);
+    id = htons(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS);
     memcpy(p, &id, sizeof(id));
     p += 2;
-    value = ntohl(SW_HTTP2_MAX_CONCURRENT_STREAMS);
+    value = htonl(SW_HTTP2_MAX_CONCURRENT_STREAMS);
     memcpy(p, &value, sizeof(value));
     p += 4;
-
+    /**
+     * MAX_FRAME_SIZE
+     */
+    id = htons(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE);
+    memcpy(p, &id, sizeof(id));
+    p += 2;
+    value = htonl(SW_HTTP2_MAX_FRAME_SIZE);
+    memcpy(p, &value, sizeof(value));
+    p += 4;
     /**
      * INIT_WINDOW_SIZE
      */
-    id = ntohs(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
+    id = htons(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
     memcpy(p, &id, sizeof(id));
     p += 2;
-    value = ntohl(65535);
+    value = htonl(65535);
     memcpy(p, &value, sizeof(value));
     p += 4;
 
-    cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + 12, 0);
+    swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN"]\t[length=%d]", swHttp2_get_type(SW_HTTP2_TYPE_SETTINGS), 18);
+    cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + 18, 0);
 }
 
 static PHP_METHOD(swoole_http2_client, onError)
