@@ -930,11 +930,11 @@ int swoole_gethostbyname(int flags, char *name, char *addr)
     }
     if (__af == AF_INET)
     {
-        strcpy(addr, addr_list[index].v4);
+        strncpy(addr, addr_list[index].v4, sizeof (addr_list[index].v4));
     }
     else
     {
-        strcpy(addr, addr_list[index].v6);
+        strncpy(addr, addr_list[index].v6, sizeof (addr_list[index].v4));
     }
     return SW_OK;
 }
