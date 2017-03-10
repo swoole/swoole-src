@@ -2587,9 +2587,7 @@ PHP_METHOD(swoole_server, task)
 #endif
         swTask_type(&buf) |= SW_TASK_CALLBACK;
         sw_zval_add_ref(&callback);
-
-        zval *_callback = sw_zval_dup(callback);
-        swHashMap_add_int(task_callbacks, buf.info.fd, _callback);
+        swHashMap_add_int(task_callbacks, buf.info.fd, sw_zval_dup(callback));
     }
 
     swTask_type(&buf) |= SW_TASK_NONBLOCK;
