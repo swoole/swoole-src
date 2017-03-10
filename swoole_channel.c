@@ -66,7 +66,7 @@ static PHP_METHOD(swoole_channel, __construct)
         RETURN_FALSE;
     }
 
-    if (size <= 1024 * 128)
+    if (size < 1024 * 128)
     {
         size = 1024 * 128;
     }
