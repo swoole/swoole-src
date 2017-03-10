@@ -223,7 +223,7 @@ static int http2_client_build_header(zval *zobject, http2_client_request *req, c
     int index = 0;
     int find_host = 0;
 
-    nghttp2_nv nv[128];
+    nghttp2_nv nv[1024];
     http2_client_property *hcc = swoole_get_property(zobject, HTTP2_CLIENT_PROPERTY_INDEX);
     if (req->type == HTTP_GET)
     {
@@ -286,16 +286,18 @@ static int http2_client_build_header(zval *zobject, http2_client_request *req, c
     //http cookies
     if (zcookie && !ZVAL_IS_NULL(zcookie))
     {
-        zval *value;
-        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(zcookie), value)
+        zend_size_t len;
+        smart_str formstr_s = { 0 };
+        char *formstr = sw_http_build_query(zcookie, &len, &formstr_s TSRMLS_CC);
+        if (formstr == NULL)
         {
-            if (Z_TYPE_P(value) != IS_STRING)
-            {
-                continue;
-            }
-            http2_add_header(&nv[index++], ZEND_STRL("set-cookie"), Z_STRVAL_P(value), Z_STRLEN_P(value));
+            swoole_php_error(E_WARNING, "http_build_query failed.");
         }
-        SW_HASHTABLE_FOREACH_END();
+        else
+        {
+            http2_add_header(&nv[3], ZEND_STRL("cookie"), formstr, len);
+            smart_str_free(&formstr_s);
+        }
     }
 
     ssize_t rv;
@@ -735,7 +737,7 @@ static void http2_client_send_request(zval *zobject, http2_client_request *req T
     zend_update_property_long(swoole_http2_response_class_entry_ptr, response_object, ZEND_STRL("streamId"), stream->stream_id TSRMLS_CC);
 
     swHashMap_add_int(hcc->streams, hcc->stream_id, stream);
-    swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", STREAM#%d] flags=%d, length=%d", swHttp2_get_type(SW_HTTP2_TYPE_HEADERS), hcc->stream_id, n);
+    swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", STREAM#%d] length=%d", swHttp2_get_type(SW_HTTP2_TYPE_HEADERS), hcc->stream_id, n);
     cli->send(cli, buffer, n + SW_HTTP2_FRAME_HEADER_SIZE, 0);
 
     /**
