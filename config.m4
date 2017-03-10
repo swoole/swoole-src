@@ -56,6 +56,9 @@ PHP_ARG_WITH(openssl_dir, for OpenSSL support,
 PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
 [  --enable-mysqlnd       Do you have mysqlnd?], no, no)
 
+PHP_ARG_ENABLE(picohttpparser, enable picohttpparser support,
+[  --enable-picohttpparser       Do you have picohttpparser?], no, no)
+
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
     haveext=$[PHP_]translit($1,a-z_-,A-Z__)
@@ -356,10 +359,20 @@ if test "$PHP_SWOOLE" != "no"; then
     swoole_source_file="$swoole_source_file thirdparty/php_http_parser.c"
     swoole_source_file="$swoole_source_file thirdparty/multipart_parser.c"
 
+    if test "$PHP_PICOHTTPPARSER" = "yes"; then
+        AC_DEFINE(SW_USE_PICOHTTPPARSER, 1, [enable picohttpparser support])
+        swoole_source_file="$swoole_source_file thirdparty/picohttpparser/picohttpparser.c"
+    fi
+
     PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared)
 
     PHP_ADD_INCLUDE([$ext_srcdir])
     PHP_ADD_INCLUDE([$ext_srcdir/include])
+
+    if test "$PHP_PICOHTTPPARSER" = "yes"; then
+        PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/picohttpparser])
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/picohttpparser)
+    fi
 
     PHP_ADD_BUILD_DIR($ext_builddir/src/core)
     PHP_ADD_BUILD_DIR($ext_builddir/src/memory)
