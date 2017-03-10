@@ -782,10 +782,16 @@ static void http2_client_connect(zval *zobject TSRMLS_DC)
     zval *zport = sw_zend_read_property(swoole_http2_client_class_entry_ptr, zobject, ZEND_STRL("port"), 1 TSRMLS_CC);
 
     http2_client_set_callback(zobject, "Connect", "onConnect" TSRMLS_CC);
-    http2_client_set_callback(zobject, "Close", "onClose" TSRMLS_CC);
     http2_client_set_callback(zobject, "Receive", "onReceive" TSRMLS_CC);
-    http2_client_set_callback(zobject, "Error", "onError" TSRMLS_CC);
 
+    if (!php_swoole_client_isset_callback(zobject, SW_CLIENT_CB_onClose))
+    {
+        http2_client_set_callback(zobject, "Close", "onClose" TSRMLS_CC);
+    }
+    if (!php_swoole_client_isset_callback(zobject, SW_CLIENT_CB_onError))
+    {
+        http2_client_set_callback(zobject, "Error", "onError" TSRMLS_CC);
+    }
     sw_zend_call_method_with_2_params(&zobject, swoole_client_class_entry_ptr, NULL, "connect", &retval, zhost, zport);
     if (retval)
     {
@@ -991,6 +997,11 @@ static PHP_METHOD(swoole_http2_client, onError)
 
 }
 
+static PHP_METHOD(swoole_http2_client, onClose)
+{
+
+}
+
 static PHP_METHOD(swoole_http2_client, onReceive)
 {
     zval *zobject;
@@ -1002,11 +1013,6 @@ static PHP_METHOD(swoole_http2_client, onReceive)
     }
 
     http2_client_onFrame(zobject, zdata TSRMLS_CC);
-}
-
-static PHP_METHOD(swoole_http2_client, onClose)
-{
-
 }
 
 static PHP_METHOD(swoole_http2_client, __destruct)

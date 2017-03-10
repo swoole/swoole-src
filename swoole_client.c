@@ -100,7 +100,7 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
     zval *retval = NULL;
     zval **args[1];
 
-    client_callback *cb = swoole_get_property(zobject, 0);
+    client_callback *cb = swoole_get_property(zobject, client_property_callback);
     char *callback_name;
 
     switch(type)
@@ -439,6 +439,30 @@ static void client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC)
     }
 }
 #endif
+
+int php_swoole_client_isset_callback(zval *zobject, int type TSRMLS_DC)
+{
+    client_callback *cb = swoole_get_property(zobject, client_property_callback);
+    switch (type)
+    {
+    case SW_CLIENT_CB_onConnect:
+        return cb->onConnect != NULL;
+    case SW_CLIENT_CB_onError:
+        return cb->onError != NULL;
+    case SW_CLIENT_CB_onClose:
+        return cb->onClose != NULL;
+    case SW_CLIENT_CB_onBufferFull:
+        return cb->onBufferFull != NULL;
+    case SW_CLIENT_CB_onBufferEmpty:
+        return cb->onBufferEmpty != NULL;
+#ifdef SW_USE_OPENSSL
+    case SW_CLIENT_CB_onSSLReady:
+        return cb->onSSLReady != NULL;
+#endif
+    default:
+        return SW_FALSE;
+    }
+}
 
 void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
 {

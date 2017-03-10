@@ -46,7 +46,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.9.6"
+#define PHP_SWOOLE_VERSION  "1.9.7-alpha"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -373,6 +373,7 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
 void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC);
 zval* php_swoole_websocket_unpack(swString *data TSRMLS_DC);
 void php_swoole_sha1(const char *str, int _len, unsigned char *digest);
+int php_swoole_client_isset_callback(zval *zobject, int type TSRMLS_DC);
 
 int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC);
 zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC);
