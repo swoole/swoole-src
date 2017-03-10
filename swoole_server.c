@@ -831,6 +831,10 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     if (swTask_type(req) & SW_TASK_CALLBACK)
     {
         callback = swHashMap_find_int(task_callbacks, req->info.fd);
+        if (callback == NULL)
+        {
+            swTask_type(req) = swTask_type(req) & (~SW_TASK_CALLBACK);
+        }
     }
     if (callback == NULL)
     {
@@ -2583,7 +2587,9 @@ PHP_METHOD(swoole_server, task)
 #endif
         swTask_type(&buf) |= SW_TASK_CALLBACK;
         sw_zval_add_ref(&callback);
-        swHashMap_add_int(task_callbacks, buf.info.fd, sw_zval_dup(callback));
+
+        zval *_callback = sw_zval_dup(callback);
+        swHashMap_add_int(task_callbacks, buf.info.fd, _callback);
     }
 
     swTask_type(&buf) |= SW_TASK_NONBLOCK;
