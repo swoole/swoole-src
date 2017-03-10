@@ -705,6 +705,10 @@ int swManager_wait_user_worker(swProcessPool *pool, pid_t pid)
 
 void swManager_kill_user_worker(swServer *serv)
 {
+    if (!serv->user_worker_map)
+    {
+        return;
+    }
     swWorker* user_worker;
     uint64_t key;
     int __stat_loc;

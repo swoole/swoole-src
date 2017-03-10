@@ -66,6 +66,11 @@ static PHP_METHOD(swoole_channel, __construct)
         RETURN_FALSE;
     }
 
+    if (size <= 1024 * 128)
+    {
+        size = 1024 * 128;
+    }
+
     swChannel *chan = swChannel_new(size, SW_BUFFER_SIZE_STD, SW_CHAN_LOCK | SW_CHAN_SHM);
     if (chan == NULL)
     {
