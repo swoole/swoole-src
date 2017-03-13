@@ -125,7 +125,7 @@ int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
     }
 
 #if PHP_MAJOR_VERSION >= 7
-    if (SWOOLE_G(fast_serialize))
+    if (SWOOLE_G(fast_serialize) && serialized_string)
     {
         zend_string_release(serialized_string);
     }
