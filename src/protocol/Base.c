@@ -74,7 +74,14 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
 
     uint32_t length = buffer->offset + eof_pos + protocol->package_eof_len;
     //swNotice("#[4] count=%d, length=%d", count, length);
-    protocol->onPackage(conn, buffer->str, length);
+    if (protocol->onPackage(conn, buffer->str, length) < 0)
+    {
+        return SW_ERR;
+    }
+    if (conn->removed)
+    {
+        return SW_OK;
+    }
 
     //there are remaining data
     if (length < buffer->length)
@@ -103,7 +110,10 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
             else
             {
                 length = eof_pos + protocol->package_eof_len;
-                protocol->onPackage(conn, remaining_data, length);
+                if (protocol->onPackage(conn, remaining_data, length) < 0)
+                {
+                    return SW_ERR;
+                }
                 if (conn->removed)
                 {
                     return SW_OK;
