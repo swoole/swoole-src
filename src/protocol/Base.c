@@ -104,7 +104,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
             {
                 length = eof_pos + protocol->package_eof_len;
                 protocol->onPackage(conn, remaining_data, length);
-                if (!conn->active)
+                if (conn->removed)
                 {
                     return SW_OK;
                 }
