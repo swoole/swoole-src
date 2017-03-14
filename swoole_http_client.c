@@ -1649,18 +1649,22 @@ int http_response_uncompress(z_stream *stream, swString *buffer, char *body, int
 
     stream->avail_in = length;
     stream->next_in = (Bytef *) body;
+    stream->total_in = 0;
+    stream->total_out = 0;
 
 #if 0
     printf(SW_START_LINE"\nstatus=%d\tavail_in=%ld,\tavail_out=%ld,\ttotal_in=%ld,\ttotal_out=%ld\n", status,
             stream->avail_in, stream->avail_out, stream->total_in, stream->total_out);
 #endif
 
+    swString_clear(buffer);
+
     while (1)
     {
         stream->avail_out = buffer->size - buffer->length;
         stream->next_out = (Bytef *) (buffer->str + buffer->length);
 
-        status = inflate(stream, Z_SYNC_FLUSH);
+        status = inflate(stream, Z_NO_FLUSH);
 
 #if 0
         printf("status=%d\tavail_in=%ld,\tavail_out=%ld,\ttotal_in=%ld,\ttotal_out=%ld,\tlength=%ld\n", status,
@@ -1710,12 +1714,10 @@ static int http_client_parser_on_body(php_http_parser *parser, const char *at, s
             {
                 return -1;
             }
-            if (swoole_sync_writefile(http->file_fd, (void*) http->gzip_buffer->str + http->gzip_buffer->offset,
-                    http->gzip_buffer->length - http->gzip_buffer->offset) < 0)
+            if (swoole_sync_writefile(http->file_fd, http->gzip_buffer->str, http->gzip_buffer->length) < 0)
             {
                 return -1;
             }
-            http->gzip_buffer->offset = http->gzip_buffer->length;
         }
         else
 #endif
@@ -1753,7 +1755,6 @@ static int http_client_parser_on_message_complete(php_http_parser *parser)
 #ifdef SW_HAVE_ZLIB
     if (http->gzip && http->body->length > 0)
     {
-        swString_clear(http->gzip_buffer);
         if (http_response_uncompress(&http->gzip_stream, http->gzip_buffer, http->body->str, http->body->length) == SW_ERR)
         {
             swWarn("http_response_uncompress failed.");

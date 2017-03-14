@@ -559,13 +559,11 @@ static int http2_client_onFrame(zval *zobject, zval *zdata TSRMLS_DC)
 #ifdef SW_HAVE_ZLIB
         if (stream->gzip)
         {
-            swString *out_buffer = stream->gzip_buffer;
-            if (http_response_uncompress(&stream->gzip_stream, out_buffer, buf, length) == SW_ERR)
+            if (http_response_uncompress(&stream->gzip_stream, stream->gzip_buffer, buf, length) == SW_ERR)
             {
                 return -1;
             }
-            swString_append_ptr(stream->buffer, out_buffer->str + out_buffer->offset, out_buffer->length - out_buffer->offset);
-            out_buffer->offset = out_buffer->length;
+            swString_append_ptr(stream->buffer, stream->gzip_buffer->str, stream->gzip_buffer->length);
         }
         else
 #endif
