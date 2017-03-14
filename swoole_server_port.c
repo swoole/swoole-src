@@ -444,7 +444,7 @@ static PHP_METHOD(swoole_server_port, on)
         "Receive",
         "Close",
         "Packet",
-        "Start",
+        NULL,
         NULL,
         NULL,
         NULL,
