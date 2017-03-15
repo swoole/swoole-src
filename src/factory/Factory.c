@@ -124,8 +124,8 @@ int swFactory_end(swFactory *factory, int fd)
         if (serv->onClose != NULL)
         {
             info.fd = fd;
-            info.from_id =  conn->from_id;
-            info.from_fd =  conn->from_fd;
+            info.from_id = -1;
+            info.from_fd = conn->from_fd;
             serv->onClose(serv, &info);
         }
         conn->closing = 0;
