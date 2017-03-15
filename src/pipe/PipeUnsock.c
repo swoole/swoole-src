@@ -93,6 +93,7 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
         swWarn("malloc() failed.");
         return SW_ERR;
     }
+    bzero(object, sizeof(swPipeUnsock));
     p->blocking = blocking;
     ret = socketpair(AF_UNIX, protocol, 0, object->socks);
     if (ret < 0)
