@@ -116,20 +116,27 @@ extern swHashMap *timer_map;
 
 static sw_inline zend_fcall_info_cache* php_swoole_server_get_cache(swServer *serv, int server_fd, int event_type)
 {
-    swListenPort *port = serv->connection_list[server_fd].object;
-    swoole_server_port_property *property = port->ptr;
-    if (!property)
+    swListenPort *ls;
+    LL_FOREACH(serv->listen_list, ls)
     {
-        return php_sw_server_caches[event_type];
-    }
-    zend_fcall_info_cache* cache = property->caches[event_type];
-    if (!cache)
-    {
-        return php_sw_server_caches[event_type];
-    }
-    else
-    {
-        return cache;
+        swoole_server_port_property *property = ls->ptr;
+        if (!property)
+        {
+            return php_sw_server_caches[event_type];
+        }
+        zend_fcall_info_cache* cache = property->caches[event_type];
+        if (!cache)
+        {
+            if (!php_sw_server_caches[event_type])
+            {
+                continue;
+            }
+            return php_sw_server_caches[event_type];
+        }
+        else
+        {
+            return cache;
+        }
     }
 }
 
