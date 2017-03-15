@@ -715,13 +715,21 @@ typedef struct _swPipe
 
     int (*read)(struct _swPipe *, void *recv, int length);
     int (*write)(struct _swPipe *, void *send, int length);
-    int (*getFd)(struct _swPipe *, int isWriteFd);
+    int (*getFd)(struct _swPipe *, int master);
     int (*close)(struct _swPipe *);
 } swPipe;
+
+enum _swPipe_close_which
+{
+    SW_PIPE_CLOSE_MASTER = 1,
+    SW_PIPE_CLOSE_WORKER = 2,
+    SW_PIPE_CLOSE_BOTH   = 0,
+};
 
 int swPipeBase_create(swPipe *p, int blocking);
 int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout);
 int swPipeUnsock_create(swPipe *p, int blocking, int protocol);
+int swPipeUnsock_close_ext(swPipe *p, int which);
 
 static inline int swPipeNotify_auto(swPipe *p, int blocking, int semaphore)
 {

@@ -1022,15 +1022,20 @@ static PHP_METHOD(swoole_process, exit)
 
 static PHP_METHOD(swoole_process, close)
 {
-    swWorker *process = swoole_get_object(getThis());
+    long which = 0;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &which) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
 
+    swWorker *process = swoole_get_object(getThis());
     if (process->pipe == 0)
     {
         swoole_php_fatal_error(E_WARNING, "have not pipe, can not use close()");
         RETURN_FALSE;
     }
 
-    int ret = process->pipe_object->close(process->pipe_object);
+    int ret = swPipeUnsock_close_ext(process->pipe_object, which);
     if (ret < 0)
     {
         swoole_php_fatal_error(E_WARNING, "close() failed. Error: %s[%d]", strerror(errno), errno);
@@ -1042,5 +1047,5 @@ static PHP_METHOD(swoole_process, close)
         efree(process->pipe_object);
         process->pipe_object = NULL;
     }
-    ZVAL_LONG(return_value, ret);
+    RETURN_TRUE;
 }
