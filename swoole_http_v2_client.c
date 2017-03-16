@@ -782,11 +782,11 @@ static void http2_client_connect(zval *zobject TSRMLS_DC)
     http2_client_set_callback(zobject, "Connect", "onConnect" TSRMLS_CC);
     http2_client_set_callback(zobject, "Receive", "onReceive" TSRMLS_CC);
 
-    if (!php_swoole_client_isset_callback(zobject, SW_CLIENT_CB_onClose))
+    if (!php_swoole_client_isset_callback(zobject, SW_CLIENT_CB_onClose TSRMLS_CC))
     {
         http2_client_set_callback(zobject, "Close", "onClose" TSRMLS_CC);
     }
-    if (!php_swoole_client_isset_callback(zobject, SW_CLIENT_CB_onError))
+    if (!php_swoole_client_isset_callback(zobject, SW_CLIENT_CB_onError TSRMLS_CC))
     {
         http2_client_set_callback(zobject, "Error", "onError" TSRMLS_CC);
     }
