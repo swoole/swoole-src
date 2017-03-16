@@ -38,7 +38,7 @@
     <date>2017-03-16</date>
     <time>09:50:10</time>
     <version>
-		<release>1.9.7</release>
+		<release>1.9.8</release>
 		<api>1.9</api>
     </version>
     <stability>
@@ -47,17 +47,7 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Added support for systemd.socket
-- Added swoole\http2\client
-- Added client support for http-proxy
-- Added the swoole_process::close parameter, allowing only one of the pipes to be closed
-- Fixed MySQL client crash when the low version gcc is compiled
-- Fixed the crash in the BASE mode shutdown
-- Fixed openssl-1.1 configuration detection error problem
-- Fixed open_eof_split after enabling BASE mode to turn off connections in the onReceive callback function
-- Fixed the problem with the Redis \ Server :: format function SET and MAP formatting errors
-- Fixed a problem that caused a crash when a string type variable was passed directly when swoole.fast_serialize was enabled
-- Update The reactorId variable in the onClose callback is set to -1 when the server actively shuts down the connection
+- Fix some compilation errors
     </notes>
 	<contents>
 		<dir name="/">
