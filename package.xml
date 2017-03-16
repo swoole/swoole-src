@@ -35,10 +35,10 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2017-02-24</date>
+    <date>2017-03-16</date>
     <time>09:50:10</time>
     <version>
-		<release>1.9.6</release>
+		<release>1.9.7</release>
 		<api>1.9</api>
     </version>
     <stability>
@@ -47,13 +47,17 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Added swoole_mysql::escape method to escape special characters in SQL statements
-- Added support for openssl-1.1
-- Fixed timer crash when more than 10,000 timers were added
-- Added swoole_serialize module, PHP7 under high performance serialization library
-- Fixed swoole_client->enableSSL method ssl_cert_file and ssl_key_file invalid parameters
-- Added swoole_http_server support for POST multi-level KEY
-- Fixed listening on UDP port setting onPacket invalid issue
+- Added support for systemd.socket
+- Added swoole\http2\client
+- Added client support for http-proxy
+- Added the swoole_process::close parameter, allowing only one of the pipes to be closed
+- Fixed MySQL client crash when the low version gcc is compiled
+- Fixed the crash in the BASE mode shutdown
+- Fixed openssl-1.1 configuration detection error problem
+- Fixed open_eof_split after enabling BASE mode to turn off connections in the onReceive callback function
+- Fixed the problem with the Redis \ Server :: format function SET and MAP formatting errors
+- Fixed a problem that caused a crash when a string type variable was passed directly when swoole.fast_serialize was enabled
+- Update The reactorId variable in the onClose callback is set to -1 when the server actively shuts down the connection
     </notes>
 	<contents>
 		<dir name="/">
@@ -104,8 +108,9 @@
 			<file role="src" name="swoole_table.c" />
 			<file role="src" name="swoole_buffer.c" />
 			<file role="src" name="swoole_http_server.c" />
-			<file role="src" name="swoole_http_v2_server.c" />
 			<file role="src" name="swoole_http_client.c" />
+			<file role="src" name="swoole_http_v2_client.c" />
+			<file role="src" name="swoole_http_v2_server.c" />
 			<file role="src" name="swoole_http.h" />
 			<file role="src" name="swoole_websocket_server.c" />
 			<file role="src" name="swoole_atomic.c" />
@@ -236,7 +241,13 @@
 				</dir>
 				<dir name="server">
 					<file role="src" name="echo.php" />
-					<file role="src" name="msgqueue.php" />
+					<file role="src" name="ip_dispatch.php" />
+					<file role="src" name="unix_stream.php" />
+					<file role="src" name="listen_1k_port.php" />
+					<file role="src" name="fixed_header_client.php" />
+					<file role="src" name="fixed_header_server.php" />
+					<file role="src" name="local_listener.php" />
+					<file role="src" name="single.php" />
 				</dir>
 				<dir name="http">
 					<file role="src" name="server.php" />
@@ -245,6 +256,10 @@
 					<file role="src" name="async_client.php" />
 					<file role="src" name="async_websocket.php" />
 					<file role="src" name="download.php" />
+				</dir>
+				<dir name="http2">
+					<file role="src" name="server.php" />
+					<file role="src" name="client.php" />
 				</dir>
 				<dir name="length">
                     <file role="src" name="server.php" />
