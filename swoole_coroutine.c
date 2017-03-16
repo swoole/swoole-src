@@ -184,6 +184,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     gettimeofday((struct timeval *) &tv, (struct timezone *) NULL);
     snprintf(COROG.uid, 21, "%08x%05x%07.7F", (int)tv.tv_sec, (int)tv.tv_usec, php_combined_lcg(TSRMLS_C) * 10);
     COROG.current_coro->start_time = time(NULL);
+    COROG.current_coro->function = NULL;
     COROG.current_coro->post_callback = post_callback;
     COROG.current_coro->post_callback_params = params;
     COROG.require = 1;
@@ -210,6 +211,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
 #else
 #define TASK_SLOT \
     ((int)((ZEND_MM_ALIGNED_SIZE(sizeof(coro_task)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) / ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
+
 int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval, void *post_callback, void* params)
 {
     if (__builtin_expect(COROG.coro_num >= COROG.max_coro_num, 0))
@@ -218,21 +220,17 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
         return CORO_LIMIT;
     }
     zend_function *func = fci_cache->function_handler;
-    zend_op_array *op_array = (zend_op_array *)fci_cache->function_handler;
+    zend_op_array *op_array = (zend_op_array *) fci_cache->function_handler;
     zend_object *object;
     int i;
     zend_vm_stack_init();
 
-    COROG.current_coro = (coro_task *)EG(vm_stack_top);
-    zend_execute_data *call = (zend_execute_data *)(EG(vm_stack_top));
-    EG(vm_stack_top) = (zval *)((char *)call + TASK_SLOT * sizeof(zval));
+    COROG.current_coro = (coro_task *) EG(vm_stack_top);
+    zend_execute_data *call = (zend_execute_data *) (EG(vm_stack_top));
+    EG(vm_stack_top) = (zval *) ((char *) call + TASK_SLOT * sizeof(zval));
     object = (func->common.fn_flags & ZEND_ACC_STATIC) ? NULL : fci_cache->object;
     call = zend_vm_stack_push_call_frame(ZEND_CALL_TOP_FUNCTION | ZEND_CALL_ALLOCATED, fci_cache->function_handler, argc, fci_cache->called_scope, object);
 
-    if (unlikely(op_array->fn_flags & ZEND_ACC_CLOSURE)) {
-        GC_REFCOUNT((zend_object*)op_array->prototype)++;
-        ZEND_ADD_CALL_FLAG(call, ZEND_CALL_CLOSURE);
-    }
 #if PHP_MINOR_VERSION < 1
     EG(scope) = func->common.scope;
 #endif
@@ -252,6 +250,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
 
     ++COROG.coro_num;
     COROG.current_coro->start_time = time(NULL);
+    COROG.current_coro->function = NULL;
     COROG.current_coro->post_callback = post_callback;
     COROG.current_coro->post_callback_params = params;
     COROG.require = 1;
@@ -281,6 +280,10 @@ sw_inline void coro_close(TSRMLS_D)
     if (COROG.current_coro->post_callback)
     {
         COROG.current_coro->post_callback(COROG.current_coro->post_callback_params);
+    }
+    if (COROG.current_coro->function)
+    {
+        sw_zval_free(COROG.current_coro->function);
     }
 
     void **arguments = EG(current_execute_data)->function_state.arguments;
@@ -326,6 +329,10 @@ sw_inline void coro_close(TSRMLS_D)
 #else
 sw_inline void coro_close(TSRMLS_D)
 {
+    if (COROG.current_coro->function)
+    {
+        sw_zval_free(COROG.current_coro->function);
+    }
     efree(EG(vm_stack));
     efree(COROG.allocated_return_value_ptr);
     EG(vm_stack) = COROG.origin_vm_stack;

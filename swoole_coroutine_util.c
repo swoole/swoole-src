@@ -335,6 +335,9 @@ static PHP_METHOD(swoole_coroutine_util, create)
         return;
     }
 
+    sw_zval_add_ref(&callback);
+    callback = sw_zval_dup(callback);
+
     char *func_name = NULL;
     zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
     if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
@@ -366,8 +369,11 @@ static PHP_METHOD(swoole_coroutine_util, create)
 
     if (ret < 0)
     {
+        sw_zval_free(callback);
         RETURN_FALSE;
     }
+    //save callback
+    COROG.current_coro->function = callback;
 
     swReactorCheckPoint = prev_checkpoint;
     coro_resume_parent(cxt, retval, retval);
