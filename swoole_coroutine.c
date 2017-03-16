@@ -332,6 +332,7 @@ sw_inline void coro_close(TSRMLS_D)
     if (COROG.current_coro->function)
     {
         sw_zval_free(COROG.current_coro->function);
+        COROG.current_coro->function = NULL;
     }
     efree(EG(vm_stack));
     efree(COROG.allocated_return_value_ptr);

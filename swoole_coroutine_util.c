@@ -343,6 +343,7 @@ static PHP_METHOD(swoole_coroutine_util, create)
     if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
     {
         swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        sw_zval_free(callback);
         efree(func_name);
         return;
     }
