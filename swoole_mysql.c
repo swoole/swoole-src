@@ -1424,6 +1424,19 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
+static PHP_METHOD(swoole_mysql, getBuffer)
+{
+
+    mysql_client *client = swoole_get_object(getThis());
+    if (!client)
+    {
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
+        RETURN_FALSE;
+    }
+
+    SW_RETURN_STRINGL(client->buffer->str, client->buffer->length, 1);//TODO zero malloc
+}
+
 #ifdef SW_USE_MYSQLND
 static PHP_METHOD(swoole_mysql, escape)
 {
