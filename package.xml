@@ -128,6 +128,10 @@
 				<file role="src" name="php_http_parser.h" />
 				<file role="src" name="multipart_parser.c" />
 				<file role="src" name="multipart_parser.h" />
+				<dir name="picohttpparser">
+					<file role="src" name="picohttpparser.c" />
+					<file role="src" name="picohttpparser.h" />
+				</dir>
 			</dir>
             <dir name="benchmark">
                 <file role="src" name="async.php" />
