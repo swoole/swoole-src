@@ -532,7 +532,7 @@ static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
     i += 1;
 
     /* flags */
-    col->flags = mysql_uint3korr(&buf[i]);
+    col->flags = mysql_uint2korr(&buf[i]);
     i += 2;
 
     /* decimals */

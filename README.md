@@ -22,8 +22,7 @@ The network layer in Swoole is event-based and takes full advantage of the under
 
 coroutine
 ----------------
-[Swoole 2.0](Version2.md) support the  built-in coroutine, you can use fully synchronized code to implement asynchronous program. 
-PHP code without any additional keywords, the underlying automatic coroutine-scheduling.
+[Swoole 2.0](Version2.md) supports the built-in coroutine, and you can use fully synchronized code to implement asynchronous programs. PHP code without any additional keywords, the underlying automatic coroutine-scheduling.
 
 ```php
 <?php
@@ -46,7 +45,7 @@ for($i = 0; $i < 100; $i++) {
 ```
 
 ```php
-<?php  
+<?php
 $server = new Swoole\Http\Server('127.0.0.1', 9501);
 
 $server->on('Request', function($request, $response) {
@@ -78,20 +77,20 @@ With the synchronous logic execution, you can easily write large and robust appl
 in-memory
 ------
 
-Unlike traditional apache/php-fpm stuff, the memory allocated in Swoole will not be free'd after a request, which can improve performance a lot.
+Unlike traditional apache/php-fpm stuff, the memory allocated in Swoole will not be freed after a request, which can improve performance a lot.
 
 
 ## Why Swoole?
 
 Traditional PHP applications almost always run behind Apache/Nginx, without much control of the request. This brings several limitations:
 
-1. All memory will be freed after request. All PHP code needs be re-compiled on every request. Even with opcache enabled, all opcode still needs to be re-executed.
-2. It is almost impossible to implement long connections and connections pooling techniques.
+1. All memory will be freed after the request. All PHP code needs be re-compiled on every request. Even with opcache enabled, all opcode still needs to be re-executed.
+2. It is almost impossible to implement long connections and connection pooling techniques.
 3. Implementing asynchronous tasks requires 3rd party queue servers, such as rabbitmq and beanstalkd.
-4. Implementing realtime applications such as chatting server requires 3rd party languages, nodejs for example.
+4. Implementing realtime applications such as chatting servers requires 3rd party languages, such as nodejs, for example.
 
-This why Swoole appeared. Swoole extends the use cases of PHP, and brings all these possibilities to the PHP world. 
-By using Swoole, you can build enhanced web applications with more control, real-time chatting servers, etc more easily.
+This is why Swoole appeared. Swoole extends the use cases of PHP, and brings all these possibilities to the PHP world.
+By using Swoole, you can build enhanced web applications with more control, real-time chatting servers, etc, more easily.
 
 ## Requirements
 
@@ -102,7 +101,7 @@ By using Swoole, you can build enhanced web applications with more control, real
 ## Installation
 
 1. Install via pecl
-    
+
     ```
     pecl install swoole
     ```
@@ -125,17 +124,17 @@ Swoole allows you to build many features.
 
 ### Server
 
-This is the most important part in Swoole. It provides necessary infrastructure to build server applications. 
+This is the most important part in Swoole. It provides the necessary infrastructure to build server applications.
 With Swoole server, you can build web servers, chat messaging servers, game servers and almost anything you want.
 
 The following example shows a simple echo server.
 
 ```php
 // create a server instance
-$serv = new swoole_server("127.0.0.1", 9501); 
+$serv = new swoole_server("127.0.0.1", 9501);
 
 // attach handler for connect event, once client connected to server the registered handler will be executed
-$serv->on('connect', function ($serv, $fd){  
+$serv->on('connect', function ($serv, $fd){
     echo "Client:Connect.\n";
 });
 
@@ -149,7 +148,7 @@ $serv->on('close', function ($serv, $fd) {
     echo "Client: Close.\n";
 });
 
-// start our server, listen on port and ready to accept connections
+// start our server, listen on port and be ready to accept connections
 $serv->start();
 ```
 
@@ -261,7 +260,7 @@ $serv = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
 $port2 = $serv->listen("0.0.0.0", 9502, SWOOLE_SOCK_TCP);
 $port2->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
     var_dump($data);
-    $serv->send($fd, $data);    
+    $serv->send($fd, $data);
 });
 
 $serv->on('request', function($req, $resp) {
@@ -275,8 +274,8 @@ $serv->start();
 ### Task Worker
 
 Swoole brings you two types of workers: server workers and task workers. Server workers are for request
-handling, as demonstrated above. Task workers are for task execution. With task workers, we can make our 
-task executed asynchronously without blocking the server workers.
+handling, as demonstrated above. Task workers are for task execution. With task workers, we can execute our
+task asynchronously without blocking the server workers.
 
 Task workers are mainly used for time-consuming tasks, such as sending password recovery emails. And ensure
 the main request returns as soon as possible.
@@ -314,7 +313,7 @@ $serv->on('finish', function ($serv, $task_id, $data) {
 $serv->start();
 ```
 
-Swoole also supports synchronous tasks. To use synchronous tasks, just simply replace 
+Swoole also supports synchronous tasks. To use synchronous tasks, just simply replace
 `$serv->task($data)` with `$serv->taskwait($data)`. Unlike `task()`, `taskwait()` will wait for a task to
 complete before it returns its response.
 
@@ -338,7 +337,7 @@ $serv->after(3000, function () {
 ```
 
 In the example above, we first set the `timer` event handler to `swoole_server` to enable timer support.
-Then, we add two timers by calling `bool swoole_server::addtimer($interval)` once the server started. 
+Then, we add two timers by calling `bool swoole_server::addtimer($interval)` once the server started.
 To handle multiple timers, we switch the `$interval` in registered handler and do what we want to do.
 
 ### Event
@@ -346,8 +345,8 @@ To handle multiple timers, we switch the `$interval` in registered handler and d
 Swoole's I/O layer is event-based, which is very convenient to add your own file descriptor to Swoole's main eventloop.
 With event support, you can also build fully asynchronous applications with Swoole.
 
-To use events in Swoole, we can use `swoole_event_set()` to register event handler to sepecified file descriptor, 
-once registered descriptors become readable or writeable, our registered handler will be invoked. Also, we can 
+To use events in Swoole, we can use `swoole_event_set()` to register event handler to sepecified file descriptor,
+once registered descriptors become readable or writeable, our registered handler will be invoked. Also, we can
 using `bool swoole_event_del(int $fd);` to remove registered file descriptor from eventloop.
 
 The following are prototypes for the related functions:
@@ -384,9 +383,9 @@ void swoole_async_dns_lookup(string $domain, function($host, $ip){});
 bool swoole_timer_after($after_n_ms, mixed $callback);
 bool swoole_timer_tick($n_ms, mixed $callback);
 bool swoole_timer_clear($n_ms, mixed $callback);
-``` 
+```
 
-Refer [API Reference](http://wiki.swoole.com/wiki/page/183.html) for more detail information of these functions.
+Refer to [API Reference](http://wiki.swoole.com/wiki/page/183.html) for more detailed information about these functions.
 
 
 ### Client
@@ -451,11 +450,11 @@ string swoole_client::recv(int $size = 65535, bool $waitall = 0);
 bool swoole_client::close();
 ```
 
-Refer [API Reference](http://wiki.swoole.com/wiki/page/3.html) for more detail information of these functions.
+Refer to [API Reference](http://wiki.swoole.com/wiki/page/3.html) for more detailed information about these functions.
 
 ## API Reference
 
-* [中文](http://wiki.swoole.com/) 
+* [中文](http://wiki.swoole.com/)
 * [English](https://rawgit.com/tchiotludo/swoole-ide-helper/english/docs/index.html)
 
 ## Related Projects

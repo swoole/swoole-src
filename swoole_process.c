@@ -1043,7 +1043,7 @@ static PHP_METHOD(swoole_process, close)
         swoole_php_fatal_error(E_WARNING, "close() failed. Error: %s[%d]", strerror(errno), errno);
         RETURN_FALSE;
     }
-    else
+    if (which == 0)
     {
         process->pipe = 0;
         efree(process->pipe_object);

@@ -174,6 +174,15 @@ int swClient_enable_ssl_encrypt(swClient *cli)
         return SW_ERR;
     }
     cli->socket->ssl_send = 1;
+#ifdef SW_USE_HTTP2
+    if (cli->http2)
+    {
+        if (SSL_CTX_set_alpn_protos(cli->ssl_context, (const unsigned char *) "\x02h2", 3) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+#endif
     return SW_OK;
 }
 
@@ -205,6 +214,16 @@ static int swClient_inet_addr(swClient *cli, char *host, int port)
 
         host = cli->socks5_proxy->host;
         port = cli->socks5_proxy->port;
+    }
+    
+    //enable http proxy
+    if (cli->http_proxy)
+    {
+        cli->http_proxy->target_host = host;
+        cli->http_proxy->target_port = port;
+
+        host = cli->http_proxy->proxy_host;
+        port = cli->http_proxy->proxy_port;
     }
 
     void *s_addr = NULL;
@@ -737,6 +756,51 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
     char *buf = cli->buffer->str;
     long buf_size = cli->buffer->size;
 
+    if (cli->http_proxy && cli->http_proxy->state != SW_HTTP_PROXY_STATE_READY)
+    {
+#ifdef SW_USE_OPENSSL
+        if (cli->open_ssl)
+        {
+            int n = swConnection_recv (event->socket, buf, buf_size, 0);
+            if (n <= 0)
+            {
+                goto __close;
+            }
+            if (n < strlen (SW_HTTPS_PROXY_HANDSHAKE_RESPONSE))
+            {
+                return SW_OK;
+            }
+            if (strncasecmp (SW_HTTPS_PROXY_HANDSHAKE_RESPONSE, buf, strlen (SW_HTTPS_PROXY_HANDSHAKE_RESPONSE)) != 0)
+            {
+                swoole_error_log (SW_LOG_NOTICE, SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR, "handshake  with http proxy  error");
+                return SW_ERR;
+            }
+            else
+            {
+                cli->http_proxy->state = SW_HTTP_PROXY_STATE_READY;
+            }
+            if (swClient_enable_ssl_encrypt (cli) < 0)
+            {
+                 goto connect_fail;
+            }
+            else
+            {
+                if (swClient_ssl_handshake (cli) < 0)
+                {
+                    goto connect_fail;
+                }
+                else
+                {
+                    cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
+                }
+                return SwooleG.main_reactor->set (SwooleG.main_reactor, event->fd, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE);
+            }
+            cli->onConnect (cli);
+            return SW_OK;
+        }
+#endif
+        
+    }
     if (cli->socks5_proxy && cli->socks5_proxy->state != SW_SOCKS5_STATE_READY)
     {
         int n = swConnection_recv(event->socket, buf, buf_size, 0);
@@ -1003,6 +1067,17 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
             swSocks5_pack(buf, cli->socks5_proxy->username == NULL ? 0x00 : 0x02);
             cli->socks5_proxy->state = SW_SOCKS5_STATE_HANDSHAKE;
             return cli->send(cli, buf, sizeof(buf), 0);
+        }
+        if (cli->http_proxy && cli->http_proxy->state == SW_HTTP_PROXY_STATE_WAIT)
+        {
+#ifdef SW_USE_OPENSSL
+            if (cli->open_ssl)
+            {
+                cli->http_proxy->state = SW_HTTP_PROXY_STATE_HANDSHAKE;
+                int n = snprintf (cli->http_proxy->buf, sizeof (cli->http_proxy->buf), "CONNECT %s:%d HTTP/1.1\r\n\r\n", cli->http_proxy->target_host, cli->http_proxy->target_port);
+                return cli->send (cli, cli->http_proxy->buf, n, 0);
+            }
+#endif
         }
 #ifdef SW_USE_OPENSSL
         if (cli->open_ssl)

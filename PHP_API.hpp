@@ -27,6 +27,10 @@ extern "C"
 #include "php_streams.h"
 #include "php_network.h"
 
+#if PHP_MAJOR_VERSION < 7
+#error "only supports PHP7 or later."
+#endif
+
 #include "zend_interfaces.h"
 #include "zend_exceptions.h"
 #include "zend_variables.h"
@@ -37,10 +41,6 @@ extern "C"
 #include <ext/standard/info.h>
 #include <ext/standard/php_array.h>
 #include "ext/standard/php_var.h"
-
-#if PHP_MAJOR_VERSION < 7
-#error "only supports PHP7 or later."
-#endif
 }
 
 #include <unordered_map>

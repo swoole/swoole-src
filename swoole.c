@@ -789,6 +789,9 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_module_init(module_number TSRMLS_CC);
     swoole_mmap_init(module_number TSRMLS_CC);
     swoole_channel_init(module_number TSRMLS_CC);
+#ifdef SW_USE_HTTP2
+    swoole_http2_client_init(module_number TSRMLS_CC);
+#endif
 
 #if PHP_MAJOR_VERSION >= 7
     swoole_serialize_init(module_number TSRMLS_DC);

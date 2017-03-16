@@ -170,6 +170,10 @@ void swoole_dump_bin(char *data, char type, int size)
 {
     int i;
     int type_size = swoole_type_size(type);
+    if (type_size <= 0)
+    {
+        return;
+    }
     int n = size / type_size;
 
     for (i = 0; i < n; i++)

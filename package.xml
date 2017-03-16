@@ -100,9 +100,10 @@
 			<file role="src" name="swoole_table.c" />
 			<file role="src" name="swoole_buffer.c" />
 			<file role="src" name="swoole_http_server.c" />
-			<file role="src" name="swoole_http_v2_server.c" />
 			<file role="src" name="swoole_http_client.h" />
 			<file role="src" name="swoole_http_client.c" />
+			<file role="src" name="swoole_http_v2_client.c" />
+			<file role="src" name="swoole_http_v2_server.c" />
 			<file role="src" name="swoole_http.h" />
 			<file role="src" name="swoole_websocket_server.c" />
 			<file role="src" name="swoole_atomic.c" />
@@ -240,7 +241,13 @@
 				</dir>
 				<dir name="server">
 					<file role="src" name="echo.php" />
-					<file role="src" name="msgqueue.php" />
+					<file role="src" name="ip_dispatch.php" />
+					<file role="src" name="unix_stream.php" />
+					<file role="src" name="listen_1k_port.php" />
+					<file role="src" name="fixed_header_client.php" />
+					<file role="src" name="fixed_header_server.php" />
+					<file role="src" name="local_listener.php" />
+					<file role="src" name="single.php" />
 				</dir>
 				<dir name="http">
 					<file role="src" name="server.php" />
@@ -249,6 +256,10 @@
 					<file role="src" name="async_client.php" />
 					<file role="src" name="async_websocket.php" />
 					<file role="src" name="download.php" />
+				</dir>
+				<dir name="http2">
+					<file role="src" name="server.php" />
+					<file role="src" name="client.php" />
 				</dir>
 				<dir name="length">
                     <file role="src" name="server.php" />

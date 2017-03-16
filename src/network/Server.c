@@ -1257,6 +1257,11 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_LISTEN_PORT, "invalid port [%d]", port);
         return NULL;
     }
+    if (strlen(host) + 1  > SW_HOST_MAXSIZE)
+    {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_NAME_TOO_LONG, "address '%s' exceeds %d characters limit", host, SW_HOST_MAXSIZE - 1);
+        return NULL;
+    }
 
     swListenPort *ls = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenPort));
     if (ls == NULL)
@@ -1268,8 +1273,7 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
     swPort_init(ls);
     ls->type = type;
     ls->port = port;
-    bzero(ls->host, SW_HOST_MAXSIZE);
-    strncpy(ls->host, host, SW_HOST_MAXSIZE);
+    strncpy(ls->host, host, strlen(host) + 1);
 
     if (type & SW_SOCK_SSL)
     {

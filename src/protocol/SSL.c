@@ -98,9 +98,14 @@ static const SSL_METHOD *swSSL_get_method(int method)
 
 void swSSL_init(void)
 {
+#if OPENSSL_VERSION_NUMBER >= 0x10100003L
+    OPENSSL_init_ssl(OPENSSL_INIT_LOAD_CONFIG, NULL);
+#else
+    OPENSSL_config(NULL);
     SSL_library_init();
     SSL_load_error_strings();
     OpenSSL_add_all_algorithms();
+#endif
     openssl_init = 1;
 }
 

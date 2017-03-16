@@ -126,6 +126,11 @@ typedef unsigned long ulong_t;
 
 #define SW_START_LINE  "-------------------------START----------------------------"
 #define SW_END_LINE    "-------------------------END------------------------------"
+#define SW_ECHO_GREEN             "\e[32m%s\e[0m"
+#define SW_ECHO_RED               "\e[31m%s\e[0m"
+#define SW_ECHO_YELLOW            "\e[33m%s\e[0m"
+#define SW_ECHO_CYAN_BLUE         "\e[36m%s\e[0m"
+
 #define SW_SPACE       ' '
 #define SW_CRLF        "\r\n"
 #define SW_CRLF_LEN    2

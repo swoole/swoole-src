@@ -132,7 +132,7 @@ int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
     }
 
 #if PHP_MAJOR_VERSION >= 7
-    if (SWOOLE_G(fast_serialize))
+    if (SWOOLE_G(fast_serialize) && serialized_string)
     {
         zend_string_release(serialized_string);
     }
@@ -891,6 +891,10 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     if (swTask_type(req) & SW_TASK_CALLBACK)
     {
         callback = swHashMap_find_int(task_callbacks, req->info.fd);
+        if (callback == NULL)
+        {
+            swTask_type(req) = swTask_type(req) & (~SW_TASK_CALLBACK);
+        }
     }
     if (callback == NULL)
     {

@@ -30,11 +30,38 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC);
 static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zval *callback TSRMLS_DC);
 
 #ifdef SW_HAVE_ZLIB
-int http_response_uncompress(z_stream *stream, char *body, int length);
+int http_response_uncompress(z_stream *stream, swString *buffer, char *body, int length);
 static void http_init_gzip_stream(http_client *);
 extern voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);
 extern void php_zlib_free(voidpf opaque, voidpf address);
 #endif
+
+static sw_inline void http_client_swString_append_headers(swString* swStr, char* key, zend_size_t key_len, char* data, zend_size_t data_len)
+{
+    swString_append_ptr(swStr, key, key_len);
+    swString_append_ptr(swStr, ZEND_STRL(": "));
+    swString_append_ptr(swStr, data, data_len);
+    swString_append_ptr(swStr, ZEND_STRL("\r\n"));
+}
+
+static sw_inline void http_client_append_content_length(swString* buf, int length)
+{
+    char content_length_str[32];
+    int n = snprintf(content_length_str, sizeof(content_length_str), "Content-Length: %d\r\n\r\n", length);
+    swString_append_ptr(buf, content_length_str, n);
+}
+
+static sw_inline void http_client_create_token(int length, char *buf)
+{
+    char characters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"§$%&/()=[]{}";
+    int i;
+    assert(length < 1024);
+    for (i = 0; i < length; i++)
+    {
+        buf[i] = characters[rand() % sizeof(characters) - 1];
+    }
+    buf[length] = '\0';
+}
 
 static const php_http_parser_settings http_parser_settings =
 {
@@ -325,6 +352,17 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
         }
         //client settings
         php_swoole_client_check_setting(http->cli, zset TSRMLS_CC);
+
+        if (http->cli->http_proxy)
+        {
+            zval *send_header = hcc->request_header;
+            zval *value;
+            if (sw_zend_hash_find (Z_ARRVAL_P (send_header), ZEND_STRS ("Host"), (void **) &value) == FAILURE)
+            {
+                swoole_php_fatal_error (E_WARNING, "http proxy must set Host");
+                return SW_ERR;
+            }
+        }
     }
 
     if (cli->socket->active == 1)
@@ -565,6 +603,13 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
         close(http->file_fd);
         http->download = 0;
         http->file_fd = 0;
+#ifdef SW_HAVE_ZLIB
+        if (http->gzip_buffer)
+        {
+            swString_free(http->gzip_buffer);
+            http->gzip_buffer = NULL;
+        }
+#endif
     }
 #ifdef SW_HAVE_ZLIB
     if (http->gzip)
@@ -666,17 +711,32 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
         }
     }
 
-    swString_clear(http_client_buffer);
-    swString_append_ptr(http_client_buffer, hcc->request_method, strlen(hcc->request_method));
-    hcc->request_method = NULL;
-    swString_append_ptr(http_client_buffer, ZEND_STRL(" "));
-    swString_append_ptr(http_client_buffer, http->uri, http->uri_len);
-    swString_append_ptr(http_client_buffer, ZEND_STRL(" HTTP/1.1\r\n"));
-
     char *key;
     uint32_t keylen;
     int keytype;
-    zval *value;
+    zval *value = NULL;
+
+    swString_clear(http_client_buffer);
+    swString_append_ptr(http_client_buffer, hcc->request_method, strlen(hcc->request_method));
+    hcc->request_method = NULL;
+    swString_append_ptr (http_client_buffer, ZEND_STRL (" "));
+#ifdef SW_USE_OPENSSL
+    if (http->cli->http_proxy&&!http->cli->open_ssl)
+#else
+    if (http->cli->http_proxy)
+#endif
+    {
+        sw_zend_hash_find (Z_ARRVAL_P (send_header), ZEND_STRS ("Host"), (void **) &value); //checked before
+        char *pre = "http://";
+        int len = http->uri_len + Z_STRLEN_P (value) + strlen (pre) + 1;
+        void *addr = ecalloc (len, 1);
+        snprintf (addr, len, "%s%s%s", pre, Z_STRVAL_P (value), http->uri);
+        efree (http->uri);
+        http->uri = addr;
+        http->uri_len = len;
+    }
+    swString_append_ptr (http_client_buffer, http->uri, http->uri_len);
+    swString_append_ptr(http_client_buffer, ZEND_STRL(" HTTP/1.1\r\n"));
 
     if (send_header && Z_TYPE_P(send_header) == IS_ARRAY)
     {
@@ -940,7 +1000,6 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
     }
 
     swTrace("[%d]: %s\n", (int)http_client_buffer->length, http_client_buffer->str);
-
     if ((ret = http->cli->send(http->cli, http_client_buffer->str, http_client_buffer->length, 0)) < 0)
     {
         send_fail:
@@ -982,7 +1041,7 @@ void http_client_free(zval *object TSRMLS_DC)
     efree(http);
 }
 
-http_client* http_client_create(zval *object TSRMLS_DC)
+static http_client* http_client_create(zval *object TSRMLS_DC)
 {
     zval *ztmp;
     http_client *http;
@@ -1352,7 +1411,7 @@ static PHP_METHOD(swoole_http_client, on)
     RETURN_TRUE;
 }
 
-int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length)
+static int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length)
 {
 // #if PHP_MAJOR_VERSION < 7
 //     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -1365,7 +1424,7 @@ int http_client_parser_on_header_field(php_http_parser *parser, const char *at, 
     return 0;
 }
 
-int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length)
+static int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -1471,37 +1530,48 @@ static void http_init_gzip_stream(http_client *http)
 {
     http->gzip = 1;
     memset(&http->gzip_stream, 0, sizeof(http->gzip_stream));
-    swString_clear(swoole_zlib_buffer);
+    if (http->download)
+    {
+        http->gzip_buffer = swString_new(8192);
+    }
+    else
+    {
+        http->gzip_buffer = swoole_zlib_buffer;
+    }
     http->gzip_stream.zalloc = php_zlib_alloc;
     http->gzip_stream.zfree = php_zlib_free;
 }
 
-int http_response_uncompress(z_stream *stream, char *body, int length)
+int http_response_uncompress(z_stream *stream, swString *buffer, char *body, int length)
 {
     int status = 0;
 
     stream->avail_in = length;
     stream->next_in = (Bytef *) body;
+    stream->total_in = 0;
+    stream->total_out = 0;
 
 #if 0
-    printf(SW_START_LINE"\nstatus=%d\tavail_in=%ld,\tavail_out=%ld,\ttotal_in=%ld,\ttotal_out=%ld\n", status, gzip_stream->avail_in, gzip_stream->avail_out,
-                        gzip_stream->total_in, gzip_stream->total_out);
+    printf(SW_START_LINE"\nstatus=%d\tavail_in=%ld,\tavail_out=%ld,\ttotal_in=%ld,\ttotal_out=%ld\n", status,
+            stream->avail_in, stream->avail_out, stream->total_in, stream->total_out);
 #endif
+
+    swString_clear(buffer);
 
     while (1)
     {
-        stream->avail_out = swoole_zlib_buffer->size - swoole_zlib_buffer->length;
-        stream->next_out = (Bytef *) (swoole_zlib_buffer->str + swoole_zlib_buffer->length);
+        stream->avail_out = buffer->size - buffer->length;
+        stream->next_out = (Bytef *) (buffer->str + buffer->length);
 
-        status = inflate(stream, Z_SYNC_FLUSH);
+        status = inflate(stream, Z_NO_FLUSH);
 
 #if 0
-        printf("status=%d\tavail_in=%ld,\tavail_out=%ld,\ttotal_in=%ld,\ttotal_out=%ld,\tlength=%ld\n", status, gzip_stream->avail_in, gzip_stream->avail_out,
-                gzip_stream->total_in, gzip_stream->total_out, swoole_zlib_buffer->length);
+        printf("status=%d\tavail_in=%ld,\tavail_out=%ld,\ttotal_in=%ld,\ttotal_out=%ld,\tlength=%ld\n", status,
+                stream->avail_in, stream->avail_out, stream->total_in, stream->total_out, buffer->length);
 #endif
         if (status >= 0)
         {
-            swoole_zlib_buffer->length = stream->total_out;
+            buffer->length = stream->total_out;
         }
         if (status == Z_STREAM_END)
         {
@@ -1509,9 +1579,9 @@ int http_response_uncompress(z_stream *stream, char *body, int length)
         }
         else if (status == Z_OK)
         {
-            if (swoole_zlib_buffer->length + 4096 >= swoole_zlib_buffer->size)
+            if (buffer->length + 4096 >= buffer->size)
             {
-                swString_extend(swoole_zlib_buffer, swoole_zlib_buffer->size * 2);
+                swString_extend(buffer, buffer->size * 2);
             }
             if (stream->avail_in == 0)
             {
@@ -1527,7 +1597,7 @@ int http_response_uncompress(z_stream *stream, char *body, int length)
 }
 #endif
 
-int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length)
+static int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length)
 {
     http_client* http = (http_client*) parser->data;
     if (swString_append_ptr(http->body, (char *) at, length) < 0)
@@ -1539,16 +1609,14 @@ int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t l
 #ifdef SW_HAVE_ZLIB
         if (http->gzip)
         {
-            if (http_response_uncompress(&http->gzip_stream, http->body->str, http->body->length))
+            if (http_response_uncompress(&http->gzip_stream, http->gzip_buffer, http->body->str, http->body->length))
             {
                 return -1;
             }
-            if (swoole_sync_writefile(http->file_fd, (void*) swoole_zlib_buffer->str + swoole_zlib_buffer->offset,
-                    swoole_zlib_buffer->length - swoole_zlib_buffer->offset) < 0)
+            if (swoole_sync_writefile(http->file_fd, http->gzip_buffer->str, http->gzip_buffer->length) < 0)
             {
                 return -1;
             }
-            swoole_zlib_buffer->offset = swoole_zlib_buffer->length;
         }
         else
 #endif
@@ -1586,12 +1654,12 @@ int http_client_parser_on_message_complete(php_http_parser *parser)
 #ifdef SW_HAVE_ZLIB
     if (http->gzip && http->body->length > 0)
     {
-        if (http_response_uncompress(&http->gzip_stream, http->body->str, http->body->length) == SW_ERR)
+        if (http_response_uncompress(&http->gzip_stream, http->gzip_buffer, http->body->str, http->body->length) == SW_ERR)
         {
             swWarn("http_response_uncompress failed.");
             return 0;
         }
-        zend_update_property_stringl(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("body"), swoole_zlib_buffer->str, swoole_zlib_buffer->length TSRMLS_CC);
+        zend_update_property_stringl(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("body"), http->gzip_buffer->str, http->gzip_buffer->length TSRMLS_CC);
     }
     else
 #endif

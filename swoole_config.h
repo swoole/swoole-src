@@ -54,7 +54,7 @@
 #define SW_TIMER_TYPE_CORO         1             //定时器特殊类型，支持协程超时切换
 //#define SW_CONNECTION_LIST_EXPAND  (4096*2)  //动态扩容的数量
 
-#define SW_HOST_MAXSIZE            128
+#define SW_HOST_MAXSIZE            104  // Linux has 108 UNIX_PATH_MAX, but BSD/MacOS limit is only 104
 
 //#define SW_DEBUG                 //debug
 #define SW_LOG_NO_SRCINFO          //no source info
