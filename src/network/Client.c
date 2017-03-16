@@ -174,7 +174,7 @@ int swClient_enable_ssl_encrypt(swClient *cli)
         return SW_ERR;
     }
     cli->socket->ssl_send = 1;
-#ifdef SW_USE_HTTP2
+#if defined(SW_USE_HTTP2) && defined(SW_USE_OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x10002000L
     if (cli->http2)
     {
         if (SSL_CTX_set_alpn_protos(cli->ssl_context, (const unsigned char *) "\x02h2", 3) < 0)
