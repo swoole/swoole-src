@@ -386,7 +386,7 @@ static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
     /**
      * string buffer
      */
-    char *_buffer = emalloc(len);
+    char *_buffer = (char*)emalloc(len);
     if (!_buffer)
     {
         return -SW_MYSQL_ERR_BAD_LCB;
@@ -528,7 +528,7 @@ static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
     i += 4;
 
     /* type */
-    col->type = (uchar) buf[i];
+    col->type = (enum mysql_field_types) buf[i];
     i += 1;
 
     /* flags */
