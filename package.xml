@@ -35,10 +35,10 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2017-01-24</date>
+    <date>2017-03-17</date>
     <time>09:50:10</time>
     <version>
-		<release>2.0.6</release>
+		<release>2.0.7</release>
 		<api>2.0</api>
     </version>
     <stability>
@@ -47,8 +47,8 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-    - Fixed http client and redis client conflicts
-    - Fixed the coroutine client cannot use the SplQueue on PHP5
+    - Added Coroutine::create function, allows user to create coroutine
+    - Fixed HttpClient crash
     </notes>
 	<contents>
 		<dir name="/">
