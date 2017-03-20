@@ -165,6 +165,10 @@ public:
             return &val;
         }
     }
+    inline void addRef()
+    {
+        zval_add_ref(ptr());
+    }
     inline int type()
     {
         return Z_TYPE_P(ptr());
