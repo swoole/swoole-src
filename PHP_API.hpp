@@ -357,21 +357,29 @@ public:
     Array(zval *v) :
             Variant(v)
     {
-        if(Z_TYPE_P(v)!=IS_ARRAY)
+        ref_val = v;
+        reference = true;
+        if (Z_TYPE_P(v) == IS_NULL)
+        {
+            array_init(v);
+        }
+        else if (Z_TYPE_P(v) != IS_ARRAY)
         {
             php_error_docref(NULL, E_ERROR, "cpp moudle array construct args must be zend array");
         }
     }
-    Array(Variant &v) :
-            Variant()
+    Array(Variant &v)
     {
-        if(!v.isArray())
+        ref_val = v.ptr();
+        reference = true;
+        if (v.isNull())
+        {
+            array_init(ref_val);
+        }
+        else if (!v.isArray())
         {
             php_error_docref(NULL, E_ERROR, "cpp moudle array construct args must be zend array");
         }
-            
-        memcpy(&val, v.ptr(), sizeof(val));
-        zval_add_ref(&val);
     }
     void append(Variant &v)
     {
@@ -420,10 +428,14 @@ public:
         ZVAL_ARR(&array, arr);
         add_next_index_zval(ptr(), &array);
     }
-    //------------------------------------
+    //------------------assoc-array------------------
     void set(const char *key, Variant &v)
     {
         add_assoc_zval(ptr(), key, v.ptr());
+    }
+    void set(const char *key, int v)
+    {
+        add_assoc_long(ptr(), key, (long) v);
     }
     void set(const char *key, long v)
     {
@@ -453,6 +465,7 @@ public:
     {
         add_index_zval(ptr(), (zend_ulong) i, v.ptr());
     }
+    //-------------------------------------------
     Variant operator [](int i)
     {
         zval *ret = zend_hash_index_find(Z_ARRVAL_P(ptr()), (zend_ulong) i);

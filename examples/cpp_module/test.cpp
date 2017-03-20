@@ -58,9 +58,6 @@ int swModule_init(swModule *module)
     string str("test");
     PHP::registerConstant("CPP_CONSTANTS_STRING", str);
 
-    printf("SWOOLE_BASE=%ld\n", PHP::constant("SWOOLE_BASE").toInt());
-    printf("swoole_table::TYPE_INT=%ld\n", PHP::constant("swoole_table::TYPE_INT").toInt());
-
     Class c("CppClass");
     /**
      * 注册构造方法
@@ -163,9 +160,15 @@ void CppClass_count(Object &_this, Args &args, Variant &retval)
 
 void cpp_hello_world(Args &args, Variant &retval)
 {
-    //printf("cpp function call\n");
-    //var_dump(args);
-    retval = 3.1415926;
+    printf("SWOOLE_BASE=%ld\n", PHP::constant("SWOOLE_BASE").toInt());
+    printf("swoole_table::TYPE_INT=%ld\n", PHP::constant("swoole_table::TYPE_INT").toInt());
+
+    Variant argv = args.toArray();
+    var_dump(argv);
+
+    Array arr(retval);
+    arr.set("key", "key");
+    arr.set("value", 12345);
 }
 
 /**
