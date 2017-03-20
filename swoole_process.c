@@ -734,7 +734,7 @@ static PHP_METHOD(swoole_process, read)
     int ret = read(process->pipe, buf, buf_size);;
     if (ret < 0)
     {
-        efree(buf); 
+        efree(buf);
         if (errno != EINTR)
         {
             swoole_php_error(E_WARNING, "failed. Error: %s[%d]", strerror(errno), errno);
@@ -1006,10 +1006,7 @@ static PHP_METHOD(swoole_process, exit)
 
     close(process->pipe);
 
-    if (SwooleG.main_reactor != NULL)
-    {
-        SwooleG.running = 0;
-    }
+    SwooleG.running = 0;
 
     if (ret_code == 0)
     {
