@@ -759,8 +759,8 @@ Object create(const char *name)
 }
 
 #define function(f) #f, f
-typedef Variant (*function_t)(Args &);
-typedef Variant (*method_t)(Object &, Args &);
+typedef void (*function_t)(Args &, Variant &retval);
+typedef void (*method_t)(Object &, Args &, Variant &retval);
 static unordered_map<string, function_t> function_map;
 static unordered_map<string, unordered_map<string, method_t> > method_map;
 
@@ -778,9 +778,8 @@ static void _exec_function(zend_execute_data *data, zval *return_value)
         args.append(param_ptr);
         param_ptr++;
     }
-    Variant retval = func(args);
-    ZVAL_DUP(return_value, retval.ptr());
-    return;
+    Variant _retval(return_value, true);
+    func(args, _retval);
 }
 
 static void _exec_method(zend_execute_data *data, zval *return_value)
@@ -801,9 +800,8 @@ static void _exec_method(zend_execute_data *data, zval *return_value)
         args.append(param_ptr);
         param_ptr++;
     }
-    Variant retval = func(_this, args);
-    ZVAL_DUP(return_value, retval.ptr());
-    return;
+    Variant _retval(return_value, true);
+    func(_this, args, _retval);
 }
 
 typedef struct _zend_internal_arg_info ArgInfo;

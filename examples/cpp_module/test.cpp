@@ -28,13 +28,13 @@ extern "C"
     int swModule_init(swModule *);
 }
 
-Variant cpp_hello_world(Args &args);
-Variant cpp_test(Args &params);
-Variant CppClass_construct(Object &_this, Args &args);
+void cpp_hello_world(Args &args, Variant &retval);
+void cpp_test(Args &params, Variant &retval);
+void CppClass_construct(Object &_this, Args &args, Variant &retval);
 
-Variant CppClass_test(Object &_this, Args &args);
-Variant CppClass_test2(Object &_this, Args &args);
-Variant CppClass_count(Object &_this, Args &args);
+void CppClass_test(Object &_this, Args &args, Variant &retval);
+void CppClass_test2(Object &_this, Args &args, Variant &retval);
+void CppClass_count(Object &_this, Args &args, Variant &retval);
 
 int test_get_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 int dispatch_function(swServer *serv, swConnection *conn, swEventData *data);
@@ -131,49 +131,48 @@ void testRedis()
     printf("value=%s\n", ret2.toCString());
 }
 
-Variant CppClass_construct(Object &_this, Args &args)
+void CppClass_construct(Object &_this, Args &args, Variant &retval)
 {
     printf("%s _construct\n", _this.getClassName().c_str());
     Array arr;
     arr.append(1234);
     _this.set("name", arr);
-    return nullptr;
 }
 
-Variant CppClass_test(Object &_this, Args &args)
+void CppClass_test(Object &_this, Args &args, Variant &retval)
 {
     printf("CppClass static method call\n");
     //静态方法, _this为null
     //var_dump(_this);
     //var_dump(args);
-    return "3.1415926";
+    retval = "3.1415926";
 }
 
-Variant CppClass_test2(Object &_this, Args &args)
+void CppClass_test2(Object &_this, Args &args, Variant &retval)
 {
     printf("CppClass method call\n");
     //var_dump(_this);
     //var_dump(args);
-    return "3.1415926";
+    retval = "3.1415926";
 }
 
-Variant CppClass_count(Object &_this, Args &args)
+void CppClass_count(Object &_this, Args &args, Variant &retval)
 {
-    return 1;
+    retval =  1;
 }
 
-Variant cpp_hello_world(Args &args)
+void cpp_hello_world(Args &args, Variant &retval)
 {
     //printf("cpp function call\n");
     //var_dump(args);
-    return 3.1415926;
+    retval = 3.1415926;
 }
 
 /**
  * $module = swoole_load_module(__DIR__.'/test.so');
  * cpp_test("abc", 1234, 459.55, "hello");
  */
-Variant cpp_test(Args &params)
+void cpp_test(Args &params, Variant &_retval)
 {
     printf("key[0] = %s\n", params[0].toCString());
     printf("key[1] = %ld\n", params[1].toInt());
@@ -290,6 +289,4 @@ Variant cpp_test(Args &params)
     {
         cout << "return value=" << retval.toString() << endl;
     }
-
-    return Variant("hello");
 }
