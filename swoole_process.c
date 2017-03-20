@@ -670,6 +670,7 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
     if (SwooleG.main_reactor)
     {
         php_swoole_event_wait();
+        SwooleG.running = 0;
     }
 
     zend_bailout();
