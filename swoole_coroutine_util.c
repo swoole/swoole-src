@@ -254,8 +254,48 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
         longjmp(*swReactorCheckPoint, 1);
     }
 }
+
+#else
+static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache)
+{
+    int i;
+    zend_execute_data *call, *current_ex = EG(current_execute_data);
+    zend_function *func = fci_cache->function_handler;
+    zend_object *object = (func->common.fn_flags & ZEND_ACC_STATIC) ? NULL : fci_cache->object;
+    call = zend_vm_stack_push_call_frame(ZEND_CALL_TOP_FUNCTION | ZEND_CALL_DYNAMIC, func,
+            fci->param_count, fci_cache->called_scope, object);
+
+    for (i = 0; i < fci->param_count; ++i)
+    {
+        zval *target;
+        target = ZEND_CALL_ARG(call, i + 1);
+        ZVAL_COPY(target, &fci->params[i]);
+    }
+
+    zend_init_execute_data(call, &func->op_array, fci->retval);
+
+    jmp_buf *prev_checkpoint = swReactorCheckPoint;
+    swReactorCheckPoint = emalloc(sizeof(jmp_buf));
+
+    if (!setjmp(*swReactorCheckPoint))
+    {
+        zend_execute_ex(call);
+        efree(swReactorCheckPoint);
+        swReactorCheckPoint = prev_checkpoint;
+    }
+    else
+    {
+        call->prev_execute_data = current_ex->prev_execute_data;
+        ZEND_SET_CALL_INFO(call, object, ZEND_CALL_DYNAMIC);
+        efree(swReactorCheckPoint);
+        swReactorCheckPoint = prev_checkpoint;
+        zend_vm_stack_free_args(current_ex);
+        longjmp(*swReactorCheckPoint, 1);
+    }
+}
 #endif
 
+#if PHP_MAJOR_VERSION < 7
 static PHP_METHOD(swoole_coroutine_util, call_user_func)
 {
     zend_fcall_info fci;
@@ -266,14 +306,34 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func)
         return;
     }
 
-#if PHP_MAJOR_VERSION < 7
     swoole_corountine_call_function(&fci, &fci_cache, return_value_ptr, 0, return_value_used);
-#else
-    swoole_php_fatal_error(E_ERROR, "swoole reflection is deprecated in php7");
     RETURN_FALSE;
-#endif
 }
 
+#else
+static PHP_METHOD(swoole_coroutine_util, call_user_func)
+{
+	zval retval;
+	zend_fcall_info fci;
+	zend_fcall_info_cache fci_cache;
+
+	ZEND_PARSE_PARAMETERS_START(1, -1)
+		Z_PARAM_FUNC(fci, fci_cache)
+		Z_PARAM_VARIADIC('*', fci.params, fci.param_count)
+	ZEND_PARSE_PARAMETERS_END();
+
+        fci.retval = (execute_data->prev_execute_data->opline->result_type != IS_UNUSED) ? return_value : NULL;
+        swoole_corountine_call_function(&fci, &fci_cache);
+//	if (Z_TYPE(retval) != IS_UNDEF) {
+//		if (Z_ISREF(retval)) {
+//			zend_unwrap_reference(&retval);
+//		}
+//		ZVAL_COPY_VALUE(return_value, &retval);
+//	}
+}
+#endif
+
+#if PHP_MAJOR_VERSION < 7
 static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
 {
     zval *params;
@@ -285,13 +345,36 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
         return;
     }
     zend_fcall_info_args(&fci, params TSRMLS_CC);
-#if PHP_MAJOR_VERSION < 7
     swoole_corountine_call_function(&fci, &fci_cache, return_value_ptr, 1, return_value_used);
-#else
-    swoole_php_fatal_error(E_ERROR, "swoole reflection is deprecated in php7");
     RETURN_FALSE;
-#endif
 }
+
+#else
+static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
+{
+	zval *params, retval;
+	zend_fcall_info fci;
+	zend_fcall_info_cache fci_cache;
+
+	ZEND_PARSE_PARAMETERS_START(2, 2)
+		Z_PARAM_FUNC(fci, fci_cache)
+		Z_PARAM_ARRAY_EX(params, 0, 1)
+	ZEND_PARSE_PARAMETERS_END();
+
+	zend_fcall_info_args(&fci, params);
+
+        fci.retval = (execute_data->prev_execute_data->opline->result_type != IS_UNUSED) ? return_value : NULL;
+        swoole_corountine_call_function(&fci, &fci_cache);
+//	if (Z_TYPE(retval) != IS_UNDEF) {
+//		if (Z_ISREF(retval)) {
+//			zend_unwrap_reference(&retval);
+//		}
+//		ZVAL_COPY_VALUE(return_value, &retval);
+//	}
+
+	zend_fcall_info_args_clear(&fci, 1);
+}
+#endif
 
 static PHP_METHOD(swoole_coroutine_util, suspend)
 {
