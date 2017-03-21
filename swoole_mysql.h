@@ -528,7 +528,7 @@ static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
     i += 4;
 
     /* type */
-    col->type = (uchar) buf[i];
+    col->type = (enum mysql_field_types) (uchar)buf[i];
     i += 1;
 
     /* flags */

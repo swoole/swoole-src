@@ -357,21 +357,29 @@ public:
     Array(zval *v) :
             Variant(v)
     {
-        if(Z_TYPE_P(v)!=IS_ARRAY)
+        ref_val = v;
+        reference = true;
+        if (Z_TYPE_P(v) == IS_NULL)
+        {
+            array_init(v);
+        }
+        else if (Z_TYPE_P(v) != IS_ARRAY)
         {
             php_error_docref(NULL, E_ERROR, "cpp moudle array construct args must be zend array");
         }
     }
-    Array(Variant &v) :
-            Variant()
+    Array(Variant &v)
     {
-        if(!v.isArray())
+        ref_val = v.ptr();
+        reference = true;
+        if (v.isNull())
+        {
+            array_init(ref_val);
+        }
+        else if (!v.isArray())
         {
             php_error_docref(NULL, E_ERROR, "cpp moudle array construct args must be zend array");
         }
-            
-        memcpy(&val, v.ptr(), sizeof(val));
-        zval_add_ref(&val);
     }
     void append(Variant &v)
     {
@@ -420,10 +428,14 @@ public:
         ZVAL_ARR(&array, arr);
         add_next_index_zval(ptr(), &array);
     }
-    //------------------------------------
+    //------------------assoc-array------------------
     void set(const char *key, Variant &v)
     {
         add_assoc_zval(ptr(), key, v.ptr());
+    }
+    void set(const char *key, int v)
+    {
+        add_assoc_long(ptr(), key, (long) v);
     }
     void set(const char *key, long v)
     {
@@ -453,6 +465,7 @@ public:
     {
         add_index_zval(ptr(), (zend_ulong) i, v.ptr());
     }
+    //-------------------------------------------
     Variant operator [](int i)
     {
         zval *ret = zend_hash_index_find(Z_ARRVAL_P(ptr()), (zend_ulong) i);
@@ -759,8 +772,8 @@ Object create(const char *name)
 }
 
 #define function(f) #f, f
-typedef Variant (*function_t)(Args &);
-typedef Variant (*method_t)(Object &, Args &);
+typedef void (*function_t)(Args &, Variant &retval);
+typedef void (*method_t)(Object &, Args &, Variant &retval);
 static unordered_map<string, function_t> function_map;
 static unordered_map<string, unordered_map<string, method_t> > method_map;
 
@@ -778,9 +791,8 @@ static void _exec_function(zend_execute_data *data, zval *return_value)
         args.append(param_ptr);
         param_ptr++;
     }
-    Variant retval = func(args);
-    ZVAL_DUP(return_value, retval.ptr());
-    return;
+    Variant _retval(return_value, true);
+    func(args, _retval);
 }
 
 static void _exec_method(zend_execute_data *data, zval *return_value)
@@ -801,9 +813,8 @@ static void _exec_method(zend_execute_data *data, zval *return_value)
         args.append(param_ptr);
         param_ptr++;
     }
-    Variant retval = func(_this, args);
-    ZVAL_DUP(return_value, retval.ptr());
-    return;
+    Variant _retval(return_value, true);
+    func(_this, args, _retval);
 }
 
 typedef struct _zend_internal_arg_info ArgInfo;
