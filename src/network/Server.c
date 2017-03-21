@@ -1042,6 +1042,8 @@ int swServer_tcp_close(swServer *serv, int fd, int reset)
     {
         conn->close_reset = 1;
     }
+    //server is initiative to close the connection
+    conn->close_actively = 1;
     int ret;
     if (!swIsWorker())
     {
@@ -1494,6 +1496,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
                 conn->close_force = 1;
                 conn->close_notify = 1;
                 conn->close_wait = 1;
+                conn->close_actively = 1;
 
                 if (serv->factory_mode != SW_MODE_PROCESS)
                 {

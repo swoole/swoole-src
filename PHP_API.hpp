@@ -165,6 +165,10 @@ public:
             return &val;
         }
     }
+    inline void addRef()
+    {
+        zval_add_ref(ptr());
+    }
     inline int type()
     {
         return Z_TYPE_P(ptr());
@@ -353,11 +357,19 @@ public:
     Array(zval *v) :
             Variant(v)
     {
-
+        if(Z_TYPE_P(v)!=IS_ARRAY)
+        {
+            php_error_docref(NULL, E_ERROR, "cpp moudle array construct args must be zend array");
+        }
     }
     Array(Variant &v) :
             Variant()
     {
+        if(!v.isArray())
+        {
+            php_error_docref(NULL, E_ERROR, "cpp moudle array construct args must be zend array");
+        }
+            
         memcpy(&val, v.ptr(), sizeof(val));
         zval_add_ref(&val);
     }
