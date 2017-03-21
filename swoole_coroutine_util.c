@@ -262,8 +262,13 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
     zend_execute_data *call, *current_ex = EG(current_execute_data);
     zend_function *func = fci_cache->function_handler;
     zend_object *object = (func->common.fn_flags & ZEND_ACC_STATIC) ? NULL : fci_cache->object;
+#if ZEND_MODULE_API_NO < 20160303
+    call = zend_vm_stack_push_call_frame(ZEND_CALL_TOP_FUNCTION, func,
+            fci->param_count, fci_cache->called_scope, object);
+#else
     call = zend_vm_stack_push_call_frame(ZEND_CALL_TOP_FUNCTION | ZEND_CALL_DYNAMIC, func,
             fci->param_count, fci_cache->called_scope, object);
+#endif
 
     for (i = 0; i < fci->param_count; ++i)
     {
@@ -286,7 +291,11 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
     else
     {
         call->prev_execute_data = current_ex->prev_execute_data;
-        ZEND_SET_CALL_INFO(call, object, ZEND_CALL_DYNAMIC);
+#if ZEND_MODULE_API_NO < 20160303
+        ZEND_SET_CALL_INFO(call, ZEND_CALL_NESTED);
+#else
+        ZEND_SET_CALL_INFO(call, object, ZEND_CALL_DYNAMIC|ZEND_CALL_NESTED);
+#endif
         efree(swReactorCheckPoint);
         swReactorCheckPoint = prev_checkpoint;
         zend_vm_stack_free_args(current_ex);
@@ -313,7 +322,6 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func)
 #else
 static PHP_METHOD(swoole_coroutine_util, call_user_func)
 {
-	zval retval;
 	zend_fcall_info fci;
 	zend_fcall_info_cache fci_cache;
 
@@ -324,12 +332,6 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func)
 
         fci.retval = (execute_data->prev_execute_data->opline->result_type != IS_UNUSED) ? return_value : NULL;
         swoole_corountine_call_function(&fci, &fci_cache);
-//	if (Z_TYPE(retval) != IS_UNDEF) {
-//		if (Z_ISREF(retval)) {
-//			zend_unwrap_reference(&retval);
-//		}
-//		ZVAL_COPY_VALUE(return_value, &retval);
-//	}
 }
 #endif
 
@@ -352,7 +354,7 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
 #else
 static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
 {
-	zval *params, retval;
+	zval *params;
 	zend_fcall_info fci;
 	zend_fcall_info_cache fci_cache;
 
@@ -365,12 +367,6 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
 
         fci.retval = (execute_data->prev_execute_data->opline->result_type != IS_UNUSED) ? return_value : NULL;
         swoole_corountine_call_function(&fci, &fci_cache);
-//	if (Z_TYPE(retval) != IS_UNDEF) {
-//		if (Z_ISREF(retval)) {
-//			zend_unwrap_reference(&retval);
-//		}
-//		ZVAL_COPY_VALUE(return_value, &retval);
-//	}
 
 	zend_fcall_info_args_clear(&fci, 1);
 }
