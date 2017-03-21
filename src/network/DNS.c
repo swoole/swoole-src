@@ -81,7 +81,7 @@ typedef struct rr_flags
     uint16_t rdlength;
 } RR_FLAGS;
 
-static int swoole_dns_request_id = 1;
+static uint16_t swoole_dns_request_id = 1;
 static swClient *resolver_socket = NULL;
 static swHashMap *request_map = NULL;
 
@@ -215,8 +215,10 @@ static int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
         steps = steps + ntohs(rrflags->rdlength);
     }
 
+    char key[1024];
     int request_id = ntohs(header->id);
-    swDNS_lookup_request *request = swHashMap_find_int(request_map, request_id);
+    int n = snprintf(key, sizeof(key), "%s-%d", _domain_name, request_id);
+    swDNS_lookup_request *request = swHashMap_find(request_map, key, n);
     if (request == NULL)
     {
         swWarn("bad response, request_id=%d.", request_id);
@@ -254,6 +256,7 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
     char *_domain_name;
     Q_FLAGS *qflags = NULL;
     char packet[8192];
+    char key[1024];
     swDNSResolver_header *header = NULL;
     int steps = 0;
 
@@ -266,7 +269,7 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
     }
 
     header = (swDNSResolver_header *) &packet;
-    header->id = (uint16_t) htons(swoole_dns_request_id);
+    header->id = htons(swoole_dns_request_id);
     header->qr = 0;
     header->opcode = 0;
     header->aa = 0;
@@ -292,6 +295,11 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
     }
 
     int len = strlen(domain);
+    if (len >= sizeof(key))
+    {
+        swWarn("domain name is too long.");
+        return SW_ERR;
+    }
     request->domain = strndup(domain, len + 1);
     if (request->domain == NULL)
     {
@@ -353,7 +361,8 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
     {
         request_map = swHashMap_new(128, NULL);
     }
-    swHashMap_add_int(request_map, swoole_dns_request_id, request);
+    int n = snprintf(key, sizeof(key), "%s-%d", domain, swoole_dns_request_id);
+    swHashMap_add(request_map, key, n, request);
     swoole_dns_request_id++;
     return SW_OK;
 }

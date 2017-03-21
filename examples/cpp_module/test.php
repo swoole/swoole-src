@@ -1,5 +1,7 @@
 <?php
 $module = swoole_load_module(__DIR__.'/test.so');
+var_dump(cpp_hello_world(1234, "test"));exit;
+
 
 ReflectionClass::export("CppClass");
 // exit;
